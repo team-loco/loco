@@ -15,13 +15,26 @@ import (
 var ErrResolve = errors.New("could not resolve the signed-in user")
 
 type Resolver struct {
-	pool    *pgxpool.Pool
-	queries *genDb.Queries
-	policy  SignupPolicy
+	pool           *pgxpool.Pool
+	queries        *genDb.Queries
+	policy         SignupPolicy
+	emailVerifiers EmailVerifiers
 }
 
-func NewResolver(pool *pgxpool.Pool, policy SignupPolicy) *Resolver {
-	return &Resolver{pool: pool, queries: genDb.New(pool), policy: policy}
+type ResolverOption func(*Resolver)
+
+func WithEmailVerifiers(verifiers EmailVerifiers) ResolverOption {
+	return func(r *Resolver) {
+		r.emailVerifiers = verifiers
+	}
+}
+
+func NewResolver(pool *pgxpool.Pool, policy SignupPolicy, opts ...ResolverOption) *Resolver {
+	r := &Resolver{pool: pool, queries: genDb.New(pool), policy: policy}
+	for _, opt := range opts {
+		opt(r)
+	}
+	return r
 }
 
 func (r *Resolver) Resolve(ctx context.Context, id Identity) (genDb.User, error) {
@@ -33,6 +46,13 @@ func (r *Resolver) Resolve(ctx context.Context, id Identity) (genDb.User, error)
 		return genDb.User{}, err
 	}
 
+	verified, err := r.emailVerified(ctx, id, nil)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check the email with the identity provider",
+			"issuer", id.Issuer, "error", err)
+		return genDb.User{}, ErrResolve
+	}
+	id.EmailVerified = verified
 	user, err = r.provision(ctx, id)
 	if isUniqueViolation(err) {
 		return r.existing(ctx, id)
@@ -53,16 +73,20 @@ func (r *Resolver) existing(ctx context.Context, id Identity) (genDb.User, error
 		return genDb.User{}, err
 	}
 	user := row.User
+	verified, err := r.returningEmailVerified(ctx, id)
+	if err != nil {
+		return genDb.User{}, err
+	}
 	email := nullableString(id.Email)
 	storedVerified := row.IdentityEmailVerified && row.IdentityEmail != nil && *row.IdentityEmail == id.Email
-	if id.EmailVerified && email != nil && !storedVerified {
+	if verified && email != nil && !storedVerified {
 		return r.recordVerifiedEmail(ctx, user, id)
 	}
 	if err := r.queries.TouchIdentity(ctx, genDb.TouchIdentityParams{
 		Issuer:        id.Issuer,
 		Subject:       id.Subject,
 		Email:         email,
-		EmailVerified: id.EmailVerified,
+		EmailVerified: verified,
 	}); err != nil {
 		slog.WarnContext(ctx, "failed to record identity login", "userId", user.ID, "error", err)
 	}
@@ -125,6 +149,38 @@ func moveAccountEmail(ctx context.Context, qtx *genDb.Queries, user genDb.User, 
 	}
 	slog.InfoContext(ctx, "moved the account email to the identity's verified address", "userId", user.ID)
 	return moved, nil
+}
+
+func (r *Resolver) returningEmailVerified(ctx context.Context, id Identity) (bool, error) {
+	if _, ok := r.emailVerifiers[id.Issuer]; !ok {
+		return r.emailVerified(ctx, id, nil)
+	}
+	stored, err := r.queries.GetIdentity(ctx, genDb.GetIdentityParams{Issuer: id.Issuer, Subject: id.Subject})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to load identity", "error", err)
+		return false, ErrResolve
+	}
+	verified, err := r.emailVerified(ctx, id, &stored)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to check the email with the identity provider; treating it as unverified",
+			"issuer", id.Issuer, "error", err)
+		return false, nil
+	}
+	return verified, nil
+}
+
+func (r *Resolver) emailVerified(ctx context.Context, id Identity, stored *genDb.Identity) (bool, error) {
+	lookup, ok := r.emailVerifiers[id.Issuer]
+	if !ok {
+		return id.EmailVerified, nil
+	}
+	if id.Email == "" {
+		return false, nil
+	}
+	if stored != nil && stored.EmailVerified && stored.Email != nil && *stored.Email == id.Email {
+		return true, nil
+	}
+	return lookup.EmailVerified(ctx, id.Subject, id.Email)
 }
 
 func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, error) {

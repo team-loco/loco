@@ -175,3 +175,14 @@ func (tvm *VendingMachine) touchAPITokenLastUsed(ctx context.Context, tokenID uu
 		slog.ErrorContext(ctx, "failed to touch api token last_used_at", "err", err)
 	}
 }
+
+func (tvm *VendingMachine) SessionIdentity(
+	ctx context.Context,
+	refreshToken string,
+) (queries.GetSessionIdentityByRefreshHashRow, error) {
+	return tvm.queries.GetSessionIdentityByRefreshHash(ctx, hashToken(refreshToken))
+}
+
+func (tvm *VendingMachine) RevokeIdentitySessions(ctx context.Context, identityID uuid.UUID) error {
+	return tvm.queries.DeleteSessionTokensForIdentity(ctx, &identityID)
+}

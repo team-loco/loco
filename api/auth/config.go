@@ -14,7 +14,18 @@ const (
 	presetSupabase     = "supabase"
 )
 
-var ErrAudienceRequired = errors.New("audience is required")
+var (
+	ErrAudienceRequired            = errors.New("audience is required")
+	ErrEmailVerificationNeedsAdmin = errors.New("emailVerification admin needs an admin client")
+	ErrEmailVerificationConflict   = errors.New("emailVerification admin cannot be combined with emailAuthoritative")
+)
+
+type EmailVerification string
+
+const (
+	EmailVerificationClaim EmailVerification = "claim"
+	EmailVerificationAdmin EmailVerification = "admin"
+)
 
 type WebAdapter string
 
@@ -39,14 +50,16 @@ type WebConfig struct {
 }
 
 type IssuerConfig struct {
-	Preset             string     `json:"preset"`
-	Name               string     `json:"name"`
-	Issuer             string     `json:"issuer"`
-	JWKSURL            string     `json:"jwksUrl"`
-	Audience           string     `json:"audience"`
-	Claims             ClaimPaths `json:"claims"`
-	EmailAuthoritative bool       `json:"emailAuthoritative"`
-	Web                *WebConfig `json:"web,omitempty"`
+	Preset             string            `json:"preset"`
+	Name               string            `json:"name"`
+	Issuer             string            `json:"issuer"`
+	JWKSURL            string            `json:"jwksUrl"`
+	Audience           string            `json:"audience"`
+	Claims             ClaimPaths        `json:"claims"`
+	EmailVerification  EmailVerification `json:"emailVerification"`
+	EmailAuthoritative bool              `json:"emailAuthoritative"`
+	Web                *WebConfig        `json:"web,omitempty"`
+	Admin              *AdminConfig      `json:"admin,omitempty"`
 }
 
 func ParseIssuers(raw string) ([]IssuerConfig, error) {
@@ -114,6 +127,12 @@ func (ic *IssuerConfig) applyDefaults() error {
 	if ic.Claims.AvatarURL == "" {
 		ic.Claims.AvatarURL = "picture"
 	}
+	if ic.Admin != nil && ic.Admin.URL == "" {
+		ic.Admin.URL = ic.Issuer
+	}
+	if err := ic.checkEmailVerification(); err != nil {
+		return err
+	}
 	if ic.Web != nil {
 		switch ic.Web.Adapter {
 		case WebAdapterSupabase:
@@ -134,8 +153,31 @@ func (ic *IssuerConfig) applyDefaults() error {
 	return nil
 }
 
+func (ic *IssuerConfig) checkEmailVerification() error {
+	switch ic.EmailVerification {
+	case "":
+		ic.EmailVerification = EmailVerificationClaim
+		return nil
+	case EmailVerificationClaim:
+		return nil
+	case EmailVerificationAdmin:
+		if ic.Admin == nil {
+			return ErrEmailVerificationNeedsAdmin
+		}
+		if ic.EmailAuthoritative {
+			return ErrEmailVerificationConflict
+		}
+		return nil
+	default:
+		return fmt.Errorf("unknown emailVerification %q", ic.EmailVerification)
+	}
+}
+
 func WebIssuer(issuers []IssuerConfig) (IssuerConfig, bool) {
 	for _, ic := range issuers {
+		if ic.Admin != nil && ic.Admin.URL == "" {
+			ic.Admin.URL = ic.Issuer
+		}
 		if ic.Web != nil {
 			return ic, true
 		}

@@ -9,8 +9,8 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
-	oAuth "github.com/team-loco/loco/gen/go/loco/oauth/v1"
-	"github.com/team-loco/loco/gen/go/loco/oauth/v1/oauthv1connect"
+	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
+	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/keychain"
 )
@@ -76,7 +76,7 @@ func FreshToken(ctx context.Context, host string, store keychain.TokenStore) (*k
 	return refreshed, nil
 }
 
-// refreshLocoToken calls the RefreshToken RPC using the stored refresh token,
+// refreshLocoToken calls the RefreshCLIToken RPC using the stored refresh token,
 // stores the new token pair in the keychain, and returns the updated UserToken.
 func refreshLocoToken(
 	ctx context.Context,
@@ -87,25 +87,29 @@ func refreshLocoToken(
 	defer cancel()
 
 	httpClient := httputil.NewHTTPClient()
-	oAuthClient := oauthv1connect.NewOAuthServiceClient(httpClient, host)
-	req := connect.NewRequest(&oAuth.RefreshTokenRequest{
+	authClient := authv1connect.NewAuthServiceClient(httpClient, host)
+	req := connect.NewRequest(&authv1.RefreshCLITokenRequest{
 		RefreshToken: refreshToken,
 	})
-	resp, err := oAuthClient.RefreshToken(ctx, req)
+	resp, err := authClient.RefreshCLIToken(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	lifetime := time.Duration(resp.Msg.GetExpiresIn())*time.Second - 10*time.Minute
-	newToken := &keychain.UserToken{
-		Host:         host,
-		Token:        resp.Msg.GetLocoToken(),
-		RefreshToken: resp.Msg.GetRefreshToken(),
-		ExpiresAt:    time.Now().Add(lifetime),
-	}
+	newToken := TokenFromCLITokens(host, resp.Msg.GetTokens())
 	if err = store.Set(*newToken); err != nil {
 		return nil, err
 	}
 	slog.Debug("token refreshed and stored in keychain")
 	return newToken, nil
+}
+
+func TokenFromCLITokens(host string, tokens *authv1.CLITokens) *keychain.UserToken {
+	lifetime := time.Duration(tokens.GetExpiresIn())*time.Second - 10*time.Minute
+	return &keychain.UserToken{
+		Host:         host,
+		Token:        tokens.GetAccessToken(),
+		RefreshToken: tokens.GetRefreshToken(),
+		ExpiresAt:    time.Now().Add(lifetime),
+	}
 }

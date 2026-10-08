@@ -15,6 +15,10 @@ import (
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
+	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
+	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
+	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
 	oAuth "github.com/team-loco/loco/gen/go/loco/oauth/v1"
 	"github.com/team-loco/loco/gen/go/loco/oauth/v1/oauthv1connect"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
@@ -67,7 +71,7 @@ type TokenDetails struct {
 func newLoginCmd(env Env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "login",
-		Short: "Login to loco via Github OAuth",
+		Short: "Log in to Loco",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			host, err := cmdutil.GetHost(cmd)
@@ -102,9 +106,17 @@ func newLoginCmd(env Env) *cobra.Command {
 			} else {
 				slog.Debug("no token found in keychain", "error", err)
 			}
-			c := api.NewClient("https://github.com")
-
 			httpClient := httputil.NewHTTPClient()
+			configResp, configErr := configv1connect.NewConfigServiceClient(httpClient, host).
+				GetConfig(ctx, connect.NewRequest(&configv1.GetConfigRequest{}))
+			if configErr != nil {
+				slog.Debug("could not read server config; using GitHub login", "error", configErr)
+			}
+			if configErr == nil && configResp.Msg.GetAuth() != nil {
+				return providerLogin(cmd, httpClient, host, store)
+			}
+
+			c := api.NewClient("https://github.com")
 			oAuthClient := oauthv1connect.NewOAuthServiceClient(httpClient, host)
 			resp, err := oAuthClient.GetOAuthDetails(ctx, connect.NewRequest(&oAuth.GetOAuthDetailsRequest{
 				Provider: oAuth.OAuthProvider_O_AUTH_PROVIDER_GITHUB,
@@ -196,14 +208,43 @@ func newLoginCmd(env Env) *cobra.Command {
 				return fmt.Errorf("login to %s failed: %w", host, err)
 			}
 
-			if err := setupLoginScope(ctx, httpClient, host, store, locoResp.Msg); err != nil {
+			newToken := tokenFromExchange(host, locoResp.Msg)
+			if err := setupLoginScope(ctx, httpClient, host, store, newToken); err != nil {
 				return fmt.Errorf("login to %s failed: %w", host, err)
 			}
 			return nil
 		},
 	}
 	cmd.Flags().String("host", "", "Set the host URL")
+	cmd.Flags().Bool("device", false, "Sign in with a code from another device, for machines without a browser")
+	cmd.Flags().String("web-host", "", "Web UI URL that approves the sign-in")
 	return cmd
+}
+
+func providerLogin(cmd *cobra.Command, httpClient *http.Client, host string, store keychain.TokenStore) error {
+	ctx := cmd.Context()
+	device, err := cmd.Flags().GetBool("device")
+	if err != nil {
+		return err
+	}
+	authClient := authv1connect.NewAuthServiceClient(httpClient, host)
+	var tokens *authv1.CLITokens
+	if device {
+		tokens, err = deviceLogin(ctx, authClient)
+	} else {
+		webHost, webErr := cmdutil.GetWebHost(cmd)
+		if webErr != nil {
+			return webErr
+		}
+		tokens, err = browserLogin(ctx, authClient, webHost, openBrowser)
+	}
+	if err != nil {
+		return fmt.Errorf("login to %s failed: %w", host, err)
+	}
+	if err := setupLoginScope(ctx, httpClient, host, store, *cmdutil.TokenFromCLITokens(host, tokens)); err != nil {
+		return fmt.Errorf("login to %s failed: %w", host, err)
+	}
+	return nil
 }
 
 func setupLoginScope(
@@ -211,10 +252,8 @@ func setupLoginScope(
 	httpClient *http.Client,
 	host string,
 	store keychain.TokenStore,
-	exchange *oAuth.ExchangeOAuthTokenResponse,
+	newToken keychain.UserToken,
 ) error {
-	newToken := tokenFromExchange(host, exchange)
-
 	cfg, err := session.Load()
 	if err != nil {
 		slog.Debug("failed to load existing config", "error", err)
@@ -232,7 +271,7 @@ func setupLoginScope(
 		}
 	}
 
-	org, workspace, err := resolveLoginScope(ctx, httpClient, host, exchange.GetLocoToken())
+	org, workspace, err := resolveLoginScope(ctx, httpClient, host, newToken.Token)
 	if err != nil {
 		return err
 	}

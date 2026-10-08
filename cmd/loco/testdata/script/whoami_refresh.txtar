@@ -3,7 +3,7 @@ env FAKE_HOST=$LOCO_HOST
 env LOCO_HOST=
 exec loco whoami --host $FAKE_HOST
 stdout 'Hi, Test User!'
-fakeapi called RefreshToken
+fakeapi called RefreshCLIToken
 fakeapi called WhoAmI 'Bearer refreshed-token'
 grep refreshed-token $HOME/.loco/credentials.json
 
