@@ -253,7 +253,7 @@ func withCORS(allowedOrigins []string, allowLoopback bool) func(http.Handler) ht
 	opts := cors.Options{
 		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   connectcors.AllowedMethods(),
-		AllowedHeaders:   connectcors.AllowedHeaders(),
+		AllowedHeaders:   append(connectcors.AllowedHeaders(), "Authorization"),
 		ExposedHeaders:   exposedHeaders,
 		AllowCredentials: true,
 	}
