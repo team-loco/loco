@@ -124,18 +124,6 @@ function EmptyArt({ kind, range }: { kind: ObsKind; range: TimeRange }) {
 	);
 }
 
-function Listening() {
-	return (
-		<span className="flex items-center gap-1.5 text-sm text-fg3">
-			<span className="relative size-[7px]">
-				<span className="absolute inset-0 animate-ping-soft rounded-full bg-primary motion-reduce:animate-none" />
-				<span className="absolute inset-0 rounded-full bg-primary" />
-			</span>
-			listening
-		</span>
-	);
-}
-
 function DeployCommand() {
 	const [copied, copy] = useCopy(COPY_RESET_MS);
 	return (
@@ -163,8 +151,6 @@ export function ObsPageEmpty({ kind }: { kind: ObsKind }) {
 			<div className="flex h-[34px] items-center gap-2 border-b border-line bg-pe-head px-3 text-sm text-fg2">
 				<span className="flex text-fg3">{kindIcon(kind)}</span>
 				<span className="font-medium text-foreground">{`${KIND_TITLE[kind]} · last ${range}`}</span>
-				<div className="flex-1" />
-				<Listening />
 			</div>
 			<div className="px-3 pt-4 pb-3">
 				<EmptyArt kind={kind} range={range} />
