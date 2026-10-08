@@ -144,7 +144,17 @@ run = "bun run dev"
 [tasks.tilt]
 description = "Start the full local environment (cluster, infrastructure and services) with Tilt"
 env = { _.file = ".env" }
-run = "tilt up"
+run = """
+if [ ! -f .env ]; then
+  echo ".env is missing: copy .env.example to .env, or in a git worktree link the main checkout's .env" >&2
+  exit 1
+fi
+orbstack_sock="$HOME/.orbstack/run/docker.sock"
+if [ -z "${DOCKER_HOST:-}" ] && [ -S "$orbstack_sock" ]; then
+  export DOCKER_HOST="unix://$orbstack_sock"
+fi
+tilt up
+"""
 
 [tasks."infra:up"]
 description = "Start Postgres, Valkey, the image registry and the source bucket from compose.yaml and wait until they are up"
