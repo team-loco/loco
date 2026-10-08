@@ -22,6 +22,8 @@ VIEWPORT_HEIGHT = 1000
 STARTUP_TIMEOUT = 30
 POLL_INTERVAL = 0.1
 REQUEST_TIMEOUT = 5
+NOT_FOUND_TITLE = 'Page not found | Loco'
+NOT_FOUND_PATH = '/config'
 
 
 def docker(*args):
@@ -113,6 +115,49 @@ class ContainerTests(unittest.TestCase):
             finally:
                 browser.close()
 
+    def check_not_found(self, url, environment, ui_host, docs_host):
+        screenshots = Path(os.environ.get('DOCS_SCREENSHOT_DIR', tempfile.mkdtemp(prefix='loco-hosted-docs-')))
+        screenshots.mkdir(parents=True, exist_ok=True)
+        problems = []
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            try:
+                for host, entry in [(ui_host, 'app'), (docs_host, 'docs')]:
+                    for scheme, width, viewport in [('light', DESKTOP_WIDTH, 'desktop'), ('dark', DESKTOP_WIDTH, 'desktop'), ('light', NARROW_WIDTH, 'narrow'), ('dark', NARROW_WIDTH, 'narrow')]:
+                        context = browser.new_context(viewport={'width': width, 'height': VIEWPORT_HEIGHT}, color_scheme=scheme)
+
+                        def proxy(route):
+                            parsed = urlsplit(route.request.url)
+                            result = route.fetch(url=url + parsed.path, headers={**route.request.headers, 'Host': host})
+                            route.fulfill(response=result)
+
+                        context.route('https://' + host + '/**', proxy)
+                        page = context.new_page()
+                        failures = []
+                        page.on('console', lambda message: failures.append(message.text) if 'Content Security Policy' in message.text else None)
+                        page.on('requestfailed', lambda request: failures.append(request.url))
+                        page.on('response', lambda result: failures.append(f'{result.status} {result.url}') if result.status >= 400 and result.request.resource_type != 'document' else None)
+                        navigation = page.goto(f'https://{host}{NOT_FOUND_PATH}', wait_until='networkidle')
+                        page.screenshot(path=str(screenshots / f'{environment}-404-{entry}-{scheme}-{viewport}.png'), full_page=True)
+                        label = f'{entry} {scheme} {viewport}'
+                        if navigation.status != 404:
+                            problems.append(f'{label}: status {navigation.status}')
+                        if page.title() != NOT_FOUND_TITLE:
+                            problems.append(f'{label}: title {page.title()!r}')
+                        if page.get_by_role('heading', name='Page not found').count() != 1:
+                            problems.append(f'{label}: no "Page not found" heading')
+                        if page.locator('a[href="/"]').count() < 1:
+                            problems.append(f'{label}: no link to /')
+                        if not page.evaluate('document.documentElement.scrollWidth <= innerWidth'):
+                            problems.append(f'{label}: horizontal scroll')
+                        if failures:
+                            problems.append(f'{label}: {failures}')
+                        context.unroute_all(behavior='ignoreErrors')
+                        context.close()
+            finally:
+                browser.close()
+        self.assertFalse(problems, '\n'.join(problems))
+
     def test_production_and_staging_share_the_ui(self):
         for environment, ui_host, docs_host, version in [
             ('production', 'loco.build', 'docs.loco.build', 'sha-test'),
@@ -154,6 +199,10 @@ class ContainerTests(unittest.TestCase):
                         self.assertEqual(status, 200, path)
                         self.assertEqual(body, ui, path)
                         self.assertEqual(response(url + path.rstrip('/') + '/', ui_host)[1], ui, path)
+                    self.check_not_found(url, environment, ui_host, docs_host)
+                    status, body, _ = response(url + NOT_FOUND_PATH, ui_host)
+                    self.assertEqual(status, 404)
+                    self.assertIn(f'<title>{NOT_FOUND_TITLE}</title>', body)
                     for host, prefix in [(docs_host, ''), (ui_host, '/docs')]:
                         base = url + prefix
                         status, html, headers = response(base + '/', host)
@@ -181,6 +230,7 @@ class ContainerTests(unittest.TestCase):
                         self.assertEqual(status, 404)
                         self.assertIn('404', body)
                         self.assertNotIn('<div id="root">', body)
+                        self.assertIn(f'<title>{NOT_FOUND_TITLE}</title>', body)
                     self.check_browser(url, environment, ui_host, docs_host)
                 finally:
                     docker('stop', container)

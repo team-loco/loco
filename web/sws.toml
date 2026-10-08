@@ -2,7 +2,7 @@
 host = "::"
 port = 8080
 root = "/public"
-page404 = "/public/docs/404.html"
+page404 = "/public/404.html"
 health = true
 log-level = "info"
 
