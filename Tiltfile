@@ -8,15 +8,6 @@
 #   1. mise run setup
 #   2. Copy .env.example to .env and fill in secrets (or ensure .env is populated)
 
-# ---------------------------------------------------------------------------
-# Docker socket — auto-detect OrbStack, fall back to Docker Desktop default
-# ---------------------------------------------------------------------------
-
-home = os.environ.get('HOME', '')
-orbstack_sock = home + '/.orbstack/run/docker.sock'
-if os.environ.get('DOCKER_HOST', '') == '' and os.path.exists(orbstack_sock):
-    os.environ['DOCKER_HOST'] = 'unix://' + orbstack_sock
-
 allow_k8s_contexts('kind-loco-cluster-local')
 update_settings(k8s_upsert_timeout_secs=600, max_parallel_updates=5)
 

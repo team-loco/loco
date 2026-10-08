@@ -78,6 +78,8 @@ e2e/kubeconfig
 
 
 
+.agents/troubles/
+
 # temp ignores
 .sops.yaml
 v1-report.html
