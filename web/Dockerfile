@@ -22,6 +22,8 @@ COPY web ./web
 ARG BROTLI_VERSION=1.1.0-r2
 RUN apk add --no-cache brotli=${BROTLI_VERSION}
 
+ARG VERSION
+ENV VITE_APP_VERSION=$VERSION
 WORKDIR /app/web
 RUN bun run build
 WORKDIR /app
