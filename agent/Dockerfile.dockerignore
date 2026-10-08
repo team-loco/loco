@@ -4,6 +4,7 @@
 !go.sum
 !gen/go
 !internal/buildinfo
+!internal/loglevel
 !k8sapi
 **/node_modules
 **/dist
