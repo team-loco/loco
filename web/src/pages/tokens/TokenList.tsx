@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { Token } from "@gen/loco/token/v1/token_pb";
 
 import { Skeleton } from "@/components/design/Skeleton";
@@ -17,7 +18,7 @@ export function TokenList({
 	selected,
 	onSelect,
 	isLoading,
-	emptyLabel,
+	empty,
 }: {
 	tokens: Token[];
 	tree: EntityTree;
@@ -25,7 +26,7 @@ export function TokenList({
 	selected: string | null;
 	onSelect: (name: string | null) => void;
 	isLoading: boolean;
-	emptyLabel: string;
+	empty: ReactNode;
 }) {
 	const wide = selected === null;
 	const cols = wide ? WIDE_COLS : NARROW_COLS;
@@ -65,7 +66,7 @@ export function TokenList({
 								onSelect={onSelect}
 							/>
 						))}
-					{!isLoading && tokens.length === 0 && <div className="px-4 py-7 text-fg3">{emptyLabel}</div>}
+					{!isLoading && tokens.length === 0 && empty}
 				</div>
 			</div>
 		</section>

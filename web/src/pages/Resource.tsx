@@ -201,7 +201,7 @@ export function Resource() {
 					) : (
 						<section className="rounded-lg border border-line">
 							<EmptyState title="Not deployed yet">
-								Run <code className="font-mono">loco deploy</code> to create the first deployment of {resource.name}.
+								Run <code className="font-mono">loco deploy {resource.name}</code> to create the first deployment of {resource.name}.
 							</EmptyState>
 						</section>
 					)}
@@ -214,7 +214,7 @@ export function Resource() {
 							setModal({ kind: "rollback", target, current });
 						}}
 					/>
-					<EventsSection resourceId={resourceId} multiRegion={regions.length > 1} />
+					<EventsSection resourceId={resourceId} resourceName={resource.name} multiRegion={regions.length > 1} />
 				</div>
 			)}
 

@@ -30,6 +30,9 @@ export const RANGES: { key: TimeRange; label: string }[] = [
 	{ key: "7d", label: "Last 7 days" },
 ];
 
+export const QUERY_MAX_RANGE: TimeRange = "24h";
+export const EVENTS_MAX_RANGE: TimeRange = "7d";
+
 const RANGE_SECONDS: Record<string, number> = { "15m": 900, "1h": 3600, "6h": 21600, "24h": 86400, "7d": 604800 };
 
 export function fitRange(ts: number, now: number, max: TimeRange = "24h"): TimeRange {

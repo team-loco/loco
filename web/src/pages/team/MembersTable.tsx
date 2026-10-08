@@ -1,6 +1,8 @@
-import { BoxIcon, Building2Icon, LayersIcon, ShieldIcon } from "lucide-react";
+import { BoxIcon, Building2Icon, LayersIcon, SearchXIcon, ShieldIcon, XIcon } from "lucide-react";
 
 import { Badge } from "@/components/design/Badge";
+import { Button } from "@/components/design/Button";
+import { EmptyState } from "@/components/design/EmptyState";
 import { Skeleton } from "@/components/design/Skeleton";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +45,8 @@ export function MembersTable({
 	isLoading,
 	scopesLoading,
 	compact,
+	query,
+	onClearQuery,
 }: {
 	members: Member[];
 	meId: string;
@@ -51,6 +55,8 @@ export function MembersTable({
 	isLoading: boolean;
 	scopesLoading: boolean;
 	compact: boolean;
+	query: string;
+	onClearQuery: () => void;
 }) {
 	const cols = compact
 		? "grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]"
@@ -121,7 +127,19 @@ export function MembersTable({
 						</button>
 					);
 				})}
-			{!isLoading && members.length === 0 && <div className="px-4 py-7 text-fg3">No members match.</div>}
+			{!isLoading && members.length === 0 && (
+				<EmptyState
+					icon={<SearchXIcon />}
+					title="No members match"
+					query={query}
+					action={
+						<Button variant="outline" onClick={onClearQuery}>
+							<XIcon />
+							Clear search
+						</Button>
+					}
+				/>
+			)}
 		</section>
 	);
 }

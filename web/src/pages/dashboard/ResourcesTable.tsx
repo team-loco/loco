@@ -1,8 +1,10 @@
+import { BoxIcon, SearchXIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 import { ResourceStatus, ResourceType, type RegionInfo } from "@gen/loco/resource/v1/resource_pb";
 
 import { Button } from "@/components/design/Button";
+import { EmptyState } from "@/components/design/EmptyState";
 import { FilterMenu } from "@/components/design/FilterMenu";
 import { Input } from "@/components/design/Input";
 import { Section } from "@/components/design/Page";
@@ -171,6 +173,14 @@ export function ResourcesTable({
 		setPage(0);
 	};
 
+	const clearFilters = () => {
+		setStatus("all");
+		setType("all");
+		setRegion("all");
+		setQuery("");
+		setPage(0);
+	};
+
 	const toolbar = (
 		<>
 			<Input
@@ -189,13 +199,7 @@ export function ResourcesTable({
 				<Button
 					variant="link"
 					className="h-8 px-2"
-					onClick={() => {
-						setStatus("all");
-						setType("all");
-						setRegion("all");
-						setQuery("");
-						setPage(0);
-					}}
+					onClick={clearFilters}
 				>
 					Clear filters
 				</Button>
@@ -239,8 +243,22 @@ export function ResourcesTable({
 				<TableBody>
 					{pageItems.length === 0 && (
 						<TableRow className="hover:bg-transparent">
-							<TableCell colSpan={6} className="px-4 py-5 text-fg3">
-								{items.length === 0 ? `No resources in ${envName} yet.` : "No resources match these filters."}
+							<TableCell colSpan={6} className="p-0 whitespace-normal">
+								{items.length === 0 ? (
+									<EmptyState icon={<BoxIcon />} title={`No resources in ${envName} yet`} />
+								) : (
+									<EmptyState
+										icon={<SearchXIcon />}
+										title="No resources match"
+										query={query.trim()}
+										action={
+											<Button variant="outline" onClick={clearFilters}>
+												<XIcon />
+												Clear filters
+											</Button>
+										}
+									/>
+								)}
 							</TableCell>
 						</TableRow>
 					)}

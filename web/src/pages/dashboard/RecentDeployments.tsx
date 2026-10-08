@@ -1,7 +1,9 @@
+import { RocketIcon } from "lucide-react";
 import { useNavigate } from "react-router";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
+import { EmptyState } from "@/components/design/EmptyState";
 import { Section } from "@/components/design/Page";
 import { DeploymentPhaseBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
@@ -33,7 +35,7 @@ export function RecentDeployments({
 	return (
 		<Section title="Recent deployments">
 			{recent.length === 0 ? (
-				<div className="px-4 py-5 text-fg3">No deployments to {envName} in the last 24 hours.</div>
+				<EmptyState icon={<RocketIcon />} title={`No deployments to ${envName} in the last 24 hours`} />
 			) : (
 				<Table className="min-w-[720px] table-fixed text-base">
 					<TableHeader>

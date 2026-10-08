@@ -89,6 +89,13 @@
 	--color-diff-add: var(--diff-add);
 	--color-diff-del: var(--diff-del);
 
+	--color-pe-dot: var(--pe-dot);
+	--color-pe-panel: var(--pe-panel);
+	--color-pe-head: var(--pe-head);
+	--color-pe-grid: var(--pe-grid);
+	--color-pe-bar: var(--pe-bar);
+	--shadow-pe: var(--pe-shadow);
+
 	--animate-drawer-in: drawer-in 380ms cubic-bezier(0.32, 0.72, 0, 1);
 	--animate-fade-in: fade-in 140ms ease-out;
 	--animate-pop-in: pop-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -96,6 +103,7 @@
 	--animate-pod-pop: pod-pop 220ms ease-out;
 	--animate-pod-starting: pod-pop 220ms ease-out, pulse-soft 0.8s 220ms ease-in-out infinite;
 	--animate-log-in: log-in 200ms ease-out;
+	--animate-ping-soft: ping-soft 1.6s ease-out infinite;
 }
 
 :root {
@@ -129,6 +137,13 @@
 	--diff-add: #e6f4ea;
 	--diff-del: #fbe3e0;
 	--scrim: rgba(20, 16, 14, 0.35);
+	--pe-dot: #e8e5e1;
+	--pe-panel: #ffffff;
+	--pe-head: #faf9f8;
+	--pe-shadow: 0 1px 2px rgba(20, 16, 14, 0.04), 0 8px 24px rgba(20, 16, 14, 0.06);
+	--pe-grid: #e8e5e1;
+	--pe-bar: #d3cfc9;
+	--pe-glow: 0.08;
 	--logo: #2455eb;
 	--logo-inverse: #6f8ff2;
 	--sh-identifier: #2a2522;
@@ -199,6 +214,13 @@
 	--diff-add: #15301d;
 	--diff-del: #3c1715;
 	--scrim: rgba(0, 0, 0, 0.5);
+	--pe-dot: rgba(255, 255, 255, 0.045);
+	--pe-panel: #1c1a17;
+	--pe-head: #211e1b;
+	--pe-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 16px 40px rgba(0, 0, 0, 0.45);
+	--pe-grid: #36312c;
+	--pe-bar: #4a443d;
+	--pe-glow: 0.18;
 	--logo: #6f8ff2;
 	--logo-inverse: #2455eb;
 	--sh-identifier: #f3efea;
@@ -398,5 +420,91 @@
 	to {
 		transform: none;
 		opacity: 1;
+	}
+}
+
+@keyframes ping-soft {
+	0% {
+		transform: scale(1);
+		opacity: 0.6;
+	}
+	100% {
+		transform: scale(2.6);
+		opacity: 0;
+	}
+}
+
+@keyframes pe-sweep {
+	from {
+		transform: translateX(0);
+	}
+	to {
+		transform: translateX(var(--sw));
+	}
+}
+
+@keyframes pe-key {
+	0%,
+	10% {
+		transform: translateX(0);
+	}
+	38%,
+	82% {
+		transform: translateX(62px);
+	}
+	95%,
+	100% {
+		transform: translateX(0);
+	}
+}
+
+@keyframes pe-shackle {
+	0%,
+	48% {
+		transform: translateY(0);
+	}
+	58%,
+	82% {
+		transform: translateY(-8px);
+	}
+	92%,
+	100% {
+		transform: translateY(0);
+	}
+}
+
+@keyframes pe-lock {
+	0%,
+	48% {
+		stroke: var(--fg3);
+	}
+	56%,
+	80% {
+		stroke: var(--accent);
+	}
+	90%,
+	100% {
+		stroke: var(--fg3);
+	}
+}
+
+@keyframes pe-dot {
+	0%,
+	48% {
+		opacity: 0;
+	}
+	56%,
+	82% {
+		opacity: 1;
+	}
+	92%,
+	100% {
+		opacity: 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.pe-art * {
+		animation: none !important;
 	}
 }

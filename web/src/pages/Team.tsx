@@ -87,6 +87,10 @@ export function Team() {
 						isLoading={isLoading}
 						scopesLoading={scopesLoading}
 						compact={selected !== undefined}
+						query={q.trim()}
+						onClearQuery={() => {
+							setQ("");
+						}}
 					/>
 					{selected && (
 						<MemberPanel

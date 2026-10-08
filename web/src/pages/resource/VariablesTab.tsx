@@ -1,5 +1,5 @@
 import { useMutation } from "@connectrpc/connect-query";
-import { ClipboardPasteIcon, EyeIcon, EyeOffIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { BracesIcon, ClipboardPasteIcon, EyeIcon, EyeOffIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { updateResourceEnv } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 
@@ -132,10 +132,38 @@ export function VariablesTab({
 			}
 		>
 			{!editing && current.length === 0 && (
-				<EmptyState title="No environment variables">
-					{hasDeployment
-						? "Variables are injected into every replica. Edit to add some; saving creates a new deployment."
-						: "Variables can be set once the resource has a deployment."}
+				<EmptyState
+					icon={<BracesIcon />}
+					title="No environment variables"
+					action={
+						hasDeployment ? (
+							<>
+								<Button
+									onClick={() => {
+										setDraft([{ id: nextId++, key: "", value: "" }]);
+										setError(undefined);
+									}}
+								>
+									<PlusIcon />
+									Add variable
+								</Button>
+								<Button
+									variant="outline"
+									onClick={() => {
+										setDraft([]);
+										setPasteOpen(true);
+										setPasteText("");
+										setError(undefined);
+									}}
+								>
+									<ClipboardPasteIcon />
+									Paste .env
+								</Button>
+							</>
+						) : undefined
+					}
+				>
+					{hasDeployment ? undefined : "Variables can be set once the resource has a deployment."}
 				</EmptyState>
 			)}
 			{!editing &&
