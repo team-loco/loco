@@ -34,6 +34,8 @@ const AUDIT_TYPES: Record<string, AuditType> = {
 	"domain.deleted": { label: "Removed a custom domain", category: "deploys" },
 	"token.created": { label: "Created an API token", category: "tokens" },
 	"token.revoked": { label: "Revoked an API token", category: "tokens" },
+	"webhook.created": { label: "Added a webhook", category: "workspaces" },
+	"webhook.deleted": { label: "Removed a webhook", category: "workspaces" },
 };
 
 export const AUDIT_CATEGORIES: { value: AuditCategory | "all"; label: string }[] = [

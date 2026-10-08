@@ -23,6 +23,7 @@ import { workspacePath } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
+import { WebhooksCard } from "./WebhooksCard";
 import { DangerCard, formatDay, NAME_RE, SavedBar, SaveBar, SettingsCard, SettingsRow } from "./parts";
 import type { ResourceCount } from "./useResourceCounts";
 
@@ -191,6 +192,8 @@ export function WorkspaceTab({
 				)}
 				{saved && !dirty && <SavedBar />}
 			</SettingsCard>
+
+			{canAdmin && <WebhooksCard workspaceId={ws.id} />}
 
 			<DangerCard
 				title="Delete workspace"

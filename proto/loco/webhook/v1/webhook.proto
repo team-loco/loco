@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package loco.webhook.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/team-loco/loco/gen/go/loco/webhook/v1;webhookv1";
+
+service WebhookService {
+  rpc CreateWebhook(CreateWebhookRequest) returns (CreateWebhookResponse);
+  rpc ListWebhooks(ListWebhooksRequest) returns (ListWebhooksResponse);
+  rpc DeleteWebhook(DeleteWebhookRequest) returns (DeleteWebhookResponse);
+  rpc ListWebhookDeliveries(ListWebhookDeliveriesRequest) returns (ListWebhookDeliveriesResponse);
+}
+
+message Webhook {
+  string id = 1;
+  string url = 2;
+  repeated string event_types = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+message WebhookDelivery {
+  string id = 1;
+  string event_id = 2;
+  string event_type = 3;
+  string status = 4;
+  int32 attempts = 5;
+  int32 last_status_code = 6;
+  string last_error = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp delivered_at = 9;
+  google.protobuf.Timestamp next_attempt_at = 10;
+}
+
+message CreateWebhookRequest {
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  string url = 2 [(buf.validate.field).string = {
+    uri: true
+    max_len: 2048
+  }];
+  repeated string event_types = 3 [(buf.validate.field).repeated = {
+    max_items: 100
+    items: {
+      string: {
+        min_len: 1
+        max_len: 100
+      }
+    }
+  }];
+}
+
+message CreateWebhookResponse {
+  Webhook webhook = 1;
+  string secret = 2;
+}
+
+message ListWebhooksRequest {
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message ListWebhooksResponse {
+  repeated Webhook webhooks = 1;
+}
+
+message DeleteWebhookRequest {
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  string webhook_id = 2 [(buf.validate.field).string.uuid = true];
+}
+
+message DeleteWebhookResponse {}
+
+message ListWebhookDeliveriesRequest {
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  string webhook_id = 2 [(buf.validate.field).string.uuid = true];
+}
+
+message ListWebhookDeliveriesResponse {
+  repeated WebhookDelivery deliveries = 1;
+}
