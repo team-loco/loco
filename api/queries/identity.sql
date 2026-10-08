@@ -1,5 +1,5 @@
 -- name: GetUserByIdentity :one
-SELECT u.id, u.email, u.name, u.avatar_url, u.created_at, u.updated_at
+SELECT sqlc.embed(u), i.email AS identity_email, i.email_verified AS identity_email_verified
 FROM identities i
 JOIN users u ON u.id = i.user_id
 WHERE i.issuer = $1 AND i.subject = $2;
@@ -14,3 +14,8 @@ UPDATE identities
 SET email = $3, email_verified = $4, last_login_at = NOW()
 WHERE issuer = $1 AND subject = $2;
 
+
+-- name: UserHasUnverifiedIdentity :one
+SELECT EXISTS (
+    SELECT 1 FROM identities WHERE user_id = $1 AND NOT email_verified
+);

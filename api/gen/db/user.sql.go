@@ -252,6 +252,37 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 	return items, nil
 }
 
+const moveAccountEmail = `-- name: MoveAccountEmail :one
+UPDATE users u
+SET email = $1, updated_at = NOW()
+WHERE u.id = $2
+    AND u.email <> $1
+    AND NOT EXISTS (
+        SELECT 1 FROM identities i
+        WHERE i.user_id = u.id AND i.email_verified AND i.email = u.email
+    )
+RETURNING id, email, name, avatar_url, created_at, updated_at
+`
+
+type MoveAccountEmailParams struct {
+	Email  string    `json:"email"`
+	UserID uuid.UUID `json:"userId"`
+}
+
+func (q *Queries) MoveAccountEmail(ctx context.Context, arg MoveAccountEmailParams) (User, error) {
+	row := q.db.QueryRow(ctx, moveAccountEmail, arg.Email, arg.UserID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.AvatarUrl,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updateUserAvatarURL = `-- name: UpdateUserAvatarURL :one
 UPDATE users
 SET avatar_url = $2, updated_at = NOW()

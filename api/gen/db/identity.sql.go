@@ -48,7 +48,7 @@ func (q *Queries) CreateIdentity(ctx context.Context, arg CreateIdentityParams) 
 }
 
 const getUserByIdentity = `-- name: GetUserByIdentity :one
-SELECT u.id, u.email, u.name, u.avatar_url, u.created_at, u.updated_at
+SELECT u.id, u.email, u.name, u.avatar_url, u.created_at, u.updated_at, i.email AS identity_email, i.email_verified AS identity_email_verified
 FROM identities i
 JOIN users u ON u.id = i.user_id
 WHERE i.issuer = $1 AND i.subject = $2
@@ -59,16 +59,24 @@ type GetUserByIdentityParams struct {
 	Subject string `json:"subject"`
 }
 
-func (q *Queries) GetUserByIdentity(ctx context.Context, arg GetUserByIdentityParams) (User, error) {
+type GetUserByIdentityRow struct {
+	User                  User    `json:"user"`
+	IdentityEmail         *string `json:"identityEmail"`
+	IdentityEmailVerified bool    `json:"identityEmailVerified"`
+}
+
+func (q *Queries) GetUserByIdentity(ctx context.Context, arg GetUserByIdentityParams) (GetUserByIdentityRow, error) {
 	row := q.db.QueryRow(ctx, getUserByIdentity, arg.Issuer, arg.Subject)
-	var i User
+	var i GetUserByIdentityRow
 	err := row.Scan(
-		&i.ID,
-		&i.Email,
-		&i.Name,
-		&i.AvatarUrl,
-		&i.CreatedAt,
-		&i.UpdatedAt,
+		&i.User.ID,
+		&i.User.Email,
+		&i.User.Name,
+		&i.User.AvatarUrl,
+		&i.User.CreatedAt,
+		&i.User.UpdatedAt,
+		&i.IdentityEmail,
+		&i.IdentityEmailVerified,
 	)
 	return i, err
 }
@@ -94,4 +102,17 @@ func (q *Queries) TouchIdentity(ctx context.Context, arg TouchIdentityParams) er
 		arg.EmailVerified,
 	)
 	return err
+}
+
+const userHasUnverifiedIdentity = `-- name: UserHasUnverifiedIdentity :one
+SELECT EXISTS (
+    SELECT 1 FROM identities WHERE user_id = $1 AND NOT email_verified
+)
+`
+
+func (q *Queries) UserHasUnverifiedIdentity(ctx context.Context, userID uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, userHasUnverifiedIdentity, userID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }

@@ -9,7 +9,7 @@ import (
 
 func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 	defaults := testServiceDefaults()
-	server := NewConfigServer("onloco.test", "v1.2.3", defaults)
+	server := NewConfigServer("onloco.test", "v1.2.3", defaults, nil)
 	req := connect.NewRequest(&configv1.GetConfigRequest{})
 	resp, err := server.GetConfig(t.Context(), req)
 	if err != nil {

@@ -33,7 +33,7 @@ func (tvm *VendingMachine) GetRoles(ctx context.Context, token string) ([]querie
 		return nil, ErrInsufficentPermissions
 	}
 
-	userScopes, err := tvm.userScopes(ctx, entity.ID)
+	userScopes, err := tvm.UserScopes(ctx, entity.ID)
 	if err != nil {
 		return nil, fmt.Errorf("get user scopes: %w", err)
 	}
@@ -223,7 +223,7 @@ func ApplyRoles(
 	return nil
 }
 
-func (tvm *VendingMachine) userScopes(ctx context.Context, userID uuid.UUID) ([]queries.EntityScope, error) {
+func (tvm *VendingMachine) UserScopes(ctx context.Context, userID uuid.UUID) ([]queries.EntityScope, error) {
 	rows, err := tvm.queries.GetUserScopes(ctx, userID)
 	if err != nil {
 		return nil, err
