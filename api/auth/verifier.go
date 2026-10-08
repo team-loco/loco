@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 )
@@ -32,6 +33,7 @@ type Identity struct {
 	Name          string
 	AvatarURL     string
 	Methods       []AuthMethod
+	SSOConnection *string
 }
 
 type issuerVerifier struct {
@@ -41,13 +43,19 @@ type issuerVerifier struct {
 
 type Verifier struct {
 	issuers map[string]*issuerVerifier
+	admins  Admins
 }
 
-func NewVerifier(httpClient *http.Client, issuers []IssuerConfig) *Verifier {
+func NewVerifier(httpClient *http.Client, issuers []IssuerConfig, admins Admins) *Verifier {
 	ctx := oidc.ClientContext(context.Background(), httpClient)
-	v := &Verifier{issuers: make(map[string]*issuerVerifier, len(issuers))}
+	v := &Verifier{issuers: make(map[string]*issuerVerifier, len(issuers)), admins: admins}
 	for _, ic := range issuers {
-		keys := oidc.NewRemoteKeySet(ctx, ic.JWKSURL)
+		var keys oidc.KeySet
+		if ic.JWKSURL != "" {
+			keys = oidc.NewRemoteKeySet(ctx, ic.JWKSURL)
+		} else {
+			keys = &discoveredKeySet{ctx: ctx, client: httpClient, issuer: ic.Issuer}
+		}
 		v.issuers[ic.Issuer] = &issuerVerifier{
 			config: ic,
 			verifier: oidc.NewVerifier(ic.Issuer, keys, &oidc.Config{
@@ -84,10 +92,17 @@ func (v *Verifier) Verify(ctx context.Context, raw string) (Identity, error) {
 		return Identity{}, fmt.Errorf("%w: %w", ErrInvalidToken, err)
 	}
 	var claims map[string]any
-	if err := tok.Claims(&claims); err != nil {
-		return Identity{}, fmt.Errorf("%w: %w", ErrInvalidToken, err)
+	if claimsErr := tok.Claims(&claims); claimsErr != nil {
+		return Identity{}, fmt.Errorf("%w: %w", ErrInvalidToken, claimsErr)
 	}
-	return identityFromClaims(iv.config, claims)
+	id, err := identityFromClaims(iv.config, claims)
+	if err != nil {
+		return Identity{}, err
+	}
+	if sso, ssoOK := v.admins.SSO(iss); ssoOK {
+		id.SSOConnection = sso.LoginConnection(id.Methods)
+	}
+	return id, nil
 }
 
 func unverifiedIssuer(raw string) (string, error) {
@@ -191,14 +206,41 @@ func mapString(m map[string]any, key string) string {
 	return s
 }
 
-const MethodSAML = "sso/saml"
+type discoveredKeySet struct {
+	ctx    context.Context
+	client *http.Client
+	issuer string
+	mu     sync.Mutex
+	keys   oidc.KeySet
+}
 
-func (id Identity) SSOConnection() *string {
-	for _, m := range id.Methods {
-		if m.Method == MethodSAML && m.Provider != "" {
-			provider := m.Provider
-			return &provider
-		}
+func (d *discoveredKeySet) VerifySignature(ctx context.Context, jwt string) ([]byte, error) {
+	keys, err := d.load(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	return keys.VerifySignature(ctx, jwt)
+}
+
+func (d *discoveredKeySet) load(ctx context.Context) (oidc.KeySet, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.keys != nil {
+		return d.keys, nil
+	}
+	provider, err := oidc.NewProvider(oidc.ClientContext(ctx, d.client), d.issuer)
+	if err != nil {
+		return nil, fmt.Errorf("discover %s: %w", d.issuer, err)
+	}
+	var meta struct {
+		JWKSURI string `json:"jwks_uri"`
+	}
+	if err := provider.Claims(&meta); err != nil {
+		return nil, fmt.Errorf("discover %s: %w", d.issuer, err)
+	}
+	if meta.JWKSURI == "" {
+		return nil, fmt.Errorf("discover %s: %w", d.issuer, errNoJWKSURI)
+	}
+	d.keys = oidc.NewRemoteKeySet(d.ctx, meta.JWKSURI)
+	return d.keys, nil
 }

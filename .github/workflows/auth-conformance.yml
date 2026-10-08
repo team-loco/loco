@@ -1,0 +1,43 @@
+name: Auth Conformance
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "api/auth/**"
+      - "env/conformance/**"
+      - "env/local/auth-db.sql"
+      - "mise-tasks/test/auth-conformance"
+      - ".github/workflows/auth-conformance.yml"
+  pull_request:
+    paths:
+      - "api/auth/**"
+      - "env/conformance/**"
+      - "env/local/auth-db.sql"
+      - "mise-tasks/test/auth-conformance"
+      - ".github/workflows/auth-conformance.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    name: Auth Conformance
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-tools
+        with:
+          go-cache: auth-conformance
+
+      - name: Run the auth contract against Supabase Auth, Keycloak and Dex
+        run: mise run test:auth-conformance
+        timeout-minutes: 15

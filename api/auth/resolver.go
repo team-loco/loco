@@ -62,7 +62,7 @@ func (r *Resolver) Resolve(ctx context.Context, id Identity) (genDb.User, error)
 }
 
 func (r *Resolver) ssoCoversEmail(ctx context.Context, id Identity) (bool, error) {
-	connection := id.SSOConnection()
+	connection := id.SSOConnection
 	if connection == nil {
 		return true, nil
 	}

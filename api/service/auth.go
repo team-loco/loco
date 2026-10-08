@@ -157,7 +157,7 @@ func (s *AuthServer) webIdentity(ctx context.Context) (cliGrant, error) {
 	if row.UserID != entity.ID {
 		return cliGrant{}, connect.NewError(connect.CodePermissionDenied, ErrUnauthorized)
 	}
-	return cliGrant{UserID: entity.ID, IdentityID: row.ID, SSOConnection: identity.SSOConnection()}, nil
+	return cliGrant{UserID: entity.ID, IdentityID: row.ID, SSOConnection: identity.SSOConnection}, nil
 }
 
 func (s *AuthServer) issue(

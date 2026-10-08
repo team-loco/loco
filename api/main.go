@@ -325,7 +325,7 @@ func main() {
 	if emailVerifiersErr != nil {
 		log.Fatalf("AUTH_ISSUERS email verification: %v", emailVerifiersErr)
 	}
-	verifier := auth.NewVerifier(authClient, issuers)
+	verifier := auth.NewVerifier(authClient, issuers, admins)
 	emailVerifierOption := auth.WithEmailVerifiers(emailVerifiers)
 	resolver := auth.NewResolver(pool, signupPolicy, emailVerifierOption)
 	registerAuthHooks(mux, ac.AuthHookSecret, signupPolicy)

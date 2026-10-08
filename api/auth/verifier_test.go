@@ -1,8 +1,10 @@
 package auth
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -11,11 +13,11 @@ import (
 
 func TestVerifyMapsNestedClaims(t *testing.T) {
 	ti := authtest.NewIssuer(t)
-	v := NewVerifier(http.DefaultClient, []IssuerConfig{testConfig(ti)})
+	v := NewVerifier(http.DefaultClient, []IssuerConfig{testConfig(ti)}, nil)
 
 	claims := ti.Claims("user-1", "Dev@Example.test", true)
 	claims["amr"] = []any{
-		map[string]any{"method": "sso/saml", "provider": samlConnectionID},
+		map[string]any{"method": supabaseSAMLMethod, "provider": samlConnectionID},
 		"pwd",
 	}
 	id, err := v.Verify(t.Context(), ti.Sign("k1", claims))
@@ -40,7 +42,7 @@ func TestVerifyMapsNestedClaims(t *testing.T) {
 func TestVerifyRejectsBadTokens(t *testing.T) {
 	ti := authtest.NewIssuer(t)
 	other := authtest.NewIssuer(t)
-	v := NewVerifier(http.DefaultClient, []IssuerConfig{testConfig(ti)})
+	v := NewVerifier(http.DefaultClient, []IssuerConfig{testConfig(ti)}, nil)
 
 	expired := ti.Claims("u", "u@example.test", true)
 	expired["exp"] = time.Now().Add(-time.Minute).Unix()
@@ -85,7 +87,7 @@ func TestVerifyRejectsWrongAudienceForParsedConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	v := NewVerifier(http.DefaultClient, issuers)
+	v := NewVerifier(http.DefaultClient, issuers, nil)
 
 	wrongAud := ti.Claims("u", "u@example.test", true)
 	wrongAud["aud"] = "someone-else"
@@ -102,7 +104,7 @@ func TestVerifyRejectsWrongAudienceForParsedConfig(t *testing.T) {
 
 func TestVerifyPicksUpRotatedKeys(t *testing.T) {
 	ti := authtest.NewIssuer(t)
-	v := NewVerifier(http.DefaultClient, []IssuerConfig{testConfig(ti)})
+	v := NewVerifier(http.DefaultClient, []IssuerConfig{testConfig(ti)}, nil)
 
 	if _, err := v.Verify(t.Context(), ti.Sign("k1", ti.Claims("u", "u@example.test", true))); err != nil {
 		t.Fatalf("verify with first key: %v", err)
@@ -119,7 +121,7 @@ func TestVerifyUnverifiedEmailUnlessAuthoritative(t *testing.T) {
 	ti := authtest.NewIssuer(t)
 	token := ti.Sign("k1", ti.Claims("u", "u@corp.test", false))
 
-	plain := NewVerifier(http.DefaultClient, []IssuerConfig{testConfig(ti)})
+	plain := NewVerifier(http.DefaultClient, []IssuerConfig{testConfig(ti)}, nil)
 	id, err := plain.Verify(t.Context(), token)
 	if err != nil {
 		t.Fatalf("verify: %v", err)
@@ -130,7 +132,7 @@ func TestVerifyUnverifiedEmailUnlessAuthoritative(t *testing.T) {
 
 	authoritative := testConfig(ti)
 	authoritative.EmailAuthoritative = true
-	id, err = NewVerifier(http.DefaultClient, []IssuerConfig{authoritative}).Verify(t.Context(), token)
+	id, err = NewVerifier(http.DefaultClient, []IssuerConfig{authoritative}, nil).Verify(t.Context(), token)
 	if err != nil {
 		t.Fatalf("verify: %v", err)
 	}
@@ -144,7 +146,7 @@ func TestVerifyIgnoresVerificationClaimForAdminVerifiedIssuer(t *testing.T) {
 	config := testConfig(ti)
 	config.EmailVerification = EmailVerificationAdmin
 	claims := ti.Claims("u", "u@example.test", true)
-	id, err := NewVerifier(http.DefaultClient, []IssuerConfig{config}).Verify(t.Context(), ti.Sign("k1", claims))
+	id, err := NewVerifier(http.DefaultClient, []IssuerConfig{config}, nil).Verify(t.Context(), ti.Sign("k1", claims))
 	if err != nil {
 		t.Fatalf("verify: %v", err)
 	}
@@ -165,5 +167,63 @@ func TestLooksLikeJWT(t *testing.T) {
 		if got := LooksLikeJWT(token); got != want {
 			t.Errorf("LooksLikeJWT(%q) = %v, want %v", token, got, want)
 		}
+	}
+}
+
+func TestVerifyDiscoversKeys(t *testing.T) {
+	ti := authtest.NewIssuer(t)
+	config := testConfig(ti)
+	config.JWKSURL = ""
+	v := NewVerifier(http.DefaultClient, []IssuerConfig{config}, nil)
+	id, err := v.Verify(t.Context(), ti.Sign("k1", ti.Claims("user-1", "dev@example.test", true)))
+	if err != nil || id.Subject != "user-1" {
+		t.Fatalf("verify through discovery = %+v (%v)", id, err)
+	}
+}
+
+func TestVerifyRefusesDiscoveryForAnotherIssuer(t *testing.T) {
+	ti := authtest.NewIssuer(t)
+	impostor := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(map[string]string{
+			"issuer":   ti.URL(),
+			"jwks_uri": ti.URL() + "/keys",
+		}); err != nil {
+			t.Errorf("encode: %v", err)
+		}
+	}))
+	t.Cleanup(impostor.Close)
+	config := testConfig(ti)
+	config.Issuer = impostor.URL
+	config.JWKSURL = ""
+	v := NewVerifier(http.DefaultClient, []IssuerConfig{config}, nil)
+	claims := ti.Claims("user-1", "dev@example.test", true)
+	claims["iss"] = impostor.URL
+	if _, err := v.Verify(t.Context(), ti.Sign("k1", claims)); !errors.Is(err, ErrInvalidToken) {
+		t.Fatalf("verify with a mismatched discovery document = %v", err)
+	}
+}
+
+func TestVerifyAsksTheSSOAdapterForTheConnection(t *testing.T) {
+	ti := authtest.NewIssuer(t)
+	claims := ti.Claims("user-1", "dev@example.test", true)
+	claims["amr"] = []any{map[string]any{"method": supabaseSAMLMethod, "provider": samlConnectionID}}
+	token := ti.Sign("k1", claims)
+
+	id, err := NewVerifier(http.DefaultClient, []IssuerConfig{testConfig(ti)}, nil).Verify(t.Context(), token)
+	if err != nil || id.SSOConnection != nil {
+		t.Fatalf("without an sso adapter = %v (%v)", id.SSOConnection, err)
+	}
+
+	admins, err := NewAdmins(http.DefaultClient, []IssuerConfig{{
+		Issuer: ti.URL(),
+		Admin:  &AdminConfig{Type: adminTypeSupabase, URL: ti.URL(), TokenEnv: serviceKeyEnv},
+	}}, func(string) string { return serviceKey })
+	if err != nil {
+		t.Fatalf("admins: %v", err)
+	}
+	id, err = NewVerifier(http.DefaultClient, []IssuerConfig{testConfig(ti)}, admins).Verify(t.Context(), token)
+	if err != nil || id.SSOConnection == nil || *id.SSOConnection != samlConnectionID {
+		t.Fatalf("with the supabase adapter = %v (%v)", id.SSOConnection, err)
 	}
 }

@@ -25,7 +25,17 @@ type Issuer struct {
 func NewIssuer(t *testing.T) *Issuer {
 	t.Helper()
 	ti := &Issuer{t: t, keys: map[string]*rsa.PrivateKey{}}
-	ti.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	ti.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/.well-known/openid-configuration" {
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(map[string]string{
+				"issuer":   ti.URL(),
+				"jwks_uri": ti.URL() + "/keys",
+			}); err != nil {
+				t.Errorf("encode discovery: %v", err)
+			}
+			return
+		}
 		ti.mu.Lock()
 		defer ti.mu.Unlock()
 		set := jose.JSONWebKeySet{}

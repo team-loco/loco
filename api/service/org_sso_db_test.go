@@ -49,6 +49,10 @@ func (f *fakeSSO) DeleteSAMLConnection(_ context.Context, connectionID string) e
 	return nil
 }
 
+func (*fakeSSO) LoginConnection([]auth.AuthMethod) *string {
+	return nil
+}
+
 func (*fakeSSO) ServiceProvider() (string, string) {
 	return "https://auth.test/sso/saml/metadata", "https://auth.test/sso/saml/acs"
 }

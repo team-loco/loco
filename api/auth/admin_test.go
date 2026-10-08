@@ -60,7 +60,7 @@ func TestSupabaseAdmin(t *testing.T) {
 
 	admins, err := NewAdmins(http.DefaultClient, []IssuerConfig{{
 		Issuer: srv.URL,
-		Admin:  &AdminConfig{Type: presetSupabase, URL: srv.URL, TokenEnv: serviceKeyEnv},
+		Admin:  &AdminConfig{Type: adminTypeSupabase, URL: srv.URL, TokenEnv: serviceKeyEnv},
 	}}, func(string) string { return serviceKey })
 	if err != nil {
 		t.Fatalf("admins: %v", err)
@@ -92,7 +92,7 @@ func TestSupabaseAdmin(t *testing.T) {
 
 	bad, err := NewAdmins(http.DefaultClient, []IssuerConfig{{
 		Issuer: srv.URL,
-		Admin:  &AdminConfig{Type: presetSupabase, URL: srv.URL, TokenEnv: serviceKeyEnv},
+		Admin:  &AdminConfig{Type: adminTypeSupabase, URL: srv.URL, TokenEnv: serviceKeyEnv},
 	}}, func(string) string { return "wrong" })
 	if err != nil {
 		t.Fatalf("admins: %v", err)
@@ -108,7 +108,7 @@ func TestSupabaseAdmin(t *testing.T) {
 
 func TestNewAdminsValidation(t *testing.T) {
 	if _, err := NewAdmins(http.DefaultClient, []IssuerConfig{{
-		Issuer: "https://a.test", Admin: &AdminConfig{Type: presetSupabase, TokenEnv: "MISSING"},
+		Issuer: "https://a.test", Admin: &AdminConfig{Type: adminTypeSupabase, TokenEnv: "MISSING"},
 	}}, func(string) string { return "" }); err == nil {
 		t.Fatal("empty token accepted")
 	}
@@ -171,7 +171,7 @@ func TestSupabaseSSOAdmin(t *testing.T) {
 
 	admins, err := NewAdmins(http.DefaultClient, []IssuerConfig{{
 		Issuer: srv.URL,
-		Admin:  &AdminConfig{Type: presetSupabase, URL: srv.URL, TokenEnv: serviceKeyEnv},
+		Admin:  &AdminConfig{Type: adminTypeSupabase, URL: srv.URL, TokenEnv: serviceKeyEnv},
 	}}, func(string) string { return serviceKey })
 	if err != nil {
 		t.Fatalf("admins: %v", err)
@@ -257,7 +257,7 @@ func TestSupabaseAdminEmailVerified(t *testing.T) {
 	issuers := []IssuerConfig{{
 		Issuer:            srv.URL,
 		EmailVerification: EmailVerificationAdmin,
-		Admin:             &AdminConfig{Type: presetSupabase, URL: srv.URL, TokenEnv: serviceKeyEnv},
+		Admin:             &AdminConfig{Type: adminTypeSupabase, URL: srv.URL, TokenEnv: serviceKeyEnv},
 	}}
 	admins, err := NewAdmins(http.DefaultClient, issuers, func(string) string { return serviceKey })
 	if err != nil {

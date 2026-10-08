@@ -325,7 +325,8 @@ func TestCLISessionsKeepTheSSOConnection(t *testing.T) {
 	if !ok {
 		t.Fatal("no identity")
 	}
-	identity.Methods = []auth.AuthMethod{{Method: auth.MethodSAML, Provider: ssoConnectionID}}
+	connection := ssoConnectionID
+	identity.SSOConnection = &connection
 	f.webCtx = context.WithValue(f.webCtx, contextkeys.IdentityKey, identity)
 
 	tokens := f.login(t)
