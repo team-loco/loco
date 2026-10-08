@@ -67,20 +67,3 @@ func (d *DB) Close() {
 func (d *DB) Pool() *pgxpool.Pool {
 	return d.pool
 }
-
-// RunMigrations runs SQL migrations from a file or string
-func (d *DB) RunMigrations(ctx context.Context, migrationSQL string) error {
-	conn, err := d.pool.Acquire(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to acquire connection: %w", err)
-	}
-	defer conn.Release()
-
-	_, err = conn.Exec(ctx, migrationSQL)
-	if err != nil {
-		return fmt.Errorf("failed to run migrations: %w", err)
-	}
-
-	slog.Info("Migrations completed successfully")
-	return nil
-}
