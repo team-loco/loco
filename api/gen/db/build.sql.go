@@ -550,17 +550,6 @@ func (q *Queries) ListUndeletedBuildSources(ctx context.Context, maxBuilds int32
 	return items, nil
 }
 
-const lockResourceForBuild = `-- name: LockResourceForBuild :one
-SELECT id FROM resources WHERE id = $1 FOR UPDATE
-`
-
-func (q *Queries) LockResourceForBuild(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, lockResourceForBuild, id)
-	var id_2 uuid.UUID
-	err := row.Scan(&id_2)
-	return id_2, err
-}
-
 const markBuildRunning = `-- name: MarkBuildRunning :execrows
 UPDATE builds
 SET status = 'running',

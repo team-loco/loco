@@ -234,7 +234,8 @@ export function DomainsSection({
 		<Section title="Domains">
 			{sorted.length === 0 && (
 				<div className="border-b border-line px-4 py-4 text-fg3">
-					No domains. The resource receives no internet traffic until one is added.
+					No domains, so the resource receives no internet traffic. Adding or removing a domain takes effect on
+					the next deployment.
 				</div>
 			)}
 			{sorted.map((d) => (

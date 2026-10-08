@@ -296,7 +296,7 @@ func queueBuild(
 	var supersededSources []buildSource
 	err := withTx(ctx, pool, func(qtx *genDb.Queries) error {
 		supersededSources = nil
-		if _, lockErr := qtx.LockResourceForBuild(ctx, resourceID); lockErr != nil {
+		if _, lockErr := qtx.LockResource(ctx, resourceID); lockErr != nil {
 			return fmt.Errorf("lock resource: %w", lockErr)
 		}
 

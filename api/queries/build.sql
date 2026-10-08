@@ -17,9 +17,6 @@ WHERE b.resource_id = $1
 ORDER BY b.created_at DESC, b.id DESC
 LIMIT $2;
 
--- name: LockResourceForBuild :one
-SELECT id FROM resources WHERE id = $1 FOR UPDATE;
-
 -- name: CancelOtherActiveBuilds :many
 UPDATE builds
 SET status = 'canceled',

@@ -107,6 +107,12 @@ JOIN platform_domains pd ON rd.platform_domain_id = pd.id
 WHERE rd.domain_source = 'platform_provided'
 ORDER BY rd.created_at DESC;
 
+-- name: ResourceHasPrimaryDomain :one
+SELECT EXISTS(
+    SELECT 1 FROM resource_domains
+    WHERE resource_id = $1 AND is_primary
+) AS has_primary;
+
 -- name: GetResourceDomainCount :one
 SELECT COUNT(*) as count FROM resource_domains WHERE resource_id = $1;
 

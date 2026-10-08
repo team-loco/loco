@@ -394,6 +394,20 @@ func (q *Queries) ListResourceDomainsForResources(ctx context.Context, resourceI
 	return items, nil
 }
 
+const resourceHasPrimaryDomain = `-- name: ResourceHasPrimaryDomain :one
+SELECT EXISTS(
+    SELECT 1 FROM resource_domains
+    WHERE resource_id = $1 AND is_primary
+) AS has_primary
+`
+
+func (q *Queries) ResourceHasPrimaryDomain(ctx context.Context, resourceID uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, resourceHasPrimaryDomain, resourceID)
+	var has_primary bool
+	err := row.Scan(&has_primary)
+	return has_primary, err
+}
+
 const setResourceDomainPrimary = `-- name: SetResourceDomainPrimary :one
 UPDATE resource_domains
 SET is_primary = true

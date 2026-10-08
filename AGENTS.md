@@ -138,6 +138,9 @@ first time and run `mise run lint:go` before pushing. The one that bites most:
 - **Removing domains**: `DeleteResourceDomain` removes any non-primary domain, and the primary
   only when it is the last one, which makes the app private. Removing the primary while others
   remain fails with FailedPrecondition; set another primary first
+- **Primary invariant**: a resource with any domain has exactly one primary. Adding, removing and
+  setting the primary domain lock the resource row (`LockResource`) in one transaction, and an
+  added domain becomes primary when the resource has none
 
 ## Regional Configuration
 
