@@ -23,7 +23,7 @@ COPY k8sapi ./k8sapi
 WORKDIR /app/agent
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build go build -ldflags "-X main.version=${VERSION}" -o loco-agent .
 
-FROM gcr.io/distroless/static:nonroot
+FROM gcr.io/distroless/static:nonroot@sha256:e2e927ec666bae08560abb3c55d0659eceabb657f56b6782ab500a9fc7f555e3
 WORKDIR /
 
 COPY --from=builder /app/agent/loco-agent .

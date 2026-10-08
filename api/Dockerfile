@@ -22,7 +22,7 @@ COPY k8sapi ./k8sapi
 WORKDIR /app/api
 RUN go build -o loco-api .
 
-FROM gcr.io/distroless/static:nonroot
+FROM gcr.io/distroless/static:nonroot@sha256:e2e927ec666bae08560abb3c55d0659eceabb657f56b6782ab500a9fc7f555e3
 WORKDIR /
 
 COPY --from=builder /app/api/loco-api .
