@@ -14,6 +14,8 @@ var (
 	errTimeRangeRequired   = errors.New("start_time and end_time are required")
 	errEndBeforeStart      = errors.New("end_time must be after start_time")
 	errWorkspaceIDRequired = errors.New("workspace_id is required")
+	errSinceTooOld         = errors.New("since is older than the maximum time range")
+	errSinceInFuture       = errors.New("since is in the future")
 )
 
 // ValidateLogsRequest validates and clamps the query parameters for a logs request.
@@ -57,9 +59,19 @@ func ValidateMetricsRequest(req *observabilityv1.QueryMetricsRequest, cfg *confi
 }
 
 // ValidateTailRequest validates a tail logs request.
-func ValidateTailRequest(req *observabilityv1.TailLogsRequest, _ *config.Config) error {
+func ValidateTailRequest(req *observabilityv1.TailLogsRequest, cfg *config.Config, now time.Time) error {
 	if req.GetWorkspaceId() == "" {
 		return errWorkspaceIDRequired
+	}
+	if req.GetSince() == nil {
+		return nil
+	}
+	since := req.GetSince().AsTime()
+	if since.After(now) {
+		return errSinceInFuture
+	}
+	if now.Sub(since) > cfg.MaxTimeRange {
+		return fmt.Errorf("%w of %v", errSinceTooOld, cfg.MaxTimeRange)
 	}
 	return nil
 }

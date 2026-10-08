@@ -1,0 +1,99 @@
+# loco deploy without --image packs the directory that holds loco.toml, uploads it,
+# follows the build and deploys it to every region in loco.toml.
+cd app
+exec loco deploy app --wait
+stdout '^Packed 5 files from '
+stdout 'Build 0199b6c4-5d1e-7f00-8000-000000000001 queued'
+stdout 'Build 0199b6c4-5d1e-7f00-8000-000000000001 running'
+stdout '│ #5 DONE 0199b6c4-5d1e-7f00-8000-000000000001'
+stdout 'Build 0199b6c4-5d1e-7f00-8000-000000000001 succeeded'
+stdout '^Deploy to us-east-1$'
+stdout '^Deploy to eu-west-1$'
+stdout '\[running\]'
+stdout 'Service deployed.'
+! stdout '\x1b\['
+
+fakeapi uploaded Dockerfile
+fakeapi uploaded main.go
+fakeapi uploaded web/index.js
+fakeapi uploaded .dockerignore
+! fakeapi uploaded .env
+! fakeapi uploaded .env.local
+! fakeapi uploaded web/.env
+! fakeapi uploaded .git/HEAD
+! fakeapi uploaded node_modules/left-pad/index.js
+fakeapi upload-header Content-Length body
+fakeapi upload-header Content-Type application/gzip
+fakeapi called CreateResource 'Bearer test-token'
+fakeapi called StartBuild 'Bearer test-token'
+fakeapi called TailLogs 'Bearer test-token'
+fakeapi deployed us-east-1 dockerfile
+fakeapi deployed eu-west-1 dockerfile
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.toml --
+currentScope = "default"
+
+[scopes.default.organization]
+name = "acme"
+id = "1"
+
+[scopes.default.workspace]
+name = "production"
+id = "2"
+-- app/loco.toml --
+[Metadata]
+ConfigVersion = "0.1"
+Name = "app"
+Type = "SERVICE"
+Region = "us-east-1"
+
+[Build]
+DockerfilePath = "Dockerfile"
+Type = "docker"
+
+[Routing]
+Port = 8080
+PathPrefix = "/"
+IdleTimeout = 60
+
+[RegionConfig]
+[RegionConfig.us-east-1]
+CPU = "100m"
+Memory = "256Mi"
+ReplicasMin = 1
+ReplicasMax = 1
+[RegionConfig.eu-west-1]
+CPU = "100m"
+Memory = "256Mi"
+ReplicasMin = 1
+ReplicasMax = 2
+
+[Health]
+Path = "/healthz"
+Interval = 30
+Timeout = 5
+StartupGracePeriod = 0
+FailThreshold = 3
+-- app/Dockerfile --
+FROM scratch
+COPY main.go /
+-- app/main.go --
+package main
+-- app/.dockerignore --
+node_modules
+!.env
+!.git
+-- app/.env --
+SECRET=root
+-- app/.env.local --
+SECRET=local
+-- app/web/.env --
+SECRET=nested
+-- app/web/index.js --
+console.log("app")
+-- app/node_modules/left-pad/index.js --
+module.exports = 1
+-- app/.git/HEAD --
+ref: refs/heads/main

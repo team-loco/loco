@@ -36,14 +36,28 @@ SELECT id, name, region, provider, is_active, is_default, endpoint, health_statu
 FROM clusters
 WHERE id = $1;
 
--- name: GetClustersByWorkspaceDeployments :many
-SELECT DISTINCT c.id, c.name, c.region, c.observability_proxy_endpoint
+-- name: GetObservabilityClustersForWorkspace :many
+SELECT c.id, c.name, c.region, c.observability_proxy_endpoint
 FROM clusters c
-INNER JOIN deployments d ON d.cluster_id = c.id
-INNER JOIN resources r ON r.id = d.resource_id
-WHERE r.workspace_id = $1
-  AND c.is_active = true
-  AND d.is_active = true;
+WHERE c.is_active = true
+  AND (
+    EXISTS (
+      SELECT 1
+      FROM deployments d
+      INNER JOIN resources r ON r.id = d.resource_id
+      WHERE d.cluster_id = c.id
+        AND d.is_active = true
+        AND r.workspace_id = $1
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM builds b
+      INNER JOIN resources r ON r.id = b.resource_id
+      WHERE b.cluster_id = c.id
+        AND r.workspace_id = $1
+    )
+  )
+ORDER BY c.region, c.id;
 
 -- name: SetClusterObservabilityEndpoint :exec
 UPDATE clusters

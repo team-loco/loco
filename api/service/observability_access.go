@@ -60,7 +60,7 @@ func (s *ObservabilityAccessServer) GetObservabilityAccess(
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("insufficient permissions"))
 	}
 
-	clusters, err := s.queries.GetClustersByWorkspaceDeployments(ctx, workspaceID)
+	clusters, err := s.queries.GetObservabilityClustersForWorkspace(ctx, workspaceID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to look up clusters", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to look up clusters"))

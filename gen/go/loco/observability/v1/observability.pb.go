@@ -388,7 +388,8 @@ type TailLogsRequest struct {
 	// Filter by severity levels (e.g., ["ERROR", "WARN"]).
 	Levels []string `protobuf:"bytes,4,rep,name=levels,proto3" json:"levels,omitempty"`
 	// Filter by resource attribute key-value pairs.
-	Labels        map[string]string `protobuf:"bytes,5,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Labels        map[string]string      `protobuf:"bytes,5,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Since         *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=since,proto3" json:"since,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -454,6 +455,13 @@ func (x *TailLogsRequest) GetLevels() []string {
 func (x *TailLogsRequest) GetLabels() map[string]string {
 	if x != nil {
 		return x.Labels
+	}
+	return nil
+}
+
+func (x *TailLogsRequest) GetSince() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Since
 	}
 	return nil
 }
@@ -899,13 +907,14 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a@\n" +
 	"\x12LogAttributesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x98\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xca\x02\n" +
 	"\x0fTailLogsRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12!\n" +
 	"\fresource_ids\x18\x02 \x03(\tR\vresourceIds\x12\x16\n" +
 	"\x06search\x18\x03 \x01(\tR\x06search\x12\x16\n" +
 	"\x06levels\x18\x04 \x03(\tR\x06levels\x12J\n" +
-	"\x06labels\x18\x05 \x03(\v22.loco.observability.v1.TailLogsRequest.LabelsEntryR\x06labels\x1a9\n" +
+	"\x06labels\x18\x05 \x03(\v22.loco.observability.v1.TailLogsRequest.LabelsEntryR\x06labels\x120\n" +
+	"\x05since\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x96\x01\n" +
@@ -992,26 +1001,27 @@ var file_loco_observability_v1_observability_proto_depIdxs = []int32{
 	12, // 6: loco.observability.v1.LogEntry.resource_attributes:type_name -> loco.observability.v1.LogEntry.ResourceAttributesEntry
 	13, // 7: loco.observability.v1.LogEntry.log_attributes:type_name -> loco.observability.v1.LogEntry.LogAttributesEntry
 	14, // 8: loco.observability.v1.TailLogsRequest.labels:type_name -> loco.observability.v1.TailLogsRequest.LabelsEntry
-	3,  // 9: loco.observability.v1.TailLogsResponse.entry:type_name -> loco.observability.v1.LogEntry
-	6,  // 10: loco.observability.v1.TailLogsResponse.heartbeat:type_name -> loco.observability.v1.Heartbeat
-	16, // 11: loco.observability.v1.Heartbeat.timestamp:type_name -> google.protobuf.Timestamp
-	16, // 12: loco.observability.v1.QueryMetricsRequest.start_time:type_name -> google.protobuf.Timestamp
-	16, // 13: loco.observability.v1.QueryMetricsRequest.end_time:type_name -> google.protobuf.Timestamp
-	9,  // 14: loco.observability.v1.QueryMetricsResponse.series:type_name -> loco.observability.v1.MetricSeries
-	15, // 15: loco.observability.v1.MetricSeries.labels:type_name -> loco.observability.v1.MetricSeries.LabelsEntry
-	10, // 16: loco.observability.v1.MetricSeries.points:type_name -> loco.observability.v1.MetricPoint
-	16, // 17: loco.observability.v1.MetricPoint.timestamp:type_name -> google.protobuf.Timestamp
-	1,  // 18: loco.observability.v1.ObservabilityProxyService.QueryLogs:input_type -> loco.observability.v1.QueryLogsRequest
-	4,  // 19: loco.observability.v1.ObservabilityProxyService.TailLogs:input_type -> loco.observability.v1.TailLogsRequest
-	7,  // 20: loco.observability.v1.ObservabilityProxyService.QueryMetrics:input_type -> loco.observability.v1.QueryMetricsRequest
-	2,  // 21: loco.observability.v1.ObservabilityProxyService.QueryLogs:output_type -> loco.observability.v1.QueryLogsResponse
-	5,  // 22: loco.observability.v1.ObservabilityProxyService.TailLogs:output_type -> loco.observability.v1.TailLogsResponse
-	8,  // 23: loco.observability.v1.ObservabilityProxyService.QueryMetrics:output_type -> loco.observability.v1.QueryMetricsResponse
-	21, // [21:24] is the sub-list for method output_type
-	18, // [18:21] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	16, // 9: loco.observability.v1.TailLogsRequest.since:type_name -> google.protobuf.Timestamp
+	3,  // 10: loco.observability.v1.TailLogsResponse.entry:type_name -> loco.observability.v1.LogEntry
+	6,  // 11: loco.observability.v1.TailLogsResponse.heartbeat:type_name -> loco.observability.v1.Heartbeat
+	16, // 12: loco.observability.v1.Heartbeat.timestamp:type_name -> google.protobuf.Timestamp
+	16, // 13: loco.observability.v1.QueryMetricsRequest.start_time:type_name -> google.protobuf.Timestamp
+	16, // 14: loco.observability.v1.QueryMetricsRequest.end_time:type_name -> google.protobuf.Timestamp
+	9,  // 15: loco.observability.v1.QueryMetricsResponse.series:type_name -> loco.observability.v1.MetricSeries
+	15, // 16: loco.observability.v1.MetricSeries.labels:type_name -> loco.observability.v1.MetricSeries.LabelsEntry
+	10, // 17: loco.observability.v1.MetricSeries.points:type_name -> loco.observability.v1.MetricPoint
+	16, // 18: loco.observability.v1.MetricPoint.timestamp:type_name -> google.protobuf.Timestamp
+	1,  // 19: loco.observability.v1.ObservabilityProxyService.QueryLogs:input_type -> loco.observability.v1.QueryLogsRequest
+	4,  // 20: loco.observability.v1.ObservabilityProxyService.TailLogs:input_type -> loco.observability.v1.TailLogsRequest
+	7,  // 21: loco.observability.v1.ObservabilityProxyService.QueryMetrics:input_type -> loco.observability.v1.QueryMetricsRequest
+	2,  // 22: loco.observability.v1.ObservabilityProxyService.QueryLogs:output_type -> loco.observability.v1.QueryLogsResponse
+	5,  // 23: loco.observability.v1.ObservabilityProxyService.TailLogs:output_type -> loco.observability.v1.TailLogsResponse
+	8,  // 24: loco.observability.v1.ObservabilityProxyService.QueryMetrics:output_type -> loco.observability.v1.QueryMetricsResponse
+	22, // [22:25] is the sub-list for method output_type
+	19, // [19:22] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_loco_observability_v1_observability_proto_init() }

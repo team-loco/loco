@@ -116,6 +116,7 @@ message TailLogsRequest {
   repeated string levels = 4;
   // Filter by resource attribute key-value pairs.
   map<string, string> labels = 5;
+  google.protobuf.Timestamp since = 6;
 }
 
 // TailLogsResponse is a server-streamed event (log entry or heartbeat).

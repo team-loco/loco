@@ -377,7 +377,10 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, deploymentTxError(ctx, err)
 	}
 
-	return connect.NewResponse(&deploymentv1.CreateDeploymentResponse{DeploymentId: deploymentID.String()}), nil
+	return connect.NewResponse(&deploymentv1.CreateDeploymentResponse{
+		DeploymentId: deploymentID.String(),
+		Build:        pinnedBuild,
+	}), nil
 }
 
 // GetDeployment retrieves a deployment by ID

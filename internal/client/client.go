@@ -295,41 +295,6 @@ func (c *Client) GetAppStatus(ctx context.Context, appID string) (*resourcev1.Ge
 	return resp.Msg, nil
 }
 
-func (c *Client) StreamLogs(
-	ctx context.Context,
-	appID string,
-	limit *int32,
-	follow *bool,
-	logHandler func(*resourcev1.WatchLogsResponse) error,
-) error {
-	req := connect.NewRequest(&resourcev1.WatchLogsRequest{
-		ResourceId: appID,
-		Limit:      limit,
-		Follow:     follow,
-	})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
-
-	stream, err := c.Resource.WatchLogs(ctx, req)
-	if err != nil {
-		logRequestID(ctx, err, "failed to stream logs")
-		return err
-	}
-
-	for stream.Receive() {
-		logEntry := stream.Msg()
-		if err := logHandler(logEntry); err != nil {
-			return err
-		}
-	}
-
-	if err := stream.Err(); err != nil {
-		logRequestID(ctx, err, "failed to stream logs")
-		return err
-	}
-
-	return nil
-}
-
 func (c *Client) GetEvents(ctx context.Context, appID string, limit *int32) ([]*resourcev1.Event, error) {
 	req := connect.NewRequest(&resourcev1.ListResourceEventsRequest{
 		ResourceId: appID,

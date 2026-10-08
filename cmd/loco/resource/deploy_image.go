@@ -11,17 +11,6 @@ import (
 
 var errNilConfig = errors.New("config cannot be nil")
 
-var errSourceBuildsUnavailable = errors.New(
-	"building from source is not available yet: pass --image with a public image reference",
-)
-
-func resolveImage(image string) (string, error) {
-	if image == "" {
-		return "", errSourceBuildsUnavailable
-	}
-	return image, nil
-}
-
 // configToResourceSpec converts a LocoConfig to a proto ResourceSpec.
 func configToResourceSpec(cfg *config.LocoConfig, version string) (*resourcev1.ResourceSpec, error) {
 	if cfg == nil {

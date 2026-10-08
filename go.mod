@@ -10,8 +10,10 @@ require (
 	charm.land/lipgloss/v2 v2.0.6
 	connectrpc.com/connect v1.21.0
 	github.com/BurntSushi/toml v1.6.0
+	github.com/charmbracelet/x/term v0.2.2
 	github.com/goccy/go-json v0.11.1
 	github.com/joho/godotenv v1.5.1
+	github.com/moby/patternmatcher v0.6.1
 	github.com/rogpeppe/go-internal v1.14.1
 	github.com/spf13/cobra v1.10.2
 	github.com/zalando/go-keyring v0.2.8
@@ -27,7 +29,6 @@ require (
 	github.com/charmbracelet/ultraviolet v0.0.0-20260903151058-ae99b731b8c5 // indirect
 	github.com/charmbracelet/x/ansi v0.11.8 // indirect
 	github.com/charmbracelet/x/exp/charmtone v0.0.0-20260902165432-6f6ad8b37b0a // indirect
-	github.com/charmbracelet/x/term v0.2.2 // indirect
 	github.com/charmbracelet/x/termios v0.1.1 // indirect
 	github.com/charmbracelet/x/windows v0.2.2 // indirect
 	github.com/clipperhouse/displaywidth v0.11.0 // indirect

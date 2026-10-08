@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"os/signal"
 
 	"charm.land/lipgloss/v2"
 	"connectrpc.com/connect"
@@ -29,11 +30,14 @@ type deployDeps struct {
 	NewResourceClient   func(host string) resourcev1connect.ResourceServiceClient
 	NewDeploymentClient func(host string) deploymentv1connect.DeploymentServiceClient
 	NewDomainClient     func(host string) domainv1connect.DomainServiceClient
+	Clients             platformClients
 	SelectFromList      func(title string, options []ui.SelectOption) (any, error)
+	Interactive         func() bool
 	Stdout              io.Writer
 }
 
 func BuildDeployCmd() *cobra.Command {
+	clients := defaultPlatformClients()
 	deps := deployDeps{
 		LoadSessionConfig: session.Load,
 		LoadLocoConfig:    config.Load,
@@ -47,7 +51,9 @@ func BuildDeployCmd() *cobra.Command {
 		NewDomainClient: func(host string) domainv1connect.DomainServiceClient {
 			return domainv1connect.NewDomainServiceClient(httputil.NewHTTPClient(), host)
 		},
+		Clients:        clients,
 		SelectFromList: ui.SelectFromList,
+		Interactive:    stdoutIsTerminal,
 		Stdout:         os.Stdout,
 	}
 	return newDeployCmd(deps)
@@ -60,123 +66,156 @@ func newDeployCmd(deps deployDeps) *cobra.Command {
 		Long: `Deploy a service to Loco.
 
 Reads loco.toml from the current directory, or from the path given with --config.
+Without --image, packs the directory that holds loco.toml, builds it on Loco with the
+Dockerfile named in loco.toml, and deploys the result to every region in loco.toml.
+The archive honors .dockerignore and never contains .git, .env or .env.* files.
+Ctrl-C while the build runs detaches without canceling it.
 
 Examples:
+  loco deploy myapp
+  loco deploy myapp --env production --wait
   loco deploy myapp --image ghcr.io/acme/myapp:v1
-  loco deploy myapp --image ghcr.io/acme/myapp:v1 --config ./loco.toml
-  loco deploy myapp --image ghcr.io/acme/myapp:v1 --wait`,
+  loco deploy myapp --image ghcr.io/acme/myapp:v1 --config ./loco.toml`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			name := args[0]
-
-			imageFlag, err := cmd.Flags().GetString("image")
-			if err != nil {
-				return fmt.Errorf("failed to get image flag: %w", err)
-			}
-			imageName, err := resolveImage(imageFlag)
-			if err != nil {
-				return err
-			}
-			wait, err := cmd.Flags().GetBool("wait")
-			if err != nil {
-				return fmt.Errorf("failed to get wait flag: %w", err)
-			}
-
-			// Get host and token
-			host, err := cmdutil.GetHost(cmd)
-			if err != nil {
-				return err
-			}
-
-			locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
-			if err != nil {
-				return err
-			}
-			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
-
-			// Resolve org and workspace IDs
-			apiClient := deps.NewAPIClient(host, locoToken.Token)
-			workspaceID, err := resolveWorkspaceID(ctx, cmd, deps.LoadSessionConfig, apiClient)
-			if err != nil {
-				return err
-			}
-
-			// Load config file
-			loadedCfg, err := loadDeployConfig(cmd, deps)
-			if err != nil {
-				return err
-			}
-
-			// Override name from positional arg
-			loadedCfg.Config.Metadata.Name = name
-
-			// Validate and fill defaults
-			if validateErr := config.Validate(loadedCfg.Config); validateErr != nil {
-				return fmt.Errorf("config validation failed: %w", validateErr)
-			}
-			config.FillSensibleDefaults(loadedCfg.Config)
-
-			cfgValid := lipgloss.NewStyle().Render("Config validated. Beginning deployment!")
-			fmt.Fprintln(deps.Stdout, cfgValid)
-
-			// Create clients
-			resourceClient := deps.NewResourceClient(host)
-			deploymentClient := deps.NewDeploymentClient(host)
-			domainClient := deps.NewDomainClient(host)
-
-			// Get or create resource
-			resourceID, err := getOrCreateResource(
-				ctx,
-				resourceClient,
-				domainClient,
-				deps.SelectFromList,
-				authHeader,
-				workspaceID,
-				loadedCfg.Config,
-			)
-			if err != nil {
-				return err
-			}
-
-			// Create deployment
-			if err := createDeployment(
-				ctx,
-				deploymentClient,
-				authHeader,
-				resourceID,
-				imageName,
-				loadedCfg.Config,
-				wait,
-			); err != nil {
-				return err
-			}
-
-			// Success message
-			successMsg := "\n🎉 Deployment scheduled!"
-			if wait {
-				successMsg = "\n🎉 Service deployed!"
-			}
-			s := lipgloss.NewStyle().Bold(true).Foreground(ui.Ok).Render(successMsg)
-			fmt.Fprintln(deps.Stdout, s)
-
-			tip := lipgloss.NewStyle().
-				Foreground(ui.Fg3).
-				Render("\nTip: Keep tabs on your service using `loco resource status " + name + "`")
-			fmt.Fprintln(deps.Stdout, tip)
-
-			return nil
+			return runDeploy(cmd, deps, args[0])
 		},
 	}
 
 	cmd.Flags().StringP("config", "c", "", "Path to loco.toml config file (optional)")
 	cmd.Flags().String("org", "", "Organization name")
 	cmd.Flags().String("workspace", "", "Workspace name")
-	cmd.Flags().StringP("image", "i", "", "Public image reference to deploy (required)")
+	cmd.Flags().String("env", "", "Environment to deploy to (defaults to the workspace's only environment)")
+	cmd.Flags().StringP("image", "i", "", "Public image reference to deploy instead of building from source")
 	cmd.Flags().String("host", "", "API host URL")
-	cmd.Flags().Bool("wait", false, "Wait for any replicas to fully scale out.")
+	cmd.Flags().Bool("wait", false, "Wait until the deployment runs in every region")
 
 	return cmd
+}
+
+func runDeploy(cmd *cobra.Command, deps deployDeps, name string) error {
+	imageName, err := cmd.Flags().GetString("image")
+	if err != nil {
+		return fmt.Errorf("failed to get image flag: %w", err)
+	}
+	wait, err := cmd.Flags().GetBool("wait")
+	if err != nil {
+		return fmt.Errorf("failed to get wait flag: %w", err)
+	}
+
+	host, err := cmdutil.GetHost(cmd)
+	if err != nil {
+		return err
+	}
+	locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
+	if err != nil {
+		return err
+	}
+	authHeader := authHeaderFor(locoToken.Token)
+
+	parent := cmd.Context()
+	ctx, stop := signal.NotifyContext(parent, os.Interrupt)
+	defer stop()
+
+	apiClient := deps.NewAPIClient(host, locoToken.Token)
+	workspaceID, err := resolveWorkspaceID(ctx, cmd, deps.LoadSessionConfig, apiClient)
+	if err != nil {
+		return err
+	}
+
+	loadedCfg, err := loadDeployConfig(cmd, deps)
+	if err != nil {
+		return err
+	}
+	loadedCfg.Config.Metadata.Name = name
+	if validateErr := config.Validate(loadedCfg.Config); validateErr != nil {
+		return fmt.Errorf("config validation failed: %w", validateErr)
+	}
+	config.FillSensibleDefaults(loadedCfg.Config)
+
+	interactive := deps.Interactive()
+	environmentClient := deps.Clients.Environments(host)
+	environmentID, err := resolveEnvironmentID(
+		ctx,
+		cmd,
+		environmentClient,
+		deps.SelectFromList,
+		interactive,
+		authHeader,
+		workspaceID,
+	)
+	if err != nil {
+		return err
+	}
+
+	resourceClient := deps.NewResourceClient(host)
+	domainClient := deps.NewDomainClient(host)
+	resourceID, err := getOrCreateResource(
+		ctx,
+		resourceClient,
+		domainClient,
+		deps.SelectFromList,
+		authHeader,
+		workspaceID,
+		loadedCfg.Config,
+	)
+	if err != nil {
+		return err
+	}
+
+	source := imageSource(imageName)
+	if imageName == "" {
+		dockerfile, dockerfileErr := dockerfileInContext(loadedCfg.ProjectPath, loadedCfg.Config.Build.DockerfilePath)
+		if dockerfileErr != nil {
+			return dockerfileErr
+		}
+		builder := &sourceBuilder{follower: &buildFollower{
+			clients: deps.Clients,
+			host:    host,
+			token:   locoToken.Token,
+			out:     &syncWriter{out: deps.Stdout},
+		}}
+		build, buildErr := builder.build(ctx, resourceID, workspaceID, loadedCfg.ProjectPath, dockerfile)
+		if buildErr != nil {
+			return buildErr
+		}
+		buildID := build.GetId()
+		source = dockerfileSource(buildID)
+	}
+
+	deploymentClient := deps.NewDeploymentClient(host)
+	req := deploymentRequest{
+		resourceID:    resourceID,
+		environmentID: environmentID,
+		source:        source,
+		cfg:           loadedCfg.Config,
+		wait:          wait,
+	}
+	if deployErr := createDeployments(
+		ctx,
+		deploymentClient,
+		authHeader,
+		req,
+		interactive,
+		deps.Stdout,
+	); deployErr != nil {
+		return deployErr
+	}
+
+	successMsg := "\nDeployment scheduled."
+	if wait {
+		successMsg = "\nService deployed."
+	}
+	s := lipgloss.NewStyle().Bold(true).Foreground(ui.Ok).Render(successMsg)
+	if _, printErr := lipgloss.Fprintln(deps.Stdout, s); printErr != nil {
+		return printErr
+	}
+
+	tip := lipgloss.NewStyle().
+		Foreground(ui.Fg3).
+		Render("Check on it with `loco resource status " + name + "`")
+	_, err = lipgloss.Fprintln(deps.Stdout, tip)
+	return err
 }
 
 func loadDeployConfig(cmd *cobra.Command, deps deployDeps) (*config.LoadedConfig, error) {

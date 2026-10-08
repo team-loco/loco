@@ -22,6 +22,8 @@ var (
 	errQueryFailed  = errors.New("query failed")
 )
 
+const defaultTailLookback = 2 * time.Second
+
 var _ observabilityv1connect.ObservabilityProxyServiceHandler = (*ObservabilityService)(nil)
 
 type ObservabilityService struct {
@@ -97,7 +99,8 @@ func (s *ObservabilityService) TailLogs(
 	}
 
 	msg := req.Msg
-	if err := guardrails.ValidateTailRequest(msg, s.cfg); err != nil {
+	started := time.Now()
+	if err := guardrails.ValidateTailRequest(msg, s.cfg, started); err != nil {
 		return connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
@@ -111,8 +114,11 @@ func (s *ObservabilityService) TailLogs(
 		return connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	deadline := time.Now().Add(s.cfg.MaxTailDuration)
-	lastSeen := time.Now().Add(-2 * time.Second)
+	deadline := started.Add(s.cfg.MaxTailDuration)
+	lastSeen := started.Add(-defaultTailLookback)
+	if msg.GetSince() != nil {
+		lastSeen = msg.GetSince().AsTime()
+	}
 	heartbeatInterval := 5 * time.Second
 	pollInterval := 2 * time.Second
 	lastHeartbeat := time.Now()

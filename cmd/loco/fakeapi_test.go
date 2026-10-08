@@ -39,6 +39,7 @@ type fakeAPI struct {
 	users    map[string]*userv1.User
 	failures map[string]connect.Code
 	calls    []apiCall
+	platform *fakePlatform
 }
 
 func newFakeAPI() *fakeAPI {
@@ -52,6 +53,7 @@ func newFakeAPI() *fakeAPI {
 			},
 		},
 		failures: map[string]connect.Code{},
+		platform: newFakePlatform(),
 	}
 }
 
@@ -59,6 +61,7 @@ func (f *fakeAPI) handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle(userv1connect.NewUserServiceHandler(f))
 	mux.Handle(oauthv1connect.NewOAuthServiceHandler(&fakeOAuthService{api: f}))
+	f.registerPlatform(mux)
 	return mux
 }
 
