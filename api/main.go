@@ -333,7 +333,7 @@ func main() {
 	httpInterceptors := connect.WithInterceptors(
 		deadlineInterceptor,
 		interceptor.NewContextInterceptor(),
-		interceptor.NewAuthInterceptor(machine, verifier, resolver),
+		interceptor.NewAuthInterceptor(machine, verifier, resolver, auth.NewSSOGate(queries)),
 		validate.NewInterceptor(),
 	)
 
@@ -368,6 +368,11 @@ func main() {
 	authServiceHandler := service.NewAuthServer(queries, machine, appCache, admins, ac.WebURL)
 	userServiceHandler := service.NewUserServer(pool, queries, machine, secureCookies, admins)
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
+	if webIssuer, ok := auth.WebIssuer(issuers); ok {
+		if sso, ssoOK := admins.SSO(webIssuer.Issuer); ssoOK {
+			orgServiceHandler.UseSSO(sso, webIssuer.Issuer)
+		}
+	}
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
 	resourceServiceHandler := service.NewResourceServer(pool, queries, machine)
 	sourceBucket, bucketErr := newSourceBucket(ac.SourceBucket)

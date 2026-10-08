@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -184,4 +185,112 @@ func snippet(r io.Reader) string {
 		return err.Error()
 	}
 	return strings.TrimSpace(string(body))
+}
+
+type SSOAdmin interface {
+	CreateSAMLConnection(ctx context.Context, metadataURL, metadataXML string, domains []string) (string, error)
+	SetSAMLDomains(ctx context.Context, connectionID string, domains []string) error
+	DeleteSAMLConnection(ctx context.Context, connectionID string) error
+	ServiceProvider() (metadataURL string, acsURL string)
+}
+
+type ProviderError struct {
+	Message string
+}
+
+func (e *ProviderError) Error() string {
+	return e.Message
+}
+
+func (a Admins) SSO(issuer string) (SSOAdmin, bool) {
+	sso, ok := a[issuer].(SSOAdmin)
+	return sso, ok
+}
+
+func (s *SupabaseAdmin) ServiceProvider() (string, string) {
+	return s.baseURL + "/sso/saml/metadata", s.baseURL + "/sso/saml/acs"
+}
+
+func (s *SupabaseAdmin) ssoRequest(ctx context.Context, method, path string, body any) (*http.Response, error) {
+	var reader io.Reader
+	if body != nil {
+		raw, err := json.Marshal(body)
+		if err != nil {
+			return nil, err
+		}
+		reader = bytes.NewReader(raw)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, s.baseURL+"/admin/sso/providers"+path, reader)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+s.token)
+	req.Header.Set("Accept", "application/json")
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	return s.client.Do(req)
+}
+
+func providerError(resp *http.Response, action string) error {
+	var body struct {
+		Msg string `json:"msg"`
+	}
+	raw := snippet(resp.Body)
+	if json.Unmarshal([]byte(raw), &body) == nil && body.Msg != "" && resp.StatusCode < http.StatusInternalServerError {
+		return &ProviderError{Message: body.Msg}
+	}
+	return fmt.Errorf("%s: status %d: %s", action, resp.StatusCode, raw)
+}
+
+func (s *SupabaseAdmin) CreateSAMLConnection(
+	ctx context.Context,
+	metadataURL, metadataXML string,
+	domains []string,
+) (string, error) {
+	resp, err := s.ssoRequest(ctx, http.MethodPost, "", map[string]any{
+		"type":         "saml",
+		"metadata_url": metadataURL,
+		"metadata_xml": metadataXML,
+		"domains":      domains,
+	})
+	if err != nil {
+		return "", fmt.Errorf("create sso provider: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
+		return "", providerError(resp, "create sso provider")
+	}
+	var created struct {
+		ID string `json:"id"`
+	}
+	body := io.LimitReader(resp.Body, maxAdminResponseBytes)
+	if err := json.NewDecoder(body).Decode(&created); err != nil || created.ID == "" {
+		return "", fmt.Errorf("decode sso provider: %w", err)
+	}
+	return created.ID, nil
+}
+
+func (s *SupabaseAdmin) SetSAMLDomains(ctx context.Context, connectionID string, domains []string) error {
+	resp, err := s.ssoRequest(ctx, http.MethodPut, "/"+url.PathEscape(connectionID), map[string]any{"domains": domains})
+	if err != nil {
+		return fmt.Errorf("update sso provider: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return providerError(resp, "update sso provider")
+	}
+	return nil
+}
+
+func (s *SupabaseAdmin) DeleteSAMLConnection(ctx context.Context, connectionID string) error {
+	resp, err := s.ssoRequest(ctx, http.MethodDelete, "/"+url.PathEscape(connectionID), nil)
+	if err != nil {
+		return fmt.Errorf("delete sso provider: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
+		return providerError(resp, "delete sso provider")
+	}
+	return nil
 }

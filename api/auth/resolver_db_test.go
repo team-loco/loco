@@ -300,3 +300,84 @@ func TestResolveAsksTheProviderOnlyWhenItNeedsTheVerifiedState(t *testing.T) {
 		t.Fatalf("unconfirmed new email stored as verified: %+v %v", stored, err)
 	}
 }
+
+const samlConnectionID = "conn-1"
+
+func samlIdentity(sub, email, connection string) Identity {
+	id := identity(sub, email, true)
+	id.Methods = []AuthMethod{{Method: MethodSAML, Provider: connection}}
+	return id
+}
+
+func TestResolveTrustsSSOEmailsOnlyOnTheOrgsDomains(t *testing.T) {
+	pool := authtest.NewPool(t)
+	r := NewResolver(pool, open(t))
+	q := genDb.New(pool)
+	ctx := t.Context()
+
+	victim, err := r.Resolve(ctx, identity("victim", "victim@victim.test", true))
+	if err != nil {
+		t.Fatalf("victim: %v", err)
+	}
+	org, err := q.CreateOrganization(ctx, genDb.CreateOrganizationParams{Name: "corp", CreatedBy: victim.ID})
+	if err != nil {
+		t.Fatalf("org: %v", err)
+	}
+	domain, err := q.CreateOrgDomain(
+		ctx,
+		genDb.CreateOrgDomainParams{OrgID: org.ID, Domain: "corp.test", VerificationToken: "t"},
+	)
+	if err != nil {
+		t.Fatalf("domain: %v", err)
+	}
+	if _, markErr := q.MarkOrgDomainVerified(
+		ctx,
+		genDb.MarkOrgDomainVerifiedParams{ID: domain.ID, OrgID: org.ID},
+	); markErr != nil {
+		t.Fatalf("verify: %v", markErr)
+	}
+	if _, ssoErr := q.CreateOrgSSO(ctx, genDb.CreateOrgSSOParams{
+		OrgID: org.ID, ConnectionID: samlConnectionID, Issuer: testIssuerURL,
+	}); ssoErr != nil {
+		t.Fatalf("sso: %v", ssoErr)
+	}
+
+	_, err = r.Resolve(ctx, samlIdentity("forged", "victim@victim.test", samlConnectionID))
+	if rejected, ok := errors.AsType[*SignupRejectedError](err); !ok {
+		t.Fatalf("sso login asserting another domain's address = %v, want a rejection", err)
+	} else if rejected.Message == "" {
+		t.Fatal("rejection has no message")
+	}
+
+	verifiedOf := func(sub string) bool {
+		t.Helper()
+		row, getErr := q.GetIdentity(ctx, genDb.GetIdentityParams{Issuer: testIssuerURL, Subject: sub})
+		if getErr != nil {
+			t.Fatalf("identity %s: %v", sub, getErr)
+		}
+		return row.EmailVerified
+	}
+	if _, resolveErr := r.Resolve(ctx, samlIdentity("alice", "alice@corp.test", samlConnectionID)); resolveErr != nil {
+		t.Fatalf("sso login on the org's domain: %v", resolveErr)
+	}
+	if !verifiedOf("alice") {
+		t.Fatal("email on the org's domain was not trusted")
+	}
+	providerConfirmed := &fakeEmailVerifier{verified: map[string]bool{"carol": true}}
+	adminVerified := NewResolver(pool, open(t), WithEmailVerifiers(EmailVerifiers{testIssuerURL: providerConfirmed}))
+	carol := samlIdentity("carol", "carol@elsewhere.test", samlConnectionID)
+	carol.EmailVerified = false
+	if _, carolErr := adminVerified.Resolve(ctx, carol); !errors.Is(carolErr, ErrEmailUnverified) {
+		t.Fatalf("provider-confirmed email outside the connection's domains = %v, want %v",
+			carolErr, ErrEmailUnverified)
+	}
+
+	_, err = r.Resolve(ctx, samlIdentity("bob", "bob@corp.test", "conn-unknown"))
+	if !errors.Is(err, ErrEmailUnverified) {
+		t.Fatalf("sso login through an unknown connection = %v, want %v", err, ErrEmailUnverified)
+	}
+	_, err = q.GetIdentity(ctx, genDb.GetIdentityParams{Issuer: testIssuerURL, Subject: "bob"})
+	if !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("identity from an unknown connection stored: %v", err)
+	}
+}

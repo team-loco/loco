@@ -91,14 +91,15 @@ DELETE FROM user_scopes WHERE user_id = $1;
 -- -----------------------------------------------------------------------------
 
 -- name: CreateSessionToken :exec
-INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id, access_expires_at, refresh_expires_at, ip_address, user_agent, identity_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
+INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id, access_expires_at, refresh_expires_at, ip_address, user_agent, identity_id, sso_connection_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
 
 -- name: GetSessionWithScopesByAccessToken :one
 SELECT
     st.id,
     st.user_id,
     st.last_used_at,
+    st.sso_connection_id,
     COALESCE(
         (
             SELECT JSON_AGG(
@@ -154,11 +155,11 @@ ORDER BY last_used_at DESC;
 -- -----------------------------------------------------------------------------
 
 -- name: CreateAPIToken :exec
-INSERT INTO api_tokens (id, token_hash, name, entity_type, entity_id, scopes, created_by, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
+INSERT INTO api_tokens (id, token_hash, name, entity_type, entity_id, scopes, created_by, expires_at, sso_connection_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 
 -- name: GetAPIToken :one
-SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at
+SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at, sso_connection_id
 FROM api_tokens
 WHERE token_hash = $1 AND expires_at > NOW();
 

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AddOrgDomainRequest, AddOrgDomainResponse, CreateOrgRequest, CreateOrgResponse, DeleteOrgDomainRequest, DeleteOrgDomainResponse, DeleteOrgRequest, DeleteOrgResponse, GetOrgRequest, GetOrgResponse, ListOrgDomainsRequest, ListOrgDomainsResponse, ListOrgUsersRequest, ListOrgUsersResponse, ListOrgWorkspacesRequest, ListOrgWorkspacesResponse, ListUserOrgsRequest, ListUserOrgsResponse, SetOrgDomainAutoJoinRequest, SetOrgDomainAutoJoinResponse, UpdateOrgRequest, UpdateOrgResponse, VerifyOrgDomainRequest, VerifyOrgDomainResponse } from "./org_pb";
+import { AddOrgDomainRequest, AddOrgDomainResponse, ConfigureOrgSSORequest, ConfigureOrgSSOResponse, CreateOrgRequest, CreateOrgResponse, DeleteOrgDomainRequest, DeleteOrgDomainResponse, DeleteOrgRequest, DeleteOrgResponse, DeleteOrgSSORequest, DeleteOrgSSOResponse, GetOrgRequest, GetOrgResponse, GetOrgSSORequest, GetOrgSSOResponse, ListOrgDomainsRequest, ListOrgDomainsResponse, ListOrgUsersRequest, ListOrgUsersResponse, ListOrgWorkspacesRequest, ListOrgWorkspacesResponse, ListUserOrgsRequest, ListUserOrgsResponse, SetOrgDomainAutoJoinRequest, SetOrgDomainAutoJoinResponse, SetOrgRequireSSORequest, SetOrgRequireSSOResponse, UpdateOrgRequest, UpdateOrgResponse, VerifyOrgDomainRequest, VerifyOrgDomainResponse } from "./org_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -134,6 +134,42 @@ export const OrgService = {
       name: "DeleteOrgDomain",
       I: DeleteOrgDomainRequest,
       O: DeleteOrgDomainResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc loco.org.v1.OrgService.GetOrgSSO
+     */
+    getOrgSSO: {
+      name: "GetOrgSSO",
+      I: GetOrgSSORequest,
+      O: GetOrgSSOResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc loco.org.v1.OrgService.ConfigureOrgSSO
+     */
+    configureOrgSSO: {
+      name: "ConfigureOrgSSO",
+      I: ConfigureOrgSSORequest,
+      O: ConfigureOrgSSOResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc loco.org.v1.OrgService.SetOrgRequireSSO
+     */
+    setOrgRequireSSO: {
+      name: "SetOrgRequireSSO",
+      I: SetOrgRequireSSORequest,
+      O: SetOrgRequireSSOResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc loco.org.v1.OrgService.DeleteOrgSSO
+     */
+    deleteOrgSSO: {
+      name: "DeleteOrgSSO",
+      I: DeleteOrgSSORequest,
+      O: DeleteOrgSSOResponse,
       kind: MethodKind.Unary,
     },
   }

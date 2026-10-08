@@ -12,4 +12,5 @@ const (
 	SourceIPKey         ContextKey = "sourceIp"
 	TokenKey            ContextKey = "token"
 	IdentityKey         ContextKey = "identity"
+	SSOConnectionKey    ContextKey = "ssoConnection"
 )
