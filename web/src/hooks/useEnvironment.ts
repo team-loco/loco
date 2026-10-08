@@ -46,16 +46,3 @@ export function environmentTypeLabel(type: EnvironmentType): string {
 			return "";
 	}
 }
-
-export function environmentDotClass(type: EnvironmentType): string {
-	switch (type) {
-		case EnvironmentType.PRODUCTION:
-			return "bg-primary";
-		case EnvironmentType.STAGING:
-			return "bg-warn";
-		case EnvironmentType.DEV:
-			return "bg-fg4";
-		case EnvironmentType.UNSPECIFIED:
-			return "bg-fg4";
-	}
-}

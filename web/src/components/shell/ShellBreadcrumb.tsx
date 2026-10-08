@@ -22,7 +22,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import { environmentDotClass, environmentTypeLabel, useEnvironments } from "@/hooks/useEnvironment";
+import { environmentTypeLabel, useEnvironments } from "@/hooks/useEnvironment";
 import { workspacePath } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
@@ -213,7 +213,6 @@ export function ShellBreadcrumb() {
 							title="Environment"
 							heading="Environments"
 							label={env.name}
-							icon={<span className={cn("size-[7px] shrink-0 rounded-full", environmentDotClass(env.type))} />}
 						>
 							{environments.map((e) => (
 								<DropdownMenuItem
@@ -222,7 +221,6 @@ export function ShellBreadcrumb() {
 										setEnv(e);
 									}}
 								>
-									<span className={cn("size-[7px] rounded-full", environmentDotClass(e.type))} />
 									<span className="flex-1 truncate">{e.name}</span>
 									<span className="text-sm text-fg3">{environmentTypeLabel(e.type)}</span>
 									{e.id === env.id && <CheckIcon className="size-3.5" />}

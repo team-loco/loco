@@ -20,7 +20,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
 import { Input } from "@/components/design/Input";
-import { environmentDotClass, environmentTypeLabel } from "@/hooks/useEnvironment";
+import { environmentTypeLabel } from "@/hooks/useEnvironment";
 import { toastConnectError } from "@/lib/error-handler";
 import { cn } from "@/lib/utils";
 
@@ -99,7 +99,6 @@ export function EnvironmentMenu({
 	};
 
 	const typeLabel = active !== undefined ? environmentTypeLabel(active.type) : "";
-	const dot = active !== undefined ? environmentDotClass(active.type) : "bg-fg4";
 
 	return (
 		<DropdownMenu
@@ -111,7 +110,6 @@ export function EnvironmentMenu({
 		>
 			<DropdownMenuTrigger render={<Button variant="outline" className="ml-1 gap-2 px-2.5" />}>
 				<span className="text-fg3">Environment</span>
-				<span className={cn("size-[7px] rounded-full", dot)} />
 				<span className="font-medium">{active?.name ?? "None"}</span>
 				{typeLabel !== "" && typeLabel !== active?.name.toLowerCase() && (
 					<span className="text-sm text-fg3">{typeLabel}</span>
@@ -132,7 +130,6 @@ export function EnvironmentMenu({
 									onSelect(env);
 								}}
 							>
-								<span className={cn("size-[7px] rounded-full", environmentDotClass(env.type))} />
 								<span className="flex-1">{env.name}</span>
 								<span className="text-sm text-fg3">{environmentTypeLabel(env.type)}</span>
 							</DropdownMenuItem>
