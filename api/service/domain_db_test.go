@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
@@ -164,5 +166,68 @@ func TestRemovingThePrimaryDomainRequiresAnotherPrimaryFirst(t *testing.T) {
 	}
 	if err := removeDomain(t, f, testPrimaryDomain); err != nil {
 		t.Fatalf("remove the primary once it is the only domain: %v", err)
+	}
+}
+
+type domainEventRow struct {
+	eventType string
+	subjectID string
+}
+
+func domainEvents(t *testing.T, f *deployFixture, domain string) []domainEventRow {
+	t.Helper()
+	query := `SELECT type, subject_id FROM events WHERE subject_type = $1 AND data->>$2 = $3 ORDER BY seq`
+	rows, err := f.pool.Query(context.Background(), query, events.SubjectDomain, events.FieldDomain, domain)
+	if err != nil {
+		t.Fatalf("list domain events: %v", err)
+	}
+	defer rows.Close()
+	var out []domainEventRow
+	for rows.Next() {
+		var row domainEventRow
+		var subjectID uuid.UUID
+		if scanErr := rows.Scan(&row.eventType, &subjectID); scanErr != nil {
+			t.Fatalf("scan domain event: %v", scanErr)
+		}
+		row.subjectID = subjectID.String()
+		out = append(out, row)
+	}
+	if rowsErr := rows.Err(); rowsErr != nil {
+		t.Fatalf("read domain events: %v", rowsErr)
+	}
+	return out
+}
+
+func TestAddingAndRemovingTheLastDomainRecordEvents(t *testing.T) {
+	f := newDeployFixture(t)
+	client := newDomainClient(t, f)
+
+	if err := client.add(testPrimaryDomain); err != nil {
+		t.Fatalf("add: %v", err)
+	}
+	id := client.domainID(t, testPrimaryDomain)
+	if err := client.removeByID(id); err != nil {
+		t.Fatalf("remove the last domain: %v", err)
+	}
+
+	got := domainEvents(t, f, testPrimaryDomain)
+	want := []domainEventRow{
+		{eventType: events.DomainCreated, subjectID: id},
+		{eventType: events.DomainDeleted, subjectID: id},
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("domain events = %+v, want %+v", got, want)
+	}
+}
+
+func TestRejectedPrimaryDomainRemovalRecordsNoEvent(t *testing.T) {
+	f := newDeployFixture(t)
+	f.addDomain(t, testPrimaryDomain, true)
+	f.addDomain(t, testSecondDomain, false)
+
+	err := removeDomain(t, f, testPrimaryDomain)
+	wantCode(t, err, connect.CodeFailedPrecondition)
+	if got := domainEvents(t, f, testPrimaryDomain); len(got) != 0 {
+		t.Fatalf("domain events after a rejected removal = %+v, want none", got)
 	}
 }

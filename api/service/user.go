@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/team-loco/loco/api/events"
+
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -164,9 +166,19 @@ func (s *UserServer) UpdateUser(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	_, err := s.queries.UpdateUserAvatarURL(ctx, genDb.UpdateUserAvatarURLParams{
-		ID:        uuid.MustParse(r.GetUserId()),
-		AvatarUrl: r.AvatarUrl,
+	userID := uuid.MustParse(r.GetUserId())
+	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if _, updateErr := qtx.UpdateUserAvatarURL(ctx, genDb.UpdateUserAvatarURLParams{
+			ID:        userID,
+			AvatarUrl: r.AvatarUrl,
+		}); updateErr != nil {
+			return updateErr
+		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.UserUpdated,
+			SubjectType: events.SubjectUser,
+			SubjectID:   new(userID),
+		})
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update user", "error", err)
@@ -288,7 +300,16 @@ func (s *UserServer) DeleteUser(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	err = s.queries.DeleteUser(ctx, userID)
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if deleteErr := qtx.DeleteUser(ctx, userID); deleteErr != nil {
+			return deleteErr
+		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.UserDeleted,
+			SubjectType: events.SubjectUser,
+			SubjectID:   new(userID),
+		})
+	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete user", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)

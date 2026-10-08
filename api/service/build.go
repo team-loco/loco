@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
 	timeutil "github.com/team-loco/loco/api/timeutil"
@@ -190,16 +191,29 @@ func (s *BuildServer) CreateBuild(
 
 	repository := imageRepository(s.config.RegistryHost, s.config.RegistryPrefix, resource.WorkspaceID, resource.ID)
 	dockerfilePath := r.GetDockerfilePath()
-	if _, createErr := s.queries.CreateBuild(ctx, genDb.CreateBuildParams{
-		ID:              buildID,
-		ResourceID:      resource.ID,
-		SourceType:      buildSourceTypeUpload,
-		SourceKey:       sourceKey,
-		SourceSize:      sourceSize,
-		DockerfilePath:  dockerfilePath,
-		ImageRepository: repository,
-		CreatedBy:       entity.ID,
-	}); createErr != nil {
+	createErr := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if _, err := qtx.CreateBuild(ctx, genDb.CreateBuildParams{
+			ID:              buildID,
+			ResourceID:      resource.ID,
+			SourceType:      buildSourceTypeUpload,
+			SourceKey:       sourceKey,
+			SourceSize:      sourceSize,
+			DockerfilePath:  dockerfilePath,
+			ImageRepository: repository,
+			CreatedBy:       entity.ID,
+		}); err != nil {
+			return fmt.Errorf("create build: %w", err)
+		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.BuildCreated,
+			WorkspaceID: new(resource.WorkspaceID),
+			ResourceID:  new(resource.ID),
+			SubjectType: events.SubjectBuild,
+			SubjectID:   new(buildID),
+			Data:        map[string]any{events.FieldResourceID: resource.ID.String(), "sourceSize": sourceSize},
+		})
+	})
+	if createErr != nil {
 		slog.ErrorContext(ctx, "failed to create build", "error", createErr, "resourceId", resource.ID)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
@@ -332,7 +346,21 @@ func queueBuild(
 				return notifyErr
 			}
 		}
-		return nil
+		supersededIDs := make([]string, len(supersededSources))
+		for i, source := range supersededSources {
+			supersededIDs[i] = source.id.String()
+		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.BuildStarted,
+			ResourceID:  new(resourceID),
+			SubjectType: events.SubjectBuild,
+			SubjectID:   new(buildID),
+			Data: map[string]any{
+				events.FieldResourceID: resourceID.String(),
+				"clusterId":            clusterID.String(),
+				"superseded":           supersededIDs,
+			},
+		})
 	})
 	if err != nil {
 		return nil, err
@@ -454,7 +482,7 @@ func (s *BuildServer) CancelBuild(
 		return nil, authErr
 	}
 
-	if cancelErr := cancelBuild(ctx, s.db, s.queries, s.bucket, build.ID); cancelErr != nil {
+	if cancelErr := cancelBuild(ctx, s.db, s.queries, s.bucket, build.ID, build.ResourceID); cancelErr != nil {
 		if errors.Is(cancelErr, errBuildNotCancelable) {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, cancelErr)
 		}
@@ -475,7 +503,7 @@ func cancelBuild(
 	pool *pgxpool.Pool,
 	queries genDb.Querier,
 	bucket SourceBucket,
-	buildID uuid.UUID,
+	buildID, resourceID uuid.UUID,
 ) error {
 	var source buildSource
 	err := withTx(ctx, pool, func(qtx *genDb.Queries) error {
@@ -490,10 +518,18 @@ func cancelBuild(
 			return fmt.Errorf("cancel build: %w", cancelErr)
 		}
 		source = buildSource{id: row.ID, key: row.SourceKey}
-		if row.ClusterID == nil {
-			return nil
+		if row.ClusterID != nil {
+			if notifyErr := notifyCluster(ctx, qtx, *row.ClusterID); notifyErr != nil {
+				return notifyErr
+			}
 		}
-		return notifyCluster(ctx, qtx, *row.ClusterID)
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.BuildCanceled,
+			ResourceID:  new(resourceID),
+			SubjectType: events.SubjectBuild,
+			SubjectID:   new(buildID),
+			Data:        map[string]any{events.FieldResourceID: resourceID.String()},
+		})
 	})
 	if err != nil {
 		return err

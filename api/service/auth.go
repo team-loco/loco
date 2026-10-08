@@ -14,9 +14,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/team-loco/loco/api/events"
+
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -44,6 +47,7 @@ var (
 )
 
 type AuthServer struct {
+	db      *pgxpool.Pool
 	queries genDb.Querier
 	machine *tvm.VendingMachine
 	cache   cache.Cache
@@ -53,6 +57,7 @@ type AuthServer struct {
 }
 
 func NewAuthServer(
+	db *pgxpool.Pool,
 	queries genDb.Querier,
 	machine *tvm.VendingMachine,
 	store cache.Cache,
@@ -60,6 +65,7 @@ func NewAuthServer(
 	webURL string,
 ) *AuthServer {
 	return &AuthServer{
+		db:      db,
 		queries: queries,
 		machine: machine,
 		cache:   store,
@@ -171,8 +177,24 @@ func (s *AuthServer) issue(
 ) (*authv1.CLITokens, error) {
 	ip, ua := clientInfo(h)
 	identityID := grant.IdentityID
-	access, refresh, err := s.machine.IssueSession(ctx, grant.UserID, &identityID, ip, ua)
+	var access, refresh string
+	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		var issueErr error
+		access, refresh, issueErr = s.machine.WithQueries(qtx).IssueSession(ctx, grant.UserID, &identityID, ip, ua)
+		if issueErr != nil {
+			return issueErr
+		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.CLILoginCompleted,
+			ActorType:   string(genDb.EntityTypeUser),
+			ActorID:     new(grant.UserID),
+			SubjectType: events.SubjectUser,
+			SubjectID:   new(grant.UserID),
+			Data:        map[string]any{"ip": ip, "userAgent": ua},
+		})
+	})
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to issue cli session", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrAuthStoreAvailable)
 	}
 	return &authv1.CLITokens{
@@ -199,8 +221,19 @@ func (s *AuthServer) ApproveCLILogin(
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, ErrAuthStoreAvailable)
 	}
-	if err := s.cache.Set(ctx, "cli:code:"+digest(code), payload, cliCodeTTL); err != nil {
-		slog.ErrorContext(ctx, "failed to store cli code", "error", err)
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if recordErr := events.Record(ctx, qtx, events.Event{
+			Type:        events.CLILoginApproved,
+			SubjectType: events.SubjectUser,
+			SubjectID:   new(grant.UserID),
+			Data:        map[string]any{"flow": "loopback"},
+		}); recordErr != nil {
+			return recordErr
+		}
+		return s.cache.Set(ctx, "cli:code:"+digest(code), payload, cliCodeTTL)
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to approve cli login", "error", err)
 		return nil, connect.NewError(connect.CodeUnavailable, ErrAuthStoreAvailable)
 	}
 	slog.InfoContext(ctx, "approved cli login", "userId", grant.UserID)
@@ -322,7 +355,19 @@ func (s *AuthServer) ApproveDeviceLogin(
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, ErrAuthStoreAvailable)
 	}
-	if err := s.cache.Set(ctx, key, payload, remaining); err != nil {
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if recordErr := events.Record(ctx, qtx, events.Event{
+			Type:        events.CLILoginApproved,
+			SubjectType: events.SubjectUser,
+			SubjectID:   new(grant.UserID),
+			Data:        map[string]any{"flow": "device"},
+		}); recordErr != nil {
+			return recordErr
+		}
+		return s.cache.Set(ctx, key, payload, remaining)
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to approve device login", "error", err)
 		return nil, connect.NewError(connect.CodeUnavailable, ErrAuthStoreAvailable)
 	}
 	slog.InfoContext(ctx, "approved device login", "userId", grant.UserID)
@@ -431,8 +476,21 @@ func (s *AuthServer) checkIdentity(ctx context.Context, session genDb.GetSession
 	if state == auth.IdentityActive {
 		return nil
 	}
-	if revokeErr := s.machine.RevokeIdentitySessions(ctx, session.IdentityID); revokeErr != nil {
-		slog.ErrorContext(ctx, "failed to revoke sessions of a disabled identity", "error", revokeErr)
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if revokeErr := s.machine.WithQueries(qtx).RevokeIdentitySessions(ctx, session.IdentityID); revokeErr != nil {
+			return revokeErr
+		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.IdentityRevoked,
+			ActorType:   events.ActorSystem,
+			SubjectType: events.SubjectUser,
+			SubjectID:   new(session.UserID),
+			Data:        map[string]any{"issuer": session.Issuer, "reason": "disabled at identity provider"},
+		})
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to revoke sessions of a disabled identity", "error", err)
+		return connect.NewError(connect.CodeUnavailable, ErrAuthStoreAvailable)
 	}
 	slog.InfoContext(ctx, "refresh refused for a disabled identity", "userId", session.UserID, "issuer", session.Issuer)
 	return connect.NewError(connect.CodeUnauthenticated, ErrSignInRevoked)

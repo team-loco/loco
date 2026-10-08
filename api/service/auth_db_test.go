@@ -81,7 +81,7 @@ func newAuthFixture(t *testing.T) *authFixture {
 		admin:   &stubAdmin{state: auth.IdentityActive},
 		clock:   time.Now(),
 	}
-	f.server = NewAuthServer(queries, machine, store, auth.Admins{testIssuer: f.admin}, "https://app.loco.test/")
+	f.server = NewAuthServer(pool, queries, machine, store, auth.Admins{testIssuer: f.admin}, "https://app.loco.test/")
 	f.server.now = func() time.Time { return f.clock }
 	ctx := context.WithValue(t.Context(), contextkeys.EntityKey, genDb.Entity{Type: genDb.EntityTypeUser, ID: user.ID})
 	f.webCtx = context.WithValue(ctx, contextkeys.IdentityKey, identity)

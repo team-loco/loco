@@ -81,6 +81,7 @@ type APIConfig struct {
 	AuthSignupMode        string
 	AuthSignupDomains     string
 	WebURL                string
+	EventsRetentionDays   string
 }
 
 func newAPIConfig() *APIConfig {
@@ -125,6 +126,7 @@ func newAPIConfig() *APIConfig {
 		AuthSignupMode:        stringEnv("AUTH_SIGNUP_MODE", ""),
 		AuthSignupDomains:     stringEnv("AUTH_SIGNUP_DOMAINS", ""),
 		WebURL:                stringEnv("WEB_URL", ""),
+		EventsRetentionDays:   stringEnv("EVENTS_RETENTION_DAYS", ""),
 	}
 }
 

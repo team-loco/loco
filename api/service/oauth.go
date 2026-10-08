@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/team-loco/loco/api/events"
+
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -247,6 +249,17 @@ func (s *OAuthServer) tempCreateUser(
 		}
 	}
 
+	if err := events.Record(ctx, qtx, events.Event{
+		Type:        events.UserCreated,
+		ActorType:   string(genDb.EntityTypeUser),
+		ActorID:     new(user.ID),
+		SubjectType: events.SubjectUser,
+		SubjectID:   new(user.ID),
+		Data:        map[string]any{"issuer": identity.Issuer(), "email": email},
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to record user creation", "error", err)
+		return nil, ErrDB
+	}
 	if err := tx.Commit(ctx); err != nil {
 		slog.ErrorContext(ctx, "failed to commit transaction", "error", err)
 		return nil, ErrDB
