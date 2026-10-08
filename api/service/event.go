@@ -137,11 +137,14 @@ func (s *EventServer) ListOrgEvents(
 	}
 	out := make([]*eventv1.Event, len(rows))
 	for i, row := range rows {
-		out[i] = eventToProto(row)
+		event := eventToProto(row.Event)
+		event.ActorEmail = derefString(row.ActorEmail)
+		event.ActorName = derefString(row.ActorName)
+		out[i] = event
 	}
 	resp := &eventv1.ListOrgEventsResponse{Events: out}
 	if len(rows) == int(pageSize) {
-		resp.NextBeforeSeq = rows[len(rows)-1].Seq
+		resp.NextBeforeSeq = rows[len(rows)-1].Event.Seq
 	}
 	return connect.NewResponse(resp), nil
 }

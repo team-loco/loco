@@ -56,7 +56,10 @@ func TestRecordFillsActorScopeAndRequest(t *testing.T) {
 	if err != nil || len(rows) != 1 {
 		t.Fatalf("org events = %d (%v)", len(rows), err)
 	}
-	ev := rows[0]
+	if rows[0].ActorEmail == nil || *rows[0].ActorEmail != "owner@acme.test" {
+		t.Fatalf("actor email = %v", rows[0].ActorEmail)
+	}
+	ev := rows[0].Event
 	if ev.ActorType != "user" || ev.ActorID == nil || *ev.ActorID != owner.ID {
 		t.Fatalf("actor = %s %v", ev.ActorType, ev.ActorID)
 	}

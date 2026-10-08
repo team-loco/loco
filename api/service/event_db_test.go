@@ -133,7 +133,7 @@ func TestListOrgEventsAuthorizationPagingAndFilter(t *testing.T) {
 		t.Fatalf("second page = %v (%v)", eventTypes(second.Msg.GetEvents()), err)
 	}
 	if got := second.Msg.GetEvents()[1]; got.GetType() != events.OrgCreated ||
-		got.GetData().GetFields()["name"].GetStringValue() != "acme" {
+		got.GetData().GetFields()["name"].GetStringValue() != "acme" || got.GetActorEmail() != "owner@acme.test" {
 		t.Fatalf("oldest event = %+v", got)
 	}
 
