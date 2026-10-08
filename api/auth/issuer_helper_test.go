@@ -10,7 +10,7 @@ func testConfig(ti *authtest.Issuer) IssuerConfig {
 		Claims: ClaimPaths{
 			Subject:       "sub",
 			Email:         claimEmail,
-			EmailVerified: "email_verified",
+			EmailVerified: claimEmailVerified,
 			Name:          "user_metadata.full_name",
 			AvatarURL:     "user_metadata.avatar_url",
 		},

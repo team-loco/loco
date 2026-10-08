@@ -10,7 +10,9 @@ require (
 	charm.land/lipgloss/v2 v2.0.6
 	connectrpc.com/connect v1.21.0
 	github.com/BurntSushi/toml v1.6.0
+	github.com/go-jose/go-jose/v4 v4.1.5
 	github.com/goccy/go-json v0.11.1
+	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/rogpeppe/go-internal v1.14.1
 	github.com/spf13/cobra v1.10.2
