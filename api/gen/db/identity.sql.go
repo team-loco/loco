@@ -47,6 +47,33 @@ func (q *Queries) CreateIdentity(ctx context.Context, arg CreateIdentityParams) 
 	return i, err
 }
 
+const getIdentity = `-- name: GetIdentity :one
+SELECT id, user_id, issuer, subject, email, email_verified, created_at, last_login_at
+FROM identities
+WHERE issuer = $1 AND subject = $2
+`
+
+type GetIdentityParams struct {
+	Issuer  string `json:"issuer"`
+	Subject string `json:"subject"`
+}
+
+func (q *Queries) GetIdentity(ctx context.Context, arg GetIdentityParams) (Identity, error) {
+	row := q.db.QueryRow(ctx, getIdentity, arg.Issuer, arg.Subject)
+	var i Identity
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Issuer,
+		&i.Subject,
+		&i.Email,
+		&i.EmailVerified,
+		&i.CreatedAt,
+		&i.LastLoginAt,
+	)
+	return i, err
+}
+
 const getUserByIdentity = `-- name: GetUserByIdentity :one
 SELECT u.id, u.email, u.name, u.avatar_url, u.created_at, u.updated_at, i.email AS identity_email, i.email_verified AS identity_email_verified
 FROM identities i
@@ -79,6 +106,42 @@ func (q *Queries) GetUserByIdentity(ctx context.Context, arg GetUserByIdentityPa
 		&i.IdentityEmailVerified,
 	)
 	return i, err
+}
+
+const listIdentitiesForUser = `-- name: ListIdentitiesForUser :many
+SELECT id, user_id, issuer, subject, email, email_verified, created_at, last_login_at
+FROM identities
+WHERE user_id = $1
+ORDER BY created_at
+`
+
+func (q *Queries) ListIdentitiesForUser(ctx context.Context, userID uuid.UUID) ([]Identity, error) {
+	rows, err := q.db.Query(ctx, listIdentitiesForUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Identity
+	for rows.Next() {
+		var i Identity
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Issuer,
+			&i.Subject,
+			&i.Email,
+			&i.EmailVerified,
+			&i.CreatedAt,
+			&i.LastLoginAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const touchIdentity = `-- name: TouchIdentity :exec

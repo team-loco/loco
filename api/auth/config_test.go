@@ -129,3 +129,26 @@ func TestSupabasePreset(t *testing.T) {
 		t.Fatal("unknown preset accepted")
 	}
 }
+
+func TestParseIssuersEmailVerification(t *testing.T) {
+	issuers, err := ParseIssuers(`[{"issuer":"https://a.test","audience":"loco"}]`)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if issuers[0].EmailVerification != EmailVerificationClaim {
+		t.Fatalf("default email verification = %q", issuers[0].EmailVerification)
+	}
+	_, err = ParseIssuers(`[{"issuer":"https://a.test","audience":"loco","emailVerification":"admin"}]`)
+	if !errors.Is(err, ErrEmailVerificationNeedsAdmin) {
+		t.Fatalf("admin verification without admin: %v", err)
+	}
+	_, err = ParseIssuers(`[{"issuer":"https://a.test","audience":"loco","emailVerification":"admin",` +
+		`"emailAuthoritative":true,"admin":{"type":"supabase","tokenEnv":"KEY"}}]`)
+	if !errors.Is(err, ErrEmailVerificationConflict) {
+		t.Fatalf("admin verification with authoritative email: %v", err)
+	}
+	_, err = ParseIssuers(`[{"issuer":"https://a.test","audience":"loco","emailVerification":"magic"}]`)
+	if err == nil {
+		t.Fatal("unknown email verification accepted")
+	}
+}

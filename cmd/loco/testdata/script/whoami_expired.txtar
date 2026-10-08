@@ -1,7 +1,7 @@
 # an expired token without a refresh token asks for a new login instead of calling the API.
 ! exec loco whoami
 stderr 'Token is expired'
-! fakeapi called RefreshToken
+! fakeapi called RefreshCLIToken
 ! fakeapi called WhoAmI
 
 -- home/.loco/credentials.json --

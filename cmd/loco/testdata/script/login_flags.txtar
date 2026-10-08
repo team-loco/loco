@@ -1,0 +1,4 @@
+# login offers device sign-in and a web host override for the approval page.
+exec loco login --help
+stdout '--device'
+stdout '--web-host'

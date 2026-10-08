@@ -70,8 +70,8 @@ func (q *Queries) CreateAPIToken(ctx context.Context, arg CreateAPITokenParams) 
 
 const createSessionToken = `-- name: CreateSessionToken :exec
 
-INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id, access_expires_at, refresh_expires_at, ip_address, user_agent)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id, access_expires_at, refresh_expires_at, ip_address, user_agent, identity_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 `
 
 type CreateSessionTokenParams struct {
@@ -83,6 +83,7 @@ type CreateSessionTokenParams struct {
 	RefreshExpiresAt time.Time   `json:"refreshExpiresAt"`
 	IpAddress        *netip.Addr `json:"ipAddress"`
 	UserAgent        *string     `json:"userAgent"`
+	IdentityID       *uuid.UUID  `json:"identityId"`
 }
 
 // -----------------------------------------------------------------------------
@@ -98,6 +99,7 @@ func (q *Queries) CreateSessionToken(ctx context.Context, arg CreateSessionToken
 		arg.RefreshExpiresAt,
 		arg.IpAddress,
 		arg.UserAgent,
+		arg.IdentityID,
 	)
 	return err
 }
@@ -183,6 +185,15 @@ DELETE FROM session_tokens WHERE access_token_hash = $1
 
 func (q *Queries) DeleteSessionTokenByAccessHash(ctx context.Context, accessTokenHash string) error {
 	_, err := q.db.Exec(ctx, deleteSessionTokenByAccessHash, accessTokenHash)
+	return err
+}
+
+const deleteSessionTokensForIdentity = `-- name: DeleteSessionTokensForIdentity :exec
+DELETE FROM session_tokens WHERE identity_id = $1
+`
+
+func (q *Queries) DeleteSessionTokensForIdentity(ctx context.Context, identityID *uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteSessionTokensForIdentity, identityID)
 	return err
 }
 
@@ -291,6 +302,34 @@ func (q *Queries) GetSessionByRefreshToken(ctx context.Context, refreshTokenHash
 		&i.IpAddress,
 		&i.UserAgent,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getSessionIdentityByRefreshHash = `-- name: GetSessionIdentityByRefreshHash :one
+SELECT st.id, st.user_id, i.id AS identity_id, i.issuer, i.subject
+FROM session_tokens st
+JOIN identities i ON i.id = st.identity_id
+WHERE st.refresh_token_hash = $1
+`
+
+type GetSessionIdentityByRefreshHashRow struct {
+	ID         uuid.UUID `json:"id"`
+	UserID     uuid.UUID `json:"userId"`
+	IdentityID uuid.UUID `json:"identityId"`
+	Issuer     string    `json:"issuer"`
+	Subject    string    `json:"subject"`
+}
+
+func (q *Queries) GetSessionIdentityByRefreshHash(ctx context.Context, refreshTokenHash string) (GetSessionIdentityByRefreshHashRow, error) {
+	row := q.db.QueryRow(ctx, getSessionIdentityByRefreshHash, refreshTokenHash)
+	var i GetSessionIdentityByRefreshHashRow
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.IdentityID,
+		&i.Issuer,
+		&i.Subject,
 	)
 	return i, err
 }

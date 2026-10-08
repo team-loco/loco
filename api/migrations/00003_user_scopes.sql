@@ -25,6 +25,7 @@ CREATE UNLOGGED TABLE session_tokens (
     access_token_hash TEXT NOT NULL UNIQUE,
     refresh_token_hash TEXT NOT NULL UNIQUE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    identity_id UUID REFERENCES identities(id) ON DELETE CASCADE,
     access_expires_at TIMESTAMPTZ NOT NULL,
     refresh_expires_at TIMESTAMPTZ NOT NULL,
     last_used_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -34,6 +35,7 @@ CREATE UNLOGGED TABLE session_tokens (
 );
 
 CREATE INDEX session_tokens_user_idx ON session_tokens (user_id);
+CREATE INDEX session_tokens_identity_idx ON session_tokens (identity_id);
 CREATE INDEX session_tokens_access_expires_idx ON session_tokens (access_expires_at);
 -- cleanup cron uses refresh expiry to determine if a session is fully dead
 CREATE INDEX session_tokens_refresh_expires_idx ON session_tokens (refresh_expires_at);

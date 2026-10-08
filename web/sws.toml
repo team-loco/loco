@@ -53,9 +53,9 @@ host = "docs.loco.build"
 root = "/public/docs"
 
 [[advanced.rewrites]]
-source = "/{auth,dashboard,login,oauth,onboarding,organizations,org,profile,tokens,team}"
+source = "/{auth,cli,dashboard,login,oauth,onboarding,organizations,org,profile,tokens,team}"
 destination = "/index.html"
 
 [[advanced.rewrites]]
-source = "/{auth,dashboard,login,oauth,onboarding,organizations,org,profile,tokens,team}/**"
+source = "/{auth,cli,dashboard,login,oauth,onboarding,organizations,org,profile,tokens,team}/**"
 destination = "/index.html"

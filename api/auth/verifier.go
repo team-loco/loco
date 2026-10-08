@@ -117,7 +117,7 @@ func identityFromClaims(ic IssuerConfig, claims map[string]any) (Identity, error
 		Issuer:        ic.Issuer,
 		Subject:       subject,
 		Email:         strings.ToLower(strings.TrimSpace(claimString(claims, ic.Claims.Email))),
-		EmailVerified: ic.EmailAuthoritative || claimBool(claims, ic.Claims.EmailVerified),
+		EmailVerified: emailVerifiedFromClaims(ic, claims),
 		Name:          claimString(claims, ic.Claims.Name),
 		AvatarURL:     claimString(claims, ic.Claims.AvatarURL),
 		Methods:       authMethods(claims["amr"]),
@@ -126,6 +126,13 @@ func identityFromClaims(ic IssuerConfig, claims map[string]any) (Identity, error
 		id.EmailVerified = false
 	}
 	return id, nil
+}
+
+func emailVerifiedFromClaims(ic IssuerConfig, claims map[string]any) bool {
+	if ic.EmailVerification == EmailVerificationAdmin {
+		return false
+	}
+	return ic.EmailAuthoritative || claimBool(claims, ic.Claims.EmailVerified)
 }
 
 func claimValue(claims map[string]any, path string) any {

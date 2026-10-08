@@ -78,6 +78,7 @@ type APIConfig struct {
 	AuthIssuers           string
 	AuthSignupMode        string
 	AuthSignupDomains     string
+	WebURL                string
 }
 
 func newAPIConfig() *APIConfig {
@@ -120,6 +121,7 @@ func newAPIConfig() *APIConfig {
 		AuthIssuers:           stringEnv("AUTH_ISSUERS", ""),
 		AuthSignupMode:        stringEnv("AUTH_SIGNUP_MODE", ""),
 		AuthSignupDomains:     stringEnv("AUTH_SIGNUP_DOMAINS", ""),
+		WebURL:                stringEnv("WEB_URL", ""),
 	}
 }
 
