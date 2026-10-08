@@ -329,6 +329,48 @@ func (ns NullResourceType) Value() (driver.Value, error) {
 	return string(ns.ResourceType), nil
 }
 
+type WebhookKind string
+
+const (
+	WebhookKindWorkspace WebhookKind = "workspace"
+	WebhookKindInstall   WebhookKind = "install"
+)
+
+func (e *WebhookKind) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = WebhookKind(s)
+	case string:
+		*e = WebhookKind(s)
+	default:
+		return fmt.Errorf("unsupported scan type for WebhookKind: %T", src)
+	}
+	return nil
+}
+
+type NullWebhookKind struct {
+	WebhookKind WebhookKind `json:"webhookKind"`
+	Valid       bool        `json:"valid"` // Valid is true if WebhookKind is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullWebhookKind) Scan(value interface{}) error {
+	if value == nil {
+		ns.WebhookKind, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.WebhookKind.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullWebhookKind) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.WebhookKind), nil
+}
+
 type ApiToken struct {
 	ID         uuid.UUID     `json:"id"`
 	TokenHash  string        `json:"tokenHash"`
@@ -549,13 +591,14 @@ type UserScope struct {
 }
 
 type Webhook struct {
-	ID          uuid.UUID  `json:"id"`
-	WorkspaceID uuid.UUID  `json:"workspaceId"`
-	Url         string     `json:"url"`
-	Secret      string     `json:"secret"`
-	EventTypes  []string   `json:"eventTypes"`
-	CreatedBy   *uuid.UUID `json:"createdBy"`
-	CreatedAt   time.Time  `json:"createdAt"`
+	ID          uuid.UUID   `json:"id"`
+	Kind        WebhookKind `json:"kind"`
+	WorkspaceID *uuid.UUID  `json:"workspaceId"`
+	Url         string      `json:"url"`
+	Secret      string      `json:"secret"`
+	EventTypes  []string    `json:"eventTypes"`
+	CreatedBy   *uuid.UUID  `json:"createdBy"`
+	CreatedAt   time.Time   `json:"createdAt"`
 }
 
 type WebhookDelivery struct {

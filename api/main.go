@@ -146,6 +146,10 @@ func main() {
 	if policyErr != nil {
 		log.Fatalf("AUTH_SIGNUP_MODE: %v", policyErr)
 	}
+	installWebhooks, installWebhooksErr := webhooks.ParseInstallWebhooks(ac.InstallWebhooks)
+	if installWebhooksErr != nil {
+		log.Fatalf("INSTALL_WEBHOOKS: %v", installWebhooksErr)
+	}
 
 	if err := migrations.Up(context.Background(), ac.DatabaseURL); err != nil {
 		log.Fatal(err)
@@ -162,6 +166,9 @@ func main() {
 
 	pool := dbConn.Pool()
 	queries := genDb.New(pool)
+	if syncErr := webhooks.SyncInstallWebhooks(context.Background(), pool, installWebhooks); syncErr != nil {
+		log.Fatalf("INSTALL_WEBHOOKS: %v", syncErr)
+	}
 
 	machine := tvm.NewVendingMachine(pool, queries, tvm.Config{
 		MaxAPITokenDuration:         time.Hour * 24 * 365,
@@ -222,8 +229,10 @@ func main() {
 	eventServiceHandler := service.NewEventServer(queries, machine)
 	go events.RunRetention(shutdownCtx, queries, eventsRetention(ac.EventsRetentionDays), time.Hour)
 	webhookServiceHandler := service.NewWebhookServer(pool, queries, ac.WebhooksAllowPrivate)
-	webhookClient := webhooks.NewClient(ac.WebhooksAllowPrivate)
-	go webhooks.NewDispatcher(queries, webhookClient).Run(shutdownCtx, webhooks.DefaultPollPeriod)
+	workspaceWebhookClient := webhooks.NewClient(ac.WebhooksAllowPrivate)
+	installWebhookClient := webhooks.NewClient(true)
+	webhookDispatcher := webhooks.NewDispatcher(queries, workspaceWebhookClient, installWebhookClient)
+	go webhookDispatcher.Run(shutdownCtx, webhooks.DefaultPollPeriod)
 	authServiceHandler := service.NewAuthServer(pool, queries, machine, appCache, admins, ac.WebURL)
 	userServiceHandler := service.NewUserServer(pool, queries, machine, admins)
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine)

@@ -83,6 +83,7 @@ type APIConfig struct {
 	WebURL                string
 	EventsRetentionDays   string
 	WebhooksAllowPrivate  bool
+	InstallWebhooks       string
 }
 
 func newAPIConfig() *APIConfig {
@@ -128,6 +129,7 @@ func newAPIConfig() *APIConfig {
 		WebURL:                stringEnv("WEB_URL", ""),
 		EventsRetentionDays:   stringEnv("EVENTS_RETENTION_DAYS", ""),
 		WebhooksAllowPrivate:  webhooksAllowPrivate,
+		InstallWebhooks:       stringEnv("INSTALL_WEBHOOKS", ""),
 	}
 }
 

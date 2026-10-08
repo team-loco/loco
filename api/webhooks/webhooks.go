@@ -41,6 +41,7 @@ const (
 var (
 	ErrBlockedAddress = errors.New("webhook address is on a private or reserved network")
 	ErrInvalidSecret  = errors.New("webhook secret is malformed")
+	ErrUnknownKind    = errors.New("unknown webhook kind")
 
 	retryDelays = []time.Duration{
 		30 * time.Second,
@@ -62,10 +63,22 @@ func NewSecret() (string, error) {
 	return secretPrefix + base64.StdEncoding.EncodeToString(b), nil
 }
 
+func decodeSecret(secret string) ([]byte, error) {
+	encoded, ok := strings.CutPrefix(secret, secretPrefix)
+	if !ok {
+		return nil, ErrInvalidSecret
+	}
+	key, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil || len(key) != secretBytes {
+		return nil, ErrInvalidSecret
+	}
+	return key, nil
+}
+
 func Sign(secret, id string, timestamp time.Time, body []byte) (string, error) {
-	key, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(secret, secretPrefix))
+	key, err := decodeSecret(secret)
 	if err != nil {
-		return "", ErrInvalidSecret
+		return "", err
 	}
 	mac := hmac.New(sha256.New, key)
 	mac.Write([]byte(id + "." + strconv.FormatInt(timestamp.Unix(), 10) + "."))
@@ -154,13 +167,25 @@ func payloadFrom(row genDb.GetWebhookDeliveryPayloadRow) Payload {
 }
 
 type Dispatcher struct {
-	queries genDb.Querier
-	client  *http.Client
-	now     func() time.Time
+	queries         genDb.Querier
+	workspaceClient *http.Client
+	installClient   *http.Client
+	now             func() time.Time
 }
 
-func NewDispatcher(queries genDb.Querier, client *http.Client) *Dispatcher {
-	return &Dispatcher{queries: queries, client: client, now: time.Now}
+func NewDispatcher(queries genDb.Querier, workspaceClient, installClient *http.Client) *Dispatcher {
+	return &Dispatcher{queries: queries, workspaceClient: workspaceClient, installClient: installClient, now: time.Now}
+}
+
+func (d *Dispatcher) clientFor(kind genDb.WebhookKind) (*http.Client, error) {
+	switch kind {
+	case genDb.WebhookKindWorkspace:
+		return d.workspaceClient, nil
+	case genDb.WebhookKindInstall:
+		return d.installClient, nil
+	default:
+		return nil, fmt.Errorf("%w: %s", ErrUnknownKind, kind)
+	}
 }
 
 func (d *Dispatcher) Run(ctx context.Context, period time.Duration) {
@@ -247,7 +272,11 @@ func (d *Dispatcher) send(ctx context.Context, id uuid.UUID, row genDb.GetWebhoo
 	req.Header.Set("Webhook-Id", id.String())
 	req.Header.Set("Webhook-Timestamp", strconv.FormatInt(now.Unix(), 10))
 	req.Header.Set("Webhook-Signature", signature)
-	res, err := d.client.Do(req)
+	client, err := d.clientFor(row.Kind)
+	if err != nil {
+		return 0, err
+	}
+	res, err := client.Do(req)
 	if err != nil {
 		return 0, err
 	}

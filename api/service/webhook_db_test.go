@@ -14,11 +14,15 @@ import (
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
+	"github.com/team-loco/loco/api/webhooks"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	webhookv1 "github.com/team-loco/loco/gen/go/loco/webhook/v1"
 )
 
-const receiverURL = "https://hooks.example.test/loco"
+const (
+	receiverURL = "https://hooks.example.test/loco"
+	installURL  = "https://install.example.test/loco"
+)
 
 type webhookFixture struct {
 	pool        *pgxpool.Pool
@@ -267,5 +271,61 @@ func TestWebhookChangesFailWithoutTheirEvent(t *testing.T) {
 	hooks, err := f.queries.ListWorkspaceWebhooks(t.Context(), uuid.MustParse(f.workspaceID))
 	if err != nil || len(hooks) != 0 {
 		t.Fatalf("webhooks after failed create = %+v (%v)", hooks, err)
+	}
+}
+
+func TestWorkspaceWebhookAPIHidesInstallWebhooks(t *testing.T) {
+	f := newWebhookFixture(t)
+	s := NewWebhookServer(f.pool, f.queries, false)
+	secret, err := webhooks.NewSecret()
+	if err != nil {
+		t.Fatalf("secret: %v", err)
+	}
+	if syncErr := webhooks.SyncInstallWebhooks(t.Context(), f.pool, []webhooks.InstallWebhook{
+		{URL: installURL, Secret: secret, EventTypes: []string{}},
+	}); syncErr != nil {
+		t.Fatalf("sync: %v", syncErr)
+	}
+	var installID string
+	if scanErr := f.pool.QueryRow(
+		t.Context(),
+		"SELECT id::text FROM webhooks WHERE kind = 'install'",
+	).Scan(&installID); scanErr != nil {
+		t.Fatalf("install webhook: %v", scanErr)
+	}
+	created, err := s.CreateWebhook(f.owner, connect.NewRequest(&webhookv1.CreateWebhookRequest{
+		WorkspaceId: f.workspaceID, Url: receiverURL,
+	}))
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	listed, err := s.ListWebhooks(f.owner, connect.NewRequest(&webhookv1.ListWebhooksRequest{
+		WorkspaceId: f.workspaceID,
+	}))
+	if err != nil || len(listed.Msg.GetWebhooks()) != 1 ||
+		listed.Msg.GetWebhooks()[0].GetId() != created.Msg.GetWebhook().GetId() {
+		t.Fatalf("list = %+v (%v)", listed, err)
+	}
+	if _, deliveriesErr := s.ListWebhookDeliveries(f.owner, connect.NewRequest(&webhookv1.ListWebhookDeliveriesRequest{
+		WorkspaceId: f.workspaceID, WebhookId: installID,
+	})); codeOf(deliveriesErr) != connect.CodeNotFound {
+		t.Fatalf("install webhook deliveries through the workspace API: %v", deliveriesErr)
+	}
+	if _, deleteErr := s.DeleteWebhook(f.owner, connect.NewRequest(&webhookv1.DeleteWebhookRequest{
+		WorkspaceId: f.workspaceID, WebhookId: installID,
+	})); codeOf(deleteErr) != connect.CodeNotFound {
+		t.Fatalf("install webhook deleted through the workspace API: %v", deleteErr)
+	}
+	var remaining int
+	if countErr := f.pool.QueryRow(
+		t.Context(),
+		"SELECT count(*) FROM webhooks WHERE kind = 'install'",
+	).Scan(&remaining); countErr != nil || remaining != 1 {
+		t.Fatalf("install webhooks after workspace delete = %d (%v)", remaining, countErr)
+	}
+	count, err := f.queries.CountWorkspaceWebhooks(t.Context(), uuid.MustParse(f.workspaceID))
+	if err != nil || count != 1 {
+		t.Fatalf("workspace webhook count = %d (%v)", count, err)
 	}
 }

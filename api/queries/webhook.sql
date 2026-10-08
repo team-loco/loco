@@ -1,22 +1,23 @@
 -- name: CreateWorkspaceWebhook :one
-INSERT INTO webhooks (workspace_id, url, secret, event_types, created_by)
-VALUES (sqlc.arg('workspace_id')::uuid, sqlc.arg('url'), sqlc.arg('secret'), sqlc.arg('event_types'), sqlc.narg('created_by'))
+INSERT INTO webhooks (kind, workspace_id, url, secret, event_types, created_by)
+VALUES ('workspace', sqlc.arg('workspace_id')::uuid, sqlc.arg('url'), sqlc.arg('secret'), sqlc.arg('event_types'), sqlc.narg('created_by'))
 RETURNING *;
 
 -- name: ListWorkspaceWebhooks :many
 SELECT * FROM webhooks
-WHERE workspace_id = sqlc.arg('workspace_id')::uuid
+WHERE kind = 'workspace' AND workspace_id = sqlc.arg('workspace_id')::uuid
 ORDER BY created_at;
 
 -- name: CountWorkspaceWebhooks :one
-SELECT count(*) FROM webhooks WHERE workspace_id = sqlc.arg('workspace_id')::uuid;
+SELECT count(*) FROM webhooks WHERE kind = 'workspace' AND workspace_id = sqlc.arg('workspace_id')::uuid;
 
 -- name: GetWorkspaceWebhook :one
 SELECT * FROM webhooks
-WHERE id = sqlc.arg('id') AND workspace_id = sqlc.arg('workspace_id')::uuid;
+WHERE id = sqlc.arg('id') AND kind = 'workspace' AND workspace_id = sqlc.arg('workspace_id')::uuid;
 
 -- name: DeleteWorkspaceWebhook :execrows
-DELETE FROM webhooks WHERE id = sqlc.arg('id') AND workspace_id = sqlc.arg('workspace_id')::uuid;
+DELETE FROM webhooks
+WHERE id = sqlc.arg('id') AND kind = 'workspace' AND workspace_id = sqlc.arg('workspace_id')::uuid;
 
 -- name: ListWebhookDeliveries :many
 SELECT d.id, d.status, d.attempts, d.next_attempt_at, d.last_status_code, d.last_error, d.created_at, d.delivered_at,
@@ -42,7 +43,7 @@ WHERE d.id IN (
 RETURNING d.id, d.attempts;
 
 -- name: GetWebhookDeliveryPayload :one
-SELECT d.id, w.url, w.secret,
+SELECT d.id, w.url, w.secret, w.kind,
        e.seq, e.id AS event_id, e.type, e.org_id, e.workspace_id, e.actor_type, e.actor_id,
        e.subject_type, e.subject_id, e.request_id, e.data, e.created_at
 FROM webhook_deliveries d
@@ -58,3 +59,16 @@ SET status = sqlc.arg('status'),
     next_attempt_at = sqlc.arg('next_attempt_at'),
     delivered_at = sqlc.narg('delivered_at')
 WHERE id = sqlc.arg('id');
+
+-- name: LockInstallWebhooks :exec
+SELECT pg_advisory_xact_lock(sqlc.arg(lock_key)::bigint);
+
+-- name: UpsertInstallWebhook :exec
+INSERT INTO webhooks (kind, url, secret, event_types)
+VALUES ('install', sqlc.arg('url'), sqlc.arg('secret'), sqlc.arg('event_types'))
+ON CONFLICT (url) WHERE kind = 'install'
+DO UPDATE SET secret = EXCLUDED.secret, event_types = EXCLUDED.event_types;
+
+-- name: DeleteInstallWebhooksExcept :execrows
+DELETE FROM webhooks
+WHERE kind = 'install' AND NOT (url = ANY(sqlc.arg('urls')::text[]));
