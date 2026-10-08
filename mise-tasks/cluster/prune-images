@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+#MISE description="Remove every other tag of the given images from the kind nodes, so rebuilds that kind loads onto every node do not pile up there"
+#USAGE arg "<image>..." var=#true help="image references to keep, such as loco-agent:tilt-0123abcd"
+set -euo pipefail
+
+cluster=${KIND_CLUSTER:-loco-cluster-local}
+
+normalize() {
+	local ref=$1 first=${1%%/*}
+	if [[ $ref != */* ]]; then
+		echo "docker.io/library/$ref"
+	elif [[ $first == *.* || $first == *:* || $first == localhost ]]; then
+		echo "$ref"
+	else
+		echo "docker.io/$ref"
+	fi
+}
+
+keep=()
+for image in "$@"; do
+	keep+=("$(normalize "$image")")
+done
+
+for node in $(kind get nodes --name "$cluster"); do
+	images=$(docker exec "$node" crictl images -o json)
+	for ref in "${keep[@]}"; do
+		stale=$(REPO="${ref%:*}" KEEP="$ref" yq -p json '
+			.images[] |
+			select(.repoTags | any_c(sub(":[^:/]*$"; "") == strenv(REPO))) |
+			select(.repoTags | any_c(. == strenv(KEEP)) | not) |
+			.id' <<<"$images")
+		for id in $stale; do
+			docker exec "$node" crictl rmi "$id" >/dev/null
+			echo "removed an old ${ref%:*} image from $node"
+		done
+	done
+done

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Sync one release to the local cluster with extra values, and print the objects it deployed; Tilt runs this for every release that uses an image it builds"
+#MISE description="Sync one release to the local cluster with extra values, remove the older tags of its images from the kind nodes, and print the objects it deployed; Tilt runs this for every release that uses an image it builds"
 #USAGE arg "<release>" help="helmfile release name, such as loco-core"
 #USAGE arg "<namespace>" help="namespace the release is installed in"
 #USAGE arg "[values]..." var=#true help="extra values, each passed to helm as --set"
@@ -15,6 +15,13 @@ for value in "$@"; do
 done
 
 helmfile -e local -l name="$release" sync --skip-deps ${sets[@]+"${sets[@]}"} >&2
+
+deployed=()
+for image in $(compgen -v | grep -xE 'TILT_IMAGE_[0-9]+'); do
+	deployed+=("${!image}")
+done
+mise run cluster:prune-images "${deployed[@]}" >&2
+
 helm get manifest "$release" -n "$namespace" |
 	yq "select(. != null) | .metadata.namespace = (.metadata.namespace // \"$namespace\")" |
 	kubectl get -o yaml -f -
