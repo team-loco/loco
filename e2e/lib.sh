@@ -15,11 +15,27 @@ E2E_PASS=0
 E2E_FAIL=0
 E2E_SKIP=0
 
+PROCESS_STOP_SECONDS=15
+
 log_info()  { echo -e "${BLUE}[INFO]${NC}  $*"; }
 log_ok()    { echo -e "${GREEN}[OK]${NC}    $*"; }
 log_warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
 log_step()  { echo -e "${BLUE}[STEP]${NC}  $*"; }
+
+log_group() {
+    if [ "${GITHUB_ACTIONS:-}" = true ]; then
+        echo "::group::$*"
+    else
+        echo -e "${BLUE}──── $*${NC}"
+    fi
+}
+
+log_group_end() {
+    if [ "${GITHUB_ACTIONS:-}" = true ]; then
+        echo "::endgroup::"
+    fi
+}
 
 # Wait for a condition to become true.
 # Usage: wait_for "description" <max_seconds> <command...>
@@ -96,7 +112,8 @@ assert_fails() {
 
 # Run docker compose against the e2e project of the repository's compose.yaml.
 e2e_compose() {
-    docker compose -f "$E2E_ROOT_DIR/compose.yaml" -p "$E2E_COMPOSE_PROJECT" "$@"
+    docker compose -f "$E2E_ROOT_DIR/compose.yaml" -f "$E2E_ROOT_DIR/e2e/compose.kind.yaml" \
+        -p "$E2E_COMPOSE_PROJECT" "$@"
 }
 
 # Query the e2e Postgres database, with psql inside the Postgres container.
@@ -115,7 +132,7 @@ registry_manifest_status() {
         -H 'Accept: application/vnd.oci.image.manifest.v1+json' \
         -H 'Accept: application/vnd.oci.image.index.v1+json' \
         -H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
-        "http://localhost:${E2E_REGISTRY_PORT}/v2/${repository}/manifests/${digest}"
+        "${E2E_REGISTRY_URL}/v2/${repository}/manifests/${digest}"
 }
 
 # Print test summary.
@@ -146,6 +163,14 @@ kill_pid_file() {
         pid=$(cat "$pidfile")
         if kill -0 "$pid" 2>/dev/null; then
             kill "$pid" 2>/dev/null || true
+            local waited=0
+            while kill -0 "$pid" 2>/dev/null && [ "$waited" -lt "$PROCESS_STOP_SECONDS" ]; do
+                sleep 1
+                waited=$((waited + 1))
+            done
+            if kill -0 "$pid" 2>/dev/null; then
+                kill -9 "$pid" 2>/dev/null || true
+            fi
             wait "$pid" 2>/dev/null || true
         fi
         rm -f "$pidfile"

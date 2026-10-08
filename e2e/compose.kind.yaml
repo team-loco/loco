@@ -1,0 +1,17 @@
+services:
+  registry:
+    networks:
+      default:
+      kind:
+        aliases:
+          - ${E2E_REGISTRY_ALIAS:?}
+  s3:
+    networks:
+      default:
+      kind:
+        aliases:
+          - ${E2E_S3_ALIAS:?}
+
+networks:
+  kind:
+    external: true

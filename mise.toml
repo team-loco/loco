@@ -236,32 +236,27 @@ description = "Remove the ClickHouse finalizer when it is stuck"
 run = """kubectl -n observability patch clickhouseinstallations.clickhouse.altinity.com/clickhouse -p '{"metadata":{"finalizers":[]}}' --type=merge"""
 
 [tasks.e2e]
-description = "Run the end-to-end tests (full setup and teardown)"
+description = "Run the end-to-end tests in this worktree's own kind cluster and compose project (E2E_RUN_ID overrides the run). Flags: --no-teardown keeps the run, a later run reuses its cluster and resets its state; --skip-build reuses the images and binaries; a trailing filter picks test files"
 env = { _.file = ".env" }
 run = "./e2e/run.sh"
 
 [tasks."e2e:builds"]
-description = "Run only the image build end-to-end tests, controller-only and through the API and agent (full setup and teardown)"
+description = "Run only the image build end-to-end tests, controller-only and through the API and agent; takes the e2e flags"
 env = { _.file = ".env" }
 run = "./e2e/run.sh build"
 
 [tasks."e2e:builds-disabled"]
-description = "Run the end-to-end tests for an install with builds.enabled=false: no build objects, public images deploy, source deploys are refused (full setup and teardown)"
+description = "Run the end-to-end tests for an install with builds.enabled=false: no build objects, public images deploy, source deploys are refused; takes the e2e flags"
 env = { _.file = ".env" }
 run = "./e2e/run.sh --builds-disabled builds_disabled"
 
 [tasks."e2e:ingress"]
-description = "Run the end-to-end tests for apps with and without a domain: routes, gateway ingress and the CLI's URL output (full setup and teardown)"
+description = "Run the end-to-end tests for apps with and without a domain: routes, gateway ingress and the CLI's URL output; takes the e2e flags"
 env = { _.file = ".env" }
 run = "./e2e/run.sh --builds-disabled ingress"
 
-[tasks."e2e:no-teardown"]
-description = "Run the end-to-end tests and keep the infrastructure running"
-env = { _.file = ".env" }
-run = "./e2e/run.sh --no-teardown"
-
 [tasks."e2e:teardown"]
-description = "Tear down the end-to-end infrastructure"
+description = "Remove this worktree's end-to-end run (or E2E_RUN_ID's): its kind cluster, compose project and state"
 env = { _.file = ".env" }
 run = "./e2e/run.sh --teardown-only"
 
