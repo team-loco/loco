@@ -7,7 +7,10 @@ import (
 	"net/http"
 )
 
-var ErrNoEmailVerifier = errors.New("emailVerification admin needs an admin client that can look up emails")
+var (
+	ErrNoEmailVerifier   = errors.New("emailVerification admin needs an admin client that can look up emails")
+	ErrAdminTokenMissing = errors.New("admin token is empty")
+)
 
 type IdentityState int
 
@@ -26,6 +29,7 @@ type AdminConfig struct {
 	Type     string `json:"type"`
 	URL      string `json:"url"`
 	TokenEnv string `json:"tokenEnv"`
+	Token    string `json:"-"`
 }
 
 type EmailVerifier interface {
@@ -48,7 +52,6 @@ type AdminFactories map[string]AdminFactory
 func NewAdmins(
 	httpClient *http.Client,
 	issuers []IssuerConfig,
-	getenv func(string) string,
 	factories AdminFactories,
 ) (Admins, error) {
 	admins := Admins{}
@@ -60,11 +63,10 @@ func NewAdmins(
 		if !ok {
 			return nil, fmt.Errorf("issuer %s: unknown admin type %q", ic.Issuer, ic.Admin.Type)
 		}
-		token := getenv(ic.Admin.TokenEnv)
-		if token == "" {
-			return nil, fmt.Errorf("issuer %s: admin token env %q is empty", ic.Issuer, ic.Admin.TokenEnv)
+		if ic.Admin.Token == "" {
+			return nil, fmt.Errorf("issuer %s: %w", ic.Issuer, ErrAdminTokenMissing)
 		}
-		admins[ic.Issuer] = factory(ic.Admin.URL, token, httpClient)
+		admins[ic.Issuer] = factory(ic.Admin.URL, ic.Admin.Token, httpClient)
 	}
 	return admins, nil
 }

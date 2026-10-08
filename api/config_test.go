@@ -2,10 +2,12 @@ package main
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/pkg/registryclient"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/service"
@@ -19,7 +21,19 @@ const (
 	testRegistryHost = "registry.loco.test"
 	testRegistryUser = "api"
 	testRegistryPass = "secret"
+	retentionDaysEnv = "EVENTS_RETENTION_DAYS"
+	installHooksEnv  = "INSTALL_WEBHOOKS"
+	authIssuersEnv   = "AUTH_ISSUERS"
+	testAdminEnv     = "LOCO_TEST_ADMIN_TOKEN"
+	testAdminToken   = "service-key"
+	testIssuer       = "https://issuer.loco.test"
+	testHookURL      = "https://hooks.loco.test/events"
+	testDatabaseURL  = "postgres://db.loco.test:5432/loco"
+	testHookSecret   = "whsec_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 )
+
+var adminIssuers = `[{"issuer":"` + testIssuer + `","audience":"loco",` +
+	`"admin":{"type":"supabase","tokenEnv":"` + testAdminEnv + `"}}]`
 
 func clearAPIConfigEnv(t *testing.T) {
 	t.Helper()
@@ -56,6 +70,14 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv("LOCO_SOURCE_SWEEP_ORPHAN_PAGE_SIZE", "")
 	t.Setenv("LOCO_SOURCE_SWEEP_ORPHAN_MAX_PAGES", "")
 	t.Setenv("WEBHOOK_ALLOW_PRIVATE_NETWORKS", "")
+	t.Setenv(retentionDaysEnv, "")
+	t.Setenv("DATABASE_URL", "")
+	t.Setenv(installHooksEnv, "")
+	t.Setenv(authIssuersEnv, "")
+	t.Setenv("AUTH_SIGNUP_MODE", "")
+	t.Setenv("AUTH_SIGNUP_DOMAINS", "")
+	t.Setenv("MIN_CLI_VERSION", "")
+	t.Setenv(testAdminEnv, "")
 }
 
 func TestNewAPIConfigDefaults(t *testing.T) {
@@ -102,6 +124,72 @@ func TestNewAPIConfigDefaults(t *testing.T) {
 	}
 	if ac.Registry.Username != "" {
 		t.Errorf("registry username = %q, want none so image cleanup is off", ac.Registry.Username)
+	}
+	if ac.EventsRetention != defaultEventsRetentionDays*day {
+		t.Errorf("events retention = %v, want %d days", ac.EventsRetention, defaultEventsRetentionDays)
+	}
+	if len(ac.InstallWebhooks) != 0 || len(ac.AuthIssuers) != 0 {
+		t.Errorf("install webhooks = %v, issuers = %v, want none", ac.InstallWebhooks, ac.AuthIssuers)
+	}
+	if ac.SignupPolicy.Mode != auth.SignupOpen {
+		t.Errorf("signup mode = %q, want %q", ac.SignupPolicy.Mode, auth.SignupOpen)
+	}
+}
+
+func TestNewAPIConfigReadsEventsRetention(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv(retentionDaysEnv, "7")
+	ac := newAPIConfig()
+	if ac.EventsRetention != 7*day {
+		t.Errorf("events retention = %v, want 7 days", ac.EventsRetention)
+	}
+}
+
+func TestNewAPIConfigReadsInstallWebhooks(t *testing.T) {
+	clearAPIConfigEnv(t)
+	hooks := `[{"url":"` + testHookURL + `","secret":"` + testHookSecret + `","eventTypes":["deployment.ready"]}]`
+	t.Setenv(installHooksEnv, hooks)
+	ac := newAPIConfig()
+	if len(ac.InstallWebhooks) != 1 {
+		t.Fatalf("install webhooks = %+v, want one", ac.InstallWebhooks)
+	}
+	hook := ac.InstallWebhooks[0]
+	wantTypes := []string{"deployment.ready"}
+	if hook.URL != testHookURL || hook.Secret != testHookSecret || !slices.Equal(hook.EventTypes, wantTypes) {
+		t.Errorf("install webhook = %+v", hook)
+	}
+}
+
+func TestNewMigrateConfigReadsOnlyTheDatabase(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv("DATABASE_URL", testDatabaseURL)
+	t.Setenv(authIssuersEnv, adminIssuers)
+	t.Setenv(installHooksEnv, "{")
+	t.Setenv("AUTH_SIGNUP_MODE", "invite")
+	got := newMigrateConfig()
+	want := MigrateConfig{DatabaseURL: testDatabaseURL}
+	if got != want {
+		t.Errorf("migrate config = %+v, want %+v", got, want)
+	}
+}
+
+func TestNewAPIConfigResolvesAdminTokens(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv(authIssuersEnv, adminIssuers)
+	t.Setenv(testAdminEnv, testAdminToken)
+	t.Setenv("AUTH_SIGNUP_MODE", "domains")
+	t.Setenv("AUTH_SIGNUP_DOMAINS", "acme.test")
+	t.Setenv("MIN_CLI_VERSION", "v0.0.61")
+	ac := newAPIConfig()
+	if len(ac.AuthIssuers) != 1 || ac.AuthIssuers[0].Admin == nil {
+		t.Fatalf("issuers = %+v, want one with an admin", ac.AuthIssuers)
+	}
+	if got := ac.AuthIssuers[0].Admin.Token; got != testAdminToken {
+		t.Errorf("admin token = %q, want %q", got, testAdminToken)
+	}
+	wantDomains := []string{"acme.test"}
+	if ac.SignupPolicy.Mode != auth.SignupDomains || !slices.Equal(ac.SignupPolicy.Domains, wantDomains) {
+		t.Errorf("signup policy = %+v", ac.SignupPolicy)
 	}
 }
 
@@ -269,6 +357,18 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 		{"zero orphan page size", map[string]string{"LOCO_SOURCE_SWEEP_ORPHAN_PAGE_SIZE": "0"}, errNotPositive},
 		{"non-numeric orphan max pages", map[string]string{"LOCO_SOURCE_SWEEP_ORPHAN_MAX_PAGES": "x"}, errInvalidInt32},
 		{"zero registry timeout", map[string]string{"LOCO_REGISTRY_TIMEOUT": "0s"}, errNotPositive},
+		{"zero events retention", map[string]string{retentionDaysEnv: "0"}, errNotPositive},
+		{"non-numeric events retention", map[string]string{retentionDaysEnv: "forever"}, errInvalidInt32},
+		{"malformed install webhooks", map[string]string{installHooksEnv: "{"}, errInvalidInstallWebhooks},
+		{
+			"install webhook without a secret",
+			map[string]string{installHooksEnv: `[{"url":"` + testHookURL + `"}]`},
+			errInvalidInstallWebhooks,
+		},
+		{"malformed auth issuers", map[string]string{authIssuersEnv: "["}, errInvalidAuthIssuers},
+		{"admin token env unset", map[string]string{authIssuersEnv: adminIssuers}, errAdminTokenMissing},
+		{"unknown signup mode", map[string]string{"AUTH_SIGNUP_MODE": "invite"}, errInvalidSignupPolicy},
+		{"non-semver min cli version", map[string]string{"MIN_CLI_VERSION": "0.0.61"}, errInvalidMinCLIVersion},
 		{
 			"registry username without password",
 			map[string]string{registryHostEnv: testRegistryHost, registryUserEnv: testRegistryUser},

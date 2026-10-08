@@ -286,8 +286,13 @@ func TestProviderConformance(t *testing.T) {
 			if err != nil {
 				t.Fatalf("AUTH_ISSUERS: %v", err)
 			}
+			for _, ic := range issuers {
+				if ic.Admin != nil {
+					ic.Admin.Token = os.Getenv(ic.Admin.TokenEnv)
+				}
+			}
 			adminFactories := auth.AdminFactories{supabase.AdminType: supabase.NewAdmin}
-			admins, err := auth.NewAdmins(http.DefaultClient, issuers, os.Getenv, adminFactories)
+			admins, err := auth.NewAdmins(http.DefaultClient, issuers, adminFactories)
 			if err != nil {
 				t.Fatalf("admins: %v", err)
 			}

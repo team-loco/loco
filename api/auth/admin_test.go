@@ -12,6 +12,7 @@ const (
 	adminIssuer         = "https://a.test"
 	adminURL            = "https://admin.a.test"
 	adminTokenEnv       = "SERVICE_KEY"
+	adminToken          = "service-key"
 	emailVerifierIssuer = "https://verifier.test"
 	subjectConfirmed    = "confirmed"
 	stateExpired        = "expired"
@@ -40,9 +41,11 @@ func fakeFactories() AdminFactories {
 func TestNewAdminsBuildsFromFactory(t *testing.T) {
 	client := &http.Client{}
 	admins, err := NewAdmins(client, []IssuerConfig{
-		{Issuer: adminIssuer, Admin: &AdminConfig{Type: fakeAdminType, URL: adminURL, TokenEnv: adminTokenEnv}},
+		{Issuer: adminIssuer, Admin: &AdminConfig{
+			Type: fakeAdminType, URL: adminURL, TokenEnv: adminTokenEnv, Token: adminToken,
+		}},
 		{Issuer: emailVerifierIssuer},
-	}, func(name string) string { return name + "-value" }, fakeFactories())
+	}, fakeFactories())
 	if err != nil {
 		t.Fatalf("admins: %v", err)
 	}
@@ -57,7 +60,7 @@ func TestNewAdminsBuildsFromFactory(t *testing.T) {
 	if !ok {
 		t.Fatalf("admin = %T", admin)
 	}
-	if fake.baseURL != adminURL || fake.token != adminTokenEnv+"-value" || fake.client != client {
+	if fake.baseURL != adminURL || fake.token != adminToken || fake.client != client {
 		t.Fatalf("factory got %+v", fake)
 	}
 }
@@ -65,12 +68,12 @@ func TestNewAdminsBuildsFromFactory(t *testing.T) {
 func TestNewAdminsValidation(t *testing.T) {
 	if _, err := NewAdmins(http.DefaultClient, []IssuerConfig{{
 		Issuer: adminIssuer, Admin: &AdminConfig{Type: fakeAdminType, TokenEnv: "MISSING"},
-	}}, func(string) string { return "" }, fakeFactories()); err == nil {
-		t.Fatal("empty token accepted")
+	}}, fakeFactories()); !errors.Is(err, ErrAdminTokenMissing) {
+		t.Fatalf("empty token: err = %v, want %v", err, ErrAdminTokenMissing)
 	}
 	if _, err := NewAdmins(http.DefaultClient, []IssuerConfig{{
-		Issuer: adminIssuer, Admin: &AdminConfig{Type: "okta", TokenEnv: "X"},
-	}}, func(string) string { return "t" }, fakeFactories()); err == nil {
+		Issuer: adminIssuer, Admin: &AdminConfig{Type: "okta", TokenEnv: "X", Token: adminToken},
+	}}, fakeFactories()); err == nil {
 		t.Fatal("unknown admin type accepted")
 	}
 }

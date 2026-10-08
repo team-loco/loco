@@ -63,8 +63,8 @@ func TestAdmin(t *testing.T) {
 
 	admins, err := auth.NewAdmins(http.DefaultClient, []auth.IssuerConfig{{
 		Issuer: srv.URL,
-		Admin:  &auth.AdminConfig{Type: supabase.AdminType, URL: srv.URL, TokenEnv: "KEY"},
-	}}, func(string) string { return "service-key" }, factories)
+		Admin:  &auth.AdminConfig{Type: supabase.AdminType, URL: srv.URL, TokenEnv: "KEY", Token: "service-key"},
+	}}, factories)
 	if err != nil {
 		t.Fatalf("admins: %v", err)
 	}
@@ -95,8 +95,8 @@ func TestAdmin(t *testing.T) {
 
 	bad, err := auth.NewAdmins(http.DefaultClient, []auth.IssuerConfig{{
 		Issuer: srv.URL,
-		Admin:  &auth.AdminConfig{Type: supabase.AdminType, URL: srv.URL, TokenEnv: "KEY"},
-	}}, func(string) string { return "wrong" }, factories)
+		Admin:  &auth.AdminConfig{Type: supabase.AdminType, URL: srv.URL, TokenEnv: "KEY", Token: "wrong"},
+	}}, factories)
 	if err != nil {
 		t.Fatalf("admins: %v", err)
 	}
@@ -140,9 +140,11 @@ func TestAdminEmailVerified(t *testing.T) {
 	issuers := []auth.IssuerConfig{{
 		Issuer:            srv.URL,
 		EmailVerification: auth.EmailVerificationAdmin,
-		Admin:             &auth.AdminConfig{Type: supabase.AdminType, URL: srv.URL, TokenEnv: adminTokenEnv},
+		Admin: &auth.AdminConfig{
+			Type: supabase.AdminType, URL: srv.URL, TokenEnv: adminTokenEnv, Token: "service-key",
+		},
 	}}
-	admins, err := auth.NewAdmins(http.DefaultClient, issuers, func(string) string { return "service-key" }, factories)
+	admins, err := auth.NewAdmins(http.DefaultClient, issuers, factories)
 	if err != nil {
 		t.Fatalf("admins: %v", err)
 	}
