@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 
@@ -43,5 +44,22 @@ func TestGenerateProviderKeys(t *testing.T) {
 	}
 	if keys.JWTSecret == "" {
 		t.Fatal("empty jwt secret")
+	}
+}
+
+func TestServiceRoleKeyFromJWKs(t *testing.T) {
+	keys, err := generateProviderKeys()
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	token, err := serviceRoleKeyFromJWKs(keys.JWTKeys)
+	if err != nil {
+		t.Fatalf("mint: %v", err)
+	}
+	if strings.Count(token, ".") != 2 {
+		t.Fatalf("token = %q", token)
+	}
+	if _, err := serviceRoleKeyFromJWKs("[]"); !errors.Is(err, errNoRSAKey) {
+		t.Fatalf("minted without a key: %v", err)
 	}
 }

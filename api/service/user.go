@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/timeutil"
@@ -32,6 +33,7 @@ type UserServer struct {
 	queries       genDb.Querier
 	tvm           *tvm.VendingMachine
 	secureCookies bool
+	admins        auth.Admins
 }
 
 // NewUserServer creates a new UserServer instance
@@ -40,8 +42,9 @@ func NewUserServer(
 	queries genDb.Querier,
 	vendingMachine *tvm.VendingMachine,
 	secureCookies bool,
+	admins auth.Admins,
 ) *UserServer {
-	return &UserServer{db: db, queries: queries, tvm: vendingMachine, secureCookies: secureCookies}
+	return &UserServer{db: db, queries: queries, tvm: vendingMachine, secureCookies: secureCookies, admins: admins}
 }
 
 // GetUser retrieves a user by ID or email
@@ -279,10 +282,27 @@ func (s *UserServer) DeleteUser(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrUserHasOrganizations)
 	}
 
+	identities, err := s.queries.ListIdentitiesForUser(ctx, userID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list user identities", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
 	err = s.queries.DeleteUser(ctx, userID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete user", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
+	for _, identity := range identities {
+		admin, ok := s.admins.For(identity.Issuer)
+		if !ok {
+			continue
+		}
+		if deleteErr := admin.Delete(ctx, identity.Subject); deleteErr != nil {
+			slog.ErrorContext(ctx, "failed to delete identity at its provider",
+				"userId", userID, "issuer", identity.Issuer, "error", deleteErr)
+		}
 	}
 
 	return connect.NewResponse(&userv1.DeleteUserResponse{}), nil

@@ -6,10 +6,15 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math/big"
+	"os"
+	"time"
 
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/google/uuid"
 )
 
@@ -17,9 +22,15 @@ const (
 	rsaKeyBits             = 2048
 	secretBytes            = 32
 	standardWebhooksPrefix = "v1,whsec_"
+	serviceRoleYears       = 10
+	serviceRoleCommand     = "service-role"
+	jwtKeysEnv             = "GOTRUE_JWT_KEYS"
 )
 
+var errNoRSAKey = errors.New("no RSA private key in the jwt keys")
+
 type providerKeys struct {
+	ServiceRoleKey string
 	JWTKeys        string
 	SAMLPrivateKey string
 	HookSecret     string
@@ -32,11 +43,12 @@ func generateProviderKeys() (providerKeys, error) {
 		return providerKeys{}, fmt.Errorf("generate jwt key: %w", err)
 	}
 	jwtKey.Precompute()
+	kid := uuid.NewString()
 	b64 := base64.RawURLEncoding.EncodeToString
 	exponent := big.NewInt(int64(jwtKey.E))
 	jwk := map[string]any{
 		"kty":     "RSA",
-		"kid":     uuid.NewString(),
+		"kid":     kid,
 		"alg":     "RS256",
 		"use":     "sig",
 		"key_ops": []string{"sign", "verify"},
@@ -68,8 +80,14 @@ func generateProviderKeys() (providerKeys, error) {
 		return providerKeys{}, fmt.Errorf("generate jwt secret: %w", secretErr)
 	}
 
+	serviceRole, err := signServiceRole(jwtKey, kid)
+	if err != nil {
+		return providerKeys{}, err
+	}
+
 	samlDER := x509.MarshalPKCS1PrivateKey(samlKey)
 	return providerKeys{
+		ServiceRoleKey: serviceRole,
 		JWTKeys:        string(keys),
 		SAMLPrivateKey: base64.StdEncoding.EncodeToString(samlDER),
 		HookSecret:     standardWebhooksPrefix + base64.StdEncoding.EncodeToString(hook),
@@ -77,7 +95,50 @@ func generateProviderKeys() (providerKeys, error) {
 	}, nil
 }
 
+func signServiceRole(key *rsa.PrivateKey, kid string) (string, error) {
+	signer, err := jose.NewSigner(
+		jose.SigningKey{Algorithm: jose.RS256, Key: jose.JSONWebKey{Key: key, KeyID: kid}},
+		(&jose.SignerOptions{}).WithType("JWT"),
+	)
+	if err != nil {
+		return "", fmt.Errorf("service role signer: %w", err)
+	}
+	now := time.Now()
+	expiry := now.AddDate(serviceRoleYears, 0, 0)
+	token, err := jwt.Signed(signer).Claims(map[string]any{
+		"role": "service_role",
+		"iat":  now.Unix(),
+		"exp":  expiry.Unix(),
+	}).Serialize()
+	if err != nil {
+		return "", fmt.Errorf("sign service role: %w", err)
+	}
+	return token, nil
+}
+
+func serviceRoleKeyFromJWKs(raw string) (string, error) {
+	var set []jose.JSONWebKey
+	if err := json.Unmarshal([]byte(raw), &set); err != nil {
+		return "", fmt.Errorf("decode jwt keys: %w", err)
+	}
+	for _, k := range set {
+		key, ok := k.Key.(*rsa.PrivateKey)
+		if ok {
+			return signServiceRole(key, k.KeyID)
+		}
+	}
+	return "", errNoRSAKey
+}
+
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == serviceRoleCommand {
+		key, err := serviceRoleKeyFromJWKs(os.Getenv(jwtKeysEnv))
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("AUTH_SUPABASE_SERVICE_KEY='%s'\n", key)
+		return
+	}
 	keys, err := generateProviderKeys()
 	if err != nil {
 		log.Fatal(err)
@@ -86,4 +147,5 @@ func main() {
 	fmt.Printf("GOTRUE_JWT_SECRET='%s'\n", keys.JWTSecret)
 	fmt.Printf("GOTRUE_SAML_PRIVATE_KEY='%s'\n", keys.SAMLPrivateKey)
 	fmt.Printf("AUTH_HOOK_SECRET='%s'\n", keys.HookSecret)
+	fmt.Printf("AUTH_SUPABASE_SERVICE_KEY='%s'\n", keys.ServiceRoleKey)
 }

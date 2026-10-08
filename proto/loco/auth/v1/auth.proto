@@ -1,0 +1,94 @@
+syntax = "proto3";
+
+package loco.auth.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/team-loco/loco/gen/go/loco/auth/v1;authv1";
+
+service AuthService {
+  rpc ApproveCLILogin(ApproveCLILoginRequest) returns (ApproveCLILoginResponse);
+  rpc ExchangeCLICode(ExchangeCLICodeRequest) returns (ExchangeCLICodeResponse);
+  rpc StartDeviceLogin(StartDeviceLoginRequest) returns (StartDeviceLoginResponse);
+  rpc ApproveDeviceLogin(ApproveDeviceLoginRequest) returns (ApproveDeviceLoginResponse);
+  rpc PollDeviceLogin(PollDeviceLoginRequest) returns (PollDeviceLoginResponse);
+  rpc RefreshCLIToken(RefreshCLITokenRequest) returns (RefreshCLITokenResponse);
+}
+
+message CLITokens {
+  string access_token = 1;
+  string refresh_token = 2;
+  int64 expires_in = 3;
+}
+
+message ApproveCLILoginRequest {
+  string state = 1 [(buf.validate.field).string = {
+    min_len: 16
+    max_len: 256
+  }];
+  string code_challenge = 2 [(buf.validate.field).string = {
+    min_len: 43
+    max_len: 128
+  }];
+}
+
+message ApproveCLILoginResponse {
+  string code = 1;
+}
+
+message ExchangeCLICodeRequest {
+  string code = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 256
+  }];
+  string code_verifier = 2 [(buf.validate.field).string = {
+    min_len: 43
+    max_len: 128
+  }];
+}
+
+message ExchangeCLICodeResponse {
+  CLITokens tokens = 1;
+}
+
+message StartDeviceLoginRequest {}
+
+message StartDeviceLoginResponse {
+  string device_code = 1;
+  string user_code = 2;
+  string verification_uri = 3;
+  string verification_uri_complete = 4;
+  int64 expires_in = 5;
+  int64 interval = 6;
+}
+
+message ApproveDeviceLoginRequest {
+  string user_code = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 32
+  }];
+}
+
+message ApproveDeviceLoginResponse {}
+
+message PollDeviceLoginRequest {
+  string device_code = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 256
+  }];
+}
+
+message PollDeviceLoginResponse {
+  CLITokens tokens = 1;
+}
+
+message RefreshCLITokenRequest {
+  string refresh_token = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 256
+  }];
+}
+
+message RefreshCLITokenResponse {
+  CLITokens tokens = 1;
+}

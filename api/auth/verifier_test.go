@@ -60,7 +60,7 @@ func TestVerifyRejectsBadTokens(t *testing.T) {
 		token string
 		want  error
 	}{
-		{"expired", ti.Sign("k1", expired), ErrInvalidToken},
+		{stateExpired, ti.Sign("k1", expired), ErrInvalidToken},
 		{"wrong audience", ti.Sign("k1", wrongAud), ErrInvalidToken},
 		{"untrusted issuer", other.Sign("k1", other.Claims("u", "u@example.test", true)), ErrUnknownIssuer},
 		{"signed by another issuer's key", other.Sign("k1", forgedIss), ErrInvalidToken},
@@ -136,6 +136,20 @@ func TestVerifyUnverifiedEmailUnlessAuthoritative(t *testing.T) {
 	}
 	if !id.EmailVerified {
 		t.Fatal("authoritative issuer email not treated as verified")
+	}
+}
+
+func TestVerifyIgnoresVerificationClaimForAdminVerifiedIssuer(t *testing.T) {
+	ti := authtest.NewIssuer(t)
+	config := testConfig(ti)
+	config.EmailVerification = EmailVerificationAdmin
+	claims := ti.Claims("u", "u@example.test", true)
+	id, err := NewVerifier(http.DefaultClient, []IssuerConfig{config}).Verify(t.Context(), ti.Sign("k1", claims))
+	if err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	if id.EmailVerified {
+		t.Fatal("token claim trusted for an issuer whose provider confirms emails")
 	}
 }
 

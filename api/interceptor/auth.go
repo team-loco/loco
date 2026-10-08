@@ -11,6 +11,7 @@ import (
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 	"github.com/team-loco/loco/gen/go/loco/oauth/v1/oauthv1connect"
 
 	"github.com/team-loco/loco/api/tvm"
@@ -56,6 +57,10 @@ func extractToken(header http.Header) (string, error) {
 }
 
 var publicProcedures = map[string]struct{}{
+	authv1connect.AuthServiceExchangeCLICodeProcedure:            {},
+	authv1connect.AuthServiceStartDeviceLoginProcedure:           {},
+	authv1connect.AuthServicePollDeviceLoginProcedure:            {},
+	authv1connect.AuthServiceRefreshCLITokenProcedure:            {},
 	oauthv1connect.OAuthServiceGetOAuthDetailsProcedure:          {},
 	oauthv1connect.OAuthServiceGetOAuthAuthorizationURLProcedure: {},
 	oauthv1connect.OAuthServiceExchangeOAuthCodeProcedure:        {},
