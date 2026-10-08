@@ -14,7 +14,8 @@ import (
 )
 
 const (
-	otherRegionSpec = `{"regions":{"eu-west-1":{"enabled":true,"primary":true,"cpu":"100m",` +
+	testPrimaryDomain = "svc.example.com"
+	otherRegionSpec   = `{"regions":{"eu-west-1":{"enabled":true,"primary":true,"cpu":"100m",` +
 		`"memory":"64Mi","minReplicas":1,"maxReplicas":1}}}`
 	sameRegionSpec = `{"regions":{"us-east-1":{"enabled":true,"primary":true,"cpu":"100m",` +
 		`"memory":"64Mi","minReplicas":1,"maxReplicas":1}}}`
@@ -40,13 +41,10 @@ func createDeploymentWith(
 	t.Helper()
 	ctx := context.Background()
 	setup := `
-WITH r AS (
-    UPDATE resources SET spec = $2 WHERE id = $1 RETURNING id
-), c AS (
+WITH c AS (
     UPDATE clusters SET health_status = 'healthy'
 )
-INSERT INTO resource_domains (resource_id, domain, domain_source, is_primary)
-SELECT id, 'svc.example.com', 'user_provided', true FROM r`
+UPDATE resources SET spec = $2 WHERE id = $1`
 	if _, err := f.pool.Exec(ctx, setup, f.resourceID, resourceSpec); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
@@ -71,6 +69,54 @@ SELECT id, 'svc.example.com', 'user_provided', true FROM r`
 		return nil, err
 	}
 	return resp.Msg, nil
+}
+
+func (f *deployFixture) addDomain(t *testing.T, domain string, primary bool) {
+	t.Helper()
+	insert := `
+INSERT INTO resource_domains (resource_id, domain, domain_source, is_primary)
+VALUES ($1, $2, 'user_provided', $3)`
+	if _, err := f.pool.Exec(context.Background(), insert, f.resourceID, domain, primary); err != nil {
+		t.Fatalf("add domain %s: %v", domain, err)
+	}
+}
+
+func TestCreateDeploymentRoutesThePrimaryDomain(t *testing.T) {
+	f := newDeployFixture(t)
+	f.addDomain(t, "alt.example.com", false)
+	f.addDomain(t, testPrimaryDomain, true)
+	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+		t.Fatalf("create deployment: %v", err)
+	}
+
+	routing := desiredPayload(t, f).AppSpec.ServiceSpec.Routing
+	if routing == nil {
+		t.Fatal("routing is nil, want a route for the primary domain")
+	}
+	if routing.HostName != testPrimaryDomain {
+		t.Errorf("hostname = %q, want the primary %s", routing.HostName, testPrimaryDomain)
+	}
+	if routing.PathPrefix != "/" || routing.IdleTimeout != testIdleTimeout {
+		t.Errorf("routing = %+v, want the configured path prefix and idle timeout", routing)
+	}
+}
+
+func TestCreateDeploymentWithoutADomainHasNoRoute(t *testing.T) {
+	f := newDeployFixture(t)
+	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+		t.Fatalf("create deployment: %v", err)
+	}
+
+	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1 AND is_active`); n != 1 {
+		t.Fatalf("%d active deployments, want 1", n)
+	}
+	service := desiredPayload(t, f).AppSpec.ServiceSpec
+	if service.Routing != nil {
+		t.Fatalf("routing = %+v, want none for a resource without a domain", service.Routing)
+	}
+	if service.Deployment.Port != 8080 {
+		t.Errorf("port = %d, want 8080", service.Deployment.Port)
+	}
 }
 
 func TestCreateDeploymentRejectsARegionTheResourceDoesNotRunIn(t *testing.T) {

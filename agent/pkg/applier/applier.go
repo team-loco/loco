@@ -214,6 +214,5 @@ type DeployPayload struct {
 	ResourceName string                            `json:"resource_name"`
 	ResourceType string                            `json:"resource_type"`
 	Region       string                            `json:"region"`
-	Hostname     string                            `json:"hostname"`
 	AppSpec      *locoControllerV1.ApplicationSpec `json:"app_spec"`
 }

@@ -19,6 +19,12 @@ export const DRAFT_DEFAULTS = {
 	hcFail: "3",
 };
 
+export type Networking = "public" | "private";
+
+export function isPrivate(draft: Draft): boolean {
+	return draft.networking === "private";
+}
+
 export interface DraftVar {
 	key: string;
 	value: string;
@@ -30,6 +36,7 @@ export interface Draft {
 	image: string;
 	region: string;
 	sub: string;
+	networking?: Networking | undefined;
 	port: string;
 	cpu: string;
 	memory: string;

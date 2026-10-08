@@ -150,7 +150,7 @@ func runDeploy(cmd *cobra.Command, deps deployDeps, name string) error {
 
 	resourceClient := deps.NewResourceClient(host)
 	domainClient := deps.NewDomainClient(host)
-	resourceID, err := getOrCreateResource(
+	resource, err := getOrCreateResource(
 		ctx,
 		resourceClient,
 		domainClient,
@@ -162,6 +162,7 @@ func runDeploy(cmd *cobra.Command, deps deployDeps, name string) error {
 	if err != nil {
 		return err
 	}
+	resourceID := resource.GetId()
 
 	source := imageSource(imageName)
 	if imageName == "" {
@@ -211,11 +212,25 @@ func runDeploy(cmd *cobra.Command, deps deployDeps, name string) error {
 		return printErr
 	}
 
+	reachText := reachability(resource)
+	reach := lipgloss.NewStyle().Foreground(ui.Fg).Render(reachText)
+	if _, printErr := lipgloss.Fprintln(deps.Stdout, reach); printErr != nil {
+		return printErr
+	}
+
 	tip := lipgloss.NewStyle().
 		Foreground(ui.Fg3).
 		Render("Check on it with `loco resource status " + name + "`")
 	_, err = lipgloss.Fprintln(deps.Stdout, tip)
 	return err
+}
+
+func reachability(resource *resourcev1.Resource) string {
+	url := publicURL(resource)
+	if url == "" {
+		return resource.GetName() + " has no public URL and takes no internet traffic."
+	}
+	return "Public URL: " + url
 }
 
 func loadDeployConfig(cmd *cobra.Command, deps deployDeps) (*config.LoadedConfig, error) {
@@ -246,47 +261,30 @@ func getOrCreateResource(
 	authHeader string,
 	workspaceID string,
 	cfg *config.LocoConfig,
-) (string, error) {
-	// Check if resource already exists
-	getReq := connect.NewRequest(&resourcev1.GetResourceRequest{
-		Key: &resourcev1.GetResourceRequest_NameKey{
-			NameKey: &resourcev1.GetResourceNameKey{
-				WorkspaceId: workspaceID,
-				Name:        cfg.Metadata.Name,
-			},
-		},
+) (*resourcev1.Resource, error) {
+	nameKey := &resourcev1.GetResourceNameKey{WorkspaceId: workspaceID, Name: cfg.Metadata.Name}
+	existing, err := getResource(ctx, resourceClient, authHeader, &resourcev1.GetResourceRequest{
+		Key: &resourcev1.GetResourceRequest_NameKey{NameKey: nameKey},
 	})
-	getReq.Header().Set("Authorization", authHeader)
-
-	resp, err := resourceClient.GetResource(ctx, getReq)
 	if err == nil {
-		slog.Debug(
-			"found existing resource",
-			"resource_id",
-			resp.Msg.GetResource().GetId(),
-			"name",
-			resp.Msg.GetResource().GetName(),
-		)
-		return resp.Msg.GetResource().GetId(), nil
+		slog.Debug("found existing resource", "resource_id", existing.GetId(), "name", existing.GetName())
+		return existing, nil
 	}
 
 	if connect.CodeOf(err) != connect.CodeNotFound {
-		return "", fmt.Errorf("failed to get resource '%s': %w", cfg.Metadata.Name, err)
+		return nil, fmt.Errorf("failed to get resource '%s': %w", cfg.Metadata.Name, err)
 	}
 
-	// Resource doesn't exist - create it
 	slog.Info("no existing resource found, creating new one")
 
-	// Resolve domain input
 	domainInput, err := resolveDomainInput(ctx, domainClient, selectFromList, authHeader, cfg)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	// Convert config to resource spec
 	resourceSpec, err := configToResourceSpec(cfg, "v1")
 	if err != nil {
-		return "", fmt.Errorf("failed to convert config to resource spec: %w", err)
+		return nil, fmt.Errorf("failed to convert config to resource spec: %w", err)
 	}
 
 	createReq := connect.NewRequest(&resourcev1.CreateResourceRequest{
@@ -300,9 +298,31 @@ func getOrCreateResource(
 
 	createResp, err := resourceClient.CreateResource(ctx, createReq)
 	if err != nil {
-		return "", fmt.Errorf("failed to create resource: %w", err)
+		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
 
-	slog.Debug("created resource", "resourceId", createResp.Msg.GetResourceId())
-	return createResp.Msg.GetResourceId(), nil
+	resourceID := createResp.Msg.GetResourceId()
+	slog.Debug("created resource", "resourceId", resourceID)
+	created, err := getResource(ctx, resourceClient, authHeader, &resourcev1.GetResourceRequest{
+		Key: &resourcev1.GetResourceRequest_ResourceId{ResourceId: resourceID},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get created resource: %w", err)
+	}
+	return created, nil
+}
+
+func getResource(
+	ctx context.Context,
+	resourceClient resourcev1connect.ResourceServiceClient,
+	authHeader string,
+	msg *resourcev1.GetResourceRequest,
+) (*resourcev1.Resource, error) {
+	req := connect.NewRequest(msg)
+	req.Header().Set("Authorization", authHeader)
+	resp, err := resourceClient.GetResource(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Msg.GetResource(), nil
 }

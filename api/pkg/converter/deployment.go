@@ -287,7 +287,7 @@ func ProtoToRoutingSpec(
 	hostname string,
 	defaults servicedefaults.Defaults,
 ) *locoControllerV1.RoutingSpec {
-	if routing == nil {
+	if hostname == "" {
 		return nil
 	}
 

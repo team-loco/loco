@@ -7,7 +7,6 @@ package db
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -103,46 +102,6 @@ func (q *Queries) DeleteResourceDomain(ctx context.Context, id uuid.UUID) error 
 	return err
 }
 
-const getDomainByResourceId = `-- name: GetDomainByResourceId :one
-SELECT 
-    rd.id, rd.resource_id, rd.domain, rd.domain_source, rd.subdomain_label, rd.platform_domain_id, rd.is_primary, rd.created_at, rd.updated_at,
-    pd.domain as platform_base_domain
-FROM resource_domains rd
-LEFT JOIN platform_domains pd ON rd.platform_domain_id = pd.id
-WHERE rd.resource_id = $1
-`
-
-type GetDomainByResourceIdRow struct {
-	ID                 uuid.UUID    `json:"id"`
-	ResourceID         uuid.UUID    `json:"resourceId"`
-	Domain             string       `json:"domain"`
-	DomainSource       DomainSource `json:"domainSource"`
-	SubdomainLabel     *string      `json:"subdomainLabel"`
-	PlatformDomainID   *uuid.UUID   `json:"platformDomainId"`
-	IsPrimary          bool         `json:"isPrimary"`
-	CreatedAt          time.Time    `json:"createdAt"`
-	UpdatedAt          time.Time    `json:"updatedAt"`
-	PlatformBaseDomain *string      `json:"platformBaseDomain"`
-}
-
-func (q *Queries) GetDomainByResourceId(ctx context.Context, resourceID uuid.UUID) (GetDomainByResourceIdRow, error) {
-	row := q.db.QueryRow(ctx, getDomainByResourceId, resourceID)
-	var i GetDomainByResourceIdRow
-	err := row.Scan(
-		&i.ID,
-		&i.ResourceID,
-		&i.Domain,
-		&i.DomainSource,
-		&i.SubdomainLabel,
-		&i.PlatformDomainID,
-		&i.IsPrimary,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.PlatformBaseDomain,
-	)
-	return i, err
-}
-
 const getPlatformDomain = `-- name: GetPlatformDomain :one
 SELECT id, domain, is_active, created_at FROM platform_domains
 WHERE id = $1
@@ -175,6 +134,19 @@ func (q *Queries) GetPlatformDomainByName(ctx context.Context, domain string) (P
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const getPrimaryResourceDomain = `-- name: GetPrimaryResourceDomain :one
+SELECT domain
+FROM resource_domains
+WHERE resource_id = $1 AND is_primary
+`
+
+func (q *Queries) GetPrimaryResourceDomain(ctx context.Context, resourceID uuid.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, getPrimaryResourceDomain, resourceID)
+	var domain string
+	err := row.Scan(&domain)
+	return domain, err
 }
 
 const getResourceDomainByID = `-- name: GetResourceDomainByID :one
@@ -420,6 +392,20 @@ func (q *Queries) ListResourceDomainsForResources(ctx context.Context, resourceI
 		return nil, err
 	}
 	return items, nil
+}
+
+const resourceHasPrimaryDomain = `-- name: ResourceHasPrimaryDomain :one
+SELECT EXISTS(
+    SELECT 1 FROM resource_domains
+    WHERE resource_id = $1 AND is_primary
+) AS has_primary
+`
+
+func (q *Queries) ResourceHasPrimaryDomain(ctx context.Context, resourceID uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, resourceHasPrimaryDomain, resourceID)
+	var has_primary bool
+	err := row.Scan(&has_primary)
+	return has_primary, err
 }
 
 const setResourceDomainPrimary = `-- name: SetResourceDomainPrimary :one

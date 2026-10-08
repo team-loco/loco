@@ -25,14 +25,15 @@ import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/design/InputGroup";
 import { SheetSection } from "@/components/design/Sheet";
-import { SoonTag } from "@/components/design/SoonTag";
 import { Stepper } from "@/components/design/Stepper";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { cn } from "@/lib/utils";
 
 import { EnvVarsEditor, StopSlider } from "./DraftFields";
-import { CPU_STOPS, MAX_REPLICAS, MEMORY_STOPS, type Draft } from "./drafts";
+import { CPU_STOPS, isPrivate, MAX_REPLICAS, MEMORY_STOPS, type Draft, type Networking } from "./drafts";
 import type { DraftErrors } from "./draftValidation";
+
+const NETWORKING: Networking[] = ["private", "public"];
 
 function regionNote(r: RegionInfo): { label: string; tone: "muted" | "warn" } | null {
 	const health = r.healthStatus.toLowerCase();
@@ -74,6 +75,8 @@ export function DraftForm({
 	update: (patch: Partial<Draft>) => void;
 }) {
 	const current = regions.find((r) => r.region === region);
+	const networking = draft.networking ?? "public";
+	const privateService = isPrivate(draft);
 	const netError = errors.sub ?? errors.port;
 	const sub = draft.sub.trim();
 	const showPortError = errors.port !== null && (tried || draft.port !== "");
@@ -118,16 +121,18 @@ export function DraftForm({
 			</SheetSection>
 
 			<SheetSection title="Networking">
-				<ToggleGroup variant="segmented" value={["public"]} className="grid w-full grid-cols-2">
-					<ToggleGroupItem
-						value="private"
-						disabled
-						title="Private services are not available yet: every service needs a public domain to deploy"
-						className="cursor-not-allowed gap-1.5 text-fg4 data-disabled:pointer-events-auto data-disabled:opacity-100"
-					>
+				<ToggleGroup
+					variant="segmented"
+					value={[networking]}
+					className="grid w-full grid-cols-2"
+					onValueChange={(v: string[]) => {
+						const next = NETWORKING.find((n) => n === v[0]);
+						if (next !== undefined) update({ networking: next });
+					}}
+				>
+					<ToggleGroupItem value="private" className="gap-1.5">
 						<LockIcon className="size-3.5" />
 						Private
-						<SoonTag />
 					</ToggleGroupItem>
 					<ToggleGroupItem value="public" className="gap-1.5">
 						<GlobeIcon className="size-3.5" />
@@ -135,25 +140,35 @@ export function DraftForm({
 					</ToggleGroupItem>
 				</ToggleGroup>
 				<div className="grid grid-cols-[minmax(0,1fr)_96px] gap-2">
-					<div className="flex min-w-0 flex-col gap-1.5">
-						<span className="text-sm text-fg3">URL</span>
-						<InputGroup className="h-[34px] overflow-hidden has-[>[data-align=inline-end]]:[&>input]:pr-0.5 has-[>[data-align=inline-start]]:[&>input]:pl-0.5">
-							<InputGroupAddon>
-								<InputGroupText>https://</InputGroupText>
-							</InputGroupAddon>
-							<InputGroupInput
-								value={draft.sub}
-								aria-label="Subdomain"
-								aria-invalid={errors.sub !== null && sub !== ""}
-								onChange={(e) => {
-									update({ sub: e.target.value.toLowerCase() });
-								}}
-							/>
-							<InputGroupAddon align="inline-end" className="h-full border-l border-line bg-bg2 px-2.5 py-0 text-fg2">
-								.{platformDomain}
-							</InputGroupAddon>
-						</InputGroup>
-					</div>
+					{privateService ? (
+						<div className="flex min-w-0 flex-col gap-1.5">
+							<span className="text-sm text-fg3">Access</span>
+							<span className="flex h-[34px] items-center gap-1.5 rounded-md border border-line bg-bg2 px-2.5 text-fg2">
+								<LockIcon className="size-3.5 shrink-0 text-fg3" />
+								<span className="truncate">Workspace only</span>
+							</span>
+						</div>
+					) : (
+						<div className="flex min-w-0 flex-col gap-1.5">
+							<span className="text-sm text-fg3">URL</span>
+							<InputGroup className="h-[34px] overflow-hidden has-[>[data-align=inline-end]]:[&>input]:pr-0.5 has-[>[data-align=inline-start]]:[&>input]:pl-0.5">
+								<InputGroupAddon>
+									<InputGroupText>https://</InputGroupText>
+								</InputGroupAddon>
+								<InputGroupInput
+									value={draft.sub}
+									aria-label="Subdomain"
+									aria-invalid={errors.sub !== null && sub !== ""}
+									onChange={(e) => {
+										update({ sub: e.target.value.toLowerCase() });
+									}}
+								/>
+								<InputGroupAddon align="inline-end" className="h-full border-l border-line bg-bg2 px-2.5 py-0 text-fg2">
+									.{platformDomain}
+								</InputGroupAddon>
+							</InputGroup>
+						</div>
+					)}
 					<Field label="Port">
 						<Input
 							value={draft.port}
@@ -171,22 +186,28 @@ export function DraftForm({
 				<span
 					className={cn(
 						"flex items-center gap-1.5 text-sm",
-						netError !== null ? "text-bad-fg" : availability === "available" ? "text-ok-fg" : "text-fg3",
+						netError !== null
+							? "text-bad-fg"
+							: !privateService && availability === "available"
+								? "text-ok-fg"
+								: "text-fg3",
 					)}
 				>
 					{netError !== null ? (
 						<CircleXIcon className="size-[13px]" />
-					) : availability === "available" ? (
+					) : privateService ? null : availability === "available" ? (
 						<CircleCheckIcon className="size-[13px]" />
 					) : availability === "checking" ? (
 						<LoaderCircleIcon className="size-[13px] animate-spin" />
 					) : null}
 					{netError ??
-						(availability === "available"
-							? `${sub}.${platformDomain} is available`
-							: availability === "checking"
-								? `Checking ${sub}.${platformDomain}…`
-								: `Availability of ${sub}.${platformDomain} is confirmed on deploy`)}
+						(privateService
+							? "Reachable from services in this workspace, not from the internet"
+							: availability === "available"
+								? `${sub}.${platformDomain} is available`
+								: availability === "checking"
+									? `Checking ${sub}.${platformDomain}…`
+									: `Availability of ${sub}.${platformDomain} is confirmed on deploy`)}
 				</span>
 			</SheetSection>
 

@@ -22,8 +22,7 @@ import (
 var (
 	ErrPlatformDomainNotFound = errors.New("platform domain not found")
 	ErrDomainAlreadyExists    = errors.New("domain already exists")
-	ErrCannotRemovePrimary    = errors.New("cannot remove primary domain")
-	ErrCannotRemoveOnly       = errors.New("cannot remove resource's only domain")
+	ErrCannotRemovePrimary    = errors.New("make another domain primary before removing the primary domain")
 )
 
 type DomainServer struct {
@@ -308,26 +307,35 @@ func (s *DomainServer) CreateResourceDomain(
 		return nil, connect.NewError(connect.CodeAlreadyExists, ErrDomainAlreadyExists)
 	}
 
-	// check if this is the first domain for the resource
 	resourceID := uuid.MustParse(r.GetResourceId())
 
-	count, err := s.queries.GetResourceDomainCount(ctx, resourceID)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
-	}
-
-	resourceDomain, err := s.queries.CreateResourceDomain(ctx, genDb.CreateResourceDomainParams{
-		ResourceID:       resourceID,
-		Domain:           fullDomain,
-		DomainSource:     domainSource,
-		SubdomainLabel:   subdomainLabel,
-		PlatformDomainID: platformDomainID,
-		IsPrimary:        count == 0, // first domain is primary
-	})
-	if err != nil {
-		if isPgConstraintViolation(err) {
-			return nil, connect.NewError(connect.CodeAlreadyExists, ErrDomainAlreadyExists)
+	var resourceDomain uuid.UUID
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if lockErr := lockResourceDomains(ctx, qtx, resourceID); lockErr != nil {
+			return lockErr
 		}
+		hasPrimary, primaryErr := qtx.ResourceHasPrimaryDomain(ctx, resourceID)
+		if primaryErr != nil {
+			return fmt.Errorf("check primary domain: %w", primaryErr)
+		}
+		var createErr error
+		resourceDomain, createErr = qtx.CreateResourceDomain(ctx, genDb.CreateResourceDomainParams{
+			ResourceID:       resourceID,
+			Domain:           fullDomain,
+			DomainSource:     domainSource,
+			SubdomainLabel:   subdomainLabel,
+			PlatformDomainID: platformDomainID,
+			IsPrimary:        !hasPrimary,
+		})
+		return createErr
+	})
+	if errors.Is(err, ErrResourceNotFound) {
+		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
+	}
+	if isPgConstraintViolation(err) {
+		return nil, connect.NewError(connect.CodeAlreadyExists, ErrDomainAlreadyExists)
+	}
+	if err != nil {
 		slog.ErrorContext(ctx, "failed to create resource domain", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
@@ -469,6 +477,15 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 
 	qtx := genDb.New(tx)
 
+	lockErr := lockResourceDomains(ctx, qtx, resourceID)
+	if errors.Is(lockErr, ErrResourceNotFound) {
+		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
+	}
+	if lockErr != nil {
+		slog.ErrorContext(ctx, "failed to lock resource", "resourceId", resourceID, "error", lockErr)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
 	if clearErr := qtx.UpdateResourceDomainPrimary(ctx, resourceID); clearErr != nil {
 		slog.ErrorContext(ctx, "failed to clear primary domain", "resourceId", resourceID, "error", clearErr)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
@@ -479,10 +496,7 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 		ResourceID: resourceID,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, connect.NewError(
-			connect.CodeNotFound,
-			errors.New("domain not found or does not belong to resource"),
-		)
+		return nil, connect.NewError(connect.CodeNotFound, ErrDomainNotFound)
 	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to set primary domain", "domainId", domainID, "error", err)
@@ -529,23 +543,36 @@ func (s *DomainServer) DeleteResourceDomain(
 		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr)
 	}
 
-	// cannot remove primary domain
-	if domainRow.IsPrimary {
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if lockErr := lockResourceDomains(ctx, qtx, domainRow.ResourceID); lockErr != nil {
+			return lockErr
+		}
+		current, getErr := qtx.GetResourceDomainByID(ctx, domainID)
+		if errors.Is(getErr, pgx.ErrNoRows) {
+			return ErrDomainNotFound
+		}
+		if getErr != nil {
+			return fmt.Errorf("get domain: %w", getErr)
+		}
+		if current.IsPrimary {
+			count, countErr := qtx.GetResourceDomainCount(ctx, current.ResourceID)
+			if countErr != nil {
+				return fmt.Errorf("count resource domains: %w", countErr)
+			}
+			if count > 1 {
+				return ErrCannotRemovePrimary
+			}
+		}
+		return qtx.DeleteResourceDomain(ctx, domainID)
+	})
+	if errors.Is(err, ErrDomainNotFound) || errors.Is(err, ErrResourceNotFound) {
+		return nil, connect.NewError(connect.CodeNotFound, ErrDomainNotFound)
+	}
+	if errors.Is(err, ErrCannotRemovePrimary) {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrCannotRemovePrimary)
 	}
-
-	// cannot remove if it's the only domain
-	count, err := s.queries.GetResourceDomainCount(ctx, domainRow.ResourceID)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
-	}
-	if count <= 1 {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrCannotRemoveOnly)
-	}
-
-	// delete the domain
-	err = s.queries.DeleteResourceDomain(ctx, domainID)
-	if err != nil {
+		slog.ErrorContext(ctx, "failed to delete resource domain", "domainId", domainID, "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
@@ -570,4 +597,15 @@ func (s *DomainServer) CheckDomainAvailability(
 			IsAvailable: result,
 		},
 	}, nil
+}
+
+func lockResourceDomains(ctx context.Context, qtx *genDb.Queries, resourceID uuid.UUID) error {
+	_, err := qtx.LockResource(ctx, resourceID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrResourceNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("lock resource: %w", err)
+	}
+	return nil
 }

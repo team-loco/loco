@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 
 import { DraftForm } from "./DraftForm";
 import { DraftProgress, progressSteps } from "./DraftProgress";
-import { NAME_RE, type Draft } from "./drafts";
+import { isPrivate, NAME_RE, type Draft } from "./drafts";
 import { firstError, validateDraft } from "./draftValidation";
 
 function useDebounced<T>(value: T, ms: number): T {
@@ -190,12 +190,13 @@ function DraftDrawerBody({
 	const region = regions.some((r) => r.region === draft.region) ? draft.region : defaultRegion;
 
 	const sub = draft.sub.trim();
+	const privateService = isPrivate(draft);
 	const debouncedSub = useDebounced(sub, 350);
 	const subLooksValid = NAME_RE.test(debouncedSub) && !otherSubs.has(debouncedSub);
 	const availabilityQuery = useQuery(
 		checkDomainAvailability,
 		{ domain: `${debouncedSub}.${platformDomain}` },
-		{ enabled: subLooksValid && draft.resourceId === undefined, staleTime: 10_000 },
+		{ enabled: !privateService && subLooksValid && draft.resourceId === undefined, staleTime: 10_000 },
 	);
 	const availability =
 		debouncedSub !== sub || availabilityQuery.isFetching
@@ -264,15 +265,16 @@ function DraftDrawerBody({
 		try {
 			if (resourceId === undefined) {
 				const autoscale = draft.min !== draft.max;
+				const platformDomainInput = {
+					domainSource: DomainType.PLATFORM_PROVIDED,
+					subdomain: sub,
+					...(platform !== undefined ? { platformDomainId: platform.id } : {}),
+				};
 				const res = await createResourceMutation.mutateAsync({
 					workspaceId,
 					name: draft.name,
 					type: ResourceType.SERVICE,
-					domain: {
-						domainSource: DomainType.PLATFORM_PROVIDED,
-						subdomain: sub,
-						...(platform !== undefined ? { platformDomainId: platform.id } : {}),
-					},
+					...(privateService ? {} : { domain: platformDomainInput }),
 					spec: {
 						spec: {
 							case: "service",
@@ -345,7 +347,9 @@ function DraftDrawerBody({
 	const endAt = done !== null ? watch.at : now.getTime();
 	const progTitle =
 		done === "live"
-			? `Live at https://${sub}.${platformDomain}`
+			? privateService
+				? "Live in the workspace, no public URL"
+				: `Live at https://${sub}.${platformDomain}`
 			: done === "failed" || (shownError !== null && !submitting)
 				? "Deployment failed"
 				: "Deploying";

@@ -111,3 +111,6 @@ SELECT id, resource_id, region, is_primary, status, last_error, created_at, upda
 FROM resource_regions
 WHERE resource_id = $1 AND region = $2
 FOR UPDATE;
+
+-- name: LockResource :one
+SELECT id FROM resources WHERE id = $1 FOR UPDATE;

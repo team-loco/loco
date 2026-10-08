@@ -13,6 +13,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const testImage = "registry.loco.test/app@sha256:" +
@@ -23,7 +24,9 @@ const (
 	testDefaultCPU    = "150m"
 	testDefaultMemory = "192Mi"
 	testIdleTimeout   = 45
+	testRegionCPU     = "100m"
 	testRegionMemory  = "64Mi"
+	testHostname      = "svc.loco.test"
 )
 
 func testServiceDefaults() servicedefaults.Defaults {
@@ -41,7 +44,7 @@ func testResourceSpec() *resourcev1.ResourceSpec {
 	region := &resourcev1.RegionTarget{
 		Enabled:     true,
 		Primary:     true,
-		Cpu:         "100m",
+		Cpu:         testRegionCPU,
 		Memory:      testRegionMemory,
 		MinReplicas: 1,
 		MaxReplicas: 1,
@@ -84,11 +87,21 @@ func testDesiredSpecFrom(
 	requestSpec *deploymentv1.DeploymentSpec,
 ) desiredSpecFunc {
 	t.Helper()
+	return testDesiredSpecAt(t, testHostname, resourceSpec, requestSpec)
+}
+
+func testDesiredSpecAt(
+	t *testing.T,
+	hostname string,
+	resourceSpec *resourcev1.ResourceSpec,
+	requestSpec *deploymentv1.DeploymentSpec,
+) desiredSpecFunc {
+	t.Helper()
 	merged := mergedTestSpec(t, resourceSpec, requestSpec)
 	return desiredApplicationSpec(
 		testServiceResource(),
 		resourceSpec,
-		"svc.loco.test",
+		hostname,
 		merged,
 		testRegion,
 		uuid.New(),
@@ -137,7 +150,7 @@ func TestDeploymentTxErrorRejectsUnknownRegionAsInvalidArgument(t *testing.T) {
 	buildSpec := desiredApplicationSpec(
 		testServiceResource(),
 		resourceSpec,
-		"svc.loco.test",
+		testHostname,
 		deploymentSpec,
 		"eu-west-1",
 		uuid.New(),
@@ -231,6 +244,27 @@ func TestDesiredSpecPrefersExplicitValues(t *testing.T) {
 	}
 	if service.Routing.PathPrefix != "/api" || service.Routing.IdleTimeout != 120 {
 		t.Errorf("routing = %+v, want the resource's /api and 120", service.Routing)
+	}
+}
+
+func TestDesiredSpecRoutesTheHostnameWithDefaultsWhenRoutingIsUnset(t *testing.T) {
+	buildSpec := testDesiredSpec(t, 8080)
+	payload := applicationPayload(t, buildSpec)
+	want := &locoControllerV1.RoutingSpec{HostName: testHostname, PathPrefix: "/", IdleTimeout: testIdleTimeout}
+	if got := payload.AppSpec.ServiceSpec.Routing; got == nil || *got != *want {
+		t.Fatalf("routing = %+v, want %+v", got, want)
+	}
+}
+
+func TestDesiredSpecWithoutAHostnameHasNoRouting(t *testing.T) {
+	resourceSpec := testResourceSpec()
+	resourceSpec.GetService().Routing = &resourcev1.RoutingConfig{Port: 8080}
+
+	requestSpec := testDeploymentSpec(8080)
+	buildSpec := testDesiredSpecAt(t, "", resourceSpec, requestSpec)
+	payload := applicationPayload(t, buildSpec)
+	if routing := payload.AppSpec.ServiceSpec.Routing; routing != nil {
+		t.Fatalf("routing = %+v, want none without a hostname", routing)
 	}
 }
 

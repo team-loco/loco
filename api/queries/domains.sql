@@ -45,13 +45,10 @@ SELECT NOT EXISTS(
     WHERE domain = $1
 ) as is_available;
 
--- name: GetDomainByResourceId :one
-SELECT 
-    rd.*,
-    pd.domain as platform_base_domain
-FROM resource_domains rd
-LEFT JOIN platform_domains pd ON rd.platform_domain_id = pd.id
-WHERE rd.resource_id = $1;
+-- name: GetPrimaryResourceDomain :one
+SELECT domain
+FROM resource_domains
+WHERE resource_id = $1 AND is_primary;
 
 -- name: GetResourceDomainByID :one
 SELECT 
@@ -109,6 +106,12 @@ JOIN resources r ON rd.resource_id = r.id
 JOIN platform_domains pd ON rd.platform_domain_id = pd.id
 WHERE rd.domain_source = 'platform_provided'
 ORDER BY rd.created_at DESC;
+
+-- name: ResourceHasPrimaryDomain :one
+SELECT EXISTS(
+    SELECT 1 FROM resource_domains
+    WHERE resource_id = $1 AND is_primary
+) AS has_primary;
 
 -- name: GetResourceDomainCount :one
 SELECT COUNT(*) as count FROM resource_domains WHERE resource_id = $1;

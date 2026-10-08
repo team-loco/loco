@@ -1,4 +1,4 @@
-import { NAME_RE, type Draft } from "./drafts";
+import { isPrivate, NAME_RE, type Draft } from "./drafts";
 
 export interface DraftErrors {
 	region: string | null;
@@ -31,8 +31,9 @@ export function validateDraft(
 
 	return {
 		region: region === "" ? "Choose a region" : null,
-		sub:
-			sub === ""
+		sub: isPrivate(draft)
+			? null
+			: sub === ""
 				? "Choose a subdomain"
 				: !NAME_RE.test(sub)
 					? "Lowercase letters, numbers and hyphens"

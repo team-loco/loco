@@ -1,0 +1,82 @@
+name: Ingress E2E
+
+on:
+  pull_request:
+    paths:
+      - "agent/**"
+      - "controller/**"
+      - "k8sapi/**"
+      - "api/main.go"
+      - "api/migrations/**"
+      - "api/queries/deployment.sql"
+      - "api/queries/domains.sql"
+      - "api/queries/placement.sql"
+      - "api/queries/resource.sql"
+      - "api/service/deployment.go"
+      - "api/service/placement.go"
+      - "api/service/resource.go"
+      - "api/service/sync.go"
+      - "api/pkg/converter/**"
+      - "charts/loco-operator/**"
+      - "compose.yaml"
+      - "e2e/**"
+      - "cmd/loco/**"
+      - "internal/**"
+      - "main.go"
+      - "go.mod"
+      - "go.sum"
+      - "mise.toml"
+      - "mise.lock"
+      - ".github/actions/setup-tools/**"
+      - ".github/workflows/e2e-ingress.yml"
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  changes:
+    name: Ingress E2E Changes
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.changes.outputs.run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - id: changes
+        uses: ./.github/actions/merge-queue-changes
+
+  e2e:
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    name: Ingress E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-tools
+        with:
+          go-cache: e2e-ingress
+
+      - name: Run the ingress end-to-end tests
+        run: ./e2e/run.sh --no-teardown --builds-disabled ingress
+
+      - name: Show the API, agent and controller logs
+        if: failure()
+        run: |
+          for log in e2e/logs/api.log e2e/logs/agent.log; do
+            echo "::group::$log"
+            tail -n 300 "$log" || true
+            echo "::endgroup::"
+          done
+          echo "::group::loco-controller"
+          KUBECONFIG=e2e/kubeconfig kubectl --context kind-loco-e2e -n loco-system \
+            logs deployment/loco-controller --tail=300 || true
+          echo "::endgroup::"

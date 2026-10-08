@@ -43,7 +43,6 @@ type ApplicationPayload struct {
 	ResourceName string                            `json:"resource_name"`
 	ResourceType string                            `json:"resource_type"`
 	Region       string                            `json:"region"`
-	Hostname     string                            `json:"hostname"`
 	AppSpec      *locoControllerV1.ApplicationSpec `json:"app_spec"`
 }
 
@@ -233,10 +232,10 @@ func (s *DeploymentServer) CreateDeployment(
 
 	serviceSpec := r.GetSpec().GetService()
 
-	domain, err := s.queries.GetDomainByResourceId(ctx, resourceID)
+	hostname, err := primaryHostname(ctx, s.queries, resourceID)
 	if err != nil {
-		slog.WarnContext(ctx, "domain not found", "resourceId", r.GetResourceId())
-		return nil, connect.NewError(connect.CodeNotFound, ErrDomainNotFound)
+		slog.ErrorContext(ctx, "failed to get the resource's primary domain", "resourceId", resourceID, "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	region := r.GetRegion()
@@ -355,7 +354,7 @@ func (s *DeploymentServer) CreateDeployment(
 	buildSpec := desiredApplicationSpec(
 		resource,
 		resourceSpec,
-		domain.Domain,
+		hostname,
 		mergedSpec,
 		region,
 		environmentID,

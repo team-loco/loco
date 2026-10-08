@@ -37,13 +37,22 @@ function sourceLabel(source: DomainType): string {
 	}
 }
 
-function DomainRow({ domain, onChanged }: { domain: ResourceDomain; onChanged: () => void }) {
+function DomainRow({
+	domain,
+	onlyDomain,
+	onChanged,
+}: {
+	domain: ResourceDomain;
+	onlyDomain: boolean;
+	onChanged: () => void;
+}) {
 	const [editing, setEditing] = useState<string | null>(null);
 	const setPrimary = useMutation(setPrimaryResourceDomain);
 	const remove = useMutation(deleteResourceDomain);
 	const check = useMutation(checkDomainAvailability);
 	const update = useMutation(updateResourceDomain);
 	const platform = domain.domainSource === DomainType.PLATFORM_PROVIDED;
+	const removeBlocked = domain.isPrimary && !onlyDomain;
 
 	const saveEdit = async () => {
 		if (editing === null) return;
@@ -108,7 +117,7 @@ function DomainRow({ domain, onChanged }: { domain: ResourceDomain; onChanged: (
 			<span className="text-fg3">{sourceLabel(domain.domainSource)}</span>
 			{platform ? (
 				<span className="flex items-center gap-1.5 text-fg2">
-					<span className="size-[7px] rounded-full bg-[#16a34a]" />
+					<span className="size-[7px] rounded-full bg-ok-fg" />
 					TLS active
 				</span>
 			) : (
@@ -155,14 +164,18 @@ function DomainRow({ domain, onChanged }: { domain: ResourceDomain; onChanged: (
 						</DropdownMenuItem>
 						<DropdownMenuItem
 							variant="destructive"
-							disabled={domain.isPrimary || remove.isPending}
-							title={domain.isPrimary ? "Make another domain primary first" : undefined}
+							disabled={removeBlocked || remove.isPending}
+							title={removeBlocked ? "Make another domain primary first" : undefined}
 							onClick={() => {
 								remove.mutate(
 									{ domainId: domain.id },
 									{
 										onSuccess: () => {
-											toast.success(`Removed ${domain.domain}`);
+											toast.success(
+												onlyDomain
+													? `Removed ${domain.domain}. The service becomes private on its next deployment.`
+													: `Removed ${domain.domain}`,
+											);
 											onChanged();
 										},
 										onError: (err) => {
@@ -221,11 +234,12 @@ export function DomainsSection({
 		<Section title="Domains">
 			{sorted.length === 0 && (
 				<div className="border-b border-line px-4 py-4 text-fg3">
-					No domains. The resource receives no internet traffic until one is added.
+					No domains, so the resource receives no internet traffic. Adding or removing a domain takes effect on
+					the next deployment.
 				</div>
 			)}
 			{sorted.map((d) => (
-				<DomainRow key={d.id} domain={d} onChanged={onChanged} />
+				<DomainRow key={d.id} domain={d} onlyDomain={sorted.length === 1} onChanged={onChanged} />
 			))}
 			<form
 				className="flex flex-col gap-1.5 px-4 py-3"
