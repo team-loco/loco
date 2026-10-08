@@ -66,6 +66,12 @@
       pinDigests: true,
     },
     {
+      description: "Container images a workflow runs, such as the test job's service containers",
+      matchManagers: ["github-actions"],
+      matchDatasources: ["docker"],
+      pinDigests: true,
+    },
+    {
       groupName: "go toolchain",
       matchManagers: ["mise", "dockerfile"],
       matchDepNames: ["go", "golang"],
@@ -100,6 +106,15 @@
       datasourceTemplate: "github-releases",
       extractVersionTemplate: "^v(?<version>.*)$",
       versioningTemplate: "loose",
+    },
+    {
+      customType: "regex",
+      description: "A version a Dockerfile or Makefile pins outside a FROM line, annotated with the dependency it tracks",
+      managerFilePatterns: ["/(^|/)Dockerfile$/", "/(^|/)Makefile$/"],
+      matchStrings: [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?\\n(?:ARG )?[A-Z0-9_]+_VERSION ?\\??= ?(?<currentValue>\\S+)",
+      ],
+      versioningTemplate: "{{#if versioning}}{{{versioning}}}{{else}}semver-coerced{{/if}}",
     },
   ],
 }

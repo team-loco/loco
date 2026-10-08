@@ -19,8 +19,9 @@ PG_PASS="loco_e2e_pass"
 PG_DB="loco_e2e"
 API_PORT=8877  # avoid conflict with dev API on 8000
 OBS_PROXY_PORT=8878
-CONTROLLER_IMAGE="loco-controller:e2e"
-BUILDER_IMAGE="loco-builder:e2e"
+E2E_VERSION="e2e"
+CONTROLLER_IMAGE="loco-controller:${E2E_VERSION}"
+BUILDER_IMAGE="loco-builder:${E2E_VERSION}"
 BUILDKIT_IMAGE=$(yq '.builds.buildkitImage.repository + ":" + .builds.buildkitImage.tag' "$ROOT_DIR/charts/loco-operator/values.yaml")
 GATEWAY_API_VERSION=$(awk '$1 == "sigs.k8s.io/gateway-api" { print $2 }' "$ROOT_DIR/controller/go.mod")
 AGENT_TOKEN="e2e-test-token-do-not-use-in-production"
@@ -30,6 +31,7 @@ IMAGE_RETENTION=1
 IMAGE_SWEEP_INTERVAL=5s
 
 export E2E_ROOT_DIR="$ROOT_DIR"
+export E2E_VERSION
 export E2E_COMPOSE_PROJECT="loco-e2e"
 export POSTGRES_USER="$PG_USER" POSTGRES_PASSWORD="$PG_PASS" POSTGRES_DB="$PG_DB" POSTGRES_PORT="$PG_PORT"
 export E2E_DATABASE_URL="postgres://${PG_USER}:${PG_PASS}@localhost:${PG_PORT}/${PG_DB}?sslmode=disable"
@@ -55,7 +57,7 @@ export E2E_S3_ENDPOINT="http://${E2E_S3_ALIAS}:${S3_PORT}"
 export E2E_BUILD_NAMESPACE="loco-builds"
 export E2E_BUILD_WORK_DIR="$LOG_DIR/builds"
 export E2E_AWS_CLI_IMAGE=$(awk '$1 == "FROM" { print $2 }' "$SCRIPT_DIR/fixtures/aws-cli/Dockerfile")
-export E2E_PUBLIC_IMAGE=$(awk '$1 == "FROM" { print $2 }' "$SCRIPT_DIR/fixtures/public-image/Dockerfile")
+export E2E_PUBLIC_IMAGE=$(awk '$1 == "FROM" { split($2, ref, "@"); print ref[1] }' "$SCRIPT_DIR/fixtures/public-image/Dockerfile")
 
 source "$SCRIPT_DIR/lib.sh"
 
@@ -200,7 +202,8 @@ build_builder_images() {
         log_info "Skipping builder image build (--skip-build)"
     else
         log_step "Building the builder image..."
-        docker build -q -t "$BUILDER_IMAGE" -f "$ROOT_DIR/builder/Dockerfile" "$ROOT_DIR" >/dev/null
+        docker build -q -t "$BUILDER_IMAGE" --build-arg VERSION="$E2E_VERSION" \
+            -f "$ROOT_DIR/builder/Dockerfile" "$ROOT_DIR" >/dev/null
         log_ok "Builder image built"
     fi
     local image
@@ -218,7 +221,8 @@ build_controller_image() {
         log_info "Skipping controller image build (--skip-build)"
     else
         log_step "Building the controller image..."
-        docker build -q -t "$CONTROLLER_IMAGE" -f "$ROOT_DIR/controller/Dockerfile" "$ROOT_DIR" >/dev/null
+        docker build -q -t "$CONTROLLER_IMAGE" --build-arg VERSION="$E2E_VERSION" \
+            -f "$ROOT_DIR/controller/Dockerfile" "$ROOT_DIR" >/dev/null
         log_ok "Controller image built"
     fi
     kind load docker-image "$CONTROLLER_IMAGE" --name "$KIND_CLUSTER_NAME" >/dev/null
@@ -254,18 +258,19 @@ build_binaries() {
     fi
 
     log_step "Building binaries..."
+    local ldflags="-X main.version=${E2E_VERSION}"
 
     log_info "Building API..."
-    (cd "$ROOT_DIR/api" && go build -o "$BIN_DIR/loco-api" .)
+    (cd "$ROOT_DIR/api" && go build -ldflags "$ldflags" -o "$BIN_DIR/loco-api" .)
 
     log_info "Building Agent..."
-    (cd "$ROOT_DIR/agent" && go build -ldflags "-X main.version=e2e-test" -o "$BIN_DIR/loco-agent" .)
+    (cd "$ROOT_DIR/agent" && go build -ldflags "$ldflags" -o "$BIN_DIR/loco-agent" .)
 
     log_info "Building Observability Proxy..."
-    (cd "$ROOT_DIR/observability-proxy" && go build -o "$BIN_DIR/loco-obs-proxy" .)
+    (cd "$ROOT_DIR/observability-proxy" && go build -ldflags "$ldflags" -o "$BIN_DIR/loco-obs-proxy" .)
 
     log_info "Building the CLI..."
-    (cd "$ROOT_DIR" && go build -o "$BIN_DIR/loco" .)
+    (cd "$ROOT_DIR" && go build -ldflags "$ldflags" -o "$BIN_DIR/loco" .)
 
     log_ok "All binaries built"
 }
@@ -331,7 +336,7 @@ start_agent() {
     # Verify agent registered by checking DB
     local heartbeat
     heartbeat=$(e2e_psql "SELECT agent_version FROM clusters WHERE id = '00000000-0000-7000-8000-000000000005'" 2>/dev/null || echo "")
-    if [ "$heartbeat" = "e2e-test" ]; then
+    if [ "$heartbeat" = "$E2E_VERSION" ]; then
         log_ok "Agent registered successfully"
     else
         log_warn "Agent may not have registered yet (agent_version: '${heartbeat}')"

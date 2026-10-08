@@ -53,6 +53,8 @@ const (
 
 var loopbackHosts = []string{"localhost", "127.0.0.1", "::1"}
 
+var version string
+
 func isLoopbackOrigin(origin string) bool {
 	u, err := url.Parse(origin)
 	if err != nil {
@@ -115,6 +117,7 @@ func main() {
 
 	logger := slog.New(CustomHandler{Handler: getLoggerHandler(ac)})
 	slog.SetDefault(logger)
+	slog.Info("starting loco api", "version", ac.Version)
 
 	if ac.MinCLIVersion != "" && !semver.IsValid(ac.MinCLIVersion) {
 		log.Fatalf("MIN_CLI_VERSION %q is not a semantic version like v0.0.61", ac.MinCLIVersion)

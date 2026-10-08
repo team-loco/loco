@@ -37,6 +37,8 @@ var (
 	// These variables are useful if CertManager is already installed, avoiding
 	// re-installation and conflicts.
 	skipCertManagerInstall = os.Getenv("CERT_MANAGER_INSTALL_SKIP") == "true"
+	certManagerVersion     = os.Getenv("CERT_MANAGER_VERSION")
+	curlImage              = os.Getenv("CURL_IMAGE")
 	// isCertManagerAlreadyInstalled will be set true when CertManager CRDs be found on the cluster
 	isCertManagerAlreadyInstalled = false
 
@@ -56,6 +58,9 @@ func TestE2E(t *testing.T) {
 }
 
 var _ = BeforeSuite(func(ctx SpecContext) {
+	Expect(certManagerVersion).NotTo(BeEmpty(), "CERT_MANAGER_VERSION is required; run the suite with make test-e2e")
+	Expect(curlImage).NotTo(BeEmpty(), "CURL_IMAGE is required; run the suite with make test-e2e")
+
 	By("building the manager(Operator) image")
 	cmd := exec.CommandContext(ctx, "make", "docker-build", fmt.Sprintf("IMG=%s", projectImage))
 	_, err := utils.Run(cmd)
@@ -76,7 +81,7 @@ var _ = BeforeSuite(func(ctx SpecContext) {
 		isCertManagerAlreadyInstalled = utils.IsCertManagerCRDsInstalled(ctx)
 		if !isCertManagerAlreadyInstalled {
 			_, _ = fmt.Fprintf(GinkgoWriter, "Installing CertManager...\n")
-			Expect(utils.InstallCertManager(ctx)).To(Succeed(), "Failed to install CertManager")
+			Expect(utils.InstallCertManager(ctx, certManagerVersion)).To(Succeed(), "Failed to install CertManager")
 		} else {
 			_, _ = fmt.Fprintf(GinkgoWriter, "WARNING: CertManager is already installed. Skipping installation...\n")
 		}
@@ -87,6 +92,6 @@ var _ = AfterSuite(func(ctx SpecContext) {
 	// Teardown CertManager after the suite if not skipped and if it was not already installed
 	if !skipCertManagerInstall && !isCertManagerAlreadyInstalled {
 		_, _ = fmt.Fprintf(GinkgoWriter, "Uninstalling CertManager...\n")
-		utils.UninstallCertManager(ctx)
+		utils.UninstallCertManager(ctx, certManagerVersion)
 	}
 })

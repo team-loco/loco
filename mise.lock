@@ -811,6 +811,56 @@ url = "https://github.com/evilmartians/lefthook/releases/download/v2.1.16/leftho
 url_api = "https://api.github.com/repos/evilmartians/lefthook/releases/assets/603767199"
 provenance = "github-attestations"
 
+[[tools.osv-scanner]]
+version = "2.6.0"
+backend = "aqua:google/osv-scanner"
+specifiers = ["2.6.0"]
+
+[tools.osv-scanner."platforms.linux-arm64"]
+checksum = "sha256:2c71403eb443d05891c4f268c3ad771cf4f16e5443463fd7851ef8f454d3c7e4"
+url = "https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_linux_arm64"
+url_api = "https://api.github.com/repos/google/osv-scanner/releases/assets/562414650"
+
+[tools.osv-scanner."platforms.linux-arm64-musl"]
+checksum = "sha256:2c71403eb443d05891c4f268c3ad771cf4f16e5443463fd7851ef8f454d3c7e4"
+url = "https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_linux_arm64"
+url_api = "https://api.github.com/repos/google/osv-scanner/releases/assets/562414650"
+
+[tools.osv-scanner."platforms.linux-x64"]
+checksum = "sha256:ca69b3d3cd08f889a49dc0a383122f71cc528b83803671df5fd874d97485b108"
+url = "https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_linux_amd64"
+url_api = "https://api.github.com/repos/google/osv-scanner/releases/assets/562414718"
+
+[tools.osv-scanner."platforms.linux-x64-baseline"]
+checksum = "sha256:ca69b3d3cd08f889a49dc0a383122f71cc528b83803671df5fd874d97485b108"
+url = "https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_linux_amd64"
+url_api = "https://api.github.com/repos/google/osv-scanner/releases/assets/562414718"
+
+[tools.osv-scanner."platforms.linux-x64-musl"]
+checksum = "sha256:ca69b3d3cd08f889a49dc0a383122f71cc528b83803671df5fd874d97485b108"
+url = "https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_linux_amd64"
+url_api = "https://api.github.com/repos/google/osv-scanner/releases/assets/562414718"
+
+[tools.osv-scanner."platforms.linux-x64-musl-baseline"]
+checksum = "sha256:ca69b3d3cd08f889a49dc0a383122f71cc528b83803671df5fd874d97485b108"
+url = "https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_linux_amd64"
+url_api = "https://api.github.com/repos/google/osv-scanner/releases/assets/562414718"
+
+[tools.osv-scanner."platforms.macos-arm64"]
+checksum = "sha256:98c460dcd37de25819babd757d04542045b6243113e209edcd4d89fedb0256b4"
+url = "https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_darwin_arm64"
+url_api = "https://api.github.com/repos/google/osv-scanner/releases/assets/562414648"
+
+[tools.osv-scanner."platforms.macos-x64"]
+checksum = "sha256:60c5296637e977b28eeda5c7f13573e447659a632922737f94d11fa7e30ad6ca"
+url = "https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_darwin_amd64"
+url_api = "https://api.github.com/repos/google/osv-scanner/releases/assets/562414712"
+
+[tools.osv-scanner."platforms.macos-x64-baseline"]
+checksum = "sha256:60c5296637e977b28eeda5c7f13573e447659a632922737f94d11fa7e30ad6ca"
+url = "https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_darwin_amd64"
+url_api = "https://api.github.com/repos/google/osv-scanner/releases/assets/562414712"
+
 [[tools.pinact]]
 version = "5.0.0"
 backend = "aqua:suzuki-shunsuke/pinact"

@@ -18,8 +18,12 @@ RUN bun install --frozen-lockfile
 COPY gen/ts ./gen/ts
 COPY web ./web
 
-RUN apk add --no-cache brotli=1.1.0-r2
+# renovate: datasource=repology depName=alpine_3_22/brotli versioning=loose
+ARG BROTLI_VERSION=1.1.0-r2
+RUN apk add --no-cache brotli=${BROTLI_VERSION}
 
+ARG VERSION
+ENV VITE_APP_VERSION=$VERSION
 WORKDIR /app/web
 RUN bun run build
 WORKDIR /app
@@ -34,9 +38,9 @@ RUN find web/dist -type f -size +1k \( \
     \) -exec brotli -f -k -q 11 {} \;
 
 
-FROM ghcr.io/astral-sh/uv:0.9.28 AS docs-uv
+FROM ghcr.io/astral-sh/uv:0.9.28@sha256:59240a65d6b57e6c507429b45f01b8f2c7c0bbeee0fb697c41a39c6a8e3a4cfb AS docs-uv
 
-FROM python:3.13.16-slim AS docs-builder
+FROM python:3.13.16-slim@sha256:bf44cdfcb76cd3b41e879bc058fc37ec5872002ccfde7fcb765e218cde0cd79c AS docs-builder
 COPY --from=docs-uv /uv /usr/local/bin/uv
 WORKDIR /app/docs
 COPY docs/pyproject.toml docs/uv.lock ./

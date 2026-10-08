@@ -4,9 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"runtime/debug"
 	"strconv"
 	"time"
+
+	"github.com/team-loco/loco/internal/buildinfo"
 )
 
 const (
@@ -32,7 +33,6 @@ const (
 	envReconnectBaseDelay       = "LOCO_RECONNECT_BASE_DELAY"
 	envReconnectMaxDelay        = "LOCO_RECONNECT_MAX_DELAY"
 	envHealthyStreamDuration    = "LOCO_HEALTHY_STREAM_DURATION"
-	develVersion                = "(devel)"
 )
 
 var (
@@ -70,22 +70,12 @@ type Config struct {
 }
 
 func newAgentConfig() *Config {
-	cfg, err := parseAgentConfig(os.Getenv, buildVersion())
+	agentVersion := buildinfo.Version(version)
+	cfg, err := parseAgentConfig(os.Getenv, agentVersion)
 	if err != nil {
 		panic(err)
 	}
 	return cfg
-}
-
-func buildVersion() string {
-	if version != "" {
-		return version
-	}
-	info, ok := debug.ReadBuildInfo()
-	if !ok {
-		return develVersion
-	}
-	return info.Main.Version
 }
 
 func parseAgentConfig(getenv func(string) string, agentVersion string) (*Config, error) {

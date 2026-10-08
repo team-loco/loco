@@ -3,10 +3,12 @@
 set -euo pipefail
 
 chart=charts/loco-operator
+tag=chart-test
+tags=("--set=controller.image.tag=$tag" "--set=builds.builderImage.tag=$tag")
 failures=0
 
 render() {
-	helm template loco-operator "$chart" --namespace loco-system "$@" |
+	helm template loco-operator "$chart" --namespace loco-system "${tags[@]}" "$@" |
 		yq -N '.kind + "/" + .metadata.name'
 }
 
@@ -55,7 +57,7 @@ for object in "${build_objects[@]}"; do
 	expect "builds.enabled=false" absent "$object" "$disabled"
 done
 
-disabled_manifest=$(helm template loco-operator "$chart" --namespace loco-system --set builds.enabled=false)
+disabled_manifest=$(helm template loco-operator "$chart" --namespace loco-system "${tags[@]}" --set builds.enabled=false)
 for term in LOCO_BUILD_CONFIG loco-builder moby/buildkit 'kind: Build$'; do
 	if grep -qE "$term" <<<"$disabled_manifest"; then
 		echo "FAIL: builds.enabled=false still mentions $term"
@@ -67,7 +69,7 @@ if grep -qE -- '- builds(/status|/finalizers)?$' <<<"$disabled_manifest"; then
 	failures=$((failures + 1))
 fi
 
-controller_role=$(helm template loco-operator "$chart" --namespace loco-system \
+controller_role=$(helm template loco-operator "$chart" --namespace loco-system "${tags[@]}" \
 	--show-only templates/controller/manager-role.yaml)
 for resource in builds jobs pods; do
 	if grep -qE -- "- $resource(/.*)?$" <<<"$controller_role"; then
@@ -79,6 +81,24 @@ done
 with_secrets=$(render --set builds.pushSecretName=push --set registry.pullSecretName=pull)
 expect "with registry secrets" present Role/loco-build-controller-registry-secrets "$with_secrets"
 expect "without registry secrets" absent Role/loco-build-controller-registry-secrets "$enabled"
+
+controller_image=$(helm template loco-operator "$chart" --namespace loco-system "${tags[@]}" \
+	--show-only templates/controller/deployment.yaml | yq '.spec.template.spec.containers[0].image')
+if [ "$controller_image" != "ghcr.io/team-loco/loco-controller:$tag" ]; then
+	echo "FAIL: the controller runs $controller_image, not the tag it was given"
+	failures=$((failures + 1))
+fi
+for value in controller.image.tag builds.builderImage.tag; do
+	others=()
+	for set in "${tags[@]}"; do
+		[[ $set == "--set=$value="* ]] || others+=("$set")
+	done
+	missing=$(helm template loco-operator "$chart" --namespace loco-system "${others[@]}" 2>&1 >/dev/null || true)
+	if ! grep -qF "$value is required" <<<"$missing"; then
+		echo "FAIL: the chart renders without $value"
+		failures=$((failures + 1))
+	fi
+done
 
 if [ "$failures" -gt 0 ]; then
 	echo "$failures chart render check(s) failed"

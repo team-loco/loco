@@ -3,7 +3,6 @@ name: loco-core
 description: Helm chart for deploying the Loco UI and Agent.
 type: application
 version: 0.0.0
-appVersion: "latest"
 dependencies:
     - name: gateway-helm
       version: 1.9.2

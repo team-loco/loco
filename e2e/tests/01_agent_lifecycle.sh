@@ -18,7 +18,14 @@ test_agent_registered() {
     local version
     version=$(e2e_psql "SELECT agent_version FROM clusters WHERE id = '00000000-0000-7000-8000-000000000005'")
     assert "Agent registered with correct version" \
-        test "$version" = "e2e-test"
+        test "$version" = "$E2E_VERSION"
+}
+
+test_binaries_report_their_build_version() {
+    assert_contains "API logs the version it was built as" "version=${E2E_VERSION}" \
+        grep "starting loco api" "$E2E_ROOT_DIR/e2e/logs/api.log"
+    assert_contains "Observability proxy logs the version it was built as" "\"version\":\"${E2E_VERSION}\"" \
+        grep "starting observability proxy" "$E2E_ROOT_DIR/e2e/logs/obs-proxy.log"
 }
 
 test_agent_heartbeat() {

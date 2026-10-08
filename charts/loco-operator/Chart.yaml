@@ -3,5 +3,4 @@ name: loco-operator
 description: Loco's Kubernetes controllers, the Application controller and the optional build controller
 type: application
 version: 0.0.0
-appVersion: "latest"
 icon: "https://example.com/icon.png"

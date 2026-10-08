@@ -3,7 +3,6 @@ name: loco-obs
 description: Helm chart for deploying Loco observability stack
 type: application
 version: 0.0.0
-appVersion: "latest"
 dependencies:
     - name: clickhouse
       version: 0.3.13

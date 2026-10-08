@@ -19,7 +19,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-manifest=$(helm template loco-obs "$chart" --namespace observability)
+manifest=$(helm template loco-obs "$chart" --namespace observability --set obsProxy.enabled=false)
 clickhouse_image=$(yq 'select(.kind == "ClickHouseInstallation") | .spec.templates.podTemplates[0].spec.containers[0].image' <<<"$manifest")
 collector_image=$(yq 'select(.kind == "Deployment" and .metadata.name == "otel-col-deploy") | .spec.template.spec.containers[0].image' <<<"$manifest")
 yq 'select(.kind == "ClickHouseInstallation") | .spec.configuration.files["config.d/extra_config.xml"]' <<<"$manifest" >"$workdir/extra_config.xml"

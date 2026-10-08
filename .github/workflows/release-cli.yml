@@ -94,7 +94,7 @@ jobs:
           VERSION: ${{ needs.version.outputs.new_tag }}
         run: |
           go build -trimpath \
-            -ldflags "-s -w -X github.com/team-loco/loco/cmd/loco.version=${VERSION}" \
+            -ldflags "-s -w -X main.version=${VERSION}" \
             -o "bin/loco-${GOOS}-${GOARCH}" -v
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

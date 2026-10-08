@@ -11,6 +11,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
 	"github.com/team-loco/loco/api/service"
+	"github.com/team-loco/loco/internal/buildinfo"
 )
 
 var (
@@ -56,6 +57,7 @@ const (
 )
 
 type APIConfig struct {
+	Version               string
 	Env                   string // Environment (e.g., dev, prod)
 	DatabaseURL           string // PostgreSQL connection string
 	LogLevel              slog.Level
@@ -98,6 +100,7 @@ func newAPIConfig() *APIConfig {
 	corsOrigins := listEnv("CORS_ALLOWED_ORIGINS")
 
 	return &APIConfig{
+		Version:               buildinfo.Version(version),
 		Env:                   stringEnv("APP_ENV", ""),
 		DatabaseURL:           stringEnv("DATABASE_URL", ""),
 		Port:                  stringEnv("APP_PORT", ""),

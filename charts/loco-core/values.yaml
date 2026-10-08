@@ -42,7 +42,7 @@ certManager:
 agent:
   image:
     repository: ghcr.io/team-loco/loco-agent
-    tag: latest
+    tag: ""
   imagePullPolicy: Always
   buildNamespace: loco-builds
   controllerDeployment: loco-controller

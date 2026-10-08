@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-#MISE description="Check that the Dockerfile base images use the Go and bun versions pinned in mise.toml"
+#MISE description="Check that every container image is pinned by tag and digest, and that the Dockerfile base images use the Go, bun, uv and Python versions pinned in mise.toml"
 set -euo pipefail
 
 status=0
+dockerfiles=$(git ls-files '*Dockerfile' | grep -v '^examples/')
+
 check() {
 	local image=$1 want=$2 file line tag
 	while IFS= read -r file; do
@@ -14,12 +16,46 @@ check() {
 				status=1
 			fi
 		done < <(grep -E "^FROM[[:space:]]+$image:" "$file" || true)
-	done < <(git ls-files '*Dockerfile' | grep -v '^examples/')
+	done <<<"$dockerfiles"
 }
+
+pinned() {
+	local where=$1 image=$2
+	if [[ ! $image =~ ^[^@]+:[^@:]+@sha256:[a-f0-9]{64}$ ]]; then
+		echo "$where: $image is not pinned by tag and digest"
+		status=1
+	fi
+}
+
+while IFS= read -r file; do
+	stages=" scratch "
+	while read -r _ image rest; do
+		[[ $image == --* ]] && read -r image rest <<<"$rest"
+		if [[ $stages != *" $image "* ]]; then
+			pinned "$file" "$image"
+		fi
+		read -r keyword stage _ <<<"$rest"
+		if [[ $keyword == [Aa][Ss] ]]; then
+			stages+="$stage "
+		fi
+	done < <(grep -E '^FROM[[:space:]]' "$file" || true)
+done <<<"$dockerfiles"
+
+while IFS= read -r image; do
+	pinned compose.yaml "$image"
+done < <(yq '.services[].image' compose.yaml)
+
+while IFS= read -r file; do
+	while IFS= read -r image; do
+		pinned "$file" "$image"
+	done < <(yq '.jobs[] | (.services[]?.image, .container.image?) | select(. != null)' "$file")
+done < <(git ls-files '.github/workflows/*.yml')
 
 check golang "$(yq -p toml -oy '.tools.go' mise.toml)"
 check oven/bun "$(yq -p toml -oy '.tools.bun' mise.toml)"
+check ghcr.io/astral-sh/uv "$(yq -p toml -oy '.tools.uv' mise.toml)"
+check python "$(yq -p toml -oy '.tools.python' mise.toml)"
 if [[ $status -eq 0 ]]; then
-	echo "Dockerfile base images match mise.toml"
+	echo "Container images are pinned by tag and digest, and Dockerfile base images match mise.toml"
 fi
 exit $status

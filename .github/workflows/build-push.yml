@@ -18,7 +18,7 @@ on:
         type: string
         default: ""
       build_args:
-        description: "Newline-separated KEY=VALUE pairs passed to docker build as --build-arg."
+        description: "Newline-separated KEY=VALUE pairs passed to docker build as --build-arg, after VERSION, which is always the image tag."
         required: false
         type: string
         default: ""
@@ -68,7 +68,9 @@ jobs:
         with:
           context: ${{ inputs.context }}
           file: ${{ inputs.dockerfile }}
-          build-args: ${{ inputs.build_args }}
+          build-args: |
+            VERSION=${{ steps.meta.outputs.version }}
+            ${{ inputs.build_args }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
