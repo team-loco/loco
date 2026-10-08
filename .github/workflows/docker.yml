@@ -73,10 +73,6 @@ jobs:
             context: .
             dockerfile: ./observability-proxy/Dockerfile
 
-          - name: Registry
-            context: .
-            dockerfile: ./registry/Dockerfile
-
           - name: Builder
             context: .
             dockerfile: ./builder/Dockerfile
