@@ -21,6 +21,7 @@ import { workspacePath } from "@/lib/routes";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 import { DomainsCard } from "./DomainsCard";
 import { NewWorkspaceDialog } from "./NewWorkspaceDialog";
+import { SSOCard } from "./SSOCard";
 import { DangerCard, formatDay, NAME_RE, SavedBar, SaveBar, SettingsCard, SettingsRow } from "./parts";
 import { formatResourceCount, type ResourceCount } from "./useResourceCounts";
 
@@ -225,6 +226,7 @@ export function OrgTab({
 			</SettingsCard>
 
 			{canAdmin && <DomainsCard orgId={org.id} />}
+			{canAdmin && <SSOCard orgId={org.id} orgName={org.name} />}
 
 			<DangerCard
 				title="Delete organization"

@@ -76,16 +76,18 @@ func NewAuthServer(
 }
 
 type cliGrant struct {
-	UserID     uuid.UUID `json:"userId"`
-	IdentityID uuid.UUID `json:"identityId"`
-	Challenge  string    `json:"challenge,omitempty"`
+	UserID        uuid.UUID `json:"userId"`
+	IdentityID    uuid.UUID `json:"identityId"`
+	SSOConnection *string   `json:"ssoConnection,omitempty"`
+	Challenge     string    `json:"challenge,omitempty"`
 }
 
 type deviceGrant struct {
-	UserCode   string     `json:"userCode"`
-	UserID     *uuid.UUID `json:"userId,omitempty"`
-	IdentityID *uuid.UUID `json:"identityId,omitempty"`
-	ExpiresAt  time.Time  `json:"expiresAt"`
+	UserCode      string     `json:"userCode"`
+	UserID        *uuid.UUID `json:"userId,omitempty"`
+	IdentityID    *uuid.UUID `json:"identityId,omitempty"`
+	SSOConnection *string    `json:"ssoConnection,omitempty"`
+	ExpiresAt     time.Time  `json:"expiresAt"`
 }
 
 func deviceKey(deviceDigest string) string {
@@ -167,7 +169,7 @@ func (s *AuthServer) webIdentity(ctx context.Context) (cliGrant, error) {
 	if row.UserID != entity.ID {
 		return cliGrant{}, connect.NewError(connect.CodePermissionDenied, ErrUnauthorized)
 	}
-	return cliGrant{UserID: entity.ID, IdentityID: row.ID}, nil
+	return cliGrant{UserID: entity.ID, IdentityID: row.ID, SSOConnection: identity.SSOConnection()}, nil
 }
 
 func (s *AuthServer) issue(
@@ -180,7 +182,8 @@ func (s *AuthServer) issue(
 	var access, refresh string
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		var issueErr error
-		access, refresh, issueErr = s.machine.WithQueries(qtx).IssueSession(ctx, grant.UserID, &identityID, ip, ua)
+		access, refresh, issueErr = s.machine.WithQueries(qtx).
+			IssueSession(ctx, grant.UserID, &identityID, grant.SSOConnection, ip, ua)
 		if issueErr != nil {
 			return issueErr
 		}
@@ -351,6 +354,7 @@ func (s *AuthServer) ApproveDeviceLogin(
 	}
 	device.UserID = &grant.UserID
 	device.IdentityID = &grant.IdentityID
+	device.SSOConnection = grant.SSOConnection
 	payload, err := json.Marshal(device)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, ErrAuthStoreAvailable)
@@ -401,7 +405,11 @@ func (s *AuthServer) PollDeviceLogin(
 	if err != nil || !took {
 		return nil, connect.NewError(connect.CodeNotFound, ErrDeviceCodeExpired)
 	}
-	tokens, err := s.issue(ctx, cliGrant{UserID: *device.UserID, IdentityID: *device.IdentityID}, req.Header())
+	tokens, err := s.issue(
+		ctx,
+		cliGrant{UserID: *device.UserID, IdentityID: *device.IdentityID, SSOConnection: device.SSOConnection},
+		req.Header(),
+	)
 	if err != nil {
 		return nil, err
 	}

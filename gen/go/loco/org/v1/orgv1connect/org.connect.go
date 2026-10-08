@@ -62,6 +62,16 @@ const (
 	// OrgServiceDeleteOrgDomainProcedure is the fully-qualified name of the OrgService's
 	// DeleteOrgDomain RPC.
 	OrgServiceDeleteOrgDomainProcedure = "/loco.org.v1.OrgService/DeleteOrgDomain"
+	// OrgServiceGetOrgSSOProcedure is the fully-qualified name of the OrgService's GetOrgSSO RPC.
+	OrgServiceGetOrgSSOProcedure = "/loco.org.v1.OrgService/GetOrgSSO"
+	// OrgServiceConfigureOrgSSOProcedure is the fully-qualified name of the OrgService's
+	// ConfigureOrgSSO RPC.
+	OrgServiceConfigureOrgSSOProcedure = "/loco.org.v1.OrgService/ConfigureOrgSSO"
+	// OrgServiceSetOrgRequireSSOProcedure is the fully-qualified name of the OrgService's
+	// SetOrgRequireSSO RPC.
+	OrgServiceSetOrgRequireSSOProcedure = "/loco.org.v1.OrgService/SetOrgRequireSSO"
+	// OrgServiceDeleteOrgSSOProcedure is the fully-qualified name of the OrgService's DeleteOrgSSO RPC.
+	OrgServiceDeleteOrgSSOProcedure = "/loco.org.v1.OrgService/DeleteOrgSSO"
 )
 
 // OrgServiceClient is a client for the loco.org.v1.OrgService service.
@@ -85,6 +95,10 @@ type OrgServiceClient interface {
 	VerifyOrgDomain(context.Context, *connect.Request[v1.VerifyOrgDomainRequest]) (*connect.Response[v1.VerifyOrgDomainResponse], error)
 	SetOrgDomainAutoJoin(context.Context, *connect.Request[v1.SetOrgDomainAutoJoinRequest]) (*connect.Response[v1.SetOrgDomainAutoJoinResponse], error)
 	DeleteOrgDomain(context.Context, *connect.Request[v1.DeleteOrgDomainRequest]) (*connect.Response[v1.DeleteOrgDomainResponse], error)
+	GetOrgSSO(context.Context, *connect.Request[v1.GetOrgSSORequest]) (*connect.Response[v1.GetOrgSSOResponse], error)
+	ConfigureOrgSSO(context.Context, *connect.Request[v1.ConfigureOrgSSORequest]) (*connect.Response[v1.ConfigureOrgSSOResponse], error)
+	SetOrgRequireSSO(context.Context, *connect.Request[v1.SetOrgRequireSSORequest]) (*connect.Response[v1.SetOrgRequireSSOResponse], error)
+	DeleteOrgSSO(context.Context, *connect.Request[v1.DeleteOrgSSORequest]) (*connect.Response[v1.DeleteOrgSSOResponse], error)
 }
 
 // NewOrgServiceClient constructs a client for the loco.org.v1.OrgService service. By default, it
@@ -170,6 +184,30 @@ func NewOrgServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(orgServiceMethods.ByName("DeleteOrgDomain")),
 			connect.WithClientOptions(opts...),
 		),
+		getOrgSSO: connect.NewClient[v1.GetOrgSSORequest, v1.GetOrgSSOResponse](
+			httpClient,
+			baseURL+OrgServiceGetOrgSSOProcedure,
+			connect.WithSchema(orgServiceMethods.ByName("GetOrgSSO")),
+			connect.WithClientOptions(opts...),
+		),
+		configureOrgSSO: connect.NewClient[v1.ConfigureOrgSSORequest, v1.ConfigureOrgSSOResponse](
+			httpClient,
+			baseURL+OrgServiceConfigureOrgSSOProcedure,
+			connect.WithSchema(orgServiceMethods.ByName("ConfigureOrgSSO")),
+			connect.WithClientOptions(opts...),
+		),
+		setOrgRequireSSO: connect.NewClient[v1.SetOrgRequireSSORequest, v1.SetOrgRequireSSOResponse](
+			httpClient,
+			baseURL+OrgServiceSetOrgRequireSSOProcedure,
+			connect.WithSchema(orgServiceMethods.ByName("SetOrgRequireSSO")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteOrgSSO: connect.NewClient[v1.DeleteOrgSSORequest, v1.DeleteOrgSSOResponse](
+			httpClient,
+			baseURL+OrgServiceDeleteOrgSSOProcedure,
+			connect.WithSchema(orgServiceMethods.ByName("DeleteOrgSSO")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -187,6 +225,10 @@ type orgServiceClient struct {
 	verifyOrgDomain      *connect.Client[v1.VerifyOrgDomainRequest, v1.VerifyOrgDomainResponse]
 	setOrgDomainAutoJoin *connect.Client[v1.SetOrgDomainAutoJoinRequest, v1.SetOrgDomainAutoJoinResponse]
 	deleteOrgDomain      *connect.Client[v1.DeleteOrgDomainRequest, v1.DeleteOrgDomainResponse]
+	getOrgSSO            *connect.Client[v1.GetOrgSSORequest, v1.GetOrgSSOResponse]
+	configureOrgSSO      *connect.Client[v1.ConfigureOrgSSORequest, v1.ConfigureOrgSSOResponse]
+	setOrgRequireSSO     *connect.Client[v1.SetOrgRequireSSORequest, v1.SetOrgRequireSSOResponse]
+	deleteOrgSSO         *connect.Client[v1.DeleteOrgSSORequest, v1.DeleteOrgSSOResponse]
 }
 
 // CreateOrg calls loco.org.v1.OrgService.CreateOrg.
@@ -249,6 +291,26 @@ func (c *orgServiceClient) DeleteOrgDomain(ctx context.Context, req *connect.Req
 	return c.deleteOrgDomain.CallUnary(ctx, req)
 }
 
+// GetOrgSSO calls loco.org.v1.OrgService.GetOrgSSO.
+func (c *orgServiceClient) GetOrgSSO(ctx context.Context, req *connect.Request[v1.GetOrgSSORequest]) (*connect.Response[v1.GetOrgSSOResponse], error) {
+	return c.getOrgSSO.CallUnary(ctx, req)
+}
+
+// ConfigureOrgSSO calls loco.org.v1.OrgService.ConfigureOrgSSO.
+func (c *orgServiceClient) ConfigureOrgSSO(ctx context.Context, req *connect.Request[v1.ConfigureOrgSSORequest]) (*connect.Response[v1.ConfigureOrgSSOResponse], error) {
+	return c.configureOrgSSO.CallUnary(ctx, req)
+}
+
+// SetOrgRequireSSO calls loco.org.v1.OrgService.SetOrgRequireSSO.
+func (c *orgServiceClient) SetOrgRequireSSO(ctx context.Context, req *connect.Request[v1.SetOrgRequireSSORequest]) (*connect.Response[v1.SetOrgRequireSSOResponse], error) {
+	return c.setOrgRequireSSO.CallUnary(ctx, req)
+}
+
+// DeleteOrgSSO calls loco.org.v1.OrgService.DeleteOrgSSO.
+func (c *orgServiceClient) DeleteOrgSSO(ctx context.Context, req *connect.Request[v1.DeleteOrgSSORequest]) (*connect.Response[v1.DeleteOrgSSOResponse], error) {
+	return c.deleteOrgSSO.CallUnary(ctx, req)
+}
+
 // OrgServiceHandler is an implementation of the loco.org.v1.OrgService service.
 type OrgServiceHandler interface {
 	// CreateOrg creates a new organization.
@@ -270,6 +332,10 @@ type OrgServiceHandler interface {
 	VerifyOrgDomain(context.Context, *connect.Request[v1.VerifyOrgDomainRequest]) (*connect.Response[v1.VerifyOrgDomainResponse], error)
 	SetOrgDomainAutoJoin(context.Context, *connect.Request[v1.SetOrgDomainAutoJoinRequest]) (*connect.Response[v1.SetOrgDomainAutoJoinResponse], error)
 	DeleteOrgDomain(context.Context, *connect.Request[v1.DeleteOrgDomainRequest]) (*connect.Response[v1.DeleteOrgDomainResponse], error)
+	GetOrgSSO(context.Context, *connect.Request[v1.GetOrgSSORequest]) (*connect.Response[v1.GetOrgSSOResponse], error)
+	ConfigureOrgSSO(context.Context, *connect.Request[v1.ConfigureOrgSSORequest]) (*connect.Response[v1.ConfigureOrgSSOResponse], error)
+	SetOrgRequireSSO(context.Context, *connect.Request[v1.SetOrgRequireSSORequest]) (*connect.Response[v1.SetOrgRequireSSOResponse], error)
+	DeleteOrgSSO(context.Context, *connect.Request[v1.DeleteOrgSSORequest]) (*connect.Response[v1.DeleteOrgSSOResponse], error)
 }
 
 // NewOrgServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -351,6 +417,30 @@ func NewOrgServiceHandler(svc OrgServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithSchema(orgServiceMethods.ByName("DeleteOrgDomain")),
 		connect.WithHandlerOptions(opts...),
 	)
+	orgServiceGetOrgSSOHandler := connect.NewUnaryHandler(
+		OrgServiceGetOrgSSOProcedure,
+		svc.GetOrgSSO,
+		connect.WithSchema(orgServiceMethods.ByName("GetOrgSSO")),
+		connect.WithHandlerOptions(opts...),
+	)
+	orgServiceConfigureOrgSSOHandler := connect.NewUnaryHandler(
+		OrgServiceConfigureOrgSSOProcedure,
+		svc.ConfigureOrgSSO,
+		connect.WithSchema(orgServiceMethods.ByName("ConfigureOrgSSO")),
+		connect.WithHandlerOptions(opts...),
+	)
+	orgServiceSetOrgRequireSSOHandler := connect.NewUnaryHandler(
+		OrgServiceSetOrgRequireSSOProcedure,
+		svc.SetOrgRequireSSO,
+		connect.WithSchema(orgServiceMethods.ByName("SetOrgRequireSSO")),
+		connect.WithHandlerOptions(opts...),
+	)
+	orgServiceDeleteOrgSSOHandler := connect.NewUnaryHandler(
+		OrgServiceDeleteOrgSSOProcedure,
+		svc.DeleteOrgSSO,
+		connect.WithSchema(orgServiceMethods.ByName("DeleteOrgSSO")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/loco.org.v1.OrgService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case OrgServiceCreateOrgProcedure:
@@ -377,6 +467,14 @@ func NewOrgServiceHandler(svc OrgServiceHandler, opts ...connect.HandlerOption) 
 			orgServiceSetOrgDomainAutoJoinHandler.ServeHTTP(w, r)
 		case OrgServiceDeleteOrgDomainProcedure:
 			orgServiceDeleteOrgDomainHandler.ServeHTTP(w, r)
+		case OrgServiceGetOrgSSOProcedure:
+			orgServiceGetOrgSSOHandler.ServeHTTP(w, r)
+		case OrgServiceConfigureOrgSSOProcedure:
+			orgServiceConfigureOrgSSOHandler.ServeHTTP(w, r)
+		case OrgServiceSetOrgRequireSSOProcedure:
+			orgServiceSetOrgRequireSSOHandler.ServeHTTP(w, r)
+		case OrgServiceDeleteOrgSSOProcedure:
+			orgServiceDeleteOrgSSOHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -432,4 +530,20 @@ func (UnimplementedOrgServiceHandler) SetOrgDomainAutoJoin(context.Context, *con
 
 func (UnimplementedOrgServiceHandler) DeleteOrgDomain(context.Context, *connect.Request[v1.DeleteOrgDomainRequest]) (*connect.Response[v1.DeleteOrgDomainResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.org.v1.OrgService.DeleteOrgDomain is not implemented"))
+}
+
+func (UnimplementedOrgServiceHandler) GetOrgSSO(context.Context, *connect.Request[v1.GetOrgSSORequest]) (*connect.Response[v1.GetOrgSSOResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.org.v1.OrgService.GetOrgSSO is not implemented"))
+}
+
+func (UnimplementedOrgServiceHandler) ConfigureOrgSSO(context.Context, *connect.Request[v1.ConfigureOrgSSORequest]) (*connect.Response[v1.ConfigureOrgSSOResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.org.v1.OrgService.ConfigureOrgSSO is not implemented"))
+}
+
+func (UnimplementedOrgServiceHandler) SetOrgRequireSSO(context.Context, *connect.Request[v1.SetOrgRequireSSORequest]) (*connect.Response[v1.SetOrgRequireSSOResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.org.v1.OrgService.SetOrgRequireSSO is not implemented"))
+}
+
+func (UnimplementedOrgServiceHandler) DeleteOrgSSO(context.Context, *connect.Request[v1.DeleteOrgSSORequest]) (*connect.Response[v1.DeleteOrgSSOResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.org.v1.OrgService.DeleteOrgSSO is not implemented"))
 }

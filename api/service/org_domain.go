@@ -214,6 +214,12 @@ func (s *OrgServer) VerifyOrgDomain(
 		return nil, err
 	}
 	if row.VerifiedAt != nil {
+		syncErr := s.withOrgLock(ctx, row.OrgID, func(qtx *genDb.Queries) error {
+			return s.syncVerifiedDomains(ctx, qtx, row.OrgID)
+		})
+		if syncErr != nil {
+			return nil, txError(ctx, "failed to sync verified domains", syncErr)
+		}
 		return connect.NewResponse(&orgv1.VerifyOrgDomainResponse{Domain: orgDomainToProto(row)}), nil
 	}
 	records, lookupErr := s.lookupTXT(ctx, verificationPrefix+row.Domain)
@@ -242,13 +248,16 @@ func (s *OrgServer) VerifyOrgDomain(
 			return markErr
 		}
 		verified = marked
-		return events.Record(ctx, qtx, events.Event{
+		if recordErr := events.Record(ctx, qtx, events.Event{
 			Type:        events.OrgDomainVerified,
 			OrgID:       new(row.OrgID),
 			SubjectType: events.SubjectDomain,
 			SubjectID:   new(row.ID),
 			Data:        map[string]any{events.FieldDomain: row.Domain},
-		})
+		}); recordErr != nil {
+			return recordErr
+		}
+		return s.syncVerifiedDomains(ctx, qtx, row.OrgID)
 	})
 	if err != nil {
 		return nil, txError(ctx, "failed to verify org domain", err)
@@ -338,6 +347,11 @@ func (s *OrgServer) DeleteOrgDomain(
 		return nil, err
 	}
 	err = s.withOrgLock(ctx, row.OrgID, func(qtx *genDb.Queries) error {
+		if row.VerifiedAt != nil {
+			if ssoErr := s.releaseSSODomain(ctx, qtx, row); ssoErr != nil {
+				return ssoErr
+			}
+		}
 		if _, deleteErr := qtx.DeleteOrgDomain(
 			ctx,
 			genDb.DeleteOrgDomainParams{ID: row.ID, OrgID: row.OrgID},

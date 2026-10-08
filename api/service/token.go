@@ -127,11 +127,15 @@ func (s *TokenServer) CreateToken(
 	}
 
 	duration := time.Duration(r.GetExpiresInSec()) * time.Second
+	var ssoConnection *string
+	if connection, ok := ctx.Value(contextkeys.SSOConnectionKey).(string); ok {
+		ssoConnection = &connection
+	}
 	var token string
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		var issueErr error
 		token, issueErr = s.tvm.WithQueries(qtx).
-			Issue(ctx, r.GetName(), entity.ID.String(), targetEntity, dbScopes, duration)
+			Issue(ctx, r.GetName(), entity.ID.String(), targetEntity, dbScopes, duration, ssoConnection)
 		if issueErr != nil {
 			return issueErr
 		}

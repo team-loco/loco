@@ -367,3 +367,61 @@ func TestCLIRefreshChecksIdentity(t *testing.T) {
 		t.Fatalf("refresh of a deleted identity: %v", err)
 	}
 }
+
+const ssoConnectionID = "conn-1"
+
+func (f *authFixture) connectionOf(t *testing.T, access string) string {
+	t.Helper()
+	caller, err := f.machine.Authenticate(t.Context(), access)
+	if err != nil {
+		t.Fatalf("authenticate: %v", err)
+	}
+	return derefString(caller.SSOConnection)
+}
+
+func TestCLISessionsKeepTheSSOConnection(t *testing.T) {
+	f := newAuthFixture(t)
+	if got := f.connectionOf(t, f.login(t).GetAccessToken()); got != "" {
+		t.Fatalf("password login carried connection %q", got)
+	}
+
+	identity, ok := f.webCtx.Value(contextkeys.IdentityKey).(auth.Identity)
+	if !ok {
+		t.Fatal("no identity")
+	}
+	identity.Methods = []auth.AuthMethod{{Method: auth.MethodSAML, Provider: ssoConnectionID}}
+	f.webCtx = context.WithValue(f.webCtx, contextkeys.IdentityKey, identity)
+
+	tokens := f.login(t)
+	if got := f.connectionOf(t, tokens.GetAccessToken()); got != ssoConnectionID {
+		t.Fatalf("loopback session connection = %q", got)
+	}
+	refreshed, err := f.server.RefreshCLIToken(t.Context(), connect.NewRequest(&authv1.RefreshCLITokenRequest{
+		RefreshToken: tokens.GetRefreshToken(),
+	}))
+	if err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+	if got := f.connectionOf(t, refreshed.Msg.GetTokens().GetAccessToken()); got != ssoConnectionID {
+		t.Fatalf("refreshed session connection = %q", got)
+	}
+
+	started, err := f.server.StartDeviceLogin(t.Context(), connect.NewRequest(&authv1.StartDeviceLoginRequest{}))
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	if _, approveErr := f.server.ApproveDeviceLogin(f.webCtx, connect.NewRequest(&authv1.ApproveDeviceLoginRequest{
+		UserCode: started.Msg.GetUserCode(),
+	})); approveErr != nil {
+		t.Fatalf("approve: %v", approveErr)
+	}
+	done, err := f.server.PollDeviceLogin(t.Context(), connect.NewRequest(&authv1.PollDeviceLoginRequest{
+		DeviceCode: started.Msg.GetDeviceCode(),
+	}))
+	if err != nil {
+		t.Fatalf("poll: %v", err)
+	}
+	if got := f.connectionOf(t, done.Msg.GetTokens().GetAccessToken()); got != ssoConnectionID {
+		t.Fatalf("device session connection = %q", got)
+	}
+}

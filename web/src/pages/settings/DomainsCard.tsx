@@ -9,7 +9,7 @@ import {
 import type { OrgDomain } from "@gen/loco/org/v1/org_pb";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 import { useQueryClient } from "@tanstack/react-query";
-import { CheckIcon, CopyIcon, GlobeIcon, Trash2Icon } from "lucide-react";
+import { GlobeIcon, Trash2Icon } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
@@ -21,7 +21,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useCopy } from "@/hooks/useCopy";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 
-import { SettingsCard } from "./parts";
+import { CopyField, SettingsCard } from "./parts";
 
 const AUTO_JOIN_OPTIONS: { value: string; label: string; scope: Scope }[] = [
 	{ value: "off", label: "Off", scope: Scope.UNSPECIFIED },
@@ -32,20 +32,6 @@ const AUTO_JOIN_OPTIONS: { value: string; label: string; scope: Scope }[] = [
 
 function optionFor(scope: Scope): string {
 	return AUTO_JOIN_OPTIONS.find((o) => o.scope === scope)?.value ?? "off";
-}
-
-function CopyField({ label, value, copied, onCopy }: { label: string; value: string; copied: boolean; onCopy: () => void }) {
-	return (
-		<div className="flex min-w-0 flex-col gap-1">
-			<span className="text-[12px] text-fg3">{label}</span>
-			<div className="flex min-w-0 items-center gap-1.5 rounded-sm border border-line bg-bg2 py-1 pr-1 pl-2.5">
-				<code className="min-w-0 flex-1 truncate font-mono text-[12.5px]">{value}</code>
-				<Button variant="ghost" size="icon-sm" aria-label={`Copy ${label}`} onClick={onCopy}>
-					{copied ? <CheckIcon /> : <CopyIcon />}
-				</Button>
-			</div>
-		</div>
-	);
 }
 
 function DomainRow({ orgId, domain }: { orgId: string; domain: OrgDomain }) {

@@ -61,6 +61,27 @@ func (r *Resolver) Resolve(ctx context.Context, id Identity) (genDb.User, error)
 	return user, err
 }
 
+func (r *Resolver) ssoCoversEmail(ctx context.Context, id Identity) (bool, error) {
+	connection := id.SSOConnection()
+	if connection == nil {
+		return true, nil
+	}
+	covered, err := r.queries.SSOConnectionCoversDomain(ctx, genDb.SSOConnectionCoversDomainParams{
+		ConnectionID: *connection,
+		Issuer:       id.Issuer,
+		Domain:       emailDomain(id.Email),
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check the sso connection's domains", "error", err)
+		return false, ErrResolve
+	}
+	if !covered {
+		slog.WarnContext(ctx, "sso login asserted an email outside its organization's domains",
+			"connection", *connection, "issuer", id.Issuer)
+	}
+	return covered, nil
+}
+
 func (r *Resolver) existing(ctx context.Context, id Identity) (genDb.User, error) {
 	row, err := r.queries.GetUserByIdentity(ctx, genDb.GetUserByIdentityParams{
 		Issuer:  id.Issuer,
@@ -188,6 +209,14 @@ func (r *Resolver) returningEmailVerified(ctx context.Context, id Identity) (boo
 }
 
 func (r *Resolver) emailVerified(ctx context.Context, id Identity, stored *genDb.Identity) (bool, error) {
+	verified, err := r.providerEmailVerified(ctx, id, stored)
+	if err != nil || !verified {
+		return false, err
+	}
+	return r.ssoCoversEmail(ctx, id)
+}
+
+func (r *Resolver) providerEmailVerified(ctx context.Context, id Identity, stored *genDb.Identity) (bool, error) {
 	lookup, ok := r.emailVerifiers[id.Issuer]
 	if !ok {
 		return id.EmailVerified, nil

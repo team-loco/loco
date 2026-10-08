@@ -60,7 +60,7 @@ func (tvm *VendingMachine) Exchange(
 		user = tvm.syncUserEmail(ctx, user, address)
 	}
 
-	accessToken, refreshToken, err := tvm.IssueSession(ctx, user.ID, nil, ip, userAgent)
+	accessToken, refreshToken, err := tvm.IssueSession(ctx, user.ID, nil, nil, ip, userAgent)
 	if err != nil {
 		return queries.User{}, "", "", err
 	}
@@ -72,6 +72,7 @@ func (tvm *VendingMachine) IssueSession(
 	ctx context.Context,
 	userID uuid.UUID,
 	identityID *uuid.UUID,
+	ssoConnection *string,
 	ip string,
 	userAgent string,
 ) (string, string, error) {
@@ -98,6 +99,7 @@ func (tvm *VendingMachine) IssueSession(
 		IpAddress:        ipAddr,
 		UserAgent:        &userAgent,
 		IdentityID:       identityID,
+		SsoConnectionID:  ssoConnection,
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to create session token", "error", err)
 		return "", "", ErrStoreToken

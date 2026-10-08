@@ -10,8 +10,25 @@ import (
 	queries "github.com/team-loco/loco/api/gen/db"
 )
 
+// Caller is what a Loco token authenticates: the entity, its effective scopes, and the
+// SAML connection the token was minted under, if any.
+type Caller struct {
+	Entity        queries.Entity
+	Scopes        []queries.EntityScope
+	SSOConnection *string
+}
+
 // GetToken validates a token (session or API) and returns the entity it represents
 // along with its effective scopes.
+func (tvm *VendingMachine) GetToken(ctx context.Context, token string) (queries.Entity, []queries.EntityScope, error) {
+	caller, err := tvm.Authenticate(ctx, token)
+	if err != nil {
+		return queries.Entity{}, nil, err
+	}
+	return caller.Entity, caller.Scopes, nil
+}
+
+// Authenticate validates a token (session or API) and returns its caller.
 //
 // Session tokens (loco_s_...): scopes are always fetched live from user_scopes so
 // permission changes take effect immediately.
@@ -19,48 +36,46 @@ import (
 // API tokens (loco_k_...): scopes are the baked-in set from creation and never change.
 //
 // Refresh tokens (loco_r_...) are rejected — they are not valid access credentials.
-func (tvm *VendingMachine) GetToken(ctx context.Context, token string) (queries.Entity, []queries.EntityScope, error) {
+func (tvm *VendingMachine) Authenticate(ctx context.Context, token string) (Caller, error) {
 	hash := hashToken(token)
 
 	switch tokenPrefix(token) {
 	case prefixSession:
 		session, err := tvm.queries.GetSessionWithScopesByAccessToken(ctx, hash)
 		if err != nil {
-			return queries.Entity{}, nil, ErrInvalidExpiredToken
-		}
-
-		entity := queries.Entity{
-			Type: queries.EntityTypeUser,
-			ID:   session.UserID,
+			return Caller{}, ErrInvalidExpiredToken
 		}
 
 		var liveScopes []queries.EntityScope
 		if err := json.Unmarshal(session.Scopes, &liveScopes); err != nil {
 			slog.ErrorContext(ctx, "failed to decode live scopes for session token", "err", err)
-			return queries.Entity{}, nil, err
+			return Caller{}, err
 		}
 
 		tvm.touchSessionLastUsed(ctx, session.ID, session.LastUsedAt)
 
-		return entity, liveScopes, nil
+		return Caller{
+			Entity:        queries.Entity{Type: queries.EntityTypeUser, ID: session.UserID},
+			Scopes:        liveScopes,
+			SSOConnection: session.SsoConnectionID,
+		}, nil
 
 	case prefixAPIKey:
 		tok, err := tvm.queries.GetAPIToken(ctx, hash)
 		if err != nil {
-			return queries.Entity{}, nil, ErrInvalidExpiredToken
-		}
-
-		entity := queries.Entity{
-			Type: tok.EntityType,
-			ID:   tok.EntityID,
+			return Caller{}, ErrInvalidExpiredToken
 		}
 
 		tvm.touchAPITokenLastUsed(ctx, tok.ID, tok.LastUsedAt)
 
-		return entity, tok.Scopes, nil
+		return Caller{
+			Entity:        queries.Entity{Type: tok.EntityType, ID: tok.EntityID},
+			Scopes:        tok.Scopes,
+			SSOConnection: tok.SsoConnectionID,
+		}, nil
 
 	default:
-		return queries.Entity{}, nil, ErrInvalidExpiredToken
+		return Caller{}, ErrInvalidExpiredToken
 	}
 }
 

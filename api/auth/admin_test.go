@@ -32,8 +32,8 @@ func (*fakeAdmin) Delete(context.Context, string) error {
 }
 
 func fakeFactories() AdminFactories {
-	return AdminFactories{fakeAdminType: func(baseURL, token string, client *http.Client) IdentityAdmin {
-		return &fakeAdmin{baseURL: baseURL, token: token, client: client}
+	return AdminFactories{fakeAdminType: func(opts AdminOptions) IdentityAdmin {
+		return &fakeAdmin{baseURL: opts.APIURL, token: opts.Token, client: opts.Client}
 	}}
 }
 

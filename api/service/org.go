@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/timeutil"
@@ -35,6 +36,13 @@ type OrgServer struct {
 	queries   genDb.Querier
 	machine   *tvm.VendingMachine
 	lookupTXT TXTLookup
+	sso       auth.SSOAdmin
+	ssoIssuer string
+}
+
+func (s *OrgServer) UseSSO(admin auth.SSOAdmin, issuer string) {
+	s.sso = admin
+	s.ssoIssuer = issuer
 }
 
 // NewOrgServer creates a new OrgServer instance
@@ -394,7 +402,10 @@ func (s *OrgServer) DeleteOrg(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrOrgHasWorkspacesWithResources)
 	}
 
-	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+	err = s.withOrgLock(ctx, orgID, func(qtx *genDb.Queries) error {
+		if ssoErr := s.deleteSSOConnection(ctx, qtx, orgID); ssoErr != nil {
+			return ssoErr
+		}
 		if deleteErr := qtx.DeleteOrg(ctx, orgID); deleteErr != nil {
 			return deleteErr
 		}

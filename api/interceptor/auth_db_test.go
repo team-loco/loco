@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/auth/authtest"
 	"github.com/team-loco/loco/api/contextkeys"
@@ -15,6 +16,9 @@ import (
 )
 
 type providerFixture struct {
+	pool        *pgxpool.Pool
+	queries     *genDb.Queries
+	machine     *tvm.VendingMachine
 	issuer      *authtest.Issuer
 	interceptor *authInterceptor
 }
@@ -23,10 +27,12 @@ func newProviderFixture(t *testing.T, policy auth.SignupPolicy) *providerFixture
 	t.Helper()
 	pool := authtest.NewPool(t)
 	issuer := authtest.NewIssuer(t)
-	machine := tvm.NewVendingMachine(pool, genDb.New(pool), tvm.Config{
+	queries := genDb.New(pool)
+	machine := tvm.NewVendingMachine(pool, queries, tvm.Config{
 		SessionAccessTokenDuration:  time.Hour,
 		SessionRefreshTokenDuration: time.Hour,
 		LastUsedUpdateInterval:      time.Minute,
+		MaxAPITokenDuration:         time.Hour,
 	})
 	t.Cleanup(machine.Close)
 	verifier := auth.NewVerifier(http.DefaultClient, []auth.IssuerConfig{{
@@ -40,8 +46,11 @@ func newProviderFixture(t *testing.T, policy auth.SignupPolicy) *providerFixture
 		},
 	}})
 	return &providerFixture{
+		pool:        pool,
+		queries:     queries,
+		machine:     machine,
 		issuer:      issuer,
-		interceptor: NewAuthInterceptor(machine, verifier, auth.NewResolver(pool, policy)),
+		interceptor: NewAuthInterceptor(machine, verifier, auth.NewResolver(pool, policy), auth.NewSSOGate(queries)),
 	}
 }
 

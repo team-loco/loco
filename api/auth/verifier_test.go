@@ -15,7 +15,7 @@ func TestVerifyMapsNestedClaims(t *testing.T) {
 
 	claims := ti.Claims("user-1", "Dev@Example.test", true)
 	claims["amr"] = []any{
-		map[string]any{"method": "sso/saml", "provider": "conn-1"},
+		map[string]any{"method": "sso/saml", "provider": samlConnectionID},
 		"pwd",
 	}
 	id, err := v.Verify(t.Context(), ti.Sign("k1", claims))
@@ -31,7 +31,7 @@ func TestVerifyMapsNestedClaims(t *testing.T) {
 	if id.Name != "Test User" || id.AvatarURL != "https://example.com/a.png" {
 		t.Fatalf("profile = %q %q", id.Name, id.AvatarURL)
 	}
-	want := []AuthMethod{{Method: "sso/saml", Provider: "conn-1"}, {Method: "pwd"}}
+	want := []AuthMethod{{Method: "sso/saml", Provider: samlConnectionID}, {Method: "pwd"}}
 	if len(id.Methods) != len(want) || id.Methods[0] != want[0] || id.Methods[1] != want[1] {
 		t.Fatalf("methods = %+v", id.Methods)
 	}

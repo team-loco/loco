@@ -2,6 +2,7 @@ package supabase_test
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,18 +14,22 @@ import (
 )
 
 const (
-	stateActive  = "active"
-	stateExpired = "expired"
-	stateBanned  = "banned"
-	stateDeleted = "deleted"
+	serviceKeyEnv = "KEY"
+	serviceKey    = "service-key"
+	ssoDomain     = "corp.test"
+	stateActive   = "active"
+	stateExpired  = "expired"
+	stateBanned   = "banned"
+	stateDeleted  = "deleted"
 
 	subjectConfirmed    = "confirmed"
 	subjectSelfAsserted = "self-asserted"
 	subjectChanged      = "changed"
-	adminTokenEnv       = "SERVICE_KEY"
 	fieldEmail          = "email"
 	fieldEmailVerified  = "email_verified"
 )
+
+const publicIssuer = "https://auth.example.test"
 
 var factories = auth.AdminFactories{supabase.AdminType: supabase.NewAdmin}
 
@@ -39,7 +44,7 @@ func TestAdmin(t *testing.T) {
 	}
 	var deleted []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "Bearer service-key" {
+		if r.Header.Get("Authorization") != "Bearer "+serviceKey {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -63,8 +68,8 @@ func TestAdmin(t *testing.T) {
 
 	admins, err := auth.NewAdmins(http.DefaultClient, []auth.IssuerConfig{{
 		Issuer: srv.URL,
-		Admin:  &auth.AdminConfig{Type: supabase.AdminType, URL: srv.URL, TokenEnv: "KEY"},
-	}}, func(string) string { return "service-key" }, factories)
+		Admin:  &auth.AdminConfig{Type: supabase.AdminType, URL: srv.URL, TokenEnv: serviceKeyEnv},
+	}}, func(string) string { return serviceKey }, factories)
 	if err != nil {
 		t.Fatalf("admins: %v", err)
 	}
@@ -95,7 +100,7 @@ func TestAdmin(t *testing.T) {
 
 	bad, err := auth.NewAdmins(http.DefaultClient, []auth.IssuerConfig{{
 		Issuer: srv.URL,
-		Admin:  &auth.AdminConfig{Type: supabase.AdminType, URL: srv.URL, TokenEnv: "KEY"},
+		Admin:  &auth.AdminConfig{Type: supabase.AdminType, URL: srv.URL, TokenEnv: serviceKeyEnv},
 	}}, func(string) string { return "wrong" }, factories)
 	if err != nil {
 		t.Fatalf("admins: %v", err)
@@ -121,7 +126,7 @@ func TestAdminEmailVerified(t *testing.T) {
 		subjectChanged: {"id": subjectChanged, fieldEmail: "new@example.test", "email_confirmed_at": confirmed},
 	}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "Bearer service-key" {
+		if r.Header.Get("Authorization") != "Bearer "+serviceKey {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -140,9 +145,9 @@ func TestAdminEmailVerified(t *testing.T) {
 	issuers := []auth.IssuerConfig{{
 		Issuer:            srv.URL,
 		EmailVerification: auth.EmailVerificationAdmin,
-		Admin:             &auth.AdminConfig{Type: supabase.AdminType, URL: srv.URL, TokenEnv: adminTokenEnv},
+		Admin:             &auth.AdminConfig{Type: supabase.AdminType, URL: srv.URL, TokenEnv: serviceKeyEnv},
 	}}
-	admins, err := auth.NewAdmins(http.DefaultClient, issuers, func(string) string { return "service-key" }, factories)
+	admins, err := auth.NewAdmins(http.DefaultClient, issuers, func(string) string { return serviceKey }, factories)
 	if err != nil {
 		t.Fatalf("admins: %v", err)
 	}
@@ -164,5 +169,113 @@ func TestAdminEmailVerified(t *testing.T) {
 		if verifyErr != nil || got != want {
 			t.Errorf("EmailVerified(%s) = %v %v, want %v", subject, got, verifyErr, want)
 		}
+	}
+}
+
+func TestSSOAdmin(t *testing.T) {
+	providers := map[string][]string{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer "+serviceKey {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		id := strings.TrimPrefix(strings.TrimPrefix(r.URL.Path, "/admin/sso/providers"), "/")
+		var body struct {
+			Type        string   `json:"type"`
+			MetadataURL string   `json:"metadata_url"`
+			MetadataXML string   `json:"metadata_xml"`
+			Domains     []string `json:"domains"`
+		}
+		if r.Body != nil && r.Method != http.MethodDelete {
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+		}
+		switch r.Method {
+		case http.MethodPost:
+			if body.Type != "saml" || body.MetadataXML == "" {
+				w.WriteHeader(http.StatusBadRequest)
+				respond(t, w, `{"code":400,"error_code":"validation_failed","msg":"SAML Metadata XML is invalid"}`)
+				return
+			}
+			providers["p1"] = body.Domains
+			w.WriteHeader(http.StatusCreated)
+			respond(t, w, `{"id":"p1"}`)
+		case http.MethodPut:
+			if _, ok := providers[id]; !ok {
+				http.Error(w, `{"msg":"SSO Identity Provider not found"}`, http.StatusNotFound)
+				return
+			}
+			providers[id] = body.Domains
+			respond(t, w, "{}")
+		case http.MethodDelete:
+			if _, ok := providers[id]; !ok {
+				http.Error(w, `{"msg":"SSO Identity Provider not found"}`, http.StatusNotFound)
+				return
+			}
+			delete(providers, id)
+			respond(t, w, "{}")
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	admins, err := auth.NewAdmins(http.DefaultClient, []auth.IssuerConfig{{
+		Issuer: publicIssuer,
+		Admin:  &auth.AdminConfig{Type: supabase.AdminType, URL: srv.URL, TokenEnv: serviceKeyEnv},
+	}}, func(string) string { return serviceKey }, factories)
+	if err != nil {
+		t.Fatalf("admins: %v", err)
+	}
+	sso, ok := admins.SSO(publicIssuer)
+	if !ok {
+		t.Fatal("supabase admin does not manage SSO")
+	}
+	if _, other := admins.SSO("https://elsewhere.test"); other {
+		t.Fatal("SSO admin found for an unknown issuer")
+	}
+	ctx := t.Context()
+
+	_, err = sso.CreateSAMLConnection(ctx, "", "", []string{ssoDomain})
+	rejected, ok := errors.AsType[*auth.ProviderError](err)
+	if !ok || rejected.Message != "SAML Metadata XML is invalid" {
+		t.Fatalf("invalid metadata error = %v", err)
+	}
+	id, err := sso.CreateSAMLConnection(ctx, "", "<EntityDescriptor/>", []string{ssoDomain})
+	if err != nil || id != "p1" {
+		t.Fatalf("create = %q, %v", id, err)
+	}
+	if setErr := sso.SetSAMLDomains(ctx, id, []string{ssoDomain, "corp.example"}); setErr != nil {
+		t.Fatalf("set domains: %v", setErr)
+	}
+	if got := providers[id]; len(got) != 2 {
+		t.Fatalf("domains = %v", got)
+	}
+	if setErr := sso.SetSAMLDomains(ctx, "missing", nil); !isProviderError(setErr) {
+		t.Fatalf("update of a missing provider = %v", setErr)
+	}
+	if deleteErr := sso.DeleteSAMLConnection(ctx, id); deleteErr != nil {
+		t.Fatalf("delete: %v", deleteErr)
+	}
+	if deleteErr := sso.DeleteSAMLConnection(ctx, id); deleteErr != nil {
+		t.Fatalf("deleting a deleted provider: %v", deleteErr)
+	}
+	metadata, acs := sso.ServiceProvider()
+	if metadata != publicIssuer+"/sso/saml/metadata" || acs != publicIssuer+"/sso/saml/acs" {
+		t.Fatalf("service provider = %s %s", metadata, acs)
+	}
+}
+
+func isProviderError(err error) bool {
+	rejected, ok := errors.AsType[*auth.ProviderError](err)
+	return ok && rejected.Message != ""
+}
+
+func respond(t *testing.T, w http.ResponseWriter, body string) {
+	t.Helper()
+	if _, err := w.Write([]byte(body)); err != nil {
+		t.Errorf("write: %v", err)
 	}
 }

@@ -41,7 +41,14 @@ func (a Admins) For(issuer string) (IdentityAdmin, bool) {
 	return admin, ok
 }
 
-type AdminFactory func(baseURL, token string, client *http.Client) IdentityAdmin
+type AdminOptions struct {
+	APIURL    string
+	PublicURL string
+	Token     string
+	Client    *http.Client
+}
+
+type AdminFactory func(opts AdminOptions) IdentityAdmin
 
 type AdminFactories map[string]AdminFactory
 
@@ -64,7 +71,8 @@ func NewAdmins(
 		if token == "" {
 			return nil, fmt.Errorf("issuer %s: admin token env %q is empty", ic.Issuer, ic.Admin.TokenEnv)
 		}
-		admins[ic.Issuer] = factory(ic.Admin.URL, token, httpClient)
+		opts := AdminOptions{APIURL: ic.Admin.URL, PublicURL: ic.Issuer, Token: token, Client: httpClient}
+		admins[ic.Issuer] = factory(opts)
 	}
 	return admins, nil
 }
@@ -82,4 +90,24 @@ func NewEmailVerifiers(issuers []IssuerConfig, admins Admins) (EmailVerifiers, e
 		verifiers[ic.Issuer] = verifier
 	}
 	return verifiers, nil
+}
+
+type SSOAdmin interface {
+	CreateSAMLConnection(ctx context.Context, metadataURL, metadataXML string, domains []string) (string, error)
+	SetSAMLDomains(ctx context.Context, connectionID string, domains []string) error
+	DeleteSAMLConnection(ctx context.Context, connectionID string) error
+	ServiceProvider() (metadataURL string, acsURL string)
+}
+
+type ProviderError struct {
+	Message string
+}
+
+func (e *ProviderError) Error() string {
+	return e.Message
+}
+
+func (a Admins) SSO(issuer string) (SSOAdmin, bool) {
+	sso, ok := a[issuer].(SSOAdmin)
+	return sso, ok
 }
