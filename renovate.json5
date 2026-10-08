@@ -42,6 +42,14 @@
       enabled: true,
     },
     {
+      description: "k8s.io/apimachinery pins kube-openapi and structured-merge-diff to the commits it builds against; a newer commit on its own breaks the build (#436), so they move only with a Kubernetes release",
+      matchManagers: ["gomod"],
+      matchDepTypes: ["indirect"],
+      matchUpdateTypes: ["digest"],
+      matchPackageNames: ["k8s.io/**", "sigs.k8s.io/**"],
+      enabled: false,
+    },
+    {
       groupName: "connectrpc",
       matchDatasources: ["go"],
       matchPackageNames: ["connectrpc.com/**"],
