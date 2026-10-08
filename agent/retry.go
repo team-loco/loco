@@ -2,17 +2,21 @@ package main
 
 import (
 	"math"
-	"time"
 
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
-const healthyStreamDuration = time.Minute
+const (
+	reconnectFactor = 2
+	reconnectJitter = 0.5
+)
 
-var reconnectBackoff = wait.Backoff{
-	Duration: time.Second,
-	Factor:   2,
-	Jitter:   0.5,
-	Steps:    math.MaxInt32,
-	Cap:      30 * time.Second,
+func newReconnectBackoff(cfg *Config) wait.Backoff {
+	return wait.Backoff{
+		Duration: cfg.ReconnectBaseDelay,
+		Factor:   reconnectFactor,
+		Jitter:   reconnectJitter,
+		Steps:    math.MaxInt32,
+		Cap:      cfg.ReconnectMaxDelay,
+	}
 }

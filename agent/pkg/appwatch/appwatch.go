@@ -21,6 +21,8 @@ import (
 
 const phaseReady = "Ready"
 
+var errCacheNotSynced = errors.New("application cache did not sync")
+
 type Sink func(*agentv1.PlacementStatus)
 
 type Watcher struct {
@@ -66,7 +68,7 @@ func Start(ctx context.Context, cfg *rest.Config, namespace string) (*Watcher, e
 		}
 	}()
 	if !c.WaitForCacheSync(ctx) {
-		return nil, errors.New("application cache did not sync")
+		return nil, errCacheNotSynced
 	}
 	return w, nil
 }

@@ -106,7 +106,15 @@ func run(t *testing.T, rec *Reconciler) {
 	})
 }
 
-const testPlacementID = "p1"
+const (
+	testPlacementID  = "p1"
+	testRetryDelay   = time.Millisecond
+	testRetryTimeout = 500 * time.Millisecond
+)
+
+func testConfig(workers int) Config {
+	return Config{Workers: workers, RetryBaseDelay: testRetryDelay, RetryMaxDelay: testRetryDelay}
+}
 
 func work(revision int64) Work {
 	return Work{Placement: applier.Placement{ID: testPlacementID, Revision: revision, ResourceID: "r"}}
@@ -115,7 +123,7 @@ func work(revision int64) Work {
 func TestNewerRevisionReplacesQueuedOlderOne(t *testing.T) {
 	fa := &fakeApplier{}
 	r := newReports()
-	rec := New(fa, r.report, 2)
+	rec := New(fa, r.report, testConfig(2))
 
 	rec.Submit(work(1))
 	rec.Submit(work(3))
@@ -136,11 +144,11 @@ func TestNewerRevisionReplacesQueuedOlderOne(t *testing.T) {
 
 func TestTransientErrorsAreRetriedAndReportedOnce(t *testing.T) {
 	conflictReason := errors.New("modified")
-	resource := schema.GroupResource{Group: testGroup, Resource: "applications"}
+	resource := schema.GroupResource{Group: testGroup, Resource: testResource}
 	conflict := apierrors.NewConflict(resource, "resource-r", conflictReason)
 	fa := &fakeApplier{errs: []error{conflict, conflict}}
 	r := newReports()
-	rec := New(fa, r.report, 1)
+	rec := New(fa, r.report, testConfig(1))
 	rec.Submit(work(1))
 	run(t, rec)
 
@@ -154,11 +162,35 @@ func TestTransientErrorsAreRetriedAndReportedOnce(t *testing.T) {
 	}
 }
 
+func TestRetriesWaitTheConfiguredDelay(t *testing.T) {
+	conflictReason := errors.New("modified")
+	resource := schema.GroupResource{Group: testGroup, Resource: testResource}
+	conflict := apierrors.NewConflict(resource, "resource-r", conflictReason)
+	fa := &fakeApplier{errs: []error{conflict}}
+	r := newReports()
+	rec := New(fa, r.report, testConfig(1))
+	rec.Submit(work(1))
+	run(t, rec)
+
+	first := r.next(t)
+	if !first.GetRetrying() {
+		t.Fatalf("first report = %v, want a retrying error", first)
+	}
+	select {
+	case second := <-r.ch:
+		if second.GetError() != "" {
+			t.Fatalf("second report = %v, want success", second)
+		}
+	case <-time.After(testRetryTimeout):
+		t.Fatalf("no retry within %s of a %s retry delay", testRetryTimeout, testRetryDelay)
+	}
+}
+
 func TestPermanentErrorIsReportedWithoutRetry(t *testing.T) {
 	invalid := errors.Join(applier.ErrInvalidPayload, errors.New("bad"))
 	fa := &fakeApplier{errs: []error{invalid}}
 	r := newReports()
-	rec := New(fa, r.report, 1)
+	rec := New(fa, r.report, testConfig(1))
 	rec.Submit(work(1))
 	run(t, rec)
 
@@ -172,7 +204,7 @@ func TestPermanentErrorIsReportedWithoutRetry(t *testing.T) {
 func TestStaleRevisionIsDroppedSilently(t *testing.T) {
 	fa := &fakeApplier{errs: []error{applier.ErrStaleRevision}}
 	r := newReports()
-	rec := New(fa, r.report, 1)
+	rec := New(fa, r.report, testConfig(1))
 	rec.Submit(work(1))
 	run(t, rec)
 	r.none(t)
@@ -181,7 +213,7 @@ func TestStaleRevisionIsDroppedSilently(t *testing.T) {
 func TestOnePlacementIsNeverAppliedConcurrently(t *testing.T) {
 	fa := &fakeApplier{blockFor: testPlacementID, release: make(chan struct{}), started: make(chan struct{}, 4)}
 	r := newReports()
-	rec := New(fa, r.report, 4)
+	rec := New(fa, r.report, testConfig(4))
 	run(t, rec)
 
 	rec.Submit(work(1))
