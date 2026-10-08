@@ -50,6 +50,30 @@ spec:
               value: {{ .Values.agent.buildRetention | quote }}
             - name: LOCO_BUILD_COLLECT_INTERVAL
               value: {{ .Values.agent.buildCollectInterval | quote }}
+            - name: LOCO_HEARTBEAT_INTERVAL
+              value: {{ .Values.agent.heartbeatInterval | quote }}
+            - name: LOCO_CLUSTER_QUERY_TIMEOUT
+              value: {{ .Values.agent.clusterQueryTimeout | quote }}
+            - name: LOCO_RECONCILE_WORKERS
+              value: {{ .Values.agent.reconcileWorkers | quote }}
+            - name: LOCO_RECONCILE_RETRY_BASE_DELAY
+              value: {{ .Values.agent.reconcileRetryBaseDelay | quote }}
+            - name: LOCO_RECONCILE_RETRY_MAX_DELAY
+              value: {{ .Values.agent.reconcileRetryMaxDelay | quote }}
+            - name: LOCO_SYNC_OUTBOUND_BUFFER
+              value: {{ .Values.agent.syncOutboundBuffer | quote }}
+            - name: LOCO_BUILD_QUEUE_SIZE
+              value: {{ .Values.agent.buildQueueSize | quote }}
+            - name: LOCO_BUILD_CREATE_RETRY_DELAY
+              value: {{ .Values.agent.buildCreateRetryDelay | quote }}
+            - name: LOCO_BUILD_CREATE_RETRY_ATTEMPTS
+              value: {{ .Values.agent.buildCreateRetryAttempts | quote }}
+            - name: LOCO_RECONNECT_BASE_DELAY
+              value: {{ .Values.agent.reconnectBaseDelay | quote }}
+            - name: LOCO_RECONNECT_MAX_DELAY
+              value: {{ .Values.agent.reconnectMaxDelay | quote }}
+            - name: LOCO_HEALTHY_STREAM_DURATION
+              value: {{ .Values.agent.healthyStreamDuration | quote }}
           envFrom:
             - secretRef:
                 name: {{ .Release.Name }}-env

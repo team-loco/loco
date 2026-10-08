@@ -364,6 +364,9 @@ func (s *DeploymentServer) CreateDeployment(
 
 	var deploymentID uuid.UUID
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if lockErr := lockPinnedBuildImage(ctx, qtx, pinnedBuild); lockErr != nil {
+			return lockErr
+		}
 		var txErr error
 		deploymentID, txErr = createDeploymentWithCleanup(ctx, qtx, genDb.CreateDeploymentParams{
 			ResourceID:       resourceID,

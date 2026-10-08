@@ -36,6 +36,8 @@ const (
 	fakeClusterID        = "00000000-0000-7000-8000-0000000000c1"
 	fakeImageRepo        = "registry.loco.test/ws/app"
 	fakeImageDigest      = "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+	fakeDeletedDigest    = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+	fakeDockerfile       = "Dockerfile"
 	fakePlatformDomainID = "00000000-0000-7000-8000-0000000000d1"
 	fakePlatformDomain   = "onloco.test"
 	uploadModeOK         = "ok"

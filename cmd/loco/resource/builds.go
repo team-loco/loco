@@ -26,6 +26,7 @@ import (
 const (
 	defaultBuildListSize = 20
 	finishedLogMargin    = time.Minute
+	imageDeletedSuffix   = " (deleted)"
 )
 
 type buildsDeps struct {
@@ -247,6 +248,9 @@ func runBuildsList(cmd *cobra.Command, deps buildsDeps, args []string) error {
 		if digest == "" {
 			digest = "-"
 		}
+		if build.GetImageDeletedAt() != nil {
+			digest += imageDeletedSuffix
+		}
 		status := build.GetStatus()
 		label := buildStatusLabel(status)
 		id := build.GetId()
@@ -307,6 +311,10 @@ func writeBuildDetails(out io.Writer, build *buildv1.Build) error {
 	if build.GetFinishedAt() != nil {
 		finished := build.GetFinishedAt().AsTime().UTC().Format(time.RFC3339)
 		rows = append(rows, [2]string{"Finished", finished})
+	}
+	if build.GetImageDeletedAt() != nil {
+		deleted := build.GetImageDeletedAt().AsTime().UTC().Format(time.RFC3339)
+		rows = append(rows, [2]string{"Image deleted", deleted})
 	}
 	for _, row := range rows {
 		if row[1] == "" {

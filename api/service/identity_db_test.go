@@ -36,8 +36,8 @@ func TestGithubSignupCreatesIdentityAndExchangeFindsIt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get user by identity: %v", err)
 	}
-	if found.ID != created.ID {
-		t.Fatalf("identity resolved to user %s, want %s", found.ID, created.ID)
+	if found.User.ID != created.ID {
+		t.Fatalf("identity resolved to user %s, want %s", found.User.ID, created.ID)
 	}
 
 	user, access, refresh, err := machine.Exchange(ctx, identity, "", "")

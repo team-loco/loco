@@ -41,6 +41,7 @@ message Build {
   google.protobuf.Timestamp created_at = 13;
   optional google.protobuf.Timestamp started_at = 14;
   optional google.protobuf.Timestamp finished_at = 15;
+  optional google.protobuf.Timestamp image_deleted_at = 16;
 }
 
 message BuildsUnavailable {}

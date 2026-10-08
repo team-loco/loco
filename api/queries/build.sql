@@ -64,6 +64,7 @@ SELECT b.id,
          WHERE p.resource_id = b.resource_id
            AND p.status = 'succeeded'
            AND p.cache_digest IS NOT NULL
+           AND p.image_deleted_at IS NULL
            AND p.image_repository = b.image_repository
          ORDER BY p.finished_at DESC, p.id DESC
          LIMIT 1
@@ -124,10 +125,10 @@ WHERE cluster_id = sqlc.arg(cluster_id)
   AND status = 'queued'
 RETURNING id, source_key;
 
--- name: TryLockSourceSweep :one
+-- name: TryAdvisoryLock :one
 SELECT pg_try_advisory_lock(sqlc.arg(lock_key)::bigint);
 
--- name: UnlockSourceSweep :one
+-- name: AdvisoryUnlock :one
 SELECT pg_advisory_unlock(sqlc.arg(lock_key)::bigint);
 
 -- name: ExpireAwaitingUploadBuilds :many
@@ -162,3 +163,74 @@ WHERE id = $1
 SELECT source_key FROM builds
 WHERE source_key = ANY(sqlc.arg(keys)::text[])
   AND status IN ('awaiting_upload', 'queued', 'running');
+
+-- name: ListDeletableBuildImages :many
+WITH ranked AS (
+  SELECT b.id,
+         b.resource_id,
+         b.image_repository,
+         b.image_digest,
+         b.cache_digest,
+         b.finished_at,
+         b.image_deleted_at,
+         row_number() OVER (PARTITION BY b.resource_id ORDER BY b.finished_at DESC, b.id DESC) AS position
+  FROM builds b
+  WHERE b.status = 'succeeded'
+    AND (sqlc.narg(build_id)::uuid IS NULL
+         OR b.resource_id = (SELECT o.resource_id FROM builds o WHERE o.id = sqlc.narg(build_id)::uuid))
+)
+SELECT c.id,
+       c.resource_id,
+       c.image_repository,
+       c.image_digest::text AS image_digest,
+       c.cache_digest
+FROM ranked c
+WHERE c.position > sqlc.arg(keep)::int
+  AND c.image_deleted_at IS NULL
+  AND (sqlc.narg(build_id)::uuid IS NULL OR c.id = sqlc.narg(build_id)::uuid)
+  AND NOT EXISTS (
+    SELECT 1 FROM ranked k
+    WHERE k.resource_id = c.resource_id
+      AND k.position <= sqlc.arg(keep)::int
+      AND (k.image_digest IN (c.image_digest, c.cache_digest)
+           OR k.cache_digest IN (c.image_digest, c.cache_digest))
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM deployments d
+    WHERE d.resource_id = c.resource_id
+      AND d.is_active
+      AND strpos(d.spec::text, c.image_digest) > 0
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM placements p
+    WHERE p.resource_id = c.resource_id
+      AND NOT p.desired_deleted
+      AND strpos(p.desired_spec::text, c.image_digest) > 0
+  )
+ORDER BY c.finished_at, c.id
+LIMIT sqlc.arg(max_builds);
+
+-- name: LockBuildImageForDelete :one
+SELECT image_deleted_at FROM builds WHERE id = $1 FOR UPDATE;
+
+-- name: LockBuildImageForDeploy :one
+SELECT image_deleted_at FROM builds WHERE id = $1 FOR SHARE;
+
+-- name: MarkBuildImageDeleted :execrows
+UPDATE builds
+SET image_deleted_at = NOW()
+WHERE id = $1
+  AND image_deleted_at IS NULL;
+
+-- name: ListExistingResourceIDs :many
+SELECT id FROM resources WHERE id = ANY(sqlc.arg(ids)::uuid[]);
+
+-- name: ListBuildTagStates :many
+SELECT id, resource_id, status, finished_at FROM builds
+WHERE id = ANY(sqlc.arg(ids)::uuid[]);
+
+-- name: ListLiveBuildDigests :many
+SELECT resource_id, image_digest::text AS image_digest, cache_digest FROM builds
+WHERE resource_id = ANY(sqlc.arg(resource_ids)::uuid[])
+  AND status = 'succeeded'
+  AND image_deleted_at IS NULL;

@@ -35,6 +35,8 @@ func TestDockerImagePattern(t *testing.T) {
 		"registry.loco.dev/ws-1/app" + digest,
 		"loco-e2e-registry:5000/ws-1/app" + digest,
 		"localhost:5001/app:latest",
+		"nginxinc/nginx-unprivileged:1.31.6-alpine" + digest,
+		"localhost:5001/app:v1" + digest,
 	}
 	for _, image := range valid {
 		if !dockerImagePattern.MatchString(image) {
@@ -46,6 +48,10 @@ func TestDockerImagePattern(t *testing.T) {
 		"registry:port/app:v1",
 		"app@sha256:short",
 		"app:v1 ",
+		"app:v1@sha256:short",
+		"app" + digest + ":v1",
+		"app:v1:v2",
+		"app:v1" + digest + digest,
 	}
 	for _, image := range invalid {
 		if dockerImagePattern.MatchString(image) {

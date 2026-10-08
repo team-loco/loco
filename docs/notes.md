@@ -262,7 +262,10 @@ Basic logs and metrics are working via otel + clickhouse. Still needed:
   `compose.yaml` locally). Only build pods push, with the `loco-registry-push` credential;
   nodes pull with a long-lived pull secret that the Application controller copies into each
   workspace namespace. Deployments pin images by digest.
-  - Set lifecycle policy (last 2 images per resource, 6-month max).
+  - The API's image sweeper deletes build images with the registry's `api` account: it keeps
+    the newest `LOCO_IMAGE_RETENTION` succeeded builds per resource plus any image an active
+    deployment or a placement's desired spec references, and purges repositories whose
+    resource no longer exists. zot GC then reclaims the blobs.
   - Set max Docker image size (cluster limited).
 
 - **Deployment flow**

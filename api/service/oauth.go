@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 	"time"
 
 	"connectrpc.com/connect"
@@ -86,6 +85,7 @@ type OAuthServer struct {
 	stateCache    *OAuthStateCache
 	machine       *tvm.VendingMachine
 	secureCookies bool
+	oauth         *oauth2.Config
 }
 
 // GithubUser is the response structure from GitHub's user endpoint
@@ -97,12 +97,12 @@ type GithubUser struct {
 	Name   string `json:"name"`
 }
 
-var OAuthConf = &oauth2.Config{
-	ClientID:     os.Getenv("GH_OAUTH_CLIENT_ID"),
-	ClientSecret: os.Getenv("GH_OAUTH_CLIENT_SECRET"),
-	Scopes:       []string{"read:user", "user:email"},
-	Endpoint:     github.Endpoint,
+type GithubOAuthConfig struct {
+	ClientID     string
+	ClientSecret string
 }
+
+var githubOAuthScopes = []string{"read:user", "user:email"}
 
 var OAuthStateTTL = 10 * time.Minute
 
@@ -130,8 +130,16 @@ func NewOAuthServer(
 	machine *tvm.VendingMachine,
 	stateCache *OAuthStateCache,
 	secureCookies bool,
+	githubOAuth GithubOAuthConfig,
 ) *OAuthServer {
+	oauth := &oauth2.Config{
+		ClientID:     githubOAuth.ClientID,
+		ClientSecret: githubOAuth.ClientSecret,
+		Scopes:       githubOAuthScopes,
+		Endpoint:     github.Endpoint,
+	}
 	return &OAuthServer{
+		oauth:         oauth,
 		db:            db,
 		queries:       queries,
 		httpClient:    httpClient,
@@ -305,7 +313,7 @@ func (s *OAuthServer) GetOAuthDetails(
 	}
 
 	res := connect.NewResponse(&oAuth.GetOAuthDetailsResponse{
-		ClientId: OAuthConf.ClientID,
+		ClientId: s.oauth.ClientID,
 		TokenTtl: s.machine.Cfg.SessionAccessTokenDuration.Seconds(),
 	})
 	return res, nil
@@ -448,7 +456,7 @@ func (s *OAuthServer) GetOAuthAuthorizationURL(
 	slog.InfoContext(ctx, "stored state in cache successfully")
 
 	// build github oauth url
-	authURL := OAuthConf.AuthCodeURL(state, oauth2.AccessTypeOffline)
+	authURL := s.oauth.AuthCodeURL(state, oauth2.AccessTypeOffline)
 
 	res := connect.NewResponse(&oAuth.GetOAuthAuthorizationURLResponse{
 		AuthorizationUrl: authURL,
@@ -493,7 +501,7 @@ func (s *OAuthServer) ExchangeOAuthCode(
 	}
 
 	// exchange authorization code for github access token
-	token, err := OAuthConf.Exchange(ctx, code)
+	token, err := s.oauth.Exchange(ctx, code)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to exchange authorization code", "error", err)
 		return nil, connect.NewError(

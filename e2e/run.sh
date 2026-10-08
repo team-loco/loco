@@ -26,6 +26,8 @@ GATEWAY_API_VERSION=$(awk '$1 == "sigs.k8s.io/gateway-api" { print $2 }' "$ROOT_
 AGENT_TOKEN="e2e-test-token-do-not-use-in-production"
 USER_TOKEN="loco_s_e2e-test-session-do-not-use-in-production"
 LOCO_NAMESPACE="loco-system"
+IMAGE_RETENTION=1
+IMAGE_SWEEP_INTERVAL=5s
 
 export E2E_ROOT_DIR="$ROOT_DIR"
 export E2E_COMPOSE_PROJECT="loco-e2e"
@@ -45,6 +47,9 @@ export LOCO_SOURCE_BUCKET_REGION="us-east-1"
 export E2E_REGISTRY_PORT="$REGISTRY_PORT"
 export E2E_REGISTRY_ALIAS="loco-e2e-registry"
 export E2E_REGISTRY_HOST="${E2E_REGISTRY_ALIAS}:5000"
+export E2E_REGISTRY_URL="http://localhost:${REGISTRY_PORT}"
+export E2E_REGISTRY_API_USER="api:loco-dev-api"
+export E2E_REGISTRY_NODES_USER="nodes:loco-dev-nodes"
 export E2E_S3_ALIAS="loco-e2e-s3.localhost"
 export E2E_S3_ENDPOINT="http://${E2E_S3_ALIAS}:${S3_PORT}"
 export E2E_BUILD_NAMESPACE="loco-builds"
@@ -274,6 +279,11 @@ start_api() {
     APP_ENV="test" \
     LOG_LEVEL="-4" \
     LOCO_REGISTRY_HOST="$E2E_REGISTRY_HOST" \
+    LOCO_REGISTRY_URL="$E2E_REGISTRY_URL" \
+    LOCO_REGISTRY_USERNAME="${E2E_REGISTRY_API_USER%%:*}" \
+    LOCO_REGISTRY_PASSWORD="${E2E_REGISTRY_API_USER#*:}" \
+    LOCO_IMAGE_RETENTION="$IMAGE_RETENTION" \
+    LOCO_IMAGE_SWEEP_INTERVAL="$IMAGE_SWEEP_INTERVAL" \
     LOCO_SOURCE_BUCKET_ENDPOINT="$E2E_S3_ENDPOINT" \
     LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE=true \
         "$BIN_DIR/loco-api" \
@@ -297,6 +307,18 @@ start_agent() {
     LOCO_INVENTORY_INTERVAL="$(yq '.agent.inventoryInterval' "$core_values")" \
     LOCO_BUILD_RETENTION="$(yq '.agent.buildRetention' "$core_values")" \
     LOCO_BUILD_COLLECT_INTERVAL="$(yq '.agent.buildCollectInterval' "$core_values")" \
+    LOCO_HEARTBEAT_INTERVAL="$(yq '.agent.heartbeatInterval' "$core_values")" \
+    LOCO_CLUSTER_QUERY_TIMEOUT="$(yq '.agent.clusterQueryTimeout' "$core_values")" \
+    LOCO_RECONCILE_WORKERS="$(yq '.agent.reconcileWorkers' "$core_values")" \
+    LOCO_RECONCILE_RETRY_BASE_DELAY="$(yq '.agent.reconcileRetryBaseDelay' "$core_values")" \
+    LOCO_RECONCILE_RETRY_MAX_DELAY="$(yq '.agent.reconcileRetryMaxDelay' "$core_values")" \
+    LOCO_SYNC_OUTBOUND_BUFFER="$(yq '.agent.syncOutboundBuffer' "$core_values")" \
+    LOCO_BUILD_QUEUE_SIZE="$(yq '.agent.buildQueueSize' "$core_values")" \
+    LOCO_BUILD_CREATE_RETRY_DELAY="$(yq '.agent.buildCreateRetryDelay' "$core_values")" \
+    LOCO_BUILD_CREATE_RETRY_ATTEMPTS="$(yq '.agent.buildCreateRetryAttempts' "$core_values")" \
+    LOCO_RECONNECT_BASE_DELAY="$(yq '.agent.reconnectBaseDelay' "$core_values")" \
+    LOCO_RECONNECT_MAX_DELAY="$(yq '.agent.reconnectMaxDelay' "$core_values")" \
+    LOCO_HEALTHY_STREAM_DURATION="$(yq '.agent.healthyStreamDuration' "$core_values")" \
     KUBECONFIG="$KUBECONFIG_FILE" \
         "$BIN_DIR/loco-agent" \
         >"$LOG_DIR/agent.log" 2>&1 &

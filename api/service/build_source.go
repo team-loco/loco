@@ -97,6 +97,9 @@ func pinDockerfileBuild(
 	if build.Status != genDb.BuildStatusSucceeded || build.ImageDigest == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errBuildNotSucceeded)
 	}
+	if build.ImageDeletedAt != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errBuildImageDeleted)
+	}
 
 	image := build.ImageRepository + "@" + *build.ImageDigest
 	buildIDStr := build.ID.String()
@@ -105,6 +108,25 @@ func pinDockerfileBuild(
 		Image:   image,
 		BuildId: &buildIDStr,
 	}, nil
+}
+
+func lockPinnedBuildImage(ctx context.Context, qtx *genDb.Queries, pinned *deploymentv1.BuildSource) error {
+	rawBuildID := pinned.GetBuildId()
+	if rawBuildID == "" {
+		return nil
+	}
+	buildID, err := uuid.Parse(rawBuildID)
+	if err != nil {
+		return fmt.Errorf("parse pinned build id: %w", err)
+	}
+	deletedAt, err := qtx.LockBuildImageForDeploy(ctx, buildID)
+	if err != nil {
+		return fmt.Errorf("lock build %s: %w", buildID, err)
+	}
+	if deletedAt != nil {
+		return errBuildImageDeleted
+	}
+	return nil
 }
 
 func pinPublicImage(

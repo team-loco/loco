@@ -25,6 +25,10 @@ Builds, tests, code generation, linting and the local environment are mise tasks
   comments, unused files) in the same PR.
 - **Features ship with an e2e suite**: one `mise run e2e:<suite>` that builds its own kind
   cluster from a clean machine and cleans up after itself. Extend `e2e/`.
+- **Run e2e sparingly.** Unit and DB tests come first. Locally, run only the suite your change
+  affects, against a kept cluster (`--no-teardown`, then rerun with `--skip-build`); the PR's CI
+  is the from-scratch run. A setup failure is a harness bug to log and fix, not a reason to
+  loop reruns.
 
 ## Dependencies and Configuration
 
@@ -33,7 +37,7 @@ Builds, tests, code generation, linting and the local environment are mise tasks
   tracked file. New pins start at the latest release.
 - **One source per value.** Don't repeat a chart value as a Go default or a script constant.
 - **Read configuration once at startup** into a config struct, like `newAPIConfig()` in
-  `api/main.go`; no `os.Getenv` elsewhere. Invalid configuration panics. Tunable limits,
+  `api/config.go`, with the typed env readers in `api/env.go`; no `os.Getenv` elsewhere. Invalid configuration panics. Tunable limits,
   timeouts and defaults are config fields, not literals in the code.
 
 ## Code Style

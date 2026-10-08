@@ -1345,6 +1345,10 @@ func deploymentTxError(ctx context.Context, err error) error {
 		slog.WarnContext(ctx, "rejected an invalid deployment spec", "error", err)
 		return connect.NewError(connect.CodeInvalidArgument, invalidSpec)
 	}
+	if errors.Is(err, errBuildImageDeleted) {
+		slog.WarnContext(ctx, "rejected a deployment of a build whose image was deleted", "error", err)
+		return connect.NewError(connect.CodeFailedPrecondition, errBuildImageDeleted)
+	}
 	if errors.Is(err, errDesiredSpec) {
 		slog.ErrorContext(ctx, "failed to build desired application spec", "error", err)
 		return connect.NewError(connect.CodeInternal, err)

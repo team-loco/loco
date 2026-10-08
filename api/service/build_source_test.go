@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -55,7 +57,9 @@ func TestPinDockerfileBuild(t *testing.T) {
 	succeededID := uuid.New()
 	runningID := uuid.New()
 	foreignID := uuid.New()
+	deletedID := uuid.New()
 	missingID := uuid.New()
+	deletedAt := time.Now()
 	repository := "registry.loco.test/builds/ws-1/" + resourceID.String()
 	foreignRepository := "registry.loco.test/builds/ws-2/" + otherResourceID.String()
 	digest := testDigest
@@ -82,11 +86,20 @@ func TestPinDockerfileBuild(t *testing.T) {
 			ImageRepository: foreignRepository,
 			ImageDigest:     &digest,
 		},
+		deletedID: {
+			ID:              deletedID,
+			ResourceID:      resourceID,
+			Status:          genDb.BuildStatusSucceeded,
+			ImageRepository: repository,
+			ImageDigest:     &digest,
+			ImageDeletedAt:  &deletedAt,
+		},
 	}
 
 	succeededIDStr := succeededID.String()
 	runningIDStr := runningID.String()
 	foreignIDStr := foreignID.String()
+	deletedIDStr := deletedID.String()
 	missingIDStr := missingID.String()
 
 	tests := []struct {
@@ -121,6 +134,11 @@ func TestPinDockerfileBuild(t *testing.T) {
 		{
 			name:     "build not finished",
 			src:      &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, BuildId: &runningIDStr},
+			wantCode: connect.CodeFailedPrecondition,
+		},
+		{
+			name:     "build image deleted",
+			src:      &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, BuildId: &deletedIDStr},
 			wantCode: connect.CodeFailedPrecondition,
 		},
 	}
@@ -167,6 +185,7 @@ func TestPinPublicImage(t *testing.T) {
 		resolver  *fakeResolver
 		wantCode  connect.Code
 		wantImage string
+		wantCalls []string
 	}{
 		{
 			name:      "tagged docker hub image",
@@ -179,6 +198,16 @@ func TestPinPublicImage(t *testing.T) {
 			src:       &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: "ghcr.io/acme/app:v1"},
 			resolver:  &fakeResolver{digest: testDigest},
 			wantImage: "ghcr.io/acme/app@" + testDigest,
+		},
+		{
+			name: "tag and digest",
+			src: &deploymentv1.BuildSource{
+				Type:  buildSourceTypeImage,
+				Image: "nginxinc/nginx-unprivileged:1.31.6-alpine@" + testDigest,
+			},
+			resolver:  &fakeResolver{digest: testDigest},
+			wantImage: "index.docker.io/nginxinc/nginx-unprivileged@" + testDigest,
+			wantCalls: []string{"index.docker.io/nginxinc/nginx-unprivileged@" + testDigest},
 		},
 		{
 			name:     "build id set",
@@ -246,6 +275,9 @@ func TestPinPublicImage(t *testing.T) {
 			}
 			if sourceType := pinned.GetType(); sourceType != buildSourceTypeImage {
 				t.Fatalf("type = %q, want image", sourceType)
+			}
+			if tt.wantCalls != nil && !slices.Equal(tt.resolver.calls, tt.wantCalls) {
+				t.Fatalf("resolved %q, want %q", tt.resolver.calls, tt.wantCalls)
 			}
 		})
 	}

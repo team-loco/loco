@@ -64,6 +64,10 @@ func (tvm *VendingMachine) GetToken(ctx context.Context, token string) (queries.
 	}
 }
 
+func IsLocoToken(token string) bool {
+	return tokenPrefix(token) != ""
+}
+
 // Revoke immediately invalidates the given token.
 func (tvm *VendingMachine) Revoke(ctx context.Context, token string) error {
 	hash := hashToken(token)

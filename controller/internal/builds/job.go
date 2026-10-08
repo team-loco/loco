@@ -41,8 +41,6 @@ const (
 	buildDockerConfigFile = "config.json"
 	buildUser             = int64(1000)
 	buildkitFlags         = "--oci-worker-no-process-sandbox"
-	buildImageTagPrefix   = "build-"
-	buildCacheTagPrefix   = "buildcache-"
 	buildTerminationLog   = "/dev/termination-log"
 
 	builderEnvSourceURL       = "SOURCE_URL"
@@ -60,11 +58,11 @@ func buildLabels(build *locov1alpha1.Build) map[string]string {
 }
 
 func buildImageRef(build *locov1alpha1.Build) string {
-	return build.Spec.ImageRepository + ":" + buildImageTagPrefix + build.Spec.BuildID
+	return build.Spec.ImageRepository + ":" + locov1alpha1.BuildImageTagPrefix + build.Spec.BuildID
 }
 
 func buildCacheRef(build *locov1alpha1.Build) string {
-	return build.Spec.ImageRepository + ":" + buildCacheTagPrefix + build.Spec.BuildID
+	return build.Spec.ImageRepository + ":" + locov1alpha1.BuildCacheTagPrefix + build.Spec.BuildID
 }
 
 func emptyDirVolume(name string, size resource.Quantity) corev1.Volume {

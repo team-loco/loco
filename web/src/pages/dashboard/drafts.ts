@@ -54,8 +54,8 @@ export interface Draft {
 }
 
 const IMAGE_RE =
-	/^([a-z0-9][a-z0-9.\-_]*(:[0-9]+)?\/)?[a-z0-9._\-/]+(:[A-Za-z0-9._-]+|@sha256:[a-f0-9]{64})$/;
-const SERVER_IMAGE_RE = /^([a-z0-9\-._]+(\/[a-z0-9\-._]+)*)(:[a-z0-9\-._]+|@sha256:[a-f0-9]{64})?$/;
+	/^([a-z0-9][a-z0-9.\-_]*(:[0-9]+)?\/)?[a-z0-9._\-/]+(:[A-Za-z0-9._-]+(@sha256:[a-f0-9]{64})?|@sha256:[a-f0-9]{64})$/;
+const SERVER_IMAGE_RE = /^([a-z0-9\-._]+(:[0-9]+)?(\/[a-z0-9\-._]+)*)(:[a-z0-9\-._]+)?(@sha256:[a-f0-9]{64})?$/;
 export const NAME_RE = /^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$/;
 
 export function imageError(image: string): string | null {

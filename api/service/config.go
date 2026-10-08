@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
+	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
@@ -15,10 +16,25 @@ type ConfigServer struct {
 	platformDomain string
 	minCLIVersion  string
 	defaults       servicedefaults.Defaults
+	auth           *configv1.AuthConfig
 }
 
-func NewConfigServer(platformDomain, minCLIVersion string, defaults servicedefaults.Defaults) *ConfigServer {
-	return &ConfigServer{platformDomain: platformDomain, minCLIVersion: minCLIVersion, defaults: defaults}
+func NewConfigServer(
+	platformDomain, minCLIVersion string,
+	defaults servicedefaults.Defaults,
+	issuers []auth.IssuerConfig,
+) *ConfigServer {
+	s := &ConfigServer{platformDomain: platformDomain, minCLIVersion: minCLIVersion, defaults: defaults}
+	if ic, ok := auth.WebIssuer(issuers); ok {
+		s.auth = &configv1.AuthConfig{
+			Adapter:  string(ic.Web.Adapter),
+			Issuer:   ic.Issuer,
+			Url:      ic.Web.URL,
+			ClientId: ic.Web.ClientID,
+			Scopes:   ic.Web.Scopes,
+		}
+	}
+	return s
 }
 
 func (s *ConfigServer) GetConfig(
@@ -27,6 +43,7 @@ func (s *ConfigServer) GetConfig(
 ) (*connect.Response[configv1.GetConfigResponse], error) {
 	return connect.NewResponse(&configv1.GetConfigResponse{
 		MinCliVersion: s.minCLIVersion,
+		Auth:          s.auth,
 		ServiceDefaults: &configv1.DefaultServiceConfig{
 			Routing: &resourcev1.RoutingConfig{
 				Port:        8000,
