@@ -11,6 +11,7 @@ on:
       - "controller/**"
       - "agent/**"
       - "builder/**"
+      - "observability-proxy/**"
       - "main.go"
       - "go.mod"
       - "go.sum"
@@ -25,6 +26,7 @@ on:
       - "controller/**"
       - "agent/**"
       - "builder/**"
+      - "observability-proxy/**"
       - "main.go"
       - "go.mod"
       - "go.sum"
@@ -131,6 +133,11 @@ jobs:
           - component: Builder
             working-directory: builder
             test-command: mise run test:builder
+            timeout: 10
+
+          - component: Observability proxy
+            working-directory: observability-proxy
+            test-command: mise run test:obs-proxy
             timeout: 10
 
     steps:

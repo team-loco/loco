@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -21,55 +22,36 @@ import (
 	"github.com/team-loco/loco/observability-proxy/service"
 )
 
-const readHeaderTimeout = 10 * time.Second
+const (
+	readHeaderTimeout = 10 * time.Second
+	shutdownTimeout   = 30 * time.Second
+)
 
 var version string
 
-func main() {
-	cfg := config.Load()
+type proxy struct {
+	server    *http.Server
+	ch        *chClient.Client
+	permCache *cache.MemoryCache
+}
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	}))
-	slog.SetDefault(logger)
-
-	proxyVersion := buildinfo.Version(version)
-	slog.Info("starting observability proxy",
-		"version", proxyVersion,
-		"port", cfg.Port,
-		"control_plane", cfg.ControlPlaneURL,
-		"clickhouse", cfg.ClickHouseURL,
-	)
-
-	// Initialize ClickHouse client
+func newProxy(cfg *config.Config) (*proxy, error) {
 	ch, err := chClient.NewClient(cfg.ClickHouseURL, cfg.ClickHouseDB, cfg.MaxConcurrent)
 	if err != nil {
-		log.Fatalf("failed to connect to clickhouse: %v", err)
-	}
-	defer ch.Close()
-
-	if pingErr := ch.Ping(context.Background()); pingErr != nil {
-		slog.Warn("clickhouse ping failed on startup (may not be ready yet)", "error", pingErr)
+		return nil, fmt.Errorf("connect to clickhouse: %w", err)
 	}
 
-	// Initialize permission cache and token validator
 	permCache, err := cache.NewMemory(cfg.TokenCacheTTL)
 	if err != nil {
-		log.Fatalf("failed to create permission cache: %v", err)
+		ch.Close()
+		return nil, fmt.Errorf("create permission cache: %w", err)
 	}
-	defer permCache.Close()
 
 	validator := auth.NewValidator(cfg.ControlPlaneURL, cfg.ProxyAuthToken, permCache)
-
-	// Initialize service
 	svc := service.NewObservabilityService(ch, cfg, validator)
-
-	// Build mux with auth interceptor (handles both unary and streaming)
 	interceptors := connect.WithInterceptors(auth.NewAuthInterceptor())
 
 	mux := http.NewServeMux()
-
-	// Health endpoints (no auth)
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "ok")
@@ -84,7 +66,6 @@ func main() {
 		fmt.Fprintln(w, "ok")
 	})
 
-	// ConnectRPC service
 	path, handler := observabilityv1connect.NewObservabilityProxyServiceHandler(svc, interceptors)
 	mux.Handle(path, handler)
 
@@ -92,14 +73,47 @@ func main() {
 	protocols.SetHTTP1(true)
 	protocols.SetUnencryptedHTTP2(true)
 
+	addr := fmt.Sprintf(":%d", cfg.Port)
 	server := &http.Server{
-		Addr:              fmt.Sprintf(":%d", cfg.Port),
+		Addr:              addr,
 		Handler:           mux,
 		Protocols:         protocols,
 		ReadHeaderTimeout: readHeaderTimeout,
 	}
 
-	// Graceful shutdown
+	return &proxy{server: server, ch: ch, permCache: permCache}, nil
+}
+
+func (p *proxy) close() {
+	p.ch.Close()
+	if err := p.permCache.Close(); err != nil {
+		slog.Error("failed to close permission cache", "error", err)
+	}
+}
+
+func main() {
+	cfg := config.Load()
+
+	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	})
+	logger := slog.New(handler)
+	slog.SetDefault(logger)
+
+	proxyVersion := buildinfo.Version(version)
+	slog.Info("starting observability proxy",
+		"version", proxyVersion,
+		"port", cfg.Port,
+		"control_plane", cfg.ControlPlaneURL,
+		"clickhouse", cfg.ClickHouseURL,
+	)
+
+	p, err := newProxy(cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer p.close()
+
 	quit := make(chan error, 1)
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
@@ -109,10 +123,10 @@ func main() {
 		sig := <-sigChan
 		slog.Info("shutdown signal received", "signal", sig.String())
 
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 
-		if err := server.Shutdown(shutdownCtx); err != nil {
+		if err := p.server.Shutdown(shutdownCtx); err != nil {
 			quit <- err
 			return
 		}
@@ -120,8 +134,8 @@ func main() {
 		quit <- nil
 	}()
 
-	slog.Info("server listening", "addr", server.Addr)
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	slog.Info("server listening", "addr", p.server.Addr)
+	if err := p.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		slog.Error("server error", "error", err)
 		return
 	}
