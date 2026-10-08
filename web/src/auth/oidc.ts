@@ -2,8 +2,6 @@ import * as oauth from "oauth4webapi";
 
 import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
 
-import type { AuthAdapter } from "./types";
-
 const TOKENS_KEY = "loco:auth:oidc:v1";
 const PENDING_KEY = "loco:auth:oidc:pending:v1";
 const EXPIRY_SKEW_MS = 30_000;
@@ -19,6 +17,15 @@ interface PendingLogin {
 	state: string;
 	nonce: string;
 	redirectTo: string;
+}
+
+export interface AuthClient {
+	hasSession: () => boolean;
+	subscribe: (onChange: () => void) => () => void;
+	getAccessToken: (forceRefresh?: boolean) => Promise<string | null>;
+	signIn: (redirectTo: string) => Promise<void>;
+	completeSignIn: (url: URL) => Promise<void>;
+	signOut: () => Promise<void>;
 }
 
 export interface OIDCConfig {
@@ -43,7 +50,7 @@ function idTokenExpiry(idToken: string): number {
 	return (claims?.exp ?? 0) * 1000;
 }
 
-export async function createOIDCAdapter(cfg: OIDCConfig): Promise<AuthAdapter> {
+export async function createAuthClient(cfg: OIDCConfig): Promise<AuthClient> {
 	const issuer = new URL(cfg.issuer);
 	const insecure = issuer.protocol === "http:";
 	const requestOptions = { [oauth.allowInsecureRequests]: insecure };
@@ -51,7 +58,7 @@ export async function createOIDCAdapter(cfg: OIDCConfig): Promise<AuthAdapter> {
 		issuer,
 		await oauth.discoveryRequest(issuer, { algorithm: "oidc", ...requestOptions }),
 	);
-	const client: oauth.Client = { client_id: cfg.clientId };
+	const oauthClient: oauth.Client = { client_id: cfg.clientId };
 	const clientAuth = oauth.None();
 	const listeners = new Set<() => void>();
 	let tokens = parseJSON<StoredTokens>(readStorage(TOKENS_KEY));
@@ -86,8 +93,8 @@ export async function createOIDCAdapter(cfg: OIDCConfig): Promise<AuthAdapter> {
 		try {
 			const res = await oauth.processRefreshTokenResponse(
 				as,
-				client,
-				await oauth.refreshTokenGrantRequest(as, client, clientAuth, current.refreshToken, requestOptions),
+				oauthClient,
+				await oauth.refreshTokenGrantRequest(as, oauthClient, clientAuth, current.refreshToken, requestOptions),
 			);
 			const next = fromResponse(res, current.refreshToken);
 			store(next);
@@ -99,7 +106,6 @@ export async function createOIDCAdapter(cfg: OIDCConfig): Promise<AuthAdapter> {
 	};
 
 	return {
-		kind: "oidc",
 		hasSession: () => tokens !== null,
 		subscribe: (onChange) => {
 			listeners.add(onChange);
@@ -115,14 +121,7 @@ export async function createOIDCAdapter(cfg: OIDCConfig): Promise<AuthAdapter> {
 			});
 			return await refreshing;
 		},
-		loginMethods: async () => await Promise.resolve([{ kind: "redirect", label: "Continue with single sign-on" }]),
-		signInWithOAuth: async () => {
-			await Promise.reject(new Error("This sign-in method is not available"));
-		},
-		signInWithSSO: async () => {
-			await Promise.reject(new Error("This sign-in method is not available"));
-		},
-		signInWithRedirect: async (redirectTo) => {
+		signIn: async (redirectTo) => {
 			if (as.authorization_endpoint === undefined) throw new Error("The identity provider has no authorization endpoint");
 			const pending: PendingLogin = {
 				verifier: oauth.generateRandomCodeVerifier(),
@@ -142,17 +141,17 @@ export async function createOIDCAdapter(cfg: OIDCConfig): Promise<AuthAdapter> {
 			url.searchParams.set("nonce", pending.nonce);
 			window.location.assign(url.toString());
 		},
-		completeRedirect: async (current) => {
+		completeSignIn: async (current) => {
 			const pending = parseJSON<PendingLogin>(readStorage(PENDING_KEY, "session"));
 			removeStorage(PENDING_KEY, "session");
 			if (pending === null) throw new Error("This sign-in link has expired. Try signing in again.");
-			const params = oauth.validateAuthResponse(as, client, current, pending.state);
+			const params = oauth.validateAuthResponse(as, oauthClient, current, pending.state);
 			const res = await oauth.processAuthorizationCodeResponse(
 				as,
-				client,
+				oauthClient,
 				await oauth.authorizationCodeGrantRequest(
 					as,
-					client,
+					oauthClient,
 					clientAuth,
 					params,
 					pending.redirectTo,

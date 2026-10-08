@@ -1,11 +1,11 @@
 import { landingPath } from "@/auth/landing";
-import { authAdapter } from "@/auth/adapter";
+import { authClient } from "@/auth/client";
 
 import { AuthStep, type AuthStepRun } from "./AuthStep";
 
 const completeSignIn: AuthStepRun = async (transport, report) => {
-	const adapter = await authAdapter();
-	await adapter.completeRedirect(new URL(window.location.href));
+	const client = await authClient();
+	await client.completeSignIn(new URL(window.location.href));
 	return await landingPath(transport, null, report);
 };
 

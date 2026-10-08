@@ -5,9 +5,9 @@ import { useEffect, useState } from "react";
 import { Navigate } from "react-router";
 
 import { AppLoading } from "@/context/AppLoader";
-import { getErrorMessage } from "@/lib/error-handler";
+import { toastConnectError } from "@/lib/error-handler";
 
-type Outcome = { kind: "pending"; message: string } | { kind: "done"; to: string } | { kind: "failed"; error: string };
+type Outcome = { kind: "pending"; message: string } | { kind: "done"; to: string } | { kind: "failed" };
 
 export type AuthStepRun = (transport: Transport, report: (message: string) => void) => Promise<string>;
 
@@ -29,7 +29,8 @@ export function AuthStep({ id, run, fallbackError }: { id: string; run: AuthStep
 				setOutcome({ kind: "done", to });
 			})
 			.catch((err: unknown) => {
-				setOutcome({ kind: "failed", error: getErrorMessage(err, fallbackError) });
+				toastConnectError(err, fallbackError);
+				setOutcome({ kind: "failed" });
 			});
 	}, [id, run, transport, queryClient, fallbackError]);
 
@@ -39,6 +40,6 @@ export function AuthStep({ id, run, fallbackError }: { id: string; run: AuthStep
 		case "done":
 			return <Navigate to={outcome.to} replace />;
 		case "failed":
-			return <Navigate to="/login" replace state={{ signInError: outcome.error }} />;
+			return <Navigate to="/login" replace />;
 	}
 }

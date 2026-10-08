@@ -9,7 +9,6 @@ on:
       - "api/migrations/**"
       - "api/queries/**"
       - "env/conformance/**"
-      - "env/local/auth-db.sql"
       - "mise-tasks/test/auth-conformance"
       - ".github/workflows/auth-conformance.yml"
   pull_request:
@@ -18,7 +17,6 @@ on:
       - "api/migrations/**"
       - "api/queries/**"
       - "env/conformance/**"
-      - "env/local/auth-db.sql"
       - "mise-tasks/test/auth-conformance"
       - ".github/workflows/auth-conformance.yml"
   merge_group:

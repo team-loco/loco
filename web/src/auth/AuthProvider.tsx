@@ -5,12 +5,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
 import type { User } from "@gen/loco/user/v1/user_pb";
 
-import type { AuthAdapter } from "./adapters/types";
-import { authAdapter } from "./adapter";
+import { authClient } from "./client";
+import type { AuthClient } from "./oidc";
 
 interface AuthContextType {
 	user: User | null;
-	adapter: AuthAdapter | null;
+	client: AuthClient | null;
 	signedOut: boolean;
 	isAuthenticated: boolean;
 	isPending: boolean;
@@ -20,7 +20,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const adapterForUI: Promise<AuthAdapter | null> = authAdapter().catch((err: unknown) => {
+const clientForUI: Promise<AuthClient | null> = authClient().catch((err: unknown) => {
 	console.error("Could not load the sign-in configuration:", err);
 	return null;
 });
@@ -31,10 +31,10 @@ const noSubscription = () => () => undefined;
 const neverSignedIn = () => false;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-	const adapter = use(adapterForUI);
+	const client = use(clientForUI);
 	const hasSession = useSyncExternalStore(
-		adapter?.subscribe ?? noSubscription,
-		adapter?.hasSession ?? neverSignedIn,
+		client?.subscribe ?? noSubscription,
+		client?.hasSession ?? neverSignedIn,
 	);
 	const onSignInPage = SIGN_IN_PATHS.some((path) => window.location.pathname.startsWith(path));
 	const {
@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 	const logout = async () => {
 		try {
-			await adapter?.signOut();
+			await client?.signOut();
 		} catch (err) {
 			console.error("Logout failed:", err);
 		} finally {
@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		<AuthContext
 			value={{
 				user: hasSession ? (user?.user ?? null) : null,
-				adapter,
+				client,
 				signedOut: !hasSession,
 				isAuthenticated: hasSession && !unauthenticated && !!user?.user,
 				isPending: hasSession && isPending,

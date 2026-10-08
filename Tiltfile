@@ -119,8 +119,7 @@ dc_resource('postgres', resource_deps=['doctor'], labels=['infrastructure'])
 dc_resource('valkey', resource_deps=['doctor'], labels=['infrastructure'])
 dc_resource('registry', resource_deps=['doctor'], labels=['infrastructure'])
 dc_resource('s3', resource_deps=['doctor'], labels=['infrastructure'])
-dc_resource('auth-db', resource_deps=['postgres'], labels=['infrastructure'])
-dc_resource('auth', resource_deps=['auth-db'], labels=['infrastructure'])
+dc_resource('dex', resource_deps=['doctor'], labels=['infrastructure'])
 
 local_resource(
     'cluster-registry',
@@ -244,7 +243,7 @@ local_resource(
     cmd='mise run build:api',
     serve_cmd='api/bin/loco-api',
     deps=['api/', 'gen/go/', 'k8sapi/', 'internal/buildinfo/', 'go.mod', 'go.sum'],
-    resource_deps=['db-migrate', 'valkey', 's3', 'auth'],
+    resource_deps=['db-migrate', 'valkey', 's3', 'dex'],
     allow_parallel=True,
     labels=['services'],
 )

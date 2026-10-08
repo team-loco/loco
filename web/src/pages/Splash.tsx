@@ -1,8 +1,7 @@
-import { useState } from "react";
-import { Navigate, useLocation } from "react-router";
+import { Navigate } from "react-router";
 
 import { useAuth } from "@/auth/AuthProvider";
-import { LoginModal } from "@/components/LoginModal";
+import { useSignIn } from "@/auth/SignIn";
 import { AppLoading } from "@/context/AppLoader";
 
 import { AccessSection } from "./splash/AccessSection";
@@ -14,50 +13,32 @@ import { ProductDemo } from "./splash/ProductDemo";
 import { SplashFooter } from "./splash/SplashFooter";
 import { SplashNav } from "./splash/SplashNav";
 
-function wantsSignIn(state: unknown): boolean {
-	return typeof state === "object" && state !== null && "signIn" in state && state.signIn === true;
-}
-
-function nextFrom(state: unknown): string | null {
-	if (typeof state !== "object" || state === null || !("next" in state) || typeof state.next !== "string") return null;
-	return state.next.startsWith("/") && !state.next.startsWith("//") ? state.next : null;
-}
-
-function signInErrorFrom(state: unknown): string | null {
-	if (typeof state !== "object" || state === null || !("signInError" in state)) return null;
-	return typeof state.signInError === "string" ? state.signInError : null;
-}
-
 export function Splash() {
 	const { isAuthenticated, isPending } = useAuth();
-	const location = useLocation();
-	const signInError = signInErrorFrom(location.state);
-	const next = nextFrom(location.state);
-	const [loginModalOpen, setLoginModalOpen] = useState(signInError !== null || wantsSignIn(location.state));
+	const { signIn, redirecting } = useSignIn();
 
 	if (isAuthenticated) {
-		return <Navigate to={next ?? "/dashboard"} replace />;
+		return <Navigate to="/dashboard" replace />;
 	}
 
 	if (isPending) {
 		return <AppLoading />;
 	}
 
-	const openLogin = () => {
-		setLoginModalOpen(true);
+	const startSignIn = () => {
+		void signIn(null);
 	};
 
 	return (
 		<div className="flex min-h-screen flex-col overflow-x-clip bg-background text-lg leading-[1.55] text-foreground">
-			<SplashNav onSignIn={openLogin} />
+			<SplashNav onSignIn={startSignIn} redirecting={redirecting} />
 			<Hero />
 			<ProductDemo />
 			<GetStarted />
 			<Features />
 			<Architecture />
 			<AccessSection />
-			<SplashFooter onSignIn={openLogin} />
-			<LoginModal open={loginModalOpen} onOpenChange={setLoginModalOpen} initialError={signInError} next={next} />
+			<SplashFooter onSignIn={startSignIn} redirecting={redirecting} />
 		</div>
 	);
 }

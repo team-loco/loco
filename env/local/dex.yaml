@@ -1,0 +1,31 @@
+issuer: http://localhost:{{ .Env.DEX_PORT }}/dex
+storage:
+  type: memory
+web:
+  http: 0.0.0.0:5556
+  allowedOrigins:
+    - {{ .Env.WEB_URL }}
+oauth2:
+  skipApprovalScreen: true
+enablePasswordDB: true
+staticPasswords:
+  - email: dev@loco.test
+    username: dev
+    userID: 6f1d3c2e-8a51-4c8e-9b0f-2d7a4e5c9b11
+    hash: {{ crypto.Bcrypt "loco-dev" | quote }}
+staticClients:
+  - id: loco
+    name: Loco
+    public: true
+    redirectURIs:
+      - {{ .Env.WEB_URL }}/auth/callback
+{{- if getenv "GH_OAUTH_CLIENT_ID" }}
+connectors:
+  - type: github
+    id: github
+    name: GitHub
+    config:
+      clientID: {{ .Env.GH_OAUTH_CLIENT_ID }}
+      clientSecret: {{ .Env.GH_OAUTH_CLIENT_SECRET }}
+      redirectURI: http://localhost:{{ .Env.DEX_PORT }}/dex/callback
+{{- end }}

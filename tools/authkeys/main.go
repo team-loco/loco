@@ -5,11 +5,9 @@ import (
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"math/big"
-	"os"
 	"time"
 
 	"github.com/go-jose/go-jose/v4"
@@ -18,14 +16,10 @@ import (
 )
 
 const (
-	rsaKeyBits         = 2048
-	secretBytes        = 32
-	serviceRoleYears   = 10
-	serviceRoleCommand = "service-role"
-	jwtKeysEnv         = "GOTRUE_JWT_KEYS"
+	rsaKeyBits       = 2048
+	secretBytes      = 32
+	serviceRoleYears = 10
 )
-
-var errNoRSAKey = errors.New("no RSA private key in the jwt keys")
 
 type providerKeys struct {
 	ServiceRoleKey string
@@ -100,29 +94,7 @@ func signServiceRole(key *rsa.PrivateKey, kid string) (string, error) {
 	return token, nil
 }
 
-func serviceRoleKeyFromJWKs(raw string) (string, error) {
-	var set []jose.JSONWebKey
-	if err := json.Unmarshal([]byte(raw), &set); err != nil {
-		return "", fmt.Errorf("decode jwt keys: %w", err)
-	}
-	for _, k := range set {
-		key, ok := k.Key.(*rsa.PrivateKey)
-		if ok {
-			return signServiceRole(key, k.KeyID)
-		}
-	}
-	return "", errNoRSAKey
-}
-
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == serviceRoleCommand {
-		key, err := serviceRoleKeyFromJWKs(os.Getenv(jwtKeysEnv))
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Printf("AUTH_SUPABASE_SERVICE_KEY='%s'\n", key)
-		return
-	}
 	keys, err := generateProviderKeys()
 	if err != nil {
 		log.Fatal(err)

@@ -12,7 +12,7 @@ const NAV_LINKS = [
 	{ label: "Architecture", href: "#stack" },
 ] as const;
 
-export function SplashNav({ onSignIn }: { onSignIn: () => void }) {
+export function SplashNav({ onSignIn, redirecting }: { onSignIn: () => void; redirecting: boolean }) {
 	return (
 		<header className="sticky top-0 z-30 border-b border-line bg-background/80 backdrop-blur-md backdrop-saturate-150">
 			<div className="mx-auto flex h-[60px] max-w-[1200px] items-center gap-4 px-4 sm:gap-8 sm:px-7">
@@ -48,7 +48,7 @@ export function SplashNav({ onSignIn }: { onSignIn: () => void }) {
 						GitHub
 						<ArrowUpRight className="-ml-0.5 size-[13px] text-fg4" />
 					</a>
-					<Button variant="ghost" onClick={onSignIn} className="px-2 text-md text-fg2 hover:text-foreground">
+					<Button variant="ghost" onClick={onSignIn} disabled={redirecting} className="px-2 text-md text-fg2 hover:text-foreground">
 						Sign in
 					</Button>
 					<Button
