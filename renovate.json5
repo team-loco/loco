@@ -35,6 +35,13 @@
       matchPackageNames: ["k8s.io/**", "sigs.k8s.io/**"],
     },
     {
+      description: "api reaches the Kubernetes libraries only through its replace of k8sapi, so its indirect entries move with the group",
+      matchManagers: ["gomod"],
+      matchDepTypes: ["indirect"],
+      matchPackageNames: ["k8s.io/**", "sigs.k8s.io/**"],
+      enabled: true,
+    },
+    {
       groupName: "connectrpc",
       matchDatasources: ["go"],
       matchPackageNames: ["connectrpc.com/**"],
