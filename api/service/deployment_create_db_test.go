@@ -4,12 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/tvm"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 )
 
@@ -49,10 +47,8 @@ UPDATE resources SET spec = $2 WHERE id = $1`
 		t.Fatalf("seed: %v", err)
 	}
 
-	machine := tvm.NewVendingMachine(f.pool, f.queries, tvm.Config{LastUsedUpdateInterval: time.Minute})
-	t.Cleanup(machine.Close)
 	resolver := &fakeResolver{digest: testDigest}
-	server := NewDeploymentServer(f.pool, f.queries, machine, resolver, testRegistryHost, testServiceDefaults())
+	server := NewDeploymentServer(f.pool, f.queries, resolver, testRegistryHost, testServiceDefaults())
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
 	}

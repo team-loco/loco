@@ -13,7 +13,7 @@ import (
 
 // Issue issues an API token for the given entity and scopes. The userID is the ID of the
 // user requesting the token; that user must already hold all the requested scopes (explicitly
-// or implicitly), otherwise ErrInsufficentPermissions is returned.
+// or implicitly), otherwise authz.ErrInsufficientPermissions is returned.
 // It is the caller's responsibility to verify that the request is coming from the user with
 // this userID before calling Issue.
 func (tvm *VendingMachine) Issue(
@@ -34,14 +34,14 @@ func (tvm *VendingMachine) Issue(
 		return "", err
 	}
 
-	userScopes, err := tvm.UserScopes(ctx, userUUID)
+	userScopes, err := tvm.authz.UserScopes(ctx, userUUID)
 	if err != nil {
 		slog.ErrorContext(ctx, err.Error())
 		return "", err
 	}
 
 	for _, es := range entityScopes {
-		if err := tvm.VerifyWithGivenEntityScopes(ctx, userScopes, es); err != nil {
+		if err := tvm.authz.Check(ctx, userScopes, es); err != nil {
 			slog.ErrorContext(ctx, err.Error())
 			return "", err
 		}

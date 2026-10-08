@@ -12,13 +12,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/team-loco/loco/api/authz"
+	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
 	timeutil "github.com/team-loco/loco/api/timeutil"
-	"github.com/team-loco/loco/api/tvm"
-	"github.com/team-loco/loco/api/tvm/actions"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -60,7 +60,7 @@ type BuildConfig struct {
 type BuildServer struct {
 	db      *pgxpool.Pool
 	queries genDb.Querier
-	machine *tvm.VendingMachine
+	authz   *authz.Authorizer
 	bucket  SourceBucket
 	config  BuildConfig
 	now     func() time.Time
@@ -69,14 +69,13 @@ type BuildServer struct {
 func NewBuildServer(
 	db *pgxpool.Pool,
 	queries genDb.Querier,
-	machine *tvm.VendingMachine,
 	bucket SourceBucket,
 	config BuildConfig,
 ) *BuildServer {
 	return &BuildServer{
 		db:      db,
 		queries: queries,
-		machine: machine,
+		authz:   authz.New(db, queries),
 		bucket:  bucket,
 		config:  config,
 		now:     time.Now,
@@ -106,7 +105,7 @@ func (s *BuildServer) authorize(ctx context.Context, action actions.Action, reso
 	}
 	resourceIDStr := resourceID.String()
 	scope := actions.New(action, resourceIDStr)
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, scope); err != nil {
+	if err := s.authz.Check(ctx, scopes, scope); err != nil {
 		slog.WarnContext(ctx, "unauthorized build request", "resourceId", resourceIDStr)
 		return connect.NewError(connect.CodePermissionDenied, err)
 	}

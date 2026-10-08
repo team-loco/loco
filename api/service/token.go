@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/team-loco/loco/api/authz"
+
 	"github.com/team-loco/loco/api/events"
 
 	"connectrpc.com/connect"
@@ -36,12 +38,13 @@ var (
 type TokenServer struct {
 	db      *pgxpool.Pool
 	queries genDb.Querier
+	authz   *authz.Authorizer
 	tvm     *tvm.VendingMachine
 }
 
 // NewTokenServer creates a new TokenServer instance
 func NewTokenServer(db *pgxpool.Pool, queries genDb.Querier, vendingMachine *tvm.VendingMachine) *TokenServer {
-	return &TokenServer{db: db, queries: queries, tvm: vendingMachine}
+	return &TokenServer{db: db, queries: queries, tvm: vendingMachine, authz: authz.New(db, queries)}
 }
 
 // CreateToken issues a new API token for a specific entity with defined scopes
@@ -93,7 +96,7 @@ func (s *TokenServer) CreateToken(
 		ID:   entityID,
 	}
 
-	if verifyErr := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, genDb.EntityScope{
+	if verifyErr := s.authz.Check(ctx, entityScopes, genDb.EntityScope{
 		EntityType: targetEntity.Type,
 		EntityID:   targetEntity.ID,
 		Scope:      genDb.ScopeWrite,
@@ -138,7 +141,7 @@ func (s *TokenServer) CreateToken(
 		return events.Record(ctx, qtx, tokenEvent(events.TokenCreated, targetEntity, r.GetName()))
 	})
 	if err != nil {
-		if errors.Is(err, tvm.ErrInsufficentPermissions) {
+		if errors.Is(err, authz.ErrInsufficientPermissions) {
 			slog.WarnContext(ctx, "user lacks permissions for requested scopes", "user_id", entity.ID.String())
 			return nil, connect.NewError(connect.CodePermissionDenied, err)
 		}
@@ -211,7 +214,7 @@ func (s *TokenServer) ListTokens(
 		ID:   entityID,
 	}
 
-	if verifyErr := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, genDb.EntityScope{
+	if verifyErr := s.authz.Check(ctx, entityScopes, genDb.EntityScope{
 		EntityType: targetEntity.Type,
 		EntityID:   targetEntity.ID,
 		Scope:      genDb.ScopeRead,
@@ -285,7 +288,7 @@ func (s *TokenServer) GetToken(
 		ID:   entityID,
 	}
 
-	if verifyErr := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, genDb.EntityScope{
+	if verifyErr := s.authz.Check(ctx, entityScopes, genDb.EntityScope{
 		EntityType: targetEntity.Type,
 		EntityID:   targetEntity.ID,
 		Scope:      genDb.ScopeRead,
@@ -364,7 +367,7 @@ func (s *TokenServer) RevokeToken(
 		ID:   entityID,
 	}
 
-	hasWritePermission := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, genDb.EntityScope{
+	hasWritePermission := s.authz.Check(ctx, entityScopes, genDb.EntityScope{
 		EntityType: targetEntity.Type,
 		EntityID:   targetEntity.ID,
 		Scope:      genDb.ScopeWrite,
@@ -472,7 +475,7 @@ func (s *TokenServer) CheckPermission(
 		return nil, connect.NewError(connect.CodeInternal, errCheckPermission)
 	}
 
-	allowed := s.tvm.VerifyWithGivenEntityScopes(ctx, scopes, genDb.EntityScope{
+	allowed := s.authz.Check(ctx, scopes, genDb.EntityScope{
 		EntityType: protoEntityTypeToDb(r.GetEntityType()),
 		EntityID:   entityID,
 		Scope:      protoScopeToDb(r.GetScope()),

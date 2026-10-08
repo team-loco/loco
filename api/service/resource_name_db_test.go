@@ -3,13 +3,11 @@ package service
 import (
 	"context"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/tvm"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
@@ -21,9 +19,7 @@ func getResourceByName(
 	name string,
 ) (*resourcev1.Resource, error) {
 	t.Helper()
-	machine := tvm.NewVendingMachine(f.pool, f.queries, tvm.Config{LastUsedUpdateInterval: time.Minute})
-	t.Cleanup(machine.Close)
-	server := NewResourceServer(f.pool, f.queries, machine, testServiceDefaults())
+	server := NewResourceServer(f.pool, f.queries, testServiceDefaults())
 	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, scopes)
 	nameKey := &resourcev1.GetResourceNameKey{WorkspaceId: workspaceID.String(), Name: name}
 	req := connect.NewRequest(&resourcev1.GetResourceRequest{

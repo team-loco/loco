@@ -24,6 +24,7 @@ import (
 	"github.com/rs/cors"
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/auth/supabase"
+	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/db"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -191,7 +192,7 @@ func main() {
 	httpInterceptors := connect.WithInterceptors(
 		deadlineInterceptor,
 		interceptor.NewContextInterceptor(),
-		interceptor.NewAuthInterceptor(machine, verifier, resolver),
+		interceptor.NewAuthInterceptor(machine, verifier, resolver, authz.New(pool, queries)),
 		validate.NewInterceptor(),
 	)
 
@@ -222,7 +223,7 @@ func main() {
 	userServiceHandler := service.NewUserServer(pool, queries, machine, admins)
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
-	resourceServiceHandler := service.NewResourceServer(pool, queries, machine, ac.ServiceDefaults)
+	resourceServiceHandler := service.NewResourceServer(pool, queries, ac.ServiceDefaults)
 	sourceBucket, bucketErr := newSourceBucket(ac.SourceBucket)
 	if bucketErr != nil {
 		log.Fatal(bucketErr)
@@ -247,12 +248,11 @@ func main() {
 	deploymentServiceHandler := service.NewDeploymentServer(
 		pool,
 		queries,
-		machine,
 		imageResolver,
 		ac.RegistryHost,
 		ac.ServiceDefaults,
 	)
-	buildServiceHandler := service.NewBuildServer(pool, queries, machine, sourceBucket, service.BuildConfig{
+	buildServiceHandler := service.NewBuildServer(pool, queries, sourceBucket, service.BuildConfig{
 		RegistryHost:   ac.RegistryHost,
 		RegistryPrefix: ac.RegistryPrefix,
 		SourceMaxBytes: ac.SourceMaxBytes,

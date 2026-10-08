@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/auth/authtest"
+	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
@@ -23,7 +24,8 @@ func newProviderFixture(t *testing.T, policy auth.SignupPolicy) *providerFixture
 	t.Helper()
 	pool := authtest.NewPool(t)
 	issuer := authtest.NewIssuer(t)
-	machine := tvm.NewVendingMachine(pool, genDb.New(pool), tvm.Config{
+	queries := genDb.New(pool)
+	machine := tvm.NewVendingMachine(pool, queries, tvm.Config{
 		SessionAccessTokenDuration:  time.Hour,
 		SessionRefreshTokenDuration: time.Hour,
 		LastUsedUpdateInterval:      time.Minute,
@@ -41,7 +43,7 @@ func newProviderFixture(t *testing.T, policy auth.SignupPolicy) *providerFixture
 	}})
 	return &providerFixture{
 		issuer:      issuer,
-		interceptor: NewAuthInterceptor(machine, verifier, auth.NewResolver(pool, policy)),
+		interceptor: NewAuthInterceptor(machine, verifier, auth.NewResolver(pool, policy), authz.New(pool, queries)),
 	}
 }
 

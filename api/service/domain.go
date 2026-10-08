@@ -13,11 +13,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/team-loco/loco/api/authz"
+	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
-	"github.com/team-loco/loco/api/tvm/actions"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 )
 
@@ -31,11 +32,12 @@ var (
 type DomainServer struct {
 	db      *pgxpool.Pool
 	queries genDb.Querier
+	authz   *authz.Authorizer
 	machine *tvm.VendingMachine
 }
 
 func NewDomainServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine) *DomainServer {
-	return &DomainServer{db: db, queries: queries, machine: machine}
+	return &DomainServer{db: db, queries: queries, machine: machine, authz: authz.New(db, queries)}
 }
 
 // CreatePlatformDomain creates a new platform domain (admin only)
@@ -51,7 +53,7 @@ func (s *DomainServer) CreatePlatformDomain(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.NewSystem(actions.CreatePlatformDomain),
@@ -170,7 +172,7 @@ func (s *DomainServer) UpdatePlatformDomain(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.NewSystem(actions.UpdatePlatformDomain),
@@ -219,7 +221,7 @@ func (s *DomainServer) DeletePlatformDomain(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.NewSystem(actions.DeletePlatformDomain),
@@ -261,7 +263,7 @@ func (s *DomainServer) ListLocoOwnedDomains(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.NewSystem(actions.ListLocoOwnedDomains),
@@ -305,7 +307,7 @@ func (s *DomainServer) CreateResourceDomain(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.AddDomain, r.GetResourceId()),
@@ -411,7 +413,7 @@ func (s *DomainServer) UpdateResourceDomain(
 	}
 
 	// verify user has access to this resource
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.UpdateDomain, domainRow.ResourceID.String()),
@@ -515,7 +517,7 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.SetPrimaryDomain, r.GetResourceId()),
@@ -603,7 +605,7 @@ func (s *DomainServer) DeleteResourceDomain(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if verifyErr := s.machine.VerifyWithGivenEntityScopes(
+	if verifyErr := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.RemoveDomain, domainRow.ResourceID.String()),

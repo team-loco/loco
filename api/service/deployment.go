@@ -14,13 +14,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/team-loco/loco/api/authz"
+	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	timeutil "github.com/team-loco/loco/api/timeutil"
-	"github.com/team-loco/loco/api/tvm"
-	"github.com/team-loco/loco/api/tvm/actions"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -169,17 +169,16 @@ func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.De
 type DeploymentServer struct {
 	db           *pgxpool.Pool
 	queries      genDb.Querier
-	machine      *tvm.VendingMachine
 	resolver     ImageResolver
 	registryHost string
 	defaults     servicedefaults.Defaults
+	authz        *authz.Authorizer
 }
 
 // NewDeploymentServer creates a new DeploymentServer instance
 func NewDeploymentServer(
 	db *pgxpool.Pool,
 	queries genDb.Querier,
-	machine *tvm.VendingMachine,
 	resolver ImageResolver,
 	registryHost string,
 	defaults servicedefaults.Defaults,
@@ -187,10 +186,10 @@ func NewDeploymentServer(
 	return &DeploymentServer{
 		db:           db,
 		queries:      queries,
-		machine:      machine,
 		resolver:     resolver,
 		registryHost: registryHost,
 		defaults:     defaults,
+		authz:        authz.New(db, queries),
 	}
 }
 
@@ -215,7 +214,7 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if verifyErr := s.machine.VerifyWithGivenEntityScopes(
+	if verifyErr := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.CreateDeployment, r.GetResourceId()),
@@ -435,7 +434,7 @@ func (s *DeploymentServer) GetDeployment(
 	}
 
 	// check if user has permission to get deployment (resource:read)
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.GetDeployment, resource.ID.String()),
@@ -463,7 +462,7 @@ func (s *DeploymentServer) ListDeployments(
 	}
 
 	// check if requester has permission to list deployments (resource:read)
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.ListDeployments, r.GetResourceId()),
@@ -543,7 +542,7 @@ func (s *DeploymentServer) DeleteDeployment(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if verifyErr := s.machine.VerifyWithGivenEntityScopes(
+	if verifyErr := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.DeleteDeployment, resource.ID.String()),
@@ -605,7 +604,7 @@ func (s *DeploymentServer) WatchDeployment(
 	}
 
 	resourceIDStr := resourceID.String()
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.StreamDeployment, resourceIDStr),
