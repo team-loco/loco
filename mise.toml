@@ -36,7 +36,7 @@ GOTOOLCHAIN = "local"
 
 [tasks.setup]
 description = "Install the pinned tools, the web dependencies and the git hooks, then check Docker"
-run = ["mise install", "bun install --frozen-lockfile", "lefthook install", "mise run doctor"]
+run = ["mise install", "bun install --frozen-lockfile", "lefthook install", "mise run doctor", "mise run auth:keys"]
 
 [tasks.build]
 description = "Build the loco CLI into bin/loco"
@@ -88,8 +88,8 @@ description = "Run every test suite"
 depends = ["test:*"]
 
 [tasks."test:cli"]
-description = "Test the CLI"
-run = "go test -v -coverprofile=coverage.out ./cmd/... ./internal/..."
+description = "Test the CLI and the dev tools in the root module"
+run = "go test -v -coverprofile=coverage.out ./cmd/... ./internal/... ./tools/..."
 
 [tasks."test:api"]
 description = "Test the API server"
@@ -158,12 +158,13 @@ orbstack_sock="$HOME/.orbstack/run/docker.sock"
 if [ -z "${DOCKER_HOST:-}" ] && [ -S "$orbstack_sock" ]; then
   export DOCKER_HOST="unix://$orbstack_sock"
 fi
+mise run auth:keys
 tilt up
 """
 
 [tasks."infra:up"]
-description = "Start Postgres, Valkey, the image registry and the source bucket from compose.yaml and wait until they are up"
-run = "docker compose up -d --wait postgres valkey registry s3"
+description = "Start Postgres, Valkey, the identity provider, the image registry and the source bucket from compose.yaml and wait until they are up"
+run = "docker compose up -d --wait postgres valkey auth registry s3"
 
 [tasks."infra:down"]
 description = "Stop the compose services; the database, images and sources are kept in their volumes"
