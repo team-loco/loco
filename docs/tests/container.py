@@ -95,7 +95,7 @@ class ContainerTests(unittest.TestCase):
                         expect(page.get_by_role('heading', name='Deployment modes')).to_be_visible()
                         self.assertEqual(urlsplit(page.url).path, prefix + '/deployment/modes/')
                         self.assertFalse(violations, violations)
-                        context.unroute_all(behavior='wait')
+                        context.unroute_all(behavior='ignoreErrors')
                         context.close()
                 context = browser.new_context()
 
@@ -108,7 +108,7 @@ class ContainerTests(unittest.TestCase):
                 page = context.new_page()
                 page.goto('https://' + ui_host + '/', wait_until='networkidle')
                 expect(page.get_by_role('heading', name='Deploy containers,')).to_be_visible()
-                context.unroute_all(behavior='wait')
+                context.unroute_all(behavior='ignoreErrors')
                 context.close()
             finally:
                 browser.close()
