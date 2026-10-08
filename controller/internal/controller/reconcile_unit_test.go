@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -19,10 +20,23 @@ import (
 
 const (
 	testAppType   = "SERVICE"
+	testCPU       = "100m"
 	testNamespace = "default"
 	testImage     = "registry.example.com/app:v1"
 	testHostName  = "app.example.com"
 )
+
+func testResources() *locov1alpha1.ResourcesSpec {
+	return &locov1alpha1.ResourcesSpec{
+		CPU:      testCPU,
+		Memory:   "64Mi",
+		Replicas: locov1alpha1.ReplicasSpec{Min: 1, Max: 1},
+	}
+}
+
+func testRouting() *locov1alpha1.RoutingSpec {
+	return &locov1alpha1.RoutingSpec{HostName: testHostName, PathPrefix: "/", IdleTimeout: 60}
+}
 
 func testApplication() *locov1alpha1.Application {
 	return &locov1alpha1.Application{
@@ -47,7 +61,7 @@ func testApplication() *locov1alpha1.Application {
 					Memory:   "256Mi",
 					Replicas: locov1alpha1.ReplicasSpec{Min: 2, Max: 3},
 				},
-				Routing: &locov1alpha1.RoutingSpec{HostName: testHostName},
+				Routing: testRouting(),
 			},
 		},
 	}
@@ -140,21 +154,32 @@ func TestDesiredDeploymentWithoutRouting(t *testing.T) {
 	}
 }
 
-func TestDesiredDeploymentDefaultsWithoutResources(t *testing.T) {
+func TestDesiredDeploymentRequiresResources(t *testing.T) {
 	app := testApplication()
 	app.Spec.ServiceSpec.Resources = nil
+	if _, err := desiredDeployment(app, "1"); !errors.Is(err, errNoResources) {
+		t.Fatalf("desiredDeployment without resources = %v, want errNoResources", err)
+	}
+}
+
+func TestDesiredDeploymentUsesSpecResources(t *testing.T) {
+	app := testApplication()
 	dep, err := desiredDeployment(app, "1")
 	if err != nil {
 		t.Fatalf("desiredDeployment: %v", err)
 	}
-	if got := ptr.Deref(dep.Spec.Replicas, 0); got != 1 {
-		t.Errorf("replicas = %d, want 1", got)
+	container := dep.Spec.Template.Spec.Containers[0]
+	requests := *container.Resources.Requests
+	limits := *container.Resources.Limits
+	for name, want := range map[corev1.ResourceName]string{corev1.ResourceCPU: "250m", corev1.ResourceMemory: "256Mi"} {
+		request := requests[name]
+		limit := limits[name]
+		if request.String() != want || limit.String() != want {
+			t.Errorf("%s request %s, limit %s, want %s", name, request.String(), limit.String(), want)
+		}
 	}
-	limits := *dep.Spec.Template.Spec.Containers[0].Resources.Limits
-	cpuLimit := limits[corev1.ResourceCPU]
-	gotCPULimit := cpuLimit.String()
-	if gotCPULimit != defaultCPULimit {
-		t.Errorf("cpu limit = %s, want %s", gotCPULimit, defaultCPULimit)
+	if got := ptr.Deref(container.Ports[0].ContainerPort, 0); got != 8080 {
+		t.Errorf("container port = %d, want 8080", got)
 	}
 }
 

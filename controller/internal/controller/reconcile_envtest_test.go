@@ -41,6 +41,7 @@ var _ = Describe("Application reconcile", func() {
 						Port:  8080,
 						Env:   map[string]string{"B": "2", "A": "1", "C": "3"},
 					},
+					Resources: testResources(),
 				},
 			},
 		}
@@ -245,5 +246,31 @@ var _ = Describe("Application reconcile", func() {
 		Expect(err).NotTo(HaveOccurred())
 		err = k8sClient.Get(ctx, appKey, app)
 		Expect(apierrors.IsNotFound(err)).To(BeTrue())
+	})
+	It("rejects an Application without the values the controller requires", func() {
+		valid := isolationTestApplication("ws-required", "required-valid")
+		Expect(k8sClient.Create(ctx, valid)).To(Succeed())
+		Expect(k8sClient.Delete(ctx, valid)).To(Succeed())
+
+		missing := map[string]func(*locov1alpha1.ServiceSpec){
+			"resources":       func(spec *locov1alpha1.ServiceSpec) { spec.Resources = nil },
+			"cpu":             func(spec *locov1alpha1.ServiceSpec) { spec.Resources.CPU = "" },
+			"memory":          func(spec *locov1alpha1.ServiceSpec) { spec.Resources.Memory = "" },
+			"min replicas":    func(spec *locov1alpha1.ServiceSpec) { spec.Resources.Replicas.Min = 0 },
+			"max replicas":    func(spec *locov1alpha1.ServiceSpec) { spec.Resources.Replicas.Max = 0 },
+			"port":            func(spec *locov1alpha1.ServiceSpec) { spec.Deployment.Port = 0 },
+			"path prefix":     func(spec *locov1alpha1.ServiceSpec) { spec.Routing.PathPrefix = "" },
+			"idle timeout":    func(spec *locov1alpha1.ServiceSpec) { spec.Routing.IdleTimeout = 0 },
+			"health interval": func(spec *locov1alpha1.ServiceSpec) { spec.Deployment.HealthCheck.Interval = 0 },
+		}
+		for name, unset := range missing {
+			app := isolationTestApplication("ws-required", "required-missing")
+			app.Spec.ServiceSpec.Deployment.HealthCheck = &locov1alpha1.HealthCheckSpec{
+				Path: "/health", Interval: 5, Timeout: 2, FailThreshold: 3,
+			}
+			unset(app.Spec.ServiceSpec)
+			err := k8sClient.Create(ctx, app)
+			Expect(apierrors.IsInvalid(err)).To(BeTrue(), "creating an Application without %s returned %v", name, err)
+		}
 	})
 })

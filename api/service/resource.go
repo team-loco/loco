@@ -14,6 +14,7 @@ import (
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/converter"
+	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/tvm/actions"
@@ -23,7 +24,6 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 var (
@@ -34,11 +34,10 @@ var (
 	ErrClusterNotFound       = errors.New("cluster not found")
 	ErrClusterNotHealthy     = errors.New("cluster is not healthy")
 	ErrInvalidResourceType   = errors.New("invalid resource type")
-	ErrInvalidCPU            = errors.New("invalid CPU format")
-	ErrInvalidMemory         = errors.New("invalid memory format")
 
-	errDomainInUse          = errors.New("domain already in use")
-	errOnlyServiceResources = errors.New("only service resources are currently supported")
+	errDomainInUse           = errors.New("domain already in use")
+	errOnlyServiceResources  = errors.New("only service resources are currently supported")
+	errScaleNothingRequested = errors.New("at least one of replicas, cpu, or memory must be provided")
 )
 
 // protoResourceTypeToDb converts a proto ResourceType to a database ResourceType
@@ -63,9 +62,10 @@ func protoResourceTypeToDb(rt resourcev1.ResourceType) (genDb.ResourceType, erro
 
 type ResourceServer struct {
 	resourcev1connect.UnimplementedResourceServiceHandler
-	db      *pgxpool.Pool
-	queries genDb.Querier
-	machine *tvm.VendingMachine
+	db       *pgxpool.Pool
+	queries  genDb.Querier
+	machine  *tvm.VendingMachine
+	defaults servicedefaults.Defaults
 }
 
 // NewResourceServer creates a new ResourceServer instance
@@ -73,11 +73,13 @@ func NewResourceServer(
 	db *pgxpool.Pool,
 	queries genDb.Querier,
 	machine *tvm.VendingMachine,
+	defaults servicedefaults.Defaults,
 ) *ResourceServer {
 	return &ResourceServer{
-		db:      db,
-		queries: queries,
-		machine: machine,
+		db:       db,
+		queries:  queries,
+		machine:  machine,
+		defaults: defaults,
 	}
 }
 
@@ -700,18 +702,7 @@ func (s *ResourceServer) ScaleResource(
 			continue
 		}
 
-		if r.Cpu != nil {
-			serviceDeploymentSpec.Cpu = r.Cpu
-		}
-		if r.Memory != nil {
-			serviceDeploymentSpec.Memory = r.Memory
-		}
-
-		replicas := current.Replicas
-		if r.Replicas != nil {
-			replicas = r.GetReplicas()
-		}
-
+		replicas := applyScale(r, serviceDeploymentSpec, current.Replicas)
 		plan, planErr := s.planRegionRedeploy(ctx, current, serviceDeploymentSpec, replicas, "Scheduled scaling event.")
 		if planErr != nil {
 			return nil, planErr
@@ -971,6 +962,7 @@ func (s *ResourceServer) redeployRegions(ctx context.Context, res genDb.Resource
 				plan.params.Region,
 				plan.params.EnvironmentID,
 				plan.environmentName,
+				s.defaults,
 			)
 			if _, deployErr := createDeploymentWithCleanup(ctx, qtx, plan.params, buildSpec); deployErr != nil {
 				return deployErr
@@ -1046,27 +1038,21 @@ func deploymentStatusToProto(status genDb.DeploymentStatus) deploymentv1.Deploym
 }
 
 func validateScaleRequest(ctx context.Context, r *resourcev1.ScaleResourceRequest) error {
-	if r.Replicas == nil && r.Cpu == nil && r.Memory == nil {
-		return connect.NewError(
-			connect.CodeInvalidArgument,
-			errors.New("at least one of replicas, cpu, or memory must be provided"),
-		)
+	if r.GetReplicas() == 0 && r.GetCpu() == "" && r.GetMemory() == "" {
+		return connect.NewError(connect.CodeInvalidArgument, errScaleNothingRequested)
 	}
 
-	if r.Cpu != nil && r.GetCpu() != "" {
-		if _, err := resource.ParseQuantity(r.GetCpu()); err != nil {
-			slog.WarnContext(ctx, "invalid cpu format", "cpu", r.GetCpu(), "error", err)
-			return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%w: %s", ErrInvalidCPU, r.GetCpu()))
+	if cpu := r.GetCpu(); cpu != "" {
+		if _, err := servicedefaults.ParseCPU(cpu); err != nil {
+			slog.WarnContext(ctx, "invalid cpu format", "cpu", cpu, "error", err)
+			return connect.NewError(connect.CodeInvalidArgument, err)
 		}
 	}
 
-	if r.Memory != nil && r.GetMemory() != "" {
-		if _, err := resource.ParseQuantity(r.GetMemory()); err != nil {
-			slog.WarnContext(ctx, "invalid memory format", "memory", r.GetMemory(), "error", err)
-			return connect.NewError(
-				connect.CodeInvalidArgument,
-				fmt.Errorf("%w: %s", ErrInvalidMemory, r.GetMemory()),
-			)
+	if memory := r.GetMemory(); memory != "" {
+		if _, err := servicedefaults.ParseMemory(memory); err != nil {
+			slog.WarnContext(ctx, "invalid memory format", "memory", memory, "error", err)
+			return connect.NewError(connect.CodeInvalidArgument, err)
 		}
 	}
 
@@ -1108,19 +1094,37 @@ func scaleChangesDeployment(
 	spec *deploymentv1.ServiceDeploymentSpec,
 	currentReplicas int32,
 ) bool {
-	if r.Cpu != nil {
-		if spec.Cpu == nil || r.GetCpu() != spec.GetCpu() {
-			return true
-		}
+	if r.GetCpu() != "" && r.GetCpu() != spec.GetCpu() {
+		return true
 	}
 
-	if r.Memory != nil {
-		if spec.Memory == nil || r.GetMemory() != spec.GetMemory() {
-			return true
-		}
+	if r.GetMemory() != "" && r.GetMemory() != spec.GetMemory() {
+		return true
 	}
 
-	return r.Replicas != nil && r.GetReplicas() != currentReplicas
+	return r.GetReplicas() != 0 && r.GetReplicas() != currentReplicas
+}
+
+func applyScale(
+	r *resourcev1.ScaleResourceRequest,
+	spec *deploymentv1.ServiceDeploymentSpec,
+	currentReplicas int32,
+) int32 {
+	if cpu := r.GetCpu(); cpu != "" {
+		spec.Cpu = &cpu
+	}
+	if memory := r.GetMemory(); memory != "" {
+		spec.Memory = &memory
+	}
+	replicas := r.GetReplicas()
+	if replicas == 0 {
+		return currentReplicas
+	}
+	spec.MinReplicas = &replicas
+	if spec.GetMaxReplicas() < replicas {
+		spec.MaxReplicas = &replicas
+	}
+	return replicas
 }
 
 // resourceDomainToListProto converts a slice of ResourceDomain to proto ResourceDomain list
@@ -1291,6 +1295,7 @@ func desiredApplicationSpec(
 	region string,
 	environmentID uuid.UUID,
 	environmentName string,
+	defaults servicedefaults.Defaults,
 ) desiredSpecFunc {
 	return func(deploymentID uuid.UUID) ([]byte, error) {
 		appSpec, err := buildApplicationSpec(
@@ -1302,6 +1307,7 @@ func desiredApplicationSpec(
 			environmentID,
 			environmentName,
 			deploymentID,
+			defaults,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build application spec: %w", err)

@@ -15,6 +15,7 @@ import (
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/converter"
+	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	timeutil "github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/tvm/actions"
@@ -32,7 +33,6 @@ var (
 	errCacheNotImplemented    = errors.New("cache resource type not yet implemented")
 	errQueueNotImplemented    = errors.New("queue resource type not yet implemented")
 	errBlobNotImplemented     = errors.New("blob resource type not yet implemented")
-	errServiceSpecRequired    = errors.New("service spec is required")
 	ErrDeploymentNotFound     = errors.New("deployment not found")
 )
 
@@ -171,6 +171,7 @@ type DeploymentServer struct {
 	machine      *tvm.VendingMachine
 	resolver     ImageResolver
 	registryHost string
+	defaults     servicedefaults.Defaults
 }
 
 // NewDeploymentServer creates a new DeploymentServer instance
@@ -180,6 +181,7 @@ func NewDeploymentServer(
 	machine *tvm.VendingMachine,
 	resolver ImageResolver,
 	registryHost string,
+	defaults servicedefaults.Defaults,
 ) *DeploymentServer {
 	return &DeploymentServer{
 		db:           db,
@@ -187,6 +189,7 @@ func NewDeploymentServer(
 		machine:      machine,
 		resolver:     resolver,
 		registryHost: registryHost,
+		defaults:     defaults,
 	}
 }
 
@@ -229,7 +232,6 @@ func (s *DeploymentServer) CreateDeployment(
 	}
 
 	serviceSpec := r.GetSpec().GetService()
-	replicas := serviceSpec.GetMinReplicas()
 
 	domain, err := s.queries.GetDomainByResourceId(ctx, resourceID)
 	if err != nil {
@@ -304,7 +306,7 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("invalid resource spec: %w", deserializeErr))
 	}
 
-	mergedSpec, mergeErr := converter.MergeDeploymentSpec(resourceSpec, requestSpec, region)
+	mergedSpec, mergeErr := converter.MergeDeploymentSpec(resourceSpec, requestSpec, region, s.defaults)
 	if errors.Is(mergeErr, converter.ErrRegionNotFound) || errors.Is(mergeErr, converter.ErrRegionDisabled) {
 		slog.WarnContext(ctx, "deployment targets a region the resource does not run in", "error", mergeErr)
 		return nil, connect.NewError(connect.CodeInvalidArgument, mergeErr)
@@ -316,6 +318,11 @@ func (s *DeploymentServer) CreateDeployment(
 
 	// create spec copy without env for DB persistence (no plaintext secrets in DB)
 	mergedServiceSpec := mergedSpec.GetService()
+	if quantityErr := validateQuantities(mergedServiceSpec); quantityErr != nil {
+		slog.WarnContext(ctx, "invalid resource quantity", "error", quantityErr)
+		return nil, connect.NewError(connect.CodeInvalidArgument, quantityErr)
+	}
+	replicas := mergedServiceSpec.GetMinReplicas()
 
 	// todo: consider using dedicated secrets management solution.
 	clonedServiceSpec := proto.Clone(mergedServiceSpec)
@@ -353,6 +360,7 @@ func (s *DeploymentServer) CreateDeployment(
 		region,
 		environmentID,
 		env.Name,
+		s.defaults,
 	)
 
 	var deploymentID uuid.UUID
@@ -680,6 +688,7 @@ func buildApplicationSpec(
 	environmentID uuid.UUID,
 	environmentName string,
 	deploymentID uuid.UUID,
+	defaults servicedefaults.Defaults,
 ) (*locoControllerV1.ApplicationSpec, error) {
 	// convert proto to controller CRD types
 	crdServiceDeploymentSpec := converter.ProtoToServiceDeploymentSpec(deploymentSpec)
@@ -699,15 +708,16 @@ func buildApplicationSpec(
 			return nil, errResourceSpecNotService
 		}
 		appSpec.Type = "SERVICE"
-		resourcesSpec, err := buildResourcesSpec(resourceSpec.GetService(), deploymentSpec, region)
-		if err != nil {
-			return nil, &invalidSpecError{err: err}
+		resourceService := resourceSpec.GetService()
+		if _, ok := resourceService.GetRegions()[region]; !ok {
+			return nil, &invalidSpecError{err: fmt.Errorf("target region %s not found in service spec", region)}
 		}
+		deploymentService := deploymentSpec.GetService()
 		appSpec.ServiceSpec = &locoControllerV1.ServiceSpec{
 			Deployment: crdServiceDeploymentSpec,
-			Resources:  resourcesSpec,
-			Obs:        converter.ProtoToObsSpec(resourceSpec.GetService().GetObservability()),
-			Routing:    converter.ProtoToRoutingSpec(resourceSpec.GetService().GetRouting(), hostname),
+			Resources:  converter.ProtoToResourcesSpec(deploymentService),
+			Obs:        converter.ProtoToObsSpec(resourceService.GetObservability()),
+			Routing:    converter.ProtoToRoutingSpec(resourceService.GetRouting(), hostname, defaults),
 		}
 
 	case genDb.ResourceTypeDatabase:
@@ -730,70 +740,12 @@ func buildApplicationSpec(
 	return appSpec, nil
 }
 
-// buildResourcesSpec builds ResourcesSpec, using deployment-time
-// overrides if present, otherwise falling back to the target region's defaults from ServiceSpec
-func buildResourcesSpec(
-	serviceSpec *resourcev1.ServiceSpec,
-	deploymentSpec *deploymentv1.DeploymentSpec,
-	targetRegion string,
-) (*locoControllerV1.ResourcesSpec, error) {
-	if serviceSpec == nil {
-		return nil, errServiceSpecRequired
+func validateQuantities(service *deploymentv1.ServiceDeploymentSpec) error {
+	if _, err := servicedefaults.ParseCPU(service.GetCpu()); err != nil {
+		return err
 	}
-
-	// Get the target region to extract default resources
-	regionTarget, ok := serviceSpec.GetRegions()[targetRegion]
-	if !ok {
-		return nil, fmt.Errorf("target region %s not found in service spec", targetRegion)
+	if _, err := servicedefaults.ParseMemory(service.GetMemory()); err != nil {
+		return err
 	}
-
-	// Start with region-specific defaults
-	cpu := regionTarget.GetCpu()
-	memory := regionTarget.GetMemory()
-	minReplicas := regionTarget.GetMinReplicas()
-	maxReplicas := regionTarget.GetMaxReplicas()
-	scalers := regionTarget.GetScalers()
-
-	// Override with deployment-time values if provided
-	if deploymentSpec != nil {
-		deploymentSvc := deploymentSpec.GetService()
-		if deploymentSvc != nil {
-			if deploymentSvc.Cpu != nil && deploymentSvc.GetCpu() != "" {
-				cpu = deploymentSvc.GetCpu()
-			}
-			if deploymentSvc.Memory != nil && deploymentSvc.GetMemory() != "" {
-				memory = deploymentSvc.GetMemory()
-			}
-			if deploymentSvc.MinReplicas != nil && deploymentSvc.GetMinReplicas() > 0 {
-				minReplicas = deploymentSvc.GetMinReplicas()
-			}
-			if deploymentSvc.MaxReplicas != nil && deploymentSvc.GetMaxReplicas() > 0 {
-				maxReplicas = deploymentSvc.GetMaxReplicas()
-			}
-			if deploymentSvc.GetScalers() != nil {
-				scalers = deploymentSvc.GetScalers()
-			}
-		}
-	}
-
-	// Build ResourcesSpec with merged values
-	resourcesSpec := &locoControllerV1.ResourcesSpec{
-		CPU:    cpu,
-		Memory: memory,
-		Replicas: locoControllerV1.ReplicasSpec{
-			Min: minReplicas,
-			Max: maxReplicas,
-		},
-	}
-
-	// Add scalers if configured
-	if scalers != nil {
-		resourcesSpec.Scalers = locoControllerV1.ScalersSpec{
-			Enabled:      scalers.GetEnabled(),
-			CPUTarget:    scalers.GetCpuTarget(),
-			MemoryTarget: scalers.GetMemoryTarget(),
-		}
-	}
-
-	return resourcesSpec, nil
+	return nil
 }

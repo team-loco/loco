@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
+	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -13,10 +14,11 @@ import (
 type ConfigServer struct {
 	platformDomain string
 	minCLIVersion  string
+	defaults       servicedefaults.Defaults
 }
 
-func NewConfigServer(platformDomain, minCLIVersion string) *ConfigServer {
-	return &ConfigServer{platformDomain: platformDomain, minCLIVersion: minCLIVersion}
+func NewConfigServer(platformDomain, minCLIVersion string, defaults servicedefaults.Defaults) *ConfigServer {
+	return &ConfigServer{platformDomain: platformDomain, minCLIVersion: minCLIVersion, defaults: defaults}
 }
 
 func (s *ConfigServer) GetConfig(
@@ -28,8 +30,8 @@ func (s *ConfigServer) GetConfig(
 		ServiceDefaults: &configv1.DefaultServiceConfig{
 			Routing: &resourcev1.RoutingConfig{
 				Port:        8000,
-				PathPrefix:  "/",
-				IdleTimeout: 60,
+				PathPrefix:  s.defaults.PathPrefix,
+				IdleTimeout: s.defaults.IdleTimeout,
 			},
 			HealthCheck: &deploymentv1.HealthCheckConfig{
 				Path:                "/health",
@@ -38,10 +40,10 @@ func (s *ConfigServer) GetConfig(
 				FailureThreshold:    3,
 				InitialDelaySeconds: 0,
 			},
-			Cpu:         "100m",
-			Memory:      "256Mi",
-			MinReplicas: 1,
-			MaxReplicas: 1,
+			Cpu:         s.defaults.CPU,
+			Memory:      s.defaults.Memory,
+			MinReplicas: s.defaults.MinReplicas,
+			MaxReplicas: s.defaults.MaxReplicas,
 			Observability: &resourcev1.ObservabilityConfig{
 				Logging: &resourcev1.LoggingConfig{
 					Enabled:         true,
