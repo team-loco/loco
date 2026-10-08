@@ -52,21 +52,22 @@ type fakeUpload struct {
 }
 
 type fakePlatform struct {
-	baseURL      string
-	resources    []*resourcev1.Resource
-	environments []*environmentv1.Environment
-	builds       []*buildv1.Build
-	polls        map[string]int
-	outcome      string
-	uploadMode   string
-	sourceLimit  int64
-	uploads      map[string]fakeUpload
-	deployments  []*deploymentv1.CreateDeploymentRequest
-	pinned       []string
-	tagMoves     bool
-	resolutions  int
-	noProxy      bool
-	logQueries   []*observabilityv1.QueryLogsRequest
+	baseURL           string
+	resources         []*resourcev1.Resource
+	environments      []*environmentv1.Environment
+	builds            []*buildv1.Build
+	polls             map[string]int
+	outcome           string
+	uploadMode        string
+	sourceLimit       int64
+	buildsUnavailable string
+	uploads           map[string]fakeUpload
+	deployments       []*deploymentv1.CreateDeploymentRequest
+	pinned            []string
+	tagMoves          bool
+	resolutions       int
+	noProxy           bool
+	logQueries        []*observabilityv1.QueryLogsRequest
 }
 
 func newFakePlatform() *fakePlatform {
@@ -266,6 +267,9 @@ func (s *fakeBuildService) CreateBuild(
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.platform.buildsUnavailable == "CreateBuild" {
+		return nil, fakeBuildsUnavailable()
+	}
 	size := req.Msg.GetSourceSize()
 	if size > f.platform.sourceLimit {
 		tooLarge := fmt.Errorf("source is %d bytes, over the %d byte limit", size, f.platform.sourceLimit)
@@ -298,6 +302,9 @@ func (s *fakeBuildService) StartBuild(
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.platform.buildsUnavailable == "StartBuild" {
+		return nil, fakeBuildsUnavailable()
+	}
 	build := f.findBuild(req.Msg.GetBuildId())
 	if build == nil {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("build not found"))
@@ -307,6 +314,17 @@ func (s *fakeBuildService) StartBuild(
 	}
 	build.Status = buildv1.BuildStatus_BUILD_STATUS_QUEUED
 	return connect.NewResponse(&buildv1.StartBuildResponse{Build: build}), nil
+}
+
+func fakeBuildsUnavailable() *connect.Error {
+	reason := errors.New("no cluster in this install accepts builds")
+	connectErr := connect.NewError(connect.CodeFailedPrecondition, reason)
+	detail, err := connect.NewErrorDetail(&buildv1.BuildsUnavailable{})
+	if err != nil {
+		panic(err)
+	}
+	connectErr.AddDetail(detail)
+	return connectErr
 }
 
 func (f *fakeAPI) advance(build *buildv1.Build) {

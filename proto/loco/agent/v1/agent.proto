@@ -24,6 +24,7 @@ message RegisterRequest {
   string region = 2;
   string agent_version = 3;
   AgentCapacity capacity = 4;
+  bool builds_enabled = 5;
 }
 
 // RegisterResponse contains the assigned cluster ID.
@@ -132,6 +133,7 @@ message HeartbeatRequest {
   string cluster_id = 1 [(buf.validate.field).string.uuid = true];
   AgentCapacity capacity = 2;
   AgentHealth health = 3;
+  bool builds_enabled = 4;
 }
 
 // HeartbeatResponse is the control plane's reply on the heartbeat stream.

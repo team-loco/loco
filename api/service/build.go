@@ -39,7 +39,7 @@ var (
 	errSourceNotUploaded   = errors.New("the source has not been uploaded")
 	errSourceCheckFailed   = errors.New("failed to check the uploaded source")
 	errUploadURLFailed     = errors.New("failed to create the source upload url")
-	errNoBuildCluster      = errors.New("no active cluster available to build")
+	errNoBuildCluster      = errors.New("no cluster in this install accepts builds")
 )
 
 type SourceBucket interface {
@@ -86,6 +86,17 @@ func (s *BuildServer) enabled() bool {
 	return s.bucket != nil && s.config.RegistryHost != ""
 }
 
+func buildsUnavailable(reason error) *connect.Error {
+	connectErr := connect.NewError(connect.CodeFailedPrecondition, reason)
+	detail, err := connect.NewErrorDetail(&buildv1.BuildsUnavailable{})
+	if err != nil {
+		slog.Error("failed to attach the builds unavailable detail", "error", err)
+		return connectErr
+	}
+	connectErr.AddDetail(detail)
+	return connectErr
+}
+
 func (s *BuildServer) authorize(ctx context.Context, action actions.Action, resourceID uuid.UUID) error {
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
@@ -125,7 +136,7 @@ func (s *BuildServer) CreateBuild(
 	r := req.Msg
 
 	if !s.enabled() {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrBuildsNotEnabled)
+		return nil, buildsUnavailable(ErrBuildsNotEnabled)
 	}
 
 	rawResourceID := r.GetResourceId()
@@ -137,6 +148,10 @@ func (s *BuildServer) CreateBuild(
 
 	if authErr := s.authorize(ctx, actions.CreateBuild, resourceID); authErr != nil {
 		return nil, authErr
+	}
+
+	if _, clusterErr := s.buildCluster(ctx); clusterErr != nil {
+		return nil, clusterErr
 	}
 
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
@@ -206,7 +221,7 @@ func (s *BuildServer) StartBuild(
 	r := req.Msg
 
 	if !s.enabled() {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrBuildsNotEnabled)
+		return nil, buildsUnavailable(ErrBuildsNotEnabled)
 	}
 
 	rawBuildID := r.GetBuildId()
@@ -263,7 +278,7 @@ func (s *BuildServer) StartBuild(
 func (s *BuildServer) buildCluster(ctx context.Context) (uuid.UUID, error) {
 	clusterID, err := s.queries.GetBuildCluster(ctx)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return uuid.UUID{}, connect.NewError(connect.CodeFailedPrecondition, errNoBuildCluster)
+		return uuid.UUID{}, buildsUnavailable(errNoBuildCluster)
 	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get build cluster", "error", err)

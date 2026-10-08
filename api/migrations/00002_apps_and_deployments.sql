@@ -93,6 +93,7 @@ CREATE TABLE
         -- publicly resolvable FQDN of this cluster's gateway; a hostname, never an address
         gateway_hostname TEXT,
         sync_generation BIGINT NOT NULL DEFAULT 0,
+        builds_enabled BOOLEAN NOT NULL DEFAULT false,
         tier TEXT NOT NULL DEFAULT 'production' CHECK (tier IN ('dev', 'staging', 'production')),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()

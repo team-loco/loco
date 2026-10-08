@@ -1,0 +1,17 @@
+{{- if .Values.builds.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+    labels:
+        {{- include "loco-operator.buildControllerLabels" . | nindent 8 }}
+    name: loco-build-controller-leader-election
+    namespace: {{ .Release.Namespace }}
+roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: Role
+    name: loco-operator-leader-election
+subjects:
+    - kind: ServiceAccount
+      name: loco-build-controller
+      namespace: {{ .Release.Namespace }}
+{{- end }}

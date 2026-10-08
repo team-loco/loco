@@ -1,9 +1,25 @@
 #!/usr/bin/env bash
-#MISE description="Copy the generated controller RBAC rules into the loco-controller chart's manager role"
+#MISE description="Copy the generated controller RBAC into the loco-operator chart's roles for each controller"
 set -euo pipefail
 
-chart_role=charts/loco-controller/templates/rbac/manager-role.yaml
-generated_role=controller/config/rbac/role.yaml
+controller_role=charts/loco-operator/templates/controller/manager-role.yaml
+generated_controller_role=controller/config/rbac/role.yaml
 
-yq -P -I 4 -i ".rules = load(\"$generated_role\").rules" "$chart_role"
-echo "synced $chart_role"
+yq -P -I 4 -i ".rules = load(\"$generated_controller_role\").rules" "$controller_role"
+echo "synced $controller_role"
+
+build_role=charts/loco-operator/templates/builds/manager-role.yaml
+generated_build_role=controller/config/rbac/builds/role.yaml
+namespace_placeholder=LOCO_BUILD_NAMESPACE
+
+{
+	printf '{{- if .Values.builds.enabled }}\n'
+	yq -P -I 4 "
+		.metadata.name = \"loco-build-controller\" |
+		(select(.kind == \"Role\") | .metadata.namespace) = \"$namespace_placeholder\"
+	" "$generated_build_role" |
+		sed '1{/^---$/d;}' |
+		sed "s/$namespace_placeholder/{{ .Values.builds.namespace }}/"
+	printf '{{- end }}\n'
+} > "$build_role"
+echo "synced $build_role"

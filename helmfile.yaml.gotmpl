@@ -76,21 +76,21 @@ releases:
       - ./charts/loco-core/values.yaml
       - env/{{ .Environment.Name }}/core-chart.yaml.gotmpl
 
-  - name: loco-controller
-    chart: ./charts/loco-controller
+  - name: loco-operator
+    chart: ./charts/loco-operator
     namespace: loco-system
     createNamespace: false
     needs:
       - loco-system/loco-core
     labels:
       phase: "2-core"
-      component: "loco-controller"
+      component: "loco-operator"
     set:
       - name: crds.enabled
         value: true
     values:
-      - ./charts/loco-controller/values.yaml
-      - env/{{ .Environment.Name }}/controller-chart.yaml.gotmpl
+      - ./charts/loco-operator/values.yaml
+      - env/{{ .Environment.Name }}/operator-chart.yaml.gotmpl
 
 
   # phase 3: observability

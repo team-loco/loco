@@ -10,7 +10,8 @@ on:
       - "charts/**"
       - "go.mod"
       - "go.sum"
-      - "mise-tasks/chart/sync-crd"
+      - "mise-tasks/chart/**"
+      - "mise-tasks/test/chart"
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
@@ -22,7 +23,8 @@ on:
       - "charts/**"
       - "go.mod"
       - "go.sum"
-      - "mise-tasks/chart/sync-crd"
+      - "mise-tasks/chart/**"
+      - "mise-tasks/test/chart"
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
@@ -93,16 +95,19 @@ jobs:
           make -C controller docker-build IMG=controller:v0.1.0
           kind load docker-image controller:v0.1.0
 
+      - name: Check what the chart renders with builds on and off
+        run: mise run test:chart
+
       - name: Lint Helm Chart
         run: |
-          helm lint ./charts/loco-controller
+          helm lint ./charts/loco-operator
 
       - name: Install Helm chart
         run: |
-          helm install loco-controller ./charts/loco-controller \
+          helm install loco-operator ./charts/loco-operator \
             --create-namespace \
             --namespace controller-system
 
       - name: Check Helm release status
         run: |
-          helm status loco-controller --namespace controller-system
+          helm status loco-operator --namespace controller-system

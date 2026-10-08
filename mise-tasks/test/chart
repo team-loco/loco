@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+#MISE description="Render the loco-operator chart with builds on and off and check which objects it renders"
+set -euo pipefail
+
+chart=charts/loco-operator
+failures=0
+
+render() {
+	helm template loco-operator "$chart" --namespace loco-system "$@" |
+		yq -N '.kind + "/" + .metadata.name'
+}
+
+expect() {
+	local mode=$1 want=$2 object=$3 objects=$4
+	if grep -qxF "$object" <<<"$objects"; then
+		[ "$want" = present ] && return 0
+		echo "FAIL: $mode renders $object"
+	else
+		[ "$want" = absent ] && return 0
+		echo "FAIL: $mode does not render $object"
+	fi
+	failures=$((failures + 1))
+}
+
+build_objects=(
+	CustomResourceDefinition/builds.infra.loco.io
+	Namespace/loco-builds
+	Deployment/loco-build-controller
+	ServiceAccount/loco-build-controller
+	ClusterRole/loco-build-controller
+	ClusterRoleBinding/loco-build-controller
+	Role/loco-build-controller
+	RoleBinding/loco-build-controller
+	RoleBinding/loco-build-controller-leader-election
+	Role/loco-agent-builds
+	RoleBinding/loco-agent-builds
+)
+controller_objects=(
+	CustomResourceDefinition/applications.infra.loco.io
+	Deployment/loco-controller
+	ServiceAccount/loco-controller
+	ClusterRole/loco-controller
+	ClusterRoleBinding/loco-controller
+)
+
+enabled=$(render)
+disabled=$(render --set builds.enabled=false)
+
+for object in "${controller_objects[@]}"; do
+	expect "builds.enabled=true" present "$object" "$enabled"
+	expect "builds.enabled=false" present "$object" "$disabled"
+done
+for object in "${build_objects[@]}"; do
+	expect "builds.enabled=true" present "$object" "$enabled"
+	expect "builds.enabled=false" absent "$object" "$disabled"
+done
+
+disabled_manifest=$(helm template loco-operator "$chart" --namespace loco-system --set builds.enabled=false)
+for term in LOCO_BUILD_CONFIG loco-builder moby/buildkit 'kind: Build$'; do
+	if grep -qE "$term" <<<"$disabled_manifest"; then
+		echo "FAIL: builds.enabled=false still mentions $term"
+		failures=$((failures + 1))
+	fi
+done
+if grep -qE -- '- builds(/status|/finalizers)?$' <<<"$disabled_manifest"; then
+	echo "FAIL: builds.enabled=false still grants access to Builds"
+	failures=$((failures + 1))
+fi
+
+controller_role=$(helm template loco-operator "$chart" --namespace loco-system \
+	--show-only templates/controller/manager-role.yaml)
+for resource in builds jobs pods; do
+	if grep -qE -- "- $resource(/.*)?$" <<<"$controller_role"; then
+		echo "FAIL: the Application controller's role grants $resource"
+		failures=$((failures + 1))
+	fi
+done
+
+with_secrets=$(render --set builds.pushSecretName=push --set registry.pullSecretName=pull)
+expect "with registry secrets" present Role/loco-build-controller-registry-secrets "$with_secrets"
+expect "without registry secrets" absent Role/loco-build-controller-registry-secrets "$enabled"
+
+if [ "$failures" -gt 0 ]; then
+	echo "$failures chart render check(s) failed"
+	exit 1
+fi
+echo "chart render checks passed"

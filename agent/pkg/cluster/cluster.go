@@ -6,13 +6,18 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
-const activePodsSelector = "status.phase!=Succeeded,status.phase!=Failed"
+const (
+	activePodsSelector = "status.phase!=Succeeded,status.phase!=Failed"
+	buildResource      = "builds"
+)
 
 type Inspector struct {
 	client               kubernetes.Interface
@@ -100,4 +105,21 @@ func (i *Inspector) controllerReady(ctx context.Context) error {
 		return fmt.Errorf("controller deployment %s has no ready replicas", ref)
 	}
 	return nil
+}
+
+func (i *Inspector) BuildsEnabled(ctx context.Context) (bool, error) {
+	groupVersion := locov1alpha1.GroupVersion.String()
+	resources, err := i.client.Discovery().ServerResourcesForGroupVersionWithContext(ctx, groupVersion)
+	if apierrors.IsNotFound(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("discover %s: %w", groupVersion, err)
+	}
+	for _, served := range resources.APIResources {
+		if served.Name == buildResource {
+			return true, nil
+		}
+	}
+	return false, nil
 }

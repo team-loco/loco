@@ -50,6 +50,7 @@ RETURNING id, cluster_id, source_key;
 -- name: GetBuildCluster :one
 SELECT id FROM clusters
 WHERE is_active = true
+  AND builds_enabled = true
 ORDER BY created_at, id
 LIMIT 1;
 
@@ -115,6 +116,15 @@ SET status = 'failed',
 WHERE cluster_id = sqlc.arg(cluster_id)
   AND status = 'running'
   AND NOT (id = ANY(sqlc.arg(held)::uuid[]))
+RETURNING id, source_key;
+
+-- name: FailQueuedClusterBuilds :many
+UPDATE builds
+SET status = 'failed',
+    message = sqlc.arg(message),
+    finished_at = NOW()
+WHERE cluster_id = sqlc.arg(cluster_id)
+  AND status = 'queued'
 RETURNING id, source_key;
 
 -- name: TryLockSourceSweep :one

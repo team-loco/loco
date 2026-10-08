@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # E2E test orchestrator for Loco
-# Usage: ./e2e/run.sh [--no-teardown] [--skip-build] [--teardown-only] [test-filter]
+# Usage: ./e2e/run.sh [--no-teardown] [--skip-build] [--teardown-only] [--builds-disabled] [test-filter]
 
 set -euo pipefail
 
@@ -21,7 +21,7 @@ API_PORT=8877  # avoid conflict with dev API on 8000
 OBS_PROXY_PORT=8878
 CONTROLLER_IMAGE="loco-controller:e2e"
 BUILDER_IMAGE="loco-builder:e2e"
-BUILDKIT_IMAGE="moby/buildkit:v0.33.1-rootless"
+BUILDKIT_IMAGE=$(yq '.builds.buildkitImage.repository + ":" + .builds.buildkitImage.tag' "$ROOT_DIR/charts/loco-operator/values.yaml")
 GATEWAY_API_VERSION=$(awk '$1 == "sigs.k8s.io/gateway-api" { print $2 }' "$ROOT_DIR/controller/go.mod")
 AGENT_TOKEN="e2e-test-token-do-not-use-in-production"
 USER_TOKEN="loco_s_e2e-test-session-do-not-use-in-production"
@@ -49,7 +49,8 @@ export E2E_S3_ALIAS="loco-e2e-s3.localhost"
 export E2E_S3_ENDPOINT="http://${E2E_S3_ALIAS}:${S3_PORT}"
 export E2E_BUILD_NAMESPACE="loco-builds"
 export E2E_BUILD_WORK_DIR="$LOG_DIR/builds"
-export E2E_AWS_CLI_IMAGE="amazon/aws-cli:2.37.10"
+export E2E_AWS_CLI_IMAGE=$(awk '$1 == "FROM" { print $2 }' "$SCRIPT_DIR/fixtures/aws-cli/Dockerfile")
+export E2E_PUBLIC_IMAGE=$(awk '$1 == "FROM" { print $2 }' "$SCRIPT_DIR/fixtures/public-image/Dockerfile")
 
 source "$SCRIPT_DIR/lib.sh"
 
@@ -57,6 +58,7 @@ source "$SCRIPT_DIR/lib.sh"
 NO_TEARDOWN=false
 SKIP_BUILD=false
 TEARDOWN_ONLY=false
+BUILDS_ENABLED=true
 TEST_FILTER=""
 
 while [[ $# -gt 0 ]]; do
@@ -64,6 +66,7 @@ while [[ $# -gt 0 ]]; do
         --no-teardown)  NO_TEARDOWN=true; shift ;;
         --skip-build)   SKIP_BUILD=true; shift ;;
         --teardown-only) TEARDOWN_ONLY=true; shift ;;
+        --builds-disabled) BUILDS_ENABLED=false; shift ;;
         *)              TEST_FILTER="$1"; shift ;;
     esac
 done
@@ -184,6 +187,10 @@ setup_registry() {
 }
 
 build_builder_images() {
+    if [ "$BUILDS_ENABLED" = false ]; then
+        log_info "Skipping the builder images (--builds-disabled)"
+        return 0
+    fi
     if [ "$SKIP_BUILD" = true ]; then
         log_info "Skipping builder image build (--skip-build)"
     else
@@ -213,22 +220,26 @@ build_controller_image() {
     log_ok "Controller image loaded into Kind"
 }
 
-install_controller() {
-    log_step "Installing the controller chart..."
-    helm upgrade --install loco-controller "$ROOT_DIR/charts/loco-controller" \
+install_operator() {
+    log_step "Installing the loco-operator chart (builds.enabled=${BUILDS_ENABLED})..."
+    local build_values=(--set builds.enabled=false)
+    if [ "$BUILDS_ENABLED" = true ]; then
+        build_values=(
+            --set builds.builderImage.repository="${BUILDER_IMAGE%%:*}"
+            --set builds.builderImage.tag="${BUILDER_IMAGE##*:}"
+            --set "builds.privateEgressCIDRs={${BUILD_EGRESS_CIDRS// /,}}"
+        )
+    fi
+    helm upgrade --install loco-operator "$ROOT_DIR/charts/loco-operator" \
         --kubeconfig "$KUBECONFIG_FILE" \
         --kube-context "kind-${KIND_CLUSTER_NAME}" \
         --namespace "$LOCO_NAMESPACE" \
-        --values "$SCRIPT_DIR/controller-values.yaml" \
-        --set manager.image.repository="${CONTROLLER_IMAGE%%:*}" \
-        --set manager.image.tag="${CONTROLLER_IMAGE##*:}" \
-        --set builds.builderImage.repository="${BUILDER_IMAGE%%:*}" \
-        --set builds.builderImage.tag="${BUILDER_IMAGE##*:}" \
-        --set builds.buildkitImage.repository="${BUILDKIT_IMAGE%%:*}" \
-        --set builds.buildkitImage.tag="${BUILDKIT_IMAGE##*:}" \
-        --set "builds.privateEgressCIDRs={${BUILD_EGRESS_CIDRS// /,}}" \
+        --values "$SCRIPT_DIR/operator-values.yaml" \
+        --set controller.image.repository="${CONTROLLER_IMAGE%%:*}" \
+        --set controller.image.tag="${CONTROLLER_IMAGE##*:}" \
+        "${build_values[@]}" \
         --wait --timeout 3m >/dev/null
-    log_ok "Controller running in Kind"
+    log_ok "Controllers running in Kind"
 }
 
 build_binaries() {
@@ -398,6 +409,7 @@ main() {
         trap 'log_info "Leaving infrastructure running. Clean up with: mise run e2e:teardown"' EXIT
     fi
 
+    export E2E_BUILDS_ENABLED="$BUILDS_ENABLED"
     check_prerequisites
     setup_dirs
     setup_kind
@@ -408,7 +420,7 @@ main() {
     setup_registry
     build_builder_images
     build_controller_image
-    install_controller
+    install_operator
     build_binaries
     start_api
     start_agent

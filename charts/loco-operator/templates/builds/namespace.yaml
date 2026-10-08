@@ -1,0 +1,17 @@
+{{- if .Values.builds.enabled }}
+{{- $podSecurity := .Values.builds.podSecurity }}
+apiVersion: v1
+kind: Namespace
+metadata:
+    name: {{ .Values.builds.namespace }}
+    annotations:
+        helm.sh/resource-policy: keep
+    labels:
+        {{- include "loco-operator.buildControllerLabels" . | nindent 8 }}
+        pod-security.kubernetes.io/enforce: {{ $podSecurity.level }}
+        pod-security.kubernetes.io/enforce-version: {{ $podSecurity.version }}
+        pod-security.kubernetes.io/audit: {{ $podSecurity.level }}
+        pod-security.kubernetes.io/audit-version: {{ $podSecurity.version }}
+        pod-security.kubernetes.io/warn: {{ $podSecurity.level }}
+        pod-security.kubernetes.io/warn-version: {{ $podSecurity.version }}
+{{- end }}

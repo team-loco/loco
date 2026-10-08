@@ -218,6 +218,46 @@ func (q *Queries) FailMissingClusterBuilds(ctx context.Context, arg FailMissingC
 	return items, nil
 }
 
+const failQueuedClusterBuilds = `-- name: FailQueuedClusterBuilds :many
+UPDATE builds
+SET status = 'failed',
+    message = $1,
+    finished_at = NOW()
+WHERE cluster_id = $2
+  AND status = 'queued'
+RETURNING id, source_key
+`
+
+type FailQueuedClusterBuildsParams struct {
+	Message   string     `json:"message"`
+	ClusterID *uuid.UUID `json:"clusterId"`
+}
+
+type FailQueuedClusterBuildsRow struct {
+	ID        uuid.UUID `json:"id"`
+	SourceKey string    `json:"sourceKey"`
+}
+
+func (q *Queries) FailQueuedClusterBuilds(ctx context.Context, arg FailQueuedClusterBuildsParams) ([]FailQueuedClusterBuildsRow, error) {
+	rows, err := q.db.Query(ctx, failQueuedClusterBuilds, arg.Message, arg.ClusterID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FailQueuedClusterBuildsRow
+	for rows.Next() {
+		var i FailQueuedClusterBuildsRow
+		if err := rows.Scan(&i.ID, &i.SourceKey); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const finishBuild = `-- name: FinishBuild :one
 UPDATE builds
 SET status = $1,
@@ -291,6 +331,7 @@ func (q *Queries) GetBuildByID(ctx context.Context, id uuid.UUID) (Build, error)
 const getBuildCluster = `-- name: GetBuildCluster :one
 SELECT id FROM clusters
 WHERE is_active = true
+  AND builds_enabled = true
 ORDER BY created_at, id
 LIMIT 1
 `

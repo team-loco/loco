@@ -1,0 +1,36 @@
+{{- if and .Values.builds.enabled .Values.metrics.enable }}
+apiVersion: v1
+kind: Service
+metadata:
+    labels:
+        {{- include "loco-operator.buildControllerLabels" . | nindent 8 }}
+    name: loco-build-controller-metrics
+    namespace: {{ .Release.Namespace }}
+spec:
+    ports:
+        - name: https
+          port: {{ .Values.metrics.port }}
+          protocol: TCP
+          targetPort: {{ .Values.metrics.port }}
+    selector:
+        app.kubernetes.io/name: loco-build-controller
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+    labels:
+        {{- include "loco-operator.buildControllerLabels" . | nindent 8 }}
+    name: loco-build-controller-metrics-auth
+roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: loco-operator-metrics-auth
+subjects:
+    - kind: ServiceAccount
+      name: loco-build-controller
+      namespace: {{ .Release.Namespace }}
+{{- if .Values.prometheus.enable }}
+---
+{{ include "loco-operator.serviceMonitor" (dict "root" . "name" "loco-build-controller") }}
+{{- end }}
+{{- end }}

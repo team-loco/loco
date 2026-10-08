@@ -1,0 +1,84 @@
+{{- if .Values.builds.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+    name: loco-build-controller
+rules:
+    - apiGroups:
+        - ""
+      resources:
+        - nodes
+      verbs:
+        - get
+        - list
+        - watch
+    - apiGroups:
+        - networking.k8s.io
+      resources:
+        - servicecidrs
+      verbs:
+        - get
+        - list
+        - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+    name: loco-build-controller
+    namespace: {{ .Values.builds.namespace }}
+rules:
+    - apiGroups:
+        - ""
+      resources:
+        - pods
+      verbs:
+        - get
+        - list
+        - watch
+    - apiGroups:
+        - ""
+      resources:
+        - secrets
+      verbs:
+        - create
+        - patch
+    - apiGroups:
+        - batch
+      resources:
+        - jobs
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - watch
+    - apiGroups:
+        - infra.loco.io
+      resources:
+        - builds
+      verbs:
+        - get
+        - list
+        - watch
+    - apiGroups:
+        - infra.loco.io
+      resources:
+        - builds/finalizers
+      verbs:
+        - update
+    - apiGroups:
+        - infra.loco.io
+      resources:
+        - builds/status
+      verbs:
+        - get
+        - patch
+        - update
+    - apiGroups:
+        - networking.k8s.io
+      resources:
+        - networkpolicies
+      verbs:
+        - create
+        - patch
+{{- end }}

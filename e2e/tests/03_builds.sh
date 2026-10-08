@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+if [ "${E2E_BUILDS_ENABLED:-true}" = false ]; then
+    E2E_SKIP_REASON="builds are disabled"
+fi
+
 builds_ns="$E2E_BUILD_NAMESPACE"
 builds_ctx="kind-${E2E_KIND_CLUSTER}"
 builds_dir="$E2E_BUILD_WORK_DIR"
@@ -125,7 +129,7 @@ dump_build() {
         echo "--- events"
         bk -n "$builds_ns" get events --sort-by=.lastTimestamp | tail -30
         echo "--- controller"
-        bk -n "$E2E_LOCO_NAMESPACE" logs deployment/controller-loco-manager --tail=100
+        bk -n "$E2E_LOCO_NAMESPACE" logs deployment/loco-build-controller --tail=100
     } 2>&1 | sed 's/^/    /'
 }
 

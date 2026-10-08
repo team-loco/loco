@@ -18,9 +18,9 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -50,48 +50,42 @@ import (
 	v1Gateway "sigs.k8s.io/gateway-api/apis/v1"
 	gatewayac "sigs.k8s.io/gateway-api/applyconfiguration/apis/v1"
 
+	"github.com/team-loco/loco/controller/internal/isolation"
+	"github.com/team-loco/loco/controller/internal/managed"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 // todo: finalize on the domain we wanna use inside kubernetes.
 const (
-	finalizerCleanup        = "loco.io/cleanup"
-	labelApp                = "app"
-	labelWorkspaceID        = "loco.io/workspace-id"
-	labelResourceID         = "loco.io/resource-id"
-	labelEnvironmentID      = "loco.io/environment-id"
-	labelManagedBy          = "app.kubernetes.io/managed-by"
-	managedByValue          = "loco-controller"
-	annotationAppNamespace  = "loco.io/application-namespace"
-	annotationAppName       = "loco.io/application-name"
-	annotationEnvSecretRV   = "loco.io/env-secret-version"
-	fieldOwner              = "loco-controller"
-	phaseDeploying          = "Deploying"
-	phaseFailed             = "Failed"
-	phaseReady              = "Ready"
-	servicePort             = int32(80)
-	defaultContainerPort    = int32(8080)
-	defaultCPURequest       = "100m"
-	defaultCPULimit         = "500m"
-	defaultMemoryRequest    = "128Mi"
-	defaultMemoryLimit      = "512Mi"
-	deployingRequeue        = 15 * time.Second
-	maxConcurrentReconciles = 4
+	finalizerAppResourcesCleanup = "infra.loco.io/app-resources-cleanup"
+	labelApp                     = "app"
+	labelEnvironmentID           = "loco.io/environment-id"
+	annotationAppNamespace       = "loco.io/application-namespace"
+	annotationAppName            = "loco.io/application-name"
+	annotationEnvSecretRV        = "loco.io/env-secret-version"
+	phaseDeploying               = "Deploying"
+	phaseFailed                  = "Failed"
+	phaseReady                   = "Ready"
+	servicePort                  = int32(80)
+	defaultContainerPort         = int32(8080)
+	defaultCPURequest            = "100m"
+	defaultCPULimit              = "500m"
+	defaultMemoryRequest         = "128Mi"
+	defaultMemoryLimit           = "512Mi"
+	deployingRequeue             = 15 * time.Second
+	maxConcurrentReconciles      = 4
 )
 
-const (
-	EnvLocoNamespace          = "LOCO_NAMESPACE"
-	EnvRegistryPullSecretName = "REGISTRY_PULL_SECRET_NAME"
-)
+var errPullSecretWithoutNamespace = errors.New("a registry pull secret requires the loco namespace")
 
 // LocoResourceReconciler reconciles a Application object
 type LocoResourceReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	locoNamespace  string
-	obsNamespace   string
-	pullSecretName string
+	LocoNamespace          string
+	ObservabilityNamespace string
+	PullSecretName         string
 }
 
 // +kubebuilder:rbac:groups=infra.loco.io,resources=applications,verbs=get;list;watch;create;update;patch;delete
@@ -273,16 +267,16 @@ func (r *LocoResourceReconciler) patchStatus(
 }
 
 func (r *LocoResourceReconciler) ensureFinalizer(ctx context.Context, locoRes *locov1alpha1.Application) error {
-	if controllerutil.ContainsFinalizer(locoRes, finalizerCleanup) {
+	if controllerutil.ContainsFinalizer(locoRes, finalizerAppResourcesCleanup) {
 		return nil
 	}
 	original := locoRes.DeepCopy()
-	controllerutil.AddFinalizer(locoRes, finalizerCleanup)
+	controllerutil.AddFinalizer(locoRes, finalizerAppResourcesCleanup)
 	patch := client.MergeFrom(original)
 	if err := r.Patch(ctx, locoRes, patch); err != nil {
 		return fmt.Errorf("add finalizer: %w", err)
 	}
-	slog.DebugContext(ctx, "added finalizer", "finalizer", finalizerCleanup)
+	slog.DebugContext(ctx, "added finalizer", "finalizer", finalizerAppResourcesCleanup)
 	return nil
 }
 
@@ -291,7 +285,7 @@ func (r *LocoResourceReconciler) handleDeletion(
 	ctx context.Context,
 	locoRes *locov1alpha1.Application,
 ) (ctrl.Result, error) {
-	if !controllerutil.ContainsFinalizer(locoRes, finalizerCleanup) {
+	if !controllerutil.ContainsFinalizer(locoRes, finalizerAppResourcesCleanup) {
 		return ctrl.Result{}, nil
 	}
 
@@ -303,12 +297,12 @@ func (r *LocoResourceReconciler) handleDeletion(
 	}
 
 	original := locoRes.DeepCopy()
-	controllerutil.RemoveFinalizer(locoRes, finalizerCleanup)
+	controllerutil.RemoveFinalizer(locoRes, finalizerAppResourcesCleanup)
 	patch := client.MergeFrom(original)
 	if err := r.Patch(ctx, locoRes, patch); err != nil {
 		return ctrl.Result{}, fmt.Errorf("remove finalizer: %w", err)
 	}
-	slog.InfoContext(ctx, "removed finalizer", "finalizer", finalizerCleanup)
+	slog.InfoContext(ctx, "removed finalizer", "finalizer", finalizerAppResourcesCleanup)
 
 	return ctrl.Result{}, nil
 }
@@ -407,8 +401,8 @@ func getInternalDomain(locoRes *locov1alpha1.Application) string {
 func managedLabels(locoRes *locov1alpha1.Application) map[string]string {
 	name := getName(locoRes)
 	return map[string]string{
-		labelApp:       name,
-		labelManagedBy: managedByValue,
+		labelApp:               name,
+		managed.LabelManagedBy: managed.ManagedByValue,
 	}
 }
 
@@ -419,10 +413,6 @@ func ownerAnnotations(locoRes *locov1alpha1.Application) map[string]string {
 	}
 }
 
-func applyOptions() []client.ApplyOption {
-	return []client.ApplyOption{client.FieldOwner(fieldOwner), client.ForceOwnership}
-}
-
 // ensureNamespace ensures the application namespace exists and is configured
 func ensureNamespace(ctx context.Context, kubeClient client.Client, locoRes *locov1alpha1.Application) error {
 	namespace := getNamespace(locoRes)
@@ -431,7 +421,7 @@ func ensureNamespace(ctx context.Context, kubeClient client.Client, locoRes *loc
 	labels := workspaceNamespaceLabels(locoRes)
 	ns := corev1ac.Namespace(namespace).WithLabels(labels)
 
-	opts := applyOptions()
+	opts := managed.ApplyOptions()
 	if err := kubeClient.Apply(ctx, ns, opts...); err != nil {
 		return fmt.Errorf("apply namespace %s: %w", namespace, err)
 	}
@@ -462,7 +452,7 @@ func ensureEnvSecret(
 		WithType(corev1.SecretTypeOpaque).
 		WithData(secretData)
 
-	opts := applyOptions()
+	opts := managed.ApplyOptions()
 	if err := kubeClient.Apply(ctx, envSecret, opts...); err != nil {
 		return "", fmt.Errorf("apply env secret %s/%s: %w", namespace, envSecretName, err)
 	}
@@ -483,12 +473,12 @@ func (r *LocoResourceReconciler) ensureServiceAccount(ctx context.Context, locoR
 		WithLabels(labels).
 		WithAnnotations(annotations).
 		WithAutomountServiceAccountToken(false)
-	if r.pullSecretName != "" {
+	if r.PullSecretName != "" {
 		pullSecret := corev1ac.LocalObjectReference().WithName(workspacePullSecretName)
 		sa.WithImagePullSecrets(pullSecret)
 	}
 
-	opts := applyOptions()
+	opts := managed.ApplyOptions()
 	if err := r.Apply(ctx, sa, opts...); err != nil {
 		return fmt.Errorf("apply service account %s/%s: %w", namespace, name, err)
 	}
@@ -506,7 +496,7 @@ func (r *LocoResourceReconciler) ensureRoleAndBinding(ctx context.Context, locoR
 	roleBindingName := getRoleBindingName(locoRes)
 	labels := managedLabels(locoRes)
 	annotations := ownerAnnotations(locoRes)
-	opts := applyOptions()
+	opts := managed.ApplyOptions()
 
 	rule := rbacv1ac.PolicyRule().
 		WithAPIGroups("").
@@ -567,7 +557,7 @@ func (r *LocoResourceReconciler) ensureService(ctx context.Context, locoRes *loc
 		WithAnnotations(annotations).
 		WithSpec(spec)
 
-	opts := applyOptions()
+	opts := managed.ApplyOptions()
 	if err := r.Apply(ctx, svc, opts...); err != nil {
 		return fmt.Errorf("apply service %s/%s: %w", namespace, name, err)
 	}
@@ -716,10 +706,10 @@ func desiredDeployment(
 	}
 
 	podLabels := map[string]string{
-		labelApp:           name,
-		labelWorkspaceID:   locoRes.Spec.WorkspaceID,
-		labelResourceID:    locoRes.Spec.ResourceID,
-		labelEnvironmentID: locoRes.Spec.EnvironmentID,
+		labelApp:                 name,
+		managed.LabelWorkspaceID: locoRes.Spec.WorkspaceID,
+		managed.LabelResourceID:  locoRes.Spec.ResourceID,
+		labelEnvironmentID:       locoRes.Spec.EnvironmentID,
 	}
 	podAnnotations := map[string]string{annotationEnvSecretRV: envSecretVersion}
 	podSecurity := podSecurityContext()
@@ -748,8 +738,8 @@ func desiredDeployment(
 		WithTemplate(template)
 
 	depLabels := managedLabels(locoRes)
-	depLabels[labelWorkspaceID] = locoRes.Spec.WorkspaceID
-	depLabels[labelResourceID] = locoRes.Spec.ResourceID
+	depLabels[managed.LabelWorkspaceID] = locoRes.Spec.WorkspaceID
+	depLabels[managed.LabelResourceID] = locoRes.Spec.ResourceID
 	depLabels[labelEnvironmentID] = locoRes.Spec.EnvironmentID
 	annotations := ownerAnnotations(locoRes)
 
@@ -775,7 +765,7 @@ func (r *LocoResourceReconciler) ensureDeployment(
 	namespace := getNamespace(locoRes)
 	slog.DebugContext(ctx, "ensuring deployment", "namespace", namespace, "name", name)
 
-	opts := applyOptions()
+	opts := managed.ApplyOptions()
 	if err := r.Apply(ctx, dep, opts...); err != nil {
 		return nil, fmt.Errorf("apply deployment %s/%s: %w", namespace, name, err)
 	}
@@ -817,7 +807,7 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 	}
 
 	// todo: remove the hardooded gateway name and namespace.
-	gatewayNamespace := v1Gateway.Namespace(r.locoNamespace)
+	gatewayNamespace := v1Gateway.Namespace(r.LocoNamespace)
 	parentRef := gatewayac.ParentReference().
 		WithName("eg").
 		WithNamespace(gatewayNamespace)
@@ -844,7 +834,7 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 		WithAnnotations(annotations).
 		WithSpec(spec)
 
-	opts := applyOptions()
+	opts := managed.ApplyOptions()
 	if err := r.Apply(ctx, route, opts...); err != nil {
 		return fmt.Errorf("apply HTTPRoute %s/%s: %w", namespace, routeName, err)
 	}
@@ -853,12 +843,8 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.locoNamespace = os.Getenv(EnvLocoNamespace)
-	r.obsNamespace = os.Getenv("LOCO_OBSERVABILITY_NAMESPACE")
-	r.pullSecretName = os.Getenv(EnvRegistryPullSecretName)
-
-	if r.pullSecretName != "" && r.locoNamespace == "" {
-		return fmt.Errorf("%s requires %s to be set", EnvRegistryPullSecretName, EnvLocoNamespace)
+	if r.PullSecretName != "" && r.LocoNamespace == "" {
+		return errPullSecretWithoutNamespace
 	}
 
 	applicationChanged := predicate.Or[client.Object](
@@ -868,7 +854,7 @@ func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	applicationPredicates := builder.WithPredicates(applicationChanged)
 	deploymentHandler := handler.EnqueueRequestsFromMapFunc(applicationForObject)
 	nodeHandler := handler.EnqueueRequestsFromMapFunc(r.applicationPerWorkspace)
-	nodeChanges := nodeRangesChanged()
+	nodeChanges := isolation.NodeRangesChanged()
 	nodePredicates := builder.WithPredicates(nodeChanges)
 	options := crcontroller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}
 
@@ -876,7 +862,7 @@ func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&locov1alpha1.Application{}, applicationPredicates).
 		Watches(&appsv1.Deployment{}, deploymentHandler).
 		Watches(&corev1.Node{}, nodeHandler, nodePredicates)
-	if r.pullSecretName != "" {
+	if r.PullSecretName != "" {
 		pullSecretHandler := handler.EnqueueRequestsFromMapFunc(r.applicationPerWorkspace)
 		pullSecretChanges := r.pullSecretChanged()
 		pullSecretPredicates := builder.WithPredicates(pullSecretChanges)

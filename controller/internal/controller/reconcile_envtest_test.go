@@ -13,6 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	v1Gateway "sigs.k8s.io/gateway-api/apis/v1"
 
+	"github.com/team-loco/loco/controller/internal/managed"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -48,8 +49,8 @@ var _ = Describe("Application reconcile", func() {
 		r := &LocoResourceReconciler{
 			Client:         k8sClient,
 			Scheme:         k8sClient.Scheme(),
-			locoNamespace:  testNamespace,
-			pullSecretName: pullSecretName,
+			LocoNamespace:  testNamespace,
+			PullSecretName: pullSecretName,
 		}
 		appKey := client.ObjectKeyFromObject(app)
 		req := reconcile.Request{NamespacedName: appKey}
@@ -69,15 +70,15 @@ var _ = Describe("Application reconcile", func() {
 		Expect(k8sClient.Get(ctx, imageKey, imageSecret)).To(Succeed())
 		Expect(imageSecret.Type).To(Equal(corev1.SecretTypeDockerConfigJson))
 		Expect(imageSecret.Data).To(Equal(pullSecret.Data))
-		Expect(imageSecret.Labels).To(HaveKeyWithValue(labelManagedBy, managedByValue))
-		Expect(imageSecret.Labels).To(HaveKeyWithValue(labelWorkspaceID, app.Spec.WorkspaceID))
+		Expect(imageSecret.Labels).To(HaveKeyWithValue(managed.LabelManagedBy, managed.ManagedByValue))
+		Expect(imageSecret.Labels).To(HaveKeyWithValue(managed.LabelWorkspaceID, app.Spec.WorkspaceID))
 		Expect(imageSecret.Annotations).NotTo(HaveKey(annotationAppName))
 		sa := &corev1.ServiceAccount{}
 		Expect(k8sClient.Get(ctx, depKey, sa)).To(Succeed())
 		Expect(sa.ImagePullSecrets).To(ConsistOf(corev1.LocalObjectReference{Name: workspacePullSecretName}))
 		Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
 		Expect(app.Status.Phase).To(Equal(phaseDeploying))
-		Expect(app.Finalizers).To(ConsistOf(finalizerCleanup))
+		Expect(app.Finalizers).To(ConsistOf(finalizerAppResourcesCleanup))
 		depVersion := dep.ResourceVersion
 		appVersion := app.ResourceVersion
 
@@ -96,7 +97,7 @@ var _ = Describe("Application reconcile", func() {
 		Expect(k8sClient.Get(ctx, imageKey, imageSecret)).To(Succeed())
 		Expect(imageSecret.Data).To(HaveKeyWithValue(corev1.DockerConfigJsonKey, rotated))
 
-		r.pullSecretName = ""
+		r.PullSecretName = ""
 		_, err = r.Reconcile(ctx, req)
 		Expect(err).NotTo(HaveOccurred())
 		err = k8sClient.Get(ctx, imageKey, imageSecret)
@@ -144,8 +145,8 @@ var _ = Describe("Application reconcile", func() {
 		r := &LocoResourceReconciler{
 			Client:         k8sClient,
 			Scheme:         k8sClient.Scheme(),
-			locoNamespace:  testNamespace,
-			pullSecretName: pullSecret.Name,
+			LocoNamespace:  testNamespace,
+			PullSecretName: pullSecret.Name,
 		}
 		firstKey := client.ObjectKeyFromObject(first)
 		secondKey := client.ObjectKeyFromObject(second)
@@ -206,7 +207,7 @@ var _ = Describe("Application reconcile", func() {
 		Expect(k8sClient.Get(ctx, secondSAKey, sa)).To(Succeed())
 		Expect(sa.ImagePullSecrets).To(ConsistOf(reference))
 
-		r.pullSecretName = ""
+		r.PullSecretName = ""
 		_, err = r.Reconcile(ctx, secondReq)
 		Expect(err).NotTo(HaveOccurred())
 		err = k8sClient.Get(ctx, secretKey, workspaceSecret)
@@ -224,7 +225,7 @@ var _ = Describe("Application reconcile", func() {
 		app := &locov1alpha1.Application{
 			Name:       "invalid",
 			Namespace:  testNamespace,
-			Finalizers: []string{finalizerCleanup},
+			Finalizers: []string{finalizerAppResourcesCleanup},
 			Spec:       locov1alpha1.ApplicationSpec{Type: testAppType, ResourceID: "invalid", WorkspaceID: "ws"},
 		}
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())

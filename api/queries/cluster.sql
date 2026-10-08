@@ -12,6 +12,7 @@ UPDATE clusters
 SET agent_version = $2,
     capacity_cpu_millicores = $3,
     capacity_memory_bytes = $4,
+    builds_enabled = $5,
     updated_at = NOW()
 WHERE id = $1;
 
@@ -21,8 +22,12 @@ SET last_heartbeat = $2,
     capacity_cpu_millicores = $3,
     capacity_memory_bytes = $4,
     health_status = $5,
+    builds_enabled = $6,
     updated_at = NOW()
 WHERE id = $1;
+
+-- name: GetClusterBuildsEnabled :one
+SELECT builds_enabled FROM clusters WHERE id = $1;
 
 -- name: SetClusterAgentToken :exec
 UPDATE clusters

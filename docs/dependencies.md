@@ -150,13 +150,16 @@ Deploys:
 - Kubernetes API for CustomResourceDefinitions (Certificate, Issuer, ClusterIssuer)
 - External ACME server (Let's Encrypt production/staging)
 
-#### loco-controller Chart
+#### loco-operator Chart
 
 Deploys:
 
-- **Loco Controller** (our operator)
+- **loco-controller** (the Application controller)
   - Watches Application CRDs
-  - Reconciles to Deployments, Services, Ingress
+  - Reconciles to Deployments, Services, HTTPRoutes and NetworkPolicies
+- **loco-build-controller** (the build controller, only with `builds.enabled`)
+  - Watches Build CRDs in the `loco-builds` namespace
+  - Runs each Build as a BuildKit Job and reports the pushed digest
 
 ---
 

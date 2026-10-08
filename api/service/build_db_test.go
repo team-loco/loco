@@ -163,10 +163,17 @@ func newBuildFixture(t *testing.T) *buildFixture {
 
 	if _, err := f.pool.Exec(
 		ctx,
-		`UPDATE clusters SET created_at = NOW() - INTERVAL '1 hour' WHERE id = $1`,
+		`UPDATE clusters SET created_at = NOW() - INTERVAL '1 hour', builds_enabled = true WHERE id = $1`,
 		f.clusterID,
 	); err != nil {
 		t.Fatalf("make the primary cluster the oldest: %v", err)
+	}
+	if _, err := f.pool.Exec(
+		ctx,
+		`UPDATE clusters SET builds_enabled = true WHERE id = $1`,
+		f.otherCluster,
+	); err != nil {
+		t.Fatalf("enable builds on the other cluster: %v", err)
 	}
 
 	machine := tvm.NewVendingMachine(f.pool, f.queries, tvm.Config{LastUsedUpdateInterval: time.Minute})
@@ -418,9 +425,9 @@ func TestStartBuildPicksTheOldestActiveCluster(t *testing.T) {
 		t.Fatalf("build queued on %q, want the remaining active cluster %q", got, want)
 	}
 
-	exec(`UPDATE clusters SET is_active = false`)
 	id := f.create(t, 10).GetBuildId()
 	f.uploadFor(t, id, 10)
+	exec(`UPDATE clusters SET is_active = false`)
 	_, err := f.start(id)
 	wantCode(t, err, connect.CodeFailedPrecondition)
 }

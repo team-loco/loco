@@ -25,6 +25,7 @@ const (
 	buildRunningMessage       = "running"
 	buildSucceededMessage     = "succeeded"
 	buildMissingDigestMessage = "the build reported success without an image digest"
+	buildsDisabledMessage     = "builds are not enabled on the cluster this build was queued on"
 )
 
 type buildTracker struct {
@@ -88,6 +89,22 @@ func (ss *syncSession) startQueuedBuilds(ctx context.Context) error {
 		return nil
 	}
 	clusterID := ss.clusterID
+	buildsEnabled, err := ss.server.queries.GetClusterBuildsEnabled(ctx, clusterID)
+	if err != nil {
+		slog.ErrorContext(
+			ctx,
+			"failed to check whether the cluster accepts builds",
+			"cluster_id",
+			clusterID,
+			"error",
+			err,
+		)
+		return nil
+	}
+	if !buildsEnabled {
+		ss.server.failQueuedBuilds(ctx, clusterID)
+		return nil
+	}
 	queued, err := ss.server.queries.ListQueuedClusterBuilds(ctx, &clusterID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list queued builds", "cluster_id", ss.clusterID, "error", err)
@@ -121,6 +138,33 @@ func (ss *syncSession) startQueuedBuilds(ctx context.Context) error {
 		)
 	}
 	return nil
+}
+
+func (s *AgentServer) failQueuedBuilds(ctx context.Context, clusterID uuid.UUID) {
+	failed, err := s.queries.FailQueuedClusterBuilds(ctx, genDb.FailQueuedClusterBuildsParams{
+		Message:   buildsDisabledMessage,
+		ClusterID: &clusterID,
+	})
+	if err != nil {
+		slog.ErrorContext(
+			ctx,
+			"failed to fail builds queued on a cluster without builds",
+			"cluster_id",
+			clusterID,
+			"error",
+			err,
+		)
+		return
+	}
+	sources := make([]buildSource, 0, len(failed))
+	for _, row := range failed {
+		slog.WarnContext(ctx, "build queued on a cluster without builds; marked failed",
+			"cluster_id", clusterID,
+			"build_id", row.ID,
+		)
+		sources = append(sources, buildSource{id: row.ID, key: row.SourceKey})
+	}
+	deleteBuildSources(ctx, s.queries, s.sources, sources...)
 }
 
 func (s *AgentServer) startBuildMessage(

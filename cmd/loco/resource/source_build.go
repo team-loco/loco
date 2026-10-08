@@ -28,7 +28,8 @@ var (
 		"the storage service rejected the source upload; the upload URL may have expired " +
 			"or the archive no longer matches the size it was signed for. Run the deploy again",
 	)
-	s3ErrorCode = regexp.MustCompile(`<Code>([^<]+)</Code>`)
+	errBuildsUnavailable = errors.New("this Loco install cannot build from source")
+	s3ErrorCode          = regexp.MustCompile(`<Code>([^<]+)</Code>`)
 )
 
 type sourceBuilder struct {
@@ -91,6 +92,9 @@ func (b *sourceBuilder) build(
 	b.authorize(startReq)
 	client := b.follower.clients.Builds(b.follower.host)
 	started, err := client.StartBuild(ctx, startReq)
+	if unavailable := buildsUnavailable(err); unavailable != nil {
+		return nil, unavailable
+	}
 	if err != nil {
 		return nil, fmt.Errorf("start build %s: %w", buildID, err)
 	}
@@ -121,6 +125,9 @@ func (b *sourceBuilder) createBuild(
 	b.authorize(req)
 	client := b.follower.clients.Builds(b.follower.host)
 	resp, err := client.CreateBuild(ctx, req)
+	if unavailable := buildsUnavailable(err); unavailable != nil {
+		return nil, unavailable
+	}
 	if connect.CodeOf(err) == connect.CodeInvalidArgument {
 		return nil, b.sourceRefused(archive, err)
 	}
@@ -128,6 +135,28 @@ func (b *sourceBuilder) createBuild(
 		return nil, fmt.Errorf("create build: %w", err)
 	}
 	return resp.Msg, nil
+}
+
+func buildsUnavailable(err error) error {
+	connectErr, ok := errors.AsType[*connect.Error](err)
+	if !ok || connectErr.Code() != connect.CodeFailedPrecondition {
+		return nil
+	}
+	for _, detail := range connectErr.Details() {
+		value, valueErr := detail.Value()
+		if valueErr != nil {
+			continue
+		}
+		if _, isUnavailable := value.(*buildv1.BuildsUnavailable); isUnavailable {
+			reason := connectErr.Message()
+			return fmt.Errorf(
+				"%w: %s. Deploy a prebuilt public image instead: loco deploy <name> --image <image>",
+				errBuildsUnavailable,
+				reason,
+			)
+		}
+	}
+	return nil
 }
 
 func (b *sourceBuilder) sourceRefused(archive *sourcepack.Archive, err error) error {

@@ -87,6 +87,7 @@ type RegisterRequest struct {
 	Region        string                 `protobuf:"bytes,2,opt,name=region,proto3" json:"region,omitempty"`
 	AgentVersion  string                 `protobuf:"bytes,3,opt,name=agent_version,json=agentVersion,proto3" json:"agent_version,omitempty"`
 	Capacity      *AgentCapacity         `protobuf:"bytes,4,opt,name=capacity,proto3" json:"capacity,omitempty"`
+	BuildsEnabled bool                   `protobuf:"varint,5,opt,name=builds_enabled,json=buildsEnabled,proto3" json:"builds_enabled,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -147,6 +148,13 @@ func (x *RegisterRequest) GetCapacity() *AgentCapacity {
 		return x.Capacity
 	}
 	return nil
+}
+
+func (x *RegisterRequest) GetBuildsEnabled() bool {
+	if x != nil {
+		return x.BuildsEnabled
+	}
+	return false
 }
 
 // RegisterResponse contains the assigned cluster ID.
@@ -1076,6 +1084,7 @@ type HeartbeatRequest struct {
 	ClusterId     string                 `protobuf:"bytes,1,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
 	Capacity      *AgentCapacity         `protobuf:"bytes,2,opt,name=capacity,proto3" json:"capacity,omitempty"`
 	Health        *AgentHealth           `protobuf:"bytes,3,opt,name=health,proto3" json:"health,omitempty"`
+	BuildsEnabled bool                   `protobuf:"varint,4,opt,name=builds_enabled,json=buildsEnabled,proto3" json:"builds_enabled,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1129,6 +1138,13 @@ func (x *HeartbeatRequest) GetHealth() *AgentHealth {
 		return x.Health
 	}
 	return nil
+}
+
+func (x *HeartbeatRequest) GetBuildsEnabled() bool {
+	if x != nil {
+		return x.BuildsEnabled
+	}
+	return false
 }
 
 // HeartbeatResponse is the control plane's reply on the heartbeat stream.
@@ -1318,12 +1334,13 @@ var File_loco_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/agent/v1/agent.proto\x12\rloco.agent.v1\x1a\x1bbuf/validate/validate.proto\"\xab\x01\n" +
+	"\x19loco/agent/v1/agent.proto\x12\rloco.agent.v1\x1a\x1bbuf/validate/validate.proto\"\xd2\x01\n" +
 	"\x0fRegisterRequest\x12!\n" +
 	"\fcluster_name\x18\x01 \x01(\tR\vclusterName\x12\x16\n" +
 	"\x06region\x18\x02 \x01(\tR\x06region\x12#\n" +
 	"\ragent_version\x18\x03 \x01(\tR\fagentVersion\x128\n" +
-	"\bcapacity\x18\x04 \x01(\v2\x1c.loco.agent.v1.AgentCapacityR\bcapacity\"1\n" +
+	"\bcapacity\x18\x04 \x01(\v2\x1c.loco.agent.v1.AgentCapacityR\bcapacity\x12%\n" +
+	"\x0ebuilds_enabled\x18\x05 \x01(\bR\rbuildsEnabled\"1\n" +
 	"\x10RegisterResponse\x12\x1d\n" +
 	"\n" +
 	"cluster_id\x18\x01 \x01(\tR\tclusterId\"\x81\x02\n" +
@@ -1391,12 +1408,13 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\x10image_repository\x18\x06 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0fimageRepository\x12\x1b\n" +
 	"\tcache_ref\x18\a \x01(\tR\bcacheRef\"2\n" +
 	"\vCancelBuild\x12#\n" +
-	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\"\xa9\x01\n" +
+	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\"\xd0\x01\n" +
 	"\x10HeartbeatRequest\x12'\n" +
 	"\n" +
 	"cluster_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tclusterId\x128\n" +
 	"\bcapacity\x18\x02 \x01(\v2\x1c.loco.agent.v1.AgentCapacityR\bcapacity\x122\n" +
-	"\x06health\x18\x03 \x01(\v2\x1a.loco.agent.v1.AgentHealthR\x06health\"C\n" +
+	"\x06health\x18\x03 \x01(\v2\x1a.loco.agent.v1.AgentHealthR\x06health\x12%\n" +
+	"\x0ebuilds_enabled\x18\x04 \x01(\bR\rbuildsEnabled\"C\n" +
 	"\x11HeartbeatResponseJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x05drainR\rreload_configR\x06resync\"\x8d\x02\n" +
 	"\rAgentCapacity\x120\n" +
 	"\x14cpu_millicores_total\x18\x01 \x01(\x03R\x12cpuMillicoresTotal\x12.\n" +
