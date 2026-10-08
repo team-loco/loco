@@ -13,7 +13,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file loco/event/v1/event.proto.
  */
 export const file_loco_event_v1_event: GenFile = /*@__PURE__*/
-  fileDesc("Chlsb2NvL2V2ZW50L3YxL2V2ZW50LnByb3RvEg1sb2NvLmV2ZW50LnYxIo8CCgVFdmVudBILCgNzZXEYASABKAMSCgoCaWQYAiABKAkSDAoEdHlwZRgDIAEoCRIOCgZvcmdfaWQYBCABKAkSFAoMd29ya3NwYWNlX2lkGAUgASgJEhIKCmFjdG9yX3R5cGUYBiABKAkSEAoIYWN0b3JfaWQYByABKAkSFAoMc3ViamVjdF90eXBlGAggASgJEhIKCnN1YmplY3RfaWQYCSABKAkSEgoKcmVxdWVzdF9pZBgKIAEoCRIlCgRkYXRhGAsgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIuCgpjcmVhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKFAQoUTGlzdE9yZ0V2ZW50c1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIbCgpiZWZvcmVfc2VxGAIgASgDQge6SAQiAigAEhcKBXR5cGVzGAMgAygJQgi6SAWSAQIQMhIdCglwYWdlX3NpemUYBCABKAVCCrpIBxoFGPQDKAAiVgoVTGlzdE9yZ0V2ZW50c1Jlc3BvbnNlEiQKBmV2ZW50cxgBIAMoCzIULmxvY28uZXZlbnQudjEuRXZlbnQSFwoPbmV4dF9iZWZvcmVfc2VxGAIgASgDIi4KE1N0cmVhbUV2ZW50c1JlcXVlc3QSFwoGY3Vyc29yGAEgASgJQge6SARyAhhAIkwKFFN0cmVhbUV2ZW50c1Jlc3BvbnNlEiQKBmV2ZW50cxgBIAMoCzIULmxvY28uZXZlbnQudjEuRXZlbnQSDgoGY3Vyc29yGAIgASgJMsUBCgxFdmVudFNlcnZpY2USWgoNTGlzdE9yZ0V2ZW50cxIjLmxvY28uZXZlbnQudjEuTGlzdE9yZ0V2ZW50c1JlcXVlc3QaJC5sb2NvLmV2ZW50LnYxLkxpc3RPcmdFdmVudHNSZXNwb25zZRJZCgxTdHJlYW1FdmVudHMSIi5sb2NvLmV2ZW50LnYxLlN0cmVhbUV2ZW50c1JlcXVlc3QaIy5sb2NvLmV2ZW50LnYxLlN0cmVhbUV2ZW50c1Jlc3BvbnNlMAFCOFo2Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9ldmVudC92MTtldmVudHYxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_struct, file_google_protobuf_timestamp]);
+  fileDesc("Chlsb2NvL2V2ZW50L3YxL2V2ZW50LnByb3RvEg1sb2NvLmV2ZW50LnYxIrgCCgVFdmVudBILCgNzZXEYASABKAMSCgoCaWQYAiABKAkSDAoEdHlwZRgDIAEoCRIOCgZvcmdfaWQYBCABKAkSFAoMd29ya3NwYWNlX2lkGAUgASgJEhIKCmFjdG9yX3R5cGUYBiABKAkSEAoIYWN0b3JfaWQYByABKAkSFAoMc3ViamVjdF90eXBlGAggASgJEhIKCnN1YmplY3RfaWQYCSABKAkSEgoKcmVxdWVzdF9pZBgKIAEoCRIlCgRkYXRhGAsgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIuCgpjcmVhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgthY3Rvcl9lbWFpbBgNIAEoCRISCgphY3Rvcl9uYW1lGA4gASgJIoUBChRMaXN0T3JnRXZlbnRzUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEhsKCmJlZm9yZV9zZXEYAiABKANCB7pIBCICKAASFwoFdHlwZXMYAyADKAlCCLpIBZIBAhAyEh0KCXBhZ2Vfc2l6ZRgEIAEoBUIKukgHGgUY9AMoACJWChVMaXN0T3JnRXZlbnRzUmVzcG9uc2USJAoGZXZlbnRzGAEgAygLMhQubG9jby5ldmVudC52MS5FdmVudBIXCg9uZXh0X2JlZm9yZV9zZXEYAiABKAMiLgoTU3RyZWFtRXZlbnRzUmVxdWVzdBIXCgZjdXJzb3IYASABKAlCB7pIBHICGEAiTAoUU3RyZWFtRXZlbnRzUmVzcG9uc2USJAoGZXZlbnRzGAEgAygLMhQubG9jby5ldmVudC52MS5FdmVudBIOCgZjdXJzb3IYAiABKAkyxQEKDEV2ZW50U2VydmljZRJaCg1MaXN0T3JnRXZlbnRzEiMubG9jby5ldmVudC52MS5MaXN0T3JnRXZlbnRzUmVxdWVzdBokLmxvY28uZXZlbnQudjEuTGlzdE9yZ0V2ZW50c1Jlc3BvbnNlElkKDFN0cmVhbUV2ZW50cxIiLmxvY28uZXZlbnQudjEuU3RyZWFtRXZlbnRzUmVxdWVzdBojLmxvY28uZXZlbnQudjEuU3RyZWFtRXZlbnRzUmVzcG9uc2UwAUI4WjZnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2V2ZW50L3YxO2V2ZW50djFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_struct, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.event.v1.Event
@@ -78,6 +78,16 @@ export type Event = Message<"loco.event.v1.Event"> & {
    * @generated from field: google.protobuf.Timestamp created_at = 12;
    */
   createdAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: string actor_email = 13;
+   */
+  actorEmail: string;
+
+  /**
+   * @generated from field: string actor_name = 14;
+   */
+  actorName: string;
 };
 
 /**
@@ -143,6 +153,16 @@ export type EventJson = {
    * @generated from field: google.protobuf.Timestamp created_at = 12;
    */
   createdAt?: TimestampJson;
+
+  /**
+   * @generated from field: string actor_email = 13;
+   */
+  actorEmail?: string;
+
+  /**
+   * @generated from field: string actor_name = 14;
+   */
+  actorName?: string;
 };
 
 /**

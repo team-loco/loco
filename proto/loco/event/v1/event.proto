@@ -26,6 +26,8 @@ message Event {
   string request_id = 10;
   google.protobuf.Struct data = 11;
   google.protobuf.Timestamp created_at = 12;
+  string actor_email = 13;
+  string actor_name = 14;
 }
 
 message ListOrgEventsRequest {
