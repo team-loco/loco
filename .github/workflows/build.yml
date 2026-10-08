@@ -43,10 +43,6 @@ jobs:
             build_args: |
               VERSION=${{ github.sha }}
 
-          - name: Registry
-            image: registry
-            dockerfile: ./registry/Dockerfile
-
           - name: Builder
             image: builder
             dockerfile: ./builder/Dockerfile
