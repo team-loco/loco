@@ -42,7 +42,9 @@ Builds, tests, code generation, linting and the local environment are mise tasks
   `-ldflags "-X main.version=..."`, which each Dockerfile fills from the `VERSION` build arg.
   `build-push.yml` passes the image tag (`sha-<commit>`), the CLI release its git tag
   (`vX.Y.Z`), and e2e `e2e`, the tag of its images. Without one, a binary reports its Go
-  module version, `(devel)` inside Docker. The charts have no default tag for Loco images.
+  module version, `(devel)` inside Docker. The UI image passes it to the Vite build as
+  `VITE_APP_VERSION` and serves it as `/version.json` and a `loco-version` meta tag, `(devel)`
+  without one. The charts have no default tag for Loco images.
 - **One source per value.** Don't repeat a chart value as a Go default or a script constant.
 - **Read configuration once at startup** into a config struct, like `newAPIConfig()` in
   `api/main.go`; no `os.Getenv` elsewhere. Invalid configuration panics. Tunable limits,

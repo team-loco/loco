@@ -2,10 +2,32 @@ import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import path from "path";
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import svgr from "vite-plugin-svgr";
 
 const dirname = import.meta.dirname;
+const unknownVersion = "(devel)";
+const linkedVersion = process.env.VITE_APP_VERSION ?? "";
+const version = linkedVersion === "" ? unknownVersion : linkedVersion;
+
+function buildVersion(): Plugin {
+	return {
+		name: "loco-version",
+		transformIndexHtml() {
+			return [
+				{
+					tag: "meta",
+					attrs: { name: "loco-version", content: version },
+					injectTo: "head",
+				},
+			];
+		},
+		generateBundle() {
+			const source = JSON.stringify({ version });
+			this.emitFile({ type: "asset", fileName: "version.json", source });
+		},
+	};
+}
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -14,6 +36,7 @@ export default defineConfig({
 		babel({ presets: [reactCompilerPreset()] }),
 		tailwindcss(),
 		svgr(),
+		buildVersion(),
 	],
 	server: {
 		fs: {

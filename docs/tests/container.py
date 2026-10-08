@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 import re
@@ -98,14 +99,14 @@ class ContainerTests(unittest.TestCase):
                 browser.close()
 
     def test_production_and_staging_share_the_ui(self):
-        for environment, ui_host, docs_host in [
-            ('production', 'loco.build', 'docs.loco.build'),
-            ('staging', 'staging.loco.build', 'docs.staging.loco.build'),
+        for environment, ui_host, docs_host, version in [
+            ('production', 'loco.build', 'docs.loco.build', 'sha-test'),
+            ('staging', 'staging.loco.build', 'docs.staging.loco.build', 'sha-test-staging'),
         ]:
             with self.subTest(environment=environment):
                 image = f'loco-ui-docs-test:{environment}'
                 api_host = 'api.staging.loco.build' if environment == 'staging' else 'api.loco.build'
-                docker('buildx', 'build', '--load', '-t', image, '-f', 'web/Dockerfile', '--build-arg', f'DOCS_ENVIRONMENT={environment}', '--build-arg', f'VITE_API_URL=https://{api_host}', '--build-arg', 'VITE_APP_ENV=PRODUCTION', '.')
+                docker('buildx', 'build', '--load', '-t', image, '-f', 'web/Dockerfile', '--build-arg', f'DOCS_ENVIRONMENT={environment}', '--build-arg', f'VITE_API_URL=https://{api_host}', '--build-arg', 'VITE_APP_ENV=PRODUCTION', '--build-arg', f'VERSION={version}', '.')
                 container = docker('run', '--rm', '-d', '-p', f'127.0.0.1::{PORT}', image)
                 try:
                     address = docker('port', container, str(PORT)).splitlines()[0]
@@ -127,6 +128,11 @@ class ContainerTests(unittest.TestCase):
                     self.assertEqual(status, 200)
                     self.assertIn('<div id="root">', ui)
                     self.assertNotIn('Deploy with Loco', ui)
+                    self.assertIn(f'<meta name="loco-version" content="{version}">', ui)
+                    status, body, version_headers = response(url + '/version.json', ui_host)
+                    self.assertEqual(status, 200)
+                    self.assertEqual(json.loads(body), {'version': version})
+                    self.assertEqual(version_headers['Cache-Control'], 'no-cache')
                     route_source = (ROOT / 'web/src/App.tsx').read_text()
                     routes = re.findall(r'<Route path="(/[^\"]*)"', route_source)
                     for route in routes:
