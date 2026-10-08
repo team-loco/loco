@@ -2,8 +2,11 @@ package main
 
 import (
 	"errors"
+	"log/slog"
 	"testing"
 	"time"
+
+	"github.com/team-loco/loco/internal/loglevel"
 )
 
 const testAgentVersion = "sha-test"
@@ -30,6 +33,7 @@ func agentEnv() map[string]string {
 		envReconnectBaseDelay:       "4s",
 		envReconnectMaxDelay:        "34s",
 		envHealthyStreamDuration:    "2m",
+		envLogLevel:                 "warn",
 	}
 }
 
@@ -48,6 +52,7 @@ func TestParseAgentConfigReadsTheEnvironment(t *testing.T) {
 		t.Fatalf("parseAgentConfig: %v", err)
 	}
 	want := Config{
+		LogLevel:                 slog.LevelWarn,
 		ControlPlaneURL:          "https://api.loco.test",
 		AgentToken:               "token",
 		AgentVersion:             testAgentVersion,
@@ -109,6 +114,7 @@ func TestParseAgentConfigRejectsMissingValues(t *testing.T) {
 		envReconnectBaseDelay,
 		envReconnectMaxDelay,
 		envHealthyStreamDuration,
+		envLogLevel,
 	}
 	for _, name := range required {
 		t.Run(name, func(t *testing.T) {
@@ -175,5 +181,17 @@ func TestParseAgentConfigLeavesTheKubeconfigOptional(t *testing.T) {
 	}
 	if cfg.Kubeconfig != "" {
 		t.Errorf("kubeconfig = %q, want it empty when %s is unset", cfg.Kubeconfig, envKubeconfig)
+	}
+}
+
+func TestParseAgentConfigRejectsUnknownLogLevel(t *testing.T) {
+	for _, value := range []string{"-4", "verbose"} {
+		t.Run(value, func(t *testing.T) {
+			env := agentEnv()
+			env[envLogLevel] = value
+			if _, err := parseAgentConfig(lookup(env), testAgentVersion); !errors.Is(err, loglevel.ErrUnknown) {
+				t.Errorf("parseAgentConfig with %s=%s = %v, want loglevel.ErrUnknown", envLogLevel, value, err)
+			}
+		})
 	}
 }

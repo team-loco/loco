@@ -33,7 +33,7 @@ func main() {
 	cfg := newAgentConfig()
 
 	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
+		Level: cfg.LogLevel,
 	})
 	logger := slog.New(handler)
 	slog.SetDefault(logger)

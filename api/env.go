@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/team-loco/loco/internal/loglevel"
 )
 
 const listEnvSeparator = ","
@@ -111,9 +113,9 @@ func logLevelEnv(name string) (slog.Level, bool) {
 	if raw == "" {
 		return slog.Level(0), false
 	}
-	parsed, err := strconv.Atoi(raw)
+	level, err := loglevel.Parse(raw)
 	if err != nil {
-		return slog.Level(0), false
+		panic(fmt.Errorf("%s %w", name, err))
 	}
-	return slog.Level(parsed), true
+	return level, true
 }
