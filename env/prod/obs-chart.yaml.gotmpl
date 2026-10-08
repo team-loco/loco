@@ -17,6 +17,8 @@ clickhouse:
 # Observability proxy (enabled by default)
 obsProxy:
   enabled: true
+  image:
+    tag: sha-{{ requiredEnv "GH_SHA" }}
   replicaCount: 2
   resources:
     requests:

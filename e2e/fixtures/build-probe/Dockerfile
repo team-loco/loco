@@ -1,4 +1,4 @@
-FROM busybox:1.38.0
+FROM busybox:1.38.0@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e
 SHELL ["/bin/ash", "-o", "pipefail", "-c"]
 RUN for p in /credentials /credentials/push /credentials/pull /var/run/secrets/kubernetes.io/serviceaccount /run/secrets/kubernetes.io; do \
         if [ -e "$p" ]; then echo "PROBE-LEAK path $p"; fi; \

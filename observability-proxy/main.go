@@ -13,6 +13,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
+	"github.com/team-loco/loco/internal/buildinfo"
 	"github.com/team-loco/loco/observability-proxy/pkg/auth"
 	"github.com/team-loco/loco/observability-proxy/pkg/cache"
 	chClient "github.com/team-loco/loco/observability-proxy/pkg/clickhouse"
@@ -22,6 +23,8 @@ import (
 
 const readHeaderTimeout = 10 * time.Second
 
+var version string
+
 func main() {
 	cfg := config.Load()
 
@@ -30,7 +33,9 @@ func main() {
 	}))
 	slog.SetDefault(logger)
 
+	proxyVersion := buildinfo.Version(version)
 	slog.Info("starting observability proxy",
+		"version", proxyVersion,
 		"port", cfg.Port,
 		"control_plane", cfg.ControlPlaneURL,
 		"clickhouse", cfg.ClickHouseURL,

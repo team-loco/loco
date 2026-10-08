@@ -7,7 +7,8 @@ on:
     paths:
       - "**/Dockerfile"
       - "**/*.dockerignore"
-      - ".github/workflows/docker.yml"
+      - "compose.yaml"
+      - ".github/workflows/*.yml"
       - "mise-tasks/lint/versions"
       - "mise.toml"
       - "mise.lock"
@@ -16,7 +17,8 @@ on:
     paths:
       - "**/Dockerfile"
       - "**/*.dockerignore"
-      - ".github/workflows/docker.yml"
+      - "compose.yaml"
+      - ".github/workflows/*.yml"
       - "mise-tasks/lint/versions"
       - "mise.toml"
       - "mise.lock"
@@ -97,7 +99,7 @@ jobs:
   base-image-versions:
     needs: changes
     if: needs.changes.outputs.run == 'true'
-    name: Base Image Versions
+    name: Image Pins
     runs-on: ubuntu-latest
 
     steps:
@@ -105,7 +107,7 @@ jobs:
 
       - uses: ./.github/actions/setup-tools
 
-      - name: Check Dockerfile base images against mise.toml
+      - name: Check image digests and Dockerfile base images against mise.toml
         run: mise run lint:versions
 
   hadolint:

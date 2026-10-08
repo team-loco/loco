@@ -14,11 +14,12 @@ app.kubernetes.io/name: loco-build-controller
 {{- end }}
 
 {{- define "loco-operator.buildConfig" -}}
+{{- $_ := required "builds.builderImage.tag is required" .Values.builds.builderImage.tag }}
 {{- omit .Values.builds "enabled" "controller" "podSecurity" "agentServiceAccount" | toJson }}
 {{- end }}
 
 {{- define "loco-operator.image" -}}
-{{ .Values.controller.image.repository }}:{{ .Values.controller.image.tag }}
+{{ .Values.controller.image.repository }}:{{ required "controller.image.tag is required" .Values.controller.image.tag }}
 {{- end }}
 
 {{- define "loco-operator.serviceMonitor" -}}

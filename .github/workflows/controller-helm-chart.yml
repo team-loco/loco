@@ -79,6 +79,9 @@ jobs:
     if: needs.changes.outputs.run == 'true'
     name: Test Helm Chart
     runs-on: ubuntu-latest
+    env:
+      CONTROLLER_IMAGE: loco-controller
+      IMAGE_TAG: ci
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -92,21 +95,27 @@ jobs:
       - name: Build and load controller image
         run: |
           go mod tidy -C controller
-          make -C controller docker-build IMG=controller:v0.1.0
-          kind load docker-image controller:v0.1.0
+          make -C controller docker-build IMG="$CONTROLLER_IMAGE:$IMAGE_TAG"
+          kind load docker-image "$CONTROLLER_IMAGE:$IMAGE_TAG"
 
       - name: Check what the chart renders with builds on and off
         run: mise run test:chart
 
       - name: Lint Helm Chart
         run: |
-          helm lint ./charts/loco-operator
+          helm lint ./charts/loco-operator \
+            --set controller.image.tag="$IMAGE_TAG" \
+            --set builds.builderImage.tag="$IMAGE_TAG"
 
       - name: Install Helm chart
         run: |
           helm install loco-operator ./charts/loco-operator \
             --create-namespace \
-            --namespace controller-system
+            --namespace controller-system \
+            --set controller.image.repository="$CONTROLLER_IMAGE" \
+            --set controller.image.tag="$IMAGE_TAG" \
+            --set controller.image.pullPolicy=IfNotPresent \
+            --set builds.builderImage.tag="$IMAGE_TAG"
 
       - name: Check Helm release status
         run: |

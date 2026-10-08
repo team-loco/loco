@@ -33,6 +33,6 @@ Your team supplies DNS records, certificate issuance, persistent storage, backup
 
 ## Upgrades
 
-Use images and charts from a consistent release. Regenerate CRDs through `mise run controller:gen` when developing schema changes. Review database migrations and infrastructure changes before upgrading a running installation.
+Every commit to `main` publishes the agent, builder, controller, API, observability proxy and UI images tagged `sha-<commit>`, and each binary reports that tag as its version. The charts have no default tag for these images: set `agent.image.tag`, `controller.image.tag`, `builds.builderImage.tag` and `obsProxy.image.tag` to the same `sha-<commit>`. Regenerate CRDs through `mise run controller:gen` when developing schema changes. Review database migrations and infrastructure changes before upgrading a running installation.
 
 A supported production packaging and upgrade procedure is not established by these docs. Inspect the chart values and the release's configuration before deployment.

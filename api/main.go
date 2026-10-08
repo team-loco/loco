@@ -48,6 +48,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
+	"github.com/team-loco/loco/internal/buildinfo"
 	"golang.org/x/mod/semver"
 )
 
@@ -78,7 +79,10 @@ const (
 
 var loopbackHosts = []string{"localhost", "127.0.0.1", "::1"}
 
+var version string
+
 type APIConfig struct {
+	Version               string
 	Env                   string // Environment (e.g., dev, prod)
 	DatabaseURL           string // PostgreSQL connection string
 	LogLevel              slog.Level
@@ -173,7 +177,10 @@ func newAPIConfig() *APIConfig {
 		panic(fmt.Errorf("%w: %w", errInvalidServiceDefault, err))
 	}
 
+	apiVersion := buildinfo.Version(version)
+
 	return &APIConfig{
+		Version:               apiVersion,
 		Env:                   os.Getenv("APP_ENV"),
 		DatabaseURL:           os.Getenv("DATABASE_URL"),
 		Port:                  os.Getenv("APP_PORT"),
@@ -299,6 +306,7 @@ func main() {
 
 	logger := slog.New(CustomHandler{Handler: getLoggerHandler(ac)})
 	slog.SetDefault(logger)
+	slog.Info("starting loco api", "version", ac.Version)
 
 	if ac.MinCLIVersion != "" && !semver.IsValid(ac.MinCLIVersion) {
 		log.Fatalf("MIN_CLI_VERSION %q is not a semantic version like v0.0.61", ac.MinCLIVersion)

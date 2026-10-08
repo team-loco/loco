@@ -6,7 +6,6 @@ import (
 	"image/color"
 	"io"
 	"os"
-	runtimeDebug "runtime/debug"
 	"strings"
 
 	"charm.land/fang/v2"
@@ -41,21 +40,7 @@ func LocoColorScheme() fang.ColorSchemeFunc {
 	}
 }
 
-var version string
-
-func moduleVersion() string {
-	i, ok := runtimeDebug.ReadBuildInfo()
-	if !ok {
-		return "(devel)"
-	}
-	return i.Main.Version
-}
-
-func Cli() {
-	if version == "" {
-		version = moduleVersion()
-	}
-
+func Cli(version string) {
 	ui.DetectBackground()
 	env := NewEnv()
 	ctx := context.Background()

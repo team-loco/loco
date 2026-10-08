@@ -13,11 +13,13 @@ import (
 	"github.com/team-loco/loco/internal/keychain"
 )
 
+const scriptVersion = "test"
+
 type fakeAPIKey struct{}
 
 func TestMain(m *testing.M) {
 	testscript.Main(m, map[string]func(){
-		"loco": Cli,
+		"loco": func() { Cli(scriptVersion) },
 	})
 }
 

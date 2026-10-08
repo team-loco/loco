@@ -295,7 +295,7 @@ obsProxy:
   enabled: true
   image:
     repository: ghcr.io/team-loco/loco-obs-proxy
-    tag: latest
+    tag: ""
   imagePullPolicy: Always
   replicaCount: 1
   resources:

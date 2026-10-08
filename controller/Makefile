@@ -3,6 +3,10 @@ export PATH := $(shell mise bin-paths 2>/dev/null | tr '\n' ':')$(PATH)
 # Image URL to use all building/pushing image targets
 IMG ?= loco-controller:latest
 
+CERT_MANAGER_VERSION ?= $(shell awk '$$2 == "jetstack/cert-manager" { getline; print $$2 }' ../helmfile.yaml.gotmpl)
+# renovate: datasource=docker depName=curlimages/curl
+CURL_VERSION ?= 8.22.0
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -87,7 +91,8 @@ setup-test-e2e: ## Set up a Kind cluster for e2e tests if it does not exist
 
 .PHONY: test-e2e
 test-e2e: setup-test-e2e manifests generate fmt vet ## Run the e2e tests. Expected an isolated environment using Kind.
-	KIND=$(KIND) KIND_CLUSTER=$(KIND_CLUSTER) go test -tags=e2e ./test/e2e/ -v -ginkgo.v
+	KIND=$(KIND) KIND_CLUSTER=$(KIND_CLUSTER) CERT_MANAGER_VERSION=$(CERT_MANAGER_VERSION) \
+		CURL_IMAGE=curlimages/curl:$(CURL_VERSION) go test -tags=e2e ./test/e2e/ -v -ginkgo.v
 	$(MAKE) cleanup-test-e2e
 
 .PHONY: cleanup-test-e2e

@@ -168,6 +168,13 @@ test_b01_build_app() {
     log_info "First build took $(build_seconds e2e-app-1)s"
 }
 
+test_b01_images_report_their_build_version() {
+    assert_contains "builder logs the version its image was built as" "version=${E2E_VERSION}" \
+        build_logs e2e-app-1 fetch
+    assert_contains "build controller logs the version its image was built as" "\"version\": \"${E2E_VERSION}\"" \
+        bk -n "$E2E_LOCO_NAMESPACE" logs deployment/loco-build-controller
+}
+
 container_mounts() {
     local field=$1 name=$2
     bk -n "$builds_ns" get job e2e-app-1 -o \

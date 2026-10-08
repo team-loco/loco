@@ -62,14 +62,14 @@ docker_build(
     'loco-agent',
     '.',
     dockerfile='agent/Dockerfile',
-    only=['agent', 'gen/go', 'k8sapi', 'go.mod', 'go.sum'],
+    only=['agent', 'gen/go', 'k8sapi', 'internal/buildinfo', 'go.mod', 'go.sum'],
 )
 
 docker_build(
     'loco-obs-proxy',
     '.',
     dockerfile='observability-proxy/Dockerfile',
-    only=['observability-proxy', 'gen/go', 'go.mod', 'go.sum'],
+    only=['observability-proxy', 'gen/go', 'internal/buildinfo', 'go.mod', 'go.sum'],
 )
 
 docker_build(
@@ -241,7 +241,7 @@ local_resource(
     'api',
     cmd='mise run build:api',
     serve_cmd='api/bin/loco-api',
-    deps=['api/', 'gen/go/', 'k8sapi/', 'go.mod', 'go.sum'],
+    deps=['api/', 'gen/go/', 'k8sapi/', 'internal/buildinfo/', 'go.mod', 'go.sum'],
     resource_deps=['db-migrate', 'valkey', 's3'],
     allow_parallel=True,
     labels=['services'],

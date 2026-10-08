@@ -40,12 +40,14 @@ jobs:
           - name: Agent
             image: agent
             dockerfile: ./agent/Dockerfile
-            build_args: |
-              VERSION=${{ github.sha }}
 
           - name: Builder
             image: builder
             dockerfile: ./builder/Dockerfile
+
+          - name: Observability Proxy
+            image: obs-proxy
+            dockerfile: ./observability-proxy/Dockerfile
 
           - name: UI
             image: ui

@@ -27,7 +27,6 @@ import (
 )
 
 const (
-	certmanagerVersion = "v1.19.1"
 	certmanagerURLTmpl = "https://github.com/cert-manager/cert-manager/releases/download/%s/cert-manager.yaml"
 
 	defaultKindBinary  = "kind"
@@ -62,8 +61,8 @@ func Run(cmd *exec.Cmd) (string, error) {
 }
 
 // UninstallCertManager uninstalls the cert manager
-func UninstallCertManager(ctx context.Context) {
-	url := fmt.Sprintf(certmanagerURLTmpl, certmanagerVersion)
+func UninstallCertManager(ctx context.Context, version string) {
+	url := fmt.Sprintf(certmanagerURLTmpl, version)
 	cmd := exec.CommandContext(ctx, "kubectl", "delete", "-f", url)
 	if _, err := Run(cmd); err != nil {
 		warnError(err)
@@ -84,8 +83,8 @@ func UninstallCertManager(ctx context.Context) {
 }
 
 // InstallCertManager installs the cert manager bundle.
-func InstallCertManager(ctx context.Context) error {
-	url := fmt.Sprintf(certmanagerURLTmpl, certmanagerVersion)
+func InstallCertManager(ctx context.Context, version string) error {
+	url := fmt.Sprintf(certmanagerURLTmpl, version)
 	cmd := exec.CommandContext(ctx, "kubectl", "apply", "-f", url)
 	if _, err := Run(cmd); err != nil {
 		return err

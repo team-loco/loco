@@ -27,7 +27,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: obs-proxy
-          image: "{{ .Values.obsProxy.image.repository }}:{{ .Values.obsProxy.image.tag }}"
+          image: "{{ .Values.obsProxy.image.repository }}:{{ required "obsProxy.image.tag is required" .Values.obsProxy.image.tag }}"
           imagePullPolicy: {{ .Values.obsProxy.imagePullPolicy }}
           securityContext:
             allowPrivilegeEscalation: false

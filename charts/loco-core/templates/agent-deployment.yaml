@@ -28,7 +28,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: {{ .Release.Name }}-agent
-          image: "{{ .Values.agent.image.repository }}:{{ .Values.agent.image.tag }}"
+          image: "{{ .Values.agent.image.repository }}:{{ required "agent.image.tag is required" .Values.agent.image.tag }}"
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

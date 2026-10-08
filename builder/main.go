@@ -25,6 +25,8 @@ func main() {
 	handler := slog.NewTextHandler(os.Stderr, nil)
 	logger := slog.New(handler)
 	slog.SetDefault(logger)
+	builderVersion := buildVersion()
+	slog.Info("starting loco builder", "version", builderVersion)
 
 	cfg, err := newConfig(os.Args[1:], os.Getenv)
 	if err != nil {

@@ -3,7 +3,7 @@ controller:
 
   image:
     repository: ghcr.io/team-loco/loco-controller
-    tag: latest
+    tag: ""
     pullPolicy: Always
 
   args:
@@ -72,7 +72,7 @@ builds:
   pushSecretName: ""
   builderImage:
     repository: ghcr.io/team-loco/loco-builder
-    tag: latest
+    tag: ""
     pullPolicy: Always
   buildkitImage:
     repository: moby/buildkit

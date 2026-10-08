@@ -1,8 +1,12 @@
 # Production environment values for loco-operator chart
 
 controller:
+  image:
+    tag: sha-{{ requiredEnv "GH_SHA" }}
   env: []
 registry:
   pullSecretName: loco-registry
 builds:
   pushSecretName: loco-registry-push
+  builderImage:
+    tag: sha-{{ requiredEnv "GH_SHA" }}

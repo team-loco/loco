@@ -177,16 +177,3 @@ func TestParseAgentConfigLeavesTheKubeconfigOptional(t *testing.T) {
 		t.Errorf("kubeconfig = %q, want it empty when %s is unset", cfg.Kubeconfig, envKubeconfig)
 	}
 }
-
-func TestBuildVersionPrefersTheLinkedVersion(t *testing.T) {
-	previous := version
-	t.Cleanup(func() { version = previous })
-	version = testAgentVersion
-	if got := buildVersion(); got != testAgentVersion {
-		t.Errorf("buildVersion = %q, want %q", got, testAgentVersion)
-	}
-	version = ""
-	if got := buildVersion(); got == "" {
-		t.Error("buildVersion without a linked version is empty")
-	}
-}

@@ -17,6 +17,7 @@ golangci-lint = "2.14.0"
 actionlint = "1.7.12"
 pinact = "5.0.0"
 hadolint = "2.15.1"
+osv-scanner = "2.6.0"
 lefthook = "2.1.16"
 
 helm = "4.3.0"
@@ -89,7 +90,7 @@ depends = ["test:*"]
 
 [tasks."test:cli"]
 description = "Test the CLI"
-run = "go test -v -coverprofile=coverage.out ./cmd/... ./internal/..."
+run = "go test -v -coverprofile=coverage.out . ./cmd/... ./internal/..."
 
 [tasks."test:api"]
 description = "Test the API server"
