@@ -22,8 +22,7 @@ import (
 var (
 	ErrPlatformDomainNotFound = errors.New("platform domain not found")
 	ErrDomainAlreadyExists    = errors.New("domain already exists")
-	ErrCannotRemovePrimary    = errors.New("cannot remove primary domain")
-	ErrCannotRemoveOnly       = errors.New("cannot remove resource's only domain")
+	ErrCannotRemovePrimary    = errors.New("make another domain primary before removing the primary domain")
 )
 
 type DomainServer struct {
@@ -529,21 +528,17 @@ func (s *DomainServer) DeleteResourceDomain(
 		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr)
 	}
 
-	// cannot remove primary domain
 	if domainRow.IsPrimary {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrCannotRemovePrimary)
+		count, countErr := s.queries.GetResourceDomainCount(ctx, domainRow.ResourceID)
+		if countErr != nil {
+			slog.ErrorContext(ctx, "failed to count resource domains", "error", countErr)
+			return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		}
+		if count > 1 {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, ErrCannotRemovePrimary)
+		}
 	}
 
-	// cannot remove if it's the only domain
-	count, err := s.queries.GetResourceDomainCount(ctx, domainRow.ResourceID)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
-	}
-	if count <= 1 {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrCannotRemoveOnly)
-	}
-
-	// delete the domain
 	err = s.queries.DeleteResourceDomain(ctx, domainID)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)

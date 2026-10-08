@@ -24,7 +24,7 @@ An application with a domain is public: the gateway routes its hostname to the a
 Port = 8000
 ```
 
-`loco deploy` then prints that the application has no public URL, and `loco resource status` shows `URL: none`. A domain added to an existing application takes effect on its next deployment.
+`loco deploy` then prints that the application has no public URL, and `loco resource status` shows `URL: none`. The dashboard's new-service form offers the same choice under Networking. A domain added to an existing application takes effect on its next deployment, and removing an application's last domain makes it private from its next deployment.
 
 ## Investigate a rollout
 

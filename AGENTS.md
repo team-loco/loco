@@ -135,6 +135,9 @@ first time and run `mise run lint:go` before pushing. The one that bites most:
   none, `routing` is omitted and the controller deletes both if they exist; the app still runs,
   scales, logs, makes outbound connections and is reachable inside its workspace. Adding or
   removing a domain takes effect on the next deployment
+- **Removing domains**: `DeleteResourceDomain` removes any non-primary domain, and the primary
+  only when it is the last one, which makes the app private. Removing the primary while others
+  remain fails with FailedPrecondition; set another primary first
 
 ## Regional Configuration
 

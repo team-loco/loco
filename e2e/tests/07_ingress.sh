@@ -122,10 +122,7 @@ test_i01_deploys_with_and_without_a_domain() {
     ingress_deploy "$ingress_private_app" || return 1
     assert_contains "The CLI says the private app has no public URL" \
         "${ingress_private_app} has no public URL" cat "$ingress_dir/$ingress_private_app.out"
-    local domains
-    domains=$(e2e_psql "SELECT count(*) FROM resource_domains rd JOIN resources r ON r.id = rd.resource_id
-                        WHERE r.name = '${ingress_private_app}'")
-    assert "The private resource has no domain" test "$domains" -eq 0
+    assert "The private resource has no domain" has_no_domain "$ingress_private_app"
 }
 
 test_i02_both_apps_become_ready() {
@@ -156,8 +153,43 @@ test_i05_status_reports_the_url() {
         loco_cli resource status "$ingress_private_app"
 }
 
+ingress_api() {
+    curl -sS --fail-with-body -X POST "${E2E_API_URL}/$1" \
+        -H "Authorization: Bearer ${E2E_USER_TOKEN}" \
+        -H 'Content-Type: application/json' \
+        -d "$2"
+}
+
+ingress_resource() {
+    local body="{\"nameKey\":{\"workspaceId\":\"${cli_workspace_id}\",\"name\":\"$1\"}}"
+    ingress_api loco.resource.v1.ResourceService/GetResource "$body"
+}
+
+ingress_domain_id() {
+    local resource
+    resource=$(ingress_resource "$1") || return 1
+    yq -p json -r '.resource.domains[0].id // ""' <<<"$resource"
+}
+
+remove_domain() {
+    local id
+    id=$(ingress_domain_id "$1")
+    test -n "$id" || return 1
+    ingress_api loco.domain.v1.DomainService/DeleteResourceDomain "{\"domainId\":\"${id}\"}"
+}
+
+has_no_domain() {
+    local resource
+    resource=$(ingress_resource "$1") || return 1
+    test "$(yq -p json -r '.resource.domains | length' <<<"$resource")" -eq 0
+}
+
 test_i06_losing_the_domain_removes_the_route() {
-    e2e_psql "DELETE FROM resource_domains WHERE domain = '${ingress_public_host}'" >/dev/null
+    if ! assert "The API removes the public app's only domain" remove_domain "$ingress_public_app"; then
+        remove_domain "$ingress_public_app" | sed 's/^/    /'
+        return 1
+    fi
+    assert "The resource has no domain left" has_no_domain "$ingress_public_app"
     local rc=0
     loco_cli resource scale "$ingress_public_app" --replicas 2 >"$ingress_dir/scale.out" 2>&1 || rc=$?
     if ! assert "loco resource scale redeploys the app without its domain (exit ${rc})" test "$rc" -eq 0; then
