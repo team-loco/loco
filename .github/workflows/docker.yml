@@ -7,7 +7,8 @@ on:
     paths:
       - "**/Dockerfile"
       - "**/*.dockerignore"
-      - "compose.yaml"
+      - "**/*compose*.yaml"
+      - "**/*compose*.yml"
       - ".github/workflows/*.yml"
       - "mise-tasks/lint/versions"
       - "mise.toml"
@@ -17,7 +18,8 @@ on:
     paths:
       - "**/Dockerfile"
       - "**/*.dockerignore"
-      - "compose.yaml"
+      - "**/*compose*.yaml"
+      - "**/*compose*.yml"
       - ".github/workflows/*.yml"
       - "mise-tasks/lint/versions"
       - "mise.toml"
