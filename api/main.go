@@ -61,6 +61,7 @@ var (
 	errInvalidServiceDefault = errors.New("invalid service default")
 	errInvalidDuration       = errors.New("is not a duration")
 	errNotPositive           = errors.New("must be positive")
+	errNegative              = errors.New("must not be negative")
 	errRegistryAuthPartial   = errors.New("LOCO_REGISTRY_USERNAME and LOCO_REGISTRY_PASSWORD must be set together")
 	errRegistryAuthNoHost    = errors.New("LOCO_REGISTRY_USERNAME is set without LOCO_REGISTRY_HOST")
 	errInvalidRegistry       = errors.New("invalid registry configuration")
@@ -83,6 +84,7 @@ const (
 	defaultRegistryScheme            = "https://"
 	defaultRegistryTimeout           = 30 * time.Second
 	defaultImageRetention            = 5
+	imageRetentionDisabled           = 0
 	defaultImageSweepInterval        = 10 * time.Minute
 	defaultImageSweepBuildBatch      = 100
 	defaultImageSweepRepositoryBatch = 100
@@ -200,7 +202,7 @@ func newAPIConfig() *APIConfig {
 	imageSweep := service.ImageSweepConfig{
 		RegistryHost:    registryHost,
 		RegistryPrefix:  registryPrefix,
-		Retention:       positiveInt32Env("LOCO_IMAGE_RETENTION", defaultImageRetention),
+		Retention:       nonNegativeInt32Env("LOCO_IMAGE_RETENTION", defaultImageRetention),
 		Interval:        positiveDurationEnv("LOCO_IMAGE_SWEEP_INTERVAL", defaultImageSweepInterval),
 		BuildBatch:      positiveInt32Env("LOCO_IMAGE_SWEEP_BUILD_BATCH", defaultImageSweepBuildBatch),
 		RepositoryBatch: int(positiveInt32Env("LOCO_IMAGE_SWEEP_REPOSITORY_BATCH", defaultImageSweepRepositoryBatch)),
@@ -283,6 +285,14 @@ func positiveInt32Env(name string, fallback int32) int32 {
 	return value
 }
 
+func nonNegativeInt32Env(name string, fallback int32) int32 {
+	value := int32Env(name, fallback)
+	if value < 0 {
+		panic(fmt.Errorf("%s %d %w", name, value, errNegative))
+	}
+	return value
+}
+
 func stringEnv(name, fallback string) string {
 	if value := os.Getenv(name); value != "" {
 		return value
@@ -314,7 +324,11 @@ func newSourceBucket(cfg sourcebucket.Config) (service.SourceBucket, error) {
 	return bucket, nil
 }
 
-func newImageRegistry(cfg registryclient.Config) (service.ImageRegistry, error) {
+func newImageRegistry(cfg registryclient.Config, retention int32) (service.ImageRegistry, error) {
+	if retention == imageRetentionDisabled {
+		slog.Warn("LOCO_IMAGE_RETENTION is 0; image cleanup is disabled by configuration")
+		return nil, nil
+	}
 	if cfg.Username == "" {
 		slog.Warn("LOCO_REGISTRY_USERNAME is not set; build images are never deleted from the registry")
 		return nil, nil
@@ -482,7 +496,7 @@ func main() {
 		sourceSweeper := service.NewSourceSweeper(pool, queries, sourceBucket, ac.SourceSweep)
 		go sourceSweeper.Run(shutdownCtx)
 	}
-	imageRegistry, registryErr := newImageRegistry(ac.Registry)
+	imageRegistry, registryErr := newImageRegistry(ac.Registry, ac.ImageSweep.Retention)
 	if registryErr != nil {
 		log.Fatal(registryErr)
 	}

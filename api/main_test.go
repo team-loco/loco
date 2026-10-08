@@ -208,6 +208,35 @@ func TestNewAPIConfigReadsRegistryCleanup(t *testing.T) {
 	}
 }
 
+func TestImageRetentionZeroDisablesCleanup(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv(registryHostEnv, testRegistryHost)
+	t.Setenv(registryUserEnv, testRegistryUser)
+	t.Setenv(registryPassEnv, testRegistryPass)
+	t.Setenv("LOCO_IMAGE_RETENTION", "0")
+	ac := newAPIConfig()
+	if ac.ImageSweep.Retention != imageRetentionDisabled {
+		t.Fatalf("retention = %d, want %d", ac.ImageSweep.Retention, imageRetentionDisabled)
+	}
+	disabled, err := newImageRegistry(ac.Registry, ac.ImageSweep.Retention)
+	if err != nil {
+		t.Fatalf("new image registry: %v", err)
+	}
+	if disabled != nil {
+		t.Fatal("retention 0 created a registry client, so the image sweeper would start")
+	}
+
+	t.Setenv("LOCO_IMAGE_RETENTION", "1")
+	ac = newAPIConfig()
+	enabled, err := newImageRegistry(ac.Registry, ac.ImageSweep.Retention)
+	if err != nil {
+		t.Fatalf("new image registry: %v", err)
+	}
+	if enabled == nil {
+		t.Fatal("retention 1 with credentials created no registry client")
+	}
+}
+
 func TestNewAPIConfigReadsServiceDefaults(t *testing.T) {
 	clearAPIConfigEnv(t)
 	t.Setenv("LOCO_DEFAULT_CPU", "250m")
@@ -275,7 +304,7 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 			map[string]string{maxReplicasEnv: "12"},
 			errInvalidServiceDefault,
 		},
-		{"zero image retention", map[string]string{"LOCO_IMAGE_RETENTION": "0"}, errNotPositive},
+		{"negative image retention", map[string]string{"LOCO_IMAGE_RETENTION": "-1"}, errNegative},
 		{"non-numeric image retention", map[string]string{"LOCO_IMAGE_RETENTION": "all"}, errInvalidInt32},
 		{"non-duration sweep interval", map[string]string{"LOCO_IMAGE_SWEEP_INTERVAL": "10"}, errInvalidDuration},
 		{"negative sweep interval", map[string]string{"LOCO_IMAGE_SWEEP_INTERVAL": "-1m"}, errNotPositive},
