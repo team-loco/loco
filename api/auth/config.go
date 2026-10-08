@@ -11,12 +11,16 @@ import (
 const (
 	claimEmail         = "email"
 	claimEmailVerified = "email_verified"
+	defaultWebScopes   = "openid email profile"
 )
 
 var (
+	ErrIssuerRequired              = errors.New("issuer is required")
 	ErrAudienceRequired            = errors.New("audience is required")
 	ErrEmailVerificationNeedsAdmin = errors.New("emailVerification admin needs an admin client")
 	ErrEmailVerificationConflict   = errors.New("emailVerification admin cannot be combined with emailAuthoritative")
+	ErrUnsupportedWebAdapter       = errors.New(`web.adapter must be "oidc" or absent`)
+	ErrWebClientIDRequired         = errors.New("web.clientId is required")
 	errNoJWKSURI                   = errors.New("discovery document has no jwks_uri")
 )
 
@@ -29,10 +33,7 @@ const (
 
 type WebAdapter string
 
-const (
-	WebAdapterSupabase WebAdapter = "supabase"
-	WebAdapterOIDC     WebAdapter = "oidc"
-)
+const WebAdapterOIDC WebAdapter = "oidc"
 
 type ClaimPaths struct {
 	Subject       string `json:"subject"`
@@ -44,7 +45,6 @@ type ClaimPaths struct {
 
 type WebConfig struct {
 	Adapter  WebAdapter `json:"adapter"`
-	URL      string     `json:"url"`
 	ClientID string     `json:"clientId"`
 	Scopes   string     `json:"scopes"`
 }
@@ -87,7 +87,7 @@ func ParseIssuers(raw string) ([]IssuerConfig, error) {
 
 func (ic *IssuerConfig) applyDefaults() error {
 	if ic.Issuer == "" {
-		return errors.New("issuer is required")
+		return ErrIssuerRequired
 	}
 	if _, err := url.ParseRequestURI(ic.Issuer); err != nil {
 		return fmt.Errorf("issuer %q is not a URL: %w", ic.Issuer, err)
@@ -120,21 +120,20 @@ func (ic *IssuerConfig) applyDefaults() error {
 		return err
 	}
 	if ic.Web != nil {
-		switch ic.Web.Adapter {
-		case WebAdapterSupabase:
-			if ic.Web.URL == "" {
-				ic.Web.URL = ic.Issuer
-			}
-		case WebAdapterOIDC:
-			if ic.Web.ClientID == "" {
-				return errors.New("web.clientId is required for the oidc adapter")
-			}
-			if ic.Web.Scopes == "" {
-				ic.Web.Scopes = "openid email profile"
-			}
-		default:
-			return fmt.Errorf("unknown web adapter %q", ic.Web.Adapter)
-		}
+		return ic.Web.applyDefaults()
+	}
+	return nil
+}
+
+func (w *WebConfig) applyDefaults() error {
+	if w.Adapter != "" && w.Adapter != WebAdapterOIDC {
+		return fmt.Errorf("%w, got %q", ErrUnsupportedWebAdapter, w.Adapter)
+	}
+	if w.ClientID == "" {
+		return ErrWebClientIDRequired
+	}
+	if w.Scopes == "" {
+		w.Scopes = defaultWebScopes
 	}
 	return nil
 }

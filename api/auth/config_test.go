@@ -9,7 +9,7 @@ const testIssuerURL = "https://auth.example.test"
 
 func TestParseIssuersAppliesDefaults(t *testing.T) {
 	issuers, err := ParseIssuers(
-		`[{"issuer":"` + testIssuerURL + `","audience":"authenticated","web":{"adapter":"supabase"}}]`,
+		`[{"issuer":"` + testIssuerURL + `","audience":"loco","web":{"clientId":"loco"}}]`,
 	)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
@@ -21,12 +21,35 @@ func TestParseIssuersAppliesDefaults(t *testing.T) {
 	if ic.Claims.Subject != "sub" || ic.Claims.Email != claimEmail || ic.Claims.EmailVerified != claimEmailVerified {
 		t.Errorf("claims = %+v", ic.Claims)
 	}
-	if ic.Web.URL != testIssuerURL {
-		t.Errorf("web url = %q", ic.Web.URL)
+	if ic.Web.Scopes != defaultWebScopes {
+		t.Errorf("web scopes = %q", ic.Web.Scopes)
 	}
 	web, ok := WebIssuer(issuers)
 	if !ok || web.Issuer != ic.Issuer {
 		t.Errorf("web issuer = %+v %v", web, ok)
+	}
+}
+
+func TestParseIssuersWebAdapter(t *testing.T) {
+	for name, web := range map[string]string{
+		"absent": `{"clientId":"loco"}`,
+		"oidc":   `{"adapter":"oidc","clientId":"loco"}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := ParseIssuers(`[{"issuer":"https://a.test","audience":"loco","web":` + web + `}]`); err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+		})
+	}
+	for _, adapter := range []string{"supabase", "magic"} {
+		t.Run(adapter, func(t *testing.T) {
+			_, err := ParseIssuers(
+				`[{"issuer":"https://a.test","audience":"loco","web":{"adapter":"` + adapter + `","clientId":"loco"}}]`,
+			)
+			if !errors.Is(err, ErrUnsupportedWebAdapter) {
+				t.Fatalf("err = %v, want %v", err, ErrUnsupportedWebAdapter)
+			}
+		})
 	}
 }
 
@@ -47,8 +70,9 @@ func TestParseIssuersRejectsBadConfig(t *testing.T) {
 		"issuer not a url": `[{"issuer":"auth","audience":"loco"}]`,
 		"duplicate issuer": `[{"issuer":"https://a.test","audience":"loco"},` +
 			`{"issuer":"https://a.test","audience":"loco"}]`,
-		"unknown adapter":     `[{"issuer":"https://a.test","audience":"loco","web":{"adapter":"magic"}}]`,
-		"oidc without client": `[{"issuer":"https://a.test","audience":"loco","web":{"adapter":"oidc"}}]`,
+		"web without client": `[{"issuer":"https://a.test","audience":"loco","web":{}}]`,
+		"web with url": `[{"issuer":"https://a.test","audience":"loco",` +
+			`"web":{"clientId":"loco","url":"https://a.test"}}]`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := ParseIssuers(raw); err == nil {

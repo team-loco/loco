@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import { Navigate, useLocation } from "react-router";
+import { useLocation } from "react-router";
 
 import { useAuth } from "@/auth/AuthProvider";
+import { SignInRedirect } from "@/auth/SignIn";
 import { LocoLogo } from "@/components/design/LocoLogo";
 import { AppLoading } from "@/context/AppLoader";
 
@@ -10,7 +11,7 @@ export function CliCard({ title, children }: { title: string; children: (email: 
 	const location = useLocation();
 
 	if (signedOut) {
-		return <Navigate to="/login" replace state={{ signIn: true, next: location.pathname + location.search }} />;
+		return <SignInRedirect next={location.pathname + location.search} />;
 	}
 	if (isPending || user === null) return <AppLoading />;
 

@@ -25,7 +25,6 @@
         "@bufbuild/protobuf": "^2.16.0",
         "@connectrpc/connect": "^2.2.0",
         "@connectrpc/connect-query": "^2.3.1",
-        "@supabase/auth-js": "^2.117.2",
         "@tailwindcss/vite": "^4.3.3",
         "@tanstack/query-async-storage-persister": "^5.104.0",
         "@tanstack/react-query": "^5.104.0",
@@ -298,8 +297,6 @@
     "@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 
     "@standard-schema/utils": ["@standard-schema/utils@0.3.0", "", {}, "sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g=="],
-
-    "@supabase/auth-js": ["@supabase/auth-js@2.117.2", "", { "dependencies": { "tslib": "2.8.1" } }, "sha512-Z3WnGwrphYZubrLbxp5Iv0tLA9A5GhvKzJ/ZXglxqwd2QEH2R4dXRltjVJ8sIn4xEW2BSFIGT0yALVJIgZeDYw=="],
 
     "@svgr/babel-plugin-add-jsx-attribute": ["@svgr/babel-plugin-add-jsx-attribute@8.0.0", "", { "peerDependencies": { "@babel/core": "^7.0.0-0" } }, "sha512-b9MIk7yhdS1pMCZM8VeNfUlSKVRhsHZNMl5O9SfaX0l0t5wjdgu4IDzGB8bpnGBBOjGST3rRFVsaaEtI4W6f7g=="],
 

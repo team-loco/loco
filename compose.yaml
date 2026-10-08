@@ -58,51 +58,20 @@ services:
         mkdir -p "/data/$$SOURCE_BUCKET"
         exec versitygw posix /data
 
-  auth-db:
-    image: postgres:18.6-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      <<: *postgres-env
-      PGHOST: postgres
-    volumes:
-      - ./env/local/auth-db.sql:/auth-db.sql:ro
-    entrypoint: ["sh", "-c"]
-    command:
-      - PGUSER="$$POSTGRES_USER" PGPASSWORD="$$POSTGRES_PASSWORD" PGDATABASE="$$POSTGRES_DB" psql -q -v ON_ERROR_STOP=1 -f /auth-db.sql
-
-  auth:
-    image: supabase/gotrue:v2.197.0@sha256:1736a63078f5922b198c4cbe50f80ab9a2d3b54fe8b7b6cfb2e9dc5dbbc12c6b
-    depends_on:
-      auth-db:
-        condition: service_completed_successfully
+  dex:
+    image: ghcr.io/dexidp/dex:v2.46.0@sha256:933fcd3f523338c847b88ef84a7145fb2fcb7b9917f08418612afeaaa2001777
+    command: ["dex", "serve", "/etc/dex/config.yaml"]
     ports:
-      - "${AUTH_PORT:-9999}:9999"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - "${DEX_PORT:-5556}:5556"
     environment:
-      GOTRUE_API_HOST: 0.0.0.0
-      PORT: "9999"
-      API_EXTERNAL_URL: http://localhost:${AUTH_PORT:-9999}
-      GOTRUE_DB_DRIVER: postgres
-      DATABASE_URL: postgres://supabase_auth_admin:supabase_auth_admin@postgres:5432/loco_auth
-      GOTRUE_SITE_URL: ${WEB_URL:-http://localhost:5173}
-      GOTRUE_URI_ALLOW_LIST: ${WEB_URL:-http://localhost:5173}/**
-      GOTRUE_JWT_ISSUER: http://localhost:${AUTH_PORT:-9999}
-      GOTRUE_JWT_KEYS: ${GOTRUE_JWT_KEYS:-}
-      GOTRUE_JWT_SECRET: ${GOTRUE_JWT_SECRET:-}
-      GOTRUE_JWT_EXP: "600"
-      GOTRUE_JWT_AUD: authenticated
-      GOTRUE_JWT_ADMIN_ROLES: service_role
-      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
-      GOTRUE_EXTERNAL_EMAIL_ENABLED: "false"
-      GOTRUE_EXTERNAL_GITHUB_ENABLED: ${AUTH_GITHUB_ENABLED:-true}
-      GOTRUE_EXTERNAL_GITHUB_CLIENT_ID: ${GH_OAUTH_CLIENT_ID:-}
-      GOTRUE_EXTERNAL_GITHUB_SECRET: ${GH_OAUTH_CLIENT_SECRET:-}
-      GOTRUE_EXTERNAL_GITHUB_REDIRECT_URI: http://localhost:${AUTH_PORT:-9999}/callback
+      WEB_URL: ${WEB_URL:-http://localhost:5173}
+      DEX_PORT: ${DEX_PORT:-5556}
+      GH_OAUTH_CLIENT_ID: ${GH_OAUTH_CLIENT_ID:-}
+      GH_OAUTH_CLIENT_SECRET: ${GH_OAUTH_CLIENT_SECRET:-}
+    volumes:
+      - ./env/local/dex.yaml:/etc/dex/config.yaml:ro
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:9999/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:5556/dex/healthz"]
       interval: 2s
       timeout: 3s
       retries: 30

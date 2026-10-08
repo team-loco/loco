@@ -27,9 +27,7 @@ func NewConfigServer(
 	s := &ConfigServer{platformDomain: platformDomain, minCLIVersion: minCLIVersion, defaults: defaults}
 	if ic, ok := auth.WebIssuer(issuers); ok {
 		s.auth = &configv1.AuthConfig{
-			Adapter:  string(ic.Web.Adapter),
 			Issuer:   ic.Issuer,
-			Url:      ic.Web.URL,
 			ClientId: ic.Web.ClientID,
 			Scopes:   ic.Web.Scopes,
 		}

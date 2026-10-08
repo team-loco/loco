@@ -25,7 +25,7 @@ function ExternalLink({ href, children }: { href: string; children: string }) {
 	);
 }
 
-export function SplashFooter({ onSignIn }: { onSignIn: () => void }) {
+export function SplashFooter({ onSignIn, redirecting }: { onSignIn: () => void; redirecting: boolean }) {
 	return (
 		<footer className="border-t border-background/10 bg-foreground text-background/55 [--logo:var(--logo-inverse)]">
 			<div className="mx-auto grid max-w-[1200px] grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-8 px-4 py-12 text-[13.5px] sm:px-7">
@@ -50,7 +50,7 @@ export function SplashFooter({ onSignIn }: { onSignIn: () => void }) {
 					<ExternalLink href={EXAMPLES_URL}>Examples</ExternalLink>
 				</Column>
 				<Column title="Account">
-					<button type="button" onClick={onSignIn} className={LINK_CLASS}>
+					<button type="button" onClick={onSignIn} disabled={redirecting} className={LINK_CLASS}>
 						Sign in
 					</button>
 					<a href="#access" className={LINK_CLASS}>

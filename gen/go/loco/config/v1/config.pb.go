@@ -121,9 +121,7 @@ func (x *GetConfigResponse) GetAuth() *AuthConfig {
 
 type AuthConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Adapter       string                 `protobuf:"bytes,1,opt,name=adapter,proto3" json:"adapter,omitempty"`
 	Issuer        string                 `protobuf:"bytes,2,opt,name=issuer,proto3" json:"issuer,omitempty"`
-	Url           string                 `protobuf:"bytes,3,opt,name=url,proto3" json:"url,omitempty"`
 	ClientId      string                 `protobuf:"bytes,4,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
 	Scopes        string                 `protobuf:"bytes,5,opt,name=scopes,proto3" json:"scopes,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -160,23 +158,9 @@ func (*AuthConfig) Descriptor() ([]byte, []int) {
 	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *AuthConfig) GetAdapter() string {
-	if x != nil {
-		return x.Adapter
-	}
-	return ""
-}
-
 func (x *AuthConfig) GetIssuer() string {
 	if x != nil {
 		return x.Issuer
-	}
-	return ""
-}
-
-func (x *AuthConfig) GetUrl() string {
-	if x != nil {
-		return x.Url
 	}
 	return ""
 }
@@ -311,14 +295,12 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\x11GetConfigResponse\x12O\n" +
 	"\x10service_defaults\x18\x01 \x01(\v2$.loco.config.v1.DefaultServiceConfigR\x0fserviceDefaults\x12&\n" +
 	"\x0fmin_cli_version\x18\x02 \x01(\tR\rminCliVersion\x12.\n" +
-	"\x04auth\x18\x03 \x01(\v2\x1a.loco.config.v1.AuthConfigR\x04auth\"\x85\x01\n" +
+	"\x04auth\x18\x03 \x01(\v2\x1a.loco.config.v1.AuthConfigR\x04auth\"s\n" +
 	"\n" +
-	"AuthConfig\x12\x18\n" +
-	"\aadapter\x18\x01 \x01(\tR\aadapter\x12\x16\n" +
-	"\x06issuer\x18\x02 \x01(\tR\x06issuer\x12\x10\n" +
-	"\x03url\x18\x03 \x01(\tR\x03url\x12\x1b\n" +
+	"AuthConfig\x12\x16\n" +
+	"\x06issuer\x18\x02 \x01(\tR\x06issuer\x12\x1b\n" +
 	"\tclient_id\x18\x04 \x01(\tR\bclientId\x12\x16\n" +
-	"\x06scopes\x18\x05 \x01(\tR\x06scopes\"\xaa\x03\n" +
+	"\x06scopes\x18\x05 \x01(\tR\x06scopesJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04R\aadapterR\x03url\"\xaa\x03\n" +
 	"\x14DefaultServiceConfig\x129\n" +
 	"\arouting\x18\x03 \x01(\v2\x1f.loco.resource.v1.RoutingConfigR\arouting\x12H\n" +
 	"\fhealth_check\x18\x04 \x01(\v2%.loco.deployment.v1.HealthCheckConfigR\vhealthCheck\x12\x10\n" +

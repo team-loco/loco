@@ -10,7 +10,7 @@ services:
     ports:
       - "${CONFORMANCE_POSTGRES_PORT:-55440}:5432"
     volumes:
-      - ../local/auth-db.sql:/docker-entrypoint-initdb.d/auth-db.sql:ro
+      - ./auth-db.sql:/docker-entrypoint-initdb.d/auth-db.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "psql -h 127.0.0.1 -U loco_test -d loco_auth -tAc 'select 1'"]
       interval: 1s

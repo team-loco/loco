@@ -97,7 +97,7 @@ That installs the pinned tools, the web dependencies and the git hooks, then run
 
 Builds, tests, code generation, linting and the local environment are mise tasks, which CI and the hooks run as well. `mise tasks` lists them.
 
-Copy `.env.example` to `.env` and fill in a GitHub OAuth app for local Supabase Auth, whose callback URL is `http://localhost:9999/callback`. `mise run tilt` then brings up the local environment, with the API on `http://localhost:8000` and the web UI on `http://localhost:5173`. The CLI talks to `https://api.loco.build`, and `loco web` opens `https://loco.build`, unless told otherwise. `loco login --host` saves the host it logged in to, and later commands use it; the session belongs to that host, so switching back to production means logging in there again:
+Copy `.env.example` to `.env`. `mise run tilt` then brings up the local environment, with the API on `http://localhost:8000` and the web UI on `http://localhost:5173`. The web UI signs in through [Dex](https://dexidp.io) on `http://localhost:5556/dex`, configured in `env/local/dex.yaml`, which defines the local user `dev@loco.test` and its password. Setting `GH_OAUTH_CLIENT_ID` and `GH_OAUTH_CLIENT_SECRET` in `.env` to a GitHub OAuth app whose callback URL is `http://localhost:5556/dex/callback` adds a GitHub button to the Dex login page. The CLI talks to `https://api.loco.build`, and `loco web` opens `https://loco.build`, unless told otherwise. `loco login --host` saves the host it logged in to, and later commands use it; the session belongs to that host, so switching back to production means logging in there again:
 
 ```bash
 mise run build
