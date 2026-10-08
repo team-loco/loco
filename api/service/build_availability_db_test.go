@@ -92,7 +92,7 @@ func TestCreateBuildFailsBeforeUploadWhenNoClusterAcceptsBuilds(t *testing.T) {
 
 func TestBuildServiceWithoutABucketIsUnavailable(t *testing.T) {
 	f := newBuildFixture(t)
-	server := NewBuildServer(f.pool, f.queries, f.server.machine, nil, f.server.config)
+	server := NewBuildServer(f.pool, f.queries, nil, f.server.config)
 	req := connect.NewRequest(&buildv1.CreateBuildRequest{
 		ResourceId:     f.resourceID.String(),
 		DockerfilePath: testDockerfile,

@@ -26,7 +26,7 @@ func TestBuildServiceDisabledWithoutConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewBuildServer(nil, nil, nil, tt.bucket, tt.config)
+			s := NewBuildServer(nil, nil, tt.bucket, tt.config)
 
 			createReq := connect.NewRequest(&buildv1.CreateBuildRequest{
 				ResourceId:     resourceID,

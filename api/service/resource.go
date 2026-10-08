@@ -15,13 +15,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/team-loco/loco/api/authz"
+	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/timeutil"
-	"github.com/team-loco/loco/api/tvm"
-	"github.com/team-loco/loco/api/tvm/actions"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -68,7 +68,7 @@ type ResourceServer struct {
 	resourcev1connect.UnimplementedResourceServiceHandler
 	db       *pgxpool.Pool
 	queries  genDb.Querier
-	machine  *tvm.VendingMachine
+	authz    *authz.Authorizer
 	defaults servicedefaults.Defaults
 }
 
@@ -76,13 +76,12 @@ type ResourceServer struct {
 func NewResourceServer(
 	db *pgxpool.Pool,
 	queries genDb.Querier,
-	machine *tvm.VendingMachine,
 	defaults servicedefaults.Defaults,
 ) *ResourceServer {
 	return &ResourceServer{
 		db:       db,
 		queries:  queries,
-		machine:  machine,
+		authz:    authz.New(db, queries),
 		defaults: defaults,
 	}
 }
@@ -100,7 +99,7 @@ func (s *ResourceServer) CreateResource(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.CreateResource, r.GetWorkspaceId()),
@@ -313,7 +312,7 @@ func (s *ResourceServer) GetResource(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("resource_id or name_key is required"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.GetResource, resourceIDStr),
@@ -373,7 +372,7 @@ func (s *ResourceServer) resourceIDByName(
 			EntityID:   workspaceID,
 			Scope:      genDb.ScopeRead,
 		}
-		if verifyErr := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, workspaceRead); verifyErr != nil {
+		if verifyErr := s.authz.Check(ctx, scopes, workspaceRead); verifyErr != nil {
 			slog.WarnContext(ctx, "unauthorized to look up a resource by name", "workspaceId", workspaceID)
 			return uuid.UUID{}, connect.NewError(connect.CodePermissionDenied, verifyErr)
 		}
@@ -401,7 +400,7 @@ func (s *ResourceServer) ListWorkspaceResources(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.ListResources, r.GetWorkspaceId()),
@@ -489,7 +488,7 @@ func (s *ResourceServer) UpdateResource(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.UpdateResource, r.GetResourceId()),
@@ -541,7 +540,7 @@ func (s *ResourceServer) DeleteResource(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.DeleteResource, r.GetResourceId()),
@@ -595,7 +594,7 @@ func (s *ResourceServer) GetResourceStatus(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.GetResourceStatus, r.GetResourceId()),
@@ -696,7 +695,7 @@ func (s *ResourceServer) ScaleResource(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.ScaleResource, r.GetResourceId()),
@@ -788,7 +787,7 @@ func (s *ResourceServer) UpdateResourceEnv(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.UpdateResourceEnv, r.GetResourceId()),

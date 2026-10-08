@@ -180,7 +180,7 @@ func newBuildFixture(t *testing.T) *buildFixture {
 	t.Cleanup(machine.Close)
 
 	bucket := newFakeBucket()
-	server := NewBuildServer(f.pool, f.queries, machine, bucket, BuildConfig{
+	server := NewBuildServer(f.pool, f.queries, bucket, BuildConfig{
 		RegistryHost:   testRegistryHost,
 		RegistryPrefix: "builds",
 		SourceMaxBytes: 1024,

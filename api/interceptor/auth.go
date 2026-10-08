@@ -9,6 +9,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/team-loco/loco/api/auth"
+	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
@@ -22,17 +23,20 @@ type authInterceptor struct {
 	machine  *tvm.VendingMachine
 	verifier *auth.Verifier
 	resolver *auth.Resolver
+	authz    *authz.Authorizer
 }
 
 func NewAuthInterceptor(
 	machine *tvm.VendingMachine,
 	verifier *auth.Verifier,
 	resolver *auth.Resolver,
+	authorizer *authz.Authorizer,
 ) *authInterceptor {
 	return &authInterceptor{
 		machine:  machine,
 		verifier: verifier,
 		resolver: resolver,
+		authz:    authorizer,
 	}
 }
 
@@ -122,7 +126,7 @@ func (i *authInterceptor) authenticateProviderToken(
 		return nil, connect.NewError(connect.CodeInternal, auth.ErrResolve)
 	}
 
-	scopes, err := i.machine.UserScopes(ctx, user.ID)
+	scopes, err := i.authz.UserScopes(ctx, user.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load user scopes", "userId", user.ID, "error", err)
 		return nil, connect.NewError(connect.CodeInternal, auth.ErrResolve)

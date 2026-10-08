@@ -10,11 +10,12 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/team-loco/loco/api/authz"
+	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
-	"github.com/team-loco/loco/api/tvm/actions"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 )
 
@@ -30,12 +31,13 @@ var (
 type EnvironmentServer struct {
 	db      *pgxpool.Pool
 	queries genDb.Querier
+	authz   *authz.Authorizer
 	machine *tvm.VendingMachine
 }
 
 // NewEnvironmentServer creates a new EnvironmentServer instance.
 func NewEnvironmentServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine) *EnvironmentServer {
-	return &EnvironmentServer{db: db, queries: queries, machine: machine}
+	return &EnvironmentServer{db: db, queries: queries, machine: machine, authz: authz.New(db, queries)}
 }
 
 // CreateEnvironment creates a new environment in a workspace.
@@ -51,7 +53,7 @@ func (s *EnvironmentServer) CreateEnvironment(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.CreateEnvironment, r.GetWorkspaceId()),
@@ -124,7 +126,7 @@ func (s *EnvironmentServer) GetEnvironment(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.GetEnvironment, env.WorkspaceID.String()),
@@ -151,7 +153,7 @@ func (s *EnvironmentServer) ListEnvironments(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.ListEnvironments, r.GetWorkspaceId()),
@@ -199,7 +201,7 @@ func (s *EnvironmentServer) UpdateEnvironment(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if verifyErr := s.machine.VerifyWithGivenEntityScopes(
+	if verifyErr := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.UpdateEnvironment, existing.WorkspaceID.String()),
@@ -273,7 +275,7 @@ func (s *EnvironmentServer) DeleteEnvironment(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if verifyErr := s.machine.VerifyWithGivenEntityScopes(
+	if verifyErr := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.DeleteEnvironment, existing.WorkspaceID.String()),

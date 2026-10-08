@@ -13,11 +13,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/team-loco/loco/api/authz"
+	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
-	"github.com/team-loco/loco/api/tvm/actions"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 )
 
@@ -31,12 +32,13 @@ var (
 type WorkspaceServer struct {
 	db      *pgxpool.Pool
 	queries genDb.Querier
+	authz   *authz.Authorizer
 	machine *tvm.VendingMachine
 }
 
 // NewWorkspaceServer creates a new WorkspaceServer instance
 func NewWorkspaceServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine) *WorkspaceServer {
-	return &WorkspaceServer{db: db, queries: queries, machine: machine}
+	return &WorkspaceServer{db: db, queries: queries, machine: machine, authz: authz.New(db, queries)}
 }
 
 // CreateWorkspace creates a new workspace
@@ -52,7 +54,7 @@ func (s *WorkspaceServer) CreateWorkspace(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.CreateWorkspace, r.GetOrgId()),
@@ -109,7 +111,7 @@ func (s *WorkspaceServer) CreateWorkspace(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	err = tvm.ApplyRoles(ctx, qtx, entity.ID, []genDb.EntityScope{
+	err = authz.ApplyRoles(ctx, qtx, entity.ID, []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeRead},
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeWrite},
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeAdmin},
@@ -179,7 +181,7 @@ func (s *WorkspaceServer) GetWorkspace(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.GetWorkspace, r.GetWorkspaceId()),
@@ -228,7 +230,7 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.GetCurrentUserWorkspaces, entity.ID.String()),
@@ -296,7 +298,7 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.ListWorkspaces,
@@ -367,7 +369,7 @@ func (s *WorkspaceServer) UpdateWorkspace(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.UpdateWorkspace, r.GetWorkspaceId()),
@@ -444,7 +446,7 @@ func (s *WorkspaceServer) DeleteWorkspace(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.DeleteWorkspace, r.GetWorkspaceId()),
@@ -509,7 +511,7 @@ func (s *WorkspaceServer) CreateMember(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		entityScopes,
 		actions.New(actions.AddWorkspaceMember, r.GetWorkspaceId()),
@@ -530,7 +532,7 @@ func (s *WorkspaceServer) CreateMember(
 			EntityID:   wsID,
 			Scope:      sc,
 		}
-		if err := s.machine.VerifyWithGivenEntityScopes(ctx, entityScopes, requested); err != nil {
+		if err := s.authz.Check(ctx, entityScopes, requested); err != nil {
 			slog.WarnContext(
 				ctx,
 				"cannot grant a workspace scope the caller does not hold",
@@ -553,7 +555,7 @@ func (s *WorkspaceServer) CreateMember(
 		grantedScopes[i] = sc.Scope
 	}
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if applyErr := tvm.ApplyRoles(ctx, qtx, userID, addScopes, nil); applyErr != nil {
+		if applyErr := authz.ApplyRoles(ctx, qtx, userID, addScopes, nil); applyErr != nil {
 			return applyErr
 		}
 		return events.Record(ctx, qtx, events.Event{
@@ -591,7 +593,7 @@ func (s *WorkspaceServer) DeleteMember(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		entityScopes,
 		actions.New(actions.RemoveWorkspaceMember, r.GetWorkspaceId()),
@@ -662,7 +664,7 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.ListWorkspaceMembers, r.GetWorkspaceId()),
