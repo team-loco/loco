@@ -52,7 +52,7 @@ export E2E_S3_ENDPOINT="http://${E2E_S3_ALIAS}:${S3_PORT}"
 export E2E_BUILD_NAMESPACE="loco-builds"
 export E2E_BUILD_WORK_DIR="$LOG_DIR/builds"
 export E2E_AWS_CLI_IMAGE=$(awk '$1 == "FROM" { print $2 }' "$SCRIPT_DIR/fixtures/aws-cli/Dockerfile")
-export E2E_PUBLIC_IMAGE=$(awk '$1 == "FROM" { print $2 }' "$SCRIPT_DIR/fixtures/public-image/Dockerfile")
+export E2E_PUBLIC_IMAGE=$(awk '$1 == "FROM" { split($2, ref, "@"); print ref[1] }' "$SCRIPT_DIR/fixtures/public-image/Dockerfile")
 
 source "$SCRIPT_DIR/lib.sh"
 
