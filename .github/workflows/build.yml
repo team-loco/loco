@@ -1,4 +1,4 @@
-name: Build and Deploy to Staging
+name: Build
 
 on:
   push:
@@ -75,11 +75,15 @@ jobs:
       tag_suffix: ${{ matrix.tag_suffix || '' }}
       build_args: ${{ matrix.build_args || '' }}
 
-  deploy-staging:
-    name: Deploy to Staging
+  notify-deploy:
+    name: Notify the Deployment Repository
     needs: push-image
-    uses: ./.github/workflows/deploy-railway.yml
-    with:
-      environment: staging
-      commit: ${{ github.sha }}
-    secrets: inherit
+    if: vars.DEPLOY_DISPATCH_REPOSITORY != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send the built commit
+        env:
+          GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
+          REPOSITORY: ${{ vars.DEPLOY_DISPATCH_REPOSITORY }}
+          COMMIT: ${{ github.sha }}
+        run: gh api "repos/$REPOSITORY/dispatches" -f event_type=core-images-built -f "client_payload[commit]=$COMMIT"

@@ -29,10 +29,6 @@ go.work.sum
 tmp/*
 **/bin/**
 
-# terraform
-*.tfstate
-terraform/.terraform/*
-
 # local certs and keys
 *.pem
 *.agekey

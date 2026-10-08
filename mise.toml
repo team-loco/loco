@@ -26,9 +26,6 @@ kubectl = "1.37.1"
 kind = "0.33.0"
 tilt = "0.37.8"
 
-terraform = "1.16.4"
-doctl = "1.177.0"
-railway = "5.63.1"
 
 [settings]
 lockfile = true
@@ -265,11 +262,6 @@ run = "uv run --frozen --project docs python -m unittest discover -s docs/tests"
 [tasks."docs:check:browser"]
 description = "Check documentation navigation, search, themes and Markdown copying in Chromium"
 run = "uv run --frozen --project docs python docs/tests/browser.py"
-
-[tasks."test:railway"]
-description = "Test the production and staging Railway service graph"
-dir = ".railway"
-run = "go test ./..."
 
 [tasks."docs:check:container"]
 description = "Check combined UI and documentation images in production and staging"

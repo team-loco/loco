@@ -31,16 +31,12 @@ Desktop navigation remains visible as you scroll, with every section expanded. T
 
 ## Hosting
 
-The `web/Dockerfile` image packages the dashboard and documentation together. One Static Web Server process serves the dashboard, docs at `/docs/`, and the docs hostname through a virtual host. The existing Railway `loco::cp-ui` service owns both domains; documentation adds no service or image publication job.
+The `web/Dockerfile` image packages the dashboard and documentation together. One Static Web Server process serves the dashboard, docs at `/docs/`, and the docs hostname through a virtual host. The UI service owns both domains; documentation adds no service or image publication job.
 
 Production serves `docs.loco.build` and `loco.build/docs/`. Staging serves `docs.staging.loco.build` and `staging.loco.build/docs/`. The docs hostname is canonical; links inside the rendered site are relative so navigation also works under `/docs/`.
 
-Main merges build production and staging UI images containing their matching docs builds. The staging workflow deploys automatically; the production workflow promotes the selected commit's UI image, including its docs.
+Main merges build production and staging UI images containing their matching docs builds, then notify the repository named by the `DEPLOY_DISPATCH_REPOSITORY` variable, which deploys them.
 
 `web/sws.toml` defines static roots and dashboard route rewrites. Existing dashboard routes resolve to the UI entrypoint; missing documentation URLs return HTTP 404. Add a rewrite when introducing a new dashboard route prefix. The container tests check the routes declared in `web/src/App.tsx`.
 
 `docs/scripts/package.py` generates the server configuration with exact CSP hashes for Zensical's inline scripts. The dashboard keeps its existing script restrictions. Generated `.sws.toml` stays outside the public site and out of Git.
-
-Register each docs hostname on `loco::cp-ui` with `railway domain docs.loco.build --service loco::cp-ui --environment production --port 8080` and the staging equivalent, then add the CNAME and verification records Railway supplies. Railway configuration can manage registered domains but cannot create new custom domains. Railway must verify both custom domains and provision HTTPS before treating them as live. The `/docs/` path works through the existing dashboard domain without another DNS record.
-
-Inspect a [Railway configuration plan](https://github.com/team-loco/loco/actions/workflows/railway-config.yml) for each environment before merging infrastructure changes.
