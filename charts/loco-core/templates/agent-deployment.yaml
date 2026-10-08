@@ -42,6 +42,14 @@ spec:
                   fieldPath: metadata.namespace
             - name: LOCO_BUILD_NAMESPACE
               value: {{ .Values.agent.buildNamespace | quote }}
+            - name: LOCO_CONTROLLER_DEPLOYMENT
+              value: {{ .Values.agent.controllerDeployment | quote }}
+            - name: LOCO_INVENTORY_INTERVAL
+              value: {{ .Values.agent.inventoryInterval | quote }}
+            - name: LOCO_BUILD_RETENTION
+              value: {{ .Values.agent.buildRetention | quote }}
+            - name: LOCO_BUILD_COLLECT_INTERVAL
+              value: {{ .Values.agent.buildCollectInterval | quote }}
           envFrom:
             - secretRef:
                 name: {{ .Release.Name }}-env

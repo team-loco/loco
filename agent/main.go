@@ -28,64 +28,17 @@ import (
 )
 
 const (
-	heartbeatInterval           = 30 * time.Second
-	inventoryInterval           = 10 * time.Minute
-	clusterQueryTimeout         = 10 * time.Second
-	defaultControllerDeployment = "loco-controller"
-	reconcileWorkers            = 8
-	outboundBuffer              = 256
-	buildQueueSize              = 64
-	buildRetention              = time.Hour
-	buildCollectInterval        = 5 * time.Minute
-	defaultBuildNamespace       = "loco-builds"
+	heartbeatInterval   = 30 * time.Second
+	clusterQueryTimeout = 10 * time.Second
+	reconcileWorkers    = 8
+	outboundBuffer      = 256
+	buildQueueSize      = 64
 )
 
 var errBuildSupportChanged = errors.New("the cluster's build support changed; restarting to pick it up")
 
-type Config struct {
-	ControlPlaneURL      string
-	AgentToken           string
-	Region               string
-	AgentVersion         string
-	Namespace            string
-	ControllerNamespace  string
-	ControllerDeployment string
-	BuildNamespace       string
-}
-
-func newConfig() *Config {
-	namespace := os.Getenv("LOCO_NAMESPACE")
-	return &Config{
-		ControlPlaneURL:      getEnvOrDefault("CONTROL_PLANE_URL", "http://localhost:8000"),
-		AgentToken:           os.Getenv("AGENT_TOKEN"),
-		Region:               getEnvOrDefault("REGION", "us-east-1"),
-		AgentVersion:         getEnvOrDefault("AGENT_VERSION", "0.1.0"),
-		Namespace:            namespace,
-		ControllerNamespace:  getEnvOrDefault("LOCO_CONTROLLER_NAMESPACE", namespace),
-		ControllerDeployment: getEnvOrDefault("LOCO_CONTROLLER_DEPLOYMENT", defaultControllerDeployment),
-		BuildNamespace:       getEnvOrDefault("LOCO_BUILD_NAMESPACE", defaultBuildNamespace),
-	}
-}
-
-func getEnvOrDefault(key, defaultVal string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return defaultVal
-}
-
 func main() {
-	cfg := newConfig()
-
-	if cfg.AgentToken == "" {
-		slog.Error("AGENT_TOKEN environment variable is required")
-		os.Exit(1)
-	}
-
-	if cfg.Namespace == "" {
-		slog.Error("LOCO_NAMESPACE environment variable is required")
-		os.Exit(1)
-	}
+	cfg := newAgentConfig()
 
 	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
@@ -95,7 +48,6 @@ func main() {
 
 	slog.Info("starting loco agent",
 		"control_plane", cfg.ControlPlaneURL,
-		"region", cfg.Region,
 		"version", cfg.AgentVersion,
 		"namespace", cfg.Namespace,
 		"controller_namespace", cfg.ControllerNamespace,
@@ -154,7 +106,7 @@ func main() {
 		os.Exit(1)
 	}
 	startWatcher := func() (buildRunner, error) {
-		return buildwatch.Start(ctx, restConfig, cfg.BuildNamespace, buildRetention)
+		return buildwatch.Start(ctx, restConfig, cfg.BuildNamespace, cfg.BuildRetention)
 	}
 	builds, err := startBuilds(buildsEnabled, startWatcher)
 	if err != nil {
@@ -162,7 +114,7 @@ func main() {
 		os.Exit(1)
 	}
 	slog.Info("build support detected", "builds_enabled", buildsEnabled)
-	go builds.RunCollector(ctx, buildCollectInterval)
+	go builds.RunCollector(ctx, cfg.BuildCollectInterval)
 
 	agent := &Agent{
 		cfg:           cfg,
@@ -250,7 +202,6 @@ func (a *Agent) Run(ctx context.Context) error {
 func (a *Agent) register(ctx context.Context) error {
 	capacity := a.getCapacity(ctx)
 	req := connect.NewRequest(&agentv1.RegisterRequest{
-		Region:        a.cfg.Region,
 		AgentVersion:  a.cfg.AgentVersion,
 		Capacity:      capacity,
 		BuildsEnabled: a.buildsEnabled,
@@ -429,7 +380,7 @@ func receiveSync(
 }
 
 func (a *Agent) reportInventory(ctx context.Context, session *syncSession) {
-	ticker := time.NewTicker(inventoryInterval)
+	ticker := time.NewTicker(a.cfg.InventoryInterval)
 	defer ticker.Stop()
 	for {
 		select {

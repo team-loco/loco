@@ -20,8 +20,8 @@ service AgentService {
 
 // RegisterRequest is sent by the agent on startup to announce itself.
 message RegisterRequest {
-  string cluster_name = 1;
-  string region = 2;
+  reserved 1, 2;
+  reserved "cluster_name", "region";
   string agent_version = 3;
   AgentCapacity capacity = 4;
   bool builds_enabled = 5;

@@ -40,6 +40,8 @@ jobs:
           - name: Agent
             image: agent
             dockerfile: ./agent/Dockerfile
+            build_args: |
+              VERSION=${{ github.sha }}
 
           - name: Registry
             image: registry

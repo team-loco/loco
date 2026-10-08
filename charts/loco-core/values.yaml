@@ -45,6 +45,10 @@ agent:
     tag: latest
   imagePullPolicy: Always
   buildNamespace: loco-builds
+  controllerDeployment: loco-controller
+  inventoryInterval: 10m
+  buildRetention: 1h
+  buildCollectInterval: 5m
 
 secrets:
   cloudflareToken: ""

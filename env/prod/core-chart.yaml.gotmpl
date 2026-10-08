@@ -26,6 +26,8 @@ secrets:
   cloudflareToken: {{ requiredEnv "CLOUDFLARE_TOKEN" }}
 env:
   LOG_LEVEL: {{ requiredEnv "LOG_LEVEL" }}
+  CONTROL_PLANE_URL: https://api.loco.build
+  AGENT_TOKEN: {{ requiredEnv "AGENT_TOKEN" | quote }}
 
 gateway-helm:
   enabled: true
