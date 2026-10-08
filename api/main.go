@@ -24,6 +24,7 @@ import (
 	"connectrpc.com/validate"
 	"github.com/rs/cors"
 	"github.com/team-loco/loco/api/auth"
+	"github.com/team-loco/loco/api/auth/supabase"
 	"github.com/team-loco/loco/api/db"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
@@ -36,6 +37,7 @@ import (
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
+	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 	"github.com/team-loco/loco/gen/go/loco/build/v1/buildv1connect"
 	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
@@ -97,6 +99,7 @@ type APIConfig struct {
 	AuthIssuers           string
 	AuthSignupMode        string
 	AuthSignupDomains     string
+	WebURL                string
 }
 
 func newAPIConfig() *APIConfig {
@@ -192,6 +195,7 @@ func newAPIConfig() *APIConfig {
 		AuthIssuers:           os.Getenv("AUTH_ISSUERS"),
 		AuthSignupMode:        os.Getenv("AUTH_SIGNUP_MODE"),
 		AuthSignupDomains:     os.Getenv("AUTH_SIGNUP_DOMAINS"),
+		WebURL:                os.Getenv("WEB_URL"),
 	}
 }
 
@@ -343,8 +347,19 @@ func main() {
 	baseInterceptors := connect.WithInterceptors(deadlineInterceptor)
 
 	mux := http.NewServeMux()
-	verifier := auth.NewVerifier(newOutboundHTTPClient(), issuers)
-	resolver := auth.NewResolver(pool, signupPolicy)
+	authClient := newOutboundHTTPClient()
+	adminFactories := auth.AdminFactories{supabase.AdminType: supabase.NewAdmin}
+	admins, adminsErr := auth.NewAdmins(authClient, issuers, os.Getenv, adminFactories)
+	if adminsErr != nil {
+		log.Fatalf("AUTH_ISSUERS admin: %v", adminsErr)
+	}
+	emailVerifiers, emailVerifiersErr := auth.NewEmailVerifiers(issuers, admins)
+	if emailVerifiersErr != nil {
+		log.Fatalf("AUTH_ISSUERS email verification: %v", emailVerifiersErr)
+	}
+	verifier := auth.NewVerifier(authClient, issuers)
+	emailVerifierOption := auth.WithEmailVerifiers(emailVerifiers)
+	resolver := auth.NewResolver(pool, signupPolicy, emailVerifierOption)
 
 	httpInterceptors := connect.WithInterceptors(
 		deadlineInterceptor,
@@ -379,7 +394,8 @@ func main() {
 	oauthStateCache := service.NewOAuthStateCache(appCache)
 	secureCookies := ac.Env == envProduction
 	oAuthServiceHandler := service.NewOAuthServer(pool, queries, httpClient, machine, oauthStateCache, secureCookies)
-	userServiceHandler := service.NewUserServer(pool, queries, machine, secureCookies)
+	authServiceHandler := service.NewAuthServer(queries, machine, appCache, admins, ac.WebURL)
+	userServiceHandler := service.NewUserServer(pool, queries, machine, secureCookies, admins)
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
 	resourceServiceHandler := service.NewResourceServer(pool, queries, machine, ac.ServiceDefaults)
@@ -424,6 +440,7 @@ func main() {
 	configPath, configHandler := configv1connect.NewConfigServiceHandler(configServiceHandler, baseInterceptors)
 	oauthPath, oauthHandler := oauthv1connect.NewOAuthServiceHandler(oAuthServiceHandler, httpInterceptors)
 	userPath, userHandler := userv1connect.NewUserServiceHandler(userServiceHandler, httpInterceptors)
+	authPath, authHandler := authv1connect.NewAuthServiceHandler(authServiceHandler, httpInterceptors)
 	orgPath, orgHandler := orgv1connect.NewOrgServiceHandler(orgServiceHandler, httpInterceptors)
 	workspacePath, workspaceHandler := workspacev1connect.NewWorkspaceServiceHandler(
 		workspaceServiceHandler,
@@ -461,6 +478,12 @@ func main() {
 		oauthv1connect.OAuthServiceExchangeOAuthCodeProcedure,
 
 		// user service
+		authv1connect.AuthServiceApproveCLILoginProcedure,
+		authv1connect.AuthServiceExchangeCLICodeProcedure,
+		authv1connect.AuthServiceStartDeviceLoginProcedure,
+		authv1connect.AuthServiceApproveDeviceLoginProcedure,
+		authv1connect.AuthServicePollDeviceLoginProcedure,
+		authv1connect.AuthServiceRefreshCLITokenProcedure,
 		userv1connect.UserServiceGetUserProcedure,
 		userv1connect.UserServiceWhoAmIProcedure,
 		userv1connect.UserServiceUpdateUserProcedure,
@@ -551,6 +574,7 @@ func main() {
 	mux.Handle(configPath, configHandler)
 	mux.Handle(oauthPath, oauthHandler)
 	mux.Handle(userPath, userHandler)
+	mux.Handle(authPath, authHandler)
 	mux.Handle(orgPath, orgHandler)
 	mux.Handle(workspacePath, workspaceHandler)
 	mux.Handle(resourcePath, resourceHandler)

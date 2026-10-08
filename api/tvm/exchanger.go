@@ -47,19 +47,34 @@ func (tvm *VendingMachine) Exchange(
 	}
 	user := row.User
 
-	if err := tvm.queries.TouchIdentity(ctx, queries.TouchIdentityParams{
+	if touchErr := tvm.queries.TouchIdentity(ctx, queries.TouchIdentityParams{
 		Issuer:        identity.Issuer(),
 		Subject:       subject,
 		Email:         &address,
 		EmailVerified: identity.EmailVerified(),
-	}); err != nil {
-		slog.WarnContext(ctx, "failed to record identity login", "userId", user.ID, "error", err)
+	}); touchErr != nil {
+		slog.WarnContext(ctx, "failed to record identity login", "userId", user.ID, "error", touchErr)
 	}
 
 	if user.Email != address {
 		user = tvm.syncUserEmail(ctx, user, address)
 	}
 
+	accessToken, refreshToken, err := tvm.IssueSession(ctx, user.ID, nil, ip, userAgent)
+	if err != nil {
+		return queries.User{}, "", "", err
+	}
+
+	return user, accessToken, refreshToken, nil
+}
+
+func (tvm *VendingMachine) IssueSession(
+	ctx context.Context,
+	userID uuid.UUID,
+	identityID *uuid.UUID,
+	ip string,
+	userAgent string,
+) (string, string, error) {
 	accessToken, accessHash := generateToken(prefixSession)
 	refreshToken, refreshHash := generateToken(prefixRefresh)
 
@@ -77,17 +92,17 @@ func (tvm *VendingMachine) Exchange(
 		ID:               uuid.Must(uuid.NewV7()),
 		AccessTokenHash:  accessHash,
 		RefreshTokenHash: refreshHash,
-		UserID:           user.ID,
+		UserID:           userID,
 		AccessExpiresAt:  now.Add(tvm.Cfg.SessionAccessTokenDuration),
 		RefreshExpiresAt: now.Add(tvm.Cfg.SessionRefreshTokenDuration),
 		IpAddress:        ipAddr,
 		UserAgent:        &userAgent,
+		IdentityID:       identityID,
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to create session token", "error", err)
-		return queries.User{}, "", "", ErrStoreToken
+		return "", "", ErrStoreToken
 	}
-
-	return user, accessToken, refreshToken, nil
+	return accessToken, refreshToken, nil
 }
 
 func (tvm *VendingMachine) syncUserEmail(ctx context.Context, user queries.User, address string) queries.User {
