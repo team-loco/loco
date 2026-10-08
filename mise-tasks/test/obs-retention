@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+#MISE description="Boot ClickHouse and the OpenTelemetry collector with the config the loco-obs chart renders, and check that every table they create expires its rows"
+#MISE depends=["helm:deps"]
+set -euo pipefail
+
+chart=charts/loco-obs
+run_id=loco-obs-retention-$$
+network=$run_id
+clickhouse=$run_id-clickhouse
+collector=$run_id-collector
+workdir=$(mktemp -d)
+ready_attempts=60
+failures=0
+
+cleanup() {
+	docker rm -f "$clickhouse" "$collector" >/dev/null 2>&1 || true
+	docker network rm "$network" >/dev/null 2>&1 || true
+	rm -rf "$workdir"
+}
+trap cleanup EXIT
+
+manifest=$(helm template loco-obs "$chart" --namespace observability)
+clickhouse_image=$(yq 'select(.kind == "ClickHouseInstallation") | .spec.templates.podTemplates[0].spec.containers[0].image' <<<"$manifest")
+collector_image=$(yq 'select(.kind == "Deployment" and .metadata.name == "otel-col-deploy") | .spec.template.spec.containers[0].image' <<<"$manifest")
+yq 'select(.kind == "ClickHouseInstallation") | .spec.configuration.files["config.d/extra_config.xml"]' <<<"$manifest" >"$workdir/extra_config.xml"
+exporter=$(yq 'select(.kind == "ConfigMap" and .metadata.name == "otel-col-deploy") | .data.relay' <<<"$manifest" |
+	yq -o json -I 0 '.exporters.clickhouse')
+
+docker network create "$network" >/dev/null
+docker run -d --name "$clickhouse" --network "$network" \
+	-e CLICKHOUSE_SKIP_USER_SETUP=1 \
+	-v "$workdir/extra_config.xml:/etc/clickhouse-server/config.d/extra_config.xml:ro" \
+	"$clickhouse_image" >/dev/null
+
+query() {
+	docker exec "$clickhouse" clickhouse-client -q "$1"
+}
+
+wait_for_clickhouse() {
+	for _ in $(seq "$ready_attempts"); do
+		query "SELECT 1" >/dev/null 2>&1 && return 0
+		sleep 1
+	done
+	docker logs "$clickhouse" 2>&1 | tail -20
+	echo "ClickHouse did not start with the rendered config"
+	return 1
+}
+
+wait_for_clickhouse
+query "SYSTEM FLUSH LOGS"
+
+EXPORTER="$exporter" ENDPOINT="tcp://$clickhouse:9000" yq -n '
+	.receivers.otlp.protocols.grpc.endpoint = "0.0.0.0:4317" |
+	.exporters.clickhouse = (strenv(EXPORTER) | from_json) |
+	.exporters.clickhouse.endpoint = strenv(ENDPOINT) |
+	.service.pipelines.logs = {"receivers": ["otlp"], "exporters": ["clickhouse"]} |
+	.service.pipelines.metrics = {"receivers": ["otlp"], "exporters": ["clickhouse"]} |
+	.service.pipelines.traces = {"receivers": ["otlp"], "exporters": ["clickhouse"]}
+' >"$workdir/collector.yaml"
+docker run -d --name "$collector" --network "$network" \
+	-v "$workdir/collector.yaml:/etc/collector.yaml:ro" \
+	"$collector_image" --config /etc/collector.yaml >/dev/null
+
+otel_tables="otel_logs otel_traces otel_metrics_gauge otel_metrics_sum otel_metrics_histogram otel_metrics_exponential_histogram otel_metrics_summary"
+for _ in $(seq "$ready_attempts"); do
+	created=$(query "SELECT count() FROM system.tables WHERE database = 'default' AND name LIKE 'otel_%'")
+	[ "$created" -ge "$(wc -w <<<"$otel_tables")" ] && break
+	sleep 1
+done
+
+check() {
+	local database=$1 table=$2 engine
+	engine=$(query "SELECT engine_full FROM system.tables WHERE database = '$database' AND name = '$table'")
+	if [ -z "$engine" ]; then
+		echo "FAIL: $database.$table was not created"
+		failures=$((failures + 1))
+	elif ! grep -q ' TTL ' <<<"$engine"; then
+		echo "FAIL: $database.$table keeps its rows forever"
+		failures=$((failures + 1))
+	fi
+}
+
+system_tables=$(query "SELECT name FROM system.tables WHERE database = 'system' AND name LIKE '%\\_log' AND engine LIKE '%MergeTree'")
+for table in $system_tables; do
+	check system "$table"
+done
+for table in $otel_tables; do
+	check default "$table"
+done
+
+if [ "$failures" -gt 0 ]; then
+	docker logs "$collector" 2>&1 | tail -20
+	echo "$failures table(s) without a TTL"
+	exit 1
+fi
+echo "every system log and telemetry table has a TTL"

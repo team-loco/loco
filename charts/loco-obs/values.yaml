@@ -57,9 +57,29 @@ clickhouse:
     persistence:
       enabled: true
       storageClass: ""
-      # extraConfig: |
-      #   <clickhouse>
-      #   </clickhouse>
+    systemLogRetentionDays: 3
+    extraConfig: |
+      <clickhouse>
+        <logger>
+          <level>information</level>
+        </logger>
+        {{- range list "query_log" "part_log" "trace_log" }}
+        <{{ . }} replace="1">
+          <database>system</database>
+          <table>{{ . }}</table>
+          <partition_by>event_date</partition_by>
+          <ttl>event_date + INTERVAL {{ $.Values.clickhouse.systemLogRetentionDays }} DAY DELETE</ttl>
+          <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+        </{{ . }}>
+        {{- end }}
+        <query_thread_log remove="1"/>
+        <opentelemetry_span_log remove="1"/>
+        {{- range list "text_log" "metric_log" "asynchronous_metric_log" "error_log" "latency_log" "query_metric_log" "query_views_log" "processors_profile_log" "asynchronous_insert_log" "s3queue_log" "backup_log" "crash_log" }}
+        <{{ . }}>
+          <ttl>event_date + INTERVAL {{ $.Values.clickhouse.systemLogRetentionDays }} DAY DELETE</ttl>
+        </{{ . }}>
+        {{- end }}
+      </clickhouse>
     defaultUser:
       allowExternalAccess: true
 
@@ -220,6 +240,7 @@ otel-col-deploy:
         traces_table_name: otel_traces
         logs_table_name: otel_logs
         create_schema: true
+        ttl: 8760h
         timeout: 5s
         database: default
     service:
