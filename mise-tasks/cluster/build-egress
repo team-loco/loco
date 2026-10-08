@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+#MISE description="Print the kind network addresses of the compose registry and source bucket as CIDRs, the private addresses build pods may reach"
+set -euo pipefail
+
+project=${COMPOSE_PROJECT:-loco-dev}
+format='{{with index .NetworkSettings.Networks "kind"}}{{.IPAddress}} {{.GlobalIPv6Address}}{{end}}'
+
+cidrs=()
+for service in registry s3; do
+	container=$(docker ps -q \
+		--filter "label=com.docker.compose.project=$project" \
+		--filter "label=com.docker.compose.service=$service")
+	if [ -z "$container" ]; then
+		echo "the $project $service container is not running" >&2
+		exit 1
+	fi
+	addresses=$(docker inspect -f "$format" "$container")
+	read -r ipv4 ipv6 <<<"$addresses" || true
+	if [ -z "${ipv4:-}" ]; then
+		echo "the $project $service container is not on the kind network; run mise run cluster:registry" >&2
+		exit 1
+	fi
+	cidrs+=("$ipv4/32")
+	if [ -n "${ipv6:-}" ]; then
+		cidrs+=("$ipv6/128")
+	fi
+done
+echo "${cidrs[*]}"

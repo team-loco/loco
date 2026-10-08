@@ -19,7 +19,7 @@ s3() {
         -e AWS_DEFAULT_REGION="$LOCO_SOURCE_BUCKET_REGION" \
         -e AWS_CONFIG_FILE=/work/aws-config \
         -v "$builds_dir:/work" \
-        "$E2E_AWS_CLI_IMAGE" --endpoint-url "http://${E2E_S3_ALIAS}:7070" "$@"
+        "$E2E_AWS_CLI_IMAGE" --endpoint-url "$E2E_S3_ENDPOINT" "$@"
 }
 
 upload_source() {
@@ -100,8 +100,12 @@ build_logs() {
     bk -n "$builds_ns" logs "job/$1" -c "$2" 2>&1
 }
 
+save_build_output() {
+    bk -n "$builds_ns" logs "job/$1" -c build >"$builds_dir/$1.build.log"
+}
+
 build_output_has() {
-    build_logs "$1" build | grep -q -E "^#[0-9]+ [0-9.]+ $2"
+    grep -q -E "^#[0-9]+ [0-9.]+ $2" "$builds_dir/$1.build.log"
 }
 
 dump_build() {
@@ -257,10 +261,13 @@ test_b06_untrusted_build_finds_no_credentials() {
     wait_build e2e-probe
 
     assert "Probe build reached Succeeded" test "$(build_field e2e-probe phase)" = Succeeded
+    if ! assert "Read the probe build's output" save_build_output e2e-probe; then
+        return 1
+    fi
     assert "Probe ran to completion inside the build" build_output_has e2e-probe PROBE-DONE
-    log_info "$(build_logs e2e-probe build | grep -E '^#[0-9]+ [0-9.]+ kubernetes api probe:' | head -1)"
+    log_info "$(grep -m 1 -E '^#[0-9]+ [0-9.]+ kubernetes api probe:' "$builds_dir/e2e-probe.build.log")"
     if ! assert_fails "Probe found no credentials, tokens or Kubernetes API access" \
         build_output_has e2e-probe PROBE-LEAK; then
-        build_logs e2e-probe build | grep -E 'PROBE-' | sed 's/^/    /'
+        grep -E 'PROBE-' "$builds_dir/e2e-probe.build.log" | sed 's/^/    /'
     fi
 }

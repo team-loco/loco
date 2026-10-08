@@ -15,6 +15,8 @@ var (
 	errNilResourceSpec          = errors.New("resourceSpec cannot be nil")
 	errNilRequestSpec           = errors.New("requestSpec cannot be nil")
 	errRegionRequired           = errors.New("region is required")
+	ErrRegionNotFound           = errors.New("region not found in resource spec")
+	ErrRegionDisabled           = errors.New("region is not enabled")
 	errResourceSpecNotService   = errors.New("resourceSpec must contain a service spec")
 	errDeploymentSpecNotService = errors.New("deployment spec must contain a service spec")
 	errEmptySpecBytes           = errors.New("spec bytes cannot be empty")
@@ -147,10 +149,10 @@ func MergeDeploymentSpec(
 	// find requested region in resource spec
 	regionTarget, ok := resourceServiceSpec.GetRegions()[region]
 	if !ok {
-		return nil, fmt.Errorf("region %s not found in resource spec", region)
+		return nil, fmt.Errorf("%w: %s", ErrRegionNotFound, region)
 	}
 	if !regionTarget.GetEnabled() {
-		return nil, fmt.Errorf("region %s is not enabled", region)
+		return nil, fmt.Errorf("%w: %s", ErrRegionDisabled, region)
 	}
 
 	// merge build (from request, always required)

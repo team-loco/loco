@@ -21,6 +21,7 @@ on:
       - "compose.yaml"
       - "registry/local/**"
       - "mise-tasks/cluster/registry"
+      - "mise-tasks/cluster/build-egress"
       - "e2e/**"
       - "mise.toml"
       - "mise.lock"

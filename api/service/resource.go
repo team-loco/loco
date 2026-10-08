@@ -1285,6 +1285,10 @@ func desiredApplicationSpec(
 }
 
 func deploymentTxError(ctx context.Context, err error) error {
+	if invalidSpec, ok := errors.AsType[*invalidSpecError](err); ok {
+		slog.WarnContext(ctx, "rejected an invalid deployment spec", "error", err)
+		return connect.NewError(connect.CodeInvalidArgument, invalidSpec)
+	}
 	if errors.Is(err, errDesiredSpec) {
 		slog.ErrorContext(ctx, "failed to build desired application spec", "error", err)
 		return connect.NewError(connect.CodeInternal, err)

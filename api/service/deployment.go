@@ -305,6 +305,10 @@ func (s *DeploymentServer) CreateDeployment(
 	}
 
 	mergedSpec, mergeErr := converter.MergeDeploymentSpec(resourceSpec, requestSpec, region)
+	if errors.Is(mergeErr, converter.ErrRegionNotFound) || errors.Is(mergeErr, converter.ErrRegionDisabled) {
+		slog.WarnContext(ctx, "deployment targets a region the resource does not run in", "error", mergeErr)
+		return nil, connect.NewError(connect.CodeInvalidArgument, mergeErr)
+	}
 	if mergeErr != nil {
 		slog.ErrorContext(ctx, mergeErr.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("merge error: %w", mergeErr))
@@ -650,6 +654,18 @@ func (s *DeploymentServer) sendDeploymentEvent(
 	return deployment.Status, nil
 }
 
+type invalidSpecError struct {
+	err error
+}
+
+func (e *invalidSpecError) Error() string {
+	return "invalid deployment spec: " + e.err.Error()
+}
+
+func (e *invalidSpecError) Unwrap() error {
+	return e.err
+}
+
 // buildApplicationSpec builds the ApplicationSpec for the loco controller.
 // This is used both for direct k8s calls and for agent command payloads.
 func buildApplicationSpec(
@@ -682,7 +698,7 @@ func buildApplicationSpec(
 		appSpec.Type = "SERVICE"
 		resourcesSpec, err := buildResourcesSpec(resourceSpec.GetService(), deploymentSpec, region)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build resources spec: %w", err)
+			return nil, &invalidSpecError{err: err}
 		}
 		appSpec.ServiceSpec = &locoControllerV1.ServiceSpec{
 			Deployment: crdServiceDeploymentSpec,
@@ -705,7 +721,7 @@ func buildApplicationSpec(
 
 	// validate the ApplicationSpec before returning
 	if err := appSpec.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid application spec: %w", err)
+		return nil, &invalidSpecError{err: err}
 	}
 
 	return appSpec, nil

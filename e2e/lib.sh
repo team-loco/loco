@@ -65,7 +65,7 @@ assert_contains() {
     local expected="$2"
     shift 2
     local output
-    if output=$("$@" 2>&1) && echo "$output" | grep -q "$expected"; then
+    if output=$("$@" 2>&1) && grep -q -- "$expected" <<<"$output"; then
         log_ok "PASS: ${desc}"
         E2E_PASS=$((E2E_PASS + 1))
         return 0
