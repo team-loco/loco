@@ -12,10 +12,13 @@ import (
 	"github.com/team-loco/loco/agent/pkg/applier"
 )
 
-const testGroup = "infra.loco.io"
+const (
+	testGroup    = "infra.loco.io"
+	testResource = "applications"
+)
 
 func TestIsRetryable(t *testing.T) {
-	resource := schema.GroupResource{Group: testGroup, Resource: "applications"}
+	resource := schema.GroupResource{Group: testGroup, Resource: testResource}
 	conflictReason := errors.New("modified")
 	conflict := apierrors.NewConflict(resource, "resource-1", conflictReason)
 	wrappedConflict := fmt.Errorf("failed to apply Application: %w", conflict)

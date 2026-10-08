@@ -27,14 +27,6 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 )
 
-const (
-	heartbeatInterval   = 30 * time.Second
-	clusterQueryTimeout = 10 * time.Second
-	reconcileWorkers    = 8
-	outboundBuffer      = 256
-	buildQueueSize      = 64
-)
-
 var errBuildSupportChanged = errors.New("the cluster's build support changed; restarting to pick it up")
 
 func main() {
@@ -69,7 +61,7 @@ func main() {
 		cfg.ControlPlaneURL,
 	)
 
-	restConfig, err := kube.RestConfig()
+	restConfig, err := kube.RestConfig(cfg.Kubeconfig)
 	if err != nil {
 		slog.Error("failed to load kubernetes config", "error", err)
 		os.Exit(1)
@@ -82,7 +74,7 @@ func main() {
 	}
 
 	inspectorConfig := *restConfig
-	inspectorConfig.Timeout = clusterQueryTimeout
+	inspectorConfig.Timeout = cfg.ClusterQueryTimeout
 	clientset, err := kubernetes.NewForConfig(&inspectorConfig)
 	if err != nil {
 		slog.Error("failed to create kubernetes clientset", "error", err)
@@ -105,8 +97,14 @@ func main() {
 		slog.Error("failed to check whether the cluster runs builds", "error", err)
 		os.Exit(1)
 	}
+	buildConfig := buildwatch.Config{
+		Namespace:           cfg.BuildNamespace,
+		Retention:           cfg.BuildRetention,
+		CreateRetryDelay:    cfg.BuildCreateRetryDelay,
+		CreateRetryAttempts: cfg.BuildCreateRetryAttempts,
+	}
 	startWatcher := func() (buildRunner, error) {
-		return buildwatch.Start(ctx, restConfig, cfg.BuildNamespace, cfg.BuildRetention)
+		return buildwatch.Start(ctx, restConfig, buildConfig)
 	}
 	builds, err := startBuilds(buildsEnabled, startWatcher)
 	if err != nil {
@@ -187,7 +185,7 @@ func (a *Agent) Run(ctx context.Context) error {
 	}()
 
 	go func() {
-		errCh <- watchBuildSupport(ctx, a.inspector, a.buildsEnabled, heartbeatInterval)
+		errCh <- watchBuildSupport(ctx, a.inspector, a.buildsEnabled, a.cfg.HeartbeatInterval)
 	}()
 
 	select {
@@ -219,15 +217,15 @@ func (a *Agent) register(ctx context.Context) error {
 }
 
 func (a *Agent) runSync(ctx context.Context) error {
-	return reconnectLoop(ctx, "sync stream", a.syncLoop)
+	return a.reconnectLoop(ctx, "sync stream", a.syncLoop)
 }
 
 func (a *Agent) runHeartbeat(ctx context.Context) error {
-	return reconnectLoop(ctx, "heartbeat stream", a.heartbeatLoop)
+	return a.reconnectLoop(ctx, "heartbeat stream", a.heartbeatLoop)
 }
 
-func reconnectLoop(ctx context.Context, name string, attempt func(context.Context) error) error {
-	backoff := reconnectBackoff
+func (a *Agent) reconnectLoop(ctx context.Context, name string, attempt func(context.Context) error) error {
+	backoff := newReconnectBackoff(a.cfg)
 	for {
 		started := time.Now()
 		err := attempt(ctx)
@@ -236,8 +234,8 @@ func reconnectLoop(ctx context.Context, name string, attempt func(context.Contex
 		}
 
 		elapsed := time.Since(started)
-		if elapsed >= healthyStreamDuration {
-			backoff = reconnectBackoff
+		if elapsed >= a.cfg.HealthyStreamDuration {
+			backoff = newReconnectBackoff(a.cfg)
 		}
 		delay := backoff.Step()
 		slog.ErrorContext(ctx, name+" error, reconnecting", "error", err, "delay", delay)
@@ -288,12 +286,17 @@ func (a *Agent) syncLoop(ctx context.Context) error {
 
 	session := &syncSession{
 		stream:   stream,
-		outbound: make(chan *agentv1.SyncRequest, outboundBuffer),
+		outbound: make(chan *agentv1.SyncRequest, a.cfg.SyncOutboundBuffer),
 		done:     streamCtx.Done(),
+	}
+	reconcilerConfig := reconciler.Config{
+		Workers:        a.cfg.ReconcileWorkers,
+		RetryBaseDelay: a.cfg.ReconcileRetryBaseDelay,
+		RetryMaxDelay:  a.cfg.ReconcileRetryMaxDelay,
 	}
 	rec := reconciler.New(a.applier, func(applied *agentv1.Applied) {
 		session.enqueue(&agentv1.SyncRequest{Message: &agentv1.SyncRequest_Applied{Applied: applied}})
-	}, reconcileWorkers)
+	}, reconcilerConfig)
 
 	var workers sync.WaitGroup
 	defer func() {
@@ -318,7 +321,7 @@ func (a *Agent) syncLoop(ctx context.Context) error {
 		return err
 	}
 
-	buildOps := make(chan *agentv1.SyncResponse, buildQueueSize)
+	buildOps := make(chan *agentv1.SyncResponse, a.cfg.BuildQueueSize)
 	sendErr := make(chan error, 1)
 	workers.Go(func() { rec.Run(streamCtx) })
 	workers.Go(func() { session.sendLoop(streamCtx, sendErr) })
@@ -529,7 +532,7 @@ func (a *Agent) heartbeatLoop(ctx context.Context) error {
 	receiving = true
 	go receiveHeartbeats(streamCtx, stream, responses, recvErr, recvDone)
 
-	ticker := time.NewTicker(heartbeatInterval)
+	ticker := time.NewTicker(a.cfg.HeartbeatInterval)
 	defer ticker.Stop()
 
 	for {

@@ -22,11 +22,12 @@ import (
 )
 
 const (
-	testNamespace = "loco-builds"
-	testBuildID   = "01a11111-1111-7111-8111-111111111111"
-	testOtherID   = "01a22222-2222-7222-8222-222222222222"
-	testDigest    = "sha256:1111111111111111111111111111111111111111111111111111111111111111"
-	testCache     = "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+	testNamespace           = "loco-builds"
+	testBuildID             = "01a11111-1111-7111-8111-111111111111"
+	testOtherID             = "01a22222-2222-7222-8222-222222222222"
+	testDigest              = "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+	testCreateRetryAttempts = 3
+	testCache               = "sha256:2222222222222222222222222222222222222222222222222222222222222222"
 )
 
 func newScheme(t *testing.T) *runtime.Scheme {
@@ -38,11 +39,20 @@ func newScheme(t *testing.T) *runtime.Scheme {
 	return scheme
 }
 
+func testConfig() Config {
+	return Config{
+		Namespace:           testNamespace,
+		Retention:           time.Hour,
+		CreateRetryDelay:    time.Millisecond,
+		CreateRetryAttempts: testCreateRetryAttempts,
+	}
+}
+
 func newWatcher(t *testing.T, objs ...client.Object) (*Watcher, client.Client) {
 	t.Helper()
 	scheme := newScheme(t)
 	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(objs...).Build()
-	return New(c, c, testNamespace, time.Hour), c
+	return New(c, c, testConfig()), c
 }
 
 func startMessage(buildID string) *agentv1.StartBuild {
@@ -144,7 +154,7 @@ func TestStartThatTheAPIServerRejectsReportsAFailure(t *testing.T) {
 			return apierrors.NewInvalid(gk, Name(testBuildID), field.ErrorList{invalid})
 		},
 	}).Build()
-	w := New(c, c, testNamespace, time.Hour)
+	w := New(c, c, testConfig())
 
 	var reported []*agentv1.BuildStatus
 	start := &agentv1.SyncResponse{Message: &agentv1.SyncResponse_StartBuild{StartBuild: startMessage(testBuildID)}}
@@ -162,6 +172,29 @@ func TestStartThatTheAPIServerRejectsReportsAFailure(t *testing.T) {
 	}
 	if !strings.Contains(got.GetMessage(), "sourceURL") {
 		t.Fatalf("message %q does not explain the rejection", got.GetMessage())
+	}
+}
+
+func TestCreateRetriesUpToTheConfiguredAttempts(t *testing.T) {
+	scheme := newScheme(t)
+	creates := 0
+	c := fake.NewClientBuilder().WithScheme(scheme).WithInterceptorFuncs(interceptor.Funcs{
+		Create: func(context.Context, client.WithWatch, client.Object, ...client.CreateOption) error {
+			creates++
+			return apierrors.NewServiceUnavailable("down")
+		},
+	}).Build()
+	w := New(c, c, testConfig())
+
+	var reported []*agentv1.BuildStatus
+	start := &agentv1.SyncResponse{Message: &agentv1.SyncResponse_StartBuild{StartBuild: startMessage(testBuildID)}}
+	w.Handle(context.Background(), start, func(s *agentv1.BuildStatus) { reported = append(reported, s) })
+
+	if creates != testCreateRetryAttempts {
+		t.Fatalf("%d create attempts, want %d", creates, testCreateRetryAttempts)
+	}
+	if len(reported) != 1 || reported[0].GetPhase() != agentv1.BuildPhase_BUILD_PHASE_FAILED {
+		t.Fatalf("reported %v, want one failure", reported)
 	}
 }
 

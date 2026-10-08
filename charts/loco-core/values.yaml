@@ -49,6 +49,18 @@ agent:
   inventoryInterval: 10m
   buildRetention: 1h
   buildCollectInterval: 5m
+  heartbeatInterval: 30s
+  clusterQueryTimeout: 10s
+  reconcileWorkers: 8
+  reconcileRetryBaseDelay: 1s
+  reconcileRetryMaxDelay: 30s
+  syncOutboundBuffer: 256
+  buildQueueSize: 64
+  buildCreateRetryDelay: 1s
+  buildCreateRetryAttempts: 5
+  reconnectBaseDelay: 1s
+  reconnectMaxDelay: 30s
+  healthyStreamDuration: 1m
 
 secrets:
   cloudflareToken: ""
