@@ -52,7 +52,7 @@ ARG DOCS_ENVIRONMENT=production
 RUN uv run --frozen --no-dev python scripts/build.py build "$DOCS_ENVIRONMENT" \
     && uv run --frozen --no-dev python scripts/package.py
 
-FROM ghcr.io/static-web-server/static-web-server:2.44.0
+FROM ghcr.io/static-web-server/static-web-server:2.44.1@sha256:94618e3d17802265a21926217e6f9e7832b311b6fbf5933684001739fafed06a
 
 COPY --from=docs-builder /app/docs/.sws.toml /etc/sws.toml
 COPY --from=builder /app/web/dist /public
