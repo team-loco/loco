@@ -41,9 +41,11 @@ while IFS= read -r file; do
 	done < <(grep -E '^FROM[[:space:]]' "$file" || true)
 done <<<"$dockerfiles"
 
-while IFS= read -r image; do
-	pinned compose.yaml "$image"
-done < <(yq '.services[].image' compose.yaml)
+while IFS= read -r file; do
+	while IFS= read -r image; do
+		pinned "$file" "$image"
+	done < <(yq '.services[].image | select(. != null)' "$file")
+done < <(git ls-files '*compose*.yaml' '*compose*.yml')
 
 while IFS= read -r file; do
 	while IFS= read -r image; do
