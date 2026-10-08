@@ -27,14 +27,21 @@ type AgentServer struct {
 	db       *pgxpool.Pool
 	queries  genDb.Querier
 	notifier *clusternotify.Notifier
+	sources  SourceBucket
 }
 
 // NewAgentServer creates a new AgentServer instance.
-func NewAgentServer(db *pgxpool.Pool, queries genDb.Querier, notifier *clusternotify.Notifier) *AgentServer {
+func NewAgentServer(
+	db *pgxpool.Pool,
+	queries genDb.Querier,
+	notifier *clusternotify.Notifier,
+	sources SourceBucket,
+) *AgentServer {
 	return &AgentServer{
 		db:       db,
 		queries:  queries,
 		notifier: notifier,
+		sources:  sources,
 	}
 }
 

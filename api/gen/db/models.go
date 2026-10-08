@@ -353,6 +353,7 @@ type Build struct {
 	DockerfilePath  string      `json:"dockerfilePath"`
 	ImageRepository string      `json:"imageRepository"`
 	ImageDigest     *string     `json:"imageDigest"`
+	CacheDigest     *string     `json:"cacheDigest"`
 	Message         string      `json:"message"`
 	CreatedBy       uuid.UUID   `json:"createdBy"`
 	CreatedAt       time.Time   `json:"createdAt"`

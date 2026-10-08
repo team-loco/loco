@@ -22,7 +22,9 @@ OBS_PROXY_PORT=8878
 CONTROLLER_IMAGE="loco-controller:e2e"
 BUILDER_IMAGE="loco-builder:e2e"
 BUILDKIT_IMAGE="moby/buildkit:v0.33.1-rootless"
+GATEWAY_API_VERSION="v1.6.3"
 AGENT_TOKEN="e2e-test-token-do-not-use-in-production"
+USER_TOKEN="loco_s_e2e-test-session-do-not-use-in-production"
 LOCO_NAMESPACE="loco-system"
 
 export E2E_ROOT_DIR="$ROOT_DIR"
@@ -31,6 +33,7 @@ export POSTGRES_USER="$PG_USER" POSTGRES_PASSWORD="$PG_PASS" POSTGRES_DB="$PG_DB
 export E2E_DATABASE_URL="postgres://${PG_USER}:${PG_PASS}@localhost:${PG_PORT}/${PG_DB}?sslmode=disable"
 export E2E_API_URL="http://localhost:${API_PORT}"
 export E2E_AGENT_TOKEN="$AGENT_TOKEN"
+export E2E_USER_TOKEN="$USER_TOKEN"
 export E2E_KIND_CLUSTER="$KIND_CLUSTER_NAME"
 export E2E_LOCO_NAMESPACE="$LOCO_NAMESPACE"
 export E2E_OBS_PROXY_PORT="$OBS_PROXY_PORT"
@@ -159,6 +162,14 @@ create_namespace() {
     log_ok "Namespace ready"
 }
 
+install_gateway_api() {
+    log_step "Installing the Gateway API CRDs..."
+    kubectl apply --server-side --context "kind-${KIND_CLUSTER_NAME}" \
+        -f "https://github.com/kubernetes-sigs/gateway-api/releases/download/${GATEWAY_API_VERSION}/standard-install.yaml" \
+        >/dev/null
+    log_ok "Gateway API ${GATEWAY_API_VERSION} CRDs installed"
+}
+
 compose_container_ip() {
     local container
     container=$(e2e_compose ps -q "$1")
@@ -179,6 +190,7 @@ setup_registry() {
         mise run cluster:registry >/dev/null
     REGISTRY_IP=$(compose_container_ip registry)
     S3_IP=$(compose_container_ip s3)
+    export E2E_S3_ENDPOINT="http://${S3_IP}:7070"
     log_ok "Registry at ${E2E_REGISTRY_HOST} (${REGISTRY_IP}), source bucket at ${E2E_S3_ALIAS}:7070 (${S3_IP})"
 }
 
@@ -258,6 +270,9 @@ start_api() {
     DEFAULT_PLATFORM_DOMAIN="e2e.test.local" \
     APP_ENV="test" \
     LOG_LEVEL="-4" \
+    LOCO_REGISTRY_HOST="$E2E_REGISTRY_HOST" \
+    LOCO_SOURCE_BUCKET_ENDPOINT="$E2E_S3_ENDPOINT" \
+    LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE=true \
         "$BIN_DIR/loco-api" \
         >"$LOG_DIR/api.log" 2>&1 &
 
@@ -397,6 +412,7 @@ main() {
     setup_postgres
     run_migrations
     create_namespace
+    install_gateway_api
     setup_registry
     build_builder_images
     build_controller_image

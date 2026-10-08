@@ -7,17 +7,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 )
 
 const (
-	testSourceSize    = 10
-	testOrphanCount   = 1200
-	testOrphanAge     = 48 * time.Hour
-	testRecentAge     = time.Hour
-	testSweepSkew     = time.Minute
-	testSweepDeadline = 10 * time.Second
+	testSourceSize     = 10
+	testOrphanCount    = 1200
+	testOrphanAge      = 48 * time.Hour
+	testRecentAge      = time.Hour
+	testSweepSkew      = time.Minute
+	testSweepDeadline  = 10 * time.Second
+	testDeleteFailures = 2
 )
 
 type sweepFixture struct {
@@ -44,27 +44,24 @@ func (f *sweepFixture) sweep(t *testing.T) SourceSweepResult {
 	return result
 }
 
-func (f *sweepFixture) queued(t *testing.T) string {
+func (f *sweepFixture) canceledWithFailingDeletes(t *testing.T, failures int) string {
 	t.Helper()
 	id := f.create(t, testSourceSize).GetBuildId()
 	f.uploadFor(t, id, testSourceSize)
-	if _, err := f.start(id); err != nil {
-		t.Fatalf("start build: %v", err)
-	}
-	return id
-}
-
-func (f *sweepFixture) canceledWithSource(t *testing.T) string {
-	t.Helper()
-	id := f.create(t, testSourceSize).GetBuildId()
-	f.uploadFor(t, id, testSourceSize)
+	key := sourceKeyFor(id)
+	f.bucket.mu.Lock()
+	f.bucket.deleteFails[key] = failures
+	f.bucket.mu.Unlock()
 	if _, err := f.cancel(id); err != nil {
 		t.Fatalf("cancel build: %v", err)
 	}
+	if f.sourceDeleted(t, id) {
+		t.Fatal("a failed delete on cancel marked the source deleted")
+	}
 	return id
 }
 
-func (f *sweepFixture) sourceDeleted(t *testing.T, buildID string) bool {
+func (f *buildFixture) sourceDeleted(t *testing.T, buildID string) bool {
 	t.Helper()
 	var deleted bool
 	row := f.pool.QueryRow(f.ctx, `SELECT source_deleted_at IS NOT NULL FROM builds WHERE id = $1`, buildID)
@@ -72,11 +69,6 @@ func (f *sweepFixture) sourceDeleted(t *testing.T, buildID string) bool {
 		t.Fatalf("read source_deleted_at: %v", err)
 	}
 	return deleted
-}
-
-func keyFor(buildID string) string {
-	parsed := uuid.MustParse(buildID)
-	return buildSourceKey(parsed)
 }
 
 func TestSweepExpiresAbandonedUploads(t *testing.T) {
@@ -113,13 +105,13 @@ func TestSweepExpiresAbandonedUploads(t *testing.T) {
 			t.Fatalf("build %s source not marked deleted", id)
 		}
 	}
-	uploadedKey := keyFor(uploadedID)
+	uploadedKey := sourceKeyFor(uploadedID)
 	if f.bucket.has(uploadedKey) {
 		t.Fatal("the expired build's uploaded source is still in the bucket")
 	}
 
 	wantStatus(t, f.get(t, queuedID), buildv1.BuildStatus_BUILD_STATUS_QUEUED)
-	queuedKey := keyFor(queuedID)
+	queuedKey := sourceKeyFor(queuedID)
 	if !f.bucket.has(queuedKey) {
 		t.Fatal("the queued build's source was deleted")
 	}
@@ -131,11 +123,8 @@ func TestSweepExpiresAbandonedUploads(t *testing.T) {
 func TestSweepRetriesFailedSourceDeletes(t *testing.T) {
 	f := newSweepFixture(t)
 
-	id := f.canceledWithSource(t)
-	key := keyFor(id)
-	f.bucket.mu.Lock()
-	f.bucket.deleteFails[key] = 1
-	f.bucket.mu.Unlock()
+	id := f.canceledWithFailingDeletes(t, testDeleteFailures)
+	key := sourceKeyFor(id)
 
 	if result := f.sweep(t); result.SourcesDeleted != 0 {
 		t.Fatalf("deleted %d sources while the bucket failed, want 0", result.SourcesDeleted)
@@ -170,11 +159,11 @@ func TestSweepDeletesOrphanedSources(t *testing.T) {
 	recent := now.Add(-testRecentAge)
 
 	activeID := f.queued(t)
-	activeKey := keyFor(activeID)
+	activeKey := sourceKeyFor(activeID)
 	f.bucket.uploadAt(activeKey, testSourceSize, old)
 
 	cascadedID := f.create(t, testSourceSize).GetBuildId()
-	cascadedKey := keyFor(cascadedID)
+	cascadedKey := sourceKeyFor(cascadedID)
 	f.bucket.uploadAt(cascadedKey, testSourceSize, old)
 	if _, err := f.pool.Exec(f.ctx, `DELETE FROM builds WHERE id = $1`, cascadedID); err != nil {
 		t.Fatalf("delete build row: %v", err)
@@ -214,8 +203,8 @@ func TestSweepDeletesOrphanedSources(t *testing.T) {
 
 func TestConcurrentSweepsRunOnce(t *testing.T) {
 	f := newSweepFixture(t)
-	id := f.canceledWithSource(t)
-	key := keyFor(id)
+	id := f.canceledWithFailingDeletes(t, 1)
+	key := sourceKeyFor(id)
 
 	entered := make(chan struct{})
 	release := make(chan struct{})

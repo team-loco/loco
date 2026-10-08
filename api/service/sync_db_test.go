@@ -15,7 +15,7 @@ import (
 )
 
 func (f *deployFixture) agentServer() *AgentServer {
-	return NewAgentServer(f.pool, f.queries, nil)
+	return NewAgentServer(f.pool, f.queries, nil, nil)
 }
 
 func applied(placementID uuid.UUID, revision int64) *agentv1.Applied {
@@ -234,6 +234,15 @@ func TestInventoryResendsOnlyWhatDiffers(t *testing.T) {
 
 func startSyncServer(t *testing.T, f *deployFixture) agentv1connect.AgentServiceClient {
 	t.Helper()
+	return startSyncServerWithSources(t, f, nil)
+}
+
+func startSyncServerWithSources(
+	t *testing.T,
+	f *deployFixture,
+	sources SourceBucket,
+) agentv1connect.AgentServiceClient {
+	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
@@ -241,7 +250,7 @@ func startSyncServer(t *testing.T, f *deployFixture) agentv1connect.AgentService
 	if err := notifier.Start(ctx); err != nil {
 		t.Fatalf("start notifier: %v", err)
 	}
-	server := NewAgentServer(f.pool, f.queries, notifier)
+	server := NewAgentServer(f.pool, f.queries, notifier, sources)
 	_, handler := agentv1connect.NewAgentServiceHandler(server)
 
 	srv := httptest.NewUnstartedServer(handler)

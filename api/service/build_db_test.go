@@ -31,6 +31,7 @@ type fakeBucket struct {
 	objects     map[string]int64
 	modified    map[string]time.Time
 	presigned   map[string]int64
+	gets        map[string]time.Duration
 	deleted     []string
 	deleteFails map[string]int
 	onDelete    func(key string)
@@ -41,8 +42,20 @@ func newFakeBucket() *fakeBucket {
 		objects:     map[string]int64{},
 		modified:    map[string]time.Time{},
 		presigned:   map[string]int64{},
+		gets:        map[string]time.Duration{},
 		deleteFails: map[string]int{},
 	}
+}
+
+func (b *fakeBucket) PresignGet(_ context.Context, key string, ttl time.Duration) (string, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.gets[key] = ttl
+	return "https://bucket.test/" + key + "?get", nil
+}
+
+func (b *fakeBucket) wasDeleted(key string) bool {
+	return b.deleteCount(key) > 0
 }
 
 func (b *fakeBucket) PresignPut(_ context.Context, key string, size int64, _ time.Duration) (string, error) {

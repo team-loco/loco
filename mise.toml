@@ -227,9 +227,9 @@ env = { _.file = ".env" }
 run = "./e2e/run.sh"
 
 [tasks."e2e:builds"]
-description = "Run only the image build end-to-end tests (full setup and teardown)"
+description = "Run only the image build end-to-end tests, controller-only and through the API and agent (full setup and teardown)"
 env = { _.file = ".env" }
-run = "./e2e/run.sh 03_builds"
+run = "./e2e/run.sh build"
 
 [tasks."e2e:no-teardown"]
 description = "Run the end-to-end tests and keep the infrastructure running"

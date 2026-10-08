@@ -76,6 +76,7 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv("LOCO_SOURCE_BUCKET_REGION", "")
 	t.Setenv("LOCO_SOURCE_BUCKET_ACCESS_KEY_ID", "")
 	t.Setenv("LOCO_SOURCE_BUCKET_SECRET_ACCESS_KEY", "")
+	t.Setenv("LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE", "")
 }
 
 func TestNewAPIConfigDefaults(t *testing.T) {
@@ -99,6 +100,11 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 		{"unknown cache type", map[string]string{"CACHE_TYPE": "redis"}, errUnknownCacheType},
 		{"non-numeric source max bytes", map[string]string{"LOCO_SOURCE_MAX_BYTES": "lots"}, errInvalidSourceBytes},
 		{"zero source max bytes", map[string]string{"LOCO_SOURCE_MAX_BYTES": "0"}, errInvalidSourceBytes},
+		{
+			"non-boolean force path style",
+			map[string]string{"LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE": "sometimes"},
+			errInvalidForcePathStyle,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

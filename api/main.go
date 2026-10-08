@@ -53,6 +53,8 @@ var (
 	errCacheAddrMissing   = errors.New("CACHE_ADDR required when CACHE_TYPE=valkey")
 	errUnknownCacheType   = errors.New("unknown cache type")
 	errInvalidSourceBytes = errors.New("LOCO_SOURCE_MAX_BYTES is not a positive integer")
+
+	errInvalidForcePathStyle = errors.New("LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE is not a boolean")
 )
 
 const (
@@ -121,12 +123,22 @@ func newAPIConfig() *APIConfig {
 		sourceMaxBytes = parsed
 	}
 
+	forcePathStyle := false
+	if raw := os.Getenv("LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE"); raw != "" {
+		parsed, err := strconv.ParseBool(raw)
+		if err != nil {
+			panic(fmt.Errorf("%w: %q", errInvalidForcePathStyle, raw))
+		}
+		forcePathStyle = parsed
+	}
+
 	sourceBucket := sourcebucket.Config{
 		Endpoint:        os.Getenv("LOCO_SOURCE_BUCKET_ENDPOINT"),
 		Bucket:          os.Getenv("LOCO_SOURCE_BUCKET"),
 		Region:          os.Getenv("LOCO_SOURCE_BUCKET_REGION"),
 		AccessKeyID:     os.Getenv("LOCO_SOURCE_BUCKET_ACCESS_KEY_ID"),
 		SecretAccessKey: os.Getenv("LOCO_SOURCE_BUCKET_SECRET_ACCESS_KEY"),
+		ForcePathStyle:  forcePathStyle,
 	}
 	if sourceBucket.Bucket != "" {
 		if err := sourceBucket.Validate(); err != nil {
@@ -330,7 +342,7 @@ func main() {
 	})
 	domainServiceHandler := service.NewDomainServer(pool, queries, machine)
 	tokenServiceHandler := service.NewTokenServer(pool, queries, machine)
-	agentServiceHandler := service.NewAgentServer(pool, queries, placementNotifier)
+	agentServiceHandler := service.NewAgentServer(pool, queries, placementNotifier, sourceBucket)
 	observabilityAccessHandler := service.NewObservabilityAccessServer(pool, queries, machine)
 	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
 	configServiceHandler := service.NewConfigServer(ac.DefaultPlatformDomain, ac.MinCLIVersion)
