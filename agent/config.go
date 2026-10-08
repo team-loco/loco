@@ -3,11 +3,13 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/team-loco/loco/internal/buildinfo"
+	"github.com/team-loco/loco/internal/loglevel"
 )
 
 const (
@@ -33,6 +35,7 @@ const (
 	envReconnectBaseDelay       = "LOCO_RECONNECT_BASE_DELAY"
 	envReconnectMaxDelay        = "LOCO_RECONNECT_MAX_DELAY"
 	envHealthyStreamDuration    = "LOCO_HEALTHY_STREAM_DURATION"
+	envLogLevel                 = "LOG_LEVEL"
 )
 
 var (
@@ -44,6 +47,7 @@ var (
 var version string
 
 type Config struct {
+	LogLevel                 slog.Level
 	ControlPlaneURL          string
 	AgentToken               string
 	AgentVersion             string
@@ -97,6 +101,15 @@ func parseAgentConfig(getenv func(string) string, agentVersion string) (*Config,
 		}
 		*field = value
 	}
+	rawLevel, err := requireEnv(getenv, envLogLevel)
+	if err != nil {
+		return nil, err
+	}
+	level, err := loglevel.Parse(rawLevel)
+	if err != nil {
+		return nil, fmt.Errorf("%s %w", envLogLevel, err)
+	}
+	cfg.LogLevel = level
 	cfg.ControllerNamespace = getenv(envControllerNamespace)
 	if cfg.ControllerNamespace == "" {
 		cfg.ControllerNamespace = cfg.Namespace

@@ -282,7 +282,7 @@ start_api() {
     APP_PORT=":$API_PORT" \
     DEFAULT_PLATFORM_DOMAIN="e2e.test.local" \
     APP_ENV="test" \
-    LOG_LEVEL="-4" \
+    LOG_LEVEL=debug \
     LOCO_REGISTRY_HOST="$E2E_REGISTRY_HOST" \
     LOCO_REGISTRY_URL="$E2E_REGISTRY_URL" \
     LOCO_REGISTRY_USERNAME="${E2E_REGISTRY_API_USER%%:*}" \
@@ -306,6 +306,7 @@ start_agent() {
     local core_values="$ROOT_DIR/charts/loco-core/values.yaml"
     CONTROL_PLANE_URL="$E2E_API_URL" \
     AGENT_TOKEN="$AGENT_TOKEN" \
+    LOG_LEVEL="$(yq '.env.LOG_LEVEL' "$core_values")" \
     LOCO_NAMESPACE="$LOCO_NAMESPACE" \
     LOCO_BUILD_NAMESPACE="$(yq '.agent.buildNamespace' "$core_values")" \
     LOCO_CONTROLLER_DEPLOYMENT="$(yq '.agent.controllerDeployment' "$core_values")" \

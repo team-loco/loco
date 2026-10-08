@@ -6,6 +6,8 @@ import (
 	"slices"
 	"testing"
 	"time"
+
+	"github.com/team-loco/loco/internal/loglevel"
 )
 
 const (
@@ -132,12 +134,17 @@ func TestLogLevelEnv(t *testing.T) {
 	if _, ok := logLevelEnv(testEnvName); ok {
 		t.Error("unset reported a level")
 	}
-	t.Setenv(testEnvName, "-4")
+	t.Setenv(testEnvName, "debug")
 	if got, ok := logLevelEnv(testEnvName); !ok || got != slog.LevelDebug {
-		t.Errorf("-4 = %v, %v, want debug", got, ok)
+		t.Errorf("debug = %v, %v, want debug", got, ok)
 	}
-	t.Setenv(testEnvName, "loud")
-	if _, ok := logLevelEnv(testEnvName); ok {
-		t.Error("non-numeric reported a level")
-	}
+	t.Setenv(testEnvName, "-4")
+	defer func() {
+		recovered, ok := recover().(error)
+		if !ok || !errors.Is(recovered, loglevel.ErrUnknown) {
+			t.Errorf("-4 panicked with %v, want loglevel.ErrUnknown", recovered)
+		}
+	}()
+	logLevelEnv(testEnvName)
+	t.Error("-4 did not panic")
 }
