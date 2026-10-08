@@ -4,6 +4,7 @@ import re
 import subprocess
 import tempfile
 import time
+import tomllib
 import unittest
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -37,7 +38,21 @@ def response(url, host=None):
         return error.code, error.read().decode(), error.headers
 
 
+def ui_routes():
+    route_source = (ROOT / 'web/src/App.tsx').read_text()
+    return re.findall(r'<Route path="(/[^\"]*)"', route_source)
+
+
 class ContainerTests(unittest.TestCase):
+    def test_rewrites_cover_exactly_the_ui_routes(self):
+        config = tomllib.loads((ROOT / 'web/sws.toml').read_text())
+        sections = {route.split('/')[1] for route in ui_routes()} - {''}
+        for rewrite in config['advanced']['rewrites']:
+            match = re.fullmatch(r'/\{([^}]*)\}(/\*\*)?', rewrite['source'])
+            self.assertIsNotNone(match, rewrite['source'])
+            self.assertEqual(set(match.group(1).split(',')), sections, rewrite['source'])
+            self.assertEqual(rewrite['destination'], '/index.html')
+
     def check_browser(self, url, environment, ui_host, docs_host):
         screenshots = Path(os.environ.get('DOCS_SCREENSHOT_DIR', tempfile.mkdtemp(prefix='loco-hosted-docs-')))
         screenshots.mkdir(parents=True, exist_ok=True)
@@ -127,9 +142,7 @@ class ContainerTests(unittest.TestCase):
                     self.assertEqual(status, 200)
                     self.assertIn('<div id="root">', ui)
                     self.assertNotIn('Deploy with Loco', ui)
-                    route_source = (ROOT / 'web/src/App.tsx').read_text()
-                    routes = re.findall(r'<Route path="(/[^\"]*)"', route_source)
-                    for route in routes:
+                    for route in ui_routes():
                         path = re.sub(r':[^/]+', 'test', route)
                         status, body, _ = response(url + path, ui_host)
                         self.assertEqual(status, 200, path)
