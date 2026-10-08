@@ -23,17 +23,17 @@ function nextFrom(state: unknown): string | null {
 	return state.next.startsWith("/") && !state.next.startsWith("//") ? state.next : null;
 }
 
-function oauthErrorFrom(state: unknown): string | null {
-	if (typeof state !== "object" || state === null || !("oauthError" in state)) return null;
-	return typeof state.oauthError === "string" ? state.oauthError : null;
+function signInErrorFrom(state: unknown): string | null {
+	if (typeof state !== "object" || state === null || !("signInError" in state)) return null;
+	return typeof state.signInError === "string" ? state.signInError : null;
 }
 
 export function Splash() {
 	const { isAuthenticated, isPending } = useAuth();
 	const location = useLocation();
-	const oauthError = oauthErrorFrom(location.state);
+	const signInError = signInErrorFrom(location.state);
 	const next = nextFrom(location.state);
-	const [loginModalOpen, setLoginModalOpen] = useState(oauthError !== null || wantsSignIn(location.state));
+	const [loginModalOpen, setLoginModalOpen] = useState(signInError !== null || wantsSignIn(location.state));
 
 	if (isAuthenticated) {
 		return <Navigate to={next ?? "/dashboard"} replace />;
@@ -57,7 +57,7 @@ export function Splash() {
 			<Architecture />
 			<AccessSection />
 			<SplashFooter onSignIn={openLogin} />
-			<LoginModal open={loginModalOpen} onOpenChange={setLoginModalOpen} initialError={oauthError} next={next} />
+			<LoginModal open={loginModalOpen} onOpenChange={setLoginModalOpen} initialError={signInError} next={next} />
 		</div>
 	);
 }

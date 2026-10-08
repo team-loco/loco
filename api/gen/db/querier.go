@@ -213,7 +213,6 @@ type Querier interface {
 	UpdateResourceDomainPrimary(ctx context.Context, resourceID uuid.UUID) error
 	UpdateResourceStatus(ctx context.Context, arg UpdateResourceStatusParams) error
 	UpdateUserAvatarURL(ctx context.Context, arg UpdateUserAvatarURLParams) (User, error)
-	UpdateUserEmail(ctx context.Context, arg UpdateUserEmailParams) (User, error)
 	UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (uuid.UUID, error)
 	UpsertPlacement(ctx context.Context, arg UpsertPlacementParams) (UpsertPlacementRow, error)
 	UserHasUnverifiedIdentity(ctx context.Context, userID uuid.UUID) (bool, error)

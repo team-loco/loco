@@ -2,7 +2,6 @@ package loco
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -19,61 +18,23 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
-	oAuth "github.com/team-loco/loco/gen/go/loco/oauth/v1"
-	"github.com/team-loco/loco/gen/go/loco/oauth/v1/oauthv1connect"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
-	"github.com/team-loco/loco/internal/api"
 	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/keychain"
 	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
 )
 
-const contentTypeJSON = "application/json"
-
-type DeviceCodeRequest struct {
-	ClientID string `json:"client_id"`
-	Scope    string `json:"scope"`
-}
-
-type DeviceCodeResponse struct {
-	DeviceCode      string `json:"device_code"`
-	UserCode        string `json:"user_code"`
-	VerificationURI string `json:"verification_uri"`
-	ExpiresIn       int    `json:"expires_in"`
-	Interval        int    `json:"interval"`
-}
-
-type AuthTokenRequest struct {
-	ClientID   string `json:"client_id"`
-	DeviceCode string `json:"device_code"`
-	GrantType  string `json:"grant_type"`
-}
-
-type AuthTokenResponse struct {
-	AccessToken      string `json:"access_token"`
-	TokenType        string `json:"token_type"`
-	Scope            string `json:"scope"`
-	Error            string `json:"error"`
-	ErrorDescription string `json:"error_description"`
-}
-
-type TokenDetails struct {
-	ClientID string  `json:"clientId"`
-	TokenTTL float64 `json:"tokenTTL"`
-}
-
 func newLoginCmd(env Env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "login",
 		Short: "Log in to Loco",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			ctx := cmd.Context()
 			host, err := cmdutil.GetHost(cmd)
 			if err != nil {
 				return err
@@ -107,112 +68,16 @@ func newLoginCmd(env Env) *cobra.Command {
 				slog.Debug("no token found in keychain", "error", err)
 			}
 			httpClient := httputil.NewHTTPClient()
-			configResp, configErr := configv1connect.NewConfigServiceClient(httpClient, host).
-				GetConfig(ctx, connect.NewRequest(&configv1.GetConfigRequest{}))
-			if configErr != nil {
-				slog.Debug("could not read server config; using GitHub login", "error", configErr)
-			}
-			if configErr == nil && configResp.Msg.GetAuth() != nil {
-				return providerLogin(cmd, httpClient, host, store)
-			}
-
-			c := api.NewClient("https://github.com")
-			oAuthClient := oauthv1connect.NewOAuthServiceClient(httpClient, host)
-			resp, err := oAuthClient.GetOAuthDetails(ctx, connect.NewRequest(&oAuth.GetOAuthDetailsRequest{
-				Provider: oAuth.OAuthProvider_O_AUTH_PROVIDER_GITHUB,
-			}))
+			config, err := configv1connect.NewConfigServiceClient(httpClient, host).
+				GetConfig(cmd.Context(), connect.NewRequest(&configv1.GetConfigRequest{}))
 			if err != nil {
-				cmdutil.LogRequestID(ctx, err, "failed to get oAuth details")
+				cmdutil.LogRequestID(cmd.Context(), err, "failed to read server config")
 				return fmt.Errorf("login to %s failed: %w", host, err)
 			}
-			slog.Debug("retrieved oauth details", "client_id", resp.Msg.GetClientId())
-
-			payload := DeviceCodeRequest{
-				ClientID: resp.Msg.GetClientId(),
-				Scope:    "read:user user:email",
+			if config.Msg.GetAuth() == nil {
+				return fmt.Errorf("login to %s failed: %w", host, errNoIdentityProvider)
 			}
-
-			req, err := c.Post(ctx, "/login/device/code", payload, map[string]string{
-				"Accept":       contentTypeJSON,
-				"Content-Type": contentTypeJSON,
-			})
-			if err != nil {
-				slog.Debug("failed to get device code", "error", err)
-				return err
-			}
-
-			deviceTokenResponse := new(DeviceCodeResponse)
-			err = json.Unmarshal(req, deviceTokenResponse)
-			if err != nil {
-				slog.Debug("failed to unmarshal device code response", "error", err)
-				return err
-			}
-
-			tokenChan := make(chan AuthTokenResponse, 1)
-			errorChan := make(chan error, 1)
-
-			pollCtx, cancelPoll := context.WithCancel(ctx)
-			defer cancelPoll()
-			pollInterval := time.Duration(deviceTokenResponse.Interval) * time.Second
-
-			go func() {
-				token, pollErr := pollAuthToken(
-					pollCtx,
-					c,
-					payload.ClientID,
-					deviceTokenResponse.DeviceCode,
-					pollInterval,
-				)
-				if pollErr != nil {
-					errorChan <- pollErr
-					return
-				}
-				tokenChan <- *token
-			}()
-
-			m := initialModel(deviceTokenResponse.UserCode, deviceTokenResponse.VerificationURI, tokenChan, errorChan)
-			p := tea.NewProgram(m)
-
-			fm, err := p.Run()
-			if err != nil {
-				return err
-			}
-
-			finalM, ok := fm.(model)
-			if !ok {
-				return fmt.Errorf("%w: unexpected model type", ErrCommandFailed)
-			}
-
-			if finalM.err != nil {
-				return finalM.err
-			}
-
-			if finalM.tokenResp != nil {
-				slog.Debug("received auth token from github oauth")
-			}
-
-			if finalM.tokenResp == nil {
-				return errors.New("login canceled")
-			}
-
-			locoResp, err := oAuthClient.ExchangeOAuthToken(
-				ctx,
-				connect.NewRequest(&oAuth.ExchangeOAuthTokenRequest{
-					Provider:              oAuth.OAuthProvider_O_AUTH_PROVIDER_GITHUB,
-					Token:                 finalM.tokenResp.AccessToken,
-					CreateUserIfNotExists: true,
-				}),
-			)
-			if err != nil {
-				cmdutil.LogRequestID(ctx, err, "failed to exchange oauth token")
-				return fmt.Errorf("login to %s failed: %w", host, err)
-			}
-
-			newToken := tokenFromExchange(host, locoResp.Msg)
-			if err := setupLoginScope(ctx, httpClient, host, store, newToken); err != nil {
-				return fmt.Errorf("login to %s failed: %w", host, err)
-			}
-			return nil
+			return providerLogin(cmd, httpClient, host, store)
 		},
 	}
 	cmd.Flags().String("host", "", "Set the host URL")
@@ -413,102 +278,19 @@ func printLoginSuccess(title, orgName, workspaceName string) {
 	fmt.Printf("%s %s\n%s\n%s\n", checkmark, heading, orgLine, wsLine)
 }
 
-func tokenFromExchange(host string, resp *oAuth.ExchangeOAuthTokenResponse) keychain.UserToken {
-	lifetime := time.Duration(resp.GetExpiresIn())*time.Second - 10*time.Minute
-	expiresAt := time.Now().Add(lifetime)
-	return keychain.UserToken{
-		Host:         host,
-		Token:        resp.GetLocoToken(),
-		RefreshToken: resp.GetRefreshToken(),
-		ExpiresAt:    expiresAt,
-	}
-}
-
-func pollAuthToken(
-	ctx context.Context,
-	c *api.Client,
-	clientID string,
-	deviceCode string,
-	interval time.Duration,
-) (*AuthTokenResponse, error) {
-	authTokenRequest := AuthTokenRequest{
-		ClientID:   clientID,
-		DeviceCode: deviceCode,
-		GrantType:  "urn:ietf:params:oauth:grant-type:device_code",
-	}
-	headers := map[string]string{
-		"Accept":       contentTypeJSON,
-		"Content-Type": contentTypeJSON,
-	}
-
-	for {
-		wait := time.After(interval)
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-wait:
-		}
-
-		resp, err := c.Post(ctx, "/login/oauth/access_token", authTokenRequest, headers)
-		if err != nil {
-			apiError, ok := errors.AsType[*api.APIError](err)
-			if !ok {
-				slog.Debug("network error while polling for token", "error", err)
-				return nil, fmt.Errorf("network error: %w", err)
-			}
-			switch apiError.StatusCode {
-			case http.StatusBadRequest:
-				slog.Debug("authorization pending", "status_code", apiError.StatusCode)
-				continue
-			case http.StatusForbidden:
-				slog.Debug("access denied or rate limited", "status_code", apiError.StatusCode, "error", err)
-				return nil, fmt.Errorf("access denied or rate limited: %w", err)
-			default:
-				slog.Debug("API error while polling for token", "status_code", apiError.StatusCode, "error", err)
-				return nil, fmt.Errorf("API error: %w", err)
-			}
-		}
-
-		authTokenResponse := new(AuthTokenResponse)
-		if err = json.Unmarshal(resp, authTokenResponse); err != nil {
-			slog.Debug("failed to unmarshal auth token response", "error", err)
-			return nil, fmt.Errorf("failed to unmarshal response: %w", err)
-		}
-
-		switch authTokenResponse.Error {
-		case "":
-			if authTokenResponse.AccessToken != "" {
-				return authTokenResponse, nil
-			}
-		case "authorization_pending":
-			slog.Debug("authorization pending")
-		case "slow_down":
-			interval += 5 * time.Second
-			slog.Debug("github asked to slow down", "interval", interval)
-		default:
-			return nil, fmt.Errorf(
-				"github device authorization failed: %s: %s",
-				authTokenResponse.Error,
-				authTokenResponse.ErrorDescription,
-			)
-		}
-	}
-}
-
 type (
 	tickMsg        time.Time
 	authSuccessMsg struct {
-		Token AuthTokenResponse
+		Tokens *authv1.CLITokens
 	}
 	authErrorMsg struct {
 		Error error
 	}
 )
 
-func waitForToken(tokenChan <-chan AuthTokenResponse) tea.Cmd {
+func waitForToken(tokenChan <-chan *authv1.CLITokens) tea.Cmd {
 	return func() tea.Msg {
-		token := <-tokenChan
-		return authSuccessMsg{Token: token}
+		return authSuccessMsg{Tokens: <-tokenChan}
 	}
 }
 
@@ -520,8 +302,8 @@ func waitForError(errorChan <-chan error) tea.Cmd {
 }
 
 type model struct {
-	tokenResp       *AuthTokenResponse
-	tokenChan       <-chan AuthTokenResponse
+	tokens          *authv1.CLITokens
+	tokenChan       <-chan *authv1.CLITokens
 	errorChan       <-chan error
 	loadingFrames   []string
 	userCode        string
@@ -535,7 +317,7 @@ type model struct {
 func initialModel(
 	userCode string,
 	verificationURI string,
-	tokenChan <-chan AuthTokenResponse,
+	tokenChan <-chan *authv1.CLITokens,
 	errorChan <-chan error,
 ) model {
 	return model{
@@ -579,7 +361,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case authSuccessMsg:
 		m.polling = false
 		m.done = true
-		m.tokenResp = &msg.Token
+		m.tokens = msg.Tokens
 		return m, tea.Quit
 	case authErrorMsg:
 		m.polling = false

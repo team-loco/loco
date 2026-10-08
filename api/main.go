@@ -41,7 +41,6 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/domain/v1/domainv1connect"
 	environmentv1connect "github.com/team-loco/loco/gen/go/loco/environment/v1/environmentv1connect"
 	"github.com/team-loco/loco/gen/go/loco/event/v1/eventv1connect"
-	"github.com/team-loco/loco/gen/go/loco/oauth/v1/oauthv1connect"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
@@ -212,28 +211,15 @@ func main() {
 	}
 	defer appCache.Close()
 
-	httpClient := newOutboundHTTPClient()
-
 	placementNotifier := clusternotify.New(pool, clusternotify.DefaultPollInterval)
 	if err := placementNotifier.Start(shutdownCtx); err != nil {
 		log.Fatalf("failed to start placement listener: %v", err)
 	}
 
-	oauthStateCache := service.NewOAuthStateCache(appCache)
-	secureCookies := ac.Env == envProduction
-	oAuthServiceHandler := service.NewOAuthServer(
-		pool,
-		queries,
-		httpClient,
-		machine,
-		oauthStateCache,
-		secureCookies,
-		ac.GithubOAuth,
-	)
 	eventServiceHandler := service.NewEventServer(queries, machine)
 	go events.RunRetention(shutdownCtx, queries, eventsRetention(ac.EventsRetentionDays), time.Hour)
 	authServiceHandler := service.NewAuthServer(pool, queries, machine, appCache, admins, ac.WebURL)
-	userServiceHandler := service.NewUserServer(pool, queries, machine, secureCookies, admins)
+	userServiceHandler := service.NewUserServer(pool, queries, machine, admins)
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
 	resourceServiceHandler := service.NewResourceServer(pool, queries, machine, ac.ServiceDefaults)
@@ -284,7 +270,6 @@ func main() {
 	)
 
 	configPath, configHandler := configv1connect.NewConfigServiceHandler(configServiceHandler, baseInterceptors)
-	oauthPath, oauthHandler := oauthv1connect.NewOAuthServiceHandler(oAuthServiceHandler, httpInterceptors)
 	userPath, userHandler := userv1connect.NewUserServiceHandler(userServiceHandler, httpInterceptors)
 	authPath, authHandler := authv1connect.NewAuthServiceHandler(authServiceHandler, httpInterceptors)
 	eventPath, eventHandler := eventv1connect.NewEventServiceHandler(eventServiceHandler, httpInterceptors)
@@ -317,12 +302,6 @@ func main() {
 	reflector := grpcreflect.NewStaticReflector(
 		// config service
 		configv1connect.ConfigServiceGetConfigProcedure,
-
-		// oauth service
-		oauthv1connect.OAuthServiceGetOAuthDetailsProcedure,
-		oauthv1connect.OAuthServiceExchangeOAuthTokenProcedure,
-		oauthv1connect.OAuthServiceGetOAuthAuthorizationURLProcedure,
-		oauthv1connect.OAuthServiceExchangeOAuthCodeProcedure,
 
 		// user service
 		eventv1connect.EventServiceListOrgEventsProcedure,
@@ -421,7 +400,6 @@ func main() {
 	mux.Handle(grpcreflect.NewHandlerV1Alpha(reflector))
 
 	mux.Handle(configPath, configHandler)
-	mux.Handle(oauthPath, oauthHandler)
 	mux.Handle(userPath, userHandler)
 	mux.Handle(authPath, authHandler)
 	mux.Handle(eventPath, eventHandler)

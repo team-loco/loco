@@ -4,7 +4,6 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Toaster } from "@/components/design/Sonner";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { Login } from "@/pages/Login";
-import { OAuthCallback } from "@/pages/OAuthCallback";
 import { AuthCallback } from "@/pages/auth/AuthCallback";
 import { CliDevice } from "@/pages/cli/CliDevice";
 import { CliLogin } from "@/pages/cli/CliLogin";
@@ -90,7 +89,6 @@ function AppRoutes() {
 				{/* Public routes */}
 				<Route path="/" element={<Splash />} />
 				<Route path="/login" element={<Login />} />
-				<Route path="/oauth/callback" element={<OAuthCallback />} />
 				<Route path="/auth/callback" element={<AuthCallback />} />
 				<Route path="/cli/login" element={<><PageTitle title="Sign in to the CLI" /><CliLogin /></>} />
 				<Route path="/cli/device" element={<><PageTitle title="Sign in a device" /><CliDevice /></>} />

@@ -68,7 +68,6 @@ type APIConfig struct {
 	DefaultPlatformDomain string   // Default platform domain returned by the config service
 	MinCLIVersion         string
 	PprofAddr             string
-	GithubOAuth           service.GithubOAuthConfig
 	SourceBucket          sourcebucket.Config
 	SourceMaxBytes        int64
 	RegistryHost          string
@@ -94,7 +93,6 @@ func newAPIConfig() *APIConfig {
 	registry := newRegistryConfig(registryHost)
 	imageSweep := newImageSweepConfig(registryHost, registryPrefix)
 	sourceSweep := newSourceSweepConfig()
-	githubOAuth := newGithubOAuthConfig()
 	logLevel, ok := logLevelEnv("LOG_LEVEL")
 	if !ok {
 		logLevel = slog.LevelInfo
@@ -113,7 +111,6 @@ func newAPIConfig() *APIConfig {
 		DefaultPlatformDomain: stringEnv("DEFAULT_PLATFORM_DOMAIN", ""),
 		MinCLIVersion:         stringEnv("MIN_CLI_VERSION", ""),
 		PprofAddr:             stringEnv("PPROF_ADDR", ""),
-		GithubOAuth:           githubOAuth,
 		SourceBucket:          sourceBucket,
 		SourceMaxBytes:        sourceMaxBytes,
 		RegistryHost:          registryHost,
@@ -218,13 +215,6 @@ func newSourceSweepConfig() service.SourceSweepConfig {
 		BuildBatch:     positiveInt32Env("LOCO_SOURCE_SWEEP_BUILD_BATCH", defaultSourceSweepBuildBatch),
 		OrphanPageSize: positiveInt32Env("LOCO_SOURCE_SWEEP_ORPHAN_PAGE_SIZE", defaultSourceOrphanPageSize),
 		OrphanMaxPages: int(positiveInt32Env("LOCO_SOURCE_SWEEP_ORPHAN_MAX_PAGES", defaultSourceOrphanMaxPages)),
-	}
-}
-
-func newGithubOAuthConfig() service.GithubOAuthConfig {
-	return service.GithubOAuthConfig{
-		ClientID:     stringEnv("GH_OAUTH_CLIENT_ID", ""),
-		ClientSecret: stringEnv("GH_OAUTH_CLIENT_SECRET", ""),
 	}
 }
 

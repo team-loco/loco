@@ -12,7 +12,6 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/charmbracelet/x/term v0.2.2
 	github.com/go-jose/go-jose/v4 v4.1.5
-	github.com/goccy/go-json v0.11.1
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/moby/patternmatcher v0.6.1

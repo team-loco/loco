@@ -16,7 +16,6 @@ var (
 	ErrUnauthorized  = errors.New("unauthorized")
 
 	errEntityScopesNotFound = errors.New("entity scopes not found in context")
-	errDatabase             = errors.New("database error")
 	errCloneServiceSpec     = errors.New("failed to clone service spec")
 )
 
