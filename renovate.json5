@@ -8,6 +8,7 @@
   prConcurrentLimit: 8,
   prHourlyLimit: 0,
   rebaseWhen: "conflicted",
+  platformCommit: "enabled",
   ignorePaths: ["examples/**", "**/node_modules/**", "gen/ts/node_modules/**"],
   postUpdateOptions: ["gomodTidy", "gomodUpdateImportPaths"],
   constraints: {
