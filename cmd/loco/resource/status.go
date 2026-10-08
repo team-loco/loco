@@ -122,9 +122,7 @@ Examples:
 				return err
 			}
 
-			// Render table view
-			renderStatusView(deps.Stdout, name, resp.Msg)
-			return nil
+			return renderStatusView(deps.Stdout, name, resp.Msg)
 		},
 	}
 
@@ -136,7 +134,7 @@ Examples:
 	return cmd
 }
 
-func renderStatusView(stdout io.Writer, name string, resp *resourcev1.GetResourceStatusResponse) {
+func renderStatusView(stdout io.Writer, name string, resp *resourcev1.GetResourceStatusResponse) error {
 	titleStyle := lipgloss.NewStyle().
 		Foreground(ui.Accent).
 		Bold(true).
@@ -160,7 +158,11 @@ func renderStatusView(stdout io.Writer, name string, resp *resourcev1.GetResourc
 	status = resp.GetCurrentDeployment().GetStatus().String()
 	replicas = strconv.Itoa(int(resp.GetCurrentDeployment().GetReplicas()))
 
-	url := "hostname management pending"
+	resource := resp.GetResource()
+	url := publicURL(resource)
+	if url == "" {
+		url = "none"
+	}
 
 	content := fmt.Sprintf(
 		"%s %s\n%s %s\n%s %s\n%s %s",
@@ -170,6 +172,21 @@ func renderStatusView(stdout io.Writer, name string, resp *resourcev1.GetResourc
 		labelStyle.Render("URL:"), valueStyle.Render(url),
 	)
 
-	fmt.Fprintln(stdout, titleStyle.Render("Service Status"))
-	fmt.Fprintln(stdout, blockStyle.Render(content))
+	title := titleStyle.Render("Service Status")
+	if _, err := lipgloss.Fprintln(stdout, title); err != nil {
+		return err
+	}
+	block := blockStyle.Render(content)
+	_, err := lipgloss.Fprintln(stdout, block)
+	return err
+}
+
+func publicURL(resource *resourcev1.Resource) string {
+	domains := resource.GetDomains()
+	for _, domain := range domains {
+		if domain.GetIsPrimary() {
+			return "https://" + domain.GetDomain()
+		}
+	}
+	return ""
 }

@@ -61,3 +61,36 @@ func TestScaleResourceWritesTheReplicasIntoTheDesiredSpec(t *testing.T) {
 		t.Fatalf("desired replicas = %+v, want %d-%d", replicas, scaled, scaled)
 	}
 }
+
+func TestScaleResourceKeepsTheRouteOfTheDeployment(t *testing.T) {
+	cases := map[string]struct {
+		domain   string
+		wantHost string
+	}{
+		"with a domain":    {domain: testPrimaryDomain, wantHost: testPrimaryDomain},
+		"without a domain": {},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			f := newDeployFixture(t)
+			if tc.domain != "" {
+				f.addDomain(t, tc.domain, true)
+			}
+			if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+				t.Fatalf("create deployment: %v", err)
+			}
+			if err := scaleResource(t, f, 2); err != nil {
+				t.Fatalf("scale: %v", err)
+			}
+
+			routing := desiredPayload(t, f).AppSpec.ServiceSpec.Routing
+			host := ""
+			if routing != nil {
+				host = routing.HostName
+			}
+			if host != tc.wantHost {
+				t.Fatalf("routed hostname = %q, want %q", host, tc.wantHost)
+			}
+		})
+	}
+}

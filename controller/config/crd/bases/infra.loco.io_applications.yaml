@@ -188,7 +188,8 @@ spec:
                     - replicas
                     type: object
                   routing:
-                    description: Routing configuration (port, domain, subdomain, etc)
+                    description: Routing exposes the service to the internet. Without
+                      it the service gets no HTTPRoute and no gateway ingress.
                     properties:
                       hostName:
                         minLength: 1

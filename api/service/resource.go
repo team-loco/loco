@@ -937,10 +937,10 @@ func (s *ResourceServer) planRegionRedeploy(
 }
 
 func (s *ResourceServer) redeployRegions(ctx context.Context, res genDb.Resource, plans []regionRedeploy) error {
-	domain, err := s.queries.GetDomainByResourceId(ctx, res.ID)
+	hostname, err := primaryHostname(ctx, s.queries, res.ID)
 	if err != nil {
-		slog.WarnContext(ctx, "domain not found", "resourceId", res.ID)
-		return connect.NewError(connect.CodeNotFound, ErrDomainNotFound)
+		slog.ErrorContext(ctx, "failed to get the resource's primary domain", "resourceId", res.ID, "error", err)
+		return connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	resourceSpec, err := converter.DeserializeResourceSpecByType(res.Spec, string(res.Type))
@@ -957,7 +957,7 @@ func (s *ResourceServer) redeployRegions(ctx context.Context, res genDb.Resource
 			buildSpec := desiredApplicationSpec(
 				res,
 				resourceSpec,
-				domain.Domain,
+				hostname,
 				plan.deploymentSpec,
 				plan.params.Region,
 				plan.params.EnvironmentID,
@@ -1287,6 +1287,17 @@ func withTx(ctx context.Context, pool *pgxpool.Pool, fn func(qtx *genDb.Queries)
 	})
 }
 
+func primaryHostname(ctx context.Context, queries genDb.Querier, resourceID uuid.UUID) (string, error) {
+	hostname, err := queries.GetPrimaryResourceDomain(ctx, resourceID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("get primary domain: %w", err)
+	}
+	return hostname, nil
+}
+
 func desiredApplicationSpec(
 	res genDb.Resource,
 	resourceSpec *resourcev1.ResourceSpec,
@@ -1320,7 +1331,6 @@ func desiredApplicationSpec(
 			ResourceName: res.Name,
 			ResourceType: string(res.Type),
 			Region:       region,
-			Hostname:     hostname,
 			AppSpec:      appSpec,
 		})
 		if err != nil {

@@ -49,6 +49,17 @@ TOML
 
 cli_write_service_config() {
     local dir=$1 name=$2 port=$3 health_path=$4
+    cli_write_private_service_config "$dir" "$name" "$port" "$health_path"
+    cat >>"$dir/loco.toml" <<TOML
+
+[DomainConfig]
+Type = "platform"
+Hostname = "${name}.e2e.test.local"
+TOML
+}
+
+cli_write_private_service_config() {
+    local dir=$1 name=$2 port=$3 health_path=$4
     cat >"$dir/loco.toml" <<TOML
 [Metadata]
 ConfigVersion = "0.1"
@@ -64,10 +75,6 @@ Type = "docker"
 Port = ${port}
 PathPrefix = "/"
 IdleTimeout = 60
-
-[DomainConfig]
-Type = "platform"
-Hostname = "${name}.e2e.test.local"
 
 [RegionConfig]
 [RegionConfig.us-east-1]

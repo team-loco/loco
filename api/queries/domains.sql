@@ -45,13 +45,10 @@ SELECT NOT EXISTS(
     WHERE domain = $1
 ) as is_available;
 
--- name: GetDomainByResourceId :one
-SELECT 
-    rd.*,
-    pd.domain as platform_base_domain
-FROM resource_domains rd
-LEFT JOIN platform_domains pd ON rd.platform_domain_id = pd.id
-WHERE rd.resource_id = $1;
+-- name: GetPrimaryResourceDomain :one
+SELECT domain
+FROM resource_domains
+WHERE resource_id = $1 AND is_primary;
 
 -- name: GetResourceDomainByID :one
 SELECT 

@@ -243,6 +243,11 @@ description = "Run the end-to-end tests for an install with builds.enabled=false
 env = { _.file = ".env" }
 run = "./e2e/run.sh --builds-disabled builds_disabled"
 
+[tasks."e2e:ingress"]
+description = "Run the end-to-end tests for apps with and without a domain: routes, gateway ingress and the CLI's URL output (full setup and teardown)"
+env = { _.file = ".env" }
+run = "./e2e/run.sh --builds-disabled ingress"
+
 [tasks."e2e:no-teardown"]
 description = "Run the end-to-end tests and keep the infrastructure running"
 env = { _.file = ".env" }

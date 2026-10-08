@@ -19,6 +19,8 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/build/v1/buildv1connect"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
+	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
+	"github.com/team-loco/loco/gen/go/loco/domain/v1/domainv1connect"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	"github.com/team-loco/loco/gen/go/loco/environment/v1/environmentv1connect"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
@@ -29,20 +31,27 @@ import (
 )
 
 const (
-	fakeWorkspaceID   = "2"
-	fakeEnvironmentID = "00000000-0000-7000-8000-0000000000e1"
-	fakeClusterID     = "00000000-0000-7000-8000-0000000000c1"
-	fakeImageRepo     = "registry.loco.test/ws/app"
-	fakeImageDigest   = "sha256:1111111111111111111111111111111111111111111111111111111111111111"
-	uploadModeOK      = "ok"
-	uploadModeDenied  = "forbidden"
-	uploadModeReset   = "reset"
-	outcomeSucceeded  = "succeeded"
-	outcomeFailed     = "failed"
-	outcomeRunning    = "running"
-	uploadPathPrefix  = "/upload/"
-	sourceTypeUpload  = "upload"
-	sourceTypeImage   = "image"
+	fakeWorkspaceID      = "2"
+	fakeEnvironmentID    = "00000000-0000-7000-8000-0000000000e1"
+	fakeClusterID        = "00000000-0000-7000-8000-0000000000c1"
+	fakeImageRepo        = "registry.loco.test/ws/app"
+	fakeImageDigest      = "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+	fakePlatformDomainID = "00000000-0000-7000-8000-0000000000d1"
+	fakePlatformDomain   = "onloco.test"
+	uploadModeOK         = "ok"
+	uploadModeDenied     = "forbidden"
+	uploadModeReset      = "reset"
+	outcomeSucceeded     = "succeeded"
+	outcomeFailed        = "failed"
+	outcomeRunning       = "running"
+	uploadPathPrefix     = "/upload/"
+	sourceTypeUpload     = "upload"
+	sourceTypeImage      = "image"
+)
+
+var (
+	errFakeUnknownPlatformDomain = errors.New("fakeapi: unknown platform domain")
+	errFakeResourceNotFound      = errors.New("resource not found")
 )
 
 type fakeUpload struct {
@@ -88,6 +97,7 @@ func newFakePlatform() *fakePlatform {
 
 func (f *fakeAPI) registerPlatform(mux *http.ServeMux) {
 	mux.Handle(resourcev1connect.NewResourceServiceHandler(&fakeResourceService{api: f}))
+	mux.Handle(domainv1connect.NewDomainServiceHandler(&fakeDomainService{api: f}))
 	mux.Handle(environmentv1connect.NewEnvironmentServiceHandler(&fakeEnvironmentService{api: f}))
 	mux.Handle(buildv1connect.NewBuildServiceHandler(&fakeBuildService{api: f}))
 	mux.Handle(deploymentv1connect.NewDeploymentServiceHandler(&fakeDeploymentService{api: f}))
@@ -210,7 +220,7 @@ func (s *fakeResourceService) GetResource(
 			return connect.NewResponse(&resourcev1.GetResourceResponse{Resource: res}), nil
 		}
 	}
-	return nil, connect.NewError(connect.CodeNotFound, errors.New("resource not found"))
+	return nil, connect.NewError(connect.CodeNotFound, errFakeResourceNotFound)
 }
 
 func (s *fakeResourceService) CreateResource(
@@ -224,12 +234,56 @@ func (s *fakeResourceService) CreateResource(
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	id := fmt.Sprintf("00000000-0000-7000-8000-%012d", len(f.platform.resources)+1)
-	f.platform.resources = append(f.platform.resources, &resourcev1.Resource{
+	resource := &resourcev1.Resource{
 		Id:          id,
 		WorkspaceId: req.Msg.GetWorkspaceId(),
 		Name:        req.Msg.GetName(),
-	})
+	}
+	if input := req.Msg.GetDomain(); input != nil {
+		if input.GetPlatformDomainId() != fakePlatformDomainID {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errFakeUnknownPlatformDomain)
+		}
+		hostname := input.GetSubdomain() + "." + fakePlatformDomain
+		resource.Domains = []*domainv1.ResourceDomain{{ResourceId: id, Domain: hostname, IsPrimary: true}}
+	}
+	f.platform.resources = append(f.platform.resources, resource)
 	return connect.NewResponse(&resourcev1.CreateResourceResponse{ResourceId: id}), nil
+}
+
+func (s *fakeResourceService) GetResourceStatus(
+	_ context.Context,
+	req *connect.Request[resourcev1.GetResourceStatusRequest],
+) (*connect.Response[resourcev1.GetResourceStatusResponse], error) {
+	f := s.api
+	if _, _, err := f.authenticate(req.Spec(), req.Header()); err != nil {
+		return nil, err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, res := range f.platform.resources {
+		if res.GetId() == req.Msg.GetResourceId() {
+			return connect.NewResponse(&resourcev1.GetResourceStatusResponse{Resource: res}), nil
+		}
+	}
+	return nil, connect.NewError(connect.CodeNotFound, errFakeResourceNotFound)
+}
+
+type fakeDomainService struct {
+	domainv1connect.UnimplementedDomainServiceHandler
+
+	api *fakeAPI
+}
+
+func (s *fakeDomainService) ListPlatformDomains(
+	_ context.Context,
+	req *connect.Request[domainv1.ListPlatformDomainsRequest],
+) (*connect.Response[domainv1.ListPlatformDomainsResponse], error) {
+	if _, _, err := s.api.authenticate(req.Spec(), req.Header()); err != nil {
+		return nil, err
+	}
+	platformDomain := &domainv1.PlatformDomain{Id: fakePlatformDomainID, Domain: fakePlatformDomain, IsActive: true}
+	resp := &domainv1.ListPlatformDomainsResponse{PlatformDomains: []*domainv1.PlatformDomain{platformDomain}}
+	return connect.NewResponse(resp), nil
 }
 
 type fakeEnvironmentService struct {

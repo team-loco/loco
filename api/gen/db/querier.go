@@ -83,7 +83,6 @@ type Querier interface {
 	GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, error)
 	GetDeploymentResourceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	GetDeploymentStatus(ctx context.Context, id uuid.UUID) (GetDeploymentStatusRow, error)
-	GetDomainByResourceId(ctx context.Context, resourceID uuid.UUID) (GetDomainByResourceIdRow, error)
 	GetEnvironmentByID(ctx context.Context, id uuid.UUID) (Environment, error)
 	// todo: eventually remove
 	GetFirstActiveCluster(ctx context.Context) (GetFirstActiveClusterRow, error)
@@ -96,6 +95,7 @@ type Querier interface {
 	GetPlacementForResourceCluster(ctx context.Context, arg GetPlacementForResourceClusterParams) (Placement, error)
 	GetPlatformDomain(ctx context.Context, id uuid.UUID) (PlatformDomain, error)
 	GetPlatformDomainByName(ctx context.Context, domain string) (PlatformDomain, error)
+	GetPrimaryResourceDomain(ctx context.Context, resourceID uuid.UUID) (string, error)
 	GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, error)
 	GetResourceByNameAndWorkspace(ctx context.Context, arg GetResourceByNameAndWorkspaceParams) (Resource, error)
 	GetResourceDomainByID(ctx context.Context, id uuid.UUID) (ResourceDomain, error)

@@ -98,7 +98,7 @@ type TracingSpec struct {
 	Tags       map[string]string `json:"tags,omitempty"`
 }
 
-// RoutingSpec contains subdomain, path prefix, port, idle timeout
+// RoutingSpec exposes the service on the gateway at HostName.
 type RoutingSpec struct {
 	// +required
 	// +kubebuilder:validation:MinLength=1
@@ -147,7 +147,7 @@ type ServiceSpec struct {
 	// +required
 	Resources *ResourcesSpec `json:"resources"`
 
-	// Routing configuration (port, domain, subdomain, etc)
+	// Routing exposes the service to the internet. Without it the service gets no HTTPRoute and no gateway ingress.
 	Routing *RoutingSpec `json:"routing,omitempty"`
 
 	// Observability configuration (logging, metrics, tracing)

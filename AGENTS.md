@@ -122,11 +122,19 @@ first time and run `mise run lint:go` before pushing. The one that bites most:
 - **Types**: `DomainConfig` has Type (platform/custom) and Hostname (full resolvable hostname);
   the subdomain is the leftmost label of Hostname
 - **In loco.toml**:
-  - `[DomainConfig]`: optional; without it the app gets no internet traffic
+  - `[DomainConfig]`: optional; without it `loco deploy` creates the resource with no domain,
+    asks nothing, and prints that the app has no public URL
   - `Type`: "platform" (default, Loco-provided) or "custom" (validates, but deploy rejects it)
   - `Hostname`: full resolvable hostname (e.g., "myapp.onloco.app")
-- **Deploy flow**: `resolveDomainInput` matches Hostname against the active platform domains by
-  suffix, and falls back to an interactive pick when none match
+- **Deploy flow**: when the resource is created, `resolveDomainInput` matches Hostname against
+  the active platform domains by suffix, and falls back to an interactive pick when none match.
+  Later deploys use the domains already on the resource, not loco.toml
+- **Routing**: every deployment (create, scale, env change) reads the resource's primary domain
+  (`primaryHostname` in `api/service/resource.go`). With one, the Application spec carries
+  `routing` and the controller creates the HTTPRoute and the gateway-ingress NetworkPolicy. With
+  none, `routing` is omitted and the controller deletes both if they exist; the app still runs,
+  scales, logs, makes outbound connections and is reachable inside its workspace. Adding or
+  removing a domain takes effect on the next deployment
 
 ## Regional Configuration
 

@@ -7,6 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -77,6 +78,10 @@ var _ = Describe("Application reconcile", func() {
 		sa := &corev1.ServiceAccount{}
 		Expect(k8sClient.Get(ctx, depKey, sa)).To(Succeed())
 		Expect(sa.ImagePullSecrets).To(ConsistOf(corev1.LocalObjectReference{Name: workspacePullSecretName}))
+		Expect(k8sClient.Get(ctx, depKey, &corev1.Service{})).To(Succeed())
+		gatewayPolicyKey := client.ObjectKey{Namespace: depKey.Namespace, Name: getGatewayPolicyName(app)}
+		err = k8sClient.Get(ctx, gatewayPolicyKey, &networkingv1.NetworkPolicy{})
+		Expect(apierrors.IsNotFound(err)).To(BeTrue())
 		Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
 		Expect(app.Status.Phase).To(Equal(phaseDeploying))
 		Expect(app.Finalizers).To(ConsistOf(finalizerAppResourcesCleanup))
