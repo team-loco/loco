@@ -167,14 +167,17 @@ func nodeRangesChanged() predicate.Funcs {
 func (r *LocoResourceReconciler) applicationPerWorkspace(ctx context.Context, _ client.Object) []reconcile.Request {
 	var apps locov1alpha1.ApplicationList
 	if err := r.List(ctx, &apps); err != nil {
-		slog.WarnContext(ctx, "failed to list applications for a node change", "error", err)
+		slog.WarnContext(ctx, "failed to list applications for a workspace-wide change", "error", err)
 		return nil
 	}
 	seen := make(map[string]bool, len(apps.Items))
 	var requests []reconcile.Request
 	for i := range apps.Items {
 		app := &apps.Items[i]
-		if seen[app.Spec.WorkspaceID] {
+		if seen[app.Spec.WorkspaceID] || !app.DeletionTimestamp.IsZero() {
+			continue
+		}
+		if err := app.Spec.Validate(); err != nil {
 			continue
 		}
 		seen[app.Spec.WorkspaceID] = true

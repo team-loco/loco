@@ -56,8 +56,7 @@ var _ = Describe("Application reconcile", func() {
 		depKey := client.ObjectKey{Namespace: getNamespace(app), Name: getName(app)}
 		envSecretName := getEnvSecretName(app)
 		envKey := client.ObjectKey{Namespace: depKey.Namespace, Name: envSecretName}
-		imageSecretName := getImageSecretName(app)
-		imageKey := client.ObjectKey{Namespace: depKey.Namespace, Name: imageSecretName}
+		imageKey := client.ObjectKey{Namespace: depKey.Namespace, Name: workspacePullSecretName}
 
 		result, err := r.Reconcile(ctx, req)
 		Expect(err).NotTo(HaveOccurred())
@@ -71,12 +70,14 @@ var _ = Describe("Application reconcile", func() {
 		Expect(imageSecret.Type).To(Equal(corev1.SecretTypeDockerConfigJson))
 		Expect(imageSecret.Data).To(Equal(pullSecret.Data))
 		Expect(imageSecret.Labels).To(HaveKeyWithValue(labelManagedBy, managedByValue))
+		Expect(imageSecret.Labels).To(HaveKeyWithValue(labelWorkspaceID, app.Spec.WorkspaceID))
+		Expect(imageSecret.Annotations).NotTo(HaveKey(annotationAppName))
 		sa := &corev1.ServiceAccount{}
 		Expect(k8sClient.Get(ctx, depKey, sa)).To(Succeed())
-		Expect(sa.ImagePullSecrets).To(ConsistOf(corev1.LocalObjectReference{Name: imageSecretName}))
+		Expect(sa.ImagePullSecrets).To(ConsistOf(corev1.LocalObjectReference{Name: workspacePullSecretName}))
 		Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
 		Expect(app.Status.Phase).To(Equal(phaseDeploying))
-		Expect(app.Finalizers).To(ContainElement(finalizerSecretRefresher))
+		Expect(app.Finalizers).To(ConsistOf(finalizerCleanup))
 		depVersion := dep.ResourceVersion
 		appVersion := app.ResourceVersion
 
@@ -123,11 +124,107 @@ var _ = Describe("Application reconcile", func() {
 		Expect(k8sClient.Delete(ctx, pullSecret)).To(Succeed())
 	})
 
+	It("shares one pull secret across the apps of a workspace", func() {
+		Expect(v1Gateway.Install(scheme.Scheme)).To(Succeed())
+
+		pullSecret := &corev1.Secret{
+			Name: "shared-registry-pull", Namespace: testNamespace,
+			Type: corev1.SecretTypeDockerConfigJson,
+			Data: map[string][]byte{corev1.DockerConfigJsonKey: []byte(`{"auths":{}}`)},
+		}
+		Expect(k8sClient.Create(ctx, pullSecret)).To(Succeed())
+
+		first := isolationTestApplication("ws-shared-pull", "shared-pull-first")
+		second := isolationTestApplication("ws-shared-pull", "shared-pull-second")
+		first.Spec.ServiceSpec.Routing = nil
+		second.Spec.ServiceSpec.Routing = nil
+		Expect(k8sClient.Create(ctx, first)).To(Succeed())
+		Expect(k8sClient.Create(ctx, second)).To(Succeed())
+
+		r := &LocoResourceReconciler{
+			Client:         k8sClient,
+			Scheme:         k8sClient.Scheme(),
+			locoNamespace:  testNamespace,
+			pullSecretName: pullSecret.Name,
+		}
+		firstKey := client.ObjectKeyFromObject(first)
+		secondKey := client.ObjectKeyFromObject(second)
+		firstReq := reconcile.Request{NamespacedName: firstKey}
+		secondReq := reconcile.Request{NamespacedName: secondKey}
+		namespace := getNamespace(first)
+		secretKey := client.ObjectKey{Namespace: namespace, Name: workspacePullSecretName}
+		firstName := getName(first)
+		secondName := getName(second)
+		firstSAKey := client.ObjectKey{Namespace: namespace, Name: firstName}
+		secondSAKey := client.ObjectKey{Namespace: namespace, Name: secondName}
+		reference := corev1.LocalObjectReference{Name: workspacePullSecretName}
+
+		_, err := r.Reconcile(ctx, firstReq)
+		Expect(err).NotTo(HaveOccurred())
+		_, err = r.Reconcile(ctx, secondReq)
+		Expect(err).NotTo(HaveOccurred())
+
+		secrets := &corev1.SecretList{}
+		Expect(k8sClient.List(ctx, secrets, client.InNamespace(namespace))).To(Succeed())
+		var pullSecrets []string
+		for _, secret := range secrets.Items {
+			if secret.Type == corev1.SecretTypeDockerConfigJson {
+				pullSecrets = append(pullSecrets, secret.Name)
+			}
+		}
+		Expect(pullSecrets).To(ConsistOf(workspacePullSecretName))
+
+		sa := &corev1.ServiceAccount{}
+		Expect(k8sClient.Get(ctx, firstSAKey, sa)).To(Succeed())
+		Expect(sa.ImagePullSecrets).To(ConsistOf(reference))
+		Expect(k8sClient.Get(ctx, secondSAKey, sa)).To(Succeed())
+		Expect(sa.ImagePullSecrets).To(ConsistOf(reference))
+
+		rotated := []byte(`{"auths":{"registry.example.com":{}}}`)
+		pullSecret.Data = map[string][]byte{corev1.DockerConfigJsonKey: rotated}
+		Expect(k8sClient.Update(ctx, pullSecret)).To(Succeed())
+		requests := r.applicationPerWorkspace(ctx, pullSecret)
+		var workspaceRequests []reconcile.Request
+		for _, req := range requests {
+			if req == firstReq || req == secondReq {
+				workspaceRequests = append(workspaceRequests, req)
+			}
+		}
+		Expect(workspaceRequests).To(HaveLen(1))
+		_, err = r.Reconcile(ctx, workspaceRequests[0])
+		Expect(err).NotTo(HaveOccurred())
+		workspaceSecret := &corev1.Secret{}
+		Expect(k8sClient.Get(ctx, secretKey, workspaceSecret)).To(Succeed())
+		Expect(workspaceSecret.Data).To(HaveKeyWithValue(corev1.DockerConfigJsonKey, rotated))
+
+		Expect(k8sClient.Delete(ctx, first)).To(Succeed())
+		_, err = r.Reconcile(ctx, firstReq)
+		Expect(err).NotTo(HaveOccurred())
+		err = k8sClient.Get(ctx, firstKey, first)
+		Expect(apierrors.IsNotFound(err)).To(BeTrue())
+		Expect(k8sClient.Get(ctx, secretKey, workspaceSecret)).To(Succeed())
+		Expect(k8sClient.Get(ctx, secondSAKey, sa)).To(Succeed())
+		Expect(sa.ImagePullSecrets).To(ConsistOf(reference))
+
+		r.pullSecretName = ""
+		_, err = r.Reconcile(ctx, secondReq)
+		Expect(err).NotTo(HaveOccurred())
+		err = k8sClient.Get(ctx, secretKey, workspaceSecret)
+		Expect(apierrors.IsNotFound(err)).To(BeTrue())
+		Expect(k8sClient.Get(ctx, secondSAKey, sa)).To(Succeed())
+		Expect(sa.ImagePullSecrets).To(BeEmpty())
+
+		Expect(k8sClient.Delete(ctx, second)).To(Succeed())
+		_, err = r.Reconcile(ctx, secondReq)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(k8sClient.Delete(ctx, pullSecret)).To(Succeed())
+	})
+
 	It("marks an invalid spec failed and still lets it be deleted", func() {
 		app := &locov1alpha1.Application{
 			Name:       "invalid",
 			Namespace:  testNamespace,
-			Finalizers: []string{finalizerSecretRefresher},
+			Finalizers: []string{finalizerCleanup},
 			Spec:       locov1alpha1.ApplicationSpec{Type: testAppType, ResourceID: "invalid", WorkspaceID: "ws"},
 		}
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())

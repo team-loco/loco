@@ -75,7 +75,7 @@ func workspaceNamespaceLabels(locoRes *locov1alpha1.Application) map[string]stri
 	return labels
 }
 
-func workspacePolicyLabels(locoRes *locov1alpha1.Application) map[string]string {
+func workspaceObjectLabels(locoRes *locov1alpha1.Application) map[string]string {
 	return map[string]string{
 		labelManagedBy:   managedByValue,
 		labelWorkspaceID: locoRes.Spec.WorkspaceID,
@@ -170,7 +170,7 @@ func (r *LocoResourceReconciler) workspaceNetworkPolicies(
 	exclusions egressExclusionSet,
 ) []*networkingv1ac.NetworkPolicyApplyConfiguration {
 	namespace := getNamespace(locoRes)
-	labels := workspacePolicyLabels(locoRes)
+	labels := workspaceObjectLabels(locoRes)
 	ingress := networkingv1.PolicyTypeIngress
 	egress := networkingv1.PolicyTypeEgress
 

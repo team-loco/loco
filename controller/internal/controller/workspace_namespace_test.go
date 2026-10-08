@@ -45,7 +45,6 @@ func appObjects(app *locov1alpha1.Application) []client.Object {
 	roleName := getRoleName(app)
 	bindingName := getRoleBindingName(app)
 	envSecretName := getEnvSecretName(app)
-	imageSecretName := getImageSecretName(app)
 	return []client.Object{
 		&appsv1.Deployment{Name: name, Namespace: namespace},
 		&corev1.Service{Name: name, Namespace: namespace},
@@ -53,7 +52,6 @@ func appObjects(app *locov1alpha1.Application) []client.Object {
 		&rbacv1.Role{Name: roleName, Namespace: namespace},
 		&rbacv1.RoleBinding{Name: bindingName, Namespace: namespace},
 		&corev1.Secret{Name: envSecretName, Namespace: namespace},
-		&corev1.Secret{Name: imageSecretName, Namespace: namespace},
 	}
 }
 
@@ -86,10 +84,11 @@ func TestDeletingAnAppKeepsTheWorkspaceNamespace(t *testing.T) {
 	deleted := workspaceApp("first", "1")
 	remaining := workspaceApp("second", "3")
 	namespace := &corev1.Namespace{Name: getNamespace(deleted)}
+	pullSecret := &corev1.Secret{Name: workspacePullSecretName, Namespace: namespace.Name}
 	deletedObjects := appObjects(deleted)
 	remainingObjects := appObjects(remaining)
 
-	builder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(namespace, deleted, remaining)
+	builder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(namespace, pullSecret, deleted, remaining)
 	builder = builder.WithObjects(deletedObjects...).WithObjects(remainingObjects...)
 	kubeClient := builder.Build()
 	r := &LocoResourceReconciler{Client: kubeClient}
@@ -114,6 +113,10 @@ func TestDeletingAnAppKeepsTheWorkspaceNamespace(t *testing.T) {
 	}
 	if !objectExists(t, kubeClient, &corev1.Namespace{Name: namespace.Name}) {
 		t.Error("workspace namespace deleted while another app still uses it")
+	}
+	pullSecretKey := &corev1.Secret{Name: pullSecret.Name, Namespace: pullSecret.Namespace}
+	if !objectExists(t, kubeClient, pullSecretKey) {
+		t.Error("workspace pull secret deleted while another app still uses it")
 	}
 }
 
