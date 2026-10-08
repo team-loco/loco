@@ -36,7 +36,7 @@ var (
 
 var (
 	dockerImagePattern = regexp.MustCompile(
-		`^([a-z0-9\-._]+(:[0-9]+)?(/[a-z0-9\-._]+)*)(:[a-z0-9\-._]+|@sha256:[a-f0-9]{64})?$`,
+		`^([a-z0-9\-._]+(:[0-9]+)?(/[a-z0-9\-._]+)*)(:[a-z0-9\-._]+)?(@sha256:[a-f0-9]{64})?$`,
 	)
 	envVarNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 )

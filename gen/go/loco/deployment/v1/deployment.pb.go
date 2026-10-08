@@ -1436,10 +1436,10 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"cpu_target\x18\x02 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x00H\x00R\tcpuTarget\x88\x01\x01\x123\n" +
 	"\rmemory_target\x18\x03 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x00H\x01R\fmemoryTarget\x88\x01\x01B\r\n" +
 	"\v_cpu_targetB\x10\n" +
-	"\x0e_memory_target\"\xec\x01\n" +
+	"\x0e_memory_target\"\xee\x01\n" +
 	"\vBuildSource\x12\x1b\n" +
-	"\x04type\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04type\x12r\n" +
-	"\x05image\x18\x02 \x01(\tB\\\xbaHY\xd8\x01\x01rT2R^([a-z0-9\\-._]+(:[0-9]+)?(/[a-z0-9\\-._]+)*)(:[a-z0-9\\-._]+|@sha256:[a-f0-9]{64})?$R\x05image\x12(\n" +
+	"\x04type\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04type\x12t\n" +
+	"\x05image\x18\x02 \x01(\tB^\xbaH[\xd8\x01\x01rV2T^([a-z0-9\\-._]+(:[0-9]+)?(/[a-z0-9\\-._]+)*)(:[a-z0-9\\-._]+)?(@sha256:[a-f0-9]{64})?$R\x05image\x12(\n" +
 	"\bbuild_id\x18\x04 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\abuildId\x88\x01\x01B\v\n" +
 	"\t_build_idJ\x04\b\x03\x10\x04R\x0fdockerfile_path\"\x9e\x06\n" +
 	"\x15ServiceDeploymentSpec\x12=\n" +

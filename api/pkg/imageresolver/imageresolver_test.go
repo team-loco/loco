@@ -142,3 +142,29 @@ func TestResolveMissingImage(t *testing.T) {
 		t.Fatal("resolve of a missing image succeeded")
 	}
 }
+
+func TestResolveTagAndDigestUsesDigest(t *testing.T) {
+	host := newRegistry(t)
+	pinnedImage := platformImage(t, "linux", "amd64")
+	movedImage := platformImage(t, "linux", "amd64")
+	tagRef := pushImage(t, host, "moving/app", pinnedImage)
+	pinnedDigest, err := pinnedImage.Digest()
+	if err != nil {
+		t.Fatalf("digest: %v", err)
+	}
+	pushImage(t, host, "moving/app", movedImage)
+
+	ref, err := name.ParseReference(tagRef.Name() + "@" + pinnedDigest.String())
+	if err != nil {
+		t.Fatalf("parse reference: %v", err)
+	}
+	resolver := New(10 * time.Second)
+	ctx := context.Background()
+	digest, err := resolver.Resolve(ctx, ref)
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	if digest != pinnedDigest.String() {
+		t.Fatalf("digest = %s, want %s", digest, pinnedDigest)
+	}
+}

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -167,6 +168,7 @@ func TestPinPublicImage(t *testing.T) {
 		resolver  *fakeResolver
 		wantCode  connect.Code
 		wantImage string
+		wantCalls []string
 	}{
 		{
 			name:      "tagged docker hub image",
@@ -179,6 +181,16 @@ func TestPinPublicImage(t *testing.T) {
 			src:       &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: "ghcr.io/acme/app:v1"},
 			resolver:  &fakeResolver{digest: testDigest},
 			wantImage: "ghcr.io/acme/app@" + testDigest,
+		},
+		{
+			name: "tag and digest",
+			src: &deploymentv1.BuildSource{
+				Type:  buildSourceTypeImage,
+				Image: "nginxinc/nginx-unprivileged:1.31.6-alpine@" + testDigest,
+			},
+			resolver:  &fakeResolver{digest: testDigest},
+			wantImage: "index.docker.io/nginxinc/nginx-unprivileged@" + testDigest,
+			wantCalls: []string{"index.docker.io/nginxinc/nginx-unprivileged@" + testDigest},
 		},
 		{
 			name:     "build id set",
@@ -246,6 +258,9 @@ func TestPinPublicImage(t *testing.T) {
 			}
 			if sourceType := pinned.GetType(); sourceType != buildSourceTypeImage {
 				t.Fatalf("type = %q, want image", sourceType)
+			}
+			if tt.wantCalls != nil && !slices.Equal(tt.resolver.calls, tt.wantCalls) {
+				t.Fatalf("resolved %q, want %q", tt.resolver.calls, tt.wantCalls)
 			}
 		})
 	}
