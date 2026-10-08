@@ -92,8 +92,12 @@ create_resource() {
 
 source_tarball() {
     local name=$1
-    mkdir -p "$dispatch_dir"
-    COPYFILE_DISABLE=1 tar -czf "$dispatch_dir/$name.tar.gz" -C "$E2E_ROOT_DIR/e2e/fixtures/build-app" .
+    local src="$dispatch_dir/$name-src"
+    rm -rf "$src"
+    mkdir -p "$src"
+    cp -R "$E2E_ROOT_DIR/e2e/fixtures/build-app/." "$src/"
+    printf '\nfunc init() { log.SetPrefix("%s ") }\n' "$name" >>"$src/main.go"
+    COPYFILE_DISABLE=1 tar -czf "$dispatch_dir/$name.tar.gz" -C "$src" .
     echo "$dispatch_dir/$name.tar.gz"
 }
 
@@ -339,6 +343,10 @@ test_d05_retention_deletes_replaced_images() {
     first_cache=$(dispatch_state first.cache)
     second_image=$(get_build "$second" | field .build.imageDigest)
 
+    if ! assert "The second build's source change produced a new image digest" \
+        test "$first_image" != "$second_image"; then
+        return 1
+    fi
     assert "A newer build exists, but the deployed first build's image is kept" \
         test "$(manifest_status "$path" "$first_image")" = 200
     assert "The first build is not reported as deleted while deployed" \

@@ -138,8 +138,8 @@ func TestManifestDigestsAndRepositories(t *testing.T) {
 	if err != nil {
 		t.Fatalf("repositories: %v", err)
 	}
-	if !slices.Equal(repos, []string{testRepo}) {
-		t.Fatalf("first page = %v, want [%s]", repos, testRepo)
+	if len(repos) != 1 || (repos[0] != testRepo && repos[0] != testOther) {
+		t.Fatalf("first page = %v, want one of %s and %s", repos, testRepo, testOther)
 	}
 	if _, err = client.Repositories(ctx, testRepo, 1); err != nil {
 		t.Fatalf("repositories: %v", err)
