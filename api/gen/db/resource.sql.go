@@ -546,17 +546,6 @@ func (q *Queries) ListResourcesForWorkspace(ctx context.Context, arg ListResourc
 	return items, nil
 }
 
-const lockResource = `-- name: LockResource :one
-SELECT id FROM resources WHERE id = $1 FOR UPDATE
-`
-
-func (q *Queries) LockResource(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, lockResource, id)
-	var id_2 uuid.UUID
-	err := row.Scan(&id_2)
-	return id_2, err
-}
-
 const lockResourceRegion = `-- name: LockResourceRegion :one
 SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
 FROM resource_regions
@@ -583,6 +572,33 @@ func (q *Queries) LockResourceRegion(ctx context.Context, arg LockResourceRegion
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const lockResources = `-- name: LockResources :many
+SELECT id FROM resources
+WHERE id = ANY($1::uuid[])
+ORDER BY id
+FOR UPDATE
+`
+
+func (q *Queries) LockResources(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, lockResources, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateResource = `-- name: UpdateResource :one

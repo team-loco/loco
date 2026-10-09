@@ -364,6 +364,9 @@ func (s *DeploymentServer) CreateDeployment(
 
 	var deploymentID uuid.UUID
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if lockErr := lockWorkspaceEnvironments(ctx, qtx, resource.WorkspaceID); lockErr != nil {
+			return lockErr
+		}
 		if lockErr := lockPinnedBuildImage(ctx, qtx, pinnedBuild); lockErr != nil {
 			return lockErr
 		}
@@ -383,6 +386,9 @@ func (s *DeploymentServer) CreateDeployment(
 		}, buildSpec)
 		if txErr != nil {
 			return txErr
+		}
+		if bumpErr := bumpEnvironmentRevision(ctx, qtx, environmentID); bumpErr != nil {
+			return bumpErr
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.DeploymentCreated,
@@ -551,6 +557,9 @@ func (s *DeploymentServer) DeleteDeployment(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if lockErr := lockWorkspaceEnvironments(ctx, qtx, resource.WorkspaceID); lockErr != nil {
+			return lockErr
+		}
 		if deployment.IsActive {
 			if removeErr := removePlacement(ctx, qtx, resource.ID, deployment.ClusterID); removeErr != nil {
 				return removeErr
@@ -559,6 +568,9 @@ func (s *DeploymentServer) DeleteDeployment(
 
 		if markErr := qtx.MarkDeploymentNotActive(ctx, deploymentID); markErr != nil {
 			return fmt.Errorf("mark deployment not active: %w", markErr)
+		}
+		if bumpErr := bumpEnvironmentRevision(ctx, qtx, deployment.EnvironmentID); bumpErr != nil {
+			return bumpErr
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.DeploymentDeleted,

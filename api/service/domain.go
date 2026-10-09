@@ -368,6 +368,9 @@ func (s *DomainServer) CreateResourceDomain(
 			return createErr
 		}
 		resourceDomain = created
+		if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
+			return bumpErr
+		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.DomainCreated,
 			ResourceID:  new(resourceID),
@@ -443,6 +446,9 @@ func (s *DomainServer) UpdateResourceDomain(
 	}
 
 	txErr := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if lockErr := lockResourceEnvironments(ctx, qtx, domainRow.ResourceID); lockErr != nil {
+			return lockErr
+		}
 		if changed {
 			_, updateErr := qtx.UpdateResourceDomain(ctx, genDb.UpdateResourceDomainParams{
 				ID:             domainID,
@@ -454,6 +460,9 @@ func (s *DomainServer) UpdateResourceDomain(
 			}
 			if updateErr != nil {
 				return updateErr
+			}
+			if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, domainRow.ResourceID); bumpErr != nil {
+				return bumpErr
 			}
 		}
 		return events.Record(ctx, qtx, events.Event{
@@ -563,6 +572,11 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	if err := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); err != nil {
+		slog.ErrorContext(ctx, "failed to bump environment revisions", "resourceId", resourceID, "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
 	if err := events.Record(ctx, qtx, events.Event{
 		Type:        events.DomainUpdated,
 		ResourceID:  new(resourceID),
@@ -636,6 +650,9 @@ func (s *DomainServer) DeleteResourceDomain(
 		if deleteErr := qtx.DeleteResourceDomain(ctx, domainID); deleteErr != nil {
 			return deleteErr
 		}
+		if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, current.ResourceID); bumpErr != nil {
+			return bumpErr
+		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.DomainDeleted,
 			ResourceID:  new(current.ResourceID),
@@ -678,12 +695,8 @@ func (s *DomainServer) CheckDomainAvailability(
 }
 
 func lockResourceDomains(ctx context.Context, qtx *genDb.Queries, resourceID uuid.UUID) error {
-	_, err := qtx.LockResource(ctx, resourceID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrResourceNotFound
+	if err := lockResourceEnvironments(ctx, qtx, resourceID); err != nil {
+		return err
 	}
-	if err != nil {
-		return fmt.Errorf("lock resource: %w", err)
-	}
-	return nil
+	return lockResource(ctx, qtx, resourceID)
 }

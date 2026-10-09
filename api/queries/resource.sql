@@ -112,5 +112,8 @@ FROM resource_regions
 WHERE resource_id = $1 AND region = $2
 FOR UPDATE;
 
--- name: LockResource :one
-SELECT id FROM resources WHERE id = $1 FOR UPDATE;
+-- name: LockResources :many
+SELECT id FROM resources
+WHERE id = ANY(sqlc.arg(ids)::uuid[])
+ORDER BY id
+FOR UPDATE;

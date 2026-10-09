@@ -186,6 +186,11 @@ func (s *ResourceServer) CreateResource(
 
 	qtx := genDb.New(tx)
 
+	if lockErr := lockWorkspaceEnvironments(ctx, qtx, workspaceID); lockErr != nil {
+		slog.ErrorContext(ctx, "failed to lock environments", "error", lockErr)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
 	resourceID, err := qtx.CreateResource(ctx, params)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create resource", "error", err)
@@ -196,6 +201,11 @@ func (s *ResourceServer) CreateResource(
 			)
 		}
 		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to create resource"))
+	}
+
+	if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
+		slog.ErrorContext(ctx, "failed to bump environment revisions", "error", bumpErr)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	for region, regionConfig := range serviceSpec.GetRegions() {
@@ -501,8 +511,14 @@ func (s *ResourceServer) UpdateResource(
 	}
 
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if lockErr := lockResourceEnvironments(ctx, qtx, resourceID); lockErr != nil {
+			return lockErr
+		}
 		if _, updateErr := qtx.UpdateResource(ctx, updateParams); updateErr != nil {
 			return updateErr
+		}
+		if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
+			return bumpErr
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.ResourceUpdated,
@@ -550,8 +566,14 @@ func (s *ResourceServer) DeleteResource(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if lockErr := lockWorkspaceEnvironments(ctx, qtx, res.WorkspaceID); lockErr != nil {
+			return lockErr
+		}
 		if removeErr := removeResourcePlacements(ctx, qtx, res.ID); removeErr != nil {
 			return removeErr
+		}
+		if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
+			return bumpErr
 		}
 
 		if deleteErr := qtx.DeleteResource(ctx, resourceID); deleteErr != nil {
@@ -1002,9 +1024,20 @@ func (s *ResourceServer) redeployRegions(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if lockErr := lockWorkspaceEnvironments(ctx, qtx, res.WorkspaceID); lockErr != nil {
+			return lockErr
+		}
+		bumped := make(map[uuid.UUID]bool, len(plans))
 		for _, plan := range plans {
 			if inheritErr := inheritDesiredEnv(ctx, qtx, plan); inheritErr != nil {
 				return inheritErr
+			}
+			environmentID := plan.params.EnvironmentID
+			if !bumped[environmentID] {
+				if bumpErr := bumpEnvironmentRevision(ctx, qtx, environmentID); bumpErr != nil {
+					return bumpErr
+				}
+				bumped[environmentID] = true
 			}
 			buildSpec := desiredApplicationSpec(
 				res,

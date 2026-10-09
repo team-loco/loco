@@ -17,6 +17,8 @@ type Querier interface {
 	AdvancePlacementPastRevision(ctx context.Context, arg AdvancePlacementPastRevisionParams) (int64, error)
 	AdvisoryUnlock(ctx context.Context, lockKey int64) (bool, error)
 	BeginClusterSync(ctx context.Context, id uuid.UUID) (int64, error)
+	BumpEnvironmentRevision(ctx context.Context, id uuid.UUID) error
+	BumpResourceEnvironmentRevisions(ctx context.Context, id uuid.UUID) error
 	CancelBuild(ctx context.Context, arg CancelBuildParams) (CancelBuildRow, error)
 	CancelOtherActiveBuilds(ctx context.Context, arg CancelOtherActiveBuildsParams) ([]CancelOtherActiveBuildsRow, error)
 	CheckDomainAvailability(ctx context.Context, domain string) (bool, error)
@@ -179,8 +181,10 @@ type Querier interface {
 	LockBuildImageForDelete(ctx context.Context, id uuid.UUID) (*time.Time, error)
 	LockBuildImageForDeploy(ctx context.Context, id uuid.UUID) (*time.Time, error)
 	LockInstallWebhooks(ctx context.Context, lockKey int64) error
-	LockResource(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
+	LockResourceEnvironments(ctx context.Context, id uuid.UUID) ([]LockResourceEnvironmentsRow, error)
 	LockResourceRegion(ctx context.Context, arg LockResourceRegionParams) (ResourceRegion, error)
+	LockResources(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
+	LockWorkspaceEnvironments(ctx context.Context, workspaceID uuid.UUID) ([]LockWorkspaceEnvironmentsRow, error)
 	MarkBuildImageDeleted(ctx context.Context, id uuid.UUID) (int64, error)
 	MarkBuildRunning(ctx context.Context, arg MarkBuildRunningParams) (int64, error)
 	MarkBuildSourceDeleted(ctx context.Context, id uuid.UUID) error
