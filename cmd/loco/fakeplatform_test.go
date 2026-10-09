@@ -84,6 +84,9 @@ type fakePlatform struct {
 	logQueries        []*observabilityv1.QueryLogsRequest
 	plan              *planv1.PlanResponse
 	planned           [][]byte
+	applies           []*planv1.ApplyRequest
+	revisionMoves     bool
+	imagesMove        bool
 }
 
 func newFakePlatform() *fakePlatform {

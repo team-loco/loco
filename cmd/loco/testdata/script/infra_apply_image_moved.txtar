@@ -1,0 +1,39 @@
+# an image tag that resolves to another digest than the plan showed refuses the apply.
+fakeapi plan plan.json
+fakeapi images-move
+! exec loco infra apply --yes
+stdout '^Plan for loco.yaml against environment revision 7\.$'
+stderr '(?i)apply refused: an image tag moved since the plan; run the command again:'
+stderr 'ghcr.io/acme/api:1 now resolves to'
+stderr 'ghcr.io/acme/api@sha256:7781a08afca1adb11b6294ca81ee6e04f9fc677f4f04c9d9daf2b0e068f5e89a-moved'
+fakeapi called Apply 'Bearer test-token'
+! fakeapi applied 7
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.toml --
+currentScope = "default"
+
+[scopes.default.organization]
+name = "acme"
+id = "1"
+
+[scopes.default.workspace]
+name = "production"
+id = "2"
+-- plan.json --
+{
+  "revision": "7",
+  "images": {"ghcr.io/acme/api:1": "ghcr.io/acme/api@sha256:7781a08afca1adb11b6294ca81ee6e04f9fc677f4f04c9d9daf2b0e068f5e89a"},
+  "operations": [
+    {"kind": "PLAN_OPERATION_KIND_CREATE", "service": "api", "changes": [{"path": "image", "after": "ghcr.io/acme/api:1"}]}
+  ]
+}
+-- loco.yaml --
+version: 1
+partial: web
+services:
+  api:
+    image: ghcr.io/acme/api:1
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }

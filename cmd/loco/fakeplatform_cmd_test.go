@@ -73,6 +73,18 @@ func cmdFakePlatform(ts *testscript.TestScript, api *fakeAPI, neg bool, args []s
 		}
 	case "planned":
 		checkPlanned(ts, api, neg, args)
+	case "revision-moves":
+		requireArgs(ts, neg, args, 1, "fakeapi revision-moves")
+		api.mu.Lock()
+		api.platform.revisionMoves = true
+		api.mu.Unlock()
+	case "images-move":
+		requireArgs(ts, neg, args, 1, "fakeapi images-move")
+		api.mu.Lock()
+		api.platform.imagesMove = true
+		api.mu.Unlock()
+	case "applied":
+		checkApplied(ts, api, neg, args)
 	default:
 		ts.Fatalf("fakeapi: unknown subcommand %q", args[0])
 	}
@@ -237,6 +249,30 @@ func checkPlanned(ts *testscript.TestScript, api *fakeAPI, neg bool, args []stri
 	got := string(api.platform.planned[len(api.platform.planned)-1])
 	if got != want {
 		ts.Fatalf("fakeapi: Plan received:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func checkApplied(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
+	if len(args) != 2 {
+		ts.Fatalf("usage: fakeapi applied <revision>")
+	}
+	revision, err := strconv.ParseInt(args[1], 10, 64)
+	if err != nil {
+		ts.Fatalf("fakeapi: %v", err)
+	}
+	api.mu.Lock()
+	defer api.mu.Unlock()
+	found := false
+	for _, apply := range api.platform.applies {
+		if apply.GetRevision() == revision {
+			found = true
+		}
+	}
+	if neg && found {
+		ts.Fatalf("fakeapi: an apply at revision %d went through", revision)
+	}
+	if !neg && !found {
+		ts.Fatalf("fakeapi: no apply at revision %d in %d applies", revision, len(api.platform.applies))
 	}
 }
 
