@@ -124,7 +124,7 @@ func onlyError(t *testing.T, plan Plan, want error) Error {
 }
 
 func TestOmittedFieldsAreFilledWithDefaultsAndNotChanges(t *testing.T) {
-	live := Service{Name: webService, Partial: testPartial, Built: true, State: liveState()}
+	live := Service{Name: webService, Partial: testPartial, Built: true, Running: true, State: liveState()}
 	plan := compute(t, input(map[string]locofile.Service{webService: fileService()}, live))
 	if len(plan.Operations) != 0 || len(plan.Errors) != 0 {
 		t.Fatalf("plan = %+v, want no operations for a service that matches the file", plan)
@@ -171,7 +171,7 @@ func TestChangedFieldsMakeAnUpdate(t *testing.T) {
 	region := service.Regions[testRegion]
 	region.Autoscaling = &locofile.Autoscaling{CPUTarget: &cpuTarget}
 	service.Regions[testRegion] = region
-	live := Service{Name: webService, Partial: testPartial, Built: true, State: liveState()}
+	live := Service{Name: webService, Partial: testPartial, Built: true, Running: true, State: liveState()}
 	in := input(map[string]locofile.Service{webService: service}, live)
 	in.Secrets = []string{sessionSecret}
 
@@ -193,7 +193,7 @@ func TestRemovedRoutingAndEnvShowAsChanges(t *testing.T) {
 	service := fileService()
 	service.Routing = nil
 	service.Env = nil
-	live := Service{Name: webService, Partial: testPartial, Built: true, State: liveState()}
+	live := Service{Name: webService, Partial: testPartial, Built: true, Running: true, State: liveState()}
 	op := onlyOperation(t, compute(t, input(map[string]locofile.Service{webService: service}, live)))
 	want := []Change{
 		{Path: logLevelPath, Before: logLevelInfo},
@@ -206,7 +206,7 @@ func TestRemovedRoutingAndEnvShowAsChanges(t *testing.T) {
 }
 
 func TestUnownedServiceIsImported(t *testing.T) {
-	live := Service{Name: webService, Built: true, State: liveState()}
+	live := Service{Name: webService, Built: true, Running: true, State: liveState()}
 	op := onlyOperation(t, compute(t, input(map[string]locofile.Service{webService: fileService()}, live)))
 	if op.Kind != KindImport || len(op.Changes) != 0 || op.Destructive {
 		t.Fatalf("operation = %+v, want an import without changes", op)
@@ -214,7 +214,7 @@ func TestUnownedServiceIsImported(t *testing.T) {
 }
 
 func TestOwnedServiceAbsentFromTheFileIsADestructiveDelete(t *testing.T) {
-	live := Service{Name: oldService, Partial: testPartial, Built: true, State: liveState()}
+	live := Service{Name: oldService, Partial: testPartial, Built: true, Running: true, State: liveState()}
 	op := onlyOperation(t, compute(t, input(map[string]locofile.Service{}, live)))
 	if op.Kind != KindDelete || !op.Destructive || op.Service != oldService {
 		t.Fatalf("operation = %+v, want a destructive delete of old", op)
@@ -222,7 +222,7 @@ func TestOwnedServiceAbsentFromTheFileIsADestructiveDelete(t *testing.T) {
 }
 
 func TestAnotherPartialsServiceIsIgnoredWhenAbsentFromTheFile(t *testing.T) {
-	live := Service{Name: apiService, Partial: otherPartial, Built: true, State: liveState()}
+	live := Service{Name: apiService, Partial: otherPartial, Built: true, Running: true, State: liveState()}
 	plan := compute(t, input(map[string]locofile.Service{}, live))
 	if len(plan.Operations) != 0 || len(plan.Errors) != 0 {
 		t.Fatalf("plan = %+v, want nothing", plan)
@@ -230,7 +230,7 @@ func TestAnotherPartialsServiceIsIgnoredWhenAbsentFromTheFile(t *testing.T) {
 }
 
 func TestAnotherPartialsServiceNamedInTheFileIsAnError(t *testing.T) {
-	live := Service{Name: webService, Partial: otherPartial, Built: true, State: liveState()}
+	live := Service{Name: webService, Partial: otherPartial, Built: true, Running: true, State: liveState()}
 	plan := compute(t, input(map[string]locofile.Service{webService: fileService()}, live))
 	planErr := onlyError(t, plan, ErrOwnedByOtherPartial)
 	if planErr.Service != webService {
@@ -239,7 +239,7 @@ func TestAnotherPartialsServiceNamedInTheFileIsAnError(t *testing.T) {
 }
 
 func TestSourceServiceWithoutABuildNeedsADeploy(t *testing.T) {
-	live := Service{Name: webService, Partial: testPartial, State: liveState()}
+	live := Service{Name: webService, Partial: testPartial, Running: true, State: liveState()}
 	op := onlyOperation(t, compute(t, input(map[string]locofile.Service{webService: fileService()}, live)))
 	if op.Kind != KindUpdate || len(op.Changes) != 0 || !op.NeedsDeploy {
 		t.Fatalf("operation = %+v, want an update with no changes that needs a deploy", op)
@@ -250,7 +250,7 @@ func TestChangedBuildInputsNeedADeploy(t *testing.T) {
 	service := fileService()
 	service.Dockerfile = "build/Dockerfile"
 	service.Context = "services/web"
-	live := Service{Name: webService, Partial: testPartial, Built: true, State: liveState()}
+	live := Service{Name: webService, Partial: testPartial, Built: true, Running: true, State: liveState()}
 	op := onlyOperation(t, compute(t, input(map[string]locofile.Service{webService: service}, live)))
 	if op.Kind != KindUpdate || !op.NeedsDeploy {
 		t.Fatalf("operation = %+v, want an update that needs a deploy", op)
@@ -339,9 +339,54 @@ func TestMissingSecretIsAnError(t *testing.T) {
 	}
 }
 
+func TestDisabledRunningServiceIsADestructiveStop(t *testing.T) {
+	live := Service{Name: webService, Partial: testPartial, Built: true, Running: true, State: liveState()}
+	in := input(map[string]locofile.Service{}, live)
+	in.Disabled = []string{webService}
+	op := onlyOperation(t, compute(t, in))
+	if op.Kind != KindUpdate || !op.Destructive || op.NeedsDeploy {
+		t.Fatalf("operation = %+v, want a destructive update", op)
+	}
+	if want := []Change{disabledChange}; !reflect.DeepEqual(want, op.Changes) {
+		t.Fatalf("changes = %v, want %v", op.Changes, want)
+	}
+}
+
+func TestDisabledStoppedServiceIsNotAnOperation(t *testing.T) {
+	live := Service{Name: webService, Partial: testPartial, Built: true, State: liveState()}
+	in := input(map[string]locofile.Service{}, live)
+	in.Disabled = []string{webService}
+	plan := compute(t, in)
+	if len(plan.Operations) != 0 || len(plan.Errors) != 0 {
+		t.Fatalf("plan = %+v, want nothing for a disabled service that is not running", plan)
+	}
+}
+
+func TestStoppedServiceInTheFileIsEnabledAgain(t *testing.T) {
+	cases := map[string]struct {
+		built           bool
+		wantNeedsDeploy bool
+	}{
+		"built":   {built: true, wantNeedsDeploy: false},
+		"unbuilt": {built: false, wantNeedsDeploy: true},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			live := Service{Name: webService, Partial: testPartial, Built: tc.built, State: liveState()}
+			op := onlyOperation(t, compute(t, input(map[string]locofile.Service{webService: fileService()}, live)))
+			if op.Kind != KindUpdate || op.Destructive || op.NeedsDeploy != tc.wantNeedsDeploy {
+				t.Fatalf("operation = %+v, want an update with needs_deploy %v", op, tc.wantNeedsDeploy)
+			}
+			if want := []Change{enabledChange}; !reflect.DeepEqual(want, op.Changes) {
+				t.Fatalf("changes = %v, want %v", op.Changes, want)
+			}
+		})
+	}
+}
+
 func TestOperationsAreSortedByServiceName(t *testing.T) {
 	services := map[string]locofile.Service{webService: fileService(), apiService: fileService()}
-	live := Service{Name: oldService, Partial: testPartial, Built: true, State: liveState()}
+	live := Service{Name: oldService, Partial: testPartial, Built: true, Running: true, State: liveState()}
 	plan := compute(t, input(services, live))
 	names := make([]string, 0, len(plan.Operations))
 	for _, op := range plan.Operations {

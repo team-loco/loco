@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"slices"
 )
 
 // Merge applies an environment override to a service: objects merge recursively, lists and
@@ -65,6 +66,19 @@ func Resolve(file *File, env string) (map[string]Service, error) {
 		resolved[name] = service
 	}
 	return resolved, nil
+}
+
+// Disabled returns, sorted, the names of the services the file disables for env.
+func Disabled(file *File, env string) []string {
+	var names []string
+	for name, service := range file.Services {
+		override, hasOverride := service.Environments[env]
+		if hasOverride && override.Enabled != nil && !*override.Enabled {
+			names = append(names, name)
+		}
+	}
+	slices.Sort(names)
+	return names
 }
 
 func rawServices(file *File) (map[string]map[string]any, error) {

@@ -159,6 +159,14 @@ func TestResolveTDDExample(t *testing.T) {
 	assert.Equal(t, int32(3), *staging["web"].Regions[testRegion].Replicas.Max)
 }
 
+func TestDisabledListsTheServicesAnEnvironmentTurnsOff(t *testing.T) {
+	file, err := Parse([]byte(tddExample))
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"web"}, Disabled(file, "dev"))
+	assert.Empty(t, Disabled(file, "production"))
+}
+
 func TestResolveNullRemovesKeys(t *testing.T) {
 	yaml := minimalFile + `    env: { A: "1", B: "2" }
     domains: [api.example.com]

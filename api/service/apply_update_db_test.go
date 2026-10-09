@@ -81,11 +81,11 @@ func (f *deployFixture) workerPayload(t *testing.T, clusterID uuid.UUID) Applica
 	return payload
 }
 
-func (f *deployFixture) activeDeployments(t *testing.T, name string) []genDb.Deployment {
+func (f *deployFixture) workerDeployments(t *testing.T) []genDb.Deployment {
 	t.Helper()
-	res, found := f.resourceByName(t, name)
+	res, found := f.resourceByName(t, applyWorker)
 	if !found {
-		t.Fatalf("%s does not exist", name)
+		t.Fatal("worker does not exist")
 	}
 	deployments, err := f.queries.ListActiveDeploymentsForResource(context.Background(), res.ID)
 	if err != nil {
@@ -179,7 +179,7 @@ VALUES ('c3', $1, 'kind', true, false, 'healthy') RETURNING id`
 	if len(started) != 1 || started[0].GetRegion() != testRegion {
 		t.Fatalf("deployments = %v, want one for the added region only", started)
 	}
-	if active := f.activeDeployments(t, applyWorker); len(active) != 2 {
+	if active := f.workerDeployments(t); len(active) != 2 {
 		t.Fatalf("%d active deployments, want one per region", len(active))
 	}
 	wantCleanPlan(t, f, planFileHeader+applyFileTwoRegions)
@@ -188,7 +188,7 @@ VALUES ('c3', $1, 'kind', true, false, 'healthy') RETURNING id`
 	if len(resp.GetDeployments()) != 0 {
 		t.Fatalf("deployments = %v, want none for a removed region", resp.GetDeployments())
 	}
-	active := f.activeDeployments(t, applyWorker)
+	active := f.workerDeployments(t)
 	if len(active) != 1 || active[0].Region != otherRegion {
 		t.Fatalf("active deployments = %+v, want only %s", active, otherRegion)
 	}
@@ -202,6 +202,56 @@ VALUES ('c3', $1, 'kind', true, false, 'healthy') RETURNING id`
 		t.Fatalf("placement in %s = %+v, want deleted", testRegion, removed)
 	}
 	wantCleanPlan(t, f, planFileHeader+applyFileOtherRegion)
+}
+
+func TestApplyStopsAndRestartsADisabledService(t *testing.T) {
+	f := newDeployFixture(t)
+	f.prepareApply(t)
+	first := applyOK(t, f, planFileHeader+applyFileWorker, applyOptions{})
+	firstDeployment := uuid.MustParse(first.GetDeployments()[0].GetDeploymentId())
+	disabled := planFileHeader + applyFileWorker + "    environments:\n      prod:\n        enabled: false\n"
+
+	_, err := applyFile(t, f, disabled, applyOptions{revision: f.revision(t, f.envID)}, f.adminScopes(t))
+	if names := unconfirmedServices(wantRefusal(t, err)); len(names) != 1 || names[0] != applyWorker {
+		t.Fatalf("unconfirmed = %v, want [%s]", names, applyWorker)
+	}
+
+	resp := applyOK(t, f, disabled, applyOptions{confirmDestructive: true})
+	ops := resp.GetOperations()
+	if len(ops) != 1 || ops[0].GetKind() != planv1.PlanOperationKind_PLAN_OPERATION_KIND_UPDATE ||
+		!ops[0].GetDestructive() || len(resp.GetDeployments()) != 0 {
+		t.Fatalf("apply = %v, want one destructive update and no deployments", resp)
+	}
+	if status := f.deploymentStatus(t, firstDeployment); status != genDb.DeploymentStatusCanceled {
+		t.Fatalf("deployment status = %s, want canceled", status)
+	}
+	res, found := f.resourceByName(t, applyWorker)
+	if !found || derefString(res.Partial) != planPartial {
+		t.Fatalf("resource = %+v found %v, want worker still owned by %s", res, found, planPartial)
+	}
+	key := genDb.GetPlacementForResourceClusterParams{ResourceID: res.ID, ClusterID: f.clusterID}
+	placement, err := f.queries.GetPlacementForResourceCluster(context.Background(), key)
+	if err != nil {
+		t.Fatalf("get placement: %v", err)
+	}
+	if !placement.DesiredDeleted {
+		t.Fatalf("placement = %+v, want deleted", placement)
+	}
+	wantCleanPlan(t, f, disabled)
+
+	resp = applyOK(t, f, planFileHeader+applyFileWorker, applyOptions{})
+	ops = resp.GetOperations()
+	enabled := false
+	for _, change := range ops[0].GetChanges() {
+		enabled = enabled || change.GetPath() == "enabled" && change.GetAfter() == "true"
+	}
+	if len(ops) != 1 || !enabled || len(resp.GetDeployments()) != 1 {
+		t.Fatalf("apply = %v, want an update enabling the service with one deployment", resp)
+	}
+	if active := f.workerDeployments(t); len(active) != 1 {
+		t.Fatalf("%d active deployments, want 1", len(active))
+	}
+	wantCleanPlan(t, f, planFileHeader+applyFileWorker)
 }
 
 func TestApplyImportAppliesChanges(t *testing.T) {
@@ -245,7 +295,7 @@ func TestApplyUpdateThatNeedsADeployWritesConfigOnly(t *testing.T) {
 	if cpu := spec.GetService().GetRegions()[testRegion].GetCpu(); cpu != biggerCPU {
 		t.Fatalf("resource spec cpu = %s, want %s", cpu, biggerCPU)
 	}
-	if active := f.activeDeployments(t, applyWorker); len(active) != 0 {
+	if active := f.workerDeployments(t); len(active) != 0 {
 		t.Fatalf("active deployments = %+v, want none before a loco deploy", active)
 	}
 }

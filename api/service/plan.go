@@ -165,6 +165,7 @@ func (s *PlanServer) loadPlan(
 	plan, err := configplan.Compute(configplan.Input{
 		Partial:          file.Partial,
 		Services:         services,
+		Disabled:         locofile.Disabled(file, env.Name),
 		FileEnvironments: fileEnvironments(file),
 		Environments:     environmentNames,
 		Regions:          regions,
@@ -271,6 +272,7 @@ func (s *PlanServer) liveEnvironment(ctx context.Context, env genDb.Environment)
 			Name:    res.Name,
 			Partial: derefString(res.Partial),
 			Built:   built,
+			Running: len(live.deployments[res.ID]) > 0,
 			State:   state,
 		})
 	}

@@ -2,10 +2,12 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/configplan"
@@ -97,12 +99,13 @@ func (f *deployFixture) workspaceReadScopes(t *testing.T) []genDb.EntityScope {
 func seedPlanWorkspace(t *testing.T, f *deployFixture) {
 	t.Helper()
 	f.setRoutedSpec(t)
-	f.addResource(t, planOwned, planPartial)
 	f.addResource(t, planOld, planPartial)
 	f.addResource(t, planTheirs, planOtherPartial)
-	for _, name := range []string{planSvc, planOwned, planOld, planTheirs} {
-		f.addSucceededBuild(t, name, testDockerfile, defaultBuildContext)
-	}
+	f.addSucceededBuild(t, planOld, testDockerfile, defaultBuildContext)
+	f.addSucceededBuild(t, planTheirs, testDockerfile, defaultBuildContext)
+	svcBuild := f.addSucceededBuild(t, planSvc, testDockerfile, defaultBuildContext)
+	f.runBuild(t, planSvc, svcBuild)
+	f.addRunningService(t, planOwned, planPartial)
 }
 
 func TestPlanReportsCreateUpdateImportAndDelete(t *testing.T) {
@@ -164,24 +167,58 @@ func TestPlanReportsCreateUpdateImportAndDelete(t *testing.T) {
 	}
 }
 
-func (f *deployFixture) addSucceededBuild(t *testing.T, resourceName, dockerfile, buildContext string) {
+func (f *deployFixture) addSucceededBuild(t *testing.T, resourceName, dockerfile, buildContext string) uuid.UUID {
 	t.Helper()
 	insert := `
 INSERT INTO builds (resource_id, status, source_type, source_key, source_size, dockerfile_path, context,
                     image_repository, image_digest, created_by, finished_at)
 SELECT r.id, 'succeeded', 'upload', 'src/' || r.id, 1, $3, $4, 'registry.loco.test/' || r.name, $2, u.id, NOW()
-FROM resources r, users u WHERE r.name = $1`
+FROM resources r, users u WHERE r.name = $1
+RETURNING id`
 	args := []any{resourceName, testDigest, dockerfile, buildContext}
-	if _, err := f.pool.Exec(context.Background(), insert, args...); err != nil {
+	var id uuid.UUID
+	if err := f.pool.QueryRow(context.Background(), insert, args...).Scan(&id); err != nil {
 		t.Fatalf("add build for %s: %v", resourceName, err)
 	}
+	return id
+}
+
+func (f *deployFixture) runBuild(t *testing.T, resourceName string, buildID uuid.UUID) {
+	t.Helper()
+	spec := fmt.Sprintf(`{"build":{"type":"dockerfile","image":"%s/%s@%s","buildId":"%s"},`+
+		`"port":8080,"cpu":"100m","memory":"64Mi","minReplicas":1,"maxReplicas":1}`,
+		testRegistryHost, resourceName, testDigest, buildID)
+	insert := `
+WITH r AS (
+    SELECT id FROM resources WHERE name = $1
+), rr AS (
+    INSERT INTO resource_regions (resource_id, region, is_primary, status)
+    SELECT id, $2, true, 'active' FROM r
+    ON CONFLICT (resource_id, region) DO UPDATE SET updated_at = NOW()
+    RETURNING id, resource_id
+)
+INSERT INTO deployments (resource_id, resource_region_id, cluster_id, region, replicas, status, is_active,
+                         message, spec, spec_version, environment_id, started_at)
+SELECT rr.resource_id, rr.id, $3, $2, 1, 'running', true, '', $4, 1, $5, NOW() FROM rr`
+	args := []any{resourceName, testRegion, f.clusterID, spec, f.envID}
+	if _, err := f.pool.Exec(context.Background(), insert, args...); err != nil {
+		t.Fatalf("run build for %s: %v", resourceName, err)
+	}
+}
+
+func (f *deployFixture) addRunningService(t *testing.T, name, partial string) {
+	t.Helper()
+	f.addResource(t, name, partial)
+	buildID := f.addSucceededBuild(t, name, testDockerfile, defaultBuildContext)
+	f.runBuild(t, name, buildID)
 }
 
 func TestPlanReportsChangedBuildInputs(t *testing.T) {
 	f := newDeployFixture(t)
 	f.setRoutedSpec(t)
 	f.addResource(t, planOwned, planPartial)
-	f.addSucceededBuild(t, planOwned, "build/Dockerfile", testBuildContext)
+	buildID := f.addSucceededBuild(t, planOwned, "build/Dockerfile", testBuildContext)
+	f.runBuild(t, planOwned, buildID)
 	ownedAsLive := strings.Replace(planFileOwned, "250m", "100m", 1)
 	file := planFileHeader + ownedAsLive
 
@@ -206,8 +243,7 @@ func TestPlanReportsChangedBuildInputs(t *testing.T) {
 func TestPlanListsNothingForAFileThatMatches(t *testing.T) {
 	f := newDeployFixture(t)
 	f.setRoutedSpec(t)
-	f.addResource(t, planOwned, planPartial)
-	f.addSucceededBuild(t, planOwned, testDockerfile, defaultBuildContext)
+	f.addRunningService(t, planOwned, planPartial)
 	ownedAsLive := strings.Replace(planFileOwned, "250m", "100m", 1)
 	file := planFileHeader + ownedAsLive
 
