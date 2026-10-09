@@ -12,8 +12,8 @@ const (
 
 var dnsLabelPattern = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`)
 
-// Validate checks the file's structure: required keys and name shapes. Limits on resources
-// belong to the API.
+// Validate checks the file's structure: required keys, name shapes and the merged service for
+// every environment the file names. Limits on resources belong to the API.
 func Validate(file *File) error {
 	var errs []error
 	if file.Version != Version {
@@ -38,6 +38,15 @@ func Validate(file *File) error {
 		for _, env := range sortedKeys(service.Environments) {
 			override := service.Environments[env]
 			errs = append(errs, validateOverride(servicePath(name, keyEnvironments, env), override)...)
+		}
+	}
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+
+	for _, env := range environmentNames(file) {
+		if _, err := Resolve(file, env); err != nil {
+			errs = append(errs, err)
 		}
 	}
 	return errors.Join(errs...)
@@ -87,6 +96,16 @@ func validateAutoscaling(path string, autoscaling *Autoscaling) []error {
 
 func isDNSLabel(name string) bool {
 	return len(name) <= dnsLabelMaxLength && dnsLabelPattern.MatchString(name)
+}
+
+func environmentNames(file *File) []string {
+	names := map[string]struct{}{}
+	for _, service := range file.Services {
+		for env := range service.Environments {
+			names[env] = struct{}{}
+		}
+	}
+	return sortedKeys(names)
 }
 
 func sortedKeys[V any](m map[string]V) []string {
