@@ -53,6 +53,7 @@ spec:
   resourceId: e2e-resource
   sourceURL: "$url"
   dockerfilePath: $dockerfile
+  context: .
   imageRepository: $repository
 $cache_line
 YAML

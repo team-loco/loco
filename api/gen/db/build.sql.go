@@ -702,6 +702,7 @@ SELECT b.id,
        r.workspace_id,
        b.source_key,
        b.dockerfile_path,
+       b.context,
        b.image_repository,
        COALESCE((
          SELECT p.image_repository || '@' || p.cache_digest
@@ -726,6 +727,7 @@ type ListQueuedClusterBuildsRow struct {
 	WorkspaceID     uuid.UUID `json:"workspaceId"`
 	SourceKey       string    `json:"sourceKey"`
 	DockerfilePath  string    `json:"dockerfilePath"`
+	Context         string    `json:"context"`
 	ImageRepository string    `json:"imageRepository"`
 	CacheRef        string    `json:"cacheRef"`
 }
@@ -745,6 +747,7 @@ func (q *Queries) ListQueuedClusterBuilds(ctx context.Context, clusterID *uuid.U
 			&i.WorkspaceID,
 			&i.SourceKey,
 			&i.DockerfilePath,
+			&i.Context,
 			&i.ImageRepository,
 			&i.CacheRef,
 		); err != nil {

@@ -123,7 +123,7 @@ func (r *Reconciler) fetchContainer(build *locov1alpha1.Build) corev1.Container 
 	args := []string{
 		"fetch",
 		"--workspace=" + buildWorkspaceDir,
-		"--dockerfile=" + build.Spec.DockerfilePath,
+		"--dockerfile=" + path.Join(build.Spec.Context, build.Spec.DockerfilePath),
 		byteFlag("max-source-bytes", cfg.MaxSourceSize.Value()),
 		byteFlag("max-context-bytes", cfg.MaxContextSize.Value()),
 		"--max-entries=" + strconv.Itoa(cfg.MaxContextFiles),
@@ -169,13 +169,14 @@ func (r *Reconciler) fetchContainer(build *locov1alpha1.Build) corev1.Container 
 
 func (r *Reconciler) buildkitContainer(build *locov1alpha1.Build) corev1.Container {
 	cfg := &r.Config
-	dockerfileDir := path.Join(buildWorkspaceDir, path.Dir(build.Spec.DockerfilePath))
+	contextDir := path.Join(buildWorkspaceDir, build.Spec.Context)
+	dockerfileDir := path.Join(contextDir, path.Dir(build.Spec.DockerfilePath))
 	dockerfileName := path.Base(build.Spec.DockerfilePath)
 	args := []string{
 		"build",
 		"--progress=plain",
 		"--frontend=dockerfile.v0",
-		"--local=context=" + buildWorkspaceDir,
+		"--local=context=" + contextDir,
 		"--local=dockerfile=" + dockerfileDir,
 		"--opt=filename=" + dockerfileName,
 		"--output=type=oci,tar=false,dest=" + buildImageDir,

@@ -57,6 +57,7 @@ SELECT b.id,
        r.workspace_id,
        b.source_key,
        b.dockerfile_path,
+       b.context,
        b.image_repository,
        COALESCE((
          SELECT p.image_repository || '@' || p.cache_digest

@@ -122,6 +122,8 @@ message StartBuild {
   string dockerfile_path = 5 [(buf.validate.field).string.min_len = 1];
   string image_repository = 6 [(buf.validate.field).string.min_len = 1];
   string cache_ref = 7;
+  // context is the build context directory relative to the uploaded source, "." for its root.
+  string context = 8 [(buf.validate.field).string.min_len = 1];
 }
 
 message CancelBuild {
