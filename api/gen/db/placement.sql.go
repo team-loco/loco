@@ -56,6 +56,48 @@ func (q *Queries) BeginClusterSync(ctx context.Context, id uuid.UUID) (int64, er
 	return sync_generation, err
 }
 
+const bumpPlacementsForSecretNames = `-- name: BumpPlacementsForSecretNames :many
+UPDATE placements
+SET desired_revision = desired_revision + 1,
+    applied_error = NULL,
+    updated_at = NOW()
+WHERE environment_id = $1
+  AND NOT desired_deleted
+  AND secret_names && $2::text[]
+RETURNING id, cluster_id, desired_revision
+`
+
+type BumpPlacementsForSecretNamesParams struct {
+	EnvironmentID uuid.UUID `json:"environmentId"`
+	Names         []string  `json:"names"`
+}
+
+type BumpPlacementsForSecretNamesRow struct {
+	ID              uuid.UUID `json:"id"`
+	ClusterID       uuid.UUID `json:"clusterId"`
+	DesiredRevision int64     `json:"desiredRevision"`
+}
+
+func (q *Queries) BumpPlacementsForSecretNames(ctx context.Context, arg BumpPlacementsForSecretNamesParams) ([]BumpPlacementsForSecretNamesRow, error) {
+	rows, err := q.db.Query(ctx, bumpPlacementsForSecretNames, arg.EnvironmentID, arg.Names)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []BumpPlacementsForSecretNamesRow
+	for rows.Next() {
+		var i BumpPlacementsForSecretNamesRow
+		if err := rows.Scan(&i.ID, &i.ClusterID, &i.DesiredRevision); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deleteAppliedPlacement = `-- name: DeleteAppliedPlacement :execrows
 DELETE FROM placements
 WHERE id = $1 AND cluster_id = $2 AND desired_revision = $3 AND desired_deleted

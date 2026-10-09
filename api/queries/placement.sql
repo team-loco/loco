@@ -109,3 +109,13 @@ RETURNING sync_generation;
 
 -- name: GetClusterSyncGeneration :one
 SELECT sync_generation FROM clusters WHERE id = $1;
+
+-- name: BumpPlacementsForSecretNames :many
+UPDATE placements
+SET desired_revision = desired_revision + 1,
+    applied_error = NULL,
+    updated_at = NOW()
+WHERE environment_id = sqlc.arg(environment_id)
+  AND NOT desired_deleted
+  AND secret_names && sqlc.arg(names)::text[]
+RETURNING id, cluster_id, desired_revision;

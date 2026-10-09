@@ -275,6 +275,9 @@ func (s *SecretServer) writeSecrets(
 			return connect.NewError(connect.CodeFailedPrecondition, tooLarge)
 		}
 	}
+	if rollErr := rollPlacementsForSecrets(ctx, qtx, env.ID, params.Names); rollErr != nil {
+		return rollErr
+	}
 	revision, bumpErr := bumpEnvironmentRevision(ctx, qtx, env.ID)
 	if bumpErr != nil {
 		return bumpErr
@@ -662,13 +665,18 @@ func (s *SecretServer) environmentDEK(
 		)
 		return genDb.EnvironmentKey{}, nil, connect.NewError(connect.CodeInternal, ErrUnknownSecretFormat)
 	}
-	wrapped := secretkeys.WrappedKey{Provider: key.Provider, KeyID: key.KekID, Bytes: key.WrappedDek}
-	dek, err := s.provider.Unwrap(ctx, wrapped, aad)
+	dek, err := unwrapEnvironmentKey(ctx, s.provider, key)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to unwrap environment key", "environmentId", environmentID, "error", err)
 		return genDb.EnvironmentKey{}, nil, connect.NewError(connect.CodeUnavailable, ErrKeyProvider)
 	}
 	return key, dek, nil
+}
+
+func unwrapEnvironmentKey(ctx context.Context, provider secretkeys.Provider, key genDb.EnvironmentKey) ([]byte, error) {
+	aad := secretkeys.DEKAAD(key.EnvironmentID.String())
+	wrapped := secretkeys.WrappedKey{Provider: key.Provider, KeyID: key.KekID, Bytes: key.WrappedDek}
+	return provider.Unwrap(ctx, wrapped, aad)
 }
 
 func (s *SecretServer) createEnvironmentKey(

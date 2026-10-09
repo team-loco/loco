@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/clusternotify"
+	"github.com/team-loco/loco/api/pkg/secretkeys"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 )
 
@@ -30,20 +31,24 @@ type AgentServer struct {
 	queries  genDb.Querier
 	notifier *clusternotify.Notifier
 	sources  SourceBucket
+	provider secretkeys.Provider
 }
 
-// NewAgentServer creates a new AgentServer instance.
+// NewAgentServer creates a new AgentServer instance; a nil provider leaves every placement that declares
+// secrets pending.
 func NewAgentServer(
 	db *pgxpool.Pool,
 	queries genDb.Querier,
 	notifier *clusternotify.Notifier,
 	sources SourceBucket,
+	provider secretkeys.Provider,
 ) *AgentServer {
 	return &AgentServer{
 		db:       db,
 		queries:  queries,
 		notifier: notifier,
 		sources:  sources,
+		provider: provider,
 	}
 }
 

@@ -78,6 +78,33 @@ func notifyRemovedPlacements(
 	return nil
 }
 
+func rollPlacementsForSecrets(ctx context.Context, qtx *genDb.Queries, environmentID uuid.UUID, names []string) error {
+	rolled, err := qtx.BumpPlacementsForSecretNames(ctx, genDb.BumpPlacementsForSecretNamesParams{
+		EnvironmentID: environmentID,
+		Names:         names,
+	})
+	if err != nil {
+		return fmt.Errorf("bump placements for secrets: %w", err)
+	}
+	notified := make(map[uuid.UUID]struct{}, len(rolled))
+	for _, placement := range rolled {
+		slog.InfoContext(ctx, "placement rolled for a secret change",
+			"placement_id", placement.ID,
+			"revision", placement.DesiredRevision,
+			"cluster_id", placement.ClusterID,
+		)
+		if _, done := notified[placement.ClusterID]; done {
+			continue
+		}
+		notified[placement.ClusterID] = struct{}{}
+		clusterID := placement.ClusterID.String()
+		if err := qtx.NotifyClusterPlacements(ctx, clusterID); err != nil {
+			return fmt.Errorf("notify placements: %w", err)
+		}
+	}
+	return nil
+}
+
 func desiredEnv(
 	ctx context.Context,
 	q genDb.Querier,
