@@ -63,6 +63,16 @@ func cmdFakePlatform(ts *testscript.TestScript, api *fakeAPI, neg bool, args []s
 	case "wait":
 		requireArgs(ts, neg, args, 2, "fakeapi wait <method>")
 		waitForCall(ts, api, args[1])
+	case "plan":
+		requireArgs(ts, neg, args, 2, "fakeapi plan <plan.json>")
+		data := ts.ReadFile(args[1])
+		api.mu.Lock()
+		defer api.mu.Unlock()
+		if err := api.platform.setPlan(data); err != nil {
+			ts.Fatalf("fakeapi: %v", err)
+		}
+	case "planned":
+		checkPlanned(ts, api, neg, args)
 	default:
 		ts.Fatalf("fakeapi: unknown subcommand %q", args[0])
 	}
@@ -211,6 +221,22 @@ func checkPinnedOnce(ts *testscript.TestScript, api *fakeAPI, neg bool, args []s
 	}
 	if api.platform.resolutions > 1 {
 		ts.Fatalf("fakeapi: the image tag was resolved %d times", api.platform.resolutions)
+	}
+}
+
+func checkPlanned(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
+	if neg || len(args) != 2 {
+		ts.Fatalf("usage: fakeapi planned <loco.yaml>")
+	}
+	want := ts.ReadFile(args[1])
+	api.mu.Lock()
+	defer api.mu.Unlock()
+	if len(api.platform.planned) == 0 {
+		ts.Fatalf("fakeapi: Plan was not called")
+	}
+	got := string(api.platform.planned[len(api.platform.planned)-1])
+	if got != want {
+		ts.Fatalf("fakeapi: Plan received:\n%s\nwant:\n%s", got, want)
 	}
 }
 
