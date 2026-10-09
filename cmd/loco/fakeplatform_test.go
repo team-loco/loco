@@ -293,6 +293,26 @@ func (s *fakeResourceService) GetResourceStatus(
 	return nil, connect.NewError(connect.CodeNotFound, errFakeResourceNotFound)
 }
 
+func (s *fakeResourceService) TransferPartial(
+	_ context.Context,
+	req *connect.Request[resourcev1.TransferPartialRequest],
+) (*connect.Response[resourcev1.TransferPartialResponse], error) {
+	f := s.api
+	if _, _, err := f.authenticate(req.Spec(), req.Header()); err != nil {
+		return nil, err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, res := range f.platform.resources {
+		if res.GetId() == req.Msg.GetResourceId() {
+			partial := req.Msg.GetPartial()
+			res.Partial = &partial
+			return connect.NewResponse(&resourcev1.TransferPartialResponse{}), nil
+		}
+	}
+	return nil, connect.NewError(connect.CodeNotFound, errFakeResourceNotFound)
+}
+
 type fakeDomainService struct {
 	domainv1connect.UnimplementedDomainServiceHandler
 

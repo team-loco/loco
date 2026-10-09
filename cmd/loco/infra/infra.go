@@ -23,7 +23,10 @@ func BuildInfraCmd() *cobra.Command {
   loco infra plan --env staging
 
   # Apply the file to the staging environment without a prompt
-  loco infra apply --env staging --yes`,
+  loco infra apply --env staging --yes
+
+  # Hand the api service to the loco.yaml of the platform partial
+  loco infra transfer api --to platform`,
 	}
 
 	cmd.AddCommand(
@@ -31,6 +34,7 @@ func BuildInfraCmd() *cobra.Command {
 		buildValidateCmd(),
 		buildPlanCmd(),
 		buildApplyCmd(),
+		buildTransferCmd(),
 	)
 
 	return cmd

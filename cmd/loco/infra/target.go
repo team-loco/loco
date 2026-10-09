@@ -9,6 +9,7 @@ import (
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/gen/go/loco/environment/v1/environmentv1connect"
 	"github.com/team-loco/loco/gen/go/loco/plan/v1/planv1connect"
+	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/internal/client"
 	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/locofile"
@@ -23,14 +24,18 @@ type target struct {
 	environmentID string
 }
 
-func addTargetFlags(cmd *cobra.Command) {
+func addWorkspaceFlags(cmd *cobra.Command) {
 	cmd.Flags().String("org", "", "Organization name")
 	cmd.Flags().String("workspace", "", "Workspace name")
-	cmd.Flags().String("env", "", "Environment (defaults to the workspace's only environment)")
 	cmd.Flags().String("host", "", "API host URL")
 }
 
-func resolveTarget(ctx context.Context, cmd *cobra.Command) (target, error) {
+func addTargetFlags(cmd *cobra.Command) {
+	addWorkspaceFlags(cmd)
+	cmd.Flags().String("env", "", "Environment (defaults to the workspace's only environment)")
+}
+
+func resolveWorkspaceTarget(ctx context.Context, cmd *cobra.Command) (target, error) {
 	host, err := cmdutil.GetHost(cmd)
 	if err != nil {
 		return target{}, err
@@ -39,34 +44,39 @@ func resolveTarget(ctx context.Context, cmd *cobra.Command) (target, error) {
 	if err != nil {
 		return target{}, err
 	}
-	authHeader := "Bearer " + locoToken.Token
-
 	apiClient := client.NewClient(host, locoToken.Token)
 	workspaceID, err := cmdutil.ResolveWorkspaceID(ctx, cmd, session.Load, apiClient)
 	if err != nil {
 		return target{}, err
 	}
+	return target{host: host, authHeader: "Bearer " + locoToken.Token, workspaceID: workspaceID}, nil
+}
 
+func resolveTarget(ctx context.Context, cmd *cobra.Command) (target, error) {
+	t, err := resolveWorkspaceTarget(ctx, cmd)
+	if err != nil {
+		return target{}, err
+	}
 	httpClient := httputil.NewHTTPClient()
-	environments := environmentv1connect.NewEnvironmentServiceClient(httpClient, host)
+	environments := environmentv1connect.NewEnvironmentServiceClient(httpClient, t.host)
 	interactive := cmdutil.StdoutIsTerminal()
-	environmentID, err := cmdutil.ResolveEnvironmentID(
-		ctx, cmd, environments, ui.SelectFromList, interactive, authHeader, workspaceID,
+	t.environmentID, err = cmdutil.ResolveEnvironmentID(
+		ctx, cmd, environments, ui.SelectFromList, interactive, t.authHeader, t.workspaceID,
 	)
 	if err != nil {
 		return target{}, err
 	}
-	return target{
-		host:          host,
-		authHeader:    authHeader,
-		workspaceID:   workspaceID,
-		environmentID: environmentID,
-	}, nil
+	return t, nil
 }
 
 func (t target) planClient() planv1connect.PlanServiceClient {
 	httpClient := httputil.NewHTTPClient()
 	return planv1connect.NewPlanServiceClient(httpClient, t.host)
+}
+
+func (t target) resourceClient() resourcev1connect.ResourceServiceClient {
+	httpClient := httputil.NewHTTPClient()
+	return resourcev1connect.NewResourceServiceClient(httpClient, t.host)
 }
 
 func readLocoFile(path string) ([]byte, error) {

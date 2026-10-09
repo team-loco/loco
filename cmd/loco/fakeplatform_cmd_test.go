@@ -85,6 +85,8 @@ func cmdFakePlatform(ts *testscript.TestScript, api *fakeAPI, neg bool, args []s
 		api.mu.Unlock()
 	case "applied":
 		checkApplied(ts, api, neg, args)
+	case "partial":
+		checkPartial(ts, api, neg, args)
 	default:
 		ts.Fatalf("fakeapi: unknown subcommand %q", args[0])
 	}
@@ -274,6 +276,24 @@ func checkApplied(ts *testscript.TestScript, api *fakeAPI, neg bool, args []stri
 	if !neg && !found {
 		ts.Fatalf("fakeapi: no apply at revision %d in %d applies", revision, len(api.platform.applies))
 	}
+}
+
+func checkPartial(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
+	if neg || len(args) != 3 {
+		ts.Fatalf("usage: fakeapi partial <service> <partial>")
+	}
+	api.mu.Lock()
+	defer api.mu.Unlock()
+	for _, res := range api.platform.resources {
+		if res.GetName() != args[1] {
+			continue
+		}
+		if res.GetPartial() != args[2] {
+			ts.Fatalf("fakeapi: %s is in partial %q, want %q", args[1], res.GetPartial(), args[2])
+		}
+		return
+	}
+	ts.Fatalf("fakeapi: no resource named %s", args[1])
 }
 
 func waitForCall(ts *testscript.TestScript, api *fakeAPI, method string) {
