@@ -44,16 +44,16 @@ func (s *ConfigServer) GetConfig(
 		Auth:          s.auth,
 		ServiceDefaults: &configv1.DefaultServiceConfig{
 			Routing: &resourcev1.RoutingConfig{
-				Port:        8000,
+				Port:        s.defaults.Port,
 				PathPrefix:  s.defaults.PathPrefix,
 				IdleTimeout: s.defaults.IdleTimeout,
 			},
 			HealthCheck: &deploymentv1.HealthCheckConfig{
-				Path:                "/health",
-				IntervalSeconds:     30,
-				TimeoutSeconds:      5,
-				FailureThreshold:    3,
-				InitialDelaySeconds: 0,
+				Path:                s.defaults.HealthPath,
+				IntervalSeconds:     s.defaults.HealthInterval,
+				TimeoutSeconds:      s.defaults.HealthTimeout,
+				FailureThreshold:    s.defaults.HealthFailThreshold,
+				InitialDelaySeconds: s.defaults.HealthStartupGracePeriod,
 			},
 			Cpu:         s.defaults.CPU,
 			Memory:      s.defaults.Memory,

@@ -6,7 +6,19 @@ import (
 )
 
 func validDefaults() Defaults {
-	return Defaults{CPU: "100m", Memory: "256Mi", MinReplicas: 1, MaxReplicas: 2, PathPrefix: "/", IdleTimeout: 60}
+	return Defaults{
+		CPU:                 "100m",
+		Memory:              "256Mi",
+		MinReplicas:         1,
+		MaxReplicas:         2,
+		PathPrefix:          "/",
+		IdleTimeout:         60,
+		Port:                8000,
+		HealthPath:          "/health",
+		HealthInterval:      30,
+		HealthTimeout:       5,
+		HealthFailThreshold: 3,
+	}
 }
 
 func TestValidateAcceptsValidDefaults(t *testing.T) {
@@ -32,6 +44,13 @@ func TestValidateRejectsInvalidDefaults(t *testing.T) {
 		"max above the controller max": {func(d *Defaults) { d.MaxReplicas = 12 }, errInvalidResources},
 		"relative prefix":              {func(d *Defaults) { d.PathPrefix = "app" }, errPathPrefix},
 		"zero idle timeout":            {func(d *Defaults) { d.IdleTimeout = 0 }, errIdleTimeout},
+		"zero port":                    {func(d *Defaults) { d.Port = 0 }, errPort},
+		"port above the range":         {func(d *Defaults) { d.Port = 65536 }, errPort},
+		"relative health path":         {func(d *Defaults) { d.HealthPath = "health" }, errHealthPath},
+		"zero health interval":         {func(d *Defaults) { d.HealthInterval = 0 }, errHealthTiming},
+		"zero health timeout":          {func(d *Defaults) { d.HealthTimeout = 0 }, errHealthTiming},
+		"zero fail threshold":          {func(d *Defaults) { d.HealthFailThreshold = 0 }, errHealthTiming},
+		"negative grace period":        {func(d *Defaults) { d.HealthStartupGracePeriod = -1 }, errHealthGrace},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
