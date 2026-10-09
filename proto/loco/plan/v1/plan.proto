@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package loco.plan.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/team-loco/loco/gen/go/loco/plan/v1;planv1";
+
+// PlanService diffs a loco.yaml file against an environment.
+service PlanService {
+  // Plan returns the operations an apply would perform. It writes nothing.
+  rpc Plan(PlanRequest) returns (PlanResponse);
+}
+
+message PlanRequest {
+  // file is the loco.yaml document.
+  bytes file = 1 [(buf.validate.field).bytes = {
+    min_len: 1
+    max_len: 1048576
+  }];
+  string environment_id = 2 [(buf.validate.field).string.uuid = true];
+}
+
+message PlanResponse {
+  // revision is the environment revision the plan was computed against.
+  int64 revision = 1;
+  // operations lists every service the apply would change; services that match the file are
+  // not listed.
+  repeated PlanOperation operations = 2;
+  // errors are every reason the plan cannot be applied. operations is empty when errors is not.
+  repeated PlanError errors = 3;
+}
+
+enum PlanOperationKind {
+  PLAN_OPERATION_KIND_UNSPECIFIED = 0;
+  // the service is in the file and not in the environment
+  PLAN_OPERATION_KIND_CREATE = 1;
+  // the service is owned by the file's partial and differs from the file
+  PLAN_OPERATION_KIND_UPDATE = 2;
+  // the service is owned by the file's partial and absent from the file
+  PLAN_OPERATION_KIND_DELETE = 3;
+  // the service exists with no partial and the file names it
+  PLAN_OPERATION_KIND_IMPORT = 4;
+}
+
+message PlanOperation {
+  PlanOperationKind kind = 1;
+  string service = 2;
+  repeated FieldChange changes = 3;
+  // destructive operations remove a service or data and need --confirm-destructive on apply.
+  bool destructive = 4;
+  // needs_deploy marks a source service with no build: apply cannot start it until loco deploy runs.
+  bool needs_deploy = 5;
+}
+
+// FieldChange is one field the apply would change. Secret values never appear here.
+message FieldChange {
+  // path is the field in loco.yaml form, such as regions.us-east-1.cpu or env.LOG_LEVEL.
+  string path = 1;
+  string before = 2;
+  string after = 3;
+}
+
+message PlanError {
+  // service is empty for errors that apply to the whole file.
+  string service = 1;
+  // path is the field the error is about, empty when it is about the whole service or file.
+  string path = 2;
+  string message = 3;
+}
