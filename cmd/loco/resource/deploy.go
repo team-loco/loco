@@ -53,7 +53,7 @@ func BuildDeployCmd() *cobra.Command {
 		},
 		Clients:        clients,
 		SelectFromList: ui.SelectFromList,
-		Interactive:    stdoutIsTerminal,
+		Interactive:    cmdutil.StdoutIsTerminal,
 		Stdout:         os.Stdout,
 	}
 	return newDeployCmd(deps)
