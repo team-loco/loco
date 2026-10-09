@@ -129,6 +129,99 @@ func TestParseRejects(t *testing.T) {
 			err:  errUnknownKey,
 		},
 		{
+			name: "wrong version",
+			yaml: strings.Replace(minimalFile, "version: 1", "version: 2", 1),
+			err:  ErrUnsupportedVersion,
+			path: "version",
+		},
+		{
+			name: "missing partial",
+			yaml: strings.Replace(minimalFile, "partial: api\n", "", 1),
+			err:  ErrPartialRequired,
+			path: keyPartial,
+		},
+		{
+			name: "partial is not a DNS label",
+			yaml: strings.Replace(minimalFile, "partial: api", "partial: My_API", 1),
+			err:  ErrInvalidName,
+			path: keyPartial,
+		},
+		{
+			name: "partial too long",
+			yaml: strings.Replace(minimalFile, "partial: api", "partial: "+strings.Repeat("a", 64), 1),
+			err:  ErrInvalidName,
+			path: keyPartial,
+		},
+		{
+			name: "no services",
+			yaml: "version: 1\npartial: api\nservices: {}\n",
+			err:  ErrNoServices,
+			path: "services",
+		},
+		{
+			name: "service name is not a DNS label",
+			yaml: strings.Replace(minimalFile, "  api:", "  Api:", 1),
+			err:  ErrInvalidName,
+			path: "services.Api",
+		},
+		{
+			name: "dockerfile and image",
+			yaml: strings.Replace(minimalFile, "    image:", "    dockerfile: Dockerfile\n    image:", 1),
+			err:  ErrImageWithBuild,
+			path: "services.api",
+		},
+		{
+			name: "context with image",
+			yaml: strings.Replace(minimalFile, "    image:", "    context: .\n    image:", 1),
+			err:  ErrImageWithBuild,
+			path: "services.api",
+		},
+		{
+			name: "routing without port",
+			yaml: strings.Replace(minimalFile, "    image:", "    routing: { pathPrefix: / }\n    image:", 1),
+			err:  ErrPortRequired,
+			path: "services.api.port",
+		},
+		{
+			name: "no regions",
+			yaml: "version: 1\npartial: api\nservices:\n  api:\n    image: ghcr.io/acme/api:1\n",
+			err:  ErrNoRegions,
+			path: "services.api.regions",
+		},
+		{
+			name: "region without memory",
+			yaml: strings.Replace(minimalFile, "memory: 256Mi, ", "", 1),
+			err:  ErrRegionIncomplete,
+			path: "services.api.regions.us-east-1",
+		},
+		{
+			name: "region without replicas.max",
+			yaml: strings.Replace(minimalFile, ", max: 1", "", 1),
+			err:  ErrRegionIncomplete,
+			path: "services.api.regions.us-east-1",
+		},
+		{
+			name: "autoscaling with both targets",
+			yaml: strings.Replace(minimalFile, "replicas: { min: 1, max: 1 }",
+				"replicas: { min: 1, max: 1 }, autoscaling: { cpuTarget: 70, memoryTarget: 80 }", 1),
+			err:  ErrAutoscalingTarget,
+			path: "services.api.regions.us-east-1.autoscaling",
+		},
+		{
+			name: "autoscaling without a target",
+			yaml: strings.Replace(minimalFile, "replicas: { min: 1, max: 1 }",
+				"replicas: { min: 1, max: 1 }, autoscaling: {}", 1),
+			err:  ErrAutoscalingTarget,
+			path: "services.api.regions.us-east-1.autoscaling",
+		},
+		{
+			name: "autoscaling in an override with both targets",
+			yaml: minimalFile + "    environments:\n      prod:\n        regions:\n" +
+				"          us-east-1: { autoscaling: { cpuTarget: 70, memoryTarget: 80 } }\n",
+			err:  ErrAutoscalingTarget,
+			path: "services.api.environments.prod.regions.us-east-1.autoscaling",
+		},
+		{
 			name: "environments inside an override",
 			yaml: minimalFile + "    environments:\n      prod:\n        environments: {}\n",
 			err:  ErrEnvironmentsInOverride,
@@ -159,6 +252,37 @@ func TestParseRejects(t *testing.T) {
 			assert.Equal(t, tt.path, fieldErr.Path)
 		})
 	}
+}
+
+func TestParseSourceBuildNeedsNoDockerfile(t *testing.T) {
+	tests := []struct {
+		name string
+		yaml string
+	}{
+		{
+			name: "neither dockerfile nor image",
+			yaml: strings.Replace(minimalFile, "    image: ghcr.io/acme/api:1\n", "", 1),
+		},
+		{
+			name: "context only",
+			yaml: strings.Replace(minimalFile, "    image: ghcr.io/acme/api:1\n", "    context: api\n", 1),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			file, err := Parse([]byte(tt.yaml))
+			require.NoError(t, err)
+			assert.Empty(t, file.Services["api"].Image)
+		})
+	}
+}
+
+func TestParseReportsEveryStructuralError(t *testing.T) {
+	_, err := Parse([]byte("version: 2\npartial: ''\nservices:\n  api:\n    image: x\n"))
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrUnsupportedVersion)
+	require.ErrorIs(t, err, ErrPartialRequired)
+	assert.ErrorIs(t, err, ErrNoRegions)
 }
 
 func TestNotSupportedYetMessage(t *testing.T) {

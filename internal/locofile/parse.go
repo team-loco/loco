@@ -14,6 +14,8 @@ import (
 )
 
 const (
+	keyVersion      = "version"
+	keyPartial      = "partial"
 	keyServices     = "services"
 	keyEnvironments = "environments"
 	keyEnabled      = "enabled"
@@ -85,6 +87,10 @@ func Parse(data []byte) (*File, error) {
 		return nil, newDecodeError(err)
 	}
 	file.raw = raw
+
+	if err := Validate(&file); err != nil {
+		return nil, err
+	}
 	return &file, nil
 }
 
