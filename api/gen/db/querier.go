@@ -183,6 +183,7 @@ type Querier interface {
 	ListWorkspacesInOrg(ctx context.Context, arg ListWorkspacesInOrgParams) ([]Workspace, error)
 	LockBuildImageForDelete(ctx context.Context, id uuid.UUID) (*time.Time, error)
 	LockBuildImageForDeploy(ctx context.Context, id uuid.UUID) (*time.Time, error)
+	LockEnvironmentRevision(ctx context.Context, id uuid.UUID) (int64, error)
 	LockInstallWebhooks(ctx context.Context, lockKey int64) error
 	LockResource(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockResourceRegion(ctx context.Context, arg LockResourceRegionParams) (ResourceRegion, error)

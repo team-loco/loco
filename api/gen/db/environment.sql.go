@@ -166,6 +166,17 @@ func (q *Queries) ListWorkspaceEnvironments(ctx context.Context, workspaceID uui
 	return items, nil
 }
 
+const lockEnvironmentRevision = `-- name: LockEnvironmentRevision :one
+SELECT revision FROM environments WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) LockEnvironmentRevision(ctx context.Context, id uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, lockEnvironmentRevision, id)
+	var revision int64
+	err := row.Scan(&revision)
+	return revision, err
+}
+
 const updateEnvironment = `-- name: UpdateEnvironment :one
 UPDATE environments
 SET name = $2, description = $3, environment_type = $4, updated_at = NOW()

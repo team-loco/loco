@@ -51,6 +51,25 @@ func NewPlanServer(
 	}
 }
 
+// plannedFile is a loco.yaml file planned against one environment: the parsed file, the
+// environment, the services the environment runs and the plan.
+type plannedFile struct {
+	file *locofile.File
+	env  genDb.Environment
+	live liveEnvironment
+	plan configplan.Plan
+}
+
+// liveEnvironment is every service of the workspace as the environment runs it, with the rows
+// the apply writes against.
+type liveEnvironment struct {
+	services    []configplan.Service
+	resources   map[string]genDb.Resource
+	domains     map[uuid.UUID][]genDb.ResourceDomain
+	deployments map[uuid.UUID][]genDb.Deployment
+	builds      map[uuid.UUID]genDb.ListLatestSucceededBuildsForResourcesRow
+}
+
 // Plan returns the operations an apply of the file would perform in the environment. It writes
 // nothing and needs workspace read.
 func (s *PlanServer) Plan(
@@ -58,13 +77,29 @@ func (s *PlanServer) Plan(
 	req *connect.Request[planv1.PlanRequest],
 ) (*connect.Response[planv1.PlanResponse], error) {
 	r := req.Msg
+	planned, err := s.loadPlan(ctx, r.GetFile(), r.GetEnvironmentId(), actions.Plan)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&planv1.PlanResponse{
+		Revision:   planned.env.Revision,
+		Operations: planOperationsToProto(planned.plan.Operations),
+		Errors:     planErrorsToProto(planned.plan.Errors),
+	}), nil
+}
 
-	file, err := locofile.Parse(r.GetFile())
+func (s *PlanServer) loadPlan(
+	ctx context.Context,
+	rawFile []byte,
+	rawEnvironmentID string,
+	action actions.Action,
+) (*plannedFile, error) {
+	file, err := locofile.Parse(rawFile)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
-	environmentID := uuid.MustParse(r.GetEnvironmentId())
+	environmentID := uuid.MustParse(rawEnvironmentID)
 	env, err := s.queries.GetEnvironmentByID(ctx, environmentID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, connect.NewError(connect.CodeNotFound, ErrEnvironmentNotFound)
@@ -79,8 +114,8 @@ func (s *PlanServer) Plan(
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
-	action := actions.New(actions.Plan, env.WorkspaceID.String())
-	if authErr := s.authz.Check(ctx, scopes, action); authErr != nil {
+	workspaceAction := actions.New(action, env.WorkspaceID.String())
+	if authErr := s.authz.Check(ctx, scopes, workspaceAction); authErr != nil {
 		slog.WarnContext(ctx, "unauthorized to plan", "workspaceId", env.WorkspaceID)
 		return nil, connect.NewError(connect.CodePermissionDenied, authErr)
 	}
@@ -100,7 +135,7 @@ func (s *PlanServer) Plan(
 		slog.ErrorContext(ctx, "failed to list clusters", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
-	live, err := s.liveServices(ctx, env)
+	live, err := s.liveEnvironment(ctx, env)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load the environment's services", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
@@ -121,7 +156,7 @@ func (s *PlanServer) Plan(
 		FileEnvironments: fileEnvironments(file),
 		Environments:     environmentNames,
 		Regions:          regions,
-		Live:             live,
+		Live:             live.services,
 		Defaults:         s.defaults,
 		Images:           s.resolveImages(ctx, services),
 	})
@@ -129,12 +164,7 @@ func (s *PlanServer) Plan(
 		slog.ErrorContext(ctx, "failed to compute plan", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-
-	return connect.NewResponse(&planv1.PlanResponse{
-		Revision:   env.Revision,
-		Operations: planOperationsToProto(plan.Operations),
-		Errors:     planErrorsToProto(plan.Errors),
-	}), nil
+	return &plannedFile{file: file, env: env, live: live, plan: plan}, nil
 }
 
 func fileEnvironments(file *locofile.File) []string {
@@ -173,10 +203,10 @@ func (s *PlanServer) resolveImages(
 	return images
 }
 
-func (s *PlanServer) liveServices(ctx context.Context, env genDb.Environment) ([]configplan.Service, error) {
+func (s *PlanServer) liveEnvironment(ctx context.Context, env genDb.Environment) (liveEnvironment, error) {
 	resources, err := s.queries.ListWorkspaceServiceResources(ctx, env.WorkspaceID)
 	if err != nil {
-		return nil, fmt.Errorf("list resources: %w", err)
+		return liveEnvironment{}, fmt.Errorf("list resources: %w", err)
 	}
 	ids := make([]uuid.UUID, 0, len(resources))
 	for _, res := range resources {
@@ -185,50 +215,53 @@ func (s *PlanServer) liveServices(ctx context.Context, env genDb.Environment) ([
 
 	domains, err := s.queries.ListResourceDomainsForResources(ctx, ids)
 	if err != nil {
-		return nil, fmt.Errorf("list domains: %w", err)
+		return liveEnvironment{}, fmt.Errorf("list domains: %w", err)
 	}
-	domainsByResource := map[uuid.UUID][]genDb.ResourceDomain{}
-	for _, domain := range domains {
-		domainsByResource[domain.ResourceID] = append(domainsByResource[domain.ResourceID], domain)
-	}
-
 	deployments, err := s.queries.ListActiveDeploymentsForEnvironment(ctx, env.ID)
 	if err != nil {
-		return nil, fmt.Errorf("list deployments: %w", err)
+		return liveEnvironment{}, fmt.Errorf("list deployments: %w", err)
 	}
-	deploymentsByResource := map[uuid.UUID][]genDb.Deployment{}
-	for _, deployment := range deployments {
-		deploymentsByResource[deployment.ResourceID] = append(deploymentsByResource[deployment.ResourceID], deployment)
-	}
-
 	latestBuilds, err := s.queries.ListLatestSucceededBuildsForResources(ctx, ids)
 	if err != nil {
-		return nil, fmt.Errorf("list latest builds: %w", err)
-	}
-	buildByResource := map[uuid.UUID]genDb.ListLatestSucceededBuildsForResourcesRow{}
-	for _, build := range latestBuilds {
-		buildByResource[build.ResourceID] = build
+		return liveEnvironment{}, fmt.Errorf("list latest builds: %w", err)
 	}
 
-	services := make([]configplan.Service, 0, len(resources))
+	live := liveEnvironment{
+		services:    make([]configplan.Service, 0, len(resources)),
+		resources:   make(map[string]genDb.Resource, len(resources)),
+		domains:     map[uuid.UUID][]genDb.ResourceDomain{},
+		deployments: map[uuid.UUID][]genDb.Deployment{},
+		builds:      map[uuid.UUID]genDb.ListLatestSucceededBuildsForResourcesRow{},
+	}
+	for _, domain := range domains {
+		live.domains[domain.ResourceID] = append(live.domains[domain.ResourceID], domain)
+	}
+	for _, deployment := range deployments {
+		live.deployments[deployment.ResourceID] = append(live.deployments[deployment.ResourceID], deployment)
+	}
+	for _, build := range latestBuilds {
+		live.builds[build.ResourceID] = build
+	}
+
 	for _, res := range resources {
-		latest, built := buildByResource[res.ID]
-		state, stateErr := s.liveState(ctx, res, domainsByResource[res.ID], deploymentsByResource[res.ID])
+		latest, built := live.builds[res.ID]
+		state, stateErr := s.liveState(ctx, res, live.domains[res.ID], live.deployments[res.ID])
 		if stateErr != nil {
-			return nil, fmt.Errorf("resource %s: %w", res.Name, stateErr)
+			return liveEnvironment{}, fmt.Errorf("resource %s: %w", res.Name, stateErr)
 		}
 		if built && state.Image == "" && state.Dockerfile == "" {
 			state.Dockerfile = latest.DockerfilePath
 			state.Context = latest.Context
 		}
-		services = append(services, configplan.Service{
+		live.resources[res.Name] = res
+		live.services = append(live.services, configplan.Service{
 			Name:    res.Name,
 			Partial: derefString(res.Partial),
 			Built:   built,
 			State:   state,
 		})
 	}
-	return services, nil
+	return live, nil
 }
 
 func (s *PlanServer) liveState(

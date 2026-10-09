@@ -156,6 +156,9 @@ func TestNewServiceIsACreateListingEveryField(t *testing.T) {
 	if !reflect.DeepEqual(want, op.Changes) {
 		t.Fatalf("changes = %v, want %v", op.Changes, want)
 	}
+	if !reflect.DeepEqual(op.Desired, liveState()) {
+		t.Fatalf("desired = %+v, want the file service with defaults filled", op.Desired)
+	}
 }
 
 func TestChangedFieldsMakeAnUpdate(t *testing.T) {

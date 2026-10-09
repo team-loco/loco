@@ -61,13 +61,15 @@ type Change struct {
 	After  string
 }
 
-// Operation is what an apply would do to one service.
+// Operation is what an apply would do to one service. Desired is the service as the apply
+// writes it, with the API defaults filled in; it is zero for a delete.
 type Operation struct {
 	Kind        Kind
 	Service     string
 	Changes     []Change
 	Destructive bool
 	NeedsDeploy bool
+	Desired     State
 }
 
 // Error is one reason the plan cannot be applied.
@@ -112,6 +114,7 @@ func Compute(in Input) (Plan, error) {
 				Service:     name,
 				Changes:     diff(nil, &desired),
 				NeedsDeploy: desired.Image == "",
+				Desired:     desired,
 			})
 		case current.Partial == in.Partial:
 			changes := diff(&current.State, &desired)
@@ -124,6 +127,7 @@ func Compute(in Input) (Plan, error) {
 				Service:     name,
 				Changes:     changes,
 				NeedsDeploy: needsDeploy,
+				Desired:     desired,
 			})
 		case current.Partial == "":
 			plan.Operations = append(plan.Operations, Operation{
@@ -131,6 +135,7 @@ func Compute(in Input) (Plan, error) {
 				Service:     name,
 				Changes:     diff(&current.State, &desired),
 				NeedsDeploy: needsBuild(current, desired),
+				Desired:     desired,
 			})
 		default:
 			owned := fmt.Errorf("%w: %s", ErrOwnedByOtherPartial, current.Partial)
