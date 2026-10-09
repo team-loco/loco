@@ -20,6 +20,7 @@ import (
 	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type eventsDeps struct {
@@ -125,9 +126,7 @@ Examples:
 			}
 
 			if output == outputJSON {
-				encoder := json.NewEncoder(deps.Stdout)
-				encoder.SetIndent("", "  ")
-				return encoder.Encode(resp.Msg.GetEvents())
+				return writeEventsJSON(deps.Stdout, resp.Msg.GetEvents())
 			}
 
 			renderEventsTable(deps.Stdout, resp.Msg.GetEvents())
@@ -142,6 +141,23 @@ Examples:
 	cmd.Flags().String("host", "", "API host URL")
 
 	return cmd
+}
+
+func writeEventsJSON(stdout io.Writer, events []*resourcev1.Event) error {
+	items := make([]json.RawMessage, 0, len(events))
+	for _, event := range events {
+		item, err := protojson.Marshal(event)
+		if err != nil {
+			return fmt.Errorf("encode event: %w", err)
+		}
+		items = append(items, item)
+	}
+	out, err := json.MarshalIndent(items, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode events: %w", err)
+	}
+	_, err = fmt.Fprintln(stdout, string(out))
+	return err
 }
 
 func renderEventsTable(stdout io.Writer, events []*resourcev1.Event) {
