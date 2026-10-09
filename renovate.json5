@@ -20,6 +20,11 @@
   },
   packageRules: [
     {
+      description: "The jdx/mise regex manager below moves the constraints.mise value with the CI mise version; Renovate's own tool-constraint update duplicates it with a v prefix",
+      matchDepTypes: ["tool-constraint"],
+      enabled: false,
+    },
+    {
       description: "The mise version is bumped by the jdx/mise regex rule below, which moves every copy together",
       matchManagers: ["github-actions"],
       matchDepNames: ["jdx/mise"],
