@@ -38,6 +38,7 @@ const (
 	ResourceDeleted      = "resource.deleted"
 	ResourceScaled       = "resource.scaled"
 	ResourceEnvUpdated   = "resource.env_updated"
+	ResourcePartial      = "resource.partial_transferred"
 	DeploymentCreated    = "deployment.created"
 	DeploymentDeleted    = "deployment.deleted"
 	BuildCreated         = "build.created"
@@ -79,6 +80,8 @@ const (
 	FieldAction     = "action"
 	FieldDomain     = "domain"
 	FieldResourceID = "resourceId"
+	FieldPartial    = "partial"
+	FieldFrom       = "from"
 )
 
 type Event struct {

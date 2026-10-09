@@ -228,7 +228,7 @@ func (q *Queries) GetFirstActiveCluster(ctx context.Context) (GetFirstActiveClus
 }
 
 const getResourceByID = `-- name: GetResourceByID :one
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
 FROM resources r
 WHERE r.id = $1
 `
@@ -245,6 +245,7 @@ func (q *Queries) GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, 
 		&i.Status,
 		&i.Spec,
 		&i.SpecVersion,
+		&i.Partial,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -252,7 +253,7 @@ func (q *Queries) GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, 
 }
 
 const getResourceByNameAndWorkspace = `-- name: GetResourceByNameAndWorkspace :one
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.name = $2
 `
@@ -274,6 +275,7 @@ func (q *Queries) GetResourceByNameAndWorkspace(ctx context.Context, arg GetReso
 		&i.Status,
 		&i.Spec,
 		&i.SpecVersion,
+		&i.Partial,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -497,7 +499,7 @@ func (q *Queries) ListResourceRegionsForResources(ctx context.Context, resourceI
 }
 
 const listResourcesForWorkspace = `-- name: ListResourcesForWorkspace :many
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1
    AND ($3::text IS NULL
@@ -533,6 +535,7 @@ func (q *Queries) ListResourcesForWorkspace(ctx context.Context, arg ListResourc
 			&i.Status,
 			&i.Spec,
 			&i.SpecVersion,
+			&i.Partial,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -583,6 +586,22 @@ func (q *Queries) LockResourceRegion(ctx context.Context, arg LockResourceRegion
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const setResourcePartial = `-- name: SetResourcePartial :exec
+UPDATE resources
+SET partial = $2, updated_at = NOW()
+WHERE id = $1
+`
+
+type SetResourcePartialParams struct {
+	ID      uuid.UUID `json:"id"`
+	Partial *string   `json:"partial"`
+}
+
+func (q *Queries) SetResourcePartial(ctx context.Context, arg SetResourcePartialParams) error {
+	_, err := q.db.Exec(ctx, setResourcePartial, arg.ID, arg.Partial)
+	return err
 }
 
 const updateResource = `-- name: UpdateResource :one

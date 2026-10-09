@@ -1284,6 +1284,7 @@ func dbResourceToProto(
 		UpdatedAt:   timeutil.ParsePostgresTimestamp(res.UpdatedAt),
 		Status:      resourceStatus,
 		Description: &res.Description,
+		Partial:     res.Partial,
 	}
 
 	return result

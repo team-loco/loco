@@ -533,6 +533,7 @@ type Resource struct {
 	Status      ResourceStatus `json:"status"`
 	Spec        []byte         `json:"spec"`
 	SpecVersion int32          `json:"specVersion"`
+	Partial     *string        `json:"partial"`
 	CreatedAt   time.Time      `json:"createdAt"`
 	UpdatedAt   time.Time      `json:"updatedAt"`
 }

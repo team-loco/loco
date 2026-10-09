@@ -130,6 +130,7 @@ CREATE TABLE
         status resource_status NOT NULL,
         spec JSONB NOT NULL,
         spec_version INT NOT NULL,
+        partial TEXT CHECK (partial ~ '^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$'),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         UNIQUE (workspace_id, name)
