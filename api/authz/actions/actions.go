@@ -321,6 +321,11 @@ var (
 		entityType: db.EntityTypeWorkspace,
 		scope:      db.ScopeRead,
 	}
+	// Apply requires workspace:write; a delete in the plan also needs DeleteResource.
+	Apply = Action{
+		entityType: db.EntityTypeWorkspace,
+		scope:      db.ScopeWrite,
+	}
 	// Plan requires workspace:read; it writes nothing.
 	Plan = Action{
 		entityType: db.EntityTypeWorkspace,
