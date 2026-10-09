@@ -39,6 +39,10 @@ var (
 	ErrClusterNotHealthy     = errors.New("cluster is not healthy")
 	ErrInvalidResourceType   = errors.New("invalid resource type")
 
+	errClusterHeldByEnvironment = errors.New(
+		"each environment needs its own cluster, and this cluster already runs the service for another environment",
+	)
+
 	errDomainInUse           = errors.New("domain already in use")
 	errUnknownResourceSpec   = errors.New("unknown resource spec type")
 	errOnlyServiceResources  = errors.New("only service resources are currently supported")
@@ -998,6 +1002,7 @@ func (s *ResourceServer) planRegionRedeploy(
 			Spec:          specJSON,
 			SpecVersion:   int32(1),
 			EnvironmentID: current.EnvironmentID,
+			SecretNames:   current.SecretNames,
 		},
 		deploymentSpec: &deploymentv1.DeploymentSpec{
 			Spec: &deploymentv1.DeploymentSpec_Service{
@@ -1451,6 +1456,10 @@ func desiredApplicationSpec(
 }
 
 func deploymentTxError(ctx context.Context, err error) error {
+	if errors.Is(err, errClusterHeldByEnvironment) {
+		slog.WarnContext(ctx, "refused a deployment to another environment's cluster", "error", err)
+		return connect.NewError(connect.CodeFailedPrecondition, err)
+	}
 	if invalidSpec, ok := errors.AsType[*invalidSpecError](err); ok {
 		slog.WarnContext(ctx, "rejected an invalid deployment spec", "error", err)
 		return connect.NewError(connect.CodeInvalidArgument, invalidSpec)
@@ -1487,6 +1496,40 @@ func finalizedDeploymentStatus(status genDb.DeploymentStatus) genDb.DeploymentSt
 	}
 }
 
+// checkClusterEnvironment refuses a deployment to a cluster whose placement of the resource
+// belongs to another environment. Loco runs one dedicated cluster per environment, and the
+// cluster names the service's Application after the resource alone, so a second environment
+// on the same cluster would overwrite the first one's workload.
+func checkClusterEnvironment(ctx context.Context, qtx *genDb.Queries, params genDb.CreateDeploymentParams) error {
+	placement, err := qtx.GetPlacementForResourceCluster(ctx, genDb.GetPlacementForResourceClusterParams{
+		ResourceID: params.ResourceID,
+		ClusterID:  params.ClusterID,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("get placement: %w", err)
+	}
+	if placement.DesiredDeleted || placement.EnvironmentID == params.EnvironmentID {
+		return nil
+	}
+	cluster, err := qtx.GetClusterByID(ctx, params.ClusterID)
+	if err != nil {
+		return fmt.Errorf("get cluster: %w", err)
+	}
+	other, err := qtx.GetEnvironmentByID(ctx, placement.EnvironmentID)
+	if err != nil {
+		return fmt.Errorf("get environment: %w", err)
+	}
+	return fmt.Errorf(
+		"%w: cluster %s already runs it for environment %s",
+		errClusterHeldByEnvironment,
+		cluster.Name,
+		other.Name,
+	)
+}
+
 func createDeploymentWithCleanup(
 	ctx context.Context,
 	qtx *genDb.Queries,
@@ -1501,6 +1544,9 @@ func createDeploymentWithCleanup(
 		return uuid.UUID{}, fmt.Errorf("failed to lock resource region: %w", err)
 	}
 	params.ResourceRegionID = resourceRegion.ID
+	if heldErr := checkClusterEnvironment(ctx, qtx, params); heldErr != nil {
+		return uuid.UUID{}, heldErr
+	}
 
 	activeDeployment, err := qtx.GetActiveDeploymentForResourceAndRegion(
 		ctx,
@@ -1548,11 +1594,13 @@ func createDeploymentWithCleanup(
 	}
 
 	_, err = placeApplication(ctx, qtx, genDb.UpsertPlacementParams{
-		ResourceID:   params.ResourceID,
-		ClusterID:    params.ClusterID,
-		Region:       params.Region,
-		DeploymentID: &deploymentID,
-		DesiredSpec:  spec,
+		ResourceID:    params.ResourceID,
+		ClusterID:     params.ClusterID,
+		Region:        params.Region,
+		DeploymentID:  &deploymentID,
+		DesiredSpec:   spec,
+		EnvironmentID: params.EnvironmentID,
+		SecretNames:   params.SecretNames,
 	})
 	if err != nil {
 		return uuid.UUID{}, err

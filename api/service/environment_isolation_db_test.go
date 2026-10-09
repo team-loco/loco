@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -72,6 +74,30 @@ func TestDeploymentsOfTwoEnvironmentsInOneRegionStayActive(t *testing.T) {
 	}
 	if got := len(f.activeDeployments(t, stagingID)); got != 1 {
 		t.Fatalf("staging active deployments = %d, want 1 after production redeployed", got)
+	}
+}
+
+func TestDeployingAnotherEnvironmentToTheSameClusterIsRefused(t *testing.T) {
+	f := newDeployFixture(t)
+	qaID := f.addTypedEnvironment(t, "qa", "production")
+	ctx := context.Background()
+	if _, err := f.deploy(ctx, staticSpec); err != nil {
+		t.Fatalf("deploy production: %v", err)
+	}
+	qa := f.paramsFor(f.clusterID)
+	qa.EnvironmentID = qaID
+	err := withTx(ctx, f.pool, func(qtx *genDb.Queries) error {
+		_, deployErr := createDeploymentWithCleanup(ctx, qtx, qa, staticSpec)
+		return deployErr
+	})
+	if !errors.Is(err, errClusterHeldByEnvironment) {
+		t.Fatalf("deploy qa = %v, want %v", err, errClusterHeldByEnvironment)
+	}
+	if want := "cluster c1 already runs it for environment prod"; !strings.Contains(err.Error(), want) {
+		t.Fatalf("error = %q, want it to name the cluster and the environment", err)
+	}
+	if got := len(f.activeDeployments(t, f.envID)); got != 1 {
+		t.Fatalf("production active deployments = %d, want 1", got)
 	}
 }
 

@@ -443,6 +443,7 @@ type Deployment struct {
 	EnvironmentID    uuid.UUID        `json:"environmentId"`
 	Spec             []byte           `json:"spec"`
 	SpecVersion      int32            `json:"specVersion"`
+	SecretNames      []string         `json:"secretNames"`
 	CreatedAt        time.Time        `json:"createdAt"`
 	StartedAt        time.Time        `json:"startedAt"`
 	CompletedAt      *time.Time       `json:"completedAt"`
@@ -502,6 +503,8 @@ type Placement struct {
 	ClusterID        uuid.UUID  `json:"clusterId"`
 	Region           string     `json:"region"`
 	DeploymentID     *uuid.UUID `json:"deploymentId"`
+	EnvironmentID    uuid.UUID  `json:"environmentId"`
+	SecretNames      []string   `json:"secretNames"`
 	DesiredRevision  int64      `json:"desiredRevision"`
 	DesiredSpec      []byte     `json:"desiredSpec"`
 	DesiredDeleted   bool       `json:"desiredDeleted"`

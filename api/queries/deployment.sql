@@ -1,8 +1,8 @@
 -- Deployment queries
 
 -- name: CreateDeployment :one
-INSERT INTO deployments (resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version, environment_id, started_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+INSERT INTO deployments (resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version, environment_id, secret_names, started_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
 RETURNING id;
 
 -- name: GetDeploymentByID :one
