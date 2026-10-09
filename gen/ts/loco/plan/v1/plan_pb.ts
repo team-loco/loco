@@ -11,7 +11,269 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/plan/v1/plan.proto.
  */
 export const file_loco_plan_v1_plan: GenFile = /*@__PURE__*/
-  fileDesc("Chdsb2NvL3BsYW4vdjEvcGxhbi5wcm90bxIMbG9jby5wbGFuLnYxIkoKC1BsYW5SZXF1ZXN0EhkKBGZpbGUYASABKAxCC7pICHoGEAEYgIBAEiAKDmVudmlyb25tZW50X2lkGAIgASgJQgi6SAVyA7ABASJ6CgxQbGFuUmVzcG9uc2USEAoIcmV2aXNpb24YASABKAMSLwoKb3BlcmF0aW9ucxgCIAMoCzIbLmxvY28ucGxhbi52MS5QbGFuT3BlcmF0aW9uEicKBmVycm9ycxgDIAMoCzIXLmxvY28ucGxhbi52MS5QbGFuRXJyb3IipgEKDVBsYW5PcGVyYXRpb24SLQoEa2luZBgBIAEoDjIfLmxvY28ucGxhbi52MS5QbGFuT3BlcmF0aW9uS2luZBIPCgdzZXJ2aWNlGAIgASgJEioKB2NoYW5nZXMYAyADKAsyGS5sb2NvLnBsYW4udjEuRmllbGRDaGFuZ2USEwoLZGVzdHJ1Y3RpdmUYBCABKAgSFAoMbmVlZHNfZGVwbG95GAUgASgIIjoKC0ZpZWxkQ2hhbmdlEgwKBHBhdGgYASABKAkSDgoGYmVmb3JlGAIgASgJEg0KBWFmdGVyGAMgASgJIjsKCVBsYW5FcnJvchIPCgdzZXJ2aWNlGAEgASgJEgwKBHBhdGgYAiABKAkSDwoHbWVzc2FnZRgDIAEoCSq4AQoRUGxhbk9wZXJhdGlvbktpbmQSIwofUExBTl9PUEVSQVRJT05fS0lORF9VTlNQRUNJRklFRBAAEh4KGlBMQU5fT1BFUkFUSU9OX0tJTkRfQ1JFQVRFEAESHgoaUExBTl9PUEVSQVRJT05fS0lORF9VUERBVEUQAhIeChpQTEFOX09QRVJBVElPTl9LSU5EX0RFTEVURRADEh4KGlBMQU5fT1BFUkFUSU9OX0tJTkRfSU1QT1JUEAQyTAoLUGxhblNlcnZpY2USPQoEUGxhbhIZLmxvY28ucGxhbi52MS5QbGFuUmVxdWVzdBoaLmxvY28ucGxhbi52MS5QbGFuUmVzcG9uc2VCNlo0Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9wbGFuL3YxO3BsYW52MWIGcHJvdG8z", [file_buf_validate_validate]);
+  fileDesc("Chdsb2NvL3BsYW4vdjEvcGxhbi5wcm90bxIMbG9jby5wbGFuLnYxIpIBCgxBcHBseVJlcXVlc3QSGQoEZmlsZRgBIAEoDEILukgIegYQARiAgEASIAoOZW52aXJvbm1lbnRfaWQYAiABKAlCCLpIBXIDsAEBEhAKCHJldmlzaW9uGAMgASgDEhsKE2NvbmZpcm1fZGVzdHJ1Y3RpdmUYBCABKAgSFgoOY29uZmlybV9pbXBvcnQYBSABKAgiiAEKDUFwcGx5UmVzcG9uc2USEAoIcmV2aXNpb24YASABKAMSLwoKb3BlcmF0aW9ucxgCIAMoCzIbLmxvY28ucGxhbi52MS5QbGFuT3BlcmF0aW9uEjQKC2RlcGxveW1lbnRzGAMgAygLMh8ubG9jby5wbGFuLnYxLlN0YXJ0ZWREZXBsb3ltZW50IksKEVN0YXJ0ZWREZXBsb3ltZW50Eg8KB3NlcnZpY2UYASABKAkSDgoGcmVnaW9uGAIgASgJEhUKDWRlcGxveW1lbnRfaWQYAyABKAkiewoMQXBwbHlSZWZ1c2FsEicKBmVycm9ycxgBIAMoCzIXLmxvY28ucGxhbi52MS5QbGFuRXJyb3ISMAoLdW5jb25maXJtZWQYAiADKAsyGy5sb2NvLnBsYW4udjEuUGxhbk9wZXJhdGlvbhIQCghyZXZpc2lvbhgDIAEoAyJKCgtQbGFuUmVxdWVzdBIZCgRmaWxlGAEgASgMQgu6SAh6BhABGICAQBIgCg5lbnZpcm9ubWVudF9pZBgCIAEoCUIIukgFcgOwAQEiegoMUGxhblJlc3BvbnNlEhAKCHJldmlzaW9uGAEgASgDEi8KCm9wZXJhdGlvbnMYAiADKAsyGy5sb2NvLnBsYW4udjEuUGxhbk9wZXJhdGlvbhInCgZlcnJvcnMYAyADKAsyFy5sb2NvLnBsYW4udjEuUGxhbkVycm9yIqYBCg1QbGFuT3BlcmF0aW9uEi0KBGtpbmQYASABKA4yHy5sb2NvLnBsYW4udjEuUGxhbk9wZXJhdGlvbktpbmQSDwoHc2VydmljZRgCIAEoCRIqCgdjaGFuZ2VzGAMgAygLMhkubG9jby5wbGFuLnYxLkZpZWxkQ2hhbmdlEhMKC2Rlc3RydWN0aXZlGAQgASgIEhQKDG5lZWRzX2RlcGxveRgFIAEoCCI6CgtGaWVsZENoYW5nZRIMCgRwYXRoGAEgASgJEg4KBmJlZm9yZRgCIAEoCRINCgVhZnRlchgDIAEoCSI7CglQbGFuRXJyb3ISDwoHc2VydmljZRgBIAEoCRIMCgRwYXRoGAIgASgJEg8KB21lc3NhZ2UYAyABKAkquAEKEVBsYW5PcGVyYXRpb25LaW5kEiMKH1BMQU5fT1BFUkFUSU9OX0tJTkRfVU5TUEVDSUZJRUQQABIeChpQTEFOX09QRVJBVElPTl9LSU5EX0NSRUFURRABEh4KGlBMQU5fT1BFUkFUSU9OX0tJTkRfVVBEQVRFEAISHgoaUExBTl9PUEVSQVRJT05fS0lORF9ERUxFVEUQAxIeChpQTEFOX09QRVJBVElPTl9LSU5EX0lNUE9SVBAEMo4BCgtQbGFuU2VydmljZRI9CgRQbGFuEhkubG9jby5wbGFuLnYxLlBsYW5SZXF1ZXN0GhoubG9jby5wbGFuLnYxLlBsYW5SZXNwb25zZRJACgVBcHBseRIaLmxvY28ucGxhbi52MS5BcHBseVJlcXVlc3QaGy5sb2NvLnBsYW4udjEuQXBwbHlSZXNwb25zZUI2WjRnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL3BsYW4vdjE7cGxhbnYxYgZwcm90bzM", [file_buf_validate_validate]);
+
+/**
+ * @generated from message loco.plan.v1.ApplyRequest
+ */
+export type ApplyRequest = Message<"loco.plan.v1.ApplyRequest"> & {
+  /**
+   * @generated from field: bytes file = 1;
+   */
+  file: Uint8Array;
+
+  /**
+   * @generated from field: string environment_id = 2;
+   */
+  environmentId: string;
+
+  /**
+   * revision is the environment revision the plan was computed against.
+   *
+   * @generated from field: int64 revision = 3;
+   */
+  revision: bigint;
+
+  /**
+   * confirm_destructive approves the plan's destructive operations: deleting a service this file
+   * owns and no longer declares, removing a region where a service is running, and stopping a
+   * running service that the file disables in this environment. Apply refuses a plan with
+   * destructive operations unless it is set.
+   *
+   * @generated from field: bool confirm_destructive = 4;
+   */
+  confirmDestructive: boolean;
+
+  /**
+   * confirm_import approves the plan's import operations: existing services in the environment
+   * that no loco.yaml owns yet and that this file takes over. Apply refuses a plan with imports
+   * unless it is set.
+   *
+   * @generated from field: bool confirm_import = 5;
+   */
+  confirmImport: boolean;
+};
+
+/**
+ * @generated from message loco.plan.v1.ApplyRequest
+ */
+export type ApplyRequestJson = {
+  /**
+   * @generated from field: bytes file = 1;
+   */
+  file?: string;
+
+  /**
+   * @generated from field: string environment_id = 2;
+   */
+  environmentId?: string;
+
+  /**
+   * revision is the environment revision the plan was computed against.
+   *
+   * @generated from field: int64 revision = 3;
+   */
+  revision?: string;
+
+  /**
+   * confirm_destructive approves the plan's destructive operations: deleting a service this file
+   * owns and no longer declares, removing a region where a service is running, and stopping a
+   * running service that the file disables in this environment. Apply refuses a plan with
+   * destructive operations unless it is set.
+   *
+   * @generated from field: bool confirm_destructive = 4;
+   */
+  confirmDestructive?: boolean;
+
+  /**
+   * confirm_import approves the plan's import operations: existing services in the environment
+   * that no loco.yaml owns yet and that this file takes over. Apply refuses a plan with imports
+   * unless it is set.
+   *
+   * @generated from field: bool confirm_import = 5;
+   */
+  confirmImport?: boolean;
+};
+
+/**
+ * Describes the message loco.plan.v1.ApplyRequest.
+ * Use `create(ApplyRequestSchema)` to create a new message.
+ */
+export const ApplyRequestSchema: GenMessage<ApplyRequest, {jsonType: ApplyRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_plan_v1_plan, 0);
+
+/**
+ * @generated from message loco.plan.v1.ApplyResponse
+ */
+export type ApplyResponse = Message<"loco.plan.v1.ApplyResponse"> & {
+  /**
+   * revision is the environment revision after the apply.
+   *
+   * @generated from field: int64 revision = 1;
+   */
+  revision: bigint;
+
+  /**
+   * operations are the operations performed, in service name order.
+   *
+   * @generated from field: repeated loco.plan.v1.PlanOperation operations = 2;
+   */
+  operations: PlanOperation[];
+
+  /**
+   * deployments are the deployments the apply started, one per service and region.
+   *
+   * @generated from field: repeated loco.plan.v1.StartedDeployment deployments = 3;
+   */
+  deployments: StartedDeployment[];
+};
+
+/**
+ * @generated from message loco.plan.v1.ApplyResponse
+ */
+export type ApplyResponseJson = {
+  /**
+   * revision is the environment revision after the apply.
+   *
+   * @generated from field: int64 revision = 1;
+   */
+  revision?: string;
+
+  /**
+   * operations are the operations performed, in service name order.
+   *
+   * @generated from field: repeated loco.plan.v1.PlanOperation operations = 2;
+   */
+  operations?: PlanOperationJson[];
+
+  /**
+   * deployments are the deployments the apply started, one per service and region.
+   *
+   * @generated from field: repeated loco.plan.v1.StartedDeployment deployments = 3;
+   */
+  deployments?: StartedDeploymentJson[];
+};
+
+/**
+ * Describes the message loco.plan.v1.ApplyResponse.
+ * Use `create(ApplyResponseSchema)` to create a new message.
+ */
+export const ApplyResponseSchema: GenMessage<ApplyResponse, {jsonType: ApplyResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_plan_v1_plan, 1);
+
+/**
+ * StartedDeployment is a deployment an apply created for a runtime change.
+ *
+ * @generated from message loco.plan.v1.StartedDeployment
+ */
+export type StartedDeployment = Message<"loco.plan.v1.StartedDeployment"> & {
+  /**
+   * @generated from field: string service = 1;
+   */
+  service: string;
+
+  /**
+   * @generated from field: string region = 2;
+   */
+  region: string;
+
+  /**
+   * @generated from field: string deployment_id = 3;
+   */
+  deploymentId: string;
+};
+
+/**
+ * StartedDeployment is a deployment an apply created for a runtime change.
+ *
+ * @generated from message loco.plan.v1.StartedDeployment
+ */
+export type StartedDeploymentJson = {
+  /**
+   * @generated from field: string service = 1;
+   */
+  service?: string;
+
+  /**
+   * @generated from field: string region = 2;
+   */
+  region?: string;
+
+  /**
+   * @generated from field: string deployment_id = 3;
+   */
+  deploymentId?: string;
+};
+
+/**
+ * Describes the message loco.plan.v1.StartedDeployment.
+ * Use `create(StartedDeploymentSchema)` to create a new message.
+ */
+export const StartedDeploymentSchema: GenMessage<StartedDeployment, {jsonType: StartedDeploymentJson}> = /*@__PURE__*/
+  messageDesc(file_loco_plan_v1_plan, 2);
+
+/**
+ * ApplyRefusal is the detail of a FAILED_PRECONDITION error from Apply.
+ *
+ * @generated from message loco.plan.v1.ApplyRefusal
+ */
+export type ApplyRefusal = Message<"loco.plan.v1.ApplyRefusal"> & {
+  /**
+   * errors are the plan errors that stop the apply.
+   *
+   * @generated from field: repeated loco.plan.v1.PlanError errors = 1;
+   */
+  errors: PlanError[];
+
+  /**
+   * unconfirmed are the operations whose confirmation the request did not give.
+   *
+   * @generated from field: repeated loco.plan.v1.PlanOperation unconfirmed = 2;
+   */
+  unconfirmed: PlanOperation[];
+
+  /**
+   * revision is the environment's current revision when it differs from the request's.
+   *
+   * @generated from field: int64 revision = 3;
+   */
+  revision: bigint;
+};
+
+/**
+ * ApplyRefusal is the detail of a FAILED_PRECONDITION error from Apply.
+ *
+ * @generated from message loco.plan.v1.ApplyRefusal
+ */
+export type ApplyRefusalJson = {
+  /**
+   * errors are the plan errors that stop the apply.
+   *
+   * @generated from field: repeated loco.plan.v1.PlanError errors = 1;
+   */
+  errors?: PlanErrorJson[];
+
+  /**
+   * unconfirmed are the operations whose confirmation the request did not give.
+   *
+   * @generated from field: repeated loco.plan.v1.PlanOperation unconfirmed = 2;
+   */
+  unconfirmed?: PlanOperationJson[];
+
+  /**
+   * revision is the environment's current revision when it differs from the request's.
+   *
+   * @generated from field: int64 revision = 3;
+   */
+  revision?: string;
+};
+
+/**
+ * Describes the message loco.plan.v1.ApplyRefusal.
+ * Use `create(ApplyRefusalSchema)` to create a new message.
+ */
+export const ApplyRefusalSchema: GenMessage<ApplyRefusal, {jsonType: ApplyRefusalJson}> = /*@__PURE__*/
+  messageDesc(file_loco_plan_v1_plan, 3);
 
 /**
  * @generated from message loco.plan.v1.PlanRequest
@@ -52,7 +314,7 @@ export type PlanRequestJson = {
  * Use `create(PlanRequestSchema)` to create a new message.
  */
 export const PlanRequestSchema: GenMessage<PlanRequest, {jsonType: PlanRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_plan_v1_plan, 0);
+  messageDesc(file_loco_plan_v1_plan, 4);
 
 /**
  * @generated from message loco.plan.v1.PlanResponse
@@ -113,7 +375,7 @@ export type PlanResponseJson = {
  * Use `create(PlanResponseSchema)` to create a new message.
  */
 export const PlanResponseSchema: GenMessage<PlanResponse, {jsonType: PlanResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_plan_v1_plan, 1);
+  messageDesc(file_loco_plan_v1_plan, 5);
 
 /**
  * @generated from message loco.plan.v1.PlanOperation
@@ -188,7 +450,7 @@ export type PlanOperationJson = {
  * Use `create(PlanOperationSchema)` to create a new message.
  */
 export const PlanOperationSchema: GenMessage<PlanOperation, {jsonType: PlanOperationJson}> = /*@__PURE__*/
-  messageDesc(file_loco_plan_v1_plan, 2);
+  messageDesc(file_loco_plan_v1_plan, 6);
 
 /**
  * FieldChange is one field the apply would change. Secret values never appear here.
@@ -243,7 +505,7 @@ export type FieldChangeJson = {
  * Use `create(FieldChangeSchema)` to create a new message.
  */
 export const FieldChangeSchema: GenMessage<FieldChange, {jsonType: FieldChangeJson}> = /*@__PURE__*/
-  messageDesc(file_loco_plan_v1_plan, 3);
+  messageDesc(file_loco_plan_v1_plan, 7);
 
 /**
  * @generated from message loco.plan.v1.PlanError
@@ -298,7 +560,7 @@ export type PlanErrorJson = {
  * Use `create(PlanErrorSchema)` to create a new message.
  */
 export const PlanErrorSchema: GenMessage<PlanError, {jsonType: PlanErrorJson}> = /*@__PURE__*/
-  messageDesc(file_loco_plan_v1_plan, 4);
+  messageDesc(file_loco_plan_v1_plan, 8);
 
 /**
  * @generated from enum loco.plan.v1.PlanOperationKind
@@ -364,6 +626,19 @@ export const PlanService: GenService<{
     methodKind: "unary";
     input: typeof PlanRequestSchema;
     output: typeof PlanResponseSchema;
+  },
+  /**
+   * Apply re-plans the file against the environment and performs the operations in one
+   * transaction. It fails with FAILED_PRECONDITION when the environment revision differs from
+   * the one the plan was computed against, when the plan has errors, or when a destructive or
+   * import operation lacks its confirmation; the error carries an ApplyRefusal detail.
+   *
+   * @generated from rpc loco.plan.v1.PlanService.Apply
+   */
+  apply: {
+    methodKind: "unary";
+    input: typeof ApplyRequestSchema;
+    output: typeof ApplyResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_loco_plan_v1_plan, 0);

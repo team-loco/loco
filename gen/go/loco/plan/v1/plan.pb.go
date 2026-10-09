@@ -81,6 +81,278 @@ func (PlanOperationKind) EnumDescriptor() ([]byte, []int) {
 	return file_loco_plan_v1_plan_proto_rawDescGZIP(), []int{0}
 }
 
+type ApplyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	File          []byte                 `protobuf:"bytes,1,opt,name=file,proto3" json:"file,omitempty"`
+	EnvironmentId string                 `protobuf:"bytes,2,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	// revision is the environment revision the plan was computed against.
+	Revision int64 `protobuf:"varint,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	// confirm_destructive approves the plan's destructive operations: deleting a service this file
+	// owns and no longer declares, removing a region where a service is running, and stopping a
+	// running service that the file disables in this environment. Apply refuses a plan with
+	// destructive operations unless it is set.
+	ConfirmDestructive bool `protobuf:"varint,4,opt,name=confirm_destructive,json=confirmDestructive,proto3" json:"confirm_destructive,omitempty"`
+	// confirm_import approves the plan's import operations: existing services in the environment
+	// that no loco.yaml owns yet and that this file takes over. Apply refuses a plan with imports
+	// unless it is set.
+	ConfirmImport bool `protobuf:"varint,5,opt,name=confirm_import,json=confirmImport,proto3" json:"confirm_import,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ApplyRequest) Reset() {
+	*x = ApplyRequest{}
+	mi := &file_loco_plan_v1_plan_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApplyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApplyRequest) ProtoMessage() {}
+
+func (x *ApplyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_plan_v1_plan_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApplyRequest.ProtoReflect.Descriptor instead.
+func (*ApplyRequest) Descriptor() ([]byte, []int) {
+	return file_loco_plan_v1_plan_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *ApplyRequest) GetFile() []byte {
+	if x != nil {
+		return x.File
+	}
+	return nil
+}
+
+func (x *ApplyRequest) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+func (x *ApplyRequest) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *ApplyRequest) GetConfirmDestructive() bool {
+	if x != nil {
+		return x.ConfirmDestructive
+	}
+	return false
+}
+
+func (x *ApplyRequest) GetConfirmImport() bool {
+	if x != nil {
+		return x.ConfirmImport
+	}
+	return false
+}
+
+type ApplyResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// revision is the environment revision after the apply.
+	Revision int64 `protobuf:"varint,1,opt,name=revision,proto3" json:"revision,omitempty"`
+	// operations are the operations performed, in service name order.
+	Operations []*PlanOperation `protobuf:"bytes,2,rep,name=operations,proto3" json:"operations,omitempty"`
+	// deployments are the deployments the apply started, one per service and region.
+	Deployments   []*StartedDeployment `protobuf:"bytes,3,rep,name=deployments,proto3" json:"deployments,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ApplyResponse) Reset() {
+	*x = ApplyResponse{}
+	mi := &file_loco_plan_v1_plan_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApplyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApplyResponse) ProtoMessage() {}
+
+func (x *ApplyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_plan_v1_plan_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApplyResponse.ProtoReflect.Descriptor instead.
+func (*ApplyResponse) Descriptor() ([]byte, []int) {
+	return file_loco_plan_v1_plan_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ApplyResponse) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *ApplyResponse) GetOperations() []*PlanOperation {
+	if x != nil {
+		return x.Operations
+	}
+	return nil
+}
+
+func (x *ApplyResponse) GetDeployments() []*StartedDeployment {
+	if x != nil {
+		return x.Deployments
+	}
+	return nil
+}
+
+// StartedDeployment is a deployment an apply created for a runtime change.
+type StartedDeployment struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Service       string                 `protobuf:"bytes,1,opt,name=service,proto3" json:"service,omitempty"`
+	Region        string                 `protobuf:"bytes,2,opt,name=region,proto3" json:"region,omitempty"`
+	DeploymentId  string                 `protobuf:"bytes,3,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartedDeployment) Reset() {
+	*x = StartedDeployment{}
+	mi := &file_loco_plan_v1_plan_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartedDeployment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartedDeployment) ProtoMessage() {}
+
+func (x *StartedDeployment) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_plan_v1_plan_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartedDeployment.ProtoReflect.Descriptor instead.
+func (*StartedDeployment) Descriptor() ([]byte, []int) {
+	return file_loco_plan_v1_plan_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *StartedDeployment) GetService() string {
+	if x != nil {
+		return x.Service
+	}
+	return ""
+}
+
+func (x *StartedDeployment) GetRegion() string {
+	if x != nil {
+		return x.Region
+	}
+	return ""
+}
+
+func (x *StartedDeployment) GetDeploymentId() string {
+	if x != nil {
+		return x.DeploymentId
+	}
+	return ""
+}
+
+// ApplyRefusal is the detail of a FAILED_PRECONDITION error from Apply.
+type ApplyRefusal struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// errors are the plan errors that stop the apply.
+	Errors []*PlanError `protobuf:"bytes,1,rep,name=errors,proto3" json:"errors,omitempty"`
+	// unconfirmed are the operations whose confirmation the request did not give.
+	Unconfirmed []*PlanOperation `protobuf:"bytes,2,rep,name=unconfirmed,proto3" json:"unconfirmed,omitempty"`
+	// revision is the environment's current revision when it differs from the request's.
+	Revision      int64 `protobuf:"varint,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ApplyRefusal) Reset() {
+	*x = ApplyRefusal{}
+	mi := &file_loco_plan_v1_plan_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApplyRefusal) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApplyRefusal) ProtoMessage() {}
+
+func (x *ApplyRefusal) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_plan_v1_plan_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApplyRefusal.ProtoReflect.Descriptor instead.
+func (*ApplyRefusal) Descriptor() ([]byte, []int) {
+	return file_loco_plan_v1_plan_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ApplyRefusal) GetErrors() []*PlanError {
+	if x != nil {
+		return x.Errors
+	}
+	return nil
+}
+
+func (x *ApplyRefusal) GetUnconfirmed() []*PlanOperation {
+	if x != nil {
+		return x.Unconfirmed
+	}
+	return nil
+}
+
+func (x *ApplyRefusal) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
 type PlanRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// file is the loco.yaml document.
@@ -92,7 +364,7 @@ type PlanRequest struct {
 
 func (x *PlanRequest) Reset() {
 	*x = PlanRequest{}
-	mi := &file_loco_plan_v1_plan_proto_msgTypes[0]
+	mi := &file_loco_plan_v1_plan_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -104,7 +376,7 @@ func (x *PlanRequest) String() string {
 func (*PlanRequest) ProtoMessage() {}
 
 func (x *PlanRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_plan_v1_plan_proto_msgTypes[0]
+	mi := &file_loco_plan_v1_plan_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -117,7 +389,7 @@ func (x *PlanRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanRequest.ProtoReflect.Descriptor instead.
 func (*PlanRequest) Descriptor() ([]byte, []int) {
-	return file_loco_plan_v1_plan_proto_rawDescGZIP(), []int{0}
+	return file_loco_plan_v1_plan_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *PlanRequest) GetFile() []byte {
@@ -149,7 +421,7 @@ type PlanResponse struct {
 
 func (x *PlanResponse) Reset() {
 	*x = PlanResponse{}
-	mi := &file_loco_plan_v1_plan_proto_msgTypes[1]
+	mi := &file_loco_plan_v1_plan_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -161,7 +433,7 @@ func (x *PlanResponse) String() string {
 func (*PlanResponse) ProtoMessage() {}
 
 func (x *PlanResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_plan_v1_plan_proto_msgTypes[1]
+	mi := &file_loco_plan_v1_plan_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -174,7 +446,7 @@ func (x *PlanResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanResponse.ProtoReflect.Descriptor instead.
 func (*PlanResponse) Descriptor() ([]byte, []int) {
-	return file_loco_plan_v1_plan_proto_rawDescGZIP(), []int{1}
+	return file_loco_plan_v1_plan_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *PlanResponse) GetRevision() int64 {
@@ -213,7 +485,7 @@ type PlanOperation struct {
 
 func (x *PlanOperation) Reset() {
 	*x = PlanOperation{}
-	mi := &file_loco_plan_v1_plan_proto_msgTypes[2]
+	mi := &file_loco_plan_v1_plan_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -225,7 +497,7 @@ func (x *PlanOperation) String() string {
 func (*PlanOperation) ProtoMessage() {}
 
 func (x *PlanOperation) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_plan_v1_plan_proto_msgTypes[2]
+	mi := &file_loco_plan_v1_plan_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -238,7 +510,7 @@ func (x *PlanOperation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanOperation.ProtoReflect.Descriptor instead.
 func (*PlanOperation) Descriptor() ([]byte, []int) {
-	return file_loco_plan_v1_plan_proto_rawDescGZIP(), []int{2}
+	return file_loco_plan_v1_plan_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *PlanOperation) GetKind() PlanOperationKind {
@@ -289,7 +561,7 @@ type FieldChange struct {
 
 func (x *FieldChange) Reset() {
 	*x = FieldChange{}
-	mi := &file_loco_plan_v1_plan_proto_msgTypes[3]
+	mi := &file_loco_plan_v1_plan_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -301,7 +573,7 @@ func (x *FieldChange) String() string {
 func (*FieldChange) ProtoMessage() {}
 
 func (x *FieldChange) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_plan_v1_plan_proto_msgTypes[3]
+	mi := &file_loco_plan_v1_plan_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -314,7 +586,7 @@ func (x *FieldChange) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FieldChange.ProtoReflect.Descriptor instead.
 func (*FieldChange) Descriptor() ([]byte, []int) {
-	return file_loco_plan_v1_plan_proto_rawDescGZIP(), []int{3}
+	return file_loco_plan_v1_plan_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *FieldChange) GetPath() string {
@@ -351,7 +623,7 @@ type PlanError struct {
 
 func (x *PlanError) Reset() {
 	*x = PlanError{}
-	mi := &file_loco_plan_v1_plan_proto_msgTypes[4]
+	mi := &file_loco_plan_v1_plan_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -363,7 +635,7 @@ func (x *PlanError) String() string {
 func (*PlanError) ProtoMessage() {}
 
 func (x *PlanError) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_plan_v1_plan_proto_msgTypes[4]
+	mi := &file_loco_plan_v1_plan_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -376,7 +648,7 @@ func (x *PlanError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanError.ProtoReflect.Descriptor instead.
 func (*PlanError) Descriptor() ([]byte, []int) {
-	return file_loco_plan_v1_plan_proto_rawDescGZIP(), []int{4}
+	return file_loco_plan_v1_plan_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *PlanError) GetService() string {
@@ -404,7 +676,27 @@ var File_loco_plan_v1_plan_proto protoreflect.FileDescriptor
 
 const file_loco_plan_v1_plan_proto_rawDesc = "" +
 	"\n" +
-	"\x17loco/plan/v1/plan.proto\x12\floco.plan.v1\x1a\x1bbuf/validate/validate.proto\"_\n" +
+	"\x17loco/plan/v1/plan.proto\x12\floco.plan.v1\x1a\x1bbuf/validate/validate.proto\"\xd4\x01\n" +
+	"\fApplyRequest\x12\x1f\n" +
+	"\x04file\x18\x01 \x01(\fB\v\xbaH\bz\x06\x10\x01\x18\x80\x80@R\x04file\x12/\n" +
+	"\x0eenvironment_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\x12\x1a\n" +
+	"\brevision\x18\x03 \x01(\x03R\brevision\x12/\n" +
+	"\x13confirm_destructive\x18\x04 \x01(\bR\x12confirmDestructive\x12%\n" +
+	"\x0econfirm_import\x18\x05 \x01(\bR\rconfirmImport\"\xab\x01\n" +
+	"\rApplyResponse\x12\x1a\n" +
+	"\brevision\x18\x01 \x01(\x03R\brevision\x12;\n" +
+	"\n" +
+	"operations\x18\x02 \x03(\v2\x1b.loco.plan.v1.PlanOperationR\n" +
+	"operations\x12A\n" +
+	"\vdeployments\x18\x03 \x03(\v2\x1f.loco.plan.v1.StartedDeploymentR\vdeployments\"j\n" +
+	"\x11StartedDeployment\x12\x18\n" +
+	"\aservice\x18\x01 \x01(\tR\aservice\x12\x16\n" +
+	"\x06region\x18\x02 \x01(\tR\x06region\x12#\n" +
+	"\rdeployment_id\x18\x03 \x01(\tR\fdeploymentId\"\x9a\x01\n" +
+	"\fApplyRefusal\x12/\n" +
+	"\x06errors\x18\x01 \x03(\v2\x17.loco.plan.v1.PlanErrorR\x06errors\x12=\n" +
+	"\vunconfirmed\x18\x02 \x03(\v2\x1b.loco.plan.v1.PlanOperationR\vunconfirmed\x12\x1a\n" +
+	"\brevision\x18\x03 \x01(\x03R\brevision\"_\n" +
 	"\vPlanRequest\x12\x1f\n" +
 	"\x04file\x18\x01 \x01(\fB\v\xbaH\bz\x06\x10\x01\x18\x80\x80@R\x04file\x12/\n" +
 	"\x0eenvironment_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\"\x98\x01\n" +
@@ -433,9 +725,10 @@ const file_loco_plan_v1_plan_proto_rawDesc = "" +
 	"\x1aPLAN_OPERATION_KIND_CREATE\x10\x01\x12\x1e\n" +
 	"\x1aPLAN_OPERATION_KIND_UPDATE\x10\x02\x12\x1e\n" +
 	"\x1aPLAN_OPERATION_KIND_DELETE\x10\x03\x12\x1e\n" +
-	"\x1aPLAN_OPERATION_KIND_IMPORT\x10\x042L\n" +
+	"\x1aPLAN_OPERATION_KIND_IMPORT\x10\x042\x8e\x01\n" +
 	"\vPlanService\x12=\n" +
-	"\x04Plan\x12\x19.loco.plan.v1.PlanRequest\x1a\x1a.loco.plan.v1.PlanResponseB6Z4github.com/team-loco/loco/gen/go/loco/plan/v1;planv1b\x06proto3"
+	"\x04Plan\x12\x19.loco.plan.v1.PlanRequest\x1a\x1a.loco.plan.v1.PlanResponse\x12@\n" +
+	"\x05Apply\x12\x1a.loco.plan.v1.ApplyRequest\x1a\x1b.loco.plan.v1.ApplyResponseB6Z4github.com/team-loco/loco/gen/go/loco/plan/v1;planv1b\x06proto3"
 
 var (
 	file_loco_plan_v1_plan_proto_rawDescOnce sync.Once
@@ -450,27 +743,37 @@ func file_loco_plan_v1_plan_proto_rawDescGZIP() []byte {
 }
 
 var file_loco_plan_v1_plan_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_loco_plan_v1_plan_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_loco_plan_v1_plan_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_loco_plan_v1_plan_proto_goTypes = []any{
-	(PlanOperationKind)(0), // 0: loco.plan.v1.PlanOperationKind
-	(*PlanRequest)(nil),    // 1: loco.plan.v1.PlanRequest
-	(*PlanResponse)(nil),   // 2: loco.plan.v1.PlanResponse
-	(*PlanOperation)(nil),  // 3: loco.plan.v1.PlanOperation
-	(*FieldChange)(nil),    // 4: loco.plan.v1.FieldChange
-	(*PlanError)(nil),      // 5: loco.plan.v1.PlanError
+	(PlanOperationKind)(0),    // 0: loco.plan.v1.PlanOperationKind
+	(*ApplyRequest)(nil),      // 1: loco.plan.v1.ApplyRequest
+	(*ApplyResponse)(nil),     // 2: loco.plan.v1.ApplyResponse
+	(*StartedDeployment)(nil), // 3: loco.plan.v1.StartedDeployment
+	(*ApplyRefusal)(nil),      // 4: loco.plan.v1.ApplyRefusal
+	(*PlanRequest)(nil),       // 5: loco.plan.v1.PlanRequest
+	(*PlanResponse)(nil),      // 6: loco.plan.v1.PlanResponse
+	(*PlanOperation)(nil),     // 7: loco.plan.v1.PlanOperation
+	(*FieldChange)(nil),       // 8: loco.plan.v1.FieldChange
+	(*PlanError)(nil),         // 9: loco.plan.v1.PlanError
 }
 var file_loco_plan_v1_plan_proto_depIdxs = []int32{
-	3, // 0: loco.plan.v1.PlanResponse.operations:type_name -> loco.plan.v1.PlanOperation
-	5, // 1: loco.plan.v1.PlanResponse.errors:type_name -> loco.plan.v1.PlanError
-	0, // 2: loco.plan.v1.PlanOperation.kind:type_name -> loco.plan.v1.PlanOperationKind
-	4, // 3: loco.plan.v1.PlanOperation.changes:type_name -> loco.plan.v1.FieldChange
-	1, // 4: loco.plan.v1.PlanService.Plan:input_type -> loco.plan.v1.PlanRequest
-	2, // 5: loco.plan.v1.PlanService.Plan:output_type -> loco.plan.v1.PlanResponse
-	5, // [5:6] is the sub-list for method output_type
-	4, // [4:5] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	7,  // 0: loco.plan.v1.ApplyResponse.operations:type_name -> loco.plan.v1.PlanOperation
+	3,  // 1: loco.plan.v1.ApplyResponse.deployments:type_name -> loco.plan.v1.StartedDeployment
+	9,  // 2: loco.plan.v1.ApplyRefusal.errors:type_name -> loco.plan.v1.PlanError
+	7,  // 3: loco.plan.v1.ApplyRefusal.unconfirmed:type_name -> loco.plan.v1.PlanOperation
+	7,  // 4: loco.plan.v1.PlanResponse.operations:type_name -> loco.plan.v1.PlanOperation
+	9,  // 5: loco.plan.v1.PlanResponse.errors:type_name -> loco.plan.v1.PlanError
+	0,  // 6: loco.plan.v1.PlanOperation.kind:type_name -> loco.plan.v1.PlanOperationKind
+	8,  // 7: loco.plan.v1.PlanOperation.changes:type_name -> loco.plan.v1.FieldChange
+	5,  // 8: loco.plan.v1.PlanService.Plan:input_type -> loco.plan.v1.PlanRequest
+	1,  // 9: loco.plan.v1.PlanService.Apply:input_type -> loco.plan.v1.ApplyRequest
+	6,  // 10: loco.plan.v1.PlanService.Plan:output_type -> loco.plan.v1.PlanResponse
+	2,  // 11: loco.plan.v1.PlanService.Apply:output_type -> loco.plan.v1.ApplyResponse
+	10, // [10:12] is the sub-list for method output_type
+	8,  // [8:10] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_loco_plan_v1_plan_proto_init() }
@@ -484,7 +787,7 @@ func file_loco_plan_v1_plan_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_plan_v1_plan_proto_rawDesc), len(file_loco_plan_v1_plan_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   5,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

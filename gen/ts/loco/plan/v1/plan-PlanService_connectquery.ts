@@ -10,3 +10,13 @@ import { PlanService } from "./plan_pb";
  * @generated from rpc loco.plan.v1.PlanService.Plan
  */
 export const plan = PlanService.method.plan;
+
+/**
+ * Apply re-plans the file against the environment and performs the operations in one
+ * transaction. It fails with FAILED_PRECONDITION when the environment revision differs from
+ * the one the plan was computed against, when the plan has errors, or when a destructive or
+ * import operation lacks its confirmation; the error carries an ApplyRefusal detail.
+ *
+ * @generated from rpc loco.plan.v1.PlanService.Apply
+ */
+export const apply = PlanService.method.apply;

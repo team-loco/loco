@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { PlanRequest, PlanResponse } from "./plan_pb";
+import { ApplyRequest, ApplyResponse, PlanRequest, PlanResponse } from "./plan_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -23,6 +23,20 @@ export const PlanService = {
       name: "Plan",
       I: PlanRequest,
       O: PlanResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Apply re-plans the file against the environment and performs the operations in one
+     * transaction. It fails with FAILED_PRECONDITION when the environment revision differs from
+     * the one the plan was computed against, when the plan has errors, or when a destructive or
+     * import operation lacks its confirmation; the error carries an ApplyRefusal detail.
+     *
+     * @generated from rpc loco.plan.v1.PlanService.Apply
+     */
+    apply: {
+      name: "Apply",
+      I: ApplyRequest,
+      O: ApplyResponse,
       kind: MethodKind.Unary,
     },
   }

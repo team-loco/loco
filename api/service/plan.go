@@ -21,11 +21,13 @@ import (
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
+	"github.com/team-loco/loco/gen/go/loco/plan/v1/planv1connect"
 	"github.com/team-loco/loco/internal/locofile"
 )
 
 // PlanServer implements the PlanService: it diffs a loco.yaml file against an environment.
 type PlanServer struct {
+	planv1connect.UnimplementedPlanServiceHandler
 	queries      genDb.Querier
 	authz        *authz.Authorizer
 	resolver     ImageResolver
