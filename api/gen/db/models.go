@@ -393,6 +393,7 @@ type Build struct {
 	SourceKey       string      `json:"sourceKey"`
 	SourceSize      int64       `json:"sourceSize"`
 	DockerfilePath  string      `json:"dockerfilePath"`
+	Context         string      `json:"context"`
 	ImageRepository string      `json:"imageRepository"`
 	ImageDigest     *string     `json:"imageDigest"`
 	CacheDigest     *string     `json:"cacheDigest"`

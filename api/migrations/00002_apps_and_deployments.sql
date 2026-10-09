@@ -276,6 +276,7 @@ CREATE TABLE
         source_key TEXT NOT NULL UNIQUE,
         source_size BIGINT NOT NULL,
         dockerfile_path TEXT NOT NULL,
+        context TEXT NOT NULL DEFAULT '.',
         image_repository TEXT NOT NULL,
         image_digest TEXT,
         cache_digest TEXT,
