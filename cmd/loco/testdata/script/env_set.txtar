@@ -1,0 +1,60 @@
+# loco env set takes KEY=VALUE arguments; a bare KEY reads its value from stdin.
+exec loco env set --env production API_KEY=abc123 LOG_LEVEL=debug
+stdout '^Set 2 secrets \(revision 1\)$'
+stdout '^  API_KEY v1$'
+stdout '^  LOG_LEVEL v1$'
+! stdout 'abc123'
+fakeapi called SetSecrets 'Bearer test-token'
+fakeapi secret API_KEY 'abc123'
+fakeapi secret LOG_LEVEL 'debug'
+
+stdin value.txt
+exec loco env set --env production DATABASE_URL
+stdout '^Set 1 secrets \(revision 2\)$'
+fakeapi secret DATABASE_URL 'postgres://user:p$ss@db:5432/app'
+
+# The value keeps its "=" and is empty when nothing follows the first one.
+exec loco env set --env production TOKEN=a=b EMPTY=
+fakeapi secret TOKEN 'a=b'
+fakeapi secret EMPTY ''
+
+# LOCO_ENV selects the environment like --env does.
+env LOCO_ENV=production
+exec loco env set LOG_LEVEL=info
+fakeapi secret LOG_LEVEL 'info'
+env LOCO_ENV=
+
+# An unknown environment is refused before any write.
+! exec loco env set --env staging LOG_LEVEL=warn
+stderr '(?i)environment "staging" not found; the workspace has production'
+fakeapi secret LOG_LEVEL 'info'
+
+# Only one name can take its value from stdin.
+! exec loco env set --env production A B
+stderr '(?i)only one name can take its value from stdin'
+
+# An argument with no name is refused by position; its text is not echoed.
+! exec loco env set --env production =hunter2
+stderr '(?i)argument 1: empty name'
+! stderr 'hunter2'
+
+# An install with no secrets key provider refuses the write.
+fakeapi fail SetSecrets failed_precondition
+! exec loco env set --env production API_KEY=later
+stderr '(?i)set secrets: fakeapi: SetSecrets configured to fail'
+fakeapi secret API_KEY 'abc123'
+
+-- value.txt --
+postgres://user:p$ss@db:5432/app
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.toml --
+currentScope = "default"
+
+[scopes.default.organization]
+name = "acme"
+id = "1"
+
+[scopes.default.workspace]
+name = "production"
+id = "2"

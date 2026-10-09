@@ -79,7 +79,7 @@ Examples:
 
 			// Resolve workspace ID
 			apiClient := deps.NewAPIClient(host, locoToken.Token)
-			workspaceID, err := resolveWorkspaceID(ctx, cmd, deps.LoadSessionConfig, apiClient)
+			workspaceID, err := ResolveWorkspaceID(ctx, cmd, deps.LoadSessionConfig, apiClient)
 			if err != nil {
 				return err
 			}

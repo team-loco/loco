@@ -142,8 +142,8 @@ func resolveOrgID(
 	return "", fmt.Errorf("organization '%s' not found", orgName)
 }
 
-// resolveWorkspaceID resolves workspace ID, first checking config cache then API.
-func resolveWorkspaceID(
+// ResolveWorkspaceID resolves workspace ID, first checking config cache then API.
+func ResolveWorkspaceID(
 	ctx context.Context,
 	cmd *cobra.Command,
 	loadConfig func() (*session.SessionConfig, error),

@@ -52,7 +52,7 @@ func TestResolveWorkspaceIDIgnoresCachedWorkspaceOfAnotherOrg(t *testing.T) {
 		t.Fatalf("set org flag: %v", err)
 	}
 
-	id, err := resolveWorkspaceID(context.Background(), cmd, loadConfig, nil)
+	id, err := ResolveWorkspaceID(context.Background(), cmd, loadConfig, nil)
 	if id == "org-a-default-id" {
 		t.Fatalf("resolved org-b's default workspace to org-a's cached workspace ID")
 	}
