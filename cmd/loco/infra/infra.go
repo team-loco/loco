@@ -20,13 +20,17 @@ func BuildInfraCmd() *cobra.Command {
   loco infra validate deploy/loco.yaml
 
   # Show what applying the file to the staging environment would change
-  loco infra plan --env staging`,
+  loco infra plan --env staging
+
+  # Apply the file to the staging environment without a prompt
+  loco infra apply --env staging --yes`,
 	}
 
 	cmd.AddCommand(
 		buildInitCmd(),
 		buildValidateCmd(),
 		buildPlanCmd(),
+		buildApplyCmd(),
 	)
 
 	return cmd
