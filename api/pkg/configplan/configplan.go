@@ -40,8 +40,8 @@ type ImageResult struct {
 // Input is everything the planner needs. Services are the file's services resolved for the
 // environment, FileEnvironments the environment names the file mentions, Environments the
 // names that exist in the workspace, Regions the regions with an active cluster, Secrets the
-// secret names set in the environment, and Images a resolution for every image reference
-// the services use.
+// secret names set in the environment, PlatformDomains the active platform domains a service
+// domain must end with, and Images a resolution for every image reference the services use.
 type Input struct {
 	Partial          string
 	Services         map[string]locofile.Service
@@ -49,6 +49,7 @@ type Input struct {
 	Environments     []string
 	Regions          []string
 	Secrets          []string
+	PlatformDomains  []string
 	Live             []Service
 	Defaults         servicedefaults.Defaults
 	Images           map[string]ImageResult
@@ -184,6 +185,13 @@ func checkService(name string, service locofile.Service, in Input) []Error {
 		unknown := fmt.Errorf("%w: %s", ErrUnknownRegion, region)
 		errs = append(errs, Error{Service: name, Path: pathRegions + "." + region, Err: unknown})
 	}
+	for _, domain := range service.Domains {
+		if hasPlatformDomain(domain, in.PlatformDomains) {
+			continue
+		}
+		custom := fmt.Errorf("%w: %s", ErrCustomDomain, domain)
+		errs = append(errs, Error{Service: name, Path: pathDomains, Err: custom})
+	}
 	for _, secret := range slices.Sorted(slices.Values(service.Secrets)) {
 		if slices.Contains(in.Secrets, secret) {
 			continue
@@ -198,6 +206,15 @@ func checkService(name string, service locofile.Service, in Input) []Error {
 		}
 	}
 	return errs
+}
+
+func hasPlatformDomain(domain string, platformDomains []string) bool {
+	for _, platform := range platformDomains {
+		if strings.HasSuffix(domain, "."+platform) {
+			return true
+		}
+	}
+	return false
 }
 
 func needsBuild(current Service, desired State) bool {

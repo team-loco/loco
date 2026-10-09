@@ -25,6 +25,7 @@ const (
 	testCPU       = "250m"
 	testMemory    = "512Mi"
 	testPinned    = "ghcr.io/acme/worker@sha256:7781a08afca1adb11b6294ca81ee6e04f9fc677f4f04c9d9daf2b0e068f5e89a"
+	appDomain     = "app.example.com"
 )
 
 func testDefaults() servicedefaults.Defaults {
@@ -50,7 +51,7 @@ func fileService() locofile.Service {
 		Dockerfile: defaultDockerfile,
 		Port:       &port,
 		Routing:    &locofile.Routing{},
-		Domains:    []string{"app.example.com"},
+		Domains:    []string{appDomain},
 		Env:        map[string]string{"LOG_LEVEL": logLevelInfo},
 		Regions: map[string]locofile.Region{
 			testRegion: {
@@ -69,7 +70,7 @@ func liveState() State {
 		Port:       3000,
 		Health:     DefaultHealth(testDefaults()),
 		Routing:    &Routing{PathPrefix: "/", IdleTimeout: 60},
-		Domains:    []string{"app.example.com"},
+		Domains:    []string{appDomain},
 		Env:        map[string]string{"LOG_LEVEL": logLevelInfo},
 		Regions:    map[string]Region{testRegion: {CPU: testCPU, Memory: testMemory, MinReplicas: 1, MaxReplicas: 3}},
 	}
@@ -77,13 +78,14 @@ func liveState() State {
 
 func input(services map[string]locofile.Service, live ...Service) Input {
 	return Input{
-		Partial:      testPartial,
-		Services:     services,
-		Environments: []string{"prod"},
-		Regions:      []string{testRegion},
-		Live:         live,
-		Defaults:     testDefaults(),
-		Images:       map[string]ImageResult{testImage: {Pinned: testPinned}},
+		Partial:         testPartial,
+		Services:        services,
+		Environments:    []string{"prod"},
+		Regions:         []string{testRegion},
+		PlatformDomains: []string{"example.com"},
+		Live:            live,
+		Defaults:        testDefaults(),
+		Images:          map[string]ImageResult{testImage: {Pinned: testPinned}},
 	}
 }
 
@@ -304,6 +306,16 @@ func TestUnknownRegionIsAnError(t *testing.T) {
 	planErr := onlyError(t, compute(t, input(map[string]locofile.Service{webService: service})), ErrUnknownRegion)
 	if planErr.Path != "regions.mars-1" {
 		t.Fatalf("error path = %q, want regions.mars-1", planErr.Path)
+	}
+}
+
+func TestCustomDomainIsAnError(t *testing.T) {
+	service := fileService()
+	service.Domains = []string{appDomain, "www.acme.dev"}
+	planErr := onlyError(t, compute(t, input(map[string]locofile.Service{webService: service})), ErrCustomDomain)
+	wantMessage := "domain is not under an active platform domain: www.acme.dev"
+	if planErr.Path != "domains" || planErr.Err.Error() != wantMessage {
+		t.Fatalf("error = %+v, want the custom domain", planErr)
 	}
 }
 
