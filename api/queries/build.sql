@@ -1,6 +1,6 @@
 -- name: CreateBuild :one
-INSERT INTO builds (id, resource_id, status, source_type, source_key, source_size, dockerfile_path, image_repository, created_by)
-VALUES ($1, $2, 'awaiting_upload', $3, $4, $5, $6, $7, $8)
+INSERT INTO builds (id, resource_id, status, source_type, source_key, source_size, dockerfile_path, context, image_repository, created_by)
+VALUES ($1, $2, 'awaiting_upload', $3, $4, $5, $6, $7, $8, $9)
 RETURNING *;
 
 -- name: GetBuildByID :one
