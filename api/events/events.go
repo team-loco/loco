@@ -82,6 +82,8 @@ const (
 	FieldResourceID = "resourceId"
 	FieldPartial    = "partial"
 	FieldFrom       = "from"
+	FieldPaths      = "paths"
+	FieldPrimary    = "primary"
 )
 
 type Event struct {

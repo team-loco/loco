@@ -29,7 +29,6 @@ const (
 
 var (
 	errUnknownOperation = errors.New("unknown plan operation")
-	errUpdateNotApplied = errors.New("updates cannot be applied yet")
 	errNoActiveCluster  = errors.New("no healthy cluster for the region and environment type")
 	errNoBuildToDeploy  = errors.New("the service has no build to deploy")
 )
@@ -51,7 +50,7 @@ func (a *applier) apply(ctx context.Context, qtx *genDb.Queries, op configplan.O
 	case configplan.KindImport:
 		return a.importService(ctx, qtx, op)
 	case configplan.KindUpdate:
-		return connect.NewError(connect.CodeUnimplemented, errUpdateNotApplied)
+		return a.update(ctx, qtx, op)
 	case configplan.KindDelete:
 		return a.delete(ctx, qtx, op)
 	default:
@@ -95,7 +94,7 @@ func (a *applier) create(ctx context.Context, qtx *genDb.Queries, op configplan.
 			return fmt.Errorf("create resource region %s: %w", region, regionErr)
 		}
 	}
-	if domainErr := a.addDomains(ctx, qtx, resourceID, op.Desired.Domains, false); domainErr != nil {
+	if domainErr := a.syncDomains(ctx, qtx, resourceID, op.Desired.Domains); domainErr != nil {
 		return domainErr
 	}
 	if eventErr := events.Record(ctx, qtx, events.Event{
@@ -137,18 +136,7 @@ func (a *applier) importService(ctx context.Context, qtx *genDb.Queries, op conf
 	}); err != nil {
 		return err
 	}
-	if len(op.Changes) > 0 {
-		return connect.NewError(connect.CodeUnimplemented, errUpdateNotApplied)
-	}
-	if op.NeedsDeploy || len(a.live.deployments[res.ID]) > 0 {
-		return nil
-	}
-	resourceSpec, err := converter.DeserializeResourceSpec(res.Spec, res.Type)
-	if err != nil {
-		return fmt.Errorf("resource spec: %w", err)
-	}
-	regions := slices.Sorted(maps.Keys(op.Desired.Regions))
-	return a.deploy(ctx, qtx, res, resourceSpec.GetService(), op.Desired, regions)
+	return a.update(ctx, qtx, op)
 }
 
 func (a *applier) delete(ctx context.Context, qtx *genDb.Queries, op configplan.Operation) error {
@@ -171,40 +159,34 @@ func (a *applier) delete(ctx context.Context, qtx *genDb.Queries, op configplan.
 	})
 }
 
-func (a *applier) addDomains(
+func (a *applier) createDomain(
 	ctx context.Context,
 	qtx *genDb.Queries,
 	resourceID uuid.UUID,
-	domains []string,
-	hasPrimary bool,
-) error {
-	for index, domain := range domains {
-		platformDomain, label, err := a.platformDomainFor(domain)
-		if err != nil {
-			return err
-		}
-		domainID, err := qtx.CreateResourceDomain(ctx, genDb.CreateResourceDomainParams{
-			ResourceID:       resourceID,
-			Domain:           domain,
-			DomainSource:     genDb.DomainSourcePlatformProvided,
-			SubdomainLabel:   &label,
-			PlatformDomainID: &platformDomain.ID,
-			IsPrimary:        index == 0 && !hasPrimary,
-		})
-		if err != nil {
-			return fmt.Errorf("create domain %s: %w", domain, err)
-		}
-		if err := events.Record(ctx, qtx, events.Event{
-			Type:        events.DomainCreated,
-			WorkspaceID: new(a.env.WorkspaceID),
-			SubjectType: events.SubjectDomain,
-			SubjectID:   new(domainID),
-			Data:        map[string]any{events.FieldDomain: domain, events.FieldResourceID: resourceID.String()},
-		}); err != nil {
-			return err
-		}
+	domain string,
+) (uuid.UUID, error) {
+	platformDomain, label, err := a.platformDomainFor(domain)
+	if err != nil {
+		return uuid.UUID{}, err
 	}
-	return nil
+	domainID, err := qtx.CreateResourceDomain(ctx, genDb.CreateResourceDomainParams{
+		ResourceID:       resourceID,
+		Domain:           domain,
+		DomainSource:     genDb.DomainSourcePlatformProvided,
+		SubdomainLabel:   &label,
+		PlatformDomainID: &platformDomain.ID,
+		IsPrimary:        false,
+	})
+	if err != nil {
+		return uuid.UUID{}, fmt.Errorf("create domain %s: %w", domain, err)
+	}
+	return domainID, events.Record(ctx, qtx, events.Event{
+		Type:        events.DomainCreated,
+		WorkspaceID: new(a.env.WorkspaceID),
+		SubjectType: events.SubjectDomain,
+		SubjectID:   new(domainID),
+		Data:        map[string]any{events.FieldDomain: domain, events.FieldResourceID: resourceID.String()},
+	})
 }
 
 func (a *applier) platformDomainFor(domain string) (genDb.PlatformDomain, string, error) {

@@ -34,6 +34,11 @@ SET name = COALESCE(sqlc.narg('name'), name),
 WHERE id = $1
 RETURNING id;
 
+-- name: UpdateResourceSpec :exec
+UPDATE resources
+SET spec = $2, updated_at = NOW()
+WHERE id = $1;
+
 -- name: DeleteResource :exec
 DELETE FROM resources WHERE id = $1;
 

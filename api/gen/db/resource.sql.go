@@ -663,6 +663,22 @@ func (q *Queries) UpdateResource(ctx context.Context, arg UpdateResourceParams) 
 	return id, err
 }
 
+const updateResourceSpec = `-- name: UpdateResourceSpec :exec
+UPDATE resources
+SET spec = $2, updated_at = NOW()
+WHERE id = $1
+`
+
+type UpdateResourceSpecParams struct {
+	ID   uuid.UUID `json:"id"`
+	Spec []byte    `json:"spec"`
+}
+
+func (q *Queries) UpdateResourceSpec(ctx context.Context, arg UpdateResourceSpecParams) error {
+	_, err := q.db.Exec(ctx, updateResourceSpec, arg.ID, arg.Spec)
+	return err
+}
+
 const updateResourceStatus = `-- name: UpdateResourceStatus :exec
 UPDATE resources
 SET status = $2, updated_at = NOW()
