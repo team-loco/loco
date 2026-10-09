@@ -6,5 +6,13 @@ stderr 'Login required'
 stderr 'Login required'
 ! fakeapi called SetSecrets
 
+! exec loco env unset --env production API_KEY
+stderr 'Login required'
+! fakeapi called DeleteSecrets
+
+! exec loco env list --env production
+stderr 'Login required'
+! fakeapi called ListSecrets
+
 -- app.env --
 API_KEY=abc123
