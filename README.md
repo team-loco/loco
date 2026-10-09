@@ -25,7 +25,7 @@ If `~/.local/bin` is not already on your `PATH`, the installer prints the comman
 
 Run `loco update` to replace the installed binary with the latest release.
 
-2. **Log in with `loco login`.** It uses the GitHub device flow.
+2. **Log in with `loco login`.** It opens the dashboard in your browser, where the instance's identity provider signs you in, then returns to the terminal. On a machine without a browser, `loco login --device` prints a code to enter on another device.
 3. **Run `loco init` to create a `loco.toml` file**, and `loco validate` to check it.
 4. **Deploy your app via `loco deploy <app-name>`** from the directory that holds `loco.toml`. The CLI packs that directory into a gzipped tarball, uploads it, and Loco builds it with the Dockerfile named in `loco.toml`; the CLI prints the build's status and logs, then deploys the image to every region in `loco.toml`. The tarball honors `.dockerignore` and never contains `.git`, `.env` or `.env.*`. Ctrl-C during the build detaches without canceling it. `loco deploy <app-name> --image <image>` deploys a public image without building.
 
