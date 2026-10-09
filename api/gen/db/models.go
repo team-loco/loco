@@ -442,6 +442,7 @@ type Deployment struct {
 	EnvironmentID    uuid.UUID        `json:"environmentId"`
 	Spec             []byte           `json:"spec"`
 	SpecVersion      int32            `json:"specVersion"`
+	SecretNames      []string         `json:"secretNames"`
 	CreatedAt        time.Time        `json:"createdAt"`
 	StartedAt        time.Time        `json:"startedAt"`
 	CompletedAt      *time.Time       `json:"completedAt"`
@@ -455,8 +456,19 @@ type Environment struct {
 	Description     *string   `json:"description"`
 	EnvironmentType string    `json:"environmentType"`
 	CreatedBy       uuid.UUID `json:"createdBy"`
+	Revision        int64     `json:"revision"`
 	CreatedAt       time.Time `json:"createdAt"`
 	UpdatedAt       time.Time `json:"updatedAt"`
+}
+
+type EnvironmentKey struct {
+	EnvironmentID uuid.UUID  `json:"environmentId"`
+	Provider      string     `json:"provider"`
+	KekID         string     `json:"kekId"`
+	WrappedDek    []byte     `json:"wrappedDek"`
+	FormatVersion int16      `json:"formatVersion"`
+	CreatedAt     time.Time  `json:"createdAt"`
+	RewrappedAt   *time.Time `json:"rewrappedAt"`
 }
 
 type Event struct {
@@ -500,6 +512,8 @@ type Placement struct {
 	ClusterID        uuid.UUID  `json:"clusterId"`
 	Region           string     `json:"region"`
 	DeploymentID     *uuid.UUID `json:"deploymentId"`
+	EnvironmentID    uuid.UUID  `json:"environmentId"`
+	SecretNames      []string   `json:"secretNames"`
 	DesiredRevision  int64      `json:"desiredRevision"`
 	DesiredSpec      []byte     `json:"desiredSpec"`
 	DesiredDeleted   bool       `json:"desiredDeleted"`
@@ -557,6 +571,19 @@ type ResourceRegion struct {
 	LastError  *string            `json:"lastError"`
 	CreatedAt  time.Time          `json:"createdAt"`
 	UpdatedAt  time.Time          `json:"updatedAt"`
+}
+
+type Secret struct {
+	ID            uuid.UUID `json:"id"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
+	Name          string    `json:"name"`
+	Version       int32     `json:"version"`
+	Nonce         []byte    `json:"nonce"`
+	Ciphertext    []byte    `json:"ciphertext"`
+	FormatVersion int16     `json:"formatVersion"`
+	UpdatedBy     uuid.UUID `json:"updatedBy"`
+	CreatedAt     time.Time `json:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt"`
 }
 
 type SessionToken struct {

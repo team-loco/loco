@@ -11,6 +11,20 @@ import (
 	"github.com/google/uuid"
 )
 
+const bumpEnvironmentRevision = `-- name: BumpEnvironmentRevision :one
+UPDATE environments
+SET revision = revision + 1
+WHERE id = $1
+RETURNING revision
+`
+
+func (q *Queries) BumpEnvironmentRevision(ctx context.Context, id uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, bumpEnvironmentRevision, id)
+	var revision int64
+	err := row.Scan(&revision)
+	return revision, err
+}
+
 const countDeploymentsByEnvironment = `-- name: CountDeploymentsByEnvironment :one
 SELECT COUNT(*) FROM deployments WHERE environment_id = $1
 `
@@ -25,7 +39,7 @@ func (q *Queries) CountDeploymentsByEnvironment(ctx context.Context, environment
 const createEnvironment = `-- name: CreateEnvironment :one
 INSERT INTO environments (workspace_id, name, description, environment_type, created_by)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, workspace_id, name, description, environment_type, created_by, created_at, updated_at
+RETURNING id, workspace_id, name, description, environment_type, created_by, revision, created_at, updated_at
 `
 
 type CreateEnvironmentParams struct {
@@ -52,6 +66,7 @@ func (q *Queries) CreateEnvironment(ctx context.Context, arg CreateEnvironmentPa
 		&i.Description,
 		&i.EnvironmentType,
 		&i.CreatedBy,
+		&i.Revision,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -68,7 +83,7 @@ func (q *Queries) DeleteEnvironment(ctx context.Context, id uuid.UUID) error {
 }
 
 const getEnvironmentByID = `-- name: GetEnvironmentByID :one
-SELECT id, workspace_id, name, description, environment_type, created_by, created_at, updated_at FROM environments WHERE id = $1
+SELECT id, workspace_id, name, description, environment_type, created_by, revision, created_at, updated_at FROM environments WHERE id = $1
 `
 
 func (q *Queries) GetEnvironmentByID(ctx context.Context, id uuid.UUID) (Environment, error) {
@@ -81,6 +96,7 @@ func (q *Queries) GetEnvironmentByID(ctx context.Context, id uuid.UUID) (Environ
 		&i.Description,
 		&i.EnvironmentType,
 		&i.CreatedBy,
+		&i.Revision,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -88,7 +104,7 @@ func (q *Queries) GetEnvironmentByID(ctx context.Context, id uuid.UUID) (Environ
 }
 
 const getWorkspaceProductionEnvironment = `-- name: GetWorkspaceProductionEnvironment :one
-SELECT id, workspace_id, name, description, environment_type, created_by, created_at, updated_at FROM environments WHERE workspace_id = $1 AND environment_type = 'production' ORDER BY created_at ASC LIMIT 1
+SELECT id, workspace_id, name, description, environment_type, created_by, revision, created_at, updated_at FROM environments WHERE workspace_id = $1 AND environment_type = 'production' ORDER BY created_at ASC LIMIT 1
 `
 
 func (q *Queries) GetWorkspaceProductionEnvironment(ctx context.Context, workspaceID uuid.UUID) (Environment, error) {
@@ -101,6 +117,7 @@ func (q *Queries) GetWorkspaceProductionEnvironment(ctx context.Context, workspa
 		&i.Description,
 		&i.EnvironmentType,
 		&i.CreatedBy,
+		&i.Revision,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -108,7 +125,7 @@ func (q *Queries) GetWorkspaceProductionEnvironment(ctx context.Context, workspa
 }
 
 const listWorkspaceEnvironments = `-- name: ListWorkspaceEnvironments :many
-SELECT id, workspace_id, name, description, environment_type, created_by, created_at, updated_at FROM environments WHERE workspace_id = $1 ORDER BY created_at ASC
+SELECT id, workspace_id, name, description, environment_type, created_by, revision, created_at, updated_at FROM environments WHERE workspace_id = $1 ORDER BY created_at ASC
 `
 
 func (q *Queries) ListWorkspaceEnvironments(ctx context.Context, workspaceID uuid.UUID) ([]Environment, error) {
@@ -127,6 +144,7 @@ func (q *Queries) ListWorkspaceEnvironments(ctx context.Context, workspaceID uui
 			&i.Description,
 			&i.EnvironmentType,
 			&i.CreatedBy,
+			&i.Revision,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -140,11 +158,27 @@ func (q *Queries) ListWorkspaceEnvironments(ctx context.Context, workspaceID uui
 	return items, nil
 }
 
+const lockEnvironment = `-- name: LockEnvironment :one
+SELECT id, workspace_id FROM environments WHERE id = $1 FOR UPDATE
+`
+
+type LockEnvironmentRow struct {
+	ID          uuid.UUID `json:"id"`
+	WorkspaceID uuid.UUID `json:"workspaceId"`
+}
+
+func (q *Queries) LockEnvironment(ctx context.Context, id uuid.UUID) (LockEnvironmentRow, error) {
+	row := q.db.QueryRow(ctx, lockEnvironment, id)
+	var i LockEnvironmentRow
+	err := row.Scan(&i.ID, &i.WorkspaceID)
+	return i, err
+}
+
 const updateEnvironment = `-- name: UpdateEnvironment :one
 UPDATE environments
 SET name = $2, description = $3, environment_type = $4, updated_at = NOW()
 WHERE id = $1
-RETURNING id, workspace_id, name, description, environment_type, created_by, created_at, updated_at
+RETURNING id, workspace_id, name, description, environment_type, created_by, revision, created_at, updated_at
 `
 
 type UpdateEnvironmentParams struct {
@@ -169,6 +203,7 @@ func (q *Queries) UpdateEnvironment(ctx context.Context, arg UpdateEnvironmentPa
 		&i.Description,
 		&i.EnvironmentType,
 		&i.CreatedBy,
+		&i.Revision,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

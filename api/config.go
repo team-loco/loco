@@ -9,6 +9,7 @@ import (
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/registryclient"
+	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
 	"github.com/team-loco/loco/api/service"
@@ -22,17 +23,20 @@ var (
 	errUnknownCacheType   = errors.New("unknown cache type")
 	errInvalidSourceBytes = errors.New("LOCO_SOURCE_MAX_BYTES is not a positive integer")
 
-	errInvalidForcePathStyle  = errors.New("LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE is not a boolean")
-	errInvalidServiceDefault  = errors.New("invalid service default")
-	errRegistryAuthPartial    = errors.New("LOCO_REGISTRY_USERNAME and LOCO_REGISTRY_PASSWORD must be set together")
-	errRegistryAuthNoHost     = errors.New("LOCO_REGISTRY_USERNAME is set without LOCO_REGISTRY_HOST")
-	errInvalidRegistry        = errors.New("invalid registry configuration")
-	errInvalidWebhooksPrivate = errors.New("WEBHOOK_ALLOW_PRIVATE_NETWORKS is not a boolean")
-	errInvalidInstallWebhooks = errors.New("INSTALL_WEBHOOKS is invalid")
-	errInvalidAuthIssuers     = errors.New("AUTH_ISSUERS is invalid")
-	errAdminTokenMissing      = errors.New("AUTH_ISSUERS admin tokenEnv names an unset variable")
-	errInvalidSignupPolicy    = errors.New("AUTH_SIGNUP_MODE is invalid")
-	errInvalidMinCLIVersion   = errors.New("MIN_CLI_VERSION is not a semantic version like v0.0.61")
+	errInvalidForcePathStyle   = errors.New("LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE is not a boolean")
+	errInvalidServiceDefault   = errors.New("invalid service default")
+	errRegistryAuthPartial     = errors.New("LOCO_REGISTRY_USERNAME and LOCO_REGISTRY_PASSWORD must be set together")
+	errRegistryAuthNoHost      = errors.New("LOCO_REGISTRY_USERNAME is set without LOCO_REGISTRY_HOST")
+	errInvalidRegistry         = errors.New("invalid registry configuration")
+	errInvalidWebhooksPrivate  = errors.New("WEBHOOK_ALLOW_PRIVATE_NETWORKS is not a boolean")
+	errInvalidInstallWebhooks  = errors.New("INSTALL_WEBHOOKS is invalid")
+	errInvalidAuthIssuers      = errors.New("AUTH_ISSUERS is invalid")
+	errAdminTokenMissing       = errors.New("AUTH_ISSUERS admin tokenEnv names an unset variable")
+	errInvalidSignupPolicy     = errors.New("AUTH_SIGNUP_MODE is invalid")
+	errInvalidMinCLIVersion    = errors.New("MIN_CLI_VERSION is not a semantic version like v0.0.61")
+	errSecretsLocalKeysMissing = errors.New("LOCO_SECRETS_LOCAL_KEYS required when LOCO_SECRETS_KEY_PROVIDER=local")
+	errInvalidSecretsLocalKeys = errors.New("LOCO_SECRETS_LOCAL_KEYS is invalid")
+	errUnknownSecretsProvider  = errors.New("LOCO_SECRETS_KEY_PROVIDER is invalid")
 )
 
 const (
@@ -94,6 +98,7 @@ type APIConfig struct {
 	EventsRetention       time.Duration
 	WebhooksAllowPrivate  bool
 	InstallWebhooks       []webhooks.InstallWebhook
+	Secrets               secretkeys.Config
 }
 
 type MigrateConfig struct {
@@ -127,6 +132,7 @@ func newAPIConfig() *APIConfig {
 	minCLIVersion := newMinCLIVersion()
 	eventsRetentionDays := positiveInt32Env("EVENTS_RETENTION_DAYS", defaultEventsRetentionDays)
 	eventsRetention := time.Duration(eventsRetentionDays) * day
+	secrets := newSecretsConfig()
 
 	return &APIConfig{
 		Version:               buildinfo.Version(version),
@@ -154,6 +160,27 @@ func newAPIConfig() *APIConfig {
 		EventsRetention:       eventsRetention,
 		WebhooksAllowPrivate:  webhooksAllowPrivate,
 		InstallWebhooks:       installWebhooks,
+		Secrets:               secrets,
+	}
+}
+
+func newSecretsConfig() secretkeys.Config {
+	provider := stringEnv("LOCO_SECRETS_KEY_PROVIDER", "")
+	rawKeys := stringEnv("LOCO_SECRETS_LOCAL_KEYS", "")
+	switch provider {
+	case "":
+		return secretkeys.Config{}
+	case secretkeys.ProviderLocal:
+		if rawKeys == "" {
+			panic(errSecretsLocalKeysMissing)
+		}
+		keys, err := secretkeys.ParseLocalKeys(rawKeys)
+		if err != nil {
+			panic(fmt.Errorf("%w: %w", errInvalidSecretsLocalKeys, err))
+		}
+		return secretkeys.Config{Provider: provider, LocalKeys: keys}
+	default:
+		panic(fmt.Errorf("%w: %q", errUnknownSecretsProvider, provider))
 	}
 }
 

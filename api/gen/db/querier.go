@@ -17,6 +17,7 @@ type Querier interface {
 	AdvancePlacementPastRevision(ctx context.Context, arg AdvancePlacementPastRevisionParams) (int64, error)
 	AdvisoryUnlock(ctx context.Context, lockKey int64) (bool, error)
 	BeginClusterSync(ctx context.Context, id uuid.UUID) (int64, error)
+	BumpEnvironmentRevision(ctx context.Context, id uuid.UUID) (int64, error)
 	CancelBuild(ctx context.Context, arg CancelBuildParams) (CancelBuildRow, error)
 	CancelOtherActiveBuilds(ctx context.Context, arg CancelOtherActiveBuildsParams) ([]CancelOtherActiveBuildsRow, error)
 	CheckDomainAvailability(ctx context.Context, domain string) (bool, error)
@@ -24,6 +25,7 @@ type Querier interface {
 	CheckUserHasWorkspaces(ctx context.Context, userID uuid.UUID) (bool, error)
 	ClaimWebhookDeliveries(ctx context.Context, arg ClaimWebhookDeliveriesParams) ([]ClaimWebhookDeliveriesRow, error)
 	CountDeploymentsByEnvironment(ctx context.Context, environmentID uuid.UUID) (int64, error)
+	CountSecrets(ctx context.Context, environmentID uuid.UUID) (int64, error)
 	CountWorkspaceWebhooks(ctx context.Context, workspaceID uuid.UUID) (int64, error)
 	// -----------------------------------------------------------------------------
 	// API token queries
@@ -67,6 +69,7 @@ type Querier interface {
 	DeleteOrganization(ctx context.Context, id uuid.UUID) error
 	DeleteResource(ctx context.Context, id uuid.UUID) error
 	DeleteResourceDomain(ctx context.Context, id uuid.UUID) error
+	DeleteSecrets(ctx context.Context, arg DeleteSecretsParams) ([]string, error)
 	DeleteSessionToken(ctx context.Context, id uuid.UUID) error
 	DeleteSessionTokenByAccessHash(ctx context.Context, accessTokenHash string) error
 	DeleteSessionTokensForIdentity(ctx context.Context, identityID *uuid.UUID) error
@@ -94,6 +97,7 @@ type Querier interface {
 	GetDeploymentResourceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	GetDeploymentStatus(ctx context.Context, id uuid.UUID) (GetDeploymentStatusRow, error)
 	GetEnvironmentByID(ctx context.Context, id uuid.UUID) (Environment, error)
+	GetEnvironmentKey(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)
 	// todo: eventually remove
 	GetFirstActiveCluster(ctx context.Context) (GetFirstActiveClusterRow, error)
 	GetIdentity(ctx context.Context, arg GetIdentityParams) (Identity, error)
@@ -132,6 +136,7 @@ type Querier interface {
 	GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id uuid.UUID) (GetWorkspaceOrganizationIDByResourceIDRow, error)
 	GetWorkspaceProductionEnvironment(ctx context.Context, workspaceID uuid.UUID) (Environment, error)
 	GetWorkspaceWebhook(ctx context.Context, arg GetWorkspaceWebhookParams) (Webhook, error)
+	InsertEnvironmentKey(ctx context.Context, arg InsertEnvironmentKeyParams) (EnvironmentKey, error)
 	InsertEvent(ctx context.Context, arg InsertEventParams) (int64, error)
 	IsOrgNameUnique(ctx context.Context, arg IsOrgNameUniqueParams) (bool, error)
 	IsOrganizationNameUnique(ctx context.Context, name string) (bool, error)
@@ -150,6 +155,7 @@ type Querier interface {
 	ListClustersActive(ctx context.Context) ([]ListClustersActiveRow, error)
 	ListDeletableBuildImages(ctx context.Context, arg ListDeletableBuildImagesParams) ([]ListDeletableBuildImagesRow, error)
 	ListDeploymentsForResource(ctx context.Context, arg ListDeploymentsForResourceParams) ([]Deployment, error)
+	ListEnvironmentKeys(ctx context.Context) ([]EnvironmentKey, error)
 	ListEventsAfter(ctx context.Context, arg ListEventsAfterParams) ([]Event, error)
 	ListExistingResourceIDs(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
 	ListIdentitiesForUser(ctx context.Context, userID uuid.UUID) ([]Identity, error)
@@ -166,6 +172,10 @@ type Querier interface {
 	ListResourceRegions(ctx context.Context, resourceID uuid.UUID) ([]ResourceRegion, error)
 	ListResourceRegionsForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ResourceRegion, error)
 	ListResourcesForWorkspace(ctx context.Context, arg ListResourcesForWorkspaceParams) ([]Resource, error)
+	ListSecretCiphertexts(ctx context.Context, arg ListSecretCiphertextsParams) ([]ListSecretCiphertextsRow, error)
+	ListSecretNames(ctx context.Context, environmentID uuid.UUID) ([]string, error)
+	ListSecrets(ctx context.Context, environmentID uuid.UUID) ([]ListSecretsRow, error)
+	ListServiceSecretSizes(ctx context.Context, arg ListServiceSecretSizesParams) ([]ListServiceSecretSizesRow, error)
 	ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]ListSessionsForUserRow, error)
 	ListUndeletedBuildSources(ctx context.Context, maxBuilds int32) ([]ListUndeletedBuildSourcesRow, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
@@ -178,6 +188,9 @@ type Querier interface {
 	ListWorkspacesInOrg(ctx context.Context, arg ListWorkspacesInOrgParams) ([]Workspace, error)
 	LockBuildImageForDelete(ctx context.Context, id uuid.UUID) (*time.Time, error)
 	LockBuildImageForDeploy(ctx context.Context, id uuid.UUID) (*time.Time, error)
+	LockEnvironment(ctx context.Context, id uuid.UUID) (LockEnvironmentRow, error)
+	LockEnvironmentKey(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)
+	LockEnvironmentKeyShared(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)
 	LockInstallWebhooks(ctx context.Context, lockKey int64) error
 	LockResource(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockResourceRegion(ctx context.Context, arg LockResourceRegionParams) (ResourceRegion, error)
@@ -200,10 +213,12 @@ type Querier interface {
 	RemoveUserScope(ctx context.Context, arg RemoveUserScopeParams) error
 	RemoveWorkspace(ctx context.Context, id uuid.UUID) error
 	ResourceHasPrimaryDomain(ctx context.Context, resourceID uuid.UUID) (bool, error)
+	RewrapEnvironmentKey(ctx context.Context, arg RewrapEnvironmentKeyParams) (int64, error)
 	RotateSessionToken(ctx context.Context, arg RotateSessionTokenParams) (int64, error)
 	SetClusterAgentToken(ctx context.Context, arg SetClusterAgentTokenParams) error
 	SetClusterGatewayHostname(ctx context.Context, arg SetClusterGatewayHostnameParams) error
 	SetClusterObservabilityEndpoint(ctx context.Context, arg SetClusterObservabilityEndpointParams) error
+	SetLockTimeout(ctx context.Context, timeout string) error
 	SetPlacementApplyError(ctx context.Context, arg SetPlacementApplyErrorParams) (SetPlacementApplyErrorRow, error)
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
 	TouchAPITokenLastUsed(ctx context.Context, id uuid.UUID) error
@@ -227,6 +242,7 @@ type Querier interface {
 	UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (uuid.UUID, error)
 	UpsertInstallWebhook(ctx context.Context, arg UpsertInstallWebhookParams) error
 	UpsertPlacement(ctx context.Context, arg UpsertPlacementParams) (UpsertPlacementRow, error)
+	UpsertSecrets(ctx context.Context, arg UpsertSecretsParams) error
 	UserHasUnverifiedIdentity(ctx context.Context, userID uuid.UUID) (bool, error)
 	WorkspaceHasResources(ctx context.Context, workspaceID uuid.UUID) (bool, error)
 }
