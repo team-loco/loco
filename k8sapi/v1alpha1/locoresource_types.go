@@ -164,8 +164,20 @@ type ServiceDeploymentSpec struct {
 	// +kubebuilder:validation:Maximum=65535
 	Port int32 `json:"port"`
 
-	HealthCheck *HealthCheckSpec  `json:"healthCheck,omitempty"`
-	Env         map[string]string `json:"env,omitempty"`
+	HealthCheck  *HealthCheckSpec  `json:"healthCheck,omitempty"`
+	Env          map[string]string `json:"env,omitempty"`
+	EnvSecretRef *EnvSecretRef     `json:"envSecretRef,omitempty"`
+}
+
+// EnvSecretRef names the Secret in the Application's namespace that holds the service's secret values
+// and the placement revision whose values it must carry.
+type EnvSecretRef struct {
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	Name string `json:"name"`
+	// +required
+	// +kubebuilder:validation:Minimum=1
+	Revision int64 `json:"revision"`
 }
 
 // DatabaseSpec is a placeholder for future DATABASE type resources
