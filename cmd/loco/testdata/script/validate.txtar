@@ -1,0 +1,47 @@
+# validate reads loco.yaml by default, or the path given, and never calls the API.
+exec loco infra validate
+stdout 'loco.yaml is valid'
+stdout '^Partial: web$'
+stdout '^Services: web, worker$'
+! fakeapi called GetConfig
+
+exec loco infra validate other/service.yaml
+stdout 'other/service.yaml is valid'
+stdout '^Services: api$'
+
+-- loco.yaml --
+version: 1
+partial: web
+
+services:
+  web:
+    dockerfile: web/Dockerfile
+    context: .
+    port: 3000
+    health: { path: /healthz, interval: 30, timeout: 5, failThreshold: 3, startupGracePeriod: 15 }
+    routing: { pathPrefix: /, idleTimeout: 60 }
+    domains: [app.example.com]
+    env: { LOG_LEVEL: info }
+    secrets: [SESSION_KEY]
+    regions:
+      us-east-1: { cpu: 250m, memory: 512Mi, replicas: { min: 1, max: 3 } }
+    environments:
+      production:
+        domains: [www.example.com]
+        regions:
+          us-east-1: { replicas: { min: 2, max: 6 }, autoscaling: { cpuTarget: 70 } }
+      dev:
+        enabled: false
+
+  worker:
+    image: ghcr.io/acme/worker:1.4.2
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+-- other/service.yaml --
+version: 1
+partial: api
+services:
+  api:
+    image: ghcr.io/acme/api:1
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
