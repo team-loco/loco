@@ -1,0 +1,8 @@
+# the region comes from the API, so init fails when ListRegions does and writes nothing.
+fakeapi fail ListRegions unavailable
+! exec loco infra init --name my-app
+stderr 'Could not list regions from the API'
+! exists loco.yaml
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}

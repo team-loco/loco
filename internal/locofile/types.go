@@ -1,8 +1,9 @@
 package locofile
 
 const (
-	Version  = 1
-	FileName = "loco.yaml"
+	Version           = 1
+	FileName          = "loco.yaml"
+	DefaultDockerfile = "Dockerfile"
 )
 
 // File is the root of a loco.yaml file.

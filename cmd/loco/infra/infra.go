@@ -10,7 +10,10 @@ func BuildInfraCmd() *cobra.Command {
 		Use:   "infra",
 		Short: "Declare services in loco.yaml",
 		Long:  "Commands that read the loco.yaml file declaring the services Loco runs for a workspace.",
-		Example: `  # Check a loco.yaml without calling the API
+		Example: `  # Write a starter loco.yaml for a service named api
+  loco infra init --name api
+
+  # Check a loco.yaml without calling the API
   loco infra validate
 
   # Check a file somewhere else
@@ -18,6 +21,7 @@ func BuildInfraCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(
+		buildInitCmd(),
 		buildValidateCmd(),
 	)
 

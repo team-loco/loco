@@ -1,0 +1,32 @@
+# init writes a starter loco.yaml from the API's service defaults, platform domain and default region.
+exec loco infra init --name my-app
+stdout 'Created .*loco.yaml'
+fakeapi called GetConfig
+fakeapi called ListRegions 'Bearer test-token'
+cmp loco.yaml want.yaml
+exec loco infra validate
+stdout 'loco.yaml is valid'
+
+# a second init refuses to overwrite without --force.
+! exec loco infra init --name other
+stderr '(?i)loco.yaml already exists'
+cmp loco.yaml want.yaml
+
+exec loco infra init --name other --force
+stdout 'Created .*loco.yaml'
+grep '^partial: other$' loco.yaml
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- want.yaml --
+# yaml-language-server: $schema=https://loco.test/schemas/loco.v1.json
+version: 1
+partial: my-app
+
+services:
+  my-app:
+    dockerfile: Dockerfile
+    port: 8000
+    domains: [my-app.onloco.test]
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 2 } }
