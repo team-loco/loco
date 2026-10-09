@@ -1,0 +1,8 @@
+# the starter needs the API's service defaults and default region, so init fails without them and writes nothing.
+fakeapi fail GetConfig unavailable
+! exec loco infra init --name my-app
+stderr 'Could not fetch service defaults from the API'
+! exists loco.yaml
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}

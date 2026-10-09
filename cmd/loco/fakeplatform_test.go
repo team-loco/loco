@@ -40,6 +40,8 @@ const (
 	fakeDockerfile       = "Dockerfile"
 	fakePlatformDomainID = "00000000-0000-7000-8000-0000000000d1"
 	fakePlatformDomain   = "onloco.test"
+	fakeDefaultRegion    = "us-east-1"
+	fakeSecondaryRegion  = "eu-west-1"
 	uploadModeOK         = "ok"
 	uploadModeDenied     = "forbidden"
 	uploadModeReset      = "reset"
@@ -250,6 +252,20 @@ func (s *fakeResourceService) CreateResource(
 	}
 	f.platform.resources = append(f.platform.resources, resource)
 	return connect.NewResponse(&resourcev1.CreateResourceResponse{ResourceId: id}), nil
+}
+
+func (s *fakeResourceService) ListRegions(
+	_ context.Context,
+	req *connect.Request[resourcev1.ListRegionsRequest],
+) (*connect.Response[resourcev1.ListRegionsResponse], error) {
+	if _, _, err := s.api.authenticate(req.Spec(), req.Header()); err != nil {
+		return nil, err
+	}
+	regions := []*resourcev1.RegionInfo{
+		{Region: fakeSecondaryRegion},
+		{Region: fakeDefaultRegion, IsDefault: true},
+	}
+	return connect.NewResponse(&resourcev1.ListRegionsResponse{Regions: regions}), nil
 }
 
 func (s *fakeResourceService) GetResourceStatus(

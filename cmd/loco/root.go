@@ -65,7 +65,6 @@ func NewRootCmd(env Env) *cobra.Command {
 		newLogoutCmd(env),
 		newUseCmd(),
 		newWhoAmICmd(env),
-		newInitCmd(),
 		newWebCmd(),
 		newUpdateCmd(),
 		config.BuildConfigCmd(),
