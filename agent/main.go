@@ -33,7 +33,8 @@ func main() {
 	cfg := newAgentConfig()
 
 	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: cfg.LogLevel,
+		Level:       cfg.LogLevel,
+		ReplaceAttr: redactAttr,
 	})
 	logger := slog.New(handler)
 	slog.SetDefault(logger)
@@ -403,6 +404,9 @@ func (a *Agent) reportInventory(ctx context.Context, session *syncSession) {
 }
 
 func (a *Agent) sendInventory(ctx context.Context, send func(*agentv1.Inventory) error) error {
+	if err := a.applier.SweepEnvSecrets(ctx); err != nil {
+		slog.WarnContext(ctx, "failed to sweep orphaned env Secrets", "error", err)
+	}
 	return a.builds.WithInventory(ctx, func(builds []*agentv1.InventoryBuild) error {
 		inventory, err := a.watcher.Inventory(ctx)
 		if err != nil {
@@ -464,6 +468,7 @@ func submitPlacement(ctx context.Context, rec *reconciler.Reconciler, msg *agent
 			Revision:    m.Apply.GetRevision(),
 			ResourceID:  m.Apply.GetResourceId(),
 			Application: m.Apply.GetApplication(),
+			EnvSecret:   envSecretOf(m.Apply.GetEnvSecret()),
 		}})
 	case *agentv1.SyncResponse_Delete:
 		slog.InfoContext(ctx, "received placement deletion",
@@ -482,6 +487,13 @@ func submitPlacement(ctx context.Context, rec *reconciler.Reconciler, msg *agent
 	default:
 		slog.WarnContext(ctx, "ignoring empty sync message")
 	}
+}
+
+func envSecretOf(secret *agentv1.EnvSecret) *applier.EnvSecret {
+	if secret == nil {
+		return nil
+	}
+	return &applier.EnvSecret{Revision: secret.GetRevision(), Data: secret.GetData()}
 }
 
 func closeStream[Req, Res any](ctx context.Context, name string, stream *connect.BidiStreamForClient[Req, Res]) {

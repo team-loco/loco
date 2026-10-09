@@ -250,6 +250,7 @@ type placementRevision struct {
 	appliedRevision  int64
 	observedRevision int64
 	observed         bool
+	envSecretPending bool
 }
 
 type inventoryAction int
@@ -271,6 +272,9 @@ func diffInventory(rev placementRevision) inventoryAction {
 	if !rev.observed || rev.observedRevision < rev.desiredRevision {
 		return inventorySend
 	}
+	if rev.envSecretPending {
+		return inventorySend
+	}
 	if rev.appliedRevision < rev.desiredRevision {
 		return inventoryMarkApplied
 	}
@@ -286,7 +290,7 @@ func (ss *syncSession) reconcileInventory(ctx context.Context, inventory *agentv
 }
 
 func (ss *syncSession) reconcilePlacementInventory(ctx context.Context, inventory *agentv1.Inventory) error {
-	observed := make(map[uuid.UUID]int64, len(inventory.GetEntries()))
+	observed := make(map[uuid.UUID]*agentv1.InventoryEntry, len(inventory.GetEntries()))
 	for _, entry := range inventory.GetEntries() {
 		id, err := uuid.Parse(entry.GetPlacementId())
 		if err != nil {
@@ -296,7 +300,7 @@ func (ss *syncSession) reconcilePlacementInventory(ctx context.Context, inventor
 			)
 			continue
 		}
-		observed[id] = entry.GetRevision()
+		observed[id] = entry
 	}
 
 	rows, err := ss.server.queries.ListClusterPlacementRevisions(ctx, ss.clusterID)
@@ -307,7 +311,8 @@ func (ss *syncSession) reconcilePlacementInventory(ctx context.Context, inventor
 
 	toSend := make([]uuid.UUID, 0)
 	for _, row := range rows {
-		observedRevision, present := observed[row.ID]
+		entry, present := observed[row.ID]
+		observedRevision := entry.GetRevision()
 		action := diffInventory(placementRevision{
 			id:               row.ID,
 			desiredRevision:  row.DesiredRevision,
@@ -315,6 +320,7 @@ func (ss *syncSession) reconcilePlacementInventory(ctx context.Context, inventor
 			appliedRevision:  row.AppliedRevision,
 			observedRevision: observedRevision,
 			observed:         present,
+			envSecretPending: entry.GetEnvSecretPending(),
 		})
 		switch action {
 		case inventorySend:
