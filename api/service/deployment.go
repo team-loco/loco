@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -333,7 +332,7 @@ func (s *DeploymentServer) CreateDeployment(
 	}
 	specForDBService.Env = nil
 
-	specJSON, err := json.Marshal(specForDBService)
+	specJSON, err := protojson.Marshal(specForDBService)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to marshal spec", "error", err)
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))

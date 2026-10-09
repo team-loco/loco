@@ -9,6 +9,8 @@ import (
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -198,5 +200,62 @@ func TestCreateDeploymentRejectsSpecsTheControllerRejects(t *testing.T) {
 				t.Fatalf("%d deployments after a rejected deploy, want 0", n)
 			}
 		})
+	}
+}
+
+func TestCreateDeploymentStoresTheSpecAsProtoJSON(t *testing.T) {
+	f := newDeployFixture(t)
+	service := imageService()
+	minReplicas := int32(1)
+	maxReplicas := int32(2)
+	cpuTarget := int32(70)
+	service.MinReplicas = &minReplicas
+	service.MaxReplicas = &maxReplicas
+	service.HealthCheck = &deploymentv1.HealthCheckConfig{
+		Path:             "/healthz",
+		IntervalSeconds:  10,
+		TimeoutSeconds:   2,
+		FailureThreshold: 3,
+	}
+	service.Scalers = &deploymentv1.Scalers{Enabled: true, CpuTarget: &cpuTarget}
+	service.Env = map[string]string{"SECRET": "plaintext"}
+	if _, err := createDeploymentWith(t, f, unboundedRegionSpec, service); err != nil {
+		t.Fatalf("create deployment: %v", err)
+	}
+
+	var stored []byte
+	query := `SELECT spec FROM deployments WHERE resource_id = $1`
+	if err := f.pool.QueryRow(context.Background(), query, f.resourceID).Scan(&stored); err != nil {
+		t.Fatalf("read stored spec: %v", err)
+	}
+
+	var keys map[string]json.RawMessage
+	if err := json.Unmarshal(stored, &keys); err != nil {
+		t.Fatalf("decode stored spec: %v", err)
+	}
+	for _, key := range []string{"healthCheck", "minReplicas", "maxReplicas"} {
+		if _, ok := keys[key]; !ok {
+			t.Errorf("stored spec has no %q key, want the proto JSON name\n%s", key, stored)
+		}
+	}
+	if _, ok := keys["env"]; ok {
+		t.Errorf("stored spec carries env\n%s", stored)
+	}
+
+	got := &deploymentv1.ServiceDeploymentSpec{}
+	if err := protojson.Unmarshal(stored, got); err != nil {
+		t.Fatalf("protojson.Unmarshal stored spec: %v", err)
+	}
+	if !proto.Equal(got.GetHealthCheck(), service.GetHealthCheck()) {
+		t.Errorf("health check = %v, want %v", got.GetHealthCheck(), service.GetHealthCheck())
+	}
+	if !proto.Equal(got.GetScalers(), service.GetScalers()) {
+		t.Errorf("scalers = %v, want %v", got.GetScalers(), service.GetScalers())
+	}
+	if got.GetMinReplicas() != minReplicas || got.GetMaxReplicas() != maxReplicas {
+		t.Errorf("replicas = %d-%d, want %d-%d", got.GetMinReplicas(), got.GetMaxReplicas(), minReplicas, maxReplicas)
+	}
+	if len(got.GetEnv()) != 0 {
+		t.Errorf("env = %v, want none stored", got.GetEnv())
 	}
 }
