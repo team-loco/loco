@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Check that every container image is pinned by tag and digest, and that the Dockerfile base images use the Go, bun, uv and Python versions pinned in mise.toml"
+#MISE description="Check that every container image is pinned by tag and digest, that the Dockerfile base images use the Go, bun, uv and Python versions pinned in mise.toml, and that docs/pyproject.toml requires that Python minor version"
 set -euo pipefail
 
 status=0
@@ -56,8 +56,16 @@ done < <(git ls-files '.github/workflows/*.yml')
 check golang "$(yq -p toml -oy '.tools.go' mise.toml)"
 check oven/bun "$(yq -p toml -oy '.tools.bun' mise.toml)"
 check ghcr.io/astral-sh/uv "$(yq -p toml -oy '.tools.uv' mise.toml)"
-check python "$(yq -p toml -oy '.tools.python' mise.toml)"
+python=$(yq -p toml -oy '.tools.python' mise.toml)
+check python "$python"
+IFS=. read -r python_major python_minor _ <<<"$python"
+requires_python=$(yq -p toml -oy '.project.requires-python' docs/pyproject.toml)
+want_requires_python=">=$python_major.$python_minor,<$python_major.$((python_minor + 1))"
+if [[ $requires_python != "$want_requires_python" ]]; then
+	echo "docs/pyproject.toml: requires-python $requires_python, but mise.toml pins python $python"
+	status=1
+fi
 if [[ $status -eq 0 ]]; then
-	echo "Container images are pinned by tag and digest, and Dockerfile base images match mise.toml"
+	echo "Container images are pinned by tag and digest, and Dockerfile base images and docs requires-python match mise.toml"
 fi
 exit $status

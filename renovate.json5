@@ -95,9 +95,22 @@
       matchDepNames: ["uv", "ghcr.io/astral-sh/uv"],
     },
     {
+      description: "One PR moves mise.toml, mise.lock, the docs-builder image and the docs requires-python with uv.lock together",
       groupName: "python",
-      matchManagers: ["mise", "dockerfile"],
+      matchManagers: ["mise", "dockerfile", "pep621"],
       matchDepNames: ["python"],
+    },
+    {
+      description: "mise.lock and the docs-builder image need a python-build-standalone build and an official python image, which appear days after the CPython tag that mise reads. Docker Hub tags carry no release timestamp, so the age check applies to mise and pep621 only",
+      matchManagers: ["mise", "pep621"],
+      matchDepNames: ["python"],
+      minimumReleaseAge: "7 days",
+    },
+    {
+      description: "Python 3.15: pyyaml 6.0.3, a docs dependency, has no cp315 wheels",
+      matchManagers: ["mise", "dockerfile", "pep621"],
+      matchDepNames: ["python"],
+      allowedVersions: "!/^3\\.15\\./",
     },
     {
       groupName: "github actions",
