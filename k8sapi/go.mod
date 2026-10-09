@@ -1,6 +1,6 @@
 module github.com/team-loco/loco/k8sapi
 
-go 1.27.0
+go 1.27.2
 
 require (
 	k8s.io/apimachinery v0.37.1

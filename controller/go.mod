@@ -1,6 +1,6 @@
 module github.com/team-loco/loco/controller
 
-go 1.27.0
+go 1.27.2
 
 require (
 	github.com/onsi/ginkgo/v2 v2.33.0

@@ -81,8 +81,13 @@
     },
     {
       groupName: "go toolchain",
-      matchManagers: ["mise", "dockerfile"],
+      matchManagers: ["mise", "dockerfile", "gomod"],
       matchDepNames: ["go", "golang"],
+    },
+    {
+      matchManagers: ["gomod"],
+      matchDepTypes: ["golang"],
+      rangeStrategy: "bump",
     },
     {
       groupName: "bun",

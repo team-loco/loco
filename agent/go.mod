@@ -1,6 +1,6 @@
 module github.com/team-loco/loco/agent
 
-go 1.27.0
+go 1.27.2
 
 require (
 	connectrpc.com/connect v1.21.0
