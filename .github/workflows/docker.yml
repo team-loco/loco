@@ -13,6 +13,7 @@ on:
       - "mise-tasks/lint/versions"
       - "mise.toml"
       - "mise.lock"
+      - "docs/pyproject.toml"
       - ".github/actions/setup-tools/**"
   pull_request:
     paths:
@@ -24,6 +25,7 @@ on:
       - "mise-tasks/lint/versions"
       - "mise.toml"
       - "mise.lock"
+      - "docs/pyproject.toml"
       - ".github/actions/setup-tools/**"
   merge_group:
   workflow_call:
