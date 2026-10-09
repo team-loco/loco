@@ -10,6 +10,51 @@ option go_package = "github.com/team-loco/loco/gen/go/loco/plan/v1;planv1";
 service PlanService {
   // Plan returns the operations an apply would perform. It writes nothing.
   rpc Plan(PlanRequest) returns (PlanResponse);
+  // Apply re-plans the file against the environment and performs the operations in one
+  // transaction. It fails with FAILED_PRECONDITION when the environment revision differs from
+  // the one the plan was computed against, when the plan has errors, or when a destructive or
+  // import operation lacks its confirmation; the error carries an ApplyRefusal detail.
+  rpc Apply(ApplyRequest) returns (ApplyResponse);
+}
+
+message ApplyRequest {
+  bytes file = 1 [(buf.validate.field).bytes = {
+    min_len: 1
+    max_len: 1048576
+  }];
+  string environment_id = 2 [(buf.validate.field).string.uuid = true];
+  // revision is the environment revision the plan was computed against.
+  int64 revision = 3;
+  // confirm_destructive allows the destructive operations of the plan.
+  bool confirm_destructive = 4;
+  // confirm_import allows the import operations of the plan.
+  bool confirm_import = 5;
+}
+
+message ApplyResponse {
+  // revision is the environment revision after the apply.
+  int64 revision = 1;
+  // operations are the operations performed, in service name order.
+  repeated PlanOperation operations = 2;
+  // deployments are the deployments the apply started, one per service and region.
+  repeated StartedDeployment deployments = 3;
+}
+
+// StartedDeployment is a deployment an apply created for a runtime change.
+message StartedDeployment {
+  string service = 1;
+  string region = 2;
+  string deployment_id = 3;
+}
+
+// ApplyRefusal is the detail of a FAILED_PRECONDITION error from Apply.
+message ApplyRefusal {
+  // errors are the plan errors that stop the apply.
+  repeated PlanError errors = 1;
+  // unconfirmed are the operations whose confirmation the request did not give.
+  repeated PlanOperation unconfirmed = 2;
+  // revision is the environment's current revision when it differs from the request's.
+  int64 revision = 3;
 }
 
 message PlanRequest {

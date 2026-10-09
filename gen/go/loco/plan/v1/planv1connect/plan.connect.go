@@ -35,12 +35,19 @@ const (
 const (
 	// PlanServicePlanProcedure is the fully-qualified name of the PlanService's Plan RPC.
 	PlanServicePlanProcedure = "/loco.plan.v1.PlanService/Plan"
+	// PlanServiceApplyProcedure is the fully-qualified name of the PlanService's Apply RPC.
+	PlanServiceApplyProcedure = "/loco.plan.v1.PlanService/Apply"
 )
 
 // PlanServiceClient is a client for the loco.plan.v1.PlanService service.
 type PlanServiceClient interface {
 	// Plan returns the operations an apply would perform. It writes nothing.
 	Plan(context.Context, *connect.Request[v1.PlanRequest]) (*connect.Response[v1.PlanResponse], error)
+	// Apply re-plans the file against the environment and performs the operations in one
+	// transaction. It fails with FAILED_PRECONDITION when the environment revision differs from
+	// the one the plan was computed against, when the plan has errors, or when a destructive or
+	// import operation lacks its confirmation; the error carries an ApplyRefusal detail.
+	Apply(context.Context, *connect.Request[v1.ApplyRequest]) (*connect.Response[v1.ApplyResponse], error)
 }
 
 // NewPlanServiceClient constructs a client for the loco.plan.v1.PlanService service. By default, it
@@ -60,12 +67,19 @@ func NewPlanServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(planServiceMethods.ByName("Plan")),
 			connect.WithClientOptions(opts...),
 		),
+		apply: connect.NewClient[v1.ApplyRequest, v1.ApplyResponse](
+			httpClient,
+			baseURL+PlanServiceApplyProcedure,
+			connect.WithSchema(planServiceMethods.ByName("Apply")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // planServiceClient implements PlanServiceClient.
 type planServiceClient struct {
-	plan *connect.Client[v1.PlanRequest, v1.PlanResponse]
+	plan  *connect.Client[v1.PlanRequest, v1.PlanResponse]
+	apply *connect.Client[v1.ApplyRequest, v1.ApplyResponse]
 }
 
 // Plan calls loco.plan.v1.PlanService.Plan.
@@ -73,10 +87,20 @@ func (c *planServiceClient) Plan(ctx context.Context, req *connect.Request[v1.Pl
 	return c.plan.CallUnary(ctx, req)
 }
 
+// Apply calls loco.plan.v1.PlanService.Apply.
+func (c *planServiceClient) Apply(ctx context.Context, req *connect.Request[v1.ApplyRequest]) (*connect.Response[v1.ApplyResponse], error) {
+	return c.apply.CallUnary(ctx, req)
+}
+
 // PlanServiceHandler is an implementation of the loco.plan.v1.PlanService service.
 type PlanServiceHandler interface {
 	// Plan returns the operations an apply would perform. It writes nothing.
 	Plan(context.Context, *connect.Request[v1.PlanRequest]) (*connect.Response[v1.PlanResponse], error)
+	// Apply re-plans the file against the environment and performs the operations in one
+	// transaction. It fails with FAILED_PRECONDITION when the environment revision differs from
+	// the one the plan was computed against, when the plan has errors, or when a destructive or
+	// import operation lacks its confirmation; the error carries an ApplyRefusal detail.
+	Apply(context.Context, *connect.Request[v1.ApplyRequest]) (*connect.Response[v1.ApplyResponse], error)
 }
 
 // NewPlanServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -92,10 +116,18 @@ func NewPlanServiceHandler(svc PlanServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(planServiceMethods.ByName("Plan")),
 		connect.WithHandlerOptions(opts...),
 	)
+	planServiceApplyHandler := connect.NewUnaryHandler(
+		PlanServiceApplyProcedure,
+		svc.Apply,
+		connect.WithSchema(planServiceMethods.ByName("Apply")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/loco.plan.v1.PlanService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case PlanServicePlanProcedure:
 			planServicePlanHandler.ServeHTTP(w, r)
+		case PlanServiceApplyProcedure:
+			planServiceApplyHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -107,4 +139,8 @@ type UnimplementedPlanServiceHandler struct{}
 
 func (UnimplementedPlanServiceHandler) Plan(context.Context, *connect.Request[v1.PlanRequest]) (*connect.Response[v1.PlanResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.plan.v1.PlanService.Plan is not implemented"))
+}
+
+func (UnimplementedPlanServiceHandler) Apply(context.Context, *connect.Request[v1.ApplyRequest]) (*connect.Response[v1.ApplyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.plan.v1.PlanService.Apply is not implemented"))
 }
