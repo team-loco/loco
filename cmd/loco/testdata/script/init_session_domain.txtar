@@ -1,0 +1,7 @@
+# the session's default app domain wins over the API's platform domain.
+exec loco config set defaultAppDomain custom.example
+exec loco init --name my-app
+grep 'domains: \[my-app.custom.example\]' loco.yaml
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}

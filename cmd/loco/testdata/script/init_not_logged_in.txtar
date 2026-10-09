@@ -1,0 +1,4 @@
+# listing regions needs a login, so init asks for one and writes nothing.
+! exec loco init --name my-app
+stderr 'loco login'
+! exists loco.yaml
