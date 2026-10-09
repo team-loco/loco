@@ -76,7 +76,7 @@ builds:
     pullPolicy: Always
   buildkitImage:
     repository: moby/buildkit
-    tag: v0.33.1-rootless
+    tag: v0.34.0-rootless
     pullPolicy: IfNotPresent
   timeout: 30m
   ttlAfterFinished: 10m
