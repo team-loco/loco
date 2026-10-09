@@ -23,3 +23,13 @@ DELETE FROM environments WHERE id = $1;
 
 -- name: CountDeploymentsByEnvironment :one
 SELECT COUNT(*) FROM deployments WHERE environment_id = $1;
+
+-- name: BumpEnvironmentRevision :exec
+UPDATE environments
+SET revision = revision + 1
+WHERE id = $1;
+
+-- name: BumpResourceEnvironmentRevisions :exec
+UPDATE environments
+SET revision = revision + 1
+WHERE workspace_id = (SELECT r.workspace_id FROM resources r WHERE r.id = $1);

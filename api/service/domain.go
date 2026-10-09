@@ -368,6 +368,9 @@ func (s *DomainServer) CreateResourceDomain(
 			return createErr
 		}
 		resourceDomain = created
+		if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
+			return bumpErr
+		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.DomainCreated,
 			ResourceID:  new(resourceID),
@@ -454,6 +457,9 @@ func (s *DomainServer) UpdateResourceDomain(
 			}
 			if updateErr != nil {
 				return updateErr
+			}
+			if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, domainRow.ResourceID); bumpErr != nil {
+				return bumpErr
 			}
 		}
 		return events.Record(ctx, qtx, events.Event{
@@ -563,6 +569,11 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	if err := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); err != nil {
+		slog.ErrorContext(ctx, "failed to bump environment revisions", "resourceId", resourceID, "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
 	if err := events.Record(ctx, qtx, events.Event{
 		Type:        events.DomainUpdated,
 		ResourceID:  new(resourceID),
@@ -635,6 +646,9 @@ func (s *DomainServer) DeleteResourceDomain(
 		}
 		if deleteErr := qtx.DeleteResourceDomain(ctx, domainID); deleteErr != nil {
 			return deleteErr
+		}
+		if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, current.ResourceID); bumpErr != nil {
+			return bumpErr
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.DomainDeleted,

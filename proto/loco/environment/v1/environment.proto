@@ -40,6 +40,7 @@ message Environment {
   string created_by = 6;
   google.protobuf.Timestamp created_at = 7;
   google.protobuf.Timestamp updated_at = 8;
+  int64 revision = 9;
 }
 
 // CreateEnvironmentRequest is the request to create a new environment.

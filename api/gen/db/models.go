@@ -455,6 +455,7 @@ type Environment struct {
 	Description     *string   `json:"description"`
 	EnvironmentType string    `json:"environmentType"`
 	CreatedBy       uuid.UUID `json:"createdBy"`
+	Revision        int64     `json:"revision"`
 	CreatedAt       time.Time `json:"createdAt"`
 	UpdatedAt       time.Time `json:"updatedAt"`
 }

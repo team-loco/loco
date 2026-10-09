@@ -385,6 +385,9 @@ func (s *DeploymentServer) CreateDeployment(
 		if txErr != nil {
 			return txErr
 		}
+		if bumpErr := bumpEnvironmentRevision(ctx, qtx, environmentID); bumpErr != nil {
+			return bumpErr
+		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.DeploymentCreated,
 			WorkspaceID: new(resource.WorkspaceID),
@@ -560,6 +563,9 @@ func (s *DeploymentServer) DeleteDeployment(
 
 		if markErr := qtx.MarkDeploymentNotActive(ctx, deploymentID); markErr != nil {
 			return fmt.Errorf("mark deployment not active: %w", markErr)
+		}
+		if bumpErr := bumpEnvironmentRevision(ctx, qtx, deployment.EnvironmentID); bumpErr != nil {
+			return bumpErr
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.DeploymentDeleted,

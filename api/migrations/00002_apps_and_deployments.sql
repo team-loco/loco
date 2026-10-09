@@ -61,6 +61,7 @@ CREATE TABLE
             environment_type IN ('dev', 'staging', 'production')
         ),
         created_by UUID NOT NULL REFERENCES users (id),
+        revision BIGINT NOT NULL DEFAULT 0,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         UNIQUE (workspace_id, name)

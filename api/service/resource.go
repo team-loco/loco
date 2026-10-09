@@ -198,6 +198,11 @@ func (s *ResourceServer) CreateResource(
 		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to create resource"))
 	}
 
+	if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
+		slog.ErrorContext(ctx, "failed to bump environment revisions", "error", bumpErr)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
 	for region, regionConfig := range serviceSpec.GetRegions() {
 		isPrimary := regionConfig.GetPrimary()
 		_, regionErr := qtx.CreateResourceRegion(ctx, genDb.CreateResourceRegionParams{
@@ -504,6 +509,9 @@ func (s *ResourceServer) UpdateResource(
 		if _, updateErr := qtx.UpdateResource(ctx, updateParams); updateErr != nil {
 			return updateErr
 		}
+		if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
+			return bumpErr
+		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.ResourceUpdated,
 			ResourceID:  new(resourceID),
@@ -552,6 +560,9 @@ func (s *ResourceServer) DeleteResource(
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if removeErr := removeResourcePlacements(ctx, qtx, res.ID); removeErr != nil {
 			return removeErr
+		}
+		if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
+			return bumpErr
 		}
 
 		if deleteErr := qtx.DeleteResource(ctx, resourceID); deleteErr != nil {
@@ -1002,9 +1013,17 @@ func (s *ResourceServer) redeployRegions(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		bumped := make(map[uuid.UUID]bool, len(plans))
 		for _, plan := range plans {
 			if inheritErr := inheritDesiredEnv(ctx, qtx, plan); inheritErr != nil {
 				return inheritErr
+			}
+			environmentID := plan.params.EnvironmentID
+			if !bumped[environmentID] {
+				if bumpErr := bumpEnvironmentRevision(ctx, qtx, environmentID); bumpErr != nil {
+					return bumpErr
+				}
+				bumped[environmentID] = true
 			}
 			buildSpec := desiredApplicationSpec(
 				res,
