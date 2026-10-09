@@ -119,3 +119,9 @@ FOR UPDATE;
 
 -- name: LockResource :one
 SELECT id FROM resources WHERE id = $1 FOR UPDATE;
+
+-- name: ListWorkspaceServiceResources :many
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
+FROM resources r
+WHERE r.workspace_id = $1 AND r.type = 'service'
+ORDER BY r.name ASC;

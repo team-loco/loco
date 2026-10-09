@@ -76,3 +76,8 @@ SET status = sqlc.arg(status),
 WHERE id = sqlc.arg(id)
   AND is_active = true
   AND status::text = ANY(sqlc.arg(from_statuses)::text[]);
+
+-- name: ListActiveDeploymentsForEnvironment :many
+SELECT * FROM deployments
+WHERE environment_id = $1 AND is_active = true
+ORDER BY resource_id, created_at DESC;

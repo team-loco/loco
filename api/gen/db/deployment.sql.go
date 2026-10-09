@@ -198,6 +198,49 @@ func (q *Queries) ListActiveDeployments(ctx context.Context) ([]uuid.UUID, error
 	return items, nil
 }
 
+const listActiveDeploymentsForEnvironment = `-- name: ListActiveDeploymentsForEnvironment :many
+SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, created_at, started_at, completed_at, updated_at FROM deployments
+WHERE environment_id = $1 AND is_active = true
+ORDER BY resource_id, created_at DESC
+`
+
+func (q *Queries) ListActiveDeploymentsForEnvironment(ctx context.Context, environmentID uuid.UUID) ([]Deployment, error) {
+	rows, err := q.db.Query(ctx, listActiveDeploymentsForEnvironment, environmentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Deployment
+	for rows.Next() {
+		var i Deployment
+		if err := rows.Scan(
+			&i.ID,
+			&i.ResourceID,
+			&i.ResourceRegionID,
+			&i.ClusterID,
+			&i.Region,
+			&i.Replicas,
+			&i.Status,
+			&i.IsActive,
+			&i.Message,
+			&i.EnvironmentID,
+			&i.Spec,
+			&i.SpecVersion,
+			&i.CreatedAt,
+			&i.StartedAt,
+			&i.CompletedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listActiveDeploymentsForResource = `-- name: ListActiveDeploymentsForResource :many
 SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE resource_id = $1 AND is_active = true

@@ -549,6 +549,45 @@ func (q *Queries) ListResourcesForWorkspace(ctx context.Context, arg ListResourc
 	return items, nil
 }
 
+const listWorkspaceServiceResources = `-- name: ListWorkspaceServiceResources :many
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
+FROM resources r
+WHERE r.workspace_id = $1 AND r.type = 'service'
+ORDER BY r.name ASC
+`
+
+func (q *Queries) ListWorkspaceServiceResources(ctx context.Context, workspaceID uuid.UUID) ([]Resource, error) {
+	rows, err := q.db.Query(ctx, listWorkspaceServiceResources, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Resource
+	for rows.Next() {
+		var i Resource
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.Name,
+			&i.Type,
+			&i.Description,
+			&i.Status,
+			&i.Spec,
+			&i.SpecVersion,
+			&i.Partial,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockResource = `-- name: LockResource :one
 SELECT id FROM resources WHERE id = $1 FOR UPDATE
 `
