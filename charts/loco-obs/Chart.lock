@@ -4,15 +4,15 @@ dependencies:
   version: 0.3.13
 - name: opentelemetry-operator
   repository: https://open-telemetry.github.io/opentelemetry-helm-charts
-  version: 0.124.0
+  version: 0.124.1
 - name: opentelemetry-collector
   repository: https://open-telemetry.github.io/opentelemetry-helm-charts
-  version: 0.174.0
+  version: 0.175.1
 - name: opentelemetry-collector
   repository: https://open-telemetry.github.io/opentelemetry-helm-charts
-  version: 0.174.0
+  version: 0.175.1
 - name: grafana
   repository: https://grafana.github.io/helm-charts
   version: 10.5.15
-digest: sha256:8ec50dff7b30734d1b79dbf86336fead0e29249d821872a082f60afb94a8c18a
-generated: "2026-09-30T21:19:40.739476-07:00"
+digest: sha256:6ca5073e81939437eddcb01cf6f3a770a41d74498736cde40ae277904a5f1432
+generated: "2026-10-09T00:09:27.215768929Z"
