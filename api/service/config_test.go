@@ -28,6 +28,17 @@ func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 		t.Errorf("routing = %v, want path prefix %q and idle timeout %d",
 			routing, defaults.PathPrefix, defaults.IdleTimeout)
 	}
+	if routing.GetPort() != defaults.Port {
+		t.Errorf("port = %d, want %d", routing.GetPort(), defaults.Port)
+	}
+	health := got.GetHealthCheck()
+	if health.GetPath() != defaults.HealthPath ||
+		health.GetIntervalSeconds() != defaults.HealthInterval ||
+		health.GetTimeoutSeconds() != defaults.HealthTimeout ||
+		health.GetFailureThreshold() != defaults.HealthFailThreshold ||
+		health.GetInitialDelaySeconds() != defaults.HealthStartupGracePeriod {
+		t.Errorf("health check = %v, want the configured defaults", health)
+	}
 	if got.GetPlatformDomain() != "onloco.test" || resp.Msg.GetMinCliVersion() != "v1.2.3" {
 		t.Errorf("platform domain %q, min CLI version %q", got.GetPlatformDomain(), resp.Msg.GetMinCliVersion())
 	}
