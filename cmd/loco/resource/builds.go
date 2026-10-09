@@ -208,7 +208,7 @@ func runBuildsList(cmd *cobra.Command, deps buildsDeps, args []string) error {
 	defer s.cancel()
 
 	apiClient := deps.NewAPIClient(s.host, s.token)
-	workspaceID, err := resolveWorkspaceID(s.ctx, cmd, deps.LoadSessionConfig, apiClient)
+	workspaceID, err := cmdutil.ResolveWorkspaceID(s.ctx, cmd, deps.LoadSessionConfig, apiClient)
 	if err != nil {
 		return err
 	}
