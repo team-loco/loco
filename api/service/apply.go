@@ -145,6 +145,10 @@ func applyTxError(ctx context.Context, err error) error {
 	if connectErr, isConnect := errors.AsType[*connect.Error](err); isConnect {
 		return connectErr
 	}
+	if errors.Is(err, errNoActiveCluster) {
+		slog.WarnContext(ctx, "apply targets a region without a healthy cluster", "error", err)
+		return connect.NewError(connect.CodeFailedPrecondition, err)
+	}
 	if isPgConstraintViolation(err) {
 		slog.WarnContext(ctx, "apply rejected by a constraint", "error", err)
 		return connect.NewError(connect.CodeAlreadyExists, errDomainInUse)

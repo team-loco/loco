@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/configplan"
@@ -52,10 +51,10 @@ const (
 `
 )
 
-func (f *deployFixture) setSpec(t *testing.T, resourceID uuid.UUID, spec string) {
+func (f *deployFixture) setRoutedSpec(t *testing.T) {
 	t.Helper()
 	update := `UPDATE resources SET spec = $2 WHERE id = $1`
-	if _, err := f.pool.Exec(context.Background(), update, resourceID, spec); err != nil {
+	if _, err := f.pool.Exec(context.Background(), update, f.resourceID, planRoutedSpec); err != nil {
 		t.Fatalf("set spec: %v", err)
 	}
 }
@@ -97,7 +96,7 @@ func (f *deployFixture) workspaceReadScopes(t *testing.T) []genDb.EntityScope {
 
 func seedPlanWorkspace(t *testing.T, f *deployFixture) {
 	t.Helper()
-	f.setSpec(t, f.resourceID, planRoutedSpec)
+	f.setRoutedSpec(t)
 	f.addResource(t, planOwned, planPartial)
 	f.addResource(t, planOld, planPartial)
 	f.addResource(t, planTheirs, planOtherPartial)
@@ -180,7 +179,7 @@ FROM resources r, users u WHERE r.name = $1`
 
 func TestPlanReportsChangedBuildInputs(t *testing.T) {
 	f := newDeployFixture(t)
-	f.setSpec(t, f.resourceID, planRoutedSpec)
+	f.setRoutedSpec(t)
 	f.addResource(t, planOwned, planPartial)
 	f.addSucceededBuild(t, planOwned, "build/Dockerfile", testBuildContext)
 	ownedAsLive := strings.Replace(planFileOwned, "250m", "100m", 1)
@@ -206,7 +205,7 @@ func TestPlanReportsChangedBuildInputs(t *testing.T) {
 
 func TestPlanListsNothingForAFileThatMatches(t *testing.T) {
 	f := newDeployFixture(t)
-	f.setSpec(t, f.resourceID, planRoutedSpec)
+	f.setRoutedSpec(t)
 	f.addResource(t, planOwned, planPartial)
 	f.addSucceededBuild(t, planOwned, testDockerfile, defaultBuildContext)
 	ownedAsLive := strings.Replace(planFileOwned, "250m", "100m", 1)
