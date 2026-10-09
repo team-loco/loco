@@ -141,6 +141,47 @@ func (q *Queries) ListEnvironmentKeys(ctx context.Context) ([]EnvironmentKey, er
 	return items, nil
 }
 
+const listEnvironmentSecretCiphertexts = `-- name: ListEnvironmentSecretCiphertexts :many
+SELECT name, version, nonce, ciphertext, format_version
+FROM secrets
+WHERE environment_id = $1
+ORDER BY name
+`
+
+type ListEnvironmentSecretCiphertextsRow struct {
+	Name          string `json:"name"`
+	Version       int32  `json:"version"`
+	Nonce         []byte `json:"nonce"`
+	Ciphertext    []byte `json:"ciphertext"`
+	FormatVersion int16  `json:"formatVersion"`
+}
+
+func (q *Queries) ListEnvironmentSecretCiphertexts(ctx context.Context, environmentID uuid.UUID) ([]ListEnvironmentSecretCiphertextsRow, error) {
+	rows, err := q.db.Query(ctx, listEnvironmentSecretCiphertexts, environmentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListEnvironmentSecretCiphertextsRow
+	for rows.Next() {
+		var i ListEnvironmentSecretCiphertextsRow
+		if err := rows.Scan(
+			&i.Name,
+			&i.Version,
+			&i.Nonce,
+			&i.Ciphertext,
+			&i.FormatVersion,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSecretCiphertexts = `-- name: ListSecretCiphertexts :many
 SELECT name, version, nonce, ciphertext, format_version
 FROM secrets
@@ -380,6 +421,39 @@ func (q *Queries) LockEnvironmentKeyShared(ctx context.Context, environmentID uu
 		&i.RewrappedAt,
 	)
 	return i, err
+}
+
+const reencryptSecrets = `-- name: ReencryptSecrets :execrows
+UPDATE secrets s
+SET nonce = v.nonce,
+    ciphertext = v.ciphertext
+FROM (
+    SELECT unnest($2::text[]) AS name,
+           unnest($3::bytea[]) AS nonce,
+           unnest($4::bytea[]) AS ciphertext
+) AS v
+WHERE s.environment_id = $1
+  AND s.name = v.name
+`
+
+type ReencryptSecretsParams struct {
+	EnvironmentID uuid.UUID `json:"environmentId"`
+	Names         []string  `json:"names"`
+	Nonces        [][]byte  `json:"nonces"`
+	Ciphertexts   [][]byte  `json:"ciphertexts"`
+}
+
+func (q *Queries) ReencryptSecrets(ctx context.Context, arg ReencryptSecretsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, reencryptSecrets,
+		arg.EnvironmentID,
+		arg.Names,
+		arg.Nonces,
+		arg.Ciphertexts,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const rewrapEnvironmentKey = `-- name: RewrapEnvironmentKey :execrows

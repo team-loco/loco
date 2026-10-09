@@ -455,6 +455,122 @@ func (x *ListSecretsResponse) GetSecrets() []*Secret {
 	return nil
 }
 
+// RewrapEnvironmentKeysRequest selects the environment keys to rewrap. An empty environment_id
+// selects every environment. new_dek replaces the data key and requires environment_id.
+type RewrapEnvironmentKeysRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EnvironmentId string                 `protobuf:"bytes,1,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	NewDek        bool                   `protobuf:"varint,2,opt,name=new_dek,json=newDek,proto3" json:"new_dek,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RewrapEnvironmentKeysRequest) Reset() {
+	*x = RewrapEnvironmentKeysRequest{}
+	mi := &file_loco_secret_v1_secret_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RewrapEnvironmentKeysRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RewrapEnvironmentKeysRequest) ProtoMessage() {}
+
+func (x *RewrapEnvironmentKeysRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_secret_v1_secret_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RewrapEnvironmentKeysRequest.ProtoReflect.Descriptor instead.
+func (*RewrapEnvironmentKeysRequest) Descriptor() ([]byte, []int) {
+	return file_loco_secret_v1_secret_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *RewrapEnvironmentKeysRequest) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+func (x *RewrapEnvironmentKeysRequest) GetNewDek() bool {
+	if x != nil {
+		return x.NewDek
+	}
+	return false
+}
+
+// RewrapEnvironmentKeysResponse counts the keys rewrapped and lists the environments skipped because
+// the provider could not unwrap their key or their key belongs to another provider.
+type RewrapEnvironmentKeysResponse struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Rewrapped             int32                  `protobuf:"varint,1,opt,name=rewrapped,proto3" json:"rewrapped,omitempty"`
+	Skipped               int32                  `protobuf:"varint,2,opt,name=skipped,proto3" json:"skipped,omitempty"`
+	SkippedEnvironmentIds []string               `protobuf:"bytes,3,rep,name=skipped_environment_ids,json=skippedEnvironmentIds,proto3" json:"skipped_environment_ids,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *RewrapEnvironmentKeysResponse) Reset() {
+	*x = RewrapEnvironmentKeysResponse{}
+	mi := &file_loco_secret_v1_secret_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RewrapEnvironmentKeysResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RewrapEnvironmentKeysResponse) ProtoMessage() {}
+
+func (x *RewrapEnvironmentKeysResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_secret_v1_secret_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RewrapEnvironmentKeysResponse.ProtoReflect.Descriptor instead.
+func (*RewrapEnvironmentKeysResponse) Descriptor() ([]byte, []int) {
+	return file_loco_secret_v1_secret_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *RewrapEnvironmentKeysResponse) GetRewrapped() int32 {
+	if x != nil {
+		return x.Rewrapped
+	}
+	return 0
+}
+
+func (x *RewrapEnvironmentKeysResponse) GetSkipped() int32 {
+	if x != nil {
+		return x.Skipped
+	}
+	return 0
+}
+
+func (x *RewrapEnvironmentKeysResponse) GetSkippedEnvironmentIds() []string {
+	if x != nil {
+		return x.SkippedEnvironmentIds
+	}
+	return nil
+}
+
 var File_loco_secret_v1_secret_proto protoreflect.FileDescriptor
 
 const file_loco_secret_v1_secret_proto_rawDesc = "" +
@@ -489,12 +605,20 @@ const file_loco_secret_v1_secret_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"G\n" +
 	"\x13ListSecretsResponse\x120\n" +
-	"\asecrets\x18\x01 \x03(\v2\x16.loco.secret.v1.SecretR\asecrets2\x9a\x02\n" +
+	"\asecrets\x18\x01 \x03(\v2\x16.loco.secret.v1.SecretR\asecrets\"k\n" +
+	"\x1cRewrapEnvironmentKeysRequest\x122\n" +
+	"\x0eenvironment_id\x18\x01 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\x12\x17\n" +
+	"\anew_dek\x18\x02 \x01(\bR\x06newDek\"\x8f\x01\n" +
+	"\x1dRewrapEnvironmentKeysResponse\x12\x1c\n" +
+	"\trewrapped\x18\x01 \x01(\x05R\trewrapped\x12\x18\n" +
+	"\askipped\x18\x02 \x01(\x05R\askipped\x126\n" +
+	"\x17skipped_environment_ids\x18\x03 \x03(\tR\x15skippedEnvironmentIds2\x90\x03\n" +
 	"\rSecretService\x12S\n" +
 	"\n" +
 	"SetSecrets\x12!.loco.secret.v1.SetSecretsRequest\x1a\".loco.secret.v1.SetSecretsResponse\x12\\\n" +
 	"\rDeleteSecrets\x12$.loco.secret.v1.DeleteSecretsRequest\x1a%.loco.secret.v1.DeleteSecretsResponse\x12V\n" +
-	"\vListSecrets\x12\".loco.secret.v1.ListSecretsRequest\x1a#.loco.secret.v1.ListSecretsResponseB:Z8github.com/team-loco/loco/gen/go/loco/secret/v1;secretv1b\x06proto3"
+	"\vListSecrets\x12\".loco.secret.v1.ListSecretsRequest\x1a#.loco.secret.v1.ListSecretsResponse\x12t\n" +
+	"\x15RewrapEnvironmentKeys\x12,.loco.secret.v1.RewrapEnvironmentKeysRequest\x1a-.loco.secret.v1.RewrapEnvironmentKeysResponseB:Z8github.com/team-loco/loco/gen/go/loco/secret/v1;secretv1b\x06proto3"
 
 var (
 	file_loco_secret_v1_secret_proto_rawDescOnce sync.Once
@@ -508,36 +632,40 @@ func file_loco_secret_v1_secret_proto_rawDescGZIP() []byte {
 	return file_loco_secret_v1_secret_proto_rawDescData
 }
 
-var file_loco_secret_v1_secret_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_loco_secret_v1_secret_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_loco_secret_v1_secret_proto_goTypes = []any{
-	(*SetSecretsRequest)(nil),     // 0: loco.secret.v1.SetSecretsRequest
-	(*SecretVersion)(nil),         // 1: loco.secret.v1.SecretVersion
-	(*SetSecretsResponse)(nil),    // 2: loco.secret.v1.SetSecretsResponse
-	(*DeleteSecretsRequest)(nil),  // 3: loco.secret.v1.DeleteSecretsRequest
-	(*DeleteSecretsResponse)(nil), // 4: loco.secret.v1.DeleteSecretsResponse
-	(*ListSecretsRequest)(nil),    // 5: loco.secret.v1.ListSecretsRequest
-	(*Secret)(nil),                // 6: loco.secret.v1.Secret
-	(*ListSecretsResponse)(nil),   // 7: loco.secret.v1.ListSecretsResponse
-	nil,                           // 8: loco.secret.v1.SetSecretsRequest.ValuesEntry
-	(*timestamppb.Timestamp)(nil), // 9: google.protobuf.Timestamp
+	(*SetSecretsRequest)(nil),             // 0: loco.secret.v1.SetSecretsRequest
+	(*SecretVersion)(nil),                 // 1: loco.secret.v1.SecretVersion
+	(*SetSecretsResponse)(nil),            // 2: loco.secret.v1.SetSecretsResponse
+	(*DeleteSecretsRequest)(nil),          // 3: loco.secret.v1.DeleteSecretsRequest
+	(*DeleteSecretsResponse)(nil),         // 4: loco.secret.v1.DeleteSecretsResponse
+	(*ListSecretsRequest)(nil),            // 5: loco.secret.v1.ListSecretsRequest
+	(*Secret)(nil),                        // 6: loco.secret.v1.Secret
+	(*ListSecretsResponse)(nil),           // 7: loco.secret.v1.ListSecretsResponse
+	(*RewrapEnvironmentKeysRequest)(nil),  // 8: loco.secret.v1.RewrapEnvironmentKeysRequest
+	(*RewrapEnvironmentKeysResponse)(nil), // 9: loco.secret.v1.RewrapEnvironmentKeysResponse
+	nil,                                   // 10: loco.secret.v1.SetSecretsRequest.ValuesEntry
+	(*timestamppb.Timestamp)(nil),         // 11: google.protobuf.Timestamp
 }
 var file_loco_secret_v1_secret_proto_depIdxs = []int32{
-	8, // 0: loco.secret.v1.SetSecretsRequest.values:type_name -> loco.secret.v1.SetSecretsRequest.ValuesEntry
-	1, // 1: loco.secret.v1.SetSecretsResponse.versions:type_name -> loco.secret.v1.SecretVersion
-	9, // 2: loco.secret.v1.Secret.created_at:type_name -> google.protobuf.Timestamp
-	9, // 3: loco.secret.v1.Secret.updated_at:type_name -> google.protobuf.Timestamp
-	6, // 4: loco.secret.v1.ListSecretsResponse.secrets:type_name -> loco.secret.v1.Secret
-	0, // 5: loco.secret.v1.SecretService.SetSecrets:input_type -> loco.secret.v1.SetSecretsRequest
-	3, // 6: loco.secret.v1.SecretService.DeleteSecrets:input_type -> loco.secret.v1.DeleteSecretsRequest
-	5, // 7: loco.secret.v1.SecretService.ListSecrets:input_type -> loco.secret.v1.ListSecretsRequest
-	2, // 8: loco.secret.v1.SecretService.SetSecrets:output_type -> loco.secret.v1.SetSecretsResponse
-	4, // 9: loco.secret.v1.SecretService.DeleteSecrets:output_type -> loco.secret.v1.DeleteSecretsResponse
-	7, // 10: loco.secret.v1.SecretService.ListSecrets:output_type -> loco.secret.v1.ListSecretsResponse
-	8, // [8:11] is the sub-list for method output_type
-	5, // [5:8] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	10, // 0: loco.secret.v1.SetSecretsRequest.values:type_name -> loco.secret.v1.SetSecretsRequest.ValuesEntry
+	1,  // 1: loco.secret.v1.SetSecretsResponse.versions:type_name -> loco.secret.v1.SecretVersion
+	11, // 2: loco.secret.v1.Secret.created_at:type_name -> google.protobuf.Timestamp
+	11, // 3: loco.secret.v1.Secret.updated_at:type_name -> google.protobuf.Timestamp
+	6,  // 4: loco.secret.v1.ListSecretsResponse.secrets:type_name -> loco.secret.v1.Secret
+	0,  // 5: loco.secret.v1.SecretService.SetSecrets:input_type -> loco.secret.v1.SetSecretsRequest
+	3,  // 6: loco.secret.v1.SecretService.DeleteSecrets:input_type -> loco.secret.v1.DeleteSecretsRequest
+	5,  // 7: loco.secret.v1.SecretService.ListSecrets:input_type -> loco.secret.v1.ListSecretsRequest
+	8,  // 8: loco.secret.v1.SecretService.RewrapEnvironmentKeys:input_type -> loco.secret.v1.RewrapEnvironmentKeysRequest
+	2,  // 9: loco.secret.v1.SecretService.SetSecrets:output_type -> loco.secret.v1.SetSecretsResponse
+	4,  // 10: loco.secret.v1.SecretService.DeleteSecrets:output_type -> loco.secret.v1.DeleteSecretsResponse
+	7,  // 11: loco.secret.v1.SecretService.ListSecrets:output_type -> loco.secret.v1.ListSecretsResponse
+	9,  // 12: loco.secret.v1.SecretService.RewrapEnvironmentKeys:output_type -> loco.secret.v1.RewrapEnvironmentKeysResponse
+	9,  // [9:13] is the sub-list for method output_type
+	5,  // [5:9] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_loco_secret_v1_secret_proto_init() }
@@ -551,7 +679,7 @@ func file_loco_secret_v1_secret_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_secret_v1_secret_proto_rawDesc), len(file_loco_secret_v1_secret_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

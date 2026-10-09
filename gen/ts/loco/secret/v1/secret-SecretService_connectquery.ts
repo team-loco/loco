@@ -24,3 +24,11 @@ export const deleteSecrets = SecretService.method.deleteSecrets;
  * @generated from rpc loco.secret.v1.SecretService.ListSecrets
  */
 export const listSecrets = SecretService.method.listSecrets;
+
+/**
+ * RewrapEnvironmentKeys rewraps environment data keys under the provider's current key, and with
+ * new_dek replaces one environment's data key and re-encrypts its values.
+ *
+ * @generated from rpc loco.secret.v1.SecretService.RewrapEnvironmentKeys
+ */
+export const rewrapEnvironmentKeys = SecretService.method.rewrapEnvironmentKeys;

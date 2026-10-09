@@ -404,6 +404,7 @@ func main() {
 		secretv1connect.SecretServiceSetSecretsProcedure,
 		secretv1connect.SecretServiceDeleteSecretsProcedure,
 		secretv1connect.SecretServiceListSecretsProcedure,
+		secretv1connect.SecretServiceRewrapEnvironmentKeysProcedure,
 	)
 
 	// mount both old and new reflectors for backwards compatibility
