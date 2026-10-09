@@ -309,8 +309,8 @@ func (f *imageSweepFixture) desiredPlacement(t *testing.T, clusterID uuid.UUID, 
 	t.Helper()
 	spec := fmt.Sprintf(`{"app_spec":{"serviceSpec":{"image":"%s/%s@%s"}}}`, testRegistryHost, f.repoPath, image)
 	if _, err := f.pool.Exec(f.ctx, `
-INSERT INTO placements (resource_id, cluster_id, region, desired_spec)
-VALUES ($1, $2, 'us-east-1', $3)`, f.resourceID, clusterID, spec); err != nil {
+INSERT INTO placements (resource_id, cluster_id, region, desired_spec, environment_id)
+VALUES ($1, $2, 'us-east-1', $3, $4)`, f.resourceID, clusterID, spec, f.envID); err != nil {
 		t.Fatalf("insert placement: %v", err)
 	}
 }

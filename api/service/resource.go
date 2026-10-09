@@ -984,6 +984,7 @@ func (s *ResourceServer) planRegionRedeploy(
 			Spec:          specJSON,
 			SpecVersion:   int32(1),
 			EnvironmentID: current.EnvironmentID,
+			SecretNames:   current.SecretNames,
 		},
 		deploymentSpec: &deploymentv1.DeploymentSpec{
 			Spec: &deploymentv1.DeploymentSpec_Service{
@@ -1509,11 +1510,13 @@ func createDeploymentWithCleanup(
 	}
 
 	_, err = placeApplication(ctx, qtx, genDb.UpsertPlacementParams{
-		ResourceID:   params.ResourceID,
-		ClusterID:    params.ClusterID,
-		Region:       params.Region,
-		DeploymentID: &deploymentID,
-		DesiredSpec:  spec,
+		ResourceID:    params.ResourceID,
+		ClusterID:     params.ClusterID,
+		Region:        params.Region,
+		DeploymentID:  &deploymentID,
+		DesiredSpec:   spec,
+		EnvironmentID: params.EnvironmentID,
+		SecretNames:   params.SecretNames,
 	})
 	if err != nil {
 		return uuid.UUID{}, err
