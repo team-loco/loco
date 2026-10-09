@@ -4,7 +4,7 @@ go 1.27.0
 
 require (
 	connectrpc.com/connect v1.21.0
-	github.com/ClickHouse/clickhouse-go/v2 v2.48.0
+	github.com/ClickHouse/clickhouse-go/v2 v2.49.0
 	github.com/dgraph-io/ristretto/v2 v2.4.2
 	github.com/team-loco/loco v0.0.0
 	google.golang.org/protobuf v1.36.12
