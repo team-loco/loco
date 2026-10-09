@@ -397,6 +397,7 @@ func main() {
 		environmentv1connect.EnvironmentServiceUpdateEnvironmentProcedure,
 		environmentv1connect.EnvironmentServiceDeleteEnvironmentProcedure,
 		planv1connect.PlanServicePlanProcedure,
+		planv1connect.PlanServiceApplyProcedure,
 	)
 
 	// mount both old and new reflectors for backwards compatibility

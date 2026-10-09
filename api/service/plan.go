@@ -28,6 +28,7 @@ import (
 // PlanServer implements the PlanService: it diffs a loco.yaml file against an environment.
 type PlanServer struct {
 	planv1connect.UnimplementedPlanServiceHandler
+	db           *pgxpool.Pool
 	queries      genDb.Querier
 	authz        *authz.Authorizer
 	resolver     ImageResolver
@@ -43,6 +44,7 @@ func NewPlanServer(
 	defaults servicedefaults.Defaults,
 ) *PlanServer {
 	return &PlanServer{
+		db:           db,
 		queries:      queries,
 		authz:        authz.New(db, queries),
 		resolver:     resolver,
