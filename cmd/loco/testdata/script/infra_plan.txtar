@@ -1,0 +1,89 @@
+# plan sends loco.yaml to the API and prints the operations grouped by kind.
+fakeapi plan plan.json
+exec loco infra plan
+stdout '^Plan for loco.yaml against environment revision 7\.$'
+stdout '^Create$'
+stdout '^  \+ api$'
+stdout '^      image: ghcr.io/acme/api:1$'
+stdout '^Update$'
+stdout '^  ~ web  \(needs deploy\)$'
+stdout '^      regions.us-east-1.cpu: 250m -> 500m$'
+stdout '^      env.LOG_LEVEL: info -> debug$'
+stdout '^      env.TRACE: on -> \(removed\)$'
+stdout '^Delete$'
+stdout '^  - worker  \(destructive\)$'
+stdout '^Import$'
+stdout '^  ← db$'
+stdout '^Plan: 1 to create, 1 to update, 1 to delete, 1 to import\.$'
+stdout 'Destructive operations need --confirm-destructive on apply'
+stdout 'Import operations need --confirm-import on apply'
+stdout 'needs deploy start after loco deploy'
+! stdout '\x1b\['
+fakeapi called Plan 'Bearer test-token'
+fakeapi planned loco.yaml
+
+# a plan with changes exits 2 only with --detailed-exit-code, and prints no error.
+exec loco infra plan --env production
+! exec loco infra plan --detailed-exit-code
+! stderr .
+stdout '^Plan: 1 to create'
+
+# --json prints the response for CI.
+! exec loco infra plan --json --detailed-exit-code
+! stderr .
+stdout '"revision":\s+"7"'
+stdout '"kind":\s+"PLAN_OPERATION_KIND_DELETE"'
+stdout '"destructive":\s+true'
+
+# the path argument names another file.
+exec loco infra plan other/service.yaml
+stdout '^Plan for other/service.yaml against'
+fakeapi planned other/service.yaml
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.toml --
+currentScope = "default"
+
+[scopes.default.organization]
+name = "acme"
+id = "1"
+
+[scopes.default.workspace]
+name = "production"
+id = "2"
+-- plan.json --
+{
+  "revision": "7",
+  "operations": [
+    {"kind": "PLAN_OPERATION_KIND_DELETE", "service": "worker", "destructive": true},
+    {"kind": "PLAN_OPERATION_KIND_CREATE", "service": "api", "changes": [{"path": "image", "after": "ghcr.io/acme/api:1"}]},
+    {"kind": "PLAN_OPERATION_KIND_IMPORT", "service": "db"},
+    {"kind": "PLAN_OPERATION_KIND_UPDATE", "service": "web", "needsDeploy": true, "changes": [
+      {"path": "regions.us-east-1.cpu", "before": "250m", "after": "500m"},
+      {"path": "env.LOG_LEVEL", "before": "info", "after": "debug"},
+      {"path": "env.TRACE", "before": "on"}
+    ]}
+  ]
+}
+-- loco.yaml --
+version: 1
+partial: web
+services:
+  web:
+    dockerfile: Dockerfile
+    port: 3000
+    regions:
+      us-east-1: { cpu: 500m, memory: 512Mi, replicas: { min: 1, max: 3 } }
+  api:
+    image: ghcr.io/acme/api:1
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+-- other/service.yaml --
+version: 1
+partial: api
+services:
+  api:
+    image: ghcr.io/acme/api:1
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
