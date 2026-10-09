@@ -40,7 +40,7 @@ RUN find web/dist -type f -size +1k \( \
 
 FROM ghcr.io/astral-sh/uv:0.12.24@sha256:3af4716e991d6956a41e573eab705d0ee08500cd829ed30293eb8472f372c65a AS docs-uv
 
-FROM python:3.13.16-slim@sha256:bf44cdfcb76cd3b41e879bc058fc37ec5872002ccfde7fcb765e218cde0cd79c AS docs-builder
+FROM python:3.14.8-slim@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170 AS docs-builder
 COPY --from=docs-uv /uv /usr/local/bin/uv
 WORKDIR /app/docs
 COPY docs/pyproject.toml docs/uv.lock ./
