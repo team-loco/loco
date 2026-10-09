@@ -40,6 +40,7 @@ var (
 	ErrInvalidResourceType   = errors.New("invalid resource type")
 
 	errDomainInUse           = errors.New("domain already in use")
+	errUnknownResourceSpec   = errors.New("unknown resource spec type")
 	errOnlyServiceResources  = errors.New("only service resources are currently supported")
 	errScaleNothingRequested = errors.New("at least one of replicas, cpu, or memory must be provided")
 )
@@ -155,44 +156,9 @@ func (s *ResourceServer) CreateResource(
 		}
 	}
 
-	// save only the oneof spec (e.g., ServiceSpec) to db, not the wrapper
-	var (
-		specJSON []byte
-		err      error
-	)
-	switch specType := r.GetSpec().GetSpec().(type) {
-	case *resourcev1.ResourceSpec_Service:
-		specJSON, err = protojson.Marshal(specType.Service)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to marshal service spec", "error", err)
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
-		}
-	case *resourcev1.ResourceSpec_Database:
-		specJSON, err = protojson.Marshal(specType.Database)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to marshal database spec", "error", err)
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
-		}
-	case *resourcev1.ResourceSpec_Cache:
-		specJSON, err = protojson.Marshal(specType.Cache)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to marshal cache spec", "error", err)
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
-		}
-	case *resourcev1.ResourceSpec_Queue:
-		specJSON, err = protojson.Marshal(specType.Queue)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to marshal queue spec", "error", err)
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
-		}
-	case *resourcev1.ResourceSpec_Blob:
-		specJSON, err = protojson.Marshal(specType.Blob)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to marshal blob spec", "error", err)
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
-		}
-	default:
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unknown resource spec type"))
+	specJSON, err := marshalResourceSpec(ctx, r.GetSpec())
+	if err != nil {
+		return nil, err
 	}
 
 	resourceType, err := protoResourceTypeToDb(r.GetType())
@@ -282,6 +248,32 @@ func (s *ResourceServer) CreateResource(
 	}
 
 	return connect.NewResponse(&resourcev1.CreateResourceResponse{ResourceId: resourceID.String()}), nil
+}
+
+func marshalResourceSpec(ctx context.Context, spec *resourcev1.ResourceSpec) ([]byte, error) {
+	var (
+		specJSON []byte
+		err      error
+	)
+	switch specType := spec.GetSpec().(type) {
+	case *resourcev1.ResourceSpec_Service:
+		specJSON, err = protojson.Marshal(specType.Service)
+	case *resourcev1.ResourceSpec_Database:
+		specJSON, err = protojson.Marshal(specType.Database)
+	case *resourcev1.ResourceSpec_Cache:
+		specJSON, err = protojson.Marshal(specType.Cache)
+	case *resourcev1.ResourceSpec_Queue:
+		specJSON, err = protojson.Marshal(specType.Queue)
+	case *resourcev1.ResourceSpec_Blob:
+		specJSON, err = protojson.Marshal(specType.Blob)
+	default:
+		return nil, connect.NewError(connect.CodeInvalidArgument, errUnknownResourceSpec)
+	}
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to marshal resource spec", "error", err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
+	}
+	return specJSON, nil
 }
 
 // GetResource retrieves a resource by ID
