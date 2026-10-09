@@ -21,7 +21,7 @@ mise run docs:check:browser
 mise run docs:check:container
 ```
 
-Builds run in strict mode and fail on warnings. Generated output goes in `docs/site/` and stays out of Git. Python dependencies are pinned in `docs/uv.lock`; the runner and Python versions are pinned by mise.
+Builds run in strict mode and fail on warnings. The advisory Docs Drift workflow comments on a pull request whose code changes leave these pages stale and labels it `needs-docs`; its rubric is `.agents/skills/docs-drift/SKILL.md`. Generated output goes in `docs/site/` and stays out of Git. Python dependencies are pinned in `docs/uv.lock`; the runner and Python versions are pinned by mise.
 
 ## Theme and navigation
 
