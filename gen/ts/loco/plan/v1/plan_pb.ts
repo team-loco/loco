@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/plan/v1/plan.proto.
  */
 export const file_loco_plan_v1_plan: GenFile = /*@__PURE__*/
-  fileDesc("Chdsb2NvL3BsYW4vdjEvcGxhbi5wcm90bxIMbG9jby5wbGFuLnYxIoMCCgxBcHBseVJlcXVlc3QSGQoEZmlsZRgBIAEoDEILukgIegYQARiAgEASIAoOZW52aXJvbm1lbnRfaWQYAiABKAlCCLpIBXIDsAEBEhAKCHJldmlzaW9uGAMgASgDEhsKE2NvbmZpcm1fZGVzdHJ1Y3RpdmUYBCABKAgSFgoOY29uZmlybV9pbXBvcnQYBSABKAgSQAoGaW1hZ2VzGAYgAygLMiYubG9jby5wbGFuLnYxLkFwcGx5UmVxdWVzdC5JbWFnZXNFbnRyeUIIukgFmgECEGQaLQoLSW1hZ2VzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKIAQoNQXBwbHlSZXNwb25zZRIQCghyZXZpc2lvbhgBIAEoAxIvCgpvcGVyYXRpb25zGAIgAygLMhsubG9jby5wbGFuLnYxLlBsYW5PcGVyYXRpb24SNAoLZGVwbG95bWVudHMYAyADKAsyHy5sb2NvLnBsYW4udjEuU3RhcnRlZERlcGxveW1lbnQiSwoRU3RhcnRlZERlcGxveW1lbnQSDwoHc2VydmljZRgBIAEoCRIOCgZyZWdpb24YAiABKAkSFQoNZGVwbG95bWVudF9pZBgDIAEoCSLiAQoMQXBwbHlSZWZ1c2FsEicKBmVycm9ycxgBIAMoCzIXLmxvY28ucGxhbi52MS5QbGFuRXJyb3ISMAoLdW5jb25maXJtZWQYAiADKAsyGy5sb2NvLnBsYW4udjEuUGxhbk9wZXJhdGlvbhIQCghyZXZpc2lvbhgDIAEoAxI2CgZpbWFnZXMYBCADKAsyJi5sb2NvLnBsYW4udjEuQXBwbHlSZWZ1c2FsLkltYWdlc0VudHJ5Gi0KC0ltYWdlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiSgoLUGxhblJlcXVlc3QSGQoEZmlsZRgBIAEoDEILukgIegYQARiAgEASIAoOZW52aXJvbm1lbnRfaWQYAiABKAlCCLpIBXIDsAEBIuEBCgxQbGFuUmVzcG9uc2USEAoIcmV2aXNpb24YASABKAMSLwoKb3BlcmF0aW9ucxgCIAMoCzIbLmxvY28ucGxhbi52MS5QbGFuT3BlcmF0aW9uEicKBmVycm9ycxgDIAMoCzIXLmxvY28ucGxhbi52MS5QbGFuRXJyb3ISNgoGaW1hZ2VzGAQgAygLMiYubG9jby5wbGFuLnYxLlBsYW5SZXNwb25zZS5JbWFnZXNFbnRyeRotCgtJbWFnZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIqYBCg1QbGFuT3BlcmF0aW9uEi0KBGtpbmQYASABKA4yHy5sb2NvLnBsYW4udjEuUGxhbk9wZXJhdGlvbktpbmQSDwoHc2VydmljZRgCIAEoCRIqCgdjaGFuZ2VzGAMgAygLMhkubG9jby5wbGFuLnYxLkZpZWxkQ2hhbmdlEhMKC2Rlc3RydWN0aXZlGAQgASgIEhQKDG5lZWRzX2RlcGxveRgFIAEoCCI6CgtGaWVsZENoYW5nZRIMCgRwYXRoGAEgASgJEg4KBmJlZm9yZRgCIAEoCRINCgVhZnRlchgDIAEoCSI7CglQbGFuRXJyb3ISDwoHc2VydmljZRgBIAEoCRIMCgRwYXRoGAIgASgJEg8KB21lc3NhZ2UYAyABKAkquAEKEVBsYW5PcGVyYXRpb25LaW5kEiMKH1BMQU5fT1BFUkFUSU9OX0tJTkRfVU5TUEVDSUZJRUQQABIeChpQTEFOX09QRVJBVElPTl9LSU5EX0NSRUFURRABEh4KGlBMQU5fT1BFUkFUSU9OX0tJTkRfVVBEQVRFEAISHgoaUExBTl9PUEVSQVRJT05fS0lORF9ERUxFVEUQAxIeChpQTEFOX09QRVJBVElPTl9LSU5EX0lNUE9SVBAEMo4BCgtQbGFuU2VydmljZRI9CgRQbGFuEhkubG9jby5wbGFuLnYxLlBsYW5SZXF1ZXN0GhoubG9jby5wbGFuLnYxLlBsYW5SZXNwb25zZRJACgVBcHBseRIaLmxvY28ucGxhbi52MS5BcHBseVJlcXVlc3QaGy5sb2NvLnBsYW4udjEuQXBwbHlSZXNwb25zZUI2WjRnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL3BsYW4vdjE7cGxhbnYxYgZwcm90bzM", [file_buf_validate_validate]);
+  fileDesc("Chdsb2NvL3BsYW4vdjEvcGxhbi5wcm90bxIMbG9jby5wbGFuLnYxIqoDCgxBcHBseVJlcXVlc3QSGQoEZmlsZRgBIAEoDEILukgIegYQARiAgEASIAoOZW52aXJvbm1lbnRfaWQYAiABKAlCCLpIBXIDsAEBEhAKCHJldmlzaW9uGAMgASgDEhsKE2NvbmZpcm1fZGVzdHJ1Y3RpdmUYBCABKAgSFgoOY29uZmlybV9pbXBvcnQYBSABKAgSQAoGaW1hZ2VzGAYgAygLMiYubG9jby5wbGFuLnYxLkFwcGx5UmVxdWVzdC5JbWFnZXNFbnRyeUIIukgFmgECEGQSTwoGYnVpbGRzGAcgAygLMiYubG9jby5wbGFuLnYxLkFwcGx5UmVxdWVzdC5CdWlsZHNFbnRyeUIXukgUmgEREGQiBnIEEAEYPyoFcgOwAQESJQoJcHJvdmlzaW9uGAggAygJQhK6SA+SAQwQZBgBIgZyBBABGD8aLQoLSW1hZ2VzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ARotCgtCdWlsZHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIogBCg1BcHBseVJlc3BvbnNlEhAKCHJldmlzaW9uGAEgASgDEi8KCm9wZXJhdGlvbnMYAiADKAsyGy5sb2NvLnBsYW4udjEuUGxhbk9wZXJhdGlvbhI0CgtkZXBsb3ltZW50cxgDIAMoCzIfLmxvY28ucGxhbi52MS5TdGFydGVkRGVwbG95bWVudCJLChFTdGFydGVkRGVwbG95bWVudBIPCgdzZXJ2aWNlGAEgASgJEg4KBnJlZ2lvbhgCIAEoCRIVCg1kZXBsb3ltZW50X2lkGAMgASgJIuIBCgxBcHBseVJlZnVzYWwSJwoGZXJyb3JzGAEgAygLMhcubG9jby5wbGFuLnYxLlBsYW5FcnJvchIwCgt1bmNvbmZpcm1lZBgCIAMoCzIbLmxvY28ucGxhbi52MS5QbGFuT3BlcmF0aW9uEhAKCHJldmlzaW9uGAMgASgDEjYKBmltYWdlcxgEIAMoCzImLmxvY28ucGxhbi52MS5BcHBseVJlZnVzYWwuSW1hZ2VzRW50cnkaLQoLSW1hZ2VzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJKCgtQbGFuUmVxdWVzdBIZCgRmaWxlGAEgASgMQgu6SAh6BhABGICAQBIgCg5lbnZpcm9ubWVudF9pZBgCIAEoCUIIukgFcgOwAQEi4QEKDFBsYW5SZXNwb25zZRIQCghyZXZpc2lvbhgBIAEoAxIvCgpvcGVyYXRpb25zGAIgAygLMhsubG9jby5wbGFuLnYxLlBsYW5PcGVyYXRpb24SJwoGZXJyb3JzGAMgAygLMhcubG9jby5wbGFuLnYxLlBsYW5FcnJvchI2CgZpbWFnZXMYBCADKAsyJi5sb2NvLnBsYW4udjEuUGxhblJlc3BvbnNlLkltYWdlc0VudHJ5Gi0KC0ltYWdlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEipgEKDVBsYW5PcGVyYXRpb24SLQoEa2luZBgBIAEoDjIfLmxvY28ucGxhbi52MS5QbGFuT3BlcmF0aW9uS2luZBIPCgdzZXJ2aWNlGAIgASgJEioKB2NoYW5nZXMYAyADKAsyGS5sb2NvLnBsYW4udjEuRmllbGRDaGFuZ2USEwoLZGVzdHJ1Y3RpdmUYBCABKAgSFAoMbmVlZHNfZGVwbG95GAUgASgIIjoKC0ZpZWxkQ2hhbmdlEgwKBHBhdGgYASABKAkSDgoGYmVmb3JlGAIgASgJEg0KBWFmdGVyGAMgASgJIjsKCVBsYW5FcnJvchIPCgdzZXJ2aWNlGAEgASgJEgwKBHBhdGgYAiABKAkSDwoHbWVzc2FnZRgDIAEoCSq4AQoRUGxhbk9wZXJhdGlvbktpbmQSIwofUExBTl9PUEVSQVRJT05fS0lORF9VTlNQRUNJRklFRBAAEh4KGlBMQU5fT1BFUkFUSU9OX0tJTkRfQ1JFQVRFEAESHgoaUExBTl9PUEVSQVRJT05fS0lORF9VUERBVEUQAhIeChpQTEFOX09QRVJBVElPTl9LSU5EX0RFTEVURRADEh4KGlBMQU5fT1BFUkFUSU9OX0tJTkRfSU1QT1JUEAQyjgEKC1BsYW5TZXJ2aWNlEj0KBFBsYW4SGS5sb2NvLnBsYW4udjEuUGxhblJlcXVlc3QaGi5sb2NvLnBsYW4udjEuUGxhblJlc3BvbnNlEkAKBUFwcGx5EhoubG9jby5wbGFuLnYxLkFwcGx5UmVxdWVzdBobLmxvY28ucGxhbi52MS5BcHBseVJlc3BvbnNlQjZaNGdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vcGxhbi92MTtwbGFudjFiBnByb3RvMw", [file_buf_validate_validate]);
 
 /**
  * @generated from message loco.plan.v1.ApplyRequest
@@ -61,6 +61,25 @@ export type ApplyRequest = Message<"loco.plan.v1.ApplyRequest"> & {
    * @generated from field: map<string, string> images = 6;
    */
   images: { [key: string]: string };
+
+  /**
+   * builds maps a source service of the file to the id of a succeeded build of it. The apply
+   * deploys the service from that build's image, whether or not the plan lists an operation
+   * for it.
+   *
+   * @generated from field: map<string, string> builds = 7;
+   */
+  builds: { [key: string]: string };
+
+  /**
+   * provision names source services the plan creates. When it is set, the apply creates only
+   * those services' resources, without deployments, and performs no other operation of the
+   * plan, so the services can be built before the file is applied with their builds. A request
+   * sets provision or builds, not both.
+   *
+   * @generated from field: repeated string provision = 8;
+   */
+  provision: string[];
 };
 
 /**
@@ -111,6 +130,25 @@ export type ApplyRequestJson = {
    * @generated from field: map<string, string> images = 6;
    */
   images?: { [key: string]: string };
+
+  /**
+   * builds maps a source service of the file to the id of a succeeded build of it. The apply
+   * deploys the service from that build's image, whether or not the plan lists an operation
+   * for it.
+   *
+   * @generated from field: map<string, string> builds = 7;
+   */
+  builds?: { [key: string]: string };
+
+  /**
+   * provision names source services the plan creates. When it is set, the apply creates only
+   * those services' resources, without deployments, and performs no other operation of the
+   * plan, so the services can be built before the file is applied with their builds. A request
+   * sets provision or builds, not both.
+   *
+   * @generated from field: repeated string provision = 8;
+   */
+  provision?: string[];
 };
 
 /**
@@ -679,7 +717,8 @@ export const PlanService: GenService<{
    * Apply re-plans the file against the environment and performs the operations in one
    * transaction. It fails with FAILED_PRECONDITION when the environment revision differs from
    * the one the plan was computed against, when the plan has errors, or when a destructive or
-   * import operation lacks its confirmation; the error carries an ApplyRefusal detail.
+   * import operation lacks its confirmation, or when a provision name is not a source service
+   * the plan creates; the error carries an ApplyRefusal detail.
    *
    * @generated from rpc loco.plan.v1.PlanService.Apply
    */

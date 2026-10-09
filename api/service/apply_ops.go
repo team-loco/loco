@@ -31,11 +31,15 @@ var (
 	errNoBuildToDeploy  = errors.New("the service has no build to deploy")
 )
 
-// applier performs the operations of one plan inside one transaction.
+// applier performs the operations of one plan inside one transaction. builds are the builds the
+// request named per service; deployed records the services the operations have deployed.
 type applier struct {
 	env             genDb.Environment
 	partial         string
 	live            liveEnvironment
+	desired         map[string]configplan.State
+	builds          map[string]*deploymentv1.BuildSource
+	deployed        map[string]bool
 	platformDomains []genDb.PlatformDomain
 	defaults        servicedefaults.Defaults
 	started         []*planv1.StartedDeployment
@@ -258,6 +262,7 @@ func (a *applier) deploy(
 	if lockErr := lockPinnedBuildImage(ctx, qtx, build); lockErr != nil {
 		return lockErr
 	}
+	a.deployed[res.Name] = true
 	hostname, err := primaryHostname(ctx, qtx, res.ID, a.env.ID)
 	if err != nil {
 		return err
@@ -342,6 +347,9 @@ func (a *applier) currentBuild(
 	if state.Image != "" {
 		return &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: state.Image}, nil
 	}
+	if requested := a.builds[res.Name]; requested != nil {
+		return requested, nil
+	}
 	if deployments := a.live.deployments[res.ID]; len(deployments) > 0 {
 		deploymentSpec, err := converter.DeserializeDeploymentSpec(deployments[0].Spec, string(res.Type))
 		if err != nil {
@@ -360,6 +368,25 @@ func (a *applier) currentBuild(
 	image := build.ImageRepository + "@" + derefString(build.ImageDigest)
 	buildID := build.ID.String()
 	return &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, Image: image, BuildId: &buildID}, nil
+}
+
+func (a *applier) deployBuilds(ctx context.Context, qtx *genDb.Queries) error {
+	for _, service := range slices.Sorted(maps.Keys(a.builds)) {
+		if a.deployed[service] {
+			continue
+		}
+		res := a.live.resources[service]
+		resourceSpec, err := converter.DeserializeResourceSpec(res.Spec, res.Type)
+		if err != nil {
+			return fmt.Errorf("resource spec: %w", err)
+		}
+		desired := a.desired[service]
+		regions := slices.Sorted(maps.Keys(desired.Regions))
+		if deployErr := a.deploy(ctx, qtx, res, resourceSpec.GetService(), desired, regions); deployErr != nil {
+			return deployErr
+		}
+	}
+	return nil
 }
 
 func deploymentSpecJSON(service *deploymentv1.ServiceDeploymentSpec) ([]byte, error) {

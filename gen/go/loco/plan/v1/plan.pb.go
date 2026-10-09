@@ -99,7 +99,16 @@ type ApplyRequest struct {
 	// images is the images map of the PlanResponse the apply carries out: every image reference
 	// of the file and the digest-pinned reference the plan resolved it to. The apply resolves
 	// the references again and refuses when one is missing here or resolves to another digest.
-	Images        map[string]string `protobuf:"bytes,6,rep,name=images,proto3" json:"images,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Images map[string]string `protobuf:"bytes,6,rep,name=images,proto3" json:"images,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// builds maps a source service of the file to the id of a succeeded build of it. The apply
+	// deploys the service from that build's image, whether or not the plan lists an operation
+	// for it.
+	Builds map[string]string `protobuf:"bytes,7,rep,name=builds,proto3" json:"builds,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// provision names source services the plan creates. When it is set, the apply creates only
+	// those services' resources, without deployments, and performs no other operation of the
+	// plan, so the services can be built before the file is applied with their builds. A request
+	// sets provision or builds, not both.
+	Provision     []string `protobuf:"bytes,8,rep,name=provision,proto3" json:"provision,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -172,6 +181,20 @@ func (x *ApplyRequest) GetConfirmImport() bool {
 func (x *ApplyRequest) GetImages() map[string]string {
 	if x != nil {
 		return x.Images
+	}
+	return nil
+}
+
+func (x *ApplyRequest) GetBuilds() map[string]string {
+	if x != nil {
+		return x.Builds
+	}
+	return nil
+}
+
+func (x *ApplyRequest) GetProvision() []string {
+	if x != nil {
+		return x.Provision
 	}
 	return nil
 }
@@ -706,15 +729,20 @@ var File_loco_plan_v1_plan_proto protoreflect.FileDescriptor
 
 const file_loco_plan_v1_plan_proto_rawDesc = "" +
 	"\n" +
-	"\x17loco/plan/v1/plan.proto\x12\floco.plan.v1\x1a\x1bbuf/validate/validate.proto\"\xd9\x02\n" +
+	"\x17loco/plan/v1/plan.proto\x12\floco.plan.v1\x1a\x1bbuf/validate/validate.proto\"\x9f\x04\n" +
 	"\fApplyRequest\x12\x1f\n" +
 	"\x04file\x18\x01 \x01(\fB\v\xbaH\bz\x06\x10\x01\x18\x80\x80@R\x04file\x12/\n" +
 	"\x0eenvironment_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\x12\x1a\n" +
 	"\brevision\x18\x03 \x01(\x03R\brevision\x12/\n" +
 	"\x13confirm_destructive\x18\x04 \x01(\bR\x12confirmDestructive\x12%\n" +
 	"\x0econfirm_import\x18\x05 \x01(\bR\rconfirmImport\x12H\n" +
-	"\x06images\x18\x06 \x03(\v2&.loco.plan.v1.ApplyRequest.ImagesEntryB\b\xbaH\x05\x9a\x01\x02\x10dR\x06images\x1a9\n" +
+	"\x06images\x18\x06 \x03(\v2&.loco.plan.v1.ApplyRequest.ImagesEntryB\b\xbaH\x05\x9a\x01\x02\x10dR\x06images\x12W\n" +
+	"\x06builds\x18\a \x03(\v2&.loco.plan.v1.ApplyRequest.BuildsEntryB\x17\xbaH\x14\x9a\x01\x11\x10d\"\x06r\x04\x10\x01\x18?*\x05r\x03\xb0\x01\x01R\x06builds\x120\n" +
+	"\tprovision\x18\b \x03(\tB\x12\xbaH\x0f\x92\x01\f\x10d\x18\x01\"\x06r\x04\x10\x01\x18?R\tprovision\x1a9\n" +
 	"\vImagesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a9\n" +
+	"\vBuildsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xab\x01\n" +
 	"\rApplyResponse\x12\x1a\n" +
@@ -785,7 +813,7 @@ func file_loco_plan_v1_plan_proto_rawDescGZIP() []byte {
 }
 
 var file_loco_plan_v1_plan_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_loco_plan_v1_plan_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_loco_plan_v1_plan_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_loco_plan_v1_plan_proto_goTypes = []any{
 	(PlanOperationKind)(0),    // 0: loco.plan.v1.PlanOperationKind
 	(*ApplyRequest)(nil),      // 1: loco.plan.v1.ApplyRequest
@@ -798,30 +826,32 @@ var file_loco_plan_v1_plan_proto_goTypes = []any{
 	(*FieldChange)(nil),       // 8: loco.plan.v1.FieldChange
 	(*PlanError)(nil),         // 9: loco.plan.v1.PlanError
 	nil,                       // 10: loco.plan.v1.ApplyRequest.ImagesEntry
-	nil,                       // 11: loco.plan.v1.ApplyRefusal.ImagesEntry
-	nil,                       // 12: loco.plan.v1.PlanResponse.ImagesEntry
+	nil,                       // 11: loco.plan.v1.ApplyRequest.BuildsEntry
+	nil,                       // 12: loco.plan.v1.ApplyRefusal.ImagesEntry
+	nil,                       // 13: loco.plan.v1.PlanResponse.ImagesEntry
 }
 var file_loco_plan_v1_plan_proto_depIdxs = []int32{
 	10, // 0: loco.plan.v1.ApplyRequest.images:type_name -> loco.plan.v1.ApplyRequest.ImagesEntry
-	7,  // 1: loco.plan.v1.ApplyResponse.operations:type_name -> loco.plan.v1.PlanOperation
-	3,  // 2: loco.plan.v1.ApplyResponse.deployments:type_name -> loco.plan.v1.StartedDeployment
-	9,  // 3: loco.plan.v1.ApplyRefusal.errors:type_name -> loco.plan.v1.PlanError
-	7,  // 4: loco.plan.v1.ApplyRefusal.unconfirmed:type_name -> loco.plan.v1.PlanOperation
-	11, // 5: loco.plan.v1.ApplyRefusal.images:type_name -> loco.plan.v1.ApplyRefusal.ImagesEntry
-	7,  // 6: loco.plan.v1.PlanResponse.operations:type_name -> loco.plan.v1.PlanOperation
-	9,  // 7: loco.plan.v1.PlanResponse.errors:type_name -> loco.plan.v1.PlanError
-	12, // 8: loco.plan.v1.PlanResponse.images:type_name -> loco.plan.v1.PlanResponse.ImagesEntry
-	0,  // 9: loco.plan.v1.PlanOperation.kind:type_name -> loco.plan.v1.PlanOperationKind
-	8,  // 10: loco.plan.v1.PlanOperation.changes:type_name -> loco.plan.v1.FieldChange
-	5,  // 11: loco.plan.v1.PlanService.Plan:input_type -> loco.plan.v1.PlanRequest
-	1,  // 12: loco.plan.v1.PlanService.Apply:input_type -> loco.plan.v1.ApplyRequest
-	6,  // 13: loco.plan.v1.PlanService.Plan:output_type -> loco.plan.v1.PlanResponse
-	2,  // 14: loco.plan.v1.PlanService.Apply:output_type -> loco.plan.v1.ApplyResponse
-	13, // [13:15] is the sub-list for method output_type
-	11, // [11:13] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	11, // 1: loco.plan.v1.ApplyRequest.builds:type_name -> loco.plan.v1.ApplyRequest.BuildsEntry
+	7,  // 2: loco.plan.v1.ApplyResponse.operations:type_name -> loco.plan.v1.PlanOperation
+	3,  // 3: loco.plan.v1.ApplyResponse.deployments:type_name -> loco.plan.v1.StartedDeployment
+	9,  // 4: loco.plan.v1.ApplyRefusal.errors:type_name -> loco.plan.v1.PlanError
+	7,  // 5: loco.plan.v1.ApplyRefusal.unconfirmed:type_name -> loco.plan.v1.PlanOperation
+	12, // 6: loco.plan.v1.ApplyRefusal.images:type_name -> loco.plan.v1.ApplyRefusal.ImagesEntry
+	7,  // 7: loco.plan.v1.PlanResponse.operations:type_name -> loco.plan.v1.PlanOperation
+	9,  // 8: loco.plan.v1.PlanResponse.errors:type_name -> loco.plan.v1.PlanError
+	13, // 9: loco.plan.v1.PlanResponse.images:type_name -> loco.plan.v1.PlanResponse.ImagesEntry
+	0,  // 10: loco.plan.v1.PlanOperation.kind:type_name -> loco.plan.v1.PlanOperationKind
+	8,  // 11: loco.plan.v1.PlanOperation.changes:type_name -> loco.plan.v1.FieldChange
+	5,  // 12: loco.plan.v1.PlanService.Plan:input_type -> loco.plan.v1.PlanRequest
+	1,  // 13: loco.plan.v1.PlanService.Apply:input_type -> loco.plan.v1.ApplyRequest
+	6,  // 14: loco.plan.v1.PlanService.Plan:output_type -> loco.plan.v1.PlanResponse
+	2,  // 15: loco.plan.v1.PlanService.Apply:output_type -> loco.plan.v1.ApplyResponse
+	14, // [14:16] is the sub-list for method output_type
+	12, // [12:14] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_loco_plan_v1_plan_proto_init() }
@@ -835,7 +865,7 @@ func file_loco_plan_v1_plan_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_plan_v1_plan_proto_rawDesc), len(file_loco_plan_v1_plan_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   12,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

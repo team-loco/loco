@@ -137,6 +137,9 @@ func TestOmittedFieldsAreFilledWithDefaultsAndNotChanges(t *testing.T) {
 	if len(plan.Operations) != 0 || len(plan.Errors) != 0 {
 		t.Fatalf("plan = %+v, want no operations for a service that matches the file", plan)
 	}
+	if desired, listed := plan.Desired[webService]; !listed || !reflect.DeepEqual(desired, liveState()) {
+		t.Fatalf("desired = %+v listed %v, want the unchanged service's state", desired, listed)
+	}
 }
 
 func TestNewServiceIsACreateListingEveryField(t *testing.T) {

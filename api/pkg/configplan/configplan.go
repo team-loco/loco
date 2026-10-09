@@ -94,15 +94,17 @@ type Error struct {
 }
 
 // Plan is the operations in service name order, or the errors that stop an apply. A plan with
-// errors has no operations.
+// errors has no operations. Desired is every service of the file as the apply writes it, with
+// the API defaults filled in, including the services the operations leave unchanged.
 type Plan struct {
 	Operations []Operation
 	Errors     []Error
+	Desired    map[string]State
 }
 
 // Compute builds the plan. It returns an error only when the input violates its contract.
 func Compute(in Input) (Plan, error) {
-	var plan Plan
+	plan := Plan{Desired: make(map[string]State, len(in.Services))}
 	plan.Errors = append(plan.Errors, unknownEnvironments(in)...)
 
 	live := make(map[string]Service, len(in.Live))
@@ -120,6 +122,7 @@ func Compute(in Input) (Plan, error) {
 		}
 		desired := fileState(service, pinned, in.Defaults)
 		plan.Errors = append(plan.Errors, validateDesired(name, desired)...)
+		plan.Desired[name] = desired
 
 		current, exists := live[name]
 		switch {
@@ -204,6 +207,7 @@ func Compute(in Input) (Plan, error) {
 
 	if len(plan.Errors) > 0 {
 		plan.Operations = nil
+		plan.Desired = nil
 	}
 	return plan, nil
 }

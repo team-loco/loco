@@ -195,7 +195,8 @@ func (f *deployFixture) addSucceededBuild(t *testing.T, resourceName, dockerfile
 	insert := `
 INSERT INTO builds (resource_id, status, source_type, source_key, source_size, dockerfile_path, context,
                     image_repository, image_digest, created_by, finished_at)
-SELECT r.id, 'succeeded', 'upload', 'src/' || r.id, 1, $3, $4, 'registry.loco.test/' || r.name, $2, u.id, NOW()
+SELECT r.id, 'succeeded', 'upload', 'src/' || gen_random_uuid(), 1, $3, $4, 'registry.loco.test/' || r.name,
+       $2, u.id, NOW()
 FROM resources r, users u WHERE r.name = $1
 RETURNING id`
 	args := []any{resourceName, testDigest, dockerfile, buildContext}

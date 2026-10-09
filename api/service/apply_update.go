@@ -70,6 +70,9 @@ func (a *applier) update(ctx context.Context, qtx *genDb.Queries, op configplan.
 	if stopErr := a.stopRemovedRegions(ctx, qtx, res, op.Desired.Regions); stopErr != nil {
 		return stopErr
 	}
+	if a.builds[res.Name] != nil {
+		return a.deploy(ctx, qtx, res, spec, op.Desired, regions)
+	}
 	if op.NeedsDeploy {
 		return nil
 	}

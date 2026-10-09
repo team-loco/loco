@@ -46,7 +46,8 @@ type PlanServiceClient interface {
 	// Apply re-plans the file against the environment and performs the operations in one
 	// transaction. It fails with FAILED_PRECONDITION when the environment revision differs from
 	// the one the plan was computed against, when the plan has errors, or when a destructive or
-	// import operation lacks its confirmation; the error carries an ApplyRefusal detail.
+	// import operation lacks its confirmation, or when a provision name is not a source service
+	// the plan creates; the error carries an ApplyRefusal detail.
 	Apply(context.Context, *connect.Request[v1.ApplyRequest]) (*connect.Response[v1.ApplyResponse], error)
 }
 
@@ -99,7 +100,8 @@ type PlanServiceHandler interface {
 	// Apply re-plans the file against the environment and performs the operations in one
 	// transaction. It fails with FAILED_PRECONDITION when the environment revision differs from
 	// the one the plan was computed against, when the plan has errors, or when a destructive or
-	// import operation lacks its confirmation; the error carries an ApplyRefusal detail.
+	// import operation lacks its confirmation, or when a provision name is not a source service
+	// the plan creates; the error carries an ApplyRefusal detail.
 	Apply(context.Context, *connect.Request[v1.ApplyRequest]) (*connect.Response[v1.ApplyResponse], error)
 }
 
