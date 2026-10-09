@@ -13,7 +13,12 @@ func TestZeroScalarFieldsAreOmittedUnderJSONV2(t *testing.T) {
 			Port:        8080,
 			HealthCheck: &HealthCheckSpec{Path: "/healthz", Interval: 1, Timeout: 1, FailThreshold: 1},
 		},
-		Resources: &ResourcesSpec{CPU: "100m", Memory: "32Mi", Replicas: ReplicasSpec{Min: 1, Max: 1}},
+		Resources: &ResourcesSpec{
+			CPU:      "100m",
+			Memory:   "32Mi",
+			Replicas: ReplicasSpec{Min: 1, Max: 1},
+			Scalers:  ScalersSpec{CPUTarget: 50},
+		},
 		Obs: &ObsSpec{
 			Logging: LoggingSpec{RetentionPeriod: "7d"},
 			Metrics: MetricsSpec{Path: "/metrics"},
@@ -22,7 +27,7 @@ func TestZeroScalarFieldsAreOmittedUnderJSONV2(t *testing.T) {
 	}
 	values := []any{spec, ApplicationStatus{}}
 	absent := []string{
-		`"enabled"`, `"cpuTarget"`, `"memoryTarget"`, `"startupGracePeriod"`,
+		`"enabled"`, `"memoryTarget"`, `"startupGracePeriod"`,
 		`"port":0`, `"structured"`, `"deployedGeneration"`, `"observedPlacementRevision"`,
 	}
 	for _, value := range values {
