@@ -118,7 +118,7 @@ func runDeploy(cmd *cobra.Command, deps deployDeps, name string) error {
 	defer stop()
 
 	apiClient := deps.NewAPIClient(host, locoToken.Token)
-	workspaceID, err := resolveWorkspaceID(ctx, cmd, deps.LoadSessionConfig, apiClient)
+	workspaceID, err := cmdutil.ResolveWorkspaceID(ctx, cmd, deps.LoadSessionConfig, apiClient)
 	if err != nil {
 		return err
 	}
@@ -135,7 +135,7 @@ func runDeploy(cmd *cobra.Command, deps deployDeps, name string) error {
 
 	interactive := deps.Interactive()
 	environmentClient := deps.Clients.Environments(host)
-	environmentID, err := resolveEnvironmentID(
+	environmentID, err := cmdutil.ResolveEnvironmentID(
 		ctx,
 		cmd,
 		environmentClient,

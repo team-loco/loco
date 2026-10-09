@@ -1,4 +1,4 @@
-package resource
+package cmdutil
 
 import (
 	"context"
@@ -18,7 +18,9 @@ const envVarEnvironment = "LOCO_ENV"
 
 var errNoEnvironments = errors.New("the workspace has no environments; create one in the web app first")
 
-func resolveEnvironmentID(
+// ResolveEnvironmentID picks the environment named by --env or LOCO_ENV, the workspace's
+// only environment, or an interactive choice.
+func ResolveEnvironmentID(
 	ctx context.Context,
 	cmd *cobra.Command,
 	client environmentv1connect.EnvironmentServiceClient,
