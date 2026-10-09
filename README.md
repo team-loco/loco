@@ -25,7 +25,7 @@ If `~/.local/bin` is not already on your `PATH`, the installer prints the comman
 
 Run `loco update` to replace the installed binary with the latest release.
 
-2. **Log in with `loco login`.** It uses the GitHub device flow.
+2. **Log in with `loco login`.** It opens the dashboard in your browser, where the instance's identity provider signs you in, then returns to the terminal. On a machine without a browser, `loco login --device` prints a code to enter on another device.
 3. **Run `loco init` to create a `loco.toml` file**, and `loco validate` to check it.
 4. **Deploy your app via `loco deploy <app-name>`** from the directory that holds `loco.toml`. The CLI packs that directory into a gzipped tarball, uploads it, and Loco builds it with the Dockerfile named in `loco.toml`; the CLI prints the build's status and logs, then deploys the image to every region in `loco.toml`. The tarball honors `.dockerignore` and never contains `.git`, `.env` or `.env.*`. Ctrl-C during the build detaches without canceling it. `loco deploy <app-name> --image <image>` deploys a public image without building.
 
@@ -76,10 +76,9 @@ Deployable sample apps, each with its own `loco.toml`:
 - **ClickHouse:** As the data store for observability data.
 - **Grafana:** Dashboards for visualizing metrics and logs.
 
-## Abuse Prevention
+## Sign-up Policy
 
-To avoid abuse, Loco uses an invitation system. The repo collaborators is re-purposed as an invitation list and determines who can deploy with Loco.
-You must first reach out to me, nikumar1206, if you would like to deploy on this platform.
+The API decides who can create an account the first time they sign in through the instance's identity provider; existing accounts are not affected. `AUTH_SIGNUP_MODE` selects the policy: `open` (the default) accepts every identity, `domains` accepts only verified email addresses whose domain is in the comma-separated `AUTH_SIGNUP_DOMAINS` list, and `closed` creates no new accounts. The API refuses to start with an unknown mode or with `domains` and an empty list.
 
 ## Documentation
 
