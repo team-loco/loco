@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const testRegion = "us-east-1"
+
 const tddExample = `version: 1
 partial: web
 
@@ -232,6 +234,19 @@ func TestParseRejects(t *testing.T) {
 			yaml: minimalFile + "    environments:\n      prod:\n        environments: {}\n",
 			err:  ErrEnvironmentsInOverride,
 			path: "services.api.environments.prod.environments",
+		},
+		{
+			name: "override adds image to a source service",
+			yaml: strings.Replace(minimalFile, "    image: ghcr.io/acme/api:1\n", "    dockerfile: Dockerfile\n", 1) +
+				"    environments:\n      prod:\n        image: ghcr.io/acme/api:2\n",
+			err:  ErrImageWithBuild,
+			path: "services.api (environment prod)",
+		},
+		{
+			name: "override removes the only region's memory",
+			yaml: minimalFile + "    environments:\n      prod:\n        regions:\n          us-east-1: { memory: null }\n",
+			err:  ErrRegionIncomplete,
+			path: "services.api (environment prod).regions.us-east-1",
 		},
 		{
 			name: "duplicate key",
