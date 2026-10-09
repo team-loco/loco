@@ -90,6 +90,16 @@
       matchDepNames: ["bun", "oven/bun"],
     },
     {
+      groupName: "uv",
+      matchManagers: ["mise", "dockerfile"],
+      matchDepNames: ["uv", "ghcr.io/astral-sh/uv"],
+    },
+    {
+      groupName: "python",
+      matchManagers: ["mise", "dockerfile"],
+      matchDepNames: ["python"],
+    },
+    {
       groupName: "github actions",
       matchManagers: ["github-actions"],
       matchUpdateTypes: ["minor", "patch", "digest"],
