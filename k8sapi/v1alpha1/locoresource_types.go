@@ -48,9 +48,9 @@ type ReplicasSpec struct {
 }
 
 type ScalersSpec struct {
-	Enabled      bool  `json:"enabled,omitempty"`
-	CPUTarget    int32 `json:"cpuTarget,omitempty"`
-	MemoryTarget int32 `json:"memoryTarget,omitempty"`
+	Enabled      bool  `json:"enabled,omitzero"`
+	CPUTarget    int32 `json:"cpuTarget,omitzero"`
+	MemoryTarget int32 `json:"memoryTarget,omitzero"`
 }
 
 // HealthCheckSpec describes readiness/liveness checks
@@ -69,14 +69,14 @@ type HealthCheckSpec struct {
 	FailThreshold int32 `json:"failThreshold"`
 	// +optional
 	// +kubebuilder:validation:Minimum=0
-	StartupGracePeriod int32 `json:"startupGracePeriod,omitempty"` // seconds
+	StartupGracePeriod int32 `json:"startupGracePeriod,omitzero"` // seconds
 }
 
 // MetricsSpec defines metrics scraping info
 type MetricsSpec struct {
-	Enabled bool   `json:"enabled,omitempty"`
+	Enabled bool   `json:"enabled,omitzero"`
 	Path    string `json:"path,omitempty"`
-	Port    int32  `json:"port,omitempty"`
+	Port    int32  `json:"port,omitzero"`
 }
 
 // ObsSpec contains logging, metrics, tracing
@@ -87,13 +87,13 @@ type ObsSpec struct {
 }
 
 type LoggingSpec struct {
-	Enabled         bool   `json:"enabled,omitempty"`
+	Enabled         bool   `json:"enabled,omitzero"`
 	RetentionPeriod string `json:"retentionPeriod,omitempty"` // e.g. 7d
-	Structured      bool   `json:"structured,omitempty"`
+	Structured      bool   `json:"structured,omitzero"`
 }
 
 type TracingSpec struct {
-	Enabled    bool              `json:"enabled,omitempty"`
+	Enabled    bool              `json:"enabled,omitzero"`
 	SampleRate string            `json:"sampleRate,omitempty"`
 	Tags       map[string]string `json:"tags,omitempty"`
 }
@@ -220,9 +220,9 @@ type ApplicationStatus struct {
 	CompletedAt *metav1.Time `json:"completedAt,omitempty"`
 	UpdatedAt   *metav1.Time `json:"updatedAt,omitempty"`
 
-	DeployedGeneration int64 `json:"deployedGeneration,omitempty"` // tracks spec changes applied
+	DeployedGeneration int64 `json:"deployedGeneration,omitzero"` // tracks spec changes applied
 
-	ObservedPlacementRevision int64 `json:"observedPlacementRevision,omitempty"`
+	ObservedPlacementRevision int64 `json:"observedPlacementRevision,omitzero"`
 
 	// +listType=map
 	// +listMapKey=type
