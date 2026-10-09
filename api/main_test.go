@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -45,5 +46,22 @@ func TestWithCORS(t *testing.T) {
 				t.Errorf("origin %q allowed = %v, want %v", tt.origin, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestWithCORSExposedHeaders(t *testing.T) {
+	next := http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {})
+	h := withCORS([]string{configuredOrigin}, false)(next)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/loco.user.v1.UserService/WhoAmI", nil)
+	req.Header.Set("Origin", configuredOrigin)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	exposed := strings.ToLower(strings.Join(rec.Header().Values("Access-Control-Expose-Headers"), ","))
+	if !strings.Contains(exposed, "x-loco-request-id") {
+		t.Errorf("exposed headers %q missing x-loco-request-id", exposed)
+	}
+	if strings.Contains(exposed, "server-timing") {
+		t.Errorf("exposed headers %q include server-timing", exposed)
 	}
 }
