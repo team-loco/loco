@@ -9,17 +9,17 @@ dependencies:
       repository: https://helm.altinity.com
       condition: clickhouse.enabled
     - name: opentelemetry-operator
-      version: 0.124.0
+      version: 0.124.1
       repository: https://open-telemetry.github.io/opentelemetry-helm-charts
       condition: opentelemetry-operator.enabled
     - name: opentelemetry-collector
       repository: https://open-telemetry.github.io/opentelemetry-helm-charts
-      version: 0.174.0
+      version: 0.175.1
       alias: otel-col-daemon
       condition: otel-col-daemon.enabled
     - name: opentelemetry-collector
       repository: https://open-telemetry.github.io/opentelemetry-helm-charts
-      version: 0.174.0
+      version: 0.175.1
       alias: otel-col-deploy
       condition: otel-col-deploy.enabled
     - name: grafana
