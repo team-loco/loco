@@ -76,10 +76,9 @@ Deployable sample apps, each with its own `loco.toml`:
 - **ClickHouse:** As the data store for observability data.
 - **Grafana:** Dashboards for visualizing metrics and logs.
 
-## Abuse Prevention
+## Sign-up Policy
 
-To avoid abuse, Loco uses an invitation system. The repo collaborators is re-purposed as an invitation list and determines who can deploy with Loco.
-You must first reach out to me, nikumar1206, if you would like to deploy on this platform.
+The API decides who can create an account the first time they sign in through the instance's identity provider; existing accounts are not affected. `AUTH_SIGNUP_MODE` selects the policy: `open` (the default) accepts every identity, `domains` accepts only verified email addresses whose domain is in the comma-separated `AUTH_SIGNUP_DOMAINS` list, and `closed` creates no new accounts. The API refuses to start with an unknown mode or with `domains` and an empty list.
 
 ## Documentation
 
