@@ -321,6 +321,11 @@ var (
 		entityType: db.EntityTypeWorkspace,
 		scope:      db.ScopeRead,
 	}
+	// Plan requires workspace:read; it writes nothing.
+	Plan = Action{
+		entityType: db.EntityTypeWorkspace,
+		scope:      db.ScopeRead,
+	}
 	// UpdateEnvironment requires workspace:write.
 	UpdateEnvironment = Action{
 		entityType: db.EntityTypeWorkspace,

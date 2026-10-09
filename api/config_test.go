@@ -51,6 +51,7 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv(maxReplicasEnv, "")
 	t.Setenv("LOCO_DEFAULT_PATH_PREFIX", "")
 	t.Setenv("LOCO_DEFAULT_IDLE_TIMEOUT", "")
+	t.Setenv("LOCO_SCHEMA_URL", "")
 	t.Setenv("LOCO_DEFAULT_PORT", "")
 	t.Setenv("LOCO_DEFAULT_HEALTH_PATH", "")
 	t.Setenv("LOCO_DEFAULT_HEALTH_INTERVAL", "")
@@ -94,6 +95,9 @@ func TestNewAPIConfigDefaults(t *testing.T) {
 	}
 	if ac.SourceMaxBytes != defaultSourceMaxBytes {
 		t.Errorf("source max bytes = %d, want %d", ac.SourceMaxBytes, defaultSourceMaxBytes)
+	}
+	if ac.SchemaURL != defaultSchemaURL {
+		t.Errorf("schema url = %q, want %q", ac.SchemaURL, defaultSchemaURL)
 	}
 	want := servicedefaults.Defaults{
 		CPU:                      defaultServiceCPU,
@@ -439,5 +443,14 @@ func TestNewAPIConfigPanicsOnPartialSourceBucket(t *testing.T) {
 	err := panicValue(t, func() { newAPIConfig() })
 	if !strings.Contains(err.Error(), "source bucket") {
 		t.Errorf("panic = %v, want a source bucket error", err)
+	}
+}
+
+func TestNewAPIConfigReadsSchemaURL(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv("LOCO_SCHEMA_URL", "https://loco.test/schemas/loco.v1.json")
+	ac := newAPIConfig()
+	if ac.SchemaURL != "https://loco.test/schemas/loco.v1.json" {
+		t.Errorf("schema url = %q, want the configured value", ac.SchemaURL)
 	}
 }
