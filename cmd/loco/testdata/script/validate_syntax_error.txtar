@@ -1,0 +1,13 @@
+# a YAML syntax error names the line the parser reports and shows it.
+! exec loco validate
+stderr 'Invalid loco.yaml at line 5:'
+stderr '5 \|   web:'
+! stdout .
+
+-- loco.yaml --
+version: 1
+partial: web
+
+services: [
+  web:
+    image: ghcr.io/acme/web:1

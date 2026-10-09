@@ -1,59 +1,77 @@
 package loco
 
 import (
+	"errors"
 	"fmt"
-	"log/slog"
+	"maps"
+	"os"
+	"slices"
+	"strings"
 
 	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	"github.com/team-loco/loco/internal/config"
+	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/internal/ui"
 )
 
 func newValidateCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "validate",
-		Short: "Validate a loco.toml configuration file",
-		Long: `Validate a loco.toml file and catch most configuration errors before deployment.
+	return &cobra.Command{
+		Use:   "validate [path]",
+		Short: "Validate a loco.yaml file",
+		Long: `Parse a loco.yaml file and check its structure against the schema, without calling the API.
 
-Note: CPU and memory limits are validated against the Kubernetes resource format.
-See https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ for details.`,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return validateCmdFunc(cmd)
+Resource limits and defaults are checked by the API when the file is planned or applied.`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			path := locofile.FileName
+			if len(args) == 1 {
+				path = args[0]
+			}
+			return validateCmdFunc(path)
 		},
 	}
-	cmd.Flags().StringP("config", "c", "", "path to loco.toml config file (defaults to ./loco.toml)")
-	return cmd
 }
 
-func validateCmdFunc(cmd *cobra.Command) error {
-	configPath, err := cmdutil.GetLocoTomlPath(cmd)
+func validateCmdFunc(path string) error {
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("read %s: %w", path, err)
 	}
 
-	loadedCfg, err := config.Load(configPath)
+	file, err := locofile.Parse(data)
 	if err != nil {
-		slog.Debug("failed to load config", "path", configPath, "error", err)
-		return fmt.Errorf("failed to load loco.toml: %w", err)
-	}
-
-	if err := config.Validate(loadedCfg.Config); err != nil {
-		slog.Debug("invalid configuration", "error", err)
-		return fmt.Errorf("invalid configuration: %w", err)
+		return formatValidationError(path, data, err)
 	}
 
 	style := lipgloss.NewStyle().Foreground(ui.Ok).Bold(true)
-	fmt.Printf("\n%s loco.toml is valid!\n\n", style.Render("✓"))
-
-	fmt.Printf("Configuration loaded from: %s\n", loadedCfg.ProjectPath)
-	fmt.Printf("Application name: %s\n", loadedCfg.Config.Metadata.Name)
-	if domain := loadedCfg.Config.DomainConfig; domain != nil {
-		fmt.Printf("Hostname: %s\n", domain.Hostname)
-		fmt.Printf("Domain type: %s\n", domain.Type)
-	}
-	fmt.Printf("Port: %d\n", loadedCfg.Config.Routing.Port)
-
+	fmt.Printf("%s %s is valid\n", style.Render("✓"), path)
+	fmt.Printf("Partial: %s\n", file.Partial)
+	fmt.Printf("Services: %s\n", strings.Join(serviceNames(file), ", "))
 	return nil
+}
+
+func formatValidationError(path string, data []byte, err error) error {
+	parseErr, ok := errors.AsType[*locofile.ParseError](err)
+	if !ok || parseErr.Line == 0 {
+		return fmt.Errorf("invalid %s:\n%s", path, indent(err.Error()))
+	}
+	lines := strings.Split(string(data), "\n")
+	if parseErr.Line > len(lines) {
+		return fmt.Errorf("invalid %s at line %d: %w", path, parseErr.Line, err)
+	}
+	source := lines[parseErr.Line-1]
+	return fmt.Errorf("invalid %s at line %d: %w\n  %d | %s", path, parseErr.Line, err, parseErr.Line, source)
+}
+
+func indent(text string) string {
+	lines := strings.Split(text, "\n")
+	for i, line := range lines {
+		lines[i] = "  " + line
+	}
+	return strings.Join(lines, "\n")
+}
+
+func serviceNames(file *locofile.File) []string {
+	names := maps.Keys(file.Services)
+	return slices.Sorted(names)
 }

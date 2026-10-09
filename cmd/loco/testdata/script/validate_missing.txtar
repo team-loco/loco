@@ -1,0 +1,5 @@
+# without a file there is nothing to validate.
+! exec loco validate
+stderr 'open loco.yaml: no such file'
+! exec loco validate nope.yaml
+stderr 'open nope.yaml: no such file'
