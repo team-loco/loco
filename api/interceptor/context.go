@@ -2,7 +2,6 @@ package interceptor
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -47,8 +46,6 @@ func (*contextInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 		start := time.Now()
 		resp, err := next(ctx, req)
 		dur := time.Since(start)
-		durMicros := dur.Microseconds()
-		durMilli := float64(durMicros) / 1000
 
 		if err != nil {
 			slog.WarnContext(
@@ -68,7 +65,6 @@ func (*contextInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 
 		if err == nil && resp != nil {
 			resp.Header().Set("X-Loco-Request-Id", rid)
-			resp.Header().Set("Server-Timing", fmt.Sprintf(`rid;desc=%q;dur=%.2f`, rid, durMilli))
 		}
 
 		return resp, err
@@ -104,8 +100,6 @@ func (*contextInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFun
 		start := time.Now()
 		err := next(ctx, conn)
 		duration := time.Since(start)
-		durMicros := duration.Microseconds()
-		durMilli := float64(durMicros) / 1000
 
 		if err != nil {
 			slog.WarnContext(
@@ -122,8 +116,6 @@ func (*contextInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFun
 				slog.String("duration", duration.String()),
 			)
 		}
-
-		conn.ResponseTrailer().Set("Server-Timing", fmt.Sprintf(`rid;desc=%q;dur=%.2f`, rid, durMilli))
 
 		return err
 	})

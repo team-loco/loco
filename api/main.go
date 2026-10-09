@@ -74,7 +74,7 @@ func isLoopbackOrigin(origin string) bool {
 }
 
 func withCORS(allowedOrigins []string, allowLoopback bool) func(http.Handler) http.Handler {
-	exposedHeaders := append(connectcors.ExposedHeaders(), "x-loco-request-id", "server-timing")
+	exposedHeaders := append(connectcors.ExposedHeaders(), "x-loco-request-id")
 	opts := cors.Options{
 		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   connectcors.AllowedMethods(),
