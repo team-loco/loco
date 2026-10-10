@@ -308,8 +308,13 @@ obsProxy:
   port: 8080
   controlPlane:
     url: "http://loco-core-agent.loco-system.svc.cluster.local:8000"
+  auth:
+    existingSecret: ""
   clickhouse:
     database: default
+    existingSecret:
+      name: ""
+      key: url
   guardrails:
     defaultLimit: 1000
     maxLimit: 10000

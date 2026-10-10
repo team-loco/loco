@@ -1,10 +1,14 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -108,5 +112,38 @@ func TestHealthzServedWhenClickHouseNeverAnswers(t *testing.T) {
 	}
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET /healthz status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+}
+
+func TestStartupDiagnostics(t *testing.T) {
+	var output bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&output, nil))
+	cfg := &config.Config{
+		Port:            8080,
+		ControlPlaneURL: "https://api.example.test?token=control-plane-password",
+		ClickHouseURL:   "clickhouse://reader:database-password@db.example.test:9000?password=query-password",
+		ClickHouseDB:    "telemetry",
+		ProxyAuthToken:  "proxy-password",
+	}
+	logStartup(logger, cfg, "test-version")
+	var record map[string]any
+	if err := json.Unmarshal(output.Bytes(), &record); err != nil {
+		t.Fatalf("decode startup diagnostics: %v", err)
+	}
+	for key, want := range map[string]string{"version": "test-version", "clickhouse_database": "telemetry"} {
+		if record[key] != want {
+			t.Errorf("%s = %v, want %s", key, record[key], want)
+		}
+	}
+	if record["port"] != float64(cfg.Port) {
+		t.Errorf("port = %v, want %d", record["port"], cfg.Port)
+	}
+	credentials := []string{
+		"database-password", "query-password", "control-plane-password", "proxy-password",
+	}
+	for _, credential := range credentials {
+		if strings.Contains(output.String(), credential) {
+			t.Errorf("startup diagnostics contain credential %q", credential)
+		}
 	}
 }

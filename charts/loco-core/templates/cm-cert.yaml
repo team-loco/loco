@@ -15,9 +15,6 @@ spec:
         - {{ printf "*.%s" . | quote }}
         {{- end }}
         - {{ printf "*.%s" .Values.global.domain.platform | quote }}
-        - "*.us-east-1.{{ $primary }}"
-        - "*.eu-west-1.{{ $primary }}"
-        - "*.staging.us-east-1.{{ $primary }}"
-        - "*.prod.us-east-1.{{ $primary }}"
-        - "*.staging.eu-west-1.{{ $primary }}"
-        - "*.prod.eu-west-1.{{ $primary }}"
+        {{- range .Values.certManager.additionalDNSNames }}
+        - {{ . | quote }}
+        {{- end }}
