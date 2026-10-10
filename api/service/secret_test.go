@@ -38,6 +38,7 @@ func TestSecretServiceAuthorization(t *testing.T) {
 	otherWrite := genDb.EntityScope{
 		EntityType: genDb.EntityTypeWorkspace, EntityID: uuid.Must(uuid.NewV7()), Scope: genDb.ScopeWrite,
 	}
+	systemRead := genDb.EntityScope{EntityType: genDb.EntityTypeSystem, Scope: genDb.ScopeRead}
 
 	tests := []struct {
 		name   string
@@ -71,6 +72,14 @@ func TestSecretServiceAuthorization(t *testing.T) {
 		}, connect.CodePermissionDenied},
 		{"list without read", []genDb.EntityScope{otherWrite}, func(ctx context.Context) error {
 			_, err := server.ListSecrets(ctx, connect.NewRequest(&secretv1.ListSecretsRequest{EnvironmentId: envID}))
+			return err
+		}, connect.CodePermissionDenied},
+		{"rewrap with workspace write", []genDb.EntityScope{write}, func(ctx context.Context) error {
+			_, err := server.RewrapEnvironmentKeys(ctx, connect.NewRequest(&secretv1.RewrapEnvironmentKeysRequest{}))
+			return err
+		}, connect.CodePermissionDenied},
+		{"rewrap with system read", []genDb.EntityScope{systemRead}, func(ctx context.Context) error {
+			_, err := server.RewrapEnvironmentKeys(ctx, connect.NewRequest(&secretv1.RewrapEnvironmentKeysRequest{}))
 			return err
 		}, connect.CodePermissionDenied},
 	}

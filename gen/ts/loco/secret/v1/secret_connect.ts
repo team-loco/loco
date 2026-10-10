@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { DeleteSecretsRequest, DeleteSecretsResponse, ListSecretsRequest, ListSecretsResponse, SetSecretsRequest, SetSecretsResponse } from "./secret_pb";
+import { DeleteSecretsRequest, DeleteSecretsResponse, ListSecretsRequest, ListSecretsResponse, RewrapEnvironmentKeysRequest, RewrapEnvironmentKeysResponse, SetSecretsRequest, SetSecretsResponse } from "./secret_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -45,6 +45,18 @@ export const SecretService = {
       name: "ListSecrets",
       I: ListSecretsRequest,
       O: ListSecretsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * RewrapEnvironmentKeys rewraps environment data keys under the provider's current key, and with
+     * new_dek replaces one environment's data key and re-encrypts its values.
+     *
+     * @generated from rpc loco.secret.v1.SecretService.RewrapEnvironmentKeys
+     */
+    rewrapEnvironmentKeys: {
+      name: "RewrapEnvironmentKeys",
+      I: RewrapEnvironmentKeysRequest,
+      O: RewrapEnvironmentKeysResponse,
       kind: MethodKind.Unary,
     },
   }

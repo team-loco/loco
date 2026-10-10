@@ -42,6 +42,9 @@ const (
 	// SecretServiceListSecretsProcedure is the fully-qualified name of the SecretService's ListSecrets
 	// RPC.
 	SecretServiceListSecretsProcedure = "/loco.secret.v1.SecretService/ListSecrets"
+	// SecretServiceRewrapEnvironmentKeysProcedure is the fully-qualified name of the SecretService's
+	// RewrapEnvironmentKeys RPC.
+	SecretServiceRewrapEnvironmentKeysProcedure = "/loco.secret.v1.SecretService/RewrapEnvironmentKeys"
 )
 
 // SecretServiceClient is a client for the loco.secret.v1.SecretService service.
@@ -52,6 +55,9 @@ type SecretServiceClient interface {
 	DeleteSecrets(context.Context, *connect.Request[v1.DeleteSecretsRequest]) (*connect.Response[v1.DeleteSecretsResponse], error)
 	// ListSecrets lists the names in an environment with their version and who set them.
 	ListSecrets(context.Context, *connect.Request[v1.ListSecretsRequest]) (*connect.Response[v1.ListSecretsResponse], error)
+	// RewrapEnvironmentKeys rewraps environment data keys under the provider's current key, and with
+	// new_dek replaces one environment's data key and re-encrypts its values.
+	RewrapEnvironmentKeys(context.Context, *connect.Request[v1.RewrapEnvironmentKeysRequest]) (*connect.Response[v1.RewrapEnvironmentKeysResponse], error)
 }
 
 // NewSecretServiceClient constructs a client for the loco.secret.v1.SecretService service. By
@@ -83,14 +89,21 @@ func NewSecretServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(secretServiceMethods.ByName("ListSecrets")),
 			connect.WithClientOptions(opts...),
 		),
+		rewrapEnvironmentKeys: connect.NewClient[v1.RewrapEnvironmentKeysRequest, v1.RewrapEnvironmentKeysResponse](
+			httpClient,
+			baseURL+SecretServiceRewrapEnvironmentKeysProcedure,
+			connect.WithSchema(secretServiceMethods.ByName("RewrapEnvironmentKeys")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // secretServiceClient implements SecretServiceClient.
 type secretServiceClient struct {
-	setSecrets    *connect.Client[v1.SetSecretsRequest, v1.SetSecretsResponse]
-	deleteSecrets *connect.Client[v1.DeleteSecretsRequest, v1.DeleteSecretsResponse]
-	listSecrets   *connect.Client[v1.ListSecretsRequest, v1.ListSecretsResponse]
+	setSecrets            *connect.Client[v1.SetSecretsRequest, v1.SetSecretsResponse]
+	deleteSecrets         *connect.Client[v1.DeleteSecretsRequest, v1.DeleteSecretsResponse]
+	listSecrets           *connect.Client[v1.ListSecretsRequest, v1.ListSecretsResponse]
+	rewrapEnvironmentKeys *connect.Client[v1.RewrapEnvironmentKeysRequest, v1.RewrapEnvironmentKeysResponse]
 }
 
 // SetSecrets calls loco.secret.v1.SecretService.SetSecrets.
@@ -108,6 +121,11 @@ func (c *secretServiceClient) ListSecrets(ctx context.Context, req *connect.Requ
 	return c.listSecrets.CallUnary(ctx, req)
 }
 
+// RewrapEnvironmentKeys calls loco.secret.v1.SecretService.RewrapEnvironmentKeys.
+func (c *secretServiceClient) RewrapEnvironmentKeys(ctx context.Context, req *connect.Request[v1.RewrapEnvironmentKeysRequest]) (*connect.Response[v1.RewrapEnvironmentKeysResponse], error) {
+	return c.rewrapEnvironmentKeys.CallUnary(ctx, req)
+}
+
 // SecretServiceHandler is an implementation of the loco.secret.v1.SecretService service.
 type SecretServiceHandler interface {
 	// SetSecrets encrypts and stores values, creating or replacing each name.
@@ -116,6 +134,9 @@ type SecretServiceHandler interface {
 	DeleteSecrets(context.Context, *connect.Request[v1.DeleteSecretsRequest]) (*connect.Response[v1.DeleteSecretsResponse], error)
 	// ListSecrets lists the names in an environment with their version and who set them.
 	ListSecrets(context.Context, *connect.Request[v1.ListSecretsRequest]) (*connect.Response[v1.ListSecretsResponse], error)
+	// RewrapEnvironmentKeys rewraps environment data keys under the provider's current key, and with
+	// new_dek replaces one environment's data key and re-encrypts its values.
+	RewrapEnvironmentKeys(context.Context, *connect.Request[v1.RewrapEnvironmentKeysRequest]) (*connect.Response[v1.RewrapEnvironmentKeysResponse], error)
 }
 
 // NewSecretServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -143,6 +164,12 @@ func NewSecretServiceHandler(svc SecretServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(secretServiceMethods.ByName("ListSecrets")),
 		connect.WithHandlerOptions(opts...),
 	)
+	secretServiceRewrapEnvironmentKeysHandler := connect.NewUnaryHandler(
+		SecretServiceRewrapEnvironmentKeysProcedure,
+		svc.RewrapEnvironmentKeys,
+		connect.WithSchema(secretServiceMethods.ByName("RewrapEnvironmentKeys")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/loco.secret.v1.SecretService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case SecretServiceSetSecretsProcedure:
@@ -151,6 +178,8 @@ func NewSecretServiceHandler(svc SecretServiceHandler, opts ...connect.HandlerOp
 			secretServiceDeleteSecretsHandler.ServeHTTP(w, r)
 		case SecretServiceListSecretsProcedure:
 			secretServiceListSecretsHandler.ServeHTTP(w, r)
+		case SecretServiceRewrapEnvironmentKeysProcedure:
+			secretServiceRewrapEnvironmentKeysHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -170,4 +199,8 @@ func (UnimplementedSecretServiceHandler) DeleteSecrets(context.Context, *connect
 
 func (UnimplementedSecretServiceHandler) ListSecrets(context.Context, *connect.Request[v1.ListSecretsRequest]) (*connect.Response[v1.ListSecretsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.secret.v1.SecretService.ListSecrets is not implemented"))
+}
+
+func (UnimplementedSecretServiceHandler) RewrapEnvironmentKeys(context.Context, *connect.Request[v1.RewrapEnvironmentKeysRequest]) (*connect.Response[v1.RewrapEnvironmentKeysResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.secret.v1.SecretService.RewrapEnvironmentKeys is not implemented"))
 }

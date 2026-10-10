@@ -209,6 +209,58 @@ func TestDeleteSecretsRemovesNamesAndBumpsRevision(t *testing.T) {
 	}
 }
 
+func TestRewrapEnvironmentKeysUsesTheCurrentKey(t *testing.T) {
+	f := newSecretFixture(t)
+	f.set(t, f.server(t, testLocalProvider(t, "k1")), map[string]string{"A": "1"})
+	admin := secretAuthzContext(t, genDb.EntityScope{EntityType: genDb.EntityTypeSystem, Scope: genDb.ScopeAdmin})
+
+	rotated := f.server(t, testLocalProvider(t, "k2", "k1"))
+	res, err := rotated.RewrapEnvironmentKeys(admin, connect.NewRequest(&secretv1.RewrapEnvironmentKeysRequest{}))
+	if err != nil {
+		t.Fatalf("rewrap: %v", err)
+	}
+	if res.Msg.GetRewrapped() != 1 || res.Msg.GetSkipped() != 0 {
+		t.Fatalf("rewrap = %+v, want one rewrapped", res.Msg)
+	}
+	key, err := f.queries.GetEnvironmentKey(t.Context(), f.environmentID)
+	if err != nil {
+		t.Fatalf("key: %v", err)
+	}
+	if key.KekID != "k2" || key.RewrappedAt == nil {
+		t.Fatalf("key = %+v, want kek k2 with rewrapped_at", key)
+	}
+	data, raw := f.eventData(t, "secret_key.rewrapped")
+	if data["kekId"] != "k2" || data["environmentId"] != f.environmentID.String() || data["newDek"] != false {
+		t.Fatalf("secret_key.rewrapped data = %s, want kekId k2 for the environment without a new DEK", raw)
+	}
+
+	withoutK1 := f.server(t, testLocalProvider(t, "k2"))
+	bumped := f.set(t, withoutK1, map[string]string{"A": "2"})
+	if bumped.GetVersions()[0].GetVersion() != 2 {
+		t.Fatalf("set after rewrap = %+v, want version 2", bumped)
+	}
+	again, err := withoutK1.RewrapEnvironmentKeys(admin, connect.NewRequest(&secretv1.RewrapEnvironmentKeysRequest{}))
+	if err != nil {
+		t.Fatalf("rewrap again: %v", err)
+	}
+	if again.Msg.GetRewrapped() != 0 || again.Msg.GetSkipped() != 0 {
+		t.Fatalf("second rewrap = %+v, want nothing to do", again.Msg)
+	}
+
+	stale := f.environment(t, f.workspaceID, "staging")
+	staleFixture := *f
+	staleFixture.environmentID = stale
+	staleFixture.set(t, f.server(t, testLocalProvider(t, "k0")), map[string]string{"A": "1"})
+	skipped, err := withoutK1.RewrapEnvironmentKeys(admin, connect.NewRequest(&secretv1.RewrapEnvironmentKeysRequest{}))
+	if err != nil {
+		t.Fatalf("rewrap with a retired key: %v", err)
+	}
+	ids := skipped.Msg.GetSkippedEnvironmentIds()
+	if skipped.Msg.GetSkipped() != 1 || skipped.Msg.GetRewrapped() != 0 || len(ids) != 1 || ids[0] != stale.String() {
+		t.Fatalf("rewrap with a retired key = %+v, want %s skipped", skipped.Msg, stale)
+	}
+}
+
 func TestSetSecretsOnUnknownEnvironment(t *testing.T) {
 	f := newSecretFixture(t)
 	server := f.server(t, testLocalProvider(t, "k1"))

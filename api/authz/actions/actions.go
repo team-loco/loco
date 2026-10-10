@@ -344,6 +344,11 @@ var (
 		entityType: db.EntityTypeWorkspace,
 		scope:      db.ScopeRead,
 	}
+	// RewrapEnvironmentKeys requires system:admin.
+	RewrapEnvironmentKeys = Action{
+		entityType: db.EntityTypeSystem,
+		scope:      db.ScopeAdmin,
+	}
 
 	// orgs (additional)
 

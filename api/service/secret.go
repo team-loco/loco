@@ -39,6 +39,9 @@ var (
 	ErrSecretInUse          = errors.New("secret is declared by a service")
 	ErrUnknownSecretFormat  = errors.New("secret has a format version this binary does not know")
 
+	ErrNewDEKNeedsEnvironment = errors.New("a new data key requires an environment id")
+	ErrNoEnvironmentKey       = errors.New("environment has no secrets key")
+
 	errKeyChanged = errors.New("environment key changed under the lock")
 )
 
@@ -47,6 +50,14 @@ const secretFormatVersion int16 = 1
 const (
 	secretTagBytes     = 16
 	setSecretsAttempts = 3
+)
+
+type rewrapOutcome int
+
+const (
+	rewrapCurrent rewrapOutcome = iota
+	rewrapDone
+	rewrapSkipped
 )
 
 // SecretConfig holds the limits SetSecrets enforces and how long a secret operation waits for
@@ -185,7 +196,7 @@ func (s *SecretServer) setSecretsOnce(
 		for _, name := range names {
 			row, found := current[name]
 			if found {
-				same, sameErr := storedValueEquals(dek, env, name, row, values[name])
+				same, sameErr := storedValueEquals(dek, env, row, values[name])
 				if sameErr != nil {
 					return sameErr
 				}
@@ -281,20 +292,27 @@ func (s *SecretServer) writeSecrets(
 func storedValueEquals(
 	dek []byte,
 	env genDb.Environment,
-	name string,
 	row genDb.ListSecretCiphertextsRow,
 	value string,
 ) (bool, error) {
-	if row.FormatVersion != secretFormatVersion {
-		return false, fmt.Errorf("%w: %s has %d", ErrUnknownSecretFormat, name, row.FormatVersion)
-	}
-	aad := secretkeys.SecretAAD(env.WorkspaceID.String(), env.ID.String(), name, row.Version)
-	plaintext, err := secretkeys.Open(dek, row.Nonce, row.Ciphertext, aad)
+	plaintext, err := openSecret(dek, env, row)
 	if err != nil {
-		return false, fmt.Errorf("open %s: %w", name, err)
+		return false, err
 	}
 	defer secretkeys.Zero(plaintext)
 	return subtle.ConstantTimeCompare(plaintext, []byte(value)) == 1, nil
+}
+
+func openSecret(dek []byte, env genDb.Environment, row genDb.ListSecretCiphertextsRow) ([]byte, error) {
+	if row.FormatVersion != secretFormatVersion {
+		return nil, fmt.Errorf("%w: %s has %d", ErrUnknownSecretFormat, row.Name, row.FormatVersion)
+	}
+	aad := secretkeys.SecretAAD(env.WorkspaceID.String(), env.ID.String(), row.Name, row.Version)
+	plaintext, err := secretkeys.Open(dek, row.Nonce, row.Ciphertext, aad)
+	if err != nil {
+		return nil, fmt.Errorf("open %s: %w", row.Name, err)
+	}
+	return plaintext, nil
 }
 
 func (s *SecretServer) lockEnvironmentKey(
@@ -399,6 +417,226 @@ func (s *SecretServer) ListSecrets(
 		})
 	}
 	return connect.NewResponse(&secretv1.ListSecretsResponse{Secrets: secrets}), nil
+}
+
+// RewrapEnvironmentKeys rewraps environment data keys under the provider's current key. An empty
+// environment id selects every environment. With new_dek it replaces the environment's data key and
+// re-encrypts every value under it, keeping each version.
+func (s *SecretServer) RewrapEnvironmentKeys(
+	ctx context.Context,
+	req *connect.Request[secretv1.RewrapEnvironmentKeysRequest],
+) (*connect.Response[secretv1.RewrapEnvironmentKeysResponse], error) {
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
+	}
+	if err := s.authz.Check(ctx, scopes, actions.NewSystem(actions.RewrapEnvironmentKeys)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to rewrap environment keys")
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+	if s.provider == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrSecretsNotConfigured)
+	}
+	r := req.Msg
+	if r.GetNewDek() && r.GetEnvironmentId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, ErrNewDEKNeedsEnvironment)
+	}
+	environmentIDs, err := s.rewrapTargets(ctx, r.GetEnvironmentId())
+	if err != nil {
+		return nil, err
+	}
+	response := &secretv1.RewrapEnvironmentKeysResponse{}
+	for _, environmentID := range environmentIDs {
+		outcome, rewrapErr := s.rewrapEnvironment(ctx, environmentID, r.GetNewDek())
+		if rewrapErr != nil {
+			return nil, rewrapErr
+		}
+		switch outcome {
+		case rewrapCurrent:
+		case rewrapDone:
+			response.Rewrapped++
+		case rewrapSkipped:
+			response.Skipped++
+			response.SkippedEnvironmentIds = append(response.SkippedEnvironmentIds, environmentID.String())
+		}
+	}
+	return connect.NewResponse(response), nil
+}
+
+func (s *SecretServer) rewrapTargets(ctx context.Context, environmentID string) ([]uuid.UUID, error) {
+	if environmentID != "" {
+		key, err := s.queries.GetEnvironmentKey(ctx, uuid.MustParse(environmentID))
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, connect.NewError(connect.CodeNotFound, ErrNoEnvironmentKey)
+		}
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to load the environment key", "error", err)
+			return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		}
+		return []uuid.UUID{key.EnvironmentID}, nil
+	}
+	keys, err := s.queries.ListEnvironmentKeys(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list environment keys", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+	environmentIDs := make([]uuid.UUID, 0, len(keys))
+	for _, key := range keys {
+		environmentIDs = append(environmentIDs, key.EnvironmentID)
+	}
+	return environmentIDs, nil
+}
+
+func (s *SecretServer) rewrapEnvironment(
+	ctx context.Context,
+	environmentID uuid.UUID,
+	newDEK bool,
+) (rewrapOutcome, error) {
+	for range setSecretsAttempts {
+		key, err := s.queries.GetEnvironmentKey(ctx, environmentID)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to load the environment key", "environmentId", environmentID, "error", err)
+			return rewrapSkipped, connect.NewError(connect.CodeInternal, ErrDB)
+		}
+		outcome, err := s.rewrapEnvironmentKey(ctx, key, newDEK)
+		if errors.Is(err, errKeyChanged) {
+			continue
+		}
+		return outcome, err
+	}
+	return rewrapSkipped, connect.NewError(connect.CodeAborted, ErrSecretKeyChanging)
+}
+
+func (s *SecretServer) rewrapEnvironmentKey(
+	ctx context.Context,
+	key genDb.EnvironmentKey,
+	newDEK bool,
+) (rewrapOutcome, error) {
+	current, err := s.provider.KeyID(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to read the current key id", "error", err)
+		return rewrapSkipped, connect.NewError(connect.CodeUnavailable, ErrKeyProvider)
+	}
+	if key.Provider != s.provider.Name() {
+		slog.WarnContext(ctx, "environment key belongs to another provider",
+			"environmentId", key.EnvironmentID, "provider", key.Provider)
+		return rewrapSkipped, nil
+	}
+	if !newDEK && key.KekID == current {
+		return rewrapCurrent, nil
+	}
+	if key.FormatVersion != secretFormatVersion {
+		slog.ErrorContext(ctx, "unknown environment key format",
+			"environmentId", key.EnvironmentID, "formatVersion", key.FormatVersion)
+		return rewrapSkipped, connect.NewError(connect.CodeInternal, ErrUnknownSecretFormat)
+	}
+	aad := secretkeys.DEKAAD(key.EnvironmentID.String())
+	wrapped := secretkeys.WrappedKey{Provider: key.Provider, KeyID: key.KekID, Bytes: key.WrappedDek}
+	dek, err := s.provider.Unwrap(ctx, wrapped, aad)
+	if err != nil {
+		slog.WarnContext(ctx, "cannot unwrap environment key", "environmentId", key.EnvironmentID, "kekId", key.KekID)
+		return rewrapSkipped, nil
+	}
+	defer secretkeys.Zero(dek)
+	replacement := dek
+	if newDEK {
+		replacement, err = secretkeys.NewDEK()
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to generate a data key", "error", err)
+			return rewrapSkipped, connect.NewError(connect.CodeInternal, ErrKeyProvider)
+		}
+		defer secretkeys.Zero(replacement)
+	}
+	rewrapped, err := s.provider.Wrap(ctx, replacement, aad)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to wrap environment key", "environmentId", key.EnvironmentID, "error", err)
+		return rewrapSkipped, connect.NewError(connect.CodeUnavailable, ErrKeyProvider)
+	}
+	env, err := s.queries.GetEnvironmentByID(ctx, key.EnvironmentID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to load environment", "environmentId", key.EnvironmentID, "error", err)
+		return rewrapSkipped, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		locked, lockErr := s.lockEnvironmentKey(ctx, qtx, env.ID)
+		if lockErr != nil {
+			return lockErr
+		}
+		if !bytes.Equal(locked.WrappedDek, key.WrappedDek) {
+			return errKeyChanged
+		}
+		if newDEK {
+			if reencryptErr := reencryptSecrets(ctx, qtx, env, dek, replacement); reencryptErr != nil {
+				return reencryptErr
+			}
+		}
+		if _, updateErr := qtx.RewrapEnvironmentKey(ctx, genDb.RewrapEnvironmentKeyParams{
+			EnvironmentID:      env.ID,
+			Provider:           rewrapped.Provider,
+			KekID:              rewrapped.KeyID,
+			WrappedDek:         rewrapped.Bytes,
+			PreviousWrappedDek: key.WrappedDek,
+		}); updateErr != nil {
+			return updateErr
+		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.SecretKeyRewrapped,
+			WorkspaceID: new(env.WorkspaceID),
+			SubjectType: events.SubjectEnvironment,
+			SubjectID:   new(env.ID),
+			Data: map[string]any{
+				events.FieldEnvironmentID: env.ID,
+				events.FieldKekID:         rewrapped.KeyID,
+				events.FieldNewDEK:        newDEK,
+			},
+		})
+	})
+	if errors.Is(err, errKeyChanged) {
+		return rewrapSkipped, err
+	}
+	if err != nil {
+		return rewrapSkipped, txError(ctx, "failed to rewrap environment key", err)
+	}
+	return rewrapDone, nil
+}
+
+func reencryptSecrets(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	env genDb.Environment,
+	oldDEK []byte,
+	newDEK []byte,
+) error {
+	rows, err := qtx.ListEnvironmentSecretCiphertexts(ctx, env.ID)
+	if err != nil {
+		return err
+	}
+	params := genDb.ReencryptSecretsParams{EnvironmentID: env.ID}
+	for _, row := range rows {
+		stored := genDb.ListSecretCiphertextsRow(row)
+		plaintext, openErr := openSecret(oldDEK, env, stored)
+		if openErr != nil {
+			return openErr
+		}
+		aad := secretkeys.SecretAAD(env.WorkspaceID.String(), env.ID.String(), row.Name, row.Version)
+		nonce, ciphertext, sealErr := secretkeys.Seal(newDEK, plaintext, aad)
+		secretkeys.Zero(plaintext)
+		if sealErr != nil {
+			return fmt.Errorf("seal %s: %w", row.Name, sealErr)
+		}
+		params.Names = append(params.Names, row.Name)
+		params.Nonces = append(params.Nonces, nonce)
+		params.Ciphertexts = append(params.Ciphertexts, ciphertext)
+	}
+	updated, err := qtx.ReencryptSecrets(ctx, params)
+	if err != nil {
+		return err
+	}
+	if updated != int64(len(rows)) {
+		return fmt.Errorf("re-encrypted %d of %d secrets of environment %s", updated, len(rows), env.ID)
+	}
+	return nil
 }
 
 func (s *SecretServer) environmentDEK(
