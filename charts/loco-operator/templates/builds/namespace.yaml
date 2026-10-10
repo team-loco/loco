@@ -1,4 +1,4 @@
-{{- if .Values.builds.enabled }}
+{{- if and .Values.builds.enabled .Values.builds.createNamespace }}
 {{- $podSecurity := .Values.builds.podSecurity }}
 apiVersion: v1
 kind: Namespace
