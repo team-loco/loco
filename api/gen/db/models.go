@@ -581,7 +581,8 @@ type Secret struct {
 	Nonce         []byte    `json:"nonce"`
 	Ciphertext    []byte    `json:"ciphertext"`
 	FormatVersion int16     `json:"formatVersion"`
-	UpdatedBy     uuid.UUID `json:"updatedBy"`
+	UpdatedByType string    `json:"updatedByType"`
+	UpdatedByID   uuid.UUID `json:"updatedById"`
 	CreatedAt     time.Time `json:"createdAt"`
 	UpdatedAt     time.Time `json:"updatedAt"`
 }

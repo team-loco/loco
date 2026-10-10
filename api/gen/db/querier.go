@@ -176,6 +176,7 @@ type Querier interface {
 	ListSecretNames(ctx context.Context, environmentID uuid.UUID) ([]string, error)
 	ListSecrets(ctx context.Context, environmentID uuid.UUID) ([]ListSecretsRow, error)
 	ListServiceSecretSizes(ctx context.Context, arg ListServiceSecretSizesParams) ([]ListServiceSecretSizesRow, error)
+	ListServicesDeclaringSecrets(ctx context.Context, arg ListServicesDeclaringSecretsParams) ([]string, error)
 	ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]ListSessionsForUserRow, error)
 	ListUndeletedBuildSources(ctx context.Context, maxBuilds int32) ([]ListUndeletedBuildSourcesRow, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)

@@ -45,6 +45,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
+	"github.com/team-loco/loco/gen/go/loco/secret/v1/secretv1connect"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	"github.com/team-loco/loco/gen/go/loco/webhook/v1/webhookv1connect"
@@ -256,6 +257,11 @@ func main() {
 	agentServiceHandler := service.NewAgentServer(pool, queries, placementNotifier, sourceBucket)
 	observabilityAccessHandler := service.NewObservabilityAccessServer(pool, queries, machine)
 	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
+	secretKeyProvider, providerErr := newSecretKeyProvider(ac.Secrets)
+	if providerErr != nil {
+		log.Fatalf("failed to create the secrets key provider: %v", providerErr)
+	}
+	secretServiceHandler := service.NewSecretServer(pool, queries, secretKeyProvider, ac.SecretLimits)
 	configServiceHandler := service.NewConfigServer(
 		ac.DefaultPlatformDomain,
 		ac.MinCLIVersion,
@@ -293,6 +299,7 @@ func main() {
 		environmentServiceHandler,
 		httpInterceptors,
 	)
+	secretPath, secretHandler := secretv1connect.NewSecretServiceHandler(secretServiceHandler, httpInterceptors)
 
 	reflector := grpcreflect.NewStaticReflector(
 		// config service
@@ -392,6 +399,11 @@ func main() {
 		environmentv1connect.EnvironmentServiceListEnvironmentsProcedure,
 		environmentv1connect.EnvironmentServiceUpdateEnvironmentProcedure,
 		environmentv1connect.EnvironmentServiceDeleteEnvironmentProcedure,
+
+		// secret service
+		secretv1connect.SecretServiceSetSecretsProcedure,
+		secretv1connect.SecretServiceDeleteSecretsProcedure,
+		secretv1connect.SecretServiceListSecretsProcedure,
 	)
 
 	// mount both old and new reflectors for backwards compatibility
@@ -413,6 +425,7 @@ func main() {
 	mux.Handle(agentPath, agentHandler)
 	mux.Handle(observabilityAccessPath, observabilityAccessH)
 	mux.Handle(environmentPath, environmentHandler)
+	mux.Handle(secretPath, secretHandler)
 
 	allowLoopback := ac.Env != envProduction
 	corsMiddleware := withCORS(ac.CORSAllowedOrigins, allowLoopback)

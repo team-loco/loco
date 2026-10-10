@@ -9,7 +9,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 )
 
-var testSecretNames = []string{databaseURLName, "SESSION_KEY"}
+var testSecretNames = []string{databaseURL, "SESSION_KEY"}
 
 func TestDeploymentRecordsSecretNamesAndEnvironmentOnThePlacement(t *testing.T) {
 	f := newDeployFixture(t)

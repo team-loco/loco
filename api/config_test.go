@@ -84,6 +84,10 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv(testAdminEnv, "")
 	t.Setenv(keyProviderEnv, "")
 	t.Setenv(kekListEnv, "")
+	t.Setenv("LOCO_SECRETS_MAX_VALUE_BYTES", "")
+	t.Setenv("LOCO_SECRETS_MAX_PER_ENVIRONMENT", "")
+	t.Setenv("LOCO_SECRETS_MAX_SERVICE_BYTES", "")
+	t.Setenv("LOCO_SECRETS_LOCK_TIMEOUT", "")
 }
 
 func TestNewAPIConfigDefaults(t *testing.T) {
@@ -139,6 +143,46 @@ func TestNewAPIConfigDefaults(t *testing.T) {
 	}
 	if ac.SignupPolicy.Mode != auth.SignupOpen {
 		t.Errorf("signup mode = %q, want %q", ac.SignupPolicy.Mode, auth.SignupOpen)
+	}
+	wantSecrets := service.SecretConfig{
+		MaxValueBytes:     defaultSecretMaxValueBytes,
+		MaxPerEnvironment: defaultSecretMaxPerEnvironment,
+		MaxServiceBytes:   defaultSecretMaxServiceBytes,
+		LockTimeout:       defaultSecretLockTimeout,
+	}
+	if ac.SecretLimits != wantSecrets {
+		t.Errorf("secret limits = %+v, want %+v", ac.SecretLimits, wantSecrets)
+	}
+}
+
+func TestNewAPIConfigReadsSecretLimits(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv("LOCO_SECRETS_MAX_VALUE_BYTES", "1024")
+	t.Setenv("LOCO_SECRETS_MAX_PER_ENVIRONMENT", "8")
+	t.Setenv("LOCO_SECRETS_MAX_SERVICE_BYTES", "4096")
+	t.Setenv("LOCO_SECRETS_LOCK_TIMEOUT", "250ms")
+	limits := newAPIConfig().SecretLimits
+	want := service.SecretConfig{
+		MaxValueBytes:     1024,
+		MaxPerEnvironment: 8,
+		MaxServiceBytes:   4096,
+		LockTimeout:       250 * time.Millisecond,
+	}
+	if limits != want {
+		t.Errorf("secret limits = %+v, want %+v", limits, want)
+	}
+	for _, name := range []string{
+		"LOCO_SECRETS_MAX_PER_ENVIRONMENT",
+		"LOCO_SECRETS_MAX_SERVICE_BYTES",
+		"LOCO_SECRETS_LOCK_TIMEOUT",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Setenv(name, "0")
+			err := panicValue(t, func() { newAPIConfig() })
+			if !errors.Is(err, errNotPositive) {
+				t.Errorf("panic = %v, want %v", err, errNotPositive)
+			}
+		})
 	}
 }
 

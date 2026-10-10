@@ -32,7 +32,7 @@ SELECT * FROM environment_keys ORDER BY environment_id;
 SELECT name FROM secrets WHERE environment_id = $1 ORDER BY name;
 
 -- name: ListSecrets :many
-SELECT name, version, updated_by, created_at, updated_at
+SELECT name, version, updated_by_type, updated_by_id, created_at, updated_at
 FROM secrets
 WHERE environment_id = $1
 ORDER BY name;
@@ -47,20 +47,22 @@ WHERE environment_id = $1 AND name = ANY(sqlc.arg(names)::text[])
 ORDER BY name;
 
 -- name: UpsertSecrets :exec
-INSERT INTO secrets (environment_id, name, version, nonce, ciphertext, format_version, updated_by)
+INSERT INTO secrets (environment_id, name, version, nonce, ciphertext, format_version, updated_by_type, updated_by_id)
 SELECT sqlc.arg(environment_id),
        unnest(sqlc.arg(names)::text[]),
        unnest(sqlc.arg(versions)::int[]),
        unnest(sqlc.arg(nonces)::bytea[]),
        unnest(sqlc.arg(ciphertexts)::bytea[]),
        unnest(sqlc.arg(format_versions)::smallint[]),
-       sqlc.arg(updated_by)
+       sqlc.arg(updated_by_type),
+       sqlc.arg(updated_by_id)
 ON CONFLICT (environment_id, name) DO UPDATE
 SET version = EXCLUDED.version,
     nonce = EXCLUDED.nonce,
     ciphertext = EXCLUDED.ciphertext,
     format_version = EXCLUDED.format_version,
-    updated_by = EXCLUDED.updated_by,
+    updated_by_type = EXCLUDED.updated_by_type,
+    updated_by_id = EXCLUDED.updated_by_id,
     updated_at = NOW();
 
 -- name: DeleteSecrets :many
@@ -82,3 +84,12 @@ WHERE p.environment_id = sqlc.arg(environment_id)
   AND p.secret_names && sqlc.arg(names)::text[]
 GROUP BY p.id, r.name
 ORDER BY r.name, p.id;
+
+-- name: ListServicesDeclaringSecrets :many
+SELECT DISTINCT r.name AS service
+FROM placements p
+JOIN resources r ON r.id = p.resource_id
+WHERE p.environment_id = sqlc.arg(environment_id)
+  AND NOT p.desired_deleted
+  AND p.secret_names && sqlc.arg(names)::text[]
+ORDER BY r.name;
