@@ -7,8 +7,6 @@ V1
 
 Networking and secrets
 
-[ ] Decide whether workspace isolation needs per-app peer restrictions.
-
 [ ] Pin placement per workspace, region and tier.
 
 [ ] Ship environment secrets and key rotation.

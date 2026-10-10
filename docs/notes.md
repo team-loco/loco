@@ -9,7 +9,7 @@ Audited against both repos on 2026-10-09. Implementation status only; production
 - Registry contract is OCI. Separate builder, node and API credentials; deployments pin digests. Image retention and source cleanup exist.
 - API commits desired placements; agents sync and apply them. Deployments are async; `--wait` watches rollout.
 - Clusters are selected by region and environment tier. Placement does not account for utilization or pin a workspace to a cluster.
-- Network isolation is implemented and tested. App namespaces are per workspace; default deny, DNS, public egress and gateway ingress policies exist. Apps within a workspace can communicate; per-app peer restrictions are not implemented.
+- One namespace per workspace. Apps within a workspace can communicate by default; cross-workspace traffic is blocked. Network isolation is implemented and tested, with DNS, public egress and gateway ingress policies.
 - Environment CRUD and deployment targeting exist. `loco deploy --env` selects the environment.
 - Resource and deployment specs persist `spec_version`. Only service deployment is implemented.
 - CLI has org/workspace CRUD, interactive `loco use`, browser/device login and token refresh. `--host` is command-local.
@@ -28,7 +28,6 @@ Sources: `cmd/loco/`, `api/service/`, `api/queries/`, `controller/internal/`,
 
 ### Networking and secrets
 
-- Decide whether workspace isolation needs per-app peer restrictions.
 - Pin placement per workspace, region and tier. Apps can span regions; keep workspace peers together within each region/tier.
 - Ship the [environment-secrets stack](https://github.com/team-loco/loco/pull/504): encrypted storage, key rotation and agent/controller delivery. Platform credential rotation remains separate; revisit the older [OpenBao proposal](tdd/secrets-handling.md).
 - Decide on in-cluster mTLS.
