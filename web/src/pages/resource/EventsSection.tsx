@@ -96,7 +96,7 @@ export function EventsSection({
 				}
 			>
 				<EmptyState title="Events aren't available yet">
-					Kubernetes events for this resource will show up here once the API supports them.
+					Events for this service will show up here once Loco records them.
 				</EmptyState>
 			</Section>
 		);

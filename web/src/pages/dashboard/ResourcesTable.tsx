@@ -11,12 +11,13 @@ import { Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
 import { effectiveResourceStatus, ResourceStatusBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
+import { imageVersion } from "@/lib/image";
 import { pageSlice } from "@/lib/paging";
 import { resourcePath } from "@/lib/routes";
 import { tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-import { agoLabel, deploymentImage, imageTag, statusRank } from "./format";
+import { agoLabel, deploymentImage, statusRank } from "./format";
 import { ResourceRowMenu } from "./ResourceRowMenu";
 import type { EnvResource } from "./useDashboardData";
 
@@ -265,7 +266,7 @@ export function ResourcesTable({
 					{pageItems.map((it) => {
 						const { resource, last } = it;
 						const note = statusNote(it);
-						const tag = last !== undefined ? imageTag(deploymentImage(last)) : "";
+						const tag = last !== undefined ? imageVersion(deploymentImage(last)) : "";
 						const message = last?.message ?? "";
 						return (
 							<TableRow key={resource.id} className="border-line hover:bg-bg2">

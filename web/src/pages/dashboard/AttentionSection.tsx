@@ -4,9 +4,10 @@ import { RegionIntentStatus, ResourceStatus } from "@gen/loco/resource/v1/resour
 
 import { Section } from "@/components/design/Page";
 import { ResourceStatusBadge } from "@/components/design/StatusBadge";
+import { imageVersion } from "@/lib/image";
 import { tsMs } from "@/lib/time";
 
-import { deploymentImage, imageTag, shortAgo } from "./format";
+import { deploymentImage, shortAgo } from "./format";
 import type { EnvResource } from "./useDashboardData";
 
 interface AttentionItem {
@@ -48,7 +49,7 @@ export function buildAttention(items: EnvResource[], hrefFor: (id: string) => st
 		const badRegion = resource.regions.find((r) => isBadIntent(r.status));
 		const region = badRegion?.region ?? last?.region ?? resource.regions[0]?.region ?? "";
 		const deployMessage = last?.message ?? "";
-		const tag = last !== undefined ? imageTag(deploymentImage(last)) : "";
+		const tag = last !== undefined ? imageVersion(deploymentImage(last)) : "";
 		const message =
 			resource.status === ResourceStatus.DEPLOYING
 				? [tag, deployMessage].filter((s) => s !== "").join(" · ")

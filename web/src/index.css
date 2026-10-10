@@ -86,6 +86,8 @@
 	--color-neutral-bg: var(--n-bg);
 	--color-neutral-fg: var(--n-fg);
 
+	--color-code-bg: var(--code-bg);
+
 	--color-diff-add: var(--diff-add);
 	--color-diff-del: var(--diff-del);
 
@@ -146,15 +148,17 @@
 	--pe-glow: 0.08;
 	--logo: #2455eb;
 	--logo-inverse: #6f8ff2;
+	--code-bg: #f7f5f2;
+	--code-line-number: #8c857d;
 	--sh-identifier: #2a2522;
-	--sh-sign: #8a837b;
-	--sh-property: #1e40af;
-	--sh-string: #1d6b3c;
-	--sh-keyword: #a14f0c;
-	--sh-class: #a63d2a;
+	--sh-sign: #6b655e;
+	--sh-property: #2348a8;
+	--sh-string: #a13b14;
+	--sh-keyword: #7b3fb5;
+	--sh-class: #0e7552;
 	--sh-entity: #2c4a99;
 	--sh-jsxliterals: #56504a;
-	--sh-comment: #958d84;
+	--sh-comment: #6f6861;
 
 	--background: var(--bg);
 	--foreground: var(--fg);
@@ -223,15 +227,17 @@
 	--pe-glow: 0.18;
 	--logo: #6f8ff2;
 	--logo-inverse: #2455eb;
+	--code-bg: #1d1a17;
+	--code-line-number: #766e66;
 	--sh-identifier: #f3efea;
-	--sh-sign: #8f877e;
-	--sh-property: #82a2ec;
-	--sh-string: #93d4a5;
-	--sh-keyword: #f0b070;
-	--sh-class: #f2998a;
+	--sh-sign: #9a9188;
+	--sh-property: #8fb0f5;
+	--sh-string: #f2a97a;
+	--sh-keyword: #c8a5f4;
+	--sh-class: #74d4ad;
 	--sh-entity: #9cc3f5;
 	--sh-jsxliterals: #c9c2ba;
-	--sh-comment: #766e66;
+	--sh-comment: #8a8279;
 }
 
 @layer base {
@@ -313,6 +319,36 @@
 	[data-disabled]:not([data-disabled="false"]) {
 		cursor: not-allowed;
 	}
+}
+
+.code-lines {
+	display: block;
+	width: max-content;
+	min-width: 100%;
+	white-space: normal;
+	counter-reset: code-line;
+}
+
+.code-lines .sh__line {
+	display: block;
+	padding-right: 1rem;
+	white-space: pre;
+}
+
+.code-lines .sh__line::before {
+	position: sticky;
+	left: 0;
+	display: inline-block;
+	box-sizing: content-box;
+	width: calc(var(--code-digits) * 1ch);
+	padding: 0 1rem;
+	background: var(--code-bg);
+	box-shadow: -0.5rem 0 0 var(--code-bg);
+	color: var(--code-line-number);
+	text-align: right;
+	content: counter(code-line);
+	counter-increment: code-line;
+	user-select: none;
 }
 
 [data-slot="dialog-overlay"],

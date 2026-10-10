@@ -4,19 +4,6 @@ export function shortId(id: string): string {
 	return id.slice(0, 8);
 }
 
-export function imageRef(image: string): string {
-	const slash = image.lastIndexOf("/");
-	return slash === -1 ? image : image.slice(slash + 1);
-}
-
-export function imageTag(image: string): string {
-	const ref = imageRef(image);
-	const at = ref.indexOf("@");
-	if (at !== -1) return ref.slice(at + 1, at + 20);
-	const colon = ref.indexOf(":");
-	return colon === -1 ? "latest" : ref.slice(colon + 1);
-}
-
 export function parseCpuMilli(cpu: string): number {
 	if (cpu === "") return 0;
 	if (cpu.endsWith("m")) return parseFloat(cpu);

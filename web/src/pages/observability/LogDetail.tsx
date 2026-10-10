@@ -252,26 +252,7 @@ export function LogDetail({
 						</div>
 					</>
 				) : (
-					<div className="relative">
-						<Button
-							variant="outline"
-							size="xs"
-							onClick={() => {
-								copy("json", json);
-							}}
-							className="absolute top-1.5 right-1.5 h-[26px] px-2 text-sm text-fg2"
-						>
-							{copied === "json" ? <CheckIcon className="size-3" /> : <CopyIcon className="size-3" />}
-							{copied === "json" ? "Copied" : "Copy"}
-						</Button>
-						<CodeBlock
-							language="json"
-							className="rounded-sm bg-bg2"
-							codeClassName="p-3 break-all whitespace-pre-wrap"
-						>
-							{json}
-						</CodeBlock>
-					</div>
+					<CodeBlock language="json">{json}</CodeBlock>
 				)}
 			</div>
 		</DetailPanel>
