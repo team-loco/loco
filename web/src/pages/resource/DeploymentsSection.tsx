@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { formatStarted } from "./format";
 import { depTag, PAGE_SIZES, startedMs, type RegionView } from "./model";
 
-const GRID = "grid grid-cols-[130px_104px_100px_100px_70px_minmax(0,1fr)_110px] items-center gap-3 px-4";
+const GRID = "lg:grid-cols-[130px_104px_100px_100px_70px_minmax(0,1fr)_110px]";
 
 interface Row {
 	dep: Deployment;
@@ -69,8 +69,13 @@ export function DeploymentsSection({
 			}
 		>
 			<div className="overflow-x-auto">
-				<div className="min-w-[860px]">
-					<div className={cn(GRID, "h-9 border-b border-line text-sm font-semibold text-fg2")}>
+				<div className="lg:min-w-[860px]">
+					<div
+						className={cn(
+							GRID,
+							"hidden h-9 items-center gap-3 border-b border-line px-4 text-sm font-semibold text-fg2 lg:grid",
+						)}
+					>
 						<span>Started</span>
 						<span>Status</span>
 						<span>Region</span>
@@ -85,19 +90,26 @@ export function DeploymentsSection({
 						return (
 							<div
 								key={dep.id}
-								className={cn(GRID, "group h-[42px] border-b border-line hover:bg-bg2", isCurrent && "bg-bg2")}
+								className={cn(
+									GRID,
+									"group grid min-h-[42px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 border-b border-line px-4 py-2 hover:bg-bg2",
+									isCurrent && "bg-bg2",
+								)}
 							>
 								<span className="text-fg2 tabular-nums">{formatStarted(startedMs(dep))}</span>
 								<DeploymentPhaseBadge phase={dep.status} />
-								<span className="truncate text-fg2">{region.name}</span>
-								<span className="truncate" title={depTag(dep)}>
-									{depTag(dep)}
-								</span>
-								<span className="text-fg2 tabular-nums">{dep.replicas}</span>
-								<span className="truncate text-fg2" title={dep.message}>
-									{dep.message}
-								</span>
-								<div className="flex items-center justify-end gap-1">
+								<div className="col-span-3 flex min-w-0 gap-3 lg:contents">
+									<span className="truncate text-fg2">{region.name}</span>
+									<span className="truncate" title={depTag(dep)}>
+										{depTag(dep)}
+									</span>
+									<span className="shrink-0 text-fg2 tabular-nums">
+										{dep.replicas}
+										<span className="lg:hidden">{dep.replicas === 1 ? " replica" : " replicas"}</span>
+									</span>
+								</div>
+								<span className="col-span-3 wrap-break-word text-fg2 empty:hidden lg:col-span-1">{dep.message}</span>
+								<div className="col-start-3 row-start-1 flex items-center justify-end gap-1 lg:col-start-auto lg:row-start-auto">
 									{isCurrent && <span className="mr-1 text-sm text-fg3">current</span>}
 									<div className="flex gap-1 opacity-0 transition-opacity duration-120 group-hover:opacity-100 focus-within:opacity-100">
 										{prev !== undefined && (
