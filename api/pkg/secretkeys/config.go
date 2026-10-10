@@ -13,7 +13,7 @@ type Config struct {
 }
 
 // New builds the provider Config selects. The transit provider renews its token in the
-// background until ctx is done.
+// background until ctx is done, and caches unwrapped data keys for its CacheTTL.
 func New(ctx context.Context, cfg Config) (Provider, error) {
 	switch cfg.Provider {
 	case ProviderLocal:
@@ -28,7 +28,7 @@ func New(ctx context.Context, cfg Config) (Provider, error) {
 			return nil, fmt.Errorf("transit secrets key provider: %w", err)
 		}
 		go transit.renewToken(ctx)
-		return transit, nil
+		return NewDEKCache(transit, cfg.Transit.CacheTTL), nil
 	default:
 		return nil, fmt.Errorf("%w: %q", ErrUnknownProvider, cfg.Provider)
 	}

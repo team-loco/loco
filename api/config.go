@@ -82,6 +82,7 @@ const (
 	defaultSecretsTransitTimeout = 10 * time.Second
 	defaultSecretsTransitMargin  = 5 * time.Minute
 	defaultSecretsTransitRetry   = 10 * time.Second
+	defaultSecretsTransitDEKTTL  = 5 * time.Minute
 )
 
 type APIConfig struct {
@@ -224,6 +225,7 @@ func newSecretsConfig() secretkeys.Config {
 				defaultSecretsTransitMargin,
 			),
 			RenewRetry: positiveDurationEnv("LOCO_SECRETS_TRANSIT_RENEW_RETRY", defaultSecretsTransitRetry),
+			CacheTTL:   positiveDurationEnv("LOCO_SECRETS_TRANSIT_CACHE_TTL", defaultSecretsTransitDEKTTL),
 		}
 		if err := transit.Validate(); err != nil {
 			panic(fmt.Errorf("%w: %w", errInvalidSecretsTransit, err))
