@@ -28,6 +28,7 @@ func transitConfig(address string) TransitConfig {
 		Timeout:     testTransitTimeout,
 		RenewMargin: testRenewMargin,
 		RenewRetry:  testRenewRetry,
+		CacheTTL:    testCacheTTL,
 	}
 }
 
@@ -276,6 +277,7 @@ func TestTransitConfigValidate(t *testing.T) {
 		{"no timeout", func(c *TransitConfig) { c.Timeout = 0 }, ErrTransitTimeout},
 		{"no renewal margin", func(c *TransitConfig) { c.RenewMargin = 0 }, ErrTransitRenewal},
 		{"no renewal retry", func(c *TransitConfig) { c.RenewRetry = 0 }, ErrTransitRenewal},
+		{"no cache ttl", func(c *TransitConfig) { c.CacheTTL = 0 }, ErrTransitCacheTTL},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -299,7 +301,7 @@ func TestNewTransitRejectsAMissingCAFile(t *testing.T) {
 func TestNewSelectsTransit(t *testing.T) {
 	fake := newFakeTransit(t)
 	server := fake.server()
-	provider, err := New(context.Background(), Config{Provider: ProviderTransit, Transit: transitConfig(server.URL)})
+	provider, err := New(t.Context(), Config{Provider: ProviderTransit, Transit: transitConfig(server.URL)})
 	if err != nil {
 		t.Fatalf("new: %v", err)
 	}
