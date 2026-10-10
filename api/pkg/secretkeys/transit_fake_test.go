@@ -24,8 +24,10 @@ const (
 	fakeTransitKey   = "loco"
 	fakeTransitToken = "s.fake-token"
 
-	fakeLookupSelfPath = "/v1/auth/token/lookup-self"
-	fakeRenewSelfPath  = "/v1/auth/token/renew-self"
+	transitTypeField      = "type"
+	transitRenewableField = "renewable"
+	fakeLookupSelfPath    = "/v1/auth/token/lookup-self"
+	fakeRenewSelfPath     = "/v1/auth/token/renew-self"
 
 	transitFakeNonceSize = 12
 )
@@ -137,8 +139,8 @@ func (f *fakeTransit) lookupSelf(w http.ResponseWriter) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.writeData(w, map[string]any{
-		"ttl":       int(f.tokenTTL.Seconds()),
-		"renewable": f.tokenRenewable,
+		"ttl":                 int(f.tokenTTL.Seconds()),
+		transitRenewableField: f.tokenRenewable,
 	})
 }
 
@@ -150,8 +152,8 @@ func (f *fakeTransit) renewSelf(w http.ResponseWriter) {
 		return
 	}
 	f.writeJSON(w, http.StatusOK, map[string]any{"auth": map[string]any{
-		"lease_duration": int(f.tokenTTL.Seconds()),
-		"renewable":      f.tokenRenewable,
+		"lease_duration":      int(f.tokenTTL.Seconds()),
+		transitRenewableField: f.tokenRenewable,
 	}})
 }
 
@@ -159,7 +161,7 @@ func (f *fakeTransit) readKey(w http.ResponseWriter) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.writeData(w, map[string]any{
-		"type":           f.keyType,
+		transitTypeField: f.keyType,
 		"derived":        f.derived,
 		"latest_version": len(f.keys),
 	})

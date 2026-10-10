@@ -1,0 +1,30 @@
+name: loco-transit-conformance
+
+services:
+  openbao:
+    image: openbao/openbao:2.7.1@sha256:6d2b93856e3fcf7b18ad855a0b51eaba474dc8b79cf554379ea32034797d2acf
+    command: ["server", "-dev", "-dev-root-token-id=loco-conformance-root", "-dev-listen-address=0.0.0.0:8200"]
+    environment:
+      SKIP_SETCAP: "true"
+      BAO_ADDR: http://127.0.0.1:8200
+    ports:
+      - "${CONFORMANCE_OPENBAO_PORT:-58200}:8200"
+    healthcheck:
+      test: ["CMD", "bao", "status"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+
+  vault:
+    image: hashicorp/vault:2.1.2@sha256:c2f666266f383d2cf424d86b8bb8ce7d065562173ffec2b476d762943608bb55
+    command: ["server", "-dev", "-dev-root-token-id=loco-conformance-root", "-dev-listen-address=0.0.0.0:8200"]
+    environment:
+      SKIP_SETCAP: "true"
+      VAULT_ADDR: http://127.0.0.1:8200
+    ports:
+      - "${CONFORMANCE_VAULT_PORT:-58201}:8200"
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 1s
+      timeout: 3s
+      retries: 30

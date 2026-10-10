@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+#MISE description="Run the transit secrets key provider against OpenBao and Vault"
+set -euo pipefail
+
+root=$(git rev-parse --show-toplevel)
+cd "$root"
+compose=(docker compose -f "$root/env/transit-conformance/compose.yaml")
+cleanup() {
+	status=$?
+	if [ "$status" -ne 0 ]; then
+		"${compose[@]}" ps -a
+		"${compose[@]}" logs --no-color --tail=80
+	fi
+	if [ "${KEEP:-}" = "" ]; then
+		"${compose[@]}" down -v >/dev/null 2>&1
+	fi
+}
+trap cleanup EXIT
+"${compose[@]}" up -d --wait
+cd api
+LOCO_CONFORMANCE_TRANSIT_ROOT_TOKEN=loco-conformance-root \
+	LOCO_CONFORMANCE_OPENBAO_ADDR="http://localhost:${CONFORMANCE_OPENBAO_PORT:-58200}" \
+	LOCO_CONFORMANCE_VAULT_ADDR="http://localhost:${CONFORMANCE_VAULT_PORT:-58201}" \
+	go test -tags conformance -count=1 -run TestTransitConformance -v ./pkg/secretkeys/ "$@"
