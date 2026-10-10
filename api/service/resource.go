@@ -223,8 +223,17 @@ func (s *ResourceServer) CreateResource(
 	}
 
 	if hasDomain {
+		environmentID, envErr := workspaceProductionEnvironment(ctx, qtx, workspaceID)
+		if errors.Is(envErr, errNoProductionEnvironment) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errNoProductionEnvironment)
+		}
+		if envErr != nil {
+			slog.ErrorContext(ctx, "failed to get the production environment", "error", envErr)
+			return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		}
 		domainParams := genDb.CreateResourceDomainParams{
 			ResourceID:       resourceID,
+			EnvironmentID:    environmentID,
 			Domain:           fullDomain,
 			DomainSource:     domainSource,
 			SubdomainLabel:   subdomainLabel,
@@ -971,16 +980,10 @@ func (s *ResourceServer) planRegionRedeploy(
 		return regionRedeploy{}, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	cluster, err := s.queries.GetActiveClusterByRegionAndTier(ctx, genDb.GetActiveClusterByRegionAndTierParams{
-		Region: current.Region,
-		Tier:   deploymentEnv.EnvironmentType,
-	})
+	cluster, err := eligibleCluster(ctx, s.queries, current.Region, deploymentEnv.EnvironmentType)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get active cluster for region", "region", current.Region, "error", err)
-		return regionRedeploy{}, connect.NewError(
-			connect.CodeInternal,
-			fmt.Errorf("no active cluster available for region %s", current.Region),
-		)
+		return regionRedeploy{}, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
 
 	return regionRedeploy{
@@ -1011,10 +1014,25 @@ func (s *ResourceServer) redeployRegions(
 	plans []regionRedeploy,
 	ev events.Event,
 ) error {
-	hostname, err := primaryHostname(ctx, s.queries, res.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get the resource's primary domain", "resourceId", res.ID, "error", err)
-		return connect.NewError(connect.CodeInternal, ErrDB)
+	hostnames := make(map[uuid.UUID]string, len(plans))
+	for _, plan := range plans {
+		environmentID := plan.params.EnvironmentID
+		if _, found := hostnames[environmentID]; found {
+			continue
+		}
+		hostname, hostnameErr := primaryHostname(ctx, s.queries, res.ID, environmentID)
+		if hostnameErr != nil {
+			slog.ErrorContext(
+				ctx,
+				"failed to get the resource's primary domain",
+				"resourceId",
+				res.ID,
+				"error",
+				hostnameErr,
+			)
+			return connect.NewError(connect.CodeInternal, ErrDB)
+		}
+		hostnames[environmentID] = hostname
 	}
 
 	resourceSpec, err := converter.DeserializeResourceSpecByType(res.Spec, string(res.Type))
@@ -1042,7 +1060,7 @@ func (s *ResourceServer) redeployRegions(
 			buildSpec := desiredApplicationSpec(
 				res,
 				resourceSpec,
-				hostname,
+				hostnames[plan.params.EnvironmentID],
 				plan.deploymentSpec,
 				plan.params.Region,
 				plan.params.EnvironmentID,
@@ -1373,8 +1391,14 @@ func withTx(ctx context.Context, pool *pgxpool.Pool, fn func(qtx *genDb.Queries)
 	})
 }
 
-func primaryHostname(ctx context.Context, queries genDb.Querier, resourceID uuid.UUID) (string, error) {
-	hostname, err := queries.GetPrimaryResourceDomain(ctx, resourceID)
+func primaryHostname(
+	ctx context.Context,
+	queries genDb.Querier,
+	resourceID uuid.UUID,
+	environmentID uuid.UUID,
+) (string, error) {
+	params := genDb.GetPrimaryResourceDomainParams{ResourceID: resourceID, EnvironmentID: environmentID}
+	hostname, err := queries.GetPrimaryResourceDomain(ctx, params)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", nil
 	}
@@ -1481,8 +1505,9 @@ func createDeploymentWithCleanup(
 	activeDeployment, err := qtx.GetActiveDeploymentForResourceAndRegion(
 		ctx,
 		genDb.GetActiveDeploymentForResourceAndRegionParams{
-			ResourceID: params.ResourceID,
-			Region:     params.Region,
+			ResourceID:    params.ResourceID,
+			EnvironmentID: params.EnvironmentID,
+			Region:        params.Region,
 		},
 	)
 	hadPreviousDeployment := err == nil

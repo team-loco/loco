@@ -29,7 +29,7 @@ WHERE resource_id = $1 AND is_active = true;
 
 -- name: GetActiveDeploymentForResourceAndRegion :one
 SELECT * FROM deployments
-WHERE resource_id = $1 AND region = $2 AND is_active = true
+WHERE resource_id = $1 AND environment_id = $2 AND region = $3 AND is_active = true
 ORDER BY created_at DESC
 LIMIT 1;
 
@@ -76,3 +76,8 @@ SET status = sqlc.arg(status),
 WHERE id = sqlc.arg(id)
   AND is_active = true
   AND status::text = ANY(sqlc.arg(from_statuses)::text[]);
+
+-- name: ListActiveDeploymentsForEnvironment :many
+SELECT * FROM deployments
+WHERE environment_id = $1 AND is_active = true
+ORDER BY resource_id, created_at DESC;

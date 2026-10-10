@@ -232,12 +232,6 @@ func (s *DeploymentServer) CreateDeployment(
 
 	serviceSpec := r.GetSpec().GetService()
 
-	hostname, err := primaryHostname(ctx, s.queries, resourceID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get the resource's primary domain", "resourceId", resourceID, "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
-	}
-
 	region := r.GetRegion()
 	environmentID := uuid.MustParse(r.GetEnvironmentId())
 
@@ -262,11 +256,13 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeNotFound, ErrEnvironmentNotFound)
 	}
 
-	// Get active cluster for the specified region and environment tier
-	cluster, err := s.queries.GetActiveClusterByRegionAndTier(ctx, genDb.GetActiveClusterByRegionAndTierParams{
-		Region: region,
-		Tier:   env.EnvironmentType,
-	})
+	hostname, err := primaryHostname(ctx, s.queries, resourceID, environmentID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get the resource's primary domain", "resourceId", resourceID, "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
+	cluster, err := eligibleCluster(ctx, s.queries, region, env.EnvironmentType)
 	if err != nil {
 		slog.ErrorContext(
 			ctx,
@@ -278,10 +274,7 @@ func (s *DeploymentServer) CreateDeployment(
 			"error",
 			err,
 		)
-		return nil, connect.NewError(
-			connect.CodeInternal,
-			fmt.Errorf("no active cluster available for region %s tier %s", region, env.EnvironmentType),
-		)
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
 
 	requestedBuild := serviceSpec.GetBuild()

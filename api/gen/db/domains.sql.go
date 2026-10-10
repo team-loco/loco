@@ -46,18 +46,20 @@ func (q *Queries) CreatePlatformDomain(ctx context.Context, arg CreatePlatformDo
 const createResourceDomain = `-- name: CreateResourceDomain :one
 INSERT INTO resource_domains (
     resource_id,
+    environment_id,
     domain,
     domain_source,
     subdomain_label,
     platform_domain_id,
     is_primary
 )
-VALUES ($1, $2, $3, $4, $5, $6)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING id
 `
 
 type CreateResourceDomainParams struct {
 	ResourceID       uuid.UUID    `json:"resourceId"`
+	EnvironmentID    uuid.UUID    `json:"environmentId"`
 	Domain           string       `json:"domain"`
 	DomainSource     DomainSource `json:"domainSource"`
 	SubdomainLabel   *string      `json:"subdomainLabel"`
@@ -68,6 +70,7 @@ type CreateResourceDomainParams struct {
 func (q *Queries) CreateResourceDomain(ctx context.Context, arg CreateResourceDomainParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, createResourceDomain,
 		arg.ResourceID,
+		arg.EnvironmentID,
 		arg.Domain,
 		arg.DomainSource,
 		arg.SubdomainLabel,
@@ -139,11 +142,16 @@ func (q *Queries) GetPlatformDomainByName(ctx context.Context, domain string) (P
 const getPrimaryResourceDomain = `-- name: GetPrimaryResourceDomain :one
 SELECT domain
 FROM resource_domains
-WHERE resource_id = $1 AND is_primary
+WHERE resource_id = $1 AND environment_id = $2 AND is_primary
 `
 
-func (q *Queries) GetPrimaryResourceDomain(ctx context.Context, resourceID uuid.UUID) (string, error) {
-	row := q.db.QueryRow(ctx, getPrimaryResourceDomain, resourceID)
+type GetPrimaryResourceDomainParams struct {
+	ResourceID    uuid.UUID `json:"resourceId"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
+}
+
+func (q *Queries) GetPrimaryResourceDomain(ctx context.Context, arg GetPrimaryResourceDomainParams) (string, error) {
+	row := q.db.QueryRow(ctx, getPrimaryResourceDomain, arg.ResourceID, arg.EnvironmentID)
 	var domain string
 	err := row.Scan(&domain)
 	return domain, err
@@ -153,6 +161,7 @@ const getResourceDomainByID = `-- name: GetResourceDomainByID :one
 SELECT 
     rd.id,
     rd.resource_id,
+    rd.environment_id,
     rd.domain,
     rd.domain_source,
     rd.subdomain_label,
@@ -170,6 +179,7 @@ func (q *Queries) GetResourceDomainByID(ctx context.Context, id uuid.UUID) (Reso
 	err := row.Scan(
 		&i.ID,
 		&i.ResourceID,
+		&i.EnvironmentID,
 		&i.Domain,
 		&i.DomainSource,
 		&i.SubdomainLabel,
@@ -182,11 +192,16 @@ func (q *Queries) GetResourceDomainByID(ctx context.Context, id uuid.UUID) (Reso
 }
 
 const getResourceDomainCount = `-- name: GetResourceDomainCount :one
-SELECT COUNT(*) as count FROM resource_domains WHERE resource_id = $1
+SELECT COUNT(*) as count FROM resource_domains WHERE resource_id = $1 AND environment_id = $2
 `
 
-func (q *Queries) GetResourceDomainCount(ctx context.Context, resourceID uuid.UUID) (int64, error) {
-	row := q.db.QueryRow(ctx, getResourceDomainCount, resourceID)
+type GetResourceDomainCountParams struct {
+	ResourceID    uuid.UUID `json:"resourceId"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
+}
+
+func (q *Queries) GetResourceDomainCount(ctx context.Context, arg GetResourceDomainCountParams) (int64, error) {
+	row := q.db.QueryRow(ctx, getResourceDomainCount, arg.ResourceID, arg.EnvironmentID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -271,6 +286,59 @@ func (q *Queries) ListAllLocoOwnedDomains(ctx context.Context) ([]ListAllLocoOwn
 	return items, nil
 }
 
+const listEnvironmentResourceDomains = `-- name: ListEnvironmentResourceDomains :many
+SELECT
+    rd.id,
+    rd.resource_id,
+    rd.environment_id,
+    rd.domain,
+    rd.domain_source,
+    rd.subdomain_label,
+    rd.platform_domain_id,
+    rd.is_primary,
+    rd.created_at,
+    rd.updated_at
+FROM resource_domains rd
+WHERE rd.resource_id = ANY($1::uuid[]) AND rd.environment_id = $2
+ORDER BY rd.resource_id, rd.is_primary DESC, rd.created_at ASC
+`
+
+type ListEnvironmentResourceDomainsParams struct {
+	ResourceIds   []uuid.UUID `json:"resourceIds"`
+	EnvironmentID uuid.UUID   `json:"environmentId"`
+}
+
+func (q *Queries) ListEnvironmentResourceDomains(ctx context.Context, arg ListEnvironmentResourceDomainsParams) ([]ResourceDomain, error) {
+	rows, err := q.db.Query(ctx, listEnvironmentResourceDomains, arg.ResourceIds, arg.EnvironmentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ResourceDomain
+	for rows.Next() {
+		var i ResourceDomain
+		if err := rows.Scan(
+			&i.ID,
+			&i.ResourceID,
+			&i.EnvironmentID,
+			&i.Domain,
+			&i.DomainSource,
+			&i.SubdomainLabel,
+			&i.PlatformDomainID,
+			&i.IsPrimary,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPlatformDomains = `-- name: ListPlatformDomains :many
 SELECT id, domain, is_active, created_at FROM platform_domains
 WHERE ($1::boolean IS NULL OR is_active = $1::boolean)
@@ -306,6 +374,7 @@ const listResourceDomains = `-- name: ListResourceDomains :many
 SELECT 
     rd.id,
     rd.resource_id,
+    rd.environment_id,
     rd.domain,
     rd.domain_source,
     rd.subdomain_label,
@@ -330,6 +399,7 @@ func (q *Queries) ListResourceDomains(ctx context.Context, resourceID uuid.UUID)
 		if err := rows.Scan(
 			&i.ID,
 			&i.ResourceID,
+			&i.EnvironmentID,
 			&i.Domain,
 			&i.DomainSource,
 			&i.SubdomainLabel,
@@ -352,6 +422,7 @@ const listResourceDomainsForResources = `-- name: ListResourceDomainsForResource
 SELECT
     rd.id,
     rd.resource_id,
+    rd.environment_id,
     rd.domain,
     rd.domain_source,
     rd.subdomain_label,
@@ -376,6 +447,7 @@ func (q *Queries) ListResourceDomainsForResources(ctx context.Context, resourceI
 		if err := rows.Scan(
 			&i.ID,
 			&i.ResourceID,
+			&i.EnvironmentID,
 			&i.Domain,
 			&i.DomainSource,
 			&i.SubdomainLabel,
@@ -397,12 +469,17 @@ func (q *Queries) ListResourceDomainsForResources(ctx context.Context, resourceI
 const resourceHasPrimaryDomain = `-- name: ResourceHasPrimaryDomain :one
 SELECT EXISTS(
     SELECT 1 FROM resource_domains
-    WHERE resource_id = $1 AND is_primary
+    WHERE resource_id = $1 AND environment_id = $2 AND is_primary
 ) AS has_primary
 `
 
-func (q *Queries) ResourceHasPrimaryDomain(ctx context.Context, resourceID uuid.UUID) (bool, error) {
-	row := q.db.QueryRow(ctx, resourceHasPrimaryDomain, resourceID)
+type ResourceHasPrimaryDomainParams struct {
+	ResourceID    uuid.UUID `json:"resourceId"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
+}
+
+func (q *Queries) ResourceHasPrimaryDomain(ctx context.Context, arg ResourceHasPrimaryDomainParams) (bool, error) {
+	row := q.db.QueryRow(ctx, resourceHasPrimaryDomain, arg.ResourceID, arg.EnvironmentID)
 	var has_primary bool
 	err := row.Scan(&has_primary)
 	return has_primary, err
@@ -411,17 +488,18 @@ func (q *Queries) ResourceHasPrimaryDomain(ctx context.Context, resourceID uuid.
 const setResourceDomainPrimary = `-- name: SetResourceDomainPrimary :one
 UPDATE resource_domains
 SET is_primary = true
-WHERE id = $1 AND resource_id = $2
+WHERE id = $1 AND resource_id = $2 AND environment_id = $3
 RETURNING id
 `
 
 type SetResourceDomainPrimaryParams struct {
-	ID         uuid.UUID `json:"id"`
-	ResourceID uuid.UUID `json:"resourceId"`
+	ID            uuid.UUID `json:"id"`
+	ResourceID    uuid.UUID `json:"resourceId"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
 }
 
 func (q *Queries) SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, setResourceDomainPrimary, arg.ID, arg.ResourceID)
+	row := q.db.QueryRow(ctx, setResourceDomainPrimary, arg.ID, arg.ResourceID, arg.EnvironmentID)
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
@@ -452,10 +530,15 @@ func (q *Queries) UpdateResourceDomain(ctx context.Context, arg UpdateResourceDo
 const updateResourceDomainPrimary = `-- name: UpdateResourceDomainPrimary :exec
 UPDATE resource_domains
 SET is_primary = false
-WHERE resource_id = $1
+WHERE resource_id = $1 AND environment_id = $2
 `
 
-func (q *Queries) UpdateResourceDomainPrimary(ctx context.Context, resourceID uuid.UUID) error {
-	_, err := q.db.Exec(ctx, updateResourceDomainPrimary, resourceID)
+type UpdateResourceDomainPrimaryParams struct {
+	ResourceID    uuid.UUID `json:"resourceId"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
+}
+
+func (q *Queries) UpdateResourceDomainPrimary(ctx context.Context, arg UpdateResourceDomainPrimaryParams) error {
+	_, err := q.db.Exec(ctx, updateResourceDomainPrimary, arg.ResourceID, arg.EnvironmentID)
 	return err
 }

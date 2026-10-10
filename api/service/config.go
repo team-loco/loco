@@ -15,16 +15,22 @@ import (
 type ConfigServer struct {
 	platformDomain string
 	minCLIVersion  string
+	schemaURL      string
 	defaults       servicedefaults.Defaults
 	auth           *configv1.AuthConfig
 }
 
 func NewConfigServer(
-	platformDomain, minCLIVersion string,
+	platformDomain, minCLIVersion, schemaURL string,
 	defaults servicedefaults.Defaults,
 	issuers []auth.IssuerConfig,
 ) *ConfigServer {
-	s := &ConfigServer{platformDomain: platformDomain, minCLIVersion: minCLIVersion, defaults: defaults}
+	s := &ConfigServer{
+		platformDomain: platformDomain,
+		minCLIVersion:  minCLIVersion,
+		schemaURL:      schemaURL,
+		defaults:       defaults,
+	}
 	if ic, ok := auth.WebIssuer(issuers); ok {
 		s.auth = &configv1.AuthConfig{
 			Issuer:   ic.Issuer,
@@ -41,6 +47,7 @@ func (s *ConfigServer) GetConfig(
 ) (*connect.Response[configv1.GetConfigResponse], error) {
 	return connect.NewResponse(&configv1.GetConfigResponse{
 		MinCliVersion: s.minCLIVersion,
+		SchemaUrl:     s.schemaURL,
 		Auth:          s.auth,
 		ServiceDefaults: &configv1.DefaultServiceConfig{
 			Routing: &resourcev1.RoutingConfig{

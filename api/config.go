@@ -52,6 +52,7 @@ const (
 	defaultHealthTimeout      = 5
 	defaultHealthFailThresh   = 3
 	defaultHealthGracePeriod  = 0
+	defaultSchemaURL          = "https://loco.build/schemas/loco.v1.json"
 
 	defaultRegistryScheme            = "https://"
 	defaultRegistryTimeout           = 30 * time.Second
@@ -97,6 +98,7 @@ type APIConfig struct {
 	AuthIssuers           []auth.IssuerConfig
 	SignupPolicy          auth.SignupPolicy
 	WebURL                string
+	SchemaURL             string
 	EventsRetention       time.Duration
 	WebhooksAllowPrivate  bool
 	InstallWebhooks       []webhooks.InstallWebhook
@@ -157,6 +159,7 @@ func newAPIConfig() *APIConfig {
 		AuthIssuers:           authIssuers,
 		SignupPolicy:          signupPolicy,
 		WebURL:                stringEnv("WEB_URL", ""),
+		SchemaURL:             stringEnv("LOCO_SCHEMA_URL", defaultSchemaURL),
 		EventsRetention:       eventsRetention,
 		WebhooksAllowPrivate:  webhooksAllowPrivate,
 		InstallWebhooks:       installWebhooks,

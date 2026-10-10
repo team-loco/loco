@@ -542,6 +542,7 @@ type Resource struct {
 type ResourceDomain struct {
 	ID               uuid.UUID    `json:"id"`
 	ResourceID       uuid.UUID    `json:"resourceId"`
+	EnvironmentID    uuid.UUID    `json:"environmentId"`
 	Domain           string       `json:"domain"`
 	DomainSource     DomainSource `json:"domainSource"`
 	SubdomainLabel   *string      `json:"subdomainLabel"`

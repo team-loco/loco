@@ -163,6 +163,7 @@ CREATE TABLE
     resource_domains (
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
         resource_id UUID NOT NULL REFERENCES resources (id) ON DELETE CASCADE,
+        environment_id UUID NOT NULL REFERENCES environments (id) ON DELETE CASCADE,
         domain TEXT NOT NULL UNIQUE,
         domain_source domain_source NOT NULL,
         subdomain_label TEXT,
@@ -186,8 +187,10 @@ CREATE TABLE
 
 CREATE INDEX IF NOT EXISTS idx_resource_domains_resource_id_primary_created ON resource_domains (resource_id, is_primary DESC, created_at ASC);
 
--- Enforce max 1 primary domain per resource
-CREATE UNIQUE INDEX uniq_resource_primary_domain ON resource_domains (resource_id)
+CREATE INDEX idx_resource_domains_environment_id ON resource_domains (environment_id);
+
+-- Enforce max 1 primary domain per resource in each environment
+CREATE UNIQUE INDEX uniq_resource_primary_domain ON resource_domains (resource_id, environment_id)
 WHERE
     is_primary = true;
 
@@ -223,7 +226,7 @@ CREATE INDEX idx_deployments_cluster_id ON deployments (cluster_id);
 
 CREATE INDEX idx_deployments_region ON deployments (region);
 
-CREATE UNIQUE INDEX uniq_deployments_resource_region_active ON deployments (resource_id, region)
+CREATE UNIQUE INDEX uniq_deployments_resource_region_active ON deployments (resource_id, environment_id, region)
 WHERE
     is_active = true;
 

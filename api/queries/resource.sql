@@ -72,14 +72,13 @@ WHERE id = $1;
 -- name: GetResourceWorkspaceID :one
 SELECT workspace_id FROM resources WHERE id = $1;
 
--- name: GetActiveClusterByRegionAndTier :one
+-- name: ListEligibleClusters :many
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
        last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
        capacity_memory_bytes, agent_version, created_at, updated_at
 FROM clusters
-WHERE region = $1 AND tier = $2 AND is_active = true AND health_status = 'healthy'
-ORDER BY is_default DESC, created_at ASC
-LIMIT 1;
+WHERE tier = $1 AND is_active = true AND health_status = 'healthy'
+ORDER BY region ASC, is_default DESC, created_at ASC;
 
 -- name: ListClustersActive :many
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
@@ -122,3 +121,9 @@ SELECT id FROM resources
 WHERE id = ANY(sqlc.arg(ids)::uuid[])
 ORDER BY id
 FOR UPDATE;
+
+-- name: ListWorkspaceServiceResources :many
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
+FROM resources r
+WHERE r.workspace_id = $1 AND r.type = 'service'
+ORDER BY r.name ASC;

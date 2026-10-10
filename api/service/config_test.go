@@ -9,7 +9,8 @@ import (
 
 func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 	defaults := testServiceDefaults()
-	server := NewConfigServer("onloco.test", "v1.2.3", defaults, nil)
+	const schemaURL = "https://loco.test/schemas/loco.v1.json"
+	server := NewConfigServer("onloco.test", "v1.2.3", schemaURL, defaults, nil)
 	req := connect.NewRequest(&configv1.GetConfigRequest{})
 	resp, err := server.GetConfig(t.Context(), req)
 	if err != nil {
@@ -38,6 +39,9 @@ func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 		health.GetFailureThreshold() != defaults.HealthFailThreshold ||
 		health.GetInitialDelaySeconds() != defaults.HealthStartupGracePeriod {
 		t.Errorf("health check = %v, want the configured defaults", health)
+	}
+	if resp.Msg.GetSchemaUrl() != schemaURL {
+		t.Errorf("schema url = %q, want %q", resp.Msg.GetSchemaUrl(), schemaURL)
 	}
 	if got.GetPlatformDomain() != "onloco.test" || resp.Msg.GetMinCliVersion() != "v1.2.3" {
 		t.Errorf("platform domain %q, min CLI version %q", got.GetPlatformDomain(), resp.Msg.GetMinCliVersion())

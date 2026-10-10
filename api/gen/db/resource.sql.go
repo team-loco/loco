@@ -88,64 +88,6 @@ func (q *Queries) DeleteResource(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
-const getActiveClusterByRegionAndTier = `-- name: GetActiveClusterByRegionAndTier :one
-SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
-       last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
-       capacity_memory_bytes, agent_version, created_at, updated_at
-FROM clusters
-WHERE region = $1 AND tier = $2 AND is_active = true AND health_status = 'healthy'
-ORDER BY is_default DESC, created_at ASC
-LIMIT 1
-`
-
-type GetActiveClusterByRegionAndTierParams struct {
-	Region string `json:"region"`
-	Tier   string `json:"tier"`
-}
-
-type GetActiveClusterByRegionAndTierRow struct {
-	ID                    uuid.UUID  `json:"id"`
-	Name                  string     `json:"name"`
-	Region                string     `json:"region"`
-	Provider              string     `json:"provider"`
-	IsActive              bool       `json:"isActive"`
-	IsDefault             bool       `json:"isDefault"`
-	Endpoint              *string    `json:"endpoint"`
-	HealthStatus          *string    `json:"healthStatus"`
-	LastHealthCheck       *time.Time `json:"lastHealthCheck"`
-	AgentTokenHash        *string    `json:"agentTokenHash"`
-	LastHeartbeat         *time.Time `json:"lastHeartbeat"`
-	CapacityCpuMillicores *int64     `json:"capacityCpuMillicores"`
-	CapacityMemoryBytes   *int64     `json:"capacityMemoryBytes"`
-	AgentVersion          *string    `json:"agentVersion"`
-	CreatedAt             time.Time  `json:"createdAt"`
-	UpdatedAt             time.Time  `json:"updatedAt"`
-}
-
-func (q *Queries) GetActiveClusterByRegionAndTier(ctx context.Context, arg GetActiveClusterByRegionAndTierParams) (GetActiveClusterByRegionAndTierRow, error) {
-	row := q.db.QueryRow(ctx, getActiveClusterByRegionAndTier, arg.Region, arg.Tier)
-	var i GetActiveClusterByRegionAndTierRow
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.Region,
-		&i.Provider,
-		&i.IsActive,
-		&i.IsDefault,
-		&i.Endpoint,
-		&i.HealthStatus,
-		&i.LastHealthCheck,
-		&i.AgentTokenHash,
-		&i.LastHeartbeat,
-		&i.CapacityCpuMillicores,
-		&i.CapacityMemoryBytes,
-		&i.AgentVersion,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const getClusterDetails = `-- name: GetClusterDetails :one
 SELECT id, is_active, health_status, agent_version, last_heartbeat
 FROM clusters
@@ -426,6 +368,71 @@ func (q *Queries) ListClustersActive(ctx context.Context) ([]ListClustersActiveR
 	return items, nil
 }
 
+const listEligibleClusters = `-- name: ListEligibleClusters :many
+SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
+       last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
+       capacity_memory_bytes, agent_version, created_at, updated_at
+FROM clusters
+WHERE tier = $1 AND is_active = true AND health_status = 'healthy'
+ORDER BY region ASC, is_default DESC, created_at ASC
+`
+
+type ListEligibleClustersRow struct {
+	ID                    uuid.UUID  `json:"id"`
+	Name                  string     `json:"name"`
+	Region                string     `json:"region"`
+	Provider              string     `json:"provider"`
+	IsActive              bool       `json:"isActive"`
+	IsDefault             bool       `json:"isDefault"`
+	Endpoint              *string    `json:"endpoint"`
+	HealthStatus          *string    `json:"healthStatus"`
+	LastHealthCheck       *time.Time `json:"lastHealthCheck"`
+	AgentTokenHash        *string    `json:"agentTokenHash"`
+	LastHeartbeat         *time.Time `json:"lastHeartbeat"`
+	CapacityCpuMillicores *int64     `json:"capacityCpuMillicores"`
+	CapacityMemoryBytes   *int64     `json:"capacityMemoryBytes"`
+	AgentVersion          *string    `json:"agentVersion"`
+	CreatedAt             time.Time  `json:"createdAt"`
+	UpdatedAt             time.Time  `json:"updatedAt"`
+}
+
+func (q *Queries) ListEligibleClusters(ctx context.Context, tier string) ([]ListEligibleClustersRow, error) {
+	rows, err := q.db.Query(ctx, listEligibleClusters, tier)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListEligibleClustersRow
+	for rows.Next() {
+		var i ListEligibleClustersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Region,
+			&i.Provider,
+			&i.IsActive,
+			&i.IsDefault,
+			&i.Endpoint,
+			&i.HealthStatus,
+			&i.LastHealthCheck,
+			&i.AgentTokenHash,
+			&i.LastHeartbeat,
+			&i.CapacityCpuMillicores,
+			&i.CapacityMemoryBytes,
+			&i.AgentVersion,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listResourceRegions = `-- name: ListResourceRegions :many
 SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
 FROM resource_regions
@@ -519,6 +526,45 @@ type ListResourcesForWorkspaceParams struct {
 
 func (q *Queries) ListResourcesForWorkspace(ctx context.Context, arg ListResourcesForWorkspaceParams) ([]Resource, error) {
 	rows, err := q.db.Query(ctx, listResourcesForWorkspace, arg.WorkspaceID, arg.Limit, arg.PageToken)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Resource
+	for rows.Next() {
+		var i Resource
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.Name,
+			&i.Type,
+			&i.Description,
+			&i.Status,
+			&i.Spec,
+			&i.SpecVersion,
+			&i.Partial,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listWorkspaceServiceResources = `-- name: ListWorkspaceServiceResources :many
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
+FROM resources r
+WHERE r.workspace_id = $1 AND r.type = 'service'
+ORDER BY r.name ASC
+`
+
+func (q *Queries) ListWorkspaceServiceResources(ctx context.Context, workspaceID uuid.UUID) ([]Resource, error) {
+	rows, err := q.db.Query(ctx, listWorkspaceServiceResources, workspaceID)
 	if err != nil {
 		return nil, err
 	}

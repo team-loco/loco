@@ -623,6 +623,46 @@ func (q *Queries) ListExistingResourceIDs(ctx context.Context, ids []uuid.UUID) 
 	return items, nil
 }
 
+const listLatestSucceededBuildsForResources = `-- name: ListLatestSucceededBuildsForResources :many
+SELECT DISTINCT ON (resource_id) id, resource_id, dockerfile_path, context FROM builds
+WHERE resource_id = ANY($1::uuid[])
+  AND status = 'succeeded'
+  AND image_deleted_at IS NULL
+ORDER BY resource_id, finished_at DESC, id DESC
+`
+
+type ListLatestSucceededBuildsForResourcesRow struct {
+	ID             uuid.UUID `json:"id"`
+	ResourceID     uuid.UUID `json:"resourceId"`
+	DockerfilePath string    `json:"dockerfilePath"`
+	Context        string    `json:"context"`
+}
+
+func (q *Queries) ListLatestSucceededBuildsForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListLatestSucceededBuildsForResourcesRow, error) {
+	rows, err := q.db.Query(ctx, listLatestSucceededBuildsForResources, resourceIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListLatestSucceededBuildsForResourcesRow
+	for rows.Next() {
+		var i ListLatestSucceededBuildsForResourcesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ResourceID,
+			&i.DockerfilePath,
+			&i.Context,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listLiveBuildDigests = `-- name: ListLiveBuildDigests :many
 SELECT resource_id, image_digest::text AS image_digest, cache_digest FROM builds
 WHERE resource_id = ANY($1::uuid[])
