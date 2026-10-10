@@ -56,6 +56,7 @@ Sources: `cmd/loco/`, `api/service/`, `api/queries/`, `controller/internal/`,
 
 ### API and data
 
+- Add operator/SRE APIs for rollout pause/resume and cluster maintenance. Scope controls by install, region or cluster. Define queued/in-flight behavior; pausing rollouts keeps running apps up. Persist controls, restrict operator access and audit actions.
 - Audit internal error responses; use the shared DB error handling throughout.
 - Audit remaining request validation gaps. The validation interceptor and many proto rules already exist.
 - Review CRUD response contracts; several mutations already return IDs.

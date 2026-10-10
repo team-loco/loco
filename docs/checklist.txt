@@ -53,6 +53,8 @@ Deploy and builds
 
 API and data
 
+[ ] Add operator/SRE APIs for rollout pause/resume and cluster maintenance.
+
 [ ] Audit internal error responses.
 
 [ ] Audit remaining request validation gaps.
