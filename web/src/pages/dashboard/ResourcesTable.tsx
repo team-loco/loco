@@ -280,7 +280,7 @@ export function ResourcesTable({
 								<TableCell className="py-1.5 pr-3 pl-0">
 									<div className="flex min-w-0 flex-col items-start gap-[3px]">
 										<ResourceStatusBadge status={resource.status} />
-										{note !== "" && <span className="max-w-full truncate text-sm text-fg3">{note}</span>}
+										{note !== "" && <span className="max-w-full text-sm whitespace-normal wrap-break-word text-fg3">{note}</span>}
 									</div>
 								</TableCell>
 								<TableCell className="py-1.5 pr-3 pl-0">

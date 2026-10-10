@@ -1,6 +1,6 @@
 import { ChevronRightIcon } from "lucide-react";
 import { Link } from "react-router";
-import { RegionIntentStatus, ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
+import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 
 import { Section } from "@/components/design/Page";
 import { ResourceStatusBadge } from "@/components/design/StatusBadge";
@@ -36,16 +36,12 @@ function needsAttention(status: ResourceStatus): boolean {
 	}
 }
 
-function isBadIntent(status: RegionIntentStatus): boolean {
-	return status === RegionIntentStatus.DEGRADED || status === RegionIntentStatus.FAILED;
-}
-
 export function buildAttention(items: EnvResource[], hrefFor: (id: string) => string, nowMs: number): AttentionItem[] {
 	const out: AttentionItem[] = [];
 	for (const item of items) {
 		const { resource, last } = item;
 		if (item.neverDeployed || !needsAttention(resource.status)) continue;
-		const badRegion = resource.regions.find((r) => isBadIntent(r.status));
+		const badRegion = resource.regions.find((r) => (r.lastError ?? "") !== "");
 		const region = badRegion?.region ?? last?.region ?? resource.regions[0]?.region ?? "";
 		const deployMessage = last?.message ?? "";
 		const tag = last !== undefined ? imageTag(deploymentImage(last)) : "";

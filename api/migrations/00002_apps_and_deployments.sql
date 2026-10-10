@@ -134,7 +134,6 @@ CREATE TABLE
         region TEXT NOT NULL,
         is_primary BOOLEAN NOT NULL,
         status region_intent_status NOT NULL,
-        last_error TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         UNIQUE (resource_id, region)

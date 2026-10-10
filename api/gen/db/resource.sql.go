@@ -46,7 +46,7 @@ func (q *Queries) CreateResource(ctx context.Context, arg CreateResourceParams) 
 const createResourceRegion = `-- name: CreateResourceRegion :one
 INSERT INTO resource_regions (resource_id, region, is_primary, status)
 VALUES ($1, $2, $3, $4)
-RETURNING id, resource_id, region, is_primary, status, last_error, created_at, updated_at
+RETURNING id, resource_id, region, is_primary, status, created_at, updated_at
 `
 
 type CreateResourceRegionParams struct {
@@ -70,7 +70,6 @@ func (q *Queries) CreateResourceRegion(ctx context.Context, arg CreateResourceRe
 		&i.Region,
 		&i.IsPrimary,
 		&i.Status,
-		&i.LastError,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -277,7 +276,7 @@ func (q *Queries) GetResourceByNameAndWorkspace(ctx context.Context, arg GetReso
 }
 
 const getResourceRegionByResourceAndRegion = `-- name: GetResourceRegionByResourceAndRegion :one
-SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
+SELECT id, resource_id, region, is_primary, status, created_at, updated_at
 FROM resource_regions
 WHERE resource_id = $1 AND region = $2
 `
@@ -296,7 +295,6 @@ func (q *Queries) GetResourceRegionByResourceAndRegion(ctx context.Context, arg 
 		&i.Region,
 		&i.IsPrimary,
 		&i.Status,
-		&i.LastError,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -331,13 +329,15 @@ func (q *Queries) GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id
 }
 
 const listActiveDeploymentStatusesForResources = `-- name: ListActiveDeploymentStatusesForResources :many
-SELECT resource_id, status FROM deployments
+SELECT resource_id, region, status, message FROM deployments
 WHERE resource_id = ANY($1::uuid[]) AND is_active = true
 `
 
 type ListActiveDeploymentStatusesForResourcesRow struct {
 	ResourceID uuid.UUID        `json:"resourceId"`
+	Region     string           `json:"region"`
 	Status     DeploymentStatus `json:"status"`
+	Message    string           `json:"message"`
 }
 
 func (q *Queries) ListActiveDeploymentStatusesForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListActiveDeploymentStatusesForResourcesRow, error) {
@@ -349,7 +349,12 @@ func (q *Queries) ListActiveDeploymentStatusesForResources(ctx context.Context, 
 	var items []ListActiveDeploymentStatusesForResourcesRow
 	for rows.Next() {
 		var i ListActiveDeploymentStatusesForResourcesRow
-		if err := rows.Scan(&i.ResourceID, &i.Status); err != nil {
+		if err := rows.Scan(
+			&i.ResourceID,
+			&i.Region,
+			&i.Status,
+			&i.Message,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -426,7 +431,7 @@ func (q *Queries) ListClustersActive(ctx context.Context) ([]ListClustersActiveR
 }
 
 const listResourceRegions = `-- name: ListResourceRegions :many
-SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
+SELECT id, resource_id, region, is_primary, status, created_at, updated_at
 FROM resource_regions
 WHERE resource_id = $1
 ORDER BY is_primary DESC, region ASC
@@ -447,7 +452,6 @@ func (q *Queries) ListResourceRegions(ctx context.Context, resourceID uuid.UUID)
 			&i.Region,
 			&i.IsPrimary,
 			&i.Status,
-			&i.LastError,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -462,7 +466,7 @@ func (q *Queries) ListResourceRegions(ctx context.Context, resourceID uuid.UUID)
 }
 
 const listResourceRegionsForResources = `-- name: ListResourceRegionsForResources :many
-SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
+SELECT id, resource_id, region, is_primary, status, created_at, updated_at
 FROM resource_regions
 WHERE resource_id = ANY($1::uuid[])
 ORDER BY resource_id, is_primary DESC, region ASC
@@ -483,7 +487,6 @@ func (q *Queries) ListResourceRegionsForResources(ctx context.Context, resourceI
 			&i.Region,
 			&i.IsPrimary,
 			&i.Status,
-			&i.LastError,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -558,7 +561,7 @@ func (q *Queries) LockResource(ctx context.Context, id uuid.UUID) (uuid.UUID, er
 }
 
 const lockResourceRegion = `-- name: LockResourceRegion :one
-SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
+SELECT id, resource_id, region, is_primary, status, created_at, updated_at
 FROM resource_regions
 WHERE resource_id = $1 AND region = $2
 FOR UPDATE
@@ -578,7 +581,6 @@ func (q *Queries) LockResourceRegion(ctx context.Context, arg LockResourceRegion
 		&i.Region,
 		&i.IsPrimary,
 		&i.Status,
-		&i.LastError,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

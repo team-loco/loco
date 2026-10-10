@@ -13,7 +13,10 @@ import (
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
-const secondRegion = "eu-west-1"
+const (
+	secondRegion   = "eu-west-1"
+	failureMessage = "container app exited with code 1: listen tcp :8080: bind: address already in use"
+)
 
 type resourceStatusFixture struct {
 	*deployFixture
@@ -78,7 +81,7 @@ func (f *resourceStatusFixture) ready(t *testing.T, clusterID uuid.UUID) {
 
 func (f *resourceStatusFixture) fail(t *testing.T, clusterID uuid.UUID) {
 	t.Helper()
-	f.report(t, clusterID, &agentv1.PlacementStatus{Phase: applicationPhaseFailed, Message: "crashloop"})
+	f.report(t, clusterID, &agentv1.PlacementStatus{Phase: applicationPhaseFailed, Message: failureMessage})
 }
 
 func (f *resourceStatusFixture) assertStatus(t *testing.T, want resourcev1.ResourceStatus) {
@@ -214,4 +217,91 @@ func TestDeletedResourceHasNoStatus(t *testing.T) {
 	if n := len(listed.Msg.GetResources()); n != 0 {
 		t.Fatalf("listed %d resources after delete, want 0", n)
 	}
+}
+
+func (f *resourceStatusFixture) assertRegionErrors(t *testing.T, want map[string]string) {
+	t.Helper()
+	server := NewResourceServer(f.pool, f.queries, testServiceDefaults())
+	resourceID := f.resourceID.String()
+
+	got, err := server.GetResource(f.ctx, connect.NewRequest(&resourcev1.GetResourceRequest{
+		Key: &resourcev1.GetResourceRequest_ResourceId{ResourceId: resourceID},
+	}))
+	if err != nil {
+		t.Fatalf("get resource: %v", err)
+	}
+	gotRegions := got.Msg.GetResource().GetRegions()
+	assertRegionErrorsIn(t, "GetResource", gotRegions, want)
+
+	statusResp, err := server.GetResourceStatus(f.ctx, connect.NewRequest(&resourcev1.GetResourceStatusRequest{
+		ResourceId: resourceID,
+	}))
+	if err != nil {
+		t.Fatalf("get resource status: %v", err)
+	}
+	statusRegions := statusResp.Msg.GetResource().GetRegions()
+	assertRegionErrorsIn(t, "GetResourceStatus", statusRegions, want)
+
+	listed, err := server.ListWorkspaceResources(f.ctx, connect.NewRequest(&resourcev1.ListWorkspaceResourcesRequest{
+		WorkspaceId: f.workspaceID.String(),
+	}))
+	if err != nil {
+		t.Fatalf("list resources: %v", err)
+	}
+	resources := listed.Msg.GetResources()
+	if len(resources) != 1 {
+		t.Fatalf("listed %d resources, want 1", len(resources))
+	}
+	listedRegions := resources[0].GetRegions()
+	assertRegionErrorsIn(t, "ListWorkspaceResources", listedRegions, want)
+}
+
+func assertRegionErrorsIn(t *testing.T, rpc string, regions []*resourcev1.RegionConfig, want map[string]string) {
+	t.Helper()
+	if len(regions) != len(want) {
+		t.Fatalf("%s returned %d regions, want %d", rpc, len(regions), len(want))
+	}
+	for _, region := range regions {
+		wantErr, ok := want[region.GetRegion()]
+		if !ok {
+			t.Fatalf("%s returned unexpected region %q", rpc, region.GetRegion())
+		}
+		if got := region.GetLastError(); got != wantErr {
+			t.Errorf("%s region %s last_error = %q, want %q", rpc, region.GetRegion(), got, wantErr)
+		}
+	}
+}
+
+func TestFailedRegionCarriesDeploymentFailureMessage(t *testing.T) {
+	f := newResourceStatusFixture(t)
+	f.deployRegion(t, f.clusterID, testRegion)
+	f.deployRegion(t, f.secondCluster, secondRegion)
+	f.ready(t, f.clusterID)
+	f.fail(t, f.secondCluster)
+	f.assertRegionErrors(t, map[string]string{testRegion: "", secondRegion: failureMessage})
+}
+
+func TestHealthyAndDeployingRegionsHaveNoLastError(t *testing.T) {
+	f := newResourceStatusFixture(t)
+	f.assertRegionErrors(t, map[string]string{testRegion: "", secondRegion: ""})
+
+	f.deployRegion(t, f.clusterID, testRegion)
+	f.deployRegion(t, f.secondCluster, secondRegion)
+	f.assertRegionErrors(t, map[string]string{testRegion: "", secondRegion: ""})
+
+	f.ready(t, f.clusterID)
+	f.ready(t, f.secondCluster)
+	f.assertRegionErrors(t, map[string]string{testRegion: "", secondRegion: ""})
+}
+
+func TestRecoveredRegionClearsLastError(t *testing.T) {
+	f := newResourceStatusFixture(t)
+	f.deployRegion(t, f.clusterID, testRegion)
+	f.deployRegion(t, f.secondCluster, secondRegion)
+	f.ready(t, f.clusterID)
+	f.fail(t, f.secondCluster)
+	f.assertRegionErrors(t, map[string]string{testRegion: "", secondRegion: failureMessage})
+
+	f.ready(t, f.secondCluster)
+	f.assertRegionErrors(t, map[string]string{testRegion: "", secondRegion: ""})
 }

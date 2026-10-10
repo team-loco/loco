@@ -346,14 +346,14 @@ func (s *ResourceServer) GetResource(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	status, err := s.resourceStatus(ctx, res.ID)
+	health, err := s.resourceHealth(ctx, res.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to derive resource status", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&resourcev1.GetResourceResponse{
-		Resource: dbResourceToProto(res, status, resourceDomains, resourceRegions),
+		Resource: dbResourceToProto(res, health, resourceDomains, resourceRegions),
 	}), nil
 }
 
@@ -455,7 +455,7 @@ func (s *ResourceServer) ListWorkspaceResources(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	statuses, err := s.resourceStatuses(ctx, resourceIDs)
+	healths, err := s.resourceHealths(ctx, resourceIDs)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to derive resource statuses", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
@@ -476,7 +476,7 @@ func (s *ResourceServer) ListWorkspaceResources(
 		resourceRegions := regionsByResource[dbResource.ID]
 		resources = append(
 			resources,
-			dbResourceToProto(dbResource, statuses[dbResource.ID], resourceDomains, resourceRegions),
+			dbResourceToProto(dbResource, healths[dbResource.ID], resourceDomains, resourceRegions),
 		)
 	}
 
@@ -660,14 +660,14 @@ func (s *ResourceServer) GetResourceStatus(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	status, err := s.resourceStatus(ctx, res.ID)
+	health, err := s.resourceHealth(ctx, res.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to derive resource status", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&resourcev1.GetResourceStatusResponse{
-		Resource:          dbResourceToProto(res, status, resourceDomains, resourceRegions),
+		Resource:          dbResourceToProto(res, health, resourceDomains, resourceRegions),
 		CurrentDeployment: deploymentStatus,
 	}), nil
 }
@@ -1081,35 +1081,50 @@ func inheritDesiredEnv(ctx context.Context, qtx *genDb.Queries, plan regionRedep
 	return nil
 }
 
-func (s *ResourceServer) resourceStatus(ctx context.Context, resourceID uuid.UUID) (resourcev1.ResourceStatus, error) {
-	statuses, err := s.resourceStatuses(ctx, []uuid.UUID{resourceID})
-	if err != nil {
-		return resourcev1.ResourceStatus_RESOURCE_STATUS_UNSPECIFIED, err
-	}
-	return statuses[resourceID], nil
+// resourceHealth is a resource's status and the failure message of each region whose
+// active deployment failed, both derived from its active deployments.
+type resourceHealth struct {
+	status       resourcev1.ResourceStatus
+	regionErrors map[string]string
 }
 
-func (s *ResourceServer) resourceStatuses(
+func (s *ResourceServer) resourceHealth(ctx context.Context, resourceID uuid.UUID) (resourceHealth, error) {
+	health, err := s.resourceHealths(ctx, []uuid.UUID{resourceID})
+	if err != nil {
+		return resourceHealth{}, err
+	}
+	return health[resourceID], nil
+}
+
+func (s *ResourceServer) resourceHealths(
 	ctx context.Context,
 	resourceIDs []uuid.UUID,
-) (map[uuid.UUID]resourcev1.ResourceStatus, error) {
+) (map[uuid.UUID]resourceHealth, error) {
 	rows, err := s.queries.ListActiveDeploymentStatusesForResources(ctx, resourceIDs)
 	if err != nil {
 		return nil, fmt.Errorf("list active deployment statuses: %w", err)
 	}
 	activeByResource := make(map[uuid.UUID][]genDb.DeploymentStatus, len(resourceIDs))
+	regionErrorsByResource := make(map[uuid.UUID]map[string]string, len(resourceIDs))
 	for _, row := range rows {
 		activeByResource[row.ResourceID] = append(activeByResource[row.ResourceID], row.Status)
+		if row.Status != genDb.DeploymentStatusFailed {
+			continue
+		}
+		if regionErrorsByResource[row.ResourceID] == nil {
+			regionErrorsByResource[row.ResourceID] = map[string]string{}
+		}
+		regionErrorsByResource[row.ResourceID][row.Region] = row.Message
 	}
-	statuses := make(map[uuid.UUID]resourcev1.ResourceStatus, len(resourceIDs))
+	health := make(map[uuid.UUID]resourceHealth, len(resourceIDs))
 	for _, resourceID := range resourceIDs {
 		status, statusErr := resourceStatusFromDeployments(activeByResource[resourceID])
 		if statusErr != nil {
 			return nil, fmt.Errorf("resource %s: %w", resourceID, statusErr)
 		}
-		statuses[resourceID] = status
+		health[resourceID] = resourceHealth{status: status, regionErrors: regionErrorsByResource[resourceID]}
 	}
-	return statuses, nil
+	return health, nil
 }
 
 // resourceStatusFromDeployments derives a resource's status from the statuses of its
@@ -1298,7 +1313,7 @@ func resourceDomainToListProto(domains []genDb.ResourceDomain) []*domainv1.Resou
 // to be returned to client. Note: caller is responsible for fetching domains and regions separately.
 func dbResourceToProto(
 	res genDb.Resource,
-	status resourcev1.ResourceStatus,
+	health resourceHealth,
 	domains []genDb.ResourceDomain,
 	regions []genDb.ResourceRegion,
 ) *resourcev1.Resource {
@@ -1327,6 +1342,9 @@ func dbResourceToProto(
 			Region:    r.Region,
 			IsPrimary: r.IsPrimary,
 		}
+		if lastError, failed := health.regionErrors[r.Region]; failed {
+			protoRegions[i].LastError = &lastError
+		}
 	}
 
 	// reconstruct oneof spec from stored spec bytes
@@ -1345,7 +1363,7 @@ func dbResourceToProto(
 		Regions:     protoRegions,
 		CreatedAt:   timeutil.ParsePostgresTimestamp(res.CreatedAt),
 		UpdatedAt:   timeutil.ParsePostgresTimestamp(res.UpdatedAt),
-		Status:      status,
+		Status:      health.status,
 		Description: &res.Description,
 	}
 
