@@ -353,11 +353,12 @@ func (x *Inventory) GetBuilds() []*InventoryBuild {
 }
 
 type InventoryEntry struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	PlacementId   string                 `protobuf:"bytes,1,opt,name=placement_id,json=placementId,proto3" json:"placement_id,omitempty"`
-	Revision      int64                  `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	PlacementId      string                 `protobuf:"bytes,1,opt,name=placement_id,json=placementId,proto3" json:"placement_id,omitempty"`
+	Revision         int64                  `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	EnvSecretPending bool                   `protobuf:"varint,3,opt,name=env_secret_pending,json=envSecretPending,proto3" json:"env_secret_pending,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *InventoryEntry) Reset() {
@@ -402,6 +403,13 @@ func (x *InventoryEntry) GetRevision() int64 {
 		return x.Revision
 	}
 	return 0
+}
+
+func (x *InventoryEntry) GetEnvSecretPending() bool {
+	if x != nil {
+		return x.EnvSecretPending
+	}
+	return false
 }
 
 type InventoryBuild struct {
@@ -1395,10 +1403,11 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\amessage\"{\n" +
 	"\tInventory\x127\n" +
 	"\aentries\x18\x01 \x03(\v2\x1d.loco.agent.v1.InventoryEntryR\aentries\x125\n" +
-	"\x06builds\x18\x02 \x03(\v2\x1d.loco.agent.v1.InventoryBuildR\x06builds\"O\n" +
+	"\x06builds\x18\x02 \x03(\v2\x1d.loco.agent.v1.InventoryBuildR\x06builds\"}\n" +
 	"\x0eInventoryEntry\x12!\n" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12\x1a\n" +
-	"\brevision\x18\x02 \x01(\x03R\brevision\"p\n" +
+	"\brevision\x18\x02 \x01(\x03R\brevision\x12,\n" +
+	"\x12env_secret_pending\x18\x03 \x01(\bR\x10envSecretPending\"p\n" +
 	"\x0eInventoryBuild\x12#\n" +
 	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\x129\n" +
 	"\x05phase\x18\x02 \x01(\x0e2\x19.loco.agent.v1.BuildPhaseB\b\xbaH\x05\x82\x01\x02\x10\x01R\x05phase\"\x9b\x02\n" +

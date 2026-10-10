@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"google.golang.org/protobuf/proto"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	toolscache "k8s.io/client-go/tools/cache"
@@ -27,6 +28,7 @@ type Sink func(*agentv1.PlacementStatus)
 
 type Watcher struct {
 	reader    client.Reader
+	secrets   client.Reader
 	namespace string
 
 	mu       sync.Mutex
@@ -40,6 +42,13 @@ func Start(ctx context.Context, cfg *rest.Config, namespace string) (*Watcher, e
 	if err := locoControllerV1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add loco types to scheme: %w", err)
 	}
+	if err := corev1.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("failed to add core types to scheme: %w", err)
+	}
+	secrets, err := client.New(cfg, client.Options{Scheme: scheme})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Secret client: %w", err)
+	}
 	c, err := cache.New(cfg, cache.Options{
 		Scheme:            scheme,
 		DefaultNamespaces: map[string]cache.Config{namespace: {}},
@@ -48,7 +57,7 @@ func Start(ctx context.Context, cfg *rest.Config, namespace string) (*Watcher, e
 		return nil, fmt.Errorf("failed to create Application cache: %w", err)
 	}
 
-	w := New(c, namespace)
+	w := New(c, secrets, namespace)
 	informer, err := c.GetInformer(ctx, &locoControllerV1.Application{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Application informer: %w", err)
@@ -73,31 +82,69 @@ func Start(ctx context.Context, cfg *rest.Config, namespace string) (*Watcher, e
 	return w, nil
 }
 
-func New(reader client.Reader, namespace string) *Watcher {
+// New creates a Watcher that lists Applications from reader and staging Secrets from secrets.
+func New(reader, secrets client.Reader, namespace string) *Watcher {
 	return &Watcher{
 		reader:    reader,
+		secrets:   secrets,
 		namespace: namespace,
 		statuses:  make(map[string]*agentv1.PlacementStatus),
 	}
 }
 
+// Inventory lists the placement revision of every Application. An Application that references a
+// staging Secret not yet labeled with the referenced revision is reported with EnvSecretPending,
+// so the API resends an Apply that stopped between its two writes instead of recording it as
+// applied, and can still advance past a revision the cluster holds ahead of the database.
 func (w *Watcher) Inventory(ctx context.Context) (*agentv1.Inventory, error) {
 	var apps locoControllerV1.ApplicationList
 	if err := w.reader.List(ctx, &apps, client.InNamespace(w.namespace)); err != nil {
 		return nil, fmt.Errorf("failed to list Applications: %w", err)
 	}
+	staged, err := w.stagedRevisions(ctx)
+	if err != nil {
+		return nil, err
+	}
 	entries := make([]*agentv1.InventoryEntry, 0, len(apps.Items))
 	for i := range apps.Items {
-		placement, ok := applier.PlacementOf(&apps.Items[i])
+		app := &apps.Items[i]
+		placement, ok := applier.PlacementOf(app)
 		if !ok {
 			continue
 		}
 		entries = append(entries, &agentv1.InventoryEntry{
-			PlacementId: placement.ID,
-			Revision:    placement.Revision,
+			PlacementId:      placement.ID,
+			Revision:         placement.Revision,
+			EnvSecretPending: !envSecretStaged(app, staged),
 		})
 	}
 	return &agentv1.Inventory{Entries: entries}, nil
+}
+
+func (w *Watcher) stagedRevisions(ctx context.Context) (map[string]int64, error) {
+	var secrets corev1.SecretList
+	hasPlacement := client.HasLabels{locoControllerV1.LabelPlacementID}
+	if err := w.secrets.List(ctx, &secrets, client.InNamespace(w.namespace), hasPlacement); err != nil {
+		return nil, fmt.Errorf("failed to list env Secrets: %w", err)
+	}
+	revisions := make(map[string]int64, len(secrets.Items))
+	for i := range secrets.Items {
+		revision, ok := locoControllerV1.EnvSecretRevision(secrets.Items[i].Labels)
+		if ok {
+			revisions[secrets.Items[i].Name] = revision
+		}
+	}
+	return revisions, nil
+}
+
+func envSecretStaged(app *locoControllerV1.Application, staged map[string]int64) bool {
+	spec := app.Spec.ServiceSpec
+	if spec == nil || spec.Deployment == nil || spec.Deployment.EnvSecretRef == nil {
+		return true
+	}
+	ref := spec.Deployment.EnvSecretRef
+	revision, ok := staged[ref.Name]
+	return ok && revision == ref.Revision
 }
 
 func (w *Watcher) Attach(sink Sink) func() {
