@@ -18,14 +18,13 @@ import { DeleteDialogContent, RollbackDialogContent, SpecDialogContent } from "@
 import { DiffDialogContent } from "@/pages/resource/DiffDialog";
 import { EventsSection } from "@/pages/resource/EventsSection";
 import { shortId } from "@/pages/resource/format";
-import { buildRegions, depService, depTag, useResourceData, type ModalState, type Notice } from "@/pages/resource/model";
+import { buildRegions, depTag, useResourceData, type ModalState, type Notice } from "@/pages/resource/model";
 import { RegionPanel } from "@/pages/resource/RegionPanel";
 import { ResourceHeader } from "@/pages/resource/ResourceHeader";
 import { ResourceSkeleton } from "@/pages/resource/ResourceSkeleton";
 import { parseTab, ResourceToolbar, type ObsLinks, type ResourceTab } from "@/pages/resource/ResourceToolbar";
 import { SettingsTab } from "@/pages/resource/SettingsTab";
 import type { MetricRange } from "@/pages/resource/useRegionMetric";
-import { VariablesTab } from "@/pages/resource/VariablesTab";
 
 export function Resource() {
 	const { resourceId = "" } = useParams<{ resourceId: string }>();
@@ -63,7 +62,6 @@ export function Resource() {
 
 	const regions = buildRegions(resource, deployments);
 	const region = regions.find((r) => r.name === regionName) ?? regions[0];
-	const regionNames = regions.map((r) => r.name);
 	const primary = regions.find((r) => r.primary) ?? regions[0];
 	const currents = regions.flatMap((r) => (r.current?.spec === undefined ? [] : [r.current]));
 	const primaryDomain = resource.domains.find((d) => d.isPrimary) ?? resource.domains[0];
@@ -216,18 +214,6 @@ export function Resource() {
 					/>
 					<EventsSection resourceId={resourceId} resourceName={resource.name} multiRegion={regions.length > 1} />
 				</div>
-			)}
-
-			{tab === "variables" && (
-				<VariablesTab
-					resourceId={resourceId}
-					resourceName={resource.name}
-					env={depService(specDep)?.env ?? {}}
-					regionNames={regionNames}
-					hasDeployment={currents.length > 0}
-					onNotice={setNotice}
-					onSaved={refresh}
-				/>
 			)}
 
 			{tab === "settings" && (

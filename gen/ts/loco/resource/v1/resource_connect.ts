@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateResourceRequest, CreateResourceResponse, DeleteResourceRequest, DeleteResourceResponse, GetResourceRequest, GetResourceResponse, GetResourceStatusRequest, GetResourceStatusResponse, ListRegionsRequest, ListRegionsResponse, ListResourceEventsRequest, ListResourceEventsResponse, ListWorkspaceResourcesRequest, ListWorkspaceResourcesResponse, ScaleResourceRequest, ScaleResourceResponse, UpdateResourceEnvRequest, UpdateResourceEnvResponse, UpdateResourceRequest, UpdateResourceResponse } from "./resource_pb";
+import { CreateResourceRequest, CreateResourceResponse, DeleteResourceRequest, DeleteResourceResponse, GetResourceRequest, GetResourceResponse, GetResourceStatusRequest, GetResourceStatusResponse, ListRegionsRequest, ListRegionsResponse, ListResourceEventsRequest, ListResourceEventsResponse, ListWorkspaceResourcesRequest, ListWorkspaceResourcesResponse, ScaleResourceRequest, ScaleResourceResponse, UpdateResourceRequest, UpdateResourceResponse } from "./resource_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -113,17 +113,6 @@ export const ResourceService = {
       name: "ScaleResource",
       I: ScaleResourceRequest,
       O: ScaleResourceResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * UpdateResourceEnv updates environment variables for a resource.
-     *
-     * @generated from rpc loco.resource.v1.ResourceService.UpdateResourceEnv
-     */
-    updateResourceEnv: {
-      name: "UpdateResourceEnv",
-      I: UpdateResourceEnvRequest,
-      O: UpdateResourceEnvResponse,
       kind: MethodKind.Unary,
     },
   }

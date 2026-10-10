@@ -68,10 +68,3 @@ export const listResourceEvents = ResourceService.method.listResourceEvents;
  * @generated from rpc loco.resource.v1.ResourceService.ScaleResource
  */
 export const scaleResource = ResourceService.method.scaleResource;
-
-/**
- * UpdateResourceEnv updates environment variables for a resource.
- *
- * @generated from rpc loco.resource.v1.ResourceService.UpdateResourceEnv
- */
-export const updateResourceEnv = ResourceService.method.updateResourceEnv;

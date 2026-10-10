@@ -2,14 +2,10 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 
-	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
-	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
-	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 func TestReadyAtTheCurrentRevisionRecoversAFailedDeployment(t *testing.T) {
@@ -140,46 +136,6 @@ func TestInventoryAheadOfTheDatabaseAdvancesThePlacement(t *testing.T) {
 	server.recordApplied(ctx, f.clusterID, applied(p.ID, 10))
 	if n := f.count(t, `SELECT count(*) FROM placements WHERE resource_id = $1`); n != 0 {
 		t.Fatal("tombstone not removed after the advanced delete was acked")
-	}
-}
-
-func TestRedeployReadsEnvInsideItsTransaction(t *testing.T) {
-	f := newDeployFixture(t)
-	ctx := context.Background()
-
-	envSpec := func(env map[string]string) desiredSpecFunc {
-		return func(_ uuid.UUID) ([]byte, error) {
-			return json.Marshal(ApplicationPayload{AppSpec: &locoControllerV1.ApplicationSpec{
-				ServiceSpec: &locoControllerV1.ServiceSpec{
-					Deployment: &locoControllerV1.ServiceDeploymentSpec{Env: env},
-				},
-			}})
-		}
-	}
-	if _, err := f.deploy(ctx, envSpec(map[string]string{"KEY": "old"})); err != nil {
-		t.Fatalf("deploy: %v", err)
-	}
-
-	clusterID := f.clusterID
-	service := &deploymentv1.ServiceDeploymentSpec{}
-	plan := regionRedeploy{
-		params:           f.paramsFor(f.clusterID),
-		deploymentSpec:   &deploymentv1.DeploymentSpec{Spec: &deploymentv1.DeploymentSpec_Service{Service: service}},
-		envSourceCluster: &clusterID,
-	}
-
-	if _, err := f.deploy(ctx, envSpec(map[string]string{"KEY": "new"})); err != nil {
-		t.Fatalf("env update deploy: %v", err)
-	}
-
-	err := withTx(ctx, f.pool, func(qtx *genDb.Queries) error {
-		return inheritDesiredEnv(ctx, qtx, plan)
-	})
-	if err != nil {
-		t.Fatalf("inherit env: %v", err)
-	}
-	if got := plan.deploymentSpec.GetService().GetEnv()["KEY"]; got != "new" {
-		t.Fatalf("redeploy env KEY = %q, want the value committed before its transaction", got)
 	}
 }
 
