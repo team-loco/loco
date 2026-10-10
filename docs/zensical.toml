@@ -22,6 +22,7 @@ nav = [
   { "Operate" = [
     { "Applications" = "operations/applications.md" },
     { "Self-hosting" = "operations/self-hosting.md" },
+    { "Secrets key provider" = "operations/secrets-key-provider.md" },
   ] },
   { "Reference" = [
     { "Architecture" = "reference/architecture.md" },
