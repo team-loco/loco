@@ -69,6 +69,7 @@ releases:
     needs:
       - kube-system/loco-namespaces
       - cert-manager/cert-manager
+      - loco-system/loco-operator
     labels:
       phase: "2-core"
       component: "app"
@@ -81,13 +82,13 @@ releases:
     namespace: loco-system
     createNamespace: false
     needs:
-      - loco-system/loco-core
+      - kube-system/loco-namespaces
+{{- if .Values.installCNI }}
+      - kube-system/loco-networking
+{{- end }}
     labels:
       phase: "2-core"
       component: "loco-operator"
-    set:
-      - name: crds.enabled
-        value: true
     values:
       - ./charts/loco-operator/values.yaml
       - env/{{ .Environment.Name }}/operator-chart.yaml.gotmpl

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Remove every other tag of the given images from the kind nodes, so rebuilds that kind loads onto every node do not pile up there"
+#MISE description="Check that the given images are on every kind node, then remove every other tag of them there, so rebuilds that kind loads onto every node do not pile up"
 #USAGE arg "<image>..." var=#true help="image references to keep, such as loco-agent:tilt-0123abcd"
 set -euo pipefail
 
@@ -21,7 +21,18 @@ for image in "$@"; do
 	keep+=("$(normalize "$image")")
 done
 
-for node in $(kind get nodes --name "$cluster"); do
+nodes=$(kind get nodes --name "$cluster")
+for node in $nodes; do
+	images=$(docker exec "$node" crictl images -o json)
+	for ref in "${keep[@]}"; do
+		if ! KEEP="$ref" yq -p json -e '.images[] | select(.repoTags | any_c(. == strenv(KEEP)))' <<<"$images" >/dev/null 2>&1; then
+			echo "$ref is not on $node, so nothing was pruned; the image was never loaded into the kind cluster" >&2
+			exit 1
+		fi
+	done
+done
+
+for node in $nodes; do
 	images=$(docker exec "$node" crictl images -o json)
 	for ref in "${keep[@]}"; do
 		stale=$(REPO="${ref%:*}" KEEP="$ref" yq -p json '
