@@ -16,7 +16,6 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
-	"github.com/team-loco/loco/internal/config"
 	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/internal/session"
@@ -26,6 +25,8 @@ import (
 const (
 	initConfigTimeout = 5 * time.Second
 	initFileMode      = 0o644
+
+	fallbackPlatformDomain = "onloco.app"
 )
 
 var (
@@ -179,5 +180,5 @@ func platformDomain(defaults *configv1.DefaultServiceConfig) string {
 	if domain := defaults.GetPlatformDomain(); domain != "" {
 		return domain
 	}
-	return config.DefaultAppDomain
+	return fallbackPlatformDomain
 }

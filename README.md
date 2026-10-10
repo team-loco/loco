@@ -7,7 +7,7 @@ Loco is a container orchestration platform that simplifies application deploymen
 ## Features
 
 - **Simple deployments** - Expose your app to the internet with just `loco deploy`!
-- **Simple Configuration** - Configure all app settings with a `loco.toml` file. A sample spec with sensible defaults can be generated via `loco init`.
+- **Simple Configuration** - Configure your services in a `loco.yaml` file. A sample with sensible defaults can be generated via `loco infra init`.
 - **HTTPS by default** - Automatic SSL certificate management, powered by Let's Encrypt and Certificate Manager.
 - **Fast and Secure** - Envoy Gateway API serves HTTP3 traffic, handles TLS termination, and routing.
 
@@ -43,9 +43,7 @@ loco completion zsh
 
 ## Examples
 
-Every `loco.toml` field, with its default and whether it is required: [`examples/loco_example.toml`](./examples/loco_example.toml)
-
-Deployable sample apps, each with its own `loco.toml`:
+Deployable sample apps, each with its own `loco.yaml`:
 
 - [`examples/test-api`](./examples/test-api/): a `backend`, `auth` and `frontend` service
 - [`examples/metrics-validation`](./examples/metrics-validation/): generates CPU, memory, network and disk load to check metrics
