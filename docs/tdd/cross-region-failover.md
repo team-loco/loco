@@ -13,7 +13,7 @@ The clusters share no pod network, no CIDRs, no CNI state, and no control plane.
 
 Cluster Mesh was the original plan and is now abandoned. The commonly cited blocker — that it needs L3 connectivity between clusters — is real but the weakest of the reasons:
 
-- **It contradicts decisions already made.** `docs/notes.md` requires shutting down cross-cluster traffic for `managed-by-loco` namespaces, and requires all apps in a workspace to land on the same cluster. Cluster Mesh is the opposite of both.
+- **It contradicts decisions already made.** `docs/notes.html` requires shutting down cross-cluster traffic for `managed-by-loco` namespaces, and requires all apps in a workspace to land on the same cluster. Cluster Mesh is the opposite of both.
 - **It re-couples failure domains.** A shared L3 fabric means a partition or a bad NetworkPolicy in one region can affect another. Multi-region exists to decouple failure domains; meshing them gives back exactly what was paid for.
 - **It does not even win on latency.** `EU user -> EU LB -> tunnel -> US pod` is strictly worse than `EU user -> edge -> US LB -> US pod`. It adds a hop and keeps the ocean.
 - **Operational weight.** `clustermesh-apiserver` is another stateful component with its own certificate lifecycle and N² connections between clusters.
