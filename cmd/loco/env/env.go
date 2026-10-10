@@ -62,9 +62,11 @@ Values are write-only: no command prints one back.
 
 Examples:
   loco env push --env production .env
-  loco env set --env production DATABASE_URL=postgres://...`,
+  loco env set --env production DATABASE_URL=postgres://...
+  loco env unset --env production DATABASE_URL
+  loco env list --env production`,
 	}
-	cmd.AddCommand(newPushCmd(d), newSetCmd(d))
+	cmd.AddCommand(newPushCmd(d), newSetCmd(d), newUnsetCmd(d), newListCmd(d))
 	return cmd
 }
 

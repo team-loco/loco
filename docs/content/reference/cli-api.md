@@ -15,6 +15,7 @@ loco config --help
 | `loco login` | Sign in to a Loco instance |
 | `loco web` | Open the configured dashboard |
 | `loco resource` | Inspect and manage applications |
+| `loco env` | Set, remove and list an environment's secrets |
 | `loco config` | Manage local CLI settings |
 | `loco update` | Update the installed CLI |
 | `loco completion` | Generate shell completions |
