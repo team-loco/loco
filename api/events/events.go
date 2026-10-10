@@ -37,7 +37,6 @@ const (
 	ResourceUpdated      = "resource.updated"
 	ResourceDeleted      = "resource.deleted"
 	ResourceScaled       = "resource.scaled"
-	ResourceEnvUpdated   = "resource.env_updated"
 	DeploymentCreated    = "deployment.created"
 	DeploymentDeleted    = "deployment.deleted"
 	BuildCreated         = "build.created"

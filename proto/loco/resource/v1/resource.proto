@@ -67,8 +67,6 @@ service ResourceService {
   // Resource Operations
   // ScaleResource adjusts resource replicas and resource allocation.
   rpc ScaleResource(ScaleResourceRequest) returns (ScaleResourceResponse);
-  // UpdateResourceEnv updates environment variables for a resource.
-  rpc UpdateResourceEnv(UpdateResourceEnvRequest) returns (UpdateResourceEnvResponse);
 }
 
 // RoutingConfig defines routing configuration for a resource.
@@ -334,13 +332,3 @@ message ScaleResourceRequest {
 
 // ScaleResourceResponse is the response after scaling a resource.
 message ScaleResourceResponse {}
-
-// UpdateResourceEnvRequest is the request to update resource environment variables.
-message UpdateResourceEnvRequest {
-  string resource_id = 1 [(buf.validate.field).string.uuid = true];
-  map<string, string> env = 2 [(buf.validate.field).map.min_pairs = 1];
-  optional string region = 3; // if provided, update only this region; otherwise update all regions
-}
-
-// UpdateResourceEnvResponse is the response after updating resource environment variables.
-message UpdateResourceEnvResponse {}

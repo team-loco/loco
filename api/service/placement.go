@@ -2,13 +2,10 @@ package service
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	genDb "github.com/team-loco/loco/api/gen/db"
 )
 
@@ -103,33 +100,4 @@ func rollPlacementsForSecrets(ctx context.Context, qtx *genDb.Queries, environme
 		}
 	}
 	return nil
-}
-
-func desiredEnv(
-	ctx context.Context,
-	q genDb.Querier,
-	resourceID, clusterID uuid.UUID,
-) (map[string]string, error) {
-	placement, err := q.GetPlacementForResourceCluster(ctx, genDb.GetPlacementForResourceClusterParams{
-		ResourceID: resourceID,
-		ClusterID:  clusterID,
-	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("get placement: %w", err)
-	}
-	if placement.DesiredDeleted || len(placement.DesiredSpec) == 0 {
-		return nil, nil
-	}
-
-	var payload ApplicationPayload
-	if err := json.Unmarshal(placement.DesiredSpec, &payload); err != nil {
-		return nil, fmt.Errorf("decode desired spec: %w", err)
-	}
-	if payload.AppSpec == nil || payload.AppSpec.ServiceSpec == nil || payload.AppSpec.ServiceSpec.Deployment == nil {
-		return nil, nil
-	}
-	return payload.AppSpec.ServiceSpec.Deployment.Env, nil
 }
