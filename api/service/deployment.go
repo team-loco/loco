@@ -357,7 +357,7 @@ func (s *DeploymentServer) CreateDeployment(
 
 	var deploymentID uuid.UUID
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if lockErr := lockWorkspaceEnvironments(ctx, qtx, resource.WorkspaceID); lockErr != nil {
+		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, resource.WorkspaceID); lockErr != nil {
 			return lockErr
 		}
 		if lockErr := lockPinnedBuildImage(ctx, qtx, pinnedBuild); lockErr != nil {
@@ -551,7 +551,7 @@ func (s *DeploymentServer) DeleteDeployment(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if lockErr := lockWorkspaceEnvironments(ctx, qtx, resource.WorkspaceID); lockErr != nil {
+		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, resource.WorkspaceID); lockErr != nil {
 			return lockErr
 		}
 		if deployment.IsActive {

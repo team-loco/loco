@@ -34,6 +34,10 @@ message ApplyRequest {
   // that no loco.yaml owns yet and that this file takes over. Apply refuses a plan with imports
   // unless it is set.
   bool confirm_import = 5;
+  // images is the images map of the PlanResponse the apply carries out: every image reference
+  // of the file and the digest-pinned reference the plan resolved it to. The apply resolves
+  // the references again and refuses when one is missing here or resolves to another digest.
+  map<string, string> images = 6 [(buf.validate.field).map.max_pairs = 100];
 }
 
 message ApplyResponse {
@@ -60,6 +64,8 @@ message ApplyRefusal {
   repeated PlanOperation unconfirmed = 2;
   // revision is the environment's current revision when it differs from the request's.
   int64 revision = 3;
+  // images is what the image references resolve to now, when it differs from the request's.
+  map<string, string> images = 4;
 }
 
 message PlanRequest {
@@ -79,6 +85,9 @@ message PlanResponse {
   repeated PlanOperation operations = 2;
   // errors are every reason the plan cannot be applied. operations is empty when errors is not.
   repeated PlanError errors = 3;
+  // images maps every image reference of the file that resolved to the digest-pinned reference
+  // the plan uses. An ApplyRequest carries it back so the apply deploys the digests reviewed.
+  map<string, string> images = 4;
 }
 
 enum PlanOperationKind {

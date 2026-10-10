@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/plan/v1/plan.proto.
  */
 export const file_loco_plan_v1_plan: GenFile = /*@__PURE__*/
-  fileDesc("Chdsb2NvL3BsYW4vdjEvcGxhbi5wcm90bxIMbG9jby5wbGFuLnYxIpIBCgxBcHBseVJlcXVlc3QSGQoEZmlsZRgBIAEoDEILukgIegYQARiAgEASIAoOZW52aXJvbm1lbnRfaWQYAiABKAlCCLpIBXIDsAEBEhAKCHJldmlzaW9uGAMgASgDEhsKE2NvbmZpcm1fZGVzdHJ1Y3RpdmUYBCABKAgSFgoOY29uZmlybV9pbXBvcnQYBSABKAgiiAEKDUFwcGx5UmVzcG9uc2USEAoIcmV2aXNpb24YASABKAMSLwoKb3BlcmF0aW9ucxgCIAMoCzIbLmxvY28ucGxhbi52MS5QbGFuT3BlcmF0aW9uEjQKC2RlcGxveW1lbnRzGAMgAygLMh8ubG9jby5wbGFuLnYxLlN0YXJ0ZWREZXBsb3ltZW50IksKEVN0YXJ0ZWREZXBsb3ltZW50Eg8KB3NlcnZpY2UYASABKAkSDgoGcmVnaW9uGAIgASgJEhUKDWRlcGxveW1lbnRfaWQYAyABKAkiewoMQXBwbHlSZWZ1c2FsEicKBmVycm9ycxgBIAMoCzIXLmxvY28ucGxhbi52MS5QbGFuRXJyb3ISMAoLdW5jb25maXJtZWQYAiADKAsyGy5sb2NvLnBsYW4udjEuUGxhbk9wZXJhdGlvbhIQCghyZXZpc2lvbhgDIAEoAyJKCgtQbGFuUmVxdWVzdBIZCgRmaWxlGAEgASgMQgu6SAh6BhABGICAQBIgCg5lbnZpcm9ubWVudF9pZBgCIAEoCUIIukgFcgOwAQEiegoMUGxhblJlc3BvbnNlEhAKCHJldmlzaW9uGAEgASgDEi8KCm9wZXJhdGlvbnMYAiADKAsyGy5sb2NvLnBsYW4udjEuUGxhbk9wZXJhdGlvbhInCgZlcnJvcnMYAyADKAsyFy5sb2NvLnBsYW4udjEuUGxhbkVycm9yIqYBCg1QbGFuT3BlcmF0aW9uEi0KBGtpbmQYASABKA4yHy5sb2NvLnBsYW4udjEuUGxhbk9wZXJhdGlvbktpbmQSDwoHc2VydmljZRgCIAEoCRIqCgdjaGFuZ2VzGAMgAygLMhkubG9jby5wbGFuLnYxLkZpZWxkQ2hhbmdlEhMKC2Rlc3RydWN0aXZlGAQgASgIEhQKDG5lZWRzX2RlcGxveRgFIAEoCCI6CgtGaWVsZENoYW5nZRIMCgRwYXRoGAEgASgJEg4KBmJlZm9yZRgCIAEoCRINCgVhZnRlchgDIAEoCSI7CglQbGFuRXJyb3ISDwoHc2VydmljZRgBIAEoCRIMCgRwYXRoGAIgASgJEg8KB21lc3NhZ2UYAyABKAkquAEKEVBsYW5PcGVyYXRpb25LaW5kEiMKH1BMQU5fT1BFUkFUSU9OX0tJTkRfVU5TUEVDSUZJRUQQABIeChpQTEFOX09QRVJBVElPTl9LSU5EX0NSRUFURRABEh4KGlBMQU5fT1BFUkFUSU9OX0tJTkRfVVBEQVRFEAISHgoaUExBTl9PUEVSQVRJT05fS0lORF9ERUxFVEUQAxIeChpQTEFOX09QRVJBVElPTl9LSU5EX0lNUE9SVBAEMo4BCgtQbGFuU2VydmljZRI9CgRQbGFuEhkubG9jby5wbGFuLnYxLlBsYW5SZXF1ZXN0GhoubG9jby5wbGFuLnYxLlBsYW5SZXNwb25zZRJACgVBcHBseRIaLmxvY28ucGxhbi52MS5BcHBseVJlcXVlc3QaGy5sb2NvLnBsYW4udjEuQXBwbHlSZXNwb25zZUI2WjRnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL3BsYW4vdjE7cGxhbnYxYgZwcm90bzM", [file_buf_validate_validate]);
+  fileDesc("Chdsb2NvL3BsYW4vdjEvcGxhbi5wcm90bxIMbG9jby5wbGFuLnYxIoMCCgxBcHBseVJlcXVlc3QSGQoEZmlsZRgBIAEoDEILukgIegYQARiAgEASIAoOZW52aXJvbm1lbnRfaWQYAiABKAlCCLpIBXIDsAEBEhAKCHJldmlzaW9uGAMgASgDEhsKE2NvbmZpcm1fZGVzdHJ1Y3RpdmUYBCABKAgSFgoOY29uZmlybV9pbXBvcnQYBSABKAgSQAoGaW1hZ2VzGAYgAygLMiYubG9jby5wbGFuLnYxLkFwcGx5UmVxdWVzdC5JbWFnZXNFbnRyeUIIukgFmgECEGQaLQoLSW1hZ2VzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKIAQoNQXBwbHlSZXNwb25zZRIQCghyZXZpc2lvbhgBIAEoAxIvCgpvcGVyYXRpb25zGAIgAygLMhsubG9jby5wbGFuLnYxLlBsYW5PcGVyYXRpb24SNAoLZGVwbG95bWVudHMYAyADKAsyHy5sb2NvLnBsYW4udjEuU3RhcnRlZERlcGxveW1lbnQiSwoRU3RhcnRlZERlcGxveW1lbnQSDwoHc2VydmljZRgBIAEoCRIOCgZyZWdpb24YAiABKAkSFQoNZGVwbG95bWVudF9pZBgDIAEoCSLiAQoMQXBwbHlSZWZ1c2FsEicKBmVycm9ycxgBIAMoCzIXLmxvY28ucGxhbi52MS5QbGFuRXJyb3ISMAoLdW5jb25maXJtZWQYAiADKAsyGy5sb2NvLnBsYW4udjEuUGxhbk9wZXJhdGlvbhIQCghyZXZpc2lvbhgDIAEoAxI2CgZpbWFnZXMYBCADKAsyJi5sb2NvLnBsYW4udjEuQXBwbHlSZWZ1c2FsLkltYWdlc0VudHJ5Gi0KC0ltYWdlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiSgoLUGxhblJlcXVlc3QSGQoEZmlsZRgBIAEoDEILukgIegYQARiAgEASIAoOZW52aXJvbm1lbnRfaWQYAiABKAlCCLpIBXIDsAEBIuEBCgxQbGFuUmVzcG9uc2USEAoIcmV2aXNpb24YASABKAMSLwoKb3BlcmF0aW9ucxgCIAMoCzIbLmxvY28ucGxhbi52MS5QbGFuT3BlcmF0aW9uEicKBmVycm9ycxgDIAMoCzIXLmxvY28ucGxhbi52MS5QbGFuRXJyb3ISNgoGaW1hZ2VzGAQgAygLMiYubG9jby5wbGFuLnYxLlBsYW5SZXNwb25zZS5JbWFnZXNFbnRyeRotCgtJbWFnZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIqYBCg1QbGFuT3BlcmF0aW9uEi0KBGtpbmQYASABKA4yHy5sb2NvLnBsYW4udjEuUGxhbk9wZXJhdGlvbktpbmQSDwoHc2VydmljZRgCIAEoCRIqCgdjaGFuZ2VzGAMgAygLMhkubG9jby5wbGFuLnYxLkZpZWxkQ2hhbmdlEhMKC2Rlc3RydWN0aXZlGAQgASgIEhQKDG5lZWRzX2RlcGxveRgFIAEoCCI6CgtGaWVsZENoYW5nZRIMCgRwYXRoGAEgASgJEg4KBmJlZm9yZRgCIAEoCRINCgVhZnRlchgDIAEoCSI7CglQbGFuRXJyb3ISDwoHc2VydmljZRgBIAEoCRIMCgRwYXRoGAIgASgJEg8KB21lc3NhZ2UYAyABKAkquAEKEVBsYW5PcGVyYXRpb25LaW5kEiMKH1BMQU5fT1BFUkFUSU9OX0tJTkRfVU5TUEVDSUZJRUQQABIeChpQTEFOX09QRVJBVElPTl9LSU5EX0NSRUFURRABEh4KGlBMQU5fT1BFUkFUSU9OX0tJTkRfVVBEQVRFEAISHgoaUExBTl9PUEVSQVRJT05fS0lORF9ERUxFVEUQAxIeChpQTEFOX09QRVJBVElPTl9LSU5EX0lNUE9SVBAEMo4BCgtQbGFuU2VydmljZRI9CgRQbGFuEhkubG9jby5wbGFuLnYxLlBsYW5SZXF1ZXN0GhoubG9jby5wbGFuLnYxLlBsYW5SZXNwb25zZRJACgVBcHBseRIaLmxvY28ucGxhbi52MS5BcHBseVJlcXVlc3QaGy5sb2NvLnBsYW4udjEuQXBwbHlSZXNwb25zZUI2WjRnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL3BsYW4vdjE7cGxhbnYxYgZwcm90bzM", [file_buf_validate_validate]);
 
 /**
  * @generated from message loco.plan.v1.ApplyRequest
@@ -52,6 +52,15 @@ export type ApplyRequest = Message<"loco.plan.v1.ApplyRequest"> & {
    * @generated from field: bool confirm_import = 5;
    */
   confirmImport: boolean;
+
+  /**
+   * images is the images map of the PlanResponse the apply carries out: every image reference
+   * of the file and the digest-pinned reference the plan resolved it to. The apply resolves
+   * the references again and refuses when one is missing here or resolves to another digest.
+   *
+   * @generated from field: map<string, string> images = 6;
+   */
+  images: { [key: string]: string };
 };
 
 /**
@@ -93,6 +102,15 @@ export type ApplyRequestJson = {
    * @generated from field: bool confirm_import = 5;
    */
   confirmImport?: boolean;
+
+  /**
+   * images is the images map of the PlanResponse the apply carries out: every image reference
+   * of the file and the digest-pinned reference the plan resolved it to. The apply resolves
+   * the references again and refuses when one is missing here or resolves to another digest.
+   *
+   * @generated from field: map<string, string> images = 6;
+   */
+  images?: { [key: string]: string };
 };
 
 /**
@@ -238,6 +256,13 @@ export type ApplyRefusal = Message<"loco.plan.v1.ApplyRefusal"> & {
    * @generated from field: int64 revision = 3;
    */
   revision: bigint;
+
+  /**
+   * images is what the image references resolve to now, when it differs from the request's.
+   *
+   * @generated from field: map<string, string> images = 4;
+   */
+  images: { [key: string]: string };
 };
 
 /**
@@ -266,6 +291,13 @@ export type ApplyRefusalJson = {
    * @generated from field: int64 revision = 3;
    */
   revision?: string;
+
+  /**
+   * images is what the image references resolve to now, when it differs from the request's.
+   *
+   * @generated from field: map<string, string> images = 4;
+   */
+  images?: { [key: string]: string };
 };
 
 /**
@@ -341,6 +373,14 @@ export type PlanResponse = Message<"loco.plan.v1.PlanResponse"> & {
    * @generated from field: repeated loco.plan.v1.PlanError errors = 3;
    */
   errors: PlanError[];
+
+  /**
+   * images maps every image reference of the file that resolved to the digest-pinned reference
+   * the plan uses. An ApplyRequest carries it back so the apply deploys the digests reviewed.
+   *
+   * @generated from field: map<string, string> images = 4;
+   */
+  images: { [key: string]: string };
 };
 
 /**
@@ -368,6 +408,14 @@ export type PlanResponseJson = {
    * @generated from field: repeated loco.plan.v1.PlanError errors = 3;
    */
   errors?: PlanErrorJson[];
+
+  /**
+   * images maps every image reference of the file that resolved to the digest-pinned reference
+   * the plan uses. An ApplyRequest carries it back so the apply deploys the digests reviewed.
+   *
+   * @generated from field: map<string, string> images = 4;
+   */
+  images?: { [key: string]: string };
 };
 
 /**

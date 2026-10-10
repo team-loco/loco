@@ -347,6 +347,38 @@ func (q *Queries) ListDeploymentsForResource(ctx context.Context, arg ListDeploy
 	return items, nil
 }
 
+const listResourcesRunningOutsideEnvironment = `-- name: ListResourcesRunningOutsideEnvironment :many
+SELECT DISTINCT resource_id FROM deployments
+WHERE resource_id = ANY($1::uuid[])
+  AND environment_id <> $2
+  AND is_active = true
+`
+
+type ListResourcesRunningOutsideEnvironmentParams struct {
+	ResourceIds   []uuid.UUID `json:"resourceIds"`
+	EnvironmentID uuid.UUID   `json:"environmentId"`
+}
+
+func (q *Queries) ListResourcesRunningOutsideEnvironment(ctx context.Context, arg ListResourcesRunningOutsideEnvironmentParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, listResourcesRunningOutsideEnvironment, arg.ResourceIds, arg.EnvironmentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var resource_id uuid.UUID
+		if err := rows.Scan(&resource_id); err != nil {
+			return nil, err
+		}
+		items = append(items, resource_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markDeploymentNotActive = `-- name: MarkDeploymentNotActive :exec
 UPDATE deployments
 SET is_active = false, updated_at = NOW()

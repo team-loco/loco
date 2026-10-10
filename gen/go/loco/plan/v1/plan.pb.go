@@ -96,6 +96,10 @@ type ApplyRequest struct {
 	// that no loco.yaml owns yet and that this file takes over. Apply refuses a plan with imports
 	// unless it is set.
 	ConfirmImport bool `protobuf:"varint,5,opt,name=confirm_import,json=confirmImport,proto3" json:"confirm_import,omitempty"`
+	// images is the images map of the PlanResponse the apply carries out: every image reference
+	// of the file and the digest-pinned reference the plan resolved it to. The apply resolves
+	// the references again and refuses when one is missing here or resolves to another digest.
+	Images        map[string]string `protobuf:"bytes,6,rep,name=images,proto3" json:"images,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -163,6 +167,13 @@ func (x *ApplyRequest) GetConfirmImport() bool {
 		return x.ConfirmImport
 	}
 	return false
+}
+
+func (x *ApplyRequest) GetImages() map[string]string {
+	if x != nil {
+		return x.Images
+	}
+	return nil
 }
 
 type ApplyResponse struct {
@@ -297,7 +308,9 @@ type ApplyRefusal struct {
 	// unconfirmed are the operations whose confirmation the request did not give.
 	Unconfirmed []*PlanOperation `protobuf:"bytes,2,rep,name=unconfirmed,proto3" json:"unconfirmed,omitempty"`
 	// revision is the environment's current revision when it differs from the request's.
-	Revision      int64 `protobuf:"varint,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	Revision int64 `protobuf:"varint,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	// images is what the image references resolve to now, when it differs from the request's.
+	Images        map[string]string `protobuf:"bytes,4,rep,name=images,proto3" json:"images,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -351,6 +364,13 @@ func (x *ApplyRefusal) GetRevision() int64 {
 		return x.Revision
 	}
 	return 0
+}
+
+func (x *ApplyRefusal) GetImages() map[string]string {
+	if x != nil {
+		return x.Images
+	}
+	return nil
 }
 
 type PlanRequest struct {
@@ -414,7 +434,10 @@ type PlanResponse struct {
 	// not listed.
 	Operations []*PlanOperation `protobuf:"bytes,2,rep,name=operations,proto3" json:"operations,omitempty"`
 	// errors are every reason the plan cannot be applied. operations is empty when errors is not.
-	Errors        []*PlanError `protobuf:"bytes,3,rep,name=errors,proto3" json:"errors,omitempty"`
+	Errors []*PlanError `protobuf:"bytes,3,rep,name=errors,proto3" json:"errors,omitempty"`
+	// images maps every image reference of the file that resolved to the digest-pinned reference
+	// the plan uses. An ApplyRequest carries it back so the apply deploys the digests reviewed.
+	Images        map[string]string `protobuf:"bytes,4,rep,name=images,proto3" json:"images,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -466,6 +489,13 @@ func (x *PlanResponse) GetOperations() []*PlanOperation {
 func (x *PlanResponse) GetErrors() []*PlanError {
 	if x != nil {
 		return x.Errors
+	}
+	return nil
+}
+
+func (x *PlanResponse) GetImages() map[string]string {
+	if x != nil {
+		return x.Images
 	}
 	return nil
 }
@@ -676,13 +706,17 @@ var File_loco_plan_v1_plan_proto protoreflect.FileDescriptor
 
 const file_loco_plan_v1_plan_proto_rawDesc = "" +
 	"\n" +
-	"\x17loco/plan/v1/plan.proto\x12\floco.plan.v1\x1a\x1bbuf/validate/validate.proto\"\xd4\x01\n" +
+	"\x17loco/plan/v1/plan.proto\x12\floco.plan.v1\x1a\x1bbuf/validate/validate.proto\"\xd9\x02\n" +
 	"\fApplyRequest\x12\x1f\n" +
 	"\x04file\x18\x01 \x01(\fB\v\xbaH\bz\x06\x10\x01\x18\x80\x80@R\x04file\x12/\n" +
 	"\x0eenvironment_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\x12\x1a\n" +
 	"\brevision\x18\x03 \x01(\x03R\brevision\x12/\n" +
 	"\x13confirm_destructive\x18\x04 \x01(\bR\x12confirmDestructive\x12%\n" +
-	"\x0econfirm_import\x18\x05 \x01(\bR\rconfirmImport\"\xab\x01\n" +
+	"\x0econfirm_import\x18\x05 \x01(\bR\rconfirmImport\x12H\n" +
+	"\x06images\x18\x06 \x03(\v2&.loco.plan.v1.ApplyRequest.ImagesEntryB\b\xbaH\x05\x9a\x01\x02\x10dR\x06images\x1a9\n" +
+	"\vImagesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xab\x01\n" +
 	"\rApplyResponse\x12\x1a\n" +
 	"\brevision\x18\x01 \x01(\x03R\brevision\x12;\n" +
 	"\n" +
@@ -692,20 +726,28 @@ const file_loco_plan_v1_plan_proto_rawDesc = "" +
 	"\x11StartedDeployment\x12\x18\n" +
 	"\aservice\x18\x01 \x01(\tR\aservice\x12\x16\n" +
 	"\x06region\x18\x02 \x01(\tR\x06region\x12#\n" +
-	"\rdeployment_id\x18\x03 \x01(\tR\fdeploymentId\"\x9a\x01\n" +
+	"\rdeployment_id\x18\x03 \x01(\tR\fdeploymentId\"\x95\x02\n" +
 	"\fApplyRefusal\x12/\n" +
 	"\x06errors\x18\x01 \x03(\v2\x17.loco.plan.v1.PlanErrorR\x06errors\x12=\n" +
 	"\vunconfirmed\x18\x02 \x03(\v2\x1b.loco.plan.v1.PlanOperationR\vunconfirmed\x12\x1a\n" +
-	"\brevision\x18\x03 \x01(\x03R\brevision\"_\n" +
+	"\brevision\x18\x03 \x01(\x03R\brevision\x12>\n" +
+	"\x06images\x18\x04 \x03(\v2&.loco.plan.v1.ApplyRefusal.ImagesEntryR\x06images\x1a9\n" +
+	"\vImagesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"_\n" +
 	"\vPlanRequest\x12\x1f\n" +
 	"\x04file\x18\x01 \x01(\fB\v\xbaH\bz\x06\x10\x01\x18\x80\x80@R\x04file\x12/\n" +
-	"\x0eenvironment_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\"\x98\x01\n" +
+	"\x0eenvironment_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\"\x93\x02\n" +
 	"\fPlanResponse\x12\x1a\n" +
 	"\brevision\x18\x01 \x01(\x03R\brevision\x12;\n" +
 	"\n" +
 	"operations\x18\x02 \x03(\v2\x1b.loco.plan.v1.PlanOperationR\n" +
 	"operations\x12/\n" +
-	"\x06errors\x18\x03 \x03(\v2\x17.loco.plan.v1.PlanErrorR\x06errors\"\xd8\x01\n" +
+	"\x06errors\x18\x03 \x03(\v2\x17.loco.plan.v1.PlanErrorR\x06errors\x12>\n" +
+	"\x06images\x18\x04 \x03(\v2&.loco.plan.v1.PlanResponse.ImagesEntryR\x06images\x1a9\n" +
+	"\vImagesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xd8\x01\n" +
 	"\rPlanOperation\x123\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x1f.loco.plan.v1.PlanOperationKindR\x04kind\x12\x18\n" +
 	"\aservice\x18\x02 \x01(\tR\aservice\x123\n" +
@@ -743,7 +785,7 @@ func file_loco_plan_v1_plan_proto_rawDescGZIP() []byte {
 }
 
 var file_loco_plan_v1_plan_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_loco_plan_v1_plan_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_loco_plan_v1_plan_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_loco_plan_v1_plan_proto_goTypes = []any{
 	(PlanOperationKind)(0),    // 0: loco.plan.v1.PlanOperationKind
 	(*ApplyRequest)(nil),      // 1: loco.plan.v1.ApplyRequest
@@ -755,25 +797,31 @@ var file_loco_plan_v1_plan_proto_goTypes = []any{
 	(*PlanOperation)(nil),     // 7: loco.plan.v1.PlanOperation
 	(*FieldChange)(nil),       // 8: loco.plan.v1.FieldChange
 	(*PlanError)(nil),         // 9: loco.plan.v1.PlanError
+	nil,                       // 10: loco.plan.v1.ApplyRequest.ImagesEntry
+	nil,                       // 11: loco.plan.v1.ApplyRefusal.ImagesEntry
+	nil,                       // 12: loco.plan.v1.PlanResponse.ImagesEntry
 }
 var file_loco_plan_v1_plan_proto_depIdxs = []int32{
-	7,  // 0: loco.plan.v1.ApplyResponse.operations:type_name -> loco.plan.v1.PlanOperation
-	3,  // 1: loco.plan.v1.ApplyResponse.deployments:type_name -> loco.plan.v1.StartedDeployment
-	9,  // 2: loco.plan.v1.ApplyRefusal.errors:type_name -> loco.plan.v1.PlanError
-	7,  // 3: loco.plan.v1.ApplyRefusal.unconfirmed:type_name -> loco.plan.v1.PlanOperation
-	7,  // 4: loco.plan.v1.PlanResponse.operations:type_name -> loco.plan.v1.PlanOperation
-	9,  // 5: loco.plan.v1.PlanResponse.errors:type_name -> loco.plan.v1.PlanError
-	0,  // 6: loco.plan.v1.PlanOperation.kind:type_name -> loco.plan.v1.PlanOperationKind
-	8,  // 7: loco.plan.v1.PlanOperation.changes:type_name -> loco.plan.v1.FieldChange
-	5,  // 8: loco.plan.v1.PlanService.Plan:input_type -> loco.plan.v1.PlanRequest
-	1,  // 9: loco.plan.v1.PlanService.Apply:input_type -> loco.plan.v1.ApplyRequest
-	6,  // 10: loco.plan.v1.PlanService.Plan:output_type -> loco.plan.v1.PlanResponse
-	2,  // 11: loco.plan.v1.PlanService.Apply:output_type -> loco.plan.v1.ApplyResponse
-	10, // [10:12] is the sub-list for method output_type
-	8,  // [8:10] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	10, // 0: loco.plan.v1.ApplyRequest.images:type_name -> loco.plan.v1.ApplyRequest.ImagesEntry
+	7,  // 1: loco.plan.v1.ApplyResponse.operations:type_name -> loco.plan.v1.PlanOperation
+	3,  // 2: loco.plan.v1.ApplyResponse.deployments:type_name -> loco.plan.v1.StartedDeployment
+	9,  // 3: loco.plan.v1.ApplyRefusal.errors:type_name -> loco.plan.v1.PlanError
+	7,  // 4: loco.plan.v1.ApplyRefusal.unconfirmed:type_name -> loco.plan.v1.PlanOperation
+	11, // 5: loco.plan.v1.ApplyRefusal.images:type_name -> loco.plan.v1.ApplyRefusal.ImagesEntry
+	7,  // 6: loco.plan.v1.PlanResponse.operations:type_name -> loco.plan.v1.PlanOperation
+	9,  // 7: loco.plan.v1.PlanResponse.errors:type_name -> loco.plan.v1.PlanError
+	12, // 8: loco.plan.v1.PlanResponse.images:type_name -> loco.plan.v1.PlanResponse.ImagesEntry
+	0,  // 9: loco.plan.v1.PlanOperation.kind:type_name -> loco.plan.v1.PlanOperationKind
+	8,  // 10: loco.plan.v1.PlanOperation.changes:type_name -> loco.plan.v1.FieldChange
+	5,  // 11: loco.plan.v1.PlanService.Plan:input_type -> loco.plan.v1.PlanRequest
+	1,  // 12: loco.plan.v1.PlanService.Apply:input_type -> loco.plan.v1.ApplyRequest
+	6,  // 13: loco.plan.v1.PlanService.Plan:output_type -> loco.plan.v1.PlanResponse
+	2,  // 14: loco.plan.v1.PlanService.Apply:output_type -> loco.plan.v1.ApplyResponse
+	13, // [13:15] is the sub-list for method output_type
+	11, // [11:13] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_loco_plan_v1_plan_proto_init() }
@@ -787,7 +835,7 @@ func file_loco_plan_v1_plan_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_plan_v1_plan_proto_rawDesc), len(file_loco_plan_v1_plan_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   9,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

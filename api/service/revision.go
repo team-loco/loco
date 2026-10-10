@@ -19,16 +19,22 @@ import (
 // A writer may skip a level it does not touch, never take one out of order, so two writers
 // wait on each other in a line and never in a cycle.
 
-// lockWorkspaceEnvironments locks every environment of the workspace in ascending id order.
+// lockWorkspaceEnvironments locks every environment of the workspace in ascending id order and
+// returns their revisions by id.
 func lockWorkspaceEnvironments(
 	ctx context.Context,
 	qtx *genDb.Queries,
 	workspaceID uuid.UUID,
-) error {
-	if _, err := qtx.LockWorkspaceEnvironments(ctx, workspaceID); err != nil {
-		return fmt.Errorf("lock environments: %w", err)
+) (map[uuid.UUID]int64, error) {
+	rows, err := qtx.LockWorkspaceEnvironments(ctx, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("lock environments: %w", err)
 	}
-	return nil
+	revisions := make(map[uuid.UUID]int64, len(rows))
+	for _, row := range rows {
+		revisions[row.ID] = row.Revision
+	}
+	return revisions, nil
 }
 
 // lockResourceEnvironments is lockWorkspaceEnvironments for the workspace of a resource.

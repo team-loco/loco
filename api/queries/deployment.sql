@@ -77,6 +77,12 @@ WHERE id = sqlc.arg(id)
   AND is_active = true
   AND status::text = ANY(sqlc.arg(from_statuses)::text[]);
 
+-- name: ListResourcesRunningOutsideEnvironment :many
+SELECT DISTINCT resource_id FROM deployments
+WHERE resource_id = ANY(sqlc.arg(resource_ids)::uuid[])
+  AND environment_id <> sqlc.arg(environment_id)
+  AND is_active = true;
+
 -- name: ListActiveDeploymentsForEnvironment :many
 SELECT * FROM deployments
 WHERE environment_id = $1 AND is_active = true

@@ -190,7 +190,7 @@ func (s *ResourceServer) CreateResource(
 
 	qtx := genDb.New(tx)
 
-	if lockErr := lockWorkspaceEnvironments(ctx, qtx, workspaceID); lockErr != nil {
+	if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, workspaceID); lockErr != nil {
 		slog.ErrorContext(ctx, "failed to lock environments", "error", lockErr)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
@@ -579,7 +579,7 @@ func (s *ResourceServer) DeleteResource(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if lockErr := lockWorkspaceEnvironments(ctx, qtx, res.WorkspaceID); lockErr != nil {
+		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, res.WorkspaceID); lockErr != nil {
 			return lockErr
 		}
 		if removeErr := removeResourcePlacements(ctx, qtx, res.ID); removeErr != nil {
@@ -1047,7 +1047,7 @@ func (s *ResourceServer) redeployRegions(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if lockErr := lockWorkspaceEnvironments(ctx, qtx, res.WorkspaceID); lockErr != nil {
+		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, res.WorkspaceID); lockErr != nil {
 			return lockErr
 		}
 		bumped := make(map[uuid.UUID]bool, len(plans))

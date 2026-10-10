@@ -23,12 +23,17 @@ const (
 )
 
 // Service is a service as the environment runs it. Partial is empty when no file owns it.
-// Built is true when a succeeded build exists for it.
+// Built is true when a succeeded build exists for it, Running when it has an active
+// deployment in the environment, and Elsewhere when another environment of the workspace has
+// one. A service the file dropped is deleted only from the environment the plan targets; one
+// that has nothing in this environment but runs elsewhere needs no operation here.
 type Service struct {
-	Name    string
-	Partial string
-	Built   bool
-	State   State
+	Name      string
+	Partial   string
+	Built     bool
+	Running   bool
+	Elsewhere bool
+	State     State
 }
 
 // ImageResult is the outcome of resolving one image reference from the file to a digest.
@@ -151,6 +156,9 @@ func Compute(in Input) (Plan, error) {
 			continue
 		}
 		if _, inFile := in.Services[name]; inFile {
+			continue
+		}
+		if service.Elsewhere && !service.Running && len(service.State.Domains) == 0 {
 			continue
 		}
 		plan.Operations = append(plan.Operations, Operation{Kind: KindDelete, Service: name, Destructive: true})

@@ -69,6 +69,12 @@ SELECT id, is_active, health_status, agent_version, last_heartbeat
 FROM clusters
 WHERE id = $1;
 
+-- name: LockResources :many
+SELECT id FROM resources
+WHERE id = ANY(sqlc.arg(ids)::uuid[])
+ORDER BY id
+FOR UPDATE;
+
 -- name: GetResourceWorkspaceID :one
 SELECT workspace_id FROM resources WHERE id = $1;
 
@@ -114,12 +120,6 @@ SELECT r.workspace_id, w.org_id FROM resources r JOIN workspaces w ON r.workspac
 SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
 FROM resource_regions
 WHERE resource_id = $1 AND region = $2
-FOR UPDATE;
-
--- name: LockResources :many
-SELECT id FROM resources
-WHERE id = ANY(sqlc.arg(ids)::uuid[])
-ORDER BY id
 FOR UPDATE;
 
 -- name: ListWorkspaceServiceResources :many

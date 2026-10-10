@@ -28,6 +28,7 @@ import (
 // PlanServer implements the PlanService: it diffs a loco.yaml file against an environment.
 type PlanServer struct {
 	planv1connect.UnimplementedPlanServiceHandler
+	db           *pgxpool.Pool
 	queries      genDb.Querier
 	authz        *authz.Authorizer
 	resolver     ImageResolver
@@ -43,6 +44,7 @@ func NewPlanServer(
 	defaults servicedefaults.Defaults,
 ) *PlanServer {
 	return &PlanServer{
+		db:           db,
 		queries:      queries,
 		authz:        authz.New(db, queries),
 		resolver:     resolver,
@@ -58,6 +60,7 @@ type plannedFile struct {
 	env             genDb.Environment
 	live            liveEnvironment
 	platformDomains []genDb.PlatformDomain
+	images          map[string]string
 	plan            configplan.Plan
 }
 
@@ -69,6 +72,7 @@ type liveEnvironment struct {
 	domains     map[uuid.UUID][]genDb.ResourceDomain
 	deployments map[uuid.UUID][]genDb.Deployment
 	builds      map[uuid.UUID]genDb.ListLatestSucceededBuildsForResourcesRow
+	elsewhere   map[uuid.UUID]bool
 }
 
 // Plan returns the operations an apply of the file would perform in the environment. It writes
@@ -86,6 +90,7 @@ func (s *PlanServer) Plan(
 		Revision:   planned.env.Revision,
 		Operations: planOperationsToProto(planned.plan.Operations),
 		Errors:     planErrorsToProto(planned.plan.Errors),
+		Images:     planned.images,
 	}), nil
 }
 
@@ -160,6 +165,7 @@ func (s *PlanServer) loadPlan(
 		platformDomainNames = append(platformDomainNames, platformDomain.Domain)
 	}
 
+	images := s.resolveImages(ctx, services)
 	plan, err := configplan.Compute(configplan.Input{
 		Partial:          file.Partial,
 		Services:         services,
@@ -169,13 +175,20 @@ func (s *PlanServer) loadPlan(
 		PlatformDomains:  platformDomainNames,
 		Live:             live.services,
 		Defaults:         s.defaults,
-		Images:           s.resolveImages(ctx, services),
+		Images:           images,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to compute plan", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return &plannedFile{file: file, env: env, live: live, platformDomains: platformDomains, plan: plan}, nil
+	return &plannedFile{
+		file:            file,
+		env:             env,
+		live:            live,
+		platformDomains: platformDomains,
+		images:          pinnedImages(images),
+		plan:            plan,
+	}, nil
 }
 
 func fileEnvironments(file *locofile.File) []string {
@@ -186,6 +199,17 @@ func fileEnvironments(file *locofile.File) []string {
 		}
 	}
 	return slices.Sorted(maps.Keys(names))
+}
+
+func pinnedImages(images map[string]configplan.ImageResult) map[string]string {
+	pinned := make(map[string]string, len(images))
+	for reference, result := range images {
+		if result.Err != nil {
+			continue
+		}
+		pinned[reference] = result.Pinned
+	}
+	return pinned
 }
 
 func (s *PlanServer) resolveImages(
@@ -239,6 +263,13 @@ func (s *PlanServer) liveEnvironment(ctx context.Context, env genDb.Environment)
 	if err != nil {
 		return liveEnvironment{}, fmt.Errorf("list latest builds: %w", err)
 	}
+	runningElsewhere, err := s.queries.ListResourcesRunningOutsideEnvironment(
+		ctx,
+		genDb.ListResourcesRunningOutsideEnvironmentParams{ResourceIds: ids, EnvironmentID: env.ID},
+	)
+	if err != nil {
+		return liveEnvironment{}, fmt.Errorf("list resources running elsewhere: %w", err)
+	}
 
 	live := liveEnvironment{
 		services:    make([]configplan.Service, 0, len(resources)),
@@ -246,6 +277,10 @@ func (s *PlanServer) liveEnvironment(ctx context.Context, env genDb.Environment)
 		domains:     map[uuid.UUID][]genDb.ResourceDomain{},
 		deployments: map[uuid.UUID][]genDb.Deployment{},
 		builds:      map[uuid.UUID]genDb.ListLatestSucceededBuildsForResourcesRow{},
+		elsewhere:   make(map[uuid.UUID]bool, len(runningElsewhere)),
+	}
+	for _, resourceID := range runningElsewhere {
+		live.elsewhere[resourceID] = true
 	}
 	for _, domain := range domains {
 		live.domains[domain.ResourceID] = append(live.domains[domain.ResourceID], domain)
@@ -269,10 +304,12 @@ func (s *PlanServer) liveEnvironment(ctx context.Context, env genDb.Environment)
 		}
 		live.resources[res.Name] = res
 		live.services = append(live.services, configplan.Service{
-			Name:    res.Name,
-			Partial: derefString(res.Partial),
-			Built:   built,
-			State:   state,
+			Name:      res.Name,
+			Partial:   derefString(res.Partial),
+			Built:     built,
+			Running:   len(live.deployments[res.ID]) > 0,
+			Elsewhere: live.elsewhere[res.ID],
+			State:     state,
 		})
 	}
 	return live, nil
