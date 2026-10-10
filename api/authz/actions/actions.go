@@ -103,6 +103,11 @@ var (
 		entityType: db.EntityTypeResource,
 		scope:      db.ScopeAdmin,
 	}
+	// TransferPartial requires resource:admin.
+	TransferPartial = Action{
+		entityType: db.EntityTypeResource,
+		scope:      db.ScopeAdmin,
+	}
 
 	// deployments
 

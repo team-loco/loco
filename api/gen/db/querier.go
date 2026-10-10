@@ -210,6 +210,7 @@ type Querier interface {
 	SetClusterObservabilityEndpoint(ctx context.Context, arg SetClusterObservabilityEndpointParams) error
 	SetPlacementApplyError(ctx context.Context, arg SetPlacementApplyErrorParams) (SetPlacementApplyErrorRow, error)
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
+	SetResourcePartial(ctx context.Context, arg SetResourcePartialParams) error
 	TouchAPITokenLastUsed(ctx context.Context, id uuid.UUID) error
 	TouchIdentity(ctx context.Context, arg TouchIdentityParams) error
 	TouchSessionLastUsed(ctx context.Context, id uuid.UUID) error

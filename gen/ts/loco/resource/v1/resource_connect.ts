@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateResourceRequest, CreateResourceResponse, DeleteResourceRequest, DeleteResourceResponse, GetResourceRequest, GetResourceResponse, GetResourceStatusRequest, GetResourceStatusResponse, ListRegionsRequest, ListRegionsResponse, ListResourceEventsRequest, ListResourceEventsResponse, ListWorkspaceResourcesRequest, ListWorkspaceResourcesResponse, ScaleResourceRequest, ScaleResourceResponse, UpdateResourceEnvRequest, UpdateResourceEnvResponse, UpdateResourceRequest, UpdateResourceResponse } from "./resource_pb";
+import { CreateResourceRequest, CreateResourceResponse, DeleteResourceRequest, DeleteResourceResponse, GetResourceRequest, GetResourceResponse, GetResourceStatusRequest, GetResourceStatusResponse, ListRegionsRequest, ListRegionsResponse, ListResourceEventsRequest, ListResourceEventsResponse, ListWorkspaceResourcesRequest, ListWorkspaceResourcesResponse, ScaleResourceRequest, ScaleResourceResponse, TransferPartialRequest, TransferPartialResponse, UpdateResourceEnvRequest, UpdateResourceEnvResponse, UpdateResourceRequest, UpdateResourceResponse } from "./resource_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -124,6 +124,17 @@ export const ResourceService = {
       name: "UpdateResourceEnv",
       I: UpdateResourceEnvRequest,
       O: UpdateResourceEnvResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * TransferPartial moves a resource to another partial.
+     *
+     * @generated from rpc loco.resource.v1.ResourceService.TransferPartial
+     */
+    transferPartial: {
+      name: "TransferPartial",
+      I: TransferPartialRequest,
+      O: TransferPartialResponse,
       kind: MethodKind.Unary,
     },
   }

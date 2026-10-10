@@ -75,3 +75,10 @@ export const scaleResource = ResourceService.method.scaleResource;
  * @generated from rpc loco.resource.v1.ResourceService.UpdateResourceEnv
  */
 export const updateResourceEnv = ResourceService.method.updateResourceEnv;
+
+/**
+ * TransferPartial moves a resource to another partial.
+ *
+ * @generated from rpc loco.resource.v1.ResourceService.TransferPartial
+ */
+export const transferPartial = ResourceService.method.transferPartial;

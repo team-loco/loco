@@ -6,17 +6,17 @@ VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING id;
 
 -- name: GetResourceByID :one
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
 FROM resources r
 WHERE r.id = $1;
 
 -- name: GetResourceByNameAndWorkspace :one
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.name = $2;
 
 -- name: ListResourcesForWorkspace :many
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1
    AND (sqlc.narg('page_token')::text IS NULL
@@ -36,6 +36,11 @@ RETURNING id;
 
 -- name: DeleteResource :exec
 DELETE FROM resources WHERE id = $1;
+
+-- name: SetResourcePartial :exec
+UPDATE resources
+SET partial = $2, updated_at = NOW()
+WHERE id = $1;
 
 -- name: CreateResourceRegion :one
 INSERT INTO resource_regions (resource_id, region, is_primary, status)
