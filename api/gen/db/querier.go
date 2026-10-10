@@ -18,6 +18,7 @@ type Querier interface {
 	AdvisoryUnlock(ctx context.Context, lockKey int64) (bool, error)
 	BeginClusterSync(ctx context.Context, id uuid.UUID) (int64, error)
 	BumpEnvironmentRevision(ctx context.Context, id uuid.UUID) (int64, error)
+	BumpPlacementsForSecretNames(ctx context.Context, arg BumpPlacementsForSecretNamesParams) ([]BumpPlacementsForSecretNamesRow, error)
 	CancelBuild(ctx context.Context, arg CancelBuildParams) (CancelBuildRow, error)
 	CancelOtherActiveBuilds(ctx context.Context, arg CancelOtherActiveBuildsParams) ([]CancelOtherActiveBuildsRow, error)
 	CheckDomainAvailability(ctx context.Context, domain string) (bool, error)

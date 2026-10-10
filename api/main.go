@@ -254,13 +254,13 @@ func main() {
 	})
 	domainServiceHandler := service.NewDomainServer(pool, queries, machine)
 	tokenServiceHandler := service.NewTokenServer(pool, queries, machine)
-	agentServiceHandler := service.NewAgentServer(pool, queries, placementNotifier, sourceBucket)
-	observabilityAccessHandler := service.NewObservabilityAccessServer(pool, queries, machine)
-	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
 	secretKeyProvider, providerErr := newSecretKeyProvider(ac.Secrets)
 	if providerErr != nil {
 		log.Fatalf("failed to create the secrets key provider: %v", providerErr)
 	}
+	agentServiceHandler := service.NewAgentServer(pool, queries, placementNotifier, sourceBucket, secretKeyProvider)
+	observabilityAccessHandler := service.NewObservabilityAccessServer(pool, queries, machine)
+	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
 	secretServiceHandler := service.NewSecretServer(pool, queries, secretKeyProvider, ac.SecretLimits)
 	configServiceHandler := service.NewConfigServer(
 		ac.DefaultPlatformDomain,
