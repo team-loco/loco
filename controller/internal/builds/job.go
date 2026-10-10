@@ -17,7 +17,6 @@ import (
 
 const (
 	labelBuildID          = "loco.io/build-id"
-	labelComponent        = "app.kubernetes.io/component"
 	componentBuild        = "build"
 	buildContainerFetch   = "fetch"
 	buildContainerBuild   = "build"
@@ -50,7 +49,7 @@ const (
 func buildLabels(build *locov1alpha1.Build) map[string]string {
 	return map[string]string{
 		managed.LabelManagedBy:   managed.ManagedByValue,
-		labelComponent:           componentBuild,
+		managed.LabelComponent:   componentBuild,
 		managed.LabelWorkspaceID: build.Spec.WorkspaceID,
 		managed.LabelResourceID:  build.Spec.ResourceID,
 		labelBuildID:             build.Spec.BuildID,

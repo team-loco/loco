@@ -34,6 +34,12 @@ func CacheOptions(locoNamespace, pullSecretName string) cache.Options {
 			},
 		}
 	}
+	podSet := labels.Set{
+		managed.LabelManagedBy: managed.ManagedByValue,
+		managed.LabelComponent: componentApplication,
+	}
+	podSelector := labels.SelectorFromSet(podSet)
+	applicationPods := cache.ByObject{Label: podSelector}
 	stripManagedFields := cache.TransformStripManagedFields()
 	return cache.Options{
 		DefaultTransform: stripManagedFields,
@@ -45,6 +51,7 @@ func CacheOptions(locoNamespace, pullSecretName string) cache.Options {
 			&rbacv1.Role{}:           managedObjects,
 			&rbacv1.RoleBinding{}:    managedObjects,
 			&appsv1.Deployment{}:     managedObjects,
+			&corev1.Pod{}:            applicationPods,
 		},
 	}
 }
