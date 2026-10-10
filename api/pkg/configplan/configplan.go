@@ -40,8 +40,8 @@ type ImageResult struct {
 // Input is everything the planner needs. Services are the file's services resolved for the
 // environment, FileEnvironments the environment names the file mentions, Environments the
 // names that exist in the workspace, Regions the regions with an active cluster, Secrets the
-// secret names set in the environment, and Images a resolution for every image reference
-// the services use.
+// secret names set in the environment, PlatformDomains the active platform domains a service
+// domain must end with, and Images a resolution for every image reference the services use.
 type Input struct {
 	Partial          string
 	Services         map[string]locofile.Service
@@ -49,6 +49,7 @@ type Input struct {
 	Environments     []string
 	Regions          []string
 	Secrets          []string
+	PlatformDomains  []string
 	Live             []Service
 	Defaults         servicedefaults.Defaults
 	Images           map[string]ImageResult
@@ -185,6 +186,11 @@ func checkService(name string, service locofile.Service, in Input) []Error {
 		unknown := fmt.Errorf("%w: %s", ErrUnknownRegion, region)
 		errs = append(errs, Error{Service: name, Path: pathRegions + "." + region, Err: unknown})
 	}
+	for _, domain := range service.Domains {
+		if _, _, err := MatchPlatformDomain(domain, in.PlatformDomains); err != nil {
+			errs = append(errs, Error{Service: name, Path: pathDomains, Err: err})
+		}
+	}
 	for _, secret := range slices.Sorted(slices.Values(service.Secrets)) {
 		if slices.Contains(in.Secrets, secret) {
 			continue
@@ -199,6 +205,27 @@ func checkService(name string, service locofile.Service, in Input) []Error {
 		}
 	}
 	return errs
+}
+
+// MatchPlatformDomain returns the platform domain a service domain belongs to and the label in
+// front of it. When platform domains nest, the longest suffix wins, so with loco.test and
+// stage.loco.test active, api.stage.loco.test is the label api under stage.loco.test. The
+// domain must be exactly one label under that platform domain. Plan and Apply both use it.
+func MatchPlatformDomain(domain string, platformDomains []string) (string, string, error) {
+	matched := ""
+	for _, platform := range platformDomains {
+		if strings.HasSuffix(domain, "."+platform) && len(platform) > len(matched) {
+			matched = platform
+		}
+	}
+	if matched == "" {
+		return "", "", fmt.Errorf("%w: %s", ErrCustomDomain, domain)
+	}
+	label := strings.TrimSuffix(domain, "."+matched)
+	if label == "" || strings.Contains(label, ".") {
+		return "", "", fmt.Errorf("%w: %s under %s", ErrNotSingleLabel, domain, matched)
+	}
+	return matched, label, nil
 }
 
 func needsBuild(current Service, desired State) bool {

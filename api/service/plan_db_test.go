@@ -253,6 +253,24 @@ func TestPlanRefusesAnotherPartialsService(t *testing.T) {
 	}
 }
 
+func TestPlanRefusesACustomDomain(t *testing.T) {
+	f := newDeployFixture(t)
+	f.markClustersHealthy(t)
+	file := planFileHeader + strings.Replace(planFileNew, "routing: {}", "domains: [new.acme.dev]", 1)
+
+	resp, err := plan(t, f, file, f.workspaceReadScopes(t))
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+	if len(resp.GetOperations()) != 0 || len(resp.GetErrors()) != 1 {
+		t.Fatalf("plan = %v, want one error and no operations", resp)
+	}
+	planErr := resp.GetErrors()[0]
+	if planErr.GetService() != planNew || planErr.GetPath() != "domains" {
+		t.Fatalf("error = %v, want new.acme.dev refused as a custom domain", planErr)
+	}
+}
+
 func TestPlanNeedsWorkspaceRead(t *testing.T) {
 	f := newDeployFixture(t)
 	file := planFileHeader + planFileSvc

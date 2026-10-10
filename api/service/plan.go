@@ -54,10 +54,11 @@ func NewPlanServer(
 // plannedFile is a loco.yaml file planned against one environment: the parsed file, the
 // environment, the services the environment runs and the plan.
 type plannedFile struct {
-	file *locofile.File
-	env  genDb.Environment
-	live liveEnvironment
-	plan configplan.Plan
+	file            *locofile.File
+	env             genDb.Environment
+	live            liveEnvironment
+	platformDomains []genDb.PlatformDomain
+	plan            configplan.Plan
 }
 
 // liveEnvironment is every service of the workspace as the environment runs it, with the rows
@@ -135,6 +136,11 @@ func (s *PlanServer) loadPlan(
 		slog.ErrorContext(ctx, "failed to list clusters", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
+	platformDomains, err := s.queries.ListActivePlatformDomains(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list platform domains", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
 	live, err := s.liveEnvironment(ctx, env)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load the environment's services", "error", err)
@@ -149,6 +155,10 @@ func (s *PlanServer) loadPlan(
 	for _, cluster := range clusters {
 		regions = append(regions, cluster.Region)
 	}
+	platformDomainNames := make([]string, 0, len(platformDomains))
+	for _, platformDomain := range platformDomains {
+		platformDomainNames = append(platformDomainNames, platformDomain.Domain)
+	}
 
 	plan, err := configplan.Compute(configplan.Input{
 		Partial:          file.Partial,
@@ -156,6 +166,7 @@ func (s *PlanServer) loadPlan(
 		FileEnvironments: fileEnvironments(file),
 		Environments:     environmentNames,
 		Regions:          regions,
+		PlatformDomains:  platformDomainNames,
 		Live:             live.services,
 		Defaults:         s.defaults,
 		Images:           s.resolveImages(ctx, services),
@@ -164,7 +175,7 @@ func (s *PlanServer) loadPlan(
 		slog.ErrorContext(ctx, "failed to compute plan", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return &plannedFile{file: file, env: env, live: live, plan: plan}, nil
+	return &plannedFile{file: file, env: env, live: live, platformDomains: platformDomains, plan: plan}, nil
 }
 
 func fileEnvironments(file *locofile.File) []string {

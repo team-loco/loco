@@ -26,6 +26,7 @@ const (
 	logLevelInfo   = "info"
 	testCPU        = "250m"
 	testMemory     = "512Mi"
+	appDomain      = "app.example.com"
 	testPinned     = "ghcr.io/acme/worker@sha256:7781a08afca1adb11b6294ca81ee6e04f9fc677f4f04c9d9daf2b0e068f5e89a"
 )
 
@@ -52,7 +53,7 @@ func fileService() locofile.Service {
 		Dockerfile: defaultDockerfile,
 		Port:       &port,
 		Routing:    &locofile.Routing{},
-		Domains:    []string{"app.example.com"},
+		Domains:    []string{appDomain},
 		Env:        map[string]string{logLevelKey: logLevelInfo},
 		Regions: map[string]locofile.Region{
 			testRegion: {
@@ -71,7 +72,7 @@ func liveState() State {
 		Port:       3000,
 		Health:     DefaultHealth(testDefaults()),
 		Routing:    &Routing{PathPrefix: "/", IdleTimeout: 60},
-		Domains:    []string{"app.example.com"},
+		Domains:    []string{appDomain},
 		Env:        map[string]string{logLevelKey: logLevelInfo},
 		Regions:    map[string]Region{testRegion: {CPU: testCPU, Memory: testMemory, MinReplicas: 1, MaxReplicas: 3}},
 	}
@@ -79,13 +80,14 @@ func liveState() State {
 
 func input(services map[string]locofile.Service, live ...Service) Input {
 	return Input{
-		Partial:      testPartial,
-		Services:     services,
-		Environments: []string{"prod"},
-		Regions:      []string{testRegion},
-		Live:         live,
-		Defaults:     testDefaults(),
-		Images:       map[string]ImageResult{testImage: {Pinned: testPinned}},
+		Partial:         testPartial,
+		Services:        services,
+		Environments:    []string{"prod"},
+		Regions:         []string{testRegion},
+		PlatformDomains: []string{"example.com"},
+		Live:            live,
+		Defaults:        testDefaults(),
+		Images:          map[string]ImageResult{testImage: {Pinned: testPinned}},
 	}
 }
 
@@ -343,7 +345,7 @@ func TestInvalidDesiredValuesAreFieldErrors(t *testing.T) {
 			s.Health = &locofile.Health{Timeout: &timeout}
 		}, "health"},
 		"relative path prefix": {func(s *locofile.Service) {
-			s.Routing = &locofile.Routing{PathPrefix: "api"}
+			s.Routing = &locofile.Routing{PathPrefix: "relative"}
 		}, "routing"},
 		"empty env value": {func(s *locofile.Service) {
 			s.Env = map[string]string{logLevelKey: ""}
@@ -365,6 +367,37 @@ func TestInvalidDesiredValuesAreFieldErrors(t *testing.T) {
 				t.Fatalf("error = %+v, want %s at %s", planErr, webService, tc.path)
 			}
 		})
+	}
+}
+
+func TestCustomDomainIsAnError(t *testing.T) {
+	service := fileService()
+	service.Domains = []string{appDomain, "www.acme.dev"}
+	planErr := onlyError(t, compute(t, input(map[string]locofile.Service{webService: service})), ErrCustomDomain)
+	wantMessage := "domain is not under an active platform domain: www.acme.dev"
+	if planErr.Path != "domains" || planErr.Err.Error() != wantMessage {
+		t.Fatalf("error = %+v, want the custom domain", planErr)
+	}
+}
+
+func TestMatchPlatformDomainPicksTheLongestSuffix(t *testing.T) {
+	platformDomains := []string{"loco.test", "stage.loco.test"}
+	platform, label, err := MatchPlatformDomain("api.stage.loco.test", platformDomains)
+	if err != nil || platform != "stage.loco.test" || label != "api" {
+		t.Fatalf("match = %q %q %v, want api under stage.loco.test", platform, label, err)
+	}
+	platform, label, err = MatchPlatformDomain("api.loco.test", platformDomains)
+	if err != nil || platform != "loco.test" || label != "api" {
+		t.Fatalf("match = %q %q %v, want api under loco.test", platform, label, err)
+	}
+}
+
+func TestDomainMoreThanOneLabelUnderAPlatformDomainIsAnError(t *testing.T) {
+	service := fileService()
+	service.Domains = []string{"api.stage.example.com"}
+	planErr := onlyError(t, compute(t, input(map[string]locofile.Service{webService: service})), ErrNotSingleLabel)
+	if planErr.Path != pathDomains {
+		t.Fatalf("error = %+v, want it at domains", planErr)
 	}
 }
 
