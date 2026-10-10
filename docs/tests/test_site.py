@@ -53,7 +53,8 @@ class SiteTests(unittest.TestCase):
                             continue
                         path = site / unquote(url.path.lstrip('/')) if url.path.startswith('/') else document.parent / unquote(url.path)
                         self.assertTrue(path.exists(), f'{document.relative_to(site)} links to missing {target}')
-                self.assertFalse((site / 'notes.md').exists())
+                self.assertFalse((site / 'notes.html').exists())
+                self.assertFalse((site / 'checklist.html').exists())
                 self.assertFalse((site / 'tdd').exists())
                 self.assertFalse((site / 'pyproject.toml').exists())
                 if environment == 'staging':

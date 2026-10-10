@@ -76,8 +76,8 @@ Pages state released behaviour and label unreleased workflows with a release not
   chart tags). The rest of `AGENTS.md` is process guidance, not product documentation.
 - `docs/zensical.toml` only when a page is added, removed or renamed.
 
-Out of scope: `docs/tdd/**`, `docs/notes.md`, `docs/dependencies.md`, `docs/DESIGN.md`,
-`docs/checklist.txt`, `experiments/**`, `controller/README.md` and `web/README.md` (scaffold
+Out of scope: `docs/tdd/**`, `docs/notes.html`, `docs/dependencies.md`, `docs/DESIGN.md`,
+`docs/checklist.html`, `experiments/**`, `controller/README.md` and `web/README.md` (scaffold
 boilerplate), `.agents/skills/**`, generated code (`gen/**`, `api/gen/**`,
 `zz_generated.deepcopy.go`, CRD YAML under `controller/config` and `charts/loco-operator`),
 tests, `e2e/**`, Go doc comments and `//` comments. A missing Go doc comment is not drift. The

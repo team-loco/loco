@@ -66,6 +66,8 @@ Avenir Next with Segoe UI fallback gives headings a distinct display face. Body 
 
 One UI container serves the docs at their canonical hostname and at the dashboard’s `/docs/` path. Relative navigation preserves the active entry point. The 76rem grid contains desktop navigation, article, and a table of contents on wide screens. Sections expand by default. Neither scrolling nor changing pages hides desktop navigation. Below the upstream drawer breakpoint, Zensical owns the mobile navigation drawer. Tables and code scroll horizontally within their content containers.
 
+The internal trackers, `notes.html` and `checklist.html`, are standalone files outside `content/`. Each embeds the same light/dark tokens, system fonts, section navigation and print styles so it can be opened directly from disk. The checklist shows open items; completion is recorded by editing the file.
+
 ## Elevation & Depth
 
 Warm surface tones and thin borders distinguish code, tables, and search. The header has a bottom border and no shadow. Zensical owns search overlays and their stacking behavior.

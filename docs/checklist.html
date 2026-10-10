@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loco Roadmap Checklist</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff; --bg2: #faf9f8; --bg3: #f1efed;
+  --fg: #2a2522; --fg2: #56504a; --line: #e8e5e1; --link: #2c4a99;
+  --display: "Avenir Next", "Segoe UI", sans-serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161412; --bg2: #1c1a17; --bg3: #272420;
+    --fg: #f3efea; --fg2: #c9c2ba; --line: #2f2b27; --link: #8aa6e6;
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 2rem; scrollbar-gutter: stable; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.7 var(--sans); }
+a { color: var(--link); text-underline-offset: .2em; }
+a:hover { text-decoration-thickness: 2px; }
+a:focus-visible { outline: 2px solid var(--link); outline-offset: 4px; border-radius: 2px; }
+.skip { position: absolute; top: .5rem; left: .5rem; z-index: 1; padding: .5rem 1rem; background: var(--bg); transform: translateY(-200%); }
+.skip:focus { transform: none; }
+.topbar { border-bottom: 1px solid var(--line); background: var(--bg2); }
+.topbar-inner { max-width: 72rem; margin: auto; padding: 1rem 2rem; display: flex; gap: 2rem; align-items: center; }
+.brand { font: 700 1.2rem var(--display); letter-spacing: -.03em; }
+.pages { display: flex; gap: 1.5rem; }
+.pages a { padding: .4rem 0; color: var(--fg2); text-decoration: none; }
+.pages [aria-current] { color: var(--link); box-shadow: 0 2px var(--link); }
+.layout { display: grid; grid-template-columns: 13rem minmax(0, 1fr); gap: 4rem; max-width: 72rem; margin: auto; padding: 3rem 2rem 6rem; }
+.sidebar { position: sticky; top: 2rem; align-self: start; max-height: calc(100dvh - 4rem); overflow-y: auto; padding: 0 .5rem .5rem 0; font-size: .85rem; }
+.sidebar ul { list-style: none; padding: 0; margin: 0; }
+.sidebar a { display: block; color: var(--fg2); text-decoration: none; padding: .25rem 0; }
+.sidebar a:hover { color: var(--link); }
+.sidebar > ul > li { margin-bottom: 1rem; }
+.sidebar .phase { font-weight: 650; color: var(--fg); }
+.sidebar .topics { padding-left: .75rem; border-left: 1px solid var(--line); margin-top: .25rem; }
+main { min-width: 0; max-width: 48rem; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.25; }
+h1 { margin: 0 0 1rem; font-size: clamp(1.9rem, 4vw, 2.5rem); letter-spacing: -.04em; }
+h2 { margin: 0 0 1.5rem; font-size: 1.7rem; letter-spacing: -.025em; }
+h3 { margin: 2rem 0 .75rem; font-size: 1.15rem; }
+.intro { color: var(--fg2); margin-bottom: 3rem; }
+.intro p { margin: .5rem 0; }
+section { border-top: 1px solid var(--line); padding-top: 2rem; margin-top: 3rem; }
+.items { padding-left: 1.2rem; margin: .75rem 0; }
+.items li { padding-left: .25rem; margin-bottom: .9rem; overflow-wrap: anywhere; }
+.items li::marker { color: var(--fg2); }
+code { font: .87em var(--mono); background: var(--bg3); padding: .12em .3em; border-radius: 4px; white-space: nowrap; }
+.tasks { list-style: none; padding: 0; margin: .75rem 0; }
+.tasks li { display: flex; align-items: baseline; gap: .85rem; padding: .85rem 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.open-box { flex: 0 0 .85rem; height: .85rem; border: 1.5px solid var(--fg2); border-radius: 2px; }
+footer { margin-top: 3rem; color: var(--fg2); font-size: .85rem; }
+@media (max-width: 760px) {
+  .topbar-inner { padding: .75rem 1.25rem; gap: 1.5rem; }
+  .layout { display: block; padding: 1.5rem 1.25rem 3rem; }
+  .sidebar { position: static; max-height: none; border-bottom: 1px solid var(--line); padding-bottom: 1rem; margin-bottom: 2rem; }
+  .sidebar > ul { display: flex; flex-wrap: wrap; gap: .4rem 1.25rem; }
+  .sidebar > ul > li { margin: 0; }
+  .sidebar .topics { display: none; }
+  .intro { margin-bottom: 2rem; }
+}
+@media print {
+  :root { color-scheme: light; --bg: white; --bg2: white; --bg3: #f1efed; --fg: black; --fg2: #56504a; --line: #e8e5e1; --link: black; }
+  .topbar, .sidebar, .skip, footer { display: none; }
+  .layout { display: block; padding: 0; }
+  main { max-width: none; }
+  body { font-size: 11pt; }
+  h2, h3 { break-after: avoid; }
+  li { break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="topbar"><div class="topbar-inner"><span class="brand">Loco</span><nav class="pages" aria-label="Trackers"><a href="notes.html">Notes</a><a href="checklist.html" aria-current="page">Checklist</a></nav></div></header>
+<div class="layout">
+<nav class="sidebar" aria-label="Sections">
+<ul>
+<li><a class="phase" href="#v1">V1</a>
+<ul class="topics">
+<li><a href="#v1-networking-and-secrets">Networking and secrets</a></li>
+<li><a href="#v1-observability">Observability</a></li>
+<li><a href="#v1-deploy-and-builds">Deploy and builds</a></li>
+<li><a href="#v1-api-and-data">API and data</a></li>
+<li><a href="#v1-infrastructure">Infrastructure</a></li>
+<li><a href="#v1-data-and-testing">Data and testing</a></li>
+<li><a href="#v1-tooling">Tooling</a></li>
+</ul>
+</li>
+<li><a class="phase" href="#v2">V2</a>
+<ul class="topics">
+<li><a href="#v2-observability">Observability</a></li>
+<li><a href="#v2-networking-and-builds">Networking and builds</a></li>
+<li><a href="#v2-infrastructure-and-platform">Infrastructure and platform</a></li>
+<li><a href="#v2-data-model">Data model</a></li>
+</ul>
+</li>
+<li><a class="phase" href="#v3">V3</a>
+</li>
+<li><a class="phase" href="#backlog-only-if-users-ask">Backlog (only if users ask)</a>
+</li>
+</ul>
+</nav>
+<main id="content" tabindex="-1">
+<h1>Loco Roadmap Checklist</h1>
+<div class="intro">
+<p>Open work only. <a href="notes.html">Notes</a> explain each item.</p>
+<p>Checked 2026-10-09. Production rollout was not checked.</p>
+</div>
+<section aria-labelledby="v1">
+<h2 id="v1">V1</h2>
+<h3 id="v1-networking-and-secrets">Networking and secrets</h3>
+<ul class="tasks">
+<li><span class="open-box" aria-hidden="true"></span><span>Keep apps in the same workspace, region and environment on the same cluster so they can talk to each other.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Encrypt app secrets and support rotating encryption keys.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Set up rotation for platform credentials.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Decide whether connections inside a cluster need mutual TLS.</span></li>
+</ul>
+<h3 id="v1-observability">Observability</h3>
+<ul class="tasks">
+<li><span class="open-box" aria-hidden="true"></span><span>Check that logs and metrics include the workspace and app IDs.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Only collect logs from Loco apps; stop collecting metrics we do not use.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Create ClickHouse tables with indexes for workspace/app queries.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Make logs expire after the retention period shown to users.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Read log severity from structured app logs.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Check dashboard numbers against real app usage; add disk metrics.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Delete logs, metrics and traces when an app or workspace is deleted.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Let users pause CLI log output.</span></li>
+</ul>
+<h3 id="v1-deploy-and-builds">Deploy and builds</h3>
+<ul class="tasks">
+<li><span class="open-box" aria-hidden="true"></span><span>Let CI deploy with a token, without requiring an OS keychain.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Test cleanup after failed deploys; decide what rollback restores.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Keep old secret versions so rollback can restore them.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Limit how many apps can deploy at once.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Limit the size of public images users can deploy.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Test deploying and calling a gRPC app through Envoy Gateway.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Finish deploying from <code>loco.yaml</code>, including environment overrides and reviewing changes before applying them.</span></li>
+</ul>
+<h3 id="v1-api-and-data">API and data</h3>
+<ul class="tasks">
+<li><span class="open-box" aria-hidden="true"></span><span>Add admin/SRE APIs to pause and resume deploys and manage cluster maintenance.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Check API errors for raw database details; return useful user-facing errors.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Check that every API rejects invalid requests.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Make create/update responses consistent about returning an ID or the full object.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Check remaining DB writes use transactions and sorted queries have indexes.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Check that deleting an app removes the Kubernetes objects it created.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Add invitations.</span></li>
+</ul>
+<h3 id="v1-infrastructure">Infrastructure</h3>
+<ul class="tasks">
+<li><span class="open-box" aria-hidden="true"></span><span>Set up worker cluster upgrades and check that each cluster runs the expected charts and CRDs.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Make chart settings configurable and install CRDs separately.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Choose a cluster with enough free CPU and memory for the app.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Scale cluster nodes and Envoy Gateway replicas as traffic grows.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Load-test the API, ingress, builds and deploys.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Limit API requests, especially deploy requests.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Update the dependency list for builds, registry, auth and observability.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Test Cilium upgrades with our socketLB and datapath settings.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Finish routing traffic to another region when a region goes down.</span></li>
+</ul>
+<h3 id="v1-data-and-testing">Data and testing</h3>
+<ul class="tasks">
+<li><span class="open-box" aria-hidden="true"></span><span>Check app/workspace deletion removes Kubernetes objects, secrets, images and stored telemetry.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Test backing up and restoring Postgres and ClickHouse.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Add tests for failed app deploys and failed platform upgrades.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Test dashboard flows with Playwright.</span></li>
+</ul>
+<h3 id="v1-tooling">Tooling</h3>
+<ul class="tasks">
+<li><span class="open-box" aria-hidden="true"></span><span>Use one TypeScript compiler once ESLint supports it.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Update remaining modules to the new cel-go import path.</span></li>
+</ul>
+</section>
+<section aria-labelledby="v2">
+<h2 id="v2">V2</h2>
+<h3 id="v2-observability">Observability</h3>
+<ul class="tasks">
+<li><span class="open-box" aria-hidden="true"></span><span>Collect traces and show them in the UI, filtered by workspace/app.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Create Grafana dashboards and alerts for each workspace if users need them.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Evaluate hosted ClickHouse.</span></li>
+</ul>
+<h3 id="v2-networking-and-builds">Networking and builds</h3>
+<ul class="tasks">
+<li><span class="open-box" aria-hidden="true"></span><span>Scan images for vulnerabilities and record where they were built.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Let users choose which external addresses an app can connect to.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Support custom domains and issue/renew their certificates.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Run builds on separate clusters; prevent apps from being deployed there.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Support command-based health checks.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Sleep idle apps and wake them when a request arrives.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Deploy and delete a group of services together; support recursive deploy.</span></li>
+</ul>
+<h3 id="v2-infrastructure-and-platform">Infrastructure and platform</h3>
+<ul class="tasks">
+<li><span class="open-box" aria-hidden="true"></span><span>Rebuild a lost cluster from backups.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Decide which cluster issues and renews certificates for each region.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Define how to patch platform services and replace cluster nodes.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Let users configure their own cloud accounts.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Build an admin dashboard and status page.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Support databases, caches and blob storage.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Support persistent disks for apps.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Decide whether to add frontend analytics.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Let apps use secrets from AWS SSM, Vault and other secret stores.</span></li>
+</ul>
+<h3 id="v2-data-model">Data model</h3>
+<ul class="tasks">
+<li><span class="open-box" aria-hidden="true"></span><span>Decide whether to replace UUIDs.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Split sqlc queries into packages where it makes the code easier to use.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Limit requests per customer and expire old audit events and webhook records.</span></li>
+</ul>
+</section>
+<section aria-labelledby="v3">
+<h2 id="v3">V3</h2>
+<ul class="tasks">
+<li><span class="open-box" aria-hidden="true"></span><span>Clean up inactive accounts and unused resources.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Roll out new versions to a few instances before updating all of them.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Export Kubernetes YAML so users can move to their own infrastructure.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Choose supported Kubernetes versions and test the controller/agent against each one.</span></li>
+</ul>
+</section>
+<section aria-labelledby="backlog-only-if-users-ask">
+<h2 id="backlog-only-if-users-ask">Backlog (only if users ask)</h2>
+<ul class="tasks">
+<li><span class="open-box" aria-hidden="true"></span><span>Add a smaller init template.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Support <code>NO_COLOR</code> / <code>--no-color</code> and plain terminal output.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Support other remote image builders.</span></li>
+<li><span class="open-box" aria-hidden="true"></span><span>Revisit faster protobuf encoding when the tooling supports it.</span></li>
+</ul>
+</section>
+<footer><a href="#content">Back to top</a></footer>
+</main>
+</div>
+</body>
+</html>
