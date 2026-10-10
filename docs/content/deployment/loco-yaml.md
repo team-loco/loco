@@ -8,7 +8,7 @@
 loco infra init --name storefront
 ```
 
-`init` writes a starter `loco.yaml` from the API's defaults: the port, CPU, memory and replica counts, the default region, and a hostname under the platform domain. The platform domain is the one set with `loco config set defaultAppDomain`, or else the one the API reports. When neither exists, `init` fails. The first line of the file points editors at the JSON Schema the API serves (`schemas/loco.v1.json` in the repository), which gives completion and inline errors.
+`init` writes a starter `loco.yaml` from the API's defaults: the port, CPU, memory and replica counts, the default region, and a hostname under the platform domain. The platform domain is the one set with `loco config set defaultAppDomain`, or else the one the API reports. When neither exists, `init` fails. The first line of the file points editors at the JSON Schema URL the API reports, `https://loco.build/schemas/loco.v1.json` on Loco's hosted service, which gives completion and inline errors. The dashboard serves the schema at `/schemas/loco.v1.json`.
 
 ```yaml
 version: 1
