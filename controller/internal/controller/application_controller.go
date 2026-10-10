@@ -69,6 +69,7 @@ const (
 	phaseDeploying               = "Deploying"
 	phaseFailed                  = "Failed"
 	phaseReady                   = "Ready"
+	componentApplication         = "application"
 	servicePort                  = int32(80)
 	deployingRequeue             = 15 * time.Second
 	envSecretRequeue             = 5 * time.Second
@@ -99,6 +100,7 @@ type LocoResourceReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;create;list;watch;patch;delete
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=delete
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create;list;watch;patch;update;delete
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;create;list;watch;patch;update;delete
@@ -226,10 +228,22 @@ func (r *LocoResourceReconciler) reconcileResources(
 	// aggregate deployment status into our status
 	replicas := locoRes.Spec.ServiceSpec.Resources.Replicas.Min
 	if !deploymentReady(dep, replicas) {
-		setPhase(locoRes, phaseDeploying, "Waiting for pods to be ready...")
+		envSecretRevision := dep.Spec.Template.Annotations[annotationEnvSecretRevision]
+		stuck, found, err := r.findStuckReplica(ctx, locoRes, envSecretRevision)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("find stuck replicas: %w", err)
+		}
+		if found {
+			setDegraded(locoRes, stuck)
+			setPhase(locoRes, phaseFailed, stuck.message)
+			return ctrl.Result{RequeueAfter: deployingRequeue}, nil
+		}
+		clearDegraded(locoRes)
+		setPhase(locoRes, phaseDeploying, "Waiting for replicas to become ready")
 		return ctrl.Result{RequeueAfter: deployingRequeue}, nil
 	}
 
+	clearDegraded(locoRes)
 	locoRes.Status.DeployedGeneration = locoRes.Generation
 	setPhase(locoRes, phaseReady, "Deployment ready")
 	return ctrl.Result{}, nil
@@ -701,6 +715,8 @@ func desiredDeployment(
 	podLabels := map[string]string{
 		labelApp:                    name,
 		labelAppKubernetesName:      name,
+		managed.LabelManagedBy:      managed.ManagedByValue,
+		managed.LabelComponent:      componentApplication,
 		managed.LabelOrganizationID: locoRes.Spec.OrganizationID,
 		managed.LabelWorkspaceID:    locoRes.Spec.WorkspaceID,
 		managed.LabelResourceID:     locoRes.Spec.ResourceID,

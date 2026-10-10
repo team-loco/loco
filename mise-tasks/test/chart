@@ -71,12 +71,17 @@ fi
 
 controller_role=$(helm template loco-operator "$chart" --namespace loco-system "${tags[@]}" \
 	--show-only templates/controller/manager-role.yaml)
-for resource in builds jobs pods; do
+for resource in builds jobs; do
 	if grep -qE -- "- $resource(/.*)?$" <<<"$controller_role"; then
 		echo "FAIL: the Application controller's role grants $resource"
 		failures=$((failures + 1))
 	fi
 done
+pod_verbs=$(yq -N '.rules[] | select(.resources[] == "pods") | .verbs[]' <<<"$controller_role" | sort -u | tr '\n' ' ')
+if [ "$pod_verbs" != "get list watch " ]; then
+	echo "FAIL: the Application controller's role grants pods verbs other than get, list and watch: $pod_verbs"
+	failures=$((failures + 1))
+fi
 
 with_secrets=$(render --set builds.pushSecretName=push --set registry.pullSecretName=pull)
 expect "with registry secrets" present Role/loco-build-controller-registry-secrets "$with_secrets"
