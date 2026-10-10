@@ -1,0 +1,10 @@
+! exec loco env push --env production app.env
+stderr 'Login required'
+! fakeapi called SetSecrets
+
+! exec loco env set --env production API_KEY=abc123
+stderr 'Login required'
+! fakeapi called SetSecrets
+
+-- app.env --
+API_KEY=abc123

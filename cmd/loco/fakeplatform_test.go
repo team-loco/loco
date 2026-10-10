@@ -27,6 +27,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
+	"github.com/team-loco/loco/gen/go/loco/secret/v1/secretv1connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -79,6 +80,8 @@ type fakePlatform struct {
 	resolutions       int
 	noProxy           bool
 	logQueries        []*observabilityv1.QueryLogsRequest
+	secrets           map[string]fakeSecret
+	revision          int64
 }
 
 func newFakePlatform() *fakePlatform {
@@ -94,6 +97,7 @@ func newFakePlatform() *fakePlatform {
 		uploadMode:  uploadModeOK,
 		sourceLimit: 200 << 20,
 		uploads:     map[string]fakeUpload{},
+		secrets:     map[string]fakeSecret{},
 	}
 }
 
@@ -105,6 +109,7 @@ func (f *fakeAPI) registerPlatform(mux *http.ServeMux) {
 	mux.Handle(deploymentv1connect.NewDeploymentServiceHandler(&fakeDeploymentService{api: f}))
 	mux.Handle(observabilityv1connect.NewObservabilityAccessServiceHandler(&fakeAccessService{api: f}))
 	mux.Handle(observabilityv1connect.NewObservabilityProxyServiceHandler(&fakeProxyService{api: f}))
+	mux.Handle(secretv1connect.NewSecretServiceHandler(&fakeSecretService{api: f}))
 	mux.HandleFunc(uploadPathPrefix, f.handleUpload)
 }
 
