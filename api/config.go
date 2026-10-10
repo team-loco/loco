@@ -37,6 +37,7 @@ var (
 	errSecretsLocalKeysMissing = errors.New("LOCO_SECRETS_LOCAL_KEYS required when LOCO_SECRETS_KEY_PROVIDER=local")
 	errInvalidSecretsLocalKeys = errors.New("LOCO_SECRETS_LOCAL_KEYS is invalid")
 	errUnknownSecretsProvider  = errors.New("LOCO_SECRETS_KEY_PROVIDER is invalid")
+	errInvalidSecretsTransit   = errors.New("LOCO_SECRETS_TRANSIT_* is invalid")
 )
 
 const (
@@ -75,6 +76,9 @@ const (
 	defaultSecretMaxPerEnvironment = 256
 	defaultSecretMaxServiceBytes   = 768 * 1024
 	defaultSecretLockTimeout       = 10 * time.Second
+
+	defaultSecretsTransitMount   = "transit"
+	defaultSecretsTransitTimeout = 10 * time.Second
 )
 
 type APIConfig struct {
@@ -204,6 +208,19 @@ func newSecretsConfig() secretkeys.Config {
 			panic(fmt.Errorf("%w: %w", errInvalidSecretsLocalKeys, err))
 		}
 		return secretkeys.Config{Provider: provider, LocalKeys: keys}
+	case secretkeys.ProviderTransit:
+		transit := secretkeys.TransitConfig{
+			Address: stringEnv("LOCO_SECRETS_TRANSIT_ADDR", ""),
+			Mount:   stringEnv("LOCO_SECRETS_TRANSIT_MOUNT", defaultSecretsTransitMount),
+			Key:     stringEnv("LOCO_SECRETS_TRANSIT_KEY", ""),
+			Token:   stringEnv("LOCO_SECRETS_TRANSIT_TOKEN", ""),
+			CAFile:  stringEnv("LOCO_SECRETS_TRANSIT_CA_FILE", ""),
+			Timeout: positiveDurationEnv("LOCO_SECRETS_TRANSIT_TIMEOUT", defaultSecretsTransitTimeout),
+		}
+		if err := transit.Validate(); err != nil {
+			panic(fmt.Errorf("%w: %w", errInvalidSecretsTransit, err))
+		}
+		return secretkeys.Config{Provider: provider, Transit: transit}
 	default:
 		panic(fmt.Errorf("%w: %q", errUnknownSecretsProvider, provider))
 	}
