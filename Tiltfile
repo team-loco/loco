@@ -62,7 +62,7 @@ docker_build(
     'loco-agent',
     '.',
     dockerfile='agent/Dockerfile',
-    only=['agent', 'gen/go', 'k8sapi', 'internal/buildinfo', 'go.mod', 'go.sum'],
+    only=['agent', 'gen/go', 'k8sapi', 'internal/buildinfo', 'internal/loglevel', 'go.mod', 'go.sum'],
 )
 
 docker_build(
@@ -242,7 +242,7 @@ local_resource(
     'api',
     cmd='mise run build:api',
     serve_cmd='api/bin/loco-api',
-    deps=['api/', 'gen/go/', 'k8sapi/', 'internal/buildinfo/', 'go.mod', 'go.sum'],
+    deps=['api/', 'gen/go/', 'k8sapi/', 'internal/buildinfo/', 'internal/loglevel/', 'go.mod', 'go.sum'],
     resource_deps=['db-migrate', 'valkey', 's3', 'dex'],
     allow_parallel=True,
     labels=['services'],
