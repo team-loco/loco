@@ -30,29 +30,6 @@ func TestParseIssuersAppliesDefaults(t *testing.T) {
 	}
 }
 
-func TestParseIssuersWebAdapter(t *testing.T) {
-	for name, web := range map[string]string{
-		"absent": `{"clientId":"loco"}`,
-		"oidc":   `{"adapter":"oidc","clientId":"loco"}`,
-	} {
-		t.Run(name, func(t *testing.T) {
-			if _, err := ParseIssuers(`[{"issuer":"https://a.test","audience":"loco","web":` + web + `}]`); err != nil {
-				t.Fatalf("parse: %v", err)
-			}
-		})
-	}
-	for _, adapter := range []string{"supabase", "magic"} {
-		t.Run(adapter, func(t *testing.T) {
-			_, err := ParseIssuers(
-				`[{"issuer":"https://a.test","audience":"loco","web":{"adapter":"` + adapter + `","clientId":"loco"}}]`,
-			)
-			if !errors.Is(err, ErrUnsupportedWebAdapter) {
-				t.Fatalf("err = %v, want %v", err, ErrUnsupportedWebAdapter)
-			}
-		})
-	}
-}
-
 func TestParseIssuersEmpty(t *testing.T) {
 	issuers, err := ParseIssuers("  ")
 	if err != nil || issuers != nil {
@@ -73,6 +50,8 @@ func TestParseIssuersRejectsBadConfig(t *testing.T) {
 		"web without client": `[{"issuer":"https://a.test","audience":"loco","web":{}}]`,
 		"web with url": `[{"issuer":"https://a.test","audience":"loco",` +
 			`"web":{"clientId":"loco","url":"https://a.test"}}]`,
+		"web with adapter": `[{"issuer":"https://a.test","audience":"loco",` +
+			`"web":{"adapter":"oidc","clientId":"loco"}}]`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := ParseIssuers(raw); err == nil {

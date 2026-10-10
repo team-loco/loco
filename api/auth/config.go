@@ -19,7 +19,6 @@ var (
 	ErrAudienceRequired            = errors.New("audience is required")
 	ErrEmailVerificationNeedsAdmin = errors.New("emailVerification admin needs an admin client")
 	ErrEmailVerificationConflict   = errors.New("emailVerification admin cannot be combined with emailAuthoritative")
-	ErrUnsupportedWebAdapter       = errors.New(`web.adapter must be "oidc" or absent`)
 	ErrWebClientIDRequired         = errors.New("web.clientId is required")
 	errNoJWKSURI                   = errors.New("discovery document has no jwks_uri")
 )
@@ -31,10 +30,6 @@ const (
 	EmailVerificationAdmin EmailVerification = "admin"
 )
 
-type WebAdapter string
-
-const WebAdapterOIDC WebAdapter = "oidc"
-
 type ClaimPaths struct {
 	Subject       string `json:"subject"`
 	Email         string `json:"email"`
@@ -44,9 +39,8 @@ type ClaimPaths struct {
 }
 
 type WebConfig struct {
-	Adapter  WebAdapter `json:"adapter"`
-	ClientID string     `json:"clientId"`
-	Scopes   string     `json:"scopes"`
+	ClientID string `json:"clientId"`
+	Scopes   string `json:"scopes"`
 }
 
 type IssuerConfig struct {
@@ -126,9 +120,6 @@ func (ic *IssuerConfig) applyDefaults() error {
 }
 
 func (w *WebConfig) applyDefaults() error {
-	if w.Adapter != "" && w.Adapter != WebAdapterOIDC {
-		return fmt.Errorf("%w, got %q", ErrUnsupportedWebAdapter, w.Adapter)
-	}
 	if w.ClientID == "" {
 		return ErrWebClientIDRequired
 	}
