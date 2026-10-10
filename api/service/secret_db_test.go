@@ -21,14 +21,12 @@ import (
 
 const (
 	stripeKey            = "STRIPE_KEY"
-	databaseURLName      = "DATABASE_URL"
+	databaseURL          = "DATABASE_URL"
+	missingName          = "MISSING"
 	firstKey             = "A_KEY"
 	secondKey            = "B_KEY"
 	wrappedDEK           = "wrapped"
-	secretFormatVersion  = int16(1)
 	deployFixtureService = "svc"
-
-	pgerrcodeLockNotAvailable = "55P03"
 )
 
 type secretFixture struct {
@@ -51,6 +49,7 @@ func newSecretFixture(t *testing.T) *secretFixture {
 		SessionAccessTokenDuration:  time.Hour,
 		SessionRefreshTokenDuration: time.Hour,
 		LastUsedUpdateInterval:      time.Minute,
+		MaxAPITokenDuration:         time.Hour,
 	})
 	t.Cleanup(machine.Close)
 	policy, err := auth.ParseSignupPolicy("open", "")
@@ -123,7 +122,8 @@ func (f *secretFixture) upsert(t *testing.T, names []string, versions []int32) {
 		Nonces:         nonces,
 		Ciphertexts:    ciphertexts,
 		FormatVersions: formatVersions,
-		UpdatedBy:      f.ownerID,
+		UpdatedByType:  string(genDb.EntityTypeUser),
+		UpdatedByID:    f.ownerID,
 	})
 	if err != nil {
 		t.Fatalf("upsert %v: %v", names, err)
@@ -134,12 +134,12 @@ func TestSecretQueriesUpsertListAndDelete(t *testing.T) {
 	f := newSecretFixture(t)
 	ctx := t.Context()
 
-	f.upsert(t, []string{stripeKey, databaseURLName}, []int32{1, 1})
+	f.upsert(t, []string{stripeKey, databaseURL}, []int32{1, 1})
 	names, err := f.queries.ListSecretNames(ctx, f.environmentID)
 	if err != nil {
 		t.Fatalf("list names: %v", err)
 	}
-	if len(names) != 2 || names[0] != databaseURLName || names[1] != stripeKey {
+	if len(names) != 2 || names[0] != databaseURL || names[1] != stripeKey {
 		t.Fatalf("names = %v, want DATABASE_URL, STRIPE_KEY", names)
 	}
 	count, err := f.queries.CountSecrets(ctx, f.environmentID)
@@ -155,11 +155,11 @@ func TestSecretQueriesUpsertListAndDelete(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
-	if len(rows) != 2 || rows[1].Name != stripeKey || rows[1].Version != 2 || rows[1].UpdatedBy != f.ownerID {
+	if len(rows) != 2 || rows[1].Name != stripeKey || rows[1].Version != 2 || rows[1].UpdatedByID != f.ownerID {
 		t.Fatalf("rows = %+v, want STRIPE_KEY at version 2 by the owner", rows)
 	}
 	ciphertexts, err := f.queries.ListSecretCiphertexts(ctx, genDb.ListSecretCiphertextsParams{
-		EnvironmentID: f.environmentID, Names: []string{stripeKey, "MISSING"},
+		EnvironmentID: f.environmentID, Names: []string{stripeKey, missingName},
 	})
 	if err != nil {
 		t.Fatalf("ciphertexts: %v", err)
@@ -170,7 +170,7 @@ func TestSecretQueriesUpsertListAndDelete(t *testing.T) {
 	}
 
 	deleted, err := f.queries.DeleteSecrets(ctx, genDb.DeleteSecretsParams{
-		EnvironmentID: f.environmentID, Names: []string{stripeKey, "MISSING"},
+		EnvironmentID: f.environmentID, Names: []string{stripeKey, missingName},
 	})
 	if err != nil {
 		t.Fatalf("delete: %v", err)
@@ -189,7 +189,8 @@ func TestSecretQueriesRejectNamesThatAreNotEnvVarIdentifiers(t *testing.T) {
 		Nonces:         [][]byte{[]byte("n")},
 		Ciphertexts:    [][]byte{[]byte("c")},
 		FormatVersions: []int16{secretFormatVersion},
-		UpdatedBy:      f.ownerID,
+		UpdatedByType:  string(genDb.EntityTypeUser),
+		UpdatedByID:    f.ownerID,
 	})
 	if err == nil {
 		t.Fatal("upsert of a lowercase name succeeded, want the check constraint to refuse it")
@@ -318,7 +319,7 @@ func TestEnvironmentKeyRowLockBlocksASecondWriterUntilItsTimeout(t *testing.T) {
 	}
 	_, err = waiterQueries.LockEnvironmentKey(ctx, f.environmentID)
 	var pgErr *pgconn.PgError
-	if !errors.As(err, &pgErr) || pgErr.Code != pgerrcodeLockNotAvailable {
+	if !errors.As(err, &pgErr) || pgErr.Code != pgLockNotAvailable {
 		t.Fatalf("waiter lock: err = %v, want lock_not_available", err)
 	}
 }
@@ -387,7 +388,8 @@ func TestListServiceSecretSizesCountsTheNamesAServiceDeclares(t *testing.T) {
 		Nonces:         [][]byte{[]byte("n"), []byte("n"), []byte("n")},
 		Ciphertexts:    [][]byte{make([]byte, 20), make([]byte, 30), make([]byte, 40)},
 		FormatVersions: []int16{secretFormatVersion, secretFormatVersion, secretFormatVersion},
-		UpdatedBy:      userID,
+		UpdatedByType:  string(genDb.EntityTypeUser),
+		UpdatedByID:    userID,
 	})
 	if err != nil {
 		t.Fatalf("upsert: %v", err)
@@ -440,7 +442,8 @@ func TestListServiceSecretSizesReportsEachPlacementOnItsOwn(t *testing.T) {
 		Nonces:         [][]byte{[]byte("n")},
 		Ciphertexts:    [][]byte{make([]byte, 20)},
 		FormatVersions: []int16{secretFormatVersion},
-		UpdatedBy:      userID,
+		UpdatedByType:  string(genDb.EntityTypeUser),
+		UpdatedByID:    userID,
 	})
 	if err != nil {
 		t.Fatalf("upsert: %v", err)

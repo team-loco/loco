@@ -327,6 +327,24 @@ var (
 		scope:      db.ScopeAdmin,
 	}
 
+	// secrets
+
+	// SetSecrets requires workspace:write (looked up via the environment's workspace_id).
+	SetSecrets = Action{
+		entityType: db.EntityTypeWorkspace,
+		scope:      db.ScopeWrite,
+	}
+	// DeleteSecrets requires workspace:write.
+	DeleteSecrets = Action{
+		entityType: db.EntityTypeWorkspace,
+		scope:      db.ScopeWrite,
+	}
+	// ListSecrets requires workspace:read.
+	ListSecrets = Action{
+		entityType: db.EntityTypeWorkspace,
+		scope:      db.ScopeRead,
+	}
+
 	// orgs (additional)
 
 	// ListUserOrgs requires user:read (to list orgs for a specific user).

@@ -52,6 +52,8 @@ const (
 	ClusterRegistered    = "cluster.registered"
 	WebhookCreated       = "webhook.created"
 	WebhookDeleted       = "webhook.deleted"
+	SecretSet            = "secret.set"
+	SecretDeleted        = "secret.deleted"
 )
 
 const (
@@ -79,6 +81,8 @@ const (
 	FieldAction     = "action"
 	FieldDomain     = "domain"
 	FieldResourceID = "resourceId"
+	FieldNames      = "names"
+	FieldRevision   = "revision"
 )
 
 type Event struct {

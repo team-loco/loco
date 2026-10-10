@@ -212,18 +212,19 @@ func (q *Queries) ListSecretNames(ctx context.Context, environmentID uuid.UUID) 
 }
 
 const listSecrets = `-- name: ListSecrets :many
-SELECT name, version, updated_by, created_at, updated_at
+SELECT name, version, updated_by_type, updated_by_id, created_at, updated_at
 FROM secrets
 WHERE environment_id = $1
 ORDER BY name
 `
 
 type ListSecretsRow struct {
-	Name      string    `json:"name"`
-	Version   int32     `json:"version"`
-	UpdatedBy uuid.UUID `json:"updatedBy"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	Name          string    `json:"name"`
+	Version       int32     `json:"version"`
+	UpdatedByType string    `json:"updatedByType"`
+	UpdatedByID   uuid.UUID `json:"updatedById"`
+	CreatedAt     time.Time `json:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt"`
 }
 
 func (q *Queries) ListSecrets(ctx context.Context, environmentID uuid.UUID) ([]ListSecretsRow, error) {
@@ -238,7 +239,8 @@ func (q *Queries) ListSecrets(ctx context.Context, environmentID uuid.UUID) ([]L
 		if err := rows.Scan(
 			&i.Name,
 			&i.Version,
-			&i.UpdatedBy,
+			&i.UpdatedByType,
+			&i.UpdatedByID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -300,6 +302,41 @@ func (q *Queries) ListServiceSecretSizes(ctx context.Context, arg ListServiceSec
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listServicesDeclaringSecrets = `-- name: ListServicesDeclaringSecrets :many
+SELECT DISTINCT r.name AS service
+FROM placements p
+JOIN resources r ON r.id = p.resource_id
+WHERE p.environment_id = $1
+  AND NOT p.desired_deleted
+  AND p.secret_names && $2::text[]
+ORDER BY r.name
+`
+
+type ListServicesDeclaringSecretsParams struct {
+	EnvironmentID uuid.UUID `json:"environmentId"`
+	Names         []string  `json:"names"`
+}
+
+func (q *Queries) ListServicesDeclaringSecrets(ctx context.Context, arg ListServicesDeclaringSecretsParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, listServicesDeclaringSecrets, arg.EnvironmentID, arg.Names)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var service string
+		if err := rows.Scan(&service); err != nil {
+			return nil, err
+		}
+		items = append(items, service)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -387,20 +424,22 @@ func (q *Queries) SetLockTimeout(ctx context.Context, timeout string) error {
 }
 
 const upsertSecrets = `-- name: UpsertSecrets :exec
-INSERT INTO secrets (environment_id, name, version, nonce, ciphertext, format_version, updated_by)
+INSERT INTO secrets (environment_id, name, version, nonce, ciphertext, format_version, updated_by_type, updated_by_id)
 SELECT $1,
        unnest($2::text[]),
        unnest($3::int[]),
        unnest($4::bytea[]),
        unnest($5::bytea[]),
        unnest($6::smallint[]),
-       $7
+       $7,
+       $8
 ON CONFLICT (environment_id, name) DO UPDATE
 SET version = EXCLUDED.version,
     nonce = EXCLUDED.nonce,
     ciphertext = EXCLUDED.ciphertext,
     format_version = EXCLUDED.format_version,
-    updated_by = EXCLUDED.updated_by,
+    updated_by_type = EXCLUDED.updated_by_type,
+    updated_by_id = EXCLUDED.updated_by_id,
     updated_at = NOW()
 `
 
@@ -411,7 +450,8 @@ type UpsertSecretsParams struct {
 	Nonces         [][]byte  `json:"nonces"`
 	Ciphertexts    [][]byte  `json:"ciphertexts"`
 	FormatVersions []int16   `json:"formatVersions"`
-	UpdatedBy      uuid.UUID `json:"updatedBy"`
+	UpdatedByType  string    `json:"updatedByType"`
+	UpdatedByID    uuid.UUID `json:"updatedById"`
 }
 
 func (q *Queries) UpsertSecrets(ctx context.Context, arg UpsertSecretsParams) error {
@@ -422,7 +462,8 @@ func (q *Queries) UpsertSecrets(ctx context.Context, arg UpsertSecretsParams) er
 		arg.Nonces,
 		arg.Ciphertexts,
 		arg.FormatVersions,
-		arg.UpdatedBy,
+		arg.UpdatedByType,
+		arg.UpdatedByID,
 	)
 	return err
 }

@@ -7,13 +7,37 @@ import (
 	"github.com/team-loco/loco/api/contextkeys"
 )
 
+var redactedLogKeys = map[string]struct{}{
+	"env":      {},
+	"values":   {},
+	"data":     {},
+	"secret":   {},
+	"token":    {},
+	"password": {},
+}
+
 type CustomHandler struct {
 	slog.Handler
 }
 
+func (l CustomHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	kept := make([]slog.Attr, 0, len(attrs))
+	for _, attr := range attrs {
+		if _, drop := redactedLogKeys[attr.Key]; !drop {
+			kept = append(kept, attr)
+		}
+	}
+	return CustomHandler{Handler: l.Handler.WithAttrs(kept)}
+}
+
+func (l CustomHandler) WithGroup(name string) slog.Handler {
+	return CustomHandler{Handler: l.Handler.WithGroup(name)}
+}
+
 func (l CustomHandler) Handle(ctx context.Context, r slog.Record) error {
+	clean := redact(r)
 	if ctx.Value(contextkeys.RequestIDKey) == nil {
-		return l.Handler.Handle(ctx, r)
+		return l.Handler.Handle(ctx, clean)
 	}
 
 	requestID, okReqID := ctx.Value(contextkeys.RequestIDKey).(string)
@@ -45,7 +69,18 @@ func (l CustomHandler) Handle(ctx context.Context, r slog.Record) error {
 		slog.Any("entity", entity),
 	)
 
-	r.AddAttrs(requestGroup)
+	clean.AddAttrs(requestGroup)
 
-	return l.Handler.Handle(ctx, r)
+	return l.Handler.Handle(ctx, clean)
+}
+
+func redact(r slog.Record) slog.Record {
+	clean := slog.NewRecord(r.Time, r.Level, r.Message, r.PC)
+	r.Attrs(func(attr slog.Attr) bool {
+		if _, drop := redactedLogKeys[attr.Key]; !drop {
+			clean.AddAttrs(attr)
+		}
+		return true
+	})
+	return clean
 }
