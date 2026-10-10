@@ -6,6 +6,7 @@ import (
 
 const (
 	LabelManagedBy   = "app.kubernetes.io/managed-by"
+	LabelComponent   = "app.kubernetes.io/component"
 	LabelWorkspaceID = "loco.io/workspace-id"
 	LabelResourceID  = "loco.io/resource-id"
 	ManagedByValue   = "loco-controller"

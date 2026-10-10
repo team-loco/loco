@@ -5,9 +5,12 @@ import (
 	"slices"
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 
 	"github.com/team-loco/loco/controller/internal/builds/buildstest"
+	"github.com/team-loco/loco/controller/internal/managed"
 )
 
 func cachedTypes(options cache.Options) []string {
@@ -29,9 +32,21 @@ func TestApplicationReconcilerCachesNoBuildObjects(t *testing.T) {
 		t.Fatalf("selectReconciler: %v", err)
 	}
 	got := cachedTypes(setup.cache)
-	for _, buildType := range []string{"Build", "Job", "Pod"} {
+	for _, buildType := range []string{"Build", "Job"} {
 		if slices.Contains(got, buildType) {
 			t.Errorf("application cache scopes %s: %v", buildType, got)
+		}
+	}
+	buildPod := labels.Set{
+		managed.LabelManagedBy: managed.ManagedByValue,
+		managed.LabelComponent: "build",
+	}
+	for obj, byObject := range setup.cache.ByObject {
+		if _, ok := obj.(*corev1.Pod); !ok {
+			continue
+		}
+		if byObject.Label == nil || byObject.Label.Matches(buildPod) {
+			t.Errorf("application cache selects build pods with %v", byObject.Label)
 		}
 	}
 	if setup.leaderElectionID != applicationLeaderElectionID {
