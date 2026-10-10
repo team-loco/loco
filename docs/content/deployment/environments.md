@@ -13,19 +13,18 @@ An environment separates an application's staging and production targets. Select
 
 The staging docs display a banner and tell search engines not to index them. These endpoints describe Loco's own hosted services; self-hosted installations choose their own domains.
 
-## Application environments in Go definitions
+## Application environments in loco.yaml
 
-!!! warning "Unreleased workflow"
-
-    Workspace and environment selection here follows the [Go infrastructure cutover](go-infrastructure.md), which requires a CLI release containing that workflow.
+Plan, apply and deploy act on one environment of a workspace. Choose it with a flag or an environment variable:
 
 ```sh
-loco infra context --workspace WORKSPACE_ID --environment ENVIRONMENT_ID
+loco deploy --workspace my-team --env staging
+LOCO_WORKSPACE=my-team LOCO_ENV=production loco infra plan
 ```
 
-A definition receives the workspace name, environment name, and environment type (`dev`, `staging`, or `production`). Use that context to choose capacity and domains. Staging and production can share service keys while keeping separate resources and deployment history.
+`--workspace` overrides `LOCO_WORKSPACE`, which overrides the workspace saved by `loco use`. `--env` overrides `LOCO_ENV`. Without either, a workspace with a single environment uses it, and a workspace with several asks in a terminal and fails otherwise.
 
-Explicit `--workspace` and `--environment` flags override environment variables and a saved link. Prefer IDs for restricted CI credentials.
+The same `loco.yaml` serves every environment. A service's `environments` block overrides its fields for one environment, or turns the service off there with `enabled: false`; see [loco.yaml](loco-yaml.md#environment-overrides). Staging and production keep separate resources and deployment history.
 
 ## Promote the dashboard and documentation
 

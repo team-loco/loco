@@ -129,37 +129,18 @@ first time and run `mise run lint:go` before pushing. The one that bites most:
 - `errcheck` flags unchecked type assertions. Always `v, ok := x.(T)` with a handled
   `!ok`, never `v := x.(T)`.
 
-## Domain Configuration
+## loco.yaml
 
-- **Location**: `internal/locofile/types.go` (`Service.Domains`), `api/pkg/configplan`
-  (the plan rejects a domain that ends in no active platform domain), `api/service/apply_update.go`
-  (`syncDomains` writes the list on apply)
-- **In loco.yaml**: `domains` is an optional list of full hostnames under an active platform
-  domain; the first is primary. Without it `loco deploy` applies the service with no domain,
-  asks nothing, and prints that the app has no public URL
-- **Routing**: every deployment (create, scale, env change) reads the resource's primary domain
-  (`primaryHostname` in `api/service/resource.go`). With one, the Application spec carries
-  `routing` and the controller creates the HTTPRoute and the gateway-ingress NetworkPolicy. With
-  none, `routing` is omitted and the controller deletes both if they exist; the app still runs,
-  scales, logs, makes outbound connections and is reachable inside its workspace. Adding or
-  removing a domain takes effect on the next deployment
-- **Removing domains**: `DeleteResourceDomain` removes any non-primary domain, and the primary
-  only when it is the last one, which makes the app private. Removing the primary while others
-  remain fails with FailedPrecondition; set another primary first
-- **Primary invariant**: a resource with any domain has exactly one primary. Adding, removing and
-  setting the primary domain lock the resource row (`LockResource`) in one transaction, and an
-  added domain becomes primary when the resource has none
-
-## Regional Configuration
-
-- **Location**: `internal/locofile/types.go` (`Region`), `internal/locofile/validate.go`
-  (structure), `api/service/apply_ops.go` (`deploy` starts one deployment per region)
-- **In loco.yaml**: `regions.<region>` needs `cpu`, `memory` and `replicas.min`/`replicas.max`,
-  with an optional `autoscaling` naming exactly one of `cpuTarget` or `memoryTarget`; the first
-  region in name order is primary on create. Limits are the API's, not the CLI's
-- **Deploy**: `loco deploy` builds the source services of the file once from the directory that
-  holds it (each with its own `dockerfile` and `context`) and calls `PlanService.Apply` with the
-  build ids; a new source service is applied first so the build has a resource
+- **Types and validation**: `internal/locofile` (`types.go`, `validate.go`, `merge.go` for
+  environment overrides). `schemas/loco.v1.json` is the JSON Schema editors load;
+  `TestSchemaMatchesTypes` reflects over the types and fails when the schema drifts.
+- **Commands**: `loco infra init|validate|plan|apply|transfer` and `loco deploy`. A file belongs to
+  one `partial`; `transfer` moves a service between partials. `deploy` builds the source services
+  once and calls `PlanService.Apply`.
+- **Domains**: `domains` lists full hostnames under an active platform domain; without it the
+  service is private. The platform domain comes from the API, never from the CLI.
+- **Defaults and limits**: the API owns them (`GetConfig`, plan validation); the CLI hard-codes none.
+- **Reference**: `docs/content/deployment/loco-yaml.md` documents every field.
 
 ## Frontend
 

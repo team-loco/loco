@@ -40,6 +40,11 @@ func cmdFakePlatform(ts *testscript.TestScript, api *fakeAPI, neg bool, args []s
 		api.mu.Lock()
 		api.platform.sourceLimit = limit
 		api.mu.Unlock()
+	case "no-platform-domain":
+		requireArgs(ts, neg, args, 1, "fakeapi no-platform-domain")
+		api.mu.Lock()
+		api.platform.noPlatformDomain = true
+		api.mu.Unlock()
 	case "no-proxy":
 		requireArgs(ts, neg, args, 1, "fakeapi no-proxy")
 		api.mu.Lock()

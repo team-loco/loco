@@ -82,6 +82,7 @@ type fakePlatform struct {
 	revisionMoves     bool
 	imagesMove        bool
 	clusterHeld       bool
+	noPlatformDomain  bool
 }
 
 func newFakePlatform() *fakePlatform {

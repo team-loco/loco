@@ -25,14 +25,15 @@ import (
 const (
 	initConfigTimeout = 5 * time.Second
 	initFileMode      = 0o644
-
-	fallbackPlatformDomain = "onloco.app"
 )
 
 var (
-	errConfigExists    = errors.New(locofile.FileName + " already exists. Use --force to overwrite")
-	errNoDefaultRegion = errors.New("the API lists no default region")
-	errNoSchemaURL     = errors.New("the API reports no schema URL")
+	errConfigExists     = errors.New(locofile.FileName + " already exists. Use --force to overwrite")
+	errNoDefaultRegion  = errors.New("the API lists no default region")
+	errNoSchemaURL      = errors.New("the API reports no schema URL")
+	errNoPlatformDomain = errors.New(
+		"this install has no platform domain; set one with `loco config set defaultAppDomain <domain>`",
+	)
 )
 
 func buildInitCmd() *cobra.Command {
@@ -99,7 +100,10 @@ func initCmdFunc(cmd *cobra.Command) error {
 		return errNoSchemaURL
 	}
 	defaults := apiConfig.GetServiceDefaults()
-	appDomain := platformDomain(defaults)
+	appDomain, err := platformDomain(defaults)
+	if err != nil {
+		return err
+	}
 	region, err := fetchDefaultRegion(cmd)
 	if err != nil {
 		return err
@@ -173,12 +177,12 @@ func fetchDefaultRegion(cmd *cobra.Command) (string, error) {
 	return "", errNoDefaultRegion
 }
 
-func platformDomain(defaults *configv1.DefaultServiceConfig) string {
+func platformDomain(defaults *configv1.DefaultServiceConfig) (string, error) {
 	if cfg, err := session.Load(); err == nil && cfg.DefaultAppDomain != "" {
-		return cfg.DefaultAppDomain
+		return cfg.DefaultAppDomain, nil
 	}
 	if domain := defaults.GetPlatformDomain(); domain != "" {
-		return domain
+		return domain, nil
 	}
-	return fallbackPlatformDomain
+	return "", errNoPlatformDomain
 }

@@ -182,13 +182,19 @@ func (c *fakeConfigService) GetConfig(
 	if err := c.api.record(req.Spec(), ""); err != nil {
 		return nil, err
 	}
+	platformDomain := fakePlatformDomain
+	c.api.mu.Lock()
+	if c.api.platform.noPlatformDomain {
+		platformDomain = ""
+	}
+	c.api.mu.Unlock()
 	defaults := &configv1.DefaultServiceConfig{
 		Routing:        &resourcev1.RoutingConfig{Port: fakeDefaultPort},
 		Cpu:            fakeDefaultCPU,
 		Memory:         fakeDefaultMemory,
 		MinReplicas:    fakeDefaultMinReplicas,
 		MaxReplicas:    fakeDefaultMaxReplicas,
-		PlatformDomain: fakePlatformDomain,
+		PlatformDomain: platformDomain,
 	}
 	resp := &configv1.GetConfigResponse{ServiceDefaults: defaults, SchemaUrl: fakeSchemaURL}
 	return connect.NewResponse(resp), nil

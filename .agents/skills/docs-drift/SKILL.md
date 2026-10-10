@@ -41,13 +41,12 @@ Pages state released behaviour and label unreleased workflows with a release not
   webHost`, the default hosts `https://api.loco.build` and `https://loco.build`, staging hosts.
 - `docs/content/deployment/modes.md`: SaaS, dedicated and self-hosted modes and who operates
   what. Rarely affected by code.
-- `docs/content/deployment/go-infrastructure.md`: the unreleased `loco infra` workflow, `loco
-  init`, `loco validate`, `loco deploy --plan-only`, `loco secret set`. Carries a release notice;
-  only a change to those commands or to the notice's facts affects it.
-- `docs/content/deployment/environments.md`: hosted endpoint table, `loco infra context`,
-  `LOCO_WORKSPACE` / `LOCO_ENVIRONMENT`, how UI and docs images are promoted.
+- `docs/content/deployment/loco-yaml.md`: the loco.yaml fields, environment overrides, partials, and
+  `loco infra init|validate|plan|apply|transfer` and `loco deploy`.
+- `docs/content/deployment/environments.md`: hosted endpoint table,
+  `LOCO_WORKSPACE` / `LOCO_ENV`, how UI and docs images are promoted.
 - `docs/content/operations/applications.md`: `loco resource` subcommands, the `restricted` Pod
-  Security requirement, public versus private applications (`[DomainConfig]`, `URL: none`,
+  Security requirement, public versus private applications (`domains`, `URL: none`,
   when domain changes take effect), rollout investigation.
 - `docs/content/operations/self-hosting.md`: component table (directory per component),
   installation inputs via `.env.example`, cluster dependencies, image tags `sha-<commit>` and
@@ -67,7 +66,7 @@ Pages state released behaviour and label unreleased workflows with a release not
   deploy` and `--image`, source packing rules, `loco resource` and `loco builds` subcommands),
   the examples list, the contributing section (mise, Tilt, Dex on `localhost:5556`, the local
   registry and bucket, build flow, `charts/loco-operator` deployments and `builds.enabled`).
-- `AGENTS.md`, the "Domain Configuration" and "Regional Configuration" sections and the
+- `AGENTS.md`, the "loco.yaml" section and the
   behaviour statements in "Dependencies and Configuration" (version reporting, `/version.json`,
   chart tags). The rest of `AGENTS.md` is process guidance, not product documentation.
 - `docs/zensical.toml` only when a page is added, removed or renamed.
@@ -147,10 +146,10 @@ When one page links to another for the detail, update the page that owns the det
   applications.md` for `loco resource`, `getting-started/connect.md` for `loco login` and
   `loco config`, `getting-started/install.md` for the installer, `loco update` and
   `loco completion`, `README.md` quick start for `loco deploy`, `loco builds` and packing rules.
-- Domain and routing behaviour: `operations/applications.md` and the Domain Configuration
+- Domain and routing behaviour: `operations/applications.md` and the loco.yaml
   section of `AGENTS.md`.
-- loco.yaml fields: the Regional or Domain Configuration
-  section of `AGENTS.md` when it enumerates the rule.
+- loco.yaml fields: `deployment/loco-yaml.md`, and the loco.yaml section of `AGENTS.md` when it
+  enumerates the rule.
 - API and agent environment variables: `.env.example`; `operations/self-hosting.md` only when
   its prose names the variable or the category changes (database, cache, auth, registry,
   endpoints).

@@ -37,4 +37,4 @@ Use application status to find whether a deployment is progressing or ready. Rea
 loco web
 ```
 
-For deployment authoring, see [Go infrastructure](../deployment/go-infrastructure.md) and its release notice.
+To define services and their domains, see [loco.yaml](../deployment/loco-yaml.md).
