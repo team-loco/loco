@@ -21,11 +21,13 @@ const (
 
 func transitConfig(address string) TransitConfig {
 	return TransitConfig{
-		Address: address,
-		Mount:   fakeTransitMount,
-		Key:     fakeTransitKey,
-		Token:   fakeTransitToken,
-		Timeout: testTransitTimeout,
+		Address:     address,
+		Mount:       fakeTransitMount,
+		Key:         fakeTransitKey,
+		Token:       fakeTransitToken,
+		Timeout:     testTransitTimeout,
+		RenewMargin: testRenewMargin,
+		RenewRetry:  testRenewRetry,
 	}
 }
 
@@ -272,6 +274,8 @@ func TestTransitConfigValidate(t *testing.T) {
 		{"mount with dot segments", func(c *TransitConfig) { c.Mount = "transit/../sys" }, ErrTransitMount},
 		{"no token", func(c *TransitConfig) { c.Token = "" }, ErrTransitToken},
 		{"no timeout", func(c *TransitConfig) { c.Timeout = 0 }, ErrTransitTimeout},
+		{"no renewal margin", func(c *TransitConfig) { c.RenewMargin = 0 }, ErrTransitRenewal},
+		{"no renewal retry", func(c *TransitConfig) { c.RenewRetry = 0 }, ErrTransitRenewal},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -295,7 +299,7 @@ func TestNewTransitRejectsAMissingCAFile(t *testing.T) {
 func TestNewSelectsTransit(t *testing.T) {
 	fake := newFakeTransit(t)
 	server := fake.server()
-	provider, err := New(Config{Provider: ProviderTransit, Transit: transitConfig(server.URL)})
+	provider, err := New(context.Background(), Config{Provider: ProviderTransit, Transit: transitConfig(server.URL)})
 	if err != nil {
 		t.Fatalf("new: %v", err)
 	}

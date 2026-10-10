@@ -15,6 +15,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -52,12 +53,14 @@ var (
 
 // TransitConfig holds what the transit provider needs to reach its key.
 type TransitConfig struct {
-	Address string
-	Mount   string
-	Key     string
-	Token   string
-	CAFile  string
-	Timeout time.Duration
+	Address     string
+	Mount       string
+	Key         string
+	Token       string
+	CAFile      string
+	Timeout     time.Duration
+	RenewMargin time.Duration
+	RenewRetry  time.Duration
 }
 
 // Validate reports the first invalid field of cfg.
@@ -83,6 +86,9 @@ func (cfg TransitConfig) Validate() error {
 	if cfg.Timeout <= 0 {
 		return ErrTransitTimeout
 	}
+	if cfg.RenewMargin <= 0 || cfg.RenewRetry <= 0 {
+		return ErrTransitRenewal
+	}
 	return nil
 }
 
@@ -103,14 +109,21 @@ func validTransitMount(mount string) bool {
 // data is sent as the derivation context, so a wrapped key unwraps only with the context
 // it was wrapped with.
 type Transit struct {
-	base   *url.URL
-	mount  string
-	key    string
-	token  string
-	client *http.Client
+	base        *url.URL
+	mount       string
+	key         string
+	token       string
+	client      *http.Client
+	renewMargin time.Duration
+	renewRetry  time.Duration
+	now         func() time.Time
+
+	mu        sync.RWMutex
+	expiresAt time.Time
 }
 
-// NewTransit returns a transit provider for cfg. It makes no request.
+// NewTransit returns a transit provider for cfg. It makes no request and does not renew
+// its token; New starts the renewal.
 func NewTransit(cfg TransitConfig) (*Transit, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
@@ -134,7 +147,16 @@ func NewTransit(cfg TransitConfig) (*Transit, error) {
 	transport = transport.Clone()
 	transport.TLSClientConfig = tlsConfig
 	client := &http.Client{Transport: transport, Timeout: cfg.Timeout}
-	return &Transit{base: base, mount: cfg.Mount, key: cfg.Key, token: cfg.Token, client: client}, nil
+	return &Transit{
+		base:        base,
+		mount:       cfg.Mount,
+		key:         cfg.Key,
+		token:       cfg.Token,
+		client:      client,
+		renewMargin: cfg.RenewMargin,
+		renewRetry:  cfg.RenewRetry,
+		now:         time.Now,
+	}, nil
 }
 
 func loadTransitCA(path string) (*x509.CertPool, error) {
@@ -163,6 +185,9 @@ type transitKeyResponse struct {
 
 // KeyID returns v<latest_version> of the Transit key, the version Wrap encrypts with.
 func (t *Transit) KeyID(ctx context.Context) (string, error) {
+	if err := t.checkToken(); err != nil {
+		return "", err
+	}
 	var response transitKeyResponse
 	path := t.keyPath("keys")
 	if err := t.do(ctx, http.MethodGet, path, nil, &response); err != nil {
@@ -235,6 +260,9 @@ func (t *Transit) Unwrap(ctx context.Context, wrapped WrappedKey, aad []byte) ([
 	}
 	if keyID != wrapped.KeyID {
 		return nil, fmt.Errorf("%w: ciphertext is %s, key id is %s", ErrTransitCiphertext, keyID, wrapped.KeyID)
+	}
+	if err = t.checkToken(); err != nil {
+		return nil, err
 	}
 	request := transitDecryptRequest{
 		Ciphertext: string(wrapped.Bytes),
