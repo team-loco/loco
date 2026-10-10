@@ -9,6 +9,7 @@ import { Section } from "@/components/design/Page";
 import { getErrorMessage } from "@/lib/error-handler";
 
 import { isQuantity } from "./format";
+import { MANAGED_NOTICE_ID } from "./ManagedNotice";
 import { depService, type Notice, type RegionView } from "./model";
 
 interface ScaleRow {
@@ -43,12 +44,14 @@ export function ScaleSection({
 	resourceId,
 	resourceName,
 	regions,
+	managed,
 	onNotice,
 	onSaved,
 }: {
 	resourceId: string;
 	resourceName: string;
 	regions: RegionView[];
+	managed: boolean;
 	onNotice: (notice: Notice) => void;
 	onSaved: () => void;
 }) {
@@ -102,6 +105,7 @@ export function ScaleSection({
 	};
 
 	const dirty = draft !== null && JSON.stringify(draft) !== JSON.stringify(base);
+	const describedBy = managed ? MANAGED_NOTICE_ID : undefined;
 
 	return (
 		<Section title="Scale">
@@ -116,6 +120,8 @@ export function ScaleSection({
 						<Input
 							inputMode="numeric"
 							value={s.replicas}
+							disabled={managed}
+							aria-describedby={describedBy}
 							aria-invalid={errors[`${s.region}.replicas`] !== undefined}
 							onChange={(e) => {
 								set(s.region, { replicas: e.target.value });
@@ -125,6 +131,8 @@ export function ScaleSection({
 					<Field label="CPU" error={errors[`${s.region}.cpu`]}>
 						<Input
 							value={s.cpu}
+							disabled={managed}
+							aria-describedby={describedBy}
 							placeholder="500m"
 							aria-invalid={errors[`${s.region}.cpu`] !== undefined}
 							onChange={(e) => {
@@ -135,6 +143,8 @@ export function ScaleSection({
 					<Field label="Memory" error={errors[`${s.region}.mem`]}>
 						<Input
 							value={s.mem}
+							disabled={managed}
+							aria-describedby={describedBy}
 							placeholder="512Mi"
 							aria-invalid={errors[`${s.region}.mem`] !== undefined}
 							onChange={(e) => {
@@ -158,7 +168,12 @@ export function ScaleSection({
 							Reset
 						</Button>
 					)}
-					<Button className="h-[30px]" disabled={!dirty || scale.isPending} onClick={() => void apply()}>
+					<Button
+						className="h-[30px]"
+						disabled={managed || !dirty || scale.isPending}
+						aria-describedby={describedBy}
+						onClick={() => void apply()}
+					>
 						{scale.isPending ? "Applying…" : "Apply"}
 					</Button>
 				</div>

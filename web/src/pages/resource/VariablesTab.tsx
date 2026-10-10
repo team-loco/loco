@@ -13,6 +13,7 @@ import { toastConnectError } from "@/lib/error-handler";
 import { cn } from "@/lib/utils";
 
 import { mergeEnv, validateEnv, type EnvPair } from "./env";
+import { MANAGED_NOTICE_ID } from "./ManagedNotice";
 import type { Notice } from "./model";
 
 interface DraftRow {
@@ -35,6 +36,7 @@ export function VariablesTab({
 	env,
 	regionNames,
 	hasDeployment,
+	managed,
 	onNotice,
 	onSaved,
 }: {
@@ -43,6 +45,7 @@ export function VariablesTab({
 	env: Record<string, string>;
 	regionNames: string[];
 	hasDeployment: boolean;
+	managed: boolean;
 	onNotice: (notice: Notice) => void;
 	onSaved: () => void;
 }) {
@@ -54,7 +57,8 @@ export function VariablesTab({
 	const [error, setError] = useState<string | undefined>(undefined);
 	const save = useMutation(updateResourceEnv);
 
-	const editing = draft !== null;
+	const editable = hasDeployment && !managed;
+	const editing = draft !== null && editable;
 	const draftPairs: EnvPair[] = (draft ?? []).map((r) => [r.key.trim(), r.value]);
 	const parsed = parseDotEnv(pasteText);
 	const draftKeys = new Set(draftPairs.map(([k]) => k));
@@ -83,6 +87,7 @@ export function VariablesTab({
 		setPasteText("");
 	};
 	const submit = () => {
+		if (!editable) return;
 		const problem = validateEnv(draftPairs);
 		setError(problem);
 		if (problem !== undefined) return;
@@ -123,7 +128,8 @@ export function VariablesTab({
 						variant="outline"
 						className="h-[30px]"
 						onClick={startEdit}
-						disabled={!hasDeployment}
+						disabled={!editable}
+						aria-describedby={managed ? MANAGED_NOTICE_ID : undefined}
 						title={hasDeployment ? undefined : "Deploy the resource before editing variables"}
 					>
 						Edit
@@ -136,7 +142,7 @@ export function VariablesTab({
 					icon={<BracesIcon />}
 					title="No environment variables"
 					action={
-						hasDeployment ? (
+						editable ? (
 							<>
 								<Button
 									onClick={() => {
