@@ -16,7 +16,6 @@ import (
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/client"
-	"github.com/team-loco/loco/internal/config"
 	"github.com/team-loco/loco/internal/logstream"
 	"github.com/team-loco/loco/internal/session"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -31,7 +30,6 @@ const (
 
 type buildsDeps struct {
 	LoadSessionConfig func() (*session.SessionConfig, error)
-	LoadLocoConfig    func(path string) (*config.LoadedConfig, error)
 	NewAPIClient      func(host, token string) *client.Client
 	Clients           platformClients
 	Stdout            io.Writer
@@ -49,7 +47,6 @@ func BuildBuildsCmd() *cobra.Command {
 	clients := defaultPlatformClients()
 	deps := buildsDeps{
 		LoadSessionConfig: session.Load,
-		LoadLocoConfig:    config.Load,
 		NewAPIClient:      client.NewClient,
 		Clients:           clients,
 		Stdout:            os.Stdout,
@@ -145,47 +142,26 @@ func writeJSON(out io.Writer, msg proto.Message) error {
 
 func newBuildsListCmd(deps buildsDeps) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list [service]",
+		Use:   "list <service>",
 		Short: "List a service's builds, newest first",
-		Long: `List a service's builds, newest first. Without a service name, lists the builds of the
-service named in loco.toml.
+		Long: `List a service's builds, newest first.
 
 Examples:
-  loco builds list
+  loco builds list myapp
   loco builds list myapp --limit 50 --output json`,
-		Args: cobra.MaximumNArgs(1),
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runBuildsList(cmd, deps, args)
+			return runBuildsList(cmd, deps, args[0])
 		},
 	}
 	cmd.Flags().String("org", "", "Organization name")
 	cmd.Flags().String("workspace", "", "Workspace name")
-	cmd.Flags().StringP("config", "c", "", "Path to loco.toml, read when no service is named")
 	cmd.Flags().Int32("limit", defaultBuildListSize, "Number of builds to show (up to 200)")
 	cmd.Flags().StringP("output", "o", outputText, "Output format (text, json)")
 	return cmd
 }
 
-func serviceName(cmd *cobra.Command, deps buildsDeps, args []string) (string, error) {
-	if len(args) == 1 {
-		return args[0], nil
-	}
-	configPath, err := cmdutil.GetLocoTomlPath(cmd)
-	if err != nil {
-		return "", err
-	}
-	loaded, err := deps.LoadLocoConfig(configPath)
-	if err != nil {
-		return "", fmt.Errorf("name a service or run this next to its loco.toml: %w", err)
-	}
-	name := loaded.Config.Metadata.Name
-	if name == "" {
-		return "", fmt.Errorf("%s does not name a service; pass the service name", configPath)
-	}
-	return name, nil
-}
-
-func runBuildsList(cmd *cobra.Command, deps buildsDeps, args []string) error {
+func runBuildsList(cmd *cobra.Command, deps buildsDeps, name string) error {
 	output, err := readOutput(cmd)
 	if err != nil {
 		return err
@@ -196,10 +172,6 @@ func runBuildsList(cmd *cobra.Command, deps buildsDeps, args []string) error {
 	}
 	if limit < 1 || limit > 200 {
 		return errors.New("--limit must be between 1 and 200")
-	}
-	name, err := serviceName(cmd, deps, args)
-	if err != nil {
-		return err
 	}
 	s, err := openBuildsSession(cmd, deps)
 	if err != nil {

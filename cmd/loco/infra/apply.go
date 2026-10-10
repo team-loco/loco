@@ -32,6 +32,11 @@ var (
 	errApplyRefused  = errors.New("apply refused")
 )
 
+type applyScope struct {
+	builds    map[string]string
+	provision []string
+}
+
 type confirmations struct {
 	yes         bool
 	destructive bool
@@ -112,7 +117,7 @@ func runApply(cmd *cobra.Command, path string) error {
 		return refusalError(&planv1.ApplyRefusal{Unconfirmed: unconfirmed}, plan.GetRevision())
 	}
 	if !confirm.yes {
-		proceed, askErr := askToApply()
+		proceed, askErr := askToProceed("Apply these changes?")
 		if askErr != nil {
 			return askErr
 		}
@@ -122,18 +127,18 @@ func runApply(cmd *cobra.Command, path string) error {
 		}
 	}
 
-	applied, err := requestApply(ctx, t, file, plan.GetRevision(), plan.GetImages(), confirm)
+	applied, err := requestApply(ctx, t, file, plan.GetRevision(), plan.GetImages(), confirm, applyScope{})
 	if err != nil {
 		return err
 	}
 	return writeApplied(os.Stdout, applied)
 }
 
-func askToApply() (bool, error) {
+func askToProceed(question string) (bool, error) {
 	if !cmdutil.StdoutIsTerminal() {
 		return false, errApplyNeedsYes
 	}
-	proceed, err := ui.AskYesNo("Apply these changes?")
+	proceed, err := ui.AskYesNo(question)
 	if err != nil {
 		return false, fmt.Errorf("failed to prompt user: %w", err)
 	}
@@ -161,6 +166,7 @@ func requestApply(
 	revision int64,
 	images map[string]string,
 	confirm confirmations,
+	scope applyScope,
 ) (*planv1.ApplyResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, applyTimeout)
 	defer cancel()
@@ -172,12 +178,18 @@ func requestApply(
 		ConfirmDestructive: confirm.destructive,
 		ConfirmImport:      confirm.importOps,
 		Images:             images,
+		Builds:             scope.builds,
+		Provision:          scope.provision,
 	})
 	req.Header().Set("Authorization", t.authHeader)
 	resp, err := t.planClient().Apply(ctx, req)
 	if err != nil {
 		if refusal := applyRefusal(err); refusal != nil {
 			return nil, refusalError(refusal, revision)
+		}
+		connectErr, isConnect := errors.AsType[*connect.Error](err)
+		if isConnect && connectErr.Code() == connect.CodeFailedPrecondition {
+			return nil, fmt.Errorf("%w: %s", errApplyRefused, connectErr.Message())
 		}
 		return nil, fmt.Errorf("apply: %w", err)
 	}

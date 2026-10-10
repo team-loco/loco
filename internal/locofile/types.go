@@ -4,6 +4,7 @@ const (
 	Version           = 1
 	FileName          = "loco.yaml"
 	DefaultDockerfile = "Dockerfile"
+	DefaultContext    = "."
 )
 
 // File is the root of a loco.yaml file.

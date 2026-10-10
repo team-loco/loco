@@ -1,19 +1,12 @@
-# Ctrl-C while the build runs detaches: the build is not canceled and nothing is applied.
-[windows] skip 'sends SIGINT'
+# a failed build stops the deploy, points at its logs and applies nothing.
 fakeapi resource web
-fakeapi build-outcome running
+fakeapi build-outcome failed
 fakeapi plan plan.json
 cd app
-! exec loco deploy --yes &deploy&
-fakeapi wait TailLogs
-kill -INT deploy
-wait deploy
-stdout 'Build 0199b6c4-5d1e-7f00-8000-000000000001 running'
-stdout '^Detached. Build 0199b6c4-5d1e-7f00-8000-000000000001 keeps running.$'
-stdout '^  Follow it: loco builds logs 0199b6c4-5d1e-7f00-8000-000000000001 -f$'
-stdout '^  Cancel it: loco builds cancel 0199b6c4-5d1e-7f00-8000-000000000001$'
-stderr '(?i)detached from build 0199b6c4-5d1e-7f00-8000-000000000001'
-! fakeapi called CancelBuild
+! exec loco deploy --yes
+stdout 'Build 0199b6c4-5d1e-7f00-8000-000000000001 failed: RUN go build exited with code 1'
+stdout '^See the build''s logs with: loco builds logs 0199b6c4-5d1e-7f00-8000-000000000001$'
+stderr '(?i)build 0199b6c4-5d1e-7f00-8000-000000000001 did not succeed: RUN go build exited'
 ! fakeapi called Apply
 
 -- home/.loco/credentials.json --

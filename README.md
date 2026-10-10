@@ -26,13 +26,13 @@ If `~/.local/bin` is not already on your `PATH`, the installer prints the comman
 Run `loco update` to replace the installed binary with the latest release.
 
 2. **Log in with `loco login`.** It opens the dashboard in your browser, where the instance's identity provider signs you in, then returns to the terminal. On a machine without a browser, `loco login --device` prints a code to enter on another device.
-3. **Run `loco init` to create a `loco.toml` file**, and `loco validate` to check it.
-4. **Deploy your app via `loco deploy <app-name>`** from the directory that holds `loco.toml`. The CLI packs that directory into a gzipped tarball, uploads it, and Loco builds it with the Dockerfile named in `loco.toml`; the CLI prints the build's status and logs, then deploys the image to every region in `loco.toml`. The tarball honors `.dockerignore` and never contains `.git`, `.env` or `.env.*`. Ctrl-C during the build detaches without canceling it. `loco deploy <app-name> --image <image>` deploys a public image without building.
+3. **Run `loco infra init` to create a `loco.yaml` file**, and `loco infra validate` to check it.
+4. **Deploy your services via `loco deploy`** from the directory that holds `loco.yaml`. The CLI shows the plan, packs that directory into a gzipped tarball, uploads it, and Loco builds every source service with its `dockerfile` and `context`; the CLI prints each build's status and logs, then applies the file with the builds, which starts a deployment in every region of each service. The tarball honors `.dockerignore` and never contains `.git`, `.env` or `.env.*`. Ctrl-C during a build detaches without canceling it. A service with `image` set deploys that public image without a build. `loco deploy web worker` builds only the named services.
 
 Apps run under Kubernetes' `restricted` Pod Security profile, so the image must run as a numeric non-root user (for example `USER 10001` in the Dockerfile).
 
-Your app will be available at `https://<app-name>.onloco.app`. `loco deploy` is shorthand for `loco resource deploy`;
-`loco resource` also holds `status`, `logs`, `events`, `env`, `scale` and `destroy`. `loco builds` lists builds and shows, follows or cancels one: `loco builds list`, `loco builds get <id>`, `loco builds logs <id> -f` and `loco builds cancel <id>`.
+Your app will be available at the first of its `domains`, such as `https://<app-name>.onloco.app`.
+`loco resource` holds `status`, `logs`, `events`, `env`, `scale` and `destroy`. `loco builds` lists builds and shows, follows or cancels one: `loco builds list`, `loco builds get <id>`, `loco builds logs <id> -f` and `loco builds cancel <id>`.
 
 See all loco cli commands via `loco help`.
 Loco also generates completions for shells such as bash and zshrc.
@@ -110,7 +110,7 @@ A presigned source URL signs its host, so the CLI on the host and the build pod 
 
 The API sends each started build to the agent of an active cluster with builds enabled over the Sync stream, the agent creates a `Build` for it, and the build controller runs each `Build` as a Job in the `loco-builds` namespace. `mise run e2e:builds` builds a fixture app end to end in a throwaway kind cluster, once by applying `Build` objects directly and once through the API, agent and controller, then deploys the result.
 
-The `charts/loco-operator` chart installs two Deployments from the one `loco-controller` image: `loco-controller` runs the Application controller (`--reconciler=application`) and `loco-build-controller` runs the build controller (`--reconciler=build`), each with its own ServiceAccount and RBAC. With `builds.enabled=false` the chart installs no build controller, no `loco-builds` namespace and no `Build` CRD; the agent then reports that its cluster does not run builds, the API refuses source builds with `no cluster in this install accepts builds`, and `loco deploy --image` still deploys public images. `mise run e2e:builds-disabled` checks that install end to end. A cluster created before the registry existed has to be recreated once, with `mise run cluster:down && mise run cluster:up`.
+The `charts/loco-operator` chart installs two Deployments from the one `loco-controller` image: `loco-controller` runs the Application controller (`--reconciler=application`) and `loco-build-controller` runs the build controller (`--reconciler=build`), each with its own ServiceAccount and RBAC. With `builds.enabled=false` the chart installs no build controller, no `loco-builds` namespace and no `Build` CRD; the agent then reports that its cluster does not run builds, the API refuses source builds with `no cluster in this install accepts builds`, and `loco deploy` still deploys services with `image` set. `mise run e2e:builds-disabled` checks that install end to end. A cluster created before the registry existed has to be recreated once, with `mise run cluster:down && mise run cluster:up`.
 
 ---
 

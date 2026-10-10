@@ -17,6 +17,9 @@ const (
 	dockerignore     = ".dockerignore"
 	deployDockerfile = "deploy/Dockerfile"
 	deployIgnore     = "deploy/Dockerfile.dockerignore"
+	apiDockerfile    = "api/Dockerfile"
+	workerDockerfile = "worker/Dockerfile"
+	unusedDockerfile = "docs/Dockerfile"
 	mainGo           = "main.go"
 	srcMain          = "src/main.go"
 	scratchImage     = "FROM scratch\n"
@@ -69,10 +72,10 @@ func readArchive(t *testing.T, data []byte) map[string]entry {
 	return entries
 }
 
-func pack(t *testing.T, dir, dockerfilePath string) (map[string]entry, *Summary) {
+func pack(t *testing.T, dir string, dockerfiles ...string) (map[string]entry, *Summary) {
 	t.Helper()
 	var buf bytes.Buffer
-	summary, err := Write(&buf, dir, dockerfilePath)
+	summary, err := Write(&buf, dir, dockerfiles)
 	if err != nil {
 		t.Fatalf("write: %v", err)
 	}
@@ -125,18 +128,15 @@ func TestWriteHonorsDockerignore(t *testing.T) {
 		srcMain:               goSource,
 	})
 
-	entries, summary := pack(t, dir, dockerfile)
+	entries, _ := pack(t, dir, dockerfile)
 	got := names(entries)
 	want := []string{dockerignore, dockerfile, "docs/keep.md", "src/", "src/app.log", srcMain}
 	if !slices.Equal(got, want) {
 		t.Fatalf("entries = %v, want %v", got, want)
 	}
-	if summary.IgnoreFile != dockerignore {
-		t.Fatalf("ignore file = %q", summary.IgnoreFile)
-	}
 }
 
-func TestWritePrefersTheDockerfilesOwnIgnoreFile(t *testing.T) {
+func TestWriteUsesOnlyTheRootIgnoreFile(t *testing.T) {
 	dir := writeTree(t, map[string]string{
 		deployDockerfile: scratchImage,
 		deployIgnore:     "assets\n",
@@ -145,22 +145,53 @@ func TestWritePrefersTheDockerfilesOwnIgnoreFile(t *testing.T) {
 		srcMain:          goSource,
 	})
 
-	entries, summary := pack(t, dir, deployDockerfile)
+	entries, _ := pack(t, dir, deployDockerfile)
 	got := names(entries)
-	want := []string{
-		"deploy/",
-		deployDockerfile,
-		deployIgnore,
-		"src/",
-		srcMain,
-		dockerignore,
-	}
+	want := []string{"assets/", "assets/big.bin", "deploy/", deployDockerfile, deployIgnore, dockerignore}
 	slices.Sort(want)
 	if !slices.Equal(got, want) {
 		t.Fatalf("entries = %v, want %v", got, want)
 	}
-	if summary.IgnoreFile != deployIgnore {
-		t.Fatalf("ignore file = %q", summary.IgnoreFile)
+}
+
+func TestWriteKeepsEverySelectedDockerfile(t *testing.T) {
+	dir := writeTree(t, map[string]string{
+		dockerignore:     "**/Dockerfile\n",
+		apiDockerfile:    scratchImage,
+		workerDockerfile: scratchImage,
+		unusedDockerfile: scratchImage,
+		"api/main.go":    goSource,
+		"worker/main.go": goSource,
+	})
+
+	for _, order := range [][]string{
+		{apiDockerfile, workerDockerfile},
+		{workerDockerfile, apiDockerfile},
+	} {
+		entries, _ := pack(t, dir, order...)
+		got := names(entries)
+		want := []string{
+			dockerignore,
+			"api/",
+			apiDockerfile,
+			"api/main.go",
+			"docs/",
+			"worker/",
+			workerDockerfile,
+			"worker/main.go",
+		}
+		slices.Sort(want)
+		if !slices.Equal(got, want) {
+			t.Fatalf("entries for %v = %v, want %v", order, got, want)
+		}
+	}
+}
+
+func TestWriteRejectsNoDockerfiles(t *testing.T) {
+	dir := writeTree(t, map[string]string{dockerfile: scratchImage})
+	var buf bytes.Buffer
+	if _, err := Write(&buf, dir, nil); !errors.Is(err, ErrNoDockerfiles) {
+		t.Fatalf("err = %v, want ErrNoDockerfiles", err)
 	}
 }
 
@@ -198,7 +229,7 @@ func TestWriteKeepsSymlinks(t *testing.T) {
 func TestWriteRejectsAMissingDockerfile(t *testing.T) {
 	dir := writeTree(t, map[string]string{mainGo: goSource})
 	var buf bytes.Buffer
-	if _, err := Write(&buf, dir, dockerfile); !errors.Is(err, ErrDockerfileMissing) {
+	if _, err := Write(&buf, dir, []string{dockerfile}); !errors.Is(err, ErrDockerfileMissing) {
 		t.Fatalf("err = %v, want ErrDockerfileMissing", err)
 	}
 }
@@ -206,7 +237,7 @@ func TestWriteRejectsAMissingDockerfile(t *testing.T) {
 func TestWriteRejectsADockerfileOutsideTheContext(t *testing.T) {
 	dir := writeTree(t, map[string]string{dockerfile: scratchImage})
 	var buf bytes.Buffer
-	if _, err := Write(&buf, dir, "../Dockerfile"); err == nil {
+	if _, err := Write(&buf, dir, []string{"../Dockerfile"}); err == nil {
 		t.Fatal("a Dockerfile outside the context was accepted")
 	}
 }
@@ -218,7 +249,7 @@ func TestPackReportsSizeAndLargestFiles(t *testing.T) {
 		"big.bin":   string(bytes.Repeat([]byte("y"), 4096)),
 	})
 
-	archive, err := Pack(dir, dockerfile)
+	archive, err := Pack(dir, []string{dockerfile})
 	if err != nil {
 		t.Fatalf("pack: %v", err)
 	}

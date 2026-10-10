@@ -1,11 +1,14 @@
-# --env must name one of the workspace's environments.
+# --env must name one of the workspace's environments, and selects the override the file
+# resolves: in staging the service is disabled, so there is nothing to build.
+fakeapi plan plan.json
 cd app
-! exec loco deploy app --image nginx:1.27 --env staging
+! exec loco deploy --yes --env staging
 stderr '(?i)environment "staging" not found; the workspace has production'
-! fakeapi called CreateDeployment
+! fakeapi called Plan
 
-exec loco deploy app --image nginx:1.27 --env production
-fakeapi deployed us-east-1 image
+exec loco deploy --yes --env production
+stdout '^Applied\. Environment revision is now 8\.$'
+fakeapi planned loco.yaml
 
 -- home/.loco/credentials.json --
 {"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
@@ -19,42 +22,13 @@ id = "1"
 [scopes.default.workspace]
 name = "production"
 id = "2"
--- app/loco.toml --
-[Metadata]
-ConfigVersion = "0.1"
-Name = "app"
-Type = "SERVICE"
-Region = "us-east-1"
-
-[Build]
-DockerfilePath = "Dockerfile"
-Type = "docker"
-
-[Routing]
-Port = 8080
-PathPrefix = "/"
-IdleTimeout = 60
-
-[RegionConfig]
-[RegionConfig.us-east-1]
-CPU = "100m"
-Memory = "256Mi"
-ReplicasMin = 1
-ReplicasMax = 1
-[RegionConfig.eu-west-1]
-CPU = "100m"
-Memory = "256Mi"
-ReplicasMin = 1
-ReplicasMax = 2
-
-[Health]
-Path = "/healthz"
-Interval = 30
-Timeout = 5
-StartupGracePeriod = 0
-FailThreshold = 3
--- app/Dockerfile --
-FROM scratch
-COPY main.go /
--- app/main.go --
-package main
+-- app/loco.yaml --
+version: 1
+partial: web
+services:
+  api:
+    image: ghcr.io/acme/api:1
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+-- plan.json --
+{"revision": "7"}

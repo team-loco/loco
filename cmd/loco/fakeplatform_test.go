@@ -17,8 +17,6 @@ import (
 	"connectrpc.com/connect"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	"github.com/team-loco/loco/gen/go/loco/build/v1/buildv1connect"
-	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
-	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 	"github.com/team-loco/loco/gen/go/loco/domain/v1/domainv1connect"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
@@ -76,10 +74,6 @@ type fakePlatform struct {
 	sourceLimit       int64
 	buildsUnavailable string
 	uploads           map[string]fakeUpload
-	deployments       []*deploymentv1.CreateDeploymentRequest
-	pinned            []string
-	tagMoves          bool
-	resolutions       int
 	noProxy           bool
 	logQueries        []*observabilityv1.QueryLogsRequest
 	plan              *planv1.PlanResponse
@@ -87,6 +81,7 @@ type fakePlatform struct {
 	applies           []*planv1.ApplyRequest
 	revisionMoves     bool
 	imagesMove        bool
+	clusterHeld       bool
 }
 
 func newFakePlatform() *fakePlatform {
@@ -110,11 +105,21 @@ func (f *fakeAPI) registerPlatform(mux *http.ServeMux) {
 	mux.Handle(domainv1connect.NewDomainServiceHandler(&fakeDomainService{api: f}))
 	mux.Handle(environmentv1connect.NewEnvironmentServiceHandler(&fakeEnvironmentService{api: f}))
 	mux.Handle(buildv1connect.NewBuildServiceHandler(&fakeBuildService{api: f}))
-	mux.Handle(deploymentv1connect.NewDeploymentServiceHandler(&fakeDeploymentService{api: f}))
 	mux.Handle(observabilityv1connect.NewObservabilityAccessServiceHandler(&fakeAccessService{api: f}))
 	mux.Handle(observabilityv1connect.NewObservabilityProxyServiceHandler(&fakeProxyService{api: f}))
 	mux.HandleFunc(uploadPathPrefix, f.handleUpload)
 	f.registerPlan(mux)
+}
+
+func (p *fakePlatform) addResource(name string) {
+	for _, res := range p.resources {
+		if res.GetName() == name {
+			return
+		}
+	}
+	id := fmt.Sprintf("00000000-0000-7000-8000-%012d", len(p.resources)+1)
+	res := &resourcev1.Resource{Id: id, WorkspaceId: fakeWorkspaceID, Name: name}
+	p.resources = append(p.resources, res)
 }
 
 func (f *fakeAPI) findBuild(id string) *buildv1.Build {
@@ -382,6 +387,7 @@ func (s *fakeBuildService) CreateBuild(
 		SourceType:      sourceTypeUpload,
 		SourceSize:      size,
 		DockerfilePath:  req.Msg.GetDockerfilePath(),
+		Context:         req.Msg.GetContext(),
 		ImageRepository: fakeImageRepo,
 		CreatedAt:       timestamppb.Now(),
 	})
@@ -507,74 +513,6 @@ func (s *fakeBuildService) CancelBuild(
 	build.Message = "canceled by a user"
 	build.FinishedAt = timestamppb.Now()
 	return connect.NewResponse(&buildv1.CancelBuildResponse{Build: build}), nil
-}
-
-type fakeDeploymentService struct {
-	deploymentv1connect.UnimplementedDeploymentServiceHandler
-
-	api *fakeAPI
-}
-
-func (s *fakeDeploymentService) CreateDeployment(
-	_ context.Context,
-	req *connect.Request[deploymentv1.CreateDeploymentRequest],
-) (*connect.Response[deploymentv1.CreateDeploymentResponse], error) {
-	f := s.api
-	if _, _, err := f.authenticate(req.Spec(), req.Header()); err != nil {
-		return nil, err
-	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.platform.deployments = append(f.platform.deployments, req.Msg)
-	requested := req.Msg.GetSpec().GetService().GetBuild()
-	pinned := f.platform.pin(requested)
-	f.platform.pinned = append(f.platform.pinned, pinned.GetImage())
-	id := "dep-" + req.Msg.GetRegion()
-	return connect.NewResponse(&deploymentv1.CreateDeploymentResponse{DeploymentId: id, Build: pinned}), nil
-}
-
-func (p *fakePlatform) pin(requested *deploymentv1.BuildSource) *deploymentv1.BuildSource {
-	if requested.GetType() != sourceTypeImage {
-		image := fakeImageRepo + "@" + fakeImageDigest
-		buildID := requested.GetBuildId()
-		return &deploymentv1.BuildSource{Type: requested.GetType(), Image: image, BuildId: &buildID}
-	}
-	image := requested.GetImage()
-	if strings.Contains(image, "@") {
-		return &deploymentv1.BuildSource{Type: sourceTypeImage, Image: image}
-	}
-	repository, _, _ := strings.Cut(image, ":")
-	digest := fakeImageDigest
-	if p.tagMoves {
-		p.resolutions++
-		digest = fmt.Sprintf("sha256:%064d", p.resolutions)
-	}
-	return &deploymentv1.BuildSource{Type: sourceTypeImage, Image: repository + "@" + digest}
-}
-
-func (s *fakeDeploymentService) WatchDeployment(
-	_ context.Context,
-	req *connect.Request[deploymentv1.WatchDeploymentRequest],
-	stream *connect.ServerStream[deploymentv1.WatchDeploymentResponse],
-) error {
-	if _, _, err := s.api.authenticate(req.Spec(), req.Header()); err != nil {
-		return err
-	}
-	phases := []deploymentv1.DeploymentPhase{
-		deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_DEPLOYING,
-		deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING,
-	}
-	for _, phase := range phases {
-		event := &deploymentv1.WatchDeploymentResponse{
-			DeploymentId: req.Msg.GetDeploymentId(),
-			Status:       phase,
-			Message:      "replicas " + phase.String(),
-		}
-		if err := stream.Send(event); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 type fakeAccessService struct {

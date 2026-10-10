@@ -18,10 +18,11 @@ import (
 )
 
 type target struct {
-	host          string
-	authHeader    string
-	workspaceID   string
-	environmentID string
+	host            string
+	authHeader      string
+	workspaceID     string
+	environmentID   string
+	environmentName string
 }
 
 func addWorkspaceFlags(cmd *cobra.Command) {
@@ -60,12 +61,14 @@ func resolveTarget(ctx context.Context, cmd *cobra.Command) (target, error) {
 	httpClient := httputil.NewHTTPClient()
 	environments := environmentv1connect.NewEnvironmentServiceClient(httpClient, t.host)
 	interactive := cmdutil.StdoutIsTerminal()
-	t.environmentID, err = cmdutil.ResolveEnvironmentID(
+	env, err := cmdutil.ResolveEnvironment(
 		ctx, cmd, environments, ui.SelectFromList, interactive, t.authHeader, t.workspaceID,
 	)
 	if err != nil {
 		return target{}, err
 	}
+	t.environmentID = env.GetId()
+	t.environmentName = env.GetName()
 	return t, nil
 }
 
@@ -80,12 +83,18 @@ func (t target) resourceClient() resourcev1connect.ResourceServiceClient {
 }
 
 func readLocoFile(path string) ([]byte, error) {
+	_, data, err := loadLocoFile(path)
+	return data, err
+}
+
+func loadLocoFile(path string) (*locofile.File, []byte, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", path, err)
+		return nil, nil, fmt.Errorf("read %s: %w", path, err)
 	}
-	if _, parseErr := locofile.Parse(data); parseErr != nil {
-		return nil, formatValidationError(path, data, parseErr)
+	file, parseErr := locofile.Parse(data)
+	if parseErr != nil {
+		return nil, nil, formatValidationError(path, data, parseErr)
 	}
-	return data, nil
+	return file, data, nil
 }

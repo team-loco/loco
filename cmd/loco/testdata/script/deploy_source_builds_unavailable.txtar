@@ -1,11 +1,15 @@
-# When no cluster in the install accepts builds, CreateBuild refuses before an upload URL exists,
-# and loco deploy points at deploying a prebuilt image.
+# when no cluster in the install accepts builds, CreateBuild refuses before an upload URL
+# exists, and loco deploy points at the image key of loco.yaml.
+fakeapi resource web
 fakeapi builds-unavailable CreateBuild
+fakeapi plan plan.json
 cd app
-! exec loco deploy app
-stderr '(?i)this Loco install cannot build from source: no cluster in this install accepts builds'
-stderr 'loco deploy <name> --image <image>'
+! exec loco deploy --yes
+stderr '(?i)cannot build from source: no cluster in this install accepts builds'
+stderr 'Set image on the service in'
+! fakeapi called Upload
 ! fakeapi called StartBuild
+! fakeapi called Apply
 
 -- home/.loco/credentials.json --
 {"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
@@ -19,42 +23,40 @@ id = "1"
 [scopes.default.workspace]
 name = "production"
 id = "2"
--- app/loco.toml --
-[Metadata]
-ConfigVersion = "0.1"
-Name = "app"
-Type = "SERVICE"
-Region = "us-east-1"
-
-[Build]
-DockerfilePath = "Dockerfile"
-Type = "docker"
-
-[Routing]
-Port = 8080
-PathPrefix = "/"
-IdleTimeout = 60
-
-[RegionConfig]
-[RegionConfig.us-east-1]
-CPU = "100m"
-Memory = "256Mi"
-ReplicasMin = 1
-ReplicasMax = 1
-[RegionConfig.eu-west-1]
-CPU = "100m"
-Memory = "256Mi"
-ReplicasMin = 1
-ReplicasMax = 2
-
-[Health]
-Path = "/healthz"
-Interval = 30
-Timeout = 5
-StartupGracePeriod = 0
-FailThreshold = 3
+-- app/loco.yaml --
+version: 1
+partial: web
+services:
+  web:
+    port: 8080
+    domains: [web.onloco.test]
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
 -- app/Dockerfile --
 FROM scratch
 COPY main.go /
 -- app/main.go --
 package main
+-- app/.dockerignore --
+node_modules
+!.env
+!.git
+-- app/.env --
+SECRET=root
+-- app/.env.local --
+SECRET=local
+-- app/web/.env --
+SECRET=nested
+-- app/web/index.js --
+console.log("app")
+-- app/node_modules/left-pad/index.js --
+module.exports = 1
+-- app/.git/HEAD --
+ref: refs/heads/main
+-- plan.json --
+{
+  "revision": "7",
+  "operations": [
+    {"kind": "PLAN_OPERATION_KIND_UPDATE", "service": "web", "needsDeploy": true}
+  ]
+}

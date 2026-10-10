@@ -15,16 +15,14 @@ const (
 	pathDockerfile = "dockerfile"
 	pathContext    = "context"
 
-	defaultDockerfile = "Dockerfile"
-	defaultContext    = "."
-	pathPort          = "port"
-	pathHealth        = "health"
-	pathRouting       = "routing"
-	pathDomains       = "domains"
-	pathEnv           = "env"
-	pathSecrets       = "secrets"
-	pathRegions       = "regions"
-	pathEnabled       = "enabled"
+	pathPort    = "port"
+	pathHealth  = "health"
+	pathRouting = "routing"
+	pathDomains = "domains"
+	pathEnv     = "env"
+	pathSecrets = "secrets"
+	pathRegions = "regions"
+	pathEnabled = "enabled"
 
 	listSeparator = ", "
 )
@@ -94,8 +92,8 @@ func fileState(service locofile.Service, pinnedImage string, defaults servicedef
 		Regions: make(map[string]Region, len(service.Regions)),
 	}
 	if pinnedImage == "" {
-		state.Dockerfile = defaultDockerfile
-		state.Context = defaultContext
+		state.Dockerfile = locofile.DefaultDockerfile
+		state.Context = locofile.DefaultContext
 		if service.Dockerfile != "" {
 			state.Dockerfile = service.Dockerfile
 		}

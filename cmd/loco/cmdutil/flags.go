@@ -65,17 +65,3 @@ func GetWebHost(cmd *cobra.Command) (string, error) {
 
 	return DefaultWebHost, nil
 }
-
-// GetLocoTomlPath resolves the loco.toml path from flag or default.
-func GetLocoTomlPath(cmd *cobra.Command) (string, error) {
-	configPath, err := cmd.Flags().GetString("config")
-	if err != nil {
-		return "", fmt.Errorf("error reading config flag: %w", err)
-	}
-
-	if configPath == "" {
-		configPath = "loco.toml"
-	}
-
-	return configPath, nil
-}

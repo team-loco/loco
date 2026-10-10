@@ -23,7 +23,7 @@ ingress_resource_id() {
 ingress_deploy() {
     local app=$1
     local rc=0
-    (cd "$ingress_dir/$app" && loco_cli deploy "$app" --image "$ingress_image" --wait) \
+    (cd "$ingress_dir/$app" && loco_cli deploy --yes) \
         >"$ingress_dir/$app.out" 2>"$ingress_dir/$app.err" || rc=$?
     if ! assert "loco deploy ${app} (exit ${rc})" test "$rc" -eq 0; then
         sed 's/^/    /' "$ingress_dir/$app.out" "$ingress_dir/$app.err"
@@ -112,11 +112,12 @@ test_i01_deploys_with_and_without_a_domain() {
     rm -rf "$ingress_dir"
     mkdir -p "$ingress_dir/$ingress_public_app" "$ingress_dir/$ingress_private_app"
     cli_write_credentials
-    cli_write_service_config "$ingress_dir/$ingress_public_app" "$ingress_public_app" "$ingress_port" /
-    cli_write_private_service_config "$ingress_dir/$ingress_private_app" "$ingress_private_app" "$ingress_port" /
+    cli_write_image_config "$ingress_dir/$ingress_public_app" "$ingress_public_app" "$ingress_image" "$ingress_port" \
+        "[${ingress_public_host}]"
+    cli_write_image_config "$ingress_dir/$ingress_private_app" "$ingress_private_app" "$ingress_image" "$ingress_port" "[]"
 
     ingress_deploy "$ingress_public_app" || return 1
-    assert_contains "The CLI prints the public app's URL" "Public URL: https://${ingress_public_host}" \
+    assert_contains "The CLI prints the public app's URL" "${ingress_public_app}: https://${ingress_public_host}" \
         cat "$ingress_dir/$ingress_public_app.out"
 
     ingress_deploy "$ingress_private_app" || return 1

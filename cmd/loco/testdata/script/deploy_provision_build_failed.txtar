@@ -1,0 +1,55 @@
+# a missing Dockerfile stops the deploy before anything is written.
+fakeapi build-outcome failed
+fakeapi plan plan.json
+cd app
+! exec loco deploy --yes
+stderr 'dockerfile not found in the build context'
+! fakeapi called Apply
+
+# a new source service is provisioned alone before its build: the first apply names only it,
+# so the update of the existing image service waits for the final apply, which a failed build
+# never sends.
+cp ../Dockerfile.web Dockerfile
+! exec loco deploy --yes
+stderr '(?i)build 0199b6c4-5d1e-7f00-8000-000000000001 did not succeed'
+fakeapi provisioned 7 web
+! fakeapi applied 8
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.toml --
+currentScope = "default"
+
+[scopes.default.organization]
+name = "acme"
+id = "1"
+
+[scopes.default.workspace]
+name = "production"
+id = "2"
+-- app/loco.yaml --
+version: 1
+partial: web
+services:
+  web:
+    port: 8080
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+  worker:
+    image: ghcr.io/acme/worker:2
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+-- Dockerfile.web --
+FROM scratch
+COPY main.go /
+-- app/main.go --
+package main
+-- plan.json --
+{
+  "revision": "7",
+  "images": {"ghcr.io/acme/worker:2": "ghcr.io/acme/worker@sha256:2222222222222222222222222222222222222222222222222222222222222222"},
+  "operations": [
+    {"kind": "PLAN_OPERATION_KIND_CREATE", "service": "web", "needsDeploy": true},
+    {"kind": "PLAN_OPERATION_KIND_UPDATE", "service": "worker"}
+  ]
+}

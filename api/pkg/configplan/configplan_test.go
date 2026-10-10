@@ -50,7 +50,7 @@ func fileService() locofile.Service {
 	port := int32(3000)
 	minReplicas, maxReplicas := int32(1), int32(3)
 	return locofile.Service{
-		Dockerfile: defaultDockerfile,
+		Dockerfile: locofile.DefaultDockerfile,
 		Port:       &port,
 		Routing:    &locofile.Routing{},
 		Domains:    []string{appDomain},
@@ -67,8 +67,8 @@ func fileService() locofile.Service {
 
 func liveState() State {
 	return State{
-		Dockerfile: defaultDockerfile,
-		Context:    defaultContext,
+		Dockerfile: locofile.DefaultDockerfile,
+		Context:    locofile.DefaultContext,
 		Port:       3000,
 		Health:     DefaultHealth(testDefaults()),
 		Routing:    &Routing{PathPrefix: "/", IdleTimeout: 60},
@@ -149,8 +149,8 @@ func TestNewServiceIsACreateListingEveryField(t *testing.T) {
 		t.Fatalf("operation = %+v, want a create that needs a deploy", op)
 	}
 	want := []Change{
-		{Path: "context", After: defaultContext},
-		{Path: "dockerfile", After: defaultDockerfile},
+		{Path: "context", After: locofile.DefaultContext},
+		{Path: "dockerfile", After: locofile.DefaultDockerfile},
 		{Path: "domains", After: "[app.example.com]"},
 		{Path: logLevelPath, After: logLevelInfo},
 		{Path: "health.failThreshold", After: "3"},
@@ -354,8 +354,8 @@ func TestChangedBuildInputsNeedADeploy(t *testing.T) {
 		t.Fatalf("operation = %+v, want an update that needs a deploy", op)
 	}
 	want := []Change{
-		{Path: "context", Before: defaultContext, After: "services/web"},
-		{Path: "dockerfile", Before: defaultDockerfile, After: "build/Dockerfile"},
+		{Path: "context", Before: locofile.DefaultContext, After: "services/web"},
+		{Path: "dockerfile", Before: locofile.DefaultDockerfile, After: "build/Dockerfile"},
 	}
 	if !reflect.DeepEqual(want, op.Changes) {
 		t.Fatalf("changes = %v, want %v", op.Changes, want)

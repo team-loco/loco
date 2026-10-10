@@ -24,7 +24,7 @@ nobuild_setup() {
     rm -rf "$nobuild_dir"
     mkdir -p "$nobuild_image_dir" "$nobuild_source_dir"
     cli_write_credentials
-    cli_write_service_config "$nobuild_image_dir" "$nobuild_image_app" 8080 /
+    cli_write_image_config "$nobuild_image_dir" "$nobuild_image_app" "$nobuild_public_image" 8080 "[${nobuild_image_app}.e2e.test.local]"
     cp -R "$E2E_ROOT_DIR/e2e/fixtures/build-app/." "$nobuild_source_dir/"
     cli_write_service_config "$nobuild_source_dir" "$nobuild_source_app" 8080 /healthz
 }
@@ -52,13 +52,14 @@ test_n03_public_image_deploys() {
     cli_seed_session
     nobuild_setup
     local rc=0
-    (cd "$nobuild_image_dir" && loco_cli deploy "$nobuild_image_app" --image "$nobuild_public_image" --wait) \
+    (cd "$nobuild_image_dir" && loco_cli deploy --yes) \
         >"$nobuild_dir/image.out" 2>"$nobuild_dir/image.err" || rc=$?
-    if ! assert "loco deploy --image deployed ${nobuild_public_image} (exit ${rc})" test "$rc" -eq 0; then
+    if ! assert "loco deploy applied the image service ${nobuild_public_image} (exit ${rc})" test "$rc" -eq 0; then
         sed 's/^/    /' "$nobuild_dir/image.out" "$nobuild_dir/image.err"
         return 1
     fi
-    assert_contains "The CLI waited for the deployment to run" "\[running\]" cat "$nobuild_dir/image.out"
+    assert_contains "The CLI applied the file without a build" "Started deployment" cat "$nobuild_dir/image.out"
+    wait_for "the image app to be Ready" 120 cli_application_is_ready "$nobuild_image_app"
     local repository=${nobuild_public_image%%:*}
     assert_contains "The deployed app runs the public image, pinned by digest" "${repository}@sha256:" \
         nk -n "ws-${cli_workspace_id}" get deployments \
@@ -67,14 +68,14 @@ test_n03_public_image_deploys() {
 
 test_n04_source_deploy_explains_builds_are_unavailable() {
     local rc=0
-    (cd "$nobuild_source_dir" && loco_cli deploy "$nobuild_source_app") \
+    (cd "$nobuild_source_dir" && loco_cli deploy --yes) \
         >"$nobuild_dir/source.out" 2>"$nobuild_dir/source.err" || rc=$?
     assert "loco deploy from source fails (exit ${rc})" test "$rc" -ne 0
     local stderr
     stderr=$(tr -s ' \n' ' ' <"$nobuild_dir/source.err")
     assert_contains "The CLI says the install cannot build from source" \
         "cannot build from source: no cluster in this install accepts builds" echo "$stderr"
-    assert_contains "The CLI suggests deploying a prebuilt image" "--image <image>" echo "$stderr"
+    assert_contains "The CLI suggests deploying a prebuilt image" "Set image on the service in loco.yaml" echo "$stderr"
     local builds
     builds=$(e2e_psql "SELECT count(*) FROM builds")
     assert "No build was created" test "$builds" -eq 0

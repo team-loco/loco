@@ -18,9 +18,15 @@ import (
 	"github.com/moby/patternmatcher/ignorefile"
 )
 
-const largestKept = 5
+const (
+	largestKept    = 5
+	ignoreFileName = ".dockerignore"
+)
 
-var ErrDockerfileMissing = errors.New("dockerfile not found in the build context")
+var (
+	ErrDockerfileMissing = errors.New("dockerfile not found in the build context")
+	ErrNoDockerfiles     = errors.New("no dockerfile to pack")
+)
 
 type File struct {
 	Path string
@@ -30,7 +36,6 @@ type Summary struct {
 	Files      int
 	InputBytes int64
 	Largest    []File
-	IgnoreFile string
 }
 type Archive struct {
 	Summary
@@ -42,14 +47,14 @@ type Archive struct {
 func (a *Archive) Remove() error {
 	return os.Remove(a.Path)
 }
-func Pack(dir, dockerfile string) (*Archive, error) {
+func Pack(dir string, dockerfiles []string) (*Archive, error) {
 	tmp, err := os.CreateTemp("", "loco-source-*.tar.gz")
 	if err != nil {
 		return nil, fmt.Errorf("create archive file: %w", err)
 	}
 	tmpPath := tmp.Name()
 	archive := &Archive{Path: tmpPath}
-	summary, writeErr := Write(tmp, dir, dockerfile)
+	summary, writeErr := Write(tmp, dir, dockerfiles)
 	closeErr := tmp.Close()
 	if writeErr == nil {
 		writeErr = closeErr
@@ -68,35 +73,42 @@ func Pack(dir, dockerfile string) (*Archive, error) {
 	archive.Size = info.Size()
 	return archive, nil
 }
-func Write(w io.Writer, dir, dockerfile string) (*Summary, error) {
+func Write(w io.Writer, dir string, dockerfiles []string) (*Summary, error) {
 	root, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, fmt.Errorf("resolve build context %s: %w", dir, err)
 	}
-	dockerfile, err = contextPath(dockerfile)
-	if err != nil {
-		return nil, err
+	if len(dockerfiles) == 0 {
+		return nil, ErrNoDockerfiles
 	}
-	dockerfileOnDisk := contextFile(root, dockerfile)
-	if !isRegularFile(dockerfileOnDisk) {
-		return nil, fmt.Errorf("%w: %s in %s", ErrDockerfileMissing, dockerfile, root)
+	keep := []string{ignoreFileName}
+	for _, dockerfile := range dockerfiles {
+		cleaned, pathErr := contextPath(dockerfile)
+		if pathErr != nil {
+			return nil, pathErr
+		}
+		dockerfileOnDisk := contextFile(root, cleaned)
+		if !isRegularFile(dockerfileOnDisk) {
+			return nil, fmt.Errorf("%w: %s in %s", ErrDockerfileMissing, cleaned, root)
+		}
+		keep = append(keep, cleaned)
 	}
 
-	ignoreFile, patterns, err := readIgnoreFile(root, dockerfile)
+	patterns, err := readIgnoreFile(root)
 	if err != nil {
 		return nil, err
 	}
 	matcher, err := patternmatcher.New(patterns)
 	if err != nil {
-		return nil, fmt.Errorf("parse %s: %w", ignoreFile, err)
+		return nil, fmt.Errorf("parse %s: %w", ignoreFileName, err)
 	}
 
 	gzipWriter := gzip.NewWriter(w)
 	p := &packer{
 		root:       root,
 		matcher:    matcher,
-		keep:       []string{dockerfile, ignoreFile},
-		summary:    &Summary{IgnoreFile: ignoreFile},
+		keep:       keep,
+		summary:    &Summary{},
 		gzipWriter: gzipWriter,
 	}
 	p.tarWriter = tar.NewWriter(p.gzipWriter)
@@ -255,27 +267,24 @@ func contextPath(dockerfile string) (string, error) {
 	return cleaned, nil
 }
 
-func readIgnoreFile(root, dockerfile string) (string, []string, error) {
-	for _, candidate := range []string{dockerfile + ".dockerignore", ".dockerignore"} {
-		candidatePath := contextFile(root, candidate)
-		f, err := os.Open(candidatePath)
-		if errors.Is(err, fs.ErrNotExist) {
-			continue
-		}
-		if err != nil {
-			return "", nil, fmt.Errorf("open %s: %w", candidate, err)
-		}
-		patterns, readErr := ignorefile.ReadAll(f)
-		closeErr := f.Close()
-		if readErr != nil {
-			return "", nil, fmt.Errorf("read %s: %w", candidate, readErr)
-		}
-		if closeErr != nil {
-			return "", nil, fmt.Errorf("close %s: %w", candidate, closeErr)
-		}
-		return candidate, patterns, nil
+func readIgnoreFile(root string) ([]string, error) {
+	ignorePath := contextFile(root, ignoreFileName)
+	f, err := os.Open(ignorePath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
 	}
-	return "", nil, nil
+	if err != nil {
+		return nil, fmt.Errorf("open %s: %w", ignoreFileName, err)
+	}
+	patterns, readErr := ignorefile.ReadAll(f)
+	closeErr := f.Close()
+	if readErr != nil {
+		return nil, fmt.Errorf("read %s: %w", ignoreFileName, readErr)
+	}
+	if closeErr != nil {
+		return nil, fmt.Errorf("close %s: %w", ignoreFileName, closeErr)
+	}
+	return patterns, nil
 }
 
 func contextFile(root, name string) string {
