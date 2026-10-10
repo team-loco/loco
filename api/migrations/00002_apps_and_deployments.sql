@@ -9,15 +9,6 @@ CREATE TYPE deployment_status AS ENUM (
     'canceled'
 );
 
--- Resource status enum
-CREATE TYPE resource_status AS ENUM (
-    'healthy',
-    'deploying',
-    'degraded',
-    'unavailable',
-    'suspended'
-);
-
 -- Resource type enum
 CREATE TYPE resource_type AS ENUM (
     'service',
@@ -126,7 +117,6 @@ CREATE TABLE
         name TEXT NOT NULL,
         type resource_type NOT NULL,
         description TEXT NOT NULL,
-        status resource_status NOT NULL,
         spec JSONB NOT NULL,
         spec_version INT NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
@@ -323,5 +313,4 @@ DROP TYPE IF EXISTS region_intent_status;
 DROP TYPE IF EXISTS domain_source;
 DROP TYPE IF EXISTS build_status;
 DROP TYPE IF EXISTS resource_type;
-DROP TYPE IF EXISTS resource_status;
 DROP TYPE IF EXISTS deployment_status;

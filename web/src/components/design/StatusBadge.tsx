@@ -8,10 +8,6 @@ interface StatusStyle {
 	tone: BadgeTone;
 }
 
-export function effectiveResourceStatus(status: ResourceStatus, hasDeployments: boolean): ResourceStatus {
-	return hasDeployments ? status : ResourceStatus.UNSPECIFIED;
-}
-
 export function resourceStatusStyle(status: ResourceStatus | undefined): StatusStyle {
 	switch (status) {
 		case ResourceStatus.HEALTHY:

@@ -138,8 +138,8 @@ type Querier interface {
 	IsWorkspaceNameUniqueInOrg(ctx context.Context, arg IsWorkspaceNameUniqueInOrgParams) (bool, error)
 	ListAPITokensForEntity(ctx context.Context, arg ListAPITokensForEntityParams) ([]ListAPITokensForEntityRow, error)
 	ListActiveBuildSourceKeys(ctx context.Context, keys []string) ([]string, error)
+	ListActiveDeploymentStatusesForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListActiveDeploymentStatusesForResourcesRow, error)
 	ListActiveDeployments(ctx context.Context) ([]uuid.UUID, error)
-	ListActiveDeploymentsByResourceID(ctx context.Context, resourceID uuid.UUID) ([]DeploymentStatus, error)
 	ListActiveDeploymentsForResource(ctx context.Context, resourceID uuid.UUID) ([]Deployment, error)
 	ListActivePlatformDomains(ctx context.Context) ([]PlatformDomain, error)
 	ListAllLocoOwnedDomains(ctx context.Context) ([]ListAllLocoOwnedDomainsRow, error)
@@ -222,7 +222,6 @@ type Querier interface {
 	UpdateResource(ctx context.Context, arg UpdateResourceParams) (uuid.UUID, error)
 	UpdateResourceDomain(ctx context.Context, arg UpdateResourceDomainParams) (uuid.UUID, error)
 	UpdateResourceDomainPrimary(ctx context.Context, resourceID uuid.UUID) error
-	UpdateResourceStatus(ctx context.Context, arg UpdateResourceStatusParams) error
 	UpdateUserAvatarURL(ctx context.Context, arg UpdateUserAvatarURLParams) (User, error)
 	UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (uuid.UUID, error)
 	UpsertInstallWebhook(ctx context.Context, arg UpsertInstallWebhookParams) error

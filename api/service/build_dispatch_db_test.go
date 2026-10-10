@@ -369,8 +369,8 @@ func (f *buildFixture) otherResource(t *testing.T) uuid.UUID {
 	var id uuid.UUID
 	err := f.pool.QueryRow(f.ctx, `
 WITH r AS (
-    INSERT INTO resources (workspace_id, name, type, description, status, spec, spec_version)
-    SELECT workspace_id, 'other-' || substr(md5(random()::text), 1, 8), type, '', 'healthy', '{}', 1
+    INSERT INTO resources (workspace_id, name, type, description, spec, spec_version)
+    SELECT workspace_id, 'other-' || substr(md5(random()::text), 1, 8), type, '', '{}', 1
     FROM resources WHERE id = $1
     RETURNING id
 )

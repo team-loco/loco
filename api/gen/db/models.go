@@ -238,51 +238,6 @@ func (ns NullRegionIntentStatus) Value() (driver.Value, error) {
 	return string(ns.RegionIntentStatus), nil
 }
 
-type ResourceStatus string
-
-const (
-	ResourceStatusHealthy     ResourceStatus = "healthy"
-	ResourceStatusDeploying   ResourceStatus = "deploying"
-	ResourceStatusDegraded    ResourceStatus = "degraded"
-	ResourceStatusUnavailable ResourceStatus = "unavailable"
-	ResourceStatusSuspended   ResourceStatus = "suspended"
-)
-
-func (e *ResourceStatus) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = ResourceStatus(s)
-	case string:
-		*e = ResourceStatus(s)
-	default:
-		return fmt.Errorf("unsupported scan type for ResourceStatus: %T", src)
-	}
-	return nil
-}
-
-type NullResourceStatus struct {
-	ResourceStatus ResourceStatus `json:"resourceStatus"`
-	Valid          bool           `json:"valid"` // Valid is true if ResourceStatus is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullResourceStatus) Scan(value interface{}) error {
-	if value == nil {
-		ns.ResourceStatus, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.ResourceStatus.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullResourceStatus) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.ResourceStatus), nil
-}
-
 type ResourceType string
 
 const (
@@ -524,16 +479,15 @@ type PlatformDomain struct {
 }
 
 type Resource struct {
-	ID          uuid.UUID      `json:"id"`
-	WorkspaceID uuid.UUID      `json:"workspaceId"`
-	Name        string         `json:"name"`
-	Type        ResourceType   `json:"type"`
-	Description string         `json:"description"`
-	Status      ResourceStatus `json:"status"`
-	Spec        []byte         `json:"spec"`
-	SpecVersion int32          `json:"specVersion"`
-	CreatedAt   time.Time      `json:"createdAt"`
-	UpdatedAt   time.Time      `json:"updatedAt"`
+	ID          uuid.UUID    `json:"id"`
+	WorkspaceID uuid.UUID    `json:"workspaceId"`
+	Name        string       `json:"name"`
+	Type        ResourceType `json:"type"`
+	Description string       `json:"description"`
+	Spec        []byte       `json:"spec"`
+	SpecVersion int32        `json:"specVersion"`
+	CreatedAt   time.Time    `json:"createdAt"`
+	UpdatedAt   time.Time    `json:"updatedAt"`
 }
 
 type ResourceDomain struct {

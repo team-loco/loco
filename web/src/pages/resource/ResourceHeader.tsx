@@ -2,7 +2,7 @@ import { ClockIcon, FileCodeIcon, HashIcon, PackageIcon } from "lucide-react";
 import { ResourceStatus, ResourceType, type Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { Badge } from "@/components/design/Badge";
-import { effectiveResourceStatus, ResourceStatusBadge } from "@/components/design/StatusBadge";
+import { ResourceStatusBadge } from "@/components/design/StatusBadge";
 import { useNow } from "@/hooks/useNow";
 import { cn } from "@/lib/utils";
 
@@ -50,15 +50,13 @@ function healthDotClass(status: ResourceStatus, desired: number): string {
 export function ResourceHeader({
 	resource,
 	regions,
-	hasDeployments,
 	onViewSpec,
 }: {
 	resource: Resource;
 	regions: RegionView[];
-	hasDeployments: boolean;
 	onViewSpec: () => void;
 }) {
-	const status = effectiveResourceStatus(resource.status, hasDeployments);
+	const status = resource.status;
 	const now = useNow(60_000);
 	const primary = regions.find((r) => r.primary) ?? regions[0];
 	const prim = primary?.current;

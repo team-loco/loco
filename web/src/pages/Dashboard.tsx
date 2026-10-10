@@ -3,7 +3,6 @@ import { useState } from "react";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
-import { effectiveResourceStatus } from "@/components/design/StatusBadge";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
@@ -108,7 +107,7 @@ export function Dashboard() {
 		...data.envResources.map((it) => ({
 			key: it.resource.id,
 			name: it.resource.name,
-			status: effectiveResourceStatus(it.resource.status, !it.neverDeployed),
+			status: it.resource.status,
 			domain: it.resource.domains.find((d) => d.isPrimary)?.domain ?? it.resource.domains[0]?.domain ?? null,
 			regions: it.regions.map((g) => ({ region: g.region, replicas: g.replicas })),
 			href: hrefFor(it.resource.id),
