@@ -91,6 +91,14 @@ func (p *proxy) close() {
 	}
 }
 
+func logStartup(logger *slog.Logger, cfg *config.Config, proxyVersion string) {
+	logger.Info("starting observability proxy",
+		"version", proxyVersion,
+		"port", cfg.Port,
+		"clickhouse_database", cfg.ClickHouseDB,
+	)
+}
+
 func main() {
 	cfg := config.Load()
 
@@ -101,12 +109,7 @@ func main() {
 	slog.SetDefault(logger)
 
 	proxyVersion := buildinfo.Version(version)
-	slog.Info("starting observability proxy",
-		"version", proxyVersion,
-		"port", cfg.Port,
-		"control_plane", cfg.ControlPlaneURL,
-		"clickhouse", cfg.ClickHouseURL,
-	)
+	logStartup(logger, cfg, proxyVersion)
 
 	p, err := newProxy(cfg)
 	if err != nil {

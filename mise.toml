@@ -282,3 +282,7 @@ run = "uv run --frozen --project docs python docs/tests/browser.py"
 [tasks."docs:check:container"]
 description = "Check combined UI and documentation images in production and staging"
 run = "uv run --frozen --project docs python docs/tests/container.py"
+
+[tasks."test:chart-contracts"]
+description = "Render regional certificate and observability Secret contracts"
+run = "python3 -m unittest discover -s tests/charts"

@@ -42,11 +42,18 @@ spec:
             - name: PROXY_AUTH_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-obs-proxy-auth
+                  name: {{ default (printf "%s-obs-proxy-auth" .Release.Name) .Values.obsProxy.auth.existingSecret }}
                   key: token
-                  optional: true
+                  optional: {{ not .Values.obsProxy.auth.existingSecret }}
             - name: CLICKHOUSE_URL
+              {{- if .Values.obsProxy.clickhouse.existingSecret.name }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.obsProxy.clickhouse.existingSecret.name | quote }}
+                  key: {{ required "obsProxy.clickhouse.existingSecret.key is required" .Values.obsProxy.clickhouse.existingSecret.key | quote }}
+              {{- else }}
               value: "clickhouse://clickhouse-{{ .Release.Name }}-clickhouse.{{ .Release.Namespace }}.svc.cluster.local:9000"
+              {{- end }}
             - name: CLICKHOUSE_DB
               value: {{ .Values.obsProxy.clickhouse.database | quote }}
             - name: DEFAULT_LIMIT

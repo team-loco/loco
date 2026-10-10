@@ -34,6 +34,7 @@ global:
 
 # Cert-manager configuration
 certManager:
+  additionalDNSNames: []
   issuer:
     name: letsencrypt-prod
     email: "" # Override in environment-specific values
