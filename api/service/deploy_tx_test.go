@@ -114,6 +114,7 @@ func (f *deployFixture) paramsFor(clusterID uuid.UUID) genDb.CreateDeploymentPar
 		Spec:          []byte("{}"),
 		SpecVersion:   1,
 		EnvironmentID: f.envID,
+		SecretNames:   []string{},
 	}
 }
 

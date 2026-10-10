@@ -61,6 +61,7 @@ CREATE TABLE
             environment_type IN ('dev', 'staging', 'production')
         ),
         created_by UUID NOT NULL REFERENCES users (id),
+        revision BIGINT NOT NULL DEFAULT 0,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         UNIQUE (workspace_id, name)
@@ -69,6 +70,34 @@ CREATE TABLE
 CREATE INDEX IF NOT EXISTS idx_environments_workspace_id_created_at ON environments (workspace_id, created_at);
 
 CREATE INDEX idx_environments_created_by ON environments (created_by);
+
+-- One data-encryption key per environment, wrapped by the configured key provider
+CREATE TABLE
+    environment_keys (
+        environment_id UUID PRIMARY KEY REFERENCES environments (id) ON DELETE CASCADE,
+        provider TEXT NOT NULL,
+        kek_id TEXT NOT NULL,
+        wrapped_dek BYTEA NOT NULL,
+        format_version SMALLINT NOT NULL DEFAULT 1,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+        rewrapped_at TIMESTAMPTZ
+    );
+
+-- Secret values, AES-256-GCM ciphertext under the environment's data-encryption key
+CREATE TABLE
+    secrets (
+        id UUID PRIMARY KEY DEFAULT uuidv7 (),
+        environment_id UUID NOT NULL REFERENCES environments (id) ON DELETE CASCADE,
+        name TEXT NOT NULL CHECK (name ~ '^[A-Z_][A-Z0-9_]*$'),
+        version INT NOT NULL DEFAULT 1 CHECK (version > 0),
+        nonce BYTEA NOT NULL,
+        ciphertext BYTEA NOT NULL,
+        format_version SMALLINT NOT NULL DEFAULT 1,
+        updated_by UUID NOT NULL REFERENCES users (id),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+        UNIQUE (environment_id, name)
+    );
 
 -- Clusters table
 CREATE TABLE
@@ -209,6 +238,7 @@ CREATE TABLE
         environment_id UUID NOT NULL REFERENCES environments (id),
         spec JSONB NOT NULL,
         spec_version INT NOT NULL,
+        secret_names TEXT[] NOT NULL DEFAULT '{}',
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         started_at TIMESTAMPTZ NOT NULL,
         completed_at TIMESTAMPTZ,
@@ -238,6 +268,8 @@ CREATE TABLE
         cluster_id UUID NOT NULL REFERENCES clusters (id) ON DELETE CASCADE,
         region TEXT NOT NULL,
         deployment_id UUID REFERENCES deployments (id) ON DELETE SET NULL,
+        environment_id UUID NOT NULL REFERENCES environments (id),
+        secret_names TEXT[] NOT NULL DEFAULT '{}',
         desired_revision BIGINT NOT NULL DEFAULT 1 CHECK (desired_revision > 0),
         desired_spec JSONB,
         desired_deleted BOOLEAN NOT NULL DEFAULT false,
@@ -318,6 +350,8 @@ DROP TABLE IF EXISTS resource_regions;
 DROP TABLE IF EXISTS resources;
 DROP TABLE IF EXISTS platform_domains;
 DROP TABLE IF EXISTS clusters;
+DROP TABLE IF EXISTS secrets;
+DROP TABLE IF EXISTS environment_keys;
 DROP TABLE IF EXISTS environments;
 DROP TYPE IF EXISTS region_intent_status;
 DROP TYPE IF EXISTS domain_source;

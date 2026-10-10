@@ -23,3 +23,12 @@ DELETE FROM environments WHERE id = $1;
 
 -- name: CountDeploymentsByEnvironment :one
 SELECT COUNT(*) FROM deployments WHERE environment_id = $1;
+
+-- name: LockEnvironment :one
+SELECT id, workspace_id FROM environments WHERE id = $1 FOR UPDATE;
+
+-- name: BumpEnvironmentRevision :one
+UPDATE environments
+SET revision = revision + 1
+WHERE id = $1
+RETURNING revision;

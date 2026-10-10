@@ -125,13 +125,14 @@ test_agent_applies_placement() {
     " >/dev/null
 
     e2e_psql "
-        INSERT INTO placements (id, resource_id, cluster_id, region, desired_spec)
+        INSERT INTO placements (id, resource_id, cluster_id, region, desired_spec, environment_id)
         VALUES (
             '${e2e_placement_id}',
             '${e2e_resource_id}',
             '00000000-0000-7000-8000-000000000005',
             'us-east-1',
-            \$spec\$${e2e_desired_spec}\$spec\$
+            \$spec\$${e2e_desired_spec}\$spec\$,
+            '00000000-0000-7000-8000-000000000004'
         ) ON CONFLICT DO NOTHING;
         SELECT pg_notify('placements', '00000000-0000-7000-8000-000000000005');
     " >/dev/null

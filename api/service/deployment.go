@@ -380,6 +380,7 @@ func (s *DeploymentServer) CreateDeployment(
 			Spec:             specJSON,
 			SpecVersion:      int32(1),
 			EnvironmentID:    environmentID,
+			SecretNames:      []string{},
 		}, buildSpec)
 		if txErr != nil {
 			return txErr

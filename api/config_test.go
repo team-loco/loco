@@ -9,6 +9,7 @@ import (
 
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/pkg/registryclient"
+	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/service"
 )
@@ -30,6 +31,9 @@ const (
 	testHookURL      = "https://hooks.loco.test/events"
 	testDatabaseURL  = "postgres://db.loco.test:5432/loco"
 	testHookSecret   = "whsec_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+	keyProviderEnv   = "LOCO_SECRETS_KEY_PROVIDER"
+	kekListEnv       = "LOCO_SECRETS_LOCAL_KEYS"
+	testKEK          = "k1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 )
 
 var adminIssuers = `[{"issuer":"` + testIssuer + `","audience":"loco",` +
@@ -78,6 +82,8 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv("AUTH_SIGNUP_DOMAINS", "")
 	t.Setenv("MIN_CLI_VERSION", "")
 	t.Setenv(testAdminEnv, "")
+	t.Setenv(keyProviderEnv, "")
+	t.Setenv(kekListEnv, "")
 }
 
 func TestNewAPIConfigDefaults(t *testing.T) {
@@ -394,6 +400,51 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 			},
 			errInvalidRegistry,
 		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clearAPIConfigEnv(t)
+			for key, value := range tt.env {
+				t.Setenv(key, value)
+			}
+			err := panicValue(t, func() { newAPIConfig() })
+			if !errors.Is(err, tt.want) {
+				t.Errorf("panic = %v, want %v", err, tt.want)
+			}
+		})
+	}
+}
+
+func TestNewAPIConfigReadsSecretsProvider(t *testing.T) {
+	clearAPIConfigEnv(t)
+	if provider := newAPIConfig().Secrets.Provider; provider != "" {
+		t.Errorf("secrets provider = %q, want none", provider)
+	}
+	t.Setenv(keyProviderEnv, secretkeys.ProviderLocal)
+	t.Setenv(kekListEnv, testKEK)
+	cfg := newAPIConfig().Secrets
+	if cfg.Provider != secretkeys.ProviderLocal || len(cfg.LocalKeys) != 1 || cfg.LocalKeys[0].ID != "k1" {
+		t.Errorf("secrets config = %+v, want local with key k1", cfg)
+	}
+}
+
+func TestNewAPIConfigPanicsOnBadSecretsProvider(t *testing.T) {
+	tests := []struct {
+		name string
+		env  map[string]string
+		want error
+	}{
+		{
+			"local without keys",
+			map[string]string{keyProviderEnv: secretkeys.ProviderLocal},
+			errSecretsLocalKeysMissing,
+		},
+		{
+			"local with a short key",
+			map[string]string{keyProviderEnv: secretkeys.ProviderLocal, kekListEnv: "k1:c2hvcnQ="},
+			errInvalidSecretsLocalKeys,
+		},
+		{"unknown provider", map[string]string{keyProviderEnv: "vault"}, errUnknownSecretsProvider},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
