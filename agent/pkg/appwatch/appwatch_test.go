@@ -44,6 +44,26 @@ func TestStatusReportsTheRevisionTheControllerObserved(t *testing.T) {
 	}
 }
 
+func TestFailedStatusCarriesTheControllerMessage(t *testing.T) {
+	const message = "The image runs as root. " +
+		"Loco runs containers as a non-root user; use an image that sets a non-root USER."
+	w := New(nil, testNamespace)
+	var got []*agentv1.PlacementStatus
+	w.Attach(func(s *agentv1.PlacementStatus) { got = append(got, s) })
+
+	failed := app("resource-a", "p1", "3", "Failed")
+	failed.Status.Message = message
+	w.Observe(failed)
+
+	if len(got) != 1 {
+		t.Fatalf("statuses = %v, want one", got)
+	}
+	status := got[0]
+	if status.GetPhase() != "Failed" || status.GetReady() || status.GetMessage() != message {
+		t.Fatalf("status = %v, want phase Failed, not ready, message %q", status, message)
+	}
+}
+
 func TestInventorySkipsApplicationsWithoutPlacement(t *testing.T) {
 	scheme := runtime.NewScheme()
 	if err := locoControllerV1.AddToScheme(scheme); err != nil {

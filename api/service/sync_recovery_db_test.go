@@ -46,6 +46,45 @@ func TestReadyAtTheCurrentRevisionRecoversAFailedDeployment(t *testing.T) {
 	}
 }
 
+func TestFailedStatusReachesTheDeploymentTheDashboardReads(t *testing.T) {
+	const message = "The image runs as root. " +
+		"Loco runs containers as a non-root user; use an image that sets a non-root USER."
+	f := newDeployFixture(t)
+	ctx := context.Background()
+	server := f.agentServer()
+
+	deploymentID, err := f.deploy(ctx, staticSpec)
+	if err != nil {
+		t.Fatalf("deploy: %v", err)
+	}
+	p := f.placement(t, f.clusterID)
+	server.recordApplied(ctx, f.clusterID, applied(p.ID, 1))
+	server.recordStatus(ctx, f.clusterID, &agentv1.PlacementStatus{
+		PlacementId: p.ID.String(), ObservedRevision: 1, Phase: "Deploying",
+		Message: "Waiting for replicas to become ready",
+	})
+	server.recordStatus(ctx, f.clusterID, &agentv1.PlacementStatus{
+		PlacementId: p.ID.String(), ObservedRevision: 1, Phase: applicationPhaseFailed, Message: message,
+	})
+
+	placement := f.placement(t, f.clusterID)
+	if placement.StatusPhase != applicationPhaseFailed || placement.StatusMessage != message {
+		t.Fatalf("placement status = %q %q, want %q %q",
+			placement.StatusPhase, placement.StatusMessage, applicationPhaseFailed, message)
+	}
+	row, err := f.queries.GetDeploymentByID(ctx, deploymentID)
+	if err != nil {
+		t.Fatalf("get deployment: %v", err)
+	}
+	deployment := deploymentToProto(row, string(genDb.ResourceTypeService))
+	if deployment.GetStatus() != deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_FAILED {
+		t.Fatalf("deployment phase = %s, want failed", deployment.GetStatus())
+	}
+	if deployment.GetMessage() != message {
+		t.Fatalf("deployment message = %q, want %q", deployment.GetMessage(), message)
+	}
+}
+
 func TestReadyAtAnOlderRevisionDoesNotRecoverAFailedDeployment(t *testing.T) {
 	f := newDeployFixture(t)
 	ctx := context.Background()
