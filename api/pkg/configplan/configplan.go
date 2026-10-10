@@ -23,17 +23,22 @@ const (
 )
 
 // Service is a service as the environment runs it. Partial is empty when no file owns it.
-// Built is true when a succeeded build exists for it, Running when it has an active
-// deployment in the environment, and Elsewhere when another environment of the workspace has
-// one. A service the file dropped is deleted only from the environment the plan targets; one
+// Built is true when a succeeded build exists for it, RunningRegions are the regions where it
+// has an active deployment in the environment, and Elsewhere is true when another environment
+// of the workspace has one. A service the file dropped is deleted only from the environment the plan targets; one
 // that has nothing in this environment but runs elsewhere needs no operation here.
 type Service struct {
-	Name      string
-	Partial   string
-	Built     bool
-	Running   bool
-	Elsewhere bool
-	State     State
+	Name           string
+	Partial        string
+	Built          bool
+	RunningRegions []string
+	Elsewhere      bool
+	State          State
+}
+
+// Running reports whether the service has an active deployment in the environment.
+func (s Service) Running() bool {
+	return len(s.RunningRegions) > 0
 }
 
 // ImageResult is the outcome of resolving one image reference from the file to a digest.
@@ -133,6 +138,7 @@ func Compute(in Input) (Plan, error) {
 				Kind:        KindUpdate,
 				Service:     name,
 				Changes:     changes,
+				Destructive: stopsRunningRegion(current, desired),
 				NeedsDeploy: needsDeploy,
 				Desired:     desired,
 			})
@@ -141,6 +147,7 @@ func Compute(in Input) (Plan, error) {
 				Kind:        KindImport,
 				Service:     name,
 				Changes:     diff(&current.State, &desired),
+				Destructive: stopsRunningRegion(current, desired),
 				NeedsDeploy: needsBuild(current, desired),
 				Desired:     desired,
 			})
@@ -158,7 +165,7 @@ func Compute(in Input) (Plan, error) {
 		if _, inFile := in.Services[name]; inFile {
 			continue
 		}
-		if service.Elsewhere && !service.Running && len(service.State.Domains) == 0 {
+		if service.Elsewhere && !service.Running() && len(service.State.Domains) == 0 {
 			continue
 		}
 		plan.Operations = append(plan.Operations, Operation{Kind: KindDelete, Service: name, Destructive: true})
@@ -234,6 +241,17 @@ func MatchPlatformDomain(domain string, platformDomains []string) (string, strin
 		return "", "", fmt.Errorf("%w: %s under %s", ErrNotSingleLabel, domain, matched)
 	}
 	return matched, label, nil
+}
+
+// stopsRunningRegion reports whether the desired regions leave out a region where the service
+// runs, which stops that region's deployment.
+func stopsRunningRegion(current Service, desired State) bool {
+	for _, region := range current.RunningRegions {
+		if _, kept := desired.Regions[region]; !kept {
+			return true
+		}
+	}
+	return false
 }
 
 func needsBuild(current Service, desired State) bool {

@@ -232,6 +232,7 @@ type Querier interface {
 	UpdateResource(ctx context.Context, arg UpdateResourceParams) (uuid.UUID, error)
 	UpdateResourceDomain(ctx context.Context, arg UpdateResourceDomainParams) (uuid.UUID, error)
 	UpdateResourceDomainPrimary(ctx context.Context, arg UpdateResourceDomainPrimaryParams) error
+	UpdateResourceSpec(ctx context.Context, arg UpdateResourceSpecParams) error
 	UpdateResourceStatus(ctx context.Context, arg UpdateResourceStatusParams) error
 	UpdateUserAvatarURL(ctx context.Context, arg UpdateUserAvatarURLParams) (User, error)
 	UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (uuid.UUID, error)

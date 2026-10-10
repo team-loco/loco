@@ -215,6 +215,51 @@ func TestUnownedServiceIsImported(t *testing.T) {
 	}
 }
 
+func TestRemovingARunningRegionIsDestructive(t *testing.T) {
+	const movedRegion = "eu-west-1"
+	service := fileService()
+	service.Regions = map[string]locofile.Region{movedRegion: service.Regions[testRegion]}
+	for _, partial := range []string{testPartial, ""} {
+		live := Service{
+			Name:           webService,
+			Partial:        partial,
+			Built:          true,
+			RunningRegions: []string{testRegion},
+			State:          liveState(),
+		}
+		in := input(map[string]locofile.Service{webService: service}, live)
+		in.Regions = []string{testRegion, movedRegion}
+		op := onlyOperation(t, compute(t, in))
+		if !op.Destructive {
+			t.Fatalf("%v operation = %+v, want destructive for the stopped region", op.Kind, op)
+		}
+	}
+}
+
+func TestRemovingARegionThatDoesNotRunIsNotDestructive(t *testing.T) {
+	const movedRegion = "eu-west-1"
+	service := fileService()
+	service.Regions = map[string]locofile.Region{movedRegion: service.Regions[testRegion]}
+	live := Service{Name: webService, Partial: testPartial, Built: true, State: liveState()}
+	in := input(map[string]locofile.Service{webService: service}, live)
+	in.Regions = []string{testRegion, movedRegion}
+	if op := onlyOperation(t, compute(t, in)); op.Destructive {
+		t.Fatalf("operation = %+v, want no confirmation for a region nothing runs in", op)
+	}
+}
+
+func TestReorderedSecondaryDomainsAreNotAChange(t *testing.T) {
+	service := fileService()
+	service.Domains = []string{appDomain, "z.example.com", "a.example.com"}
+	state := liveState()
+	state.Domains = []string{appDomain, "a.example.com", "z.example.com"}
+	live := Service{Name: webService, Partial: testPartial, Built: true, State: state}
+	plan := compute(t, input(map[string]locofile.Service{webService: service}, live))
+	if len(plan.Operations) != 0 || len(plan.Errors) != 0 {
+		t.Fatalf("plan = %+v, want no operations for a reordered secondary domain", plan)
+	}
+}
+
 func TestOwnedServiceAbsentFromTheFileIsADestructiveDelete(t *testing.T) {
 	live := Service{Name: oldService, Partial: testPartial, Built: true, State: liveState()}
 	op := onlyOperation(t, compute(t, input(map[string]locofile.Service{}, live)))

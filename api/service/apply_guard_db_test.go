@@ -152,7 +152,7 @@ func TestApplyDeleteInOneEnvironmentKeepsTheOther(t *testing.T) {
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	f.setPartial(t, planSvc, planPartial)
-	stagingID := f.addTypedEnvironment(t, stagingName, stagingName)
+	stagingID := f.addStagingEnvironment(t)
 	f.setClusterTier(t, f.otherCluster, stagingName)
 	ctx := context.Background()
 	if _, err := f.deploy(ctx, staticSpec); err != nil {

@@ -80,7 +80,7 @@ func fileState(service locofile.Service, pinnedImage string, defaults servicedef
 		Image:   pinnedImage,
 		Port:    defaults.Port,
 		Health:  DefaultHealth(defaults),
-		Domains: slices.Clone(service.Domains),
+		Domains: CanonicalDomains(service.Domains),
 		Env:     maps.Clone(service.Env),
 		Secrets: slices.Sorted(slices.Values(service.Secrets)),
 		Regions: make(map[string]Region, len(service.Regions)),
@@ -115,6 +115,18 @@ func fileState(service locofile.Service, pinnedImage string, defaults servicedef
 		state.Regions[name] = fileRegion(region)
 	}
 	return state
+}
+
+// CanonicalDomains orders a service's domains the way they are stored: the first is the
+// primary and the order of the rest carries no meaning, so they are sorted. A file that only
+// reorders secondary domains therefore matches the environment.
+func CanonicalDomains(domains []string) []string {
+	if len(domains) == 0 {
+		return nil
+	}
+	canonical := slices.Clone(domains)
+	slices.Sort(canonical[1:])
+	return canonical
 }
 
 // DefaultHealth is the health check the API uses when a service sets none.

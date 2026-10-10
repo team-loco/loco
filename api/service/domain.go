@@ -608,7 +608,7 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 		ResourceID:  new(resourceID),
 		SubjectType: events.SubjectDomain,
 		SubjectID:   new(domainID),
-		Data:        map[string]any{"primary": true},
+		Data:        map[string]any{events.FieldPrimary: true},
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to record primary domain change", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)

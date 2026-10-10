@@ -304,15 +304,24 @@ func (s *PlanServer) liveEnvironment(ctx context.Context, env genDb.Environment)
 		}
 		live.resources[res.Name] = res
 		live.services = append(live.services, configplan.Service{
-			Name:      res.Name,
-			Partial:   derefString(res.Partial),
-			Built:     built,
-			Running:   len(live.deployments[res.ID]) > 0,
-			Elsewhere: live.elsewhere[res.ID],
-			State:     state,
+			Name:           res.Name,
+			Partial:        derefString(res.Partial),
+			Built:          built,
+			RunningRegions: deploymentRegions(live.deployments[res.ID]),
+			Elsewhere:      live.elsewhere[res.ID],
+			State:          state,
 		})
 	}
 	return live, nil
+}
+
+func deploymentRegions(deployments []genDb.Deployment) []string {
+	regions := make([]string, 0, len(deployments))
+	for _, deployment := range deployments {
+		regions = append(regions, deployment.Region)
+	}
+	slices.Sort(regions)
+	return slices.Compact(regions)
 }
 
 func (s *PlanServer) liveState(
@@ -341,9 +350,11 @@ func (s *PlanServer) liveState(
 	slices.SortStableFunc(domains, func(a, b genDb.ResourceDomain) int {
 		return boolCompare(b.IsPrimary, a.IsPrimary)
 	})
+	names := make([]string, 0, len(domains))
 	for _, domain := range domains {
-		state.Domains = append(state.Domains, domain.Domain)
+		names = append(names, domain.Domain)
 	}
+	state.Domains = configplan.CanonicalDomains(names)
 	for region, target := range spec.GetRegions() {
 		if !target.GetEnabled() {
 			continue
@@ -381,6 +392,9 @@ func (s *PlanServer) liveState(
 			continue
 		}
 		state.Port = converter.FirstSet(service.GetPort(), state.Port)
+		if service.GetRouting() != nil {
+			state.Routing = liveRouting(service.GetRouting())
+		}
 		if service.GetHealthCheck() != nil {
 			state.Health = s.liveHealth(service.GetHealthCheck())
 		}
@@ -433,6 +447,13 @@ func (s *PlanServer) liveHealth(health *deploymentv1.HealthCheckConfig) configpl
 		FailThreshold:      health.GetFailureThreshold(),
 		StartupGracePeriod: health.GetInitialDelaySeconds(),
 	}
+}
+
+func liveRouting(routing *deploymentv1.ServiceRouting) *configplan.Routing {
+	if routing.GetPathPrefix() == "" {
+		return nil
+	}
+	return &configplan.Routing{PathPrefix: routing.GetPathPrefix(), IdleTimeout: routing.GetIdleTimeout()}
 }
 
 func liveAutoscaling(scalers *deploymentv1.Scalers) *configplan.Autoscaling {

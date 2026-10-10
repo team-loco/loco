@@ -42,6 +42,7 @@ type applyOptions struct {
 	confirmDestructive bool
 	confirmImport      bool
 	images             map[string]string
+	environmentID      uuid.UUID
 }
 
 func applyFile(
@@ -52,9 +53,13 @@ func applyFile(
 	scopes []genDb.EntityScope,
 ) (*planv1.ApplyResponse, error) {
 	t.Helper()
+	environmentID := opts.environmentID
+	if environmentID == (uuid.UUID{}) {
+		environmentID = f.envID
+	}
 	images := opts.images
 	if images == nil {
-		if planned, planErr := plan(t, f, file, f.workspaceReadScopes(t)); planErr == nil {
+		if planned, planErr := planIn(t, f, environmentID, file, f.workspaceReadScopes(t)); planErr == nil {
 			images = planned.GetImages()
 		}
 	}
@@ -62,7 +67,7 @@ func applyFile(
 	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, scopes)
 	req := connect.NewRequest(&planv1.ApplyRequest{
 		File:               []byte(file),
-		EnvironmentId:      f.envID.String(),
+		EnvironmentId:      environmentID.String(),
 		Revision:           opts.revision,
 		ConfirmDestructive: opts.confirmDestructive,
 		ConfirmImport:      opts.confirmImport,

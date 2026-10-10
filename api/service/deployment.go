@@ -742,7 +742,11 @@ func buildApplicationSpec(
 			Deployment: crdServiceDeploymentSpec,
 			Resources:  converter.ProtoToResourcesSpec(deploymentService),
 			Obs:        converter.ProtoToObsSpec(resourceService.GetObservability()),
-			Routing:    converter.ProtoToRoutingSpec(resourceService.GetRouting(), hostname, defaults),
+			Routing: converter.ProtoToRoutingSpec(
+				deploymentRouting(resourceService, deploymentService),
+				hostname,
+				defaults,
+			),
 		}
 
 	case genDb.ResourceTypeDatabase:
@@ -763,6 +767,21 @@ func buildApplicationSpec(
 	}
 
 	return appSpec, nil
+}
+
+// deploymentRouting is the routing an Application uses: the deployment's own when it carries
+// one, so each environment keeps its routing, and the resource's otherwise.
+func deploymentRouting(
+	resourceService *resourcev1.ServiceSpec,
+	deploymentService *deploymentv1.ServiceDeploymentSpec,
+) *resourcev1.RoutingConfig {
+	if deploymentService.GetRouting() == nil {
+		return resourceService.GetRouting()
+	}
+	return &resourcev1.RoutingConfig{
+		PathPrefix:  deploymentService.GetRouting().GetPathPrefix(),
+		IdleTimeout: deploymentService.GetRouting().GetIdleTimeout(),
+	}
 }
 
 func validateQuantities(service *deploymentv1.ServiceDeploymentSpec) error {

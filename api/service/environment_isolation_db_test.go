@@ -30,6 +30,11 @@ RETURNING id`
 	return id
 }
 
+func (f *deployFixture) addStagingEnvironment(t *testing.T) uuid.UUID {
+	t.Helper()
+	return f.addTypedEnvironment(t, stagingName, stagingName)
+}
+
 func (f *deployFixture) setClusterTier(t *testing.T, clusterID uuid.UUID, tier string) {
 	t.Helper()
 	update := `UPDATE clusters SET tier = $2 WHERE id = $1`
@@ -49,7 +54,7 @@ func (f *deployFixture) activeDeployments(t *testing.T, environmentID uuid.UUID)
 
 func TestDeploymentsOfTwoEnvironmentsInOneRegionStayActive(t *testing.T) {
 	f := newDeployFixture(t)
-	stagingID := f.addTypedEnvironment(t, stagingName, stagingName)
+	stagingID := f.addStagingEnvironment(t)
 	f.setClusterTier(t, f.otherCluster, stagingName)
 	ctx := context.Background()
 
@@ -107,7 +112,7 @@ func TestPlanSeesOnlyTheDomainsOfItsEnvironment(t *testing.T) {
 	f.setRoutedSpec(t)
 	f.addResource(t, planOwned, planPartial)
 	f.addSucceededBuild(t, planOwned, testDockerfile, defaultBuildContext)
-	stagingID := f.addTypedEnvironment(t, stagingName, stagingName)
+	stagingID := f.addStagingEnvironment(t)
 	insert := `
 INSERT INTO resource_domains (resource_id, environment_id, domain, domain_source, is_primary)
 SELECT id, $2, $3, 'user_provided', true FROM resources WHERE name = $1`

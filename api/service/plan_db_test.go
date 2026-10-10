@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/configplan"
@@ -81,9 +82,20 @@ func newPlanServer(f *deployFixture) *PlanServer {
 
 func plan(t *testing.T, f *deployFixture, file string, scopes []genDb.EntityScope) (*planv1.PlanResponse, error) {
 	t.Helper()
+	return planIn(t, f, f.envID, file, scopes)
+}
+
+func planIn(
+	t *testing.T,
+	f *deployFixture,
+	environmentID uuid.UUID,
+	file string,
+	scopes []genDb.EntityScope,
+) (*planv1.PlanResponse, error) {
+	t.Helper()
 	server := newPlanServer(f)
 	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, scopes)
-	req := connect.NewRequest(&planv1.PlanRequest{File: []byte(file), EnvironmentId: f.envID.String()})
+	req := connect.NewRequest(&planv1.PlanRequest{File: []byte(file), EnvironmentId: environmentID.String()})
 	resp, err := server.Plan(ctx, req)
 	if err != nil {
 		return nil, err
