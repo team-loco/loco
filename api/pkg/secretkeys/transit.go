@@ -43,6 +43,7 @@ var (
 	ErrTransitKeyName          = errors.New("transit key name must be one path segment")
 	ErrTransitToken            = errors.New("transit token is required")
 	ErrTransitTimeout          = errors.New("transit request timeout must be positive")
+	ErrTransitCacheTTL         = errors.New("transit data key cache ttl must be positive")
 	ErrTransitCAFile           = errors.New("transit ca file holds no PEM certificate")
 	ErrTransitKeyType          = errors.New("transit key must be an aes256-gcm96 key created with derived=true")
 	ErrTransitCiphertext       = errors.New("transit ciphertext is malformed")
@@ -61,6 +62,7 @@ type TransitConfig struct {
 	Timeout     time.Duration
 	RenewMargin time.Duration
 	RenewRetry  time.Duration
+	CacheTTL    time.Duration
 }
 
 // Validate reports the first invalid field of cfg.
@@ -88,6 +90,9 @@ func (cfg TransitConfig) Validate() error {
 	}
 	if cfg.RenewMargin <= 0 || cfg.RenewRetry <= 0 {
 		return ErrTransitRenewal
+	}
+	if cfg.CacheTTL <= 0 {
+		return ErrTransitCacheTTL
 	}
 	return nil
 }
