@@ -190,32 +190,21 @@ footer { margin-top: 3rem; color: var(--fg2); font-size: .85rem; }
 <h3 id="v2-networking-and-builds">Networking and builds</h3>
 <ul class="tasks">
 <li><span class="open-box" aria-hidden="true"></span><span>Scan images for vulnerabilities and record where they were built.</span></li>
-<li><span class="open-box" aria-hidden="true"></span><span>Let users choose which external addresses an app can connect to.</span></li>
 <li><span class="open-box" aria-hidden="true"></span><span>Support custom domains and issue/renew their certificates.</span></li>
 <li><span class="open-box" aria-hidden="true"></span><span>Run builds on separate clusters; prevent apps from being deployed there.</span></li>
 <li><span class="open-box" aria-hidden="true"></span><span>Support command-based health checks.</span></li>
 <li><span class="open-box" aria-hidden="true"></span><span>Sleep idle apps and wake them when a request arrives.</span></li>
-<li><span class="open-box" aria-hidden="true"></span><span>Deploy and delete a group of services together; support recursive deploy.</span></li>
 </ul>
 <h3 id="v2-infrastructure-and-platform">Infrastructure and platform</h3>
 <ul class="tasks">
 <li><span class="open-box" aria-hidden="true"></span><span>Rebuild a lost cluster from backups.</span></li>
-<li><span class="open-box" aria-hidden="true"></span><span>Decide which cluster issues and renews certificates for each region.</span></li>
 <li><span class="open-box" aria-hidden="true"></span><span>Define how to patch platform services and replace cluster nodes.</span></li>
 <li><span class="open-box" aria-hidden="true"></span><span>Let users configure their own cloud accounts.</span></li>
 <li><span class="open-box" aria-hidden="true"></span><span>Build an admin dashboard and status page.</span></li>
 <li><span class="open-box" aria-hidden="true"></span><span>Support databases, caches and blob storage.</span></li>
 <li><span class="open-box" aria-hidden="true"></span><span>Support persistent disks for apps.</span></li>
 <li><span class="open-box" aria-hidden="true"></span><span>Decide whether to add frontend analytics.</span></li>
-<li><span class="open-box" aria-hidden="true"></span><span>Let apps use secrets from AWS SSM, Vault and other secret stores.</span></li>
 </ul>
-<h3 id="v2-data-model">Data model</h3>
-<ul class="tasks">
-<li><span class="open-box" aria-hidden="true"></span><span>Decide whether to replace UUIDs.</span></li>
-<li><span class="open-box" aria-hidden="true"></span><span>Split sqlc queries into packages where it makes the code easier to use.</span></li>
-<li><span class="open-box" aria-hidden="true"></span><span>Limit requests per customer and expire old audit events and webhook records.</span></li>
-</ul>
-</section>
 <section aria-labelledby="v3">
 <h2 id="v3">V3</h2>
 <ul class="tasks">
@@ -223,15 +212,6 @@ footer { margin-top: 3rem; color: var(--fg2); font-size: .85rem; }
 <li><span class="open-box" aria-hidden="true"></span><span>Roll out new versions to a few instances before updating all of them.</span></li>
 <li><span class="open-box" aria-hidden="true"></span><span>Export Kubernetes YAML so users can move to their own infrastructure.</span></li>
 <li><span class="open-box" aria-hidden="true"></span><span>Choose supported Kubernetes versions and test the controller/agent against each one.</span></li>
-</ul>
-</section>
-<section aria-labelledby="backlog-only-if-users-ask">
-<h2 id="backlog-only-if-users-ask">Backlog (only if users ask)</h2>
-<ul class="tasks">
-<li><span class="open-box" aria-hidden="true"></span><span>Add a smaller init template.</span></li>
-<li><span class="open-box" aria-hidden="true"></span><span>Support <code>NO_COLOR</code> / <code>--no-color</code> and plain terminal output.</span></li>
-<li><span class="open-box" aria-hidden="true"></span><span>Support other remote image builders.</span></li>
-<li><span class="open-box" aria-hidden="true"></span><span>Revisit faster protobuf encoding when the tooling supports it.</span></li>
 </ul>
 </section>
 <footer><a href="#content">Back to top</a></footer>
