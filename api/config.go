@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -86,6 +87,8 @@ const (
 
 	defaultSecretsTransitMount   = "transit"
 	defaultSecretsTransitTimeout = 10 * time.Second
+	defaultSecretsTransitMargin  = 5 * time.Minute
+	defaultSecretsTransitRetry   = 10 * time.Second
 )
 
 type APIConfig struct {
@@ -190,12 +193,12 @@ func newAPIConfig() *APIConfig {
 	}
 }
 
-func newSecretKeyProvider(cfg secretkeys.Config) (secretkeys.Provider, error) {
+func newSecretKeyProvider(ctx context.Context, cfg secretkeys.Config) (secretkeys.Provider, error) {
 	if cfg.Provider == "" {
 		slog.Warn("LOCO_SECRETS_KEY_PROVIDER is not set; secrets cannot be stored")
 		return nil, nil
 	}
-	provider, err := secretkeys.New(cfg)
+	provider, err := secretkeys.New(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("secrets key provider: %w", err)
 	}
@@ -225,6 +228,11 @@ func newSecretsConfig() secretkeys.Config {
 			Token:   stringEnv("LOCO_SECRETS_TRANSIT_TOKEN", ""),
 			CAFile:  stringEnv("LOCO_SECRETS_TRANSIT_CA_FILE", ""),
 			Timeout: positiveDurationEnv("LOCO_SECRETS_TRANSIT_TIMEOUT", defaultSecretsTransitTimeout),
+			RenewMargin: positiveDurationEnv(
+				"LOCO_SECRETS_TRANSIT_RENEW_MARGIN",
+				defaultSecretsTransitMargin,
+			),
+			RenewRetry: positiveDurationEnv("LOCO_SECRETS_TRANSIT_RENEW_RETRY", defaultSecretsTransitRetry),
 		}
 		if err := transit.Validate(); err != nil {
 			panic(fmt.Errorf("%w: %w", errInvalidSecretsTransit, err))
