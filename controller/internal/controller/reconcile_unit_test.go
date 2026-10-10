@@ -83,7 +83,7 @@ func envValue(t *testing.T, dep *appsv1ac.DeploymentApplyConfiguration, name str
 
 func TestDesiredDeploymentIsDeterministic(t *testing.T) {
 	app := testApplication()
-	first, err := desiredDeployment(app, "7")
+	first, err := desiredDeployment(app, envSecretMount{Mounted: true, Revision: 7})
 	if err != nil {
 		t.Fatalf("desiredDeployment: %v", err)
 	}
@@ -92,7 +92,7 @@ func TestDesiredDeploymentIsDeterministic(t *testing.T) {
 		t.Fatalf("marshal: %v", err)
 	}
 	for range 20 {
-		next, err := desiredDeployment(app, "7")
+		next, err := desiredDeployment(app, envSecretMount{Mounted: true, Revision: 7})
 		if err != nil {
 			t.Fatalf("desiredDeployment: %v", err)
 		}
@@ -106,20 +106,22 @@ func TestDesiredDeploymentIsDeterministic(t *testing.T) {
 	}
 }
 
-func TestDesiredDeploymentSourcesUserEnvFromSecret(t *testing.T) {
+func TestDesiredDeploymentInlinesPlainEnvAndMountsTheEnvSecret(t *testing.T) {
 	app := testApplication()
-	dep, err := desiredDeployment(app, "7")
+	dep, err := desiredDeployment(app, envSecretMount{Mounted: true, Revision: 7})
 	if err != nil {
 		t.Fatalf("desiredDeployment: %v", err)
 	}
 
-	for name := range app.Spec.ServiceSpec.Deployment.Env {
-		if _, ok := envValue(t, dep, name); ok {
-			t.Errorf("user env %s is inlined in the pod spec", name)
+	for name, want := range app.Spec.ServiceSpec.Deployment.Env {
+		if got, ok := envValue(t, dep, name); !ok || got != want {
+			t.Errorf("plain env %s = %q, %v; want %q in the pod spec", name, got, ok, want)
 		}
 	}
-
 	container := dep.Spec.Template.Spec.Containers[0]
+	if ptr.Deref(container.Env[0].Name, "") != "ALPHA" || ptr.Deref(container.Env[3].Name, "") != "ZETA" {
+		t.Errorf("plain env is not sorted by name: %v", container.Env)
+	}
 	if len(container.EnvFrom) != 1 || container.EnvFrom[0].SecretRef == nil {
 		t.Fatalf("expected a single secret envFrom, got %+v", container.EnvFrom)
 	}
@@ -128,20 +130,31 @@ func TestDesiredDeploymentSourcesUserEnvFromSecret(t *testing.T) {
 	if secretName != wantSecretName {
 		t.Errorf("envFrom secret = %q, want %q", secretName, wantSecretName)
 	}
-
-	version := dep.Spec.Template.Annotations[annotationEnvSecretRV]
-	if version != "7" {
-		t.Errorf("env secret version annotation = %q, want 7", version)
+	revision := dep.Spec.Template.Annotations[annotationEnvSecretRevision]
+	if revision != "7" {
+		t.Errorf("env secret revision annotation = %q, want 7", revision)
 	}
 	if got := ptr.Deref(dep.Spec.Replicas, 0); got != 2 {
 		t.Errorf("replicas = %d, want 2", got)
+	}
+
+	dep, err = desiredDeployment(app, envSecretMount{})
+	if err != nil {
+		t.Fatalf("desiredDeployment without a secret: %v", err)
+	}
+	container = dep.Spec.Template.Spec.Containers[0]
+	if len(container.EnvFrom) != 0 {
+		t.Errorf("envFrom without an env secret = %+v, want none", container.EnvFrom)
+	}
+	if _, ok := dep.Spec.Template.Annotations[annotationEnvSecretRevision]; ok {
+		t.Error("env secret revision annotation set without an env secret")
 	}
 }
 
 func TestDesiredDeploymentWithoutRouting(t *testing.T) {
 	app := testApplication()
 	app.Spec.ServiceSpec.Routing = nil
-	dep, err := desiredDeployment(app, "1")
+	dep, err := desiredDeployment(app, envSecretMount{})
 	if err != nil {
 		t.Fatalf("desiredDeployment: %v", err)
 	}
@@ -157,14 +170,14 @@ func TestDesiredDeploymentWithoutRouting(t *testing.T) {
 func TestDesiredDeploymentRequiresResources(t *testing.T) {
 	app := testApplication()
 	app.Spec.ServiceSpec.Resources = nil
-	if _, err := desiredDeployment(app, "1"); !errors.Is(err, errNoResources) {
+	if _, err := desiredDeployment(app, envSecretMount{}); !errors.Is(err, errNoResources) {
 		t.Fatalf("desiredDeployment without resources = %v, want errNoResources", err)
 	}
 }
 
 func TestDesiredDeploymentUsesSpecResources(t *testing.T) {
 	app := testApplication()
-	dep, err := desiredDeployment(app, "1")
+	dep, err := desiredDeployment(app, envSecretMount{})
 	if err != nil {
 		t.Fatalf("desiredDeployment: %v", err)
 	}
@@ -186,7 +199,7 @@ func TestDesiredDeploymentUsesSpecResources(t *testing.T) {
 func TestDesiredDeploymentRejectsInvalidQuantity(t *testing.T) {
 	app := testApplication()
 	app.Spec.ServiceSpec.Resources.CPU = "lots"
-	if _, err := desiredDeployment(app, "1"); err == nil {
+	if _, err := desiredDeployment(app, envSecretMount{}); err == nil {
 		t.Fatal("expected an error for an unparsable cpu quantity")
 	}
 }

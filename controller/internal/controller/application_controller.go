@@ -21,6 +21,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
+	"slices"
+	"strconv"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -37,7 +40,6 @@ import (
 	appsv1ac "k8s.io/client-go/applyconfigurations/apps/v1"
 	corev1ac "k8s.io/client-go/applyconfigurations/core/v1"
 	metav1ac "k8s.io/client-go/applyconfigurations/meta/v1"
-	rbacv1ac "k8s.io/client-go/applyconfigurations/rbac/v1"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -62,18 +64,21 @@ const (
 	labelEnvironmentID           = "loco.io/environment-id"
 	annotationAppNamespace       = "loco.io/application-namespace"
 	annotationAppName            = "loco.io/application-name"
-	annotationEnvSecretRV        = "loco.io/env-secret-version"
+	annotationEnvSecretRevision  = "loco.io/env-secret-revision"
+	envRegion                    = "LOCO_REGION"
 	phaseDeploying               = "Deploying"
 	phaseFailed                  = "Failed"
 	phaseReady                   = "Ready"
 	servicePort                  = int32(80)
 	deployingRequeue             = 15 * time.Second
+	envSecretRequeue             = 5 * time.Second
 	maxConcurrentReconciles      = 4
 )
 
 var (
 	errPullSecretWithoutNamespace = errors.New("a registry pull secret requires the loco namespace")
 	errNoResources                = errors.New("serviceSpec.resources is required")
+	errEnvSecretPending           = errors.New("the staging env secret does not hold the referenced revision")
 )
 
 // LocoResourceReconciler reconciles a Application object
@@ -92,7 +97,7 @@ type LocoResourceReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;create;list;watch;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;create;list;watch;patch;delete
-// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=get;create;list;watch;patch;update;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=delete
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes,verbs=get;create;list;watch;patch;update;delete
@@ -178,7 +183,11 @@ func (r *LocoResourceReconciler) reconcileResources(
 		return ctrl.Result{}, fmt.Errorf("ensure workspace pull secret: %w", err)
 	}
 
-	envSecretVersion, err := ensureEnvSecret(ctx, r.Client, locoRes)
+	envSecret, err := r.ensureEnvSecret(ctx, locoRes)
+	if errors.Is(err, errEnvSecretPending) {
+		setPhase(locoRes, phaseDeploying, "Waiting for the environment secrets...")
+		return ctrl.Result{RequeueAfter: envSecretRequeue}, nil
+	}
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure secrets: %w", err)
 	}
@@ -188,12 +197,12 @@ func (r *LocoResourceReconciler) reconcileResources(
 		return ctrl.Result{}, fmt.Errorf("ensure service account: %w", err)
 	}
 
-	err = r.ensureRoleAndBinding(ctx, locoRes)
+	err = r.deleteRoleAndBinding(ctx, locoRes)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("ensure role & binding: %w", err)
+		return ctrl.Result{}, fmt.Errorf("delete role & binding: %w", err)
 	}
 
-	dep, err := r.ensureDeployment(ctx, locoRes, envSecretVersion)
+	dep, err := r.ensureDeployment(ctx, locoRes, envSecret)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure deployment: %w", err)
 	}
@@ -426,20 +435,40 @@ func ensureNamespace(ctx context.Context, kubeClient client.Client, locoRes *loc
 	return nil
 }
 
-// ensureEnvSecret ensures all required secrets exist in the app namespace
-func ensureEnvSecret(
+type envSecretMount struct {
+	Mounted  bool
+	Revision int64
+}
+
+// ensureEnvSecret copies the staging Secret the Application references into the app namespace.
+func (r *LocoResourceReconciler) ensureEnvSecret(
 	ctx context.Context,
-	kubeClient client.Client,
 	locoRes *locov1alpha1.Application,
-) (string, error) {
+) (envSecretMount, error) {
 	namespace := getNamespace(locoRes)
 	envSecretName := getEnvSecretName(locoRes)
+	ref := locoRes.Spec.ServiceSpec.Deployment.EnvSecretRef
+	if ref == nil {
+		stale := &corev1.Secret{Name: envSecretName, Namespace: namespace}
+		if err := r.Delete(ctx, stale); err != nil && !apierrors.IsNotFound(err) {
+			return envSecretMount{}, fmt.Errorf("delete env secret %s/%s: %w", namespace, envSecretName, err)
+		}
+		return envSecretMount{}, nil
+	}
 	slog.DebugContext(ctx, "ensuring env secret", "namespace", namespace, "name", envSecretName)
 
-	env := locoRes.Spec.ServiceSpec.Deployment.Env
-	secretData := make(map[string][]byte, len(env))
-	for k, v := range env {
-		secretData[k] = []byte(v)
+	staged := &corev1.Secret{}
+	stagedKey := client.ObjectKey{Namespace: locoRes.Namespace, Name: ref.Name}
+	err := r.Get(ctx, stagedKey, staged)
+	if apierrors.IsNotFound(err) {
+		return envSecretMount{}, errEnvSecretPending
+	}
+	if err != nil {
+		return envSecretMount{}, fmt.Errorf("get staged env secret %s: %w", stagedKey, err)
+	}
+	revision, ok := locov1alpha1.EnvSecretRevision(staged.Labels)
+	if !ok || revision != ref.Revision {
+		return envSecretMount{}, errEnvSecretPending
 	}
 
 	labels := managedLabels(locoRes)
@@ -448,14 +477,13 @@ func ensureEnvSecret(
 		WithLabels(labels).
 		WithAnnotations(annotations).
 		WithType(corev1.SecretTypeOpaque).
-		WithData(secretData)
+		WithData(staged.Data)
 
 	opts := managed.ApplyOptions()
-	if err := kubeClient.Apply(ctx, envSecret, opts...); err != nil {
-		return "", fmt.Errorf("apply env secret %s/%s: %w", namespace, envSecretName, err)
+	if err := r.Apply(ctx, envSecret, opts...); err != nil {
+		return envSecretMount{}, fmt.Errorf("apply env secret %s/%s: %w", namespace, envSecretName, err)
 	}
-
-	return ptr.Deref(envSecret.ResourceVersion, ""), nil
+	return envSecretMount{Mounted: true, Revision: ref.Revision}, nil
 }
 
 // ensureServiceAccount ensures the service account exists for the deployment and references image pull secret
@@ -483,49 +511,20 @@ func (r *LocoResourceReconciler) ensureServiceAccount(ctx context.Context, locoR
 	return nil
 }
 
-// ensureRoleAndBinding ensures the RBAC role and role binding exist
-func (r *LocoResourceReconciler) ensureRoleAndBinding(ctx context.Context, locoRes *locov1alpha1.Application) error {
-	name := getName(locoRes)
+// deleteRoleAndBinding removes the Role and RoleBinding that once let the pod read its env Secret.
+func (r *LocoResourceReconciler) deleteRoleAndBinding(ctx context.Context, locoRes *locov1alpha1.Application) error {
 	namespace := getNamespace(locoRes)
-	slog.DebugContext(ctx, "ensuring role and role binding", "namespace", namespace, "name", name)
-
-	envSecretName := getEnvSecretName(locoRes)
-	roleName := getRoleName(locoRes)
-	roleBindingName := getRoleBindingName(locoRes)
-	labels := managedLabels(locoRes)
-	annotations := ownerAnnotations(locoRes)
-	opts := managed.ApplyOptions()
-
-	rule := rbacv1ac.PolicyRule().
-		WithAPIGroups("").
-		WithResources("secrets").
-		WithVerbs("get", "list", "watch").
-		WithResourceNames(envSecretName)
-	role := rbacv1ac.Role(roleName, namespace).
-		WithLabels(labels).
-		WithAnnotations(annotations).
-		WithRules(rule)
-	if err := r.Apply(ctx, role, opts...); err != nil {
-		return fmt.Errorf("apply role %s/%s: %w", namespace, roleName, err)
+	objects := []client.Object{
+		&rbacv1.RoleBinding{Name: getRoleBindingName(locoRes), Namespace: namespace},
+		&rbacv1.Role{Name: getRoleName(locoRes), Namespace: namespace},
 	}
-
-	subject := rbacv1ac.Subject().
-		WithKind(rbacv1.ServiceAccountKind).
-		WithName(name).
-		WithNamespace(namespace)
-	roleRef := rbacv1ac.RoleRef().
-		WithKind("Role").
-		WithName(roleName).
-		WithAPIGroup(rbacv1.GroupName)
-	binding := rbacv1ac.RoleBinding(roleBindingName, namespace).
-		WithLabels(labels).
-		WithAnnotations(annotations).
-		WithSubjects(subject).
-		WithRoleRef(roleRef)
-	if err := r.Apply(ctx, binding, opts...); err != nil {
-		return fmt.Errorf("apply role binding %s/%s: %w", namespace, roleBindingName, err)
+	for _, obj := range objects {
+		err := r.Delete(ctx, obj)
+		if err == nil || apierrors.IsNotFound(err) {
+			continue
+		}
+		return fmt.Errorf("delete %T %s/%s: %w", obj, namespace, obj.GetName(), err)
 	}
-
 	return nil
 }
 
@@ -599,7 +598,7 @@ func systemEnvVars(locoRes *locov1alpha1.Application) []*corev1ac.EnvVarApplyCon
 		{Name: "LOCO_RESOURCE_ID", Value: locoRes.Spec.ResourceID},
 		{Name: "LOCO_WORKSPACE_ID", Value: locoRes.Spec.WorkspaceID},
 		{Name: "LOCO_DEPLOYMENT_ID", Value: locoRes.Spec.DeploymentID},
-		{Name: "LOCO_REGION", Value: locoRes.Spec.Region},
+		{Name: envRegion, Value: locoRes.Spec.Region},
 		{Name: "LOCO_ENVIRONMENT", Value: locoRes.Spec.EnvironmentName},
 		{Name: "LOCO_INTERNAL_DOMAIN", Value: internalDomain},
 		{Name: "LOCO_PUBLIC_DOMAIN", Value: publicDomain},
@@ -608,6 +607,26 @@ func systemEnvVars(locoRes *locov1alpha1.Application) []*corev1ac.EnvVarApplyCon
 	envVars := make([]*corev1ac.EnvVarApplyConfiguration, 0, len(vars))
 	for _, v := range vars {
 		envVar := corev1ac.EnvVar().WithName(v.Name).WithValue(v.Value)
+		envVars = append(envVars, envVar)
+	}
+	return envVars
+}
+
+func plainEnvVars(
+	env map[string]string,
+	systemVars []*corev1ac.EnvVarApplyConfiguration,
+) []*corev1ac.EnvVarApplyConfiguration {
+	system := make(map[string]struct{}, len(systemVars))
+	for _, systemVar := range systemVars {
+		system[*systemVar.Name] = struct{}{}
+	}
+	names := slices.Sorted(maps.Keys(env))
+	envVars := make([]*corev1ac.EnvVarApplyConfiguration, 0, len(names))
+	for _, name := range names {
+		if _, reserved := system[name]; reserved {
+			continue
+		}
+		envVar := corev1ac.EnvVar().WithName(name).WithValue(env[name])
 		envVars = append(envVars, envVar)
 	}
 	return envVars
@@ -626,7 +645,7 @@ func healthProbe(hc *locov1alpha1.HealthCheckSpec, port int32) *corev1ac.ProbeAp
 
 func desiredDeployment(
 	locoRes *locov1alpha1.Application,
-	envSecretVersion string,
+	envSecret envSecretMount,
 ) (*appsv1ac.DeploymentApplyConfiguration, error) {
 	name := getName(locoRes)
 	namespace := getNamespace(locoRes)
@@ -642,10 +661,9 @@ func desiredDeployment(
 		return nil, fmt.Errorf("resources: %w", err)
 	}
 
-	envSecretName := getEnvSecretName(locoRes)
-	secretRef := corev1ac.SecretEnvSource().WithName(envSecretName)
-	envFrom := corev1ac.EnvFromSource().WithSecretRef(secretRef)
-	envVars := systemEnvVars(locoRes)
+	systemVars := systemEnvVars(locoRes)
+	plainVars := plainEnvVars(spec.Deployment.Env, systemVars)
+	envVars := slices.Concat(plainVars, systemVars)
 	port := corev1ac.ContainerPort().
 		WithName("http").
 		WithContainerPort(containerPort).
@@ -654,11 +672,18 @@ func desiredDeployment(
 	container := corev1ac.Container().
 		WithName(name).
 		WithImage(spec.Deployment.Image).
-		WithEnvFrom(envFrom).
 		WithEnv(envVars...).
 		WithPorts(port).
 		WithResources(resources).
 		WithSecurityContext(containerSecurity)
+	podAnnotations := map[string]string{}
+	if envSecret.Mounted {
+		envSecretName := getEnvSecretName(locoRes)
+		secretRef := corev1ac.SecretEnvSource().WithName(envSecretName)
+		envFrom := corev1ac.EnvFromSource().WithSecretRef(secretRef)
+		container.WithEnvFrom(envFrom)
+		podAnnotations[annotationEnvSecretRevision] = strconv.FormatInt(envSecret.Revision, 10)
+	}
 
 	if hc := spec.Deployment.HealthCheck; hc != nil {
 		livenessProbe := healthProbe(hc, containerPort)
@@ -672,7 +697,6 @@ func desiredDeployment(
 		managed.LabelResourceID:  locoRes.Spec.ResourceID,
 		labelEnvironmentID:       locoRes.Spec.EnvironmentID,
 	}
-	podAnnotations := map[string]string{annotationEnvSecretRV: envSecretVersion}
 	podSecurity := podSecurityContext()
 	podSpec := corev1ac.PodSpec().
 		WithServiceAccountName(name).
@@ -715,9 +739,9 @@ func desiredDeployment(
 func (r *LocoResourceReconciler) ensureDeployment(
 	ctx context.Context,
 	locoRes *locov1alpha1.Application,
-	envSecretVersion string,
+	envSecret envSecretMount,
 ) (*appsv1ac.DeploymentApplyConfiguration, error) {
-	dep, err := desiredDeployment(locoRes, envSecretVersion)
+	dep, err := desiredDeployment(locoRes, envSecret)
 	if err != nil {
 		return nil, err
 	}
@@ -814,9 +838,17 @@ func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	nodePredicates := builder.WithPredicates(nodeChanges)
 	options := crcontroller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}
 
+	envSecretHandler := handler.EnqueueRequestForOwner(
+		mgr.GetScheme(),
+		mgr.GetRESTMapper(),
+		&locov1alpha1.Application{},
+		handler.OnlyControllerOwner(),
+	)
+
 	controllerBuilder := ctrl.NewControllerManagedBy(mgr).
 		For(&locov1alpha1.Application{}, applicationPredicates).
 		Watches(&appsv1.Deployment{}, deploymentHandler).
+		Watches(&corev1.Secret{}, envSecretHandler).
 		Watches(&corev1.Node{}, nodeHandler, nodePredicates)
 	if r.PullSecretName != "" {
 		pullSecretHandler := handler.EnqueueRequestsFromMapFunc(r.applicationPerWorkspace)
