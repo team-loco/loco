@@ -32,6 +32,8 @@ var (
 	errResourcesMissing       = errors.New("serviceSpec.resources must be set")
 	errCPUMissing             = errors.New("cpu must be set")
 	errMemoryMissing          = errors.New("memory must be set")
+	errEnvSecretNameMissing   = errors.New("envSecretRef.name must be set")
+	errEnvSecretRevision      = errors.New("envSecretRef.revision must be positive")
 )
 
 var (
@@ -160,6 +162,22 @@ func validateServiceDeploymentSpec(spec *ServiceDeploymentSpec) error {
 		}
 	}
 
+	if spec.EnvSecretRef != nil {
+		if err := validateEnvSecretRef(spec.EnvSecretRef); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func validateEnvSecretRef(ref *EnvSecretRef) error {
+	if ref.Name == "" {
+		return errEnvSecretNameMissing
+	}
+	if ref.Revision < 1 {
+		return errEnvSecretRevision
+	}
 	return nil
 }
 
