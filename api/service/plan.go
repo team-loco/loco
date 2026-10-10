@@ -332,7 +332,7 @@ func (s *PlanServer) liveState(
 		Health:  s.liveHealth(spec.GetHealthCheck()),
 		Regions: make(map[string]configplan.Region, len(spec.GetRegions())),
 	}
-	if spec.GetRouting() != nil {
+	if spec.GetRouting().GetPathPrefix() != "" || spec.GetRouting().GetIdleTimeout() != 0 {
 		state.Routing = &configplan.Routing{
 			PathPrefix:  converter.FirstSet(spec.GetRouting().GetPathPrefix(), s.defaults.PathPrefix),
 			IdleTimeout: converter.FirstSet(spec.GetRouting().GetIdleTimeout(), s.defaults.IdleTimeout),
