@@ -3,15 +3,6 @@ import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 
 import { getServiceSpec } from "@/lib/deployment-utils";
 
-export function imageTag(image: string): string {
-	const digestAt = image.indexOf("@sha256:");
-	if (digestAt >= 0) return `sha256:${image.slice(digestAt + 8, digestAt + 15)}`;
-	const lastSlash = image.lastIndexOf("/");
-	const colon = image.lastIndexOf(":");
-	if (colon > lastSlash) return image.slice(colon + 1);
-	return "latest";
-}
-
 export function deploymentImage(d: Deployment): string {
 	return getServiceSpec(d)?.build?.image ?? "";
 }

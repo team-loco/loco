@@ -36,7 +36,7 @@ export interface FieldDef {
 export const FIELDS: FieldDef[] = [
 	{ key: "level", info: "error · warn · info · debug", supported: true },
 	{ key: "resource", info: "service name", supported: true },
-	{ key: "replica", info: "replica (pod) name", supported: true },
+	{ key: "replica", info: "replica name", supported: true },
 	{ key: "region", info: "cluster region", supported: true },
 	{ key: "status", info: "HTTP status", supported: false },
 	{ key: "method", info: "HTTP method", supported: false },

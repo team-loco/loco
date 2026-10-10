@@ -7,10 +7,11 @@ import { EmptyState } from "@/components/design/EmptyState";
 import { Section } from "@/components/design/Page";
 import { DeploymentPhaseBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
+import { imageVersion } from "@/lib/image";
 import { resourcePath } from "@/lib/routes";
 import { tsMs } from "@/lib/time";
 
-import { deploymentImage, imageTag, startedLabel } from "./format";
+import { deploymentImage, startedLabel } from "./format";
 
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 const LIMIT = 10;
@@ -65,7 +66,7 @@ export function RecentDeployments({
 									</TableCell>
 									<TableCell className="truncate py-0 pr-3 pl-0 font-semibold">{resource.name}</TableCell>
 									<TableCell className="py-0 pr-3 pl-0 text-fg2">{d.region}</TableCell>
-									<TableCell className="truncate py-0 pr-3 pl-0">{imageTag(deploymentImage(d))}</TableCell>
+									<TableCell className="truncate py-0 pr-3 pl-0">{imageVersion(deploymentImage(d))}</TableCell>
 									<TableCell className="truncate py-0 pr-4 pl-0 text-fg2">{d.message}</TableCell>
 								</TableRow>
 							);

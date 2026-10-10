@@ -5,9 +5,8 @@ import { getResource } from "@gen/loco/resource/v1/resource-ResourceService_conn
 import { RegionIntentStatus, type RegionConfig, type Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { getServiceSpec } from "@/lib/deployment-utils";
+import { imageVersion } from "@/lib/image";
 import { maybeTsMs, tsMs } from "@/lib/time";
-
-import { imageRef, imageTag } from "./format";
 
 export const PAGE_SIZES = [10, 25, 50, 100];
 
@@ -45,12 +44,7 @@ export function depImage(dep: Deployment | undefined): string {
 
 export function depTag(dep: Deployment | undefined): string {
 	const image = depImage(dep);
-	return image === "" ? "—" : imageTag(image);
-}
-
-export function depImageRef(dep: Deployment | undefined): string {
-	const image = depImage(dep);
-	return image === "" ? "—" : imageRef(image);
+	return image === "" ? "—" : imageVersion(image);
 }
 
 function byNewest(a: Deployment, b: Deployment): number {

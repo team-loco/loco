@@ -1,14 +1,18 @@
-import { ClockIcon, FileCodeIcon, HashIcon, PackageIcon } from "lucide-react";
+import { CheckIcon, ClockIcon, CopyIcon, FileCodeIcon, HashIcon, PackageIcon } from "lucide-react";
 import { ResourceStatus, ResourceType, type Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { Badge } from "@/components/design/Badge";
+import { Button } from "@/components/design/Button";
 import { effectiveResourceStatus, ResourceStatusBadge } from "@/components/design/StatusBadge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
+import { useCopy } from "@/hooks/useCopy";
 import { useNow } from "@/hooks/useNow";
+import { shortImageRef } from "@/lib/image";
 import { cn } from "@/lib/utils";
 
 import { CopyId } from "./CopyId";
 import { formatDuration, formatStarted, shortId } from "./format";
-import { depImage, depImageRef, isRunning, startedMs, type RegionView } from "./model";
+import { depImage, isRunning, startedMs, type RegionView } from "./model";
 
 function typeLabel(type: ResourceType): string {
 	switch (type) {
@@ -47,6 +51,38 @@ function healthDotClass(status: ResourceStatus, desired: number): string {
 	}
 }
 
+function ImageRef({ image }: { image: string }) {
+	const [copiedKey, copy] = useCopy(1500);
+	const copied = copiedKey === image;
+	const short = shortImageRef(image);
+
+	return (
+		<Tooltip>
+			<TooltipTrigger
+				render={
+					<Button
+						variant="ghost"
+						aria-label={`Copy image ${image}`}
+						onClick={() => {
+							copy(image, image);
+						}}
+						className="-mx-1.5 -my-0.5 h-auto min-w-0 gap-1.5 px-1.5 py-0.5 font-normal text-fg2 hover:text-foreground"
+					/>
+				}
+			>
+				<PackageIcon className="size-3.5 text-fg3" />
+				<span className="truncate">{short}</span>
+				<span className="flex text-fg3">
+					{copied ? <CheckIcon className="size-[13px]" /> : <CopyIcon className="size-[13px]" />}
+				</span>
+			</TooltipTrigger>
+			<TooltipContent className="max-w-[min(90vw,560px)] font-mono break-all">
+				{copied ? "Copied" : image}
+			</TooltipContent>
+		</Tooltip>
+	);
+}
+
 export function ResourceHeader({
 	resource,
 	regions,
@@ -76,7 +112,6 @@ export function ResourceHeader({
 					: `${desired.toString()} replicas desired${regionSuffix}`;
 	const primImage = depImage(prim);
 	const sameImage = actives.every((d) => depImage(d) === primImage);
-	const imageLabel = sameImage ? depImageRef(prim) : "Differs by region";
 	const since = prim === undefined ? undefined : startedMs(prim);
 	const extra = actives.length > 1 ? ` +${(actives.length - 1).toString()}` : "";
 	const deployTitle = regions
@@ -100,10 +135,11 @@ export function ResourceHeader({
 					<span className={cn("size-2 rounded-full", healthDotClass(status, desired))} />
 					{readyLine}
 				</span>
-				{prim !== undefined && (
-					<span className="flex items-center gap-1.5" title={primImage}>
+				{prim !== undefined && primImage !== "" && sameImage && <ImageRef image={primImage} />}
+				{prim !== undefined && !sameImage && (
+					<span className="flex items-center gap-1.5">
 						<PackageIcon className="size-3.5 text-fg3" />
-						{imageLabel}
+						Differs by region
 					</span>
 				)}
 				{prim !== undefined && (

@@ -24,13 +24,9 @@ export function SpecDialogContent({ dep, specVersion }: { dep: Deployment; specV
 	const sub = `${shortId(dep.id)} · ${dep.region} · spec v${(dep.specVersion || specVersion).toString()}`;
 	return (
 		<DialogContent className="w-[640px]" title={<TitleWithSub title="Deployment spec" sub={sub} />}>
-			<CodeBlock
-				language="json"
-				className="min-h-0 rounded-none border-0 bg-transparent"
-				codeClassName="max-h-[70vh] px-4 py-3 whitespace-pre"
-			>
-				{specText(dep)}
-			</CodeBlock>
+			<DialogBody>
+				<CodeBlock language="json">{specText(dep)}</CodeBlock>
+			</DialogBody>
 		</DialogContent>
 	);
 }
@@ -81,7 +77,7 @@ export function RollbackDialogContent({
 				<span>
 					Creates a new deployment in <span className="font-semibold text-foreground">{target.region}</span> from the spec of{" "}
 					<span className="font-semibold text-foreground">{shortId(target.id)}</span> ({depTag(target)}).
-					{current !== undefined && ` The current deployment ${shortId(current.id)} is superseded once the new pods are ready.`}
+					{current !== undefined && ` The current deployment ${shortId(current.id)} is superseded once the new replicas are ready.`}
 				</span>
 				<div className="grid grid-cols-[110px_minmax(0,1fr)] gap-x-3 gap-y-1.5 rounded-sm border border-line bg-bg2 px-3 py-2.5 text-sm">
 					{changes.map((c) => (
@@ -138,7 +134,7 @@ export function DeleteDialogContent({
 				<DialogBody className="gap-3">
 					<span className="leading-normal text-fg2">
 						Removes the resource, {deployCount}
-						{regionList}, and {domainText}. Running pods are terminated immediately.
+						{regionList}, and {domainText}. Running replicas stop immediately.
 					</span>
 					<label className="flex flex-col gap-1.5">
 						<span className="text-sm text-fg3">

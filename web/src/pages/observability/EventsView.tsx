@@ -59,7 +59,7 @@ export function EventsView() {
 		const ts = tsMs(e.timestamp);
 		if (ts < from || !selIds.has(e.resourceId)) return false;
 		if (q === "") return true;
-		return `${e.reason} ${e.message} pod/${e.podName} ${e.resourceName}`.toLowerCase().includes(q);
+		return `${e.reason} ${e.message} ${e.podName} ${e.resourceName}`.toLowerCase().includes(q);
 	});
 	const sevCounts: Record<Severity, number> = { error: 0, warning: 0, normal: 0 };
 	const filtered: typeof base = [];
@@ -132,7 +132,7 @@ export function EventsView() {
 							</span>
 						}
 					>
-						Kubernetes events for your resources will show up here once the API supports them.
+						Events for your services will show up here once Loco records them.
 					</EmptyState>
 				</section>
 			</ObsGate>

@@ -129,7 +129,7 @@ export function Resource() {
 		setNotice({
 			tone: "info",
 			title: `Rolling back ${resource.name} in ${target.region}`,
-			message: `New deployment created from ${shortId(target.id)} (${depTag(target)}). Pods are being replaced.`,
+			message: `New deployment created from ${shortId(target.id)} (${depTag(target)}). Replicas are being replaced.`,
 		});
 	};
 
