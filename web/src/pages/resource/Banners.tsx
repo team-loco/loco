@@ -47,7 +47,7 @@ export function NoticeBanner({ notice, onDismiss }: { notice: Notice; onDismiss:
 				type="button"
 				aria-label="Dismiss"
 				onClick={onDismiss}
-				className="flex size-[26px] cursor-pointer items-center justify-center rounded-sm border-0 bg-transparent text-inherit hover:bg-black/5"
+				className="flex size-[26px] items-center justify-center rounded-sm border-0 bg-transparent text-inherit hover:bg-black/5"
 			>
 				<XIcon className="size-4" />
 			</button>
@@ -71,9 +71,7 @@ export function ErrorBanner({
 			<OctagonAlertIcon className="size-[18px]" />
 			<div className="flex min-w-0 flex-col gap-0.5">
 				<span className="font-semibold">{title}</span>
-				<span className="truncate" title={message}>
-					{message}
-				</span>
+				<span className="wrap-break-word">{message}</span>
 			</div>
 			<div className="flex gap-2">
 				{logsHref !== undefined && (
@@ -87,7 +85,7 @@ export function ErrorBanner({
 				<button
 					type="button"
 					onClick={onEvents}
-					className="h-7 cursor-pointer rounded-sm border border-bad-fg bg-transparent px-2.5 text-bad-fg hover:bg-black/5"
+					className="h-7 rounded-sm border border-bad-fg bg-transparent px-2.5 text-bad-fg hover:bg-black/5"
 				>
 					Events
 				</button>

@@ -232,9 +232,7 @@ export function RegionPanel({
 						<CopyId value={dep.id} className="shrink-0 font-semibold text-foreground">
 							{shortId(dep.id)}
 						</CopyId>
-						<span className={cn("min-w-0 flex-1 truncate", messageClass(dep))} title={dep.message}>
-							{dep.message}
-						</span>
+						<span className={cn("min-w-0 flex-1 wrap-break-word", messageClass(dep))}>{dep.message}</span>
 					</div>
 					<div className="grid grid-cols-1 lg:grid-cols-[minmax(220px,0.8fr)_minmax(0,1fr)_minmax(0,1fr)]">
 						<ReplicasCell dep={dep} />
