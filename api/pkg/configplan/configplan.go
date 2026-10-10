@@ -25,8 +25,9 @@ const (
 // Service is a service as the environment runs it. Partial is empty when no file owns it.
 // Built is true when a succeeded build exists for it, RunningRegions are the regions where it
 // has an active deployment in the environment, and Elsewhere is true when another environment
-// of the workspace has one. A service the file dropped is deleted only from the environment the plan targets; one
-// that has nothing in this environment but runs elsewhere needs no operation here.
+// of the workspace has one. A service the file dropped is deleted only from the environment
+// the plan targets; one that has nothing in this environment but runs elsewhere needs no
+// operation here.
 type Service struct {
 	Name           string
 	Partial        string
@@ -48,13 +49,15 @@ type ImageResult struct {
 }
 
 // Input is everything the planner needs. Services are the file's services resolved for the
-// environment, FileEnvironments the environment names the file mentions, Environments the
+// environment, Disabled the file's services the environment turns off, FileEnvironments the
+// environment names the file mentions, Environments the
 // names that exist in the workspace, Regions the regions with an active cluster, Secrets the
 // secret names set in the environment, PlatformDomains the active platform domains a service
 // domain must end with, and Images a resolution for every image reference the services use.
 type Input struct {
 	Partial          string
 	Services         map[string]locofile.Service
+	Disabled         []string
 	FileEnvironments []string
 	Environments     []string
 	Regions          []string
@@ -129,7 +132,7 @@ func Compute(in Input) (Plan, error) {
 				Desired:     desired,
 			})
 		case current.Partial == in.Partial:
-			changes := diff(&current.State, &desired)
+			changes := withEnabled(current, diff(&current.State, &desired))
 			needsDeploy := needsBuild(current, desired)
 			if len(changes) == 0 && !needsDeploy {
 				continue
@@ -146,7 +149,7 @@ func Compute(in Input) (Plan, error) {
 			plan.Operations = append(plan.Operations, Operation{
 				Kind:        KindImport,
 				Service:     name,
-				Changes:     diff(&current.State, &desired),
+				Changes:     withEnabled(current, diff(&current.State, &desired)),
 				Destructive: stopsRunningRegion(current, desired),
 				NeedsDeploy: needsBuild(current, desired),
 				Desired:     desired,
@@ -157,12 +160,37 @@ func Compute(in Input) (Plan, error) {
 		}
 	}
 
+	for _, name := range in.Disabled {
+		current, exists := live[name]
+		if !exists || !current.Running() {
+			continue
+		}
+		if current.Partial != in.Partial && current.Partial != "" {
+			owned := fmt.Errorf("%w: %s", ErrOwnedByOtherPartial, current.Partial)
+			plan.Errors = append(plan.Errors, Error{Service: name, Err: owned})
+			continue
+		}
+		kind := KindUpdate
+		if current.Partial == "" {
+			kind = KindImport
+		}
+		plan.Operations = append(plan.Operations, Operation{
+			Kind:        kind,
+			Service:     name,
+			Changes:     []Change{disabledChange},
+			Destructive: true,
+		})
+	}
+
 	for _, name := range slices.Sorted(maps.Keys(live)) {
 		service := live[name]
 		if service.Partial != in.Partial {
 			continue
 		}
 		if _, inFile := in.Services[name]; inFile {
+			continue
+		}
+		if slices.Contains(in.Disabled, name) {
 			continue
 		}
 		if service.Elsewhere && !service.Running() && len(service.State.Domains) == 0 {
@@ -220,6 +248,17 @@ func checkService(name string, service locofile.Service, in Input) []Error {
 		}
 	}
 	return errs
+}
+
+func withEnabled(current Service, changes []Change) []Change {
+	if current.Running() {
+		return changes
+	}
+	changes = append(changes, enabledChange)
+	slices.SortFunc(changes, func(a, b Change) int {
+		return strings.Compare(a.Path, b.Path)
+	})
+	return changes
 }
 
 // MatchPlatformDomain returns the platform domain a service domain belongs to and the label in

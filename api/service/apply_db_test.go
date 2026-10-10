@@ -160,8 +160,7 @@ func unconfirmedServices(refusal *planv1.ApplyRefusal) []string {
 func seedOwnedAsLive(t *testing.T, f *deployFixture) string {
 	t.Helper()
 	f.prepareApply(t)
-	f.addResource(t, planOwned, planPartial)
-	f.addSucceededBuild(t, planOwned, testDockerfile, defaultBuildContext)
+	f.addRunningOwned(t)
 	return planFileHeader + strings.Replace(planFileOwned, "250m", "100m", 1)
 }
 

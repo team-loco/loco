@@ -16,10 +16,16 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-const regionsPathPrefix = "regions."
+const (
+	regionsPathPrefix = "regions."
+	pathEnabled       = "enabled"
+)
 
 func (a *applier) update(ctx context.Context, qtx *genDb.Queries, op configplan.Operation) error {
 	res := a.live.resources[op.Service]
+	if stopsService(op) {
+		return a.stop(ctx, qtx, res, op)
+	}
 	currentSpec, err := converter.DeserializeResourceSpec(res.Spec, res.Type)
 	if err != nil {
 		return fmt.Errorf("resource spec: %w", err)
@@ -52,16 +58,12 @@ func (a *applier) update(ctx context.Context, qtx *genDb.Queries, op configplan.
 	if domainErr := a.syncDomains(ctx, qtx, res.ID, op.Desired.Domains); domainErr != nil {
 		return domainErr
 	}
-	paths := make([]string, 0, len(op.Changes))
-	for _, change := range op.Changes {
-		paths = append(paths, change.Path)
-	}
 	if eventErr := events.Record(ctx, qtx, events.Event{
 		Type:        events.ResourceUpdated,
 		WorkspaceID: new(res.WorkspaceID),
 		SubjectType: events.SubjectResource,
 		SubjectID:   new(res.ID),
-		Data:        map[string]any{events.FieldPartial: a.partial, events.FieldPaths: paths},
+		Data:        map[string]any{events.FieldPartial: a.partial, events.FieldPaths: changePaths(op)},
 	}); eventErr != nil {
 		return eventErr
 	}
@@ -76,6 +78,36 @@ func (a *applier) update(ctx context.Context, qtx *genDb.Queries, op configplan.
 		return nil
 	}
 	return a.deploy(ctx, qtx, res, spec, op.Desired, affected)
+}
+
+func stopsService(op configplan.Operation) bool {
+	for _, change := range op.Changes {
+		if change.Path == pathEnabled && change.After == "false" {
+			return true
+		}
+	}
+	return false
+}
+
+func (a *applier) stop(ctx context.Context, qtx *genDb.Queries, res genDb.Resource, op configplan.Operation) error {
+	if stopErr := a.stopRemovedRegions(ctx, qtx, res, nil); stopErr != nil {
+		return stopErr
+	}
+	return events.Record(ctx, qtx, events.Event{
+		Type:        events.ResourceUpdated,
+		WorkspaceID: new(res.WorkspaceID),
+		SubjectType: events.SubjectResource,
+		SubjectID:   new(res.ID),
+		Data:        map[string]any{events.FieldPartial: a.partial, events.FieldPaths: changePaths(op)},
+	})
+}
+
+func changePaths(op configplan.Operation) []string {
+	paths := make([]string, 0, len(op.Changes))
+	for _, change := range op.Changes {
+		paths = append(paths, change.Path)
+	}
+	return paths
 }
 
 func primaryRegion(current *resourcev1.ServiceSpec, regions []string) string {

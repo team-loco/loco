@@ -110,8 +110,7 @@ func TestPlanSeesOnlyTheDomainsOfItsEnvironment(t *testing.T) {
 	f := newDeployFixture(t)
 	f.markClustersHealthy(t)
 	f.setRoutedSpec(t)
-	f.addResource(t, planOwned, planPartial)
-	f.addSucceededBuild(t, planOwned, testDockerfile, defaultBuildContext)
+	f.addRunningOwned(t)
 	stagingID := f.addStagingEnvironment(t)
 	insert := `
 INSERT INTO resource_domains (resource_id, environment_id, domain, domain_source, is_primary)

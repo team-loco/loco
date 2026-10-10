@@ -24,8 +24,16 @@ const (
 	pathEnv           = "env"
 	pathSecrets       = "secrets"
 	pathRegions       = "regions"
+	pathEnabled       = "enabled"
 
 	listSeparator = ", "
+)
+
+// enabledChange and disabledChange are the one change of a service the environment starts or
+// stops running; the planner emits them outside the field diff.
+var (
+	enabledChange  = Change{Path: pathEnabled, Before: "false", After: "true"}
+	disabledChange = Change{Path: pathEnabled, Before: "true", After: "false"}
 )
 
 // State is a service as the planner compares it: the file service with the API defaults

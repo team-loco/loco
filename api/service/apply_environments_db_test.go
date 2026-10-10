@@ -103,6 +103,25 @@ func TestApplyKeepsTheValuesOfEachEnvironment(t *testing.T) {
 	wantCleanPlanIn(t, f, stagingID, file)
 }
 
+func TestDisablingAServiceInOneEnvironmentKeepsTheOther(t *testing.T) {
+	f := newDeployFixture(t)
+	f.prepareApply(t)
+	stagingID := f.prepareStaging(t)
+	file := planFileHeader + applyFileWorkerOverride
+	applyOK(t, f, file, applyOptions{})
+	applyOK(t, f, file, applyOptions{environmentID: stagingID})
+
+	disabled := file + "        enabled: false\n"
+	applyOK(t, f, disabled, applyOptions{environmentID: stagingID, confirmDestructive: true})
+	if got := len(f.activeDeployments(t, stagingID)); got != 0 {
+		t.Fatalf("staging active deployments = %d, want 0", got)
+	}
+	if got := len(f.activeDeployments(t, f.envID)); got != 1 {
+		t.Fatalf("production active deployments = %d after staging disabled it, want 1", got)
+	}
+	wantCleanPlanIn(t, f, f.envID, disabled)
+}
+
 func TestApplyConvergesWhenOnlySecondaryDomainsMove(t *testing.T) {
 	f := newDeployFixture(t)
 	f.prepareApply(t)

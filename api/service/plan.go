@@ -169,6 +169,7 @@ func (s *PlanServer) loadPlan(
 	plan, err := configplan.Compute(configplan.Input{
 		Partial:          file.Partial,
 		Services:         services,
+		Disabled:         locofile.Disabled(file, env.Name),
 		FileEnvironments: fileEnvironments(file),
 		Environments:     environmentNames,
 		Regions:          regions,

@@ -220,6 +220,56 @@ VALUES ('c3', $1, 'kind', true, false, 'healthy') RETURNING id`
 	wantCleanPlan(t, f, planFileHeader+applyFileOtherRegion)
 }
 
+func TestApplyStopsAndRestartsADisabledService(t *testing.T) {
+	f := newDeployFixture(t)
+	f.prepareApply(t)
+	first := applyOK(t, f, planFileHeader+applyFileWorker, applyOptions{})
+	firstDeployment := uuid.MustParse(first.GetDeployments()[0].GetDeploymentId())
+	disabled := planFileHeader + applyFileWorker + "    environments:\n      prod:\n        enabled: false\n"
+
+	_, err := applyFile(t, f, disabled, applyOptions{revision: f.revision(t, f.envID)}, f.adminScopes(t))
+	if names := unconfirmedServices(wantRefusal(t, err)); len(names) != 1 || names[0] != applyWorker {
+		t.Fatalf("unconfirmed = %v, want [%s]", names, applyWorker)
+	}
+
+	resp := applyOK(t, f, disabled, applyOptions{confirmDestructive: true})
+	ops := resp.GetOperations()
+	if len(ops) != 1 || ops[0].GetKind() != planv1.PlanOperationKind_PLAN_OPERATION_KIND_UPDATE ||
+		!ops[0].GetDestructive() || len(resp.GetDeployments()) != 0 {
+		t.Fatalf("apply = %v, want one destructive update and no deployments", resp)
+	}
+	if status := f.deploymentStatus(t, firstDeployment); status != genDb.DeploymentStatusCanceled {
+		t.Fatalf("deployment status = %s, want canceled", status)
+	}
+	res, found := f.resourceByName(t, applyWorker)
+	if !found || derefString(res.Partial) != planPartial {
+		t.Fatalf("resource = %+v found %v, want worker still owned by %s", res, found, planPartial)
+	}
+	key := genDb.GetPlacementForResourceClusterParams{ResourceID: res.ID, ClusterID: f.clusterID}
+	placement, err := f.queries.GetPlacementForResourceCluster(context.Background(), key)
+	if err != nil {
+		t.Fatalf("get placement: %v", err)
+	}
+	if !placement.DesiredDeleted {
+		t.Fatalf("placement = %+v, want deleted", placement)
+	}
+	wantCleanPlan(t, f, disabled)
+
+	resp = applyOK(t, f, planFileHeader+applyFileWorker, applyOptions{})
+	ops = resp.GetOperations()
+	enabled := false
+	for _, change := range ops[0].GetChanges() {
+		enabled = enabled || change.GetPath() == "enabled" && change.GetAfter() == "true"
+	}
+	if len(ops) != 1 || !enabled || len(resp.GetDeployments()) != 1 {
+		t.Fatalf("apply = %v, want an update enabling the service with one deployment", resp)
+	}
+	if active := f.workerDeployments(t); len(active) != 1 {
+		t.Fatalf("%d active deployments, want 1", len(active))
+	}
+	wantCleanPlan(t, f, planFileHeader+applyFileWorker)
+}
+
 func TestApplyImportAppliesChanges(t *testing.T) {
 	f := newDeployFixture(t)
 	f.prepareApply(t)
