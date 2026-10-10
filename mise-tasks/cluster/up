@@ -2,7 +2,7 @@
 #MISE description="Create the local kind cluster, or recreate it if it is unreachable, and export its kubeconfig"
 set -euo pipefail
 
-name=loco-cluster-local
+name=$(yq .name env/local/kind-cluster.yml)
 if kind get clusters 2>/dev/null | grep -qx "$name"; then
 	if ! kubectl cluster-info --context "kind-$name" >/dev/null 2>&1; then
 		echo "cluster exists but is unreachable, recreating..."

@@ -159,7 +159,10 @@ orbstack_sock="$HOME/.orbstack/run/docker.sock"
 if [ -z "${DOCKER_HOST:-}" ] && [ -S "$orbstack_sock" ]; then
   export DOCKER_HOST="unix://$orbstack_sock"
 fi
-tilt up
+mise run doctor
+mise run cluster:up
+cluster=$(yq .name env/local/kind-cluster.yml)
+tilt up --context "kind-$cluster"
 """
 
 [tasks."infra:up"]

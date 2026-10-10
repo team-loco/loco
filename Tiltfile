@@ -8,31 +8,11 @@
 #   1. mise run setup
 #   2. Copy .env.example to .env and fill in secrets (or ensure .env is populated)
 
-allow_k8s_contexts('kind-loco-cluster-local')
+kind_context = 'kind-' + read_yaml('env/local/kind-cluster.yml')['name']
+allow_k8s_contexts(kind_context)
+if k8s_context() != kind_context:
+    fail('Tilt is on Kubernetes context %s instead of %s; start it with mise run tilt' % (k8s_context(), kind_context))
 update_settings(k8s_upsert_timeout_secs=600, max_parallel_updates=5)
-
-# ---------------------------------------------------------------------------
-# Setup: Docker and the pinned tools
-# ---------------------------------------------------------------------------
-
-local_resource(
-    'doctor',
-    cmd='mise run doctor',
-    allow_parallel=True,
-    labels=['setup'],
-)
-
-# ---------------------------------------------------------------------------
-# Setup: kind cluster
-# ---------------------------------------------------------------------------
-
-local_resource(
-    'kind-cluster',
-    cmd='mise run cluster:up',
-    resource_deps=['doctor'],
-    allow_parallel=True,
-    labels=['setup'],
-)
 
 # ---------------------------------------------------------------------------
 # Setup: helm repos + chart dependencies
@@ -41,7 +21,6 @@ local_resource(
 local_resource(
     'helm-deps',
     cmd='mise run helm:deps',
-    resource_deps=['doctor'],
     deps=[
         'charts/loco-core/Chart.yaml',
         'charts/loco-core/Chart.lock',
@@ -115,16 +94,16 @@ def helm_release(name, namespace, images, values, deps, resource_deps):
 
 docker_compose('compose.yaml', project_name='loco-dev')
 
-dc_resource('postgres', resource_deps=['doctor'], labels=['infrastructure'])
-dc_resource('valkey', resource_deps=['doctor'], labels=['infrastructure'])
-dc_resource('registry', resource_deps=['doctor'], labels=['infrastructure'])
-dc_resource('s3', resource_deps=['doctor'], labels=['infrastructure'])
-dc_resource('dex', resource_deps=['doctor'], labels=['infrastructure'])
+dc_resource('postgres', labels=['infrastructure'])
+dc_resource('valkey', labels=['infrastructure'])
+dc_resource('registry', labels=['infrastructure'])
+dc_resource('s3', labels=['infrastructure'])
+dc_resource('dex', labels=['infrastructure'])
 
 local_resource(
     'cluster-registry',
     cmd='mise run cluster:registry',
-    resource_deps=['kind-cluster', 'registry', 's3', 'helm-namespaces'],
+    resource_deps=['registry', 's3', 'helm-namespaces'],
     deps=['mise-tasks/cluster/registry'],
     allow_parallel=True,
     labels=['infrastructure'],
@@ -150,7 +129,7 @@ local_resource(
 local_resource(
     'helm-networking',
     cmd='mise run helm:sync:networking',
-    resource_deps=['kind-cluster', 'helm-deps'],
+    resource_deps=['helm-deps'],
     deps=[
         'charts/loco-networking/',
         'env/local/networking-chart.yaml.gotmpl',
@@ -166,7 +145,6 @@ local_resource(
 local_resource(
     'helm-namespaces',
     cmd='mise run helm:sync:namespaces',
-    resource_deps=['kind-cluster'],
     deps=['manifests/namespaces/'],
     allow_parallel=True,
     labels=['infra'],
@@ -194,7 +172,7 @@ helm_release(
         'env.CONTROL_PLANE_URL=' + control_plane_url,
     ],
     deps=['charts/loco-core/', 'env/local/core-chart.yaml.gotmpl'],
-    resource_deps=['helm-namespaces', 'helm-cert-manager'],
+    resource_deps=['helm-namespaces', 'helm-cert-manager', 'loco-operator'],
 )
 
 helm_release(
@@ -213,7 +191,7 @@ helm_release(
     }],
     values=[],
     deps=['charts/loco-operator/', 'env/local/operator-chart.yaml.gotmpl', 'mise-tasks/cluster/build-egress'],
-    resource_deps=['loco-core', 'cluster-registry'],
+    resource_deps=['helm-networking', 'cluster-registry'],
 )
 
 # ---------------------------------------------------------------------------
