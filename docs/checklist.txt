@@ -1,176 +1,176 @@
 # Loco Roadmap Checklist
 
-Open work only. Context and decisions: docs/notes.md.
-Audited 2026-10-09. Code status does not confirm production rollout.
+Open work only. Details: docs/notes.md.
+Checked 2026-10-09. Production rollout was not checked.
 
 V1
 
 Networking and secrets
 
-[ ] Pin placement per workspace, region and tier.
+[ ] Keep apps in the same workspace, region and environment on the same cluster so they can talk to each other.
 
-[ ] Ship environment secrets and key rotation.
+[ ] Encrypt app secrets and support rotating encryption keys.
 
-[ ] Define platform credential rotation.
+[ ] Set up rotation for platform credentials.
 
-[ ] Decide on in-cluster mTLS.
+[ ] Decide whether connections inside a cluster need mutual TLS.
 
 Observability
 
-[ ] Verify tenant attributes on every collected record.
+[ ] Check that logs and metrics include the workspace and app IDs.
 
-[ ] Restrict collection to managed workloads; drop unnecessary metrics and high-cardinality attributes.
+[ ] Only collect logs from Loco apps; stop collecting metrics we do not use.
 
-[ ] Replace exporter-generated tables with indexed tenant queries and explicit retention.
+[ ] Create ClickHouse tables with indexes for workspace/app queries.
 
-[ ] Align advertised app retention with collector TTLs.
+[ ] Make logs expire after the retention period shown to users.
 
-[ ] Parse severity from structured app logs.
+[ ] Read log severity from structured app logs.
 
-[ ] Validate dashboard values against emitted telemetry; add disk metrics.
+[ ] Check dashboard numbers against real app usage; add disk metrics.
 
-[ ] Purge logs, metrics and traces on app/workspace deletion.
+[ ] Delete logs, metrics and traces when an app or workspace is deleted.
 
-[ ] Add pause/freeze to CLI log output.
+[ ] Let users pause CLI log output.
 
 Deploy and builds
 
-[ ] Finish CI authentication for deploy: accept an explicit token without an OS keychain.
+[ ] Let CI deploy with a token, without requiring an OS keychain.
 
-[ ] Test failed deploy cleanup and define rollback behavior.
+[ ] Test cleanup after failed deploys; decide what rollback restores.
 
-[ ] Persist secret versions for rollback.
+[ ] Keep old secret versions so rollback can restore them.
 
-[ ] Bound concurrent app rollouts.
+[ ] Limit how many apps can deploy at once.
 
-[ ] Enforce size limits on public images.
+[ ] Limit the size of public images users can deploy.
 
-[ ] Verify gRPC ingress end to end.
+[ ] Test deploying and calling a gRPC app through Envoy Gateway.
 
-[ ] Ship `loco.yaml`, plan/apply and deploy; replace the Go-definition docs.
+[ ] Finish deploying from `loco.yaml`, including environment overrides and reviewing changes before applying them.
 
 API and data
 
-[ ] Add operator/SRE APIs for rollout pause/resume and cluster maintenance.
+[ ] Add admin/SRE APIs to pause and resume deploys and manage cluster maintenance.
 
-[ ] Audit internal error responses.
+[ ] Check API errors for raw database details; return useful user-facing errors.
 
-[ ] Audit remaining request validation gaps.
+[ ] Check that every API rejects invalid requests.
 
-[ ] Review CRUD response contracts.
+[ ] Make create/update responses consistent about returning an ID or the full object.
 
-[ ] Review remaining multi-step writes and ordering indexes.
+[ ] Check remaining DB writes use transactions and sorted queries have indexes.
 
-[ ] Review Kubernetes ownership and cleanup of generated objects.
+[ ] Check that deleting an app removes the Kubernetes objects it created.
 
 [ ] Add invitations.
 
 Infrastructure
 
-[ ] Manage worker chart/CRD upgrades and drift.
+[ ] Set up worker cluster upgrades and check that each cluster runs the expected charts and CRDs.
 
-[ ] Finish chart configuration and CRD lifecycle separation.
+[ ] Make chart settings configurable and install CRDs separately.
 
-[ ] Add capacity-aware placement.
+[ ] Choose a cluster with enough free CPU and memory for the app.
 
-[ ] Configure node autoscaling and Envoy Gateway HPA.
+[ ] Scale cluster nodes and Envoy Gateway replicas as traffic grows.
 
-[ ] Load-test ingress, API, builds and deployments.
+[ ] Load-test the API, ingress, builds and deploys.
 
-[ ] Implement API/deploy rate limits.
+[ ] Limit API requests, especially deploy requests.
 
-[ ] Refresh dependency map, especially builds, registry, auth and observability.
+[ ] Update the dependency list for builds, registry, auth and observability.
 
-[ ] Validate networking upgrades against the configured socketLB and datapath settings.
+[ ] Test Cilium upgrades with our socketLB and datapath settings.
 
-[ ] Finish regional failover.
+[ ] Finish routing traffic to another region when a region goes down.
 
-Data and verification
+Data and testing
 
-[ ] Finish deletion across Kubernetes, telemetry, secrets and images.
+[ ] Check app/workspace deletion removes Kubernetes objects, secrets, images and stored telemetry.
 
-[ ] Test Postgres and ClickHouse backup/restore.
+[ ] Test backing up and restoring Postgres and ClickHouse.
 
-[ ] Extend failure-path coverage for deploy and platform rollout.
+[ ] Add tests for failed app deploys and failed platform upgrades.
 
-[ ] Add dashboard Playwright coverage.
+[ ] Test dashboard flows with Playwright.
 
 Tooling
 
-[ ] Consolidate `tsgo` and `tsc` once the ESLint toolchain supports the native compiler.
+[ ] Use one TypeScript compiler once ESLint supports it.
 
-[ ] Finish the `cel-go` module-path migration outside API.
+[ ] Update remaining modules to the new cel-go import path.
 
 V2
 
 Observability
 
-[ ] Collect traces, enforce tenant scope and build trace UI.
+[ ] Collect traces and show them in the UI, filtered by workspace/app.
 
-[ ] Provision per-workspace Grafana dashboards and alerts if users need them.
+[ ] Create Grafana dashboards and alerts for each workspace if users need them.
 
-[ ] Evaluate external ClickHouse without changing the proxy contract.
+[ ] Evaluate hosted ClickHouse.
 
 Networking and builds
 
-[ ] Scan images and add artifact attestations.
+[ ] Scan images for vulnerabilities and record where they were built.
 
-[ ] Add per-app egress controls.
+[ ] Let users choose which external addresses an app can connect to.
 
-[ ] Add custom domains and certificate lifecycle.
+[ ] Support custom domains and issue/renew their certificates.
 
-[ ] Add build-only cluster placement.
+[ ] Run builds on separate clusters; prevent apps from being deployed there.
 
-[ ] Add non-HTTP health checks.
+[ ] Support command-based health checks.
 
-[ ] Add app sleep/wake.
+[ ] Sleep idle apps and wake them when a request arrives.
 
-[ ] Add service packages, recursive deploy and package deletion.
+[ ] Deploy and delete a group of services together; support recursive deploy.
 
 Infrastructure and platform
 
-[ ] Rebuild clusters from tested snapshots/backups.
+[ ] Rebuild a lost cluster from backups.
 
-[ ] Define multi-cluster certificate ownership.
+[ ] Decide which cluster issues and renews certificates for each region.
 
-[ ] Define infra patch/upgrade strategy, including node replacement.
+[ ] Define how to patch platform services and replace cluster nodes.
 
-[ ] Add bring-your-own-cloud profiles.
+[ ] Let users configure their own cloud accounts.
 
-[ ] Add admin dashboard and status page.
+[ ] Build an admin dashboard and status page.
 
-[ ] Add database, cache and blob resources.
+[ ] Support databases, caches and blob storage.
 
-[ ] Add persistent disks per service.
+[ ] Support persistent disks for apps.
 
-[ ] Evaluate frontend analytics.
+[ ] Decide whether to add frontend analytics.
 
-[ ] Integrate external secret stores.
+[ ] Let apps use secrets from AWS SSM, Vault and other secret stores.
 
 Data model
 
 [ ] Decide whether to replace UUIDs.
 
-[ ] Split sqlc queries into packages if the boundaries warrant it.
+[ ] Split sqlc queries into packages where it makes the code easier to use.
 
-[ ] Add per-tenant rate limits and retention for audit/webhook records.
+[ ] Limit requests per customer and expire old audit events and webhook records.
 
 V3
 
 [ ] Clean up inactive accounts and unused resources.
 
-[ ] Add canary deployments.
+[ ] Roll out new versions to a few instances before updating all of them.
 
-[ ] Export Kubernetes YAML so users can move to self-managed infra.
+[ ] Export Kubernetes YAML so users can move to their own infrastructure.
 
-[ ] Define supported Kubernetes minors and test controller/agent compatibility in CI.
+[ ] Choose supported Kubernetes versions and test the controller/agent against each one.
 
 Backlog (only if users ask)
 
-[ ] Minimal init output.
+[ ] Add a smaller init template.
 
-[ ] `NO_COLOR` / `--no-color` and plain terminal output.
+[ ] Support `NO_COLOR` / `--no-color` and plain terminal output.
 
-[ ] Alternative remote builders.
+[ ] Support other remote image builders.
 
-[ ] Revisit protobuf serialization optimizations when supported by the toolchain.
+[ ] Revisit faster protobuf encoding when the tooling supports it.

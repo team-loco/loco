@@ -1,144 +1,141 @@
 # Loco Notes
 
-Current direction and remaining work. [Checklist](checklist.txt) tracks the open items.
-Audited against both repos on 2026-10-09. Implementation status only; production rollout is not verified here.
+What works and what is left. [Checklist](checklist.txt) lists open work.
+Checked against both repos on 2026-10-09. Production rollout was not checked.
 
-## Current direction
+## What works
 
-- Builds run remotely with rootless BuildKit. CLI uploads source; `--image` takes a public image. No local Docker daemon required.
-- Registry contract is OCI. Separate builder, node and API credentials; deployments pin digests. Image retention and source cleanup exist.
-- API commits desired placements; agents sync and apply them. Deployments are async; `--wait` watches rollout.
-- Clusters are selected by region and environment tier. Placement does not account for utilization or pin a workspace to a cluster.
-- One namespace per workspace. Apps within a workspace can communicate by default; cross-workspace traffic is blocked. Network isolation is implemented and tested, with DNS, public egress and gateway ingress policies.
-- Environment CRUD and deployment targeting exist. `loco deploy --env` selects the environment.
-- Resource and deployment specs persist `spec_version`. Only service deployment is implemented.
-- CLI has org/workspace CRUD, interactive `loco use`, browser/device login and token refresh. `--host` is command-local.
-- Platform domain defaults come from `ConfigService.GetConfig`. Public and private apps are supported; custom domains are rejected.
-- Logs, metrics and events have UI. Resource CPU/memory charts query the regional proxy; mock usage is gone.
-- Both historical logs and live tail use ClickHouse through the proxy. Tail polls ClickHouse; direct cluster tailing is no longer the design.
-- Log queries support ordering, substring search, severity and labels. Log details include attributes. Queries use bound parameters.
-- Audit events and signed workspace/install webhooks exist. Build logs are filtered by build ID through the same ClickHouse proxy, with history and live tail.
-- UI wrappers use theme tokens. Old font stacks, large unused assets and dead pages are gone. CI runs actionlint on workflow changes.
-- Docs use Zensical and ship with the UI image. `loco.toml` is current; the [`loco.yaml` cutover](https://github.com/team-loco/loco/pull/538) is under review.
-
-Sources: `cmd/loco/`, `api/service/`, `api/queries/`, `controller/internal/`,
-`observability-proxy/`, `web/src/pages/`, `.github/workflows/`, `docs/content/`.
+- CLI uploads source; rootless BuildKit builds it on Loco. No local Docker daemon needed. `--image` deploys a public image.
+- Builds push to an OCI registry. Builder, node and API accounts have separate permissions. Deploys use image digests; old images and source uploads get cleaned up.
+- API saves what should run; agents apply it to their clusters. Deploys return before rollout finishes; `--wait` waits for it.
+- One namespace per workspace. Apps can talk to other apps in the same workspace by default; cross-workspace traffic is blocked.
+- Clusters are picked by region and environment type. Free capacity and keeping workspace apps together are still missing.
+- Environments can be created, listed, updated and deleted. `loco deploy --env` picks one.
+- App and deployment configs store `spec_version`. Only services can be deployed today.
+- CLI manages orgs/workspaces. `loco use` has an interactive picker; login supports browser/device flows and token refresh. `--host` is set on individual commands.
+- API provides the default platform domain. Apps can be public or private; custom domains are still rejected.
+- UI shows logs, metrics and events. CPU/memory charts use real queries; mock usage is gone.
+- Log history and live tail both read ClickHouse through the observability proxy. Logs support search, ordering, severity/label filters and viewing all fields.
+- Audit events and signed webhooks exist. Build logs use a build-ID filter through the same proxy.
+- UI uses theme tokens. Old fonts, unused assets and dead pages are gone. CI checks workflow changes with actionlint.
+- Zensical docs ship in the UI image. `loco.toml` is current; the [`loco.yaml` replacement](https://github.com/team-loco/loco/pull/538) is under review.
 
 ## V1
 
 ### Networking and secrets
 
-- Pin placement per workspace, region and tier. Apps can span regions; keep workspace peers together within each region/tier.
-- Ship the [environment-secrets stack](https://github.com/team-loco/loco/pull/504): encrypted storage, key rotation and agent/controller delivery. Platform credential rotation remains separate; revisit the older [OpenBao proposal](tdd/secrets-handling.md).
-- Decide on in-cluster mTLS.
+- Keep apps in the same workspace, region and environment on the same cluster so they can talk to each other.
+- Encrypt app secrets and support rotating encryption keys. The [secrets PRs](https://github.com/team-loco/loco/pull/504) are still open.
+- Set up rotation for platform credentials. Revisit the older [OpenBao proposal](tdd/secrets-handling.md) for the current auth and registry setup.
+- Decide whether connections inside a cluster need mutual TLS.
 
 ### Observability
 
-- Verify tenant attributes on every collected record. Workspace/resource query filters exist; collection still needs coverage.
-- Restrict collection to managed workloads. Drop unnecessary metrics and high-cardinality attributes.
-- Replace exporter-generated tables with indexed tenant queries and explicit retention.
-- Align advertised app retention with collector TTLs. Global data TTL and ClickHouse system-log TTL exist; per-tenant retention does not.
-- Parse severity from structured app logs.
-- Validate dashboard values against emitted telemetry. Add disk metrics.
-- Purge logs, metrics and traces on app/workspace deletion. Make cleanup retryable after outages.
-- Add pause/freeze to CLI log output.
+- Check that logs and metrics include the workspace and app IDs. Queries already filter by those IDs; check what the collectors actually send.
+- Only collect logs from Loco apps; stop collecting metrics we do not use. Remove labels with too many distinct values.
+- Create ClickHouse tables with indexes for workspace/app queries. Tables are still created automatically by the exporter.
+- Make logs expire after the retention period shown to users. Collector TTLs exist, but they do not enforce each app’s setting.
+- Read log severity from structured app logs.
+- Check dashboard numbers against real app usage; add disk metrics.
+- Delete logs, metrics and traces when an app or workspace is deleted. Retry failed cleanup after outages.
+- Let users pause CLI log output.
 
 ### Deploy and builds
 
-- Finish CI authentication for deploy: accept an explicit token without an OS keychain. Scope/environment flags already avoid most prompts.
-- Test failed deploy cleanup and define rollback behavior. DB writes are transactional; multi-region rollout is not atomic.
-- Persist secret versions for rollback.
-- Bound concurrent app rollouts.
-- Enforce size limits on public images; built images already have a size cap.
-- Verify gRPC ingress end to end.
-- Ship `loco.yaml`, environment overrides, partial ownership, plan/apply and deploy. Replace the Go-definition docs; the earlier Go SDK stack is closed. Keep local linking and local/deployed diff work with this cutover.
+- Let CI deploy with a token, without requiring an OS keychain. Org/workspace/environment flags already avoid most prompts.
+- Test cleanup after failed deploys; decide what rollback restores. DB writes use transactions, but deploying to several regions can leave some updated and others failed.
+- Keep old secret versions so rollback can restore them.
+- Limit how many apps can deploy at once.
+- Limit the size of public images users can deploy. Images built by Loco already have a size limit.
+- Test deploying and calling a gRPC app through Envoy Gateway.
+- Finish deploying from `loco.yaml`, including environment overrides and reviewing changes before applying them. The [PRs are open](https://github.com/team-loco/loco/pull/538). Include deploying subsets of services, linking local files to a workspace and showing local/deployed differences. Replace the older Go-definition docs.
 
 ### API and data
 
-- Add operator/SRE APIs for rollout pause/resume and cluster maintenance. Scope controls by install, region or cluster. Define queued/in-flight behavior; pausing rollouts keeps running apps up. Persist controls, restrict operator access and audit actions.
-- Audit internal error responses; use the shared DB error handling throughout.
-- Audit remaining request validation gaps. The validation interceptor and many proto rules already exist.
-- Review CRUD response contracts; several mutations already return IDs.
-- Review remaining multi-step writes and ordering indexes. Update uniqueness checks exclude the current row; core pagination indexes exist.
-- Review Kubernetes ownership and cleanup of generated objects.
-- Add invitations. Member listing and scope management already exist.
+- Add admin/SRE APIs to pause and resume deploys and manage cluster maintenance. Allow controls for one cluster, one region or all clusters. Decide what happens to queued and running deploys; keep running apps up. Save controls across restarts and record who changed them.
+- Check API errors for raw database details; return useful user-facing errors. Shared DB error handling already exists.
+- Check that every API rejects invalid requests. Many proto validation rules already exist.
+- Make create/update responses consistent about returning an ID or the full object. Several endpoints already return only an ID.
+- Check remaining DB writes use transactions and sorted queries have indexes. Update name checks already exclude the current row; main list queries have indexes.
+- Check that deleting an app removes the Kubernetes objects it created.
+- Add invitations. Member listing and permissions already exist.
 
 ### Infrastructure
 
-- Manage worker chart/CRD upgrades and drift. [Flux design](tdd/flux-gitops.md) remains proposed; Argo evaluation is already covered there.
-- Finish chart configuration and CRD lifecycle separation. Operator CRDs still ship in chart templates.
-- Add capacity-aware placement. Current selection uses region, tier, health and default preference.
-- Configure node autoscaling and Envoy Gateway HPA.
-- Load-test ingress, API, builds and deployments. Measure minimum footprint and capacity headroom.
-- Implement API/deploy rate limits; observability query/tail guardrails already exist.
-- Refresh [dependency map](dependencies.md), especially builds, registry, auth and observability.
-- Validate networking upgrades against the configured socketLB and datapath settings.
-- Finish [regional failover](https://github.com/team-loco/loco/pull/134); [the mechanism is proven](tdd/cross-region-failover.md). Still need gateway TLS, outage detection and surviving-region capacity.
+- Set up worker cluster upgrades and check that each cluster runs the expected charts and CRDs. The [Flux proposal](tdd/flux-gitops.md) already compares Argo.
+- Make chart settings configurable and install CRDs separately. Operator CRDs still ship inside the chart.
+- Choose a cluster with enough free CPU and memory for the app. Selection currently checks region, environment type and health, then prefers the default cluster.
+- Scale cluster nodes and Envoy Gateway replicas as traffic grows.
+- Load-test the API, ingress, builds and deploys. Measure idle resource use and how much spare capacity is needed.
+- Limit API requests, especially deploy requests. Log/metric queries and live tails already have limits.
+- Update the dependency list for builds, registry, auth and observability. [Current list](dependencies.md).
+- Test Cilium upgrades with our socketLB and datapath settings.
+- Finish routing traffic to another region when a region goes down. The [failover PR](https://github.com/team-loco/loco/pull/134) is open. Still need TLS between gateways, a way to distinguish outages from bad deploys, and enough capacity in the other region.
 
-### Data and verification
+### Data and testing
 
-- Finish deletion across Kubernetes, telemetry, secrets and images. Placement deletion and image sweeping already exist.
-- Test Postgres and ClickHouse backup/restore.
-- Extend failure-path coverage for deploy and platform rollout. API DB, CLI script, controller and build e2e suites already exist.
-- Add dashboard Playwright coverage.
+- Check app/workspace deletion removes Kubernetes objects, secrets, images and stored telemetry. Agent deletion and image cleanup already exist.
+- Test backing up and restoring Postgres and ClickHouse.
+- Add tests for failed app deploys and failed platform upgrades. API DB tests, CLI script tests, controller tests and build e2e tests already exist.
+- Test dashboard flows with Playwright.
 
 ### Tooling
 
-- Consolidate `tsgo` and `tsc` once the ESLint toolchain supports the native compiler. Both checks still run today.
-- Finish the `cel-go` module-path migration outside API. API already uses `cel.dev/cel-go`; controller still uses the old module.
+- Use one TypeScript compiler once ESLint supports it. We still run both `tsgo` and `tsc`.
+- Update remaining modules to the new cel-go import path. API uses `cel.dev/cel-go`; controller still uses the old path.
 
 ## V2
 
 ### Observability
 
-- Collect traces, enforce tenant scope and build trace UI. Current collectors have no traces pipeline; the UI is a placeholder.
-- Provision per-workspace Grafana dashboards and alerts if users need them.
-- Evaluate external ClickHouse without changing the proxy contract.
+- Collect traces and show them in the UI, filtered by workspace/app. Collectors have no traces pipeline yet; the UI is a placeholder.
+- Create Grafana dashboards and alerts for each workspace if users need them.
+- Evaluate hosted ClickHouse. The observability proxy already takes a configurable ClickHouse URL.
 
 ### Networking and builds
 
-- Scan images and add artifact attestations. [Scanning design](tdd/scanning.md).
-- Add per-app egress controls.
-- Add custom domains and certificate lifecycle.
-- Add build-only cluster placement. `builds.enabled` controls builders; app placement has no accepts-apps switch.
-- Add non-HTTP health checks.
-- Add app sleep/wake.
-- Add service packages, recursive deploy and package deletion.
+- Scan images for vulnerabilities and record where they were built. [Scanning proposal](tdd/scanning.md).
+- Let users choose which external addresses an app can connect to.
+- Support custom domains and issue/renew their certificates.
+- Run builds on separate clusters; prevent apps from being deployed there. `builds.enabled` controls builders, but there is no setting to reject app deployments on a build cluster.
+- Support command-based health checks.
+- Sleep idle apps and wake them when a request arrives.
+- Deploy and delete a group of services together; support recursive deploy.
 
 ### Infrastructure and platform
 
-- Rebuild clusters from tested snapshots/backups.
-- Define multi-cluster certificate ownership.
-- Define infra patch/upgrade strategy, including node replacement.
-- Add bring-your-own-cloud profiles.
-- Add admin dashboard and status page.
-- Add database, cache and blob resources.
-- Add persistent disks per service.
-- Evaluate frontend analytics.
-- Integrate external secret stores.
+- Rebuild a lost cluster from backups.
+- Decide which cluster issues and renews certificates for each region.
+- Define how to patch platform services and replace cluster nodes.
+- Let users configure their own cloud accounts.
+- Build an admin dashboard and status page.
+- Support databases, caches and blob storage.
+- Support persistent disks for apps.
+- Decide whether to add frontend analytics.
+- Let apps use secrets from AWS SSM, Vault and other secret stores.
 
 ### Data model
 
 - Decide whether to replace UUIDs. New IDs already use UUIDv7.
-- Split sqlc queries into packages if the boundaries warrant it.
-- Add per-tenant rate limits and retention for audit/webhook records.
+- Split sqlc queries into packages where it makes the code easier to use.
+- Limit requests per customer and expire old audit events and webhook records.
 
 ## V3
 
 - Clean up inactive accounts and unused resources.
-- Add canary deployments.
-- Export Kubernetes YAML so users can move to self-managed infra.
-- Define supported Kubernetes minors and test controller/agent compatibility in CI.
+- Roll out new versions to a few instances before updating all of them.
+- Export Kubernetes YAML so users can move to their own infrastructure.
+- Choose supported Kubernetes versions and test the controller/agent against each one.
 
 ## Backlog (only if users ask)
 
-- Minimal init output; revisit with the `loco.yaml` cutover.
-- `NO_COLOR` / `--no-color` and plain terminal output.
-- Alternative remote builders.
-- Revisit protobuf serialization optimizations when supported by the toolchain.
+- Add a smaller init template. Revisit with `loco.yaml`.
+- Support `NO_COLOR` / `--no-color` and plain terminal output.
+- Support other remote image builders.
+- Revisit faster protobuf encoding when the tooling supports it.
 
 ## Principles
 
-- Reduce package depth.
+- Keep package nesting shallow.
 - Prefer stdlib and established Go/Kubernetes packages.
-- Define dependency patching ownership and response times.
+- Assign owners and response times for dependency security fixes.
