@@ -40,22 +40,22 @@ DELETE FROM resources WHERE id = $1;
 -- name: CreateResourceRegion :one
 INSERT INTO resource_regions (resource_id, region, is_primary, status)
 VALUES ($1, $2, $3, $4)
-RETURNING id, resource_id, region, is_primary, status, last_error, created_at, updated_at;
+RETURNING id, resource_id, region, is_primary, status, created_at, updated_at;
 
 -- name: ListResourceRegions :many
-SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
+SELECT id, resource_id, region, is_primary, status, created_at, updated_at
 FROM resource_regions
 WHERE resource_id = $1
 ORDER BY is_primary DESC, region ASC;
 
 -- name: ListResourceRegionsForResources :many
-SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
+SELECT id, resource_id, region, is_primary, status, created_at, updated_at
 FROM resource_regions
 WHERE resource_id = ANY(sqlc.arg(resource_ids)::uuid[])
 ORDER BY resource_id, is_primary DESC, region ASC;
 
 -- name: GetResourceRegionByResourceAndRegion :one
-SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
+SELECT id, resource_id, region, is_primary, status, created_at, updated_at
 FROM resource_regions
 WHERE resource_id = $1 AND region = $2;
 
@@ -95,14 +95,14 @@ ORDER BY created_at ASC
 LIMIT 1;
 
 -- name: ListActiveDeploymentStatusesForResources :many
-SELECT resource_id, status FROM deployments
+SELECT resource_id, region, status, message FROM deployments
 WHERE resource_id = ANY(sqlc.arg(resource_ids)::uuid[]) AND is_active = true;
 
 -- name: GetWorkspaceOrganizationIDByResourceID :one
 SELECT r.workspace_id, w.org_id FROM resources r JOIN workspaces w ON r.workspace_id = w.id WHERE r.id = $1;
 
 -- name: LockResourceRegion :one
-SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
+SELECT id, resource_id, region, is_primary, status, created_at, updated_at
 FROM resource_regions
 WHERE resource_id = $1 AND region = $2
 FOR UPDATE;
