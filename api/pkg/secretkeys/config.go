@@ -1,6 +1,9 @@
 package secretkeys
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 // Config selects the key provider and holds what it needs to start.
 type Config struct {
@@ -9,8 +12,9 @@ type Config struct {
 	Transit   TransitConfig
 }
 
-// New builds the provider Config selects.
-func New(cfg Config) (Provider, error) {
+// New builds the provider Config selects. The transit provider renews its token in the
+// background until ctx is done.
+func New(ctx context.Context, cfg Config) (Provider, error) {
 	switch cfg.Provider {
 	case ProviderLocal:
 		local, err := NewLocal(cfg.LocalKeys)
@@ -23,6 +27,7 @@ func New(cfg Config) (Provider, error) {
 		if err != nil {
 			return nil, fmt.Errorf("transit secrets key provider: %w", err)
 		}
+		go transit.renewToken(ctx)
 		return transit, nil
 	default:
 		return nil, fmt.Errorf("%w: %q", ErrUnknownProvider, cfg.Provider)

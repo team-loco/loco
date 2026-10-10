@@ -2,6 +2,7 @@ package secretkeys
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"errors"
 	"strings"
@@ -221,17 +222,23 @@ func TestNewSelectsProvider(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	provider, err := New(Config{Provider: ProviderLocal, LocalKeys: keys})
+	provider, err := New(context.Background(), Config{Provider: ProviderLocal, LocalKeys: keys})
 	if err != nil {
 		t.Fatalf("new: %v", err)
 	}
 	if provider.Name() != ProviderLocal {
 		t.Fatalf("name = %q", provider.Name())
 	}
-	if _, err := New(Config{Provider: ProviderLocal}); !errors.Is(err, ErrNoKeys) {
+	if _, err := New(context.Background(), Config{Provider: ProviderLocal}); !errors.Is(err, ErrNoKeys) {
 		t.Fatalf("local without keys: err = %v, want ErrNoKeys", err)
 	}
-	if _, err := New(Config{Provider: "awskms://alias/loco"}); !errors.Is(err, ErrUnknownProvider) {
+	if _, err := New(
+		context.Background(),
+		Config{Provider: "awskms://alias/loco"},
+	); !errors.Is(
+		err,
+		ErrUnknownProvider,
+	) {
 		t.Fatalf("cloud url: err = %v, want ErrUnknownProvider", err)
 	}
 }

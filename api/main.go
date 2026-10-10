@@ -254,7 +254,7 @@ func main() {
 	})
 	domainServiceHandler := service.NewDomainServer(pool, queries, machine)
 	tokenServiceHandler := service.NewTokenServer(pool, queries, machine)
-	secretKeyProvider, providerErr := newSecretKeyProvider(ac.Secrets)
+	secretKeyProvider, providerErr := newSecretKeyProvider(shutdownCtx, ac.Secrets)
 	if providerErr != nil {
 		log.Fatalf("failed to create the secrets key provider: %v", providerErr)
 	}

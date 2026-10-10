@@ -40,6 +40,8 @@ const (
 	transitAuthEnv   = "LOCO_SECRETS_TRANSIT_TOKEN"
 	transitCAEnv     = "LOCO_SECRETS_TRANSIT_CA_FILE"
 	transitTimeEnv   = "LOCO_SECRETS_TRANSIT_TIMEOUT"
+	transitMarginEnv = "LOCO_SECRETS_TRANSIT_RENEW_MARGIN"
+	transitRetryEnv  = "LOCO_SECRETS_TRANSIT_RENEW_RETRY"
 	testTransitAddr  = "https://bao.loco.test:8200"
 	testTransitKey   = "loco-dek"
 	testTransitAuth  = "s.transit"
@@ -99,6 +101,8 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv(transitAuthEnv, "")
 	t.Setenv(transitCAEnv, "")
 	t.Setenv(transitTimeEnv, "")
+	t.Setenv(transitMarginEnv, "")
+	t.Setenv(transitRetryEnv, "")
 	t.Setenv("LOCO_SECRETS_MAX_VALUE_BYTES", "")
 	t.Setenv("LOCO_SECRETS_MAX_PER_ENVIRONMENT", "")
 	t.Setenv("LOCO_SECRETS_MAX_SERVICE_BYTES", "")
@@ -495,11 +499,13 @@ func TestNewAPIConfigReadsTransitProvider(t *testing.T) {
 	t.Setenv(transitAuthEnv, testTransitAuth)
 	cfg := newAPIConfig().Secrets
 	want := secretkeys.TransitConfig{
-		Address: testTransitAddr,
-		Mount:   defaultSecretsTransitMount,
-		Key:     testTransitKey,
-		Token:   testTransitAuth,
-		Timeout: defaultSecretsTransitTimeout,
+		Address:     testTransitAddr,
+		Mount:       defaultSecretsTransitMount,
+		Key:         testTransitKey,
+		Token:       testTransitAuth,
+		Timeout:     defaultSecretsTransitTimeout,
+		RenewMargin: defaultSecretsTransitMargin,
+		RenewRetry:  defaultSecretsTransitRetry,
 	}
 	if cfg.Provider != secretkeys.ProviderTransit || cfg.Transit != want {
 		t.Errorf("secrets config = %+v, want transit %+v", cfg, want)
@@ -508,10 +514,14 @@ func TestNewAPIConfigReadsTransitProvider(t *testing.T) {
 	t.Setenv(transitMountEnv, "kms/transit")
 	t.Setenv(transitCAEnv, "/etc/loco/bao-ca.pem")
 	t.Setenv(transitTimeEnv, "3s")
+	t.Setenv(transitMarginEnv, "1m")
+	t.Setenv(transitRetryEnv, "2s")
 	cfg = newAPIConfig().Secrets
 	want.Mount = "kms/transit"
 	want.CAFile = "/etc/loco/bao-ca.pem"
 	want.Timeout = 3 * time.Second
+	want.RenewMargin = time.Minute
+	want.RenewRetry = 2 * time.Second
 	if cfg.Transit != want {
 		t.Errorf("transit config = %+v, want %+v", cfg.Transit, want)
 	}

@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 var errFakeMissingContext = errors.New("missing 'context' for key derivation")
@@ -22,6 +23,9 @@ const (
 	fakeTransitMount = "transit"
 	fakeTransitKey   = "loco"
 	fakeTransitToken = "s.fake-token"
+
+	fakeLookupSelfPath = "/v1/auth/token/lookup-self"
+	fakeRenewSelfPath  = "/v1/auth/token/renew-self"
 
 	transitFakeNonceSize = 12
 )
@@ -36,6 +40,10 @@ type fakeTransit struct {
 	token    string
 	requests map[string]int
 	block    chan struct{}
+
+	tokenTTL       time.Duration
+	tokenRenewable bool
+	renewFails     bool
 }
 
 func newFakeTransit(t *testing.T) *fakeTransit {
@@ -46,6 +54,8 @@ func newFakeTransit(t *testing.T) *fakeTransit {
 		keyType:  transitKeyType,
 		token:    fakeTransitToken,
 		requests: map[string]int{},
+
+		tokenRenewable: true,
 	}
 	fake.rotate()
 	return fake
@@ -95,6 +105,10 @@ func (f *fakeTransit) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	prefix := "/v1/" + fakeTransitMount + "/"
 	switch {
+	case r.Method == http.MethodGet && r.URL.Path == fakeLookupSelfPath:
+		f.lookupSelf(w)
+	case r.Method == http.MethodPost && r.URL.Path == fakeRenewSelfPath:
+		f.renewSelf(w)
 	case r.Method == http.MethodGet && r.URL.Path == prefix+"keys/"+fakeTransitKey:
 		f.readKey(w)
 	case r.Method == http.MethodPost && r.URL.Path == prefix+"encrypt/"+fakeTransitKey:
@@ -104,6 +118,41 @@ func (f *fakeTransit) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		f.writeError(w, http.StatusNotFound, "no handler for route")
 	}
+}
+
+func (f *fakeTransit) setToken(ttl time.Duration, renewable bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.tokenTTL = ttl
+	f.tokenRenewable = renewable
+}
+
+func (f *fakeTransit) setRenewFails(fails bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.renewFails = fails
+}
+
+func (f *fakeTransit) lookupSelf(w http.ResponseWriter) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.writeData(w, map[string]any{
+		"ttl":       int(f.tokenTTL.Seconds()),
+		"renewable": f.tokenRenewable,
+	})
+}
+
+func (f *fakeTransit) renewSelf(w http.ResponseWriter) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.renewFails {
+		f.writeError(w, http.StatusInternalServerError, "storage unavailable")
+		return
+	}
+	f.writeJSON(w, http.StatusOK, map[string]any{"auth": map[string]any{
+		"lease_duration": int(f.tokenTTL.Seconds()),
+		"renewable":      f.tokenRenewable,
+	}})
 }
 
 func (f *fakeTransit) readKey(w http.ResponseWriter) {
