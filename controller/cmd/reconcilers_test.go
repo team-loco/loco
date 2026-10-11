@@ -8,7 +8,19 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 
 	"github.com/team-loco/loco/controller/internal/builds/buildstest"
+	"github.com/team-loco/loco/controller/internal/controller"
 )
+
+const testLocoNamespace = "loco-system"
+
+func testTelemetry() controller.TelemetryConfig {
+	return controller.TelemetryConfig{
+		Namespace:        "observability",
+		CollectorService: "otel-col-deploy",
+		GRPCPort:         4317,
+		HTTPPort:         4318,
+	}
+}
 
 func cachedTypes(options cache.Options) []string {
 	names := make([]string, 0, len(options.ByObject))
@@ -23,7 +35,7 @@ func cachedTypes(options cache.Options) []string {
 func TestApplicationReconcilerCachesNoBuildObjects(t *testing.T) {
 	setup, err := selectReconciler(
 		reconcilerApplication,
-		operatorConfig{LocoNamespace: "loco-system", PullSecretName: "registry-pull"},
+		operatorConfig{LocoNamespace: testLocoNamespace, PullSecretName: "registry-pull", Telemetry: testTelemetry()},
 	)
 	if err != nil {
 		t.Fatalf("selectReconciler: %v", err)
@@ -47,7 +59,7 @@ func TestBuildReconcilerCachesOnlyBuildObjectsInTheBuildNamespace(t *testing.T) 
 	}
 	setup, err := selectReconciler(
 		reconcilerBuild,
-		operatorConfig{LocoNamespace: "loco-system", RawBuildConfig: rawBuildConfig},
+		operatorConfig{LocoNamespace: testLocoNamespace, RawBuildConfig: rawBuildConfig},
 	)
 	if err != nil {
 		t.Fatalf("selectReconciler: %v", err)
@@ -78,5 +90,12 @@ func TestSelectReconcilerRejectsUnknownNames(t *testing.T) {
 func TestBuildReconcilerRequiresTheChartBuildConfig(t *testing.T) {
 	if _, err := selectReconciler(reconcilerBuild, operatorConfig{}); err == nil {
 		t.Fatal("selectReconciler started a build reconciler without build settings")
+	}
+}
+
+func TestApplicationReconcilerRequiresTheTelemetryConfig(t *testing.T) {
+	_, err := selectReconciler(reconcilerApplication, operatorConfig{LocoNamespace: testLocoNamespace})
+	if err == nil {
+		t.Fatal("selectReconciler started an application reconciler without telemetry settings")
 	}
 }

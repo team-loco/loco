@@ -27,7 +27,7 @@ Clusters separate environments, so a namespace is one workspace in one environme
 |---|---|
 | `ws-*` | workspace namespaces, one per workspace per cluster, holding its apps |
 | `loco-system` | agent, controller, Envoy Gateway proxies (`gateway.envoyproxy.io/owning-gateway-name=eg`) |
-| `observability` | otel-col-deploy (OTLP receiver), obs-proxy; configurable with `LOCO_OBSERVABILITY_NAMESPACE` |
+| `observability` | otel-col-deploy (OTLP receiver), obs-proxy; the `loco-operator` chart's `observability.namespace` |
 | `kube-system` | kube-dns |
 | `cert-manager` | cert-manager |
 
@@ -48,7 +48,7 @@ Clusters separate environments, so a namespace is one workspace in one environme
 |---|---|---|
 | pods in the same namespace | any | apps of one workspace talking to each other |
 | `kube-system` kube-dns pods | 53 UDP + TCP | DNS resolution |
-| `otel-col-deploy` in the observability namespace | 4317, 4318 TCP | traces and metrics |
+| `otel-col-deploy` in the observability namespace | 4317, 4318 TCP (`observability.collector` in the `loco-operator` chart) | traces and metrics |
 | `0.0.0.0/0` and `::/0`, except reserved ranges and the cluster's own ranges (below) | any | external APIs |
 
 Everything else is denied.
