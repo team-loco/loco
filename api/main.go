@@ -297,7 +297,14 @@ func main() {
 		observabilityAccessHandler,
 		httpInterceptors,
 	)
-	planServiceHandler := service.NewPlanServer(pool, queries, imageResolver, ac.RegistryHost, ac.ServiceDefaults)
+	planServiceHandler := service.NewPlanServer(
+		pool,
+		queries,
+		imageResolver,
+		ac.RegistryHost,
+		ac.ServiceDefaults,
+		ac.SecretLimits,
+	)
 	planPath, planHandler := planv1connect.NewPlanServiceHandler(planServiceHandler, httpInterceptors)
 	environmentPath, environmentHandler := environmentv1connect.NewEnvironmentServiceHandler(
 		environmentServiceHandler,

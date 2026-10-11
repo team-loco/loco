@@ -52,8 +52,12 @@ type ImageResult struct {
 // environment, Disabled the file's services the environment turns off, FileEnvironments the
 // environment names the file mentions, Environments the
 // names that exist in the workspace, Regions the regions with an active cluster, Secrets the
-// secret names set in the environment, PlatformDomains the active platform domains a service
-// domain must end with, and Images a resolution for every image reference the services use.
+// value size in bytes of every secret name each service holds in the environment, keyed by
+// service name, MaxSecretBytes the largest total of name and value bytes one placement of a
+// service may carry, Provision the services an apply creates without deploying, whose missing
+// secrets are not errors when the plan creates them, PlatformDomains the active platform domains
+// a service domain must end with, and Images a resolution for every image reference the services
+// use.
 type Input struct {
 	Partial          string
 	Services         map[string]locofile.Service
@@ -61,7 +65,9 @@ type Input struct {
 	FileEnvironments []string
 	Environments     []string
 	Regions          []string
-	Secrets          []string
+	Secrets          map[string]map[string]int64
+	MaxSecretBytes   int64
+	Provision        []string
 	PlatformDomains  []string
 	Live             []Service
 	Defaults         servicedefaults.Defaults
@@ -114,7 +120,12 @@ func Compute(in Input) (Plan, error) {
 
 	for _, name := range slices.Sorted(maps.Keys(in.Services)) {
 		service := in.Services[name]
+		_, exists := live[name]
+		provisioned := !exists && slices.Contains(in.Provision, name)
 		plan.Errors = append(plan.Errors, checkService(name, service, in)...)
+		if !provisioned {
+			plan.Errors = append(plan.Errors, checkSecrets(name, service, in)...)
+		}
 
 		pinned, err := pinnedImage(service, in.Images)
 		if err != nil {
@@ -238,18 +249,31 @@ func checkService(name string, service locofile.Service, in Input) []Error {
 			errs = append(errs, Error{Service: name, Path: pathDomains, Err: err})
 		}
 	}
-	for _, secret := range slices.Sorted(slices.Values(service.Secrets)) {
-		if slices.Contains(in.Secrets, secret) {
-			continue
-		}
-		missing := fmt.Errorf("%w: %s", ErrMissingSecret, secret)
-		errs = append(errs, Error{Service: name, Path: pathSecrets, Err: missing})
-	}
 	if service.Image != "" {
 		if result, found := in.Images[service.Image]; found && result.Err != nil {
 			unresolved := fmt.Errorf("%w: %s: %w", ErrImageUnresolved, service.Image, result.Err)
 			errs = append(errs, Error{Service: name, Path: pathImage, Err: unresolved})
 		}
+	}
+	return errs
+}
+
+func checkSecrets(name string, service locofile.Service, in Input) []Error {
+	var errs []Error
+	held := in.Secrets[name]
+	var total int64
+	for _, secret := range slices.Sorted(slices.Values(service.Secrets)) {
+		valueBytes, found := held[secret]
+		if !found {
+			missing := fmt.Errorf("%w: %s", ErrMissingSecret, secret)
+			errs = append(errs, Error{Service: name, Path: pathSecrets, Err: missing})
+			continue
+		}
+		total += int64(len(secret)) + valueBytes
+	}
+	if total > in.MaxSecretBytes {
+		tooLarge := fmt.Errorf("%w: %d bytes over a limit of %d", ErrSecretsTooLarge, total, in.MaxSecretBytes)
+		errs = append(errs, Error{Service: name, Path: pathSecrets, Err: tooLarge})
 	}
 	return errs
 }

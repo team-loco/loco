@@ -104,10 +104,12 @@ type ApplyRequest struct {
 	// deploys the service from that build's image, whether or not the plan lists an operation
 	// for it.
 	Builds map[string]string `protobuf:"bytes,7,rep,name=builds,proto3" json:"builds,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// provision names source services the plan creates. When it is set, the apply creates only
-	// those services' resources, without deployments, and performs no other operation of the
-	// plan, so the services can be built before the file is applied with their builds. A request
-	// sets provision or builds, not both.
+	// provision names services the plan creates. When it is set, the apply creates only those
+	// services' resources, without deployments, and performs no other operation of the plan, so
+	// a source service can be built, and a service that declares secrets can have them set,
+	// before the file is applied. The secrets the provisioned services declare need not be set
+	// yet; every other plan error still refuses the apply. A request sets provision or builds,
+	// not both.
 	Provision     []string `protobuf:"bytes,8,rep,name=provision,proto3" json:"provision,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

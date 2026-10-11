@@ -72,10 +72,12 @@ export type ApplyRequest = Message<"loco.plan.v1.ApplyRequest"> & {
   builds: { [key: string]: string };
 
   /**
-   * provision names source services the plan creates. When it is set, the apply creates only
-   * those services' resources, without deployments, and performs no other operation of the
-   * plan, so the services can be built before the file is applied with their builds. A request
-   * sets provision or builds, not both.
+   * provision names services the plan creates. When it is set, the apply creates only those
+   * services' resources, without deployments, and performs no other operation of the plan, so
+   * a source service can be built, and a service that declares secrets can have them set,
+   * before the file is applied. The secrets the provisioned services declare need not be set
+   * yet; every other plan error still refuses the apply. A request sets provision or builds,
+   * not both.
    *
    * @generated from field: repeated string provision = 8;
    */
@@ -141,10 +143,12 @@ export type ApplyRequestJson = {
   builds?: { [key: string]: string };
 
   /**
-   * provision names source services the plan creates. When it is set, the apply creates only
-   * those services' resources, without deployments, and performs no other operation of the
-   * plan, so the services can be built before the file is applied with their builds. A request
-   * sets provision or builds, not both.
+   * provision names services the plan creates. When it is set, the apply creates only those
+   * services' resources, without deployments, and performs no other operation of the plan, so
+   * a source service can be built, and a service that declares secrets can have them set,
+   * before the file is applied. The secrets the provisioned services declare need not be set
+   * yet; every other plan error still refuses the apply. A request sets provision or builds,
+   * not both.
    *
    * @generated from field: repeated string provision = 8;
    */
@@ -717,8 +721,8 @@ export const PlanService: GenService<{
    * Apply re-plans the file against the environment and performs the operations in one
    * transaction. It fails with FAILED_PRECONDITION when the environment revision differs from
    * the one the plan was computed against, when the plan has errors, or when a destructive or
-   * import operation lacks its confirmation, or when a provision name is not a source service
-   * the plan creates; the error carries an ApplyRefusal detail.
+   * import operation lacks its confirmation, or when a provision name is not a service the plan
+   * creates; the error carries an ApplyRefusal detail.
    *
    * @generated from rpc loco.plan.v1.PlanService.Apply
    */

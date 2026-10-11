@@ -32,7 +32,8 @@ var (
 )
 
 // applier performs the operations of one plan inside one transaction. builds are the builds the
-// request named per service; deployed records the services the operations have deployed.
+// request named per service; deployed records the services the operations have deployed;
+// provisioning creates services without deploying them.
 type applier struct {
 	env             genDb.Environment
 	partial         string
@@ -43,6 +44,7 @@ type applier struct {
 	platformDomains []genDb.PlatformDomain
 	defaults        servicedefaults.Defaults
 	started         []*planv1.StartedDeployment
+	provisioning    bool
 }
 
 func (a *applier) apply(ctx context.Context, qtx *genDb.Queries, op configplan.Operation) error {
@@ -108,7 +110,7 @@ func (a *applier) create(ctx context.Context, qtx *genDb.Queries, op configplan.
 	}); eventErr != nil {
 		return eventErr
 	}
-	if op.NeedsDeploy {
+	if op.NeedsDeploy || a.provisioning {
 		return nil
 	}
 	res, err := qtx.GetResourceByID(ctx, resourceID)

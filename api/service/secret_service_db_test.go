@@ -47,15 +47,18 @@ func testLocalProvider(t *testing.T, ids ...string) secretkeys.Provider {
 	return provider
 }
 
-func (f *secretFixture) server(t *testing.T, provider secretkeys.Provider) *SecretServer {
-	t.Helper()
-	limits := SecretConfig{
+func testSecretConfig() SecretConfig {
+	return SecretConfig{
 		MaxValueBytes:     testMaxValue,
 		MaxPerService:     testMaxSecrets,
 		MaxPlacementBytes: testMaxPlacementBytes,
 		LockTimeout:       testLockTimeout,
 	}
-	return NewSecretServer(f.pool, f.queries, provider, limits)
+}
+
+func (f *secretFixture) server(t *testing.T, provider secretkeys.Provider) *SecretServer {
+	t.Helper()
+	return NewSecretServer(f.pool, f.queries, provider, testSecretConfig())
 }
 
 func (f *secretFixture) set(t *testing.T, server *SecretServer, values map[string]string) *secretv1.SetSecretsResponse {

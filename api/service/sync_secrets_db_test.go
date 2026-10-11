@@ -17,13 +17,7 @@ import (
 const sessionKeyValue = "session-key-value-9f2c"
 
 func (f *deployFixture) secretServer(provider secretkeys.Provider) *SecretServer {
-	limits := SecretConfig{
-		MaxValueBytes:     testMaxValue,
-		MaxPerService:     testMaxSecrets,
-		MaxPlacementBytes: testMaxPlacementBytes,
-		LockTimeout:       testLockTimeout,
-	}
-	return NewSecretServer(f.pool, f.queries, provider, limits)
+	return NewSecretServer(f.pool, f.queries, provider, testSecretConfig())
 }
 
 func (f *deployFixture) storeSecret(t *testing.T, provider secretkeys.Provider, name, value string) {
