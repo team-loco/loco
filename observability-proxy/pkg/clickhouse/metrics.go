@@ -11,6 +11,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+const defaultIntervalSeconds = 60
+
 // QueryMetrics executes a metric aggregation query against ClickHouse.
 func QueryMetrics(
 	ctx context.Context,
@@ -40,7 +42,6 @@ func QueryMetrics(
 	}
 	defer rows.Close()
 
-	// Group results by resource_id
 	seriesMap := make(map[string]*observabilityv1.MetricSeries)
 
 	for rows.Next() {
@@ -88,45 +89,31 @@ func buildMetricsQuery(
 	aggFunc := mapAggregation(aggregation)
 	interval := intervalSeconds
 	if interval <= 0 {
-		interval = 60
+		interval = defaultIntervalSeconds
 	}
 
-	var whereParts []string
-	var args []any
-
-	// Mandatory filters
-	whereParts = append(whereParts, fmt.Sprintf("%s = ?", workspaceAttr))
-	args = append(args, workspaceID)
+	whereParts := []string{workspaceColumn + " = ?"}
+	args := []any{workspaceID}
 
 	if len(resourceIDs) > 0 {
-		placeholders := make([]string, len(resourceIDs))
-		for i, rid := range resourceIDs {
-			placeholders[i] = "?"
-			args = append(args, rid)
-		}
-		whereParts = append(whereParts, fmt.Sprintf("%s IN (%s)", resourceAttr, strings.Join(placeholders, ",")))
+		clause, values := inFilter(resourceColumn, resourceIDs)
+		whereParts = append(whereParts, clause)
+		args = append(args, values...)
 	}
 
-	whereParts = append(whereParts, "MetricName = ?")
-	args = append(args, metricName)
-
-	whereParts = append(whereParts, "TimeUnix >= ?", "TimeUnix <= ?")
-	args = append(args, startTime, endTime)
+	whereParts = append(whereParts, "MetricName = ?", "TimeUnix >= ?", "TimeUnix <= ?")
+	args = append(args, metricName, startTime, endTime)
 
 	query := fmt.Sprintf(
-		`SELECT
-			%s AS resource_id,
-			toStartOfInterval(TimeUnix, INTERVAL %d SECOND) AS bucket,
-			%s(Value) AS agg_value
-		FROM otel_metrics_gauge
-		WHERE %s
-		GROUP BY resource_id, bucket
-		ORDER BY resource_id, bucket
-		SETTINGS max_execution_time = %d`,
-		resourceAttr,
+		"SELECT %s, toStartOfInterval(TimeUnix, INTERVAL %d SECOND) AS bucket, %s(Value) AS agg_value "+
+			"FROM otel_metrics_gauge WHERE %s GROUP BY %s, bucket ORDER BY %s, bucket "+
+			"SETTINGS max_execution_time = %d",
+		resourceColumn,
 		interval,
 		aggFunc,
 		strings.Join(whereParts, " AND "),
+		resourceColumn,
+		resourceColumn,
 		queryTimeout,
 	)
 

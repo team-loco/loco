@@ -26,6 +26,7 @@ import (
 const (
 	testBuildNamespace  = "builds-envtest"
 	testBuildWorkspace  = "ws-build"
+	testBuildOrg        = "org-build"
 	testPushSecretName  = "registry-builder"
 	testBuildRepository = "registry.example.com/loco/ws-1/res-1"
 	testImageDigest     = "sha256:1111111111111111111111111111111111111111111111111111111111111111"
@@ -37,6 +38,7 @@ func testBuild(name string) *locov1alpha1.Build {
 		Name: name, Namespace: testBuildNamespace,
 		Spec: locov1alpha1.BuildSpec{
 			BuildID:         name,
+			OrganizationID:  testBuildOrg,
 			WorkspaceID:     testBuildWorkspace,
 			ResourceID:      "res-1",
 			SourceURL:       "https://bucket.example.com/sources/" + name + ".tar.gz?X-Amz-Signature=abc",
@@ -239,10 +241,11 @@ var _ = Describe("Build reconcile", Ordered, func() {
 		Expect(job.Spec.ActiveDeadlineSeconds).To(HaveValue(Equal(int64(1800))))
 		Expect(job.Spec.TTLSecondsAfterFinished).To(HaveValue(BeNumerically(">=", 120)))
 		wantLabels := map[string]string{
-			managed.LabelWorkspaceID: testBuildWorkspace,
-			managed.LabelResourceID:  "res-1",
-			labelBuildID:             "shape",
-			managed.LabelManagedBy:   managed.ManagedByValue,
+			managed.LabelOrganizationID: testBuildOrg,
+			managed.LabelWorkspaceID:    testBuildWorkspace,
+			managed.LabelResourceID:     "res-1",
+			labelBuildID:                "shape",
+			managed.LabelManagedBy:      managed.ManagedByValue,
 		}
 		for key, value := range wantLabels {
 			Expect(job.Labels).To(HaveKeyWithValue(key, value))

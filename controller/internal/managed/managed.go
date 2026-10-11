@@ -5,11 +5,12 @@ import (
 )
 
 const (
-	LabelManagedBy   = "app.kubernetes.io/managed-by"
-	LabelWorkspaceID = "loco.io/workspace-id"
-	LabelResourceID  = "loco.io/resource-id"
-	ManagedByValue   = "loco-controller"
-	FieldOwner       = "loco-controller"
+	LabelManagedBy      = "app.kubernetes.io/managed-by"
+	LabelOrganizationID = "loco.io/organization-id"
+	LabelWorkspaceID    = "loco.io/workspace-id"
+	LabelResourceID     = "loco.io/resource-id"
+	ManagedByValue      = "loco-controller"
+	FieldOwner          = "loco-controller"
 )
 
 func Labels() map[string]string {

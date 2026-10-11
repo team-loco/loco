@@ -58,6 +58,7 @@ func newWatcher(t *testing.T, objs ...client.Object) (*Watcher, client.Client) {
 func startMessage(buildID string) *agentv1.StartBuild {
 	return &agentv1.StartBuild{
 		BuildId:         buildID,
+		OrganizationId:  "01a22222-2222-7222-8222-222222222222",
 		WorkspaceId:     "01a33333-3333-7333-8333-333333333333",
 		ResourceId:      "01a44444-4444-7444-8444-444444444444",
 		SourceUrl:       "https://bucket.test/sources/x.tar.gz?signed",
@@ -102,6 +103,7 @@ func TestCreateMakesOneBuildPerID(t *testing.T) {
 	}
 	want := locoControllerV1.BuildSpec{
 		BuildID:         testBuildID,
+		OrganizationID:  start.GetOrganizationId(),
 		WorkspaceID:     start.GetWorkspaceId(),
 		ResourceID:      start.GetResourceId(),
 		SourceURL:       start.GetSourceUrl(),

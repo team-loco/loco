@@ -344,8 +344,15 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInternal, errors.New("resource region not found"))
 	}
 
+	organizationID, err := s.queries.GetOrganizationIDByWorkspaceID(ctx, resource.WorkspaceID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get workspace organization", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
 	buildSpec := desiredApplicationSpec(
 		resource,
+		organizationID,
 		resourceSpec,
 		hostname,
 		mergedSpec,
@@ -706,6 +713,7 @@ func (e *invalidSpecError) Unwrap() error {
 // This is used both for direct k8s calls and for agent command payloads.
 func buildApplicationSpec(
 	resource genDb.Resource,
+	organizationID uuid.UUID,
 	resourceSpec *resourcev1.ResourceSpec,
 	hostname string,
 	deploymentSpec *deploymentv1.DeploymentSpec,
@@ -720,6 +728,7 @@ func buildApplicationSpec(
 
 	appSpec := &locoControllerV1.ApplicationSpec{
 		ResourceID:      resource.ID.String(),
+		OrganizationID:  organizationID.String(),
 		WorkspaceID:     resource.WorkspaceID.String(),
 		Region:          region,
 		EnvironmentID:   environmentID.String(),

@@ -34,6 +34,13 @@ controller:
 registry:
   pullSecretName: ""
 
+observability:
+  namespace: observability
+  collector:
+    service: otel-col-deploy
+    grpcPort: 4317
+    httpPort: 4318
+
 builds:
   enabled: true
   createNamespace: true

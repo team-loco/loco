@@ -124,6 +124,10 @@ message StartBuild {
   string cache_ref = 7;
   // context is the build context directory relative to the uploaded source, "." for its root.
   string context = 8 [(buf.validate.field).string.min_len = 1];
+  string organization_id = 9 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
 }
 
 message CancelBuild {

@@ -26,7 +26,7 @@ type reconcilerSetup struct {
 func selectReconciler(name string, operator operatorConfig) (reconcilerSetup, error) {
 	switch name {
 	case reconcilerApplication:
-		return applicationSetup(operator), nil
+		return applicationSetup(operator)
 	case reconcilerBuild:
 		return buildSetup(operator)
 	default:
@@ -39,15 +39,18 @@ func selectReconciler(name string, operator operatorConfig) (reconcilerSetup, er
 	}
 }
 
-func applicationSetup(operator operatorConfig) reconcilerSetup {
+func applicationSetup(operator operatorConfig) (reconcilerSetup, error) {
+	if err := operator.Telemetry.Validate(); err != nil {
+		return reconcilerSetup{}, fmt.Errorf("application configuration: %w", err)
+	}
 	cacheOptions := controller.CacheOptions(operator.LocoNamespace, operator.PullSecretName)
 	register := func(mgr ctrl.Manager) error {
 		reconciler := &controller.LocoResourceReconciler{
-			Client:                 mgr.GetClient(),
-			Scheme:                 mgr.GetScheme(),
-			LocoNamespace:          operator.LocoNamespace,
-			ObservabilityNamespace: operator.ObservabilityNamespace,
-			PullSecretName:         operator.PullSecretName,
+			Client:         mgr.GetClient(),
+			Scheme:         mgr.GetScheme(),
+			LocoNamespace:  operator.LocoNamespace,
+			PullSecretName: operator.PullSecretName,
+			Telemetry:      operator.Telemetry,
 		}
 		return reconciler.SetupWithManager(mgr)
 	}
@@ -55,7 +58,7 @@ func applicationSetup(operator operatorConfig) reconcilerSetup {
 		leaderElectionID: applicationLeaderElectionID,
 		cache:            cacheOptions,
 		register:         register,
-	}
+	}, nil
 }
 
 func buildSetup(operator operatorConfig) (reconcilerSetup, error) {

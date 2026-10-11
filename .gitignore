@@ -72,6 +72,7 @@ lint.html
 
 # e2e test artifacts
 e2e/runs/
+e2e/out/
 
 
 

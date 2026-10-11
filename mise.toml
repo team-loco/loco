@@ -108,11 +108,6 @@ description = "Test the image builder"
 dir = "builder"
 run = "go test -v -coverprofile=coverage.out ./..."
 
-[tasks."test:obs-proxy"]
-description = "Test the observability proxy"
-dir = "observability-proxy"
-run = "go test -v -coverprofile=coverage.out ./..."
-
 [tasks."test:controller"]
 description = "Test the controller against envtest"
 run = "make -C controller test"
@@ -267,6 +262,11 @@ description = "Run the end-to-end tests for loco.yaml: validate, plan, apply, de
 env = { _.file = ".env" }
 run = "./e2e/run.sh config_apply"
 
+[tasks."e2e:observability"]
+description = "Run the end-to-end tests for telemetry from the Envoy gateway through ClickHouse to the observability proxy, with Envoy Gateway and the loco-obs chart installed; writes e2e/out/observability-evidence.md (E2E_OBS_EVIDENCE overrides the path); takes the e2e flags"
+env = { _.file = ".env" }
+run = "./e2e/run.sh --observability observability"
+
 [tasks."e2e:teardown"]
 description = "Remove this worktree's end-to-end run (or E2E_RUN_ID's): its kind cluster, compose project and state"
 env = { _.file = ".env" }
@@ -297,7 +297,8 @@ description = "Check combined UI and documentation images in production and stag
 run = "uv run --frozen --project docs python docs/tests/container.py"
 
 [tasks."test:chart-contracts"]
-description = "Render regional certificate and observability Secret contracts"
+description = "Render regional certificate, observability Secret and collector pipeline contracts"
+depends = ["helm:deps"]
 run = "python3 -m unittest discover -s tests/charts"
 
 [tasks."test:platform-release"]
