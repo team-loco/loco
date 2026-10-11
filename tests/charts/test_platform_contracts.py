@@ -332,6 +332,27 @@ class EnvoyTelemetry(unittest.TestCase):
                 self.assertEqual(len(setters), 1, f'{statements} {key}')
 
 
+class ControllerTelemetry(unittest.TestCase):
+    def test_controller_reads_the_collector_from_values(self):
+        deployment = render('loco-operator', 'controller/deployment.yaml', {
+            'controller': {'image': {'tag': 'test'}},
+            'observability': {'namespace': 'telemetry', 'collector': {'service': 'collector', 'grpcPort': 14317, 'httpPort': 14318}},
+        })
+        env = {item['name']: item for item in deployment['spec']['template']['spec']['containers'][0]['env']}
+        self.assertEqual(env['LOCO_OBSERVABILITY_NAMESPACE']['value'], 'telemetry')
+        self.assertEqual(env['LOCO_OTEL_COLLECTOR_SERVICE']['value'], 'collector')
+        self.assertEqual(env['LOCO_OTEL_COLLECTOR_GRPC_PORT']['value'], '14317')
+        self.assertEqual(env['LOCO_OTEL_COLLECTOR_HTTP_PORT']['value'], '14318')
+
+    def test_operator_collector_matches_the_obs_chart(self):
+        collector = chart_values('loco-operator')['observability']['collector']
+        deploy = chart_values('loco-obs')['otel-col-deploy']
+        self.assertEqual(collector['service'], deploy['fullnameOverride'])
+        protocols = deploy['config']['receivers']['otlp']['protocols']
+        self.assertEqual(protocols['grpc']['endpoint'].rsplit(':', 1)[1], str(collector['grpcPort']))
+        self.assertEqual(protocols['http']['endpoint'].rsplit(':', 1)[1], str(collector['httpPort']))
+
+
 class BuildNamespaceOwnership(unittest.TestCase):
     def test_chart_creates_build_namespace_by_default(self):
         namespace = render('loco-operator', 'builds/namespace.yaml', {})

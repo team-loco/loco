@@ -68,6 +68,7 @@ var _ = Describe("Workspace isolation", func() {
 			Client:        k8sClient,
 			Scheme:        scheme.Scheme,
 			LocoNamespace: testLocoNamespace,
+			Telemetry:     testTelemetry(),
 		}
 	})
 
@@ -137,7 +138,14 @@ var _ = Describe("Workspace isolation", func() {
 
 		telemetry := getPolicy(namespace, policyTelemetryEgress)
 		telemetryNamespace := telemetry.Spec.Egress[0].To[0].NamespaceSelector.MatchLabels
-		Expect(telemetryNamespace).To(HaveKeyWithValue(labelNamespaceName, defaultObsNamespace))
+		Expect(telemetryNamespace).To(HaveKeyWithValue(labelNamespaceName, testTelemetryNamespace))
+		telemetryPods := telemetry.Spec.Egress[0].To[0].PodSelector.MatchLabels
+		Expect(telemetryPods).To(Equal(map[string]string{labelAppKubernetesName: testCollectorService}))
+		telemetryPorts := make([]int32, 0, len(telemetry.Spec.Egress[0].Ports))
+		for _, port := range telemetry.Spec.Egress[0].Ports {
+			telemetryPorts = append(telemetryPorts, port.Port.IntVal)
+		}
+		Expect(telemetryPorts).To(ConsistOf(testCollectorGRPCPort, testCollectorHTTPPort))
 
 		internet := getPolicy(namespace, isolation.PolicyInternetEgress)
 		Expect(internet.Spec.Egress[0].To[0].IPBlock.Except).To(ContainElement("169.254.0.0/16"))

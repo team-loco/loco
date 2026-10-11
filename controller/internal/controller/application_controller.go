@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -81,9 +82,9 @@ type LocoResourceReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	LocoNamespace          string
-	ObservabilityNamespace string
-	PullSecretName         string
+	LocoNamespace  string
+	PullSecretName string
+	Telemetry      TelemetryConfig
 }
 
 // +kubebuilder:rbac:groups=infra.loco.io,resources=applications,verbs=get;list;watch;create;update;patch;delete
@@ -588,14 +589,17 @@ func parseResourceList(cpu, memory string) (corev1.ResourceList, error) {
 	}, nil
 }
 
-func systemEnvVars(locoRes *locov1alpha1.Application) []*corev1ac.EnvVarApplyConfiguration {
+func systemEnvVars(
+	locoRes *locov1alpha1.Application,
+	telemetry TelemetryConfig,
+) []*corev1ac.EnvVarApplyConfiguration {
 	publicDomain := ""
 	if locoRes.Spec.ServiceSpec.Routing != nil {
 		publicDomain = locoRes.Spec.ServiceSpec.Routing.HostName
 	}
 	internalDomain := getInternalDomain(locoRes)
 
-	vars := []corev1.EnvVar{
+	locoVars := []corev1.EnvVar{
 		{Name: "LOCO_APP_NAME", Value: locoRes.Name},
 		{Name: "LOCO_RESOURCE_ID", Value: locoRes.Spec.ResourceID},
 		{Name: "LOCO_WORKSPACE_ID", Value: locoRes.Spec.WorkspaceID},
@@ -605,6 +609,8 @@ func systemEnvVars(locoRes *locov1alpha1.Application) []*corev1ac.EnvVarApplyCon
 		{Name: "LOCO_INTERNAL_DOMAIN", Value: internalDomain},
 		{Name: "LOCO_PUBLIC_DOMAIN", Value: publicDomain},
 	}
+	otelVars := openTelemetryEnvVars(locoRes, telemetry)
+	vars := slices.Concat(locoVars, otelVars)
 
 	envVars := make([]*corev1ac.EnvVarApplyConfiguration, 0, len(vars))
 	for _, v := range vars {
@@ -628,6 +634,7 @@ func healthProbe(hc *locov1alpha1.HealthCheckSpec, port int32) *corev1ac.ProbeAp
 func desiredDeployment(
 	locoRes *locov1alpha1.Application,
 	envSecretVersion string,
+	telemetry TelemetryConfig,
 ) (*appsv1ac.DeploymentApplyConfiguration, error) {
 	name := getName(locoRes)
 	namespace := getNamespace(locoRes)
@@ -646,7 +653,7 @@ func desiredDeployment(
 	envSecretName := getEnvSecretName(locoRes)
 	secretRef := corev1ac.SecretEnvSource().WithName(envSecretName)
 	envFrom := corev1ac.EnvFromSource().WithSecretRef(secretRef)
-	envVars := systemEnvVars(locoRes)
+	envVars := systemEnvVars(locoRes, telemetry)
 	port := corev1ac.ContainerPort().
 		WithName("http").
 		WithContainerPort(containerPort).
@@ -669,6 +676,7 @@ func desiredDeployment(
 
 	podLabels := map[string]string{
 		labelApp:                 name,
+		labelAppKubernetesName:   name,
 		managed.LabelWorkspaceID: locoRes.Spec.WorkspaceID,
 		managed.LabelResourceID:  locoRes.Spec.ResourceID,
 		labelEnvironmentID:       locoRes.Spec.EnvironmentID,
@@ -718,7 +726,7 @@ func (r *LocoResourceReconciler) ensureDeployment(
 	locoRes *locov1alpha1.Application,
 	envSecretVersion string,
 ) (*appsv1ac.DeploymentApplyConfiguration, error) {
-	dep, err := desiredDeployment(locoRes, envSecretVersion)
+	dep, err := desiredDeployment(locoRes, envSecretVersion, r.Telemetry)
 	if err != nil {
 		return nil, err
 	}

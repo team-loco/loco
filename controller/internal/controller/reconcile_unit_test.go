@@ -83,7 +83,7 @@ func envValue(t *testing.T, dep *appsv1ac.DeploymentApplyConfiguration, name str
 
 func TestDesiredDeploymentIsDeterministic(t *testing.T) {
 	app := testApplication()
-	first, err := desiredDeployment(app, "7")
+	first, err := desiredDeployment(app, "7", testTelemetry())
 	if err != nil {
 		t.Fatalf("desiredDeployment: %v", err)
 	}
@@ -92,7 +92,7 @@ func TestDesiredDeploymentIsDeterministic(t *testing.T) {
 		t.Fatalf("marshal: %v", err)
 	}
 	for range 20 {
-		next, err := desiredDeployment(app, "7")
+		next, err := desiredDeployment(app, "7", testTelemetry())
 		if err != nil {
 			t.Fatalf("desiredDeployment: %v", err)
 		}
@@ -108,7 +108,7 @@ func TestDesiredDeploymentIsDeterministic(t *testing.T) {
 
 func TestDesiredDeploymentSourcesUserEnvFromSecret(t *testing.T) {
 	app := testApplication()
-	dep, err := desiredDeployment(app, "7")
+	dep, err := desiredDeployment(app, "7", testTelemetry())
 	if err != nil {
 		t.Fatalf("desiredDeployment: %v", err)
 	}
@@ -141,7 +141,7 @@ func TestDesiredDeploymentSourcesUserEnvFromSecret(t *testing.T) {
 func TestDesiredDeploymentWithoutRouting(t *testing.T) {
 	app := testApplication()
 	app.Spec.ServiceSpec.Routing = nil
-	dep, err := desiredDeployment(app, "1")
+	dep, err := desiredDeployment(app, "1", testTelemetry())
 	if err != nil {
 		t.Fatalf("desiredDeployment: %v", err)
 	}
@@ -157,14 +157,14 @@ func TestDesiredDeploymentWithoutRouting(t *testing.T) {
 func TestDesiredDeploymentRequiresResources(t *testing.T) {
 	app := testApplication()
 	app.Spec.ServiceSpec.Resources = nil
-	if _, err := desiredDeployment(app, "1"); !errors.Is(err, errNoResources) {
+	if _, err := desiredDeployment(app, "1", testTelemetry()); !errors.Is(err, errNoResources) {
 		t.Fatalf("desiredDeployment without resources = %v, want errNoResources", err)
 	}
 }
 
 func TestDesiredDeploymentUsesSpecResources(t *testing.T) {
 	app := testApplication()
-	dep, err := desiredDeployment(app, "1")
+	dep, err := desiredDeployment(app, "1", testTelemetry())
 	if err != nil {
 		t.Fatalf("desiredDeployment: %v", err)
 	}
@@ -186,7 +186,7 @@ func TestDesiredDeploymentUsesSpecResources(t *testing.T) {
 func TestDesiredDeploymentRejectsInvalidQuantity(t *testing.T) {
 	app := testApplication()
 	app.Spec.ServiceSpec.Resources.CPU = "lots"
-	if _, err := desiredDeployment(app, "1"); err == nil {
+	if _, err := desiredDeployment(app, "1", testTelemetry()); err == nil {
 		t.Fatal("expected an error for an unparsable cpu quantity")
 	}
 }
@@ -228,7 +228,7 @@ func TestDeploymentReady(t *testing.T) {
 
 func TestReplicaCountsTrackDeploymentStatus(t *testing.T) {
 	app := testApplication()
-	deployment, err := desiredDeployment(app, "1")
+	deployment, err := desiredDeployment(app, "1", testTelemetry())
 	if err != nil {
 		t.Fatalf("desiredDeployment: %v", err)
 	}

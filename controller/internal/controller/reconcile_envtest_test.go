@@ -53,6 +53,7 @@ var _ = Describe("Application reconcile", func() {
 			Scheme:         k8sClient.Scheme(),
 			LocoNamespace:  testNamespace,
 			PullSecretName: pullSecretName,
+			Telemetry:      testTelemetry(),
 		}
 		appKey := client.ObjectKeyFromObject(app)
 		req := reconcile.Request{NamespacedName: appKey}
@@ -68,6 +69,12 @@ var _ = Describe("Application reconcile", func() {
 		dep := &appsv1.Deployment{}
 		Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
 		Expect(dep.Spec.Template.Spec.Containers[0].EnvFrom[0].SecretRef.Name).To(Equal(envSecretName))
+		Expect(dep.Spec.Selector.MatchLabels).To(Equal(map[string]string{labelApp: getName(app)}))
+		Expect(dep.Spec.Template.Labels).To(HaveKeyWithValue(labelAppKubernetesName, getName(app)))
+		Expect(dep.Spec.Template.Spec.Containers[0].Env).To(ContainElement(corev1.EnvVar{
+			Name:  envOTLPEndpoint,
+			Value: testCollectorEndpoint,
+		}))
 		imageSecret := &corev1.Secret{}
 		Expect(k8sClient.Get(ctx, imageKey, imageSecret)).To(Succeed())
 		Expect(imageSecret.Type).To(Equal(corev1.SecretTypeDockerConfigJson))
@@ -153,6 +160,7 @@ var _ = Describe("Application reconcile", func() {
 			Scheme:         k8sClient.Scheme(),
 			LocoNamespace:  testNamespace,
 			PullSecretName: pullSecret.Name,
+			Telemetry:      testTelemetry(),
 		}
 		firstKey := client.ObjectKeyFromObject(first)
 		secondKey := client.ObjectKeyFromObject(second)
@@ -227,6 +235,34 @@ var _ = Describe("Application reconcile", func() {
 		Expect(k8sClient.Delete(ctx, pullSecret)).To(Succeed())
 	})
 
+	It("adds the app name label to a deployment created without it and keeps its selector", func() {
+		app := isolationTestApplication("ws-name-label", "name-label")
+		app.Spec.ServiceSpec.Routing = nil
+		Expect(k8sClient.Create(ctx, app)).To(Succeed())
+		Expect(ensureNamespace(ctx, k8sClient, app)).To(Succeed())
+
+		previous, err := desiredDeployment(app, "1", testTelemetry())
+		Expect(err).NotTo(HaveOccurred())
+		delete(previous.Spec.Template.Labels, labelAppKubernetesName)
+		Expect(k8sClient.Apply(ctx, previous, managed.ApplyOptions()...)).To(Succeed())
+
+		r := &LocoResourceReconciler{Client: k8sClient, Scheme: k8sClient.Scheme(), Telemetry: testTelemetry()}
+		appKey := client.ObjectKeyFromObject(app)
+		req := reconcile.Request{NamespacedName: appKey}
+		_, err = r.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+
+		dep := &appsv1.Deployment{}
+		depKey := client.ObjectKey{Namespace: getNamespace(app), Name: getName(app)}
+		Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
+		Expect(dep.Spec.Selector.MatchLabels).To(Equal(map[string]string{labelApp: getName(app)}))
+		Expect(dep.Spec.Template.Labels).To(HaveKeyWithValue(labelAppKubernetesName, getName(app)))
+
+		Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+		_, err = r.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+	})
+
 	It("marks an invalid spec failed and still lets it be deleted", func() {
 		app := &locov1alpha1.Application{
 			Name:       "invalid",
@@ -236,7 +272,7 @@ var _ = Describe("Application reconcile", func() {
 		}
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 
-		r := &LocoResourceReconciler{Client: k8sClient, Scheme: k8sClient.Scheme()}
+		r := &LocoResourceReconciler{Client: k8sClient, Scheme: k8sClient.Scheme(), Telemetry: testTelemetry()}
 		appKey := client.ObjectKeyFromObject(app)
 		req := reconcile.Request{NamespacedName: appKey}
 
