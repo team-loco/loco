@@ -6,6 +6,7 @@ require (
 	connectrpc.com/connect v1.21.0
 	github.com/ClickHouse/clickhouse-go/v2 v2.49.0
 	github.com/dgraph-io/ristretto/v2 v2.4.2
+	github.com/pressly/goose/v3 v3.28.0
 	github.com/team-loco/loco v0.0.0
 	google.golang.org/protobuf v1.36.12
 )
@@ -20,12 +21,16 @@ require (
 	github.com/go-faster/errors v0.8.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/klauspost/compress v1.20.1 // indirect
+	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/paulmach/orb v0.13.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.31 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
+	github.com/sethvargo/go-retry v0.4.0 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
 	go.opentelemetry.io/otel v1.46.0 // indirect
 	go.opentelemetry.io/otel/trace v1.46.0 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
+	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 )
 

@@ -108,11 +108,6 @@ description = "Test the image builder"
 dir = "builder"
 run = "go test -v -coverprofile=coverage.out ./..."
 
-[tasks."test:obs-proxy"]
-description = "Test the observability proxy"
-dir = "observability-proxy"
-run = "go test -v -coverprofile=coverage.out ./..."
-
 [tasks."test:controller"]
 description = "Test the controller against envtest"
 run = "make -C controller test"
