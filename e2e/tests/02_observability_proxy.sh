@@ -10,8 +10,8 @@
 #
 # NOTE: These tests require the observability proxy to be running.
 # The proxy is started by run.sh if the binary exists.
-# ClickHouse is NOT available in e2e (no loco-obs helm chart),
-# so we test auth/validation paths and expect ClickHouse errors for query tests.
+# run.sh starts ClickHouse from the image the loco-obs chart pins, and the
+# proxy applies its schema before it serves.
 
 E2E_SKIP_REASON="mints tokens through the removed tvm_tokens table (#186)"
 

@@ -30,7 +30,7 @@ PORT_BASE=$((PORT_RANGE_START + RUN_HASH % PORT_BLOCKS * PORT_BLOCK_SIZE))
 API_PORT=$PORT_BASE
 OBS_PROXY_PORT=$((PORT_BASE + 1))
 S3_PORT=$((PORT_BASE + 2))
-UNUSED_CLICKHOUSE_PORT=$((PORT_BASE + 3))
+CLICKHOUSE_PORT=$((PORT_BASE + 3))
 READY_TIMEOUT=120
 LOG_TAIL_LINES=200
 
@@ -42,6 +42,11 @@ PG_DB="loco_e2e"
 E2E_VERSION="e2e"
 CONTROLLER_REPOSITORY="loco-controller"
 BUILDER_REPOSITORY="loco-builder"
+OBS_VALUES="$ROOT_DIR/charts/loco-obs/values.yaml"
+CLICKHOUSE_IMAGE=$(yq '.clickhouse.clickhouse.image.repository + ":" + .clickhouse.clickhouse.image.tag' "$OBS_VALUES")
+CLICKHOUSE_CONTAINER="${RUN_NAME}-clickhouse"
+CLICKHOUSE_USER="loco_e2e"
+CLICKHOUSE_PASS="loco_e2e_pass"
 BUILDKIT_IMAGE=$(yq '.builds.buildkitImage.repository + ":" + .builds.buildkitImage.tag' "$ROOT_DIR/charts/loco-operator/values.yaml")
 GATEWAY_API_VERSION=$(awk '$1 == "sigs.k8s.io/gateway-api" { print $2 }' "$ROOT_DIR/controller/go.mod")
 AGENT_TOKEN="e2e-test-token-do-not-use-in-production"
@@ -125,6 +130,8 @@ teardown() {
         log_info "Deleting Kind cluster ${KIND_CLUSTER_NAME}..."
         kind delete cluster --name "$KIND_CLUSTER_NAME" --kubeconfig "$KUBECONFIG_FILE"
     fi
+
+    docker rm -f "$CLICKHOUSE_CONTAINER" >/dev/null 2>&1 || true
 
     log_info "Removing compose project ${E2E_COMPOSE_PROJECT}..."
     e2e_compose --profile tools down -v --remove-orphans >/dev/null 2>&1 || true
@@ -226,7 +233,9 @@ check_ports() {
     log_step "Checking run ${RUN_ID}'s ports ${PORT_BASE}-$((PORT_BASE + PORT_BLOCK_SIZE - 1))..."
     require_free_port "$API_PORT" "API"
     require_free_port "$OBS_PROXY_PORT" "observability proxy"
-    require_free_port "$UNUSED_CLICKHOUSE_PORT" "unreachable ClickHouse"
+    if ! docker port "$CLICKHOUSE_CONTAINER" 9000/tcp >/dev/null 2>&1; then
+        require_free_port "$CLICKHOUSE_PORT" "ClickHouse"
+    fi
     if ! e2e_compose port s3 "$S3_PORT" >/dev/null 2>&1; then
         require_free_port "$S3_PORT" "source bucket"
     fi
@@ -289,6 +298,20 @@ setup_postgres() {
     export E2E_DATABASE_URL="postgres://${PG_USER}:${PG_PASS}@127.0.0.1:${port}/${PG_DB}?sslmode=disable"
     wait_for "Postgres to answer queries from the host" "$READY_TIMEOUT" postgres_accepts_queries
     log_ok "Postgres ready on port ${port}"
+}
+
+clickhouse_answers() {
+    docker exec "$CLICKHOUSE_CONTAINER" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASS" -q "SELECT 1"
+}
+
+setup_clickhouse() {
+    log_step "Setting up ClickHouse..."
+    docker rm -f "$CLICKHOUSE_CONTAINER" >/dev/null 2>&1 || true
+    docker run -d --name "$CLICKHOUSE_CONTAINER" -p "127.0.0.1:${CLICKHOUSE_PORT}:9000" \
+        -e CLICKHOUSE_USER="$CLICKHOUSE_USER" -e CLICKHOUSE_PASSWORD="$CLICKHOUSE_PASS" \
+        "$CLICKHOUSE_IMAGE" >/dev/null
+    wait_for "ClickHouse to answer queries" "$READY_TIMEOUT" clickhouse_answers
+    log_ok "ClickHouse ready on port ${CLICKHOUSE_PORT}"
 }
 
 run_migrations() {
@@ -519,8 +542,14 @@ start_obs_proxy() {
     PORT="$OBS_PROXY_PORT" \
     CONTROL_PLANE_URL="$E2E_API_URL" \
     PROXY_AUTH_TOKEN="$AGENT_TOKEN" \
-    CLICKHOUSE_URL="clickhouse://127.0.0.1:${UNUSED_CLICKHOUSE_PORT}" \
-    CLICKHOUSE_DB="default" \
+    CLICKHOUSE_URL="clickhouse://${CLICKHOUSE_USER}:${CLICKHOUSE_PASS}@127.0.0.1:${CLICKHOUSE_PORT}" \
+    CLICKHOUSE_MIGRATOR_URL="clickhouse://${CLICKHOUSE_USER}:${CLICKHOUSE_PASS}@127.0.0.1:${CLICKHOUSE_PORT}" \
+    CLICKHOUSE_DB="$(yq '.obsProxy.clickhouse.database' "$OBS_VALUES")" \
+    CLICKHOUSE_LOGS_TTL="$(yq '.obsProxy.clickhouse.retention.logs' "$OBS_VALUES")" \
+    CLICKHOUSE_TRACES_TTL="$(yq '.obsProxy.clickhouse.retention.traces' "$OBS_VALUES")" \
+    CLICKHOUSE_METRICS_TTL="$(yq '.obsProxy.clickhouse.retention.metrics' "$OBS_VALUES")" \
+    MIGRATION_RETRY_BUDGET="$(yq '.obsProxy.clickhouse.migrations.retryBudgetSeconds' "$OBS_VALUES")s" \
+    MIGRATION_RETRY_INTERVAL="$(yq '.obsProxy.clickhouse.migrations.retryIntervalSeconds' "$OBS_VALUES")s" \
     DEFAULT_LIMIT="100" \
     MAX_LIMIT="1000" \
     QUERY_TIMEOUT_SECONDS="5" \
@@ -534,7 +563,7 @@ start_obs_proxy() {
 
     echo $! > "$PID_DIR/obs-proxy.pid"
 
-    wait_for "Obs proxy health" "$READY_TIMEOUT" curl -sf "http://127.0.0.1:${OBS_PROXY_PORT}/healthz"
+    wait_for "Obs proxy readiness" "$READY_TIMEOUT" curl -sf "http://127.0.0.1:${OBS_PROXY_PORT}/readyz"
     log_ok "Observability proxy running on port ${OBS_PROXY_PORT}"
 }
 
@@ -612,6 +641,7 @@ main() {
     setup_dirs
     setup_kind
     setup_postgres
+    setup_clickhouse
     run_migrations
     create_namespace
     install_gateway_api
