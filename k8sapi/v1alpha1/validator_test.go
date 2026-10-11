@@ -27,6 +27,30 @@ func TestResourcesSpecValidate(t *testing.T) {
 	}
 }
 
+func TestServiceDeploymentSpecValidatesEnvSecretRef(t *testing.T) {
+	valid := ServiceDeploymentSpec{
+		Image:        "ghcr.io/team-loco/app:v1",
+		Port:         8080,
+		EnvSecretRef: &EnvSecretRef{Name: "env-p1", Revision: 3},
+	}
+	if err := validateServiceDeploymentSpec(&valid); err != nil {
+		t.Fatalf("valid envSecretRef rejected: %v", err)
+	}
+	invalid := map[string]EnvSecretRef{
+		"empty name":    {Revision: 3},
+		"zero revision": {Name: "env-p1"},
+	}
+	for name, ref := range invalid {
+		t.Run(name, func(t *testing.T) {
+			spec := valid
+			spec.EnvSecretRef = &ref
+			if err := validateServiceDeploymentSpec(&spec); err == nil {
+				t.Errorf("%+v accepted", ref)
+			}
+		})
+	}
+}
+
 func TestDockerImagePattern(t *testing.T) {
 	digest := "@sha256:7781a08afca1adb11b6294ca81ee6e04f9fc677f4f04c9d9daf2b0e068f5e89a"
 	valid := []string{

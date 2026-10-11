@@ -71,6 +71,22 @@ spec:
                                                 additionalProperties:
                                                     type: string
                                                 type: object
+                                            envSecretRef:
+                                                description: |-
+                                                    EnvSecretRef names the Secret in the Application's namespace that holds the service's secret values
+                                                    and the placement revision whose values it must carry.
+                                                properties:
+                                                    name:
+                                                        minLength: 1
+                                                        type: string
+                                                    revision:
+                                                        format: int64
+                                                        minimum: 1
+                                                        type: integer
+                                                required:
+                                                    - name
+                                                    - revision
+                                                type: object
                                             healthCheck:
                                                 description: HealthCheckSpec describes readiness/liveness checks
                                                 properties:

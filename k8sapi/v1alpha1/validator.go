@@ -33,6 +33,8 @@ var (
 	errCPUMissing             = errors.New("cpu must be set")
 	errMemoryMissing          = errors.New("memory must be set")
 	errGraceNegative          = errors.New("healthCheck.startupGracePeriod cannot be negative")
+	errEnvSecretNameMissing   = errors.New("envSecretRef.name must be set")
+	errEnvSecretRevision      = errors.New("envSecretRef.revision must be positive")
 )
 
 const (
@@ -154,7 +156,14 @@ func validateServiceDeploymentSpec(spec *ServiceDeploymentSpec) error {
 		}
 	}
 
-	return ValidateEnv(spec.Env)
+	if err := ValidateEnv(spec.Env); err != nil {
+		return err
+	}
+
+	if spec.EnvSecretRef != nil {
+		return validateEnvSecretRef(spec.EnvSecretRef)
+	}
+	return nil
 }
 
 // ValidatePort checks the container port a service listens on.
@@ -181,6 +190,16 @@ func ValidateEnv(env map[string]string) error {
 		if value == "" {
 			return fmt.Errorf("environment variable %q has empty value", name)
 		}
+	}
+	return nil
+}
+
+func validateEnvSecretRef(ref *EnvSecretRef) error {
+	if ref.Name == "" {
+		return errEnvSecretNameMissing
+	}
+	if ref.Revision < 1 {
+		return errEnvSecretRevision
 	}
 	return nil
 }
