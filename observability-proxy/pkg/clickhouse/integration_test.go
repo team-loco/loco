@@ -436,3 +436,76 @@ func TestQueryMetricsScopesToWorkspace(t *testing.T) {
 		})
 	}
 }
+
+func TestLogPagesKeepEqualTimestampsAcrossMerges(t *testing.T) {
+	f := newQueryFixture(t)
+	timestamp := f.start.Add(time.Minute + time.Nanosecond)
+	const copies = 5
+	for range copies {
+		batch, err := f.conn.PrepareBatch(t.Context(), "INSERT INTO otel_logs ("+logsInsertColumns+")")
+		if err != nil {
+			t.Fatal(err)
+		}
+		attrs := tenantAttributes(testWorkspaceID, testResourceID)
+		for range copies {
+			if err := batch.Append(
+				timestamp,
+				testSeverity,
+				"same log",
+				attrs,
+				"",
+				"",
+				map[string]string{},
+			); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := batch.Send(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	orders := []observabilityv1.LogOrder{
+		observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST,
+		observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST,
+	}
+	for _, order := range orders {
+		cursor := ""
+		var count int
+		for page := range copies * copies {
+			entries, next, err := QueryLogs(
+				t.Context(),
+				f.conn,
+				testWorkspaceID,
+				nil,
+				timestamp,
+				timestamp,
+				"",
+				nil,
+				nil,
+				testPageSize,
+				cursor,
+				order,
+				testQueryTimeout,
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			count += len(entries)
+			if page == 0 {
+				if err := f.conn.Exec(t.Context(), "OPTIMIZE TABLE otel_logs FINAL"); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if next == "" {
+				break
+			}
+			if next == cursor {
+				t.Fatal("cursor did not advance")
+			}
+			cursor = next
+		}
+		if count != copies*copies {
+			t.Fatalf("order %v returned %d logs, want %d", order, count, copies*copies)
+		}
+	}
+}
