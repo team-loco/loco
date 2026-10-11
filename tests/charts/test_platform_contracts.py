@@ -14,7 +14,13 @@ TENANT_LABELS = {
     'loco.io/resource-id': 'loco.resource.id',
 }
 BUILD_LABELS = {'loco.io/build-id': 'loco.io/build-id'}
+GATEWAY_LABELS = {
+    'gateway.envoyproxy.io/owning-gateway-name': 'gateway.envoyproxy.io/owning-gateway-name',
+    'gateway.envoyproxy.io/owning-gateway-namespace': 'gateway.envoyproxy.io/owning-gateway-namespace',
+}
 CLIENT_POD_IDENTITY = ('k8s.pod.ip', 'k8s.pod.uid')
+ENVOY_CLUSTER_ATTRIBUTES = {'trace_statements': 'upstream_cluster', 'log_statements': 'upstream_cluster', 'metric_statements': 'envoy.cluster_name'}
+ROUTE_TENANCY = ('loco.workspace.id', 'loco.resource.id')
 
 
 def render(chart, template, overrides):
@@ -205,7 +211,7 @@ class CollectorTenancy(unittest.TestCase):
             self.assertLessEqual(set(pipeline['receivers']), PUSH_RECEIVERS, f'{collector} {name}')
 
     def test_client_tenancy_is_removed_before_kubernetes_attributes(self):
-        stripped = set(TENANT_LABELS.values()) | set(BUILD_LABELS.values()) | set(CLIENT_POD_IDENTITY)
+        stripped = set(TENANT_LABELS.values()) | set(BUILD_LABELS.values()) | set(GATEWAY_LABELS.values()) | set(CLIENT_POD_IDENTITY)
         for collector, config, name, pipeline in self.push_pipelines():
             processors = pipeline['processors']
             enrichers = self.k8s_attributes(pipeline)
@@ -247,12 +253,83 @@ class CollectorTenancy(unittest.TestCase):
             for enricher in self.k8s_attributes(pipeline):
                 extract = config['processors'][enricher]['extract']
                 labels = {rule.get('key'): rule.get('tag_name') for rule in extract['labels'] if rule['from'] == 'pod'}
-                self.assertEqual(labels, TENANT_LABELS | BUILD_LABELS, f'{collector} {enricher}')
+                self.assertEqual(labels, TENANT_LABELS | BUILD_LABELS | GATEWAY_LABELS, f'{collector} {enricher}')
                 self.assertTrue(all('key_regex' not in rule for rule in extract['labels']), f'{collector} {enricher}')
                 self.assertNotIn('annotations', extract, f'{collector} {enricher}')
                 self.assertFalse(extract.get('otel_annotations', False), f'{collector} {enricher}')
                 for key in ('k8s.namespace.name', 'k8s.pod.name', 'k8s.pod.uid', 'k8s.deployment.name', 'service.name'):
                     self.assertIn(key, extract['metadata'], f'{collector} {enricher}')
+
+
+class EnvoyTelemetry(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        documents = render_documents('loco-core', 'gateway.yaml', {})
+        cls.proxy = next(document for document in documents if document['kind'] == 'EnvoyProxy')
+        cls.core = chart_values('loco-core')
+        cls.collector = collector_relays(render_chart('loco-obs', {'obsProxy': {'image': {'tag': 'test'}}}))['otel-col-deploy']
+
+    def collector_address(self):
+        observability = self.core['global']['observability']
+        return f"{observability['otelCollectorDeployment']}.{observability['namespace']}.svc.cluster.local", observability['otelCollectorGrpcPort']
+
+    def test_envoy_sends_every_signal_to_the_deployment_collector(self):
+        obs = chart_values('loco-obs')
+        host, port = self.collector_address()
+        self.assertEqual(host.split('.')[0], obs['otel-col-deploy']['fullnameOverride'])
+        self.assertEqual(self.collector['receivers']['otlp']['protocols']['grpc']['endpoint'], f'0.0.0.0:{port}')
+        telemetry = self.proxy['spec']['telemetry']
+        sinks = [sink['openTelemetry'] for sink in telemetry['metrics']['sinks']]
+        sinks += [sink['openTelemetry'] for setting in telemetry['accessLog']['settings'] for sink in setting['sinks']]
+        sinks.append(telemetry['tracing']['provider'])
+        for sink in sinks:
+            self.assertEqual((sink['host'], sink['port']), (host, port))
+        self.assertEqual(telemetry['tracing']['provider']['type'], 'OpenTelemetry')
+        self.assertTrue(all(sink['type'] == 'OpenTelemetry' for setting in telemetry['accessLog']['settings'] for sink in setting['sinks']))
+
+    def test_tracing_samples_at_the_configured_rate(self):
+        tracing = self.proxy['spec']['telemetry']['tracing']
+        self.assertEqual(tracing['samplingRate'], self.core['envoyProxy']['tracing']['samplingRate'])
+
+    def test_access_logs_carry_the_request_and_its_upstream(self):
+        settings = self.proxy['spec']['telemetry']['accessLog']['settings']
+        self.assertEqual(len(settings), 1)
+        log_format = settings[0]['format']
+        self.assertEqual(log_format['type'], 'JSON')
+        self.assertEqual(log_format['json'], self.core['envoyProxy']['accessLog']['attributes'])
+        operators = set(log_format['json'].values())
+        for operator in ('%UPSTREAM_CLUSTER%', '%RESPONSE_CODE%', '%DURATION%', '%REQ(:METHOD)%', '%TRACE_ID%'):
+            self.assertIn(operator, operators)
+        self.assertTrue(any('PATH' in operator for operator in operators))
+        self.assertEqual(log_format['json']['upstream_cluster'], '%UPSTREAM_CLUSTER%')
+
+    def test_route_tenancy_runs_after_kubernetes_attributes(self):
+        for name, pipeline in self.collector['service']['pipelines'].items():
+            if 'otlp' not in pipeline['receivers']:
+                continue
+            processors = pipeline['processors']
+            order = [processors.index(step) for step in ('k8s_attributes/connection', 'transform/envoy_tenancy', 'groupbyattrs/tenancy', 'batch')]
+            self.assertEqual(order, sorted(order), name)
+        self.assertEqual(self.collector['processors']['groupbyattrs/tenancy']['keys'], list(ROUTE_TENANCY))
+
+    def test_only_envoy_telemetry_gets_route_tenancy(self):
+        strip = {action['key'] for action in self.collector['processors']['resource/strip_tenancy']['attributes'] if action['action'] == 'delete'}
+        transform = self.collector['processors']['transform/envoy_tenancy']
+        for statements, attribute in ENVOY_CLUSTER_ATTRIBUTES.items():
+            groups = transform[statements]
+            unconditional = [group for group in groups if not group.get('conditions')]
+            self.assertEqual(len(unconditional), 1, statements)
+            for key in TENANT_LABELS.values():
+                self.assertIn(f'delete_key(attributes, "{key}")', unconditional[0]['statements'], statements)
+            gated = [group for group in groups if group.get('conditions')]
+            self.assertEqual(len(gated), 1, statements)
+            for condition in gated[0]['conditions']:
+                self.assertIn('resource.attributes["gateway.envoyproxy.io/owning-gateway-name"] != nil', condition, statements)
+            self.assertIn('gateway.envoyproxy.io/owning-gateway-name', strip)
+            self.assertEqual(gated[0]['statements'][0], f'set(cache["cluster"], attributes["{attribute}"])', statements)
+            for key in ROUTE_TENANCY:
+                setters = [statement for statement in gated[0]['statements'] if statement.startswith(f'set(attributes["{key}"], cache[')]
+                self.assertEqual(len(setters), 1, f'{statements} {key}')
 
 
 class BuildNamespaceOwnership(unittest.TestCase):

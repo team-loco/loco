@@ -209,6 +209,10 @@ otel-col-daemon:
             action: delete
           - key: k8s.pod.uid
             action: delete
+          - key: gateway.envoyproxy.io/owning-gateway-name
+            action: delete
+          - key: gateway.envoyproxy.io/owning-gateway-namespace
+            action: delete
       k8s_attributes/connection:
         filter:
           node_from_env_var: OTEL_K8S_NODE_NAME
@@ -254,6 +258,12 @@ otel-col-daemon:
             - from: pod
               key: loco.io/build-id
               tag_name: loco.io/build-id
+            - from: pod
+              key: gateway.envoyproxy.io/owning-gateway-name
+              tag_name: gateway.envoyproxy.io/owning-gateway-name
+            - from: pod
+              key: gateway.envoyproxy.io/owning-gateway-namespace
+              tag_name: gateway.envoyproxy.io/owning-gateway-namespace
       k8s_attributes/pod_uid:
         filter:
           node_from_env_var: OTEL_K8S_NODE_NAME
@@ -351,6 +361,46 @@ otel-col-deploy:
         passthrough: false
         pod_association: *podUIDAssociation
         extract: *tenancyExtract
+      transform/envoy_tenancy:
+        error_mode: ignore
+        trace_statements:
+          - context: span
+            statements: &dropRecordTenancy
+              - delete_key(attributes, "loco.workspace.id")
+              - delete_key(attributes, "loco.environment.id")
+              - delete_key(attributes, "loco.resource.id")
+          - context: span
+            conditions: &envoyResource
+              - resource.attributes["gateway.envoyproxy.io/owning-gateway-name"] != nil
+            statements:
+              - set(cache["cluster"], attributes["upstream_cluster"])
+              - &parseRoute merge_maps(cache, ExtractPatterns(cache["cluster"], "^httproute/ws-(?P<workspace>[^/]+)/resource-(?P<resource>[^/]+)-route/rule/[0-9]+$$"), "upsert") where cache["cluster"] != nil
+              - &setWorkspace set(attributes["loco.workspace.id"], cache["workspace"]) where cache["workspace"] != nil
+              - &setResource set(attributes["loco.resource.id"], cache["resource"]) where cache["resource"] != nil
+        log_statements:
+          - context: log
+            statements: *dropRecordTenancy
+          - context: log
+            conditions: *envoyResource
+            statements:
+              - set(cache["cluster"], attributes["upstream_cluster"])
+              - *parseRoute
+              - *setWorkspace
+              - *setResource
+        metric_statements:
+          - context: datapoint
+            statements: *dropRecordTenancy
+          - context: datapoint
+            conditions: *envoyResource
+            statements:
+              - set(cache["cluster"], attributes["envoy.cluster_name"])
+              - *parseRoute
+              - *setWorkspace
+              - *setResource
+      groupbyattrs/tenancy:
+        keys:
+          - loco.workspace.id
+          - loco.resource.id
     receivers:
       otlp:
         protocols:
@@ -377,7 +427,7 @@ otel-col-deploy:
           exporters: [clickhouse]
         logs/otlp:
           receivers: [otlp]
-          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, batch]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, batch]
           exporters: [clickhouse]
         metrics:
           receivers: [k8s_cluster]
@@ -385,11 +435,11 @@ otel-col-deploy:
           exporters: [clickhouse]
         metrics/otlp:
           receivers: [otlp]
-          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, batch]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, batch]
           exporters: [clickhouse]
         traces:
           receivers: [otlp, jaeger, zipkin]
-          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, batch]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, batch]
           exporters: [clickhouse]
 
 obsProxy:
