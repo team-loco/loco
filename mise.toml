@@ -262,6 +262,11 @@ description = "Run the end-to-end tests for loco.yaml: validate, plan, apply, de
 env = { _.file = ".env" }
 run = "./e2e/run.sh config_apply"
 
+[tasks."e2e:observability"]
+description = "Run the end-to-end tests for telemetry from the Envoy gateway through ClickHouse to the observability proxy, with Envoy Gateway and the loco-obs chart installed; writes e2e/out/observability-evidence.md (E2E_OBS_EVIDENCE overrides the path); takes the e2e flags"
+env = { _.file = ".env" }
+run = "./e2e/run.sh --observability observability"
+
 [tasks."e2e:teardown"]
 description = "Remove this worktree's end-to-end run (or E2E_RUN_ID's): its kind cluster, compose project and state"
 env = { _.file = ".env" }

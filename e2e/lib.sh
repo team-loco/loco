@@ -16,6 +16,7 @@ E2E_FAIL=0
 E2E_SKIP=0
 
 PROCESS_STOP_SECONDS=15
+API_TOKEN_TTL_SECONDS=3600
 
 log_info()  { echo -e "${BLUE}[INFO]${NC}  $*"; }
 log_ok()    { echo -e "${GREEN}[OK]${NC}    $*"; }
@@ -133,6 +134,47 @@ registry_manifest_status() {
         -H 'Accept: application/vnd.oci.image.index.v1+json' \
         -H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
         "${E2E_REGISTRY_URL}/v2/${repository}/manifests/${digest}"
+}
+
+# Format a Unix time as an RFC 3339 UTC timestamp, with BSD or GNU date.
+# Usage: utc_timestamp <seconds since the epoch>
+utc_timestamp() {
+    date -u -r "$1" '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -u -d "@$1" '+%Y-%m-%dT%H:%M:%SZ'
+}
+
+# Call a Loco API procedure as the seeded e2e user.
+# Usage: e2e_api <service/Procedure> <json body>
+e2e_api() {
+    curl -sS --fail-with-body -X POST "${E2E_API_URL}/$1" \
+        -H "Authorization: Bearer ${E2E_USER_TOKEN}" \
+        -H 'Content-Type: application/json' \
+        -d "$2"
+}
+
+api_token_body() {
+    local name=$1 entity_type=$2 entity_id=$3 scope=$4
+    printf '{"name":"%s","entityType":"%s","entityId":"%s","scopes":[{"scope":"%s","entityType":"%s","entityId":"%s"}],"expiresInSec":%d}' \
+        "$name" "$entity_type" "$entity_id" "$scope" "$entity_type" "$entity_id" "$API_TOKEN_TTL_SECONDS"
+}
+
+# Mint an API token through TokenService/CreateToken as the seeded e2e user.
+# Usage: mint_api_token <name> <ENTITY_TYPE_...> <entity id> <SCOPE_...>
+mint_api_token() {
+    local body response
+    body=$(api_token_body "$@")
+    response=$(e2e_api loco.token.v1.TokenService/CreateToken "$body") || {
+        echo "$response" >&2
+        return 1
+    }
+    yq -p json -r '.token' <<<"$response"
+}
+
+# Revoke an API token through TokenService/RevokeToken.
+# Usage: revoke_api_token <name> <ENTITY_TYPE_...> <entity id>
+revoke_api_token() {
+    local body
+    body=$(printf '{"name":"%s","entityType":"%s","entityId":"%s"}' "$1" "$2" "$3")
+    e2e_api loco.token.v1.TokenService/RevokeToken "$body"
 }
 
 # Print test summary.

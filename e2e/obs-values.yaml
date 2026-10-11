@@ -1,0 +1,19 @@
+gatewayNamespace: loco-system
+
+clickhouse:
+  clickhouse:
+    defaultUser:
+      password: ""
+
+clickhouseUserPasswords:
+  loco_migrator: loco-e2e-migrator
+  loco_ingest: loco-e2e-ingest
+  loco_reader: loco-e2e-reader
+
+opentelemetry-operator:
+  admissionWebhooks:
+    certManager:
+      enabled: false
+
+obsProxy:
+  enabled: false
