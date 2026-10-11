@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+#MISE description="Run each collector's rendered OTLP pipelines in the collector image against ClickHouse, with pod labels standing in for the Kubernetes API, and check that tenancy columns come only from pod labels"
+#MISE depends=["helm:deps"]
+set -euo pipefail
+
+source "$(dirname "$0")/lib/obs-stack.sh" tenancy
+collectors="otel-col-deploy otel-col-daemon-agent"
+forged_workspace=forged-workspace
+forged_environment=forged-environment
+forged_resource=forged-resource
+pod_workspace=pod-workspace
+pod_environment=pod-environment
+pod_resource=pod-resource
+pod_build=pod-build
+forged_build=forged-build
+label_prefix=fixture.pod.label.
+
+test_config() {
+	EXPORTER=$(clickhouse_exporter "$1") LABEL_PREFIX="$label_prefix" yq '
+		.service.pipelines |= with_entries(select(.value.receivers | any_c(. == "otlp"))) |
+		.service.pipelines[].receivers = ["otlp"] |
+		.service.pipelines[].exporters = ["clickhouse"] |
+		.service.pipelines[].processors |= map(sub("^k8s_attributes/?", "resource/fixture_")) |
+		.processors |= with_entries(
+			select(.key | test("^k8s_attributes")) |= (
+				.key |= sub("^k8s_attributes/?", "resource/fixture_") |
+				.value = {"attributes": [.value.extract.labels[] | select(has("key")) |
+					{"action": "insert", "key": .tag_name, "from_attribute": strenv(LABEL_PREFIX) + .key}]})) |
+		del(.processors[] | select(has("attributes") and (.attributes | length) == 0)) |
+		. as $config |
+		.service.pipelines[].processors |= map(select(. as $name | $config.processors | has($name))) |
+		.receivers = {"otlp": {"protocols": {"http": {"endpoint": "0.0.0.0:4318"}}}} |
+		.exporters = {"clickhouse": (strenv(EXPORTER) | from_json)} |
+		del(.extensions) | del(.service.extensions) | del(.service.telemetry)
+	' <<<"$(collector_config "$1")"
+}
+
+attribute() {
+	echo "{\"key\": \"$1\", \"value\": {\"stringValue\": \"$2\"}}"
+}
+
+forged_attributes() {
+	echo "$(attribute loco.workspace.id "$forged_workspace"), $(attribute loco.environment.id "$forged_environment"),
+		$(attribute loco.resource.id "$forged_resource"), $(attribute loco.io/build-id "$forged_build"),
+		$(attribute k8s.pod.uid forged-pod-uid), $(attribute k8s.pod.ip 192.0.2.1)"
+}
+
+pod_label_attributes() {
+	echo "$(attribute "${label_prefix}loco.io/workspace-id" "$pod_workspace"),
+		$(attribute "${label_prefix}loco.io/environment-id" "$pod_environment"),
+		$(attribute "${label_prefix}loco.io/resource-id" "$pod_resource")"
+}
+
+build_label_attributes() {
+	echo "$(attribute "${label_prefix}loco.io/workspace-id" "$pod_workspace"),
+		$(attribute "${label_prefix}loco.io/resource-id" "$pod_resource"),
+		$(attribute "${label_prefix}loco.io/build-id" "$pod_build")"
+}
+
+now=$(date +%s)000000000
+
+payload() {
+	local signal=$1 resource="{\"attributes\": [$2]}" span_id=$3
+	case $signal in
+	logs)
+		echo "{\"resourceLogs\": [{\"resource\": $resource, \"scopeLogs\": [{\"logRecords\": [
+			{\"timeUnixNano\": \"$now\", \"severityText\": \"INFO\", \"body\": {\"stringValue\": \"tenancy\"}}]}]}]}"
+		;;
+	traces)
+		echo "{\"resourceSpans\": [{\"resource\": $resource, \"scopeSpans\": [{\"spans\": [
+			{\"traceId\": \"0af7651916cd43dd8448eb211c80319c\", \"spanId\": \"$span_id\", \"name\": \"tenancy\",
+			\"kind\": 2, \"startTimeUnixNano\": \"$now\", \"endTimeUnixNano\": \"$now\"}]}]}]}"
+		;;
+	metrics)
+		echo "{\"resourceMetrics\": [{\"resource\": $resource, \"scopeMetrics\": [{\"metrics\": [
+			{\"name\": \"tenancy.gauge\", \"gauge\": {\"dataPoints\": [
+			{\"timeUnixNano\": \"$now\", \"startTimeUnixNano\": \"$now\", \"asDouble\": 1}]}}]}]}]}"
+		;;
+	*)
+		echo "unknown signal $signal" >&2
+		return 1
+		;;
+	esac
+}
+
+table() {
+	case $1 in
+	logs)
+		echo otel_logs
+		;;
+	traces)
+		echo otel_traces
+		;;
+	metrics)
+		echo otel_metrics_gauge
+		;;
+	*)
+		echo "unknown signal $1" >&2
+		return 1
+		;;
+	esac
+}
+
+rows() {
+	echo "SELECT count() FROM $database.$1 WHERE ServiceName = '$2' AND $3"
+}
+
+checked_tables=""
+for collector in $collectors; do
+	test_config "$collector" >"$workdir/$collector.yaml"
+	start_collector "$collector" "$workdir/$collector.yaml"
+done
+
+for collector in $collectors; do
+	otlp=$(otlp_endpoint "$collector")
+	signals=$(yq '.service.pipelines | keys | .[] | split("/") | .[0]' "$workdir/$collector.yaml" | sort -u)
+	for signal in $signals; do
+		forged="tenancy-$collector-forged"
+		labelled="tenancy-$collector-labelled"
+		build="tenancy-$collector-build"
+		forged_payload=$(payload "$signal" "$(attribute service.name "$forged"), $(forged_attributes)" b7ad6b7169203331)
+		labelled_payload=$(payload "$signal" "$(attribute service.name "$labelled"), $(forged_attributes), $(pod_label_attributes)" b7ad6b7169203332)
+		if ! wait_for "$collector accepting OTLP $signal" send "$otlp" "$signal" "$forged_payload"; then
+			collector_logs "$collector"
+			exit 1
+		fi
+		send "$otlp" "$signal" "$labelled_payload"
+		send "$otlp" "$signal" "$(payload "$signal" "$(attribute service.name "$build"), $(forged_attributes), $(build_label_attributes)" b7ad6b7169203335)"
+		otel_table=$(table "$signal")
+		checked_tables="$checked_tables $otel_table"
+		if ! wait_for "$collector $signal rows" has_rows "$(rows "$otel_table" "$forged" 1)"; then
+			fail "$collector wrote no $signal for a client that forged its tenancy"
+		fi
+		forged_rows=$(query "$(rows "$otel_table" "$forged" "(WorkspaceId != '' OR EnvironmentId != '' OR ResourceId != '' OR ResourceAttributes['loco.io/build-id'] != '' OR ResourceAttributes['k8s.pod.uid'] != '' OR ResourceAttributes['k8s.pod.ip'] != '')")")
+		[ "$forged_rows" -eq 0 ] || fail "$collector kept client-supplied tenancy on $forged_rows $signal row(s)"
+		pod_tenancy="WorkspaceId = '$pod_workspace' AND EnvironmentId = '$pod_environment' AND ResourceId = '$pod_resource'"
+		if ! wait_for "$collector $signal rows from pod labels" has_rows "$(rows "$otel_table" "$labelled" "$pod_tenancy")"; then
+			fail "$collector did not take $signal tenancy from the pod labels"
+		fi
+		build_tenancy="WorkspaceId = '$pod_workspace' AND ResourceId = '$pod_resource' AND ResourceAttributes['loco.io/build-id'] = '$pod_build'"
+		if ! wait_for "$collector $signal rows from build pod labels" has_rows "$(rows "$otel_table" "$build" "$build_tenancy")"; then
+			fail "$collector did not take $signal build id from the build pod labels"
+		fi
+	done
+done
+
+evidence=""
+for otel_table in $(tr ' ' '\n' <<<"$checked_tables" | sort -u); do
+	evidence="$evidence${evidence:+ UNION ALL }SELECT '$otel_table' AS table, ServiceName, WorkspaceId, EnvironmentId, ResourceId, ResourceAttributes['loco.io/build-id'] AS build_id, ResourceAttributes['k8s.pod.uid'] AS pod_uid FROM $database.$otel_table WHERE ServiceName LIKE 'tenancy-%'"
+done
+query "SELECT * FROM ($evidence) ORDER BY table, ServiceName FORMAT PrettyCompactMonoBlock"
+
+if [ "$failures" -gt 0 ]; then
+	for collector in $collectors; do
+		collector_logs "$collector"
+	done
+	echo "$failures check(s) failed"
+	exit 1
+fi
+echo "every OTLP pipeline dropped client-supplied tenancy and took it from the pod labels"

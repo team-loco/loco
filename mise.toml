@@ -292,7 +292,8 @@ description = "Check combined UI and documentation images in production and stag
 run = "uv run --frozen --project docs python docs/tests/container.py"
 
 [tasks."test:chart-contracts"]
-description = "Render regional certificate and observability Secret contracts"
+description = "Render regional certificate, observability Secret and collector pipeline contracts"
+depends = ["helm:deps"]
 run = "python3 -m unittest discover -s tests/charts"
 
 [tasks."test:platform-release"]

@@ -3,155 +3,28 @@
 #MISE depends=["helm:deps"]
 set -euo pipefail
 
-root=$(git rev-parse --show-toplevel)
-cd "$root"
-chart=charts/loco-obs
-namespace=observability
-run_id=loco-obs-retention-$$
-network=$run_id
-clickhouse=$run_id-clickhouse
-collector=$run_id-collector
-workdir=$(mktemp -d)
-ready_attempts=60
-proxy_port=$((20000 + $$ % 10000))
-proxy_pid=""
-failures=0
+source "$(dirname "$0")/lib/obs-stack.sh" retention
 workspace_id=retention-workspace
 environment_id=retention-environment
 resource_id=retention-resource
 
-cleanup() {
-	if [ -n "$proxy_pid" ]; then
-		kill "$proxy_pid" >/dev/null 2>&1 || true
-	fi
-	docker rm -f "$clickhouse" "$collector" >/dev/null 2>&1 || true
-	docker network rm "$network" >/dev/null 2>&1 || true
-	rm -rf "$workdir"
-}
-trap cleanup EXIT
-
-fail() {
-	echo "FAIL: $1"
-	failures=$((failures + 1))
-}
-
-password_sets=()
-for user in $(yq '.clickhouseUserPasswords | keys | .[]' "$chart/values.yaml"); do
-	password_sets+=("--set" "clickhouseUserPasswords.$user=$(openssl rand -hex 16)")
-done
-manifest=$(helm template loco-obs "$chart" --namespace "$namespace" --set obsProxy.image.tag=retention "${password_sets[@]}")
-chi=$(yq -o json -I 0 'select(.kind == "ClickHouseInstallation")' <<<"$manifest")
-clickhouse_image=$(yq '.spec.templates.podTemplates[0].spec.containers[0].image' <<<"$chi")
-collector_image=$(yq 'select(.kind == "Deployment" and .metadata.name == "otel-col-deploy") | .spec.template.spec.containers[0].image' <<<"$manifest")
-proxy_env=$(yq -o json -I 0 'select(.kind == "Deployment" and .metadata.name == "loco-obs-obs-proxy") | .spec.template.spec.containers[0].env' <<<"$manifest")
-clickhouse_host=$(yq '.[] | select(.name == "CLICKHOUSE_MIGRATOR_URL") | .value | sub(".*@", "")' <<<"$proxy_env")
-yq '.spec.configuration.files["config.d/extra_config.xml"]' <<<"$chi" >"$workdir/extra_config.xml"
-
-secret_password() {
-	yq "select(.kind == \"Secret\" and .metadata.namespace == \"$namespace\" and .metadata.name == \"$1\") | .stringData.password" <<<"$manifest"
-}
-
-users=$(yq '.spec.configuration.users | keys | .[] | split("/") | .[0]' <<<"$chi" | sort -u | grep -vx default)
-{
-	echo "<clickhouse><users>"
-	for user in $users; do
-		secret=$(yq ".spec.configuration.users[\"$user/password\"].valueFrom.secretKeyRef.name" <<<"$chi")
-		echo "<$user>"
-		echo "<password>$(secret_password "$secret")</password>"
-		echo "<networks><ip>$(yq ".spec.configuration.users[\"$user/networks/ip\"]" <<<"$chi")</ip></networks>"
-		echo "<profile>default</profile><quota>default</quota>"
-		echo "<access_management>$(yq ".spec.configuration.users[\"$user/access_management\"]" <<<"$chi")</access_management>"
-		echo "<grants>"
-		yq ".spec.configuration.users[\"$user/grants/query\"][] | \"<query>\" + . + \"</query>\"" <<<"$chi"
-		echo "</grants>"
-		echo "</$user>"
-	done
-	echo "</users></clickhouse>"
-} >"$workdir/loco_users.xml"
-
-docker network create "$network" >/dev/null
-docker run -d --name "$clickhouse" --network "$network" -p 127.0.0.1::9000 \
-	-e CLICKHOUSE_SKIP_USER_SETUP=1 \
-	-v "$workdir/extra_config.xml:/etc/clickhouse-server/config.d/extra_config.xml:ro" \
-	-v "$workdir/loco_users.xml:/etc/clickhouse-server/users.d/loco_users.xml:ro" \
-	"$clickhouse_image" >/dev/null
-
-query() {
-	docker exec "$clickhouse" clickhouse-client -q "$1"
-}
-
-wait_for() {
-	local what=$1
-	shift
-	for _ in $(seq "$ready_attempts"); do
-		"$@" >/dev/null 2>&1 && return 0
-		sleep 1
-	done
-	echo "$what did not happen within ${ready_attempts}s"
-	return 1
-}
-
-if ! wait_for "ClickHouse start" query "SELECT 1"; then
-	docker logs "$clickhouse" 2>&1 | tail -20
-	exit 1
-fi
-query "SYSTEM FLUSH LOGS"
-clickhouse_port=$(docker port "$clickhouse" 9000/tcp | head -1)
-
-proxy_value() {
-	local item value secret
-	item=$(NAME="$1" yq -o json -I 0 '.[] | select(.name == strenv(NAME))' <<<"$proxy_env")
-	value=$(yq '.value // ""' <<<"$item")
-	secret=$(yq '.valueFrom.secretKeyRef.name // ""' <<<"$item")
-	if [ -n "$secret" ]; then
-		value=$(secret_password "$secret")
-	fi
-	while [[ $value =~ \$\(([A-Z_]+)\) ]]; do
-		value=${value//"${BASH_REMATCH[0]}"/$(proxy_value "${BASH_REMATCH[1]}")}
-	done
-	echo "${value//"$clickhouse_host"/$clickhouse_port}"
-}
-
-(cd observability-proxy && go build -o "$workdir/loco-obs-proxy" .)
-proxy_vars=()
-for name in $(yq '.[].name' <<<"$proxy_env"); do
-	[ "$name" = PROXY_AUTH_TOKEN ] && continue
-	proxy_vars+=("$name=$(proxy_value "$name")")
-done
-env "${proxy_vars[@]}" PORT="$proxy_port" "$workdir/loco-obs-proxy" >"$workdir/proxy.log" 2>&1 &
-proxy_pid=$!
-if ! wait_for "Observability proxy readiness" curl -sf "http://127.0.0.1:$proxy_port/readyz"; then
-	tail -20 "$workdir/proxy.log"
-	exit 1
-fi
-kill "$proxy_pid"
-proxy_pid=""
-database=$(proxy_value CLICKHOUSE_DB)
-
 for name in otel-col-deploy otel-col-daemon-agent; do
-	config=$(yq "select(.kind == \"ConfigMap\" and .metadata.name == \"$name\") | .data.relay" <<<"$manifest")
+	config=$(collector_config "$name")
 	[ "$(yq '.exporters.clickhouse.create_schema' <<<"$config")" = false ] || fail "$name creates the schema itself"
 	[ "$(yq '.exporters.clickhouse.database' <<<"$config")" = "$database" ] || fail "$name does not write to $database"
 	yq -e '.service.pipelines.traces.exporters[] | select(. == "clickhouse")' <<<"$config" >/dev/null ||
 		fail "$name does not export traces to ClickHouse"
 done
 
-exporter=$(yq 'select(.kind == "ConfigMap" and .metadata.name == "otel-col-deploy") | .data.relay' <<<"$manifest" |
-	yq -o json -I 0 '.exporters.clickhouse')
-ingest_secret=$(yq 'select(.kind == "Deployment" and .metadata.name == "otel-col-deploy") | .spec.template.spec.containers[0].env[] | select(.name == "CLICKHOUSE_INGEST_PASSWORD") | .valueFrom.secretKeyRef.name' <<<"$manifest")
-EXPORTER="$exporter" CLICKHOUSE_HOST="$clickhouse_host" CLICKHOUSE_CONTAINER="$clickhouse:9000" yq -n '
+EXPORTER=$(clickhouse_exporter otel-col-deploy) yq -n '
 	.receivers.otlp.protocols.http.endpoint = "0.0.0.0:4318" |
 	.exporters.clickhouse = (strenv(EXPORTER) | from_json) |
-	.exporters.clickhouse.endpoint |= sub(strenv(CLICKHOUSE_HOST), strenv(CLICKHOUSE_CONTAINER)) |
 	.service.pipelines.logs = {"receivers": ["otlp"], "exporters": ["clickhouse"]} |
 	.service.pipelines.metrics = {"receivers": ["otlp"], "exporters": ["clickhouse"]} |
 	.service.pipelines.traces = {"receivers": ["otlp"], "exporters": ["clickhouse"]}
 ' >"$workdir/collector.yaml"
-docker run -d --name "$collector" --network "$network" -p 127.0.0.1::4318 \
-	-e CLICKHOUSE_INGEST_PASSWORD="$(secret_password "$ingest_secret")" \
-	-v "$workdir/collector.yaml:/etc/collector.yaml:ro" \
-	"$collector_image" --config /etc/collector.yaml >/dev/null
-otlp=http://$(docker port "$collector" 4318/tcp | head -1)
+start_collector collector "$workdir/collector.yaml"
+otlp=$(otlp_endpoint collector)
 
 now=$(date +%s)000000000
 resource=$(WORKSPACE="$workspace_id" ENVIRONMENT="$environment_id" RESOURCE="$resource_id" yq -n -o json -I 0 '
@@ -162,17 +35,13 @@ resource=$(WORKSPACE="$workspace_id" ENVIRONMENT="$environment_id" RESOURCE="$re
 		{"key": "loco.resource.id", "value": {"stringValue": strenv(RESOURCE)}}
 	]')
 point="{\"timeUnixNano\": \"$now\", \"startTimeUnixNano\": \"$now\""
-send() {
-	curl -sf -X POST -H 'Content-Type: application/json' "$otlp/v1/$1" -d "$2" >/dev/null
-}
-
 send_telemetry() {
-	send logs "{\"resourceLogs\": [{\"resource\": $resource, \"scopeLogs\": [{\"logRecords\": [
+	send "$otlp" logs "{\"resourceLogs\": [{\"resource\": $resource, \"scopeLogs\": [{\"logRecords\": [
 		{\"timeUnixNano\": \"$now\", \"severityText\": \"INFO\", \"body\": {\"stringValue\": \"retention\"}}]}]}]}" &&
-		send traces "{\"resourceSpans\": [{\"resource\": $resource, \"scopeSpans\": [{\"spans\": [
+		send "$otlp" traces "{\"resourceSpans\": [{\"resource\": $resource, \"scopeSpans\": [{\"spans\": [
 		{\"traceId\": \"0af7651916cd43dd8448eb211c80319c\", \"spanId\": \"b7ad6b7169203331\", \"name\": \"retention\",
 		\"kind\": 2, \"startTimeUnixNano\": \"$now\", \"endTimeUnixNano\": \"$now\"}]}]}]}" &&
-		send metrics "{\"resourceMetrics\": [{\"resource\": $resource, \"scopeMetrics\": [{\"metrics\": [
+		send "$otlp" metrics "{\"resourceMetrics\": [{\"resource\": $resource, \"scopeMetrics\": [{\"metrics\": [
 		{\"name\": \"retention.gauge\", \"gauge\": {\"dataPoints\": [$point, \"asDouble\": 1}]}},
 		{\"name\": \"retention.sum\", \"sum\": {\"aggregationTemporality\": 2, \"isMonotonic\": true,
 			\"dataPoints\": [$point, \"asDouble\": 1}]}},
@@ -186,16 +55,14 @@ send_telemetry() {
 		]}]}]}"
 }
 if ! wait_for "Collector accepting OTLP" send_telemetry; then
-	docker logs "$collector" 2>&1 | tail -20
+	collector_logs collector
 	exit 1
 fi
 
 otel_tables="otel_logs otel_traces otel_traces_trace_id_ts otel_metrics_gauge otel_metrics_sum otel_metrics_histogram otel_metrics_exponential_histogram otel_metrics_summary"
-tenant_rows() {
-	query "SELECT count() FROM $database.$1 WHERE WorkspaceId = '$workspace_id' AND EnvironmentId = '$environment_id' AND ResourceId = '$resource_id'"
-}
 for table in $otel_tables; do
-	if ! wait_for "A row in $database.$table" test "$(tenant_rows "$table")" -gt 0; then
+	tenant_rows="SELECT count() FROM $database.$table WHERE WorkspaceId = '$workspace_id' AND EnvironmentId = '$environment_id' AND ResourceId = '$resource_id'"
+	if ! wait_for "A row in $database.$table" has_rows "$tenant_rows"; then
 		fail "the collector did not insert into $database.$table with its tenancy columns set"
 	fi
 done
@@ -219,7 +86,7 @@ for table in $otel_tables; do
 done
 
 if [ "$failures" -gt 0 ]; then
-	docker logs "$collector" 2>&1 | tail -20
+	collector_logs collector
 	echo "$failures check(s) failed"
 	exit 1
 fi

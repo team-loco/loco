@@ -6,6 +6,15 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
+COLLECTOR_CONFIGMAPS = ('otel-col-daemon-agent', 'otel-col-deploy')
+PUSH_RECEIVERS = {'otlp', 'jaeger', 'zipkin'}
+TENANT_LABELS = {
+    'loco.io/workspace-id': 'loco.workspace.id',
+    'loco.io/environment-id': 'loco.environment.id',
+    'loco.io/resource-id': 'loco.resource.id',
+}
+BUILD_LABELS = {'loco.io/build-id': 'loco.io/build-id'}
+CLIENT_POD_IDENTITY = ('k8s.pod.ip', 'k8s.pod.uid')
 
 
 def render(chart, template, overrides):
@@ -36,6 +45,24 @@ def render_documents(chart, template, overrides):
         rendered = subprocess.check_output(['helm', 'template', chart, str(root), '-n', 'platform-test', '-f', str(root / 'overrides.json')], text=True)
         documents = subprocess.check_output(['yq', '-o=json', '-I=0', '.', '-'], input=rendered, text=True)
         return [json.loads(line) for line in documents.splitlines() if line.strip() not in ('', 'null')]
+
+
+def render_chart(chart, overrides):
+    with tempfile.TemporaryDirectory() as directory:
+        values = Path(directory) / 'overrides.json'
+        values.write_text(json.dumps(overrides))
+        rendered = subprocess.check_output(['helm', 'template', chart, str(ROOT / 'charts' / chart), '-n', 'platform-test', '-f', str(values)], text=True)
+    documents = subprocess.check_output(['yq', '-o=json', '-I=0', '.', '-'], input=rendered, text=True)
+    return [json.loads(line) for line in documents.splitlines() if line.strip() not in ('', 'null')]
+
+
+def collector_relays(documents):
+    configs = {}
+    for document in documents:
+        if document['kind'] == 'ConfigMap' and document['metadata']['name'] in COLLECTOR_CONFIGMAPS:
+            relay = subprocess.check_output(['yq', '-o=json', '-I=0', '.', '-'], input=document['data']['relay'], text=True)
+            configs[document['metadata']['name']] = json.loads(relay)
+    return configs
 
 
 class PlatformContracts(unittest.TestCase):
@@ -142,6 +169,90 @@ class ObservabilitySchema(unittest.TestCase):
         for user in users.values():
             for grant in user['grants']:
                 self.assertIn(f' ON {database}.*', grant, user['name'])
+
+
+class CollectorTenancy(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.documents = render_chart('loco-obs', {'obsProxy': {'image': {'tag': 'test'}}})
+        cls.configs = collector_relays(cls.documents)
+
+    def pipelines(self):
+        for collector, config in self.configs.items():
+            for name, pipeline in config['service']['pipelines'].items():
+                yield collector, config, name, pipeline
+
+    def push_pipelines(self):
+        for collector, config, name, pipeline in self.pipelines():
+            if PUSH_RECEIVERS & set(pipeline['receivers']):
+                yield collector, config, name, pipeline
+
+    def k8s_attributes(self, pipeline):
+        return [processor for processor in pipeline.get('processors', []) if processor.split('/')[0] == 'k8s_attributes']
+
+    def test_both_collectors_render(self):
+        self.assertEqual(set(self.configs), set(COLLECTOR_CONFIGMAPS))
+
+    def test_memory_limiter_runs_first_and_batch_last(self):
+        for collector, _, name, pipeline in self.pipelines():
+            processors = pipeline.get('processors', [])
+            self.assertGreaterEqual(len(processors), 2, f'{collector} {name}')
+            self.assertEqual(processors[0], 'memory_limiter', f'{collector} {name}')
+            self.assertEqual(processors[-1], 'batch', f'{collector} {name}')
+
+    def test_push_receivers_have_their_own_pipelines(self):
+        for collector, _, name, pipeline in self.push_pipelines():
+            self.assertLessEqual(set(pipeline['receivers']), PUSH_RECEIVERS, f'{collector} {name}')
+
+    def test_client_tenancy_is_removed_before_kubernetes_attributes(self):
+        stripped = set(TENANT_LABELS.values()) | set(BUILD_LABELS.values()) | set(CLIENT_POD_IDENTITY)
+        for collector, config, name, pipeline in self.push_pipelines():
+            processors = pipeline['processors']
+            enrichers = self.k8s_attributes(pipeline)
+            self.assertEqual(len(enrichers), 1, f'{collector} {name}')
+            strips = [index for index, processor in enumerate(processors) if processor.split('/')[0] == 'resource' and
+                      stripped <= {action['key'] for action in config['processors'][processor]['attributes'] if action['action'] == 'delete'}]
+            self.assertTrue(strips, f'{collector} {name} does not delete client tenancy attributes')
+            self.assertLess(strips[0], processors.index(enrichers[0]), f'{collector} {name}')
+
+    def test_push_pipelines_associate_pods_by_connection_only(self):
+        for collector, config, name, pipeline in self.push_pipelines():
+            for enricher in self.k8s_attributes(pipeline):
+                self.assertEqual(config['processors'][enricher]['pod_association'], [{'sources': [{'from': 'connection'}]}], f'{collector} {name}')
+
+    def test_file_logs_associate_pods_by_uid(self):
+        config = self.configs['otel-col-daemon-agent']
+        pipelines = [pipeline for pipeline in config['service']['pipelines'].values() if 'file_log' in pipeline['receivers']]
+        self.assertEqual(len(pipelines), 1)
+        enrichers = self.k8s_attributes(pipelines[0])
+        self.assertEqual(len(enrichers), 1)
+        self.assertEqual(config['processors'][enrichers[0]]['pod_association'], [{'sources': [{'from': 'resource_attribute', 'name': 'k8s.pod.uid'}]}])
+
+    def test_collectors_can_read_the_pod_metadata_they_extract(self):
+        needed = {('', 'pods'), ('', 'namespaces'), ('apps', 'replicasets')}
+        roles = {document['metadata']['name']: document for document in self.documents if document['kind'] == 'ClusterRole'}
+        for collector in ('otel-col-daemon', 'otel-col-deploy'):
+            granted = {(group, resource) for rule in roles[collector]['rules'] if {'get', 'list', 'watch'} <= set(rule['verbs'])
+                       for group in rule['apiGroups'] for resource in rule['resources']}
+            self.assertLessEqual(needed, granted, collector)
+
+    def test_build_logs_keep_their_build_id(self):
+        config = self.configs['otel-col-daemon-agent']
+        pipeline = next(pipeline for pipeline in config['service']['pipelines'].values() if 'file_log' in pipeline['receivers'])
+        extract = config['processors'][self.k8s_attributes(pipeline)[0]]['extract']
+        self.assertIn({'from': 'pod', 'key': 'loco.io/build-id', 'tag_name': 'loco.io/build-id'}, extract['labels'])
+
+    def test_tenancy_comes_from_explicit_pod_labels(self):
+        for collector, config, name, pipeline in self.pipelines():
+            for enricher in self.k8s_attributes(pipeline):
+                extract = config['processors'][enricher]['extract']
+                labels = {rule.get('key'): rule.get('tag_name') for rule in extract['labels'] if rule['from'] == 'pod'}
+                self.assertEqual(labels, TENANT_LABELS | BUILD_LABELS, f'{collector} {enricher}')
+                self.assertTrue(all('key_regex' not in rule for rule in extract['labels']), f'{collector} {enricher}')
+                self.assertNotIn('annotations', extract, f'{collector} {enricher}')
+                self.assertFalse(extract.get('otel_annotations', False), f'{collector} {enricher}')
+                for key in ('k8s.namespace.name', 'k8s.pod.name', 'k8s.pod.uid', 'k8s.deployment.name', 'service.name'):
+                    self.assertIn(key, extract['metadata'], f'{collector} {enricher}')
 
 
 class BuildNamespaceOwnership(unittest.TestCase):
