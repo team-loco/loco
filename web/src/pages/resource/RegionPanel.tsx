@@ -175,16 +175,14 @@ export function RegionPanel({
 	range: MetricRange;
 	onRange: (range: MetricRange) => void;
 }) {
-	const multi = regions.length > 1;
 	const dep = region.current;
 	return (
 		<section className="min-w-0 rounded-lg border border-line bg-background">
 			<div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-2.5">
 				<DropdownMenu>
 					<DropdownMenuTrigger render={<Button variant="outline" className="h-[30px] gap-2 px-2.5 font-medium" />}>
-						<span className={cn("size-[7px] rounded-full", regionDotClass(region.config?.status))} />
+						<span className={cn("size-[7px] rounded-full", regionDotClass(region.status?.status))} />
 						{region.name}
-						{multi && region.primary && <span className="text-xs font-normal text-fg3">primary</span>}
 						<ChevronDownIcon className="size-[13px] text-fg3" />
 					</DropdownMenuTrigger>
 					<DropdownMenuContent className="w-auto min-w-[260px]">
@@ -196,11 +194,12 @@ export function RegionPanel({
 						>
 							{regions.map((r) => (
 								<DropdownMenuRadioItem key={r.name} value={r.name} className="gap-2">
-									<span className={cn("size-[7px] rounded-full", regionDotClass(r.config?.status))} />
+									<span className={cn("size-[7px] rounded-full", regionDotClass(r.status?.status))} />
 									<span className="flex-1">{r.name}</span>
-									{multi && r.primary && <span className="text-xs text-fg3">primary</span>}
 									<span className="text-sm text-fg3 tabular-nums">
-										{r.current === undefined ? "—" : `${r.current.replicas.toString()} replicas`}
+										{r.status === undefined
+											? "—"
+											: `${r.status.readyReplicas.toString()}/${r.status.desiredReplicas.toString()} ready`}
 									</span>
 								</DropdownMenuRadioItem>
 							))}

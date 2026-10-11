@@ -9,6 +9,7 @@ import { tsMs } from "@/lib/time";
 
 import { deploymentImage, shortAgo } from "./format";
 import type { EnvResource } from "./useDashboardData";
+import { configuredRegions } from "@/lib/resource-regions";
 
 interface AttentionItem {
 	key: string;
@@ -43,7 +44,7 @@ export function buildAttention(items: EnvResource[], hrefFor: (id: string) => st
 		const { resource, last, status } = item;
 		if (item.neverDeployed || !needsAttention(status)) continue;
 		const badRegion = item.environment?.regions.find((r) => r.status !== ResourceStatus.HEALTHY);
-		const region = badRegion?.region ?? last?.region ?? resource.regions[0]?.region ?? "";
+		const region = badRegion?.region ?? last?.region ?? configuredRegions(resource)[0] ?? "";
 		const deployMessage = last?.message ?? "";
 		const tag = last !== undefined ? imageVersion(deploymentImage(last)) : "";
 		const message =

@@ -36,7 +36,7 @@ func testCreateResourceDomain(t *testing.T, platform bool) {
 	}
 	scoped := context.WithValue(ctx, contextkeys.EntityScopesKey, scopes)
 
-	region := &resourcev1.RegionTarget{Enabled: true, Primary: true, Cpu: testRegionCPU, Memory: testRegionMemory}
+	region := &resourcev1.RegionTarget{Enabled: true, Cpu: testRegionCPU, Memory: testRegionMemory}
 	service := &resourcev1.ServiceSpec{
 		Routing: &resourcev1.RoutingConfig{Port: 8080},
 		Regions: map[string]*resourcev1.RegionTarget{testRegion: region},

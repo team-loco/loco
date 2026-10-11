@@ -24,7 +24,7 @@ const (
 	planTheirs       = "theirs"
 	testBuildContext = "services/web"
 	planRoutedSpec   = `{"routing":{"port":8080,"pathPrefix":"/","idleTimeout":45},` +
-		`"regions":{"us-east-1":{"enabled":true,"primary":true,"cpu":"100m",` +
+		`"regions":{"us-east-1":{"enabled":true,"cpu":"100m",` +
 		`"memory":"64Mi","minReplicas":1,"maxReplicas":1}}}`
 	planFileHeader = "version: 1\npartial: web\nservices:\n"
 	planFileSvc    = `  svc:
@@ -213,17 +213,9 @@ func (f *deployFixture) runBuild(t *testing.T, resourceName string, buildID uuid
 		`"port":8080,"cpu":"100m","memory":"64Mi","minReplicas":1,"maxReplicas":1}`,
 		testRegistryHost, resourceName, testDigest, buildID)
 	insert := `
-WITH r AS (
-    SELECT id FROM resources WHERE name = $1
-), rr AS (
-    INSERT INTO resource_regions (resource_id, region, is_primary, status)
-    SELECT id, $2, true, 'active' FROM r
-    ON CONFLICT (resource_id, region) DO UPDATE SET updated_at = NOW()
-    RETURNING id, resource_id
-)
-INSERT INTO deployments (resource_id, resource_region_id, cluster_id, region, replicas, status, is_active,
+INSERT INTO deployments (resource_id, cluster_id, region, replicas, status, is_active,
                          message, spec, spec_version, environment_id, started_at)
-SELECT rr.resource_id, rr.id, $3, $2, 1, 'running', true, '', $4, 1, $5, NOW() FROM rr`
+SELECT id, $3, $2, 1, 'running', true, '', $4, 1, $5, NOW() FROM resources WHERE name = $1`
 	args := []any{resourceName, testRegion, f.clusterID, spec, f.envID}
 	if _, err := f.pool.Exec(context.Background(), insert, args...); err != nil {
 		t.Fatalf("run build for %s: %v", resourceName, err)

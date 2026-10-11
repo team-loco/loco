@@ -16,9 +16,9 @@ import (
 
 const (
 	testPrimaryDomain = "svc.example.com"
-	otherRegionSpec   = `{"regions":{"eu-west-1":{"enabled":true,"primary":true,"cpu":"100m",` +
+	otherRegionSpec   = `{"regions":{"eu-west-1":{"enabled":true,"cpu":"100m",` +
 		`"memory":"64Mi","minReplicas":1,"maxReplicas":1}}}`
-	sameRegionSpec = `{"regions":{"us-east-1":{"enabled":true,"primary":true,"cpu":"100m",` +
+	sameRegionSpec = `{"regions":{"us-east-1":{"enabled":true,"cpu":"100m",` +
 		`"memory":"64Mi","minReplicas":1,"maxReplicas":1}}}`
 )
 
@@ -140,7 +140,7 @@ func TestCreateDeploymentReturnsThePinnedImage(t *testing.T) {
 	}
 }
 
-const unboundedRegionSpec = `{"regions":{"us-east-1":{"enabled":true,"primary":true,"cpu":"100m","memory":"64Mi"}}}`
+const unboundedRegionSpec = `{"regions":{"us-east-1":{"enabled":true,"cpu":"100m","memory":"64Mi"}}}`
 
 func imageService() *deploymentv1.ServiceDeploymentSpec {
 	build := &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: testPublicImage}

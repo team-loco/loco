@@ -47,28 +47,6 @@ UPDATE resources
 SET partial = $2, updated_at = NOW()
 WHERE id = $1;
 
--- name: CreateResourceRegion :one
-INSERT INTO resource_regions (resource_id, region, is_primary, status)
-VALUES ($1, $2, $3, $4)
-RETURNING id, resource_id, region, is_primary, status, last_error, created_at, updated_at;
-
--- name: ListResourceRegions :many
-SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
-FROM resource_regions
-WHERE resource_id = $1
-ORDER BY is_primary DESC, region ASC;
-
--- name: ListResourceRegionsForResources :many
-SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
-FROM resource_regions
-WHERE resource_id = ANY(sqlc.arg(resource_ids)::uuid[])
-ORDER BY resource_id, is_primary DESC, region ASC;
-
--- name: GetResourceRegionByResourceAndRegion :one
-SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
-FROM resource_regions
-WHERE resource_id = $1 AND region = $2;
-
 -- name: GetClusterDetails :one
 SELECT id, is_active, health_status, agent_version, last_heartbeat
 FROM clusters
@@ -133,12 +111,6 @@ ORDER BY d.resource_id, e.name, d.region;
 
 -- name: GetWorkspaceOrganizationIDByResourceID :one
 SELECT r.workspace_id, w.org_id FROM resources r JOIN workspaces w ON r.workspace_id = w.id WHERE r.id = $1;
-
--- name: LockResourceRegion :one
-SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
-FROM resource_regions
-WHERE resource_id = $1 AND region = $2
-FOR UPDATE;
 
 -- name: ListWorkspaceServiceResources :many
 SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at

@@ -284,7 +284,6 @@ function DraftDrawerBody({
 								regions: {
 									[region]: {
 										enabled: true,
-										primary: true,
 										cpu: draft.cpu,
 										memory: draft.memory,
 										minReplicas: draft.min,

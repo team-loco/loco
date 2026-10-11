@@ -43,40 +43,6 @@ func (q *Queries) CreateResource(ctx context.Context, arg CreateResourceParams) 
 	return id, err
 }
 
-const createResourceRegion = `-- name: CreateResourceRegion :one
-INSERT INTO resource_regions (resource_id, region, is_primary, status)
-VALUES ($1, $2, $3, $4)
-RETURNING id, resource_id, region, is_primary, status, last_error, created_at, updated_at
-`
-
-type CreateResourceRegionParams struct {
-	ResourceID uuid.UUID          `json:"resourceId"`
-	Region     string             `json:"region"`
-	IsPrimary  bool               `json:"isPrimary"`
-	Status     RegionIntentStatus `json:"status"`
-}
-
-func (q *Queries) CreateResourceRegion(ctx context.Context, arg CreateResourceRegionParams) (ResourceRegion, error) {
-	row := q.db.QueryRow(ctx, createResourceRegion,
-		arg.ResourceID,
-		arg.Region,
-		arg.IsPrimary,
-		arg.Status,
-	)
-	var i ResourceRegion
-	err := row.Scan(
-		&i.ID,
-		&i.ResourceID,
-		&i.Region,
-		&i.IsPrimary,
-		&i.Status,
-		&i.LastError,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const deleteResource = `-- name: DeleteResource :exec
 DELETE FROM resources WHERE id = $1
 `
@@ -214,33 +180,6 @@ func (q *Queries) GetResourceByNameAndWorkspace(ctx context.Context, arg GetReso
 		&i.Spec,
 		&i.SpecVersion,
 		&i.Partial,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const getResourceRegionByResourceAndRegion = `-- name: GetResourceRegionByResourceAndRegion :one
-SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
-FROM resource_regions
-WHERE resource_id = $1 AND region = $2
-`
-
-type GetResourceRegionByResourceAndRegionParams struct {
-	ResourceID uuid.UUID `json:"resourceId"`
-	Region     string    `json:"region"`
-}
-
-func (q *Queries) GetResourceRegionByResourceAndRegion(ctx context.Context, arg GetResourceRegionByResourceAndRegionParams) (ResourceRegion, error) {
-	row := q.db.QueryRow(ctx, getResourceRegionByResourceAndRegion, arg.ResourceID, arg.Region)
-	var i ResourceRegion
-	err := row.Scan(
-		&i.ID,
-		&i.ResourceID,
-		&i.Region,
-		&i.IsPrimary,
-		&i.Status,
-		&i.LastError,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -479,78 +418,6 @@ func (q *Queries) ListRegionStatusesForResources(ctx context.Context, resourceId
 	return items, nil
 }
 
-const listResourceRegions = `-- name: ListResourceRegions :many
-SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
-FROM resource_regions
-WHERE resource_id = $1
-ORDER BY is_primary DESC, region ASC
-`
-
-func (q *Queries) ListResourceRegions(ctx context.Context, resourceID uuid.UUID) ([]ResourceRegion, error) {
-	rows, err := q.db.Query(ctx, listResourceRegions, resourceID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ResourceRegion
-	for rows.Next() {
-		var i ResourceRegion
-		if err := rows.Scan(
-			&i.ID,
-			&i.ResourceID,
-			&i.Region,
-			&i.IsPrimary,
-			&i.Status,
-			&i.LastError,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listResourceRegionsForResources = `-- name: ListResourceRegionsForResources :many
-SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
-FROM resource_regions
-WHERE resource_id = ANY($1::uuid[])
-ORDER BY resource_id, is_primary DESC, region ASC
-`
-
-func (q *Queries) ListResourceRegionsForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ResourceRegion, error) {
-	rows, err := q.db.Query(ctx, listResourceRegionsForResources, resourceIds)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ResourceRegion
-	for rows.Next() {
-		var i ResourceRegion
-		if err := rows.Scan(
-			&i.ID,
-			&i.ResourceID,
-			&i.Region,
-			&i.IsPrimary,
-			&i.Status,
-			&i.LastError,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listResourcesForWorkspace = `-- name: ListResourcesForWorkspace :many
 SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
 FROM resources r
@@ -637,34 +504,6 @@ func (q *Queries) ListWorkspaceServiceResources(ctx context.Context, workspaceID
 		return nil, err
 	}
 	return items, nil
-}
-
-const lockResourceRegion = `-- name: LockResourceRegion :one
-SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
-FROM resource_regions
-WHERE resource_id = $1 AND region = $2
-FOR UPDATE
-`
-
-type LockResourceRegionParams struct {
-	ResourceID uuid.UUID `json:"resourceId"`
-	Region     string    `json:"region"`
-}
-
-func (q *Queries) LockResourceRegion(ctx context.Context, arg LockResourceRegionParams) (ResourceRegion, error) {
-	row := q.db.QueryRow(ctx, lockResourceRegion, arg.ResourceID, arg.Region)
-	var i ResourceRegion
-	err := row.Scan(
-		&i.ID,
-		&i.ResourceID,
-		&i.Region,
-		&i.IsPrimary,
-		&i.Status,
-		&i.LastError,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
 }
 
 const lockResources = `-- name: LockResources :many

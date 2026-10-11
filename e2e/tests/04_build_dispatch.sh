@@ -77,7 +77,6 @@ create_resource() {
         .spec.service.routing.port = 8080 |
         .spec.service.routing.pathPrefix = \"/\" |
         .spec.service.regions.\"us-east-1\".enabled = true |
-        .spec.service.regions.\"us-east-1\".primary = true |
         .spec.service.regions.\"us-east-1\".cpu = \"100m\" |
         .spec.service.regions.\"us-east-1\".memory = \"64Mi\" |
         .spec.service.regions.\"us-east-1\".minReplicas = 1 |
