@@ -457,14 +457,39 @@ func (s *WorkspaceServer) DeleteWorkspace(
 
 	wsID := uuid.MustParse(r.GetWorkspaceId())
 
-	if err := s.ensureWorkspaceHasNoResources(ctx, wsID); err != nil {
-		return nil, err
-	}
-
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		deletedOrgID, orgErr := qtx.GetOrganizationIDByWorkspaceID(ctx, wsID)
+		deletedOrgID, orgErr := qtx.LockWorkspaceForDeletion(ctx, wsID)
+		if errors.Is(orgErr, pgx.ErrNoRows) {
+			return connect.NewError(connect.CodeNotFound, ErrWorkspaceNotFound)
+		}
 		if orgErr != nil {
 			return orgErr
+		}
+		resources, listErr := qtx.ListWorkspaceResourcesForDeletion(ctx, wsID)
+		if listErr != nil {
+			return fmt.Errorf("list workspace resources: %w", listErr)
+		}
+		if len(resources) > 0 && !r.GetConfirmDeleteApps() {
+			return connect.NewError(connect.CodeFailedPrecondition, ErrWorkspaceHasResources)
+		}
+		for _, resource := range resources {
+			if removeErr := removeResourcePlacements(ctx, qtx, resource.ID); removeErr != nil {
+				return removeErr
+			}
+			if deleteErr := qtx.DeleteResource(ctx, resource.ID); deleteErr != nil {
+				return fmt.Errorf("delete workspace resource: %w", deleteErr)
+			}
+			event := events.Event{
+				Type:        events.ResourceDeleted,
+				OrgID:       new(deletedOrgID),
+				WorkspaceID: new(wsID),
+				SubjectType: events.SubjectResource,
+				SubjectID:   new(resource.ID),
+				Data:        map[string]any{events.FieldName: resource.Name},
+			}
+			if eventErr := events.Record(ctx, qtx, event); eventErr != nil {
+				return eventErr
+			}
 		}
 		if removeErr := qtx.RemoveWorkspace(ctx, wsID); removeErr != nil {
 			return removeErr
@@ -478,24 +503,10 @@ func (s *WorkspaceServer) DeleteWorkspace(
 		})
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to delete workspace", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, txError(ctx, "failed to delete workspace", err)
 	}
 
 	return connect.NewResponse(&workspacev1.DeleteWorkspaceResponse{}), nil
-}
-
-func (s *WorkspaceServer) ensureWorkspaceHasNoResources(ctx context.Context, wsID uuid.UUID) error {
-	hasResources, err := s.queries.WorkspaceHasResources(ctx, wsID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check workspace for resources", "error", err)
-		return connect.NewError(connect.CodeInternal, ErrDB)
-	}
-	if hasResources {
-		slog.WarnContext(ctx, "workspace has resources", "workspaceId", wsID)
-		return connect.NewError(connect.CodeFailedPrecondition, ErrWorkspaceHasResources)
-	}
-	return nil
 }
 
 // CreateMember adds a member to a workspace with the given scopes

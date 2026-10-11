@@ -55,6 +55,12 @@ RETURNING id;
 -- name: RemoveWorkspace :exec
 DELETE FROM workspaces WHERE id = $1;
 
+-- name: LockWorkspaceForDeletion :one
+SELECT org_id FROM workspaces WHERE id = $1 FOR UPDATE;
+
+-- name: ListWorkspaceResourcesForDeletion :many
+SELECT id, name FROM resources WHERE workspace_id = $1 ORDER BY id FOR UPDATE;
+
 -- name: ListWorkspaceMembersWithUserDetails :many
 WITH member_scopes AS (
   SELECT
@@ -77,6 +83,3 @@ LIMIT $2;
 
 -- name: GetWorkspaceOrgID :one
 SELECT org_id FROM workspaces WHERE id = $1;
-
--- name: WorkspaceHasResources :one
-SELECT EXISTS(SELECT 1 FROM resources WHERE workspace_id = $1) AS has_resources;

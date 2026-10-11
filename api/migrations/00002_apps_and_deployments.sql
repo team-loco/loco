@@ -244,7 +244,7 @@ CREATE TABLE
         cluster_id UUID NOT NULL REFERENCES clusters (id) ON DELETE CASCADE,
         region TEXT NOT NULL,
         deployment_id UUID REFERENCES deployments (id) ON DELETE SET NULL,
-        environment_id UUID NOT NULL REFERENCES environments (id),
+        environment_id UUID NOT NULL,
         secret_names TEXT[] NOT NULL DEFAULT '{}',
         desired_revision BIGINT NOT NULL DEFAULT 1 CHECK (desired_revision > 0),
         desired_spec JSONB,

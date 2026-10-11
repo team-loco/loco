@@ -164,6 +164,35 @@ func (q *Queries) ListWorkspaceMembersWithUserDetails(ctx context.Context, arg L
 	return items, nil
 }
 
+const listWorkspaceResourcesForDeletion = `-- name: ListWorkspaceResourcesForDeletion :many
+SELECT id, name FROM resources WHERE workspace_id = $1 ORDER BY id FOR UPDATE
+`
+
+type ListWorkspaceResourcesForDeletionRow struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+}
+
+func (q *Queries) ListWorkspaceResourcesForDeletion(ctx context.Context, workspaceID uuid.UUID) ([]ListWorkspaceResourcesForDeletionRow, error) {
+	rows, err := q.db.Query(ctx, listWorkspaceResourcesForDeletion, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListWorkspaceResourcesForDeletionRow
+	for rows.Next() {
+		var i ListWorkspaceResourcesForDeletionRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listWorkspacesForUser = `-- name: ListWorkspacesForUser :many
 SELECT w.id, w.org_id, w.name, w.description, w.created_by, w.created_at, w.updated_at
 FROM workspaces w
@@ -262,6 +291,17 @@ func (q *Queries) ListWorkspacesInOrg(ctx context.Context, arg ListWorkspacesInO
 	return items, nil
 }
 
+const lockWorkspaceForDeletion = `-- name: LockWorkspaceForDeletion :one
+SELECT org_id FROM workspaces WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) LockWorkspaceForDeletion(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, lockWorkspaceForDeletion, id)
+	var org_id uuid.UUID
+	err := row.Scan(&org_id)
+	return org_id, err
+}
+
 const removeWorkspace = `-- name: RemoveWorkspace :exec
 DELETE FROM workspaces WHERE id = $1
 `
@@ -291,15 +331,4 @@ func (q *Queries) UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
-}
-
-const workspaceHasResources = `-- name: WorkspaceHasResources :one
-SELECT EXISTS(SELECT 1 FROM resources WHERE workspace_id = $1) AS has_resources
-`
-
-func (q *Queries) WorkspaceHasResources(ctx context.Context, workspaceID uuid.UUID) (bool, error) {
-	row := q.db.QueryRow(ctx, workspaceHasResources, workspaceID)
-	var has_resources bool
-	err := row.Scan(&has_resources)
-	return has_resources, err
 }
