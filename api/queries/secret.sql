@@ -98,3 +98,23 @@ WHERE p.resource_id = sqlc.arg(resource_id)
   AND NOT p.desired_deleted
   AND declared.name = ANY(sqlc.arg(names)::text[])
 ORDER BY 1;
+
+-- name: ListEnvironmentSecretCiphertexts :many
+SELECT resource_id, name, version, nonce, ciphertext, format_version
+FROM secrets
+WHERE environment_id = $1
+ORDER BY resource_id, name;
+
+-- name: ReencryptSecrets :execrows
+UPDATE secrets s
+SET nonce = v.nonce,
+    ciphertext = v.ciphertext
+FROM (
+    SELECT unnest(sqlc.arg(resource_ids)::uuid[]) AS resource_id,
+           unnest(sqlc.arg(names)::text[]) AS name,
+           unnest(sqlc.arg(nonces)::bytea[]) AS nonce,
+           unnest(sqlc.arg(ciphertexts)::bytea[]) AS ciphertext
+) AS v
+WHERE s.environment_id = sqlc.arg(environment_id)
+  AND s.resource_id = v.resource_id
+  AND s.name = v.name;

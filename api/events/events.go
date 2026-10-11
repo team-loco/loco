@@ -55,6 +55,7 @@ const (
 	WebhookDeleted       = "webhook.deleted"
 	SecretSet            = "secret.set"
 	SecretDeleted        = "secret.deleted"
+	SecretKeyRewrapped   = "secret_key.rewrapped"
 )
 
 const (
@@ -78,18 +79,19 @@ const (
 )
 
 const (
-	FieldName       = "name"
-	FieldAction     = "action"
-	FieldDomain     = "domain"
-	FieldResourceID = "resourceId"
-	FieldPartial    = "partial"
-	FieldFrom       = "from"
-	FieldPaths      = "paths"
-	FieldPrimary    = "primary"
-	FieldNames      = "names"
-	FieldRevision   = "revision"
-
+	FieldName          = "name"
+	FieldAction        = "action"
+	FieldDomain        = "domain"
+	FieldResourceID    = "resourceId"
+	FieldPartial       = "partial"
+	FieldFrom          = "from"
+	FieldPaths         = "paths"
+	FieldPrimary       = "primary"
+	FieldNames         = "names"
+	FieldRevision      = "revision"
+	FieldKekID         = "kekId"
 	FieldEnvironmentID = "environmentId"
+	FieldNewDEK        = "newDek"
 )
 
 type Event struct {

@@ -183,6 +183,49 @@ func (q *Queries) ListEnvironmentKeys(ctx context.Context) ([]EnvironmentKey, er
 	return items, nil
 }
 
+const listEnvironmentSecretCiphertexts = `-- name: ListEnvironmentSecretCiphertexts :many
+SELECT resource_id, name, version, nonce, ciphertext, format_version
+FROM secrets
+WHERE environment_id = $1
+ORDER BY resource_id, name
+`
+
+type ListEnvironmentSecretCiphertextsRow struct {
+	ResourceID    uuid.UUID `json:"resourceId"`
+	Name          string    `json:"name"`
+	Version       int32     `json:"version"`
+	Nonce         []byte    `json:"nonce"`
+	Ciphertext    []byte    `json:"ciphertext"`
+	FormatVersion int16     `json:"formatVersion"`
+}
+
+func (q *Queries) ListEnvironmentSecretCiphertexts(ctx context.Context, environmentID uuid.UUID) ([]ListEnvironmentSecretCiphertextsRow, error) {
+	rows, err := q.db.Query(ctx, listEnvironmentSecretCiphertexts, environmentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListEnvironmentSecretCiphertextsRow
+	for rows.Next() {
+		var i ListEnvironmentSecretCiphertextsRow
+		if err := rows.Scan(
+			&i.ResourceID,
+			&i.Name,
+			&i.Version,
+			&i.Nonce,
+			&i.Ciphertext,
+			&i.FormatVersion,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPlacementSecretSizes = `-- name: ListPlacementSecretSizes :many
 SELECT p.id AS placement_id,
        SUM(octet_length(s.name))::bigint AS name_bytes,
@@ -386,6 +429,43 @@ func (q *Queries) LockEnvironmentKey(ctx context.Context, environmentID uuid.UUI
 		&i.RewrappedAt,
 	)
 	return i, err
+}
+
+const reencryptSecrets = `-- name: ReencryptSecrets :execrows
+UPDATE secrets s
+SET nonce = v.nonce,
+    ciphertext = v.ciphertext
+FROM (
+    SELECT unnest($2::uuid[]) AS resource_id,
+           unnest($3::text[]) AS name,
+           unnest($4::bytea[]) AS nonce,
+           unnest($5::bytea[]) AS ciphertext
+) AS v
+WHERE s.environment_id = $1
+  AND s.resource_id = v.resource_id
+  AND s.name = v.name
+`
+
+type ReencryptSecretsParams struct {
+	EnvironmentID uuid.UUID   `json:"environmentId"`
+	ResourceIds   []uuid.UUID `json:"resourceIds"`
+	Names         []string    `json:"names"`
+	Nonces        [][]byte    `json:"nonces"`
+	Ciphertexts   [][]byte    `json:"ciphertexts"`
+}
+
+func (q *Queries) ReencryptSecrets(ctx context.Context, arg ReencryptSecretsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, reencryptSecrets,
+		arg.EnvironmentID,
+		arg.ResourceIds,
+		arg.Names,
+		arg.Nonces,
+		arg.Ciphertexts,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const rewrapEnvironmentKey = `-- name: RewrapEnvironmentKey :execrows

@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/secret/v1/secret.proto.
  */
 export const file_loco_secret_v1_secret: GenFile = /*@__PURE__*/
-  fileDesc("Chtsb2NvL3NlY3JldC92MS9zZWNyZXQucHJvdG8SDmxvY28uc2VjcmV0LnYxIuQBChFTZXRTZWNyZXRzUmVxdWVzdBIdCgtyZXNvdXJjZV9pZBgBIAEoCUIIukgFcgOwAQESIAoOZW52aXJvbm1lbnRfaWQYAiABKAlCCLpIBXIDsAEBEl8KBnZhbHVlcxgDIAMoCzItLmxvY28uc2VjcmV0LnYxLlNldFNlY3JldHNSZXF1ZXN0LlZhbHVlc0VudHJ5QiC6SB2aARoIASIWchQyEl5bQS1aX11bQS1aMC05X10qJBotCgtWYWx1ZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIi4KDVNlY3JldFZlcnNpb24SDAoEbmFtZRgBIAEoCRIPCgd2ZXJzaW9uGAIgASgFIlcKElNldFNlY3JldHNSZXNwb25zZRIQCghyZXZpc2lvbhgBIAEoAxIvCgh2ZXJzaW9ucxgCIAMoCzIdLmxvY28uc2VjcmV0LnYxLlNlY3JldFZlcnNpb24iiAEKFERlbGV0ZVNlY3JldHNSZXF1ZXN0Eh0KC3Jlc291cmNlX2lkGAEgASgJQgi6SAVyA7ABARIgCg5lbnZpcm9ubWVudF9pZBgCIAEoCUIIukgFcgOwAQESLwoFbmFtZXMYAyADKAlCILpIHZIBGggBIhZyFDISXltBLVpfXVtBLVowLTlfXSokIikKFURlbGV0ZVNlY3JldHNSZXNwb25zZRIQCghyZXZpc2lvbhgBIAEoAyJVChJMaXN0U2VjcmV0c1JlcXVlc3QSHQoLcmVzb3VyY2VfaWQYASABKAlCCLpIBXIDsAEBEiAKDmVudmlyb25tZW50X2lkGAIgASgJQgi6SAVyA7ABASK3AQoGU2VjcmV0EgwKBG5hbWUYASABKAkSDwoHdmVyc2lvbhgCIAEoBRIXCg91cGRhdGVkX2J5X3R5cGUYAyABKAkSFQoNdXBkYXRlZF9ieV9pZBgEIAEoCRIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCI+ChNMaXN0U2VjcmV0c1Jlc3BvbnNlEicKB3NlY3JldHMYASADKAsyFi5sb2NvLnNlY3JldC52MS5TZWNyZXQymgIKDVNlY3JldFNlcnZpY2USUwoKU2V0U2VjcmV0cxIhLmxvY28uc2VjcmV0LnYxLlNldFNlY3JldHNSZXF1ZXN0GiIubG9jby5zZWNyZXQudjEuU2V0U2VjcmV0c1Jlc3BvbnNlElwKDURlbGV0ZVNlY3JldHMSJC5sb2NvLnNlY3JldC52MS5EZWxldGVTZWNyZXRzUmVxdWVzdBolLmxvY28uc2VjcmV0LnYxLkRlbGV0ZVNlY3JldHNSZXNwb25zZRJWCgtMaXN0U2VjcmV0cxIiLmxvY28uc2VjcmV0LnYxLkxpc3RTZWNyZXRzUmVxdWVzdBojLmxvY28uc2VjcmV0LnYxLkxpc3RTZWNyZXRzUmVzcG9uc2VCOlo4Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9zZWNyZXQvdjE7c2VjcmV0djFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("Chtsb2NvL3NlY3JldC92MS9zZWNyZXQucHJvdG8SDmxvY28uc2VjcmV0LnYxIuQBChFTZXRTZWNyZXRzUmVxdWVzdBIdCgtyZXNvdXJjZV9pZBgBIAEoCUIIukgFcgOwAQESIAoOZW52aXJvbm1lbnRfaWQYAiABKAlCCLpIBXIDsAEBEl8KBnZhbHVlcxgDIAMoCzItLmxvY28uc2VjcmV0LnYxLlNldFNlY3JldHNSZXF1ZXN0LlZhbHVlc0VudHJ5QiC6SB2aARoIASIWchQyEl5bQS1aX11bQS1aMC05X10qJBotCgtWYWx1ZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIi4KDVNlY3JldFZlcnNpb24SDAoEbmFtZRgBIAEoCRIPCgd2ZXJzaW9uGAIgASgFIlcKElNldFNlY3JldHNSZXNwb25zZRIQCghyZXZpc2lvbhgBIAEoAxIvCgh2ZXJzaW9ucxgCIAMoCzIdLmxvY28uc2VjcmV0LnYxLlNlY3JldFZlcnNpb24iiAEKFERlbGV0ZVNlY3JldHNSZXF1ZXN0Eh0KC3Jlc291cmNlX2lkGAEgASgJQgi6SAVyA7ABARIgCg5lbnZpcm9ubWVudF9pZBgCIAEoCUIIukgFcgOwAQESLwoFbmFtZXMYAyADKAlCILpIHZIBGggBIhZyFDISXltBLVpfXVtBLVowLTlfXSokIikKFURlbGV0ZVNlY3JldHNSZXNwb25zZRIQCghyZXZpc2lvbhgBIAEoAyJVChJMaXN0U2VjcmV0c1JlcXVlc3QSHQoLcmVzb3VyY2VfaWQYASABKAlCCLpIBXIDsAEBEiAKDmVudmlyb25tZW50X2lkGAIgASgJQgi6SAVyA7ABASK3AQoGU2VjcmV0EgwKBG5hbWUYASABKAkSDwoHdmVyc2lvbhgCIAEoBRIXCg91cGRhdGVkX2J5X3R5cGUYAyABKAkSFQoNdXBkYXRlZF9ieV9pZBgEIAEoCRIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCI+ChNMaXN0U2VjcmV0c1Jlc3BvbnNlEicKB3NlY3JldHMYASADKAsyFi5sb2NvLnNlY3JldC52MS5TZWNyZXQiVAocUmV3cmFwRW52aXJvbm1lbnRLZXlzUmVxdWVzdBIjCg5lbnZpcm9ubWVudF9pZBgBIAEoCUILukgI2AEBcgOwAQESDwoHbmV3X2RlaxgCIAEoCCJkCh1SZXdyYXBFbnZpcm9ubWVudEtleXNSZXNwb25zZRIRCglyZXdyYXBwZWQYASABKAUSDwoHc2tpcHBlZBgCIAEoBRIfChdza2lwcGVkX2Vudmlyb25tZW50X2lkcxgDIAMoCTKQAwoNU2VjcmV0U2VydmljZRJTCgpTZXRTZWNyZXRzEiEubG9jby5zZWNyZXQudjEuU2V0U2VjcmV0c1JlcXVlc3QaIi5sb2NvLnNlY3JldC52MS5TZXRTZWNyZXRzUmVzcG9uc2USXAoNRGVsZXRlU2VjcmV0cxIkLmxvY28uc2VjcmV0LnYxLkRlbGV0ZVNlY3JldHNSZXF1ZXN0GiUubG9jby5zZWNyZXQudjEuRGVsZXRlU2VjcmV0c1Jlc3BvbnNlElYKC0xpc3RTZWNyZXRzEiIubG9jby5zZWNyZXQudjEuTGlzdFNlY3JldHNSZXF1ZXN0GiMubG9jby5zZWNyZXQudjEuTGlzdFNlY3JldHNSZXNwb25zZRJ0ChVSZXdyYXBFbnZpcm9ubWVudEtleXMSLC5sb2NvLnNlY3JldC52MS5SZXdyYXBFbnZpcm9ubWVudEtleXNSZXF1ZXN0Gi0ubG9jby5zZWNyZXQudjEuUmV3cmFwRW52aXJvbm1lbnRLZXlzUmVzcG9uc2VCOlo4Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9zZWNyZXQvdjE7c2VjcmV0djFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * SetSecretsRequest sets values by name for one service in one environment.
@@ -384,6 +384,102 @@ export const ListSecretsResponseSchema: GenMessage<ListSecretsResponse, {jsonTyp
   messageDesc(file_loco_secret_v1_secret, 7);
 
 /**
+ * RewrapEnvironmentKeysRequest selects the environment keys to rewrap. An empty environment_id
+ * selects every environment. new_dek replaces the data key and requires environment_id.
+ *
+ * @generated from message loco.secret.v1.RewrapEnvironmentKeysRequest
+ */
+export type RewrapEnvironmentKeysRequest = Message<"loco.secret.v1.RewrapEnvironmentKeysRequest"> & {
+  /**
+   * @generated from field: string environment_id = 1;
+   */
+  environmentId: string;
+
+  /**
+   * @generated from field: bool new_dek = 2;
+   */
+  newDek: boolean;
+};
+
+/**
+ * RewrapEnvironmentKeysRequest selects the environment keys to rewrap. An empty environment_id
+ * selects every environment. new_dek replaces the data key and requires environment_id.
+ *
+ * @generated from message loco.secret.v1.RewrapEnvironmentKeysRequest
+ */
+export type RewrapEnvironmentKeysRequestJson = {
+  /**
+   * @generated from field: string environment_id = 1;
+   */
+  environmentId?: string;
+
+  /**
+   * @generated from field: bool new_dek = 2;
+   */
+  newDek?: boolean;
+};
+
+/**
+ * Describes the message loco.secret.v1.RewrapEnvironmentKeysRequest.
+ * Use `create(RewrapEnvironmentKeysRequestSchema)` to create a new message.
+ */
+export const RewrapEnvironmentKeysRequestSchema: GenMessage<RewrapEnvironmentKeysRequest, {jsonType: RewrapEnvironmentKeysRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_secret_v1_secret, 8);
+
+/**
+ * RewrapEnvironmentKeysResponse counts the keys rewrapped and lists the environments skipped because
+ * the provider could not unwrap their key or their key belongs to another provider.
+ *
+ * @generated from message loco.secret.v1.RewrapEnvironmentKeysResponse
+ */
+export type RewrapEnvironmentKeysResponse = Message<"loco.secret.v1.RewrapEnvironmentKeysResponse"> & {
+  /**
+   * @generated from field: int32 rewrapped = 1;
+   */
+  rewrapped: number;
+
+  /**
+   * @generated from field: int32 skipped = 2;
+   */
+  skipped: number;
+
+  /**
+   * @generated from field: repeated string skipped_environment_ids = 3;
+   */
+  skippedEnvironmentIds: string[];
+};
+
+/**
+ * RewrapEnvironmentKeysResponse counts the keys rewrapped and lists the environments skipped because
+ * the provider could not unwrap their key or their key belongs to another provider.
+ *
+ * @generated from message loco.secret.v1.RewrapEnvironmentKeysResponse
+ */
+export type RewrapEnvironmentKeysResponseJson = {
+  /**
+   * @generated from field: int32 rewrapped = 1;
+   */
+  rewrapped?: number;
+
+  /**
+   * @generated from field: int32 skipped = 2;
+   */
+  skipped?: number;
+
+  /**
+   * @generated from field: repeated string skipped_environment_ids = 3;
+   */
+  skippedEnvironmentIds?: string[];
+};
+
+/**
+ * Describes the message loco.secret.v1.RewrapEnvironmentKeysResponse.
+ * Use `create(RewrapEnvironmentKeysResponseSchema)` to create a new message.
+ */
+export const RewrapEnvironmentKeysResponseSchema: GenMessage<RewrapEnvironmentKeysResponse, {jsonType: RewrapEnvironmentKeysResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_secret_v1_secret, 9);
+
+/**
  * SecretService stores named values of one service in one environment. Values are write-only: no RPC
  * returns one.
  *
@@ -419,6 +515,17 @@ export const SecretService: GenService<{
     methodKind: "unary";
     input: typeof ListSecretsRequestSchema;
     output: typeof ListSecretsResponseSchema;
+  },
+  /**
+   * RewrapEnvironmentKeys rewraps environment data keys under the provider's current key, and with
+   * new_dek replaces one environment's data key and re-encrypts its values.
+   *
+   * @generated from rpc loco.secret.v1.SecretService.RewrapEnvironmentKeys
+   */
+  rewrapEnvironmentKeys: {
+    methodKind: "unary";
+    input: typeof RewrapEnvironmentKeysRequestSchema;
+    output: typeof RewrapEnvironmentKeysResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_loco_secret_v1_secret, 0);
