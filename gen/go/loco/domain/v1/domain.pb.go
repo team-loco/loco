@@ -24,13 +24,12 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// DomainType indicates the source of a domain: platform-provided or user-provided.
+// DomainType indicates the source of a domain.
 type DomainType int32
 
 const (
 	DomainType_DOMAIN_TYPE_UNSPECIFIED       DomainType = 0
-	DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED DomainType = 1
-	DomainType_DOMAIN_TYPE_USER_PROVIDED     DomainType = 2
+	DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED DomainType = 1 // eventually add support for custom domains.
 )
 
 // Enum value maps for DomainType.
@@ -38,12 +37,10 @@ var (
 	DomainType_name = map[int32]string{
 		0: "DOMAIN_TYPE_UNSPECIFIED",
 		1: "DOMAIN_TYPE_PLATFORM_PROVIDED",
-		2: "DOMAIN_TYPE_USER_PROVIDED",
 	}
 	DomainType_value = map[string]int32{
 		"DOMAIN_TYPE_UNSPECIFIED":       0,
 		"DOMAIN_TYPE_PLATFORM_PROVIDED": 1,
-		"DOMAIN_TYPE_USER_PROVIDED":     2,
 	}
 )
 
@@ -157,7 +154,6 @@ type DomainInput struct {
 	DomainSource     DomainType             `protobuf:"varint,1,opt,name=domain_source,json=domainSource,proto3,enum=loco.domain.v1.DomainType" json:"domain_source,omitempty"`
 	Subdomain        *string                `protobuf:"bytes,2,opt,name=subdomain,proto3,oneof" json:"subdomain,omitempty"`                                         // for PLATFORM_PROVIDED: "myapp"
 	PlatformDomainId *string                `protobuf:"bytes,3,opt,name=platform_domain_id,json=platformDomainId,proto3,oneof" json:"platform_domain_id,omitempty"` // for PLATFORM_PROVIDED: id of the platform domain
-	Domain           *string                `protobuf:"bytes,4,opt,name=domain,proto3,oneof" json:"domain,omitempty"`                                               // for USER_PROVIDED: full custom domain
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -209,13 +205,6 @@ func (x *DomainInput) GetSubdomain() string {
 func (x *DomainInput) GetPlatformDomainId() string {
 	if x != nil && x.PlatformDomainId != nil {
 		return *x.PlatformDomainId
-	}
-	return ""
-}
-
-func (x *DomainInput) GetDomain() string {
-	if x != nil && x.Domain != nil {
-		return *x.Domain
 	}
 	return ""
 }
@@ -1494,20 +1483,17 @@ const file_loco_domain_v1_domain_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x96\x06\n" +
+	"updated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xe8\x04\n" +
 	"\vDomainInput\x12K\n" +
 	"\rdomain_source\x18\x01 \x01(\x0e2\x1a.loco.domain.v1.DomainTypeB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\fdomainSource\x12!\n" +
 	"\tsubdomain\x18\x02 \x01(\tH\x00R\tsubdomain\x88\x01\x01\x12;\n" +
-	"\x12platform_domain_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x01R\x10platformDomainId\x88\x01\x01\x12\x1b\n" +
-	"\x06domain\x18\x04 \x01(\tH\x02R\x06domain\x88\x01\x01:\x8c\x04\xbaH\x88\x04\x1a\xa5\x01\n" +
+	"\x12platform_domain_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x01R\x10platformDomainId\x88\x01\x01:\xf8\x02\xbaH\xf4\x02\x1a\xa5\x01\n" +
 	"$platform_provided.subdomain_required\x123subdomain is required for platform-provided domains\x1aHthis.domain_source != 1 || (has(this.subdomain) && this.subdomain != '')\x1a\xc9\x01\n" +
-	"-platform_provided.platform_domain_id_required\x12<platform_domain_id is required for platform-provided domains\x1aZthis.domain_source != 1 || (has(this.platform_domain_id) && this.platform_domain_id != '')\x1a\x91\x01\n" +
-	"\x1duser_provided.domain_required\x12,domain is required for user-provided domains\x1aBthis.domain_source != 2 || (has(this.domain) && this.domain != '')B\f\n" +
+	"-platform_provided.platform_domain_id_required\x12<platform_domain_id is required for platform-provided domains\x1aZthis.domain_source != 1 || (has(this.platform_domain_id) && this.platform_domain_id != '')B\f\n" +
 	"\n" +
 	"_subdomainB\x15\n" +
-	"\x13_platform_domain_idB\t\n" +
-	"\a_domain\"\xbb\x03\n" +
+	"\x13_platform_domain_idJ\x04\b\x04\x10\x05R\x06domain\"\xbb\x03\n" +
 	"\x0eResourceDomain\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vresource_id\x18\x02 \x01(\tR\n" +
@@ -1593,12 +1579,11 @@ const file_loco_domain_v1_domain_proto_rawDesc = "" +
 	"\x1eCheckDomainAvailabilityRequest\x12\x1f\n" +
 	"\x06domain\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06domain\"D\n" +
 	"\x1fCheckDomainAvailabilityResponse\x12!\n" +
-	"\fis_available\x18\x01 \x01(\bR\visAvailable*k\n" +
+	"\fis_available\x18\x01 \x01(\bR\visAvailable*m\n" +
 	"\n" +
 	"DomainType\x12\x1b\n" +
 	"\x17DOMAIN_TYPE_UNSPECIFIED\x10\x00\x12!\n" +
-	"\x1dDOMAIN_TYPE_PLATFORM_PROVIDED\x10\x01\x12\x1d\n" +
-	"\x19DOMAIN_TYPE_USER_PROVIDED\x10\x022\x89\n" +
+	"\x1dDOMAIN_TYPE_PLATFORM_PROVIDED\x10\x01\"\x04\b\x02\x10\x02*\x19DOMAIN_TYPE_USER_PROVIDED2\x89\n" +
 	"\n" +
 	"\rDomainService\x12q\n" +
 	"\x14CreatePlatformDomain\x12+.loco.domain.v1.CreatePlatformDomainRequest\x1a,.loco.domain.v1.CreatePlatformDomainResponse\x12h\n" +

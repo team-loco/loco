@@ -124,29 +124,23 @@ func (s *ResourceServer) CreateResource(
 	serviceSpec := r.GetSpec().GetService()
 
 	hasDomain := r.GetDomain() != nil
-	domainSource := genDb.DomainSourceUserProvided
 	var fullDomain string
 	var subdomainLabel *string
 	var platformDomainID *uuid.UUID
 
 	if hasDomain {
-		if r.GetDomain().GetDomainSource() == domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED {
-			domainSource = genDb.DomainSourcePlatformProvided
-			parsedPlatformDomainID := uuid.MustParse(r.GetDomain().GetPlatformDomainId())
-			platformDomainID = &parsedPlatformDomainID
+		parsedPlatformDomainID := uuid.MustParse(r.GetDomain().GetPlatformDomainId())
+		platformDomainID = &parsedPlatformDomainID
 
-			platformDomain, err := s.queries.GetPlatformDomain(ctx, parsedPlatformDomainID)
-			if err != nil {
-				slog.ErrorContext(ctx, "failed to get platform domain", "error", err)
-				return nil, connect.NewError(connect.CodeInvalidArgument, ErrPlatformDomainNotFound)
-			}
-
-			fullDomain = r.GetDomain().GetSubdomain() + "." + platformDomain.Domain
-			subdomain := r.GetDomain().GetSubdomain()
-			subdomainLabel = &subdomain
-		} else {
-			fullDomain = r.GetDomain().GetDomain()
+		platformDomain, err := s.queries.GetPlatformDomain(ctx, parsedPlatformDomainID)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to get platform domain", "error", err)
+			return nil, connect.NewError(connect.CodeInvalidArgument, ErrPlatformDomainNotFound)
 		}
+
+		fullDomain = r.GetDomain().GetSubdomain() + "." + platformDomain.Domain
+		subdomain := r.GetDomain().GetSubdomain()
+		subdomainLabel = &subdomain
 
 		available, err := s.queries.CheckDomainAvailability(ctx, fullDomain)
 		if err != nil {
@@ -239,7 +233,7 @@ func (s *ResourceServer) CreateResource(
 			ResourceID:       resourceID,
 			EnvironmentID:    environmentID,
 			Domain:           fullDomain,
-			DomainSource:     domainSource,
+			DomainSource:     genDb.DomainSourcePlatformProvided,
 			SubdomainLabel:   subdomainLabel,
 			PlatformDomainID: platformDomainID,
 			IsPrimary:        true,
@@ -1239,7 +1233,7 @@ func applyScale(
 func resourceDomainToListProto(domains []genDb.ResourceDomain) []*domainv1.ResourceDomain {
 	protoDomains := make([]*domainv1.ResourceDomain, 0, len(domains))
 	for _, d := range domains {
-		domainSource := domainv1.DomainType_DOMAIN_TYPE_USER_PROVIDED
+		domainSource := domainv1.DomainType_DOMAIN_TYPE_UNSPECIFIED
 		if d.DomainSource == genDb.DomainSourcePlatformProvided {
 			domainSource = domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED
 		}

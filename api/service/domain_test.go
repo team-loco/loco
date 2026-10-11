@@ -3,7 +3,12 @@ package service
 import (
 	"testing"
 
+	"buf.build/go/protovalidate"
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/encoding/protowire"
+	"google.golang.org/protobuf/proto"
+
+	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 )
 
 func TestSubdomainLabelFor(t *testing.T) {
@@ -36,5 +41,22 @@ func TestSubdomainLabelFor(t *testing.T) {
 				t.Fatalf("label = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestDomainInputRejectsTheRemovedCustomType(t *testing.T) {
+	const sourceField = 1
+	const customField = 4
+	const customType = 2
+	payload := protowire.AppendTag(nil, sourceField, protowire.VarintType)
+	payload = protowire.AppendVarint(payload, customType)
+	payload = protowire.AppendTag(payload, customField, protowire.BytesType)
+	payload = protowire.AppendString(payload, "app.example.com")
+	input := &domainv1.DomainInput{}
+	if err := proto.Unmarshal(payload, input); err != nil {
+		t.Fatalf("decode legacy input: %v", err)
+	}
+	if err := protovalidate.Validate(input); err == nil {
+		t.Fatal("custom domain type passed validation")
 	}
 }
