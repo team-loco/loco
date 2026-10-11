@@ -452,7 +452,7 @@ func (r *Reconciler) ensureBuildNetworkPolicies(ctx context.Context) error {
 
 func buildForPod(_ context.Context, obj client.Object) []reconcile.Request {
 	labels := obj.GetLabels()
-	if labels[labelComponent] != componentBuild {
+	if labels[managed.LabelComponent] != componentBuild {
 		return nil
 	}
 	jobName, ok := labels[labelJobName]

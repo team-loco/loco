@@ -141,7 +141,7 @@ func createBuildPod(job *batchv1.Job, status corev1.PodStatus) *corev1.Pod {
 		labelJobControllerUID:  string(job.UID),
 		labelJobName:           job.Name,
 		managed.LabelManagedBy: managed.ManagedByValue,
-		labelComponent:         componentBuild,
+		managed.LabelComponent: componentBuild,
 	}
 	pod := &corev1.Pod{
 		GenerateName: job.Name + "-",
