@@ -29,6 +29,8 @@ Configure the API's database, cache, authentication, registry, and API/dashboard
 
 The cluster needs Cilium, Envoy Gateway, cert-manager, and the Loco controller. Observability uses OpenTelemetry, ClickHouse, and the observability proxy. The charts and environment values define their configuration.
 
+Set `obsProxy.controlPlane.url` to the API URL reachable from the observability namespace. Production Helmfile reads the agent and proxy's API URL from `CONTROL_PLANE_URL`; local Helmfile derives the host API port from `APP_PORT`.
+
 Your team supplies DNS records, certificate issuance, persistent storage, backups, and capacity. Keep credentials separate across installations and environments. Use [architecture](../reference/architecture.md) to identify the control-plane and regional boundaries.
 
 ## Upgrades

@@ -23,4 +23,4 @@ obsProxy:
       cpu: 2000m
       memory: 2Gi
   controlPlane:
-    url: "http://loco-core-agent.loco-system.svc.cluster.local:8000"
+    url: {{ requiredEnv "CONTROL_PLANE_URL" | quote }}

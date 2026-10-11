@@ -269,7 +269,7 @@ obsProxy:
       memory: 1Gi
   port: 8080
   controlPlane:
-    url: "http://loco-core-agent.loco-system.svc.cluster.local:8000"
+    url: ""
   auth:
     existingSecret: ""
   clickhouse:

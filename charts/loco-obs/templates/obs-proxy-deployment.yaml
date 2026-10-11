@@ -38,7 +38,7 @@ spec:
             - name: PORT
               value: {{ .Values.obsProxy.port | quote }}
             - name: CONTROL_PLANE_URL
-              value: {{ .Values.obsProxy.controlPlane.url | quote }}
+              value: {{ required "obsProxy.controlPlane.url is required" .Values.obsProxy.controlPlane.url | quote }}
             - name: PROXY_AUTH_TOKEN
               valueFrom:
                 secretKeyRef:
