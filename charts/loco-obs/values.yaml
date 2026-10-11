@@ -84,6 +84,24 @@ clickhouse:
       </clickhouse>
     defaultUser:
       allowExternalAccess: true
+    users:
+      - name: loco_migrator
+        password_secret_name: loco-obs-clickhouse-migrator
+        grants:
+          - "GRANT ALL ON loco_obs.*"
+      - name: loco_ingest
+        password_secret_name: loco-obs-clickhouse-ingest
+        grants:
+          - "GRANT INSERT, SHOW COLUMNS ON loco_obs.*"
+      - name: loco_reader
+        password_secret_name: loco-obs-clickhouse-reader
+        grants:
+          - "GRANT SELECT ON loco_obs.*"
+
+clickhouseUserPasswords:
+  loco_migrator: ""
+  loco_ingest: ""
+  loco_reader: ""
 
 opentelemetry-operator:
   fullnameOverride: "otel-operator"
