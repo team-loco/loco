@@ -76,7 +76,7 @@ clickhouse:
         {{- end }}
         <query_thread_log remove="1"/>
         <opentelemetry_span_log remove="1"/>
-        {{- range list "text_log" "metric_log" "asynchronous_metric_log" "error_log" "latency_log" "query_metric_log" "query_views_log" "processors_profile_log" "asynchronous_insert_log" "s3queue_log" "backup_log" "crash_log" }}
+        {{- range list "text_log" "metric_log" "asynchronous_metric_log" "error_log" "latency_log" "query_metric_log" "query_views_log" "processors_profile_log" "asynchronous_insert_log" "s3queue_log" "backup_log" "crash_log" "background_schedule_pool_log" "delta_lake_metadata_log" "iceberg_metadata_log" }}
         <{{ . }}>
           <ttl>event_date + INTERVAL {{ $.Values.clickhouse.systemLogRetentionDays }} DAY DELETE</ttl>
         </{{ . }}>
