@@ -65,7 +65,7 @@ func (a *applier) apply(ctx context.Context, qtx *genDb.Queries, op configplan.O
 
 func (a *applier) create(ctx context.Context, qtx *genDb.Queries, op configplan.Operation) error {
 	regions := slices.Sorted(maps.Keys(op.Desired.Regions))
-	spec := serviceSpecFor(op.Desired, regions[0])
+	spec := serviceSpecFor(op.Desired)
 	specJSON, err := protojson.Marshal(spec)
 	if err != nil {
 		return fmt.Errorf("marshal resource spec: %w", err)
@@ -86,17 +86,6 @@ func (a *applier) create(ctx context.Context, qtx *genDb.Queries, op configplan.
 	}
 	if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
 		return bumpErr
-	}
-	for index, region := range regions {
-		_, regionErr := qtx.CreateResourceRegion(ctx, genDb.CreateResourceRegionParams{
-			ResourceID: resourceID,
-			Region:     region,
-			IsPrimary:  index == 0,
-			Status:     genDb.RegionIntentStatusDesired,
-		})
-		if regionErr != nil {
-			return fmt.Errorf("create resource region %s: %w", region, regionErr)
-		}
 	}
 	if domainErr := a.syncDomains(ctx, qtx, resourceID, op.Desired.Domains); domainErr != nil {
 		return domainErr
@@ -406,7 +395,7 @@ func deploymentSpecJSON(service *deploymentv1.ServiceDeploymentSpec) ([]byte, er
 	return specJSON, nil
 }
 
-func serviceSpecFor(state configplan.State, primary string) *resourcev1.ServiceSpec {
+func serviceSpecFor(state configplan.State) *resourcev1.ServiceSpec {
 	routing := &resourcev1.RoutingConfig{Port: state.Port}
 	if state.Routing != nil {
 		routing.PathPrefix = state.Routing.PathPrefix
@@ -416,7 +405,6 @@ func serviceSpecFor(state configplan.State, primary string) *resourcev1.ServiceS
 	for name, region := range state.Regions {
 		regions[name] = &resourcev1.RegionTarget{
 			Enabled:     true,
-			Primary:     name == primary,
 			Cpu:         region.CPU,
 			Memory:      region.Memory,
 			MinReplicas: region.MinReplicas,

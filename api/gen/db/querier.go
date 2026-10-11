@@ -45,7 +45,6 @@ type Querier interface {
 	// Resource queries
 	CreateResource(ctx context.Context, arg CreateResourceParams) (uuid.UUID, error)
 	CreateResourceDomain(ctx context.Context, arg CreateResourceDomainParams) (uuid.UUID, error)
-	CreateResourceRegion(ctx context.Context, arg CreateResourceRegionParams) (ResourceRegion, error)
 	// -----------------------------------------------------------------------------
 	// Session token queries
 	// -----------------------------------------------------------------------------
@@ -116,7 +115,6 @@ type Querier interface {
 	GetResourceByNameAndWorkspace(ctx context.Context, arg GetResourceByNameAndWorkspaceParams) (Resource, error)
 	GetResourceDomainByID(ctx context.Context, id uuid.UUID) (ResourceDomain, error)
 	GetResourceDomainCount(ctx context.Context, arg GetResourceDomainCountParams) (int64, error)
-	GetResourceRegionByResourceAndRegion(ctx context.Context, arg GetResourceRegionByResourceAndRegionParams) (ResourceRegion, error)
 	GetResourceWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	GetSessionByRefreshToken(ctx context.Context, refreshTokenHash string) (GetSessionByRefreshTokenRow, error)
 	GetSessionIdentityByRefreshHash(ctx context.Context, refreshTokenHash string) (GetSessionIdentityByRefreshHashRow, error)
@@ -178,8 +176,6 @@ type Querier interface {
 	ListResourceDomains(ctx context.Context, resourceID uuid.UUID) ([]ResourceDomain, error)
 	ListResourceDomainsForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ResourceDomain, error)
 	ListResourceEnvironmentPlacements(ctx context.Context, arg ListResourceEnvironmentPlacementsParams) ([]Placement, error)
-	ListResourceRegions(ctx context.Context, resourceID uuid.UUID) ([]ResourceRegion, error)
-	ListResourceRegionsForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ResourceRegion, error)
 	ListResourceSecretNames(ctx context.Context, environmentID uuid.UUID) ([]ListResourceSecretNamesRow, error)
 	ListResourcesForWorkspace(ctx context.Context, arg ListResourcesForWorkspaceParams) ([]Resource, error)
 	ListResourcesRunningOutsideEnvironment(ctx context.Context, arg ListResourcesRunningOutsideEnvironmentParams) ([]uuid.UUID, error)
@@ -202,7 +198,6 @@ type Querier interface {
 	LockEnvironmentKey(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)
 	LockInstallWebhooks(ctx context.Context, lockKey int64) error
 	LockResourceEnvironments(ctx context.Context, id uuid.UUID) ([]LockResourceEnvironmentsRow, error)
-	LockResourceRegion(ctx context.Context, arg LockResourceRegionParams) (ResourceRegion, error)
 	LockResources(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
 	LockWorkspaceEnvironments(ctx context.Context, workspaceID uuid.UUID) ([]LockWorkspaceEnvironmentsRow, error)
 	LockWorkspaceForDeletion(ctx context.Context, id uuid.UUID) (uuid.UUID, error)

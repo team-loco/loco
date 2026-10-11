@@ -192,52 +192,6 @@ func (ns NullEntityType) Value() (driver.Value, error) {
 	return string(ns.EntityType), nil
 }
 
-type RegionIntentStatus string
-
-const (
-	RegionIntentStatusDesired      RegionIntentStatus = "desired"
-	RegionIntentStatusProvisioning RegionIntentStatus = "provisioning"
-	RegionIntentStatusActive       RegionIntentStatus = "active"
-	RegionIntentStatusDegraded     RegionIntentStatus = "degraded"
-	RegionIntentStatusRemoving     RegionIntentStatus = "removing"
-	RegionIntentStatusFailed       RegionIntentStatus = "failed"
-)
-
-func (e *RegionIntentStatus) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = RegionIntentStatus(s)
-	case string:
-		*e = RegionIntentStatus(s)
-	default:
-		return fmt.Errorf("unsupported scan type for RegionIntentStatus: %T", src)
-	}
-	return nil
-}
-
-type NullRegionIntentStatus struct {
-	RegionIntentStatus RegionIntentStatus `json:"regionIntentStatus"`
-	Valid              bool               `json:"valid"` // Valid is true if RegionIntentStatus is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullRegionIntentStatus) Scan(value interface{}) error {
-	if value == nil {
-		ns.RegionIntentStatus, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.RegionIntentStatus.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullRegionIntentStatus) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.RegionIntentStatus), nil
-}
-
 type ResourceType string
 
 const (
@@ -386,23 +340,22 @@ type Cluster struct {
 }
 
 type Deployment struct {
-	ID               uuid.UUID        `json:"id"`
-	ResourceID       uuid.UUID        `json:"resourceId"`
-	ResourceRegionID uuid.UUID        `json:"resourceRegionId"`
-	ClusterID        uuid.UUID        `json:"clusterId"`
-	Region           string           `json:"region"`
-	Replicas         int32            `json:"replicas"`
-	Status           DeploymentStatus `json:"status"`
-	IsActive         bool             `json:"isActive"`
-	Message          string           `json:"message"`
-	EnvironmentID    uuid.UUID        `json:"environmentId"`
-	Spec             []byte           `json:"spec"`
-	SpecVersion      int32            `json:"specVersion"`
-	SecretNames      []string         `json:"secretNames"`
-	CreatedAt        time.Time        `json:"createdAt"`
-	StartedAt        time.Time        `json:"startedAt"`
-	CompletedAt      *time.Time       `json:"completedAt"`
-	UpdatedAt        time.Time        `json:"updatedAt"`
+	ID            uuid.UUID        `json:"id"`
+	ResourceID    uuid.UUID        `json:"resourceId"`
+	ClusterID     uuid.UUID        `json:"clusterId"`
+	Region        string           `json:"region"`
+	Replicas      int32            `json:"replicas"`
+	Status        DeploymentStatus `json:"status"`
+	IsActive      bool             `json:"isActive"`
+	Message       string           `json:"message"`
+	EnvironmentID uuid.UUID        `json:"environmentId"`
+	Spec          []byte           `json:"spec"`
+	SpecVersion   int32            `json:"specVersion"`
+	SecretNames   []string         `json:"secretNames"`
+	CreatedAt     time.Time        `json:"createdAt"`
+	StartedAt     time.Time        `json:"startedAt"`
+	CompletedAt   *time.Time       `json:"completedAt"`
+	UpdatedAt     time.Time        `json:"updatedAt"`
 }
 
 type Environment struct {
@@ -517,17 +470,6 @@ type ResourceDomain struct {
 	IsPrimary        bool         `json:"isPrimary"`
 	CreatedAt        time.Time    `json:"createdAt"`
 	UpdatedAt        time.Time    `json:"updatedAt"`
-}
-
-type ResourceRegion struct {
-	ID         uuid.UUID          `json:"id"`
-	ResourceID uuid.UUID          `json:"resourceId"`
-	Region     string             `json:"region"`
-	IsPrimary  bool               `json:"isPrimary"`
-	Status     RegionIntentStatus `json:"status"`
-	LastError  *string            `json:"lastError"`
-	CreatedAt  time.Time          `json:"createdAt"`
-	UpdatedAt  time.Time          `json:"updatedAt"`
 }
 
 type Secret struct {

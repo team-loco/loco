@@ -96,8 +96,7 @@ export function ResourceHeader({
 }) {
 	const status = environment?.status ?? ResourceStatus.UNSPECIFIED;
 	const now = useNow(60_000);
-	const primary = regions.find((r) => r.primary) ?? regions[0];
-	const prim = primary?.current;
+	const prim = regions[0]?.current;
 	const actives = regions.flatMap((r) => (r.current === undefined ? [] : [r.current]));
 	const statusRegions = environment?.regions ?? [];
 	const desired = statusRegions.reduce((sum, r) => sum + r.desiredReplicas, 0);

@@ -54,7 +54,6 @@ func testServiceDefaults() servicedefaults.Defaults {
 func testResourceSpec() *resourcev1.ResourceSpec {
 	region := &resourcev1.RegionTarget{
 		Enabled:     true,
-		Primary:     true,
 		Cpu:         testRegionCPU,
 		Memory:      testRegionMemory,
 		MinReplicas: 1,

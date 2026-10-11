@@ -331,19 +331,6 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
 	}
 
-	// Get resource region for deployment record
-	resourceRegion, err := s.queries.GetResourceRegionByResourceAndRegion(
-		ctx,
-		genDb.GetResourceRegionByResourceAndRegionParams{
-			ResourceID: resourceID,
-			Region:     region,
-		},
-	)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get resource region", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, errors.New("resource region not found"))
-	}
-
 	organizationID, err := s.queries.GetOrganizationIDByWorkspaceID(ctx, resource.WorkspaceID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get workspace organization", "error", err)
@@ -367,23 +354,25 @@ func (s *DeploymentServer) CreateDeployment(
 		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, resource.WorkspaceID); lockErr != nil {
 			return lockErr
 		}
+		if lockErr := lockResource(ctx, qtx, resourceID); lockErr != nil {
+			return lockErr
+		}
 		if lockErr := lockPinnedBuildImage(ctx, qtx, pinnedBuild); lockErr != nil {
 			return lockErr
 		}
 		var txErr error
 		deploymentID, txErr = createDeploymentWithCleanup(ctx, qtx, genDb.CreateDeploymentParams{
-			ResourceID:       resourceID,
-			ResourceRegionID: resourceRegion.ID,
-			ClusterID:        cluster.ID,
-			Region:           region,
-			Replicas:         replicas,
-			Status:           genDb.DeploymentStatusPending,
-			IsActive:         true,
-			Message:          "Scheduling deployment",
-			Spec:             specJSON,
-			SpecVersion:      int32(1),
-			EnvironmentID:    environmentID,
-			SecretNames:      []string{},
+			ResourceID:    resourceID,
+			ClusterID:     cluster.ID,
+			Region:        region,
+			Replicas:      replicas,
+			Status:        genDb.DeploymentStatusPending,
+			IsActive:      true,
+			Message:       "Scheduling deployment",
+			Spec:          specJSON,
+			SpecVersion:   int32(1),
+			EnvironmentID: environmentID,
+			SecretNames:   []string{},
 		}, buildSpec)
 		if txErr != nil {
 			return txErr
