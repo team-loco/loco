@@ -46,6 +46,13 @@ const (
 	defaultServiceMaxReplicas = 1
 	defaultServicePathPrefix  = "/"
 	defaultServiceIdleTimeout = 60
+	defaultServicePort        = 8000
+	defaultHealthPath         = "/health"
+	defaultHealthInterval     = 30
+	defaultHealthTimeout      = 5
+	defaultHealthFailThresh   = 3
+	defaultHealthGracePeriod  = 0
+	defaultSchemaURL          = "https://loco.build/schemas/loco.v1.json"
 
 	defaultRegistryScheme            = "https://"
 	defaultRegistryTimeout           = 30 * time.Second
@@ -91,6 +98,7 @@ type APIConfig struct {
 	AuthIssuers           []auth.IssuerConfig
 	SignupPolicy          auth.SignupPolicy
 	WebURL                string
+	SchemaURL             string
 	EventsRetention       time.Duration
 	WebhooksAllowPrivate  bool
 	InstallWebhooks       []webhooks.InstallWebhook
@@ -151,6 +159,7 @@ func newAPIConfig() *APIConfig {
 		AuthIssuers:           authIssuers,
 		SignupPolicy:          signupPolicy,
 		WebURL:                stringEnv("WEB_URL", ""),
+		SchemaURL:             stringEnv("LOCO_SCHEMA_URL", defaultSchemaURL),
 		EventsRetention:       eventsRetention,
 		WebhooksAllowPrivate:  webhooksAllowPrivate,
 		InstallWebhooks:       installWebhooks,
@@ -234,12 +243,18 @@ func newSourceBucketConfig() sourcebucket.Config {
 
 func newServiceDefaults() servicedefaults.Defaults {
 	defaults := servicedefaults.Defaults{
-		CPU:         stringEnv("LOCO_DEFAULT_CPU", defaultServiceCPU),
-		Memory:      stringEnv("LOCO_DEFAULT_MEMORY", defaultServiceMemory),
-		MinReplicas: int32Env("LOCO_DEFAULT_MIN_REPLICAS", defaultServiceMinReplicas),
-		MaxReplicas: int32Env("LOCO_DEFAULT_MAX_REPLICAS", defaultServiceMaxReplicas),
-		PathPrefix:  stringEnv("LOCO_DEFAULT_PATH_PREFIX", defaultServicePathPrefix),
-		IdleTimeout: int32Env("LOCO_DEFAULT_IDLE_TIMEOUT", defaultServiceIdleTimeout),
+		CPU:                      stringEnv("LOCO_DEFAULT_CPU", defaultServiceCPU),
+		Memory:                   stringEnv("LOCO_DEFAULT_MEMORY", defaultServiceMemory),
+		MinReplicas:              int32Env("LOCO_DEFAULT_MIN_REPLICAS", defaultServiceMinReplicas),
+		MaxReplicas:              int32Env("LOCO_DEFAULT_MAX_REPLICAS", defaultServiceMaxReplicas),
+		PathPrefix:               stringEnv("LOCO_DEFAULT_PATH_PREFIX", defaultServicePathPrefix),
+		IdleTimeout:              int32Env("LOCO_DEFAULT_IDLE_TIMEOUT", defaultServiceIdleTimeout),
+		Port:                     int32Env("LOCO_DEFAULT_PORT", defaultServicePort),
+		HealthPath:               stringEnv("LOCO_DEFAULT_HEALTH_PATH", defaultHealthPath),
+		HealthInterval:           int32Env("LOCO_DEFAULT_HEALTH_INTERVAL", defaultHealthInterval),
+		HealthTimeout:            int32Env("LOCO_DEFAULT_HEALTH_TIMEOUT", defaultHealthTimeout),
+		HealthFailThreshold:      int32Env("LOCO_DEFAULT_HEALTH_FAIL_THRESHOLD", defaultHealthFailThresh),
+		HealthStartupGracePeriod: int32Env("LOCO_DEFAULT_HEALTH_STARTUP_GRACE_PERIOD", defaultHealthGracePeriod),
 	}
 	if err := defaults.Validate(); err != nil {
 		panic(fmt.Errorf("%w: %w", errInvalidServiceDefault, err))

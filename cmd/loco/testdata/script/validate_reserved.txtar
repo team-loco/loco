@@ -1,0 +1,38 @@
+# keys the schema reserves for later are refused instead of ignored.
+! exec loco infra validate
+stderr 'databases: not supported yet'
+
+! exec loco infra validate service.yaml
+stderr 'services.api.observability: not supported yet'
+
+! exec loco infra validate unknown.yaml
+stderr 'unknown key: owner'
+
+-- loco.yaml --
+version: 1
+partial: api
+services:
+  api:
+    image: ghcr.io/acme/api:1
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+databases:
+  main: { engine: postgres }
+-- service.yaml --
+version: 1
+partial: api
+services:
+  api:
+    image: ghcr.io/acme/api:1
+    observability: { logging: true }
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+-- unknown.yaml --
+version: 1
+partial: api
+owner: me
+services:
+  api:
+    image: ghcr.io/acme/api:1
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }

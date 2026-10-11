@@ -186,6 +186,7 @@ func (s *AgentServer) startBuildMessage(
 				ResourceId:      resourceID,
 				SourceUrl:       sourceURL,
 				DockerfilePath:  build.DockerfilePath,
+				Context:         build.Context,
 				ImageRepository: build.ImageRepository,
 				CacheRef:        build.CacheRef,
 			},

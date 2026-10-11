@@ -1,0 +1,28 @@
+# a plan without operations exits 0 even with --detailed-exit-code.
+exec loco infra plan --detailed-exit-code
+stdout '^No changes. Environment revision 7 matches loco.yaml\.$'
+fakeapi called Plan 'Bearer test-token'
+
+exec loco infra plan --json --detailed-exit-code
+stdout '"revision":\s+"7"'
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.toml --
+currentScope = "default"
+
+[scopes.default.organization]
+name = "acme"
+id = "1"
+
+[scopes.default.workspace]
+name = "production"
+id = "2"
+-- loco.yaml --
+version: 1
+partial: api
+services:
+  api:
+    image: ghcr.io/acme/api:1
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }

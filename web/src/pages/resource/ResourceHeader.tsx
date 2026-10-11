@@ -3,6 +3,7 @@ import { ResourceStatus, ResourceType, type Resource } from "@gen/loco/resource/
 
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
+import { PartialBadge } from "@/components/design/PartialBadge";
 import { effectiveResourceStatus, ResourceStatusBadge } from "@/components/design/StatusBadge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { useCopy } from "@/hooks/useCopy";
@@ -66,11 +67,11 @@ function ImageRef({ image }: { image: string }) {
 						onClick={() => {
 							copy(image, image);
 						}}
-						className="-mx-1.5 -my-0.5 h-auto min-w-0 gap-1.5 px-1.5 py-0.5 font-normal text-fg2 hover:text-foreground"
+						className="-mx-1.5 -my-0.5 h-auto max-w-full min-w-0 gap-1.5 px-1.5 py-0.5 font-normal text-fg2 hover:text-foreground"
 					/>
 				}
 			>
-				<PackageIcon className="size-3.5 text-fg3" />
+				<PackageIcon className="size-3.5 shrink-0 text-fg3" />
 				<span className="truncate">{short}</span>
 				<span className="flex text-fg3">
 					{copied ? <CheckIcon className="size-[13px]" /> : <CopyIcon className="size-[13px]" />}
@@ -126,6 +127,7 @@ export function ResourceHeader({
 				<Badge tone="outline" size="sm" className="text-sm text-fg3">
 					{typeLabel(resource.type)}
 				</Badge>
+				{resource.partial !== undefined && <PartialBadge partial={resource.partial} />}
 			</div>
 			{resource.description !== undefined && resource.description !== "" && (
 				<div className="text-fg3">{resource.description}</div>
@@ -159,7 +161,7 @@ export function ResourceHeader({
 					<button
 						type="button"
 						onClick={onViewSpec}
-						className="flex cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 text-link hover:underline"
+						className="flex items-center gap-1.5 border-0 bg-transparent p-0 text-link hover:underline"
 					>
 						<FileCodeIcon className="size-3.5" />
 						View spec

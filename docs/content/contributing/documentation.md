@@ -31,7 +31,7 @@ Desktop navigation remains visible as you scroll, with every section expanded. T
 
 ## Hosting
 
-The `web/Dockerfile` image packages the dashboard and documentation together. One Static Web Server process serves the dashboard, docs at `/docs/`, and the docs hostname through a virtual host. The UI service owns both domains; documentation adds no service or image publication job.
+The `web/Dockerfile` image packages the dashboard and documentation together. One Static Web Server process serves the dashboard, docs at `/docs/`, the loco.yaml JSON Schema at `/schemas/loco.v1.json` (copied from `schemas/loco.v1.json` when the image builds), and the docs hostname through a virtual host. The UI service owns both domains; documentation adds no service or image publication job.
 
 Production serves `docs.loco.build` and `loco.build/docs/`. Staging serves `docs.staging.loco.build` and `staging.loco.build/docs/`. The docs hostname is canonical; links inside the rendered site are relative so navigation also works under `/docs/`.
 

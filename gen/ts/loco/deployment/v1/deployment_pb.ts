@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/deployment/v1/deployment.proto.
  */
 export const file_loco_deployment_v1_deployment: GenFile = /*@__PURE__*/
-  fileDesc("CiNsb2NvL2RlcGxveW1lbnQvdjEvZGVwbG95bWVudC5wcm90bxISbG9jby5kZXBsb3ltZW50LnYxIiYKBFBvcnQSDAoEcG9ydBgBIAEoBRIQCghwcm90b2NvbBgCIAEoCSJICgxSZXNvdXJjZVNwZWMSEAoDY3B1GAEgASgJSACIAQESEwoGbWVtb3J5GAIgASgJSAGIAQFCBgoEX2NwdUIJCgdfbWVtb3J5IrIBChFIZWFsdGhDaGVja0NvbmZpZxIVCgRwYXRoGAEgASgJQge6SARyAhABEh0KFWluaXRpYWxfZGVsYXlfc2Vjb25kcxgCIAEoBRIhChBpbnRlcnZhbF9zZWNvbmRzGAMgASgFQge6SAQaAigBEiAKD3RpbWVvdXRfc2Vjb25kcxgEIAEoBUIHukgEGgIoARIiChFmYWlsdXJlX3RocmVzaG9sZBgFIAEoBUIHukgEGgIoASKGAQoHU2NhbGVycxIPCgdlbmFibGVkGAEgASgIEiIKCmNwdV90YXJnZXQYAiABKAVCCbpIBhoEGGQoAEgAiAEBEiUKDW1lbW9yeV90YXJnZXQYAyABKAVCCbpIBhoEGGQoAEgBiAEBQg0KC19jcHVfdGFyZ2V0QhAKDl9tZW1vcnlfdGFyZ2V0ItgBCgtCdWlsZFNvdXJjZRIVCgR0eXBlGAEgASgJQge6SARyAhABEm0KBWltYWdlGAIgASgJQl66SFvYAQFyVjJUXihbYS16MC05XC0uX10rKDpbMC05XSspPygvW2EtejAtOVwtLl9dKykqKSg6W2EtejAtOVwtLl9dKyk/KEBzaGEyNTY6W2EtZjAtOV17NjR9KT8kEh8KCGJ1aWxkX2lkGAQgASgJQgi6SAVyA7ABAUgAiAEBQgsKCV9idWlsZF9pZEoECAMQBFIPZG9ja2VyZmlsZV9wYXRoIsMFChVTZXJ2aWNlRGVwbG95bWVudFNwZWMSNgoFYnVpbGQYASABKAsyHy5sb2NvLmRlcGxveW1lbnQudjEuQnVpbGRTb3VyY2VCBrpIA8gBARJACgxoZWFsdGhfY2hlY2sYAiABKAsyJS5sb2NvLmRlcGxveW1lbnQudjEuSGVhbHRoQ2hlY2tDb25maWdIAIgBARIZCgNjcHUYAyABKAlCB7pIBHICEAFIAYgBARIcCgZtZW1vcnkYBCABKAlCB7pIBHICEAFIAogBARIiCgxtaW5fcmVwbGljYXMYBSABKAVCB7pIBBoCKAFIA4gBARIiCgxtYXhfcmVwbGljYXMYBiABKAVCB7pIBBoCKAFIBIgBARIxCgdzY2FsZXJzGAcgASgLMhsubG9jby5kZXBsb3ltZW50LnYxLlNjYWxlcnNIBYgBARI/CgNlbnYYCCADKAsyMi5sb2NvLmRlcGxveW1lbnQudjEuU2VydmljZURlcGxveW1lbnRTcGVjLkVudkVudHJ5EhkKBHBvcnQYCSABKAVCC7pICBoGGP//AygBGioKCEVudkVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAE6oQG6SJ0BGpoBChRyZXBsaWNhcy5taW5fbHRlX21heBIkbWluX3JlcGxpY2FzIG11c3QgYmUgPD0gbWF4X3JlcGxpY2FzGlwhaGFzKHRoaXMubWluX3JlcGxpY2FzKSB8fCAhaGFzKHRoaXMubWF4X3JlcGxpY2FzKSB8fCB0aGlzLm1pbl9yZXBsaWNhcyA8PSB0aGlzLm1heF9yZXBsaWNhc0IPCg1faGVhbHRoX2NoZWNrQgYKBF9jcHVCCQoHX21lbW9yeUIPCg1fbWluX3JlcGxpY2FzQg8KDV9tYXhfcmVwbGljYXNCCgoIX3NjYWxlcnMiGAoWRGF0YWJhc2VEZXBsb3ltZW50U3BlYyIVChNDYWNoZURlcGxveW1lbnRTcGVjIhUKE1F1ZXVlRGVwbG95bWVudFNwZWMiigIKDkRlcGxveW1lbnRTcGVjEjwKB3NlcnZpY2UYASABKAsyKS5sb2NvLmRlcGxveW1lbnQudjEuU2VydmljZURlcGxveW1lbnRTcGVjSAASPgoIZGF0YWJhc2UYAiABKAsyKi5sb2NvLmRlcGxveW1lbnQudjEuRGF0YWJhc2VEZXBsb3ltZW50U3BlY0gAEjgKBWNhY2hlGAMgASgLMicubG9jby5kZXBsb3ltZW50LnYxLkNhY2hlRGVwbG95bWVudFNwZWNIABI4CgVxdWV1ZRgEIAEoCzInLmxvY28uZGVwbG95bWVudC52MS5RdWV1ZURlcGxveW1lbnRTcGVjSABCBgoEc3BlYyKIBAoKRGVwbG95bWVudBIKCgJpZBgBIAEoCRITCgtyZXNvdXJjZV9pZBgCIAEoCRISCgpjbHVzdGVyX2lkGAMgASgJEg4KBnJlZ2lvbhgEIAEoCRIQCghyZXBsaWNhcxgFIAEoBRIzCgZzdGF0dXMYBiABKA4yIy5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudFBoYXNlEhEKCWlzX2FjdGl2ZRgHIAEoCBIPCgdtZXNzYWdlGAggASgJEi4KCmNyZWF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjMKCnN0YXJ0ZWRfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSACIAQESNQoMY29tcGxldGVkX2F0GAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgBiAEBEi4KCnVwZGF0ZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhQKDHNwZWNfdmVyc2lvbhgNIAEoBRIwCgRzcGVjGA4gASgLMiIubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRTcGVjEhYKDmVudmlyb25tZW50X2lkGA8gASgJQg0KC19zdGFydGVkX2F0Qg8KDV9jb21wbGV0ZWRfYXQirQEKF0NyZWF0ZURlcGxveW1lbnRSZXF1ZXN0Eh0KC3Jlc291cmNlX2lkGAEgASgJQgi6SAVyA7ABARIXCgZyZWdpb24YAyABKAlCB7pIBHICEAESOAoEc3BlYxgEIAEoCzIiLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50U3BlY0IGukgDyAEBEiAKDmVudmlyb25tZW50X2lkGAUgASgJQgi6SAVyA7ABASJhChhDcmVhdGVEZXBsb3ltZW50UmVzcG9uc2USFQoNZGVwbG95bWVudF9pZBgBIAEoCRIuCgVidWlsZBgCIAEoCzIfLmxvY28uZGVwbG95bWVudC52MS5CdWlsZFNvdXJjZSI3ChRHZXREZXBsb3ltZW50UmVxdWVzdBIfCg1kZXBsb3ltZW50X2lkGAEgASgJQgi6SAVyA7ABASJLChVHZXREZXBsb3ltZW50UmVzcG9uc2USMgoKZGVwbG95bWVudBgBIAEoCzIeLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50ImoKFkxpc3REZXBsb3ltZW50c1JlcXVlc3QSHQoLcmVzb3VyY2VfaWQYASABKAlCCLpIBXIDsAEBEh0KCXBhZ2Vfc2l6ZRgCIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAMgASgJImcKF0xpc3REZXBsb3ltZW50c1Jlc3BvbnNlEjMKC2RlcGxveW1lbnRzGAEgAygLMh4ubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnQSFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIjkKFldhdGNoRGVwbG95bWVudFJlcXVlc3QSHwoNZGVwbG95bWVudF9pZBgBIAEoCUIIukgFcgOwAQEipQEKF1dhdGNoRGVwbG95bWVudFJlc3BvbnNlEhUKDWRlcGxveW1lbnRfaWQYASABKAkSMwoGc3RhdHVzGAIgASgOMiMubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRQaGFzZRIPCgdtZXNzYWdlGAMgASgJEi0KCXRpbWVzdGFtcBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiOgoXRGVsZXRlRGVwbG95bWVudFJlcXVlc3QSHwoNZGVwbG95bWVudF9pZBgBIAEoCUIIukgFcgOwAQEiGgoYRGVsZXRlRGVwbG95bWVudFJlc3BvbnNlKusBCg9EZXBsb3ltZW50UGhhc2USIAocREVQTE9ZTUVOVF9QSEFTRV9VTlNQRUNJRklFRBAAEhwKGERFUExPWU1FTlRfUEhBU0VfUEVORElORxABEh4KGkRFUExPWU1FTlRfUEhBU0VfREVQTE9ZSU5HEAISHAoYREVQTE9ZTUVOVF9QSEFTRV9SVU5OSU5HEAMSHgoaREVQTE9ZTUVOVF9QSEFTRV9TVUNDRUVERUQQBBIbChdERVBMT1lNRU5UX1BIQVNFX0ZBSUxFRBAFEh0KGURFUExPWU1FTlRfUEhBU0VfQ0FOQ0VMRUQQBjKxBAoRRGVwbG95bWVudFNlcnZpY2USbQoQQ3JlYXRlRGVwbG95bWVudBIrLmxvY28uZGVwbG95bWVudC52MS5DcmVhdGVEZXBsb3ltZW50UmVxdWVzdBosLmxvY28uZGVwbG95bWVudC52MS5DcmVhdGVEZXBsb3ltZW50UmVzcG9uc2USZAoNR2V0RGVwbG95bWVudBIoLmxvY28uZGVwbG95bWVudC52MS5HZXREZXBsb3ltZW50UmVxdWVzdBopLmxvY28uZGVwbG95bWVudC52MS5HZXREZXBsb3ltZW50UmVzcG9uc2USagoPTGlzdERlcGxveW1lbnRzEioubG9jby5kZXBsb3ltZW50LnYxLkxpc3REZXBsb3ltZW50c1JlcXVlc3QaKy5sb2NvLmRlcGxveW1lbnQudjEuTGlzdERlcGxveW1lbnRzUmVzcG9uc2USbAoPV2F0Y2hEZXBsb3ltZW50EioubG9jby5kZXBsb3ltZW50LnYxLldhdGNoRGVwbG95bWVudFJlcXVlc3QaKy5sb2NvLmRlcGxveW1lbnQudjEuV2F0Y2hEZXBsb3ltZW50UmVzcG9uc2UwARJtChBEZWxldGVEZXBsb3ltZW50EisubG9jby5kZXBsb3ltZW50LnYxLkRlbGV0ZURlcGxveW1lbnRSZXF1ZXN0GiwubG9jby5kZXBsb3ltZW50LnYxLkRlbGV0ZURlcGxveW1lbnRSZXNwb25zZUJCWkBnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2RlcGxveW1lbnQvdjE7ZGVwbG95bWVudHYxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("CiNsb2NvL2RlcGxveW1lbnQvdjEvZGVwbG95bWVudC5wcm90bxISbG9jby5kZXBsb3ltZW50LnYxIiYKBFBvcnQSDAoEcG9ydBgBIAEoBRIQCghwcm90b2NvbBgCIAEoCSJICgxSZXNvdXJjZVNwZWMSEAoDY3B1GAEgASgJSACIAQESEwoGbWVtb3J5GAIgASgJSAGIAQFCBgoEX2NwdUIJCgdfbWVtb3J5IrIBChFIZWFsdGhDaGVja0NvbmZpZxIVCgRwYXRoGAEgASgJQge6SARyAhABEh0KFWluaXRpYWxfZGVsYXlfc2Vjb25kcxgCIAEoBRIhChBpbnRlcnZhbF9zZWNvbmRzGAMgASgFQge6SAQaAigBEiAKD3RpbWVvdXRfc2Vjb25kcxgEIAEoBUIHukgEGgIoARIiChFmYWlsdXJlX3RocmVzaG9sZBgFIAEoBUIHukgEGgIoASKGAQoHU2NhbGVycxIPCgdlbmFibGVkGAEgASgIEiIKCmNwdV90YXJnZXQYAiABKAVCCbpIBhoEGGQoAEgAiAEBEiUKDW1lbW9yeV90YXJnZXQYAyABKAVCCbpIBhoEGGQoAEgBiAEBQg0KC19jcHVfdGFyZ2V0QhAKDl9tZW1vcnlfdGFyZ2V0ItgBCgtCdWlsZFNvdXJjZRIVCgR0eXBlGAEgASgJQge6SARyAhABEm0KBWltYWdlGAIgASgJQl66SFvYAQFyVjJUXihbYS16MC05XC0uX10rKDpbMC05XSspPygvW2EtejAtOVwtLl9dKykqKSg6W2EtejAtOVwtLl9dKyk/KEBzaGEyNTY6W2EtZjAtOV17NjR9KT8kEh8KCGJ1aWxkX2lkGAQgASgJQgi6SAVyA7ABAUgAiAEBQgsKCV9idWlsZF9pZEoECAMQBFIPZG9ja2VyZmlsZV9wYXRoIokGChVTZXJ2aWNlRGVwbG95bWVudFNwZWMSNgoFYnVpbGQYASABKAsyHy5sb2NvLmRlcGxveW1lbnQudjEuQnVpbGRTb3VyY2VCBrpIA8gBARJACgxoZWFsdGhfY2hlY2sYAiABKAsyJS5sb2NvLmRlcGxveW1lbnQudjEuSGVhbHRoQ2hlY2tDb25maWdIAIgBARIZCgNjcHUYAyABKAlCB7pIBHICEAFIAYgBARIcCgZtZW1vcnkYBCABKAlCB7pIBHICEAFIAogBARIiCgxtaW5fcmVwbGljYXMYBSABKAVCB7pIBBoCKAFIA4gBARIiCgxtYXhfcmVwbGljYXMYBiABKAVCB7pIBBoCKAFIBIgBARIxCgdzY2FsZXJzGAcgASgLMhsubG9jby5kZXBsb3ltZW50LnYxLlNjYWxlcnNIBYgBARI/CgNlbnYYCCADKAsyMi5sb2NvLmRlcGxveW1lbnQudjEuU2VydmljZURlcGxveW1lbnRTcGVjLkVudkVudHJ5EhkKBHBvcnQYCSABKAVCC7pICBoGGP//AygBEjgKB3JvdXRpbmcYCiABKAsyIi5sb2NvLmRlcGxveW1lbnQudjEuU2VydmljZVJvdXRpbmdIBogBARoqCghFbnZFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBOqEBukidARqaAQoUcmVwbGljYXMubWluX2x0ZV9tYXgSJG1pbl9yZXBsaWNhcyBtdXN0IGJlIDw9IG1heF9yZXBsaWNhcxpcIWhhcyh0aGlzLm1pbl9yZXBsaWNhcykgfHwgIWhhcyh0aGlzLm1heF9yZXBsaWNhcykgfHwgdGhpcy5taW5fcmVwbGljYXMgPD0gdGhpcy5tYXhfcmVwbGljYXNCDwoNX2hlYWx0aF9jaGVja0IGCgRfY3B1QgkKB19tZW1vcnlCDwoNX21pbl9yZXBsaWNhc0IPCg1fbWF4X3JlcGxpY2FzQgoKCF9zY2FsZXJzQgoKCF9yb3V0aW5nIjsKDlNlcnZpY2VSb3V0aW5nEhMKC3BhdGhfcHJlZml4GAEgASgJEhQKDGlkbGVfdGltZW91dBgCIAEoBSIYChZEYXRhYmFzZURlcGxveW1lbnRTcGVjIhUKE0NhY2hlRGVwbG95bWVudFNwZWMiFQoTUXVldWVEZXBsb3ltZW50U3BlYyKKAgoORGVwbG95bWVudFNwZWMSPAoHc2VydmljZRgBIAEoCzIpLmxvY28uZGVwbG95bWVudC52MS5TZXJ2aWNlRGVwbG95bWVudFNwZWNIABI+CghkYXRhYmFzZRgCIAEoCzIqLmxvY28uZGVwbG95bWVudC52MS5EYXRhYmFzZURlcGxveW1lbnRTcGVjSAASOAoFY2FjaGUYAyABKAsyJy5sb2NvLmRlcGxveW1lbnQudjEuQ2FjaGVEZXBsb3ltZW50U3BlY0gAEjgKBXF1ZXVlGAQgASgLMicubG9jby5kZXBsb3ltZW50LnYxLlF1ZXVlRGVwbG95bWVudFNwZWNIAEIGCgRzcGVjIogECgpEZXBsb3ltZW50EgoKAmlkGAEgASgJEhMKC3Jlc291cmNlX2lkGAIgASgJEhIKCmNsdXN0ZXJfaWQYAyABKAkSDgoGcmVnaW9uGAQgASgJEhAKCHJlcGxpY2FzGAUgASgFEjMKBnN0YXR1cxgGIAEoDjIjLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50UGhhc2USEQoJaXNfYWN0aXZlGAcgASgIEg8KB21lc3NhZ2UYCCABKAkSLgoKY3JlYXRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMwoKc3RhcnRlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAIgBARI1Cgxjb21wbGV0ZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAGIAQESLgoKdXBkYXRlZF9hdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFAoMc3BlY192ZXJzaW9uGA0gASgFEjAKBHNwZWMYDiABKAsyIi5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudFNwZWMSFgoOZW52aXJvbm1lbnRfaWQYDyABKAlCDQoLX3N0YXJ0ZWRfYXRCDwoNX2NvbXBsZXRlZF9hdCKtAQoXQ3JlYXRlRGVwbG95bWVudFJlcXVlc3QSHQoLcmVzb3VyY2VfaWQYASABKAlCCLpIBXIDsAEBEhcKBnJlZ2lvbhgDIAEoCUIHukgEcgIQARI4CgRzcGVjGAQgASgLMiIubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRTcGVjQga6SAPIAQESIAoOZW52aXJvbm1lbnRfaWQYBSABKAlCCLpIBXIDsAEBImEKGENyZWF0ZURlcGxveW1lbnRSZXNwb25zZRIVCg1kZXBsb3ltZW50X2lkGAEgASgJEi4KBWJ1aWxkGAIgASgLMh8ubG9jby5kZXBsb3ltZW50LnYxLkJ1aWxkU291cmNlIjcKFEdldERlcGxveW1lbnRSZXF1ZXN0Eh8KDWRlcGxveW1lbnRfaWQYASABKAlCCLpIBXIDsAEBIksKFUdldERlcGxveW1lbnRSZXNwb25zZRIyCgpkZXBsb3ltZW50GAEgASgLMh4ubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnQiagoWTGlzdERlcGxveW1lbnRzUmVxdWVzdBIdCgtyZXNvdXJjZV9pZBgBIAEoCUIIukgFcgOwAQESHQoJcGFnZV9zaXplGAIgASgFQgq6SAcaBRjIASgAEhIKCnBhZ2VfdG9rZW4YAyABKAkiZwoXTGlzdERlcGxveW1lbnRzUmVzcG9uc2USMwoLZGVwbG95bWVudHMYASADKAsyHi5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudBIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkiOQoWV2F0Y2hEZXBsb3ltZW50UmVxdWVzdBIfCg1kZXBsb3ltZW50X2lkGAEgASgJQgi6SAVyA7ABASKlAQoXV2F0Y2hEZXBsb3ltZW50UmVzcG9uc2USFQoNZGVwbG95bWVudF9pZBgBIAEoCRIzCgZzdGF0dXMYAiABKA4yIy5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudFBoYXNlEg8KB21lc3NhZ2UYAyABKAkSLQoJdGltZXN0YW1wGAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCI6ChdEZWxldGVEZXBsb3ltZW50UmVxdWVzdBIfCg1kZXBsb3ltZW50X2lkGAEgASgJQgi6SAVyA7ABASIaChhEZWxldGVEZXBsb3ltZW50UmVzcG9uc2Uq6wEKD0RlcGxveW1lbnRQaGFzZRIgChxERVBMT1lNRU5UX1BIQVNFX1VOU1BFQ0lGSUVEEAASHAoYREVQTE9ZTUVOVF9QSEFTRV9QRU5ESU5HEAESHgoaREVQTE9ZTUVOVF9QSEFTRV9ERVBMT1lJTkcQAhIcChhERVBMT1lNRU5UX1BIQVNFX1JVTk5JTkcQAxIeChpERVBMT1lNRU5UX1BIQVNFX1NVQ0NFRURFRBAEEhsKF0RFUExPWU1FTlRfUEhBU0VfRkFJTEVEEAUSHQoZREVQTE9ZTUVOVF9QSEFTRV9DQU5DRUxFRBAGMrEEChFEZXBsb3ltZW50U2VydmljZRJtChBDcmVhdGVEZXBsb3ltZW50EisubG9jby5kZXBsb3ltZW50LnYxLkNyZWF0ZURlcGxveW1lbnRSZXF1ZXN0GiwubG9jby5kZXBsb3ltZW50LnYxLkNyZWF0ZURlcGxveW1lbnRSZXNwb25zZRJkCg1HZXREZXBsb3ltZW50EigubG9jby5kZXBsb3ltZW50LnYxLkdldERlcGxveW1lbnRSZXF1ZXN0GikubG9jby5kZXBsb3ltZW50LnYxLkdldERlcGxveW1lbnRSZXNwb25zZRJqCg9MaXN0RGVwbG95bWVudHMSKi5sb2NvLmRlcGxveW1lbnQudjEuTGlzdERlcGxveW1lbnRzUmVxdWVzdBorLmxvY28uZGVwbG95bWVudC52MS5MaXN0RGVwbG95bWVudHNSZXNwb25zZRJsCg9XYXRjaERlcGxveW1lbnQSKi5sb2NvLmRlcGxveW1lbnQudjEuV2F0Y2hEZXBsb3ltZW50UmVxdWVzdBorLmxvY28uZGVwbG95bWVudC52MS5XYXRjaERlcGxveW1lbnRSZXNwb25zZTABEm0KEERlbGV0ZURlcGxveW1lbnQSKy5sb2NvLmRlcGxveW1lbnQudjEuRGVsZXRlRGVwbG95bWVudFJlcXVlc3QaLC5sb2NvLmRlcGxveW1lbnQudjEuRGVsZXRlRGVwbG95bWVudFJlc3BvbnNlQkJaQGdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vZGVwbG95bWVudC92MTtkZXBsb3ltZW50djFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * Port defines a network port configuration.
@@ -362,6 +362,15 @@ export type ServiceDeploymentSpec = Message<"loco.deployment.v1.ServiceDeploymen
    * @generated from field: int32 port = 9;
    */
   port: number;
+
+  /**
+   * routing is the HTTP routing the deployment's environment uses. An empty message means the
+   * service sets no routing and the defaults apply; without the field the resource's routing
+   * applies.
+   *
+   * @generated from field: optional loco.deployment.v1.ServiceRouting routing = 10;
+   */
+  routing?: ServiceRouting | undefined;
 };
 
 /**
@@ -424,6 +433,15 @@ export type ServiceDeploymentSpecJson = {
    * @generated from field: int32 port = 9;
    */
   port?: number;
+
+  /**
+   * routing is the HTTP routing the deployment's environment uses. An empty message means the
+   * service sets no routing and the defaults apply; without the field the resource's routing
+   * applies.
+   *
+   * @generated from field: optional loco.deployment.v1.ServiceRouting routing = 10;
+   */
+  routing?: ServiceRoutingJson;
 };
 
 /**
@@ -432,6 +450,47 @@ export type ServiceDeploymentSpecJson = {
  */
 export const ServiceDeploymentSpecSchema: GenMessage<ServiceDeploymentSpec, {jsonType: ServiceDeploymentSpecJson}> = /*@__PURE__*/
   messageDesc(file_loco_deployment_v1_deployment, 5);
+
+/**
+ * ServiceRouting is the HTTP routing of one environment's deployment of a service.
+ *
+ * @generated from message loco.deployment.v1.ServiceRouting
+ */
+export type ServiceRouting = Message<"loco.deployment.v1.ServiceRouting"> & {
+  /**
+   * @generated from field: string path_prefix = 1;
+   */
+  pathPrefix: string;
+
+  /**
+   * @generated from field: int32 idle_timeout = 2;
+   */
+  idleTimeout: number;
+};
+
+/**
+ * ServiceRouting is the HTTP routing of one environment's deployment of a service.
+ *
+ * @generated from message loco.deployment.v1.ServiceRouting
+ */
+export type ServiceRoutingJson = {
+  /**
+   * @generated from field: string path_prefix = 1;
+   */
+  pathPrefix?: string;
+
+  /**
+   * @generated from field: int32 idle_timeout = 2;
+   */
+  idleTimeout?: number;
+};
+
+/**
+ * Describes the message loco.deployment.v1.ServiceRouting.
+ * Use `create(ServiceRoutingSchema)` to create a new message.
+ */
+export const ServiceRoutingSchema: GenMessage<ServiceRouting, {jsonType: ServiceRoutingJson}> = /*@__PURE__*/
+  messageDesc(file_loco_deployment_v1_deployment, 6);
 
 /**
  * DatabaseDeploymentSpec is a placeholder for DATABASE type deployments (future implementation).
@@ -458,7 +517,7 @@ export type DatabaseDeploymentSpecJson = {
  * Use `create(DatabaseDeploymentSpecSchema)` to create a new message.
  */
 export const DatabaseDeploymentSpecSchema: GenMessage<DatabaseDeploymentSpec, {jsonType: DatabaseDeploymentSpecJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 6);
+  messageDesc(file_loco_deployment_v1_deployment, 7);
 
 /**
  * CacheDeploymentSpec is a placeholder for CACHE type deployments (future implementation).
@@ -485,7 +544,7 @@ export type CacheDeploymentSpecJson = {
  * Use `create(CacheDeploymentSpecSchema)` to create a new message.
  */
 export const CacheDeploymentSpecSchema: GenMessage<CacheDeploymentSpec, {jsonType: CacheDeploymentSpecJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 7);
+  messageDesc(file_loco_deployment_v1_deployment, 8);
 
 /**
  * QueueDeploymentSpec is a placeholder for QUEUE type deployments (future implementation).
@@ -512,7 +571,7 @@ export type QueueDeploymentSpecJson = {
  * Use `create(QueueDeploymentSpecSchema)` to create a new message.
  */
 export const QueueDeploymentSpecSchema: GenMessage<QueueDeploymentSpec, {jsonType: QueueDeploymentSpecJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 8);
+  messageDesc(file_loco_deployment_v1_deployment, 9);
 
 /**
  * DeploymentSpec is the immutable runtime snapshot for a deployment.
@@ -584,7 +643,7 @@ export type DeploymentSpecJson = {
  * Use `create(DeploymentSpecSchema)` to create a new message.
  */
 export const DeploymentSpecSchema: GenMessage<DeploymentSpec, {jsonType: DeploymentSpecJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 9);
+  messageDesc(file_loco_deployment_v1_deployment, 10);
 
 /**
  * Deployment represents a resource deployment (immutable, single-region).
@@ -755,7 +814,7 @@ export type DeploymentJson = {
  * Use `create(DeploymentSchema)` to create a new message.
  */
 export const DeploymentSchema: GenMessage<Deployment, {jsonType: DeploymentJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 10);
+  messageDesc(file_loco_deployment_v1_deployment, 11);
 
 /**
  * CreateDeploymentRequest is the request to create a new deployment.
@@ -816,7 +875,7 @@ export type CreateDeploymentRequestJson = {
  * Use `create(CreateDeploymentRequestSchema)` to create a new message.
  */
 export const CreateDeploymentRequestSchema: GenMessage<CreateDeploymentRequest, {jsonType: CreateDeploymentRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 11);
+  messageDesc(file_loco_deployment_v1_deployment, 12);
 
 /**
  * CreateDeploymentResponse is the response containing the created deployment ID.
@@ -857,7 +916,7 @@ export type CreateDeploymentResponseJson = {
  * Use `create(CreateDeploymentResponseSchema)` to create a new message.
  */
 export const CreateDeploymentResponseSchema: GenMessage<CreateDeploymentResponse, {jsonType: CreateDeploymentResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 12);
+  messageDesc(file_loco_deployment_v1_deployment, 13);
 
 /**
  * GetDeploymentRequest is the request to retrieve a deployment.
@@ -888,7 +947,7 @@ export type GetDeploymentRequestJson = {
  * Use `create(GetDeploymentRequestSchema)` to create a new message.
  */
 export const GetDeploymentRequestSchema: GenMessage<GetDeploymentRequest, {jsonType: GetDeploymentRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 13);
+  messageDesc(file_loco_deployment_v1_deployment, 14);
 
 /**
  * GetDeploymentResponse is the response containing the deployment.
@@ -919,7 +978,7 @@ export type GetDeploymentResponseJson = {
  * Use `create(GetDeploymentResponseSchema)` to create a new message.
  */
 export const GetDeploymentResponseSchema: GenMessage<GetDeploymentResponse, {jsonType: GetDeploymentResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 14);
+  messageDesc(file_loco_deployment_v1_deployment, 15);
 
 /**
  * ListDeploymentsRequest is the request to list deployments.
@@ -978,7 +1037,7 @@ export type ListDeploymentsRequestJson = {
  * Use `create(ListDeploymentsRequestSchema)` to create a new message.
  */
 export const ListDeploymentsRequestSchema: GenMessage<ListDeploymentsRequest, {jsonType: ListDeploymentsRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 15);
+  messageDesc(file_loco_deployment_v1_deployment, 16);
 
 /**
  * ListDeploymentsResponse is the response containing deployment list.
@@ -1023,7 +1082,7 @@ export type ListDeploymentsResponseJson = {
  * Use `create(ListDeploymentsResponseSchema)` to create a new message.
  */
 export const ListDeploymentsResponseSchema: GenMessage<ListDeploymentsResponse, {jsonType: ListDeploymentsResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 16);
+  messageDesc(file_loco_deployment_v1_deployment, 17);
 
 /**
  * WatchDeploymentRequest is the request to stream deployment events.
@@ -1054,7 +1113,7 @@ export type WatchDeploymentRequestJson = {
  * Use `create(WatchDeploymentRequestSchema)` to create a new message.
  */
 export const WatchDeploymentRequestSchema: GenMessage<WatchDeploymentRequest, {jsonType: WatchDeploymentRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 17);
+  messageDesc(file_loco_deployment_v1_deployment, 18);
 
 /**
  * WatchDeploymentResponse represents a deployment event stream response.
@@ -1115,7 +1174,7 @@ export type WatchDeploymentResponseJson = {
  * Use `create(WatchDeploymentResponseSchema)` to create a new message.
  */
 export const WatchDeploymentResponseSchema: GenMessage<WatchDeploymentResponse, {jsonType: WatchDeploymentResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 18);
+  messageDesc(file_loco_deployment_v1_deployment, 19);
 
 /**
  * DeleteDeploymentRequest is the request to delete/inactivate a deployment.
@@ -1146,7 +1205,7 @@ export type DeleteDeploymentRequestJson = {
  * Use `create(DeleteDeploymentRequestSchema)` to create a new message.
  */
 export const DeleteDeploymentRequestSchema: GenMessage<DeleteDeploymentRequest, {jsonType: DeleteDeploymentRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 19);
+  messageDesc(file_loco_deployment_v1_deployment, 20);
 
 /**
  * DeleteDeploymentResponse is the response after deleting/inactivating a deployment.
@@ -1169,7 +1228,7 @@ export type DeleteDeploymentResponseJson = {
  * Use `create(DeleteDeploymentResponseSchema)` to create a new message.
  */
 export const DeleteDeploymentResponseSchema: GenMessage<DeleteDeploymentResponse, {jsonType: DeleteDeploymentResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 20);
+  messageDesc(file_loco_deployment_v1_deployment, 21);
 
 /**
  * DeploymentPhase indicates the current state of a deployment lifecycle.

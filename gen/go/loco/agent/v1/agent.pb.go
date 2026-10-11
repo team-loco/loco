@@ -935,8 +935,10 @@ type StartBuild struct {
 	DockerfilePath  string                 `protobuf:"bytes,5,opt,name=dockerfile_path,json=dockerfilePath,proto3" json:"dockerfile_path,omitempty"`
 	ImageRepository string                 `protobuf:"bytes,6,opt,name=image_repository,json=imageRepository,proto3" json:"image_repository,omitempty"`
 	CacheRef        string                 `protobuf:"bytes,7,opt,name=cache_ref,json=cacheRef,proto3" json:"cache_ref,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// context is the build context directory relative to the uploaded source, "." for its root.
+	Context       string `protobuf:"bytes,8,opt,name=context,proto3" json:"context,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StartBuild) Reset() {
@@ -1014,6 +1016,13 @@ func (x *StartBuild) GetImageRepository() string {
 func (x *StartBuild) GetCacheRef() string {
 	if x != nil {
 		return x.CacheRef
+	}
+	return ""
+}
+
+func (x *StartBuild) GetContext() string {
+	if x != nil {
+		return x.Context
 	}
 	return ""
 }
@@ -1377,7 +1386,7 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x1f\n" +
 	"\vresource_id\x18\x03 \x01(\tR\n" +
-	"resourceId\"\xb5\x02\n" +
+	"resourceId\"\xd8\x02\n" +
 	"\n" +
 	"StartBuild\x12#\n" +
 	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\x12+\n" +
@@ -1388,7 +1397,8 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"source_url\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x88\x01\x01R\tsourceUrl\x120\n" +
 	"\x0fdockerfile_path\x18\x05 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0edockerfilePath\x122\n" +
 	"\x10image_repository\x18\x06 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0fimageRepository\x12\x1b\n" +
-	"\tcache_ref\x18\a \x01(\tR\bcacheRef\"2\n" +
+	"\tcache_ref\x18\a \x01(\tR\bcacheRef\x12!\n" +
+	"\acontext\x18\b \x01(\tB\a\xbaH\x04r\x02\x10\x01R\acontext\"2\n" +
 	"\vCancelBuild\x12#\n" +
 	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\"\xd0\x01\n" +
 	"\x10HeartbeatRequest\x12'\n" +

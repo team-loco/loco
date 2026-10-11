@@ -226,7 +226,10 @@ func (s *EnvironmentServer) UpdateEnvironment(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		_, updateErr := qtx.UpdateEnvironment(ctx, genDb.UpdateEnvironmentParams{
+		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, existing.WorkspaceID); lockErr != nil {
+			return lockErr
+		}
+		updated, updateErr := qtx.UpdateEnvironment(ctx, genDb.UpdateEnvironmentParams{
 			ID:              envID,
 			Name:            name,
 			Description:     description,
@@ -237,6 +240,11 @@ func (s *EnvironmentServer) UpdateEnvironment(
 		}
 		if updateErr != nil {
 			return updateErr
+		}
+		if updated.Name != existing.Name || updated.EnvironmentType != existing.EnvironmentType {
+			if bumpErr := bumpEnvironmentRevision(ctx, qtx, envID); bumpErr != nil {
+				return bumpErr
+			}
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.EnvironmentUpdated,
@@ -330,6 +338,7 @@ func dbEnvToProto(env genDb.Environment) *environmentv1.Environment {
 		CreatedBy:   env.CreatedBy.String(),
 		CreatedAt:   timeutil.ParsePostgresTimestamp(env.CreatedAt),
 		UpdatedAt:   timeutil.ParsePostgresTimestamp(env.UpdatedAt),
+		Revision:    env.Revision,
 	}
 }
 

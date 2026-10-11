@@ -64,6 +64,7 @@ type GetConfigResponse struct {
 	ServiceDefaults *DefaultServiceConfig  `protobuf:"bytes,1,opt,name=service_defaults,json=serviceDefaults,proto3" json:"service_defaults,omitempty"`
 	MinCliVersion   string                 `protobuf:"bytes,2,opt,name=min_cli_version,json=minCliVersion,proto3" json:"min_cli_version,omitempty"`
 	Auth            *AuthConfig            `protobuf:"bytes,3,opt,name=auth,proto3" json:"auth,omitempty"`
+	SchemaUrl       string                 `protobuf:"bytes,4,opt,name=schema_url,json=schemaUrl,proto3" json:"schema_url,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -117,6 +118,13 @@ func (x *GetConfigResponse) GetAuth() *AuthConfig {
 		return x.Auth
 	}
 	return nil
+}
+
+func (x *GetConfigResponse) GetSchemaUrl() string {
+	if x != nil {
+		return x.SchemaUrl
+	}
+	return ""
 }
 
 type AuthConfig struct {
@@ -291,11 +299,13 @@ var File_loco_config_v1_config_proto protoreflect.FileDescriptor
 const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\n" +
 	"\x1bloco/config/v1/config.proto\x12\x0eloco.config.v1\x1a#loco/deployment/v1/deployment.proto\x1a\x1floco/resource/v1/resource.proto\"\x12\n" +
-	"\x10GetConfigRequest\"\xbc\x01\n" +
+	"\x10GetConfigRequest\"\xdb\x01\n" +
 	"\x11GetConfigResponse\x12O\n" +
 	"\x10service_defaults\x18\x01 \x01(\v2$.loco.config.v1.DefaultServiceConfigR\x0fserviceDefaults\x12&\n" +
 	"\x0fmin_cli_version\x18\x02 \x01(\tR\rminCliVersion\x12.\n" +
-	"\x04auth\x18\x03 \x01(\v2\x1a.loco.config.v1.AuthConfigR\x04auth\"s\n" +
+	"\x04auth\x18\x03 \x01(\v2\x1a.loco.config.v1.AuthConfigR\x04auth\x12\x1d\n" +
+	"\n" +
+	"schema_url\x18\x04 \x01(\tR\tschemaUrl\"s\n" +
 	"\n" +
 	"AuthConfig\x12\x16\n" +
 	"\x06issuer\x18\x02 \x01(\tR\x06issuer\x12\x1b\n" +

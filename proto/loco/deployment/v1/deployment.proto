@@ -98,12 +98,22 @@ message ServiceDeploymentSpec {
     gte: 1
     lte: 65535
   }];
+  // routing is the HTTP routing the deployment's environment uses. An empty message means the
+  // service sets no routing and the defaults apply; without the field the resource's routing
+  // applies.
+  optional ServiceRouting routing = 10;
 
   option (buf.validate.message).cel = {
     id: "replicas.min_lte_max"
     message: "min_replicas must be <= max_replicas"
     expression: "!has(this.min_replicas) || !has(this.max_replicas) || this.min_replicas <= this.max_replicas"
   };
+}
+
+// ServiceRouting is the HTTP routing of one environment's deployment of a service.
+message ServiceRouting {
+  string path_prefix = 1;
+  int32 idle_timeout = 2;
 }
 
 // DatabaseDeploymentSpec is a placeholder for DATABASE type deployments (future implementation).

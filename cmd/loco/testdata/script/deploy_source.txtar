@@ -1,16 +1,20 @@
-# loco deploy without --image packs the directory that holds loco.toml, uploads it,
-# follows the build and deploys it to every region in loco.toml.
+# loco deploy packs the directory that holds loco.yaml, uploads it, builds the source
+# service and applies the file with the build.
+fakeapi resource web
+fakeapi plan plan.json
 cd app
-exec loco deploy app --wait
-stdout '^Packed 5 files from '
+exec loco deploy --yes
+stdout '^Plan for loco.yaml against environment revision 7\.$'
+stdout '^  ~ web  \(needs deploy\)$'
+stdout '^Packed 5 files from \. \('
+stdout '^Building web from Dockerfile in \.$'
 stdout 'Build 0199b6c4-5d1e-7f00-8000-000000000001 queued'
 stdout 'Build 0199b6c4-5d1e-7f00-8000-000000000001 running'
 stdout '│ #5 DONE 0199b6c4-5d1e-7f00-8000-000000000001'
 stdout 'Build 0199b6c4-5d1e-7f00-8000-000000000001 succeeded'
-stdout '^Deploy to us-east-1$'
-stdout '^Deploy to eu-west-1$'
-stdout '\[running\]'
-stdout 'Service deployed.'
+stdout '^Applied\. Environment revision is now 8\.$'
+stdout '^Started deployment dep-web for web in us-east-1\.$'
+stdout '^web: https://web\.onloco\.test$'
 ! stdout '\x1b\['
 
 fakeapi uploaded Dockerfile
@@ -24,11 +28,11 @@ fakeapi uploaded .dockerignore
 ! fakeapi uploaded node_modules/left-pad/index.js
 fakeapi upload-header Content-Length body
 fakeapi upload-header Content-Type application/gzip
-fakeapi called CreateResource 'Bearer test-token'
 fakeapi called StartBuild 'Bearer test-token'
 fakeapi called TailLogs 'Bearer test-token'
-fakeapi deployed us-east-1 dockerfile
-fakeapi deployed eu-west-1 dockerfile
+fakeapi applied 7
+fakeapi built web Dockerfile .
+! fakeapi called CreateResource
 
 -- home/.loco/credentials.json --
 {"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
@@ -42,40 +46,15 @@ id = "1"
 [scopes.default.workspace]
 name = "production"
 id = "2"
--- app/loco.toml --
-[Metadata]
-ConfigVersion = "0.1"
-Name = "app"
-Type = "SERVICE"
-Region = "us-east-1"
-
-[Build]
-DockerfilePath = "Dockerfile"
-Type = "docker"
-
-[Routing]
-Port = 8080
-PathPrefix = "/"
-IdleTimeout = 60
-
-[RegionConfig]
-[RegionConfig.us-east-1]
-CPU = "100m"
-Memory = "256Mi"
-ReplicasMin = 1
-ReplicasMax = 1
-[RegionConfig.eu-west-1]
-CPU = "100m"
-Memory = "256Mi"
-ReplicasMin = 1
-ReplicasMax = 2
-
-[Health]
-Path = "/healthz"
-Interval = 30
-Timeout = 5
-StartupGracePeriod = 0
-FailThreshold = 3
+-- app/loco.yaml --
+version: 1
+partial: web
+services:
+  web:
+    port: 8080
+    domains: [web.onloco.test]
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
 -- app/Dockerfile --
 FROM scratch
 COPY main.go /
@@ -97,3 +76,10 @@ console.log("app")
 module.exports = 1
 -- app/.git/HEAD --
 ref: refs/heads/main
+-- plan.json --
+{
+  "revision": "7",
+  "operations": [
+    {"kind": "PLAN_OPERATION_KIND_UPDATE", "service": "web", "needsDeploy": true}
+  ]
+}

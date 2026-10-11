@@ -20,23 +20,34 @@ const testImage = "registry.loco.test/app@sha256:" +
 	"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
 const (
-	testRegion        = "us-east-1"
-	testDefaultCPU    = "150m"
-	testDefaultMemory = "192Mi"
-	testIdleTimeout   = 45
-	testRegionCPU     = "100m"
-	testRegionMemory  = "64Mi"
-	testHostname      = "svc.loco.test"
+	testRegion              = "us-east-1"
+	testDefaultCPU          = "150m"
+	testDefaultMemory       = "192Mi"
+	testIdleTimeout         = 45
+	testDefaultPort         = 8000
+	testHealthPath          = "/health"
+	testHealthInterval      = 30
+	testHealthTimeout       = 5
+	testHealthFailThreshold = 3
+	testRegionCPU           = "100m"
+	testRegionMemory        = "64Mi"
+	testHostname            = "svc.loco.test"
 )
 
 func testServiceDefaults() servicedefaults.Defaults {
 	return servicedefaults.Defaults{
-		CPU:         testDefaultCPU,
-		Memory:      testDefaultMemory,
-		MinReplicas: 2,
-		MaxReplicas: 3,
-		PathPrefix:  "/",
-		IdleTimeout: testIdleTimeout,
+		CPU:                      testDefaultCPU,
+		Memory:                   testDefaultMemory,
+		MinReplicas:              2,
+		MaxReplicas:              3,
+		PathPrefix:               "/",
+		IdleTimeout:              testIdleTimeout,
+		Port:                     testDefaultPort,
+		HealthPath:               testHealthPath,
+		HealthInterval:           testHealthInterval,
+		HealthTimeout:            testHealthTimeout,
+		HealthFailThreshold:      testHealthFailThreshold,
+		HealthStartupGracePeriod: 0,
 	}
 }
 

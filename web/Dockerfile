@@ -61,6 +61,7 @@ FROM ghcr.io/static-web-server/static-web-server:2.44.1@sha256:94618e3d17802265a
 COPY --from=docs-builder /app/docs/.sws.toml /etc/sws.toml
 COPY --from=builder /app/web/dist /public
 COPY --from=docs-builder /app/docs/site /public/docs
+COPY schemas/loco.v1.json /public/schemas/loco.v1.json
 
 EXPOSE 8080
 

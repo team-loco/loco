@@ -1,6 +1,6 @@
 ---
 name: docs-drift
-description: Check whether a code change leaves loco's user documentation stale (docs/content, README.md, examples/loco_example.toml, the behaviour sections of AGENTS.md) and fix the affected pages. Load after changing CLI commands or flags, API services, API or agent configuration, chart values, CRDs, loco.toml fields or mise tasks, and when a caller asks for a docs drift review of a diff or PR.
+description: Check whether a code change leaves loco's user documentation stale (docs/content, README.md, the behaviour sections of AGENTS.md) and fix the affected pages. Load after changing CLI commands or flags, API services, API or agent configuration, chart values, CRDs, loco.yaml fields or mise tasks, and when a caller asks for a docs drift review of a diff or PR.
 ---
 
 # Docs drift review
@@ -24,8 +24,7 @@ update with the file and section that owns it.
    uncommitted work. Use the branch, range, diff file or PR number the caller supplies instead.
 2. `docs/zensical.toml`, whose `nav` lists every published page.
 3. Every page under `docs/content/` that plausibly owns the changed behaviour, in full, plus
-   `README.md` and `examples/loco_example.toml` when the change touches the CLI, loco.toml or
-   local development. Headings and grep hits are not enough; the stale sentence is usually in
+   `README.md` when the change touches the CLI, loco.yaml or local development. Headings and grep hits are not enough; the stale sentence is usually in
    the middle of a paragraph.
 4. `.agents/skills/prose/SKILL.md` before writing or editing any prose.
 5. `docs/content/contributing/documentation.md` for how the site is built and verified.
@@ -42,13 +41,12 @@ Pages state released behaviour and label unreleased workflows with a release not
   webHost`, the default hosts `https://api.loco.build` and `https://loco.build`, staging hosts.
 - `docs/content/deployment/modes.md`: SaaS, dedicated and self-hosted modes and who operates
   what. Rarely affected by code.
-- `docs/content/deployment/go-infrastructure.md`: the unreleased `loco infra` workflow, `loco
-  init`, `loco validate`, `loco deploy --plan-only`, `loco secret set`. Carries a release notice;
-  only a change to those commands or to the notice's facts affects it.
-- `docs/content/deployment/environments.md`: hosted endpoint table, `loco infra context`,
-  `LOCO_WORKSPACE` / `LOCO_ENVIRONMENT`, how UI and docs images are promoted.
+- `docs/content/deployment/loco-yaml.md`: the loco.yaml fields, environment overrides, partials, and
+  `loco infra init|validate|plan|apply|transfer` and `loco deploy`.
+- `docs/content/deployment/environments.md`: hosted endpoint table,
+  `LOCO_WORKSPACE` / `LOCO_ENV`, how UI and docs images are promoted.
 - `docs/content/operations/applications.md`: `loco resource` subcommands, the `restricted` Pod
-  Security requirement, public versus private applications (`[DomainConfig]`, `URL: none`,
+  Security requirement, public versus private applications (`domains`, `URL: none`,
   when domain changes take effect), rollout investigation.
 - `docs/content/operations/self-hosting.md`: component table (directory per component),
   installation inputs via `.env.example`, cluster dependencies, image tags `sha-<commit>` and
@@ -68,10 +66,7 @@ Pages state released behaviour and label unreleased workflows with a release not
   deploy` and `--image`, source packing rules, `loco resource` and `loco builds` subcommands),
   the examples list, the contributing section (mise, Tilt, Dex on `localhost:5556`, the local
   registry and bucket, build flow, `charts/loco-operator` deployments and `builds.enabled`).
-- `examples/loco_example.toml`: every loco.toml field with its default and whether it is
-  required. loco.toml is being replaced by Go infrastructure definitions, so document the
-  fields that exist today and do not expand this file beyond what `internal/config` validates.
-- `AGENTS.md`, the "Domain Configuration" and "Regional Configuration" sections and the
+- `AGENTS.md`, the "loco.yaml" section and the
   behaviour statements in "Dependencies and Configuration" (version reporting, `/version.json`,
   chart tags). The rest of `AGENTS.md` is process guidance, not product documentation.
 - `docs/zensical.toml` only when a page is added, removed or renamed.
@@ -99,7 +94,7 @@ is a candidate; judge what a reader can see, not the directory.
   self-hosting page points at; a new or renamed variable must appear there.
 - `api/service/**`: observable API behaviour, error codes and messages, defaults the API fills
   in (`LOCO_DEFAULT_*`), limits such as `LOCO_SOURCE_MAX_BYTES`.
-- `internal/config/**`: loco.toml fields, defaults and validation rules.
+- `internal/locofile/**`: loco.yaml fields, defaults and validation rules.
 - `internal/sourcepack/**`: what `loco deploy` packs and excludes.
 - `agent/config.go`, `builder/config.go`, `observability-proxy/**`: environment the charts
   must pass; a new required variable changes the chart contract.
@@ -120,7 +115,7 @@ is a candidate; judge what a reader can see, not the directory.
 
 Strong candidates:
 
-- A command, subcommand, flag, environment variable, loco.toml field, chart value, CRD field,
+- A command, subcommand, flag, environment variable, loco.yaml field, chart value, CRD field,
   mise task or API RPC that a page names is added, renamed, removed or changes meaning.
 - A default, limit, port, hostname, path, exclusion rule or error message that a page states
   changes.
@@ -151,10 +146,10 @@ When one page links to another for the detail, update the page that owns the det
   applications.md` for `loco resource`, `getting-started/connect.md` for `loco login` and
   `loco config`, `getting-started/install.md` for the installer, `loco update` and
   `loco completion`, `README.md` quick start for `loco deploy`, `loco builds` and packing rules.
-- Domain and routing behaviour: `operations/applications.md` and the Domain Configuration
+- Domain and routing behaviour: `operations/applications.md` and the loco.yaml
   section of `AGENTS.md`.
-- loco.toml fields: `examples/loco_example.toml`, then the Regional or Domain Configuration
-  section of `AGENTS.md` when it enumerates the rule.
+- loco.yaml fields: `deployment/loco-yaml.md`, and the loco.yaml section of `AGENTS.md` when it
+  enumerates the rule.
 - API and agent environment variables: `.env.example`; `operations/self-hosting.md` only when
   its prose names the variable or the category changes (database, cache, auth, registry,
   endpoints).
@@ -171,7 +166,7 @@ When one page links to another for the detail, update the page that owns the det
 ## Workflow
 
 1. Determine the diff and read it whole.
-2. List each observable change with the surface it affects (CLI, dashboard, API, loco.toml,
+2. List each observable change with the surface it affects (CLI, dashboard, API, loco.yaml,
    environment, chart, CRD, development workflow).
 3. For each change, read the owning pages in full and find the sentence, table row, code
    block or notice that states the old behaviour, or confirm none does.

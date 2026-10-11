@@ -7,6 +7,7 @@ import (
 
 	"github.com/rogpeppe/go-internal/testscript"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
+	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -39,6 +40,11 @@ func cmdFakePlatform(ts *testscript.TestScript, api *fakeAPI, neg bool, args []s
 		api.mu.Lock()
 		api.platform.sourceLimit = limit
 		api.mu.Unlock()
+	case "no-platform-domain":
+		requireArgs(ts, neg, args, 1, "fakeapi no-platform-domain")
+		api.mu.Lock()
+		api.platform.noPlatformDomain = true
+		api.mu.Unlock()
 	case "no-proxy":
 		requireArgs(ts, neg, args, 1, "fakeapi no-proxy")
 		api.mu.Lock()
@@ -47,22 +53,51 @@ func cmdFakePlatform(ts *testscript.TestScript, api *fakeAPI, neg bool, args []s
 	case "seed":
 		requireArgs(ts, neg, args, 2, "fakeapi seed <service>")
 		seedBuild(api, args[1])
+	case "resource":
+		requireArgs(ts, neg, args, 2, "fakeapi resource <service>")
+		api.mu.Lock()
+		api.platform.addResource(args[1])
+		api.mu.Unlock()
+	case "built":
+		checkBuilt(ts, api, neg, args)
 	case "uploaded":
 		checkUploaded(ts, api, neg, args)
 	case "upload-header":
 		checkUploadHeader(ts, api, neg, args)
-	case "deployed":
-		checkDeployed(ts, api, neg, args)
-	case "tag-moves":
-		requireArgs(ts, neg, args, 1, "fakeapi tag-moves")
-		api.mu.Lock()
-		api.platform.tagMoves = true
-		api.mu.Unlock()
-	case "pinned-once":
-		checkPinnedOnce(ts, api, neg, args)
 	case "wait":
 		requireArgs(ts, neg, args, 2, "fakeapi wait <method>")
 		waitForCall(ts, api, args[1])
+	case "plan":
+		requireArgs(ts, neg, args, 2, "fakeapi plan <plan.json>")
+		data := ts.ReadFile(args[1])
+		api.mu.Lock()
+		defer api.mu.Unlock()
+		if err := api.platform.setPlan(data); err != nil {
+			ts.Fatalf("fakeapi: %v", err)
+		}
+	case "planned":
+		checkPlanned(ts, api, neg, args)
+	case "revision-moves":
+		requireArgs(ts, neg, args, 1, "fakeapi revision-moves")
+		api.mu.Lock()
+		api.platform.revisionMoves = true
+		api.mu.Unlock()
+	case "images-move":
+		requireArgs(ts, neg, args, 1, "fakeapi images-move")
+		api.mu.Lock()
+		api.platform.imagesMove = true
+		api.mu.Unlock()
+	case "cluster-held":
+		requireArgs(ts, neg, args, 1, "fakeapi cluster-held")
+		api.mu.Lock()
+		api.platform.clusterHeld = true
+		api.mu.Unlock()
+	case "applied":
+		checkApplied(ts, api, neg, args)
+	case "provisioned":
+		checkProvisioned(ts, api, neg, args)
+	case "partial":
+		checkPartial(ts, api, neg, args)
 	default:
 		ts.Fatalf("fakeapi: unknown subcommand %q", args[0])
 	}
@@ -170,48 +205,112 @@ func checkUploadHeader(ts *testscript.TestScript, api *fakeAPI, neg bool, args [
 	}
 }
 
-func checkDeployed(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
-	if neg || len(args) != 3 {
-		ts.Fatalf("usage: fakeapi deployed <region> <dockerfile|image>")
+func checkPlanned(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
+	if neg || len(args) != 2 {
+		ts.Fatalf("usage: fakeapi planned <loco.yaml>")
+	}
+	want := ts.ReadFile(args[1])
+	api.mu.Lock()
+	defer api.mu.Unlock()
+	if len(api.platform.planned) == 0 {
+		ts.Fatalf("fakeapi: Plan was not called")
+	}
+	got := string(api.platform.planned[len(api.platform.planned)-1])
+	if got != want {
+		ts.Fatalf("fakeapi: Plan received:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func checkApplied(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
+	if len(args) != 2 {
+		ts.Fatalf("usage: fakeapi applied <revision>")
+	}
+	revision, err := strconv.ParseInt(args[1], 10, 64)
+	if err != nil {
+		ts.Fatalf("fakeapi: %v", err)
 	}
 	api.mu.Lock()
 	defer api.mu.Unlock()
-	latestBuild := ""
-	if n := len(api.platform.builds); n > 0 {
-		latestBuild = api.platform.builds[n-1].GetId()
+	found := false
+	for _, apply := range api.platform.applies {
+		if apply.GetRevision() == revision {
+			found = true
+		}
 	}
-	for _, d := range api.platform.deployments {
-		build := d.GetSpec().GetService().GetBuild()
-		if d.GetRegion() != args[1] || build.GetType() != args[2] {
-			continue
-		}
-		if d.GetEnvironmentId() != fakeEnvironmentID {
-			ts.Fatalf("fakeapi: deployment to %s used environment %q", args[1], d.GetEnvironmentId())
-		}
-		if args[2] == "dockerfile" && build.GetBuildId() != latestBuild {
-			ts.Fatalf("fakeapi: deployment to %s used build %q, want %q", args[1], build.GetBuildId(), latestBuild)
+	if neg && found {
+		ts.Fatalf("fakeapi: an apply at revision %d went through", revision)
+	}
+	if !neg && !found {
+		ts.Fatalf("fakeapi: no apply at revision %d in %d applies", revision, len(api.platform.applies))
+	}
+}
+
+func checkProvisioned(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
+	if neg || len(args) < 2 {
+		ts.Fatalf("usage: fakeapi provisioned <revision> [service...]")
+	}
+	revision, err := strconv.ParseInt(args[1], 10, 64)
+	if err != nil {
+		ts.Fatalf("fakeapi: %v", err)
+	}
+	api.mu.Lock()
+	defer api.mu.Unlock()
+	index := slices.IndexFunc(api.platform.applies, func(apply *planv1.ApplyRequest) bool {
+		return apply.GetRevision() == revision
+	})
+	if index < 0 {
+		ts.Fatalf("fakeapi: no apply at revision %d in %d applies", revision, len(api.platform.applies))
+	}
+	got := api.platform.applies[index].GetProvision()
+	if want := args[2:]; !slices.Equal(got, want) {
+		ts.Fatalf("fakeapi: the apply at revision %d provisioned %v, want %v", revision, got, want)
+	}
+}
+
+func checkBuilt(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
+	if len(args) != 4 {
+		ts.Fatalf("usage: fakeapi built <service> <dockerfile> <context>")
+	}
+	api.mu.Lock()
+	defer api.mu.Unlock()
+	if len(api.platform.applies) == 0 {
+		ts.Fatalf("fakeapi: Apply was not called")
+	}
+	last := api.platform.applies[len(api.platform.applies)-1]
+	buildID, named := last.GetBuilds()[args[1]]
+	if neg {
+		if named {
+			ts.Fatalf("fakeapi: the last apply named build %s for %s", buildID, args[1])
 		}
 		return
 	}
-	ts.Fatalf("fakeapi: no %s deployment to %s in %d deployments", args[2], args[1], len(api.platform.deployments))
+	build := api.findBuild(buildID)
+	if !named || build == nil {
+		ts.Fatalf("fakeapi: the last apply named no build for %s: %v", args[1], last.GetBuilds())
+	}
+	if build.GetStatus() != buildv1.BuildStatus_BUILD_STATUS_SUCCEEDED ||
+		build.GetDockerfilePath() != args[2] || build.GetContext() != args[3] {
+		ts.Fatalf("fakeapi: %s deployed build %s (%s, %s/%s), want a succeeded build of %s/%s",
+			args[1], buildID, build.GetStatus(), build.GetContext(), build.GetDockerfilePath(), args[3], args[2])
+	}
 }
 
-func checkPinnedOnce(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
-	requireArgs(ts, neg, args, 1, "fakeapi pinned-once")
+func checkPartial(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
+	if neg || len(args) != 3 {
+		ts.Fatalf("usage: fakeapi partial <service> <partial>")
+	}
 	api.mu.Lock()
 	defer api.mu.Unlock()
-	pinned := api.platform.pinned
-	if len(pinned) < 2 {
-		ts.Fatalf("fakeapi: %d deployments, want at least 2", len(pinned))
-	}
-	for i, image := range pinned {
-		if image != pinned[0] {
-			ts.Fatalf("fakeapi: deployment %d runs %s, the first runs %s", i, image, pinned[0])
+	for _, res := range api.platform.resources {
+		if res.GetName() != args[1] {
+			continue
 		}
+		if res.GetPartial() != args[2] {
+			ts.Fatalf("fakeapi: %s is in partial %q, want %q", args[1], res.GetPartial(), args[2])
+		}
+		return
 	}
-	if api.platform.resolutions > 1 {
-		ts.Fatalf("fakeapi: the image tag was resolved %d times", api.platform.resolutions)
-	}
+	ts.Fatalf("fakeapi: no resource named %s", args[1])
 }
 
 func waitForCall(ts *testscript.TestScript, api *fakeAPI, method string) {

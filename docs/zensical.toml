@@ -16,7 +16,7 @@ nav = [
   ] },
   { "Deploy" = [
     { "Deployment modes" = "deployment/modes.md" },
-    { "Go infrastructure" = "deployment/go-infrastructure.md" },
+    { "loco.yaml" = "deployment/loco-yaml.md" },
     { "Environments" = "deployment/environments.md" },
   ] },
   { "Operate" = [
@@ -72,7 +72,7 @@ toggle = { icon = "lucide/moon", name = "Switch to light mode" }
 
 [project.plugins.llmstxt]
 full_output = "llms-full.txt"
-markdown_description = "Go infrastructure documentation describes the unreleased Go authoring workflow. Check the release notice before using those commands."
+markdown_description = "Deploy and operate applications on Kubernetes with Loco. The loco.yaml page documents the declarative deployment file."
 
 [project.plugins.llmstxt.sections]
 Overview = ["index.md"]

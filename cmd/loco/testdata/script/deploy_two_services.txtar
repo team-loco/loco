@@ -1,0 +1,77 @@
+# a new source service is provisioned by a first apply that creates only its resource, so it
+# can be built; the file is then applied with the build, which also creates and deploys the
+# image service. The archive is the whole repository and the build names the service's
+# context and dockerfile. Both applies carry the image digests the plan pinned.
+fakeapi plan plan.json
+cd repo
+exec loco deploy --yes --env production
+stdout '^  \+ web  \(needs deploy\)$'
+stdout '^  \+ worker$'
+stdout '^Created web before building\.$'
+! stdout 'revision is now 8'
+stdout '^Started deployment dep-worker for worker in us-east-1\.$'
+stdout '^Packed 4 files from \. \('
+stdout '^Building web from build/Dockerfile in api$'
+stdout '^Applied\. Environment revision is now 9\.$'
+stdout '^Started deployment dep-web for web in us-east-1\.$'
+fakeapi uploaded api/build/Dockerfile
+fakeapi uploaded api/main.go
+fakeapi uploaded worker/README
+fakeapi provisioned 7 web
+fakeapi provisioned 8
+fakeapi built web build/Dockerfile api
+fakeapi called GetResource 'Bearer test-token'
+
+# a service the file does not run in the environment cannot be named.
+! exec loco deploy cron --yes
+stderr 'does not run the service in this environment'
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.toml --
+currentScope = "default"
+
+[scopes.default.organization]
+name = "acme"
+id = "1"
+
+[scopes.default.workspace]
+name = "production"
+id = "2"
+-- repo/loco.yaml --
+version: 1
+partial: web
+services:
+  web:
+    dockerfile: build/Dockerfile
+    context: api
+    port: 8080
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+  worker:
+    image: ghcr.io/acme/worker:1
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+  cron:
+    image: ghcr.io/acme/cron:1
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+    environments:
+      production:
+        enabled: false
+-- repo/api/build/Dockerfile --
+FROM scratch
+COPY main.go /
+-- repo/api/main.go --
+package main
+-- repo/worker/README --
+prebuilt
+-- plan.json --
+{
+  "revision": "7",
+  "images": {"ghcr.io/acme/worker:1": "ghcr.io/acme/worker@sha256:2222222222222222222222222222222222222222222222222222222222222222"},
+  "operations": [
+    {"kind": "PLAN_OPERATION_KIND_CREATE", "service": "web", "needsDeploy": true},
+    {"kind": "PLAN_OPERATION_KIND_CREATE", "service": "worker"}
+  ]
+}

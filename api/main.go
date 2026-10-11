@@ -44,6 +44,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/event/v1/eventv1connect"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
+	planv1connect "github.com/team-loco/loco/gen/go/loco/plan/v1/planv1connect"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
@@ -259,6 +260,7 @@ func main() {
 	configServiceHandler := service.NewConfigServer(
 		ac.DefaultPlatformDomain,
 		ac.MinCLIVersion,
+		ac.SchemaURL,
 		ac.ServiceDefaults,
 		ac.AuthIssuers,
 	)
@@ -289,6 +291,8 @@ func main() {
 		observabilityAccessHandler,
 		httpInterceptors,
 	)
+	planServiceHandler := service.NewPlanServer(pool, queries, imageResolver, ac.RegistryHost, ac.ServiceDefaults)
+	planPath, planHandler := planv1connect.NewPlanServiceHandler(planServiceHandler, httpInterceptors)
 	environmentPath, environmentHandler := environmentv1connect.NewEnvironmentServiceHandler(
 		environmentServiceHandler,
 		httpInterceptors,
@@ -392,6 +396,8 @@ func main() {
 		environmentv1connect.EnvironmentServiceListEnvironmentsProcedure,
 		environmentv1connect.EnvironmentServiceUpdateEnvironmentProcedure,
 		environmentv1connect.EnvironmentServiceDeleteEnvironmentProcedure,
+		planv1connect.PlanServicePlanProcedure,
+		planv1connect.PlanServiceApplyProcedure,
 	)
 
 	// mount both old and new reflectors for backwards compatibility
@@ -413,6 +419,7 @@ func main() {
 	mux.Handle(agentPath, agentHandler)
 	mux.Handle(observabilityAccessPath, observabilityAccessH)
 	mux.Handle(environmentPath, environmentHandler)
+	mux.Handle(planPath, planHandler)
 
 	allowLoopback := ac.Env != envProduction
 	corsMiddleware := withCORS(ac.CORSAllowedOrigins, allowLoopback)

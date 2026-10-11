@@ -544,3 +544,26 @@ func TestSucceededBuildRequiresDigest(t *testing.T) {
 		t.Fatal("a succeeded build without an image digest was accepted")
 	}
 }
+
+func TestCreateBuildStoresTheContext(t *testing.T) {
+	f := newBuildFixture(t)
+
+	withoutContext := f.create(t, 1)
+	if got := f.get(t, withoutContext.GetBuildId()).GetContext(); got != defaultBuildContext {
+		t.Fatalf("context = %q, want %q when the request sets none", got, defaultBuildContext)
+	}
+
+	req := connect.NewRequest(&buildv1.CreateBuildRequest{
+		ResourceId:     f.resourceID.String(),
+		DockerfilePath: testDockerfile,
+		SourceSize:     1,
+		Context:        "services/web",
+	})
+	resp, err := f.server.CreateBuild(f.ctx, req)
+	if err != nil {
+		t.Fatalf("create build: %v", err)
+	}
+	if got := f.get(t, resp.Msg.GetBuildId()).GetContext(); got != "services/web" {
+		t.Fatalf("context = %q, want services/web", got)
+	}
+}

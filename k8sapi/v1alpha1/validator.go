@@ -32,6 +32,19 @@ var (
 	errResourcesMissing       = errors.New("serviceSpec.resources must be set")
 	errCPUMissing             = errors.New("cpu must be set")
 	errMemoryMissing          = errors.New("memory must be set")
+	errGraceNegative          = errors.New("healthCheck.startupGracePeriod cannot be negative")
+)
+
+const (
+	minServicePort         = 1024
+	maxServicePort         = 65535
+	maxEnvVars             = 100
+	maxStartupGracePeriod  = 180
+	minHealthInterval      = 5
+	minHealthTimeout       = 1
+	maxHealthTimeout       = 60
+	minHealthFailThreshold = 1
+	maxHealthFailThreshold = 10
 )
 
 var (
@@ -131,23 +144,33 @@ func validateServiceDeploymentSpec(spec *ServiceDeploymentSpec) error {
 		return fmt.Errorf("image %q must include a tag (e.g., :v1.0) or digest (e.g., @sha256:...)", spec.Image)
 	}
 
-	// Port validation (required)
-	if spec.Port < 1024 || spec.Port > 65535 {
-		return fmt.Errorf("port must be between 1024 and 65535, got %d", spec.Port)
+	if err := ValidatePort(spec.Port); err != nil {
+		return err
 	}
 
-	// HealthCheck validation (optional)
 	if spec.HealthCheck != nil {
-		if err := validateHealthCheckSpec(spec.HealthCheck); err != nil {
+		if err := spec.HealthCheck.Validate(); err != nil {
 			return err
 		}
 	}
 
-	// Env validation
-	if len(spec.Env) > 100 {
-		return fmt.Errorf("too many environment variables: %d (max 100)", len(spec.Env))
+	return ValidateEnv(spec.Env)
+}
+
+// ValidatePort checks the container port a service listens on.
+func ValidatePort(port int32) error {
+	if port < minServicePort || port > maxServicePort {
+		return fmt.Errorf("port must be between %d and %d, got %d", minServicePort, maxServicePort, port)
 	}
-	for name, value := range spec.Env {
+	return nil
+}
+
+// ValidateEnv checks the names, values and count of a service's environment variables.
+func ValidateEnv(env map[string]string) error {
+	if len(env) > maxEnvVars {
+		return fmt.Errorf("too many environment variables: %d (max %d)", len(env), maxEnvVars)
+	}
+	for name, value := range env {
 		if !envVarNamePattern.MatchString(name) {
 			return fmt.Errorf(
 				"invalid environment variable name %q "+
@@ -159,7 +182,6 @@ func validateServiceDeploymentSpec(spec *ServiceDeploymentSpec) error {
 			return fmt.Errorf("environment variable %q has empty value", name)
 		}
 	}
-
 	return nil
 }
 
@@ -205,13 +227,12 @@ func validateMemoryQuantity(memory string) error {
 	return nil
 }
 
-// validateHealthCheckSpec validates the HealthCheckSpec (optional)
-func validateHealthCheckSpec(spec *HealthCheckSpec) error {
+// Validate checks a health check's path and timings.
+func (spec *HealthCheckSpec) Validate() error {
 	if spec == nil {
-		return nil // optional
+		return nil
 	}
 
-	// Path validation
 	if spec.Path == "" {
 		return errHealthPathMissing
 	}
@@ -219,31 +240,37 @@ func validateHealthCheckSpec(spec *HealthCheckSpec) error {
 		return errHealthPathNoSlash
 	}
 
-	// Startup grace period (max 3 minutes = 180 seconds)
-	if spec.StartupGracePeriod > 180 {
+	if spec.StartupGracePeriod < 0 {
+		return errGraceNegative
+	}
+	if spec.StartupGracePeriod > maxStartupGracePeriod {
 		return fmt.Errorf(
-			"healthCheck.startupGracePeriod cannot exceed 180 seconds (3 minutes), got %d",
+			"healthCheck.startupGracePeriod cannot exceed %d seconds, got %d",
+			maxStartupGracePeriod,
 			spec.StartupGracePeriod,
 		)
 	}
 
-	// Interval (min 5 seconds)
-	if spec.Interval < 5 {
-		return fmt.Errorf("healthCheck.interval must be at least 5 seconds, got %d", spec.Interval)
+	if spec.Interval < minHealthInterval {
+		return fmt.Errorf("healthCheck.interval must be at least %d seconds, got %d", minHealthInterval, spec.Interval)
 	}
 
-	if spec.Timeout < 1 {
-		return fmt.Errorf("healthCheck.timeout must be at least 1 second, got %d", spec.Timeout)
+	if spec.Timeout < minHealthTimeout || spec.Timeout > maxHealthTimeout {
+		return fmt.Errorf(
+			"healthCheck.timeout must be between %d and %d seconds, got %d",
+			minHealthTimeout,
+			maxHealthTimeout,
+			spec.Timeout,
+		)
 	}
 
-	// Timeout (max 1 minute = 60 seconds)
-	if spec.Timeout > 60 {
-		return fmt.Errorf("healthCheck.timeout cannot exceed 60 seconds, got %d", spec.Timeout)
-	}
-
-	// FailThreshold (1-10)
-	if spec.FailThreshold < 1 || spec.FailThreshold > 10 {
-		return fmt.Errorf("healthCheck.failThreshold must be between 1 and 10, got %d", spec.FailThreshold)
+	if spec.FailThreshold < minHealthFailThreshold || spec.FailThreshold > maxHealthFailThreshold {
+		return fmt.Errorf(
+			"healthCheck.failThreshold must be between %d and %d, got %d",
+			minHealthFailThreshold,
+			maxHealthFailThreshold,
+			spec.FailThreshold,
+		)
 	}
 
 	return nil
@@ -342,13 +369,16 @@ func validateRoutingSpec(spec *RoutingSpec) error {
 		return errHostnameMissing
 	}
 
-	if !strings.HasPrefix(spec.PathPrefix, "/") {
+	return ValidateRoute(spec.PathPrefix, spec.IdleTimeout)
+}
+
+// ValidateRoute checks the path prefix and idle timeout of a service's HTTP route.
+func ValidateRoute(pathPrefix string, idleTimeout int32) error {
+	if !strings.HasPrefix(pathPrefix, "/") {
 		return errPathPrefixNoSlash
 	}
-
-	if spec.IdleTimeout < 1 {
+	if idleTimeout < 1 {
 		return errIdleTimeoutNotPositive
 	}
-
 	return nil
 }

@@ -41,6 +41,7 @@ func testBuild(name string) *locov1alpha1.Build {
 			ResourceID:      "res-1",
 			SourceURL:       "https://bucket.example.com/sources/" + name + ".tar.gz?X-Amz-Signature=abc",
 			DockerfilePath:  "deploy/Dockerfile.prod",
+			Context:         ".",
 			ImageRepository: testBuildRepository,
 			CacheRef:        testBuildRepository + "@" + testCacheDigest,
 		},
@@ -213,6 +214,10 @@ var _ = Describe("Build reconcile", Ordered, func() {
 		build.Spec.CacheRef = testBuildRepository + ":latest"
 		Expect(k8sClient.Create(ctx, build)).NotTo(Succeed())
 
+		build = testBuild("context-outside")
+		build.Spec.Context = "../services"
+		Expect(k8sClient.Create(ctx, build)).NotTo(Succeed())
+
 		build = testBuild("immutable")
 		Expect(k8sClient.Create(ctx, build)).To(Succeed())
 		build.Spec.DockerfilePath = "Dockerfile"
@@ -283,10 +288,19 @@ var _ = Describe("Build reconcile", Ordered, func() {
 			Expect(m.ReadOnly).To(BeTrue(), m.Name)
 		}
 
+		Expect(fetch.Args).To(ContainElement("--dockerfile=deploy/Dockerfile.prod"))
 		Expect(buildkit.Args).To(ContainElements(
 			"--local=dockerfile=/workspace/deploy",
 			"--opt=filename=Dockerfile.prod",
 			"--local=context=/workspace",
+		))
+
+		nested := testBuild("nested-context")
+		nested.Spec.Context = "services/api"
+		Expect(r.fetchContainer(nested).Args).To(ContainElement("--dockerfile=services/api/deploy/Dockerfile.prod"))
+		Expect(r.buildkitContainer(nested).Args).To(ContainElements(
+			"--local=dockerfile=/workspace/services/api/deploy",
+			"--local=context=/workspace/services/api",
 		))
 		Expect(buildkit.Env).To(ContainElement(corev1.EnvVar{Name: "BUILDKITD_FLAGS", Value: buildkitFlags}))
 		Expect(buildkit.SecurityContext.RunAsUser).To(HaveValue(Equal(buildUser)))

@@ -1,0 +1,64 @@
+# an unknown environment is an error before the API plans anything.
+! exec loco infra plan --env staging
+stderr '(?i)environment "staging" not found; the workspace has production'
+! fakeapi called Plan
+
+# an invalid or missing file is an error before the API is called.
+! exec loco infra plan broken.yaml
+stderr '(?i)invalid broken.yaml'
+! exec loco infra plan missing.yaml
+stderr '(?i)read missing.yaml'
+! fakeapi called Plan
+
+# plan errors from the API are printed and the command exits 1.
+fakeapi plan errors.json
+! exec loco infra plan
+stderr '(?i)loco.yaml cannot be applied:'
+stderr '  web regions.us-west-9: region us-west-9 is not available'
+stderr '  db: service db belongs to partial platform'
+stderr '  environments: environment staging does not exist'
+stderr 'the plan has errors'
+fakeapi called Plan 'Bearer test-token'
+
+# with --json the errors are in the output and the exit status is still 1.
+! exec loco infra plan --json
+! stderr .
+stdout '"message":\s+"region us-west-9 is not available"'
+
+# an API failure is an error.
+fakeapi fail Plan permission_denied
+! exec loco infra plan
+stderr '(?i)plan: fakeapi: Plan configured to fail'
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.toml --
+currentScope = "default"
+
+[scopes.default.organization]
+name = "acme"
+id = "1"
+
+[scopes.default.workspace]
+name = "production"
+id = "2"
+-- errors.json --
+{
+  "revision": "7",
+  "errors": [
+    {"service": "web", "path": "regions.us-west-9", "message": "region us-west-9 is not available"},
+    {"service": "db", "message": "service db belongs to partial platform"},
+    {"path": "environments", "message": "environment staging does not exist"}
+  ]
+}
+-- loco.yaml --
+version: 1
+partial: web
+services:
+  web:
+    image: ghcr.io/acme/web:1
+    regions:
+      us-west-9: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+-- broken.yaml --
+version: 1
+services: []

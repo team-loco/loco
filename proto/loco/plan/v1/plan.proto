@@ -1,0 +1,159 @@
+syntax = "proto3";
+
+package loco.plan.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/team-loco/loco/gen/go/loco/plan/v1;planv1";
+
+// PlanService diffs a loco.yaml file against an environment.
+service PlanService {
+  // Plan returns the operations an apply would perform. It writes nothing.
+  rpc Plan(PlanRequest) returns (PlanResponse);
+  // Apply re-plans the file against the environment and performs the operations in one
+  // transaction. It fails with FAILED_PRECONDITION when the environment revision differs from
+  // the one the plan was computed against, when the plan has errors, or when a destructive or
+  // import operation lacks its confirmation, or when a provision name is not a source service
+  // the plan creates; the error carries an ApplyRefusal detail.
+  rpc Apply(ApplyRequest) returns (ApplyResponse);
+}
+
+message ApplyRequest {
+  bytes file = 1 [(buf.validate.field).bytes = {
+    min_len: 1
+    max_len: 1048576
+  }];
+  string environment_id = 2 [(buf.validate.field).string.uuid = true];
+  // revision is the environment revision the plan was computed against.
+  int64 revision = 3;
+  // confirm_destructive approves the plan's destructive operations: deleting a service this file
+  // owns and no longer declares, removing a region where a service is running, and stopping a
+  // running service that the file disables in this environment. Apply refuses a plan with
+  // destructive operations unless it is set.
+  bool confirm_destructive = 4;
+  // confirm_import approves the plan's import operations: existing services in the environment
+  // that no loco.yaml owns yet and that this file takes over. Apply refuses a plan with imports
+  // unless it is set.
+  bool confirm_import = 5;
+  // images is the images map of the PlanResponse the apply carries out: every image reference
+  // of the file and the digest-pinned reference the plan resolved it to. The apply resolves
+  // the references again and refuses when one is missing here or resolves to another digest.
+  map<string, string> images = 6 [(buf.validate.field).map.max_pairs = 100];
+  // builds maps a source service of the file to the id of a succeeded build of it. The apply
+  // deploys the service from that build's image, whether or not the plan lists an operation
+  // for it.
+  map<string, string> builds = 7 [(buf.validate.field).map = {
+    max_pairs: 100
+    keys: {
+      string: {
+        min_len: 1
+        max_len: 63
+      }
+    }
+    values: {
+      string: {uuid: true}
+    }
+  }];
+  // provision names source services the plan creates. When it is set, the apply creates only
+  // those services' resources, without deployments, and performs no other operation of the
+  // plan, so the services can be built before the file is applied with their builds. A request
+  // sets provision or builds, not both.
+  repeated string provision = 8 [(buf.validate.field).repeated = {
+    max_items: 100
+    unique: true
+    items: {
+      string: {
+        min_len: 1
+        max_len: 63
+      }
+    }
+  }];
+}
+
+message ApplyResponse {
+  // revision is the environment revision after the apply.
+  int64 revision = 1;
+  // operations are the operations performed, in service name order.
+  repeated PlanOperation operations = 2;
+  // deployments are the deployments the apply started, one per service and region.
+  repeated StartedDeployment deployments = 3;
+}
+
+// StartedDeployment is a deployment an apply created for a runtime change.
+message StartedDeployment {
+  string service = 1;
+  string region = 2;
+  string deployment_id = 3;
+}
+
+// ApplyRefusal is the detail of a FAILED_PRECONDITION error from Apply.
+message ApplyRefusal {
+  // errors are the plan errors that stop the apply.
+  repeated PlanError errors = 1;
+  // unconfirmed are the operations whose confirmation the request did not give.
+  repeated PlanOperation unconfirmed = 2;
+  // revision is the environment's current revision when it differs from the request's.
+  int64 revision = 3;
+  // images is what the image references resolve to now, when it differs from the request's.
+  map<string, string> images = 4;
+}
+
+message PlanRequest {
+  // file is the loco.yaml document.
+  bytes file = 1 [(buf.validate.field).bytes = {
+    min_len: 1
+    max_len: 1048576
+  }];
+  string environment_id = 2 [(buf.validate.field).string.uuid = true];
+}
+
+message PlanResponse {
+  // revision is the environment revision the plan was computed against.
+  int64 revision = 1;
+  // operations lists every service the apply would change; services that match the file are
+  // not listed.
+  repeated PlanOperation operations = 2;
+  // errors are every reason the plan cannot be applied. operations is empty when errors is not.
+  repeated PlanError errors = 3;
+  // images maps every image reference of the file that resolved to the digest-pinned reference
+  // the plan uses. An ApplyRequest carries it back so the apply deploys the digests reviewed.
+  map<string, string> images = 4;
+}
+
+enum PlanOperationKind {
+  PLAN_OPERATION_KIND_UNSPECIFIED = 0;
+  // the service is in the file and not in the environment
+  PLAN_OPERATION_KIND_CREATE = 1;
+  // the service is owned by the file's partial and differs from the file
+  PLAN_OPERATION_KIND_UPDATE = 2;
+  // the service is owned by the file's partial and absent from the file
+  PLAN_OPERATION_KIND_DELETE = 3;
+  // the service exists with no partial and the file names it
+  PLAN_OPERATION_KIND_IMPORT = 4;
+}
+
+message PlanOperation {
+  PlanOperationKind kind = 1;
+  string service = 2;
+  repeated FieldChange changes = 3;
+  // destructive operations remove a service or data and need --confirm-destructive on apply.
+  bool destructive = 4;
+  // needs_deploy marks a source service with no build: apply cannot start it until loco deploy runs.
+  bool needs_deploy = 5;
+}
+
+// FieldChange is one field the apply would change. Secret values never appear here.
+message FieldChange {
+  // path is the field in loco.yaml form, such as regions.us-east-1.cpu or env.LOG_LEVEL.
+  string path = 1;
+  string before = 2;
+  string after = 3;
+}
+
+message PlanError {
+  // service is empty for errors that apply to the whole file.
+  string service = 1;
+  // path is the field the error is about, empty when it is about the whole service or file.
+  string path = 2;
+  string message = 3;
+}

@@ -114,6 +114,8 @@ WHERE id = $1`, previous, testImageDigest, testCacheDigest); err != nil {
 		t.Fatalf("source url %q does not reference %q", start.GetSourceUrl(), key)
 	case start.GetDockerfilePath() != testDockerfile:
 		t.Fatalf("dockerfile path = %q", start.GetDockerfilePath())
+	case start.GetContext() != build.GetContext():
+		t.Fatalf("context = %q, want %q", start.GetContext(), build.GetContext())
 	case start.GetImageRepository() != build.GetImageRepository():
 		t.Fatalf("image repository = %q, want %q", start.GetImageRepository(), build.GetImageRepository())
 	case start.GetCacheRef() != wantCache:

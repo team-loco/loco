@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"syscall"
@@ -32,59 +31,55 @@ var (
 	s3ErrorCode          = regexp.MustCompile(`<Code>([^<]+)</Code>`)
 )
 
-type sourceBuilder struct {
+// SourceBuilder builds an uploaded source archive on Loco and follows the build to its end.
+type SourceBuilder struct {
 	follower *buildFollower
 }
 
-func (b *sourceBuilder) authorize(req connect.AnyRequest) {
+// NewSourceBuilder returns a builder that talks to the API at host as the token's user and
+// prints the build's progress and logs to out.
+func NewSourceBuilder(host, token string, out io.Writer) *SourceBuilder {
+	return &SourceBuilder{follower: &buildFollower{
+		clients: defaultPlatformClients(),
+		host:    host,
+		token:   token,
+		out:     &syncWriter{out: out},
+	}}
+}
+
+// BuildInput names what one build of a service compiles: the service's resource, the archive
+// to upload, and the Dockerfile relative to the context directory of the archive.
+type BuildInput struct {
+	ResourceID  string
+	WorkspaceID string
+	Archive     *sourcepack.Archive
+	Dockerfile  string
+	Context     string
+}
+
+func (b *SourceBuilder) authorize(req connect.AnyRequest) {
 	authorization := authHeaderFor(b.follower.token)
 	req.Header().Set("Authorization", authorization)
 }
 
-func dockerfileInContext(projectPath, dockerfilePath string) (string, error) {
-	if dockerfilePath == "" {
-		dockerfilePath = "Dockerfile"
-	}
-	if !filepath.IsAbs(dockerfilePath) {
-		cleaned := filepath.Clean(dockerfilePath)
-		return filepath.ToSlash(cleaned), nil
-	}
-	parentPrefix := ".." + string(filepath.Separator)
-	rel, err := filepath.Rel(projectPath, dockerfilePath)
-	if err != nil || rel == ".." || strings.HasPrefix(rel, parentPrefix) {
-		return "", fmt.Errorf("the Dockerfile %s is outside the build context %s", dockerfilePath, projectPath)
-	}
-	return filepath.ToSlash(rel), nil
+// PackedArchive prints what an archive holds, as the deploy reports it before the first build.
+func PackedArchive(out io.Writer, archive *sourcepack.Archive, dir string) {
+	packedSize := formatBytes(archive.Size)
+	fmt.Fprintf(out, "Packed %d files from %s (%s compressed)\n", archive.Files, dir, packedSize)
 }
 
-func (b *sourceBuilder) build(
-	ctx context.Context,
-	resourceID string,
-	workspaceID string,
-	contextDir string,
-	dockerfile string,
-) (*buildv1.Build, error) {
+// Build creates a build from the input, uploads its archive, starts the build and follows it.
+// It returns the build once it succeeded, and an error naming the build when it did not.
+func (b *SourceBuilder) Build(ctx context.Context, in BuildInput) (*buildv1.Build, error) {
 	out := b.follower.out
-	archive, err := sourcepack.Pack(contextDir, dockerfile)
-	if err != nil {
-		return nil, fmt.Errorf("pack the build context: %w", err)
-	}
-	defer func() {
-		if removeErr := archive.Remove(); removeErr != nil {
-			out.printf("Could not remove %s: %v\n", archive.Path, removeErr)
-		}
-	}()
-	packedSize := formatBytes(archive.Size)
-	out.printf("Packed %d files from %s (%s compressed)\n", archive.Files, contextDir, packedSize)
-
-	created, err := b.createBuild(ctx, resourceID, dockerfile, archive)
+	created, err := b.createBuild(ctx, in)
 	if err != nil {
 		return nil, err
 	}
 	buildID := created.GetBuildId()
 	out.printf("Uploading the source for build %s\n", buildID)
 	uploadURL := created.GetUploadUrl()
-	if uploadErr := b.upload(ctx, uploadURL, archive); uploadErr != nil {
+	if uploadErr := b.upload(ctx, uploadURL, in.Archive); uploadErr != nil {
 		return nil, uploadErr
 	}
 
@@ -100,7 +95,7 @@ func (b *sourceBuilder) build(
 	}
 
 	queued := started.Msg.GetBuild()
-	build, err := b.follower.follow(ctx, queued, workspaceID)
+	build, err := b.follower.follow(ctx, queued, in.WorkspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -111,16 +106,12 @@ func (b *sourceBuilder) build(
 	return build, nil
 }
 
-func (b *sourceBuilder) createBuild(
-	ctx context.Context,
-	resourceID string,
-	dockerfile string,
-	archive *sourcepack.Archive,
-) (*buildv1.CreateBuildResponse, error) {
+func (b *SourceBuilder) createBuild(ctx context.Context, in BuildInput) (*buildv1.CreateBuildResponse, error) {
 	req := connect.NewRequest(&buildv1.CreateBuildRequest{
-		ResourceId:     resourceID,
-		DockerfilePath: dockerfile,
-		SourceSize:     archive.Size,
+		ResourceId:     in.ResourceID,
+		DockerfilePath: in.Dockerfile,
+		SourceSize:     in.Archive.Size,
+		Context:        in.Context,
 	})
 	b.authorize(req)
 	client := b.follower.clients.Builds(b.follower.host)
@@ -129,7 +120,7 @@ func (b *sourceBuilder) createBuild(
 		return nil, unavailable
 	}
 	if connect.CodeOf(err) == connect.CodeInvalidArgument {
-		return nil, b.sourceRefused(archive, err)
+		return nil, b.sourceRefused(in.Archive, err)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("create build: %w", err)
@@ -150,7 +141,7 @@ func buildsUnavailable(err error) error {
 		if _, isUnavailable := value.(*buildv1.BuildsUnavailable); isUnavailable {
 			reason := connectErr.Message()
 			return fmt.Errorf(
-				"%w: %s. Deploy a prebuilt public image instead: loco deploy <name> --image <image>",
+				"%w: %s. Set image on the service in loco.yaml to deploy a prebuilt public image instead",
 				errBuildsUnavailable,
 				reason,
 			)
@@ -159,7 +150,7 @@ func buildsUnavailable(err error) error {
 	return nil
 }
 
-func (b *sourceBuilder) sourceRefused(archive *sourcepack.Archive, err error) error {
+func (b *SourceBuilder) sourceRefused(archive *sourcepack.Archive, err error) error {
 	message := err.Error()
 	if connectErr, ok := errors.AsType[*connect.Error](err); ok {
 		message = connectErr.Message()
@@ -179,7 +170,7 @@ func (b *sourceBuilder) sourceRefused(archive *sourcepack.Archive, err error) er
 	return fmt.Errorf("the API refused the %s source archive: %s", archiveSize, message)
 }
 
-func (b *sourceBuilder) upload(ctx context.Context, url string, archive *sourcepack.Archive) error {
+func (b *SourceBuilder) upload(ctx context.Context, url string, archive *sourcepack.Archive) error {
 	f, err := os.Open(archive.Path)
 	if err != nil {
 		return fmt.Errorf("open the source archive: %w", err)

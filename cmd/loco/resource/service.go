@@ -12,9 +12,7 @@ func BuildResourceCmd() *cobra.Command {
 		Long:  "Commands for deploying, scaling, and managing resources on Loco.",
 	}
 
-	// Add subcommands
 	cmd.AddCommand(
-		BuildDeployCmd(),
 		buildScaleCmd(),
 		buildStatusCmd(),
 		buildLogsCmd(),

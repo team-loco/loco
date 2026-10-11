@@ -61,6 +61,7 @@ CREATE TABLE
             environment_type IN ('dev', 'staging', 'production')
         ),
         created_by UUID NOT NULL REFERENCES users (id),
+        revision BIGINT NOT NULL DEFAULT 0,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         UNIQUE (workspace_id, name)
@@ -129,6 +130,7 @@ CREATE TABLE
         status resource_status NOT NULL,
         spec JSONB NOT NULL,
         spec_version INT NOT NULL,
+        partial TEXT CHECK (partial ~ '^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$'),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         UNIQUE (workspace_id, name)
@@ -161,6 +163,7 @@ CREATE TABLE
     resource_domains (
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
         resource_id UUID NOT NULL REFERENCES resources (id) ON DELETE CASCADE,
+        environment_id UUID NOT NULL REFERENCES environments (id) ON DELETE CASCADE,
         domain TEXT NOT NULL UNIQUE,
         domain_source domain_source NOT NULL,
         subdomain_label TEXT,
@@ -184,8 +187,10 @@ CREATE TABLE
 
 CREATE INDEX IF NOT EXISTS idx_resource_domains_resource_id_primary_created ON resource_domains (resource_id, is_primary DESC, created_at ASC);
 
--- Enforce max 1 primary domain per resource
-CREATE UNIQUE INDEX uniq_resource_primary_domain ON resource_domains (resource_id)
+CREATE INDEX idx_resource_domains_environment_id ON resource_domains (environment_id);
+
+-- Enforce max 1 primary domain per resource in each environment
+CREATE UNIQUE INDEX uniq_resource_primary_domain ON resource_domains (resource_id, environment_id)
 WHERE
     is_primary = true;
 
@@ -209,6 +214,7 @@ CREATE TABLE
         environment_id UUID NOT NULL REFERENCES environments (id),
         spec JSONB NOT NULL,
         spec_version INT NOT NULL,
+        secret_names TEXT[] NOT NULL DEFAULT '{}',
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         started_at TIMESTAMPTZ NOT NULL,
         completed_at TIMESTAMPTZ,
@@ -221,7 +227,7 @@ CREATE INDEX idx_deployments_cluster_id ON deployments (cluster_id);
 
 CREATE INDEX idx_deployments_region ON deployments (region);
 
-CREATE UNIQUE INDEX uniq_deployments_resource_region_active ON deployments (resource_id, region)
+CREATE UNIQUE INDEX uniq_deployments_resource_region_active ON deployments (resource_id, environment_id, region)
 WHERE
     is_active = true;
 
@@ -238,6 +244,8 @@ CREATE TABLE
         cluster_id UUID NOT NULL REFERENCES clusters (id) ON DELETE CASCADE,
         region TEXT NOT NULL,
         deployment_id UUID REFERENCES deployments (id) ON DELETE SET NULL,
+        environment_id UUID NOT NULL REFERENCES environments (id),
+        secret_names TEXT[] NOT NULL DEFAULT '{}',
         desired_revision BIGINT NOT NULL DEFAULT 1 CHECK (desired_revision > 0),
         desired_spec JSONB,
         desired_deleted BOOLEAN NOT NULL DEFAULT false,
@@ -274,6 +282,7 @@ CREATE TABLE
         source_key TEXT NOT NULL UNIQUE,
         source_size BIGINT NOT NULL,
         dockerfile_path TEXT NOT NULL,
+        context TEXT NOT NULL DEFAULT '.',
         image_repository TEXT NOT NULL,
         image_digest TEXT,
         cache_digest TEXT,

@@ -69,6 +69,8 @@ service ResourceService {
   rpc ScaleResource(ScaleResourceRequest) returns (ScaleResourceResponse);
   // UpdateResourceEnv updates environment variables for a resource.
   rpc UpdateResourceEnv(UpdateResourceEnvRequest) returns (UpdateResourceEnvResponse);
+  // TransferPartial moves a resource to another partial.
+  rpc TransferPartial(TransferPartialRequest) returns (TransferPartialResponse);
 }
 
 // RoutingConfig defines routing configuration for a resource.
@@ -174,6 +176,7 @@ message Resource {
   google.protobuf.Timestamp updated_at = 13;
   reserved 14;
   reserved "environment_id";
+  optional string partial = 15;
 }
 
 // RegionConfig represents a region deployment intent for a resource.
@@ -344,3 +347,16 @@ message UpdateResourceEnvRequest {
 
 // UpdateResourceEnvResponse is the response after updating resource environment variables.
 message UpdateResourceEnvResponse {}
+
+// TransferPartialRequest is the request to move a resource to another partial.
+message TransferPartialRequest {
+  string resource_id = 1 [(buf.validate.field).string.uuid = true];
+  string partial = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 63
+    pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+  }];
+}
+
+// TransferPartialResponse is the response after moving a resource to another partial.
+message TransferPartialResponse {}

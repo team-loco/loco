@@ -23,10 +23,11 @@ import (
 )
 
 var (
-	ErrPlatformDomainNotFound = errors.New("platform domain not found")
-	ErrPlatformDomainUpdate   = errors.New("failed to update platform domain")
-	ErrDomainAlreadyExists    = errors.New("domain already exists")
-	ErrCannotRemovePrimary    = errors.New("make another domain primary before removing the primary domain")
+	ErrPlatformDomainNotFound  = errors.New("platform domain not found")
+	ErrPlatformDomainUpdate    = errors.New("failed to update platform domain")
+	ErrDomainAlreadyExists     = errors.New("domain already exists")
+	ErrCannotRemovePrimary     = errors.New("make another domain primary before removing the primary domain")
+	errNoProductionEnvironment = errors.New("the workspace has no production environment to hold the domain")
 )
 
 type DomainServer struct {
@@ -352,12 +353,20 @@ func (s *DomainServer) CreateResourceDomain(
 		if lockErr := lockResourceDomains(ctx, qtx, resourceID); lockErr != nil {
 			return lockErr
 		}
-		hasPrimary, primaryErr := qtx.ResourceHasPrimaryDomain(ctx, resourceID)
+		environmentID, envErr := imperativeDomainEnvironment(ctx, qtx, resourceID)
+		if envErr != nil {
+			return envErr
+		}
+		hasPrimary, primaryErr := qtx.ResourceHasPrimaryDomain(ctx, genDb.ResourceHasPrimaryDomainParams{
+			ResourceID:    resourceID,
+			EnvironmentID: environmentID,
+		})
 		if primaryErr != nil {
 			return fmt.Errorf("check primary domain: %w", primaryErr)
 		}
 		created, createErr := qtx.CreateResourceDomain(ctx, genDb.CreateResourceDomainParams{
 			ResourceID:       resourceID,
+			EnvironmentID:    environmentID,
 			Domain:           fullDomain,
 			DomainSource:     domainSource,
 			SubdomainLabel:   subdomainLabel,
@@ -368,6 +377,9 @@ func (s *DomainServer) CreateResourceDomain(
 			return createErr
 		}
 		resourceDomain = created
+		if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
+			return bumpErr
+		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.DomainCreated,
 			ResourceID:  new(resourceID),
@@ -378,6 +390,9 @@ func (s *DomainServer) CreateResourceDomain(
 	})
 	if errors.Is(err, ErrResourceNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
+	}
+	if errors.Is(err, errNoProductionEnvironment) {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errNoProductionEnvironment)
 	}
 	if isPgConstraintViolation(err) {
 		return nil, connect.NewError(connect.CodeAlreadyExists, ErrDomainAlreadyExists)
@@ -443,6 +458,9 @@ func (s *DomainServer) UpdateResourceDomain(
 	}
 
 	txErr := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if lockErr := lockResourceEnvironments(ctx, qtx, domainRow.ResourceID); lockErr != nil {
+			return lockErr
+		}
 		if changed {
 			_, updateErr := qtx.UpdateResourceDomain(ctx, genDb.UpdateResourceDomainParams{
 				ID:             domainID,
@@ -454,6 +472,9 @@ func (s *DomainServer) UpdateResourceDomain(
 			}
 			if updateErr != nil {
 				return updateErr
+			}
+			if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, domainRow.ResourceID); bumpErr != nil {
+				return bumpErr
 			}
 		}
 		return events.Record(ctx, qtx, events.Event{
@@ -546,14 +567,28 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	if clearErr := qtx.UpdateResourceDomainPrimary(ctx, resourceID); clearErr != nil {
+	domainRow, err := qtx.GetResourceDomainByID(ctx, domainID)
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && domainRow.ResourceID != resourceID) {
+		return nil, connect.NewError(connect.CodeNotFound, ErrDomainNotFound)
+	}
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get domain", "domainId", domainID, "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
+	clearParams := genDb.UpdateResourceDomainPrimaryParams{
+		ResourceID:    resourceID,
+		EnvironmentID: domainRow.EnvironmentID,
+	}
+	if clearErr := qtx.UpdateResourceDomainPrimary(ctx, clearParams); clearErr != nil {
 		slog.ErrorContext(ctx, "failed to clear primary domain", "resourceId", resourceID, "error", clearErr)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	_, err = qtx.SetResourceDomainPrimary(ctx, genDb.SetResourceDomainPrimaryParams{
-		ID:         domainID,
-		ResourceID: resourceID,
+		ID:            domainID,
+		ResourceID:    resourceID,
+		EnvironmentID: domainRow.EnvironmentID,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, connect.NewError(connect.CodeNotFound, ErrDomainNotFound)
@@ -563,12 +598,17 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	if err := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); err != nil {
+		slog.ErrorContext(ctx, "failed to bump environment revisions", "resourceId", resourceID, "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
 	if err := events.Record(ctx, qtx, events.Event{
 		Type:        events.DomainUpdated,
 		ResourceID:  new(resourceID),
 		SubjectType: events.SubjectDomain,
 		SubjectID:   new(domainID),
-		Data:        map[string]any{"primary": true},
+		Data:        map[string]any{events.FieldPrimary: true},
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to record primary domain change", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
@@ -625,7 +665,10 @@ func (s *DomainServer) DeleteResourceDomain(
 			return fmt.Errorf("get domain: %w", getErr)
 		}
 		if current.IsPrimary {
-			count, countErr := qtx.GetResourceDomainCount(ctx, current.ResourceID)
+			count, countErr := qtx.GetResourceDomainCount(ctx, genDb.GetResourceDomainCountParams{
+				ResourceID:    current.ResourceID,
+				EnvironmentID: current.EnvironmentID,
+			})
 			if countErr != nil {
 				return fmt.Errorf("count resource domains: %w", countErr)
 			}
@@ -635,6 +678,9 @@ func (s *DomainServer) DeleteResourceDomain(
 		}
 		if deleteErr := qtx.DeleteResourceDomain(ctx, domainID); deleteErr != nil {
 			return deleteErr
+		}
+		if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, current.ResourceID); bumpErr != nil {
+			return bumpErr
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.DomainDeleted,
@@ -677,13 +723,34 @@ func (s *DomainServer) CheckDomainAvailability(
 	}, nil
 }
 
-func lockResourceDomains(ctx context.Context, qtx *genDb.Queries, resourceID uuid.UUID) error {
-	_, err := qtx.LockResource(ctx, resourceID)
+// imperativeDomainEnvironment is the environment a domain added through the domain or resource
+// RPCs belongs to: the oldest production environment of the resource's workspace. Those RPCs
+// carry no environment; loco.yaml applies place domains in the environment they target.
+func imperativeDomainEnvironment(ctx context.Context, q genDb.Querier, resourceID uuid.UUID) (uuid.UUID, error) {
+	workspaceID, err := q.GetResourceWorkspaceID(ctx, resourceID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrResourceNotFound
+		return uuid.UUID{}, ErrResourceNotFound
 	}
 	if err != nil {
-		return fmt.Errorf("lock resource: %w", err)
+		return uuid.UUID{}, fmt.Errorf("get resource workspace: %w", err)
 	}
-	return nil
+	return workspaceProductionEnvironment(ctx, q, workspaceID)
+}
+
+func workspaceProductionEnvironment(ctx context.Context, q genDb.Querier, workspaceID uuid.UUID) (uuid.UUID, error) {
+	env, err := q.GetWorkspaceProductionEnvironment(ctx, workspaceID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return uuid.UUID{}, errNoProductionEnvironment
+	}
+	if err != nil {
+		return uuid.UUID{}, fmt.Errorf("get production environment: %w", err)
+	}
+	return env.ID, nil
+}
+
+func lockResourceDomains(ctx context.Context, qtx *genDb.Queries, resourceID uuid.UUID) error {
+	if err := lockResourceEnvironments(ctx, qtx, resourceID); err != nil {
+		return err
+	}
+	return lockResource(ctx, qtx, resourceID)
 }

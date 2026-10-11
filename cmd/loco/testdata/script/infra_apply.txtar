@@ -1,0 +1,55 @@
+# apply plans, prints the plan, sends Apply with the plan's revision and resolved images, and
+# prints the deployments the apply started.
+fakeapi plan plan.json
+exec loco infra apply --yes --confirm-destructive --confirm-import
+stdout '^Plan for loco.yaml against environment revision 7\.$'
+stdout '^  \+ api$'
+stdout '^  - worker  \(destructive\)$'
+stdout '^Applied\. Environment revision is now 8\.$'
+stdout '^Started deployment dep-api for api in us-east-1\.$'
+stdout '^Started deployment dep-db for db in us-east-1\.$'
+! stdout 'dep-worker'
+! stdout 'dep-web'
+! stdout '\x1b\['
+fakeapi called Apply 'Bearer test-token'
+fakeapi applied 7
+
+# a plan without changes applies nothing.
+fakeapi plan empty.json
+exec loco infra apply --yes
+stdout '^No changes. Environment revision 9 matches loco.yaml\.$'
+! fakeapi applied 9
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.toml --
+currentScope = "default"
+
+[scopes.default.organization]
+name = "acme"
+id = "1"
+
+[scopes.default.workspace]
+name = "production"
+id = "2"
+-- plan.json --
+{
+  "revision": "7",
+  "images": {"ghcr.io/acme/api:1": "ghcr.io/acme/api@sha256:7781a08afca1adb11b6294ca81ee6e04f9fc677f4f04c9d9daf2b0e068f5e89a"},
+  "operations": [
+    {"kind": "PLAN_OPERATION_KIND_CREATE", "service": "api", "changes": [{"path": "image", "after": "ghcr.io/acme/api:1"}]},
+    {"kind": "PLAN_OPERATION_KIND_UPDATE", "service": "web", "needsDeploy": true},
+    {"kind": "PLAN_OPERATION_KIND_DELETE", "service": "worker", "destructive": true},
+    {"kind": "PLAN_OPERATION_KIND_IMPORT", "service": "db"}
+  ]
+}
+-- empty.json --
+{"revision": "9"}
+-- loco.yaml --
+version: 1
+partial: web
+services:
+  api:
+    image: ghcr.io/acme/api:1
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }

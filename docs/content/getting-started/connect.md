@@ -29,4 +29,4 @@ loco login --host https://api.loco.build
 loco config set webHost https://loco.build
 ```
 
-For commands supported by your installed release, run `loco help`. The [Go infrastructure workflow](../deployment/go-infrastructure.md) requires a CLI release containing the infrastructure cutover.
+For commands supported by your installed release, run `loco help`. To deploy, write a [`loco.yaml`](../deployment/loco-yaml.md).

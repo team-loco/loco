@@ -1,6 +1,6 @@
 -- name: CreateBuild :one
-INSERT INTO builds (id, resource_id, status, source_type, source_key, source_size, dockerfile_path, image_repository, created_by)
-VALUES ($1, $2, 'awaiting_upload', $3, $4, $5, $6, $7, $8)
+INSERT INTO builds (id, resource_id, status, source_type, source_key, source_size, dockerfile_path, context, image_repository, created_by)
+VALUES ($1, $2, 'awaiting_upload', $3, $4, $5, $6, $7, $8, $9)
 RETURNING *;
 
 -- name: GetBuildByID :one
@@ -57,6 +57,7 @@ SELECT b.id,
        r.workspace_id,
        b.source_key,
        b.dockerfile_path,
+       b.context,
        b.image_repository,
        COALESCE((
          SELECT p.image_repository || '@' || p.cache_digest
@@ -234,3 +235,10 @@ SELECT resource_id, image_digest::text AS image_digest, cache_digest FROM builds
 WHERE resource_id = ANY(sqlc.arg(resource_ids)::uuid[])
   AND status = 'succeeded'
   AND image_deleted_at IS NULL;
+
+-- name: ListLatestSucceededBuildsForResources :many
+SELECT DISTINCT ON (resource_id) id, resource_id, dockerfile_path, context FROM builds
+WHERE resource_id = ANY(sqlc.arg(resource_ids)::uuid[])
+  AND status = 'succeeded'
+  AND image_deleted_at IS NULL
+ORDER BY resource_id, finished_at DESC, id DESC;

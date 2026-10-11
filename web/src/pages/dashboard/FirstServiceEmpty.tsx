@@ -10,7 +10,7 @@ import { INSTALL_COMMAND } from "@/pages/splash/links";
 
 import { imageError } from "./drafts";
 
-const STEPS = [INSTALL_COMMAND, "loco init", "loco deploy <name>"];
+const STEPS = [INSTALL_COMMAND, "loco infra init", "loco deploy <name>"];
 
 export function FirstServiceEmpty({
 	scope,

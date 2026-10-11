@@ -72,9 +72,9 @@ UPDATE resources SET spec = $2 WHERE id = $1`
 func (f *deployFixture) addDomain(t *testing.T, domain string, primary bool) {
 	t.Helper()
 	insert := `
-INSERT INTO resource_domains (resource_id, domain, domain_source, is_primary)
-VALUES ($1, $2, 'user_provided', $3)`
-	if _, err := f.pool.Exec(context.Background(), insert, f.resourceID, domain, primary); err != nil {
+INSERT INTO resource_domains (resource_id, environment_id, domain, domain_source, is_primary)
+VALUES ($1, $2, $3, 'user_provided', $4)`
+	if _, err := f.pool.Exec(context.Background(), insert, f.resourceID, f.envID, domain, primary); err != nil {
 		t.Fatalf("add domain %s: %v", domain, err)
 	}
 }

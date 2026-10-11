@@ -14,6 +14,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
+	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 )
@@ -27,6 +28,13 @@ const (
 	fakeAPIToken          = "test-token"
 	fakeAPIRefreshToken   = "test-refresh-token"
 	fakeAPIRefreshedToken = "refreshed-token"
+
+	fakeDefaultPort        = 8000
+	fakeDefaultCPU         = "100m"
+	fakeDefaultMemory      = "256Mi"
+	fakeDefaultMinReplicas = 1
+	fakeDefaultMaxReplicas = 2
+	fakeSchemaURL          = "https://loco.test/schemas/loco.v1.json"
 )
 
 type apiCall struct {
@@ -174,5 +182,20 @@ func (c *fakeConfigService) GetConfig(
 	if err := c.api.record(req.Spec(), ""); err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&configv1.GetConfigResponse{}), nil
+	platformDomain := fakePlatformDomain
+	c.api.mu.Lock()
+	if c.api.platform.noPlatformDomain {
+		platformDomain = ""
+	}
+	c.api.mu.Unlock()
+	defaults := &configv1.DefaultServiceConfig{
+		Routing:        &resourcev1.RoutingConfig{Port: fakeDefaultPort},
+		Cpu:            fakeDefaultCPU,
+		Memory:         fakeDefaultMemory,
+		MinReplicas:    fakeDefaultMinReplicas,
+		MaxReplicas:    fakeDefaultMaxReplicas,
+		PlatformDomain: platformDomain,
+	}
+	resp := &configv1.GetConfigResponse{ServiceDefaults: defaults, SchemaUrl: fakeSchemaURL}
+	return connect.NewResponse(resp), nil
 }

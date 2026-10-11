@@ -1,10 +1,12 @@
 -- name: UpsertPlacement :one
-INSERT INTO placements (resource_id, cluster_id, region, deployment_id, desired_spec)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO placements (resource_id, cluster_id, region, deployment_id, desired_spec, environment_id, secret_names)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 ON CONFLICT (resource_id, cluster_id) DO UPDATE
 SET region = EXCLUDED.region,
     deployment_id = EXCLUDED.deployment_id,
     desired_spec = EXCLUDED.desired_spec,
+    environment_id = EXCLUDED.environment_id,
+    secret_names = EXCLUDED.secret_names,
     desired_deleted = false,
     desired_revision = placements.desired_revision + 1,
     applied_error = NULL,
