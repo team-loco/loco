@@ -47,14 +47,14 @@ export function statusRank(status: ResourceStatus): number {
 			return 0;
 		case ResourceStatus.UNAVAILABLE:
 			return 0;
+		case ResourceStatus.UNKNOWN:
+			return 1;
 		case ResourceStatus.DEPLOYING:
 			return 1;
 		case ResourceStatus.UNSPECIFIED:
 			return 2;
 		case ResourceStatus.HEALTHY:
 			return 3;
-		case ResourceStatus.SUSPENDED:
-			return 4;
 	}
 }
 

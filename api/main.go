@@ -219,7 +219,7 @@ func main() {
 	userServiceHandler := service.NewUserServer(pool, queries, machine, admins)
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
-	resourceServiceHandler := service.NewResourceServer(pool, queries, ac.ServiceDefaults)
+	resourceServiceHandler := service.NewResourceServer(pool, queries, ac.ServiceDefaults, ac.StatusStaleAfter)
 	sourceBucket, bucketErr := newSourceBucket(ac.SourceBucket)
 	if bucketErr != nil {
 		log.Fatal(bucketErr)

@@ -11,7 +11,9 @@ import { EmptyState } from "@/components/design/EmptyState";
 import { Page } from "@/components/design/Page";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useMyScopes } from "@/hooks/useMyScopes";
+import { useEnvironments } from "@/hooks/useEnvironment";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
+import { environmentStatus } from "@/lib/resource-status";
 import { observabilityPath, workspacePath } from "@/lib/routes";
 import { ErrorBanner, NoticeBanner } from "@/pages/resource/Banners";
 import { DeploymentsSection } from "@/pages/resource/DeploymentsSection";
@@ -37,6 +39,7 @@ export function Resource() {
 	const [params, setParams] = useSearchParams();
 	const { resource, deployments, isLoading, error, refresh } = useResourceData(resourceId);
 	const { resourceLevel } = useMyScopes();
+	const { active: activeEnv } = useEnvironments();
 
 	const [regionName, setRegionName] = useState<string | null>(null);
 	const [range, setRange] = useState<MetricRange>("1h");
@@ -66,6 +69,7 @@ export function Resource() {
 	}
 
 	const regions = buildRegions(resource, deployments);
+	const environment = environmentStatus(resource, activeEnv?.id);
 	const region = regions.find((r) => r.name === regionName) ?? regions[0];
 	const primary = regions.find((r) => r.primary) ?? regions[0];
 	const currents = regions.flatMap((r) => (r.current?.spec === undefined ? [] : [r.current]));
@@ -163,7 +167,7 @@ export function Resource() {
 			<ResourceHeader
 				resource={resource}
 				regions={regions}
-				hasDeployments={deployments.length > 0}
+				environment={environment}
 				onViewSpec={() => {
 					setModal({ kind: "spec" });
 				}}

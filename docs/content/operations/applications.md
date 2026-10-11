@@ -60,7 +60,15 @@ services:
 
 ## Investigate a rollout
 
-Use application status to find whether a deployment is progressing or ready. Read events for scheduling and reconciliation failures, then inspect logs for application startup failures. The dashboard provides another view of the same applications.
+Use application status to find whether a deployment is progressing or ready. `loco resource status` shows a status for each environment the application runs in, and for each region its ready and desired replicas, its deployment and the reason a region is not ready:
+
+- Healthy: every desired replica is ready.
+- Deploying: a first rollout has no ready replica yet.
+- Degraded: some replicas or regions are not ready.
+- Unavailable: no replica is ready.
+- Unknown: the cluster running a region has sent no heartbeat for 90 seconds, or reports that it is unhealthy, so its last report is not trusted. The API's `LOCO_RESOURCE_STATUS_STALE_AFTER` sets the interval.
+
+The status comes from the replicas the cluster reports ready, not from the deployment record. A redeploy whose new replicas fail leaves the application Healthy while the previous replicas still serve, and the region shows the failure. Read events for scheduling and reconciliation failures, then inspect logs for application startup failures. The dashboard provides another view of the same applications.
 
 ```sh
 loco web

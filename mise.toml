@@ -257,6 +257,11 @@ description = "Run the end-to-end tests for apps with and without a domain: rout
 env = { _.file = ".env" }
 run = "./e2e/run.sh --builds-disabled ingress"
 
+[tasks."e2e:status"]
+description = "Run the end-to-end tests for resource status: healthy after a deploy, unavailable when its pods cannot run, unknown while its cluster is silent; takes the e2e flags"
+env = { _.file = ".env" }
+run = "./e2e/run.sh --builds-disabled resource_status"
+
 [tasks."e2e:config"]
 description = "Run the end-to-end tests for loco.yaml: validate, plan, apply, deploy, updates, deletes and disabled environments; takes the e2e flags"
 env = { _.file = ".env" }

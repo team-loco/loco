@@ -1,22 +1,22 @@
 -- Resource queries
 
 -- name: CreateResource :one
-INSERT INTO resources (workspace_id, name, type, description, status, spec, spec_version)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO resources (workspace_id, name, type, description, spec, spec_version)
+VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id;
 
 -- name: GetResourceByID :one
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
 FROM resources r
 WHERE r.id = $1;
 
 -- name: GetResourceByNameAndWorkspace :one
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.name = $2;
 
 -- name: ListResourcesForWorkspace :many
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1
    AND (sqlc.narg('page_token')::text IS NULL
@@ -109,14 +109,27 @@ WHERE is_active = true
 ORDER BY created_at ASC
 LIMIT 1;
 
--- name: ListActiveDeploymentsByResourceID :many
-SELECT status FROM deployments
-WHERE resource_id = $1 AND is_active = true;
-
--- name: UpdateResourceStatus :exec
-UPDATE resources
-SET status = $2, updated_at = NOW()
-WHERE id = $1;
+-- name: ListRegionStatusesForResources :many
+SELECT d.resource_id,
+       d.environment_id,
+       e.name AS environment_name,
+       d.region,
+       d.id AS deployment_id,
+       d.status AS deployment_status,
+       d.replicas AS desired_replicas,
+       d.message AS deployment_message,
+       (p.id IS NOT NULL)::boolean AS placed,
+       COALESCE(p.ready_replicas, 0)::int AS ready_replicas,
+       COALESCE(p.status_message, '')::text AS status_message,
+       p.status_updated_at,
+       c.last_heartbeat,
+       c.health_status
+FROM deployments d
+JOIN environments e ON e.id = d.environment_id
+JOIN clusters c ON c.id = d.cluster_id
+LEFT JOIN placements p ON p.deployment_id = d.id AND NOT p.desired_deleted
+WHERE d.resource_id = ANY(sqlc.arg(resource_ids)::uuid[]) AND d.is_active = true
+ORDER BY d.resource_id, e.name, d.region;
 
 -- name: GetWorkspaceOrganizationIDByResourceID :one
 SELECT r.workspace_id, w.org_id FROM resources r JOIN workspaces w ON r.workspace_id = w.id WHERE r.id = $1;
@@ -128,7 +141,7 @@ WHERE resource_id = $1 AND region = $2
 FOR UPDATE;
 
 -- name: ListWorkspaceServiceResources :many
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.type = 'service'
 ORDER BY r.name ASC;

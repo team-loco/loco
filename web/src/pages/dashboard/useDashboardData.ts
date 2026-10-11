@@ -1,23 +1,31 @@
 import { createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQueries } from "@tanstack/react-query";
-import { DeploymentPhase, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
-import { ResourceStatus, type RegionInfo, type Resource } from "@gen/loco/resource/v1/resource_pb";
+import {
+	ResourceStatus,
+	type EnvironmentStatus,
+	type RegionInfo,
+	type Resource,
+} from "@gen/loco/resource/v1/resource_pb";
 import { listRegions, listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 
+import { environmentStatus } from "@/lib/resource-status";
 import { tsMs } from "@/lib/time";
 
 import { isInFlight } from "./format";
 
 export interface RegionReplicas {
 	region: string;
-	replicas: number;
-	running: boolean;
+	desired: number;
+	ready: number;
 }
 
 export interface EnvResource {
 	resource: Resource;
+	environment: EnvironmentStatus | undefined;
+	status: ResourceStatus;
 	envDeployments: Deployment[];
 	last: Deployment | undefined;
 	regions: RegionReplicas[];
@@ -26,18 +34,19 @@ export interface EnvResource {
 }
 
 const POLL_MS = 5000;
+const IDLE_POLL_MS = 15_000;
 
-function regionReplicas(resource: Resource, envDeployments: Deployment[]): RegionReplicas[] {
+function regionReplicas(resource: Resource, environment: EnvironmentStatus | undefined): RegionReplicas[] {
 	const names = new Set(resource.regions.map((r) => r.region));
-	for (const d of envDeployments) names.add(d.region);
+	for (const r of environment?.regions ?? []) names.add(r.region);
 	return [...names].map((region) => {
-		const active = envDeployments.find((d) => d.region === region && d.isActive);
-		return {
-			region,
-			replicas: active?.replicas ?? 0,
-			running: active?.status === DeploymentPhase.RUNNING,
-		};
+		const status = environment?.regions.find((r) => r.region === region);
+		return { region, desired: status?.desiredReplicas ?? 0, ready: status?.readyReplicas ?? 0 };
 	});
+}
+
+function rollingOut(resource: Resource): boolean {
+	return resource.environmentStatuses.some((e) => e.regions.some((r) => isInFlight(r.deploymentStatus)));
 }
 
 export function useDashboardData(workspaceId: string | null, env: Environment | undefined) {
@@ -49,7 +58,7 @@ export function useDashboardData(workspaceId: string | null, env: Environment | 
 			enabled: workspaceId !== null,
 			refetchInterval: (q) => {
 				const list = q.state.data?.resources ?? [];
-				return list.some((r) => r.status === ResourceStatus.DEPLOYING) ? POLL_MS : false;
+				return list.some(rollingOut) ? POLL_MS : IDLE_POLL_MS;
 			},
 		},
 	);
@@ -82,13 +91,16 @@ export function useDashboardData(workspaceId: string | null, env: Environment | 
 		for (const d of mine) envDeployments.push({ deployment: d, resource });
 		const neverDeployed = all.length === 0;
 		if (mine.length === 0 && !neverDeployed) return;
-		const regions = regionReplicas(resource, mine);
+		const environment = environmentStatus(resource, envId);
+		const regions = regionReplicas(resource, environment);
 		envResources.push({
 			resource,
+			environment,
+			status: environment?.status ?? ResourceStatus.UNSPECIFIED,
 			envDeployments: mine,
 			last: mine[0],
 			regions,
-			totalReplicas: regions.reduce((n, g) => n + g.replicas, 0),
+			totalReplicas: regions.reduce((n, g) => n + g.desired, 0),
 			neverDeployed,
 		});
 	});
