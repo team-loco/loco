@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+#MISE description="Test the observability proxy, with its ClickHouse migrations against the ClickHouse image the loco-obs chart pins; LOCO_TEST_CLICKHOUSE_URL reuses a running server instead"
+set -euo pipefail
+
+root=$(git rev-parse --show-toplevel)
+ready_attempts=60
+
+if [ -z "${LOCO_TEST_CLICKHOUSE_URL:-}" ]; then
+	image=$(yq '.clickhouse.clickhouse.image.repository + ":" + .clickhouse.clickhouse.image.tag' "$root/charts/loco-obs/values.yaml")
+	container=loco-obs-proxy-test-$$
+	cleanup() {
+		docker rm -f "$container" >/dev/null 2>&1 || true
+	}
+	trap cleanup EXIT
+	docker run -d --name "$container" -p 127.0.0.1::9000 \
+		-e CLICKHOUSE_USER=loco_test -e CLICKHOUSE_PASSWORD=loco_test \
+		-e CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1 \
+		"$image" >/dev/null
+	for _ in $(seq "$ready_attempts"); do
+		docker exec "$container" clickhouse-client --user loco_test --password loco_test -q "SELECT 1" >/dev/null 2>&1 && break
+		sleep 1
+	done
+	docker exec "$container" clickhouse-client --user loco_test --password loco_test -q "SELECT 1" >/dev/null
+	port=$(docker port "$container" 9000/tcp | head -1)
+	export LOCO_TEST_CLICKHOUSE_URL="clickhouse://loco_test:loco_test@${port}"
+fi
+
+cd "$root/observability-proxy"
+go test -v -coverprofile=coverage.out ./... "$@"
