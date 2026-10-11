@@ -98,6 +98,8 @@ func cmdFakeAPI(ts *testscript.TestScript, neg bool, args []string) {
 		}
 		api.fail(args[1], code)
 	default:
-		cmdFakePlatform(ts, api, neg, args)
+		if !cmdFakeLogin(ts, api, neg, args) {
+			cmdFakePlatform(ts, api, neg, args)
+		}
 	}
 }

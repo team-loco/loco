@@ -30,6 +30,8 @@ import (
 	"github.com/team-loco/loco/internal/ui"
 )
 
+const spinnerFrameDelay = 100 * time.Millisecond
+
 func newLoginCmd(env Env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "login",
@@ -60,8 +62,8 @@ func newLoginCmd(env Env) *cobra.Command {
 						Foreground(ui.Fg2).
 						Render("You can continue using loco")
 
-					fmt.Printf("%s %s\n%s\n", checkmark, message, subtext)
-					return nil
+					_, err = lipgloss.Printf("%s %s\n%s\n", checkmark, message, subtext)
+					return err
 				}
 				slog.Debug("token is expired or will expire soon", "expires_at", t.ExpiresAt)
 			} else {
@@ -92,10 +94,14 @@ func providerLogin(cmd *cobra.Command, httpClient *http.Client, host string, sto
 	if err != nil {
 		return err
 	}
+	interactive := cmdutil.IsInteractive()
+	if !device && !interactive {
+		return fmt.Errorf("login to %s failed: %w", host, errBrowserLoginNeedsTerminal)
+	}
 	authClient := authv1connect.NewAuthServiceClient(httpClient, host)
 	var tokens *authv1.CLITokens
 	if device {
-		tokens, err = deviceLogin(ctx, authClient)
+		tokens, err = deviceLogin(ctx, authClient, interactive)
 	} else {
 		webHost, webErr := cmdutil.GetWebHost(cmd)
 		if webErr != nil {
@@ -131,8 +137,7 @@ func setupLoginScope(
 			if storeErr := store.Set(newToken); storeErr != nil {
 				return fmt.Errorf("failed to store token: %w", storeErr)
 			}
-			printLoginSuccess("Logged in!", scope.Organization.Name, scope.Workspace.Name)
-			return nil
+			return printLoginSuccess("Logged in!", scope.Organization.Name, scope.Workspace.Name)
 		}
 	}
 
@@ -151,8 +156,7 @@ func setupLoginScope(
 		return fmt.Errorf("failed to store token: %w", storeErr)
 	}
 
-	printLoginSuccess("Authentication successful!", org.Name, workspace.Name)
-	return nil
+	return printLoginSuccess("Authentication successful!", org.Name, workspace.Name)
 }
 
 func resolveLoginScope(
@@ -266,7 +270,7 @@ func cleanEmail(email string) string {
 	return s
 }
 
-func printLoginSuccess(title, orgName, workspaceName string) {
+func printLoginSuccess(title, orgName, workspaceName string) error {
 	checkmark := lipgloss.NewStyle().Foreground(ui.Ok).Render("✔")
 	heading := lipgloss.NewStyle().Bold(true).Foreground(ui.Accent).Render(title)
 	orgLine := lipgloss.NewStyle().
@@ -275,7 +279,8 @@ func printLoginSuccess(title, orgName, workspaceName string) {
 	wsLine := lipgloss.NewStyle().
 		Foreground(ui.Fg2).
 		Render(fmt.Sprintf("  Workspace: %s", workspaceName))
-	fmt.Printf("%s %s\n%s\n%s\n", checkmark, heading, orgLine, wsLine)
+	_, err := lipgloss.Printf("%s %s\n%s\n%s\n", checkmark, heading, orgLine, wsLine)
+	return err
 }
 
 type (
@@ -341,7 +346,7 @@ func (m model) Init() tea.Cmd {
 }
 
 func tick() tea.Cmd {
-	return tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
+	return tea.Tick(spinnerFrameDelay, func(t time.Time) tea.Msg {
 		return tickMsg(t)
 	})
 }

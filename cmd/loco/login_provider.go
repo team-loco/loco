@@ -22,11 +22,20 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 )
 
-const loopbackTimeout = 5 * time.Minute
+const (
+	loopbackTimeout = 5 * time.Minute
+	deviceSlowDown  = 5 * time.Second
+)
 
 var (
-	errLoginTimedOut = errors.New("timed out waiting for the browser; run loco login again")
-	errLoginCanceled = errors.New("login canceled")
+	errLoginTimedOut             = errors.New("timed out waiting for the browser; run loco login again")
+	errLoginCanceled             = errors.New("login canceled")
+	errBrowserLoginNeedsTerminal = errors.New(
+		"browser sign-in needs a terminal; run loco login --device and approve the code on another device",
+	)
+	errDeviceLoginExpired = errors.New(
+		"the device code expired before sign-in was approved; run loco login --device again",
+	)
 
 	errNoIdentityProvider = errors.New("this Loco server has no identity provider configured")
 )
@@ -189,26 +198,44 @@ func pollDeviceLogin(
 	}
 }
 
-func deviceLogin(ctx context.Context, authClient authv1connect.AuthServiceClient) (*authv1.CLITokens, error) {
+func pollDeviceTokens(
+	ctx, pollCtx context.Context,
+	authClient authv1connect.AuthServiceClient,
+	started *authv1.StartDeviceLoginResponse,
+) (*authv1.CLITokens, error) {
+	interval := time.Duration(started.GetInterval()) * time.Second
+	tokens, err := pollDeviceLogin(pollCtx, authClient, started.GetDeviceCode(), interval, deviceSlowDown)
+	if err != nil && ctx.Err() == nil && errors.Is(pollCtx.Err(), context.DeadlineExceeded) {
+		return nil, errDeviceLoginExpired
+	}
+	return tokens, err
+}
+
+func deviceLogin(
+	ctx context.Context,
+	authClient authv1connect.AuthServiceClient,
+	interactive bool,
+) (*authv1.CLITokens, error) {
 	started, err := authClient.StartDeviceLogin(ctx, connect.NewRequest(&authv1.StartDeviceLoginRequest{}))
 	if err != nil {
 		cmdutil.LogRequestID(ctx, err, "failed to start device login")
 		return nil, err
 	}
 	msg := started.Msg
-	pollCtx, cancelPoll := context.WithTimeout(ctx, time.Duration(msg.GetExpiresIn())*time.Second)
+	expiresIn := time.Duration(msg.GetExpiresIn()) * time.Second
+	pollCtx, cancelPoll := context.WithTimeout(ctx, expiresIn)
 	defer cancelPoll()
+
+	if !interactive {
+		fmt.Printf("Open %s and enter the code %s\n", msg.GetVerificationUri(), msg.GetUserCode())
+		fmt.Println("Waiting for approval...")
+		return pollDeviceTokens(ctx, pollCtx, authClient, msg)
+	}
 
 	tokenChan := make(chan *authv1.CLITokens, 1)
 	errorChan := make(chan error, 1)
 	go func() {
-		got, pollErr := pollDeviceLogin(
-			pollCtx,
-			authClient,
-			msg.GetDeviceCode(),
-			time.Duration(msg.GetInterval())*time.Second,
-			5*time.Second,
-		)
+		got, pollErr := pollDeviceTokens(ctx, pollCtx, authClient, msg)
 		if pollErr != nil {
 			errorChan <- pollErr
 			return

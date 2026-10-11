@@ -50,6 +50,9 @@ type fakeAPI struct {
 	failures map[string]connect.Code
 	calls    []apiCall
 	platform *fakePlatform
+
+	identityProvider bool
+	deviceLogin      string
 }
 
 func newFakeAPI() *fakeAPI {
@@ -72,6 +75,7 @@ func (f *fakeAPI) handler() http.Handler {
 	mux.Handle(authv1connect.NewAuthServiceHandler(&fakeAuthService{api: f}))
 	mux.Handle(configv1connect.NewConfigServiceHandler(&fakeConfigService{api: f}))
 	f.registerPlatform(mux)
+	f.registerLogin(mux)
 	return mux
 }
 
@@ -183,9 +187,13 @@ func (c *fakeConfigService) GetConfig(
 		return nil, err
 	}
 	platformDomain := fakePlatformDomain
+	var auth *configv1.AuthConfig
 	c.api.mu.Lock()
 	if c.api.platform.noPlatformDomain {
 		platformDomain = ""
+	}
+	if c.api.identityProvider {
+		auth = &configv1.AuthConfig{Issuer: fakeIssuer, ClientId: fakeClientID}
 	}
 	c.api.mu.Unlock()
 	defaults := &configv1.DefaultServiceConfig{
@@ -196,6 +204,6 @@ func (c *fakeConfigService) GetConfig(
 		MaxReplicas:    fakeDefaultMaxReplicas,
 		PlatformDomain: platformDomain,
 	}
-	resp := &configv1.GetConfigResponse{ServiceDefaults: defaults, SchemaUrl: fakeSchemaURL}
+	resp := &configv1.GetConfigResponse{ServiceDefaults: defaults, SchemaUrl: fakeSchemaURL, Auth: auth}
 	return connect.NewResponse(resp), nil
 }

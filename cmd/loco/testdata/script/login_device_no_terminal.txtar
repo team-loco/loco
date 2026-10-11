@@ -1,0 +1,17 @@
+# device login without a terminal prints the code as plain lines and saves the approved token.
+fakeapi identity-provider
+fakeapi device-login approved
+exec loco login --device
+stdout '^Open https://loco\.test/device and enter the code ABCD-EFGH$'
+stdout '^Waiting for approval\.\.\.$'
+stdout 'Authentication successful!'
+stdout 'Organization: acme'
+stdout 'Workspace: production'
+! stdout '\x1b\['
+! stderr .
+fakeapi called PollDeviceLogin
+fakeapi called ListUserOrgs 'Bearer test-token'
+
+exec loco whoami
+stdout 'Context: acme/production'
+fakeapi called WhoAmI 'Bearer test-token'

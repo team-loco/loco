@@ -33,6 +33,12 @@ func ExitCode(err error) int {
 	return ExitFailure
 }
 
+// IsInteractive reports whether both stdin and stdout are attached to a terminal.
+func IsInteractive() bool {
+	stdin := os.Stdin.Fd()
+	return term.IsTerminal(stdin) && StdoutIsTerminal()
+}
+
 // StdoutIsTerminal reports whether stdout is attached to a terminal.
 func StdoutIsTerminal() bool {
 	fd := os.Stdout.Fd()
