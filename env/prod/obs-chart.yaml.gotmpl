@@ -9,6 +9,11 @@ clickhouse:
   defaultUser:
     password: {{ requiredEnv "CLICKHOUSE_PASSWORD" }}
 
+clickhouseUserPasswords:
+  loco_migrator: {{ requiredEnv "CLICKHOUSE_MIGRATOR_PASSWORD" | quote }}
+  loco_ingest: {{ requiredEnv "CLICKHOUSE_INGEST_PASSWORD" | quote }}
+  loco_reader: {{ requiredEnv "CLICKHOUSE_READER_PASSWORD" | quote }}
+
 # Observability proxy (enabled by default)
 obsProxy:
   enabled: true
