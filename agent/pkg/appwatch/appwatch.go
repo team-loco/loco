@@ -141,6 +141,7 @@ func (w *Watcher) Observe(obj any) {
 		PlacementId:      placement.ID,
 		ObservedRevision: app.Status.ObservedPlacementRevision,
 		Ready:            app.Status.Phase == phaseReady,
+		ReadyReplicas:    app.Status.ReadyReplicas,
 		Phase:            app.Status.Phase,
 		Message:          app.Status.Message,
 	}

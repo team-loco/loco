@@ -197,6 +197,7 @@ func (r *LocoResourceReconciler) reconcileResources(
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure deployment: %w", err)
 	}
+	setReplicaCounts(locoRes, dep)
 
 	err = r.ensureService(ctx, locoRes)
 	if err != nil {
@@ -742,6 +743,14 @@ func deploymentReady(dep *appsv1ac.DeploymentApplyConfiguration, replicas int32)
 	updated := ptr.Deref(dep.Status.UpdatedReplicas, 0)
 	available := ptr.Deref(dep.Status.AvailableReplicas, 0)
 	return generation > 0 && observed == generation && updated == replicas && available == replicas
+}
+
+func setReplicaCounts(app *locov1alpha1.Application, dep *appsv1ac.DeploymentApplyConfiguration) {
+	app.Status.DesiredReplicas = ptr.Deref(dep.Spec.Replicas, 0)
+	app.Status.ReadyReplicas = 0
+	if dep.Status != nil {
+		app.Status.ReadyReplicas = ptr.Deref(dep.Status.ReadyReplicas, 0)
+	}
 }
 
 // ensureHTTPRoute ensures the HTTPRoute exists for traffic ingress (Envoy Gateway)

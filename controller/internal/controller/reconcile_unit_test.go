@@ -226,6 +226,27 @@ func TestDeploymentReady(t *testing.T) {
 	}
 }
 
+func TestReplicaCountsTrackDeploymentStatus(t *testing.T) {
+	app := testApplication()
+	deployment, err := desiredDeployment(app, "1")
+	if err != nil {
+		t.Fatalf("desiredDeployment: %v", err)
+	}
+	for _, count := range []int32{0, 1, 2, 0} {
+		status := appsv1ac.DeploymentStatus().WithReadyReplicas(count)
+		deployment.WithStatus(status)
+		setReplicaCounts(app, deployment)
+		if app.Status.ReadyReplicas != count || app.Status.DesiredReplicas != 2 {
+			t.Fatalf("status = %+v, want ready=%d desired=2", app.Status, count)
+		}
+	}
+	deployment.Status = nil
+	setReplicaCounts(app, deployment)
+	if app.Status.ReadyReplicas != 0 || app.Status.DesiredReplicas != 2 {
+		t.Fatalf("status without deployment status = %+v", app.Status)
+	}
+}
+
 func TestEnsureHTTPRouteDeletesRouteWhenRoutingRemoved(t *testing.T) {
 	scheme := runtime.NewScheme()
 	if err := v1Gateway.Install(scheme); err != nil {
