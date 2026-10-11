@@ -136,16 +136,18 @@ otel-col-daemon:
           - endpoints
           - services
           - pods
+          - namespaces
+        verbs: ["get", "watch", "list"]
+      - apiGroups:
+          - apps
+        resources:
+          - replicasets
         verbs: ["get", "watch", "list"]
   presets:
     logsCollection:
       enabled: true
     hostMetrics:
       enabled: true
-    kubernetesAttributes:
-      enabled: true
-      extractAllPodLabels: true
-      extractAllPodAnnotations: true
   config:
     receivers:
       kubeletstats:
@@ -153,7 +155,7 @@ otel-col-daemon:
         auth_type: "serviceAccount"
         endpoint: "https://${env:OTEL_K8S_NODE_IP}:10250"
         insecure_skip_verify: true
-        node: "${env:K8S_NODE_NAME}"
+        node: "${env:OTEL_K8S_NODE_NAME}"
         k8s_api_config:
           auth_type: serviceAccount
         collect_all_network_interfaces:
@@ -193,6 +195,74 @@ otel-col-daemon:
         check_interval: 1s
         limit_mib: 384
         spike_limit_mib: 96
+      resource/strip_tenancy: &stripTenancy
+        attributes:
+          - key: loco.workspace.id
+            action: delete
+          - key: loco.environment.id
+            action: delete
+          - key: loco.resource.id
+            action: delete
+          - key: loco.io/build-id
+            action: delete
+          - key: k8s.pod.ip
+            action: delete
+          - key: k8s.pod.uid
+            action: delete
+      k8s_attributes/connection:
+        filter:
+          node_from_env_var: OTEL_K8S_NODE_NAME
+        passthrough: false
+        pod_association: &connectionAssociation
+          - sources:
+              - from: connection
+        extract: &tenancyExtract
+          metadata:
+            - k8s.namespace.name
+            - k8s.pod.name
+            - k8s.pod.uid
+            - k8s.node.name
+            - k8s.pod.start_time
+            - k8s.deployment.name
+            - k8s.replicaset.name
+            - k8s.replicaset.uid
+            - k8s.daemonset.name
+            - k8s.daemonset.uid
+            - k8s.job.name
+            - k8s.job.uid
+            - k8s.container.name
+            - k8s.cronjob.name
+            - k8s.statefulset.name
+            - k8s.statefulset.uid
+            - container.image.tag
+            - container.image.name
+            - k8s.cluster.uid
+            - service.namespace
+            - service.name
+            - service.version
+            - service.instance.id
+          labels:
+            - from: pod
+              key: loco.io/workspace-id
+              tag_name: loco.workspace.id
+            - from: pod
+              key: loco.io/environment-id
+              tag_name: loco.environment.id
+            - from: pod
+              key: loco.io/resource-id
+              tag_name: loco.resource.id
+            - from: pod
+              key: loco.io/build-id
+              tag_name: loco.io/build-id
+      k8s_attributes/pod_uid:
+        filter:
+          node_from_env_var: OTEL_K8S_NODE_NAME
+        passthrough: false
+        pod_association: &podUIDAssociation
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.uid
+        extract: *tenancyExtract
     exporters:
       clickhouse:
         # Endpoint will be dynamically constructed as: tcp://clickhouse-{release-name}-{nameOverride}.{namespace}.svc.cluster.local:9000
@@ -208,13 +278,20 @@ otel-col-daemon:
       # memory_limiter must run first so it can refuse data before batch buffers it in memory.
       pipelines:
         logs:
+          receivers: [file_log]
+          processors: [memory_limiter, k8s_attributes/pod_uid, batch]
           exporters: [clickhouse]
-          processors: [memory_limiter, batch]
+        logs/otlp:
+          receivers: [otlp]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, batch]
+          exporters: [clickhouse]
         metrics:
           receivers: [kubeletstats]
-          processors: [memory_limiter, batch]
+          processors: [memory_limiter, k8s_attributes/pod_uid, batch]
           exporters: [clickhouse]
         traces:
+          receivers: [otlp, jaeger, zipkin]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, batch]
           exporters: [clickhouse]
 
 otel-col-deploy:
@@ -244,22 +321,36 @@ otel-col-deploy:
       cpu: 250m
       memory: 512Mi
   replicaCount: 1
+  clusterRole:
+    create: true
+    rules:
+      - apiGroups:
+          - ""
+        resources:
+          - pods
+          - namespaces
+        verbs: ["get", "watch", "list"]
+      - apiGroups:
+          - apps
+        resources:
+          - replicasets
+        verbs: ["get", "watch", "list"]
   presets:
-    kubernetesAttributes:
-      enabled: true
-      extractAllPodLabels: true
-      extractAllPodAnnotations: true
     kubernetesEvents:
       enabled: true
     clusterMetrics:
       enabled: true
   config:
     processors:
-      resource/set_service_name:
-        attributes:
-          - action: insert
-            key: service.name
-            from_attribute: app.kubernetes.io/name
+      resource/strip_tenancy: *stripTenancy
+      k8s_attributes/connection:
+        passthrough: false
+        pod_association: *connectionAssociation
+        extract: *tenancyExtract
+      k8s_attributes/pod_uid:
+        passthrough: false
+        pod_association: *podUIDAssociation
+        extract: *tenancyExtract
     receivers:
       otlp:
         protocols:
@@ -281,12 +372,24 @@ otel-col-deploy:
     service:
       pipelines:
         logs:
+          receivers: [k8sobjects]
+          processors: [memory_limiter, batch]
+          exporters: [clickhouse]
+        logs/otlp:
+          receivers: [otlp]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, batch]
           exporters: [clickhouse]
         metrics:
+          receivers: [k8s_cluster]
+          processors: [memory_limiter, k8s_attributes/pod_uid, batch]
+          exporters: [clickhouse]
+        metrics/otlp:
           receivers: [otlp]
-          processors: [resource/set_service_name]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, batch]
           exporters: [clickhouse]
         traces:
+          receivers: [otlp, jaeger, zipkin]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, batch]
           exporters: [clickhouse]
 
 obsProxy:
