@@ -44,3 +44,45 @@ func TestValidateTailRequestChecksSince(t *testing.T) {
 		t.Errorf("no workspace = %v, want errWorkspaceIDRequired", err)
 	}
 }
+
+func TestLabelFiltersRejectLocoAttributeKeys(t *testing.T) {
+	cfg := &config.Config{MaxTimeRange: testMaxRange}
+	now := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
+	start := timestamppb.New(now.Add(-time.Hour))
+	end := timestamppb.New(now)
+	reserved := []string{"loco.workspace.id", "loco.environment.id", "loco.resource.id", "loco.anything"}
+	allowed := []string{"loco.io/build-id", "app.loco.io/component", "service.name"}
+
+	for _, key := range reserved {
+		labels := map[string]string{key: testWorkspaceID}
+		logs := &observabilityv1.QueryLogsRequest{
+			WorkspaceId: testWorkspaceID,
+			StartTime:   start,
+			EndTime:     end,
+			Labels:      labels,
+		}
+		if err := ValidateLogsRequest(logs, cfg); !errors.Is(err, errReservedLabelKey) {
+			t.Errorf("logs label %q = %v, want errReservedLabelKey", key, err)
+		}
+		tail := &observabilityv1.TailLogsRequest{WorkspaceId: testWorkspaceID, Labels: labels}
+		if err := ValidateTailRequest(tail, cfg, now); !errors.Is(err, errReservedLabelKey) {
+			t.Errorf("tail label %q = %v, want errReservedLabelKey", key, err)
+		}
+	}
+	for _, key := range allowed {
+		labels := map[string]string{key: "value"}
+		logs := &observabilityv1.QueryLogsRequest{
+			WorkspaceId: testWorkspaceID,
+			StartTime:   start,
+			EndTime:     end,
+			Labels:      labels,
+		}
+		if err := ValidateLogsRequest(logs, cfg); err != nil {
+			t.Errorf("logs label %q rejected: %v", key, err)
+		}
+		tail := &observabilityv1.TailLogsRequest{WorkspaceId: testWorkspaceID, Labels: labels}
+		if err := ValidateTailRequest(tail, cfg, now); err != nil {
+			t.Errorf("tail label %q rejected: %v", key, err)
+		}
+	}
+}
