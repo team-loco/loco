@@ -8,6 +8,7 @@ import (
 
 	appsv1ac "k8s.io/client-go/applyconfigurations/apps/v1"
 
+	"github.com/team-loco/loco/controller/internal/managed"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -19,6 +20,7 @@ const (
 	testCollectorEndpoint     = "http://collector.telemetry.svc.cluster.local:14318"
 	testEnvironmentName       = "production"
 	testDeploymentID          = "019a6f3e-8c2b-7d41-9e5f-3b2a1c0d9e8f"
+	testOrganizationID        = "019a6f3e-8c2b-7d41-9e5f-3b2a1c0d9e90"
 	testSampleRate            = "0.25"
 	wantSamplerWithoutTracing = "parentbased_always_off"
 )
@@ -36,6 +38,7 @@ func telemetryTestApplication() *locov1alpha1.Application {
 	app := testApplication()
 	app.Spec.EnvironmentName = testEnvironmentName
 	app.Spec.DeploymentID = testDeploymentID
+	app.Spec.OrganizationID = testOrganizationID
 	return app
 }
 
@@ -233,6 +236,18 @@ func TestPodTemplateCarriesTheAppNameLabelOutsideTheSelector(t *testing.T) {
 	wantSelector := map[string]string{labelApp: name}
 	if got := dep.Spec.Selector.MatchLabels; !maps.Equal(got, wantSelector) {
 		t.Errorf("selector = %v, want %v", got, wantSelector)
+	}
+}
+
+func TestPodTemplateCarriesTheOrganizationLabel(t *testing.T) {
+	app := telemetryTestApplication()
+	dep := buildDeployment(t, app)
+
+	if got := dep.Spec.Template.Labels[managed.LabelOrganizationID]; got != testOrganizationID {
+		t.Errorf("pod label %s = %q, want %q", managed.LabelOrganizationID, got, testOrganizationID)
+	}
+	if got := dep.Labels[managed.LabelOrganizationID]; got != testOrganizationID {
+		t.Errorf("deployment label %s = %q, want %q", managed.LabelOrganizationID, got, testOrganizationID)
 	}
 }
 

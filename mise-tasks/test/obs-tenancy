@@ -5,9 +5,11 @@ set -euo pipefail
 
 source "$(dirname "$0")/lib/obs-stack.sh" tenancy
 collectors="otel-col-deploy otel-col-daemon-agent"
+forged_organization=forged-organization
 forged_workspace=forged-workspace
 forged_environment=forged-environment
 forged_resource=forged-resource
+pod_organization=pod-organization
 pod_workspace=pod-workspace
 pod_environment=pod-environment
 pod_resource=pod-resource
@@ -46,19 +48,22 @@ attribute() {
 }
 
 forged_attributes() {
-	echo "$(attribute loco.workspace.id "$forged_workspace"), $(attribute loco.environment.id "$forged_environment"),
+	echo "$(attribute loco.organization.id "$forged_organization"), $(attribute loco.workspace.id "$forged_workspace"),
+		$(attribute loco.environment.id "$forged_environment"),
 		$(attribute loco.resource.id "$forged_resource"), $(attribute loco.io/build-id "$forged_build"),
 		$(attribute k8s.pod.uid forged-pod-uid), $(attribute k8s.pod.ip 192.0.2.1)"
 }
 
 pod_label_attributes() {
-	echo "$(attribute "${label_prefix}loco.io/workspace-id" "$pod_workspace"),
+	echo "$(attribute "${label_prefix}loco.io/organization-id" "$pod_organization"),
+		$(attribute "${label_prefix}loco.io/workspace-id" "$pod_workspace"),
 		$(attribute "${label_prefix}loco.io/environment-id" "$pod_environment"),
 		$(attribute "${label_prefix}loco.io/resource-id" "$pod_resource")"
 }
 
 build_label_attributes() {
-	echo "$(attribute "${label_prefix}loco.io/workspace-id" "$pod_workspace"),
+	echo "$(attribute "${label_prefix}loco.io/organization-id" "$pod_organization"),
+		$(attribute "${label_prefix}loco.io/workspace-id" "$pod_workspace"),
 		$(attribute "${label_prefix}loco.io/resource-id" "$pod_resource"),
 		$(attribute "${label_prefix}loco.io/build-id" "$pod_build")"
 }
@@ -149,13 +154,13 @@ for collector in $collectors; do
 		if ! wait_for "$collector $signal rows" has_rows "$(rows "$otel_table" "$forged" 1)"; then
 			fail "$collector wrote no $signal for a client that forged its tenancy"
 		fi
-		forged_rows=$(query "$(rows "$otel_table" "$forged" "(WorkspaceId != '' OR EnvironmentId != '' OR ResourceId != '' OR ResourceAttributes['loco.io/build-id'] != '' OR ResourceAttributes['k8s.pod.uid'] != '' OR ResourceAttributes['k8s.pod.ip'] != '')")")
+		forged_rows=$(query "$(rows "$otel_table" "$forged" "(OrganizationId != '' OR WorkspaceId != '' OR EnvironmentId != '' OR ResourceId != '' OR ResourceAttributes['loco.io/build-id'] != '' OR ResourceAttributes['k8s.pod.uid'] != '' OR ResourceAttributes['k8s.pod.ip'] != '')")")
 		[ "$forged_rows" -eq 0 ] || fail "$collector kept client-supplied tenancy on $forged_rows $signal row(s)"
-		pod_tenancy="WorkspaceId = '$pod_workspace' AND EnvironmentId = '$pod_environment' AND ResourceId = '$pod_resource'"
+		pod_tenancy="OrganizationId = '$pod_organization' AND WorkspaceId = '$pod_workspace' AND EnvironmentId = '$pod_environment' AND ResourceId = '$pod_resource'"
 		if ! wait_for "$collector $signal rows from pod labels" has_rows "$(rows "$otel_table" "$labelled" "$pod_tenancy")"; then
 			fail "$collector did not take $signal tenancy from the pod labels"
 		fi
-		build_tenancy="WorkspaceId = '$pod_workspace' AND ResourceId = '$pod_resource' AND ResourceAttributes['loco.io/build-id'] = '$pod_build'"
+		build_tenancy="OrganizationId = '$pod_organization' AND WorkspaceId = '$pod_workspace' AND ResourceId = '$pod_resource' AND ResourceAttributes['loco.io/build-id'] = '$pod_build'"
 		if ! wait_for "$collector $signal rows from build pod labels" has_rows "$(rows "$otel_table" "$build" "$build_tenancy")"; then
 			fail "$collector did not take $signal build id from the build pod labels"
 		fi
@@ -173,7 +178,7 @@ for signal in logs traces metrics; do
 	route="$(attribute "$(cluster_attribute "$signal")" "$route_cluster")"
 	envoy_payload=$(payload "$signal" "$(attribute service.name "$envoy"), $gateway_labels" b7ad6b7169203333 "$route")
 	impostor_payload=$(payload "$signal" "$(attribute service.name "$impostor"), $client_gateway, $(forged_attributes)" b7ad6b7169203334 \
-		"$route, $(attribute loco.workspace.id "$forged_workspace"), $(attribute loco.resource.id "$forged_resource")")
+		"$route, $(attribute loco.organization.id "$forged_organization"), $(attribute loco.workspace.id "$forged_workspace"), $(attribute loco.resource.id "$forged_resource")")
 	send "$otlp" "$signal" "$envoy_payload"
 	send "$otlp" "$signal" "$impostor_payload"
 	otel_table=$(table "$signal")
@@ -185,13 +190,13 @@ for signal in logs traces metrics; do
 	if ! wait_for "$envoy_collector $signal rows" has_rows "$(rows "$otel_table" "$impostor" 1)"; then
 		fail "$envoy_collector wrote no $signal for a client that copied Envoy's attributes"
 	fi
-	impostor_rows=$(query "$(rows "$otel_table" "$impostor" "(WorkspaceId != '' OR EnvironmentId != '' OR ResourceId != '')")")
+	impostor_rows=$(query "$(rows "$otel_table" "$impostor" "(OrganizationId != '' OR WorkspaceId != '' OR EnvironmentId != '' OR ResourceId != '')")")
 	[ "$impostor_rows" -eq 0 ] || fail "$envoy_collector gave route tenancy to $impostor_rows $signal row(s) from a client that is not Envoy"
 done
 
 evidence=""
 for otel_table in $(tr ' ' '\n' <<<"$checked_tables" | sort -u); do
-	evidence="$evidence${evidence:+ UNION ALL }SELECT '$otel_table' AS table, ServiceName, WorkspaceId, EnvironmentId, ResourceId, ResourceAttributes['loco.io/build-id'] AS build_id, ResourceAttributes['k8s.pod.uid'] AS pod_uid FROM $database.$otel_table WHERE ServiceName LIKE 'tenancy-%'"
+	evidence="$evidence${evidence:+ UNION ALL }SELECT '$otel_table' AS table, ServiceName, OrganizationId, WorkspaceId, EnvironmentId, ResourceId, ResourceAttributes['loco.io/build-id'] AS build_id, ResourceAttributes['k8s.pod.uid'] AS pod_uid FROM $database.$otel_table WHERE ServiceName LIKE 'tenancy-%'"
 done
 query "SELECT * FROM ($evidence) ORDER BY table, ServiceName FORMAT PrettyCompactMonoBlock"
 

@@ -675,11 +675,12 @@ func desiredDeployment(
 	}
 
 	podLabels := map[string]string{
-		labelApp:                 name,
-		labelAppKubernetesName:   name,
-		managed.LabelWorkspaceID: locoRes.Spec.WorkspaceID,
-		managed.LabelResourceID:  locoRes.Spec.ResourceID,
-		labelEnvironmentID:       locoRes.Spec.EnvironmentID,
+		labelApp:                    name,
+		labelAppKubernetesName:      name,
+		managed.LabelOrganizationID: locoRes.Spec.OrganizationID,
+		managed.LabelWorkspaceID:    locoRes.Spec.WorkspaceID,
+		managed.LabelResourceID:     locoRes.Spec.ResourceID,
+		labelEnvironmentID:          locoRes.Spec.EnvironmentID,
 	}
 	podAnnotations := map[string]string{annotationEnvSecretRV: envSecretVersion}
 	podSecurity := podSecurityContext()
@@ -708,6 +709,7 @@ func desiredDeployment(
 		WithTemplate(template)
 
 	depLabels := managedLabels(locoRes)
+	depLabels[managed.LabelOrganizationID] = locoRes.Spec.OrganizationID
 	depLabels[managed.LabelWorkspaceID] = locoRes.Spec.WorkspaceID
 	depLabels[managed.LabelResourceID] = locoRes.Spec.ResourceID
 	depLabels[labelEnvironmentID] = locoRes.Spec.EnvironmentID

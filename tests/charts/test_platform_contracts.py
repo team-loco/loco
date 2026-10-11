@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 COLLECTOR_CONFIGMAPS = ('otel-col-daemon-agent', 'otel-col-deploy')
 PUSH_RECEIVERS = {'otlp', 'jaeger', 'zipkin'}
 TENANT_LABELS = {
+    'loco.io/organization-id': 'loco.organization.id',
     'loco.io/workspace-id': 'loco.workspace.id',
     'loco.io/environment-id': 'loco.environment.id',
     'loco.io/resource-id': 'loco.resource.id',

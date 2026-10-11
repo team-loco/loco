@@ -197,6 +197,8 @@ otel-col-daemon:
         spike_limit_mib: 96
       resource/strip_tenancy: &stripTenancy
         attributes:
+          - key: loco.organization.id
+            action: delete
           - key: loco.workspace.id
             action: delete
           - key: loco.environment.id
@@ -246,6 +248,9 @@ otel-col-daemon:
             - service.version
             - service.instance.id
           labels:
+            - from: pod
+              key: loco.io/organization-id
+              tag_name: loco.organization.id
             - from: pod
               key: loco.io/workspace-id
               tag_name: loco.workspace.id
@@ -366,6 +371,7 @@ otel-col-deploy:
         trace_statements:
           - context: span
             statements: &dropRecordTenancy
+              - delete_key(attributes, "loco.organization.id")
               - delete_key(attributes, "loco.workspace.id")
               - delete_key(attributes, "loco.environment.id")
               - delete_key(attributes, "loco.resource.id")

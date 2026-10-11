@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
@@ -154,6 +155,28 @@ func desiredPayload(t *testing.T, f *deployFixture) ApplicationPayload {
 		t.Fatalf("decode desired spec: %v", err)
 	}
 	return payload
+}
+
+func (f *deployFixture) organizationID(t *testing.T) string {
+	t.Helper()
+	var orgID uuid.UUID
+	query := `SELECT w.org_id FROM resources r JOIN workspaces w ON w.id = r.workspace_id WHERE r.id = $1`
+	if err := f.pool.QueryRow(context.Background(), query, f.resourceID).Scan(&orgID); err != nil {
+		t.Fatalf("read organization: %v", err)
+	}
+	return orgID.String()
+}
+
+func TestCreateDeploymentCarriesTheWorkspaceOrganization(t *testing.T) {
+	f := newDeployFixture(t)
+	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+		t.Fatalf("create deployment: %v", err)
+	}
+
+	want := f.organizationID(t)
+	if got := desiredPayload(t, f).AppSpec.OrganizationID; got != want {
+		t.Errorf("organization = %q, want the workspace's %s", got, want)
+	}
 }
 
 func TestCreateDeploymentRaisesAnUnsetMaximumToTheMinimum(t *testing.T) {

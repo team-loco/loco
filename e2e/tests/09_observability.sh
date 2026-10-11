@@ -48,12 +48,14 @@ obs_daemon_namespace=$(yq '.["otel-col-daemon"].namespaceOverride' "$obs_chart_v
 obs_fixture_scope=$(awk -F'"' '$1 ~ /^\ttracerName +=/ { print $2 }' "$obs_fixture_dir/main.go")
 obs_forged_span=$(awk -F'"' '$1 ~ /^\tforgedSpanName +=/ { print $2 }' "$obs_fixture_dir/main.go")
 obs_forged_workspace=$(awk -F'"' '$1 ~ /^\tforgedWorkspaceID +=/ { print $2 }' "$obs_fixture_dir/main.go")
+obs_forged_organization=$(awk -F'"' '$1 ~ /^\tforgedOrganizationID +=/ { print $2 }' "$obs_fixture_dir/main.go")
 obs_proxy_url="http://127.0.0.1:${E2E_OBS_PROXY_PORT}"
 obs_query_logs="${obs_proxy_url}/loco.observability.v1.ObservabilityProxyService/QueryLogs"
 obs_metric_tables="otel_metrics_sum otel_metrics_gauge otel_metrics_histogram"
 obs_all_tables="otel_traces otel_logs otel_metrics_sum otel_metrics_gauge otel_metrics_histogram otel_metrics_exponential_histogram otel_metrics_summary"
 
 obs_workspace_id=""
+obs_organization_id=""
 obs_environment_id=""
 obs_resource_id=""
 obs_trace_id=""
@@ -235,8 +237,11 @@ test_o01_deploys_the_fixture_through_loco() {
     obs_resource_id=$(obs_resource_id_from_db)
     obs_workspace_id=$(obs_application_field workspaceId)
     obs_environment_id=$(obs_application_field environmentId)
+    obs_organization_id=$(obs_application_field organizationId)
     assert "The Application carries the workspace, environment and resource ids" \
         test -n "$obs_workspace_id" -a -n "$obs_environment_id" -a -n "$obs_resource_id"
+    assert "The Application carries the workspace's organization id ${cli_org_id}" \
+        test "$obs_organization_id" = "$cli_org_id"
 
     obs_workspace_token=$(mint_api_token "e2e-obs-$(obs_random_hex "$obs_marker_bytes")" \
         ENTITY_TYPE_WORKSPACE "$obs_workspace_id" SCOPE_READ)
@@ -250,6 +255,7 @@ test_o01_deploys_the_fixture_through_loco() {
         printf '| Field | Value |\n| --- | --- |\n'
         printf '| Resource | `%s` |\n' "$obs_app"
         printf '| Hostname | `%s` |\n' "$obs_app_host"
+        printf '| OrganizationId | `%s` |\n' "$obs_organization_id"
         printf '| WorkspaceId | `%s` |\n' "$obs_workspace_id"
         printf '| EnvironmentId | `%s` |\n' "$obs_environment_id"
         printf '| ResourceId | `%s` |\n' "$obs_resource_id"
@@ -335,13 +341,13 @@ test_o03_migrations() {
 
 check_ingress_trace() {
     local query rows
-    query="SELECT Timestamp, SpanId, ParentSpanId, SpanName, SpanKind, ServiceName, ScopeName, WorkspaceId, EnvironmentId, ResourceId FROM otel_traces WHERE TraceId = '${obs_trace_id}' ORDER BY Timestamp"
-    ev "Expected WorkspaceId \`${obs_workspace_id}\`, ResourceId \`${obs_resource_id}\`; the client sent parent span \`${obs_client_span_id}\`; the app's spans have scope \`${obs_fixture_scope}\`." ""
+    query="SELECT Timestamp, SpanId, ParentSpanId, SpanName, SpanKind, ServiceName, ScopeName, OrganizationId, WorkspaceId, EnvironmentId, ResourceId FROM otel_traces WHERE TraceId = '${obs_trace_id}' ORDER BY Timestamp"
+    ev "Expected WorkspaceId \`${obs_workspace_id}\`, ResourceId \`${obs_resource_id}\`, and on the app's spans OrganizationId \`${obs_organization_id}\`; the client sent parent span \`${obs_client_span_id}\`; the app's spans have scope \`${obs_fixture_scope}\`." ""
     ev_query "Spans of the known trace" "$query"
-    rows=$(obs_ch "SELECT SpanId, ParentSpanId, ScopeName, WorkspaceId, ResourceId FROM otel_traces WHERE TraceId = '${obs_trace_id}'" TabSeparated) || return 1
-    awk -F'\t' -v scope="$obs_fixture_scope" -v ws="$obs_workspace_id" -v res="$obs_resource_id" '
+    rows=$(obs_ch "SELECT SpanId, ParentSpanId, ScopeName, WorkspaceId, ResourceId, OrganizationId FROM otel_traces WHERE TraceId = '${obs_trace_id}'" TabSeparated) || return 1
+    awk -F'\t' -v scope="$obs_fixture_scope" -v ws="$obs_workspace_id" -v res="$obs_resource_id" -v org="$obs_organization_id" '
         {
-            id[NR] = $1; parent[NR] = $2; app[NR] = ($3 == scope); tenant[NR] = ($4 == ws && $5 == res)
+            id[NR] = $1; parent[NR] = $2; app[NR] = ($3 == scope && $6 == org); tenant[NR] = ($4 == ws && $5 == res)
         }
         END {
             for (i = 1; i <= NR; i++) {
@@ -360,12 +366,12 @@ test_o04_ingress_trace() {
 
 check_app_logs() {
     local query rows
-    query="SELECT Timestamp, WorkspaceId, EnvironmentId, ResourceId, TraceId, substring(Body, 1, ${obs_body_chars}) AS Body FROM otel_logs WHERE Body LIKE '%trace_id=${obs_trace_id}%' ORDER BY Timestamp LIMIT ${obs_output_rows}"
-    ev "Expected WorkspaceId \`${obs_workspace_id}\`, EnvironmentId \`${obs_environment_id}\`, ResourceId \`${obs_resource_id}\`; the fixture logs \`trace_id=${obs_trace_id}\` for the traced request." ""
+    query="SELECT Timestamp, OrganizationId, WorkspaceId, EnvironmentId, ResourceId, TraceId, substring(Body, 1, ${obs_body_chars}) AS Body FROM otel_logs WHERE Body LIKE '%trace_id=${obs_trace_id}%' ORDER BY Timestamp LIMIT ${obs_output_rows}"
+    ev "Expected OrganizationId \`${obs_organization_id}\`, WorkspaceId \`${obs_workspace_id}\`, EnvironmentId \`${obs_environment_id}\`, ResourceId \`${obs_resource_id}\`; the fixture logs \`trace_id=${obs_trace_id}\` for the traced request." ""
     ev_query "Fixture stdout lines carrying the known trace id" "$query"
-    rows=$(obs_ch "SELECT WorkspaceId, EnvironmentId, ResourceId FROM otel_logs WHERE Body LIKE '%trace_id=${obs_trace_id}%'" TabSeparated) || return 1
-    awk -F'\t' -v ws="$obs_workspace_id" -v env="$obs_environment_id" -v res="$obs_resource_id" '
-        $1 == ws && $2 == env && $3 == res { found = 1 } END { exit !found }' <<<"$rows"
+    rows=$(obs_ch "SELECT WorkspaceId, EnvironmentId, ResourceId, OrganizationId FROM otel_logs WHERE Body LIKE '%trace_id=${obs_trace_id}%'" TabSeparated) || return 1
+    awk -F'\t' -v ws="$obs_workspace_id" -v env="$obs_environment_id" -v res="$obs_resource_id" -v org="$obs_organization_id" '
+        $1 == ws && $2 == env && $3 == res && $4 == org { found = 1 } END { exit !found }' <<<"$rows"
 }
 
 test_o05_app_logs() {
@@ -420,16 +426,16 @@ check_forged_attribute() {
         if [ -n "$counts" ]; then
             counts+=" UNION ALL "
         fi
-        counts+="SELECT '${table}' AS Table, countIf(WorkspaceId = '${obs_forged_workspace}') AS ForgedRows FROM ${table}"
+        counts+="SELECT '${table}' AS Table, countIf(WorkspaceId = '${obs_forged_workspace}' OR OrganizationId = '${obs_forged_organization}') AS ForgedRows FROM ${table}"
     done
-    ev "The fixture exports span \`${obs_forged_span}\` with resource attribute \`loco.workspace.id=${obs_forged_workspace}\`. No row may keep the forged value; the span must land with WorkspaceId \`${obs_workspace_id}\`." ""
-    ev_query "Rows with the forged WorkspaceId, per table" "$counts"
-    ev_query "Where the forged span landed" "SELECT Timestamp, SpanName, ServiceName, WorkspaceId, EnvironmentId, ResourceId FROM otel_traces WHERE SpanName = '${obs_forged_span}' ORDER BY Timestamp LIMIT ${obs_output_rows}"
+    ev "The fixture exports span \`${obs_forged_span}\` with resource attributes \`loco.workspace.id=${obs_forged_workspace}\` and \`loco.organization.id=${obs_forged_organization}\`. No row may keep either forged value; the span must land with OrganizationId \`${obs_organization_id}\` and WorkspaceId \`${obs_workspace_id}\`." ""
+    ev_query "Rows with a forged OrganizationId or WorkspaceId, per table" "$counts"
+    ev_query "Where the forged span landed" "SELECT Timestamp, SpanName, ServiceName, OrganizationId, WorkspaceId, EnvironmentId, ResourceId FROM otel_traces WHERE SpanName = '${obs_forged_span}' ORDER BY Timestamp LIMIT ${obs_output_rows}"
     forged=$(obs_ch "SELECT sum(ForgedRows) FROM (${counts})" TabSeparated) || return 1
-    landed=$(obs_ch "SELECT countIf(WorkspaceId = '${obs_workspace_id}' AND ResourceId = '${obs_resource_id}'), count() FROM otel_traces WHERE SpanName = '${obs_forged_span}'" TabSeparated) || return 1
+    landed=$(obs_ch "SELECT countIf(OrganizationId = '${obs_organization_id}' AND WorkspaceId = '${obs_workspace_id}' AND ResourceId = '${obs_resource_id}'), count() FROM otel_traces WHERE SpanName = '${obs_forged_span}'" TabSeparated) || return 1
     local real total
     read -r real total <<<"$landed"
-    ev "Forged rows: \`${forged}\`; forged spans with the real workspace and resource: \`${real}\` of \`${total}\`." ""
+    ev "Forged rows: \`${forged}\`; forged spans with the real organization, workspace and resource: \`${real}\` of \`${total}\`." ""
     test "$forged" -eq 0 && test "$total" -gt 0 && test "$real" -eq "$total"
 }
 

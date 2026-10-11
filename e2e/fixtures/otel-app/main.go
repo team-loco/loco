@@ -27,6 +27,8 @@ const (
 	forgedSpanName           = "forged-workspace-span"
 	forgedWorkspaceAttribute = "loco.workspace.id"
 	forgedWorkspaceID        = "forged-workspace"
+	forgedOrgAttribute       = "loco.organization.id"
+	forgedOrganizationID     = "forged-organization"
 )
 
 type app struct {
@@ -55,8 +57,9 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return err
 	}
-	forgedAttribute := attribute.String(forgedWorkspaceAttribute, forgedWorkspaceID)
-	forgedOverride := resource.NewSchemaless(forgedAttribute)
+	forgedWorkspace := attribute.String(forgedWorkspaceAttribute, forgedWorkspaceID)
+	forgedOrganization := attribute.String(forgedOrgAttribute, forgedOrganizationID)
+	forgedOverride := resource.NewSchemaless(forgedWorkspace, forgedOrganization)
 	forgedRes, err := resource.Merge(res, forgedOverride)
 	if err != nil {
 		return fmt.Errorf("build forged resource: %w", err)
