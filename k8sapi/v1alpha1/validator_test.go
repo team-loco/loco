@@ -118,3 +118,19 @@ func TestObsSpecRequiresAValidSampleRateWhenTracing(t *testing.T) {
 		})
 	}
 }
+
+func TestEnabledAutoscalingIsRejected(t *testing.T) {
+	resources := ResourcesSpec{
+		CPU:      "250m",
+		Memory:   "128Mi",
+		Replicas: ReplicasSpec{Min: 1, Max: 2},
+		Scalers:  ScalersSpec{Enabled: true, CPUTarget: 70},
+	}
+	if err := resources.Validate(); !errors.Is(err, ErrAutoscalingUnsupported) {
+		t.Fatalf("enabled autoscaling error = %v, want unsupported", err)
+	}
+	resources.Scalers.Enabled = false
+	if err := resources.Validate(); err != nil {
+		t.Fatalf("disabled autoscaling rejected: %v", err)
+	}
+}

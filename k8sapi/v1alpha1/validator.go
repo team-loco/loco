@@ -11,6 +11,7 @@ import (
 )
 
 var (
+	ErrAutoscalingUnsupported = errors.New("autoscaling is not supported yet")
 	errNilApplicationSpec     = errors.New("applicationSpec cannot be nil")
 	errResourceIDMissing      = errors.New("resourceId must be set")
 	errWorkspaceIDMissing     = errors.New("workspaceId must be set")
@@ -331,36 +332,9 @@ func (spec *ResourcesSpec) Validate() error {
 		return fmt.Errorf("replicas.max (%d) must be >= replicas.min (%d)", spec.Replicas.Max, spec.Replicas.Min)
 	}
 
-	// Scalers validation
 	if spec.Scalers.Enabled {
-		if err := validateScalersSpec(&spec.Scalers); err != nil {
-			return fmt.Errorf("scalers: %w", err)
-		}
+		return ErrAutoscalingUnsupported
 	}
-
-	return nil
-}
-
-// validateScalersSpec validates the ScalersSpec
-func validateScalersSpec(spec *ScalersSpec) error {
-	if spec == nil {
-		return nil
-	}
-
-	if !spec.Enabled {
-		return nil
-	}
-
-	// CPU target (1-100%)
-	if spec.CPUTarget != 0 && (spec.CPUTarget < 1 || spec.CPUTarget > 100) {
-		return fmt.Errorf("cpuTarget must be between 1 and 100, got %d", spec.CPUTarget)
-	}
-
-	// Memory target (1-100%)
-	if spec.MemoryTarget != 0 && (spec.MemoryTarget < 1 || spec.MemoryTarget > 100) {
-		return fmt.Errorf("memoryTarget must be between 1 and 100, got %d", spec.MemoryTarget)
-	}
-
 	return nil
 }
 

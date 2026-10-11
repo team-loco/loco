@@ -74,7 +74,7 @@ var _ = Describe("Application Controller", func() {
 									Max: 3,
 								},
 								Scalers: locov1alpha1.ScalersSpec{
-									Enabled:      true,
+									Enabled:      false,
 									CPUTarget:    80,
 									MemoryTarget: 80,
 								},

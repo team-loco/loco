@@ -8,6 +8,7 @@ import (
 
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/internal/locofile"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
@@ -184,10 +185,6 @@ func TestChangedFieldsMakeAnUpdate(t *testing.T) {
 	service := fileService()
 	service.Env["LOG_LEVEL"] = "debug"
 	service.Secrets = []string{sessionSecret}
-	cpuTarget := int32(70)
-	region := service.Regions[testRegion]
-	region.Autoscaling = &locofile.Autoscaling{CPUTarget: &cpuTarget}
-	service.Regions[testRegion] = region
 	live := Service{
 		Name:           webService,
 		Partial:        testPartial,
@@ -204,7 +201,6 @@ func TestChangedFieldsMakeAnUpdate(t *testing.T) {
 	}
 	want := []Change{
 		{Path: logLevelPath, Before: logLevelInfo, After: "debug"},
-		{Path: "regions.us-east-1.autoscaling.cpuTarget", After: "70"},
 		{Path: "secrets", After: "[SESSION_KEY]"},
 	}
 	if !reflect.DeepEqual(want, op.Changes) {
@@ -636,5 +632,20 @@ func TestOperationsAreSortedByServiceName(t *testing.T) {
 	want := []string{apiService, oldService, webService}
 	if !reflect.DeepEqual(want, names) {
 		t.Fatalf("order = %v, want %v", names, want)
+	}
+}
+
+func TestPlanRejectsEnabledAutoscaling(t *testing.T) {
+	service := fileService()
+	region := service.Regions[testRegion]
+	region.Autoscaling = &locofile.Autoscaling{CPUTarget: new(int32(70))}
+	service.Regions[testRegion] = region
+	planErr := onlyError(
+		t,
+		compute(t, input(map[string]locofile.Service{webService: service})),
+		locoControllerV1.ErrAutoscalingUnsupported,
+	)
+	if planErr.Path != testRegionPath {
+		t.Fatalf("error path = %q, want %q", planErr.Path, testRegionPath)
 	}
 }

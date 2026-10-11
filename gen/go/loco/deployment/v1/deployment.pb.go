@@ -1493,12 +1493,13 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x15initial_delay_seconds\x18\x02 \x01(\x05R\x13initialDelaySeconds\x122\n" +
 	"\x10interval_seconds\x18\x03 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01R\x0fintervalSeconds\x120\n" +
 	"\x0ftimeout_seconds\x18\x04 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01R\x0etimeoutSeconds\x124\n" +
-	"\x11failure_threshold\x18\x05 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01R\x10failureThreshold\"\xa8\x01\n" +
+	"\x11failure_threshold\x18\x05 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01R\x10failureThreshold\"\xff\x01\n" +
 	"\aScalers\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12-\n" +
 	"\n" +
 	"cpu_target\x18\x02 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x00H\x00R\tcpuTarget\x88\x01\x01\x123\n" +
-	"\rmemory_target\x18\x03 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x00H\x01R\fmemoryTarget\x88\x01\x01B\r\n" +
+	"\rmemory_target\x18\x03 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x00H\x01R\fmemoryTarget\x88\x01\x01:U\xbaHR\x1aP\n" +
+	"\x1dscalers.autoscaling_supported\x12 autoscaling is not supported yet\x1a\r!this.enabledB\r\n" +
 	"\v_cpu_targetB\x10\n" +
 	"\x0e_memory_target\"\xee\x01\n" +
 	"\vBuildSource\x12\x1b\n" +
