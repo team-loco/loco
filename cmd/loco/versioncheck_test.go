@@ -95,7 +95,7 @@ func TestReportNewerRelease(t *testing.T) {
 				"Changelog: " + srv.URL + "/releases/tag/" + latestTag,
 			},
 		},
-		{name: invalidTag, server: srv, current: latestTag},
+		{name: "up to date", server: srv, current: latestTag},
 		{name: "devel skips lookup", server: srv, current: develVersion},
 		{name: "server error", server: failing, current: currentVersion},
 		{name: "unreachable", server: unreachable, current: currentVersion},
