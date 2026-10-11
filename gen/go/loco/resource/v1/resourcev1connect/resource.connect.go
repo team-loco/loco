@@ -54,6 +54,9 @@ const (
 	// ResourceServiceListRegionsProcedure is the fully-qualified name of the ResourceService's
 	// ListRegions RPC.
 	ResourceServiceListRegionsProcedure = "/loco.resource.v1.ResourceService/ListRegions"
+	// ResourceServiceGetResourceEnvProcedure is the fully-qualified name of the ResourceService's
+	// GetResourceEnv RPC.
+	ResourceServiceGetResourceEnvProcedure = "/loco.resource.v1.ResourceService/GetResourceEnv"
 	// ResourceServiceListResourceEventsProcedure is the fully-qualified name of the ResourceService's
 	// ListResourceEvents RPC.
 	ResourceServiceListResourceEventsProcedure = "/loco.resource.v1.ResourceService/ListResourceEvents"
@@ -81,6 +84,9 @@ type ResourceServiceClient interface {
 	GetResourceStatus(context.Context, *connect.Request[v1.GetResourceStatusRequest]) (*connect.Response[v1.GetResourceStatusResponse], error)
 	// ListRegions lists available regions for resource deployment.
 	ListRegions(context.Context, *connect.Request[v1.ListRegionsRequest]) (*connect.Response[v1.ListRegionsResponse], error)
+	// GetResourceEnv returns the plain env variables a service runs with in an environment, the
+	// env map of loco.yaml, and the secret names it declares. Secret values are never included.
+	GetResourceEnv(context.Context, *connect.Request[v1.GetResourceEnvRequest]) (*connect.Response[v1.GetResourceEnvResponse], error)
 	// Events
 	// ListResourceEvents retrieves events for a resource.
 	ListResourceEvents(context.Context, *connect.Request[v1.ListResourceEventsRequest]) (*connect.Response[v1.ListResourceEventsResponse], error)
@@ -144,6 +150,12 @@ func NewResourceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(resourceServiceMethods.ByName("ListRegions")),
 			connect.WithClientOptions(opts...),
 		),
+		getResourceEnv: connect.NewClient[v1.GetResourceEnvRequest, v1.GetResourceEnvResponse](
+			httpClient,
+			baseURL+ResourceServiceGetResourceEnvProcedure,
+			connect.WithSchema(resourceServiceMethods.ByName("GetResourceEnv")),
+			connect.WithClientOptions(opts...),
+		),
 		listResourceEvents: connect.NewClient[v1.ListResourceEventsRequest, v1.ListResourceEventsResponse](
 			httpClient,
 			baseURL+ResourceServiceListResourceEventsProcedure,
@@ -174,6 +186,7 @@ type resourceServiceClient struct {
 	listWorkspaceResources *connect.Client[v1.ListWorkspaceResourcesRequest, v1.ListWorkspaceResourcesResponse]
 	getResourceStatus      *connect.Client[v1.GetResourceStatusRequest, v1.GetResourceStatusResponse]
 	listRegions            *connect.Client[v1.ListRegionsRequest, v1.ListRegionsResponse]
+	getResourceEnv         *connect.Client[v1.GetResourceEnvRequest, v1.GetResourceEnvResponse]
 	listResourceEvents     *connect.Client[v1.ListResourceEventsRequest, v1.ListResourceEventsResponse]
 	scaleResource          *connect.Client[v1.ScaleResourceRequest, v1.ScaleResourceResponse]
 	transferPartial        *connect.Client[v1.TransferPartialRequest, v1.TransferPartialResponse]
@@ -214,6 +227,11 @@ func (c *resourceServiceClient) ListRegions(ctx context.Context, req *connect.Re
 	return c.listRegions.CallUnary(ctx, req)
 }
 
+// GetResourceEnv calls loco.resource.v1.ResourceService.GetResourceEnv.
+func (c *resourceServiceClient) GetResourceEnv(ctx context.Context, req *connect.Request[v1.GetResourceEnvRequest]) (*connect.Response[v1.GetResourceEnvResponse], error) {
+	return c.getResourceEnv.CallUnary(ctx, req)
+}
+
 // ListResourceEvents calls loco.resource.v1.ResourceService.ListResourceEvents.
 func (c *resourceServiceClient) ListResourceEvents(ctx context.Context, req *connect.Request[v1.ListResourceEventsRequest]) (*connect.Response[v1.ListResourceEventsResponse], error) {
 	return c.listResourceEvents.CallUnary(ctx, req)
@@ -245,6 +263,9 @@ type ResourceServiceHandler interface {
 	GetResourceStatus(context.Context, *connect.Request[v1.GetResourceStatusRequest]) (*connect.Response[v1.GetResourceStatusResponse], error)
 	// ListRegions lists available regions for resource deployment.
 	ListRegions(context.Context, *connect.Request[v1.ListRegionsRequest]) (*connect.Response[v1.ListRegionsResponse], error)
+	// GetResourceEnv returns the plain env variables a service runs with in an environment, the
+	// env map of loco.yaml, and the secret names it declares. Secret values are never included.
+	GetResourceEnv(context.Context, *connect.Request[v1.GetResourceEnvRequest]) (*connect.Response[v1.GetResourceEnvResponse], error)
 	// Events
 	// ListResourceEvents retrieves events for a resource.
 	ListResourceEvents(context.Context, *connect.Request[v1.ListResourceEventsRequest]) (*connect.Response[v1.ListResourceEventsResponse], error)
@@ -304,6 +325,12 @@ func NewResourceServiceHandler(svc ResourceServiceHandler, opts ...connect.Handl
 		connect.WithSchema(resourceServiceMethods.ByName("ListRegions")),
 		connect.WithHandlerOptions(opts...),
 	)
+	resourceServiceGetResourceEnvHandler := connect.NewUnaryHandler(
+		ResourceServiceGetResourceEnvProcedure,
+		svc.GetResourceEnv,
+		connect.WithSchema(resourceServiceMethods.ByName("GetResourceEnv")),
+		connect.WithHandlerOptions(opts...),
+	)
 	resourceServiceListResourceEventsHandler := connect.NewUnaryHandler(
 		ResourceServiceListResourceEventsProcedure,
 		svc.ListResourceEvents,
@@ -338,6 +365,8 @@ func NewResourceServiceHandler(svc ResourceServiceHandler, opts ...connect.Handl
 			resourceServiceGetResourceStatusHandler.ServeHTTP(w, r)
 		case ResourceServiceListRegionsProcedure:
 			resourceServiceListRegionsHandler.ServeHTTP(w, r)
+		case ResourceServiceGetResourceEnvProcedure:
+			resourceServiceGetResourceEnvHandler.ServeHTTP(w, r)
 		case ResourceServiceListResourceEventsProcedure:
 			resourceServiceListResourceEventsHandler.ServeHTTP(w, r)
 		case ResourceServiceScaleResourceProcedure:
@@ -379,6 +408,10 @@ func (UnimplementedResourceServiceHandler) GetResourceStatus(context.Context, *c
 
 func (UnimplementedResourceServiceHandler) ListRegions(context.Context, *connect.Request[v1.ListRegionsRequest]) (*connect.Response[v1.ListRegionsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.ListRegions is not implemented"))
+}
+
+func (UnimplementedResourceServiceHandler) GetResourceEnv(context.Context, *connect.Request[v1.GetResourceEnvRequest]) (*connect.Response[v1.GetResourceEnvResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.GetResourceEnv is not implemented"))
 }
 
 func (UnimplementedResourceServiceHandler) ListResourceEvents(context.Context, *connect.Request[v1.ListResourceEventsRequest]) (*connect.Response[v1.ListResourceEventsResponse], error) {

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateResourceRequest, CreateResourceResponse, DeleteResourceRequest, DeleteResourceResponse, GetResourceRequest, GetResourceResponse, GetResourceStatusRequest, GetResourceStatusResponse, ListRegionsRequest, ListRegionsResponse, ListResourceEventsRequest, ListResourceEventsResponse, ListWorkspaceResourcesRequest, ListWorkspaceResourcesResponse, ScaleResourceRequest, ScaleResourceResponse, TransferPartialRequest, TransferPartialResponse, UpdateResourceRequest, UpdateResourceResponse } from "./resource_pb";
+import { CreateResourceRequest, CreateResourceResponse, DeleteResourceRequest, DeleteResourceResponse, GetResourceEnvRequest, GetResourceEnvResponse, GetResourceRequest, GetResourceResponse, GetResourceStatusRequest, GetResourceStatusResponse, ListRegionsRequest, ListRegionsResponse, ListResourceEventsRequest, ListResourceEventsResponse, ListWorkspaceResourcesRequest, ListWorkspaceResourcesResponse, ScaleResourceRequest, ScaleResourceResponse, TransferPartialRequest, TransferPartialResponse, UpdateResourceRequest, UpdateResourceResponse } from "./resource_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -89,6 +89,18 @@ export const ResourceService = {
       name: "ListRegions",
       I: ListRegionsRequest,
       O: ListRegionsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * GetResourceEnv returns the plain env variables a service runs with in an environment, the
+     * env map of loco.yaml, and the secret names it declares. Secret values are never included.
+     *
+     * @generated from rpc loco.resource.v1.ResourceService.GetResourceEnv
+     */
+    getResourceEnv: {
+      name: "GetResourceEnv",
+      I: GetResourceEnvRequest,
+      O: GetResourceEnvResponse,
       kind: MethodKind.Unary,
     },
     /**
