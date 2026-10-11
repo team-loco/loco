@@ -40,6 +40,9 @@ clickhouse:
           drop:
             - ALL
   clickhouse:
+    image:
+      repository: altinity/clickhouse-server
+      tag: "25.3.6.10034.altinitystable@sha256:3396b15c51a2c13c0aead9532bd022e478a8f575fe325deacb7d0efeae594174"
     podSecurityContext:
       runAsNonRoot: true
       runAsUser: 101
