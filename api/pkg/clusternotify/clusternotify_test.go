@@ -61,7 +61,8 @@ func startNotifier(t *testing.T, pool *pgxpool.Pool) *clusternotify.Notifier {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	n := clusternotify.New(pool, time.Hour)
+	poolConfig := pool.Config()
+	n := clusternotify.New(poolConfig.ConnConfig, time.Hour)
 	if err := n.Start(ctx); err != nil {
 		t.Fatalf("start: %v", err)
 	}
@@ -180,5 +181,37 @@ func TestListenerSurvivesListenConnectionLoss(t *testing.T) {
 		if time.Now().After(deadline) {
 			t.Fatal("notifications not delivered after reconnecting")
 		}
+	}
+}
+
+func TestListenerUsesItsOwnConnectionAfterQueryPoolCloses(t *testing.T) {
+	pool := newPool(t)
+	config := pool.Config().ConnConfig
+	notifier := clusternotify.New(config, time.Hour)
+	pool.Close()
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	if err := notifier.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	sender, err := pgx.ConnectConfig(ctx, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := sender.Close(context.Background()); err != nil {
+			t.Error(err)
+		}
+	}()
+	clusterID := uuid.New()
+	target := notifier.Listen(ctx, clusterID)
+	defer target.Close()
+	if _, err := sender.Exec(ctx, notifySQL, clusternotify.Channel, clusterID.String()); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-target.Wake():
+	case <-time.After(time.Second):
+		t.Fatal("direct listener did not receive the notification")
 	}
 }

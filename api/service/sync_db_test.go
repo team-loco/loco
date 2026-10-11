@@ -246,7 +246,8 @@ func startSyncServerWithSources(
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	notifier := clusternotify.New(f.pool, 200*time.Millisecond)
+	poolConfig := f.pool.Config()
+	notifier := clusternotify.New(poolConfig.ConnConfig, 200*time.Millisecond)
 	if err := notifier.Start(ctx); err != nil {
 		t.Fatalf("start notifier: %v", err)
 	}

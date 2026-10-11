@@ -9,7 +9,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const (
@@ -19,19 +18,20 @@ const (
 )
 
 type Notifier struct {
-	pool         *pgxpool.Pool
+	connConfig   *pgx.ConnConfig
 	pollInterval time.Duration
 
 	mu          sync.Mutex
 	subscribers map[uuid.UUID]map[*Listener]struct{}
 }
 
-func New(pool *pgxpool.Pool, pollInterval time.Duration) *Notifier {
+func New(connConfig *pgx.ConnConfig, pollInterval time.Duration) *Notifier {
 	if pollInterval <= 0 {
 		pollInterval = DefaultPollInterval
 	}
+	listenConfig := connConfig.Copy()
 	return &Notifier{
-		pool:         pool,
+		connConfig:   listenConfig,
 		pollInterval: pollInterval,
 		subscribers:  make(map[uuid.UUID]map[*Listener]struct{}),
 	}
@@ -55,7 +55,7 @@ func (n *Notifier) Start(ctx context.Context) error {
 }
 
 func (n *Notifier) listen(ctx context.Context) (*pgx.Conn, error) {
-	connConfig := n.pool.Config().ConnConfig.Copy()
+	connConfig := n.connConfig.Copy()
 	conn, err := pgx.ConnectConfig(ctx, connConfig)
 	if err != nil {
 		return nil, fmt.Errorf("connect listen connection: %w", err)
