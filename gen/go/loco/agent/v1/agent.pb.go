@@ -353,11 +353,12 @@ func (x *Inventory) GetBuilds() []*InventoryBuild {
 }
 
 type InventoryEntry struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	PlacementId   string                 `protobuf:"bytes,1,opt,name=placement_id,json=placementId,proto3" json:"placement_id,omitempty"`
-	Revision      int64                  `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	PlacementId      string                 `protobuf:"bytes,1,opt,name=placement_id,json=placementId,proto3" json:"placement_id,omitempty"`
+	Revision         int64                  `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	EnvSecretPending bool                   `protobuf:"varint,3,opt,name=env_secret_pending,json=envSecretPending,proto3" json:"env_secret_pending,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *InventoryEntry) Reset() {
@@ -402,6 +403,13 @@ func (x *InventoryEntry) GetRevision() int64 {
 		return x.Revision
 	}
 	return 0
+}
+
+func (x *InventoryEntry) GetEnvSecretPending() bool {
+	if x != nil {
+		return x.EnvSecretPending
+	}
+	return false
 }
 
 type InventoryBuild struct {
@@ -804,6 +812,7 @@ type Apply struct {
 	Revision      int64                  `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
 	ResourceId    string                 `protobuf:"bytes,3,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	Application   []byte                 `protobuf:"bytes,4,opt,name=application,proto3" json:"application,omitempty"`
+	EnvSecret     *EnvSecret             `protobuf:"bytes,5,opt,name=env_secret,json=envSecret,proto3" json:"env_secret,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -866,6 +875,66 @@ func (x *Apply) GetApplication() []byte {
 	return nil
 }
 
+func (x *Apply) GetEnvSecret() *EnvSecret {
+	if x != nil {
+		return x.EnvSecret
+	}
+	return nil
+}
+
+// EnvSecret carries the secret values a placement declares, beside the Application that never holds them.
+type EnvSecret struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Revision      int64                  `protobuf:"varint,1,opt,name=revision,proto3" json:"revision,omitempty"`
+	Data          map[string][]byte      `protobuf:"bytes,2,rep,name=data,proto3" json:"data,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EnvSecret) Reset() {
+	*x = EnvSecret{}
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnvSecret) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnvSecret) ProtoMessage() {}
+
+func (x *EnvSecret) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnvSecret.ProtoReflect.Descriptor instead.
+func (*EnvSecret) Descriptor() ([]byte, []int) {
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *EnvSecret) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *EnvSecret) GetData() map[string][]byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
 type Delete struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	PlacementId   string                 `protobuf:"bytes,1,opt,name=placement_id,json=placementId,proto3" json:"placement_id,omitempty"`
@@ -877,7 +946,7 @@ type Delete struct {
 
 func (x *Delete) Reset() {
 	*x = Delete{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[11]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -889,7 +958,7 @@ func (x *Delete) String() string {
 func (*Delete) ProtoMessage() {}
 
 func (x *Delete) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[11]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -902,7 +971,7 @@ func (x *Delete) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Delete.ProtoReflect.Descriptor instead.
 func (*Delete) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{11}
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *Delete) GetPlacementId() string {
@@ -943,7 +1012,7 @@ type StartBuild struct {
 
 func (x *StartBuild) Reset() {
 	*x = StartBuild{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[12]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -955,7 +1024,7 @@ func (x *StartBuild) String() string {
 func (*StartBuild) ProtoMessage() {}
 
 func (x *StartBuild) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[12]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -968,7 +1037,7 @@ func (x *StartBuild) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartBuild.ProtoReflect.Descriptor instead.
 func (*StartBuild) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{12}
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *StartBuild) GetBuildId() string {
@@ -1036,7 +1105,7 @@ type CancelBuild struct {
 
 func (x *CancelBuild) Reset() {
 	*x = CancelBuild{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[13]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1048,7 +1117,7 @@ func (x *CancelBuild) String() string {
 func (*CancelBuild) ProtoMessage() {}
 
 func (x *CancelBuild) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[13]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1061,7 +1130,7 @@ func (x *CancelBuild) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelBuild.ProtoReflect.Descriptor instead.
 func (*CancelBuild) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{13}
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CancelBuild) GetBuildId() string {
@@ -1084,7 +1153,7 @@ type HeartbeatRequest struct {
 
 func (x *HeartbeatRequest) Reset() {
 	*x = HeartbeatRequest{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[14]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1096,7 +1165,7 @@ func (x *HeartbeatRequest) String() string {
 func (*HeartbeatRequest) ProtoMessage() {}
 
 func (x *HeartbeatRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[14]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1109,7 +1178,7 @@ func (x *HeartbeatRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatRequest.ProtoReflect.Descriptor instead.
 func (*HeartbeatRequest) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{14}
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *HeartbeatRequest) GetClusterId() string {
@@ -1149,7 +1218,7 @@ type HeartbeatResponse struct {
 
 func (x *HeartbeatResponse) Reset() {
 	*x = HeartbeatResponse{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[15]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1161,7 +1230,7 @@ func (x *HeartbeatResponse) String() string {
 func (*HeartbeatResponse) ProtoMessage() {}
 
 func (x *HeartbeatResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[15]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1174,7 +1243,7 @@ func (x *HeartbeatResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatResponse.ProtoReflect.Descriptor instead.
 func (*HeartbeatResponse) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{15}
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{16}
 }
 
 // AgentCapacity reports cluster resource capacity.
@@ -1192,7 +1261,7 @@ type AgentCapacity struct {
 
 func (x *AgentCapacity) Reset() {
 	*x = AgentCapacity{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[16]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1204,7 +1273,7 @@ func (x *AgentCapacity) String() string {
 func (*AgentCapacity) ProtoMessage() {}
 
 func (x *AgentCapacity) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[16]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1217,7 +1286,7 @@ func (x *AgentCapacity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentCapacity.ProtoReflect.Descriptor instead.
 func (*AgentCapacity) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{16}
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *AgentCapacity) GetCpuMillicoresTotal() int64 {
@@ -1274,7 +1343,7 @@ type AgentHealth struct {
 
 func (x *AgentHealth) Reset() {
 	*x = AgentHealth{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[17]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1286,7 +1355,7 @@ func (x *AgentHealth) String() string {
 func (*AgentHealth) ProtoMessage() {}
 
 func (x *AgentHealth) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[17]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1299,7 +1368,7 @@ func (x *AgentHealth) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentHealth.ProtoReflect.Descriptor instead.
 func (*AgentHealth) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{17}
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *AgentHealth) GetKubernetesHealthy() bool {
@@ -1343,10 +1412,11 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\amessage\"{\n" +
 	"\tInventory\x127\n" +
 	"\aentries\x18\x01 \x03(\v2\x1d.loco.agent.v1.InventoryEntryR\aentries\x125\n" +
-	"\x06builds\x18\x02 \x03(\v2\x1d.loco.agent.v1.InventoryBuildR\x06builds\"O\n" +
+	"\x06builds\x18\x02 \x03(\v2\x1d.loco.agent.v1.InventoryBuildR\x06builds\"}\n" +
 	"\x0eInventoryEntry\x12!\n" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12\x1a\n" +
-	"\brevision\x18\x02 \x01(\x03R\brevision\"p\n" +
+	"\brevision\x18\x02 \x01(\x03R\brevision\x12,\n" +
+	"\x12env_secret_pending\x18\x03 \x01(\bR\x10envSecretPending\"p\n" +
 	"\x0eInventoryBuild\x12#\n" +
 	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\x129\n" +
 	"\x05phase\x18\x02 \x01(\x0e2\x19.loco.agent.v1.BuildPhaseB\b\xbaH\x05\x82\x01\x02\x10\x01R\x05phase\"\x9b\x02\n" +
@@ -1375,13 +1445,21 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\vstart_build\x18\x03 \x01(\v2\x19.loco.agent.v1.StartBuildH\x00R\n" +
 	"startBuild\x12?\n" +
 	"\fcancel_build\x18\x04 \x01(\v2\x1a.loco.agent.v1.CancelBuildH\x00R\vcancelBuildB\t\n" +
-	"\amessage\"\x89\x01\n" +
+	"\amessage\"\xc2\x01\n" +
 	"\x05Apply\x12!\n" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x1f\n" +
 	"\vresource_id\x18\x03 \x01(\tR\n" +
 	"resourceId\x12 \n" +
-	"\vapplication\x18\x04 \x01(\fR\vapplication\"h\n" +
+	"\vapplication\x18\x04 \x01(\fR\vapplication\x127\n" +
+	"\n" +
+	"env_secret\x18\x05 \x01(\v2\x18.loco.agent.v1.EnvSecretR\tenvSecret\"\x98\x01\n" +
+	"\tEnvSecret\x12\x1a\n" +
+	"\brevision\x18\x01 \x01(\x03R\brevision\x126\n" +
+	"\x04data\x18\x02 \x03(\v2\".loco.agent.v1.EnvSecret.DataEntryR\x04data\x1a7\n" +
+	"\tDataEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\fR\x05value:\x028\x01\"h\n" +
 	"\x06Delete\x12!\n" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x1f\n" +
@@ -1446,7 +1524,7 @@ func file_loco_agent_v1_agent_proto_rawDescGZIP() []byte {
 }
 
 var file_loco_agent_v1_agent_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_loco_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_loco_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_loco_agent_v1_agent_proto_goTypes = []any{
 	(BuildPhase)(0),           // 0: loco.agent.v1.BuildPhase
 	(*RegisterRequest)(nil),   // 1: loco.agent.v1.RegisterRequest
@@ -1460,16 +1538,18 @@ var file_loco_agent_v1_agent_proto_goTypes = []any{
 	(*PlacementStatus)(nil),   // 9: loco.agent.v1.PlacementStatus
 	(*SyncResponse)(nil),      // 10: loco.agent.v1.SyncResponse
 	(*Apply)(nil),             // 11: loco.agent.v1.Apply
-	(*Delete)(nil),            // 12: loco.agent.v1.Delete
-	(*StartBuild)(nil),        // 13: loco.agent.v1.StartBuild
-	(*CancelBuild)(nil),       // 14: loco.agent.v1.CancelBuild
-	(*HeartbeatRequest)(nil),  // 15: loco.agent.v1.HeartbeatRequest
-	(*HeartbeatResponse)(nil), // 16: loco.agent.v1.HeartbeatResponse
-	(*AgentCapacity)(nil),     // 17: loco.agent.v1.AgentCapacity
-	(*AgentHealth)(nil),       // 18: loco.agent.v1.AgentHealth
+	(*EnvSecret)(nil),         // 12: loco.agent.v1.EnvSecret
+	(*Delete)(nil),            // 13: loco.agent.v1.Delete
+	(*StartBuild)(nil),        // 14: loco.agent.v1.StartBuild
+	(*CancelBuild)(nil),       // 15: loco.agent.v1.CancelBuild
+	(*HeartbeatRequest)(nil),  // 16: loco.agent.v1.HeartbeatRequest
+	(*HeartbeatResponse)(nil), // 17: loco.agent.v1.HeartbeatResponse
+	(*AgentCapacity)(nil),     // 18: loco.agent.v1.AgentCapacity
+	(*AgentHealth)(nil),       // 19: loco.agent.v1.AgentHealth
+	nil,                       // 20: loco.agent.v1.EnvSecret.DataEntry
 }
 var file_loco_agent_v1_agent_proto_depIdxs = []int32{
-	17, // 0: loco.agent.v1.RegisterRequest.capacity:type_name -> loco.agent.v1.AgentCapacity
+	18, // 0: loco.agent.v1.RegisterRequest.capacity:type_name -> loco.agent.v1.AgentCapacity
 	4,  // 1: loco.agent.v1.SyncRequest.inventory:type_name -> loco.agent.v1.Inventory
 	8,  // 2: loco.agent.v1.SyncRequest.applied:type_name -> loco.agent.v1.Applied
 	9,  // 3: loco.agent.v1.SyncRequest.status:type_name -> loco.agent.v1.PlacementStatus
@@ -1479,22 +1559,24 @@ var file_loco_agent_v1_agent_proto_depIdxs = []int32{
 	0,  // 7: loco.agent.v1.InventoryBuild.phase:type_name -> loco.agent.v1.BuildPhase
 	0,  // 8: loco.agent.v1.BuildStatus.phase:type_name -> loco.agent.v1.BuildPhase
 	11, // 9: loco.agent.v1.SyncResponse.apply:type_name -> loco.agent.v1.Apply
-	12, // 10: loco.agent.v1.SyncResponse.delete:type_name -> loco.agent.v1.Delete
-	13, // 11: loco.agent.v1.SyncResponse.start_build:type_name -> loco.agent.v1.StartBuild
-	14, // 12: loco.agent.v1.SyncResponse.cancel_build:type_name -> loco.agent.v1.CancelBuild
-	17, // 13: loco.agent.v1.HeartbeatRequest.capacity:type_name -> loco.agent.v1.AgentCapacity
-	18, // 14: loco.agent.v1.HeartbeatRequest.health:type_name -> loco.agent.v1.AgentHealth
-	1,  // 15: loco.agent.v1.AgentService.Register:input_type -> loco.agent.v1.RegisterRequest
-	3,  // 16: loco.agent.v1.AgentService.Sync:input_type -> loco.agent.v1.SyncRequest
-	15, // 17: loco.agent.v1.AgentService.Heartbeat:input_type -> loco.agent.v1.HeartbeatRequest
-	2,  // 18: loco.agent.v1.AgentService.Register:output_type -> loco.agent.v1.RegisterResponse
-	10, // 19: loco.agent.v1.AgentService.Sync:output_type -> loco.agent.v1.SyncResponse
-	16, // 20: loco.agent.v1.AgentService.Heartbeat:output_type -> loco.agent.v1.HeartbeatResponse
-	18, // [18:21] is the sub-list for method output_type
-	15, // [15:18] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	13, // 10: loco.agent.v1.SyncResponse.delete:type_name -> loco.agent.v1.Delete
+	14, // 11: loco.agent.v1.SyncResponse.start_build:type_name -> loco.agent.v1.StartBuild
+	15, // 12: loco.agent.v1.SyncResponse.cancel_build:type_name -> loco.agent.v1.CancelBuild
+	12, // 13: loco.agent.v1.Apply.env_secret:type_name -> loco.agent.v1.EnvSecret
+	20, // 14: loco.agent.v1.EnvSecret.data:type_name -> loco.agent.v1.EnvSecret.DataEntry
+	18, // 15: loco.agent.v1.HeartbeatRequest.capacity:type_name -> loco.agent.v1.AgentCapacity
+	19, // 16: loco.agent.v1.HeartbeatRequest.health:type_name -> loco.agent.v1.AgentHealth
+	1,  // 17: loco.agent.v1.AgentService.Register:input_type -> loco.agent.v1.RegisterRequest
+	3,  // 18: loco.agent.v1.AgentService.Sync:input_type -> loco.agent.v1.SyncRequest
+	16, // 19: loco.agent.v1.AgentService.Heartbeat:input_type -> loco.agent.v1.HeartbeatRequest
+	2,  // 20: loco.agent.v1.AgentService.Register:output_type -> loco.agent.v1.RegisterResponse
+	10, // 21: loco.agent.v1.AgentService.Sync:output_type -> loco.agent.v1.SyncResponse
+	17, // 22: loco.agent.v1.AgentService.Heartbeat:output_type -> loco.agent.v1.HeartbeatResponse
+	20, // [20:23] is the sub-list for method output_type
+	17, // [17:20] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_loco_agent_v1_agent_proto_init() }
@@ -1520,7 +1602,7 @@ func file_loco_agent_v1_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_agent_v1_agent_proto_rawDesc), len(file_loco_agent_v1_agent_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   18,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

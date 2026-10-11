@@ -1,0 +1,74 @@
+# loco env push sets every KEY=VALUE line of a .env file on one service in one SetSecrets call,
+# expanding nothing.
+fakeapi resource web
+exec loco env push --service web --env production app.env
+stdout '^Set 3 secrets \(revision 1\)$'
+stdout '^  API_KEY v1$'
+stdout '^  DATABASE_URL v1$'
+stdout '^  GREETING v1$'
+! stdout 'postgres://'
+fakeapi called SetSecrets 'Bearer test-token'
+fakeapi secret web DATABASE_URL 'postgres://user:p$ss@db:5432/app'
+fakeapi secret web API_KEY 'abc 123'
+fakeapi secret web GREETING 'hello ${NAME}'
+
+# Without a file the lines come from stdin, and a second push bumps the version.
+stdin stdin.env
+exec loco env push --service web --env production
+stdout '^Set 1 secrets \(revision 2\)$'
+stdout '^  API_KEY v2$'
+fakeapi secret web API_KEY 'from-stdin'
+
+# A broken line is reported by number; its text never reaches the output.
+! exec loco env push --service web --env production broken.env
+stderr '(?i)broken.env: line 3: unterminated quote'
+! stderr 'hunter2'
+! stdout .
+
+# A file with no assignments is refused before any call.
+! exec loco env push --service web --env production empty.env
+stderr 'no KEY=VALUE lines'
+
+# A missing file is reported by name.
+! exec loco env push --service web --env production nope.env
+stderr 'open nope.env'
+
+# --service is required, and an unknown service fails before any secret call.
+! exec loco env push --env production app.env
+stderr '(?i)required flag\(s\) "service" not set'
+! exec loco env push --service nope --env production app.env
+stderr '(?i)service "nope" not found'
+
+# An install with no secrets key provider refuses the write.
+fakeapi fail SetSecrets failed_precondition
+! exec loco env push --service web --env production app.env
+stderr '(?i)set secrets: fakeapi: SetSecrets configured to fail'
+! stdout .
+
+-- app.env --
+# database
+export DATABASE_URL='postgres://user:p$ss@db:5432/app'
+
+API_KEY="abc 123" # inline note
+GREETING=hello ${NAME}
+-- stdin.env --
+API_KEY=from-stdin
+-- broken.env --
+A=1
+B=2
+C="hunter2
+-- empty.env --
+# only a comment
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.toml --
+currentScope = "default"
+
+[scopes.default.organization]
+name = "acme"
+id = "1"
+
+[scopes.default.workspace]
+name = "production"
+id = "2"

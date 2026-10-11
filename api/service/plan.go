@@ -34,14 +34,18 @@ type PlanServer struct {
 	resolver     ImageResolver
 	registryHost string
 	defaults     servicedefaults.Defaults
+	secrets      SecretConfig
 }
 
+// NewPlanServer creates a PlanServer; secrets supplies the per-placement size limit the plan
+// checks each service's declared secrets against.
 func NewPlanServer(
 	db *pgxpool.Pool,
 	queries genDb.Querier,
 	resolver ImageResolver,
 	registryHost string,
 	defaults servicedefaults.Defaults,
+	secrets SecretConfig,
 ) *PlanServer {
 	return &PlanServer{
 		db:           db,
@@ -50,6 +54,7 @@ func NewPlanServer(
 		resolver:     resolver,
 		registryHost: registryHost,
 		defaults:     defaults,
+		secrets:      secrets,
 	}
 }
 
@@ -82,7 +87,7 @@ func (s *PlanServer) Plan(
 	req *connect.Request[planv1.PlanRequest],
 ) (*connect.Response[planv1.PlanResponse], error) {
 	r := req.Msg
-	planned, err := s.loadPlan(ctx, r.GetFile(), r.GetEnvironmentId(), actions.Plan)
+	planned, err := s.loadPlan(ctx, r.GetFile(), r.GetEnvironmentId(), actions.Plan, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -99,6 +104,7 @@ func (s *PlanServer) loadPlan(
 	rawFile []byte,
 	rawEnvironmentID string,
 	action actions.Action,
+	provision []string,
 ) (*plannedFile, error) {
 	file, err := locofile.Parse(rawFile)
 	if err != nil {
@@ -151,6 +157,11 @@ func (s *PlanServer) loadPlan(
 		slog.ErrorContext(ctx, "failed to load the environment's services", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
+	secrets, err := s.serviceSecrets(ctx, env.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list secret names", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
 
 	environmentNames := make([]string, 0, len(environments))
 	for _, environment := range environments {
@@ -173,6 +184,9 @@ func (s *PlanServer) loadPlan(
 		FileEnvironments: fileEnvironments(file),
 		Environments:     environmentNames,
 		Regions:          regions,
+		Secrets:          secrets,
+		MaxSecretBytes:   int64(s.secrets.MaxPlacementBytes),
+		Provision:        provision,
 		PlatformDomains:  platformDomainNames,
 		Live:             live.services,
 		Defaults:         s.defaults,
@@ -316,6 +330,27 @@ func (s *PlanServer) liveEnvironment(ctx context.Context, env genDb.Environment)
 	return live, nil
 }
 
+// serviceSecrets returns the value size of every secret each service holds in the environment,
+// by service name and secret name. The size is the ciphertext length less the GCM tag, so
+// nothing is decrypted.
+func (s *PlanServer) serviceSecrets(
+	ctx context.Context,
+	environmentID uuid.UUID,
+) (map[string]map[string]int64, error) {
+	rows, err := s.queries.ListResourceSecretNames(ctx, environmentID)
+	if err != nil {
+		return nil, fmt.Errorf("list secret names: %w", err)
+	}
+	secrets := make(map[string]map[string]int64)
+	for _, row := range rows {
+		if secrets[row.ResourceName] == nil {
+			secrets[row.ResourceName] = make(map[string]int64)
+		}
+		secrets[row.ResourceName][row.Name] = row.CiphertextBytes - secretTagBytes
+	}
+	return secrets, nil
+}
+
 func deploymentRegions(deployments []genDb.Deployment) []string {
 	regions := make([]string, 0, len(deployments))
 	for _, deployment := range deployments {
@@ -416,6 +451,7 @@ func (s *PlanServer) liveState(
 			return configplan.State{}, fmt.Errorf("deployment %s env: %w", deployment.ID, envErr)
 		}
 		state.Env = env
+		state.Secrets = deployment.SecretNames
 	}
 	if len(deployments) > 0 {
 		maps.DeleteFunc(state.Regions, func(region string, _ configplan.Region) bool {

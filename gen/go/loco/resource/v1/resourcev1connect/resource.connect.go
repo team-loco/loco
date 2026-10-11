@@ -54,15 +54,15 @@ const (
 	// ResourceServiceListRegionsProcedure is the fully-qualified name of the ResourceService's
 	// ListRegions RPC.
 	ResourceServiceListRegionsProcedure = "/loco.resource.v1.ResourceService/ListRegions"
+	// ResourceServiceGetResourceEnvProcedure is the fully-qualified name of the ResourceService's
+	// GetResourceEnv RPC.
+	ResourceServiceGetResourceEnvProcedure = "/loco.resource.v1.ResourceService/GetResourceEnv"
 	// ResourceServiceListResourceEventsProcedure is the fully-qualified name of the ResourceService's
 	// ListResourceEvents RPC.
 	ResourceServiceListResourceEventsProcedure = "/loco.resource.v1.ResourceService/ListResourceEvents"
 	// ResourceServiceScaleResourceProcedure is the fully-qualified name of the ResourceService's
 	// ScaleResource RPC.
 	ResourceServiceScaleResourceProcedure = "/loco.resource.v1.ResourceService/ScaleResource"
-	// ResourceServiceUpdateResourceEnvProcedure is the fully-qualified name of the ResourceService's
-	// UpdateResourceEnv RPC.
-	ResourceServiceUpdateResourceEnvProcedure = "/loco.resource.v1.ResourceService/UpdateResourceEnv"
 	// ResourceServiceTransferPartialProcedure is the fully-qualified name of the ResourceService's
 	// TransferPartial RPC.
 	ResourceServiceTransferPartialProcedure = "/loco.resource.v1.ResourceService/TransferPartial"
@@ -84,14 +84,15 @@ type ResourceServiceClient interface {
 	GetResourceStatus(context.Context, *connect.Request[v1.GetResourceStatusRequest]) (*connect.Response[v1.GetResourceStatusResponse], error)
 	// ListRegions lists available regions for resource deployment.
 	ListRegions(context.Context, *connect.Request[v1.ListRegionsRequest]) (*connect.Response[v1.ListRegionsResponse], error)
+	// GetResourceEnv returns the plain env variables a service runs with in an environment, the
+	// env map of loco.yaml, and the secret names it declares. Secret values are never included.
+	GetResourceEnv(context.Context, *connect.Request[v1.GetResourceEnvRequest]) (*connect.Response[v1.GetResourceEnvResponse], error)
 	// Events
 	// ListResourceEvents retrieves events for a resource.
 	ListResourceEvents(context.Context, *connect.Request[v1.ListResourceEventsRequest]) (*connect.Response[v1.ListResourceEventsResponse], error)
 	// Resource Operations
 	// ScaleResource adjusts resource replicas and resource allocation.
 	ScaleResource(context.Context, *connect.Request[v1.ScaleResourceRequest]) (*connect.Response[v1.ScaleResourceResponse], error)
-	// UpdateResourceEnv updates environment variables for a resource.
-	UpdateResourceEnv(context.Context, *connect.Request[v1.UpdateResourceEnvRequest]) (*connect.Response[v1.UpdateResourceEnvResponse], error)
 	// TransferPartial moves a resource to another partial.
 	TransferPartial(context.Context, *connect.Request[v1.TransferPartialRequest]) (*connect.Response[v1.TransferPartialResponse], error)
 }
@@ -149,6 +150,12 @@ func NewResourceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(resourceServiceMethods.ByName("ListRegions")),
 			connect.WithClientOptions(opts...),
 		),
+		getResourceEnv: connect.NewClient[v1.GetResourceEnvRequest, v1.GetResourceEnvResponse](
+			httpClient,
+			baseURL+ResourceServiceGetResourceEnvProcedure,
+			connect.WithSchema(resourceServiceMethods.ByName("GetResourceEnv")),
+			connect.WithClientOptions(opts...),
+		),
 		listResourceEvents: connect.NewClient[v1.ListResourceEventsRequest, v1.ListResourceEventsResponse](
 			httpClient,
 			baseURL+ResourceServiceListResourceEventsProcedure,
@@ -159,12 +166,6 @@ func NewResourceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			httpClient,
 			baseURL+ResourceServiceScaleResourceProcedure,
 			connect.WithSchema(resourceServiceMethods.ByName("ScaleResource")),
-			connect.WithClientOptions(opts...),
-		),
-		updateResourceEnv: connect.NewClient[v1.UpdateResourceEnvRequest, v1.UpdateResourceEnvResponse](
-			httpClient,
-			baseURL+ResourceServiceUpdateResourceEnvProcedure,
-			connect.WithSchema(resourceServiceMethods.ByName("UpdateResourceEnv")),
 			connect.WithClientOptions(opts...),
 		),
 		transferPartial: connect.NewClient[v1.TransferPartialRequest, v1.TransferPartialResponse](
@@ -185,9 +186,9 @@ type resourceServiceClient struct {
 	listWorkspaceResources *connect.Client[v1.ListWorkspaceResourcesRequest, v1.ListWorkspaceResourcesResponse]
 	getResourceStatus      *connect.Client[v1.GetResourceStatusRequest, v1.GetResourceStatusResponse]
 	listRegions            *connect.Client[v1.ListRegionsRequest, v1.ListRegionsResponse]
+	getResourceEnv         *connect.Client[v1.GetResourceEnvRequest, v1.GetResourceEnvResponse]
 	listResourceEvents     *connect.Client[v1.ListResourceEventsRequest, v1.ListResourceEventsResponse]
 	scaleResource          *connect.Client[v1.ScaleResourceRequest, v1.ScaleResourceResponse]
-	updateResourceEnv      *connect.Client[v1.UpdateResourceEnvRequest, v1.UpdateResourceEnvResponse]
 	transferPartial        *connect.Client[v1.TransferPartialRequest, v1.TransferPartialResponse]
 }
 
@@ -226,6 +227,11 @@ func (c *resourceServiceClient) ListRegions(ctx context.Context, req *connect.Re
 	return c.listRegions.CallUnary(ctx, req)
 }
 
+// GetResourceEnv calls loco.resource.v1.ResourceService.GetResourceEnv.
+func (c *resourceServiceClient) GetResourceEnv(ctx context.Context, req *connect.Request[v1.GetResourceEnvRequest]) (*connect.Response[v1.GetResourceEnvResponse], error) {
+	return c.getResourceEnv.CallUnary(ctx, req)
+}
+
 // ListResourceEvents calls loco.resource.v1.ResourceService.ListResourceEvents.
 func (c *resourceServiceClient) ListResourceEvents(ctx context.Context, req *connect.Request[v1.ListResourceEventsRequest]) (*connect.Response[v1.ListResourceEventsResponse], error) {
 	return c.listResourceEvents.CallUnary(ctx, req)
@@ -234,11 +240,6 @@ func (c *resourceServiceClient) ListResourceEvents(ctx context.Context, req *con
 // ScaleResource calls loco.resource.v1.ResourceService.ScaleResource.
 func (c *resourceServiceClient) ScaleResource(ctx context.Context, req *connect.Request[v1.ScaleResourceRequest]) (*connect.Response[v1.ScaleResourceResponse], error) {
 	return c.scaleResource.CallUnary(ctx, req)
-}
-
-// UpdateResourceEnv calls loco.resource.v1.ResourceService.UpdateResourceEnv.
-func (c *resourceServiceClient) UpdateResourceEnv(ctx context.Context, req *connect.Request[v1.UpdateResourceEnvRequest]) (*connect.Response[v1.UpdateResourceEnvResponse], error) {
-	return c.updateResourceEnv.CallUnary(ctx, req)
 }
 
 // TransferPartial calls loco.resource.v1.ResourceService.TransferPartial.
@@ -262,14 +263,15 @@ type ResourceServiceHandler interface {
 	GetResourceStatus(context.Context, *connect.Request[v1.GetResourceStatusRequest]) (*connect.Response[v1.GetResourceStatusResponse], error)
 	// ListRegions lists available regions for resource deployment.
 	ListRegions(context.Context, *connect.Request[v1.ListRegionsRequest]) (*connect.Response[v1.ListRegionsResponse], error)
+	// GetResourceEnv returns the plain env variables a service runs with in an environment, the
+	// env map of loco.yaml, and the secret names it declares. Secret values are never included.
+	GetResourceEnv(context.Context, *connect.Request[v1.GetResourceEnvRequest]) (*connect.Response[v1.GetResourceEnvResponse], error)
 	// Events
 	// ListResourceEvents retrieves events for a resource.
 	ListResourceEvents(context.Context, *connect.Request[v1.ListResourceEventsRequest]) (*connect.Response[v1.ListResourceEventsResponse], error)
 	// Resource Operations
 	// ScaleResource adjusts resource replicas and resource allocation.
 	ScaleResource(context.Context, *connect.Request[v1.ScaleResourceRequest]) (*connect.Response[v1.ScaleResourceResponse], error)
-	// UpdateResourceEnv updates environment variables for a resource.
-	UpdateResourceEnv(context.Context, *connect.Request[v1.UpdateResourceEnvRequest]) (*connect.Response[v1.UpdateResourceEnvResponse], error)
 	// TransferPartial moves a resource to another partial.
 	TransferPartial(context.Context, *connect.Request[v1.TransferPartialRequest]) (*connect.Response[v1.TransferPartialResponse], error)
 }
@@ -323,6 +325,12 @@ func NewResourceServiceHandler(svc ResourceServiceHandler, opts ...connect.Handl
 		connect.WithSchema(resourceServiceMethods.ByName("ListRegions")),
 		connect.WithHandlerOptions(opts...),
 	)
+	resourceServiceGetResourceEnvHandler := connect.NewUnaryHandler(
+		ResourceServiceGetResourceEnvProcedure,
+		svc.GetResourceEnv,
+		connect.WithSchema(resourceServiceMethods.ByName("GetResourceEnv")),
+		connect.WithHandlerOptions(opts...),
+	)
 	resourceServiceListResourceEventsHandler := connect.NewUnaryHandler(
 		ResourceServiceListResourceEventsProcedure,
 		svc.ListResourceEvents,
@@ -333,12 +341,6 @@ func NewResourceServiceHandler(svc ResourceServiceHandler, opts ...connect.Handl
 		ResourceServiceScaleResourceProcedure,
 		svc.ScaleResource,
 		connect.WithSchema(resourceServiceMethods.ByName("ScaleResource")),
-		connect.WithHandlerOptions(opts...),
-	)
-	resourceServiceUpdateResourceEnvHandler := connect.NewUnaryHandler(
-		ResourceServiceUpdateResourceEnvProcedure,
-		svc.UpdateResourceEnv,
-		connect.WithSchema(resourceServiceMethods.ByName("UpdateResourceEnv")),
 		connect.WithHandlerOptions(opts...),
 	)
 	resourceServiceTransferPartialHandler := connect.NewUnaryHandler(
@@ -363,12 +365,12 @@ func NewResourceServiceHandler(svc ResourceServiceHandler, opts ...connect.Handl
 			resourceServiceGetResourceStatusHandler.ServeHTTP(w, r)
 		case ResourceServiceListRegionsProcedure:
 			resourceServiceListRegionsHandler.ServeHTTP(w, r)
+		case ResourceServiceGetResourceEnvProcedure:
+			resourceServiceGetResourceEnvHandler.ServeHTTP(w, r)
 		case ResourceServiceListResourceEventsProcedure:
 			resourceServiceListResourceEventsHandler.ServeHTTP(w, r)
 		case ResourceServiceScaleResourceProcedure:
 			resourceServiceScaleResourceHandler.ServeHTTP(w, r)
-		case ResourceServiceUpdateResourceEnvProcedure:
-			resourceServiceUpdateResourceEnvHandler.ServeHTTP(w, r)
 		case ResourceServiceTransferPartialProcedure:
 			resourceServiceTransferPartialHandler.ServeHTTP(w, r)
 		default:
@@ -408,16 +410,16 @@ func (UnimplementedResourceServiceHandler) ListRegions(context.Context, *connect
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.ListRegions is not implemented"))
 }
 
+func (UnimplementedResourceServiceHandler) GetResourceEnv(context.Context, *connect.Request[v1.GetResourceEnvRequest]) (*connect.Response[v1.GetResourceEnvResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.GetResourceEnv is not implemented"))
+}
+
 func (UnimplementedResourceServiceHandler) ListResourceEvents(context.Context, *connect.Request[v1.ListResourceEventsRequest]) (*connect.Response[v1.ListResourceEventsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.ListResourceEvents is not implemented"))
 }
 
 func (UnimplementedResourceServiceHandler) ScaleResource(context.Context, *connect.Request[v1.ScaleResourceRequest]) (*connect.Response[v1.ScaleResourceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.ScaleResource is not implemented"))
-}
-
-func (UnimplementedResourceServiceHandler) UpdateResourceEnv(context.Context, *connect.Request[v1.UpdateResourceEnvRequest]) (*connect.Response[v1.UpdateResourceEnvResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.UpdateResourceEnv is not implemented"))
 }
 
 func (UnimplementedResourceServiceHandler) TransferPartial(context.Context, *connect.Request[v1.TransferPartialRequest]) (*connect.Response[v1.TransferPartialResponse], error) {

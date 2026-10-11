@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateResourceRequest, CreateResourceResponse, DeleteResourceRequest, DeleteResourceResponse, GetResourceRequest, GetResourceResponse, GetResourceStatusRequest, GetResourceStatusResponse, ListRegionsRequest, ListRegionsResponse, ListResourceEventsRequest, ListResourceEventsResponse, ListWorkspaceResourcesRequest, ListWorkspaceResourcesResponse, ScaleResourceRequest, ScaleResourceResponse, TransferPartialRequest, TransferPartialResponse, UpdateResourceEnvRequest, UpdateResourceEnvResponse, UpdateResourceRequest, UpdateResourceResponse } from "./resource_pb";
+import { CreateResourceRequest, CreateResourceResponse, DeleteResourceRequest, DeleteResourceResponse, GetResourceEnvRequest, GetResourceEnvResponse, GetResourceRequest, GetResourceResponse, GetResourceStatusRequest, GetResourceStatusResponse, ListRegionsRequest, ListRegionsResponse, ListResourceEventsRequest, ListResourceEventsResponse, ListWorkspaceResourcesRequest, ListWorkspaceResourcesResponse, ScaleResourceRequest, ScaleResourceResponse, TransferPartialRequest, TransferPartialResponse, UpdateResourceRequest, UpdateResourceResponse } from "./resource_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -92,6 +92,18 @@ export const ResourceService = {
       kind: MethodKind.Unary,
     },
     /**
+     * GetResourceEnv returns the plain env variables a service runs with in an environment, the
+     * env map of loco.yaml, and the secret names it declares. Secret values are never included.
+     *
+     * @generated from rpc loco.resource.v1.ResourceService.GetResourceEnv
+     */
+    getResourceEnv: {
+      name: "GetResourceEnv",
+      I: GetResourceEnvRequest,
+      O: GetResourceEnvResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
      * Events
      * ListResourceEvents retrieves events for a resource.
      *
@@ -113,17 +125,6 @@ export const ResourceService = {
       name: "ScaleResource",
       I: ScaleResourceRequest,
       O: ScaleResourceResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * UpdateResourceEnv updates environment variables for a resource.
-     *
-     * @generated from rpc loco.resource.v1.ResourceService.UpdateResourceEnv
-     */
-    updateResourceEnv: {
-      name: "UpdateResourceEnv",
-      I: UpdateResourceEnvRequest,
-      O: UpdateResourceEnvResponse,
       kind: MethodKind.Unary,
     },
     /**

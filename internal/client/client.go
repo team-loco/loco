@@ -235,22 +235,6 @@ func (c *Client) ScaleApp(ctx context.Context, appID string, replicas *int32, cp
 	return nil
 }
 
-func (c *Client) UpdateAppEnv(ctx context.Context, appID string, env map[string]string) error {
-	req := connect.NewRequest(&resourcev1.UpdateResourceEnvRequest{
-		ResourceId: appID,
-		Env:        env,
-	})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
-
-	_, err := c.Resource.UpdateResourceEnv(ctx, req)
-	if err != nil {
-		logRequestID(ctx, err, "failed to update app env")
-		return err
-	}
-
-	return nil
-}
-
 func (c *Client) GetAppStatus(ctx context.Context, appID string) (*resourcev1.GetResourceStatusResponse, error) {
 	req := connect.NewRequest(&resourcev1.GetResourceStatusRequest{
 		ResourceId: appID,

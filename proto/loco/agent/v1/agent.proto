@@ -49,6 +49,7 @@ message Inventory {
 message InventoryEntry {
   string placement_id = 1;
   int64 revision = 2;
+  bool env_secret_pending = 3;
 }
 
 message InventoryBuild {
@@ -106,6 +107,13 @@ message Apply {
   int64 revision = 2;
   string resource_id = 3;
   bytes application = 4;
+  EnvSecret env_secret = 5;
+}
+
+// EnvSecret carries the secret values a placement declares, beside the Application that never holds them.
+message EnvSecret {
+  int64 revision = 1;
+  map<string, bytes> data = 2;
 }
 
 message Delete {

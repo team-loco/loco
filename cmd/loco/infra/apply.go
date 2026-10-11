@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
+	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/internal/ui"
 )
 
@@ -52,6 +53,10 @@ confirmation. The apply fails when the environment changed since the plan was sh
 
 Destructive operations need --confirm-destructive and imports need --confirm-import.
 Without a terminal, --yes replaces the prompt.
+
+A new service whose only plan errors are the secrets it declares is created without being
+deployed; the command prints the loco env set command for its secrets and exits with an
+error, and the next apply deploys it.
 
 Examples:
   loco infra apply
@@ -90,7 +95,7 @@ func runApply(cmd *cobra.Command, path string) error {
 	if err != nil {
 		return err
 	}
-	file, err := readLocoFile(path)
+	file, data, err := loadLocoFile(path)
 	if err != nil {
 		return err
 	}
@@ -99,11 +104,18 @@ func runApply(cmd *cobra.Command, path string) error {
 	if err != nil {
 		return err
 	}
-	plan, err := requestPlan(ctx, t, file)
+	plan, err := requestPlan(ctx, t, data)
 	if err != nil {
 		return err
 	}
 	if len(plan.GetErrors()) > 0 {
+		services, resolveErr := locofile.Resolve(file, t.environmentName)
+		if resolveErr != nil {
+			return fmt.Errorf("%s does not resolve for environment %s: %w", path, t.environmentName, resolveErr)
+		}
+		if handled, provisionErr := provisionForSecrets(ctx, t, data, plan, services, confirm, os.Stdout); handled {
+			return provisionErr
+		}
 		return planErrorsError(path, plan.GetErrors())
 	}
 	if writeErr := writePlan(os.Stdout, path, plan); writeErr != nil {
@@ -127,7 +139,7 @@ func runApply(cmd *cobra.Command, path string) error {
 		}
 	}
 
-	applied, err := requestApply(ctx, t, file, plan.GetRevision(), plan.GetImages(), confirm, applyScope{})
+	applied, err := requestApply(ctx, t, data, plan.GetRevision(), plan.GetImages(), confirm, applyScope{})
 	if err != nil {
 		return err
 	}

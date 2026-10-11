@@ -54,6 +54,14 @@ export const getResourceStatus = ResourceService.method.getResourceStatus;
 export const listRegions = ResourceService.method.listRegions;
 
 /**
+ * GetResourceEnv returns the plain env variables a service runs with in an environment, the
+ * env map of loco.yaml, and the secret names it declares. Secret values are never included.
+ *
+ * @generated from rpc loco.resource.v1.ResourceService.GetResourceEnv
+ */
+export const getResourceEnv = ResourceService.method.getResourceEnv;
+
+/**
  * Events
  * ListResourceEvents retrieves events for a resource.
  *
@@ -68,13 +76,6 @@ export const listResourceEvents = ResourceService.method.listResourceEvents;
  * @generated from rpc loco.resource.v1.ResourceService.ScaleResource
  */
 export const scaleResource = ResourceService.method.scaleResource;
-
-/**
- * UpdateResourceEnv updates environment variables for a resource.
- *
- * @generated from rpc loco.resource.v1.ResourceService.UpdateResourceEnv
- */
-export const updateResourceEnv = ResourceService.method.updateResourceEnv;
 
 /**
  * TransferPartial moves a resource to another partial.

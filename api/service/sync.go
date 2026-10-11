@@ -136,24 +136,61 @@ func (ss *syncSession) sendPending(ctx context.Context) error {
 }
 
 func (ss *syncSession) sendPendingPlacements(ctx context.Context) error {
-	pending, err := ss.server.queries.ListPendingPlacements(ctx, ss.clusterID)
+	pending, secrets, err := ss.server.readPlacements(ctx, func(
+		ctx context.Context,
+		q *genDb.Queries,
+	) ([]genDb.Placement, error) {
+		listed, listErr := q.ListPendingPlacements(ctx, ss.clusterID)
+		if listErr != nil {
+			return nil, listErr
+		}
+		unsent := make([]genDb.Placement, 0, len(listed))
+		for _, placement := range listed {
+			if ss.sent[placement.ID] != placement.DesiredRevision {
+				unsent = append(unsent, placement)
+			}
+		}
+		return unsent, nil
+	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list pending placements", "cluster_id", ss.clusterID, "error", err)
+		slog.ErrorContext(ctx, "failed to read pending placements", "cluster_id", ss.clusterID, "error", err)
 		return nil
 	}
+	defer secrets.zero()
 	for _, placement := range pending {
-		if ss.sent[placement.ID] == placement.DesiredRevision {
-			continue
-		}
-		if sendErr := ss.send(placement); sendErr != nil {
+		if sendErr := ss.send(ctx, secrets, placement); sendErr != nil {
 			return sendErr
 		}
 	}
 	return nil
 }
 
-func (ss *syncSession) send(placement genDb.Placement) error {
-	msg := placementMessage(placement)
+func (ss *syncSession) send(ctx context.Context, secrets *secretSnapshot, placement genDb.Placement) error {
+	var envSecret *agentv1.EnvSecret
+	if !placement.DesiredDeleted && len(placement.SecretNames) > 0 {
+		secret, err := secrets.envSecret(ctx, placement)
+		if isPlacementSecretError(err) {
+			ss.server.recordApplyError(ctx, ss.clusterID, placement.ID, &agentv1.Applied{
+				PlacementId: placement.ID.String(),
+				Revision:    placement.DesiredRevision,
+				Error:       err.Error(),
+			})
+			ss.sent[placement.ID] = placement.DesiredRevision
+			return nil
+		}
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to load the secrets of a placement",
+				"cluster_id", ss.clusterID,
+				"placement_id", placement.ID,
+				"revision", placement.DesiredRevision,
+				"error", err,
+			)
+			return nil
+		}
+		envSecret = secret
+		defer zeroEnvSecretData(envSecret.GetData())
+	}
+	msg := placementMessage(placement, envSecret)
 	if err := ss.sendFn(msg); err != nil {
 		return fmt.Errorf("send placement %s: %w", placement.ID, err)
 	}
@@ -161,7 +198,7 @@ func (ss *syncSession) send(placement genDb.Placement) error {
 	return nil
 }
 
-func placementMessage(placement genDb.Placement) *agentv1.SyncResponse {
+func placementMessage(placement genDb.Placement, envSecret *agentv1.EnvSecret) *agentv1.SyncResponse {
 	resourceID := placement.ResourceID.String()
 	placementID := placement.ID.String()
 	if placement.DesiredDeleted {
@@ -182,6 +219,7 @@ func placementMessage(placement genDb.Placement) *agentv1.SyncResponse {
 				Revision:    placement.DesiredRevision,
 				ResourceId:  resourceID,
 				Application: placement.DesiredSpec,
+				EnvSecret:   envSecret,
 			},
 		},
 	}
@@ -212,6 +250,7 @@ type placementRevision struct {
 	appliedRevision  int64
 	observedRevision int64
 	observed         bool
+	envSecretPending bool
 }
 
 type inventoryAction int
@@ -233,6 +272,9 @@ func diffInventory(rev placementRevision) inventoryAction {
 	if !rev.observed || rev.observedRevision < rev.desiredRevision {
 		return inventorySend
 	}
+	if rev.envSecretPending {
+		return inventorySend
+	}
 	if rev.appliedRevision < rev.desiredRevision {
 		return inventoryMarkApplied
 	}
@@ -248,7 +290,7 @@ func (ss *syncSession) reconcileInventory(ctx context.Context, inventory *agentv
 }
 
 func (ss *syncSession) reconcilePlacementInventory(ctx context.Context, inventory *agentv1.Inventory) error {
-	observed := make(map[uuid.UUID]int64, len(inventory.GetEntries()))
+	observed := make(map[uuid.UUID]*agentv1.InventoryEntry, len(inventory.GetEntries()))
 	for _, entry := range inventory.GetEntries() {
 		id, err := uuid.Parse(entry.GetPlacementId())
 		if err != nil {
@@ -258,7 +300,7 @@ func (ss *syncSession) reconcilePlacementInventory(ctx context.Context, inventor
 			)
 			continue
 		}
-		observed[id] = entry.GetRevision()
+		observed[id] = entry
 	}
 
 	rows, err := ss.server.queries.ListClusterPlacementRevisions(ctx, ss.clusterID)
@@ -269,7 +311,8 @@ func (ss *syncSession) reconcilePlacementInventory(ctx context.Context, inventor
 
 	toSend := make([]uuid.UUID, 0)
 	for _, row := range rows {
-		observedRevision, present := observed[row.ID]
+		entry, present := observed[row.ID]
+		observedRevision := entry.GetRevision()
 		action := diffInventory(placementRevision{
 			id:               row.ID,
 			desiredRevision:  row.DesiredRevision,
@@ -277,6 +320,7 @@ func (ss *syncSession) reconcilePlacementInventory(ctx context.Context, inventor
 			appliedRevision:  row.AppliedRevision,
 			observedRevision: observedRevision,
 			observed:         present,
+			envSecretPending: entry.GetEnvSecretPending(),
 		})
 		switch action {
 		case inventorySend:
@@ -316,16 +360,19 @@ func (ss *syncSession) reconcilePlacementInventory(ctx context.Context, inventor
 		return nil
 	}
 
-	placements, err := ss.server.queries.ListPlacementsByIDs(ctx, genDb.ListPlacementsByIDsParams{
-		ClusterID: ss.clusterID,
-		Ids:       toSend,
+	placements, secrets, err := ss.server.readPlacements(ctx, func(
+		ctx context.Context,
+		q *genDb.Queries,
+	) ([]genDb.Placement, error) {
+		return q.ListPlacementsByIDs(ctx, genDb.ListPlacementsByIDsParams{ClusterID: ss.clusterID, Ids: toSend})
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load placements for inventory", "cluster_id", ss.clusterID, "error", err)
 		return nil
 	}
+	defer secrets.zero()
 	for _, placement := range placements {
-		if sendErr := ss.send(placement); sendErr != nil {
+		if sendErr := ss.send(ctx, secrets, placement); sendErr != nil {
 			return sendErr
 		}
 	}

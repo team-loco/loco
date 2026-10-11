@@ -126,7 +126,7 @@ func TestBuildsQueuedOnAClusterThatDisabledBuildsFail(t *testing.T) {
 
 func TestRegisterAndHeartbeatRecordWhetherTheClusterAcceptsBuilds(t *testing.T) {
 	f := newBuildFixture(t)
-	server := NewAgentServer(f.pool, f.queries, nil, f.bucket)
+	server := NewAgentServer(f.pool, f.queries, nil, f.bucket, nil)
 	register := func(enabled bool) {
 		t.Helper()
 		req := connect.NewRequest(&agentv1.RegisterRequest{AgentVersion: "test", BuildsEnabled: enabled})

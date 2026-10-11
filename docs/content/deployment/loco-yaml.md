@@ -108,5 +108,10 @@ loco deploy web --env production --yes
 
 `env` holds plain values, which appear in the plan and in the file.
 
-!!! note "Secrets are not available yet"
-    `secrets` lists secret names the service reads, and the file never contains their values. Loco has no command to store a secret value yet, so the plan reports every listed secret as missing in the environment. Leave `secrets` out until secret storage ships.
+`secrets` lists the secret names the service reads; the file never contains their values. A secret belongs to one service in one environment, and `loco env` sets it:
+
+```sh
+loco env set --service web --env production STRIPE_API_KEY=sk_live_...
+```
+
+The plan reports each listed name the service does not hold in the environment as an error. A value can only be set on a service that exists, so when a new service's only plan errors are its secrets, `loco deploy` and `loco infra apply` create it without building or deploying it, print the `loco env set` command for its secrets, and exit with an error. Run the command again once the values are set.

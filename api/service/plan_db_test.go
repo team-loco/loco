@@ -78,7 +78,7 @@ func planFileOwnedAsLive() string {
 
 func newPlanServer(f *deployFixture) *PlanServer {
 	resolver := &fakeResolver{digest: testDigest}
-	return NewPlanServer(f.pool, f.queries, resolver, testRegistryHost, testServiceDefaults())
+	return NewPlanServer(f.pool, f.queries, resolver, testRegistryHost, testServiceDefaults(), testSecretConfig())
 }
 
 func plan(t *testing.T, f *deployFixture, file string, scopes []genDb.EntityScope) (*planv1.PlanResponse, error) {

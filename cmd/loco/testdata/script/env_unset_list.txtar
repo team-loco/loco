@@ -1,0 +1,81 @@
+# loco env list shows a service's names, versions and who set them; loco env unset removes names.
+# Neither prints a value.
+fakeapi resource web
+fakeapi resource worker
+exec loco env list --service web --env production
+stdout '^web has no secrets in production\.$'
+fakeapi called ListSecrets 'Bearer test-token'
+
+exec loco env set --service web --env production API_KEY=abc123 LOG_LEVEL=debug
+exec loco env set --service web --env production API_KEY=def456
+
+exec loco env list --service web --env production
+stdout '^NAME +VERSION +UPDATED BY +UPDATED AT$'
+stdout '^API_KEY +2 +user:00000000-0000-7000-8000-0000000000a9 +2026-10-07T06:00:00Z$'
+stdout '^LOG_LEVEL +1 +user:00000000-0000-7000-8000-0000000000a9 +2026-10-07T06:00:00Z$'
+! stdout 'abc123'
+! stdout 'def456'
+! stdout 'debug'
+
+exec loco env unset --service web --env production API_KEY
+stdout '^Removed API_KEY \(revision 3\)$'
+fakeapi called DeleteSecrets 'Bearer test-token'
+! fakeapi secret web API_KEY ''
+fakeapi secret web LOG_LEVEL 'debug'
+
+exec loco env list --service web --env production
+! stdout 'API_KEY'
+stdout '^LOG_LEVEL +1 '
+
+# Another service holds its own names: worker's LOG_LEVEL is apart from web's.
+exec loco env set --service worker --env production LOG_LEVEL=warn
+exec loco env list --service worker --env production
+stdout '^LOG_LEVEL +1 '
+exec loco env unset --service worker --env production LOG_LEVEL
+fakeapi secret web LOG_LEVEL 'debug'
+exec loco env list --service worker --env production
+stdout '^worker has no secrets in production\.$'
+
+# --service is required, and an unknown service fails before any secret call.
+! exec loco env list --env production
+stderr '(?i)required flag\(s\) "service" not set'
+! exec loco env unset --service nope --env production LOG_LEVEL
+stderr '(?i)service "nope" not found'
+fakeapi secret web LOG_LEVEL 'debug'
+
+# A name that does not exist is refused by the API with the name in the message.
+! exec loco env unset --service web --env production LOG_LEVEL MISSING
+stderr '(?i)unset secrets: secret not found: MISSING'
+fakeapi secret web LOG_LEVEL 'debug'
+
+# unset needs at least one name.
+! exec loco env unset --service web --env production
+stderr '(?i)requires at least 1 arg'
+
+# LOCO_ENV selects the environment like --env does.
+env LOCO_ENV=production
+exec loco env unset --service web LOG_LEVEL
+stdout '^Removed LOG_LEVEL \(revision 6\)$'
+env LOCO_ENV=
+
+# An install with no secrets key provider refuses the delete.
+fakeapi fail DeleteSecrets failed_precondition
+! exec loco env unset --service web --env production LOG_LEVEL
+stderr '(?i)unset secrets: fakeapi: DeleteSecrets configured to fail'
+
+fakeapi fail ListSecrets failed_precondition
+! exec loco env list --service web --env production
+stderr '(?i)list secrets: fakeapi: ListSecrets configured to fail'
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.toml --
+currentScope = "default"
+
+[scopes.default.organization]
+name = "acme"
+id = "1"
+
+[scopes.default.workspace]
+name = "production"
+id = "2"

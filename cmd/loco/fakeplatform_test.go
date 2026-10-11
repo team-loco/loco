@@ -26,6 +26,7 @@ import (
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
+	"github.com/team-loco/loco/gen/go/loco/secret/v1/secretv1connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -83,6 +84,8 @@ type fakePlatform struct {
 	imagesMove        bool
 	clusterHeld       bool
 	noPlatformDomain  bool
+	secrets           map[fakeSecretKey]fakeSecret
+	revision          int64
 }
 
 func newFakePlatform() *fakePlatform {
@@ -98,6 +101,7 @@ func newFakePlatform() *fakePlatform {
 		uploadMode:  uploadModeOK,
 		sourceLimit: 200 << 20,
 		uploads:     map[string]fakeUpload{},
+		secrets:     map[fakeSecretKey]fakeSecret{},
 	}
 }
 
@@ -108,6 +112,7 @@ func (f *fakeAPI) registerPlatform(mux *http.ServeMux) {
 	mux.Handle(buildv1connect.NewBuildServiceHandler(&fakeBuildService{api: f}))
 	mux.Handle(observabilityv1connect.NewObservabilityAccessServiceHandler(&fakeAccessService{api: f}))
 	mux.Handle(observabilityv1connect.NewObservabilityProxyServiceHandler(&fakeProxyService{api: f}))
+	mux.Handle(secretv1connect.NewSecretServiceHandler(&fakeSecretService{api: f}))
 	mux.HandleFunc(uploadPathPrefix, f.handleUpload)
 	f.registerPlan(mux)
 }

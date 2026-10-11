@@ -37,7 +37,6 @@ const (
 	ResourceUpdated      = "resource.updated"
 	ResourceDeleted      = "resource.deleted"
 	ResourceScaled       = "resource.scaled"
-	ResourceEnvUpdated   = "resource.env_updated"
 	ResourcePartial      = "resource.partial_transferred"
 	DeploymentCreated    = "deployment.created"
 	DeploymentDeleted    = "deployment.deleted"
@@ -53,6 +52,9 @@ const (
 	ClusterRegistered    = "cluster.registered"
 	WebhookCreated       = "webhook.created"
 	WebhookDeleted       = "webhook.deleted"
+	SecretSet            = "secret.set"
+	SecretDeleted        = "secret.deleted"
+	SecretKeyRewrapped   = "secret_key.rewrapped"
 )
 
 const (
@@ -76,14 +78,19 @@ const (
 )
 
 const (
-	FieldName       = "name"
-	FieldAction     = "action"
-	FieldDomain     = "domain"
-	FieldResourceID = "resourceId"
-	FieldPartial    = "partial"
-	FieldFrom       = "from"
-	FieldPaths      = "paths"
-	FieldPrimary    = "primary"
+	FieldName          = "name"
+	FieldAction        = "action"
+	FieldDomain        = "domain"
+	FieldResourceID    = "resourceId"
+	FieldPartial       = "partial"
+	FieldFrom          = "from"
+	FieldPaths         = "paths"
+	FieldPrimary       = "primary"
+	FieldNames         = "names"
+	FieldRevision      = "revision"
+	FieldKekID         = "kekId"
+	FieldEnvironmentID = "environmentId"
+	FieldNewDEK        = "newDek"
 )
 
 type Event struct {

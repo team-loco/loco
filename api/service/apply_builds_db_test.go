@@ -274,11 +274,30 @@ func TestApplyProvisionCreatesOnlyTheNamedSourceServices(t *testing.T) {
 	}
 }
 
-func TestApplyProvisionRefusesServicesThePlanDoesNotCreateFromSource(t *testing.T) {
+func TestApplyProvisionCreatesAnImageServiceWithoutDeployingIt(t *testing.T) {
 	f := newDeployFixture(t)
 	file := seedProvisionWorkspace(t, f)
 
-	for _, service := range []string{planOwned, planOld, provisionImage, provisionMissing} {
+	resp, err := applyProvision(t, f, file, []string{provisionImage}, nil)
+	if err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if len(resp.GetOperations()) != 1 || len(resp.GetDeployments()) != 0 {
+		t.Fatalf("apply = %v, want only the create of %s and no deployment", resp, provisionImage)
+	}
+	if !f.hasResource(t, provisionImage) || f.deploymentCount(t, provisionImage) != 0 {
+		t.Fatalf("%s was not created, or was deployed", provisionImage)
+	}
+	if f.hasResource(t, applyWorker) {
+		t.Fatalf("%s was created, want it left for the final apply", applyWorker)
+	}
+}
+
+func TestApplyProvisionRefusesServicesThePlanDoesNotCreate(t *testing.T) {
+	f := newDeployFixture(t)
+	file := seedProvisionWorkspace(t, f)
+
+	for _, service := range []string{planOwned, planOld, provisionMissing} {
 		t.Run(service, func(t *testing.T) {
 			_, err := applyProvision(t, f, file, []string{applyWorker, service}, nil)
 			refused := wantRefusal(t, err).GetErrors()
