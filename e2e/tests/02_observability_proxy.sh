@@ -1,194 +1,62 @@
 #!/usr/bin/env bash
-# E2E tests for the observability proxy:
-#   - Health/readiness endpoints
-#   - Token validation (valid, invalid, expired)
-#   - Tenant scoping (workspace isolation)
-#   - Guardrail enforcement
-#
-# These functions are sourced by run.sh and called automatically.
-# lib.sh helpers (assert, assert_contains, e2e_psql, etc.) are available.
-#
-# NOTE: These tests require the observability proxy to be running.
-# The proxy is started by run.sh if the binary exists.
-# run.sh starts ClickHouse from the image the loco-obs chart pins, and the
-# proxy applies its schema before it serves.
 
-E2E_SKIP_REASON="mints tokens through the removed tvm_tokens table (#186)"
+source "$E2E_ROOT_DIR/e2e/cli.sh"
 
-OBS_PROXY_PORT="${E2E_OBS_PROXY_PORT:-8878}"
-OBS_PROXY_URL="http://localhost:${OBS_PROXY_PORT}"
+proxy_url="http://127.0.0.1:${E2E_OBS_PROXY_PORT}"
+proxy_query_logs="${proxy_url}/loco.observability.v1.ObservabilityProxyService/QueryLogs"
+proxy_other_workspace_id='00000000-0000-7000-8000-999999999999'
+proxy_query_window_seconds=3600
 
-WORKSPACE_ID="00000000-0000-7000-8000-000000000003"
-RESOURCE_ID="00000000-0000-7000-8000-000000000010"
-
-# ─── Helper: get an observability token from the control plane ─────────────
-
-get_obs_token() {
-    local workspace_id="${1:-$WORKSPACE_ID}"
-    local resource_ids="${2:-[\"$RESOURCE_ID\"]}"
-
-    # Issue a TVM token with observability scopes directly in the DB
-    # This bypasses the GetObservabilityAccess RPC (which requires OAuth)
-    local token_id
-    token_id=$(uuidgen | tr '[:upper:]' '[:lower:]')
-    local token_hash
-    token_hash=$(echo -n "$token_id" | shasum -a 256 | awk '{print $1}')
-    local expires_at
-    expires_at=$(date -u -v+30M '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -u -d '+30 minutes' '+%Y-%m-%dT%H:%M:%SZ')
-
-    e2e_psql "
-        INSERT INTO tvm_tokens (token_hash, owner_type, owner_id, expires_at, data)
-        VALUES (
-            '${token_hash}',
-            'user',
-            '00000000-0000-7000-8000-000000000001',
-            '${expires_at}',
-            '{\"scopes\": [{\"scope\": \"read\", \"entity_type\": \"workspace\", \"entity_id\": \"${workspace_id}\"}], \"resource_ids\": ${resource_ids}}'
-        );
-    " >/dev/null
-
-    echo "$token_id"
+proxy_logs_body() {
+    local workspace_id=$1 now start end
+    now=$(date -u +%s)
+    start=$(utc_timestamp "$((now - proxy_query_window_seconds))")
+    end=$(utc_timestamp "$now")
+    printf '{"workspaceId":"%s","startTime":"%s","endTime":"%s"}' "$workspace_id" "$start" "$end"
 }
 
-get_expired_obs_token() {
-    local token_id
-    token_id=$(uuidgen | tr '[:upper:]' '[:lower:]')
-    local token_hash
-    token_hash=$(echo -n "$token_id" | shasum -a 256 | awk '{print $1}')
-    local expires_at
-    expires_at=$(date -u -v-1H '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -u -d '-1 hour' '+%Y-%m-%dT%H:%M:%SZ')
-
-    e2e_psql "
-        INSERT INTO tvm_tokens (token_hash, owner_type, owner_id, expires_at, data)
-        VALUES (
-            '${token_hash}',
-            'user',
-            '00000000-0000-7000-8000-000000000001',
-            '${expires_at}',
-            '{\"scopes\": [{\"scope\": \"read\", \"entity_type\": \"workspace\", \"entity_id\": \"${WORKSPACE_ID}\"}], \"resource_ids\": [\"${RESOURCE_ID}\"]}'
-        );
-    " >/dev/null
-
-    echo "$token_id"
+proxy_status() {
+    local workspace_id=$1
+    shift
+    local body
+    body=$(proxy_logs_body "$workspace_id")
+    curl -s -o /dev/null -w '%{http_code}' -X POST "$proxy_query_logs" \
+        -H 'Content-Type: application/json' "$@" -d "$body"
 }
 
-# ─── Tests ─────────────────────────────────────────────────────────────────
-
-test_obs_proxy_health() {
-    if ! curl -sf "${OBS_PROXY_URL}/healthz" >/dev/null 2>&1; then
-        log_warn "Observability proxy not running, skipping obs-proxy tests"
-        E2E_SKIP=$((E2E_SKIP + 1))
-        return 0
-    fi
-    assert "Obs proxy /healthz returns 200" \
-        curl -sf "${OBS_PROXY_URL}/healthz"
+proxy_token_name() {
+    echo "e2e-proxy-$1-$(openssl rand -hex 4)"
 }
 
-test_obs_proxy_no_auth_rejected() {
-    if ! curl -sf "${OBS_PROXY_URL}/healthz" >/dev/null 2>&1; then
-        E2E_SKIP=$((E2E_SKIP + 1))
-        return 0
-    fi
-
-    # Call QueryLogs without auth token — should fail
-    assert_fails "QueryLogs without auth returns error" \
-        curl -sf \
-            -X POST \
-            -H "Content-Type: application/json" \
-            "${OBS_PROXY_URL}/loco.observability.v1.ObservabilityProxyService/QueryLogs" \
-            -d "{
-                \"workspace_id\": \"${WORKSPACE_ID}\",
-                \"resource_ids\": [\"${RESOURCE_ID}\"]
-            }"
+test_p01_health() {
+    assert "The proxy answers /healthz" curl -sf "${proxy_url}/healthz"
+    assert "The proxy answers /readyz once its schema is applied" curl -sf "${proxy_url}/readyz"
 }
 
-test_obs_proxy_invalid_token_rejected() {
-    if ! curl -sf "${OBS_PROXY_URL}/healthz" >/dev/null 2>&1; then
-        E2E_SKIP=$((E2E_SKIP + 1))
-        return 0
-    fi
-
-    assert_fails "QueryLogs with invalid token returns error" \
-        curl -sf \
-            -X POST \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer invalid-token-12345" \
-            "${OBS_PROXY_URL}/loco.observability.v1.ObservabilityProxyService/QueryLogs" \
-            -d "{
-                \"workspace_id\": \"${WORKSPACE_ID}\",
-                \"resource_ids\": [\"${RESOURCE_ID}\"]
-            }"
+test_p02_requests_without_a_valid_token_are_unauthenticated() {
+    cli_seed_session
+    local status
+    status=$(proxy_status "$cli_workspace_id")
+    assert "QueryLogs without a token is unauthenticated (HTTP ${status})" test "$status" = 401
+    status=$(proxy_status "$cli_workspace_id" -H 'Authorization: Bearer loco_k_not-a-token')
+    assert "QueryLogs with an unknown token is denied (HTTP ${status})" test "$status" = 403
 }
 
-test_obs_proxy_expired_token_rejected() {
-    if ! curl -sf "${OBS_PROXY_URL}/healthz" >/dev/null 2>&1; then
-        E2E_SKIP=$((E2E_SKIP + 1))
-        return 0
-    fi
-
-    local token
-    token=$(get_expired_obs_token)
-
-    assert_fails "QueryLogs with expired token returns error" \
-        curl -sf \
-            -X POST \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${token}" \
-            "${OBS_PROXY_URL}/loco.observability.v1.ObservabilityProxyService/QueryLogs" \
-            -d "{
-                \"workspace_id\": \"${WORKSPACE_ID}\",
-                \"resource_ids\": [\"${RESOURCE_ID}\"]
-            }"
+test_p03_revoked_token_is_denied() {
+    local name token status
+    name=$(proxy_token_name revoked)
+    token=$(mint_api_token "$name" ENTITY_TYPE_WORKSPACE "$cli_workspace_id" SCOPE_READ)
+    assert "TokenService/RevokeToken revokes the token" \
+        revoke_api_token "$name" ENTITY_TYPE_WORKSPACE "$cli_workspace_id"
+    status=$(proxy_status "$cli_workspace_id" -H "Authorization: Bearer ${token}")
+    assert "QueryLogs with a revoked token is denied (HTTP ${status})" test "$status" = 403
 }
 
-test_obs_proxy_wrong_workspace_rejected() {
-    if ! curl -sf "${OBS_PROXY_URL}/healthz" >/dev/null 2>&1; then
-        E2E_SKIP=$((E2E_SKIP + 1))
-        return 0
-    fi
-
-    # Get a token scoped to WORKSPACE_ID
-    local token
-    token=$(get_obs_token)
-
-    # Try to query a different workspace — should fail
-    assert_fails "QueryLogs for wrong workspace returns error" \
-        curl -sf \
-            -X POST \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${token}" \
-            "${OBS_PROXY_URL}/loco.observability.v1.ObservabilityProxyService/QueryLogs" \
-            -d '{
-                "workspace_id": "00000000-0000-7000-8000-999999999999",
-                "resource_ids": ["some-resource"]
-            }'
-}
-
-test_obs_proxy_valid_token_accepted() {
-    if ! curl -sf "${OBS_PROXY_URL}/healthz" >/dev/null 2>&1; then
-        E2E_SKIP=$((E2E_SKIP + 1))
-        return 0
-    fi
-
-    local token
-    token=$(get_obs_token)
-
-    # With a valid token and correct workspace, the request should pass auth.
-    # It may fail at the ClickHouse layer (no CH in e2e), but the HTTP status
-    # from ConnectRPC will be different from an auth error.
-    # Auth errors return 401/403; ClickHouse errors return 500/503.
-    local http_code
-    http_code=$(curl -s -o /dev/null -w "%{http_code}" \
-        -X POST \
-        -H "Content-Type: application/json" \
-        -H "Authorization: Bearer ${token}" \
-        "${OBS_PROXY_URL}/loco.observability.v1.ObservabilityProxyService/QueryLogs" \
-        -d "{
-            \"workspace_id\": \"${WORKSPACE_ID}\",
-            \"resource_ids\": [\"${RESOURCE_ID}\"]
-        }")
-
-    # 401 = auth failed, anything else means auth passed (even if query failed downstream)
-    assert "Valid token passes auth (HTTP code != 401)" \
-        test "$http_code" != "401"
+test_p04_token_is_scoped_to_its_workspace() {
+    local token status
+    token=$(mint_api_token "$(proxy_token_name scoped)" ENTITY_TYPE_WORKSPACE "$cli_workspace_id" SCOPE_READ)
+    status=$(proxy_status "$proxy_other_workspace_id" -H "Authorization: Bearer ${token}")
+    assert "QueryLogs for another workspace is denied (HTTP ${status})" test "$status" = 403
+    status=$(proxy_status "$cli_workspace_id" -H "Authorization: Bearer ${token}")
+    assert "QueryLogs for the token's workspace succeeds (HTTP ${status})" test "$status" = 200
 }
