@@ -61,6 +61,12 @@ message HealthCheckConfig {
 
 // Scalers defines autoscaling configuration.
 message Scalers {
+  option (buf.validate.message).cel = {
+    id: "scalers.autoscaling_supported"
+    message: "autoscaling is not supported yet"
+    expression: "!this.enabled"
+  };
+
   bool enabled = 1; // enable autoscaling
   optional int32 cpu_target = 2 [(buf.validate.field).int32 = {
     gte: 0

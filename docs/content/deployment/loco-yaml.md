@@ -38,7 +38,7 @@ services:
     dockerfile: deploy/Dockerfile
 ```
 
-A service without `domains` is private. Each region needs `cpu`, `memory`, `replicas.min` and `replicas.max`; `autoscaling` takes exactly one of `cpuTarget` or `memoryTarget`. Service and partial names are DNS labels. The API checks resource limits when it plans the file.
+A service without `domains` is private. Each region needs `cpu`, `memory`, `replicas.min` and `replicas.max`. Autoscaling is not supported yet: the API rejects a region with `autoscaling` set. Set the replica count explicitly instead. Service and partial names are DNS labels. The API checks resource limits when it plans the file.
 
 Check the structure without calling the API:
 

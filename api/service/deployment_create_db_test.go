@@ -240,7 +240,7 @@ func TestCreateDeploymentStoresTheSpecAsProtoJSON(t *testing.T) {
 		TimeoutSeconds:   2,
 		FailureThreshold: 3,
 	}
-	service.Scalers = &deploymentv1.Scalers{Enabled: true, CpuTarget: &cpuTarget}
+	service.Scalers = &deploymentv1.Scalers{CpuTarget: &cpuTarget}
 	service.Env = map[string]string{"SECRET": "plaintext"}
 	if _, err := createDeploymentWith(t, f, unboundedRegionSpec, service); err != nil {
 		t.Fatalf("create deployment: %v", err)
@@ -280,5 +280,19 @@ func TestCreateDeploymentStoresTheSpecAsProtoJSON(t *testing.T) {
 	}
 	if len(got.GetEnv()) != 0 {
 		t.Errorf("env = %v, want none stored", got.GetEnv())
+	}
+}
+
+func TestCreateDeploymentRejectsEnabledAutoscaling(t *testing.T) {
+	f := newDeployFixture(t)
+	service := imageService()
+	service.Scalers = &deploymentv1.Scalers{Enabled: true, CpuTarget: new(int32(70))}
+	_, err := createDeploymentWith(t, f, sameRegionSpec, service)
+	wantCode(t, err, connect.CodeInvalidArgument)
+	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != 0 {
+		t.Fatalf("created %d deployments despite unsupported autoscaling", n)
+	}
+	if n := f.count(t, `SELECT count(*) FROM placements WHERE resource_id = $1`); n != 0 {
+		t.Fatalf("created %d placements despite unsupported autoscaling", n)
 	}
 }
