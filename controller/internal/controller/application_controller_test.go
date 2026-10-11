@@ -107,6 +107,7 @@ var _ = Describe("Application Controller", func() {
 					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+				application = resource
 			}
 		})
 
@@ -118,6 +119,20 @@ var _ = Describe("Application Controller", func() {
 
 			By("Cleanup the specific resource instance Application")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+		})
+		It("preserves replica counts through the Application status schema", func() {
+			application.Status.ReadyReplicas = 1
+			application.Status.DesiredReplicas = 2
+			Expect(k8sClient.Status().Update(ctx, application)).To(Succeed())
+			observed := &locov1alpha1.Application{}
+			Expect(k8sClient.Get(ctx, typeNamespacedName, observed)).To(Succeed())
+			Expect(observed.Status.ReadyReplicas).To(Equal(int32(1)))
+			Expect(observed.Status.DesiredReplicas).To(Equal(int32(2)))
+			observed.Status.ReadyReplicas = 0
+			Expect(k8sClient.Status().Update(ctx, observed)).To(Succeed())
+			Expect(k8sClient.Get(ctx, typeNamespacedName, observed)).To(Succeed())
+			Expect(observed.Status.ReadyReplicas).To(BeZero())
+			Expect(observed.Status.DesiredReplicas).To(Equal(int32(2)))
 		})
 		// It("should successfully reconcile the resource", func() {
 		// 	By("Reconciling the created resource")

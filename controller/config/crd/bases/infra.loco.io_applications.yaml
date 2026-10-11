@@ -293,6 +293,9 @@ spec:
               deployedGeneration:
                 format: int64
                 type: integer
+              desiredReplicas:
+                format: int32
+                type: integer
               message:
                 type: string
               observedPlacementRevision:
@@ -305,6 +308,9 @@ spec:
                 - Ready
                 - Failed
                 type: string
+              readyReplicas:
+                format: int32
+                type: integer
               startedAt:
                 format: date-time
                 type: string

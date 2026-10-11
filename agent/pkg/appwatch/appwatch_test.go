@@ -44,6 +44,28 @@ func TestStatusReportsTheRevisionTheControllerObserved(t *testing.T) {
 	}
 }
 
+func TestStatusForwardsReplicaChangesWithoutAPhaseChange(t *testing.T) {
+	w := New(nil, testNamespace)
+	application := app("resource-a", "p1", "5", "Deploying")
+	application.Status.ReadyReplicas = 1
+	var got []*agentv1.PlacementStatus
+	w.Attach(func(status *agentv1.PlacementStatus) { got = append(got, status) })
+	w.Observe(application)
+	application.Status.ReadyReplicas = 2
+	w.Observe(application)
+	w.Observe(application)
+	application.Status.ReadyReplicas = 0
+	w.Observe(application)
+	if len(got) != 3 {
+		t.Fatalf("statuses = %v, want three replica changes", got)
+	}
+	for index, count := range []int32{1, 2, 0} {
+		if got[index].GetReadyReplicas() != count || got[index].GetReady() {
+			t.Errorf("status = %v, want %d ready replicas while Deploying", got[index], count)
+		}
+	}
+}
+
 func TestInventorySkipsApplicationsWithoutPlacement(t *testing.T) {
 	scheme := runtime.NewScheme()
 	if err := locoControllerV1.AddToScheme(scheme); err != nil {
