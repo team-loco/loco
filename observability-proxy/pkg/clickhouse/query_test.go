@@ -14,7 +14,7 @@ const (
 	testResourceID  = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 )
 
-func TestBuildLogsQueryFiltersOnStoredLabelKeys(t *testing.T) {
+func TestBuildLogsQueryFiltersOnTenantColumns(t *testing.T) {
 	end := time.Now()
 	start := end.Add(-time.Hour)
 
@@ -33,9 +33,9 @@ func TestBuildLogsQueryFiltersOnStoredLabelKeys(t *testing.T) {
 	)
 
 	wantClauses := []string{
-		"ResourceAttributes['loco.io/resource-id'] AS resource_id",
-		"WHERE ResourceAttributes['loco.io/workspace-id'] = ?",
-		"ResourceAttributes['loco.io/resource-id'] IN (?)",
+		"SELECT Timestamp, SeverityText, Body, ResourceId, TraceId, SpanId",
+		"WHERE WorkspaceId = ?",
+		"ResourceId IN (?)",
 		"ResourceAttributes[?] = ?",
 	}
 	for _, clause := range wantClauses {
@@ -45,6 +45,9 @@ func TestBuildLogsQueryFiltersOnStoredLabelKeys(t *testing.T) {
 	}
 	if strings.Contains(query, "k8s.pod.labels.") {
 		t.Errorf("query uses prefixed label keys:\n%s", query)
+	}
+	if strings.Contains(query, "ResourceAttributes['") {
+		t.Errorf("query reads tenancy from resource attributes:\n%s", query)
 	}
 
 	if len(args) < 2 {
@@ -61,7 +64,7 @@ func TestBuildLogsQueryFiltersOnStoredLabelKeys(t *testing.T) {
 	}
 }
 
-func TestBuildMetricsQueryFiltersOnStoredLabelKeys(t *testing.T) {
+func TestBuildMetricsQueryFiltersOnTenantColumns(t *testing.T) {
 	end := time.Now()
 	start := end.Add(-time.Hour)
 
@@ -77,10 +80,12 @@ func TestBuildMetricsQueryFiltersOnStoredLabelKeys(t *testing.T) {
 	)
 
 	wantClauses := []string{
-		"ResourceAttributes['loco.io/resource-id'] AS resource_id",
+		"SELECT ResourceId,",
 		"FROM otel_metrics_gauge",
-		"WHERE ResourceAttributes['loco.io/workspace-id'] = ?",
-		"ResourceAttributes['loco.io/resource-id'] IN (?)",
+		"WHERE WorkspaceId = ?",
+		"ResourceId IN (?)",
+		"GROUP BY ResourceId, bucket",
+		"ORDER BY ResourceId, bucket",
 	}
 	for _, clause := range wantClauses {
 		if !strings.Contains(query, clause) {
@@ -89,6 +94,9 @@ func TestBuildMetricsQueryFiltersOnStoredLabelKeys(t *testing.T) {
 	}
 	if strings.Contains(query, "k8s.pod.labels.") {
 		t.Errorf("query uses prefixed label keys:\n%s", query)
+	}
+	if strings.Contains(query, "ResourceAttributes['") {
+		t.Errorf("query reads tenancy from resource attributes:\n%s", query)
 	}
 
 	if len(args) < 2 {

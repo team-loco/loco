@@ -36,6 +36,14 @@ spec:
                       valueFrom:
                         fieldRef:
                           fieldPath: metadata.namespace
+                    - name: LOCO_OBSERVABILITY_NAMESPACE
+                      value: {{ required "observability.namespace is required" .Values.observability.namespace | quote }}
+                    - name: LOCO_OTEL_COLLECTOR_SERVICE
+                      value: {{ required "observability.collector.service is required" .Values.observability.collector.service | quote }}
+                    - name: LOCO_OTEL_COLLECTOR_GRPC_PORT
+                      value: {{ required "observability.collector.grpcPort is required" .Values.observability.collector.grpcPort | quote }}
+                    - name: LOCO_OTEL_COLLECTOR_HTTP_PORT
+                      value: {{ required "observability.collector.httpPort is required" .Values.observability.collector.httpPort | quote }}
                     {{- with .Values.registry.pullSecretName }}
                     - name: REGISTRY_PULL_SECRET_NAME
                       value: {{ . | quote }}

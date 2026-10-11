@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # E2E test orchestrator for Loco
-# Usage: ./e2e/run.sh [--no-teardown] [--skip-build] [--teardown-only] [--builds-disabled] [test-filter]
+# Usage: ./e2e/run.sh [--no-teardown] [--skip-build] [--teardown-only] [--builds-disabled] [--observability] [test-filter]
 
 set -euo pipefail
 
@@ -30,8 +30,14 @@ PORT_BASE=$((PORT_RANGE_START + RUN_HASH % PORT_BLOCKS * PORT_BLOCK_SIZE))
 API_PORT=$PORT_BASE
 OBS_PROXY_PORT=$((PORT_BASE + 1))
 S3_PORT=$((PORT_BASE + 2))
-UNUSED_CLICKHOUSE_PORT=$((PORT_BASE + 3))
+CLICKHOUSE_PORT=$((PORT_BASE + 3))
+GATEWAY_PORT=$((PORT_BASE + 4))
 READY_TIMEOUT=120
+OBS_READY_TIMEOUT=600
+OBS_HELM_TIMEOUT=10m
+POD_READY_PROBE_TIMEOUT=1s
+CLICKHOUSE_NATIVE_PORT=9000
+GATEWAY_HTTP_PORT=80
 LOG_TAIL_LINES=200
 
 KIND_CLUSTER_NAME="$RUN_NAME"
@@ -42,6 +48,18 @@ PG_DB="loco_e2e"
 E2E_VERSION="e2e"
 CONTROLLER_REPOSITORY="loco-controller"
 BUILDER_REPOSITORY="loco-builder"
+OBS_VALUES="$ROOT_DIR/charts/loco-obs/values.yaml"
+OBS_E2E_VALUES="$SCRIPT_DIR/obs-values.yaml"
+OBS_RELEASE="loco-obs"
+CORE_CHART="$ROOT_DIR/charts/loco-core"
+GATEWAY_RELEASE="eg"
+GATEWAY_CHART_VERSION=$(yq '.dependencies[] | select(.name == "gateway-helm") | .version' "$CORE_CHART/Chart.yaml")
+OBS_NAMESPACE=$(yq '.global.observability.namespace' "$CORE_CHART/values.yaml")
+PLATFORM_DOMAIN="e2e.test.local"
+CLICKHOUSE_IMAGE=$(yq '.clickhouse.clickhouse.image.repository + ":" + .clickhouse.clickhouse.image.tag' "$OBS_VALUES")
+CLICKHOUSE_CONTAINER="${RUN_NAME}-clickhouse"
+CLICKHOUSE_USER="loco_e2e"
+CLICKHOUSE_PASS="loco_e2e_pass"
 BUILDKIT_IMAGE=$(yq '.builds.buildkitImage.repository + ":" + .builds.buildkitImage.tag' "$ROOT_DIR/charts/loco-operator/values.yaml")
 GATEWAY_API_VERSION=$(awk '$1 == "sigs.k8s.io/gateway-api" { print $2 }' "$ROOT_DIR/controller/go.mod")
 AGENT_TOKEN="e2e-test-token-do-not-use-in-production"
@@ -65,6 +83,11 @@ export E2E_USER_TOKEN="$USER_TOKEN"
 export E2E_KIND_CLUSTER="$KIND_CLUSTER_NAME"
 export E2E_LOCO_NAMESPACE="$LOCO_NAMESPACE"
 export E2E_OBS_PROXY_PORT="$OBS_PROXY_PORT"
+export E2E_GATEWAY_URL="http://127.0.0.1:${GATEWAY_PORT}"
+export E2E_OBS_NAMESPACE="$OBS_NAMESPACE"
+export E2E_OBS_RELEASE="$OBS_RELEASE"
+export E2E_OBS_VALUES="$OBS_E2E_VALUES"
+export E2E_PLATFORM_DOMAIN="$PLATFORM_DOMAIN"
 export LOCO_SOURCE_BUCKET="loco-e2e-sources"
 export LOCO_SOURCE_BUCKET_ACCESS_KEY_ID="loco-e2e"
 export LOCO_SOURCE_BUCKET_SECRET_ACCESS_KEY="loco-e2e-secret"
@@ -82,12 +105,14 @@ E2E_PUBLIC_IMAGE=$(awk '$1 == "FROM" { split($2, ref, "@"); print ref[1] }' "$SC
 export E2E_AWS_CLI_IMAGE E2E_PUBLIC_IMAGE
 
 source "$SCRIPT_DIR/lib.sh"
+source "$SCRIPT_DIR/cli.sh"
 
 # Parse flags
 NO_TEARDOWN=false
 SKIP_BUILD=false
 TEARDOWN_ONLY=false
 BUILDS_ENABLED=true
+OBSERVABILITY=false
 TEST_FILTER=""
 
 while [[ $# -gt 0 ]]; do
@@ -96,6 +121,7 @@ while [[ $# -gt 0 ]]; do
         --skip-build)   SKIP_BUILD=true; shift ;;
         --teardown-only) TEARDOWN_ONLY=true; shift ;;
         --builds-disabled) BUILDS_ENABLED=false; shift ;;
+        --observability) OBSERVABILITY=true; shift ;;
         *)              TEST_FILTER="$1"; shift ;;
     esac
 done
@@ -110,6 +136,8 @@ cluster_exists() {
 
 stop_processes() {
     kill_pid_file "$PID_DIR/obs-proxy.pid"
+    kill_pid_file "$PID_DIR/gateway-forward.pid"
+    kill_pid_file "$PID_DIR/clickhouse-forward.pid"
     kill_pid_file "$PID_DIR/agent.pid"
     kill_pid_file "$PID_DIR/api.pid"
 }
@@ -125,6 +153,8 @@ teardown() {
         log_info "Deleting Kind cluster ${KIND_CLUSTER_NAME}..."
         kind delete cluster --name "$KIND_CLUSTER_NAME" --kubeconfig "$KUBECONFIG_FILE"
     fi
+
+    docker rm -f "$CLICKHOUSE_CONTAINER" >/dev/null 2>&1 || true
 
     log_info "Removing compose project ${E2E_COMPOSE_PROJECT}..."
     e2e_compose --profile tools down -v --remove-orphans >/dev/null 2>&1 || true
@@ -167,6 +197,17 @@ dump_logs() {
         for deployment in $(kube -n "$LOCO_NAMESPACE" get deployments -o name 2>/dev/null); do
             log_group "$deployment"
             kube -n "$LOCO_NAMESPACE" logs "$deployment" --all-containers --tail "$LOG_TAIL_LINES" 2>&1 || true
+            log_group_end
+        done
+    fi
+    if [ "$OBSERVABILITY" = true ] && [ -s "$KUBECONFIG_FILE" ] && kube get namespace "$OBS_NAMESPACE" >/dev/null 2>&1; then
+        log_group "${OBS_NAMESPACE} pods"
+        kube get pods -n "$OBS_NAMESPACE" -o wide 2>&1 || true
+        log_group_end
+        local workload
+        for workload in $(kube -n "$OBS_NAMESPACE" get deployments,statefulsets -o name 2>/dev/null); do
+            log_group "$workload"
+            kube -n "$OBS_NAMESPACE" logs "$workload" --all-containers --tail "$LOG_TAIL_LINES" 2>&1 || true
             log_group_end
         done
     fi
@@ -226,7 +267,12 @@ check_ports() {
     log_step "Checking run ${RUN_ID}'s ports ${PORT_BASE}-$((PORT_BASE + PORT_BLOCK_SIZE - 1))..."
     require_free_port "$API_PORT" "API"
     require_free_port "$OBS_PROXY_PORT" "observability proxy"
-    require_free_port "$UNUSED_CLICKHOUSE_PORT" "unreachable ClickHouse"
+    if [ "$OBSERVABILITY" = true ]; then
+        require_free_port "$GATEWAY_PORT" "gateway"
+        require_free_port "$CLICKHOUSE_PORT" "ClickHouse"
+    elif ! docker port "$CLICKHOUSE_CONTAINER" "${CLICKHOUSE_NATIVE_PORT}/tcp" >/dev/null 2>&1; then
+        require_free_port "$CLICKHOUSE_PORT" "ClickHouse"
+    fi
     if ! e2e_compose port s3 "$S3_PORT" >/dev/null 2>&1; then
         require_free_port "$S3_PORT" "source bucket"
     fi
@@ -291,6 +337,20 @@ setup_postgres() {
     log_ok "Postgres ready on port ${port}"
 }
 
+clickhouse_answers() {
+    docker exec "$CLICKHOUSE_CONTAINER" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASS" -q "SELECT 1"
+}
+
+setup_clickhouse() {
+    log_step "Setting up ClickHouse..."
+    docker rm -f "$CLICKHOUSE_CONTAINER" >/dev/null 2>&1 || true
+    docker run -d --name "$CLICKHOUSE_CONTAINER" -p "127.0.0.1:${CLICKHOUSE_PORT}:${CLICKHOUSE_NATIVE_PORT}" \
+        -e CLICKHOUSE_USER="$CLICKHOUSE_USER" -e CLICKHOUSE_PASSWORD="$CLICKHOUSE_PASS" \
+        "$CLICKHOUSE_IMAGE" >/dev/null
+    wait_for "ClickHouse to answer queries" "$READY_TIMEOUT" clickhouse_answers
+    log_ok "ClickHouse ready on port ${CLICKHOUSE_PORT}"
+}
+
 run_migrations() {
     log_step "Resetting the database, running migrations and seeding test data..."
     e2e_psql "DROP SCHEMA public CASCADE; CREATE SCHEMA public;" >/dev/null
@@ -311,6 +371,126 @@ install_gateway_api() {
         -f "https://github.com/kubernetes-sigs/gateway-api/releases/download/${GATEWAY_API_VERSION}/standard-install.yaml" \
         >/dev/null
     log_ok "Gateway API ${GATEWAY_API_VERSION} CRDs installed"
+}
+
+install_observability_namespaces() {
+    log_step "Applying the platform namespaces..."
+    kube apply -f "$ROOT_DIR/manifests/namespaces/namespaces.yaml" >/dev/null
+    log_ok "Platform namespaces ready"
+}
+
+envoy_proxy_deployment() {
+    kube -n "$LOCO_NAMESPACE" get deployments \
+        -l "gateway.envoyproxy.io/owning-gateway-name=${GATEWAY_RELEASE},gateway.envoyproxy.io/owning-gateway-namespace=${LOCO_NAMESPACE}" \
+        -o name | grep .
+}
+
+envoy_proxy_service() {
+    kube -n "$LOCO_NAMESPACE" get services \
+        -l "gateway.envoyproxy.io/owning-gateway-name=${GATEWAY_RELEASE},gateway.envoyproxy.io/owning-gateway-namespace=${LOCO_NAMESPACE}" \
+        -o name | grep .
+}
+
+install_envoy_gateway() {
+    log_step "Installing Envoy Gateway ${GATEWAY_CHART_VERSION}, its Gateway API CRDs and the loco-core Gateway..."
+    mise run --quiet helm:deps >/dev/null
+    local gateway_values="$RUN_DIR/gateway-helm-values.yaml"
+    yq '.["gateway-helm"]' "$CORE_CHART/values.yaml" >"$gateway_values"
+    helm upgrade --install "$GATEWAY_RELEASE" "$CORE_CHART/charts/gateway-helm-${GATEWAY_CHART_VERSION}.tgz" \
+        --kubeconfig "$KUBECONFIG_FILE" \
+        --kube-context "$KUBE_CONTEXT" \
+        --namespace "$LOCO_NAMESPACE" \
+        --values "$gateway_values" \
+        --wait --timeout "$OBS_HELM_TIMEOUT" >/dev/null
+    helm template loco-core "$CORE_CHART" \
+        --namespace "$LOCO_NAMESPACE" \
+        --values "$SCRIPT_DIR/gateway-values.yaml" \
+        --set "global.domain.apps={${PLATFORM_DOMAIN}}" \
+        --show-only templates/gateway.yaml |
+        kube apply -f - >/dev/null
+    wait_for "the Envoy proxy Deployment" "$OBS_READY_TIMEOUT" envoy_proxy_deployment
+    kube -n "$LOCO_NAMESPACE" rollout status "$(envoy_proxy_deployment)" --timeout "${OBS_READY_TIMEOUT}s" >/dev/null
+    log_ok "Envoy Gateway serving the ${GATEWAY_RELEASE} Gateway"
+}
+
+clickhouse_pod() {
+    kube -n "$OBS_NAMESPACE" get pods -l clickhouse.altinity.com/chi \
+        -o jsonpath='{.items[0].metadata.name}' | grep .
+}
+
+clickhouse_installation_completed() {
+    local status
+    status=$(kube -n "$OBS_NAMESPACE" get clickhouseinstallations.clickhouse.altinity.com \
+        -o jsonpath='{.items[0].status.status}')
+    test "$status" = Completed
+}
+
+clickhouse_pod_ready() {
+    local pod
+    pod=$(clickhouse_pod) || return 1
+    kube -n "$OBS_NAMESPACE" wait "pod/${pod}" --for=condition=Ready --timeout="$POD_READY_PROBE_TIMEOUT"
+}
+
+obs_clickhouse_password() {
+    yq ".clickhouseUserPasswords.$1" "$OBS_E2E_VALUES"
+}
+
+obs_clickhouse() {
+    local user=$1
+    shift
+    kube -n "$OBS_NAMESPACE" exec "$(clickhouse_pod)" -c clickhouse -- \
+        clickhouse-client --user "$user" --password "$(obs_clickhouse_password "$user")" "$@"
+}
+
+clickhouse_user_answers() {
+    obs_clickhouse "$(yq '.obsProxy.clickhouse.migratorUser' "$OBS_VALUES")" -q "SELECT 1"
+}
+
+install_loco_obs() {
+    log_step "Installing the loco-obs chart..."
+    mise run --quiet helm:deps >/dev/null
+    helm upgrade --install "$OBS_RELEASE" "$ROOT_DIR/charts/loco-obs" \
+        --kubeconfig "$KUBECONFIG_FILE" \
+        --kube-context "$KUBE_CONTEXT" \
+        --namespace "$OBS_NAMESPACE" \
+        --values "$OBS_VALUES" \
+        --values "$OBS_E2E_VALUES" \
+        --wait --timeout "$OBS_HELM_TIMEOUT" >/dev/null
+    wait_for "the ClickHouse installation" "$OBS_READY_TIMEOUT" clickhouse_installation_completed
+    wait_for "the ClickHouse pod" "$OBS_READY_TIMEOUT" clickhouse_pod_ready
+    wait_for "the ClickHouse migrator user" "$OBS_READY_TIMEOUT" clickhouse_user_answers
+    log_ok "loco-obs installed in ${OBS_NAMESPACE}"
+}
+
+port_forward() {
+    local name=$1 namespace=$2 target=$3 local_port=$4 remote_port=$5
+    kill_pid_file "$PID_DIR/${name}-forward.pid"
+    kubectl --kubeconfig "$KUBECONFIG_FILE" --context "$KUBE_CONTEXT" -n "$namespace" \
+        port-forward --address 127.0.0.1 "$target" "${local_port}:${remote_port}" \
+        >"$LOG_DIR/${name}-forward.log" 2>&1 &
+    echo $! >"$PID_DIR/${name}-forward.pid"
+    wait_for "the ${name} port-forward on ${local_port}" "$READY_TIMEOUT" port_in_use "$local_port"
+}
+
+forward_observability_ports() {
+    log_step "Forwarding the gateway and ClickHouse to the host..."
+    port_forward clickhouse "$OBS_NAMESPACE" "pod/$(clickhouse_pod)" "$CLICKHOUSE_PORT" "$CLICKHOUSE_NATIVE_PORT"
+    port_forward gateway "$LOCO_NAMESPACE" "$(envoy_proxy_service)" "$GATEWAY_PORT" "$GATEWAY_HTTP_PORT"
+    log_ok "Gateway at ${E2E_GATEWAY_URL}, ClickHouse at 127.0.0.1:${CLICKHOUSE_PORT}"
+}
+
+reset_telemetry() {
+    if [ "$CLUSTER_REUSED" = false ]; then
+        return 0
+    fi
+    log_step "Emptying the previous run's telemetry..."
+    local migrator database table
+    migrator=$(yq '.obsProxy.clickhouse.migratorUser' "$OBS_VALUES")
+    database=$(yq '.obsProxy.clickhouse.database' "$OBS_VALUES")
+    for table in $(obs_clickhouse "$migrator" -q "SELECT name FROM system.tables WHERE database = '${database}' AND engine LIKE '%MergeTree' AND name != 'loco_schema_migrations'"); do
+        obs_clickhouse "$migrator" -q "TRUNCATE TABLE ${database}.${table}"
+    done
+    log_ok "Telemetry emptied"
 }
 
 setup_registry() {
@@ -452,7 +632,7 @@ start_api() {
 
     DATABASE_URL="$E2E_DATABASE_URL" \
     APP_PORT="127.0.0.1:$API_PORT" \
-    DEFAULT_PLATFORM_DOMAIN="e2e.test.local" \
+    DEFAULT_PLATFORM_DOMAIN="$PLATFORM_DOMAIN" \
     APP_ENV="test" \
     LOG_LEVEL=debug \
     LOCO_REGISTRY_HOST="$E2E_REGISTRY_HOST" \
@@ -515,14 +695,40 @@ start_agent() {
     log_ok "Agent registered"
 }
 
+clickhouse_dsn() {
+    local user=$1 password=$2
+    echo "clickhouse://${user}:${password}@127.0.0.1:${CLICKHOUSE_PORT}"
+}
+
 start_obs_proxy() {
     log_step "Starting Observability Proxy..."
 
+    local reader_dsn migrator_dsn reader migrator proxy_token token_suffix
+    if [ "$OBSERVABILITY" = true ]; then
+        reader=$(yq '.obsProxy.clickhouse.readerUser' "$OBS_VALUES")
+        migrator=$(yq '.obsProxy.clickhouse.migratorUser' "$OBS_VALUES")
+        reader_dsn=$(clickhouse_dsn "$reader" "$(obs_clickhouse_password "$reader")")
+        migrator_dsn=$(clickhouse_dsn "$migrator" "$(obs_clickhouse_password "$migrator")")
+    else
+        reader_dsn=$(clickhouse_dsn "$CLICKHOUSE_USER" "$CLICKHOUSE_PASS")
+        migrator_dsn="$reader_dsn"
+    fi
+    cli_seed_session
+    token_suffix=$(openssl rand -hex 4)
+    proxy_token=$(mint_api_token "e2e-obs-proxy-${token_suffix}" ENTITY_TYPE_WORKSPACE "$cli_workspace_id" SCOPE_READ)
+
     PORT="$OBS_PROXY_PORT" \
     CONTROL_PLANE_URL="$E2E_API_URL" \
-    PROXY_AUTH_TOKEN="$AGENT_TOKEN" \
-    CLICKHOUSE_URL="clickhouse://127.0.0.1:${UNUSED_CLICKHOUSE_PORT}" \
-    CLICKHOUSE_DB="default" \
+    PROXY_AUTH_TOKEN="$proxy_token" \
+    CLICKHOUSE_URL="$reader_dsn" \
+    CLICKHOUSE_MIGRATOR_URL="$migrator_dsn" \
+    CLICKHOUSE_DB="$(yq '.obsProxy.clickhouse.database' "$OBS_VALUES")" \
+    CLICKHOUSE_LOGS_TTL="$(yq '.obsProxy.clickhouse.retention.logs' "$OBS_VALUES")" \
+    CLICKHOUSE_TRACES_TTL="$(yq '.obsProxy.clickhouse.retention.traces' "$OBS_VALUES")" \
+    CLICKHOUSE_METRICS_TTL="$(yq '.obsProxy.clickhouse.retention.metrics' "$OBS_VALUES")" \
+    MIGRATION_RETRY_BUDGET="$(yq '.obsProxy.clickhouse.migrations.retryBudgetSeconds' "$OBS_VALUES")s" \
+    MIGRATION_RETRY_INTERVAL="$(yq '.obsProxy.clickhouse.migrations.retryIntervalSeconds' "$OBS_VALUES")s" \
+    MIGRATION_LOCK=none \
     DEFAULT_LIMIT="100" \
     MAX_LIMIT="1000" \
     QUERY_TIMEOUT_SECONDS="5" \
@@ -536,7 +742,7 @@ start_obs_proxy() {
 
     echo $! > "$PID_DIR/obs-proxy.pid"
 
-    wait_for "Obs proxy health" "$READY_TIMEOUT" curl -sf "http://127.0.0.1:${OBS_PROXY_PORT}/healthz"
+    wait_for "Obs proxy readiness" "$READY_TIMEOUT" curl -sf "http://127.0.0.1:${OBS_PROXY_PORT}/readyz"
     log_ok "Observability proxy running on port ${OBS_PROXY_PORT}"
 }
 
@@ -608,15 +814,27 @@ main() {
     trap on_exit EXIT
 
     export E2E_BUILDS_ENABLED="$BUILDS_ENABLED"
+    export E2E_OBSERVABILITY="$OBSERVABILITY"
     check_prerequisites
     stop_processes
     check_ports
     setup_dirs
     setup_kind
     setup_postgres
+    if [ "$OBSERVABILITY" = false ]; then
+        setup_clickhouse
+    fi
     run_migrations
     create_namespace
-    install_gateway_api
+    if [ "$OBSERVABILITY" = true ]; then
+        install_observability_namespaces
+        install_envoy_gateway
+        install_loco_obs
+        forward_observability_ports
+        reset_telemetry
+    else
+        install_gateway_api
+    fi
     setup_registry
     build_builder_images
     build_controller_image

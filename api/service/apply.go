@@ -68,8 +68,15 @@ func (s *PlanServer) Apply(
 		return nil, err
 	}
 
+	organizationID, err := s.queries.GetOrganizationIDByWorkspaceID(ctx, planned.env.WorkspaceID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get workspace organization", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
 	a := &applier{
 		env:             planned.env,
+		organizationID:  organizationID,
 		partial:         planned.file.Partial,
 		live:            planned.live,
 		desired:         plan.Desired,

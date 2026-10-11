@@ -1,0 +1,26 @@
+{{- $ingest := index .Values "otel-col-daemon" "config" "exporters" "clickhouse" "username" -}}
+{{- $daemonNamespace := index .Values "otel-col-daemon" "namespaceOverride" -}}
+{{- range .Values.clickhouse.clickhouse.users }}
+{{- $password := index $.Values.clickhouseUserPasswords .name | default "" }}
+{{- if $password }}
+{{- if not (regexMatch "^[A-Za-z0-9._~-]+$" $password) }}
+{{- fail (printf "clickhouseUserPasswords.%s may contain only letters, digits and ._~-" .name) }}
+{{- end }}
+{{- $secretName := .password_secret_name }}
+{{- $namespaces := list $.Release.Namespace }}
+{{- if eq .name $ingest }}
+{{- $namespaces = append $namespaces $daemonNamespace }}
+{{- end }}
+{{- range $namespaces }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $secretName }}
+  namespace: {{ . }}
+type: Opaque
+stringData:
+  password: {{ $password | quote }}
+{{- end }}
+{{- end }}
+{{- end }}

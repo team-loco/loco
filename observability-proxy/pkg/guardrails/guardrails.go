@@ -3,6 +3,7 @@ package guardrails
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
@@ -16,6 +17,12 @@ var (
 	errWorkspaceIDRequired = errors.New("workspace_id is required")
 	errSinceTooOld         = errors.New("since is older than the maximum time range")
 	errSinceInFuture       = errors.New("since is in the future")
+	errReservedLabelKey    = errors.New("label keys in the loco. attribute namespace are reserved")
+)
+
+const (
+	reservedAttributePrefix = "loco."
+	kubernetesLabelPrefix   = "loco.io/"
 )
 
 // ValidateLogsRequest validates and clamps the query parameters for a logs request.
@@ -23,15 +30,14 @@ func ValidateLogsRequest(req *observabilityv1.QueryLogsRequest, cfg *config.Conf
 	if req.GetWorkspaceId() == "" {
 		return errWorkspaceIDRequired
 	}
+	if err := validateLabels(req.GetLabels()); err != nil {
+		return err
+	}
 
 	start := req.GetStartTime().AsTime()
 	end := req.GetEndTime().AsTime()
 
-	if err := validateTimeRange(start, end, cfg.MaxTimeRange); err != nil {
-		return err
-	}
-
-	return nil
+	return validateTimeRange(start, end, cfg.MaxTimeRange)
 }
 
 // ValidateMetricsRequest validates and clamps the query parameters for a metrics request.
@@ -62,6 +68,9 @@ func ValidateMetricsRequest(req *observabilityv1.QueryMetricsRequest, cfg *confi
 func ValidateTailRequest(req *observabilityv1.TailLogsRequest, cfg *config.Config, now time.Time) error {
 	if req.GetWorkspaceId() == "" {
 		return errWorkspaceIDRequired
+	}
+	if err := validateLabels(req.GetLabels()); err != nil {
+		return err
 	}
 	if req.GetSince() == nil {
 		return nil
@@ -96,6 +105,15 @@ func validateTimeRange(start, end time.Time, maxRange time.Duration) error {
 	}
 	if end.Sub(start) > maxRange {
 		return fmt.Errorf("time range exceeds maximum of %v", maxRange)
+	}
+	return nil
+}
+
+func validateLabels(labels map[string]string) error {
+	for key := range labels {
+		if strings.HasPrefix(key, reservedAttributePrefix) && !strings.HasPrefix(key, kubernetesLabelPrefix) {
+			return fmt.Errorf("%w: %q", errReservedLabelKey, key)
+		}
 	}
 	return nil
 }

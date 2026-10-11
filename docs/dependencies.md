@@ -187,7 +187,7 @@ Deploys:
 
 **Data Storage**:
 
-- **ClickHouse** (v0.3.4 via Altinity helm repo)
+- **ClickHouse** (26.3 Altinity stable image, Altinity chart 0.3.13)
   - Time-series data store for metrics, logs, traces
   - OLAP database optimized for analytics
   - Read through the observability proxy

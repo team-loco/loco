@@ -25,8 +25,6 @@ const (
 	labelGatewayNamespace  = "gateway.envoyproxy.io/owning-gateway-namespace"
 	labelAppKubernetesName = "app.kubernetes.io/name"
 	gatewayName            = "eg"
-	defaultObsNamespace    = "observability"
-	otelCollectorName      = "otel-col-deploy"
 	podSecurityLevel       = "restricted"
 	podSecurityVersion     = "latest"
 	policyWorkspaceAccess  = "allow-workspace"
@@ -72,13 +70,6 @@ func containerSecurityContext() *corev1ac.SecurityContextApplyConfiguration {
 	return corev1ac.SecurityContext().
 		WithAllowPrivilegeEscalation(false).
 		WithCapabilities(capabilities)
-}
-
-func (r *LocoResourceReconciler) telemetryNamespace() string {
-	if r.ObservabilityNamespace != "" {
-		return r.ObservabilityNamespace
-	}
-	return defaultObsNamespace
 }
 
 func tcpPort(port int32) *networkingv1ac.NetworkPolicyPortApplyConfiguration {
@@ -127,11 +118,10 @@ func (r *LocoResourceReconciler) workspaceNetworkPolicies(
 
 	dnsEgress := isolation.DNSEgressSpec()
 
-	telemetryLabels := map[string]string{labelAppKubernetesName: otelCollectorName}
-	obsNamespace := r.telemetryNamespace()
-	telemetryPeer := namespacedPodPeer(obsNamespace, telemetryLabels)
-	grpcPort := tcpPort(4317)
-	httpPort := tcpPort(4318)
+	telemetryLabels := map[string]string{labelAppKubernetesName: r.Telemetry.CollectorService}
+	telemetryPeer := namespacedPodPeer(r.Telemetry.Namespace, telemetryLabels)
+	grpcPort := tcpPort(r.Telemetry.GRPCPort)
+	httpPort := tcpPort(r.Telemetry.HTTPPort)
 	telemetryRule := networkingv1ac.NetworkPolicyEgressRule().
 		WithTo(telemetryPeer).
 		WithPorts(grpcPort, httpPort)

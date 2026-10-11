@@ -233,6 +233,17 @@ func TestApplyCreatesAnImageServiceAndDeploysIt(t *testing.T) {
 	}
 }
 
+func TestApplyCarriesTheWorkspaceOrganization(t *testing.T) {
+	f := newDeployFixture(t)
+	f.prepareApply(t)
+	applyOK(t, f, planFileHeader+applyFileWorker, applyOptions{})
+
+	want := f.organizationID(t)
+	if got := f.workerPayload(t, f.clusterID).AppSpec.OrganizationID; got != want {
+		t.Errorf("organization = %q, want the workspace's %s", got, want)
+	}
+}
+
 func TestApplyCreatesASourceServiceWithoutADeployment(t *testing.T) {
 	f := newDeployFixture(t)
 	f.prepareApply(t)

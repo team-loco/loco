@@ -90,3 +90,19 @@ func TestScaleResourceKeepsTheRouteOfTheDeployment(t *testing.T) {
 		})
 	}
 }
+
+func TestScaleResourceKeepsTheWorkspaceOrganization(t *testing.T) {
+	f := newDeployFixture(t)
+	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+		t.Fatalf("create deployment: %v", err)
+	}
+
+	const scaled = 2
+	if err := scaleResource(t, f, scaled); err != nil {
+		t.Fatalf("scale: %v", err)
+	}
+	want := f.organizationID(t)
+	if got := desiredPayload(t, f).AppSpec.OrganizationID; got != want {
+		t.Errorf("organization = %q after a scale, want the workspace's %s", got, want)
+	}
+}

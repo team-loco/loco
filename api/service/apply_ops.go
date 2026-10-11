@@ -36,6 +36,7 @@ var (
 // provisioning creates services without deploying them.
 type applier struct {
 	env             genDb.Environment
+	organizationID  uuid.UUID
 	partial         string
 	live            liveEnvironment
 	desired         map[string]configplan.State
@@ -292,6 +293,7 @@ func (a *applier) deploy(
 		deploymentSpec := &deploymentv1.DeploymentSpec{Spec: &deploymentv1.DeploymentSpec_Service{Service: service}}
 		buildSpec := desiredApplicationSpec(
 			res,
+			a.organizationID,
 			resourceSpec,
 			hostname,
 			deploymentSpec,

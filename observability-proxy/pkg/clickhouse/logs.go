@@ -13,12 +13,13 @@ import (
 )
 
 const (
-	workspaceAttr = "ResourceAttributes['loco.io/workspace-id']"
-	resourceAttr  = "ResourceAttributes['loco.io/resource-id']"
+	workspaceColumn = "WorkspaceId"
+	resourceColumn  = "ResourceId"
+	pageLookahead   = 1
 )
 
 // QueryLogs executes a parameterized log query against the otel_logs table.
-// Mandatory filters (workspace, resources) are always injected and cannot be overridden by user input.
+// The workspace filter is always applied and cannot be overridden by user input.
 func QueryLogs(
 	ctx context.Context,
 	conn driver.Conn,
@@ -55,7 +56,6 @@ func QueryLogs(
 	defer rows.Close()
 
 	var entries []*observabilityv1.LogEntry
-	var lastTimestamp time.Time
 
 	for rows.Next() {
 		var (
@@ -92,17 +92,16 @@ func QueryLogs(
 			ResourceAttributes: resourceAttrs,
 			LogAttributes:      logAttrs,
 		})
-		lastTimestamp = ts
 	}
 	if err := rows.Err(); err != nil {
 		return nil, "", fmt.Errorf("rows iteration: %w", err)
 	}
 
-	// Determine next cursor
 	var nextCursor string
 	if int32(len(entries)) > limit {
 		entries = entries[:limit]
-		nextCursor = lastTimestamp.Format(time.RFC3339Nano)
+		last := entries[len(entries)-1].GetTimestamp().AsTime()
+		nextCursor = last.Format(time.RFC3339Nano)
 	}
 
 	return entries, nextCursor, nil
@@ -120,61 +119,40 @@ func buildLogsQuery(
 	order observabilityv1.LogOrder,
 	queryTimeout int,
 ) (string, []any) {
-	// Build query with mandatory filters
-	var queryParts []string
 	var args []any
-
-	queryParts = append(
-		queryParts,
-		fmt.Sprintf(
-			"SELECT Timestamp, SeverityText, Body, %s AS resource_id, TraceId, SpanId, "+
-				"ResourceAttributes, LogAttributes FROM otel_logs",
-			resourceAttr,
-		),
-	)
-
-	// Mandatory WHERE clauses - these are NEVER user-controlled
-	whereParts := []string{
-		fmt.Sprintf("%s = ?", workspaceAttr),
+	queryParts := []string{
+		"SELECT Timestamp, SeverityText, Body, " + resourceColumn + ", TraceId, SpanId, " +
+			"ResourceAttributes, LogAttributes FROM otel_logs",
 	}
+
+	whereParts := []string{workspaceColumn + " = ?"}
 	args = append(args, workspaceID)
 
 	if len(resourceIDs) > 0 {
-		placeholders := make([]string, len(resourceIDs))
-		for i, rid := range resourceIDs {
-			placeholders[i] = "?"
-			args = append(args, rid)
-		}
-		whereParts = append(whereParts, fmt.Sprintf("%s IN (%s)", resourceAttr, strings.Join(placeholders, ",")))
+		clause, values := inFilter(resourceColumn, resourceIDs)
+		whereParts = append(whereParts, clause)
+		args = append(args, values...)
 	}
 
-	// Time range
 	whereParts = append(whereParts, "Timestamp >= ?", "Timestamp <= ?")
 	args = append(args, startTime, endTime)
 
-	// Optional: severity levels
 	if len(levels) > 0 {
-		placeholders := make([]string, len(levels))
-		for i, l := range levels {
-			placeholders[i] = "?"
-			args = append(args, l)
-		}
-		whereParts = append(whereParts, fmt.Sprintf("SeverityText IN (%s)", strings.Join(placeholders, ",")))
+		clause, values := inFilter("SeverityText", levels)
+		whereParts = append(whereParts, clause)
+		args = append(args, values...)
 	}
 
-	// Optional: full-text search (LIKE-based, safe with parameterized query)
 	if search != "" {
 		whereParts = append(whereParts, "Body LIKE ?")
 		args = append(args, "%"+search+"%")
 	}
 
-	// Optional: label filters on resource attributes
 	for k, v := range labels {
 		whereParts = append(whereParts, "ResourceAttributes[?] = ?")
 		args = append(args, k, v)
 	}
 
-	// Cursor-based pagination (cursor is a timestamp)
 	if cursor != "" {
 		cursorTime, err := time.Parse(time.RFC3339Nano, cursor)
 		if err == nil {
@@ -189,20 +167,27 @@ func buildLogsQuery(
 
 	queryParts = append(queryParts, "WHERE "+strings.Join(whereParts, " AND "))
 
-	// Order
 	if order == observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST {
 		queryParts = append(queryParts, "ORDER BY Timestamp ASC")
 	} else {
 		queryParts = append(queryParts, "ORDER BY Timestamp DESC")
 	}
 
-	// Limit (fetch one extra to determine if there's a next page)
 	queryParts = append(queryParts, "LIMIT ?")
-	args = append(args, limit+1)
+	args = append(args, limit+pageLookahead)
 
-	// Set query timeout
 	settingsQuery := fmt.Sprintf("SETTINGS max_execution_time = %d", queryTimeout)
 	queryParts = append(queryParts, settingsQuery)
 
 	return strings.Join(queryParts, " "), args
+}
+
+func inFilter(column string, values []string) (string, []any) {
+	placeholders := make([]string, len(values))
+	args := make([]any, len(values))
+	for i, value := range values {
+		placeholders[i] = "?"
+		args[i] = value
+	}
+	return fmt.Sprintf("%s IN (%s)", column, strings.Join(placeholders, ",")), args
 }

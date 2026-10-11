@@ -177,11 +177,13 @@ func (s *AgentServer) startBuildMessage(
 	}
 	buildID := build.ID.String()
 	workspaceID := build.WorkspaceID.String()
+	organizationID := build.OrgID.String()
 	resourceID := build.ResourceID.String()
 	return &agentv1.SyncResponse{
 		Message: &agentv1.SyncResponse_StartBuild{
 			StartBuild: &agentv1.StartBuild{
 				BuildId:         buildID,
+				OrganizationId:  organizationID,
 				WorkspaceId:     workspaceID,
 				ResourceId:      resourceID,
 				SourceUrl:       sourceURL,

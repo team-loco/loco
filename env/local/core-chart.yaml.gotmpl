@@ -23,6 +23,10 @@ secrets:
 env:
   LOG_LEVEL: debug
 
+envoyProxy:
+  tracing:
+    samplingRate: 100
+
 gateway-helm:
   enabled: true
   config:
