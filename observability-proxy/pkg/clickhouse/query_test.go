@@ -1,6 +1,8 @@
 package clickhouse
 
 import (
+	"encoding/base64"
+	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -18,7 +20,7 @@ func TestBuildLogsQueryFiltersOnTenantColumns(t *testing.T) {
 	end := time.Now()
 	start := end.Add(-time.Hour)
 
-	query, args := buildLogsQuery(
+	query, args, err := buildLogsQuery(
 		testWorkspaceID,
 		[]string{testResourceID},
 		start,
@@ -32,6 +34,9 @@ func TestBuildLogsQueryFiltersOnTenantColumns(t *testing.T) {
 		10,
 	)
 
+	if err != nil {
+		t.Fatal(err)
+	}
 	wantClauses := []string{
 		"SELECT Timestamp, SeverityText, Body, ResourceId, TraceId, SpanId",
 		"WHERE WorkspaceId = ?",
@@ -107,5 +112,33 @@ func TestBuildMetricsQueryFiltersOnTenantColumns(t *testing.T) {
 	}
 	if args[1] != testResourceID {
 		t.Errorf("args[1] = %v, want resource id %q", args[1], testResourceID)
+	}
+}
+
+func TestInvalidLogCursorsAreRejected(t *testing.T) {
+	timestamp := time.Now().UTC().Format(time.RFC3339Nano)
+	cases := []string{
+		"not a cursor",
+		base64.RawURLEncoding.EncodeToString([]byte(timestamp)),
+		base64.RawURLEncoding.EncodeToString([]byte(timestamp + "/bad/0")),
+		base64.RawURLEncoding.EncodeToString([]byte(timestamp + "/0/-1")),
+	}
+	for _, cursor := range cases {
+		_, _, err := buildLogsQuery(
+			testWorkspaceID,
+			nil,
+			time.Now().Add(-time.Hour),
+			time.Now(),
+			"",
+			nil,
+			nil,
+			testPageSize,
+			cursor,
+			observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST,
+			testQueryTimeout,
+		)
+		if !errors.Is(err, ErrInvalidLogCursor) {
+			t.Fatalf("cursor %q error = %v, want invalid cursor", cursor, err)
+		}
 	}
 }

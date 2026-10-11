@@ -77,6 +77,9 @@ func (s *ObservabilityService) QueryLogs(
 		msg.GetOrder(),
 		s.cfg.QueryTimeout,
 	)
+	if errors.Is(err, chClient.ErrInvalidLogCursor) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	if err != nil {
 		slog.ErrorContext(ctx, "QueryLogs failed", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, errQueryFailed)
