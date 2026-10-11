@@ -39,6 +39,12 @@ export function useMyScopes() {
 		return ws > org ? ws : org;
 	};
 
+	const resourceLevel = (orgId: string, workspaceId: string, resourceId: string): AccessLevel => {
+		const res = levelOn(scopes, EntityType.RESOURCE, resourceId);
+		const ws = workspaceLevel(orgId, workspaceId);
+		return res > ws ? res : ws;
+	};
+
 	const holds = (orgId: string, workspaceId: string, scope: Scope): boolean =>
 		scopes.some(
 			(s) =>
@@ -48,5 +54,5 @@ export function useMyScopes() {
 					(s.entityType === EntityType.WORKSPACE && s.entityId === workspaceId)),
 		);
 
-	return { isLoading, scopes, orgLevel, workspaceLevel, holds };
+	return { isLoading, scopes, orgLevel, workspaceLevel, resourceLevel, holds };
 }

@@ -10,6 +10,7 @@ import { Dialog } from "@/components/design/Dialog";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Page } from "@/components/design/Page";
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { useMyScopes } from "@/hooks/useMyScopes";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { observabilityPath, workspacePath } from "@/lib/routes";
 import { ErrorBanner, NoticeBanner } from "@/pages/resource/Banners";
@@ -25,6 +26,9 @@ import { ResourceSkeleton } from "@/pages/resource/ResourceSkeleton";
 import { parseTab, ResourceToolbar, type ObsLinks, type ResourceTab } from "@/pages/resource/ResourceToolbar";
 import { SettingsTab } from "@/pages/resource/SettingsTab";
 import type { MetricRange } from "@/pages/resource/useRegionMetric";
+import { VariablesTab } from "@/pages/resource/VariablesTab";
+
+const WRITE_LEVEL = 2;
 
 export function Resource() {
 	const { resourceId = "" } = useParams<{ resourceId: string }>();
@@ -32,6 +36,7 @@ export function Resource() {
 	const navigate = useNavigate();
 	const [params, setParams] = useSearchParams();
 	const { resource, deployments, isLoading, error, refresh } = useResourceData(resourceId);
+	const { resourceLevel } = useMyScopes();
 
 	const [regionName, setRegionName] = useState<string | null>(null);
 	const [range, setRange] = useState<MetricRange>("1h");
@@ -214,6 +219,16 @@ export function Resource() {
 					/>
 					<EventsSection resourceId={resourceId} resourceName={resource.name} multiRegion={regions.length > 1} />
 				</div>
+			)}
+
+			{tab === "variables" && (
+				<VariablesTab
+					resourceId={resourceId}
+					resourceName={resource.name}
+					workspaceId={resource.workspaceId}
+					partial={resource.partial}
+					canWrite={hasWs && resourceLevel(activeOrgId, activeWorkspaceId, resourceId) >= WRITE_LEVEL}
+				/>
 			)}
 
 			{tab === "settings" && (

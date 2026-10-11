@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 
 	"github.com/team-loco/loco/api/events"
 
@@ -1528,4 +1529,60 @@ func createDeploymentWithCleanup(
 		"hadPreviousDeployment", hadPreviousDeployment)
 
 	return deploymentID, nil
+}
+
+// GetResourceEnv returns the plain env variables of the service's active deployment in the
+// environment, read from its placement's desired spec. Secret values never appear there.
+func (s *ResourceServer) GetResourceEnv(
+	ctx context.Context,
+	req *connect.Request[resourcev1.GetResourceEnvRequest],
+) (*connect.Response[resourcev1.GetResourceEnvResponse], error) {
+	r := req.Msg
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
+	}
+	if err := s.authz.Check(ctx, scopes, actions.New(actions.GetResourceEnv, r.GetResourceId())); err != nil {
+		slog.WarnContext(ctx, "unauthorized to get resource env", "resourceId", r.GetResourceId())
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+	res, err := s.queries.GetResourceByID(ctx, uuid.MustParse(r.GetResourceId()))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
+	}
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to load resource", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+	env, err := s.queries.GetEnvironmentByID(ctx, uuid.MustParse(r.GetEnvironmentId()))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, connect.NewError(connect.CodeNotFound, ErrEnvironmentNotFound)
+	}
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to load environment", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+	if env.WorkspaceID != res.WorkspaceID {
+		return nil, connect.NewError(connect.CodeNotFound, ErrEnvironmentNotFound)
+	}
+	deployments, err := s.queries.ListActiveDeploymentsForResource(ctx, res.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list deployments", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+	plain := map[string]string{}
+	for _, deployment := range deployments {
+		if deployment.EnvironmentID != env.ID {
+			continue
+		}
+		vars, envErr := desiredEnv(ctx, s.queries, res.ID, deployment.ClusterID)
+		if envErr != nil {
+			slog.ErrorContext(ctx, "failed to read the desired env", "error", envErr)
+			return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		}
+		maps.Copy(plain, vars)
+		break
+	}
+	return connect.NewResponse(&resourcev1.GetResourceEnvResponse{Env: plain}), nil
 }

@@ -54,6 +54,14 @@ export const getResourceStatus = ResourceService.method.getResourceStatus;
 export const listRegions = ResourceService.method.listRegions;
 
 /**
+ * GetResourceEnv returns the plain env variables a service runs with in an environment, the
+ * env map of loco.yaml. Secret values are never included.
+ *
+ * @generated from rpc loco.resource.v1.ResourceService.GetResourceEnv
+ */
+export const getResourceEnv = ResourceService.method.getResourceEnv;
+
+/**
  * Events
  * ListResourceEvents retrieves events for a resource.
  *

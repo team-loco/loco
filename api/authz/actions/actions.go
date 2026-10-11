@@ -37,6 +37,11 @@ var (
 		entityType: db.EntityTypeResource,
 		scope:      db.ScopeRead,
 	}
+	// GetResourceEnv requires resource:read.
+	GetResourceEnv = Action{
+		entityType: db.EntityTypeResource,
+		scope:      db.ScopeRead,
+	}
 	// StreamResourceLogs requires resource:read.
 	StreamResourceLogs = Action{
 		entityType: db.EntityTypeResource,
