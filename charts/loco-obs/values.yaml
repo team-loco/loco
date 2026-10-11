@@ -164,7 +164,8 @@ otel-col-daemon:
         send_batch_size: 100
       memory_limiter:
         check_interval: 1s
-        limit_mib: 2048
+        limit_mib: 384
+        spike_limit_mib: 96
     exporters:
       clickhouse:
         # Endpoint will be dynamically constructed as: tcp://clickhouse-{release-name}-{nameOverride}.{namespace}.svc.cluster.local:9000
@@ -177,13 +178,14 @@ otel-col-daemon:
         timeout: 5s
         database: default
     service:
+      # memory_limiter must run first so it can refuse data before batch buffers it in memory.
       pipelines:
         logs:
           exporters: [clickhouse]
-          processors: [batch, memory_limiter]
+          processors: [memory_limiter, batch]
         metrics:
           receivers: [kubeletstats]
-          processors: [batch, memory_limiter]
+          processors: [memory_limiter, batch]
           exporters: [clickhouse]
 
 otel-col-deploy:
