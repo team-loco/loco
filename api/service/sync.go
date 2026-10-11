@@ -144,13 +144,16 @@ func (ss *syncSession) sendPendingPlacements(ctx context.Context) error {
 		if listErr != nil {
 			return nil, listErr
 		}
-		unsent := make([]genDb.Placement, 0, len(listed))
+		ids := make([]uuid.UUID, 0, len(listed))
 		for _, placement := range listed {
 			if ss.sent[placement.ID] != placement.DesiredRevision {
-				unsent = append(unsent, placement)
+				ids = append(ids, placement.ID)
 			}
 		}
-		return unsent, nil
+		if len(ids) == 0 {
+			return nil, nil
+		}
+		return q.ListPlacementsByIDs(ctx, genDb.ListPlacementsByIDsParams{ClusterID: ss.clusterID, Ids: ids})
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to read pending placements", "cluster_id", ss.clusterID, "error", err)

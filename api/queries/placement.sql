@@ -38,7 +38,7 @@ SELECT * FROM placements
 WHERE resource_id = $1 AND cluster_id = $2;
 
 -- name: ListPendingPlacements :many
-SELECT * FROM placements
+SELECT id, desired_revision FROM placements
 WHERE cluster_id = $1 AND applied_revision < desired_revision
 ORDER BY updated_at, id;
 
