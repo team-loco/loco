@@ -1,0 +1,12 @@
+global:
+  domain:
+    platform: e2e-platform.test.local
+certManager:
+  issuer:
+    email: e2e@test.local
+agent:
+  image:
+    tag: e2e
+envoyProxy:
+  tracing:
+    samplingRate: 100
