@@ -13,12 +13,14 @@ on:
       - "agent/**"
       - "builder/**"
       - "observability-proxy/**"
+      - "k8sapi/**"
       - "main.go"
       - "go.mod"
       - "go.sum"
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
+      - ".github/workflows/test.yml"
   pull_request:
     paths:
       - "api/**"
@@ -29,12 +31,14 @@ on:
       - "agent/**"
       - "builder/**"
       - "observability-proxy/**"
+      - "k8sapi/**"
       - "main.go"
       - "go.mod"
       - "go.sum"
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
+      - ".github/workflows/test.yml"
   merge_group:
   workflow_call:
 
@@ -140,6 +144,11 @@ jobs:
           - component: Observability proxy
             working-directory: observability-proxy
             test-command: mise run test:obs-proxy
+            timeout: 10
+
+          - component: K8s API
+            working-directory: k8sapi
+            test-command: mise run test:k8sapi
             timeout: 10
 
     steps:

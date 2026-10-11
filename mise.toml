@@ -117,6 +117,11 @@ run = "go test -v -coverprofile=coverage.out ./..."
 description = "Test the controller against envtest"
 run = "make -C controller test"
 
+[tasks."test:k8sapi"]
+description = "Test Kubernetes API types and validation"
+dir = "k8sapi"
+run = "go test -v -coverprofile=coverage.out ./..."
+
 [tasks.coverage]
 description = "Open an HTML coverage report for the CLI tests"
 depends = ["test:cli"]
