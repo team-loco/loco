@@ -6,12 +6,16 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"time"
 )
 
 var (
-	errMissing     = errors.New("is required")
-	errInvalidInt  = errors.New("is not an integer")
-	errInvalidName = errors.New("is not a ClickHouse identifier")
+	errMissing         = errors.New("is required")
+	errInvalidInt      = errors.New("is not an integer")
+	errInvalidDuration = errors.New("is not a duration")
+	errNotPositive     = errors.New("must be positive")
+	errFractional      = errors.New("must be a whole number of seconds")
+	errInvalidName     = errors.New("is not a ClickHouse identifier")
 
 	identifierPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 )
@@ -61,4 +65,24 @@ func int32Env(name string, fallback int32) int32 {
 		panic(fmt.Errorf("%s %q %w", name, raw, errInvalidInt))
 	}
 	return int32(parsed)
+}
+
+func requiredPositiveDurationEnv(name string) time.Duration {
+	raw := requiredStringEnv(name)
+	parsed, err := time.ParseDuration(raw)
+	if err != nil {
+		panic(fmt.Errorf("%s %q %w", name, raw, errInvalidDuration))
+	}
+	if parsed <= 0 {
+		panic(fmt.Errorf("%s %q %w", name, raw, errNotPositive))
+	}
+	return parsed
+}
+
+func ttlEnv(name string) time.Duration {
+	ttl := requiredPositiveDurationEnv(name)
+	if ttl%time.Second != 0 {
+		panic(fmt.Errorf("%s %q %w", name, ttl, errFractional))
+	}
+	return ttl
 }

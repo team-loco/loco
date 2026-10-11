@@ -13,6 +13,10 @@ def render(chart, template, overrides):
     return documents[0] if documents else None
 
 
+def chart_values(chart):
+    return json.loads(subprocess.check_output(['yq', '-o=json', '.', str(ROOT / 'charts' / chart / 'values.yaml')], text=True))
+
+
 def render_documents(chart, template, overrides):
     source = ROOT / 'charts' / chart
     with tempfile.TemporaryDirectory() as directory:
@@ -58,7 +62,7 @@ class PlatformContracts(unittest.TestCase):
     def test_local_defaults_remain_available(self):
         deployment = render('loco-obs', 'obs-proxy-deployment.yaml', {'obsProxy': {'image': {'tag': 'test'}}})
         env = {item['name']: item for item in deployment['spec']['template']['spec']['containers'][0]['env']}
-        self.assertEqual(env['CLICKHOUSE_URL']['value'], 'clickhouse://clickhouse-loco-obs-clickhouse.platform-test.svc.cluster.local:9000')
+        self.assertEqual(env['CLICKHOUSE_URL']['value'], 'clickhouse://loco_reader:$(CLICKHOUSE_READER_PASSWORD)@clickhouse-loco-obs-clickhouse.platform-test.svc.cluster.local:9000')
         self.assertTrue(env['PROXY_AUTH_TOKEN']['valueFrom']['secretKeyRef']['optional'])
 
     def test_missing_database_secret_key_is_rejected(self):
@@ -67,6 +71,41 @@ class PlatformContracts(unittest.TestCase):
 
 
 class ObservabilitySchema(unittest.TestCase):
+    def proxy_env(self, overrides=None):
+        values = {'obsProxy': {'image': {'tag': 'test'}}}
+        for key, value in (overrides or {}).items():
+            values['obsProxy'][key] = value
+        deployment = render('loco-obs', 'obs-proxy-deployment.yaml', values)
+        container = deployment['spec']['template']['spec']['containers'][0]
+        return container, [item['name'] for item in container['env']], {item['name']: item for item in container['env']}
+
+    def test_proxy_connects_as_the_reader_and_migrator_users(self):
+        _, order, env = self.proxy_env()
+        host = 'clickhouse-loco-obs-clickhouse.platform-test.svc.cluster.local:9000'
+        self.assertEqual(env['CLICKHOUSE_MIGRATOR_URL']['value'], 'clickhouse://loco_migrator:$(CLICKHOUSE_MIGRATOR_PASSWORD)@' + host)
+        self.assertEqual(env['CLICKHOUSE_READER_PASSWORD']['valueFrom']['secretKeyRef'], {'name': 'loco-obs-clickhouse-reader', 'key': 'password'})
+        self.assertEqual(env['CLICKHOUSE_MIGRATOR_PASSWORD']['valueFrom']['secretKeyRef'], {'name': 'loco-obs-clickhouse-migrator', 'key': 'password'})
+        self.assertLess(order.index('CLICKHOUSE_READER_PASSWORD'), order.index('CLICKHOUSE_URL'))
+        self.assertLess(order.index('CLICKHOUSE_MIGRATOR_PASSWORD'), order.index('CLICKHOUSE_MIGRATOR_URL'))
+
+    def test_migrator_dsn_can_come_from_an_existing_secret(self):
+        _, _, env = self.proxy_env({'clickhouse': {'migratorExistingSecret': {'name': 'proxy-migrator', 'key': 'dsn'}}})
+        self.assertEqual(env['CLICKHOUSE_MIGRATOR_URL']['valueFrom']['secretKeyRef'], {'name': 'proxy-migrator', 'key': 'dsn'})
+        self.assertNotIn('CLICKHOUSE_MIGRATOR_PASSWORD', env)
+
+    def test_proxy_owns_schema_settings(self):
+        values = chart_values('loco-obs')['obsProxy']['clickhouse']
+        container, _, env = self.proxy_env()
+        self.assertEqual(env['CLICKHOUSE_DB']['value'], 'loco_obs')
+        self.assertEqual(env['CLICKHOUSE_LOGS_TTL']['value'], values['retention']['logs'])
+        self.assertEqual(env['CLICKHOUSE_TRACES_TTL']['value'], values['retention']['traces'])
+        self.assertEqual(env['CLICKHOUSE_METRICS_TTL']['value'], values['retention']['metrics'])
+        budget = values['migrations']['retryBudgetSeconds']
+        self.assertEqual(env['MIGRATION_RETRY_BUDGET']['value'], f'{budget}s')
+        self.assertEqual(env['MIGRATION_RETRY_INTERVAL']['value'], f"{values['migrations']['retryIntervalSeconds']}s")
+        self.assertEqual(container['readinessProbe']['httpGet']['path'], '/readyz')
+        self.assertNotIn('startupProbe', container)
+
     def test_user_secrets_follow_the_clickhouse_users(self):
         passwords = {'loco_migrator': 'migrator-pw', 'loco_ingest': 'ingest-pw', 'loco_reader': 'reader-pw'}
         secrets = render_documents('loco-obs', 'clickhouse-users.yaml', {'clickhouseUserPasswords': passwords})

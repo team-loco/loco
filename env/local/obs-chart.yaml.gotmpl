@@ -20,3 +20,8 @@ obsProxy:
   enabled: true
   controlPlane:
     url: "http://loco-core-agent.loco-system.svc.cluster.local:8000"
+  clickhouse:
+    retention:
+      logs: 720h
+      traces: 720h
+      metrics: 720h

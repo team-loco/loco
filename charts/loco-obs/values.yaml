@@ -294,10 +294,22 @@ obsProxy:
   auth:
     existingSecret: ""
   clickhouse:
-    database: default
+    database: loco_obs
+    readerUser: loco_reader
+    migratorUser: loco_migrator
     existingSecret:
       name: ""
       key: url
+    migratorExistingSecret:
+      name: ""
+      key: url
+    retention:
+      logs: 8760h
+      traces: 8760h
+      metrics: 8760h
+    migrations:
+      retryBudgetSeconds: 120
+      retryIntervalSeconds: 5
   guardrails:
     defaultLimit: 1000
     maxLimit: 10000

@@ -2,19 +2,21 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 	"time"
 
 	"connectrpc.com/connect"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	"github.com/team-loco/loco/internal/buildinfo"
+	"github.com/team-loco/loco/observability-proxy/migrations"
 	"github.com/team-loco/loco/observability-proxy/pkg/auth"
 	"github.com/team-loco/loco/observability-proxy/pkg/cache"
 	chClient "github.com/team-loco/loco/observability-proxy/pkg/clickhouse"
@@ -33,6 +35,7 @@ type proxy struct {
 	server    *http.Server
 	ch        *chClient.Client
 	permCache *cache.MemoryCache
+	migrated  *atomic.Bool
 }
 
 func newProxy(cfg *config.Config) (*proxy, error) {
@@ -51,12 +54,18 @@ func newProxy(cfg *config.Config) (*proxy, error) {
 	svc := service.NewObservabilityService(ch, cfg, validator)
 	interceptors := connect.WithInterceptors(auth.NewAuthInterceptor())
 
+	migrated := new(atomic.Bool)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "ok")
 	})
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
+		if !migrated.Load() {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			fmt.Fprintln(w, "clickhouse migrations pending")
+			return
+		}
 		if err := ch.Ping(r.Context()); err != nil {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			fmt.Fprintf(w, "clickhouse: %v\n", err)
@@ -81,7 +90,23 @@ func newProxy(cfg *config.Config) (*proxy, error) {
 		ReadHeaderTimeout: readHeaderTimeout,
 	}
 
-	return &proxy{server: server, ch: ch, permCache: permCache}, nil
+	return &proxy{server: server, ch: ch, permCache: permCache, migrated: migrated}, nil
+}
+
+func (p *proxy) migrate(ctx context.Context, cfg *config.Config) error {
+	schema := migrations.Config{
+		DSN:        cfg.ClickHouseMigratorURL,
+		Database:   cfg.ClickHouseDB,
+		LogsTTL:    cfg.LogsTTL,
+		TracesTTL:  cfg.TracesTTL,
+		MetricsTTL: cfg.MetricsTTL,
+	}
+	retry := migrations.Retry{Budget: cfg.MigrationRetryBudget, Interval: cfg.MigrationRetryInterval}
+	if err := migrations.UpWithRetry(ctx, schema, retry); err != nil {
+		return fmt.Errorf("migrate clickhouse schema: %w", err)
+	}
+	p.migrated.Store(true)
+	return nil
 }
 
 func (p *proxy) close() {
@@ -99,6 +124,44 @@ func logStartup(logger *slog.Logger, cfg *config.Config, proxyVersion string) {
 	)
 }
 
+func (p *proxy) shutdown() error {
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()
+	if err := p.server.Shutdown(shutdownCtx); err != nil {
+		return fmt.Errorf("shut down server: %w", err)
+	}
+	return nil
+}
+
+func (p *proxy) run(ctx context.Context, cfg *config.Config, ln net.Listener) error {
+	serveErr := make(chan error, 1)
+	go func() {
+		serveErr <- p.server.Serve(ln)
+	}()
+	slog.InfoContext(ctx, "server listening", "addr", ln.Addr().String())
+
+	if err := p.migrate(ctx, cfg); err != nil {
+		if shutdownErr := p.shutdown(); shutdownErr != nil {
+			slog.ErrorContext(ctx, "server shutdown failed", "error", shutdownErr)
+		}
+		<-serveErr
+		return err
+	}
+
+	select {
+	case <-ctx.Done():
+		slog.InfoContext(ctx, "shutdown signal received")
+		if err := p.shutdown(); err != nil {
+			return err
+		}
+		<-serveErr
+		slog.InfoContext(ctx, "server shutdown completed gracefully")
+		return nil
+	case err := <-serveErr:
+		return fmt.Errorf("serve: %w", err)
+	}
+}
+
 func main() {
 	cfg := config.Load()
 
@@ -111,39 +174,25 @@ func main() {
 	proxyVersion := buildinfo.Version(version)
 	logStartup(logger, cfg, proxyVersion)
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	p, err := newProxy(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer p.close()
 
-	quit := make(chan error, 1)
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
-	defer signal.Stop(sigChan)
-
-	go func() {
-		sig := <-sigChan
-		slog.Info("shutdown signal received", "signal", sig.String())
-
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
-		defer cancel()
-
-		if err := p.server.Shutdown(shutdownCtx); err != nil {
-			quit <- err
-			return
-		}
-		slog.Info("server shutdown completed gracefully")
-		quit <- nil
-	}()
-
-	slog.Info("server listening", "addr", p.server.Addr)
-	if err := p.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		slog.Error("server error", "error", err)
-		return
+	var lc net.ListenConfig
+	ln, err := lc.Listen(ctx, "tcp", p.server.Addr)
+	if err != nil {
+		p.close()
+		log.Fatal(fmt.Errorf("listen: %w", err))
 	}
 
-	if err := <-quit; err != nil {
-		log.Fatal(err)
+	runErr := p.run(ctx, cfg, ln)
+	p.close()
+	if runErr != nil {
+		slog.Error("observability proxy stopped", "error", runErr)
+		os.Exit(1)
 	}
 }
