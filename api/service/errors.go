@@ -15,8 +15,9 @@ var (
 	ErrDB            = errors.New(http.StatusText(http.StatusInternalServerError))
 	ErrUnauthorized  = errors.New("unauthorized")
 
-	errEntityScopesNotFound = errors.New("entity scopes not found in context")
-	errCloneServiceSpec     = errors.New("failed to clone service spec")
+	errEntityScopesNotFound     = errors.New("entity scopes not found in context")
+	errCloneServiceSpec         = errors.New("failed to clone service spec")
+	errCustomDomainsUnsupported = errors.New("custom domains are not supported")
 )
 
 func txError(ctx context.Context, msg string, err error) error {

@@ -124,29 +124,26 @@ func (s *ResourceServer) CreateResource(
 	serviceSpec := r.GetSpec().GetService()
 
 	hasDomain := r.GetDomain() != nil
-	domainSource := genDb.DomainSourceUserProvided
 	var fullDomain string
 	var subdomainLabel *string
 	var platformDomainID *uuid.UUID
 
 	if hasDomain {
-		if r.GetDomain().GetDomainSource() == domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED {
-			domainSource = genDb.DomainSourcePlatformProvided
-			parsedPlatformDomainID := uuid.MustParse(r.GetDomain().GetPlatformDomainId())
-			platformDomainID = &parsedPlatformDomainID
-
-			platformDomain, err := s.queries.GetPlatformDomain(ctx, parsedPlatformDomainID)
-			if err != nil {
-				slog.ErrorContext(ctx, "failed to get platform domain", "error", err)
-				return nil, connect.NewError(connect.CodeInvalidArgument, ErrPlatformDomainNotFound)
-			}
-
-			fullDomain = r.GetDomain().GetSubdomain() + "." + platformDomain.Domain
-			subdomain := r.GetDomain().GetSubdomain()
-			subdomainLabel = &subdomain
-		} else {
-			fullDomain = r.GetDomain().GetDomain()
+		if r.GetDomain().GetDomainSource() != domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED {
+			return nil, connect.NewError(connect.CodeUnimplemented, errCustomDomainsUnsupported)
 		}
+		parsedPlatformDomainID := uuid.MustParse(r.GetDomain().GetPlatformDomainId())
+		platformDomainID = &parsedPlatformDomainID
+
+		platformDomain, err := s.queries.GetPlatformDomain(ctx, parsedPlatformDomainID)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to get platform domain", "error", err)
+			return nil, connect.NewError(connect.CodeInvalidArgument, ErrPlatformDomainNotFound)
+		}
+
+		fullDomain = r.GetDomain().GetSubdomain() + "." + platformDomain.Domain
+		subdomain := r.GetDomain().GetSubdomain()
+		subdomainLabel = &subdomain
 
 		available, err := s.queries.CheckDomainAvailability(ctx, fullDomain)
 		if err != nil {
@@ -239,7 +236,7 @@ func (s *ResourceServer) CreateResource(
 			ResourceID:       resourceID,
 			EnvironmentID:    environmentID,
 			Domain:           fullDomain,
-			DomainSource:     domainSource,
+			DomainSource:     genDb.DomainSourcePlatformProvided,
 			SubdomainLabel:   subdomainLabel,
 			PlatformDomainID: platformDomainID,
 			IsPrimary:        true,
