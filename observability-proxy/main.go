@@ -9,12 +9,14 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 	"time"
 
 	"connectrpc.com/connect"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	"github.com/team-loco/loco/internal/buildinfo"
+	"github.com/team-loco/loco/observability-proxy/migrations"
 	"github.com/team-loco/loco/observability-proxy/pkg/auth"
 	"github.com/team-loco/loco/observability-proxy/pkg/cache"
 	chClient "github.com/team-loco/loco/observability-proxy/pkg/clickhouse"
@@ -33,6 +35,7 @@ type proxy struct {
 	server    *http.Server
 	ch        *chClient.Client
 	permCache *cache.MemoryCache
+	migrated  *atomic.Bool
 }
 
 func newProxy(cfg *config.Config) (*proxy, error) {
@@ -51,12 +54,18 @@ func newProxy(cfg *config.Config) (*proxy, error) {
 	svc := service.NewObservabilityService(ch, cfg, validator)
 	interceptors := connect.WithInterceptors(auth.NewAuthInterceptor())
 
+	migrated := new(atomic.Bool)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "ok")
 	})
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
+		if !migrated.Load() {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			fmt.Fprintln(w, "clickhouse migrations pending")
+			return
+		}
 		if err := ch.Ping(r.Context()); err != nil {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			fmt.Fprintf(w, "clickhouse: %v\n", err)
@@ -81,7 +90,23 @@ func newProxy(cfg *config.Config) (*proxy, error) {
 		ReadHeaderTimeout: readHeaderTimeout,
 	}
 
-	return &proxy{server: server, ch: ch, permCache: permCache}, nil
+	return &proxy{server: server, ch: ch, permCache: permCache, migrated: migrated}, nil
+}
+
+func (p *proxy) migrate(ctx context.Context, cfg *config.Config) error {
+	schema := migrations.Config{
+		DSN:        cfg.ClickHouseMigratorURL,
+		Database:   cfg.ClickHouseDB,
+		LogsTTL:    cfg.LogsTTL,
+		TracesTTL:  cfg.TracesTTL,
+		MetricsTTL: cfg.MetricsTTL,
+	}
+	retry := migrations.Retry{Budget: cfg.MigrationRetryBudget, Interval: cfg.MigrationRetryInterval}
+	if err := migrations.UpWithRetry(ctx, schema, retry); err != nil {
+		return fmt.Errorf("migrate clickhouse schema: %w", err)
+	}
+	p.migrated.Store(true)
+	return nil
 }
 
 func (p *proxy) close() {
@@ -116,6 +141,12 @@ func main() {
 		log.Fatal(err)
 	}
 	defer p.close()
+
+	if err := p.migrate(context.Background(), cfg); err != nil {
+		slog.Error("clickhouse schema is not ready", "error", err)
+		p.close()
+		os.Exit(1)
+	}
 
 	quit := make(chan error, 1)
 	sigChan := make(chan os.Signal, 1)

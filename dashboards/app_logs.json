@@ -87,7 +87,7 @@
 					},
 					"pluginVersion": "4.11.2",
 					"queryType": "table",
-					"rawSql": "SELECT\n  Timestamp AS \"timestamp\",\n  Body AS \"body\",\n  ResourceAttributes['app.loco.io/component'] as \"component\"\nFROM\n  default.otel_logs\nWHERE\n  ResourceAttributes['k8s.namespace.name'] = 'backend-nikumar1206'\n  AND (\n    '$query' = ''\n    OR Body ILIKE concat('%', '$query', '%')\n  )\n  AND ResourceAttributes['app.loco.io/managed-by'] = 'loco'\nORDER BY\n  Timestamp DESC\nLIMIT\n  $limit",
+					"rawSql": "SELECT\n  Timestamp AS \"timestamp\",\n  Body AS \"body\",\n  ResourceAttributes['app.loco.io/component'] as \"component\"\nFROM\n  loco_obs.otel_logs\nWHERE\n  ResourceAttributes['k8s.namespace.name'] = 'backend-nikumar1206'\n  AND (\n    '$query' = ''\n    OR Body ILIKE concat('%', '$query', '%')\n  )\n  AND ResourceAttributes['app.loco.io/managed-by'] = 'loco'\nORDER BY\n  Timestamp DESC\nLIMIT\n  $limit",
 					"refId": "A"
 				}
 			],

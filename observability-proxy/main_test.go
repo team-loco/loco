@@ -21,6 +21,9 @@ const (
 	healthzDeadline   = 2 * time.Second
 	testTokenTTL      = time.Second
 	testMaxConcurrent = 1
+	testRetryBudget   = 300 * time.Millisecond
+	testRetryInterval = 50 * time.Millisecond
+	testTTL           = time.Hour
 )
 
 func silentListener(t *testing.T) net.Listener {
@@ -145,5 +148,61 @@ func TestStartupDiagnostics(t *testing.T) {
 		if strings.Contains(output.String(), credential) {
 			t.Errorf("startup diagnostics contain credential %q", credential)
 		}
+	}
+}
+
+func getStatus(t *testing.T, url string) int {
+	t.Helper()
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, url, nil)
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	client := &http.Client{Timeout: healthzDeadline}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("GET %s: %v", url, err)
+	}
+	if err := resp.Body.Close(); err != nil {
+		t.Errorf("close body: %v", err)
+	}
+	return resp.StatusCode
+}
+
+func TestReadyzUnavailableUntilMigrationsSucceed(t *testing.T) {
+	ln := silentListener(t)
+	addr := ln.Addr().String()
+	cfg := &config.Config{
+		ControlPlaneURL:        "http://127.0.0.1:1",
+		ClickHouseURL:          "clickhouse://" + addr,
+		ClickHouseMigratorURL:  "clickhouse://127.0.0.1:1",
+		ClickHouseDB:           "loco_obs",
+		LogsTTL:                testTTL,
+		TracesTTL:              testTTL,
+		MetricsTTL:             testTTL,
+		MigrationRetryBudget:   testRetryBudget,
+		MigrationRetryInterval: testRetryInterval,
+		MaxConcurrent:          testMaxConcurrent,
+		TokenCacheTTL:          testTokenTTL,
+	}
+	p, err := newProxy(cfg)
+	if err != nil {
+		t.Fatalf("newProxy: %v", err)
+	}
+	t.Cleanup(p.close)
+
+	srv := httptest.NewServer(p.server.Handler)
+	t.Cleanup(srv.Close)
+
+	if status := getStatus(t, srv.URL+"/readyz"); status != http.StatusServiceUnavailable {
+		t.Fatalf("GET /readyz before migrations status = %d, want %d", status, http.StatusServiceUnavailable)
+	}
+	if err := p.migrate(t.Context(), cfg); err == nil {
+		t.Fatal("migrate succeeded against an unreachable ClickHouse")
+	}
+	if status := getStatus(t, srv.URL+"/readyz"); status != http.StatusServiceUnavailable {
+		t.Fatalf("GET /readyz after failed migrations status = %d, want %d", status, http.StatusServiceUnavailable)
+	}
+	if status := getStatus(t, srv.URL+"/healthz"); status != http.StatusOK {
+		t.Fatalf("GET /healthz status = %d, want %d", status, http.StatusOK)
 	}
 }

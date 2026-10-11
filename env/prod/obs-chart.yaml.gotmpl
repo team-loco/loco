@@ -11,8 +11,14 @@ grafana:
 # ClickHouse configuration for production
 clickhouse:
   enabled: true
-  defaultUser:
-    password: {{ requiredEnv "CLICKHOUSE_PASSWORD" }}
+  clickhouse:
+    defaultUser:
+      password: {{ requiredEnv "CLICKHOUSE_PASSWORD" | quote }}
+
+clickhouseUserPasswords:
+  loco_migrator: {{ requiredEnv "CLICKHOUSE_MIGRATOR_PASSWORD" | quote }}
+  loco_ingest: {{ requiredEnv "CLICKHOUSE_INGEST_PASSWORD" | quote }}
+  loco_reader: {{ requiredEnv "CLICKHOUSE_READER_PASSWORD" | quote }}
 
 # Observability proxy (enabled by default)
 obsProxy:

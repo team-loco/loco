@@ -85,7 +85,7 @@
                     "meta": {},
                     "pluginVersion": "4.11.2",
                     "queryType": "timeseries",
-                    "rawSql": "SELECT\n    any(Value * 100) AS cpu_utilization,\n    max(TimeUnix) AS latest_time,\n    CAST(ResourceAttributes['k8s.pod.name'] AS String) AS pod\nFROM default.otel_metrics_gauge\nWHERE MetricName = 'k8s.pod.cpu_request_utilization'\n  AND ResourceAttributes['k8s.namespace.name'] = 'backend-nikumar1206'\n  AND TimeUnix >= now() - INTERVAL 5 MINUTE\nGROUP BY pod\nORDER BY latest_time DESC\nLIMIT 1",
+                    "rawSql": "SELECT\n    any(Value * 100) AS cpu_utilization,\n    max(TimeUnix) AS latest_time,\n    CAST(ResourceAttributes['k8s.pod.name'] AS String) AS pod\nFROM loco_obs.otel_metrics_gauge\nWHERE MetricName = 'k8s.pod.cpu_request_utilization'\n  AND ResourceAttributes['k8s.namespace.name'] = 'backend-nikumar1206'\n  AND TimeUnix >= now() - INTERVAL 5 MINUTE\nGROUP BY pod\nORDER BY latest_time DESC\nLIMIT 1",
                     "refId": "A"
                 }
             ],
@@ -157,7 +157,7 @@
                     "meta": {},
                     "pluginVersion": "4.11.2",
                     "queryType": "timeseries",
-                    "rawSql": "SELECT\n    any(Value * 100) AS memory_utilization,\n    max(TimeUnix) AS latest_time,\n    CAST(ResourceAttributes['k8s.pod.name'] AS String) AS pod\nFROM default.otel_metrics_gauge\nWHERE MetricName = 'k8s.pod.memory_request_utilization'\n  AND ResourceAttributes['k8s.namespace.name'] = 'backend-nikumar1206'\n  AND TimeUnix >= now() - INTERVAL 5 MINUTE\nGROUP BY pod\nORDER BY latest_time DESC\nLIMIT 1",
+                    "rawSql": "SELECT\n    any(Value * 100) AS memory_utilization,\n    max(TimeUnix) AS latest_time,\n    CAST(ResourceAttributes['k8s.pod.name'] AS String) AS pod\nFROM loco_obs.otel_metrics_gauge\nWHERE MetricName = 'k8s.pod.memory_request_utilization'\n  AND ResourceAttributes['k8s.namespace.name'] = 'backend-nikumar1206'\n  AND TimeUnix >= now() - INTERVAL 5 MINUTE\nGROUP BY pod\nORDER BY latest_time DESC\nLIMIT 1",
                     "refId": "A"
                 }
             ],
@@ -223,7 +223,7 @@
                     "meta": {},
                     "pluginVersion": "4.11.2",
                     "queryType": "timeseries",
-                    "rawSql": "SELECT\n    count(DISTINCT ResourceAttributes['k8s.pod.name']) AS pod_count\nFROM default.otel_metrics_gauge\nWHERE\n    ResourceAttributes['k8s.namespace.name'] = 'backend-nikumar1206'\n    AND TimeUnix >= now() - INTERVAL 5 MINUTE",
+                    "rawSql": "SELECT\n    count(DISTINCT ResourceAttributes['k8s.pod.name']) AS pod_count\nFROM loco_obs.otel_metrics_gauge\nWHERE\n    ResourceAttributes['k8s.namespace.name'] = 'backend-nikumar1206'\n    AND TimeUnix >= now() - INTERVAL 5 MINUTE",
                     "refId": "A"
                 }
             ],
@@ -365,7 +365,7 @@
                     "meta": {},
                     "pluginVersion": "4.11.2",
                     "queryType": "timeseries",
-                    "rawSql": "SELECT\n    TimeUnix AS time,\n    CAST(ResourceAttributes['k8s.pod.name'] AS String) || ' - ' ||\n    transform(\n        Value,\n        [1.0, 2.0, 3.0, 4.0, 5.0],\n        ['Pending', 'Running', 'Succeeded', 'Failed', 'Unknown'],\n        'Other'\n    ) || '' AS pod_status\nFROM default.otel_metrics_gauge\nWHERE MetricName = 'k8s.pod.phase'\n  AND CAST(ResourceAttributes['k8s.namespace.name'] AS String) = 'backend-nikumar1206'\n  AND $__timeFilter(TimeUnix)\n  -- ⬇️ Simple Regex Pattern\n  AND match(\n      pod_status,\n      'Pending|Running'\n  )\nORDER BY time DESC",
+                    "rawSql": "SELECT\n    TimeUnix AS time,\n    CAST(ResourceAttributes['k8s.pod.name'] AS String) || ' - ' ||\n    transform(\n        Value,\n        [1.0, 2.0, 3.0, 4.0, 5.0],\n        ['Pending', 'Running', 'Succeeded', 'Failed', 'Unknown'],\n        'Other'\n    ) || '' AS pod_status\nFROM loco_obs.otel_metrics_gauge\nWHERE MetricName = 'k8s.pod.phase'\n  AND CAST(ResourceAttributes['k8s.namespace.name'] AS String) = 'backend-nikumar1206'\n  AND $__timeFilter(TimeUnix)\n  -- ⬇️ Simple Regex Pattern\n  AND match(\n      pod_status,\n      'Pending|Running'\n  )\nORDER BY time DESC",
                     "refId": "A"
                 }
             ],
@@ -461,7 +461,7 @@
                     "editorType": "sql",
                     "format": 0,
                     "queryType": "timeseries",
-                    "rawSql": "SELECT\n    toStartOfMinute(TimeUnix) AS time,\n    avg(Value * 1000) AS cpu_millicores,\n    CAST(ResourceAttributes['k8s.pod.name'] AS String) AS pod\nFROM default.otel_metrics_gauge\nWHERE\n    MetricName = 'k8s.pod.cpu_request_utilization'\n    AND ResourceAttributes['k8s.namespace.name'] = 'backend-nikumar1206'\n    AND TimeUnix BETWEEN parseDateTimeBestEffort('${__from:iso}')\n                     AND parseDateTimeBestEffort('${__to:iso}')\nGROUP BY time, pod\nORDER BY time ASC",
+                    "rawSql": "SELECT\n    toStartOfMinute(TimeUnix) AS time,\n    avg(Value * 1000) AS cpu_millicores,\n    CAST(ResourceAttributes['k8s.pod.name'] AS String) AS pod\nFROM loco_obs.otel_metrics_gauge\nWHERE\n    MetricName = 'k8s.pod.cpu_request_utilization'\n    AND ResourceAttributes['k8s.namespace.name'] = 'backend-nikumar1206'\n    AND TimeUnix BETWEEN parseDateTimeBestEffort('${__from:iso}')\n                     AND parseDateTimeBestEffort('${__to:iso}')\nGROUP BY time, pod\nORDER BY time ASC",
                     "refId": "A"
                 }
             ],
@@ -557,7 +557,7 @@
                     "editorType": "sql",
                     "format": 0,
                     "queryType": "timeseries",
-                    "rawSql": "SELECT\n    toStartOfMinute(TimeUnix) AS time,\n    avg(Value * 100) AS memory_percent,\n    CAST(ResourceAttributes['k8s.pod.name'] AS String) AS pod\nFROM default.otel_metrics_gauge\nWHERE\n    MetricName = 'k8s.pod.memory_request_utilization'\n    AND ResourceAttributes['k8s.namespace.name'] = 'backend-nikumar1206'\n    AND TimeUnix BETWEEN parseDateTimeBestEffort('${__from:iso}')\n                     AND parseDateTimeBestEffort('${__to:iso}')\nGROUP BY time, pod\nORDER BY time ASC",
+                    "rawSql": "SELECT\n    toStartOfMinute(TimeUnix) AS time,\n    avg(Value * 100) AS memory_percent,\n    CAST(ResourceAttributes['k8s.pod.name'] AS String) AS pod\nFROM loco_obs.otel_metrics_gauge\nWHERE\n    MetricName = 'k8s.pod.memory_request_utilization'\n    AND ResourceAttributes['k8s.namespace.name'] = 'backend-nikumar1206'\n    AND TimeUnix BETWEEN parseDateTimeBestEffort('${__from:iso}')\n                     AND parseDateTimeBestEffort('${__to:iso}')\nGROUP BY time, pod\nORDER BY time ASC",
                     "refId": "A"
                 }
             ],
@@ -666,7 +666,7 @@
                     "editorType": "sql",
                     "format": 0,
                     "queryType": "timeseries",
-                    "rawSql": "SELECT\n    toStartOfMinute(TimeUnix) AS time,\n    sum(Value) / 60 AS network_bytes,\n    CAST(ResourceAttributes['k8s.pod.name'] AS String) AS pod,\n    if(Attributes['direction'] = 'receive', 'receive', 'transmit') AS direction\nFROM default.otel_metrics_sum\nWHERE\n    MetricName = 'k8s.pod.network.io'\n    AND ResourceAttributes['k8s.namespace.name'] = 'backend-nikumar1206'\n    AND TimeUnix BETWEEN parseDateTimeBestEffort('${__from:iso}')\n                     AND parseDateTimeBestEffort('${__to:iso}')\nGROUP BY time, pod, direction\nORDER BY time ASC",
+                    "rawSql": "SELECT\n    toStartOfMinute(TimeUnix) AS time,\n    sum(Value) / 60 AS network_bytes,\n    CAST(ResourceAttributes['k8s.pod.name'] AS String) AS pod,\n    if(Attributes['direction'] = 'receive', 'receive', 'transmit') AS direction\nFROM loco_obs.otel_metrics_sum\nWHERE\n    MetricName = 'k8s.pod.network.io'\n    AND ResourceAttributes['k8s.namespace.name'] = 'backend-nikumar1206'\n    AND TimeUnix BETWEEN parseDateTimeBestEffort('${__from:iso}')\n                     AND parseDateTimeBestEffort('${__to:iso}')\nGROUP BY time, pod, direction\nORDER BY time ASC",
                     "refId": "A"
                 }
             ],
@@ -730,7 +730,7 @@
                     "editorType": "sql",
                     "format": 0,
                     "queryType": "table",
-                    "rawSql": "SELECT\n    sum(Value) AS total_network_io\nFROM default.otel_metrics_sum\nWHERE\n    MetricName = 'k8s.pod.network.io'\n    AND ResourceAttributes['k8s.namespace.name'] = 'backend-nikumar1206'\n    AND TimeUnix >= now() - INTERVAL 1 MINUTE",
+                    "rawSql": "SELECT\n    sum(Value) AS total_network_io\nFROM loco_obs.otel_metrics_sum\nWHERE\n    MetricName = 'k8s.pod.network.io'\n    AND ResourceAttributes['k8s.namespace.name'] = 'backend-nikumar1206'\n    AND TimeUnix >= now() - INTERVAL 1 MINUTE",
                     "refId": "A"
                 }
             ],

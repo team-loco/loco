@@ -29,6 +29,8 @@ Configure the API's database, cache, authentication, registry, and API/dashboard
 
 The cluster needs Cilium, Envoy Gateway, cert-manager, and the Loco controller. Observability uses OpenTelemetry, ClickHouse, and Grafana. The charts and environment values define their configuration.
 
+The `loco-obs` chart defines three ClickHouse users, each limited to the `loco_obs` database: `loco_migrator` creates the schema for the observability proxy, `loco_ingest` inserts for both collectors, and `loco_reader` serves the proxy's queries and Grafana. Each user reads its password from the `password` key of a Secret named in `clickhouse.clickhouse.users`. Set `clickhouseUserPasswords.<user>` to have the chart render that Secret, or leave it empty and create the Secret yourself; the ingest Secret is also needed in the collectors' `observability-node` namespace. The proxy puts these passwords in its connection URLs, so they may contain only letters, digits and `._~-`. `env/prod/obs-chart.yaml.gotmpl` reads them from `CLICKHOUSE_MIGRATOR_PASSWORD`, `CLICKHOUSE_INGEST_PASSWORD` and `CLICKHOUSE_READER_PASSWORD`.
+
 Your team supplies DNS records, certificate issuance, persistent storage, backups, and capacity. Keep credentials separate across installations and environments. Use [architecture](../reference/architecture.md) to identify the control-plane and regional boundaries.
 
 ## Upgrades

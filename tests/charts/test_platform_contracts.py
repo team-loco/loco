@@ -9,6 +9,15 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def render(chart, template, overrides):
+    documents = render_documents(chart, template, overrides)
+    return documents[0] if documents else None
+
+
+def chart_values(chart):
+    return json.loads(subprocess.check_output(['yq', '-o=json', '.', str(ROOT / 'charts' / chart / 'values.yaml')], text=True))
+
+
+def render_documents(chart, template, overrides):
     source = ROOT / 'charts' / chart
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
@@ -25,8 +34,8 @@ def render(chart, template, overrides):
             shutil.copyfile(helper, root / 'templates' / helper.name)
         (root / 'overrides.json').write_text(json.dumps(overrides))
         rendered = subprocess.check_output(['helm', 'template', chart, str(root), '-n', 'platform-test', '-f', str(root / 'overrides.json')], text=True)
-        document = subprocess.check_output(['yq', '-o=json', '.', '-'], input=rendered, text=True)
-        return json.loads(document)
+        documents = subprocess.check_output(['yq', '-o=json', '-I=0', '.', '-'], input=rendered, text=True)
+        return [json.loads(line) for line in documents.splitlines() if line.strip() not in ('', 'null')]
 
 
 class PlatformContracts(unittest.TestCase):
@@ -53,12 +62,87 @@ class PlatformContracts(unittest.TestCase):
     def test_local_defaults_remain_available(self):
         deployment = render('loco-obs', 'obs-proxy-deployment.yaml', {'obsProxy': {'image': {'tag': 'test'}}})
         env = {item['name']: item for item in deployment['spec']['template']['spec']['containers'][0]['env']}
-        self.assertEqual(env['CLICKHOUSE_URL']['value'], 'clickhouse://clickhouse-loco-obs-clickhouse.platform-test.svc.cluster.local:9000')
+        self.assertEqual(env['CLICKHOUSE_URL']['value'], 'clickhouse://loco_reader:$(CLICKHOUSE_READER_PASSWORD)@clickhouse-loco-obs-clickhouse.platform-test.svc.cluster.local:9000')
         self.assertTrue(env['PROXY_AUTH_TOKEN']['valueFrom']['secretKeyRef']['optional'])
 
     def test_missing_database_secret_key_is_rejected(self):
         with self.assertRaises(subprocess.CalledProcessError):
             render('loco-obs', 'obs-proxy-deployment.yaml', {'obsProxy': {'image': {'tag': 'test'}, 'clickhouse': {'existingSecret': {'name': 'db', 'key': ''}}}})
+
+
+class ObservabilitySchema(unittest.TestCase):
+    def proxy_env(self, overrides=None):
+        values = {'obsProxy': {'image': {'tag': 'test'}}}
+        for key, value in (overrides or {}).items():
+            values['obsProxy'][key] = value
+        deployment = render('loco-obs', 'obs-proxy-deployment.yaml', values)
+        container = deployment['spec']['template']['spec']['containers'][0]
+        return container, [item['name'] for item in container['env']], {item['name']: item for item in container['env']}
+
+    def test_proxy_connects_as_the_reader_and_migrator_users(self):
+        _, order, env = self.proxy_env()
+        host = 'clickhouse-loco-obs-clickhouse.platform-test.svc.cluster.local:9000'
+        self.assertEqual(env['CLICKHOUSE_MIGRATOR_URL']['value'], 'clickhouse://loco_migrator:$(CLICKHOUSE_MIGRATOR_PASSWORD)@' + host)
+        self.assertEqual(env['CLICKHOUSE_READER_PASSWORD']['valueFrom']['secretKeyRef'], {'name': 'loco-obs-clickhouse-reader', 'key': 'password'})
+        self.assertEqual(env['CLICKHOUSE_MIGRATOR_PASSWORD']['valueFrom']['secretKeyRef'], {'name': 'loco-obs-clickhouse-migrator', 'key': 'password'})
+        self.assertLess(order.index('CLICKHOUSE_READER_PASSWORD'), order.index('CLICKHOUSE_URL'))
+        self.assertLess(order.index('CLICKHOUSE_MIGRATOR_PASSWORD'), order.index('CLICKHOUSE_MIGRATOR_URL'))
+
+    def test_migrator_dsn_can_come_from_an_existing_secret(self):
+        _, _, env = self.proxy_env({'clickhouse': {'migratorExistingSecret': {'name': 'proxy-migrator', 'key': 'dsn'}}})
+        self.assertEqual(env['CLICKHOUSE_MIGRATOR_URL']['valueFrom']['secretKeyRef'], {'name': 'proxy-migrator', 'key': 'dsn'})
+        self.assertNotIn('CLICKHOUSE_MIGRATOR_PASSWORD', env)
+
+    def test_proxy_owns_schema_settings(self):
+        values = chart_values('loco-obs')['obsProxy']['clickhouse']
+        container, _, env = self.proxy_env()
+        self.assertEqual(env['CLICKHOUSE_DB']['value'], 'loco_obs')
+        self.assertEqual(env['CLICKHOUSE_LOGS_TTL']['value'], values['retention']['logs'])
+        self.assertEqual(env['CLICKHOUSE_TRACES_TTL']['value'], values['retention']['traces'])
+        self.assertEqual(env['CLICKHOUSE_METRICS_TTL']['value'], values['retention']['metrics'])
+        budget = values['migrations']['retryBudgetSeconds']
+        self.assertEqual(env['MIGRATION_RETRY_BUDGET']['value'], f'{budget}s')
+        self.assertEqual(env['MIGRATION_RETRY_INTERVAL']['value'], f"{values['migrations']['retryIntervalSeconds']}s")
+        probe = container['startupProbe']
+        self.assertEqual(probe['httpGet']['path'], '/healthz')
+        self.assertGreater(probe['periodSeconds'] * probe['failureThreshold'], budget)
+
+    def test_user_secrets_follow_the_clickhouse_users(self):
+        passwords = {'loco_migrator': 'migrator-pw', 'loco_ingest': 'ingest-pw', 'loco_reader': 'reader-pw'}
+        secrets = render_documents('loco-obs', 'clickhouse-users.yaml', {'clickhouseUserPasswords': passwords})
+        found = {(item['metadata']['namespace'], item['metadata']['name']): item['stringData']['password'] for item in secrets}
+        self.assertEqual(found, {
+            ('platform-test', 'loco-obs-clickhouse-migrator'): 'migrator-pw',
+            ('platform-test', 'loco-obs-clickhouse-ingest'): 'ingest-pw',
+            ('platform-test', 'loco-obs-clickhouse-reader'): 'reader-pw',
+            ('observability-node', 'loco-obs-clickhouse-ingest'): 'ingest-pw',
+        })
+
+    def test_user_secrets_are_left_to_the_cluster_without_passwords(self):
+        self.assertEqual(render_documents('loco-obs', 'clickhouse-users.yaml', {}), [])
+
+    def test_passwords_that_break_a_dsn_are_rejected(self):
+        with self.assertRaises(subprocess.CalledProcessError):
+            render_documents('loco-obs', 'clickhouse-users.yaml', {'clickhouseUserPasswords': {'loco_reader': 'a b@c'}})
+
+    def test_collectors_ingest_into_the_proxy_database(self):
+        values = chart_values('loco-obs')
+        database = values['obsProxy']['clickhouse']['database']
+        users = {user['name']: user for user in values['clickhouse']['clickhouse']['users']}
+        for collector in ('otel-col-daemon', 'otel-col-deploy'):
+            config = values[collector]['config']
+            exporter = config['exporters']['clickhouse']
+            self.assertFalse(exporter['create_schema'], collector)
+            self.assertEqual(exporter['database'], database, collector)
+            self.assertNotIn('ttl', exporter, collector)
+            self.assertEqual(config['service']['pipelines']['traces']['exporters'], ['clickhouse'], collector)
+            user = users[exporter['username']]
+            env = {item['name']: item for item in values[collector]['extraEnvs']}
+            self.assertEqual(env['CLICKHOUSE_INGEST_PASSWORD']['valueFrom']['secretKeyRef'], {'name': user['password_secret_name'], 'key': 'password'}, collector)
+            self.assertEqual(exporter['password'], '${env:CLICKHOUSE_INGEST_PASSWORD}', collector)
+        for user in users.values():
+            for grant in user['grants']:
+                self.assertIn(f' ON {database}.*', grant, user['name'])
 
 
 class BuildNamespaceOwnership(unittest.TestCase):

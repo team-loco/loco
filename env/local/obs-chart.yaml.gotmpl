@@ -6,16 +6,21 @@ grafana:
 
 clickhouse:
   enabled: true
-  defaultUser:
-    password: ""
+  clickhouse:
+    defaultUser:
+      password: ""
 
-otel-col-deploy:
-  config:
-    exporters:
-      clickhouse:
-        ttl: 720h
+clickhouseUserPasswords:
+  loco_migrator: {{ env "CLICKHOUSE_MIGRATOR_PASSWORD" | default "loco-local-migrator" | quote }}
+  loco_ingest: {{ env "CLICKHOUSE_INGEST_PASSWORD" | default "loco-local-ingest" | quote }}
+  loco_reader: {{ env "CLICKHOUSE_READER_PASSWORD" | default "loco-local-reader" | quote }}
 
 obsProxy:
   enabled: true
   controlPlane:
     url: "http://loco-core-agent.loco-system.svc.cluster.local:8000"
+  clickhouse:
+    retention:
+      logs: 720h
+      traces: 720h
+      metrics: 720h

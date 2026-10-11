@@ -150,7 +150,7 @@ footer { margin-top: 3rem; color: var(--fg2); font-size: .85rem; }
 <ul class="items">
 <li>Check that logs and metrics include the workspace and app IDs. Queries already filter by those IDs; check what the collectors actually send.</li>
 <li>Only collect logs from Loco apps; stop collecting metrics we do not use. Remove labels with too many distinct values.</li>
-<li>Create ClickHouse tables with indexes for workspace/app queries. Tables are still created automatically by the exporter.</li>
+<li>Create ClickHouse tables with indexes for workspace/app queries. The observability proxy creates the tables in <code>loco_obs</code> with versioned migrations, and every ordering key starts with the workspace ID. The queries still filter on resource attributes instead of the new columns.</li>
 <li>Make logs expire after the retention period shown to users. Collector TTLs exist, but they do not enforce each app’s setting.</li>
 <li>Read log severity from structured app logs.</li>
 <li>Check dashboard numbers against real app usage; add disk metrics.</li>

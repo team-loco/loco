@@ -72,7 +72,7 @@ Deployable sample apps, each with its own `loco.toml`:
 - **Cilium:** Implements the CNI (Container Network Interface)
 - **Envoy:** Implements the 'new' Kubernetes Gateway API. Responsible for routing, TLS termination, enabling HTTP3
 - **cert-manager:** For automatic SSL certificate management for various components. (Let's Encrypt).
-- **OpenTelemetry:** For observability; collects metrics, logs, and will eventually collect tracing.
+- **OpenTelemetry:** For observability; collects metrics, logs and traces.
 - **ClickHouse:** As the data store for observability data.
 - **Grafana:** Dashboards for visualizing metrics and logs.
 

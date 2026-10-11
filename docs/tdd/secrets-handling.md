@@ -40,7 +40,7 @@ So plaintext env exists in Postgres, in the `Application` object in the worker's
 | User session and API tokens | API | Only SHA-256 hashes in Postgres (`access_token_hash`, `refresh_token_hash`, `token_hash`) |
 | OAuth state markers | API | Valkey, 10-minute TTL |
 | Observability proxy token | API and obs-proxy | Chart value / environment variable on both sides |
-| ClickHouse credentials | obs-proxy | Inside `CLICKHOUSE_URL` |
+| ClickHouse credentials | obs-proxy, collectors, Grafana | One Secret per ClickHouse user (`loco_migrator`, `loco_ingest`, `loco_reader`), rendered by the `loco-obs` chart from values; the proxy expands them into `CLICKHOUSE_MIGRATOR_URL` and `CLICKHOUSE_URL` |
 | Cloudflare API token | cert-manager (DNS-01) | Chart value rendered into a Secret |
 | SOPS age keys | Flux on each cluster (planned) | In-cluster Secret plus an offline admin key, per the Flux TDD |
 | CI tokens (Buf, Railway, Renovate, Terraform, DigitalOcean, Cloudflare) | GitHub Actions | Repository secrets |
