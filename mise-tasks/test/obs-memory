@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+#MISE description="Render the node collector and check its memory limiter budget and pipeline order"
+set -euo pipefail
+
+chart=charts/loco-obs
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+
+version=$(yq '.dependencies[] | select(.alias == "otel-col-daemon") | .version' "$chart/Chart.yaml")
+repository=$(yq '.dependencies[] | select(.alias == "otel-col-daemon") | .repository' "$chart/Chart.yaml")
+helm pull opentelemetry-collector --repo "$repository" --version "$version" --untar --untardir "$work"
+yq '."otel-col-daemon"' "$chart/values.yaml" > "$work/values.yaml"
+helm template loco-obs "$work/opentelemetry-collector" --namespace observability-node \
+  -f "$work/values.yaml" > "$work/rendered.yaml"
+
+memory=$(yq 'select(.kind == "DaemonSet") | .spec.template.spec.containers[0].resources.limits.memory' "$work/rendered.yaml")
+if [[ $memory != *Mi ]]; then
+  echo "FAIL: expected a collector memory limit in Mi, got $memory"
+  exit 1
+fi
+container_limit=${memory%Mi}
+yq 'select(.kind == "ConfigMap") | .data.relay' "$work/rendered.yaml" > "$work/config.yaml"
+limiter=$(yq '.processors.memory_limiter.limit_mib' "$work/config.yaml")
+spike=$(yq '.processors.memory_limiter.spike_limit_mib' "$work/config.yaml")
+if ! [[ $limiter =~ ^[0-9]+$ && $spike =~ ^[0-9]+$ ]] || \
+  (( spike <= 0 || spike >= limiter || limiter >= container_limit )); then
+  echo "FAIL: collector memory budget must satisfy 0 < spike ($spike) < limiter ($limiter) < container ($container_limit) MiB"
+  exit 1
+fi
+
+while IFS= read -r pipeline; do
+  positions=$(PIPELINE="$pipeline" yq '.service.pipelines[strenv(PIPELINE)].processors | to_entries | .[] | select(.value == "memory_limiter" or .value == "batch") | .value' "$work/config.yaml")
+  if [[ $positions != $'memory_limiter\nbatch' ]]; then
+    echo "FAIL: $pipeline must run memory_limiter before batch, got $positions"
+    exit 1
+  fi
+done < <(yq '.service.pipelines | keys | .[]' "$work/config.yaml")
+
+echo "collector memory checks passed: hard=$limiter MiB, soft=$((limiter - spike)) MiB, container=$container_limit MiB"
