@@ -25,6 +25,13 @@ type Config struct {
 	ClickHouseURL   string
 	ClickHouseDB    string
 
+	ClickHouseMigratorURL  string
+	LogsTTL                time.Duration
+	TracesTTL              time.Duration
+	MetricsTTL             time.Duration
+	MigrationRetryBudget   time.Duration
+	MigrationRetryInterval time.Duration
+
 	// Guardrails
 	DefaultLimit       int32
 	MaxLimit           int32
@@ -45,6 +52,13 @@ func Load() *Config {
 		ProxyAuthToken:  stringEnv("PROXY_AUTH_TOKEN", ""),
 		ClickHouseURL:   stringEnv("CLICKHOUSE_URL", defaultClickHouseURL),
 		ClickHouseDB:    identifierEnv("CLICKHOUSE_DB"),
+
+		ClickHouseMigratorURL:  requiredStringEnv("CLICKHOUSE_MIGRATOR_URL"),
+		LogsTTL:                ttlEnv("CLICKHOUSE_LOGS_TTL"),
+		TracesTTL:              ttlEnv("CLICKHOUSE_TRACES_TTL"),
+		MetricsTTL:             ttlEnv("CLICKHOUSE_METRICS_TTL"),
+		MigrationRetryBudget:   requiredPositiveDurationEnv("MIGRATION_RETRY_BUDGET"),
+		MigrationRetryInterval: requiredPositiveDurationEnv("MIGRATION_RETRY_INTERVAL"),
 
 		DefaultLimit:       int32Env("DEFAULT_LIMIT", defaultLimit),
 		MaxLimit:           int32Env("MAX_LIMIT", defaultMaxLimit),

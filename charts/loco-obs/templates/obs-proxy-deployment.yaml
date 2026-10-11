@@ -45,17 +45,20 @@ spec:
                   name: {{ default (printf "%s-obs-proxy-auth" .Release.Name) .Values.obsProxy.auth.existingSecret }}
                   key: token
                   optional: {{ not .Values.obsProxy.auth.existingSecret }}
-            - name: CLICKHOUSE_URL
-              {{- if .Values.obsProxy.clickhouse.existingSecret.name }}
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.obsProxy.clickhouse.existingSecret.name | quote }}
-                  key: {{ required "obsProxy.clickhouse.existingSecret.key is required" .Values.obsProxy.clickhouse.existingSecret.key | quote }}
-              {{- else }}
-              value: "clickhouse://clickhouse-{{ .Release.Name }}-clickhouse.{{ .Release.Namespace }}.svc.cluster.local:9000"
-              {{- end }}
+            {{- include "loco-obs.clickhouseDSN" (dict "root" . "env" "CLICKHOUSE_URL" "passwordEnv" "CLICKHOUSE_READER_PASSWORD" "user" .Values.obsProxy.clickhouse.readerUser "existingSecret" .Values.obsProxy.clickhouse.existingSecret "path" "obsProxy.clickhouse.existingSecret") | nindent 12 }}
+            {{- include "loco-obs.clickhouseDSN" (dict "root" . "env" "CLICKHOUSE_MIGRATOR_URL" "passwordEnv" "CLICKHOUSE_MIGRATOR_PASSWORD" "user" .Values.obsProxy.clickhouse.migratorUser "existingSecret" .Values.obsProxy.clickhouse.migratorExistingSecret "path" "obsProxy.clickhouse.migratorExistingSecret") | nindent 12 }}
             - name: CLICKHOUSE_DB
               value: {{ .Values.obsProxy.clickhouse.database | quote }}
+            - name: CLICKHOUSE_LOGS_TTL
+              value: {{ .Values.obsProxy.clickhouse.retention.logs | quote }}
+            - name: CLICKHOUSE_TRACES_TTL
+              value: {{ .Values.obsProxy.clickhouse.retention.traces | quote }}
+            - name: CLICKHOUSE_METRICS_TTL
+              value: {{ .Values.obsProxy.clickhouse.retention.metrics | quote }}
+            - name: MIGRATION_RETRY_BUDGET
+              value: {{ printf "%ds" (int .Values.obsProxy.clickhouse.migrations.retryBudgetSeconds) | quote }}
+            - name: MIGRATION_RETRY_INTERVAL
+              value: {{ printf "%ds" (int .Values.obsProxy.clickhouse.migrations.retryIntervalSeconds) | quote }}
             - name: DEFAULT_LIMIT
               value: {{ .Values.obsProxy.guardrails.defaultLimit | quote }}
             - name: MAX_LIMIT
