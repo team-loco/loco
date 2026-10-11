@@ -74,7 +74,6 @@ func (a *applier) create(ctx context.Context, qtx *genDb.Queries, op configplan.
 		WorkspaceID: a.env.WorkspaceID,
 		Name:        op.Service,
 		Type:        genDb.ResourceTypeService,
-		Status:      genDb.ResourceStatusUnavailable,
 		Spec:        specJSON,
 		SpecVersion: specVersion,
 	})

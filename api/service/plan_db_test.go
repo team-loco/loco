@@ -64,8 +64,8 @@ func (f *deployFixture) setRoutedSpec(t *testing.T) {
 func (f *deployFixture) addResource(t *testing.T, name, partial string) {
 	t.Helper()
 	insert := `
-INSERT INTO resources (workspace_id, name, type, description, status, spec, spec_version, partial)
-VALUES ($1, $2, 'service', '', 'healthy', $3, 1, $4)`
+INSERT INTO resources (workspace_id, name, type, description, spec, spec_version, partial)
+VALUES ($1, $2, 'service', '', $3, 1, $4)`
 	workspaceID := f.workspaceID(t)
 	if _, err := f.pool.Exec(context.Background(), insert, workspaceID, name, planRoutedSpec, partial); err != nil {
 		t.Fatalf("add resource %s: %v", name, err)

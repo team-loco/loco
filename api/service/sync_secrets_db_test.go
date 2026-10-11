@@ -194,8 +194,8 @@ func (f *deployFixture) secondPlacement(t *testing.T, names []string) uuid.UUID 
 	ctx := context.Background()
 	var resourceID uuid.UUID
 	err := f.pool.QueryRow(ctx, `
-INSERT INTO resources (workspace_id, name, type, description, status, spec, spec_version)
-SELECT workspace_id, 'worker', 'service', '', 'healthy', '{}', 1 FROM environments WHERE id = $1
+INSERT INTO resources (workspace_id, name, type, description, spec, spec_version)
+SELECT workspace_id, 'worker', 'service', '', '{}', 1 FROM environments WHERE id = $1
 RETURNING id`, f.envID).Scan(&resourceID)
 	if err != nil {
 		t.Fatalf("resource: %v", err)

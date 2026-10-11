@@ -8,10 +8,6 @@ interface StatusStyle {
 	tone: BadgeTone;
 }
 
-export function effectiveResourceStatus(status: ResourceStatus, hasDeployments: boolean): ResourceStatus {
-	return hasDeployments ? status : ResourceStatus.UNSPECIFIED;
-}
-
 export function resourceStatusStyle(status: ResourceStatus | undefined): StatusStyle {
 	switch (status) {
 		case ResourceStatus.HEALTHY:
@@ -22,8 +18,8 @@ export function resourceStatusStyle(status: ResourceStatus | undefined): StatusS
 			return { label: "Degraded", tone: "warn" };
 		case ResourceStatus.UNAVAILABLE:
 			return { label: "Unavailable", tone: "bad" };
-		case ResourceStatus.SUSPENDED:
-			return { label: "Suspended", tone: "neutral" };
+		case ResourceStatus.UNKNOWN:
+			return { label: "Unknown", tone: "neutral" };
 		case ResourceStatus.UNSPECIFIED:
 			return { label: "Pending", tone: "neutral" };
 		case undefined:

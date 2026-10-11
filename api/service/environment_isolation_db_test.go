@@ -35,10 +35,10 @@ func (f *deployFixture) addStagingEnvironment(t *testing.T) uuid.UUID {
 	return f.addTypedEnvironment(t, stagingName, stagingName)
 }
 
-func (f *deployFixture) setClusterTier(t *testing.T, clusterID uuid.UUID, tier string) {
+func (f *deployFixture) setStagingTier(t *testing.T, clusterID uuid.UUID) {
 	t.Helper()
 	update := `UPDATE clusters SET tier = $2 WHERE id = $1`
-	if _, err := f.pool.Exec(context.Background(), update, clusterID, tier); err != nil {
+	if _, err := f.pool.Exec(context.Background(), update, clusterID, stagingName); err != nil {
 		t.Fatalf("set cluster tier: %v", err)
 	}
 }
@@ -55,7 +55,7 @@ func (f *deployFixture) activeDeployments(t *testing.T, environmentID uuid.UUID)
 func TestDeploymentsOfTwoEnvironmentsInOneRegionStayActive(t *testing.T) {
 	f := newDeployFixture(t)
 	stagingID := f.addStagingEnvironment(t)
-	f.setClusterTier(t, f.otherCluster, stagingName)
+	f.setStagingTier(t, f.otherCluster)
 	ctx := context.Background()
 
 	if _, err := f.deploy(ctx, staticSpec); err != nil {

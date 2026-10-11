@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"maps"
 	"slices"
+	"time"
 
 	"github.com/team-loco/loco/api/events"
 
@@ -71,10 +72,11 @@ func protoResourceTypeToDb(rt resourcev1.ResourceType) (genDb.ResourceType, erro
 
 type ResourceServer struct {
 	resourcev1connect.UnimplementedResourceServiceHandler
-	db       *pgxpool.Pool
-	queries  genDb.Querier
-	authz    *authz.Authorizer
-	defaults servicedefaults.Defaults
+	db               *pgxpool.Pool
+	queries          genDb.Querier
+	authz            *authz.Authorizer
+	defaults         servicedefaults.Defaults
+	statusStaleAfter time.Duration
 }
 
 // NewResourceServer creates a new ResourceServer instance
@@ -82,12 +84,14 @@ func NewResourceServer(
 	db *pgxpool.Pool,
 	queries genDb.Querier,
 	defaults servicedefaults.Defaults,
+	statusStaleAfter time.Duration,
 ) *ResourceServer {
 	return &ResourceServer{
-		db:       db,
-		queries:  queries,
-		authz:    authz.New(db, queries),
-		defaults: defaults,
+		db:               db,
+		queries:          queries,
+		authz:            authz.New(db, queries),
+		defaults:         defaults,
+		statusStaleAfter: statusStaleAfter,
 	}
 }
 
@@ -170,7 +174,6 @@ func (s *ResourceServer) CreateResource(
 		WorkspaceID: workspaceID,
 		Name:        r.GetName(),
 		Type:        resourceType,
-		Status:      genDb.ResourceStatusUnavailable,
 		Spec:        specJSON,
 		SpecVersion: int32(1),
 		Description: r.GetDescription(),
@@ -354,8 +357,14 @@ func (s *ResourceServer) GetResource(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	statuses, err := s.environmentStatuses(ctx, []uuid.UUID{res.ID})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to derive resource status", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
 	return connect.NewResponse(&resourcev1.GetResourceResponse{
-		Resource: dbResourceToProto(res, resourceDomains, resourceRegions),
+		Resource: dbResourceToProto(res, statuses[res.ID], resourceDomains, resourceRegions),
 	}), nil
 }
 
@@ -457,6 +466,12 @@ func (s *ResourceServer) ListWorkspaceResources(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	statuses, err := s.environmentStatuses(ctx, resourceIDs)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to derive resource statuses", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
 	domainsByResource := make(map[uuid.UUID][]genDb.ResourceDomain, len(dbResources))
 	for _, domain := range allDomains {
 		domainsByResource[domain.ResourceID] = append(domainsByResource[domain.ResourceID], domain)
@@ -470,7 +485,9 @@ func (s *ResourceServer) ListWorkspaceResources(
 	for _, dbResource := range dbResources {
 		resourceDomains := domainsByResource[dbResource.ID]
 		resourceRegions := regionsByResource[dbResource.ID]
-		resources = append(resources, dbResourceToProto(dbResource, resourceDomains, resourceRegions))
+		resourceStatuses := statuses[dbResource.ID]
+		resource := dbResourceToProto(dbResource, resourceStatuses, resourceDomains, resourceRegions)
+		resources = append(resources, resource)
 	}
 
 	var nextPageToken string
@@ -632,27 +649,6 @@ func (s *ResourceServer) GetResourceStatus(
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 	}
 
-	deploymentList, err := s.queries.ListDeploymentsForResource(ctx, genDb.ListDeploymentsForResourceParams{
-		ResourceID: resourceID,
-		Limit:      1,
-		PageToken:  nil, // empty for first page
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list deployments", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
-	}
-
-	var deploymentStatus *resourcev1.DeploymentStatus
-	if len(deploymentList) > 0 {
-		deployment := deploymentList[0]
-		deploymentStatus = &resourcev1.DeploymentStatus{
-			Id:       deployment.ID.String(),
-			Status:   deploymentStatusToProto(deployment.Status),
-			Replicas: deployment.Replicas,
-			Message:  &deployment.Message,
-		}
-	}
-
 	resourceDomains, err := s.queries.ListResourceDomains(ctx, res.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list resource domains", "error", err)
@@ -665,9 +661,14 @@ func (s *ResourceServer) GetResourceStatus(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	statuses, err := s.environmentStatuses(ctx, []uuid.UUID{res.ID})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to derive resource status", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
 	return connect.NewResponse(&resourcev1.GetResourceStatusResponse{
-		Resource:          dbResourceToProto(res, resourceDomains, resourceRegions),
-		CurrentDeployment: deploymentStatus,
+		Resource: dbResourceToProto(res, statuses[res.ID], resourceDomains, resourceRegions),
 	}), nil
 }
 
@@ -1030,24 +1031,6 @@ func inheritDesiredEnv(ctx context.Context, qtx *genDb.Queries, plan regionRedep
 	return nil
 }
 
-// resourceStatusToProto converts database resource status to proto enum
-func resourceStatusToProto(status genDb.ResourceStatus) resourcev1.ResourceStatus {
-	switch status {
-	case genDb.ResourceStatusHealthy:
-		return resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY
-	case genDb.ResourceStatusDeploying:
-		return resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING
-	case genDb.ResourceStatusDegraded:
-		return resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED
-	case genDb.ResourceStatusUnavailable:
-		return resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE
-	case genDb.ResourceStatusSuspended:
-		return resourcev1.ResourceStatus_RESOURCE_STATUS_SUSPENDED
-	default:
-		return resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY
-	}
-}
-
 // deploymentStatusToProto converts database deployment status to proto enum
 func deploymentStatusToProto(status genDb.DeploymentStatus) deploymentv1.DeploymentPhase {
 	switch status {
@@ -1194,6 +1177,7 @@ func resourceDomainToListProto(domains []genDb.ResourceDomain) []*domainv1.Resou
 // to be returned to client. Note: caller is responsible for fetching domains and regions separately.
 func dbResourceToProto(
 	res genDb.Resource,
+	statuses []*resourcev1.EnvironmentStatus,
 	domains []genDb.ResourceDomain,
 	regions []genDb.ResourceRegion,
 ) *resourcev1.Resource {
@@ -1216,8 +1200,6 @@ func dbResourceToProto(
 		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_SERVICE
 	}
 
-	resourceStatus := resourceStatusToProto(res.Status)
-
 	protoRegions := make([]*resourcev1.RegionConfig, len(regions))
 	for i, r := range regions {
 		protoRegions[i] = &resourcev1.RegionConfig{
@@ -1233,18 +1215,18 @@ func dbResourceToProto(
 	}
 
 	result := &resourcev1.Resource{
-		Id:          res.ID.String(),
-		WorkspaceId: res.WorkspaceID.String(),
-		Name:        res.Name,
-		Type:        resourceType,
-		Spec:        spec,
-		Domains:     resourceDomainToListProto(domains),
-		Regions:     protoRegions,
-		CreatedAt:   timeutil.ParsePostgresTimestamp(res.CreatedAt),
-		UpdatedAt:   timeutil.ParsePostgresTimestamp(res.UpdatedAt),
-		Status:      resourceStatus,
-		Description: &res.Description,
-		Partial:     res.Partial,
+		Id:                  res.ID.String(),
+		WorkspaceId:         res.WorkspaceID.String(),
+		Name:                res.Name,
+		Type:                resourceType,
+		Spec:                spec,
+		Domains:             resourceDomainToListProto(domains),
+		Regions:             protoRegions,
+		CreatedAt:           timeutil.ParsePostgresTimestamp(res.CreatedAt),
+		UpdatedAt:           timeutil.ParsePostgresTimestamp(res.UpdatedAt),
+		Description:         &res.Description,
+		Partial:             res.Partial,
+		EnvironmentStatuses: statuses,
 	}
 
 	return result

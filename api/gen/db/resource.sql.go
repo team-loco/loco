@@ -14,19 +14,18 @@ import (
 
 const createResource = `-- name: CreateResource :one
 
-INSERT INTO resources (workspace_id, name, type, description, status, spec, spec_version)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO resources (workspace_id, name, type, description, spec, spec_version)
+VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id
 `
 
 type CreateResourceParams struct {
-	WorkspaceID uuid.UUID      `json:"workspaceId"`
-	Name        string         `json:"name"`
-	Type        ResourceType   `json:"type"`
-	Description string         `json:"description"`
-	Status      ResourceStatus `json:"status"`
-	Spec        []byte         `json:"spec"`
-	SpecVersion int32          `json:"specVersion"`
+	WorkspaceID uuid.UUID    `json:"workspaceId"`
+	Name        string       `json:"name"`
+	Type        ResourceType `json:"type"`
+	Description string       `json:"description"`
+	Spec        []byte       `json:"spec"`
+	SpecVersion int32        `json:"specVersion"`
 }
 
 // Resource queries
@@ -36,7 +35,6 @@ func (q *Queries) CreateResource(ctx context.Context, arg CreateResourceParams) 
 		arg.Name,
 		arg.Type,
 		arg.Description,
-		arg.Status,
 		arg.Spec,
 		arg.SpecVersion,
 	)
@@ -170,7 +168,7 @@ func (q *Queries) GetFirstActiveCluster(ctx context.Context) (GetFirstActiveClus
 }
 
 const getResourceByID = `-- name: GetResourceByID :one
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
 FROM resources r
 WHERE r.id = $1
 `
@@ -184,7 +182,6 @@ func (q *Queries) GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, 
 		&i.Name,
 		&i.Type,
 		&i.Description,
-		&i.Status,
 		&i.Spec,
 		&i.SpecVersion,
 		&i.Partial,
@@ -195,7 +192,7 @@ func (q *Queries) GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, 
 }
 
 const getResourceByNameAndWorkspace = `-- name: GetResourceByNameAndWorkspace :one
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.name = $2
 `
@@ -214,7 +211,6 @@ func (q *Queries) GetResourceByNameAndWorkspace(ctx context.Context, arg GetReso
 		&i.Name,
 		&i.Type,
 		&i.Description,
-		&i.Status,
 		&i.Spec,
 		&i.SpecVersion,
 		&i.Partial,
@@ -276,31 +272,6 @@ func (q *Queries) GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id
 	var i GetWorkspaceOrganizationIDByResourceIDRow
 	err := row.Scan(&i.WorkspaceID, &i.OrgID)
 	return i, err
-}
-
-const listActiveDeploymentsByResourceID = `-- name: ListActiveDeploymentsByResourceID :many
-SELECT status FROM deployments
-WHERE resource_id = $1 AND is_active = true
-`
-
-func (q *Queries) ListActiveDeploymentsByResourceID(ctx context.Context, resourceID uuid.UUID) ([]DeploymentStatus, error) {
-	rows, err := q.db.Query(ctx, listActiveDeploymentsByResourceID, resourceID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []DeploymentStatus
-	for rows.Next() {
-		var status DeploymentStatus
-		if err := rows.Scan(&status); err != nil {
-			return nil, err
-		}
-		items = append(items, status)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const listClustersActive = `-- name: ListClustersActive :many
@@ -433,6 +404,81 @@ func (q *Queries) ListEligibleClusters(ctx context.Context, tier string) ([]List
 	return items, nil
 }
 
+const listRegionStatusesForResources = `-- name: ListRegionStatusesForResources :many
+SELECT d.resource_id,
+       d.environment_id,
+       e.name AS environment_name,
+       d.region,
+       d.id AS deployment_id,
+       d.status AS deployment_status,
+       d.replicas AS desired_replicas,
+       d.message AS deployment_message,
+       (p.id IS NOT NULL)::boolean AS placed,
+       COALESCE(p.ready_replicas, 0)::int AS ready_replicas,
+       COALESCE(p.status_message, '')::text AS status_message,
+       p.status_updated_at,
+       c.last_heartbeat,
+       c.health_status
+FROM deployments d
+JOIN environments e ON e.id = d.environment_id
+JOIN clusters c ON c.id = d.cluster_id
+LEFT JOIN placements p ON p.deployment_id = d.id AND NOT p.desired_deleted
+WHERE d.resource_id = ANY($1::uuid[]) AND d.is_active = true
+ORDER BY d.resource_id, e.name, d.region
+`
+
+type ListRegionStatusesForResourcesRow struct {
+	ResourceID        uuid.UUID        `json:"resourceId"`
+	EnvironmentID     uuid.UUID        `json:"environmentId"`
+	EnvironmentName   string           `json:"environmentName"`
+	Region            string           `json:"region"`
+	DeploymentID      uuid.UUID        `json:"deploymentId"`
+	DeploymentStatus  DeploymentStatus `json:"deploymentStatus"`
+	DesiredReplicas   int32            `json:"desiredReplicas"`
+	DeploymentMessage string           `json:"deploymentMessage"`
+	Placed            bool             `json:"placed"`
+	ReadyReplicas     int32            `json:"readyReplicas"`
+	StatusMessage     string           `json:"statusMessage"`
+	StatusUpdatedAt   *time.Time       `json:"statusUpdatedAt"`
+	LastHeartbeat     *time.Time       `json:"lastHeartbeat"`
+	HealthStatus      *string          `json:"healthStatus"`
+}
+
+func (q *Queries) ListRegionStatusesForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListRegionStatusesForResourcesRow, error) {
+	rows, err := q.db.Query(ctx, listRegionStatusesForResources, resourceIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRegionStatusesForResourcesRow
+	for rows.Next() {
+		var i ListRegionStatusesForResourcesRow
+		if err := rows.Scan(
+			&i.ResourceID,
+			&i.EnvironmentID,
+			&i.EnvironmentName,
+			&i.Region,
+			&i.DeploymentID,
+			&i.DeploymentStatus,
+			&i.DesiredReplicas,
+			&i.DeploymentMessage,
+			&i.Placed,
+			&i.ReadyReplicas,
+			&i.StatusMessage,
+			&i.StatusUpdatedAt,
+			&i.LastHeartbeat,
+			&i.HealthStatus,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listResourceRegions = `-- name: ListResourceRegions :many
 SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
 FROM resource_regions
@@ -506,7 +552,7 @@ func (q *Queries) ListResourceRegionsForResources(ctx context.Context, resourceI
 }
 
 const listResourcesForWorkspace = `-- name: ListResourcesForWorkspace :many
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1
    AND ($3::text IS NULL
@@ -539,7 +585,6 @@ func (q *Queries) ListResourcesForWorkspace(ctx context.Context, arg ListResourc
 			&i.Name,
 			&i.Type,
 			&i.Description,
-			&i.Status,
 			&i.Spec,
 			&i.SpecVersion,
 			&i.Partial,
@@ -557,7 +602,7 @@ func (q *Queries) ListResourcesForWorkspace(ctx context.Context, arg ListResourc
 }
 
 const listWorkspaceServiceResources = `-- name: ListWorkspaceServiceResources :many
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.type = 'service'
 ORDER BY r.name ASC
@@ -578,7 +623,6 @@ func (q *Queries) ListWorkspaceServiceResources(ctx context.Context, workspaceID
 			&i.Name,
 			&i.Type,
 			&i.Description,
-			&i.Status,
 			&i.Spec,
 			&i.SpecVersion,
 			&i.Partial,
@@ -699,21 +743,5 @@ type UpdateResourceSpecParams struct {
 
 func (q *Queries) UpdateResourceSpec(ctx context.Context, arg UpdateResourceSpecParams) error {
 	_, err := q.db.Exec(ctx, updateResourceSpec, arg.ID, arg.Spec)
-	return err
-}
-
-const updateResourceStatus = `-- name: UpdateResourceStatus :exec
-UPDATE resources
-SET status = $2, updated_at = NOW()
-WHERE id = $1
-`
-
-type UpdateResourceStatusParams struct {
-	ID     uuid.UUID      `json:"id"`
-	Status ResourceStatus `json:"status"`
-}
-
-func (q *Queries) UpdateResourceStatus(ctx context.Context, arg UpdateResourceStatusParams) error {
-	_, err := q.db.Exec(ctx, updateResourceStatus, arg.ID, arg.Status)
 	return err
 }
