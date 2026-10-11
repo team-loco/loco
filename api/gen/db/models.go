@@ -462,6 +462,16 @@ type Environment struct {
 	UpdatedAt       time.Time `json:"updatedAt"`
 }
 
+type EnvironmentKey struct {
+	EnvironmentID uuid.UUID  `json:"environmentId"`
+	Provider      string     `json:"provider"`
+	KekID         string     `json:"kekId"`
+	WrappedDek    []byte     `json:"wrappedDek"`
+	FormatVersion int16      `json:"formatVersion"`
+	CreatedAt     time.Time  `json:"createdAt"`
+	RewrappedAt   *time.Time `json:"rewrappedAt"`
+}
+
 type Event struct {
 	Seq         int64      `json:"seq"`
 	Txid        uint64     `json:"txid"`
@@ -564,6 +574,20 @@ type ResourceRegion struct {
 	LastError  *string            `json:"lastError"`
 	CreatedAt  time.Time          `json:"createdAt"`
 	UpdatedAt  time.Time          `json:"updatedAt"`
+}
+
+type Secret struct {
+	ID            uuid.UUID `json:"id"`
+	ResourceID    uuid.UUID `json:"resourceId"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
+	Name          string    `json:"name"`
+	Version       int32     `json:"version"`
+	Nonce         []byte    `json:"nonce"`
+	Ciphertext    []byte    `json:"ciphertext"`
+	FormatVersion int16     `json:"formatVersion"`
+	UpdatedBy     uuid.UUID `json:"updatedBy"`
+	CreatedAt     time.Time `json:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt"`
 }
 
 type SessionToken struct {

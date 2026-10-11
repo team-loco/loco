@@ -71,6 +71,18 @@ CREATE INDEX IF NOT EXISTS idx_environments_workspace_id_created_at ON environme
 
 CREATE INDEX idx_environments_created_by ON environments (created_by);
 
+-- One data-encryption key per environment, wrapped by the configured key provider
+CREATE TABLE
+    environment_keys (
+        environment_id UUID PRIMARY KEY REFERENCES environments (id) ON DELETE CASCADE,
+        provider TEXT NOT NULL,
+        kek_id TEXT NOT NULL,
+        wrapped_dek BYTEA NOT NULL,
+        format_version SMALLINT NOT NULL DEFAULT 1,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+        rewrapped_at TIMESTAMPTZ
+    );
+
 -- Clusters table
 CREATE TABLE
     clusters (
@@ -137,6 +149,25 @@ CREATE TABLE
     );
 
 CREATE INDEX IF NOT EXISTS idx_resources_workspace_created_id_desc ON resources (workspace_id, created_at DESC, id DESC);
+
+-- Secret values of one service in one environment, AES-256-GCM ciphertext under the environment's data-encryption key
+CREATE TABLE
+    secrets (
+        id UUID PRIMARY KEY DEFAULT uuidv7 (),
+        resource_id UUID NOT NULL REFERENCES resources (id) ON DELETE CASCADE,
+        environment_id UUID NOT NULL REFERENCES environments (id) ON DELETE CASCADE,
+        name TEXT NOT NULL CHECK (name ~ '^[A-Z_][A-Z0-9_]*$'),
+        version INT NOT NULL DEFAULT 1 CHECK (version > 0),
+        nonce BYTEA NOT NULL,
+        ciphertext BYTEA NOT NULL,
+        format_version SMALLINT NOT NULL DEFAULT 1,
+        updated_by UUID NOT NULL REFERENCES users (id),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+        UNIQUE (resource_id, environment_id, name)
+    );
+
+CREATE INDEX idx_secrets_environment_id ON secrets (environment_id);
 
 -- Resource regions table (declarative intent)
 CREATE TABLE
@@ -324,9 +355,11 @@ DROP TABLE IF EXISTS placements;
 DROP TABLE IF EXISTS deployments;
 DROP TABLE IF EXISTS resource_domains;
 DROP TABLE IF EXISTS resource_regions;
+DROP TABLE IF EXISTS secrets;
 DROP TABLE IF EXISTS resources;
 DROP TABLE IF EXISTS platform_domains;
 DROP TABLE IF EXISTS clusters;
+DROP TABLE IF EXISTS environment_keys;
 DROP TABLE IF EXISTS environments;
 DROP TYPE IF EXISTS region_intent_status;
 DROP TYPE IF EXISTS domain_source;
