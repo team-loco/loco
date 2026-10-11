@@ -9,6 +9,11 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def render(chart, template, overrides):
+    documents = render_documents(chart, template, overrides)
+    return documents[0] if documents else None
+
+
+def render_documents(chart, template, overrides):
     source = ROOT / 'charts' / chart
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
@@ -25,8 +30,8 @@ def render(chart, template, overrides):
             shutil.copyfile(helper, root / 'templates' / helper.name)
         (root / 'overrides.json').write_text(json.dumps(overrides))
         rendered = subprocess.check_output(['helm', 'template', chart, str(root), '-n', 'platform-test', '-f', str(root / 'overrides.json')], text=True)
-        document = subprocess.check_output(['yq', '-o=json', '.', '-'], input=rendered, text=True)
-        return json.loads(document)
+        documents = subprocess.check_output(['yq', '-o=json', '-I=0', '.', '-'], input=rendered, text=True)
+        return [json.loads(line) for line in documents.splitlines() if line.strip() not in ('', 'null')]
 
 
 class PlatformContracts(unittest.TestCase):
@@ -59,6 +64,25 @@ class PlatformContracts(unittest.TestCase):
     def test_missing_database_secret_key_is_rejected(self):
         with self.assertRaises(subprocess.CalledProcessError):
             render('loco-obs', 'obs-proxy-deployment.yaml', {'obsProxy': {'image': {'tag': 'test'}, 'clickhouse': {'existingSecret': {'name': 'db', 'key': ''}}}})
+
+
+class ObservabilitySchema(unittest.TestCase):
+    def test_user_secrets_follow_the_clickhouse_users(self):
+        passwords = {'loco_migrator': 'migrator-pw', 'loco_ingest': 'ingest-pw', 'loco_reader': 'reader-pw'}
+        secrets = render_documents('loco-obs', 'clickhouse-users.yaml', {'clickhouseUserPasswords': passwords})
+        found = {(item['metadata']['namespace'], item['metadata']['name']): item['stringData']['password'] for item in secrets}
+        self.assertEqual(found, {
+            ('platform-test', 'loco-obs-clickhouse-migrator'): 'migrator-pw',
+            ('platform-test', 'loco-obs-clickhouse-ingest'): 'ingest-pw',
+            ('platform-test', 'loco-obs-clickhouse-reader'): 'reader-pw',
+        })
+
+    def test_user_secrets_are_left_to_the_cluster_without_passwords(self):
+        self.assertEqual(render_documents('loco-obs', 'clickhouse-users.yaml', {}), [])
+
+    def test_passwords_that_break_a_dsn_are_rejected(self):
+        with self.assertRaises(subprocess.CalledProcessError):
+            render_documents('loco-obs', 'clickhouse-users.yaml', {'clickhouseUserPasswords': {'loco_reader': 'a b@c'}})
 
 
 class BuildNamespaceOwnership(unittest.TestCase):
