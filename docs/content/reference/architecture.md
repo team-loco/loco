@@ -12,7 +12,7 @@ The in-cluster agent exchanges state with the API. The controller reconciles App
 
 ## Observability
 
-OpenTelemetry collects telemetry, ClickHouse stores observability data, and Grafana displays it. The regional observability proxy provides access to the regional data.
+OpenTelemetry collects telemetry and ClickHouse stores observability data. The regional observability proxy provides access to the regional data.
 
 ## Deployment boundaries
 

@@ -185,16 +185,12 @@ Deploys:
   - Centralized collection and aggregation
   - Processes and exports data to ClickHouse
 
-**Data Storage & Visualization**:
+**Data Storage**:
 
 - **ClickHouse** (v0.3.4 via Altinity helm repo)
   - Time-series data store for metrics, logs, traces
   - OLAP database optimized for analytics
-
-- **Grafana** (v10.3.0)
-  - Dashboard creation and visualization
-  - Data source connections (ClickHouse, Prometheus)
-  - Alerting
+  - Read through the observability proxy
 
 **Observability Data Flow**:
 
@@ -205,7 +201,7 @@ Collector (Daemon/Deployment)
   ↓
 ClickHouse
   ↓
-Grafana (Dashboards & Alerts)
+Observability proxy
 ```
 
 ---
@@ -235,7 +231,6 @@ Used in `helmfile.yaml.gotmpl`:
 | **jetstack**       | https://charts.jetstack.io                                 | cert-manager chart   |
 | **cilium**         | https://helm.cilium.io                                     | Cilium CNI chart     |
 | **altinity**       | https://helm.altinity.com                                  | ClickHouse chart     |
-| **grafana**        | https://grafana.github.io/helm-charts                      | Grafana chart        |
 | **open-telemetry** | https://open-telemetry.github.io/opentelemetry-helm-charts | OpenTelemetry charts |
 
 ---

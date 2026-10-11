@@ -21,7 +21,6 @@ k8sapi/
 observability-proxy/
 proto/
 charts/
-dashboards/
 docs/**
 !docs/pyproject.toml
 !docs/uv.lock

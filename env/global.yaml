@@ -25,4 +25,3 @@ global:
   observability:
     otelCollectorDeployment: otel-col-deploy
     clickhouse: clickhouse-loco-obs-clickhouse
-    grafana: grafana

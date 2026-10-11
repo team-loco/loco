@@ -59,7 +59,7 @@ The three value layers merge in a fixed order, and each layer has one home:
 
 ### Third-party chart versions live in exactly one place
 
-Cilium, Envoy Gateway, ClickHouse, the OpenTelemetry charts and Grafana are already dependencies of loco umbrella charts. Their versions live in `Chart.yaml` and `Chart.lock`, and both helmfile and Flux read them. cert-manager is the exception: helmfile installs `jetstack/cert-manager` directly at a version pinned in `helmfile.yaml.gotmpl`. A Flux `HelmRelease` would need its own pin, and the two would drift.
+Cilium, Envoy Gateway, ClickHouse and the OpenTelemetry charts are already dependencies of loco umbrella charts. Their versions live in `Chart.yaml` and `Chart.lock`, and both helmfile and Flux read them. cert-manager is the exception: helmfile installs `jetstack/cert-manager` directly at a version pinned in `helmfile.yaml.gotmpl`. A Flux `HelmRelease` would need its own pin, and the two would drift.
 
 So cert-manager moves into an umbrella chart as well, `charts/loco-cert-manager`, and the rule becomes: **no release references a third-party chart directly.** Renovate then has one file to bump per dependency.
 
