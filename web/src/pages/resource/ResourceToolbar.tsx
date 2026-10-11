@@ -1,5 +1,6 @@
 import {
 	ArrowUpRightIcon,
+	BracesIcon,
 	ChartLineIcon,
 	LayoutDashboardIcon,
 	ScrollTextIcon,
@@ -12,15 +13,17 @@ import { Button } from "@/components/design/Button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { cn } from "@/lib/utils";
 
-export type ResourceTab = "overview" | "settings";
+export type ResourceTab = "overview" | "variables" | "settings";
 
 export function parseTab(value: string | null): ResourceTab {
+	if (value === "variables") return "variables";
 	if (value === "settings") return "settings";
 	return "overview";
 }
 
 const TABS: { value: ResourceTab; label: string; icon: typeof LayoutDashboardIcon }[] = [
 	{ value: "overview", label: "Overview", icon: LayoutDashboardIcon },
+	{ value: "variables", label: "Variables", icon: BracesIcon },
 	{ value: "settings", label: "Settings", icon: Settings2Icon },
 ];
 

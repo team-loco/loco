@@ -59,6 +59,9 @@ service ResourceService {
   rpc GetResourceStatus(GetResourceStatusRequest) returns (GetResourceStatusResponse);
   // ListRegions lists available regions for resource deployment.
   rpc ListRegions(ListRegionsRequest) returns (ListRegionsResponse);
+  // GetResourceEnv returns the plain env variables a service runs with in an environment, the
+  // env map of loco.yaml, and the secret names it declares. Secret values are never included.
+  rpc GetResourceEnv(GetResourceEnvRequest) returns (GetResourceEnvResponse);
 
   // Events
   // ListResourceEvents retrieves events for a resource.
@@ -276,6 +279,19 @@ message ListRegionsRequest {}
 // ListRegionsResponse is the response containing available regions.
 message ListRegionsResponse {
   repeated RegionInfo regions = 1;
+}
+
+// GetResourceEnvRequest names the service and the environment whose plain env variables to read.
+message GetResourceEnvRequest {
+  string resource_id = 1 [(buf.validate.field).string.uuid = true];
+  string environment_id = 2 [(buf.validate.field).string.uuid = true];
+}
+
+// GetResourceEnvResponse holds the plain env variables and the declared secret names of the
+// service's active deployment in the environment, both empty when it has none.
+message GetResourceEnvResponse {
+  map<string, string> env = 1;
+  repeated string secret_names = 2;
 }
 
 // GetResourceStatusRequest is the request to retrieve resource status.
