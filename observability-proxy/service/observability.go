@@ -118,6 +118,8 @@ func (s *ObservabilityService) TailLogs(
 	}
 
 	deadline := started.Add(s.cfg.MaxTailDuration)
+	ctx, cancel := context.WithDeadline(ctx, deadline)
+	defer cancel()
 	lastSeen := started.Add(-defaultTailLookback)
 	if msg.GetSince() != nil {
 		lastSeen = msg.GetSince().AsTime()
@@ -125,6 +127,7 @@ func (s *ObservabilityService) TailLogs(
 	heartbeatInterval := 5 * time.Second
 	pollInterval := 2 * time.Second
 	lastHeartbeat := time.Now()
+	cursor := ""
 
 	for {
 		if time.Now().After(deadline) {
@@ -139,39 +142,29 @@ func (s *ObservabilityService) TailLogs(
 		}
 
 		now := time.Now()
-		entries, _, err := chClient.QueryLogs(
-			ctx,
-			s.ch.Conn(),
-			msg.GetWorkspaceId(),
-			msg.GetResourceIds(),
-			lastSeen,
-			now,
-			msg.GetSearch(),
-			msg.GetLevels(),
-			msg.GetLabels(),
-			100,
-			"",
-			observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST,
-			s.cfg.QueryTimeout,
-		)
+		var sendErr error
+		sent, err := s.pollTailLogs(ctx, msg, lastSeen, now, &cursor, func(entry *observabilityv1.LogEntry) error {
+			sendErr = stream.Send(&observabilityv1.TailLogsResponse{
+				Event: &observabilityv1.TailLogsResponse_Entry{Entry: entry},
+			})
+			if sendErr != nil {
+				return sendErr
+			}
+			if entry.GetTimestamp().AsTime().After(lastSeen) {
+				lastSeen = entry.GetTimestamp().AsTime()
+			}
+			return nil
+		})
+		if sendErr != nil {
+			return sendErr
+		}
 		if err != nil {
 			slog.ErrorContext(ctx, "tail poll failed", "error", err)
 			time.Sleep(pollInterval)
 			continue
 		}
 
-		for _, entry := range entries {
-			if err := stream.Send(&observabilityv1.TailLogsResponse{
-				Event: &observabilityv1.TailLogsResponse_Entry{Entry: entry},
-			}); err != nil {
-				return err
-			}
-			if entry.GetTimestamp().AsTime().After(lastSeen) {
-				lastSeen = entry.GetTimestamp().AsTime()
-			}
-		}
-
-		if len(entries) == 0 && time.Since(lastHeartbeat) >= heartbeatInterval {
+		if sent == 0 && time.Since(lastHeartbeat) >= heartbeatInterval {
 			if err := stream.Send(&observabilityv1.TailLogsResponse{
 				Event: &observabilityv1.TailLogsResponse_Heartbeat{
 					Heartbeat: &observabilityv1.Heartbeat{
