@@ -1,0 +1,7 @@
+exec loco --version
+stdout '^loco version test$'
+! stderr .
+
+exec loco -v
+stdout '^loco version test$'
+! stderr .

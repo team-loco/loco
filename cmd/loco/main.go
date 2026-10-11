@@ -53,6 +53,10 @@ func Cli(version string) {
 		fang.WithColorSchemeFunc(LocoColorScheme()),
 		fang.WithErrorHandler(handleError))
 	env.versionCheck.report(os.Stderr)
+	if err == nil && versionFlagSet(root) {
+		releases := newUpdater(releasesURL, latestReleaseTimeout)
+		reportNewerRelease(ctx, os.Stderr, releases, root.Version)
+	}
 	if err != nil {
 		os.Exit(cmdutil.ExitCode(err))
 	}

@@ -9,7 +9,7 @@ curl -fsSL https://loco.build/install.sh | sh
 The installer verifies the release checksum and places the binary in `~/.local/bin`. Add that directory to your shell's `PATH` if the installer reports it is missing.
 
 ```sh
-loco version
+loco --version
 loco help
 ```
 
@@ -21,7 +21,7 @@ Set `LOCO_VERSION` to an existing release tag to install a specific version. Set
 loco update
 ```
 
-`loco update` replaces the installed binary with the latest release.
+`loco update` replaces the installed binary with the latest release. `loco --version` prints the installed version and, when a newer release exists, the `loco update` command to install it.
 
 ## Shell completions
 
