@@ -1518,7 +1518,7 @@ func createDeploymentWithCleanup(
 		}
 	}
 
-	_, err = placeApplication(ctx, qtx, genDb.UpsertPlacementParams{
+	err = placeApplication(ctx, qtx, genDb.UpsertPlacementParams{
 		ResourceID:    params.ResourceID,
 		ClusterID:     params.ClusterID,
 		Region:        params.Region,

@@ -120,3 +120,9 @@ WHERE resource_id = sqlc.arg(resource_id)
   AND NOT desired_deleted
   AND secret_names && sqlc.arg(names)::text[]
 RETURNING id, cluster_id, desired_revision;
+
+-- name: ListResourceEnvironmentPlacements :many
+SELECT * FROM placements
+WHERE resource_id = $1 AND environment_id = $2 AND NOT desired_deleted
+ORDER BY id
+FOR UPDATE;

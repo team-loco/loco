@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -17,9 +18,13 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/converter"
+	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
+	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 var (
@@ -31,14 +36,20 @@ var (
 )
 
 type DomainServer struct {
-	db      *pgxpool.Pool
-	queries genDb.Querier
-	authz   *authz.Authorizer
-	machine *tvm.VendingMachine
+	db       *pgxpool.Pool
+	queries  genDb.Querier
+	authz    *authz.Authorizer
+	machine  *tvm.VendingMachine
+	defaults servicedefaults.Defaults
 }
 
-func NewDomainServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine) *DomainServer {
-	return &DomainServer{db: db, queries: queries, machine: machine, authz: authz.New(db, queries)}
+func NewDomainServer(
+	db *pgxpool.Pool,
+	queries genDb.Querier,
+	machine *tvm.VendingMachine,
+	defaults servicedefaults.Defaults,
+) *DomainServer {
+	return &DomainServer{db: db, queries: queries, machine: machine, authz: authz.New(db, queries), defaults: defaults}
 }
 
 // CreatePlatformDomain creates a new platform domain (admin only)
@@ -364,6 +375,9 @@ func (s *DomainServer) CreateResourceDomain(
 			return createErr
 		}
 		resourceDomain = created
+		if routeErr := s.refreshDomainRouting(ctx, qtx, resourceID, environmentID); routeErr != nil {
+			return routeErr
+		}
 		if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
 			return bumpErr
 		}
@@ -459,6 +473,14 @@ func (s *DomainServer) UpdateResourceDomain(
 			}
 			if updateErr != nil {
 				return updateErr
+			}
+			if routeErr := s.refreshDomainRouting(
+				ctx,
+				qtx,
+				domainRow.ResourceID,
+				domainRow.EnvironmentID,
+			); routeErr != nil {
+				return routeErr
 			}
 			if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, domainRow.ResourceID); bumpErr != nil {
 				return bumpErr
@@ -585,6 +607,9 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	if err := s.refreshDomainRouting(ctx, qtx, resourceID, domainRow.EnvironmentID); err != nil {
+		return nil, txError(ctx, "failed to update domain routing", err)
+	}
 	if err := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); err != nil {
 		slog.ErrorContext(ctx, "failed to bump environment revisions", "resourceId", resourceID, "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
@@ -666,6 +691,9 @@ func (s *DomainServer) DeleteResourceDomain(
 		if deleteErr := qtx.DeleteResourceDomain(ctx, domainID); deleteErr != nil {
 			return deleteErr
 		}
+		if routeErr := s.refreshDomainRouting(ctx, qtx, current.ResourceID, current.EnvironmentID); routeErr != nil {
+			return routeErr
+		}
 		if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, current.ResourceID); bumpErr != nil {
 			return bumpErr
 		}
@@ -740,4 +768,83 @@ func lockResourceDomains(ctx context.Context, qtx *genDb.Queries, resourceID uui
 		return err
 	}
 	return lockResource(ctx, qtx, resourceID)
+}
+
+func (s *DomainServer) refreshDomainRouting(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	resourceID, environmentID uuid.UUID,
+) error {
+	placements, err := qtx.ListResourceEnvironmentPlacements(
+		ctx,
+		genDb.ListResourceEnvironmentPlacementsParams{ResourceID: resourceID, EnvironmentID: environmentID},
+	)
+	if err != nil {
+		return fmt.Errorf("list domain placements: %w", err)
+	}
+	if len(placements) == 0 {
+		return nil
+	}
+	hostname, err := primaryHostname(ctx, qtx, resourceID, environmentID)
+	if err != nil {
+		return err
+	}
+	resource, err := qtx.GetResourceByID(ctx, resourceID)
+	if err != nil {
+		return err
+	}
+	resourceSpec, err := converter.DeserializeResourceSpec(resource.Spec, resource.Type)
+	if err != nil {
+		return err
+	}
+	for _, placement := range placements {
+		var payload ApplicationPayload
+		if err := json.Unmarshal(placement.DesiredSpec, &payload); err != nil {
+			return fmt.Errorf("decode domain placement: %w", err)
+		}
+		if payload.AppSpec == nil || payload.AppSpec.ServiceSpec == nil || placement.DeploymentID == nil {
+			return errResourceSpecNotService
+		}
+		service := payload.AppSpec.ServiceSpec
+		if service.Routing == nil && hostname == "" {
+			continue
+		}
+		if service.Routing != nil && service.Routing.HostName == hostname {
+			continue
+		}
+		switch {
+		case hostname == "":
+			service.Routing = nil
+		case service.Routing != nil:
+			service.Routing.HostName = hostname
+		default:
+			deployment, err := qtx.GetDeploymentByID(ctx, *placement.DeploymentID)
+			if err != nil {
+				return err
+			}
+			deploymentService := &deploymentv1.ServiceDeploymentSpec{}
+			if err := protojson.Unmarshal(deployment.Spec, deploymentService); err != nil {
+				return fmt.Errorf("decode deployment routing: %w", err)
+			}
+			routing := deploymentRouting(resourceSpec.GetService(), deploymentService)
+			service.Routing = converter.ProtoToRoutingSpec(routing, hostname, s.defaults)
+		}
+		desiredSpec, err := json.Marshal(payload)
+		if err != nil {
+			return fmt.Errorf("encode domain placement: %w", err)
+		}
+		params := genDb.UpsertPlacementParams{
+			ResourceID:    placement.ResourceID,
+			ClusterID:     placement.ClusterID,
+			Region:        placement.Region,
+			DeploymentID:  placement.DeploymentID,
+			DesiredSpec:   desiredSpec,
+			EnvironmentID: placement.EnvironmentID,
+			SecretNames:   placement.SecretNames,
+		}
+		if err := placeApplication(ctx, qtx, params); err != nil {
+			return err
+		}
+	}
+	return nil
 }

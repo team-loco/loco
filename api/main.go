@@ -253,7 +253,7 @@ func main() {
 		RegistryPrefix: ac.RegistryPrefix,
 		SourceMaxBytes: ac.SourceMaxBytes,
 	})
-	domainServiceHandler := service.NewDomainServer(pool, queries, machine)
+	domainServiceHandler := service.NewDomainServer(pool, queries, machine, ac.ServiceDefaults)
 	tokenServiceHandler := service.NewTokenServer(pool, queries, machine)
 	secretKeyProvider, providerErr := newSecretKeyProvider(shutdownCtx, ac.Secrets)
 	if providerErr != nil {

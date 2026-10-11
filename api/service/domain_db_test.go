@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"slices"
 	"sync"
 	"testing"
@@ -37,7 +38,7 @@ func newDomainClient(t *testing.T, f *deployFixture) *domainClient {
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
 	}
 	scoped := context.WithValue(context.Background(), contextkeys.EntityScopesKey, scopes)
-	server := NewDomainServer(f.pool, f.queries, machine)
+	server := NewDomainServer(f.pool, f.queries, machine, testServiceDefaults())
 	var platformDomainID uuid.UUID
 	if err := f.pool.QueryRow(scoped, `
 INSERT INTO platform_domains (domain, is_active) VALUES ('example.com', true)
@@ -142,7 +143,7 @@ func TestAddingADomainToAResourceWithoutAPrimaryMakesItPrimary(t *testing.T) {
 	}
 }
 
-func TestRemovingTheOnlyDomainMakesTheNextDeploymentPrivate(t *testing.T) {
+func TestRemovingTheOnlyDomainMakesTheRunningDeploymentPrivate(t *testing.T) {
 	f := newDeployFixture(t)
 	f.addDomain(t, testPrimaryDomain, true)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
@@ -158,9 +159,7 @@ func TestRemovingTheOnlyDomainMakesTheNextDeploymentPrivate(t *testing.T) {
 	if n := f.count(t, `SELECT count(*) FROM resource_domains WHERE resource_id = $1`); n != 0 {
 		t.Fatalf("%d domains left, want 0", n)
 	}
-	if err := scaleResource(t, f, 2); err != nil {
-		t.Fatalf("scale: %v", err)
-	}
+
 	if routing := desiredPayload(t, f).AppSpec.ServiceSpec.Routing; routing != nil {
 		t.Fatalf("routing = %+v after the domain was removed, want none", routing)
 	}
@@ -245,5 +244,139 @@ func TestRejectedPrimaryDomainRemovalRecordsNoEvent(t *testing.T) {
 	wantCode(t, err, connect.CodeFailedPrecondition)
 	if got := domainEvents(t, f, testPrimaryDomain); len(got) != 0 {
 		t.Fatalf("domain events after a rejected removal = %+v, want none", got)
+	}
+}
+
+func TestPrimaryDomainChangesUpdateRunningPlacement(t *testing.T) {
+	f := newDeployFixture(t)
+	f.addDomain(t, testPrimaryDomain, true)
+	f.addDomain(t, testSecondDomain, false)
+	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+		t.Fatal(err)
+	}
+	client := newDomainClient(t, f)
+	before := f.placement(t, f.clusterID)
+	request := connect.NewRequest(
+		&domainv1.SetPrimaryResourceDomainRequest{
+			ResourceId: f.resourceID.String(),
+			DomainId:   client.domainID(t, testSecondDomain),
+		},
+	)
+	if _, err := client.server.SetPrimaryResourceDomain(client.ctx, request); err != nil {
+		t.Fatal(err)
+	}
+	after := f.placement(t, f.clusterID)
+	if after.DesiredRevision != before.DesiredRevision+1 {
+		t.Fatalf("revision = %d, want %d", after.DesiredRevision, before.DesiredRevision+1)
+	}
+	if got := desiredPayload(t, f).AppSpec.ServiceSpec.Routing.HostName; got != testSecondDomain {
+		t.Fatalf("hostname = %s, want %s", got, testSecondDomain)
+	}
+	if after.DeploymentID == nil || before.DeploymentID == nil || *after.DeploymentID != *before.DeploymentID {
+		t.Fatal("domain change replaced the deployment")
+	}
+}
+
+func TestDomainRenameNotifiesTheAgentAndPreservesPlacementSettings(t *testing.T) {
+	f := newDeployFixture(t)
+	client := newDomainClient(t, f)
+	if err := client.add(testPrimaryDomain); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+		t.Fatal(err)
+	}
+	before := desiredPayload(t, f)
+	listener, err := f.pool.Acquire(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Release()
+	if _, listenErr := listener.Exec(context.Background(), "LISTEN placements"); listenErr != nil {
+		t.Fatal(listenErr)
+	}
+	defer func() {
+		if _, unlistenErr := listener.Exec(context.Background(), "UNLISTEN placements"); unlistenErr != nil {
+			t.Error(unlistenErr)
+		}
+	}()
+	request := connect.NewRequest(
+		&domainv1.UpdateResourceDomainRequest{
+			DomainId: client.domainID(t, testPrimaryDomain),
+			Domain:   new(testSecondDomain),
+		},
+	)
+	if _, updateErr := client.server.UpdateResourceDomain(client.ctx, request); updateErr != nil {
+		t.Fatal(updateErr)
+	}
+	after := desiredPayload(t, f)
+	if after.AppSpec.ServiceSpec.Routing.HostName != testSecondDomain {
+		t.Fatalf("route = %+v", after.AppSpec.ServiceSpec.Routing)
+	}
+	before.AppSpec.ServiceSpec.Routing.HostName = testSecondDomain
+	if !reflect.DeepEqual(before, after) {
+		t.Fatal("rename changed placement fields other than its hostname")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	notification, err := listener.Conn().WaitForNotification(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if notification.Payload != f.clusterID.String() {
+		t.Fatalf("notification = %s", notification.Payload)
+	}
+}
+
+func TestAddingTheFirstDomainUpdatesAPrivatePlacement(t *testing.T) {
+	f := newDeployFixture(t)
+	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+		t.Fatal(err)
+	}
+	client := newDomainClient(t, f)
+	if err := client.add(testPrimaryDomain); err != nil {
+		t.Fatal(err)
+	}
+	route := desiredPayload(t, f).AppSpec.ServiceSpec.Routing
+	if route == nil || route.HostName != testPrimaryDomain || route.PathPrefix != "/" ||
+		route.IdleTimeout != testIdleTimeout {
+		t.Fatalf("route = %+v", route)
+	}
+	revision := f.placement(t, f.clusterID).DesiredRevision
+	if err := client.add(testSecondDomain); err != nil {
+		t.Fatal(err)
+	}
+	if got := f.placement(t, f.clusterID).DesiredRevision; got != revision {
+		t.Fatalf("non-primary domain advanced revision to %d from %d", got, revision)
+	}
+}
+
+func TestDomainChangeRollsBackWhenPlacementCannotBeUpdated(t *testing.T) {
+	f := newDeployFixture(t)
+	client := newDomainClient(t, f)
+	if err := client.add(testPrimaryDomain); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pool.Exec(
+		context.Background(),
+		`UPDATE placements SET desired_spec = '{}' WHERE resource_id = $1`,
+		f.resourceID,
+	); err != nil {
+		t.Fatal(err)
+	}
+	domainID := client.domainID(t, testPrimaryDomain)
+	request := connect.NewRequest(
+		&domainv1.UpdateResourceDomainRequest{DomainId: domainID, Domain: new(testSecondDomain)},
+	)
+	_, err := client.server.UpdateResourceDomain(client.ctx, request)
+	wantCode(t, err, connect.CodeInternal)
+	if got := client.domainID(t, testPrimaryDomain); got != domainID {
+		t.Fatal("failed placement update changed the domain")
+	}
+	if got := f.placement(t, f.clusterID).DesiredRevision; got != 1 {
+		t.Fatalf("revision = %d, want 1", got)
 	}
 }

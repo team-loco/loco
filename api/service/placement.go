@@ -16,14 +16,14 @@ func placeApplication(
 	ctx context.Context,
 	qtx *genDb.Queries,
 	params genDb.UpsertPlacementParams,
-) (genDb.UpsertPlacementRow, error) {
+) error {
 	placement, err := qtx.UpsertPlacement(ctx, params)
 	if err != nil {
-		return genDb.UpsertPlacementRow{}, fmt.Errorf("upsert placement: %w", err)
+		return fmt.Errorf("upsert placement: %w", err)
 	}
 	clusterID := params.ClusterID.String()
 	if err := qtx.NotifyClusterPlacements(ctx, clusterID); err != nil {
-		return genDb.UpsertPlacementRow{}, fmt.Errorf("notify placements: %w", err)
+		return fmt.Errorf("notify placements: %w", err)
 	}
 	slog.InfoContext(ctx, "placement updated",
 		"placement_id", placement.ID,
@@ -31,7 +31,7 @@ func placeApplication(
 		"cluster_id", params.ClusterID,
 		"resource_id", params.ResourceID,
 	)
-	return placement, nil
+	return nil
 }
 
 func removePlacement(ctx context.Context, qtx *genDb.Queries, resourceID, clusterID uuid.UUID) error {

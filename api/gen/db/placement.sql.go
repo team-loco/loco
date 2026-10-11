@@ -307,6 +307,60 @@ func (q *Queries) ListPlacementsByIDs(ctx context.Context, arg ListPlacementsByI
 	return items, nil
 }
 
+const listResourceEnvironmentPlacements = `-- name: ListResourceEnvironmentPlacements :many
+SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_names, desired_revision, desired_spec, desired_deleted, applied_revision, applied_at, applied_error, observed_revision, ready, ready_replicas, status_phase, status_message, status_updated_at, created_at, updated_at FROM placements
+WHERE resource_id = $1 AND environment_id = $2 AND NOT desired_deleted
+ORDER BY id
+FOR UPDATE
+`
+
+type ListResourceEnvironmentPlacementsParams struct {
+	ResourceID    uuid.UUID `json:"resourceId"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
+}
+
+func (q *Queries) ListResourceEnvironmentPlacements(ctx context.Context, arg ListResourceEnvironmentPlacementsParams) ([]Placement, error) {
+	rows, err := q.db.Query(ctx, listResourceEnvironmentPlacements, arg.ResourceID, arg.EnvironmentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Placement
+	for rows.Next() {
+		var i Placement
+		if err := rows.Scan(
+			&i.ID,
+			&i.ResourceID,
+			&i.ClusterID,
+			&i.Region,
+			&i.DeploymentID,
+			&i.EnvironmentID,
+			&i.SecretNames,
+			&i.DesiredRevision,
+			&i.DesiredSpec,
+			&i.DesiredDeleted,
+			&i.AppliedRevision,
+			&i.AppliedAt,
+			&i.AppliedError,
+			&i.ObservedRevision,
+			&i.Ready,
+			&i.ReadyReplicas,
+			&i.StatusPhase,
+			&i.StatusMessage,
+			&i.StatusUpdatedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markPlacementApplied = `-- name: MarkPlacementApplied :one
 UPDATE placements
 SET applied_revision = desired_revision,
