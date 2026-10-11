@@ -170,7 +170,7 @@ type Querier interface {
 	ListOrgEvents(ctx context.Context, arg ListOrgEventsParams) ([]ListOrgEventsRow, error)
 	ListOrgUsersWithDetails(ctx context.Context, arg ListOrgUsersWithDetailsParams) ([]ListOrgUsersWithDetailsRow, error)
 	ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams) ([]Organization, error)
-	ListPendingPlacements(ctx context.Context, clusterID uuid.UUID) ([]Placement, error)
+	ListPendingPlacements(ctx context.Context, clusterID uuid.UUID) ([]ListPendingPlacementsRow, error)
 	ListPlacementSecretSizes(ctx context.Context, arg ListPlacementSecretSizesParams) ([]ListPlacementSecretSizesRow, error)
 	ListPlacementsByIDs(ctx context.Context, arg ListPlacementsByIDsParams) ([]Placement, error)
 	ListPlatformDomains(ctx context.Context, activeOnly *bool) ([]PlatformDomain, error)

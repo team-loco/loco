@@ -208,43 +208,26 @@ func (q *Queries) ListClusterPlacementRevisions(ctx context.Context, clusterID u
 }
 
 const listPendingPlacements = `-- name: ListPendingPlacements :many
-SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_names, desired_revision, desired_spec, desired_deleted, applied_revision, applied_at, applied_error, observed_revision, ready, ready_replicas, status_phase, status_message, status_updated_at, created_at, updated_at FROM placements
+SELECT id, desired_revision FROM placements
 WHERE cluster_id = $1 AND applied_revision < desired_revision
 ORDER BY updated_at, id
 `
 
-func (q *Queries) ListPendingPlacements(ctx context.Context, clusterID uuid.UUID) ([]Placement, error) {
+type ListPendingPlacementsRow struct {
+	ID              uuid.UUID `json:"id"`
+	DesiredRevision int64     `json:"desiredRevision"`
+}
+
+func (q *Queries) ListPendingPlacements(ctx context.Context, clusterID uuid.UUID) ([]ListPendingPlacementsRow, error) {
 	rows, err := q.db.Query(ctx, listPendingPlacements, clusterID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Placement
+	var items []ListPendingPlacementsRow
 	for rows.Next() {
-		var i Placement
-		if err := rows.Scan(
-			&i.ID,
-			&i.ResourceID,
-			&i.ClusterID,
-			&i.Region,
-			&i.DeploymentID,
-			&i.EnvironmentID,
-			&i.SecretNames,
-			&i.DesiredRevision,
-			&i.DesiredSpec,
-			&i.DesiredDeleted,
-			&i.AppliedRevision,
-			&i.AppliedAt,
-			&i.AppliedError,
-			&i.ObservedRevision,
-			&i.Ready,
-			&i.ReadyReplicas,
-			&i.StatusPhase,
-			&i.StatusMessage,
-			&i.StatusUpdatedAt,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
+		var i ListPendingPlacementsRow
+		if err := rows.Scan(&i.ID, &i.DesiredRevision); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
