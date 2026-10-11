@@ -2,19 +2,14 @@ gatewayNamespace: loco-system
 
 clickhouse:
   enabled: true
-  defaultUser:
-    password: ""
+  clickhouse:
+    defaultUser:
+      password: ""
 
 clickhouseUserPasswords:
   loco_migrator: {{ env "CLICKHOUSE_MIGRATOR_PASSWORD" | default "loco-local-migrator" | quote }}
   loco_ingest: {{ env "CLICKHOUSE_INGEST_PASSWORD" | default "loco-local-ingest" | quote }}
   loco_reader: {{ env "CLICKHOUSE_READER_PASSWORD" | default "loco-local-reader" | quote }}
-
-otel-col-deploy:
-  config:
-    exporters:
-      clickhouse:
-        ttl: 720h
 
 obsProxy:
   enabled: true

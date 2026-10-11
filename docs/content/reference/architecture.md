@@ -14,6 +14,8 @@ The in-cluster agent exchanges state with the API. The controller reconciles App
 
 OpenTelemetry collects telemetry and ClickHouse stores observability data. The regional observability proxy provides access to the regional data.
 
+The observability proxy owns the ClickHouse schema. Before it serves, it applies the versioned migrations in `observability-proxy/migrations` to the `loco_obs` database, and `/readyz` fails until they succeed. The collectors only insert. Every table has `WorkspaceId`, `EnvironmentId` and `ResourceId` columns, computed from the `loco.workspace.id`, `loco.environment.id` and `loco.resource.id` resource attributes, and its ordering key starts with `WorkspaceId`. Rows expire after the `obsProxy.clickhouse.retention` durations for logs, traces and metrics; a migration applies them when it creates a table, so changing a duration later does not alter an existing table.
+
 ## Deployment boundaries
 
 [Deployment modes](../deployment/modes.md) determine the operator and tenancy of the platform. Application workspaces, environments, and regions determine where a team's workloads run within the installation.

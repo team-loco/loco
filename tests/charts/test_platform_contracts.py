@@ -114,6 +114,7 @@ class ObservabilitySchema(unittest.TestCase):
             ('platform-test', 'loco-obs-clickhouse-migrator'): 'migrator-pw',
             ('platform-test', 'loco-obs-clickhouse-ingest'): 'ingest-pw',
             ('platform-test', 'loco-obs-clickhouse-reader'): 'reader-pw',
+            ('observability-node', 'loco-obs-clickhouse-ingest'): 'ingest-pw',
         })
 
     def test_user_secrets_are_left_to_the_cluster_without_passwords(self):
@@ -122,6 +123,25 @@ class ObservabilitySchema(unittest.TestCase):
     def test_passwords_that_break_a_dsn_are_rejected(self):
         with self.assertRaises(subprocess.CalledProcessError):
             render_documents('loco-obs', 'clickhouse-users.yaml', {'clickhouseUserPasswords': {'loco_reader': 'a b@c'}})
+
+    def test_collectors_ingest_into_the_proxy_database(self):
+        values = chart_values('loco-obs')
+        database = values['obsProxy']['clickhouse']['database']
+        users = {user['name']: user for user in values['clickhouse']['clickhouse']['users']}
+        for collector in ('otel-col-daemon', 'otel-col-deploy'):
+            config = values[collector]['config']
+            exporter = config['exporters']['clickhouse']
+            self.assertFalse(exporter['create_schema'], collector)
+            self.assertEqual(exporter['database'], database, collector)
+            self.assertNotIn('ttl', exporter, collector)
+            self.assertEqual(config['service']['pipelines']['traces']['exporters'], ['clickhouse'], collector)
+            user = users[exporter['username']]
+            env = {item['name']: item for item in values[collector]['extraEnvs']}
+            self.assertEqual(env['CLICKHOUSE_INGEST_PASSWORD']['valueFrom']['secretKeyRef'], {'name': user['password_secret_name'], 'key': 'password'}, collector)
+            self.assertEqual(exporter['password'], '${env:CLICKHOUSE_INGEST_PASSWORD}', collector)
+        for user in users.values():
+            for grant in user['grants']:
+                self.assertIn(f' ON {database}.*', grant, user['name'])
 
 
 class BuildNamespaceOwnership(unittest.TestCase):
