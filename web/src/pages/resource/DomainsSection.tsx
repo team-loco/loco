@@ -4,7 +4,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 import {
 	checkDomainAvailability,
-	createResourceDomain,
 	deleteResourceDomain,
 	setPrimaryResourceDomain,
 	updateResourceDomain,
@@ -32,8 +31,6 @@ function sourceLabel(source: DomainType): string {
 	switch (source) {
 		case DomainType.PLATFORM_PROVIDED:
 			return "platform";
-		case DomainType.USER_PROVIDED:
-			return "custom";
 		case DomainType.UNSPECIFIED:
 			return "—";
 	}
@@ -211,43 +208,15 @@ function DomainRow({
 }
 
 export function DomainsSection({
-	resourceId,
 	domains,
 	managed,
 	onChanged,
 }: {
-	resourceId: string;
 	domains: ResourceDomain[];
 	managed: boolean;
 	onChanged: () => void;
 }) {
-	const describedBy = managed ? MANAGED_NOTICE_ID : undefined;
-	const [host, setHost] = useState("");
-	const [error, setError] = useState<string | undefined>(undefined);
-	const add = useMutation(createResourceDomain);
 	const sorted = domains.toSorted((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
-
-	const submit = () => {
-		const value = host.trim().toLowerCase();
-		if (!HOST.test(value)) {
-			setError("Enter a valid hostname, like app.example.com.");
-			return;
-		}
-		setError(undefined);
-		add.mutate(
-			{ resourceId, domain: { domainSource: DomainType.USER_PROVIDED, domain: value } },
-			{
-				onSuccess: () => {
-					setHost("");
-					toast.success(`Added ${value}`);
-					onChanged();
-				},
-				onError: (err) => {
-					toastConnectError(err, "Failed to add domain");
-				},
-			},
-		);
-	};
 
 	return (
 		<Section title="Domains">
@@ -260,38 +229,13 @@ export function DomainsSection({
 			{sorted.map((d) => (
 				<DomainRow key={d.id} domain={d} onlyDomain={sorted.length === 1} managed={managed} onChanged={onChanged} />
 			))}
-			<form
-				className="flex flex-col gap-1.5 px-4 py-3"
-				onSubmit={(e) => {
-					e.preventDefault();
-					submit();
-				}}
-			>
-				<div className="flex gap-2">
-					<Input
-						value={host}
-						disabled={managed}
-						aria-describedby={describedBy}
-						placeholder="app.example.com"
-						aria-invalid={error !== undefined}
-						aria-label="Custom domain"
-						onChange={(e) => {
-							setHost(e.target.value);
-							setError(undefined);
-						}}
-						className="flex-1"
-					/>
-					<Button
-						type="submit"
-						variant="outline"
-						disabled={managed || host.trim() === "" || add.isPending}
-						aria-describedby={describedBy}
-					>
-						{add.isPending ? "Adding…" : "Add custom domain"}
-					</Button>
-				</div>
-				{error !== undefined && <span className="text-sm text-bad-fg">{error}</span>}
-			</form>
+			<div className="flex gap-2 px-4 py-3">
+				<Input disabled placeholder="app.example.com" aria-label="Custom domain" className="flex-1" />
+				<Button variant="outline" disabled>
+					Add custom domain
+					<SoonTag />
+				</Button>
+			</div>
 		</Section>
 	);
 }

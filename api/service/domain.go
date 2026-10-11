@@ -315,9 +315,6 @@ func (s *DomainServer) CreateResourceDomain(
 	); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
-	if r.GetDomain().GetDomainSource() != domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED {
-		return nil, connect.NewError(connect.CodeUnimplemented, errCustomDomainsUnsupported)
-	}
 	platformDomainID := uuid.MustParse(r.GetDomain().GetPlatformDomainId())
 	platformDomain, err := s.queries.GetPlatformDomain(ctx, platformDomainID)
 	if err != nil {

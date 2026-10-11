@@ -129,9 +129,6 @@ func (s *ResourceServer) CreateResource(
 	var platformDomainID *uuid.UUID
 
 	if hasDomain {
-		if r.GetDomain().GetDomainSource() != domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED {
-			return nil, connect.NewError(connect.CodeUnimplemented, errCustomDomainsUnsupported)
-		}
 		parsedPlatformDomainID := uuid.MustParse(r.GetDomain().GetPlatformDomainId())
 		platformDomainID = &parsedPlatformDomainID
 
@@ -1236,7 +1233,7 @@ func applyScale(
 func resourceDomainToListProto(domains []genDb.ResourceDomain) []*domainv1.ResourceDomain {
 	protoDomains := make([]*domainv1.ResourceDomain, 0, len(domains))
 	for _, d := range domains {
-		domainSource := domainv1.DomainType_DOMAIN_TYPE_USER_PROVIDED
+		domainSource := domainv1.DomainType_DOMAIN_TYPE_UNSPECIFIED
 		if d.DomainSource == genDb.DomainSourcePlatformProvided {
 			domainSource = domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED
 		}

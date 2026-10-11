@@ -86,35 +86,3 @@ func testCreateResourceDomain(t *testing.T, platform bool) {
 		t.Fatalf("domains = %v, want none", domains)
 	}
 }
-
-func TestCreateResourceRejectsCustomDomains(t *testing.T) {
-	f := newDeployFixture(t)
-	resource, err := f.queries.GetResourceByID(t.Context(), f.resourceID)
-	if err != nil {
-		t.Fatalf("get resource: %v", err)
-	}
-	scopes := []genDb.EntityScope{
-		{EntityType: genDb.EntityTypeWorkspace, EntityID: resource.WorkspaceID, Scope: genDb.ScopeWrite},
-	}
-	ctx := context.WithValue(t.Context(), contextkeys.EntityScopesKey, scopes)
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults())
-	custom := "app.custom.example"
-	service := &resourcev1.ServiceSpec{Routing: &resourcev1.RoutingConfig{Port: 8080}}
-	spec := &resourcev1.ResourceSpec{Spec: &resourcev1.ResourceSpec_Service{Service: service}}
-	input := &domainv1.DomainInput{DomainSource: domainv1.DomainType_DOMAIN_TYPE_USER_PROVIDED, Domain: &custom}
-	workspaceID := resource.WorkspaceID.String()
-	request := connect.NewRequest(&resourcev1.CreateResourceRequest{
-		WorkspaceId: workspaceID, Name: "custom", Type: resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
-		Spec: spec, Domain: input,
-	})
-	_, err = server.CreateResource(ctx, request)
-	if connect.CodeOf(err) != connect.CodeUnimplemented {
-		t.Fatalf("create error = %v, want Unimplemented", err)
-	}
-	var count int
-	if err := f.pool.QueryRow(ctx, `SELECT count(*) FROM resources WHERE name = 'custom'`).
-		Scan(&count); err != nil ||
-		count != 0 {
-		t.Fatalf("custom resources = %d, error = %v, want none", count, err)
-	}
-}

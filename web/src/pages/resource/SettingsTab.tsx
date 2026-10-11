@@ -141,7 +141,7 @@ export function SettingsTab({
 				onNotice={onNotice}
 				onSaved={onSaved}
 			/>
-			<DomainsSection resourceId={resource.id} domains={resource.domains} managed={managed} onChanged={onSaved} />
+			<DomainsSection domains={resource.domains} managed={managed} onChanged={onSaved} />
 			<section className="rounded-lg border border-red bg-background">
 				<div className="flex items-center gap-4 px-4 py-3.5">
 					<div className="flex min-w-0 flex-1 flex-col gap-0.5">

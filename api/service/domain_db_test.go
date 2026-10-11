@@ -80,25 +80,6 @@ func (c *domainClient) add(domain string) error {
 	return err
 }
 
-func TestCreateResourceDomainRejectsCustomDomains(t *testing.T) {
-	f := newDeployFixture(t)
-	client := newDomainClient(t, f)
-	custom := "app.custom.example"
-	resourceID := f.resourceID.String()
-	input := &domainv1.DomainInput{DomainSource: domainv1.DomainType_DOMAIN_TYPE_USER_PROVIDED, Domain: &custom}
-	request := connect.NewRequest(&domainv1.CreateResourceDomainRequest{ResourceId: resourceID, Domain: input})
-	_, err := client.server.CreateResourceDomain(client.ctx, request)
-	if connect.CodeOf(err) != connect.CodeUnimplemented {
-		t.Fatalf("add domain error = %v, want Unimplemented", err)
-	}
-	if count := f.count(t, `SELECT count(*) FROM resource_domains WHERE resource_id = $1`); count != 0 {
-		t.Fatalf("domains = %d, want none", count)
-	}
-	if recorded := domainEvents(t, f, "app.custom.example"); len(recorded) != 0 {
-		t.Fatalf("events = %v, want none", recorded)
-	}
-}
-
 func removeDomain(t *testing.T, f *deployFixture, domain string) error {
 	t.Helper()
 	client := newDomainClient(t, f)

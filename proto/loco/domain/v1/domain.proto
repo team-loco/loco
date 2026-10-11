@@ -8,11 +8,14 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/domain/v1;domainv1";
 
-// DomainType indicates the source of a domain: platform-provided or user-provided.
+// DomainType indicates the source of a domain.
 enum DomainType {
+  reserved 2;
+  reserved "DOMAIN_TYPE_USER_PROVIDED";
+
   DOMAIN_TYPE_UNSPECIFIED = 0;
   DOMAIN_TYPE_PLATFORM_PROVIDED = 1;
-  DOMAIN_TYPE_USER_PROVIDED = 2;
+  // eventually add support for custom domains.
 }
 
 // --- Messages ---
@@ -28,13 +31,15 @@ message PlatformDomain {
 
 // DomainInput specifies domain configuration for a resource.
 message DomainInput {
+  reserved 4;
+  reserved "domain";
+
   DomainType domain_source = 1 [(buf.validate.field).enum = {
     defined_only: true
     not_in: [0]
   }];
   optional string subdomain = 2; // for PLATFORM_PROVIDED: "myapp"
   optional string platform_domain_id = 3 [(buf.validate.field).string.uuid = true]; // for PLATFORM_PROVIDED: id of the platform domain
-  optional string domain = 4; // for USER_PROVIDED: full custom domain
 
   option (buf.validate.message).cel = {
     id: "platform_provided.subdomain_required"
@@ -45,11 +50,6 @@ message DomainInput {
     id: "platform_provided.platform_domain_id_required"
     message: "platform_domain_id is required for platform-provided domains"
     expression: "this.domain_source != 1 || (has(this.platform_domain_id) && this.platform_domain_id != '')"
-  };
-  option (buf.validate.message).cel = {
-    id: "user_provided.domain_required"
-    message: "domain is required for user-provided domains"
-    expression: "this.domain_source != 2 || (has(this.domain) && this.domain != '')"
   };
 }
 
