@@ -1,6 +1,5 @@
 global:
   domain:
-    dashboards: dashboards.loco.build
     observability: observability.loco.build
 
 # Gateway namespace where the Envoy Gateway is deployed
@@ -251,45 +250,6 @@ otel-col-deploy:
           receivers: [otlp]
           processors: [resource/set_service_name]
           exporters: [clickhouse]
-
-grafana:
-  enabled: true
-  fullnameOverride: grafana
-  adminUser: "" # Override in environment-specific values
-  adminPassword: "" # Override in environment-specific values
-  persistence:
-    enabled: true
-    type: pvc
-    accessModes:
-      - ReadWriteOnce
-    size: 2Gi
-    finalizers:
-      - kubernetes.io/pvc-protection
-  plugins:
-    - grafana-clickhouse-datasource
-  datasources:
-    datasources.yaml:
-      apiVersion: 1
-      datasources:
-        - name: ClickHouse
-          type: grafana-clickhouse-datasource
-          jsonData:
-            port: 9000
-            # Host will be dynamically constructed as: clickhouse-{release-name}-{nameOverride}.{namespace}.svc.cluster.local
-            host: clickhouse-{{ .Release.Name }}-clickhouse.{{ .Release.Namespace }}.svc.cluster.local
-            defaultDatabase: default
-            username: default
-            tlsSkipVerify: true
-          secureJsonData:
-            password: ""
-  dashboards:
-    default:
-      general:
-        gnetId: 1860
-        revision: 29
-        datasource: ClickHouse
-  initChownData:
-    enabled: false
 
 obsProxy:
   enabled: true

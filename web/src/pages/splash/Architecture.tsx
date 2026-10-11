@@ -9,7 +9,7 @@ const STACK = [
 	{ layer: "Certificates", parts: ["cert-manager", "Let's Encrypt"] },
 	{ layer: "Network", parts: ["Cilium CNI"] },
 	{ layer: "Compute", parts: ["Kubernetes"] },
-	{ layer: "Telemetry", parts: ["OpenTelemetry", "ClickHouse", "Grafana"] },
+	{ layer: "Telemetry", parts: ["OpenTelemetry", "ClickHouse"] },
 	{ layer: "Control plane", parts: ["Go", "Connect RPC", "PostgreSQL"] },
 ] as const;
 

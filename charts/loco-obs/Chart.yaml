@@ -22,10 +22,6 @@ dependencies:
       version: 0.175.1
       alias: otel-col-deploy
       condition: otel-col-deploy.enabled
-    - name: grafana
-      repository: https://grafana.github.io/helm-charts
-      version: 10.5.15
-      condition: grafana.enabled
 maintainers:
     - name: Nikhil
 sources:

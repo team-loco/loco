@@ -195,7 +195,7 @@ helm_release(
 )
 
 # ---------------------------------------------------------------------------
-# Phase 3: Observability (ClickHouse + OpenTelemetry + Grafana)
+# Phase 3: Observability (ClickHouse + OpenTelemetry)
 # ---------------------------------------------------------------------------
 
 helm_release(

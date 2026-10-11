@@ -27,7 +27,7 @@ The local environment is a development installation. Review the repository's env
 
 Configure the API's database, cache, authentication, registry, and API/dashboard endpoints using the repository's [environment template](https://github.com/team-loco/loco/blob/main/.env.example). Check the template and deployed release together; authentication and registry changes are under active review.
 
-The cluster needs Cilium, Envoy Gateway, cert-manager, and the Loco controller. Observability uses OpenTelemetry, ClickHouse, and Grafana. The charts and environment values define their configuration.
+The cluster needs Cilium, Envoy Gateway, cert-manager, and the Loco controller. Observability uses OpenTelemetry, ClickHouse, and the observability proxy. The charts and environment values define their configuration.
 
 Your team supplies DNS records, certificate issuance, persistent storage, backups, and capacity. Keep credentials separate across installations and environments. Use [architecture](../reference/architecture.md) to identify the control-plane and regional boundaries.
 

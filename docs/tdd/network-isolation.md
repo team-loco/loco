@@ -27,7 +27,7 @@ Clusters separate environments, so a namespace is one workspace in one environme
 |---|---|
 | `ws-*` | workspace namespaces, one per workspace per cluster, holding its apps |
 | `loco-system` | agent, controller, Envoy Gateway proxies (`gateway.envoyproxy.io/owning-gateway-name=eg`) |
-| `observability` | otel-col-deploy (OTLP receiver), grafana, obs-proxy; configurable with `LOCO_OBSERVABILITY_NAMESPACE` |
+| `observability` | otel-col-deploy (OTLP receiver), obs-proxy; configurable with `LOCO_OBSERVABILITY_NAMESPACE` |
 | `kube-system` | kube-dns |
 | `cert-manager` | cert-manager |
 

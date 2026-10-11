@@ -8,7 +8,7 @@
 
 - **CLI**: Go app using Cobra + Charm libraries (Bubble Tea, Lipgloss) for terminal UI
 - **API Server**: Go with ConnectRPC (gRPC over HTTP), PostgreSQL database
-- **Infrastructure**: Kubernetes with Cilium networking, Envoy Gateway, cert-manager, OpenTelemetry, ClickHouse metrics, Grafana
+- **Infrastructure**: Kubernetes with Cilium networking, Envoy Gateway, cert-manager, OpenTelemetry, ClickHouse metrics read through the observability proxy
 - **Key modules**: `api/` (ConnectRPC services), `cmd/loco/` (CLI commands), `agent/` (in-cluster agent), `controller/` (kubebuilder operator), `k8sapi/` (CRD types), `internal/` (shared logic), `web/` (dashboard), `gen/` (generated protobuf types)
 
 ## Build/Lint/Test Commands
