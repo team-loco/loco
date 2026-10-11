@@ -203,7 +203,7 @@ func main() {
 	}
 	defer appCache.Close()
 
-	placementNotifier := clusternotify.New(pool, clusternotify.DefaultPollInterval)
+	placementNotifier := clusternotify.New(ac.DatabaseListenConfig, clusternotify.DefaultPollInterval)
 	if err := placementNotifier.Start(shutdownCtx); err != nil {
 		log.Fatalf("failed to start placement listener: %v", err)
 	}

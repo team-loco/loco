@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/registryclient"
@@ -96,6 +97,7 @@ type APIConfig struct {
 	Version               string
 	Env                   string // Environment (e.g., dev, prod)
 	DatabaseURL           string // PostgreSQL connection string
+	DatabaseListenConfig  *pgx.ConnConfig
 	LogLevel              slog.Level
 	Port                  string
 	CacheType             string   // Cache backend type: "in-memory" or "valkey"
@@ -133,6 +135,7 @@ func newMigrateConfig() MigrateConfig {
 
 func newAPIConfig() *APIConfig {
 	migrateConfig := newMigrateConfig()
+	databaseListenConfig := newDatabaseListenConfig(migrateConfig.DatabaseURL)
 	cacheType, cacheAddr := newCacheConfig()
 	registryHost := stringEnv("LOCO_REGISTRY_HOST", "")
 	registryPrefix := stringEnv("LOCO_REGISTRY_PREFIX", "")
@@ -166,6 +169,7 @@ func newAPIConfig() *APIConfig {
 		Version:               buildinfo.Version(version),
 		Env:                   stringEnv("APP_ENV", ""),
 		DatabaseURL:           migrateConfig.DatabaseURL,
+		DatabaseListenConfig:  databaseListenConfig,
 		Port:                  stringEnv("APP_PORT", ""),
 		LogLevel:              logLevel,
 		CacheType:             cacheType,
@@ -424,4 +428,13 @@ func newCache(cacheType, cacheAddr string, defaultTTL time.Duration) (cache.Cach
 	default:
 		return nil, fmt.Errorf("%w: %q", errUnknownCacheType, cacheType)
 	}
+}
+
+func newDatabaseListenConfig(databaseURL string) *pgx.ConnConfig {
+	listenURL := stringEnv("DATABASE_LISTEN_URL", databaseURL)
+	config, err := pgx.ParseConfig(listenURL)
+	if err != nil {
+		panic(fmt.Errorf("invalid database listener URL: %w", err))
+	}
+	return config
 }

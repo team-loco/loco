@@ -53,6 +53,7 @@ var adminIssuers = `[{"issuer":"` + testIssuer + `","audience":"loco",` +
 
 func clearAPIConfigEnv(t *testing.T) {
 	t.Helper()
+	t.Setenv("DATABASE_LISTEN_URL", "")
 	t.Setenv("CACHE_TYPE", "")
 	t.Setenv("CACHE_ADDR", "")
 	t.Setenv("LOCO_SOURCE_MAX_BYTES", "")
@@ -634,5 +635,23 @@ func TestNewAPIConfigReadsSchemaURL(t *testing.T) {
 	ac := newAPIConfig()
 	if ac.SchemaURL != "https://loco.test/schemas/loco.v1.json" {
 		t.Errorf("schema url = %q, want the configured value", ac.SchemaURL)
+	}
+}
+
+func TestDatabaseListenURLDefaultsAndOverride(t *testing.T) {
+	t.Setenv("DATABASE_LISTEN_URL", "")
+	fallback := newDatabaseListenConfig(testDatabaseURL)
+	if fallback.Host != "db.loco.test" {
+		t.Fatalf("default listener host = %s", fallback.Host)
+	}
+	const directURL = "postgres://direct.loco.test:5432/loco"
+	t.Setenv("DATABASE_LISTEN_URL", directURL)
+	direct := newDatabaseListenConfig(testDatabaseURL)
+	if direct.Host != "direct.loco.test" {
+		t.Fatalf("listener host = %s, want direct.loco.test", direct.Host)
+	}
+	t.Setenv("DATABASE_LISTEN_URL", "://invalid")
+	if err := panicValue(t, func() { newDatabaseListenConfig(testDatabaseURL) }); err == nil {
+		t.Fatal("invalid listener URL accepted")
 	}
 }
