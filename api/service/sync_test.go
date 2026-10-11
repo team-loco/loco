@@ -37,6 +37,25 @@ func TestDiffInventory(t *testing.T) {
 			want: inventoryInSync,
 		},
 		{
+			name: "current revision with the env Secret pending",
+			rev: placementRevision{
+				desiredRevision: 3, observed: true, observedRevision: 3, appliedRevision: 2, envSecretPending: true,
+			},
+			want: inventorySend,
+		},
+		{
+			name: "acked revision whose env Secret is pending again",
+			rev: placementRevision{
+				desiredRevision: 3, observed: true, observedRevision: 3, appliedRevision: 3, envSecretPending: true,
+			},
+			want: inventorySend,
+		},
+		{
+			name: "newer pending revision in the cluster",
+			rev:  placementRevision{desiredRevision: 1, observed: true, observedRevision: 5, envSecretPending: true},
+			want: inventoryAhead,
+		},
+		{
 			name: "newer revision in the cluster",
 			rev:  placementRevision{desiredRevision: 3, observed: true, observedRevision: 4},
 			want: inventoryAhead,

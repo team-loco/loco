@@ -49,6 +49,7 @@ message Inventory {
 message InventoryEntry {
   string placement_id = 1;
   int64 revision = 2;
+  bool env_secret_pending = 3;
 }
 
 message InventoryBuild {
