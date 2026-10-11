@@ -66,23 +66,28 @@ RETURNING id`, f.resourceID).Scan(&sibling); err != nil {
 	}
 	if _, err := f.queries.UpsertPlacement(ctx, genDb.UpsertPlacementParams{
 		ResourceID: sibling, ClusterID: f.clusterID, Region: testRegion, DesiredSpec: []byte(`{}`),
+		EnvironmentID: f.envID, SecretNames: []string{},
 	}); err != nil {
 		t.Fatalf("place sibling: %v", err)
 	}
-	var unrelated uuid.UUID
+	var unrelated, unrelatedEnvironment uuid.UUID
 	if err := f.pool.QueryRow(ctx, `
 WITH w AS (
     INSERT INTO workspaces (org_id, name, created_by)
     SELECT org_id, 'unrelated', created_by FROM workspaces
-    WHERE id = (SELECT workspace_id FROM resources WHERE id = $1) RETURNING id
+    WHERE id = (SELECT workspace_id FROM resources WHERE id = $1) RETURNING id, created_by
+), e AS (
+    INSERT INTO environments (workspace_id, name, created_by)
+    SELECT id, 'prod', created_by FROM w RETURNING id
 )
 INSERT INTO resources (workspace_id, name, type, description, status, spec, spec_version)
 SELECT id, 'unrelated', 'service', '', 'healthy', '{}', 1 FROM w
-RETURNING id`, f.resourceID).Scan(&unrelated); err != nil {
+RETURNING id, (SELECT id FROM e)`, f.resourceID).Scan(&unrelated, &unrelatedEnvironment); err != nil {
 		t.Fatalf("create unrelated resource: %v", err)
 	}
 	if _, err := f.queries.UpsertPlacement(ctx, genDb.UpsertPlacementParams{
 		ResourceID: unrelated, ClusterID: f.clusterID, Region: testRegion, DesiredSpec: []byte(`{}`),
+		EnvironmentID: unrelatedEnvironment, SecretNames: []string{},
 	}); err != nil {
 		t.Fatalf("place unrelated resource: %v", err)
 	}
