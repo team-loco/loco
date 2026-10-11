@@ -1,9 +1,21 @@
 package config
 
 import (
-	"os"
-	"strconv"
 	"time"
+)
+
+const (
+	defaultPort               = 8080
+	defaultControlPlaneURL    = "http://localhost:8000"
+	defaultClickHouseURL      = "clickhouse://localhost:9000"
+	defaultLimit              = 1000
+	defaultMaxLimit           = 10000
+	defaultMaxTimeRangeHours  = 24
+	defaultQueryTimeout       = 10
+	defaultMaxConcurrent      = 5
+	defaultMaxTailMinutes     = 30
+	defaultMaxConcurrentTails = 3
+	defaultTokenCacheSeconds  = 30
 )
 
 type Config struct {
@@ -28,36 +40,20 @@ type Config struct {
 
 func Load() *Config {
 	return &Config{
-		Port:            getEnvInt("PORT", 8080),
-		ControlPlaneURL: getEnvOrDefault("CONTROL_PLANE_URL", "http://localhost:8000"),
-		ProxyAuthToken:  os.Getenv("PROXY_AUTH_TOKEN"),
-		ClickHouseURL:   getEnvOrDefault("CLICKHOUSE_URL", "clickhouse://localhost:9000"),
-		ClickHouseDB:    getEnvOrDefault("CLICKHOUSE_DB", "default"),
+		Port:            intEnv("PORT", defaultPort),
+		ControlPlaneURL: stringEnv("CONTROL_PLANE_URL", defaultControlPlaneURL),
+		ProxyAuthToken:  stringEnv("PROXY_AUTH_TOKEN", ""),
+		ClickHouseURL:   stringEnv("CLICKHOUSE_URL", defaultClickHouseURL),
+		ClickHouseDB:    identifierEnv("CLICKHOUSE_DB"),
 
-		DefaultLimit:       int32(getEnvInt("DEFAULT_LIMIT", 1000)),
-		MaxLimit:           int32(getEnvInt("MAX_LIMIT", 10000)),
-		MaxTimeRange:       time.Duration(getEnvInt("MAX_TIME_RANGE_HOURS", 24)) * time.Hour,
-		QueryTimeout:       getEnvInt("QUERY_TIMEOUT_SECONDS", 10),
-		MaxConcurrent:      getEnvInt("MAX_CONCURRENT_QUERIES", 5),
-		MaxTailDuration:    time.Duration(getEnvInt("MAX_TAIL_DURATION_MINUTES", 30)) * time.Minute,
-		MaxConcurrentTails: getEnvInt("MAX_CONCURRENT_TAILS", 3),
+		DefaultLimit:       int32Env("DEFAULT_LIMIT", defaultLimit),
+		MaxLimit:           int32Env("MAX_LIMIT", defaultMaxLimit),
+		MaxTimeRange:       time.Duration(intEnv("MAX_TIME_RANGE_HOURS", defaultMaxTimeRangeHours)) * time.Hour,
+		QueryTimeout:       intEnv("QUERY_TIMEOUT_SECONDS", defaultQueryTimeout),
+		MaxConcurrent:      intEnv("MAX_CONCURRENT_QUERIES", defaultMaxConcurrent),
+		MaxTailDuration:    time.Duration(intEnv("MAX_TAIL_DURATION_MINUTES", defaultMaxTailMinutes)) * time.Minute,
+		MaxConcurrentTails: intEnv("MAX_CONCURRENT_TAILS", defaultMaxConcurrentTails),
 
-		TokenCacheTTL: time.Duration(getEnvInt("TOKEN_CACHE_TTL_SECONDS", 30)) * time.Second,
+		TokenCacheTTL: time.Duration(intEnv("TOKEN_CACHE_TTL_SECONDS", defaultTokenCacheSeconds)) * time.Second,
 	}
-}
-
-func getEnvOrDefault(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return fallback
-}
-
-func getEnvInt(key string, fallback int) int {
-	if v := os.Getenv(key); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			return n
-		}
-	}
-	return fallback
 }
