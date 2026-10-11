@@ -315,27 +315,17 @@ func (s *DomainServer) CreateResourceDomain(
 	); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
-	// extract and validate domain information based on source
-	var fullDomain string
-	var subdomainLabel *string
-	var platformDomainID *uuid.UUID
-	domainSource := genDb.DomainSourceUserProvided
-
-	if r.GetDomain().GetDomainSource() == domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED {
-		parsedPlatformDomainID := uuid.MustParse(r.GetDomain().GetPlatformDomainId())
-		platformDomainID = &parsedPlatformDomainID
-		platformDomain, err := s.queries.GetPlatformDomain(ctx, parsedPlatformDomainID)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeNotFound, ErrPlatformDomainNotFound)
-		}
-
-		fullDomain = r.GetDomain().GetSubdomain() + "." + platformDomain.Domain
-		subdomain := r.GetDomain().GetSubdomain()
-		subdomainLabel = &subdomain
-		domainSource = genDb.DomainSourcePlatformProvided
-	} else {
-		fullDomain = r.GetDomain().GetDomain()
+	if r.GetDomain().GetDomainSource() != domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED {
+		return nil, connect.NewError(connect.CodeUnimplemented, errCustomDomainsUnsupported)
 	}
+	platformDomainID := uuid.MustParse(r.GetDomain().GetPlatformDomainId())
+	platformDomain, err := s.queries.GetPlatformDomain(ctx, platformDomainID)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, ErrPlatformDomainNotFound)
+	}
+
+	subdomain := r.GetDomain().GetSubdomain()
+	fullDomain := subdomain + "." + platformDomain.Domain
 
 	// check domain availability
 	available, err := s.queries.CheckDomainAvailability(ctx, fullDomain)
@@ -368,9 +358,9 @@ func (s *DomainServer) CreateResourceDomain(
 			ResourceID:       resourceID,
 			EnvironmentID:    environmentID,
 			Domain:           fullDomain,
-			DomainSource:     domainSource,
-			SubdomainLabel:   subdomainLabel,
-			PlatformDomainID: platformDomainID,
+			DomainSource:     genDb.DomainSourcePlatformProvided,
+			SubdomainLabel:   &subdomain,
+			PlatformDomainID: &platformDomainID,
 			IsPrimary:        !hasPrimary,
 		})
 		if createErr != nil {
