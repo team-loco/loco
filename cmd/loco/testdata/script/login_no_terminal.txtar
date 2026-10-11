@@ -1,0 +1,6 @@
+# browser login without a terminal stops at once and points at device sign-in.
+fakeapi identity-provider
+! exec loco login
+stderr 'run loco login --device'
+! stdout 'Opening your browser'
+! fakeapi called StartDeviceLogin

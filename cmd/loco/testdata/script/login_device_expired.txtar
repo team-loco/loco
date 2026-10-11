@@ -1,0 +1,8 @@
+# device login without a terminal stops with an error once the code expires unapproved.
+fakeapi identity-provider
+fakeapi device-login expired
+! exec loco login --device
+stdout '^Open https://loco\.test/device and enter the code ABCD-EFGH$'
+stderr 'the device code expired before sign-in was approved'
+! stderr '(?i)tty'
+! exists home/.loco/credentials.json
