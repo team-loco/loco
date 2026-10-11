@@ -9,12 +9,12 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def environment_values(environment, variables):
+def environment_values(environment, variables, chart='loco-obs'):
     with tempfile.TemporaryDirectory() as directory:
         state = Path(directory) / 'helmfile.yaml'
         config = json.dumps({'releases': [{
-            'name': 'loco-obs', 'chart': str(ROOT / 'charts/loco-obs'),
-            'values': [str(ROOT / 'env' / environment / 'obs-chart.yaml.gotmpl')],
+            'name': chart, 'chart': str(ROOT / 'charts' / chart),
+            'values': [str(ROOT / 'env' / environment / (chart.removeprefix('loco-') + '-chart.yaml.gotmpl'))],
         }]})
         state.write_text(subprocess.check_output(['yq', '-P', '.', '-'], input=config, text=True))
         built = subprocess.check_output(['helmfile', '-f', str(state), 'build', '--embed-values'],
@@ -45,6 +45,17 @@ def render(chart, template, overrides):
 
 
 class PlatformContracts(unittest.TestCase):
+    def test_production_agent_and_proxy_use_the_same_api(self):
+        variables = {
+            'GH_SHA': 'test', 'CERT_MANAGER_EMAIL': 'test@example.test',
+            'CLOUDFLARE_TOKEN': 'test', 'LOG_LEVEL': 'info', 'AGENT_TOKEN': 'test',
+            'CLICKHOUSE_PASSWORD': 'test', 'CONTROL_PLANE_URL': 'https://api.example.test',
+        }
+        core = environment_values('prod', variables, 'loco-core')
+        obs = environment_values('prod', variables)
+        self.assertEqual(core['env']['CONTROL_PLANE_URL'], variables['CONTROL_PLANE_URL'])
+        self.assertEqual(obs['obsProxy']['controlPlane']['url'], variables['CONTROL_PLANE_URL'])
+
     def test_environment_permission_checks_use_the_api(self):
         cases = [
             ('local', {'APP_PORT': ':8123'}, 'http://host.docker.internal:8123'),
