@@ -178,6 +178,7 @@ type Querier interface {
 	ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeliveriesParams) ([]ListWebhookDeliveriesRow, error)
 	ListWorkspaceEnvironments(ctx context.Context, workspaceID uuid.UUID) ([]Environment, error)
 	ListWorkspaceMembersWithUserDetails(ctx context.Context, arg ListWorkspaceMembersWithUserDetailsParams) ([]ListWorkspaceMembersWithUserDetailsRow, error)
+	ListWorkspaceResourcesForDeletion(ctx context.Context, workspaceID uuid.UUID) ([]ListWorkspaceResourcesForDeletionRow, error)
 	ListWorkspaceServiceResources(ctx context.Context, workspaceID uuid.UUID) ([]Resource, error)
 	ListWorkspaceWebhooks(ctx context.Context, workspaceID uuid.UUID) ([]Webhook, error)
 	ListWorkspacesForOrg(ctx context.Context, arg ListWorkspacesForOrgParams) ([]ListWorkspacesForOrgRow, error)
@@ -190,6 +191,7 @@ type Querier interface {
 	LockResourceRegion(ctx context.Context, arg LockResourceRegionParams) (ResourceRegion, error)
 	LockResources(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
 	LockWorkspaceEnvironments(ctx context.Context, workspaceID uuid.UUID) ([]LockWorkspaceEnvironmentsRow, error)
+	LockWorkspaceForDeletion(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	MarkBuildImageDeleted(ctx context.Context, id uuid.UUID) (int64, error)
 	MarkBuildRunning(ctx context.Context, arg MarkBuildRunningParams) (int64, error)
 	MarkBuildSourceDeleted(ctx context.Context, id uuid.UUID) error
@@ -239,7 +241,6 @@ type Querier interface {
 	UpsertInstallWebhook(ctx context.Context, arg UpsertInstallWebhookParams) error
 	UpsertPlacement(ctx context.Context, arg UpsertPlacementParams) (UpsertPlacementRow, error)
 	UserHasUnverifiedIdentity(ctx context.Context, userID uuid.UUID) (bool, error)
-	WorkspaceHasResources(ctx context.Context, workspaceID uuid.UUID) (bool, error)
 }
 
 var _ Querier = (*Queries)(nil)
