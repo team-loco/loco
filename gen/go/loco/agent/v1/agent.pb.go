@@ -1345,6 +1345,7 @@ type AgentHealth struct {
 	KubernetesHealthy bool                   `protobuf:"varint,1,opt,name=kubernetes_healthy,json=kubernetesHealthy,proto3" json:"kubernetes_healthy,omitempty"`
 	ControllerHealthy bool                   `protobuf:"varint,2,opt,name=controller_healthy,json=controllerHealthy,proto3" json:"controller_healthy,omitempty"`
 	Message           string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	SyncConnected     bool                   `protobuf:"varint,4,opt,name=sync_connected,json=syncConnected,proto3" json:"sync_connected,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -1398,6 +1399,13 @@ func (x *AgentHealth) GetMessage() string {
 		return x.Message
 	}
 	return ""
+}
+
+func (x *AgentHealth) GetSyncConnected() bool {
+	if x != nil {
+		return x.SyncConnected
+	}
+	return false
 }
 
 var File_loco_agent_v1_agent_proto protoreflect.FileDescriptor
@@ -1502,11 +1510,12 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\x11memory_bytes_used\x18\x04 \x01(\x03R\x0fmemoryBytesUsed\x12\x1d\n" +
 	"\n" +
 	"pods_total\x18\x05 \x01(\x05R\tpodsTotal\x12!\n" +
-	"\fpods_running\x18\x06 \x01(\x05R\vpodsRunning\"\x85\x01\n" +
+	"\fpods_running\x18\x06 \x01(\x05R\vpodsRunning\"\xac\x01\n" +
 	"\vAgentHealth\x12-\n" +
 	"\x12kubernetes_healthy\x18\x01 \x01(\bR\x11kubernetesHealthy\x12-\n" +
 	"\x12controller_healthy\x18\x02 \x01(\bR\x11controllerHealthy\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage*\xa8\x01\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\x12%\n" +
+	"\x0esync_connected\x18\x04 \x01(\bR\rsyncConnected*\xa8\x01\n" +
 	"\n" +
 	"BuildPhase\x12\x1b\n" +
 	"\x17BUILD_PHASE_UNSPECIFIED\x10\x00\x12\x17\n" +

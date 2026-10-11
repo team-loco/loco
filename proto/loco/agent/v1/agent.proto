@@ -171,4 +171,5 @@ message AgentHealth {
   bool kubernetes_healthy = 1;
   bool controller_healthy = 2;
   string message = 3;
+  bool sync_connected = 4;
 }

@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -28,6 +29,8 @@ import (
 )
 
 var errBuildSupportChanged = errors.New("the cluster's build support changed; restarting to pick it up")
+
+const syncDisconnectedMessage = "sync stream disconnected"
 
 func main() {
 	cfg := newAgentConfig()
@@ -122,6 +125,7 @@ func main() {
 		watcher:       watcher,
 		builds:        builds,
 		buildsEnabled: buildsEnabled,
+		healthChanged: make(chan struct{}, 1),
 	}
 
 	sigChan := make(chan os.Signal, 1)
@@ -166,6 +170,8 @@ type Agent struct {
 	builds        buildRunner
 	buildsEnabled bool
 	clusterID     string
+	syncConnected atomic.Bool
+	healthChanged chan struct{}
 }
 
 // Run starts the agent's main loop.
@@ -315,8 +321,10 @@ func (a *Agent) syncLoop(ctx context.Context) error {
 			"inventory", len(inventory.GetEntries()),
 			"builds", len(inventory.GetBuilds()),
 		)
+		a.setSyncConnected(true)
 		return nil
 	})
+	defer a.setSyncConnected(false)
 	if err != nil {
 		return err
 	}
@@ -553,6 +561,10 @@ func (a *Agent) heartbeatLoop(ctx context.Context) error {
 		case err := <-recvErr:
 			return fmt.Errorf("receive heartbeat response: %w", err)
 		case <-responses:
+		case <-a.healthChanged:
+			if err := a.sendHeartbeat(streamCtx, stream); err != nil {
+				return err
+			}
 		case <-ticker.C:
 			if err := a.sendHeartbeat(streamCtx, stream); err != nil {
 				return err
@@ -612,11 +624,35 @@ func (a *Agent) getCapacity(ctx context.Context) *agentv1.AgentCapacity {
 }
 
 func (a *Agent) getHealth(ctx context.Context) *agentv1.AgentHealth {
-	health := a.inspector.Health(ctx)
-	if !health.GetKubernetesHealthy() || !health.GetControllerHealthy() {
+	inspected := a.inspector.Health(ctx)
+	health := withSyncState(inspected, a.syncConnected.Load())
+	if !health.GetKubernetesHealthy() || !health.GetControllerHealthy() || !health.GetSyncConnected() {
 		slog.WarnContext(ctx, "cluster unhealthy", "message", health.GetMessage())
 	}
 	return health
+}
+
+func withSyncState(health *agentv1.AgentHealth, connected bool) *agentv1.AgentHealth {
+	health.SyncConnected = connected
+	if connected {
+		return health
+	}
+	if health.GetMessage() == "" {
+		health.Message = syncDisconnectedMessage
+		return health
+	}
+	health.Message = health.GetMessage() + "; " + syncDisconnectedMessage
+	return health
+}
+
+func (a *Agent) setSyncConnected(connected bool) {
+	if a.syncConnected.Swap(connected) == connected {
+		return
+	}
+	select {
+	case a.healthChanged <- struct{}{}:
+	default:
+	}
 }
 
 func watchBuildSupport(

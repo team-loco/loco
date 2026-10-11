@@ -15,17 +15,22 @@ func TestHealthStatusFromProtoOnlyProducesAllowedValues(t *testing.T) {
 		{name: "no report", health: nil, want: clusterHealthDegraded},
 		{
 			name:   "all healthy",
-			health: &agentv1.AgentHealth{KubernetesHealthy: true, ControllerHealthy: true},
+			health: &agentv1.AgentHealth{KubernetesHealthy: true, ControllerHealthy: true, SyncConnected: true},
 			want:   clusterHealthHealthy,
 		},
 		{
+			name:   "sync stream down",
+			health: &agentv1.AgentHealth{KubernetesHealthy: true, ControllerHealthy: true},
+			want:   clusterHealthDegraded,
+		},
+		{
 			name:   "controller down",
-			health: &agentv1.AgentHealth{KubernetesHealthy: true, ControllerHealthy: false},
+			health: &agentv1.AgentHealth{KubernetesHealthy: true, ControllerHealthy: false, SyncConnected: true},
 			want:   clusterHealthDegraded,
 		},
 		{
 			name:   "kubernetes down",
-			health: &agentv1.AgentHealth{KubernetesHealthy: false, ControllerHealthy: true},
+			health: &agentv1.AgentHealth{KubernetesHealthy: false, ControllerHealthy: true, SyncConnected: true},
 			want:   clusterHealthDegraded,
 		},
 		{name: "all down", health: &agentv1.AgentHealth{}, want: clusterHealthUnhealthy},

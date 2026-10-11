@@ -191,7 +191,7 @@ func healthStatusFromProto(h *agentv1.AgentHealth) string {
 	if h == nil {
 		return clusterHealthDegraded
 	}
-	if h.GetKubernetesHealthy() && h.GetControllerHealthy() {
+	if h.GetKubernetesHealthy() && h.GetControllerHealthy() && h.GetSyncConnected() {
 		return clusterHealthHealthy
 	}
 	if !h.GetKubernetesHealthy() && !h.GetControllerHealthy() {
