@@ -22,6 +22,7 @@ global:
 
   observability:
     otelCollectorDeployment: otel-col-deploy
+    otelCollectorGrpcPort: 4317
     namespace: observability
 
   # Replica counts
@@ -68,6 +69,25 @@ secrets:
 
 env:
   LOG_LEVEL: debug
+
+envoyProxy:
+  tracing:
+    samplingRate: 10
+  accessLog:
+    attributes:
+      method: "%REQ(:METHOD)%"
+      path: "%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%"
+      authority: "%REQ(:AUTHORITY)%"
+      protocol: "%PROTOCOL%"
+      response_code: "%RESPONSE_CODE%"
+      response_flags: "%RESPONSE_FLAGS%"
+      duration: "%DURATION%"
+      bytes_received: "%BYTES_RECEIVED%"
+      bytes_sent: "%BYTES_SENT%"
+      upstream_cluster: "%UPSTREAM_CLUSTER%"
+      upstream_host: "%UPSTREAM_HOST%"
+      request_id: "%REQ(X-REQUEST-ID)%"
+      trace_id: "%TRACE_ID%"
 
 gateway-helm:
   enabled: true
