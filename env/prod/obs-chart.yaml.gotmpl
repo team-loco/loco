@@ -6,8 +6,9 @@ gatewayNamespace: loco-system
 # ClickHouse configuration for production
 clickhouse:
   enabled: true
-  defaultUser:
-    password: {{ requiredEnv "CLICKHOUSE_PASSWORD" }}
+  clickhouse:
+    defaultUser:
+      password: {{ requiredEnv "CLICKHOUSE_PASSWORD" | quote }}
 
 clickhouseUserPasswords:
   loco_migrator: {{ requiredEnv "CLICKHOUSE_MIGRATOR_PASSWORD" | quote }}
