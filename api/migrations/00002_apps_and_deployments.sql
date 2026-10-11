@@ -80,6 +80,7 @@ CREATE TABLE
         last_health_check TIMESTAMPTZ,
         agent_token_hash TEXT,
         last_heartbeat TIMESTAMPTZ,
+        heartbeat_interval_ms BIGINT CHECK (heartbeat_interval_ms > 0),
         capacity_cpu_millicores BIGINT,
         capacity_memory_bytes BIGINT,
         agent_version TEXT,

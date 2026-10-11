@@ -166,6 +166,10 @@ func (s *AgentServer) Heartbeat(
 		cpuCores := req.GetCapacity().GetCpuMillicoresTotal()
 		memBytes := req.GetCapacity().GetMemoryBytesTotal()
 		healthStatus := healthStatusFromProto(req.GetHealth())
+		var intervalMs *int64
+		if ms := req.GetHeartbeatIntervalMs(); ms > 0 {
+			intervalMs = &ms
+		}
 		err = s.queries.UpdateClusterHeartbeat(ctx, genDb.UpdateClusterHeartbeatParams{
 			ID:                    cluster.ID,
 			LastHeartbeat:         func() *time.Time { t := time.Now(); return &t }(),
@@ -173,6 +177,7 @@ func (s *AgentServer) Heartbeat(
 			CapacityMemoryBytes:   &memBytes,
 			HealthStatus:          &healthStatus,
 			BuildsEnabled:         req.GetBuildsEnabled(),
+			HeartbeatIntervalMs:   intervalMs,
 		})
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to update heartbeat", "error", err, "cluster_id", cluster.ID)

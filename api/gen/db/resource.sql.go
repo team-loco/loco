@@ -357,6 +357,7 @@ SELECT d.resource_id,
        COALESCE(p.status_message, '')::text AS status_message,
        p.status_updated_at,
        c.last_heartbeat,
+       c.heartbeat_interval_ms,
        c.health_status
 FROM deployments d
 JOIN environments e ON e.id = d.environment_id
@@ -367,20 +368,21 @@ ORDER BY d.resource_id, e.name, d.region
 `
 
 type ListRegionStatusesForResourcesRow struct {
-	ResourceID        uuid.UUID        `json:"resourceId"`
-	EnvironmentID     uuid.UUID        `json:"environmentId"`
-	EnvironmentName   string           `json:"environmentName"`
-	Region            string           `json:"region"`
-	DeploymentID      uuid.UUID        `json:"deploymentId"`
-	DeploymentStatus  DeploymentStatus `json:"deploymentStatus"`
-	DesiredReplicas   int32            `json:"desiredReplicas"`
-	DeploymentMessage string           `json:"deploymentMessage"`
-	Placed            bool             `json:"placed"`
-	ReadyReplicas     int32            `json:"readyReplicas"`
-	StatusMessage     string           `json:"statusMessage"`
-	StatusUpdatedAt   *time.Time       `json:"statusUpdatedAt"`
-	LastHeartbeat     *time.Time       `json:"lastHeartbeat"`
-	HealthStatus      *string          `json:"healthStatus"`
+	ResourceID          uuid.UUID        `json:"resourceId"`
+	EnvironmentID       uuid.UUID        `json:"environmentId"`
+	EnvironmentName     string           `json:"environmentName"`
+	Region              string           `json:"region"`
+	DeploymentID        uuid.UUID        `json:"deploymentId"`
+	DeploymentStatus    DeploymentStatus `json:"deploymentStatus"`
+	DesiredReplicas     int32            `json:"desiredReplicas"`
+	DeploymentMessage   string           `json:"deploymentMessage"`
+	Placed              bool             `json:"placed"`
+	ReadyReplicas       int32            `json:"readyReplicas"`
+	StatusMessage       string           `json:"statusMessage"`
+	StatusUpdatedAt     *time.Time       `json:"statusUpdatedAt"`
+	LastHeartbeat       *time.Time       `json:"lastHeartbeat"`
+	HeartbeatIntervalMs *int64           `json:"heartbeatIntervalMs"`
+	HealthStatus        *string          `json:"healthStatus"`
 }
 
 func (q *Queries) ListRegionStatusesForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListRegionStatusesForResourcesRow, error) {
@@ -406,6 +408,7 @@ func (q *Queries) ListRegionStatusesForResources(ctx context.Context, resourceId
 			&i.StatusMessage,
 			&i.StatusUpdatedAt,
 			&i.LastHeartbeat,
+			&i.HeartbeatIntervalMs,
 			&i.HealthStatus,
 		); err != nil {
 			return nil, err

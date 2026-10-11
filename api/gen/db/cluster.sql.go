@@ -267,6 +267,7 @@ SET last_heartbeat = $2,
     capacity_memory_bytes = $4,
     health_status = $5,
     builds_enabled = $6,
+    heartbeat_interval_ms = $7,
     updated_at = NOW()
 WHERE id = $1
 `
@@ -278,6 +279,7 @@ type UpdateClusterHeartbeatParams struct {
 	CapacityMemoryBytes   *int64     `json:"capacityMemoryBytes"`
 	HealthStatus          *string    `json:"healthStatus"`
 	BuildsEnabled         bool       `json:"buildsEnabled"`
+	HeartbeatIntervalMs   *int64     `json:"heartbeatIntervalMs"`
 }
 
 func (q *Queries) UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterHeartbeatParams) error {
@@ -288,6 +290,7 @@ func (q *Queries) UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterH
 		arg.CapacityMemoryBytes,
 		arg.HealthStatus,
 		arg.BuildsEnabled,
+		arg.HeartbeatIntervalMs,
 	)
 	return err
 }

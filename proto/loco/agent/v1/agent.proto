@@ -148,6 +148,10 @@ message HeartbeatRequest {
   AgentCapacity capacity = 2;
   AgentHealth health = 3;
   bool builds_enabled = 4;
+  // heartbeat_interval_ms is how often the agent sends a heartbeat when nothing changes. The
+  // control plane stops trusting the cluster's last report after a few missed intervals. Zero
+  // means the agent predates the field.
+  int64 heartbeat_interval_ms = 5 [(buf.validate.field).int64.gte = 0];
 }
 
 // HeartbeatResponse is the control plane's reply on the heartbeat stream.

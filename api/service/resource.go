@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"maps"
 	"slices"
-	"time"
 
 	"github.com/team-loco/loco/api/events"
 
@@ -72,11 +71,10 @@ func protoResourceTypeToDb(rt resourcev1.ResourceType) (genDb.ResourceType, erro
 
 type ResourceServer struct {
 	resourcev1connect.UnimplementedResourceServiceHandler
-	db               *pgxpool.Pool
-	queries          genDb.Querier
-	authz            *authz.Authorizer
-	defaults         servicedefaults.Defaults
-	statusStaleAfter time.Duration
+	db       *pgxpool.Pool
+	queries  genDb.Querier
+	authz    *authz.Authorizer
+	defaults servicedefaults.Defaults
 }
 
 // NewResourceServer creates a new ResourceServer instance
@@ -84,14 +82,12 @@ func NewResourceServer(
 	db *pgxpool.Pool,
 	queries genDb.Querier,
 	defaults servicedefaults.Defaults,
-	statusStaleAfter time.Duration,
 ) *ResourceServer {
 	return &ResourceServer{
-		db:               db,
-		queries:          queries,
-		authz:            authz.New(db, queries),
-		defaults:         defaults,
-		statusStaleAfter: statusStaleAfter,
+		db:       db,
+		queries:  queries,
+		authz:    authz.New(db, queries),
+		defaults: defaults,
 	}
 }
 

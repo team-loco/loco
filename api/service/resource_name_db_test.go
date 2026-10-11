@@ -19,7 +19,7 @@ func getResourceByName(
 	name string,
 ) (*resourcev1.Resource, error) {
 	t.Helper()
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testStatusStaleAfter)
+	server := NewResourceServer(f.pool, f.queries, testServiceDefaults())
 	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, scopes)
 	nameKey := &resourcev1.GetResourceNameKey{WorkspaceId: workspaceID.String(), Name: name}
 	req := connect.NewRequest(&resourcev1.GetResourceRequest{

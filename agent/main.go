@@ -602,10 +602,11 @@ func (a *Agent) sendHeartbeat(
 	capacity := a.getCapacity(ctx)
 	health := a.getHealth(ctx)
 	req := &agentv1.HeartbeatRequest{
-		ClusterId:     a.clusterID,
-		Capacity:      capacity,
-		Health:        health,
-		BuildsEnabled: a.buildsEnabled,
+		ClusterId:           a.clusterID,
+		Capacity:            capacity,
+		Health:              health,
+		BuildsEnabled:       a.buildsEnabled,
+		HeartbeatIntervalMs: a.cfg.HeartbeatInterval.Milliseconds(),
 	}
 
 	if err := stream.Send(req); err != nil {

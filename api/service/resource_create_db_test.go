@@ -29,7 +29,7 @@ func testCreateResourceDomain(t *testing.T, platform bool) {
 		Scan(&workspaceID); err != nil {
 		t.Fatalf("workspace: %v", err)
 	}
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testStatusStaleAfter)
+	server := NewResourceServer(f.pool, f.queries, testServiceDefaults())
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeWrite},
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeRead},

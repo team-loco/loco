@@ -327,6 +327,7 @@ type Cluster struct {
 	LastHealthCheck            *time.Time `json:"lastHealthCheck"`
 	AgentTokenHash             *string    `json:"agentTokenHash"`
 	LastHeartbeat              *time.Time `json:"lastHeartbeat"`
+	HeartbeatIntervalMs        *int64     `json:"heartbeatIntervalMs"`
 	CapacityCpuMillicores      *int64     `json:"capacityCpuMillicores"`
 	CapacityMemoryBytes        *int64     `json:"capacityMemoryBytes"`
 	AgentVersion               *string    `json:"agentVersion"`

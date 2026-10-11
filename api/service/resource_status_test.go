@@ -12,12 +12,13 @@ import (
 )
 
 const (
-	testStatusStaleAfter = time.Minute
-	testFreshHeartbeat   = 10 * time.Second
-	testStaleHeartbeat   = 2 * time.Minute
-	testDesiredReplicas  = 2
-	testStatusMessage    = "Waiting for pods to be ready..."
-	testFailureMessage   = "container exited with code 1"
+	testHeartbeatIntervalMs = 20_000
+	testStatusStaleAfter    = missedHeartbeats * testHeartbeatIntervalMs * time.Millisecond
+	testFreshHeartbeat      = 10 * time.Second
+	testStaleHeartbeat      = 2 * time.Minute
+	testDesiredReplicas     = 2
+	testStatusMessage       = "Waiting for pods to be ready..."
+	testFailureMessage      = "container exited with code 1"
 )
 
 var testStatusNow = time.Date(2026, time.October, 11, 12, 0, 0, 0, time.UTC)
@@ -26,20 +27,22 @@ func regionRow(status genDb.DeploymentStatus, ready int32) genDb.ListRegionStatu
 	heartbeat := testStatusNow.Add(-testFreshHeartbeat)
 	reported := testStatusNow.Add(-testFreshHeartbeat)
 	health := clusterHealthHealthy
+	interval := int64(testHeartbeatIntervalMs)
 	return genDb.ListRegionStatusesForResourcesRow{
-		ResourceID:       uuid.New(),
-		EnvironmentID:    uuid.New(),
-		EnvironmentName:  "production",
-		Region:           testRegion,
-		DeploymentID:     uuid.New(),
-		DeploymentStatus: status,
-		DesiredReplicas:  testDesiredReplicas,
-		Placed:           true,
-		ReadyReplicas:    ready,
-		StatusMessage:    testStatusMessage,
-		StatusUpdatedAt:  &reported,
-		LastHeartbeat:    &heartbeat,
-		HealthStatus:     &health,
+		ResourceID:          uuid.New(),
+		EnvironmentID:       uuid.New(),
+		EnvironmentName:     "production",
+		Region:              testRegion,
+		DeploymentID:        uuid.New(),
+		DeploymentStatus:    status,
+		DesiredReplicas:     testDesiredReplicas,
+		Placed:              true,
+		ReadyReplicas:       ready,
+		StatusMessage:       testStatusMessage,
+		StatusUpdatedAt:     &reported,
+		LastHeartbeat:       &heartbeat,
+		HeartbeatIntervalMs: &interval,
+		HealthStatus:        &health,
 	}
 }
 
@@ -183,7 +186,7 @@ func TestRegionStatus(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			row := tt.row()
-			got, err := regionStatus(row, testStatusNow, testStatusStaleAfter)
+			got, err := regionStatus(row, testStatusNow)
 			if err != nil {
 				t.Fatalf("regionStatus: %v", err)
 			}
@@ -246,7 +249,7 @@ func TestRegionStatusRejectsBrokenInvariants(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := regionStatus(tt.row, testStatusNow, testStatusStaleAfter)
+			_, err := regionStatus(tt.row, testStatusNow)
 			if !errors.Is(err, tt.want) {
 				t.Fatalf("err = %v, want %v", err, tt.want)
 			}
@@ -276,7 +279,7 @@ func TestRegionStatusNeverOverstatesHealth(t *testing.T) {
 					row := regionRow(deploymentStatus, ready)
 					row.LastHeartbeat = heartbeat
 					row.HealthStatus = health
-					got, err := regionStatus(row, testStatusNow, testStatusStaleAfter)
+					got, err := regionStatus(row, testStatusNow)
 					if err != nil {
 						t.Fatalf("regionStatus(%+v): %v", row, err)
 					}
@@ -367,5 +370,51 @@ func TestSummarizeRegionsRejectsEmptyAndUnset(t *testing.T) {
 	unset := []*resourcev1.RegionStatus{{Region: testRegion}}
 	if _, err := summarizeRegions(unset); !errors.Is(err, errRegionStatusUnset) {
 		t.Errorf("unset region: err = %v, want %v", err, errRegionStatusUnset)
+	}
+}
+
+func TestStaleAfterFollowsTheClustersHeartbeatInterval(t *testing.T) {
+	slow := int64(time.Minute / time.Millisecond)
+	tests := []struct {
+		name       string
+		intervalMs *int64
+		want       time.Duration
+	}{
+		{name: "an agent that reports no interval gets the default", intervalMs: nil, want: 90 * time.Second},
+		{name: "an agent that heartbeats every minute", intervalMs: &slow, want: 3 * time.Minute},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := staleAfter(tt.intervalMs); got != tt.want {
+				t.Errorf("staleAfter = %s, want %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSlowHeartbeatingClusterIsNotSilentBetweenBeats(t *testing.T) {
+	// Two minutes since the last heartbeat is past the default threshold but within one
+	// beat and a half of a cluster that heartbeats every minute.
+	heartbeat := testStatusNow.Add(-2 * time.Minute)
+	slow := int64(time.Minute / time.Millisecond)
+
+	row := regionRow(genDb.DeploymentStatusRunning, testDesiredReplicas)
+	row.LastHeartbeat = &heartbeat
+	row.HeartbeatIntervalMs = &slow
+	got, err := regionStatus(row, testStatusNow)
+	if err != nil {
+		t.Fatalf("regionStatus: %v", err)
+	}
+	if got.GetStatus() != resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY {
+		t.Errorf("status = %s, want healthy", got.GetStatus())
+	}
+
+	row.HeartbeatIntervalMs = nil
+	got, err = regionStatus(row, testStatusNow)
+	if err != nil {
+		t.Fatalf("regionStatus: %v", err)
+	}
+	if got.GetStatus() != resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN {
+		t.Errorf("status without a reported interval = %s, want unknown", got.GetStatus())
 	}
 }

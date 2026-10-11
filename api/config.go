@@ -91,8 +91,6 @@ const (
 	defaultSecretsTransitMargin  = 5 * time.Minute
 	defaultSecretsTransitRetry   = 10 * time.Second
 	defaultSecretsTransitDEKTTL  = 5 * time.Minute
-
-	defaultStatusStaleAfter = 90 * time.Second
 )
 
 type APIConfig struct {
@@ -125,7 +123,6 @@ type APIConfig struct {
 	InstallWebhooks       []webhooks.InstallWebhook
 	Secrets               secretkeys.Config
 	SecretLimits          service.SecretConfig
-	StatusStaleAfter      time.Duration // How long a cluster's last report counts as current
 }
 
 type MigrateConfig struct {
@@ -161,7 +158,6 @@ func newAPIConfig() *APIConfig {
 	eventsRetentionDays := positiveInt32Env("EVENTS_RETENTION_DAYS", defaultEventsRetentionDays)
 	eventsRetention := time.Duration(eventsRetentionDays) * day
 	secrets := newSecretsConfig()
-	statusStaleAfter := positiveDurationEnv("LOCO_RESOURCE_STATUS_STALE_AFTER", defaultStatusStaleAfter)
 	secretLimits := service.SecretConfig{
 		MaxValueBytes:     positiveInt32Env("LOCO_SECRETS_MAX_VALUE_BYTES", defaultSecretMaxValueBytes),
 		MaxPerService:     positiveInt32Env("LOCO_SECRETS_MAX_PER_SERVICE", defaultSecretMaxPerService),
@@ -199,7 +195,6 @@ func newAPIConfig() *APIConfig {
 		InstallWebhooks:       installWebhooks,
 		Secrets:               secrets,
 		SecretLimits:          secretLimits,
-		StatusStaleAfter:      statusStaleAfter,
 	}
 }
 

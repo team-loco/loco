@@ -23,6 +23,7 @@ SET last_heartbeat = $2,
     capacity_memory_bytes = $4,
     health_status = $5,
     builds_enabled = $6,
+    heartbeat_interval_ms = $7,
     updated_at = NOW()
 WHERE id = $1;
 

@@ -101,6 +101,7 @@ SELECT d.resource_id,
        COALESCE(p.status_message, '')::text AS status_message,
        p.status_updated_at,
        c.last_heartbeat,
+       c.heartbeat_interval_ms,
        c.health_status
 FROM deployments d
 JOIN environments e ON e.id = d.environment_id

@@ -1155,8 +1155,12 @@ type HeartbeatRequest struct {
 	Capacity      *AgentCapacity         `protobuf:"bytes,2,opt,name=capacity,proto3" json:"capacity,omitempty"`
 	Health        *AgentHealth           `protobuf:"bytes,3,opt,name=health,proto3" json:"health,omitempty"`
 	BuildsEnabled bool                   `protobuf:"varint,4,opt,name=builds_enabled,json=buildsEnabled,proto3" json:"builds_enabled,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// heartbeat_interval_ms is how often the agent sends a heartbeat when nothing changes. The
+	// control plane stops trusting the cluster's last report after a few missed intervals. Zero
+	// means the agent predates the field.
+	HeartbeatIntervalMs int64 `protobuf:"varint,5,opt,name=heartbeat_interval_ms,json=heartbeatIntervalMs,proto3" json:"heartbeat_interval_ms,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *HeartbeatRequest) Reset() {
@@ -1215,6 +1219,13 @@ func (x *HeartbeatRequest) GetBuildsEnabled() bool {
 		return x.BuildsEnabled
 	}
 	return false
+}
+
+func (x *HeartbeatRequest) GetHeartbeatIntervalMs() int64 {
+	if x != nil {
+		return x.HeartbeatIntervalMs
+	}
+	return 0
 }
 
 // HeartbeatResponse is the control plane's reply on the heartbeat stream.
@@ -1495,13 +1506,14 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\acontext\x18\b \x01(\tB\a\xbaH\x04r\x02\x10\x01R\acontext\x124\n" +
 	"\x0forganization_id\x18\t \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\x0eorganizationId\"2\n" +
 	"\vCancelBuild\x12#\n" +
-	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\"\xd0\x01\n" +
+	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\"\x8d\x02\n" +
 	"\x10HeartbeatRequest\x12'\n" +
 	"\n" +
 	"cluster_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tclusterId\x128\n" +
 	"\bcapacity\x18\x02 \x01(\v2\x1c.loco.agent.v1.AgentCapacityR\bcapacity\x122\n" +
 	"\x06health\x18\x03 \x01(\v2\x1a.loco.agent.v1.AgentHealthR\x06health\x12%\n" +
-	"\x0ebuilds_enabled\x18\x04 \x01(\bR\rbuildsEnabled\"C\n" +
+	"\x0ebuilds_enabled\x18\x04 \x01(\bR\rbuildsEnabled\x12;\n" +
+	"\x15heartbeat_interval_ms\x18\x05 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\x13heartbeatIntervalMs\"C\n" +
 	"\x11HeartbeatResponseJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x05drainR\rreload_configR\x06resync\"\x8d\x02\n" +
 	"\rAgentCapacity\x120\n" +
 	"\x14cpu_millicores_total\x18\x01 \x01(\x03R\x12cpuMillicoresTotal\x12.\n" +

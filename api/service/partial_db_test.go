@@ -15,7 +15,7 @@ const testPartial = "web"
 
 func transferPartial(t *testing.T, f *deployFixture, partial string) error {
 	t.Helper()
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testStatusStaleAfter)
+	server := NewResourceServer(f.pool, f.queries, testServiceDefaults())
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeAdmin},
 	}

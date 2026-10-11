@@ -131,7 +131,7 @@ func (f *resourceStatusFixture) failed(t *testing.T, clusterID uuid.UUID, replic
 }
 
 func (f *resourceStatusFixture) server() *ResourceServer {
-	return NewResourceServer(f.pool, f.queries, testServiceDefaults(), testStatusStaleAfter)
+	return NewResourceServer(f.pool, f.queries, testServiceDefaults())
 }
 
 func (f *resourceStatusFixture) statuses(t *testing.T) []*resourcev1.EnvironmentStatus {
@@ -335,6 +335,60 @@ func TestResourceStatusIsUnknownWhileTheClusterIsSilent(t *testing.T) {
 
 	f.heartbeat(t, f.clusterID, time.Now(), clusterHealthHealthy)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, healthy)
+}
+
+func TestResourceStatusWaitsForTheIntervalTheAgentReports(t *testing.T) {
+	f := newResourceStatusFixture(t)
+	f.deployProduction(t, 1)
+	f.ready(t, f.clusterID, 1)
+
+	client := startSyncServer(t, f.deployFixture)
+	stream := client.Heartbeat(f.ctx)
+	stream.RequestHeader().Set("Authorization", "Bearer "+testAgentToken)
+	minute := time.Minute.Milliseconds()
+	err := stream.Send(&agentv1.HeartbeatRequest{
+		ClusterId: f.clusterID.String(),
+		Health: &agentv1.AgentHealth{
+			KubernetesHealthy: true, ControllerHealthy: true, SyncConnected: true,
+		},
+		HeartbeatIntervalMs: minute,
+	})
+	if err != nil {
+		t.Fatalf("send heartbeat: %v", err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		var stored *int64
+		row := f.pool.QueryRow(f.ctx, `SELECT heartbeat_interval_ms FROM clusters WHERE id = $1`, f.clusterID)
+		if scanErr := row.Scan(&stored); scanErr != nil {
+			t.Fatalf("read heartbeat interval: %v", scanErr)
+		}
+		if stored != nil && *stored == minute {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("heartbeat_interval_ms = %v, want %d", stored, minute)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if closeErr := stream.CloseRequest(); closeErr != nil {
+		t.Fatalf("close heartbeat stream: %v", closeErr)
+	}
+
+	// Two minutes of silence is past the default threshold but under three of this agent's
+	// one-minute intervals.
+	f.heartbeat(t, f.clusterID, time.Now().Add(-2*time.Minute), clusterHealthHealthy)
+	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, wantRegion{
+		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
+		ready: 1, desired: 1, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING,
+	})
+
+	f.heartbeat(t, f.clusterID, time.Now().Add(-4*time.Minute), clusterHealthHealthy)
+	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN, wantRegion{
+		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN,
+		ready: 1, desired: 1, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING,
+		message: regionMessageClusterSilent,
+	})
 }
 
 func TestResourceStatusIsPerEnvironment(t *testing.T) {

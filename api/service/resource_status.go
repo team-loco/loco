@@ -17,6 +17,13 @@ const (
 	regionMessageClusterSilent     = "the cluster running this region has stopped reporting"
 	regionMessageClusterUnhealthy  = "the cluster running this region reports that it is unhealthy"
 	regionMessageClusterNeverHeard = "the cluster running this region has never reported"
+
+	// missedHeartbeats is how many of its heartbeat intervals a cluster may stay silent before
+	// its last report stops counting as current.
+	missedHeartbeats = 3
+	// defaultHeartbeatInterval is the agent's default interval, assumed for an agent that does
+	// not report its own.
+	defaultHeartbeatInterval = 30 * time.Second
 )
 
 var (
@@ -41,7 +48,7 @@ func (s *ResourceServer) environmentStatuses(
 	var current *resourcev1.EnvironmentStatus
 	var currentResource uuid.UUID
 	for _, row := range rows {
-		region, regionErr := regionStatus(row, now, s.statusStaleAfter)
+		region, regionErr := regionStatus(row, now)
 		if regionErr != nil {
 			return nil, fmt.Errorf("resource %s region %s: %w", row.ResourceID, row.Region, regionErr)
 		}
@@ -71,7 +78,6 @@ func (s *ResourceServer) environmentStatuses(
 func regionStatus(
 	row genDb.ListRegionStatusesForResourcesRow,
 	now time.Time,
-	staleAfter time.Duration,
 ) (*resourcev1.RegionStatus, error) {
 	if row.DesiredReplicas < 1 {
 		return nil, fmt.Errorf("%w: deployment %s", errNoDesiredReplicas, row.DeploymentID)
@@ -94,7 +100,7 @@ func regionStatus(
 		region.ReportedAt = timestamppb.New(*row.StatusUpdatedAt)
 	}
 
-	if silence := clusterSilence(row, now, staleAfter); silence != "" {
+	if silence := clusterSilence(row, now); silence != "" {
 		region.Status = resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN
 		region.Message = new(silence)
 		return region, nil
@@ -133,17 +139,26 @@ func deploymentInFlight(status genDb.DeploymentStatus) (bool, error) {
 	}
 }
 
-func clusterSilence(row genDb.ListRegionStatusesForResourcesRow, now time.Time, staleAfter time.Duration) string {
+func clusterSilence(row genDb.ListRegionStatusesForResourcesRow, now time.Time) string {
 	if row.LastHeartbeat == nil {
 		return regionMessageClusterNeverHeard
 	}
-	if now.Sub(*row.LastHeartbeat) > staleAfter {
+	if now.Sub(*row.LastHeartbeat) > staleAfter(row.HeartbeatIntervalMs) {
 		return regionMessageClusterSilent
 	}
 	if row.HealthStatus == nil || *row.HealthStatus != clusterHealthHealthy {
 		return regionMessageClusterUnhealthy
 	}
 	return ""
+}
+
+// staleAfter is how long a cluster that heartbeats every intervalMs may stay silent.
+func staleAfter(intervalMs *int64) time.Duration {
+	interval := defaultHeartbeatInterval
+	if intervalMs != nil {
+		interval = time.Duration(*intervalMs) * time.Millisecond
+	}
+	return missedHeartbeats * interval
 }
 
 func regionMessage(row genDb.ListRegionStatusesForResourcesRow, status resourcev1.ResourceStatus) *string {
