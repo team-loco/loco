@@ -30,7 +30,9 @@ type deps struct {
 const serviceFlag = "service"
 
 type target struct {
+	service       string
 	resourceID    string
+	environment   string
 	environmentID string
 	authHeader    string
 	secrets       secretv1connect.SecretServiceClient
@@ -68,9 +70,11 @@ Values are write-only: no command prints one back.
 
 Examples:
   loco env push --service web --env production .env
-  loco env set --service web --env production DATABASE_URL=postgres://...`,
+  loco env set --service web --env production DATABASE_URL=postgres://...
+  loco env unset --service web --env production DATABASE_URL
+  loco env list --service web --env production`,
 	}
-	cmd.AddCommand(newPushCmd(d), newSetCmd(d))
+	cmd.AddCommand(newPushCmd(d), newSetCmd(d), newUnsetCmd(d), newListCmd(d))
 	return cmd
 }
 
@@ -100,19 +104,25 @@ func resolveTarget(ctx context.Context, cmd *cobra.Command, d deps) (target, err
 	if err != nil {
 		return target{}, err
 	}
-	resourceID, err := resolveService(ctx, cmd, apiClient, authHeader, workspaceID)
+	service, err := cmd.Flags().GetString(serviceFlag)
+	if err != nil {
+		return target{}, fmt.Errorf("read --%s: %w", serviceFlag, err)
+	}
+	resourceID, err := resolveService(ctx, apiClient, authHeader, workspaceID, service)
 	if err != nil {
 		return target{}, err
 	}
 	environments := d.Environments(host)
-	environmentID, err := cmdutil.ResolveEnvironmentID(ctx, cmd, environments, nil, false, authHeader, workspaceID)
+	env, err := cmdutil.ResolveEnvironment(ctx, cmd, environments, nil, false, authHeader, workspaceID)
 	if err != nil {
 		return target{}, err
 	}
 	secrets := d.Secrets(host)
 	return target{
+		service:       service,
 		resourceID:    resourceID,
-		environmentID: environmentID,
+		environment:   env.GetName(),
+		environmentID: env.GetId(),
 		authHeader:    authHeader,
 		secrets:       secrets,
 	}, nil
@@ -120,15 +130,11 @@ func resolveTarget(ctx context.Context, cmd *cobra.Command, d deps) (target, err
 
 func resolveService(
 	ctx context.Context,
-	cmd *cobra.Command,
 	apiClient *client.Client,
 	authHeader string,
 	workspaceID string,
+	name string,
 ) (string, error) {
-	name, err := cmd.Flags().GetString(serviceFlag)
-	if err != nil {
-		return "", fmt.Errorf("read --%s: %w", serviceFlag, err)
-	}
 	nameKey := &resourcev1.GetResourceNameKey{WorkspaceId: workspaceID, Name: name}
 	req := connect.NewRequest(&resourcev1.GetResourceRequest{
 		Key: &resourcev1.GetResourceRequest_NameKey{NameKey: nameKey},

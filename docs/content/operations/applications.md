@@ -11,6 +11,17 @@ loco resource events --help
 
 `loco resource` also includes `env`, `scale`, and `destroy`. Inspect an operation's help before changing resources or removing an application.
 
+## Secrets
+
+`loco env` manages the secrets of one service in one environment. `--service` names the service and is required; `--env` or `LOCO_ENV` selects the environment. Secrets belong to that service only, so two services that need the same value each get it set. `push` sends every `KEY=VALUE` line of a `.env` file (or stdin) in one call, `set` takes assignments on the command line, `unset` removes names and `list` shows names, versions and who set them. No command prints a value, and `$NAME` in a `.env` file stays literal. `unset` refuses a name that the service's active deployment declares in `loco.yaml`; remove it there and apply first.
+
+```sh
+loco env push --service web --env production .env
+loco env set --service web --env production API_KEY=abc123
+loco env unset --service web --env production API_KEY
+loco env list --service web --env production
+```
+
 ## Container requirements
 
 Applications run under Kubernetes' `restricted` Pod Security profile. Images must run as a numeric non-root user, such as `USER 10001`, and use an unprivileged application port. Configure the routing port to match the port the application listens on.
