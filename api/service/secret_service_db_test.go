@@ -815,3 +815,67 @@ func TestWorkspaceTokenSetsListsAndDeletesSecrets(t *testing.T) {
 		t.Fatalf("delete with a workspace token: %v", err)
 	}
 }
+
+func (f *secretFixture) placement(t *testing.T, resourceID uuid.UUID, names []string) uuid.UUID {
+	t.Helper()
+	var id uuid.UUID
+	const insert = `
+WITH c AS (
+    INSERT INTO clusters (name, region, provider, is_active, is_default)
+    VALUES (uuidv7()::text, 'us-east-1', 'kind', true, false) RETURNING id
+)
+INSERT INTO placements (resource_id, cluster_id, region, environment_id, secret_names, desired_spec, applied_error)
+SELECT $3, c.id, 'us-east-1', $1, $2, '{}', 'secret missing' FROM c RETURNING id`
+	err := f.pool.QueryRow(t.Context(), insert, f.environmentID, names, resourceID).Scan(&id)
+	if err != nil {
+		t.Fatalf("placement: %v", err)
+	}
+	return id
+}
+
+func (f *secretFixture) placementRevision(t *testing.T, id uuid.UUID) (int64, *string) {
+	t.Helper()
+	var revision int64
+	var appliedError *string
+	query := `SELECT desired_revision, applied_error FROM placements WHERE id = $1`
+	if err := f.pool.QueryRow(t.Context(), query, id).Scan(&revision, &appliedError); err != nil {
+		t.Fatalf("placement %s: %v", id, err)
+	}
+	return revision, appliedError
+}
+
+func TestSecretChangesRollThePlacementsThatDeclareTheName(t *testing.T) {
+	f := newSecretFixture(t)
+	server := f.server(t, testLocalProvider(t, "k1"))
+	withStripe := f.placement(t, f.resourceID, []string{stripeKey, databaseURL})
+	withoutStripe := f.placement(t, f.resourceID, []string{databaseURL})
+
+	f.set(t, server, map[string]string{stripeKey: stripeValue})
+	if revision, appliedError := f.placementRevision(t, withStripe); revision != 2 || appliedError != nil {
+		t.Fatalf("placement declaring the name = revision %d error %v, want 2 and no error", revision, appliedError)
+	}
+	if revision, _ := f.placementRevision(t, withoutStripe); revision != 1 {
+		t.Fatalf("placement without the name rolled to revision %d", revision)
+	}
+
+	f.set(t, server, map[string]string{stripeKey: stripeValue})
+	if revision, _ := f.placementRevision(t, withStripe); revision != 2 {
+		t.Fatalf("an identical set rolled the placement to revision %d", revision)
+	}
+}
+
+func TestASecretChangeRollsOnlyTheServiceThatHoldsIt(t *testing.T) {
+	f := newSecretFixture(t)
+	server := f.server(t, testLocalProvider(t, "k1"))
+	worker := f.resource(t, f.workspaceID, workerService)
+	web := f.placement(t, f.resourceID, []string{stripeKey})
+	workers := f.placement(t, worker, []string{stripeKey})
+
+	f.set(t, server, map[string]string{stripeKey: stripeValue})
+	if revision, _ := f.placementRevision(t, web); revision != 2 {
+		t.Fatalf("web's placement = revision %d, want 2", revision)
+	}
+	if revision, appliedError := f.placementRevision(t, workers); revision != 1 || appliedError == nil {
+		t.Fatalf("worker's placement = revision %d error %v, want it untouched", revision, appliedError)
+	}
+}
