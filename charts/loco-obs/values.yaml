@@ -42,7 +42,7 @@ clickhouse:
   clickhouse:
     image:
       repository: altinity/clickhouse-server
-      tag: "25.3.6.10034.altinitystable@sha256:3396b15c51a2c13c0aead9532bd022e478a8f575fe325deacb7d0efeae594174"
+      tag: "26.3.33.10001.altinitystable@sha256:5bd62b50208bae1d065de7685b0b0a1812f267d1a179aabb15f97c78aed47d1a"
     podSecurityContext:
       runAsNonRoot: true
       runAsUser: 101

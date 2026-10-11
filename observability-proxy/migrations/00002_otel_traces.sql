@@ -25,16 +25,20 @@ CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_traces
     `Links.TraceState` Array(String) CODEC(ZSTD(1)),
     `Links.Attributes` Array(Map(LowCardinality(String), String)) CODEC(ZSTD(1)),
     `SampleRate` UInt64 MATERIALIZED greatest(toUInt64OrZero(SpanAttributes['SampleRate']), 1) CODEC(T64, ZSTD(1)),
+    `OrganizationId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.organization.id'] CODEC(ZSTD(1)),
     `WorkspaceId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.workspace.id'] CODEC(ZSTD(1)),
     `EnvironmentId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.environment.id'] CODEC(ZSTD(1)),
     `ResourceId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.resource.id'] CODEC(ZSTD(1)),
-    INDEX idx_trace_id TraceId TYPE bloom_filter(0.001) GRANULARITY 1,
-    INDEX idx_res_attr_key mapKeys(ResourceAttributes) TYPE bloom_filter(0.01) GRANULARITY 1,
-    INDEX idx_res_attr_value mapValues(ResourceAttributes) TYPE bloom_filter(0.01) GRANULARITY 1,
-    INDEX idx_span_attr_key mapKeys(SpanAttributes) TYPE bloom_filter(0.01) GRANULARITY 1,
-    INDEX idx_span_attr_value mapValues(SpanAttributes) TYPE bloom_filter(0.01) GRANULARITY 1,
+    `ResourceAttributeItems` Array(String) ALIAS arrayMap((arr) -> concat(arr.1, '=', arr.2), ResourceAttributes::Array(Tuple(String, String))),
+    `SpanAttributeItems` Array(String) ALIAS arrayMap((arr) -> concat(arr.1, '=', arr.2), SpanAttributes::Array(Tuple(String, String))),
+    INDEX idx_organization_id OrganizationId TYPE text(tokenizer = 'array'),
+    INDEX idx_trace_id TraceId TYPE text(tokenizer = 'array'),
+    INDEX idx_res_attr_key mapKeys(ResourceAttributes) TYPE text(tokenizer = 'array'),
+    INDEX idx_res_attr_items ResourceAttributeItems TYPE text(tokenizer = 'array'),
+    INDEX idx_span_attr_key mapKeys(SpanAttributes) TYPE text(tokenizer = 'array'),
+    INDEX idx_span_attr_items SpanAttributeItems TYPE text(tokenizer = 'array'),
     INDEX idx_duration Duration TYPE minmax GRANULARITY 1,
-    INDEX idx_lower_span_name lower(SpanName) TYPE tokenbf_v1(32768, 3, 0) GRANULARITY 8
+    INDEX idx_lower_span_name SpanName TYPE text(tokenizer = 'splitByNonAlpha', preprocessor = lower(SpanName))
 )
 ENGINE = MergeTree
 PARTITION BY toDate(Timestamp)
@@ -44,6 +48,7 @@ SETTINGS index_granularity = 8192, ttl_only_drop_parts = 1;
 
 CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_traces_trace_id_ts
 (
+    `OrganizationId` LowCardinality(String) CODEC(ZSTD(1)),
     `WorkspaceId` LowCardinality(String) CODEC(ZSTD(1)),
     `EnvironmentId` LowCardinality(String) CODEC(ZSTD(1)),
     `ResourceId` LowCardinality(String) CODEC(ZSTD(1)),
@@ -62,6 +67,7 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS ${DATABASE}.otel_traces_trace_id_ts_mv
 TO ${DATABASE}.otel_traces_trace_id_ts
 DEFINER = CURRENT_USER SQL SECURITY DEFINER
 AS SELECT
+    OrganizationId,
     WorkspaceId,
     EnvironmentId,
     ResourceId,
@@ -70,4 +76,4 @@ AS SELECT
     max(Timestamp) AS End
 FROM ${DATABASE}.otel_traces
 WHERE TraceId != ''
-GROUP BY WorkspaceId, EnvironmentId, ResourceId, TraceId;
+GROUP BY OrganizationId, WorkspaceId, EnvironmentId, ResourceId, TraceId;

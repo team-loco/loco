@@ -25,6 +25,7 @@ const (
 	testLogsTTL        = 72 * time.Hour
 	testTracesTTL      = 36 * time.Hour
 	testMetricsTTL     = 90 * time.Minute
+	testOrganizationID = "99999999-8888-7777-6666-555555555555"
 	testWorkspaceID    = "11111111-2222-3333-4444-555555555555"
 	testEnvironmentID  = "66666666-7777-8888-9999-000000000000"
 	testResourceID     = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
@@ -318,10 +319,11 @@ func TestTTLsFromConfigLandOnTables(t *testing.T) {
 
 func tenantResource() map[string]string {
 	return map[string]string{
-		"service.name":        testServiceName,
-		"loco.workspace.id":   testWorkspaceID,
-		"loco.environment.id": testEnvironmentID,
-		"loco.resource.id":    testResourceID,
+		"service.name":         testServiceName,
+		"loco.organization.id": testOrganizationID,
+		"loco.workspace.id":    testWorkspaceID,
+		"loco.environment.id":  testEnvironmentID,
+		"loco.resource.id":     testResourceID,
 	}
 }
 
@@ -566,17 +568,19 @@ func TestExporterShapedRowsInsertAndCarryTenancy(t *testing.T) {
 		})
 	}
 	t.Run(traceLookupTable, func(t *testing.T) {
-		var workspaceID, traceID string
+		var organizationID, workspaceID, traceID string
 		var start, end time.Time
 		err := db.admin.QueryRow(
 			t.Context(),
-			"SELECT WorkspaceId, TraceId, Start, End FROM "+db.cfg.Database+".otel_traces_trace_id_ts",
-		).Scan(&workspaceID, &traceID, &start, &end)
+			"SELECT OrganizationId, WorkspaceId, TraceId, Start, End FROM "+db.cfg.Database+".otel_traces_trace_id_ts",
+		).Scan(&organizationID, &workspaceID, &traceID, &start, &end)
 		if err != nil {
 			t.Fatalf("read trace lookup: %v", err)
 		}
-		if workspaceID != testWorkspaceID || traceID != testTraceID {
-			t.Errorf("trace lookup = (%q, %q), want (%q, %q)", workspaceID, traceID, testWorkspaceID, testTraceID)
+		got := []string{organizationID, workspaceID, traceID}
+		want := []string{testOrganizationID, testWorkspaceID, testTraceID}
+		if !slices.Equal(got, want) {
+			t.Errorf("trace lookup = %v, want %v", got, want)
 		}
 		if !start.Equal(now) || !end.Equal(now) {
 			t.Errorf("trace lookup span = %s..%s, want %s", start, end, now)
@@ -586,16 +590,16 @@ func TestExporterShapedRowsInsertAndCarryTenancy(t *testing.T) {
 
 func (d *testDatabase) assertTenancy(t *testing.T, table string) {
 	t.Helper()
-	var workspaceID, environmentID, resourceID string
+	var organizationID, workspaceID, environmentID, resourceID string
 	err := d.admin.QueryRow(
 		t.Context(),
-		"SELECT WorkspaceId, EnvironmentId, ResourceId FROM "+d.cfg.Database+"."+table,
-	).Scan(&workspaceID, &environmentID, &resourceID)
+		"SELECT OrganizationId, WorkspaceId, EnvironmentId, ResourceId FROM "+d.cfg.Database+"."+table,
+	).Scan(&organizationID, &workspaceID, &environmentID, &resourceID)
 	if err != nil {
 		t.Fatalf("read tenancy columns: %v", err)
 	}
-	got := []string{workspaceID, environmentID, resourceID}
-	want := []string{testWorkspaceID, testEnvironmentID, testResourceID}
+	got := []string{organizationID, workspaceID, environmentID, resourceID}
+	want := []string{testOrganizationID, testWorkspaceID, testEnvironmentID, testResourceID}
 	if !slices.Equal(got, want) {
 		t.Errorf("tenancy columns = %v, want %v", got, want)
 	}
