@@ -113,8 +113,10 @@ proxy_value() {
 proxy_vars=()
 for name in $(yq '.[].name' <<<"$proxy_env"); do
 	[ "$name" = PROXY_AUTH_TOKEN ] && continue
+	[ "$name" = MIGRATION_LOCK ] && continue
 	proxy_vars+=("$name=$(proxy_value "$name")")
 done
+proxy_vars+=("MIGRATION_LOCK=none")
 env "${proxy_vars[@]}" PORT="$proxy_port" "$workdir/loco-obs-proxy" >"$workdir/proxy.log" 2>&1 &
 proxy_pid=$!
 if ! wait_for "Observability proxy readiness" curl -sf "http://127.0.0.1:$proxy_port/readyz"; then

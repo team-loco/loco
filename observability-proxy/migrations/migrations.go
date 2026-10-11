@@ -5,6 +5,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"path"
 	"regexp"
@@ -103,6 +104,10 @@ func up(ctx context.Context, cfg Config) ([]*goose.MigrationResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	return apply(ctx, cfg, rendered)
+}
+
+func apply(ctx context.Context, cfg Config, migrations fs.FS) ([]*goose.MigrationResult, error) {
 	opts, err := clickhouse.ParseDSN(cfg.DSN)
 	if err != nil {
 		return nil, fmt.Errorf("parse migrator DSN: %w", err)
@@ -120,7 +125,7 @@ func up(ctx context.Context, cfg Config) ([]*goose.MigrationResult, error) {
 	provider, err := goose.NewProvider(
 		goose.DialectClickHouse,
 		db,
-		rendered,
+		migrations,
 		goose.WithTableName(VersionTable),
 		goose.WithDisableGlobalRegistry(true),
 		goose.WithIsolateDDL(true),

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -14,6 +15,9 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	coordinationv1client "k8s.io/client-go/kubernetes/typed/coordination/v1"
+	"k8s.io/client-go/rest"
+
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	"github.com/team-loco/loco/internal/buildinfo"
 	"github.com/team-loco/loco/observability-proxy/migrations"
@@ -21,6 +25,7 @@ import (
 	"github.com/team-loco/loco/observability-proxy/pkg/cache"
 	chClient "github.com/team-loco/loco/observability-proxy/pkg/clickhouse"
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
+	"github.com/team-loco/loco/observability-proxy/pkg/migrationlock"
 	"github.com/team-loco/loco/observability-proxy/service"
 )
 
@@ -31,14 +36,40 @@ const (
 
 var version string
 
+var errUnknownMigrationLock = errors.New("unknown migration lock")
+
+type migrationLock interface {
+	WithLock(ctx context.Context, fn func(context.Context) error) error
+}
+
 type proxy struct {
 	server    *http.Server
 	ch        *chClient.Client
 	permCache *cache.MemoryCache
 	migrated  *atomic.Bool
+	lock      migrationLock
 }
 
-func newProxy(cfg *config.Config) (*proxy, error) {
+func newMigrationLock(cfg *config.Config) (migrationLock, error) {
+	switch cfg.MigrationLock {
+	case config.MigrationLockKubernetes:
+		restConfig, err := rest.InClusterConfig()
+		if err != nil {
+			return nil, fmt.Errorf("load in-cluster kubernetes config: %w", err)
+		}
+		client, err := coordinationv1client.NewForConfig(restConfig)
+		if err != nil {
+			return nil, fmt.Errorf("create coordination client: %w", err)
+		}
+		return migrationlock.New(client, cfg.MigrationLease), nil
+	case config.MigrationLockNone:
+		return migrationlock.None{}, nil
+	default:
+		return nil, fmt.Errorf("%w: %q", errUnknownMigrationLock, cfg.MigrationLock)
+	}
+}
+
+func newProxy(cfg *config.Config, lock migrationLock) (*proxy, error) {
 	ch, err := chClient.NewClient(cfg.ClickHouseURL, cfg.ClickHouseDB, cfg.MaxConcurrent)
 	if err != nil {
 		return nil, fmt.Errorf("connect to clickhouse: %w", err)
@@ -90,7 +121,7 @@ func newProxy(cfg *config.Config) (*proxy, error) {
 		ReadHeaderTimeout: readHeaderTimeout,
 	}
 
-	return &proxy{server: server, ch: ch, permCache: permCache, migrated: migrated}, nil
+	return &proxy{server: server, ch: ch, permCache: permCache, migrated: migrated, lock: lock}, nil
 }
 
 func (p *proxy) migrate(ctx context.Context, cfg *config.Config) error {
@@ -102,7 +133,12 @@ func (p *proxy) migrate(ctx context.Context, cfg *config.Config) error {
 		MetricsTTL: cfg.MetricsTTL,
 	}
 	retry := migrations.Retry{Budget: cfg.MigrationRetryBudget, Interval: cfg.MigrationRetryInterval}
-	if err := migrations.UpWithRetry(ctx, schema, retry); err != nil {
+	budgetCtx, cancel := context.WithTimeout(ctx, cfg.MigrationRetryBudget)
+	defer cancel()
+	err := p.lock.WithLock(budgetCtx, func(leaseCtx context.Context) error {
+		return migrations.UpWithRetry(leaseCtx, schema, retry)
+	})
+	if err != nil {
 		return fmt.Errorf("migrate clickhouse schema: %w", err)
 	}
 	p.migrated.Store(true)
@@ -177,7 +213,11 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	p, err := newProxy(cfg)
+	lock, err := newMigrationLock(cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	p, err := newProxy(cfg, lock)
 	if err != nil {
 		log.Fatal(err)
 	}
