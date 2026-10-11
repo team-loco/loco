@@ -27,7 +27,7 @@ var (
 	errBuildServiceNotCreated = errors.New("the service has no resource yet; apply the file before building it")
 	errImagesMoved            = errors.New("an image reference resolves to another digest than the plan showed")
 	errProvisionWithBuilds    = errors.New("an apply provisions services or deploys builds, not both")
-	errProvisionNotPlanned    = errors.New("the plan does not create the service from source")
+	errProvisionNotPlanned    = errors.New("the plan does not create the service")
 )
 
 // Apply re-plans the file against the environment and performs the plan's operations in one
@@ -37,7 +37,7 @@ func (s *PlanServer) Apply(
 	req *connect.Request[planv1.ApplyRequest],
 ) (*connect.Response[planv1.ApplyResponse], error) {
 	r := req.Msg
-	planned, err := s.loadPlan(ctx, r.GetFile(), r.GetEnvironmentId(), actions.Apply)
+	planned, err := s.loadPlan(ctx, r.GetFile(), r.GetEnvironmentId(), actions.Apply, r.GetProvision())
 	if err != nil {
 		return nil, err
 	}
@@ -77,6 +77,7 @@ func (s *PlanServer) Apply(
 		deployed:        map[string]bool{},
 		platformDomains: planned.platformDomains,
 		defaults:        s.defaults,
+		provisioning:    len(r.GetProvision()) > 0,
 	}
 	var revision int64
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -157,7 +158,7 @@ func selectOperations(
 		if !slices.Contains(provision, op.Service) {
 			continue
 		}
-		if op.Kind == configplan.KindCreate && op.Desired.Image == "" {
+		if op.Kind == configplan.KindCreate {
 			selected = append(selected, op)
 		}
 	}

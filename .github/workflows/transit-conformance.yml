@@ -1,0 +1,55 @@
+name: Transit Conformance
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "api/pkg/secretkeys/**"
+      - "env/transit-conformance/**"
+      - "mise-tasks/test/transit-conformance"
+      - ".github/workflows/transit-conformance.yml"
+  pull_request:
+    paths:
+      - "api/pkg/secretkeys/**"
+      - "env/transit-conformance/**"
+      - "mise-tasks/test/transit-conformance"
+      - ".github/workflows/transit-conformance.yml"
+  merge_group:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Transit Conformance Changes
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.changes.outputs.run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - id: changes
+        uses: ./.github/actions/merge-queue-changes
+
+  conformance:
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    name: Transit Conformance
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-tools
+        with:
+          go-cache: transit-conformance
+
+      - name: Run the transit key provider against OpenBao and Vault
+        run: mise run test:transit-conformance
+        timeout-minutes: 10

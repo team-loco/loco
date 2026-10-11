@@ -13,8 +13,10 @@ import (
 //
 //  1. the environments of the workspace, in ascending id (lockWorkspaceEnvironments or
 //     lockResourceEnvironments)
-//  2. the resources it writes, in ascending id (lockResources or lockResource)
-//  3. the resource region, deployment, placement and domain rows of those resources
+//  2. the environment_keys row of an environment whose secrets it reads or writes
+//     (SecretServer.lockEnvironmentKey)
+//  3. the resources it writes, in ascending id (lockResources or lockResource)
+//  4. the resource region, deployment, placement and domain rows of those resources
 //
 // A writer may skip a level it does not touch, never take one out of order, so two writers
 // wait on each other in a line and never in a cycle.

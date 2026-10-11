@@ -8,6 +8,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,15 +39,20 @@ var _ = Describe("Application reconcile", func() {
 				WorkspaceID: "ws",
 				ServiceSpec: &locov1alpha1.ServiceSpec{
 					Deployment: &locov1alpha1.ServiceDeploymentSpec{
-						Image: "registry.example.com/app:v1",
-						Port:  8080,
-						Env:   map[string]string{"B": "2", "A": "1", "C": "3"},
+						Image:        "registry.example.com/app:v1",
+						Port:         8080,
+						Env:          map[string]string{"B": "2", "A": "1", "C": "3"},
+						EnvSecretRef: &locov1alpha1.EnvSecretRef{Name: "env-converge", Revision: 2},
 					},
 					Resources: testResources(),
 				},
 			},
 		}
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
+		podRole := &rbacv1.Role{Name: getRoleName(app), Namespace: getNamespace(app)}
+		podNamespace := &corev1.Namespace{Name: getNamespace(app)}
+		Expect(k8sClient.Create(ctx, podNamespace)).To(Succeed())
+		Expect(k8sClient.Create(ctx, podRole)).To(Succeed())
 
 		r := &LocoResourceReconciler{
 			Client:         k8sClient,
@@ -63,11 +69,40 @@ var _ = Describe("Application reconcile", func() {
 
 		result, err := r.Reconcile(ctx, req)
 		Expect(err).NotTo(HaveOccurred())
+		Expect(result.RequeueAfter).To(Equal(envSecretRequeue))
+		Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
+		Expect(app.Status.Phase).To(Equal(phaseDeploying))
+		dep := &appsv1.Deployment{}
+		err = k8sClient.Get(ctx, depKey, dep)
+		Expect(apierrors.IsNotFound(err)).To(BeTrue(), "a Deployment was created before its secrets arrived")
+
+		staged := &corev1.Secret{
+			Name: "env-converge", Namespace: testNamespace,
+			Labels: map[string]string{locov1alpha1.LabelPlacementRevision: "1"},
+			Data:   map[string][]byte{"DATABASE_URL": []byte("postgres://old")},
+		}
+		Expect(k8sClient.Create(ctx, staged)).To(Succeed())
+		result, err = r.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(result.RequeueAfter).To(Equal(envSecretRequeue))
+
+		staged.Labels[locov1alpha1.LabelPlacementRevision] = "2"
+		staged.Data["DATABASE_URL"] = []byte("postgres://new")
+		Expect(k8sClient.Update(ctx, staged)).To(Succeed())
+		result, err = r.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
 		Expect(result.RequeueAfter).To(Equal(deployingRequeue))
 
-		dep := &appsv1.Deployment{}
 		Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
-		Expect(dep.Spec.Template.Spec.Containers[0].EnvFrom[0].SecretRef.Name).To(Equal(envSecretName))
+		container := dep.Spec.Template.Spec.Containers[0]
+		Expect(container.EnvFrom[0].SecretRef.Name).To(Equal(envSecretName))
+		Expect(container.Env[0]).To(Equal(corev1.EnvVar{Name: "A", Value: "1"}))
+		Expect(dep.Spec.Template.Annotations).To(HaveKeyWithValue(annotationEnvSecretRevision, "2"))
+		envSecret := &corev1.Secret{}
+		Expect(k8sClient.Get(ctx, envKey, envSecret)).To(Succeed())
+		Expect(envSecret.Data).To(Equal(map[string][]byte{"DATABASE_URL": []byte("postgres://new")}))
+		err = k8sClient.Get(ctx, client.ObjectKeyFromObject(podRole), podRole)
+		Expect(apierrors.IsNotFound(err)).To(BeTrue(), "the pod's Secret-reading Role survived")
 		imageSecret := &corev1.Secret{}
 		Expect(k8sClient.Get(ctx, imageKey, imageSecret)).To(Succeed())
 		Expect(imageSecret.Type).To(Equal(corev1.SecretTypeDockerConfigJson))
@@ -95,6 +130,28 @@ var _ = Describe("Application reconcile", func() {
 		Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
 		Expect(app.ResourceVersion).To(Equal(appVersion))
 
+		staged.Labels[locov1alpha1.LabelPlacementRevision] = "3"
+		staged.Data["DATABASE_URL"] = []byte("postgres://next")
+		Expect(k8sClient.Update(ctx, staged)).To(Succeed())
+		result, err = r.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(result.RequeueAfter).To(Equal(envSecretRequeue))
+		Expect(k8sClient.Get(ctx, envKey, envSecret)).To(Succeed())
+		Expect(envSecret.Data).To(HaveKeyWithValue("DATABASE_URL", []byte("postgres://new")),
+			"the env Secret was copied ahead of the Application's reference")
+		Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
+		Expect(dep.Spec.Template.Annotations).To(HaveKeyWithValue(annotationEnvSecretRevision, "2"))
+
+		Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
+		app.Spec.ServiceSpec.Deployment.EnvSecretRef.Revision = 3
+		Expect(k8sClient.Update(ctx, app)).To(Succeed())
+		_, err = r.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(k8sClient.Get(ctx, envKey, envSecret)).To(Succeed())
+		Expect(envSecret.Data).To(HaveKeyWithValue("DATABASE_URL", []byte("postgres://next")))
+		Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
+		Expect(dep.Spec.Template.Annotations).To(HaveKeyWithValue(annotationEnvSecretRevision, "3"))
+
 		rotated := []byte(`{"auths":{"registry.example.com":{}}}`)
 		pullSecret.Data = map[string][]byte{corev1.DockerConfigJsonKey: rotated}
 		Expect(k8sClient.Update(ctx, pullSecret)).To(Succeed())
@@ -111,18 +168,18 @@ var _ = Describe("Application reconcile", func() {
 		Expect(k8sClient.Get(ctx, depKey, sa)).To(Succeed())
 		Expect(sa.ImagePullSecrets).To(BeEmpty())
 
-		app.Spec.ServiceSpec.Deployment.Env = map[string]string{"A": "changed"}
+		Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
+		app.Spec.ServiceSpec.Deployment.EnvSecretRef = nil
 		Expect(k8sClient.Update(ctx, app)).To(Succeed())
 		_, err = r.Reconcile(ctx, req)
 		Expect(err).NotTo(HaveOccurred())
-
-		envSecret := &corev1.Secret{}
-		Expect(k8sClient.Get(ctx, envKey, envSecret)).To(Succeed())
-		Expect(envSecret.Data).To(HaveKeyWithValue("A", []byte("changed")))
-		Expect(envSecret.Data).NotTo(HaveKey("B"))
+		err = k8sClient.Get(ctx, envKey, envSecret)
+		Expect(apierrors.IsNotFound(err)).To(BeTrue(), "the env Secret outlived its reference")
 		Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
-		Expect(dep.Spec.Template.Annotations).To(HaveKeyWithValue(annotationEnvSecretRV, envSecret.ResourceVersion))
+		Expect(dep.Spec.Template.Spec.Containers[0].EnvFrom).To(BeEmpty())
+		Expect(dep.Spec.Template.Annotations).NotTo(HaveKey(annotationEnvSecretRevision))
 
+		Expect(k8sClient.Delete(ctx, staged)).To(Succeed())
 		Expect(k8sClient.Delete(ctx, app)).To(Succeed())
 		_, err = r.Reconcile(ctx, req)
 		Expect(err).NotTo(HaveOccurred())
@@ -225,6 +282,37 @@ var _ = Describe("Application reconcile", func() {
 		_, err = r.Reconcile(ctx, secondReq)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(k8sClient.Delete(ctx, pullSecret)).To(Succeed())
+	})
+
+	It("lets a system variable win over a plain env entry of the same name", func() {
+		Expect(v1Gateway.Install(scheme.Scheme)).To(Succeed())
+
+		app := isolationTestApplication("ws-system-env", "system-env")
+		app.Spec.ServiceSpec.Routing = nil
+		app.Spec.ServiceSpec.Deployment.Env = map[string]string{envRegion: "user-value", "A": "1"}
+		Expect(k8sClient.Create(ctx, app)).To(Succeed())
+
+		r := &LocoResourceReconciler{Client: k8sClient, Scheme: k8sClient.Scheme(), LocoNamespace: testNamespace}
+		appKey := client.ObjectKeyFromObject(app)
+		req := reconcile.Request{NamespacedName: appKey}
+		_, err := r.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+
+		dep := &appsv1.Deployment{}
+		depKey := client.ObjectKey{Namespace: getNamespace(app), Name: getName(app)}
+		Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
+		var regions []corev1.EnvVar
+		for _, envVar := range dep.Spec.Template.Spec.Containers[0].Env {
+			if envVar.Name == envRegion {
+				regions = append(regions, envVar)
+			}
+		}
+		Expect(regions).To(ConsistOf(corev1.EnvVar{Name: envRegion, Value: app.Spec.Region}))
+		Expect(dep.Spec.Template.Spec.Containers[0].Env).To(ContainElement(corev1.EnvVar{Name: "A", Value: "1"}))
+
+		Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+		_, err = r.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
 	})
 
 	It("marks an invalid spec failed and still lets it be deleted", func() {

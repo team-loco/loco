@@ -9,6 +9,7 @@ import (
 
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/pkg/registryclient"
+	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/service"
 )
@@ -30,6 +31,21 @@ const (
 	testHookURL      = "https://hooks.loco.test/events"
 	testDatabaseURL  = "postgres://db.loco.test:5432/loco"
 	testHookSecret   = "whsec_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+	keyProviderEnv   = "LOCO_SECRETS_KEY_PROVIDER"
+	kekListEnv       = "LOCO_SECRETS_LOCAL_KEYS"
+	testKEK          = "k1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+	transitAddrEnv   = "LOCO_SECRETS_TRANSIT_ADDR"
+	transitMountEnv  = "LOCO_SECRETS_TRANSIT_MOUNT"
+	transitKeyEnv    = "LOCO_SECRETS_TRANSIT_KEY"
+	transitAuthEnv   = "LOCO_SECRETS_TRANSIT_TOKEN"
+	transitCAEnv     = "LOCO_SECRETS_TRANSIT_CA_FILE"
+	transitTimeEnv   = "LOCO_SECRETS_TRANSIT_TIMEOUT"
+	transitMarginEnv = "LOCO_SECRETS_TRANSIT_RENEW_MARGIN"
+	transitRetryEnv  = "LOCO_SECRETS_TRANSIT_RENEW_RETRY"
+	transitCacheEnv  = "LOCO_SECRETS_TRANSIT_CACHE_TTL"
+	testTransitAddr  = "https://bao.loco.test:8200"
+	testTransitKey   = "loco-dek"
+	testTransitAuth  = "s.transit"
 )
 
 var adminIssuers = `[{"issuer":"` + testIssuer + `","audience":"loco",` +
@@ -85,6 +101,21 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv("AUTH_SIGNUP_DOMAINS", "")
 	t.Setenv("MIN_CLI_VERSION", "")
 	t.Setenv(testAdminEnv, "")
+	t.Setenv(keyProviderEnv, "")
+	t.Setenv(kekListEnv, "")
+	t.Setenv(transitAddrEnv, "")
+	t.Setenv(transitMountEnv, "")
+	t.Setenv(transitKeyEnv, "")
+	t.Setenv(transitAuthEnv, "")
+	t.Setenv(transitCAEnv, "")
+	t.Setenv(transitTimeEnv, "")
+	t.Setenv(transitMarginEnv, "")
+	t.Setenv(transitRetryEnv, "")
+	t.Setenv(transitCacheEnv, "")
+	t.Setenv("LOCO_SECRETS_MAX_VALUE_BYTES", "")
+	t.Setenv("LOCO_SECRETS_MAX_PER_SERVICE", "")
+	t.Setenv("LOCO_SECRETS_MAX_PLACEMENT_BYTES", "")
+	t.Setenv("LOCO_SECRETS_LOCK_TIMEOUT", "")
 }
 
 func TestNewAPIConfigDefaults(t *testing.T) {
@@ -149,6 +180,46 @@ func TestNewAPIConfigDefaults(t *testing.T) {
 	}
 	if ac.SignupPolicy.Mode != auth.SignupOpen {
 		t.Errorf("signup mode = %q, want %q", ac.SignupPolicy.Mode, auth.SignupOpen)
+	}
+	wantSecrets := service.SecretConfig{
+		MaxValueBytes:     defaultSecretMaxValueBytes,
+		MaxPerService:     defaultSecretMaxPerService,
+		MaxPlacementBytes: defaultSecretMaxPlacementBytes,
+		LockTimeout:       defaultSecretLockTimeout,
+	}
+	if ac.SecretLimits != wantSecrets {
+		t.Errorf("secret limits = %+v, want %+v", ac.SecretLimits, wantSecrets)
+	}
+}
+
+func TestNewAPIConfigReadsSecretLimits(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv("LOCO_SECRETS_MAX_VALUE_BYTES", "1024")
+	t.Setenv("LOCO_SECRETS_MAX_PER_SERVICE", "8")
+	t.Setenv("LOCO_SECRETS_MAX_PLACEMENT_BYTES", "4096")
+	t.Setenv("LOCO_SECRETS_LOCK_TIMEOUT", "250ms")
+	limits := newAPIConfig().SecretLimits
+	want := service.SecretConfig{
+		MaxValueBytes:     1024,
+		MaxPerService:     8,
+		MaxPlacementBytes: 4096,
+		LockTimeout:       250 * time.Millisecond,
+	}
+	if limits != want {
+		t.Errorf("secret limits = %+v, want %+v", limits, want)
+	}
+	for _, name := range []string{
+		"LOCO_SECRETS_MAX_PER_SERVICE",
+		"LOCO_SECRETS_MAX_PLACEMENT_BYTES",
+		"LOCO_SECRETS_LOCK_TIMEOUT",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Setenv(name, "0")
+			err := panicValue(t, func() { newAPIConfig() })
+			if !errors.Is(err, errNotPositive) {
+				t.Errorf("panic = %v, want %v", err, errNotPositive)
+			}
+		})
 	}
 }
 
@@ -421,6 +492,117 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 				"LOCO_REGISTRY_URL": "https://registry.loco.test/v2",
 			},
 			errInvalidRegistry,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clearAPIConfigEnv(t)
+			for key, value := range tt.env {
+				t.Setenv(key, value)
+			}
+			err := panicValue(t, func() { newAPIConfig() })
+			if !errors.Is(err, tt.want) {
+				t.Errorf("panic = %v, want %v", err, tt.want)
+			}
+		})
+	}
+}
+
+func TestNewAPIConfigReadsSecretsProvider(t *testing.T) {
+	clearAPIConfigEnv(t)
+	if provider := newAPIConfig().Secrets.Provider; provider != "" {
+		t.Errorf("secrets provider = %q, want none", provider)
+	}
+	t.Setenv(keyProviderEnv, secretkeys.ProviderLocal)
+	t.Setenv(kekListEnv, testKEK)
+	cfg := newAPIConfig().Secrets
+	if cfg.Provider != secretkeys.ProviderLocal || len(cfg.LocalKeys) != 1 || cfg.LocalKeys[0].ID != "k1" {
+		t.Errorf("secrets config = %+v, want local with key k1", cfg)
+	}
+}
+
+func TestNewAPIConfigReadsTransitProvider(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv(keyProviderEnv, secretkeys.ProviderTransit)
+	t.Setenv(transitAddrEnv, testTransitAddr)
+	t.Setenv(transitKeyEnv, testTransitKey)
+	t.Setenv(transitAuthEnv, testTransitAuth)
+	cfg := newAPIConfig().Secrets
+	want := secretkeys.TransitConfig{
+		Address:     testTransitAddr,
+		Mount:       defaultSecretsTransitMount,
+		Key:         testTransitKey,
+		Token:       testTransitAuth,
+		Timeout:     defaultSecretsTransitTimeout,
+		RenewMargin: defaultSecretsTransitMargin,
+		RenewRetry:  defaultSecretsTransitRetry,
+		CacheTTL:    defaultSecretsTransitDEKTTL,
+	}
+	if cfg.Provider != secretkeys.ProviderTransit || cfg.Transit != want {
+		t.Errorf("secrets config = %+v, want transit %+v", cfg, want)
+	}
+
+	t.Setenv(transitMountEnv, "kms/transit")
+	t.Setenv(transitCAEnv, "/etc/loco/bao-ca.pem")
+	t.Setenv(transitTimeEnv, "3s")
+	t.Setenv(transitMarginEnv, "1m")
+	t.Setenv(transitRetryEnv, "2s")
+	t.Setenv(transitCacheEnv, "30s")
+	cfg = newAPIConfig().Secrets
+	want.Mount = "kms/transit"
+	want.CAFile = "/etc/loco/bao-ca.pem"
+	want.Timeout = 3 * time.Second
+	want.RenewMargin = time.Minute
+	want.RenewRetry = 2 * time.Second
+	want.CacheTTL = 30 * time.Second
+	if cfg.Transit != want {
+		t.Errorf("transit config = %+v, want %+v", cfg.Transit, want)
+	}
+}
+
+func TestNewAPIConfigPanicsOnBadSecretsProvider(t *testing.T) {
+	tests := []struct {
+		name string
+		env  map[string]string
+		want error
+	}{
+		{
+			"local without keys",
+			map[string]string{keyProviderEnv: secretkeys.ProviderLocal},
+			errSecretsLocalKeysMissing,
+		},
+		{
+			"local with a short key",
+			map[string]string{keyProviderEnv: secretkeys.ProviderLocal, kekListEnv: "k1:c2hvcnQ="},
+			errInvalidSecretsLocalKeys,
+		},
+		{"unknown provider", map[string]string{keyProviderEnv: "vault"}, errUnknownSecretsProvider},
+		{
+			"transit without an address",
+			map[string]string{
+				keyProviderEnv: secretkeys.ProviderTransit,
+				transitKeyEnv:  testTransitKey,
+				transitAuthEnv: testTransitAuth,
+			},
+			secretkeys.ErrTransitAddress,
+		},
+		{
+			"transit without a token",
+			map[string]string{
+				keyProviderEnv: secretkeys.ProviderTransit,
+				transitAddrEnv: testTransitAddr,
+				transitKeyEnv:  testTransitKey,
+			},
+			secretkeys.ErrTransitToken,
+		},
+		{
+			"transit without a key",
+			map[string]string{
+				keyProviderEnv: secretkeys.ProviderTransit,
+				transitAddrEnv: testTransitAddr,
+				transitAuthEnv: testTransitAuth,
+			},
+			secretkeys.ErrTransitKeyName,
 		},
 	}
 	for _, tt := range tests {

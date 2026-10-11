@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/config"
+	envcmd "github.com/team-loco/loco/cmd/loco/env"
 	"github.com/team-loco/loco/cmd/loco/infra"
 	"github.com/team-loco/loco/cmd/loco/org"
 	"github.com/team-loco/loco/cmd/loco/resource"
@@ -73,6 +74,7 @@ func NewRootCmd(env Env) *cobra.Command {
 	root.AddCommand(infra.BuildDeployCmd())
 	root.AddCommand(resource.BuildResourceCmd())
 	root.AddCommand(resource.BuildBuildsCmd())
+	root.AddCommand(envcmd.BuildEnvCmd())
 	root.AddCommand(org.BuildOrgCmd())
 	root.AddCommand(workspace.BuildWorkspaceCmd())
 	root.AddCommand(token.BuildTokenCmd())

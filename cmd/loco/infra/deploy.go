@@ -47,6 +47,9 @@ service builds with its own dockerfile and context. The archive honors the .dock
 that directory, keeps every Dockerfile it builds, and never contains .git, .env or .env.*
 files. A new source service is created first so it can be built; every other change of the
 plan is applied with the builds. Ctrl-C while a build runs detaches without canceling it.
+A new service whose only plan errors are the secrets it declares is created without being
+built or deployed; the command prints the loco env set command for its secrets and exits
+with an error, and the next deploy builds and deploys it.
 Image services are applied without a build. Without service names, every source service the
 file runs in the environment is built.
 
@@ -102,6 +105,9 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 		return err
 	}
 	if len(plan.GetErrors()) > 0 {
+		if handled, provisionErr := provisionForSecrets(ctx, t, data, plan, services, confirm, os.Stdout); handled {
+			return provisionErr
+		}
 		return planErrorsError(filePath, plan.GetErrors())
 	}
 	if writeErr := writePlan(os.Stdout, filePath, plan); writeErr != nil {

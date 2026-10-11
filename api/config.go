@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -9,6 +10,7 @@ import (
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/registryclient"
+	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
 	"github.com/team-loco/loco/api/service"
@@ -22,17 +24,21 @@ var (
 	errUnknownCacheType   = errors.New("unknown cache type")
 	errInvalidSourceBytes = errors.New("LOCO_SOURCE_MAX_BYTES is not a positive integer")
 
-	errInvalidForcePathStyle  = errors.New("LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE is not a boolean")
-	errInvalidServiceDefault  = errors.New("invalid service default")
-	errRegistryAuthPartial    = errors.New("LOCO_REGISTRY_USERNAME and LOCO_REGISTRY_PASSWORD must be set together")
-	errRegistryAuthNoHost     = errors.New("LOCO_REGISTRY_USERNAME is set without LOCO_REGISTRY_HOST")
-	errInvalidRegistry        = errors.New("invalid registry configuration")
-	errInvalidWebhooksPrivate = errors.New("WEBHOOK_ALLOW_PRIVATE_NETWORKS is not a boolean")
-	errInvalidInstallWebhooks = errors.New("INSTALL_WEBHOOKS is invalid")
-	errInvalidAuthIssuers     = errors.New("AUTH_ISSUERS is invalid")
-	errAdminTokenMissing      = errors.New("AUTH_ISSUERS admin tokenEnv names an unset variable")
-	errInvalidSignupPolicy    = errors.New("AUTH_SIGNUP_MODE is invalid")
-	errInvalidMinCLIVersion   = errors.New("MIN_CLI_VERSION is not a semantic version like v0.0.61")
+	errInvalidForcePathStyle   = errors.New("LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE is not a boolean")
+	errInvalidServiceDefault   = errors.New("invalid service default")
+	errRegistryAuthPartial     = errors.New("LOCO_REGISTRY_USERNAME and LOCO_REGISTRY_PASSWORD must be set together")
+	errRegistryAuthNoHost      = errors.New("LOCO_REGISTRY_USERNAME is set without LOCO_REGISTRY_HOST")
+	errInvalidRegistry         = errors.New("invalid registry configuration")
+	errInvalidWebhooksPrivate  = errors.New("WEBHOOK_ALLOW_PRIVATE_NETWORKS is not a boolean")
+	errInvalidInstallWebhooks  = errors.New("INSTALL_WEBHOOKS is invalid")
+	errInvalidAuthIssuers      = errors.New("AUTH_ISSUERS is invalid")
+	errAdminTokenMissing       = errors.New("AUTH_ISSUERS admin tokenEnv names an unset variable")
+	errInvalidSignupPolicy     = errors.New("AUTH_SIGNUP_MODE is invalid")
+	errInvalidMinCLIVersion    = errors.New("MIN_CLI_VERSION is not a semantic version like v0.0.61")
+	errSecretsLocalKeysMissing = errors.New("LOCO_SECRETS_LOCAL_KEYS required when LOCO_SECRETS_KEY_PROVIDER=local")
+	errInvalidSecretsLocalKeys = errors.New("LOCO_SECRETS_LOCAL_KEYS is invalid")
+	errUnknownSecretsProvider  = errors.New("LOCO_SECRETS_KEY_PROVIDER is invalid")
+	errInvalidSecretsTransit   = errors.New("LOCO_SECRETS_TRANSIT_* is invalid")
 )
 
 const (
@@ -73,6 +79,17 @@ const (
 
 	day                        = 24 * time.Hour
 	defaultEventsRetentionDays = 90
+
+	defaultSecretMaxValueBytes     = 64 * 1024
+	defaultSecretMaxPerService     = 256
+	defaultSecretMaxPlacementBytes = 768 * 1024
+	defaultSecretLockTimeout       = 10 * time.Second
+
+	defaultSecretsTransitMount   = "transit"
+	defaultSecretsTransitTimeout = 10 * time.Second
+	defaultSecretsTransitMargin  = 5 * time.Minute
+	defaultSecretsTransitRetry   = 10 * time.Second
+	defaultSecretsTransitDEKTTL  = 5 * time.Minute
 )
 
 type APIConfig struct {
@@ -102,6 +119,8 @@ type APIConfig struct {
 	EventsRetention       time.Duration
 	WebhooksAllowPrivate  bool
 	InstallWebhooks       []webhooks.InstallWebhook
+	Secrets               secretkeys.Config
+	SecretLimits          service.SecretConfig
 }
 
 type MigrateConfig struct {
@@ -135,6 +154,13 @@ func newAPIConfig() *APIConfig {
 	minCLIVersion := newMinCLIVersion()
 	eventsRetentionDays := positiveInt32Env("EVENTS_RETENTION_DAYS", defaultEventsRetentionDays)
 	eventsRetention := time.Duration(eventsRetentionDays) * day
+	secrets := newSecretsConfig()
+	secretLimits := service.SecretConfig{
+		MaxValueBytes:     positiveInt32Env("LOCO_SECRETS_MAX_VALUE_BYTES", defaultSecretMaxValueBytes),
+		MaxPerService:     positiveInt32Env("LOCO_SECRETS_MAX_PER_SERVICE", defaultSecretMaxPerService),
+		MaxPlacementBytes: positiveInt32Env("LOCO_SECRETS_MAX_PLACEMENT_BYTES", defaultSecretMaxPlacementBytes),
+		LockTimeout:       positiveDurationEnv("LOCO_SECRETS_LOCK_TIMEOUT", defaultSecretLockTimeout),
+	}
 
 	return &APIConfig{
 		Version:               buildinfo.Version(version),
@@ -163,6 +189,59 @@ func newAPIConfig() *APIConfig {
 		EventsRetention:       eventsRetention,
 		WebhooksAllowPrivate:  webhooksAllowPrivate,
 		InstallWebhooks:       installWebhooks,
+		Secrets:               secrets,
+		SecretLimits:          secretLimits,
+	}
+}
+
+func newSecretKeyProvider(ctx context.Context, cfg secretkeys.Config) (secretkeys.Provider, error) {
+	if cfg.Provider == "" {
+		slog.Warn("LOCO_SECRETS_KEY_PROVIDER is not set; secrets cannot be stored")
+		return nil, nil
+	}
+	provider, err := secretkeys.New(ctx, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("secrets key provider: %w", err)
+	}
+	return provider, nil
+}
+
+func newSecretsConfig() secretkeys.Config {
+	provider := stringEnv("LOCO_SECRETS_KEY_PROVIDER", "")
+	rawKeys := stringEnv("LOCO_SECRETS_LOCAL_KEYS", "")
+	switch provider {
+	case "":
+		return secretkeys.Config{}
+	case secretkeys.ProviderLocal:
+		if rawKeys == "" {
+			panic(errSecretsLocalKeysMissing)
+		}
+		keys, err := secretkeys.ParseLocalKeys(rawKeys)
+		if err != nil {
+			panic(fmt.Errorf("%w: %w", errInvalidSecretsLocalKeys, err))
+		}
+		return secretkeys.Config{Provider: provider, LocalKeys: keys}
+	case secretkeys.ProviderTransit:
+		transit := secretkeys.TransitConfig{
+			Address: stringEnv("LOCO_SECRETS_TRANSIT_ADDR", ""),
+			Mount:   stringEnv("LOCO_SECRETS_TRANSIT_MOUNT", defaultSecretsTransitMount),
+			Key:     stringEnv("LOCO_SECRETS_TRANSIT_KEY", ""),
+			Token:   stringEnv("LOCO_SECRETS_TRANSIT_TOKEN", ""),
+			CAFile:  stringEnv("LOCO_SECRETS_TRANSIT_CA_FILE", ""),
+			Timeout: positiveDurationEnv("LOCO_SECRETS_TRANSIT_TIMEOUT", defaultSecretsTransitTimeout),
+			RenewMargin: positiveDurationEnv(
+				"LOCO_SECRETS_TRANSIT_RENEW_MARGIN",
+				defaultSecretsTransitMargin,
+			),
+			RenewRetry: positiveDurationEnv("LOCO_SECRETS_TRANSIT_RENEW_RETRY", defaultSecretsTransitRetry),
+			CacheTTL:   positiveDurationEnv("LOCO_SECRETS_TRANSIT_CACHE_TTL", defaultSecretsTransitDEKTTL),
+		}
+		if err := transit.Validate(); err != nil {
+			panic(fmt.Errorf("%w: %w", errInvalidSecretsTransit, err))
+		}
+		return secretkeys.Config{Provider: provider, Transit: transit}
+	default:
+		panic(fmt.Errorf("%w: %q", errUnknownSecretsProvider, provider))
 	}
 }
 

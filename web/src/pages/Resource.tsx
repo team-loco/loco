@@ -10,6 +10,7 @@ import { Dialog } from "@/components/design/Dialog";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Page } from "@/components/design/Page";
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { useMyScopes } from "@/hooks/useMyScopes";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { observabilityPath, workspacePath } from "@/lib/routes";
 import { ErrorBanner, NoticeBanner } from "@/pages/resource/Banners";
@@ -18,8 +19,7 @@ import { DeleteDialogContent, RollbackDialogContent, SpecDialogContent } from "@
 import { DiffDialogContent } from "@/pages/resource/DiffDialog";
 import { EventsSection } from "@/pages/resource/EventsSection";
 import { shortId } from "@/pages/resource/format";
-import { ManagedNotice } from "@/pages/resource/ManagedNotice";
-import { buildRegions, depService, depTag, useResourceData, type ModalState, type Notice } from "@/pages/resource/model";
+import { buildRegions, depTag, useResourceData, type ModalState, type Notice } from "@/pages/resource/model";
 import { RegionPanel } from "@/pages/resource/RegionPanel";
 import { ResourceHeader } from "@/pages/resource/ResourceHeader";
 import { ResourceSkeleton } from "@/pages/resource/ResourceSkeleton";
@@ -28,12 +28,15 @@ import { SettingsTab } from "@/pages/resource/SettingsTab";
 import type { MetricRange } from "@/pages/resource/useRegionMetric";
 import { VariablesTab } from "@/pages/resource/VariablesTab";
 
+const WRITE_LEVEL = 2;
+
 export function Resource() {
 	const { resourceId = "" } = useParams<{ resourceId: string }>();
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const navigate = useNavigate();
 	const [params, setParams] = useSearchParams();
 	const { resource, deployments, isLoading, error, refresh } = useResourceData(resourceId);
+	const { resourceLevel } = useMyScopes();
 
 	const [regionName, setRegionName] = useState<string | null>(null);
 	const [range, setRange] = useState<MetricRange>("1h");
@@ -64,7 +67,6 @@ export function Resource() {
 
 	const regions = buildRegions(resource, deployments);
 	const region = regions.find((r) => r.name === regionName) ?? regions[0];
-	const regionNames = regions.map((r) => r.name);
 	const primary = regions.find((r) => r.primary) ?? regions[0];
 	const currents = regions.flatMap((r) => (r.current?.spec === undefined ? [] : [r.current]));
 	const primaryDomain = resource.domains.find((d) => d.isPrimary) ?? resource.domains[0];
@@ -219,17 +221,13 @@ export function Resource() {
 				</div>
 			)}
 
-			{tab === "variables" && resource.partial !== undefined && <ManagedNotice partial={resource.partial} />}
 			{tab === "variables" && (
 				<VariablesTab
 					resourceId={resourceId}
 					resourceName={resource.name}
-					env={depService(specDep)?.env ?? {}}
-					regionNames={regionNames}
-					hasDeployment={currents.length > 0}
-					managed={resource.partial !== undefined}
-					onNotice={setNotice}
-					onSaved={refresh}
+					workspaceId={resource.workspaceId}
+					partial={resource.partial}
+					canWrite={hasWs && resourceLevel(activeOrgId, activeWorkspaceId, resourceId) >= WRITE_LEVEL}
 				/>
 			)}
 

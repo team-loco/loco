@@ -23,7 +23,8 @@ const AUDIT_TYPES: Record<string, AuditType> = {
 	"resource.updated": { label: "Updated a resource", category: "deploys" },
 	"resource.deleted": { label: "Deleted a resource", category: "deploys" },
 	"resource.scaled": { label: "Scaled a resource", category: "deploys" },
-	"resource.env_updated": { label: "Changed environment variables", category: "deploys" },
+	"secret.set": { label: "Set secrets", category: "deploys" },
+	"secret.deleted": { label: "Removed secrets", category: "deploys" },
 	"deployment.created": { label: "Deployed", category: "deploys" },
 	"deployment.deleted": { label: "Deleted a deployment", category: "deploys" },
 	"build.created": { label: "Created a build", category: "deploys" },
@@ -147,8 +148,11 @@ export function auditDetail(event: DetailFields, users: ReadonlyMap<string, Audi
 		case "member.removed": {
 			return memberName(event.subjectId, users);
 		}
-		case "resource.env_updated": {
-			return strings(data, "keys").join(", ");
+		case "secret.set": {
+			return strings(data, "names").join(", ");
+		}
+		case "secret.deleted": {
+			return strings(data, "names").join(", ");
 		}
 		default: {
 			return text(data, "name") ?? text(data, "domain");

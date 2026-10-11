@@ -15,7 +15,7 @@ import (
 )
 
 func (f *deployFixture) agentServer() *AgentServer {
-	return NewAgentServer(f.pool, f.queries, nil, nil)
+	return NewAgentServer(f.pool, f.queries, nil, nil, nil)
 }
 
 func applied(placementID uuid.UUID, revision int64) *agentv1.Applied {
@@ -250,7 +250,7 @@ func startSyncServerWithSources(
 	if err := notifier.Start(ctx); err != nil {
 		t.Fatalf("start notifier: %v", err)
 	}
-	server := NewAgentServer(f.pool, f.queries, notifier, sources)
+	server := NewAgentServer(f.pool, f.queries, notifier, sources, nil)
 	_, handler := agentv1connect.NewAgentServiceHandler(server)
 
 	srv := httptest.NewUnstartedServer(handler)

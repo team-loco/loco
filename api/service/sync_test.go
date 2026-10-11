@@ -37,6 +37,25 @@ func TestDiffInventory(t *testing.T) {
 			want: inventoryInSync,
 		},
 		{
+			name: "current revision with the env Secret pending",
+			rev: placementRevision{
+				desiredRevision: 3, observed: true, observedRevision: 3, appliedRevision: 2, envSecretPending: true,
+			},
+			want: inventorySend,
+		},
+		{
+			name: "acked revision whose env Secret is pending again",
+			rev: placementRevision{
+				desiredRevision: 3, observed: true, observedRevision: 3, appliedRevision: 3, envSecretPending: true,
+			},
+			want: inventorySend,
+		},
+		{
+			name: "newer pending revision in the cluster",
+			rev:  placementRevision{desiredRevision: 1, observed: true, observedRevision: 5, envSecretPending: true},
+			want: inventoryAhead,
+		},
+		{
 			name: "newer revision in the cluster",
 			rev:  placementRevision{desiredRevision: 3, observed: true, observedRevision: 4},
 			want: inventoryAhead,
@@ -74,7 +93,7 @@ func TestPlacementMessage(t *testing.T) {
 		DesiredSpec:     []byte(`{"resource_id":"x"}`),
 	}
 
-	apply := placementMessage(placement).GetApply()
+	apply := placementMessage(placement, nil).GetApply()
 	if apply == nil {
 		t.Fatal("live placement did not produce an Apply")
 	}
@@ -85,7 +104,7 @@ func TestPlacementMessage(t *testing.T) {
 
 	placement.DesiredDeleted = true
 	placement.DesiredSpec = nil
-	del := placementMessage(placement).GetDelete()
+	del := placementMessage(placement, nil).GetDelete()
 	if del == nil {
 		t.Fatal("deleted placement did not produce a Delete")
 	}

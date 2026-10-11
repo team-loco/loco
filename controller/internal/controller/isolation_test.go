@@ -176,7 +176,7 @@ var _ = Describe("Workspace isolation", func() {
 		namespace := getNamespace(app)
 		Expect(ensureNamespace(ctx, k8sClient, app)).To(Succeed())
 		Expect(reconciler.ensureServiceAccount(ctx, app)).To(Succeed())
-		_, err := reconciler.ensureDeployment(ctx, app, "1")
+		_, err := reconciler.ensureDeployment(ctx, app, envSecretMount{})
 		Expect(err).NotTo(HaveOccurred())
 
 		sa := &corev1.ServiceAccount{}

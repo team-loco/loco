@@ -64,6 +64,8 @@ func cmdFakePlatform(ts *testscript.TestScript, api *fakeAPI, neg bool, args []s
 		checkUploaded(ts, api, neg, args)
 	case "upload-header":
 		checkUploadHeader(ts, api, neg, args)
+	case "secret":
+		checkSecret(ts, api, neg, args)
 	case "wait":
 		requireArgs(ts, neg, args, 2, "fakeapi wait <method>")
 		waitForCall(ts, api, args[1])

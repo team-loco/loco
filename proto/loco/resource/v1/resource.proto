@@ -59,6 +59,9 @@ service ResourceService {
   rpc GetResourceStatus(GetResourceStatusRequest) returns (GetResourceStatusResponse);
   // ListRegions lists available regions for resource deployment.
   rpc ListRegions(ListRegionsRequest) returns (ListRegionsResponse);
+  // GetResourceEnv returns the plain env variables a service runs with in an environment, the
+  // env map of loco.yaml, and the secret names it declares. Secret values are never included.
+  rpc GetResourceEnv(GetResourceEnvRequest) returns (GetResourceEnvResponse);
 
   // Events
   // ListResourceEvents retrieves events for a resource.
@@ -67,8 +70,6 @@ service ResourceService {
   // Resource Operations
   // ScaleResource adjusts resource replicas and resource allocation.
   rpc ScaleResource(ScaleResourceRequest) returns (ScaleResourceResponse);
-  // UpdateResourceEnv updates environment variables for a resource.
-  rpc UpdateResourceEnv(UpdateResourceEnvRequest) returns (UpdateResourceEnvResponse);
   // TransferPartial moves a resource to another partial.
   rpc TransferPartial(TransferPartialRequest) returns (TransferPartialResponse);
 }
@@ -280,6 +281,19 @@ message ListRegionsResponse {
   repeated RegionInfo regions = 1;
 }
 
+// GetResourceEnvRequest names the service and the environment whose plain env variables to read.
+message GetResourceEnvRequest {
+  string resource_id = 1 [(buf.validate.field).string.uuid = true];
+  string environment_id = 2 [(buf.validate.field).string.uuid = true];
+}
+
+// GetResourceEnvResponse holds the plain env variables and the declared secret names of the
+// service's active deployment in the environment, both empty when it has none.
+message GetResourceEnvResponse {
+  map<string, string> env = 1;
+  repeated string secret_names = 2;
+}
+
 // GetResourceStatusRequest is the request to retrieve resource status.
 message GetResourceStatusRequest {
   string resource_id = 1 [(buf.validate.field).string.uuid = true];
@@ -337,16 +351,6 @@ message ScaleResourceRequest {
 
 // ScaleResourceResponse is the response after scaling a resource.
 message ScaleResourceResponse {}
-
-// UpdateResourceEnvRequest is the request to update resource environment variables.
-message UpdateResourceEnvRequest {
-  string resource_id = 1 [(buf.validate.field).string.uuid = true];
-  map<string, string> env = 2 [(buf.validate.field).map.min_pairs = 1];
-  optional string region = 3; // if provided, update only this region; otherwise update all regions
-}
-
-// UpdateResourceEnvResponse is the response after updating resource environment variables.
-message UpdateResourceEnvResponse {}
 
 // TransferPartialRequest is the request to move a resource to another partial.
 message TransferPartialRequest {

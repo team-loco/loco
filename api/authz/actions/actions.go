@@ -37,6 +37,11 @@ var (
 		entityType: db.EntityTypeResource,
 		scope:      db.ScopeRead,
 	}
+	// GetResourceEnv requires resource:read.
+	GetResourceEnv = Action{
+		entityType: db.EntityTypeResource,
+		scope:      db.ScopeRead,
+	}
 	// StreamResourceLogs requires resource:read.
 	StreamResourceLogs = Action{
 		entityType: db.EntityTypeResource,
@@ -65,11 +70,6 @@ var (
 	}
 	// UpdateResource requires resource:write.
 	UpdateResource = Action{
-		entityType: db.EntityTypeResource,
-		scope:      db.ScopeWrite,
-	}
-	// UpdateResourceEnv requires resource:write.
-	UpdateResourceEnv = Action{
 		entityType: db.EntityTypeResource,
 		scope:      db.ScopeWrite,
 	}
@@ -339,6 +339,29 @@ var (
 	// DeleteEnvironment requires workspace:admin.
 	DeleteEnvironment = Action{
 		entityType: db.EntityTypeWorkspace,
+		scope:      db.ScopeAdmin,
+	}
+
+	// secrets
+
+	// SetSecrets requires resource:write on the service that holds the secrets.
+	SetSecrets = Action{
+		entityType: db.EntityTypeResource,
+		scope:      db.ScopeWrite,
+	}
+	// DeleteSecrets requires resource:write.
+	DeleteSecrets = Action{
+		entityType: db.EntityTypeResource,
+		scope:      db.ScopeWrite,
+	}
+	// ListSecrets requires resource:read.
+	ListSecrets = Action{
+		entityType: db.EntityTypeResource,
+		scope:      db.ScopeRead,
+	}
+	// RewrapEnvironmentKeys requires system:admin.
+	RewrapEnvironmentKeys = Action{
+		entityType: db.EntityTypeSystem,
 		scope:      db.ScopeAdmin,
 	}
 
