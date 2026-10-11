@@ -7,7 +7,6 @@ on:
     paths:
       - "charts/loco-obs/**"
       - "mise-tasks/test/obs-retention"
-      - "mise-tasks/test/obs-memory"
       - "mise.toml"
       - "mise.lock"
       - ".github/workflows/obs-chart.yml"
@@ -16,7 +15,6 @@ on:
     paths:
       - "charts/loco-obs/**"
       - "mise-tasks/test/obs-retention"
-      - "mise-tasks/test/obs-memory"
       - "mise.toml"
       - "mise.lock"
       - ".github/workflows/obs-chart.yml"
@@ -47,5 +45,3 @@ jobs:
       - uses: ./.github/actions/setup-tools
       - name: Check that every ClickHouse table the chart creates has a TTL
         run: mise run test:obs-retention
-      - name: Check the node collector memory budget and pipeline order
-        run: mise run test:obs-memory

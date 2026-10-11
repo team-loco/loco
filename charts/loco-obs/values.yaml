@@ -178,6 +178,7 @@ otel-col-daemon:
         timeout: 5s
         database: default
     service:
+      # memory_limiter must run first so it can refuse data before batch buffers it in memory.
       pipelines:
         logs:
           exporters: [clickhouse]
