@@ -40,6 +40,9 @@ clickhouse:
           drop:
             - ALL
   clickhouse:
+    image:
+      repository: altinity/clickhouse-server
+      tag: "26.3.33.10001.altinitystable@sha256:5bd62b50208bae1d065de7685b0b0a1812f267d1a179aabb15f97c78aed47d1a"
     podSecurityContext:
       runAsNonRoot: true
       runAsUser: 101
@@ -73,7 +76,7 @@ clickhouse:
         {{- end }}
         <query_thread_log remove="1"/>
         <opentelemetry_span_log remove="1"/>
-        {{- range list "text_log" "metric_log" "asynchronous_metric_log" "error_log" "latency_log" "query_metric_log" "query_views_log" "processors_profile_log" "asynchronous_insert_log" "s3queue_log" "backup_log" "crash_log" }}
+        {{- range list "text_log" "metric_log" "asynchronous_metric_log" "error_log" "latency_log" "query_metric_log" "query_views_log" "processors_profile_log" "asynchronous_insert_log" "s3queue_log" "backup_log" "crash_log" "background_schedule_pool_log" "delta_lake_metadata_log" "iceberg_metadata_log" }}
         <{{ . }}>
           <ttl>event_date + INTERVAL {{ $.Values.clickhouse.systemLogRetentionDays }} DAY DELETE</ttl>
         </{{ . }}>
@@ -81,6 +84,24 @@ clickhouse:
       </clickhouse>
     defaultUser:
       allowExternalAccess: true
+    users:
+      - name: loco_migrator
+        password_secret_name: loco-obs-clickhouse-migrator
+        grants:
+          - "GRANT ALL ON loco_obs.*"
+      - name: loco_ingest
+        password_secret_name: loco-obs-clickhouse-ingest
+        grants:
+          - "GRANT INSERT, SHOW COLUMNS ON loco_obs.*"
+      - name: loco_reader
+        password_secret_name: loco-obs-clickhouse-reader
+        grants:
+          - "GRANT SELECT ON loco_obs.*"
+
+clickhouseUserPasswords:
+  loco_migrator: ""
+  loco_ingest: ""
+  loco_reader: ""
 
 opentelemetry-operator:
   fullnameOverride: "otel-operator"
@@ -91,6 +112,12 @@ otel-col-daemon:
   fullnameOverride: "otel-col-daemon"
   namespaceOverride: observability-node
   mode: daemonset
+  extraEnvs:
+    - name: CLICKHOUSE_INGEST_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: loco-obs-clickhouse-ingest
+          key: password
   image:
     repository: "otel/opentelemetry-collector-contrib"
     tag: "0.162.0"
@@ -109,16 +136,18 @@ otel-col-daemon:
           - endpoints
           - services
           - pods
+          - namespaces
+        verbs: ["get", "watch", "list"]
+      - apiGroups:
+          - apps
+        resources:
+          - replicasets
         verbs: ["get", "watch", "list"]
   presets:
     logsCollection:
       enabled: true
     hostMetrics:
       enabled: true
-    kubernetesAttributes:
-      enabled: true
-      extractAllPodLabels: true
-      extractAllPodAnnotations: true
   config:
     receivers:
       kubeletstats:
@@ -126,7 +155,7 @@ otel-col-daemon:
         auth_type: "serviceAccount"
         endpoint: "https://${env:OTEL_K8S_NODE_IP}:10250"
         insecure_skip_verify: true
-        node: "${env:K8S_NODE_NAME}"
+        node: "${env:OTEL_K8S_NODE_NAME}"
         k8s_api_config:
           auth_type: serviceAccount
         collect_all_network_interfaces:
@@ -166,32 +195,130 @@ otel-col-daemon:
         check_interval: 1s
         limit_mib: 384
         spike_limit_mib: 96
+      resource/strip_tenancy: &stripTenancy
+        attributes:
+          - key: loco.organization.id
+            action: delete
+          - key: loco.workspace.id
+            action: delete
+          - key: loco.environment.id
+            action: delete
+          - key: loco.resource.id
+            action: delete
+          - key: loco.io/build-id
+            action: delete
+          - key: k8s.pod.ip
+            action: delete
+          - key: k8s.pod.uid
+            action: delete
+          - key: gateway.envoyproxy.io/owning-gateway-name
+            action: delete
+          - key: gateway.envoyproxy.io/owning-gateway-namespace
+            action: delete
+      k8s_attributes/connection:
+        filter:
+          node_from_env_var: OTEL_K8S_NODE_NAME
+        passthrough: false
+        pod_association: &connectionAssociation
+          - sources:
+              - from: connection
+        extract: &tenancyExtract
+          metadata:
+            - k8s.namespace.name
+            - k8s.pod.name
+            - k8s.pod.uid
+            - k8s.node.name
+            - k8s.pod.start_time
+            - k8s.deployment.name
+            - k8s.replicaset.name
+            - k8s.replicaset.uid
+            - k8s.daemonset.name
+            - k8s.daemonset.uid
+            - k8s.job.name
+            - k8s.job.uid
+            - k8s.container.name
+            - k8s.cronjob.name
+            - k8s.statefulset.name
+            - k8s.statefulset.uid
+            - container.image.tag
+            - container.image.name
+            - k8s.cluster.uid
+            - service.namespace
+            - service.name
+            - service.version
+            - service.instance.id
+          labels:
+            - from: pod
+              key: loco.io/organization-id
+              tag_name: loco.organization.id
+            - from: pod
+              key: loco.io/workspace-id
+              tag_name: loco.workspace.id
+            - from: pod
+              key: loco.io/environment-id
+              tag_name: loco.environment.id
+            - from: pod
+              key: loco.io/resource-id
+              tag_name: loco.resource.id
+            - from: pod
+              key: loco.io/build-id
+              tag_name: loco.io/build-id
+            - from: pod
+              key: gateway.envoyproxy.io/owning-gateway-name
+              tag_name: gateway.envoyproxy.io/owning-gateway-name
+            - from: pod
+              key: gateway.envoyproxy.io/owning-gateway-namespace
+              tag_name: gateway.envoyproxy.io/owning-gateway-namespace
+      k8s_attributes/pod_uid:
+        filter:
+          node_from_env_var: OTEL_K8S_NODE_NAME
+        passthrough: false
+        pod_association: &podUIDAssociation
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.uid
+        extract: *tenancyExtract
     exporters:
       clickhouse:
         # Endpoint will be dynamically constructed as: tcp://clickhouse-{release-name}-{nameOverride}.{namespace}.svc.cluster.local:9000
         endpoint: tcp://clickhouse-{{ .Release.Name }}-clickhouse.{{ .Release.Namespace }}.svc.cluster.local:9000?dial_timeout=10s&compress=lz4&async_insert=1
-        username: default
-        password: ""
+        username: loco_ingest
+        password: ${env:CLICKHOUSE_INGEST_PASSWORD}
         traces_table_name: otel_traces
         logs_table_name: otel_logs
         create_schema: false
         timeout: 5s
-        database: default
+        database: loco_obs
     service:
       # memory_limiter must run first so it can refuse data before batch buffers it in memory.
       pipelines:
         logs:
+          receivers: [file_log]
+          processors: [memory_limiter, k8s_attributes/pod_uid, batch]
           exporters: [clickhouse]
-          processors: [memory_limiter, batch]
+        logs/otlp:
+          receivers: [otlp]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, batch]
+          exporters: [clickhouse]
         metrics:
           receivers: [kubeletstats]
-          processors: [memory_limiter, batch]
+          processors: [memory_limiter, k8s_attributes/pod_uid, batch]
+          exporters: [clickhouse]
+        traces:
+          receivers: [otlp, jaeger, zipkin]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, batch]
           exporters: [clickhouse]
 
 otel-col-deploy:
   enabled: true
   fullnameOverride: otel-col-deploy
   mode: deployment
+  extraEnvs:
+    - name: CLICKHOUSE_INGEST_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: loco-obs-clickhouse-ingest
+          key: password
   image:
     repository: "otel/opentelemetry-collector-contrib"
     tag: "0.162.0"
@@ -209,22 +336,77 @@ otel-col-deploy:
       cpu: 250m
       memory: 512Mi
   replicaCount: 1
+  clusterRole:
+    create: true
+    rules:
+      - apiGroups:
+          - ""
+        resources:
+          - pods
+          - namespaces
+        verbs: ["get", "watch", "list"]
+      - apiGroups:
+          - apps
+        resources:
+          - replicasets
+        verbs: ["get", "watch", "list"]
   presets:
-    kubernetesAttributes:
-      enabled: true
-      extractAllPodLabels: true
-      extractAllPodAnnotations: true
     kubernetesEvents:
       enabled: true
     clusterMetrics:
       enabled: true
   config:
     processors:
-      resource/set_service_name:
-        attributes:
-          - action: insert
-            key: service.name
-            from_attribute: app.kubernetes.io/name
+      resource/strip_tenancy: *stripTenancy
+      k8s_attributes/connection:
+        passthrough: false
+        pod_association: *connectionAssociation
+        extract: *tenancyExtract
+      k8s_attributes/pod_uid:
+        passthrough: false
+        pod_association: *podUIDAssociation
+        extract: *tenancyExtract
+      transform/envoy_tenancy:
+        error_mode: ignore
+        trace_statements:
+          - context: span
+            statements: &dropRecordTenancy
+              - delete_key(attributes, "loco.organization.id")
+              - delete_key(attributes, "loco.workspace.id")
+              - delete_key(attributes, "loco.environment.id")
+              - delete_key(attributes, "loco.resource.id")
+          - context: span
+            conditions: &envoyResource
+              - resource.attributes["gateway.envoyproxy.io/owning-gateway-name"] != nil
+            statements:
+              - set(cache["cluster"], attributes["upstream_cluster"])
+              - &parseRoute merge_maps(cache, ExtractPatterns(cache["cluster"], "^httproute/ws-(?P<workspace>[^/]+)/resource-(?P<resource>[^/]+)-route/rule/[0-9]+$$"), "upsert") where cache["cluster"] != nil
+              - &setWorkspace set(attributes["loco.workspace.id"], cache["workspace"]) where cache["workspace"] != nil
+              - &setResource set(attributes["loco.resource.id"], cache["resource"]) where cache["resource"] != nil
+        log_statements:
+          - context: log
+            statements: *dropRecordTenancy
+          - context: log
+            conditions: *envoyResource
+            statements:
+              - set(cache["cluster"], attributes["upstream_cluster"])
+              - *parseRoute
+              - *setWorkspace
+              - *setResource
+        metric_statements:
+          - context: datapoint
+            statements: *dropRecordTenancy
+          - context: datapoint
+            conditions: *envoyResource
+            statements:
+              - set(cache["cluster"], attributes["envoy.cluster_name"])
+              - *parseRoute
+              - *setWorkspace
+              - *setResource
+      groupbyattrs/tenancy:
+        keys:
+          - loco.workspace.id
+          - loco.resource.id
     receivers:
       otlp:
         protocols:
@@ -236,21 +418,34 @@ otel-col-deploy:
       clickhouse:
         # Endpoint will be dynamically constructed as: tcp://clickhouse-{release-name}-{nameOverride}.{namespace}.svc.cluster.local:9000
         endpoint: tcp://clickhouse-{{ .Release.Name }}-clickhouse.{{ .Release.Namespace }}.svc.cluster.local:9000?dial_timeout=10s&compress=lz4&async_insert=1
-        username: default
-        password: ""
+        username: loco_ingest
+        password: ${env:CLICKHOUSE_INGEST_PASSWORD}
         traces_table_name: otel_traces
         logs_table_name: otel_logs
-        create_schema: true
-        ttl: 8760h
+        create_schema: false
         timeout: 5s
-        database: default
+        database: loco_obs
     service:
       pipelines:
         logs:
+          receivers: [k8sobjects]
+          processors: [memory_limiter, batch]
+          exporters: [clickhouse]
+        logs/otlp:
+          receivers: [otlp]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, batch]
           exporters: [clickhouse]
         metrics:
+          receivers: [k8s_cluster]
+          processors: [memory_limiter, k8s_attributes/pod_uid, batch]
+          exporters: [clickhouse]
+        metrics/otlp:
           receivers: [otlp]
-          processors: [resource/set_service_name]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, batch]
+          exporters: [clickhouse]
+        traces:
+          receivers: [otlp, jaeger, zipkin]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, batch]
           exporters: [clickhouse]
 
 obsProxy:
@@ -273,10 +468,27 @@ obsProxy:
   auth:
     existingSecret: ""
   clickhouse:
-    database: default
+    database: loco_obs
+    readerUser: loco_reader
+    migratorUser: loco_migrator
     existingSecret:
       name: ""
       key: url
+    migratorExistingSecret:
+      name: ""
+      key: url
+    retention:
+      logs: 8760h
+      traces: 8760h
+      metrics: 8760h
+    migrations:
+      retryBudgetSeconds: 120
+      retryIntervalSeconds: 5
+      lease:
+        name: obs-proxy-schema-migrations
+        durationSeconds: 15
+        renewDeadlineSeconds: 10
+        retryPeriodSeconds: 2
   guardrails:
     defaultLimit: 1000
     maxLimit: 10000

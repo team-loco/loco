@@ -956,6 +956,12 @@ func (s *ResourceServer) redeployRegions(
 		hostnames[environmentID] = hostname
 	}
 
+	organizationID, err := s.queries.GetOrganizationIDByWorkspaceID(ctx, res.WorkspaceID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get workspace organization", "resourceId", res.ID, "error", err)
+		return connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
 	resourceSpec, err := converter.DeserializeResourceSpecByType(res.Spec, string(res.Type))
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to deserialize resource spec", "error", err)
@@ -980,6 +986,7 @@ func (s *ResourceServer) redeployRegions(
 			}
 			buildSpec := desiredApplicationSpec(
 				res,
+				organizationID,
 				resourceSpec,
 				hostnames[plan.params.EnvironmentID],
 				plan.deploymentSpec,
@@ -1331,6 +1338,7 @@ func primaryHostname(
 
 func desiredApplicationSpec(
 	res genDb.Resource,
+	organizationID uuid.UUID,
 	resourceSpec *resourcev1.ResourceSpec,
 	hostname string,
 	deploymentSpec *deploymentv1.DeploymentSpec,
@@ -1342,6 +1350,7 @@ func desiredApplicationSpec(
 	return func(deploymentID uuid.UUID) ([]byte, error) {
 		appSpec, err := buildApplicationSpec(
 			res,
+			organizationID,
 			resourceSpec,
 			hostname,
 			deploymentSpec,

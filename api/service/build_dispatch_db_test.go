@@ -110,6 +110,8 @@ WHERE id = $1`, previous, testImageDigest, testCacheDigest); err != nil {
 		t.Fatalf("resource id = %q, want %q", start.GetResourceId(), f.resourceID)
 	case start.GetWorkspaceId() == "":
 		t.Fatal("no workspace id")
+	case start.GetOrganizationId() != f.organizationID(t):
+		t.Fatalf("organization id = %q, want the workspace's %s", start.GetOrganizationId(), f.organizationID(t))
 	case !strings.Contains(start.GetSourceUrl(), key):
 		t.Fatalf("source url %q does not reference %q", start.GetSourceUrl(), key)
 	case start.GetDockerfilePath() != testDockerfile:

@@ -111,6 +111,7 @@ func testDesiredSpecAt(
 	merged := mergedTestSpec(t, resourceSpec, requestSpec)
 	return desiredApplicationSpec(
 		testServiceResource(),
+		uuid.New(),
 		resourceSpec,
 		hostname,
 		merged,
@@ -160,6 +161,7 @@ func TestDeploymentTxErrorRejectsUnknownRegionAsInvalidArgument(t *testing.T) {
 	deploymentSpec := mergedTestSpec(t, resourceSpec, testDeploymentSpec(8080))
 	buildSpec := desiredApplicationSpec(
 		testServiceResource(),
+		uuid.New(),
 		resourceSpec,
 		testHostname,
 		deploymentSpec,

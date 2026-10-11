@@ -55,6 +55,7 @@ LIMIT 1;
 SELECT b.id,
        b.resource_id,
        r.workspace_id,
+       w.org_id,
        b.source_key,
        b.dockerfile_path,
        b.context,
@@ -72,6 +73,7 @@ SELECT b.id,
        ), '')::text AS cache_ref
 FROM builds b
 JOIN resources r ON r.id = b.resource_id
+JOIN workspaces w ON w.id = r.workspace_id
 WHERE b.cluster_id = $1 AND b.status = 'queued'
 ORDER BY b.created_at, b.id;
 

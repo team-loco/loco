@@ -91,6 +91,8 @@ metadata:
   name: envoy-proxy
   namespace: {{ .Release.Namespace }}
 spec:
+  {{- $collectorHost := printf "%s.%s.svc.cluster.local" .Values.global.observability.otelCollectorDeployment .Values.global.observability.namespace }}
+  {{- $collectorPort := .Values.global.observability.otelCollectorGrpcPort }}
   telemetry:
     metrics:
       prometheus:
@@ -100,8 +102,25 @@ spec:
       sinks:
         - type: OpenTelemetry
           openTelemetry:
-            host: {{ .Values.global.observability.otelCollectorDeployment }}.{{ .Values.global.observability.namespace }}.svc.cluster.local
-            port: 4317
+            host: {{ $collectorHost }}
+            port: {{ $collectorPort }}
+    tracing:
+      samplingRate: {{ .Values.envoyProxy.tracing.samplingRate }}
+      provider:
+        type: OpenTelemetry
+        host: {{ $collectorHost }}
+        port: {{ $collectorPort }}
+    accessLog:
+      settings:
+        - format:
+            type: JSON
+            json:
+              {{- toYaml .Values.envoyProxy.accessLog.attributes | nindent 14 }}
+          sinks:
+            - type: OpenTelemetry
+              openTelemetry:
+                host: {{ $collectorHost }}
+                port: {{ $collectorPort }}
 ---
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: ClientTrafficPolicy
