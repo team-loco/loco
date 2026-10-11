@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Run each collector's rendered OTLP pipelines in the collector image against ClickHouse, with pod labels standing in for the Kubernetes API, and check that tenancy columns come only from pod labels"
+#MISE description="Run each collector's rendered OTLP pipelines in the collector image against ClickHouse, with pod labels standing in for the Kubernetes API, and check that tenancy columns come only from pod labels or, for the Envoy gateway, from the route of each request"
 #MISE depends=["helm:deps"]
 set -euo pipefail
 
@@ -14,6 +14,12 @@ pod_resource=pod-resource
 pod_build=pod-build
 forged_build=forged-build
 label_prefix=fixture.pod.label.
+envoy_collector=otel-col-deploy
+route_workspace=01a12668-411a-73d6-80e3-c21f044d5e71
+route_resource=01a126f5-020e-7f3c-ac04-822067278d4b
+route_cluster=httproute/ws-$route_workspace/resource-$route_resource-route/rule/0
+gateway_name=eg
+gateway_namespace=loco-system
 
 test_config() {
 	EXPORTER=$(clickhouse_exporter "$1") LABEL_PREFIX="$label_prefix" yq '
@@ -60,21 +66,22 @@ build_label_attributes() {
 now=$(date +%s)000000000
 
 payload() {
-	local signal=$1 resource="{\"attributes\": [$2]}" span_id=$3
+	local signal=$1 resource="{\"attributes\": [$2]}" span_id=$3 attributes="[${4:-}]"
 	case $signal in
 	logs)
 		echo "{\"resourceLogs\": [{\"resource\": $resource, \"scopeLogs\": [{\"logRecords\": [
-			{\"timeUnixNano\": \"$now\", \"severityText\": \"INFO\", \"body\": {\"stringValue\": \"tenancy\"}}]}]}]}"
+			{\"timeUnixNano\": \"$now\", \"severityText\": \"INFO\", \"body\": {\"stringValue\": \"tenancy\"},
+			\"attributes\": $attributes}]}]}]}"
 		;;
 	traces)
 		echo "{\"resourceSpans\": [{\"resource\": $resource, \"scopeSpans\": [{\"spans\": [
 			{\"traceId\": \"0af7651916cd43dd8448eb211c80319c\", \"spanId\": \"$span_id\", \"name\": \"tenancy\",
-			\"kind\": 2, \"startTimeUnixNano\": \"$now\", \"endTimeUnixNano\": \"$now\"}]}]}]}"
+			\"kind\": 2, \"startTimeUnixNano\": \"$now\", \"endTimeUnixNano\": \"$now\", \"attributes\": $attributes}]}]}]}"
 		;;
 	metrics)
 		echo "{\"resourceMetrics\": [{\"resource\": $resource, \"scopeMetrics\": [{\"metrics\": [
 			{\"name\": \"tenancy.gauge\", \"gauge\": {\"dataPoints\": [
-			{\"timeUnixNano\": \"$now\", \"startTimeUnixNano\": \"$now\", \"asDouble\": 1}]}}]}]}]}"
+			{\"timeUnixNano\": \"$now\", \"startTimeUnixNano\": \"$now\", \"asDouble\": 1, \"attributes\": $attributes}]}}]}]}]}"
 		;;
 	*)
 		echo "unknown signal $signal" >&2
@@ -97,6 +104,17 @@ table() {
 	*)
 		echo "unknown signal $1" >&2
 		return 1
+		;;
+	esac
+}
+
+cluster_attribute() {
+	case $1 in
+	metrics)
+		echo envoy.cluster_name
+		;;
+	*)
+		echo upstream_cluster
 		;;
 	esac
 }
@@ -144,6 +162,33 @@ for collector in $collectors; do
 	done
 done
 
+otlp=$(otlp_endpoint "$envoy_collector")
+gateway_labels="$(attribute "${label_prefix}gateway.envoyproxy.io/owning-gateway-name" "$gateway_name"),
+	$(attribute "${label_prefix}gateway.envoyproxy.io/owning-gateway-namespace" "$gateway_namespace")"
+client_gateway="$(attribute gateway.envoyproxy.io/owning-gateway-name "$gateway_name"),
+	$(attribute gateway.envoyproxy.io/owning-gateway-namespace "$gateway_namespace")"
+envoy=tenancy-envoy
+impostor=tenancy-envoy-impostor
+for signal in logs traces metrics; do
+	route="$(attribute "$(cluster_attribute "$signal")" "$route_cluster")"
+	envoy_payload=$(payload "$signal" "$(attribute service.name "$envoy"), $gateway_labels" b7ad6b7169203333 "$route")
+	impostor_payload=$(payload "$signal" "$(attribute service.name "$impostor"), $client_gateway, $(forged_attributes)" b7ad6b7169203334 \
+		"$route, $(attribute loco.workspace.id "$forged_workspace"), $(attribute loco.resource.id "$forged_resource")")
+	send "$otlp" "$signal" "$envoy_payload"
+	send "$otlp" "$signal" "$impostor_payload"
+	otel_table=$(table "$signal")
+	checked_tables="$checked_tables $otel_table"
+	route_tenancy="WorkspaceId = '$route_workspace' AND ResourceId = '$route_resource'"
+	if ! wait_for "Envoy $signal rows with route tenancy" has_rows "$(rows "$otel_table" "$envoy" "$route_tenancy")"; then
+		fail "$envoy_collector did not take Envoy $signal tenancy from the upstream cluster"
+	fi
+	if ! wait_for "$envoy_collector $signal rows" has_rows "$(rows "$otel_table" "$impostor" 1)"; then
+		fail "$envoy_collector wrote no $signal for a client that copied Envoy's attributes"
+	fi
+	impostor_rows=$(query "$(rows "$otel_table" "$impostor" "(WorkspaceId != '' OR EnvironmentId != '' OR ResourceId != '')")")
+	[ "$impostor_rows" -eq 0 ] || fail "$envoy_collector gave route tenancy to $impostor_rows $signal row(s) from a client that is not Envoy"
+done
+
 evidence=""
 for otel_table in $(tr ' ' '\n' <<<"$checked_tables" | sort -u); do
 	evidence="$evidence${evidence:+ UNION ALL }SELECT '$otel_table' AS table, ServiceName, WorkspaceId, EnvironmentId, ResourceId, ResourceAttributes['loco.io/build-id'] AS build_id, ResourceAttributes['k8s.pod.uid'] AS pod_uid FROM $database.$otel_table WHERE ServiceName LIKE 'tenancy-%'"
@@ -157,4 +202,4 @@ if [ "$failures" -gt 0 ]; then
 	echo "$failures check(s) failed"
 	exit 1
 fi
-echo "every OTLP pipeline dropped client-supplied tenancy and took it from the pod labels"
+echo "every OTLP pipeline dropped client-supplied tenancy and took it from the pod labels, and only Envoy's telemetry took it from the route"
