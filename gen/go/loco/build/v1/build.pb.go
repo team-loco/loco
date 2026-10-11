@@ -102,8 +102,10 @@ type Build struct {
 	StartedAt       *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=started_at,json=startedAt,proto3,oneof" json:"started_at,omitempty"`
 	FinishedAt      *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=finished_at,json=finishedAt,proto3,oneof" json:"finished_at,omitempty"`
 	ImageDeletedAt  *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=image_deleted_at,json=imageDeletedAt,proto3,oneof" json:"image_deleted_at,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// context is the build context directory relative to the uploaded source.
+	Context       string `protobuf:"bytes,17,opt,name=context,proto3" json:"context,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Build) Reset() {
@@ -248,6 +250,13 @@ func (x *Build) GetImageDeletedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Build) GetContext() string {
+	if x != nil {
+		return x.Context
+	}
+	return ""
+}
+
 type BuildsUnavailable struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -289,8 +298,10 @@ type CreateBuildRequest struct {
 	ResourceId     string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	DockerfilePath string                 `protobuf:"bytes,2,opt,name=dockerfile_path,json=dockerfilePath,proto3" json:"dockerfile_path,omitempty"`
 	SourceSize     int64                  `protobuf:"varint,3,opt,name=source_size,json=sourceSize,proto3" json:"source_size,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// context is the build context directory relative to the uploaded source; "." when empty.
+	Context       string `protobuf:"bytes,4,opt,name=context,proto3" json:"context,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateBuildRequest) Reset() {
@@ -342,6 +353,13 @@ func (x *CreateBuildRequest) GetSourceSize() int64 {
 		return x.SourceSize
 	}
 	return 0
+}
+
+func (x *CreateBuildRequest) GetContext() string {
+	if x != nil {
+		return x.Context
+	}
+	return ""
 }
 
 type CreateBuildResponse struct {
@@ -784,7 +802,7 @@ var File_loco_build_v1_build_proto protoreflect.FileDescriptor
 
 const file_loco_build_v1_build_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/build/v1/build.proto\x12\rloco.build.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x82\x06\n" +
+	"\x19loco/build/v1/build.proto\x12\rloco.build.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9c\x06\n" +
 	"\x05Build\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vresource_id\x18\x02 \x01(\tR\n" +
@@ -811,20 +829,22 @@ const file_loco_build_v1_build_proto_rawDesc = "" +
 	"started_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampH\x02R\tstartedAt\x88\x01\x01\x12@\n" +
 	"\vfinished_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampH\x03R\n" +
 	"finishedAt\x88\x01\x01\x12I\n" +
-	"\x10image_deleted_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampH\x04R\x0eimageDeletedAt\x88\x01\x01B\r\n" +
+	"\x10image_deleted_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampH\x04R\x0eimageDeletedAt\x88\x01\x01\x12\x18\n" +
+	"\acontext\x18\x11 \x01(\tR\acontextB\r\n" +
 	"\v_cluster_idB\x0f\n" +
 	"\r_image_digestB\r\n" +
 	"\v_started_atB\x0e\n" +
 	"\f_finished_atB\x13\n" +
 	"\x11_image_deleted_at\"\x13\n" +
-	"\x11BuildsUnavailable\"\x9e\x01\n" +
+	"\x11BuildsUnavailable\"\xc2\x01\n" +
 	"\x12CreateBuildRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\x123\n" +
 	"\x0fdockerfile_path\x18\x02 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\bR\x0edockerfilePath\x12(\n" +
 	"\vsource_size\x18\x03 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\n" +
-	"sourceSize\"\x97\x01\n" +
+	"sourceSize\x12\"\n" +
+	"\acontext\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\bR\acontext\"\x97\x01\n" +
 	"\x13CreateBuildResponse\x12\x19\n" +
 	"\bbuild_id\x18\x01 \x01(\tR\abuildId\x12\x1d\n" +
 	"\n" +

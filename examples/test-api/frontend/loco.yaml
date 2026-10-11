@@ -1,0 +1,11 @@
+version: 1
+partial: frontend
+services:
+  frontend:
+    dockerfile: Dockerfile
+    port: 8080
+    routing: { pathPrefix: /, idleTimeout: 60 }
+    health: { path: /, interval: 30, timeout: 5, failThreshold: 3, startupGracePeriod: 0 }
+    domains: [frontend.onloco.app]
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }

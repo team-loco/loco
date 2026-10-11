@@ -1,10 +1,13 @@
-# A 403 from the storage service names the S3 error and stops before the build starts.
+# a 403 from the storage service names the S3 error and stops before the build starts.
+fakeapi resource web
 fakeapi upload-mode forbidden
+fakeapi plan plan.json
 cd app
-! exec loco deploy app
+! exec loco deploy --yes
 stderr '(?i)the storage service rejected the source upload'
 stderr 'SignatureDoesNotMatch'
 ! fakeapi called StartBuild
+! fakeapi called Apply
 
 -- home/.loco/credentials.json --
 {"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
@@ -18,42 +21,40 @@ id = "1"
 [scopes.default.workspace]
 name = "production"
 id = "2"
--- app/loco.toml --
-[Metadata]
-ConfigVersion = "0.1"
-Name = "app"
-Type = "SERVICE"
-Region = "us-east-1"
-
-[Build]
-DockerfilePath = "Dockerfile"
-Type = "docker"
-
-[Routing]
-Port = 8080
-PathPrefix = "/"
-IdleTimeout = 60
-
-[RegionConfig]
-[RegionConfig.us-east-1]
-CPU = "100m"
-Memory = "256Mi"
-ReplicasMin = 1
-ReplicasMax = 1
-[RegionConfig.eu-west-1]
-CPU = "100m"
-Memory = "256Mi"
-ReplicasMin = 1
-ReplicasMax = 2
-
-[Health]
-Path = "/healthz"
-Interval = 30
-Timeout = 5
-StartupGracePeriod = 0
-FailThreshold = 3
+-- app/loco.yaml --
+version: 1
+partial: web
+services:
+  web:
+    port: 8080
+    domains: [web.onloco.test]
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
 -- app/Dockerfile --
 FROM scratch
 COPY main.go /
 -- app/main.go --
 package main
+-- app/.dockerignore --
+node_modules
+!.env
+!.git
+-- app/.env --
+SECRET=root
+-- app/.env.local --
+SECRET=local
+-- app/web/.env --
+SECRET=nested
+-- app/web/index.js --
+console.log("app")
+-- app/node_modules/left-pad/index.js --
+module.exports = 1
+-- app/.git/HEAD --
+ref: refs/heads/main
+-- plan.json --
+{
+  "revision": "7",
+  "operations": [
+    {"kind": "PLAN_OPERATION_KIND_UPDATE", "service": "web", "needsDeploy": true}
+  ]
+}

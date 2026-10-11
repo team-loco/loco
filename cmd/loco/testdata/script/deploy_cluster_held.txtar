@@ -1,0 +1,36 @@
+# an apply the API refuses because the region's cluster runs the service for another
+# environment prints the reason without the RPC status code.
+fakeapi cluster-held
+fakeapi plan plan.json
+cd app
+! exec loco deploy --yes
+stderr 'Apply refused: each environment needs its own cluster, and this cluster already runs the service for another'
+! stderr 'failed_precondition'
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.toml --
+currentScope = "default"
+
+[scopes.default.organization]
+name = "acme"
+id = "1"
+
+[scopes.default.workspace]
+name = "production"
+id = "2"
+-- app/loco.yaml --
+version: 1
+partial: web
+services:
+  worker:
+    image: ghcr.io/acme/worker:1
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+-- plan.json --
+{
+  "revision": "7",
+  "operations": [
+    {"kind": "PLAN_OPERATION_KIND_UPDATE", "service": "worker"}
+  ]
+}

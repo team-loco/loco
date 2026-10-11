@@ -393,6 +393,7 @@ type Build struct {
 	SourceKey       string      `json:"sourceKey"`
 	SourceSize      int64       `json:"sourceSize"`
 	DockerfilePath  string      `json:"dockerfilePath"`
+	Context         string      `json:"context"`
 	ImageRepository string      `json:"imageRepository"`
 	ImageDigest     *string     `json:"imageDigest"`
 	CacheDigest     *string     `json:"cacheDigest"`
@@ -442,6 +443,7 @@ type Deployment struct {
 	EnvironmentID    uuid.UUID        `json:"environmentId"`
 	Spec             []byte           `json:"spec"`
 	SpecVersion      int32            `json:"specVersion"`
+	SecretNames      []string         `json:"secretNames"`
 	CreatedAt        time.Time        `json:"createdAt"`
 	StartedAt        time.Time        `json:"startedAt"`
 	CompletedAt      *time.Time       `json:"completedAt"`
@@ -455,6 +457,7 @@ type Environment struct {
 	Description     *string   `json:"description"`
 	EnvironmentType string    `json:"environmentType"`
 	CreatedBy       uuid.UUID `json:"createdBy"`
+	Revision        int64     `json:"revision"`
 	CreatedAt       time.Time `json:"createdAt"`
 	UpdatedAt       time.Time `json:"updatedAt"`
 }
@@ -500,6 +503,8 @@ type Placement struct {
 	ClusterID        uuid.UUID  `json:"clusterId"`
 	Region           string     `json:"region"`
 	DeploymentID     *uuid.UUID `json:"deploymentId"`
+	EnvironmentID    uuid.UUID  `json:"environmentId"`
+	SecretNames      []string   `json:"secretNames"`
 	DesiredRevision  int64      `json:"desiredRevision"`
 	DesiredSpec      []byte     `json:"desiredSpec"`
 	DesiredDeleted   bool       `json:"desiredDeleted"`
@@ -532,6 +537,7 @@ type Resource struct {
 	Status      ResourceStatus `json:"status"`
 	Spec        []byte         `json:"spec"`
 	SpecVersion int32          `json:"specVersion"`
+	Partial     *string        `json:"partial"`
 	CreatedAt   time.Time      `json:"createdAt"`
 	UpdatedAt   time.Time      `json:"updatedAt"`
 }
@@ -539,6 +545,7 @@ type Resource struct {
 type ResourceDomain struct {
 	ID               uuid.UUID    `json:"id"`
 	ResourceID       uuid.UUID    `json:"resourceId"`
+	EnvironmentID    uuid.UUID    `json:"environmentId"`
 	Domain           string       `json:"domain"`
 	DomainSource     DomainSource `json:"domainSource"`
 	SubdomainLabel   *string      `json:"subdomainLabel"`

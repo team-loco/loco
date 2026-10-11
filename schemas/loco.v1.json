@@ -1,0 +1,478 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://loco.build/schemas/loco.v1.json",
+  "$defs": {
+    "Autoscaling": {
+      "properties": {
+        "cpuTarget": {
+          "type": "integer",
+          "maximum": 100,
+          "minimum": 1,
+          "description": "Average CPU utilization percent to hold."
+        },
+        "memoryTarget": {
+          "type": "integer",
+          "maximum": 100,
+          "minimum": 1,
+          "description": "Average memory utilization percent to hold."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Health": {
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "HTTP path the check requests."
+        },
+        "interval": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Seconds between checks."
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Seconds before a check counts as failed."
+        },
+        "failThreshold": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Consecutive failures before the container restarts."
+        },
+        "startupGracePeriod": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Seconds after start before checks begin."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Override": {
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "false excludes the service from this environment."
+        },
+        "dockerfile": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Dockerfile path relative to context."
+        },
+        "context": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Build context relative to the file."
+        },
+        "image": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Public image reference."
+        },
+        "port": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "maximum": 65535,
+          "minimum": 1,
+          "description": "Container port."
+        },
+        "health": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OverrideHealth"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Health check fields to merge."
+        },
+        "routing": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OverrideRouting"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Routing fields to merge."
+        },
+        "domains": {
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ],
+          "description": "Replaces the service's domains."
+        },
+        "env": {
+          "additionalProperties": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "Environment variables to merge. null removes one."
+        },
+        "secrets": {
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ],
+          "description": "Replaces the service's secret names."
+        },
+        "regions": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/OverrideRegion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "Region fields to merge keyed by region name."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "OverrideAutoscaling": {
+      "properties": {
+        "cpuTarget": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "maximum": 100,
+          "minimum": 1,
+          "description": "Average CPU utilization percent to hold."
+        },
+        "memoryTarget": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "maximum": 100,
+          "minimum": 1,
+          "description": "Average memory utilization percent to hold."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "OverrideHealth": {
+      "properties": {
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "HTTP path the check requests."
+        },
+        "interval": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "description": "Seconds between checks."
+        },
+        "timeout": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "description": "Seconds before a check counts as failed."
+        },
+        "failThreshold": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "description": "Consecutive failures before the container restarts."
+        },
+        "startupGracePeriod": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Seconds after start before checks begin."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "OverrideRegion": {
+      "properties": {
+        "cpu": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "CPU per replica in Kubernetes quantity form such as 250m."
+        },
+        "memory": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Memory per replica in Kubernetes quantity form such as 512Mi."
+        },
+        "replicas": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OverrideReplicas"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Replica bounds."
+        },
+        "autoscaling": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OverrideAutoscaling"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Scales replicas between min and max on one target."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "OverrideReplicas": {
+      "properties": {
+        "min": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Fewest replicas."
+        },
+        "max": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Most replicas."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "OverrideRouting": {
+      "properties": {
+        "pathPrefix": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Path prefix the domain routes to the service."
+        },
+        "idleTimeout": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "description": "Seconds an idle connection stays open."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Region": {
+      "properties": {
+        "cpu": {
+          "type": "string",
+          "description": "CPU per replica in Kubernetes quantity form such as 250m."
+        },
+        "memory": {
+          "type": "string",
+          "description": "Memory per replica in Kubernetes quantity form such as 512Mi."
+        },
+        "replicas": {
+          "$ref": "#/$defs/Replicas",
+          "description": "Replica bounds."
+        },
+        "autoscaling": {
+          "$ref": "#/$defs/Autoscaling",
+          "description": "Scales replicas between min and max on one target."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Replicas": {
+      "properties": {
+        "min": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Fewest replicas."
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Most replicas."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Routing": {
+      "properties": {
+        "pathPrefix": {
+          "type": "string",
+          "description": "Path prefix the domain routes to the service."
+        },
+        "idleTimeout": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Seconds an idle connection stays open."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Service": {
+      "properties": {
+        "dockerfile": {
+          "type": "string",
+          "description": "Dockerfile path relative to context. A service without image is built from the uploaded source.",
+          "default": "Dockerfile"
+        },
+        "context": {
+          "type": "string",
+          "description": "Build context relative to the file. Not with image.",
+          "default": "."
+        },
+        "image": {
+          "type": "string",
+          "description": "Public image reference. A tag is resolved to a digest at plan time. Not with dockerfile or context."
+        },
+        "port": {
+          "type": "integer",
+          "maximum": 65535,
+          "minimum": 1,
+          "description": "Container port. Required when routing is set."
+        },
+        "health": {
+          "$ref": "#/$defs/Health",
+          "description": "Health check. The API fills omitted fields."
+        },
+        "routing": {
+          "$ref": "#/$defs/Routing",
+          "description": "HTTP routing. The API fills omitted fields."
+        },
+        "domains": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "description": "Hostnames routed to the service. The first is primary. Platform domains end in an active platform domain."
+        },
+        "env": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object",
+          "description": "Plain environment variables with their values."
+        },
+        "secrets": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "description": "Names of secrets the service needs. Values live in the environment and are set with loco env push."
+        },
+        "regions": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Region"
+          },
+          "type": "object",
+          "description": "Regions the service runs in keyed by region name. At least one."
+        },
+        "environments": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Override"
+          },
+          "type": "object",
+          "description": "Per-environment overrides keyed by environment name."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    }
+  },
+  "properties": {
+    "version": {
+      "type": "integer",
+      "enum": [
+        1
+      ],
+      "description": "Schema version. Always 1."
+    },
+    "partial": {
+      "type": "string",
+      "maxLength": 63,
+      "minLength": 1,
+      "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+      "description": "Name of the slice of the workspace this file owns. A DNS label."
+    },
+    "services": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Service"
+      },
+      "propertyNames": {
+        "maxLength": 63,
+        "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+      },
+      "type": "object",
+      "description": "Services keyed by name. The name is the identity: renaming is a delete and a create."
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "version",
+    "partial",
+    "services"
+  ],
+  "title": "loco.yaml",
+  "description": "Services a Loco workspace runs, with per-environment overrides."
+}

@@ -32,7 +32,7 @@ test_c01_cli_deploys_from_source() {
 
     local started elapsed rc=0
     started=$(date +%s)
-    (cd "$cli_app_dir" && loco_cli deploy "$cli_app" --wait) >"$cli_dir/deploy.out" 2>"$cli_dir/deploy.err" || rc=$?
+    (cd "$cli_app_dir" && loco_cli deploy --yes) >"$cli_dir/deploy.out" 2>"$cli_dir/deploy.err" || rc=$?
     elapsed=$(($(date +%s) - started))
     if ! assert "loco deploy built and deployed ${cli_app} (exit ${rc}, ${elapsed}s)" test "$rc" -eq 0; then
         sed 's/^/    /' "$cli_dir/deploy.out" "$cli_dir/deploy.err"
@@ -41,16 +41,17 @@ test_c01_cli_deploys_from_source() {
     log_info "loco deploy took ${elapsed}s"
     assert_contains "CLI packed the fixture" "Packed" cat "$cli_dir/deploy.out"
     assert_contains "CLI followed the build to success" "succeeded in" cat "$cli_dir/deploy.out"
-    assert_contains "CLI waited for the deployment to run" "\[running\]" cat "$cli_dir/deploy.out"
+    assert_contains "CLI applied the file with the build" "Started deployment" cat "$cli_dir/deploy.out"
+    assert_contains "CLI prints the public URL" "${cli_app}: https://${cli_app}.e2e.test.local" cat "$cli_dir/deploy.out"
     assert_contains "Without a log proxy, the CLI says so and keeps following the build" \
         "Build logs are unavailable" cat "$cli_dir/deploy.out"
+    wait_for "the app to be Ready" 120 cli_application_is_ready "$cli_app"
+    assert "The Application is Ready" cli_application_is_ready "$cli_app"
 }
 
 test_c02_cli_lists_the_build() {
     assert_contains "loco builds list shows the build succeeded" "succeeded" \
         loco_cli builds list "$cli_app"
-    (cd "$cli_app_dir" && loco_cli builds list) >"$cli_dir/list.out" 2>&1
-    assert_contains "loco builds list reads the service from loco.toml" "succeeded" cat "$cli_dir/list.out"
     assert_contains "loco builds list --output json reports the digest" '"imageDigest":"sha256:' \
         loco_cli builds list "$cli_app" --output json
 }

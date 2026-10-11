@@ -24,6 +24,8 @@ import { Section } from "@/components/design/Page";
 import { SoonTag } from "@/components/design/SoonTag";
 import { toastConnectError } from "@/lib/error-handler";
 
+import { MANAGED_NOTICE_ID } from "./ManagedNotice";
+
 const HOST = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 
 function sourceLabel(source: DomainType): string {
@@ -40,10 +42,12 @@ function sourceLabel(source: DomainType): string {
 function DomainRow({
 	domain,
 	onlyDomain,
+	managed,
 	onChanged,
 }: {
 	domain: ResourceDomain;
 	onlyDomain: boolean;
+	managed: boolean;
 	onChanged: () => void;
 }) {
 	const [editing, setEditing] = useState<string | null>(null);
@@ -110,18 +114,21 @@ function DomainRow({
 	}
 
 	return (
-		<div className="grid h-11 grid-cols-[minmax(0,1fr)_100px_120px_auto] items-center gap-3 border-b border-line px-4">
+		<div className="grid h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-line px-4 sm:grid-cols-[minmax(0,1fr)_100px_120px_auto]">
 			<a href={`https://${domain.domain}`} target="_blank" rel="noopener noreferrer" className="truncate font-medium">
 				{domain.domain}
 			</a>
-			<span className="text-fg3">{sourceLabel(domain.domainSource)}</span>
+			<span className="hidden text-fg3 sm:inline">{sourceLabel(domain.domainSource)}</span>
 			{platform ? (
-				<span className="flex items-center gap-1.5 text-fg2">
+				<span className="hidden items-center gap-1.5 text-fg2 sm:flex">
 					<span className="size-[7px] rounded-full bg-ok-fg" />
 					TLS active
 				</span>
 			) : (
-				<span className="flex items-center gap-1.5 text-fg4" title="Certificate status for custom domains is not reported yet">
+				<span
+					className="hidden items-center gap-1.5 text-fg4 sm:flex"
+					title="Certificate status for custom domains is not reported yet"
+				>
 					TLS status
 					<SoonTag />
 				</span>
@@ -134,7 +141,16 @@ function DomainRow({
 				)}
 				<DropdownMenu>
 					<DropdownMenuTrigger
-						render={<Button variant="ghost" size="icon-sm" className="text-fg3" aria-label={`Actions for ${domain.domain}`} />}
+						disabled={managed}
+						render={
+							<Button
+								variant="ghost"
+								size="icon-sm"
+								className="text-fg3"
+								aria-label={`Actions for ${domain.domain}`}
+								aria-describedby={managed ? MANAGED_NOTICE_ID : undefined}
+							/>
+						}
 					>
 						<EllipsisIcon />
 					</DropdownMenuTrigger>
@@ -197,12 +213,15 @@ function DomainRow({
 export function DomainsSection({
 	resourceId,
 	domains,
+	managed,
 	onChanged,
 }: {
 	resourceId: string;
 	domains: ResourceDomain[];
+	managed: boolean;
 	onChanged: () => void;
 }) {
+	const describedBy = managed ? MANAGED_NOTICE_ID : undefined;
 	const [host, setHost] = useState("");
 	const [error, setError] = useState<string | undefined>(undefined);
 	const add = useMutation(createResourceDomain);
@@ -239,7 +258,7 @@ export function DomainsSection({
 				</div>
 			)}
 			{sorted.map((d) => (
-				<DomainRow key={d.id} domain={d} onlyDomain={sorted.length === 1} onChanged={onChanged} />
+				<DomainRow key={d.id} domain={d} onlyDomain={sorted.length === 1} managed={managed} onChanged={onChanged} />
 			))}
 			<form
 				className="flex flex-col gap-1.5 px-4 py-3"
@@ -251,6 +270,8 @@ export function DomainsSection({
 				<div className="flex gap-2">
 					<Input
 						value={host}
+						disabled={managed}
+						aria-describedby={describedBy}
 						placeholder="app.example.com"
 						aria-invalid={error !== undefined}
 						aria-label="Custom domain"
@@ -260,7 +281,12 @@ export function DomainsSection({
 						}}
 						className="flex-1"
 					/>
-					<Button type="submit" variant="outline" disabled={host.trim() === "" || add.isPending}>
+					<Button
+						type="submit"
+						variant="outline"
+						disabled={managed || host.trim() === "" || add.isPending}
+						aria-describedby={describedBy}
+					>
 						{add.isPending ? "Adding…" : "Add custom domain"}
 					</Button>
 				</div>

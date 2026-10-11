@@ -19,6 +19,6 @@ Use the page action beside the title to copy Markdown. Page-specific Markdown UR
 
 ## Match the release
 
-Ask the assistant to check release notices and the installed CLI's help before generating commands. Go infrastructure documentation describes an unreleased workflow; Markdown exports retain those notices.
+Ask the assistant to check the installed CLI's help before generating commands. Pages describe the main branch, which can be ahead of your release.
 
 These helpers use [Zensical's native `llmstxt` support](https://zensical.org/docs/compatibility/mkdocs/plugins/#llmstxt). They do not require an AI account or an API key. Copying a page uses your browser's clipboard; these docs do not send it to an AI provider.

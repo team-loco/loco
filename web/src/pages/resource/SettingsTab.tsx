@@ -12,12 +12,22 @@ import { SoonTag } from "@/components/design/SoonTag";
 import { toastConnectError } from "@/lib/error-handler";
 
 import { DomainsSection } from "./DomainsSection";
+import { MANAGED_NOTICE_ID, ManagedNotice } from "./ManagedNotice";
 import type { Notice, RegionView } from "./model";
 import { ScaleSection } from "./ScaleSection";
 
+const DELETE_MANAGED_ID = "delete-managed";
 const NAME = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
 
-function GeneralSection({ resource, onSaved }: { resource: Resource; onSaved: () => void }) {
+function GeneralSection({
+	resource,
+	managed,
+	onSaved,
+}: {
+	resource: Resource;
+	managed: boolean;
+	onSaved: () => void;
+}) {
 	const [name, setName] = useState<string | null>(null);
 	const [error, setError] = useState<string | undefined>(undefined);
 	const update = useMutation(updateResource);
@@ -58,6 +68,8 @@ function GeneralSection({ resource, onSaved }: { resource: Resource; onSaved: ()
 				<Field label="Name" error={error}>
 					<Input
 						value={value}
+						disabled={managed}
+						aria-describedby={managed ? MANAGED_NOTICE_ID : undefined}
 						aria-invalid={error !== undefined}
 						onChange={(e) => {
 							setName(e.target.value);
@@ -89,7 +101,12 @@ function GeneralSection({ resource, onSaved }: { resource: Resource; onSaved: ()
 							Reset
 						</Button>
 					)}
-					<Button type="submit" className="h-[30px]" disabled={!dirty || update.isPending}>
+					<Button
+						type="submit"
+						className="h-[30px]"
+						disabled={managed || !dirty || update.isPending}
+						aria-describedby={managed ? MANAGED_NOTICE_ID : undefined}
+					>
 						{update.isPending ? "Saving…" : "Save"}
 					</Button>
 				</div>
@@ -111,21 +128,38 @@ export function SettingsTab({
 	onSaved: () => void;
 	onDelete: () => void;
 }) {
+	const managed = resource.partial !== undefined;
 	return (
 		<div className="flex max-w-[880px] flex-col gap-5">
-			<GeneralSection resource={resource} onSaved={onSaved} />
+			{resource.partial !== undefined && <ManagedNotice partial={resource.partial} />}
+			<GeneralSection resource={resource} managed={managed} onSaved={onSaved} />
 			<ScaleSection
 				resourceId={resource.id}
 				resourceName={resource.name}
 				regions={regions}
+				managed={managed}
 				onNotice={onNotice}
 				onSaved={onSaved}
 			/>
-			<DomainsSection resourceId={resource.id} domains={resource.domains} onChanged={onSaved} />
+			<DomainsSection resourceId={resource.id} domains={resource.domains} managed={managed} onChanged={onSaved} />
 			<section className="rounded-lg border border-red bg-background">
 				<div className="flex items-center gap-4 px-4 py-3.5">
-					<span className="flex-1 font-semibold text-red">Delete {resource.name}</span>
-					<Button variant="destructive-outline" className="h-[30px] border-red" onClick={onDelete}>
+					<div className="flex min-w-0 flex-1 flex-col gap-0.5">
+						<span className="font-semibold text-red">Delete {resource.name}</span>
+						{managed && (
+							<span id={DELETE_MANAGED_ID} className="text-sm text-fg3">
+								loco.yaml declares this service. Remove it from the file and run <code className="font-mono">loco infra apply</code>{" "}
+								to delete it.
+							</span>
+						)}
+					</div>
+					<Button
+						variant="destructive-outline"
+						className="h-[30px] border-red"
+						disabled={managed}
+						aria-describedby={managed ? DELETE_MANAGED_ID : undefined}
+						onClick={onDelete}
+					>
 						Delete resource
 					</Button>
 				</div>

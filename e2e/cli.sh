@@ -47,47 +47,47 @@ id = "${cli_workspace_id}"
 TOML
 }
 
+# Write a loco.yaml with one service. source is "dockerfile: deploy/Dockerfile" or
+# "image: <ref>"; domains is a YAML list such as "[name.e2e.test.local]" or "[]".
+cli_write_loco_yaml() {
+    local dir=$1 name=$2 source=$3 port=$4 health_path=$5 domains=$6
+    cat >"$dir/loco.yaml" <<YAML
+version: 1
+partial: ${name}
+services:
+  ${name}:
+    ${source}
+    port: ${port}
+    routing: { pathPrefix: /, idleTimeout: 60 }
+    health: { path: ${health_path}, interval: 5, timeout: 3, failThreshold: 3, startupGracePeriod: 0 }
+    domains: ${domains}
+    regions:
+      us-east-1: { cpu: 100m, memory: 128Mi, replicas: { min: 1, max: 1 } }
+YAML
+}
+
 cli_write_service_config() {
     local dir=$1 name=$2 port=$3 health_path=$4
-    cli_write_private_service_config "$dir" "$name" "$port" "$health_path"
-    cat >>"$dir/loco.toml" <<TOML
-
-[DomainConfig]
-Type = "platform"
-Hostname = "${name}.e2e.test.local"
-TOML
+    cli_write_loco_yaml "$dir" "$name" "dockerfile: deploy/Dockerfile" "$port" "$health_path" "[${name}.e2e.test.local]"
 }
 
 cli_write_private_service_config() {
     local dir=$1 name=$2 port=$3 health_path=$4
-    cat >"$dir/loco.toml" <<TOML
-[Metadata]
-ConfigVersion = "0.1"
-Name = "${name}"
-Type = "SERVICE"
-Region = "us-east-1"
+    cli_write_loco_yaml "$dir" "$name" "dockerfile: deploy/Dockerfile" "$port" "$health_path" "[]"
+}
 
-[Build]
-DockerfilePath = "deploy/Dockerfile"
-Type = "docker"
+cli_write_image_config() {
+    local dir=$1 name=$2 image=$3 port=$4 domains=$5
+    cli_write_loco_yaml "$dir" "$name" "image: ${image}" "$port" / "$domains"
+}
 
-[Routing]
-Port = ${port}
-PathPrefix = "/"
-IdleTimeout = 60
+cli_application_phase() {
+    local id
+    id=$(e2e_psql "SELECT id FROM resources WHERE name = '$1'")
+    kubectl --context "kind-${E2E_KIND_CLUSTER}" -n "$E2E_LOCO_NAMESPACE" \
+        get application "resource-${id}" -o jsonpath='{.status.phase}'
+}
 
-[RegionConfig]
-[RegionConfig.us-east-1]
-CPU = "100m"
-Memory = "128Mi"
-ReplicasMin = 1
-ReplicasMax = 1
-
-[Health]
-Path = "${health_path}"
-Interval = 5
-Timeout = 3
-StartupGracePeriod = 0
-FailThreshold = 3
-TOML
+cli_application_is_ready() {
+    test "$(cli_application_phase "$1")" = Ready
 }

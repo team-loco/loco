@@ -1,0 +1,22 @@
+# every structural error is reported with its path, and the command exits 1.
+! exec loco infra validate
+stderr 'Invalid loco.yaml:'
+stderr 'partial: must be a DNS label'
+stderr 'services.web: image cannot be combined with dockerfile or context'
+stderr 'services.web.port: port is required when routing is set'
+stderr 'services.web.regions.us-east-1.autoscaling: autoscaling needs exactly one of cpuTarget or memoryTarget'
+stderr 'services.worker.regions: at least one region is required'
+! stdout .
+
+-- loco.yaml --
+version: 1
+partial: Web
+services:
+  web:
+    dockerfile: Dockerfile
+    image: ghcr.io/acme/web:1
+    routing: { pathPrefix: / }
+    regions:
+      us-east-1: { cpu: 250m, memory: 512Mi, replicas: { min: 1, max: 3 }, autoscaling: {} }
+  worker:
+    image: ghcr.io/acme/worker:1

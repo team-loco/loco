@@ -95,9 +95,9 @@ func (q *Queries) CancelOtherActiveBuilds(ctx context.Context, arg CancelOtherAc
 }
 
 const createBuild = `-- name: CreateBuild :one
-INSERT INTO builds (id, resource_id, status, source_type, source_key, source_size, dockerfile_path, image_repository, created_by)
-VALUES ($1, $2, 'awaiting_upload', $3, $4, $5, $6, $7, $8)
-RETURNING id, resource_id, cluster_id, status, source_type, source_key, source_size, dockerfile_path, image_repository, image_digest, cache_digest, message, created_by, created_at, started_at, finished_at, source_deleted_at, image_deleted_at
+INSERT INTO builds (id, resource_id, status, source_type, source_key, source_size, dockerfile_path, context, image_repository, created_by)
+VALUES ($1, $2, 'awaiting_upload', $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, resource_id, cluster_id, status, source_type, source_key, source_size, dockerfile_path, context, image_repository, image_digest, cache_digest, message, created_by, created_at, started_at, finished_at, source_deleted_at, image_deleted_at
 `
 
 type CreateBuildParams struct {
@@ -107,6 +107,7 @@ type CreateBuildParams struct {
 	SourceKey       string    `json:"sourceKey"`
 	SourceSize      int64     `json:"sourceSize"`
 	DockerfilePath  string    `json:"dockerfilePath"`
+	Context         string    `json:"context"`
 	ImageRepository string    `json:"imageRepository"`
 	CreatedBy       uuid.UUID `json:"createdBy"`
 }
@@ -119,6 +120,7 @@ func (q *Queries) CreateBuild(ctx context.Context, arg CreateBuildParams) (Build
 		arg.SourceKey,
 		arg.SourceSize,
 		arg.DockerfilePath,
+		arg.Context,
 		arg.ImageRepository,
 		arg.CreatedBy,
 	)
@@ -132,6 +134,7 @@ func (q *Queries) CreateBuild(ctx context.Context, arg CreateBuildParams) (Build
 		&i.SourceKey,
 		&i.SourceSize,
 		&i.DockerfilePath,
+		&i.Context,
 		&i.ImageRepository,
 		&i.ImageDigest,
 		&i.CacheDigest,
@@ -312,7 +315,7 @@ func (q *Queries) FinishBuild(ctx context.Context, arg FinishBuildParams) (Finis
 }
 
 const getBuildByID = `-- name: GetBuildByID :one
-SELECT id, resource_id, cluster_id, status, source_type, source_key, source_size, dockerfile_path, image_repository, image_digest, cache_digest, message, created_by, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds WHERE id = $1
+SELECT id, resource_id, cluster_id, status, source_type, source_key, source_size, dockerfile_path, context, image_repository, image_digest, cache_digest, message, created_by, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds WHERE id = $1
 `
 
 func (q *Queries) GetBuildByID(ctx context.Context, id uuid.UUID) (Build, error) {
@@ -327,6 +330,7 @@ func (q *Queries) GetBuildByID(ctx context.Context, id uuid.UUID) (Build, error)
 		&i.SourceKey,
 		&i.SourceSize,
 		&i.DockerfilePath,
+		&i.Context,
 		&i.ImageRepository,
 		&i.ImageDigest,
 		&i.CacheDigest,
@@ -451,7 +455,7 @@ func (q *Queries) ListBuildTagStates(ctx context.Context, ids []uuid.UUID) ([]Li
 }
 
 const listBuildsForResource = `-- name: ListBuildsForResource :many
-SELECT id, resource_id, cluster_id, status, source_type, source_key, source_size, dockerfile_path, image_repository, image_digest, cache_digest, message, created_by, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds b
+SELECT id, resource_id, cluster_id, status, source_type, source_key, source_size, dockerfile_path, context, image_repository, image_digest, cache_digest, message, created_by, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds b
 WHERE b.resource_id = $1
   AND ($3::text IS NULL
        OR (b.created_at, b.id) < (
@@ -486,6 +490,7 @@ func (q *Queries) ListBuildsForResource(ctx context.Context, arg ListBuildsForRe
 			&i.SourceKey,
 			&i.SourceSize,
 			&i.DockerfilePath,
+			&i.Context,
 			&i.ImageRepository,
 			&i.ImageDigest,
 			&i.CacheDigest,
@@ -618,6 +623,46 @@ func (q *Queries) ListExistingResourceIDs(ctx context.Context, ids []uuid.UUID) 
 	return items, nil
 }
 
+const listLatestSucceededBuildsForResources = `-- name: ListLatestSucceededBuildsForResources :many
+SELECT DISTINCT ON (resource_id) id, resource_id, dockerfile_path, context FROM builds
+WHERE resource_id = ANY($1::uuid[])
+  AND status = 'succeeded'
+  AND image_deleted_at IS NULL
+ORDER BY resource_id, finished_at DESC, id DESC
+`
+
+type ListLatestSucceededBuildsForResourcesRow struct {
+	ID             uuid.UUID `json:"id"`
+	ResourceID     uuid.UUID `json:"resourceId"`
+	DockerfilePath string    `json:"dockerfilePath"`
+	Context        string    `json:"context"`
+}
+
+func (q *Queries) ListLatestSucceededBuildsForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListLatestSucceededBuildsForResourcesRow, error) {
+	rows, err := q.db.Query(ctx, listLatestSucceededBuildsForResources, resourceIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListLatestSucceededBuildsForResourcesRow
+	for rows.Next() {
+		var i ListLatestSucceededBuildsForResourcesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ResourceID,
+			&i.DockerfilePath,
+			&i.Context,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listLiveBuildDigests = `-- name: ListLiveBuildDigests :many
 SELECT resource_id, image_digest::text AS image_digest, cache_digest FROM builds
 WHERE resource_id = ANY($1::uuid[])
@@ -657,6 +702,7 @@ SELECT b.id,
        r.workspace_id,
        b.source_key,
        b.dockerfile_path,
+       b.context,
        b.image_repository,
        COALESCE((
          SELECT p.image_repository || '@' || p.cache_digest
@@ -681,6 +727,7 @@ type ListQueuedClusterBuildsRow struct {
 	WorkspaceID     uuid.UUID `json:"workspaceId"`
 	SourceKey       string    `json:"sourceKey"`
 	DockerfilePath  string    `json:"dockerfilePath"`
+	Context         string    `json:"context"`
 	ImageRepository string    `json:"imageRepository"`
 	CacheRef        string    `json:"cacheRef"`
 }
@@ -700,6 +747,7 @@ func (q *Queries) ListQueuedClusterBuilds(ctx context.Context, clusterID *uuid.U
 			&i.WorkspaceID,
 			&i.SourceKey,
 			&i.DockerfilePath,
+			&i.Context,
 			&i.ImageRepository,
 			&i.CacheRef,
 		); err != nil {

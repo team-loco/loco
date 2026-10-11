@@ -62,6 +62,7 @@ func startMessage(buildID string) *agentv1.StartBuild {
 		ResourceId:      "01a44444-4444-7444-8444-444444444444",
 		SourceUrl:       "https://bucket.test/sources/x.tar.gz?signed",
 		DockerfilePath:  "deploy/Dockerfile",
+		Context:         "services/api",
 		ImageRepository: "registry.test/ws-1/app",
 		CacheRef:        "registry.test/ws-1/app@" + testCache,
 	}
@@ -105,6 +106,7 @@ func TestCreateMakesOneBuildPerID(t *testing.T) {
 		ResourceID:      start.GetResourceId(),
 		SourceURL:       start.GetSourceUrl(),
 		DockerfilePath:  start.GetDockerfilePath(),
+		Context:         start.GetContext(),
 		ImageRepository: start.GetImageRepository(),
 		CacheRef:        start.GetCacheRef(),
 	}

@@ -103,6 +103,11 @@ var (
 		entityType: db.EntityTypeResource,
 		scope:      db.ScopeAdmin,
 	}
+	// TransferPartial requires resource:admin.
+	TransferPartial = Action{
+		entityType: db.EntityTypeResource,
+		scope:      db.ScopeAdmin,
+	}
 
 	// deployments
 
@@ -313,6 +318,16 @@ var (
 	}
 	// GetEnvironment requires workspace:read (looked up via env's workspace_id).
 	GetEnvironment = Action{
+		entityType: db.EntityTypeWorkspace,
+		scope:      db.ScopeRead,
+	}
+	// Apply requires workspace:write; a delete in the plan also needs DeleteResource.
+	Apply = Action{
+		entityType: db.EntityTypeWorkspace,
+		scope:      db.ScopeWrite,
+	}
+	// Plan requires workspace:read; it writes nothing.
+	Plan = Action{
 		entityType: db.EntityTypeWorkspace,
 		scope:      db.ScopeRead,
 	}

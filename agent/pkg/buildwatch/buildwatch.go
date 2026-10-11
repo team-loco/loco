@@ -147,6 +147,7 @@ func (w *Watcher) Create(ctx context.Context, start *agentv1.StartBuild) error {
 			ResourceID:      start.GetResourceId(),
 			SourceURL:       start.GetSourceUrl(),
 			DockerfilePath:  start.GetDockerfilePath(),
+			Context:         start.GetContext(),
 			ImageRepository: start.GetImageRepository(),
 			CacheRef:        start.GetCacheRef(),
 		},

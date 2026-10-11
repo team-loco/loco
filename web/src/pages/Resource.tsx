@@ -18,6 +18,7 @@ import { DeleteDialogContent, RollbackDialogContent, SpecDialogContent } from "@
 import { DiffDialogContent } from "@/pages/resource/DiffDialog";
 import { EventsSection } from "@/pages/resource/EventsSection";
 import { shortId } from "@/pages/resource/format";
+import { ManagedNotice } from "@/pages/resource/ManagedNotice";
 import { buildRegions, depService, depTag, useResourceData, type ModalState, type Notice } from "@/pages/resource/model";
 import { RegionPanel } from "@/pages/resource/RegionPanel";
 import { ResourceHeader } from "@/pages/resource/ResourceHeader";
@@ -218,6 +219,7 @@ export function Resource() {
 				</div>
 			)}
 
+			{tab === "variables" && resource.partial !== undefined && <ManagedNotice partial={resource.partial} />}
 			{tab === "variables" && (
 				<VariablesTab
 					resourceId={resourceId}
@@ -225,6 +227,7 @@ export function Resource() {
 					env={depService(specDep)?.env ?? {}}
 					regionNames={regionNames}
 					hasDeployment={currents.length > 0}
+					managed={resource.partial !== undefined}
 					onNotice={setNotice}
 					onSaved={refresh}
 				/>

@@ -88,64 +88,6 @@ func (q *Queries) DeleteResource(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
-const getActiveClusterByRegionAndTier = `-- name: GetActiveClusterByRegionAndTier :one
-SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
-       last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
-       capacity_memory_bytes, agent_version, created_at, updated_at
-FROM clusters
-WHERE region = $1 AND tier = $2 AND is_active = true AND health_status = 'healthy'
-ORDER BY is_default DESC, created_at ASC
-LIMIT 1
-`
-
-type GetActiveClusterByRegionAndTierParams struct {
-	Region string `json:"region"`
-	Tier   string `json:"tier"`
-}
-
-type GetActiveClusterByRegionAndTierRow struct {
-	ID                    uuid.UUID  `json:"id"`
-	Name                  string     `json:"name"`
-	Region                string     `json:"region"`
-	Provider              string     `json:"provider"`
-	IsActive              bool       `json:"isActive"`
-	IsDefault             bool       `json:"isDefault"`
-	Endpoint              *string    `json:"endpoint"`
-	HealthStatus          *string    `json:"healthStatus"`
-	LastHealthCheck       *time.Time `json:"lastHealthCheck"`
-	AgentTokenHash        *string    `json:"agentTokenHash"`
-	LastHeartbeat         *time.Time `json:"lastHeartbeat"`
-	CapacityCpuMillicores *int64     `json:"capacityCpuMillicores"`
-	CapacityMemoryBytes   *int64     `json:"capacityMemoryBytes"`
-	AgentVersion          *string    `json:"agentVersion"`
-	CreatedAt             time.Time  `json:"createdAt"`
-	UpdatedAt             time.Time  `json:"updatedAt"`
-}
-
-func (q *Queries) GetActiveClusterByRegionAndTier(ctx context.Context, arg GetActiveClusterByRegionAndTierParams) (GetActiveClusterByRegionAndTierRow, error) {
-	row := q.db.QueryRow(ctx, getActiveClusterByRegionAndTier, arg.Region, arg.Tier)
-	var i GetActiveClusterByRegionAndTierRow
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.Region,
-		&i.Provider,
-		&i.IsActive,
-		&i.IsDefault,
-		&i.Endpoint,
-		&i.HealthStatus,
-		&i.LastHealthCheck,
-		&i.AgentTokenHash,
-		&i.LastHeartbeat,
-		&i.CapacityCpuMillicores,
-		&i.CapacityMemoryBytes,
-		&i.AgentVersion,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const getClusterDetails = `-- name: GetClusterDetails :one
 SELECT id, is_active, health_status, agent_version, last_heartbeat
 FROM clusters
@@ -228,7 +170,7 @@ func (q *Queries) GetFirstActiveCluster(ctx context.Context) (GetFirstActiveClus
 }
 
 const getResourceByID = `-- name: GetResourceByID :one
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
 FROM resources r
 WHERE r.id = $1
 `
@@ -245,6 +187,7 @@ func (q *Queries) GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, 
 		&i.Status,
 		&i.Spec,
 		&i.SpecVersion,
+		&i.Partial,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -252,7 +195,7 @@ func (q *Queries) GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, 
 }
 
 const getResourceByNameAndWorkspace = `-- name: GetResourceByNameAndWorkspace :one
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.name = $2
 `
@@ -274,6 +217,7 @@ func (q *Queries) GetResourceByNameAndWorkspace(ctx context.Context, arg GetReso
 		&i.Status,
 		&i.Spec,
 		&i.SpecVersion,
+		&i.Partial,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -424,6 +368,71 @@ func (q *Queries) ListClustersActive(ctx context.Context) ([]ListClustersActiveR
 	return items, nil
 }
 
+const listEligibleClusters = `-- name: ListEligibleClusters :many
+SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
+       last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
+       capacity_memory_bytes, agent_version, created_at, updated_at
+FROM clusters
+WHERE tier = $1 AND is_active = true AND health_status = 'healthy'
+ORDER BY region ASC, is_default DESC, created_at ASC
+`
+
+type ListEligibleClustersRow struct {
+	ID                    uuid.UUID  `json:"id"`
+	Name                  string     `json:"name"`
+	Region                string     `json:"region"`
+	Provider              string     `json:"provider"`
+	IsActive              bool       `json:"isActive"`
+	IsDefault             bool       `json:"isDefault"`
+	Endpoint              *string    `json:"endpoint"`
+	HealthStatus          *string    `json:"healthStatus"`
+	LastHealthCheck       *time.Time `json:"lastHealthCheck"`
+	AgentTokenHash        *string    `json:"agentTokenHash"`
+	LastHeartbeat         *time.Time `json:"lastHeartbeat"`
+	CapacityCpuMillicores *int64     `json:"capacityCpuMillicores"`
+	CapacityMemoryBytes   *int64     `json:"capacityMemoryBytes"`
+	AgentVersion          *string    `json:"agentVersion"`
+	CreatedAt             time.Time  `json:"createdAt"`
+	UpdatedAt             time.Time  `json:"updatedAt"`
+}
+
+func (q *Queries) ListEligibleClusters(ctx context.Context, tier string) ([]ListEligibleClustersRow, error) {
+	rows, err := q.db.Query(ctx, listEligibleClusters, tier)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListEligibleClustersRow
+	for rows.Next() {
+		var i ListEligibleClustersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Region,
+			&i.Provider,
+			&i.IsActive,
+			&i.IsDefault,
+			&i.Endpoint,
+			&i.HealthStatus,
+			&i.LastHealthCheck,
+			&i.AgentTokenHash,
+			&i.LastHeartbeat,
+			&i.CapacityCpuMillicores,
+			&i.CapacityMemoryBytes,
+			&i.AgentVersion,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listResourceRegions = `-- name: ListResourceRegions :many
 SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
 FROM resource_regions
@@ -497,7 +506,7 @@ func (q *Queries) ListResourceRegionsForResources(ctx context.Context, resourceI
 }
 
 const listResourcesForWorkspace = `-- name: ListResourcesForWorkspace :many
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1
    AND ($3::text IS NULL
@@ -533,6 +542,7 @@ func (q *Queries) ListResourcesForWorkspace(ctx context.Context, arg ListResourc
 			&i.Status,
 			&i.Spec,
 			&i.SpecVersion,
+			&i.Partial,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -546,15 +556,43 @@ func (q *Queries) ListResourcesForWorkspace(ctx context.Context, arg ListResourc
 	return items, nil
 }
 
-const lockResource = `-- name: LockResource :one
-SELECT id FROM resources WHERE id = $1 FOR UPDATE
+const listWorkspaceServiceResources = `-- name: ListWorkspaceServiceResources :many
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
+FROM resources r
+WHERE r.workspace_id = $1 AND r.type = 'service'
+ORDER BY r.name ASC
 `
 
-func (q *Queries) LockResource(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, lockResource, id)
-	var id_2 uuid.UUID
-	err := row.Scan(&id_2)
-	return id_2, err
+func (q *Queries) ListWorkspaceServiceResources(ctx context.Context, workspaceID uuid.UUID) ([]Resource, error) {
+	rows, err := q.db.Query(ctx, listWorkspaceServiceResources, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Resource
+	for rows.Next() {
+		var i Resource
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.Name,
+			&i.Type,
+			&i.Description,
+			&i.Status,
+			&i.Spec,
+			&i.SpecVersion,
+			&i.Partial,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const lockResourceRegion = `-- name: LockResourceRegion :one
@@ -585,6 +623,49 @@ func (q *Queries) LockResourceRegion(ctx context.Context, arg LockResourceRegion
 	return i, err
 }
 
+const lockResources = `-- name: LockResources :many
+SELECT id FROM resources
+WHERE id = ANY($1::uuid[])
+ORDER BY id
+FOR UPDATE
+`
+
+func (q *Queries) LockResources(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, lockResources, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setResourcePartial = `-- name: SetResourcePartial :exec
+UPDATE resources
+SET partial = $2, updated_at = NOW()
+WHERE id = $1
+`
+
+type SetResourcePartialParams struct {
+	ID      uuid.UUID `json:"id"`
+	Partial *string   `json:"partial"`
+}
+
+func (q *Queries) SetResourcePartial(ctx context.Context, arg SetResourcePartialParams) error {
+	_, err := q.db.Exec(ctx, setResourcePartial, arg.ID, arg.Partial)
+	return err
+}
+
 const updateResource = `-- name: UpdateResource :one
 UPDATE resources
 SET name = COALESCE($2, name),
@@ -603,6 +684,22 @@ func (q *Queries) UpdateResource(ctx context.Context, arg UpdateResourceParams) 
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const updateResourceSpec = `-- name: UpdateResourceSpec :exec
+UPDATE resources
+SET spec = $2, updated_at = NOW()
+WHERE id = $1
+`
+
+type UpdateResourceSpecParams struct {
+	ID   uuid.UUID `json:"id"`
+	Spec []byte    `json:"spec"`
+}
+
+func (q *Queries) UpdateResourceSpec(ctx context.Context, arg UpdateResourceSpecParams) error {
+	_, err := q.db.Exec(ctx, updateResourceSpec, arg.ID, arg.Spec)
+	return err
 }
 
 const updateResourceStatus = `-- name: UpdateResourceStatus :exec

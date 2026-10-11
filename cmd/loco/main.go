@@ -5,12 +5,14 @@ import (
 	"errors"
 	"image/color"
 	"io"
+	"log/slog"
 	"os"
 	"strings"
 
 	"charm.land/fang/v2"
 	"charm.land/lipgloss/v2"
 	"connectrpc.com/connect"
+	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/internal/ui"
 )
 
@@ -52,11 +54,15 @@ func Cli(version string) {
 		fang.WithErrorHandler(handleError))
 	env.versionCheck.report(os.Stderr)
 	if err != nil {
-		os.Exit(1)
+		os.Exit(cmdutil.ExitCode(err))
 	}
 }
 
 func handleError(w io.Writer, styles fang.Styles, err error) {
+	if exitErr, ok := errors.AsType[*cmdutil.ExitError](err); ok {
+		slog.Debug("command ended without a message", "code", exitErr.Code)
+		return
+	}
 	fang.DefaultErrorHandler(w, styles, displayError(err))
 }
 

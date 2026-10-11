@@ -232,12 +232,6 @@ func (s *DeploymentServer) CreateDeployment(
 
 	serviceSpec := r.GetSpec().GetService()
 
-	hostname, err := primaryHostname(ctx, s.queries, resourceID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get the resource's primary domain", "resourceId", resourceID, "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
-	}
-
 	region := r.GetRegion()
 	environmentID := uuid.MustParse(r.GetEnvironmentId())
 
@@ -262,11 +256,13 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeNotFound, ErrEnvironmentNotFound)
 	}
 
-	// Get active cluster for the specified region and environment tier
-	cluster, err := s.queries.GetActiveClusterByRegionAndTier(ctx, genDb.GetActiveClusterByRegionAndTierParams{
-		Region: region,
-		Tier:   env.EnvironmentType,
-	})
+	hostname, err := primaryHostname(ctx, s.queries, resourceID, environmentID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get the resource's primary domain", "resourceId", resourceID, "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
+	cluster, err := eligibleCluster(ctx, s.queries, region, env.EnvironmentType)
 	if err != nil {
 		slog.ErrorContext(
 			ctx,
@@ -278,10 +274,7 @@ func (s *DeploymentServer) CreateDeployment(
 			"error",
 			err,
 		)
-		return nil, connect.NewError(
-			connect.CodeInternal,
-			fmt.Errorf("no active cluster available for region %s tier %s", region, env.EnvironmentType),
-		)
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
 
 	requestedBuild := serviceSpec.GetBuild()
@@ -364,6 +357,9 @@ func (s *DeploymentServer) CreateDeployment(
 
 	var deploymentID uuid.UUID
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, resource.WorkspaceID); lockErr != nil {
+			return lockErr
+		}
 		if lockErr := lockPinnedBuildImage(ctx, qtx, pinnedBuild); lockErr != nil {
 			return lockErr
 		}
@@ -380,9 +376,13 @@ func (s *DeploymentServer) CreateDeployment(
 			Spec:             specJSON,
 			SpecVersion:      int32(1),
 			EnvironmentID:    environmentID,
+			SecretNames:      []string{},
 		}, buildSpec)
 		if txErr != nil {
 			return txErr
+		}
+		if bumpErr := bumpEnvironmentRevision(ctx, qtx, environmentID); bumpErr != nil {
+			return bumpErr
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.DeploymentCreated,
@@ -551,6 +551,9 @@ func (s *DeploymentServer) DeleteDeployment(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, resource.WorkspaceID); lockErr != nil {
+			return lockErr
+		}
 		if deployment.IsActive {
 			if removeErr := removePlacement(ctx, qtx, resource.ID, deployment.ClusterID); removeErr != nil {
 				return removeErr
@@ -559,6 +562,9 @@ func (s *DeploymentServer) DeleteDeployment(
 
 		if markErr := qtx.MarkDeploymentNotActive(ctx, deploymentID); markErr != nil {
 			return fmt.Errorf("mark deployment not active: %w", markErr)
+		}
+		if bumpErr := bumpEnvironmentRevision(ctx, qtx, deployment.EnvironmentID); bumpErr != nil {
+			return bumpErr
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.DeploymentDeleted,
@@ -736,7 +742,11 @@ func buildApplicationSpec(
 			Deployment: crdServiceDeploymentSpec,
 			Resources:  converter.ProtoToResourcesSpec(deploymentService),
 			Obs:        converter.ProtoToObsSpec(resourceService.GetObservability()),
-			Routing:    converter.ProtoToRoutingSpec(resourceService.GetRouting(), hostname, defaults),
+			Routing: converter.ProtoToRoutingSpec(
+				deploymentRouting(resourceService, deploymentService),
+				hostname,
+				defaults,
+			),
 		}
 
 	case genDb.ResourceTypeDatabase:
@@ -757,6 +767,21 @@ func buildApplicationSpec(
 	}
 
 	return appSpec, nil
+}
+
+// deploymentRouting is the routing an Application uses: the deployment's own when it carries
+// one, so each environment keeps its routing, and the resource's otherwise.
+func deploymentRouting(
+	resourceService *resourcev1.ServiceSpec,
+	deploymentService *deploymentv1.ServiceDeploymentSpec,
+) *resourcev1.RoutingConfig {
+	if deploymentService.GetRouting() == nil {
+		return resourceService.GetRouting()
+	}
+	return &resourcev1.RoutingConfig{
+		PathPrefix:  deploymentService.GetRouting().GetPathPrefix(),
+		IdleTimeout: deploymentService.GetRouting().GetIdleTimeout(),
+	}
 }
 
 func validateQuantities(service *deploymentv1.ServiceDeploymentSpec) error {

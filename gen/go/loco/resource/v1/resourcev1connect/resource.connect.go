@@ -63,6 +63,9 @@ const (
 	// ResourceServiceUpdateResourceEnvProcedure is the fully-qualified name of the ResourceService's
 	// UpdateResourceEnv RPC.
 	ResourceServiceUpdateResourceEnvProcedure = "/loco.resource.v1.ResourceService/UpdateResourceEnv"
+	// ResourceServiceTransferPartialProcedure is the fully-qualified name of the ResourceService's
+	// TransferPartial RPC.
+	ResourceServiceTransferPartialProcedure = "/loco.resource.v1.ResourceService/TransferPartial"
 )
 
 // ResourceServiceClient is a client for the loco.resource.v1.ResourceService service.
@@ -89,6 +92,8 @@ type ResourceServiceClient interface {
 	ScaleResource(context.Context, *connect.Request[v1.ScaleResourceRequest]) (*connect.Response[v1.ScaleResourceResponse], error)
 	// UpdateResourceEnv updates environment variables for a resource.
 	UpdateResourceEnv(context.Context, *connect.Request[v1.UpdateResourceEnvRequest]) (*connect.Response[v1.UpdateResourceEnvResponse], error)
+	// TransferPartial moves a resource to another partial.
+	TransferPartial(context.Context, *connect.Request[v1.TransferPartialRequest]) (*connect.Response[v1.TransferPartialResponse], error)
 }
 
 // NewResourceServiceClient constructs a client for the loco.resource.v1.ResourceService service. By
@@ -162,6 +167,12 @@ func NewResourceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(resourceServiceMethods.ByName("UpdateResourceEnv")),
 			connect.WithClientOptions(opts...),
 		),
+		transferPartial: connect.NewClient[v1.TransferPartialRequest, v1.TransferPartialResponse](
+			httpClient,
+			baseURL+ResourceServiceTransferPartialProcedure,
+			connect.WithSchema(resourceServiceMethods.ByName("TransferPartial")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -177,6 +188,7 @@ type resourceServiceClient struct {
 	listResourceEvents     *connect.Client[v1.ListResourceEventsRequest, v1.ListResourceEventsResponse]
 	scaleResource          *connect.Client[v1.ScaleResourceRequest, v1.ScaleResourceResponse]
 	updateResourceEnv      *connect.Client[v1.UpdateResourceEnvRequest, v1.UpdateResourceEnvResponse]
+	transferPartial        *connect.Client[v1.TransferPartialRequest, v1.TransferPartialResponse]
 }
 
 // CreateResource calls loco.resource.v1.ResourceService.CreateResource.
@@ -229,6 +241,11 @@ func (c *resourceServiceClient) UpdateResourceEnv(ctx context.Context, req *conn
 	return c.updateResourceEnv.CallUnary(ctx, req)
 }
 
+// TransferPartial calls loco.resource.v1.ResourceService.TransferPartial.
+func (c *resourceServiceClient) TransferPartial(ctx context.Context, req *connect.Request[v1.TransferPartialRequest]) (*connect.Response[v1.TransferPartialResponse], error) {
+	return c.transferPartial.CallUnary(ctx, req)
+}
+
 // ResourceServiceHandler is an implementation of the loco.resource.v1.ResourceService service.
 type ResourceServiceHandler interface {
 	// CreateResource creates a new resource.
@@ -253,6 +270,8 @@ type ResourceServiceHandler interface {
 	ScaleResource(context.Context, *connect.Request[v1.ScaleResourceRequest]) (*connect.Response[v1.ScaleResourceResponse], error)
 	// UpdateResourceEnv updates environment variables for a resource.
 	UpdateResourceEnv(context.Context, *connect.Request[v1.UpdateResourceEnvRequest]) (*connect.Response[v1.UpdateResourceEnvResponse], error)
+	// TransferPartial moves a resource to another partial.
+	TransferPartial(context.Context, *connect.Request[v1.TransferPartialRequest]) (*connect.Response[v1.TransferPartialResponse], error)
 }
 
 // NewResourceServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -322,6 +341,12 @@ func NewResourceServiceHandler(svc ResourceServiceHandler, opts ...connect.Handl
 		connect.WithSchema(resourceServiceMethods.ByName("UpdateResourceEnv")),
 		connect.WithHandlerOptions(opts...),
 	)
+	resourceServiceTransferPartialHandler := connect.NewUnaryHandler(
+		ResourceServiceTransferPartialProcedure,
+		svc.TransferPartial,
+		connect.WithSchema(resourceServiceMethods.ByName("TransferPartial")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/loco.resource.v1.ResourceService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ResourceServiceCreateResourceProcedure:
@@ -344,6 +369,8 @@ func NewResourceServiceHandler(svc ResourceServiceHandler, opts ...connect.Handl
 			resourceServiceScaleResourceHandler.ServeHTTP(w, r)
 		case ResourceServiceUpdateResourceEnvProcedure:
 			resourceServiceUpdateResourceEnvHandler.ServeHTTP(w, r)
+		case ResourceServiceTransferPartialProcedure:
+			resourceServiceTransferPartialHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -391,4 +418,8 @@ func (UnimplementedResourceServiceHandler) ScaleResource(context.Context, *conne
 
 func (UnimplementedResourceServiceHandler) UpdateResourceEnv(context.Context, *connect.Request[v1.UpdateResourceEnvRequest]) (*connect.Response[v1.UpdateResourceEnvResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.UpdateResourceEnv is not implemented"))
+}
+
+func (UnimplementedResourceServiceHandler) TransferPartial(context.Context, *connect.Request[v1.TransferPartialRequest]) (*connect.Response[v1.TransferPartialResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.TransferPartial is not implemented"))
 }

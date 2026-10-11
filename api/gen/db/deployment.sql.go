@@ -44,8 +44,8 @@ func (q *Queries) AdvanceDeploymentStatus(ctx context.Context, arg AdvanceDeploy
 
 const createDeployment = `-- name: CreateDeployment :one
 
-INSERT INTO deployments (resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version, environment_id, started_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+INSERT INTO deployments (resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version, environment_id, secret_names, started_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
 RETURNING id
 `
 
@@ -61,6 +61,7 @@ type CreateDeploymentParams struct {
 	Spec             []byte           `json:"spec"`
 	SpecVersion      int32            `json:"specVersion"`
 	EnvironmentID    uuid.UUID        `json:"environmentId"`
+	SecretNames      []string         `json:"secretNames"`
 }
 
 // Deployment queries
@@ -77,6 +78,7 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 		arg.Spec,
 		arg.SpecVersion,
 		arg.EnvironmentID,
+		arg.SecretNames,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
@@ -84,19 +86,20 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 }
 
 const getActiveDeploymentForResourceAndRegion = `-- name: GetActiveDeploymentForResourceAndRegion :one
-SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, created_at, started_at, completed_at, updated_at FROM deployments
-WHERE resource_id = $1 AND region = $2 AND is_active = true
+SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, secret_names, created_at, started_at, completed_at, updated_at FROM deployments
+WHERE resource_id = $1 AND environment_id = $2 AND region = $3 AND is_active = true
 ORDER BY created_at DESC
 LIMIT 1
 `
 
 type GetActiveDeploymentForResourceAndRegionParams struct {
-	ResourceID uuid.UUID `json:"resourceId"`
-	Region     string    `json:"region"`
+	ResourceID    uuid.UUID `json:"resourceId"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
+	Region        string    `json:"region"`
 }
 
 func (q *Queries) GetActiveDeploymentForResourceAndRegion(ctx context.Context, arg GetActiveDeploymentForResourceAndRegionParams) (Deployment, error) {
-	row := q.db.QueryRow(ctx, getActiveDeploymentForResourceAndRegion, arg.ResourceID, arg.Region)
+	row := q.db.QueryRow(ctx, getActiveDeploymentForResourceAndRegion, arg.ResourceID, arg.EnvironmentID, arg.Region)
 	var i Deployment
 	err := row.Scan(
 		&i.ID,
@@ -111,6 +114,7 @@ func (q *Queries) GetActiveDeploymentForResourceAndRegion(ctx context.Context, a
 		&i.EnvironmentID,
 		&i.Spec,
 		&i.SpecVersion,
+		&i.SecretNames,
 		&i.CreatedAt,
 		&i.StartedAt,
 		&i.CompletedAt,
@@ -120,7 +124,7 @@ func (q *Queries) GetActiveDeploymentForResourceAndRegion(ctx context.Context, a
 }
 
 const getDeploymentByID = `-- name: GetDeploymentByID :one
-SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
+SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, secret_names, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
 `
 
 func (q *Queries) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, error) {
@@ -139,6 +143,7 @@ func (q *Queries) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployme
 		&i.EnvironmentID,
 		&i.Spec,
 		&i.SpecVersion,
+		&i.SecretNames,
 		&i.CreatedAt,
 		&i.StartedAt,
 		&i.CompletedAt,
@@ -198,8 +203,52 @@ func (q *Queries) ListActiveDeployments(ctx context.Context) ([]uuid.UUID, error
 	return items, nil
 }
 
+const listActiveDeploymentsForEnvironment = `-- name: ListActiveDeploymentsForEnvironment :many
+SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, secret_names, created_at, started_at, completed_at, updated_at FROM deployments
+WHERE environment_id = $1 AND is_active = true
+ORDER BY resource_id, created_at DESC
+`
+
+func (q *Queries) ListActiveDeploymentsForEnvironment(ctx context.Context, environmentID uuid.UUID) ([]Deployment, error) {
+	rows, err := q.db.Query(ctx, listActiveDeploymentsForEnvironment, environmentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Deployment
+	for rows.Next() {
+		var i Deployment
+		if err := rows.Scan(
+			&i.ID,
+			&i.ResourceID,
+			&i.ResourceRegionID,
+			&i.ClusterID,
+			&i.Region,
+			&i.Replicas,
+			&i.Status,
+			&i.IsActive,
+			&i.Message,
+			&i.EnvironmentID,
+			&i.Spec,
+			&i.SpecVersion,
+			&i.SecretNames,
+			&i.CreatedAt,
+			&i.StartedAt,
+			&i.CompletedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listActiveDeploymentsForResource = `-- name: ListActiveDeploymentsForResource :many
-SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, created_at, started_at, completed_at, updated_at FROM deployments
+SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, secret_names, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE resource_id = $1 AND is_active = true
 ORDER BY created_at DESC
 `
@@ -226,6 +275,7 @@ func (q *Queries) ListActiveDeploymentsForResource(ctx context.Context, resource
 			&i.EnvironmentID,
 			&i.Spec,
 			&i.SpecVersion,
+			&i.SecretNames,
 			&i.CreatedAt,
 			&i.StartedAt,
 			&i.CompletedAt,
@@ -242,7 +292,7 @@ func (q *Queries) ListActiveDeploymentsForResource(ctx context.Context, resource
 }
 
 const listDeploymentsForResource = `-- name: ListDeploymentsForResource :many
-SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, created_at, started_at, completed_at, updated_at FROM deployments d
+SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, secret_names, created_at, started_at, completed_at, updated_at FROM deployments d
 WHERE d.resource_id = $1
   AND ($3::text IS NULL
        OR (d.created_at, d.id) < (
@@ -281,6 +331,7 @@ func (q *Queries) ListDeploymentsForResource(ctx context.Context, arg ListDeploy
 			&i.EnvironmentID,
 			&i.Spec,
 			&i.SpecVersion,
+			&i.SecretNames,
 			&i.CreatedAt,
 			&i.StartedAt,
 			&i.CompletedAt,
@@ -289,6 +340,38 @@ func (q *Queries) ListDeploymentsForResource(ctx context.Context, arg ListDeploy
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listResourcesRunningOutsideEnvironment = `-- name: ListResourcesRunningOutsideEnvironment :many
+SELECT DISTINCT resource_id FROM deployments
+WHERE resource_id = ANY($1::uuid[])
+  AND environment_id <> $2
+  AND is_active = true
+`
+
+type ListResourcesRunningOutsideEnvironmentParams struct {
+	ResourceIds   []uuid.UUID `json:"resourceIds"`
+	EnvironmentID uuid.UUID   `json:"environmentId"`
+}
+
+func (q *Queries) ListResourcesRunningOutsideEnvironment(ctx context.Context, arg ListResourcesRunningOutsideEnvironmentParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, listResourcesRunningOutsideEnvironment, arg.ResourceIds, arg.EnvironmentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var resource_id uuid.UUID
+		if err := rows.Scan(&resource_id); err != nil {
+			return nil, err
+		}
+		items = append(items, resource_id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

@@ -220,7 +220,7 @@ local_resource(
     'api',
     cmd='mise run build:api',
     serve_cmd='api/bin/loco-api',
-    deps=['api/', 'gen/go/', 'k8sapi/', 'internal/buildinfo/', 'internal/loglevel/', 'go.mod', 'go.sum'],
+    deps=['api/', 'gen/go/', 'k8sapi/', 'internal/buildinfo/', 'internal/loglevel/', 'internal/locofile/', 'go.mod', 'go.sum'],
     resource_deps=['db-migrate', 'valkey', 's3', 'dex'],
     allow_parallel=True,
     labels=['services'],

@@ -1,0 +1,68 @@
+# without a terminal, apply needs --yes.
+fakeapi plan plan.json
+! exec loco infra apply --confirm-destructive --confirm-import
+stdout '^Plan for loco.yaml against environment revision 7\.$'
+stderr '(?i)stdout is not a terminal; pass --yes to apply without a prompt'
+! fakeapi called Apply
+
+# a destructive operation needs --confirm-destructive, an import --confirm-import.
+! exec loco infra apply --yes
+stderr '(?i)apply refused: confirmation missing:'
+stderr '  worker is destructive and needs --confirm-destructive'
+stderr '  db is an import and needs --confirm-import'
+! fakeapi called Apply
+
+! exec loco infra apply --yes --confirm-destructive
+stderr '  db is an import and needs --confirm-import'
+! stderr 'worker'
+! fakeapi called Apply
+
+# an environment that changed since the plan refuses the apply.
+fakeapi revision-moves
+! exec loco infra apply --yes --confirm-destructive --confirm-import
+stderr '(?i)apply refused: the environment changed since the plan \(revision 7, now 8\); run the command again'
+fakeapi called Apply 'Bearer test-token'
+! fakeapi applied 7
+
+# plan errors stop the apply before anything is sent.
+fakeapi plan errors.json
+! exec loco infra apply --yes
+stderr '(?i)loco.yaml cannot be applied:'
+stderr '  web regions.us-west-9: region us-west-9 is not available'
+! fakeapi applied 8
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.toml --
+currentScope = "default"
+
+[scopes.default.organization]
+name = "acme"
+id = "1"
+
+[scopes.default.workspace]
+name = "production"
+id = "2"
+-- plan.json --
+{
+  "revision": "7",
+  "operations": [
+    {"kind": "PLAN_OPERATION_KIND_DELETE", "service": "worker", "destructive": true},
+    {"kind": "PLAN_OPERATION_KIND_IMPORT", "service": "db"}
+  ]
+}
+-- errors.json --
+{
+  "revision": "8",
+  "errors": [
+    {"service": "web", "path": "regions.us-west-9", "message": "region us-west-9 is not available"}
+  ]
+}
+-- loco.yaml --
+version: 1
+partial: web
+services:
+  db:
+    image: ghcr.io/acme/db:1
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }

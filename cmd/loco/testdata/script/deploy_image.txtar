@@ -1,10 +1,20 @@
-# --image deploys a public image without building.
+# a file whose services all run public images is applied without a build or an upload.
+fakeapi plan plan.json
 cd app
-exec loco deploy app --image nginx:1.27
-stdout 'Deployment scheduled.'
-fakeapi deployed us-east-1 image
-fakeapi deployed eu-west-1 image
+exec loco deploy --yes
+stdout '^  \+ api$'
+stdout '^Applied\. Environment revision is now 8\.$'
+stdout '^Started deployment dep-api for api in us-east-1\.$'
+stdout '^api has no public URL and takes no internet traffic\.$'
+! stdout 'Packed'
 ! fakeapi called CreateBuild
+! fakeapi called Upload
+fakeapi applied 7
+
+# naming an image service is an error, since it is never built.
+! exec loco deploy api --yes
+stderr 'runs a public image and is not built'
+! fakeapi applied 8
 
 -- home/.loco/credentials.json --
 {"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
@@ -18,42 +28,18 @@ id = "1"
 [scopes.default.workspace]
 name = "production"
 id = "2"
--- app/loco.toml --
-[Metadata]
-ConfigVersion = "0.1"
-Name = "app"
-Type = "SERVICE"
-Region = "us-east-1"
-
-[Build]
-DockerfilePath = "Dockerfile"
-Type = "docker"
-
-[Routing]
-Port = 8080
-PathPrefix = "/"
-IdleTimeout = 60
-
-[RegionConfig]
-[RegionConfig.us-east-1]
-CPU = "100m"
-Memory = "256Mi"
-ReplicasMin = 1
-ReplicasMax = 1
-[RegionConfig.eu-west-1]
-CPU = "100m"
-Memory = "256Mi"
-ReplicasMin = 1
-ReplicasMax = 2
-
-[Health]
-Path = "/healthz"
-Interval = 30
-Timeout = 5
-StartupGracePeriod = 0
-FailThreshold = 3
--- app/Dockerfile --
-FROM scratch
-COPY main.go /
--- app/main.go --
-package main
+-- app/loco.yaml --
+version: 1
+partial: web
+services:
+  api:
+    image: ghcr.io/acme/api:1
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+-- plan.json --
+{
+  "revision": "7",
+  "operations": [
+    {"kind": "PLAN_OPERATION_KIND_CREATE", "service": "api", "changes": [{"path": "image", "after": "ghcr.io/acme/api:1"}]}
+  ]
+}

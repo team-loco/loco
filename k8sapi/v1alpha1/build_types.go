@@ -37,6 +37,11 @@ type BuildSpec struct {
 	// +kubebuilder:validation:XValidation:rule="!self.startsWith('/') && !self.endsWith('/') && !self.split('/').exists(p, p == '..' || p == '.' || p == '')",message="dockerfilePath must be a relative path inside the build context"
 	DockerfilePath string `json:"dockerfilePath"`
 
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=1024
+	// +kubebuilder:validation:XValidation:rule="self == '.' || (!self.startsWith('/') && !self.endsWith('/') && !self.split('/').exists(p, p == '..' || p == '.' || p == ''))",message="context must be '.' or a relative directory inside the uploaded source"
+	Context string `json:"context"`
+
 	// +kubebuilder:validation:MaxLength=255
 	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9.]*[a-z0-9])?(:[0-9]+)?(/[a-z0-9]+([._-][a-z0-9]+)*)+$`
 	ImageRepository string `json:"imageRepository"`

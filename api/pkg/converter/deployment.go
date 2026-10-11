@@ -164,10 +164,10 @@ func MergeDeploymentSpec(
 		Env:   requestServiceSpec.GetEnv(),
 	}
 
-	cpu := firstSet(requestServiceSpec.GetCpu(), regionTarget.GetCpu(), defaults.CPU)
-	memory := firstSet(requestServiceSpec.GetMemory(), regionTarget.GetMemory(), defaults.Memory)
-	minReplicas := firstSet(requestServiceSpec.GetMinReplicas(), regionTarget.GetMinReplicas(), defaults.MinReplicas)
-	maxReplicas := firstSet(requestServiceSpec.GetMaxReplicas(), regionTarget.GetMaxReplicas())
+	cpu := FirstSet(requestServiceSpec.GetCpu(), regionTarget.GetCpu(), defaults.CPU)
+	memory := FirstSet(requestServiceSpec.GetMemory(), regionTarget.GetMemory(), defaults.Memory)
+	minReplicas := FirstSet(requestServiceSpec.GetMinReplicas(), regionTarget.GetMinReplicas(), defaults.MinReplicas)
+	maxReplicas := FirstSet(requestServiceSpec.GetMaxReplicas(), regionTarget.GetMaxReplicas())
 	if maxReplicas == 0 {
 		maxReplicas = max(defaults.MaxReplicas, minReplicas)
 	}
@@ -200,7 +200,7 @@ func MergeDeploymentSpec(
 	return mergedSpec, nil
 }
 
-func firstSet[T comparable](values ...T) T {
+func FirstSet[T comparable](values ...T) T {
 	var zero T
 	for _, value := range values {
 		if value != zero {
@@ -293,8 +293,8 @@ func ProtoToRoutingSpec(
 
 	return &locoControllerV1.RoutingSpec{
 		HostName:    hostname,
-		PathPrefix:  firstSet(routing.GetPathPrefix(), defaults.PathPrefix),
-		IdleTimeout: firstSet(routing.GetIdleTimeout(), defaults.IdleTimeout),
+		PathPrefix:  FirstSet(routing.GetPathPrefix(), defaults.PathPrefix),
+		IdleTimeout: FirstSet(routing.GetIdleTimeout(), defaults.IdleTimeout),
 	}
 }
 

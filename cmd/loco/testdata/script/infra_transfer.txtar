@@ -1,0 +1,36 @@
+# transfer looks the service up by name in the workspace and moves it to the partial.
+fakeapi seed app
+exec loco infra transfer app --to platform
+stdout '^Moved app to partial platform\.$'
+! stdout '\x1b\['
+fakeapi called GetResource 'Bearer test-token'
+fakeapi called TransferPartial 'Bearer test-token'
+fakeapi partial app platform
+
+# --to is required.
+! exec loco infra transfer app
+stderr '(?i)required flag\(s\) "to" not set'
+
+# an unknown service is an error before any transfer.
+! exec loco infra transfer ghost --to platform
+stderr '(?i)service "ghost" not found'
+fakeapi partial app platform
+
+# an API refusal is reported with the service and partial.
+fakeapi fail TransferPartial permission_denied
+! exec loco infra transfer app --to other
+stderr '(?i)transfer app to partial other: fakeapi: TransferPartial configured to fail'
+fakeapi partial app platform
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.toml --
+currentScope = "default"
+
+[scopes.default.organization]
+name = "acme"
+id = "1"
+
+[scopes.default.workspace]
+name = "production"
+id = "2"

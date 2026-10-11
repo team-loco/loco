@@ -39,7 +39,12 @@ var (
 	ErrClusterNotHealthy     = errors.New("cluster is not healthy")
 	ErrInvalidResourceType   = errors.New("invalid resource type")
 
+	errClusterHeldByEnvironment = errors.New(
+		"each environment needs its own cluster, and this cluster already runs the service for another environment",
+	)
+
 	errDomainInUse           = errors.New("domain already in use")
+	errUnknownResourceSpec   = errors.New("unknown resource spec type")
 	errOnlyServiceResources  = errors.New("only service resources are currently supported")
 	errScaleNothingRequested = errors.New("at least one of replicas, cpu, or memory must be provided")
 )
@@ -155,44 +160,9 @@ func (s *ResourceServer) CreateResource(
 		}
 	}
 
-	// save only the oneof spec (e.g., ServiceSpec) to db, not the wrapper
-	var (
-		specJSON []byte
-		err      error
-	)
-	switch specType := r.GetSpec().GetSpec().(type) {
-	case *resourcev1.ResourceSpec_Service:
-		specJSON, err = protojson.Marshal(specType.Service)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to marshal service spec", "error", err)
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
-		}
-	case *resourcev1.ResourceSpec_Database:
-		specJSON, err = protojson.Marshal(specType.Database)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to marshal database spec", "error", err)
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
-		}
-	case *resourcev1.ResourceSpec_Cache:
-		specJSON, err = protojson.Marshal(specType.Cache)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to marshal cache spec", "error", err)
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
-		}
-	case *resourcev1.ResourceSpec_Queue:
-		specJSON, err = protojson.Marshal(specType.Queue)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to marshal queue spec", "error", err)
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
-		}
-	case *resourcev1.ResourceSpec_Blob:
-		specJSON, err = protojson.Marshal(specType.Blob)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to marshal blob spec", "error", err)
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
-		}
-	default:
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unknown resource spec type"))
+	specJSON, err := marshalResourceSpec(ctx, r.GetSpec())
+	if err != nil {
+		return nil, err
 	}
 
 	resourceType, err := protoResourceTypeToDb(r.GetType())
@@ -220,6 +190,11 @@ func (s *ResourceServer) CreateResource(
 
 	qtx := genDb.New(tx)
 
+	if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, workspaceID); lockErr != nil {
+		slog.ErrorContext(ctx, "failed to lock environments", "error", lockErr)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
 	resourceID, err := qtx.CreateResource(ctx, params)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create resource", "error", err)
@@ -230,6 +205,11 @@ func (s *ResourceServer) CreateResource(
 			)
 		}
 		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to create resource"))
+	}
+
+	if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
+		slog.ErrorContext(ctx, "failed to bump environment revisions", "error", bumpErr)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	for region, regionConfig := range serviceSpec.GetRegions() {
@@ -247,8 +227,17 @@ func (s *ResourceServer) CreateResource(
 	}
 
 	if hasDomain {
+		environmentID, envErr := workspaceProductionEnvironment(ctx, qtx, workspaceID)
+		if errors.Is(envErr, errNoProductionEnvironment) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errNoProductionEnvironment)
+		}
+		if envErr != nil {
+			slog.ErrorContext(ctx, "failed to get the production environment", "error", envErr)
+			return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		}
 		domainParams := genDb.CreateResourceDomainParams{
 			ResourceID:       resourceID,
+			EnvironmentID:    environmentID,
 			Domain:           fullDomain,
 			DomainSource:     domainSource,
 			SubdomainLabel:   subdomainLabel,
@@ -282,6 +271,32 @@ func (s *ResourceServer) CreateResource(
 	}
 
 	return connect.NewResponse(&resourcev1.CreateResourceResponse{ResourceId: resourceID.String()}), nil
+}
+
+func marshalResourceSpec(ctx context.Context, spec *resourcev1.ResourceSpec) ([]byte, error) {
+	var (
+		specJSON []byte
+		err      error
+	)
+	switch specType := spec.GetSpec().(type) {
+	case *resourcev1.ResourceSpec_Service:
+		specJSON, err = protojson.Marshal(specType.Service)
+	case *resourcev1.ResourceSpec_Database:
+		specJSON, err = protojson.Marshal(specType.Database)
+	case *resourcev1.ResourceSpec_Cache:
+		specJSON, err = protojson.Marshal(specType.Cache)
+	case *resourcev1.ResourceSpec_Queue:
+		specJSON, err = protojson.Marshal(specType.Queue)
+	case *resourcev1.ResourceSpec_Blob:
+		specJSON, err = protojson.Marshal(specType.Blob)
+	default:
+		return nil, connect.NewError(connect.CodeInvalidArgument, errUnknownResourceSpec)
+	}
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to marshal resource spec", "error", err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
+	}
+	return specJSON, nil
 }
 
 // GetResource retrieves a resource by ID
@@ -509,8 +524,14 @@ func (s *ResourceServer) UpdateResource(
 	}
 
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if lockErr := lockResourceEnvironments(ctx, qtx, resourceID); lockErr != nil {
+			return lockErr
+		}
 		if _, updateErr := qtx.UpdateResource(ctx, updateParams); updateErr != nil {
 			return updateErr
+		}
+		if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
+			return bumpErr
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.ResourceUpdated,
@@ -558,8 +579,14 @@ func (s *ResourceServer) DeleteResource(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, res.WorkspaceID); lockErr != nil {
+			return lockErr
+		}
 		if removeErr := removeResourcePlacements(ctx, qtx, res.ID); removeErr != nil {
 			return removeErr
+		}
+		if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
+			return bumpErr
 		}
 
 		if deleteErr := qtx.DeleteResource(ctx, resourceID); deleteErr != nil {
@@ -957,16 +984,10 @@ func (s *ResourceServer) planRegionRedeploy(
 		return regionRedeploy{}, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	cluster, err := s.queries.GetActiveClusterByRegionAndTier(ctx, genDb.GetActiveClusterByRegionAndTierParams{
-		Region: current.Region,
-		Tier:   deploymentEnv.EnvironmentType,
-	})
+	cluster, err := eligibleCluster(ctx, s.queries, current.Region, deploymentEnv.EnvironmentType)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get active cluster for region", "region", current.Region, "error", err)
-		return regionRedeploy{}, connect.NewError(
-			connect.CodeInternal,
-			fmt.Errorf("no active cluster available for region %s", current.Region),
-		)
+		return regionRedeploy{}, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
 
 	return regionRedeploy{
@@ -981,6 +1002,7 @@ func (s *ResourceServer) planRegionRedeploy(
 			Spec:          specJSON,
 			SpecVersion:   int32(1),
 			EnvironmentID: current.EnvironmentID,
+			SecretNames:   current.SecretNames,
 		},
 		deploymentSpec: &deploymentv1.DeploymentSpec{
 			Spec: &deploymentv1.DeploymentSpec_Service{
@@ -997,10 +1019,25 @@ func (s *ResourceServer) redeployRegions(
 	plans []regionRedeploy,
 	ev events.Event,
 ) error {
-	hostname, err := primaryHostname(ctx, s.queries, res.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get the resource's primary domain", "resourceId", res.ID, "error", err)
-		return connect.NewError(connect.CodeInternal, ErrDB)
+	hostnames := make(map[uuid.UUID]string, len(plans))
+	for _, plan := range plans {
+		environmentID := plan.params.EnvironmentID
+		if _, found := hostnames[environmentID]; found {
+			continue
+		}
+		hostname, hostnameErr := primaryHostname(ctx, s.queries, res.ID, environmentID)
+		if hostnameErr != nil {
+			slog.ErrorContext(
+				ctx,
+				"failed to get the resource's primary domain",
+				"resourceId",
+				res.ID,
+				"error",
+				hostnameErr,
+			)
+			return connect.NewError(connect.CodeInternal, ErrDB)
+		}
+		hostnames[environmentID] = hostname
 	}
 
 	resourceSpec, err := converter.DeserializeResourceSpecByType(res.Spec, string(res.Type))
@@ -1010,14 +1047,25 @@ func (s *ResourceServer) redeployRegions(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, res.WorkspaceID); lockErr != nil {
+			return lockErr
+		}
+		bumped := make(map[uuid.UUID]bool, len(plans))
 		for _, plan := range plans {
 			if inheritErr := inheritDesiredEnv(ctx, qtx, plan); inheritErr != nil {
 				return inheritErr
 			}
+			environmentID := plan.params.EnvironmentID
+			if !bumped[environmentID] {
+				if bumpErr := bumpEnvironmentRevision(ctx, qtx, environmentID); bumpErr != nil {
+					return bumpErr
+				}
+				bumped[environmentID] = true
+			}
 			buildSpec := desiredApplicationSpec(
 				res,
 				resourceSpec,
-				hostname,
+				hostnames[plan.params.EnvironmentID],
 				plan.deploymentSpec,
 				plan.params.Region,
 				plan.params.EnvironmentID,
@@ -1273,6 +1321,7 @@ func dbResourceToProto(
 		UpdatedAt:   timeutil.ParsePostgresTimestamp(res.UpdatedAt),
 		Status:      resourceStatus,
 		Description: &res.Description,
+		Partial:     res.Partial,
 	}
 
 	return result
@@ -1347,8 +1396,14 @@ func withTx(ctx context.Context, pool *pgxpool.Pool, fn func(qtx *genDb.Queries)
 	})
 }
 
-func primaryHostname(ctx context.Context, queries genDb.Querier, resourceID uuid.UUID) (string, error) {
-	hostname, err := queries.GetPrimaryResourceDomain(ctx, resourceID)
+func primaryHostname(
+	ctx context.Context,
+	queries genDb.Querier,
+	resourceID uuid.UUID,
+	environmentID uuid.UUID,
+) (string, error) {
+	params := genDb.GetPrimaryResourceDomainParams{ResourceID: resourceID, EnvironmentID: environmentID}
+	hostname, err := queries.GetPrimaryResourceDomain(ctx, params)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", nil
 	}
@@ -1401,6 +1456,10 @@ func desiredApplicationSpec(
 }
 
 func deploymentTxError(ctx context.Context, err error) error {
+	if errors.Is(err, errClusterHeldByEnvironment) {
+		slog.WarnContext(ctx, "refused a deployment to another environment's cluster", "error", err)
+		return connect.NewError(connect.CodeFailedPrecondition, err)
+	}
 	if invalidSpec, ok := errors.AsType[*invalidSpecError](err); ok {
 		slog.WarnContext(ctx, "rejected an invalid deployment spec", "error", err)
 		return connect.NewError(connect.CodeInvalidArgument, invalidSpec)
@@ -1437,6 +1496,40 @@ func finalizedDeploymentStatus(status genDb.DeploymentStatus) genDb.DeploymentSt
 	}
 }
 
+// checkClusterEnvironment refuses a deployment to a cluster whose placement of the resource
+// belongs to another environment. Loco runs one dedicated cluster per environment, and the
+// cluster names the service's Application after the resource alone, so a second environment
+// on the same cluster would overwrite the first one's workload.
+func checkClusterEnvironment(ctx context.Context, qtx *genDb.Queries, params genDb.CreateDeploymentParams) error {
+	placement, err := qtx.GetPlacementForResourceCluster(ctx, genDb.GetPlacementForResourceClusterParams{
+		ResourceID: params.ResourceID,
+		ClusterID:  params.ClusterID,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("get placement: %w", err)
+	}
+	if placement.DesiredDeleted || placement.EnvironmentID == params.EnvironmentID {
+		return nil
+	}
+	cluster, err := qtx.GetClusterByID(ctx, params.ClusterID)
+	if err != nil {
+		return fmt.Errorf("get cluster: %w", err)
+	}
+	other, err := qtx.GetEnvironmentByID(ctx, placement.EnvironmentID)
+	if err != nil {
+		return fmt.Errorf("get environment: %w", err)
+	}
+	return fmt.Errorf(
+		"%w: cluster %s already runs it for environment %s",
+		errClusterHeldByEnvironment,
+		cluster.Name,
+		other.Name,
+	)
+}
+
 func createDeploymentWithCleanup(
 	ctx context.Context,
 	qtx *genDb.Queries,
@@ -1451,12 +1544,16 @@ func createDeploymentWithCleanup(
 		return uuid.UUID{}, fmt.Errorf("failed to lock resource region: %w", err)
 	}
 	params.ResourceRegionID = resourceRegion.ID
+	if heldErr := checkClusterEnvironment(ctx, qtx, params); heldErr != nil {
+		return uuid.UUID{}, heldErr
+	}
 
 	activeDeployment, err := qtx.GetActiveDeploymentForResourceAndRegion(
 		ctx,
 		genDb.GetActiveDeploymentForResourceAndRegionParams{
-			ResourceID: params.ResourceID,
-			Region:     params.Region,
+			ResourceID:    params.ResourceID,
+			EnvironmentID: params.EnvironmentID,
+			Region:        params.Region,
 		},
 	)
 	hadPreviousDeployment := err == nil
@@ -1497,11 +1594,13 @@ func createDeploymentWithCleanup(
 	}
 
 	_, err = placeApplication(ctx, qtx, genDb.UpsertPlacementParams{
-		ResourceID:   params.ResourceID,
-		ClusterID:    params.ClusterID,
-		Region:       params.Region,
-		DeploymentID: &deploymentID,
-		DesiredSpec:  spec,
+		ResourceID:    params.ResourceID,
+		ClusterID:     params.ClusterID,
+		Region:        params.Region,
+		DeploymentID:  &deploymentID,
+		DesiredSpec:   spec,
+		EnvironmentID: params.EnvironmentID,
+		SecretNames:   params.SecretNames,
 	})
 	if err != nil {
 		return uuid.UUID{}, err

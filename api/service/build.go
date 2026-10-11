@@ -25,6 +25,7 @@ import (
 
 const (
 	buildSourceTypeUpload = "upload"
+	defaultBuildContext   = "."
 	buildUploadURLTTL     = 15 * time.Minute
 	buildSourcePrefix     = "sources/"
 )
@@ -190,6 +191,10 @@ func (s *BuildServer) CreateBuild(
 
 	repository := imageRepository(s.config.RegistryHost, s.config.RegistryPrefix, resource.WorkspaceID, resource.ID)
 	dockerfilePath := r.GetDockerfilePath()
+	buildContext := r.GetContext()
+	if buildContext == "" {
+		buildContext = defaultBuildContext
+	}
 	createErr := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if _, err := qtx.CreateBuild(ctx, genDb.CreateBuildParams{
 			ID:              buildID,
@@ -198,6 +203,7 @@ func (s *BuildServer) CreateBuild(
 			SourceKey:       sourceKey,
 			SourceSize:      sourceSize,
 			DockerfilePath:  dockerfilePath,
+			Context:         buildContext,
 			ImageRepository: repository,
 			CreatedBy:       entity.ID,
 		}); err != nil {
@@ -309,8 +315,8 @@ func queueBuild(
 	var supersededSources []buildSource
 	err := withTx(ctx, pool, func(qtx *genDb.Queries) error {
 		supersededSources = nil
-		if _, lockErr := qtx.LockResource(ctx, resourceID); lockErr != nil {
-			return fmt.Errorf("lock resource: %w", lockErr)
+		if lockErr := lockResource(ctx, qtx, resourceID); lockErr != nil {
+			return lockErr
 		}
 
 		superseded, cancelErr := qtx.CancelOtherActiveBuilds(ctx, genDb.CancelOtherActiveBuildsParams{
@@ -591,6 +597,7 @@ func buildToProto(b genDb.Build) *buildv1.Build {
 		SourceKey:       b.SourceKey,
 		SourceSize:      b.SourceSize,
 		DockerfilePath:  b.DockerfilePath,
+		Context:         b.Context,
 		ImageRepository: b.ImageRepository,
 		ImageDigest:     b.ImageDigest,
 		Message:         b.Message,

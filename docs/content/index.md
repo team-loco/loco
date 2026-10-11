@@ -20,7 +20,7 @@ Loco handles application orchestration across regions, with HTTPS routing, resou
 | --- | --- |
 | Connect to a Loco instance | [Install](getting-started/install.md) and [connect](getting-started/connect.md) |
 | Choose who operates the platform | [Multi-tenant SaaS, dedicated, and self-hosted](deployment/modes.md) |
-| Define infrastructure in Go | [Go infrastructure](deployment/go-infrastructure.md) |
+| Declare services and deploy them | [loco.yaml](deployment/loco-yaml.md) |
 | Inspect running applications | [Application operations](operations/applications.md) |
 | Run Loco yourself | [Self-hosting](operations/self-hosting.md) |
 | Contribute to the platform | [Local development](contributing/development.md) |
@@ -31,6 +31,6 @@ Loco's deployment model covers multi-tenant SaaS, dedicated, and self-hosted ins
 
 ## Documentation and releases
 
-The Go infrastructure pages describe the unreleased authoring workflow under review in the [infrastructure stack](https://github.com/team-loco/loco/pull/316). Check the notice on those pages before running their commands. The installation and operations pages use commands available on the main branch.
+Pages describe the behaviour of the main branch. Run `loco help` to see the commands your installed release supports.
 
 For AI tools, use [Markdown exports and the documentation index](reference/ai.md).

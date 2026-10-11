@@ -51,6 +51,13 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv(maxReplicasEnv, "")
 	t.Setenv("LOCO_DEFAULT_PATH_PREFIX", "")
 	t.Setenv("LOCO_DEFAULT_IDLE_TIMEOUT", "")
+	t.Setenv("LOCO_SCHEMA_URL", "")
+	t.Setenv("LOCO_DEFAULT_PORT", "")
+	t.Setenv("LOCO_DEFAULT_HEALTH_PATH", "")
+	t.Setenv("LOCO_DEFAULT_HEALTH_INTERVAL", "")
+	t.Setenv("LOCO_DEFAULT_HEALTH_TIMEOUT", "")
+	t.Setenv("LOCO_DEFAULT_HEALTH_FAIL_THRESHOLD", "")
+	t.Setenv("LOCO_DEFAULT_HEALTH_STARTUP_GRACE_PERIOD", "")
 	t.Setenv(registryHostEnv, "")
 	t.Setenv("LOCO_REGISTRY_PREFIX", "")
 	t.Setenv("LOCO_REGISTRY_URL", "")
@@ -89,13 +96,22 @@ func TestNewAPIConfigDefaults(t *testing.T) {
 	if ac.SourceMaxBytes != defaultSourceMaxBytes {
 		t.Errorf("source max bytes = %d, want %d", ac.SourceMaxBytes, defaultSourceMaxBytes)
 	}
+	if ac.SchemaURL != defaultSchemaURL {
+		t.Errorf("schema url = %q, want %q", ac.SchemaURL, defaultSchemaURL)
+	}
 	want := servicedefaults.Defaults{
-		CPU:         defaultServiceCPU,
-		Memory:      defaultServiceMemory,
-		MinReplicas: defaultServiceMinReplicas,
-		MaxReplicas: defaultServiceMaxReplicas,
-		PathPrefix:  defaultServicePathPrefix,
-		IdleTimeout: defaultServiceIdleTimeout,
+		CPU:                      defaultServiceCPU,
+		Memory:                   defaultServiceMemory,
+		MinReplicas:              defaultServiceMinReplicas,
+		MaxReplicas:              defaultServiceMaxReplicas,
+		PathPrefix:               defaultServicePathPrefix,
+		IdleTimeout:              defaultServiceIdleTimeout,
+		Port:                     defaultServicePort,
+		HealthPath:               defaultHealthPath,
+		HealthInterval:           defaultHealthInterval,
+		HealthTimeout:            defaultHealthTimeout,
+		HealthFailThreshold:      defaultHealthFailThresh,
+		HealthStartupGracePeriod: defaultHealthGracePeriod,
 	}
 	if ac.ServiceDefaults != want {
 		t.Errorf("service defaults = %+v, want %+v", ac.ServiceDefaults, want)
@@ -274,14 +290,26 @@ func TestNewAPIConfigReadsServiceDefaults(t *testing.T) {
 	t.Setenv(maxReplicasEnv, "4")
 	t.Setenv("LOCO_DEFAULT_PATH_PREFIX", "/app")
 	t.Setenv("LOCO_DEFAULT_IDLE_TIMEOUT", "120")
+	t.Setenv("LOCO_DEFAULT_PORT", "3000")
+	t.Setenv("LOCO_DEFAULT_HEALTH_PATH", "/healthz")
+	t.Setenv("LOCO_DEFAULT_HEALTH_INTERVAL", "10")
+	t.Setenv("LOCO_DEFAULT_HEALTH_TIMEOUT", "2")
+	t.Setenv("LOCO_DEFAULT_HEALTH_FAIL_THRESHOLD", "5")
+	t.Setenv("LOCO_DEFAULT_HEALTH_STARTUP_GRACE_PERIOD", "15")
 	ac := newAPIConfig()
 	want := servicedefaults.Defaults{
-		CPU:         "250m",
-		Memory:      "512Mi",
-		MinReplicas: 2,
-		MaxReplicas: 4,
-		PathPrefix:  "/app",
-		IdleTimeout: 120,
+		CPU:                      "250m",
+		Memory:                   "512Mi",
+		MinReplicas:              2,
+		MaxReplicas:              4,
+		PathPrefix:               "/app",
+		IdleTimeout:              120,
+		Port:                     3000,
+		HealthPath:               "/healthz",
+		HealthInterval:           10,
+		HealthTimeout:            2,
+		HealthFailThreshold:      5,
+		HealthStartupGracePeriod: 15,
 	}
 	if ac.ServiceDefaults != want {
 		t.Errorf("service defaults = %+v, want %+v", ac.ServiceDefaults, want)
@@ -415,5 +443,14 @@ func TestNewAPIConfigPanicsOnPartialSourceBucket(t *testing.T) {
 	err := panicValue(t, func() { newAPIConfig() })
 	if !strings.Contains(err.Error(), "source bucket") {
 		t.Errorf("panic = %v, want a source bucket error", err)
+	}
+}
+
+func TestNewAPIConfigReadsSchemaURL(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv("LOCO_SCHEMA_URL", "https://loco.test/schemas/loco.v1.json")
+	ac := newAPIConfig()
+	if ac.SchemaURL != "https://loco.test/schemas/loco.v1.json" {
+		t.Errorf("schema url = %q, want the configured value", ac.SchemaURL)
 	}
 }

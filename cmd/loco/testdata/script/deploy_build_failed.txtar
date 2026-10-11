@@ -1,0 +1,60 @@
+# a failed build stops the deploy, points at its logs and applies nothing.
+fakeapi resource web
+fakeapi build-outcome failed
+fakeapi plan plan.json
+cd app
+! exec loco deploy --yes
+stdout 'Build 0199b6c4-5d1e-7f00-8000-000000000001 failed: RUN go build exited with code 1'
+stdout '^See the build''s logs with: loco builds logs 0199b6c4-5d1e-7f00-8000-000000000001$'
+stderr '(?i)build 0199b6c4-5d1e-7f00-8000-000000000001 did not succeed: RUN go build exited'
+! fakeapi called Apply
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.toml --
+currentScope = "default"
+
+[scopes.default.organization]
+name = "acme"
+id = "1"
+
+[scopes.default.workspace]
+name = "production"
+id = "2"
+-- app/loco.yaml --
+version: 1
+partial: web
+services:
+  web:
+    port: 8080
+    domains: [web.onloco.test]
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+-- app/Dockerfile --
+FROM scratch
+COPY main.go /
+-- app/main.go --
+package main
+-- app/.dockerignore --
+node_modules
+!.env
+!.git
+-- app/.env --
+SECRET=root
+-- app/.env.local --
+SECRET=local
+-- app/web/.env --
+SECRET=nested
+-- app/web/index.js --
+console.log("app")
+-- app/node_modules/left-pad/index.js --
+module.exports = 1
+-- app/.git/HEAD --
+ref: refs/heads/main
+-- plan.json --
+{
+  "revision": "7",
+  "operations": [
+    {"kind": "PLAN_OPERATION_KIND_UPDATE", "service": "web", "needsDeploy": true}
+  ]
+}

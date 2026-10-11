@@ -24,6 +24,7 @@ POLL_INTERVAL = 0.1
 REQUEST_TIMEOUT = 5
 NOT_FOUND_TITLE = 'Page not found | Loco'
 NOT_FOUND_PATH = '/config'
+SCHEMA_PATH = '/schemas/loco.v1.json'
 
 
 def docker(*args):
@@ -193,6 +194,10 @@ class ContainerTests(unittest.TestCase):
                     self.assertEqual(status, 200)
                     self.assertEqual(json.loads(body), {'version': version})
                     self.assertEqual(version_headers['Cache-Control'], 'no-cache')
+                    status, body, schema_headers = response(url + SCHEMA_PATH, ui_host)
+                    self.assertEqual(status, 200)
+                    self.assertEqual(json.loads(body), json.loads((ROOT / 'schemas/loco.v1.json').read_text()))
+                    self.assertTrue(schema_headers['Content-Type'].startswith('application/json'), schema_headers['Content-Type'])
                     for route in ui_routes():
                         path = re.sub(r':[^/]+', 'test', route)
                         status, body, _ = response(url + path, ui_host)

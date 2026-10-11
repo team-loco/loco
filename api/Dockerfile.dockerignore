@@ -5,6 +5,7 @@
 !gen/go
 !internal/buildinfo
 !internal/loglevel
+!internal/locofile
 !k8sapi
 **/node_modules
 **/dist

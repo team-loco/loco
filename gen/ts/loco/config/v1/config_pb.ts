@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/config/v1/config.proto.
  */
 export const file_loco_config_v1_config: GenFile = /*@__PURE__*/
-  fileDesc("Chtsb2NvL2NvbmZpZy92MS9jb25maWcucHJvdG8SDmxvY28uY29uZmlnLnYxIhIKEEdldENvbmZpZ1JlcXVlc3QilgEKEUdldENvbmZpZ1Jlc3BvbnNlEj4KEHNlcnZpY2VfZGVmYXVsdHMYASABKAsyJC5sb2NvLmNvbmZpZy52MS5EZWZhdWx0U2VydmljZUNvbmZpZxIXCg9taW5fY2xpX3ZlcnNpb24YAiABKAkSKAoEYXV0aBgDIAEoCzIaLmxvY28uY29uZmlnLnYxLkF1dGhDb25maWciWQoKQXV0aENvbmZpZxIOCgZpc3N1ZXIYAiABKAkSEQoJY2xpZW50X2lkGAQgASgJEg4KBnNjb3BlcxgFIAEoCUoECAEQAkoECAMQBFIHYWRhcHRlclIDdXJsIs4CChREZWZhdWx0U2VydmljZUNvbmZpZxIwCgdyb3V0aW5nGAMgASgLMh8ubG9jby5yZXNvdXJjZS52MS5Sb3V0aW5nQ29uZmlnEjsKDGhlYWx0aF9jaGVjaxgEIAEoCzIlLmxvY28uZGVwbG95bWVudC52MS5IZWFsdGhDaGVja0NvbmZpZxILCgNjcHUYBSABKAkSDgoGbWVtb3J5GAYgASgJEhQKDG1pbl9yZXBsaWNhcxgHIAEoBRIUCgxtYXhfcmVwbGljYXMYCCABKAUSPAoNb2JzZXJ2YWJpbGl0eRgJIAEoCzIlLmxvY28ucmVzb3VyY2UudjEuT2JzZXJ2YWJpbGl0eUNvbmZpZxIXCg9wbGF0Zm9ybV9kb21haW4YCiABKAlKBAgBEAJKBAgCEANSCmJ1aWxkX3R5cGVSD2RvY2tlcmZpbGVfcGF0aDJhCg1Db25maWdTZXJ2aWNlElAKCUdldENvbmZpZxIgLmxvY28uY29uZmlnLnYxLkdldENvbmZpZ1JlcXVlc3QaIS5sb2NvLmNvbmZpZy52MS5HZXRDb25maWdSZXNwb25zZUI6WjhnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2NvbmZpZy92MTtjb25maWd2MWIGcHJvdG8z", [file_loco_deployment_v1_deployment, file_loco_resource_v1_resource]);
+  fileDesc("Chtsb2NvL2NvbmZpZy92MS9jb25maWcucHJvdG8SDmxvY28uY29uZmlnLnYxIhIKEEdldENvbmZpZ1JlcXVlc3QiqgEKEUdldENvbmZpZ1Jlc3BvbnNlEj4KEHNlcnZpY2VfZGVmYXVsdHMYASABKAsyJC5sb2NvLmNvbmZpZy52MS5EZWZhdWx0U2VydmljZUNvbmZpZxIXCg9taW5fY2xpX3ZlcnNpb24YAiABKAkSKAoEYXV0aBgDIAEoCzIaLmxvY28uY29uZmlnLnYxLkF1dGhDb25maWcSEgoKc2NoZW1hX3VybBgEIAEoCSJZCgpBdXRoQ29uZmlnEg4KBmlzc3VlchgCIAEoCRIRCgljbGllbnRfaWQYBCABKAkSDgoGc2NvcGVzGAUgASgJSgQIARACSgQIAxAEUgdhZGFwdGVyUgN1cmwizgIKFERlZmF1bHRTZXJ2aWNlQ29uZmlnEjAKB3JvdXRpbmcYAyABKAsyHy5sb2NvLnJlc291cmNlLnYxLlJvdXRpbmdDb25maWcSOwoMaGVhbHRoX2NoZWNrGAQgASgLMiUubG9jby5kZXBsb3ltZW50LnYxLkhlYWx0aENoZWNrQ29uZmlnEgsKA2NwdRgFIAEoCRIOCgZtZW1vcnkYBiABKAkSFAoMbWluX3JlcGxpY2FzGAcgASgFEhQKDG1heF9yZXBsaWNhcxgIIAEoBRI8Cg1vYnNlcnZhYmlsaXR5GAkgASgLMiUubG9jby5yZXNvdXJjZS52MS5PYnNlcnZhYmlsaXR5Q29uZmlnEhcKD3BsYXRmb3JtX2RvbWFpbhgKIAEoCUoECAEQAkoECAIQA1IKYnVpbGRfdHlwZVIPZG9ja2VyZmlsZV9wYXRoMmEKDUNvbmZpZ1NlcnZpY2USUAoJR2V0Q29uZmlnEiAubG9jby5jb25maWcudjEuR2V0Q29uZmlnUmVxdWVzdBohLmxvY28uY29uZmlnLnYxLkdldENvbmZpZ1Jlc3BvbnNlQjpaOGdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vY29uZmlnL3YxO2NvbmZpZ3YxYgZwcm90bzM", [file_loco_deployment_v1_deployment, file_loco_resource_v1_resource]);
 
 /**
  * @generated from message loco.config.v1.GetConfigRequest
@@ -53,6 +53,11 @@ export type GetConfigResponse = Message<"loco.config.v1.GetConfigResponse"> & {
    * @generated from field: loco.config.v1.AuthConfig auth = 3;
    */
   auth?: AuthConfig | undefined;
+
+  /**
+   * @generated from field: string schema_url = 4;
+   */
+  schemaUrl: string;
 };
 
 /**
@@ -73,6 +78,11 @@ export type GetConfigResponseJson = {
    * @generated from field: loco.config.v1.AuthConfig auth = 3;
    */
   auth?: AuthConfigJson;
+
+  /**
+   * @generated from field: string schema_url = 4;
+   */
+  schemaUrl?: string;
 };
 
 /**

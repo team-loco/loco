@@ -18,6 +18,7 @@ message GetConfigResponse {
   DefaultServiceConfig service_defaults = 1;
   string min_cli_version = 2;
   AuthConfig auth = 3;
+  string schema_url = 4;
 }
 
 message AuthConfig {
