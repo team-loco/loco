@@ -68,11 +68,6 @@ var (
 		entityType: db.EntityTypeResource,
 		scope:      db.ScopeWrite,
 	}
-	// UpdateResourceEnv requires resource:write.
-	UpdateResourceEnv = Action{
-		entityType: db.EntityTypeResource,
-		scope:      db.ScopeWrite,
-	}
 	// DeployResource requires resource:write.
 	DeployResource = Action{
 		entityType: db.EntityTypeResource,

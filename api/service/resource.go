@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"maps"
-	"slices"
 
 	"github.com/team-loco/loco/api/events"
 
@@ -793,84 +791,6 @@ func (s *ResourceServer) ScaleResource(
 		return nil, err
 	}
 	return connect.NewResponse(&resourcev1.ScaleResourceResponse{}), nil
-}
-
-// UpdateResourceEnv updates environment variables for a resource
-func (s *ResourceServer) UpdateResourceEnv(
-	ctx context.Context,
-	req *connect.Request[resourcev1.UpdateResourceEnvRequest],
-) (*connect.Response[resourcev1.UpdateResourceEnvResponse], error) {
-	r := req.Msg
-
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
-	}
-
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.UpdateResourceEnv, r.GetResourceId()),
-	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to update resource env", "resourceId", r.GetResourceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
-	}
-
-	if len(r.GetEnv()) == 0 {
-		return nil, connect.NewError(
-			connect.CodeInvalidArgument,
-			errors.New("at least one environment variable must be provided"),
-		)
-	}
-
-	resourceID := uuid.MustParse(r.GetResourceId())
-
-	res, err := s.queries.GetResourceByID(ctx, resourceID)
-	if err != nil {
-		slog.WarnContext(ctx, "resource not found", "resourceId", r.GetResourceId())
-		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
-	}
-
-	currentByRegion, err := s.activeDeploymentsForRegions(ctx, resourceID, r.GetRegion())
-	if err != nil {
-		return nil, err
-	}
-
-	plans := make([]regionRedeploy, 0, len(currentByRegion))
-	for _, current := range currentByRegion {
-		serviceDeploymentSpec, specErr := currentServiceSpec(ctx, current, res.Type)
-		if specErr != nil {
-			return nil, specErr
-		}
-
-		serviceDeploymentSpec.Env = r.GetEnv()
-
-		plan, planErr := s.planRegionRedeploy(
-			ctx,
-			current,
-			serviceDeploymentSpec,
-			current.Replicas,
-			"Scheduled environment update",
-		)
-		if planErr != nil {
-			return nil, planErr
-		}
-		plans = append(plans, plan)
-	}
-
-	envKeys := slices.Sorted(maps.Keys(r.GetEnv()))
-	envEvent := events.Event{
-		Type:        events.ResourceEnvUpdated,
-		WorkspaceID: new(res.WorkspaceID),
-		SubjectType: events.SubjectResource,
-		SubjectID:   new(resourceID),
-		Data:        map[string]any{"keys": envKeys},
-	}
-	if err := s.redeployRegions(ctx, res, plans, envEvent); err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(&resourcev1.UpdateResourceEnvResponse{}), nil
 }
 
 type regionRedeploy struct {
