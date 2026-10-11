@@ -77,6 +77,11 @@ const (
 
 	day                        = 24 * time.Hour
 	defaultEventsRetentionDays = 90
+
+	defaultSecretMaxValueBytes     = 64 * 1024
+	defaultSecretMaxPerService     = 256
+	defaultSecretMaxPlacementBytes = 768 * 1024
+	defaultSecretLockTimeout       = 10 * time.Second
 )
 
 type APIConfig struct {
@@ -107,6 +112,7 @@ type APIConfig struct {
 	WebhooksAllowPrivate  bool
 	InstallWebhooks       []webhooks.InstallWebhook
 	Secrets               secretkeys.Config
+	SecretLimits          service.SecretConfig
 }
 
 type MigrateConfig struct {
@@ -141,6 +147,12 @@ func newAPIConfig() *APIConfig {
 	eventsRetentionDays := positiveInt32Env("EVENTS_RETENTION_DAYS", defaultEventsRetentionDays)
 	eventsRetention := time.Duration(eventsRetentionDays) * day
 	secrets := newSecretsConfig()
+	secretLimits := service.SecretConfig{
+		MaxValueBytes:     positiveInt32Env("LOCO_SECRETS_MAX_VALUE_BYTES", defaultSecretMaxValueBytes),
+		MaxPerService:     positiveInt32Env("LOCO_SECRETS_MAX_PER_SERVICE", defaultSecretMaxPerService),
+		MaxPlacementBytes: positiveInt32Env("LOCO_SECRETS_MAX_PLACEMENT_BYTES", defaultSecretMaxPlacementBytes),
+		LockTimeout:       positiveDurationEnv("LOCO_SECRETS_LOCK_TIMEOUT", defaultSecretLockTimeout),
+	}
 
 	return &APIConfig{
 		Version:               buildinfo.Version(version),
@@ -170,7 +182,20 @@ func newAPIConfig() *APIConfig {
 		WebhooksAllowPrivate:  webhooksAllowPrivate,
 		InstallWebhooks:       installWebhooks,
 		Secrets:               secrets,
+		SecretLimits:          secretLimits,
 	}
+}
+
+func newSecretKeyProvider(cfg secretkeys.Config) (secretkeys.Provider, error) {
+	if cfg.Provider == "" {
+		slog.Warn("LOCO_SECRETS_KEY_PROVIDER is not set; secrets cannot be stored")
+		return nil, nil
+	}
+	provider, err := secretkeys.New(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("secrets key provider: %w", err)
+	}
+	return provider, nil
 }
 
 func newSecretsConfig() secretkeys.Config {

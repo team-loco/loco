@@ -115,6 +115,42 @@ func (q *Queries) InsertEnvironmentKey(ctx context.Context, arg InsertEnvironmen
 	return i, err
 }
 
+const listDeclaredSecretNames = `-- name: ListDeclaredSecretNames :many
+SELECT DISTINCT declared.name::text AS name
+FROM placements p, unnest(p.secret_names) AS declared(name)
+WHERE p.resource_id = $1
+  AND p.environment_id = $2
+  AND NOT p.desired_deleted
+  AND declared.name = ANY($3::text[])
+ORDER BY 1
+`
+
+type ListDeclaredSecretNamesParams struct {
+	ResourceID    uuid.UUID `json:"resourceId"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
+	Names         []string  `json:"names"`
+}
+
+func (q *Queries) ListDeclaredSecretNames(ctx context.Context, arg ListDeclaredSecretNamesParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, listDeclaredSecretNames, arg.ResourceID, arg.EnvironmentID, arg.Names)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		items = append(items, name)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listEnvironmentKeys = `-- name: ListEnvironmentKeys :many
 SELECT environment_id, provider, kek_id, wrapped_dek, format_version, created_at, rewrapped_at FROM environment_keys ORDER BY environment_id
 `
@@ -286,7 +322,7 @@ func (q *Queries) ListSecretCiphertexts(ctx context.Context, arg ListSecretCiphe
 }
 
 const listSecrets = `-- name: ListSecrets :many
-SELECT name, version, updated_by, created_at, updated_at
+SELECT name, version, updated_by_type, updated_by_id, created_at, updated_at
 FROM secrets
 WHERE resource_id = $1 AND environment_id = $2
 ORDER BY name
@@ -298,11 +334,12 @@ type ListSecretsParams struct {
 }
 
 type ListSecretsRow struct {
-	Name      string    `json:"name"`
-	Version   int32     `json:"version"`
-	UpdatedBy uuid.UUID `json:"updatedBy"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	Name          string    `json:"name"`
+	Version       int32     `json:"version"`
+	UpdatedByType string    `json:"updatedByType"`
+	UpdatedByID   uuid.UUID `json:"updatedById"`
+	CreatedAt     time.Time `json:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt"`
 }
 
 func (q *Queries) ListSecrets(ctx context.Context, arg ListSecretsParams) ([]ListSecretsRow, error) {
@@ -317,7 +354,8 @@ func (q *Queries) ListSecrets(ctx context.Context, arg ListSecretsParams) ([]Lis
 		if err := rows.Scan(
 			&i.Name,
 			&i.Version,
-			&i.UpdatedBy,
+			&i.UpdatedByType,
+			&i.UpdatedByID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -392,7 +430,7 @@ func (q *Queries) SetLockTimeout(ctx context.Context, timeout string) error {
 }
 
 const upsertSecrets = `-- name: UpsertSecrets :exec
-INSERT INTO secrets (resource_id, environment_id, name, version, nonce, ciphertext, format_version, updated_by)
+INSERT INTO secrets (resource_id, environment_id, name, version, nonce, ciphertext, format_version, updated_by_type, updated_by_id)
 SELECT $1,
        $2,
        unnest($3::text[]),
@@ -400,13 +438,15 @@ SELECT $1,
        unnest($5::bytea[]),
        unnest($6::bytea[]),
        unnest($7::smallint[]),
-       $8
+       $8,
+       $9
 ON CONFLICT (resource_id, environment_id, name) DO UPDATE
 SET version = EXCLUDED.version,
     nonce = EXCLUDED.nonce,
     ciphertext = EXCLUDED.ciphertext,
     format_version = EXCLUDED.format_version,
-    updated_by = EXCLUDED.updated_by,
+    updated_by_type = EXCLUDED.updated_by_type,
+    updated_by_id = EXCLUDED.updated_by_id,
     updated_at = NOW()
 `
 
@@ -418,7 +458,8 @@ type UpsertSecretsParams struct {
 	Nonces         [][]byte  `json:"nonces"`
 	Ciphertexts    [][]byte  `json:"ciphertexts"`
 	FormatVersions []int16   `json:"formatVersions"`
-	UpdatedBy      uuid.UUID `json:"updatedBy"`
+	UpdatedByType  string    `json:"updatedByType"`
+	UpdatedByID    uuid.UUID `json:"updatedById"`
 }
 
 func (q *Queries) UpsertSecrets(ctx context.Context, arg UpsertSecretsParams) error {
@@ -430,7 +471,8 @@ func (q *Queries) UpsertSecrets(ctx context.Context, arg UpsertSecretsParams) er
 		arg.Nonces,
 		arg.Ciphertexts,
 		arg.FormatVersions,
-		arg.UpdatedBy,
+		arg.UpdatedByType,
+		arg.UpdatedByID,
 	)
 	return err
 }

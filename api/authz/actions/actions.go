@@ -342,6 +342,24 @@ var (
 		scope:      db.ScopeAdmin,
 	}
 
+	// secrets
+
+	// SetSecrets requires resource:write on the service that holds the secrets.
+	SetSecrets = Action{
+		entityType: db.EntityTypeResource,
+		scope:      db.ScopeWrite,
+	}
+	// DeleteSecrets requires resource:write.
+	DeleteSecrets = Action{
+		entityType: db.EntityTypeResource,
+		scope:      db.ScopeWrite,
+	}
+	// ListSecrets requires resource:read.
+	ListSecrets = Action{
+		entityType: db.EntityTypeResource,
+		scope:      db.ScopeRead,
+	}
+
 	// orgs (additional)
 
 	// ListUserOrgs requires user:read (to list orgs for a specific user).
