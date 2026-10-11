@@ -2,18 +2,30 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
+	coordinationv1client "k8s.io/client-go/kubernetes/typed/coordination/v1"
+	"k8s.io/client-go/rest"
+
+	"github.com/team-loco/loco/observability-proxy/internal/testenv"
+	"github.com/team-loco/loco/observability-proxy/migrations"
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
+	"github.com/team-loco/loco/observability-proxy/pkg/migrationlock"
 )
 
 const (
@@ -25,7 +37,13 @@ const (
 	testRetryInterval       = 50 * time.Millisecond
 	testTTL                 = time.Hour
 	unreachableControlPlane = "http://127.0.0.1:1"
+	unreachableMigrator     = "clickhouse://127.0.0.1:1"
+	proxyDatabase           = "loco_obs"
 )
+
+func TestMain(m *testing.M) {
+	os.Exit(testenv.Main(m))
+}
 
 func silentListener(t *testing.T) net.Listener {
 	t.Helper()
@@ -81,7 +99,7 @@ func TestHealthzServedWhenClickHouseNeverAnswers(t *testing.T) {
 	started := make(chan *proxy, 1)
 	startErr := make(chan error, 1)
 	go func() {
-		p, err := newProxy(cfg)
+		p, err := newProxy(cfg, migrationlock.None{})
 		if err != nil {
 			startErr <- err
 			return
@@ -176,8 +194,8 @@ func TestReadyzUnavailableUntilMigrationsSucceed(t *testing.T) {
 	cfg := &config.Config{
 		ControlPlaneURL:        unreachableControlPlane,
 		ClickHouseURL:          "clickhouse://" + addr,
-		ClickHouseMigratorURL:  "clickhouse://127.0.0.1:1",
-		ClickHouseDB:           "loco_obs",
+		ClickHouseMigratorURL:  unreachableMigrator,
+		ClickHouseDB:           proxyDatabase,
 		LogsTTL:                testTTL,
 		TracesTTL:              testTTL,
 		MetricsTTL:             testTTL,
@@ -186,7 +204,7 @@ func TestReadyzUnavailableUntilMigrationsSucceed(t *testing.T) {
 		MaxConcurrent:          testMaxConcurrent,
 		TokenCacheTTL:          testTokenTTL,
 	}
-	p, err := newProxy(cfg)
+	p, err := newProxy(cfg, migrationlock.None{})
 	if err != nil {
 		t.Fatalf("newProxy: %v", err)
 	}
@@ -214,8 +232,8 @@ func TestServesProbesWhileMigrating(t *testing.T) {
 	cfg := &config.Config{
 		ControlPlaneURL:        unreachableControlPlane,
 		ClickHouseURL:          "clickhouse://" + ln.Addr().String(),
-		ClickHouseMigratorURL:  "clickhouse://127.0.0.1:1",
-		ClickHouseDB:           "loco_obs",
+		ClickHouseMigratorURL:  unreachableMigrator,
+		ClickHouseDB:           proxyDatabase,
 		LogsTTL:                testTTL,
 		TracesTTL:              testTTL,
 		MetricsTTL:             testTTL,
@@ -224,7 +242,7 @@ func TestServesProbesWhileMigrating(t *testing.T) {
 		MaxConcurrent:          testMaxConcurrent,
 		TokenCacheTTL:          testTokenTTL,
 	}
-	p, err := newProxy(cfg)
+	p, err := newProxy(cfg, migrationlock.None{})
 	if err != nil {
 		t.Fatalf("newProxy: %v", err)
 	}
@@ -254,5 +272,193 @@ func TestServesProbesWhileMigrating(t *testing.T) {
 		}
 	case <-time.After(startupDeadline):
 		t.Fatalf("run did not return within %s after the retry budget ran out", startupDeadline)
+	}
+}
+
+type heldElsewhere struct{}
+
+func (heldElsewhere) WithLock(ctx context.Context, _ func(context.Context) error) error {
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+func TestRetryBudgetCoversWaitingForTheMigrationLock(t *testing.T) {
+	ln := silentListener(t)
+	cfg := &config.Config{
+		ControlPlaneURL:        unreachableControlPlane,
+		ClickHouseURL:          "clickhouse://" + ln.Addr().String(),
+		ClickHouseMigratorURL:  unreachableMigrator,
+		ClickHouseDB:           proxyDatabase,
+		LogsTTL:                testTTL,
+		TracesTTL:              testTTL,
+		MetricsTTL:             testTTL,
+		MigrationRetryBudget:   testRetryBudget,
+		MigrationRetryInterval: testRetryInterval,
+		MaxConcurrent:          testMaxConcurrent,
+		TokenCacheTTL:          testTokenTTL,
+	}
+	p, err := newProxy(cfg, heldElsewhere{})
+	if err != nil {
+		t.Fatalf("newProxy: %v", err)
+	}
+	t.Cleanup(p.close)
+
+	migrateErr := make(chan error, 1)
+	go func() { migrateErr <- p.migrate(t.Context(), cfg) }()
+	select {
+	case err := <-migrateErr:
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("migrate() = %v, want %v", err, context.DeadlineExceeded)
+		}
+	case <-time.After(startupDeadline):
+		t.Fatalf("migrate waited for the lock past the %s retry budget", testRetryBudget)
+	}
+	if p.migrated.Load() {
+		t.Fatal("proxy marked migrated without holding the lock")
+	}
+}
+
+func TestNoneMigrationLockRunsWithoutKubernetes(t *testing.T) {
+	lock, err := newMigrationLock(&config.Config{MigrationLock: config.MigrationLockNone})
+	if err != nil {
+		t.Fatalf("newMigrationLock(none): %v", err)
+	}
+	if _, ok := lock.(migrationlock.None); !ok {
+		t.Fatalf("newMigrationLock(none) = %T, want migrationlock.None", lock)
+	}
+}
+
+func TestKubernetesMigrationLockNeedsTheInClusterConfig(t *testing.T) {
+	t.Setenv("KUBERNETES_SERVICE_HOST", "")
+	t.Setenv("KUBERNETES_SERVICE_PORT", "")
+	_, err := newMigrationLock(&config.Config{MigrationLock: config.MigrationLockKubernetes})
+	if !errors.Is(err, rest.ErrNotInCluster) {
+		t.Fatalf("newMigrationLock(kubernetes) outside a cluster = %v, want %v", err, rest.ErrNotInCluster)
+	}
+}
+
+const (
+	testClickHouseEnv   = "LOCO_TEST_CLICKHOUSE_URL"
+	databaseNameBytes   = 4
+	testLeaseDuration   = 2 * time.Second
+	testRenewDeadline   = time.Second
+	testRetryPeriod     = 200 * time.Millisecond
+	sharedRetryBudget   = time.Minute
+	readinessDeadline   = time.Minute
+	readinessPollPeriod = 50 * time.Millisecond
+)
+
+func testClickHouse(t *testing.T) (driver.Conn, string, string) {
+	t.Helper()
+	dsn := os.Getenv(testClickHouseEnv)
+	if dsn == "" {
+		t.Skip(testClickHouseEnv + " not set")
+	}
+	opts, err := clickhouse.ParseDSN(dsn)
+	if err != nil {
+		t.Fatalf("parse %s: %v", testClickHouseEnv, err)
+	}
+	admin, err := clickhouse.Open(opts)
+	if err != nil {
+		t.Fatalf("open clickhouse: %v", err)
+	}
+	suffix := make([]byte, databaseNameBytes)
+	if _, err := rand.Read(suffix); err != nil {
+		t.Fatalf("random database name: %v", err)
+	}
+	database := "loco_obs_proxy_test_" + hex.EncodeToString(suffix)
+	t.Cleanup(func() {
+		if err := admin.Exec(context.Background(), "DROP DATABASE IF EXISTS "+database+" SYNC"); err != nil {
+			t.Errorf("drop %s: %v", database, err)
+		}
+		if err := admin.Close(); err != nil {
+			t.Errorf("close clickhouse: %v", err)
+		}
+	})
+	return admin, dsn, database
+}
+
+func waitReady(t *testing.T, base string) {
+	t.Helper()
+	deadline := time.Now().Add(readinessDeadline)
+	for time.Now().Before(deadline) {
+		if getStatus(t, base+"/readyz") == http.StatusOK {
+			return
+		}
+		time.Sleep(readinessPollPeriod)
+	}
+	t.Fatalf("%s did not become ready within %s", base, readinessDeadline)
+}
+
+func TestReplicasTakeTurnsMigratingUnderTheLease(t *testing.T) {
+	server := testenv.APIServer(t)
+	admin, dsn, database := testClickHouse(t)
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(t.Output(), nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+
+	client, err := coordinationv1client.NewForConfig(server)
+	if err != nil {
+		t.Fatalf("coordination client: %v", err)
+	}
+	leaseName := strings.ReplaceAll(database, "_", "-")
+	ctx, stop := context.WithCancel(t.Context())
+	identities := []string{"obs-proxy-a", "obs-proxy-b"}
+	bases := make([]string, 0, len(identities))
+	runErrs := make(chan error, len(identities))
+	for _, identity := range identities {
+		cfg := &config.Config{
+			ControlPlaneURL:        unreachableControlPlane,
+			ClickHouseURL:          dsn,
+			ClickHouseMigratorURL:  dsn,
+			ClickHouseDB:           database,
+			LogsTTL:                testTTL,
+			TracesTTL:              testTTL,
+			MetricsTTL:             testTTL,
+			MigrationRetryBudget:   sharedRetryBudget,
+			MigrationRetryInterval: testRetryInterval,
+			MigrationLock:          config.MigrationLockKubernetes,
+			MigrationLease: migrationlock.Config{
+				Name:          leaseName,
+				Namespace:     "default",
+				Identity:      identity,
+				LeaseDuration: testLeaseDuration,
+				RenewDeadline: testRenewDeadline,
+				RetryPeriod:   testRetryPeriod,
+			},
+			MaxConcurrent: testMaxConcurrent,
+			TokenCacheTTL: testTokenTTL,
+		}
+		p, err := newProxy(cfg, migrationlock.New(client, cfg.MigrationLease))
+		if err != nil {
+			t.Fatalf("newProxy(%s): %v", identity, err)
+		}
+		t.Cleanup(p.close)
+		var lc net.ListenConfig
+		ln, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatalf("listen: %v", err)
+		}
+		bases = append(bases, "http://"+ln.Addr().String())
+		go func() { runErrs <- p.run(ctx, cfg, ln) }()
+	}
+	for _, base := range bases {
+		waitReady(t, base)
+	}
+	stop()
+	for range bases {
+		if err := <-runErrs; err != nil {
+			t.Errorf("run: %v", err)
+		}
+	}
+
+	var rows, versions uint64
+	query := "SELECT count(), uniqExact(version_id) FROM " + database + "." + migrations.VersionTable
+	if err := admin.QueryRow(t.Context(), query).Scan(&rows, &versions); err != nil {
+		t.Fatalf("count version rows: %v", err)
+	}
+	t.Logf("version table: %d rows for %d versions", rows, versions)
+	if rows != versions {
+		t.Fatalf("version table has %d rows for %d versions, want each migration recorded once", rows, versions)
 	}
 }

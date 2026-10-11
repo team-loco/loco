@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Test the observability proxy, with its ClickHouse migrations against the ClickHouse image the loco-obs chart pins; LOCO_TEST_CLICKHOUSE_URL reuses a running server instead"
+#MISE description="Test the observability proxy, with its ClickHouse migrations against the ClickHouse image the loco-obs chart pins and its migration lease against the controller's envtest API server; LOCO_TEST_CLICKHOUSE_URL reuses a running server instead"
 set -euo pipefail
 
 root=$(git rev-parse --show-toplevel)
@@ -24,6 +24,10 @@ if [ -z "${LOCO_TEST_CLICKHOUSE_URL:-}" ]; then
 	port=$(docker port "$container" 9000/tcp | head -1)
 	export LOCO_TEST_CLICKHOUSE_URL="clickhouse://loco_test:loco_test@${port}"
 fi
+
+make -s --no-print-directory -C "$root/controller" envtest >&2
+KUBEBUILDER_ASSETS=$(make -s --no-print-directory -C "$root/controller" envtest-assets)
+export KUBEBUILDER_ASSETS
 
 cd "$root/observability-proxy"
 go test -v -coverprofile=coverage.out ./... "$@"

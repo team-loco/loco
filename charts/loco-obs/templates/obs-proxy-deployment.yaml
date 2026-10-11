@@ -21,6 +21,7 @@ spec:
       labels:
         app: {{ .Release.Name }}-obs-proxy
     spec:
+      serviceAccountName: {{ .Release.Name }}-obs-proxy
       securityContext:
         runAsNonRoot: true
         seccompProfile:
@@ -59,6 +60,24 @@ spec:
               value: {{ printf "%ds" (int .Values.obsProxy.clickhouse.migrations.retryBudgetSeconds) | quote }}
             - name: MIGRATION_RETRY_INTERVAL
               value: {{ printf "%ds" (int .Values.obsProxy.clickhouse.migrations.retryIntervalSeconds) | quote }}
+            - name: MIGRATION_LOCK
+              value: kubernetes
+            - name: MIGRATION_LEASE_NAME
+              value: {{ .Values.obsProxy.clickhouse.migrations.lease.name | quote }}
+            - name: MIGRATION_LEASE_DURATION
+              value: {{ printf "%ds" (int .Values.obsProxy.clickhouse.migrations.lease.durationSeconds) | quote }}
+            - name: MIGRATION_LEASE_RENEW_DEADLINE
+              value: {{ printf "%ds" (int .Values.obsProxy.clickhouse.migrations.lease.renewDeadlineSeconds) | quote }}
+            - name: MIGRATION_LEASE_RETRY_PERIOD
+              value: {{ printf "%ds" (int .Values.obsProxy.clickhouse.migrations.lease.retryPeriodSeconds) | quote }}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
             - name: DEFAULT_LIMIT
               value: {{ .Values.obsProxy.guardrails.defaultLimit | quote }}
             - name: MAX_LIMIT

@@ -1,7 +1,10 @@
 package config
 
 import (
+	"fmt"
 	"time"
+
+	"github.com/team-loco/loco/observability-proxy/pkg/migrationlock"
 )
 
 const (
@@ -18,6 +21,13 @@ const (
 	defaultTokenCacheSeconds  = 30
 )
 
+type MigrationLock string
+
+const (
+	MigrationLockKubernetes MigrationLock = "kubernetes"
+	MigrationLockNone       MigrationLock = "none"
+)
+
 type Config struct {
 	Port            int
 	ControlPlaneURL string
@@ -31,6 +41,8 @@ type Config struct {
 	MetricsTTL             time.Duration
 	MigrationRetryBudget   time.Duration
 	MigrationRetryInterval time.Duration
+	MigrationLock          MigrationLock
+	MigrationLease         migrationlock.Config
 
 	// Guardrails
 	DefaultLimit       int32
@@ -46,6 +58,11 @@ type Config struct {
 }
 
 func Load() *Config {
+	lock := MigrationLock(enumEnv("MIGRATION_LOCK", string(MigrationLockKubernetes), string(MigrationLockNone)))
+	var lease migrationlock.Config
+	if lock == MigrationLockKubernetes {
+		lease = leaseConfig()
+	}
 	return &Config{
 		Port:            intEnv("PORT", defaultPort),
 		ControlPlaneURL: stringEnv("CONTROL_PLANE_URL", defaultControlPlaneURL),
@@ -59,6 +76,8 @@ func Load() *Config {
 		MetricsTTL:             ttlEnv("CLICKHOUSE_METRICS_TTL"),
 		MigrationRetryBudget:   requiredPositiveDurationEnv("MIGRATION_RETRY_BUDGET"),
 		MigrationRetryInterval: requiredPositiveDurationEnv("MIGRATION_RETRY_INTERVAL"),
+		MigrationLock:          lock,
+		MigrationLease:         lease,
 
 		DefaultLimit:       int32Env("DEFAULT_LIMIT", defaultLimit),
 		MaxLimit:           int32Env("MAX_LIMIT", defaultMaxLimit),
@@ -70,4 +89,19 @@ func Load() *Config {
 
 		TokenCacheTTL: time.Duration(intEnv("TOKEN_CACHE_TTL_SECONDS", defaultTokenCacheSeconds)) * time.Second,
 	}
+}
+
+func leaseConfig() migrationlock.Config {
+	lease := migrationlock.Config{
+		Name:          requiredStringEnv("MIGRATION_LEASE_NAME"),
+		Namespace:     requiredStringEnv("POD_NAMESPACE"),
+		Identity:      requiredStringEnv("POD_NAME"),
+		LeaseDuration: requiredPositiveDurationEnv("MIGRATION_LEASE_DURATION"),
+		RenewDeadline: requiredPositiveDurationEnv("MIGRATION_LEASE_RENEW_DEADLINE"),
+		RetryPeriod:   requiredPositiveDurationEnv("MIGRATION_LEASE_RETRY_PERIOD"),
+	}
+	if err := lease.Validate(); err != nil {
+		panic(fmt.Errorf("migration lease: %w", err))
+	}
+	return lease
 }

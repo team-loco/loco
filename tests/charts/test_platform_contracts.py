@@ -353,6 +353,55 @@ class ControllerTelemetry(unittest.TestCase):
         self.assertEqual(protocols['http']['endpoint'].rsplit(':', 1)[1], str(collector['httpPort']))
 
 
+class ObservabilityMigrationLease(unittest.TestCase):
+    def lease_values(self):
+        return chart_values('loco-obs')['obsProxy']['clickhouse']['migrations']['lease']
+
+    def rbac(self):
+        documents = render_documents('loco-obs', 'obs-proxy-rbac.yaml', {'obsProxy': {'image': {'tag': 'test'}}})
+        return {item['kind']: item for item in documents}
+
+    def deployment(self):
+        return render('loco-obs', 'obs-proxy-deployment.yaml', {'obsProxy': {'image': {'tag': 'test'}}})
+
+    def test_proxy_runs_as_its_own_service_account(self):
+        deployment = self.deployment()
+        account = self.rbac()['ServiceAccount']
+        self.assertEqual(deployment['spec']['template']['spec']['serviceAccountName'], account['metadata']['name'])
+        self.assertEqual(account['metadata']['namespace'], 'platform-test')
+
+    def test_role_grants_only_the_migration_lease(self):
+        documents = self.rbac()
+        role = documents['Role']
+        self.assertEqual(role['metadata']['namespace'], 'platform-test')
+        self.assertEqual(role['rules'], [
+            {'apiGroups': ['coordination.k8s.io'], 'resources': ['leases'],
+             'resourceNames': [self.lease_values()['name']], 'verbs': ['get', 'update']},
+            {'apiGroups': ['coordination.k8s.io'], 'resources': ['leases'], 'verbs': ['create']},
+        ])
+        binding = documents['RoleBinding']
+        self.assertEqual(binding['metadata']['namespace'], 'platform-test')
+        self.assertEqual(binding['roleRef'], {'apiGroup': 'rbac.authorization.k8s.io', 'kind': 'Role', 'name': role['metadata']['name']})
+        account = documents['ServiceAccount']['metadata']
+        self.assertEqual(binding['subjects'], [{'kind': 'ServiceAccount', 'name': account['name'], 'namespace': account['namespace']}])
+
+    def test_proxy_serializes_migrations_with_the_lease(self):
+        lease = self.lease_values()
+        env = {item['name']: item for item in self.deployment()['spec']['template']['spec']['containers'][0]['env']}
+        self.assertEqual(env['MIGRATION_LOCK']['value'], 'kubernetes')
+        self.assertEqual(env['MIGRATION_LEASE_NAME']['value'], lease['name'])
+        self.assertEqual(env['MIGRATION_LEASE_DURATION']['value'], f"{lease['durationSeconds']}s")
+        self.assertEqual(env['MIGRATION_LEASE_RENEW_DEADLINE']['value'], f"{lease['renewDeadlineSeconds']}s")
+        self.assertEqual(env['MIGRATION_LEASE_RETRY_PERIOD']['value'], f"{lease['retryPeriodSeconds']}s")
+        self.assertEqual(env['POD_NAME']['valueFrom'], {'fieldRef': {'fieldPath': 'metadata.name'}})
+        self.assertEqual(env['POD_NAMESPACE']['valueFrom'], {'fieldRef': {'fieldPath': 'metadata.namespace'}})
+        self.assertLess(lease['renewDeadlineSeconds'], lease['durationSeconds'])
+        self.assertLess(lease['retryPeriodSeconds'], lease['renewDeadlineSeconds'])
+
+    def test_disabled_proxy_has_no_lease_access(self):
+        self.assertEqual(render_documents('loco-obs', 'obs-proxy-rbac.yaml', {'obsProxy': {'enabled': False}}), [])
+
+
 class BuildNamespaceOwnership(unittest.TestCase):
     def test_chart_creates_build_namespace_by_default(self):
         namespace = render('loco-operator', 'builds/namespace.yaml', {})

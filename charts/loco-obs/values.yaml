@@ -478,6 +478,11 @@ obsProxy:
     migrations:
       retryBudgetSeconds: 120
       retryIntervalSeconds: 5
+      lease:
+        name: obs-proxy-schema-migrations
+        durationSeconds: 15
+        renewDeadlineSeconds: 10
+        retryPeriodSeconds: 2
   guardrails:
     defaultLimit: 1000
     maxLimit: 10000

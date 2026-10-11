@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"time"
 )
@@ -16,6 +17,7 @@ var (
 	errNotPositive     = errors.New("must be positive")
 	errFractional      = errors.New("must be a whole number of seconds")
 	errInvalidName     = errors.New("is not a ClickHouse identifier")
+	errNotAllowed      = errors.New("is not one of the allowed values")
 
 	identifierPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 )
@@ -31,6 +33,14 @@ func requiredStringEnv(name string) string {
 	value := os.Getenv(name)
 	if value == "" {
 		panic(fmt.Errorf("%s %w", name, errMissing))
+	}
+	return value
+}
+
+func enumEnv(name string, allowed ...string) string {
+	value := requiredStringEnv(name)
+	if !slices.Contains(allowed, value) {
+		panic(fmt.Errorf("%s %q %w %v", name, value, errNotAllowed, allowed))
 	}
 	return value
 }
