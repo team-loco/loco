@@ -35,6 +35,8 @@ def main():
             values = hr['spec']['values']
             if name == 'loco-core':
                 values['certManager'] = {'issuer': {'email': 'release-test@example.invalid'}}
+            if name == 'loco-obs':
+                values['obsProxy']['controlPlane'] = {'url': 'https://api.example.invalid'}
             path = temp / (name + '-values.json')
             path.write_text(json.dumps(values))
             rendered = release.run('helm', 'template', name, str(release.ROOT / 'charts' / name), '--namespace', hr['spec']['targetNamespace'], '--skip-crds', '--values', str(path))

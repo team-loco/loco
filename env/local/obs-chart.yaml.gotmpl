@@ -14,4 +14,4 @@ otel-col-deploy:
 obsProxy:
   enabled: true
   controlPlane:
-    url: "http://loco-core-agent.loco-system.svc.cluster.local:8000"
+    url: "http://host.docker.internal:{{ requiredEnv "APP_PORT" | splitList ":" | last }}"
