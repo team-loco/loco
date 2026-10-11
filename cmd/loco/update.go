@@ -35,6 +35,15 @@ type updater struct {
 	goarch      string
 }
 
+func newUpdater(releasesURL string, timeout time.Duration) updater {
+	return updater{
+		client:      &http.Client{Timeout: timeout},
+		releasesURL: releasesURL,
+		goos:        runtime.GOOS,
+		goarch:      runtime.GOARCH,
+	}
+}
+
 func newUpdateCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:         "update",
@@ -42,12 +51,7 @@ func newUpdateCmd() *cobra.Command {
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{skipVersionCheckKey: "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			u := updater{
-				client:      &http.Client{Timeout: updateTimeout},
-				releasesURL: releasesURL,
-				goos:        runtime.GOOS,
-				goarch:      runtime.GOARCH,
-			}
+			u := newUpdater(releasesURL, updateTimeout)
 			executable, err := os.Executable()
 			if err != nil {
 				return fmt.Errorf("could not locate the running loco binary: %w", err)

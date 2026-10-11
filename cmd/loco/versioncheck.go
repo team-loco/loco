@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/url"
 	"time"
 
 	"charm.land/lipgloss/v2"
@@ -20,9 +21,11 @@ import (
 )
 
 const (
-	versionCheckTimeout = time.Second
-	installCommand      = "curl -fsSL https://loco.build/install.sh | sh"
-	releasesURL         = "https://github.com/team-loco/loco/releases"
+	versionCheckTimeout  = time.Second
+	latestReleaseTimeout = 3 * time.Second
+	installCommand       = "curl -fsSL https://loco.build/install.sh | sh"
+	releasesURL          = "https://github.com/team-loco/loco/releases"
+	versionFlagName      = "version"
 )
 
 type versionCheck struct {
@@ -70,11 +73,53 @@ func (c *versionCheck) report(w io.Writer) {
 	if hint == "" {
 		return
 	}
+	printUpdateHint(w, hint, releasesURL)
+}
+
+func versionFlagSet(root *cobra.Command) bool {
+	flag := root.Flags().Lookup(versionFlagName)
+	return flag != nil && flag.Changed
+}
+
+func reportNewerRelease(ctx context.Context, w io.Writer, u updater, current string) {
+	if !semver.IsValid(current) {
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, latestReleaseTimeout)
+	defer cancel()
+	latest, err := u.latestTag(ctx)
+	if err != nil {
+		slog.Debug("could not check for a newer cli release", "error", err)
+		return
+	}
+	hint := newerReleaseHint(current, latest)
+	if hint == "" {
+		return
+	}
+	changelog, err := url.JoinPath(u.releasesURL, "tag", latest)
+	if err != nil {
+		slog.Debug("could not build changelog url", "error", err)
+		return
+	}
+	printUpdateHint(w, hint, changelog)
+}
+
+func newerReleaseHint(current, latest string) string {
+	if !semver.IsValid(current) || !semver.IsValid(latest) {
+		return ""
+	}
+	if semver.Compare(current, latest) >= 0 {
+		return ""
+	}
+	return fmt.Sprintf("A new version of loco is available: %s -> %s", current, latest)
+}
+
+func printUpdateHint(w io.Writer, hint, changelog string) {
 	style := lipgloss.NewStyle().Foreground(ui.Warn)
 	styled := style.Render(hint)
-	message := fmt.Sprintf("\n%s\n  Update:    loco update\n  Changelog: %s\n", styled, releasesURL)
+	message := fmt.Sprintf("\n%s\n  Update:    loco update\n  Changelog: %s\n", styled, changelog)
 	if _, err := lipgloss.Fprint(w, message); err != nil {
-		slog.Debug("could not print upgrade hint", "error", err)
+		slog.Debug("could not print update hint", "error", err)
 	}
 }
 
