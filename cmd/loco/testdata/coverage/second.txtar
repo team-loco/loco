@@ -1,0 +1,3 @@
+# a second script running at the same time gets another directory.
+coverdir
+exec loco --help
