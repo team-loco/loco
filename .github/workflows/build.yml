@@ -54,8 +54,8 @@ jobs:
             dockerfile: ./web/Dockerfile
             build_args: |
               DOCS_ENVIRONMENT=production
-              VITE_API_URL=https://api.loco.build
-              VITE_APP_ENV=PRODUCTION
+              PUBLIC_API_URL=https://api.loco.build
+              PUBLIC_APP_ENV=PRODUCTION
 
           - name: Staging UI
             image: ui
@@ -63,8 +63,8 @@ jobs:
             tag_suffix: ",suffix=-staging"
             build_args: |
               DOCS_ENVIRONMENT=staging
-              VITE_API_URL=https://api.staging.loco.build
-              VITE_APP_ENV=PRODUCTION
+              PUBLIC_API_URL=https://api.staging.loco.build
+              PUBLIC_APP_ENV=PRODUCTION
     uses: ./.github/workflows/build-push.yml
     with:
       image_name: ${{ github.repository }}-${{ matrix.image }}

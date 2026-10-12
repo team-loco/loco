@@ -3,7 +3,7 @@
 	"compilerOptions": {
 		"tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
 		"lib": ["ES2024"],
-		"types": ["node"]
+		"types": ["bun"]
 	},
-	"include": ["vite.config.ts"]
+	"include": ["build.ts", "dev.ts", "preview.ts", "env-plugin.ts", "vendor-chunks.ts", "vendor-chunks.test.ts"]
 }

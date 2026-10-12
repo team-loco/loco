@@ -83,4 +83,4 @@ Start Tilt again; `db-migrate` recreates the schema and seeds `api/seed/local.sq
   `<iframe>` 390px wide with the page URL, screenshot it and crop the image with
   `sips --cropOffset <y> <x> -c <height> <width>` (the offset goes before `-c`).
 - For "before" screenshots, commit the branch, run `git checkout origin/main -- web/src`
-  in the worktree and let Vite reload; `git checkout HEAD -- web/src` restores the branch.
+  in the worktree and let Bun reload; `git checkout HEAD -- web/src` restores the branch.
