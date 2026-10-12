@@ -228,6 +228,11 @@ func (r *LocoResourceReconciler) reconcileResources(
 	// aggregate deployment status into our status
 	replicas := locoRes.Spec.ServiceSpec.Resources.Replicas.Min
 	if !deploymentReady(dep, replicas) {
+		if failure, found := deploymentFailure(dep); found {
+			setDegraded(locoRes, failure)
+			setPhase(locoRes, phaseFailed, failure.message)
+			return ctrl.Result{RequeueAfter: deployingRequeue}, nil
+		}
 		envSecretRevision := dep.Spec.Template.Annotations[annotationEnvSecretRevision]
 		stuck, found, err := r.findStuckReplica(ctx, locoRes, envSecretRevision)
 		if err != nil {

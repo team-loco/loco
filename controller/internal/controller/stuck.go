@@ -5,16 +5,23 @@ import (
 	"fmt"
 	"strings"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	appsv1ac "k8s.io/client-go/applyconfigurations/apps/v1"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
-	conditionDegraded = "Degraded"
+	conditionDegraded              = "Degraded"
+	reasonProgressDeadlineExceeded = "ProgressDeadlineExceeded"
+	messageUnschedulable           = "The service cannot be scheduled. " +
+		"Check the region's available capacity and the service's resource requests."
+	messageProgressDeadline = "The service exceeded its rollout progress deadline. Check its replicas and logs."
 
 	reasonCreateContainerConfigError = "CreateContainerConfigError"
 	reasonImagePullBackOff           = "ImagePullBackOff"
@@ -110,6 +117,17 @@ func runsCurrentTemplate(pod *corev1.Pod, image, envSecretRevision string) bool 
 }
 
 func stuckContainer(pod *corev1.Pod) (stuckReplica, bool) {
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == corev1.PodScheduled &&
+			condition.Status == corev1.ConditionFalse &&
+			condition.Reason == corev1.PodReasonUnschedulable {
+			message := messageUnschedulable
+			if condition.Message != "" {
+				message += " " + condition.Message
+			}
+			return stuckReplica{reason: condition.Reason, detail: condition.Message, message: message}, true
+		}
+	}
 	for _, status := range pod.Status.ContainerStatuses {
 		waiting := status.State.Waiting
 		if waiting == nil {
@@ -137,4 +155,30 @@ func setDegraded(locoRes *locov1alpha1.Application, stuck stuckReplica) {
 
 func clearDegraded(locoRes *locov1alpha1.Application) {
 	meta.RemoveStatusCondition(&locoRes.Status.Conditions, conditionDegraded)
+}
+
+func deploymentFailure(dep *appsv1ac.DeploymentApplyConfiguration) (stuckReplica, bool) {
+	if dep == nil || dep.ObjectMetaApplyConfiguration == nil || dep.Status == nil {
+		return stuckReplica{}, false
+	}
+	generation := ptr.Deref(dep.Generation, 0)
+	observed := ptr.Deref(dep.Status.ObservedGeneration, 0)
+	if generation <= 0 || observed != generation {
+		return stuckReplica{}, false
+	}
+	for _, condition := range dep.Status.Conditions {
+		conditionType := ptr.Deref(condition.Type, "")
+		status := ptr.Deref(condition.Status, "")
+		reason := ptr.Deref(condition.Reason, "")
+		if conditionType == appsv1.DeploymentProgressing &&
+			status == corev1.ConditionFalse && reason == reasonProgressDeadlineExceeded {
+			detail := ptr.Deref(condition.Message, "")
+			return stuckReplica{
+				reason:  reason,
+				detail:  detail,
+				message: messageProgressDeadline,
+			}, true
+		}
+	}
+	return stuckReplica{}, false
 }
