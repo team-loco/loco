@@ -77,3 +77,6 @@ jobs:
 
       - name: Lint
         run: mise run lint:web
+
+      - name: Test
+        run: mise run test:web

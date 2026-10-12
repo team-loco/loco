@@ -30,5 +30,6 @@
 		"noUncheckedIndexedAccess": true,
 		"exactOptionalPropertyTypes": true
 	},
-	"include": ["src", "../gen/ts"]
+	"include": ["src", "../gen/ts"],
+	"exclude": ["src/**/*.test.ts"]
 }

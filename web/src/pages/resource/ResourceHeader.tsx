@@ -9,11 +9,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Too
 import { useCopy } from "@/hooks/useCopy";
 import { useNow } from "@/hooks/useNow";
 import { shortImageRef } from "@/lib/image";
+import { tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { CopyId } from "./CopyId";
-import { formatDuration, formatStarted, shortId } from "./format";
+import { formatDuration, formatFullTime, formatStarted, shortId } from "./format";
 import { depImage, startedMs, type RegionView } from "./model";
+import { replicaLine, unreportedRegions } from "./replicas";
 
 function typeLabel(type: ResourceType): string {
 	switch (type) {
@@ -37,7 +39,7 @@ function typeLabel(type: ResourceType): string {
 function healthDotClass(status: ResourceStatus): string {
 	switch (status) {
 		case ResourceStatus.HEALTHY:
-			return "bg-[#16a34a]";
+			return "bg-ok-fg";
 		case ResourceStatus.DEPLOYING:
 			return "bg-warn";
 		case ResourceStatus.DEGRADED:
@@ -98,14 +100,8 @@ export function ResourceHeader({
 	const now = useNow(60_000);
 	const prim = regions[0]?.current;
 	const actives = regions.flatMap((r) => (r.current === undefined ? [] : [r.current]));
-	const statusRegions = environment?.regions ?? [];
-	const desired = statusRegions.reduce((sum, r) => sum + r.desiredReplicas, 0);
-	const ready = statusRegions.reduce((sum, r) => sum + r.readyReplicas, 0);
-	const regionSuffix = statusRegions.length > 1 ? ` · ${statusRegions.length.toString()} regions` : "";
-	const readyLine =
-		environment === undefined
-			? "Not deployed"
-			: `${ready.toString()}/${desired.toString()} replicas ready${regionSuffix}`;
+	const readyLine = replicaLine(environment, now.getTime());
+	const unreported = unreportedRegions(environment);
 	const primImage = depImage(prim);
 	const sameImage = actives.every((d) => depImage(d) === primImage);
 	const since = prim === undefined ? undefined : startedMs(prim);
@@ -128,10 +124,27 @@ export function ResourceHeader({
 				<div className="text-fg3">{resource.description}</div>
 			)}
 			<div className="mt-1.5 flex flex-wrap items-center gap-x-[18px] gap-y-1.5 text-fg2">
-				<span className="flex items-center gap-1.5">
-					<span className={cn("size-2 rounded-full", healthDotClass(status))} />
-					{readyLine}
-				</span>
+				{unreported.length === 0 ? (
+					<span className="flex items-center gap-1.5">
+						<span className={cn("size-2 rounded-full", healthDotClass(status))} />
+						{readyLine}
+					</span>
+				) : (
+					<Tooltip>
+						<TooltipTrigger render={<span className="flex items-center gap-1.5" />}>
+							<span className={cn("size-2 rounded-full", healthDotClass(status))} />
+							{readyLine}
+						</TooltipTrigger>
+						<TooltipContent className="flex max-w-[min(90vw,420px)] flex-col gap-1">
+							{unreported.map((r) => (
+								<span key={r.region}>
+									{r.region}: {r.message}
+									{r.reportedAt !== undefined && ` · last report ${formatFullTime(tsMs(r.reportedAt))}`}
+								</span>
+							))}
+						</TooltipContent>
+					</Tooltip>
+				)}
 				{prim !== undefined && primImage !== "" && sameImage && <ImageRef image={primImage} />}
 				{prim !== undefined && !sameImage && (
 					<span className="flex items-center gap-1.5">
