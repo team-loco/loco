@@ -1,6 +1,6 @@
 import { Skeleton } from "@/components/design/Skeleton";
 
-import type { MetricPointPct } from "./useRegionMetric";
+import type { MetricPointPct } from "./metric";
 
 const W = 1000;
 const H = 100;
