@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"charm.land/bubbles/v2/table"
 	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/table"
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
@@ -22,6 +22,10 @@ import (
 	"github.com/team-loco/loco/internal/ui"
 	"google.golang.org/protobuf/encoding/protojson"
 )
+
+const noEventsMessage = "No events found."
+
+var eventsTableMargin = lipgloss.NewStyle().Margin(1, 2)
 
 type eventsDeps struct {
 	LoadSessionConfig func() (*session.SessionConfig, error)
@@ -129,8 +133,7 @@ Examples:
 				return writeEventsJSON(deps.Stdout, resp.Msg.GetEvents())
 			}
 
-			renderEventsTable(deps.Stdout, resp.Msg.GetEvents())
-			return nil
+			return renderEventsTable(deps.Stdout, resp.Msg.GetEvents())
 		},
 	}
 
@@ -160,45 +163,40 @@ func writeEventsJSON(stdout io.Writer, events []*resourcev1.Event) error {
 	return err
 }
 
-func renderEventsTable(stdout io.Writer, events []*resourcev1.Event) {
+func renderEventsTable(stdout io.Writer, events []*resourcev1.Event) error {
 	if len(events) == 0 {
-		fmt.Fprintln(stdout, "No events found.")
-		return
+		_, err := fmt.Fprintln(stdout, noEventsMessage)
+		return err
 	}
 
-	columns := []table.Column{
-		{Title: "TIME", Width: 20},
-		{Title: "REASON", Width: 20},
-		{Title: "MESSAGE", Width: 80},
-	}
-
-	var rows []table.Row
+	rows := make([][]string, 0, len(events))
 	for _, event := range events {
-		rows = append(rows, table.Row{
+		rows = append(rows, []string{
 			event.GetTimestamp().AsTime().Format(time.RFC3339),
 			event.GetReason(),
 			simplifyMessage(event.GetMessage()),
 		})
 	}
-
-	t := table.New(
-		table.WithColumns(columns),
-		table.WithRows(rows),
-		table.WithHeight(len(rows)),
-	)
-
-	s := table.Styles{
-		Header: lipgloss.NewStyle().
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(ui.Line2).
-			BorderBottom(true).
-			Bold(false),
-		Cell: lipgloss.NewStyle().Padding(0, 1),
-	}
-	t.SetStyles(s)
-
-	tableStyle := lipgloss.NewStyle().Margin(1, 2)
-	fmt.Fprintln(stdout, tableStyle.Render(t.View()))
+	cellStyle := lipgloss.NewStyle().Padding(0, 1)
+	headerStyle := cellStyle.Foreground(ui.Fg3)
+	t := table.New().
+		Border(lipgloss.NormalBorder()).
+		BorderStyle(lipgloss.NewStyle().Foreground(ui.Line2)).
+		BorderTop(false).
+		BorderBottom(false).
+		BorderLeft(false).
+		BorderRight(false).
+		BorderColumn(false).
+		Headers("TIME", "REASON", "MESSAGE").
+		Rows(rows...).
+		StyleFunc(func(row, _ int) lipgloss.Style {
+			if row == table.HeaderRow {
+				return headerStyle
+			}
+			return cellStyle
+		})
+	_, err := lipgloss.Fprintln(stdout, eventsTableMargin.Render(t.String()))
+	return err
 }
 
 func simplifyMessage(message string) string {
