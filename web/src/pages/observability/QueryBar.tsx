@@ -280,6 +280,7 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 	return (
 		<div className="relative min-w-0 flex-1">
 			<div
+				role="presentation"
 				onClick={focusInput}
 				className={cn(
 					"flex min-h-[38px] cursor-text flex-wrap items-center gap-1 rounded-lg border bg-background py-[5px] pr-1.5 pl-2.5",
@@ -357,6 +358,8 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 			</div>
 			{showMenu && (
 				<div
+					role="listbox"
+					tabIndex={-1}
 					onMouseDown={(e) => {
 						e.preventDefault();
 					}}
@@ -371,6 +374,10 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 									return (
 										<div
 											key={s.key}
+											role="option"
+											tabIndex={-1}
+											aria-selected={idx === hiIdx && idx >= 0}
+											aria-disabled={s.disabled === true}
 											onMouseDown={(e) => {
 												e.preventDefault();
 												if (s.disabled !== true) s.apply();
@@ -380,7 +387,7 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 											}}
 											className={cn(
 												"flex h-8 items-center gap-2.5 rounded-sm px-2.5",
-												s.disabled === true ? "cursor-not-allowed text-fg4" : "cursor-pointer",
+												s.disabled === true && "text-fg4",
 												idx === hiIdx && idx >= 0 && "bg-bg3",
 											)}
 										>

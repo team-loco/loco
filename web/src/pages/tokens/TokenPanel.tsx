@@ -32,7 +32,7 @@ function groupGrants(tree: EntityTree, token: Token): GrantGroup[] {
 		if (g) g.nodes.push(node);
 		else groups.set(id, { id, level, nodes: [node] });
 	}
-	return [...groups.values()].sort((a, b) => b.level - a.level);
+	return [...groups.values()].toSorted((a, b) => b.level - a.level);
 }
 
 export function TokenPanel({

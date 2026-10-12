@@ -58,7 +58,7 @@ export function Tokens() {
 	const query = q.trim().toLowerCase();
 	const rows = tokens
 		.filter((t) => matchesQuery(data.tree, t, query))
-		.sort((a, b) => {
+		.toSorted((a, b) => {
 			const ea = tokenStatus(a, now) === "expired" ? 1 : 0;
 			const eb = tokenStatus(b, now) === "expired" ? 1 : 0;
 			if (ea !== eb) return ea - eb;

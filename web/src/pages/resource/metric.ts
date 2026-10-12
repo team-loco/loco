@@ -70,5 +70,5 @@ export function percentPoints(series: MetricSeries[], resourceId: string): Metri
 			if (time !== undefined) points.push({ time, pct: p.value * PERCENT });
 		}
 	}
-	return points.sort((a, b) => a.time - b.time);
+	return points.toSorted((a, b) => a.time - b.time);
 }

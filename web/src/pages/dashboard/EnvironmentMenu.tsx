@@ -157,6 +157,7 @@ export function EnvironmentMenu({
 				<DropdownMenuSeparator />
 				{creating ? (
 					<div
+						role="presentation"
 						className="flex flex-col gap-2 px-2.5 pt-2 pb-2.5"
 						onKeyDown={(e) => {
 							e.stopPropagation();

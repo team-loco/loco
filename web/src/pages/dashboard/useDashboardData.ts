@@ -87,7 +87,7 @@ export function useDashboardData(workspaceId: string | null, env: Environment | 
 		const all = deploymentQueries[i]?.data?.deployments ?? [];
 		const mine = all
 			.filter((d) => d.environmentId === envId)
-			.sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt));
+			.toSorted((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt));
 		for (const d of all) usedEnvIds.add(d.environmentId);
 		for (const d of mine) envDeployments.push({ deployment: d, resource });
 		const neverDeployed = all.length === 0;

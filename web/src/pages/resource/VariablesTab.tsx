@@ -89,7 +89,7 @@ function secretRows(secrets: Secret[], declaredNames: string[] | undefined): Sec
 	const declared = declaredNames === undefined ? undefined : new Set(declaredNames);
 	const names = new Set([...stored.keys(), ...(declaredNames ?? [])]);
 	return [...names]
-		.sort((a, b) => a.localeCompare(b))
+		.toSorted((a, b) => a.localeCompare(b))
 		.map((name) => {
 			const secret = stored.get(name);
 			const status = rowStatus(secret !== undefined, declared, name);
@@ -220,7 +220,7 @@ export function VariablesTab({
 	const members = new Map((membersRes?.members ?? []).map((m) => [m.userId, m.userName || m.userEmail]));
 	const secrets = secretsQuery.data?.secrets ?? [];
 	const rows = secretRows(secrets, plainQuery.data?.secretNames);
-	const plain = Object.entries(plainQuery.data?.env ?? {}).sort(([a], [b]) => a.localeCompare(b));
+	const plain = Object.entries(plainQuery.data?.env ?? {}).toSorted(([a], [b]) => a.localeCompare(b));
 	const parsed = parseDotEnv(pasteText);
 	const invalidPasted = parsed.filter(([k]) => !SECRET_NAME.test(k)).map(([k]) => k);
 	const newNameProblem = newName === "" ? undefined : nameProblem(newName);

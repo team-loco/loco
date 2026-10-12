@@ -8,8 +8,8 @@
 		"build": "tsgo --build && vite build",
 		"typecheck": "tsgo --build",
 		"typecheck:tsc": "tsc --build",
-		"lint": "oxlint --ignore-pattern dist --deny-warnings . && eslint --cache --max-warnings 0 .",
-		"lint:fast": "oxlint --ignore-pattern dist --deny-warnings .",
+		"lint": "oxlint --deny-warnings . && eslint --cache --max-warnings 0 .",
+		"lint:fast": "oxlint --deny-warnings .",
 		"lint:types": "eslint --cache --max-warnings 0 .",
 		"preview": "vite preview",
 		"test": "bun test"
