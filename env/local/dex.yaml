@@ -12,7 +12,7 @@ staticPasswords:
   - email: dev@loco.test
     username: dev
     userID: 6f1d3c2e-8a51-4c8e-9b0f-2d7a4e5c9b11
-    hash: {{ crypto.Bcrypt "loco-dev" | quote }}
+    hash: "$2a$10$Py6lsTPTExeAThMuKbDW.OHD.0fwmH37PmxBtGZ8wpYH0IqMGvJJy"
 staticClients:
   - id: loco
     name: Loco

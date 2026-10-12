@@ -59,7 +59,12 @@ Start Tilt again; `db-migrate` recreates the schema and seeds `api/seed/local.sq
 
 ## Browser checks
 
-- Use Chrome on http://localhost:5173. The user's sign-in persists there.
+- Use Chrome on http://localhost:5173.
+- Sign in yourself; never ask the user to. Click Sign in on the landing page, then on the
+  Dex login page enter `dev@loco.test` and `loco-dev`, the static user in
+  `env/local/dex.yaml`. Dex keeps its sessions in memory, so restarting Dex, the compose
+  services or OrbStack signs every browser out.
+- The CLI signs in through the same page: `loco login --host http://localhost:8000`.
 - Never start an ad-hoc local server (for example `python3 -m http.server`) to preview
   files. Auto mode then blocks the Chrome tools for the session.
 - The theme lives in `localStorage` key `loco:theme:v1` (`light` or `dark`). Set it, then
