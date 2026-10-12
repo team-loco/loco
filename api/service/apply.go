@@ -85,6 +85,7 @@ func (s *PlanServer) Apply(
 		platformDomains: planned.platformDomains,
 		defaults:        s.defaults,
 		provisioning:    len(r.GetProvision()) > 0,
+		silentAfter:     s.silentAfter,
 	}
 	var revision int64
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {

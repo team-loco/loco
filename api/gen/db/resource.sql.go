@@ -79,60 +79,6 @@ func (q *Queries) GetClusterDetails(ctx context.Context, id uuid.UUID) (GetClust
 	return i, err
 }
 
-const getFirstActiveCluster = `-- name: GetFirstActiveCluster :one
-SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
-       last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
-       capacity_memory_bytes, agent_version, created_at, updated_at
-FROM clusters
-WHERE is_active = true
-ORDER BY created_at ASC
-LIMIT 1
-`
-
-type GetFirstActiveClusterRow struct {
-	ID                    uuid.UUID  `json:"id"`
-	Name                  string     `json:"name"`
-	Region                string     `json:"region"`
-	Provider              string     `json:"provider"`
-	IsActive              bool       `json:"isActive"`
-	IsDefault             bool       `json:"isDefault"`
-	Endpoint              *string    `json:"endpoint"`
-	HealthStatus          *string    `json:"healthStatus"`
-	LastHealthCheck       *time.Time `json:"lastHealthCheck"`
-	AgentTokenHash        *string    `json:"agentTokenHash"`
-	LastHeartbeat         *time.Time `json:"lastHeartbeat"`
-	CapacityCpuMillicores *int64     `json:"capacityCpuMillicores"`
-	CapacityMemoryBytes   *int64     `json:"capacityMemoryBytes"`
-	AgentVersion          *string    `json:"agentVersion"`
-	CreatedAt             time.Time  `json:"createdAt"`
-	UpdatedAt             time.Time  `json:"updatedAt"`
-}
-
-// todo: eventually remove
-func (q *Queries) GetFirstActiveCluster(ctx context.Context) (GetFirstActiveClusterRow, error) {
-	row := q.db.QueryRow(ctx, getFirstActiveCluster)
-	var i GetFirstActiveClusterRow
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.Region,
-		&i.Provider,
-		&i.IsActive,
-		&i.IsDefault,
-		&i.Endpoint,
-		&i.HealthStatus,
-		&i.LastHealthCheck,
-		&i.AgentTokenHash,
-		&i.LastHeartbeat,
-		&i.CapacityCpuMillicores,
-		&i.CapacityMemoryBytes,
-		&i.AgentVersion,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const getResourceByID = `-- name: GetResourceByID :one
 SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
 FROM resources r
@@ -283,9 +229,17 @@ SELECT id, name, region, provider, is_active, is_default, endpoint, health_statu
        last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
        capacity_memory_bytes, agent_version, created_at, updated_at
 FROM clusters
-WHERE tier = $1 AND is_active = true AND health_status = 'healthy'
+WHERE tier = $1
+  AND is_active = true
+  AND health_status = 'healthy'
+  AND last_heartbeat >= $2::timestamptz
 ORDER BY region ASC, is_default DESC, created_at ASC
 `
+
+type ListEligibleClustersParams struct {
+	Tier       string    `json:"tier"`
+	HeardSince time.Time `json:"heardSince"`
+}
 
 type ListEligibleClustersRow struct {
 	ID                    uuid.UUID  `json:"id"`
@@ -306,8 +260,8 @@ type ListEligibleClustersRow struct {
 	UpdatedAt             time.Time  `json:"updatedAt"`
 }
 
-func (q *Queries) ListEligibleClusters(ctx context.Context, tier string) ([]ListEligibleClustersRow, error) {
-	rows, err := q.db.Query(ctx, listEligibleClusters, tier)
+func (q *Queries) ListEligibleClusters(ctx context.Context, arg ListEligibleClustersParams) ([]ListEligibleClustersRow, error) {
+	rows, err := q.db.Query(ctx, listEligibleClusters, arg.Tier, arg.HeardSince)
 	if err != nil {
 		return nil, err
 	}

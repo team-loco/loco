@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"maps"
 	"slices"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -35,6 +36,7 @@ type PlanServer struct {
 	registryHost string
 	defaults     servicedefaults.Defaults
 	secrets      SecretConfig
+	silentAfter  time.Duration
 }
 
 // NewPlanServer creates a PlanServer; secrets supplies the per-placement size limit the plan
@@ -46,6 +48,7 @@ func NewPlanServer(
 	registryHost string,
 	defaults servicedefaults.Defaults,
 	secrets SecretConfig,
+	clusterSilentAfter time.Duration,
 ) *PlanServer {
 	return &PlanServer{
 		db:           db,
@@ -55,6 +58,7 @@ func NewPlanServer(
 		registryHost: registryHost,
 		defaults:     defaults,
 		secrets:      secrets,
+		silentAfter:  clusterSilentAfter,
 	}
 }
 
@@ -142,7 +146,7 @@ func (s *PlanServer) loadPlan(
 		slog.ErrorContext(ctx, "failed to list environments", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
-	clusters, err := eligibleClusters(ctx, s.queries, env.EnvironmentType)
+	clusters, err := eligibleClusters(ctx, s.queries, env.EnvironmentType, s.silentAfter)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list clusters", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)

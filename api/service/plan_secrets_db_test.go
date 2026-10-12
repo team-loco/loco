@@ -161,7 +161,7 @@ func TestPlanRefusesSecretsOverThePlacementLimit(t *testing.T) {
 	limits := testSecretConfig()
 	limits.MaxPlacementBytes = testMaxValue
 	server := NewPlanServer(f.pool, f.queries, &fakeResolver{digest: testDigest}, testRegistryHost,
-		testServiceDefaults(), limits)
+		testServiceDefaults(), limits, testClusterSilentAfter)
 	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, f.workspaceReadScopes(t))
 	resp, err := server.Plan(ctx, connect.NewRequest(&planv1.PlanRequest{
 		File: []byte(file), EnvironmentId: f.envID.String(),

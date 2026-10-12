@@ -131,9 +131,11 @@ SELECT id, $2, $3, 'user_provided', true FROM resources WHERE name = $1`
 
 func TestPlanAcceptsOnlyRegionsWithAHealthyClusterOfTheEnvironmentType(t *testing.T) {
 	cases := map[string]string{
-		"only another tier":    `UPDATE clusters SET tier = 'staging', health_status = 'healthy'`,
-		"no healthy cluster":   `UPDATE clusters SET health_status = 'unhealthy'`,
-		"health never checked": `UPDATE clusters SET health_status = NULL`,
+		"only another tier":    `UPDATE clusters SET tier = 'staging', health_status = 'healthy', last_heartbeat = NOW()`,
+		"no healthy cluster":   `UPDATE clusters SET health_status = 'unhealthy', last_heartbeat = NOW()`,
+		"health never checked": `UPDATE clusters SET health_status = NULL, last_heartbeat = NOW()`,
+		"heartbeat stale": `UPDATE clusters SET health_status = 'healthy',
+			last_heartbeat = NOW() - INTERVAL '1 hour'`,
 	}
 	for name, update := range cases {
 		t.Run(name, func(t *testing.T) {

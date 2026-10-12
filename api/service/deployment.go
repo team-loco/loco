@@ -172,6 +172,7 @@ type DeploymentServer struct {
 	registryHost string
 	defaults     servicedefaults.Defaults
 	authz        *authz.Authorizer
+	silentAfter  time.Duration
 }
 
 // NewDeploymentServer creates a new DeploymentServer instance
@@ -181,6 +182,7 @@ func NewDeploymentServer(
 	resolver ImageResolver,
 	registryHost string,
 	defaults servicedefaults.Defaults,
+	clusterSilentAfter time.Duration,
 ) *DeploymentServer {
 	return &DeploymentServer{
 		db:           db,
@@ -189,6 +191,7 @@ func NewDeploymentServer(
 		registryHost: registryHost,
 		defaults:     defaults,
 		authz:        authz.New(db, queries),
+		silentAfter:  clusterSilentAfter,
 	}
 }
 
@@ -262,7 +265,7 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	cluster, err := eligibleCluster(ctx, s.queries, region, env.EnvironmentType)
+	cluster, err := eligibleCluster(ctx, s.queries, region, env.EnvironmentType, s.silentAfter)
 	if err != nil {
 		slog.ErrorContext(
 			ctx,

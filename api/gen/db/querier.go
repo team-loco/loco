@@ -98,8 +98,6 @@ type Querier interface {
 	GetDeploymentStatus(ctx context.Context, id uuid.UUID) (GetDeploymentStatusRow, error)
 	GetEnvironmentByID(ctx context.Context, id uuid.UUID) (Environment, error)
 	GetEnvironmentKey(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)
-	// todo: eventually remove
-	GetFirstActiveCluster(ctx context.Context) (GetFirstActiveClusterRow, error)
 	GetIdentity(ctx context.Context, arg GetIdentityParams) (Identity, error)
 	GetObservabilityClustersForWorkspace(ctx context.Context, workspaceID uuid.UUID) ([]GetObservabilityClustersForWorkspaceRow, error)
 	GetOrgByID(ctx context.Context, id uuid.UUID) (Organization, error)
@@ -155,7 +153,7 @@ type Querier interface {
 	ListDeclaredSecretNames(ctx context.Context, arg ListDeclaredSecretNamesParams) ([]string, error)
 	ListDeletableBuildImages(ctx context.Context, arg ListDeletableBuildImagesParams) ([]ListDeletableBuildImagesRow, error)
 	ListDeploymentsForResource(ctx context.Context, arg ListDeploymentsForResourceParams) ([]Deployment, error)
-	ListEligibleClusters(ctx context.Context, tier string) ([]ListEligibleClustersRow, error)
+	ListEligibleClusters(ctx context.Context, arg ListEligibleClustersParams) ([]ListEligibleClustersRow, error)
 	ListEnvironmentKeys(ctx context.Context) ([]EnvironmentKey, error)
 	ListEnvironmentResourceDomains(ctx context.Context, arg ListEnvironmentResourceDomainsParams) ([]ResourceDomain, error)
 	ListEnvironmentSecretCiphertexts(ctx context.Context, environmentID uuid.UUID) ([]ListEnvironmentSecretCiphertextsRow, error)

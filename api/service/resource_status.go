@@ -41,7 +41,7 @@ func (s *ResourceServer) environmentStatuses(
 	var current *resourcev1.EnvironmentStatus
 	var currentResource uuid.UUID
 	for _, row := range rows {
-		region, regionErr := regionStatus(row, now, s.statusStaleAfter)
+		region, regionErr := regionStatus(row, now, s.clusterSilentAfter)
 		if regionErr != nil {
 			return nil, fmt.Errorf("resource %s region %s: %w", row.ResourceID, row.Region, regionErr)
 		}

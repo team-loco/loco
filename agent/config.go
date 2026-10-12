@@ -23,7 +23,6 @@ const (
 	envInventoryInterval        = "LOCO_INVENTORY_INTERVAL"
 	envBuildRetention           = "LOCO_BUILD_RETENTION"
 	envBuildCollectInterval     = "LOCO_BUILD_COLLECT_INTERVAL"
-	envHeartbeatInterval        = "LOCO_HEARTBEAT_INTERVAL"
 	envClusterQueryTimeout      = "LOCO_CLUSTER_QUERY_TIMEOUT"
 	envReconcileWorkers         = "LOCO_RECONCILE_WORKERS"
 	envReconcileRetryBaseDelay  = "LOCO_RECONCILE_RETRY_BASE_DELAY"
@@ -59,7 +58,6 @@ type Config struct {
 	InventoryInterval        time.Duration
 	BuildRetention           time.Duration
 	BuildCollectInterval     time.Duration
-	HeartbeatInterval        time.Duration
 	ClusterQueryTimeout      time.Duration
 	ReconcileWorkers         int
 	ReconcileRetryBaseDelay  time.Duration
@@ -119,7 +117,6 @@ func parseAgentConfig(getenv func(string) string, agentVersion string) (*Config,
 		envInventoryInterval:       &cfg.InventoryInterval,
 		envBuildRetention:          &cfg.BuildRetention,
 		envBuildCollectInterval:    &cfg.BuildCollectInterval,
-		envHeartbeatInterval:       &cfg.HeartbeatInterval,
 		envClusterQueryTimeout:     &cfg.ClusterQueryTimeout,
 		envReconcileRetryBaseDelay: &cfg.ReconcileRetryBaseDelay,
 		envReconcileRetryMaxDelay:  &cfg.ReconcileRetryMaxDelay,

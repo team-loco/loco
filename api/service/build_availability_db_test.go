@@ -126,13 +126,17 @@ func TestBuildsQueuedOnAClusterThatDisabledBuildsFail(t *testing.T) {
 
 func TestRegisterAndHeartbeatRecordWhetherTheClusterAcceptsBuilds(t *testing.T) {
 	f := newBuildFixture(t)
-	server := NewAgentServer(f.pool, f.queries, nil, f.bucket, nil)
+	server := NewAgentServer(f.pool, f.queries, nil, f.bucket, nil, testHeartbeatInterval)
 	register := func(enabled bool) {
 		t.Helper()
 		req := connect.NewRequest(&agentv1.RegisterRequest{AgentVersion: "test", BuildsEnabled: enabled})
 		req.Header().Set("Authorization", "Bearer "+testAgentToken)
-		if _, err := server.Register(f.ctx, req); err != nil {
+		resp, err := server.Register(f.ctx, req)
+		if err != nil {
 			t.Fatalf("register: %v", err)
+		}
+		if got := resp.Msg.GetHeartbeatInterval().AsDuration(); got != testHeartbeatInterval {
+			t.Fatalf("heartbeat interval = %s, want %s", got, testHeartbeatInterval)
 		}
 	}
 	buildsEnabled := func() bool {
@@ -154,10 +158,10 @@ func TestRegisterAndHeartbeatRecordWhetherTheClusterAcceptsBuilds(t *testing.T) 
 	}
 
 	client := startSyncServerWithSources(t, f.deployFixture, f.bucket)
-	stream := client.Heartbeat(f.ctx)
+	stream := client.Sync(f.ctx)
 	stream.RequestHeader().Set("Authorization", "Bearer "+testAgentToken)
-	clusterID := f.clusterID.String()
-	if err := stream.Send(&agentv1.HeartbeatRequest{ClusterId: clusterID, BuildsEnabled: false}); err != nil {
+	heartbeat := &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Heartbeat{Heartbeat: &agentv1.Heartbeat{}}}
+	if err := stream.Send(heartbeat); err != nil {
 		t.Fatalf("send heartbeat: %v", err)
 	}
 	deadline := time.Now().Add(5 * time.Second)
@@ -168,6 +172,6 @@ func TestRegisterAndHeartbeatRecordWhetherTheClusterAcceptsBuilds(t *testing.T) 
 		time.Sleep(50 * time.Millisecond)
 	}
 	if err := stream.CloseRequest(); err != nil {
-		t.Fatalf("close heartbeat stream: %v", err)
+		t.Fatalf("close sync stream: %v", err)
 	}
 }

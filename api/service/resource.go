@@ -72,11 +72,11 @@ func protoResourceTypeToDb(rt resourcev1.ResourceType) (genDb.ResourceType, erro
 
 type ResourceServer struct {
 	resourcev1connect.UnimplementedResourceServiceHandler
-	db               *pgxpool.Pool
-	queries          genDb.Querier
-	authz            *authz.Authorizer
-	defaults         servicedefaults.Defaults
-	statusStaleAfter time.Duration
+	db                 *pgxpool.Pool
+	queries            genDb.Querier
+	authz              *authz.Authorizer
+	defaults           servicedefaults.Defaults
+	clusterSilentAfter time.Duration
 }
 
 // NewResourceServer creates a new ResourceServer instance
@@ -84,14 +84,14 @@ func NewResourceServer(
 	db *pgxpool.Pool,
 	queries genDb.Querier,
 	defaults servicedefaults.Defaults,
-	statusStaleAfter time.Duration,
+	clusterSilentAfter time.Duration,
 ) *ResourceServer {
 	return &ResourceServer{
-		db:               db,
-		queries:          queries,
-		authz:            authz.New(db, queries),
-		defaults:         defaults,
-		statusStaleAfter: statusStaleAfter,
+		db:                 db,
+		queries:            queries,
+		authz:              authz.New(db, queries),
+		defaults:           defaults,
+		clusterSilentAfter: clusterSilentAfter,
 	}
 }
 
@@ -858,7 +858,7 @@ func (s *ResourceServer) planRegionRedeploy(
 		return regionRedeploy{}, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	cluster, err := eligibleCluster(ctx, s.queries, current.Region, deploymentEnv.EnvironmentType)
+	cluster, err := eligibleCluster(ctx, s.queries, current.Region, deploymentEnv.EnvironmentType, s.clusterSilentAfter)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get active cluster for region", "region", current.Region, "error", err)
 		return regionRedeploy{}, connect.NewError(connect.CodeFailedPrecondition, err)

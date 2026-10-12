@@ -12,12 +12,13 @@ import (
 )
 
 const (
-	testStatusStaleAfter = time.Minute
-	testFreshHeartbeat   = 10 * time.Second
-	testStaleHeartbeat   = 2 * time.Minute
-	testDesiredReplicas  = 2
-	testStatusMessage    = "Waiting for pods to be ready..."
-	testFailureMessage   = "container exited with code 1"
+	testHeartbeatInterval  = 20 * time.Second
+	testClusterSilentAfter = missedHeartbeats * testHeartbeatInterval
+	testFreshHeartbeat     = 10 * time.Second
+	testStaleHeartbeat     = 2 * time.Minute
+	testDesiredReplicas    = 2
+	testStatusMessage      = "Waiting for pods to be ready..."
+	testFailureMessage     = "container exited with code 1"
 )
 
 var testStatusNow = time.Date(2026, time.October, 11, 12, 0, 0, 0, time.UTC)
@@ -45,7 +46,7 @@ func regionRow(status genDb.DeploymentStatus, ready int32) genDb.ListRegionStatu
 
 func TestRegionStatus(t *testing.T) {
 	staleHeartbeat := testStatusNow.Add(-testStaleHeartbeat)
-	edgeHeartbeat := testStatusNow.Add(-testStatusStaleAfter)
+	edgeHeartbeat := testStatusNow.Add(-testClusterSilentAfter)
 	unhealthy := clusterHealthUnhealthy
 	degradedCluster := clusterHealthDegraded
 
@@ -183,7 +184,7 @@ func TestRegionStatus(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			row := tt.row()
-			got, err := regionStatus(row, testStatusNow, testStatusStaleAfter)
+			got, err := regionStatus(row, testStatusNow, testClusterSilentAfter)
 			if err != nil {
 				t.Fatalf("regionStatus: %v", err)
 			}
@@ -246,7 +247,7 @@ func TestRegionStatusRejectsBrokenInvariants(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := regionStatus(tt.row, testStatusNow, testStatusStaleAfter)
+			_, err := regionStatus(tt.row, testStatusNow, testClusterSilentAfter)
 			if !errors.Is(err, tt.want) {
 				t.Fatalf("err = %v, want %v", err, tt.want)
 			}
@@ -276,7 +277,7 @@ func TestRegionStatusNeverOverstatesHealth(t *testing.T) {
 					row := regionRow(deploymentStatus, ready)
 					row.LastHeartbeat = heartbeat
 					row.HealthStatus = health
-					got, err := regionStatus(row, testStatusNow, testStatusStaleAfter)
+					got, err := regionStatus(row, testStatusNow, testClusterSilentAfter)
 					if err != nil {
 						t.Fatalf("regionStatus(%+v): %v", row, err)
 					}
@@ -294,7 +295,7 @@ func assertStatusMatchesInputs(
 ) {
 	t.Helper()
 	fresh := row.LastHeartbeat != nil &&
-		testStatusNow.Sub(*row.LastHeartbeat) <= testStatusStaleAfter &&
+		testStatusNow.Sub(*row.LastHeartbeat) <= testClusterSilentAfter &&
 		row.HealthStatus != nil && *row.HealthStatus == clusterHealthHealthy
 	inFlight := row.DeploymentStatus == genDb.DeploymentStatusPending ||
 		row.DeploymentStatus == genDb.DeploymentStatusDeploying

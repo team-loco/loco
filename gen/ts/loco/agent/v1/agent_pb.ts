@@ -5,13 +5,15 @@
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
+import type { Duration, DurationJson } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_duration } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file loco/agent/v1/agent.proto.
  */
 export const file_loco_agent_v1_agent: GenFile = /*@__PURE__*/
-  fileDesc("Chlsb2NvL2FnZW50L3YxL2FnZW50LnByb3RvEg1sb2NvLmFnZW50LnYxIpIBCg9SZWdpc3RlclJlcXVlc3QSFQoNYWdlbnRfdmVyc2lvbhgDIAEoCRIuCghjYXBhY2l0eRgEIAEoCzIcLmxvY28uYWdlbnQudjEuQWdlbnRDYXBhY2l0eRIWCg5idWlsZHNfZW5hYmxlZBgFIAEoCEoECAEQAkoECAIQA1IMY2x1c3Rlcl9uYW1lUgZyZWdpb24iJgoQUmVnaXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJItgBCgtTeW5jUmVxdWVzdBItCglpbnZlbnRvcnkYASABKAsyGC5sb2NvLmFnZW50LnYxLkludmVudG9yeUgAEikKB2FwcGxpZWQYAiABKAsyFi5sb2NvLmFnZW50LnYxLkFwcGxpZWRIABIwCgZzdGF0dXMYAyABKAsyHi5sb2NvLmFnZW50LnYxLlBsYWNlbWVudFN0YXR1c0gAEjIKDGJ1aWxkX3N0YXR1cxgEIAEoCzIaLmxvY28uYWdlbnQudjEuQnVpbGRTdGF0dXNIAEIJCgdtZXNzYWdlImoKCUludmVudG9yeRIuCgdlbnRyaWVzGAEgAygLMh0ubG9jby5hZ2VudC52MS5JbnZlbnRvcnlFbnRyeRItCgZidWlsZHMYAiADKAsyHS5sb2NvLmFnZW50LnYxLkludmVudG9yeUJ1aWxkIlQKDkludmVudG9yeUVudHJ5EhQKDHBsYWNlbWVudF9pZBgBIAEoCRIQCghyZXZpc2lvbhgCIAEoAxIaChJlbnZfc2VjcmV0X3BlbmRpbmcYAyABKAgiYAoOSW52ZW50b3J5QnVpbGQSGgoIYnVpbGRfaWQYASABKAlCCLpIBXIDsAEBEjIKBXBoYXNlGAIgASgOMhkubG9jby5hZ2VudC52MS5CdWlsZFBoYXNlQgi6SAWCAQIQASLoAQoLQnVpbGRTdGF0dXMSGgoIYnVpbGRfaWQYASABKAlCCLpIBXIDsAEBEjQKBXBoYXNlGAIgASgOMhkubG9jby5hZ2VudC52MS5CdWlsZFBoYXNlQgq6SAeCAQQQASAAEjUKDGltYWdlX2RpZ2VzdBgDIAEoCUIfukgcchoyGF4oc2hhMjU2OlthLWYwLTldezY0fSk/JBI1CgxjYWNoZV9kaWdlc3QYBCABKAlCH7pIHHIaMhheKHNoYTI1NjpbYS1mMC05XXs2NH0pPyQSGQoHbWVzc2FnZRgFIAEoCUIIukgFcgMYgCAiUgoHQXBwbGllZBIUCgxwbGFjZW1lbnRfaWQYASABKAkSEAoIcmV2aXNpb24YAiABKAMSDQoFZXJyb3IYAyABKAkSEAoIcmV0cnlpbmcYBCABKAgiiQEKD1BsYWNlbWVudFN0YXR1cxIUCgxwbGFjZW1lbnRfaWQYASABKAkSGQoRb2JzZXJ2ZWRfcmV2aXNpb24YAiABKAMSDQoFcmVhZHkYAyABKAgSFgoOcmVhZHlfcmVwbGljYXMYBCABKAUSDQoFcGhhc2UYBSABKAkSDwoHbWVzc2FnZRgGIAEoCSLPAQoMU3luY1Jlc3BvbnNlEiUKBWFwcGx5GAEgASgLMhQubG9jby5hZ2VudC52MS5BcHBseUgAEicKBmRlbGV0ZRgCIAEoCzIVLmxvY28uYWdlbnQudjEuRGVsZXRlSAASMAoLc3RhcnRfYnVpbGQYAyABKAsyGS5sb2NvLmFnZW50LnYxLlN0YXJ0QnVpbGRIABIyCgxjYW5jZWxfYnVpbGQYBCABKAsyGi5sb2NvLmFnZW50LnYxLkNhbmNlbEJ1aWxkSABCCQoHbWVzc2FnZSKHAQoFQXBwbHkSFAoMcGxhY2VtZW50X2lkGAEgASgJEhAKCHJldmlzaW9uGAIgASgDEhMKC3Jlc291cmNlX2lkGAMgASgJEhMKC2FwcGxpY2F0aW9uGAQgASgMEiwKCmVudl9zZWNyZXQYBSABKAsyGC5sb2NvLmFnZW50LnYxLkVudlNlY3JldCJ8CglFbnZTZWNyZXQSEAoIcmV2aXNpb24YASABKAMSMAoEZGF0YRgCIAMoCzIiLmxvY28uYWdlbnQudjEuRW52U2VjcmV0LkRhdGFFbnRyeRorCglEYXRhRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgMOgI4ASJFCgZEZWxldGUSFAoMcGxhY2VtZW50X2lkGAEgASgJEhAKCHJldmlzaW9uGAIgASgDEhMKC3Jlc291cmNlX2lkGAMgASgJIp0CCgpTdGFydEJ1aWxkEhoKCGJ1aWxkX2lkGAEgASgJQgi6SAVyA7ABARIeCgx3b3Jrc3BhY2VfaWQYAiABKAlCCLpIBXIDsAEBEh0KC3Jlc291cmNlX2lkGAMgASgJQgi6SAVyA7ABARIcCgpzb3VyY2VfdXJsGAQgASgJQgi6SAVyA4gBARIgCg9kb2NrZXJmaWxlX3BhdGgYBSABKAlCB7pIBHICEAESIQoQaW1hZ2VfcmVwb3NpdG9yeRgGIAEoCUIHukgEcgIQARIRCgljYWNoZV9yZWYYByABKAkSGAoHY29udGV4dBgIIAEoCUIHukgEcgIQARIkCg9vcmdhbml6YXRpb25faWQYCSABKAlCC7pICNgBAXIDsAEBIikKC0NhbmNlbEJ1aWxkEhoKCGJ1aWxkX2lkGAEgASgJQgi6SAVyA7ABASKkAQoQSGVhcnRiZWF0UmVxdWVzdBIcCgpjbHVzdGVyX2lkGAEgASgJQgi6SAVyA7ABARIuCghjYXBhY2l0eRgCIAEoCzIcLmxvY28uYWdlbnQudjEuQWdlbnRDYXBhY2l0eRIqCgZoZWFsdGgYAyABKAsyGi5sb2NvLmFnZW50LnYxLkFnZW50SGVhbHRoEhYKDmJ1aWxkc19lbmFibGVkGAQgASgIIkMKEUhlYXJ0YmVhdFJlc3BvbnNlSgQIARACSgQIAhADSgQIAxAEUgVkcmFpblINcmVsb2FkX2NvbmZpZ1IGcmVzeW5jIqsBCg1BZ2VudENhcGFjaXR5EhwKFGNwdV9taWxsaWNvcmVzX3RvdGFsGAEgASgDEhsKE2NwdV9taWxsaWNvcmVzX3VzZWQYAiABKAMSGgoSbWVtb3J5X2J5dGVzX3RvdGFsGAMgASgDEhkKEW1lbW9yeV9ieXRlc191c2VkGAQgASgDEhIKCnBvZHNfdG90YWwYBSABKAUSFAoMcG9kc19ydW5uaW5nGAYgASgFIlYKC0FnZW50SGVhbHRoEhoKEmt1YmVybmV0ZXNfaGVhbHRoeRgBIAEoCBIaChJjb250cm9sbGVyX2hlYWx0aHkYAiABKAgSDwoHbWVzc2FnZRgDIAEoCSqoAQoKQnVpbGRQaGFzZRIbChdCVUlMRF9QSEFTRV9VTlNQRUNJRklFRBAAEhcKE0JVSUxEX1BIQVNFX1BFTkRJTkcQARIXChNCVUlMRF9QSEFTRV9SVU5OSU5HEAISGQoVQlVJTERfUEhBU0VfU1VDQ0VFREVEEAMSFgoSQlVJTERfUEhBU0VfRkFJTEVEEAQSGAoUQlVJTERfUEhBU0VfQ0FOQ0VMRUQQBTL0AQoMQWdlbnRTZXJ2aWNlEksKCFJlZ2lzdGVyEh4ubG9jby5hZ2VudC52MS5SZWdpc3RlclJlcXVlc3QaHy5sb2NvLmFnZW50LnYxLlJlZ2lzdGVyUmVzcG9uc2USQwoEU3luYxIaLmxvY28uYWdlbnQudjEuU3luY1JlcXVlc3QaGy5sb2NvLmFnZW50LnYxLlN5bmNSZXNwb25zZSgBMAESUgoJSGVhcnRiZWF0Eh8ubG9jby5hZ2VudC52MS5IZWFydGJlYXRSZXF1ZXN0GiAubG9jby5hZ2VudC52MS5IZWFydGJlYXRSZXNwb25zZSgBMAFCOFo2Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9hZ2VudC92MTthZ2VudHYxYgZwcm90bzM", [file_buf_validate_validate]);
+  fileDesc("Chlsb2NvL2FnZW50L3YxL2FnZW50LnByb3RvEg1sb2NvLmFnZW50LnYxIpIBCg9SZWdpc3RlclJlcXVlc3QSFQoNYWdlbnRfdmVyc2lvbhgDIAEoCRIuCghjYXBhY2l0eRgEIAEoCzIcLmxvY28uYWdlbnQudjEuQWdlbnRDYXBhY2l0eRIWCg5idWlsZHNfZW5hYmxlZBgFIAEoCEoECAEQAkoECAIQA1IMY2x1c3Rlcl9uYW1lUgZyZWdpb24iXQoQUmVnaXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJEjUKEmhlYXJ0YmVhdF9pbnRlcnZhbBgCIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbiKHAgoLU3luY1JlcXVlc3QSLQoJaW52ZW50b3J5GAEgASgLMhgubG9jby5hZ2VudC52MS5JbnZlbnRvcnlIABIpCgdhcHBsaWVkGAIgASgLMhYubG9jby5hZ2VudC52MS5BcHBsaWVkSAASMAoGc3RhdHVzGAMgASgLMh4ubG9jby5hZ2VudC52MS5QbGFjZW1lbnRTdGF0dXNIABIyCgxidWlsZF9zdGF0dXMYBCABKAsyGi5sb2NvLmFnZW50LnYxLkJ1aWxkU3RhdHVzSAASLQoJaGVhcnRiZWF0GAUgASgLMhgubG9jby5hZ2VudC52MS5IZWFydGJlYXRIAEIJCgdtZXNzYWdlImoKCUludmVudG9yeRIuCgdlbnRyaWVzGAEgAygLMh0ubG9jby5hZ2VudC52MS5JbnZlbnRvcnlFbnRyeRItCgZidWlsZHMYAiADKAsyHS5sb2NvLmFnZW50LnYxLkludmVudG9yeUJ1aWxkIlQKDkludmVudG9yeUVudHJ5EhQKDHBsYWNlbWVudF9pZBgBIAEoCRIQCghyZXZpc2lvbhgCIAEoAxIaChJlbnZfc2VjcmV0X3BlbmRpbmcYAyABKAgiYAoOSW52ZW50b3J5QnVpbGQSGgoIYnVpbGRfaWQYASABKAlCCLpIBXIDsAEBEjIKBXBoYXNlGAIgASgOMhkubG9jby5hZ2VudC52MS5CdWlsZFBoYXNlQgi6SAWCAQIQASLoAQoLQnVpbGRTdGF0dXMSGgoIYnVpbGRfaWQYASABKAlCCLpIBXIDsAEBEjQKBXBoYXNlGAIgASgOMhkubG9jby5hZ2VudC52MS5CdWlsZFBoYXNlQgq6SAeCAQQQASAAEjUKDGltYWdlX2RpZ2VzdBgDIAEoCUIfukgcchoyGF4oc2hhMjU2OlthLWYwLTldezY0fSk/JBI1CgxjYWNoZV9kaWdlc3QYBCABKAlCH7pIHHIaMhheKHNoYTI1NjpbYS1mMC05XXs2NH0pPyQSGQoHbWVzc2FnZRgFIAEoCUIIukgFcgMYgCAiUgoHQXBwbGllZBIUCgxwbGFjZW1lbnRfaWQYASABKAkSEAoIcmV2aXNpb24YAiABKAMSDQoFZXJyb3IYAyABKAkSEAoIcmV0cnlpbmcYBCABKAgiiQEKD1BsYWNlbWVudFN0YXR1cxIUCgxwbGFjZW1lbnRfaWQYASABKAkSGQoRb2JzZXJ2ZWRfcmV2aXNpb24YAiABKAMSDQoFcmVhZHkYAyABKAgSFgoOcmVhZHlfcmVwbGljYXMYBCABKAUSDQoFcGhhc2UYBSABKAkSDwoHbWVzc2FnZRgGIAEoCSLPAQoMU3luY1Jlc3BvbnNlEiUKBWFwcGx5GAEgASgLMhQubG9jby5hZ2VudC52MS5BcHBseUgAEicKBmRlbGV0ZRgCIAEoCzIVLmxvY28uYWdlbnQudjEuRGVsZXRlSAASMAoLc3RhcnRfYnVpbGQYAyABKAsyGS5sb2NvLmFnZW50LnYxLlN0YXJ0QnVpbGRIABIyCgxjYW5jZWxfYnVpbGQYBCABKAsyGi5sb2NvLmFnZW50LnYxLkNhbmNlbEJ1aWxkSABCCQoHbWVzc2FnZSKHAQoFQXBwbHkSFAoMcGxhY2VtZW50X2lkGAEgASgJEhAKCHJldmlzaW9uGAIgASgDEhMKC3Jlc291cmNlX2lkGAMgASgJEhMKC2FwcGxpY2F0aW9uGAQgASgMEiwKCmVudl9zZWNyZXQYBSABKAsyGC5sb2NvLmFnZW50LnYxLkVudlNlY3JldCJ8CglFbnZTZWNyZXQSEAoIcmV2aXNpb24YASABKAMSMAoEZGF0YRgCIAMoCzIiLmxvY28uYWdlbnQudjEuRW52U2VjcmV0LkRhdGFFbnRyeRorCglEYXRhRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgMOgI4ASJFCgZEZWxldGUSFAoMcGxhY2VtZW50X2lkGAEgASgJEhAKCHJldmlzaW9uGAIgASgDEhMKC3Jlc291cmNlX2lkGAMgASgJIp0CCgpTdGFydEJ1aWxkEhoKCGJ1aWxkX2lkGAEgASgJQgi6SAVyA7ABARIeCgx3b3Jrc3BhY2VfaWQYAiABKAlCCLpIBXIDsAEBEh0KC3Jlc291cmNlX2lkGAMgASgJQgi6SAVyA7ABARIcCgpzb3VyY2VfdXJsGAQgASgJQgi6SAVyA4gBARIgCg9kb2NrZXJmaWxlX3BhdGgYBSABKAlCB7pIBHICEAESIQoQaW1hZ2VfcmVwb3NpdG9yeRgGIAEoCUIHukgEcgIQARIRCgljYWNoZV9yZWYYByABKAkSGAoHY29udGV4dBgIIAEoCUIHukgEcgIQARIkCg9vcmdhbml6YXRpb25faWQYCSABKAlCC7pICNgBAXIDsAEBIikKC0NhbmNlbEJ1aWxkEhoKCGJ1aWxkX2lkGAEgASgJQgi6SAVyA7ABASJ/CglIZWFydGJlYXQSLgoIY2FwYWNpdHkYASABKAsyHC5sb2NvLmFnZW50LnYxLkFnZW50Q2FwYWNpdHkSKgoGaGVhbHRoGAIgASgLMhoubG9jby5hZ2VudC52MS5BZ2VudEhlYWx0aBIWCg5idWlsZHNfZW5hYmxlZBgDIAEoCCKrAQoNQWdlbnRDYXBhY2l0eRIcChRjcHVfbWlsbGljb3Jlc190b3RhbBgBIAEoAxIbChNjcHVfbWlsbGljb3Jlc191c2VkGAIgASgDEhoKEm1lbW9yeV9ieXRlc190b3RhbBgDIAEoAxIZChFtZW1vcnlfYnl0ZXNfdXNlZBgEIAEoAxISCgpwb2RzX3RvdGFsGAUgASgFEhQKDHBvZHNfcnVubmluZxgGIAEoBSJWCgtBZ2VudEhlYWx0aBIaChJrdWJlcm5ldGVzX2hlYWx0aHkYASABKAgSGgoSY29udHJvbGxlcl9oZWFsdGh5GAIgASgIEg8KB21lc3NhZ2UYAyABKAkqqAEKCkJ1aWxkUGhhc2USGwoXQlVJTERfUEhBU0VfVU5TUEVDSUZJRUQQABIXChNCVUlMRF9QSEFTRV9QRU5ESU5HEAESFwoTQlVJTERfUEhBU0VfUlVOTklORxACEhkKFUJVSUxEX1BIQVNFX1NVQ0NFRURFRBADEhYKEkJVSUxEX1BIQVNFX0ZBSUxFRBAEEhgKFEJVSUxEX1BIQVNFX0NBTkNFTEVEEAUyoAEKDEFnZW50U2VydmljZRJLCghSZWdpc3RlchIeLmxvY28uYWdlbnQudjEuUmVnaXN0ZXJSZXF1ZXN0Gh8ubG9jby5hZ2VudC52MS5SZWdpc3RlclJlc3BvbnNlEkMKBFN5bmMSGi5sb2NvLmFnZW50LnYxLlN5bmNSZXF1ZXN0GhsubG9jby5hZ2VudC52MS5TeW5jUmVzcG9uc2UoATABQjhaNmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vYWdlbnQvdjE7YWdlbnR2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_duration]);
 
 /**
  * RegisterRequest is sent by the agent on startup to announce itself.
@@ -74,6 +76,11 @@ export type RegisterResponse = Message<"loco.agent.v1.RegisterResponse"> & {
    * @generated from field: string cluster_id = 1;
    */
   clusterId: string;
+
+  /**
+   * @generated from field: google.protobuf.Duration heartbeat_interval = 2;
+   */
+  heartbeatInterval?: Duration | undefined;
 };
 
 /**
@@ -86,6 +93,11 @@ export type RegisterResponseJson = {
    * @generated from field: string cluster_id = 1;
    */
   clusterId?: string;
+
+  /**
+   * @generated from field: google.protobuf.Duration heartbeat_interval = 2;
+   */
+  heartbeatInterval?: DurationJson;
 };
 
 /**
@@ -126,6 +138,12 @@ export type SyncRequest = Message<"loco.agent.v1.SyncRequest"> & {
      */
     value: BuildStatus;
     case: "buildStatus";
+  } | {
+    /**
+     * @generated from field: loco.agent.v1.Heartbeat heartbeat = 5;
+     */
+    value: Heartbeat;
+    case: "heartbeat";
   } | { case: undefined; value?: undefined };
 };
 
@@ -152,6 +170,11 @@ export type SyncRequestJson = {
    * @generated from field: loco.agent.v1.BuildStatus build_status = 4;
    */
   buildStatus?: BuildStatusJson;
+
+  /**
+   * @generated from field: loco.agent.v1.Heartbeat heartbeat = 5;
+   */
+  heartbeat?: HeartbeatJson;
 };
 
 /**
@@ -843,88 +866,55 @@ export const CancelBuildSchema: GenMessage<CancelBuild, {jsonType: CancelBuildJs
   messageDesc(file_loco_agent_v1_agent, 14);
 
 /**
- * HeartbeatRequest is sent periodically by the agent.
+ * Heartbeat is sent periodically by the agent.
  *
- * @generated from message loco.agent.v1.HeartbeatRequest
+ * @generated from message loco.agent.v1.Heartbeat
  */
-export type HeartbeatRequest = Message<"loco.agent.v1.HeartbeatRequest"> & {
+export type Heartbeat = Message<"loco.agent.v1.Heartbeat"> & {
   /**
-   * @generated from field: string cluster_id = 1;
-   */
-  clusterId: string;
-
-  /**
-   * @generated from field: loco.agent.v1.AgentCapacity capacity = 2;
+   * @generated from field: loco.agent.v1.AgentCapacity capacity = 1;
    */
   capacity?: AgentCapacity | undefined;
 
   /**
-   * @generated from field: loco.agent.v1.AgentHealth health = 3;
+   * @generated from field: loco.agent.v1.AgentHealth health = 2;
    */
   health?: AgentHealth | undefined;
 
   /**
-   * @generated from field: bool builds_enabled = 4;
+   * @generated from field: bool builds_enabled = 3;
    */
   buildsEnabled: boolean;
 };
 
 /**
- * HeartbeatRequest is sent periodically by the agent.
+ * Heartbeat is sent periodically by the agent.
  *
- * @generated from message loco.agent.v1.HeartbeatRequest
+ * @generated from message loco.agent.v1.Heartbeat
  */
-export type HeartbeatRequestJson = {
+export type HeartbeatJson = {
   /**
-   * @generated from field: string cluster_id = 1;
-   */
-  clusterId?: string;
-
-  /**
-   * @generated from field: loco.agent.v1.AgentCapacity capacity = 2;
+   * @generated from field: loco.agent.v1.AgentCapacity capacity = 1;
    */
   capacity?: AgentCapacityJson;
 
   /**
-   * @generated from field: loco.agent.v1.AgentHealth health = 3;
+   * @generated from field: loco.agent.v1.AgentHealth health = 2;
    */
   health?: AgentHealthJson;
 
   /**
-   * @generated from field: bool builds_enabled = 4;
+   * @generated from field: bool builds_enabled = 3;
    */
   buildsEnabled?: boolean;
 };
 
 /**
- * Describes the message loco.agent.v1.HeartbeatRequest.
- * Use `create(HeartbeatRequestSchema)` to create a new message.
+ * Describes the message loco.agent.v1.Heartbeat.
+ * Use `create(HeartbeatSchema)` to create a new message.
  */
-export const HeartbeatRequestSchema: GenMessage<HeartbeatRequest, {jsonType: HeartbeatRequestJson}> = /*@__PURE__*/
+export const HeartbeatSchema: GenMessage<Heartbeat, {jsonType: HeartbeatJson}> = /*@__PURE__*/
   messageDesc(file_loco_agent_v1_agent, 15);
-
-/**
- * HeartbeatResponse is the control plane's reply on the heartbeat stream.
- *
- * @generated from message loco.agent.v1.HeartbeatResponse
- */
-export type HeartbeatResponse = Message<"loco.agent.v1.HeartbeatResponse"> & {
-};
-
-/**
- * HeartbeatResponse is the control plane's reply on the heartbeat stream.
- *
- * @generated from message loco.agent.v1.HeartbeatResponse
- */
-export type HeartbeatResponseJson = {
-};
-
-/**
- * Describes the message loco.agent.v1.HeartbeatResponse.
- * Use `create(HeartbeatResponseSchema)` to create a new message.
- */
-export const HeartbeatResponseSchema: GenMessage<HeartbeatResponse, {jsonType: HeartbeatResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 16);
 
 /**
  * AgentCapacity reports cluster resource capacity.
@@ -1005,7 +995,7 @@ export type AgentCapacityJson = {
  * Use `create(AgentCapacitySchema)` to create a new message.
  */
 export const AgentCapacitySchema: GenMessage<AgentCapacity, {jsonType: AgentCapacityJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 17);
+  messageDesc(file_loco_agent_v1_agent, 16);
 
 /**
  * AgentHealth reports agent and cluster health status.
@@ -1056,7 +1046,7 @@ export type AgentHealthJson = {
  * Use `create(AgentHealthSchema)` to create a new message.
  */
 export const AgentHealthSchema: GenMessage<AgentHealth, {jsonType: AgentHealthJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 18);
+  messageDesc(file_loco_agent_v1_agent, 17);
 
 /**
  * @generated from enum loco.agent.v1.BuildPhase
@@ -1127,17 +1117,6 @@ export const AgentService: GenService<{
     methodKind: "bidi_streaming";
     input: typeof SyncRequestSchema;
     output: typeof SyncResponseSchema;
-  },
-  /**
-   * Heartbeat is a bidirectional stream for agent health reporting.
-   * Agent sends periodic heartbeats.
-   *
-   * @generated from rpc loco.agent.v1.AgentService.Heartbeat
-   */
-  heartbeat: {
-    methodKind: "bidi_streaming";
-    input: typeof HeartbeatRequestSchema;
-    output: typeof HeartbeatResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_loco_agent_v1_agent, 0);

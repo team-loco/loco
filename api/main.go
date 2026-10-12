@@ -219,7 +219,8 @@ func main() {
 	userServiceHandler := service.NewUserServer(pool, queries, machine, admins)
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
-	resourceServiceHandler := service.NewResourceServer(pool, queries, ac.ServiceDefaults, ac.StatusStaleAfter)
+	clusterSilentAfter := service.ClusterSilentAfter(ac.HeartbeatInterval)
+	resourceServiceHandler := service.NewResourceServer(pool, queries, ac.ServiceDefaults, clusterSilentAfter)
 	sourceBucket, bucketErr := newSourceBucket(ac.SourceBucket)
 	if bucketErr != nil {
 		log.Fatal(bucketErr)
@@ -247,6 +248,7 @@ func main() {
 		imageResolver,
 		ac.RegistryHost,
 		ac.ServiceDefaults,
+		clusterSilentAfter,
 	)
 	buildServiceHandler := service.NewBuildServer(pool, queries, sourceBucket, service.BuildConfig{
 		RegistryHost:   ac.RegistryHost,
@@ -259,7 +261,14 @@ func main() {
 	if providerErr != nil {
 		log.Fatalf("failed to create the secrets key provider: %v", providerErr)
 	}
-	agentServiceHandler := service.NewAgentServer(pool, queries, placementNotifier, sourceBucket, secretKeyProvider)
+	agentServiceHandler := service.NewAgentServer(
+		pool,
+		queries,
+		placementNotifier,
+		sourceBucket,
+		secretKeyProvider,
+		ac.HeartbeatInterval,
+	)
 	observabilityAccessHandler := service.NewObservabilityAccessServer(pool, queries, machine)
 	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
 	secretServiceHandler := service.NewSecretServer(pool, queries, secretKeyProvider, ac.SecretLimits)
@@ -304,6 +313,7 @@ func main() {
 		ac.RegistryHost,
 		ac.ServiceDefaults,
 		ac.SecretLimits,
+		clusterSilentAfter,
 	)
 	planPath, planHandler := planv1connect.NewPlanServiceHandler(planServiceHandler, httpInterceptors)
 	environmentPath, environmentHandler := environmentv1connect.NewEnvironmentServiceHandler(
@@ -399,7 +409,6 @@ func main() {
 		// agent service
 		agentv1connect.AgentServiceRegisterProcedure,
 		agentv1connect.AgentServiceSyncProcedure,
-		agentv1connect.AgentServiceHeartbeatProcedure,
 
 		// observability access service
 		observabilityv1connect.ObservabilityAccessServiceGetObservabilityAccessProcedure,

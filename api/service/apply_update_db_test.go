@@ -172,8 +172,8 @@ func TestApplyUpdateAddsAndRemovesRegions(t *testing.T) {
 	f.prepareApply(t)
 	var otherCluster uuid.UUID
 	addCluster := `
-INSERT INTO clusters (name, region, provider, is_active, is_default, health_status)
-VALUES ('c3', $1, 'kind', true, false, 'healthy') RETURNING id`
+INSERT INTO clusters (name, region, provider, is_active, is_default, health_status, last_heartbeat)
+VALUES ('c3', $1, 'kind', true, false, 'healthy', NOW()) RETURNING id`
 	if err := f.pool.QueryRow(context.Background(), addCluster, otherRegion).Scan(&otherCluster); err != nil {
 		t.Fatalf("add cluster: %v", err)
 	}

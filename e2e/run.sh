@@ -673,7 +673,6 @@ start_agent() {
     LOCO_INVENTORY_INTERVAL="$(yq '.agent.inventoryInterval' "$core_values")" \
     LOCO_BUILD_RETENTION="$(yq '.agent.buildRetention' "$core_values")" \
     LOCO_BUILD_COLLECT_INTERVAL="$(yq '.agent.buildCollectInterval' "$core_values")" \
-    LOCO_HEARTBEAT_INTERVAL="$(yq '.agent.heartbeatInterval' "$core_values")" \
     LOCO_CLUSTER_QUERY_TIMEOUT="$(yq '.agent.clusterQueryTimeout' "$core_values")" \
     LOCO_RECONCILE_WORKERS="$(yq '.agent.reconcileWorkers' "$core_values")" \
     LOCO_RECONCILE_RETRY_BASE_DELAY="$(yq '.agent.reconcileRetryBaseDelay' "$core_values")" \

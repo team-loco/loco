@@ -37,8 +37,6 @@ const (
 	AgentServiceRegisterProcedure = "/loco.agent.v1.AgentService/Register"
 	// AgentServiceSyncProcedure is the fully-qualified name of the AgentService's Sync RPC.
 	AgentServiceSyncProcedure = "/loco.agent.v1.AgentService/Sync"
-	// AgentServiceHeartbeatProcedure is the fully-qualified name of the AgentService's Heartbeat RPC.
-	AgentServiceHeartbeatProcedure = "/loco.agent.v1.AgentService/Heartbeat"
 )
 
 // AgentServiceClient is a client for the loco.agent.v1.AgentService service.
@@ -46,9 +44,6 @@ type AgentServiceClient interface {
 	// Register announces an agent to the control plane and returns the cluster ID.
 	Register(context.Context, *connect.Request[v1.RegisterRequest]) (*connect.Response[v1.RegisterResponse], error)
 	Sync(context.Context) *connect.BidiStreamForClient[v1.SyncRequest, v1.SyncResponse]
-	// Heartbeat is a bidirectional stream for agent health reporting.
-	// Agent sends periodic heartbeats.
-	Heartbeat(context.Context) *connect.BidiStreamForClient[v1.HeartbeatRequest, v1.HeartbeatResponse]
 }
 
 // NewAgentServiceClient constructs a client for the loco.agent.v1.AgentService service. By default,
@@ -74,20 +69,13 @@ func NewAgentServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(agentServiceMethods.ByName("Sync")),
 			connect.WithClientOptions(opts...),
 		),
-		heartbeat: connect.NewClient[v1.HeartbeatRequest, v1.HeartbeatResponse](
-			httpClient,
-			baseURL+AgentServiceHeartbeatProcedure,
-			connect.WithSchema(agentServiceMethods.ByName("Heartbeat")),
-			connect.WithClientOptions(opts...),
-		),
 	}
 }
 
 // agentServiceClient implements AgentServiceClient.
 type agentServiceClient struct {
-	register  *connect.Client[v1.RegisterRequest, v1.RegisterResponse]
-	sync      *connect.Client[v1.SyncRequest, v1.SyncResponse]
-	heartbeat *connect.Client[v1.HeartbeatRequest, v1.HeartbeatResponse]
+	register *connect.Client[v1.RegisterRequest, v1.RegisterResponse]
+	sync     *connect.Client[v1.SyncRequest, v1.SyncResponse]
 }
 
 // Register calls loco.agent.v1.AgentService.Register.
@@ -100,19 +88,11 @@ func (c *agentServiceClient) Sync(ctx context.Context) *connect.BidiStreamForCli
 	return c.sync.CallBidiStream(ctx)
 }
 
-// Heartbeat calls loco.agent.v1.AgentService.Heartbeat.
-func (c *agentServiceClient) Heartbeat(ctx context.Context) *connect.BidiStreamForClient[v1.HeartbeatRequest, v1.HeartbeatResponse] {
-	return c.heartbeat.CallBidiStream(ctx)
-}
-
 // AgentServiceHandler is an implementation of the loco.agent.v1.AgentService service.
 type AgentServiceHandler interface {
 	// Register announces an agent to the control plane and returns the cluster ID.
 	Register(context.Context, *connect.Request[v1.RegisterRequest]) (*connect.Response[v1.RegisterResponse], error)
 	Sync(context.Context, *connect.BidiStream[v1.SyncRequest, v1.SyncResponse]) error
-	// Heartbeat is a bidirectional stream for agent health reporting.
-	// Agent sends periodic heartbeats.
-	Heartbeat(context.Context, *connect.BidiStream[v1.HeartbeatRequest, v1.HeartbeatResponse]) error
 }
 
 // NewAgentServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -134,20 +114,12 @@ func NewAgentServiceHandler(svc AgentServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(agentServiceMethods.ByName("Sync")),
 		connect.WithHandlerOptions(opts...),
 	)
-	agentServiceHeartbeatHandler := connect.NewBidiStreamHandler(
-		AgentServiceHeartbeatProcedure,
-		svc.Heartbeat,
-		connect.WithSchema(agentServiceMethods.ByName("Heartbeat")),
-		connect.WithHandlerOptions(opts...),
-	)
 	return "/loco.agent.v1.AgentService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AgentServiceRegisterProcedure:
 			agentServiceRegisterHandler.ServeHTTP(w, r)
 		case AgentServiceSyncProcedure:
 			agentServiceSyncHandler.ServeHTTP(w, r)
-		case AgentServiceHeartbeatProcedure:
-			agentServiceHeartbeatHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -163,8 +135,4 @@ func (UnimplementedAgentServiceHandler) Register(context.Context, *connect.Reque
 
 func (UnimplementedAgentServiceHandler) Sync(context.Context, *connect.BidiStream[v1.SyncRequest, v1.SyncResponse]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("loco.agent.v1.AgentService.Sync is not implemented"))
-}
-
-func (UnimplementedAgentServiceHandler) Heartbeat(context.Context, *connect.BidiStream[v1.HeartbeatRequest, v1.HeartbeatResponse]) error {
-	return connect.NewError(connect.CodeUnimplemented, errors.New("loco.agent.v1.AgentService.Heartbeat is not implemented"))
 }

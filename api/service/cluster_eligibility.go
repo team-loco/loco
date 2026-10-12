@@ -4,11 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
 )
 
+const missedHeartbeats = 3
+
 var errNoActiveCluster = errors.New("no healthy cluster for the region and environment type")
+
+func ClusterSilentAfter(heartbeatInterval time.Duration) time.Duration {
+	return missedHeartbeats * heartbeatInterval
+}
 
 // eligibleClusters lists the clusters an environment of the given type deploys to, by region.
 // ListEligibleClusters holds the one predicate, so Plan's region check and every deploy agree.
@@ -16,8 +23,13 @@ func eligibleClusters(
 	ctx context.Context,
 	queries genDb.Querier,
 	tier string,
+	silentAfter time.Duration,
 ) ([]genDb.ListEligibleClustersRow, error) {
-	clusters, err := queries.ListEligibleClusters(ctx, tier)
+	heardSince := time.Now().Add(-silentAfter)
+	clusters, err := queries.ListEligibleClusters(ctx, genDb.ListEligibleClustersParams{
+		Tier:       tier,
+		HeardSince: heardSince,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("list eligible clusters: %w", err)
 	}
@@ -41,8 +53,9 @@ func eligibleCluster(
 	queries genDb.Querier,
 	region string,
 	tier string,
+	silentAfter time.Duration,
 ) (genDb.ListEligibleClustersRow, error) {
-	clusters, err := eligibleClusters(ctx, queries, tier)
+	clusters, err := eligibleClusters(ctx, queries, tier, silentAfter)
 	if err != nil {
 		return genDb.ListEligibleClustersRow{}, err
 	}

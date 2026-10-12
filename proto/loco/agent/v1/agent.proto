@@ -3,6 +3,7 @@ syntax = "proto3";
 package loco.agent.v1;
 
 import "buf/validate/validate.proto";
+import "google/protobuf/duration.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/agent/v1;agentv1";
 
@@ -12,10 +13,6 @@ service AgentService {
   rpc Register(RegisterRequest) returns (RegisterResponse);
 
   rpc Sync(stream SyncRequest) returns (stream SyncResponse);
-
-  // Heartbeat is a bidirectional stream for agent health reporting.
-  // Agent sends periodic heartbeats.
-  rpc Heartbeat(stream HeartbeatRequest) returns (stream HeartbeatResponse);
 }
 
 // RegisterRequest is sent by the agent on startup to announce itself.
@@ -30,6 +27,7 @@ message RegisterRequest {
 // RegisterResponse contains the assigned cluster ID.
 message RegisterResponse {
   string cluster_id = 1;
+  google.protobuf.Duration heartbeat_interval = 2;
 }
 
 message SyncRequest {
@@ -38,6 +36,7 @@ message SyncRequest {
     Applied applied = 2;
     PlacementStatus status = 3;
     BuildStatus build_status = 4;
+    Heartbeat heartbeat = 5;
   }
 }
 
@@ -142,18 +141,11 @@ message CancelBuild {
   string build_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
-// HeartbeatRequest is sent periodically by the agent.
-message HeartbeatRequest {
-  string cluster_id = 1 [(buf.validate.field).string.uuid = true];
-  AgentCapacity capacity = 2;
-  AgentHealth health = 3;
-  bool builds_enabled = 4;
-}
-
-// HeartbeatResponse is the control plane's reply on the heartbeat stream.
-message HeartbeatResponse {
-  reserved 1, 2, 3;
-  reserved "drain", "reload_config", "resync";
+// Heartbeat is sent periodically by the agent.
+message Heartbeat {
+  AgentCapacity capacity = 1;
+  AgentHealth health = 2;
+  bool builds_enabled = 3;
 }
 
 // AgentCapacity reports cluster resource capacity.
