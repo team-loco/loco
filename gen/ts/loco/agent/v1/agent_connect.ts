@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { HeartbeatRequest, HeartbeatResponse, RegisterRequest, RegisterResponse, SyncRequest, SyncResponse } from "./agent_pb";
+import { RegisterRequest, RegisterResponse, SyncRequest, SyncResponse } from "./agent_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -32,18 +32,6 @@ export const AgentService = {
       name: "Sync",
       I: SyncRequest,
       O: SyncResponse,
-      kind: MethodKind.BiDiStreaming,
-    },
-    /**
-     * Heartbeat is a bidirectional stream for agent health reporting.
-     * Agent sends periodic heartbeats.
-     *
-     * @generated from rpc loco.agent.v1.AgentService.Heartbeat
-     */
-    heartbeat: {
-      name: "Heartbeat",
-      I: HeartbeatRequest,
-      O: HeartbeatResponse,
       kind: MethodKind.BiDiStreaming,
     },
   }

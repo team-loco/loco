@@ -12,7 +12,7 @@ import (
 
 func scaleResource(t *testing.T, f *deployFixture, replicas int32) error {
 	t.Helper()
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testStatusStaleAfter)
+	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
 	}

@@ -78,7 +78,15 @@ func planFileOwnedAsLive() string {
 
 func newPlanServer(f *deployFixture) *PlanServer {
 	resolver := &fakeResolver{digest: testDigest}
-	return NewPlanServer(f.pool, f.queries, resolver, testRegistryHost, testServiceDefaults(), testSecretConfig())
+	return NewPlanServer(
+		f.pool,
+		f.queries,
+		resolver,
+		testRegistryHost,
+		testServiceDefaults(),
+		testSecretConfig(),
+		testClusterSilentAfter,
+	)
 }
 
 func plan(t *testing.T, f *deployFixture, file string, scopes []genDb.EntityScope) (*planv1.PlanResponse, error) {
@@ -113,7 +121,8 @@ func (f *deployFixture) workspaceReadScopes(t *testing.T) []genDb.EntityScope {
 
 func (f *deployFixture) markClustersHealthy(t *testing.T) {
 	t.Helper()
-	if _, err := f.pool.Exec(context.Background(), `UPDATE clusters SET health_status = 'healthy'`); err != nil {
+	update := `UPDATE clusters SET health_status = 'healthy', last_heartbeat = NOW()`
+	if _, err := f.pool.Exec(context.Background(), update); err != nil {
 		t.Fatalf("mark clusters healthy: %v", err)
 	}
 }

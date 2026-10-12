@@ -66,7 +66,10 @@ SELECT id, name, region, provider, is_active, is_default, endpoint, health_statu
        last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
        capacity_memory_bytes, agent_version, created_at, updated_at
 FROM clusters
-WHERE tier = $1 AND is_active = true AND health_status = 'healthy'
+WHERE tier = sqlc.arg(tier)
+  AND is_active = true
+  AND health_status = 'healthy'
+  AND last_heartbeat >= sqlc.arg(heard_since)::timestamptz
 ORDER BY region ASC, is_default DESC, created_at ASC;
 
 -- name: ListClustersActive :many
@@ -76,16 +79,6 @@ SELECT id, name, region, provider, is_active, is_default, endpoint, health_statu
 FROM clusters
 WHERE is_active = true
 ORDER BY region ASC;
-
--- todo: eventually remove
--- name: GetFirstActiveCluster :one
-SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
-       last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
-       capacity_memory_bytes, agent_version, created_at, updated_at
-FROM clusters
-WHERE is_active = true
-ORDER BY created_at ASC
-LIMIT 1;
 
 -- name: ListRegionStatusesForResources :many
 SELECT d.resource_id,

@@ -24,11 +24,15 @@ const (
 	statusTwoReplicas   = 2
 	statusProduction    = "prod"
 	statusClusterSilent = 5 * time.Minute
+	statusFastHeartbeat = 200 * time.Millisecond
+	statusWaitTimeout   = 5 * time.Second
+	statusPollInterval  = 50 * time.Millisecond
 )
 
 type resourceStatusFixture struct {
 	*deployFixture
 	ctx            context.Context
+	silentAfter    time.Duration
 	workspaceID    uuid.UUID
 	regionCluster  uuid.UUID
 	stagingCluster uuid.UUID
@@ -37,7 +41,7 @@ type resourceStatusFixture struct {
 
 func newResourceStatusFixture(t *testing.T) *resourceStatusFixture {
 	t.Helper()
-	f := &resourceStatusFixture{deployFixture: newDeployFixture(t)}
+	f := &resourceStatusFixture{deployFixture: newDeployFixture(t), silentAfter: testClusterSilentAfter}
 	ctx := context.Background()
 	f.workspaceID = f.deployFixture.workspaceID(t)
 	f.stagingID = f.addStagingEnvironment(t)
@@ -131,7 +135,7 @@ func (f *resourceStatusFixture) failed(t *testing.T, clusterID uuid.UUID, replic
 }
 
 func (f *resourceStatusFixture) server() *ResourceServer {
-	return NewResourceServer(f.pool, f.queries, testServiceDefaults(), testStatusStaleAfter)
+	return NewResourceServer(f.pool, f.queries, testServiceDefaults(), f.silentAfter)
 }
 
 func (f *resourceStatusFixture) statuses(t *testing.T) []*resourcev1.EnvironmentStatus {
@@ -463,7 +467,7 @@ func TestRemovedRegionDropsOutOfTheStatus(t *testing.T) {
 	deleteCtx := context.WithValue(f.ctx, contextkeys.EntityScopesKey, []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspaceID, Scope: genDb.ScopeWrite},
 	})
-	deployments := NewDeploymentServer(f.pool, f.queries, nil, "", testServiceDefaults())
+	deployments := NewDeploymentServer(f.pool, f.queries, nil, "", testServiceDefaults(), testClusterSilentAfter)
 	_, err = deployments.DeleteDeployment(deleteCtx, connect.NewRequest(&deploymentv1.DeleteDeploymentRequest{
 		DeploymentId: deployment.ID.String(),
 	}))
@@ -474,4 +478,78 @@ func TestRemovedRegionDropsOutOfTheStatus(t *testing.T) {
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
 		ready: 1, desired: 1, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING,
 	})
+}
+
+func (f *resourceStatusFixture) waitForProduction(t *testing.T, want resourcev1.ResourceStatus) {
+	t.Helper()
+	deadline := time.Now().Add(statusWaitTimeout)
+	for {
+		got := f.environment(t, f.envID).GetStatus()
+		if got == want {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("production status = %s, want %s", got, want)
+		}
+		time.Sleep(statusPollInterval)
+	}
+}
+
+func heartbeatOverSync(
+	ctx context.Context,
+	stream *connect.BidiStreamForClient[agentv1.SyncRequest, agentv1.SyncResponse],
+	interval time.Duration,
+) {
+	health := &agentv1.AgentHealth{KubernetesHealthy: true, ControllerHealthy: true}
+	heartbeat := &agentv1.SyncRequest{
+		Message: &agentv1.SyncRequest_Heartbeat{Heartbeat: &agentv1.Heartbeat{Health: health}},
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		if err := stream.Send(heartbeat); err != nil {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+func TestResourceStatusIsUnknownOnceTheSyncStreamDrops(t *testing.T) {
+	f := newResourceStatusFixture(t)
+	f.silentAfter = ClusterSilentAfter(statusFastHeartbeat)
+	f.deployProduction(t, 1)
+	f.ready(t, f.clusterID, 1)
+	f.heartbeat(t, f.clusterID, time.Now().Add(-statusClusterSilent), clusterHealthHealthy)
+	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN, wantRegion{
+		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN,
+		ready: 1, desired: 1, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING,
+		message: regionMessageClusterSilent,
+	})
+
+	client := startSyncServer(t, f.deployFixture)
+	streamCtx, dropStream := context.WithCancel(f.ctx)
+	defer dropStream()
+	stream := client.Sync(streamCtx)
+	stream.RequestHeader().Set("Authorization", "Bearer "+testAgentToken)
+	agentStopped := make(chan struct{})
+	go func() {
+		defer close(agentStopped)
+		heartbeatOverSync(streamCtx, stream, statusFastHeartbeat)
+	}()
+
+	f.waitForProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY)
+	staysConnected := 2 * missedHeartbeats * statusFastHeartbeat
+	time.Sleep(staysConnected)
+	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, wantRegion{
+		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
+		ready: 1, desired: 1, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING,
+	})
+
+	dropStream()
+	<-agentStopped
+	f.waitForProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN)
 }

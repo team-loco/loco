@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"io"
 	"log/slog"
 	"strings"
 	"time"
@@ -13,11 +12,13 @@ import (
 	"github.com/team-loco/loco/api/events"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/clusternotify"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 var (
@@ -27,11 +28,12 @@ var (
 
 // AgentServer implements the AgentService for agent communication.
 type AgentServer struct {
-	db       *pgxpool.Pool
-	queries  genDb.Querier
-	notifier *clusternotify.Notifier
-	sources  SourceBucket
-	provider secretkeys.Provider
+	db                *pgxpool.Pool
+	queries           genDb.Querier
+	notifier          *clusternotify.Notifier
+	sources           SourceBucket
+	provider          secretkeys.Provider
+	heartbeatInterval time.Duration
 }
 
 // NewAgentServer creates a new AgentServer instance; a nil provider leaves every placement that declares
@@ -42,13 +44,15 @@ func NewAgentServer(
 	notifier *clusternotify.Notifier,
 	sources SourceBucket,
 	provider secretkeys.Provider,
+	heartbeatInterval time.Duration,
 ) *AgentServer {
 	return &AgentServer{
-		db:       db,
-		queries:  queries,
-		notifier: notifier,
-		sources:  sources,
-		provider: provider,
+		db:                db,
+		queries:           queries,
+		notifier:          notifier,
+		sources:           sources,
+		provider:          provider,
+		heartbeatInterval: heartbeatInterval,
 	}
 }
 
@@ -135,48 +139,28 @@ func (s *AgentServer) Register(
 		"builds_enabled", r.GetBuildsEnabled(),
 	)
 
+	heartbeatInterval := durationpb.New(s.heartbeatInterval)
 	return connect.NewResponse(&agentv1.RegisterResponse{
-		ClusterId: cluster.ID.String(),
+		ClusterId:         cluster.ID.String(),
+		HeartbeatInterval: heartbeatInterval,
 	}), nil
 }
 
-// Heartbeat handles bidirectional heartbeat streaming.
-func (s *AgentServer) Heartbeat(
-	ctx context.Context,
-	stream *connect.BidiStream[agentv1.HeartbeatRequest, agentv1.HeartbeatResponse],
-) error {
-	// Authenticate on first message
-	cluster, err := s.authenticateAgent(ctx, stream.RequestHeader().Get("Authorization"))
+func (s *AgentServer) recordHeartbeat(ctx context.Context, clusterID uuid.UUID, heartbeat *agentv1.Heartbeat) {
+	now := time.Now()
+	cpuCores := heartbeat.GetCapacity().GetCpuMillicoresTotal()
+	memBytes := heartbeat.GetCapacity().GetMemoryBytesTotal()
+	healthStatus := healthStatusFromProto(heartbeat.GetHealth())
+	err := s.queries.UpdateClusterHeartbeat(ctx, genDb.UpdateClusterHeartbeatParams{
+		ID:                    clusterID,
+		LastHeartbeat:         &now,
+		CapacityCpuMillicores: &cpuCores,
+		CapacityMemoryBytes:   &memBytes,
+		HealthStatus:          &healthStatus,
+		BuildsEnabled:         heartbeat.GetBuildsEnabled(),
+	})
 	if err != nil {
-		return connect.NewError(connect.CodeUnauthenticated, err)
-	}
-
-	slog.InfoContext(ctx, "heartbeat stream opened", "cluster_id", cluster.ID)
-
-	for {
-		req, err := stream.Receive()
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				return nil
-			}
-			return err
-		}
-
-		// Update cluster heartbeat in database
-		cpuCores := req.GetCapacity().GetCpuMillicoresTotal()
-		memBytes := req.GetCapacity().GetMemoryBytesTotal()
-		healthStatus := healthStatusFromProto(req.GetHealth())
-		err = s.queries.UpdateClusterHeartbeat(ctx, genDb.UpdateClusterHeartbeatParams{
-			ID:                    cluster.ID,
-			LastHeartbeat:         func() *time.Time { t := time.Now(); return &t }(),
-			CapacityCpuMillicores: &cpuCores,
-			CapacityMemoryBytes:   &memBytes,
-			HealthStatus:          &healthStatus,
-			BuildsEnabled:         req.GetBuildsEnabled(),
-		})
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to update heartbeat", "error", err, "cluster_id", cluster.ID)
-		}
+		slog.ErrorContext(ctx, "failed to update heartbeat", "error", err, "cluster_id", clusterID)
 	}
 }
 

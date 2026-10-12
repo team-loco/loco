@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -40,18 +42,35 @@ func createDeploymentWith(
 	service *deploymentv1.ServiceDeploymentSpec,
 ) (*deploymentv1.CreateDeploymentResponse, error) {
 	t.Helper()
-	ctx := context.Background()
-	setup := `
-WITH c AS (
-    UPDATE clusters SET health_status = 'healthy'
-)
-UPDATE resources SET spec = $2 WHERE id = $1`
-	if _, err := f.pool.Exec(ctx, setup, f.resourceID, resourceSpec); err != nil {
+	seedDeployment(t, f, resourceSpec)
+	return deployService(t, f, service)
+}
+
+func seedDeployment(t *testing.T, f *deployFixture, resourceSpec string) {
+	t.Helper()
+	f.markClustersHealthy(t)
+	setup := `UPDATE resources SET spec = $2 WHERE id = $1`
+	if _, err := f.pool.Exec(context.Background(), setup, f.resourceID, resourceSpec); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
+}
 
+func deployService(
+	t *testing.T,
+	f *deployFixture,
+	service *deploymentv1.ServiceDeploymentSpec,
+) (*deploymentv1.CreateDeploymentResponse, error) {
+	t.Helper()
+	ctx := context.Background()
 	resolver := &fakeResolver{digest: testDigest}
-	server := NewDeploymentServer(f.pool, f.queries, resolver, testRegistryHost, testServiceDefaults())
+	server := NewDeploymentServer(
+		f.pool,
+		f.queries,
+		resolver,
+		testRegistryHost,
+		testServiceDefaults(),
+		testClusterSilentAfter,
+	)
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
 	}
@@ -124,6 +143,24 @@ func TestCreateDeploymentRejectsARegionTheResourceDoesNotRunIn(t *testing.T) {
 	wantCode(t, err, connect.CodeInvalidArgument)
 	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != 0 {
 		t.Fatalf("%d deployments after a rejected deploy, want 0", n)
+	}
+}
+
+func TestCreateDeploymentRefusesAClusterThatStoppedHeartbeating(t *testing.T) {
+	f := newDeployFixture(t)
+	seedDeployment(t, f, sameRegionSpec)
+	silent := time.Now().Add(-2 * testClusterSilentAfter)
+	if _, err := f.pool.Exec(context.Background(), `UPDATE clusters SET last_heartbeat = $1`, silent); err != nil {
+		t.Fatalf("silence clusters: %v", err)
+	}
+	build := &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: testPublicImage}
+	_, err := deployService(t, f, &deploymentv1.ServiceDeploymentSpec{Build: build, Port: 8080})
+	wantCode(t, err, connect.CodeFailedPrecondition)
+	if !strings.Contains(err.Error(), errNoActiveCluster.Error()) {
+		t.Fatalf("error = %v, want %v", err, errNoActiveCluster)
+	}
+	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != 0 {
+		t.Fatalf("%d deployments on a silent cluster, want 0", n)
 	}
 }
 

@@ -27,7 +27,10 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 )
 
-var errBuildSupportChanged = errors.New("the cluster's build support changed; restarting to pick it up")
+var (
+	errBuildSupportChanged      = errors.New("the cluster's build support changed; restarting to pick it up")
+	errInvalidHeartbeatInterval = errors.New("control plane sent no positive heartbeat interval")
+)
 
 func main() {
 	cfg := newAgentConfig()
@@ -158,14 +161,15 @@ func startBuilds(enabled bool, start func() (buildRunner, error)) (buildRunner, 
 
 // Agent represents the loco agent that runs in each cluster.
 type Agent struct {
-	cfg           *Config
-	client        agentv1connect.AgentServiceClient
-	applier       *applier.Applier
-	inspector     *cluster.Inspector
-	watcher       *appwatch.Watcher
-	builds        buildRunner
-	buildsEnabled bool
-	clusterID     string
+	cfg               *Config
+	client            agentv1connect.AgentServiceClient
+	applier           *applier.Applier
+	inspector         *cluster.Inspector
+	watcher           *appwatch.Watcher
+	builds            buildRunner
+	buildsEnabled     bool
+	clusterID         string
+	heartbeatInterval time.Duration
 }
 
 // Run starts the agent's main loop.
@@ -174,18 +178,14 @@ func (a *Agent) Run(ctx context.Context) error {
 		return fmt.Errorf("registration failed: %w", err)
 	}
 
-	errCh := make(chan error, 3)
+	errCh := make(chan error, 2)
 
 	go func() {
 		errCh <- a.runSync(ctx)
 	}()
 
 	go func() {
-		errCh <- a.runHeartbeat(ctx)
-	}()
-
-	go func() {
-		errCh <- watchBuildSupport(ctx, a.inspector, a.buildsEnabled, a.cfg.HeartbeatInterval)
+		errCh <- watchBuildSupport(ctx, a.inspector, a.buildsEnabled, a.heartbeatInterval)
 	}()
 
 	select {
@@ -211,17 +211,21 @@ func (a *Agent) register(ctx context.Context) error {
 		return fmt.Errorf("register RPC failed: %w", err)
 	}
 
+	heartbeatInterval := resp.Msg.GetHeartbeatInterval().AsDuration()
+	if heartbeatInterval <= 0 {
+		return fmt.Errorf("%w: %s", errInvalidHeartbeatInterval, heartbeatInterval)
+	}
 	a.clusterID = resp.Msg.GetClusterId()
-	slog.InfoContext(ctx, "registered with control plane", "cluster_id", a.clusterID)
+	a.heartbeatInterval = heartbeatInterval
+	slog.InfoContext(ctx, "registered with control plane",
+		"cluster_id", a.clusterID,
+		"heartbeat_interval", a.heartbeatInterval,
+	)
 	return nil
 }
 
 func (a *Agent) runSync(ctx context.Context) error {
 	return a.reconnectLoop(ctx, "sync stream", a.syncLoop)
-}
-
-func (a *Agent) runHeartbeat(ctx context.Context) error {
-	return a.reconnectLoop(ctx, "heartbeat stream", a.heartbeatLoop)
 }
 
 func (a *Agent) reconnectLoop(ctx context.Context, name string, attempt func(context.Context) error) error {
@@ -326,6 +330,7 @@ func (a *Agent) syncLoop(ctx context.Context) error {
 	workers.Go(func() { rec.Run(streamCtx) })
 	workers.Go(func() { session.sendLoop(streamCtx, sendErr) })
 	workers.Go(func() { a.reportInventory(streamCtx, session) })
+	workers.Go(func() { a.sendHeartbeats(streamCtx, session.enqueue) })
 	workers.Go(func() { a.runBuildOps(streamCtx, buildOps, session.enqueue) })
 	detach := a.watcher.Attach(func(status *agentv1.PlacementStatus) {
 		session.enqueue(&agentv1.SyncRequest{Message: &agentv1.SyncRequest_Status{Status: status}})
@@ -515,91 +520,28 @@ func streamError[Req, Res any](stream *connect.BidiStreamForClient[Req, Res], se
 	return recvErr
 }
 
-func (a *Agent) heartbeatLoop(ctx context.Context) error {
-	streamCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	stream := a.client.Heartbeat(streamCtx)
-	stream.RequestHeader().Set("Authorization", "Bearer "+a.cfg.AgentToken)
-
-	responses := make(chan *agentv1.HeartbeatResponse)
-	recvErr := make(chan error, 1)
-	recvDone := make(chan struct{})
-	receiving := false
-	defer func() {
-		cancel()
-		if receiving {
-			<-recvDone
-		}
-		closeStream(ctx, "heartbeat stream", stream)
-	}()
-
-	if err := a.sendHeartbeat(streamCtx, stream); err != nil {
-		return err
-	}
-
-	slog.InfoContext(ctx, "heartbeat stream connected")
-
-	receiving = true
-	go receiveHeartbeats(streamCtx, stream, responses, recvErr, recvDone)
-
-	ticker := time.NewTicker(a.cfg.HeartbeatInterval)
+func (a *Agent) sendHeartbeats(ctx context.Context, enqueue func(*agentv1.SyncRequest)) {
+	ticker := time.NewTicker(a.heartbeatInterval)
 	defer ticker.Stop()
-
 	for {
+		heartbeat := a.heartbeat(ctx)
+		enqueue(&agentv1.SyncRequest{Message: &agentv1.SyncRequest_Heartbeat{Heartbeat: heartbeat}})
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
-		case err := <-recvErr:
-			return fmt.Errorf("receive heartbeat response: %w", err)
-		case <-responses:
+			return
 		case <-ticker.C:
-			if err := a.sendHeartbeat(streamCtx, stream); err != nil {
-				return err
-			}
 		}
 	}
 }
 
-func receiveHeartbeats(
-	ctx context.Context,
-	stream *connect.BidiStreamForClient[agentv1.HeartbeatRequest, agentv1.HeartbeatResponse],
-	responses chan<- *agentv1.HeartbeatResponse,
-	recvErr chan<- error,
-	done chan<- struct{},
-) {
-	defer close(done)
-	for {
-		resp, err := stream.Receive()
-		if err != nil {
-			recvErr <- err
-			return
-		}
-		select {
-		case responses <- resp:
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
-func (a *Agent) sendHeartbeat(
-	ctx context.Context,
-	stream *connect.BidiStreamForClient[agentv1.HeartbeatRequest, agentv1.HeartbeatResponse],
-) error {
+func (a *Agent) heartbeat(ctx context.Context) *agentv1.Heartbeat {
 	capacity := a.getCapacity(ctx)
 	health := a.getHealth(ctx)
-	req := &agentv1.HeartbeatRequest{
-		ClusterId:     a.clusterID,
+	return &agentv1.Heartbeat{
 		Capacity:      capacity,
 		Health:        health,
 		BuildsEnabled: a.buildsEnabled,
 	}
-
-	if err := stream.Send(req); err != nil {
-		return fmt.Errorf("send heartbeat: %w", err)
-	}
-	return nil
 }
 
 func (a *Agent) getCapacity(ctx context.Context) *agentv1.AgentCapacity {

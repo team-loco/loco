@@ -50,8 +50,6 @@ spec:
               value: {{ .Values.agent.buildRetention | quote }}
             - name: LOCO_BUILD_COLLECT_INTERVAL
               value: {{ .Values.agent.buildCollectInterval | quote }}
-            - name: LOCO_HEARTBEAT_INTERVAL
-              value: {{ .Values.agent.heartbeatInterval | quote }}
             - name: LOCO_CLUSTER_QUERY_TIMEOUT
               value: {{ .Values.agent.clusterQueryTimeout | quote }}
             - name: LOCO_RECONCILE_WORKERS

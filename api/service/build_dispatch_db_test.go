@@ -36,7 +36,7 @@ func (s *sentMessages) take() []*agentv1.SyncResponse {
 }
 
 func (f *buildFixture) dispatchSession() (*syncSession, *sentMessages) {
-	server := NewAgentServer(f.pool, f.queries, nil, f.bucket, nil)
+	server := NewAgentServer(f.pool, f.queries, nil, f.bucket, nil, testHeartbeatInterval)
 	sent := &sentMessages{}
 	return newSyncSession(server, f.clusterID, sent.send), sent
 }
@@ -165,7 +165,7 @@ func TestBuildStatusMovesTheBuildThroughItsPhases(t *testing.T) {
 		t.Fatal("running build has no started_at")
 	}
 
-	otherCluster := NewAgentServer(f.pool, f.queries, nil, f.bucket, nil)
+	otherCluster := NewAgentServer(f.pool, f.queries, nil, f.bucket, nil, testHeartbeatInterval)
 	succeeded := buildStatus(id, agentv1.BuildPhase_BUILD_PHASE_SUCCEEDED)
 	succeeded.ImageDigest = testImageDigest
 	succeeded.CacheDigest = testCacheDigest
@@ -478,7 +478,7 @@ func TestSyncStreamDeliversQueuedAndCanceledBuilds(t *testing.T) {
 func TestBuildDispatchWithoutASourceBucketSendsNothing(t *testing.T) {
 	f := newBuildFixture(t)
 	f.queued(t)
-	server := NewAgentServer(f.pool, f.queries, nil, nil, nil)
+	server := NewAgentServer(f.pool, f.queries, nil, nil, nil, testHeartbeatInterval)
 	sent := &sentMessages{}
 	session := newSyncSession(server, f.clusterID, sent.send)
 	if err := session.sendPending(f.ctx); err != nil {
@@ -509,7 +509,7 @@ func (q *failingFinish) FinishBuild(ctx context.Context, arg genDb.FinishBuildPa
 func TestTerminalStatusSurvivesAFailedWrite(t *testing.T) {
 	f := newBuildFixture(t)
 	flaky := &failingFinish{Querier: f.queries, failures: 1}
-	server := NewAgentServer(f.pool, flaky, nil, f.bucket, nil)
+	server := NewAgentServer(f.pool, flaky, nil, f.bucket, nil, testHeartbeatInterval)
 	sent := &sentMessages{}
 	session := newSyncSession(server, f.clusterID, sent.send)
 	id := f.queued(t)

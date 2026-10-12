@@ -57,7 +57,15 @@ func TestApplyRefusesAnImageTagThatMovedSinceThePlan(t *testing.T) {
 	f.prepareApply(t)
 	file := planFileHeader + applyFileImageOnly
 	resolver := &fakeResolver{digest: testDigest}
-	server := NewPlanServer(f.pool, f.queries, resolver, testRegistryHost, testServiceDefaults(), testSecretConfig())
+	server := NewPlanServer(
+		f.pool,
+		f.queries,
+		resolver,
+		testRegistryHost,
+		testServiceDefaults(),
+		testSecretConfig(),
+		testClusterSilentAfter,
+	)
 	readCtx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, f.workspaceReadScopes(t))
 	planned, err := server.Plan(readCtx, connect.NewRequest(&planv1.PlanRequest{
 		File:          []byte(file),

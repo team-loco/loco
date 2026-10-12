@@ -29,7 +29,7 @@ func TestTransferPartialRequiresAdmin(t *testing.T) {
 	workspaceID := uuid.Must(uuid.NewV7())
 	orgID := uuid.Must(uuid.NewV7())
 	querier := resourceOwnerQuerier{workspaceID: workspaceID, orgID: orgID}
-	server := NewResourceServer(nil, querier, testServiceDefaults(), testStatusStaleAfter)
+	server := NewResourceServer(nil, querier, testServiceDefaults(), testClusterSilentAfter)
 
 	cases := map[string][]genDb.EntityScope{
 		"resource write": {

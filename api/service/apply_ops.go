@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -46,6 +47,7 @@ type applier struct {
 	defaults        servicedefaults.Defaults
 	started         []*planv1.StartedDeployment
 	provisioning    bool
+	silentAfter     time.Duration
 }
 
 func (a *applier) apply(ctx context.Context, qtx *genDb.Queries, op configplan.Operation) error {
@@ -261,7 +263,7 @@ func (a *applier) deploy(
 	resourceSpec := &resourcev1.ResourceSpec{Spec: &resourcev1.ResourceSpec_Service{Service: spec}}
 	secretNames := append([]string{}, state.Secrets...)
 
-	clusters, err := eligibleClusters(ctx, qtx, a.env.EnvironmentType)
+	clusters, err := eligibleClusters(ctx, qtx, a.env.EnvironmentType, a.silentAfter)
 	if err != nil {
 		return err
 	}
