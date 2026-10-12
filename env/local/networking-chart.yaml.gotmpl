@@ -11,6 +11,8 @@ cilium:
     masquerade: false
   l2announcements:
     enabled: true
+  operator:
+    replicas: 1
   k8sClientRateLimit:
     qps: 10
     burst: 20
