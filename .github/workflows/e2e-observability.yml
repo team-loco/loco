@@ -20,6 +20,7 @@ on:
       - "manifests/namespaces/**"
       - "compose.yaml"
       - "e2e/**"
+      - "mise-tasks/e2e/**"
       - "cmd/loco/**"
       - "internal/**"
       - "main.go"
@@ -63,7 +64,7 @@ jobs:
 
       - uses: ./.github/actions/setup-tools
         with:
-          go-cache: e2e-observability
+          go-cache: e2e
 
       - name: Run the observability end-to-end tests
         run: ./e2e/run.sh --no-teardown --observability observability
