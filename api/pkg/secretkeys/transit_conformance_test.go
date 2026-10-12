@@ -60,12 +60,12 @@ type transitAdmin struct {
 
 func (a *transitAdmin) call(t *testing.T, method, path string, body, out any) {
 	t.Helper()
-	if err := a.request(method, path, body, out); err != nil {
+	if err := a.request(t.Context(), method, path, body, out); err != nil {
 		t.Fatalf("%s %s: %v", method, path, err)
 	}
 }
 
-func (a *transitAdmin) request(method, path string, body, out any) error {
+func (a *transitAdmin) request(ctx context.Context, method, path string, body, out any) error {
 	var reader io.Reader
 	if body != nil {
 		encoded, err := json.Marshal(body)
@@ -74,7 +74,7 @@ func (a *transitAdmin) request(method, path string, body, out any) error {
 		}
 		reader = bytes.NewReader(encoded)
 	}
-	request, err := http.NewRequest(method, a.address+"/v1/"+path, reader)
+	request, err := http.NewRequestWithContext(ctx, method, a.address+"/v1/"+path, reader)
 	if err != nil {
 		return fmt.Errorf("build request: %w", err)
 	}
@@ -124,7 +124,13 @@ func newTransitFixture(t *testing.T, address string) *transitFixture {
 	}
 	f.admin.call(t, http.MethodPost, "sys/mounts/"+f.mount, map[string]any{transitTypeField: ProviderTransit}, nil)
 	t.Cleanup(func() {
-		if err := f.admin.request(http.MethodDelete, "sys/mounts/"+f.mount, nil, nil); err != nil {
+		if err := f.admin.request(
+			context.Background(),
+			http.MethodDelete,
+			"sys/mounts/"+f.mount,
+			nil,
+			nil,
+		); err != nil {
 			t.Errorf("disable transit mount: %v", err)
 		}
 	})
