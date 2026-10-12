@@ -587,53 +587,6 @@ func (s *ResourceServer) DeleteResource(
 	return connect.NewResponse(&resourcev1.DeleteResourceResponse{}), nil
 }
 
-// GetResourceStatus retrieves a resource and its current deployment status
-func (s *ResourceServer) GetResourceStatus(
-	ctx context.Context,
-	req *connect.Request[resourcev1.GetResourceStatusRequest],
-) (*connect.Response[resourcev1.GetResourceStatusResponse], error) {
-	r := req.Msg
-
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
-	}
-
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.GetResourceStatus, r.GetResourceId()),
-	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to get resource status", "resourceId", r.GetResourceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
-	}
-
-	resourceID := uuid.MustParse(r.GetResourceId())
-
-	res, err := s.queries.GetResourceByID(ctx, resourceID)
-	if err != nil {
-		slog.WarnContext(ctx, "resource not found", "resourceId", r.GetResourceId())
-		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
-	}
-
-	resourceDomains, err := s.queries.ListResourceDomains(ctx, res.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list resource domains", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
-	}
-
-	statuses, err := s.environmentStatuses(ctx, []uuid.UUID{res.ID})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to derive resource status", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
-	}
-
-	return connect.NewResponse(&resourcev1.GetResourceStatusResponse{
-		Resource: dbResourceToProto(res, statuses[res.ID], resourceDomains),
-	}), nil
-}
-
 // ListRegions lists available regions for resource deployment
 func (s *ResourceServer) ListRegions(
 	ctx context.Context,

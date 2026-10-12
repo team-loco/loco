@@ -32,11 +32,6 @@ var (
 		entityType: db.EntityTypeResource,
 		scope:      db.ScopeRead,
 	}
-	// GetResourceStatus requires resource:read.
-	GetResourceStatus = Action{
-		entityType: db.EntityTypeResource,
-		scope:      db.ScopeRead,
-	}
 	// GetResourceEnv requires resource:read.
 	GetResourceEnv = Action{
 		entityType: db.EntityTypeResource,

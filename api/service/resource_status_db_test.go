@@ -151,14 +151,6 @@ func (f *resourceStatusFixture) statuses(t *testing.T) []*resourcev1.Environment
 	}
 	fromGet := got.Msg.GetResource().GetEnvironmentStatuses()
 
-	statusResp, err := server.GetResourceStatus(f.ctx, connect.NewRequest(&resourcev1.GetResourceStatusRequest{
-		ResourceId: resourceID,
-	}))
-	if err != nil {
-		t.Fatalf("get resource status: %v", err)
-	}
-	fromStatus := statusResp.Msg.GetResource().GetEnvironmentStatuses()
-
 	listed, err := server.ListWorkspaceResources(f.ctx, connect.NewRequest(&resourcev1.ListWorkspaceResourcesRequest{
 		WorkspaceId: f.workspaceID.String(),
 	}))
@@ -171,9 +163,8 @@ func (f *resourceStatusFixture) statuses(t *testing.T) []*resourcev1.Environment
 	}
 	fromList := resources[0].GetEnvironmentStatuses()
 
-	if !statusesEqual(fromGet, fromStatus) || !statusesEqual(fromGet, fromList) {
-		t.Fatalf("read RPCs disagree:\nGetResource %v\nGetResourceStatus %v\nListWorkspaceResources %v",
-			fromGet, fromStatus, fromList)
+	if !statusesEqual(fromGet, fromList) {
+		t.Fatalf("read RPCs disagree:\nGetResource %v\nListWorkspaceResources %v", fromGet, fromList)
 	}
 	return fromGet
 }

@@ -235,21 +235,6 @@ func (c *Client) ScaleApp(ctx context.Context, appID string, replicas *int32, cp
 	return nil
 }
 
-func (c *Client) GetAppStatus(ctx context.Context, appID string) (*resourcev1.GetResourceStatusResponse, error) {
-	req := connect.NewRequest(&resourcev1.GetResourceStatusRequest{
-		ResourceId: appID,
-	})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
-
-	resp, err := c.Resource.GetResourceStatus(ctx, req)
-	if err != nil {
-		logRequestID(ctx, err, "failed to get app status")
-		return nil, err
-	}
-
-	return resp.Msg, nil
-}
-
 func (c *Client) GetEvents(ctx context.Context, appID string, limit *int32) ([]*resourcev1.Event, error) {
 	req := connect.NewRequest(&resourcev1.ListResourceEventsRequest{
 		ResourceId: appID,

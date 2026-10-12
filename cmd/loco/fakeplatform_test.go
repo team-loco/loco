@@ -286,24 +286,6 @@ func (s *fakeResourceService) ListRegions(
 	return connect.NewResponse(&resourcev1.ListRegionsResponse{Regions: regions}), nil
 }
 
-func (s *fakeResourceService) GetResourceStatus(
-	_ context.Context,
-	req *connect.Request[resourcev1.GetResourceStatusRequest],
-) (*connect.Response[resourcev1.GetResourceStatusResponse], error) {
-	f := s.api
-	if _, _, err := f.authenticate(req.Spec(), req.Header()); err != nil {
-		return nil, err
-	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	for _, res := range f.platform.resources {
-		if res.GetId() == req.Msg.GetResourceId() {
-			return connect.NewResponse(&resourcev1.GetResourceStatusResponse{Resource: res}), nil
-		}
-	}
-	return nil, connect.NewError(connect.CodeNotFound, errFakeResourceNotFound)
-}
-
 func (s *fakeResourceService) TransferPartial(
 	_ context.Context,
 	req *connect.Request[resourcev1.TransferPartialRequest],

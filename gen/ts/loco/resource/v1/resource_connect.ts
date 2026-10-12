@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateResourceRequest, CreateResourceResponse, DeleteResourceRequest, DeleteResourceResponse, GetResourceEnvRequest, GetResourceEnvResponse, GetResourceRequest, GetResourceResponse, GetResourceStatusRequest, GetResourceStatusResponse, ListRegionsRequest, ListRegionsResponse, ListResourceEventsRequest, ListResourceEventsResponse, ListWorkspaceResourcesRequest, ListWorkspaceResourcesResponse, ScaleResourceRequest, ScaleResourceResponse, TransferPartialRequest, TransferPartialResponse, UpdateResourceRequest, UpdateResourceResponse } from "./resource_pb";
+import { CreateResourceRequest, CreateResourceResponse, DeleteResourceRequest, DeleteResourceResponse, GetResourceEnvRequest, GetResourceEnvResponse, GetResourceRequest, GetResourceResponse, ListRegionsRequest, ListRegionsResponse, ListResourceEventsRequest, ListResourceEventsResponse, ListWorkspaceResourcesRequest, ListWorkspaceResourcesResponse, ScaleResourceRequest, ScaleResourceResponse, TransferPartialRequest, TransferPartialResponse, UpdateResourceRequest, UpdateResourceResponse } from "./resource_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -67,17 +67,6 @@ export const ResourceService = {
       name: "ListWorkspaceResources",
       I: ListWorkspaceResourcesRequest,
       O: ListWorkspaceResourcesResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * GetResourceStatus retrieves the current status and deployment information of a resource.
-     *
-     * @generated from rpc loco.resource.v1.ResourceService.GetResourceStatus
-     */
-    getResourceStatus: {
-      name: "GetResourceStatus",
-      I: GetResourceStatusRequest,
-      O: GetResourceStatusResponse,
       kind: MethodKind.Unary,
     },
     /**
