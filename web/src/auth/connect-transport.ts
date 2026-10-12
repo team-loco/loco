@@ -2,9 +2,8 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { nonEmpty } from "@/lib/utils";
 
-import { authClient } from "./client";
+import { authClient, BASE_URL } from "./client";
 
-const BASE_URL = nonEmpty(import.meta.env.VITE_API_URL, "http://localhost:8000");
 const APP_ENV = nonEmpty(import.meta.env.VITE_APP_ENV, "DEVELOPMENT");
 
 export const createTransport = (baseUrl: string = BASE_URL) => {
