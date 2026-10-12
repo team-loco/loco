@@ -109,9 +109,6 @@ Deploys:
   - **CNI (Container Network Interface)** implementation
   - Pod-to-pod networking with eBPF
   - Network policies enforcement
-  - **Hubble**: Observability plugin for network flows
-    - Exposes flow metrics
-    - UI dashboard for network visibility
 
 **Cilium Dependencies**:
 
