@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Build the API, agent, observability proxy and CLI binaries the end-to-end tests run: e2e:build <bin-dir> <version>"
+#MISE description="Build the API, agent, observability proxy and CLI binaries the end-to-end tests run, concurrently: e2e:build <bin-dir> <version>"
 set -euo pipefail
 
 if [[ $# -ne 2 ]]; then
@@ -10,15 +10,43 @@ mkdir -p "$1"
 bin_dir=$(cd "$1" && pwd)
 ldflags="-X main.version=$2"
 root=$(git rev-parse --show-toplevel)
+log_dir=$(mktemp -d)
+binaries=()
+pids=()
 
-echo "Building API..."
-(cd "$root/api" && go build -ldflags "$ldflags" -o "$bin_dir/loco-api" .)
+stop_builds() {
+	local pid
+	for pid in ${pids[@]+"${pids[@]}"}; do
+		pkill -P "$pid" 2>/dev/null || true
+		kill "$pid" 2>/dev/null || true
+	done
+	rm -rf "$log_dir"
+}
+trap stop_builds EXIT
 
-echo "Building Agent..."
-(cd "$root/agent" && go build -ldflags "$ldflags" -o "$bin_dir/loco-agent" .)
+build() {
+	local name=$1 module=$2 binary=$3
+	echo "Building ${name}..."
+	(cd "$root/$module" && go build -ldflags "$ldflags" -o "$bin_dir/$binary" .) >"$log_dir/$binary.log" 2>&1 &
+	binaries+=("$binary")
+	pids+=("$!")
+}
 
-echo "Building Observability Proxy..."
-(cd "$root/observability-proxy" && go build -ldflags "$ldflags" -o "$bin_dir/loco-obs-proxy" .)
+build API api loco-api
+build Agent agent loco-agent
+build "Observability Proxy" observability-proxy loco-obs-proxy
+build "the CLI" . loco
 
-echo "Building the CLI..."
-(cd "$root" && go build -ldflags "$ldflags" -o "$bin_dir/loco" .)
+failed=0
+for i in "${!pids[@]}"; do
+	if wait "${pids[$i]}"; then
+		echo "Built ${binaries[$i]}"
+		cat "$log_dir/${binaries[$i]}.log"
+	else
+		echo "Building ${binaries[$i]} failed:" >&2
+		cat "$log_dir/${binaries[$i]}.log" >&2
+		failed=1
+	fi
+done
+pids=()
+exit "$failed"
