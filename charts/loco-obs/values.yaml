@@ -424,6 +424,7 @@ otel-col-deploy:
         keys:
           - loco.workspace.id
           - loco.resource.id
+      # copies the id of the object an event is about into the attribute k8s_attributes looks up
       transform/k8s_events:
         error_mode: ignore
         log_statements:
@@ -442,11 +443,13 @@ otel-col-deploy:
               - log.body["object"]["regarding"]["kind"] == "Deployment"
             statements:
               - set(log.attributes["k8s.deployment.name"], log.body["object"]["regarding"]["name"])
+      # moves that id onto the resource, where k8s_attributes matches
       groupbyattrs/k8s_events:
         keys:
           - k8s.pod.uid
           - k8s.replicaset.name
           - k8s.deployment.name
+      # finds the pod in the event's own namespace and copies its loco.io tenancy labels
       k8s_attributes/k8s_events:
         passthrough: false
         pod_association:
@@ -477,6 +480,7 @@ otel-col-deploy:
             endpoint: 0.0.0.0:4318
     exporters:
       clickhouse: *clickhouseExporter
+      # events get their own table so they never show up as service logs
       clickhouse/k8s_events:
         <<: *clickhouseExporter
         logs_table_name: otel_k8s_events
