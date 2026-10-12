@@ -77,6 +77,8 @@ Use application status to find whether a deployment is progressing or ready. `lo
 - Unavailable: no replica is ready.
 - Unknown: the cluster running a region has missed three heartbeats, or reports that it is unhealthy, so its last report is not trusted. The agent sends its heartbeats on the same stream as its replica reports, at the interval the API sets with `LOCO_AGENT_HEARTBEAT_INTERVAL` (30 seconds by default), so a region goes Unknown 90 seconds after that stream drops. Loco places no new deployments on such a cluster until it heartbeats again.
 
+The controller reports a failure when a current replica is unschedulable or Kubernetes reports that the current rollout exceeded its progress deadline. The region's failure message includes scheduling details or directs you to inspect replicas and logs. Reconciliation continues after a failure, so the application can recover when replicas become ready.
+
 The status comes from the replicas the cluster reports ready, not from the deployment record. A redeploy whose new replicas fail leaves the application Healthy while the previous replicas still serve, and the region shows the failure. Read events for scheduling and reconciliation failures, then inspect logs for application startup failures. The dashboard provides another view of the same applications.
 
 ```sh

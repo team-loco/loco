@@ -130,4 +130,66 @@ var _ = Describe("Application with replicas that cannot start", func() {
 		Expect(degraded).NotTo(BeNil())
 		Expect(degraded.Reason).To(Equal(reasonImagePullBackOff))
 	})
+	It("fails an unschedulable replica and resumes when scheduling succeeds", func() {
+		app := isolationTestApplication(stuckWorkspace, "schedule")
+		app.Spec.ServiceSpec.Routing = nil
+		Expect(k8sClient.Create(ctx, app)).To(Succeed())
+		reconcileStuckApp(r, app)
+		pod := createReplica(app, "schedule-current", testImage)
+		pod.Status.Conditions = []corev1.PodCondition{{
+			Type:    corev1.PodScheduled,
+			Status:  corev1.ConditionFalse,
+			Reason:  corev1.PodReasonUnschedulable,
+			Message: "0/1 nodes are available: insufficient memory",
+		}}
+		Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Phase).To(Equal(phaseFailed))
+		Expect(app.Status.Message).To(ContainSubstring("insufficient memory"))
+		pod.Status.Conditions[0].Status = corev1.ConditionTrue
+		pod.Status.Conditions[0].Reason = "Scheduled"
+		Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Phase).To(Equal(phaseDeploying))
+		Expect(meta.FindStatusCondition(app.Status.Conditions, conditionDegraded)).To(BeNil())
+	})
+
+	It("fails an expired rollout deadline and ignores conditions from an older generation", func() {
+		app := isolationTestApplication(stuckWorkspace, "deadline")
+		app.Spec.ServiceSpec.Routing = nil
+		Expect(k8sClient.Create(ctx, app)).To(Succeed())
+		reconcileStuckApp(r, app)
+		dep := &appsv1.Deployment{}
+		key := client.ObjectKey{Namespace: getNamespace(app), Name: getName(app)}
+		Expect(k8sClient.Get(ctx, key, dep)).To(Succeed())
+		dep.Status.ObservedGeneration = dep.Generation
+		dep.Status.Conditions = []appsv1.DeploymentCondition{{
+			Type:    appsv1.DeploymentProgressing,
+			Status:  corev1.ConditionFalse,
+			Reason:  "ProgressDeadlineExceeded",
+			Message: "Deployment exceeded its progress deadline",
+		}}
+		Expect(k8sClient.Status().Update(ctx, dep)).To(Succeed())
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Phase).To(Equal(phaseFailed))
+		Expect(app.Status.Message).To(ContainSubstring("progress deadline"))
+		dep.Status.ObservedGeneration = dep.Generation - 1
+		Expect(k8sClient.Status().Update(ctx, dep)).To(Succeed())
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Phase).To(Equal(phaseDeploying))
+		Expect(meta.FindStatusCondition(app.Status.Conditions, conditionDegraded)).To(BeNil())
+		dep.Status.ObservedGeneration = dep.Generation
+		dep.Status.Conditions[0].Status = corev1.ConditionTrue
+		dep.Status.Conditions[0].Reason = "NewReplicaSetAvailable"
+		dep.Status.Replicas = *dep.Spec.Replicas
+		dep.Status.UpdatedReplicas = *dep.Spec.Replicas
+		dep.Status.AvailableReplicas = *dep.Spec.Replicas
+		dep.Status.ReadyReplicas = *dep.Spec.Replicas
+		Expect(k8sClient.Status().Update(ctx, dep)).To(Succeed())
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Phase).To(Equal(phaseReady))
+		Expect(meta.FindStatusCondition(app.Status.Conditions, conditionDegraded)).To(BeNil())
+
+	})
+
 })
