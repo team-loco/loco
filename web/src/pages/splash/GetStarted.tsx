@@ -84,14 +84,14 @@ function TerminalLine({ text, tone, shown }: { text: string; tone: Tone; shown: 
 export function GetStarted() {
 	const [shown, setShown] = useState(0);
 	const [copied, copy] = useCopy(1400);
-	const played = useRef(false);
+	const playedRef = useRef(false);
 
 	const revealRef = (el: HTMLElement | null) => {
-		if (el === null || played.current) return;
+		if (el === null || playedRef.current) return;
 		const observer = new IntersectionObserver(
 			(entries) => {
-				if (played.current || !entries.some((e) => e.isIntersecting)) return;
-				played.current = true;
+				if (playedRef.current || !entries.some((e) => e.isIntersecting)) return;
+				playedRef.current = true;
 				observer.disconnect();
 				const reveal = (count: number) => {
 					setShown(count);

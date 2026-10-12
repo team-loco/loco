@@ -29,7 +29,7 @@ const NO_CONTEXT: OrgWorkspaceContextType = {
 
 const OrgWorkspaceContext = createContext<OrgWorkspaceContextType>(NO_CONTEXT);
 
-export function pickActive<T extends { id: string }>(items: T[], fromUrl: string | undefined, storageKey: string): string | null {
+export function pickActive(items: readonly { id: string }[], fromUrl: string | undefined, storageKey: string): string | null {
 	const known = (id: string) => items.length === 0 || items.some((item) => item.id === id);
 	if (fromUrl !== undefined && known(fromUrl)) return fromUrl;
 	const stored = readStorage(storageKey);
@@ -37,10 +37,13 @@ export function pickActive<T extends { id: string }>(items: T[], fromUrl: string
 	return items[0]?.id ?? null;
 }
 
+const NO_ORGS: Organization[] = [];
+const NO_WORKSPACES: Workspace[] = [];
+
 export function ContextProvider({
 	children,
-	availableOrgs = [],
-	availableWorkspaces = [],
+	availableOrgs = NO_ORGS,
+	availableWorkspaces = NO_WORKSPACES,
 }: {
 	children: ReactNode;
 	availableOrgs?: Organization[];

@@ -34,10 +34,32 @@ export interface OIDCConfig {
 	scopes: string;
 }
 
-function parseJSON<T>(raw: string | null): T | null {
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
+}
+
+function isStoredTokens(value: unknown): value is StoredTokens {
+	return (
+		isRecord(value) &&
+		typeof value["idToken"] === "string" &&
+		(value["refreshToken"] === null || typeof value["refreshToken"] === "string") &&
+		typeof value["expiresAt"] === "number"
+	);
+}
+
+function isPendingLogin(value: unknown): value is PendingLogin {
+	return isRecord(value) && ["verifier", "state", "nonce", "redirectTo"].every((key) => typeof value[key] === "string");
+}
+
+function isExpiryClaims(value: unknown): value is { exp?: number } {
+	return isRecord(value) && (value["exp"] === undefined || typeof value["exp"] === "number");
+}
+
+function parseJSON<T>(raw: string | null, isValid: (value: unknown) => value is T): T | null {
 	if (raw === null) return null;
 	try {
-		return JSON.parse(raw) as T;
+		const value: unknown = JSON.parse(raw);
+		return isValid(value) ? value : null;
 	} catch {
 		return null;
 	}
@@ -46,13 +68,14 @@ function parseJSON<T>(raw: string | null): T | null {
 function idTokenExpiry(idToken: string): number {
 	const payload = idToken.split(".")[1];
 	if (payload === undefined) return 0;
-	const claims = parseJSON<{ exp?: number }>(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+	const claims = parseJSON(atob(payload.replace(/-/g, "+").replace(/_/g, "/")), isExpiryClaims);
 	return (claims?.exp ?? 0) * 1000;
 }
 
 export async function createAuthClient(cfg: OIDCConfig): Promise<AuthClient> {
 	const issuer = new URL(cfg.issuer);
 	const insecure = issuer.protocol === "http:";
+	// eslint-disable-next-line @typescript-eslint/no-deprecated
 	const requestOptions = { [oauth.allowInsecureRequests]: insecure };
 	const as = await oauth.processDiscoveryResponse(
 		issuer,
@@ -61,7 +84,7 @@ export async function createAuthClient(cfg: OIDCConfig): Promise<AuthClient> {
 	const oauthClient: oauth.Client = { client_id: cfg.clientId };
 	const clientAuth = oauth.None();
 	const listeners = new Set<() => void>();
-	let tokens = parseJSON<StoredTokens>(readStorage(TOKENS_KEY));
+	let tokens = parseJSON(readStorage(TOKENS_KEY), isStoredTokens);
 	let refreshing: Promise<string | null> | null = null;
 
 	const notify = () => {
@@ -142,7 +165,7 @@ export async function createAuthClient(cfg: OIDCConfig): Promise<AuthClient> {
 			window.location.assign(url.toString());
 		},
 		completeSignIn: async (current) => {
-			const pending = parseJSON<PendingLogin>(readStorage(PENDING_KEY, "session"));
+			const pending = parseJSON(readStorage(PENDING_KEY, "session"), isPendingLogin);
 			removeStorage(PENDING_KEY, "session");
 			if (pending === null) throw new Error("This sign-in link has expired. Try signing in again.");
 			const params = oauth.validateAuthResponse(as, oauthClient, current, pending.state);

@@ -34,11 +34,11 @@ export function useSignIn() {
 
 export function SignInRedirect({ next }: { next: string }) {
 	const [failed, setFailed] = useState(false);
-	const started = useRef(false);
+	const startedRef = useRef(false);
 
 	useEffect(() => {
-		if (started.current) return;
-		started.current = true;
+		if (startedRef.current) return;
+		startedRef.current = true;
 		startSignIn(next).catch((err: unknown) => {
 			toastConnectError(err, SIGN_IN_FAILED);
 			setFailed(true);

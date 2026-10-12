@@ -24,7 +24,7 @@ export function CreateOrgDialog({
 	const { mutate: mutateCreateOrg, isPending } = useMutation(createOrg);
 	const trimmed = orgName.trim();
 
-	const handleSubmit = (e: React.FormEvent) => {
+	const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		if (trimmed === "") {
 			return;

@@ -1,6 +1,6 @@
 import { useMutation } from "@connectrpc/connect-query";
 import { Loader2 } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useState, type SubmitEvent } from "react";
 import { useSearchParams } from "react-router";
 
 import { approveDeviceLogin } from "@gen/loco/auth/v1/auth-AuthService_connectquery";
@@ -18,7 +18,7 @@ export function CliDevice() {
 	const [userCode, setUserCode] = useState(params.get("code") ?? "");
 	const approve = useMutation(approveDeviceLogin);
 
-	const submit = (event: FormEvent) => {
+	const submit = (event: SubmitEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		approve.mutate(
 			{ userCode },

@@ -54,7 +54,7 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 	const [hi, setHi] = useState(0);
 	const [saved, setSaved] = useState<SavedSearches>(readSaved);
 	const inputRef = useRef<HTMLInputElement>(null);
-	const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const support = tokenSupport(tokens);
 	const words = text.split(" ");
@@ -309,11 +309,11 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 					}}
 					onKeyDown={onKeyDown}
 					onFocus={() => {
-						if (blurTimer.current !== null) clearTimeout(blurTimer.current);
+						if (blurTimerRef.current !== null) clearTimeout(blurTimerRef.current);
 						setOpen(true);
 					}}
 					onBlur={() => {
-						blurTimer.current = setTimeout(() => {
+						blurTimerRef.current = setTimeout(() => {
 							setOpen(false);
 						}, 120);
 					}}

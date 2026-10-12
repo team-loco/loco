@@ -16,6 +16,7 @@ interface CodeProps {
 
 function Code({ code, language = "plaintext", className }: CodeProps) {
 	const html = highlight(code, { lang: language });
+	// eslint-disable-next-line @eslint-react/dom-no-dangerously-set-innerhtml
 	return <code className={cn("font-mono", className)} dangerouslySetInnerHTML={{ __html: html }} />;
 }
 

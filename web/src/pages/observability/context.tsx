@@ -105,7 +105,7 @@ export function ObsProvider({
 
 	const initialNames = (params.get("r") ?? "").split(",").filter(Boolean);
 	const initialRange = params.get("range");
-	const [range, setRange] = useState<TimeRange>(isTimeRange(initialRange) ? initialRange : "1h");
+	const [range, setRange] = useState<TimeRange>(() => (isTimeRange(initialRange) ? initialRange : "1h"));
 	const [selected, setSelected] = useState<string[] | null>(initialNames.length > 0 ? initialNames : null);
 	const [tokens, setTokens] = useState<Token[]>(() =>
 		initialNames.map((value) => ({ neg: false, key: "resource", value })),
