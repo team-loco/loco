@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Boot ClickHouse with the users and config the loco-obs chart renders, apply the schema with the observability proxy, send logs, metrics and traces through the collector, and check that every table expires its rows"
+#MISE description="Boot ClickHouse with the users and config the loco-obs chart renders, apply the schema with the observability proxy, send logs, metrics and traces through the collector, check that every table expires its rows, and check that ClickHouse keeps no profiler logs and no query log rows for the collectors"
 #MISE depends=["helm:deps"]
 set -euo pipefail
 
@@ -66,6 +66,17 @@ for table in $otel_tables; do
 		fail "the collector did not insert into $database.$table with its tenancy columns set"
 	fi
 done
+
+query "SYSTEM FLUSH LOGS"
+for table in trace_log processors_profile_log; do
+	[ -z "$(query "SELECT name FROM system.tables WHERE database = 'system' AND name = '$table'")" ] ||
+		fail "ClickHouse writes system.$table"
+done
+[ "$(query "SELECT value FROM system.server_settings WHERE name = 'asynchronous_metrics_update_period_s'")" = 60 ] ||
+	fail "ClickHouse updates its asynchronous metrics more often than every 60s"
+ingest_user=$(collector_config otel-col-deploy | yq '.exporters.clickhouse.username')
+logged_queries=$(query "SELECT count() FROM system.query_log WHERE user = '$ingest_user'")
+[ "$logged_queries" = 0 ] || fail "system.query_log records $logged_queries queries from $ingest_user"
 
 check() {
 	local db=$1 table=$2 engine
