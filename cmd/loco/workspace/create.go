@@ -8,7 +8,6 @@ import (
 
 	"github.com/team-loco/loco/internal/rpc"
 
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
@@ -74,14 +73,14 @@ func newCreateCmd(deps createDeps) *cobra.Command {
 				createReq.Description = &description
 			}
 
-			req := connect.NewRequest(createReq)
+			req := createReq
 
 			resp, err := wsClient.CreateWorkspace(ctx, req)
 			if err != nil {
 				return fmt.Errorf("failed to create workspace: %w", err)
 			}
 
-			fmt.Fprintf(deps.Output, "Workspace %q created successfully (ID: %s)\n", name, resp.Msg.GetWorkspaceId())
+			fmt.Fprintf(deps.Output, "Workspace %q created successfully (ID: %s)\n", name, resp.GetWorkspaceId())
 			return nil
 		},
 	}

@@ -5,423 +5,492 @@
 package domainv1connect
 
 import (
-	connect "connectrpc.com/connect"
+	connect "connectrpc.com/connect/v2"
 	context "context"
-	errors "errors"
 	v1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
-	http "net/http"
-	strings "strings"
+	sync "sync"
 )
-
-// This is a compile-time assertion to ensure that this generated file and the connect package are
-// compatible. If you get a compiler error that this constant is not defined, this code was
-// generated with a version of connect newer than the one compiled into your binary. You can fix the
-// problem by either regenerating this code with an older version of connect or updating the connect
-// version compiled into your binary.
-const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// DomainServiceName is the fully-qualified name of the DomainService service.
 	DomainServiceName = "loco.domain.v1.DomainService"
 )
 
-// These constants are the fully-qualified names of the RPCs defined in this package. They're
-// exposed at runtime as Spec.Procedure and as the final two segments of the HTTP route.
+// These constants are the procedure names of the RPCs defined in this package. They're exposed at
+// runtime as Spec.Procedure and as the final two segments of the HTTP route.
 //
 // Note that these are different from the fully-qualified method names used by
 // google.golang.org/protobuf/reflect/protoreflect. To convert from these constants to
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// DomainServiceCreatePlatformDomainProcedure is the fully-qualified name of the DomainService's
+	// DomainServiceCreatePlatformDomainProcedure is the procedure name of the DomainService's
 	// CreatePlatformDomain RPC.
 	DomainServiceCreatePlatformDomainProcedure = "/loco.domain.v1.DomainService/CreatePlatformDomain"
-	// DomainServiceGetPlatformDomainProcedure is the fully-qualified name of the DomainService's
+	// DomainServiceGetPlatformDomainProcedure is the procedure name of the DomainService's
 	// GetPlatformDomain RPC.
 	DomainServiceGetPlatformDomainProcedure = "/loco.domain.v1.DomainService/GetPlatformDomain"
-	// DomainServiceListPlatformDomainsProcedure is the fully-qualified name of the DomainService's
+	// DomainServiceListPlatformDomainsProcedure is the procedure name of the DomainService's
 	// ListPlatformDomains RPC.
 	DomainServiceListPlatformDomainsProcedure = "/loco.domain.v1.DomainService/ListPlatformDomains"
-	// DomainServiceUpdatePlatformDomainProcedure is the fully-qualified name of the DomainService's
+	// DomainServiceUpdatePlatformDomainProcedure is the procedure name of the DomainService's
 	// UpdatePlatformDomain RPC.
 	DomainServiceUpdatePlatformDomainProcedure = "/loco.domain.v1.DomainService/UpdatePlatformDomain"
-	// DomainServiceDeletePlatformDomainProcedure is the fully-qualified name of the DomainService's
+	// DomainServiceDeletePlatformDomainProcedure is the procedure name of the DomainService's
 	// DeletePlatformDomain RPC.
 	DomainServiceDeletePlatformDomainProcedure = "/loco.domain.v1.DomainService/DeletePlatformDomain"
-	// DomainServiceCreateResourceDomainProcedure is the fully-qualified name of the DomainService's
+	// DomainServiceCreateResourceDomainProcedure is the procedure name of the DomainService's
 	// CreateResourceDomain RPC.
 	DomainServiceCreateResourceDomainProcedure = "/loco.domain.v1.DomainService/CreateResourceDomain"
-	// DomainServiceUpdateResourceDomainProcedure is the fully-qualified name of the DomainService's
+	// DomainServiceUpdateResourceDomainProcedure is the procedure name of the DomainService's
 	// UpdateResourceDomain RPC.
 	DomainServiceUpdateResourceDomainProcedure = "/loco.domain.v1.DomainService/UpdateResourceDomain"
-	// DomainServiceSetPrimaryResourceDomainProcedure is the fully-qualified name of the DomainService's
+	// DomainServiceSetPrimaryResourceDomainProcedure is the procedure name of the DomainService's
 	// SetPrimaryResourceDomain RPC.
 	DomainServiceSetPrimaryResourceDomainProcedure = "/loco.domain.v1.DomainService/SetPrimaryResourceDomain"
-	// DomainServiceDeleteResourceDomainProcedure is the fully-qualified name of the DomainService's
+	// DomainServiceDeleteResourceDomainProcedure is the procedure name of the DomainService's
 	// DeleteResourceDomain RPC.
 	DomainServiceDeleteResourceDomainProcedure = "/loco.domain.v1.DomainService/DeleteResourceDomain"
-	// DomainServiceListLocoOwnedDomainsProcedure is the fully-qualified name of the DomainService's
+	// DomainServiceListLocoOwnedDomainsProcedure is the procedure name of the DomainService's
 	// ListLocoOwnedDomains RPC.
 	DomainServiceListLocoOwnedDomainsProcedure = "/loco.domain.v1.DomainService/ListLocoOwnedDomains"
-	// DomainServiceCheckDomainAvailabilityProcedure is the fully-qualified name of the DomainService's
+	// DomainServiceCheckDomainAvailabilityProcedure is the procedure name of the DomainService's
 	// CheckDomainAvailability RPC.
 	DomainServiceCheckDomainAvailabilityProcedure = "/loco.domain.v1.DomainService/CheckDomainAvailability"
+)
+
+var (
+	domainServiceCreatePlatformDomainSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_domain_v1_domain_proto.Services().ByName("DomainService").Methods().ByName("CreatePlatformDomain"),
+			Procedure:  DomainServiceCreatePlatformDomainProcedure,
+		}
+	})
+	domainServiceGetPlatformDomainSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_domain_v1_domain_proto.Services().ByName("DomainService").Methods().ByName("GetPlatformDomain"),
+			Procedure:  DomainServiceGetPlatformDomainProcedure,
+		}
+	})
+	domainServiceListPlatformDomainsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_domain_v1_domain_proto.Services().ByName("DomainService").Methods().ByName("ListPlatformDomains"),
+			Procedure:  DomainServiceListPlatformDomainsProcedure,
+		}
+	})
+	domainServiceUpdatePlatformDomainSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_domain_v1_domain_proto.Services().ByName("DomainService").Methods().ByName("UpdatePlatformDomain"),
+			Procedure:  DomainServiceUpdatePlatformDomainProcedure,
+		}
+	})
+	domainServiceDeletePlatformDomainSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_domain_v1_domain_proto.Services().ByName("DomainService").Methods().ByName("DeletePlatformDomain"),
+			Procedure:  DomainServiceDeletePlatformDomainProcedure,
+		}
+	})
+	domainServiceCreateResourceDomainSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_domain_v1_domain_proto.Services().ByName("DomainService").Methods().ByName("CreateResourceDomain"),
+			Procedure:  DomainServiceCreateResourceDomainProcedure,
+		}
+	})
+	domainServiceUpdateResourceDomainSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_domain_v1_domain_proto.Services().ByName("DomainService").Methods().ByName("UpdateResourceDomain"),
+			Procedure:  DomainServiceUpdateResourceDomainProcedure,
+		}
+	})
+	domainServiceSetPrimaryResourceDomainSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_domain_v1_domain_proto.Services().ByName("DomainService").Methods().ByName("SetPrimaryResourceDomain"),
+			Procedure:  DomainServiceSetPrimaryResourceDomainProcedure,
+		}
+	})
+	domainServiceDeleteResourceDomainSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_domain_v1_domain_proto.Services().ByName("DomainService").Methods().ByName("DeleteResourceDomain"),
+			Procedure:  DomainServiceDeleteResourceDomainProcedure,
+		}
+	})
+	domainServiceListLocoOwnedDomainsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_domain_v1_domain_proto.Services().ByName("DomainService").Methods().ByName("ListLocoOwnedDomains"),
+			Procedure:  DomainServiceListLocoOwnedDomainsProcedure,
+		}
+	})
+	domainServiceCheckDomainAvailabilitySpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_domain_v1_domain_proto.Services().ByName("DomainService").Methods().ByName("CheckDomainAvailability"),
+			Procedure:  DomainServiceCheckDomainAvailabilityProcedure,
+		}
+	})
 )
 
 // DomainServiceClient is a client for the loco.domain.v1.DomainService service.
 type DomainServiceClient interface {
 	// Platform Domain CRUD
 	// CreatePlatformDomain creates a new platform-provided domain.
-	CreatePlatformDomain(context.Context, *connect.Request[v1.CreatePlatformDomainRequest]) (*connect.Response[v1.CreatePlatformDomainResponse], error)
+	CreatePlatformDomain(context.Context, *v1.CreatePlatformDomainRequest) (*v1.CreatePlatformDomainResponse, error)
 	// GetPlatformDomain retrieves a platform domain by ID or name.
-	GetPlatformDomain(context.Context, *connect.Request[v1.GetPlatformDomainRequest]) (*connect.Response[v1.GetPlatformDomainResponse], error)
+	GetPlatformDomain(context.Context, *v1.GetPlatformDomainRequest) (*v1.GetPlatformDomainResponse, error)
 	// ListPlatformDomains lists platform domains with optional filters.
-	ListPlatformDomains(context.Context, *connect.Request[v1.ListPlatformDomainsRequest]) (*connect.Response[v1.ListPlatformDomainsResponse], error)
+	ListPlatformDomains(context.Context, *v1.ListPlatformDomainsRequest) (*v1.ListPlatformDomainsResponse, error)
 	// UpdatePlatformDomain updates a platform domain.
-	UpdatePlatformDomain(context.Context, *connect.Request[v1.UpdatePlatformDomainRequest]) (*connect.Response[v1.UpdatePlatformDomainResponse], error)
+	UpdatePlatformDomain(context.Context, *v1.UpdatePlatformDomainRequest) (*v1.UpdatePlatformDomainResponse, error)
 	// DeletePlatformDomain deletes a platform domain.
-	DeletePlatformDomain(context.Context, *connect.Request[v1.DeletePlatformDomainRequest]) (*connect.Response[v1.DeletePlatformDomainResponse], error)
+	DeletePlatformDomain(context.Context, *v1.DeletePlatformDomainRequest) (*v1.DeletePlatformDomainResponse, error)
 	// Resource Domain Management
 	// CreateResourceDomain assigns a domain to a resource.
-	CreateResourceDomain(context.Context, *connect.Request[v1.CreateResourceDomainRequest]) (*connect.Response[v1.CreateResourceDomainResponse], error)
+	CreateResourceDomain(context.Context, *v1.CreateResourceDomainRequest) (*v1.CreateResourceDomainResponse, error)
 	// UpdateResourceDomain updates a resource's domain configuration.
-	UpdateResourceDomain(context.Context, *connect.Request[v1.UpdateResourceDomainRequest]) (*connect.Response[v1.UpdateResourceDomainResponse], error)
+	UpdateResourceDomain(context.Context, *v1.UpdateResourceDomainRequest) (*v1.UpdateResourceDomainResponse, error)
 	// SetPrimaryResourceDomain sets the primary domain for a resource.
-	SetPrimaryResourceDomain(context.Context, *connect.Request[v1.SetPrimaryResourceDomainRequest]) (*connect.Response[v1.SetPrimaryResourceDomainResponse], error)
+	SetPrimaryResourceDomain(context.Context, *v1.SetPrimaryResourceDomainRequest) (*v1.SetPrimaryResourceDomainResponse, error)
 	// DeleteResourceDomain removes a domain from a resource.
-	DeleteResourceDomain(context.Context, *connect.Request[v1.DeleteResourceDomainRequest]) (*connect.Response[v1.DeleteResourceDomainResponse], error)
+	DeleteResourceDomain(context.Context, *v1.DeleteResourceDomainRequest) (*v1.DeleteResourceDomainResponse, error)
 	// Queries
 	// ListLocoOwnedDomains lists all domains owned by Loco with resources.
-	ListLocoOwnedDomains(context.Context, *connect.Request[v1.ListLocoOwnedDomainsRequest]) (*connect.Response[v1.ListLocoOwnedDomainsResponse], error)
+	ListLocoOwnedDomains(context.Context, *v1.ListLocoOwnedDomainsRequest) (*v1.ListLocoOwnedDomainsResponse, error)
 	// CheckDomainAvailability checks if a domain is available.
-	CheckDomainAvailability(context.Context, *connect.Request[v1.CheckDomainAvailabilityRequest]) (*connect.Response[v1.CheckDomainAvailabilityResponse], error)
+	CheckDomainAvailability(context.Context, *v1.CheckDomainAvailabilityRequest) (*v1.CheckDomainAvailabilityResponse, error)
 }
 
-// NewDomainServiceClient constructs a client for the loco.domain.v1.DomainService service. By
-// default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses,
-// and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
-// connect.WithGRPC() or connect.WithGRPCWeb() options.
-//
-// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
-// http://api.acme.com or https://acme.com/grpc).
-func NewDomainServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) DomainServiceClient {
-	baseURL = strings.TrimRight(baseURL, "/")
-	domainServiceMethods := v1.File_loco_domain_v1_domain_proto.Services().ByName("DomainService").Methods()
-	return &domainServiceClient{
-		createPlatformDomain: connect.NewClient[v1.CreatePlatformDomainRequest, v1.CreatePlatformDomainResponse](
-			httpClient,
-			baseURL+DomainServiceCreatePlatformDomainProcedure,
-			connect.WithSchema(domainServiceMethods.ByName("CreatePlatformDomain")),
-			connect.WithClientOptions(opts...),
-		),
-		getPlatformDomain: connect.NewClient[v1.GetPlatformDomainRequest, v1.GetPlatformDomainResponse](
-			httpClient,
-			baseURL+DomainServiceGetPlatformDomainProcedure,
-			connect.WithSchema(domainServiceMethods.ByName("GetPlatformDomain")),
-			connect.WithClientOptions(opts...),
-		),
-		listPlatformDomains: connect.NewClient[v1.ListPlatformDomainsRequest, v1.ListPlatformDomainsResponse](
-			httpClient,
-			baseURL+DomainServiceListPlatformDomainsProcedure,
-			connect.WithSchema(domainServiceMethods.ByName("ListPlatformDomains")),
-			connect.WithClientOptions(opts...),
-		),
-		updatePlatformDomain: connect.NewClient[v1.UpdatePlatformDomainRequest, v1.UpdatePlatformDomainResponse](
-			httpClient,
-			baseURL+DomainServiceUpdatePlatformDomainProcedure,
-			connect.WithSchema(domainServiceMethods.ByName("UpdatePlatformDomain")),
-			connect.WithClientOptions(opts...),
-		),
-		deletePlatformDomain: connect.NewClient[v1.DeletePlatformDomainRequest, v1.DeletePlatformDomainResponse](
-			httpClient,
-			baseURL+DomainServiceDeletePlatformDomainProcedure,
-			connect.WithSchema(domainServiceMethods.ByName("DeletePlatformDomain")),
-			connect.WithClientOptions(opts...),
-		),
-		createResourceDomain: connect.NewClient[v1.CreateResourceDomainRequest, v1.CreateResourceDomainResponse](
-			httpClient,
-			baseURL+DomainServiceCreateResourceDomainProcedure,
-			connect.WithSchema(domainServiceMethods.ByName("CreateResourceDomain")),
-			connect.WithClientOptions(opts...),
-		),
-		updateResourceDomain: connect.NewClient[v1.UpdateResourceDomainRequest, v1.UpdateResourceDomainResponse](
-			httpClient,
-			baseURL+DomainServiceUpdateResourceDomainProcedure,
-			connect.WithSchema(domainServiceMethods.ByName("UpdateResourceDomain")),
-			connect.WithClientOptions(opts...),
-		),
-		setPrimaryResourceDomain: connect.NewClient[v1.SetPrimaryResourceDomainRequest, v1.SetPrimaryResourceDomainResponse](
-			httpClient,
-			baseURL+DomainServiceSetPrimaryResourceDomainProcedure,
-			connect.WithSchema(domainServiceMethods.ByName("SetPrimaryResourceDomain")),
-			connect.WithClientOptions(opts...),
-		),
-		deleteResourceDomain: connect.NewClient[v1.DeleteResourceDomainRequest, v1.DeleteResourceDomainResponse](
-			httpClient,
-			baseURL+DomainServiceDeleteResourceDomainProcedure,
-			connect.WithSchema(domainServiceMethods.ByName("DeleteResourceDomain")),
-			connect.WithClientOptions(opts...),
-		),
-		listLocoOwnedDomains: connect.NewClient[v1.ListLocoOwnedDomainsRequest, v1.ListLocoOwnedDomainsResponse](
-			httpClient,
-			baseURL+DomainServiceListLocoOwnedDomainsProcedure,
-			connect.WithSchema(domainServiceMethods.ByName("ListLocoOwnedDomains")),
-			connect.WithClientOptions(opts...),
-		),
-		checkDomainAvailability: connect.NewClient[v1.CheckDomainAvailabilityRequest, v1.CheckDomainAvailabilityResponse](
-			httpClient,
-			baseURL+DomainServiceCheckDomainAvailabilityProcedure,
-			connect.WithSchema(domainServiceMethods.ByName("CheckDomainAvailability")),
-			connect.WithClientOptions(opts...),
-		),
-	}
-}
-
-// domainServiceClient implements DomainServiceClient.
-type domainServiceClient struct {
-	createPlatformDomain     *connect.Client[v1.CreatePlatformDomainRequest, v1.CreatePlatformDomainResponse]
-	getPlatformDomain        *connect.Client[v1.GetPlatformDomainRequest, v1.GetPlatformDomainResponse]
-	listPlatformDomains      *connect.Client[v1.ListPlatformDomainsRequest, v1.ListPlatformDomainsResponse]
-	updatePlatformDomain     *connect.Client[v1.UpdatePlatformDomainRequest, v1.UpdatePlatformDomainResponse]
-	deletePlatformDomain     *connect.Client[v1.DeletePlatformDomainRequest, v1.DeletePlatformDomainResponse]
-	createResourceDomain     *connect.Client[v1.CreateResourceDomainRequest, v1.CreateResourceDomainResponse]
-	updateResourceDomain     *connect.Client[v1.UpdateResourceDomainRequest, v1.UpdateResourceDomainResponse]
-	setPrimaryResourceDomain *connect.Client[v1.SetPrimaryResourceDomainRequest, v1.SetPrimaryResourceDomainResponse]
-	deleteResourceDomain     *connect.Client[v1.DeleteResourceDomainRequest, v1.DeleteResourceDomainResponse]
-	listLocoOwnedDomains     *connect.Client[v1.ListLocoOwnedDomainsRequest, v1.ListLocoOwnedDomainsResponse]
-	checkDomainAvailability  *connect.Client[v1.CheckDomainAvailabilityRequest, v1.CheckDomainAvailabilityResponse]
-}
-
-// CreatePlatformDomain calls loco.domain.v1.DomainService.CreatePlatformDomain.
-func (c *domainServiceClient) CreatePlatformDomain(ctx context.Context, req *connect.Request[v1.CreatePlatformDomainRequest]) (*connect.Response[v1.CreatePlatformDomainResponse], error) {
-	return c.createPlatformDomain.CallUnary(ctx, req)
-}
-
-// GetPlatformDomain calls loco.domain.v1.DomainService.GetPlatformDomain.
-func (c *domainServiceClient) GetPlatformDomain(ctx context.Context, req *connect.Request[v1.GetPlatformDomainRequest]) (*connect.Response[v1.GetPlatformDomainResponse], error) {
-	return c.getPlatformDomain.CallUnary(ctx, req)
-}
-
-// ListPlatformDomains calls loco.domain.v1.DomainService.ListPlatformDomains.
-func (c *domainServiceClient) ListPlatformDomains(ctx context.Context, req *connect.Request[v1.ListPlatformDomainsRequest]) (*connect.Response[v1.ListPlatformDomainsResponse], error) {
-	return c.listPlatformDomains.CallUnary(ctx, req)
-}
-
-// UpdatePlatformDomain calls loco.domain.v1.DomainService.UpdatePlatformDomain.
-func (c *domainServiceClient) UpdatePlatformDomain(ctx context.Context, req *connect.Request[v1.UpdatePlatformDomainRequest]) (*connect.Response[v1.UpdatePlatformDomainResponse], error) {
-	return c.updatePlatformDomain.CallUnary(ctx, req)
-}
-
-// DeletePlatformDomain calls loco.domain.v1.DomainService.DeletePlatformDomain.
-func (c *domainServiceClient) DeletePlatformDomain(ctx context.Context, req *connect.Request[v1.DeletePlatformDomainRequest]) (*connect.Response[v1.DeletePlatformDomainResponse], error) {
-	return c.deletePlatformDomain.CallUnary(ctx, req)
-}
-
-// CreateResourceDomain calls loco.domain.v1.DomainService.CreateResourceDomain.
-func (c *domainServiceClient) CreateResourceDomain(ctx context.Context, req *connect.Request[v1.CreateResourceDomainRequest]) (*connect.Response[v1.CreateResourceDomainResponse], error) {
-	return c.createResourceDomain.CallUnary(ctx, req)
-}
-
-// UpdateResourceDomain calls loco.domain.v1.DomainService.UpdateResourceDomain.
-func (c *domainServiceClient) UpdateResourceDomain(ctx context.Context, req *connect.Request[v1.UpdateResourceDomainRequest]) (*connect.Response[v1.UpdateResourceDomainResponse], error) {
-	return c.updateResourceDomain.CallUnary(ctx, req)
-}
-
-// SetPrimaryResourceDomain calls loco.domain.v1.DomainService.SetPrimaryResourceDomain.
-func (c *domainServiceClient) SetPrimaryResourceDomain(ctx context.Context, req *connect.Request[v1.SetPrimaryResourceDomainRequest]) (*connect.Response[v1.SetPrimaryResourceDomainResponse], error) {
-	return c.setPrimaryResourceDomain.CallUnary(ctx, req)
-}
-
-// DeleteResourceDomain calls loco.domain.v1.DomainService.DeleteResourceDomain.
-func (c *domainServiceClient) DeleteResourceDomain(ctx context.Context, req *connect.Request[v1.DeleteResourceDomainRequest]) (*connect.Response[v1.DeleteResourceDomainResponse], error) {
-	return c.deleteResourceDomain.CallUnary(ctx, req)
-}
-
-// ListLocoOwnedDomains calls loco.domain.v1.DomainService.ListLocoOwnedDomains.
-func (c *domainServiceClient) ListLocoOwnedDomains(ctx context.Context, req *connect.Request[v1.ListLocoOwnedDomainsRequest]) (*connect.Response[v1.ListLocoOwnedDomainsResponse], error) {
-	return c.listLocoOwnedDomains.CallUnary(ctx, req)
-}
-
-// CheckDomainAvailability calls loco.domain.v1.DomainService.CheckDomainAvailability.
-func (c *domainServiceClient) CheckDomainAvailability(ctx context.Context, req *connect.Request[v1.CheckDomainAvailabilityRequest]) (*connect.Response[v1.CheckDomainAvailabilityResponse], error) {
-	return c.checkDomainAvailability.CallUnary(ctx, req)
+// NewDomainServiceClient constructs a client for the loco.domain.v1.DomainService service. Multiple
+// service clients may share a single connect.Client.
+func NewDomainServiceClient(client *connect.Client) DomainServiceClient {
+	return &domainServiceClient{client: client}
 }
 
 // DomainServiceHandler is an implementation of the loco.domain.v1.DomainService service.
 type DomainServiceHandler interface {
 	// Platform Domain CRUD
 	// CreatePlatformDomain creates a new platform-provided domain.
-	CreatePlatformDomain(context.Context, *connect.Request[v1.CreatePlatformDomainRequest]) (*connect.Response[v1.CreatePlatformDomainResponse], error)
+	CreatePlatformDomain(context.Context, *v1.CreatePlatformDomainRequest) (*v1.CreatePlatformDomainResponse, error)
 	// GetPlatformDomain retrieves a platform domain by ID or name.
-	GetPlatformDomain(context.Context, *connect.Request[v1.GetPlatformDomainRequest]) (*connect.Response[v1.GetPlatformDomainResponse], error)
+	GetPlatformDomain(context.Context, *v1.GetPlatformDomainRequest) (*v1.GetPlatformDomainResponse, error)
 	// ListPlatformDomains lists platform domains with optional filters.
-	ListPlatformDomains(context.Context, *connect.Request[v1.ListPlatformDomainsRequest]) (*connect.Response[v1.ListPlatformDomainsResponse], error)
+	ListPlatformDomains(context.Context, *v1.ListPlatformDomainsRequest) (*v1.ListPlatformDomainsResponse, error)
 	// UpdatePlatformDomain updates a platform domain.
-	UpdatePlatformDomain(context.Context, *connect.Request[v1.UpdatePlatformDomainRequest]) (*connect.Response[v1.UpdatePlatformDomainResponse], error)
+	UpdatePlatformDomain(context.Context, *v1.UpdatePlatformDomainRequest) (*v1.UpdatePlatformDomainResponse, error)
 	// DeletePlatformDomain deletes a platform domain.
-	DeletePlatformDomain(context.Context, *connect.Request[v1.DeletePlatformDomainRequest]) (*connect.Response[v1.DeletePlatformDomainResponse], error)
+	DeletePlatformDomain(context.Context, *v1.DeletePlatformDomainRequest) (*v1.DeletePlatformDomainResponse, error)
 	// Resource Domain Management
 	// CreateResourceDomain assigns a domain to a resource.
-	CreateResourceDomain(context.Context, *connect.Request[v1.CreateResourceDomainRequest]) (*connect.Response[v1.CreateResourceDomainResponse], error)
+	CreateResourceDomain(context.Context, *v1.CreateResourceDomainRequest) (*v1.CreateResourceDomainResponse, error)
 	// UpdateResourceDomain updates a resource's domain configuration.
-	UpdateResourceDomain(context.Context, *connect.Request[v1.UpdateResourceDomainRequest]) (*connect.Response[v1.UpdateResourceDomainResponse], error)
+	UpdateResourceDomain(context.Context, *v1.UpdateResourceDomainRequest) (*v1.UpdateResourceDomainResponse, error)
 	// SetPrimaryResourceDomain sets the primary domain for a resource.
-	SetPrimaryResourceDomain(context.Context, *connect.Request[v1.SetPrimaryResourceDomainRequest]) (*connect.Response[v1.SetPrimaryResourceDomainResponse], error)
+	SetPrimaryResourceDomain(context.Context, *v1.SetPrimaryResourceDomainRequest) (*v1.SetPrimaryResourceDomainResponse, error)
 	// DeleteResourceDomain removes a domain from a resource.
-	DeleteResourceDomain(context.Context, *connect.Request[v1.DeleteResourceDomainRequest]) (*connect.Response[v1.DeleteResourceDomainResponse], error)
+	DeleteResourceDomain(context.Context, *v1.DeleteResourceDomainRequest) (*v1.DeleteResourceDomainResponse, error)
 	// Queries
 	// ListLocoOwnedDomains lists all domains owned by Loco with resources.
-	ListLocoOwnedDomains(context.Context, *connect.Request[v1.ListLocoOwnedDomainsRequest]) (*connect.Response[v1.ListLocoOwnedDomainsResponse], error)
+	ListLocoOwnedDomains(context.Context, *v1.ListLocoOwnedDomainsRequest) (*v1.ListLocoOwnedDomainsResponse, error)
 	// CheckDomainAvailability checks if a domain is available.
-	CheckDomainAvailability(context.Context, *connect.Request[v1.CheckDomainAvailabilityRequest]) (*connect.Response[v1.CheckDomainAvailabilityResponse], error)
+	CheckDomainAvailability(context.Context, *v1.CheckDomainAvailabilityRequest) (*v1.CheckDomainAvailabilityResponse, error)
 }
 
-// NewDomainServiceHandler builds an HTTP handler from the service implementation. It returns the
-// path on which to mount the handler and the handler itself.
-//
-// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
-// and JSON codecs. They also support gzip compression.
-func NewDomainServiceHandler(svc DomainServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	domainServiceMethods := v1.File_loco_domain_v1_domain_proto.Services().ByName("DomainService").Methods()
-	domainServiceCreatePlatformDomainHandler := connect.NewUnaryHandler(
-		DomainServiceCreatePlatformDomainProcedure,
-		svc.CreatePlatformDomain,
-		connect.WithSchema(domainServiceMethods.ByName("CreatePlatformDomain")),
-		connect.WithHandlerOptions(opts...),
+// RegisterDomainServiceHandler registers svc as the loco.domain.v1.DomainService implementation on
+// server.
+func RegisterDomainServiceHandler(server *connect.Server, svc DomainServiceHandler) {
+	adapter := domainServiceHandler{svc: svc}
+	server.Register(
+		connect.Method{Spec: domainServiceCreatePlatformDomainSpec(), Handler: adapter.createPlatformDomain},
+		connect.Method{Spec: domainServiceGetPlatformDomainSpec(), Handler: adapter.getPlatformDomain},
+		connect.Method{Spec: domainServiceListPlatformDomainsSpec(), Handler: adapter.listPlatformDomains},
+		connect.Method{Spec: domainServiceUpdatePlatformDomainSpec(), Handler: adapter.updatePlatformDomain},
+		connect.Method{Spec: domainServiceDeletePlatformDomainSpec(), Handler: adapter.deletePlatformDomain},
+		connect.Method{Spec: domainServiceCreateResourceDomainSpec(), Handler: adapter.createResourceDomain},
+		connect.Method{Spec: domainServiceUpdateResourceDomainSpec(), Handler: adapter.updateResourceDomain},
+		connect.Method{Spec: domainServiceSetPrimaryResourceDomainSpec(), Handler: adapter.setPrimaryResourceDomain},
+		connect.Method{Spec: domainServiceDeleteResourceDomainSpec(), Handler: adapter.deleteResourceDomain},
+		connect.Method{Spec: domainServiceListLocoOwnedDomainsSpec(), Handler: adapter.listLocoOwnedDomains},
+		connect.Method{Spec: domainServiceCheckDomainAvailabilitySpec(), Handler: adapter.checkDomainAvailability},
 	)
-	domainServiceGetPlatformDomainHandler := connect.NewUnaryHandler(
-		DomainServiceGetPlatformDomainProcedure,
-		svc.GetPlatformDomain,
-		connect.WithSchema(domainServiceMethods.ByName("GetPlatformDomain")),
-		connect.WithHandlerOptions(opts...),
-	)
-	domainServiceListPlatformDomainsHandler := connect.NewUnaryHandler(
-		DomainServiceListPlatformDomainsProcedure,
-		svc.ListPlatformDomains,
-		connect.WithSchema(domainServiceMethods.ByName("ListPlatformDomains")),
-		connect.WithHandlerOptions(opts...),
-	)
-	domainServiceUpdatePlatformDomainHandler := connect.NewUnaryHandler(
-		DomainServiceUpdatePlatformDomainProcedure,
-		svc.UpdatePlatformDomain,
-		connect.WithSchema(domainServiceMethods.ByName("UpdatePlatformDomain")),
-		connect.WithHandlerOptions(opts...),
-	)
-	domainServiceDeletePlatformDomainHandler := connect.NewUnaryHandler(
-		DomainServiceDeletePlatformDomainProcedure,
-		svc.DeletePlatformDomain,
-		connect.WithSchema(domainServiceMethods.ByName("DeletePlatformDomain")),
-		connect.WithHandlerOptions(opts...),
-	)
-	domainServiceCreateResourceDomainHandler := connect.NewUnaryHandler(
-		DomainServiceCreateResourceDomainProcedure,
-		svc.CreateResourceDomain,
-		connect.WithSchema(domainServiceMethods.ByName("CreateResourceDomain")),
-		connect.WithHandlerOptions(opts...),
-	)
-	domainServiceUpdateResourceDomainHandler := connect.NewUnaryHandler(
-		DomainServiceUpdateResourceDomainProcedure,
-		svc.UpdateResourceDomain,
-		connect.WithSchema(domainServiceMethods.ByName("UpdateResourceDomain")),
-		connect.WithHandlerOptions(opts...),
-	)
-	domainServiceSetPrimaryResourceDomainHandler := connect.NewUnaryHandler(
-		DomainServiceSetPrimaryResourceDomainProcedure,
-		svc.SetPrimaryResourceDomain,
-		connect.WithSchema(domainServiceMethods.ByName("SetPrimaryResourceDomain")),
-		connect.WithHandlerOptions(opts...),
-	)
-	domainServiceDeleteResourceDomainHandler := connect.NewUnaryHandler(
-		DomainServiceDeleteResourceDomainProcedure,
-		svc.DeleteResourceDomain,
-		connect.WithSchema(domainServiceMethods.ByName("DeleteResourceDomain")),
-		connect.WithHandlerOptions(opts...),
-	)
-	domainServiceListLocoOwnedDomainsHandler := connect.NewUnaryHandler(
-		DomainServiceListLocoOwnedDomainsProcedure,
-		svc.ListLocoOwnedDomains,
-		connect.WithSchema(domainServiceMethods.ByName("ListLocoOwnedDomains")),
-		connect.WithHandlerOptions(opts...),
-	)
-	domainServiceCheckDomainAvailabilityHandler := connect.NewUnaryHandler(
-		DomainServiceCheckDomainAvailabilityProcedure,
-		svc.CheckDomainAvailability,
-		connect.WithSchema(domainServiceMethods.ByName("CheckDomainAvailability")),
-		connect.WithHandlerOptions(opts...),
-	)
-	return "/loco.domain.v1.DomainService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case DomainServiceCreatePlatformDomainProcedure:
-			domainServiceCreatePlatformDomainHandler.ServeHTTP(w, r)
-		case DomainServiceGetPlatformDomainProcedure:
-			domainServiceGetPlatformDomainHandler.ServeHTTP(w, r)
-		case DomainServiceListPlatformDomainsProcedure:
-			domainServiceListPlatformDomainsHandler.ServeHTTP(w, r)
-		case DomainServiceUpdatePlatformDomainProcedure:
-			domainServiceUpdatePlatformDomainHandler.ServeHTTP(w, r)
-		case DomainServiceDeletePlatformDomainProcedure:
-			domainServiceDeletePlatformDomainHandler.ServeHTTP(w, r)
-		case DomainServiceCreateResourceDomainProcedure:
-			domainServiceCreateResourceDomainHandler.ServeHTTP(w, r)
-		case DomainServiceUpdateResourceDomainProcedure:
-			domainServiceUpdateResourceDomainHandler.ServeHTTP(w, r)
-		case DomainServiceSetPrimaryResourceDomainProcedure:
-			domainServiceSetPrimaryResourceDomainHandler.ServeHTTP(w, r)
-		case DomainServiceDeleteResourceDomainProcedure:
-			domainServiceDeleteResourceDomainHandler.ServeHTTP(w, r)
-		case DomainServiceListLocoOwnedDomainsProcedure:
-			domainServiceListLocoOwnedDomainsHandler.ServeHTTP(w, r)
-		case DomainServiceCheckDomainAvailabilityProcedure:
-			domainServiceCheckDomainAvailabilityHandler.ServeHTTP(w, r)
-		default:
-			http.NotFound(w, r)
-		}
-	})
 }
 
 // UnimplementedDomainServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedDomainServiceHandler struct{}
 
-func (UnimplementedDomainServiceHandler) CreatePlatformDomain(context.Context, *connect.Request[v1.CreatePlatformDomainRequest]) (*connect.Response[v1.CreatePlatformDomainResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.domain.v1.DomainService.CreatePlatformDomain is not implemented"))
+func (UnimplementedDomainServiceHandler) CreatePlatformDomain(context.Context, *v1.CreatePlatformDomainRequest) (*v1.CreatePlatformDomainResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.domain.v1.DomainService.CreatePlatformDomain is not implemented")
 }
 
-func (UnimplementedDomainServiceHandler) GetPlatformDomain(context.Context, *connect.Request[v1.GetPlatformDomainRequest]) (*connect.Response[v1.GetPlatformDomainResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.domain.v1.DomainService.GetPlatformDomain is not implemented"))
+func (UnimplementedDomainServiceHandler) GetPlatformDomain(context.Context, *v1.GetPlatformDomainRequest) (*v1.GetPlatformDomainResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.domain.v1.DomainService.GetPlatformDomain is not implemented")
 }
 
-func (UnimplementedDomainServiceHandler) ListPlatformDomains(context.Context, *connect.Request[v1.ListPlatformDomainsRequest]) (*connect.Response[v1.ListPlatformDomainsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.domain.v1.DomainService.ListPlatformDomains is not implemented"))
+func (UnimplementedDomainServiceHandler) ListPlatformDomains(context.Context, *v1.ListPlatformDomainsRequest) (*v1.ListPlatformDomainsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.domain.v1.DomainService.ListPlatformDomains is not implemented")
 }
 
-func (UnimplementedDomainServiceHandler) UpdatePlatformDomain(context.Context, *connect.Request[v1.UpdatePlatformDomainRequest]) (*connect.Response[v1.UpdatePlatformDomainResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.domain.v1.DomainService.UpdatePlatformDomain is not implemented"))
+func (UnimplementedDomainServiceHandler) UpdatePlatformDomain(context.Context, *v1.UpdatePlatformDomainRequest) (*v1.UpdatePlatformDomainResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.domain.v1.DomainService.UpdatePlatformDomain is not implemented")
 }
 
-func (UnimplementedDomainServiceHandler) DeletePlatformDomain(context.Context, *connect.Request[v1.DeletePlatformDomainRequest]) (*connect.Response[v1.DeletePlatformDomainResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.domain.v1.DomainService.DeletePlatformDomain is not implemented"))
+func (UnimplementedDomainServiceHandler) DeletePlatformDomain(context.Context, *v1.DeletePlatformDomainRequest) (*v1.DeletePlatformDomainResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.domain.v1.DomainService.DeletePlatformDomain is not implemented")
 }
 
-func (UnimplementedDomainServiceHandler) CreateResourceDomain(context.Context, *connect.Request[v1.CreateResourceDomainRequest]) (*connect.Response[v1.CreateResourceDomainResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.domain.v1.DomainService.CreateResourceDomain is not implemented"))
+func (UnimplementedDomainServiceHandler) CreateResourceDomain(context.Context, *v1.CreateResourceDomainRequest) (*v1.CreateResourceDomainResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.domain.v1.DomainService.CreateResourceDomain is not implemented")
 }
 
-func (UnimplementedDomainServiceHandler) UpdateResourceDomain(context.Context, *connect.Request[v1.UpdateResourceDomainRequest]) (*connect.Response[v1.UpdateResourceDomainResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.domain.v1.DomainService.UpdateResourceDomain is not implemented"))
+func (UnimplementedDomainServiceHandler) UpdateResourceDomain(context.Context, *v1.UpdateResourceDomainRequest) (*v1.UpdateResourceDomainResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.domain.v1.DomainService.UpdateResourceDomain is not implemented")
 }
 
-func (UnimplementedDomainServiceHandler) SetPrimaryResourceDomain(context.Context, *connect.Request[v1.SetPrimaryResourceDomainRequest]) (*connect.Response[v1.SetPrimaryResourceDomainResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.domain.v1.DomainService.SetPrimaryResourceDomain is not implemented"))
+func (UnimplementedDomainServiceHandler) SetPrimaryResourceDomain(context.Context, *v1.SetPrimaryResourceDomainRequest) (*v1.SetPrimaryResourceDomainResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.domain.v1.DomainService.SetPrimaryResourceDomain is not implemented")
 }
 
-func (UnimplementedDomainServiceHandler) DeleteResourceDomain(context.Context, *connect.Request[v1.DeleteResourceDomainRequest]) (*connect.Response[v1.DeleteResourceDomainResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.domain.v1.DomainService.DeleteResourceDomain is not implemented"))
+func (UnimplementedDomainServiceHandler) DeleteResourceDomain(context.Context, *v1.DeleteResourceDomainRequest) (*v1.DeleteResourceDomainResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.domain.v1.DomainService.DeleteResourceDomain is not implemented")
 }
 
-func (UnimplementedDomainServiceHandler) ListLocoOwnedDomains(context.Context, *connect.Request[v1.ListLocoOwnedDomainsRequest]) (*connect.Response[v1.ListLocoOwnedDomainsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.domain.v1.DomainService.ListLocoOwnedDomains is not implemented"))
+func (UnimplementedDomainServiceHandler) ListLocoOwnedDomains(context.Context, *v1.ListLocoOwnedDomainsRequest) (*v1.ListLocoOwnedDomainsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.domain.v1.DomainService.ListLocoOwnedDomains is not implemented")
 }
 
-func (UnimplementedDomainServiceHandler) CheckDomainAvailability(context.Context, *connect.Request[v1.CheckDomainAvailabilityRequest]) (*connect.Response[v1.CheckDomainAvailabilityResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.domain.v1.DomainService.CheckDomainAvailability is not implemented"))
+func (UnimplementedDomainServiceHandler) CheckDomainAvailability(context.Context, *v1.CheckDomainAvailabilityRequest) (*v1.CheckDomainAvailabilityResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.domain.v1.DomainService.CheckDomainAvailability is not implemented")
+}
+
+type domainServiceClient struct {
+	client *connect.Client
+}
+
+func (c *domainServiceClient) CreatePlatformDomain(ctx context.Context, req *v1.CreatePlatformDomainRequest) (*v1.CreatePlatformDomainResponse, error) {
+	var res v1.CreatePlatformDomainResponse
+	if err := c.client.CallUnary(ctx, domainServiceCreatePlatformDomainSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *domainServiceClient) GetPlatformDomain(ctx context.Context, req *v1.GetPlatformDomainRequest) (*v1.GetPlatformDomainResponse, error) {
+	var res v1.GetPlatformDomainResponse
+	if err := c.client.CallUnary(ctx, domainServiceGetPlatformDomainSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *domainServiceClient) ListPlatformDomains(ctx context.Context, req *v1.ListPlatformDomainsRequest) (*v1.ListPlatformDomainsResponse, error) {
+	var res v1.ListPlatformDomainsResponse
+	if err := c.client.CallUnary(ctx, domainServiceListPlatformDomainsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *domainServiceClient) UpdatePlatformDomain(ctx context.Context, req *v1.UpdatePlatformDomainRequest) (*v1.UpdatePlatformDomainResponse, error) {
+	var res v1.UpdatePlatformDomainResponse
+	if err := c.client.CallUnary(ctx, domainServiceUpdatePlatformDomainSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *domainServiceClient) DeletePlatformDomain(ctx context.Context, req *v1.DeletePlatformDomainRequest) (*v1.DeletePlatformDomainResponse, error) {
+	var res v1.DeletePlatformDomainResponse
+	if err := c.client.CallUnary(ctx, domainServiceDeletePlatformDomainSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *domainServiceClient) CreateResourceDomain(ctx context.Context, req *v1.CreateResourceDomainRequest) (*v1.CreateResourceDomainResponse, error) {
+	var res v1.CreateResourceDomainResponse
+	if err := c.client.CallUnary(ctx, domainServiceCreateResourceDomainSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *domainServiceClient) UpdateResourceDomain(ctx context.Context, req *v1.UpdateResourceDomainRequest) (*v1.UpdateResourceDomainResponse, error) {
+	var res v1.UpdateResourceDomainResponse
+	if err := c.client.CallUnary(ctx, domainServiceUpdateResourceDomainSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *domainServiceClient) SetPrimaryResourceDomain(ctx context.Context, req *v1.SetPrimaryResourceDomainRequest) (*v1.SetPrimaryResourceDomainResponse, error) {
+	var res v1.SetPrimaryResourceDomainResponse
+	if err := c.client.CallUnary(ctx, domainServiceSetPrimaryResourceDomainSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *domainServiceClient) DeleteResourceDomain(ctx context.Context, req *v1.DeleteResourceDomainRequest) (*v1.DeleteResourceDomainResponse, error) {
+	var res v1.DeleteResourceDomainResponse
+	if err := c.client.CallUnary(ctx, domainServiceDeleteResourceDomainSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *domainServiceClient) ListLocoOwnedDomains(ctx context.Context, req *v1.ListLocoOwnedDomainsRequest) (*v1.ListLocoOwnedDomainsResponse, error) {
+	var res v1.ListLocoOwnedDomainsResponse
+	if err := c.client.CallUnary(ctx, domainServiceListLocoOwnedDomainsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *domainServiceClient) CheckDomainAvailability(ctx context.Context, req *v1.CheckDomainAvailabilityRequest) (*v1.CheckDomainAvailabilityResponse, error) {
+	var res v1.CheckDomainAvailabilityResponse
+	if err := c.client.CallUnary(ctx, domainServiceCheckDomainAvailabilitySpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+type domainServiceHandler struct{ svc DomainServiceHandler }
+
+func (h domainServiceHandler) createPlatformDomain(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.CreatePlatformDomainRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.CreatePlatformDomain(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h domainServiceHandler) getPlatformDomain(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetPlatformDomainRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetPlatformDomain(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h domainServiceHandler) listPlatformDomains(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListPlatformDomainsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListPlatformDomains(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h domainServiceHandler) updatePlatformDomain(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.UpdatePlatformDomainRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.UpdatePlatformDomain(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h domainServiceHandler) deletePlatformDomain(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.DeletePlatformDomainRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.DeletePlatformDomain(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h domainServiceHandler) createResourceDomain(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.CreateResourceDomainRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.CreateResourceDomain(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h domainServiceHandler) updateResourceDomain(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.UpdateResourceDomainRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.UpdateResourceDomain(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h domainServiceHandler) setPrimaryResourceDomain(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.SetPrimaryResourceDomainRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.SetPrimaryResourceDomain(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h domainServiceHandler) deleteResourceDomain(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.DeleteResourceDomainRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.DeleteResourceDomain(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h domainServiceHandler) listLocoOwnedDomains(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListLocoOwnedDomainsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListLocoOwnedDomains(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h domainServiceHandler) checkDomainAvailability(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.CheckDomainAvailabilityRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.CheckDomainAvailability(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
 }

@@ -9,7 +9,6 @@ import (
 
 	"github.com/team-loco/loco/internal/rpc"
 
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
@@ -125,13 +124,13 @@ Tokens can be scoped to different entity types:
 				return err
 			}
 
-			req := connect.NewRequest(&tokenv1.CreateTokenRequest{
+			req := &tokenv1.CreateTokenRequest{
 				Name:         name,
 				EntityType:   entityType,
 				EntityId:     entityID,
 				Scopes:       scopes,
 				ExpiresInSec: expiresSec,
-			})
+			}
 
 			resp, err := tokenClient.CreateToken(ctx, req)
 			if err != nil {
@@ -140,9 +139,9 @@ Tokens can be scoped to different entity types:
 
 			fmt.Fprintln(deps.Output, "Token created successfully!")
 			fmt.Fprintln(deps.Output, "")
-			fmt.Fprintf(deps.Output, "Name: %s\n", resp.Msg.GetTokenMetadata().GetName())
+			fmt.Fprintf(deps.Output, "Name: %s\n", resp.GetTokenMetadata().GetName())
 			fmt.Fprintf(deps.Output, "Entity: %s (ID: %s)\n", entityTypeStr, entityID)
-			fmt.Fprintf(deps.Output, "Token: %s\n", resp.Msg.GetToken())
+			fmt.Fprintf(deps.Output, "Token: %s\n", resp.GetToken())
 			fmt.Fprintln(deps.Output, "")
 			fmt.Fprintln(deps.Output, "Save this token - it won't be shown again!")
 			return nil

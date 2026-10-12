@@ -10,7 +10,6 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
@@ -99,16 +98,16 @@ func (s *buildsSession) getBuild(buildID string) (*buildv1.Build, error) {
 
 func (s *buildsSession) workspaceOf(build *buildv1.Build) (string, error) {
 	resourceID := build.GetResourceId()
-	req := connect.NewRequest(&resourcev1.GetResourceRequest{
+	req := &resourcev1.GetResourceRequest{
 		Key: &resourcev1.GetResourceRequest_ResourceId{ResourceId: resourceID},
-	})
+	}
 
 	resources := s.deps.Clients.Resources(s.host, s.token)
 	resp, err := resources.GetResource(s.ctx, req)
 	if err != nil {
 		return "", fmt.Errorf("get the build's service: %w", err)
 	}
-	return resp.Msg.GetResource().GetWorkspaceId(), nil
+	return resp.GetResource().GetWorkspaceId(), nil
 }
 
 func readOutput(cmd *cobra.Command) (string, error) {
@@ -187,17 +186,17 @@ func runBuildsList(cmd *cobra.Command, deps buildsDeps, name string) error {
 	}
 
 	resourceID := resource.GetId()
-	req := connect.NewRequest(&buildv1.ListBuildsRequest{ResourceId: resourceID, PageSize: limit})
+	req := &buildv1.ListBuildsRequest{ResourceId: resourceID, PageSize: limit}
 
 	buildClient := deps.Clients.Builds(s.host, s.token)
 	resp, err := buildClient.ListBuilds(s.ctx, req)
 	if err != nil {
 		return fmt.Errorf("list builds: %w", err)
 	}
-	builds := resp.Msg.GetBuilds()
+	builds := resp.GetBuilds()
 
 	if output == outputJSON {
-		return writeJSON(deps.Stdout, resp.Msg)
+		return writeJSON(deps.Stdout, resp)
 	}
 	if len(builds) == 0 {
 		_, err = fmt.Fprintf(deps.Stdout, "%s has no builds.\n", name)
@@ -376,14 +375,14 @@ func newBuildsCancelCmd(deps buildsDeps) *cobra.Command {
 				return err
 			}
 			defer s.cancel()
-			req := connect.NewRequest(&buildv1.CancelBuildRequest{BuildId: args[0]})
+			req := &buildv1.CancelBuildRequest{BuildId: args[0]}
 
 			builds := deps.Clients.Builds(s.host, s.token)
 			resp, err := builds.CancelBuild(s.ctx, req)
 			if err != nil {
 				return fmt.Errorf("cancel build %s: %w", args[0], err)
 			}
-			canceled := resp.Msg.GetBuild()
+			canceled := resp.GetBuild()
 			description := describeBuild(canceled)
 			_, err = fmt.Fprintln(deps.Stdout, description)
 			return err

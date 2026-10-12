@@ -7,7 +7,6 @@ import (
 
 	"github.com/team-loco/loco/internal/rpc"
 
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
@@ -65,7 +64,7 @@ func newCreateCmd(deps createDeps) *cobra.Command {
 				createReq.Name = &name
 			}
 
-			req := connect.NewRequest(createReq)
+			req := createReq
 
 			resp, err := orgClient.CreateOrg(ctx, req)
 			if err != nil {
@@ -75,7 +74,7 @@ func newCreateCmd(deps createDeps) *cobra.Command {
 				return fmt.Errorf("unable to create organization: %w", err)
 			}
 
-			fmt.Fprintf(deps.Output, "Organization %q created successfully (ID: %s)\n", name, resp.Msg.GetOrgId())
+			fmt.Fprintf(deps.Output, "Organization %q created successfully (ID: %s)\n", name, resp.GetOrgId())
 			return nil
 		},
 	}

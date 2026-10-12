@@ -7,7 +7,6 @@ import (
 
 	"github.com/team-loco/loco/internal/rpc"
 
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
@@ -64,9 +63,9 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 				return fmt.Errorf("failed to get yes flag: %w", err)
 			}
 
-			getReq := connect.NewRequest(&orgv1.GetOrgRequest{
+			getReq := &orgv1.GetOrgRequest{
 				Key: &orgv1.GetOrgRequest_OrgName{OrgName: name},
-			})
+			}
 
 			getResp, err := orgClient.GetOrg(ctx, getReq)
 			if err != nil {
@@ -86,9 +85,9 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 				}
 			}
 
-			delReq := connect.NewRequest(&orgv1.DeleteOrgRequest{
-				OrgId: getResp.Msg.GetOrganization().GetId(),
-			})
+			delReq := &orgv1.DeleteOrgRequest{
+				OrgId: getResp.GetOrganization().GetId(),
+			}
 
 			_, err = orgClient.DeleteOrg(ctx, delReq)
 			if err != nil {

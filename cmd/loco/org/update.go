@@ -8,7 +8,6 @@ import (
 
 	"github.com/team-loco/loco/internal/rpc"
 
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
@@ -66,20 +65,20 @@ func newUpdateCmd(deps updateDeps) *cobra.Command {
 
 			name := args[0]
 
-			getReq := connect.NewRequest(&orgv1.GetOrgRequest{
+			getReq := &orgv1.GetOrgRequest{
 				Key: &orgv1.GetOrgRequest_OrgName{OrgName: name},
-			})
+			}
 
 			getResp, err := orgClient.GetOrg(ctx, getReq)
 			if err != nil {
 				return fmt.Errorf("organization %q not found: %w", name, err)
 			}
 
-			updateReq := connect.NewRequest(&orgv1.UpdateOrgRequest{
-				OrgId:      getResp.Msg.GetOrganization().GetId(),
+			updateReq := &orgv1.UpdateOrgRequest{
+				OrgId:      getResp.GetOrganization().GetId(),
 				UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"name"}},
 				Name:       &newName,
-			})
+			}
 
 			_, err = orgClient.UpdateOrg(ctx, updateReq)
 			if err != nil {

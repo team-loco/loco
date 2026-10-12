@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -63,13 +63,13 @@ func (f *secretFixture) server(t *testing.T, provider secretkeys.Provider) *Secr
 
 func (f *secretFixture) set(t *testing.T, server *SecretServer, values map[string]string) *secretv1.SetSecretsResponse {
 	t.Helper()
-	res, err := server.SetSecrets(f.owner, connect.NewRequest(&secretv1.SetSecretsRequest{
+	res, err := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
 		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(), Values: values,
-	}))
+	})
 	if err != nil {
 		t.Fatalf("set secrets: %v", err)
 	}
-	return res.Msg
+	return res
 }
 
 func (f *secretFixture) eventData(t *testing.T, eventType string) (map[string]any, string) {
@@ -127,13 +127,13 @@ func TestSetSecretsStoresCiphertextAndBumpsVersions(t *testing.T) {
 		t.Fatalf("plaintext = %q", plaintext)
 	}
 
-	listed, err := server.ListSecrets(f.owner, connect.NewRequest(&secretv1.ListSecretsRequest{
+	listed, err := server.ListSecrets(f.owner, &secretv1.ListSecretsRequest{
 		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(),
-	}))
+	})
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
-	secrets := listed.Msg.GetSecrets()
+	secrets := listed.GetSecrets()
 	if len(secrets) != 2 || secrets[1].GetName() != stripeKey || secrets[1].GetVersion() != 2 ||
 		secrets[1].GetUpdatedByType() != string(genDb.EntityTypeUser) ||
 		secrets[1].GetUpdatedById() != f.ownerID.String() {
@@ -148,18 +148,18 @@ func TestSetSecretsStoresCiphertextAndBumpsVersions(t *testing.T) {
 func TestSetSecretsEnforcesLimits(t *testing.T) {
 	f := newSecretFixture(t)
 	server := f.server(t, testLocalProvider(t, "k1"))
-	_, err := server.SetSecrets(f.owner, connect.NewRequest(&secretv1.SetSecretsRequest{
+	_, err := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
 		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(),
 		Values: map[string]string{"BIG": strings.Repeat("x", testMaxValue+1)},
-	}))
+	})
 	if code := connect.CodeOf(err); code != connect.CodeInvalidArgument {
 		t.Fatalf("oversized value: code = %v, want InvalidArgument", code)
 	}
 	f.set(t, server, map[string]string{"A": "1", "B": "2"})
-	_, err = server.SetSecrets(f.owner, connect.NewRequest(&secretv1.SetSecretsRequest{
+	_, err = server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
 		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(),
 		Values: map[string]string{"B": "2", "C": "3", "D": "4"},
-	}))
+	})
 	if code := connect.CodeOf(err); code != connect.CodeResourceExhausted {
 		t.Fatalf("fourth name: code = %v, want ResourceExhausted", code)
 	}
@@ -173,9 +173,9 @@ func TestDeleteSecretsRemovesNamesAndBumpsRevision(t *testing.T) {
 	server := f.server(t, testLocalProvider(t, "k1"))
 	f.set(t, server, map[string]string{"A": "1", "B": "2"})
 
-	_, err := server.DeleteSecrets(f.owner, connect.NewRequest(&secretv1.DeleteSecretsRequest{
+	_, err := server.DeleteSecrets(f.owner, &secretv1.DeleteSecretsRequest{
 		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(), Names: []string{"A", missingName},
-	}))
+	})
 	if code := connect.CodeOf(err); code != connect.CodeNotFound {
 		t.Fatalf("delete with a missing name: code = %v, want NotFound", code)
 	}
@@ -183,14 +183,14 @@ func TestDeleteSecretsRemovesNamesAndBumpsRevision(t *testing.T) {
 		t.Fatalf("names after the refused delete = %v, want both", names)
 	}
 
-	res, err := server.DeleteSecrets(f.owner, connect.NewRequest(&secretv1.DeleteSecretsRequest{
+	res, err := server.DeleteSecrets(f.owner, &secretv1.DeleteSecretsRequest{
 		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(), Names: []string{"A"},
-	}))
+	})
 	if err != nil {
 		t.Fatalf("delete: %v", err)
 	}
-	if res.Msg.GetRevision() != 2 {
-		t.Fatalf("revision = %d, want 2", res.Msg.GetRevision())
+	if res.GetRevision() != 2 {
+		t.Fatalf("revision = %d, want 2", res.GetRevision())
 	}
 	if names := f.names(t); len(names) != 1 || names[0] != "B" {
 		t.Fatalf("names = %v, want B", names)
@@ -216,12 +216,12 @@ func TestRewrapEnvironmentKeysUsesTheCurrentKey(t *testing.T) {
 	admin := secretAuthzContext(t, genDb.EntityScope{EntityType: genDb.EntityTypeSystem, Scope: genDb.ScopeAdmin})
 
 	rotated := f.server(t, testLocalProvider(t, "k2", "k1"))
-	res, err := rotated.RewrapEnvironmentKeys(admin, connect.NewRequest(&secretv1.RewrapEnvironmentKeysRequest{}))
+	res, err := rotated.RewrapEnvironmentKeys(admin, &secretv1.RewrapEnvironmentKeysRequest{})
 	if err != nil {
 		t.Fatalf("rewrap: %v", err)
 	}
-	if res.Msg.GetRewrapped() != 1 || res.Msg.GetSkipped() != 0 {
-		t.Fatalf("rewrap = %+v, want one rewrapped", res.Msg)
+	if res.GetRewrapped() != 1 || res.GetSkipped() != 0 {
+		t.Fatalf("rewrap = %+v, want one rewrapped", res)
 	}
 	key, err := f.queries.GetEnvironmentKey(t.Context(), f.environmentID)
 	if err != nil {
@@ -240,36 +240,36 @@ func TestRewrapEnvironmentKeysUsesTheCurrentKey(t *testing.T) {
 	if bumped.GetVersions()[0].GetVersion() != 2 {
 		t.Fatalf("set after rewrap = %+v, want version 2", bumped)
 	}
-	again, err := withoutK1.RewrapEnvironmentKeys(admin, connect.NewRequest(&secretv1.RewrapEnvironmentKeysRequest{}))
+	again, err := withoutK1.RewrapEnvironmentKeys(admin, &secretv1.RewrapEnvironmentKeysRequest{})
 	if err != nil {
 		t.Fatalf("rewrap again: %v", err)
 	}
-	if again.Msg.GetRewrapped() != 0 || again.Msg.GetSkipped() != 0 {
-		t.Fatalf("second rewrap = %+v, want nothing to do", again.Msg)
+	if again.GetRewrapped() != 0 || again.GetSkipped() != 0 {
+		t.Fatalf("second rewrap = %+v, want nothing to do", again)
 	}
 
 	stale := f.environment(t, f.workspaceID, "staging")
 	staleFixture := *f
 	staleFixture.environmentID = stale
 	staleFixture.set(t, f.server(t, testLocalProvider(t, "k0")), map[string]string{"A": "1"})
-	skipped, err := withoutK1.RewrapEnvironmentKeys(admin, connect.NewRequest(&secretv1.RewrapEnvironmentKeysRequest{}))
+	skipped, err := withoutK1.RewrapEnvironmentKeys(admin, &secretv1.RewrapEnvironmentKeysRequest{})
 	if err != nil {
 		t.Fatalf("rewrap with a retired key: %v", err)
 	}
-	ids := skipped.Msg.GetSkippedEnvironmentIds()
-	if skipped.Msg.GetSkipped() != 1 || skipped.Msg.GetRewrapped() != 0 || len(ids) != 1 || ids[0] != stale.String() {
-		t.Fatalf("rewrap with a retired key = %+v, want %s skipped", skipped.Msg, stale)
+	ids := skipped.GetSkippedEnvironmentIds()
+	if skipped.GetSkipped() != 1 || skipped.GetRewrapped() != 0 || len(ids) != 1 || ids[0] != stale.String() {
+		t.Fatalf("rewrap with a retired key = %+v, want %s skipped", skipped, stale)
 	}
 }
 
 func TestSetSecretsOnUnknownEnvironment(t *testing.T) {
 	f := newSecretFixture(t)
 	server := f.server(t, testLocalProvider(t, "k1"))
-	_, err := server.SetSecrets(f.owner, connect.NewRequest(&secretv1.SetSecretsRequest{
+	_, err := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
 		ResourceId:    f.resourceID.String(),
 		EnvironmentId: "0199c3f0-0000-7000-8000-000000000000",
 		Values:        map[string]string{"A": "1"},
-	}))
+	})
 	if code := connect.CodeOf(err); code != connect.CodeNotFound {
 		t.Fatalf("code = %v, want NotFound", code)
 	}
@@ -279,21 +279,21 @@ func TestSecretsOfAnEnvironmentInAnotherWorkspaceAreNotFound(t *testing.T) {
 	f := newSecretFixture(t)
 	server := f.server(t, testLocalProvider(t, "k1"))
 	other := f.environment(t, f.workspace(t, "warehouse"), "prod")
-	_, err := server.SetSecrets(f.owner, connect.NewRequest(&secretv1.SetSecretsRequest{
+	_, err := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
 		ResourceId: f.resourceID.String(), EnvironmentId: other.String(), Values: map[string]string{"A": "1"},
-	}))
+	})
 	if code := connect.CodeOf(err); code != connect.CodeNotFound {
 		t.Fatalf("set: code = %v, want NotFound", code)
 	}
-	_, err = server.ListSecrets(f.owner, connect.NewRequest(&secretv1.ListSecretsRequest{
+	_, err = server.ListSecrets(f.owner, &secretv1.ListSecretsRequest{
 		ResourceId: f.resourceID.String(), EnvironmentId: other.String(),
-	}))
+	})
 	if code := connect.CodeOf(err); code != connect.CodeNotFound {
 		t.Fatalf("list: code = %v, want NotFound", code)
 	}
-	_, err = server.DeleteSecrets(f.owner, connect.NewRequest(&secretv1.DeleteSecretsRequest{
+	_, err = server.DeleteSecrets(f.owner, &secretv1.DeleteSecretsRequest{
 		ResourceId: f.resourceID.String(), EnvironmentId: other.String(), Names: []string{"A"},
-	}))
+	})
 	if code := connect.CodeOf(err); code != connect.CodeNotFound {
 		t.Fatalf("delete: code = %v, want NotFound", code)
 	}
@@ -305,23 +305,23 @@ func TestTwoServicesHoldTheSameNameApart(t *testing.T) {
 	server := f.server(t, provider)
 	worker := f.resource(t, f.workspaceID, workerService)
 	f.set(t, server, map[string]string{stripeKey: stripeValue})
-	_, err := server.SetSecrets(f.owner, connect.NewRequest(&secretv1.SetSecretsRequest{
+	_, err := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
 		ResourceId: worker.String(), EnvironmentId: f.environmentID.String(),
 		Values: map[string]string{stripeKey: "worker-value", databaseURL: "postgres://w"},
-	}))
+	})
 	if err != nil {
 		t.Fatalf("set worker: %v", err)
 	}
 	if got, version := f.plaintext(t, provider, stripeKey); got != stripeValue || version != 1 {
 		t.Fatalf("web STRIPE_KEY = %q at version %d, want its own value at version 1", got, version)
 	}
-	listed, err := server.ListSecrets(f.owner, connect.NewRequest(&secretv1.ListSecretsRequest{
+	listed, err := server.ListSecrets(f.owner, &secretv1.ListSecretsRequest{
 		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(),
-	}))
+	})
 	if err != nil {
 		t.Fatalf("list web: %v", err)
 	}
-	if secrets := listed.Msg.GetSecrets(); len(secrets) != 1 || secrets[0].GetName() != stripeKey {
+	if secrets := listed.GetSecrets(); len(secrets) != 1 || secrets[0].GetName() != stripeKey {
 		t.Fatalf("web secrets = %+v, want only its STRIPE_KEY", secrets)
 	}
 }
@@ -425,16 +425,16 @@ func TestConcurrentSetsOfOneNameGetConsecutiveVersionsAndStayDecryptable(t *test
 	for i := range concurrentSets {
 		values[i] = fmt.Sprintf("value-%d", i)
 		group.Go(func() {
-			res, err := server.SetSecrets(f.owner, connect.NewRequest(&secretv1.SetSecretsRequest{
+			res, err := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
 				ResourceId:    f.resourceID.String(),
 				EnvironmentId: f.environmentID.String(),
 				Values:        map[string]string{stripeKey: values[i]},
-			}))
+			})
 			if err != nil {
 				t.Errorf("set %d: %v", i, err)
 				return
 			}
-			versions[i] = int(res.Msg.GetVersions()[0].GetVersion())
+			versions[i] = int(res.GetVersions()[0].GetVersion())
 		})
 	}
 	group.Wait()
@@ -513,11 +513,11 @@ func TestSetSecretsRefusesAServiceOverItsAggregateLimit(t *testing.T) {
 	f.declare(t, f.resourceID, alphaKey, betaKey)
 	f.set(t, server, map[string]string{alphaKey: strings.Repeat("a", 10), betaKey: strings.Repeat("b", 10)})
 
-	_, err := server.SetSecrets(f.owner, connect.NewRequest(&secretv1.SetSecretsRequest{
+	_, err := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
 		ResourceId:    f.resourceID.String(),
 		EnvironmentId: f.environmentID.String(),
 		Values:        map[string]string{alphaKey: strings.Repeat("a", 30)},
-	}))
+	})
 	if code := connect.CodeOf(err); code != connect.CodeFailedPrecondition {
 		t.Fatalf("oversized placement: err = %v, want FailedPrecondition", err)
 	}
@@ -533,20 +533,20 @@ func TestDeleteSecretsRefusesANameTheServiceDeclares(t *testing.T) {
 	f.declare(t, f.resourceID, alphaKey)
 	f.set(t, server, map[string]string{alphaKey: "1", unusedKey: "2"})
 
-	_, err := server.DeleteSecrets(f.owner, connect.NewRequest(&secretv1.DeleteSecretsRequest{
+	_, err := server.DeleteSecrets(f.owner, &secretv1.DeleteSecretsRequest{
 		ResourceId:    f.resourceID.String(),
 		EnvironmentId: f.environmentID.String(),
 		Names:         []string{alphaKey, unusedKey},
-	}))
+	})
 	if code := connect.CodeOf(err); code != connect.CodeFailedPrecondition || !strings.Contains(err.Error(), alphaKey) {
 		t.Fatalf("delete of a declared name: err = %v, want FailedPrecondition naming %s", err, alphaKey)
 	}
 	if names := f.names(t); len(names) != 2 {
 		t.Fatalf("names after the refused delete = %v, want both", names)
 	}
-	if _, err := server.DeleteSecrets(f.owner, connect.NewRequest(&secretv1.DeleteSecretsRequest{
+	if _, err := server.DeleteSecrets(f.owner, &secretv1.DeleteSecretsRequest{
 		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(), Names: []string{unusedKey},
-	})); err != nil {
+	}); err != nil {
 		t.Fatalf("delete of an undeclared name: %v", err)
 	}
 }
@@ -558,9 +558,9 @@ func TestDeleteSecretsIgnoresANameAnotherServiceDeclares(t *testing.T) {
 	f.declare(t, worker, alphaKey)
 	f.set(t, server, map[string]string{alphaKey: "1"})
 
-	if _, err := server.DeleteSecrets(f.owner, connect.NewRequest(&secretv1.DeleteSecretsRequest{
+	if _, err := server.DeleteSecrets(f.owner, &secretv1.DeleteSecretsRequest{
 		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(), Names: []string{alphaKey},
-	})); err != nil {
+	}); err != nil {
 		t.Fatalf("delete of a name only worker declares: %v", err)
 	}
 	if names := f.names(t); len(names) != 0 {
@@ -585,10 +585,10 @@ func TestSetSecretsOnAResourceDeletedWhileWaitingForItsLockIsNotFound(t *testing
 
 	result := make(chan error, 1)
 	go func() {
-		_, setErr := server.SetSecrets(f.owner, connect.NewRequest(&secretv1.SetSecretsRequest{
+		_, setErr := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
 			ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(),
 			Values: map[string]string{alphaKey: "2"},
-		}))
+		})
 		result <- setErr
 	}()
 	f.waitForLockWaiter(t)
@@ -637,31 +637,31 @@ func TestResourceTokenManagesOnlyItsOwnServicesSecrets(t *testing.T) {
 	worker := f.resource(t, f.workspaceID, workerService)
 	ctx := f.resourceTokenContext(t)
 
-	if _, err := server.SetSecrets(ctx, connect.NewRequest(&secretv1.SetSecretsRequest{
+	if _, err := server.SetSecrets(ctx, &secretv1.SetSecretsRequest{
 		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(),
 		Values: map[string]string{stripeKey: stripeValue},
-	})); err != nil {
+	}); err != nil {
 		t.Fatalf("set on its own service: %v", err)
 	}
-	listed, err := server.ListSecrets(ctx, connect.NewRequest(&secretv1.ListSecretsRequest{
+	listed, err := server.ListSecrets(ctx, &secretv1.ListSecretsRequest{
 		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(),
-	}))
+	})
 	if err != nil {
 		t.Fatalf("list its own service: %v", err)
 	}
-	if len(listed.Msg.GetSecrets()) != 1 {
-		t.Fatalf("listed = %+v, want STRIPE_KEY", listed.Msg.GetSecrets())
+	if len(listed.GetSecrets()) != 1 {
+		t.Fatalf("listed = %+v, want STRIPE_KEY", listed.GetSecrets())
 	}
-	_, err = server.SetSecrets(ctx, connect.NewRequest(&secretv1.SetSecretsRequest{
+	_, err = server.SetSecrets(ctx, &secretv1.SetSecretsRequest{
 		ResourceId: worker.String(), EnvironmentId: f.environmentID.String(),
 		Values: map[string]string{stripeKey: stripeValue},
-	}))
+	})
 	if code := connect.CodeOf(err); code != connect.CodePermissionDenied {
 		t.Fatalf("set on another service: code = %v, want PermissionDenied", code)
 	}
-	_, err = server.ListSecrets(ctx, connect.NewRequest(&secretv1.ListSecretsRequest{
+	_, err = server.ListSecrets(ctx, &secretv1.ListSecretsRequest{
 		ResourceId: worker.String(), EnvironmentId: f.environmentID.String(),
-	}))
+	})
 	if code := connect.CodeOf(err); code != connect.CodePermissionDenied {
 		t.Fatalf("list another service: code = %v, want PermissionDenied", code)
 	}
@@ -705,17 +705,17 @@ func TestSecretOperationsAbortWhenALockTimesOut(t *testing.T) {
 				t.Fatalf("hold the lock: %v", lockErr)
 			}
 
-			_, err = server.SetSecrets(f.owner, connect.NewRequest(&secretv1.SetSecretsRequest{
+			_, err = server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
 				ResourceId:    f.resourceID.String(),
 				EnvironmentId: f.environmentID.String(),
 				Values:        map[string]string{alphaKey: "2"},
-			}))
+			})
 			if code := connect.CodeOf(err); code != connect.CodeAborted {
 				t.Fatalf("set under a held lock: code = %v, want Aborted", code)
 			}
-			_, err = server.DeleteSecrets(f.owner, connect.NewRequest(&secretv1.DeleteSecretsRequest{
+			_, err = server.DeleteSecrets(f.owner, &secretv1.DeleteSecretsRequest{
 				ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(), Names: []string{alphaKey},
-			}))
+			})
 			if code := connect.CodeOf(err); code != connect.CodeAborted {
 				t.Fatalf("delete under a held lock: code = %v, want Aborted", code)
 			}
@@ -730,11 +730,11 @@ func TestSetSecretsFailsClosedOnAnUnknownFormatVersion(t *testing.T) {
 	if _, err := f.pool.Exec(t.Context(), `UPDATE secrets SET format_version = 2`); err != nil {
 		t.Fatalf("bump format version: %v", err)
 	}
-	_, err := server.SetSecrets(f.owner, connect.NewRequest(&secretv1.SetSecretsRequest{
+	_, err := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
 		ResourceId:    f.resourceID.String(),
 		EnvironmentId: f.environmentID.String(),
 		Values:        map[string]string{alphaKey: "1"},
-	}))
+	})
 	if code := connect.CodeOf(err); code != connect.CodeInternal {
 		t.Fatalf("set over an unknown format: code = %v, want Internal", code)
 	}
@@ -742,11 +742,11 @@ func TestSetSecretsFailsClosedOnAnUnknownFormatVersion(t *testing.T) {
 UPDATE environment_keys SET format_version = 2`); execErr != nil {
 		t.Fatalf("bump key format version: %v", execErr)
 	}
-	_, err = server.SetSecrets(f.owner, connect.NewRequest(&secretv1.SetSecretsRequest{
+	_, err = server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
 		ResourceId:    f.resourceID.String(),
 		EnvironmentId: f.environmentID.String(),
 		Values:        map[string]string{alphaKey: "2"},
-	}))
+	})
 	if code := connect.CodeOf(err); code != connect.CodeInternal {
 		t.Fatalf("set under an unknown key format: code = %v, want Internal", code)
 	}
@@ -783,19 +783,19 @@ func TestWorkspaceTokenSetsListsAndDeletesSecrets(t *testing.T) {
 	environmentID := f.environmentID.String()
 	resourceID := f.resourceID.String()
 
-	_, err := server.SetSecrets(ctx, connect.NewRequest(&secretv1.SetSecretsRequest{
+	_, err := server.SetSecrets(ctx, &secretv1.SetSecretsRequest{
 		ResourceId: resourceID, EnvironmentId: environmentID, Values: map[string]string{stripeKey: stripeValue},
-	}))
+	})
 	if err != nil {
 		t.Fatalf("set with a workspace token: %v", err)
 	}
-	listed, err := server.ListSecrets(ctx, connect.NewRequest(&secretv1.ListSecretsRequest{
+	listed, err := server.ListSecrets(ctx, &secretv1.ListSecretsRequest{
 		ResourceId: resourceID, EnvironmentId: environmentID,
-	}))
+	})
 	if err != nil {
 		t.Fatalf("list with a workspace token: %v", err)
 	}
-	secrets := listed.Msg.GetSecrets()
+	secrets := listed.GetSecrets()
 	workspaceType := string(genDb.EntityTypeWorkspace)
 	if len(secrets) != 1 || secrets[0].GetUpdatedByType() != workspaceType ||
 		secrets[0].GetUpdatedById() != f.workspaceID.String() {
@@ -811,9 +811,9 @@ func TestWorkspaceTokenSetsListsAndDeletesSecrets(t *testing.T) {
 		t.Fatalf("secret.set actor = %s %s, want the workspace", actorType, actorID)
 	}
 
-	_, err = server.DeleteSecrets(ctx, connect.NewRequest(&secretv1.DeleteSecretsRequest{
+	_, err = server.DeleteSecrets(ctx, &secretv1.DeleteSecretsRequest{
 		ResourceId: resourceID, EnvironmentId: environmentID, Names: []string{stripeKey},
-	}))
+	})
 	if err != nil {
 		t.Fatalf("delete with a workspace token: %v", err)
 	}

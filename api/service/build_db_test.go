@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -201,44 +201,44 @@ func newBuildFixture(t *testing.T) *buildFixture {
 func (f *buildFixture) create(t *testing.T, size int64) *buildv1.CreateBuildResponse {
 	t.Helper()
 	resourceID := f.resourceID.String()
-	req := connect.NewRequest(&buildv1.CreateBuildRequest{
+	req := &buildv1.CreateBuildRequest{
 		ResourceId:     resourceID,
 		DockerfilePath: testDockerfile,
 		SourceSize:     size,
-	})
+	}
 	resp, err := f.server.CreateBuild(f.ctx, req)
 	if err != nil {
 		t.Fatalf("create build: %v", err)
 	}
-	return resp.Msg
+	return resp
 }
 
 func (f *buildFixture) start(buildID string) (*buildv1.Build, error) {
-	req := connect.NewRequest(&buildv1.StartBuildRequest{BuildId: buildID})
+	req := &buildv1.StartBuildRequest{BuildId: buildID}
 	resp, err := f.server.StartBuild(f.ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	return resp.Msg.GetBuild(), nil
+	return resp.GetBuild(), nil
 }
 
 func (f *buildFixture) cancel(buildID string) (*buildv1.Build, error) {
-	req := connect.NewRequest(&buildv1.CancelBuildRequest{BuildId: buildID})
+	req := &buildv1.CancelBuildRequest{BuildId: buildID}
 	resp, err := f.server.CancelBuild(f.ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	return resp.Msg.GetBuild(), nil
+	return resp.GetBuild(), nil
 }
 
 func (f *buildFixture) get(t *testing.T, buildID string) *buildv1.Build {
 	t.Helper()
-	req := connect.NewRequest(&buildv1.GetBuildRequest{BuildId: buildID})
+	req := &buildv1.GetBuildRequest{BuildId: buildID}
 	resp, err := f.server.GetBuild(f.ctx, req)
 	if err != nil {
 		t.Fatalf("get build: %v", err)
 	}
-	return resp.Msg.GetBuild()
+	return resp.GetBuild()
 }
 
 func (f *buildFixture) uploadFor(t *testing.T, buildID string, size int64) {
@@ -435,11 +435,11 @@ func TestStartBuildPicksTheOldestActiveCluster(t *testing.T) {
 func TestCreateBuildRejectsOversizedSource(t *testing.T) {
 	f := newBuildFixture(t)
 	resourceID := f.resourceID.String()
-	req := connect.NewRequest(&buildv1.CreateBuildRequest{
+	req := &buildv1.CreateBuildRequest{
 		ResourceId:     resourceID,
 		DockerfilePath: testDockerfile,
 		SourceSize:     1025,
-	})
+	}
 	_, err := f.server.CreateBuild(f.ctx, req)
 	wantCode(t, err, connect.CodeInvalidArgument)
 }
@@ -455,16 +455,16 @@ func TestBuildRequiresResourceScope(t *testing.T) {
 	}
 	ctx := context.WithValue(f.ctx, contextkeys.EntityScopesKey, scopes)
 
-	getReq := connect.NewRequest(&buildv1.GetBuildRequest{BuildId: buildID})
+	getReq := &buildv1.GetBuildRequest{BuildId: buildID}
 	_, getErr := f.server.GetBuild(ctx, getReq)
 	wantCode(t, getErr, connect.CodePermissionDenied)
 
-	cancelReq := connect.NewRequest(&buildv1.CancelBuildRequest{BuildId: buildID})
+	cancelReq := &buildv1.CancelBuildRequest{BuildId: buildID}
 	_, cancelErr := f.server.CancelBuild(ctx, cancelReq)
 	wantCode(t, cancelErr, connect.CodePermissionDenied)
 
 	resourceID := f.resourceID.String()
-	listReq := connect.NewRequest(&buildv1.ListBuildsRequest{ResourceId: resourceID})
+	listReq := &buildv1.ListBuildsRequest{ResourceId: resourceID}
 	_, listErr := f.server.ListBuilds(ctx, listReq)
 	wantCode(t, listErr, connect.CodePermissionDenied)
 }
@@ -484,19 +484,19 @@ func TestListBuildsPages(t *testing.T) {
 		if page > 3 {
 			t.Fatal("pagination did not terminate")
 		}
-		req := connect.NewRequest(&buildv1.ListBuildsRequest{
+		req := &buildv1.ListBuildsRequest{
 			ResourceId: resourceID,
 			PageSize:   2,
 			PageToken:  pageToken,
-		})
+		}
 		resp, err := f.server.ListBuilds(f.ctx, req)
 		if err != nil {
 			t.Fatalf("list builds: %v", err)
 		}
-		for _, b := range resp.Msg.GetBuilds() {
+		for _, b := range resp.GetBuilds() {
 			seen[b.GetId()] = true
 		}
-		pageToken = resp.Msg.GetNextPageToken()
+		pageToken = resp.GetNextPageToken()
 		if pageToken == "" {
 			break
 		}
@@ -553,17 +553,17 @@ func TestCreateBuildStoresTheContext(t *testing.T) {
 		t.Fatalf("context = %q, want %q when the request sets none", got, defaultBuildContext)
 	}
 
-	req := connect.NewRequest(&buildv1.CreateBuildRequest{
+	req := &buildv1.CreateBuildRequest{
 		ResourceId:     f.resourceID.String(),
 		DockerfilePath: testDockerfile,
 		SourceSize:     1,
 		Context:        "services/web",
-	})
+	}
 	resp, err := f.server.CreateBuild(f.ctx, req)
 	if err != nil {
 		t.Fatalf("create build: %v", err)
 	}
-	if got := f.get(t, resp.Msg.GetBuildId()).GetContext(); got != "services/web" {
+	if got := f.get(t, resp.GetBuildId()).GetContext(); got != "services/web" {
 		t.Fatalf("context = %q, want services/web", got)
 	}
 }

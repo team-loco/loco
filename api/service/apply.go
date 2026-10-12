@@ -8,7 +8,9 @@ import (
 	"maps"
 	"slices"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2/connectproto"
+
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/contextkeys"
@@ -34,9 +36,9 @@ var (
 // transaction. It needs workspace write, and resource admin on every service the plan deletes.
 func (s *PlanServer) Apply(
 	ctx context.Context,
-	req *connect.Request[planv1.ApplyRequest],
-) (*connect.Response[planv1.ApplyResponse], error) {
-	r := req.Msg
+	req *planv1.ApplyRequest,
+) (*planv1.ApplyResponse, error) {
+	r := req
 	planned, err := s.loadPlan(ctx, r.GetFile(), r.GetEnvironmentId(), actions.Apply, r.GetProvision())
 	if err != nil {
 		return nil, err
@@ -71,7 +73,7 @@ func (s *PlanServer) Apply(
 	organizationID, err := s.queries.GetOrganizationIDByWorkspaceID(ctx, planned.env.WorkspaceID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get workspace organization", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 
 	a := &applier{
@@ -118,7 +120,7 @@ func (s *PlanServer) Apply(
 		current, getErr := s.queries.GetEnvironmentByID(ctx, planned.env.ID)
 		if getErr != nil {
 			slog.ErrorContext(ctx, "failed to get environment", "error", getErr, "environmentId", planned.env.ID)
-			return nil, connect.NewError(connect.CodeInternal, ErrDB)
+			return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 		}
 		return nil, applyRefused(errRevisionMoved, &planv1.ApplyRefusal{Revision: current.Revision})
 	}
@@ -126,11 +128,11 @@ func (s *PlanServer) Apply(
 		return nil, applyTxError(ctx, err)
 	}
 
-	return connect.NewResponse(&planv1.ApplyResponse{
+	return &planv1.ApplyResponse{
 		Revision:    revision,
 		Operations:  planOperationsToProto(operations),
 		Deployments: a.started,
-	}), nil
+	}, nil
 }
 
 // touchedResources are the existing resources the apply writes: those of the operations it
@@ -159,7 +161,8 @@ func selectOperations(
 		return operations, nil
 	}
 	if len(builds) > 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errProvisionWithBuilds)
+		return nil, connect.NewError(connect.CodeInvalidArgument, errProvisionWithBuilds.Error()).
+			WithCause(errProvisionWithBuilds)
 	}
 	var selected []configplan.Operation
 	for _, op := range operations {
@@ -186,7 +189,8 @@ func (s *PlanServer) checkDeletes(ctx context.Context, planned *plannedFile, ope
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
+		return connect.NewError(connect.CodeInternal, errEntityScopesNotFound.Error()).
+			WithCause(errEntityScopesNotFound)
 	}
 	for _, op := range operations {
 		if op.Kind != configplan.KindDelete {
@@ -196,7 +200,7 @@ func (s *PlanServer) checkDeletes(ctx context.Context, planned *plannedFile, ope
 		deleteAction := actions.New(actions.DeleteResource, resourceID)
 		if err := s.authz.Check(ctx, scopes, deleteAction); err != nil {
 			slog.WarnContext(ctx, "unauthorized to delete resource through apply", "resourceId", resourceID)
-			return connect.NewError(connect.CodePermissionDenied, err)
+			return connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
 		}
 	}
 	return nil
@@ -212,16 +216,16 @@ func (s *PlanServer) resolveBuilds(
 		desired, inFile := planned.plan.Desired[service]
 		if !inFile {
 			unknown := fmt.Errorf("%w: %s", errBuildServiceUnknown, service)
-			return nil, connect.NewError(connect.CodeInvalidArgument, unknown)
+			return nil, connect.NewError(connect.CodeInvalidArgument, unknown.Error()).WithCause(unknown)
 		}
 		if desired.Image != "" {
 			hasImage := fmt.Errorf("%w: %s", errBuildServiceHasImage, service)
-			return nil, connect.NewError(connect.CodeInvalidArgument, hasImage)
+			return nil, connect.NewError(connect.CodeInvalidArgument, hasImage.Error()).WithCause(hasImage)
 		}
 		res, created := planned.live.resources[service]
 		if !created {
 			notCreated := fmt.Errorf("%w: %s", errBuildServiceNotCreated, service)
-			return nil, connect.NewError(connect.CodeFailedPrecondition, notCreated)
+			return nil, connect.NewError(connect.CodeFailedPrecondition, notCreated.Error()).WithCause(notCreated)
 		}
 		buildID := requested[service]
 		src := &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, BuildId: &buildID}
@@ -253,12 +257,12 @@ func unconfirmedOperations(
 }
 
 func applyRefused(reason error, refusal *planv1.ApplyRefusal) error {
-	refused := connect.NewError(connect.CodeFailedPrecondition, reason)
-	detail, err := connect.NewErrorDetail(refusal)
+	refused := connect.NewError(connect.CodeFailedPrecondition, reason.Error()).WithCause(reason)
+	detail, err := connectproto.NewErrorDetail(refusal)
 	if err != nil {
 		return refused
 	}
-	refused.AddDetail(detail)
+	refused = refused.WithDetail(detail)
 	return refused
 }
 
@@ -268,11 +272,11 @@ func applyTxError(ctx context.Context, err error) error {
 	}
 	if errors.Is(err, errNoActiveCluster) {
 		slog.WarnContext(ctx, "apply targets a region without a healthy cluster", "error", err)
-		return connect.NewError(connect.CodeFailedPrecondition, err)
+		return connect.NewError(connect.CodeFailedPrecondition, err.Error()).WithCause(err)
 	}
 	if isPgConstraintViolation(err) {
 		slog.WarnContext(ctx, "apply rejected by a constraint", "error", err)
-		return connect.NewError(connect.CodeAlreadyExists, errDomainInUse)
+		return connect.NewError(connect.CodeAlreadyExists, errDomainInUse.Error()).WithCause(errDomainInUse)
 	}
 	return deploymentTxError(ctx, err)
 }

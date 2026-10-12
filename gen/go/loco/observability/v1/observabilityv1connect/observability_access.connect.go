@@ -5,20 +5,11 @@
 package observabilityv1connect
 
 import (
-	connect "connectrpc.com/connect"
+	connect "connectrpc.com/connect/v2"
 	context "context"
-	errors "errors"
 	v1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
-	http "net/http"
-	strings "strings"
+	sync "sync"
 )
-
-// This is a compile-time assertion to ensure that this generated file and the connect package are
-// compatible. If you get a compiler error that this constant is not defined, this code was
-// generated with a version of connect newer than the one compiled into your binary. You can fix the
-// problem by either regenerating this code with an older version of connect or updating the connect
-// version compiled into your binary.
-const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// ObservabilityAccessServiceName is the fully-qualified name of the ObservabilityAccessService
@@ -26,17 +17,27 @@ const (
 	ObservabilityAccessServiceName = "loco.observability.v1.ObservabilityAccessService"
 )
 
-// These constants are the fully-qualified names of the RPCs defined in this package. They're
-// exposed at runtime as Spec.Procedure and as the final two segments of the HTTP route.
+// These constants are the procedure names of the RPCs defined in this package. They're exposed at
+// runtime as Spec.Procedure and as the final two segments of the HTTP route.
 //
 // Note that these are different from the fully-qualified method names used by
 // google.golang.org/protobuf/reflect/protoreflect. To convert from these constants to
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// ObservabilityAccessServiceGetObservabilityAccessProcedure is the fully-qualified name of the
+	// ObservabilityAccessServiceGetObservabilityAccessProcedure is the procedure name of the
 	// ObservabilityAccessService's GetObservabilityAccess RPC.
 	ObservabilityAccessServiceGetObservabilityAccessProcedure = "/loco.observability.v1.ObservabilityAccessService/GetObservabilityAccess"
+)
+
+var (
+	observabilityAccessServiceGetObservabilityAccessSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_observability_v1_observability_access_proto.Services().ByName("ObservabilityAccessService").Methods().ByName("GetObservabilityAccess"),
+			Procedure:  ObservabilityAccessServiceGetObservabilityAccessProcedure,
+		}
+	})
 )
 
 // ObservabilityAccessServiceClient is a client for the
@@ -44,39 +45,14 @@ const (
 type ObservabilityAccessServiceClient interface {
 	// GetObservabilityAccess returns the regional proxy endpoints the client should connect to.
 	// The client's existing TVM token is used directly when talking to the proxy.
-	GetObservabilityAccess(context.Context, *connect.Request[v1.GetObservabilityAccessRequest]) (*connect.Response[v1.GetObservabilityAccessResponse], error)
+	GetObservabilityAccess(context.Context, *v1.GetObservabilityAccessRequest) (*v1.GetObservabilityAccessResponse, error)
 }
 
 // NewObservabilityAccessServiceClient constructs a client for the
-// loco.observability.v1.ObservabilityAccessService service. By default, it uses the Connect
-// protocol with the binary Protobuf Codec, asks for gzipped responses, and sends uncompressed
-// requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
-// connect.WithGRPCWeb() options.
-//
-// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
-// http://api.acme.com or https://acme.com/grpc).
-func NewObservabilityAccessServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) ObservabilityAccessServiceClient {
-	baseURL = strings.TrimRight(baseURL, "/")
-	observabilityAccessServiceMethods := v1.File_loco_observability_v1_observability_access_proto.Services().ByName("ObservabilityAccessService").Methods()
-	return &observabilityAccessServiceClient{
-		getObservabilityAccess: connect.NewClient[v1.GetObservabilityAccessRequest, v1.GetObservabilityAccessResponse](
-			httpClient,
-			baseURL+ObservabilityAccessServiceGetObservabilityAccessProcedure,
-			connect.WithSchema(observabilityAccessServiceMethods.ByName("GetObservabilityAccess")),
-			connect.WithClientOptions(opts...),
-		),
-	}
-}
-
-// observabilityAccessServiceClient implements ObservabilityAccessServiceClient.
-type observabilityAccessServiceClient struct {
-	getObservabilityAccess *connect.Client[v1.GetObservabilityAccessRequest, v1.GetObservabilityAccessResponse]
-}
-
-// GetObservabilityAccess calls
-// loco.observability.v1.ObservabilityAccessService.GetObservabilityAccess.
-func (c *observabilityAccessServiceClient) GetObservabilityAccess(ctx context.Context, req *connect.Request[v1.GetObservabilityAccessRequest]) (*connect.Response[v1.GetObservabilityAccessResponse], error) {
-	return c.getObservabilityAccess.CallUnary(ctx, req)
+// loco.observability.v1.ObservabilityAccessService service. Multiple service clients may share a
+// single connect.Client.
+func NewObservabilityAccessServiceClient(client *connect.Client) ObservabilityAccessServiceClient {
+	return &observabilityAccessServiceClient{client: client}
 }
 
 // ObservabilityAccessServiceHandler is an implementation of the
@@ -84,35 +60,49 @@ func (c *observabilityAccessServiceClient) GetObservabilityAccess(ctx context.Co
 type ObservabilityAccessServiceHandler interface {
 	// GetObservabilityAccess returns the regional proxy endpoints the client should connect to.
 	// The client's existing TVM token is used directly when talking to the proxy.
-	GetObservabilityAccess(context.Context, *connect.Request[v1.GetObservabilityAccessRequest]) (*connect.Response[v1.GetObservabilityAccessResponse], error)
+	GetObservabilityAccess(context.Context, *v1.GetObservabilityAccessRequest) (*v1.GetObservabilityAccessResponse, error)
 }
 
-// NewObservabilityAccessServiceHandler builds an HTTP handler from the service implementation. It
-// returns the path on which to mount the handler and the handler itself.
-//
-// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
-// and JSON codecs. They also support gzip compression.
-func NewObservabilityAccessServiceHandler(svc ObservabilityAccessServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	observabilityAccessServiceMethods := v1.File_loco_observability_v1_observability_access_proto.Services().ByName("ObservabilityAccessService").Methods()
-	observabilityAccessServiceGetObservabilityAccessHandler := connect.NewUnaryHandler(
-		ObservabilityAccessServiceGetObservabilityAccessProcedure,
-		svc.GetObservabilityAccess,
-		connect.WithSchema(observabilityAccessServiceMethods.ByName("GetObservabilityAccess")),
-		connect.WithHandlerOptions(opts...),
+// RegisterObservabilityAccessServiceHandler registers svc as the
+// loco.observability.v1.ObservabilityAccessService implementation on server.
+func RegisterObservabilityAccessServiceHandler(server *connect.Server, svc ObservabilityAccessServiceHandler) {
+	adapter := observabilityAccessServiceHandler{svc: svc}
+	server.Register(
+		connect.Method{Spec: observabilityAccessServiceGetObservabilityAccessSpec(), Handler: adapter.getObservabilityAccess},
 	)
-	return "/loco.observability.v1.ObservabilityAccessService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case ObservabilityAccessServiceGetObservabilityAccessProcedure:
-			observabilityAccessServiceGetObservabilityAccessHandler.ServeHTTP(w, r)
-		default:
-			http.NotFound(w, r)
-		}
-	})
 }
 
 // UnimplementedObservabilityAccessServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedObservabilityAccessServiceHandler struct{}
 
-func (UnimplementedObservabilityAccessServiceHandler) GetObservabilityAccess(context.Context, *connect.Request[v1.GetObservabilityAccessRequest]) (*connect.Response[v1.GetObservabilityAccessResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.observability.v1.ObservabilityAccessService.GetObservabilityAccess is not implemented"))
+func (UnimplementedObservabilityAccessServiceHandler) GetObservabilityAccess(context.Context, *v1.GetObservabilityAccessRequest) (*v1.GetObservabilityAccessResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityAccessService.GetObservabilityAccess is not implemented")
+}
+
+type observabilityAccessServiceClient struct {
+	client *connect.Client
+}
+
+func (c *observabilityAccessServiceClient) GetObservabilityAccess(ctx context.Context, req *v1.GetObservabilityAccessRequest) (*v1.GetObservabilityAccessResponse, error) {
+	var res v1.GetObservabilityAccessResponse
+	if err := c.client.CallUnary(ctx, observabilityAccessServiceGetObservabilityAccessSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+type observabilityAccessServiceHandler struct {
+	svc ObservabilityAccessServiceHandler
+}
+
+func (h observabilityAccessServiceHandler) getObservabilityAccess(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetObservabilityAccessRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetObservabilityAccess(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
 }

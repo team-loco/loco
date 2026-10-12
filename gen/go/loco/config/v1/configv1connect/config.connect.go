@@ -5,104 +5,93 @@
 package configv1connect
 
 import (
-	connect "connectrpc.com/connect"
+	connect "connectrpc.com/connect/v2"
 	context "context"
-	errors "errors"
 	v1 "github.com/team-loco/loco/gen/go/loco/config/v1"
-	http "net/http"
-	strings "strings"
+	sync "sync"
 )
-
-// This is a compile-time assertion to ensure that this generated file and the connect package are
-// compatible. If you get a compiler error that this constant is not defined, this code was
-// generated with a version of connect newer than the one compiled into your binary. You can fix the
-// problem by either regenerating this code with an older version of connect or updating the connect
-// version compiled into your binary.
-const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// ConfigServiceName is the fully-qualified name of the ConfigService service.
 	ConfigServiceName = "loco.config.v1.ConfigService"
 )
 
-// These constants are the fully-qualified names of the RPCs defined in this package. They're
-// exposed at runtime as Spec.Procedure and as the final two segments of the HTTP route.
+// These constants are the procedure names of the RPCs defined in this package. They're exposed at
+// runtime as Spec.Procedure and as the final two segments of the HTTP route.
 //
 // Note that these are different from the fully-qualified method names used by
 // google.golang.org/protobuf/reflect/protoreflect. To convert from these constants to
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// ConfigServiceGetConfigProcedure is the fully-qualified name of the ConfigService's GetConfig RPC.
+	// ConfigServiceGetConfigProcedure is the procedure name of the ConfigService's GetConfig RPC.
 	ConfigServiceGetConfigProcedure = "/loco.config.v1.ConfigService/GetConfig"
+)
+
+var (
+	configServiceGetConfigSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_config_v1_config_proto.Services().ByName("ConfigService").Methods().ByName("GetConfig"),
+			Procedure:  ConfigServiceGetConfigProcedure,
+		}
+	})
 )
 
 // ConfigServiceClient is a client for the loco.config.v1.ConfigService service.
 type ConfigServiceClient interface {
-	GetConfig(context.Context, *connect.Request[v1.GetConfigRequest]) (*connect.Response[v1.GetConfigResponse], error)
+	GetConfig(context.Context, *v1.GetConfigRequest) (*v1.GetConfigResponse, error)
 }
 
-// NewConfigServiceClient constructs a client for the loco.config.v1.ConfigService service. By
-// default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses,
-// and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
-// connect.WithGRPC() or connect.WithGRPCWeb() options.
-//
-// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
-// http://api.acme.com or https://acme.com/grpc).
-func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) ConfigServiceClient {
-	baseURL = strings.TrimRight(baseURL, "/")
-	configServiceMethods := v1.File_loco_config_v1_config_proto.Services().ByName("ConfigService").Methods()
-	return &configServiceClient{
-		getConfig: connect.NewClient[v1.GetConfigRequest, v1.GetConfigResponse](
-			httpClient,
-			baseURL+ConfigServiceGetConfigProcedure,
-			connect.WithSchema(configServiceMethods.ByName("GetConfig")),
-			connect.WithClientOptions(opts...),
-		),
-	}
-}
-
-// configServiceClient implements ConfigServiceClient.
-type configServiceClient struct {
-	getConfig *connect.Client[v1.GetConfigRequest, v1.GetConfigResponse]
-}
-
-// GetConfig calls loco.config.v1.ConfigService.GetConfig.
-func (c *configServiceClient) GetConfig(ctx context.Context, req *connect.Request[v1.GetConfigRequest]) (*connect.Response[v1.GetConfigResponse], error) {
-	return c.getConfig.CallUnary(ctx, req)
+// NewConfigServiceClient constructs a client for the loco.config.v1.ConfigService service. Multiple
+// service clients may share a single connect.Client.
+func NewConfigServiceClient(client *connect.Client) ConfigServiceClient {
+	return &configServiceClient{client: client}
 }
 
 // ConfigServiceHandler is an implementation of the loco.config.v1.ConfigService service.
 type ConfigServiceHandler interface {
-	GetConfig(context.Context, *connect.Request[v1.GetConfigRequest]) (*connect.Response[v1.GetConfigResponse], error)
+	GetConfig(context.Context, *v1.GetConfigRequest) (*v1.GetConfigResponse, error)
 }
 
-// NewConfigServiceHandler builds an HTTP handler from the service implementation. It returns the
-// path on which to mount the handler and the handler itself.
-//
-// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
-// and JSON codecs. They also support gzip compression.
-func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	configServiceMethods := v1.File_loco_config_v1_config_proto.Services().ByName("ConfigService").Methods()
-	configServiceGetConfigHandler := connect.NewUnaryHandler(
-		ConfigServiceGetConfigProcedure,
-		svc.GetConfig,
-		connect.WithSchema(configServiceMethods.ByName("GetConfig")),
-		connect.WithHandlerOptions(opts...),
+// RegisterConfigServiceHandler registers svc as the loco.config.v1.ConfigService implementation on
+// server.
+func RegisterConfigServiceHandler(server *connect.Server, svc ConfigServiceHandler) {
+	adapter := configServiceHandler{svc: svc}
+	server.Register(
+		connect.Method{Spec: configServiceGetConfigSpec(), Handler: adapter.getConfig},
 	)
-	return "/loco.config.v1.ConfigService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case ConfigServiceGetConfigProcedure:
-			configServiceGetConfigHandler.ServeHTTP(w, r)
-		default:
-			http.NotFound(w, r)
-		}
-	})
 }
 
 // UnimplementedConfigServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedConfigServiceHandler struct{}
 
-func (UnimplementedConfigServiceHandler) GetConfig(context.Context, *connect.Request[v1.GetConfigRequest]) (*connect.Response[v1.GetConfigResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.config.v1.ConfigService.GetConfig is not implemented"))
+func (UnimplementedConfigServiceHandler) GetConfig(context.Context, *v1.GetConfigRequest) (*v1.GetConfigResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.config.v1.ConfigService.GetConfig is not implemented")
+}
+
+type configServiceClient struct {
+	client *connect.Client
+}
+
+func (c *configServiceClient) GetConfig(ctx context.Context, req *v1.GetConfigRequest) (*v1.GetConfigResponse, error) {
+	var res v1.GetConfigResponse
+	if err := c.client.CallUnary(ctx, configServiceGetConfigSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+type configServiceHandler struct{ svc ConfigServiceHandler }
+
+func (h configServiceHandler) getConfig(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetConfigRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetConfig(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
 }

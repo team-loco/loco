@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 )
 
 type deadlineInterceptor struct {
@@ -19,33 +19,19 @@ func NewDeadlineInterceptor(shutdownCtx context.Context, unaryTimeout time.Durat
 	}
 }
 
-func (i *deadlineInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
-	return connect.UnaryFunc(func(
-		ctx context.Context,
-		req connect.AnyRequest,
-	) (connect.AnyResponse, error) {
-		if req.Spec().IsClient {
-			return next(ctx, req)
+func (i *deadlineInterceptor) Interceptor() connect.ServerInterceptor {
+	return func(next connect.ServerFunc) connect.ServerFunc {
+		return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) error {
+			if spec.StreamType == connect.StreamTypeUnary {
+				unaryCtx, cancel := context.WithTimeout(ctx, i.unaryTimeout)
+				defer cancel()
+				return next(unaryCtx, spec, stream)
+			}
+			ctx, cancel := context.WithCancel(ctx)
+			defer cancel()
+			stop := context.AfterFunc(i.shutdownCtx, cancel)
+			defer stop()
+			return next(ctx, spec, stream)
 		}
-		ctx, cancel := context.WithTimeout(ctx, i.unaryTimeout)
-		defer cancel()
-		return next(ctx, req)
-	})
-}
-
-func (*deadlineInterceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
-	return next
-}
-
-func (i *deadlineInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
-	return connect.StreamingHandlerFunc(func(
-		ctx context.Context,
-		conn connect.StreamingHandlerConn,
-	) error {
-		ctx, cancel := context.WithCancel(ctx)
-		defer cancel()
-		stop := context.AfterFunc(i.shutdownCtx, cancel)
-		defer stop()
-		return next(ctx, conn)
-	})
+	}
 }

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -104,12 +104,12 @@ func planIn(
 	t.Helper()
 	server := newPlanServer(f)
 	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, scopes)
-	req := connect.NewRequest(&planv1.PlanRequest{File: []byte(file), EnvironmentId: environmentID.String()})
+	req := &planv1.PlanRequest{File: []byte(file), EnvironmentId: environmentID.String()}
 	resp, err := server.Plan(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	return resp.Msg, nil
+	return resp, nil
 }
 
 func (f *deployFixture) workspaceReadScopes(t *testing.T) []genDb.EntityScope {

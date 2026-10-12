@@ -5,7 +5,7 @@ import (
 	"maps"
 	"testing"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -23,18 +23,18 @@ func applyBuilds(t *testing.T, f *deployFixture, file string, builds map[string]
 	}
 	server := newPlanServer(f)
 	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, f.adminScopes(t))
-	req := connect.NewRequest(&planv1.ApplyRequest{
+	req := &planv1.ApplyRequest{
 		File:          []byte(file),
 		EnvironmentId: f.envID.String(),
 		Revision:      f.revision(t, f.envID),
 		Builds:        builds,
 		Images:        planned.GetImages(),
-	})
+	}
 	resp, err := server.Apply(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	return resp.Msg, nil
+	return resp, nil
 }
 
 func (f *deployFixture) addRunningBuild(t *testing.T, resourceName string) uuid.UUID {
@@ -177,19 +177,19 @@ func applyProvision(
 	}
 	server := newPlanServer(f)
 	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, f.adminScopes(t))
-	req := connect.NewRequest(&planv1.ApplyRequest{
+	req := &planv1.ApplyRequest{
 		File:          []byte(file),
 		EnvironmentId: f.envID.String(),
 		Revision:      f.revision(t, f.envID),
 		Images:        planned.GetImages(),
 		Provision:     provision,
 		Builds:        builds,
-	})
+	}
 	resp, err := server.Apply(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	return resp.Msg, nil
+	return resp, nil
 }
 
 func (f *deployFixture) deploymentCount(t *testing.T, resourceName string) int {

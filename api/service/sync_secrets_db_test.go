@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
@@ -225,9 +224,9 @@ func TestSyncDecryptsFromOneSnapshotWhileTheDEKRotates(t *testing.T) {
 	rotator := f.secretServer(testLocalProvider(t, "k1"))
 	admin := secretAuthzContext(t, genDb.EntityScope{EntityType: genDb.EntityTypeSystem, Scope: genDb.ScopeAdmin})
 	hooked := &hookedProvider{Provider: provider, hook: func() {
-		_, err := rotator.RewrapEnvironmentKeys(admin, connect.NewRequest(&secretv1.RewrapEnvironmentKeysRequest{
+		_, err := rotator.RewrapEnvironmentKeys(admin, &secretv1.RewrapEnvironmentKeysRequest{
 			EnvironmentId: f.envID.String(), NewDek: true,
-		}))
+		})
 		if err != nil {
 			t.Errorf("rotate: %v", err)
 		}

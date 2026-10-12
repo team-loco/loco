@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 
 	"github.com/team-loco/loco/api/contextkeys"
@@ -24,9 +24,9 @@ func deleteFixtureWorkspace(t *testing.T, f *deployFixture, confirm bool) error 
 	ctx := context.WithValue(t.Context(), contextkeys.EntityScopesKey, scopes)
 	server := NewWorkspaceServer(f.pool, f.queries, nil)
 	workspaceID := resource.WorkspaceID.String()
-	request := connect.NewRequest(&workspacev1.DeleteWorkspaceRequest{
+	request := &workspacev1.DeleteWorkspaceRequest{
 		WorkspaceId: workspaceID, ConfirmDeleteApps: confirm,
-	})
+	}
 	_, err = server.DeleteWorkspace(ctx, request)
 	return err
 }

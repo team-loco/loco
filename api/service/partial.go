@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/contextkeys"
@@ -20,14 +20,15 @@ var errPartialUnchanged = errors.New("resource already belongs to this partial")
 // TransferPartial moves a resource to another partial.
 func (s *ResourceServer) TransferPartial(
 	ctx context.Context,
-	req *connect.Request[resourcev1.TransferPartialRequest],
-) (*connect.Response[resourcev1.TransferPartialResponse], error) {
-	r := req.Msg
+	req *resourcev1.TransferPartialRequest,
+) (*resourcev1.TransferPartialResponse, error) {
+	r := req
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound.Error()).
+			WithCause(errEntityScopesNotFound)
 	}
 
 	if err := s.authz.Check(
@@ -36,7 +37,7 @@ func (s *ResourceServer) TransferPartial(
 		actions.New(actions.TransferPartial, r.GetResourceId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to transfer partial", "resourceId", r.GetResourceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
 	}
 
 	resourceID := uuid.MustParse(r.GetResourceId())
@@ -75,14 +76,15 @@ func (s *ResourceServer) TransferPartial(
 		})
 	})
 	if errors.Is(err, ErrResourceNotFound) {
-		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
+		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound.Error()).WithCause(ErrResourceNotFound)
 	}
 	if errors.Is(err, errPartialUnchanged) {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errPartialUnchanged)
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errPartialUnchanged.Error()).
+			WithCause(errPartialUnchanged)
 	}
 	if err != nil {
 		return nil, txError(ctx, "failed to transfer partial", err)
 	}
 
-	return connect.NewResponse(&resourcev1.TransferPartialResponse{}), nil
+	return &resourcev1.TransferPartialResponse{}, nil
 }

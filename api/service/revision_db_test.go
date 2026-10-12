@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -32,12 +32,12 @@ func getEnvironment(t *testing.T, f *deployFixture) *environmentv1.Environment {
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspaceID(t), Scope: genDb.ScopeRead},
 	}
 	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, scopes)
-	req := connect.NewRequest(&environmentv1.GetEnvironmentRequest{EnvironmentId: f.envID.String()})
+	req := &environmentv1.GetEnvironmentRequest{EnvironmentId: f.envID.String()}
 	resp, err := server.GetEnvironment(ctx, req)
 	if err != nil {
 		t.Fatalf("get environment: %v", err)
 	}
-	return resp.Msg.GetEnvironment()
+	return resp.GetEnvironment()
 }
 
 func TestEnvironmentRevisionFollowsWrites(t *testing.T) {
@@ -96,7 +96,7 @@ func updateEnvironment(t *testing.T, f *deployFixture, req *environmentv1.Update
 	}
 	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, scopes)
 	req.EnvironmentId = f.envID.String()
-	if _, err := server.UpdateEnvironment(ctx, connect.NewRequest(req)); err != nil {
+	if _, err := server.UpdateEnvironment(ctx, req); err != nil {
 		t.Fatalf("update environment: %v", err)
 	}
 }

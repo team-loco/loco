@@ -7,7 +7,7 @@
 ## Architecture
 
 - **CLI**: Go app using Cobra + Charm libraries (Bubble Tea, Lipgloss) for terminal UI
-- **API Server**: Go with ConnectRPC (gRPC over HTTP), PostgreSQL database
+- **API Server**: Go with ConnectRPC on connect-go v2 (`connectrpc.com/connect/v2`), PostgreSQL database
 - **Infrastructure**: Kubernetes with Cilium networking, Envoy Gateway, cert-manager, OpenTelemetry, ClickHouse metrics read through the observability proxy
 - **Key modules**: `api/` (ConnectRPC services), `cmd/loco/` (CLI commands), `agent/` (in-cluster agent), `controller/` (kubebuilder operator), `k8sapi/` (CRD types), `internal/` (shared logic), `web/` (dashboard), `gen/` (generated protobuf types)
 
@@ -73,6 +73,28 @@ Builds, tests, code generation, linting and the local environment are mise tasks
 - **Magic numbers**: no unexplained literals in logic (`5 << 20`, `1024`, `65535`, timeouts, limits, ports). Tunable values belong in the config struct; the rest are named `const`s at the top of the file. Before submitting, check the whole change for any you missed.
 - **Names**: never use numbered suffixes (`uniqueJSONErr2`, `uniqueJSONErr3`). Name each value after what it holds.
 - **Nested calls**: name a call's result in a local before passing it to another call or a struct literal.
+
+## ConnectRPC
+
+All Go RPC code is on connect-go v2: `connectrpc.com/connect/v2`, `connectrpc.com/grpcreflect/v2`, and the
+v2-built `connectrpc.com/validate`. Never import `connectrpc.com/connect` (v1), and ignore v1 examples
+(`connect.Request[T]`, `connect.NewRequest`, `.Msg`, `WrapUnary`); they no longer compile here.
+
+- **Handlers and clients** take and return bare protobuf messages. Services register on a
+  `*connect.Server` and are mounted with `connecthttp.Mount`; clients are built from
+  `connect.NewClient(connecthttp.NewTransport(...))`. Tests call a service through
+  `connectinprocess`, not an `httptest.Server`.
+- **Headers and trailers** live on a `*connect.CallInfo` in the context: `connect.CallInfoForServerContext(ctx)`
+  in a handler or server interceptor, `connect.NewClientContext(ctx)` before a client call. Credentials
+  a client sends on every call go in a `connect.ClientInterceptor`, not on each request.
+- **Interceptors** are `connect.ServerInterceptor` / `connect.ClientInterceptor` funcs that see every RPC
+  shape through one stream; branch on `spec.StreamType` when unary and streaming differ.
+- **Errors**: only a `*connect.Error` reaches the client, with exactly the message passed to
+  `connect.NewError(code, msg)` / `connect.Errorf`. Attach internal errors with `.WithCause(err)`; they
+  stay on the server. A plain `error` returned from a handler arrives as `CodeUnknown` with no message,
+  and an error received from another Connect call and returned unchanged is scrubbed to `CodeInternal`.
+- **Message size**: v2 rejects any message over 4 MiB with `CodeResourceExhausted`. Keep that
+  default; never pass `connecthttp.WithReadMaxBytes(0)` (unbounded).
 
 ## Repo Hygiene
 

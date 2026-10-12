@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/rogpeppe/go-internal/testscript"
 	"github.com/team-loco/loco/internal/keychain"
 )

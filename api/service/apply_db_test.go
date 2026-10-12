@@ -8,7 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2/connectproto"
+
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/team-loco/loco/api/contextkeys"
@@ -65,19 +67,19 @@ func applyFile(
 	}
 	server := newPlanServer(f)
 	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, scopes)
-	req := connect.NewRequest(&planv1.ApplyRequest{
+	req := &planv1.ApplyRequest{
 		File:               []byte(file),
 		EnvironmentId:      environmentID.String(),
 		Revision:           opts.revision,
 		ConfirmDestructive: opts.confirmDestructive,
 		ConfirmImport:      opts.confirmImport,
 		Images:             images,
-	})
+	}
 	resp, err := server.Apply(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	return resp.Msg, nil
+	return resp, nil
 }
 
 func (f *deployFixture) prepareApply(t *testing.T) {
@@ -137,7 +139,7 @@ func wantRefusal(t *testing.T, err error) *planv1.ApplyRefusal {
 		t.Fatalf("err = %v, want a connect error", err)
 	}
 	for _, detail := range connectErr.Details() {
-		message, valueErr := detail.Value()
+		message, valueErr := connectproto.UnmarshalErrorDetail(detail)
 		if valueErr != nil {
 			continue
 		}

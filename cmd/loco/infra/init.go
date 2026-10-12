@@ -11,7 +11,6 @@ import (
 	"github.com/team-loco/loco/internal/rpc"
 
 	"charm.land/lipgloss/v2"
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
@@ -146,11 +145,11 @@ func fetchConfig(cmd *cobra.Command) (*configv1.GetConfigResponse, error) {
 
 	configClients := rpc.ForHost(host, "")
 	configClient := configClients.Config
-	resp, err := configClient.GetConfig(ctx, connect.NewRequest(&configv1.GetConfigRequest{}))
+	resp, err := configClient.GetConfig(ctx, &configv1.GetConfigRequest{})
 	if err != nil {
 		return nil, fmt.Errorf("could not fetch service defaults from the API: %w", err)
 	}
-	return resp.Msg, nil
+	return resp, nil
 }
 
 func fetchDefaultRegion(cmd *cobra.Command) (string, error) {
@@ -164,13 +163,13 @@ func fetchDefaultRegion(cmd *cobra.Command) (string, error) {
 
 	resourceClients := rpc.ForHost(token.Host, token.Token)
 	resourceClient := resourceClients.Resource
-	req := connect.NewRequest(&resourcev1.ListRegionsRequest{})
+	req := &resourcev1.ListRegionsRequest{}
 
 	resp, err := resourceClient.ListRegions(ctx, req)
 	if err != nil {
 		return "", fmt.Errorf("could not list regions from the API: %w", err)
 	}
-	for _, region := range resp.Msg.GetRegions() {
+	for _, region := range resp.GetRegions() {
 		if region.GetIsDefault() {
 			return region.GetRegion(), nil
 		}

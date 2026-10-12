@@ -2,14 +2,14 @@ package auth
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 
+	"connectrpc.com/connect/v2"
+
 	"github.com/team-loco/loco/internal/rpc"
 
-	"connectrpc.com/connect"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
 	"github.com/team-loco/loco/observability-proxy/pkg/cache"
@@ -20,7 +20,10 @@ const (
 	readinessEntityID = "00000000-0000-4000-8000-000000000000"
 )
 
-var errPermissionDenied = errors.New("permission denied")
+var (
+	errPermissionDenied           = connect.NewError(connect.CodePermissionDenied, "permission denied")
+	errPermissionCheckUnavailable = connect.NewError(connect.CodeUnavailable, "permission check unavailable")
+)
 
 // Validator checks token permissions by calling CheckPermission on the control plane.
 type Validator struct {
@@ -62,22 +65,25 @@ func (v *Validator) CheckPermission(
 		return nil
 	}
 
-	req := connect.NewRequest(&tokenv1.CheckPermissionRequest{
+	req := &tokenv1.CheckPermissionRequest{
 		Token:      token,
 		EntityType: entityType,
 		EntityId:   entityID,
 		Scope:      scope,
-	})
+	}
 
 	resp, err := v.client.CheckPermission(ctx, req)
 	if err != nil {
 		slog.ErrorContext(ctx, "CheckPermission call failed", "error", err)
-		return fmt.Errorf("permission check failed: %w", err)
+		if connect.CodeOf(err) == connect.CodePermissionDenied {
+			return errPermissionDenied.WithCause(err)
+		}
+		return errPermissionCheckUnavailable.WithCause(err)
 	}
 
-	setPermission(ctx, v.cache, cacheKey, resp.Msg.GetAllowed())
+	setPermission(ctx, v.cache, cacheKey, resp.GetAllowed())
 
-	if !resp.Msg.GetAllowed() {
+	if !resp.GetAllowed() {
 		return errPermissionDenied
 	}
 	return nil
@@ -90,7 +96,7 @@ func (v *Validator) Ready(ctx context.Context) error {
 		EntityId:   readinessEntityID,
 		Scope:      tokenv1.Scope_SCOPE_READ,
 	}
-	req := connect.NewRequest(message)
+	req := message
 	if _, err := v.client.CheckPermission(ctx, req); err != nil {
 		return fmt.Errorf("control plane permission endpoint: %w", err)
 	}

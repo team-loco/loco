@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
@@ -24,11 +24,11 @@ func scaleResourceIn(t *testing.T, f *deployFixture, environmentID uuid.UUID, re
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
 	}
 	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, scopes)
-	req := connect.NewRequest(&resourcev1.ScaleResourceRequest{
+	req := &resourcev1.ScaleResourceRequest{
 		ResourceId:    f.resourceID.String(),
 		EnvironmentId: environmentID.String(),
 		Replicas:      &replicas,
-	})
+	}
 	_, err := server.ScaleResource(ctx, req)
 	return err
 }

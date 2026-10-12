@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
@@ -25,11 +25,11 @@ func rewrapKeys(
 	req *secretv1.RewrapEnvironmentKeysRequest,
 ) *secretv1.RewrapEnvironmentKeysResponse {
 	t.Helper()
-	res, err := server.RewrapEnvironmentKeys(systemAdminContext(t), connect.NewRequest(req))
+	res, err := server.RewrapEnvironmentKeys(systemAdminContext(t), req)
 	if err != nil {
 		t.Fatalf("rewrap: %v", err)
 	}
-	return res.Msg
+	return res
 }
 
 func (f *secretFixture) ciphertexts(t *testing.T) []genDb.ListEnvironmentSecretCiphertextsRow {
@@ -92,9 +92,9 @@ func TestRewrapWithANewDEKRequiresAnEnvironment(t *testing.T) {
 	server := f.server(t, testLocalProvider(t, "k1"))
 	_, err := server.RewrapEnvironmentKeys(
 		systemAdminContext(t),
-		connect.NewRequest(&secretv1.RewrapEnvironmentKeysRequest{
+		&secretv1.RewrapEnvironmentKeysRequest{
 			NewDek: true,
-		}),
+		},
 	)
 	if code := connect.CodeOf(err); code != connect.CodeInvalidArgument {
 		t.Fatalf("new DEK without an environment: code = %v, want InvalidArgument", code)

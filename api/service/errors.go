@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -24,7 +24,7 @@ func txError(ctx context.Context, msg string, err error) error {
 		return connectErr
 	}
 	slog.ErrorContext(ctx, msg, "error", err)
-	return connect.NewError(connect.CodeInternal, ErrDB)
+	return connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 }
 
 // isPgConstraintViolation checks if an error is a PostgreSQL unique constraint violation

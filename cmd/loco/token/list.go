@@ -11,7 +11,6 @@ import (
 
 	"github.com/team-loco/loco/internal/rpc"
 
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
@@ -89,17 +88,17 @@ func newListCmd(deps listDeps) *cobra.Command {
 				return err
 			}
 
-			req := connect.NewRequest(&tokenv1.ListTokensRequest{
+			req := &tokenv1.ListTokensRequest{
 				EntityType: entityType,
 				EntityId:   entityID,
-			})
+			}
 
 			resp, err := tokenClient.ListTokens(ctx, req)
 			if err != nil {
 				return fmt.Errorf("failed to list tokens: %w", err)
 			}
 
-			tokens := resp.Msg.GetTokens()
+			tokens := resp.GetTokens()
 			if len(tokens) == 0 {
 				fmt.Fprintln(deps.Output, "No tokens found.")
 				return nil
@@ -154,13 +153,13 @@ func getCurrentUserID(
 	ctx context.Context,
 	userClient userv1connect.UserServiceClient,
 ) (string, error) {
-	whoAmIReq := connect.NewRequest(&userv1.WhoAmIRequest{})
+	whoAmIReq := &userv1.WhoAmIRequest{}
 
 	whoAmIResp, err := userClient.WhoAmI(ctx, whoAmIReq)
 	if err != nil {
 		return "", fmt.Errorf("failed to get current user: %w", err)
 	}
-	return whoAmIResp.Msg.GetUser().GetId(), nil
+	return whoAmIResp.GetUser().GetId(), nil
 }
 
 func formatScopes(scopes []*tokenv1.EntityScope) string {

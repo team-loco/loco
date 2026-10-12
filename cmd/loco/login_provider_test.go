@@ -7,14 +7,17 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
+	"net/http/httptest"
+
+	"connectrpc.com/connect/v2/connecthttp"
+
+	"connectrpc.com/connect/v2"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 )
@@ -29,46 +32,47 @@ type fakeCLIAuth struct {
 
 func (f *fakeCLIAuth) ExchangeCLICode(
 	_ context.Context,
-	req *connect.Request[authv1.ExchangeCLICodeRequest],
-) (*connect.Response[authv1.ExchangeCLICodeResponse], error) {
+	req *authv1.ExchangeCLICodeRequest,
+) (*authv1.ExchangeCLICodeResponse, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	sum := sha256.Sum256([]byte(req.Msg.GetCodeVerifier()))
-	if req.Msg.GetCode() != "the-code" || base64.RawURLEncoding.EncodeToString(sum[:]) != f.challenge {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("bad code"))
+	sum := sha256.Sum256([]byte(req.GetCodeVerifier()))
+	if req.GetCode() != "the-code" || base64.RawURLEncoding.EncodeToString(sum[:]) != f.challenge {
+		return nil, connect.NewError(connect.CodeUnauthenticated, "bad code")
 	}
-	return connect.NewResponse(&authv1.ExchangeCLICodeResponse{Tokens: &authv1.CLITokens{
+	return &authv1.ExchangeCLICodeResponse{Tokens: &authv1.CLITokens{
 		AccessToken: "loco_s_x", RefreshToken: "loco_r_x", ExpiresIn: 3600,
-	}}), nil
+	}}, nil
 }
 
 func (f *fakeCLIAuth) PollDeviceLogin(
 	_ context.Context,
-	_ *connect.Request[authv1.PollDeviceLoginRequest],
-) (*connect.Response[authv1.PollDeviceLoginResponse], error) {
+	_ *authv1.PollDeviceLoginRequest,
+) (*authv1.PollDeviceLoginResponse, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.polls++
 	switch f.polls {
 	case 1:
-		return connect.NewResponse(&authv1.PollDeviceLoginResponse{}), nil
+		return &authv1.PollDeviceLoginResponse{}, nil
 	case 2:
-		return nil, connect.NewError(connect.CodeResourceExhausted, errors.New("slow down"))
+		return nil, connect.NewError(connect.CodeResourceExhausted, "slow down")
 	default:
-		return connect.NewResponse(
-			&authv1.PollDeviceLoginResponse{Tokens: &authv1.CLITokens{AccessToken: "loco_s_d"}},
-		), nil
+		return &authv1.PollDeviceLoginResponse{Tokens: &authv1.CLITokens{AccessToken: "loco_s_d"}}, nil
 	}
 }
 
 func newFakeCLIAuth(t *testing.T) (*fakeCLIAuth, authv1connect.AuthServiceClient) {
 	t.Helper()
 	fake := &fakeCLIAuth{}
+	server := connect.NewServer()
+	authv1connect.RegisterAuthServiceHandler(server, fake)
 	mux := http.NewServeMux()
-	mux.Handle(authv1connect.NewAuthServiceHandler(fake))
+	connecthttp.Mount(mux, server)
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
-	return fake, authv1connect.NewAuthServiceClient(srv.Client(), srv.URL)
+	transport := connecthttp.NewTransport(srv.Client(), srv.URL)
+	return fake, authv1connect.NewAuthServiceClient(connect.NewClient(transport))
 }
 
 func fakeBrowser(t *testing.T, fake *fakeCLIAuth, mutate func(url.Values)) func(context.Context, string) error {

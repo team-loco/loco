@@ -4,8 +4,8 @@ import (
 	"context"
 	"net/http"
 
-	"connectrpc.com/connect"
-
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 	"github.com/team-loco/loco/gen/go/loco/build/v1/buildv1connect"
@@ -52,48 +52,47 @@ var defaultHTTPClient = httputil.NewHTTPClient()
 func ForHost(host, token string) *Clients {
 	return NewHTTPClients(defaultHTTPClient, host, token)
 }
+
 func NewHTTPClients(httpClient *http.Client, host, token string) *Clients {
-	option := connect.WithInterceptors(BearerInterceptor(token))
-	return &Clients{Agent: agentv1connect.NewAgentServiceClient(httpClient, host, option),
-		Auth:                authv1connect.NewAuthServiceClient(httpClient, host, option),
-		Build:               buildv1connect.NewBuildServiceClient(httpClient, host, option),
-		Config:              configv1connect.NewConfigServiceClient(httpClient, host, option),
-		Deployment:          deploymentv1connect.NewDeploymentServiceClient(httpClient, host, option),
-		Domain:              domainv1connect.NewDomainServiceClient(httpClient, host, option),
-		Environment:         environmentv1connect.NewEnvironmentServiceClient(httpClient, host, option),
-		Event:               eventv1connect.NewEventServiceClient(httpClient, host, option),
-		Org:                 orgv1connect.NewOrgServiceClient(httpClient, host, option),
-		Plan:                planv1connect.NewPlanServiceClient(httpClient, host, option),
-		Resource:            resourcev1connect.NewResourceServiceClient(httpClient, host, option),
-		Secret:              secretv1connect.NewSecretServiceClient(httpClient, host, option),
-		Token:               tokenv1connect.NewTokenServiceClient(httpClient, host, option),
-		User:                userv1connect.NewUserServiceClient(httpClient, host, option),
-		Webhook:             webhookv1connect.NewWebhookServiceClient(httpClient, host, option),
-		Workspace:           workspacev1connect.NewWorkspaceServiceClient(httpClient, host, option),
-		ObservabilityAccess: observabilityv1connect.NewObservabilityAccessServiceClient(httpClient, host, option),
-		ObservabilityProxy:  observabilityv1connect.NewObservabilityProxyServiceClient(httpClient, host, option)}
+	transport := connecthttp.NewTransport(httpClient, host)
+	bearerInterceptor := BearerInterceptor(token)
+	connectClient := connect.NewClient(transport, bearerInterceptor)
+	return NewClients(connectClient)
 }
 
-type bearerInterceptor struct{ token string }
-
-func BearerInterceptor(token string) connect.Interceptor { return &bearerInterceptor{token: token} }
-func (i *bearerInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
-	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-		if i.token != "" {
-			req.Header().Set("Authorization", "Bearer "+i.token)
-		}
-		return next(ctx, req)
+func NewClients(connectClient *connect.Client) *Clients {
+	return &Clients{
+		Agent:               agentv1connect.NewAgentServiceClient(connectClient),
+		Auth:                authv1connect.NewAuthServiceClient(connectClient),
+		Build:               buildv1connect.NewBuildServiceClient(connectClient),
+		Config:              configv1connect.NewConfigServiceClient(connectClient),
+		Deployment:          deploymentv1connect.NewDeploymentServiceClient(connectClient),
+		Domain:              domainv1connect.NewDomainServiceClient(connectClient),
+		Environment:         environmentv1connect.NewEnvironmentServiceClient(connectClient),
+		Event:               eventv1connect.NewEventServiceClient(connectClient),
+		Org:                 orgv1connect.NewOrgServiceClient(connectClient),
+		Plan:                planv1connect.NewPlanServiceClient(connectClient),
+		Resource:            resourcev1connect.NewResourceServiceClient(connectClient),
+		Secret:              secretv1connect.NewSecretServiceClient(connectClient),
+		Token:               tokenv1connect.NewTokenServiceClient(connectClient),
+		User:                userv1connect.NewUserServiceClient(connectClient),
+		Webhook:             webhookv1connect.NewWebhookServiceClient(connectClient),
+		Workspace:           workspacev1connect.NewWorkspaceServiceClient(connectClient),
+		ObservabilityAccess: observabilityv1connect.NewObservabilityAccessServiceClient(connectClient),
+		ObservabilityProxy:  observabilityv1connect.NewObservabilityProxyServiceClient(connectClient),
 	}
 }
-func (i *bearerInterceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
-	return func(ctx context.Context, spec connect.Spec) connect.StreamingClientConn {
-		conn := next(ctx, spec)
-		if i.token != "" {
-			conn.RequestHeader().Set("Authorization", "Bearer "+i.token)
+func BearerInterceptor(token string) connect.ClientInterceptor {
+	return func(next connect.ClientFunc) connect.ClientFunc {
+		return func(ctx context.Context, spec connect.Spec) (connect.ClientStream, error) {
+			if token != "" {
+				info, ok := connect.CallInfoForClientContext(ctx)
+				if !ok {
+					ctx, info = connect.NewClientContext(ctx)
+				}
+				info.RequestHeader().Set("Authorization", "Bearer "+token)
+			}
+			return next(ctx, spec)
 		}
-		return conn
 	}
-}
-func (*bearerInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
-	return next
 }

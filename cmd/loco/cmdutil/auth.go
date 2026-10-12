@@ -9,7 +9,6 @@ import (
 
 	"github.com/team-loco/loco/internal/rpc"
 
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	"github.com/team-loco/loco/internal/httputil"
@@ -90,15 +89,15 @@ func refreshLocoToken(
 	httpClient := httputil.NewHTTPClient()
 	authClients := rpc.NewHTTPClients(httpClient, host, "")
 	authClient := authClients.Auth
-	req := connect.NewRequest(&authv1.RefreshCLITokenRequest{
+	req := &authv1.RefreshCLITokenRequest{
 		RefreshToken: refreshToken,
-	})
+	}
 	resp, err := authClient.RefreshCLIToken(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	newToken := TokenFromCLITokens(host, resp.Msg.GetTokens())
+	newToken := TokenFromCLITokens(host, resp.GetTokens())
 	if err = store.Set(*newToken); err != nil {
 		return nil, err
 	}

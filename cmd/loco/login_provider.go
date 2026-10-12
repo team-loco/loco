@@ -16,7 +16,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
@@ -158,15 +158,15 @@ func browserLogin(
 		return nil, result.err
 	}
 
-	resp, err := authClient.ExchangeCLICode(ctx, connect.NewRequest(&authv1.ExchangeCLICodeRequest{
+	resp, err := authClient.ExchangeCLICode(ctx, &authv1.ExchangeCLICodeRequest{
 		Code:         result.code,
 		CodeVerifier: verifier,
-	}))
+	})
 	if err != nil {
 		cmdutil.LogRequestID(ctx, err, "failed to exchange cli code")
 		return nil, err
 	}
-	return resp.Msg.GetTokens(), nil
+	return resp.GetTokens(), nil
 }
 
 func pollDeviceLogin(
@@ -182,9 +182,9 @@ func pollDeviceLogin(
 			return nil, ctx.Err()
 		case <-time.After(interval):
 		}
-		resp, err := authClient.PollDeviceLogin(ctx, connect.NewRequest(&authv1.PollDeviceLoginRequest{
+		resp, err := authClient.PollDeviceLogin(ctx, &authv1.PollDeviceLoginRequest{
 			DeviceCode: deviceCode,
-		}))
+		})
 		if connect.CodeOf(err) == connect.CodeResourceExhausted {
 			interval += slowDown
 			continue
@@ -192,7 +192,7 @@ func pollDeviceLogin(
 		if err != nil {
 			return nil, err
 		}
-		if tokens := resp.Msg.GetTokens(); tokens != nil {
+		if tokens := resp.GetTokens(); tokens != nil {
 			return tokens, nil
 		}
 	}
@@ -216,12 +216,12 @@ func deviceLogin(
 	authClient authv1connect.AuthServiceClient,
 	interactive bool,
 ) (*authv1.CLITokens, error) {
-	started, err := authClient.StartDeviceLogin(ctx, connect.NewRequest(&authv1.StartDeviceLoginRequest{}))
+	started, err := authClient.StartDeviceLogin(ctx, &authv1.StartDeviceLoginRequest{})
 	if err != nil {
 		cmdutil.LogRequestID(ctx, err, "failed to start device login")
 		return nil, err
 	}
-	msg := started.Msg
+	msg := started
 	expiresIn := time.Duration(msg.GetExpiresIn()) * time.Second
 	pollCtx, cancelPoll := context.WithTimeout(ctx, expiresIn)
 	defer cancelPoll()

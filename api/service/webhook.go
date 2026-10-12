@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"net/url"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -49,14 +49,16 @@ func NewWebhookServer(db *pgxpool.Pool, queries genDb.Querier, allowPrivate bool
 func (s *WebhookServer) requireWorkspaceAdmin(ctx context.Context, workspaceID string) (genDb.Entity, error) {
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
-		return genDb.Entity{}, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+		return genDb.Entity{}, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized.Error()).
+			WithCause(ErrUnauthorized)
 	}
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
-		return genDb.Entity{}, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+		return genDb.Entity{}, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized.Error()).
+			WithCause(ErrUnauthorized)
 	}
 	if err := s.authz.Check(ctx, scopes, actions.New(actions.ManageWorkspaceWebhooks, workspaceID)); err != nil {
-		return genDb.Entity{}, connect.NewError(connect.CodePermissionDenied, err)
+		return genDb.Entity{}, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
 	}
 	return entity, nil
 }
@@ -80,32 +82,32 @@ func webhookToProto(w genDb.Webhook) *webhookv1.Webhook {
 
 func (s *WebhookServer) CreateWebhook(
 	ctx context.Context,
-	req *connect.Request[webhookv1.CreateWebhookRequest],
-) (*connect.Response[webhookv1.CreateWebhookResponse], error) {
-	entity, err := s.requireWorkspaceAdmin(ctx, req.Msg.GetWorkspaceId())
+	req *webhookv1.CreateWebhookRequest,
+) (*webhookv1.CreateWebhookResponse, error) {
+	entity, err := s.requireWorkspaceAdmin(ctx, req.GetWorkspaceId())
 	if err != nil {
 		return nil, err
 	}
-	if !s.validURL(req.Msg.GetUrl()) {
-		return nil, connect.NewError(connect.CodeInvalidArgument, ErrWebhookURL)
+	if !s.validURL(req.GetUrl()) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, ErrWebhookURL.Error()).WithCause(ErrWebhookURL)
 	}
-	workspaceID := uuid.MustParse(req.Msg.GetWorkspaceId())
+	workspaceID := uuid.MustParse(req.GetWorkspaceId())
 	count, err := s.queries.CountWorkspaceWebhooks(ctx, workspaceID)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 	if count >= maxWebhooksPerWorkspace {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrWebhookLimit)
+		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrWebhookLimit.Error()).WithCause(ErrWebhookLimit)
 	}
 	secret, err := webhooks.NewSecret()
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, connect.NewError(connect.CodeInternal, err.Error()).WithCause(err)
 	}
 	var createdBy *uuid.UUID
 	if entity.Type == genDb.EntityTypeUser {
 		createdBy = new(entity.ID)
 	}
-	types := req.Msg.GetEventTypes()
+	types := req.GetEventTypes()
 	if types == nil {
 		types = []string{}
 	}
@@ -113,7 +115,7 @@ func (s *WebhookServer) CreateWebhook(
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		created, createErr := qtx.CreateWorkspaceWebhook(ctx, genDb.CreateWorkspaceWebhookParams{
 			WorkspaceID: workspaceID,
-			Url:         req.Msg.GetUrl(),
+			Url:         req.GetUrl(),
 			Secret:      secret,
 			EventTypes:  types,
 			CreatedBy:   createdBy,
@@ -132,28 +134,28 @@ func (s *WebhookServer) CreateWebhook(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create webhook", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
-	return connect.NewResponse(&webhookv1.CreateWebhookResponse{Webhook: webhookToProto(row), Secret: secret}), nil
+	return &webhookv1.CreateWebhookResponse{Webhook: webhookToProto(row), Secret: secret}, nil
 }
 
 func (s *WebhookServer) ListWebhooks(
 	ctx context.Context,
-	req *connect.Request[webhookv1.ListWebhooksRequest],
-) (*connect.Response[webhookv1.ListWebhooksResponse], error) {
-	if _, err := s.requireWorkspaceAdmin(ctx, req.Msg.GetWorkspaceId()); err != nil {
+	req *webhookv1.ListWebhooksRequest,
+) (*webhookv1.ListWebhooksResponse, error) {
+	if _, err := s.requireWorkspaceAdmin(ctx, req.GetWorkspaceId()); err != nil {
 		return nil, err
 	}
-	workspaceID := uuid.MustParse(req.Msg.GetWorkspaceId())
+	workspaceID := uuid.MustParse(req.GetWorkspaceId())
 	rows, err := s.queries.ListWorkspaceWebhooks(ctx, workspaceID)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 	out := make([]*webhookv1.Webhook, len(rows))
 	for i, row := range rows {
 		out[i] = webhookToProto(row)
 	}
-	return connect.NewResponse(&webhookv1.ListWebhooksResponse{Webhooks: out}), nil
+	return &webhookv1.ListWebhooksResponse{Webhooks: out}, nil
 }
 
 func (s *WebhookServer) loadWebhook(
@@ -166,23 +168,23 @@ func (s *WebhookServer) loadWebhook(
 		WorkspaceID: workspaceID,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return row, connect.NewError(connect.CodeNotFound, ErrWebhookNotFound)
+		return row, connect.NewError(connect.CodeNotFound, ErrWebhookNotFound.Error()).WithCause(ErrWebhookNotFound)
 	}
 	if err != nil {
-		return row, connect.NewError(connect.CodeInternal, ErrDB)
+		return row, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 	return row, nil
 }
 
 func (s *WebhookServer) DeleteWebhook(
 	ctx context.Context,
-	req *connect.Request[webhookv1.DeleteWebhookRequest],
-) (*connect.Response[webhookv1.DeleteWebhookResponse], error) {
-	if _, err := s.requireWorkspaceAdmin(ctx, req.Msg.GetWorkspaceId()); err != nil {
+	req *webhookv1.DeleteWebhookRequest,
+) (*webhookv1.DeleteWebhookResponse, error) {
+	if _, err := s.requireWorkspaceAdmin(ctx, req.GetWorkspaceId()); err != nil {
 		return nil, err
 	}
-	workspaceID := uuid.MustParse(req.Msg.GetWorkspaceId())
-	row, err := s.loadWebhook(ctx, workspaceID, req.Msg.GetWebhookId())
+	workspaceID := uuid.MustParse(req.GetWorkspaceId())
+	row, err := s.loadWebhook(ctx, workspaceID, req.GetWebhookId())
 	if err != nil {
 		return nil, err
 	}
@@ -204,18 +206,18 @@ func (s *WebhookServer) DeleteWebhook(
 	if err != nil {
 		return nil, txError(ctx, "failed to delete webhook", err)
 	}
-	return connect.NewResponse(&webhookv1.DeleteWebhookResponse{}), nil
+	return &webhookv1.DeleteWebhookResponse{}, nil
 }
 
 func (s *WebhookServer) ListWebhookDeliveries(
 	ctx context.Context,
-	req *connect.Request[webhookv1.ListWebhookDeliveriesRequest],
-) (*connect.Response[webhookv1.ListWebhookDeliveriesResponse], error) {
-	if _, err := s.requireWorkspaceAdmin(ctx, req.Msg.GetWorkspaceId()); err != nil {
+	req *webhookv1.ListWebhookDeliveriesRequest,
+) (*webhookv1.ListWebhookDeliveriesResponse, error) {
+	if _, err := s.requireWorkspaceAdmin(ctx, req.GetWorkspaceId()); err != nil {
 		return nil, err
 	}
-	workspaceID := uuid.MustParse(req.Msg.GetWorkspaceId())
-	row, err := s.loadWebhook(ctx, workspaceID, req.Msg.GetWebhookId())
+	workspaceID := uuid.MustParse(req.GetWorkspaceId())
+	row, err := s.loadWebhook(ctx, workspaceID, req.GetWebhookId())
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +226,7 @@ func (s *WebhookServer) ListWebhookDeliveries(
 		MaxRows:   recentDeliveries,
 	})
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 	out := make([]*webhookv1.WebhookDelivery, len(rows))
 	for i, d := range rows {
@@ -246,5 +248,5 @@ func (s *WebhookServer) ListWebhookDeliveries(
 		}
 		out[i] = delivery
 	}
-	return connect.NewResponse(&webhookv1.ListWebhookDeliveriesResponse{Deliveries: out}), nil
+	return &webhookv1.ListWebhookDeliveriesResponse{Deliveries: out}, nil
 }

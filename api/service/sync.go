@@ -7,23 +7,25 @@ import (
 	"io"
 	"log/slog"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 )
 
 const applicationPhaseFailed = "Failed"
 
 var errSyncSuperseded = errors.New("a newer sync stream for this cluster is connected")
 
-type syncStream = connect.BidiStream[agentv1.SyncRequest, agentv1.SyncResponse]
+type syncStream = agentv1connect.AgentServiceSyncServerStream
 
-func (s *AgentServer) Sync(ctx context.Context, stream *syncStream) error {
-	cluster, err := s.authenticateAgent(ctx, stream.RequestHeader().Get("Authorization"))
+func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
+	info, _ := connect.CallInfoForServerContext(ctx)
+	cluster, err := s.authenticateAgent(ctx, info.RequestHeader().Get("Authorization"))
 	if err != nil {
-		return connect.NewError(connect.CodeUnauthenticated, err)
+		return connect.NewError(connect.CodeUnauthenticated, err.Error()).WithCause(err)
 	}
 
 	listener := s.notifier.Listen(ctx, cluster.ID)
@@ -32,7 +34,7 @@ func (s *AgentServer) Sync(ctx context.Context, stream *syncStream) error {
 	generation, err := s.queries.BeginClusterSync(ctx, cluster.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to begin cluster sync", "cluster_id", cluster.ID, "error", err)
-		return connect.NewError(connect.CodeUnavailable, ErrDB)
+		return connect.NewError(connect.CodeUnavailable, ErrDB.Error()).WithCause(ErrDB)
 	}
 	clusterIDText := cluster.ID.String()
 	if notifyErr := s.queries.NotifyClusterPlacements(ctx, clusterIDText); notifyErr != nil {
@@ -75,7 +77,7 @@ func (s *AgentServer) Sync(ctx context.Context, stream *syncStream) error {
 			}
 			if genErr == nil && current != generation {
 				slog.InfoContext(ctx, "sync stream superseded", "cluster_id", cluster.ID, "generation", generation)
-				return connect.NewError(connect.CodeAborted, errSyncSuperseded)
+				return connect.NewError(connect.CodeAborted, errSyncSuperseded.Error()).WithCause(errSyncSuperseded)
 			}
 			dirty = true
 		}
@@ -84,7 +86,7 @@ func (s *AgentServer) Sync(ctx context.Context, stream *syncStream) error {
 
 func receiveSync(
 	ctx context.Context,
-	stream *syncStream,
+	stream syncStream,
 	messages chan<- *agentv1.SyncRequest,
 	recvErr chan<- error,
 ) {

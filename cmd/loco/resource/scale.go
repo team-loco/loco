@@ -10,7 +10,6 @@ import (
 	"github.com/team-loco/loco/internal/rpc"
 
 	"charm.land/lipgloss/v2"
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/gen/go/loco/environment/v1/environmentv1connect"
@@ -120,21 +119,21 @@ Examples:
 			}
 
 			// Get resource by name
-			getReq := connect.NewRequest(&resourcev1.GetResourceRequest{
+			getReq := &resourcev1.GetResourceRequest{
 				Key: &resourcev1.GetResourceRequest_NameKey{
 					NameKey: &resourcev1.GetResourceNameKey{
 						WorkspaceId: workspaceID,
 						Name:        name,
 					},
 				},
-			})
+			}
 
 			resourceResp, err := resourceClient.GetResource(ctx, getReq)
 			if err != nil {
 				return fmt.Errorf("service '%s' not found: %w", name, err)
 			}
 
-			resource := resourceResp.Msg.GetResource()
+			resource := resourceResp.GetResource()
 			slog.Debug("scaling service", "resource_id", resource.GetId(), "name", name, "environment", env.GetName())
 
 			// Build scale request
@@ -153,13 +152,13 @@ Examples:
 				memoryPtr = &memory
 			}
 
-			scaleReq := connect.NewRequest(&resourcev1.ScaleResourceRequest{
+			scaleReq := &resourcev1.ScaleResourceRequest{
 				ResourceId:    resource.GetId(),
 				EnvironmentId: env.GetId(),
 				Replicas:      replicasPtr,
 				Cpu:           cpuPtr,
 				Memory:        memoryPtr,
-			})
+			}
 
 			_, err = resourceClient.ScaleResource(ctx, scaleReq)
 			if err != nil {

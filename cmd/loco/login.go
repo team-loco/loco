@@ -13,7 +13,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
@@ -69,12 +68,12 @@ func newLoginCmd(env Env) *cobra.Command {
 			httpClient := httputil.NewHTTPClient()
 			configClients := rpc.NewHTTPClients(httpClient, host, "")
 			configClient := configClients.Config
-			config, err := configClient.GetConfig(cmd.Context(), connect.NewRequest(&configv1.GetConfigRequest{}))
+			config, err := configClient.GetConfig(cmd.Context(), &configv1.GetConfigRequest{})
 			if err != nil {
 				cmdutil.LogRequestID(cmd.Context(), err, "failed to read server config")
 				return fmt.Errorf("login to %s failed: %w", host, err)
 			}
-			if config.Msg.GetAuth() == nil {
+			if config.GetAuth() == nil {
 				return fmt.Errorf("login to %s failed: %w", host, errNoIdentityProvider)
 			}
 			return providerLogin(cmd, httpClient, host, store)
@@ -169,36 +168,36 @@ func resolveLoginScope(
 	wsClient := clients.Workspace
 	userClient := clients.User
 
-	currentUserReq := connect.NewRequest(&userv1.WhoAmIRequest{})
+	currentUserReq := &userv1.WhoAmIRequest{}
 
 	currentUserResp, err := userClient.WhoAmI(ctx, currentUserReq)
 	if err != nil {
 		return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf("failed to get current user: %w", err)
 	}
 
-	orgRequest := connect.NewRequest(&orgv1.ListUserOrgsRequest{
-		UserId:   currentUserResp.Msg.GetUser().GetId(),
+	orgRequest := &orgv1.ListUserOrgsRequest{
+		UserId:   currentUserResp.GetUser().GetId(),
 		PageSize: 100,
-	})
+	}
 
 	orgResp, err := orgClient.ListUserOrgs(ctx, orgRequest)
 	if err != nil {
 		return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf("failed to list organizations: %w", err)
 	}
 
-	orgs := orgResp.Msg.GetOrgs()
+	orgs := orgResp.GetOrgs()
 	if len(orgs) > 0 {
 		selectedOrg := orgs[0]
-		wsReq := connect.NewRequest(&workspacev1.ListOrgWorkspacesRequest{
+		wsReq := &workspacev1.ListOrgWorkspacesRequest{
 			OrgId:    selectedOrg.GetId(),
 			PageSize: 100,
-		})
+		}
 
 		wsResp, wsErr := wsClient.ListOrgWorkspaces(ctx, wsReq)
 		if wsErr != nil {
 			return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf("failed to list workspaces: %w", wsErr)
 		}
-		workspaces := wsResp.Msg.GetWorkspaces()
+		workspaces := wsResp.GetWorkspaces()
 		if len(workspaces) == 0 {
 			return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf(
 				"organization %q has no workspaces",
@@ -210,18 +209,18 @@ func resolveLoginScope(
 		return org, workspace, nil
 	}
 
-	email := currentUserResp.Msg.GetUser().GetEmail()
+	email := currentUserResp.GetUser().GetEmail()
 	orgName := fmt.Sprintf("%s-org", cleanEmail(email))
-	createOrgReq := connect.NewRequest(&orgv1.CreateOrgRequest{Name: &orgName})
+	createOrgReq := &orgv1.CreateOrgRequest{Name: &orgName}
 
 	createOrgResp, err := orgClient.CreateOrg(ctx, createOrgReq)
 	if err != nil {
 		return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf("failed to create organization: %w", err)
 	}
 
-	getOrgReq := connect.NewRequest(&orgv1.GetOrgRequest{
-		Key: &orgv1.GetOrgRequest_OrgId{OrgId: createOrgResp.Msg.GetOrgId()},
-	})
+	getOrgReq := &orgv1.GetOrgRequest{
+		Key: &orgv1.GetOrgRequest_OrgId{OrgId: createOrgResp.GetOrgId()},
+	}
 
 	getOrgResp, err := orgClient.GetOrg(ctx, getOrgReq)
 	if err != nil {
@@ -231,19 +230,19 @@ func resolveLoginScope(
 		)
 	}
 
-	createWSReq := connect.NewRequest(&workspacev1.CreateWorkspaceRequest{
-		OrgId: createOrgResp.Msg.GetOrgId(),
+	createWSReq := &workspacev1.CreateWorkspaceRequest{
+		OrgId: createOrgResp.GetOrgId(),
 		Name:  "default",
-	})
+	}
 
 	createWSResp, err := wsClient.CreateWorkspace(ctx, createWSReq)
 	if err != nil {
 		return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf("failed to create workspace: %w", err)
 	}
 
-	getWSReq := connect.NewRequest(&workspacev1.GetWorkspaceRequest{
-		WorkspaceId: createWSResp.Msg.GetWorkspaceId(),
-	})
+	getWSReq := &workspacev1.GetWorkspaceRequest{
+		WorkspaceId: createWSResp.GetWorkspaceId(),
+	}
 
 	getWSResp, err := wsClient.GetWorkspace(ctx, getWSReq)
 	if err != nil {
@@ -251,12 +250,12 @@ func resolveLoginScope(
 	}
 
 	org := session.SimpleOrg{
-		ID:   getOrgResp.Msg.GetOrganization().GetId(),
-		Name: getOrgResp.Msg.GetOrganization().GetName(),
+		ID:   getOrgResp.GetOrganization().GetId(),
+		Name: getOrgResp.GetOrganization().GetName(),
 	}
 	workspace := session.SimpleWorkspace{
-		ID:   getWSResp.Msg.GetWorkspace().GetId(),
-		Name: getWSResp.Msg.GetWorkspace().GetName(),
+		ID:   getWSResp.GetWorkspace().GetId(),
+		Name: getWSResp.GetWorkspace().GetName(),
 	}
 	return org, workspace, nil
 }

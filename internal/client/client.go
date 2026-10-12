@@ -3,11 +3,12 @@ package client
 import (
 	"context"
 	"errors"
+	"io"
 	"log/slog"
 
 	"github.com/team-loco/loco/internal/rpc"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
@@ -49,15 +50,15 @@ func logRequestID(ctx context.Context, err error, msg string) {
 	const requestIDHeaderName = "X-Loco-Request-Id"
 	var headerValue string
 
-	if cErr, ok := errors.AsType[*connect.Error](err); ok {
-		headerValue = cErr.Meta().Get(requestIDHeaderName)
+	if info, ok := connect.CallInfoForClientContext(ctx); ok {
+		headerValue = info.ResponseHeader().Get(requestIDHeaderName)
 	}
 
 	slog.ErrorContext(ctx, msg, requestIDHeaderName, headerValue, "error", err)
 }
 
 func (c *Client) GetCurrentUser(ctx context.Context) (*userv1.User, error) {
-	req := connect.NewRequest(&userv1.WhoAmIRequest{})
+	req := &userv1.WhoAmIRequest{}
 
 	resp, err := c.User.WhoAmI(ctx, req)
 	if err != nil {
@@ -65,14 +66,14 @@ func (c *Client) GetCurrentUser(ctx context.Context) (*userv1.User, error) {
 		return nil, err
 	}
 
-	return resp.Msg.GetUser(), nil
+	return resp.GetUser(), nil
 }
 
 func (c *Client) GetCurrentUserOrgs(ctx context.Context, userID string) ([]*orgv1.Organization, error) {
-	req := connect.NewRequest(&orgv1.ListUserOrgsRequest{
+	req := &orgv1.ListUserOrgsRequest{
 		UserId:   userID,
 		PageSize: 100,
-	})
+	}
 
 	resp, err := c.Org.ListUserOrgs(ctx, req)
 	if err != nil {
@@ -80,14 +81,14 @@ func (c *Client) GetCurrentUserOrgs(ctx context.Context, userID string) ([]*orgv
 		return nil, err
 	}
 
-	return resp.Msg.GetOrgs(), nil
+	return resp.GetOrgs(), nil
 }
 
 func (c *Client) GetUserWorkspaces(ctx context.Context, userID string) ([]*workspacev1.Workspace, error) {
-	req := connect.NewRequest(&workspacev1.ListUserWorkspacesRequest{
+	req := &workspacev1.ListUserWorkspacesRequest{
 		UserId:   userID,
 		PageSize: 100,
-	})
+	}
 
 	resp, err := c.Workspace.ListUserWorkspaces(ctx, req)
 	if err != nil {
@@ -95,13 +96,13 @@ func (c *Client) GetUserWorkspaces(ctx context.Context, userID string) ([]*works
 		return nil, err
 	}
 
-	return resp.Msg.GetWorkspaces(), nil
+	return resp.GetWorkspaces(), nil
 }
 
 func (c *Client) GetApp(ctx context.Context, appID string) (*resourcev1.Resource, error) {
-	req := connect.NewRequest(&resourcev1.GetResourceRequest{
+	req := &resourcev1.GetResourceRequest{
 		Key: &resourcev1.GetResourceRequest_ResourceId{ResourceId: appID},
-	})
+	}
 
 	resp, err := c.Resource.GetResource(ctx, req)
 	if err != nil {
@@ -109,11 +110,11 @@ func (c *Client) GetApp(ctx context.Context, appID string) (*resourcev1.Resource
 		return nil, err
 	}
 
-	return resp.Msg.GetResource(), nil
+	return resp.GetResource(), nil
 }
 
 func (c *Client) ListApps(ctx context.Context, workspaceID string) ([]*resourcev1.Resource, error) {
-	req := connect.NewRequest(&resourcev1.ListWorkspaceResourcesRequest{WorkspaceId: workspaceID})
+	req := &resourcev1.ListWorkspaceResourcesRequest{WorkspaceId: workspaceID}
 
 	resp, err := c.Resource.ListWorkspaceResources(ctx, req)
 	if err != nil {
@@ -121,18 +122,18 @@ func (c *Client) ListApps(ctx context.Context, workspaceID string) ([]*resourcev
 		return nil, err
 	}
 
-	return resp.Msg.GetResources(), nil
+	return resp.GetResources(), nil
 }
 
 func (c *Client) GetAppByName(ctx context.Context, workspaceID string, appName string) (*resourcev1.Resource, error) {
-	req := connect.NewRequest(&resourcev1.GetResourceRequest{
+	req := &resourcev1.GetResourceRequest{
 		Key: &resourcev1.GetResourceRequest_NameKey{
 			NameKey: &resourcev1.GetResourceNameKey{
 				WorkspaceId: workspaceID,
 				Name:        appName,
 			},
 		},
-	})
+	}
 
 	resp, err := c.Resource.GetResource(ctx, req)
 	if err != nil {
@@ -140,11 +141,11 @@ func (c *Client) GetAppByName(ctx context.Context, workspaceID string, appName s
 		return nil, err
 	}
 
-	return resp.Msg.GetResource(), nil
+	return resp.GetResource(), nil
 }
 
 func (c *Client) GetDeployment(ctx context.Context, deploymentID string) (*deploymentv1.Deployment, error) {
-	req := connect.NewRequest(&deploymentv1.GetDeploymentRequest{DeploymentId: deploymentID})
+	req := &deploymentv1.GetDeploymentRequest{DeploymentId: deploymentID}
 
 	resp, err := c.Deployment.GetDeployment(ctx, req)
 	if err != nil {
@@ -152,7 +153,7 @@ func (c *Client) GetDeployment(ctx context.Context, deploymentID string) (*deplo
 		return nil, err
 	}
 
-	return resp.Msg.GetDeployment(), nil
+	return resp.GetDeployment(), nil
 }
 
 func (c *Client) StreamDeployment(
@@ -160,7 +161,7 @@ func (c *Client) StreamDeployment(
 	deploymentID string,
 	eventHandler func(*deploymentv1.WatchDeploymentResponse) error,
 ) error {
-	req := connect.NewRequest(&deploymentv1.WatchDeploymentRequest{DeploymentId: deploymentID})
+	req := &deploymentv1.WatchDeploymentRequest{DeploymentId: deploymentID}
 
 	stream, err := c.Deployment.WatchDeployment(ctx, req)
 	if err != nil {
@@ -168,23 +169,26 @@ func (c *Client) StreamDeployment(
 		return err
 	}
 
-	for stream.Receive() {
-		event := stream.Msg()
+	for {
+		msg, err2 := stream.Receive()
+		if err2 != nil {
+			if errors.Is(err2, io.EOF) {
+				break
+			}
+			logRequestID(ctx, err2, "failed to stream deployment")
+			return err2
+		}
+		event := msg
 		if err := eventHandler(event); err != nil {
 			return err
 		}
-	}
-
-	if err := stream.Err(); err != nil {
-		logRequestID(ctx, err, "failed to stream deployment")
-		return err
 	}
 
 	return nil
 }
 
 func (c *Client) DeleteApp(ctx context.Context, appID string) error {
-	req := connect.NewRequest(&resourcev1.DeleteResourceRequest{ResourceId: appID})
+	req := &resourcev1.DeleteResourceRequest{ResourceId: appID}
 
 	_, err := c.Resource.DeleteResource(ctx, req)
 	logRequestID(ctx, err, "failed to delete app")
@@ -192,15 +196,15 @@ func (c *Client) DeleteApp(ctx context.Context, appID string) error {
 }
 
 func (c *Client) GetEvents(ctx context.Context, appID string, limit *int32) ([]*resourcev1.Event, error) {
-	req := connect.NewRequest(&resourcev1.ListResourceEventsRequest{
+	req := &resourcev1.ListResourceEventsRequest{
 		ResourceId: appID,
 		Limit:      limit,
-	})
+	}
 
 	resp, err := c.Resource.ListResourceEvents(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	return resp.Msg.GetEvents(), nil
+	return resp.GetEvents(), nil
 }
