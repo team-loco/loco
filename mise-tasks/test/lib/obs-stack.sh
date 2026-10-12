@@ -55,8 +55,10 @@ for user in $(yq '.clickhouseUserPasswords | keys | .[]' "$chart/values.yaml"); 
 	password_sets+=("--set" "clickhouseUserPasswords.$user=$(openssl rand -hex 16)")
 done
 control_plane_url=http://control-plane.invalid
+proxy_auth_token=obs-stack-fixture-token
 manifest=$(helm template loco-obs "$chart" --namespace "$namespace" --set obsProxy.image.tag="$1" \
-	--set obsProxy.controlPlane.url="$control_plane_url" "${password_sets[@]}")
+	--set obsProxy.controlPlane.url="$control_plane_url" \
+	--set obsProxy.auth.existingSecret="$run_id-proxy-auth" "${password_sets[@]}")
 chi=$(yq -o json -I 0 'select(.kind == "ClickHouseInstallation")' <<<"$manifest")
 clickhouse_image=$(yq '.spec.templates.podTemplates[0].spec.containers[0].image' <<<"$chi")
 collector_image=$(yq 'select(.kind == "Deployment" and .metadata.name == "otel-col-deploy") | .spec.template.spec.containers[0].image' <<<"$manifest")
@@ -118,7 +120,7 @@ for name in $(yq '.[].name' <<<"$proxy_env"); do
 	[ "$name" = MIGRATION_LOCK ] && continue
 	proxy_vars+=("$name=$(proxy_value "$name")")
 done
-proxy_vars+=("MIGRATION_LOCK=none")
+proxy_vars+=("MIGRATION_LOCK=none" "PROXY_AUTH_TOKEN=$proxy_auth_token")
 env "${proxy_vars[@]}" PORT="$proxy_port" "$workdir/loco-obs-proxy" >"$workdir/proxy.log" 2>&1 &
 proxy_pid=$!
 if ! wait_for "Observability proxy readiness" curl -sf "http://127.0.0.1:$proxy_port/readyz"; then

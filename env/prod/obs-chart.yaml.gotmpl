@@ -18,6 +18,8 @@ clickhouseUserPasswords:
 # Observability proxy (enabled by default)
 obsProxy:
   enabled: true
+  auth:
+    existingSecret: {{ requiredEnv "OBS_PROXY_AUTH_SECRET" | quote }}
   image:
     tag: sha-{{ requiredEnv "GH_SHA" }}
   replicaCount: 2
