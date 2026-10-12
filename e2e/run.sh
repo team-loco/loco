@@ -20,6 +20,7 @@ RUN_DIR="$SCRIPT_DIR/runs/$RUN_ID"
 BIN_DIR="$RUN_DIR/bin"
 LOG_DIR="$RUN_DIR/logs"
 PID_DIR="$RUN_DIR/pids"
+JOB_PID_DIR="$PID_DIR/setup-$$"
 KUBECONFIG_FILE="$RUN_DIR/kubeconfig"
 
 PORT_RANGE_START=20000
@@ -39,6 +40,7 @@ POD_READY_PROBE_TIMEOUT=1s
 CLICKHOUSE_NATIVE_PORT=9000
 GATEWAY_HTTP_PORT=80
 LOG_TAIL_LINES=200
+BUILD_NICENESS=10
 
 KIND_CLUSTER_NAME="$RUN_NAME"
 KUBE_CONTEXT="kind-${KIND_CLUSTER_NAME}"
@@ -134,6 +136,58 @@ cluster_exists() {
     kind get clusters 2>/dev/null | grep -qx "$KIND_CLUSTER_NAME"
 }
 
+kill_tree() {
+    local pid=$1 child
+    kill -STOP "$pid" 2>/dev/null || return 0
+    for child in $(pgrep -P "$pid" || true); do
+        kill_tree "$child"
+    done
+    kill "$pid" 2>/dev/null || true
+    kill -CONT "$pid" 2>/dev/null || true
+}
+
+job_log() {
+    echo "$LOG_DIR/setup-$1.log"
+}
+
+start_job() {
+    local name=$1
+    shift
+    "$@" >"$(job_log "$name")" 2>&1 &
+    echo $! >"$JOB_PID_DIR/${name}.pid"
+    log_info "Started ${name} in the background, logging to $(job_log "$name")"
+}
+
+await_job() {
+    local name=$1 pid_file="$JOB_PID_DIR/$1.pid" pid
+    if [ ! -f "$pid_file" ]; then
+        return 0
+    fi
+    pid=$(cat "$pid_file")
+    rm "$pid_file"
+    log_info "Waiting for ${name}..."
+    if ! wait "$pid"; then
+        log_error "${name} failed; its log follows"
+        log_group "${name} log (last ${LOG_TAIL_LINES} lines)"
+        tail -n "$LOG_TAIL_LINES" "$(job_log "$name")"
+        log_group_end
+        exit 1
+    fi
+    log_ok "${name} done"
+}
+
+stop_jobs() {
+    local pid_file pid
+    for pid_file in "$JOB_PID_DIR"/*.pid; do
+        [ -f "$pid_file" ] || continue
+        pid=$(cat "$pid_file")
+        rm "$pid_file"
+        kill_tree "$pid"
+        wait "$pid" 2>/dev/null || true
+    done
+    rm -rf "$JOB_PID_DIR"
+}
+
 stop_processes() {
     kill_pid_file "$PID_DIR/obs-proxy.pid"
     kill_pid_file "$PID_DIR/gateway-forward.pid"
@@ -215,6 +269,7 @@ dump_logs() {
 
 on_exit() {
     local status=$?
+    stop_jobs
     if [ "$status" -ne 0 ]; then
         log_error "Run ${RUN_ID} failed (exit ${status}); component logs follow"
         dump_logs
@@ -282,7 +337,7 @@ check_ports() {
 # ─── Setup ──────────────────────────────────────────────────────────────────
 
 setup_dirs() {
-    mkdir -p "$BIN_DIR" "$LOG_DIR" "$PID_DIR"
+    mkdir -p "$BIN_DIR" "$LOG_DIR" "$PID_DIR" "$JOB_PID_DIR"
 }
 
 create_cluster() {
@@ -379,6 +434,12 @@ install_observability_namespaces() {
     log_ok "Platform namespaces ready"
 }
 
+build_chart_dependencies() {
+    log_step "Building the Helm chart dependencies..."
+    mise run --quiet helm:deps >/dev/null
+    log_ok "Chart dependencies built"
+}
+
 envoy_proxy_deployment() {
     kube -n "$LOCO_NAMESPACE" get deployments \
         -l "gateway.envoyproxy.io/owning-gateway-name=${GATEWAY_RELEASE},gateway.envoyproxy.io/owning-gateway-namespace=${LOCO_NAMESPACE}" \
@@ -393,7 +454,6 @@ envoy_proxy_service() {
 
 install_envoy_gateway() {
     log_step "Installing Envoy Gateway ${GATEWAY_CHART_VERSION}, its Gateway API CRDs and the loco-core Gateway..."
-    mise run --quiet helm:deps >/dev/null
     local gateway_values="$RUN_DIR/gateway-helm-values.yaml"
     yq '.["gateway-helm"]' "$CORE_CHART/values.yaml" >"$gateway_values"
     helm upgrade --install "$GATEWAY_RELEASE" "$CORE_CHART/charts/gateway-helm-${GATEWAY_CHART_VERSION}.tgz" \
@@ -448,7 +508,6 @@ clickhouse_user_answers() {
 
 install_loco_obs() {
     log_step "Installing the loco-obs chart..."
-    mise run --quiet helm:deps >/dev/null
     helm upgrade --install "$OBS_RELEASE" "$ROOT_DIR/charts/loco-obs" \
         --kubeconfig "$KUBECONFIG_FILE" \
         --kube-context "$KUBE_CONTEXT" \
@@ -514,16 +573,26 @@ setup_registry() {
     log_ok "Registry at ${E2E_REGISTRY_HOST} (host port ${registry_port}), source bucket at ${E2E_S3_ENDPOINT}, build egress to ${BUILD_EGRESS_CIDRS}"
 }
 
-image_reference() {
-    local repository=$1 dockerfile=$2 run_tag="$1:e2e-${RUN_ID}" id
-    if [ "$SKIP_BUILD" = true ]; then
-        if ! id=$(docker image inspect -f '{{.Id}}' "$run_tag" 2>/dev/null); then
-            log_error "No ${run_tag} image to reuse; run once without --skip-build" >&2
-            return 1
+build_image() {
+    local repository=$1 dockerfile=$2
+    docker build -t "${repository}:e2e-${RUN_ID}" --build-arg VERSION="$E2E_VERSION" \
+        -f "$ROOT_DIR/$dockerfile" "$ROOT_DIR"
+}
+
+pull_build_images() {
+    local image
+    for image in "$BUILDKIT_IMAGE" "$E2E_AWS_CLI_IMAGE"; do
+        if ! docker image inspect "$image" >/dev/null 2>&1; then
+            docker pull -q "$image"
         fi
-    else
-        id=$(docker build -q -t "$run_tag" --build-arg VERSION="$E2E_VERSION" \
-            -f "$ROOT_DIR/$dockerfile" "$ROOT_DIR")
+    done
+}
+
+image_reference() {
+    local run_tag="$1:e2e-${RUN_ID}" id
+    if ! id=$(docker image inspect -f '{{.Id}}' "$run_tag" 2>/dev/null); then
+        log_error "No ${run_tag} image to reuse; run once without --skip-build" >&2
+        return 1
     fi
     id=${id#sha256:}
     echo "${run_tag}-${id:0:12}"
@@ -537,27 +606,24 @@ load_image() {
     KIND_CLUSTER="$KIND_CLUSTER_NAME" mise run --quiet cluster:prune-images "$reference" >/dev/null
 }
 
-build_builder_images() {
+load_builder_images() {
     if [ "$BUILDS_ENABLED" = false ]; then
         log_info "Skipping the builder images (--builds-disabled)"
         return 0
     fi
-    log_step "Building the builder image..."
-    BUILDER_IMAGE=$(image_reference "$BUILDER_REPOSITORY" builder/Dockerfile)
+    await_job builder-image
+    await_job build-image-pulls
+    log_step "Loading the builder image..."
+    BUILDER_IMAGE=$(image_reference "$BUILDER_REPOSITORY")
     load_image "$BUILDER_IMAGE"
-    local image
-    for image in "$BUILDKIT_IMAGE" "$E2E_AWS_CLI_IMAGE"; do
-        if ! docker image inspect "$image" >/dev/null 2>&1; then
-            docker pull -q "$image" >/dev/null
-        fi
-    done
     kind load docker-image "$BUILDKIT_IMAGE" --name "$KIND_CLUSTER_NAME" >/dev/null
     log_ok "Builder ${BUILDER_IMAGE} and BuildKit images loaded into Kind"
 }
 
-build_controller_image() {
-    log_step "Building the controller image..."
-    CONTROLLER_IMAGE=$(image_reference "$CONTROLLER_REPOSITORY" controller/Dockerfile)
+load_controller_image() {
+    await_job controller-image
+    log_step "Loading the controller image..."
+    CONTROLLER_IMAGE=$(image_reference "$CONTROLLER_REPOSITORY")
     load_image "$CONTROLLER_IMAGE"
     log_ok "Controller image ${CONTROLLER_IMAGE} loaded into Kind"
 }
@@ -603,15 +669,20 @@ reset_cluster_state() {
     log_ok "Cluster state reset"
 }
 
-build_binaries() {
+start_builds() {
+    if [ "$BUILDS_ENABLED" = true ]; then
+        start_job build-image-pulls pull_build_images
+    fi
     if [ "$SKIP_BUILD" = true ]; then
         log_info "Skipping builds (--skip-build)"
         return 0
     fi
-
-    log_step "Building binaries..."
-    mise run --quiet e2e:build "$BIN_DIR" "$E2E_VERSION"
-    log_ok "All binaries built"
+    log_step "Building the images and binaries in the background..."
+    start_job controller-image build_image "$CONTROLLER_REPOSITORY" controller/Dockerfile
+    if [ "$BUILDS_ENABLED" = true ]; then
+        start_job builder-image build_image "$BUILDER_REPOSITORY" builder/Dockerfile
+    fi
+    start_job binaries nice -n "$BUILD_NICENESS" mise run --quiet e2e:build "$BIN_DIR" "$E2E_VERSION"
 }
 
 start_api() {
@@ -805,28 +876,34 @@ main() {
     stop_processes
     check_ports
     setup_dirs
+    start_builds
     setup_kind
+    create_namespace
+    if [ "$OBSERVABILITY" = true ]; then
+        install_observability_namespaces
+        build_chart_dependencies
+        start_job envoy-gateway install_envoy_gateway
+        start_job loco-obs install_loco_obs
+    else
+        install_gateway_api
+    fi
     setup_postgres
     if [ "$OBSERVABILITY" = false ]; then
         setup_clickhouse
     fi
     run_migrations
-    create_namespace
-    if [ "$OBSERVABILITY" = true ]; then
-        install_observability_namespaces
-        install_envoy_gateway
-        install_loco_obs
-        forward_observability_ports
-        reset_telemetry
-    else
-        install_gateway_api
-    fi
     setup_registry
-    build_builder_images
-    build_controller_image
+    load_builder_images
+    load_controller_image
+    await_job envoy-gateway
     install_operator
     reset_cluster_state
-    build_binaries
+    if [ "$OBSERVABILITY" = true ]; then
+        await_job loco-obs
+        forward_observability_ports
+        reset_telemetry
+    fi
+    await_job binaries
     start_api
     start_agent
     start_obs_proxy
