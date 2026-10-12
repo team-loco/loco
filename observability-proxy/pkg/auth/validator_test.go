@@ -76,10 +76,10 @@ func TestPermissionErrorsHaveExplicitLocalCodes(t *testing.T) {
 			message: errPermissionCheckUnavailable.Message(),
 		},
 		{
-			name:    "proxy token rejected",
+			name:    "caller token rejected",
 			failure: connect.NewError(connect.CodeUnauthenticated, upstreamPrivateMessage),
-			code:    connect.CodeUnavailable,
-			message: errPermissionCheckUnavailable.Message(),
+			code:    connect.CodePermissionDenied,
+			message: errPermissionDenied.Message(),
 		},
 		{
 			name:    "upstream plain error",

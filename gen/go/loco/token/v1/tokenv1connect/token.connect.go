@@ -96,8 +96,7 @@ type TokenServiceClient interface {
 	RevokeToken(context.Context, *v1.RevokeTokenRequest) (*v1.RevokeTokenResponse, error)
 	// GetScopes returns the entity and all scopes the current token has access to.
 	GetScopes(context.Context, *v1.GetScopesRequest) (*v1.GetScopesResponse, error)
-	// CheckPermission validates whether a given token has a specific permission on an entity.
-	// Intended for service-to-service calls (e.g. observability proxy → control plane).
+	// CheckPermission checks whether the token in the Authorization header has the requested scope on an entity.
 	CheckPermission(context.Context, *v1.CheckPermissionRequest) (*v1.CheckPermissionResponse, error)
 }
 
@@ -119,8 +118,7 @@ type TokenServiceHandler interface {
 	RevokeToken(context.Context, *v1.RevokeTokenRequest) (*v1.RevokeTokenResponse, error)
 	// GetScopes returns the entity and all scopes the current token has access to.
 	GetScopes(context.Context, *v1.GetScopesRequest) (*v1.GetScopesResponse, error)
-	// CheckPermission validates whether a given token has a specific permission on an entity.
-	// Intended for service-to-service calls (e.g. observability proxy → control plane).
+	// CheckPermission checks whether the token in the Authorization header has the requested scope on an entity.
 	CheckPermission(context.Context, *v1.CheckPermissionRequest) (*v1.CheckPermissionResponse, error)
 }
 

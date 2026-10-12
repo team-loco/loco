@@ -29,7 +29,6 @@ var (
 
 	errNameRequired       = errors.New("name is required")
 	errEntityTypeRequired = errors.New("entity_type is required")
-	errCheckPermission    = errors.New("failed to check permission")
 )
 
 // TokenServer implements the TokenService gRPC server
@@ -443,8 +442,7 @@ func (*TokenServer) GetScopes(
 	}, nil
 }
 
-// CheckPermission validates whether a given token has a specific permission on an entity.
-// Intended for service-to-service calls (e.g. the observability proxy).
+// CheckPermission checks the authenticated caller's scopes for the requested entity.
 func (s *TokenServer) CheckPermission(
 	ctx context.Context,
 	req *tokenv1.CheckPermissionRequest,
@@ -454,13 +452,9 @@ func (s *TokenServer) CheckPermission(
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidEntityID).WithCause(err)
 	}
 
-	_, scopes, err := s.tvm.GetToken(ctx, req.GetToken())
-	if errors.Is(err, tvm.ErrInvalidExpiredToken) {
-		return &tokenv1.CheckPermissionResponse{Allowed: false}, nil
-	}
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to resolve token for permission check", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, errCheckPermission)
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	allowed := s.authz.Check(ctx, scopes, genDb.EntityScope{

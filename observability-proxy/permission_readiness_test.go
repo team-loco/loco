@@ -39,14 +39,18 @@ type readinessTokenServer struct {
 
 func (s *readinessTokenServer) CheckPermission(
 	ctx context.Context,
-	req *tokenv1.CheckPermissionRequest,
+	_ *tokenv1.CheckPermissionRequest,
 ) (*tokenv1.CheckPermissionResponse, error) {
-	info, _ := connect.CallInfoForServerContext(ctx)
-	s.calls.Add(1)
-	if s.rejected.Load() || info.RequestHeader().Get("Authorization") != "Bearer "+testProxyCredential {
+	info, ok := connect.CallInfoForServerContext(ctx)
+	if !ok {
 		return nil, rpcerr.New(connect.CodeUnauthenticated, errTestCredentialRejected)
 	}
-	allowed := req.GetToken() == testQueryToken
+	s.calls.Add(1)
+	credential := info.RequestHeader().Get("Authorization")
+	if s.rejected.Load() || (credential != "Bearer "+testProxyCredential && credential != "Bearer "+testQueryToken) {
+		return nil, rpcerr.New(connect.CodeUnauthenticated, errTestCredentialRejected)
+	}
+	allowed := credential == "Bearer "+testQueryToken
 	response := &tokenv1.CheckPermissionResponse{Allowed: allowed}
 	return response, nil
 }
