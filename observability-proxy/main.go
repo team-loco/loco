@@ -102,6 +102,13 @@ func newProxy(cfg *config.Config, lock migrationLock) (*proxy, error) {
 			fmt.Fprintf(w, "clickhouse: %v\n", err)
 			return
 		}
+		permissionCtx, cancel := context.WithTimeout(r.Context(), cfg.PermissionCheckTimeout)
+		defer cancel()
+		if err := validator.Ready(permissionCtx); err != nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			fmt.Fprintln(w, "control plane permission check unavailable")
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "ok")
 	})

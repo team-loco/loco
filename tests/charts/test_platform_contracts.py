@@ -196,6 +196,8 @@ class ObservabilitySchema(unittest.TestCase):
         budget = values['migrations']['retryBudgetSeconds']
         self.assertEqual(env['MIGRATION_RETRY_BUDGET']['value'], f'{budget}s')
         self.assertEqual(env['MIGRATION_RETRY_INTERVAL']['value'], f"{values['migrations']['retryIntervalSeconds']}s")
+        timeout = chart_values('loco-obs')['obsProxy']['guardrails']['permissionCheckTimeoutSeconds']
+        self.assertEqual(env['PERMISSION_CHECK_TIMEOUT']['value'], f'{timeout}s')
         self.assertEqual(container['readinessProbe']['httpGet']['path'], '/readyz')
         self.assertNotIn('startupProbe', container)
 

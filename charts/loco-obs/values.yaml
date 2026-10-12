@@ -496,6 +496,7 @@ obsProxy:
     defaultLimit: 1000
     maxLimit: 10000
     queryTimeoutSeconds: 10
+    permissionCheckTimeoutSeconds: 5
     maxTimeRangeHours: 24
     maxConcurrentQueries: 5
     maxTailDurationMinutes: 30
