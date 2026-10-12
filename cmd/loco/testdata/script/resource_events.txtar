@@ -1,0 +1,47 @@
+# loco resource events reads a service's Kubernetes events in one environment through the regional proxy.
+fakeapi resource web
+
+exec loco resource events web
+stdout 'TIME\s+TYPE\s+REASON\s+OBJECT\s+COUNT\s+MESSAGE'
+stdout '2026-10-07T06:00:01Z\s+Warning\s+BackOff\s+Pod/resource-web-x2k4p\s+3\s+Back-off restarting failed container app in production'
+stdout '2026-10-07T06:00:00Z\s+Normal\s+Scheduled'
+fakeapi called GetObservabilityAccess 'Bearer test-token'
+fakeapi called QueryEvents 'Bearer test-token'
+
+exec loco resource events web --limit 1
+stdout 'BackOff'
+! stdout 'Scheduled'
+
+fakeapi environment staging
+! exec loco resource events web
+stderr '(?i)the workspace has several environments \(production, staging\); pick one with --env'
+
+exec loco resource events web --env staging --output json
+stdout '"reason": "BackOff"'
+stdout '"message": "Back-off restarting failed container app in staging"'
+! stdout 'in production'
+
+env LOCO_ENV=production
+exec loco resource events web
+stdout 'in production'
+! stdout 'in staging'
+
+! exec loco resource events web --since 48h
+stderr '(?i)the observability proxy reads at most 24h back'
+
+fakeapi no-proxy
+! exec loco resource events web
+stderr '(?i)no events to show for web'
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.toml --
+currentScope = "default"
+
+[scopes.default.organization]
+name = "acme"
+id = "1"
+
+[scopes.default.workspace]
+name = "production"
+id = "2"

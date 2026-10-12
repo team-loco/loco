@@ -6,6 +6,7 @@ The CLI reads application status and manages application resources through the s
 loco resource --help
 loco resource status --help
 loco resource logs --help
+loco resource events --help
 ```
 
 `loco resource` also includes `env`, `scale`, and `destroy`. Inspect an operation's help before changing resources or removing an application.
@@ -78,10 +79,21 @@ Use application status to find whether a deployment is progressing or ready. `lo
 
 The controller reports a failure when a current replica is unschedulable or Kubernetes reports that the current rollout exceeded its progress deadline. The region's failure message includes scheduling details or directs you to inspect replicas and logs. Reconciliation continues after a failure, so the application can recover when replicas become ready.
 
-The status comes from the replicas the cluster reports ready, not from the deployment record. A redeploy whose new replicas fail leaves the application Healthy while the previous replicas still serve, and the region shows the failure. Read the region's failure message for scheduling and reconciliation failures, then inspect logs for application startup failures. The dashboard provides another view of the same applications.
+The status comes from the replicas the cluster reports ready, not from the deployment record. A redeploy whose new replicas fail leaves the application Healthy while the previous replicas still serve, and the region shows the failure. Read the region's failure message and the application's events for scheduling and reconciliation failures, then inspect logs for application startup failures. The dashboard provides another view of the same applications.
 
 ```sh
 loco web
 ```
+
+## Events
+
+`loco resource events` lists the Kubernetes events of an application's pods, ReplicaSets and Deployments in one environment, newest first, from every region it runs in: scheduling failures, image pulls, crash back-offs and failed probes. `--env` or `LOCO_ENV` selects the environment as for `scale`. `--since` reaches back at most 24 hours (24 hours by default) and `--limit` caps the list (50 by default). Each row is the latest state of one event, with the number of times Kubernetes has seen it.
+
+```sh
+loco resource events web --env production
+loco resource events web --env staging --since 1h --output json
+```
+
+The dashboard's resource page shows the same events for the environment selected in the breadcrumb, from the last 24 hours.
 
 To define services and their domains, see [loco.yaml](../deployment/loco-yaml.md).

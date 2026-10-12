@@ -34,6 +34,9 @@ const (
 	// ObservabilityProxyServiceQueryMetricsProcedure is the procedure name of the
 	// ObservabilityProxyService's QueryMetrics RPC.
 	ObservabilityProxyServiceQueryMetricsProcedure = "/loco.observability.v1.ObservabilityProxyService/QueryMetrics"
+	// ObservabilityProxyServiceQueryEventsProcedure is the procedure name of the
+	// ObservabilityProxyService's QueryEvents RPC.
+	ObservabilityProxyServiceQueryEventsProcedure = "/loco.observability.v1.ObservabilityProxyService/QueryEvents"
 )
 
 var (
@@ -58,6 +61,13 @@ var (
 			Procedure:  ObservabilityProxyServiceQueryMetricsProcedure,
 		}
 	})
+	observabilityProxyServiceQueryEventsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_observability_v1_observability_proto.Services().ByName("ObservabilityProxyService").Methods().ByName("QueryEvents"),
+			Procedure:  ObservabilityProxyServiceQueryEventsProcedure,
+		}
+	})
 )
 
 // ObservabilityProxyServiceClient is a client for the
@@ -69,6 +79,9 @@ type ObservabilityProxyServiceClient interface {
 	TailLogs(context.Context, *v1.TailLogsRequest) (ObservabilityProxyServiceTailLogsClientStream, error)
 	// QueryMetrics returns aggregated metric data points for the given time range.
 	QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error)
+	// QueryEvents returns the Kubernetes events of a workspace's pods, ReplicaSets and
+	// Deployments, newest first.
+	QueryEvents(context.Context, *v1.QueryEventsRequest) (*v1.QueryEventsResponse, error)
 }
 
 // NewObservabilityProxyServiceClient constructs a client for the
@@ -108,6 +121,9 @@ type ObservabilityProxyServiceHandler interface {
 	TailLogs(context.Context, *v1.TailLogsRequest, ObservabilityProxyServiceTailLogsServerStream) error
 	// QueryMetrics returns aggregated metric data points for the given time range.
 	QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error)
+	// QueryEvents returns the Kubernetes events of a workspace's pods, ReplicaSets and
+	// Deployments, newest first.
+	QueryEvents(context.Context, *v1.QueryEventsRequest) (*v1.QueryEventsResponse, error)
 }
 
 // RegisterObservabilityProxyServiceHandler registers svc as the
@@ -118,6 +134,7 @@ func RegisterObservabilityProxyServiceHandler(server *connect.Server, svc Observ
 		connect.Method{Spec: observabilityProxyServiceQueryLogsSpec(), Handler: adapter.queryLogs},
 		connect.Method{Spec: observabilityProxyServiceTailLogsSpec(), Handler: adapter.tailLogs},
 		connect.Method{Spec: observabilityProxyServiceQueryMetricsSpec(), Handler: adapter.queryMetrics},
+		connect.Method{Spec: observabilityProxyServiceQueryEventsSpec(), Handler: adapter.queryEvents},
 	)
 }
 
@@ -152,6 +169,10 @@ func (UnimplementedObservabilityProxyServiceHandler) QueryMetrics(context.Contex
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityProxyService.QueryMetrics is not implemented")
 }
 
+func (UnimplementedObservabilityProxyServiceHandler) QueryEvents(context.Context, *v1.QueryEventsRequest) (*v1.QueryEventsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityProxyService.QueryEvents is not implemented")
+}
+
 type observabilityProxyServiceClient struct {
 	client *connect.Client
 }
@@ -175,6 +196,14 @@ func (c *observabilityProxyServiceClient) TailLogs(ctx context.Context, req *v1.
 func (c *observabilityProxyServiceClient) QueryMetrics(ctx context.Context, req *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error) {
 	var res v1.QueryMetricsResponse
 	if err := c.client.CallUnary(ctx, observabilityProxyServiceQueryMetricsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *observabilityProxyServiceClient) QueryEvents(ctx context.Context, req *v1.QueryEventsRequest) (*v1.QueryEventsResponse, error) {
+	var res v1.QueryEventsResponse
+	if err := c.client.CallUnary(ctx, observabilityProxyServiceQueryEventsSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -210,6 +239,18 @@ func (h observabilityProxyServiceHandler) queryMetrics(ctx context.Context, _ co
 		return err
 	}
 	res, err := h.svc.QueryMetrics(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h observabilityProxyServiceHandler) queryEvents(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.QueryEventsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.QueryEvents(ctx, &req)
 	if err != nil {
 		return err
 	}

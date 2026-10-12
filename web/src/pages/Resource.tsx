@@ -18,6 +18,7 @@ import { ErrorBanner, NoticeBanner } from "@/pages/resource/Banners";
 import { DeploymentsSection } from "@/pages/resource/DeploymentsSection";
 import { DeleteDialogContent, RollbackDialogContent, SpecDialogContent } from "@/pages/resource/Dialogs";
 import { DiffDialogContent } from "@/pages/resource/DiffDialog";
+import { EventsSection } from "@/pages/resource/EventsSection";
 import { shortId } from "@/pages/resource/format";
 import { activeDeploymentPlaces, buildRegions, depTag, regionProblem, useResourceData, type ModalState, type Notice } from "@/pages/resource/model";
 import { RegionPanel } from "@/pages/resource/RegionPanel";
@@ -80,6 +81,10 @@ export function Resource() {
 		: undefined;
 
 	const problem = regions.map(regionProblem).find((p) => p !== undefined);
+
+	const scrollEvents = () => {
+		document.getElementById("events")?.scrollIntoView({ behavior: "smooth", block: "start" });
+	};
 
 	const redeployFrom = async (deps: Deployment[]) => {
 		const failures: string[] = [];
@@ -178,7 +183,7 @@ export function Resource() {
 			{tab === "overview" && (
 				<div className="flex flex-col gap-5">
 					{problem !== undefined && (
-						<ErrorBanner title={problem.title} message={problem.message} logsHref={obs?.logs} />
+						<ErrorBanner title={problem.title} message={problem.message} logsHref={obs?.logs} onEvents={scrollEvents} />
 					)}
 					{region !== undefined ? (
 						<RegionPanel
@@ -205,6 +210,13 @@ export function Resource() {
 							setModal({ kind: "rollback", target, current });
 						}}
 					/>
+					{environmentId !== undefined && (
+						<EventsSection
+							target={{ workspaceId: resource.workspaceId, environmentId, resourceId }}
+							resourceName={resource.name}
+							deployments={deployments}
+						/>
+					)}
 				</div>
 			)}
 

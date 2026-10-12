@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { QueryLogsRequest, QueryLogsResponse, QueryMetricsRequest, QueryMetricsResponse, TailLogsRequest, TailLogsResponse } from "./observability_pb";
+import { QueryEventsRequest, QueryEventsResponse, QueryLogsRequest, QueryLogsResponse, QueryMetricsRequest, QueryMetricsResponse, TailLogsRequest, TailLogsResponse } from "./observability_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -46,6 +46,18 @@ export const ObservabilityProxyService = {
       name: "QueryMetrics",
       I: QueryMetricsRequest,
       O: QueryMetricsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * QueryEvents returns the Kubernetes events of a workspace's pods, ReplicaSets and
+     * Deployments, newest first.
+     *
+     * @generated from rpc loco.observability.v1.ObservabilityProxyService.QueryEvents
+     */
+    queryEvents: {
+      name: "QueryEvents",
+      I: QueryEventsRequest,
+      O: QueryEventsResponse,
       kind: MethodKind.Unary,
     },
   }

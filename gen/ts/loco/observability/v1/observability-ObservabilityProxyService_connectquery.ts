@@ -17,3 +17,11 @@ export const queryLogs = ObservabilityProxyService.method.queryLogs;
  * @generated from rpc loco.observability.v1.ObservabilityProxyService.QueryMetrics
  */
 export const queryMetrics = ObservabilityProxyService.method.queryMetrics;
+
+/**
+ * QueryEvents returns the Kubernetes events of a workspace's pods, ReplicaSets and
+ * Deployments, newest first.
+ *
+ * @generated from rpc loco.observability.v1.ObservabilityProxyService.QueryEvents
+ */
+export const queryEvents = ObservabilityProxyService.method.queryEvents;

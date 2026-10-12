@@ -64,6 +64,19 @@ func ValidateMetricsRequest(req *observabilityv1.QueryMetricsRequest, cfg *confi
 	return nil
 }
 
+// ValidateEventsRequest validates the query parameters for a Kubernetes events request.
+func ValidateEventsRequest(req *observabilityv1.QueryEventsRequest, cfg *config.Config) error {
+	if req.GetWorkspaceId() == "" {
+		return errWorkspaceIDRequired
+	}
+	if req.GetStartTime() == nil || req.GetEndTime() == nil {
+		return errTimeRangeRequired
+	}
+	start := req.GetStartTime().AsTime()
+	end := req.GetEndTime().AsTime()
+	return validateTimeRange(start, end, cfg.MaxTimeRange)
+}
+
 // ValidateTailRequest validates a tail logs request.
 func ValidateTailRequest(req *observabilityv1.TailLogsRequest, cfg *config.Config, now time.Time) error {
 	if req.GetWorkspaceId() == "" {

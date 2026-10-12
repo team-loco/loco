@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"os"
 	"slices"
 	"testing"
@@ -52,6 +53,25 @@ const (
 	testWebAllEnvsAverage  = (testWebValue + testWebSecondValue + testOtherEnvironmentV) / testWebRowsAllEnvs
 	testSecondGaugeOffset  = 10 * time.Second
 	testOtherWorkspaceBody = "other workspace"
+	eventsInsertColumns    = "Timestamp, Body, ResourceAttributes, ScopeName"
+	eventsScope            = "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/k8sobjectsreceiver"
+	eventWatchModified     = "MODIFIED"
+	eventWarning           = "Warning"
+	eventNormal            = "Normal"
+	eventPodKind           = "Pod"
+	eventReplicaSetKind    = "ReplicaSet"
+	testWebPod             = "resource-web-7d9f8b6c5d-x2k4p"
+	testWebReplicaSet      = "resource-web-7d9f8b6c5d"
+	testWorkerPod          = "resource-worker-5c8d7b9f4-q7m2n"
+	testBackOffCount       = int64(3)
+	testFirstEventCount    = int64(1)
+	reasonBackOff          = "BackOff"
+	reasonScheduled        = "Scheduled"
+	reasonSuccessfulCreate = "SuccessfulCreate"
+	reasonStarted          = "Started"
+	reasonOtherEnvironment = "OtherEnvironment"
+	reasonOtherWorkspace   = "OtherWorkspace"
+	reasonUntenanted       = "Untenanted"
 )
 
 type logRow struct {
@@ -118,6 +138,60 @@ var testGaugeRows = []gaugeRow{
 	},
 }
 
+type eventRow struct {
+	workspaceID   string
+	environmentID string
+	resourceID    string
+	uid           string
+	eventType     string
+	reason        string
+	kind          string
+	name          string
+	count         int64
+}
+
+var testEventRows = []eventRow{
+	{
+		workspaceID: testWorkspaceID, environmentID: testEnvironmentID, resourceID: testResourceID,
+		uid: "web-scheduled", eventType: eventNormal, reason: reasonScheduled, kind: eventPodKind, name: testWebPod,
+		count: testFirstEventCount,
+	},
+	{
+		workspaceID: testWorkspaceID, environmentID: testEnvironmentID, resourceID: testResourceID,
+		uid: "web-backoff", eventType: eventWarning, reason: reasonBackOff, kind: eventPodKind, name: testWebPod,
+		count: testFirstEventCount,
+	},
+	{
+		workspaceID: testWorkspaceID, environmentID: testEnvironmentID, resourceID: testResourceID,
+		uid: "web-create", eventType: eventNormal, reason: reasonSuccessfulCreate, kind: eventReplicaSetKind,
+		name: testWebReplicaSet, count: testFirstEventCount,
+	},
+	{
+		workspaceID: testWorkspaceID, environmentID: testEnvironmentID, resourceID: testWorkerResourceID,
+		uid: "worker-started", eventType: eventNormal, reason: reasonStarted, kind: eventPodKind, name: testWorkerPod,
+		count: testFirstEventCount,
+	},
+	{
+		workspaceID: testWorkspaceID, environmentID: testEnvironmentID, resourceID: testResourceID,
+		uid: "web-backoff", eventType: eventWarning, reason: reasonBackOff, kind: eventPodKind, name: testWebPod,
+		count: testBackOffCount,
+	},
+	{
+		workspaceID: testWorkspaceID, environmentID: testOtherEnvironmentID, resourceID: testResourceID,
+		uid: "web-other-environment", eventType: eventWarning, reason: reasonOtherEnvironment, kind: eventPodKind,
+		name: testWebPod, count: testFirstEventCount,
+	},
+	{
+		workspaceID: testOtherWorkspaceID, environmentID: testEnvironmentID, resourceID: testResourceID,
+		uid: "web-other-workspace", eventType: eventWarning, reason: reasonOtherWorkspace, kind: eventPodKind,
+		name: testWebPod, count: testFirstEventCount,
+	},
+	{
+		uid: "untenanted", eventType: eventWarning, reason: reasonUntenanted, kind: eventPodKind, name: testWebPod,
+		count: testFirstEventCount,
+	},
+}
+
 type queryFixture struct {
 	conn  driver.Conn
 	start time.Time
@@ -159,6 +233,7 @@ func newQueryFixture(t *testing.T) *queryFixture {
 	fixture := &queryFixture{conn: client.Conn(), start: start, end: start.Add(testDataAge)}
 	fixture.insertLogs(t)
 	fixture.insertGauges(t)
+	fixture.insertEvents(t)
 	return fixture
 }
 
@@ -210,6 +285,53 @@ func (f *queryFixture) insertGauges(t *testing.T) {
 	}
 	if err := batch.Send(); err != nil {
 		t.Fatalf("send gauge rows: %v", err)
+	}
+}
+
+func eventBody(row eventRow) (string, error) {
+	body := map[string]any{
+		"type": eventWatchModified,
+		"object": map[string]any{
+			"apiVersion":      "events.k8s.io/v1",
+			"kind":            "Event",
+			"metadata":        map[string]any{"name": row.uid, "uid": row.uid},
+			"type":            row.eventType,
+			"reason":          row.reason,
+			"note":            row.reason + " " + row.name,
+			"regarding":       map[string]any{"kind": row.kind, "name": row.name},
+			"deprecatedCount": row.count,
+		},
+	}
+	encoded, err := json.Marshal(body)
+	return string(encoded), err
+}
+
+func eventResource(row eventRow) map[string]string {
+	if row.workspaceID == "" {
+		return map[string]string{}
+	}
+	return tenantAttributes(row.workspaceID, row.environmentID, row.resourceID)
+}
+
+func (f *queryFixture) insertEvents(t *testing.T) {
+	t.Helper()
+	batch, err := f.conn.PrepareBatch(t.Context(), "INSERT INTO otel_k8s_events ("+eventsInsertColumns+")")
+	if err != nil {
+		t.Fatalf("prepare events insert: %v", err)
+	}
+	for index, row := range testEventRows {
+		body, err := eventBody(row)
+		if err != nil {
+			t.Fatalf("encode event: %v", err)
+		}
+		ts := f.logTime(index)
+		attrs := eventResource(row)
+		if err := batch.Append(ts, body, attrs, eventsScope); err != nil {
+			t.Fatalf("append event row: %v", err)
+		}
+	}
+	if err := batch.Send(); err != nil {
+		t.Fatalf("send event rows: %v", err)
 	}
 }
 
@@ -566,5 +688,136 @@ func TestLogPagesKeepEqualTimestampsAcrossMerges(t *testing.T) {
 		if count != copies*copies {
 			t.Fatalf("order %v returned %d logs, want %d", order, count, copies*copies)
 		}
+	}
+}
+
+type eventSummary struct {
+	reason     string
+	kind       string
+	count      int64
+	resourceID string
+}
+
+func (f *queryFixture) events(t *testing.T, q EventQuery) []eventSummary {
+	t.Helper()
+	q.Start = f.start
+	q.End = f.end
+	events, err := QueryEvents(t.Context(), f.conn, q, testQueryTimeout)
+	if err != nil {
+		t.Fatalf("QueryEvents: %v", err)
+	}
+	got := make([]eventSummary, 0, len(events))
+	for _, event := range events {
+		got = append(got, eventSummary{
+			reason:     event.GetReason(),
+			kind:       event.GetObjectKind(),
+			count:      event.GetCount(),
+			resourceID: event.GetResourceId(),
+		})
+	}
+	return got
+}
+
+func TestQueryEventsScopesToWorkspaceAndEnvironment(t *testing.T) {
+	f := newQueryFixture(t)
+	webBackOff := eventSummary{
+		reason:     reasonBackOff,
+		kind:       eventPodKind,
+		count:      testBackOffCount,
+		resourceID: testResourceID,
+	}
+	webCreate := eventSummary{
+		reason:     reasonSuccessfulCreate,
+		kind:       eventReplicaSetKind,
+		count:      testFirstEventCount,
+		resourceID: testResourceID,
+	}
+	webScheduled := eventSummary{
+		reason:     reasonScheduled,
+		kind:       eventPodKind,
+		count:      testFirstEventCount,
+		resourceID: testResourceID,
+	}
+	workerStarted := eventSummary{
+		reason:     reasonStarted,
+		kind:       eventPodKind,
+		count:      testFirstEventCount,
+		resourceID: testWorkerResourceID,
+	}
+	webOtherEnvironment := eventSummary{
+		reason:     reasonOtherEnvironment,
+		kind:       eventPodKind,
+		count:      testFirstEventCount,
+		resourceID: testResourceID,
+	}
+	webOtherWorkspace := eventSummary{
+		reason:     reasonOtherWorkspace,
+		kind:       eventPodKind,
+		count:      testFirstEventCount,
+		resourceID: testResourceID,
+	}
+	cases := []struct {
+		name  string
+		query EventQuery
+		want  []eventSummary
+	}{
+		{
+			name: "resource in environment",
+			query: EventQuery{
+				WorkspaceID:   testWorkspaceID,
+				EnvironmentID: testEnvironmentID,
+				ResourceIDs:   []string{testResourceID},
+				Limit:         testFullPage,
+			},
+			want: []eventSummary{webBackOff, webCreate, webScheduled},
+		},
+		{
+			name: "limit applies after the tenancy filter",
+			query: EventQuery{
+				WorkspaceID:   testWorkspaceID,
+				EnvironmentID: testEnvironmentID,
+				ResourceIDs:   []string{testResourceID},
+				Limit:         testPageSize - 1,
+			},
+			want: []eventSummary{webBackOff},
+		},
+		{
+			name:  "workspace in environment",
+			query: EventQuery{WorkspaceID: testWorkspaceID, EnvironmentID: testEnvironmentID, Limit: testFullPage},
+			want:  []eventSummary{webBackOff, workerStarted, webCreate, webScheduled},
+		},
+		{
+			name: "other environment",
+			query: EventQuery{
+				WorkspaceID:   testWorkspaceID,
+				EnvironmentID: testOtherEnvironmentID,
+				ResourceIDs:   []string{testResourceID},
+				Limit:         testFullPage,
+			},
+			want: []eventSummary{webOtherEnvironment},
+		},
+		{
+			name:  "every environment",
+			query: EventQuery{WorkspaceID: testWorkspaceID, ResourceIDs: []string{testResourceID}, Limit: testFullPage},
+			want:  []eventSummary{webOtherEnvironment, webBackOff, webCreate, webScheduled},
+		},
+		{
+			name:  "another workspace",
+			query: EventQuery{WorkspaceID: testOtherWorkspaceID, Limit: testFullPage},
+			want:  []eventSummary{webOtherWorkspace},
+		},
+		{
+			name:  "unknown workspace",
+			query: EventQuery{WorkspaceID: testUnknownWorkspaceID, Limit: testFullPage},
+			want:  []eventSummary{},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := f.events(t, tc.query)
+			if !slices.Equal(got, tc.want) {
+				t.Errorf("events = %+v, want %+v", got, tc.want)
+			}
+		})
 	}
 }

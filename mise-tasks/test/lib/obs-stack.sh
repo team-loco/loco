@@ -142,7 +142,7 @@ proxy_pid=""
 database=$(proxy_value CLICKHOUSE_DB)
 
 clickhouse_exporter() {
-	collector_config "$1" | yq -o json -I 0 '.exporters.clickhouse' |
+	collector_config "$1" | EXPORTER_NAME="${2:-clickhouse}" yq -o json -I 0 '.exporters[strenv(EXPORTER_NAME)]' |
 		CLICKHOUSE_HOST="$clickhouse_host" CLICKHOUSE_CONTAINER="$clickhouse:9000" \
 			yq -o json -I 0 '.endpoint |= sub(strenv(CLICKHOUSE_HOST), strenv(CLICKHOUSE_CONTAINER))'
 }

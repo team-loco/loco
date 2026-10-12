@@ -424,6 +424,48 @@ otel-col-deploy:
         keys:
           - loco.workspace.id
           - loco.resource.id
+      transform/k8s_events:
+        error_mode: ignore
+        log_statements:
+          - context: log
+            conditions:
+              - log.body["object"]["regarding"]["kind"] == "Pod"
+            statements:
+              - set(log.attributes["k8s.pod.uid"], log.body["object"]["regarding"]["uid"])
+          - context: log
+            conditions:
+              - log.body["object"]["regarding"]["kind"] == "ReplicaSet"
+            statements:
+              - set(log.attributes["k8s.replicaset.name"], log.body["object"]["regarding"]["name"])
+          - context: log
+            conditions:
+              - log.body["object"]["regarding"]["kind"] == "Deployment"
+            statements:
+              - set(log.attributes["k8s.deployment.name"], log.body["object"]["regarding"]["name"])
+      groupbyattrs/k8s_events:
+        keys:
+          - k8s.pod.uid
+          - k8s.replicaset.name
+          - k8s.deployment.name
+      k8s_attributes/k8s_events:
+        passthrough: false
+        pod_association:
+          - sources:
+              - from: resource_attribute
+                name: k8s.namespace.name
+              - from: resource_attribute
+                name: k8s.pod.uid
+          - sources:
+              - from: resource_attribute
+                name: k8s.namespace.name
+              - from: resource_attribute
+                name: k8s.replicaset.name
+          - sources:
+              - from: resource_attribute
+                name: k8s.namespace.name
+              - from: resource_attribute
+                name: k8s.deployment.name
+        extract: *tenancyExtract
     receivers:
       k8s_cluster:
         collection_interval: *collectionInterval
@@ -435,12 +477,15 @@ otel-col-deploy:
             endpoint: 0.0.0.0:4318
     exporters:
       clickhouse: *clickhouseExporter
+      clickhouse/k8s_events:
+        <<: *clickhouseExporter
+        logs_table_name: otel_k8s_events
     service:
       pipelines:
         logs:
           receivers: [k8sobjects]
-          processors: [memory_limiter, batch]
-          exporters: [clickhouse]
+          processors: [memory_limiter, transform/k8s_events, groupbyattrs/k8s_events, k8s_attributes/k8s_events, batch]
+          exporters: [clickhouse/k8s_events]
         logs/otlp:
           receivers: [otlp]
           processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, batch]

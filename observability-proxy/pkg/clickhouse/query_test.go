@@ -144,6 +144,59 @@ func TestBuildMetricsQueryFiltersOnEnvironment(t *testing.T) {
 	}
 }
 
+func TestBuildEventsQueryFiltersOnTenantColumnsBeforeTheLimit(t *testing.T) {
+	end := time.Now()
+	start := end.Add(-time.Hour)
+	q := EventQuery{
+		WorkspaceID:   testWorkspaceID,
+		EnvironmentID: testEnvironmentID,
+		ResourceIDs:   []string{testResourceID},
+		Start:         start,
+		End:           end,
+		Limit:         testFullPage,
+	}
+
+	query, args := buildEventsQuery(q, testQueryTimeout)
+
+	where := "WHERE WorkspaceId = ? AND EnvironmentId = ? AND ResourceId IN (?) AND Timestamp >= "
+	if !strings.Contains(query, "FROM otel_k8s_events "+where) {
+		t.Errorf("query does not filter the events table on its tenancy columns:\n%s", query)
+	}
+	whereAt := strings.Index(query, where)
+	groupAt := strings.Index(query, "GROUP BY EventUid")
+	limitAt := strings.Index(query, "LIMIT ?")
+	if groupAt < whereAt || limitAt < groupAt {
+		t.Errorf("query does not filter, then group events, then limit:\n%s", query)
+	}
+	wantArgs := []any{
+		testWorkspaceID,
+		testEnvironmentID,
+		testResourceID,
+		start.UnixNano(),
+		end.UnixNano(),
+		testFullPage,
+	}
+	if !slices.Equal(args, wantArgs) {
+		t.Errorf("args = %v, want %v", args, wantArgs)
+	}
+}
+
+func TestBuildEventsQueryLeavesOutFiltersNoneWereRequestedFor(t *testing.T) {
+	end := time.Now()
+	start := end.Add(-time.Hour)
+	q := EventQuery{WorkspaceID: testWorkspaceID, Start: start, End: end, Limit: testFullPage}
+
+	query, args := buildEventsQuery(q, testQueryTimeout)
+
+	if !strings.Contains(query, "WHERE WorkspaceId = ? AND Timestamp >= ") {
+		t.Errorf("query does not filter on the workspace alone:\n%s", query)
+	}
+	wantArgs := []any{testWorkspaceID, start.UnixNano(), end.UnixNano(), testFullPage}
+	if !slices.Equal(args, wantArgs) {
+		t.Errorf("args = %v, want %v", args, wantArgs)
+	}
+}
+
 func TestInvalidLogCursorsAreRejected(t *testing.T) {
 	timestamp := time.Now().UTC().Format(time.RFC3339Nano)
 	cases := []string{

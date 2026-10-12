@@ -51,8 +51,10 @@ obs_forged_workspace=$(awk -F'"' '$1 ~ /^\tforgedWorkspaceID +=/ { print $2 }' "
 obs_forged_organization=$(awk -F'"' '$1 ~ /^\tforgedOrganizationID +=/ { print $2 }' "$obs_fixture_dir/main.go")
 obs_proxy_url="http://127.0.0.1:${E2E_OBS_PROXY_PORT}"
 obs_query_logs="${obs_proxy_url}/loco.observability.v1.ObservabilityProxyService/QueryLogs"
+obs_query_events="${obs_proxy_url}/loco.observability.v1.ObservabilityProxyService/QueryEvents"
+obs_unknown_environment_id='00000000-0000-7000-8000-0000000000ee'
 obs_metric_tables="otel_metrics_sum otel_metrics_gauge otel_metrics_histogram"
-obs_all_tables="otel_traces otel_logs otel_metrics_sum otel_metrics_gauge otel_metrics_histogram otel_metrics_exponential_histogram otel_metrics_summary"
+obs_all_tables="otel_traces otel_logs otel_k8s_events otel_metrics_sum otel_metrics_gauge otel_metrics_histogram otel_metrics_exponential_histogram otel_metrics_summary"
 
 obs_workspace_id=""
 obs_organization_id=""
@@ -524,7 +526,60 @@ test_o10_proxy_isolation() {
     obs_check proxy_isolation check_proxy_isolation
 }
 
-test_o11_writes_the_summary() {
+obs_events_body() {
+    local workspace_id=$1 environment_id=$2 start end
+    start=$(utc_timestamp "$((obs_traffic_started - obs_query_window_seconds))")
+    end=$(utc_timestamp "$(obs_now)")
+    printf '{"workspaceId":"%s","environmentId":"%s","resourceIds":["%s"],"startTime":"%s","endTime":"%s","limit":%d}' \
+        "$workspace_id" "$environment_id" "$obs_resource_id" "$start" "$end" "$obs_proxy_limit"
+}
+
+obs_events_call() {
+    local token=$1 body=$2
+    curl -s -w '\n%{http_code}' --max-time "$obs_curl_timeout_seconds" -X POST "$obs_query_events" \
+        -H 'Content-Type: application/json' -H "Authorization: Bearer ${token}" -d "$body"
+}
+
+obs_events_table() {
+    local response=$1
+    printf '| Timestamp | Type | Reason | Object | Count | ResourceId |\n| --- | --- | --- | --- | --- | --- |\n'
+    yq -p json -r '.events // [] | .[] | "| " + .timestamp + " | " + .type + " | " + .reason + " | " + .objectKind + "/" + .objectName + " | " + (.count // "") + " | " + (.resourceId // "") + " |"' <<<"$response" |
+        head -n "$obs_output_rows"
+}
+
+check_proxy_events() {
+    local body output status response pods other_status other_count cross_status
+    body=$(obs_events_body "$obs_workspace_id" "$obs_environment_id")
+    output=$(obs_events_call "$obs_workspace_token" "$body")
+    status=$(tail -n 1 <<<"$output")
+    response=$(sed '$d' <<<"$output")
+    ev_command "QueryEvents for the fixture in its environment" \
+        "curl -X POST ${obs_query_events} -H 'Authorization: Bearer <workspace token>' -d '${body}'" "HTTP ${status}"
+    ev "$(obs_events_table "$response")" ""
+    ev_query "Kubernetes events stored for the fixture's namespace" "SELECT Timestamp, EventType, Reason, ObjectKind, ObjectName, WorkspaceId, EnvironmentId, ResourceId FROM otel_k8s_events WHERE ResourceAttributes['k8s.namespace.name'] = 'ws-${obs_workspace_id}' ORDER BY Timestamp DESC LIMIT ${obs_output_rows}"
+    pods=$(yq -p json -r "[.events // [] | .[] | select(.resourceId == \"${obs_resource_id}\" and .objectKind == \"Pod\")] | length" <<<"$response")
+
+    body=$(obs_events_body "$obs_workspace_id" "$obs_unknown_environment_id")
+    output=$(obs_events_call "$obs_workspace_token" "$body")
+    other_status=$(tail -n 1 <<<"$output")
+    other_count=$(sed '$d' <<<"$output" | yq -p json -r '.events // [] | length')
+
+    body=$(obs_events_body "$obs_workspace_id" "$obs_environment_id")
+    output=$(obs_events_call "$obs_second_token" "$body")
+    cross_status=$(tail -n 1 <<<"$output")
+    ev "Pod events for the fixture: \`${pods}\`; another environment: HTTP \`${other_status}\` with \`${other_count}\` events; a token for the second workspace: HTTP \`${cross_status}\` (want ${obs_http_forbidden})." ""
+    test "$status" = "$obs_http_ok" &&
+        test "$pods" -gt 0 &&
+        test "$other_status" = "$obs_http_ok" &&
+        test "$other_count" -eq 0 &&
+        test "$cross_status" = "$obs_http_forbidden"
+}
+
+test_o11_proxy_events() {
+    obs_check proxy_events check_proxy_events
+}
+
+test_o12_writes_the_summary() {
     {
         printf '## Summary\n\n| Check | Result |\n| --- | --- |\n'
         awk '{ printf "| %s | %s |\n", $1, $2 }' "$obs_results"

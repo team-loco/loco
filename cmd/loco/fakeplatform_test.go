@@ -679,6 +679,60 @@ func (s *fakeProxyService) QueryLogs(
 	return &observabilityv1.QueryLogsResponse{Entries: entries}, nil
 }
 
+func (s *fakeProxyService) QueryEvents(
+	ctx context.Context,
+	req *observabilityv1.QueryEventsRequest,
+) (*observabilityv1.QueryEventsResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
+	f := s.api
+	if _, _, err := f.authenticate(
+		connect.Spec{Procedure: observabilityv1connect.ObservabilityProxyServiceQueryEventsProcedure},
+		info.RequestHeader(),
+	); err != nil {
+		return nil, err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	base := time.Date(2026, 10, 7, 6, 0, 0, 0, time.UTC)
+	var events []*observabilityv1.KubernetesEvent
+	for i, env := range f.platform.environments {
+		if env.GetId() != req.GetEnvironmentId() {
+			continue
+		}
+		for _, resourceID := range req.GetResourceIds() {
+			scheduled := base.Add(time.Duration(i) * time.Minute)
+			backOff := scheduled.Add(time.Second)
+			events = append(events,
+				&observabilityv1.KubernetesEvent{
+					Timestamp:  timestamppb.New(backOff),
+					Type:       "Warning",
+					Reason:     "BackOff",
+					Message:    "Back-off restarting failed container app in " + env.GetName(),
+					ObjectKind: "Pod",
+					ObjectName: "resource-web-x2k4p",
+					Count:      3,
+					ResourceId: resourceID,
+				},
+				&observabilityv1.KubernetesEvent{
+					Timestamp:  timestamppb.New(scheduled),
+					Type:       "Normal",
+					Reason:     "Scheduled",
+					Message:    "Successfully assigned the pod in " + env.GetName(),
+					ObjectKind: "Pod",
+					ObjectName: "resource-web-x2k4p",
+					Count:      1,
+					ResourceId: resourceID,
+				},
+			)
+		}
+	}
+	limit := int(req.GetLimit())
+	if len(events) > limit {
+		events = events[:limit]
+	}
+	return &observabilityv1.QueryEventsResponse{Events: events}, nil
+}
+
 func (s *fakeProxyService) TailLogs(
 	ctx context.Context,
 	_ *observabilityv1.TailLogsRequest,

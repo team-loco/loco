@@ -411,6 +411,39 @@ class CollectorTenancy(unittest.TestCase):
         self.assertEqual(len(enrichers), 1)
         self.assertEqual(config['processors'][enrichers[0]]['pod_association'], [{'sources': [{'from': 'resource_attribute', 'name': 'k8s.pod.uid'}]}])
 
+    def kubernetes_events_pipelines(self):
+        for collector, config, name, pipeline in self.pipelines():
+            if 'k8sobjects' in pipeline['receivers']:
+                yield collector, config, name, pipeline
+
+    def test_kubernetes_events_go_only_to_their_own_table(self):
+        found = list(self.kubernetes_events_pipelines())
+        self.assertEqual(len(found), 1)
+        collector, config, name, pipeline = found[0]
+        self.assertEqual(pipeline['receivers'], ['k8sobjects'], f'{collector} {name}')
+        self.assertEqual(len(pipeline['exporters']), 1, f'{collector} {name}')
+        exporter = pipeline['exporters'][0]
+        events = config['exporters'][exporter]
+        logs = config['exporters']['clickhouse']
+        self.assertNotEqual(events['logs_table_name'], logs['logs_table_name'], f'{collector} {name}')
+        self.assertEqual(events['database'], logs['database'], f'{collector} {name}')
+        self.assertFalse(events['create_schema'], f'{collector} {name}')
+        for other_collector, _, other_name, other in self.pipelines():
+            if (other_collector, other_name) != (collector, name):
+                self.assertNotIn(exporter, other['exporters'], f'{other_collector} {other_name}')
+
+    def test_kubernetes_events_associate_objects_in_the_event_namespace(self):
+        for collector, config, name, pipeline in self.kubernetes_events_pipelines():
+            enrichers = self.k8s_attributes(pipeline)
+            self.assertEqual(len(enrichers), 1, f'{collector} {name}')
+            associations = config['processors'][enrichers[0]]['pod_association']
+            self.assertTrue(associations, f'{collector} {name}')
+            for association in associations:
+                sources = [source['name'] for source in association['sources'] if source['from'] == 'resource_attribute']
+                self.assertEqual(len(sources), len(association['sources']), f'{collector} {name}')
+                self.assertIn('k8s.namespace.name', sources, f'{collector} {name}')
+                self.assertGreater(len(sources), 1, f'{collector} {name}')
+
     def test_collectors_can_read_the_pod_metadata_they_extract(self):
         needed = {('', 'pods'), ('', 'namespaces'), ('apps', 'replicasets')}
         roles = {document['metadata']['name']: document for document in self.documents if document['kind'] == 'ClusterRole'}

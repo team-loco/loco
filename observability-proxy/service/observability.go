@@ -226,3 +226,43 @@ func (s *ObservabilityService) QueryMetrics(
 		Series: series,
 	}, nil
 }
+
+func (s *ObservabilityService) QueryEvents(
+	ctx context.Context,
+	req *observabilityv1.QueryEventsRequest,
+) (*observabilityv1.QueryEventsResponse, error) {
+	token, ok := auth.TokenFromContext(ctx)
+	if !ok {
+		return nil, rpcerr.New(connect.CodeUnauthenticated, errMissingToken)
+	}
+
+	if err := guardrails.ValidateEventsRequest(req, s.cfg); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
+	}
+
+	if err := s.validator.CheckPermission(
+		ctx,
+		token,
+		tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
+		req.GetWorkspaceId(),
+		tokenv1.Scope_SCOPE_READ,
+	); err != nil {
+		return nil, err
+	}
+
+	query := chClient.EventQuery{
+		WorkspaceID:   req.GetWorkspaceId(),
+		EnvironmentID: req.GetEnvironmentId(),
+		ResourceIDs:   req.GetResourceIds(),
+		Start:         req.GetStartTime().AsTime(),
+		End:           req.GetEndTime().AsTime(),
+		Limit:         guardrails.ClampLimit(req.GetLimit(), s.cfg),
+	}
+	events, err := chClient.QueryEvents(ctx, s.ch.Conn(), query, s.cfg.QueryTimeout)
+	if err != nil {
+		slog.ErrorContext(ctx, "QueryEvents failed", "error", err)
+		return nil, rpcerr.New(connect.CodeInternal, errQueryFailed)
+	}
+
+	return &observabilityv1.QueryEventsResponse{Events: events}, nil
+}

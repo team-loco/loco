@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+#MISE description="Run the deployment collector's rendered Kubernetes events pipeline in the collector image against ClickHouse, with one pod standing in for the Kubernetes API, and check that an event takes tenancy only from the pod, ReplicaSet or Deployment it is about, in the event's own namespace"
+#MISE depends=["helm:deps"]
+set -euo pipefail
+
+source "$(dirname "$0")/lib/obs-stack.sh" events
+collector=otel-col-deploy
+pipeline=logs
+exporter=clickhouse/k8s_events
+enricher=k8s_attributes/k8s_events
+fixture=transform/fixture_k8s_events
+events_table=$(collector_config "$collector" | EXPORTER="$exporter" yq '.exporters[strenv(EXPORTER)].logs_table_name')
+pod_namespace=ws-01a12668-411a-73d6-80e3-c21f044d5e71
+other_namespace=ws-01a126f5-020e-7f3c-ac04-822067278d4b
+pod_uid=4b7c1f0e-2a6d-4c8e-9f3b-5d1a7e6c2b90
+deployment_name=resource-01a126f5-020e-7f3c-ac04-822067278d4b
+replicaset_name=$deployment_name-7d9f8b6c5d
+pod_name=$replicaset_name-x2k4p
+pod_organization=pod-organization
+pod_workspace=pod-workspace
+pod_environment=pod-environment
+pod_resource=pod-resource
+
+fixture_pod() {
+	yq -n -o json -I 0 "{
+		\"k8s.namespace.name\": \"$pod_namespace\",
+		\"k8s.pod.uid\": \"$pod_uid\",
+		\"k8s.replicaset.name\": \"$replicaset_name\",
+		\"k8s.deployment.name\": \"$deployment_name\",
+		\"labels\": {
+			\"loco.io/organization-id\": \"$pod_organization\",
+			\"loco.io/workspace-id\": \"$pod_workspace\",
+			\"loco.io/environment-id\": \"$pod_environment\",
+			\"loco.io/resource-id\": \"$pod_resource\"
+		}
+	}"
+}
+
+test_config() {
+	EXPORTER=$(clickhouse_exporter "$collector" "$exporter") POD=$(fixture_pod) PIPELINE="$pipeline" \
+		ENRICHER="$enricher" FIXTURE="$fixture" yq '
+		(strenv(POD) | from_json) as $pod |
+		.processors[strenv(ENRICHER)] as $enrich |
+		($enrich.pod_association | map("(" + (.sources | map("attributes[\"" + .name + "\"] == \"" + $pod[.name] + "\"") | join(" and ")) + ")") | join(" or ")) as $match |
+		.service.pipelines = {"logs": .service.pipelines[strenv(PIPELINE)]} |
+		.service.pipelines.logs.receivers = ["otlp"] |
+		.service.pipelines.logs.exporters = ["clickhouse"] |
+		.service.pipelines.logs.processors |= map(sub("^" + strenv(ENRICHER) + "$", strenv(FIXTURE))) |
+		.processors[strenv(FIXTURE)] = {"error_mode": "propagate", "log_statements": [{"context": "resource", "conditions": [$match],
+			"statements": [$enrich.extract.labels[] | .key as $key | select(.from == "pod" and ($pod.labels | has($key))) |
+				"set(attributes[\"" + .tag_name + "\"], \"" + $pod.labels[$key] + "\")"]}]} |
+		. as $config |
+		.processors |= with_entries(select(.key as $name | $config.service.pipelines.logs.processors | any_c(. == $name))) |
+		.receivers = {"otlp": {"protocols": {"http": {"endpoint": "0.0.0.0:4318"}}}} |
+		.exporters = {"clickhouse": (strenv(EXPORTER) | from_json)} |
+		del(.extensions) | del(.service.extensions) | del(.service.telemetry)
+	' <<<"$(collector_config "$collector")"
+}
+
+str() {
+	echo "{\"stringValue\": \"$1\"}"
+}
+
+kv() {
+	echo "{\"key\": \"$1\", \"value\": $2}"
+}
+
+kvlist() {
+	local IFS=,
+	echo "{\"kvlistValue\": {\"values\": [$*]}}"
+}
+
+event_payload() {
+	local namespace=$1 kind=$2 name=$3 uid=$4 reason=$5 resource="" regarding metadata object body
+	regarding=$(kvlist "$(kv kind "$(str "$kind")")" "$(kv namespace "$(str "$namespace")")" \
+		"$(kv name "$(str "$name")")" "$(kv uid "$(str "$uid")")")
+	metadata=$(kvlist "$(kv name "$(str "$name.$reason")")" "$(kv namespace "$(str "$namespace")")" \
+		"$(kv uid "$(str "$reason-$uid")")")
+	object=$(kvlist "$(kv metadata "$metadata")" "$(kv type "$(str Warning)")" "$(kv reason "$(str "$reason")")" \
+		"$(kv note "$(str "$reason $name")")" "$(kv regarding "$regarding")")
+	body=$(kvlist "$(kv type "$(str ADDED)")" "$(kv object "$object")")
+	if [ -n "$namespace" ]; then
+		resource=$(kv k8s.namespace.name "$(str "$namespace")")
+	fi
+	echo "{\"resourceLogs\": [{\"resource\": {\"attributes\": [$resource]}, \"scopeLogs\": [{\"logRecords\": [
+		{\"observedTimeUnixNano\": \"$(date +%s)000000000\", \"body\": $body}]}]}]}"
+}
+
+events_rows() {
+	echo "SELECT count() FROM $database.$events_table WHERE Reason = '$1' AND $2"
+}
+
+test_config >"$workdir/$collector.yaml"
+start_collector "$collector" "$workdir/$collector.yaml"
+otlp=$(otlp_endpoint "$collector")
+
+tenanted="FixturePod FixtureReplicaSet FixtureDeployment"
+untenanted="FixtureForeignNamespace FixtureUnknownPod FixtureService FixtureNode"
+first=$(event_payload "$pod_namespace" Pod "$pod_name" "$pod_uid" FixturePod)
+if ! wait_for "$collector accepting OTLP logs" send "$otlp" logs "$first"; then
+	collector_logs "$collector"
+	exit 1
+fi
+send "$otlp" logs "$(event_payload "$pod_namespace" ReplicaSet "$replicaset_name" rs-uid FixtureReplicaSet)"
+send "$otlp" logs "$(event_payload "$pod_namespace" Deployment "$deployment_name" deployment-uid FixtureDeployment)"
+send "$otlp" logs "$(event_payload "$other_namespace" Pod "$pod_name" "$pod_uid" FixtureForeignNamespace)"
+send "$otlp" logs "$(event_payload "$pod_namespace" Pod "$pod_name" unknown-pod-uid FixtureUnknownPod)"
+send "$otlp" logs "$(event_payload "$pod_namespace" Service "$deployment_name" service-uid FixtureService)"
+send "$otlp" logs "$(event_payload "" Node kind-control-plane node-uid FixtureNode)"
+
+pod_tenancy="OrganizationId = '$pod_organization' AND WorkspaceId = '$pod_workspace' AND EnvironmentId = '$pod_environment' AND ResourceId = '$pod_resource'"
+no_tenancy="OrganizationId = '' AND WorkspaceId = '' AND EnvironmentId = '' AND ResourceId = ''"
+for reason in $tenanted; do
+	if ! wait_for "$reason with the pod's tenancy" has_rows "$(events_rows "$reason" "$pod_tenancy")"; then
+		fail "$collector did not give $reason the tenancy of the pod it is about"
+	fi
+done
+for reason in $untenanted; do
+	if ! wait_for "$reason row" has_rows "$(events_rows "$reason" 1)"; then
+		fail "$collector wrote no row for $reason"
+		continue
+	fi
+	tenanted_rows=$(query "$(events_rows "$reason" "NOT ($no_tenancy)")")
+	[ "$tenanted_rows" -eq 0 ] || fail "$collector gave $reason tenancy on $tenanted_rows row(s)"
+done
+
+query "SELECT Reason, ObjectKind, ObjectName, ResourceAttributes['k8s.namespace.name'] AS namespace, OrganizationId, WorkspaceId, EnvironmentId, ResourceId FROM $database.$events_table ORDER BY Reason FORMAT PrettyCompactMonoBlock"
+
+if [ "$failures" -gt 0 ]; then
+	collector_logs "$collector"
+	echo "$failures check(s) failed"
+	exit 1
+fi
+echo "events took tenancy only from the pod, ReplicaSet or Deployment they are about, in their own namespace"

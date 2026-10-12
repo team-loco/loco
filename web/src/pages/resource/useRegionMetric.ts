@@ -1,8 +1,5 @@
-import { createClient, type Transport } from "@connectrpc/connect";
 import { useQuery } from "@tanstack/react-query";
-import { ObservabilityProxyService } from "@gen/loco/observability/v1/observability_pb";
 
-import { createTransport } from "@/auth/connect-transport";
 import { useObsAccess } from "@/hooks/useObsAccess";
 
 import {
@@ -13,16 +10,7 @@ import {
 	type MetricPointPct,
 	type RegionMetricTarget,
 } from "./metric";
-
-const transports = new Map<string, Transport>();
-
-function transportFor(url: string): Transport {
-	const cached = transports.get(url);
-	if (cached !== undefined) return cached;
-	const t = createTransport(url);
-	transports.set(url, t);
-	return t;
-}
+import { proxyClient } from "./proxy";
 
 export function useRegionMetric(target: RegionMetricTarget) {
 	const { workspaceId, deployment } = target;
@@ -32,7 +20,7 @@ export function useRegionMetric(target: RegionMetricTarget) {
 	const query = useQuery({
 		queryKey: regionMetricKey(target, proxyUrl),
 		queryFn: async (): Promise<MetricPointPct[]> => {
-			const client = createClient(ObservabilityProxyService, transportFor(proxyUrl));
+			const client = proxyClient(proxyUrl);
 			const request = regionMetricRequest(target, Date.now());
 			const resp = await client.queryMetrics(request);
 			return percentPoints(resp.series, deployment.resourceId);

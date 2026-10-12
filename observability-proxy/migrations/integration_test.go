@@ -45,6 +45,7 @@ const (
 
 const (
 	logsTable                = "otel_logs"
+	eventsTable              = "otel_k8s_events"
 	tracesTable              = "otel_traces"
 	traceLookupTable         = "otel_traces_trace_id_ts"
 	gaugeTable               = "otel_metrics_gauge"
@@ -64,10 +65,28 @@ const (
 	metricsTTLExpr           = "TTL toDateTime(TimeUnix) + toIntervalMinute(90)"
 	sumColumn                = "Sum"
 	testScopeName            = "scope"
+	testEventScope           = "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/k8sobjectsreceiver"
+	testEventUID             = "5f0c2a43-3c55-4f58-9a3d-0d7c1e4b8f21"
+	testEventReason          = "BackOff"
+	testEventMessage         = "Back-off restarting failed container app"
+	testEventPod             = "resource-aaaaaaaa-7d9f8b6c5d-x2k4p"
+	testEventCount           = uint64(7)
+	testEventType            = "Warning"
+	testEventKind            = "Pod"
+)
+
+var testEventBody = fmt.Sprintf(
+	`{"type":"MODIFIED","object":{"apiVersion":"events.k8s.io/v1","kind":"Event",`+
+		`"metadata":{"name":"%[1]s.17f2","namespace":"ws-%[2]s","uid":"%[3]s"},`+
+		`"reason":"%[4]s","note":"%[5]s","type":"%[6]s",`+
+		`"regarding":{"kind":"%[7]s","namespace":"ws-%[2]s","name":"%[1]s"},"deprecatedCount":%[8]d}}`,
+	testEventPod, testWorkspaceID, testEventUID, testEventReason, testEventMessage, testEventType, testEventKind,
+	testEventCount,
 )
 
 var expectedTables = []string{
 	VersionTable,
+	eventsTable,
 	logsTable,
 	expHistogramTable,
 	gaugeTable,
@@ -289,6 +308,7 @@ func TestTTLsFromConfigLandOnTables(t *testing.T) {
 	}
 	want := map[string]string{
 		logsTable:         "TTL toDateTime(Timestamp) + toIntervalDay(3)",
+		eventsTable:       "TTL toDateTime(Timestamp) + toIntervalDay(3)",
 		tracesTable:       "TTL toDateTime(Timestamp) + toIntervalHour(36)",
 		traceLookupTable:  "TTL toDateTime(Start) + toIntervalHour(36)",
 		gaugeTable:        metricsTTLExpr,
@@ -375,31 +395,42 @@ func exporterInserts() []exporterInsert {
 			[]string{testTraceID},
 		}
 	}
+	logColumns := []string{
+		"Timestamp",
+		"TraceId",
+		"SpanId",
+		"TraceFlags",
+		"SeverityText",
+		"SeverityNumber",
+		serviceNameColumn,
+		"Body",
+		"ResourceSchemaUrl",
+		resourceAttributesColumn,
+		"ScopeSchemaUrl",
+		scopeNameColumn,
+		scopeVersionColumn,
+		"ScopeAttributes",
+		"LogAttributes",
+		"EventName",
+	}
 	return []exporterInsert{
 		{
-			table: logsTable,
-			columns: []string{
-				"Timestamp",
-				"TraceId",
-				"SpanId",
-				"TraceFlags",
-				"SeverityText",
-				"SeverityNumber",
-				serviceNameColumn,
-				"Body",
-				"ResourceSchemaUrl",
-				resourceAttributesColumn,
-				"ScopeSchemaUrl",
-				scopeNameColumn,
-				scopeVersionColumn,
-				"ScopeAttributes",
-				"LogAttributes",
-				"EventName",
-			},
+			table:   logsTable,
+			columns: logColumns,
 			row: func(now time.Time) []any {
 				return []any{
 					now, testTraceID, testSpanID, testTraceFlags, "INFO", testSeverityNumber, testServiceName, "hello",
 					"", tenantResource(), "", testScopeName, testScopeVersion, attrs, attrs, "",
+				}
+			},
+		},
+		{
+			table:   eventsTable,
+			columns: logColumns,
+			row: func(now time.Time) []any {
+				return []any{
+					now, "", "", uint8(0), "", uint8(0), "", testEventBody,
+					"", tenantResource(), "", testEventScope, testScopeVersion, map[string]string{}, attrs, "",
 				}
 			},
 		},
@@ -547,23 +578,7 @@ func TestExporterShapedRowsInsertAndCarryTenancy(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	for _, insert := range exporterInserts() {
 		t.Run(insert.table, func(t *testing.T) {
-			query := fmt.Sprintf(
-				"INSERT INTO %s.%s (%s)",
-				db.cfg.Database,
-				insert.table,
-				strings.Join(insert.columns, ", "),
-			)
-			batch, err := db.admin.PrepareBatch(t.Context(), query)
-			if err != nil {
-				t.Fatalf("prepare insert: %v", err)
-			}
-			row := insert.row(now)
-			if err := batch.Append(row...); err != nil {
-				t.Fatalf("append row: %v", err)
-			}
-			if err := batch.Send(); err != nil {
-				t.Fatalf("send row: %v", err)
-			}
+			db.insert(t, insert, now)
 			db.assertTenancy(t, insert.table)
 		})
 	}
@@ -586,6 +601,23 @@ func TestExporterShapedRowsInsertAndCarryTenancy(t *testing.T) {
 			t.Errorf("trace lookup span = %s..%s, want %s", start, end, now)
 		}
 	})
+}
+
+func (d *testDatabase) insert(t *testing.T, insert exporterInsert, now time.Time) {
+	t.Helper()
+	columns := strings.Join(insert.columns, ", ")
+	query := fmt.Sprintf("INSERT INTO %s.%s (%s)", d.cfg.Database, insert.table, columns)
+	batch, err := d.admin.PrepareBatch(t.Context(), query)
+	if err != nil {
+		t.Fatalf("prepare insert: %v", err)
+	}
+	row := insert.row(now)
+	if err := batch.Append(row...); err != nil {
+		t.Fatalf("append row: %v", err)
+	}
+	if err := batch.Send(); err != nil {
+		t.Fatalf("send row: %v", err)
+	}
 }
 
 func (d *testDatabase) assertTenancy(t *testing.T, table string) {
@@ -709,5 +741,35 @@ func TestInsertOnlyUserPopulatesTraceLookup(t *testing.T) {
 	}
 	if lookups != 1 {
 		t.Errorf("trace lookups = %d, want 1", lookups)
+	}
+}
+
+func TestEventColumnsComeFromTheEventBody(t *testing.T) {
+	db := newTestDatabase(t)
+	if err := Up(t.Context(), db.cfg); err != nil {
+		t.Fatalf("Up: %v", err)
+	}
+	now := time.Now().UTC().Truncate(time.Second)
+	for _, insert := range exporterInserts() {
+		if insert.table == eventsTable {
+			db.insert(t, insert, now)
+		}
+	}
+	var uid, eventType, reason, message, kind, name string
+	var count uint64
+	err := db.admin.QueryRow(
+		t.Context(),
+		"SELECT EventUid, EventType, Reason, Message, ObjectKind, ObjectName, Count FROM "+db.cfg.Database+"."+eventsTable,
+	).Scan(&uid, &eventType, &reason, &message, &kind, &name, &count)
+	if err != nil {
+		t.Fatalf("read event columns: %v", err)
+	}
+	got := []string{uid, eventType, reason, message, kind, name}
+	want := []string{testEventUID, testEventType, testEventReason, testEventMessage, testEventKind, testEventPod}
+	if !slices.Equal(got, want) {
+		t.Errorf("event columns = %v, want %v", got, want)
+	}
+	if count != testEventCount {
+		t.Errorf("count = %d, want %d", count, testEventCount)
 	}
 }

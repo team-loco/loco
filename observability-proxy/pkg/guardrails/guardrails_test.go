@@ -45,6 +45,31 @@ func TestValidateTailRequestChecksSince(t *testing.T) {
 	}
 }
 
+func TestValidateEventsRequestChecksWorkspaceAndRange(t *testing.T) {
+	cfg := &config.Config{MaxTimeRange: testMaxRange}
+	now := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
+	end := timestamppb.New(now)
+	withinRange := timestamppb.New(now.Add(-time.Hour))
+	beyondRange := timestamppb.New(now.Add(-testMaxRange - time.Second))
+
+	valid := &observabilityv1.QueryEventsRequest{WorkspaceId: testWorkspaceID, StartTime: withinRange, EndTime: end}
+	if err := ValidateEventsRequest(valid, cfg); err != nil {
+		t.Errorf("an hour of events rejected: %v", err)
+	}
+	noWorkspace := &observabilityv1.QueryEventsRequest{StartTime: withinRange, EndTime: end}
+	if err := ValidateEventsRequest(noWorkspace, cfg); !errors.Is(err, errWorkspaceIDRequired) {
+		t.Errorf("no workspace = %v, want errWorkspaceIDRequired", err)
+	}
+	noRange := &observabilityv1.QueryEventsRequest{WorkspaceId: testWorkspaceID}
+	if err := ValidateEventsRequest(noRange, cfg); !errors.Is(err, errTimeRangeRequired) {
+		t.Errorf("no time range = %v, want errTimeRangeRequired", err)
+	}
+	tooLong := &observabilityv1.QueryEventsRequest{WorkspaceId: testWorkspaceID, StartTime: beyondRange, EndTime: end}
+	if err := ValidateEventsRequest(tooLong, cfg); err == nil {
+		t.Error("a range beyond the maximum was accepted")
+	}
+}
+
 func TestLabelFiltersRejectLocoAttributeKeys(t *testing.T) {
 	cfg := &config.Config{MaxTimeRange: testMaxRange}
 	now := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)

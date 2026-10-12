@@ -92,7 +92,7 @@ system_tables=$(query "SELECT name FROM system.tables WHERE database = 'system' 
 for table in $system_tables; do
 	check system "$table"
 done
-for table in $otel_tables; do
+for table in $otel_tables otel_k8s_events; do
 	check "$database" "$table"
 done
 
