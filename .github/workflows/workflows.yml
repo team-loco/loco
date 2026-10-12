@@ -50,3 +50,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: mise run lint:actions
+
+      - name: Test CI job selection
+        run: mise run test:ci

@@ -20,6 +20,8 @@ on:
       - "go.sum"
       - ".golangci.yml"
       - "mise-tasks/lint/go"
+      - "gen/go/**"
+      - ".github/actions/go-changes/**"
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
@@ -40,6 +42,8 @@ on:
       - "go.sum"
       - ".golangci.yml"
       - "mise-tasks/lint/go"
+      - "gen/go/**"
+      - ".github/actions/go-changes/**"
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
@@ -59,11 +63,37 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       run: ${{ steps.changes.outputs.run }}
+      api: ${{ steps.changes.outputs.api }}
+      matrix: ${{ steps.changes.outputs.matrix }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
       - id: changes
-        uses: ./.github/actions/merge-queue-changes
+        uses: ./.github/actions/go-changes
+        with:
+          matrix: |
+            - component: API
+              working-directory: api
+
+            - component: CLI
+              working-directory: "."
+
+            - component: Controller
+              working-directory: controller
+
+            - component: Agent
+              working-directory: agent
+
+            - component: Builder
+              working-directory: builder
+
+            - component: K8s API
+              working-directory: k8sapi
+
+            - component: Observability Proxy
+              working-directory: observability-proxy
 
   golangci:
     needs: changes
@@ -73,28 +103,7 @@ jobs:
 
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - component: API
-            working-directory: api
-
-          - component: CLI
-            working-directory: "."
-
-          - component: Controller
-            working-directory: controller
-
-          - component: Agent
-            working-directory: agent
-
-          - component: Builder
-            working-directory: builder
-
-          - component: K8s API
-            working-directory: k8sapi
-
-          - component: Observability Proxy
-            working-directory: observability-proxy
+      matrix: ${{ fromJSON(needs.changes.outputs.matrix) }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
