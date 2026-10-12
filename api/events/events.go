@@ -57,6 +57,8 @@ const (
 	SecretKeyRewrapped   = "secret_key.rewrapped"
 )
 
+const ClusterUnknownPlacements = "cluster.unknown_placements_reported"
+
 const (
 	ActorSystem    = "system"
 	ActorAnonymous = "anonymous"

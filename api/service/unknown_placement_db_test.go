@@ -8,6 +8,8 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 )
 
+const recordedUnknownRevision int64 = 7
+
 func TestRecordUnknownPlacementsPreservesFirstObservation(t *testing.T) {
 	f := newDeployFixture(t)
 	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
@@ -18,17 +20,18 @@ func TestRecordUnknownPlacementsPreservesFirstObservation(t *testing.T) {
 	params := genDb.RecordUnknownPlacementsParams{
 		ClusterID:    f.clusterID,
 		PlacementIds: []uuid.UUID{known.ID, unknown},
-		Revisions:    []int64{known.DesiredRevision, known.DesiredRevision},
+		Revisions:    []int64{known.DesiredRevision, recordedUnknownRevision},
 	}
 	rows, err := f.queries.RecordUnknownPlacements(t.Context(), params)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rows) != 1 || rows[0].PlacementID != unknown || rows[0].FirstSeenAt.IsZero() {
+	if len(rows) != 1 || rows[0].PlacementID != unknown ||
+		rows[0].ReportedRevision != recordedUnknownRevision || rows[0].FirstSeenAt.IsZero() {
 		t.Fatalf("recorded = %+v, want only the unknown placement", rows)
 	}
 	first := rows[0]
-	params.Revisions = []int64{known.DesiredRevision, known.DesiredRevision + 1}
+	params.Revisions = []int64{known.DesiredRevision, recordedUnknownRevision + 1}
 	repeated, err := f.queries.RecordUnknownPlacements(t.Context(), params)
 	if err != nil {
 		t.Fatal(err)

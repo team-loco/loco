@@ -39,6 +39,12 @@ The `loco-obs` chart defines three ClickHouse users, each limited to the `loco_o
 
 Your team supplies DNS records, certificate issuance, persistent storage, backups, and capacity. Keep credentials separate across installations and environments. Use [architecture](../reference/architecture.md) to identify the control-plane and regional boundaries.
 
+## Operator diagnostics
+
+An agent that reports an Application placement ID unknown to the API produces a `cluster.unknown_placements_reported` event. Read these events with a system-admin client through `EventService.StreamEvents`, or receive them through installation-wide webhooks. The event's subject identifies the cluster. `unknownCount` counts unknown IDs in that inventory; `placements` lists newly recorded IDs with their first reported `revision` and `firstSeenAt` timestamp. Repeated inventory reports and reconnects preserve the first observation and do not duplicate its event.
+
+Unknown Applications keep running. Loco removes workloads through explicit placement delete markers; inventory absence does not authorize removal. Investigate an unknown placement before removing its Application through Kubernetes.
+
 ## Upgrades
 
 Every commit to `main` publishes the agent, builder, controller, API, observability proxy and UI images tagged `sha-<commit>`, and each binary reports that tag as its version. The charts have no default tag for these images: set `agent.image.tag`, `controller.image.tag`, `builds.builderImage.tag` and `obsProxy.image.tag` to the same `sha-<commit>`. Regenerate CRDs through `mise run controller:gen` when developing schema changes. Review database migrations and infrastructure changes before upgrading a running installation.

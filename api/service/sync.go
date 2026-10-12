@@ -315,6 +315,12 @@ func (ss *syncSession) reconcilePlacementInventory(ctx context.Context, inventor
 		return nil
 	}
 
+	if recordErr := ss.recordUnknownInventory(ctx, observed, rows); recordErr != nil {
+		slog.ErrorContext(ctx, "failed to record unknown inventory placements",
+			"cluster_id", ss.clusterID, "error", recordErr)
+		return connect.NewError(connect.CodeUnavailable, ErrDB)
+	}
+
 	toSend := make([]uuid.UUID, 0)
 	for _, row := range rows {
 		entry, present := observed[row.ID]
