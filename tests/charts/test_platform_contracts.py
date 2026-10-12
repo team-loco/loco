@@ -80,6 +80,24 @@ def render_chart(chart, overrides):
     return [json.loads(line) for line in documents.splitlines() if line.strip() not in ('', 'null')]
 
 
+QUANTITY_SUFFIXES = {'m': 0.001, 'Mi': 2 ** 20, 'Gi': 2 ** 30}
+
+
+def quantity(value):
+    for suffix, scale in QUANTITY_SUFFIXES.items():
+        if value.endswith(suffix):
+            return float(value.removesuffix(suffix)) * scale
+    return float(value)
+
+
+def clickhouse_resources(overrides):
+    for document in render_chart('loco-obs', overrides):
+        if document['kind'] == 'ClickHouseInstallation':
+            containers = document['spec']['templates']['podTemplates'][0]['spec']['containers']
+            return next(container['resources'] for container in containers if container['name'] == 'clickhouse')
+    raise AssertionError('loco-obs renders no ClickHouseInstallation')
+
+
 def collector_relays(documents):
     configs = {}
     for document in documents:
@@ -218,6 +236,21 @@ class ObservabilitySchema(unittest.TestCase):
     def test_passwords_that_break_a_dsn_are_rejected(self):
         with self.assertRaises(subprocess.CalledProcessError):
             render_documents('loco-obs', 'clickhouse-users.yaml', {'clickhouseUserPasswords': {'loco_reader': 'a b@c'}})
+
+    def test_clickhouse_has_requests_and_limits(self):
+        resources = clickhouse_resources({'obsProxy': TEST_PROXY})
+        for kind in ('requests', 'limits'):
+            self.assertEqual(set(resources[kind]), {'cpu', 'memory'}, kind)
+        self.assertEqual(resources['requests']['memory'], resources['limits']['memory'])
+
+    def test_local_clickhouse_is_smaller_than_the_default(self):
+        default = clickhouse_resources({'obsProxy': TEST_PROXY})
+        local_values = environment_values('local', {'APP_PORT': '8080'})
+        local_values['obsProxy'] |= {'image': {'tag': 'test'}}
+        local = clickhouse_resources(local_values)
+        for kind in ('requests', 'limits'):
+            for resource in ('cpu', 'memory'):
+                self.assertLess(quantity(local[kind][resource]), quantity(default[kind][resource]), f'{kind}.{resource}')
 
     def test_collectors_ingest_into_the_proxy_database(self):
         values = chart_values('loco-obs')
