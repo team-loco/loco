@@ -7,18 +7,6 @@ export function deploymentImage(d: Deployment): string {
 	return getServiceSpec(d)?.build?.image ?? "";
 }
 
-export function agoLabel(ms: number, nowMs: number): string {
-	if (ms === 0) return "—";
-	const mins = Math.floor((nowMs - ms) / 60_000);
-	if (mins < 1) return "just now";
-	if (mins < 60) return `${mins.toString()} min ago`;
-	const hrs = Math.floor(mins / 60);
-	if (hrs < 24) return `${hrs.toString()} hour${hrs === 1 ? "" : "s"} ago`;
-	const days = Math.floor(hrs / 24);
-	if (days === 1) return "yesterday";
-	return `${days.toString()} days ago`;
-}
-
 export function shortAgo(ms: number, nowMs: number): string {
 	if (ms === 0) return "";
 	const mins = Math.floor((nowMs - ms) / 60_000);

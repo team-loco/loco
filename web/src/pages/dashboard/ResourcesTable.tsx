@@ -14,10 +14,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { imageVersion } from "@/lib/image";
 import { pageSlice } from "@/lib/paging";
 import { resourcePath } from "@/lib/routes";
-import { tsMs } from "@/lib/time";
+import { agoLabel, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-import { agoLabel, deploymentImage, statusRank } from "./format";
+import { deploymentImage, statusRank } from "./format";
 import { ResourceRowMenu } from "./ResourceRowMenu";
 import type { EnvResource } from "./useDashboardData";
 

@@ -2,7 +2,8 @@
 	"files": [],
 	"references": [
 		{ "path": "./tsconfig.app.json" },
-		{ "path": "./tsconfig.node.json" }
+		{ "path": "./tsconfig.node.json" },
+		{ "path": "./tsconfig.test.json" }
 	],
 	// This is a solution-style config: `files: []` + `references` means it type-checks
 	// nothing itself, and any `compilerOptions` here apply to no files. Per-project
