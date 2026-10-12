@@ -36,7 +36,6 @@ on:
       - "mise.lock"
       - ".github/actions/setup-tools/**"
       - ".github/workflows/e2e-builds.yml"
-  merge_group:
   workflow_dispatch:
 
 permissions:
@@ -47,20 +46,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  changes:
-    name: Build E2E Changes
-    runs-on: ubuntu-latest
-    outputs:
-      run: ${{ steps.changes.outputs.run }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - id: changes
-        uses: ./.github/actions/merge-queue-changes
 
   e2e:
-    needs: changes
-    if: needs.changes.outputs.run == 'true'
     name: Build E2E
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -76,8 +63,6 @@ jobs:
         run: ./e2e/run.sh --no-teardown build
 
   e2e-builds-disabled:
-    needs: changes
-    if: needs.changes.outputs.run == 'true'
     name: Build E2E (builds disabled)
     runs-on: ubuntu-latest
     timeout-minutes: 45

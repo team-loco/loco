@@ -21,8 +21,8 @@ runs:
       shell: bash
       env:
         EVENT: ${{ github.event_name }}
-        BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
-        HEAD: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+        BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         MATRIX_YAML: ${{ inputs.matrix }}
         SELECTOR: ${{ github.action_path }}/select_go.py
       run: |

@@ -10,10 +10,15 @@ on:
       - "mise-tasks/test/obs-tenancy"
       - "mise-tasks/test/lib/**"
       - "observability-proxy/**"
+      - "gen/go/**"
+      - "internal/buildinfo/**"
+      - "go.mod"
+      - "go.sum"
       - "mise.toml"
       - "mise.lock"
       - ".github/workflows/obs-chart.yml"
       - ".github/actions/setup-tools/**"
+      - "!**/*_test.go"
   pull_request:
     paths:
       - "charts/loco-obs/**"
@@ -21,11 +26,15 @@ on:
       - "mise-tasks/test/obs-tenancy"
       - "mise-tasks/test/lib/**"
       - "observability-proxy/**"
+      - "gen/go/**"
+      - "internal/buildinfo/**"
+      - "go.mod"
+      - "go.sum"
       - "mise.toml"
       - "mise.lock"
       - ".github/workflows/obs-chart.yml"
       - ".github/actions/setup-tools/**"
-  merge_group:
+      - "!**/*_test.go"
 
 permissions:
   contents: read
@@ -35,20 +44,9 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  changes:
-    name: Observability Chart Changes
-    runs-on: ubuntu-latest
-    outputs:
-      run: ${{ steps.changes.outputs.run }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - id: changes
-        uses: ./.github/actions/merge-queue-changes
 
   retention:
     name: Observability Retention
-    needs: changes
-    if: needs.changes.outputs.run == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -58,8 +56,6 @@ jobs:
 
   tenancy:
     name: Observability Tenancy
-    needs: changes
-    if: needs.changes.outputs.run == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

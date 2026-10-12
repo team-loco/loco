@@ -48,7 +48,6 @@ on:
       - "mise.lock"
       - ".github/actions/setup-tools/**"
       - ".github/workflows/lint.yml"
-  merge_group:
 
 permissions:
   contents: read

@@ -49,7 +49,6 @@ on:
       - "mise.lock"
       - ".github/actions/setup-tools/**"
       - ".github/workflows/test.yml"
-  merge_group:
   workflow_call:
 
 concurrency:

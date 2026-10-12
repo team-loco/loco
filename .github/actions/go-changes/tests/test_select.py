@@ -77,7 +77,7 @@ class GoSelection(unittest.TestCase):
             try:
                 os.chdir(directory)
                 self.assertEqual(selection.changed_files('pull_request', base, head), ['proxy-test'])
-                self.assertEqual(set(selection.changed_files('merge_group', base, head)), {'base-only', 'proxy-test'})
+                self.assertEqual(set(selection.changed_files('push', base, head)), {'base-only', 'proxy-test'})
             finally:
                 os.chdir(previous)
 

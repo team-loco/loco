@@ -2,7 +2,6 @@ name: CI Gate
 
 on:
   pull_request:
-  merge_group:
 
 permissions:
   checks: read
@@ -11,7 +10,6 @@ permissions:
 jobs:
   gate:
     name: CI Gate
-    if: github.event_name == 'merge_group'
     runs-on: ubuntu-latest
     timeout-minutes: 55
 
@@ -20,7 +18,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          SHA: ${{ github.event.merge_group.head_sha }}
+          SHA: ${{ github.event.pull_request.head.sha }}
           SELF: CI Gate
         run: |
           set -euo pipefail
