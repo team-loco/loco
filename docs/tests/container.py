@@ -39,7 +39,8 @@ def response(url, host=None):
         with urlopen(request, timeout=REQUEST_TIMEOUT) as result:
             return result.status, result.read().decode(), result.headers
     except HTTPError as error:
-        return error.code, error.read().decode(), error.headers
+        with error:
+            return error.code, error.read().decode(), error.headers
 
 
 def ui_routes():
