@@ -92,11 +92,8 @@ WITH u AS (
 ), r AS (
     INSERT INTO resources (workspace_id, name, type, description, spec, spec_version)
     SELECT w.id, 'svc', 'service', '', '{}', 1 FROM w RETURNING id
-), rr AS (
-    INSERT INTO resource_regions (resource_id, region, is_primary, status)
-    SELECT r.id, 'us-east-1', true, 'active' FROM r RETURNING id
 )
-SELECT c.id, c2.id, r.id, e.id FROM c, c2, r, e, rr`, agentTokenHash)
+SELECT c.id, c2.id, r.id, e.id FROM c, c2, r, e`, agentTokenHash)
 	if err := row.Scan(&f.clusterID, &f.otherCluster, &f.resourceID, &f.envID); err != nil {
 		t.Fatalf("seed: %v", err)
 	}

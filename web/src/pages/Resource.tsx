@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { createDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
-import { DeploymentPhase, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { deleteResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 
 import { Dialog } from "@/components/design/Dialog";
@@ -21,7 +21,7 @@ import { DeleteDialogContent, RollbackDialogContent, SpecDialogContent } from "@
 import { DiffDialogContent } from "@/pages/resource/DiffDialog";
 import { EventsSection } from "@/pages/resource/EventsSection";
 import { shortId } from "@/pages/resource/format";
-import { buildRegions, depTag, useResourceData, type ModalState, type Notice } from "@/pages/resource/model";
+import { buildRegions, depTag, regionProblem, useResourceData, type ModalState, type Notice } from "@/pages/resource/model";
 import { RegionPanel } from "@/pages/resource/RegionPanel";
 import { ResourceHeader } from "@/pages/resource/ResourceHeader";
 import { ResourceSkeleton } from "@/pages/resource/ResourceSkeleton";
@@ -68,10 +68,9 @@ export function Resource() {
 		);
 	}
 
-	const regions = buildRegions(resource, deployments);
 	const environment = environmentStatus(resource, activeEnv?.id);
+	const regions = buildRegions(resource, deployments, environment);
 	const region = regions.find((r) => r.name === regionName) ?? regions[0];
-	const primary = regions.find((r) => r.primary) ?? regions[0];
 	const currents = regions.flatMap((r) => (r.current?.spec === undefined ? [] : [r.current]));
 	const primaryDomain = resource.domains.find((d) => d.isPrimary) ?? resource.domains[0];
 
@@ -83,14 +82,7 @@ export function Resource() {
 		? { logs: obsLink("logs"), metrics: obsLink("metrics"), traces: obsLink("traces") }
 		: undefined;
 
-	const failing = regions.find((r) => (r.config?.lastError ?? "") !== "" || r.current?.status === DeploymentPhase.FAILED);
-	const failTitle =
-		failing === undefined
-			? ""
-			: (failing.config?.lastError ?? "") !== ""
-				? `${failing.name} is failing`
-				: `Deployment ${shortId(failing.current?.id ?? "")} failed in ${failing.name}`;
-	const failMessage = failing === undefined ? "" : (failing.config?.lastError ?? "") !== "" ? (failing.config?.lastError ?? "") : (failing.current?.message ?? "");
+	const problem = regions.map(regionProblem).find((p) => p !== undefined);
 
 	const scrollEvents = () => {
 		document.getElementById("events")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -159,7 +151,7 @@ export function Resource() {
 		);
 	};
 
-	const specDep = primary?.current;
+	const specDep = region?.current;
 	const diffRegion = modal?.kind === "diff" ? regions.find((r) => r.name === modal.region) : undefined;
 
 	return (
@@ -192,8 +184,8 @@ export function Resource() {
 
 			{tab === "overview" && (
 				<div className="flex flex-col gap-5">
-					{failing !== undefined && (
-						<ErrorBanner title={failTitle} message={failMessage} logsHref={obs?.logs} onEvents={scrollEvents} />
+					{problem !== undefined && (
+						<ErrorBanner title={problem.title} message={problem.message} logsHref={obs?.logs} onEvents={scrollEvents} />
 					)}
 					{region !== undefined ? (
 						<RegionPanel

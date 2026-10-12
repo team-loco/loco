@@ -2,18 +2,25 @@ import { useQuery } from "@connectrpc/connect-query";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { DeploymentPhase, type Deployment, type ServiceDeploymentSpec } from "@gen/loco/deployment/v1/deployment_pb";
 import { getResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
-import { RegionIntentStatus, type RegionConfig, type Resource } from "@gen/loco/resource/v1/resource_pb";
+import {
+	ResourceStatus,
+	type EnvironmentStatus,
+	type RegionStatus,
+	type Resource,
+} from "@gen/loco/resource/v1/resource_pb";
 
 import { getServiceSpec } from "@/lib/deployment-utils";
 import { imageVersion } from "@/lib/image";
 import { maybeTsMs, tsMs } from "@/lib/time";
 
+import { shortId } from "./format";
+import { configuredRegions } from "@/lib/resource-regions";
+
 export const PAGE_SIZES = [10, 25, 50, 100];
 
 export interface RegionView {
 	name: string;
-	config: RegionConfig | undefined;
-	primary: boolean;
+	status: RegionStatus | undefined;
 	history: Deployment[];
 	current: Deployment | undefined;
 }
@@ -51,40 +58,73 @@ function byNewest(a: Deployment, b: Deployment): number {
 	return tsMs(b.createdAt) - tsMs(a.createdAt);
 }
 
-export function buildRegions(resource: Resource, deployments: Deployment[]): RegionView[] {
+export function buildRegions(
+	resource: Resource,
+	deployments: Deployment[],
+	environment: EnvironmentStatus | undefined,
+): RegionView[] {
 	const names = new Set<string>();
-	const configured = resource.regions.toSorted((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
-	for (const r of configured) names.add(r.region);
+	for (const r of configuredRegions(resource)) names.add(r);
+	for (const r of environment?.regions ?? []) names.add(r.region);
 	for (const d of deployments) {
 		if (d.region !== "") names.add(d.region);
 	}
-	return [...names].map((name, i) => {
-		const config = resource.regions.find((r) => r.region === name);
+	return [...names].map((name) => {
+		const status = environment?.regions.find((r) => r.region === name);
 		const history = deployments.filter((d) => d.region === name).sort(byNewest);
 		const current = history.find((d) => d.isActive) ?? history[0];
-		return { name, config, primary: config?.isPrimary ?? i === 0, history, current };
+		return { name, status, history, current };
 	});
 }
 
-export function regionDotClass(status: RegionIntentStatus | undefined): string {
+export function regionDotClass(status: ResourceStatus | undefined): string {
 	switch (status) {
-		case RegionIntentStatus.ACTIVE:
+		case ResourceStatus.HEALTHY:
+			return "bg-ok-fg";
+		case ResourceStatus.DEPLOYING:
 			return "bg-primary";
-		case RegionIntentStatus.PROVISIONING:
-			return "bg-primary";
-		case RegionIntentStatus.DEGRADED:
+		case ResourceStatus.DEGRADED:
 			return "bg-warn";
-		case RegionIntentStatus.FAILED:
+		case ResourceStatus.UNAVAILABLE:
 			return "bg-err";
-		case RegionIntentStatus.REMOVING:
+		case ResourceStatus.UNKNOWN:
 			return "bg-fg4";
-		case RegionIntentStatus.DESIRED:
-			return "bg-fg4";
-		case RegionIntentStatus.UNSPECIFIED:
+		case ResourceStatus.UNSPECIFIED:
 			return "bg-fg4";
 		case undefined:
 			return "bg-fg4";
 	}
+}
+
+export interface RegionProblem {
+	region: string;
+	title: string;
+	message: string;
+}
+
+export function regionProblem(region: RegionView): RegionProblem | undefined {
+	const status = region.status;
+	if (status === undefined) return undefined;
+	const message = status.message ?? "";
+	switch (status.status) {
+		case ResourceStatus.UNAVAILABLE:
+			return { region: region.name, title: `${region.name} is down`, message };
+		case ResourceStatus.DEGRADED:
+			return { region: region.name, title: `${region.name} is degraded`, message };
+		case ResourceStatus.UNKNOWN:
+			return { region: region.name, title: `${region.name} is not reporting`, message };
+		case ResourceStatus.HEALTHY:
+			break;
+		case ResourceStatus.DEPLOYING:
+			break;
+		case ResourceStatus.UNSPECIFIED:
+			break;
+	}
+	if (status.deploymentStatus === DeploymentPhase.FAILED) {
+		const title = `Deployment ${shortId(status.deploymentId)} failed in ${region.name}`;
+		return { region: region.name, title, message };
+	}
+	return undefined;
 }
 
 export function isRunning(dep: Deployment | undefined): boolean {

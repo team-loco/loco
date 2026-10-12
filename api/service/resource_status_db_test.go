@@ -46,12 +46,9 @@ func newResourceStatusFixture(t *testing.T) *resourceStatusFixture {
 	row := f.pool.QueryRow(ctx, `
 WITH c AS (
     INSERT INTO clusters (name, region, provider, is_active, is_default)
-    VALUES ('c3', $2, 'kind', true, true) RETURNING id
-), rr AS (
-    INSERT INTO resource_regions (resource_id, region, is_primary, status)
-    VALUES ($1, $2, false, 'active') RETURNING id
+    VALUES ('c3', $1, 'kind', true, true) RETURNING id
 )
-SELECT c.id FROM c, rr`, f.resourceID, statusSecondRegion)
+SELECT c.id FROM c`, statusSecondRegion)
 	if err := row.Scan(&f.regionCluster); err != nil {
 		t.Fatalf("seed second region: %v", err)
 	}

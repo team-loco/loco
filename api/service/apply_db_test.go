@@ -266,12 +266,12 @@ func TestApplyCreatesASourceServiceWithoutADeployment(t *testing.T) {
 	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != 0 {
 		t.Fatalf("%d deployments, want 0", n)
 	}
-	regions, err := f.queries.ListResourceRegions(context.Background(), res.ID)
+	spec, err := converter.DeserializeResourceSpec(res.Spec, res.Type)
 	if err != nil {
-		t.Fatalf("list regions: %v", err)
+		t.Fatalf("resource spec: %v", err)
 	}
-	if len(regions) != 1 || regions[0].Region != testRegion || !regions[0].IsPrimary {
-		t.Fatalf("regions = %+v, want the primary %s", regions, testRegion)
+	if regions := spec.GetService().GetRegions(); len(regions) != 1 || !regions[testRegion].GetEnabled() {
+		t.Fatalf("regions = %v, want only %s", regions, testRegion)
 	}
 }
 

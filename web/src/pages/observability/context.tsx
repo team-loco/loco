@@ -11,6 +11,7 @@ import type { ClusterTransport, TimeRange } from "@/lib/obs";
 import type { ObservabilityView } from "@/lib/routes";
 
 import type { Token } from "./query";
+import { configuredRegions } from "@/lib/resource-regions";
 
 const RESOURCE_COLORS = ["#1e40af", "#0e7490", "#7c3aed", "#b45309", "#be185d", "#15803d", "#4f46e5", "#a16207"];
 
@@ -116,12 +117,11 @@ export function ObsProvider({
 
 	const sorted = (resourcesData?.resources ?? []).toSorted((a, b) => a.name.localeCompare(b.name));
 	const resources: ObsResource[] = sorted.map((r, i) => {
-		const primary = r.regions.find((g) => g.isPrimary) ?? r.regions[0];
 		return {
 			id: r.id,
 			name: r.name,
 			color: RESOURCE_COLORS[i % RESOURCE_COLORS.length] ?? "#1e40af",
-			region: primary?.region ?? "",
+			region: configuredRegions(r)[0] ?? "",
 			raw: r,
 		};
 	});

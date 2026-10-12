@@ -294,10 +294,9 @@ func (f *imageSweepFixture) activeDeployment(t *testing.T, image string) uuid.UU
 	params.Spec = []byte(spec)
 	var id uuid.UUID
 	err := f.pool.QueryRow(f.ctx, `
-INSERT INTO deployments (resource_id, resource_region_id, cluster_id, region, replicas, status,
+INSERT INTO deployments (resource_id, cluster_id, region, replicas, status,
                          is_active, message, spec, spec_version, environment_id, started_at)
-SELECT $1, rr.id, $2, $3, 1, 'running', true, '', $4, 1, $5, NOW()
-FROM resource_regions rr WHERE rr.resource_id = $1
+VALUES ($1, $2, $3, 1, 'running', true, '', $4, 1, $5, NOW())
 RETURNING id`, params.ResourceID, params.ClusterID, params.Region, params.Spec, params.EnvironmentID).Scan(&id)
 	if err != nil {
 		t.Fatalf("insert deployment: %v", err)

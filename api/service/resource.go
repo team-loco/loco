@@ -125,8 +125,6 @@ func (s *ResourceServer) CreateResource(
 		)
 	}
 
-	serviceSpec := r.GetSpec().GetService()
-
 	hasDomain := r.GetDomain() != nil
 	var fullDomain string
 	var subdomainLabel *string
@@ -207,20 +205,6 @@ func (s *ResourceServer) CreateResource(
 	if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
 		slog.ErrorContext(ctx, "failed to bump environment revisions", "error", bumpErr)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
-	}
-
-	for region, regionConfig := range serviceSpec.GetRegions() {
-		isPrimary := regionConfig.GetPrimary()
-		_, regionErr := qtx.CreateResourceRegion(ctx, genDb.CreateResourceRegionParams{
-			ResourceID: resourceID,
-			Region:     region,
-			IsPrimary:  isPrimary,
-			Status:     genDb.RegionIntentStatusDesired,
-		})
-		if regionErr != nil {
-			slog.ErrorContext(ctx, "failed to create resource region", "error", regionErr)
-			return nil, connect.NewError(connect.CodeInternal, ErrDB)
-		}
 	}
 
 	if hasDomain {
@@ -351,12 +335,6 @@ func (s *ResourceServer) GetResource(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	resourceRegions, err := s.queries.ListResourceRegions(ctx, res.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
-	}
-
 	statuses, err := s.environmentStatuses(ctx, []uuid.UUID{res.ID})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to derive resource status", "error", err)
@@ -364,7 +342,7 @@ func (s *ResourceServer) GetResource(
 	}
 
 	return connect.NewResponse(&resourcev1.GetResourceResponse{
-		Resource: dbResourceToProto(res, statuses[res.ID], resourceDomains, resourceRegions),
+		Resource: dbResourceToProto(res, statuses[res.ID], resourceDomains),
 	}), nil
 }
 
@@ -460,11 +438,6 @@ func (s *ResourceServer) ListWorkspaceResources(
 		slog.ErrorContext(ctx, "failed to list resource domains", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
-	allRegions, err := s.queries.ListResourceRegionsForResources(ctx, resourceIDs)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
-	}
 
 	statuses, err := s.environmentStatuses(ctx, resourceIDs)
 	if err != nil {
@@ -476,17 +449,12 @@ func (s *ResourceServer) ListWorkspaceResources(
 	for _, domain := range allDomains {
 		domainsByResource[domain.ResourceID] = append(domainsByResource[domain.ResourceID], domain)
 	}
-	regionsByResource := make(map[uuid.UUID][]genDb.ResourceRegion, len(dbResources))
-	for _, region := range allRegions {
-		regionsByResource[region.ResourceID] = append(regionsByResource[region.ResourceID], region)
-	}
 
 	resources := make([]*resourcev1.Resource, 0, len(dbResources))
 	for _, dbResource := range dbResources {
 		resourceDomains := domainsByResource[dbResource.ID]
-		resourceRegions := regionsByResource[dbResource.ID]
 		resourceStatuses := statuses[dbResource.ID]
-		resource := dbResourceToProto(dbResource, resourceStatuses, resourceDomains, resourceRegions)
+		resource := dbResourceToProto(dbResource, resourceStatuses, resourceDomains)
 		resources = append(resources, resource)
 	}
 
@@ -655,12 +623,6 @@ func (s *ResourceServer) GetResourceStatus(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	resourceRegions, err := s.queries.ListResourceRegions(ctx, res.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
-	}
-
 	statuses, err := s.environmentStatuses(ctx, []uuid.UUID{res.ID})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to derive resource status", "error", err)
@@ -668,7 +630,7 @@ func (s *ResourceServer) GetResourceStatus(
 	}
 
 	return connect.NewResponse(&resourcev1.GetResourceStatusResponse{
-		Resource: dbResourceToProto(res, statuses[res.ID], resourceDomains, resourceRegions),
+		Resource: dbResourceToProto(res, statuses[res.ID], resourceDomains),
 	}), nil
 }
 
@@ -808,17 +770,6 @@ func (s *ResourceServer) activeDeploymentsForRegions(
 	resourceID uuid.UUID,
 	requestedRegion string,
 ) ([]genDb.Deployment, error) {
-	resourceRegions, err := s.queries.ListResourceRegions(ctx, resourceID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
-	}
-
-	regions, err := selectRegionsToScale(requestedRegion, resourceRegions)
-	if err != nil {
-		return nil, err
-	}
-
 	deploymentList, err := s.queries.ListActiveDeploymentsForResource(ctx, resourceID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list active deployments", "error", err)
@@ -832,19 +783,25 @@ func (s *ResourceServer) activeDeploymentsForRegions(
 		}
 	}
 
-	current := make([]genDb.Deployment, 0, len(regions))
-	for _, region := range regions {
-		d, found := activeByRegion[region]
+	if requestedRegion != "" {
+		d, found := activeByRegion[requestedRegion]
 		if !found {
-			continue
+			return nil, connect.NewError(
+				connect.CodeInvalidArgument,
+				fmt.Errorf("resource has no active deployment in region '%s'", requestedRegion),
+			)
 		}
-		current = append(current, d)
+		return []genDb.Deployment{d}, nil
 	}
 
-	if len(current) == 0 {
+	if len(activeByRegion) == 0 {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("no active deployment found for resource"))
 	}
 
+	current := make([]genDb.Deployment, 0, len(activeByRegion))
+	for _, region := range slices.Sorted(maps.Keys(activeByRegion)) {
+		current = append(current, activeByRegion[region])
+	}
 	return current, nil
 }
 
@@ -1016,12 +973,8 @@ func inheritDesiredEnv(ctx context.Context, qtx *genDb.Queries, plan regionRedep
 	if service == nil {
 		return errors.New("redeploy plan has no service spec")
 	}
-	_, err := qtx.LockResourceRegion(ctx, genDb.LockResourceRegionParams{
-		ResourceID: plan.params.ResourceID,
-		Region:     plan.params.Region,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to lock resource region: %w", err)
+	if err := lockResource(ctx, qtx, plan.params.ResourceID); err != nil {
+		return err
 	}
 	env, err := desiredEnv(ctx, qtx, plan.params.ResourceID, *plan.envSourceCluster)
 	if err != nil {
@@ -1071,36 +1024,6 @@ func validateScaleRequest(ctx context.Context, r *resourcev1.ScaleResourceReques
 	}
 
 	return nil
-}
-
-func selectRegionsToScale(requested string, resourceRegions []genDb.ResourceRegion) ([]string, error) {
-	var regionsToScale []string
-	if requested != "" {
-		regionFound := false
-		for _, rr := range resourceRegions {
-			if rr.Region == requested {
-				regionFound = true
-				break
-			}
-		}
-		if !regionFound {
-			return nil, connect.NewError(
-				connect.CodeInvalidArgument,
-				fmt.Errorf("region '%s' not found for this resource", requested),
-			)
-		}
-		regionsToScale = []string{requested}
-	} else {
-		for _, rr := range resourceRegions {
-			regionsToScale = append(regionsToScale, rr.Region)
-		}
-	}
-
-	if len(regionsToScale) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("no regions found for resource"))
-	}
-
-	return regionsToScale, nil
 }
 
 func scaleChangesDeployment(
@@ -1174,12 +1097,11 @@ func resourceDomainToListProto(domains []genDb.ResourceDomain) []*domainv1.Resou
 }
 
 // dbResourceToProto converts a database Resource to the proto Resource
-// to be returned to client. Note: caller is responsible for fetching domains and regions separately.
+// to be returned to client. Note: caller is responsible for fetching domains separately.
 func dbResourceToProto(
 	res genDb.Resource,
 	statuses []*resourcev1.EnvironmentStatus,
 	domains []genDb.ResourceDomain,
-	regions []genDb.ResourceRegion,
 ) *resourcev1.Resource {
 	// convert db.ResourceType (string) to proto ResourceType (int32)
 	var resourceType resourcev1.ResourceType
@@ -1200,14 +1122,6 @@ func dbResourceToProto(
 		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_SERVICE
 	}
 
-	protoRegions := make([]*resourcev1.RegionConfig, len(regions))
-	for i, r := range regions {
-		protoRegions[i] = &resourcev1.RegionConfig{
-			Region:    r.Region,
-			IsPrimary: r.IsPrimary,
-		}
-	}
-
 	// reconstruct oneof spec from stored spec bytes
 	var spec *resourcev1.ResourceSpec
 	if len(res.Spec) > 0 {
@@ -1221,7 +1135,6 @@ func dbResourceToProto(
 		Type:                resourceType,
 		Spec:                spec,
 		Domains:             resourceDomainToListProto(domains),
-		Regions:             protoRegions,
 		CreatedAt:           timeutil.ParsePostgresTimestamp(res.CreatedAt),
 		UpdatedAt:           timeutil.ParsePostgresTimestamp(res.UpdatedAt),
 		Description:         &res.Description,
@@ -1443,14 +1356,9 @@ func createDeploymentWithCleanup(
 	params genDb.CreateDeploymentParams,
 	buildSpec desiredSpecFunc,
 ) (uuid.UUID, error) {
-	resourceRegion, err := qtx.LockResourceRegion(ctx, genDb.LockResourceRegionParams{
-		ResourceID: params.ResourceID,
-		Region:     params.Region,
-	})
-	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("failed to lock resource region: %w", err)
+	if err := lockResource(ctx, qtx, params.ResourceID); err != nil {
+		return uuid.UUID{}, err
 	}
-	params.ResourceRegionID = resourceRegion.ID
 	if heldErr := checkClusterEnvironment(ctx, qtx, params); heldErr != nil {
 		return uuid.UUID{}, heldErr
 	}

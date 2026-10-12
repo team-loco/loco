@@ -15,6 +15,7 @@ import { environmentStatus } from "@/lib/resource-status";
 import { tsMs } from "@/lib/time";
 
 import { isInFlight } from "./format";
+import { configuredRegions } from "@/lib/resource-regions";
 
 export interface RegionReplicas {
 	region: string;
@@ -37,7 +38,7 @@ const POLL_MS = 5000;
 const IDLE_POLL_MS = 15_000;
 
 function regionReplicas(resource: Resource, environment: EnvironmentStatus | undefined): RegionReplicas[] {
-	const names = new Set(resource.regions.map((r) => r.region));
+	const names = new Set(configuredRegions(resource));
 	for (const r of environment?.regions ?? []) names.add(r.region);
 	return [...names].map((region) => {
 		const status = environment?.regions.find((r) => r.region === region);

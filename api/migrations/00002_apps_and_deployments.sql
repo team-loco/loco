@@ -31,16 +31,6 @@ CREATE TYPE build_status AS ENUM (
 -- Domain source enum (who manages the domain)
 CREATE TYPE domain_source AS ENUM ('platform_provided', 'user_provided');
 
--- Region intent status enum
-CREATE TYPE region_intent_status AS ENUM (
-    'desired',
-    'provisioning',
-    'active',
-    'degraded',
-    'removing',
-    'failed'
-);
-
 -- Environments: workspace-level isolation concept
 CREATE TABLE
     environments (
@@ -160,27 +150,6 @@ CREATE TABLE
 
 CREATE INDEX idx_secrets_environment_id ON secrets (environment_id);
 
--- Resource regions table (declarative intent)
-CREATE TABLE
-    resource_regions (
-        id UUID PRIMARY KEY DEFAULT uuidv7 (),
-        resource_id UUID NOT NULL REFERENCES resources (id) ON DELETE CASCADE,
-        region TEXT NOT NULL,
-        is_primary BOOLEAN NOT NULL,
-        status region_intent_status NOT NULL,
-        last_error TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
-        UNIQUE (resource_id, region)
-    );
-
-CREATE INDEX idx_resource_regions_region ON resource_regions (region);
-
--- Enforce max 1 primary region per resource
-CREATE UNIQUE INDEX uniq_resource_primary_region ON resource_regions (resource_id)
-WHERE
-    is_primary = true;
-
 CREATE TABLE
     resource_domains (
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
@@ -226,7 +195,6 @@ CREATE TABLE
     deployments (
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
         resource_id UUID NOT NULL REFERENCES resources (id) ON DELETE CASCADE,
-        resource_region_id UUID NOT NULL REFERENCES resource_regions (id) ON DELETE RESTRICT,
         cluster_id UUID NOT NULL REFERENCES clusters (id) ON DELETE RESTRICT,
         region TEXT NOT NULL,
         replicas INT NOT NULL,
@@ -242,8 +210,6 @@ CREATE TABLE
         completed_at TIMESTAMPTZ,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
     );
-
-CREATE INDEX idx_deployments_resource_region_id ON deployments (resource_region_id);
 
 CREATE INDEX idx_deployments_cluster_id ON deployments (cluster_id);
 
@@ -345,14 +311,12 @@ DROP TABLE IF EXISTS builds;
 DROP TABLE IF EXISTS placements;
 DROP TABLE IF EXISTS deployments;
 DROP TABLE IF EXISTS resource_domains;
-DROP TABLE IF EXISTS resource_regions;
 DROP TABLE IF EXISTS secrets;
 DROP TABLE IF EXISTS resources;
 DROP TABLE IF EXISTS platform_domains;
 DROP TABLE IF EXISTS clusters;
 DROP TABLE IF EXISTS environment_keys;
 DROP TABLE IF EXISTS environments;
-DROP TYPE IF EXISTS region_intent_status;
 DROP TYPE IF EXISTS domain_source;
 DROP TYPE IF EXISTS build_status;
 DROP TYPE IF EXISTS resource_type;

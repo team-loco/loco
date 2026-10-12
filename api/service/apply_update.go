@@ -32,7 +32,7 @@ func (a *applier) update(ctx context.Context, qtx *genDb.Queries, op configplan.
 	}
 	current := currentSpec.GetService()
 	regions := slices.Sorted(maps.Keys(op.Desired.Regions))
-	spec := serviceSpecFor(op.Desired, primaryRegion(current, regions))
+	spec := serviceSpecFor(op.Desired)
 	spec.Observability = current.GetObservability()
 	for name, target := range current.GetRegions() {
 		if _, kept := spec.GetRegions()[name]; kept {
@@ -51,9 +51,6 @@ func (a *applier) update(ctx context.Context, qtx *genDb.Queries, op configplan.
 	}
 	if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, res.ID); bumpErr != nil {
 		return bumpErr
-	}
-	if regionErr := ensureRegions(ctx, qtx, res.ID, regions); regionErr != nil {
-		return regionErr
 	}
 	if domainErr := a.syncDomains(ctx, qtx, res.ID, op.Desired.Domains); domainErr != nil {
 		return domainErr
@@ -111,41 +108,6 @@ func changePaths(op configplan.Operation) []string {
 		paths = append(paths, change.Path)
 	}
 	return paths
-}
-
-func primaryRegion(current *resourcev1.ServiceSpec, regions []string) string {
-	for name, target := range current.GetRegions() {
-		if target.GetPrimary() && slices.Contains(regions, name) {
-			return name
-		}
-	}
-	return regions[0]
-}
-
-func ensureRegions(ctx context.Context, qtx *genDb.Queries, resourceID uuid.UUID, regions []string) error {
-	rows, err := qtx.ListResourceRegions(ctx, resourceID)
-	if err != nil {
-		return fmt.Errorf("list resource regions: %w", err)
-	}
-	existing := make(map[string]bool, len(rows))
-	for _, row := range rows {
-		existing[row.Region] = true
-	}
-	for _, region := range regions {
-		if existing[region] {
-			continue
-		}
-		_, createErr := qtx.CreateResourceRegion(ctx, genDb.CreateResourceRegionParams{
-			ResourceID: resourceID,
-			Region:     region,
-			IsPrimary:  false,
-			Status:     genDb.RegionIntentStatusDesired,
-		})
-		if createErr != nil {
-			return fmt.Errorf("create resource region %s: %w", region, createErr)
-		}
-	}
-	return nil
 }
 
 func (a *applier) stopRemovedRegions(

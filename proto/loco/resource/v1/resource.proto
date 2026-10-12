@@ -36,17 +36,6 @@ enum ResourceStatus {
   RESOURCE_STATUS_UNKNOWN = 6;
 }
 
-// RegionIntentStatus represents the state of a region intent for a resource.
-enum RegionIntentStatus {
-  REGION_INTENT_STATUS_UNSPECIFIED = 0;
-  REGION_INTENT_STATUS_DESIRED = 1;
-  REGION_INTENT_STATUS_PROVISIONING = 2;
-  REGION_INTENT_STATUS_ACTIVE = 3;
-  REGION_INTENT_STATUS_DEGRADED = 4;
-  REGION_INTENT_STATUS_REMOVING = 5;
-  REGION_INTENT_STATUS_FAILED = 6;
-}
-
 // ResourceService manages resource lifecycle and operations.
 service ResourceService {
   // CreateResource creates a new resource.
@@ -117,7 +106,8 @@ message ObservabilityConfig {
 // RegionTarget defines the desired state for a specific region.
 message RegionTarget {
   bool enabled = 1;
-  bool primary = 2;
+  reserved 2;
+  reserved "primary";
   string cpu = 3; // e.g., "100m"
   string memory = 4; // e.g., "256Mi"
   int32 min_replicas = 5;
@@ -172,7 +162,8 @@ message Resource {
   string name = 3;
   ResourceType type = 4;
   repeated domain.v1.ResourceDomain domains = 5;
-  repeated RegionConfig regions = 6;
+  reserved 6;
+  reserved "regions";
   reserved 7;
   reserved "status";
   optional ResourceSpec spec = 8;
@@ -206,14 +197,6 @@ message RegionStatus {
   deployment.v1.DeploymentPhase deployment_status = 6;
   optional string message = 7;
   optional google.protobuf.Timestamp reported_at = 8;
-}
-
-// RegionConfig represents a region deployment intent for a resource.
-message RegionConfig {
-  string region = 1;
-  bool is_primary = 2;
-  RegionIntentStatus status = 3;
-  optional string last_error = 4;
 }
 
 // --- CRUD ---
