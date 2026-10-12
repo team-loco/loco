@@ -193,17 +193,3 @@ func (c *Client) DeleteApp(ctx context.Context, appID string) error {
 	logRequestID(ctx, err, "failed to delete app")
 	return err
 }
-
-func (c *Client) GetEvents(ctx context.Context, appID string, limit *int32) ([]*resourcev1.Event, error) {
-	req := &resourcev1.ListResourceEventsRequest{
-		ResourceId: appID,
-		Limit:      limit,
-	}
-
-	resp, err := c.Resource.ListResourceEvents(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp.GetEvents(), nil
-}

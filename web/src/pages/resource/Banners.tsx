@@ -59,12 +59,10 @@ export function ErrorBanner({
 	title,
 	message,
 	logsHref,
-	onEvents,
 }: {
 	title: string;
 	message: string;
 	logsHref: string | undefined;
-	onEvents: () => void;
 }) {
 	return (
 		<div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3.5 rounded-lg border border-bad-fg bg-bad-bg px-4 py-3 text-bad-fg">
@@ -82,13 +80,6 @@ export function ErrorBanner({
 						Logs
 					</Link>
 				)}
-				<button
-					type="button"
-					onClick={onEvents}
-					className="h-7 rounded-sm border border-bad-fg bg-transparent px-2.5 text-bad-fg hover:bg-black/5"
-				>
-					Events
-				</button>
 			</div>
 		</div>
 	);

@@ -16,7 +16,6 @@ func BuildResourceCmd() *cobra.Command {
 		buildScaleCmd(),
 		buildStatusCmd(),
 		buildLogsCmd(),
-		buildEventsCmd(),
 		buildDestroyCmd(),
 	)
 

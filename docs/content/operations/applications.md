@@ -6,7 +6,6 @@ The CLI reads application status and manages application resources through the s
 loco resource --help
 loco resource status --help
 loco resource logs --help
-loco resource events --help
 ```
 
 `loco resource` also includes `env`, `scale`, and `destroy`. Inspect an operation's help before changing resources or removing an application.
@@ -79,7 +78,7 @@ Use application status to find whether a deployment is progressing or ready. `lo
 
 The controller reports a failure when a current replica is unschedulable or Kubernetes reports that the current rollout exceeded its progress deadline. The region's failure message includes scheduling details or directs you to inspect replicas and logs. Reconciliation continues after a failure, so the application can recover when replicas become ready.
 
-The status comes from the replicas the cluster reports ready, not from the deployment record. A redeploy whose new replicas fail leaves the application Healthy while the previous replicas still serve, and the region shows the failure. Read events for scheduling and reconciliation failures, then inspect logs for application startup failures. The dashboard provides another view of the same applications.
+The status comes from the replicas the cluster reports ready, not from the deployment record. A redeploy whose new replicas fail leaves the application Healthy while the previous replicas still serve, and the region shows the failure. Read the region's failure message for scheduling and reconciliation failures, then inspect logs for application startup failures. The dashboard provides another view of the same applications.
 
 ```sh
 loco web

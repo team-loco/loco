@@ -55,14 +55,6 @@ export const listRegions = ResourceService.method.listRegions;
 export const getResourceEnv = ResourceService.method.getResourceEnv;
 
 /**
- * Events
- * ListResourceEvents retrieves events for a resource.
- *
- * @generated from rpc loco.resource.v1.ResourceService.ListResourceEvents
- */
-export const listResourceEvents = ResourceService.method.listResourceEvents;
-
-/**
  * Resource Operations
  * ScaleResource adjusts resource replicas and resource allocation.
  *

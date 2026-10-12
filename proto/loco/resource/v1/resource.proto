@@ -55,10 +55,6 @@ service ResourceService {
   // env map of loco.yaml, and the secret names it declares. Secret values are never included.
   rpc GetResourceEnv(GetResourceEnvRequest) returns (GetResourceEnvResponse);
 
-  // Events
-  // ListResourceEvents retrieves events for a resource.
-  rpc ListResourceEvents(ListResourceEventsRequest) returns (ListResourceEventsResponse);
-
   // Resource Operations
   // ScaleResource adjusts resource replicas and resource allocation.
   rpc ScaleResource(ScaleResourceRequest) returns (ScaleResourceResponse);
@@ -301,31 +297,6 @@ message GetResourceEnvRequest {
 message GetResourceEnvResponse {
   map<string, string> env = 1;
   repeated string secret_names = 2;
-}
-
-// --- Events ---
-
-// Event represents a Kubernetes event related to a resource (e.g., pod created, failed, crash loop).
-message Event {
-  google.protobuf.Timestamp timestamp = 1;
-  string reason = 2;
-  string message = 3;
-  string type = 4;
-  string pod_name = 5;
-}
-
-// ListResourceEventsRequest is the request to retrieve resource events.
-message ListResourceEventsRequest {
-  string resource_id = 1 [(buf.validate.field).string.uuid = true];
-  optional int32 limit = 2 [(buf.validate.field).int32 = {
-    gte: 1
-    lte: 1000
-  }]; // max number of events to return
-}
-
-// ListResourceEventsResponse is the response containing resource events.
-message ListResourceEventsResponse {
-  repeated Event events = 1;
 }
 
 // --- Resource Operations ---

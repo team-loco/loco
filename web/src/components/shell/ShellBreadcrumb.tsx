@@ -49,7 +49,6 @@ const OBSERVABILITY_CRUMBS = new Map([
 	["logs", "Logs"],
 	["metrics", "Metrics"],
 	["traces", "Traces"],
-	["events", "Events"],
 ]);
 
 function staticCrumb(pathname: string, search: string): string | null {

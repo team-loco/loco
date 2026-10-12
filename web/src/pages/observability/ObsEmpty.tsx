@@ -1,5 +1,5 @@
 import { useId, type CSSProperties, type ReactNode } from "react";
-import { ActivityIcon, ChartLineIcon, HistoryIcon, RocketIcon, ScrollTextIcon } from "lucide-react";
+import { ChartLineIcon, HistoryIcon, RocketIcon, ScrollTextIcon } from "lucide-react";
 import { Link } from "react-router";
 
 import { Button } from "@/components/design/Button";
@@ -12,7 +12,7 @@ import { workspacePath } from "@/lib/routes";
 import { useObs } from "./context";
 import { CopyButton } from "./shared";
 
-export type ObsKind = "logs" | "metrics" | "events";
+export type ObsKind = "logs" | "metrics";
 
 const DEPLOY_COMMAND = "loco deploy <name>";
 const COPY_RESET_MS = 1400;
@@ -32,15 +32,13 @@ const MINOR_TICK = 3;
 const LABEL_Y = 166;
 const NOW_LABEL_OFFSET = 22;
 const LOG_BARS = 48;
-const EVENT_BARS = 24;
 const BAR_H = 3;
 
-const KIND_TITLE: Record<ObsKind, string> = { logs: "Logs", metrics: "Metrics", events: "Events" };
+const KIND_TITLE: Record<ObsKind, string> = { logs: "Logs", metrics: "Metrics" };
 
 const KIND_AXIS: Record<ObsKind, { unit: string; ticks: string[] }> = {
 	logs: { unit: "lines", ticks: ["100", "200", "300"] },
 	metrics: { unit: "req/s", ticks: ["25", "50", "75"] },
-	events: { unit: "events", ticks: ["5", "10", "15"] },
 };
 
 function kindIcon(kind: ObsKind): ReactNode {
@@ -49,8 +47,6 @@ function kindIcon(kind: ObsKind): ReactNode {
 			return <ScrollTextIcon className="size-3.5" />;
 		case "metrics":
 			return <ChartLineIcon className="size-3.5" />;
-		case "events":
-			return <ActivityIcon className="size-3.5" />;
 	}
 }
 
@@ -102,7 +98,7 @@ function EmptyArt({ kind, range }: { kind: ObsKind; range: TimeRange }) {
 			{kind === "metrics" ? (
 				<line x1={X0} x2={X1} y1={AXIS_Y} y2={AXIS_Y} strokeWidth={2} className="stroke-primary" />
 			) : (
-				<Bars count={kind === "logs" ? LOG_BARS : EVENT_BARS} />
+				<Bars count={LOG_BARS} />
 			)}
 			<line x1={X0} x2={X1} y1={AXIS_Y} y2={AXIS_Y} className="stroke-pe-bar" />
 			{Array.from({ length: TICKS + 1 }, (_, i) => {

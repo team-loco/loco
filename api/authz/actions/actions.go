@@ -37,16 +37,6 @@ var (
 		entityType: db.EntityTypeResource,
 		scope:      db.ScopeRead,
 	}
-	// StreamResourceLogs requires resource:read.
-	StreamResourceLogs = Action{
-		entityType: db.EntityTypeResource,
-		scope:      db.ScopeRead,
-	}
-	// GetResourceEvents requires resource:read.
-	GetResourceEvents = Action{
-		entityType: db.EntityTypeResource,
-		scope:      db.ScopeRead,
-	}
 	AddDomain = Action{
 		entityType: db.EntityTypeResource,
 		scope:      db.ScopeWrite,

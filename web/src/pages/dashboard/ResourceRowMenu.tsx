@@ -49,8 +49,7 @@ export function ResourceRowMenu({
 
 	const base = resourcePath(orgId, workspaceId, resource.id);
 	const envQuery = `env=${encodeURIComponent(envName)}`;
-	const obs = (view: "logs" | "events") =>
-		observabilityPath(orgId, workspaceId, view, { env: envName, r: resource.name });
+	const logsHref = observabilityPath(orgId, workspaceId, "logs", { env: envName, r: resource.name });
 
 	const confirmDelete = async () => {
 		try {
@@ -84,8 +83,7 @@ export function ResourceRowMenu({
 					<EllipsisIcon className="size-4" />
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end" className="w-auto min-w-[180px]">
-					<DropdownMenuItem onClick={() => void navigate(obs("logs"))}>View logs</DropdownMenuItem>
-					<DropdownMenuItem onClick={() => void navigate(obs("events"))}>View events</DropdownMenuItem>
+					<DropdownMenuItem onClick={() => void navigate(logsHref)}>View logs</DropdownMenuItem>
 					<DropdownMenuItem onClick={() => void navigate(`${base}?tab=settings&${envQuery}`)}>Scale</DropdownMenuItem>
 					<DropdownMenuItem onClick={() => void navigate(`${base}?tab=variables&${envQuery}`)}>
 						Environment variables

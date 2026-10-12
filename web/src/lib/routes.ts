@@ -7,7 +7,7 @@ export function resourcePath(orgId: string, workspaceId: string, resourceId: str
 	return workspacePath(orgId, workspaceId, `resource/${resourceId}`);
 }
 
-export type ObservabilityView = "logs" | "metrics" | "traces" | "events";
+export type ObservabilityView = "logs" | "metrics" | "traces";
 
 export function observabilityPath(
 	orgId: string,

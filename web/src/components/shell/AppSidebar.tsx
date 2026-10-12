@@ -1,5 +1,4 @@
 import {
-	BellIcon,
 	BookOpenIcon,
 	Building2Icon,
 	ChartLineIcon,
@@ -125,13 +124,6 @@ export function AppSidebar() {
 					preload: pageImporters.Observability,
 				},
 				{ name: "Traces", icon: <WaypointsIcon />, active: false, soon: true },
-				{
-					name: "Events",
-					icon: <BellIcon />,
-					to: obs("events"),
-					active: onObs && view === "events",
-					preload: pageImporters.Observability,
-				},
 			],
 		},
 		{

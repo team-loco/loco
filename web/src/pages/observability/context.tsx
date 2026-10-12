@@ -157,7 +157,6 @@ export function ObsProvider({
 			if (opts.resource !== undefined) setSelected([opts.resource]);
 			setMetricsFocusTs(opts.focusTs ?? null);
 		}
-		if (next === "events" && opts.resource !== undefined) setSelected([opts.resource]);
 		const env = params.get("env");
 		const search = new URLSearchParams({ view: next });
 		if (env !== null) search.set("env", env);

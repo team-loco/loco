@@ -277,3 +277,13 @@ func publicURL(resource *resourcev1.Resource) string {
 	}
 	return ""
 }
+
+func simplifyMessage(message string) string {
+	if strings.Contains(message, "ImagePullBackOff") {
+		return "Error: ImagePullBackOff"
+	}
+	if strings.Contains(message, "Failed to pull image") {
+		return "Failed to pull image. Please check registry credentials and image path."
+	}
+	return message
+}

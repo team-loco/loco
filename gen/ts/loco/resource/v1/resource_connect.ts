@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateResourceRequest, CreateResourceResponse, DeleteResourceRequest, DeleteResourceResponse, GetResourceEnvRequest, GetResourceEnvResponse, GetResourceRequest, GetResourceResponse, ListRegionsRequest, ListRegionsResponse, ListResourceEventsRequest, ListResourceEventsResponse, ListWorkspaceResourcesRequest, ListWorkspaceResourcesResponse, ScaleResourceRequest, ScaleResourceResponse, TransferPartialRequest, TransferPartialResponse, UpdateResourceRequest, UpdateResourceResponse } from "./resource_pb";
+import { CreateResourceRequest, CreateResourceResponse, DeleteResourceRequest, DeleteResourceResponse, GetResourceEnvRequest, GetResourceEnvResponse, GetResourceRequest, GetResourceResponse, ListRegionsRequest, ListRegionsResponse, ListWorkspaceResourcesRequest, ListWorkspaceResourcesResponse, ScaleResourceRequest, ScaleResourceResponse, TransferPartialRequest, TransferPartialResponse, UpdateResourceRequest, UpdateResourceResponse } from "./resource_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -90,18 +90,6 @@ export const ResourceService = {
       name: "GetResourceEnv",
       I: GetResourceEnvRequest,
       O: GetResourceEnvResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Events
-     * ListResourceEvents retrieves events for a resource.
-     *
-     * @generated from rpc loco.resource.v1.ResourceService.ListResourceEvents
-     */
-    listResourceEvents: {
-      name: "ListResourceEvents",
-      I: ListResourceEventsRequest,
-      O: ListResourceEventsResponse,
       kind: MethodKind.Unary,
     },
     /**

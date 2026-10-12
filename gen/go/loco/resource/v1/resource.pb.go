@@ -2072,181 +2072,6 @@ func (x *GetResourceEnvResponse) GetSecretNames() []string {
 	return nil
 }
 
-// Event represents a Kubernetes event related to a resource (e.g., pod created, failed, crash loop).
-type Event struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
-	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
-	Type          string                 `protobuf:"bytes,4,opt,name=type,proto3" json:"type,omitempty"`
-	PodName       string                 `protobuf:"bytes,5,opt,name=pod_name,json=podName,proto3" json:"pod_name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Event) Reset() {
-	*x = Event{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[31]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Event) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Event) ProtoMessage() {}
-
-func (x *Event) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[31]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Event.ProtoReflect.Descriptor instead.
-func (*Event) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{31}
-}
-
-func (x *Event) GetTimestamp() *timestamppb.Timestamp {
-	if x != nil {
-		return x.Timestamp
-	}
-	return nil
-}
-
-func (x *Event) GetReason() string {
-	if x != nil {
-		return x.Reason
-	}
-	return ""
-}
-
-func (x *Event) GetMessage() string {
-	if x != nil {
-		return x.Message
-	}
-	return ""
-}
-
-func (x *Event) GetType() string {
-	if x != nil {
-		return x.Type
-	}
-	return ""
-}
-
-func (x *Event) GetPodName() string {
-	if x != nil {
-		return x.PodName
-	}
-	return ""
-}
-
-// ListResourceEventsRequest is the request to retrieve resource events.
-type ListResourceEventsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	Limit         *int32                 `protobuf:"varint,2,opt,name=limit,proto3,oneof" json:"limit,omitempty"` // max number of events to return
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListResourceEventsRequest) Reset() {
-	*x = ListResourceEventsRequest{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[32]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListResourceEventsRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListResourceEventsRequest) ProtoMessage() {}
-
-func (x *ListResourceEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[32]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListResourceEventsRequest.ProtoReflect.Descriptor instead.
-func (*ListResourceEventsRequest) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{32}
-}
-
-func (x *ListResourceEventsRequest) GetResourceId() string {
-	if x != nil {
-		return x.ResourceId
-	}
-	return ""
-}
-
-func (x *ListResourceEventsRequest) GetLimit() int32 {
-	if x != nil && x.Limit != nil {
-		return *x.Limit
-	}
-	return 0
-}
-
-// ListResourceEventsResponse is the response containing resource events.
-type ListResourceEventsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Events        []*Event               `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListResourceEventsResponse) Reset() {
-	*x = ListResourceEventsResponse{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[33]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListResourceEventsResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListResourceEventsResponse) ProtoMessage() {}
-
-func (x *ListResourceEventsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[33]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListResourceEventsResponse.ProtoReflect.Descriptor instead.
-func (*ListResourceEventsResponse) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{33}
-}
-
-func (x *ListResourceEventsResponse) GetEvents() []*Event {
-	if x != nil {
-		return x.Events
-	}
-	return nil
-}
-
 // ScaleResourceRequest is the request to scale a resource's active deployments in one environment.
 type ScaleResourceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -2262,7 +2087,7 @@ type ScaleResourceRequest struct {
 
 func (x *ScaleResourceRequest) Reset() {
 	*x = ScaleResourceRequest{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[34]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2274,7 +2099,7 @@ func (x *ScaleResourceRequest) String() string {
 func (*ScaleResourceRequest) ProtoMessage() {}
 
 func (x *ScaleResourceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[34]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2287,7 +2112,7 @@ func (x *ScaleResourceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScaleResourceRequest.ProtoReflect.Descriptor instead.
 func (*ScaleResourceRequest) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{34}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *ScaleResourceRequest) GetResourceId() string {
@@ -2341,7 +2166,7 @@ type ScaleResourceResponse struct {
 
 func (x *ScaleResourceResponse) Reset() {
 	*x = ScaleResourceResponse{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[35]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2353,7 +2178,7 @@ func (x *ScaleResourceResponse) String() string {
 func (*ScaleResourceResponse) ProtoMessage() {}
 
 func (x *ScaleResourceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[35]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2366,7 +2191,7 @@ func (x *ScaleResourceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScaleResourceResponse.ProtoReflect.Descriptor instead.
 func (*ScaleResourceResponse) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{35}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{32}
 }
 
 // TransferPartialRequest is the request to move a resource to another partial.
@@ -2380,7 +2205,7 @@ type TransferPartialRequest struct {
 
 func (x *TransferPartialRequest) Reset() {
 	*x = TransferPartialRequest{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[36]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2392,7 +2217,7 @@ func (x *TransferPartialRequest) String() string {
 func (*TransferPartialRequest) ProtoMessage() {}
 
 func (x *TransferPartialRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[36]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2405,7 +2230,7 @@ func (x *TransferPartialRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransferPartialRequest.ProtoReflect.Descriptor instead.
 func (*TransferPartialRequest) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{36}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *TransferPartialRequest) GetResourceId() string {
@@ -2431,7 +2256,7 @@ type TransferPartialResponse struct {
 
 func (x *TransferPartialResponse) Reset() {
 	*x = TransferPartialResponse{}
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[37]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2443,7 +2268,7 @@ func (x *TransferPartialResponse) String() string {
 func (*TransferPartialResponse) ProtoMessage() {}
 
 func (x *TransferPartialResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_resource_v1_resource_proto_msgTypes[37]
+	mi := &file_loco_resource_v1_resource_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2456,7 +2281,7 @@ func (x *TransferPartialResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransferPartialResponse.ProtoReflect.Descriptor instead.
 func (*TransferPartialResponse) Descriptor() ([]byte, []int) {
-	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{37}
+	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{34}
 }
 
 var File_loco_resource_v1_resource_proto protoreflect.FileDescriptor
@@ -2627,21 +2452,7 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\fsecret_names\x18\x02 \x03(\tR\vsecretNames\x1a6\n" +
 	"\bEnvEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa2\x01\n" +
-	"\x05Event\x128\n" +
-	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\x16\n" +
-	"\x06reason\x18\x02 \x01(\tR\x06reason\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\x12\x12\n" +
-	"\x04type\x18\x04 \x01(\tR\x04type\x12\x19\n" +
-	"\bpod_name\x18\x05 \x01(\tR\apodName\"w\n" +
-	"\x19ListResourceEventsRequest\x12)\n" +
-	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
-	"resourceId\x12%\n" +
-	"\x05limit\x18\x02 \x01(\x05B\n" +
-	"\xbaH\a\x1a\x05\x18\xe8\a(\x01H\x00R\x05limit\x88\x01\x01B\b\n" +
-	"\x06_limit\"M\n" +
-	"\x1aListResourceEventsResponse\x12/\n" +
-	"\x06events\x18\x01 \x03(\v2\x17.loco.resource.v1.EventR\x06events\"\xaa\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xaa\x02\n" +
 	"\x14ScaleResourceRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12(\n" +
@@ -2674,7 +2485,7 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x19RESOURCE_STATUS_DEPLOYING\x10\x02\x12\x1c\n" +
 	"\x18RESOURCE_STATUS_DEGRADED\x10\x03\x12\x1f\n" +
 	"\x1bRESOURCE_STATUS_UNAVAILABLE\x10\x04\x12\x1b\n" +
-	"\x17RESOURCE_STATUS_UNKNOWN\x10\x06\"\x04\b\x05\x10\x05*\x19RESOURCE_STATUS_SUSPENDED2\x95\b\n" +
+	"\x17RESOURCE_STATUS_UNKNOWN\x10\x06\"\x04\b\x05\x10\x05*\x19RESOURCE_STATUS_SUSPENDED2\xa4\a\n" +
 	"\x0fResourceService\x12c\n" +
 	"\x0eCreateResource\x12'.loco.resource.v1.CreateResourceRequest\x1a(.loco.resource.v1.CreateResourceResponse\x12Z\n" +
 	"\vGetResource\x12$.loco.resource.v1.GetResourceRequest\x1a%.loco.resource.v1.GetResourceResponse\x12c\n" +
@@ -2682,8 +2493,7 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x0eDeleteResource\x12'.loco.resource.v1.DeleteResourceRequest\x1a(.loco.resource.v1.DeleteResourceResponse\x12{\n" +
 	"\x16ListWorkspaceResources\x12/.loco.resource.v1.ListWorkspaceResourcesRequest\x1a0.loco.resource.v1.ListWorkspaceResourcesResponse\x12Z\n" +
 	"\vListRegions\x12$.loco.resource.v1.ListRegionsRequest\x1a%.loco.resource.v1.ListRegionsResponse\x12c\n" +
-	"\x0eGetResourceEnv\x12'.loco.resource.v1.GetResourceEnvRequest\x1a(.loco.resource.v1.GetResourceEnvResponse\x12o\n" +
-	"\x12ListResourceEvents\x12+.loco.resource.v1.ListResourceEventsRequest\x1a,.loco.resource.v1.ListResourceEventsResponse\x12`\n" +
+	"\x0eGetResourceEnv\x12'.loco.resource.v1.GetResourceEnvRequest\x1a(.loco.resource.v1.GetResourceEnvResponse\x12`\n" +
 	"\rScaleResource\x12&.loco.resource.v1.ScaleResourceRequest\x1a'.loco.resource.v1.ScaleResourceResponse\x12f\n" +
 	"\x0fTransferPartial\x12(.loco.resource.v1.TransferPartialRequest\x1a).loco.resource.v1.TransferPartialResponseB>Z<github.com/team-loco/loco/gen/go/loco/resource/v1;resourcev1b\x06proto3"
 
@@ -2700,7 +2510,7 @@ func file_loco_resource_v1_resource_proto_rawDescGZIP() []byte {
 }
 
 var file_loco_resource_v1_resource_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_loco_resource_v1_resource_proto_msgTypes = make([]protoimpl.MessageInfo, 41)
+var file_loco_resource_v1_resource_proto_msgTypes = make([]protoimpl.MessageInfo, 38)
 var file_loco_resource_v1_resource_proto_goTypes = []any{
 	(ResourceType)(0),                      // 0: loco.resource.v1.ResourceType
 	(ResourceStatus)(0),                    // 1: loco.resource.v1.ResourceStatus
@@ -2735,87 +2545,80 @@ var file_loco_resource_v1_resource_proto_goTypes = []any{
 	(*ListRegionsResponse)(nil),            // 30: loco.resource.v1.ListRegionsResponse
 	(*GetResourceEnvRequest)(nil),          // 31: loco.resource.v1.GetResourceEnvRequest
 	(*GetResourceEnvResponse)(nil),         // 32: loco.resource.v1.GetResourceEnvResponse
-	(*Event)(nil),                          // 33: loco.resource.v1.Event
-	(*ListResourceEventsRequest)(nil),      // 34: loco.resource.v1.ListResourceEventsRequest
-	(*ListResourceEventsResponse)(nil),     // 35: loco.resource.v1.ListResourceEventsResponse
-	(*ScaleResourceRequest)(nil),           // 36: loco.resource.v1.ScaleResourceRequest
-	(*ScaleResourceResponse)(nil),          // 37: loco.resource.v1.ScaleResourceResponse
-	(*TransferPartialRequest)(nil),         // 38: loco.resource.v1.TransferPartialRequest
-	(*TransferPartialResponse)(nil),        // 39: loco.resource.v1.TransferPartialResponse
-	nil,                                    // 40: loco.resource.v1.TracingConfig.TagsEntry
-	nil,                                    // 41: loco.resource.v1.ServiceSpec.RegionsEntry
-	nil,                                    // 42: loco.resource.v1.GetResourceEnvResponse.EnvEntry
-	(*v1.Scalers)(nil),                     // 43: loco.deployment.v1.Scalers
-	(*v1.HealthCheckConfig)(nil),           // 44: loco.deployment.v1.HealthCheckConfig
-	(*v11.ResourceDomain)(nil),             // 45: loco.domain.v1.ResourceDomain
-	(*timestamppb.Timestamp)(nil),          // 46: google.protobuf.Timestamp
-	(v1.DeploymentPhase)(0),                // 47: loco.deployment.v1.DeploymentPhase
-	(*v11.DomainInput)(nil),                // 48: loco.domain.v1.DomainInput
-	(*fieldmaskpb.FieldMask)(nil),          // 49: google.protobuf.FieldMask
+	(*ScaleResourceRequest)(nil),           // 33: loco.resource.v1.ScaleResourceRequest
+	(*ScaleResourceResponse)(nil),          // 34: loco.resource.v1.ScaleResourceResponse
+	(*TransferPartialRequest)(nil),         // 35: loco.resource.v1.TransferPartialRequest
+	(*TransferPartialResponse)(nil),        // 36: loco.resource.v1.TransferPartialResponse
+	nil,                                    // 37: loco.resource.v1.TracingConfig.TagsEntry
+	nil,                                    // 38: loco.resource.v1.ServiceSpec.RegionsEntry
+	nil,                                    // 39: loco.resource.v1.GetResourceEnvResponse.EnvEntry
+	(*v1.Scalers)(nil),                     // 40: loco.deployment.v1.Scalers
+	(*v1.HealthCheckConfig)(nil),           // 41: loco.deployment.v1.HealthCheckConfig
+	(*v11.ResourceDomain)(nil),             // 42: loco.domain.v1.ResourceDomain
+	(*timestamppb.Timestamp)(nil),          // 43: google.protobuf.Timestamp
+	(v1.DeploymentPhase)(0),                // 44: loco.deployment.v1.DeploymentPhase
+	(*v11.DomainInput)(nil),                // 45: loco.domain.v1.DomainInput
+	(*fieldmaskpb.FieldMask)(nil),          // 46: google.protobuf.FieldMask
 }
 var file_loco_resource_v1_resource_proto_depIdxs = []int32{
-	40, // 0: loco.resource.v1.TracingConfig.tags:type_name -> loco.resource.v1.TracingConfig.TagsEntry
+	37, // 0: loco.resource.v1.TracingConfig.tags:type_name -> loco.resource.v1.TracingConfig.TagsEntry
 	3,  // 1: loco.resource.v1.ObservabilityConfig.logging:type_name -> loco.resource.v1.LoggingConfig
 	4,  // 2: loco.resource.v1.ObservabilityConfig.metrics:type_name -> loco.resource.v1.MetricsConfig
 	5,  // 3: loco.resource.v1.ObservabilityConfig.tracing:type_name -> loco.resource.v1.TracingConfig
-	43, // 4: loco.resource.v1.RegionTarget.scalers:type_name -> loco.deployment.v1.Scalers
+	40, // 4: loco.resource.v1.RegionTarget.scalers:type_name -> loco.deployment.v1.Scalers
 	2,  // 5: loco.resource.v1.ServiceSpec.routing:type_name -> loco.resource.v1.RoutingConfig
 	6,  // 6: loco.resource.v1.ServiceSpec.observability:type_name -> loco.resource.v1.ObservabilityConfig
-	41, // 7: loco.resource.v1.ServiceSpec.regions:type_name -> loco.resource.v1.ServiceSpec.RegionsEntry
-	44, // 8: loco.resource.v1.ServiceSpec.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
+	38, // 7: loco.resource.v1.ServiceSpec.regions:type_name -> loco.resource.v1.ServiceSpec.RegionsEntry
+	41, // 8: loco.resource.v1.ServiceSpec.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
 	8,  // 9: loco.resource.v1.ResourceSpec.service:type_name -> loco.resource.v1.ServiceSpec
 	9,  // 10: loco.resource.v1.ResourceSpec.database:type_name -> loco.resource.v1.DatabaseSpec
 	10, // 11: loco.resource.v1.ResourceSpec.cache:type_name -> loco.resource.v1.CacheSpec
 	11, // 12: loco.resource.v1.ResourceSpec.queue:type_name -> loco.resource.v1.QueueSpec
 	12, // 13: loco.resource.v1.ResourceSpec.blob:type_name -> loco.resource.v1.BlobSpec
 	0,  // 14: loco.resource.v1.Resource.type:type_name -> loco.resource.v1.ResourceType
-	45, // 15: loco.resource.v1.Resource.domains:type_name -> loco.domain.v1.ResourceDomain
+	42, // 15: loco.resource.v1.Resource.domains:type_name -> loco.domain.v1.ResourceDomain
 	13, // 16: loco.resource.v1.Resource.spec:type_name -> loco.resource.v1.ResourceSpec
-	46, // 17: loco.resource.v1.Resource.created_at:type_name -> google.protobuf.Timestamp
-	46, // 18: loco.resource.v1.Resource.updated_at:type_name -> google.protobuf.Timestamp
+	43, // 17: loco.resource.v1.Resource.created_at:type_name -> google.protobuf.Timestamp
+	43, // 18: loco.resource.v1.Resource.updated_at:type_name -> google.protobuf.Timestamp
 	15, // 19: loco.resource.v1.Resource.environment_statuses:type_name -> loco.resource.v1.EnvironmentStatus
 	1,  // 20: loco.resource.v1.EnvironmentStatus.status:type_name -> loco.resource.v1.ResourceStatus
 	16, // 21: loco.resource.v1.EnvironmentStatus.regions:type_name -> loco.resource.v1.RegionStatus
 	1,  // 22: loco.resource.v1.RegionStatus.status:type_name -> loco.resource.v1.ResourceStatus
-	47, // 23: loco.resource.v1.RegionStatus.deployment_status:type_name -> loco.deployment.v1.DeploymentPhase
-	46, // 24: loco.resource.v1.RegionStatus.reported_at:type_name -> google.protobuf.Timestamp
+	44, // 23: loco.resource.v1.RegionStatus.deployment_status:type_name -> loco.deployment.v1.DeploymentPhase
+	43, // 24: loco.resource.v1.RegionStatus.reported_at:type_name -> google.protobuf.Timestamp
 	0,  // 25: loco.resource.v1.CreateResourceRequest.type:type_name -> loco.resource.v1.ResourceType
-	48, // 26: loco.resource.v1.CreateResourceRequest.domain:type_name -> loco.domain.v1.DomainInput
+	45, // 26: loco.resource.v1.CreateResourceRequest.domain:type_name -> loco.domain.v1.DomainInput
 	13, // 27: loco.resource.v1.CreateResourceRequest.spec:type_name -> loco.resource.v1.ResourceSpec
 	19, // 28: loco.resource.v1.GetResourceRequest.name_key:type_name -> loco.resource.v1.GetResourceNameKey
 	14, // 29: loco.resource.v1.GetResourceResponse.resource:type_name -> loco.resource.v1.Resource
 	14, // 30: loco.resource.v1.ListWorkspaceResourcesResponse.resources:type_name -> loco.resource.v1.Resource
-	49, // 31: loco.resource.v1.UpdateResourceRequest.update_mask:type_name -> google.protobuf.FieldMask
+	46, // 31: loco.resource.v1.UpdateResourceRequest.update_mask:type_name -> google.protobuf.FieldMask
 	28, // 32: loco.resource.v1.ListRegionsResponse.regions:type_name -> loco.resource.v1.RegionInfo
-	42, // 33: loco.resource.v1.GetResourceEnvResponse.env:type_name -> loco.resource.v1.GetResourceEnvResponse.EnvEntry
-	46, // 34: loco.resource.v1.Event.timestamp:type_name -> google.protobuf.Timestamp
-	33, // 35: loco.resource.v1.ListResourceEventsResponse.events:type_name -> loco.resource.v1.Event
-	7,  // 36: loco.resource.v1.ServiceSpec.RegionsEntry.value:type_name -> loco.resource.v1.RegionTarget
-	17, // 37: loco.resource.v1.ResourceService.CreateResource:input_type -> loco.resource.v1.CreateResourceRequest
-	20, // 38: loco.resource.v1.ResourceService.GetResource:input_type -> loco.resource.v1.GetResourceRequest
-	24, // 39: loco.resource.v1.ResourceService.UpdateResource:input_type -> loco.resource.v1.UpdateResourceRequest
-	26, // 40: loco.resource.v1.ResourceService.DeleteResource:input_type -> loco.resource.v1.DeleteResourceRequest
-	22, // 41: loco.resource.v1.ResourceService.ListWorkspaceResources:input_type -> loco.resource.v1.ListWorkspaceResourcesRequest
-	29, // 42: loco.resource.v1.ResourceService.ListRegions:input_type -> loco.resource.v1.ListRegionsRequest
-	31, // 43: loco.resource.v1.ResourceService.GetResourceEnv:input_type -> loco.resource.v1.GetResourceEnvRequest
-	34, // 44: loco.resource.v1.ResourceService.ListResourceEvents:input_type -> loco.resource.v1.ListResourceEventsRequest
-	36, // 45: loco.resource.v1.ResourceService.ScaleResource:input_type -> loco.resource.v1.ScaleResourceRequest
-	38, // 46: loco.resource.v1.ResourceService.TransferPartial:input_type -> loco.resource.v1.TransferPartialRequest
-	18, // 47: loco.resource.v1.ResourceService.CreateResource:output_type -> loco.resource.v1.CreateResourceResponse
-	21, // 48: loco.resource.v1.ResourceService.GetResource:output_type -> loco.resource.v1.GetResourceResponse
-	25, // 49: loco.resource.v1.ResourceService.UpdateResource:output_type -> loco.resource.v1.UpdateResourceResponse
-	27, // 50: loco.resource.v1.ResourceService.DeleteResource:output_type -> loco.resource.v1.DeleteResourceResponse
-	23, // 51: loco.resource.v1.ResourceService.ListWorkspaceResources:output_type -> loco.resource.v1.ListWorkspaceResourcesResponse
-	30, // 52: loco.resource.v1.ResourceService.ListRegions:output_type -> loco.resource.v1.ListRegionsResponse
-	32, // 53: loco.resource.v1.ResourceService.GetResourceEnv:output_type -> loco.resource.v1.GetResourceEnvResponse
-	35, // 54: loco.resource.v1.ResourceService.ListResourceEvents:output_type -> loco.resource.v1.ListResourceEventsResponse
-	37, // 55: loco.resource.v1.ResourceService.ScaleResource:output_type -> loco.resource.v1.ScaleResourceResponse
-	39, // 56: loco.resource.v1.ResourceService.TransferPartial:output_type -> loco.resource.v1.TransferPartialResponse
-	47, // [47:57] is the sub-list for method output_type
-	37, // [37:47] is the sub-list for method input_type
-	37, // [37:37] is the sub-list for extension type_name
-	37, // [37:37] is the sub-list for extension extendee
-	0,  // [0:37] is the sub-list for field type_name
+	39, // 33: loco.resource.v1.GetResourceEnvResponse.env:type_name -> loco.resource.v1.GetResourceEnvResponse.EnvEntry
+	7,  // 34: loco.resource.v1.ServiceSpec.RegionsEntry.value:type_name -> loco.resource.v1.RegionTarget
+	17, // 35: loco.resource.v1.ResourceService.CreateResource:input_type -> loco.resource.v1.CreateResourceRequest
+	20, // 36: loco.resource.v1.ResourceService.GetResource:input_type -> loco.resource.v1.GetResourceRequest
+	24, // 37: loco.resource.v1.ResourceService.UpdateResource:input_type -> loco.resource.v1.UpdateResourceRequest
+	26, // 38: loco.resource.v1.ResourceService.DeleteResource:input_type -> loco.resource.v1.DeleteResourceRequest
+	22, // 39: loco.resource.v1.ResourceService.ListWorkspaceResources:input_type -> loco.resource.v1.ListWorkspaceResourcesRequest
+	29, // 40: loco.resource.v1.ResourceService.ListRegions:input_type -> loco.resource.v1.ListRegionsRequest
+	31, // 41: loco.resource.v1.ResourceService.GetResourceEnv:input_type -> loco.resource.v1.GetResourceEnvRequest
+	33, // 42: loco.resource.v1.ResourceService.ScaleResource:input_type -> loco.resource.v1.ScaleResourceRequest
+	35, // 43: loco.resource.v1.ResourceService.TransferPartial:input_type -> loco.resource.v1.TransferPartialRequest
+	18, // 44: loco.resource.v1.ResourceService.CreateResource:output_type -> loco.resource.v1.CreateResourceResponse
+	21, // 45: loco.resource.v1.ResourceService.GetResource:output_type -> loco.resource.v1.GetResourceResponse
+	25, // 46: loco.resource.v1.ResourceService.UpdateResource:output_type -> loco.resource.v1.UpdateResourceResponse
+	27, // 47: loco.resource.v1.ResourceService.DeleteResource:output_type -> loco.resource.v1.DeleteResourceResponse
+	23, // 48: loco.resource.v1.ResourceService.ListWorkspaceResources:output_type -> loco.resource.v1.ListWorkspaceResourcesResponse
+	30, // 49: loco.resource.v1.ResourceService.ListRegions:output_type -> loco.resource.v1.ListRegionsResponse
+	32, // 50: loco.resource.v1.ResourceService.GetResourceEnv:output_type -> loco.resource.v1.GetResourceEnvResponse
+	34, // 51: loco.resource.v1.ResourceService.ScaleResource:output_type -> loco.resource.v1.ScaleResourceResponse
+	36, // 52: loco.resource.v1.ResourceService.TransferPartial:output_type -> loco.resource.v1.TransferPartialResponse
+	44, // [44:53] is the sub-list for method output_type
+	35, // [35:44] is the sub-list for method input_type
+	35, // [35:35] is the sub-list for extension type_name
+	35, // [35:35] is the sub-list for extension extendee
+	0,  // [0:35] is the sub-list for field type_name
 }
 
 func init() { file_loco_resource_v1_resource_proto_init() }
@@ -2840,15 +2643,14 @@ func file_loco_resource_v1_resource_proto_init() {
 		(*GetResourceRequest_NameKey)(nil),
 	}
 	file_loco_resource_v1_resource_proto_msgTypes[22].OneofWrappers = []any{}
-	file_loco_resource_v1_resource_proto_msgTypes[32].OneofWrappers = []any{}
-	file_loco_resource_v1_resource_proto_msgTypes[34].OneofWrappers = []any{}
+	file_loco_resource_v1_resource_proto_msgTypes[31].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_resource_v1_resource_proto_rawDesc), len(file_loco_resource_v1_resource_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   41,
+			NumMessages:   38,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

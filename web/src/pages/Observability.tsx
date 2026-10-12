@@ -5,7 +5,6 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import type { ObservabilityView } from "@/lib/routes";
 
 import { ObsProvider } from "./observability/context";
-import { EventsView } from "./observability/EventsView";
 import { LogsView } from "./observability/LogsView";
 import { MetricsView } from "./observability/MetricsView";
 import { TracesView } from "./observability/TracesView";
@@ -16,8 +15,6 @@ function parseView(v: string | null): ObservabilityView {
 			return "metrics";
 		case "traces":
 			return "traces";
-		case "events":
-			return "events";
 		case "logs":
 			return "logs";
 		case null:
@@ -35,8 +32,6 @@ function viewTitle(view: ObservabilityView): string {
 			return "Metrics";
 		case "traces":
 			return "Traces";
-		case "events":
-			return "Events";
 	}
 }
 
@@ -48,8 +43,6 @@ function ViewBody({ view }: { view: ObservabilityView }) {
 			return <MetricsView />;
 		case "traces":
 			return <TracesView />;
-		case "events":
-			return <EventsView />;
 	}
 }
 

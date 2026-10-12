@@ -20,11 +20,10 @@ function ObsSkeleton() {
 
 export function ObsGate({ kind, children }: { kind: ObsKind; children: ReactNode }) {
 	const { accessLoading, accessError, clusters, resources, resourcesLoading } = useObs();
-	const needsTelemetry = kind !== "events";
 	if (resourcesLoading) return <ObsSkeleton />;
 	if (resources.length === 0) return <ObsPageEmpty kind={kind} />;
-	if (needsTelemetry && accessLoading) return <ObsSkeleton />;
-	if (needsTelemetry && accessError !== null) {
+	if (accessLoading) return <ObsSkeleton />;
+	if (accessError !== null) {
 		return (
 			<section className="rounded-lg border border-line">
 				<EmptyState icon={<TriangleAlertIcon />} title="Couldn't reach observability">
@@ -33,6 +32,6 @@ export function ObsGate({ kind, children }: { kind: ObsKind; children: ReactNode
 			</section>
 		);
 	}
-	if (needsTelemetry && clusters.length === 0) return <ObsPageEmpty kind={kind} />;
+	if (clusters.length === 0) return <ObsPageEmpty kind={kind} />;
 	return <>{children}</>;
 }

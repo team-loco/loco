@@ -108,7 +108,6 @@ function AppRoutes() {
 						<Route path="dashboard" element={<Navigate to=".." relative="path" replace />} />
 						<Route path="resource/:resourceId" element={<><ResourceTitle /><Resource /></>} />
 						<Route path="observability" element={<Observability />} />
-						<Route path="events" element={<Navigate to="../observability?view=events" relative="path" replace />} />
 						<Route path="settings" element={<><PageTitle title="Settings" /><Settings /></>} />
 					</Route>
 				</Route>
