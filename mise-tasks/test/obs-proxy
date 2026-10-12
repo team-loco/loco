@@ -9,7 +9,7 @@ if [ -z "${LOCO_TEST_CLICKHOUSE_URL:-}" ]; then
 	image=$(yq '.clickhouse.clickhouse.image.repository + ":" + .clickhouse.clickhouse.image.tag' "$root/charts/loco-obs/values.yaml")
 	container=loco-obs-proxy-test-$$
 	cleanup() {
-		docker rm -f "$container" >/dev/null 2>&1 || true
+		docker rm -fv "$container" >/dev/null 2>&1 || true
 	}
 	trap cleanup EXIT
 	docker run -d --name "$container" -p 127.0.0.1::9000 \

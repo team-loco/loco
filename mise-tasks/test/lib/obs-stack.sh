@@ -16,7 +16,7 @@ obs_cleanup() {
 	if [ -n "$proxy_pid" ]; then
 		kill "$proxy_pid" >/dev/null 2>&1 || true
 	fi
-	docker rm -f "${containers[@]}" >/dev/null 2>&1 || true
+	docker rm -fv "${containers[@]}" >/dev/null 2>&1 || true
 	docker network rm "$network" >/dev/null 2>&1 || true
 	rm -rf "$workdir"
 }

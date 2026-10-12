@@ -154,7 +154,7 @@ teardown() {
         kind delete cluster --name "$KIND_CLUSTER_NAME" --kubeconfig "$KUBECONFIG_FILE"
     fi
 
-    docker rm -f "$CLICKHOUSE_CONTAINER" >/dev/null 2>&1 || true
+    docker rm -fv "$CLICKHOUSE_CONTAINER" >/dev/null 2>&1 || true
 
     log_info "Removing compose project ${E2E_COMPOSE_PROJECT}..."
     e2e_compose --profile tools down -v --remove-orphans >/dev/null 2>&1 || true
@@ -343,7 +343,7 @@ clickhouse_answers() {
 
 setup_clickhouse() {
     log_step "Setting up ClickHouse..."
-    docker rm -f "$CLICKHOUSE_CONTAINER" >/dev/null 2>&1 || true
+    docker rm -fv "$CLICKHOUSE_CONTAINER" >/dev/null 2>&1 || true
     docker run -d --name "$CLICKHOUSE_CONTAINER" -p "127.0.0.1:${CLICKHOUSE_PORT}:${CLICKHOUSE_NATIVE_PORT}" \
         -e CLICKHOUSE_USER="$CLICKHOUSE_USER" -e CLICKHOUSE_PASSWORD="$CLICKHOUSE_PASS" \
         "$CLICKHOUSE_IMAGE" >/dev/null
