@@ -12,6 +12,9 @@ run:
   timeout: "1m"
   issues-exit-code: 1
   tests: true
+  build-tags:
+    - conformance
+    - e2e
   allow-parallel-runners: true
   go: "1.27"
   relative-path-mode: wd
@@ -28,6 +31,7 @@ linters:
       - { linters: [gosec], text: "G306|G703", path: "_test\\.go$" }
       - { linters: [gosec], text: "G101", path: "internal/controller/" }
       - { linters: [gosec], text: "G302", path: "cmd/loco/update\\.go$" }
+      - { linters: [gosec], text: "G704", path: "pkg/secretkeys/transit" }
   default: standard
   enable:
     - asasalint
