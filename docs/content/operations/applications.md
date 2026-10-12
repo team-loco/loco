@@ -11,6 +11,15 @@ loco resource events --help
 
 `loco resource` also includes `env`, `scale`, and `destroy`. Inspect an operation's help before changing resources or removing an application.
 
+## Scale
+
+`loco resource scale` changes a service's replicas, CPU or memory in one environment and rolls out a new deployment in each region the service runs in there. `--env` or `LOCO_ENV` selects the environment; a workspace with a single environment uses it, and a workspace with several fails without one. Other environments keep their deployments. The dashboard's Settings tab scales the environment selected in the breadcrumb.
+
+```sh
+loco resource scale web --env production --replicas 3
+loco resource scale web --env staging --cpu 250m --memory 512Mi
+```
+
 ## Secrets
 
 `loco env` manages the secrets of one service in one environment. `--service` names the service and is required; `--env` or `LOCO_ENV` selects the environment. Secrets belong to that service only, so two services that need the same value each get it set. `push` sends every `KEY=VALUE` line of a `.env` file (or stdin) in one call, `set` takes assignments on the command line, `unset` removes names and `list` shows names, versions and who set them. No command prints a value, and `$NAME` in a `.env` file stays literal. `unset` refuses a name that the service's active deployment declares in `loco.yaml`; remove it there and apply first.

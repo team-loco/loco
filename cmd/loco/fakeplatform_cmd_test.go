@@ -58,6 +58,13 @@ func cmdFakePlatform(ts *testscript.TestScript, api *fakeAPI, neg bool, args []s
 		api.mu.Lock()
 		api.platform.addResource(args[1])
 		api.mu.Unlock()
+	case "environment":
+		requireArgs(ts, neg, args, 2, "fakeapi environment <name>")
+		api.mu.Lock()
+		api.platform.addEnvironment(args[1])
+		api.mu.Unlock()
+	case "scaled":
+		checkScaled(ts, api, neg, args)
 	case "built":
 		checkBuilt(ts, api, neg, args)
 	case "uploaded":
@@ -313,6 +320,34 @@ func checkPartial(ts *testscript.TestScript, api *fakeAPI, neg bool, args []stri
 		return
 	}
 	ts.Fatalf("fakeapi: no resource named %s", args[1])
+}
+
+func checkScaled(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
+	if neg || len(args) != 4 {
+		ts.Fatalf("usage: fakeapi scaled <service> <environment> <replicas>")
+	}
+	api.mu.Lock()
+	defer api.mu.Unlock()
+	resourceID, ok := api.platform.resourceID(args[1])
+	if !ok {
+		ts.Fatalf("fakeapi: no resource named %s", args[1])
+	}
+	environmentID, ok := api.platform.environmentID(args[2])
+	if !ok {
+		ts.Fatalf("fakeapi: no environment named %s", args[2])
+	}
+	replicas, err := strconv.ParseInt(args[3], 10, 32)
+	if err != nil {
+		ts.Fatalf("fakeapi: %v", err)
+	}
+	for _, scale := range api.platform.scales {
+		sameTarget := scale.GetResourceId() == resourceID && scale.GetEnvironmentId() == environmentID
+		if sameTarget && int64(scale.GetReplicas()) == replicas {
+			return
+		}
+	}
+	ts.Fatalf("fakeapi: %s was not scaled to %d replicas in %s; scales: %v",
+		args[1], replicas, args[2], api.platform.scales)
 }
 
 func waitForCall(ts *testscript.TestScript, api *fakeAPI, method string) {

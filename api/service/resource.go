@@ -48,6 +48,8 @@ var (
 	errUnknownResourceSpec   = errors.New("unknown resource spec type")
 	errOnlyServiceResources  = errors.New("only service resources are currently supported")
 	errScaleNothingRequested = errors.New("at least one of replicas, cpu, or memory must be provided")
+	errScaleUnchanged        = errors.New("scaling values must be different from current deployment")
+	errNoActiveDeployment    = errors.New("resource has no active deployment in the environment")
 )
 
 // protoResourceTypeToDb converts a proto ResourceType to a database ResourceType
@@ -652,7 +654,19 @@ func (s *ResourceServer) ScaleResource(
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 	}
 
-	currentByRegion, err := s.activeDeploymentsForRegions(ctx, resourceID, r.GetRegion())
+	env, err := s.queries.GetEnvironmentByID(ctx, uuid.MustParse(r.GetEnvironmentId()))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, connect.NewError(connect.CodeNotFound, ErrEnvironmentNotFound)
+	}
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to load environment", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+	if env.WorkspaceID != res.WorkspaceID {
+		return nil, connect.NewError(connect.CodeNotFound, ErrEnvironmentNotFound)
+	}
+
+	currentByRegion, err := s.activeDeploymentsForRegions(ctx, resourceID, env.ID, r.GetRegion())
 	if err != nil {
 		return nil, err
 	}
@@ -679,13 +693,10 @@ func (s *ResourceServer) ScaleResource(
 	}
 
 	if len(plans) == 0 {
-		return nil, connect.NewError(
-			connect.CodeInvalidArgument,
-			errors.New("scaling values must be different from current deployment"),
-		)
+		return nil, connect.NewError(connect.CodeInvalidArgument, errScaleUnchanged)
 	}
 
-	scaled := map[string]any{}
+	scaled := map[string]any{events.FieldEnvironmentID: env.ID.String()}
 	if r.Replicas != nil {
 		scaled["replicas"] = r.GetReplicas()
 	}
@@ -721,6 +732,7 @@ type regionRedeploy struct {
 func (s *ResourceServer) activeDeploymentsForRegions(
 	ctx context.Context,
 	resourceID uuid.UUID,
+	environmentID uuid.UUID,
 	requestedRegion string,
 ) ([]genDb.Deployment, error) {
 	deploymentList, err := s.queries.ListActiveDeploymentsForResource(ctx, resourceID)
@@ -731,6 +743,9 @@ func (s *ResourceServer) activeDeploymentsForRegions(
 
 	activeByRegion := make(map[string]genDb.Deployment, len(deploymentList))
 	for _, d := range deploymentList {
+		if d.EnvironmentID != environmentID {
+			continue
+		}
 		if _, seen := activeByRegion[d.Region]; !seen {
 			activeByRegion[d.Region] = d
 		}
@@ -748,7 +763,7 @@ func (s *ResourceServer) activeDeploymentsForRegions(
 	}
 
 	if len(activeByRegion) == 0 {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("no active deployment found for resource"))
+		return nil, connect.NewError(connect.CodeNotFound, errNoActiveDeployment)
 	}
 
 	current := make([]genDb.Deployment, 0, len(activeByRegion))

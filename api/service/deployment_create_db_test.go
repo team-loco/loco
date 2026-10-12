@@ -61,6 +61,16 @@ func deployService(
 	service *deploymentv1.ServiceDeploymentSpec,
 ) (*deploymentv1.CreateDeploymentResponse, error) {
 	t.Helper()
+	return deployServiceIn(t, f, service, f.envID)
+}
+
+func deployServiceIn(
+	t *testing.T,
+	f *deployFixture,
+	service *deploymentv1.ServiceDeploymentSpec,
+	environmentID uuid.UUID,
+) (*deploymentv1.CreateDeploymentResponse, error) {
+	t.Helper()
 	ctx := context.Background()
 	resolver := &fakeResolver{digest: testDigest}
 	server := NewDeploymentServer(
@@ -79,7 +89,7 @@ func deployService(
 	req := connect.NewRequest(&deploymentv1.CreateDeploymentRequest{
 		ResourceId:    f.resourceID.String(),
 		Region:        testRegion,
-		EnvironmentId: f.envID.String(),
+		EnvironmentId: environmentID.String(),
 		Spec:          spec,
 	})
 	resp, err := server.CreateDeployment(scoped, req)

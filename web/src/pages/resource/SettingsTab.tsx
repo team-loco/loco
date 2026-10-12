@@ -117,12 +117,14 @@ function GeneralSection({
 
 export function SettingsTab({
 	resource,
+	environmentId,
 	regions,
 	onNotice,
 	onSaved,
 	onDelete,
 }: {
 	resource: Resource;
+	environmentId: string | undefined;
 	regions: RegionView[];
 	onNotice: (notice: Notice) => void;
 	onSaved: () => void;
@@ -136,6 +138,7 @@ export function SettingsTab({
 			<ScaleSection
 				resourceId={resource.id}
 				resourceName={resource.name}
+				environmentId={environmentId}
 				regions={regions}
 				managed={managed}
 				onNotice={onNotice}

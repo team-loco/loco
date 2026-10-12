@@ -217,24 +217,6 @@ func (c *Client) DeleteApp(ctx context.Context, appID string) error {
 	return err
 }
 
-func (c *Client) ScaleApp(ctx context.Context, appID string, replicas *int32, cpu, memory *string) error {
-	req := connect.NewRequest(&resourcev1.ScaleResourceRequest{
-		ResourceId: appID,
-		Replicas:   replicas,
-		Cpu:        cpu,
-		Memory:     memory,
-	})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
-
-	_, err := c.Resource.ScaleResource(ctx, req)
-	if err != nil {
-		logRequestID(ctx, err, "failed to scale app")
-		return err
-	}
-
-	return nil
-}
-
 func (c *Client) GetEvents(ctx context.Context, appID string, limit *int32) ([]*resourcev1.Event, error) {
 	req := connect.NewRequest(&resourcev1.ListResourceEventsRequest{
 		ResourceId: appID,

@@ -3,6 +3,8 @@ package service
 import (
 	"testing"
 
+	"buf.build/go/protovalidate"
+	"github.com/google/uuid"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
@@ -46,5 +48,34 @@ func TestApplyScaleKeepsUnrequestedValues(t *testing.T) {
 	}
 	if spec.GetCpu() != cpu || spec.GetMemory() != testRegionMemory {
 		t.Errorf("cpu %q, memory %q, want %q and 64Mi", spec.GetCpu(), spec.GetMemory(), cpu)
+	}
+}
+
+func TestScaleResourceRequestNeedsAnEnvironment(t *testing.T) {
+	replicas := int32(2)
+	cases := map[string]string{
+		"missing":    "",
+		"not a uuid": stagingName,
+	}
+	for name, environmentID := range cases {
+		t.Run(name, func(t *testing.T) {
+			req := &resourcev1.ScaleResourceRequest{
+				ResourceId:    uuid.NewString(),
+				EnvironmentId: environmentID,
+				Replicas:      &replicas,
+			}
+			if err := protovalidate.Validate(req); err == nil {
+				t.Fatalf("environment_id %q passed validation", environmentID)
+			}
+		})
+	}
+
+	valid := &resourcev1.ScaleResourceRequest{
+		ResourceId:    uuid.NewString(),
+		EnvironmentId: uuid.NewString(),
+		Replicas:      &replicas,
+	}
+	if err := protovalidate.Validate(valid); err != nil {
+		t.Fatalf("a request naming an environment failed validation: %v", err)
 	}
 }
