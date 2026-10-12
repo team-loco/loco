@@ -391,6 +391,7 @@ func waitReady(t *testing.T, base string) {
 }
 
 func TestReplicasTakeTurnsMigratingUnderTheLease(t *testing.T) {
+	_, controlPlaneURL := readinessControlPlane(t)
 	server := testenv.APIServer(t)
 	admin, dsn, database := testClickHouse(t)
 	previous := slog.Default()
@@ -408,7 +409,10 @@ func TestReplicasTakeTurnsMigratingUnderTheLease(t *testing.T) {
 	runErrs := make(chan error, len(identities))
 	for _, identity := range identities {
 		cfg := &config.Config{
-			ControlPlaneURL:        unreachableControlPlane,
+			ControlPlaneURL:        controlPlaneURL,
+			ProxyAuthToken:         testProxyCredential,
+			QueryTimeout:           testQueryTimeoutSeconds,
+			PermissionCheckTimeout: healthzDeadline,
 			ClickHouseURL:          dsn,
 			ClickHouseMigratorURL:  dsn,
 			ClickHouseDB:           database,

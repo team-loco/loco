@@ -82,6 +82,8 @@ spec:
               value: {{ .Values.obsProxy.guardrails.defaultLimit | quote }}
             - name: MAX_LIMIT
               value: {{ .Values.obsProxy.guardrails.maxLimit | quote }}
+            - name: PERMISSION_CHECK_TIMEOUT
+              value: {{ printf "%ds" (int .Values.obsProxy.guardrails.permissionCheckTimeoutSeconds) | quote }}
             - name: QUERY_TIMEOUT_SECONDS
               value: {{ .Values.obsProxy.guardrails.queryTimeoutSeconds | quote }}
             - name: MAX_TIME_RANGE_HOURS

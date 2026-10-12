@@ -29,11 +29,12 @@ const (
 )
 
 type Config struct {
-	Port            int
-	ControlPlaneURL string
-	ProxyAuthToken  string
-	ClickHouseURL   string
-	ClickHouseDB    string
+	Port                   int
+	ControlPlaneURL        string
+	ProxyAuthToken         string
+	PermissionCheckTimeout time.Duration
+	ClickHouseURL          string
+	ClickHouseDB           string
 
 	ClickHouseMigratorURL  string
 	LogsTTL                time.Duration
@@ -64,11 +65,12 @@ func Load() *Config {
 		lease = leaseConfig()
 	}
 	return &Config{
-		Port:            intEnv("PORT", defaultPort),
-		ControlPlaneURL: stringEnv("CONTROL_PLANE_URL", defaultControlPlaneURL),
-		ProxyAuthToken:  requiredStringEnv("PROXY_AUTH_TOKEN"),
-		ClickHouseURL:   stringEnv("CLICKHOUSE_URL", defaultClickHouseURL),
-		ClickHouseDB:    identifierEnv("CLICKHOUSE_DB"),
+		Port:                   intEnv("PORT", defaultPort),
+		ControlPlaneURL:        stringEnv("CONTROL_PLANE_URL", defaultControlPlaneURL),
+		ProxyAuthToken:         requiredStringEnv("PROXY_AUTH_TOKEN"),
+		PermissionCheckTimeout: requiredPositiveDurationEnv("PERMISSION_CHECK_TIMEOUT"),
+		ClickHouseURL:          stringEnv("CLICKHOUSE_URL", defaultClickHouseURL),
+		ClickHouseDB:           identifierEnv("CLICKHOUSE_DB"),
 
 		ClickHouseMigratorURL:  requiredStringEnv("CLICKHOUSE_MIGRATOR_URL"),
 		LogsTTL:                ttlEnv("CLICKHOUSE_LOGS_TTL"),

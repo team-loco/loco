@@ -13,6 +13,11 @@ import (
 	"github.com/team-loco/loco/observability-proxy/pkg/cache"
 )
 
+const (
+	readinessToken    = "readiness-probe"
+	readinessEntityID = "00000000-0000-4000-8000-000000000000"
+)
+
 var errPermissionDenied = errors.New("permission denied")
 
 // Validator checks token permissions by calling CheckPermission on the control plane.
@@ -77,6 +82,21 @@ func (v *Validator) CheckPermission(
 
 	if !resp.Msg.GetAllowed() {
 		return errPermissionDenied
+	}
+	return nil
+}
+
+func (v *Validator) Ready(ctx context.Context) error {
+	message := &tokenv1.CheckPermissionRequest{
+		Token:      readinessToken,
+		EntityType: tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
+		EntityId:   readinessEntityID,
+		Scope:      tokenv1.Scope_SCOPE_READ,
+	}
+	req := connect.NewRequest(message)
+	req.Header().Set("Authorization", "Bearer "+v.authToken)
+	if _, err := v.client.CheckPermission(ctx, req); err != nil {
+		return fmt.Errorf("control plane permission endpoint: %w", err)
 	}
 	return nil
 }
