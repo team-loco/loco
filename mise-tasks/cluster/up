@@ -1,9 +1,22 @@
 #!/usr/bin/env bash
-#MISE description="Create the local kind cluster, or recreate it if it is unreachable, and export its kubeconfig"
+#MISE description="Create the local kind cluster, start its nodes if mise run stop stopped them, or recreate it if it is unreachable, and export its kubeconfig"
 set -euo pipefail
 
 name=$(yq .name env/local/kind-cluster.yml)
+api_ready_timeout_seconds=120
+nodes_ready_timeout=180s
+
 if kind get clusters 2>/dev/null | grep -qx "$name"; then
+	stopped=$(docker ps --quiet --filter "label=io.x-k8s.kind.cluster=$name" --filter status=exited)
+	if [ -n "$stopped" ]; then
+		echo "starting the stopped cluster nodes..."
+		xargs docker start <<<"$stopped" >/dev/null
+		for _ in $(seq "$api_ready_timeout_seconds"); do
+			kubectl get --raw /readyz --context "kind-$name" >/dev/null 2>&1 && break
+			sleep 1
+		done
+		kubectl wait --context "kind-$name" --for=condition=Ready nodes --all --timeout="$nodes_ready_timeout"
+	fi
 	if ! kubectl cluster-info --context "kind-$name" >/dev/null 2>&1; then
 		echo "cluster exists but is unreachable, recreating..."
 		kind delete cluster --name "$name"
