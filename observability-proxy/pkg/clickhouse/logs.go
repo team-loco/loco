@@ -17,6 +17,7 @@ import (
 
 const (
 	workspaceColumn    = "WorkspaceId"
+	environmentColumn  = "EnvironmentId"
 	resourceColumn     = "ResourceId"
 	pageLookahead      = 1
 	cursorParts        = 3

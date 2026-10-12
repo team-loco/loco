@@ -163,6 +163,13 @@ message QueryMetricsRequest {
     expression: "this in ['avg', 'sum', 'min', 'max', 'p50', 'p95', 'p99']"
   }];
 
+  // Environment ID to filter by. Empty means every environment. Envoy gateway metrics
+  // carry no environment, so a request that names one leaves them out.
+  string environment_id = 8 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+
   option (buf.validate.message).cel = {
     id: "time_range.start_lte_end"
     message: "start_time must be before or equal to end_time"

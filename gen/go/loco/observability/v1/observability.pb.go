@@ -615,7 +615,10 @@ type QueryMetricsRequest struct {
 	// Aggregation window in seconds (e.g., 60 for 1-minute buckets).
 	IntervalSeconds int32 `protobuf:"varint,6,opt,name=interval_seconds,json=intervalSeconds,proto3" json:"interval_seconds,omitempty"`
 	// Aggregation function ("avg", "sum", "min", "max", "p50", "p95", "p99").
-	Aggregation   string `protobuf:"bytes,7,opt,name=aggregation,proto3" json:"aggregation,omitempty"`
+	Aggregation string `protobuf:"bytes,7,opt,name=aggregation,proto3" json:"aggregation,omitempty"`
+	// Environment ID to filter by. Empty means every environment. Envoy gateway metrics
+	// carry no environment, so a request that names one leaves them out.
+	EnvironmentId string `protobuf:"bytes,8,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -695,6 +698,13 @@ func (x *QueryMetricsRequest) GetIntervalSeconds() int32 {
 func (x *QueryMetricsRequest) GetAggregation() string {
 	if x != nil {
 		return x.Aggregation
+	}
+	return ""
+}
+
+func (x *QueryMetricsRequest) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
 	}
 	return ""
 }
@@ -923,7 +933,7 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\theartbeat\x18\x02 \x01(\v2 .loco.observability.v1.HeartbeatH\x00R\theartbeatB\a\n" +
 	"\x05event\"E\n" +
 	"\tHeartbeat\x128\n" +
-	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\xa7\x05\n" +
+	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\xdb\x05\n" +
 	"\x13QueryMetricsRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12+\n" +
 	"\fresource_ids\x18\x02 \x03(\tB\b\xbaH\x05\x92\x01\x02\b\x01R\vresourceIds\x129\n" +
@@ -934,7 +944,8 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"metricName\x122\n" +
 	"\x10interval_seconds\x18\x06 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01R\x0fintervalSeconds\x12\xbf\x01\n" +
 	"\vaggregation\x18\a \x01(\tB\x9c\x01\xbaH\x98\x01\xba\x01\x94\x01\n" +
-	"\x18aggregation.valid_values\x12=aggregation must be one of: avg, sum, min, max, p50, p95, p99\x1a9this in ['avg', 'sum', 'min', 'max', 'p50', 'p95', 'p99']R\vaggregation:\xa3\x01\xbaH\x9f\x01\x1a\x9c\x01\n" +
+	"\x18aggregation.valid_values\x12=aggregation must be one of: avg, sum, min, max, p50, p95, p99\x1a9this in ['avg', 'sum', 'min', 'max', 'p50', 'p95', 'p99']R\vaggregation\x122\n" +
+	"\x0eenvironment_id\x18\b \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId:\xa3\x01\xbaH\x9f\x01\x1a\x9c\x01\n" +
 	"\x18time_range.start_lte_end\x12.start_time must be before or equal to end_time\x1aP!has(this.start_time) || !has(this.end_time) || this.start_time <= this.end_time\"S\n" +
 	"\x14QueryMetricsResponse\x12;\n" +
 	"\x06series\x18\x01 \x03(\v2#.loco.observability.v1.MetricSeriesR\x06series\"\xef\x01\n" +

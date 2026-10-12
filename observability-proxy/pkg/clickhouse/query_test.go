@@ -75,6 +75,7 @@ func TestBuildMetricsQueryFiltersOnTenantColumns(t *testing.T) {
 
 	query, args := buildMetricsQuery(
 		testWorkspaceID,
+		"",
 		[]string{testResourceID},
 		start,
 		end,
@@ -112,6 +113,34 @@ func TestBuildMetricsQueryFiltersOnTenantColumns(t *testing.T) {
 	}
 	if args[1] != testResourceID {
 		t.Errorf("args[1] = %v, want resource id %q", args[1], testResourceID)
+	}
+	if strings.Contains(query, "EnvironmentId") {
+		t.Errorf("query filters on an environment none was requested for:\n%s", query)
+	}
+}
+
+func TestBuildMetricsQueryFiltersOnEnvironment(t *testing.T) {
+	end := time.Now()
+	start := end.Add(-time.Hour)
+
+	query, args := buildMetricsQuery(
+		testWorkspaceID,
+		testEnvironmentID,
+		[]string{testResourceID},
+		start,
+		end,
+		testMetricName,
+		testIntervalSeconds,
+		avgAggregation,
+		testQueryTimeout,
+	)
+
+	if !strings.Contains(query, "WHERE WorkspaceId = ? AND EnvironmentId = ? AND ResourceId IN (?)") {
+		t.Errorf("query does not filter on the environment column:\n%s", query)
+	}
+	wantArgs := []any{testWorkspaceID, testEnvironmentID, testResourceID}
+	if len(args) < len(wantArgs) || !slices.Equal(args[:len(wantArgs)], wantArgs) {
+		t.Errorf("args = %v, want prefix %v", args, wantArgs)
 	}
 }
 

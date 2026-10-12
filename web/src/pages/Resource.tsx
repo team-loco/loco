@@ -26,7 +26,7 @@ import { ResourceHeader } from "@/pages/resource/ResourceHeader";
 import { ResourceSkeleton } from "@/pages/resource/ResourceSkeleton";
 import { parseTab, ResourceToolbar, type ObsLinks, type ResourceTab } from "@/pages/resource/ResourceToolbar";
 import { SettingsTab } from "@/pages/resource/SettingsTab";
-import type { MetricRange } from "@/pages/resource/useRegionMetric";
+import type { MetricRange } from "@/pages/resource/metric";
 import { VariablesTab } from "@/pages/resource/VariablesTab";
 
 const WRITE_LEVEL = 2;
@@ -188,7 +188,6 @@ export function Resource() {
 					{region !== undefined ? (
 						<RegionPanel
 							workspaceId={resource.workspaceId}
-							resourceId={resourceId}
 							regions={regions}
 							region={region}
 							onRegion={setRegionName}

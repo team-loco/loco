@@ -17,7 +17,8 @@ import { CopyId } from "./CopyId";
 import { fmtCpu, fmtMem, parseCpuMilli, parseMemMi, shortId } from "./format";
 import { MetricChart } from "./MetricChart";
 import { depService, regionDotClass, type RegionView } from "./model";
-import { METRIC_RANGES, useRegionMetric, type MetricRange } from "./useRegionMetric";
+import { METRIC_RANGES, type MetricRange } from "./metric";
+import { useRegionMetric } from "./useRegionMetric";
 
 function messageClass(dep: Deployment): string {
 	switch (dep.status) {
@@ -102,23 +103,11 @@ function ReplicasCell({ dep }: { dep: Deployment }) {
 	);
 }
 
-function Charts({
-	workspaceId,
-	resourceId,
-	region,
-	range,
-	dep,
-}: {
-	workspaceId: string;
-	resourceId: string;
-	region: string;
-	range: MetricRange;
-	dep: Deployment | undefined;
-}) {
-	const cpuQ = useRegionMetric({ workspaceId, resourceId, region, range, metricName: "k8s.pod.cpu_request_utilization" });
-	const memQ = useRegionMetric({ workspaceId, resourceId, region, range, metricName: "k8s.pod.memory_request_utilization" });
+function Charts({ workspaceId, range, dep }: { workspaceId: string; range: MetricRange; dep: Deployment }) {
+	const cpuQ = useRegionMetric({ workspaceId, deployment: dep, range, metricName: "k8s.pod.cpu_request_utilization" });
+	const memQ = useRegionMetric({ workspaceId, deployment: dep, range, metricName: "k8s.pod.memory_request_utilization" });
 	const svc = depService(dep);
-	const replicas = dep?.replicas ?? 0;
+	const replicas = dep.replicas;
 	const reqCpu = parseCpuMilli(svc?.cpu ?? "");
 	const reqMem = parseMemMi(svc?.memory ?? "");
 	const live = Math.max(replicas, 1);
@@ -160,7 +149,6 @@ function Charts({
 
 export function RegionPanel({
 	workspaceId,
-	resourceId,
 	regions,
 	region,
 	onRegion,
@@ -168,7 +156,6 @@ export function RegionPanel({
 	onRange,
 }: {
 	workspaceId: string;
-	resourceId: string;
 	regions: RegionView[];
 	region: RegionView;
 	onRegion: (name: string) => void;
@@ -235,7 +222,7 @@ export function RegionPanel({
 					</div>
 					<div className="grid grid-cols-1 lg:grid-cols-[minmax(220px,0.8fr)_minmax(0,1fr)_minmax(0,1fr)]">
 						<ReplicasCell dep={dep} />
-						<Charts workspaceId={workspaceId} resourceId={resourceId} region={region.name} range={range} dep={dep} />
+						<Charts workspaceId={workspaceId} range={range} dep={dep} />
 					</div>
 				</>
 			)}

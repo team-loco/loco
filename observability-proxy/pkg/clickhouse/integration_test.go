@@ -37,6 +37,7 @@ const (
 	resourceAttributeKey   = "loco.resource.id"
 	environmentAttrKey     = "loco.environment.id"
 	testEnvironmentID      = "66666666-7777-8888-9999-000000000000"
+	testOtherEnvironmentID = "77777777-8888-9999-0000-111111111111"
 	avgAggregation         = "avg"
 	logsInsertColumns      = "Timestamp, SeverityText, Body, ResourceAttributes, TraceId, SpanId, LogAttributes"
 	gaugeInsertColumns     = "ResourceAttributes, MetricName, Attributes, TimeUnix, Value"
@@ -45,7 +46,10 @@ const (
 	testWebSecondValue     = 3.0
 	testWorkerValue        = 5.0
 	testOtherWorkspaceVal  = 1000.0
+	testOtherEnvironmentV  = 8.0
 	testWebAverage         = (testWebValue + testWebSecondValue) / 2
+	testWebRowsAllEnvs     = 3
+	testWebAllEnvsAverage  = (testWebValue + testWebSecondValue + testOtherEnvironmentV) / testWebRowsAllEnvs
 	testSecondGaugeOffset  = 10 * time.Second
 	testOtherWorkspaceBody = "other workspace"
 )
@@ -67,23 +71,51 @@ var testLogRows = []logRow{
 }
 
 type gaugeRow struct {
-	workspaceID string
-	resourceID  string
-	offset      time.Duration
-	value       float64
+	workspaceID   string
+	environmentID string
+	resourceID    string
+	offset        time.Duration
+	value         float64
 }
 
 var testGaugeRows = []gaugeRow{
-	{workspaceID: testWorkspaceID, resourceID: testResourceID, value: testWebValue},
 	{
-		workspaceID: testWorkspaceID,
-		resourceID:  testResourceID,
-		offset:      testSecondGaugeOffset,
-		value:       testWebSecondValue,
+		workspaceID:   testWorkspaceID,
+		environmentID: testEnvironmentID,
+		resourceID:    testResourceID,
+		value:         testWebValue,
 	},
-	{workspaceID: testWorkspaceID, resourceID: testWorkerResourceID, value: testWorkerValue},
-	{workspaceID: testOtherWorkspaceID, resourceID: testResourceID, value: testOtherWorkspaceVal},
-	{workspaceID: testOtherWorkspaceID, resourceID: testWorkerResourceID, value: testOtherWorkspaceVal},
+	{
+		workspaceID:   testWorkspaceID,
+		environmentID: testEnvironmentID,
+		resourceID:    testResourceID,
+		offset:        testSecondGaugeOffset,
+		value:         testWebSecondValue,
+	},
+	{
+		workspaceID:   testWorkspaceID,
+		environmentID: testOtherEnvironmentID,
+		resourceID:    testResourceID,
+		value:         testOtherEnvironmentV,
+	},
+	{
+		workspaceID:   testWorkspaceID,
+		environmentID: testEnvironmentID,
+		resourceID:    testWorkerResourceID,
+		value:         testWorkerValue,
+	},
+	{
+		workspaceID:   testOtherWorkspaceID,
+		environmentID: testEnvironmentID,
+		resourceID:    testResourceID,
+		value:         testOtherWorkspaceVal,
+	},
+	{
+		workspaceID:   testOtherWorkspaceID,
+		environmentID: testEnvironmentID,
+		resourceID:    testWorkerResourceID,
+		value:         testOtherWorkspaceVal,
+	},
 }
 
 type queryFixture struct {
@@ -130,12 +162,12 @@ func newQueryFixture(t *testing.T) *queryFixture {
 	return fixture
 }
 
-func tenantAttributes(workspaceID, resourceID string) map[string]string {
+func tenantAttributes(workspaceID, environmentID, resourceID string) map[string]string {
 	return map[string]string{
 		"service.name":        "web",
 		testSharedLabelKey:    testSharedLabelValue,
 		workspaceAttributeKey: workspaceID,
-		environmentAttrKey:    testEnvironmentID,
+		environmentAttrKey:    environmentID,
 		resourceAttributeKey:  resourceID,
 	}
 }
@@ -152,7 +184,7 @@ func (f *queryFixture) insertLogs(t *testing.T) {
 		t.Fatalf("prepare logs insert: %v", err)
 	}
 	for index, row := range testLogRows {
-		attrs := tenantAttributes(row.workspaceID, row.resourceID)
+		attrs := tenantAttributes(row.workspaceID, testEnvironmentID, row.resourceID)
 		ts := f.logTime(index)
 		if err := batch.Append(ts, testSeverity, row.body, attrs, "", "", map[string]string{}); err != nil {
 			t.Fatalf("append log row: %v", err)
@@ -170,7 +202,7 @@ func (f *queryFixture) insertGauges(t *testing.T) {
 		t.Fatalf("prepare gauge insert: %v", err)
 	}
 	for _, row := range testGaugeRows {
-		attrs := tenantAttributes(row.workspaceID, row.resourceID)
+		attrs := tenantAttributes(row.workspaceID, row.environmentID, row.resourceID)
 		ts := f.start.Add(row.offset)
 		if err := batch.Append(attrs, testMetricName, map[string]string{}, ts, row.value); err != nil {
 			t.Fatalf("append gauge row: %v", err)
@@ -353,12 +385,18 @@ func TestQueryLogsReturnsTenantResourceID(t *testing.T) {
 	}
 }
 
-func (f *queryFixture) metrics(t *testing.T, workspaceID string, resourceIDs []string) map[string][]float64 {
+func (f *queryFixture) metrics(
+	t *testing.T,
+	workspaceID string,
+	environmentID string,
+	resourceIDs []string,
+) map[string][]float64 {
 	t.Helper()
 	series, err := QueryMetrics(
 		t.Context(),
 		f.conn,
 		workspaceID,
+		environmentID,
 		resourceIDs,
 		f.start,
 		f.end,
@@ -382,49 +420,70 @@ func (f *queryFixture) metrics(t *testing.T, workspaceID string, resourceIDs []s
 	return values
 }
 
-func TestQueryMetricsScopesToWorkspace(t *testing.T) {
+func TestQueryMetricsScopesToWorkspaceAndEnvironment(t *testing.T) {
 	f := newQueryFixture(t)
 	both := []string{testResourceID, testWorkerResourceID}
 	cases := []struct {
-		name        string
-		workspaceID string
-		resourceIDs []string
-		want        map[string][]float64
+		name          string
+		workspaceID   string
+		environmentID string
+		resourceIDs   []string
+		want          map[string][]float64
 	}{
 		{
-			name:        "both resources",
-			workspaceID: testWorkspaceID,
-			resourceIDs: both,
+			name:          "both resources",
+			workspaceID:   testWorkspaceID,
+			environmentID: testEnvironmentID,
+			resourceIDs:   both,
 			want: map[string][]float64{
 				testResourceID:       {testWebAverage},
 				testWorkerResourceID: {testWorkerValue},
 			},
 		},
 		{
-			name:        "resource filter",
-			workspaceID: testWorkspaceID,
-			resourceIDs: []string{testWorkerResourceID},
-			want:        map[string][]float64{testWorkerResourceID: {testWorkerValue}},
+			name:          "resource filter",
+			workspaceID:   testWorkspaceID,
+			environmentID: testEnvironmentID,
+			resourceIDs:   []string{testWorkerResourceID},
+			want:          map[string][]float64{testWorkerResourceID: {testWorkerValue}},
 		},
 		{
-			name:        "other workspace",
-			workspaceID: testOtherWorkspaceID,
+			name:          "other environment",
+			workspaceID:   testWorkspaceID,
+			environmentID: testOtherEnvironmentID,
+			resourceIDs:   both,
+			want:          map[string][]float64{testResourceID: {testOtherEnvironmentV}},
+		},
+		{
+			name:        "every environment",
+			workspaceID: testWorkspaceID,
 			resourceIDs: both,
+			want: map[string][]float64{
+				testResourceID:       {testWebAllEnvsAverage},
+				testWorkerResourceID: {testWorkerValue},
+			},
+		},
+		{
+			name:          "other workspace",
+			workspaceID:   testOtherWorkspaceID,
+			environmentID: testEnvironmentID,
+			resourceIDs:   both,
 			want: map[string][]float64{
 				testResourceID:       {testOtherWorkspaceVal},
 				testWorkerResourceID: {testOtherWorkspaceVal},
 			},
 		},
 		{
-			name:        "unknown workspace",
-			workspaceID: testUnknownWorkspaceID,
-			resourceIDs: both,
-			want:        map[string][]float64{},
+			name:          "unknown workspace",
+			workspaceID:   testUnknownWorkspaceID,
+			environmentID: testEnvironmentID,
+			resourceIDs:   both,
+			want:          map[string][]float64{},
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := f.metrics(t, tc.workspaceID, tc.resourceIDs)
+			got := f.metrics(t, tc.workspaceID, tc.environmentID, tc.resourceIDs)
 			if len(got) != len(tc.want) {
 				t.Errorf("series = %v, want %v", got, tc.want)
 			}
@@ -446,7 +505,7 @@ func TestLogPagesKeepEqualTimestampsAcrossMerges(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		attrs := tenantAttributes(testWorkspaceID, testResourceID)
+		attrs := tenantAttributes(testWorkspaceID, testEnvironmentID, testResourceID)
 		for range copies {
 			if err := batch.Append(
 				timestamp,
