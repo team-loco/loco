@@ -2,12 +2,11 @@
 # TypeScript from gen/ts, and bun workspaces hoist node_modules to the root.
 FROM oven/bun:1.4.3-alpine@sha256:629e17411f1f129dbec3af78d5af9c9f2a937435c80349437206c6b0b7422373 AS builder
 
-ARG PUBLIC_API_URL
-ARG PUBLIC_APP_ENV
-ENV PUBLIC_API_URL=$PUBLIC_API_URL
-ENV PUBLIC_APP_ENV=$PUBLIC_APP_ENV
-
 WORKDIR /app
+
+# renovate: datasource=repology depName=alpine_3_24/brotli versioning=loose
+ARG BROTLI_VERSION=1.2.0-r1
+RUN apk add --no-cache brotli=${BROTLI_VERSION}
 
 # Workspace manifests first, so dependency install caches independently of source.
 COPY package.json bun.lock ./
@@ -18,9 +17,10 @@ RUN bun install --frozen-lockfile
 COPY gen/ts ./gen/ts
 COPY web ./web
 
-# renovate: datasource=repology depName=alpine_3_24/brotli versioning=loose
-ARG BROTLI_VERSION=1.2.0-r1
-RUN apk add --no-cache brotli=${BROTLI_VERSION}
+ARG PUBLIC_API_URL
+ARG PUBLIC_APP_ENV
+ENV PUBLIC_API_URL=$PUBLIC_API_URL
+ENV PUBLIC_APP_ENV=$PUBLIC_APP_ENV
 
 ARG VERSION
 WORKDIR /app/web
