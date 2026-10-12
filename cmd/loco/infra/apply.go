@@ -193,7 +193,7 @@ func requestApply(
 		Builds:             scope.builds,
 		Provision:          scope.provision,
 	})
-	req.Header().Set("Authorization", t.authHeader)
+
 	resp, err := t.planClient().Apply(ctx, req)
 	if err != nil {
 		if refusal := applyRefusal(err); refusal != nil {

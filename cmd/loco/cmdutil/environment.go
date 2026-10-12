@@ -26,10 +26,9 @@ func ResolveEnvironmentID(
 	client environmentv1connect.EnvironmentServiceClient,
 	selectFromList func(title string, options []ui.SelectOption) (any, error),
 	interactive bool,
-	authHeader string,
 	workspaceID string,
 ) (string, error) {
-	env, err := ResolveEnvironment(ctx, cmd, client, selectFromList, interactive, authHeader, workspaceID)
+	env, err := ResolveEnvironment(ctx, cmd, client, selectFromList, interactive, workspaceID)
 	if err != nil {
 		return "", err
 	}
@@ -44,7 +43,6 @@ func ResolveEnvironment(
 	client environmentv1connect.EnvironmentServiceClient,
 	selectFromList func(title string, options []ui.SelectOption) (any, error),
 	interactive bool,
-	authHeader string,
 	workspaceID string,
 ) (*environmentv1.Environment, error) {
 	name, err := cmd.Flags().GetString("env")
@@ -56,7 +54,7 @@ func ResolveEnvironment(
 	}
 
 	req := connect.NewRequest(&environmentv1.ListEnvironmentsRequest{WorkspaceId: workspaceID})
-	req.Header().Set("Authorization", authHeader)
+
 	resp, err := client.ListEnvironments(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("list environments: %w", err)

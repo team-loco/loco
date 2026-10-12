@@ -6,25 +6,27 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/team-loco/loco/internal/rpc"
+
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
-	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/ui"
 )
 
 type deleteDeps struct {
-	NewWorkspaceClient func(host string) workspacev1connect.WorkspaceServiceClient
+	NewWorkspaceClient func(host, token string) workspacev1connect.WorkspaceServiceClient
 	AskYesNo           func(prompt string) (bool, error)
 	Output             io.Writer
 }
 
 func buildDeleteCmd() *cobra.Command {
 	deps := deleteDeps{
-		NewWorkspaceClient: func(host string) workspacev1connect.WorkspaceServiceClient {
-			return workspacev1connect.NewWorkspaceServiceClient(httputil.NewHTTPClient(), host)
+		NewWorkspaceClient: func(host, token string) workspacev1connect.WorkspaceServiceClient {
+			workspaceClients := rpc.ForHost(host, token)
+			return workspaceClients.Workspace
 		},
 		AskYesNo: ui.AskYesNo,
 		Output:   os.Stdout,
@@ -64,13 +66,11 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 				return err
 			}
 
-			wsClient := deps.NewWorkspaceClient(host)
-			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
+			wsClient := deps.NewWorkspaceClient(host, locoToken.Token)
 
 			getReq := connect.NewRequest(&workspacev1.GetWorkspaceRequest{
 				WorkspaceId: id,
 			})
-			getReq.Header().Set("Authorization", authHeader)
 
 			getResp, err := wsClient.GetWorkspace(ctx, getReq)
 			if err != nil {
@@ -107,7 +107,6 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 				WorkspaceId:       id,
 				ConfirmDeleteApps: confirmDeleteApps,
 			})
-			delReq.Header().Set("Authorization", authHeader)
 
 			_, err = wsClient.DeleteWorkspace(ctx, delReq)
 			if err != nil {

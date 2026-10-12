@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/team-loco/loco/internal/rpc"
+
 	"charm.land/lipgloss/v2"
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
@@ -13,7 +15,6 @@ import (
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/internal/client"
-	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
 )
@@ -21,7 +22,7 @@ import (
 type destroyDeps struct {
 	LoadSessionConfig func() (*session.SessionConfig, error)
 	NewAPIClient      func(host, token string) *client.Client
-	NewResourceClient func(host string) resourcev1connect.ResourceServiceClient
+	NewResourceClient func(host, token string) resourcev1connect.ResourceServiceClient
 	Stdout            io.Writer
 }
 
@@ -29,8 +30,9 @@ func buildDestroyCmd() *cobra.Command {
 	deps := destroyDeps{
 		LoadSessionConfig: session.Load,
 		NewAPIClient:      client.NewClient,
-		NewResourceClient: func(host string) resourcev1connect.ResourceServiceClient {
-			return resourcev1connect.NewResourceServiceClient(httputil.NewHTTPClient(), host)
+		NewResourceClient: func(host, token string) resourcev1connect.ResourceServiceClient {
+			resourceClients := rpc.ForHost(host, token)
+			return resourceClients.Resource
 		},
 		Stdout: os.Stdout,
 	}
@@ -89,8 +91,7 @@ Examples:
 			}
 
 			// Create resource client
-			resourceClient := deps.NewResourceClient(host)
-			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
+			resourceClient := deps.NewResourceClient(host, locoToken.Token)
 
 			// Get resource by name
 			getReq := connect.NewRequest(&resourcev1.GetResourceRequest{
@@ -101,7 +102,6 @@ Examples:
 					},
 				},
 			})
-			getReq.Header().Set("Authorization", authHeader)
 
 			resourceResp, err := resourceClient.GetResource(ctx, getReq)
 			if err != nil {
@@ -114,7 +114,6 @@ Examples:
 			deleteReq := connect.NewRequest(&resourcev1.DeleteResourceRequest{
 				ResourceId: resource.GetId(),
 			})
-			deleteReq.Header().Set("Authorization", authHeader)
 
 			_, err = resourceClient.DeleteResource(ctx, deleteReq)
 			if err != nil {

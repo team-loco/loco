@@ -7,14 +7,13 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/team-loco/loco/internal/rpc"
+
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
-	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
-	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
-	"github.com/team-loco/loco/internal/httputil"
 )
 
 type listDeps struct {
@@ -56,9 +55,9 @@ func buildListCmd() *cobra.Command {
 				return err
 			}
 
-			httpClient := httputil.NewHTTPClient()
-			wsClient := workspacev1connect.NewWorkspaceServiceClient(httpClient, host)
-			userClient := userv1connect.NewUserServiceClient(httpClient, host)
+			clients := rpc.ForHost(host, locoToken.Token)
+			wsClient := clients.Workspace
+			userClient := clients.User
 
 			deps := listDeps{
 				WhoAmI:             userClient.WhoAmI,
@@ -71,13 +70,11 @@ func buildListCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to get org-id flag: %w", err)
 			}
-			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
 
 			if orgIDInt != 0 {
 				req := connect.NewRequest(&workspacev1.ListOrgWorkspacesRequest{
 					OrgId: strconv.FormatInt(orgIDInt, 10),
 				})
-				req.Header().Set("Authorization", authHeader)
 
 				resp, err := deps.ListOrgWorkspaces(ctx, req)
 				if err != nil {
@@ -101,7 +98,6 @@ func buildListCmd() *cobra.Command {
 				}
 			} else {
 				whoAmIReq := connect.NewRequest(&userv1.WhoAmIRequest{})
-				whoAmIReq.Header().Set("Authorization", authHeader)
 
 				whoAmIResp, err := deps.WhoAmI(ctx, whoAmIReq)
 				if err != nil {
@@ -111,7 +107,6 @@ func buildListCmd() *cobra.Command {
 				req := connect.NewRequest(&workspacev1.ListUserWorkspacesRequest{
 					UserId: whoAmIResp.Msg.GetUser().GetId(),
 				})
-				req.Header().Set("Authorization", authHeader)
 
 				resp, err := deps.ListUserWorkspaces(ctx, req)
 				if err != nil {

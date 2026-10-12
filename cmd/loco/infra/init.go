@@ -8,15 +8,14 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/team-loco/loco/internal/rpc"
+
 	"charm.land/lipgloss/v2"
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
-	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
-	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
-	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
@@ -145,7 +144,8 @@ func fetchConfig(cmd *cobra.Command) (*configv1.GetConfigResponse, error) {
 	ctx, cancel := context.WithTimeout(cmd.Context(), initConfigTimeout)
 	defer cancel()
 
-	configClient := configv1connect.NewConfigServiceClient(httputil.NewHTTPClient(), host)
+	configClients := rpc.ForHost(host, "")
+	configClient := configClients.Config
 	resp, err := configClient.GetConfig(ctx, connect.NewRequest(&configv1.GetConfigRequest{}))
 	if err != nil {
 		return nil, fmt.Errorf("could not fetch service defaults from the API: %w", err)
@@ -162,9 +162,10 @@ func fetchDefaultRegion(cmd *cobra.Command) (string, error) {
 	ctx, cancel := context.WithTimeout(cmd.Context(), initConfigTimeout)
 	defer cancel()
 
-	resourceClient := resourcev1connect.NewResourceServiceClient(httputil.NewHTTPClient(), token.Host)
+	resourceClients := rpc.ForHost(token.Host, token.Token)
+	resourceClient := resourceClients.Resource
 	req := connect.NewRequest(&resourcev1.ListRegionsRequest{})
-	req.Header().Set("Authorization", "Bearer "+token.Token)
+
 	resp, err := resourceClient.ListRegions(ctx, req)
 	if err != nil {
 		return "", fmt.Errorf("could not list regions from the API: %w", err)

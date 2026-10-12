@@ -5,30 +5,33 @@ import (
 	"io"
 	"os"
 
+	"github.com/team-loco/loco/internal/rpc"
+
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
-	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/ui"
 )
 
 type deleteDeps struct {
-	NewTokenClient func(host string) tokenv1connect.TokenServiceClient
-	NewUserClient  func(host string) userv1connect.UserServiceClient
+	NewTokenClient func(host, token string) tokenv1connect.TokenServiceClient
+	NewUserClient  func(host, token string) userv1connect.UserServiceClient
 	AskYesNo       func(prompt string) (bool, error)
 	Output         io.Writer
 }
 
 func buildDeleteCmd() *cobra.Command {
 	deps := deleteDeps{
-		NewTokenClient: func(host string) tokenv1connect.TokenServiceClient {
-			return tokenv1connect.NewTokenServiceClient(httputil.NewHTTPClient(), host)
+		NewTokenClient: func(host, token string) tokenv1connect.TokenServiceClient {
+			tokenClients := rpc.ForHost(host, token)
+			return tokenClients.Token
 		},
-		NewUserClient: func(host string) userv1connect.UserServiceClient {
-			return userv1connect.NewUserServiceClient(httputil.NewHTTPClient(), host)
+		NewUserClient: func(host, token string) userv1connect.UserServiceClient {
+			userClients := rpc.ForHost(host, token)
+			return userClients.User
 		},
 		AskYesNo: ui.AskYesNo,
 		Output:   os.Stdout,
@@ -62,9 +65,8 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 				return err
 			}
 
-			tokenClient := deps.NewTokenClient(host)
-			userClient := deps.NewUserClient(host)
-			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
+			tokenClient := deps.NewTokenClient(host, locoToken.Token)
+			userClient := deps.NewUserClient(host, locoToken.Token)
 
 			name := args[0]
 
@@ -82,7 +84,7 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 				return err
 			}
 
-			entityID, err := resolveEntityID(ctx, userClient, authHeader, entityType, entityTypeStr, entityIDInt)
+			entityID, err := resolveEntityID(ctx, userClient, entityType, entityTypeStr, entityIDInt)
 			if err != nil {
 				return err
 			}
@@ -109,7 +111,6 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 				EntityType: entityType,
 				EntityId:   entityID,
 			})
-			req.Header().Set("Authorization", authHeader)
 
 			_, err = tokenClient.RevokeToken(ctx, req)
 			if err != nil {

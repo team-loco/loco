@@ -48,28 +48,17 @@ type Emit func(entry *observabilityv1.LogEntry) error
 
 type Client struct {
 	Token     string
-	NewClient func(url string) observabilityv1connect.ObservabilityProxyServiceClient
-}
-
-func bearer(token string) string {
-	return "Bearer " + token
-}
-
-func (c *Client) authorize(req connect.AnyRequest) {
-	authorization := bearer(c.Token)
-	req.Header().Set("Authorization", authorization)
+	NewClient func(url, token string) observabilityv1connect.ObservabilityProxyServiceClient
 }
 
 func Proxies(
 	ctx context.Context,
 	access observabilityv1connect.ObservabilityAccessServiceClient,
-	token string,
 	workspaceID string,
 	clusterID string,
 ) ([]Proxy, error) {
 	req := connect.NewRequest(&observabilityv1.GetObservabilityAccessRequest{WorkspaceId: workspaceID})
-	authorization := bearer(token)
-	req.Header().Set("Authorization", authorization)
+
 	resp, err := access.GetObservabilityAccess(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("look up log proxies: %w", err)
@@ -160,7 +149,7 @@ func (c *Client) query(
 	start, end time.Time,
 	limit int32,
 ) ([]*observabilityv1.LogEntry, error) {
-	client := c.NewClient(proxy.URL)
+	client := c.NewClient(proxy.URL, c.Token)
 	order := observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST
 	size := int32(pageSize)
 	if limit > 0 {
@@ -182,7 +171,7 @@ func (c *Client) query(
 			Cursor:      cursor,
 			Order:       order,
 		})
-		c.authorize(req)
+
 		resp, err := client.QueryLogs(ctx, req)
 		if err != nil {
 			return nil, fmt.Errorf("query logs in %s: %w", proxy.Region, err)
@@ -228,7 +217,7 @@ func (c *Client) Tail(ctx context.Context, proxies []Proxy, filter Filter, since
 }
 
 func (c *Client) tailProxy(ctx context.Context, proxy Proxy, filter Filter, since time.Time, emit Emit) error {
-	client := c.NewClient(proxy.URL)
+	client := c.NewClient(proxy.URL, c.Token)
 	seen := newOverlap(since)
 	for {
 		start := timestamppb.New(seen.latest)
@@ -238,7 +227,7 @@ func (c *Client) tailProxy(ctx context.Context, proxy Proxy, filter Filter, sinc
 			Labels:      filter.Labels,
 			Since:       start,
 		})
-		c.authorize(req)
+
 		stream, err := client.TailLogs(ctx, req)
 		if err != nil {
 			return tailError(ctx, proxy, err)

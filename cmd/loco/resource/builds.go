@@ -84,11 +84,6 @@ func openBuildsSession(cmd *cobra.Command, deps buildsDeps) (*buildsSession, err
 	return &buildsSession{deps: deps, host: host, token: locoToken.Token, ctx: ctx, cancel: cancel}, nil
 }
 
-func (s *buildsSession) authorize(req connect.AnyRequest) {
-	authorization := authHeaderFor(s.token)
-	req.Header().Set("Authorization", authorization)
-}
-
 func (s *buildsSession) follower() *buildFollower {
 	return &buildFollower{
 		clients: s.deps.Clients,
@@ -107,8 +102,8 @@ func (s *buildsSession) workspaceOf(build *buildv1.Build) (string, error) {
 	req := connect.NewRequest(&resourcev1.GetResourceRequest{
 		Key: &resourcev1.GetResourceRequest_ResourceId{ResourceId: resourceID},
 	})
-	s.authorize(req)
-	resources := s.deps.Clients.Resources(s.host)
+
+	resources := s.deps.Clients.Resources(s.host, s.token)
 	resp, err := resources.GetResource(s.ctx, req)
 	if err != nil {
 		return "", fmt.Errorf("get the build's service: %w", err)
@@ -184,17 +179,17 @@ func runBuildsList(cmd *cobra.Command, deps buildsDeps, name string) error {
 	if err != nil {
 		return err
 	}
-	resourceClient := deps.Clients.Resources(s.host)
-	authHeader := authHeaderFor(s.token)
-	resource, err := getResourceByName(s.ctx, resourceClient, authHeader, workspaceID, name)
+	resourceClient := deps.Clients.Resources(s.host, s.token)
+
+	resource, err := getResourceByName(s.ctx, resourceClient, workspaceID, name)
 	if err != nil {
 		return err
 	}
 
 	resourceID := resource.GetId()
 	req := connect.NewRequest(&buildv1.ListBuildsRequest{ResourceId: resourceID, PageSize: limit})
-	s.authorize(req)
-	buildClient := deps.Clients.Builds(s.host)
+
+	buildClient := deps.Clients.Builds(s.host, s.token)
 	resp, err := buildClient.ListBuilds(s.ctx, req)
 	if err != nil {
 		return fmt.Errorf("list builds: %w", err)
@@ -350,8 +345,8 @@ func runBuildsLogs(cmd *cobra.Command, deps buildsDeps, buildID string) error {
 		_, err = fmt.Fprintf(deps.Stdout, "Build %s has not started on a cluster, so it has no logs yet.\n", buildID)
 		return err
 	}
-	access := deps.Clients.Access(s.host)
-	proxies, err := logstream.Proxies(s.ctx, access, s.token, workspaceID, clusterID)
+	access := deps.Clients.Access(s.host, s.token)
+	proxies, err := logstream.Proxies(s.ctx, access, workspaceID, clusterID)
 	if err != nil {
 		return fmt.Errorf("build logs are unavailable: %w", err)
 	}
@@ -382,8 +377,8 @@ func newBuildsCancelCmd(deps buildsDeps) *cobra.Command {
 			}
 			defer s.cancel()
 			req := connect.NewRequest(&buildv1.CancelBuildRequest{BuildId: args[0]})
-			s.authorize(req)
-			builds := deps.Clients.Builds(s.host)
+
+			builds := deps.Clients.Builds(s.host, s.token)
 			resp, err := builds.CancelBuild(s.ctx, req)
 			if err != nil {
 				return fmt.Errorf("cancel build %s: %w", args[0], err)

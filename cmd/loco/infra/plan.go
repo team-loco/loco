@@ -104,7 +104,7 @@ func requestPlan(ctx context.Context, t target, file []byte) (*planv1.PlanRespon
 	defer cancel()
 
 	req := connect.NewRequest(&planv1.PlanRequest{File: file, EnvironmentId: t.environmentID})
-	req.Header().Set("Authorization", t.authHeader)
+
 	resp, err := t.planClient().Plan(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("plan: %w", err)
