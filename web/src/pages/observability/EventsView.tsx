@@ -213,13 +213,15 @@ export function EventsView() {
 										const on = e.key === selItem?.key;
 										const res = resourceByName.get(e.resourceName);
 										return (
-											<div
+											<button
 												key={e.key}
+												type="button"
+												aria-pressed={on}
 												onClick={() => {
 													select(on ? null : e.key);
 												}}
 												className={cn(
-													"grid min-h-10 cursor-pointer items-center gap-3 border-b border-l-[3px] border-b-line py-1 pr-4 pl-[13px] [contain-intrinsic-block-size:auto_42px] [content-visibility:auto] hover:bg-bg2",
+													"grid min-h-10 w-full items-center gap-3 text-left border-b border-l-[3px] border-b-line py-1 pr-4 pl-[13px] [contain-intrinsic-block-size:auto_42px] [content-visibility:auto] hover:bg-bg2",
 													on ? "border-l-primary bg-info-bg shadow-[inset_0_0_0_1px_var(--accent)]" : st.bar,
 												)}
 												style={{ gridTemplateColumns: rowCols }}
@@ -247,7 +249,7 @@ export function EventsView() {
 														</span>
 													)}
 												</span>
-											</div>
+											</button>
 										);
 									})}
 								{!loading && error !== null && (

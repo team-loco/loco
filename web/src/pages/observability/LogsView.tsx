@@ -103,7 +103,7 @@ export function LogsView() {
 		resourceById,
 	)
 		.filter((r) => cutoff === null || r.ts >= cutoff)
-		.sort((a, b) => b.ts - a.ts);
+		.toSorted((a, b) => b.ts - a.ts);
 
 	const regionByCluster = new Map(clusters.map((c) => [c.clusterId, c.region]));
 	const tailRegion = backend.transports.length === 1 ? (regionByCluster.get(backend.transports[0]?.cluster.clusterId ?? "") ?? "") : "";
@@ -112,7 +112,7 @@ export function LogsView() {
 	const tailRows = frozen ? allTail.filter((r) => r.ts <= freezeTs) : allTail;
 	const held = frozen ? allTail.length - tailRows.length : 0;
 	const batchKeys = new Set(batchRows.map((r) => r.key));
-	const rows = [...tailRows.filter((r) => !batchKeys.has(r.key)), ...batchRows].sort((a, b) => b.ts - a.ts);
+	const rows = [...tailRows.filter((r) => !batchKeys.has(r.key)), ...batchRows].toSorted((a, b) => b.ts - a.ts);
 	const rate = allTail.filter((r) => r.ts > nowMs - 10_000).length / 10;
 
 	const isLoading = logs.isLoading && !backend.impossible;
@@ -174,7 +174,7 @@ export function LogsView() {
 			if (key === "region") add(r.region);
 			if (key === "replica") add(r.pod);
 		}
-		return [...m.entries()].sort((a, b) => b[1] - a[1]);
+		return [...m.entries()].toSorted((a, b) => b[1] - a[1]);
 	};
 
 	const panelOpen = selRow !== undefined;

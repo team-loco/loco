@@ -7,7 +7,7 @@ function isObject(v: JsonValue | undefined): v is JsonObject {
 
 function sortKeys(obj: JsonObject): JsonObject {
 	const out: JsonObject = {};
-	for (const k of Object.keys(obj).sort()) {
+	for (const k of Object.keys(obj).toSorted()) {
 		const v = obj[k];
 		if (v !== undefined) out[k] = v;
 	}
@@ -45,7 +45,7 @@ export function diffLines(from: string, to: string): { lines: DiffLine[]; add: n
 	const b = to.split("\n");
 	const n = a.length;
 	const m = b.length;
-	const lcs: number[][] = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0));
+	const lcs: number[][] = Array.from({ length: n + 1 }, () => Array.from({ length: m + 1 }, () => 0));
 	const at = (i: number, j: number): number => lcs[i]?.[j] ?? 0;
 	for (let i = n - 1; i >= 0; i--) {
 		const row = lcs[i];

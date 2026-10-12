@@ -51,7 +51,7 @@ function rollbackChanges(target: Deployment, current: Deployment | undefined): C
 	push("Memory", c?.memory ?? "—", t?.memory ?? "—");
 	const tEnv = t?.env ?? {};
 	const cEnv = c?.env ?? {};
-	const keys = [...new Set([...Object.keys(cEnv), ...Object.keys(tEnv)])].sort();
+	const keys = [...new Set([...Object.keys(cEnv), ...Object.keys(tEnv)])].toSorted();
 	for (const k of keys) push(k, cEnv[k] ?? "—", tEnv[k] ?? "—");
 	if (out.length === 0) out.push({ label: "Spec", from: shortId(current.id), to: shortId(target.id) });
 	return out;

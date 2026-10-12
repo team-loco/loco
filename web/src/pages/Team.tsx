@@ -29,7 +29,7 @@ export function Team() {
 	const tq = q.trim().toLowerCase();
 	const shown = members
 		.filter((m) => tq === "" || `${m.user.name} ${m.user.email}`.toLowerCase().includes(tq))
-		.sort((a, b) => {
+		.toSorted((a, b) => {
 			const aMe = a.user.id === meId ? 1 : 0;
 			const bMe = b.user.id === meId ? 1 : 0;
 			if (aMe !== bMe) return bMe - aMe;

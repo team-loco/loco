@@ -74,7 +74,7 @@ export function buildRegions(
 	}
 	return [...names].map((name) => {
 		const status = environment?.regions.find((r) => r.region === name);
-		const history = deployments.filter((d) => d.region === name).sort(byNewest);
+		const history = deployments.filter((d) => d.region === name).toSorted(byNewest);
 		const current = history.find((d) => d.isActive) ?? history[0];
 		return { name, status, history, current };
 	});

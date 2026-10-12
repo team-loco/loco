@@ -224,7 +224,7 @@ function ComputeChart({
 	for (const [id, pts] of merged) {
 		const r = byId.get(id);
 		if (r === undefined) continue;
-		const points = [...pts.entries()].map(([t, v]) => ({ t, v })).sort((a, b) => a.t - b.t);
+		const points = [...pts.entries()].map(([t, v]) => ({ t, v })).toSorted((a, b) => a.t - b.t);
 		series.push({ name: r.name, color: r.color, points });
 	}
 

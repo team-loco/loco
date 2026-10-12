@@ -54,7 +54,7 @@ export function AccessPicker({
 	const pool = tree.order
 		.filter((n) => n.kind !== "system" && (allowUser || n.kind !== "user"))
 		.filter((n) => !levelByKey.has(n.key) && (query === "" || n.label.toLowerCase().includes(query)))
-		.sort((a, b) => {
+		.toSorted((a, b) => {
 			if (query !== "") {
 				const sa = a.label.toLowerCase().startsWith(query) ? 0 : 1;
 				const sb = b.label.toLowerCase().startsWith(query) ? 0 : 1;
@@ -150,6 +150,7 @@ export function AccessPicker({
 			</div>
 			{focus && (
 				<div
+					role="presentation"
 					onMouseDown={(e) => {
 						e.preventDefault();
 					}}

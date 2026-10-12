@@ -79,5 +79,5 @@ export function groupEvents(events: WorkspaceEventWithResource[]): EventGroup[] 
 			});
 		}
 	}
-	return [...m.values()].sort((a, b) => b.ts - a.ts);
+	return [...m.values()].toSorted((a, b) => b.ts - a.ts);
 }

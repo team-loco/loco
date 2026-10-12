@@ -22,6 +22,41 @@ export interface ChartMarker {
 
 type Datum = { t: number; [series: string]: number };
 
+function MetricTooltip({
+	active,
+	label,
+	byT,
+	series,
+	fmt,
+}: {
+	active?: boolean;
+	label?: string | number;
+	byT: Map<number, Datum>;
+	series: ChartSeries[];
+	fmt: (v: number) => string;
+}) {
+	const t = Number(label);
+	const row = byT.get(t);
+	if (active !== true || row === undefined) return null;
+	const items = series
+		.map((s, i) => ({ s, v: row[`s${String(i)}`] }))
+		.filter((x): x is { s: ChartSeries; v: number } => x.v !== undefined)
+		.toSorted((a, b) => b.v - a.v);
+	return (
+		<div className="min-w-[150px] rounded-lg border border-line bg-background px-2.5 py-2 text-sm shadow-popover">
+			<div className="mb-1.5 text-fg3">{fmtTs(t)}</div>
+			{items.map(({ s, v }) => (
+				<div key={s.name} className="flex h-5 items-center gap-2">
+					<span className="size-2 rounded-[2px]" style={{ background: s.color }} />
+					<span className="flex-1 text-fg2">{s.name}</span>
+					<span className="font-semibold tabular-nums">{fmt(v)}</span>
+				</div>
+			))}
+			<div className="mt-1.5 border-t border-line pt-1.5 text-xs text-fg3">Click for logs</div>
+		</div>
+	);
+}
+
 export function MetricCard({
 	title,
 	unit,
@@ -104,7 +139,7 @@ export function MetricChart({
 			byT.set(p.t, row);
 		}
 	});
-	const data = [...byT.values()].sort((a, b) => a.t - b.t);
+	const data = [...byT.values()].toSorted((a, b) => a.t - b.t);
 	const config: ChartConfig = Object.fromEntries(series.map((s, i) => [`s${String(i)}`, { label: s.name, color: s.color }]));
 	const span = to - from;
 	const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => from + f * span);
@@ -147,28 +182,7 @@ export function MetricChart({
 				/>
 				<ChartTooltip
 					cursor={{ stroke: "var(--fg3)", strokeWidth: 1 }}
-					content={({ active, label }) => {
-						const t = Number(label);
-						const row = byT.get(t);
-						if (!active || row === undefined) return null;
-						const items = series
-							.map((s, i) => ({ s, v: row[`s${String(i)}`] }))
-							.filter((x): x is { s: ChartSeries; v: number } => x.v !== undefined)
-							.sort((a, b) => b.v - a.v);
-						return (
-							<div className="min-w-[150px] rounded-lg border border-line bg-background px-2.5 py-2 text-sm shadow-popover">
-								<div className="mb-1.5 text-fg3">{fmtTs(t)}</div>
-								{items.map(({ s, v }) => (
-									<div key={s.name} className="flex h-5 items-center gap-2">
-										<span className="size-2 rounded-[2px]" style={{ background: s.color }} />
-										<span className="flex-1 text-fg2">{s.name}</span>
-										<span className="font-semibold tabular-nums">{fmt(v)}</span>
-									</div>
-								))}
-								<div className="mt-1.5 border-t border-line pt-1.5 text-xs text-fg3">Click for logs</div>
-							</div>
-						);
-					}}
+					content={<MetricTooltip byT={byT} series={series} fmt={fmt} />}
 				/>
 				{limit !== null && (
 					<ReferenceLine

@@ -1,12 +1,29 @@
 {
-	"$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/npm/oxlint/configuration_schema.json",
-	"plugins": ["react", "typescript"],
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"plugins": ["eslint", "typescript", "react", "jsx-a11y", "import", "unicorn", "oxc", "promise"],
+	"categories": {
+		"correctness": "error",
+		"suspicious": "error",
+		"perf": "error"
+	},
 	"env": {
 		"browser": true
 	},
+	"ignorePatterns": ["dist", "src/components/ui"],
 	"rules": {
-		"react-hooks/rules-of-hooks": "error",
-		"react-hooks/exhaustive-deps": "warn",
-		"react/react-in-jsx-scope": "off"
+		"eslint/no-await-in-loop": "off",
+		"import/no-unassigned-import": ["error", { "allow": ["**/*.css"] }],
+		"jsx-a11y/control-has-associated-label": "off",
+		"jsx-a11y/label-has-associated-control": ["error", { "controlComponents": ["Input", "Textarea"], "depth": 3 }],
+		"jsx-a11y/no-autofocus": "off",
+		"jsx-a11y/no-noninteractive-tabindex": ["error", { "tags": ["pre"] }],
+		"jsx-a11y/prefer-tag-over-role": "off",
+		"oxc/no-map-spread": "off",
+		"promise/always-return": "off",
+		"react/exhaustive-effect-dependencies": "off",
+		"react/jsx-no-constructed-context-values": "off",
+		"react/no-array-index-key": "off",
+		"react/react-in-jsx-scope": "off",
+		"unicorn/consistent-function-scoping": "off"
 	}
 }

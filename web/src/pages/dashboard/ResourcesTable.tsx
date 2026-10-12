@@ -137,7 +137,7 @@ export function ResourcesTable({
 				(region === "all" || it.regions.some((g) => g.region === region)) &&
 				(q === "" || it.resource.name.toLowerCase().includes(q)),
 		)
-		.sort((a, b) => compare(sortKey, a, b) * sortDir);
+		.toSorted((a, b) => compare(sortKey, a, b) * sortDir);
 
 	const { rows: pageItems, page: safePage, pages: pageCount } = pageSlice(visible, page, PAGE_SIZE);
 

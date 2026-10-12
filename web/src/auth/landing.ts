@@ -20,7 +20,7 @@ async function ensureDefaultOrg(transport: Transport, userId: string, email: str
 		if (!alreadyExists(err)) throw err;
 		const { orgs: existing } = await orgs.listUserOrgs({ userId });
 		const first = existing[0];
-		if (first === undefined) throw new Error("Your organization exists but could not be loaded");
+		if (first === undefined) throw new Error("Your organization exists but could not be loaded", { cause: err });
 		return first.id;
 	}
 }
@@ -34,7 +34,7 @@ async function ensureDefaultWorkspace(transport: Transport, orgId: string): Prom
 		if (!alreadyExists(err)) throw err;
 		const { workspaces: existing } = await workspaces.listOrgWorkspaces({ orgId });
 		const first = existing[0];
-		if (first === undefined) throw new Error("Your workspace exists but could not be loaded");
+		if (first === undefined) throw new Error("Your workspace exists but could not be loaded", { cause: err });
 		return first.id;
 	}
 }

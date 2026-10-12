@@ -46,11 +46,13 @@ export function LogTable({
 							!open && fresh && "bg-ok-bg",
 						)}
 					>
-						<div
+						<button
+							type="button"
+							aria-pressed={open}
 							onClick={() => {
 								onSelect(l.key);
 							}}
-							className="grid min-h-[30px] cursor-pointer items-center gap-3 px-4 font-mono text-sm hover:bg-bg2"
+							className="grid min-h-[30px] w-full items-center gap-3 px-4 text-left font-mono text-sm hover:bg-bg2"
 							style={{ gridTemplateColumns: cols }}
 						>
 							<span className="whitespace-nowrap text-fg4">{compact ? formatClock(l.ts, true) : fmtTs(l.ts, true)}</span>
@@ -74,7 +76,7 @@ export function LogTable({
 							<span className={cn("truncate", style.body)}>
 								{l.json !== null ? jsonPreview(l.json, words) : bodyParts(l.entry.body, words)}
 							</span>
-						</div>
+						</button>
 					</div>
 				);
 			})}
