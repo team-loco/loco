@@ -27,7 +27,6 @@ on:
       - "mise.lock"
       - "docs/pyproject.toml"
       - ".github/actions/setup-tools/**"
-  merge_group:
   workflow_call:
 
 permissions:
@@ -38,20 +37,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  changes:
-    name: Docker Changes
-    runs-on: ubuntu-latest
-    outputs:
-      run: ${{ steps.changes.outputs.run }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - id: changes
-        uses: ./.github/actions/merge-queue-changes
 
   buildkit-check:
-    needs: changes
-    if: needs.changes.outputs.run == 'true'
     name: ${{ matrix.name }} Dockerfile Check
     runs-on: ubuntu-latest
 
@@ -101,8 +88,6 @@ jobs:
             BUILDKIT_DOCKERFILE_CHECK=skip=InvalidDefinitionDescription,experimental=all
 
   base-image-versions:
-    needs: changes
-    if: needs.changes.outputs.run == 'true'
     name: Image Pins
     runs-on: ubuntu-latest
 
@@ -115,8 +100,6 @@ jobs:
         run: mise run lint:versions
 
   hadolint:
-    needs: changes
-    if: needs.changes.outputs.run == 'true'
     name: Hadolint
     runs-on: ubuntu-latest
 

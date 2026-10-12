@@ -1,0 +1,32 @@
+name: Go component changes
+description: Select Go jobs from the event diff and local module dependencies.
+inputs:
+  matrix:
+    description: YAML list of matrix entries with working-directory fields.
+    required: true
+outputs:
+  run:
+    description: Whether any matrix entries were selected.
+    value: ${{ steps.select.outputs.run }}
+  api:
+    description: Whether API tests should run.
+    value: ${{ steps.select.outputs.api }}
+  matrix:
+    description: Selected matrix entries.
+    value: ${{ steps.select.outputs.matrix }}
+runs:
+  using: composite
+  steps:
+    - id: select
+      shell: bash
+      env:
+        EVENT: ${{ github.event_name }}
+        BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        MATRIX_YAML: ${{ inputs.matrix }}
+        SELECTOR: ${{ github.action_path }}/select_go.py
+      run: |
+        set -euo pipefail
+        export GO_MATRIX
+        GO_MATRIX=$(printf '%s' "$MATRIX_YAML" | yq -o=json '.')
+        python3 "$SELECTOR"

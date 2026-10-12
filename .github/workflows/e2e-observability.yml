@@ -9,6 +9,7 @@ on:
       - "observability-proxy/**"
       - "proto/loco/observability/**"
       - "proto/loco/token/**"
+      - "gen/go/**"
       - "api/main.go"
       - "api/migrations/**"
       - "api/service/token.go"
@@ -19,7 +20,6 @@ on:
       - "charts/loco-operator/**"
       - "manifests/namespaces/**"
       - "compose.yaml"
-      - "e2e/**"
       - "mise-tasks/e2e/**"
       - "cmd/loco/**"
       - "internal/**"
@@ -29,8 +29,9 @@ on:
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
+      - "!**/*_test.go"
+      - "e2e/**"
       - ".github/workflows/e2e-observability.yml"
-  merge_group:
   workflow_dispatch:
 
 permissions:
@@ -41,20 +42,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  changes:
-    name: Observability E2E Changes
-    runs-on: ubuntu-latest
-    outputs:
-      run: ${{ steps.changes.outputs.run }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - id: changes
-        uses: ./.github/actions/merge-queue-changes
 
   e2e:
-    needs: changes
-    if: needs.changes.outputs.run == 'true'
     name: Observability E2E
     runs-on: ubuntu-latest
     timeout-minutes: 60

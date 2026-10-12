@@ -9,7 +9,6 @@ on:
       - .github/workflows/platform-release.yml
       - mise.toml
       - mise.lock
-  merge_group:
   workflow_dispatch:
     inputs:
       version:

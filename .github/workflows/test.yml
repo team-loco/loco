@@ -14,11 +14,14 @@ on:
       - "builder/**"
       - "observability-proxy/**"
       - "k8sapi/**"
+      - "controller/Makefile"
       - "mise-tasks/test/obs-proxy"
       - "charts/loco-obs/values.yaml"
       - "main.go"
       - "go.mod"
       - "go.sum"
+      - "gen/go/**"
+      - ".github/actions/go-changes/**"
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
@@ -34,16 +37,18 @@ on:
       - "builder/**"
       - "observability-proxy/**"
       - "k8sapi/**"
+      - "controller/Makefile"
       - "mise-tasks/test/obs-proxy"
       - "charts/loco-obs/values.yaml"
       - "main.go"
       - "go.mod"
       - "go.sum"
+      - "gen/go/**"
+      - ".github/actions/go-changes/**"
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
       - ".github/workflows/test.yml"
-  merge_group:
   workflow_call:
 
 concurrency:
@@ -56,15 +61,50 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       run: ${{ steps.changes.outputs.run }}
+      api: ${{ steps.changes.outputs.api }}
+      matrix: ${{ steps.changes.outputs.matrix }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
       - id: changes
-        uses: ./.github/actions/merge-queue-changes
+        uses: ./.github/actions/go-changes
+        with:
+          matrix: |
+            - component: CLI
+              working-directory: "."
+              test-command: mise run test:cli
+              timeout: 10
+
+            - component: Controller
+              working-directory: controller
+              test-command: mise run test:controller
+              timeout: 10
+
+            - component: Agent
+              working-directory: agent
+              test-command: mise run test:agent
+              timeout: 10
+
+            - component: Builder
+              working-directory: builder
+              test-command: mise run test:builder
+              timeout: 10
+
+            - component: Observability proxy
+              working-directory: observability-proxy
+              test-command: mise run test:obs-proxy
+              timeout: 10
+
+            - component: K8s API
+              working-directory: k8sapi
+              test-command: mise run test:k8sapi
+              timeout: 10
 
   api:
     needs: changes
-    if: needs.changes.outputs.run == 'true'
+    if: needs.changes.outputs.api == 'true'
     name: API Tests
     runs-on: ubuntu-latest
     permissions:
@@ -123,37 +163,7 @@ jobs:
       contents: read
 
     strategy:
-      matrix:
-        include:
-          - component: CLI
-            working-directory: "."
-            test-command: mise run test:cli
-            timeout: 10
-
-          - component: Controller
-            working-directory: controller
-            test-command: mise run test:controller
-            timeout: 10
-
-          - component: Agent
-            working-directory: agent
-            test-command: mise run test:agent
-            timeout: 10
-
-          - component: Builder
-            working-directory: builder
-            test-command: mise run test:builder
-            timeout: 10
-
-          - component: Observability proxy
-            working-directory: observability-proxy
-            test-command: mise run test:obs-proxy
-            timeout: 10
-
-          - component: K8s API
-            working-directory: k8sapi
-            test-command: mise run test:k8sapi
-            timeout: 10
+      matrix: ${{ fromJSON(needs.changes.outputs.matrix) }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
