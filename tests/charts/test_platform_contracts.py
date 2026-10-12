@@ -90,12 +90,22 @@ def quantity(value):
     return float(value)
 
 
-def clickhouse_resources(overrides):
+def clickhouse_installation(overrides):
     for document in render_chart('loco-obs', overrides):
         if document['kind'] == 'ClickHouseInstallation':
-            containers = document['spec']['templates']['podTemplates'][0]['spec']['containers']
-            return next(container['resources'] for container in containers if container['name'] == 'clickhouse')
+            return document
     raise AssertionError('loco-obs renders no ClickHouseInstallation')
+
+
+def clickhouse_resources(overrides):
+    containers = clickhouse_installation(overrides)['spec']['templates']['podTemplates'][0]['spec']['containers']
+    return next(container['resources'] for container in containers if container['name'] == 'clickhouse')
+
+
+def local_obs_values():
+    values = environment_values('local', {'APP_PORT': '8080'})
+    values['obsProxy'] |= {'image': {'tag': 'test'}}
+    return values
 
 
 def collector_relays(documents):
@@ -266,12 +276,19 @@ class ObservabilitySchema(unittest.TestCase):
 
     def test_local_clickhouse_is_smaller_than_the_default(self):
         default = clickhouse_resources({'obsProxy': TEST_PROXY})
-        local_values = environment_values('local', {'APP_PORT': '8080'})
-        local_values['obsProxy'] |= {'image': {'tag': 'test'}}
-        local = clickhouse_resources(local_values)
+        local = clickhouse_resources(local_obs_values())
         for kind in ('requests', 'limits'):
             for resource in ('cpu', 'memory'):
                 self.assertLess(quantity(local[kind][resource]), quantity(default[kind][resource]), f'{kind}.{resource}')
+
+    def test_local_clickhouse_caps_its_caches_and_schedule_pool(self):
+        capped = {'mark_cache_size', 'index_mark_cache_size', 'primary_index_cache_size', 'uncompressed_cache_size', 'background_schedule_pool_size', 'max_concurrent_queries'}
+        local = clickhouse_installation(local_obs_values())['spec']['configuration'].get('settings', {})
+        default = clickhouse_installation({'obsProxy': TEST_PROXY})['spec']['configuration'].get('settings', {})
+        self.assertEqual(capped - set(local), set())
+        for setting in capped:
+            self.assertRegex(str(local[setting]), r'^[0-9]+$', setting)
+        self.assertEqual(capped & set(default), set())
 
     def test_collectors_ingest_into_the_proxy_database(self):
         values = chart_values('loco-obs')
