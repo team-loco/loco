@@ -48,9 +48,6 @@ const (
 	// ResourceServiceListWorkspaceResourcesProcedure is the fully-qualified name of the
 	// ResourceService's ListWorkspaceResources RPC.
 	ResourceServiceListWorkspaceResourcesProcedure = "/loco.resource.v1.ResourceService/ListWorkspaceResources"
-	// ResourceServiceGetResourceStatusProcedure is the fully-qualified name of the ResourceService's
-	// GetResourceStatus RPC.
-	ResourceServiceGetResourceStatusProcedure = "/loco.resource.v1.ResourceService/GetResourceStatus"
 	// ResourceServiceListRegionsProcedure is the fully-qualified name of the ResourceService's
 	// ListRegions RPC.
 	ResourceServiceListRegionsProcedure = "/loco.resource.v1.ResourceService/ListRegions"
@@ -80,8 +77,6 @@ type ResourceServiceClient interface {
 	DeleteResource(context.Context, *connect.Request[v1.DeleteResourceRequest]) (*connect.Response[v1.DeleteResourceResponse], error)
 	// ListWorkspaceResources lists all resources in a workspace.
 	ListWorkspaceResources(context.Context, *connect.Request[v1.ListWorkspaceResourcesRequest]) (*connect.Response[v1.ListWorkspaceResourcesResponse], error)
-	// GetResourceStatus retrieves the current status and deployment information of a resource.
-	GetResourceStatus(context.Context, *connect.Request[v1.GetResourceStatusRequest]) (*connect.Response[v1.GetResourceStatusResponse], error)
 	// ListRegions lists available regions for resource deployment.
 	ListRegions(context.Context, *connect.Request[v1.ListRegionsRequest]) (*connect.Response[v1.ListRegionsResponse], error)
 	// GetResourceEnv returns the plain env variables a service runs with in an environment, the
@@ -138,12 +133,6 @@ func NewResourceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(resourceServiceMethods.ByName("ListWorkspaceResources")),
 			connect.WithClientOptions(opts...),
 		),
-		getResourceStatus: connect.NewClient[v1.GetResourceStatusRequest, v1.GetResourceStatusResponse](
-			httpClient,
-			baseURL+ResourceServiceGetResourceStatusProcedure,
-			connect.WithSchema(resourceServiceMethods.ByName("GetResourceStatus")),
-			connect.WithClientOptions(opts...),
-		),
 		listRegions: connect.NewClient[v1.ListRegionsRequest, v1.ListRegionsResponse](
 			httpClient,
 			baseURL+ResourceServiceListRegionsProcedure,
@@ -184,7 +173,6 @@ type resourceServiceClient struct {
 	updateResource         *connect.Client[v1.UpdateResourceRequest, v1.UpdateResourceResponse]
 	deleteResource         *connect.Client[v1.DeleteResourceRequest, v1.DeleteResourceResponse]
 	listWorkspaceResources *connect.Client[v1.ListWorkspaceResourcesRequest, v1.ListWorkspaceResourcesResponse]
-	getResourceStatus      *connect.Client[v1.GetResourceStatusRequest, v1.GetResourceStatusResponse]
 	listRegions            *connect.Client[v1.ListRegionsRequest, v1.ListRegionsResponse]
 	getResourceEnv         *connect.Client[v1.GetResourceEnvRequest, v1.GetResourceEnvResponse]
 	listResourceEvents     *connect.Client[v1.ListResourceEventsRequest, v1.ListResourceEventsResponse]
@@ -215,11 +203,6 @@ func (c *resourceServiceClient) DeleteResource(ctx context.Context, req *connect
 // ListWorkspaceResources calls loco.resource.v1.ResourceService.ListWorkspaceResources.
 func (c *resourceServiceClient) ListWorkspaceResources(ctx context.Context, req *connect.Request[v1.ListWorkspaceResourcesRequest]) (*connect.Response[v1.ListWorkspaceResourcesResponse], error) {
 	return c.listWorkspaceResources.CallUnary(ctx, req)
-}
-
-// GetResourceStatus calls loco.resource.v1.ResourceService.GetResourceStatus.
-func (c *resourceServiceClient) GetResourceStatus(ctx context.Context, req *connect.Request[v1.GetResourceStatusRequest]) (*connect.Response[v1.GetResourceStatusResponse], error) {
-	return c.getResourceStatus.CallUnary(ctx, req)
 }
 
 // ListRegions calls loco.resource.v1.ResourceService.ListRegions.
@@ -259,8 +242,6 @@ type ResourceServiceHandler interface {
 	DeleteResource(context.Context, *connect.Request[v1.DeleteResourceRequest]) (*connect.Response[v1.DeleteResourceResponse], error)
 	// ListWorkspaceResources lists all resources in a workspace.
 	ListWorkspaceResources(context.Context, *connect.Request[v1.ListWorkspaceResourcesRequest]) (*connect.Response[v1.ListWorkspaceResourcesResponse], error)
-	// GetResourceStatus retrieves the current status and deployment information of a resource.
-	GetResourceStatus(context.Context, *connect.Request[v1.GetResourceStatusRequest]) (*connect.Response[v1.GetResourceStatusResponse], error)
 	// ListRegions lists available regions for resource deployment.
 	ListRegions(context.Context, *connect.Request[v1.ListRegionsRequest]) (*connect.Response[v1.ListRegionsResponse], error)
 	// GetResourceEnv returns the plain env variables a service runs with in an environment, the
@@ -313,12 +294,6 @@ func NewResourceServiceHandler(svc ResourceServiceHandler, opts ...connect.Handl
 		connect.WithSchema(resourceServiceMethods.ByName("ListWorkspaceResources")),
 		connect.WithHandlerOptions(opts...),
 	)
-	resourceServiceGetResourceStatusHandler := connect.NewUnaryHandler(
-		ResourceServiceGetResourceStatusProcedure,
-		svc.GetResourceStatus,
-		connect.WithSchema(resourceServiceMethods.ByName("GetResourceStatus")),
-		connect.WithHandlerOptions(opts...),
-	)
 	resourceServiceListRegionsHandler := connect.NewUnaryHandler(
 		ResourceServiceListRegionsProcedure,
 		svc.ListRegions,
@@ -361,8 +336,6 @@ func NewResourceServiceHandler(svc ResourceServiceHandler, opts ...connect.Handl
 			resourceServiceDeleteResourceHandler.ServeHTTP(w, r)
 		case ResourceServiceListWorkspaceResourcesProcedure:
 			resourceServiceListWorkspaceResourcesHandler.ServeHTTP(w, r)
-		case ResourceServiceGetResourceStatusProcedure:
-			resourceServiceGetResourceStatusHandler.ServeHTTP(w, r)
 		case ResourceServiceListRegionsProcedure:
 			resourceServiceListRegionsHandler.ServeHTTP(w, r)
 		case ResourceServiceGetResourceEnvProcedure:
@@ -400,10 +373,6 @@ func (UnimplementedResourceServiceHandler) DeleteResource(context.Context, *conn
 
 func (UnimplementedResourceServiceHandler) ListWorkspaceResources(context.Context, *connect.Request[v1.ListWorkspaceResourcesRequest]) (*connect.Response[v1.ListWorkspaceResourcesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.ListWorkspaceResources is not implemented"))
-}
-
-func (UnimplementedResourceServiceHandler) GetResourceStatus(context.Context, *connect.Request[v1.GetResourceStatusRequest]) (*connect.Response[v1.GetResourceStatusResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.GetResourceStatus is not implemented"))
 }
 
 func (UnimplementedResourceServiceHandler) ListRegions(context.Context, *connect.Request[v1.ListRegionsRequest]) (*connect.Response[v1.ListRegionsResponse], error) {

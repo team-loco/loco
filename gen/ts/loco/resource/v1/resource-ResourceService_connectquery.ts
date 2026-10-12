@@ -40,13 +40,6 @@ export const deleteResource = ResourceService.method.deleteResource;
 export const listWorkspaceResources = ResourceService.method.listWorkspaceResources;
 
 /**
- * GetResourceStatus retrieves the current status and deployment information of a resource.
- *
- * @generated from rpc loco.resource.v1.ResourceService.GetResourceStatus
- */
-export const getResourceStatus = ResourceService.method.getResourceStatus;
-
-/**
  * ListRegions lists available regions for resource deployment.
  *
  * @generated from rpc loco.resource.v1.ResourceService.ListRegions

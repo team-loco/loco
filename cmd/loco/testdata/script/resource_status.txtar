@@ -1,0 +1,27 @@
+# loco resource status reads the service and the status of each environment from GetResource.
+fakeapi resource web
+
+exec loco resource status web
+stdout 'Service Status'
+stdout 'Not deployed to any environment\.'
+fakeapi called GetResource 'Bearer test-token'
+! fakeapi called GetResourceStatus
+
+exec loco resource status web --output json
+stdout '"name":\s+"web"'
+
+! exec loco resource status missing
+stderr '(?i)service ''missing'' not found'
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.toml --
+currentScope = "default"
+
+[scopes.default.organization]
+name = "acme"
+id = "1"
+
+[scopes.default.workspace]
+name = "production"
+id = "2"

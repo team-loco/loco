@@ -49,8 +49,6 @@ service ResourceService {
 
   // ListWorkspaceResources lists all resources in a workspace.
   rpc ListWorkspaceResources(ListWorkspaceResourcesRequest) returns (ListWorkspaceResourcesResponse);
-  // GetResourceStatus retrieves the current status and deployment information of a resource.
-  rpc GetResourceStatus(GetResourceStatusRequest) returns (GetResourceStatusResponse);
   // ListRegions lists available regions for resource deployment.
   rpc ListRegions(ListRegionsRequest) returns (ListRegionsResponse);
   // GetResourceEnv returns the plain env variables a service runs with in an environment, the
@@ -303,18 +301,6 @@ message GetResourceEnvRequest {
 message GetResourceEnvResponse {
   map<string, string> env = 1;
   repeated string secret_names = 2;
-}
-
-// GetResourceStatusRequest is the request to retrieve resource status.
-message GetResourceStatusRequest {
-  string resource_id = 1 [(buf.validate.field).string.uuid = true];
-}
-
-// GetResourceStatusResponse is the response containing resource status information.
-message GetResourceStatusResponse {
-  Resource resource = 1;
-  reserved 2;
-  reserved "current_deployment";
 }
 
 // --- Events ---

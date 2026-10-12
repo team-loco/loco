@@ -3,7 +3,6 @@ package resource
 import (
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -110,23 +109,8 @@ Examples:
 				return fmt.Errorf("service '%s' not found: %w", name, err)
 			}
 
-			resource := resourceResp.Msg.GetResource()
-			slog.Debug("fetching service status", "resource_id", resource.GetId(), "name", name)
-
-			// Get resource status
-			statusReq := connect.NewRequest(&resourcev1.GetResourceStatusRequest{
-				ResourceId: resource.GetId(),
-			})
-			statusReq.Header().Set("Authorization", authHeader)
-
-			resp, err := resourceClient.GetResourceStatus(ctx, statusReq)
-			if err != nil {
-				slog.Error("failed to get service status", "error", err)
-				return fmt.Errorf("failed to get service status: %w", err)
-			}
-
 			if output == outputJSON {
-				out, err := statusJSON.Marshal(resp.Msg)
+				out, err := statusJSON.Marshal(resourceResp.Msg)
 				if err != nil {
 					return fmt.Errorf("failed to encode service status: %w", err)
 				}
@@ -134,7 +118,8 @@ Examples:
 				return err
 			}
 
-			return renderStatusView(deps.Stdout, name, resp.Msg)
+			resource := resourceResp.Msg.GetResource()
+			return renderStatusView(deps.Stdout, name, resource)
 		},
 	}
 
@@ -146,7 +131,7 @@ Examples:
 	return cmd
 }
 
-func renderStatusView(stdout io.Writer, name string, resp *resourcev1.GetResourceStatusResponse) error {
+func renderStatusView(stdout io.Writer, name string, resource *resourcev1.Resource) error {
 	titleStyle := lipgloss.NewStyle().
 		Foreground(ui.Accent).
 		Bold(true).
@@ -166,7 +151,6 @@ func renderStatusView(stdout io.Writer, name string, resp *resourcev1.GetResourc
 		Padding(1, 2).
 		Margin(1, 2)
 
-	resource := resp.GetResource()
 	url := publicURL(resource)
 	if url == "" {
 		url = "none"
