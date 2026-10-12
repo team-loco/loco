@@ -10,7 +10,7 @@ Run them through mise from the repo root, which pins bun and every other tool:
 | Task                | What it does                                        |
 | ------------------- | --------------------------------------------------- |
 | `mise run ui`       | Vite dev server                                     |
-| `mise run lint:web` | oxlint, then type-aware eslint, then `tsgo --build` |
+| `mise run lint:web` | oxlint, then type-aware eslint, then `bun check`      |
 | `mise run test:web` | `bun test`                                          |
 
 `bun run build` type-checks and writes the production bundle to `dist/`.
