@@ -7,16 +7,16 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/team-loco/loco/internal/rpc"
+
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/table"
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/internal/client"
-	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -36,7 +36,7 @@ var (
 type statusDeps struct {
 	LoadSessionConfig func() (*session.SessionConfig, error)
 	NewAPIClient      func(host, token string) *client.Client
-	NewResourceClient func(host string) resourcev1connect.ResourceServiceClient
+	NewResourceClient func(host, token string) resourcev1connect.ResourceServiceClient
 	Stdout            io.Writer
 }
 
@@ -44,8 +44,9 @@ func buildStatusCmd() *cobra.Command {
 	deps := statusDeps{
 		LoadSessionConfig: session.Load,
 		NewAPIClient:      client.NewClient,
-		NewResourceClient: func(host string) resourcev1connect.ResourceServiceClient {
-			return resourcev1connect.NewResourceServiceClient(httputil.NewHTTPClient(), host)
+		NewResourceClient: func(host, token string) resourcev1connect.ResourceServiceClient {
+			resourceClients := rpc.ForHost(host, token)
+			return resourceClients.Resource
 		},
 		Stdout: os.Stdout,
 	}
@@ -90,19 +91,17 @@ Examples:
 			}
 
 			// Create resource client
-			resourceClient := deps.NewResourceClient(host)
-			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
+			resourceClient := deps.NewResourceClient(host, locoToken.Token)
 
 			// Get resource by name
-			getReq := connect.NewRequest(&resourcev1.GetResourceRequest{
+			getReq := &resourcev1.GetResourceRequest{
 				Key: &resourcev1.GetResourceRequest_NameKey{
 					NameKey: &resourcev1.GetResourceNameKey{
 						WorkspaceId: workspaceID,
 						Name:        name,
 					},
 				},
-			})
-			getReq.Header().Set("Authorization", authHeader)
+			}
 
 			resourceResp, err := resourceClient.GetResource(ctx, getReq)
 			if err != nil {
@@ -110,7 +109,7 @@ Examples:
 			}
 
 			if output == outputJSON {
-				out, err := statusJSON.Marshal(resourceResp.Msg)
+				out, err := statusJSON.Marshal(resourceResp)
 				if err != nil {
 					return fmt.Errorf("failed to encode service status: %w", err)
 				}
@@ -118,7 +117,7 @@ Examples:
 				return err
 			}
 
-			resource := resourceResp.Msg.GetResource()
+			resource := resourceResp.GetResource()
 			return renderStatusView(deps.Stdout, name, resource)
 		},
 	}

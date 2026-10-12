@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -38,11 +37,11 @@ func (f *deployFixture) listDeployments(
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeRead},
 	}
 	scoped := context.WithValue(context.Background(), contextkeys.EntityScopesKey, scopes)
-	resp, err := server.ListDeployments(scoped, connect.NewRequest(req))
+	resp, err := server.ListDeployments(scoped, req)
 	if err != nil {
 		t.Fatalf("list deployments: %v", err)
 	}
-	return resp.Msg
+	return resp
 }
 
 func deploymentIDs(deployments []*deploymentv1.Deployment) []string {

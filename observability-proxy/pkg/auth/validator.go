@@ -2,12 +2,14 @@ package auth
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
+
+	"github.com/team-loco/loco/internal/rpc"
+
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
 	"github.com/team-loco/loco/observability-proxy/pkg/cache"
@@ -18,13 +20,15 @@ const (
 	readinessEntityID = "00000000-0000-4000-8000-000000000000"
 )
 
-var errPermissionDenied = errors.New("permission denied")
+var (
+	errPermissionDenied           = connect.NewError(connect.CodePermissionDenied, "permission denied")
+	errPermissionCheckUnavailable = connect.NewError(connect.CodeUnavailable, "permission check unavailable")
+)
 
 // Validator checks token permissions by calling CheckPermission on the control plane.
 type Validator struct {
-	client    tokenv1connect.TokenServiceClient
-	authToken string // proxy auth token for calling the control plane
-	cache     cache.Cache
+	client tokenv1connect.TokenServiceClient
+	cache  cache.Cache
 }
 
 func NewValidator(controlPlaneURL string, authToken string, c cache.Cache) *Validator {
@@ -34,15 +38,12 @@ func NewValidator(controlPlaneURL string, authToken string, c cache.Cache) *Vali
 	transport.Protocols.SetHTTP2(true)
 	httpClient := &http.Client{Transport: transport}
 
-	client := tokenv1connect.NewTokenServiceClient(
-		httpClient,
-		controlPlaneURL,
-	)
+	clients := rpc.NewHTTPClients(httpClient, controlPlaneURL, authToken)
+	tokenClient := clients.Token
 
 	return &Validator{
-		client:    client,
-		authToken: authToken,
-		cache:     c,
+		client: tokenClient,
+		cache:  c,
 	}
 }
 
@@ -64,23 +65,25 @@ func (v *Validator) CheckPermission(
 		return nil
 	}
 
-	req := connect.NewRequest(&tokenv1.CheckPermissionRequest{
+	req := &tokenv1.CheckPermissionRequest{
 		Token:      token,
 		EntityType: entityType,
 		EntityId:   entityID,
 		Scope:      scope,
-	})
-	req.Header().Set("Authorization", "Bearer "+v.authToken)
+	}
 
 	resp, err := v.client.CheckPermission(ctx, req)
 	if err != nil {
 		slog.ErrorContext(ctx, "CheckPermission call failed", "error", err)
-		return fmt.Errorf("permission check failed: %w", err)
+		if connect.CodeOf(err) == connect.CodePermissionDenied {
+			return errPermissionDenied.WithCause(err)
+		}
+		return errPermissionCheckUnavailable.WithCause(err)
 	}
 
-	setPermission(ctx, v.cache, cacheKey, resp.Msg.GetAllowed())
+	setPermission(ctx, v.cache, cacheKey, resp.GetAllowed())
 
-	if !resp.Msg.GetAllowed() {
+	if !resp.GetAllowed() {
 		return errPermissionDenied
 	}
 	return nil
@@ -93,9 +96,7 @@ func (v *Validator) Ready(ctx context.Context) error {
 		EntityId:   readinessEntityID,
 		Scope:      tokenv1.Scope_SCOPE_READ,
 	}
-	req := connect.NewRequest(message)
-	req.Header().Set("Authorization", "Bearer "+v.authToken)
-	if _, err := v.client.CheckPermission(ctx, req); err != nil {
+	if _, err := v.client.CheckPermission(ctx, message); err != nil {
 		return fmt.Errorf("control plane permission endpoint: %w", err)
 	}
 	return nil

@@ -9,13 +9,15 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
+	"github.com/team-loco/loco/internal/rpcerr"
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
 	"github.com/team-loco/loco/observability-proxy/pkg/migrationlock"
 )
@@ -36,24 +38,26 @@ type readinessTokenServer struct {
 }
 
 func (s *readinessTokenServer) CheckPermission(
-	_ context.Context,
-	req *connect.Request[tokenv1.CheckPermissionRequest],
-) (*connect.Response[tokenv1.CheckPermissionResponse], error) {
+	ctx context.Context,
+	req *tokenv1.CheckPermissionRequest,
+) (*tokenv1.CheckPermissionResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
 	s.calls.Add(1)
-	if s.rejected.Load() || req.Header().Get("Authorization") != "Bearer "+testProxyCredential {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errTestCredentialRejected)
+	if s.rejected.Load() || info.RequestHeader().Get("Authorization") != "Bearer "+testProxyCredential {
+		return nil, rpcerr.New(connect.CodeUnauthenticated, errTestCredentialRejected)
 	}
-	allowed := req.Msg.GetToken() == testQueryToken
+	allowed := req.GetToken() == testQueryToken
 	response := &tokenv1.CheckPermissionResponse{Allowed: allowed}
-	return connect.NewResponse(response), nil
+	return response, nil
 }
 
 func readinessControlPlane(t *testing.T) (*readinessTokenServer, string) {
 	t.Helper()
 	service := &readinessTokenServer{}
-	path, handler := tokenv1connect.NewTokenServiceHandler(service)
+	rpcServer := connect.NewServer()
+	tokenv1connect.RegisterTokenServiceHandler(rpcServer, service)
 	mux := http.NewServeMux()
-	mux.Handle(path, handler)
+	connecthttp.Mount(mux, rpcServer)
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 	return service, server.URL
@@ -103,7 +107,9 @@ func TestReadyzChecksTheControlPlaneAndRecovers(t *testing.T) {
 		t.Fatalf("readiness after recovery = %d, want %d", status, http.StatusOK)
 	}
 	httpClient := &http.Client{Timeout: healthzDeadline}
-	client := observabilityv1connect.NewObservabilityProxyServiceClient(httpClient, server.URL)
+	client := observabilityv1connect.NewObservabilityProxyServiceClient(
+		connect.NewClient(connecthttp.NewTransport(httpClient, server.URL)),
+	)
 	now := time.Now()
 	start := timestamppb.New(now.Add(-time.Minute))
 	end := timestamppb.New(now)
@@ -112,9 +118,9 @@ func TestReadyzChecksTheControlPlaneAndRecovers(t *testing.T) {
 		StartTime:   start,
 		EndTime:     end,
 	}
-	req := connect.NewRequest(message)
-	req.Header().Set("Authorization", "Bearer "+testQueryToken)
-	if _, err := client.QueryLogs(t.Context(), req); err != nil {
+	ctx, info := connect.NewClientContext(t.Context())
+	info.RequestHeader().Set("Authorization", "Bearer "+testQueryToken)
+	if _, err := client.QueryLogs(ctx, message); err != nil {
 		t.Fatalf("authorized query through the proxy: %v", err)
 	}
 	controlPlane.rejected.Store(true)

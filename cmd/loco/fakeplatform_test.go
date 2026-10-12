@@ -14,7 +14,11 @@ import (
 	"strings"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
+	"connectrpc.com/connect/v2/connectproto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	"github.com/team-loco/loco/gen/go/loco/build/v1/buildv1connect"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
@@ -27,7 +31,7 @@ import (
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/gen/go/loco/secret/v1/secretv1connect"
-	"google.golang.org/protobuf/types/known/timestamppb"
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 const (
@@ -108,13 +112,16 @@ func newFakePlatform() *fakePlatform {
 }
 
 func (f *fakeAPI) registerPlatform(mux *http.ServeMux) {
-	mux.Handle(resourcev1connect.NewResourceServiceHandler(&fakeResourceService{api: f}))
-	mux.Handle(domainv1connect.NewDomainServiceHandler(&fakeDomainService{api: f}))
-	mux.Handle(environmentv1connect.NewEnvironmentServiceHandler(&fakeEnvironmentService{api: f}))
-	mux.Handle(buildv1connect.NewBuildServiceHandler(&fakeBuildService{api: f}))
-	mux.Handle(observabilityv1connect.NewObservabilityAccessServiceHandler(&fakeAccessService{api: f}))
-	mux.Handle(observabilityv1connect.NewObservabilityProxyServiceHandler(&fakeProxyService{api: f}))
-	mux.Handle(secretv1connect.NewSecretServiceHandler(&fakeSecretService{api: f}))
+	server := connect.NewServer()
+	resourcev1connect.RegisterResourceServiceHandler(server, &fakeResourceService{api: f})
+	domainv1connect.RegisterDomainServiceHandler(server, &fakeDomainService{api: f})
+	environmentv1connect.RegisterEnvironmentServiceHandler(server, &fakeEnvironmentService{api: f})
+	buildv1connect.RegisterBuildServiceHandler(server, &fakeBuildService{api: f})
+	observabilityv1connect.RegisterObservabilityAccessServiceHandler(server, &fakeAccessService{api: f})
+	observabilityv1connect.RegisterObservabilityProxyServiceHandler(server, &fakeProxyService{api: f})
+	secretv1connect.RegisterSecretServiceHandler(server, &fakeSecretService{api: f})
+	connecthttp.Mount(mux, server)
+
 	mux.HandleFunc(uploadPathPrefix, f.handleUpload)
 	f.registerPlan(mux)
 }
@@ -252,31 +259,39 @@ type fakeResourceService struct {
 }
 
 func (s *fakeResourceService) GetResource(
-	_ context.Context,
-	req *connect.Request[resourcev1.GetResourceRequest],
-) (*connect.Response[resourcev1.GetResourceResponse], error) {
+	ctx context.Context,
+	req *resourcev1.GetResourceRequest,
+) (*resourcev1.GetResourceResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
 	f := s.api
-	if _, _, err := f.authenticate(req.Spec(), req.Header()); err != nil {
+	if _, _, err := f.authenticate(
+		connect.Spec{Procedure: resourcev1connect.ResourceServiceGetResourceProcedure},
+		info.RequestHeader(),
+	); err != nil {
 		return nil, err
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	for _, res := range f.platform.resources {
-		byName := req.Msg.GetNameKey().GetName() != "" && res.GetName() == req.Msg.GetNameKey().GetName()
-		byID := req.Msg.GetResourceId() != "" && res.GetId() == req.Msg.GetResourceId()
+		byName := req.GetNameKey().GetName() != "" && res.GetName() == req.GetNameKey().GetName()
+		byID := req.GetResourceId() != "" && res.GetId() == req.GetResourceId()
 		if byName || byID {
-			return connect.NewResponse(&resourcev1.GetResourceResponse{Resource: res}), nil
+			return &resourcev1.GetResourceResponse{Resource: res}, nil
 		}
 	}
-	return nil, connect.NewError(connect.CodeNotFound, errFakeResourceNotFound)
+	return nil, rpcerr.New(connect.CodeNotFound, errFakeResourceNotFound)
 }
 
 func (s *fakeResourceService) CreateResource(
-	_ context.Context,
-	req *connect.Request[resourcev1.CreateResourceRequest],
-) (*connect.Response[resourcev1.CreateResourceResponse], error) {
+	ctx context.Context,
+	req *resourcev1.CreateResourceRequest,
+) (*resourcev1.CreateResourceResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
 	f := s.api
-	if _, _, err := f.authenticate(req.Spec(), req.Header()); err != nil {
+	if _, _, err := f.authenticate(
+		connect.Spec{Procedure: resourcev1connect.ResourceServiceCreateResourceProcedure},
+		info.RequestHeader(),
+	); err != nil {
 		return nil, err
 	}
 	f.mu.Lock()
@@ -284,72 +299,84 @@ func (s *fakeResourceService) CreateResource(
 	id := fmt.Sprintf("00000000-0000-7000-8000-%012d", len(f.platform.resources)+1)
 	resource := &resourcev1.Resource{
 		Id:          id,
-		WorkspaceId: req.Msg.GetWorkspaceId(),
-		Name:        req.Msg.GetName(),
+		WorkspaceId: req.GetWorkspaceId(),
+		Name:        req.GetName(),
 	}
-	if input := req.Msg.GetDomain(); input != nil {
+	if input := req.GetDomain(); input != nil {
 		if input.GetPlatformDomainId() != fakePlatformDomainID {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errFakeUnknownPlatformDomain)
+			return nil, rpcerr.New(connect.CodeInvalidArgument, errFakeUnknownPlatformDomain)
 		}
 		hostname := input.GetSubdomain() + "." + fakePlatformDomain
 		resource.Domains = []*domainv1.ResourceDomain{{ResourceId: id, Domain: hostname, IsPrimary: true}}
 	}
 	f.platform.resources = append(f.platform.resources, resource)
-	return connect.NewResponse(&resourcev1.CreateResourceResponse{ResourceId: id}), nil
+	return &resourcev1.CreateResourceResponse{ResourceId: id}, nil
 }
 
 func (s *fakeResourceService) ListRegions(
-	_ context.Context,
-	req *connect.Request[resourcev1.ListRegionsRequest],
-) (*connect.Response[resourcev1.ListRegionsResponse], error) {
-	if _, _, err := s.api.authenticate(req.Spec(), req.Header()); err != nil {
+	ctx context.Context,
+	_ *resourcev1.ListRegionsRequest,
+) (*resourcev1.ListRegionsResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
+	if _, _, err := s.api.authenticate(
+		connect.Spec{Procedure: resourcev1connect.ResourceServiceListRegionsProcedure},
+		info.RequestHeader(),
+	); err != nil {
 		return nil, err
 	}
 	regions := []*resourcev1.RegionInfo{
 		{Region: fakeSecondaryRegion},
 		{Region: fakeDefaultRegion, IsDefault: true},
 	}
-	return connect.NewResponse(&resourcev1.ListRegionsResponse{Regions: regions}), nil
+	return &resourcev1.ListRegionsResponse{Regions: regions}, nil
 }
 
 func (s *fakeResourceService) TransferPartial(
-	_ context.Context,
-	req *connect.Request[resourcev1.TransferPartialRequest],
-) (*connect.Response[resourcev1.TransferPartialResponse], error) {
+	ctx context.Context,
+	req *resourcev1.TransferPartialRequest,
+) (*resourcev1.TransferPartialResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
 	f := s.api
-	if _, _, err := f.authenticate(req.Spec(), req.Header()); err != nil {
+	if _, _, err := f.authenticate(
+		connect.Spec{Procedure: resourcev1connect.ResourceServiceTransferPartialProcedure},
+		info.RequestHeader(),
+	); err != nil {
 		return nil, err
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	for _, res := range f.platform.resources {
-		if res.GetId() == req.Msg.GetResourceId() {
-			partial := req.Msg.GetPartial()
+		if res.GetId() == req.GetResourceId() {
+			partial := req.GetPartial()
 			res.Partial = &partial
-			return connect.NewResponse(&resourcev1.TransferPartialResponse{}), nil
+			return &resourcev1.TransferPartialResponse{}, nil
 		}
 	}
-	return nil, connect.NewError(connect.CodeNotFound, errFakeResourceNotFound)
+	return nil, rpcerr.New(connect.CodeNotFound, errFakeResourceNotFound)
 }
 
 func (s *fakeResourceService) ScaleResource(
-	_ context.Context,
-	req *connect.Request[resourcev1.ScaleResourceRequest],
-) (*connect.Response[resourcev1.ScaleResourceResponse], error) {
+	ctx context.Context,
+	req *resourcev1.ScaleResourceRequest,
+) (*resourcev1.ScaleResourceResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
 	f := s.api
-	if _, _, err := f.authenticate(req.Spec(), req.Header()); err != nil {
+	if _, _, err := f.authenticate(
+		connect.Spec{Procedure: resourcev1connect.ResourceServiceScaleResourceProcedure},
+		info.RequestHeader(),
+	); err != nil {
 		return nil, err
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	knownEnvironment := slices.ContainsFunc(f.platform.environments, func(env *environmentv1.Environment) bool {
-		return env.GetId() == req.Msg.GetEnvironmentId()
+		return env.GetId() == req.GetEnvironmentId()
 	})
 	if !knownEnvironment {
-		return nil, connect.NewError(connect.CodeNotFound, errFakeEnvironmentNotFound)
+		return nil, rpcerr.New(connect.CodeNotFound, errFakeEnvironmentNotFound)
 	}
-	f.platform.scales = append(f.platform.scales, req.Msg)
-	return connect.NewResponse(&resourcev1.ScaleResourceResponse{}), nil
+	f.platform.scales = append(f.platform.scales, req)
+	return &resourcev1.ScaleResourceResponse{}, nil
 }
 
 type fakeDomainService struct {
@@ -359,15 +386,19 @@ type fakeDomainService struct {
 }
 
 func (s *fakeDomainService) ListPlatformDomains(
-	_ context.Context,
-	req *connect.Request[domainv1.ListPlatformDomainsRequest],
-) (*connect.Response[domainv1.ListPlatformDomainsResponse], error) {
-	if _, _, err := s.api.authenticate(req.Spec(), req.Header()); err != nil {
+	ctx context.Context,
+	_ *domainv1.ListPlatformDomainsRequest,
+) (*domainv1.ListPlatformDomainsResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
+	if _, _, err := s.api.authenticate(
+		connect.Spec{Procedure: domainv1connect.DomainServiceListPlatformDomainsProcedure},
+		info.RequestHeader(),
+	); err != nil {
 		return nil, err
 	}
 	platformDomain := &domainv1.PlatformDomain{Id: fakePlatformDomainID, Domain: fakePlatformDomain, IsActive: true}
 	resp := &domainv1.ListPlatformDomainsResponse{PlatformDomains: []*domainv1.PlatformDomain{platformDomain}}
-	return connect.NewResponse(resp), nil
+	return resp, nil
 }
 
 type fakeEnvironmentService struct {
@@ -377,16 +408,20 @@ type fakeEnvironmentService struct {
 }
 
 func (s *fakeEnvironmentService) ListEnvironments(
-	_ context.Context,
-	req *connect.Request[environmentv1.ListEnvironmentsRequest],
-) (*connect.Response[environmentv1.ListEnvironmentsResponse], error) {
+	ctx context.Context,
+	_ *environmentv1.ListEnvironmentsRequest,
+) (*environmentv1.ListEnvironmentsResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
 	f := s.api
-	if _, _, err := f.authenticate(req.Spec(), req.Header()); err != nil {
+	if _, _, err := f.authenticate(
+		connect.Spec{Procedure: environmentv1connect.EnvironmentServiceListEnvironmentsProcedure},
+		info.RequestHeader(),
+	); err != nil {
 		return nil, err
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return connect.NewResponse(&environmentv1.ListEnvironmentsResponse{Environments: f.platform.environments}), nil
+	return &environmentv1.ListEnvironmentsResponse{Environments: f.platform.environments}, nil
 }
 
 type fakeBuildService struct {
@@ -396,11 +431,15 @@ type fakeBuildService struct {
 }
 
 func (s *fakeBuildService) CreateBuild(
-	_ context.Context,
-	req *connect.Request[buildv1.CreateBuildRequest],
-) (*connect.Response[buildv1.CreateBuildResponse], error) {
+	ctx context.Context,
+	req *buildv1.CreateBuildRequest,
+) (*buildv1.CreateBuildResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
 	f := s.api
-	if _, _, err := f.authenticate(req.Spec(), req.Header()); err != nil {
+	if _, _, err := f.authenticate(
+		connect.Spec{Procedure: buildv1connect.BuildServiceCreateBuildProcedure},
+		info.RequestHeader(),
+	); err != nil {
 		return nil, err
 	}
 	f.mu.Lock()
@@ -408,35 +447,39 @@ func (s *fakeBuildService) CreateBuild(
 	if f.platform.buildsUnavailable == "CreateBuild" {
 		return nil, fakeBuildsUnavailable()
 	}
-	size := req.Msg.GetSourceSize()
+	size := req.GetSourceSize()
 	if size > f.platform.sourceLimit {
 		tooLarge := fmt.Errorf("source is %d bytes, over the %d byte limit", size, f.platform.sourceLimit)
-		return nil, connect.NewError(connect.CodeInvalidArgument, tooLarge)
+		return nil, rpcerr.New(connect.CodeInvalidArgument, tooLarge)
 	}
 	id := fmt.Sprintf("0199b6c4-5d1e-7f00-8000-%012d", len(f.platform.builds)+1)
 	f.platform.builds = append(f.platform.builds, &buildv1.Build{
 		Id:              id,
-		ResourceId:      req.Msg.GetResourceId(),
+		ResourceId:      req.GetResourceId(),
 		Status:          buildv1.BuildStatus_BUILD_STATUS_AWAITING_UPLOAD,
 		SourceType:      sourceTypeUpload,
 		SourceSize:      size,
-		DockerfilePath:  req.Msg.GetDockerfilePath(),
-		Context:         req.Msg.GetContext(),
+		DockerfilePath:  req.GetDockerfilePath(),
+		Context:         req.GetContext(),
 		ImageRepository: fakeImageRepo,
 		CreatedAt:       timestamppb.Now(),
 	})
-	return connect.NewResponse(&buildv1.CreateBuildResponse{
+	return &buildv1.CreateBuildResponse{
 		BuildId:   id,
 		UploadUrl: f.platform.baseURL + uploadPathPrefix + id,
-	}), nil
+	}, nil
 }
 
 func (s *fakeBuildService) StartBuild(
-	_ context.Context,
-	req *connect.Request[buildv1.StartBuildRequest],
-) (*connect.Response[buildv1.StartBuildResponse], error) {
+	ctx context.Context,
+	req *buildv1.StartBuildRequest,
+) (*buildv1.StartBuildResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
 	f := s.api
-	if _, _, err := f.authenticate(req.Spec(), req.Header()); err != nil {
+	if _, _, err := f.authenticate(
+		connect.Spec{Procedure: buildv1connect.BuildServiceStartBuildProcedure},
+		info.RequestHeader(),
+	); err != nil {
 		return nil, err
 	}
 	f.mu.Lock()
@@ -444,25 +487,25 @@ func (s *fakeBuildService) StartBuild(
 	if f.platform.buildsUnavailable == "StartBuild" {
 		return nil, fakeBuildsUnavailable()
 	}
-	build := f.findBuild(req.Msg.GetBuildId())
+	build := f.findBuild(req.GetBuildId())
 	if build == nil {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("build not found"))
+		return nil, connect.NewError(connect.CodeNotFound, "build not found")
 	}
 	if _, ok := f.platform.uploads[build.GetId()]; !ok {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("source not uploaded"))
+		return nil, connect.NewError(connect.CodeFailedPrecondition, "source not uploaded")
 	}
 	build.Status = buildv1.BuildStatus_BUILD_STATUS_QUEUED
-	return connect.NewResponse(&buildv1.StartBuildResponse{Build: build}), nil
+	return &buildv1.StartBuildResponse{Build: build}, nil
 }
 
 func fakeBuildsUnavailable() *connect.Error {
 	reason := errors.New("no cluster in this install accepts builds")
-	connectErr := connect.NewError(connect.CodeFailedPrecondition, reason)
-	detail, err := connect.NewErrorDetail(&buildv1.BuildsUnavailable{})
+	connectErr := rpcerr.New(connect.CodeFailedPrecondition, reason)
+	detail, err := connectproto.NewErrorDetail(&buildv1.BuildsUnavailable{})
 	if err != nil {
 		panic(err)
 	}
-	connectErr.AddDetail(detail)
+	connectErr = connectErr.WithDetail(detail)
 	return connectErr
 }
 
@@ -490,63 +533,75 @@ func (f *fakeAPI) advance(build *buildv1.Build) {
 }
 
 func (s *fakeBuildService) GetBuild(
-	_ context.Context,
-	req *connect.Request[buildv1.GetBuildRequest],
-) (*connect.Response[buildv1.GetBuildResponse], error) {
+	ctx context.Context,
+	req *buildv1.GetBuildRequest,
+) (*buildv1.GetBuildResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
 	f := s.api
-	if _, _, err := f.authenticate(req.Spec(), req.Header()); err != nil {
+	if _, _, err := f.authenticate(
+		connect.Spec{Procedure: buildv1connect.BuildServiceGetBuildProcedure},
+		info.RequestHeader(),
+	); err != nil {
 		return nil, err
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	build := f.findBuild(req.Msg.GetBuildId())
+	build := f.findBuild(req.GetBuildId())
 	if build == nil {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("build not found"))
+		return nil, connect.NewError(connect.CodeNotFound, "build not found")
 	}
 	if build.GetStatus() == buildv1.BuildStatus_BUILD_STATUS_QUEUED ||
 		build.GetStatus() == buildv1.BuildStatus_BUILD_STATUS_RUNNING {
 		f.advance(build)
 	}
-	return connect.NewResponse(&buildv1.GetBuildResponse{Build: build}), nil
+	return &buildv1.GetBuildResponse{Build: build}, nil
 }
 
 func (s *fakeBuildService) ListBuilds(
-	_ context.Context,
-	req *connect.Request[buildv1.ListBuildsRequest],
-) (*connect.Response[buildv1.ListBuildsResponse], error) {
+	ctx context.Context,
+	req *buildv1.ListBuildsRequest,
+) (*buildv1.ListBuildsResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
 	f := s.api
-	if _, _, err := f.authenticate(req.Spec(), req.Header()); err != nil {
+	if _, _, err := f.authenticate(
+		connect.Spec{Procedure: buildv1connect.BuildServiceListBuildsProcedure},
+		info.RequestHeader(),
+	); err != nil {
 		return nil, err
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	var builds []*buildv1.Build
 	for _, b := range slices.Backward(f.platform.builds) {
-		if b.GetResourceId() == req.Msg.GetResourceId() {
+		if b.GetResourceId() == req.GetResourceId() {
 			builds = append(builds, b)
 		}
 	}
-	return connect.NewResponse(&buildv1.ListBuildsResponse{Builds: builds}), nil
+	return &buildv1.ListBuildsResponse{Builds: builds}, nil
 }
 
 func (s *fakeBuildService) CancelBuild(
-	_ context.Context,
-	req *connect.Request[buildv1.CancelBuildRequest],
-) (*connect.Response[buildv1.CancelBuildResponse], error) {
+	ctx context.Context,
+	req *buildv1.CancelBuildRequest,
+) (*buildv1.CancelBuildResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
 	f := s.api
-	if _, _, err := f.authenticate(req.Spec(), req.Header()); err != nil {
+	if _, _, err := f.authenticate(
+		connect.Spec{Procedure: buildv1connect.BuildServiceCancelBuildProcedure},
+		info.RequestHeader(),
+	); err != nil {
 		return nil, err
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	build := f.findBuild(req.Msg.GetBuildId())
+	build := f.findBuild(req.GetBuildId())
 	if build == nil {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("build not found"))
+		return nil, connect.NewError(connect.CodeNotFound, "build not found")
 	}
 	build.Status = buildv1.BuildStatus_BUILD_STATUS_CANCELED
 	build.Message = "canceled by a user"
 	build.FinishedAt = timestamppb.Now()
-	return connect.NewResponse(&buildv1.CancelBuildResponse{Build: build}), nil
+	return &buildv1.CancelBuildResponse{Build: build}, nil
 }
 
 type fakeAccessService struct {
@@ -556,11 +611,15 @@ type fakeAccessService struct {
 }
 
 func (s *fakeAccessService) GetObservabilityAccess(
-	_ context.Context,
-	req *connect.Request[observabilityv1.GetObservabilityAccessRequest],
-) (*connect.Response[observabilityv1.GetObservabilityAccessResponse], error) {
+	ctx context.Context,
+	_ *observabilityv1.GetObservabilityAccessRequest,
+) (*observabilityv1.GetObservabilityAccessResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
 	f := s.api
-	if _, _, err := f.authenticate(req.Spec(), req.Header()); err != nil {
+	if _, _, err := f.authenticate(
+		connect.Spec{Procedure: observabilityv1connect.ObservabilityAccessServiceGetObservabilityAccessProcedure},
+		info.RequestHeader(),
+	); err != nil {
 		return nil, err
 	}
 	f.mu.Lock()
@@ -573,7 +632,7 @@ func (s *fakeAccessService) GetObservabilityAccess(
 			Region:    "us-east-1",
 		}}
 	}
-	return connect.NewResponse(resp), nil
+	return resp, nil
 }
 
 type fakeProxyService struct {
@@ -593,35 +652,43 @@ func fakeLogLines(labels map[string]string, resourceIDs []string) []string {
 }
 
 func (s *fakeProxyService) QueryLogs(
-	_ context.Context,
-	req *connect.Request[observabilityv1.QueryLogsRequest],
-) (*connect.Response[observabilityv1.QueryLogsResponse], error) {
+	ctx context.Context,
+	req *observabilityv1.QueryLogsRequest,
+) (*observabilityv1.QueryLogsResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
 	f := s.api
-	if _, _, err := f.authenticate(req.Spec(), req.Header()); err != nil {
+	if _, _, err := f.authenticate(
+		connect.Spec{Procedure: observabilityv1connect.ObservabilityProxyServiceQueryLogsProcedure},
+		info.RequestHeader(),
+	); err != nil {
 		return nil, err
 	}
 	f.mu.Lock()
-	f.platform.logQueries = append(f.platform.logQueries, req.Msg)
+	f.platform.logQueries = append(f.platform.logQueries, req)
 	f.mu.Unlock()
 	base := time.Date(2026, 10, 7, 6, 0, 0, 0, time.UTC)
-	lines := fakeLogLines(req.Msg.GetLabels(), req.Msg.GetResourceIds())
+	lines := fakeLogLines(req.GetLabels(), req.GetResourceIds())
 	entries := make([]*observabilityv1.LogEntry, 0, len(lines))
 	for i, line := range lines {
 		ts := base.Add(time.Duration(i) * time.Second)
 		entries = append(entries, &observabilityv1.LogEntry{Timestamp: timestamppb.New(ts), Body: line})
 	}
-	if req.Msg.GetOrder() == observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST {
+	if req.GetOrder() == observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST {
 		slices.Reverse(entries)
 	}
-	return connect.NewResponse(&observabilityv1.QueryLogsResponse{Entries: entries}), nil
+	return &observabilityv1.QueryLogsResponse{Entries: entries}, nil
 }
 
 func (s *fakeProxyService) TailLogs(
 	ctx context.Context,
-	req *connect.Request[observabilityv1.TailLogsRequest],
-	stream *connect.ServerStream[observabilityv1.TailLogsResponse],
+	_ *observabilityv1.TailLogsRequest,
+	stream observabilityv1connect.ObservabilityProxyServiceTailLogsServerStream,
 ) error {
-	if _, _, err := s.api.authenticate(req.Spec(), req.Header()); err != nil {
+	info, _ := connect.CallInfoForServerContext(ctx)
+	if _, _, err := s.api.authenticate(
+		connect.Spec{Procedure: observabilityv1connect.ObservabilityProxyServiceTailLogsProcedure},
+		info.RequestHeader(),
+	); err != nil {
 		return err
 	}
 	entry := &observabilityv1.LogEntry{Timestamp: timestamppb.Now(), Body: "tailed line"}

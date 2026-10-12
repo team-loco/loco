@@ -4,17 +4,18 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"net/http"
 	"strings"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
+
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
-
 	"github.com/team-loco/loco/api/tvm"
+	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
+	"github.com/team-loco/loco/internal/httputil"
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 var errNoToken = errors.New("no bearer token provided")
@@ -40,7 +41,7 @@ func NewAuthInterceptor(
 	}
 }
 
-func extractToken(header http.Header) (string, error) {
+func extractToken(header httputil.HeaderGetter) (string, error) {
 	authHeader := header.Get("Authorization")
 	if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
 		return strings.TrimPrefix(authHeader, "Bearer "), nil
@@ -64,7 +65,7 @@ func isPublicProcedure(procedure string) bool {
 func (i *authInterceptor) authenticate(
 	ctx context.Context,
 	procedure string,
-	header http.Header,
+	header httputil.HeaderGetter,
 ) (context.Context, error) {
 	if isPublicProcedure(procedure) {
 		return ctx, nil
@@ -73,7 +74,7 @@ func (i *authInterceptor) authenticate(
 	token, err := extractToken(header)
 	if err != nil {
 		slog.WarnContext(ctx, "request without a usable token", "procedure", procedure, "error", err)
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
 
 	if auth.LooksLikeJWT(token) && i.verifier.Enabled() {
@@ -83,7 +84,7 @@ func (i *authInterceptor) authenticate(
 	entity, scopes, err := i.machine.GetToken(ctx, token)
 	if err != nil {
 		slog.WarnContext(ctx, "token rejected", "procedure", procedure, "error", err)
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
 
 	c := context.WithValue(ctx, contextkeys.EntityKey, genDb.Entity{
@@ -113,23 +114,23 @@ func (i *authInterceptor) authenticateProviderToken(
 	identity, err := i.verifier.Verify(ctx, token)
 	if err != nil {
 		slog.WarnContext(ctx, "provider token rejected", "procedure", procedure, "error", err)
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
 
 	user, err := i.resolver.Resolve(ctx, identity)
 	if err != nil {
 		if rejected, ok := errors.AsType[*auth.SignupRejectedError](err); ok {
 			slog.InfoContext(ctx, "sign-in rejected", "issuer", identity.Issuer, "reason", rejected.Message)
-			return nil, connect.NewError(connect.CodePermissionDenied, rejected)
+			return nil, rpcerr.New(connect.CodePermissionDenied, rejected)
 		}
 		slog.ErrorContext(ctx, "failed to resolve identity", "issuer", identity.Issuer, "error", err)
-		return nil, connect.NewError(connect.CodeInternal, auth.ErrResolve)
+		return nil, rpcerr.New(connect.CodeInternal, auth.ErrResolve)
 	}
 
 	scopes, err := i.authz.UserScopes(ctx, user.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load user scopes", "userId", user.ID, "error", err)
-		return nil, connect.NewError(connect.CodeInternal, auth.ErrResolve)
+		return nil, rpcerr.New(connect.CodeInternal, auth.ErrResolve)
 	}
 
 	c := context.WithValue(ctx, contextkeys.EntityKey, genDb.Entity{
@@ -142,38 +143,15 @@ func (i *authInterceptor) authenticateProviderToken(
 	return c, nil
 }
 
-func (i *authInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
-	return connect.UnaryFunc(func(
-		ctx context.Context,
-		req connect.AnyRequest,
-	) (connect.AnyResponse, error) {
-		c, err := i.authenticate(ctx, req.Spec().Procedure, req.Header())
-		if err != nil {
-			return nil, err
+func (i *authInterceptor) Interceptor() connect.ServerInterceptor {
+	return func(next connect.ServerFunc) connect.ServerFunc {
+		return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) error {
+			info, _ := connect.CallInfoForServerContext(ctx)
+			authenticated, err := i.authenticate(ctx, spec.Procedure, info.RequestHeader())
+			if err != nil {
+				return err
+			}
+			return next(authenticated, spec, stream)
 		}
-		return next(c, req)
-	})
-}
-
-func (*authInterceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
-	return connect.StreamingClientFunc(func(
-		ctx context.Context,
-		spec connect.Spec,
-	) connect.StreamingClientConn {
-		conn := next(ctx, spec)
-		return conn
-	})
-}
-
-func (i *authInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
-	return connect.StreamingHandlerFunc(func(
-		ctx context.Context,
-		conn connect.StreamingHandlerConn,
-	) error {
-		c, err := i.authenticate(ctx, conn.Spec().Procedure, conn.RequestHeader())
-		if err != nil {
-			return err
-		}
-		return next(c, conn)
-	})
+	}
 }

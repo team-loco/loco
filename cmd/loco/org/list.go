@@ -5,29 +5,31 @@ import (
 	"io"
 	"os"
 
-	"connectrpc.com/connect"
+	"github.com/team-loco/loco/internal/rpc"
+
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
-	"github.com/team-loco/loco/internal/httputil"
 )
 
 type listDeps struct {
-	NewOrgClient  func(host string) orgv1connect.OrgServiceClient
-	NewUserClient func(host string) userv1connect.UserServiceClient
+	NewOrgClient  func(host, token string) orgv1connect.OrgServiceClient
+	NewUserClient func(host, token string) userv1connect.UserServiceClient
 	Output        io.Writer
 }
 
 func buildListCmd() *cobra.Command {
 	deps := listDeps{
-		NewOrgClient: func(host string) orgv1connect.OrgServiceClient {
-			return orgv1connect.NewOrgServiceClient(httputil.NewHTTPClient(), host)
+		NewOrgClient: func(host, token string) orgv1connect.OrgServiceClient {
+			orgClients := rpc.ForHost(host, token)
+			return orgClients.Org
 		},
-		NewUserClient: func(host string) userv1connect.UserServiceClient {
-			return userv1connect.NewUserServiceClient(httputil.NewHTTPClient(), host)
+		NewUserClient: func(host, token string) userv1connect.UserServiceClient {
+			userClients := rpc.ForHost(host, token)
+			return userClients.User
 		},
 		Output: os.Stdout,
 	}
@@ -54,35 +56,32 @@ func newListCmd(deps listDeps) *cobra.Command {
 				return err
 			}
 
-			orgClient := deps.NewOrgClient(host)
-			userClient := deps.NewUserClient(host)
-			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
+			orgClient := deps.NewOrgClient(host, locoToken.Token)
+			userClient := deps.NewUserClient(host, locoToken.Token)
 
-			whoAmIReq := connect.NewRequest(&userv1.WhoAmIRequest{})
-			whoAmIReq.Header().Set("Authorization", authHeader)
+			whoAmIReq := &userv1.WhoAmIRequest{}
 
 			whoAmIResp, err := userClient.WhoAmI(ctx, whoAmIReq)
 			if err != nil {
 				return fmt.Errorf("unable to get current user: %w", err)
 			}
 
-			req := connect.NewRequest(&orgv1.ListUserOrgsRequest{
-				UserId: whoAmIResp.Msg.GetUser().GetId(),
-			})
-			req.Header().Set("Authorization", authHeader)
+			req := &orgv1.ListUserOrgsRequest{
+				UserId: whoAmIResp.GetUser().GetId(),
+			}
 
 			resp, err := orgClient.ListUserOrgs(ctx, req)
 			if err != nil {
 				return fmt.Errorf("unable to list organizations: %w", err)
 			}
 
-			if len(resp.Msg.GetOrgs()) == 0 {
+			if len(resp.GetOrgs()) == 0 {
 				fmt.Fprintln(deps.Output, "No organizations found.")
 				return nil
 			}
 
 			fmt.Fprintln(deps.Output, "Organizations:")
-			for _, org := range resp.Msg.GetOrgs() {
+			for _, org := range resp.GetOrgs() {
 				fmt.Fprintf(deps.Output, "  - %s (ID: %s)\n", org.GetName(), org.GetId())
 			}
 

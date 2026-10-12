@@ -9,29 +9,31 @@ import (
 	"strings"
 	"time"
 
-	"connectrpc.com/connect"
+	"github.com/team-loco/loco/internal/rpc"
+
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
-	"github.com/team-loco/loco/internal/httputil"
 )
 
 type listDeps struct {
-	NewTokenClient func(host string) tokenv1connect.TokenServiceClient
-	NewUserClient  func(host string) userv1connect.UserServiceClient
+	NewTokenClient func(host, token string) tokenv1connect.TokenServiceClient
+	NewUserClient  func(host, token string) userv1connect.UserServiceClient
 	Output         io.Writer
 }
 
 func buildListCmd() *cobra.Command {
 	deps := listDeps{
-		NewTokenClient: func(host string) tokenv1connect.TokenServiceClient {
-			return tokenv1connect.NewTokenServiceClient(httputil.NewHTTPClient(), host)
+		NewTokenClient: func(host, token string) tokenv1connect.TokenServiceClient {
+			tokenClients := rpc.ForHost(host, token)
+			return tokenClients.Token
 		},
-		NewUserClient: func(host string) userv1connect.UserServiceClient {
-			return userv1connect.NewUserServiceClient(httputil.NewHTTPClient(), host)
+		NewUserClient: func(host, token string) userv1connect.UserServiceClient {
+			userClients := rpc.ForHost(host, token)
+			return userClients.User
 		},
 		Output: os.Stdout,
 	}
@@ -64,9 +66,8 @@ func newListCmd(deps listDeps) *cobra.Command {
 				return err
 			}
 
-			tokenClient := deps.NewTokenClient(host)
-			userClient := deps.NewUserClient(host)
-			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
+			tokenClient := deps.NewTokenClient(host, locoToken.Token)
+			userClient := deps.NewUserClient(host, locoToken.Token)
 
 			entityTypeStr, err := cmd.Flags().GetString("entity-type")
 			if err != nil {
@@ -82,23 +83,22 @@ func newListCmd(deps listDeps) *cobra.Command {
 				return err
 			}
 
-			entityID, err := resolveEntityID(ctx, userClient, authHeader, entityType, entityTypeStr, entityIDInt)
+			entityID, err := resolveEntityID(ctx, userClient, entityType, entityTypeStr, entityIDInt)
 			if err != nil {
 				return err
 			}
 
-			req := connect.NewRequest(&tokenv1.ListTokensRequest{
+			req := &tokenv1.ListTokensRequest{
 				EntityType: entityType,
 				EntityId:   entityID,
-			})
-			req.Header().Set("Authorization", authHeader)
+			}
 
 			resp, err := tokenClient.ListTokens(ctx, req)
 			if err != nil {
 				return fmt.Errorf("failed to list tokens: %w", err)
 			}
 
-			tokens := resp.Msg.GetTokens()
+			tokens := resp.GetTokens()
 			if len(tokens) == 0 {
 				fmt.Fprintln(deps.Output, "No tokens found.")
 				return nil
@@ -135,7 +135,6 @@ func newListCmd(deps listDeps) *cobra.Command {
 func resolveEntityID(
 	ctx context.Context,
 	userClient userv1connect.UserServiceClient,
-	authHeader string,
 	entityType tokenv1.EntityType,
 	entityTypeStr string,
 	entityIDInt int64,
@@ -144,7 +143,7 @@ func resolveEntityID(
 	case entityIDInt != 0:
 		return strconv.FormatInt(entityIDInt, 10), nil
 	case entityType == tokenv1.EntityType_ENTITY_TYPE_USER:
-		return getCurrentUserID(ctx, userClient, authHeader)
+		return getCurrentUserID(ctx, userClient)
 	default:
 		return "", fmt.Errorf("--entity-id is required for entity type %q", entityTypeStr)
 	}
@@ -153,16 +152,14 @@ func resolveEntityID(
 func getCurrentUserID(
 	ctx context.Context,
 	userClient userv1connect.UserServiceClient,
-	authHeader string,
 ) (string, error) {
-	whoAmIReq := connect.NewRequest(&userv1.WhoAmIRequest{})
-	whoAmIReq.Header().Set("Authorization", authHeader)
+	whoAmIReq := &userv1.WhoAmIRequest{}
 
 	whoAmIResp, err := userClient.WhoAmI(ctx, whoAmIReq)
 	if err != nil {
 		return "", fmt.Errorf("failed to get current user: %w", err)
 	}
-	return whoAmIResp.Msg.GetUser().GetId(), nil
+	return whoAmIResp.GetUser().GetId(), nil
 }
 
 func formatScopes(scopes []*tokenv1.EntityScope) string {

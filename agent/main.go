@@ -14,7 +14,8 @@ import (
 	"syscall"
 	"time"
 
-	"connectrpc.com/connect"
+	"github.com/team-loco/loco/internal/rpc"
+
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/team-loco/loco/agent/pkg/applier"
@@ -59,10 +60,8 @@ func main() {
 	}
 	httpClient := &http.Client{Transport: transport}
 
-	client := agentv1connect.NewAgentServiceClient(
-		httpClient,
-		cfg.ControlPlaneURL,
-	)
+	clients := rpc.NewHTTPClients(httpClient, cfg.ControlPlaneURL, cfg.AgentToken)
+	agentClient := clients.Agent
 
 	restConfig, err := kube.RestConfig(cfg.Kubeconfig)
 	if err != nil {
@@ -119,7 +118,7 @@ func main() {
 
 	agent := &Agent{
 		cfg:           cfg,
-		client:        client,
+		client:        agentClient,
 		applier:       kubeApplier,
 		inspector:     inspector,
 		watcher:       watcher,
@@ -199,23 +198,22 @@ func (a *Agent) Run(ctx context.Context) error {
 // register announces the agent to the control plane.
 func (a *Agent) register(ctx context.Context) error {
 	capacity := a.getCapacity(ctx)
-	req := connect.NewRequest(&agentv1.RegisterRequest{
+	req := &agentv1.RegisterRequest{
 		AgentVersion:  a.cfg.AgentVersion,
 		Capacity:      capacity,
 		BuildsEnabled: a.buildsEnabled,
-	})
-	req.Header().Set("Authorization", "Bearer "+a.cfg.AgentToken)
+	}
 
 	resp, err := a.client.Register(ctx, req)
 	if err != nil {
 		return fmt.Errorf("register RPC failed: %w", err)
 	}
 
-	heartbeatInterval := resp.Msg.GetHeartbeatInterval().AsDuration()
+	heartbeatInterval := resp.GetHeartbeatInterval().AsDuration()
 	if heartbeatInterval <= 0 {
 		return fmt.Errorf("%w: %s", errInvalidHeartbeatInterval, heartbeatInterval)
 	}
-	a.clusterID = resp.Msg.GetClusterId()
+	a.clusterID = resp.GetClusterId()
 	a.heartbeatInterval = heartbeatInterval
 	slog.InfoContext(ctx, "registered with control plane",
 		"cluster_id", a.clusterID,
@@ -255,7 +253,7 @@ func (a *Agent) reconnectLoop(ctx context.Context, name string, attempt func(con
 }
 
 type syncSession struct {
-	stream   *connect.BidiStreamForClient[agentv1.SyncRequest, agentv1.SyncResponse]
+	stream   agentv1connect.AgentServiceSyncClientStream
 	outbound chan *agentv1.SyncRequest
 	done     <-chan struct{}
 }
@@ -285,8 +283,10 @@ func (a *Agent) syncLoop(ctx context.Context) error {
 	streamCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	stream := a.client.Sync(streamCtx)
-	stream.RequestHeader().Set("Authorization", "Bearer "+a.cfg.AgentToken)
+	stream, err := a.client.Sync(streamCtx)
+	if err != nil {
+		return err
+	}
 
 	session := &syncSession{
 		stream:   stream,
@@ -309,7 +309,7 @@ func (a *Agent) syncLoop(ctx context.Context) error {
 		closeStream(ctx, "sync stream", stream)
 	}()
 
-	err := a.sendInventory(streamCtx, func(inventory *agentv1.Inventory) error {
+	err = a.sendInventory(streamCtx, func(inventory *agentv1.Inventory) error {
 		request := inventoryRequest(inventory)
 		if sendErr := stream.Send(request); sendErr != nil {
 			openErr := streamError(stream, sendErr)
@@ -369,7 +369,7 @@ func (a *Agent) syncLoop(ctx context.Context) error {
 
 func receiveSync(
 	ctx context.Context,
-	stream *connect.BidiStreamForClient[agentv1.SyncRequest, agentv1.SyncResponse],
+	stream agentv1connect.AgentServiceSyncClientStream,
 	received chan<- *agentv1.SyncResponse,
 	recvErr chan<- error,
 ) {
@@ -500,16 +500,25 @@ func envSecretOf(secret *agentv1.EnvSecret) *applier.EnvSecret {
 	return &applier.EnvSecret{Revision: secret.GetRevision(), Data: secret.GetData()}
 }
 
-func closeStream[Req, Res any](ctx context.Context, name string, stream *connect.BidiStreamForClient[Req, Res]) {
-	if err := stream.CloseRequest(); err != nil {
+type streamCloser interface {
+	CloseSend() error
+	Close() error
+}
+
+type streamReceiver[Res any] interface {
+	Receive() (*Res, error)
+}
+
+func closeStream(ctx context.Context, name string, stream streamCloser) {
+	if err := stream.CloseSend(); err != nil {
 		slog.DebugContext(ctx, "close "+name+" request", "error", err)
 	}
-	if err := stream.CloseResponse(); err != nil {
+	if err := stream.Close(); err != nil {
 		slog.DebugContext(ctx, "close "+name+" response", "error", err)
 	}
 }
 
-func streamError[Req, Res any](stream *connect.BidiStreamForClient[Req, Res], sendErr error) error {
+func streamError[Res any](stream streamReceiver[Res], sendErr error) error {
 	if !errors.Is(sendErr, io.EOF) {
 		return sendErr
 	}

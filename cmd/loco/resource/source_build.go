@@ -12,7 +12,9 @@ import (
 	"strings"
 	"syscall"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2/connectproto"
+
+	"connectrpc.com/connect/v2"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	"github.com/team-loco/loco/internal/sourcepack"
 )
@@ -57,11 +59,6 @@ type BuildInput struct {
 	Context     string
 }
 
-func (b *SourceBuilder) authorize(req connect.AnyRequest) {
-	authorization := authHeaderFor(b.follower.token)
-	req.Header().Set("Authorization", authorization)
-}
-
 // PackedArchive prints what an archive holds, as the deploy reports it before the first build.
 func PackedArchive(out io.Writer, archive *sourcepack.Archive, dir string) {
 	packedSize := formatBytes(archive.Size)
@@ -83,9 +80,8 @@ func (b *SourceBuilder) Build(ctx context.Context, in BuildInput) (*buildv1.Buil
 		return nil, uploadErr
 	}
 
-	startReq := connect.NewRequest(&buildv1.StartBuildRequest{BuildId: buildID})
-	b.authorize(startReq)
-	client := b.follower.clients.Builds(b.follower.host)
+	startReq := &buildv1.StartBuildRequest{BuildId: buildID}
+	client := b.follower.clients.Builds(b.follower.host, b.follower.token)
 	started, err := client.StartBuild(ctx, startReq)
 	if unavailable := buildsUnavailable(err); unavailable != nil {
 		return nil, unavailable
@@ -94,7 +90,7 @@ func (b *SourceBuilder) Build(ctx context.Context, in BuildInput) (*buildv1.Buil
 		return nil, fmt.Errorf("start build %s: %w", buildID, err)
 	}
 
-	queued := started.Msg.GetBuild()
+	queued := started.GetBuild()
 	build, err := b.follower.follow(ctx, queued, in.WorkspaceID)
 	if err != nil {
 		return nil, err
@@ -107,14 +103,13 @@ func (b *SourceBuilder) Build(ctx context.Context, in BuildInput) (*buildv1.Buil
 }
 
 func (b *SourceBuilder) createBuild(ctx context.Context, in BuildInput) (*buildv1.CreateBuildResponse, error) {
-	req := connect.NewRequest(&buildv1.CreateBuildRequest{
+	req := &buildv1.CreateBuildRequest{
 		ResourceId:     in.ResourceID,
 		DockerfilePath: in.Dockerfile,
 		SourceSize:     in.Archive.Size,
 		Context:        in.Context,
-	})
-	b.authorize(req)
-	client := b.follower.clients.Builds(b.follower.host)
+	}
+	client := b.follower.clients.Builds(b.follower.host, b.follower.token)
 	resp, err := client.CreateBuild(ctx, req)
 	if unavailable := buildsUnavailable(err); unavailable != nil {
 		return nil, unavailable
@@ -125,7 +120,7 @@ func (b *SourceBuilder) createBuild(ctx context.Context, in BuildInput) (*buildv
 	if err != nil {
 		return nil, fmt.Errorf("create build: %w", err)
 	}
-	return resp.Msg, nil
+	return resp, nil
 }
 
 func buildsUnavailable(err error) error {
@@ -134,7 +129,7 @@ func buildsUnavailable(err error) error {
 		return nil
 	}
 	for _, detail := range connectErr.Details() {
-		value, valueErr := detail.Value()
+		value, valueErr := connectproto.UnmarshalErrorDetail(detail)
 		if valueErr != nil {
 			continue
 		}

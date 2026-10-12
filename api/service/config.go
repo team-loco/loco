@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 
-	"connectrpc.com/connect"
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
@@ -43,9 +42,9 @@ func NewConfigServer(
 
 func (s *ConfigServer) GetConfig(
 	_ context.Context,
-	_ *connect.Request[configv1.GetConfigRequest],
-) (*connect.Response[configv1.GetConfigResponse], error) {
-	return connect.NewResponse(&configv1.GetConfigResponse{
+	_ *configv1.GetConfigRequest,
+) (*configv1.GetConfigResponse, error) {
+	return &configv1.GetConfigResponse{
 		MinCliVersion: s.minCLIVersion,
 		SchemaUrl:     s.schemaURL,
 		Auth:          s.auth,
@@ -84,5 +83,5 @@ func (s *ConfigServer) GetConfig(
 			},
 			PlatformDomain: s.platformDomain,
 		},
-	}), nil
+	}, nil
 }

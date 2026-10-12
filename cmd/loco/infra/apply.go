@@ -11,8 +11,10 @@ import (
 	"strings"
 	"time"
 
+	"connectrpc.com/connect/v2/connectproto"
+
 	"charm.land/lipgloss/v2"
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
@@ -183,7 +185,7 @@ func requestApply(
 	ctx, cancel := context.WithTimeout(ctx, applyTimeout)
 	defer cancel()
 
-	req := connect.NewRequest(&planv1.ApplyRequest{
+	req := &planv1.ApplyRequest{
 		File:               file,
 		EnvironmentId:      t.environmentID,
 		Revision:           revision,
@@ -192,8 +194,8 @@ func requestApply(
 		Images:             images,
 		Builds:             scope.builds,
 		Provision:          scope.provision,
-	})
-	req.Header().Set("Authorization", t.authHeader)
+	}
+
 	resp, err := t.planClient().Apply(ctx, req)
 	if err != nil {
 		if refusal := applyRefusal(err); refusal != nil {
@@ -205,7 +207,7 @@ func requestApply(
 		}
 		return nil, fmt.Errorf("apply: %w", err)
 	}
-	return resp.Msg, nil
+	return resp, nil
 }
 
 func applyRefusal(err error) *planv1.ApplyRefusal {
@@ -214,7 +216,7 @@ func applyRefusal(err error) *planv1.ApplyRefusal {
 		return nil
 	}
 	for _, detail := range connectErr.Details() {
-		value, valueErr := detail.Value()
+		value, valueErr := connectproto.UnmarshalErrorDetail(detail)
 		if valueErr != nil {
 			continue
 		}

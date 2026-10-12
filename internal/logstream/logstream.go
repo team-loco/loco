@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"maps"
 	"slices"
 	"strings"
 	"sync"
 	"time"
 
-	"connectrpc.com/connect"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -48,34 +48,23 @@ type Emit func(entry *observabilityv1.LogEntry) error
 
 type Client struct {
 	Token     string
-	NewClient func(url string) observabilityv1connect.ObservabilityProxyServiceClient
-}
-
-func bearer(token string) string {
-	return "Bearer " + token
-}
-
-func (c *Client) authorize(req connect.AnyRequest) {
-	authorization := bearer(c.Token)
-	req.Header().Set("Authorization", authorization)
+	NewClient func(url, token string) observabilityv1connect.ObservabilityProxyServiceClient
 }
 
 func Proxies(
 	ctx context.Context,
 	access observabilityv1connect.ObservabilityAccessServiceClient,
-	token string,
 	workspaceID string,
 	clusterID string,
 ) ([]Proxy, error) {
-	req := connect.NewRequest(&observabilityv1.GetObservabilityAccessRequest{WorkspaceId: workspaceID})
-	authorization := bearer(token)
-	req.Header().Set("Authorization", authorization)
+	req := &observabilityv1.GetObservabilityAccessRequest{WorkspaceId: workspaceID}
+
 	resp, err := access.GetObservabilityAccess(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("look up log proxies: %w", err)
 	}
 	var proxies []Proxy
-	for _, cluster := range resp.Msg.GetClusters() {
+	for _, cluster := range resp.GetClusters() {
 		id := cluster.GetClusterId()
 		url := cluster.GetProxyUrl()
 		if clusterID != "" && id != clusterID {
@@ -160,7 +149,7 @@ func (c *Client) query(
 	start, end time.Time,
 	limit int32,
 ) ([]*observabilityv1.LogEntry, error) {
-	client := c.NewClient(proxy.URL)
+	client := c.NewClient(proxy.URL, c.Token)
 	order := observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST
 	size := int32(pageSize)
 	if limit > 0 {
@@ -172,7 +161,7 @@ func (c *Client) query(
 	var entries []*observabilityv1.LogEntry
 	cursor := ""
 	for {
-		req := connect.NewRequest(&observabilityv1.QueryLogsRequest{
+		req := &observabilityv1.QueryLogsRequest{
 			WorkspaceId: filter.WorkspaceID,
 			ResourceIds: filter.ResourceIDs,
 			Labels:      filter.Labels,
@@ -181,15 +170,15 @@ func (c *Client) query(
 			Limit:       size,
 			Cursor:      cursor,
 			Order:       order,
-		})
-		c.authorize(req)
+		}
+
 		resp, err := client.QueryLogs(ctx, req)
 		if err != nil {
 			return nil, fmt.Errorf("query logs in %s: %w", proxy.Region, err)
 		}
-		page := resp.Msg.GetEntries()
+		page := resp.GetEntries()
 		entries = append(entries, page...)
-		cursor = resp.Msg.GetNextCursor()
+		cursor = resp.GetNextCursor()
 		if cursor == "" || (limit > 0 && len(entries) >= int(limit)) {
 			return entries, nil
 		}
@@ -228,23 +217,29 @@ func (c *Client) Tail(ctx context.Context, proxies []Proxy, filter Filter, since
 }
 
 func (c *Client) tailProxy(ctx context.Context, proxy Proxy, filter Filter, since time.Time, emit Emit) error {
-	client := c.NewClient(proxy.URL)
+	client := c.NewClient(proxy.URL, c.Token)
 	seen := newOverlap(since)
 	for {
 		start := timestamppb.New(seen.latest)
-		req := connect.NewRequest(&observabilityv1.TailLogsRequest{
+		req := &observabilityv1.TailLogsRequest{
 			WorkspaceId: filter.WorkspaceID,
 			ResourceIds: filter.ResourceIDs,
 			Labels:      filter.Labels,
 			Since:       start,
-		})
-		c.authorize(req)
+		}
+
 		stream, err := client.TailLogs(ctx, req)
 		if err != nil {
 			return tailError(ctx, proxy, err)
 		}
-		for stream.Receive() {
-			entry := stream.Msg().GetEntry()
+		var receiveErr error
+		for {
+			msg, err := stream.Receive()
+			if err != nil {
+				receiveErr = err
+				break
+			}
+			entry := msg.GetEntry()
 			if entry == nil || !seen.fresh(entry) {
 				continue
 			}
@@ -253,7 +248,10 @@ func (c *Client) tailProxy(ctx context.Context, proxy Proxy, filter Filter, sinc
 				return errors.Join(emitErr, closeErr)
 			}
 		}
-		streamErr := stream.Err()
+		if errors.Is(receiveErr, io.EOF) {
+			receiveErr = nil
+		}
+		streamErr := receiveErr
 		closeErr := stream.Close()
 		if stopped(ctx) {
 			return nil

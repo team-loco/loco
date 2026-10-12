@@ -2,11 +2,12 @@ package service
 
 import (
 	"context"
-	"net/http/httptest"
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2/connectinprocess"
+
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/clusternotify"
@@ -252,16 +253,10 @@ func startSyncServerWithSources(
 		t.Fatalf("start notifier: %v", err)
 	}
 	server := NewAgentServer(f.pool, f.queries, notifier, sources, nil, testHeartbeatInterval)
-	_, handler := agentv1connect.NewAgentServiceHandler(server)
-
-	srv := httptest.NewUnstartedServer(handler)
-	srv.EnableHTTP2 = true
-	srv.StartTLS()
-	t.Cleanup(func() {
-		srv.CloseClientConnections()
-		srv.Close()
-	})
-	return agentv1connect.NewAgentServiceClient(srv.Client(), srv.URL)
+	rpcServer := connect.NewServer()
+	agentv1connect.RegisterAgentServiceHandler(rpcServer, server)
+	transport := connectinprocess.New(rpcServer)
+	return agentv1connect.NewAgentServiceClient(connect.NewClient(transport))
 }
 
 type syncResult struct {
@@ -275,8 +270,12 @@ func openSync(
 	client agentv1connect.AgentServiceClient,
 ) <-chan syncResult {
 	t.Helper()
-	stream := client.Sync(ctx)
-	stream.RequestHeader().Set("Authorization", "Bearer "+testAgentToken)
+	ctx, info := connect.NewClientContext(ctx)
+	info.RequestHeader().Set("Authorization", "Bearer "+testAgentToken)
+	stream, err := client.Sync(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 	inventory := &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Inventory{Inventory: &agentv1.Inventory{}}}
 	if err := stream.Send(inventory); err != nil {
 		t.Fatalf("send inventory: %v", err)
@@ -343,14 +342,16 @@ func TestSyncStreamDeliversChangesAndYieldsToANewerStream(t *testing.T) {
 func TestSyncStreamRejectsUnknownAgents(t *testing.T) {
 	f := newDeployFixture(t)
 	client := startSyncServer(t, f)
-	ctx := t.Context()
-
-	stream := client.Sync(ctx)
-	stream.RequestHeader().Set("Authorization", "Bearer wrong")
+	ctx, info := connect.NewClientContext(t.Context())
+	info.RequestHeader().Set("Authorization", "Bearer wrong")
+	stream, err := client.Sync(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if sendErr := stream.Send(&agentv1.SyncRequest{}); sendErr != nil {
 		t.Logf("send: %v", sendErr)
 	}
-	_, err := stream.Receive()
+	_, err = stream.Receive()
 	if connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("err = %v, want unauthenticated", err)
 	}

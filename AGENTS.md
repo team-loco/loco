@@ -7,7 +7,7 @@
 ## Architecture
 
 - **CLI**: Go app using Cobra + Charm libraries (Bubble Tea, Lipgloss) for terminal UI
-- **API Server**: Go with ConnectRPC (gRPC over HTTP), PostgreSQL database
+- **API Server**: Go with ConnectRPC on connect-go v2 (`connectrpc.com/connect/v2`), PostgreSQL database
 - **Infrastructure**: Kubernetes with Cilium networking, Envoy Gateway, cert-manager, OpenTelemetry, ClickHouse metrics read through the observability proxy
 - **Key modules**: `api/` (ConnectRPC services), `cmd/loco/` (CLI commands), `agent/` (in-cluster agent), `controller/` (kubebuilder operator), `k8sapi/` (CRD types), `internal/` (shared logic), `web/` (dashboard), `gen/` (generated protobuf types)
 
@@ -73,6 +73,19 @@ Builds, tests, code generation, linting and the local environment are mise tasks
 - **Magic numbers**: no unexplained literals in logic (`5 << 20`, `1024`, `65535`, timeouts, limits, ports). Tunable values belong in the config struct; the rest are named `const`s at the top of the file. Before submitting, check the whole change for any you missed.
 - **Names**: never use numbered suffixes (`uniqueJSONErr2`, `uniqueJSONErr3`). Name each value after what it holds.
 - **Nested calls**: name a call's result in a local before passing it to another call or a struct literal.
+
+## ConnectRPC traps
+
+- Set response headers before calling the next interceptor: unary responses are
+  written inside that call, so headers set afterward are lost. Server interceptors
+  run before decoding; keep authentication at that boundary.
+- Config and Agent stay outside the authenticated server. Preserve that interceptor
+  boundary, and include both servers when deriving reflection's service list.
+- Connect scrubs plain handler errors and errors forwarded from another RPC. Map
+  forwarded errors explicitly. `rpcerr.New(code, err)` exposes `err.Error()` to the
+  client; use explicit public messages with `WithCause` for private diagnostics.
+- The 4 MiB per-message read limit is deliberate. Do not add
+  `connecthttp.WithReadMaxBytes(0)` to work around a rejected request.
 
 ## Repo Hygiene
 

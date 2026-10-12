@@ -7,10 +7,10 @@ import (
 	"log/slog"
 	"time"
 
-	"connectrpc.com/connect"
+	"github.com/team-loco/loco/internal/rpc"
+
 	"github.com/spf13/cobra"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
-	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/keychain"
 )
@@ -87,16 +87,17 @@ func refreshLocoToken(
 	defer cancel()
 
 	httpClient := httputil.NewHTTPClient()
-	authClient := authv1connect.NewAuthServiceClient(httpClient, host)
-	req := connect.NewRequest(&authv1.RefreshCLITokenRequest{
+	authClients := rpc.NewHTTPClients(httpClient, host, "")
+	authClient := authClients.Auth
+	req := &authv1.RefreshCLITokenRequest{
 		RefreshToken: refreshToken,
-	})
+	}
 	resp, err := authClient.RefreshCLIToken(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	newToken := TokenFromCLITokens(host, resp.Msg.GetTokens())
+	newToken := TokenFromCLITokens(host, resp.GetTokens())
 	if err = store.Set(*newToken); err != nil {
 		return nil, err
 	}

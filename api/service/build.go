@@ -8,10 +8,13 @@ import (
 	"strings"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connectproto"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/contextkeys"
@@ -20,7 +23,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
 	timeutil "github.com/team-loco/loco/api/timeutil"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
-	"google.golang.org/protobuf/types/known/timestamppb"
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 const (
@@ -88,13 +91,13 @@ func (s *BuildServer) enabled() bool {
 }
 
 func buildsUnavailable(reason error) *connect.Error {
-	connectErr := connect.NewError(connect.CodeFailedPrecondition, reason)
-	detail, err := connect.NewErrorDetail(&buildv1.BuildsUnavailable{})
+	connectErr := rpcerr.New(connect.CodeFailedPrecondition, reason)
+	detail, err := connectproto.NewErrorDetail(&buildv1.BuildsUnavailable{})
 	if err != nil {
 		slog.Error("failed to attach the builds unavailable detail", "error", err)
 		return connectErr
 	}
-	connectErr.AddDetail(detail)
+	connectErr = connectErr.WithDetail(detail)
 	return connectErr
 }
 
@@ -102,13 +105,13 @@ func (s *BuildServer) authorize(ctx context.Context, action actions.Action, reso
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return connect.NewError(connect.CodeInternal, errEntityScopesMissing)
+		return rpcerr.New(connect.CodeInternal, errEntityScopesMissing)
 	}
 	resourceIDStr := resourceID.String()
 	scope := actions.New(action, resourceIDStr)
 	if err := s.authz.Check(ctx, scopes, scope); err != nil {
 		slog.WarnContext(ctx, "unauthorized build request", "resourceId", resourceIDStr)
-		return connect.NewError(connect.CodePermissionDenied, err)
+		return connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 	return nil
 }
@@ -132,19 +135,17 @@ func buildSourceKey(buildID uuid.UUID) string {
 
 func (s *BuildServer) CreateBuild(
 	ctx context.Context,
-	req *connect.Request[buildv1.CreateBuildRequest],
-) (*connect.Response[buildv1.CreateBuildResponse], error) {
-	r := req.Msg
-
+	req *buildv1.CreateBuildRequest,
+) (*buildv1.CreateBuildResponse, error) {
 	if !s.enabled() {
 		return nil, buildsUnavailable(ErrBuildsNotEnabled)
 	}
 
-	rawResourceID := r.GetResourceId()
+	rawResourceID := req.GetResourceId()
 	resourceID, err := uuid.Parse(rawResourceID)
 	if err != nil {
 		invalid := fmt.Errorf("invalid resource_id: %w", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, invalid)
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidResourceID).WithCause(invalid)
 	}
 
 	if authErr := s.authorize(ctx, actions.CreateBuild, resourceID); authErr != nil {
@@ -157,28 +158,28 @@ func (s *BuildServer) CreateBuild(
 
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	sourceSize := r.GetSourceSize()
+	sourceSize := req.GetSourceSize()
 	if sourceSize > s.config.SourceMaxBytes {
 		tooLarge := fmt.Errorf("source is %d bytes, over the %d byte limit", sourceSize, s.config.SourceMaxBytes)
-		return nil, connect.NewError(connect.CodeInvalidArgument, tooLarge)
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicSourceTooLarge).WithCause(tooLarge)
 	}
 
 	resource, err := s.queries.GetResourceByID(ctx, resourceID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
+		return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
 	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get resource", "error", err, "resourceId", resourceID)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
 	buildID, err := uuid.NewV7()
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to generate build id", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 	sourceKey := buildSourceKey(buildID)
 
@@ -186,12 +187,12 @@ func (s *BuildServer) CreateBuild(
 	uploadURL, err := s.bucket.PresignPut(ctx, sourceKey, sourceSize, buildUploadURLTTL)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to presign source upload", "error", err, "buildId", buildID)
-		return nil, connect.NewError(connect.CodeInternal, errUploadURLFailed)
+		return nil, rpcerr.New(connect.CodeInternal, errUploadURLFailed)
 	}
 
 	repository := imageRepository(s.config.RegistryHost, s.config.RegistryPrefix, resource.WorkspaceID, resource.ID)
-	dockerfilePath := r.GetDockerfilePath()
-	buildContext := r.GetContext()
+	dockerfilePath := req.GetDockerfilePath()
+	buildContext := req.GetContext()
 	if buildContext == "" {
 		buildContext = defaultBuildContext
 	}
@@ -220,30 +221,28 @@ func (s *BuildServer) CreateBuild(
 	})
 	if createErr != nil {
 		slog.ErrorContext(ctx, "failed to create build", "error", createErr, "resourceId", resource.ID)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
 	expiresAt := issuedAt.Add(buildUploadURLTTL)
 	uploadExpiresAt := timestamppb.New(expiresAt)
 	buildIDStr := buildID.String()
-	return connect.NewResponse(&buildv1.CreateBuildResponse{
+	return &buildv1.CreateBuildResponse{
 		BuildId:         buildIDStr,
 		UploadUrl:       uploadURL,
 		UploadExpiresAt: uploadExpiresAt,
-	}), nil
+	}, nil
 }
 
 func (s *BuildServer) StartBuild(
 	ctx context.Context,
-	req *connect.Request[buildv1.StartBuildRequest],
-) (*connect.Response[buildv1.StartBuildResponse], error) {
-	r := req.Msg
-
+	req *buildv1.StartBuildRequest,
+) (*buildv1.StartBuildResponse, error) {
 	if !s.enabled() {
 		return nil, buildsUnavailable(ErrBuildsNotEnabled)
 	}
 
-	rawBuildID := r.GetBuildId()
+	rawBuildID := req.GetBuildId()
 	build, err := s.getBuild(ctx, rawBuildID)
 	if err != nil {
 		return nil, err
@@ -255,20 +254,20 @@ func (s *BuildServer) StartBuild(
 
 	if build.Status != genDb.BuildStatusAwaitingUpload {
 		notAwaiting := fmt.Errorf("build is %s, not awaiting upload", build.Status)
-		return nil, connect.NewError(connect.CodeFailedPrecondition, notAwaiting)
+		return nil, rpcerr.New(connect.CodeFailedPrecondition, notAwaiting)
 	}
 
 	size, err := s.bucket.ObjectSize(ctx, build.SourceKey)
 	if errors.Is(err, sourcebucket.ErrObjectNotFound) {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errSourceNotUploaded)
+		return nil, rpcerr.New(connect.CodeFailedPrecondition, errSourceNotUploaded)
 	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check uploaded source", "error", err, "buildId", build.ID)
-		return nil, connect.NewError(connect.CodeInternal, errSourceCheckFailed)
+		return nil, rpcerr.New(connect.CodeInternal, errSourceCheckFailed)
 	}
 	if size != build.SourceSize {
 		mismatch := fmt.Errorf("the uploaded source is %d bytes, expected %d", size, build.SourceSize)
-		return nil, connect.NewError(connect.CodeFailedPrecondition, mismatch)
+		return nil, rpcerr.New(connect.CodeFailedPrecondition, mismatch)
 	}
 
 	clusterID, err := s.buildCluster(ctx)
@@ -279,10 +278,10 @@ func (s *BuildServer) StartBuild(
 	superseded, txErr := queueBuild(ctx, s.db, build.ID, build.ResourceID, clusterID)
 	if txErr != nil {
 		if errors.Is(txErr, errBuildNotQueueable) {
-			return nil, connect.NewError(connect.CodeFailedPrecondition, txErr)
+			return nil, rpcerr.New(connect.CodeFailedPrecondition, txErr)
 		}
 		slog.ErrorContext(ctx, "failed to queue build", "error", txErr, "buildId", build.ID)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 	deleteBuildSources(ctx, s.queries, s.bucket, superseded...)
 
@@ -291,7 +290,7 @@ func (s *BuildServer) StartBuild(
 		return nil, err
 	}
 	queuedProto := buildToProto(queued)
-	return connect.NewResponse(&buildv1.StartBuildResponse{Build: queuedProto}), nil
+	return &buildv1.StartBuildResponse{Build: queuedProto}, nil
 }
 
 func (s *BuildServer) buildCluster(ctx context.Context) (uuid.UUID, error) {
@@ -301,7 +300,7 @@ func (s *BuildServer) buildCluster(ctx context.Context) (uuid.UUID, error) {
 	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get build cluster", "error", err)
-		return uuid.UUID{}, connect.NewError(connect.CodeInternal, ErrDB)
+		return uuid.UUID{}, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 	return clusterID, nil
 }
@@ -399,9 +398,9 @@ func deleteBuildSources(ctx context.Context, queries genDb.Querier, bucket Sourc
 
 func (s *BuildServer) GetBuild(
 	ctx context.Context,
-	req *connect.Request[buildv1.GetBuildRequest],
-) (*connect.Response[buildv1.GetBuildResponse], error) {
-	rawBuildID := req.Msg.GetBuildId()
+	req *buildv1.GetBuildRequest,
+) (*buildv1.GetBuildResponse, error) {
+	rawBuildID := req.GetBuildId()
 	build, err := s.getBuild(ctx, rawBuildID)
 	if err != nil {
 		return nil, err
@@ -412,35 +411,33 @@ func (s *BuildServer) GetBuild(
 	}
 
 	buildProto := buildToProto(build)
-	return connect.NewResponse(&buildv1.GetBuildResponse{Build: buildProto}), nil
+	return &buildv1.GetBuildResponse{Build: buildProto}, nil
 }
 
 func (s *BuildServer) ListBuilds(
 	ctx context.Context,
-	req *connect.Request[buildv1.ListBuildsRequest],
-) (*connect.Response[buildv1.ListBuildsResponse], error) {
-	r := req.Msg
-
-	rawResourceID := r.GetResourceId()
+	req *buildv1.ListBuildsRequest,
+) (*buildv1.ListBuildsResponse, error) {
+	rawResourceID := req.GetResourceId()
 	resourceID, err := uuid.Parse(rawResourceID)
 	if err != nil {
 		invalid := fmt.Errorf("invalid resource_id: %w", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, invalid)
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidResourceID).WithCause(invalid)
 	}
 
 	if authErr := s.authorize(ctx, actions.ListBuilds, resourceID); authErr != nil {
 		return nil, authErr
 	}
 
-	requestedPageSize := r.GetPageSize()
+	requestedPageSize := req.GetPageSize()
 	pageSize := normalizePageSize(requestedPageSize)
 
 	var pageToken *string
-	if rawToken := r.GetPageToken(); rawToken != "" {
+	if rawToken := req.GetPageToken(); rawToken != "" {
 		cursorID, decodeErr := decodeCursor(rawToken)
 		if decodeErr != nil {
 			invalid := fmt.Errorf("invalid page_token: %w", decodeErr)
-			return nil, connect.NewError(connect.CodeInvalidArgument, invalid)
+			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(invalid)
 		}
 		pageToken = &cursorID
 	}
@@ -452,7 +449,7 @@ func (s *BuildServer) ListBuilds(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list builds", "error", err, "resourceId", resourceID)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
 	builds := make([]*buildv1.Build, 0, len(rows))
@@ -467,17 +464,17 @@ func (s *BuildServer) ListBuilds(
 		nextPageToken = encodeCursor(lastID)
 	}
 
-	return connect.NewResponse(&buildv1.ListBuildsResponse{
+	return &buildv1.ListBuildsResponse{
 		Builds:        builds,
 		NextPageToken: nextPageToken,
-	}), nil
+	}, nil
 }
 
 func (s *BuildServer) CancelBuild(
 	ctx context.Context,
-	req *connect.Request[buildv1.CancelBuildRequest],
-) (*connect.Response[buildv1.CancelBuildResponse], error) {
-	rawBuildID := req.Msg.GetBuildId()
+	req *buildv1.CancelBuildRequest,
+) (*buildv1.CancelBuildResponse, error) {
+	rawBuildID := req.GetBuildId()
 	build, err := s.getBuild(ctx, rawBuildID)
 	if err != nil {
 		return nil, err
@@ -489,10 +486,10 @@ func (s *BuildServer) CancelBuild(
 
 	if cancelErr := cancelBuild(ctx, s.db, s.queries, s.bucket, build.ID, build.ResourceID); cancelErr != nil {
 		if errors.Is(cancelErr, errBuildNotCancelable) {
-			return nil, connect.NewError(connect.CodeFailedPrecondition, cancelErr)
+			return nil, rpcerr.New(connect.CodeFailedPrecondition, cancelErr)
 		}
 		slog.ErrorContext(ctx, "failed to cancel build", "error", cancelErr, "buildId", build.ID)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
 	canceled, err := s.getBuild(ctx, rawBuildID)
@@ -500,7 +497,7 @@ func (s *BuildServer) CancelBuild(
 		return nil, err
 	}
 	canceledProto := buildToProto(canceled)
-	return connect.NewResponse(&buildv1.CancelBuildResponse{Build: canceledProto}), nil
+	return &buildv1.CancelBuildResponse{Build: canceledProto}, nil
 }
 
 func cancelBuild(
@@ -547,15 +544,15 @@ func (s *BuildServer) getBuild(ctx context.Context, rawID string) (genDb.Build, 
 	buildID, err := uuid.Parse(rawID)
 	if err != nil {
 		invalid := fmt.Errorf("invalid build_id: %w", err)
-		return genDb.Build{}, connect.NewError(connect.CodeInvalidArgument, invalid)
+		return genDb.Build{}, connect.NewError(connect.CodeInvalidArgument, publicInvalidBuildID).WithCause(invalid)
 	}
 	build, err := s.queries.GetBuildByID(ctx, buildID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return genDb.Build{}, connect.NewError(connect.CodeNotFound, ErrBuildNotFound)
+		return genDb.Build{}, rpcerr.New(connect.CodeNotFound, ErrBuildNotFound)
 	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get build", "error", err, "buildId", buildID)
-		return genDb.Build{}, connect.NewError(connect.CodeInternal, ErrDB)
+		return genDb.Build{}, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 	return build, nil
 }

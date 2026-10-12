@@ -6,23 +6,24 @@ import (
 	"os"
 	"strconv"
 
-	"connectrpc.com/connect"
+	"github.com/team-loco/loco/internal/rpc"
+
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
-	"github.com/team-loco/loco/internal/httputil"
 )
 
 type createDeps struct {
-	NewWorkspaceClient func(host string) workspacev1connect.WorkspaceServiceClient
+	NewWorkspaceClient func(host, token string) workspacev1connect.WorkspaceServiceClient
 	Output             io.Writer
 }
 
 func buildCreateCmd() *cobra.Command {
 	deps := createDeps{
-		NewWorkspaceClient: func(host string) workspacev1connect.WorkspaceServiceClient {
-			return workspacev1connect.NewWorkspaceServiceClient(httputil.NewHTTPClient(), host)
+		NewWorkspaceClient: func(host, token string) workspacev1connect.WorkspaceServiceClient {
+			workspaceClients := rpc.ForHost(host, token)
+			return workspaceClients.Workspace
 		},
 		Output: os.Stdout,
 	}
@@ -52,8 +53,7 @@ func newCreateCmd(deps createDeps) *cobra.Command {
 				return err
 			}
 
-			wsClient := deps.NewWorkspaceClient(host)
-			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
+			wsClient := deps.NewWorkspaceClient(host, locoToken.Token)
 
 			name := args[0]
 			orgIDInt, err := cmd.Flags().GetInt64("org-id")
@@ -73,15 +73,14 @@ func newCreateCmd(deps createDeps) *cobra.Command {
 				createReq.Description = &description
 			}
 
-			req := connect.NewRequest(createReq)
-			req.Header().Set("Authorization", authHeader)
+			req := createReq
 
 			resp, err := wsClient.CreateWorkspace(ctx, req)
 			if err != nil {
 				return fmt.Errorf("failed to create workspace: %w", err)
 			}
 
-			fmt.Fprintf(deps.Output, "Workspace %q created successfully (ID: %s)\n", name, resp.Msg.GetWorkspaceId())
+			fmt.Fprintf(deps.Output, "Workspace %q created successfully (ID: %s)\n", name, resp.GetWorkspaceId())
 			return nil
 		},
 	}

@@ -5,7 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2/connectinprocess"
+	"connectrpc.com/connect/v2/connectproto"
+	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
+
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
@@ -33,7 +37,7 @@ func wantBuildsUnavailable(t *testing.T, err error, wantMessage string) {
 		t.Fatalf("message = %q, want %q", connectErr.Message(), wantMessage)
 	}
 	for _, detail := range connectErr.Details() {
-		value, valueErr := detail.Value()
+		value, valueErr := connectproto.UnmarshalErrorDetail(detail)
 		if valueErr != nil {
 			continue
 		}
@@ -78,11 +82,11 @@ func TestCreateBuildFailsBeforeUploadWhenNoClusterAcceptsBuilds(t *testing.T) {
 	f.disableBuilds(t, f.clusterID)
 	f.disableBuilds(t, f.otherCluster)
 
-	req := connect.NewRequest(&buildv1.CreateBuildRequest{
+	req := &buildv1.CreateBuildRequest{
 		ResourceId:     f.resourceID.String(),
 		DockerfilePath: testDockerfile,
 		SourceSize:     10,
-	})
+	}
 	_, err := f.server.CreateBuild(f.ctx, req)
 	wantBuildsUnavailable(t, err, errNoBuildCluster.Error())
 	if len(f.bucket.presigned) != 0 {
@@ -93,11 +97,11 @@ func TestCreateBuildFailsBeforeUploadWhenNoClusterAcceptsBuilds(t *testing.T) {
 func TestBuildServiceWithoutABucketIsUnavailable(t *testing.T) {
 	f := newBuildFixture(t)
 	server := NewBuildServer(f.pool, f.queries, nil, f.server.config)
-	req := connect.NewRequest(&buildv1.CreateBuildRequest{
+	req := &buildv1.CreateBuildRequest{
 		ResourceId:     f.resourceID.String(),
 		DockerfilePath: testDockerfile,
 		SourceSize:     10,
-	})
+	}
 	_, err := server.CreateBuild(f.ctx, req)
 	wantBuildsUnavailable(t, err, ErrBuildsNotEnabled.Error())
 }
@@ -127,15 +131,20 @@ func TestBuildsQueuedOnAClusterThatDisabledBuildsFail(t *testing.T) {
 func TestRegisterAndHeartbeatRecordWhetherTheClusterAcceptsBuilds(t *testing.T) {
 	f := newBuildFixture(t)
 	server := NewAgentServer(f.pool, f.queries, nil, f.bucket, nil, testHeartbeatInterval)
+	rpcServer := connect.NewServer()
+	agentv1connect.RegisterAgentServiceHandler(rpcServer, server)
+	transport := connectinprocess.New(rpcServer)
+	registerClient := agentv1connect.NewAgentServiceClient(connect.NewClient(transport))
 	register := func(enabled bool) {
 		t.Helper()
-		req := connect.NewRequest(&agentv1.RegisterRequest{AgentVersion: "test", BuildsEnabled: enabled})
-		req.Header().Set("Authorization", "Bearer "+testAgentToken)
-		resp, err := server.Register(f.ctx, req)
+		req := &agentv1.RegisterRequest{AgentVersion: "test", BuildsEnabled: enabled}
+		ctx, info := connect.NewClientContext(f.ctx)
+		info.RequestHeader().Set("Authorization", "Bearer "+testAgentToken)
+		resp, err := registerClient.Register(ctx, req)
 		if err != nil {
 			t.Fatalf("register: %v", err)
 		}
-		if got := resp.Msg.GetHeartbeatInterval().AsDuration(); got != testHeartbeatInterval {
+		if got := resp.GetHeartbeatInterval().AsDuration(); got != testHeartbeatInterval {
 			t.Fatalf("heartbeat interval = %s, want %s", got, testHeartbeatInterval)
 		}
 	}
@@ -158,8 +167,12 @@ func TestRegisterAndHeartbeatRecordWhetherTheClusterAcceptsBuilds(t *testing.T) 
 	}
 
 	client := startSyncServerWithSources(t, f.deployFixture, f.bucket)
-	stream := client.Sync(f.ctx)
-	stream.RequestHeader().Set("Authorization", "Bearer "+testAgentToken)
+	ctx, info := connect.NewClientContext(f.ctx)
+	info.RequestHeader().Set("Authorization", "Bearer "+testAgentToken)
+	stream, err := client.Sync(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 	heartbeat := &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Heartbeat{Heartbeat: &agentv1.Heartbeat{}}}
 	if err := stream.Send(heartbeat); err != nil {
 		t.Fatalf("send heartbeat: %v", err)
@@ -171,7 +184,7 @@ func TestRegisterAndHeartbeatRecordWhetherTheClusterAcceptsBuilds(t *testing.T) 
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
-	if err := stream.CloseRequest(); err != nil {
+	if err := stream.CloseSend(); err != nil {
 		t.Fatalf("close sync stream: %v", err)
 	}
 }

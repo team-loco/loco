@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -20,10 +20,10 @@ func transferPartial(t *testing.T, f *deployFixture, partial string) error {
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeAdmin},
 	}
 	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, scopes)
-	req := connect.NewRequest(&resourcev1.TransferPartialRequest{
+	req := &resourcev1.TransferPartialRequest{
 		ResourceId: f.resourceID.String(),
 		Partial:    partial,
-	})
+	}
 	_, err := server.TransferPartial(ctx, req)
 	return err
 }

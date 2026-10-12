@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -31,12 +30,12 @@ func observabilityAccess(t *testing.T, f *deployFixture) []*observabilityv1.Clus
 	scope := genDb.EntityScope{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeRead}
 	scopes := []genDb.EntityScope{scope}
 	ctx = context.WithValue(ctx, contextkeys.EntityScopesKey, scopes)
-	req := connect.NewRequest(&observabilityv1.GetObservabilityAccessRequest{WorkspaceId: workspaceID.String()})
+	req := &observabilityv1.GetObservabilityAccessRequest{WorkspaceId: workspaceID.String()}
 	resp, err := server.GetObservabilityAccess(ctx, req)
 	if err != nil {
 		t.Fatalf("get observability access: %v", err)
 	}
-	return resp.Msg.GetClusters()
+	return resp.GetClusters()
 }
 
 func TestObservabilityAccessIncludesClustersThatRanBuilds(t *testing.T) {

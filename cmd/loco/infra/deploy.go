@@ -13,7 +13,6 @@ import (
 	"slices"
 	"strings"
 
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/resource"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
@@ -237,7 +236,7 @@ func buildServices(
 	if len(targets) == 0 {
 		return nil, nil
 	}
-	token := strings.TrimPrefix(t.authHeader, "Bearer ")
+	token := t.token
 	builder := resource.NewSourceBuilder(t.host, token, out)
 	builds := make(map[string]string, len(targets))
 	for _, target := range targets {
@@ -263,15 +262,15 @@ func buildServices(
 
 func (t target) lookupResource(ctx context.Context, name string) (*resourcev1.Resource, error) {
 	nameKey := &resourcev1.GetResourceNameKey{WorkspaceId: t.workspaceID, Name: name}
-	req := connect.NewRequest(&resourcev1.GetResourceRequest{
+	req := &resourcev1.GetResourceRequest{
 		Key: &resourcev1.GetResourceRequest_NameKey{NameKey: nameKey},
-	})
-	req.Header().Set("Authorization", t.authHeader)
+	}
+
 	resp, err := t.resourceClient().GetResource(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("get service %s: %w", name, err)
 	}
-	return resp.Msg.GetResource(), nil
+	return resp.GetResource(), nil
 }
 
 func writeReachability(w io.Writer, services map[string]locofile.Service) error {

@@ -8,11 +8,13 @@ import (
 	"slices"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/rogpeppe/go-internal/testscript"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 	"github.com/team-loco/loco/gen/go/loco/secret/v1/secretv1connect"
-	"google.golang.org/protobuf/types/known/timestamppb"
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 var errFakeSecretNotFound = errors.New("secret not found")
@@ -40,42 +42,46 @@ type fakeSecretService struct {
 }
 
 func (s *fakeSecretService) SetSecrets(
-	_ context.Context,
-	req *connect.Request[secretv1.SetSecretsRequest],
-) (*connect.Response[secretv1.SetSecretsResponse], error) {
+	ctx context.Context,
+	req *secretv1.SetSecretsRequest,
+) (*secretv1.SetSecretsResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
 	f := s.api
-	if _, _, err := f.authenticate(req.Spec(), req.Header()); err != nil {
+	if _, _, err := f.authenticate(
+		connect.Spec{Procedure: secretv1connect.SecretServiceSetSecretsProcedure},
+		info.RequestHeader(),
+	); err != nil {
 		return nil, err
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if err := f.platform.checkSecretTarget(req.Msg.GetResourceId(), req.Msg.GetEnvironmentId()); err != nil {
+	if err := f.platform.checkSecretTarget(req.GetResourceId(), req.GetEnvironmentId()); err != nil {
 		return nil, err
 	}
-	values := req.Msg.GetValues()
+	values := req.GetValues()
 	names := slices.Sorted(maps.Keys(values))
 	versions := make([]*secretv1.SecretVersion, 0, len(names))
 	for _, name := range names {
-		key := fakeSecretKey{resourceID: req.Msg.GetResourceId(), environmentID: req.Msg.GetEnvironmentId(), name: name}
+		key := fakeSecretKey{resourceID: req.GetResourceId(), environmentID: req.GetEnvironmentId(), name: name}
 		version := f.platform.secrets[key].version + 1
 		f.platform.secrets[key] = fakeSecret{value: values[name], version: version}
 		versions = append(versions, &secretv1.SecretVersion{Name: name, Version: version})
 	}
 	f.platform.revision++
 	resp := &secretv1.SetSecretsResponse{Revision: f.platform.revision, Versions: versions}
-	return connect.NewResponse(resp), nil
+	return resp, nil
 }
 
 func (p *fakePlatform) checkSecretTarget(resourceID, environmentID string) error {
 	if environmentID != fakeEnvironmentID {
-		return connect.NewError(connect.CodeNotFound, errFakeUnknownEnvironment)
+		return rpcerr.New(connect.CodeNotFound, errFakeUnknownEnvironment)
 	}
 	for _, res := range p.resources {
 		if res.GetId() == resourceID {
 			return nil
 		}
 	}
-	return connect.NewError(connect.CodeNotFound, errFakeResourceNotFound)
+	return rpcerr.New(connect.CodeNotFound, errFakeResourceNotFound)
 }
 
 func (p *fakePlatform) secretKey(ts *testscript.TestScript, service, name string) fakeSecretKey {
@@ -89,51 +95,59 @@ func (p *fakePlatform) secretKey(ts *testscript.TestScript, service, name string
 }
 
 func (s *fakeSecretService) DeleteSecrets(
-	_ context.Context,
-	req *connect.Request[secretv1.DeleteSecretsRequest],
-) (*connect.Response[secretv1.DeleteSecretsResponse], error) {
+	ctx context.Context,
+	req *secretv1.DeleteSecretsRequest,
+) (*secretv1.DeleteSecretsResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
 	f := s.api
-	if _, _, err := f.authenticate(req.Spec(), req.Header()); err != nil {
+	if _, _, err := f.authenticate(
+		connect.Spec{Procedure: secretv1connect.SecretServiceDeleteSecretsProcedure},
+		info.RequestHeader(),
+	); err != nil {
 		return nil, err
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if err := f.platform.checkSecretTarget(req.Msg.GetResourceId(), req.Msg.GetEnvironmentId()); err != nil {
+	if err := f.platform.checkSecretTarget(req.GetResourceId(), req.GetEnvironmentId()); err != nil {
 		return nil, err
 	}
-	keys := make([]fakeSecretKey, 0, len(req.Msg.GetNames()))
-	for _, name := range req.Msg.GetNames() {
-		key := fakeSecretKey{resourceID: req.Msg.GetResourceId(), environmentID: req.Msg.GetEnvironmentId(), name: name}
+	keys := make([]fakeSecretKey, 0, len(req.GetNames()))
+	for _, name := range req.GetNames() {
+		key := fakeSecretKey{resourceID: req.GetResourceId(), environmentID: req.GetEnvironmentId(), name: name}
 		keys = append(keys, key)
 		if _, ok := f.platform.secrets[key]; !ok {
 			missing := fmt.Errorf("%w: %s", errFakeSecretNotFound, name)
-			return nil, connect.NewError(connect.CodeNotFound, missing)
+			return nil, rpcerr.New(connect.CodeNotFound, missing)
 		}
 	}
 	for _, key := range keys {
 		delete(f.platform.secrets, key)
 	}
 	f.platform.revision++
-	return connect.NewResponse(&secretv1.DeleteSecretsResponse{Revision: f.platform.revision}), nil
+	return &secretv1.DeleteSecretsResponse{Revision: f.platform.revision}, nil
 }
 
 func (s *fakeSecretService) ListSecrets(
-	_ context.Context,
-	req *connect.Request[secretv1.ListSecretsRequest],
-) (*connect.Response[secretv1.ListSecretsResponse], error) {
+	ctx context.Context,
+	req *secretv1.ListSecretsRequest,
+) (*secretv1.ListSecretsResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
 	f := s.api
-	if _, _, err := f.authenticate(req.Spec(), req.Header()); err != nil {
+	if _, _, err := f.authenticate(
+		connect.Spec{Procedure: secretv1connect.SecretServiceListSecretsProcedure},
+		info.RequestHeader(),
+	); err != nil {
 		return nil, err
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if err := f.platform.checkSecretTarget(req.Msg.GetResourceId(), req.Msg.GetEnvironmentId()); err != nil {
+	if err := f.platform.checkSecretTarget(req.GetResourceId(), req.GetEnvironmentId()); err != nil {
 		return nil, err
 	}
 	updated := time.Date(2026, 10, 7, 6, 0, 0, 0, time.UTC)
 	versions := map[string]int32{}
 	for key, secret := range f.platform.secrets {
-		if key.resourceID == req.Msg.GetResourceId() && key.environmentID == req.Msg.GetEnvironmentId() {
+		if key.resourceID == req.GetResourceId() && key.environmentID == req.GetEnvironmentId() {
 			versions[key.name] = secret.version
 		}
 	}
@@ -149,7 +163,7 @@ func (s *fakeSecretService) ListSecrets(
 			UpdatedAt:     timestamppb.New(updated),
 		})
 	}
-	return connect.NewResponse(&secretv1.ListSecretsResponse{Secrets: secrets}), nil
+	return &secretv1.ListSecretsResponse{Secrets: secrets}, nil
 }
 
 func checkSecret(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {

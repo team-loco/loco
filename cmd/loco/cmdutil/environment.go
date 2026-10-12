@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	"github.com/team-loco/loco/gen/go/loco/environment/v1/environmentv1connect"
@@ -26,10 +25,9 @@ func ResolveEnvironmentID(
 	client environmentv1connect.EnvironmentServiceClient,
 	selectFromList func(title string, options []ui.SelectOption) (any, error),
 	interactive bool,
-	authHeader string,
 	workspaceID string,
 ) (string, error) {
-	env, err := ResolveEnvironment(ctx, cmd, client, selectFromList, interactive, authHeader, workspaceID)
+	env, err := ResolveEnvironment(ctx, cmd, client, selectFromList, interactive, workspaceID)
 	if err != nil {
 		return "", err
 	}
@@ -44,7 +42,6 @@ func ResolveEnvironment(
 	client environmentv1connect.EnvironmentServiceClient,
 	selectFromList func(title string, options []ui.SelectOption) (any, error),
 	interactive bool,
-	authHeader string,
 	workspaceID string,
 ) (*environmentv1.Environment, error) {
 	name, err := cmd.Flags().GetString("env")
@@ -55,13 +52,13 @@ func ResolveEnvironment(
 		name = os.Getenv(envVarEnvironment)
 	}
 
-	req := connect.NewRequest(&environmentv1.ListEnvironmentsRequest{WorkspaceId: workspaceID})
-	req.Header().Set("Authorization", authHeader)
+	req := &environmentv1.ListEnvironmentsRequest{WorkspaceId: workspaceID}
+
 	resp, err := client.ListEnvironments(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("list environments: %w", err)
 	}
-	environments := resp.Msg.GetEnvironments()
+	environments := resp.GetEnvironments()
 	if len(environments) == 0 {
 		return nil, errNoEnvironments
 	}

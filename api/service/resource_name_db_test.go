@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -22,14 +22,14 @@ func getResourceByName(
 	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
 	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, scopes)
 	nameKey := &resourcev1.GetResourceNameKey{WorkspaceId: workspaceID.String(), Name: name}
-	req := connect.NewRequest(&resourcev1.GetResourceRequest{
+	req := &resourcev1.GetResourceRequest{
 		Key: &resourcev1.GetResourceRequest_NameKey{NameKey: nameKey},
-	})
+	}
 	resp, err := server.GetResource(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	return resp.Msg.GetResource(), nil
+	return resp.GetResource(), nil
 }
 
 func TestGetResourceByName(t *testing.T) {

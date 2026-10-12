@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/team-loco/loco/internal/rpc"
+
 	"github.com/team-loco/loco/gen/go/loco/build/v1/buildv1connect"
 	"github.com/team-loco/loco/gen/go/loco/environment/v1/environmentv1connect"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
@@ -19,11 +21,11 @@ const (
 )
 
 type platformClients struct {
-	Resources    func(host string) resourcev1connect.ResourceServiceClient
-	Builds       func(host string) buildv1connect.BuildServiceClient
-	Environments func(host string) environmentv1connect.EnvironmentServiceClient
-	Access       func(host string) observabilityv1connect.ObservabilityAccessServiceClient
-	Proxy        func(url string) observabilityv1connect.ObservabilityProxyServiceClient
+	Resources    func(host, token string) resourcev1connect.ResourceServiceClient
+	Builds       func(host, token string) buildv1connect.BuildServiceClient
+	Environments func(host, token string) environmentv1connect.EnvironmentServiceClient
+	Access       func(host, token string) observabilityv1connect.ObservabilityAccessServiceClient
+	Proxy        func(url, token string) observabilityv1connect.ObservabilityProxyServiceClient
 	Upload       *http.Client
 	PollInterval time.Duration
 	LogDrain     time.Duration
@@ -32,25 +34,25 @@ type platformClients struct {
 func defaultPlatformClients() platformClients {
 	upload := httputil.NewHTTPClient()
 	return platformClients{
-		Resources: func(host string) resourcev1connect.ResourceServiceClient {
-			httpClient := httputil.NewHTTPClient()
-			return resourcev1connect.NewResourceServiceClient(httpClient, host)
+		Resources: func(host, token string) resourcev1connect.ResourceServiceClient {
+			resourceClients := rpc.ForHost(host, token)
+			return resourceClients.Resource
 		},
-		Builds: func(host string) buildv1connect.BuildServiceClient {
-			httpClient := httputil.NewHTTPClient()
-			return buildv1connect.NewBuildServiceClient(httpClient, host)
+		Builds: func(host, token string) buildv1connect.BuildServiceClient {
+			buildClients := rpc.ForHost(host, token)
+			return buildClients.Build
 		},
-		Environments: func(host string) environmentv1connect.EnvironmentServiceClient {
-			httpClient := httputil.NewHTTPClient()
-			return environmentv1connect.NewEnvironmentServiceClient(httpClient, host)
+		Environments: func(host, token string) environmentv1connect.EnvironmentServiceClient {
+			environmentClients := rpc.ForHost(host, token)
+			return environmentClients.Environment
 		},
-		Access: func(host string) observabilityv1connect.ObservabilityAccessServiceClient {
-			httpClient := httputil.NewHTTPClient()
-			return observabilityv1connect.NewObservabilityAccessServiceClient(httpClient, host)
+		Access: func(host, token string) observabilityv1connect.ObservabilityAccessServiceClient {
+			observabilityAccessClients := rpc.ForHost(host, token)
+			return observabilityAccessClients.ObservabilityAccess
 		},
-		Proxy: func(url string) observabilityv1connect.ObservabilityProxyServiceClient {
-			httpClient := httputil.NewHTTPClient()
-			return observabilityv1connect.NewObservabilityProxyServiceClient(httpClient, url)
+		Proxy: func(url, token string) observabilityv1connect.ObservabilityProxyServiceClient {
+			observabilityProxyClients := rpc.ForHost(url, token)
+			return observabilityProxyClients.ObservabilityProxy
 		},
 		Upload:       upload,
 		PollInterval: buildPollInterval,
@@ -60,10 +62,6 @@ func defaultPlatformClients() platformClients {
 
 func (c platformClients) logClient(token string) *logstream.Client {
 	return &logstream.Client{Token: token, NewClient: c.Proxy}
-}
-
-func authHeaderFor(token string) string {
-	return "Bearer " + token
 }
 
 func trimNewline(body string) string {

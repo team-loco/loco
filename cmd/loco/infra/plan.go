@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
@@ -103,13 +102,13 @@ func requestPlan(ctx context.Context, t target, file []byte) (*planv1.PlanRespon
 	ctx, cancel := context.WithTimeout(ctx, planTimeout)
 	defer cancel()
 
-	req := connect.NewRequest(&planv1.PlanRequest{File: file, EnvironmentId: t.environmentID})
-	req.Header().Set("Authorization", t.authHeader)
+	req := &planv1.PlanRequest{File: file, EnvironmentId: t.environmentID}
+
 	resp, err := t.planClient().Plan(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("plan: %w", err)
 	}
-	return resp.Msg, nil
+	return resp, nil
 }
 
 func writeJSON(w io.Writer, plan *planv1.PlanResponse) error {

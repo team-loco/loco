@@ -9,16 +9,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/team-loco/loco/api/events"
-
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/types/known/durationpb"
+
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/clusternotify"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
-	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 var (
@@ -93,27 +93,27 @@ func (s *AgentServer) authenticateAgent(
 // Register announces an agent to the control plane.
 func (s *AgentServer) Register(
 	ctx context.Context,
-	req *connect.Request[agentv1.RegisterRequest],
-) (*connect.Response[agentv1.RegisterResponse], error) {
-	r := req.Msg
+	req *agentv1.RegisterRequest,
+) (*agentv1.RegisterResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
 
 	// Authenticate using bearer token
-	cluster, err := s.authenticateAgent(ctx, req.Header().Get("Authorization"))
+	cluster, err := s.authenticateAgent(ctx, info.RequestHeader().Get("Authorization"))
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
 
 	// Update cluster with agent info
-	agentVersion := r.GetAgentVersion()
-	cpuCores := r.GetCapacity().GetCpuMillicoresTotal()
-	memBytes := r.GetCapacity().GetMemoryBytesTotal()
+	agentVersion := req.GetAgentVersion()
+	cpuCores := req.GetCapacity().GetCpuMillicoresTotal()
+	memBytes := req.GetCapacity().GetMemoryBytesTotal()
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if updateErr := qtx.UpdateClusterAgentInfo(ctx, genDb.UpdateClusterAgentInfoParams{
 			ID:                    cluster.ID,
 			AgentVersion:          &agentVersion,
 			CapacityCpuMillicores: &cpuCores,
 			CapacityMemoryBytes:   &memBytes,
-			BuildsEnabled:         r.GetBuildsEnabled(),
+			BuildsEnabled:         req.GetBuildsEnabled(),
 		}); updateErr != nil {
 			return updateErr
 		}
@@ -128,22 +128,22 @@ func (s *AgentServer) Register(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update cluster agent info", "error", err, "cluster_id", cluster.ID)
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
 	}
 
 	slog.InfoContext(ctx, "agent registered",
 		"cluster_id", cluster.ID,
 		"cluster_name", cluster.Name,
 		"region", cluster.Region,
-		"agent_version", r.GetAgentVersion(),
-		"builds_enabled", r.GetBuildsEnabled(),
+		"agent_version", req.GetAgentVersion(),
+		"builds_enabled", req.GetBuildsEnabled(),
 	)
 
 	heartbeatInterval := durationpb.New(s.heartbeatInterval)
-	return connect.NewResponse(&agentv1.RegisterResponse{
+	return &agentv1.RegisterResponse{
 		ClusterId:         cluster.ID.String(),
 		HeartbeatInterval: heartbeatInterval,
-	}), nil
+	}, nil
 }
 
 func (s *AgentServer) recordHeartbeat(ctx context.Context, clusterID uuid.UUID, heartbeat *agentv1.Heartbeat) {

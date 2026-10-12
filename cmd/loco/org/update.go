@@ -6,26 +6,27 @@ import (
 	"io"
 	"os"
 
-	"connectrpc.com/connect"
+	"github.com/team-loco/loco/internal/rpc"
+
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
-	"github.com/team-loco/loco/internal/httputil"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
 var errNoUpdateFlags = errors.New("at least one update flag is required (e.g., --new-name)")
 
 type updateDeps struct {
-	NewOrgClient func(host string) orgv1connect.OrgServiceClient
+	NewOrgClient func(host, token string) orgv1connect.OrgServiceClient
 	Output       io.Writer
 }
 
 func buildUpdateCmd() *cobra.Command {
 	deps := updateDeps{
-		NewOrgClient: func(host string) orgv1connect.OrgServiceClient {
-			return orgv1connect.NewOrgServiceClient(httputil.NewHTTPClient(), host)
+		NewOrgClient: func(host, token string) orgv1connect.OrgServiceClient {
+			orgClients := rpc.ForHost(host, token)
+			return orgClients.Org
 		},
 		Output: os.Stdout,
 	}
@@ -60,27 +61,24 @@ func newUpdateCmd(deps updateDeps) *cobra.Command {
 				return err
 			}
 
-			orgClient := deps.NewOrgClient(host)
-			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
+			orgClient := deps.NewOrgClient(host, locoToken.Token)
 
 			name := args[0]
 
-			getReq := connect.NewRequest(&orgv1.GetOrgRequest{
+			getReq := &orgv1.GetOrgRequest{
 				Key: &orgv1.GetOrgRequest_OrgName{OrgName: name},
-			})
-			getReq.Header().Set("Authorization", authHeader)
+			}
 
 			getResp, err := orgClient.GetOrg(ctx, getReq)
 			if err != nil {
 				return fmt.Errorf("organization %q not found: %w", name, err)
 			}
 
-			updateReq := connect.NewRequest(&orgv1.UpdateOrgRequest{
-				OrgId:      getResp.Msg.GetOrganization().GetId(),
+			updateReq := &orgv1.UpdateOrgRequest{
+				OrgId:      getResp.GetOrganization().GetId(),
 				UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"name"}},
 				Name:       &newName,
-			})
-			updateReq.Header().Set("Authorization", authHeader)
+			}
 
 			_, err = orgClient.UpdateOrg(ctx, updateReq)
 			if err != nil {

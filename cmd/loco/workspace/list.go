@@ -7,29 +7,27 @@ import (
 	"os"
 	"strconv"
 
-	"connectrpc.com/connect"
+	"github.com/team-loco/loco/internal/rpc"
+
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
-	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
-	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
-	"github.com/team-loco/loco/internal/httputil"
 )
 
 type listDeps struct {
 	WhoAmI func(
 		ctx context.Context,
-		req *connect.Request[userv1.WhoAmIRequest],
-	) (*connect.Response[userv1.WhoAmIResponse], error)
+		req *userv1.WhoAmIRequest,
+	) (*userv1.WhoAmIResponse, error)
 	ListUserWorkspaces func(
 		ctx context.Context,
-		req *connect.Request[workspacev1.ListUserWorkspacesRequest],
-	) (*connect.Response[workspacev1.ListUserWorkspacesResponse], error)
+		req *workspacev1.ListUserWorkspacesRequest,
+	) (*workspacev1.ListUserWorkspacesResponse, error)
 	ListOrgWorkspaces func(
 		ctx context.Context,
-		req *connect.Request[workspacev1.ListOrgWorkspacesRequest],
-	) (*connect.Response[workspacev1.ListOrgWorkspacesResponse], error)
+		req *workspacev1.ListOrgWorkspacesRequest,
+	) (*workspacev1.ListOrgWorkspacesResponse, error)
 	Output io.Writer
 }
 
@@ -56,9 +54,9 @@ func buildListCmd() *cobra.Command {
 				return err
 			}
 
-			httpClient := httputil.NewHTTPClient()
-			wsClient := workspacev1connect.NewWorkspaceServiceClient(httpClient, host)
-			userClient := userv1connect.NewUserServiceClient(httpClient, host)
+			clients := rpc.ForHost(host, locoToken.Token)
+			wsClient := clients.Workspace
+			userClient := clients.User
 
 			deps := listDeps{
 				WhoAmI:             userClient.WhoAmI,
@@ -71,20 +69,18 @@ func buildListCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to get org-id flag: %w", err)
 			}
-			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
 
 			if orgIDInt != 0 {
-				req := connect.NewRequest(&workspacev1.ListOrgWorkspacesRequest{
+				req := &workspacev1.ListOrgWorkspacesRequest{
 					OrgId: strconv.FormatInt(orgIDInt, 10),
-				})
-				req.Header().Set("Authorization", authHeader)
+				}
 
 				resp, err := deps.ListOrgWorkspaces(ctx, req)
 				if err != nil {
 					return fmt.Errorf("failed to list workspaces: %w", err)
 				}
 
-				if len(resp.Msg.GetWorkspaces()) == 0 {
+				if len(resp.GetWorkspaces()) == 0 {
 					_, err = fmt.Fprintln(deps.Output, "No workspaces found in this organization.")
 					return err
 				}
@@ -93,32 +89,30 @@ func buildListCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				for _, ws := range resp.Msg.GetWorkspaces() {
+				for _, ws := range resp.GetWorkspaces() {
 					_, err = fmt.Fprintf(deps.Output, "  - %s (ID: %s)\n", ws.GetName(), ws.GetId())
 					if err != nil {
 						return err
 					}
 				}
 			} else {
-				whoAmIReq := connect.NewRequest(&userv1.WhoAmIRequest{})
-				whoAmIReq.Header().Set("Authorization", authHeader)
+				whoAmIReq := &userv1.WhoAmIRequest{}
 
 				whoAmIResp, err := deps.WhoAmI(ctx, whoAmIReq)
 				if err != nil {
 					return fmt.Errorf("failed to get current user: %w", err)
 				}
 
-				req := connect.NewRequest(&workspacev1.ListUserWorkspacesRequest{
-					UserId: whoAmIResp.Msg.GetUser().GetId(),
-				})
-				req.Header().Set("Authorization", authHeader)
+				req := &workspacev1.ListUserWorkspacesRequest{
+					UserId: whoAmIResp.GetUser().GetId(),
+				}
 
 				resp, err := deps.ListUserWorkspaces(ctx, req)
 				if err != nil {
 					return fmt.Errorf("failed to list workspaces: %w", err)
 				}
 
-				if len(resp.Msg.GetWorkspaces()) == 0 {
+				if len(resp.GetWorkspaces()) == 0 {
 					_, err = fmt.Fprintln(deps.Output, "No workspaces found.")
 					return err
 				}
@@ -127,7 +121,7 @@ func buildListCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				for _, ws := range resp.Msg.GetWorkspaces() {
+				for _, ws := range resp.GetWorkspaces() {
 					_, err = fmt.Fprintf(deps.Output, "  - %s (ID: %s)\n", ws.GetName(), ws.GetId())
 					if err != nil {
 						return err

@@ -10,10 +10,12 @@ import (
 	"os"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
 
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 const (
@@ -33,14 +35,15 @@ type permissionService struct {
 }
 
 func (s *permissionService) CheckPermission(
-	_ context.Context,
-	req *connect.Request[tokenv1.CheckPermissionRequest],
-) (*connect.Response[tokenv1.CheckPermissionResponse], error) {
-	if req.Header().Get("Authorization") != "Bearer "+s.authToken {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errCredentialRejected)
+	ctx context.Context,
+	_ *tokenv1.CheckPermissionRequest,
+) (*tokenv1.CheckPermissionResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
+	if info.RequestHeader().Get("Authorization") != "Bearer "+s.authToken {
+		return nil, rpcerr.New(connect.CodeUnauthenticated, errCredentialRejected)
 	}
 	response := &tokenv1.CheckPermissionResponse{Allowed: false}
-	return connect.NewResponse(response), nil
+	return response, nil
 }
 
 func main() {
@@ -57,9 +60,10 @@ func main() {
 		log.Fatal(err)
 	}
 	service := &permissionService{authToken: *authToken}
-	path, handler := tokenv1connect.NewTokenServiceHandler(service)
+	rpcServer := connect.NewServer()
+	tokenv1connect.RegisterTokenServiceHandler(rpcServer, service)
 	mux := http.NewServeMux()
-	mux.Handle(path, handler)
+	connecthttp.Mount(mux, rpcServer)
 	server := &http.Server{Handler: mux, ReadHeaderTimeout: readHeaderTimeout}
 	address := "http://" + listener.Addr().String()
 	addressBytes := []byte(address)

@@ -8,7 +8,7 @@ import (
 	"slices"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -234,7 +234,8 @@ func (a *applier) platformDomainFor(domain string) (genDb.PlatformDomain, string
 	}
 	matched, label, err := configplan.MatchPlatformDomain(domain, names)
 	if err != nil {
-		return genDb.PlatformDomain{}, "", connect.NewError(connect.CodeInvalidArgument, err)
+		return genDb.PlatformDomain{}, "", connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).
+			WithCause(err)
 	}
 	index := slices.Index(names, matched)
 	return a.platformDomains[index], label, nil

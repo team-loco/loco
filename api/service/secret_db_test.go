@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -62,13 +61,13 @@ func newSecretFixture(t *testing.T) *secretFixture {
 	f := &secretFixture{pool: pool, queries: queries, machine: machine, resolver: auth.NewResolver(pool, policy)}
 	f.ownerID = f.signUp(t, "owner", "owner@secrets.test")
 	ownerCtx := scoped(t, queries, f.ownerID)
-	created, err := NewOrgServer(pool, queries, machine).CreateOrg(ownerCtx, connect.NewRequest(&orgv1.CreateOrgRequest{
+	created, err := NewOrgServer(pool, queries, machine).CreateOrg(ownerCtx, &orgv1.CreateOrgRequest{
 		Name: new("secrets"),
-	}))
+	})
 	if err != nil {
 		t.Fatalf("org: %v", err)
 	}
-	f.orgID = uuid.MustParse(created.Msg.GetOrgId())
+	f.orgID = uuid.MustParse(created.GetOrgId())
 	f.workspaceID = f.workspace(t, "storefront")
 	f.environmentID = f.environment(t, f.workspaceID, "prod")
 	f.resourceID = f.resource(t, f.workspaceID, webService)

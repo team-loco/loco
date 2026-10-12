@@ -3,11 +3,12 @@ package client
 import (
 	"context"
 	"errors"
-	"fmt"
+	"io"
 	"log/slog"
-	"net/http"
 
-	"connectrpc.com/connect"
+	"github.com/team-loco/loco/internal/rpc"
+
+	"connectrpc.com/connect/v2"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
@@ -18,42 +19,25 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
-	"github.com/team-loco/loco/internal/httputil"
 )
 
-// todo: is this too bloated? we likely need to fix this.
-// this is literally impossible to test.
-
 type Client struct {
-	httpClient *http.Client
-
 	User       userv1connect.UserServiceClient
 	Org        orgv1connect.OrgServiceClient
 	Workspace  workspacev1connect.WorkspaceServiceClient
 	Resource   resourcev1connect.ResourceServiceClient
 	Deployment deploymentv1connect.DeploymentServiceClient
-
-	host  string
-	token string
 }
 
 func NewClient(host, token string) *Client {
-	httpClient := httputil.NewHTTPClient()
-
+	clients := rpc.ForHost(host, token)
 	return &Client{
-		host:       host,
-		token:      token,
-		httpClient: httpClient,
-		User:       userv1connect.NewUserServiceClient(httpClient, host),
-		Org:        orgv1connect.NewOrgServiceClient(httpClient, host),
-		Workspace:  workspacev1connect.NewWorkspaceServiceClient(httpClient, host),
-		Resource:   resourcev1connect.NewResourceServiceClient(httpClient, host),
-		Deployment: deploymentv1connect.NewDeploymentServiceClient(httpClient, host),
+		User:       clients.User,
+		Org:        clients.Org,
+		Workspace:  clients.Workspace,
+		Resource:   clients.Resource,
+		Deployment: clients.Deployment,
 	}
-}
-
-func (*Client) WithAuth(ctx context.Context) context.Context {
-	return ctx
 }
 
 // logRequestID extracts and logs the X-Loco-Request-Id only if err is not nil
@@ -66,16 +50,15 @@ func logRequestID(ctx context.Context, err error, msg string) {
 	const requestIDHeaderName = "X-Loco-Request-Id"
 	var headerValue string
 
-	if cErr, ok := errors.AsType[*connect.Error](err); ok {
-		headerValue = cErr.Meta().Get(requestIDHeaderName)
+	if info, ok := connect.CallInfoForClientContext(ctx); ok {
+		headerValue = info.ResponseHeader().Get(requestIDHeaderName)
 	}
 
 	slog.ErrorContext(ctx, msg, requestIDHeaderName, headerValue, "error", err)
 }
 
 func (c *Client) GetCurrentUser(ctx context.Context) (*userv1.User, error) {
-	req := connect.NewRequest(&userv1.WhoAmIRequest{})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
+	req := &userv1.WhoAmIRequest{}
 
 	resp, err := c.User.WhoAmI(ctx, req)
 	if err != nil {
@@ -83,15 +66,14 @@ func (c *Client) GetCurrentUser(ctx context.Context) (*userv1.User, error) {
 		return nil, err
 	}
 
-	return resp.Msg.GetUser(), nil
+	return resp.GetUser(), nil
 }
 
 func (c *Client) GetCurrentUserOrgs(ctx context.Context, userID string) ([]*orgv1.Organization, error) {
-	req := connect.NewRequest(&orgv1.ListUserOrgsRequest{
+	req := &orgv1.ListUserOrgsRequest{
 		UserId:   userID,
 		PageSize: 100,
-	})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
+	}
 
 	resp, err := c.Org.ListUserOrgs(ctx, req)
 	if err != nil {
@@ -99,15 +81,14 @@ func (c *Client) GetCurrentUserOrgs(ctx context.Context, userID string) ([]*orgv
 		return nil, err
 	}
 
-	return resp.Msg.GetOrgs(), nil
+	return resp.GetOrgs(), nil
 }
 
 func (c *Client) GetUserWorkspaces(ctx context.Context, userID string) ([]*workspacev1.Workspace, error) {
-	req := connect.NewRequest(&workspacev1.ListUserWorkspacesRequest{
+	req := &workspacev1.ListUserWorkspacesRequest{
 		UserId:   userID,
 		PageSize: 100,
-	})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
+	}
 
 	resp, err := c.Workspace.ListUserWorkspaces(ctx, req)
 	if err != nil {
@@ -115,14 +96,13 @@ func (c *Client) GetUserWorkspaces(ctx context.Context, userID string) ([]*works
 		return nil, err
 	}
 
-	return resp.Msg.GetWorkspaces(), nil
+	return resp.GetWorkspaces(), nil
 }
 
 func (c *Client) GetApp(ctx context.Context, appID string) (*resourcev1.Resource, error) {
-	req := connect.NewRequest(&resourcev1.GetResourceRequest{
+	req := &resourcev1.GetResourceRequest{
 		Key: &resourcev1.GetResourceRequest_ResourceId{ResourceId: appID},
-	})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
+	}
 
 	resp, err := c.Resource.GetResource(ctx, req)
 	if err != nil {
@@ -130,12 +110,11 @@ func (c *Client) GetApp(ctx context.Context, appID string) (*resourcev1.Resource
 		return nil, err
 	}
 
-	return resp.Msg.GetResource(), nil
+	return resp.GetResource(), nil
 }
 
 func (c *Client) ListApps(ctx context.Context, workspaceID string) ([]*resourcev1.Resource, error) {
-	req := connect.NewRequest(&resourcev1.ListWorkspaceResourcesRequest{WorkspaceId: workspaceID})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
+	req := &resourcev1.ListWorkspaceResourcesRequest{WorkspaceId: workspaceID}
 
 	resp, err := c.Resource.ListWorkspaceResources(ctx, req)
 	if err != nil {
@@ -143,19 +122,18 @@ func (c *Client) ListApps(ctx context.Context, workspaceID string) ([]*resourcev
 		return nil, err
 	}
 
-	return resp.Msg.GetResources(), nil
+	return resp.GetResources(), nil
 }
 
 func (c *Client) GetAppByName(ctx context.Context, workspaceID string, appName string) (*resourcev1.Resource, error) {
-	req := connect.NewRequest(&resourcev1.GetResourceRequest{
+	req := &resourcev1.GetResourceRequest{
 		Key: &resourcev1.GetResourceRequest_NameKey{
 			NameKey: &resourcev1.GetResourceNameKey{
 				WorkspaceId: workspaceID,
 				Name:        appName,
 			},
 		},
-	})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
+	}
 
 	resp, err := c.Resource.GetResource(ctx, req)
 	if err != nil {
@@ -163,12 +141,11 @@ func (c *Client) GetAppByName(ctx context.Context, workspaceID string, appName s
 		return nil, err
 	}
 
-	return resp.Msg.GetResource(), nil
+	return resp.GetResource(), nil
 }
 
 func (c *Client) GetDeployment(ctx context.Context, deploymentID string) (*deploymentv1.Deployment, error) {
-	req := connect.NewRequest(&deploymentv1.GetDeploymentRequest{DeploymentId: deploymentID})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
+	req := &deploymentv1.GetDeploymentRequest{DeploymentId: deploymentID}
 
 	resp, err := c.Deployment.GetDeployment(ctx, req)
 	if err != nil {
@@ -176,7 +153,7 @@ func (c *Client) GetDeployment(ctx context.Context, deploymentID string) (*deplo
 		return nil, err
 	}
 
-	return resp.Msg.GetDeployment(), nil
+	return resp.GetDeployment(), nil
 }
 
 func (c *Client) StreamDeployment(
@@ -184,8 +161,7 @@ func (c *Client) StreamDeployment(
 	deploymentID string,
 	eventHandler func(*deploymentv1.WatchDeploymentResponse) error,
 ) error {
-	req := connect.NewRequest(&deploymentv1.WatchDeploymentRequest{DeploymentId: deploymentID})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
+	req := &deploymentv1.WatchDeploymentRequest{DeploymentId: deploymentID}
 
 	stream, err := c.Deployment.WatchDeployment(ctx, req)
 	if err != nil {
@@ -193,24 +169,25 @@ func (c *Client) StreamDeployment(
 		return err
 	}
 
-	for stream.Receive() {
-		event := stream.Msg()
-		if err := eventHandler(event); err != nil {
+	for {
+		msg, err2 := stream.Receive()
+		if err2 != nil {
+			if errors.Is(err2, io.EOF) {
+				break
+			}
+			logRequestID(ctx, err2, "failed to stream deployment")
+			return err2
+		}
+		if err := eventHandler(msg); err != nil {
 			return err
 		}
-	}
-
-	if err := stream.Err(); err != nil {
-		logRequestID(ctx, err, "failed to stream deployment")
-		return err
 	}
 
 	return nil
 }
 
 func (c *Client) DeleteApp(ctx context.Context, appID string) error {
-	req := connect.NewRequest(&resourcev1.DeleteResourceRequest{ResourceId: appID})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
+	req := &resourcev1.DeleteResourceRequest{ResourceId: appID}
 
 	_, err := c.Resource.DeleteResource(ctx, req)
 	logRequestID(ctx, err, "failed to delete app")
@@ -218,16 +195,15 @@ func (c *Client) DeleteApp(ctx context.Context, appID string) error {
 }
 
 func (c *Client) GetEvents(ctx context.Context, appID string, limit *int32) ([]*resourcev1.Event, error) {
-	req := connect.NewRequest(&resourcev1.ListResourceEventsRequest{
+	req := &resourcev1.ListResourceEventsRequest{
 		ResourceId: appID,
 		Limit:      limit,
-	})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
+	}
 
 	resp, err := c.Resource.ListResourceEvents(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	return resp.Msg.GetEvents(), nil
+	return resp.GetEvents(), nil
 }

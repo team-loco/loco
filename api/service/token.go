@@ -3,24 +3,22 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"time"
 
-	"github.com/team-loco/loco/api/authz"
-
-	"github.com/team-loco/loco/api/events"
-
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/contextkeys"
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 var (
@@ -50,49 +48,47 @@ func NewTokenServer(db *pgxpool.Pool, queries genDb.Querier, vendingMachine *tvm
 // CreateToken issues a new API token for a specific entity with defined scopes
 func (s *TokenServer) CreateToken(
 	ctx context.Context,
-	req *connect.Request[tokenv1.CreateTokenRequest],
-) (*connect.Response[tokenv1.CreateTokenResponse], error) {
-	r := req.Msg
-
-	if r.GetName() == "" {
+	req *tokenv1.CreateTokenRequest,
+) (*tokenv1.CreateTokenResponse, error) {
+	if req.GetName() == "" {
 		slog.ErrorContext(ctx, "invalid request: name is required")
-		return nil, connect.NewError(connect.CodeInvalidArgument, errNameRequired)
+		return nil, rpcerr.New(connect.CodeInvalidArgument, errNameRequired)
 	}
 
-	if r.GetEntityType() == tokenv1.EntityType_ENTITY_TYPE_UNSPECIFIED {
+	if req.GetEntityType() == tokenv1.EntityType_ENTITY_TYPE_UNSPECIFIED {
 		slog.ErrorContext(ctx, "invalid request: entity_type is required")
-		return nil, connect.NewError(connect.CodeInvalidArgument, errEntityTypeRequired)
+		return nil, rpcerr.New(connect.CodeInvalidArgument, errEntityTypeRequired)
 	}
 
-	if r.GetExpiresInSec() <= 0 || r.GetExpiresInSec() > int64(s.tvm.Cfg.MaxAPITokenDuration.Seconds()) {
-		slog.ErrorContext(ctx, "invalid token duration", "expires_in_sec", r.GetExpiresInSec())
-		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidTokenDuration)
+	if req.GetExpiresInSec() <= 0 || req.GetExpiresInSec() > int64(s.tvm.Cfg.MaxAPITokenDuration.Seconds()) {
+		slog.ErrorContext(ctx, "invalid token duration", "expires_in_sec", req.GetExpiresInSec())
+		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrInvalidTokenDuration)
 	}
 
-	if len(r.GetScopes()) == 0 {
+	if len(req.GetScopes()) == 0 {
 		slog.ErrorContext(ctx, "invalid request: at least one scope is required")
-		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidScopes)
+		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrInvalidScopes)
 	}
 
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
 		slog.ErrorContext(ctx, "entity not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	entityID, err := uuid.Parse(r.GetEntityId())
+	entityID, err := uuid.Parse(req.GetEntityId())
 	if err != nil {
-		slog.ErrorContext(ctx, "invalid entity id format", "entityId", r.GetEntityId(), "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid entity id: %w", err))
+		slog.ErrorContext(ctx, "invalid entity id format", "entityId", req.GetEntityId(), "error", err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidEntityID).WithCause(err)
 	}
 	targetEntity := genDb.Entity{
-		Type: protoEntityTypeToDb(r.GetEntityType()),
+		Type: protoEntityTypeToDb(req.GetEntityType()),
 		ID:   entityID,
 	}
 
@@ -109,18 +105,18 @@ func (s *TokenServer) CreateToken(
 			"entityId",
 			targetEntity.ID,
 		)
-		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(verifyErr)
 	}
 
-	dbScopes := make([]genDb.EntityScope, len(r.GetScopes()))
-	for i, scope := range r.GetScopes() {
+	dbScopes := make([]genDb.EntityScope, len(req.GetScopes()))
+	for i, scope := range req.GetScopes() {
 		scopeEntityID, scopeErr := uuid.Parse(scope.GetEntityId())
 		if scopeErr != nil {
 			slog.ErrorContext(ctx, "invalid scope entity id format", "entityId", scope.GetEntityId(), "error", scopeErr)
 			return nil, connect.NewError(
 				connect.CodeInvalidArgument,
-				fmt.Errorf("invalid scope entity id: %w", scopeErr),
-			)
+				publicInvalidScopeEntityID,
+			).WithCause(scopeErr)
 		}
 		dbScopes[i] = genDb.EntityScope{
 			EntityType: protoEntityTypeToDb(scope.GetEntityType()),
@@ -129,27 +125,27 @@ func (s *TokenServer) CreateToken(
 		}
 	}
 
-	duration := time.Duration(r.GetExpiresInSec()) * time.Second
+	duration := time.Duration(req.GetExpiresInSec()) * time.Second
 	var token string
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		var issueErr error
 		token, issueErr = s.tvm.WithQueries(qtx).
-			Issue(ctx, r.GetName(), entity.ID.String(), targetEntity, dbScopes, duration)
+			Issue(ctx, req.GetName(), entity.ID.String(), targetEntity, dbScopes, duration)
 		if issueErr != nil {
 			return issueErr
 		}
-		return events.Record(ctx, qtx, tokenEvent(events.TokenCreated, targetEntity, r.GetName()))
+		return events.Record(ctx, qtx, tokenEvent(events.TokenCreated, targetEntity, req.GetName()))
 	})
 	if err != nil {
 		if errors.Is(err, authz.ErrInsufficientPermissions) {
 			slog.WarnContext(ctx, "user lacks permissions for requested scopes", "user_id", entity.ID.String())
-			return nil, connect.NewError(connect.CodePermissionDenied, err)
+			return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 		}
 		if errors.Is(err, tvm.ErrTokenNameTaken) {
-			return nil, connect.NewError(connect.CodeAlreadyExists, ErrTokenAlreadyExists)
+			return nil, rpcerr.New(connect.CodeAlreadyExists, ErrTokenAlreadyExists)
 		}
 		slog.ErrorContext(ctx, "failed to issue token", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to issue token"))
+		return nil, connect.NewError(connect.CodeInternal, "failed to issue token")
 	}
 
 	// fetch metadata using the token we just issued
@@ -157,21 +153,21 @@ func (s *TokenServer) CreateToken(
 	tokenData, err := s.queries.GetAPIToken(ctx, tokenHash)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to fetch created token metadata", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to fetch token metadata"))
+		return nil, connect.NewError(connect.CodeInternal, "failed to fetch token metadata")
 	}
 
 	slog.InfoContext(
 		ctx,
 		"created token",
 		"name",
-		r.GetName(),
+		req.GetName(),
 		"entityType",
 		targetEntity.Type,
 		"entityId",
 		targetEntity.ID,
 	)
 
-	return connect.NewResponse(&tokenv1.CreateTokenResponse{
+	return &tokenv1.CreateTokenResponse{
 		Token: token,
 		TokenMetadata: apiTokenRowToProto(
 			tokenData.Name,
@@ -182,35 +178,33 @@ func (s *TokenServer) CreateToken(
 			tokenData.ExpiresAt,
 			tokenData.LastUsedAt,
 		),
-	}), nil
+	}, nil
 }
 
 // ListTokens lists all API tokens associated with an entity
 func (s *TokenServer) ListTokens(
 	ctx context.Context,
-	req *connect.Request[tokenv1.ListTokensRequest],
-) (*connect.Response[tokenv1.ListTokensResponse], error) {
-	r := req.Msg
-
-	if r.GetEntityType() == tokenv1.EntityType_ENTITY_TYPE_UNSPECIFIED {
+	req *tokenv1.ListTokensRequest,
+) (*tokenv1.ListTokensResponse, error) {
+	if req.GetEntityType() == tokenv1.EntityType_ENTITY_TYPE_UNSPECIFIED {
 		slog.ErrorContext(ctx, "invalid request: entity_type is required")
-		return nil, connect.NewError(connect.CodeInvalidArgument, errEntityTypeRequired)
+		return nil, rpcerr.New(connect.CodeInvalidArgument, errEntityTypeRequired)
 	}
 
 	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	entityID, err := uuid.Parse(r.GetEntityId())
+	entityID, err := uuid.Parse(req.GetEntityId())
 	if err != nil {
-		slog.ErrorContext(ctx, "invalid entity id format", "entityId", r.GetEntityId())
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid entity id: %w", err))
+		slog.ErrorContext(ctx, "invalid entity id format", "entityId", req.GetEntityId())
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidEntityID).WithCause(err)
 	}
 
 	targetEntity := genDb.Entity{
-		Type: protoEntityTypeToDb(r.GetEntityType()),
+		Type: protoEntityTypeToDb(req.GetEntityType()),
 		ID:   entityID,
 	}
 
@@ -227,13 +221,13 @@ func (s *TokenServer) ListTokens(
 			"entityId",
 			targetEntity.ID.String(),
 		)
-		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(verifyErr)
 	}
 
 	tokens, err := s.tvm.ListAPITokensForEntity(ctx, targetEntity)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list tokens", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to list tokens"))
+		return nil, connect.NewError(connect.CodeInternal, "failed to list tokens")
 	}
 
 	protoTokens := make([]*tokenv1.Token, len(tokens))
@@ -249,42 +243,40 @@ func (s *TokenServer) ListTokens(
 		)
 	}
 
-	return connect.NewResponse(&tokenv1.ListTokensResponse{
+	return &tokenv1.ListTokensResponse{
 		Tokens: protoTokens,
-	}), nil
+	}, nil
 }
 
 // GetToken retrieves metadata for a specific token by name and entity
 func (s *TokenServer) GetToken(
 	ctx context.Context,
-	req *connect.Request[tokenv1.GetTokenRequest],
-) (*connect.Response[tokenv1.GetTokenResponse], error) {
-	r := req.Msg
-
-	if r.GetName() == "" {
+	req *tokenv1.GetTokenRequest,
+) (*tokenv1.GetTokenResponse, error) {
+	if req.GetName() == "" {
 		slog.ErrorContext(ctx, "invalid request: name is required")
-		return nil, connect.NewError(connect.CodeInvalidArgument, errNameRequired)
+		return nil, rpcerr.New(connect.CodeInvalidArgument, errNameRequired)
 	}
 
-	if r.GetEntityType() == tokenv1.EntityType_ENTITY_TYPE_UNSPECIFIED {
+	if req.GetEntityType() == tokenv1.EntityType_ENTITY_TYPE_UNSPECIFIED {
 		slog.ErrorContext(ctx, "invalid request: entity_type is required")
-		return nil, connect.NewError(connect.CodeInvalidArgument, errEntityTypeRequired)
+		return nil, rpcerr.New(connect.CodeInvalidArgument, errEntityTypeRequired)
 	}
 
 	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	entityID, err := uuid.Parse(r.GetEntityId())
+	entityID, err := uuid.Parse(req.GetEntityId())
 	if err != nil {
-		slog.ErrorContext(ctx, "invalid entity id format", "entityId", r.GetEntityId())
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid entity id: %w", err))
+		slog.ErrorContext(ctx, "invalid entity id format", "entityId", req.GetEntityId())
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidEntityID).WithCause(err)
 	}
 
 	targetEntity := genDb.Entity{
-		Type: protoEntityTypeToDb(r.GetEntityType()),
+		Type: protoEntityTypeToDb(req.GetEntityType()),
 		ID:   entityID,
 	}
 
@@ -301,20 +293,20 @@ func (s *TokenServer) GetToken(
 			"entityId",
 			targetEntity.ID.String(),
 		)
-		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(verifyErr)
 	}
 
 	token, err := s.queries.GetAPITokenByNameAndEntity(ctx, genDb.GetAPITokenByNameAndEntityParams{
-		Name:       r.GetName(),
+		Name:       req.GetName(),
 		EntityType: targetEntity.Type,
 		EntityID:   targetEntity.ID,
 	})
 	if err != nil {
-		slog.WarnContext(ctx, "token not found", "name", r.GetName())
-		return nil, connect.NewError(connect.CodeNotFound, ErrTokenNotFound)
+		slog.WarnContext(ctx, "token not found", "name", req.GetName())
+		return nil, rpcerr.New(connect.CodeNotFound, ErrTokenNotFound)
 	}
 
-	return connect.NewResponse(&tokenv1.GetTokenResponse{
+	return &tokenv1.GetTokenResponse{
 		Token: apiTokenRowToProto(
 			token.Name,
 			token.EntityType,
@@ -324,46 +316,44 @@ func (s *TokenServer) GetToken(
 			token.ExpiresAt,
 			token.LastUsedAt,
 		),
-	}), nil
+	}, nil
 }
 
 // RevokeToken revokes/deletes an API token
 func (s *TokenServer) RevokeToken(
 	ctx context.Context,
-	req *connect.Request[tokenv1.RevokeTokenRequest],
-) (*connect.Response[tokenv1.RevokeTokenResponse], error) {
-	r := req.Msg
-
-	if r.GetName() == "" {
+	req *tokenv1.RevokeTokenRequest,
+) (*tokenv1.RevokeTokenResponse, error) {
+	if req.GetName() == "" {
 		slog.ErrorContext(ctx, "invalid request: name is required")
-		return nil, connect.NewError(connect.CodeInvalidArgument, errNameRequired)
+		return nil, rpcerr.New(connect.CodeInvalidArgument, errNameRequired)
 	}
 
-	if r.GetEntityType() == tokenv1.EntityType_ENTITY_TYPE_UNSPECIFIED {
+	if req.GetEntityType() == tokenv1.EntityType_ENTITY_TYPE_UNSPECIFIED {
 		slog.ErrorContext(ctx, "invalid request: entity_type is required")
-		return nil, connect.NewError(connect.CodeInvalidArgument, errEntityTypeRequired)
+		return nil, rpcerr.New(connect.CodeInvalidArgument, errEntityTypeRequired)
 	}
 
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
 		slog.ErrorContext(ctx, "entity not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	entityID, err := uuid.Parse(r.GetEntityId())
+	entityID, err := uuid.Parse(req.GetEntityId())
 	if err != nil {
-		slog.ErrorContext(ctx, "invalid entity id format", "entityId", r.GetEntityId())
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid entity id: %w", err))
+		slog.ErrorContext(ctx, "invalid entity id format", "entityId", req.GetEntityId())
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidEntityID).WithCause(err)
 	}
 
 	targetEntity := genDb.Entity{
-		Type: protoEntityTypeToDb(r.GetEntityType()),
+		Type: protoEntityTypeToDb(req.GetEntityType()),
 		ID:   entityID,
 	}
 
@@ -388,53 +378,53 @@ func (s *TokenServer) RevokeToken(
 		)
 		return nil, connect.NewError(
 			connect.CodePermissionDenied,
-			errors.New("insufficient permissions to revoke token"),
+			"insufficient permissions to revoke token",
 		)
 	}
 
 	if err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if deleteErr := qtx.DeleteAPITokenByNameAndEntity(ctx, genDb.DeleteAPITokenByNameAndEntityParams{
-			Name:       r.GetName(),
+			Name:       req.GetName(),
 			EntityType: targetEntity.Type,
 			EntityID:   targetEntity.ID,
 		}); deleteErr != nil {
 			return deleteErr
 		}
-		return events.Record(ctx, qtx, tokenEvent(events.TokenRevoked, targetEntity, r.GetName()))
+		return events.Record(ctx, qtx, tokenEvent(events.TokenRevoked, targetEntity, req.GetName()))
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to delete token", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to revoke token"))
+		return nil, connect.NewError(connect.CodeInternal, "failed to revoke token")
 	}
 
 	slog.InfoContext(
 		ctx,
 		"revoked token",
 		"name",
-		r.GetName(),
+		req.GetName(),
 		"entityType",
 		targetEntity.Type,
 		"entityId",
 		targetEntity.ID.String(),
 	)
 
-	return connect.NewResponse(&tokenv1.RevokeTokenResponse{}), nil
+	return &tokenv1.RevokeTokenResponse{}, nil
 }
 
 // GetScopes returns the entity and all scopes the current token has access to.
 func (*TokenServer) GetScopes(
 	ctx context.Context,
-	_ *connect.Request[tokenv1.GetScopesRequest],
-) (*connect.Response[tokenv1.GetScopesResponse], error) {
+	_ *tokenv1.GetScopesRequest,
+) (*tokenv1.GetScopesResponse, error) {
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
 		slog.ErrorContext(ctx, "entity not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	protoScopes := make([]*tokenv1.EntityScope, len(entityScopes))
@@ -446,42 +436,40 @@ func (*TokenServer) GetScopes(
 		}
 	}
 
-	return connect.NewResponse(&tokenv1.GetScopesResponse{
+	return &tokenv1.GetScopesResponse{
 		EntityType: dbEntityTypeToProto(entity.Type),
 		EntityId:   entity.ID.String(),
 		Scopes:     protoScopes,
-	}), nil
+	}, nil
 }
 
 // CheckPermission validates whether a given token has a specific permission on an entity.
 // Intended for service-to-service calls (e.g. the observability proxy).
 func (s *TokenServer) CheckPermission(
 	ctx context.Context,
-	req *connect.Request[tokenv1.CheckPermissionRequest],
-) (*connect.Response[tokenv1.CheckPermissionResponse], error) {
-	r := req.Msg
-
-	entityID, err := uuid.Parse(r.GetEntityId())
+	req *tokenv1.CheckPermissionRequest,
+) (*tokenv1.CheckPermissionResponse, error) {
+	entityID, err := uuid.Parse(req.GetEntityId())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid entity_id: %w", err))
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidEntityID).WithCause(err)
 	}
 
-	_, scopes, err := s.tvm.GetToken(ctx, r.GetToken())
+	_, scopes, err := s.tvm.GetToken(ctx, req.GetToken())
 	if errors.Is(err, tvm.ErrInvalidExpiredToken) {
-		return connect.NewResponse(&tokenv1.CheckPermissionResponse{Allowed: false}), nil
+		return &tokenv1.CheckPermissionResponse{Allowed: false}, nil
 	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to resolve token for permission check", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, errCheckPermission)
+		return nil, rpcerr.New(connect.CodeInternal, errCheckPermission)
 	}
 
 	allowed := s.authz.Check(ctx, scopes, genDb.EntityScope{
-		EntityType: protoEntityTypeToDb(r.GetEntityType()),
+		EntityType: protoEntityTypeToDb(req.GetEntityType()),
 		EntityID:   entityID,
-		Scope:      protoScopeToDb(r.GetScope()),
+		Scope:      protoScopeToDb(req.GetScope()),
 	}) == nil
 
-	return connect.NewResponse(&tokenv1.CheckPermissionResponse{Allowed: allowed}), nil
+	return &tokenv1.CheckPermissionResponse{Allowed: allowed}, nil
 }
 
 // Helper functions

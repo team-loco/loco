@@ -9,15 +9,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/team-loco/loco/internal/rpc"
+
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/table"
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/internal/client"
-	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -30,7 +30,7 @@ var eventsTableMargin = lipgloss.NewStyle().Margin(1, 2)
 type eventsDeps struct {
 	LoadSessionConfig func() (*session.SessionConfig, error)
 	NewAPIClient      func(host, token string) *client.Client
-	NewResourceClient func(host string) resourcev1connect.ResourceServiceClient
+	NewResourceClient func(host, token string) resourcev1connect.ResourceServiceClient
 	Stdout            io.Writer
 }
 
@@ -38,8 +38,9 @@ func buildEventsCmd() *cobra.Command {
 	deps := eventsDeps{
 		LoadSessionConfig: session.Load,
 		NewAPIClient:      client.NewClient,
-		NewResourceClient: func(host string) resourcev1connect.ResourceServiceClient {
-			return resourcev1connect.NewResourceServiceClient(httputil.NewHTTPClient(), host)
+		NewResourceClient: func(host, token string) resourcev1connect.ResourceServiceClient {
+			resourceClients := rpc.ForHost(host, token)
+			return resourceClients.Resource
 		},
 		Stdout: os.Stdout,
 	}
@@ -90,26 +91,24 @@ Examples:
 			}
 
 			// Create resource client
-			resourceClient := deps.NewResourceClient(host)
-			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
+			resourceClient := deps.NewResourceClient(host, locoToken.Token)
 
 			// Get resource by name
-			getReq := connect.NewRequest(&resourcev1.GetResourceRequest{
+			getReq := &resourcev1.GetResourceRequest{
 				Key: &resourcev1.GetResourceRequest_NameKey{
 					NameKey: &resourcev1.GetResourceNameKey{
 						WorkspaceId: workspaceID,
 						Name:        name,
 					},
 				},
-			})
-			getReq.Header().Set("Authorization", authHeader)
+			}
 
 			resourceResp, err := resourceClient.GetResource(ctx, getReq)
 			if err != nil {
 				return fmt.Errorf("service '%s' not found: %w", name, err)
 			}
 
-			resource := resourceResp.Msg.GetResource()
+			resource := resourceResp.GetResource()
 			slog.Debug("fetching events", "resource_id", resource.GetId(), "name", name)
 
 			var limitPtr *int32
@@ -117,11 +116,10 @@ Examples:
 				limitPtr = &limit
 			}
 
-			eventsReq := connect.NewRequest(&resourcev1.ListResourceEventsRequest{
+			eventsReq := &resourcev1.ListResourceEventsRequest{
 				ResourceId: resource.GetId(),
 				Limit:      limitPtr,
-			})
-			eventsReq.Header().Set("Authorization", authHeader)
+			}
 
 			resp, err := resourceClient.ListResourceEvents(ctx, eventsReq)
 			if err != nil {
@@ -130,10 +128,10 @@ Examples:
 			}
 
 			if output == outputJSON {
-				return writeEventsJSON(deps.Stdout, resp.Msg.GetEvents())
+				return writeEventsJSON(deps.Stdout, resp.GetEvents())
 			}
 
-			return renderEventsTable(deps.Stdout, resp.Msg.GetEvents())
+			return renderEventsTable(deps.Stdout, resp.GetEvents())
 		},
 	}
 

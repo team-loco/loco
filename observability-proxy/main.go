@@ -14,7 +14,9 @@ import (
 	"syscall"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2/connecthttp"
+
+	"connectrpc.com/connect/v2"
 	coordinationv1client "k8s.io/client-go/kubernetes/typed/coordination/v1"
 	"k8s.io/client-go/rest"
 
@@ -83,7 +85,7 @@ func newProxy(cfg *config.Config, lock migrationLock) (*proxy, error) {
 
 	validator := auth.NewValidator(cfg.ControlPlaneURL, cfg.ProxyAuthToken, permCache)
 	svc := service.NewObservabilityService(ch, cfg, validator)
-	interceptors := connect.WithInterceptors(auth.NewAuthInterceptor())
+	rpcServer := connect.NewServer(auth.NewAuthInterceptor().Interceptor())
 
 	migrated := new(atomic.Bool)
 	mux := http.NewServeMux()
@@ -113,9 +115,11 @@ func newProxy(cfg *config.Config, lock migrationLock) (*proxy, error) {
 		fmt.Fprintln(w, "ok")
 	})
 
-	path, handler := observabilityv1connect.NewObservabilityProxyServiceHandler(svc, interceptors)
-	corsHandler := withCORS(cfg.CORSAllowedOrigins, handler)
-	mux.Handle(path, corsHandler)
+	observabilityv1connect.RegisterObservabilityProxyServiceHandler(rpcServer, svc)
+	rpcMux := http.NewServeMux()
+	connecthttp.Mount(rpcMux, rpcServer)
+	corsHandler := withCORS(cfg.CORSAllowedOrigins, rpcMux)
+	mux.Handle("/", corsHandler)
 
 	protocols := new(http.Protocols)
 	protocols.SetHTTP1(true)

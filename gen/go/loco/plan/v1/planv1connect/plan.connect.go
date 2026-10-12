@@ -5,144 +5,141 @@
 package planv1connect
 
 import (
-	connect "connectrpc.com/connect"
+	connect "connectrpc.com/connect/v2"
 	context "context"
-	errors "errors"
 	v1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
-	http "net/http"
-	strings "strings"
+	sync "sync"
 )
-
-// This is a compile-time assertion to ensure that this generated file and the connect package are
-// compatible. If you get a compiler error that this constant is not defined, this code was
-// generated with a version of connect newer than the one compiled into your binary. You can fix the
-// problem by either regenerating this code with an older version of connect or updating the connect
-// version compiled into your binary.
-const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// PlanServiceName is the fully-qualified name of the PlanService service.
 	PlanServiceName = "loco.plan.v1.PlanService"
 )
 
-// These constants are the fully-qualified names of the RPCs defined in this package. They're
-// exposed at runtime as Spec.Procedure and as the final two segments of the HTTP route.
+// These constants are the procedure names of the RPCs defined in this package. They're exposed at
+// runtime as Spec.Procedure and as the final two segments of the HTTP route.
 //
 // Note that these are different from the fully-qualified method names used by
 // google.golang.org/protobuf/reflect/protoreflect. To convert from these constants to
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// PlanServicePlanProcedure is the fully-qualified name of the PlanService's Plan RPC.
+	// PlanServicePlanProcedure is the procedure name of the PlanService's Plan RPC.
 	PlanServicePlanProcedure = "/loco.plan.v1.PlanService/Plan"
-	// PlanServiceApplyProcedure is the fully-qualified name of the PlanService's Apply RPC.
+	// PlanServiceApplyProcedure is the procedure name of the PlanService's Apply RPC.
 	PlanServiceApplyProcedure = "/loco.plan.v1.PlanService/Apply"
+)
+
+var (
+	planServicePlanSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_plan_v1_plan_proto.Services().ByName("PlanService").Methods().ByName("Plan"),
+			Procedure:  PlanServicePlanProcedure,
+		}
+	})
+	planServiceApplySpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_plan_v1_plan_proto.Services().ByName("PlanService").Methods().ByName("Apply"),
+			Procedure:  PlanServiceApplyProcedure,
+		}
+	})
 )
 
 // PlanServiceClient is a client for the loco.plan.v1.PlanService service.
 type PlanServiceClient interface {
 	// Plan returns the operations an apply would perform. It writes nothing.
-	Plan(context.Context, *connect.Request[v1.PlanRequest]) (*connect.Response[v1.PlanResponse], error)
+	Plan(context.Context, *v1.PlanRequest) (*v1.PlanResponse, error)
 	// Apply re-plans the file against the environment and performs the operations in one
 	// transaction. It fails with FAILED_PRECONDITION when the environment revision differs from
 	// the one the plan was computed against, when the plan has errors, or when a destructive or
 	// import operation lacks its confirmation, or when a provision name is not a service the plan
 	// creates; the error carries an ApplyRefusal detail.
-	Apply(context.Context, *connect.Request[v1.ApplyRequest]) (*connect.Response[v1.ApplyResponse], error)
+	Apply(context.Context, *v1.ApplyRequest) (*v1.ApplyResponse, error)
 }
 
-// NewPlanServiceClient constructs a client for the loco.plan.v1.PlanService service. By default, it
-// uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and sends
-// uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
-// connect.WithGRPCWeb() options.
-//
-// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
-// http://api.acme.com or https://acme.com/grpc).
-func NewPlanServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) PlanServiceClient {
-	baseURL = strings.TrimRight(baseURL, "/")
-	planServiceMethods := v1.File_loco_plan_v1_plan_proto.Services().ByName("PlanService").Methods()
-	return &planServiceClient{
-		plan: connect.NewClient[v1.PlanRequest, v1.PlanResponse](
-			httpClient,
-			baseURL+PlanServicePlanProcedure,
-			connect.WithSchema(planServiceMethods.ByName("Plan")),
-			connect.WithClientOptions(opts...),
-		),
-		apply: connect.NewClient[v1.ApplyRequest, v1.ApplyResponse](
-			httpClient,
-			baseURL+PlanServiceApplyProcedure,
-			connect.WithSchema(planServiceMethods.ByName("Apply")),
-			connect.WithClientOptions(opts...),
-		),
-	}
-}
-
-// planServiceClient implements PlanServiceClient.
-type planServiceClient struct {
-	plan  *connect.Client[v1.PlanRequest, v1.PlanResponse]
-	apply *connect.Client[v1.ApplyRequest, v1.ApplyResponse]
-}
-
-// Plan calls loco.plan.v1.PlanService.Plan.
-func (c *planServiceClient) Plan(ctx context.Context, req *connect.Request[v1.PlanRequest]) (*connect.Response[v1.PlanResponse], error) {
-	return c.plan.CallUnary(ctx, req)
-}
-
-// Apply calls loco.plan.v1.PlanService.Apply.
-func (c *planServiceClient) Apply(ctx context.Context, req *connect.Request[v1.ApplyRequest]) (*connect.Response[v1.ApplyResponse], error) {
-	return c.apply.CallUnary(ctx, req)
+// NewPlanServiceClient constructs a client for the loco.plan.v1.PlanService service. Multiple
+// service clients may share a single connect.Client.
+func NewPlanServiceClient(client *connect.Client) PlanServiceClient {
+	return &planServiceClient{client: client}
 }
 
 // PlanServiceHandler is an implementation of the loco.plan.v1.PlanService service.
 type PlanServiceHandler interface {
 	// Plan returns the operations an apply would perform. It writes nothing.
-	Plan(context.Context, *connect.Request[v1.PlanRequest]) (*connect.Response[v1.PlanResponse], error)
+	Plan(context.Context, *v1.PlanRequest) (*v1.PlanResponse, error)
 	// Apply re-plans the file against the environment and performs the operations in one
 	// transaction. It fails with FAILED_PRECONDITION when the environment revision differs from
 	// the one the plan was computed against, when the plan has errors, or when a destructive or
 	// import operation lacks its confirmation, or when a provision name is not a service the plan
 	// creates; the error carries an ApplyRefusal detail.
-	Apply(context.Context, *connect.Request[v1.ApplyRequest]) (*connect.Response[v1.ApplyResponse], error)
+	Apply(context.Context, *v1.ApplyRequest) (*v1.ApplyResponse, error)
 }
 
-// NewPlanServiceHandler builds an HTTP handler from the service implementation. It returns the path
-// on which to mount the handler and the handler itself.
-//
-// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
-// and JSON codecs. They also support gzip compression.
-func NewPlanServiceHandler(svc PlanServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	planServiceMethods := v1.File_loco_plan_v1_plan_proto.Services().ByName("PlanService").Methods()
-	planServicePlanHandler := connect.NewUnaryHandler(
-		PlanServicePlanProcedure,
-		svc.Plan,
-		connect.WithSchema(planServiceMethods.ByName("Plan")),
-		connect.WithHandlerOptions(opts...),
+// RegisterPlanServiceHandler registers svc as the loco.plan.v1.PlanService implementation on
+// server.
+func RegisterPlanServiceHandler(server *connect.Server, svc PlanServiceHandler) {
+	adapter := planServiceHandler{svc: svc}
+	server.Register(
+		connect.Method{Spec: planServicePlanSpec(), Handler: adapter.plan},
+		connect.Method{Spec: planServiceApplySpec(), Handler: adapter.apply},
 	)
-	planServiceApplyHandler := connect.NewUnaryHandler(
-		PlanServiceApplyProcedure,
-		svc.Apply,
-		connect.WithSchema(planServiceMethods.ByName("Apply")),
-		connect.WithHandlerOptions(opts...),
-	)
-	return "/loco.plan.v1.PlanService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case PlanServicePlanProcedure:
-			planServicePlanHandler.ServeHTTP(w, r)
-		case PlanServiceApplyProcedure:
-			planServiceApplyHandler.ServeHTTP(w, r)
-		default:
-			http.NotFound(w, r)
-		}
-	})
 }
 
 // UnimplementedPlanServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedPlanServiceHandler struct{}
 
-func (UnimplementedPlanServiceHandler) Plan(context.Context, *connect.Request[v1.PlanRequest]) (*connect.Response[v1.PlanResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.plan.v1.PlanService.Plan is not implemented"))
+func (UnimplementedPlanServiceHandler) Plan(context.Context, *v1.PlanRequest) (*v1.PlanResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.plan.v1.PlanService.Plan is not implemented")
 }
 
-func (UnimplementedPlanServiceHandler) Apply(context.Context, *connect.Request[v1.ApplyRequest]) (*connect.Response[v1.ApplyResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.plan.v1.PlanService.Apply is not implemented"))
+func (UnimplementedPlanServiceHandler) Apply(context.Context, *v1.ApplyRequest) (*v1.ApplyResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.plan.v1.PlanService.Apply is not implemented")
+}
+
+type planServiceClient struct {
+	client *connect.Client
+}
+
+func (c *planServiceClient) Plan(ctx context.Context, req *v1.PlanRequest) (*v1.PlanResponse, error) {
+	var res v1.PlanResponse
+	if err := c.client.CallUnary(ctx, planServicePlanSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *planServiceClient) Apply(ctx context.Context, req *v1.ApplyRequest) (*v1.ApplyResponse, error) {
+	var res v1.ApplyResponse
+	if err := c.client.CallUnary(ctx, planServiceApplySpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+type planServiceHandler struct{ svc PlanServiceHandler }
+
+func (h planServiceHandler) plan(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.PlanRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.Plan(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h planServiceHandler) apply(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ApplyRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.Apply(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
 }

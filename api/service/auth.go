@@ -14,18 +14,20 @@ import (
 	"strings"
 	"time"
 
-	"github.com/team-loco/loco/api/events"
-
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/contextkeys"
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/tvm"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
+	"github.com/team-loco/loco/internal/httputil"
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 const (
@@ -142,7 +144,7 @@ func pkceMatches(verifier, challenge string) bool {
 	return subtle.ConstantTimeCompare([]byte(computed), []byte(challenge)) == 1
 }
 
-func clientInfo(h interface{ Get(string) string }) (string, string) {
+func clientInfo(h httputil.HeaderGetter) (string, string) {
 	ip := h.Get("X-Real-IP")
 	if ip == "" {
 		ip = h.Get("X-Forwarded-For")
@@ -153,19 +155,19 @@ func clientInfo(h interface{ Get(string) string }) (string, string) {
 func (s *AuthServer) webIdentity(ctx context.Context) (cliGrant, error) {
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok || entity.Type != genDb.EntityTypeUser {
-		return cliGrant{}, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+		return cliGrant{}, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 	identity, ok := ctx.Value(contextkeys.IdentityKey).(auth.Identity)
 	if !ok {
-		return cliGrant{}, connect.NewError(connect.CodePermissionDenied, ErrApproveFromWeb)
+		return cliGrant{}, rpcerr.New(connect.CodePermissionDenied, ErrApproveFromWeb)
 	}
 	row, err := s.queries.GetIdentity(ctx, genDb.GetIdentityParams{Issuer: identity.Issuer, Subject: identity.Subject})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to look up identity for cli approval", "error", err)
-		return cliGrant{}, connect.NewError(connect.CodeInternal, ErrDB)
+		return cliGrant{}, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 	if row.UserID != entity.ID {
-		return cliGrant{}, connect.NewError(connect.CodePermissionDenied, ErrUnauthorized)
+		return cliGrant{}, rpcerr.New(connect.CodePermissionDenied, ErrUnauthorized)
 	}
 	return cliGrant{UserID: entity.ID, IdentityID: row.ID}, nil
 }
@@ -173,7 +175,7 @@ func (s *AuthServer) webIdentity(ctx context.Context) (cliGrant, error) {
 func (s *AuthServer) issue(
 	ctx context.Context,
 	grant cliGrant,
-	h interface{ Get(string) string },
+	h httputil.HeaderGetter,
 ) (*authv1.CLITokens, error) {
 	ip, ua := clientInfo(h)
 	identityID := grant.IdentityID
@@ -195,7 +197,7 @@ func (s *AuthServer) issue(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to issue cli session", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrAuthStoreAvailable)
+		return nil, rpcerr.New(connect.CodeInternal, ErrAuthStoreAvailable)
 	}
 	return &authv1.CLITokens{
 		AccessToken:  access,
@@ -206,20 +208,20 @@ func (s *AuthServer) issue(
 
 func (s *AuthServer) ApproveCLILogin(
 	ctx context.Context,
-	req *connect.Request[authv1.ApproveCLILoginRequest],
-) (*connect.Response[authv1.ApproveCLILoginResponse], error) {
+	req *authv1.ApproveCLILoginRequest,
+) (*authv1.ApproveCLILoginResponse, error) {
 	grant, err := s.webIdentity(ctx)
 	if err != nil {
 		return nil, err
 	}
-	grant.Challenge = req.Msg.GetCodeChallenge()
+	grant.Challenge = req.GetCodeChallenge()
 	code, err := randomToken()
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, ErrAuthStoreAvailable)
+		return nil, rpcerr.New(connect.CodeInternal, ErrAuthStoreAvailable)
 	}
 	payload, err := json.Marshal(grant)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, ErrAuthStoreAvailable)
+		return nil, rpcerr.New(connect.CodeInternal, ErrAuthStoreAvailable)
 	}
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if recordErr := events.Record(ctx, qtx, events.Event{
@@ -234,10 +236,10 @@ func (s *AuthServer) ApproveCLILogin(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to approve cli login", "error", err)
-		return nil, connect.NewError(connect.CodeUnavailable, ErrAuthStoreAvailable)
+		return nil, rpcerr.New(connect.CodeUnavailable, ErrAuthStoreAvailable)
 	}
 	slog.InfoContext(ctx, "approved cli login", "userId", grant.UserID)
-	return connect.NewResponse(&authv1.ApproveCLILoginResponse{Code: code}), nil
+	return &authv1.ApproveCLILoginResponse{Code: code}, nil
 }
 
 func (s *AuthServer) take(ctx context.Context, key string, into any) (bool, error) {
@@ -257,103 +259,104 @@ func (s *AuthServer) take(ctx context.Context, key string, into any) (bool, erro
 
 func (s *AuthServer) ExchangeCLICode(
 	ctx context.Context,
-	req *connect.Request[authv1.ExchangeCLICodeRequest],
-) (*connect.Response[authv1.ExchangeCLICodeResponse], error) {
+	req *authv1.ExchangeCLICodeRequest,
+) (*authv1.ExchangeCLICodeResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
 	var grant cliGrant
-	found, err := s.take(ctx, "cli:code:"+digest(req.Msg.GetCode()), &grant)
+	found, err := s.take(ctx, "cli:code:"+digest(req.GetCode()), &grant)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to read cli code", "error", err)
-		return nil, connect.NewError(connect.CodeUnavailable, ErrAuthStoreAvailable)
+		return nil, rpcerr.New(connect.CodeUnavailable, ErrAuthStoreAvailable)
 	}
-	if !found || !pkceMatches(req.Msg.GetCodeVerifier(), grant.Challenge) {
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrCLICodeInvalid)
+	if !found || !pkceMatches(req.GetCodeVerifier(), grant.Challenge) {
+		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrCLICodeInvalid)
 	}
-	tokens, err := s.issue(ctx, grant, req.Header())
+	tokens, err := s.issue(ctx, grant, info.RequestHeader())
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&authv1.ExchangeCLICodeResponse{Tokens: tokens}), nil
+	return &authv1.ExchangeCLICodeResponse{Tokens: tokens}, nil
 }
 
 func (s *AuthServer) StartDeviceLogin(
 	ctx context.Context,
-	_ *connect.Request[authv1.StartDeviceLoginRequest],
-) (*connect.Response[authv1.StartDeviceLoginResponse], error) {
+	_ *authv1.StartDeviceLoginRequest,
+) (*authv1.StartDeviceLoginResponse, error) {
 	deviceCode, err := randomToken()
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, ErrAuthStoreAvailable)
+		return nil, rpcerr.New(connect.CodeInternal, ErrAuthStoreAvailable)
 	}
 	userCode, err := randomUserCode()
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, ErrAuthStoreAvailable)
+		return nil, rpcerr.New(connect.CodeInternal, ErrAuthStoreAvailable)
 	}
 	expiresAt := s.now().Add(deviceCodeTTL)
 	payload, err := json.Marshal(deviceGrant{UserCode: userCode, ExpiresAt: expiresAt})
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, ErrAuthStoreAvailable)
+		return nil, rpcerr.New(connect.CodeInternal, ErrAuthStoreAvailable)
 	}
 	deviceDigest := digest(deviceCode)
 	stored, err := s.cache.SetIfAbsent(ctx, "cli:user-code:"+userCode, []byte(deviceDigest), deviceCodeTTL)
 	if err != nil || !stored {
 		slog.ErrorContext(ctx, "failed to store device user code", "error", err, "stored", stored)
-		return nil, connect.NewError(connect.CodeUnavailable, ErrAuthStoreAvailable)
+		return nil, rpcerr.New(connect.CodeUnavailable, ErrAuthStoreAvailable)
 	}
 	if err := s.cache.Set(ctx, deviceKey(deviceDigest), payload, deviceCodeTTL); err != nil {
 		slog.ErrorContext(ctx, "failed to store device code", "error", err)
-		return nil, connect.NewError(connect.CodeUnavailable, ErrAuthStoreAvailable)
+		return nil, rpcerr.New(connect.CodeUnavailable, ErrAuthStoreAvailable)
 	}
 	display := formatUserCode(userCode)
-	return connect.NewResponse(&authv1.StartDeviceLoginResponse{
+	return &authv1.StartDeviceLoginResponse{
 		DeviceCode:              deviceCode,
 		UserCode:                display,
 		VerificationUri:         s.webURL + "/cli/device",
 		VerificationUriComplete: s.webURL + "/cli/device?code=" + display,
 		ExpiresIn:               int64(deviceCodeTTL.Seconds()),
 		Interval:                int64(devicePollInterval.Seconds()),
-	}), nil
+	}, nil
 }
 
 func (s *AuthServer) ApproveDeviceLogin(
 	ctx context.Context,
-	req *connect.Request[authv1.ApproveDeviceLoginRequest],
-) (*connect.Response[authv1.ApproveDeviceLoginResponse], error) {
+	req *authv1.ApproveDeviceLoginRequest,
+) (*authv1.ApproveDeviceLoginResponse, error) {
 	grant, err := s.webIdentity(ctx)
 	if err != nil {
 		return nil, err
 	}
-	userCode := normalizeUserCode(req.Msg.GetUserCode())
+	userCode := normalizeUserCode(req.GetUserCode())
 	if len(userCode) != userCodeLength {
-		return nil, connect.NewError(connect.CodeNotFound, ErrUserCodeInvalid)
+		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
 	}
 	deviceDigest, err := s.cache.Get(ctx, "cli:user-code:"+userCode)
 	if errors.Is(err, cache.ErrNotFound) {
-		return nil, connect.NewError(connect.CodeNotFound, ErrUserCodeInvalid)
+		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
 	}
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnavailable, ErrAuthStoreAvailable)
+		return nil, rpcerr.New(connect.CodeUnavailable, ErrAuthStoreAvailable)
 	}
 	took, err := s.cache.Take(ctx, "cli:user-code:"+userCode)
 	if err != nil || !took {
-		return nil, connect.NewError(connect.CodeNotFound, ErrUserCodeInvalid)
+		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
 	}
 	key := deviceKey(string(deviceDigest))
 	raw, err := s.cache.Get(ctx, key)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, ErrUserCodeInvalid)
+		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
 	}
 	var device deviceGrant
 	if decodeErr := json.Unmarshal(raw, &device); decodeErr != nil {
-		return nil, connect.NewError(connect.CodeInternal, ErrAuthStoreAvailable)
+		return nil, rpcerr.New(connect.CodeInternal, ErrAuthStoreAvailable)
 	}
 	remaining := device.ExpiresAt.Sub(s.now())
 	if remaining <= 0 {
-		return nil, connect.NewError(connect.CodeNotFound, ErrUserCodeInvalid)
+		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
 	}
 	device.UserID = &grant.UserID
 	device.IdentityID = &grant.IdentityID
 	payload, err := json.Marshal(device)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, ErrAuthStoreAvailable)
+		return nil, rpcerr.New(connect.CodeInternal, ErrAuthStoreAvailable)
 	}
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if recordErr := events.Record(ctx, qtx, events.Event{
@@ -368,44 +371,45 @@ func (s *AuthServer) ApproveDeviceLogin(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to approve device login", "error", err)
-		return nil, connect.NewError(connect.CodeUnavailable, ErrAuthStoreAvailable)
+		return nil, rpcerr.New(connect.CodeUnavailable, ErrAuthStoreAvailable)
 	}
 	slog.InfoContext(ctx, "approved device login", "userId", grant.UserID)
-	return connect.NewResponse(&authv1.ApproveDeviceLoginResponse{}), nil
+	return &authv1.ApproveDeviceLoginResponse{}, nil
 }
 
 func (s *AuthServer) PollDeviceLogin(
 	ctx context.Context,
-	req *connect.Request[authv1.PollDeviceLoginRequest],
-) (*connect.Response[authv1.PollDeviceLoginResponse], error) {
-	deviceDigest := digest(req.Msg.GetDeviceCode())
+	req *authv1.PollDeviceLoginRequest,
+) (*authv1.PollDeviceLoginResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
+	deviceDigest := digest(req.GetDeviceCode())
 	key := deviceKey(deviceDigest)
 	raw, err := s.cache.Get(ctx, key)
 	if errors.Is(err, cache.ErrNotFound) {
-		return nil, connect.NewError(connect.CodeNotFound, ErrDeviceCodeExpired)
+		return nil, rpcerr.New(connect.CodeNotFound, ErrDeviceCodeExpired)
 	}
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnavailable, ErrAuthStoreAvailable)
+		return nil, rpcerr.New(connect.CodeUnavailable, ErrAuthStoreAvailable)
 	}
 	var device deviceGrant
 	if decodeErr := json.Unmarshal(raw, &device); decodeErr != nil {
-		return nil, connect.NewError(connect.CodeInternal, ErrAuthStoreAvailable)
+		return nil, rpcerr.New(connect.CodeInternal, ErrAuthStoreAvailable)
 	}
 	if device.UserID == nil || device.IdentityID == nil {
 		if throttleErr := s.throttleDevicePoll(ctx, deviceDigest); throttleErr != nil {
 			return nil, throttleErr
 		}
-		return connect.NewResponse(&authv1.PollDeviceLoginResponse{}), nil
+		return &authv1.PollDeviceLoginResponse{}, nil
 	}
 	took, err := s.cache.Take(ctx, key)
 	if err != nil || !took {
-		return nil, connect.NewError(connect.CodeNotFound, ErrDeviceCodeExpired)
+		return nil, rpcerr.New(connect.CodeNotFound, ErrDeviceCodeExpired)
 	}
-	tokens, err := s.issue(ctx, cliGrant{UserID: *device.UserID, IdentityID: *device.IdentityID}, req.Header())
+	tokens, err := s.issue(ctx, cliGrant{UserID: *device.UserID, IdentityID: *device.IdentityID}, info.RequestHeader())
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&authv1.PollDeviceLoginResponse{Tokens: tokens}), nil
+	return &authv1.PollDeviceLoginResponse{Tokens: tokens}, nil
 }
 
 func (s *AuthServer) throttleDevicePoll(ctx context.Context, deviceDigest string) error {
@@ -413,20 +417,20 @@ func (s *AuthServer) throttleDevicePoll(ctx context.Context, deviceDigest string
 	now := s.now()
 	last, err := s.cache.Get(ctx, pollKey)
 	if err != nil && !errors.Is(err, cache.ErrNotFound) {
-		return connect.NewError(connect.CodeUnavailable, ErrAuthStoreAvailable)
+		return rpcerr.New(connect.CodeUnavailable, ErrAuthStoreAvailable)
 	}
 	if err == nil {
 		var lastPoll time.Time
 		if decodeErr := lastPoll.UnmarshalText(last); decodeErr != nil {
-			return connect.NewError(connect.CodeInternal, ErrAuthStoreAvailable)
+			return rpcerr.New(connect.CodeInternal, ErrAuthStoreAvailable)
 		}
 		if now.Sub(lastPoll) < devicePollInterval-time.Second {
-			return connect.NewError(connect.CodeResourceExhausted, ErrDevicePollTooFast)
+			return rpcerr.New(connect.CodeResourceExhausted, ErrDevicePollTooFast)
 		}
 	}
 	stamp, err := now.MarshalText()
 	if err != nil {
-		return connect.NewError(connect.CodeInternal, ErrAuthStoreAvailable)
+		return rpcerr.New(connect.CodeInternal, ErrAuthStoreAvailable)
 	}
 	if setErr := s.cache.Set(ctx, pollKey, stamp, devicePollInterval); setErr != nil {
 		slog.WarnContext(ctx, "failed to record device poll", "error", setErr)
@@ -436,9 +440,9 @@ func (s *AuthServer) throttleDevicePoll(ctx context.Context, deviceDigest string
 
 func (s *AuthServer) RefreshCLIToken(
 	ctx context.Context,
-	req *connect.Request[authv1.RefreshCLITokenRequest],
-) (*connect.Response[authv1.RefreshCLITokenResponse], error) {
-	refresh := req.Msg.GetRefreshToken()
+	req *authv1.RefreshCLITokenRequest,
+) (*authv1.RefreshCLITokenResponse, error) {
+	refresh := req.GetRefreshToken()
 	session, err := s.machine.SessionIdentity(ctx, refresh)
 	switch {
 	case err == nil:
@@ -448,18 +452,18 @@ func (s *AuthServer) RefreshCLIToken(
 	case errors.Is(err, pgx.ErrNoRows):
 	default:
 		slog.ErrorContext(ctx, "failed to look up session identity", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
 	access, newRefresh, err := s.machine.Refresh(ctx, refresh)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
-	return connect.NewResponse(&authv1.RefreshCLITokenResponse{Tokens: &authv1.CLITokens{
+	return &authv1.RefreshCLITokenResponse{Tokens: &authv1.CLITokens{
 		AccessToken:  access,
 		RefreshToken: newRefresh,
 		ExpiresIn:    int64(s.machine.Cfg.SessionAccessTokenDuration.Seconds()),
-	}}), nil
+	}}, nil
 }
 
 func (s *AuthServer) checkIdentity(ctx context.Context, session genDb.GetSessionIdentityByRefreshHashRow) error {
@@ -490,8 +494,8 @@ func (s *AuthServer) checkIdentity(ctx context.Context, session genDb.GetSession
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to revoke sessions of a disabled identity", "error", err)
-		return connect.NewError(connect.CodeUnavailable, ErrAuthStoreAvailable)
+		return rpcerr.New(connect.CodeUnavailable, ErrAuthStoreAvailable)
 	}
 	slog.InfoContext(ctx, "refresh refused for a disabled identity", "userId", session.UserID, "issuer", session.Issuer)
-	return connect.NewError(connect.CodeUnauthenticated, ErrSignInRevoked)
+	return rpcerr.New(connect.CodeUnauthenticated, ErrSignInRevoked)
 }

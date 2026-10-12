@@ -3,14 +3,14 @@ package service
 import (
 	"context"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"slices"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2/connectinprocess"
+
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -66,9 +66,9 @@ func newEventFixture(t *testing.T) *eventFixture {
 		t.Fatalf("resolve: %v", err)
 	}
 	ownerCtx := scoped(t, queries, owner.ID)
-	created, err := NewOrgServer(pool, queries, machine).CreateOrg(ownerCtx, connect.NewRequest(&orgv1.CreateOrgRequest{
+	created, err := NewOrgServer(pool, queries, machine).CreateOrg(ownerCtx, &orgv1.CreateOrgRequest{
 		Name: new("acme"),
-	}))
+	})
 	if err != nil {
 		t.Fatalf("create org: %v", err)
 	}
@@ -78,7 +78,7 @@ func newEventFixture(t *testing.T) *eventFixture {
 		machine: machine,
 		events:  NewEventServer(queries, machine),
 		owner:   scoped(t, queries, owner.ID),
-		orgID:   created.Msg.GetOrgId(),
+		orgID:   created.GetOrgId(),
 	}
 }
 
@@ -118,31 +118,31 @@ func TestListOrgEventsAuthorizationPagingAndFilter(t *testing.T) {
 		}
 	}
 
-	first, err := f.events.ListOrgEvents(f.owner, connect.NewRequest(&eventv1.ListOrgEventsRequest{
+	first, err := f.events.ListOrgEvents(f.owner, &eventv1.ListOrgEventsRequest{
 		OrgId: f.orgID, PageSize: 4,
-	}))
+	})
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
-	if len(first.Msg.GetEvents()) != 4 || first.Msg.GetNextBeforeSeq() == 0 {
-		t.Fatalf("first page = %v next=%d", eventTypes(first.Msg.GetEvents()), first.Msg.GetNextBeforeSeq())
+	if len(first.GetEvents()) != 4 || first.GetNextBeforeSeq() == 0 {
+		t.Fatalf("first page = %v next=%d", eventTypes(first.GetEvents()), first.GetNextBeforeSeq())
 	}
-	second, err := f.events.ListOrgEvents(f.owner, connect.NewRequest(&eventv1.ListOrgEventsRequest{
-		OrgId: f.orgID, PageSize: 4, BeforeSeq: first.Msg.GetNextBeforeSeq(),
-	}))
-	if err != nil || len(second.Msg.GetEvents()) != 2 || second.Msg.GetNextBeforeSeq() != 0 {
-		t.Fatalf("second page = %v (%v)", eventTypes(second.Msg.GetEvents()), err)
+	second, err := f.events.ListOrgEvents(f.owner, &eventv1.ListOrgEventsRequest{
+		OrgId: f.orgID, PageSize: 4, BeforeSeq: first.GetNextBeforeSeq(),
+	})
+	if err != nil || len(second.GetEvents()) != 2 || second.GetNextBeforeSeq() != 0 {
+		t.Fatalf("second page = %v (%v)", eventTypes(second.GetEvents()), err)
 	}
-	if got := second.Msg.GetEvents()[1]; got.GetType() != events.OrgCreated ||
+	if got := second.GetEvents()[1]; got.GetType() != events.OrgCreated ||
 		got.GetData().GetFields()["name"].GetStringValue() != "acme" || got.GetActorEmail() != "owner@acme.test" {
 		t.Fatalf("oldest event = %+v", got)
 	}
 
-	filtered, err := f.events.ListOrgEvents(f.owner, connect.NewRequest(&eventv1.ListOrgEventsRequest{
+	filtered, err := f.events.ListOrgEvents(f.owner, &eventv1.ListOrgEventsRequest{
 		OrgId: f.orgID, Types: []string{events.OrgCreated},
-	}))
-	if err != nil || len(filtered.Msg.GetEvents()) != 1 {
-		t.Fatalf("filtered = %v (%v)", eventTypes(filtered.Msg.GetEvents()), err)
+	})
+	if err != nil || len(filtered.GetEvents()) != 1 {
+		t.Fatalf("filtered = %v (%v)", eventTypes(filtered.GetEvents()), err)
 	}
 
 	outsider, err := f.queries.CreateUser(t.Context(), genDb.CreateUserParams{Email: "outsider@acme.test"})
@@ -154,9 +154,9 @@ func TestListOrgEventsAuthorizationPagingAndFilter(t *testing.T) {
 	}); grantErr != nil {
 		t.Fatalf("grant: %v", grantErr)
 	}
-	_, err = f.events.ListOrgEvents(scoped(t, f.queries, outsider.ID), connect.NewRequest(&eventv1.ListOrgEventsRequest{
+	_, err = f.events.ListOrgEvents(scoped(t, f.queries, outsider.ID), &eventv1.ListOrgEventsRequest{
 		OrgId: f.orgID,
-	}))
+	})
 	if codeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("reader listed the audit log: %v", err)
 	}
@@ -167,23 +167,15 @@ func (f *eventFixture) streamClient(t *testing.T, asSystem *atomic.Bool) eventv1
 	systemScopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeAdmin},
 	}
-	mux := http.NewServeMux()
-	mux.Handle(
-		eventv1connect.NewEventServiceHandler(
-			f.events,
-			connect.WithInterceptors(scopeInjector(func() []genDb.EntityScope {
-				if asSystem.Load() {
-					return systemScopes
-				}
-				return nil
-			})),
-		),
-	)
-	srv := httptest.NewUnstartedServer(mux)
-	srv.EnableHTTP2 = true
-	srv.StartTLS()
-	t.Cleanup(srv.Close)
-	return eventv1connect.NewEventServiceClient(srv.Client(), srv.URL)
+	server := connect.NewServer(scopeInjector(func() []genDb.EntityScope {
+		if asSystem.Load() {
+			return systemScopes
+		}
+		return nil
+	}).Interceptor)
+	eventv1connect.RegisterEventServiceHandler(server, f.events)
+	transport := connectinprocess.New(server)
+	return eventv1connect.NewEventServiceClient(connect.NewClient(transport))
 }
 
 func TestStreamEventsRequiresSystemAndFollows(t *testing.T) {
@@ -196,35 +188,37 @@ func TestStreamEventsRequiresSystemAndFollows(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
-	stream, err := client.StreamEvents(ctx, connect.NewRequest(&eventv1.StreamEventsRequest{}))
+	stream, err := client.StreamEvents(ctx, &eventv1.StreamEventsRequest{})
 	if err != nil {
 		t.Fatalf("stream: %v", err)
 	}
-	if !stream.Receive() {
-		t.Fatalf("no first batch: %v", stream.Err())
+	streamMessage, receiveErr := stream.Receive()
+	if receiveErr != nil {
+		t.Fatalf("no first batch: %v", receiveErr)
 	}
-	if got := eventTypes(stream.Msg().GetEvents()); len(got) != 2 {
+	if got := eventTypes(streamMessage.GetEvents()); len(got) != 2 {
 		t.Fatalf("first batch = %v", got)
 	}
 
 	if recordErr := events.Record(f.owner, f.queries, events.Event{Type: events.TokenCreated}); recordErr != nil {
 		t.Fatalf("record: %v", recordErr)
 	}
-	if !stream.Receive() {
-		t.Fatalf("no follow-up batch: %v", stream.Err())
+	streamMessage, receiveErr = stream.Receive()
+	if receiveErr != nil {
+		t.Fatalf("no follow-up batch: %v", receiveErr)
 	}
-	if got := eventTypes(stream.Msg().GetEvents()); len(got) != 1 || got[0] != events.TokenCreated {
+	if got := eventTypes(streamMessage.GetEvents()); len(got) != 1 || got[0] != events.TokenCreated {
 		t.Fatalf("follow-up batch = %v", got)
 	}
 	cancel()
 
 	asSystem.Store(false)
-	denied, err := client.StreamEvents(t.Context(), connect.NewRequest(&eventv1.StreamEventsRequest{}))
+	denied, err := client.StreamEvents(t.Context(), &eventv1.StreamEventsRequest{})
 	if err == nil {
-		if denied.Receive() {
+		_, err = denied.Receive()
+		if err == nil {
 			t.Fatal("non-system caller received events")
 		}
-		err = denied.Err()
 	}
 	if connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("non-system stream: %v", err)
@@ -236,12 +230,15 @@ type streamedBatch struct {
 	cursor string
 }
 
-func receiveBatches(stream *connect.ServerStreamForClient[eventv1.StreamEventsResponse]) <-chan streamedBatch {
+func receiveBatches(stream eventv1connect.EventServiceStreamEventsClientStream) <-chan streamedBatch {
 	out := make(chan streamedBatch)
 	go func() {
 		defer close(out)
-		for stream.Receive() {
-			msg := stream.Msg()
+		for {
+			msg, err := stream.Receive()
+			if err != nil {
+				return
+			}
 			out <- streamedBatch{types: eventTypes(msg.GetEvents()), cursor: msg.GetCursor()}
 		}
 	}()
@@ -277,7 +274,7 @@ func TestStreamEventsWaitsForEarlierTransactions(t *testing.T) {
 		t.Fatalf("record committed: %v", recordErr)
 	}
 
-	stream, err := client.StreamEvents(ctx, connect.NewRequest(&eventv1.StreamEventsRequest{}))
+	stream, err := client.StreamEvents(ctx, &eventv1.StreamEventsRequest{})
 	if err != nil {
 		t.Fatalf("stream: %v", err)
 	}
@@ -302,7 +299,7 @@ func TestStreamEventsWaitsForEarlierTransactions(t *testing.T) {
 	for len(delivered) < len(want) {
 		next, ok := <-batches
 		if !ok {
-			t.Fatalf("stream ended after %v: %v", delivered, stream.Err())
+			t.Fatalf("stream ended after %v", delivered)
 		}
 		delivered = append(delivered, next.types...)
 		cursor = next.cursor
@@ -321,26 +318,27 @@ func TestStreamEventsWaitsForEarlierTransactions(t *testing.T) {
 	}
 	resumeCtx, resumeCancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer resumeCancel()
-	resumed, err := client.StreamEvents(resumeCtx, connect.NewRequest(&eventv1.StreamEventsRequest{Cursor: cursor}))
+	resumed, err := client.StreamEvents(resumeCtx, &eventv1.StreamEventsRequest{Cursor: cursor})
 	if err != nil {
 		t.Fatalf("resume: %v", err)
 	}
-	if !resumed.Receive() {
-		t.Fatalf("no batch after resume: %v", resumed.Err())
+	resumedMessage, receiveErr := resumed.Receive()
+	if receiveErr != nil {
+		t.Fatalf("no batch after resume: %v", receiveErr)
 	}
-	if got := eventTypes(resumed.Msg().GetEvents()); !slices.Equal(got, []string{events.WorkspaceDeleted}) {
+	if got := eventTypes(resumedMessage.GetEvents()); !slices.Equal(got, []string{events.WorkspaceDeleted}) {
 		t.Fatalf("resumed batch = %v", got)
 	}
 
 	bad, err := client.StreamEvents(
 		t.Context(),
-		connect.NewRequest(&eventv1.StreamEventsRequest{Cursor: "not-a-cursor"}),
+		&eventv1.StreamEventsRequest{Cursor: "not-a-cursor"},
 	)
 	if err == nil {
-		if bad.Receive() {
+		_, err = bad.Receive()
+		if err == nil {
 			t.Fatal("malformed cursor streamed events")
 		}
-		err = bad.Err()
 	}
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("malformed cursor: %v", err)
@@ -364,7 +362,7 @@ func TestMutationFailsWithoutItsEvent(t *testing.T) {
 		t.Fatalf("install failing trigger: %v", err)
 	}
 
-	_, err := orgs.UpdateOrg(f.owner, connect.NewRequest(&orgv1.UpdateOrgRequest{OrgId: f.orgID, Name: new("renamed")}))
+	_, err := orgs.UpdateOrg(f.owner, &orgv1.UpdateOrgRequest{OrgId: f.orgID, Name: new("renamed")})
 	if err == nil {
 		t.Fatal("update succeeded without its event")
 	}
@@ -373,7 +371,7 @@ func TestMutationFailsWithoutItsEvent(t *testing.T) {
 		t.Fatalf("org after failed update = %q (%v)", org.Name, err)
 	}
 
-	_, err = orgs.DeleteOrg(f.owner, connect.NewRequest(&orgv1.DeleteOrgRequest{OrgId: f.orgID}))
+	_, err = orgs.DeleteOrg(f.owner, &orgv1.DeleteOrgRequest{OrgId: f.orgID})
 	if err == nil {
 		t.Fatal("delete succeeded without its event")
 	}
@@ -384,16 +382,8 @@ func TestMutationFailsWithoutItsEvent(t *testing.T) {
 
 type scopeInjector func() []genDb.EntityScope
 
-func (scopeInjector) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
-	return next
-}
-
-func (scopeInjector) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
-	return next
-}
-
-func (s scopeInjector) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
-	return func(ctx context.Context, conn connect.StreamingHandlerConn) error {
-		return next(context.WithValue(ctx, contextkeys.EntityScopesKey, s()), conn)
+func (s scopeInjector) Interceptor(next connect.ServerFunc) connect.ServerFunc {
+	return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) error {
+		return next(context.WithValue(ctx, contextkeys.EntityScopesKey, s()), spec, stream)
 	}
 }

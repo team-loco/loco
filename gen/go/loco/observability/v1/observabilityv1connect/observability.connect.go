@@ -5,20 +5,11 @@
 package observabilityv1connect
 
 import (
-	connect "connectrpc.com/connect"
+	connect "connectrpc.com/connect/v2"
 	context "context"
-	errors "errors"
 	v1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
-	http "net/http"
-	strings "strings"
+	sync "sync"
 )
-
-// This is a compile-time assertion to ensure that this generated file and the connect package are
-// compatible. If you get a compiler error that this constant is not defined, this code was
-// generated with a version of connect newer than the one compiled into your binary. You can fix the
-// problem by either regenerating this code with an older version of connect or updating the connect
-// version compiled into your binary.
-const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// ObservabilityProxyServiceName is the fully-qualified name of the ObservabilityProxyService
@@ -26,152 +17,201 @@ const (
 	ObservabilityProxyServiceName = "loco.observability.v1.ObservabilityProxyService"
 )
 
-// These constants are the fully-qualified names of the RPCs defined in this package. They're
-// exposed at runtime as Spec.Procedure and as the final two segments of the HTTP route.
+// These constants are the procedure names of the RPCs defined in this package. They're exposed at
+// runtime as Spec.Procedure and as the final two segments of the HTTP route.
 //
 // Note that these are different from the fully-qualified method names used by
 // google.golang.org/protobuf/reflect/protoreflect. To convert from these constants to
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// ObservabilityProxyServiceQueryLogsProcedure is the fully-qualified name of the
+	// ObservabilityProxyServiceQueryLogsProcedure is the procedure name of the
 	// ObservabilityProxyService's QueryLogs RPC.
 	ObservabilityProxyServiceQueryLogsProcedure = "/loco.observability.v1.ObservabilityProxyService/QueryLogs"
-	// ObservabilityProxyServiceTailLogsProcedure is the fully-qualified name of the
+	// ObservabilityProxyServiceTailLogsProcedure is the procedure name of the
 	// ObservabilityProxyService's TailLogs RPC.
 	ObservabilityProxyServiceTailLogsProcedure = "/loco.observability.v1.ObservabilityProxyService/TailLogs"
-	// ObservabilityProxyServiceQueryMetricsProcedure is the fully-qualified name of the
+	// ObservabilityProxyServiceQueryMetricsProcedure is the procedure name of the
 	// ObservabilityProxyService's QueryMetrics RPC.
 	ObservabilityProxyServiceQueryMetricsProcedure = "/loco.observability.v1.ObservabilityProxyService/QueryMetrics"
+)
+
+var (
+	observabilityProxyServiceQueryLogsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_observability_v1_observability_proto.Services().ByName("ObservabilityProxyService").Methods().ByName("QueryLogs"),
+			Procedure:  ObservabilityProxyServiceQueryLogsProcedure,
+		}
+	})
+	observabilityProxyServiceTailLogsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeServer,
+			Schema:     v1.File_loco_observability_v1_observability_proto.Services().ByName("ObservabilityProxyService").Methods().ByName("TailLogs"),
+			Procedure:  ObservabilityProxyServiceTailLogsProcedure,
+		}
+	})
+	observabilityProxyServiceQueryMetricsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_observability_v1_observability_proto.Services().ByName("ObservabilityProxyService").Methods().ByName("QueryMetrics"),
+			Procedure:  ObservabilityProxyServiceQueryMetricsProcedure,
+		}
+	})
 )
 
 // ObservabilityProxyServiceClient is a client for the
 // loco.observability.v1.ObservabilityProxyService service.
 type ObservabilityProxyServiceClient interface {
 	// QueryLogs returns historical log entries matching the given filters.
-	QueryLogs(context.Context, *connect.Request[v1.QueryLogsRequest]) (*connect.Response[v1.QueryLogsResponse], error)
+	QueryLogs(context.Context, *v1.QueryLogsRequest) (*v1.QueryLogsResponse, error)
 	// TailLogs streams live log entries as they arrive (server-push, polling-based).
-	TailLogs(context.Context, *connect.Request[v1.TailLogsRequest]) (*connect.ServerStreamForClient[v1.TailLogsResponse], error)
+	TailLogs(context.Context, *v1.TailLogsRequest) (ObservabilityProxyServiceTailLogsClientStream, error)
 	// QueryMetrics returns aggregated metric data points for the given time range.
-	QueryMetrics(context.Context, *connect.Request[v1.QueryMetricsRequest]) (*connect.Response[v1.QueryMetricsResponse], error)
+	QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error)
 }
 
 // NewObservabilityProxyServiceClient constructs a client for the
-// loco.observability.v1.ObservabilityProxyService service. By default, it uses the Connect protocol
-// with the binary Protobuf Codec, asks for gzipped responses, and sends uncompressed requests. To
-// use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or connect.WithGRPCWeb()
-// options.
-//
-// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
-// http://api.acme.com or https://acme.com/grpc).
-func NewObservabilityProxyServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) ObservabilityProxyServiceClient {
-	baseURL = strings.TrimRight(baseURL, "/")
-	observabilityProxyServiceMethods := v1.File_loco_observability_v1_observability_proto.Services().ByName("ObservabilityProxyService").Methods()
-	return &observabilityProxyServiceClient{
-		queryLogs: connect.NewClient[v1.QueryLogsRequest, v1.QueryLogsResponse](
-			httpClient,
-			baseURL+ObservabilityProxyServiceQueryLogsProcedure,
-			connect.WithSchema(observabilityProxyServiceMethods.ByName("QueryLogs")),
-			connect.WithClientOptions(opts...),
-		),
-		tailLogs: connect.NewClient[v1.TailLogsRequest, v1.TailLogsResponse](
-			httpClient,
-			baseURL+ObservabilityProxyServiceTailLogsProcedure,
-			connect.WithSchema(observabilityProxyServiceMethods.ByName("TailLogs")),
-			connect.WithClientOptions(opts...),
-		),
-		queryMetrics: connect.NewClient[v1.QueryMetricsRequest, v1.QueryMetricsResponse](
-			httpClient,
-			baseURL+ObservabilityProxyServiceQueryMetricsProcedure,
-			connect.WithSchema(observabilityProxyServiceMethods.ByName("QueryMetrics")),
-			connect.WithClientOptions(opts...),
-		),
+// loco.observability.v1.ObservabilityProxyService service. Multiple service clients may share a
+// single connect.Client.
+func NewObservabilityProxyServiceClient(client *connect.Client) ObservabilityProxyServiceClient {
+	return &observabilityProxyServiceClient{client: client}
+}
+
+// ObservabilityProxyServiceTailLogsClientStream is the client stream for the
+// ObservabilityProxyService's TailLogs RPC.
+type ObservabilityProxyServiceTailLogsClientStream struct {
+	stream connect.ClientStream
+}
+
+// Receive returns the next response message from the server.
+func (s ObservabilityProxyServiceTailLogsClientStream) Receive() (*v1.TailLogsResponse, error) {
+	var res v1.TailLogsResponse
+	if err := s.stream.Receive(&res); err != nil {
+		return nil, err
 	}
+	return &res, nil
 }
 
-// observabilityProxyServiceClient implements ObservabilityProxyServiceClient.
-type observabilityProxyServiceClient struct {
-	queryLogs    *connect.Client[v1.QueryLogsRequest, v1.QueryLogsResponse]
-	tailLogs     *connect.Client[v1.TailLogsRequest, v1.TailLogsResponse]
-	queryMetrics *connect.Client[v1.QueryMetricsRequest, v1.QueryMetricsResponse]
-}
-
-// QueryLogs calls loco.observability.v1.ObservabilityProxyService.QueryLogs.
-func (c *observabilityProxyServiceClient) QueryLogs(ctx context.Context, req *connect.Request[v1.QueryLogsRequest]) (*connect.Response[v1.QueryLogsResponse], error) {
-	return c.queryLogs.CallUnary(ctx, req)
-}
-
-// TailLogs calls loco.observability.v1.ObservabilityProxyService.TailLogs.
-func (c *observabilityProxyServiceClient) TailLogs(ctx context.Context, req *connect.Request[v1.TailLogsRequest]) (*connect.ServerStreamForClient[v1.TailLogsResponse], error) {
-	return c.tailLogs.CallServerStream(ctx, req)
-}
-
-// QueryMetrics calls loco.observability.v1.ObservabilityProxyService.QueryMetrics.
-func (c *observabilityProxyServiceClient) QueryMetrics(ctx context.Context, req *connect.Request[v1.QueryMetricsRequest]) (*connect.Response[v1.QueryMetricsResponse], error) {
-	return c.queryMetrics.CallUnary(ctx, req)
+// Close releases the stream's resources. It is idempotent and is typically deferred to clean up a
+// stream abandoned before io.EOF.
+func (s ObservabilityProxyServiceTailLogsClientStream) Close() error {
+	return s.stream.Close()
 }
 
 // ObservabilityProxyServiceHandler is an implementation of the
 // loco.observability.v1.ObservabilityProxyService service.
 type ObservabilityProxyServiceHandler interface {
 	// QueryLogs returns historical log entries matching the given filters.
-	QueryLogs(context.Context, *connect.Request[v1.QueryLogsRequest]) (*connect.Response[v1.QueryLogsResponse], error)
+	QueryLogs(context.Context, *v1.QueryLogsRequest) (*v1.QueryLogsResponse, error)
 	// TailLogs streams live log entries as they arrive (server-push, polling-based).
-	TailLogs(context.Context, *connect.Request[v1.TailLogsRequest], *connect.ServerStream[v1.TailLogsResponse]) error
+	TailLogs(context.Context, *v1.TailLogsRequest, ObservabilityProxyServiceTailLogsServerStream) error
 	// QueryMetrics returns aggregated metric data points for the given time range.
-	QueryMetrics(context.Context, *connect.Request[v1.QueryMetricsRequest]) (*connect.Response[v1.QueryMetricsResponse], error)
+	QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error)
 }
 
-// NewObservabilityProxyServiceHandler builds an HTTP handler from the service implementation. It
-// returns the path on which to mount the handler and the handler itself.
-//
-// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
-// and JSON codecs. They also support gzip compression.
-func NewObservabilityProxyServiceHandler(svc ObservabilityProxyServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	observabilityProxyServiceMethods := v1.File_loco_observability_v1_observability_proto.Services().ByName("ObservabilityProxyService").Methods()
-	observabilityProxyServiceQueryLogsHandler := connect.NewUnaryHandler(
-		ObservabilityProxyServiceQueryLogsProcedure,
-		svc.QueryLogs,
-		connect.WithSchema(observabilityProxyServiceMethods.ByName("QueryLogs")),
-		connect.WithHandlerOptions(opts...),
+// RegisterObservabilityProxyServiceHandler registers svc as the
+// loco.observability.v1.ObservabilityProxyService implementation on server.
+func RegisterObservabilityProxyServiceHandler(server *connect.Server, svc ObservabilityProxyServiceHandler) {
+	adapter := observabilityProxyServiceHandler{svc: svc}
+	server.Register(
+		connect.Method{Spec: observabilityProxyServiceQueryLogsSpec(), Handler: adapter.queryLogs},
+		connect.Method{Spec: observabilityProxyServiceTailLogsSpec(), Handler: adapter.tailLogs},
+		connect.Method{Spec: observabilityProxyServiceQueryMetricsSpec(), Handler: adapter.queryMetrics},
 	)
-	observabilityProxyServiceTailLogsHandler := connect.NewServerStreamHandler(
-		ObservabilityProxyServiceTailLogsProcedure,
-		svc.TailLogs,
-		connect.WithSchema(observabilityProxyServiceMethods.ByName("TailLogs")),
-		connect.WithHandlerOptions(opts...),
-	)
-	observabilityProxyServiceQueryMetricsHandler := connect.NewUnaryHandler(
-		ObservabilityProxyServiceQueryMetricsProcedure,
-		svc.QueryMetrics,
-		connect.WithSchema(observabilityProxyServiceMethods.ByName("QueryMetrics")),
-		connect.WithHandlerOptions(opts...),
-	)
-	return "/loco.observability.v1.ObservabilityProxyService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case ObservabilityProxyServiceQueryLogsProcedure:
-			observabilityProxyServiceQueryLogsHandler.ServeHTTP(w, r)
-		case ObservabilityProxyServiceTailLogsProcedure:
-			observabilityProxyServiceTailLogsHandler.ServeHTTP(w, r)
-		case ObservabilityProxyServiceQueryMetricsProcedure:
-			observabilityProxyServiceQueryMetricsHandler.ServeHTTP(w, r)
-		default:
-			http.NotFound(w, r)
-		}
-	})
+}
+
+// ObservabilityProxyServiceTailLogsServerStream is the server stream for the
+// ObservabilityProxyService's TailLogs RPC.
+type ObservabilityProxyServiceTailLogsServerStream struct {
+	stream connect.ServerStream
+}
+
+// SendHeaders flushes the response headers without a message. The first Send does this implicitly.
+func (s ObservabilityProxyServiceTailLogsServerStream) SendHeaders() error {
+	return s.stream.SendHeaders()
+}
+
+// Send sends a response message to the client.
+func (s ObservabilityProxyServiceTailLogsServerStream) Send(res *v1.TailLogsResponse) error {
+	return s.stream.Send(res)
 }
 
 // UnimplementedObservabilityProxyServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedObservabilityProxyServiceHandler struct{}
 
-func (UnimplementedObservabilityProxyServiceHandler) QueryLogs(context.Context, *connect.Request[v1.QueryLogsRequest]) (*connect.Response[v1.QueryLogsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.observability.v1.ObservabilityProxyService.QueryLogs is not implemented"))
+func (UnimplementedObservabilityProxyServiceHandler) QueryLogs(context.Context, *v1.QueryLogsRequest) (*v1.QueryLogsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityProxyService.QueryLogs is not implemented")
 }
 
-func (UnimplementedObservabilityProxyServiceHandler) TailLogs(context.Context, *connect.Request[v1.TailLogsRequest], *connect.ServerStream[v1.TailLogsResponse]) error {
-	return connect.NewError(connect.CodeUnimplemented, errors.New("loco.observability.v1.ObservabilityProxyService.TailLogs is not implemented"))
+func (UnimplementedObservabilityProxyServiceHandler) TailLogs(context.Context, *v1.TailLogsRequest, ObservabilityProxyServiceTailLogsServerStream) error {
+	return connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityProxyService.TailLogs is not implemented")
 }
 
-func (UnimplementedObservabilityProxyServiceHandler) QueryMetrics(context.Context, *connect.Request[v1.QueryMetricsRequest]) (*connect.Response[v1.QueryMetricsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.observability.v1.ObservabilityProxyService.QueryMetrics is not implemented"))
+func (UnimplementedObservabilityProxyServiceHandler) QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityProxyService.QueryMetrics is not implemented")
+}
+
+type observabilityProxyServiceClient struct {
+	client *connect.Client
+}
+
+func (c *observabilityProxyServiceClient) QueryLogs(ctx context.Context, req *v1.QueryLogsRequest) (*v1.QueryLogsResponse, error) {
+	var res v1.QueryLogsResponse
+	if err := c.client.CallUnary(ctx, observabilityProxyServiceQueryLogsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *observabilityProxyServiceClient) TailLogs(ctx context.Context, req *v1.TailLogsRequest) (ObservabilityProxyServiceTailLogsClientStream, error) {
+	stream, err := c.client.CallServerStream(ctx, observabilityProxyServiceTailLogsSpec(), req)
+	if err != nil {
+		return ObservabilityProxyServiceTailLogsClientStream{}, err
+	}
+	return ObservabilityProxyServiceTailLogsClientStream{stream: stream}, nil
+}
+
+func (c *observabilityProxyServiceClient) QueryMetrics(ctx context.Context, req *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error) {
+	var res v1.QueryMetricsResponse
+	if err := c.client.CallUnary(ctx, observabilityProxyServiceQueryMetricsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+type observabilityProxyServiceHandler struct {
+	svc ObservabilityProxyServiceHandler
+}
+
+func (h observabilityProxyServiceHandler) queryLogs(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.QueryLogsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.QueryLogs(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h observabilityProxyServiceHandler) tailLogs(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.TailLogsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	return h.svc.TailLogs(ctx, &req, ObservabilityProxyServiceTailLogsServerStream{stream: stream})
+}
+
+func (h observabilityProxyServiceHandler) queryMetrics(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.QueryMetricsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.QueryMetrics(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
 }

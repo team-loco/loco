@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/ui"
@@ -50,20 +49,20 @@ func runTransfer(cmd *cobra.Command, name, partial string) error {
 	}
 	resources := t.resourceClient()
 
-	getReq := connect.NewRequest(&resourcev1.GetResourceRequest{
+	getReq := &resourcev1.GetResourceRequest{
 		Key: &resourcev1.GetResourceRequest_NameKey{
 			NameKey: &resourcev1.GetResourceNameKey{WorkspaceId: t.workspaceID, Name: name},
 		},
-	})
-	getReq.Header().Set("Authorization", t.authHeader)
+	}
+
 	found, err := resources.GetResource(ctx, getReq)
 	if err != nil {
 		return fmt.Errorf("service %q not found: %w", name, err)
 	}
-	resourceID := found.Msg.GetResource().GetId()
+	resourceID := found.GetResource().GetId()
 
-	transferReq := connect.NewRequest(&resourcev1.TransferPartialRequest{ResourceId: resourceID, Partial: partial})
-	transferReq.Header().Set("Authorization", t.authHeader)
+	transferReq := &resourcev1.TransferPartialRequest{ResourceId: resourceID, Partial: partial}
+
 	if _, transferErr := resources.TransferPartial(ctx, transferReq); transferErr != nil {
 		return fmt.Errorf("transfer %s to partial %s: %w", name, partial, transferErr)
 	}

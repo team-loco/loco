@@ -8,15 +8,14 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/team-loco/loco/internal/rpc"
+
 	"charm.land/lipgloss/v2"
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"golang.org/x/mod/semver"
 
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
-	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
-	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/ui"
 )
 
@@ -53,14 +52,15 @@ func (c *versionCheck) start(cmd *cobra.Command) {
 		defer close(c.done)
 		ctx, cancel := context.WithTimeout(context.Background(), versionCheckTimeout)
 		defer cancel()
-		client := configv1connect.NewConfigServiceClient(httputil.NewHTTPClient(), host)
-		req := connect.NewRequest(&configv1.GetConfigRequest{})
-		resp, err := client.GetConfig(ctx, req)
+		configClients := rpc.ForHost(host, "")
+		configClient := configClients.Config
+		req := &configv1.GetConfigRequest{}
+		resp, err := configClient.GetConfig(ctx, req)
 		if err != nil {
 			slog.Debug("could not fetch server config", "error", err)
 			return
 		}
-		c.minimum = resp.Msg.GetMinCliVersion()
+		c.minimum = resp.GetMinCliVersion()
 	}()
 }
 

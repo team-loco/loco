@@ -2,20 +2,28 @@ package logstream
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
+	"errors"
+	"fmt"
 	"slices"
 	"sync"
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
+	"github.com/team-loco/loco/internal/rpc"
+
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connectinprocess"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var base = time.Date(2026, 10, 7, 6, 0, 0, 0, time.UTC)
+
+var (
+	proxyServers    sync.Map
+	errUnknownProxy = errors.New("unknown in-process proxy")
+)
 
 type fakeProxy struct {
 	observabilityv1connect.UnimplementedObservabilityProxyServiceHandler
@@ -34,19 +42,20 @@ func entry(second int, body string) *observabilityv1.LogEntry {
 }
 
 func (p *fakeProxy) QueryLogs(
-	_ context.Context,
-	req *connect.Request[observabilityv1.QueryLogsRequest],
-) (*connect.Response[observabilityv1.QueryLogsResponse], error) {
+	ctx context.Context,
+	req *observabilityv1.QueryLogsRequest,
+) (*observabilityv1.QueryLogsResponse, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.queries = append(p.queries, req.Msg)
-	p.auth = append(p.auth, req.Header().Get("Authorization"))
+	p.queries = append(p.queries, req)
+	info, _ := connect.CallInfoForServerContext(ctx)
+	p.auth = append(p.auth, info.RequestHeader().Get("Authorization"))
 	entries := slices.Clone(p.entries)
-	if req.Msg.GetOrder() == observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST {
+	if req.GetOrder() == observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST {
 		slices.Reverse(entries)
 	}
 	offset := 0
-	if req.Msg.GetCursor() != "" {
+	if req.GetCursor() != "" {
 		offset = p.pageSize
 	}
 	end := len(entries)
@@ -55,13 +64,13 @@ func (p *fakeProxy) QueryLogs(
 		end = p.pageSize
 		next = "page-2"
 	}
-	return connect.NewResponse(&observabilityv1.QueryLogsResponse{Entries: entries[offset:end], NextCursor: next}), nil
+	return &observabilityv1.QueryLogsResponse{Entries: entries[offset:end], NextCursor: next}, nil
 }
 
 func (p *fakeProxy) TailLogs(
 	ctx context.Context,
-	_ *connect.Request[observabilityv1.TailLogsRequest],
-	stream *connect.ServerStream[observabilityv1.TailLogsResponse],
+	_ *observabilityv1.TailLogsRequest,
+	stream observabilityv1connect.ObservabilityProxyServiceTailLogsServerStream,
 ) error {
 	p.mu.Lock()
 	p.tails++
@@ -91,18 +100,29 @@ func serve(t *testing.T, proxy *fakeProxy) Proxy {
 
 func serveHandler(t *testing.T, proxy observabilityv1connect.ObservabilityProxyServiceHandler) Proxy {
 	t.Helper()
-	mux := http.NewServeMux()
-	mux.Handle(observabilityv1connect.NewObservabilityProxyServiceHandler(proxy))
-	srv := httptest.NewServer(mux)
-	t.Cleanup(srv.Close)
-	return Proxy{ClusterID: srv.URL, Region: "test", URL: srv.URL}
+	server := connect.NewServer()
+	observabilityv1connect.RegisterObservabilityProxyServiceHandler(server, proxy)
+	endpoint := fmt.Sprintf("inprocess://%p", server)
+	proxyServers.Store(endpoint, server)
+	t.Cleanup(func() { proxyServers.Delete(endpoint) })
+	return Proxy{ClusterID: endpoint, Region: "test", URL: endpoint}
 }
 
 func newClient() *Client {
 	return &Client{
 		Token: "token",
-		NewClient: func(url string) observabilityv1connect.ObservabilityProxyServiceClient {
-			return observabilityv1connect.NewObservabilityProxyServiceClient(http.DefaultClient, url)
+		NewClient: func(url, token string) observabilityv1connect.ObservabilityProxyServiceClient {
+			cached, exists := proxyServers.Load(url)
+			if !exists {
+				panic(errUnknownProxy)
+			}
+			server, ok := cached.(*connect.Server)
+			if !ok {
+				panic(errUnknownProxy)
+			}
+			transport := connectinprocess.New(server)
+			client := connect.NewClient(transport, rpc.BearerInterceptor(token))
+			return observabilityv1connect.NewObservabilityProxyServiceClient(client)
 		},
 	}
 }
@@ -209,18 +229,18 @@ type windowProxy struct {
 
 func (p *windowProxy) QueryLogs(
 	_ context.Context,
-	_ *connect.Request[observabilityv1.QueryLogsRequest],
-) (*connect.Response[observabilityv1.QueryLogsResponse], error) {
-	return connect.NewResponse(&observabilityv1.QueryLogsResponse{Entries: p.backfill}), nil
+	_ *observabilityv1.QueryLogsRequest,
+) (*observabilityv1.QueryLogsResponse, error) {
+	return &observabilityv1.QueryLogsResponse{Entries: p.backfill}, nil
 }
 
 func (p *windowProxy) TailLogs(
 	ctx context.Context,
-	req *connect.Request[observabilityv1.TailLogsRequest],
-	stream *connect.ServerStream[observabilityv1.TailLogsResponse],
+	req *observabilityv1.TailLogsRequest,
+	stream observabilityv1connect.ObservabilityProxyServiceTailLogsServerStream,
 ) error {
 	after := p.now.Add(-proxyTailLookback)
-	if since := req.Msg.GetSince(); since != nil {
+	if since := req.GetSince(); since != nil {
 		after = since.AsTime()
 	}
 	for _, e := range p.live {

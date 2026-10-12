@@ -7,12 +7,14 @@ import (
 	"log/slog"
 	"strings"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+
 	genDb "github.com/team-loco/loco/api/gen/db"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 const (
@@ -48,7 +50,7 @@ func pinBuildSource(
 	src *deploymentv1.BuildSource,
 ) (*deploymentv1.BuildSource, error) {
 	if src == nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errBuildSourceRequired)
+		return nil, rpcerr.New(connect.CodeInvalidArgument, errBuildSourceRequired)
 	}
 
 	sourceType := src.GetType()
@@ -59,7 +61,7 @@ func pinBuildSource(
 		return pinPublicImage(ctx, resolver, registryHost, src)
 	default:
 		unsupported := fmt.Errorf("unsupported build type %q: use \"dockerfile\" or \"image\"", sourceType)
-		return nil, connect.NewError(connect.CodeInvalidArgument, unsupported)
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(unsupported)
 	}
 }
 
@@ -70,35 +72,35 @@ func pinDockerfileBuild(
 	src *deploymentv1.BuildSource,
 ) (*deploymentv1.BuildSource, error) {
 	if src.GetImage() != "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errDockerfileImageSet)
+		return nil, rpcerr.New(connect.CodeInvalidArgument, errDockerfileImageSet)
 	}
 	rawBuildID := src.GetBuildId()
 	if rawBuildID == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errDockerfileNoBuildID)
+		return nil, rpcerr.New(connect.CodeInvalidArgument, errDockerfileNoBuildID)
 	}
 	buildID, err := uuid.Parse(rawBuildID)
 	if err != nil {
 		invalid := fmt.Errorf("invalid build_id: %w", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, invalid)
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(invalid)
 	}
 
 	build, err := builds.GetBuildByID(ctx, buildID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, connect.NewError(connect.CodeNotFound, ErrBuildNotFound)
+		return nil, rpcerr.New(connect.CodeNotFound, ErrBuildNotFound)
 	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get build", "error", err, "buildId", buildID)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 	if build.ResourceID != resourceID {
 		slog.WarnContext(ctx, "build belongs to another resource", "buildId", buildID, "resourceId", resourceID)
-		return nil, connect.NewError(connect.CodeNotFound, ErrBuildNotFound)
+		return nil, rpcerr.New(connect.CodeNotFound, ErrBuildNotFound)
 	}
 	if build.Status != genDb.BuildStatusSucceeded || build.ImageDigest == nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errBuildNotSucceeded)
+		return nil, rpcerr.New(connect.CodeFailedPrecondition, errBuildNotSucceeded)
 	}
 	if build.ImageDeletedAt != nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errBuildImageDeleted)
+		return nil, rpcerr.New(connect.CodeFailedPrecondition, errBuildImageDeleted)
 	}
 
 	image := build.ImageRepository + "@" + *build.ImageDigest
@@ -136,30 +138,30 @@ func pinPublicImage(
 	src *deploymentv1.BuildSource,
 ) (*deploymentv1.BuildSource, error) {
 	if src.GetBuildId() != "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errImageBuildIDSet)
+		return nil, rpcerr.New(connect.CodeInvalidArgument, errImageBuildIDSet)
 	}
 	image := src.GetImage()
 	if image == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errImageRequired)
+		return nil, rpcerr.New(connect.CodeInvalidArgument, errImageRequired)
 	}
 
 	ref, err := name.ParseReference(image)
 	if err != nil {
 		invalid := fmt.Errorf("invalid image reference %q: %w", image, err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, invalid)
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(invalid)
 	}
 
 	repository := ref.Context()
 	imageHost := repository.RegistryStr()
 	if registryHost != "" && strings.EqualFold(imageHost, registryHost) {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errImageFromLocoRegistry)
+		return nil, rpcerr.New(connect.CodeInvalidArgument, errImageFromLocoRegistry)
 	}
 
 	digest, err := resolver.Resolve(ctx, ref)
 	if err != nil {
 		slog.WarnContext(ctx, "failed to resolve image", "image", image, "error", err)
 		unresolved := fmt.Errorf("could not resolve public image %q: %w", image, err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, unresolved)
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(unresolved)
 	}
 
 	pinned := repository.Name() + "@" + digest

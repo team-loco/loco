@@ -3,22 +3,22 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 
-	"github.com/team-loco/loco/api/events"
-
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/contextkeys"
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 var (
@@ -52,14 +52,12 @@ func NewUserServer(
 // GetUser retrieves a user by ID or email
 func (s *UserServer) GetUser(
 	ctx context.Context,
-	req *connect.Request[userv1.GetUserRequest],
-) (*connect.Response[userv1.GetUserResponse], error) {
-	r := req.Msg
-
+	req *userv1.GetUserRequest,
+) (*userv1.GetUserResponse, error) {
 	var targetUserID string
 	var err error
 
-	switch key := r.GetKey().(type) {
+	switch key := req.GetKey().(type) {
 	case *userv1.GetUserRequest_UserId:
 		targetUserID = key.UserId
 	case *userv1.GetUserRequest_Email:
@@ -67,18 +65,18 @@ func (s *UserServer) GetUser(
 		if getErr != nil {
 			// Return NotFound regardless of reason to prevent user-existence probing by email.
 			slog.WarnContext(ctx, "user not found by email")
-			return nil, connect.NewError(connect.CodeNotFound, ErrUserNotFound)
+			return nil, rpcerr.New(connect.CodeNotFound, ErrUserNotFound)
 		}
 		targetUserID = dbUser.ID.String()
 	default:
 		slog.ErrorContext(ctx, "invalid request: either id or email must be provided")
-		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidRequest)
+		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrInvalidRequest)
 	}
 
 	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	if verifyErr := s.authz.Check(
@@ -88,7 +86,7 @@ func (s *UserServer) GetUser(
 	); verifyErr != nil {
 		// Return NotFound (not PermissionDenied) to prevent user-existence probing.
 		slog.WarnContext(ctx, "unauthorized to get user", "userId", targetUserID)
-		return nil, connect.NewError(connect.CodeNotFound, ErrUserNotFound)
+		return nil, rpcerr.New(connect.CodeNotFound, ErrUserNotFound)
 	}
 
 	user, err := s.getUserByID(ctx, targetUserID)
@@ -96,30 +94,30 @@ func (s *UserServer) GetUser(
 		return nil, err
 	}
 
-	return connect.NewResponse(&userv1.GetUserResponse{User: user}), nil
+	return &userv1.GetUserResponse{User: user}, nil
 }
 
 // WhoAmI retrieves the current authenticated user
 func (s *UserServer) WhoAmI(
 	ctx context.Context,
-	_ *connect.Request[userv1.WhoAmIRequest],
-) (*connect.Response[userv1.WhoAmIResponse], error) {
+	_ *userv1.WhoAmIRequest,
+) (*userv1.WhoAmIResponse, error) {
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
 		slog.ErrorContext(ctx, "entity not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	err := s.authz.Check(ctx, entityScopes, actions.New(actions.GetCurrentUser, entity.ID.String()))
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to verify token", "error", err)
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
 
 	user, err := s.getUserByID(ctx, entity.ID.String())
@@ -128,49 +126,47 @@ func (s *UserServer) WhoAmI(
 	}
 	slog.InfoContext(ctx, "returning user")
 
-	return connect.NewResponse(&userv1.WhoAmIResponse{User: user}), nil
+	return &userv1.WhoAmIResponse{User: user}, nil
 }
 
 // UpdateUser updates user information
 func (s *UserServer) UpdateUser(
 	ctx context.Context,
-	req *connect.Request[userv1.UpdateUserRequest],
-) (*connect.Response[userv1.UpdateUserResponse], error) {
-	r := req.Msg
-
+	req *userv1.UpdateUserRequest,
+) (*userv1.UpdateUserResponse, error) {
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
 		slog.ErrorContext(ctx, "entity not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	if err := s.authz.Check(
 		ctx,
 		entityScopes,
-		actions.New(actions.UpdateUser, r.GetUserId()),
+		actions.New(actions.UpdateUser, req.GetUserId()),
 	); err != nil {
 		slog.WarnContext(
 			ctx,
 			"unauthorized to update user",
 			"targetUserId",
-			r.GetUserId(),
+			req.GetUserId(),
 			"currentUserId",
 			entity.ID.String(),
 		)
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
-	userID := uuid.MustParse(r.GetUserId())
+	userID := uuid.MustParse(req.GetUserId())
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if _, updateErr := qtx.UpdateUserAvatarURL(ctx, genDb.UpdateUserAvatarURLParams{
 			ID:        userID,
-			AvatarUrl: r.AvatarUrl,
+			AvatarUrl: req.AvatarUrl,
 		}); updateErr != nil {
 			return updateErr
 		}
@@ -182,37 +178,35 @@ func (s *UserServer) UpdateUser(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update user", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
-	return connect.NewResponse(&userv1.UpdateUserResponse{UserId: r.GetUserId()}), nil
+	return &userv1.UpdateUserResponse{UserId: req.GetUserId()}, nil
 }
 
 // ListUsers lists all users with pagination
 func (s *UserServer) ListUsers(
 	ctx context.Context,
-	req *connect.Request[userv1.ListUsersRequest],
-) (*connect.Response[userv1.ListUsersResponse], error) {
-	r := req.Msg
-
+	req *userv1.ListUsersRequest,
+) (*userv1.ListUsersResponse, error) {
 	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	if err := s.authz.Check(ctx, entityScopes, actions.NewSystem(actions.ListUsers)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to list users")
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
-	pageSize := normalizePageSize(r.GetPageSize())
+	pageSize := normalizePageSize(req.GetPageSize())
 
 	var pageToken *string
-	if r.GetPageToken() != "" {
-		cursorID, err := decodeCursor(r.GetPageToken())
+	if req.GetPageToken() != "" {
+		cursorID, err := decodeCursor(req.GetPageToken())
 		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
+			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(err)
 		}
 		pageToken = &cursorID
 	}
@@ -223,7 +217,7 @@ func (s *UserServer) ListUsers(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list users", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
 	var users []*userv1.User
@@ -236,68 +230,66 @@ func (s *UserServer) ListUsers(
 		nextPageToken = encodeCursor(dbUsers[len(dbUsers)-1].ID.String())
 	}
 
-	return connect.NewResponse(&userv1.ListUsersResponse{
+	return &userv1.ListUsersResponse{
 		Users:         users,
 		NextPageToken: nextPageToken,
-	}), nil
+	}, nil
 }
 
 // DeleteUser deletes a user (only if no active resources)
 func (s *UserServer) DeleteUser(
 	ctx context.Context,
-	req *connect.Request[userv1.DeleteUserRequest],
-) (*connect.Response[userv1.DeleteUserResponse], error) {
-	r := req.Msg
-
+	req *userv1.DeleteUserRequest,
+) (*userv1.DeleteUserResponse, error) {
 	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	if err := s.authz.Check(
 		ctx,
 		entityScopes,
-		actions.New(actions.DeleteUser, r.GetUserId()),
+		actions.New(actions.DeleteUser, req.GetUserId()),
 	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to delete user", "userId", r.GetUserId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		slog.WarnContext(ctx, "unauthorized to delete user", "userId", req.GetUserId())
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
-	userID := uuid.MustParse(r.GetUserId())
+	userID := uuid.MustParse(req.GetUserId())
 
 	_, err := s.queries.GetUserByID(ctx, userID)
 	if err != nil {
-		slog.WarnContext(ctx, "user not found", "user_id", r.GetUserId())
-		return nil, connect.NewError(connect.CodeNotFound, ErrUserNotFound)
+		slog.WarnContext(ctx, "user not found", "user_id", req.GetUserId())
+		return nil, rpcerr.New(connect.CodeNotFound, ErrUserNotFound)
 	}
 
 	hasWorkspaces, err := s.queries.CheckUserHasWorkspaces(ctx, userID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check user workspaces", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
 	if hasWorkspaces {
-		slog.WarnContext(ctx, "cannot delete user with active workspace memberships", "userId", r.GetUserId())
-		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrUserHasActiveResources)
+		slog.WarnContext(ctx, "cannot delete user with active workspace memberships", "userId", req.GetUserId())
+		return nil, rpcerr.New(connect.CodeFailedPrecondition, ErrUserHasActiveResources)
 	}
 
 	hasOrganizations, err := s.queries.CheckUserHasOrganizations(ctx, userID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check user organizations", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
 	if hasOrganizations {
-		slog.WarnContext(ctx, "cannot delete user with owned organizations", "userId", r.GetUserId())
-		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrUserHasOrganizations)
+		slog.WarnContext(ctx, "cannot delete user with owned organizations", "userId", req.GetUserId())
+		return nil, rpcerr.New(connect.CodeFailedPrecondition, ErrUserHasOrganizations)
 	}
 
 	identities, err := s.queries.ListIdentitiesForUser(ctx, userID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list user identities", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -312,7 +304,7 @@ func (s *UserServer) DeleteUser(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete user", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
 	for _, identity := range identities {
@@ -326,15 +318,15 @@ func (s *UserServer) DeleteUser(
 		}
 	}
 
-	return connect.NewResponse(&userv1.DeleteUserResponse{}), nil
+	return &userv1.DeleteUserResponse{}, nil
 }
 
 // Logout revokes the caller's Loco session token. Provider tokens are left to the provider.
 func (s *UserServer) Logout(
 	ctx context.Context,
-	_ *connect.Request[userv1.LogoutRequest],
-) (*connect.Response[userv1.LogoutResponse], error) {
-	res := connect.NewResponse(&userv1.LogoutResponse{})
+	_ *userv1.LogoutRequest,
+) (*userv1.LogoutResponse, error) {
+	res := &userv1.LogoutResponse{}
 
 	token, ok := ctx.Value(contextkeys.TokenKey).(string)
 	if !ok {
@@ -347,7 +339,7 @@ func (s *UserServer) Logout(
 	err := s.tvm.Revoke(ctx, token)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to revoke token", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to revoke token: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
 	}
 
 	slog.InfoContext(ctx, "user logged out")
@@ -360,7 +352,7 @@ func (s *UserServer) getUserByID(ctx context.Context, id string) (*userv1.User, 
 	user, err := s.queries.GetUserByID(ctx, uuid.MustParse(id))
 	if err != nil {
 		slog.WarnContext(ctx, "user not found", "id", id)
-		return nil, connect.NewError(connect.CodeNotFound, ErrUserNotFound)
+		return nil, rpcerr.New(connect.CodeNotFound, ErrUserNotFound)
 	}
 
 	return dbUserToProto(user), nil

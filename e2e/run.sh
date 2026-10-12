@@ -647,6 +647,9 @@ install_operator() {
         --set controller.image.tag="${CONTROLLER_IMAGE##*:}" \
         "${build_values[@]}" \
         --wait --timeout 3m >/dev/null
+    if [ "$BUILDS_ENABLED" = false ] && [ "$CLUSTER_REUSED" = true ]; then
+        kube delete namespace "$E2E_BUILD_NAMESPACE" --ignore-not-found --wait --timeout="${READY_TIMEOUT}s" >/dev/null
+    fi
     log_ok "Controllers running in Kind"
 }
 

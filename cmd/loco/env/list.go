@@ -5,7 +5,6 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
@@ -33,17 +32,17 @@ Examples:
 			if err != nil {
 				return err
 			}
-			req := connect.NewRequest(&secretv1.ListSecretsRequest{
+			req := &secretv1.ListSecretsRequest{
 				ResourceId:    t.resourceID,
 				EnvironmentId: t.environmentID,
-			})
-			req.Header().Set("Authorization", t.authHeader)
+			}
+
 			resp, err := t.secrets.ListSecrets(ctx, req)
 			if err != nil {
 				cmdutil.LogRequestID(ctx, err, "list secrets failed")
 				return fmt.Errorf("list secrets: %w", err)
 			}
-			secrets := resp.Msg.GetSecrets()
+			secrets := resp.GetSecrets()
 			if len(secrets) == 0 {
 				_, err = fmt.Fprintf(d.Stdout, "%s has no secrets in %s.\n", t.service, t.environment)
 				return err

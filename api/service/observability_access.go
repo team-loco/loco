@@ -2,15 +2,13 @@ package service
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"log/slog"
 
-	"github.com/team-loco/loco/api/authz"
-
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
@@ -37,22 +35,20 @@ func NewObservabilityAccessServer(
 // The client uses its existing TVM token directly when talking to the proxy.
 func (s *ObservabilityAccessServer) GetObservabilityAccess(
 	ctx context.Context,
-	req *connect.Request[observabilityv1.GetObservabilityAccessRequest],
-) (*connect.Response[observabilityv1.GetObservabilityAccessResponse], error) {
-	msg := req.Msg
-
-	if msg.GetWorkspaceId() == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id is required"))
+	req *observabilityv1.GetObservabilityAccessRequest,
+) (*observabilityv1.GetObservabilityAccessResponse, error) {
+	if req.GetWorkspaceId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, "workspace_id is required")
 	}
 
 	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("not authenticated"))
+		return nil, connect.NewError(connect.CodeUnauthenticated, "not authenticated")
 	}
 
-	workspaceID, err := uuid.Parse(msg.GetWorkspaceId())
+	workspaceID, err := uuid.Parse(req.GetWorkspaceId())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid workspace_id: %w", err))
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidWorkspaceID).WithCause(err)
 	}
 
 	if verifyErr := s.authz.Check(ctx, entityScopes, genDb.EntityScope{
@@ -60,13 +56,13 @@ func (s *ObservabilityAccessServer) GetObservabilityAccess(
 		EntityID:   workspaceID,
 		Scope:      genDb.ScopeRead,
 	}); verifyErr != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("insufficient permissions"))
+		return nil, connect.NewError(connect.CodePermissionDenied, "insufficient permissions")
 	}
 
 	clusters, err := s.queries.GetObservabilityClustersForWorkspace(ctx, workspaceID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to look up clusters", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to look up clusters"))
+		return nil, connect.NewError(connect.CodeInternal, "failed to look up clusters")
 	}
 
 	clusterAccess := make([]*observabilityv1.ClusterAccess, 0, len(clusters))
@@ -81,7 +77,7 @@ func (s *ObservabilityAccessServer) GetObservabilityAccess(
 		})
 	}
 
-	return connect.NewResponse(&observabilityv1.GetObservabilityAccessResponse{
+	return &observabilityv1.GetObservabilityAccessResponse{
 		Clusters: clusterAccess,
-	}), nil
+	}, nil
 }
