@@ -3,6 +3,7 @@ package resource
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -40,6 +41,29 @@ func TestWriteEventsJSONPrintsRFC3339Timestamps(t *testing.T) {
 		}
 		if !parsed.Equal(events[i].GetTimestamp().AsTime()) {
 			t.Fatalf("event %d timestamp = %s, want %s", i, parsed, events[i].GetTimestamp().AsTime())
+		}
+	}
+}
+
+func TestEventsTableShowsEveryEvent(t *testing.T) {
+	at := time.Date(2026, time.October, 9, 12, 30, 45, 0, time.UTC)
+	events := []*resourcev1.Event{
+		{Reason: "Scheduled", Message: "assigned to node kind-worker", Timestamp: timestamppb.New(at)},
+		{Reason: "Pulled", Message: "image pulled in 1.2s", Timestamp: timestamppb.New(at.Add(time.Second))},
+		{Reason: "Started", Message: "started container app", Timestamp: timestamppb.New(at.Add(2 * time.Second))},
+	}
+
+	var out bytes.Buffer
+	if err := renderEventsTable(&out, events); err != nil {
+		t.Fatalf("renderEventsTable: %v", err)
+	}
+	view := out.String()
+	for _, event := range events {
+		stamp := event.GetTimestamp().AsTime().Format(time.RFC3339)
+		for _, want := range []string{stamp, event.GetReason(), event.GetMessage()} {
+			if !strings.Contains(view, want) {
+				t.Errorf("table is missing %q:\n%s", want, view)
+			}
 		}
 	}
 }
