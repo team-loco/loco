@@ -261,6 +261,15 @@ CREATE INDEX idx_placements_cluster_id ON placements (cluster_id);
 CREATE INDEX idx_placements_deployment_id ON placements (deployment_id);
 
 CREATE TABLE
+    cluster_unknown_placements (
+        cluster_id UUID NOT NULL REFERENCES clusters (id) ON DELETE CASCADE,
+        placement_id UUID NOT NULL,
+        reported_revision BIGINT NOT NULL,
+        first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+        PRIMARY KEY (cluster_id, placement_id)
+    );
+
+CREATE TABLE
     builds (
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
         resource_id UUID NOT NULL REFERENCES resources (id) ON DELETE CASCADE,
@@ -308,6 +317,7 @@ WHERE
 
 -- +goose Down
 DROP TABLE IF EXISTS builds;
+DROP TABLE IF EXISTS cluster_unknown_placements;
 DROP TABLE IF EXISTS placements;
 DROP TABLE IF EXISTS deployments;
 DROP TABLE IF EXISTS resource_domains;

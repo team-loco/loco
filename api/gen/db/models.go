@@ -339,6 +339,13 @@ type Cluster struct {
 	UpdatedAt                  time.Time  `json:"updatedAt"`
 }
 
+type ClusterUnknownPlacement struct {
+	ClusterID        uuid.UUID `json:"clusterId"`
+	PlacementID      uuid.UUID `json:"placementId"`
+	ReportedRevision int64     `json:"reportedRevision"`
+	FirstSeenAt      time.Time `json:"firstSeenAt"`
+}
+
 type Deployment struct {
 	ID            uuid.UUID        `json:"id"`
 	ResourceID    uuid.UUID        `json:"resourceId"`

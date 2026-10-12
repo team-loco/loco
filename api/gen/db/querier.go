@@ -211,6 +211,7 @@ type Querier interface {
 	NotifyClusterPlacements(ctx context.Context, clusterID string) error
 	OrgHasWorkspacesWithResources(ctx context.Context, orgID uuid.UUID) (bool, error)
 	QueueBuild(ctx context.Context, arg QueueBuildParams) (int64, error)
+	RecordUnknownPlacements(ctx context.Context, arg RecordUnknownPlacementsParams) ([]RecordUnknownPlacementsRow, error)
 	ReencryptSecrets(ctx context.Context, arg ReencryptSecretsParams) (int64, error)
 	RemoveAllScopesForEntity(ctx context.Context, arg RemoveAllScopesForEntityParams) error
 	RemoveAllScopesForUser(ctx context.Context, userID uuid.UUID) error
