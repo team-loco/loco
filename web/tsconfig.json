@@ -1,17 +1,9 @@
 {
+	"extends": "./tsconfig.base.json",
 	"files": [],
 	"references": [
 		{ "path": "./tsconfig.app.json" },
 		{ "path": "./tsconfig.node.json" },
 		{ "path": "./tsconfig.test.json" }
-	],
-	// This is a solution-style config: `files: []` + `references` means it type-checks
-	// nothing itself, and any `compilerOptions` here apply to no files. Per-project
-	// options belong in tsconfig.app.json / tsconfig.node.json.
-	"compilerOptions": {
-		"paths": {
-			"@gen/*": ["../gen/ts/*"],
-			"@/*": ["./src/*"]
-		}
-	}
+	]
 }

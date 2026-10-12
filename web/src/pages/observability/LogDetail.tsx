@@ -73,7 +73,7 @@ export function LogDetail({
 
 	const json = JSON.stringify(
 		{
-			timestamp: attrsAll.timestamp,
+			timestamp: attrsAll["timestamp"],
 			level: row.label,
 			message: row.json ?? e.body,
 			resource: row.resourceName,

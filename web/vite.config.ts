@@ -7,7 +7,7 @@ import svgr from "vite-plugin-svgr";
 
 const dirname = import.meta.dirname;
 const unknownVersion = "(devel)";
-const linkedVersion = process.env.VITE_APP_VERSION ?? "";
+const linkedVersion = process.env["VITE_APP_VERSION"] ?? "";
 const version = linkedVersion === "" ? unknownVersion : linkedVersion;
 
 function buildVersion(): Plugin {
@@ -45,12 +45,7 @@ export default defineConfig({
 		},
 	},
 	resolve: {
-		alias: {
-			// Generated protobuf/connect code lives at <repo>/gen/ts, outside web/,
-			// so it is aliased separately from "@" (which means web/src).
-			"@gen": path.resolve(dirname, "../gen/ts"),
-			"@": path.resolve(dirname, "./src"),
-		},
+		tsconfigPaths: true,
 	},
 	build: {
 		rolldownOptions: {

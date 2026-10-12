@@ -20,7 +20,7 @@ export interface ChartMarker {
 	color: string;
 }
 
-type Datum = Record<string, number>;
+type Datum = { t: number; [series: string]: number };
 
 export function MetricCard({
 	title,
@@ -104,7 +104,7 @@ export function MetricChart({
 			byT.set(p.t, row);
 		}
 	});
-	const data = [...byT.values()].sort((a, b) => (a.t ?? 0) - (b.t ?? 0));
+	const data = [...byT.values()].sort((a, b) => a.t - b.t);
 	const config: ChartConfig = Object.fromEntries(series.map((s, i) => [`s${String(i)}`, { label: s.name, color: s.color }]));
 	const span = to - from;
 	const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => from + f * span);
