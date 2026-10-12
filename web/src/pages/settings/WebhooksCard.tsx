@@ -8,7 +8,7 @@ import {
 } from "@gen/loco/webhook/v1/webhook-WebhookService_connectquery";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDownIcon, ChevronRightIcon, Trash2Icon, WebhookIcon } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useState, type SubmitEvent } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/design/Badge";
@@ -177,7 +177,7 @@ function AddWebhook({ workspaceId, onCreated }: { workspaceId: string; onCreated
 	const [url, setUrl] = useState("");
 	const [categories, setCategories] = useState<AuditCategory[]>([]);
 
-	const submit = (event: FormEvent) => {
+	const submit = (event: SubmitEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		const target = url.trim();
 		if (target === "") return;

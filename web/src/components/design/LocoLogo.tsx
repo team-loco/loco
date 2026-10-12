@@ -44,20 +44,20 @@ function LocoLogo({
 		if (motion === "once") drawnThisLoad.add(drawKey)
 	}, [motion, drawKey])
 	const ref = useRef<HTMLSpanElement>(null)
-	const wasFinishing = useRef(false)
+	const wasFinishingRef = useRef(false)
 	const notifyFinished = useEffectEvent(() => {
 		onFinished?.()
 	})
 	useEffect(() => {
 		const el = ref.current
 		if (!finishing) {
-			if (wasFinishing.current) {
-				wasFinishing.current = false
+			if (wasFinishingRef.current) {
+				wasFinishingRef.current = false
 				setCycle((c) => c + 1)
 			}
 			return
 		}
-		wasFinishing.current = true
+		wasFinishingRef.current = true
 		if (!el) {
 			notifyFinished()
 			return

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useEffectEvent } from "react";
 import { createClient } from "@connectrpc/connect";
 import { ObservabilityProxyService } from "@gen/loco/observability/v1/observability_pb";
 import type { LogEntry } from "@gen/loco/observability/v1/observability_pb";
@@ -15,6 +15,14 @@ interface UseTailLogsOptions {
 	enabled?: boolean;
 }
 
+interface TailState {
+	key: string;
+	entries: LogEntry[];
+	isConnected: boolean;
+}
+
+const NO_TAIL: Omit<TailState, "key"> = { entries: [], isConnected: false };
+
 export function useTailLogs({
 	clusterTransports,
 	workspaceId,
@@ -22,84 +30,56 @@ export function useTailLogs({
 	parsedQuery,
 	enabled = true,
 }: UseTailLogsOptions) {
-	const [entries, setEntries] = useState<LogEntry[]>([]);
-	const [isConnected, setIsConnected] = useState(false);
-	const abortRef = useRef<AbortController | null>(null);
+	const streamKey = JSON.stringify({
+		enabled,
+		workspaceId,
+		resourceIds,
+		parsedQuery,
+		clusterIds: clusterTransports.map((ct) => ct.cluster.clusterId),
+	});
+	const [tail, setTail] = useState<TailState>({ key: streamKey, ...NO_TAIL });
 
-	// Stable identity keys for the props the effect depends on. The raw
-	// `resourceIds`, `parsedQuery` and `clusterTransports` values get a new
-	// identity on every render, so depending on them directly would tear down and
-	// re-open every log stream on each render. These change only when the
-	// contents actually change.
-	const resourceIdsKey = JSON.stringify(resourceIds);
-	const parsedQueryKey = JSON.stringify(parsedQuery);
-	const clusterIdsKey = clusterTransports
-		.map((ct) => ct.cluster.clusterId)
-		.join(",");
+	const openStreams = useEffectEvent((signal: AbortSignal) => {
+		if (!enabled || workspaceId === "") return;
 
-	useEffect(() => {
-		if (!enabled || !workspaceId || clusterTransports.length === 0) {
-			setEntries([]);
-			setIsConnected(false);
-			return;
-		}
-
-		// Abort any previous streams
-		abortRef.current?.abort();
-		const abort = new AbortController();
-		abortRef.current = abort;
-
-		setEntries([]);
-		setIsConnected(false);
-
-		let connectedCount = 0;
+		const append = (entry: LogEntry) => {
+			setTail((prev) => {
+				const entries = prev.key === streamKey ? [entry, ...prev.entries] : [entry];
+				return { key: streamKey, entries: entries.slice(0, MAX_TAIL_ENTRIES), isConnected: true };
+			});
+		};
 
 		const streamCluster = async (ct: ClusterTransport) => {
+			const client = createClient(ObservabilityProxyService, ct.transport);
+			const request = {
+				workspaceId,
+				resourceIds,
+				search: parsedQuery.search,
+				levels: parsedQuery.levels,
+				labels: parsedQuery.labels,
+			};
 			try {
-				const client = createClient(ObservabilityProxyService, ct.transport);
-				for await (const msg of client.tailLogs(
-					{
-						workspaceId,
-						resourceIds,
-						search: parsedQuery.search,
-						levels: parsedQuery.levels,
-						labels: parsedQuery.labels,
-					},
-					{ signal: abort.signal },
-				)) {
-					if (abort.signal.aborted) break;
-
-					if (msg.event.case === "entry") {
-						connectedCount++;
-						if (connectedCount === 1) setIsConnected(true);
-						setEntries((prev) => {
-							const next = [msg.event.value as LogEntry, ...prev];
-							return next.length > MAX_TAIL_ENTRIES
-								? next.slice(0, MAX_TAIL_ENTRIES)
-								: next;
-						});
-					}
-					// heartbeat — no-op, just keeps stream alive
+				for await (const msg of client.tailLogs(request, { signal })) {
+					if (signal.aborted) return;
+					if (msg.event.case === "entry") append(msg.event.value);
 				}
-			} catch (err) {
-				if (err instanceof Error && err.name === "AbortError") return;
-				// Silently eat errors per-cluster; could surface per-cluster error state if needed
+			} catch {
+				return;
 			}
 		};
 
 		for (const ct of clusterTransports) {
 			void streamCluster(ct);
 		}
+	});
 
+	useEffect(() => {
+		const abort = new AbortController();
+		openStreams(abort.signal);
 		return () => {
 			abort.abort();
-			setIsConnected(false);
 		};
-		// Depends on the serialized keys above rather than the raw props, so the
-		// raw values are intentionally absent from this array. react-hooks is
-		// enforced by oxlint here, not ESLint, so the suppression is an oxlint one.
-		// oxlint-disable-next-line react-hooks/exhaustive-deps
-	}, [enabled, workspaceId, resourceIdsKey, parsedQueryKey, clusterIdsKey]);
+	}, [streamKey]);
 
-	return { entries, isConnected };
+	return tail.key === streamKey ? tail : NO_TAIL;
 }

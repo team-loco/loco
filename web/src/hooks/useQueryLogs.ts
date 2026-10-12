@@ -48,7 +48,7 @@ export function useQueryLogs({
 		queries: clusterTransports.map(({ cluster, transport }) => ({
 			queryKey: [
 				"obs-logs",
-				cluster.clusterId.toString(),
+				cluster.clusterId,
 				workspaceId,
 				resourceIds,
 				timeRange,
@@ -90,7 +90,7 @@ export function useQueryLogs({
 			clusterTransports.map((ct, i) => {
 				const q = queries[i];
 				return {
-					clusterId: ct.cluster.clusterId.toString(),
+					clusterId: ct.cluster.clusterId,
 					region: ct.cluster.region,
 					data: q?.data,
 					isLoading: q?.isLoading ?? false,

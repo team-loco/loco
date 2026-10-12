@@ -43,7 +43,7 @@ export function useQueryMetrics({
 		queries: clusterTransports.map(({ cluster, transport }) => ({
 			queryKey: [
 				"obs-metrics",
-				cluster.clusterId.toString(),
+				cluster.clusterId,
 				workspaceId,
 				resourceIds,
 				timeRange,

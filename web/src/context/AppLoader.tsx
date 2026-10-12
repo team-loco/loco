@@ -73,13 +73,13 @@ export function AppLoading({ message }: { message?: string | undefined }) {
 
 function AppLoaderOverlay({ active, message }: { active: boolean; message: string | undefined }) {
 	const [phase, setPhase] = useState<Phase>("hidden");
-	const fadeTimer = useRef<number | undefined>(undefined);
+	const fadeTimerRef = useRef<number | undefined>(undefined);
 	const reactivated = active && (phase === "finishing" || phase === "fading");
 	const shown: Phase = reactivated ? "visible" : phase;
 
 	useEffect(() => {
 		if (active) {
-			window.clearTimeout(fadeTimer.current);
+			window.clearTimeout(fadeTimerRef.current);
 			if (phase === "hidden") {
 				const t = window.setTimeout(() => {
 					setPhase("visible");
@@ -112,7 +112,7 @@ function AppLoaderOverlay({ active, message }: { active: boolean; message: strin
 	if (shown === "hidden") return null;
 
 	const finishFade = () => {
-		window.clearTimeout(fadeTimer.current);
+		window.clearTimeout(fadeTimerRef.current);
 		setPhase((p) => (p === "fading" ? "hidden" : p));
 	};
 
@@ -136,8 +136,8 @@ function AppLoaderOverlay({ active, message }: { active: boolean; message: strin
 				finishing={shown === "finishing" || shown === "fading"}
 				onFinished={() => {
 					setPhase((p) => (p === "finishing" ? "fading" : p));
-					window.clearTimeout(fadeTimer.current);
-					fadeTimer.current = window.setTimeout(finishFade, FADE_MS + 100);
+					window.clearTimeout(fadeTimerRef.current);
+					fadeTimerRef.current = window.setTimeout(finishFade, FADE_MS + 100);
 				}}
 				className="w-28"
 				title="Loading"

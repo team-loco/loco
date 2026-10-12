@@ -33,34 +33,34 @@ function readPinned(): boolean {
 export function AppShell({ children }: { children: ReactNode }) {
 	const [pinned, setPinned] = useState(readPinned);
 	const [peeking, setPeeking] = useState(false);
-	const timer = useRef<number | undefined>(undefined);
-	const hovering = useRef(false);
-	const locked = useRef(false);
+	const timerRef = useRef<number | undefined>(undefined);
+	const hoveringRef = useRef(false);
+	const lockedRef = useRef(false);
 
 	const clearTimer = () => {
-		window.clearTimeout(timer.current);
-		timer.current = undefined;
+		window.clearTimeout(timerRef.current);
+		timerRef.current = undefined;
 	};
 
 	const peek: SidebarPeek = {
 		pinned,
 		peeking,
 		onEnter: () => {
-			hovering.current = true;
+			hoveringRef.current = true;
 			if (pinned) return;
 			clearTimer();
-			timer.current = window.setTimeout(() => {
+			timerRef.current = window.setTimeout(() => {
 				setPeeking(true);
 			}, PEEK_DELAY_MS);
 		},
 		onLeave: () => {
-			hovering.current = false;
+			hoveringRef.current = false;
 			clearTimer();
-			if (!locked.current) setPeeking(false);
+			if (!lockedRef.current) setPeeking(false);
 		},
 		lock: (next) => {
-			locked.current = next;
-			if (!next && !hovering.current) setPeeking(false);
+			lockedRef.current = next;
+			if (!next && !hoveringRef.current) setPeeking(false);
 		},
 	};
 
