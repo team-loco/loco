@@ -3,7 +3,6 @@ import tailwindcss from "@tailwindcss/vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import path from "path";
 import { defineConfig, type Plugin } from "vite";
-import svgr from "vite-plugin-svgr";
 
 const dirname = import.meta.dirname;
 const unknownVersion = "(devel)";
@@ -35,7 +34,6 @@ export default defineConfig({
 		react(),
 		babel({ presets: [reactCompilerPreset()] }),
 		tailwindcss(),
-		svgr(),
 		buildVersion(),
 	],
 	server: {
