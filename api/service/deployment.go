@@ -224,7 +224,7 @@ func (s *DeploymentServer) CreateDeployment(
 		actions.New(actions.CreateDeployment, r.GetResourceId()),
 	); verifyErr != nil {
 		slog.WarnContext(ctx, "unauthorized to create deployment", "resourceId", r.GetResourceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr.Error()).WithCause(verifyErr)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(verifyErr)
 	}
 
 	// validate that request spec contains a service deployment (for now, only services are supported)
@@ -305,25 +305,25 @@ func (s *DeploymentServer) CreateDeployment(
 		slog.ErrorContext(ctx, deserializeErr.Error())
 		return nil, connect.NewError(
 			connect.CodeInternal,
-			fmt.Errorf("invalid resource spec: %w", deserializeErr).Error(),
-		)
+			publicRequestFailed,
+		).WithCause(deserializeErr)
 	}
 
 	mergedSpec, mergeErr := converter.MergeDeploymentSpec(resourceSpec, requestSpec, region, s.defaults)
 	if errors.Is(mergeErr, converter.ErrRegionNotFound) || errors.Is(mergeErr, converter.ErrRegionDisabled) {
 		slog.WarnContext(ctx, "deployment targets a region the resource does not run in", "error", mergeErr)
-		return nil, connect.NewError(connect.CodeInvalidArgument, mergeErr.Error()).WithCause(mergeErr)
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(mergeErr)
 	}
 	if mergeErr != nil {
 		slog.ErrorContext(ctx, mergeErr.Error())
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("merge error: %w", mergeErr).Error())
+		return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(mergeErr)
 	}
 
 	// create spec copy without env for DB persistence (no plaintext secrets in DB)
 	mergedServiceSpec := mergedSpec.GetService()
 	if quantityErr := validateQuantities(mergedServiceSpec); quantityErr != nil {
 		slog.WarnContext(ctx, "invalid resource quantity", "error", quantityErr)
-		return nil, connect.NewError(connect.CodeInvalidArgument, quantityErr.Error()).WithCause(quantityErr)
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(quantityErr)
 	}
 	replicas := mergedServiceSpec.GetMinReplicas()
 
@@ -339,7 +339,7 @@ func (s *DeploymentServer) CreateDeployment(
 	specJSON, err := protojson.Marshal(specForDBService)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to marshal spec", "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err).Error())
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidSpec).WithCause(err)
 	}
 
 	organizationID, err := s.queries.GetOrganizationIDByWorkspaceID(ctx, resource.WorkspaceID)
@@ -448,7 +448,7 @@ func (s *DeploymentServer) GetDeployment(
 		actions.New(actions.GetDeployment, resource.ID.String()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to get deployment", "resourceId", resource.ID.String())
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	return &deploymentv1.GetDeploymentResponse{
@@ -476,7 +476,7 @@ func (s *DeploymentServer) ListDeployments(
 		scopes,
 		actions.New(actions.ListDeployments, r.GetResourceId()),
 	); err != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	resourceID := uuid.MustParse(r.GetResourceId())
@@ -495,8 +495,8 @@ func (s *DeploymentServer) ListDeployments(
 		if decodeErr != nil {
 			return nil, connect.NewError(
 				connect.CodeInvalidArgument,
-				fmt.Errorf("invalid page_token: %w", decodeErr).Error(),
-			)
+				publicInvalidPageToken,
+			).WithCause(decodeErr)
 		}
 		pageToken = &cursorID
 	}
@@ -569,7 +569,7 @@ func (s *DeploymentServer) DeleteDeployment(
 		actions.New(actions.DeleteDeployment, resource.ID.String()),
 	); verifyErr != nil {
 		slog.WarnContext(ctx, "unauthorized to delete deployment", "resourceId", resource.ID.String())
-		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr.Error()).WithCause(verifyErr)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(verifyErr)
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -638,7 +638,7 @@ func (s *DeploymentServer) WatchDeployment(
 		actions.New(actions.StreamDeployment, resourceIDStr),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to stream deployment", "resourceId", resourceIDStr)
-		return connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, watchDeploymentMaxDuration)

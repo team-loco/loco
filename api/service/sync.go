@@ -25,7 +25,7 @@ func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
 	info, _ := connect.CallInfoForServerContext(ctx)
 	cluster, err := s.authenticateAgent(ctx, info.RequestHeader().Get("Authorization"))
 	if err != nil {
-		return connect.NewError(connect.CodeUnauthenticated, err.Error()).WithCause(err)
+		return connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
 
 	listener := s.notifier.Listen(ctx, cluster.ID)

@@ -60,7 +60,7 @@ func pinBuildSource(
 		return pinPublicImage(ctx, resolver, registryHost, src)
 	default:
 		unsupported := fmt.Errorf("unsupported build type %q: use \"dockerfile\" or \"image\"", sourceType)
-		return nil, connect.NewError(connect.CodeInvalidArgument, unsupported.Error()).WithCause(unsupported)
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(unsupported)
 	}
 }
 
@@ -82,7 +82,7 @@ func pinDockerfileBuild(
 	buildID, err := uuid.Parse(rawBuildID)
 	if err != nil {
 		invalid := fmt.Errorf("invalid build_id: %w", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, invalid.Error()).WithCause(invalid)
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(invalid)
 	}
 
 	build, err := builds.GetBuildByID(ctx, buildID)
@@ -152,7 +152,7 @@ func pinPublicImage(
 	ref, err := name.ParseReference(image)
 	if err != nil {
 		invalid := fmt.Errorf("invalid image reference %q: %w", image, err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, invalid.Error()).WithCause(invalid)
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(invalid)
 	}
 
 	repository := ref.Context()
@@ -166,7 +166,7 @@ func pinPublicImage(
 	if err != nil {
 		slog.WarnContext(ctx, "failed to resolve image", "image", image, "error", err)
 		unresolved := fmt.Errorf("could not resolve public image %q: %w", image, err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, unresolved.Error()).WithCause(unresolved)
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(unresolved)
 	}
 
 	pinned := repository.Name() + "@" + digest

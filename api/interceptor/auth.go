@@ -74,7 +74,7 @@ func (i *authInterceptor) authenticate(
 	token, err := extractToken(header)
 	if err != nil {
 		slog.WarnContext(ctx, "request without a usable token", "procedure", procedure, "error", err)
-		return nil, connect.NewError(connect.CodeUnauthenticated, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
 
 	if auth.LooksLikeJWT(token) && i.verifier.Enabled() {
@@ -84,7 +84,7 @@ func (i *authInterceptor) authenticate(
 	entity, scopes, err := i.machine.GetToken(ctx, token)
 	if err != nil {
 		slog.WarnContext(ctx, "token rejected", "procedure", procedure, "error", err)
-		return nil, connect.NewError(connect.CodeUnauthenticated, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
 
 	c := context.WithValue(ctx, contextkeys.EntityKey, genDb.Entity{
@@ -114,7 +114,7 @@ func (i *authInterceptor) authenticateProviderToken(
 	identity, err := i.verifier.Verify(ctx, token)
 	if err != nil {
 		slog.WarnContext(ctx, "provider token rejected", "procedure", procedure, "error", err)
-		return nil, connect.NewError(connect.CodeUnauthenticated, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
 
 	user, err := i.resolver.Resolve(ctx, identity)

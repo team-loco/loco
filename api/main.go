@@ -165,7 +165,8 @@ func main() {
 	defer beginShutdown()
 
 	deadlineInterceptor := interceptor.NewDeadlineInterceptor(shutdownCtx, 30*time.Second)
-	baseServer := connect.NewServer(deadlineInterceptor.Interceptor())
+	errorInterceptor := interceptor.NewErrorInterceptor()
+	baseServer := connect.NewServer(errorInterceptor, deadlineInterceptor.Interceptor())
 
 	mux := http.NewServeMux()
 	authClient := newOutboundHTTPClient()
@@ -183,6 +184,7 @@ func main() {
 	resolver := auth.NewResolver(pool, ac.SignupPolicy, emailVerifierOption)
 
 	authenticatedServer := connect.NewServer(
+		errorInterceptor,
 		deadlineInterceptor.Interceptor(),
 		interceptor.NewContextInterceptor().Interceptor(),
 		interceptor.NewAuthInterceptor(machine, verifier, resolver, authz.New(pool, queries)).Interceptor(),

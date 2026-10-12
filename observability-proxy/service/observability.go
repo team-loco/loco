@@ -47,7 +47,7 @@ func (s *ObservabilityService) QueryLogs(
 
 	msg := req
 	if err := guardrails.ValidateLogsRequest(msg, s.cfg); err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
 
 	if err := s.validator.CheckPermission(
@@ -78,7 +78,7 @@ func (s *ObservabilityService) QueryLogs(
 		s.cfg.QueryTimeout,
 	)
 	if errors.Is(err, chClient.ErrInvalidLogCursor) {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
 	if err != nil {
 		slog.ErrorContext(ctx, "QueryLogs failed", "error", err)
@@ -104,7 +104,7 @@ func (s *ObservabilityService) TailLogs(
 	msg := req
 	started := time.Now()
 	if err := guardrails.ValidateTailRequest(msg, s.cfg, started); err != nil {
-		return connect.NewError(connect.CodeInvalidArgument, err.Error()).WithCause(err)
+		return connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
 
 	if err := s.validator.CheckPermission(
@@ -192,7 +192,7 @@ func (s *ObservabilityService) QueryMetrics(
 
 	msg := req
 	if err := guardrails.ValidateMetricsRequest(msg, s.cfg); err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
 
 	if err := s.validator.CheckPermission(

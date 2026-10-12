@@ -58,7 +58,7 @@ func (s *WebhookServer) requireWorkspaceAdmin(ctx context.Context, workspaceID s
 			WithCause(ErrUnauthorized)
 	}
 	if err := s.authz.Check(ctx, scopes, actions.New(actions.ManageWorkspaceWebhooks, workspaceID)); err != nil {
-		return genDb.Entity{}, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return genDb.Entity{}, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 	return entity, nil
 }
@@ -101,7 +101,7 @@ func (s *WebhookServer) CreateWebhook(
 	}
 	secret, err := webhooks.NewSecret()
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
 	}
 	var createdBy *uuid.UUID
 	if entity.Type == genDb.EntityTypeUser {

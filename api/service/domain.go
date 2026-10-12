@@ -72,7 +72,7 @@ func (s *DomainServer) CreatePlatformDomain(
 		actions.NewSystem(actions.CreatePlatformDomain),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to create platform domain")
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	var platformDomain uuid.UUID
@@ -193,7 +193,7 @@ func (s *DomainServer) UpdatePlatformDomain(
 		actions.NewSystem(actions.UpdatePlatformDomain),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to update platform domain")
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	parsedID := uuid.MustParse(r.GetId())
@@ -244,7 +244,7 @@ func (s *DomainServer) DeletePlatformDomain(
 		actions.NewSystem(actions.DeletePlatformDomain),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to delete platform domain")
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	parsedID := uuid.MustParse(r.GetId())
@@ -287,7 +287,7 @@ func (s *DomainServer) ListLocoOwnedDomains(
 		actions.NewSystem(actions.ListLocoOwnedDomains),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to list loco owned domains")
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	results, err := s.queries.ListAllLocoOwnedDomains(ctx)
@@ -331,7 +331,7 @@ func (s *DomainServer) CreateResourceDomain(
 		scopes,
 		actions.New(actions.AddDomain, r.GetResourceId()),
 	); err != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 	platformDomainID := uuid.MustParse(r.GetDomain().GetPlatformDomainId())
 	platformDomain, err := s.queries.GetPlatformDomain(ctx, platformDomainID)
@@ -446,7 +446,7 @@ func (s *DomainServer) UpdateResourceDomain(
 		scopes,
 		actions.New(actions.UpdateDomain, domainRow.ResourceID.String()),
 	); err != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	// check if new domain is available (unless it's the same domain)
@@ -568,7 +568,7 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 		scopes,
 		actions.New(actions.SetPrimaryDomain, r.GetResourceId()),
 	); err != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	resourceID := uuid.MustParse(r.GetResourceId())
@@ -679,7 +679,7 @@ func (s *DomainServer) DeleteResourceDomain(
 		scopes,
 		actions.New(actions.RemoveDomain, domainRow.ResourceID.String()),
 	); verifyErr != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr.Error()).WithCause(verifyErr)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(verifyErr)
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {

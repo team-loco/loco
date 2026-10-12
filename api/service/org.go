@@ -86,7 +86,7 @@ func (s *OrgServer) CreateOrg(
 			"entityScopes",
 			ctx.Value(contextkeys.EntityScopesKey),
 		)
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 	user, err := s.queries.GetUserByID(ctx, entity.ID)
 	if err != nil {
@@ -250,7 +250,7 @@ func (s *OrgServer) ListUserOrgs(
 		actions.New(actions.ListUserOrgs, r.GetUserId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to list user orgs", "userId", r.GetUserId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	pageSize := normalizePageSize(r.GetPageSize())
@@ -259,7 +259,7 @@ func (s *OrgServer) ListUserOrgs(
 	if r.GetPageToken() != "" {
 		cursorID, err := decodeCursor(r.GetPageToken())
 		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err).Error())
+			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(err)
 		}
 		pageToken = &cursorID
 	}
@@ -318,7 +318,7 @@ func (s *OrgServer) UpdateOrg(
 		actions.New(actions.UpdateOrg, r.GetOrgId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to update org", "orgId", r.GetOrgId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	orgID := uuid.MustParse(r.GetOrgId())
@@ -392,7 +392,7 @@ func (s *OrgServer) DeleteOrg(
 		actions.New(actions.DeleteOrg, r.GetOrgId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to delete org", "orgId", r.GetOrgId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	orgID := uuid.MustParse(r.GetOrgId())
@@ -447,7 +447,7 @@ func (s *OrgServer) ListOrgUsers(
 		actions.New(actions.ListOrgMembers, r.GetOrgId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to list org users", "orgId", r.GetOrgId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	pageSize := normalizePageSize(r.GetPageSize())
@@ -456,7 +456,7 @@ func (s *OrgServer) ListOrgUsers(
 	if r.GetPageToken() != "" {
 		cursorID, err := decodeCursor(r.GetPageToken())
 		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err).Error())
+			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(err)
 		}
 		pageToken = &cursorID
 	}
@@ -513,7 +513,7 @@ func (s *OrgServer) ListOrgWorkspaces(
 		scopes,
 		actions.New(actions.ListWorkspaces, r.GetOrgId()),
 	); err != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	pageSize := normalizePageSize(r.GetPageSize())
@@ -522,7 +522,7 @@ func (s *OrgServer) ListOrgWorkspaces(
 	if r.GetPageToken() != "" {
 		cursorID, err := decodeCursor(r.GetPageToken())
 		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err).Error())
+			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(err)
 		}
 		pageToken = &cursorID
 	}

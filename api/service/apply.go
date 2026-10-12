@@ -200,7 +200,7 @@ func (s *PlanServer) checkDeletes(ctx context.Context, planned *plannedFile, ope
 		deleteAction := actions.New(actions.DeleteResource, resourceID)
 		if err := s.authz.Check(ctx, scopes, deleteAction); err != nil {
 			slog.WarnContext(ctx, "unauthorized to delete resource through apply", "resourceId", resourceID)
-			return connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+			return connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 		}
 	}
 	return nil
@@ -216,11 +216,11 @@ func (s *PlanServer) resolveBuilds(
 		desired, inFile := planned.plan.Desired[service]
 		if !inFile {
 			unknown := fmt.Errorf("%w: %s", errBuildServiceUnknown, service)
-			return nil, connect.NewError(connect.CodeInvalidArgument, unknown.Error()).WithCause(unknown)
+			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(unknown)
 		}
 		if desired.Image != "" {
 			hasImage := fmt.Errorf("%w: %s", errBuildServiceHasImage, service)
-			return nil, connect.NewError(connect.CodeInvalidArgument, hasImage.Error()).WithCause(hasImage)
+			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(hasImage)
 		}
 		res, created := planned.live.resources[service]
 		if !created {
