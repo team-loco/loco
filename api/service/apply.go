@@ -8,16 +8,17 @@ import (
 	"maps"
 	"slices"
 
-	"connectrpc.com/connect/v2/connectproto"
-
 	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connectproto"
 	"github.com/google/uuid"
+
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/configplan"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 var (
@@ -38,8 +39,7 @@ func (s *PlanServer) Apply(
 	ctx context.Context,
 	req *planv1.ApplyRequest,
 ) (*planv1.ApplyResponse, error) {
-	r := req
-	planned, err := s.loadPlan(ctx, r.GetFile(), r.GetEnvironmentId(), actions.Apply, r.GetProvision())
+	planned, err := s.loadPlan(ctx, req.GetFile(), req.GetEnvironmentId(), actions.Apply, req.GetProvision())
 	if err != nil {
 		return nil, err
 	}
@@ -47,17 +47,17 @@ func (s *PlanServer) Apply(
 	if len(plan.Errors) > 0 {
 		return nil, applyRefused(errPlanHasErrors, &planv1.ApplyRefusal{Errors: planErrorsToProto(plan.Errors)})
 	}
-	if planned.env.Revision != r.GetRevision() {
+	if planned.env.Revision != req.GetRevision() {
 		return nil, applyRefused(errRevisionMoved, &planv1.ApplyRefusal{Revision: planned.env.Revision})
 	}
-	if !maps.Equal(planned.images, r.GetImages()) {
+	if !maps.Equal(planned.images, req.GetImages()) {
 		return nil, applyRefused(errImagesMoved, &planv1.ApplyRefusal{Images: planned.images})
 	}
-	operations, err := selectOperations(plan.Operations, r.GetProvision(), r.GetBuilds())
+	operations, err := selectOperations(plan.Operations, req.GetProvision(), req.GetBuilds())
 	if err != nil {
 		return nil, err
 	}
-	unconfirmed := unconfirmedOperations(operations, r.GetConfirmDestructive(), r.GetConfirmImport())
+	unconfirmed := unconfirmedOperations(operations, req.GetConfirmDestructive(), req.GetConfirmImport())
 	if len(unconfirmed) > 0 {
 		refusal := &planv1.ApplyRefusal{Unconfirmed: planOperationsToProto(unconfirmed)}
 		return nil, applyRefused(errConfirmationRequired, refusal)
@@ -65,7 +65,7 @@ func (s *PlanServer) Apply(
 	if deleteErr := s.checkDeletes(ctx, planned, operations); deleteErr != nil {
 		return nil, deleteErr
 	}
-	builds, err := s.resolveBuilds(ctx, planned, r.GetBuilds())
+	builds, err := s.resolveBuilds(ctx, planned, req.GetBuilds())
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func (s *PlanServer) Apply(
 	organizationID, err := s.queries.GetOrganizationIDByWorkspaceID(ctx, planned.env.WorkspaceID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get workspace organization", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
 	a := &applier{
@@ -86,7 +86,7 @@ func (s *PlanServer) Apply(
 		deployed:        map[string]bool{},
 		platformDomains: planned.platformDomains,
 		defaults:        s.defaults,
-		provisioning:    len(r.GetProvision()) > 0,
+		provisioning:    len(req.GetProvision()) > 0,
 		silentAfter:     s.silentAfter,
 	}
 	var revision int64
@@ -95,10 +95,14 @@ func (s *PlanServer) Apply(
 		if lockErr != nil {
 			return lockErr
 		}
-		if revisions[planned.env.ID] != r.GetRevision() {
+		if revisions[planned.env.ID] != req.GetRevision() {
 			return errRevisionMoved
 		}
-		if _, lockErr := lockResources(ctx, qtx, planned.touchedResources(operations, r.GetBuilds())); lockErr != nil {
+		if _, lockErr := lockResources(
+			ctx,
+			qtx,
+			planned.touchedResources(operations, req.GetBuilds()),
+		); lockErr != nil {
 			return lockErr
 		}
 		for _, op := range operations {
@@ -120,7 +124,7 @@ func (s *PlanServer) Apply(
 		current, getErr := s.queries.GetEnvironmentByID(ctx, planned.env.ID)
 		if getErr != nil {
 			slog.ErrorContext(ctx, "failed to get environment", "error", getErr, "environmentId", planned.env.ID)
-			return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
+			return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 		}
 		return nil, applyRefused(errRevisionMoved, &planv1.ApplyRefusal{Revision: current.Revision})
 	}
@@ -161,8 +165,7 @@ func selectOperations(
 		return operations, nil
 	}
 	if len(builds) > 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errProvisionWithBuilds.Error()).
-			WithCause(errProvisionWithBuilds)
+		return nil, rpcerr.New(connect.CodeInvalidArgument, errProvisionWithBuilds)
 	}
 	var selected []configplan.Operation
 	for _, op := range operations {
@@ -189,8 +192,7 @@ func (s *PlanServer) checkDeletes(ctx context.Context, planned *plannedFile, ope
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return connect.NewError(connect.CodeInternal, errEntityScopesNotFound.Error()).
-			WithCause(errEntityScopesNotFound)
+		return rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
 	}
 	for _, op := range operations {
 		if op.Kind != configplan.KindDelete {
@@ -225,7 +227,7 @@ func (s *PlanServer) resolveBuilds(
 		res, created := planned.live.resources[service]
 		if !created {
 			notCreated := fmt.Errorf("%w: %s", errBuildServiceNotCreated, service)
-			return nil, connect.NewError(connect.CodeFailedPrecondition, notCreated.Error()).WithCause(notCreated)
+			return nil, rpcerr.New(connect.CodeFailedPrecondition, notCreated)
 		}
 		buildID := requested[service]
 		src := &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, BuildId: &buildID}
@@ -257,7 +259,7 @@ func unconfirmedOperations(
 }
 
 func applyRefused(reason error, refusal *planv1.ApplyRefusal) error {
-	refused := connect.NewError(connect.CodeFailedPrecondition, reason.Error()).WithCause(reason)
+	refused := rpcerr.New(connect.CodeFailedPrecondition, reason)
 	detail, err := connectproto.NewErrorDetail(refusal)
 	if err != nil {
 		return refused
@@ -272,11 +274,11 @@ func applyTxError(ctx context.Context, err error) error {
 	}
 	if errors.Is(err, errNoActiveCluster) {
 		slog.WarnContext(ctx, "apply targets a region without a healthy cluster", "error", err)
-		return connect.NewError(connect.CodeFailedPrecondition, err.Error()).WithCause(err)
+		return rpcerr.New(connect.CodeFailedPrecondition, err)
 	}
 	if isPgConstraintViolation(err) {
 		slog.WarnContext(ctx, "apply rejected by a constraint", "error", err)
-		return connect.NewError(connect.CodeAlreadyExists, errDomainInUse.Error()).WithCause(errDomainInUse)
+		return rpcerr.New(connect.CodeAlreadyExists, errDomainInUse)
 	}
 	return deploymentTxError(ctx, err)
 }

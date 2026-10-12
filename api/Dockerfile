@@ -21,6 +21,7 @@ COPY gen/go ./gen/go
 COPY k8sapi ./k8sapi
 COPY internal/buildinfo ./internal/buildinfo
 COPY internal/httputil ./internal/httputil
+COPY internal/rpcerr ./internal/rpcerr
 COPY internal/loglevel ./internal/loglevel
 COPY internal/locofile ./internal/locofile
 

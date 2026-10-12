@@ -96,8 +96,7 @@ func (v *Validator) Ready(ctx context.Context) error {
 		EntityId:   readinessEntityID,
 		Scope:      tokenv1.Scope_SCOPE_READ,
 	}
-	req := message
-	if _, err := v.client.CheckPermission(ctx, req); err != nil {
+	if _, err := v.client.CheckPermission(ctx, message); err != nil {
 		return fmt.Errorf("control plane permission endpoint: %w", err)
 	}
 	return nil

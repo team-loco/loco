@@ -4,11 +4,11 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/team-loco/loco/api/authz"
-
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
@@ -37,9 +37,7 @@ func (s *ObservabilityAccessServer) GetObservabilityAccess(
 	ctx context.Context,
 	req *observabilityv1.GetObservabilityAccessRequest,
 ) (*observabilityv1.GetObservabilityAccessResponse, error) {
-	msg := req
-
-	if msg.GetWorkspaceId() == "" {
+	if req.GetWorkspaceId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, "workspace_id is required")
 	}
 
@@ -48,7 +46,7 @@ func (s *ObservabilityAccessServer) GetObservabilityAccess(
 		return nil, connect.NewError(connect.CodeUnauthenticated, "not authenticated")
 	}
 
-	workspaceID, err := uuid.Parse(msg.GetWorkspaceId())
+	workspaceID, err := uuid.Parse(req.GetWorkspaceId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidWorkspaceID).WithCause(err)
 	}

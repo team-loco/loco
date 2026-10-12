@@ -6,16 +6,16 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/team-loco/loco/internal/httputil"
-
 	"connectrpc.com/connect/v2"
+
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
-
 	"github.com/team-loco/loco/api/tvm"
+	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
+	"github.com/team-loco/loco/internal/httputil"
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 var errNoToken = errors.New("no bearer token provided")
@@ -121,16 +121,16 @@ func (i *authInterceptor) authenticateProviderToken(
 	if err != nil {
 		if rejected, ok := errors.AsType[*auth.SignupRejectedError](err); ok {
 			slog.InfoContext(ctx, "sign-in rejected", "issuer", identity.Issuer, "reason", rejected.Message)
-			return nil, connect.NewError(connect.CodePermissionDenied, rejected.Error()).WithCause(rejected)
+			return nil, rpcerr.New(connect.CodePermissionDenied, rejected)
 		}
 		slog.ErrorContext(ctx, "failed to resolve identity", "issuer", identity.Issuer, "error", err)
-		return nil, connect.NewError(connect.CodeInternal, auth.ErrResolve.Error()).WithCause(auth.ErrResolve)
+		return nil, rpcerr.New(connect.CodeInternal, auth.ErrResolve)
 	}
 
 	scopes, err := i.authz.UserScopes(ctx, user.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load user scopes", "userId", user.ID, "error", err)
-		return nil, connect.NewError(connect.CodeInternal, auth.ErrResolve.Error()).WithCause(auth.ErrResolve)
+		return nil, rpcerr.New(connect.CodeInternal, auth.ErrResolve)
 	}
 
 	c := context.WithValue(ctx, contextkeys.EntityKey, genDb.Entity{

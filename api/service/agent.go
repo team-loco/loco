@@ -9,16 +9,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/team-loco/loco/api/events"
-
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/types/known/durationpb"
+
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/clusternotify"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
-	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 var (
@@ -96,7 +96,6 @@ func (s *AgentServer) Register(
 	req *agentv1.RegisterRequest,
 ) (*agentv1.RegisterResponse, error) {
 	info, _ := connect.CallInfoForServerContext(ctx)
-	r := req
 
 	// Authenticate using bearer token
 	cluster, err := s.authenticateAgent(ctx, info.RequestHeader().Get("Authorization"))
@@ -105,16 +104,16 @@ func (s *AgentServer) Register(
 	}
 
 	// Update cluster with agent info
-	agentVersion := r.GetAgentVersion()
-	cpuCores := r.GetCapacity().GetCpuMillicoresTotal()
-	memBytes := r.GetCapacity().GetMemoryBytesTotal()
+	agentVersion := req.GetAgentVersion()
+	cpuCores := req.GetCapacity().GetCpuMillicoresTotal()
+	memBytes := req.GetCapacity().GetMemoryBytesTotal()
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if updateErr := qtx.UpdateClusterAgentInfo(ctx, genDb.UpdateClusterAgentInfoParams{
 			ID:                    cluster.ID,
 			AgentVersion:          &agentVersion,
 			CapacityCpuMillicores: &cpuCores,
 			CapacityMemoryBytes:   &memBytes,
-			BuildsEnabled:         r.GetBuildsEnabled(),
+			BuildsEnabled:         req.GetBuildsEnabled(),
 		}); updateErr != nil {
 			return updateErr
 		}
@@ -136,8 +135,8 @@ func (s *AgentServer) Register(
 		"cluster_id", cluster.ID,
 		"cluster_name", cluster.Name,
 		"region", cluster.Region,
-		"agent_version", r.GetAgentVersion(),
-		"builds_enabled", r.GetBuildsEnabled(),
+		"agent_version", req.GetAgentVersion(),
+		"builds_enabled", req.GetBuildsEnabled(),
 	)
 
 	heartbeatInterval := durationpb.New(s.heartbeatInterval)

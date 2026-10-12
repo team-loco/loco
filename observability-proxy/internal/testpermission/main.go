@@ -15,6 +15,7 @@ import (
 
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 const (
@@ -39,8 +40,7 @@ func (s *permissionService) CheckPermission(
 ) (*tokenv1.CheckPermissionResponse, error) {
 	info, _ := connect.CallInfoForServerContext(ctx)
 	if info.RequestHeader().Get("Authorization") != "Bearer "+s.authToken {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errCredentialRejected.Error()).
-			WithCause(errCredentialRejected)
+		return nil, rpcerr.New(connect.CodeUnauthenticated, errCredentialRejected)
 	}
 	response := &tokenv1.CheckPermissionResponse{Allowed: false}
 	return response, nil

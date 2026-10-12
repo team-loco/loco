@@ -7,14 +7,16 @@ import (
 	"time"
 
 	"connectrpc.com/connect/v2"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
+	"github.com/team-loco/loco/internal/rpcerr"
 	"github.com/team-loco/loco/observability-proxy/pkg/auth"
 	chClient "github.com/team-loco/loco/observability-proxy/pkg/clickhouse"
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
 	"github.com/team-loco/loco/observability-proxy/pkg/guardrails"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var (
@@ -42,11 +44,10 @@ func (s *ObservabilityService) QueryLogs(
 ) (*observabilityv1.QueryLogsResponse, error) {
 	token, ok := auth.TokenFromContext(ctx)
 	if !ok {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errMissingToken.Error()).WithCause(errMissingToken)
+		return nil, rpcerr.New(connect.CodeUnauthenticated, errMissingToken)
 	}
 
-	msg := req
-	if err := guardrails.ValidateLogsRequest(msg, s.cfg); err != nil {
+	if err := guardrails.ValidateLogsRequest(req, s.cfg); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
 
@@ -54,27 +55,27 @@ func (s *ObservabilityService) QueryLogs(
 		ctx,
 		token,
 		tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
-		msg.GetWorkspaceId(),
+		req.GetWorkspaceId(),
 		tokenv1.Scope_SCOPE_READ,
 	); err != nil {
 		return nil, err
 	}
 
-	limit := guardrails.ClampLimit(msg.GetLimit(), s.cfg)
+	limit := guardrails.ClampLimit(req.GetLimit(), s.cfg)
 
 	entries, nextCursor, err := chClient.QueryLogs(
 		ctx,
 		s.ch.Conn(),
-		msg.GetWorkspaceId(),
-		msg.GetResourceIds(),
-		msg.GetStartTime().AsTime(),
-		msg.GetEndTime().AsTime(),
-		msg.GetSearch(),
-		msg.GetLevels(),
-		msg.GetLabels(),
+		req.GetWorkspaceId(),
+		req.GetResourceIds(),
+		req.GetStartTime().AsTime(),
+		req.GetEndTime().AsTime(),
+		req.GetSearch(),
+		req.GetLevels(),
+		req.GetLabels(),
 		limit,
-		msg.GetCursor(),
-		msg.GetOrder(),
+		req.GetCursor(),
+		req.GetOrder(),
 		s.cfg.QueryTimeout,
 	)
 	if errors.Is(err, chClient.ErrInvalidLogCursor) {
@@ -82,7 +83,7 @@ func (s *ObservabilityService) QueryLogs(
 	}
 	if err != nil {
 		slog.ErrorContext(ctx, "QueryLogs failed", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, errQueryFailed.Error()).WithCause(errQueryFailed)
+		return nil, rpcerr.New(connect.CodeInternal, errQueryFailed)
 	}
 
 	return &observabilityv1.QueryLogsResponse{
@@ -98,12 +99,11 @@ func (s *ObservabilityService) TailLogs(
 ) error {
 	token, ok := auth.TokenFromContext(ctx)
 	if !ok {
-		return connect.NewError(connect.CodeUnauthenticated, errMissingToken.Error()).WithCause(errMissingToken)
+		return rpcerr.New(connect.CodeUnauthenticated, errMissingToken)
 	}
 
-	msg := req
 	started := time.Now()
-	if err := guardrails.ValidateTailRequest(msg, s.cfg, started); err != nil {
+	if err := guardrails.ValidateTailRequest(req, s.cfg, started); err != nil {
 		return connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
 
@@ -111,7 +111,7 @@ func (s *ObservabilityService) TailLogs(
 		ctx,
 		token,
 		tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
-		msg.GetWorkspaceId(),
+		req.GetWorkspaceId(),
 		tokenv1.Scope_SCOPE_READ,
 	); err != nil {
 		return err
@@ -121,8 +121,8 @@ func (s *ObservabilityService) TailLogs(
 	ctx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 	lastSeen := started.Add(-defaultTailLookback)
-	if msg.GetSince() != nil {
-		lastSeen = msg.GetSince().AsTime()
+	if req.GetSince() != nil {
+		lastSeen = req.GetSince().AsTime()
 	}
 	heartbeatInterval := 5 * time.Second
 	pollInterval := 2 * time.Second
@@ -143,7 +143,7 @@ func (s *ObservabilityService) TailLogs(
 
 		now := time.Now()
 		var sendErr error
-		sent, err := s.pollTailLogs(ctx, msg, lastSeen, now, &cursor, func(entry *observabilityv1.LogEntry) error {
+		sent, err := s.pollTailLogs(ctx, req, lastSeen, now, &cursor, func(entry *observabilityv1.LogEntry) error {
 			sendErr = stream.Send(&observabilityv1.TailLogsResponse{
 				Event: &observabilityv1.TailLogsResponse_Entry{Entry: entry},
 			})
@@ -187,11 +187,10 @@ func (s *ObservabilityService) QueryMetrics(
 ) (*observabilityv1.QueryMetricsResponse, error) {
 	token, ok := auth.TokenFromContext(ctx)
 	if !ok {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errMissingToken.Error()).WithCause(errMissingToken)
+		return nil, rpcerr.New(connect.CodeUnauthenticated, errMissingToken)
 	}
 
-	msg := req
-	if err := guardrails.ValidateMetricsRequest(msg, s.cfg); err != nil {
+	if err := guardrails.ValidateMetricsRequest(req, s.cfg); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
 
@@ -199,7 +198,7 @@ func (s *ObservabilityService) QueryMetrics(
 		ctx,
 		token,
 		tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
-		msg.GetWorkspaceId(),
+		req.GetWorkspaceId(),
 		tokenv1.Scope_SCOPE_READ,
 	); err != nil {
 		return nil, err
@@ -208,19 +207,19 @@ func (s *ObservabilityService) QueryMetrics(
 	series, err := chClient.QueryMetrics(
 		ctx,
 		s.ch.Conn(),
-		msg.GetWorkspaceId(),
-		msg.GetEnvironmentId(),
-		msg.GetResourceIds(),
-		msg.GetStartTime().AsTime(),
-		msg.GetEndTime().AsTime(),
-		msg.GetMetricName(),
-		msg.GetIntervalSeconds(),
-		msg.GetAggregation(),
+		req.GetWorkspaceId(),
+		req.GetEnvironmentId(),
+		req.GetResourceIds(),
+		req.GetStartTime().AsTime(),
+		req.GetEndTime().AsTime(),
+		req.GetMetricName(),
+		req.GetIntervalSeconds(),
+		req.GetAggregation(),
 		s.cfg.QueryTimeout,
 	)
 	if err != nil {
 		slog.ErrorContext(ctx, "QueryMetrics failed", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, errQueryFailed.Error()).WithCause(errQueryFailed)
+		return nil, rpcerr.New(connect.CodeInternal, errQueryFailed)
 	}
 
 	return &observabilityv1.QueryMetricsResponse{

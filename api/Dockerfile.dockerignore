@@ -5,6 +5,7 @@
 !gen/go
 !internal/buildinfo
 !internal/httputil
+!internal/rpcerr
 !internal/loglevel
 !internal/locofile
 !k8sapi

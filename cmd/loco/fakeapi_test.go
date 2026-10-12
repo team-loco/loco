@@ -8,10 +8,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/team-loco/loco/internal/httputil"
-
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
+
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
@@ -19,6 +18,8 @@ import (
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
+	"github.com/team-loco/loco/internal/httputil"
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 var (
@@ -123,8 +124,7 @@ func (f *fakeAPI) authenticate(
 	token := strings.TrimPrefix(authorization, "Bearer ")
 	usr, ok := f.users[token]
 	if !ok {
-		return "", nil, connect.NewError(connect.CodeUnauthenticated, errFakeUnknownToken.Error()).
-			WithCause(errFakeUnknownToken)
+		return "", nil, rpcerr.New(connect.CodeUnauthenticated, errFakeUnknownToken)
 	}
 	return token, usr, nil
 }
@@ -179,8 +179,7 @@ func (o *fakeAuthService) RefreshCLIToken(
 		return nil, err
 	}
 	if req.GetRefreshToken() != fakeAPIRefreshToken {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errFakeUnknownRefreshToken.Error()).
-			WithCause(errFakeUnknownRefreshToken)
+		return nil, rpcerr.New(connect.CodeUnauthenticated, errFakeUnknownRefreshToken)
 	}
 	f.users[fakeAPIRefreshedToken] = f.users[fakeAPIToken]
 	resp := &authv1.RefreshCLITokenResponse{Tokens: &authv1.CLITokens{

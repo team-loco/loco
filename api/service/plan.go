@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/contextkeys"
@@ -24,6 +25,7 @@ import (
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	"github.com/team-loco/loco/gen/go/loco/plan/v1/planv1connect"
 	"github.com/team-loco/loco/internal/locofile"
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 // PlanServer implements the PlanService: it diffs a loco.yaml file against an environment.
@@ -90,8 +92,7 @@ func (s *PlanServer) Plan(
 	ctx context.Context,
 	req *planv1.PlanRequest,
 ) (*planv1.PlanResponse, error) {
-	r := req
-	planned, err := s.loadPlan(ctx, r.GetFile(), r.GetEnvironmentId(), actions.Plan, nil)
+	planned, err := s.loadPlan(ctx, req.GetFile(), req.GetEnvironmentId(), actions.Plan, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -118,19 +119,17 @@ func (s *PlanServer) loadPlan(
 	environmentID := uuid.MustParse(rawEnvironmentID)
 	env, err := s.queries.GetEnvironmentByID(ctx, environmentID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, connect.NewError(connect.CodeNotFound, ErrEnvironmentNotFound.Error()).
-			WithCause(ErrEnvironmentNotFound)
+		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
 	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get environment", "error", err, "environmentId", environmentID)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound.Error()).
-			WithCause(errEntityScopesNotFound)
+		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
 	}
 	workspaceAction := actions.New(action, env.WorkspaceID.String())
 	if authErr := s.authz.Check(ctx, scopes, workspaceAction); authErr != nil {
@@ -146,27 +145,27 @@ func (s *PlanServer) loadPlan(
 	environments, err := s.queries.ListWorkspaceEnvironments(ctx, env.WorkspaceID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list environments", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 	clusters, err := eligibleClusters(ctx, s.queries, env.EnvironmentType, s.silentAfter)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list clusters", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 	platformDomains, err := s.queries.ListActivePlatformDomains(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list platform domains", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 	live, err := s.liveEnvironment(ctx, env)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load the environment's services", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 	secrets, err := s.serviceSecrets(ctx, env.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list secret names", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
 	environmentNames := make([]string, 0, len(environments))

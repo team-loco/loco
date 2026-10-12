@@ -8,6 +8,8 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/jackc/pgx/v5/pgconn"
+
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 var (
@@ -24,7 +26,7 @@ func txError(ctx context.Context, msg string, err error) error {
 		return connectErr
 	}
 	slog.ErrorContext(ctx, msg, "error", err)
-	return connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
+	return rpcerr.New(connect.CodeInternal, ErrDB)
 }
 
 // isPgConstraintViolation checks if an error is a PostgreSQL unique constraint violation

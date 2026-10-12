@@ -7,16 +7,17 @@ import (
 	"net/http"
 	"slices"
 
-	"connectrpc.com/connect/v2/connectproto"
-
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
+	"connectrpc.com/connect/v2/connectproto"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	"github.com/team-loco/loco/gen/go/loco/plan/v1/planv1connect"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 const (
@@ -80,8 +81,7 @@ func (s *fakePlanService) Plan(
 		return nil, err
 	}
 	if req.GetEnvironmentId() != fakeEnvironmentID {
-		return nil, connect.NewError(connect.CodeNotFound, errFakeUnknownEnvironment.Error()).
-			WithCause(errFakeUnknownEnvironment)
+		return nil, rpcerr.New(connect.CodeNotFound, errFakeUnknownEnvironment)
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -102,8 +102,7 @@ func (s *fakePlanService) Apply(
 		return nil, err
 	}
 	if req.GetEnvironmentId() != fakeEnvironmentID {
-		return nil, connect.NewError(connect.CodeNotFound, errFakeUnknownEnvironment.Error()).
-			WithCause(errFakeUnknownEnvironment)
+		return nil, rpcerr.New(connect.CodeNotFound, errFakeUnknownEnvironment)
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -126,15 +125,13 @@ func (s *fakePlanService) Apply(
 		return f.provision(req, plan, revision)
 	}
 	if f.platform.clusterHeld {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errFakeClusterHeld.Error()).
-			WithCause(errFakeClusterHeld)
+		return nil, rpcerr.New(connect.CodeFailedPrecondition, errFakeClusterHeld)
 	}
 	builds := req.GetBuilds()
 	for _, service := range slices.Sorted(maps.Keys(builds)) {
 		build := f.findBuild(builds[service])
 		if build == nil || build.GetStatus() != buildv1.BuildStatus_BUILD_STATUS_SUCCEEDED {
-			return nil, connect.NewError(connect.CodeFailedPrecondition, errFakeBuildNotSucceeded.Error()).
-				WithCause(errFakeBuildNotSucceeded)
+			return nil, rpcerr.New(connect.CodeFailedPrecondition, errFakeBuildNotSucceeded)
 		}
 	}
 	var unconfirmed []*planv1.PlanOperation
@@ -207,8 +204,7 @@ func (f *fakeAPI) provision(
 	revision int64,
 ) (*planv1.ApplyResponse, error) {
 	if len(req.GetBuilds()) > 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errFakeProvisionMixed.Error()).
-			WithCause(errFakeProvisionMixed)
+		return nil, rpcerr.New(connect.CodeInvalidArgument, errFakeProvisionMixed)
 	}
 	var operations []*planv1.PlanOperation
 	for _, service := range req.GetProvision() {
@@ -241,8 +237,7 @@ func fakeStartedDeployment(service string) *planv1.StartedDeployment {
 }
 
 func fakeApplyRefused(refusal *planv1.ApplyRefusal) error {
-	refused := connect.NewError(connect.CodeFailedPrecondition, errFakeApplyRefused.Error()).
-		WithCause(errFakeApplyRefused)
+	refused := rpcerr.New(connect.CodeFailedPrecondition, errFakeApplyRefused)
 	detail, err := connectproto.NewErrorDetail(refusal)
 	if err != nil {
 		panic(err)
