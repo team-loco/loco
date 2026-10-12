@@ -26,10 +26,10 @@ interface Change {
 	memory?: string;
 }
 
-function baseline(regions: RegionView[], environmentId: string | undefined): ScaleRow[] {
+function baseline(regions: RegionView[]): ScaleRow[] {
 	return regions.flatMap((r) => {
-		const current = r.history.find((d) => d.isActive && d.environmentId === environmentId);
-		if (current === undefined) return [];
+		const current = r.current;
+		if (current?.isActive !== true) return [];
 		const svc = depService(current);
 		return [{ region: r.name, replicas: current.replicas.toString(), cpu: svc?.cpu ?? "", mem: svc?.memory ?? "" }];
 	});
@@ -52,7 +52,7 @@ export function ScaleSection({
 	onNotice: (notice: Notice) => void;
 	onSaved: () => void;
 }) {
-	const base = baseline(regions, environmentId);
+	const base = baseline(regions);
 	const [draft, setDraft] = useState<ScaleRow[] | null>(null);
 	const [errors, setErrors] = useState<Record<string, string>>({});
 	const scale = useMutation(scaleResource);
@@ -62,7 +62,7 @@ export function ScaleSection({
 		setDraft(rows.map((r) => (r.region === region ? { ...r, ...patch } : r)));
 	};
 
-	const apply = async () => {
+	const apply = async (envId: string) => {
 		const nextErrors: Record<string, string> = {};
 		const changes: Change[] = [];
 		for (const row of rows) {
@@ -79,11 +79,11 @@ export function ScaleSection({
 			if (change.replicas !== undefined || change.cpu !== undefined || change.memory !== undefined) changes.push(change);
 		}
 		setErrors(nextErrors);
-		if (Object.keys(nextErrors).length > 0 || changes.length === 0 || environmentId === undefined) return;
+		if (Object.keys(nextErrors).length > 0 || changes.length === 0) return;
 		const failures: string[] = [];
 		for (const c of changes) {
 			try {
-				await scale.mutateAsync({ resourceId, environmentId, ...c });
+				await scale.mutateAsync({ resourceId, environmentId: envId, ...c });
 			} catch (err) {
 				failures.push(`${c.region}: ${getErrorMessage(err, "Failed to scale")}`);
 			}
@@ -167,9 +167,11 @@ export function ScaleSection({
 					)}
 					<Button
 						className="h-[30px]"
-						disabled={managed || !dirty || scale.isPending}
+						disabled={managed || !dirty || scale.isPending || environmentId === undefined}
 						aria-describedby={describedBy}
-						onClick={() => void apply()}
+						onClick={() => {
+							if (environmentId !== undefined) void apply(environmentId);
+						}}
 					>
 						{scale.isPending ? "Applying…" : "Apply"}
 					</Button>

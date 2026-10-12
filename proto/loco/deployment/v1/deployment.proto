@@ -199,6 +199,10 @@ message ListDeploymentsRequest {
     lte: 200
   }]; // default: 50, max: 200
   string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
+  string environment_id = 4 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
 }
 
 // ListDeploymentsResponse is the response containing deployment list.

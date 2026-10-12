@@ -14,6 +14,7 @@ SELECT status, message FROM deployments WHERE id = $1;
 -- name: ListDeploymentsForResource :many
 SELECT * FROM deployments d
 WHERE d.resource_id = $1
+  AND (sqlc.narg('environment_id')::uuid IS NULL OR d.environment_id = sqlc.narg('environment_id')::uuid)
   AND (sqlc.narg('page_token')::text IS NULL
        OR (d.created_at, d.id) < (
          (SELECT created_at FROM deployments WHERE id = sqlc.narg('page_token')::uuid),
