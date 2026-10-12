@@ -5,6 +5,7 @@ on:
 
 permissions:
   checks: read
+  actions: read
   contents: read
 
 jobs:
@@ -14,6 +15,8 @@ jobs:
     timeout-minutes: 55
 
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
       - name: Wait for every other check to finish
         env:
           GH_TOKEN: ${{ github.token }}
@@ -32,6 +35,10 @@ jobs:
           settle_seconds_empty=120
           deadline=$((SECONDS + 50 * 60))
 
+          workflows_file=$(mktemp)
+          checks_file=$(mktemp)
+          trap 'rm -f "$workflows_file" "$checks_file"' EXIT
+
           stable_since=$SECONDS
           settled=0
           prev=""
@@ -46,10 +53,9 @@ jobs:
           }
 
           while [ "$SECONDS" -lt "$deadline" ]; do
-            runs=$(gh api --paginate "repos/$REPO/commits/$SHA/check-runs?per_page=100" \
-              --jq '.check_runs[] | select(.name != env.SELF) | "\(.name)\t\(.id)\t\(.status)\t\(.conclusion // "")"' \
-              | sort -t $'\t' -k1,1 -k2,2nr \
-              | awk -F'\t' '!seen[$1]++ {print $1 "\t" $3 "\t" $4}')
+            gh api --paginate --slurp "repos/$REPO/actions/runs?head_sha=$SHA&event=pull_request&per_page=100" > "$workflows_file"
+            gh api --paginate --slurp "repos/$REPO/commits/$SHA/check-runs?per_page=100" > "$checks_file"
+            runs=$(python3 .github/actions/ci-gate/filter_checks.py "$workflows_file" "$checks_file" "$SELF")
 
             total=$(printf '%s' "$runs" | grep -c . || true)
             pending=$(printf '%s\n' "$runs" | awk -F'\t' '$2 != "completed"' | grep -c . || true)
