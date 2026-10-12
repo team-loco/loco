@@ -22,7 +22,7 @@ export function timeRangeMs(range: TimeRange): number {
 
 export function timeRangeIntervalSeconds(range: TimeRange): number {
 	const map: Record<TimeRange, number> = {
-		"15m": 30,
+		"15m": 60,
 		"1h": 60,
 		"3h": 180,
 		"6h": 300,
