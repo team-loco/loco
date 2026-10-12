@@ -2,8 +2,8 @@ package logstream
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
+	"errors"
+	"fmt"
 	"slices"
 	"sync"
 	"testing"
@@ -12,13 +12,18 @@ import (
 	"github.com/team-loco/loco/internal/rpc"
 
 	"connectrpc.com/connect/v2"
-	"connectrpc.com/connect/v2/connecthttp"
+	"connectrpc.com/connect/v2/connectinprocess"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var base = time.Date(2026, 10, 7, 6, 0, 0, 0, time.UTC)
+
+var (
+	proxyServers    sync.Map
+	errUnknownProxy = errors.New("unknown in-process proxy")
+)
 
 type fakeProxy struct {
 	observabilityv1connect.UnimplementedObservabilityProxyServiceHandler
@@ -95,22 +100,29 @@ func serve(t *testing.T, proxy *fakeProxy) Proxy {
 
 func serveHandler(t *testing.T, proxy observabilityv1connect.ObservabilityProxyServiceHandler) Proxy {
 	t.Helper()
-	mux := http.NewServeMux()
 	server := connect.NewServer()
 	observabilityv1connect.RegisterObservabilityProxyServiceHandler(server, proxy)
-	connecthttp.Mount(mux, server)
-	srv := httptest.NewServer(mux)
-	t.Cleanup(srv.Close)
-	return Proxy{ClusterID: srv.URL, Region: "test", URL: srv.URL}
+	endpoint := fmt.Sprintf("inprocess://%p", server)
+	proxyServers.Store(endpoint, server)
+	t.Cleanup(func() { proxyServers.Delete(endpoint) })
+	return Proxy{ClusterID: endpoint, Region: "test", URL: endpoint}
 }
 
 func newClient() *Client {
 	return &Client{
 		Token: "token",
 		NewClient: func(url, token string) observabilityv1connect.ObservabilityProxyServiceClient {
-			return observabilityv1connect.NewObservabilityProxyServiceClient(
-				connect.NewClient(connecthttp.NewTransport(http.DefaultClient, url), rpc.BearerInterceptor(token)),
-			)
+			cached, exists := proxyServers.Load(url)
+			if !exists {
+				panic(errUnknownProxy)
+			}
+			server, ok := cached.(*connect.Server)
+			if !ok {
+				panic(errUnknownProxy)
+			}
+			transport := connectinprocess.New(server)
+			client := connect.NewClient(transport, rpc.BearerInterceptor(token))
+			return observabilityv1connect.NewObservabilityProxyServiceClient(client)
 		},
 	}
 }

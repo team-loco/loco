@@ -8,10 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"net/http"
-	"net/http/httptest"
-
-	"connectrpc.com/connect/v2/connecthttp"
+	"connectrpc.com/connect/v2/connectinprocess"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -177,13 +174,7 @@ func (f *eventFixture) streamClient(t *testing.T, asSystem *atomic.Bool) eventv1
 		return nil
 	}).Interceptor)
 	eventv1connect.RegisterEventServiceHandler(server, f.events)
-	mux := http.NewServeMux()
-	connecthttp.Mount(mux, server)
-	srv := httptest.NewUnstartedServer(mux)
-	srv.EnableHTTP2 = true
-	srv.StartTLS()
-	t.Cleanup(srv.Close)
-	transport := connecthttp.NewTransport(srv.Client(), srv.URL)
+	transport := connectinprocess.New(server)
 	return eventv1connect.NewEventServiceClient(connect.NewClient(transport))
 }
 
