@@ -240,6 +240,7 @@ CREATE TABLE
         applied_revision BIGINT NOT NULL DEFAULT 0,
         applied_at TIMESTAMPTZ,
         applied_error TEXT,
+        retry_after TIMESTAMPTZ,
         observed_revision BIGINT NOT NULL DEFAULT 0,
         ready BOOLEAN NOT NULL DEFAULT false,
         ready_replicas INT NOT NULL DEFAULT 0,

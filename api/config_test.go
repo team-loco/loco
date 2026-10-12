@@ -53,6 +53,7 @@ var adminIssuers = `[{"issuer":"` + testIssuer + `","audience":"loco",` +
 
 func clearAPIConfigEnv(t *testing.T) {
 	t.Helper()
+	t.Setenv("LOCO_PLACEMENT_RETRY_DELAY", "")
 	t.Setenv("DATABASE_LISTEN_URL", "")
 	t.Setenv("CACHE_TYPE", "")
 	t.Setenv("CACHE_ADDR", "")
@@ -653,5 +654,22 @@ func TestDatabaseListenURLDefaultsAndOverride(t *testing.T) {
 	t.Setenv("DATABASE_LISTEN_URL", "://invalid")
 	if err := panicValue(t, func() { newDatabaseListenConfig(testDatabaseURL) }); err == nil {
 		t.Fatal("invalid listener URL accepted")
+	}
+}
+
+func TestPlacementRetryDelayConfiguration(t *testing.T) {
+	t.Setenv("LOCO_PLACEMENT_RETRY_DELAY", "")
+	if got := newAgentConfig().PlacementRetryDelay; got != defaultPlacementRetryDelay {
+		t.Fatalf("retry delay = %v", got)
+	}
+	t.Setenv("LOCO_PLACEMENT_RETRY_DELAY", "30m")
+	if got := newAgentConfig().PlacementRetryDelay; got != 30*time.Minute {
+		t.Fatalf("retry delay = %v, want 30m", got)
+	}
+	for _, value := range []string{"0s", "-1m", "bad"} {
+		t.Setenv("LOCO_PLACEMENT_RETRY_DELAY", value)
+		if err := panicValue(t, func() { newAgentConfig() }); err == nil {
+			t.Fatalf("invalid retry delay %s accepted", value)
+		}
 	}
 }

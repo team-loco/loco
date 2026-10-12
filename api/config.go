@@ -92,10 +92,12 @@ const (
 	defaultSecretsTransitRetry   = 10 * time.Second
 	defaultSecretsTransitDEKTTL  = 5 * time.Minute
 
-	defaultHeartbeatInterval = 30 * time.Second
+	defaultHeartbeatInterval   = 30 * time.Second
+	defaultPlacementRetryDelay = time.Hour
 )
 
 type APIConfig struct {
+	Agent                 service.AgentConfig
 	Version               string
 	Env                   string // Environment (e.g., dev, prod)
 	DatabaseURL           string // PostgreSQL connection string
@@ -138,6 +140,7 @@ func newMigrateConfig() MigrateConfig {
 
 func newAPIConfig() *APIConfig {
 	migrateConfig := newMigrateConfig()
+	agentConfig := newAgentConfig()
 	databaseListenConfig := newDatabaseListenConfig(migrateConfig.DatabaseURL)
 	cacheType, cacheAddr := newCacheConfig()
 	registryHost := stringEnv("LOCO_REGISTRY_HOST", "")
@@ -170,6 +173,7 @@ func newAPIConfig() *APIConfig {
 	}
 
 	return &APIConfig{
+		Agent:                 agentConfig,
 		Version:               buildinfo.Version(version),
 		Env:                   stringEnv("APP_ENV", ""),
 		DatabaseURL:           migrateConfig.DatabaseURL,
@@ -442,4 +446,9 @@ func newDatabaseListenConfig(databaseURL string) *pgx.ConnConfig {
 		panic(fmt.Errorf("invalid database listener URL: %w", err))
 	}
 	return config
+}
+
+func newAgentConfig() service.AgentConfig {
+	delay := positiveDurationEnv("LOCO_PLACEMENT_RETRY_DELAY", defaultPlacementRetryDelay)
+	return service.AgentConfig{PlacementRetryDelay: delay}
 }

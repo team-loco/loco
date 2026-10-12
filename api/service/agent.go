@@ -22,9 +22,14 @@ import (
 )
 
 var (
-	ErrAgentNotAuthenticated = errors.New("agent not authenticated")
-	ErrInvalidAgentToken     = errors.New("invalid agent token")
+	ErrAgentNotAuthenticated      = errors.New("agent not authenticated")
+	ErrInvalidAgentToken          = errors.New("invalid agent token")
+	errInvalidPlacementRetryDelay = errors.New("placement retry delay must be positive")
 )
+
+type AgentConfig struct {
+	PlacementRetryDelay time.Duration
+}
 
 // AgentServer implements the AgentService for agent communication.
 type AgentServer struct {
@@ -33,6 +38,7 @@ type AgentServer struct {
 	notifier          *clusternotify.Notifier
 	sources           SourceBucket
 	provider          secretkeys.Provider
+	config            AgentConfig
 	heartbeatInterval time.Duration
 }
 
@@ -45,13 +51,18 @@ func NewAgentServer(
 	sources SourceBucket,
 	provider secretkeys.Provider,
 	heartbeatInterval time.Duration,
+	config AgentConfig,
 ) *AgentServer {
+	if config.PlacementRetryDelay <= 0 {
+		panic(errInvalidPlacementRetryDelay)
+	}
 	return &AgentServer{
 		db:                db,
 		queries:           queries,
 		notifier:          notifier,
 		sources:           sources,
 		provider:          provider,
+		config:            config,
 		heartbeatInterval: heartbeatInterval,
 	}
 }

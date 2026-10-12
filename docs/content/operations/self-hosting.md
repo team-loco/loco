@@ -29,6 +29,8 @@ Configure the API's database, cache, authentication, registry, and API/dashboard
 
 Set `DATABASE_LISTEN_URL` to a direct PostgreSQL or session-pooler URL when `DATABASE_URL` uses a transaction-mode pooler. The API holds this connection for placement notifications and uses `DATABASE_URL` for ordinary queries. Both URLs must reach the same database. With `DATABASE_LISTEN_URL` empty, the listener uses `DATABASE_URL`.
 
+`LOCO_PLACEMENT_RETRY_DELAY` sets how long the API defers a placement after the agent reports an apply failure it will not retry. The default is `1h`. Inventory reports and new connections respect the delay; after it expires, the next inventory or new connection can resend the placement. A new desired revision clears the delay immediately.
+
 The cluster needs Cilium, Envoy Gateway, cert-manager, and the Loco controller. Observability uses OpenTelemetry, ClickHouse, and the observability proxy. The charts and environment values define their configuration.
 
 Set `obsProxy.controlPlane.url` to the API URL reachable from the observability namespace. Production Helmfile reads the agent and proxy's API URL from `CONTROL_PLANE_URL`; local Helmfile derives the host API port from `APP_PORT`.

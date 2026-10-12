@@ -334,7 +334,9 @@ func (ss *syncSession) reconcilePlacementInventory(ctx context.Context, inventor
 		})
 		switch action {
 		case inventorySend:
-			toSend = append(toSend, row.ID)
+			if !row.RetryDeferred {
+				toSend = append(toSend, row.ID)
+			}
 		case inventoryMarkApplied:
 			ss.server.markApplied(ctx, ss.clusterID, row.ID, row.DesiredRevision)
 		case inventoryAhead:
@@ -501,6 +503,7 @@ func (s *AgentServer) recordApplyError(
 ) {
 	revision := applied.GetRevision()
 	errMessage := applied.GetError()
+	retryDelaySeconds := s.config.PlacementRetryDelay.Seconds()
 	slog.WarnContext(ctx, "placement failed to apply",
 		"cluster_id", clusterID,
 		"placement_id", placementID,
@@ -511,10 +514,12 @@ func (s *AgentServer) recordApplyError(
 
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		row, setErr := qtx.SetPlacementApplyError(ctx, genDb.SetPlacementApplyErrorParams{
-			ID:              placementID,
-			ClusterID:       clusterID,
-			DesiredRevision: revision,
-			AppliedError:    &errMessage,
+			ID:                placementID,
+			ClusterID:         clusterID,
+			DesiredRevision:   revision,
+			AppliedError:      &errMessage,
+			Retrying:          applied.GetRetrying(),
+			RetryDelaySeconds: retryDelaySeconds,
 		})
 		if errors.Is(setErr, pgx.ErrNoRows) {
 			return nil

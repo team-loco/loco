@@ -429,6 +429,7 @@ type Placement struct {
 	AppliedRevision  int64      `json:"appliedRevision"`
 	AppliedAt        *time.Time `json:"appliedAt"`
 	AppliedError     *string    `json:"appliedError"`
+	RetryAfter       *time.Time `json:"retryAfter"`
 	ObservedRevision int64      `json:"observedRevision"`
 	Ready            bool       `json:"ready"`
 	ReadyReplicas    int32      `json:"readyReplicas"`
