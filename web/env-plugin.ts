@@ -1,6 +1,6 @@
 import type { BunPlugin } from "bun";
 
-const publicEnv = ["VITE_API_URL", "VITE_APP_ENV"];
+const publicEnv = ["PUBLIC_API_URL", "PUBLIC_APP_ENV"];
 
 const envPlugin: BunPlugin = {
 	name: "loco-env",

@@ -38,7 +38,7 @@ describe("vendorEntries", () => {
 				["lucide-react", new Set(["BoxIcon"])],
 				["@/lib/utils", new Set(["cn"])],
 				["@gen/loco/user/v1/user_pb", new Set(["UserSchema"])],
-				["loco:env", new Set(["VITE_API_URL"])],
+				["loco:env", new Set(["PUBLIC_API_URL"])],
 			]),
 		);
 		expect(entries).toEqual({

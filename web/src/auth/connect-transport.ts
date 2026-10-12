@@ -1,11 +1,11 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
-import { VITE_APP_ENV } from "loco:env";
+import { PUBLIC_APP_ENV } from "loco:env";
 import { nonEmpty } from "@/lib/utils";
 
 import { authClient, BASE_URL } from "./client";
 
-const APP_ENV = nonEmpty(VITE_APP_ENV, "DEVELOPMENT");
+const APP_ENV = nonEmpty(PUBLIC_APP_ENV, "DEVELOPMENT");
 
 export const createTransport = (baseUrl: string = BASE_URL) => {
 	return createConnectTransport({

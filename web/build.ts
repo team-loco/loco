@@ -8,7 +8,7 @@ import { collectImports, vendorEntries } from "./vendor-chunks";
 
 const outdir = "dist";
 const unknownVersion = "(devel)";
-const linkedVersion = process.env["VITE_APP_VERSION"] ?? "";
+const linkedVersion = process.env["VERSION"] ?? "";
 const version = linkedVersion === "" ? unknownVersion : linkedVersion;
 const plugins = [tailwind, envPlugin];
 

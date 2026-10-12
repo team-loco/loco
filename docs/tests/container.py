@@ -167,7 +167,7 @@ class ContainerTests(unittest.TestCase):
             with self.subTest(environment=environment):
                 image = f'loco-ui-docs-test:{environment}'
                 api_host = 'api.staging.loco.build' if environment == 'staging' else 'api.loco.build'
-                docker('buildx', 'build', '--load', '-t', image, '-f', 'web/Dockerfile', '--build-arg', f'DOCS_ENVIRONMENT={environment}', '--build-arg', f'VITE_API_URL=https://{api_host}', '--build-arg', 'VITE_APP_ENV=PRODUCTION', '--build-arg', f'VERSION={version}', '.')
+                docker('buildx', 'build', '--load', '-t', image, '-f', 'web/Dockerfile', '--build-arg', f'DOCS_ENVIRONMENT={environment}', '--build-arg', f'PUBLIC_API_URL=https://{api_host}', '--build-arg', 'PUBLIC_APP_ENV=PRODUCTION', '--build-arg', f'VERSION={version}', '.')
                 container = docker('run', '--rm', '-d', '-p', f'127.0.0.1::{PORT}', image)
                 try:
                     address = docker('port', container, str(PORT)).splitlines()[0]
