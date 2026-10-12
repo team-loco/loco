@@ -1,0 +1,3 @@
+# the CLI writes its coverage into a directory of its own.
+coverdir
+exec loco --help

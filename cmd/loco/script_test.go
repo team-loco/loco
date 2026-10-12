@@ -2,6 +2,7 @@ package loco
 
 import (
 	"errors"
+	"fmt"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -13,7 +14,10 @@ import (
 	"github.com/team-loco/loco/internal/keychain"
 )
 
-const scriptVersion = "test"
+const (
+	scriptVersion = "test"
+	coverDirEnv   = "GOCOVERDIR"
+)
 
 type fakeAPIKey struct{}
 
@@ -35,6 +39,9 @@ func TestScripts(t *testing.T) {
 }
 
 func setupScript(env *testscript.Env) error {
+	if err := isolateCoverage(env); err != nil {
+		return err
+	}
 	home := filepath.Join(env.WorkDir, "home")
 	if err := os.MkdirAll(home, 0o700); err != nil {
 		return err
@@ -49,6 +56,39 @@ func setupScript(env *testscript.Env) error {
 	env.Setenv("LOCO_HOST", srv.URL)
 	env.Values[fakeAPIKey{}] = api
 	return fillCredentialsHost(filepath.Join(home, ".loco", "credentials.json"), srv.URL)
+}
+
+func isolateCoverage(env *testscript.Env) error {
+	shared := env.Getenv(coverDirEnv)
+	if shared == "" {
+		return nil
+	}
+	dir, err := os.MkdirTemp(shared, "script-")
+	if err != nil {
+		return fmt.Errorf("create the script's coverage directory: %w", err)
+	}
+	env.Setenv(coverDirEnv, dir)
+	env.Defer(func() {
+		if err := collectCoverage(dir, shared); err != nil {
+			env.T().Fatal(err)
+		}
+	})
+	return nil
+}
+
+func collectCoverage(dir, shared string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return fmt.Errorf("read the script's coverage directory: %w", err)
+	}
+	for _, entry := range entries {
+		from := filepath.Join(dir, entry.Name())
+		to := filepath.Join(shared, entry.Name())
+		if err := os.Rename(from, to); err != nil {
+			return fmt.Errorf("collect coverage file %s: %w", entry.Name(), err)
+		}
+	}
+	return nil
 }
 
 func fillCredentialsHost(path, host string) error {
