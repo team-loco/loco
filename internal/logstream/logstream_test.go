@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/team-loco/loco/internal/rpc"
+
 	"connectrpc.com/connect"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
@@ -101,8 +103,12 @@ func serveHandler(t *testing.T, proxy observabilityv1connect.ObservabilityProxyS
 func newClient() *Client {
 	return &Client{
 		Token: "token",
-		NewClient: func(url string) observabilityv1connect.ObservabilityProxyServiceClient {
-			return observabilityv1connect.NewObservabilityProxyServiceClient(http.DefaultClient, url)
+		NewClient: func(url, token string) observabilityv1connect.ObservabilityProxyServiceClient {
+			return observabilityv1connect.NewObservabilityProxyServiceClient(
+				http.DefaultClient,
+				url,
+				connect.WithInterceptors(rpc.BearerInterceptor(token)),
+			)
 		},
 	}
 }

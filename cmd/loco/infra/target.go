@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/team-loco/loco/internal/rpc"
+
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	"github.com/team-loco/loco/gen/go/loco/environment/v1/environmentv1connect"
 	"github.com/team-loco/loco/gen/go/loco/plan/v1/planv1connect"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/internal/client"
-	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
@@ -19,7 +19,7 @@ import (
 
 type target struct {
 	host            string
-	authHeader      string
+	token           string
 	workspaceID     string
 	environmentID   string
 	environmentName string
@@ -50,7 +50,7 @@ func resolveWorkspaceTarget(ctx context.Context, cmd *cobra.Command) (target, er
 	if err != nil {
 		return target{}, err
 	}
-	return target{host: host, authHeader: "Bearer " + locoToken.Token, workspaceID: workspaceID}, nil
+	return target{host: host, token: locoToken.Token, workspaceID: workspaceID}, nil
 }
 
 func resolveTarget(ctx context.Context, cmd *cobra.Command) (target, error) {
@@ -58,11 +58,12 @@ func resolveTarget(ctx context.Context, cmd *cobra.Command) (target, error) {
 	if err != nil {
 		return target{}, err
 	}
-	httpClient := httputil.NewHTTPClient()
-	environments := environmentv1connect.NewEnvironmentServiceClient(httpClient, t.host)
+
+	environmentClients := rpc.ForHost(t.host, t.token)
+	environments := environmentClients.Environment
 	interactive := cmdutil.StdoutIsTerminal()
 	env, err := cmdutil.ResolveEnvironment(
-		ctx, cmd, environments, ui.SelectFromList, interactive, t.authHeader, t.workspaceID,
+		ctx, cmd, environments, ui.SelectFromList, interactive, t.workspaceID,
 	)
 	if err != nil {
 		return target{}, err
@@ -73,13 +74,13 @@ func resolveTarget(ctx context.Context, cmd *cobra.Command) (target, error) {
 }
 
 func (t target) planClient() planv1connect.PlanServiceClient {
-	httpClient := httputil.NewHTTPClient()
-	return planv1connect.NewPlanServiceClient(httpClient, t.host)
+	planClients := rpc.ForHost(t.host, t.token)
+	return planClients.Plan
 }
 
 func (t target) resourceClient() resourcev1connect.ResourceServiceClient {
-	httpClient := httputil.NewHTTPClient()
-	return resourcev1connect.NewResourceServiceClient(httpClient, t.host)
+	resourceClients := rpc.ForHost(t.host, t.token)
+	return resourceClients.Resource
 }
 
 func readLocoFile(path string) ([]byte, error) {

@@ -82,9 +82,8 @@ func (f *buildFollower) note(format string, args ...any) {
 
 func (f *buildFollower) getBuild(ctx context.Context, buildID string) (*buildv1.Build, error) {
 	req := connect.NewRequest(&buildv1.GetBuildRequest{BuildId: buildID})
-	authorization := authHeaderFor(f.token)
-	req.Header().Set("Authorization", authorization)
-	client := f.clients.Builds(f.host)
+
+	client := f.clients.Builds(f.host, f.token)
 	resp, err := client.GetBuild(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("get build %s: %w", buildID, err)
@@ -185,10 +184,10 @@ func (f *buildFollower) streamLogs(
 	workspaceID string,
 	backfilled func(),
 ) {
-	access := f.clients.Access(f.host)
+	access := f.clients.Access(f.host, f.token)
 	clusterID := build.GetClusterId()
 	buildID := build.GetId()
-	proxies, err := logstream.Proxies(ctx, access, f.token, workspaceID, clusterID)
+	proxies, err := logstream.Proxies(ctx, access, workspaceID, clusterID)
 	if err != nil {
 		if ctx.Err() == nil {
 			f.note("  Build logs are unavailable: %v\n", err)

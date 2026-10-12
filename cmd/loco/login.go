@@ -9,21 +9,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/team-loco/loco/internal/rpc"
+
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
-	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
-	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
-	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
-	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
-	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
 	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/keychain"
 	"github.com/team-loco/loco/internal/session"
@@ -70,8 +67,9 @@ func newLoginCmd(env Env) *cobra.Command {
 				slog.Debug("no token found in keychain", "error", err)
 			}
 			httpClient := httputil.NewHTTPClient()
-			config, err := configv1connect.NewConfigServiceClient(httpClient, host).
-				GetConfig(cmd.Context(), connect.NewRequest(&configv1.GetConfigRequest{}))
+			configClients := rpc.NewHTTPClients(httpClient, host, "")
+			configClient := configClients.Config
+			config, err := configClient.GetConfig(cmd.Context(), connect.NewRequest(&configv1.GetConfigRequest{}))
 			if err != nil {
 				cmdutil.LogRequestID(cmd.Context(), err, "failed to read server config")
 				return fmt.Errorf("login to %s failed: %w", host, err)
@@ -98,7 +96,8 @@ func providerLogin(cmd *cobra.Command, httpClient *http.Client, host string, sto
 	if !device && !interactive {
 		return fmt.Errorf("login to %s failed: %w", host, errBrowserLoginNeedsTerminal)
 	}
-	authClient := authv1connect.NewAuthServiceClient(httpClient, host)
+	authClients := rpc.NewHTTPClients(httpClient, host, "")
+	authClient := authClients.Auth
 	var tokens *authv1.CLITokens
 	if device {
 		tokens, err = deviceLogin(ctx, authClient, interactive)
@@ -165,13 +164,13 @@ func resolveLoginScope(
 	host string,
 	locoToken string,
 ) (session.SimpleOrg, session.SimpleWorkspace, error) {
-	authorization := fmt.Sprintf("Bearer %s", locoToken)
-	orgClient := orgv1connect.NewOrgServiceClient(httpClient, host)
-	wsClient := workspacev1connect.NewWorkspaceServiceClient(httpClient, host)
-	userClient := userv1connect.NewUserServiceClient(httpClient, host)
+	clients := rpc.NewHTTPClients(httpClient, host, locoToken)
+	orgClient := clients.Org
+	wsClient := clients.Workspace
+	userClient := clients.User
 
 	currentUserReq := connect.NewRequest(&userv1.WhoAmIRequest{})
-	currentUserReq.Header().Set("Authorization", authorization)
+
 	currentUserResp, err := userClient.WhoAmI(ctx, currentUserReq)
 	if err != nil {
 		return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf("failed to get current user: %w", err)
@@ -181,7 +180,7 @@ func resolveLoginScope(
 		UserId:   currentUserResp.Msg.GetUser().GetId(),
 		PageSize: 100,
 	})
-	orgRequest.Header().Set("Authorization", authorization)
+
 	orgResp, err := orgClient.ListUserOrgs(ctx, orgRequest)
 	if err != nil {
 		return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf("failed to list organizations: %w", err)
@@ -194,7 +193,7 @@ func resolveLoginScope(
 			OrgId:    selectedOrg.GetId(),
 			PageSize: 100,
 		})
-		wsReq.Header().Set("Authorization", authorization)
+
 		wsResp, wsErr := wsClient.ListOrgWorkspaces(ctx, wsReq)
 		if wsErr != nil {
 			return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf("failed to list workspaces: %w", wsErr)
@@ -214,7 +213,7 @@ func resolveLoginScope(
 	email := currentUserResp.Msg.GetUser().GetEmail()
 	orgName := fmt.Sprintf("%s-org", cleanEmail(email))
 	createOrgReq := connect.NewRequest(&orgv1.CreateOrgRequest{Name: &orgName})
-	createOrgReq.Header().Set("Authorization", authorization)
+
 	createOrgResp, err := orgClient.CreateOrg(ctx, createOrgReq)
 	if err != nil {
 		return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf("failed to create organization: %w", err)
@@ -223,7 +222,7 @@ func resolveLoginScope(
 	getOrgReq := connect.NewRequest(&orgv1.GetOrgRequest{
 		Key: &orgv1.GetOrgRequest_OrgId{OrgId: createOrgResp.Msg.GetOrgId()},
 	})
-	getOrgReq.Header().Set("Authorization", authorization)
+
 	getOrgResp, err := orgClient.GetOrg(ctx, getOrgReq)
 	if err != nil {
 		return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf(
@@ -236,7 +235,7 @@ func resolveLoginScope(
 		OrgId: createOrgResp.Msg.GetOrgId(),
 		Name:  "default",
 	})
-	createWSReq.Header().Set("Authorization", authorization)
+
 	createWSResp, err := wsClient.CreateWorkspace(ctx, createWSReq)
 	if err != nil {
 		return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf("failed to create workspace: %w", err)
@@ -245,7 +244,7 @@ func resolveLoginScope(
 	getWSReq := connect.NewRequest(&workspacev1.GetWorkspaceRequest{
 		WorkspaceId: createWSResp.Msg.GetWorkspaceId(),
 	})
-	getWSReq.Header().Set("Authorization", authorization)
+
 	getWSResp, err := wsClient.GetWorkspace(ctx, getWSReq)
 	if err != nil {
 		return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf("failed to get created workspace: %w", err)

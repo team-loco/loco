@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/team-loco/loco/internal/rpc"
+
 	"connectrpc.com/connect"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
@@ -22,9 +24,8 @@ var errPermissionDenied = errors.New("permission denied")
 
 // Validator checks token permissions by calling CheckPermission on the control plane.
 type Validator struct {
-	client    tokenv1connect.TokenServiceClient
-	authToken string // proxy auth token for calling the control plane
-	cache     cache.Cache
+	client tokenv1connect.TokenServiceClient
+	cache  cache.Cache
 }
 
 func NewValidator(controlPlaneURL string, authToken string, c cache.Cache) *Validator {
@@ -34,15 +35,12 @@ func NewValidator(controlPlaneURL string, authToken string, c cache.Cache) *Vali
 	transport.Protocols.SetHTTP2(true)
 	httpClient := &http.Client{Transport: transport}
 
-	client := tokenv1connect.NewTokenServiceClient(
-		httpClient,
-		controlPlaneURL,
-	)
+	clients := rpc.NewHTTPClients(httpClient, controlPlaneURL, authToken)
+	tokenClient := clients.Token
 
 	return &Validator{
-		client:    client,
-		authToken: authToken,
-		cache:     c,
+		client: tokenClient,
+		cache:  c,
 	}
 }
 
@@ -70,7 +68,6 @@ func (v *Validator) CheckPermission(
 		EntityId:   entityID,
 		Scope:      scope,
 	})
-	req.Header().Set("Authorization", "Bearer "+v.authToken)
 
 	resp, err := v.client.CheckPermission(ctx, req)
 	if err != nil {
@@ -94,7 +91,6 @@ func (v *Validator) Ready(ctx context.Context) error {
 		Scope:      tokenv1.Scope_SCOPE_READ,
 	}
 	req := connect.NewRequest(message)
-	req.Header().Set("Authorization", "Bearer "+v.authToken)
 	if _, err := v.client.CheckPermission(ctx, req); err != nil {
 		return fmt.Errorf("control plane permission endpoint: %w", err)
 	}

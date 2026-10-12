@@ -31,7 +31,7 @@ Examples:
 				EnvironmentId: t.environmentID,
 				Names:         args,
 			})
-			req.Header().Set("Authorization", t.authHeader)
+
 			resp, err := t.secrets.DeleteSecrets(ctx, req)
 			if err != nil {
 				cmdutil.LogRequestID(ctx, err, "delete secrets failed")

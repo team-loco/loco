@@ -138,7 +138,6 @@ func logEmitter(out io.Writer, output string) (logstream.Emit, error) {
 func getResourceByName(
 	ctx context.Context,
 	resourceClient resourcev1connect.ResourceServiceClient,
-	authHeader string,
 	workspaceID string,
 	name string,
 ) (*resourcev1.Resource, error) {
@@ -147,7 +146,7 @@ func getResourceByName(
 			NameKey: &resourcev1.GetResourceNameKey{WorkspaceId: workspaceID, Name: name},
 		},
 	})
-	req.Header().Set("Authorization", authHeader)
+
 	resp, err := resourceClient.GetResource(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("service '%s' not found: %w", name, err)
@@ -168,7 +167,6 @@ func runResourceLogs(cmd *cobra.Command, deps logsDeps, name string) error {
 	if err != nil {
 		return err
 	}
-	authHeader := authHeaderFor(locoToken.Token)
 
 	parent := cmd.Context()
 	ctx, stop := signal.NotifyContext(parent, os.Interrupt)
@@ -179,14 +177,14 @@ func runResourceLogs(cmd *cobra.Command, deps logsDeps, name string) error {
 	if err != nil {
 		return err
 	}
-	resourceClient := deps.Clients.Resources(host)
-	resource, err := getResourceByName(ctx, resourceClient, authHeader, workspaceID, name)
+	resourceClient := deps.Clients.Resources(host, locoToken.Token)
+	resource, err := getResourceByName(ctx, resourceClient, workspaceID, name)
 	if err != nil {
 		return err
 	}
 
-	access := deps.Clients.Access(host)
-	proxies, err := logstream.Proxies(ctx, access, locoToken.Token, workspaceID, "")
+	access := deps.Clients.Access(host, locoToken.Token)
+	proxies, err := logstream.Proxies(ctx, access, workspaceID, "")
 	if errors.Is(err, logstream.ErrNoProxy) {
 		return fmt.Errorf("no logs to show for %s: it has no running deployment with a log proxy", name)
 	}

@@ -5,25 +5,27 @@ import (
 	"io"
 	"os"
 
+	"github.com/team-loco/loco/internal/rpc"
+
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
-	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/ui"
 )
 
 type deleteDeps struct {
-	NewOrgClient func(host string) orgv1connect.OrgServiceClient
+	NewOrgClient func(host, token string) orgv1connect.OrgServiceClient
 	AskYesNo     func(prompt string) (bool, error)
 	Output       io.Writer
 }
 
 func buildDeleteCmd() *cobra.Command {
 	deps := deleteDeps{
-		NewOrgClient: func(host string) orgv1connect.OrgServiceClient {
-			return orgv1connect.NewOrgServiceClient(httputil.NewHTTPClient(), host)
+		NewOrgClient: func(host, token string) orgv1connect.OrgServiceClient {
+			orgClients := rpc.ForHost(host, token)
+			return orgClients.Org
 		},
 		AskYesNo: ui.AskYesNo,
 		Output:   os.Stdout,
@@ -54,8 +56,7 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 				return err
 			}
 
-			orgClient := deps.NewOrgClient(host)
-			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
+			orgClient := deps.NewOrgClient(host, locoToken.Token)
 
 			name := args[0]
 			yes, err := cmd.Flags().GetBool("yes")
@@ -66,7 +67,6 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 			getReq := connect.NewRequest(&orgv1.GetOrgRequest{
 				Key: &orgv1.GetOrgRequest_OrgName{OrgName: name},
 			})
-			getReq.Header().Set("Authorization", authHeader)
 
 			getResp, err := orgClient.GetOrg(ctx, getReq)
 			if err != nil {
@@ -89,7 +89,6 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 			delReq := connect.NewRequest(&orgv1.DeleteOrgRequest{
 				OrgId: getResp.Msg.GetOrganization().GetId(),
 			})
-			delReq.Header().Set("Authorization", authHeader)
 
 			_, err = orgClient.DeleteOrg(ctx, delReq)
 			if err != nil {

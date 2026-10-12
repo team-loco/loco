@@ -237,7 +237,7 @@ func buildServices(
 	if len(targets) == 0 {
 		return nil, nil
 	}
-	token := strings.TrimPrefix(t.authHeader, "Bearer ")
+	token := t.token
 	builder := resource.NewSourceBuilder(t.host, token, out)
 	builds := make(map[string]string, len(targets))
 	for _, target := range targets {
@@ -266,7 +266,7 @@ func (t target) lookupResource(ctx context.Context, name string) (*resourcev1.Re
 	req := connect.NewRequest(&resourcev1.GetResourceRequest{
 		Key: &resourcev1.GetResourceRequest_NameKey{NameKey: nameKey},
 	})
-	req.Header().Set("Authorization", t.authHeader)
+
 	resp, err := t.resourceClient().GetResource(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("get service %s: %w", name, err)

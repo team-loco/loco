@@ -37,7 +37,7 @@ Examples:
 				ResourceId:    t.resourceID,
 				EnvironmentId: t.environmentID,
 			})
-			req.Header().Set("Authorization", t.authHeader)
+
 			resp, err := t.secrets.ListSecrets(ctx, req)
 			if err != nil {
 				cmdutil.LogRequestID(ctx, err, "list secrets failed")

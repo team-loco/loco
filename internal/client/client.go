@@ -3,9 +3,9 @@ package client
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
-	"net/http"
+
+	"github.com/team-loco/loco/internal/rpc"
 
 	"connectrpc.com/connect"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
@@ -18,42 +18,25 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
-	"github.com/team-loco/loco/internal/httputil"
 )
 
-// todo: is this too bloated? we likely need to fix this.
-// this is literally impossible to test.
-
 type Client struct {
-	httpClient *http.Client
-
 	User       userv1connect.UserServiceClient
 	Org        orgv1connect.OrgServiceClient
 	Workspace  workspacev1connect.WorkspaceServiceClient
 	Resource   resourcev1connect.ResourceServiceClient
 	Deployment deploymentv1connect.DeploymentServiceClient
-
-	host  string
-	token string
 }
 
 func NewClient(host, token string) *Client {
-	httpClient := httputil.NewHTTPClient()
-
+	clients := rpc.ForHost(host, token)
 	return &Client{
-		host:       host,
-		token:      token,
-		httpClient: httpClient,
-		User:       userv1connect.NewUserServiceClient(httpClient, host),
-		Org:        orgv1connect.NewOrgServiceClient(httpClient, host),
-		Workspace:  workspacev1connect.NewWorkspaceServiceClient(httpClient, host),
-		Resource:   resourcev1connect.NewResourceServiceClient(httpClient, host),
-		Deployment: deploymentv1connect.NewDeploymentServiceClient(httpClient, host),
+		User:       clients.User,
+		Org:        clients.Org,
+		Workspace:  clients.Workspace,
+		Resource:   clients.Resource,
+		Deployment: clients.Deployment,
 	}
-}
-
-func (*Client) WithAuth(ctx context.Context) context.Context {
-	return ctx
 }
 
 // logRequestID extracts and logs the X-Loco-Request-Id only if err is not nil
@@ -75,7 +58,6 @@ func logRequestID(ctx context.Context, err error, msg string) {
 
 func (c *Client) GetCurrentUser(ctx context.Context) (*userv1.User, error) {
 	req := connect.NewRequest(&userv1.WhoAmIRequest{})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
 	resp, err := c.User.WhoAmI(ctx, req)
 	if err != nil {
@@ -91,7 +73,6 @@ func (c *Client) GetCurrentUserOrgs(ctx context.Context, userID string) ([]*orgv
 		UserId:   userID,
 		PageSize: 100,
 	})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
 	resp, err := c.Org.ListUserOrgs(ctx, req)
 	if err != nil {
@@ -107,7 +88,6 @@ func (c *Client) GetUserWorkspaces(ctx context.Context, userID string) ([]*works
 		UserId:   userID,
 		PageSize: 100,
 	})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
 	resp, err := c.Workspace.ListUserWorkspaces(ctx, req)
 	if err != nil {
@@ -122,7 +102,6 @@ func (c *Client) GetApp(ctx context.Context, appID string) (*resourcev1.Resource
 	req := connect.NewRequest(&resourcev1.GetResourceRequest{
 		Key: &resourcev1.GetResourceRequest_ResourceId{ResourceId: appID},
 	})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
 	resp, err := c.Resource.GetResource(ctx, req)
 	if err != nil {
@@ -135,7 +114,6 @@ func (c *Client) GetApp(ctx context.Context, appID string) (*resourcev1.Resource
 
 func (c *Client) ListApps(ctx context.Context, workspaceID string) ([]*resourcev1.Resource, error) {
 	req := connect.NewRequest(&resourcev1.ListWorkspaceResourcesRequest{WorkspaceId: workspaceID})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
 	resp, err := c.Resource.ListWorkspaceResources(ctx, req)
 	if err != nil {
@@ -155,7 +133,6 @@ func (c *Client) GetAppByName(ctx context.Context, workspaceID string, appName s
 			},
 		},
 	})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
 	resp, err := c.Resource.GetResource(ctx, req)
 	if err != nil {
@@ -168,7 +145,6 @@ func (c *Client) GetAppByName(ctx context.Context, workspaceID string, appName s
 
 func (c *Client) GetDeployment(ctx context.Context, deploymentID string) (*deploymentv1.Deployment, error) {
 	req := connect.NewRequest(&deploymentv1.GetDeploymentRequest{DeploymentId: deploymentID})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
 	resp, err := c.Deployment.GetDeployment(ctx, req)
 	if err != nil {
@@ -185,7 +161,6 @@ func (c *Client) StreamDeployment(
 	eventHandler func(*deploymentv1.WatchDeploymentResponse) error,
 ) error {
 	req := connect.NewRequest(&deploymentv1.WatchDeploymentRequest{DeploymentId: deploymentID})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
 	stream, err := c.Deployment.WatchDeployment(ctx, req)
 	if err != nil {
@@ -210,7 +185,6 @@ func (c *Client) StreamDeployment(
 
 func (c *Client) DeleteApp(ctx context.Context, appID string) error {
 	req := connect.NewRequest(&resourcev1.DeleteResourceRequest{ResourceId: appID})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
 	_, err := c.Resource.DeleteResource(ctx, req)
 	logRequestID(ctx, err, "failed to delete app")
@@ -222,7 +196,6 @@ func (c *Client) GetEvents(ctx context.Context, appID string, limit *int32) ([]*
 		ResourceId: appID,
 		Limit:      limit,
 	})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
 	resp, err := c.Resource.ListResourceEvents(ctx, req)
 	if err != nil {

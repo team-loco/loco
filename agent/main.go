@@ -14,6 +14,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/team-loco/loco/internal/rpc"
+
 	"connectrpc.com/connect"
 	"k8s.io/client-go/kubernetes"
 
@@ -59,10 +61,8 @@ func main() {
 	}
 	httpClient := &http.Client{Transport: transport}
 
-	client := agentv1connect.NewAgentServiceClient(
-		httpClient,
-		cfg.ControlPlaneURL,
-	)
+	clients := rpc.NewHTTPClients(httpClient, cfg.ControlPlaneURL, cfg.AgentToken)
+	agentClient := clients.Agent
 
 	restConfig, err := kube.RestConfig(cfg.Kubeconfig)
 	if err != nil {
@@ -119,7 +119,7 @@ func main() {
 
 	agent := &Agent{
 		cfg:           cfg,
-		client:        client,
+		client:        agentClient,
 		applier:       kubeApplier,
 		inspector:     inspector,
 		watcher:       watcher,
@@ -204,7 +204,6 @@ func (a *Agent) register(ctx context.Context) error {
 		Capacity:      capacity,
 		BuildsEnabled: a.buildsEnabled,
 	})
-	req.Header().Set("Authorization", "Bearer "+a.cfg.AgentToken)
 
 	resp, err := a.client.Register(ctx, req)
 	if err != nil {
@@ -286,7 +285,6 @@ func (a *Agent) syncLoop(ctx context.Context) error {
 	defer cancel()
 
 	stream := a.client.Sync(streamCtx)
-	stream.RequestHeader().Set("Authorization", "Bearer "+a.cfg.AgentToken)
 
 	session := &syncSession{
 		stream:   stream,

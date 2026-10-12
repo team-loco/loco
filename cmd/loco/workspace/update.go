@@ -8,12 +8,12 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/team-loco/loco/internal/rpc"
+
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
-	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
-	"github.com/team-loco/loco/internal/httputil"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
@@ -72,8 +72,8 @@ func buildUpdateCmd() *cobra.Command {
 				return err
 			}
 
-			httpClient := httputil.NewHTTPClient()
-			wsClient := workspacev1connect.NewWorkspaceServiceClient(httpClient, host)
+			workspaceClients := rpc.ForHost(host, locoToken.Token)
+			wsClient := workspaceClients.Workspace
 
 			deps := updateDeps{
 				UpdateWorkspace: wsClient.UpdateWorkspace,
@@ -97,7 +97,6 @@ func buildUpdateCmd() *cobra.Command {
 			updateReq.UpdateMask = &fieldmaskpb.FieldMask{Paths: paths}
 
 			req := connect.NewRequest(updateReq)
-			req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 
 			_, err = deps.UpdateWorkspace(ctx, req)
 			if err != nil {

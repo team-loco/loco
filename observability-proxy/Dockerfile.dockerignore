@@ -4,6 +4,8 @@
 !go.sum
 !gen/go
 !internal/buildinfo
+!internal/httputil
+!internal/rpc
 **/node_modules
 **/dist
 **/*_test.go

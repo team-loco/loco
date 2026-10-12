@@ -55,7 +55,7 @@ func runTransfer(cmd *cobra.Command, name, partial string) error {
 			NameKey: &resourcev1.GetResourceNameKey{WorkspaceId: t.workspaceID, Name: name},
 		},
 	})
-	getReq.Header().Set("Authorization", t.authHeader)
+
 	found, err := resources.GetResource(ctx, getReq)
 	if err != nil {
 		return fmt.Errorf("service %q not found: %w", name, err)
@@ -63,7 +63,7 @@ func runTransfer(cmd *cobra.Command, name, partial string) error {
 	resourceID := found.Msg.GetResource().GetId()
 
 	transferReq := connect.NewRequest(&resourcev1.TransferPartialRequest{ResourceId: resourceID, Partial: partial})
-	transferReq.Header().Set("Authorization", t.authHeader)
+
 	if _, transferErr := resources.TransferPartial(ctx, transferReq); transferErr != nil {
 		return fmt.Errorf("transfer %s to partial %s: %w", name, partial, transferErr)
 	}

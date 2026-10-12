@@ -57,11 +57,6 @@ type BuildInput struct {
 	Context     string
 }
 
-func (b *SourceBuilder) authorize(req connect.AnyRequest) {
-	authorization := authHeaderFor(b.follower.token)
-	req.Header().Set("Authorization", authorization)
-}
-
 // PackedArchive prints what an archive holds, as the deploy reports it before the first build.
 func PackedArchive(out io.Writer, archive *sourcepack.Archive, dir string) {
 	packedSize := formatBytes(archive.Size)
@@ -84,8 +79,8 @@ func (b *SourceBuilder) Build(ctx context.Context, in BuildInput) (*buildv1.Buil
 	}
 
 	startReq := connect.NewRequest(&buildv1.StartBuildRequest{BuildId: buildID})
-	b.authorize(startReq)
-	client := b.follower.clients.Builds(b.follower.host)
+
+	client := b.follower.clients.Builds(b.follower.host, b.follower.token)
 	started, err := client.StartBuild(ctx, startReq)
 	if unavailable := buildsUnavailable(err); unavailable != nil {
 		return nil, unavailable
@@ -113,8 +108,8 @@ func (b *SourceBuilder) createBuild(ctx context.Context, in BuildInput) (*buildv
 		SourceSize:     in.Archive.Size,
 		Context:        in.Context,
 	})
-	b.authorize(req)
-	client := b.follower.clients.Builds(b.follower.host)
+
+	client := b.follower.clients.Builds(b.follower.host, b.follower.token)
 	resp, err := client.CreateBuild(ctx, req)
 	if unavailable := buildsUnavailable(err); unavailable != nil {
 		return nil, unavailable

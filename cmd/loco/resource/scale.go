@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/team-loco/loco/internal/rpc"
+
 	"charm.land/lipgloss/v2"
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
@@ -15,7 +17,6 @@ import (
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/internal/client"
-	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
 )
@@ -28,8 +29,8 @@ var (
 type scaleDeps struct {
 	LoadSessionConfig func() (*session.SessionConfig, error)
 	NewAPIClient      func(host, token string) *client.Client
-	NewResourceClient func(host string) resourcev1connect.ResourceServiceClient
-	Environments      func(host string) environmentv1connect.EnvironmentServiceClient
+	NewResourceClient func(host, token string) resourcev1connect.ResourceServiceClient
+	Environments      func(host, token string) environmentv1connect.EnvironmentServiceClient
 	Stdout            io.Writer
 }
 
@@ -37,11 +38,13 @@ func buildScaleCmd() *cobra.Command {
 	deps := scaleDeps{
 		LoadSessionConfig: session.Load,
 		NewAPIClient:      client.NewClient,
-		NewResourceClient: func(host string) resourcev1connect.ResourceServiceClient {
-			return resourcev1connect.NewResourceServiceClient(httputil.NewHTTPClient(), host)
+		NewResourceClient: func(host, token string) resourcev1connect.ResourceServiceClient {
+			resourceClients := rpc.ForHost(host, token)
+			return resourceClients.Resource
 		},
-		Environments: func(host string) environmentv1connect.EnvironmentServiceClient {
-			return environmentv1connect.NewEnvironmentServiceClient(httputil.NewHTTPClient(), host)
+		Environments: func(host, token string) environmentv1connect.EnvironmentServiceClient {
+			environmentClients := rpc.ForHost(host, token)
+			return environmentClients.Environment
 		},
 		Stdout: os.Stdout,
 	}
@@ -108,11 +111,10 @@ Examples:
 				return err
 			}
 
-			resourceClient := deps.NewResourceClient(host)
-			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
+			resourceClient := deps.NewResourceClient(host, locoToken.Token)
 
-			environments := deps.Environments(host)
-			env, err := cmdutil.ResolveEnvironment(ctx, cmd, environments, nil, false, authHeader, workspaceID)
+			environments := deps.Environments(host, locoToken.Token)
+			env, err := cmdutil.ResolveEnvironment(ctx, cmd, environments, nil, false, workspaceID)
 			if err != nil {
 				return err
 			}
@@ -126,7 +128,6 @@ Examples:
 					},
 				},
 			})
-			getReq.Header().Set("Authorization", authHeader)
 
 			resourceResp, err := resourceClient.GetResource(ctx, getReq)
 			if err != nil {
@@ -159,7 +160,6 @@ Examples:
 				Cpu:           cpuPtr,
 				Memory:        memoryPtr,
 			})
-			scaleReq.Header().Set("Authorization", authHeader)
 
 			_, err = resourceClient.ScaleResource(ctx, scaleReq)
 			if err != nil {
