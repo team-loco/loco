@@ -61,7 +61,7 @@ Builds, tests, code generation, linting and the local environment are mise tasks
   `-ldflags "-X main.version=..."`, which each Dockerfile fills from the `VERSION` build arg.
   `build-push.yml` passes the image tag (`sha-<commit>`), the CLI release its git tag
   (`vX.Y.Z`), and e2e `e2e`, the tag of its images. Without one, a binary reports its Go
-  module version, `(devel)` inside Docker. The UI image passes it to the Vite build as
+  module version, `(devel)` inside Docker. The UI image passes it to the Bun build as
   `VITE_APP_VERSION` and serves it as `/version.json` and a `loco-version` meta tag, `(devel)`
   without one. The charts have no default tag for Loco images.
 - **One source per value.** Don't repeat a chart value as a Go default or a script constant.
@@ -192,7 +192,7 @@ first time and run `mise run lint:go` before pushing. The one that bites most:
   ref callback that returns a cleanup. Follow
   https://github.com/vercel-labs/agent-skills/blob/main/skills/react-best-practices/AGENTS.md.
 - **Production build**: the dev server does not catch bundling bugs. Any change to
-  `vite.config.ts` or dependencies needs `bun run build` and `vite preview`, loaded in a browser,
+  `web/build.ts` or dependencies needs `bun run build` and `bun run preview`, loaded in a browser,
   before the PR.
 - **Errors**: user-facing error text goes through `web/src/lib/error-handler.ts`:
   `getErrorMessage(error, fallback)` for a string, `toastConnectError(error, fallback)` for a

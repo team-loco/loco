@@ -1,24 +1,32 @@
 # Loco web
 
-The Loco dashboard: React 19 with the React Compiler, Vite, Tailwind 4, shadcn on Base UI, and
+The Loco dashboard: React 19 with the React Compiler, Bun, Tailwind 4, shadcn on Base UI, and
 ConnectRPC clients generated into `../gen/ts`.
 
 ## Commands
 
 Run them through mise from the repo root, which pins bun and every other tool:
 
-| Task                | What it does                                        |
-| ------------------- | --------------------------------------------------- |
-| `mise run ui`       | Vite dev server                                     |
-| `mise run lint:web` | oxlint, then type-aware eslint, then `bun check`      |
-| `mise run test:web` | `bun test`                                          |
+| Task                | What it does                                     |
+| ------------------- | ------------------------------------------------ |
+| `mise run ui`       | Bun dev server with hot reload on `:5173`        |
+| `mise run lint:web` | oxlint, then type-aware eslint, then `bun check` |
+| `mise run test:web` | `bun test`                                       |
 
-`bun run build` type-checks and writes the production bundle to `dist/`.
+`bun run build` type-checks and runs `build.ts`, which writes the production bundle to `dist/`.
+`bun run preview` serves `dist/` on `:4173`.
+
+`build.ts` puts React, Base UI, TanStack, recharts, sugar-high, the remaining packages and the
+generated `@gen` code in their own chunks, so a deploy that changes only app code leaves them
+cached. It finds what the
+app imports from each package and generates one entry point per group that re-exports exactly
+those names.
 
 ## Configuration
 
 `VITE_API_URL` is the API base URL and `VITE_APP_ENV=PRODUCTION` switches the transport to the
-binary protobuf format. `.env.example` lists both with their local values.
+binary protobuf format. `.env.example` lists both with their local values. The app imports them
+from `loco:env`, a module `env-plugin.ts` generates from the environment at build time.
 
 ## Checks
 
