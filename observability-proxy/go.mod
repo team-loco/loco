@@ -3,7 +3,7 @@ module github.com/team-loco/loco/observability-proxy
 go 1.27.2
 
 require (
-	connectrpc.com/connect v1.21.0
+	connectrpc.com/connect/v2 v2.0.0
 	connectrpc.com/cors v0.1.0
 	github.com/ClickHouse/clickhouse-go/v2 v2.49.0
 	github.com/dgraph-io/ristretto/v2 v2.4.2

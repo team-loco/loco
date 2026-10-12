@@ -5,134 +5,183 @@
 package agentv1connect
 
 import (
-	connect "connectrpc.com/connect"
+	connect "connectrpc.com/connect/v2"
 	context "context"
-	errors "errors"
 	v1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
-	http "net/http"
-	strings "strings"
+	sync "sync"
 )
-
-// This is a compile-time assertion to ensure that this generated file and the connect package are
-// compatible. If you get a compiler error that this constant is not defined, this code was
-// generated with a version of connect newer than the one compiled into your binary. You can fix the
-// problem by either regenerating this code with an older version of connect or updating the connect
-// version compiled into your binary.
-const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// AgentServiceName is the fully-qualified name of the AgentService service.
 	AgentServiceName = "loco.agent.v1.AgentService"
 )
 
-// These constants are the fully-qualified names of the RPCs defined in this package. They're
-// exposed at runtime as Spec.Procedure and as the final two segments of the HTTP route.
+// These constants are the procedure names of the RPCs defined in this package. They're exposed at
+// runtime as Spec.Procedure and as the final two segments of the HTTP route.
 //
 // Note that these are different from the fully-qualified method names used by
 // google.golang.org/protobuf/reflect/protoreflect. To convert from these constants to
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// AgentServiceRegisterProcedure is the fully-qualified name of the AgentService's Register RPC.
+	// AgentServiceRegisterProcedure is the procedure name of the AgentService's Register RPC.
 	AgentServiceRegisterProcedure = "/loco.agent.v1.AgentService/Register"
-	// AgentServiceSyncProcedure is the fully-qualified name of the AgentService's Sync RPC.
+	// AgentServiceSyncProcedure is the procedure name of the AgentService's Sync RPC.
 	AgentServiceSyncProcedure = "/loco.agent.v1.AgentService/Sync"
+)
+
+var (
+	agentServiceRegisterSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_agent_v1_agent_proto.Services().ByName("AgentService").Methods().ByName("Register"),
+			Procedure:  AgentServiceRegisterProcedure,
+		}
+	})
+	agentServiceSyncSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeBidi,
+			Schema:     v1.File_loco_agent_v1_agent_proto.Services().ByName("AgentService").Methods().ByName("Sync"),
+			Procedure:  AgentServiceSyncProcedure,
+		}
+	})
 )
 
 // AgentServiceClient is a client for the loco.agent.v1.AgentService service.
 type AgentServiceClient interface {
 	// Register announces an agent to the control plane and returns the cluster ID.
-	Register(context.Context, *connect.Request[v1.RegisterRequest]) (*connect.Response[v1.RegisterResponse], error)
-	Sync(context.Context) *connect.BidiStreamForClient[v1.SyncRequest, v1.SyncResponse]
+	Register(context.Context, *v1.RegisterRequest) (*v1.RegisterResponse, error)
+	Sync(context.Context) (AgentServiceSyncClientStream, error)
 }
 
-// NewAgentServiceClient constructs a client for the loco.agent.v1.AgentService service. By default,
-// it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and
-// sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC()
-// or connect.WithGRPCWeb() options.
-//
-// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
-// http://api.acme.com or https://acme.com/grpc).
-func NewAgentServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) AgentServiceClient {
-	baseURL = strings.TrimRight(baseURL, "/")
-	agentServiceMethods := v1.File_loco_agent_v1_agent_proto.Services().ByName("AgentService").Methods()
-	return &agentServiceClient{
-		register: connect.NewClient[v1.RegisterRequest, v1.RegisterResponse](
-			httpClient,
-			baseURL+AgentServiceRegisterProcedure,
-			connect.WithSchema(agentServiceMethods.ByName("Register")),
-			connect.WithClientOptions(opts...),
-		),
-		sync: connect.NewClient[v1.SyncRequest, v1.SyncResponse](
-			httpClient,
-			baseURL+AgentServiceSyncProcedure,
-			connect.WithSchema(agentServiceMethods.ByName("Sync")),
-			connect.WithClientOptions(opts...),
-		),
+// NewAgentServiceClient constructs a client for the loco.agent.v1.AgentService service. Multiple
+// service clients may share a single connect.Client.
+func NewAgentServiceClient(client *connect.Client) AgentServiceClient {
+	return &agentServiceClient{client: client}
+}
+
+// AgentServiceSyncClientStream is the client stream for the AgentService's Sync RPC.
+type AgentServiceSyncClientStream struct {
+	stream connect.ClientStream
+}
+
+// SendHeaders opens the stream and flushes the request headers without a message. The first Send or
+// Receive does this implicitly.
+func (s AgentServiceSyncClientStream) SendHeaders() error {
+	return s.stream.SendHeaders()
+}
+
+// Send sends a request message to the server.
+func (s AgentServiceSyncClientStream) Send(req *v1.SyncRequest) error {
+	return s.stream.Send(req)
+}
+
+// CloseSend closes the request side of the stream.
+func (s AgentServiceSyncClientStream) CloseSend() error {
+	return s.stream.CloseSend()
+}
+
+// Receive returns the next response message from the server.
+func (s AgentServiceSyncClientStream) Receive() (*v1.SyncResponse, error) {
+	var res v1.SyncResponse
+	if err := s.stream.Receive(&res); err != nil {
+		return nil, err
 	}
+	return &res, nil
 }
 
-// agentServiceClient implements AgentServiceClient.
-type agentServiceClient struct {
-	register *connect.Client[v1.RegisterRequest, v1.RegisterResponse]
-	sync     *connect.Client[v1.SyncRequest, v1.SyncResponse]
-}
-
-// Register calls loco.agent.v1.AgentService.Register.
-func (c *agentServiceClient) Register(ctx context.Context, req *connect.Request[v1.RegisterRequest]) (*connect.Response[v1.RegisterResponse], error) {
-	return c.register.CallUnary(ctx, req)
-}
-
-// Sync calls loco.agent.v1.AgentService.Sync.
-func (c *agentServiceClient) Sync(ctx context.Context) *connect.BidiStreamForClient[v1.SyncRequest, v1.SyncResponse] {
-	return c.sync.CallBidiStream(ctx)
+// Close releases the stream's resources. It is idempotent and is typically deferred to clean up a
+// stream abandoned before io.EOF.
+func (s AgentServiceSyncClientStream) Close() error {
+	return s.stream.Close()
 }
 
 // AgentServiceHandler is an implementation of the loco.agent.v1.AgentService service.
 type AgentServiceHandler interface {
 	// Register announces an agent to the control plane and returns the cluster ID.
-	Register(context.Context, *connect.Request[v1.RegisterRequest]) (*connect.Response[v1.RegisterResponse], error)
-	Sync(context.Context, *connect.BidiStream[v1.SyncRequest, v1.SyncResponse]) error
+	Register(context.Context, *v1.RegisterRequest) (*v1.RegisterResponse, error)
+	Sync(context.Context, AgentServiceSyncServerStream) error
 }
 
-// NewAgentServiceHandler builds an HTTP handler from the service implementation. It returns the
-// path on which to mount the handler and the handler itself.
-//
-// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
-// and JSON codecs. They also support gzip compression.
-func NewAgentServiceHandler(svc AgentServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	agentServiceMethods := v1.File_loco_agent_v1_agent_proto.Services().ByName("AgentService").Methods()
-	agentServiceRegisterHandler := connect.NewUnaryHandler(
-		AgentServiceRegisterProcedure,
-		svc.Register,
-		connect.WithSchema(agentServiceMethods.ByName("Register")),
-		connect.WithHandlerOptions(opts...),
+// RegisterAgentServiceHandler registers svc as the loco.agent.v1.AgentService implementation on
+// server.
+func RegisterAgentServiceHandler(server *connect.Server, svc AgentServiceHandler) {
+	adapter := agentServiceHandler{svc: svc}
+	server.Register(
+		connect.Method{Spec: agentServiceRegisterSpec(), Handler: adapter.register},
+		connect.Method{Spec: agentServiceSyncSpec(), Handler: adapter.sync},
 	)
-	agentServiceSyncHandler := connect.NewBidiStreamHandler(
-		AgentServiceSyncProcedure,
-		svc.Sync,
-		connect.WithSchema(agentServiceMethods.ByName("Sync")),
-		connect.WithHandlerOptions(opts...),
-	)
-	return "/loco.agent.v1.AgentService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case AgentServiceRegisterProcedure:
-			agentServiceRegisterHandler.ServeHTTP(w, r)
-		case AgentServiceSyncProcedure:
-			agentServiceSyncHandler.ServeHTTP(w, r)
-		default:
-			http.NotFound(w, r)
-		}
-	})
+}
+
+// AgentServiceSyncServerStream is the server stream for the AgentService's Sync RPC.
+type AgentServiceSyncServerStream struct {
+	stream connect.ServerStream
+}
+
+// Receive returns the next request message from the client.
+func (s AgentServiceSyncServerStream) Receive() (*v1.SyncRequest, error) {
+	var req v1.SyncRequest
+	if err := s.stream.Receive(&req); err != nil {
+		return nil, err
+	}
+	return &req, nil
+}
+
+// SendHeaders flushes the response headers without a message. The first Send does this implicitly.
+func (s AgentServiceSyncServerStream) SendHeaders() error {
+	return s.stream.SendHeaders()
+}
+
+// Send sends a response message to the client.
+func (s AgentServiceSyncServerStream) Send(res *v1.SyncResponse) error {
+	return s.stream.Send(res)
 }
 
 // UnimplementedAgentServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedAgentServiceHandler struct{}
 
-func (UnimplementedAgentServiceHandler) Register(context.Context, *connect.Request[v1.RegisterRequest]) (*connect.Response[v1.RegisterResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.agent.v1.AgentService.Register is not implemented"))
+func (UnimplementedAgentServiceHandler) Register(context.Context, *v1.RegisterRequest) (*v1.RegisterResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.agent.v1.AgentService.Register is not implemented")
 }
 
-func (UnimplementedAgentServiceHandler) Sync(context.Context, *connect.BidiStream[v1.SyncRequest, v1.SyncResponse]) error {
-	return connect.NewError(connect.CodeUnimplemented, errors.New("loco.agent.v1.AgentService.Sync is not implemented"))
+func (UnimplementedAgentServiceHandler) Sync(context.Context, AgentServiceSyncServerStream) error {
+	return connect.NewError(connect.CodeUnimplemented, "loco.agent.v1.AgentService.Sync is not implemented")
+}
+
+type agentServiceClient struct {
+	client *connect.Client
+}
+
+func (c *agentServiceClient) Register(ctx context.Context, req *v1.RegisterRequest) (*v1.RegisterResponse, error) {
+	var res v1.RegisterResponse
+	if err := c.client.CallUnary(ctx, agentServiceRegisterSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *agentServiceClient) Sync(ctx context.Context) (AgentServiceSyncClientStream, error) {
+	stream, err := c.client.CallClientStream(ctx, agentServiceSyncSpec())
+	if err != nil {
+		return AgentServiceSyncClientStream{}, err
+	}
+	return AgentServiceSyncClientStream{stream: stream}, nil
+}
+
+type agentServiceHandler struct{ svc AgentServiceHandler }
+
+func (h agentServiceHandler) register(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.RegisterRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.Register(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h agentServiceHandler) sync(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	return h.svc.Sync(ctx, AgentServiceSyncServerStream{stream: stream})
 }

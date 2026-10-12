@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -69,9 +69,9 @@ func (f *deployFixture) setWorkerSecrets(
 ) {
 	t.Helper()
 	_, err := f.secretServer(provider).
-		SetSecrets(f.secretWriterContext(t), connect.NewRequest(&secretv1.SetSecretsRequest{
+		SetSecrets(f.secretWriterContext(t), &secretv1.SetSecretsRequest{
 			ResourceId: worker.String(), EnvironmentId: f.envID.String(), Values: values,
-		}))
+		})
 	if err != nil {
 		t.Fatalf("set %s secrets: %v", applyWorker, err)
 	}
@@ -163,13 +163,13 @@ func TestPlanRefusesSecretsOverThePlacementLimit(t *testing.T) {
 	server := NewPlanServer(f.pool, f.queries, &fakeResolver{digest: testDigest}, testRegistryHost,
 		testServiceDefaults(), limits, testClusterSilentAfter)
 	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, f.workspaceReadScopes(t))
-	resp, err := server.Plan(ctx, connect.NewRequest(&planv1.PlanRequest{
+	resp, err := server.Plan(ctx, &planv1.PlanRequest{
 		File: []byte(file), EnvironmentId: f.envID.String(),
-	}))
+	})
 	if err != nil {
 		t.Fatalf("Plan: %v", err)
 	}
-	errs := resp.Msg.GetErrors()
+	errs := resp.GetErrors()
 	if len(errs) != 1 || errs[0].GetService() != applyWorker ||
 		!strings.Contains(errs[0].GetMessage(), configplan.ErrSecretsTooLarge.Error()) {
 		t.Fatalf("errors = %v, want %s over the placement limit", errs, applyWorker)
@@ -205,11 +205,11 @@ func TestApplyWritesDeclaredSecretsAndDeleteSecretsKeepsThem(t *testing.T) {
 	}
 
 	_, err = f.secretServer(provider).
-		DeleteSecrets(f.secretWriterContext(t), connect.NewRequest(&secretv1.DeleteSecretsRequest{
+		DeleteSecrets(f.secretWriterContext(t), &secretv1.DeleteSecretsRequest{
 			ResourceId:    worker.String(),
 			EnvironmentId: f.envID.String(),
 			Names:         []string{sessionKeyName},
-		}))
+		})
 	wantCode(t, err, connect.CodeFailedPrecondition)
 	if !strings.Contains(err.Error(), sessionKeyName) {
 		t.Fatalf("delete of a declared secret: %v, want it to name %s", err, sessionKeyName)
@@ -252,11 +252,11 @@ func racingSecretWrites() []racingSecretWrite {
 		{
 			name: "SetSecrets",
 			write: func(ctx context.Context, f *deployFixture, secrets *SecretServer, worker uuid.UUID) error {
-				_, err := secrets.SetSecrets(ctx, connect.NewRequest(&secretv1.SetSecretsRequest{
+				_, err := secrets.SetSecrets(ctx, &secretv1.SetSecretsRequest{
 					ResourceId:    worker.String(),
 					EnvironmentId: f.envID.String(),
 					Values:        map[string]string{sessionKeyName: rotatedSessionKeyValue},
-				}))
+				})
 				return err
 			},
 			afterApply: func(t *testing.T, err error) {
@@ -269,11 +269,11 @@ func racingSecretWrites() []racingSecretWrite {
 		{
 			name: "DeleteSecrets",
 			write: func(ctx context.Context, f *deployFixture, secrets *SecretServer, worker uuid.UUID) error {
-				_, err := secrets.DeleteSecrets(ctx, connect.NewRequest(&secretv1.DeleteSecretsRequest{
+				_, err := secrets.DeleteSecrets(ctx, &secretv1.DeleteSecretsRequest{
 					ResourceId:    worker.String(),
 					EnvironmentId: f.envID.String(),
 					Names:         []string{sessionKeyName},
-				}))
+				})
 				return err
 			},
 			afterApply: func(t *testing.T, err error) {

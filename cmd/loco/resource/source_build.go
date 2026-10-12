@@ -12,7 +12,9 @@ import (
 	"strings"
 	"syscall"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2/connectproto"
+
+	"connectrpc.com/connect/v2"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	"github.com/team-loco/loco/internal/sourcepack"
 )
@@ -78,8 +80,7 @@ func (b *SourceBuilder) Build(ctx context.Context, in BuildInput) (*buildv1.Buil
 		return nil, uploadErr
 	}
 
-	startReq := connect.NewRequest(&buildv1.StartBuildRequest{BuildId: buildID})
-
+	startReq := &buildv1.StartBuildRequest{BuildId: buildID}
 	client := b.follower.clients.Builds(b.follower.host, b.follower.token)
 	started, err := client.StartBuild(ctx, startReq)
 	if unavailable := buildsUnavailable(err); unavailable != nil {
@@ -89,7 +90,7 @@ func (b *SourceBuilder) Build(ctx context.Context, in BuildInput) (*buildv1.Buil
 		return nil, fmt.Errorf("start build %s: %w", buildID, err)
 	}
 
-	queued := started.Msg.GetBuild()
+	queued := started.GetBuild()
 	build, err := b.follower.follow(ctx, queued, in.WorkspaceID)
 	if err != nil {
 		return nil, err
@@ -102,13 +103,12 @@ func (b *SourceBuilder) Build(ctx context.Context, in BuildInput) (*buildv1.Buil
 }
 
 func (b *SourceBuilder) createBuild(ctx context.Context, in BuildInput) (*buildv1.CreateBuildResponse, error) {
-	req := connect.NewRequest(&buildv1.CreateBuildRequest{
+	req := &buildv1.CreateBuildRequest{
 		ResourceId:     in.ResourceID,
 		DockerfilePath: in.Dockerfile,
 		SourceSize:     in.Archive.Size,
 		Context:        in.Context,
-	})
-
+	}
 	client := b.follower.clients.Builds(b.follower.host, b.follower.token)
 	resp, err := client.CreateBuild(ctx, req)
 	if unavailable := buildsUnavailable(err); unavailable != nil {
@@ -120,7 +120,7 @@ func (b *SourceBuilder) createBuild(ctx context.Context, in BuildInput) (*buildv
 	if err != nil {
 		return nil, fmt.Errorf("create build: %w", err)
 	}
-	return resp.Msg, nil
+	return resp, nil
 }
 
 func buildsUnavailable(err error) error {
@@ -129,7 +129,7 @@ func buildsUnavailable(err error) error {
 		return nil
 	}
 	for _, detail := range connectErr.Details() {
-		value, valueErr := detail.Value()
+		value, valueErr := connectproto.UnmarshalErrorDetail(detail)
 		if valueErr != nil {
 			continue
 		}

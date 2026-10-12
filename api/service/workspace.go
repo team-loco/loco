@@ -9,7 +9,7 @@ import (
 
 	"github.com/team-loco/loco/api/events"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -44,14 +44,15 @@ func NewWorkspaceServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.Ve
 // CreateWorkspace creates a new workspace
 func (s *WorkspaceServer) CreateWorkspace(
 	ctx context.Context,
-	req *connect.Request[workspacev1.CreateWorkspaceRequest],
-) (*connect.Response[workspacev1.CreateWorkspaceResponse], error) {
-	r := req.Msg
+	req *workspacev1.CreateWorkspaceRequest,
+) (*workspacev1.CreateWorkspaceResponse, error) {
+	r := req
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound.Error()).
+			WithCause(errEntityScopesNotFound)
 	}
 
 	if err := s.authz.Check(
@@ -60,7 +61,7 @@ func (s *WorkspaceServer) CreateWorkspace(
 		actions.New(actions.CreateWorkspace, r.GetOrgId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to create workspace", "orgId", r.GetOrgId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
 	}
 
 	orgID := uuid.MustParse(r.GetOrgId())
@@ -71,27 +72,28 @@ func (s *WorkspaceServer) CreateWorkspace(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check workspace name uniqueness", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 
 	if !isUnique {
 		slog.WarnContext(ctx, "workspace name already exists in org", "orgId", r.GetOrgId(), "name", r.GetName())
-		return nil, connect.NewError(connect.CodeAlreadyExists, ErrWorkspaceNameNotUnique)
+		return nil, connect.NewError(connect.CodeAlreadyExists, ErrWorkspaceNameNotUnique.Error()).
+			WithCause(ErrWorkspaceNameNotUnique)
 	}
 
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized.Error()).WithCause(ErrUnauthorized)
 	}
 	// make sure that requester is a user and has permission to create orgs (user:write on oneself)
 	if entity.Type != genDb.EntityTypeUser {
 		slog.WarnContext(ctx, "only users can create organizations", "entityId", entity.ID, "entityType", entity.Type)
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrImproperUsage)
+		return nil, connect.NewError(connect.CodePermissionDenied, ErrImproperUsage.Error()).WithCause(ErrImproperUsage)
 	}
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 	defer tx.Rollback(ctx)
 
@@ -105,10 +107,11 @@ func (s *WorkspaceServer) CreateWorkspace(
 	})
 	if err != nil {
 		if isPgConstraintViolation(err) {
-			return nil, connect.NewError(connect.CodeAlreadyExists, ErrWorkspaceNameNotUnique)
+			return nil, connect.NewError(connect.CodeAlreadyExists, ErrWorkspaceNameNotUnique.Error()).
+				WithCause(ErrWorkspaceNameNotUnique)
 		}
 		slog.ErrorContext(ctx, "failed to create workspace", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 
 	err = authz.ApplyRoles(ctx, qtx, entity.ID, []genDb.EntityScope{
@@ -127,7 +130,7 @@ func (s *WorkspaceServer) CreateWorkspace(
 			"userId",
 			entity.ID,
 		)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 
 	if _, err := qtx.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
@@ -144,7 +147,7 @@ func (s *WorkspaceServer) CreateWorkspace(
 			"workspaceId",
 			wsID.String(),
 		)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 
 	if err := events.Record(ctx, qtx, events.Event{
@@ -156,29 +159,30 @@ func (s *WorkspaceServer) CreateWorkspace(
 		Data:        map[string]any{events.FieldName: r.GetName()},
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to record workspace creation", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 	if err := tx.Commit(ctx); err != nil {
 		slog.ErrorContext(ctx, "failed to commit workspace creation", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 
-	return connect.NewResponse(&workspacev1.CreateWorkspaceResponse{
+	return &workspacev1.CreateWorkspaceResponse{
 		WorkspaceId: wsID.String(),
-	}), nil
+	}, nil
 }
 
 // GetWorkspace retrieves a workspace by ID
 func (s *WorkspaceServer) GetWorkspace(
 	ctx context.Context,
-	req *connect.Request[workspacev1.GetWorkspaceRequest],
-) (*connect.Response[workspacev1.GetWorkspaceResponse], error) {
-	r := req.Msg
+	req *workspacev1.GetWorkspaceRequest,
+) (*workspacev1.GetWorkspaceResponse, error) {
+	r := req
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound.Error()).
+			WithCause(errEntityScopesNotFound)
 	}
 
 	if err := s.authz.Check(
@@ -187,15 +191,15 @@ func (s *WorkspaceServer) GetWorkspace(
 		actions.New(actions.GetWorkspace, r.GetWorkspaceId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to get workspace", "workspaceId", r.GetWorkspaceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
 	}
 	ws, err := s.queries.GetWorkspaceByIDQuery(ctx, uuid.MustParse(r.GetWorkspaceId()))
 	if err != nil {
 		slog.WarnContext(ctx, "workspace not found", "id", r.GetWorkspaceId())
-		return nil, connect.NewError(connect.CodeNotFound, ErrWorkspaceNotFound)
+		return nil, connect.NewError(connect.CodeNotFound, ErrWorkspaceNotFound.Error()).WithCause(ErrWorkspaceNotFound)
 	}
 
-	return connect.NewResponse(&workspacev1.GetWorkspaceResponse{
+	return &workspacev1.GetWorkspaceResponse{
 		Workspace: &workspacev1.Workspace{
 			Id:          ws.ID.String(),
 			OrgId:       ws.OrgID.String(),
@@ -205,29 +209,30 @@ func (s *WorkspaceServer) GetWorkspace(
 			CreatedAt:   timeutil.ParsePostgresTimestamp(ws.CreatedAt),
 			UpdatedAt:   timeutil.ParsePostgresTimestamp(ws.UpdatedAt),
 		},
-	}), nil
+	}, nil
 }
 
 // ListUserWorkspaces retrieves all workspaces for a user
 func (s *WorkspaceServer) ListUserWorkspaces(
 	ctx context.Context,
-	req *connect.Request[workspacev1.ListUserWorkspacesRequest],
-) (*connect.Response[workspacev1.ListUserWorkspacesResponse], error) {
-	r := req.Msg
+	req *workspacev1.ListUserWorkspacesRequest,
+) (*workspacev1.ListUserWorkspacesResponse, error) {
+	r := req
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
 		slog.ErrorContext(ctx, "entity not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized.Error()).WithCause(ErrUnauthorized)
 	}
 	if entity.Type != genDb.EntityTypeUser {
 		slog.ErrorContext(ctx, "entity is not a user", "entityType", entity.Type)
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrImproperUsage)
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrImproperUsage.Error()).WithCause(ErrImproperUsage)
 	}
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound.Error()).
+			WithCause(errEntityScopesNotFound)
 	}
 
 	if err := s.authz.Check(
@@ -236,7 +241,7 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 		actions.New(actions.GetCurrentUserWorkspaces, entity.ID.String()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to get user workspaces", "userId", entity.ID)
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
 	}
 
 	pageSize := normalizePageSize(r.GetPageSize())
@@ -245,7 +250,7 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 	if r.GetPageToken() != "" {
 		cursorID, err := decodeCursor(r.GetPageToken())
 		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err).Error())
 		}
 		pageToken = &cursorID
 	}
@@ -257,7 +262,7 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list workspaces for user", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 
 	var workspaces []*workspacev1.Workspace
@@ -278,24 +283,25 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 		nextPageToken = encodeCursor(workspaceList[len(workspaceList)-1].ID.String())
 	}
 
-	return connect.NewResponse(&workspacev1.ListUserWorkspacesResponse{
+	return &workspacev1.ListUserWorkspacesResponse{
 		Workspaces:    workspaces,
 		NextPageToken: nextPageToken,
-	}), nil
+	}, nil
 }
 
 // ListOrgWorkspaces lists all workspaces in an organization
 func (s *WorkspaceServer) ListOrgWorkspaces(
 	ctx context.Context,
-	req *connect.Request[workspacev1.ListOrgWorkspacesRequest],
-) (*connect.Response[workspacev1.ListOrgWorkspacesResponse], error) {
-	r := req.Msg
+	req *workspacev1.ListOrgWorkspacesRequest,
+) (*workspacev1.ListOrgWorkspacesResponse, error) {
+	r := req
 	slog.InfoContext(ctx, "list workspaces req for org", "orgId", r.GetOrgId())
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound.Error()).
+			WithCause(errEntityScopesNotFound)
 	}
 
 	if err := s.authz.Check(
@@ -306,7 +312,7 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 		),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to list workspaces", "orgId", r.GetOrgId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
 	}
 
 	pageSize := normalizePageSize(r.GetPageSize())
@@ -315,7 +321,7 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 	if r.GetPageToken() != "" {
 		cursorID, err := decodeCursor(r.GetPageToken())
 		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err).Error())
 		}
 		pageToken = &cursorID
 	}
@@ -329,7 +335,7 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list workspaces", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 
 	var workspaces []*workspacev1.Workspace
@@ -350,23 +356,24 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 		nextPageToken = encodeCursor(workspaceList[len(workspaceList)-1].ID.String())
 	}
 
-	return connect.NewResponse(&workspacev1.ListOrgWorkspacesResponse{
+	return &workspacev1.ListOrgWorkspacesResponse{
 		Workspaces:    workspaces,
 		NextPageToken: nextPageToken,
-	}), nil
+	}, nil
 }
 
 // UpdateWorkspace updates a workspace
 func (s *WorkspaceServer) UpdateWorkspace(
 	ctx context.Context,
-	req *connect.Request[workspacev1.UpdateWorkspaceRequest],
-) (*connect.Response[workspacev1.UpdateWorkspaceResponse], error) {
-	r := req.Msg
+	req *workspacev1.UpdateWorkspaceRequest,
+) (*workspacev1.UpdateWorkspaceResponse, error) {
+	r := req
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound.Error()).
+			WithCause(errEntityScopesNotFound)
 	}
 
 	if err := s.authz.Check(
@@ -375,7 +382,7 @@ func (s *WorkspaceServer) UpdateWorkspace(
 		actions.New(actions.UpdateWorkspace, r.GetWorkspaceId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to update workspace", "workspaceId", r.GetWorkspaceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
 	}
 
 	if r.GetName() != "" {
@@ -384,7 +391,7 @@ func (s *WorkspaceServer) UpdateWorkspace(
 		orgID, err := s.queries.GetWorkspaceOrgID(ctx, wsUUID)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to get workspace org", "error", err)
-			return nil, connect.NewError(connect.CodeInternal, ErrDB)
+			return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 		}
 
 		isUnique, err := s.queries.IsWorkspaceNameUniqueInOrg(ctx, genDb.IsWorkspaceNameUniqueInOrgParams{
@@ -394,12 +401,13 @@ func (s *WorkspaceServer) UpdateWorkspace(
 		})
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to check workspace name uniqueness", "error", err)
-			return nil, connect.NewError(connect.CodeInternal, ErrDB)
+			return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 		}
 
 		if !isUnique {
 			slog.WarnContext(ctx, "workspace name already exists in org", "orgId", orgID, "name", r.GetName())
-			return nil, connect.NewError(connect.CodeAlreadyExists, ErrWorkspaceNameNotUnique)
+			return nil, connect.NewError(connect.CodeAlreadyExists, ErrWorkspaceNameNotUnique.Error()).
+				WithCause(ErrWorkspaceNameNotUnique)
 		}
 	}
 
@@ -412,7 +420,7 @@ func (s *WorkspaceServer) UpdateWorkspace(
 		})
 		if errors.Is(updateErr, pgx.ErrNoRows) {
 			slog.WarnContext(ctx, "workspace not found", "id", r.GetWorkspaceId())
-			return connect.NewError(connect.CodeNotFound, ErrWorkspaceNotFound)
+			return connect.NewError(connect.CodeNotFound, ErrWorkspaceNotFound.Error()).WithCause(ErrWorkspaceNotFound)
 		}
 		if updateErr != nil {
 			return updateErr
@@ -428,22 +436,23 @@ func (s *WorkspaceServer) UpdateWorkspace(
 		return nil, txError(ctx, "failed to update workspace", err)
 	}
 
-	return connect.NewResponse(&workspacev1.UpdateWorkspaceResponse{
+	return &workspacev1.UpdateWorkspaceResponse{
 		WorkspaceId: r.GetWorkspaceId(),
-	}), nil
+	}, nil
 }
 
 // DeleteWorkspace deletes a workspace
 func (s *WorkspaceServer) DeleteWorkspace(
 	ctx context.Context,
-	req *connect.Request[workspacev1.DeleteWorkspaceRequest],
-) (*connect.Response[workspacev1.DeleteWorkspaceResponse], error) {
-	r := req.Msg
+	req *workspacev1.DeleteWorkspaceRequest,
+) (*workspacev1.DeleteWorkspaceResponse, error) {
+	r := req
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound.Error()).
+			WithCause(errEntityScopesNotFound)
 	}
 
 	if err := s.authz.Check(
@@ -452,7 +461,7 @@ func (s *WorkspaceServer) DeleteWorkspace(
 		actions.New(actions.DeleteWorkspace, r.GetWorkspaceId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to delete workspace", "workspaceId", r.GetWorkspaceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
 	}
 
 	wsID := uuid.MustParse(r.GetWorkspaceId())
@@ -460,7 +469,7 @@ func (s *WorkspaceServer) DeleteWorkspace(
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		deletedOrgID, orgErr := qtx.LockWorkspaceForDeletion(ctx, wsID)
 		if errors.Is(orgErr, pgx.ErrNoRows) {
-			return connect.NewError(connect.CodeNotFound, ErrWorkspaceNotFound)
+			return connect.NewError(connect.CodeNotFound, ErrWorkspaceNotFound.Error()).WithCause(ErrWorkspaceNotFound)
 		}
 		if orgErr != nil {
 			return orgErr
@@ -470,7 +479,8 @@ func (s *WorkspaceServer) DeleteWorkspace(
 			return fmt.Errorf("list workspace resources: %w", listErr)
 		}
 		if len(resources) > 0 && !r.GetConfirmDeleteApps() {
-			return connect.NewError(connect.CodeFailedPrecondition, ErrWorkspaceHasResources)
+			return connect.NewError(connect.CodeFailedPrecondition, ErrWorkspaceHasResources.Error()).
+				WithCause(ErrWorkspaceHasResources)
 		}
 		for _, resource := range resources {
 			if removeErr := removeResourcePlacements(ctx, qtx, resource.ID); removeErr != nil {
@@ -506,20 +516,21 @@ func (s *WorkspaceServer) DeleteWorkspace(
 		return nil, txError(ctx, "failed to delete workspace", err)
 	}
 
-	return connect.NewResponse(&workspacev1.DeleteWorkspaceResponse{}), nil
+	return &workspacev1.DeleteWorkspaceResponse{}, nil
 }
 
 // CreateMember adds a member to a workspace with the given scopes
 func (s *WorkspaceServer) CreateMember(
 	ctx context.Context,
-	req *connect.Request[workspacev1.CreateMemberRequest],
-) (*connect.Response[workspacev1.CreateMemberResponse], error) {
-	r := req.Msg
+	req *workspacev1.CreateMemberRequest,
+) (*workspacev1.CreateMemberResponse, error) {
+	r := req
 
 	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound.Error()).
+			WithCause(errEntityScopesNotFound)
 	}
 
 	if err := s.authz.Check(
@@ -528,7 +539,7 @@ func (s *WorkspaceServer) CreateMember(
 		actions.New(actions.AddWorkspaceMember, r.GetWorkspaceId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to add workspace member", "workspaceId", r.GetWorkspaceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
 	}
 
 	wsID := uuid.MustParse(r.GetWorkspaceId())
@@ -536,7 +547,7 @@ func (s *WorkspaceServer) CreateMember(
 	var addScopes []genDb.EntityScope
 	for _, sc := range r.GetScopes() {
 		if !slices.Contains(validScopes, sc) {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid scope: %s", sc))
+			return nil, connect.Errorf(connect.CodeInvalidArgument, "invalid scope: %s", sc)
 		}
 		requested := genDb.EntityScope{
 			EntityType: genDb.EntityTypeWorkspace,
@@ -552,14 +563,14 @@ func (s *WorkspaceServer) CreateMember(
 				"scope",
 				sc,
 			)
-			return nil, connect.NewError(connect.CodePermissionDenied, err)
+			return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
 		}
 		addScopes = append(addScopes, requested)
 	}
 
 	userID, err := uuid.Parse(r.GetUserId())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid user id: %w", err))
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid user id: %w", err).Error())
 	}
 	grantedScopes := make([]string, len(addScopes))
 	for i, sc := range addScopes {
@@ -578,30 +589,31 @@ func (s *WorkspaceServer) CreateMember(
 		})
 	})
 	if isPgForeignKeyViolation(err) {
-		return nil, connect.NewError(connect.CodeNotFound, ErrUserNotFound)
+		return nil, connect.NewError(connect.CodeNotFound, ErrUserNotFound.Error()).WithCause(ErrUserNotFound)
 	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to add workspace member scopes", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 
-	return connect.NewResponse(&workspacev1.CreateMemberResponse{
+	return &workspacev1.CreateMemberResponse{
 		WorkspaceId: r.GetWorkspaceId(),
 		UserId:      r.GetUserId(),
-	}), nil
+	}, nil
 }
 
 // DeleteMember removes a member from a workspace by revoking all their workspace scopes
 func (s *WorkspaceServer) DeleteMember(
 	ctx context.Context,
-	req *connect.Request[workspacev1.DeleteMemberRequest],
-) (*connect.Response[workspacev1.DeleteMemberResponse], error) {
-	r := req.Msg
+	req *workspacev1.DeleteMemberRequest,
+) (*workspacev1.DeleteMemberResponse, error) {
+	r := req
 
 	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound.Error()).
+			WithCause(errEntityScopesNotFound)
 	}
 
 	if err := s.authz.Check(
@@ -610,19 +622,19 @@ func (s *WorkspaceServer) DeleteMember(
 		actions.New(actions.RemoveWorkspaceMember, r.GetWorkspaceId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to remove workspace member", "workspaceId", r.GetWorkspaceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
 	}
 
 	wsID := uuid.MustParse(r.GetWorkspaceId())
 	userID, err := uuid.Parse(r.GetUserId())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid user id: %w", err))
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid user id: %w", err).Error())
 	}
 
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 	defer tx.Rollback(ctx)
 
@@ -634,7 +646,7 @@ func (s *WorkspaceServer) DeleteMember(
 		EntityID:   wsID,
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to remove workspace member scopes", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 
 	if err := qtx.RemoveResourceScopesForUserInWorkspace(ctx, genDb.RemoveResourceScopesForUserInWorkspaceParams{
@@ -642,7 +654,7 @@ func (s *WorkspaceServer) DeleteMember(
 		WorkspaceID: wsID,
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to remove member resource scopes", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 
 	if err := events.Record(ctx, qtx, events.Event{
@@ -652,27 +664,28 @@ func (s *WorkspaceServer) DeleteMember(
 		SubjectID:   new(userID),
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to record member removal", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 	if err := tx.Commit(ctx); err != nil {
 		slog.ErrorContext(ctx, "failed to commit member removal", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 
-	return connect.NewResponse(&workspacev1.DeleteMemberResponse{}), nil
+	return &workspacev1.DeleteMemberResponse{}, nil
 }
 
 // ListWorkspaceMembers lists all members of a workspace with pagination
 func (s *WorkspaceServer) ListWorkspaceMembers(
 	ctx context.Context,
-	req *connect.Request[workspacev1.ListWorkspaceMembersRequest],
-) (*connect.Response[workspacev1.ListWorkspaceMembersResponse], error) {
-	r := req.Msg
+	req *workspacev1.ListWorkspaceMembersRequest,
+) (*workspacev1.ListWorkspaceMembersResponse, error) {
+	r := req
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound.Error()).
+			WithCause(errEntityScopesNotFound)
 	}
 
 	if err := s.authz.Check(
@@ -681,7 +694,7 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 		actions.New(actions.ListWorkspaceMembers, r.GetWorkspaceId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to list workspace members", "workspaceId", r.GetWorkspaceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
 	}
 
 	pageSize := normalizePageSize(r.GetPageSize())
@@ -690,7 +703,7 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 	if r.GetPageToken() != "" {
 		cursorID, err := decodeCursor(r.GetPageToken())
 		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err).Error())
 		}
 		pageToken = &cursorID
 	}
@@ -705,7 +718,7 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 	)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list members", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 
 	var members []*workspacev1.WorkspaceMemberWithUser
@@ -726,8 +739,8 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 		nextPageToken = encodeCursor(memberList[len(memberList)-1].UserID.String())
 	}
 
-	return connect.NewResponse(&workspacev1.ListWorkspaceMembersResponse{
+	return &workspacev1.ListWorkspaceMembersResponse{
 		Members:       members,
 		NextPageToken: nextPageToken,
-	}), nil
+	}, nil
 }

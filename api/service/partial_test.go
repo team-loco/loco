@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -48,10 +48,10 @@ func TestTransferPartialRequiresAdmin(t *testing.T) {
 	for name, scopes := range cases {
 		t.Run(name, func(t *testing.T) {
 			ctx := context.WithValue(t.Context(), contextkeys.EntityScopesKey, scopes)
-			req := connect.NewRequest(&resourcev1.TransferPartialRequest{
+			req := &resourcev1.TransferPartialRequest{
 				ResourceId: resourceID.String(),
 				Partial:    "web",
-			})
+			}
 			_, err := server.TransferPartial(ctx, req)
 			wantCode(t, err, connect.CodePermissionDenied)
 		})

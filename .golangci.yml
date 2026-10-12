@@ -34,6 +34,7 @@ linters:
       - { linters: [gosec], text: "G704", path: "pkg/secretkeys/transit" }
   default: standard
   enable:
+    - depguard
     - asasalint
     - asciicheck
     - bidichk
@@ -86,6 +87,15 @@ linters:
     - wastedassign
     - whitespace
   settings:
+    depguard:
+      rules:
+        connect-v2:
+          files: ["$all"]
+          deny:
+            - pkg: "connectrpc.com/connect$"
+              desc: "Use connectrpc.com/connect/v2"
+            - pkg: "connectrpc.com/grpcreflect$"
+              desc: "Use connectrpc.com/grpcreflect/v2"
     errcheck:
       check-type-assertions: true
       check-blank: true

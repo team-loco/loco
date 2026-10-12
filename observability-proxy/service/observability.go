@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
@@ -38,16 +38,16 @@ func NewObservabilityService(ch *chClient.Client, cfg *config.Config, validator 
 
 func (s *ObservabilityService) QueryLogs(
 	ctx context.Context,
-	req *connect.Request[observabilityv1.QueryLogsRequest],
-) (*connect.Response[observabilityv1.QueryLogsResponse], error) {
+	req *observabilityv1.QueryLogsRequest,
+) (*observabilityv1.QueryLogsResponse, error) {
 	token, ok := auth.TokenFromContext(ctx)
 	if !ok {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errMissingToken)
+		return nil, connect.NewError(connect.CodeUnauthenticated, errMissingToken.Error()).WithCause(errMissingToken)
 	}
 
-	msg := req.Msg
+	msg := req
 	if err := guardrails.ValidateLogsRequest(msg, s.cfg); err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, err.Error()).WithCause(err)
 	}
 
 	if err := s.validator.CheckPermission(
@@ -57,7 +57,7 @@ func (s *ObservabilityService) QueryLogs(
 		msg.GetWorkspaceId(),
 		tokenv1.Scope_SCOPE_READ,
 	); err != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		return nil, err
 	}
 
 	limit := guardrails.ClampLimit(msg.GetLimit(), s.cfg)
@@ -78,33 +78,33 @@ func (s *ObservabilityService) QueryLogs(
 		s.cfg.QueryTimeout,
 	)
 	if errors.Is(err, chClient.ErrInvalidLogCursor) {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, err.Error()).WithCause(err)
 	}
 	if err != nil {
 		slog.ErrorContext(ctx, "QueryLogs failed", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, errQueryFailed)
+		return nil, connect.NewError(connect.CodeInternal, errQueryFailed.Error()).WithCause(errQueryFailed)
 	}
 
-	return connect.NewResponse(&observabilityv1.QueryLogsResponse{
+	return &observabilityv1.QueryLogsResponse{
 		Entries:    entries,
 		NextCursor: nextCursor,
-	}), nil
+	}, nil
 }
 
 func (s *ObservabilityService) TailLogs(
 	ctx context.Context,
-	req *connect.Request[observabilityv1.TailLogsRequest],
-	stream *connect.ServerStream[observabilityv1.TailLogsResponse],
+	req *observabilityv1.TailLogsRequest,
+	stream observabilityv1connect.ObservabilityProxyServiceTailLogsServerStream,
 ) error {
 	token, ok := auth.TokenFromContext(ctx)
 	if !ok {
-		return connect.NewError(connect.CodeUnauthenticated, errMissingToken)
+		return connect.NewError(connect.CodeUnauthenticated, errMissingToken.Error()).WithCause(errMissingToken)
 	}
 
-	msg := req.Msg
+	msg := req
 	started := time.Now()
 	if err := guardrails.ValidateTailRequest(msg, s.cfg, started); err != nil {
-		return connect.NewError(connect.CodeInvalidArgument, err)
+		return connect.NewError(connect.CodeInvalidArgument, err.Error()).WithCause(err)
 	}
 
 	if err := s.validator.CheckPermission(
@@ -114,7 +114,7 @@ func (s *ObservabilityService) TailLogs(
 		msg.GetWorkspaceId(),
 		tokenv1.Scope_SCOPE_READ,
 	); err != nil {
-		return connect.NewError(connect.CodePermissionDenied, err)
+		return err
 	}
 
 	deadline := started.Add(s.cfg.MaxTailDuration)
@@ -183,16 +183,16 @@ func (s *ObservabilityService) TailLogs(
 
 func (s *ObservabilityService) QueryMetrics(
 	ctx context.Context,
-	req *connect.Request[observabilityv1.QueryMetricsRequest],
-) (*connect.Response[observabilityv1.QueryMetricsResponse], error) {
+	req *observabilityv1.QueryMetricsRequest,
+) (*observabilityv1.QueryMetricsResponse, error) {
 	token, ok := auth.TokenFromContext(ctx)
 	if !ok {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errMissingToken)
+		return nil, connect.NewError(connect.CodeUnauthenticated, errMissingToken.Error()).WithCause(errMissingToken)
 	}
 
-	msg := req.Msg
+	msg := req
 	if err := guardrails.ValidateMetricsRequest(msg, s.cfg); err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, err.Error()).WithCause(err)
 	}
 
 	if err := s.validator.CheckPermission(
@@ -202,7 +202,7 @@ func (s *ObservabilityService) QueryMetrics(
 		msg.GetWorkspaceId(),
 		tokenv1.Scope_SCOPE_READ,
 	); err != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		return nil, err
 	}
 
 	series, err := chClient.QueryMetrics(
@@ -220,10 +220,10 @@ func (s *ObservabilityService) QueryMetrics(
 	)
 	if err != nil {
 		slog.ErrorContext(ctx, "QueryMetrics failed", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, errQueryFailed)
+		return nil, connect.NewError(connect.CodeInternal, errQueryFailed.Error()).WithCause(errQueryFailed)
 	}
 
-	return connect.NewResponse(&observabilityv1.QueryMetricsResponse{
+	return &observabilityv1.QueryMetricsResponse{
 		Series: series,
-	}), nil
+	}, nil
 }

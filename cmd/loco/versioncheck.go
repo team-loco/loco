@@ -11,7 +11,6 @@ import (
 	"github.com/team-loco/loco/internal/rpc"
 
 	"charm.land/lipgloss/v2"
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"golang.org/x/mod/semver"
 
@@ -55,13 +54,13 @@ func (c *versionCheck) start(cmd *cobra.Command) {
 		defer cancel()
 		configClients := rpc.ForHost(host, "")
 		configClient := configClients.Config
-		req := connect.NewRequest(&configv1.GetConfigRequest{})
+		req := &configv1.GetConfigRequest{}
 		resp, err := configClient.GetConfig(ctx, req)
 		if err != nil {
 			slog.Debug("could not fetch server config", "error", err)
 			return
 		}
-		c.minimum = resp.Msg.GetMinCliVersion()
+		c.minimum = resp.GetMinCliVersion()
 	}()
 }
 

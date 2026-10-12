@@ -4,6 +4,7 @@
 !go.sum
 !gen/go
 !internal/buildinfo
+!internal/httputil
 !internal/loglevel
 !internal/locofile
 !k8sapi

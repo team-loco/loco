@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	"github.com/team-loco/loco/gen/go/loco/environment/v1/environmentv1connect"
@@ -53,13 +52,13 @@ func ResolveEnvironment(
 		name = os.Getenv(envVarEnvironment)
 	}
 
-	req := connect.NewRequest(&environmentv1.ListEnvironmentsRequest{WorkspaceId: workspaceID})
+	req := &environmentv1.ListEnvironmentsRequest{WorkspaceId: workspaceID}
 
 	resp, err := client.ListEnvironments(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("list environments: %w", err)
 	}
-	environments := resp.Msg.GetEnvironments()
+	environments := resp.GetEnvironments()
 	if len(environments) == 0 {
 		return nil, errNoEnvironments
 	}

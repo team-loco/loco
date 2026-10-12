@@ -8,7 +8,6 @@ import (
 
 	"github.com/team-loco/loco/internal/rpc"
 
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
@@ -68,9 +67,9 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 
 			wsClient := deps.NewWorkspaceClient(host, locoToken.Token)
 
-			getReq := connect.NewRequest(&workspacev1.GetWorkspaceRequest{
+			getReq := &workspacev1.GetWorkspaceRequest{
 				WorkspaceId: id,
-			})
+			}
 
 			getResp, err := wsClient.GetWorkspace(ctx, getReq)
 			if err != nil {
@@ -90,7 +89,7 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 				confirm, confirmErr := deps.AskYesNo(
 					fmt.Sprintf(
 						"Are you sure you want to delete workspace %q (ID: %s)? This cannot be undone.",
-						getResp.Msg.GetWorkspace().GetName(),
+						getResp.GetWorkspace().GetName(),
 						id,
 					),
 				)
@@ -103,17 +102,17 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 				}
 			}
 
-			delReq := connect.NewRequest(&workspacev1.DeleteWorkspaceRequest{
+			delReq := &workspacev1.DeleteWorkspaceRequest{
 				WorkspaceId:       id,
 				ConfirmDeleteApps: confirmDeleteApps,
-			})
+			}
 
 			_, err = wsClient.DeleteWorkspace(ctx, delReq)
 			if err != nil {
 				return fmt.Errorf("failed to delete workspace: %w", err)
 			}
 
-			fmt.Fprintf(deps.Output, "Workspace %q deleted successfully.\n", getResp.Msg.GetWorkspace().GetName())
+			fmt.Fprintf(deps.Output, "Workspace %q deleted successfully.\n", getResp.GetWorkspace().GetName())
 			return nil
 		},
 	}

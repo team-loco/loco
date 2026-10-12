@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -38,11 +38,11 @@ func TestCreateMemberRejectsScopesTheCallerDoesNotHold(t *testing.T) {
 	wsIDString := wsID.String()
 	userID := uuid.Must(uuid.NewV7())
 	userIDString := userID.String()
-	req := connect.NewRequest(&workspacev1.CreateMemberRequest{
+	req := &workspacev1.CreateMemberRequest{
 		WorkspaceId: wsIDString,
 		UserId:      userIDString,
 		Scopes:      []string{genDb.ScopeRead, genDb.ScopeAdmin},
-	})
+	}
 
 	_, err := server.CreateMember(ctx, req)
 	if code := connect.CodeOf(err); code != connect.CodePermissionDenied {

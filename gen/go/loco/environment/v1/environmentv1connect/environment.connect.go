@@ -5,232 +5,253 @@
 package environmentv1connect
 
 import (
-	connect "connectrpc.com/connect"
+	connect "connectrpc.com/connect/v2"
 	context "context"
-	errors "errors"
 	v1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
-	http "net/http"
-	strings "strings"
+	sync "sync"
 )
-
-// This is a compile-time assertion to ensure that this generated file and the connect package are
-// compatible. If you get a compiler error that this constant is not defined, this code was
-// generated with a version of connect newer than the one compiled into your binary. You can fix the
-// problem by either regenerating this code with an older version of connect or updating the connect
-// version compiled into your binary.
-const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// EnvironmentServiceName is the fully-qualified name of the EnvironmentService service.
 	EnvironmentServiceName = "loco.environment.v1.EnvironmentService"
 )
 
-// These constants are the fully-qualified names of the RPCs defined in this package. They're
-// exposed at runtime as Spec.Procedure and as the final two segments of the HTTP route.
+// These constants are the procedure names of the RPCs defined in this package. They're exposed at
+// runtime as Spec.Procedure and as the final two segments of the HTTP route.
 //
 // Note that these are different from the fully-qualified method names used by
 // google.golang.org/protobuf/reflect/protoreflect. To convert from these constants to
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// EnvironmentServiceCreateEnvironmentProcedure is the fully-qualified name of the
-	// EnvironmentService's CreateEnvironment RPC.
+	// EnvironmentServiceCreateEnvironmentProcedure is the procedure name of the EnvironmentService's
+	// CreateEnvironment RPC.
 	EnvironmentServiceCreateEnvironmentProcedure = "/loco.environment.v1.EnvironmentService/CreateEnvironment"
-	// EnvironmentServiceGetEnvironmentProcedure is the fully-qualified name of the EnvironmentService's
+	// EnvironmentServiceGetEnvironmentProcedure is the procedure name of the EnvironmentService's
 	// GetEnvironment RPC.
 	EnvironmentServiceGetEnvironmentProcedure = "/loco.environment.v1.EnvironmentService/GetEnvironment"
-	// EnvironmentServiceListEnvironmentsProcedure is the fully-qualified name of the
-	// EnvironmentService's ListEnvironments RPC.
+	// EnvironmentServiceListEnvironmentsProcedure is the procedure name of the EnvironmentService's
+	// ListEnvironments RPC.
 	EnvironmentServiceListEnvironmentsProcedure = "/loco.environment.v1.EnvironmentService/ListEnvironments"
-	// EnvironmentServiceUpdateEnvironmentProcedure is the fully-qualified name of the
-	// EnvironmentService's UpdateEnvironment RPC.
+	// EnvironmentServiceUpdateEnvironmentProcedure is the procedure name of the EnvironmentService's
+	// UpdateEnvironment RPC.
 	EnvironmentServiceUpdateEnvironmentProcedure = "/loco.environment.v1.EnvironmentService/UpdateEnvironment"
-	// EnvironmentServiceDeleteEnvironmentProcedure is the fully-qualified name of the
-	// EnvironmentService's DeleteEnvironment RPC.
+	// EnvironmentServiceDeleteEnvironmentProcedure is the procedure name of the EnvironmentService's
+	// DeleteEnvironment RPC.
 	EnvironmentServiceDeleteEnvironmentProcedure = "/loco.environment.v1.EnvironmentService/DeleteEnvironment"
+)
+
+var (
+	environmentServiceCreateEnvironmentSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_environment_v1_environment_proto.Services().ByName("EnvironmentService").Methods().ByName("CreateEnvironment"),
+			Procedure:  EnvironmentServiceCreateEnvironmentProcedure,
+		}
+	})
+	environmentServiceGetEnvironmentSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_environment_v1_environment_proto.Services().ByName("EnvironmentService").Methods().ByName("GetEnvironment"),
+			Procedure:  EnvironmentServiceGetEnvironmentProcedure,
+		}
+	})
+	environmentServiceListEnvironmentsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_environment_v1_environment_proto.Services().ByName("EnvironmentService").Methods().ByName("ListEnvironments"),
+			Procedure:  EnvironmentServiceListEnvironmentsProcedure,
+		}
+	})
+	environmentServiceUpdateEnvironmentSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_environment_v1_environment_proto.Services().ByName("EnvironmentService").Methods().ByName("UpdateEnvironment"),
+			Procedure:  EnvironmentServiceUpdateEnvironmentProcedure,
+		}
+	})
+	environmentServiceDeleteEnvironmentSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_environment_v1_environment_proto.Services().ByName("EnvironmentService").Methods().ByName("DeleteEnvironment"),
+			Procedure:  EnvironmentServiceDeleteEnvironmentProcedure,
+		}
+	})
 )
 
 // EnvironmentServiceClient is a client for the loco.environment.v1.EnvironmentService service.
 type EnvironmentServiceClient interface {
 	// CreateEnvironment creates a new environment in a workspace.
-	CreateEnvironment(context.Context, *connect.Request[v1.CreateEnvironmentRequest]) (*connect.Response[v1.CreateEnvironmentResponse], error)
+	CreateEnvironment(context.Context, *v1.CreateEnvironmentRequest) (*v1.CreateEnvironmentResponse, error)
 	// GetEnvironment retrieves an environment by ID.
-	GetEnvironment(context.Context, *connect.Request[v1.GetEnvironmentRequest]) (*connect.Response[v1.GetEnvironmentResponse], error)
+	GetEnvironment(context.Context, *v1.GetEnvironmentRequest) (*v1.GetEnvironmentResponse, error)
 	// ListEnvironments lists all environments in a workspace.
-	ListEnvironments(context.Context, *connect.Request[v1.ListEnvironmentsRequest]) (*connect.Response[v1.ListEnvironmentsResponse], error)
+	ListEnvironments(context.Context, *v1.ListEnvironmentsRequest) (*v1.ListEnvironmentsResponse, error)
 	// UpdateEnvironment updates an environment.
-	UpdateEnvironment(context.Context, *connect.Request[v1.UpdateEnvironmentRequest]) (*connect.Response[v1.UpdateEnvironmentResponse], error)
+	UpdateEnvironment(context.Context, *v1.UpdateEnvironmentRequest) (*v1.UpdateEnvironmentResponse, error)
 	// DeleteEnvironment deletes an environment (fails if resources are using it).
-	DeleteEnvironment(context.Context, *connect.Request[v1.DeleteEnvironmentRequest]) (*connect.Response[v1.DeleteEnvironmentResponse], error)
+	DeleteEnvironment(context.Context, *v1.DeleteEnvironmentRequest) (*v1.DeleteEnvironmentResponse, error)
 }
 
 // NewEnvironmentServiceClient constructs a client for the loco.environment.v1.EnvironmentService
-// service. By default, it uses the Connect protocol with the binary Protobuf Codec, asks for
-// gzipped responses, and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply
-// the connect.WithGRPC() or connect.WithGRPCWeb() options.
-//
-// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
-// http://api.acme.com or https://acme.com/grpc).
-func NewEnvironmentServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) EnvironmentServiceClient {
-	baseURL = strings.TrimRight(baseURL, "/")
-	environmentServiceMethods := v1.File_loco_environment_v1_environment_proto.Services().ByName("EnvironmentService").Methods()
-	return &environmentServiceClient{
-		createEnvironment: connect.NewClient[v1.CreateEnvironmentRequest, v1.CreateEnvironmentResponse](
-			httpClient,
-			baseURL+EnvironmentServiceCreateEnvironmentProcedure,
-			connect.WithSchema(environmentServiceMethods.ByName("CreateEnvironment")),
-			connect.WithClientOptions(opts...),
-		),
-		getEnvironment: connect.NewClient[v1.GetEnvironmentRequest, v1.GetEnvironmentResponse](
-			httpClient,
-			baseURL+EnvironmentServiceGetEnvironmentProcedure,
-			connect.WithSchema(environmentServiceMethods.ByName("GetEnvironment")),
-			connect.WithClientOptions(opts...),
-		),
-		listEnvironments: connect.NewClient[v1.ListEnvironmentsRequest, v1.ListEnvironmentsResponse](
-			httpClient,
-			baseURL+EnvironmentServiceListEnvironmentsProcedure,
-			connect.WithSchema(environmentServiceMethods.ByName("ListEnvironments")),
-			connect.WithClientOptions(opts...),
-		),
-		updateEnvironment: connect.NewClient[v1.UpdateEnvironmentRequest, v1.UpdateEnvironmentResponse](
-			httpClient,
-			baseURL+EnvironmentServiceUpdateEnvironmentProcedure,
-			connect.WithSchema(environmentServiceMethods.ByName("UpdateEnvironment")),
-			connect.WithClientOptions(opts...),
-		),
-		deleteEnvironment: connect.NewClient[v1.DeleteEnvironmentRequest, v1.DeleteEnvironmentResponse](
-			httpClient,
-			baseURL+EnvironmentServiceDeleteEnvironmentProcedure,
-			connect.WithSchema(environmentServiceMethods.ByName("DeleteEnvironment")),
-			connect.WithClientOptions(opts...),
-		),
-	}
-}
-
-// environmentServiceClient implements EnvironmentServiceClient.
-type environmentServiceClient struct {
-	createEnvironment *connect.Client[v1.CreateEnvironmentRequest, v1.CreateEnvironmentResponse]
-	getEnvironment    *connect.Client[v1.GetEnvironmentRequest, v1.GetEnvironmentResponse]
-	listEnvironments  *connect.Client[v1.ListEnvironmentsRequest, v1.ListEnvironmentsResponse]
-	updateEnvironment *connect.Client[v1.UpdateEnvironmentRequest, v1.UpdateEnvironmentResponse]
-	deleteEnvironment *connect.Client[v1.DeleteEnvironmentRequest, v1.DeleteEnvironmentResponse]
-}
-
-// CreateEnvironment calls loco.environment.v1.EnvironmentService.CreateEnvironment.
-func (c *environmentServiceClient) CreateEnvironment(ctx context.Context, req *connect.Request[v1.CreateEnvironmentRequest]) (*connect.Response[v1.CreateEnvironmentResponse], error) {
-	return c.createEnvironment.CallUnary(ctx, req)
-}
-
-// GetEnvironment calls loco.environment.v1.EnvironmentService.GetEnvironment.
-func (c *environmentServiceClient) GetEnvironment(ctx context.Context, req *connect.Request[v1.GetEnvironmentRequest]) (*connect.Response[v1.GetEnvironmentResponse], error) {
-	return c.getEnvironment.CallUnary(ctx, req)
-}
-
-// ListEnvironments calls loco.environment.v1.EnvironmentService.ListEnvironments.
-func (c *environmentServiceClient) ListEnvironments(ctx context.Context, req *connect.Request[v1.ListEnvironmentsRequest]) (*connect.Response[v1.ListEnvironmentsResponse], error) {
-	return c.listEnvironments.CallUnary(ctx, req)
-}
-
-// UpdateEnvironment calls loco.environment.v1.EnvironmentService.UpdateEnvironment.
-func (c *environmentServiceClient) UpdateEnvironment(ctx context.Context, req *connect.Request[v1.UpdateEnvironmentRequest]) (*connect.Response[v1.UpdateEnvironmentResponse], error) {
-	return c.updateEnvironment.CallUnary(ctx, req)
-}
-
-// DeleteEnvironment calls loco.environment.v1.EnvironmentService.DeleteEnvironment.
-func (c *environmentServiceClient) DeleteEnvironment(ctx context.Context, req *connect.Request[v1.DeleteEnvironmentRequest]) (*connect.Response[v1.DeleteEnvironmentResponse], error) {
-	return c.deleteEnvironment.CallUnary(ctx, req)
+// service. Multiple service clients may share a single connect.Client.
+func NewEnvironmentServiceClient(client *connect.Client) EnvironmentServiceClient {
+	return &environmentServiceClient{client: client}
 }
 
 // EnvironmentServiceHandler is an implementation of the loco.environment.v1.EnvironmentService
 // service.
 type EnvironmentServiceHandler interface {
 	// CreateEnvironment creates a new environment in a workspace.
-	CreateEnvironment(context.Context, *connect.Request[v1.CreateEnvironmentRequest]) (*connect.Response[v1.CreateEnvironmentResponse], error)
+	CreateEnvironment(context.Context, *v1.CreateEnvironmentRequest) (*v1.CreateEnvironmentResponse, error)
 	// GetEnvironment retrieves an environment by ID.
-	GetEnvironment(context.Context, *connect.Request[v1.GetEnvironmentRequest]) (*connect.Response[v1.GetEnvironmentResponse], error)
+	GetEnvironment(context.Context, *v1.GetEnvironmentRequest) (*v1.GetEnvironmentResponse, error)
 	// ListEnvironments lists all environments in a workspace.
-	ListEnvironments(context.Context, *connect.Request[v1.ListEnvironmentsRequest]) (*connect.Response[v1.ListEnvironmentsResponse], error)
+	ListEnvironments(context.Context, *v1.ListEnvironmentsRequest) (*v1.ListEnvironmentsResponse, error)
 	// UpdateEnvironment updates an environment.
-	UpdateEnvironment(context.Context, *connect.Request[v1.UpdateEnvironmentRequest]) (*connect.Response[v1.UpdateEnvironmentResponse], error)
+	UpdateEnvironment(context.Context, *v1.UpdateEnvironmentRequest) (*v1.UpdateEnvironmentResponse, error)
 	// DeleteEnvironment deletes an environment (fails if resources are using it).
-	DeleteEnvironment(context.Context, *connect.Request[v1.DeleteEnvironmentRequest]) (*connect.Response[v1.DeleteEnvironmentResponse], error)
+	DeleteEnvironment(context.Context, *v1.DeleteEnvironmentRequest) (*v1.DeleteEnvironmentResponse, error)
 }
 
-// NewEnvironmentServiceHandler builds an HTTP handler from the service implementation. It returns
-// the path on which to mount the handler and the handler itself.
-//
-// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
-// and JSON codecs. They also support gzip compression.
-func NewEnvironmentServiceHandler(svc EnvironmentServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	environmentServiceMethods := v1.File_loco_environment_v1_environment_proto.Services().ByName("EnvironmentService").Methods()
-	environmentServiceCreateEnvironmentHandler := connect.NewUnaryHandler(
-		EnvironmentServiceCreateEnvironmentProcedure,
-		svc.CreateEnvironment,
-		connect.WithSchema(environmentServiceMethods.ByName("CreateEnvironment")),
-		connect.WithHandlerOptions(opts...),
+// RegisterEnvironmentServiceHandler registers svc as the loco.environment.v1.EnvironmentService
+// implementation on server.
+func RegisterEnvironmentServiceHandler(server *connect.Server, svc EnvironmentServiceHandler) {
+	adapter := environmentServiceHandler{svc: svc}
+	server.Register(
+		connect.Method{Spec: environmentServiceCreateEnvironmentSpec(), Handler: adapter.createEnvironment},
+		connect.Method{Spec: environmentServiceGetEnvironmentSpec(), Handler: adapter.getEnvironment},
+		connect.Method{Spec: environmentServiceListEnvironmentsSpec(), Handler: adapter.listEnvironments},
+		connect.Method{Spec: environmentServiceUpdateEnvironmentSpec(), Handler: adapter.updateEnvironment},
+		connect.Method{Spec: environmentServiceDeleteEnvironmentSpec(), Handler: adapter.deleteEnvironment},
 	)
-	environmentServiceGetEnvironmentHandler := connect.NewUnaryHandler(
-		EnvironmentServiceGetEnvironmentProcedure,
-		svc.GetEnvironment,
-		connect.WithSchema(environmentServiceMethods.ByName("GetEnvironment")),
-		connect.WithHandlerOptions(opts...),
-	)
-	environmentServiceListEnvironmentsHandler := connect.NewUnaryHandler(
-		EnvironmentServiceListEnvironmentsProcedure,
-		svc.ListEnvironments,
-		connect.WithSchema(environmentServiceMethods.ByName("ListEnvironments")),
-		connect.WithHandlerOptions(opts...),
-	)
-	environmentServiceUpdateEnvironmentHandler := connect.NewUnaryHandler(
-		EnvironmentServiceUpdateEnvironmentProcedure,
-		svc.UpdateEnvironment,
-		connect.WithSchema(environmentServiceMethods.ByName("UpdateEnvironment")),
-		connect.WithHandlerOptions(opts...),
-	)
-	environmentServiceDeleteEnvironmentHandler := connect.NewUnaryHandler(
-		EnvironmentServiceDeleteEnvironmentProcedure,
-		svc.DeleteEnvironment,
-		connect.WithSchema(environmentServiceMethods.ByName("DeleteEnvironment")),
-		connect.WithHandlerOptions(opts...),
-	)
-	return "/loco.environment.v1.EnvironmentService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case EnvironmentServiceCreateEnvironmentProcedure:
-			environmentServiceCreateEnvironmentHandler.ServeHTTP(w, r)
-		case EnvironmentServiceGetEnvironmentProcedure:
-			environmentServiceGetEnvironmentHandler.ServeHTTP(w, r)
-		case EnvironmentServiceListEnvironmentsProcedure:
-			environmentServiceListEnvironmentsHandler.ServeHTTP(w, r)
-		case EnvironmentServiceUpdateEnvironmentProcedure:
-			environmentServiceUpdateEnvironmentHandler.ServeHTTP(w, r)
-		case EnvironmentServiceDeleteEnvironmentProcedure:
-			environmentServiceDeleteEnvironmentHandler.ServeHTTP(w, r)
-		default:
-			http.NotFound(w, r)
-		}
-	})
 }
 
 // UnimplementedEnvironmentServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedEnvironmentServiceHandler struct{}
 
-func (UnimplementedEnvironmentServiceHandler) CreateEnvironment(context.Context, *connect.Request[v1.CreateEnvironmentRequest]) (*connect.Response[v1.CreateEnvironmentResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.environment.v1.EnvironmentService.CreateEnvironment is not implemented"))
+func (UnimplementedEnvironmentServiceHandler) CreateEnvironment(context.Context, *v1.CreateEnvironmentRequest) (*v1.CreateEnvironmentResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.environment.v1.EnvironmentService.CreateEnvironment is not implemented")
 }
 
-func (UnimplementedEnvironmentServiceHandler) GetEnvironment(context.Context, *connect.Request[v1.GetEnvironmentRequest]) (*connect.Response[v1.GetEnvironmentResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.environment.v1.EnvironmentService.GetEnvironment is not implemented"))
+func (UnimplementedEnvironmentServiceHandler) GetEnvironment(context.Context, *v1.GetEnvironmentRequest) (*v1.GetEnvironmentResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.environment.v1.EnvironmentService.GetEnvironment is not implemented")
 }
 
-func (UnimplementedEnvironmentServiceHandler) ListEnvironments(context.Context, *connect.Request[v1.ListEnvironmentsRequest]) (*connect.Response[v1.ListEnvironmentsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.environment.v1.EnvironmentService.ListEnvironments is not implemented"))
+func (UnimplementedEnvironmentServiceHandler) ListEnvironments(context.Context, *v1.ListEnvironmentsRequest) (*v1.ListEnvironmentsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.environment.v1.EnvironmentService.ListEnvironments is not implemented")
 }
 
-func (UnimplementedEnvironmentServiceHandler) UpdateEnvironment(context.Context, *connect.Request[v1.UpdateEnvironmentRequest]) (*connect.Response[v1.UpdateEnvironmentResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.environment.v1.EnvironmentService.UpdateEnvironment is not implemented"))
+func (UnimplementedEnvironmentServiceHandler) UpdateEnvironment(context.Context, *v1.UpdateEnvironmentRequest) (*v1.UpdateEnvironmentResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.environment.v1.EnvironmentService.UpdateEnvironment is not implemented")
 }
 
-func (UnimplementedEnvironmentServiceHandler) DeleteEnvironment(context.Context, *connect.Request[v1.DeleteEnvironmentRequest]) (*connect.Response[v1.DeleteEnvironmentResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.environment.v1.EnvironmentService.DeleteEnvironment is not implemented"))
+func (UnimplementedEnvironmentServiceHandler) DeleteEnvironment(context.Context, *v1.DeleteEnvironmentRequest) (*v1.DeleteEnvironmentResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.environment.v1.EnvironmentService.DeleteEnvironment is not implemented")
+}
+
+type environmentServiceClient struct {
+	client *connect.Client
+}
+
+func (c *environmentServiceClient) CreateEnvironment(ctx context.Context, req *v1.CreateEnvironmentRequest) (*v1.CreateEnvironmentResponse, error) {
+	var res v1.CreateEnvironmentResponse
+	if err := c.client.CallUnary(ctx, environmentServiceCreateEnvironmentSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *environmentServiceClient) GetEnvironment(ctx context.Context, req *v1.GetEnvironmentRequest) (*v1.GetEnvironmentResponse, error) {
+	var res v1.GetEnvironmentResponse
+	if err := c.client.CallUnary(ctx, environmentServiceGetEnvironmentSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *environmentServiceClient) ListEnvironments(ctx context.Context, req *v1.ListEnvironmentsRequest) (*v1.ListEnvironmentsResponse, error) {
+	var res v1.ListEnvironmentsResponse
+	if err := c.client.CallUnary(ctx, environmentServiceListEnvironmentsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *environmentServiceClient) UpdateEnvironment(ctx context.Context, req *v1.UpdateEnvironmentRequest) (*v1.UpdateEnvironmentResponse, error) {
+	var res v1.UpdateEnvironmentResponse
+	if err := c.client.CallUnary(ctx, environmentServiceUpdateEnvironmentSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *environmentServiceClient) DeleteEnvironment(ctx context.Context, req *v1.DeleteEnvironmentRequest) (*v1.DeleteEnvironmentResponse, error) {
+	var res v1.DeleteEnvironmentResponse
+	if err := c.client.CallUnary(ctx, environmentServiceDeleteEnvironmentSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+type environmentServiceHandler struct{ svc EnvironmentServiceHandler }
+
+func (h environmentServiceHandler) createEnvironment(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.CreateEnvironmentRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.CreateEnvironment(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h environmentServiceHandler) getEnvironment(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetEnvironmentRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetEnvironment(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h environmentServiceHandler) listEnvironments(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListEnvironmentsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListEnvironments(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h environmentServiceHandler) updateEnvironment(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.UpdateEnvironmentRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.UpdateEnvironment(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h environmentServiceHandler) deleteEnvironment(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.DeleteEnvironmentRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.DeleteEnvironment(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
 }

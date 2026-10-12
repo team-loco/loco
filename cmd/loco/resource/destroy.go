@@ -9,7 +9,6 @@ import (
 	"github.com/team-loco/loco/internal/rpc"
 
 	"charm.land/lipgloss/v2"
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -94,26 +93,26 @@ Examples:
 			resourceClient := deps.NewResourceClient(host, locoToken.Token)
 
 			// Get resource by name
-			getReq := connect.NewRequest(&resourcev1.GetResourceRequest{
+			getReq := &resourcev1.GetResourceRequest{
 				Key: &resourcev1.GetResourceRequest_NameKey{
 					NameKey: &resourcev1.GetResourceNameKey{
 						WorkspaceId: workspaceID,
 						Name:        name,
 					},
 				},
-			})
+			}
 
 			resourceResp, err := resourceClient.GetResource(ctx, getReq)
 			if err != nil {
 				return fmt.Errorf("service '%s' not found: %w", name, err)
 			}
 
-			resource := resourceResp.Msg.GetResource()
+			resource := resourceResp.GetResource()
 			slog.Debug("destroying service", "resource_id", resource.GetId(), "name", name)
 
-			deleteReq := connect.NewRequest(&resourcev1.DeleteResourceRequest{
+			deleteReq := &resourcev1.DeleteResourceRequest{
 				ResourceId: resource.GetId(),
-			})
+			}
 
 			_, err = resourceClient.DeleteResource(ctx, deleteReq)
 			if err != nil {

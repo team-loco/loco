@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -25,13 +25,13 @@ func getResourceEnv(
 	t.Helper()
 	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
 	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, f.workspaceReadScopes(t))
-	resp, err := server.GetResourceEnv(ctx, connect.NewRequest(&resourcev1.GetResourceEnvRequest{
+	resp, err := server.GetResourceEnv(ctx, &resourcev1.GetResourceEnvRequest{
 		ResourceId: resourceID.String(), EnvironmentId: environmentID.String(),
-	}))
+	})
 	if err != nil {
 		return nil, err
 	}
-	return resp.Msg, nil
+	return resp, nil
 }
 
 func TestGetResourceEnvReturnsThePlainEnvOfTheEnvironmentsDeployment(t *testing.T) {

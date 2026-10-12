@@ -3,7 +3,6 @@ package service
 import (
 	"testing"
 
-	"connectrpc.com/connect"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 )
 
@@ -11,12 +10,12 @@ func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 	defaults := testServiceDefaults()
 	const schemaURL = "https://loco.test/schemas/loco.v1.json"
 	server := NewConfigServer("onloco.test", "v1.2.3", schemaURL, defaults, nil)
-	req := connect.NewRequest(&configv1.GetConfigRequest{})
+	req := &configv1.GetConfigRequest{}
 	resp, err := server.GetConfig(t.Context(), req)
 	if err != nil {
 		t.Fatalf("GetConfig: %v", err)
 	}
-	got := resp.Msg.GetServiceDefaults()
+	got := resp.GetServiceDefaults()
 	if got.GetCpu() != defaults.CPU || got.GetMemory() != defaults.Memory {
 		t.Errorf("cpu %q, memory %q, want %q and %q", got.GetCpu(), got.GetMemory(), defaults.CPU, defaults.Memory)
 	}
@@ -40,10 +39,10 @@ func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 		health.GetInitialDelaySeconds() != defaults.HealthStartupGracePeriod {
 		t.Errorf("health check = %v, want the configured defaults", health)
 	}
-	if resp.Msg.GetSchemaUrl() != schemaURL {
-		t.Errorf("schema url = %q, want %q", resp.Msg.GetSchemaUrl(), schemaURL)
+	if resp.GetSchemaUrl() != schemaURL {
+		t.Errorf("schema url = %q, want %q", resp.GetSchemaUrl(), schemaURL)
 	}
-	if got.GetPlatformDomain() != "onloco.test" || resp.Msg.GetMinCliVersion() != "v1.2.3" {
-		t.Errorf("platform domain %q, min CLI version %q", got.GetPlatformDomain(), resp.Msg.GetMinCliVersion())
+	if got.GetPlatformDomain() != "onloco.test" || resp.GetMinCliVersion() != "v1.2.3" {
+		t.Errorf("platform domain %q, min CLI version %q", got.GetPlatformDomain(), resp.GetMinCliVersion())
 	}
 }

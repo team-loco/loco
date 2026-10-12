@@ -10,7 +10,6 @@ import (
 
 	"github.com/team-loco/loco/internal/rpc"
 
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
@@ -22,8 +21,8 @@ var errNoUpdateFlags = errors.New("at least one update flag is required (--name 
 type updateDeps struct {
 	UpdateWorkspace func(
 		ctx context.Context,
-		req *connect.Request[workspacev1.UpdateWorkspaceRequest],
-	) (*connect.Response[workspacev1.UpdateWorkspaceResponse], error)
+		req *workspacev1.UpdateWorkspaceRequest,
+	) (*workspacev1.UpdateWorkspaceResponse, error)
 	Output io.Writer
 }
 
@@ -96,7 +95,7 @@ func buildUpdateCmd() *cobra.Command {
 
 			updateReq.UpdateMask = &fieldmaskpb.FieldMask{Paths: paths}
 
-			req := connect.NewRequest(updateReq)
+			req := updateReq
 
 			_, err = deps.UpdateWorkspace(ctx, req)
 			if err != nil {

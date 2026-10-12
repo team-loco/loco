@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -67,26 +67,26 @@ func TestApplyRefusesAnImageTagThatMovedSinceThePlan(t *testing.T) {
 		testClusterSilentAfter,
 	)
 	readCtx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, f.workspaceReadScopes(t))
-	planned, err := server.Plan(readCtx, connect.NewRequest(&planv1.PlanRequest{
+	planned, err := server.Plan(readCtx, &planv1.PlanRequest{
 		File:          []byte(file),
 		EnvironmentId: f.envID.String(),
-	}))
+	})
 	if err != nil {
 		t.Fatalf("Plan: %v", err)
 	}
-	reviewed := planned.Msg.GetImages()
+	reviewed := planned.GetImages()
 	if len(reviewed) != 1 {
 		t.Fatalf("plan images = %v, want the one reference", reviewed)
 	}
 
 	resolver.digest = movedDigest
 	writeCtx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, f.applyScopes(t))
-	_, err = server.Apply(writeCtx, connect.NewRequest(&planv1.ApplyRequest{
+	_, err = server.Apply(writeCtx, &planv1.ApplyRequest{
 		File:          []byte(file),
 		EnvironmentId: f.envID.String(),
-		Revision:      planned.Msg.GetRevision(),
+		Revision:      planned.GetRevision(),
 		Images:        reviewed,
-	}))
+	})
 	refusal := wantRefusal(t, err)
 	if maps.Equal(refusal.GetImages(), reviewed) || len(refusal.GetImages()) != 1 {
 		t.Fatalf("refusal images = %v, want the moved digest", refusal.GetImages())

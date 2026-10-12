@@ -12,13 +12,15 @@ import (
 	"os"
 	"os/signal"
 	"slices"
+	"strings"
 	"syscall"
 	"time"
 
 	charmLog "charm.land/log/v2"
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
 	connectcors "connectrpc.com/cors"
-	"connectrpc.com/grpcreflect"
+	"connectrpc.com/grpcreflect/v2"
 	"connectrpc.com/validate"
 	"github.com/rs/cors"
 	"github.com/team-loco/loco/api/auth"
@@ -163,7 +165,7 @@ func main() {
 	defer beginShutdown()
 
 	deadlineInterceptor := interceptor.NewDeadlineInterceptor(shutdownCtx, 30*time.Second)
-	baseInterceptors := connect.WithInterceptors(deadlineInterceptor)
+	baseServer := connect.NewServer(deadlineInterceptor.Interceptor())
 
 	mux := http.NewServeMux()
 	authClient := newOutboundHTTPClient()
@@ -180,11 +182,11 @@ func main() {
 	emailVerifierOption := auth.WithEmailVerifiers(emailVerifiers)
 	resolver := auth.NewResolver(pool, ac.SignupPolicy, emailVerifierOption)
 
-	httpInterceptors := connect.WithInterceptors(
-		deadlineInterceptor,
-		interceptor.NewContextInterceptor(),
-		interceptor.NewAuthInterceptor(machine, verifier, resolver, authz.New(pool, queries)),
-		validate.NewInterceptor(),
+	authenticatedServer := connect.NewServer(
+		deadlineInterceptor.Interceptor(),
+		interceptor.NewContextInterceptor().Interceptor(),
+		interceptor.NewAuthInterceptor(machine, verifier, resolver, authz.New(pool, queries)).Interceptor(),
+		validate.NewServerInterceptor(),
 	)
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
@@ -280,32 +282,20 @@ func main() {
 		ac.AuthIssuers,
 	)
 
-	configPath, configHandler := configv1connect.NewConfigServiceHandler(configServiceHandler, baseInterceptors)
-	userPath, userHandler := userv1connect.NewUserServiceHandler(userServiceHandler, httpInterceptors)
-	authPath, authHandler := authv1connect.NewAuthServiceHandler(authServiceHandler, httpInterceptors)
-	eventPath, eventHandler := eventv1connect.NewEventServiceHandler(eventServiceHandler, httpInterceptors)
-	webhookPath, webhookHandler := webhookv1connect.NewWebhookServiceHandler(webhookServiceHandler, httpInterceptors)
-	orgPath, orgHandler := orgv1connect.NewOrgServiceHandler(orgServiceHandler, httpInterceptors)
-	workspacePath, workspaceHandler := workspacev1connect.NewWorkspaceServiceHandler(
-		workspaceServiceHandler,
-		httpInterceptors,
-	)
-	resourcePath, resourceHandler := resourcev1connect.NewResourceServiceHandler(
-		resourceServiceHandler,
-		httpInterceptors,
-	)
-	deploymentPath, deploymentHandler := deploymentv1connect.NewDeploymentServiceHandler(
-		deploymentServiceHandler,
-		httpInterceptors,
-	)
-	buildPath, buildHandler := buildv1connect.NewBuildServiceHandler(buildServiceHandler, httpInterceptors)
-	domainPath, domainHandler := domainv1connect.NewDomainServiceHandler(domainServiceHandler, httpInterceptors)
-	tokenPath, tokenHandler := tokenv1connect.NewTokenServiceHandler(tokenServiceHandler, httpInterceptors)
-	agentPath, agentHandler := agentv1connect.NewAgentServiceHandler(agentServiceHandler, baseInterceptors)
-	observabilityAccessPath, observabilityAccessH := observabilityv1connect.NewObservabilityAccessServiceHandler(
-		observabilityAccessHandler,
-		httpInterceptors,
-	)
+	configv1connect.RegisterConfigServiceHandler(baseServer, configServiceHandler)
+	userv1connect.RegisterUserServiceHandler(authenticatedServer, userServiceHandler)
+	authv1connect.RegisterAuthServiceHandler(authenticatedServer, authServiceHandler)
+	eventv1connect.RegisterEventServiceHandler(authenticatedServer, eventServiceHandler)
+	webhookv1connect.RegisterWebhookServiceHandler(authenticatedServer, webhookServiceHandler)
+	orgv1connect.RegisterOrgServiceHandler(authenticatedServer, orgServiceHandler)
+	workspacev1connect.RegisterWorkspaceServiceHandler(authenticatedServer, workspaceServiceHandler)
+	resourcev1connect.RegisterResourceServiceHandler(authenticatedServer, resourceServiceHandler)
+	deploymentv1connect.RegisterDeploymentServiceHandler(authenticatedServer, deploymentServiceHandler)
+	buildv1connect.RegisterBuildServiceHandler(authenticatedServer, buildServiceHandler)
+	domainv1connect.RegisterDomainServiceHandler(authenticatedServer, domainServiceHandler)
+	tokenv1connect.RegisterTokenServiceHandler(authenticatedServer, tokenServiceHandler)
+	agentv1connect.RegisterAgentServiceHandler(baseServer, agentServiceHandler)
+	observabilityv1connect.RegisterObservabilityAccessServiceHandler(authenticatedServer, observabilityAccessHandler)
 	planServiceHandler := service.NewPlanServer(
 		pool,
 		queries,
@@ -315,141 +305,11 @@ func main() {
 		ac.SecretLimits,
 		clusterSilentAfter,
 	)
-	planPath, planHandler := planv1connect.NewPlanServiceHandler(planServiceHandler, httpInterceptors)
-	environmentPath, environmentHandler := environmentv1connect.NewEnvironmentServiceHandler(
-		environmentServiceHandler,
-		httpInterceptors,
-	)
-	secretPath, secretHandler := secretv1connect.NewSecretServiceHandler(secretServiceHandler, httpInterceptors)
+	planv1connect.RegisterPlanServiceHandler(authenticatedServer, planServiceHandler)
+	environmentv1connect.RegisterEnvironmentServiceHandler(authenticatedServer, environmentServiceHandler)
+	secretv1connect.RegisterSecretServiceHandler(authenticatedServer, secretServiceHandler)
 
-	reflector := grpcreflect.NewStaticReflector(
-		// config service
-		configv1connect.ConfigServiceGetConfigProcedure,
-
-		// user service
-		eventv1connect.EventServiceListOrgEventsProcedure,
-		eventv1connect.EventServiceStreamEventsProcedure,
-		webhookv1connect.WebhookServiceCreateWebhookProcedure,
-		webhookv1connect.WebhookServiceListWebhooksProcedure,
-		webhookv1connect.WebhookServiceDeleteWebhookProcedure,
-		webhookv1connect.WebhookServiceListWebhookDeliveriesProcedure,
-		authv1connect.AuthServiceApproveCLILoginProcedure,
-		authv1connect.AuthServiceExchangeCLICodeProcedure,
-		authv1connect.AuthServiceStartDeviceLoginProcedure,
-		authv1connect.AuthServiceApproveDeviceLoginProcedure,
-		authv1connect.AuthServicePollDeviceLoginProcedure,
-		authv1connect.AuthServiceRefreshCLITokenProcedure,
-		userv1connect.UserServiceGetUserProcedure,
-		userv1connect.UserServiceWhoAmIProcedure,
-		userv1connect.UserServiceUpdateUserProcedure,
-		userv1connect.UserServiceListUsersProcedure,
-		userv1connect.UserServiceDeleteUserProcedure,
-
-		// org service
-		orgv1connect.OrgServiceCreateOrgProcedure,
-		orgv1connect.OrgServiceGetOrgProcedure,
-		orgv1connect.OrgServiceListUserOrgsProcedure,
-		orgv1connect.OrgServiceListOrgUsersProcedure,
-		orgv1connect.OrgServiceListOrgWorkspacesProcedure,
-		orgv1connect.OrgServiceUpdateOrgProcedure,
-		orgv1connect.OrgServiceDeleteOrgProcedure,
-
-		// workspace service
-		workspacev1connect.WorkspaceServiceCreateWorkspaceProcedure,
-		workspacev1connect.WorkspaceServiceGetWorkspaceProcedure,
-		workspacev1connect.WorkspaceServiceListUserWorkspacesProcedure,
-		workspacev1connect.WorkspaceServiceListOrgWorkspacesProcedure,
-		workspacev1connect.WorkspaceServiceUpdateWorkspaceProcedure,
-		workspacev1connect.WorkspaceServiceDeleteWorkspaceProcedure,
-		workspacev1connect.WorkspaceServiceCreateMemberProcedure,
-		workspacev1connect.WorkspaceServiceDeleteMemberProcedure,
-		workspacev1connect.WorkspaceServiceListWorkspaceMembersProcedure,
-
-		// resource service
-		resourcev1connect.ResourceServiceCreateResourceProcedure,
-		resourcev1connect.ResourceServiceGetResourceProcedure,
-		resourcev1connect.ResourceServiceListWorkspaceResourcesProcedure,
-		resourcev1connect.ResourceServiceUpdateResourceProcedure,
-		resourcev1connect.ResourceServiceDeleteResourceProcedure,
-		resourcev1connect.ResourceServiceListResourceEventsProcedure,
-
-		// deployment service
-		deploymentv1connect.DeploymentServiceCreateDeploymentProcedure,
-		deploymentv1connect.DeploymentServiceGetDeploymentProcedure,
-		deploymentv1connect.DeploymentServiceListDeploymentsProcedure,
-		deploymentv1connect.DeploymentServiceWatchDeploymentProcedure,
-
-		buildv1connect.BuildServiceCreateBuildProcedure,
-		buildv1connect.BuildServiceStartBuildProcedure,
-		buildv1connect.BuildServiceGetBuildProcedure,
-		buildv1connect.BuildServiceListBuildsProcedure,
-		buildv1connect.BuildServiceCancelBuildProcedure,
-
-		// domain service
-		domainv1connect.DomainServiceCreatePlatformDomainProcedure,
-		domainv1connect.DomainServiceGetPlatformDomainProcedure,
-		domainv1connect.DomainServiceListPlatformDomainsProcedure,
-		domainv1connect.DomainServiceUpdatePlatformDomainProcedure,
-		domainv1connect.DomainServiceDeletePlatformDomainProcedure,
-		domainv1connect.DomainServiceCreateResourceDomainProcedure,
-		domainv1connect.DomainServiceUpdateResourceDomainProcedure,
-		domainv1connect.DomainServiceSetPrimaryResourceDomainProcedure,
-		domainv1connect.DomainServiceDeleteResourceDomainProcedure,
-		domainv1connect.DomainServiceListLocoOwnedDomainsProcedure,
-		domainv1connect.DomainServiceCheckDomainAvailabilityProcedure,
-
-		// token service
-		tokenv1connect.TokenServiceCreateTokenProcedure,
-		tokenv1connect.TokenServiceListTokensProcedure,
-		tokenv1connect.TokenServiceGetTokenProcedure,
-		tokenv1connect.TokenServiceRevokeTokenProcedure,
-		tokenv1connect.TokenServiceGetScopesProcedure,
-		tokenv1connect.TokenServiceCheckPermissionProcedure,
-
-		// agent service
-		agentv1connect.AgentServiceRegisterProcedure,
-		agentv1connect.AgentServiceSyncProcedure,
-
-		// observability access service
-		observabilityv1connect.ObservabilityAccessServiceGetObservabilityAccessProcedure,
-
-		// environment service
-		environmentv1connect.EnvironmentServiceCreateEnvironmentProcedure,
-		environmentv1connect.EnvironmentServiceGetEnvironmentProcedure,
-		environmentv1connect.EnvironmentServiceListEnvironmentsProcedure,
-		environmentv1connect.EnvironmentServiceUpdateEnvironmentProcedure,
-		environmentv1connect.EnvironmentServiceDeleteEnvironmentProcedure,
-		planv1connect.PlanServicePlanProcedure,
-		planv1connect.PlanServiceApplyProcedure,
-
-		// secret service
-		secretv1connect.SecretServiceSetSecretsProcedure,
-		secretv1connect.SecretServiceDeleteSecretsProcedure,
-		secretv1connect.SecretServiceListSecretsProcedure,
-		secretv1connect.SecretServiceRewrapEnvironmentKeysProcedure,
-	)
-
-	// mount both old and new reflectors for backwards compatibility
-	mux.Handle(grpcreflect.NewHandlerV1(reflector))
-	mux.Handle(grpcreflect.NewHandlerV1Alpha(reflector))
-
-	mux.Handle(configPath, configHandler)
-	mux.Handle(userPath, userHandler)
-	mux.Handle(authPath, authHandler)
-	mux.Handle(eventPath, eventHandler)
-	mux.Handle(webhookPath, webhookHandler)
-	mux.Handle(orgPath, orgHandler)
-	mux.Handle(workspacePath, workspaceHandler)
-	mux.Handle(resourcePath, resourceHandler)
-	mux.Handle(deploymentPath, deploymentHandler)
-	mux.Handle(buildPath, buildHandler)
-	mux.Handle(domainPath, domainHandler)
-	mux.Handle(tokenPath, tokenHandler)
-	mux.Handle(agentPath, agentHandler)
-	mux.Handle(observabilityAccessPath, observabilityAccessH)
-	mux.Handle(environmentPath, environmentHandler)
-	mux.Handle(planPath, planHandler)
-	mux.Handle(secretPath, secretHandler)
+	mountRPCServers(mux, baseServer, authenticatedServer)
 
 	allowLoopback := ac.Env != envProduction
 	corsMiddleware := withCORS(ac.CORSAllowedOrigins, allowLoopback)
@@ -537,4 +397,28 @@ func getLoggerHandler(ac *APIConfig) slog.Handler {
 		})
 	}
 	return charmLog.NewWithOptions(os.Stderr, charmLog.Options{ReportCaller: true, ReportTimestamp: true})
+}
+
+func mountRPCServers(mux *http.ServeMux, baseServer, authenticatedServer *connect.Server) {
+	grpcreflect.Register(authenticatedServer, grpcreflect.WithNamer(grpcreflect.NamerFunc(func() []string {
+		var names []string
+		seen := map[string]bool{}
+		for spec := range baseServer.Specs() {
+			serviceName, _, _ := strings.Cut(strings.TrimPrefix(spec.Procedure, "/"), "/")
+			if !seen[serviceName] {
+				names = append(names, serviceName)
+				seen[serviceName] = true
+			}
+		}
+		for spec := range authenticatedServer.Specs() {
+			serviceName, _, _ := strings.Cut(strings.TrimPrefix(spec.Procedure, "/"), "/")
+			if !seen[serviceName] {
+				names = append(names, serviceName)
+				seen[serviceName] = true
+			}
+		}
+		return names
+	})))
+	connecthttp.Mount(mux, baseServer)
+	connecthttp.Mount(mux, authenticatedServer)
 }

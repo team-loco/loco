@@ -7,7 +7,10 @@ import (
 	"net/http"
 	"slices"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2/connectproto"
+
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	"github.com/team-loco/loco/gen/go/loco/plan/v1/planv1connect"
@@ -39,7 +42,9 @@ type fakePlanService struct {
 }
 
 func (f *fakeAPI) registerPlan(mux *http.ServeMux) {
-	mux.Handle(planv1connect.NewPlanServiceHandler(&fakePlanService{api: f}))
+	server := connect.NewServer()
+	planv1connect.RegisterPlanServiceHandler(server, &fakePlanService{api: f})
+	connecthttp.Mount(mux, server)
 }
 
 func (p *fakePlatform) setPlan(data string) error {
@@ -63,61 +68,73 @@ func (p *fakePlatform) currentPlan() *planv1.PlanResponse {
 }
 
 func (s *fakePlanService) Plan(
-	_ context.Context,
-	req *connect.Request[planv1.PlanRequest],
-) (*connect.Response[planv1.PlanResponse], error) {
+	ctx context.Context,
+	req *planv1.PlanRequest,
+) (*planv1.PlanResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
 	f := s.api
-	if _, _, err := f.authenticate(req.Spec(), req.Header()); err != nil {
+	if _, _, err := f.authenticate(
+		connect.Spec{Procedure: planv1connect.PlanServicePlanProcedure},
+		info.RequestHeader(),
+	); err != nil {
 		return nil, err
 	}
-	if req.Msg.GetEnvironmentId() != fakeEnvironmentID {
-		return nil, connect.NewError(connect.CodeNotFound, errFakeUnknownEnvironment)
+	if req.GetEnvironmentId() != fakeEnvironmentID {
+		return nil, connect.NewError(connect.CodeNotFound, errFakeUnknownEnvironment.Error()).
+			WithCause(errFakeUnknownEnvironment)
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.platform.planned = append(f.platform.planned, req.Msg.GetFile())
-	return connect.NewResponse(f.platform.currentPlan()), nil
+	f.platform.planned = append(f.platform.planned, req.GetFile())
+	return f.platform.currentPlan(), nil
 }
 
 func (s *fakePlanService) Apply(
-	_ context.Context,
-	req *connect.Request[planv1.ApplyRequest],
-) (*connect.Response[planv1.ApplyResponse], error) {
+	ctx context.Context,
+	req *planv1.ApplyRequest,
+) (*planv1.ApplyResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
 	f := s.api
-	if _, _, err := f.authenticate(req.Spec(), req.Header()); err != nil {
+	if _, _, err := f.authenticate(
+		connect.Spec{Procedure: planv1connect.PlanServiceApplyProcedure},
+		info.RequestHeader(),
+	); err != nil {
 		return nil, err
 	}
-	if req.Msg.GetEnvironmentId() != fakeEnvironmentID {
-		return nil, connect.NewError(connect.CodeNotFound, errFakeUnknownEnvironment)
+	if req.GetEnvironmentId() != fakeEnvironmentID {
+		return nil, connect.NewError(connect.CodeNotFound, errFakeUnknownEnvironment.Error()).
+			WithCause(errFakeUnknownEnvironment)
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	plan := f.platform.currentPlan()
-	if remaining := f.platform.unwaivedErrors(plan, req.Msg.GetProvision()); len(remaining) > 0 {
+	if remaining := f.platform.unwaivedErrors(plan, req.GetProvision()); len(remaining) > 0 {
 		return nil, fakeApplyRefused(&planv1.ApplyRefusal{Errors: remaining})
 	}
 	revision := plan.GetRevision() + int64(len(f.platform.applies))
 	if f.platform.revisionMoves {
 		revision++
 	}
-	if req.Msg.GetRevision() != revision {
+	if req.GetRevision() != revision {
 		return nil, fakeApplyRefused(&planv1.ApplyRefusal{Revision: revision})
 	}
 	images := f.platform.currentImages(plan)
-	if !maps.Equal(req.Msg.GetImages(), images) {
+	if !maps.Equal(req.GetImages(), images) {
 		return nil, fakeApplyRefused(&planv1.ApplyRefusal{Images: images})
 	}
-	if len(req.Msg.GetProvision()) > 0 {
-		return f.provision(req.Msg, plan, revision)
+	if len(req.GetProvision()) > 0 {
+		return f.provision(req, plan, revision)
 	}
 	if f.platform.clusterHeld {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errFakeClusterHeld)
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errFakeClusterHeld.Error()).
+			WithCause(errFakeClusterHeld)
 	}
-	builds := req.Msg.GetBuilds()
+	builds := req.GetBuilds()
 	for _, service := range slices.Sorted(maps.Keys(builds)) {
 		build := f.findBuild(builds[service])
 		if build == nil || build.GetStatus() != buildv1.BuildStatus_BUILD_STATUS_SUCCEEDED {
-			return nil, connect.NewError(connect.CodeFailedPrecondition, errFakeBuildNotSucceeded)
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errFakeBuildNotSucceeded.Error()).
+				WithCause(errFakeBuildNotSucceeded)
 		}
 	}
 	var unconfirmed []*planv1.PlanOperation
@@ -125,7 +142,7 @@ func (s *fakePlanService) Apply(
 	deployed := map[string]bool{}
 	for _, op := range plan.GetOperations() {
 		isImport := op.GetKind() == planv1.PlanOperationKind_PLAN_OPERATION_KIND_IMPORT
-		if (op.GetDestructive() && !req.Msg.GetConfirmDestructive()) || (isImport && !req.Msg.GetConfirmImport()) {
+		if (op.GetDestructive() && !req.GetConfirmDestructive()) || (isImport && !req.GetConfirmImport()) {
 			unconfirmed = append(unconfirmed, op)
 			continue
 		}
@@ -149,12 +166,12 @@ func (s *fakePlanService) Apply(
 			deployments = append(deployments, fakeStartedDeployment(service))
 		}
 	}
-	f.platform.applies = append(f.platform.applies, req.Msg)
-	return connect.NewResponse(&planv1.ApplyResponse{
+	f.platform.applies = append(f.platform.applies, req)
+	return &planv1.ApplyResponse{
 		Revision:    revision + 1,
 		Operations:  plan.GetOperations(),
 		Deployments: deployments,
-	}), nil
+	}, nil
 }
 
 func (p *fakePlatform) currentImages(plan *planv1.PlanResponse) map[string]string {
@@ -188,9 +205,10 @@ func (f *fakeAPI) provision(
 	req *planv1.ApplyRequest,
 	plan *planv1.PlanResponse,
 	revision int64,
-) (*connect.Response[planv1.ApplyResponse], error) {
+) (*planv1.ApplyResponse, error) {
 	if len(req.GetBuilds()) > 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errFakeProvisionMixed)
+		return nil, connect.NewError(connect.CodeInvalidArgument, errFakeProvisionMixed.Error()).
+			WithCause(errFakeProvisionMixed)
 	}
 	var operations []*planv1.PlanOperation
 	for _, service := range req.GetProvision() {
@@ -215,7 +233,7 @@ func (f *fakeAPI) provision(
 		f.platform.addResource(service)
 	}
 	f.platform.applies = append(f.platform.applies, req)
-	return connect.NewResponse(&planv1.ApplyResponse{Revision: revision + 1, Operations: operations}), nil
+	return &planv1.ApplyResponse{Revision: revision + 1, Operations: operations}, nil
 }
 
 func fakeStartedDeployment(service string) *planv1.StartedDeployment {
@@ -223,11 +241,12 @@ func fakeStartedDeployment(service string) *planv1.StartedDeployment {
 }
 
 func fakeApplyRefused(refusal *planv1.ApplyRefusal) error {
-	refused := connect.NewError(connect.CodeFailedPrecondition, errFakeApplyRefused)
-	detail, err := connect.NewErrorDetail(refusal)
+	refused := connect.NewError(connect.CodeFailedPrecondition, errFakeApplyRefused.Error()).
+		WithCause(errFakeApplyRefused)
+	detail, err := connectproto.NewErrorDetail(refusal)
 	if err != nil {
 		panic(err)
 	}
-	refused.AddDetail(detail)
+	refused = refused.WithDetail(detail)
 	return refused
 }

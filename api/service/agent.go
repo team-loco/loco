@@ -11,7 +11,7 @@ import (
 
 	"github.com/team-loco/loco/api/events"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -93,14 +93,15 @@ func (s *AgentServer) authenticateAgent(
 // Register announces an agent to the control plane.
 func (s *AgentServer) Register(
 	ctx context.Context,
-	req *connect.Request[agentv1.RegisterRequest],
-) (*connect.Response[agentv1.RegisterResponse], error) {
-	r := req.Msg
+	req *agentv1.RegisterRequest,
+) (*agentv1.RegisterResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
+	r := req
 
 	// Authenticate using bearer token
-	cluster, err := s.authenticateAgent(ctx, req.Header().Get("Authorization"))
+	cluster, err := s.authenticateAgent(ctx, info.RequestHeader().Get("Authorization"))
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, connect.NewError(connect.CodeUnauthenticated, err.Error()).WithCause(err)
 	}
 
 	// Update cluster with agent info
@@ -128,7 +129,7 @@ func (s *AgentServer) Register(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update cluster agent info", "error", err, "cluster_id", cluster.ID)
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, connect.NewError(connect.CodeInternal, err.Error()).WithCause(err)
 	}
 
 	slog.InfoContext(ctx, "agent registered",
@@ -140,10 +141,10 @@ func (s *AgentServer) Register(
 	)
 
 	heartbeatInterval := durationpb.New(s.heartbeatInterval)
-	return connect.NewResponse(&agentv1.RegisterResponse{
+	return &agentv1.RegisterResponse{
 		ClusterId:         cluster.ID.String(),
 		HeartbeatInterval: heartbeatInterval,
-	}), nil
+	}, nil
 }
 
 func (s *AgentServer) recordHeartbeat(ctx context.Context, clusterID uuid.UUID, heartbeat *agentv1.Heartbeat) {

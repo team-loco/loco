@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
@@ -59,7 +59,7 @@ func (c *domainClient) domainID(t *testing.T, domain string) string {
 }
 
 func (c *domainClient) removeByID(id string) error {
-	req := connect.NewRequest(&domainv1.DeleteResourceDomainRequest{DomainId: id})
+	req := &domainv1.DeleteResourceDomainRequest{DomainId: id}
 	_, err := c.server.DeleteResourceDomain(c.ctx, req)
 	return err
 }
@@ -76,7 +76,7 @@ func (c *domainClient) add(domain string) error {
 		PlatformDomainId: &platformDomainID,
 	}
 	resourceID := c.f.resourceID.String()
-	req := connect.NewRequest(&domainv1.CreateResourceDomainRequest{ResourceId: resourceID, Domain: input})
+	req := &domainv1.CreateResourceDomainRequest{ResourceId: resourceID, Domain: input}
 	_, err = c.server.CreateResourceDomain(c.ctx, req)
 	return err
 }
@@ -256,12 +256,10 @@ func TestPrimaryDomainChangesUpdateRunningPlacement(t *testing.T) {
 	}
 	client := newDomainClient(t, f)
 	before := f.placement(t, f.clusterID)
-	request := connect.NewRequest(
-		&domainv1.SetPrimaryResourceDomainRequest{
-			ResourceId: f.resourceID.String(),
-			DomainId:   client.domainID(t, testSecondDomain),
-		},
-	)
+	request := &domainv1.SetPrimaryResourceDomainRequest{
+		ResourceId: f.resourceID.String(),
+		DomainId:   client.domainID(t, testSecondDomain),
+	}
 	if _, err := client.server.SetPrimaryResourceDomain(client.ctx, request); err != nil {
 		t.Fatal(err)
 	}
@@ -300,12 +298,10 @@ func TestDomainRenameNotifiesTheAgentAndPreservesPlacementSettings(t *testing.T)
 			t.Error(unlistenErr)
 		}
 	}()
-	request := connect.NewRequest(
-		&domainv1.UpdateResourceDomainRequest{
-			DomainId: client.domainID(t, testPrimaryDomain),
-			Domain:   new(testSecondDomain),
-		},
-	)
+	request := &domainv1.UpdateResourceDomainRequest{
+		DomainId: client.domainID(t, testPrimaryDomain),
+		Domain:   new(testSecondDomain),
+	}
 	if _, updateErr := client.server.UpdateResourceDomain(client.ctx, request); updateErr != nil {
 		t.Fatal(updateErr)
 	}
@@ -368,9 +364,7 @@ func TestDomainChangeRollsBackWhenPlacementCannotBeUpdated(t *testing.T) {
 		t.Fatal(err)
 	}
 	domainID := client.domainID(t, testPrimaryDomain)
-	request := connect.NewRequest(
-		&domainv1.UpdateResourceDomainRequest{DomainId: domainID, Domain: new(testSecondDomain)},
-	)
+	request := &domainv1.UpdateResourceDomainRequest{DomainId: domainID, Domain: new(testSecondDomain)}
 	_, err := client.server.UpdateResourceDomain(client.ctx, request)
 	wantCode(t, err, connect.CodeInternal)
 	if got := client.domainID(t, testPrimaryDomain); got != domainID {

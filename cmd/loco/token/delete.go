@@ -7,7 +7,6 @@ import (
 
 	"github.com/team-loco/loco/internal/rpc"
 
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
@@ -106,11 +105,11 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 				}
 			}
 
-			req := connect.NewRequest(&tokenv1.RevokeTokenRequest{
+			req := &tokenv1.RevokeTokenRequest{
 				Name:       name,
 				EntityType: entityType,
 				EntityId:   entityID,
-			})
+			}
 
 			_, err = tokenClient.RevokeToken(ctx, req)
 			if err != nil {

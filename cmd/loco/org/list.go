@@ -7,7 +7,6 @@ import (
 
 	"github.com/team-loco/loco/internal/rpc"
 
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
@@ -60,29 +59,29 @@ func newListCmd(deps listDeps) *cobra.Command {
 			orgClient := deps.NewOrgClient(host, locoToken.Token)
 			userClient := deps.NewUserClient(host, locoToken.Token)
 
-			whoAmIReq := connect.NewRequest(&userv1.WhoAmIRequest{})
+			whoAmIReq := &userv1.WhoAmIRequest{}
 
 			whoAmIResp, err := userClient.WhoAmI(ctx, whoAmIReq)
 			if err != nil {
 				return fmt.Errorf("unable to get current user: %w", err)
 			}
 
-			req := connect.NewRequest(&orgv1.ListUserOrgsRequest{
-				UserId: whoAmIResp.Msg.GetUser().GetId(),
-			})
+			req := &orgv1.ListUserOrgsRequest{
+				UserId: whoAmIResp.GetUser().GetId(),
+			}
 
 			resp, err := orgClient.ListUserOrgs(ctx, req)
 			if err != nil {
 				return fmt.Errorf("unable to list organizations: %w", err)
 			}
 
-			if len(resp.Msg.GetOrgs()) == 0 {
+			if len(resp.GetOrgs()) == 0 {
 				fmt.Fprintln(deps.Output, "No organizations found.")
 				return nil
 			}
 
 			fmt.Fprintln(deps.Output, "Organizations:")
-			for _, org := range resp.Msg.GetOrgs() {
+			for _, org := range resp.GetOrgs() {
 				fmt.Fprintf(deps.Output, "  - %s (ID: %s)\n", org.GetName(), org.GetId())
 			}
 

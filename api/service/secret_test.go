@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -67,54 +67,54 @@ func TestSecretServiceAuthorization(t *testing.T) {
 		want   connect.Code
 	}{
 		{"set with read only", []genDb.EntityScope{read}, func(ctx context.Context) error {
-			_, err := server.SetSecrets(ctx, connect.NewRequest(&secretv1.SetSecretsRequest{
+			_, err := server.SetSecrets(ctx, &secretv1.SetSecretsRequest{
 				ResourceId: resourceID, EnvironmentId: envID, Values: map[string]string{"A": "1"},
-			}))
+			})
 			return err
 		}, connect.CodePermissionDenied},
 		{"set on another workspace", []genDb.EntityScope{otherWrite}, func(ctx context.Context) error {
-			_, err := server.SetSecrets(ctx, connect.NewRequest(&secretv1.SetSecretsRequest{
+			_, err := server.SetSecrets(ctx, &secretv1.SetSecretsRequest{
 				ResourceId: resourceID, EnvironmentId: envID, Values: map[string]string{"A": "1"},
-			}))
+			})
 			return err
 		}, connect.CodePermissionDenied},
 		{"set without a provider", []genDb.EntityScope{write}, func(ctx context.Context) error {
-			_, err := server.SetSecrets(ctx, connect.NewRequest(&secretv1.SetSecretsRequest{
+			_, err := server.SetSecrets(ctx, &secretv1.SetSecretsRequest{
 				ResourceId: resourceID, EnvironmentId: envID, Values: map[string]string{"A": "1"},
-			}))
+			})
 			return err
 		}, connect.CodeFailedPrecondition},
 		{"set on another resource", []genDb.EntityScope{otherResourceWrite}, func(ctx context.Context) error {
-			_, err := server.SetSecrets(ctx, connect.NewRequest(&secretv1.SetSecretsRequest{
+			_, err := server.SetSecrets(ctx, &secretv1.SetSecretsRequest{
 				ResourceId: resourceID, EnvironmentId: envID, Values: map[string]string{"A": "1"},
-			}))
+			})
 			return err
 		}, connect.CodePermissionDenied},
 		{"set with the resource's own scope", []genDb.EntityScope{resourceWrite}, func(ctx context.Context) error {
-			_, err := server.SetSecrets(ctx, connect.NewRequest(&secretv1.SetSecretsRequest{
+			_, err := server.SetSecrets(ctx, &secretv1.SetSecretsRequest{
 				ResourceId: resourceID, EnvironmentId: envID, Values: map[string]string{"A": "1"},
-			}))
+			})
 			return err
 		}, connect.CodeFailedPrecondition},
 		{"delete with read only", []genDb.EntityScope{read}, func(ctx context.Context) error {
-			_, err := server.DeleteSecrets(ctx, connect.NewRequest(&secretv1.DeleteSecretsRequest{
+			_, err := server.DeleteSecrets(ctx, &secretv1.DeleteSecretsRequest{
 				ResourceId: resourceID, EnvironmentId: envID, Names: []string{"A"},
-			}))
+			})
 			return err
 		}, connect.CodePermissionDenied},
 		{"list without read", []genDb.EntityScope{otherWrite}, func(ctx context.Context) error {
 			_, err := server.ListSecrets(
 				ctx,
-				connect.NewRequest(&secretv1.ListSecretsRequest{ResourceId: resourceID, EnvironmentId: envID}),
+				&secretv1.ListSecretsRequest{ResourceId: resourceID, EnvironmentId: envID},
 			)
 			return err
 		}, connect.CodePermissionDenied},
 		{"rewrap with workspace write", []genDb.EntityScope{write}, func(ctx context.Context) error {
-			_, err := server.RewrapEnvironmentKeys(ctx, connect.NewRequest(&secretv1.RewrapEnvironmentKeysRequest{}))
+			_, err := server.RewrapEnvironmentKeys(ctx, &secretv1.RewrapEnvironmentKeysRequest{})
 			return err
 		}, connect.CodePermissionDenied},
 		{"rewrap with system read", []genDb.EntityScope{systemRead}, func(ctx context.Context) error {
-			_, err := server.RewrapEnvironmentKeys(ctx, connect.NewRequest(&secretv1.RewrapEnvironmentKeysRequest{}))
+			_, err := server.RewrapEnvironmentKeys(ctx, &secretv1.RewrapEnvironmentKeysRequest{})
 			return err
 		}, connect.CodePermissionDenied},
 	}

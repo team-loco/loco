@@ -11,7 +11,6 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/table"
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
@@ -95,14 +94,14 @@ Examples:
 			resourceClient := deps.NewResourceClient(host, locoToken.Token)
 
 			// Get resource by name
-			getReq := connect.NewRequest(&resourcev1.GetResourceRequest{
+			getReq := &resourcev1.GetResourceRequest{
 				Key: &resourcev1.GetResourceRequest_NameKey{
 					NameKey: &resourcev1.GetResourceNameKey{
 						WorkspaceId: workspaceID,
 						Name:        name,
 					},
 				},
-			})
+			}
 
 			resourceResp, err := resourceClient.GetResource(ctx, getReq)
 			if err != nil {
@@ -110,7 +109,7 @@ Examples:
 			}
 
 			if output == outputJSON {
-				out, err := statusJSON.Marshal(resourceResp.Msg)
+				out, err := statusJSON.Marshal(resourceResp)
 				if err != nil {
 					return fmt.Errorf("failed to encode service status: %w", err)
 				}
@@ -118,7 +117,7 @@ Examples:
 				return err
 			}
 
-			resource := resourceResp.Msg.GetResource()
+			resource := resourceResp.GetResource()
 			return renderStatusView(deps.Stdout, name, resource)
 		},
 	}

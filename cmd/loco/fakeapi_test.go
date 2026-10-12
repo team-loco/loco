@@ -3,13 +3,15 @@ package loco
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"path"
 	"strings"
 	"sync"
 
-	"connectrpc.com/connect"
+	"github.com/team-loco/loco/internal/httputil"
+
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
@@ -71,9 +73,12 @@ func newFakeAPI() *fakeAPI {
 
 func (f *fakeAPI) handler() http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle(userv1connect.NewUserServiceHandler(f))
-	mux.Handle(authv1connect.NewAuthServiceHandler(&fakeAuthService{api: f}))
-	mux.Handle(configv1connect.NewConfigServiceHandler(&fakeConfigService{api: f}))
+	server := connect.NewServer()
+	userv1connect.RegisterUserServiceHandler(server, f)
+	authv1connect.RegisterAuthServiceHandler(server, &fakeAuthService{api: f})
+	configv1connect.RegisterConfigServiceHandler(server, &fakeConfigService{api: f})
+	connecthttp.Mount(mux, server)
+
 	f.registerPlatform(mux)
 	f.registerLogin(mux)
 	return mux
@@ -100,12 +105,15 @@ func (f *fakeAPI) record(spec connect.Spec, authorization string) error {
 	method := path.Base(spec.Procedure)
 	f.calls = append(f.calls, apiCall{method: method, authorization: authorization})
 	if code, ok := f.failures[method]; ok {
-		return connect.NewError(code, fmt.Errorf("fakeapi: %s configured to fail", method))
+		return connect.Errorf(code, "fakeapi: %s configured to fail", method)
 	}
 	return nil
 }
 
-func (f *fakeAPI) authenticate(spec connect.Spec, header http.Header) (string, *userv1.User, error) {
+func (f *fakeAPI) authenticate(
+	spec connect.Spec,
+	header httputil.HeaderGetter,
+) (string, *userv1.User, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	authorization := header.Get("Authorization")
@@ -115,34 +123,43 @@ func (f *fakeAPI) authenticate(spec connect.Spec, header http.Header) (string, *
 	token := strings.TrimPrefix(authorization, "Bearer ")
 	usr, ok := f.users[token]
 	if !ok {
-		return "", nil, connect.NewError(connect.CodeUnauthenticated, errFakeUnknownToken)
+		return "", nil, connect.NewError(connect.CodeUnauthenticated, errFakeUnknownToken.Error()).
+			WithCause(errFakeUnknownToken)
 	}
 	return token, usr, nil
 }
 
 func (f *fakeAPI) WhoAmI(
-	_ context.Context,
-	req *connect.Request[userv1.WhoAmIRequest],
-) (*connect.Response[userv1.WhoAmIResponse], error) {
-	_, usr, err := f.authenticate(req.Spec(), req.Header())
+	ctx context.Context,
+	_ *userv1.WhoAmIRequest,
+) (*userv1.WhoAmIResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
+	_, usr, err := f.authenticate(
+		connect.Spec{Procedure: userv1connect.UserServiceWhoAmIProcedure},
+		info.RequestHeader(),
+	)
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&userv1.WhoAmIResponse{User: usr}), nil
+	return &userv1.WhoAmIResponse{User: usr}, nil
 }
 
 func (f *fakeAPI) Logout(
-	_ context.Context,
-	req *connect.Request[userv1.LogoutRequest],
-) (*connect.Response[userv1.LogoutResponse], error) {
-	token, _, err := f.authenticate(req.Spec(), req.Header())
+	ctx context.Context,
+	_ *userv1.LogoutRequest,
+) (*userv1.LogoutResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
+	token, _, err := f.authenticate(
+		connect.Spec{Procedure: userv1connect.UserServiceLogoutProcedure},
+		info.RequestHeader(),
+	)
 	if err != nil {
 		return nil, err
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	delete(f.users, token)
-	return connect.NewResponse(&userv1.LogoutResponse{}), nil
+	return &userv1.LogoutResponse{}, nil
 }
 
 type fakeAuthService struct {
@@ -153,16 +170,17 @@ type fakeAuthService struct {
 
 func (o *fakeAuthService) RefreshCLIToken(
 	_ context.Context,
-	req *connect.Request[authv1.RefreshCLITokenRequest],
-) (*connect.Response[authv1.RefreshCLITokenResponse], error) {
+	req *authv1.RefreshCLITokenRequest,
+) (*authv1.RefreshCLITokenResponse, error) {
 	f := o.api
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if err := f.record(req.Spec(), ""); err != nil {
+	if err := f.record(connect.Spec{Procedure: authv1connect.AuthServiceRefreshCLITokenProcedure}, ""); err != nil {
 		return nil, err
 	}
-	if req.Msg.GetRefreshToken() != fakeAPIRefreshToken {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errFakeUnknownRefreshToken)
+	if req.GetRefreshToken() != fakeAPIRefreshToken {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errFakeUnknownRefreshToken.Error()).
+			WithCause(errFakeUnknownRefreshToken)
 	}
 	f.users[fakeAPIRefreshedToken] = f.users[fakeAPIToken]
 	resp := &authv1.RefreshCLITokenResponse{Tokens: &authv1.CLITokens{
@@ -170,7 +188,7 @@ func (o *fakeAuthService) RefreshCLIToken(
 		RefreshToken: fakeAPIRefreshToken,
 		ExpiresIn:    3600,
 	}}
-	return connect.NewResponse(resp), nil
+	return resp, nil
 }
 
 type fakeConfigService struct {
@@ -181,9 +199,9 @@ type fakeConfigService struct {
 
 func (c *fakeConfigService) GetConfig(
 	_ context.Context,
-	req *connect.Request[configv1.GetConfigRequest],
-) (*connect.Response[configv1.GetConfigResponse], error) {
-	if err := c.api.record(req.Spec(), ""); err != nil {
+	_ *configv1.GetConfigRequest,
+) (*configv1.GetConfigResponse, error) {
+	if err := c.api.record(connect.Spec{Procedure: configv1connect.ConfigServiceGetConfigProcedure}, ""); err != nil {
 		return nil, err
 	}
 	platformDomain := fakePlatformDomain
@@ -205,5 +223,5 @@ func (c *fakeConfigService) GetConfig(
 		PlatformDomain: platformDomain,
 	}
 	resp := &configv1.GetConfigResponse{ServiceDefaults: defaults, SchemaUrl: fakeSchemaURL, Auth: auth}
-	return connect.NewResponse(resp), nil
+	return resp, nil
 }

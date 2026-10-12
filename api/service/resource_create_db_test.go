@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -58,13 +57,13 @@ func testCreateResourceDomain(t *testing.T, platform bool) {
 			PlatformDomainId: &platformIDString, Subdomain: &label,
 		}
 	}
-	req := connect.NewRequest(&resourcev1.CreateResourceRequest{
+	req := &resourcev1.CreateResourceRequest{
 		WorkspaceId: workspace,
 		Name:        "private",
 		Type:        resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
 		Spec:        spec,
 		Domain:      input,
-	})
+	}
 	created, err := server.CreateResource(scoped, req)
 	if err != nil {
 		t.Fatalf("create resource: %v", err)
@@ -74,8 +73,8 @@ func testCreateResourceDomain(t *testing.T, platform bool) {
 	if err != nil {
 		t.Fatalf("get resource: %v", err)
 	}
-	if resource.GetId() != created.Msg.GetResourceId() {
-		t.Fatalf("resource = %s, want %s", resource.GetId(), created.Msg.GetResourceId())
+	if resource.GetId() != created.GetResourceId() {
+		t.Fatalf("resource = %s, want %s", resource.GetId(), created.GetResourceId())
 	}
 	domains := resource.GetDomains()
 	if platform {

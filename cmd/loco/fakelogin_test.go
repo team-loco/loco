@@ -4,7 +4,10 @@ import (
 	"context"
 	"net/http"
 
-	"connectrpc.com/connect"
+	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
+
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
 	"github.com/rogpeppe/go-internal/testscript"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
@@ -51,18 +54,20 @@ func cmdFakeLogin(ts *testscript.TestScript, api *fakeAPI, neg bool, args []stri
 }
 
 func (f *fakeAPI) registerLogin(mux *http.ServeMux) {
-	mux.Handle(orgv1connect.NewOrgServiceHandler(&fakeOrgService{api: f}))
-	mux.Handle(workspacev1connect.NewWorkspaceServiceHandler(&fakeWorkspaceService{api: f}))
+	server := connect.NewServer()
+	orgv1connect.RegisterOrgServiceHandler(server, &fakeOrgService{api: f})
+	workspacev1connect.RegisterWorkspaceServiceHandler(server, &fakeWorkspaceService{api: f})
+	connecthttp.Mount(mux, server)
 }
 
 func (o *fakeAuthService) StartDeviceLogin(
 	_ context.Context,
-	req *connect.Request[authv1.StartDeviceLoginRequest],
-) (*connect.Response[authv1.StartDeviceLoginResponse], error) {
+	_ *authv1.StartDeviceLoginRequest,
+) (*authv1.StartDeviceLoginResponse, error) {
 	f := o.api
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if err := f.record(req.Spec(), ""); err != nil {
+	if err := f.record(connect.Spec{Procedure: authv1connect.AuthServiceStartDeviceLoginProcedure}, ""); err != nil {
 		return nil, err
 	}
 	resp := &authv1.StartDeviceLoginResponse{
@@ -75,28 +80,28 @@ func (o *fakeAuthService) StartDeviceLogin(
 		resp.ExpiresIn = fakeExpiredExpiresIn
 		resp.Interval = fakeExpiredInterval
 	}
-	return connect.NewResponse(resp), nil
+	return resp, nil
 }
 
 func (o *fakeAuthService) PollDeviceLogin(
 	_ context.Context,
-	req *connect.Request[authv1.PollDeviceLoginRequest],
-) (*connect.Response[authv1.PollDeviceLoginResponse], error) {
+	req *authv1.PollDeviceLoginRequest,
+) (*authv1.PollDeviceLoginResponse, error) {
 	f := o.api
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if err := f.record(req.Spec(), ""); err != nil {
+	if err := f.record(connect.Spec{Procedure: authv1connect.AuthServicePollDeviceLoginProcedure}, ""); err != nil {
 		return nil, err
 	}
-	if req.Msg.GetDeviceCode() != fakeDeviceCode || f.deviceLogin != deviceLoginApproved {
-		return connect.NewResponse(&authv1.PollDeviceLoginResponse{}), nil
+	if req.GetDeviceCode() != fakeDeviceCode || f.deviceLogin != deviceLoginApproved {
+		return &authv1.PollDeviceLoginResponse{}, nil
 	}
 	tokens := &authv1.CLITokens{
 		AccessToken:  fakeAPIToken,
 		RefreshToken: fakeAPIRefreshToken,
 		ExpiresIn:    fakeTokenExpiresIn,
 	}
-	return connect.NewResponse(&authv1.PollDeviceLoginResponse{Tokens: tokens}), nil
+	return &authv1.PollDeviceLoginResponse{Tokens: tokens}, nil
 }
 
 type fakeOrgService struct {
@@ -106,14 +111,18 @@ type fakeOrgService struct {
 }
 
 func (s *fakeOrgService) ListUserOrgs(
-	_ context.Context,
-	req *connect.Request[orgv1.ListUserOrgsRequest],
-) (*connect.Response[orgv1.ListUserOrgsResponse], error) {
-	if _, _, err := s.api.authenticate(req.Spec(), req.Header()); err != nil {
+	ctx context.Context,
+	_ *orgv1.ListUserOrgsRequest,
+) (*orgv1.ListUserOrgsResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
+	if _, _, err := s.api.authenticate(
+		connect.Spec{Procedure: orgv1connect.OrgServiceListUserOrgsProcedure},
+		info.RequestHeader(),
+	); err != nil {
 		return nil, err
 	}
 	org := &orgv1.Organization{Id: fakeOrgID, Name: fakeOrgName}
-	return connect.NewResponse(&orgv1.ListUserOrgsResponse{Orgs: []*orgv1.Organization{org}}), nil
+	return &orgv1.ListUserOrgsResponse{Orgs: []*orgv1.Organization{org}}, nil
 }
 
 type fakeWorkspaceService struct {
@@ -123,13 +132,17 @@ type fakeWorkspaceService struct {
 }
 
 func (s *fakeWorkspaceService) ListOrgWorkspaces(
-	_ context.Context,
-	req *connect.Request[workspacev1.ListOrgWorkspacesRequest],
-) (*connect.Response[workspacev1.ListOrgWorkspacesResponse], error) {
-	if _, _, err := s.api.authenticate(req.Spec(), req.Header()); err != nil {
+	ctx context.Context,
+	_ *workspacev1.ListOrgWorkspacesRequest,
+) (*workspacev1.ListOrgWorkspacesResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
+	if _, _, err := s.api.authenticate(
+		connect.Spec{Procedure: workspacev1connect.WorkspaceServiceListOrgWorkspacesProcedure},
+		info.RequestHeader(),
+	); err != nil {
 		return nil, err
 	}
 	ws := &workspacev1.Workspace{Id: fakeWorkspaceID, OrgId: fakeOrgID, Name: fakeWorkspaceName}
 	resp := &workspacev1.ListOrgWorkspacesResponse{Workspaces: []*workspacev1.Workspace{ws}}
-	return connect.NewResponse(resp), nil
+	return resp, nil
 }

@@ -8,7 +8,6 @@ import (
 
 	"github.com/team-loco/loco/internal/rpc"
 
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/gen/go/loco/environment/v1/environmentv1connect"
@@ -136,16 +135,16 @@ func resolveService(
 	name string,
 ) (string, error) {
 	nameKey := &resourcev1.GetResourceNameKey{WorkspaceId: workspaceID, Name: name}
-	req := connect.NewRequest(&resourcev1.GetResourceRequest{
+	req := &resourcev1.GetResourceRequest{
 		Key: &resourcev1.GetResourceRequest_NameKey{NameKey: nameKey},
-	})
+	}
 
 	resp, err := apiClient.Resource.GetResource(ctx, req)
 	if err != nil {
 		cmdutil.LogRequestID(ctx, err, "get service failed")
 		return "", fmt.Errorf("service %q not found: %w", name, err)
 	}
-	return resp.Msg.GetResource().GetId(), nil
+	return resp.GetResource().GetId(), nil
 }
 
 func setSecrets(ctx context.Context, cmd *cobra.Command, d deps, values map[string]string) error {
@@ -153,19 +152,19 @@ func setSecrets(ctx context.Context, cmd *cobra.Command, d deps, values map[stri
 	if err != nil {
 		return err
 	}
-	req := connect.NewRequest(&secretv1.SetSecretsRequest{
+	req := &secretv1.SetSecretsRequest{
 		ResourceId:    t.resourceID,
 		EnvironmentId: t.environmentID,
 		Values:        values,
-	})
+	}
 
 	resp, err := t.secrets.SetSecrets(ctx, req)
 	if err != nil {
 		cmdutil.LogRequestID(ctx, err, "set secrets failed")
 		return fmt.Errorf("set secrets: %w", err)
 	}
-	versions := resp.Msg.GetVersions()
-	fmt.Fprintf(d.Stdout, "Set %d secrets (revision %d)\n", len(versions), resp.Msg.GetRevision())
+	versions := resp.GetVersions()
+	fmt.Fprintf(d.Stdout, "Set %d secrets (revision %d)\n", len(versions), resp.GetRevision())
 	for _, v := range versions {
 		fmt.Fprintf(d.Stdout, "  %s v%d\n", v.GetName(), v.GetVersion())
 	}

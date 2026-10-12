@@ -9,7 +9,7 @@ import (
 	"log/slog"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
@@ -17,6 +17,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
 	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
+	"github.com/team-loco/loco/gen/go/loco/event/v1/eventv1connect"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -100,19 +101,19 @@ func eventToProto(e genDb.Event) *eventv1.Event {
 func (s *EventServer) verify(ctx context.Context, scope genDb.EntityScope) error {
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
-		return connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+		return connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized.Error()).WithCause(ErrUnauthorized)
 	}
 	if err := s.authz.Check(ctx, scopes, scope); err != nil {
-		return connect.NewError(connect.CodePermissionDenied, err)
+		return connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
 	}
 	return nil
 }
 
 func (s *EventServer) ListOrgEvents(
 	ctx context.Context,
-	req *connect.Request[eventv1.ListOrgEventsRequest],
-) (*connect.Response[eventv1.ListOrgEventsResponse], error) {
-	r := req.Msg
+	req *eventv1.ListOrgEventsRequest,
+) (*eventv1.ListOrgEventsResponse, error) {
+	r := req
 	if err := s.verify(ctx, actions.New(actions.ListOrgEvents, r.GetOrgId())); err != nil {
 		return nil, err
 	}
@@ -135,7 +136,7 @@ func (s *EventServer) ListOrgEvents(
 	rows, err := s.queries.ListOrgEvents(ctx, params)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list org events", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 	out := make([]*eventv1.Event, len(rows))
 	for i, row := range rows {
@@ -148,20 +149,20 @@ func (s *EventServer) ListOrgEvents(
 	if len(rows) == int(pageSize) {
 		resp.NextBeforeSeq = rows[len(rows)-1].Event.Seq
 	}
-	return connect.NewResponse(resp), nil
+	return resp, nil
 }
 
 func (s *EventServer) StreamEvents(
 	ctx context.Context,
-	req *connect.Request[eventv1.StreamEventsRequest],
-	stream *connect.ServerStream[eventv1.StreamEventsResponse],
+	req *eventv1.StreamEventsRequest,
+	stream eventv1connect.EventServiceStreamEventsServerStream,
 ) error {
 	if err := s.verify(ctx, actions.NewSystem(actions.StreamEvents)); err != nil {
 		return err
 	}
-	position, err := decodeStreamCursor(req.Msg.GetCursor())
+	position, err := decodeStreamCursor(req.GetCursor())
 	if err != nil {
-		return connect.NewError(connect.CodeInvalidArgument, err)
+		return connect.NewError(connect.CodeInvalidArgument, err.Error()).WithCause(err)
 	}
 	ticker := time.NewTicker(s.poll)
 	defer ticker.Stop()
@@ -176,7 +177,7 @@ func (s *EventServer) StreamEvents(
 				return nil
 			}
 			slog.ErrorContext(ctx, "failed to read events for stream", "error", err)
-			return connect.NewError(connect.CodeInternal, ErrDB)
+			return connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 		}
 		if len(rows) > 0 {
 			batch := make([]*eventv1.Event, len(rows))

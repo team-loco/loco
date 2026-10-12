@@ -8,7 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2/connectinprocess"
+	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
+
+	"connectrpc.com/connect/v2"
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/auth/authtest"
 	"github.com/team-loco/loco/api/contextkeys"
@@ -38,6 +41,7 @@ func (*stubAdmin) Delete(context.Context, string) error {
 
 type authFixture struct {
 	server  *AuthServer
+	client  authv1connect.AuthServiceClient
 	machine *tvm.VendingMachine
 	queries *genDb.Queries
 	admin   *stubAdmin
@@ -83,6 +87,10 @@ func newAuthFixture(t *testing.T) *authFixture {
 	}
 	f.server = NewAuthServer(pool, queries, machine, store, auth.Admins{testIssuer: f.admin}, "https://app.loco.test/")
 	f.server.now = func() time.Time { return f.clock }
+	rpcServer := connect.NewServer()
+	authv1connect.RegisterAuthServiceHandler(rpcServer, f.server)
+	transport := connectinprocess.New(rpcServer)
+	f.client = authv1connect.NewAuthServiceClient(connect.NewClient(transport))
 	ctx := context.WithValue(t.Context(), contextkeys.EntityKey, genDb.Entity{Type: genDb.EntityTypeUser, ID: user.ID})
 	f.webCtx = context.WithValue(ctx, contextkeys.IdentityKey, identity)
 	return f
@@ -116,41 +124,41 @@ func TestCLILoopbackLogin(t *testing.T) {
 	f := newAuthFixture(t)
 	verifier := "a-verifier-that-is-long-enough-to-satisfy-rfc-7636-limits"
 
-	approved, err := f.server.ApproveCLILogin(f.webCtx, connect.NewRequest(&authv1.ApproveCLILoginRequest{
+	approved, err := f.server.ApproveCLILogin(f.webCtx, &authv1.ApproveCLILoginRequest{
 		State:         testState,
 		CodeChallenge: challengeFor(verifier),
-	}))
+	})
 	if err != nil {
 		t.Fatalf("approve: %v", err)
 	}
-	code := approved.Msg.GetCode()
+	code := approved.GetCode()
 
-	_, err = f.server.ExchangeCLICode(t.Context(), connect.NewRequest(&authv1.ExchangeCLICodeRequest{
+	_, err = f.client.ExchangeCLICode(t.Context(), &authv1.ExchangeCLICodeRequest{
 		Code: code, CodeVerifier: "a-different-verifier-that-is-also-long-enough-for-pkce",
-	}))
+	})
 	if codeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("wrong verifier: %v", err)
 	}
 
-	approved, err = f.server.ApproveCLILogin(f.webCtx, connect.NewRequest(&authv1.ApproveCLILoginRequest{
+	approved, err = f.server.ApproveCLILogin(f.webCtx, &authv1.ApproveCLILoginRequest{
 		State:         testState,
 		CodeChallenge: challengeFor(verifier),
-	}))
+	})
 	if err != nil {
 		t.Fatalf("approve again: %v", err)
 	}
-	code = approved.Msg.GetCode()
-	exchanged, err := f.server.ExchangeCLICode(t.Context(), connect.NewRequest(&authv1.ExchangeCLICodeRequest{
+	code = approved.GetCode()
+	exchanged, err := f.client.ExchangeCLICode(t.Context(), &authv1.ExchangeCLICodeRequest{
 		Code: code, CodeVerifier: verifier,
-	}))
+	})
 	if err != nil {
 		t.Fatalf("exchange: %v", err)
 	}
-	f.assertWorks(t, exchanged.Msg.GetTokens())
+	f.assertWorks(t, exchanged.GetTokens())
 
-	_, err = f.server.ExchangeCLICode(t.Context(), connect.NewRequest(&authv1.ExchangeCLICodeRequest{
+	_, err = f.client.ExchangeCLICode(t.Context(), &authv1.ExchangeCLICodeRequest{
 		Code: code, CodeVerifier: verifier,
-	}))
+	})
 	if codeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("reused code: %v", err)
 	}
@@ -164,20 +172,20 @@ func TestCLIApprovalNeedsWebSession(t *testing.T) {
 	}
 	cliCtx := context.WithValue(t.Context(), contextkeys.EntityKey, entity)
 
-	_, err := f.server.ApproveCLILogin(cliCtx, connect.NewRequest(&authv1.ApproveCLILoginRequest{
+	_, err := f.server.ApproveCLILogin(cliCtx, &authv1.ApproveCLILoginRequest{
 		State: testState, CodeChallenge: challengeFor("v"),
-	}))
+	})
 	if codeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("approve from a cli token: %v", err)
 	}
 	_, err = f.server.ApproveDeviceLogin(
 		cliCtx,
-		connect.NewRequest(&authv1.ApproveDeviceLoginRequest{UserCode: "BCDF-GHJK"}),
+		&authv1.ApproveDeviceLoginRequest{UserCode: "BCDF-GHJK"},
 	)
 	if codeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("device approve from a cli token: %v", err)
 	}
-	_, err = f.server.ApproveCLILogin(t.Context(), connect.NewRequest(&authv1.ApproveCLILoginRequest{}))
+	_, err = f.server.ApproveCLILogin(t.Context(), &authv1.ApproveCLILoginRequest{})
 	if codeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("anonymous approve: %v", err)
 	}
@@ -185,50 +193,50 @@ func TestCLIApprovalNeedsWebSession(t *testing.T) {
 
 func TestCLIDeviceLogin(t *testing.T) {
 	f := newAuthFixture(t)
-	started, err := f.server.StartDeviceLogin(t.Context(), connect.NewRequest(&authv1.StartDeviceLoginRequest{}))
+	started, err := f.server.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}
-	msg := started.Msg
+	msg := started
 	if msg.GetVerificationUri() != "https://app.loco.test/cli/device" || len(msg.GetUserCode()) != 9 ||
 		msg.GetVerificationUriComplete() != "https://app.loco.test/cli/device?code="+msg.GetUserCode() {
 		t.Fatalf("start = %+v", msg)
 	}
-	poll := connect.NewRequest(&authv1.PollDeviceLoginRequest{DeviceCode: msg.GetDeviceCode()})
+	poll := &authv1.PollDeviceLoginRequest{DeviceCode: msg.GetDeviceCode()}
 
-	pending, err := f.server.PollDeviceLogin(t.Context(), poll)
-	if err != nil || pending.Msg.GetTokens() != nil {
+	pending, err := f.client.PollDeviceLogin(t.Context(), poll)
+	if err != nil || pending.GetTokens() != nil {
 		t.Fatalf("first poll: %+v %v", pending, err)
 	}
-	if _, pollErr := f.server.PollDeviceLogin(t.Context(), poll); codeOf(pollErr) != connect.CodeResourceExhausted {
+	if _, pollErr := f.client.PollDeviceLogin(t.Context(), poll); codeOf(pollErr) != connect.CodeResourceExhausted {
 		t.Fatalf("fast poll: %v", pollErr)
 	}
 
-	if _, approveErr := f.server.ApproveDeviceLogin(f.webCtx, connect.NewRequest(&authv1.ApproveDeviceLoginRequest{
+	if _, approveErr := f.server.ApproveDeviceLogin(f.webCtx, &authv1.ApproveDeviceLoginRequest{
 		UserCode: "ZZZZ-ZZZZ",
-	})); codeOf(approveErr) != connect.CodeNotFound {
+	}); codeOf(approveErr) != connect.CodeNotFound {
 		t.Fatalf("unknown code: %v", approveErr)
 	}
 	lowered := " " + toLower(msg.GetUserCode()) + " "
-	if _, approveErr := f.server.ApproveDeviceLogin(f.webCtx, connect.NewRequest(&authv1.ApproveDeviceLoginRequest{
+	if _, approveErr := f.server.ApproveDeviceLogin(f.webCtx, &authv1.ApproveDeviceLoginRequest{
 		UserCode: lowered,
-	})); approveErr != nil {
+	}); approveErr != nil {
 		t.Fatalf("approve: %v", approveErr)
 	}
-	if _, approveErr := f.server.ApproveDeviceLogin(f.webCtx, connect.NewRequest(&authv1.ApproveDeviceLoginRequest{
+	if _, approveErr := f.server.ApproveDeviceLogin(f.webCtx, &authv1.ApproveDeviceLoginRequest{
 		UserCode: msg.GetUserCode(),
-	})); codeOf(approveErr) != connect.CodeNotFound {
+	}); codeOf(approveErr) != connect.CodeNotFound {
 		t.Fatalf("second approval: %v", approveErr)
 	}
 
 	f.clock = f.clock.Add(10 * time.Second)
-	done, err := f.server.PollDeviceLogin(t.Context(), poll)
+	done, err := f.client.PollDeviceLogin(t.Context(), poll)
 	if err != nil {
 		t.Fatalf("poll after approval: %v", err)
 	}
-	f.assertWorks(t, done.Msg.GetTokens())
+	f.assertWorks(t, done.GetTokens())
 
-	if _, pollErr := f.server.PollDeviceLogin(t.Context(), poll); codeOf(pollErr) != connect.CodeNotFound {
+	if _, pollErr := f.client.PollDeviceLogin(t.Context(), poll); codeOf(pollErr) != connect.CodeNotFound {
 		t.Fatalf("poll after tokens issued: %v", pollErr)
 	}
 }
@@ -251,47 +259,47 @@ func (c *racingCache) Get(ctx context.Context, key string) ([]byte, error) {
 
 func TestCLIDevicePollCannotOverwriteApproval(t *testing.T) {
 	f := newAuthFixture(t)
-	started, err := f.server.StartDeviceLogin(t.Context(), connect.NewRequest(&authv1.StartDeviceLoginRequest{}))
+	started, err := f.server.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}
-	msg := started.Msg
+	msg := started
 	deviceDigest := digest(msg.GetDeviceCode())
 	racing := &racingCache{Cache: f.server.cache, key: deviceKey(deviceDigest)}
 	f.server.cache = racing
 	racing.during = func() {
-		_, approveErr := f.server.ApproveDeviceLogin(f.webCtx, connect.NewRequest(&authv1.ApproveDeviceLoginRequest{
+		_, approveErr := f.server.ApproveDeviceLogin(f.webCtx, &authv1.ApproveDeviceLoginRequest{
 			UserCode: msg.GetUserCode(),
-		}))
+		})
 		if approveErr != nil {
 			t.Errorf("approve during poll: %v", approveErr)
 		}
 	}
-	poll := connect.NewRequest(&authv1.PollDeviceLoginRequest{DeviceCode: msg.GetDeviceCode()})
+	poll := &authv1.PollDeviceLoginRequest{DeviceCode: msg.GetDeviceCode()}
 
-	pending, err := f.server.PollDeviceLogin(t.Context(), poll)
-	if err != nil || pending.Msg.GetTokens() != nil {
+	pending, err := f.client.PollDeviceLogin(t.Context(), poll)
+	if err != nil || pending.GetTokens() != nil {
 		t.Fatalf("poll racing the approval: %+v %v", pending, err)
 	}
 
 	f.clock = f.clock.Add(10 * time.Second)
-	done, err := f.server.PollDeviceLogin(t.Context(), poll)
+	done, err := f.client.PollDeviceLogin(t.Context(), poll)
 	if err != nil {
 		t.Fatalf("poll after approval: %v", err)
 	}
-	f.assertWorks(t, done.Msg.GetTokens())
+	f.assertWorks(t, done.GetTokens())
 }
 
 func TestCLIDeviceApprovalKeepsExpiry(t *testing.T) {
 	f := newAuthFixture(t)
-	started, err := f.server.StartDeviceLogin(t.Context(), connect.NewRequest(&authv1.StartDeviceLoginRequest{}))
+	started, err := f.server.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}
 	f.clock = f.clock.Add(deviceCodeTTL)
-	_, err = f.server.ApproveDeviceLogin(f.webCtx, connect.NewRequest(&authv1.ApproveDeviceLoginRequest{
-		UserCode: started.Msg.GetUserCode(),
-	}))
+	_, err = f.server.ApproveDeviceLogin(f.webCtx, &authv1.ApproveDeviceLoginRequest{
+		UserCode: started.GetUserCode(),
+	})
 	if codeOf(err) != connect.CodeNotFound {
 		t.Fatalf("approve after the device code expired: %v", err)
 	}
@@ -310,47 +318,47 @@ func toLower(s string) string {
 func (f *authFixture) login(t *testing.T) *authv1.CLITokens {
 	t.Helper()
 	verifier := "a-verifier-that-is-long-enough-to-satisfy-rfc-7636-limits"
-	approved, err := f.server.ApproveCLILogin(f.webCtx, connect.NewRequest(&authv1.ApproveCLILoginRequest{
+	approved, err := f.server.ApproveCLILogin(f.webCtx, &authv1.ApproveCLILoginRequest{
 		State: testState, CodeChallenge: challengeFor(verifier),
-	}))
+	})
 	if err != nil {
 		t.Fatalf("approve: %v", err)
 	}
-	exchanged, err := f.server.ExchangeCLICode(t.Context(), connect.NewRequest(&authv1.ExchangeCLICodeRequest{
-		Code: approved.Msg.GetCode(), CodeVerifier: verifier,
-	}))
+	exchanged, err := f.client.ExchangeCLICode(t.Context(), &authv1.ExchangeCLICodeRequest{
+		Code: approved.GetCode(), CodeVerifier: verifier,
+	})
 	if err != nil {
 		t.Fatalf("exchange: %v", err)
 	}
-	return exchanged.Msg.GetTokens()
+	return exchanged.GetTokens()
 }
 
 func TestCLIRefreshChecksIdentity(t *testing.T) {
 	f := newAuthFixture(t)
 
 	tokens := f.login(t)
-	refreshed, err := f.server.RefreshCLIToken(t.Context(), connect.NewRequest(&authv1.RefreshCLITokenRequest{
+	refreshed, err := f.server.RefreshCLIToken(t.Context(), &authv1.RefreshCLITokenRequest{
 		RefreshToken: tokens.GetRefreshToken(),
-	}))
+	})
 	if err != nil {
 		t.Fatalf("refresh while active: %v", err)
 	}
-	f.assertWorks(t, refreshed.Msg.GetTokens())
+	f.assertWorks(t, refreshed.GetTokens())
 
 	f.admin.err = errors.New("provider down")
-	refreshed, err = f.server.RefreshCLIToken(t.Context(), connect.NewRequest(&authv1.RefreshCLITokenRequest{
-		RefreshToken: refreshed.Msg.GetTokens().GetRefreshToken(),
-	}))
+	refreshed, err = f.server.RefreshCLIToken(t.Context(), &authv1.RefreshCLITokenRequest{
+		RefreshToken: refreshed.GetTokens().GetRefreshToken(),
+	})
 	if err != nil {
 		t.Fatalf("refresh while provider is down: %v", err)
 	}
 
 	f.admin.err = nil
 	f.admin.state = auth.IdentityDisabled
-	current := refreshed.Msg.GetTokens()
-	_, err = f.server.RefreshCLIToken(t.Context(), connect.NewRequest(&authv1.RefreshCLITokenRequest{
+	current := refreshed.GetTokens()
+	_, err = f.server.RefreshCLIToken(t.Context(), &authv1.RefreshCLITokenRequest{
 		RefreshToken: current.GetRefreshToken(),
-	}))
+	})
 	if codeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("refresh of a disabled identity: %v", err)
 	}
@@ -360,9 +368,9 @@ func TestCLIRefreshChecksIdentity(t *testing.T) {
 
 	f.admin.state = auth.IdentityMissing
 	other := f.login(t)
-	_, err = f.server.RefreshCLIToken(t.Context(), connect.NewRequest(&authv1.RefreshCLITokenRequest{
+	_, err = f.server.RefreshCLIToken(t.Context(), &authv1.RefreshCLITokenRequest{
 		RefreshToken: other.GetRefreshToken(),
-	}))
+	})
 	if codeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("refresh of a deleted identity: %v", err)
 	}

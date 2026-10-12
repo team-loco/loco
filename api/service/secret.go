@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -103,31 +103,35 @@ func (s *SecretServer) authorizeTarget(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return secretTarget{}, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
+		return secretTarget{}, connect.NewError(connect.CodeInternal, errEntityScopesNotFound.Error()).
+			WithCause(errEntityScopesNotFound)
 	}
 	required := actions.New(action, resourceID)
 	if err := s.authz.Check(ctx, scopes, required); err != nil {
 		slog.WarnContext(ctx, "unauthorized secret access", "resourceId", resourceID)
-		return secretTarget{}, connect.NewError(connect.CodePermissionDenied, err)
+		return secretTarget{}, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
 	}
 	resource, err := s.queries.GetResourceByID(ctx, uuid.MustParse(resourceID))
 	if errors.Is(err, pgx.ErrNoRows) {
-		return secretTarget{}, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
+		return secretTarget{}, connect.NewError(connect.CodeNotFound, ErrResourceNotFound.Error()).
+			WithCause(ErrResourceNotFound)
 	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load resource", "error", err)
-		return secretTarget{}, connect.NewError(connect.CodeInternal, ErrDB)
+		return secretTarget{}, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 	env, err := s.queries.GetEnvironmentByID(ctx, uuid.MustParse(environmentID))
 	if errors.Is(err, pgx.ErrNoRows) {
-		return secretTarget{}, connect.NewError(connect.CodeNotFound, ErrEnvironmentNotFound)
+		return secretTarget{}, connect.NewError(connect.CodeNotFound, ErrEnvironmentNotFound.Error()).
+			WithCause(ErrEnvironmentNotFound)
 	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load environment", "error", err)
-		return secretTarget{}, connect.NewError(connect.CodeInternal, ErrDB)
+		return secretTarget{}, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 	if env.WorkspaceID != resource.WorkspaceID {
-		return secretTarget{}, connect.NewError(connect.CodeNotFound, ErrEnvironmentNotFound)
+		return secretTarget{}, connect.NewError(connect.CodeNotFound, ErrEnvironmentNotFound.Error()).
+			WithCause(ErrEnvironmentNotFound)
 	}
 	return secretTarget{env: env, resourceID: resource.ID}, nil
 }
@@ -140,26 +144,27 @@ func (t secretTarget) aad(name string, version int32) []byte {
 // to the stored one changes nothing.
 func (s *SecretServer) SetSecrets(
 	ctx context.Context,
-	req *connect.Request[secretv1.SetSecretsRequest],
-) (*connect.Response[secretv1.SetSecretsResponse], error) {
-	r := req.Msg
+	req *secretv1.SetSecretsRequest,
+) (*secretv1.SetSecretsResponse, error) {
+	r := req
 	target, err := s.authorizeTarget(ctx, r.GetResourceId(), r.GetEnvironmentId(), actions.SetSecrets)
 	if err != nil {
 		return nil, err
 	}
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized.Error()).WithCause(ErrUnauthorized)
 	}
 	if s.provider == nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrSecretsNotConfigured)
+		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrSecretsNotConfigured.Error()).
+			WithCause(ErrSecretsNotConfigured)
 	}
 	values := r.GetValues()
 	names := slices.Sorted(maps.Keys(values))
 	for _, name := range names {
 		if int64(len(values[name])) > int64(s.config.MaxValueBytes) {
 			tooLarge := fmt.Errorf("%w: %s", ErrSecretValueTooLarge, name)
-			return nil, connect.NewError(connect.CodeInvalidArgument, tooLarge)
+			return nil, connect.NewError(connect.CodeInvalidArgument, tooLarge.Error()).WithCause(tooLarge)
 		}
 	}
 
@@ -171,9 +176,9 @@ func (s *SecretServer) SetSecrets(
 		if setErr != nil {
 			return nil, setErr
 		}
-		return connect.NewResponse(response), nil
+		return response, nil
 	}
-	return nil, connect.NewError(connect.CodeAborted, ErrSecretKeyChanging)
+	return nil, connect.NewError(connect.CodeAborted, ErrSecretKeyChanging.Error()).WithCause(ErrSecretKeyChanging)
 }
 
 func (s *SecretServer) setSecretsOnce(
@@ -278,7 +283,7 @@ func (s *SecretServer) writeSecrets(
 		return countErr
 	}
 	if count+added > int64(s.config.MaxPerService) {
-		return connect.NewError(connect.CodeResourceExhausted, ErrTooManySecrets)
+		return connect.NewError(connect.CodeResourceExhausted, ErrTooManySecrets.Error()).WithCause(ErrTooManySecrets)
 	}
 	if upsertErr := qtx.UpsertSecrets(ctx, params); upsertErr != nil {
 		return upsertErr
@@ -293,7 +298,7 @@ func (s *SecretServer) writeSecrets(
 		total := size.NameBytes + size.CiphertextBytes - size.SecretCount*secretTagBytes
 		if total > int64(s.config.MaxPlacementBytes) {
 			tooLarge := fmt.Errorf("%w: placement %s holds %d bytes", ErrPlacementSecretsLarge, size.PlacementID, total)
-			return connect.NewError(connect.CodeFailedPrecondition, tooLarge)
+			return connect.NewError(connect.CodeFailedPrecondition, tooLarge.Error()).WithCause(tooLarge)
 		}
 	}
 	if rollErr := rollPlacementsForSecrets(ctx, qtx, target, params.Names); rollErr != nil {
@@ -357,18 +362,21 @@ func (s *SecretServer) lockEnvironmentKey(
 	}
 	revisions, err := lockWorkspaceEnvironments(ctx, qtx, env.WorkspaceID)
 	if isPgLockNotAvailable(err) {
-		return genDb.EnvironmentKey{}, 0, connect.NewError(connect.CodeAborted, ErrSecretLockTimeout)
+		return genDb.EnvironmentKey{}, 0, connect.NewError(connect.CodeAborted, ErrSecretLockTimeout.Error()).
+			WithCause(ErrSecretLockTimeout)
 	}
 	if err != nil {
 		return genDb.EnvironmentKey{}, 0, err
 	}
 	revision, found := revisions[env.ID]
 	if !found {
-		return genDb.EnvironmentKey{}, 0, connect.NewError(connect.CodeNotFound, ErrEnvironmentNotFound)
+		return genDb.EnvironmentKey{}, 0, connect.NewError(connect.CodeNotFound, ErrEnvironmentNotFound.Error()).
+			WithCause(ErrEnvironmentNotFound)
 	}
 	key, err := qtx.LockEnvironmentKey(ctx, env.ID)
 	if isPgLockNotAvailable(err) {
-		return genDb.EnvironmentKey{}, 0, connect.NewError(connect.CodeAborted, ErrSecretLockTimeout)
+		return genDb.EnvironmentKey{}, 0, connect.NewError(connect.CodeAborted, ErrSecretLockTimeout.Error()).
+			WithCause(ErrSecretLockTimeout)
 	}
 	return key, revision, err
 }
@@ -384,10 +392,12 @@ func (s *SecretServer) lockTarget(
 	}
 	err = lockResource(ctx, qtx, target.resourceID)
 	if isPgLockNotAvailable(err) {
-		return genDb.EnvironmentKey{}, 0, connect.NewError(connect.CodeAborted, ErrSecretLockTimeout)
+		return genDb.EnvironmentKey{}, 0, connect.NewError(connect.CodeAborted, ErrSecretLockTimeout.Error()).
+			WithCause(ErrSecretLockTimeout)
 	}
 	if errors.Is(err, ErrResourceNotFound) {
-		return genDb.EnvironmentKey{}, 0, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
+		return genDb.EnvironmentKey{}, 0, connect.NewError(connect.CodeNotFound, ErrResourceNotFound.Error()).
+			WithCause(ErrResourceNotFound)
 	}
 	return key, revision, err
 }
@@ -395,9 +405,9 @@ func (s *SecretServer) lockTarget(
 // DeleteSecrets removes names from a service in an environment.
 func (s *SecretServer) DeleteSecrets(
 	ctx context.Context,
-	req *connect.Request[secretv1.DeleteSecretsRequest],
-) (*connect.Response[secretv1.DeleteSecretsResponse], error) {
-	r := req.Msg
+	req *secretv1.DeleteSecretsRequest,
+) (*secretv1.DeleteSecretsResponse, error) {
+	r := req
 	target, err := s.authorizeTarget(ctx, r.GetResourceId(), r.GetEnvironmentId(), actions.DeleteSecrets)
 	if err != nil {
 		return nil, err
@@ -408,7 +418,7 @@ func (s *SecretServer) DeleteSecrets(
 		_, lockedRevision, lockErr := s.lockTarget(ctx, qtx, target)
 		if lockErr != nil {
 			if errors.Is(lockErr, pgx.ErrNoRows) {
-				return connect.NewError(connect.CodeNotFound, fmt.Errorf("%w: %s", ErrSecretNotFound, names[0]))
+				return connect.NewError(connect.CodeNotFound, fmt.Errorf("%w: %s", ErrSecretNotFound, names[0]).Error())
 			}
 			return lockErr
 		}
@@ -420,7 +430,7 @@ func (s *SecretServer) DeleteSecrets(
 		}
 		if len(declared) > 0 {
 			inUse := fmt.Errorf("%w: %s", ErrSecretInUse, strings.Join(declared, ", "))
-			return connect.NewError(connect.CodeFailedPrecondition, inUse)
+			return connect.NewError(connect.CodeFailedPrecondition, inUse.Error()).WithCause(inUse)
 		}
 		deleted, deleteErr := qtx.DeleteSecrets(ctx, genDb.DeleteSecretsParams{
 			ResourceID: target.resourceID, EnvironmentID: target.env.ID, Names: names,
@@ -432,7 +442,7 @@ func (s *SecretServer) DeleteSecrets(
 			slices.Sort(deleted)
 			for _, name := range names {
 				if _, found := slices.BinarySearch(deleted, name); !found {
-					return connect.NewError(connect.CodeNotFound, fmt.Errorf("%w: %s", ErrSecretNotFound, name))
+					return connect.NewError(connect.CodeNotFound, fmt.Errorf("%w: %s", ErrSecretNotFound, name).Error())
 				}
 			}
 		}
@@ -445,15 +455,15 @@ func (s *SecretServer) DeleteSecrets(
 	if err != nil {
 		return nil, txError(ctx, "failed to delete secrets", err)
 	}
-	return connect.NewResponse(&secretv1.DeleteSecretsResponse{Revision: revision}), nil
+	return &secretv1.DeleteSecretsResponse{Revision: revision}, nil
 }
 
 // ListSecrets lists the names a service holds in an environment; it never returns a value.
 func (s *SecretServer) ListSecrets(
 	ctx context.Context,
-	req *connect.Request[secretv1.ListSecretsRequest],
-) (*connect.Response[secretv1.ListSecretsResponse], error) {
-	r := req.Msg
+	req *secretv1.ListSecretsRequest,
+) (*secretv1.ListSecretsResponse, error) {
+	r := req
 	target, err := s.authorizeTarget(ctx, r.GetResourceId(), r.GetEnvironmentId(), actions.ListSecrets)
 	if err != nil {
 		return nil, err
@@ -463,7 +473,7 @@ func (s *SecretServer) ListSecrets(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list secrets", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 	secrets := make([]*secretv1.Secret, 0, len(rows))
 	for _, row := range rows {
@@ -476,7 +486,7 @@ func (s *SecretServer) ListSecrets(
 			UpdatedAt:     timeutil.ParsePostgresTimestamp(row.UpdatedAt),
 		})
 	}
-	return connect.NewResponse(&secretv1.ListSecretsResponse{Secrets: secrets}), nil
+	return &secretv1.ListSecretsResponse{Secrets: secrets}, nil
 }
 
 // RewrapEnvironmentKeys rewraps environment data keys under the provider's current key. An empty
@@ -484,23 +494,26 @@ func (s *SecretServer) ListSecrets(
 // re-encrypts every value under it, keeping each version.
 func (s *SecretServer) RewrapEnvironmentKeys(
 	ctx context.Context,
-	req *connect.Request[secretv1.RewrapEnvironmentKeysRequest],
-) (*connect.Response[secretv1.RewrapEnvironmentKeysResponse], error) {
+	req *secretv1.RewrapEnvironmentKeysRequest,
+) (*secretv1.RewrapEnvironmentKeysResponse, error) {
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound.Error()).
+			WithCause(errEntityScopesNotFound)
 	}
 	if err := s.authz.Check(ctx, scopes, actions.NewSystem(actions.RewrapEnvironmentKeys)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to rewrap environment keys")
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
 	}
 	if s.provider == nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrSecretsNotConfigured)
+		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrSecretsNotConfigured.Error()).
+			WithCause(ErrSecretsNotConfigured)
 	}
-	r := req.Msg
+	r := req
 	if r.GetNewDek() && r.GetEnvironmentId() == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, ErrNewDEKNeedsEnvironment)
+		return nil, connect.NewError(connect.CodeInvalidArgument, ErrNewDEKNeedsEnvironment.Error()).
+			WithCause(ErrNewDEKNeedsEnvironment)
 	}
 	environmentIDs, err := s.rewrapTargets(ctx, r.GetEnvironmentId())
 	if err != nil {
@@ -521,25 +534,26 @@ func (s *SecretServer) RewrapEnvironmentKeys(
 			response.SkippedEnvironmentIds = append(response.SkippedEnvironmentIds, environmentID.String())
 		}
 	}
-	return connect.NewResponse(response), nil
+	return response, nil
 }
 
 func (s *SecretServer) rewrapTargets(ctx context.Context, environmentID string) ([]uuid.UUID, error) {
 	if environmentID != "" {
 		key, err := s.queries.GetEnvironmentKey(ctx, uuid.MustParse(environmentID))
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, connect.NewError(connect.CodeNotFound, ErrNoEnvironmentKey)
+			return nil, connect.NewError(connect.CodeNotFound, ErrNoEnvironmentKey.Error()).
+				WithCause(ErrNoEnvironmentKey)
 		}
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to load the environment key", "error", err)
-			return nil, connect.NewError(connect.CodeInternal, ErrDB)
+			return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 		}
 		return []uuid.UUID{key.EnvironmentID}, nil
 	}
 	keys, err := s.queries.ListEnvironmentKeys(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list environment keys", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 	environmentIDs := make([]uuid.UUID, 0, len(keys))
 	for _, key := range keys {
@@ -557,7 +571,7 @@ func (s *SecretServer) rewrapEnvironment(
 		key, err := s.queries.GetEnvironmentKey(ctx, environmentID)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to load the environment key", "environmentId", environmentID, "error", err)
-			return rewrapSkipped, connect.NewError(connect.CodeInternal, ErrDB)
+			return rewrapSkipped, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 		}
 		outcome, err := s.rewrapEnvironmentKey(ctx, key, newDEK)
 		if errors.Is(err, errKeyChanged) {
@@ -565,7 +579,8 @@ func (s *SecretServer) rewrapEnvironment(
 		}
 		return outcome, err
 	}
-	return rewrapSkipped, connect.NewError(connect.CodeAborted, ErrSecretKeyChanging)
+	return rewrapSkipped, connect.NewError(connect.CodeAborted, ErrSecretKeyChanging.Error()).
+		WithCause(ErrSecretKeyChanging)
 }
 
 func (s *SecretServer) rewrapEnvironmentKey(
@@ -576,7 +591,8 @@ func (s *SecretServer) rewrapEnvironmentKey(
 	current, err := s.provider.KeyID(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to read the current key id", "error", err)
-		return rewrapSkipped, connect.NewError(connect.CodeUnavailable, ErrKeyProvider)
+		return rewrapSkipped, connect.NewError(connect.CodeUnavailable, ErrKeyProvider.Error()).
+			WithCause(ErrKeyProvider)
 	}
 	if key.Provider != s.provider.Name() {
 		slog.WarnContext(ctx, "environment key belongs to another provider",
@@ -589,7 +605,8 @@ func (s *SecretServer) rewrapEnvironmentKey(
 	if key.FormatVersion != secretFormatVersion {
 		slog.ErrorContext(ctx, "unknown environment key format",
 			"environmentId", key.EnvironmentID, "formatVersion", key.FormatVersion)
-		return rewrapSkipped, connect.NewError(connect.CodeInternal, ErrUnknownSecretFormat)
+		return rewrapSkipped, connect.NewError(connect.CodeInternal, ErrUnknownSecretFormat.Error()).
+			WithCause(ErrUnknownSecretFormat)
 	}
 	aad := secretkeys.DEKAAD(key.EnvironmentID.String())
 	wrapped := secretkeys.WrappedKey{Provider: key.Provider, KeyID: key.KekID, Bytes: key.WrappedDek}
@@ -604,19 +621,21 @@ func (s *SecretServer) rewrapEnvironmentKey(
 		replacement, err = secretkeys.NewDEK()
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to generate a data key", "error", err)
-			return rewrapSkipped, connect.NewError(connect.CodeInternal, ErrKeyProvider)
+			return rewrapSkipped, connect.NewError(connect.CodeInternal, ErrKeyProvider.Error()).
+				WithCause(ErrKeyProvider)
 		}
 		defer secretkeys.Zero(replacement)
 	}
 	rewrapped, err := s.provider.Wrap(ctx, replacement, aad)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to wrap environment key", "environmentId", key.EnvironmentID, "error", err)
-		return rewrapSkipped, connect.NewError(connect.CodeUnavailable, ErrKeyProvider)
+		return rewrapSkipped, connect.NewError(connect.CodeUnavailable, ErrKeyProvider.Error()).
+			WithCause(ErrKeyProvider)
 	}
 	env, err := s.queries.GetEnvironmentByID(ctx, key.EnvironmentID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load environment", "environmentId", key.EnvironmentID, "error", err)
-		return rewrapSkipped, connect.NewError(connect.CodeInternal, ErrDB)
+		return rewrapSkipped, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		locked, _, lockErr := s.lockEnvironmentKey(ctx, qtx, env)
@@ -727,12 +746,14 @@ func (s *SecretServer) environmentDEK(
 			"formatVersion",
 			key.FormatVersion,
 		)
-		return genDb.EnvironmentKey{}, nil, connect.NewError(connect.CodeInternal, ErrUnknownSecretFormat)
+		return genDb.EnvironmentKey{}, nil, connect.NewError(connect.CodeInternal, ErrUnknownSecretFormat.Error()).
+			WithCause(ErrUnknownSecretFormat)
 	}
 	dek, err := unwrapEnvironmentKey(ctx, s.provider, key)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to unwrap environment key", "environmentId", environmentID, "error", err)
-		return genDb.EnvironmentKey{}, nil, connect.NewError(connect.CodeUnavailable, ErrKeyProvider)
+		return genDb.EnvironmentKey{}, nil, connect.NewError(connect.CodeUnavailable, ErrKeyProvider.Error()).
+			WithCause(ErrKeyProvider)
 	}
 	return key, dek, nil
 }
@@ -751,13 +772,15 @@ func (s *SecretServer) createEnvironmentKey(
 	dek, err := secretkeys.NewDEK()
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to generate a data key", "error", err)
-		return genDb.EnvironmentKey{}, connect.NewError(connect.CodeInternal, ErrKeyProvider)
+		return genDb.EnvironmentKey{}, connect.NewError(connect.CodeInternal, ErrKeyProvider.Error()).
+			WithCause(ErrKeyProvider)
 	}
 	defer secretkeys.Zero(dek)
 	wrapped, err := s.provider.Wrap(ctx, dek, aad)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to wrap a data key", "environmentId", environmentID, "error", err)
-		return genDb.EnvironmentKey{}, connect.NewError(connect.CodeUnavailable, ErrKeyProvider)
+		return genDb.EnvironmentKey{}, connect.NewError(connect.CodeUnavailable, ErrKeyProvider.Error()).
+			WithCause(ErrKeyProvider)
 	}
 	key, err := s.queries.InsertEnvironmentKey(ctx, genDb.InsertEnvironmentKeyParams{
 		EnvironmentID: environmentID,
@@ -771,7 +794,7 @@ func (s *SecretServer) createEnvironmentKey(
 	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to store the environment key", "environmentId", environmentID, "error", err)
-		return genDb.EnvironmentKey{}, connect.NewError(connect.CodeInternal, ErrDB)
+		return genDb.EnvironmentKey{}, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
 	}
 	return key, nil
 }

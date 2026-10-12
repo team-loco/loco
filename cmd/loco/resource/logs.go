@@ -9,7 +9,6 @@ import (
 	"os/signal"
 	"time"
 
-	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
@@ -141,17 +140,17 @@ func getResourceByName(
 	workspaceID string,
 	name string,
 ) (*resourcev1.Resource, error) {
-	req := connect.NewRequest(&resourcev1.GetResourceRequest{
+	req := &resourcev1.GetResourceRequest{
 		Key: &resourcev1.GetResourceRequest_NameKey{
 			NameKey: &resourcev1.GetResourceNameKey{WorkspaceId: workspaceID, Name: name},
 		},
-	})
+	}
 
 	resp, err := resourceClient.GetResource(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("service '%s' not found: %w", name, err)
 	}
-	return resp.Msg.GetResource(), nil
+	return resp.GetResource(), nil
 }
 
 func runResourceLogs(cmd *cobra.Command, deps logsDeps, name string) error {

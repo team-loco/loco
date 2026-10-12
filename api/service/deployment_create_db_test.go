@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -86,17 +86,17 @@ func deployServiceIn(
 	}
 	scoped := context.WithValue(ctx, contextkeys.EntityScopesKey, scopes)
 	spec := &deploymentv1.DeploymentSpec{Spec: &deploymentv1.DeploymentSpec_Service{Service: service}}
-	req := connect.NewRequest(&deploymentv1.CreateDeploymentRequest{
+	req := &deploymentv1.CreateDeploymentRequest{
 		ResourceId:    f.resourceID.String(),
 		Region:        testRegion,
 		EnvironmentId: environmentID.String(),
 		Spec:          spec,
-	})
+	}
 	resp, err := server.CreateDeployment(scoped, req)
 	if err != nil {
 		return nil, err
 	}
-	return resp.Msg, nil
+	return resp, nil
 }
 
 func (f *deployFixture) addDomain(t *testing.T, domain string, primary bool) {

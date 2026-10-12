@@ -4,7 +4,6 @@ import (
 	"slices"
 	"testing"
 
-	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -88,11 +87,11 @@ func TestBuildMutationsFailWithoutTheirEvents(t *testing.T) {
 	}
 
 	resourceID := f.resourceID.String()
-	createReq := connect.NewRequest(&buildv1.CreateBuildRequest{
+	createReq := &buildv1.CreateBuildRequest{
 		ResourceId:     resourceID,
 		DockerfilePath: testDockerfile,
 		SourceSize:     100,
-	})
+	}
 	if _, err := f.server.CreateBuild(f.ctx, createReq); err == nil {
 		t.Fatal("create succeeded without its event")
 	}

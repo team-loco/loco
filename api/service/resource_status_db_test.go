@@ -5,12 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
@@ -143,21 +144,21 @@ func (f *resourceStatusFixture) statuses(t *testing.T) []*resourcev1.Environment
 	server := f.server()
 	resourceID := f.resourceID.String()
 
-	got, err := server.GetResource(f.ctx, connect.NewRequest(&resourcev1.GetResourceRequest{
+	got, err := server.GetResource(f.ctx, &resourcev1.GetResourceRequest{
 		Key: &resourcev1.GetResourceRequest_ResourceId{ResourceId: resourceID},
-	}))
+	})
 	if err != nil {
 		t.Fatalf("get resource: %v", err)
 	}
-	fromGet := got.Msg.GetResource().GetEnvironmentStatuses()
+	fromGet := got.GetResource().GetEnvironmentStatuses()
 
-	listed, err := server.ListWorkspaceResources(f.ctx, connect.NewRequest(&resourcev1.ListWorkspaceResourcesRequest{
+	listed, err := server.ListWorkspaceResources(f.ctx, &resourcev1.ListWorkspaceResourcesRequest{
 		WorkspaceId: f.workspaceID.String(),
-	}))
+	})
 	if err != nil {
 		t.Fatalf("list resources: %v", err)
 	}
-	resources := listed.Msg.GetResources()
+	resources := listed.GetResources()
 	if len(resources) != 1 {
 		t.Fatalf("listed %d resources, want 1", len(resources))
 	}
@@ -459,9 +460,9 @@ func TestRemovedRegionDropsOutOfTheStatus(t *testing.T) {
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspaceID, Scope: genDb.ScopeWrite},
 	})
 	deployments := NewDeploymentServer(f.pool, f.queries, nil, "", testServiceDefaults(), testClusterSilentAfter)
-	_, err = deployments.DeleteDeployment(deleteCtx, connect.NewRequest(&deploymentv1.DeleteDeploymentRequest{
+	_, err = deployments.DeleteDeployment(deleteCtx, &deploymentv1.DeleteDeploymentRequest{
 		DeploymentId: deployment.ID.String(),
-	}))
+	})
 	if err != nil {
 		t.Fatalf("delete deployment: %v", err)
 	}
@@ -488,7 +489,7 @@ func (f *resourceStatusFixture) waitForProduction(t *testing.T, want resourcev1.
 
 func heartbeatOverSync(
 	ctx context.Context,
-	stream *connect.BidiStreamForClient[agentv1.SyncRequest, agentv1.SyncResponse],
+	stream agentv1connect.AgentServiceSyncClientStream,
 	interval time.Duration,
 ) {
 	health := &agentv1.AgentHealth{KubernetesHealthy: true, ControllerHealthy: true}
@@ -524,8 +525,12 @@ func TestResourceStatusIsUnknownOnceTheSyncStreamDrops(t *testing.T) {
 	client := startSyncServer(t, f.deployFixture)
 	streamCtx, dropStream := context.WithCancel(f.ctx)
 	defer dropStream()
-	stream := client.Sync(streamCtx)
-	stream.RequestHeader().Set("Authorization", "Bearer "+testAgentToken)
+	streamCtx, callInfo := connect.NewClientContext(streamCtx)
+	callInfo.RequestHeader().Set("Authorization", "Bearer "+testAgentToken)
+	stream, err := client.Sync(streamCtx)
+	if err != nil {
+		t.Fatal(err)
+	}
 	agentStopped := make(chan struct{})
 	go func() {
 		defer close(agentStopped)

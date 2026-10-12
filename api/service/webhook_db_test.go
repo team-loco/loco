@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/auth"
@@ -52,11 +52,11 @@ func newWebhookFixture(t *testing.T) *webhookFixture {
 	owner := f.signUp(t, "owner", "owner@corp.test")
 	ownerCtx := scoped(t, queries, owner)
 	orgs := NewOrgServer(pool, queries, machine)
-	created, err := orgs.CreateOrg(ownerCtx, connect.NewRequest(&orgv1.CreateOrgRequest{Name: new("corp")}))
+	created, err := orgs.CreateOrg(ownerCtx, &orgv1.CreateOrgRequest{Name: new("corp")})
 	if err != nil {
 		t.Fatalf("org: %v", err)
 	}
-	f.orgID = uuid.MustParse(created.Msg.GetOrgId())
+	f.orgID = uuid.MustParse(created.GetOrgId())
 	f.workspaceID = f.workspace(t, owner, "storefront")
 	f.otherID = f.workspace(t, owner, "billing")
 	f.owner = scoped(t, queries, owner)
@@ -104,23 +104,23 @@ func TestWebhookLifecycle(t *testing.T) {
 	s := NewWebhookServer(f.pool, f.queries, false)
 
 	for _, bad := range []string{"http://hooks.example.test/loco", "https://user:pw@hooks.example.test", "ftp://x.test"} {
-		if _, err := s.CreateWebhook(f.owner, connect.NewRequest(&webhookv1.CreateWebhookRequest{
+		if _, err := s.CreateWebhook(f.owner, &webhookv1.CreateWebhookRequest{
 			WorkspaceId: f.workspaceID, Url: bad,
-		})); codeOf(err) != connect.CodeInvalidArgument {
+		}); codeOf(err) != connect.CodeInvalidArgument {
 			t.Fatalf("url %q accepted: %v", bad, err)
 		}
 	}
 
-	created, err := s.CreateWebhook(f.owner, connect.NewRequest(&webhookv1.CreateWebhookRequest{
+	created, err := s.CreateWebhook(f.owner, &webhookv1.CreateWebhookRequest{
 		WorkspaceId: f.workspaceID, Url: receiverURL, EventTypes: []string{events.EnvironmentCreated},
-	}))
+	})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	if !strings.HasPrefix(created.Msg.GetSecret(), "whsec_") || created.Msg.GetWebhook().GetUrl() != receiverURL {
-		t.Fatalf("created = %+v", created.Msg)
+	if !strings.HasPrefix(created.GetSecret(), "whsec_") || created.GetWebhook().GetUrl() != receiverURL {
+		t.Fatalf("created = %+v", created)
 	}
-	hookID := created.Msg.GetWebhook().GetId()
+	hookID := created.GetWebhook().GetId()
 
 	workspaceID := uuid.MustParse(f.workspaceID)
 	for _, eventType := range []string{events.EnvironmentCreated, events.ResourceCreated} {
@@ -132,26 +132,26 @@ func TestWebhookLifecycle(t *testing.T) {
 			t.Fatalf("record %s: %v", eventType, recordErr)
 		}
 	}
-	deliveries, err := s.ListWebhookDeliveries(f.owner, connect.NewRequest(&webhookv1.ListWebhookDeliveriesRequest{
+	deliveries, err := s.ListWebhookDeliveries(f.owner, &webhookv1.ListWebhookDeliveriesRequest{
 		WorkspaceId: f.workspaceID, WebhookId: hookID,
-	}))
-	if err != nil || len(deliveries.Msg.GetDeliveries()) != 1 {
+	})
+	if err != nil || len(deliveries.GetDeliveries()) != 1 {
 		t.Fatalf("deliveries = %+v (%v)", deliveries, err)
 	}
-	if d := deliveries.Msg.GetDeliveries()[0]; d.GetEventType() != events.EnvironmentCreated ||
+	if d := deliveries.GetDeliveries()[0]; d.GetEventType() != events.EnvironmentCreated ||
 		d.GetStatus() != "pending" {
 		t.Fatalf("delivery = %+v", d)
 	}
 
 	listed, err := s.ListWebhooks(
 		f.owner,
-		connect.NewRequest(&webhookv1.ListWebhooksRequest{WorkspaceId: f.workspaceID}),
+		&webhookv1.ListWebhooksRequest{WorkspaceId: f.workspaceID},
 	)
-	if err != nil || len(listed.Msg.GetWebhooks()) != 1 {
+	if err != nil || len(listed.GetWebhooks()) != 1 {
 		t.Fatalf("list = %+v (%v)", listed, err)
 	}
 
-	remove := connect.NewRequest(&webhookv1.DeleteWebhookRequest{WorkspaceId: f.workspaceID, WebhookId: hookID})
+	remove := &webhookv1.DeleteWebhookRequest{WorkspaceId: f.workspaceID, WebhookId: hookID}
 	if _, deleteErr := s.DeleteWebhook(f.owner, remove); deleteErr != nil {
 		t.Fatalf("delete: %v", deleteErr)
 	}
@@ -186,47 +186,47 @@ func TestWorkspaceWebhooksRequireWorkspaceAdmin(t *testing.T) {
 	admin := f.member(t, "admin", genDb.ScopeAdmin)
 	writer := f.member(t, "writer", genDb.ScopeWrite)
 
-	created, err := s.CreateWebhook(admin, connect.NewRequest(&webhookv1.CreateWebhookRequest{
+	created, err := s.CreateWebhook(admin, &webhookv1.CreateWebhookRequest{
 		WorkspaceId: f.workspaceID, Url: receiverURL,
-	}))
+	})
 	if err != nil {
 		t.Fatalf("workspace admin create: %v", err)
 	}
-	hookID := created.Msg.GetWebhook().GetId()
-	listed, err := s.ListWebhooks(admin, connect.NewRequest(&webhookv1.ListWebhooksRequest{WorkspaceId: f.workspaceID}))
-	if err != nil || len(listed.Msg.GetWebhooks()) != 1 {
+	hookID := created.GetWebhook().GetId()
+	listed, err := s.ListWebhooks(admin, &webhookv1.ListWebhooksRequest{WorkspaceId: f.workspaceID})
+	if err != nil || len(listed.GetWebhooks()) != 1 {
 		t.Fatalf("workspace admin list = %+v (%v)", listed, err)
 	}
 
-	if _, createErr := s.CreateWebhook(writer, connect.NewRequest(&webhookv1.CreateWebhookRequest{
+	if _, createErr := s.CreateWebhook(writer, &webhookv1.CreateWebhookRequest{
 		WorkspaceId: f.workspaceID, Url: receiverURL,
-	})); codeOf(createErr) != connect.CodePermissionDenied {
+	}); codeOf(createErr) != connect.CodePermissionDenied {
 		t.Fatalf("writer created a webhook: %v", createErr)
 	}
-	if _, listErr := s.ListWebhooks(writer, connect.NewRequest(&webhookv1.ListWebhooksRequest{
+	if _, listErr := s.ListWebhooks(writer, &webhookv1.ListWebhooksRequest{
 		WorkspaceId: f.workspaceID,
-	})); codeOf(listErr) != connect.CodePermissionDenied {
+	}); codeOf(listErr) != connect.CodePermissionDenied {
 		t.Fatalf("writer listed webhooks: %v", listErr)
 	}
-	if _, deleteErr := s.DeleteWebhook(writer, connect.NewRequest(&webhookv1.DeleteWebhookRequest{
+	if _, deleteErr := s.DeleteWebhook(writer, &webhookv1.DeleteWebhookRequest{
 		WorkspaceId: f.workspaceID, WebhookId: hookID,
-	})); codeOf(deleteErr) != connect.CodePermissionDenied {
+	}); codeOf(deleteErr) != connect.CodePermissionDenied {
 		t.Fatalf("writer deleted a webhook: %v", deleteErr)
 	}
-	if _, otherErr := s.ListWebhooks(admin, connect.NewRequest(&webhookv1.ListWebhooksRequest{
+	if _, otherErr := s.ListWebhooks(admin, &webhookv1.ListWebhooksRequest{
 		WorkspaceId: f.otherID,
-	})); codeOf(otherErr) != connect.CodePermissionDenied {
+	}); codeOf(otherErr) != connect.CodePermissionDenied {
 		t.Fatalf("workspace admin listed another workspace's webhooks: %v", otherErr)
 	}
-	if _, crossErr := s.DeleteWebhook(f.owner, connect.NewRequest(&webhookv1.DeleteWebhookRequest{
+	if _, crossErr := s.DeleteWebhook(f.owner, &webhookv1.DeleteWebhookRequest{
 		WorkspaceId: f.otherID, WebhookId: hookID,
-	})); codeOf(crossErr) != connect.CodeNotFound {
+	}); codeOf(crossErr) != connect.CodeNotFound {
 		t.Fatalf("webhook deleted through another workspace: %v", crossErr)
 	}
 
-	if _, deleteErr := s.DeleteWebhook(admin, connect.NewRequest(&webhookv1.DeleteWebhookRequest{
+	if _, deleteErr := s.DeleteWebhook(admin, &webhookv1.DeleteWebhookRequest{
 		WorkspaceId: f.workspaceID, WebhookId: hookID,
-	})); deleteErr != nil {
+	}); deleteErr != nil {
 		t.Fatalf("workspace admin delete: %v", deleteErr)
 	}
 }
@@ -234,7 +234,7 @@ func TestWorkspaceWebhooksRequireWorkspaceAdmin(t *testing.T) {
 func TestWebhookLimitIsPerWorkspace(t *testing.T) {
 	f := newWebhookFixture(t)
 	s := NewWebhookServer(f.pool, f.queries, false)
-	create := connect.NewRequest(&webhookv1.CreateWebhookRequest{WorkspaceId: f.workspaceID, Url: receiverURL})
+	create := &webhookv1.CreateWebhookRequest{WorkspaceId: f.workspaceID, Url: receiverURL}
 	for i := range maxWebhooksPerWorkspace {
 		if _, err := s.CreateWebhook(f.owner, create); err != nil {
 			t.Fatalf("create %d: %v", i, err)
@@ -243,16 +243,16 @@ func TestWebhookLimitIsPerWorkspace(t *testing.T) {
 	if _, err := s.CreateWebhook(f.owner, create); codeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("webhook over the limit: %v", err)
 	}
-	if _, err := s.CreateWebhook(f.owner, connect.NewRequest(&webhookv1.CreateWebhookRequest{
+	if _, err := s.CreateWebhook(f.owner, &webhookv1.CreateWebhookRequest{
 		WorkspaceId: f.otherID, Url: receiverURL,
-	})); err != nil {
+	}); err != nil {
 		t.Fatalf("another workspace hit the first workspace's limit: %v", err)
 	}
 
 	local := NewWebhookServer(f.pool, f.queries, true)
-	if _, err := local.CreateWebhook(f.owner, connect.NewRequest(&webhookv1.CreateWebhookRequest{
+	if _, err := local.CreateWebhook(f.owner, &webhookv1.CreateWebhookRequest{
 		WorkspaceId: f.workspaceID, Url: "http://localhost:3000/hook",
-	})); codeOf(err) != connect.CodeFailedPrecondition {
+	}); codeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("http url with private networks allowed should reach the limit check: %v", err)
 	}
 }
@@ -263,9 +263,9 @@ func TestWebhookChangesFailWithoutTheirEvent(t *testing.T) {
 	if _, err := f.pool.Exec(t.Context(), failEventInsertsSQL); err != nil {
 		t.Fatalf("install failing trigger: %v", err)
 	}
-	if _, err := s.CreateWebhook(f.owner, connect.NewRequest(&webhookv1.CreateWebhookRequest{
+	if _, err := s.CreateWebhook(f.owner, &webhookv1.CreateWebhookRequest{
 		WorkspaceId: f.workspaceID, Url: receiverURL,
-	})); err == nil {
+	}); err == nil {
 		t.Fatal("create succeeded without its event")
 	}
 	hooks, err := f.queries.ListWorkspaceWebhooks(t.Context(), uuid.MustParse(f.workspaceID))
@@ -293,28 +293,28 @@ func TestWorkspaceWebhookAPIHidesInstallWebhooks(t *testing.T) {
 	).Scan(&installID); scanErr != nil {
 		t.Fatalf("install webhook: %v", scanErr)
 	}
-	created, err := s.CreateWebhook(f.owner, connect.NewRequest(&webhookv1.CreateWebhookRequest{
+	created, err := s.CreateWebhook(f.owner, &webhookv1.CreateWebhookRequest{
 		WorkspaceId: f.workspaceID, Url: receiverURL,
-	}))
+	})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
 
-	listed, err := s.ListWebhooks(f.owner, connect.NewRequest(&webhookv1.ListWebhooksRequest{
+	listed, err := s.ListWebhooks(f.owner, &webhookv1.ListWebhooksRequest{
 		WorkspaceId: f.workspaceID,
-	}))
-	if err != nil || len(listed.Msg.GetWebhooks()) != 1 ||
-		listed.Msg.GetWebhooks()[0].GetId() != created.Msg.GetWebhook().GetId() {
+	})
+	if err != nil || len(listed.GetWebhooks()) != 1 ||
+		listed.GetWebhooks()[0].GetId() != created.GetWebhook().GetId() {
 		t.Fatalf("list = %+v (%v)", listed, err)
 	}
-	if _, deliveriesErr := s.ListWebhookDeliveries(f.owner, connect.NewRequest(&webhookv1.ListWebhookDeliveriesRequest{
+	if _, deliveriesErr := s.ListWebhookDeliveries(f.owner, &webhookv1.ListWebhookDeliveriesRequest{
 		WorkspaceId: f.workspaceID, WebhookId: installID,
-	})); codeOf(deliveriesErr) != connect.CodeNotFound {
+	}); codeOf(deliveriesErr) != connect.CodeNotFound {
 		t.Fatalf("install webhook deliveries through the workspace API: %v", deliveriesErr)
 	}
-	if _, deleteErr := s.DeleteWebhook(f.owner, connect.NewRequest(&webhookv1.DeleteWebhookRequest{
+	if _, deleteErr := s.DeleteWebhook(f.owner, &webhookv1.DeleteWebhookRequest{
 		WorkspaceId: f.workspaceID, WebhookId: installID,
-	})); codeOf(deleteErr) != connect.CodeNotFound {
+	}); codeOf(deleteErr) != connect.CodeNotFound {
 		t.Fatalf("install webhook deleted through the workspace API: %v", deleteErr)
 	}
 	var remaining int

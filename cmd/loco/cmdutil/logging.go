@@ -2,10 +2,9 @@ package cmdutil
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 )
 
 // LogRequestID extracts and logs the X-Loco-Request-Id only if err is not nil.
@@ -18,8 +17,8 @@ func LogRequestID(ctx context.Context, err error, msg string) {
 	const requestIDHeaderName = "X-Loco-Request-Id"
 	var headerValue string
 
-	if cErr, ok := errors.AsType[*connect.Error](err); ok {
-		headerValue = cErr.Meta().Get(requestIDHeaderName)
+	if info, ok := connect.CallInfoForClientContext(ctx); ok {
+		headerValue = info.ResponseHeader().Get(requestIDHeaderName)
 	}
 
 	slog.ErrorContext(ctx, msg, requestIDHeaderName, headerValue, "error", err)
