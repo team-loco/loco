@@ -1,6 +1,6 @@
 # Build context is the repository root, not web/ — the UI imports generated
 # TypeScript from gen/ts, and bun workspaces hoist node_modules to the root.
-FROM oven/bun:1.4.2-alpine@sha256:d888c0ae6c86d7866ff10c5aafdd9077b36aee6455b33dd270fb93c0dd5cef6f AS builder
+FROM oven/bun:1.4.3-alpine@sha256:629e17411f1f129dbec3af78d5af9c9f2a937435c80349437206c6b0b7422373 AS builder
 
 ARG VITE_API_URL
 ARG VITE_APP_ENV
