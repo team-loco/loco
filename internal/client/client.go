@@ -178,8 +178,7 @@ func (c *Client) StreamDeployment(
 			logRequestID(ctx, err2, "failed to stream deployment")
 			return err2
 		}
-		event := msg
-		if err := eventHandler(event); err != nil {
+		if err := eventHandler(msg); err != nil {
 			return err
 		}
 	}

@@ -8,11 +8,13 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
+
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 var errPartialUnchanged = errors.New("resource already belongs to this partial")
@@ -22,26 +24,23 @@ func (s *ResourceServer) TransferPartial(
 	ctx context.Context,
 	req *resourcev1.TransferPartialRequest,
 ) (*resourcev1.TransferPartialResponse, error) {
-	r := req
-
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound.Error()).
-			WithCause(errEntityScopesNotFound)
+		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.authz.Check(
 		ctx,
 		scopes,
-		actions.New(actions.TransferPartial, r.GetResourceId()),
+		actions.New(actions.TransferPartial, req.GetResourceId()),
 	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to transfer partial", "resourceId", r.GetResourceId())
+		slog.WarnContext(ctx, "unauthorized to transfer partial", "resourceId", req.GetResourceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
-	resourceID := uuid.MustParse(r.GetResourceId())
-	partial := r.GetPartial()
+	resourceID := uuid.MustParse(req.GetResourceId())
+	partial := req.GetPartial()
 
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if lockErr := lockResourceEnvironments(ctx, qtx, resourceID); lockErr != nil {
@@ -76,11 +75,10 @@ func (s *ResourceServer) TransferPartial(
 		})
 	})
 	if errors.Is(err, ErrResourceNotFound) {
-		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound.Error()).WithCause(ErrResourceNotFound)
+		return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
 	}
 	if errors.Is(err, errPartialUnchanged) {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errPartialUnchanged.Error()).
-			WithCause(errPartialUnchanged)
+		return nil, rpcerr.New(connect.CodeFailedPrecondition, errPartialUnchanged)
 	}
 	if err != nil {
 		return nil, txError(ctx, "failed to transfer partial", err)

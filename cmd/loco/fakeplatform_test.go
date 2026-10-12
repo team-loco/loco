@@ -17,6 +17,8 @@ import (
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
 	"connectrpc.com/connect/v2/connectproto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	"github.com/team-loco/loco/gen/go/loco/build/v1/buildv1connect"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
@@ -29,7 +31,7 @@ import (
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/gen/go/loco/secret/v1/secretv1connect"
-	"google.golang.org/protobuf/types/known/timestamppb"
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 const (
@@ -277,8 +279,7 @@ func (s *fakeResourceService) GetResource(
 			return &resourcev1.GetResourceResponse{Resource: res}, nil
 		}
 	}
-	return nil, connect.NewError(connect.CodeNotFound, errFakeResourceNotFound.Error()).
-		WithCause(errFakeResourceNotFound)
+	return nil, rpcerr.New(connect.CodeNotFound, errFakeResourceNotFound)
 }
 
 func (s *fakeResourceService) CreateResource(
@@ -303,8 +304,7 @@ func (s *fakeResourceService) CreateResource(
 	}
 	if input := req.GetDomain(); input != nil {
 		if input.GetPlatformDomainId() != fakePlatformDomainID {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errFakeUnknownPlatformDomain.Error()).
-				WithCause(errFakeUnknownPlatformDomain)
+			return nil, rpcerr.New(connect.CodeInvalidArgument, errFakeUnknownPlatformDomain)
 		}
 		hostname := input.GetSubdomain() + "." + fakePlatformDomain
 		resource.Domains = []*domainv1.ResourceDomain{{ResourceId: id, Domain: hostname, IsPrimary: true}}
@@ -352,8 +352,7 @@ func (s *fakeResourceService) TransferPartial(
 			return &resourcev1.TransferPartialResponse{}, nil
 		}
 	}
-	return nil, connect.NewError(connect.CodeNotFound, errFakeResourceNotFound.Error()).
-		WithCause(errFakeResourceNotFound)
+	return nil, rpcerr.New(connect.CodeNotFound, errFakeResourceNotFound)
 }
 
 func (s *fakeResourceService) ScaleResource(
@@ -374,8 +373,7 @@ func (s *fakeResourceService) ScaleResource(
 		return env.GetId() == req.GetEnvironmentId()
 	})
 	if !knownEnvironment {
-		return nil, connect.NewError(connect.CodeNotFound, errFakeEnvironmentNotFound.Error()).
-			WithCause(errFakeEnvironmentNotFound)
+		return nil, rpcerr.New(connect.CodeNotFound, errFakeEnvironmentNotFound)
 	}
 	f.platform.scales = append(f.platform.scales, req)
 	return &resourcev1.ScaleResourceResponse{}, nil
@@ -452,7 +450,7 @@ func (s *fakeBuildService) CreateBuild(
 	size := req.GetSourceSize()
 	if size > f.platform.sourceLimit {
 		tooLarge := fmt.Errorf("source is %d bytes, over the %d byte limit", size, f.platform.sourceLimit)
-		return nil, connect.NewError(connect.CodeInvalidArgument, tooLarge.Error()).WithCause(tooLarge)
+		return nil, rpcerr.New(connect.CodeInvalidArgument, tooLarge)
 	}
 	id := fmt.Sprintf("0199b6c4-5d1e-7f00-8000-%012d", len(f.platform.builds)+1)
 	f.platform.builds = append(f.platform.builds, &buildv1.Build{
@@ -502,7 +500,7 @@ func (s *fakeBuildService) StartBuild(
 
 func fakeBuildsUnavailable() *connect.Error {
 	reason := errors.New("no cluster in this install accepts builds")
-	connectErr := connect.NewError(connect.CodeFailedPrecondition, reason.Error()).WithCause(reason)
+	connectErr := rpcerr.New(connect.CodeFailedPrecondition, reason)
 	detail, err := connectproto.NewErrorDetail(&buildv1.BuildsUnavailable{})
 	if err != nil {
 		panic(err)

@@ -74,27 +74,18 @@ Builds, tests, code generation, linting and the local environment are mise tasks
 - **Names**: never use numbered suffixes (`uniqueJSONErr2`, `uniqueJSONErr3`). Name each value after what it holds.
 - **Nested calls**: name a call's result in a local before passing it to another call or a struct literal.
 
-## ConnectRPC
+## ConnectRPC traps
 
-All Go RPC code is on connect-go v2: `connectrpc.com/connect/v2`, `connectrpc.com/grpcreflect/v2`, and the
-v2-built `connectrpc.com/validate`. Never import `connectrpc.com/connect` (v1), and ignore v1 examples
-(`connect.Request[T]`, `connect.NewRequest`, `.Msg`, `WrapUnary`); they no longer compile here.
-
-- **Handlers and clients** take and return bare protobuf messages. Services register on a
-  `*connect.Server` and are mounted with `connecthttp.Mount`; clients are built from
-  `connect.NewClient(connecthttp.NewTransport(...))`. Tests call a service through
-  `connectinprocess`, not an `httptest.Server`.
-- **Headers and trailers** live on a `*connect.CallInfo` in the context: `connect.CallInfoForServerContext(ctx)`
-  in a handler or server interceptor, `connect.NewClientContext(ctx)` before a client call. Credentials
-  a client sends on every call go in a `connect.ClientInterceptor`, not on each request.
-- **Interceptors** are `connect.ServerInterceptor` / `connect.ClientInterceptor` funcs that see every RPC
-  shape through one stream; branch on `spec.StreamType` when unary and streaming differ.
-- **Errors**: only a `*connect.Error` reaches the client, with exactly the message passed to
-  `connect.NewError(code, msg)` / `connect.Errorf`. Attach internal errors with `.WithCause(err)`; they
-  stay on the server. A plain `error` returned from a handler arrives as `CodeUnknown` with no message,
-  and an error received from another Connect call and returned unchanged is scrubbed to `CodeInternal`.
-- **Message size**: v2 rejects any message over 4 MiB with `CodeResourceExhausted`. Keep that
-  default; never pass `connecthttp.WithReadMaxBytes(0)` (unbounded).
+- Set response headers before calling the next interceptor: unary responses are
+  written inside that call, so headers set afterward are lost. Server interceptors
+  run before decoding; keep authentication at that boundary.
+- Config and Agent stay outside the authenticated server. Preserve that interceptor
+  boundary, and include both servers when deriving reflection's service list.
+- Connect scrubs plain handler errors and errors forwarded from another RPC. Map
+  forwarded errors explicitly. `rpcerr.New(code, err)` exposes `err.Error()` to the
+  client; use explicit public messages with `WithCause` for private diagnostics.
+- The 4 MiB per-message read limit is deliberate. Do not add
+  `connecthttp.WithReadMaxBytes(0)` to work around a rejected request.
 
 ## Repo Hygiene
 

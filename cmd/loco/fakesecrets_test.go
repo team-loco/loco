@@ -10,9 +10,11 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/rogpeppe/go-internal/testscript"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 	"github.com/team-loco/loco/gen/go/loco/secret/v1/secretv1connect"
-	"google.golang.org/protobuf/types/known/timestamppb"
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 var errFakeSecretNotFound = errors.New("secret not found")
@@ -72,15 +74,14 @@ func (s *fakeSecretService) SetSecrets(
 
 func (p *fakePlatform) checkSecretTarget(resourceID, environmentID string) error {
 	if environmentID != fakeEnvironmentID {
-		return connect.NewError(connect.CodeNotFound, errFakeUnknownEnvironment.Error()).
-			WithCause(errFakeUnknownEnvironment)
+		return rpcerr.New(connect.CodeNotFound, errFakeUnknownEnvironment)
 	}
 	for _, res := range p.resources {
 		if res.GetId() == resourceID {
 			return nil
 		}
 	}
-	return connect.NewError(connect.CodeNotFound, errFakeResourceNotFound.Error()).WithCause(errFakeResourceNotFound)
+	return rpcerr.New(connect.CodeNotFound, errFakeResourceNotFound)
 }
 
 func (p *fakePlatform) secretKey(ts *testscript.TestScript, service, name string) fakeSecretKey {
@@ -116,7 +117,7 @@ func (s *fakeSecretService) DeleteSecrets(
 		keys = append(keys, key)
 		if _, ok := f.platform.secrets[key]; !ok {
 			missing := fmt.Errorf("%w: %s", errFakeSecretNotFound, name)
-			return nil, connect.NewError(connect.CodeNotFound, missing.Error()).WithCause(missing)
+			return nil, rpcerr.New(connect.CodeNotFound, missing)
 		}
 	}
 	for _, key := range keys {

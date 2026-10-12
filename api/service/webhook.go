@@ -10,6 +10,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/contextkeys"
@@ -17,7 +19,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/webhooks"
 	webhookv1 "github.com/team-loco/loco/gen/go/loco/webhook/v1"
-	"google.golang.org/protobuf/types/known/timestamppb"
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 const (
@@ -49,13 +51,11 @@ func NewWebhookServer(db *pgxpool.Pool, queries genDb.Querier, allowPrivate bool
 func (s *WebhookServer) requireWorkspaceAdmin(ctx context.Context, workspaceID string) (genDb.Entity, error) {
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
-		return genDb.Entity{}, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized.Error()).
-			WithCause(ErrUnauthorized)
+		return genDb.Entity{}, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
-		return genDb.Entity{}, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized.Error()).
-			WithCause(ErrUnauthorized)
+		return genDb.Entity{}, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 	if err := s.authz.Check(ctx, scopes, actions.New(actions.ManageWorkspaceWebhooks, workspaceID)); err != nil {
 		return genDb.Entity{}, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
@@ -89,15 +89,15 @@ func (s *WebhookServer) CreateWebhook(
 		return nil, err
 	}
 	if !s.validURL(req.GetUrl()) {
-		return nil, connect.NewError(connect.CodeInvalidArgument, ErrWebhookURL.Error()).WithCause(ErrWebhookURL)
+		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrWebhookURL)
 	}
 	workspaceID := uuid.MustParse(req.GetWorkspaceId())
 	count, err := s.queries.CountWorkspaceWebhooks(ctx, workspaceID)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 	if count >= maxWebhooksPerWorkspace {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrWebhookLimit.Error()).WithCause(ErrWebhookLimit)
+		return nil, rpcerr.New(connect.CodeFailedPrecondition, ErrWebhookLimit)
 	}
 	secret, err := webhooks.NewSecret()
 	if err != nil {
@@ -134,7 +134,7 @@ func (s *WebhookServer) CreateWebhook(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create webhook", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 	return &webhookv1.CreateWebhookResponse{Webhook: webhookToProto(row), Secret: secret}, nil
 }
@@ -149,7 +149,7 @@ func (s *WebhookServer) ListWebhooks(
 	workspaceID := uuid.MustParse(req.GetWorkspaceId())
 	rows, err := s.queries.ListWorkspaceWebhooks(ctx, workspaceID)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 	out := make([]*webhookv1.Webhook, len(rows))
 	for i, row := range rows {
@@ -168,10 +168,10 @@ func (s *WebhookServer) loadWebhook(
 		WorkspaceID: workspaceID,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return row, connect.NewError(connect.CodeNotFound, ErrWebhookNotFound.Error()).WithCause(ErrWebhookNotFound)
+		return row, rpcerr.New(connect.CodeNotFound, ErrWebhookNotFound)
 	}
 	if err != nil {
-		return row, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
+		return row, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 	return row, nil
 }
@@ -226,7 +226,7 @@ func (s *WebhookServer) ListWebhookDeliveries(
 		MaxRows:   recentDeliveries,
 	})
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 	out := make([]*webhookv1.WebhookDelivery, len(rows))
 	for i, d := range rows {

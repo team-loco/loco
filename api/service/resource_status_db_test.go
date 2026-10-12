@@ -475,8 +475,21 @@ func TestRemovedRegionDropsOutOfTheStatus(t *testing.T) {
 func (f *resourceStatusFixture) waitForProduction(t *testing.T, want resourcev1.ResourceStatus) {
 	t.Helper()
 	deadline := time.Now().Add(statusWaitTimeout)
+	server := f.server()
 	for {
-		got := f.environment(t, f.envID).GetStatus()
+		resource, err := server.GetResource(f.ctx, &resourcev1.GetResourceRequest{
+			Key: &resourcev1.GetResourceRequest_ResourceId{ResourceId: f.resourceID.String()},
+		})
+		if err != nil {
+			t.Fatalf("get resource: %v", err)
+		}
+		got := resourcev1.ResourceStatus_RESOURCE_STATUS_UNSPECIFIED
+		for _, environment := range resource.GetResource().GetEnvironmentStatuses() {
+			if environment.GetEnvironmentId() == f.envID.String() {
+				got = environment.GetStatus()
+				break
+			}
+		}
 		if got == want {
 			return
 		}
@@ -561,4 +574,9 @@ func TestResourceStatusIsUnknownOnceTheSyncStreamDrops(t *testing.T) {
 	dropStream()
 	<-agentStopped
 	f.waitForProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN)
+	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN, wantRegion{
+		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN,
+		ready: 1, desired: 1, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING,
+		message: regionMessageClusterSilent,
+	})
 }

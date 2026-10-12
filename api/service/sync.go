@@ -10,9 +10,11 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 const applicationPhaseFailed = "Failed"
@@ -34,7 +36,7 @@ func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
 	generation, err := s.queries.BeginClusterSync(ctx, cluster.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to begin cluster sync", "cluster_id", cluster.ID, "error", err)
-		return connect.NewError(connect.CodeUnavailable, ErrDB.Error()).WithCause(ErrDB)
+		return rpcerr.New(connect.CodeUnavailable, ErrDB)
 	}
 	clusterIDText := cluster.ID.String()
 	if notifyErr := s.queries.NotifyClusterPlacements(ctx, clusterIDText); notifyErr != nil {
@@ -77,7 +79,7 @@ func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
 			}
 			if genErr == nil && current != generation {
 				slog.InfoContext(ctx, "sync stream superseded", "cluster_id", cluster.ID, "generation", generation)
-				return connect.NewError(connect.CodeAborted, errSyncSuperseded.Error()).WithCause(errSyncSuperseded)
+				return rpcerr.New(connect.CodeAborted, errSyncSuperseded)
 			}
 			dirty = true
 		}

@@ -7,15 +7,18 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/team-loco/loco/api/events"
-
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/contextkeys"
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
@@ -23,10 +26,8 @@ import (
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
+	"github.com/team-loco/loco/internal/rpcerr"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var (
@@ -201,54 +202,50 @@ func (s *DeploymentServer) CreateDeployment(
 	ctx context.Context,
 	req *deploymentv1.CreateDeploymentRequest,
 ) (*deploymentv1.CreateDeploymentResponse, error) {
-	r := req
-
-	resourceID := uuid.MustParse(r.GetResourceId())
+	resourceID := uuid.MustParse(req.GetResourceId())
 
 	resource, err := s.queries.GetResourceByID(ctx, resourceID)
 	if err != nil {
-		slog.WarnContext(ctx, "resource not found", "resourceId", r.GetResourceId())
-		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound.Error()).WithCause(ErrResourceNotFound)
+		slog.WarnContext(ctx, "resource not found", "resourceId", req.GetResourceId())
+		return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
 	}
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound.Error()).
-			WithCause(errEntityScopesNotFound)
+		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if verifyErr := s.authz.Check(
 		ctx,
 		scopes,
-		actions.New(actions.CreateDeployment, r.GetResourceId()),
+		actions.New(actions.CreateDeployment, req.GetResourceId()),
 	); verifyErr != nil {
-		slog.WarnContext(ctx, "unauthorized to create deployment", "resourceId", r.GetResourceId())
+		slog.WarnContext(ctx, "unauthorized to create deployment", "resourceId", req.GetResourceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(verifyErr)
 	}
 
 	// validate that request spec contains a service deployment (for now, only services are supported)
-	if r.GetSpec().GetService() == nil {
+	if req.GetSpec().GetService() == nil {
 		return nil, connect.NewError(
 			connect.CodeInvalidArgument,
 			"only service deployments are currently supported",
 		)
 	}
 
-	serviceSpec := r.GetSpec().GetService()
+	serviceSpec := req.GetSpec().GetService()
 
-	region := r.GetRegion()
-	environmentID := uuid.MustParse(r.GetEnvironmentId())
+	region := req.GetRegion()
+	environmentID := uuid.MustParse(req.GetEnvironmentId())
 
 	env, err := s.queries.GetEnvironmentByID(ctx, environmentID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		slog.WarnContext(ctx, "environment not found", "environmentId", environmentID)
-		return nil, connect.NewError(connect.CodeNotFound, ErrEnvironmentNotFound.Error()).
-			WithCause(ErrEnvironmentNotFound)
+		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
 	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get environment", "error", err, "environmentId", environmentID)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 	if env.WorkspaceID != resource.WorkspaceID {
 		slog.WarnContext(
@@ -259,14 +256,13 @@ func (s *DeploymentServer) CreateDeployment(
 			"resourceId",
 			resourceID,
 		)
-		return nil, connect.NewError(connect.CodeNotFound, ErrEnvironmentNotFound.Error()).
-			WithCause(ErrEnvironmentNotFound)
+		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
 	}
 
 	hostname, err := primaryHostname(ctx, s.queries, resourceID, environmentID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get the resource's primary domain", "resourceId", resourceID, "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
 	cluster, err := eligibleCluster(ctx, s.queries, region, env.EnvironmentType, s.silentAfter)
@@ -281,7 +277,7 @@ func (s *DeploymentServer) CreateDeployment(
 			"error",
 			err,
 		)
-		return nil, connect.NewError(connect.CodeFailedPrecondition, err.Error()).WithCause(err)
+		return nil, rpcerr.New(connect.CodeFailedPrecondition, err)
 	}
 
 	requestedBuild := serviceSpec.GetBuild()
@@ -289,13 +285,12 @@ func (s *DeploymentServer) CreateDeployment(
 	if err != nil {
 		return nil, err
 	}
-	originalSpec := r.GetSpec()
+	originalSpec := req.GetSpec()
 	clonedSpec := proto.Clone(originalSpec)
 	requestSpec, ok := clonedSpec.(*deploymentv1.DeploymentSpec)
 	if !ok {
 		slog.ErrorContext(ctx, "failed to clone deployment spec")
-		return nil, connect.NewError(connect.CodeInternal, errCloneDeploymentSpec.Error()).
-			WithCause(errCloneDeploymentSpec)
+		return nil, rpcerr.New(connect.CodeInternal, errCloneDeploymentSpec)
 	}
 	requestSpec.GetService().Build = pinnedBuild
 
@@ -332,7 +327,7 @@ func (s *DeploymentServer) CreateDeployment(
 	specForDBService, ok := clonedServiceSpec.(*deploymentv1.ServiceDeploymentSpec)
 	if !ok {
 		slog.ErrorContext(ctx, "failed to clone service spec")
-		return nil, connect.NewError(connect.CodeInternal, errCloneServiceSpec.Error()).WithCause(errCloneServiceSpec)
+		return nil, rpcerr.New(connect.CodeInternal, errCloneServiceSpec)
 	}
 	specForDBService.Env = nil
 
@@ -345,7 +340,7 @@ func (s *DeploymentServer) CreateDeployment(
 	organizationID, err := s.queries.GetOrganizationIDByWorkspaceID(ctx, resource.WorkspaceID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get workspace organization", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
 	buildSpec := desiredApplicationSpec(
@@ -417,28 +412,24 @@ func (s *DeploymentServer) GetDeployment(
 	ctx context.Context,
 	req *deploymentv1.GetDeploymentRequest,
 ) (*deploymentv1.GetDeploymentResponse, error) {
-	r := req
-
-	deploymentID := uuid.MustParse(r.GetDeploymentId())
+	deploymentID := uuid.MustParse(req.GetDeploymentId())
 
 	deploymentData, err := s.queries.GetDeploymentByID(ctx, deploymentID)
 	if err != nil {
-		slog.WarnContext(ctx, "deployment not found", "deployment_id", r.GetDeploymentId())
-		return nil, connect.NewError(connect.CodeNotFound, ErrDeploymentNotFound.Error()).
-			WithCause(ErrDeploymentNotFound)
+		slog.WarnContext(ctx, "deployment not found", "deployment_id", req.GetDeploymentId())
+		return nil, rpcerr.New(connect.CodeNotFound, ErrDeploymentNotFound)
 	}
 
 	resource, err := s.queries.GetResourceByID(ctx, deploymentData.ResourceID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get resource", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound.Error()).
-			WithCause(errEntityScopesNotFound)
+		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	// check if user has permission to get deployment (resource:read)
@@ -461,37 +452,34 @@ func (s *DeploymentServer) ListDeployments(
 	ctx context.Context,
 	req *deploymentv1.ListDeploymentsRequest,
 ) (*deploymentv1.ListDeploymentsResponse, error) {
-	r := req
-
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound.Error()).
-			WithCause(errEntityScopesNotFound)
+		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	// check if requester has permission to list deployments (resource:read)
 	if err := s.authz.Check(
 		ctx,
 		scopes,
-		actions.New(actions.ListDeployments, r.GetResourceId()),
+		actions.New(actions.ListDeployments, req.GetResourceId()),
 	); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
-	resourceID := uuid.MustParse(r.GetResourceId())
+	resourceID := uuid.MustParse(req.GetResourceId())
 
 	resource, err := s.queries.GetResourceByID(ctx, resourceID)
 	if err != nil {
-		slog.WarnContext(ctx, "resource not found", "resourceId", r.GetResourceId())
-		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound.Error()).WithCause(ErrResourceNotFound)
+		slog.WarnContext(ctx, "resource not found", "resourceId", req.GetResourceId())
+		return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
 	}
 
-	pageSize := normalizePageSize(r.GetPageSize())
+	pageSize := normalizePageSize(req.GetPageSize())
 
 	var pageToken *string
-	if r.GetPageToken() != "" {
-		cursorID, decodeErr := decodeCursor(r.GetPageToken())
+	if req.GetPageToken() != "" {
+		cursorID, decodeErr := decodeCursor(req.GetPageToken())
 		if decodeErr != nil {
 			return nil, connect.NewError(
 				connect.CodeInvalidArgument,
@@ -502,8 +490,8 @@ func (s *DeploymentServer) ListDeployments(
 	}
 
 	var environmentID *uuid.UUID
-	if r.GetEnvironmentId() != "" {
-		id := uuid.MustParse(r.GetEnvironmentId())
+	if req.GetEnvironmentId() != "" {
+		id := uuid.MustParse(req.GetEnvironmentId())
 		environmentID = &id
 	}
 
@@ -515,7 +503,7 @@ func (s *DeploymentServer) ListDeployments(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list deployments", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
 	var deployments []*deploymentv1.Deployment
@@ -539,28 +527,24 @@ func (s *DeploymentServer) DeleteDeployment(
 	ctx context.Context,
 	req *deploymentv1.DeleteDeploymentRequest,
 ) (*deploymentv1.DeleteDeploymentResponse, error) {
-	r := req
-
-	deploymentID := uuid.MustParse(r.GetDeploymentId())
+	deploymentID := uuid.MustParse(req.GetDeploymentId())
 
 	deployment, err := s.queries.GetDeploymentByID(ctx, deploymentID)
 	if err != nil {
-		slog.WarnContext(ctx, "deployment not found", "deployment_id", r.GetDeploymentId())
-		return nil, connect.NewError(connect.CodeNotFound, ErrDeploymentNotFound.Error()).
-			WithCause(ErrDeploymentNotFound)
+		slog.WarnContext(ctx, "deployment not found", "deployment_id", req.GetDeploymentId())
+		return nil, rpcerr.New(connect.CodeNotFound, ErrDeploymentNotFound)
 	}
 
 	resource, err := s.queries.GetResourceByID(ctx, deployment.ResourceID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get resource", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound.Error()).
-			WithCause(errEntityScopesNotFound)
+		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if verifyErr := s.authz.Check(
@@ -597,7 +581,7 @@ func (s *DeploymentServer) DeleteDeployment(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete deployment", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
 	return &deploymentv1.DeleteDeploymentResponse{}, nil
@@ -614,21 +598,18 @@ func (s *DeploymentServer) WatchDeployment(
 	req *deploymentv1.WatchDeploymentRequest,
 	stream deploymentv1connect.DeploymentServiceWatchDeploymentServerStream,
 ) error {
-	r := req
-
-	deploymentID := uuid.MustParse(r.GetDeploymentId())
+	deploymentID := uuid.MustParse(req.GetDeploymentId())
 
 	resourceID, err := s.queries.GetDeploymentResourceID(ctx, deploymentID)
 	if err != nil {
-		slog.WarnContext(ctx, "deployment not found", "deployment_id", r.GetDeploymentId())
-		return connect.NewError(connect.CodeNotFound, ErrDeploymentNotFound.Error()).WithCause(ErrDeploymentNotFound)
+		slog.WarnContext(ctx, "deployment not found", "deployment_id", req.GetDeploymentId())
+		return rpcerr.New(connect.CodeNotFound, ErrDeploymentNotFound)
 	}
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return connect.NewError(connect.CodeInternal, errEntityScopesNotFound.Error()).
-			WithCause(errEntityScopesNotFound)
+		return rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	resourceIDStr := resourceID.String()
@@ -688,7 +669,7 @@ func (s *DeploymentServer) sendDeploymentEvent(
 	deployment, err := s.queries.GetDeploymentStatus(ctx, deploymentID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get deployment status", "error", err)
-		return lastStatus, connect.NewError(connect.CodeInternal, ErrDB.Error()).WithCause(ErrDB)
+		return lastStatus, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
 	if deployment.Status == lastStatus {

@@ -17,6 +17,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
+	"github.com/team-loco/loco/internal/rpcerr"
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
 	"github.com/team-loco/loco/observability-proxy/pkg/migrationlock"
 )
@@ -43,8 +44,7 @@ func (s *readinessTokenServer) CheckPermission(
 	info, _ := connect.CallInfoForServerContext(ctx)
 	s.calls.Add(1)
 	if s.rejected.Load() || info.RequestHeader().Get("Authorization") != "Bearer "+testProxyCredential {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errTestCredentialRejected.Error()).
-			WithCause(errTestCredentialRejected)
+		return nil, rpcerr.New(connect.CodeUnauthenticated, errTestCredentialRejected)
 	}
 	allowed := req.GetToken() == testQueryToken
 	response := &tokenv1.CheckPermissionResponse{Allowed: allowed}
@@ -118,10 +118,9 @@ func TestReadyzChecksTheControlPlaneAndRecovers(t *testing.T) {
 		StartTime:   start,
 		EndTime:     end,
 	}
-	req := message
 	ctx, info := connect.NewClientContext(t.Context())
 	info.RequestHeader().Set("Authorization", "Bearer "+testQueryToken)
-	if _, err := client.QueryLogs(ctx, req); err != nil {
+	if _, err := client.QueryLogs(ctx, message); err != nil {
 		t.Fatalf("authorized query through the proxy: %v", err)
 	}
 	controlPlane.rejected.Store(true)
