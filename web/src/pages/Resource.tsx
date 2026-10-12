@@ -230,6 +230,7 @@ export function Resource() {
 			{tab === "settings" && (
 				<SettingsTab
 					resource={resource}
+					environmentId={activeEnv?.id}
 					regions={regions}
 					onNotice={setNotice}
 					onSaved={refresh}

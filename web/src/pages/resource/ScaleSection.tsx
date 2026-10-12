@@ -26,23 +26,19 @@ interface Change {
 	memory?: string;
 }
 
-function baseline(regions: RegionView[]): ScaleRow[] {
-	return regions
-		.filter((r) => r.current !== undefined)
-		.map((r) => {
-			const svc = depService(r.current);
-			return {
-				region: r.name,
-				replicas: (r.current?.replicas ?? 0).toString(),
-				cpu: svc?.cpu ?? "",
-				mem: svc?.memory ?? "",
-			};
-		});
+function baseline(regions: RegionView[], environmentId: string | undefined): ScaleRow[] {
+	return regions.flatMap((r) => {
+		const current = r.history.find((d) => d.isActive && d.environmentId === environmentId);
+		if (current === undefined) return [];
+		const svc = depService(current);
+		return [{ region: r.name, replicas: current.replicas.toString(), cpu: svc?.cpu ?? "", mem: svc?.memory ?? "" }];
+	});
 }
 
 export function ScaleSection({
 	resourceId,
 	resourceName,
+	environmentId,
 	regions,
 	managed,
 	onNotice,
@@ -50,12 +46,13 @@ export function ScaleSection({
 }: {
 	resourceId: string;
 	resourceName: string;
+	environmentId: string | undefined;
 	regions: RegionView[];
 	managed: boolean;
 	onNotice: (notice: Notice) => void;
 	onSaved: () => void;
 }) {
-	const base = baseline(regions);
+	const base = baseline(regions, environmentId);
 	const [draft, setDraft] = useState<ScaleRow[] | null>(null);
 	const [errors, setErrors] = useState<Record<string, string>>({});
 	const scale = useMutation(scaleResource);
@@ -82,11 +79,11 @@ export function ScaleSection({
 			if (change.replicas !== undefined || change.cpu !== undefined || change.memory !== undefined) changes.push(change);
 		}
 		setErrors(nextErrors);
-		if (Object.keys(nextErrors).length > 0 || changes.length === 0) return;
+		if (Object.keys(nextErrors).length > 0 || changes.length === 0 || environmentId === undefined) return;
 		const failures: string[] = [];
 		for (const c of changes) {
 			try {
-				await scale.mutateAsync({ resourceId, ...c });
+				await scale.mutateAsync({ resourceId, environmentId, ...c });
 			} catch (err) {
 				failures.push(`${c.region}: ${getErrorMessage(err, "Failed to scale")}`);
 			}
@@ -109,7 +106,7 @@ export function ScaleSection({
 
 	return (
 		<Section title="Scale">
-			{rows.length === 0 && <div className="px-4 py-5 text-fg3">Scaling is available once the resource has a deployment.</div>}
+			{rows.length === 0 && <div className="px-4 py-5 text-fg3">Scaling is available once the resource has a deployment in this environment.</div>}
 			{rows.map((s) => (
 				<div
 					key={s.region}

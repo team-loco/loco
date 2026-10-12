@@ -2247,7 +2247,7 @@ func (x *ListResourceEventsResponse) GetEvents() []*Event {
 	return nil
 }
 
-// ScaleResourceRequest is the request to scale a resource.
+// ScaleResourceRequest is the request to scale a resource's active deployments in one environment.
 type ScaleResourceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
@@ -2255,6 +2255,7 @@ type ScaleResourceRequest struct {
 	Cpu           *string                `protobuf:"bytes,3,opt,name=cpu,proto3,oneof" json:"cpu,omitempty"`
 	Memory        *string                `protobuf:"bytes,4,opt,name=memory,proto3,oneof" json:"memory,omitempty"`
 	Region        *string                `protobuf:"bytes,5,opt,name=region,proto3,oneof" json:"region,omitempty"` // if provided, scale only this region; otherwise scale all regions
+	EnvironmentId string                 `protobuf:"bytes,6,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2320,6 +2321,13 @@ func (x *ScaleResourceRequest) GetMemory() string {
 func (x *ScaleResourceRequest) GetRegion() string {
 	if x != nil && x.Region != nil {
 		return *x.Region
+	}
+	return ""
+}
+
+func (x *ScaleResourceRequest) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
 	}
 	return ""
 }
@@ -2633,14 +2641,15 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\xbaH\a\x1a\x05\x18\xe8\a(\x01H\x00R\x05limit\x88\x01\x01B\b\n" +
 	"\x06_limit\"M\n" +
 	"\x1aListResourceEventsResponse\x12/\n" +
-	"\x06events\x18\x01 \x03(\v2\x17.loco.resource.v1.EventR\x06events\"\xf9\x01\n" +
+	"\x06events\x18\x01 \x03(\v2\x17.loco.resource.v1.EventR\x06events\"\xaa\x02\n" +
 	"\x14ScaleResourceRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12(\n" +
 	"\breplicas\x18\x02 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01H\x00R\breplicas\x88\x01\x01\x12\x1e\n" +
 	"\x03cpu\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x01R\x03cpu\x88\x01\x01\x12$\n" +
 	"\x06memory\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x02R\x06memory\x88\x01\x01\x12\x1b\n" +
-	"\x06region\x18\x05 \x01(\tH\x03R\x06region\x88\x01\x01B\v\n" +
+	"\x06region\x18\x05 \x01(\tH\x03R\x06region\x88\x01\x01\x12/\n" +
+	"\x0eenvironment_id\x18\x06 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentIdB\v\n" +
 	"\t_replicasB\x06\n" +
 	"\x04_cpuB\t\n" +
 	"\a_memoryB\t\n" +

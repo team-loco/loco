@@ -5,12 +5,19 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
 func scaleResource(t *testing.T, f *deployFixture, replicas int32) error {
+	t.Helper()
+	return scaleResourceIn(t, f, f.envID, replicas)
+}
+
+func scaleResourceIn(t *testing.T, f *deployFixture, environmentID uuid.UUID, replicas int32) error {
 	t.Helper()
 	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
 	scopes := []genDb.EntityScope{
@@ -18,8 +25,9 @@ func scaleResource(t *testing.T, f *deployFixture, replicas int32) error {
 	}
 	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, scopes)
 	req := connect.NewRequest(&resourcev1.ScaleResourceRequest{
-		ResourceId: f.resourceID.String(),
-		Replicas:   &replicas,
+		ResourceId:    f.resourceID.String(),
+		EnvironmentId: environmentID.String(),
+		Replicas:      &replicas,
 	})
 	_, err := server.ScaleResource(ctx, req)
 	return err
@@ -104,5 +112,101 @@ func TestScaleResourceKeepsTheWorkspaceOrganization(t *testing.T) {
 	want := f.organizationID(t)
 	if got := desiredPayload(t, f).AppSpec.OrganizationID; got != want {
 		t.Errorf("organization = %q after a scale, want the workspace's %s", got, want)
+	}
+}
+
+func (f *deployFixture) deployToProductionAndStaging(t *testing.T) uuid.UUID {
+	t.Helper()
+	stagingID := f.addStagingEnvironment(t)
+	f.setStagingTier(t, f.otherCluster)
+	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+		t.Fatalf("deploy production: %v", err)
+	}
+	if _, err := deployServiceIn(t, f, imageService(), stagingID); err != nil {
+		t.Fatalf("deploy staging: %v", err)
+	}
+	return stagingID
+}
+
+func (f *deployFixture) activeDeployment(t *testing.T, environmentID uuid.UUID) genDb.Deployment {
+	t.Helper()
+	deployments := f.activeDeployments(t, environmentID)
+	if len(deployments) != 1 {
+		t.Fatalf("environment %s has %d active deployments, want 1", environmentID, len(deployments))
+	}
+	return deployments[0]
+}
+
+func TestScaleResourceScalesOnlyTheRequestedEnvironment(t *testing.T) {
+	for _, scaledName := range []string{statusProduction, stagingName} {
+		t.Run(scaledName, func(t *testing.T) {
+			f := newDeployFixture(t)
+			stagingID := f.deployToProductionAndStaging(t)
+			scaledID, otherID := f.envID, stagingID
+			if scaledName == stagingName {
+				scaledID, otherID = stagingID, f.envID
+			}
+			untouched := f.activeDeployment(t, otherID)
+
+			const scaled = 3
+			if err := scaleResourceIn(t, f, scaledID, scaled); err != nil {
+				t.Fatalf("scale: %v", err)
+			}
+			if got := f.activeDeployment(t, scaledID).Replicas; got != scaled {
+				t.Errorf("%s replicas = %d after the scale, want %d", scaledName, got, scaled)
+			}
+			other := f.activeDeployment(t, otherID)
+			if other.ID != untouched.ID || other.Replicas != untouched.Replicas {
+				t.Errorf("the other environment's deployment changed from %s (%d replicas) to %s (%d replicas)",
+					untouched.ID, untouched.Replicas, other.ID, other.Replicas)
+			}
+			var recorded string
+			latest := `SELECT data->>$2 FROM events WHERE type = $1 ORDER BY seq DESC LIMIT 1`
+			row := f.pool.QueryRow(context.Background(), latest, events.ResourceScaled, events.FieldEnvironmentID)
+			if err := row.Scan(&recorded); err != nil {
+				t.Fatalf("read the scaled event: %v", err)
+			}
+			if recorded != scaledID.String() {
+				t.Errorf("scaled event names environment %q, want %s", recorded, scaledID)
+			}
+		})
+	}
+}
+
+func TestScaleResourceRefusesAnEnvironmentWithoutADeployment(t *testing.T) {
+	f := newDeployFixture(t)
+	stagingID := f.addStagingEnvironment(t)
+	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+		t.Fatalf("deploy production: %v", err)
+	}
+	production := f.activeDeployment(t, f.envID)
+
+	err := scaleResourceIn(t, f, stagingID, 2)
+	wantCode(t, err, connect.CodeNotFound)
+	if got := f.activeDeployment(t, f.envID); got.ID != production.ID {
+		t.Fatalf("production deployment = %s after scaling staging, want %s", got.ID, production.ID)
+	}
+}
+
+func TestScaleResourceRefusesAnEnvironmentOfAnotherWorkspace(t *testing.T) {
+	f := newDeployFixture(t)
+	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+		t.Fatalf("deploy production: %v", err)
+	}
+	insert := `
+WITH w AS (
+    INSERT INTO workspaces (org_id, name, created_by)
+    SELECT org_id, 'other', created_by FROM workspaces LIMIT 1 RETURNING id, created_by
+)
+INSERT INTO environments (workspace_id, name, created_by) SELECT id, 'prod', created_by FROM w RETURNING id`
+	var foreignID uuid.UUID
+	if err := f.pool.QueryRow(context.Background(), insert).Scan(&foreignID); err != nil {
+		t.Fatalf("add foreign environment: %v", err)
+	}
+
+	err := scaleResourceIn(t, f, foreignID, 2)
+	wantCode(t, err, connect.CodeNotFound)
+	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != 1 {
+		t.Fatalf("%d deployments after a refused scale, want 1", n)
 	}
 }

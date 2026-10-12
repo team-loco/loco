@@ -15,7 +15,7 @@ The staging docs display a banner and tell search engines not to index them. The
 
 ## Application environments in loco.yaml
 
-Plan, apply and deploy act on one environment of a workspace. Choose it with a flag or an environment variable:
+Plan, apply, deploy and `loco resource scale` act on one environment of a workspace. Choose it with a flag or an environment variable:
 
 ```sh
 loco deploy --workspace my-team --env staging

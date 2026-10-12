@@ -11,6 +11,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
+	"github.com/team-loco/loco/gen/go/loco/environment/v1/environmentv1connect"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/internal/client"
@@ -28,6 +29,7 @@ type scaleDeps struct {
 	LoadSessionConfig func() (*session.SessionConfig, error)
 	NewAPIClient      func(host, token string) *client.Client
 	NewResourceClient func(host string) resourcev1connect.ResourceServiceClient
+	Environments      func(host string) environmentv1connect.EnvironmentServiceClient
 	Stdout            io.Writer
 }
 
@@ -38,6 +40,9 @@ func buildScaleCmd() *cobra.Command {
 		NewResourceClient: func(host string) resourcev1connect.ResourceServiceClient {
 			return resourcev1connect.NewResourceServiceClient(httputil.NewHTTPClient(), host)
 		},
+		Environments: func(host string) environmentv1connect.EnvironmentServiceClient {
+			return environmentv1connect.NewEnvironmentServiceClient(httputil.NewHTTPClient(), host)
+		},
 		Stdout: os.Stdout,
 	}
 	return newScaleCmd(deps)
@@ -46,13 +51,15 @@ func buildScaleCmd() *cobra.Command {
 func newScaleCmd(deps scaleDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "scale <name>",
-		Short: "Scale a service's resources",
-		Long: `Scale a service's replicas, CPU, or memory.
+		Short: "Scale a service's resources in one environment",
+		Long: `Scale a service's replicas, CPU, or memory in one environment.
+
+--env or LOCO_ENV names the environment; a workspace with a single environment uses it.
 
 Examples:
-  loco resource scale myapp --replicas 3
-  loco resource scale myapp --cpu 0.5 --memory 512Mi
-  loco resource scale myapp --replicas 2 --cpu 0.25`,
+  loco resource scale myapp --env production --replicas 3
+  loco resource scale myapp --env staging --cpu 0.5 --memory 512Mi
+  loco resource scale myapp --env production --replicas 2 --cpu 0.25`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
@@ -101,9 +108,14 @@ Examples:
 				return err
 			}
 
-			// Create resource client
 			resourceClient := deps.NewResourceClient(host)
 			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
+
+			environments := deps.Environments(host)
+			env, err := cmdutil.ResolveEnvironment(ctx, cmd, environments, nil, false, authHeader, workspaceID)
+			if err != nil {
+				return err
+			}
 
 			// Get resource by name
 			getReq := connect.NewRequest(&resourcev1.GetResourceRequest{
@@ -122,7 +134,7 @@ Examples:
 			}
 
 			resource := resourceResp.Msg.GetResource()
-			slog.Debug("scaling service", "resource_id", resource.GetId(), "name", name)
+			slog.Debug("scaling service", "resource_id", resource.GetId(), "name", name, "environment", env.GetName())
 
 			// Build scale request
 			var replicasPtr *int32
@@ -141,10 +153,11 @@ Examples:
 			}
 
 			scaleReq := connect.NewRequest(&resourcev1.ScaleResourceRequest{
-				ResourceId: resource.GetId(),
-				Replicas:   replicasPtr,
-				Cpu:        cpuPtr,
-				Memory:     memoryPtr,
+				ResourceId:    resource.GetId(),
+				EnvironmentId: env.GetId(),
+				Replicas:      replicasPtr,
+				Cpu:           cpuPtr,
+				Memory:        memoryPtr,
 			})
 			scaleReq.Header().Set("Authorization", authHeader)
 
@@ -158,7 +171,7 @@ Examples:
 			s := lipgloss.NewStyle().
 				Bold(true).
 				Foreground(ui.Ok).
-				Render(fmt.Sprintf("\n🎉 Scaled service %s:", name))
+				Render(fmt.Sprintf("\n🎉 Scaled service %s in %s:", name, env.GetName()))
 			fmt.Fprintln(deps.Stdout, s)
 
 			if replicas != -1 {
@@ -177,6 +190,7 @@ Examples:
 
 	cmd.Flags().String("org", "", "Organization name")
 	cmd.Flags().String("workspace", "", "Workspace name")
+	cmd.Flags().String("env", "", "Environment name (defaults to the workspace's only environment)")
 	cmd.Flags().Int32P("replicas", "r", -1, "Number of replicas to scale to")
 	cmd.Flags().String("cpu", "", "CPU to scale to (e.g. 100m, 0.5)")
 	cmd.Flags().String("memory", "", "Memory to scale to (e.g. 128Mi, 1Gi)")

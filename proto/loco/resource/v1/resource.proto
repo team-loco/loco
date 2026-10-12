@@ -330,13 +330,14 @@ message ListResourceEventsResponse {
 
 // --- Resource Operations ---
 
-// ScaleResourceRequest is the request to scale a resource.
+// ScaleResourceRequest is the request to scale a resource's active deployments in one environment.
 message ScaleResourceRequest {
   string resource_id = 1 [(buf.validate.field).string.uuid = true];
   optional int32 replicas = 2 [(buf.validate.field).int32.gte = 1];
   optional string cpu = 3 [(buf.validate.field).string.min_len = 1];
   optional string memory = 4 [(buf.validate.field).string.min_len = 1];
   optional string region = 5; // if provided, scale only this region; otherwise scale all regions
+  string environment_id = 6 [(buf.validate.field).string.uuid = true];
 }
 
 // ScaleResourceResponse is the response after scaling a resource.

@@ -56,6 +56,7 @@ const (
 var (
 	errFakeUnknownPlatformDomain = errors.New("fakeapi: unknown platform domain")
 	errFakeResourceNotFound      = errors.New("resource not found")
+	errFakeEnvironmentNotFound   = errors.New("environment not found")
 )
 
 type fakeUpload struct {
@@ -86,6 +87,7 @@ type fakePlatform struct {
 	noPlatformDomain  bool
 	secrets           map[fakeSecretKey]fakeSecret
 	revision          int64
+	scales            []*resourcev1.ScaleResourceRequest
 }
 
 func newFakePlatform() *fakePlatform {
@@ -126,6 +128,30 @@ func (p *fakePlatform) addResource(name string) {
 	id := fmt.Sprintf("00000000-0000-7000-8000-%012d", len(p.resources)+1)
 	res := &resourcev1.Resource{Id: id, WorkspaceId: fakeWorkspaceID, Name: name}
 	p.resources = append(p.resources, res)
+}
+
+func (p *fakePlatform) addEnvironment(name string) {
+	id := fmt.Sprintf("00000000-0000-7000-8000-0000000e%04d", len(p.environments)+1)
+	env := &environmentv1.Environment{Id: id, WorkspaceId: fakeWorkspaceID, Name: name}
+	p.environments = append(p.environments, env)
+}
+
+func (p *fakePlatform) environmentID(name string) (string, bool) {
+	for _, env := range p.environments {
+		if env.GetName() == name {
+			return env.GetId(), true
+		}
+	}
+	return "", false
+}
+
+func (p *fakePlatform) resourceID(name string) (string, bool) {
+	for _, res := range p.resources {
+		if res.GetName() == name {
+			return res.GetId(), true
+		}
+	}
+	return "", false
 }
 
 func (f *fakeAPI) findBuild(id string) *buildv1.Build {
@@ -304,6 +330,26 @@ func (s *fakeResourceService) TransferPartial(
 		}
 	}
 	return nil, connect.NewError(connect.CodeNotFound, errFakeResourceNotFound)
+}
+
+func (s *fakeResourceService) ScaleResource(
+	_ context.Context,
+	req *connect.Request[resourcev1.ScaleResourceRequest],
+) (*connect.Response[resourcev1.ScaleResourceResponse], error) {
+	f := s.api
+	if _, _, err := f.authenticate(req.Spec(), req.Header()); err != nil {
+		return nil, err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	knownEnvironment := slices.ContainsFunc(f.platform.environments, func(env *environmentv1.Environment) bool {
+		return env.GetId() == req.Msg.GetEnvironmentId()
+	})
+	if !knownEnvironment {
+		return nil, connect.NewError(connect.CodeNotFound, errFakeEnvironmentNotFound)
+	}
+	f.platform.scales = append(f.platform.scales, req.Msg)
+	return connect.NewResponse(&resourcev1.ScaleResourceResponse{}), nil
 }
 
 type fakeDomainService struct {

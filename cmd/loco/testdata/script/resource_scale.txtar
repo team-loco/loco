@@ -1,0 +1,34 @@
+# loco resource scale scales a service in one environment: the only one, or the one --env names.
+fakeapi resource web
+
+exec loco resource scale web --replicas 2
+stdout 'Scaled service web in production'
+fakeapi scaled web production 2
+
+fakeapi environment staging
+! exec loco resource scale web --replicas 3
+stderr '(?i)the workspace has several environments \(production, staging\); pick one with --env'
+
+exec loco resource scale web --env staging --replicas 3
+stdout 'Scaled service web in staging'
+fakeapi scaled web staging 3
+
+env LOCO_ENV=production
+exec loco resource scale web --replicas 4
+fakeapi scaled web production 4
+
+! exec loco resource scale web --env qa --replicas 5
+stderr '(?i)environment "qa" not found; the workspace has production, staging'
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.toml --
+currentScope = "default"
+
+[scopes.default.organization]
+name = "acme"
+id = "1"
+
+[scopes.default.workspace]
+name = "production"
+id = "2"
