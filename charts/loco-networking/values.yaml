@@ -26,19 +26,7 @@ cilium:
   policyEnforcementMode: default
   # --- Hubble (observability) ---
   hubble:
-    enabled: true
-    metrics:
-      enableOpenMetrics: true
-      enabled:
-        - "flow:sourceContext=identity;destinationContext=identity;trafficDirection"
-        - "drop:sourceContext=identity;destinationContext=identity;trafficDirection"
-        - "tcp:sourceContext=identity;destinationContext=identity;trafficDirection"
-        - "dns:sourceContext=identity;destinationContext=identity;trafficDirection"
-        - "icmp:sourceContext=identity;destinationContext=identity;trafficDirection"
-    relay:
-      enabled: true
-    ui:
-      enabled: true
+    enabled: false
   # --- KubeProxy replacement ---
   bpf:
     masquerade: true
