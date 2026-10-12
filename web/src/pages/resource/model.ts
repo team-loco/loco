@@ -1,4 +1,4 @@
-import { useQuery } from "@connectrpc/connect-query";
+import { skipToken, useQuery } from "@connectrpc/connect-query";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { DeploymentPhase, type Deployment, type ServiceDeploymentSpec } from "@gen/loco/deployment/v1/deployment_pb";
 import { getResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
@@ -9,6 +9,7 @@ import {
 	type Resource,
 } from "@gen/loco/resource/v1/resource_pb";
 
+import { useEnvironments } from "@/hooks/useEnvironment";
 import { getServiceSpec } from "@/lib/deployment-utils";
 import { imageVersion } from "@/lib/image";
 import { maybeTsMs, tsMs } from "@/lib/time";
@@ -17,6 +18,8 @@ import { shortId } from "./format";
 import { configuredRegions } from "@/lib/resource-regions";
 
 export const PAGE_SIZES = [10, 25, 50, 100];
+
+const DEPLOYMENT_HISTORY_SIZE = 200;
 
 export interface RegionView {
 	name: string;
@@ -131,25 +134,37 @@ export function isRunning(dep: Deployment | undefined): boolean {
 	return dep?.status === DeploymentPhase.RUNNING;
 }
 
+export function activeDeploymentPlaces(resource: Resource): string[] {
+	const environments = resource.environmentStatuses;
+	return environments.flatMap((e) =>
+		e.regions.map((r) => (environments.length > 1 ? `${r.region} (${e.environmentName})` : r.region)),
+	);
+}
+
+export function deploymentsRequest(resourceId: string, environmentId: string | undefined) {
+	if (resourceId === "" || environmentId === undefined) return skipToken;
+	return { resourceId, environmentId, pageSize: DEPLOYMENT_HISTORY_SIZE };
+}
+
 export function useResourceData(resourceId: string) {
+	const { active, isLoading: environmentsLoading } = useEnvironments();
 	const resourceQuery = useQuery(
 		getResource,
 		{ key: { case: "resourceId", value: resourceId } },
 		{ enabled: resourceId !== "", refetchInterval: 15_000 },
 	);
-	const deploymentsQuery = useQuery(
-		listDeployments,
-		{ resourceId, pageSize: 200 },
-		{ enabled: resourceId !== "", refetchInterval: 15_000 },
-	);
+	const deploymentsQuery = useQuery(listDeployments, deploymentsRequest(resourceId, active?.id), {
+		refetchInterval: 15_000,
+	});
 	const refresh = () => {
 		void resourceQuery.refetch();
 		void deploymentsQuery.refetch();
 	};
 	return {
 		resource: resourceQuery.data?.resource,
+		environmentId: active?.id,
 		deployments: deploymentsQuery.data?.deployments ?? [],
-		isLoading: resourceQuery.isLoading || deploymentsQuery.isLoading,
+		isLoading: resourceQuery.isLoading || environmentsLoading || deploymentsQuery.isLoading,
 		error: resourceQuery.error ?? deploymentsQuery.error,
 		refresh,
 	};

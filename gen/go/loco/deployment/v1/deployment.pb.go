@@ -1171,6 +1171,7 @@ type ListDeploymentsRequest struct {
 	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // default: 50, max: 200
 	PageToken     string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // cursor from previous page (base64-encoded timestamp+id)
+	EnvironmentId string                 `protobuf:"bytes,4,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1222,6 +1223,13 @@ func (x *ListDeploymentsRequest) GetPageSize() int32 {
 func (x *ListDeploymentsRequest) GetPageToken() string {
 	if x != nil {
 		return x.PageToken
+	}
+	return ""
+}
+
+func (x *ListDeploymentsRequest) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
 	}
 	return ""
 }
@@ -1584,14 +1592,15 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x15GetDeploymentResponse\x12>\n" +
 	"\n" +
 	"deployment\x18\x01 \x01(\v2\x1e.loco.deployment.v1.DeploymentR\n" +
-	"deployment\"\x8b\x01\n" +
+	"deployment\"\xbf\x01\n" +
 	"\x16ListDeploymentsRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12'\n" +
 	"\tpage_size\x18\x02 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x03 \x01(\tR\tpageToken\"\x83\x01\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\x122\n" +
+	"\x0eenvironment_id\x18\x04 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\"\x83\x01\n" +
 	"\x17ListDeploymentsResponse\x12@\n" +
 	"\vdeployments\x18\x01 \x03(\v2\x1e.loco.deployment.v1.DeploymentR\vdeployments\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"G\n" +

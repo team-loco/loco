@@ -487,10 +487,17 @@ func (s *DeploymentServer) ListDeployments(
 		pageToken = &cursorID
 	}
 
+	var environmentID *uuid.UUID
+	if r.GetEnvironmentId() != "" {
+		id := uuid.MustParse(r.GetEnvironmentId())
+		environmentID = &id
+	}
+
 	deploymentList, err := s.queries.ListDeploymentsForResource(ctx, genDb.ListDeploymentsForResourceParams{
-		ResourceID: resourceID,
-		Limit:      pageSize,
-		PageToken:  pageToken,
+		ResourceID:    resourceID,
+		Limit:         pageSize,
+		EnvironmentID: environmentID,
+		PageToken:     pageToken,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list deployments", "error", err)

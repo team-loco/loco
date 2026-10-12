@@ -102,20 +102,20 @@ export function RollbackDialogContent({
 
 export function DeleteDialogContent({
 	resource,
-	regionNames,
+	places,
 	pending,
 	onConfirm,
 }: {
 	resource: Resource;
-	regionNames: string[];
+	places: string[];
 	pending: boolean;
 	onConfirm: () => void;
 }) {
 	const [typed, setTyped] = useState("");
 	const ok = typed.trim() === resource.name;
 	const deployCount =
-		regionNames.length === 1 ? "its active deployment" : `its ${regionNames.length.toString()} active deployments`;
-	const regionList = regionNames.length > 0 ? ` in ${regionNames.join(" and ")}` : "";
+		places.length === 1 ? "its active deployment" : `its ${places.length.toString()} active deployments`;
+	const placeList = places.length > 0 ? ` in ${places.join(" and ")}` : "";
 	const domains = resource.domains;
 	const domainText =
 		domains.length === 0
@@ -134,7 +134,7 @@ export function DeleteDialogContent({
 				<DialogBody className="gap-3">
 					<span className="leading-normal text-fg2">
 						Removes the resource, {deployCount}
-						{regionList}, and {domainText}. Running replicas stop immediately.
+						{placeList}, and {domainText}. Running replicas stop immediately.
 					</span>
 					<label className="flex flex-col gap-1.5">
 						<span className="text-sm text-fg3">
