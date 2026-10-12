@@ -1,8 +1,8 @@
 # Loco local development environment
 # Prerequisites: docker (OrbStack or Docker Desktop) and mise. Every other tool is
 # pinned in mise.toml, and every resource below runs a mise task or builds a Dockerfile.
-# Run:  mise run tilt
-# Stop: tilt down  (stops the compose services; the helm releases, the kind cluster and the database volume persist; mise run helm:destroy removes the releases)
+# Run:  mise run tilt  (or mise run start)
+# Stop: mise run stop  (stops Tilt, the compose services and the kind nodes, and keeps their state; mise run start resumes it, mise run helm:destroy removes the releases)
 #
 # First-time setup:
 #   1. mise run setup

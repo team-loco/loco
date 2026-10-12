@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+#MISE description="Stop the local environment and keep its state: Tilt and the services it runs, the compose services, and the kind nodes; mise run start brings it back"
+set -euo pipefail
+
+name=$(yq .name env/local/kind-cluster.yml)
+tilt_pattern="(^|/)tilt up --context kind-${name}( |$)"
+tilt_exit_timeout_seconds=30
+node_stop_timeout_seconds=120
+
+if pgrep -f "$tilt_pattern" >/dev/null; then
+	echo "stopping tilt..."
+	pkill -INT -f "$tilt_pattern"
+	for _ in $(seq "$tilt_exit_timeout_seconds"); do
+		pgrep -f "$tilt_pattern" >/dev/null || break
+		sleep 1
+	done
+	if pgrep -f "$tilt_pattern" >/dev/null; then
+		echo "tilt did not exit within ${tilt_exit_timeout_seconds}s" >&2
+		exit 1
+	fi
+fi
+
+echo "stopping the compose services..."
+docker compose stop
+
+nodes=$(kind get nodes --name "$name" 2>/dev/null)
+if [ -n "$nodes" ]; then
+	echo "stopping the kind nodes..."
+	xargs docker stop --time "$node_stop_timeout_seconds" <<<"$nodes" >/dev/null
+fi

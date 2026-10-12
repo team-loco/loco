@@ -149,7 +149,8 @@ dir = "web"
 run = "bun run dev"
 
 [tasks.tilt]
-description = "Start the full local environment (cluster, infrastructure and services) with Tilt"
+description = "Start the full local environment (cluster, infrastructure and services) with Tilt, including one mise run stop stopped"
+alias = "start"
 env = { _.file = ".env" }
 run = """
 if [ ! -f .env ]; then

@@ -9,6 +9,10 @@ description: Run the full local stack (kind cluster, compose services, API, web 
 the source bucket from `compose.yaml`, the helm releases, the API on :8000 and the web UI
 on :5173. The Tilt UI is on :10350.
 
+`mise run stop` stops Tilt, the compose services and the kind nodes and keeps their state;
+`mise run start` (an alias of `mise run tilt`) starts the stopped nodes and brings the rest back.
+`tilt down` stops only the compose services and leaves the cluster running.
+
 ## One stack at a time
 
 Every checkout shares the compose project `loco-dev`, its volumes (`loco-dev_postgres-data`
