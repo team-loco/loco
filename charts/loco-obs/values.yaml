@@ -106,10 +106,6 @@ clickhouseUserPasswords:
   loco_ingest: ""
   loco_reader: ""
 
-opentelemetry-operator:
-  fullnameOverride: "otel-operator"
-  enabled: true
-
 otel-col-daemon:
   enabled: true
   fullnameOverride: "otel-col-daemon"
