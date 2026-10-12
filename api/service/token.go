@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -91,7 +90,7 @@ func (s *TokenServer) CreateToken(
 	entityID, err := uuid.Parse(r.GetEntityId())
 	if err != nil {
 		slog.ErrorContext(ctx, "invalid entity id format", "entityId", r.GetEntityId(), "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid entity id: %w", err).Error())
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidEntityID).WithCause(err)
 	}
 	targetEntity := genDb.Entity{
 		Type: protoEntityTypeToDb(r.GetEntityType()),
@@ -111,7 +110,7 @@ func (s *TokenServer) CreateToken(
 			"entityId",
 			targetEntity.ID,
 		)
-		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr.Error()).WithCause(verifyErr)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(verifyErr)
 	}
 
 	dbScopes := make([]genDb.EntityScope, len(r.GetScopes()))
@@ -121,8 +120,8 @@ func (s *TokenServer) CreateToken(
 			slog.ErrorContext(ctx, "invalid scope entity id format", "entityId", scope.GetEntityId(), "error", scopeErr)
 			return nil, connect.NewError(
 				connect.CodeInvalidArgument,
-				fmt.Errorf("invalid scope entity id: %w", scopeErr).Error(),
-			)
+				publicInvalidScopeEntityID,
+			).WithCause(scopeErr)
 		}
 		dbScopes[i] = genDb.EntityScope{
 			EntityType: protoEntityTypeToDb(scope.GetEntityType()),
@@ -145,7 +144,7 @@ func (s *TokenServer) CreateToken(
 	if err != nil {
 		if errors.Is(err, authz.ErrInsufficientPermissions) {
 			slog.WarnContext(ctx, "user lacks permissions for requested scopes", "user_id", entity.ID.String())
-			return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+			return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 		}
 		if errors.Is(err, tvm.ErrTokenNameTaken) {
 			return nil, connect.NewError(connect.CodeAlreadyExists, ErrTokenAlreadyExists.Error()).
@@ -210,7 +209,7 @@ func (s *TokenServer) ListTokens(
 	entityID, err := uuid.Parse(r.GetEntityId())
 	if err != nil {
 		slog.ErrorContext(ctx, "invalid entity id format", "entityId", r.GetEntityId())
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid entity id: %w", err).Error())
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidEntityID).WithCause(err)
 	}
 
 	targetEntity := genDb.Entity{
@@ -231,7 +230,7 @@ func (s *TokenServer) ListTokens(
 			"entityId",
 			targetEntity.ID.String(),
 		)
-		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr.Error()).WithCause(verifyErr)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(verifyErr)
 	}
 
 	tokens, err := s.tvm.ListAPITokensForEntity(ctx, targetEntity)
@@ -285,7 +284,7 @@ func (s *TokenServer) GetToken(
 	entityID, err := uuid.Parse(r.GetEntityId())
 	if err != nil {
 		slog.ErrorContext(ctx, "invalid entity id format", "entityId", r.GetEntityId())
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid entity id: %w", err).Error())
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidEntityID).WithCause(err)
 	}
 
 	targetEntity := genDb.Entity{
@@ -306,7 +305,7 @@ func (s *TokenServer) GetToken(
 			"entityId",
 			targetEntity.ID.String(),
 		)
-		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr.Error()).WithCause(verifyErr)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(verifyErr)
 	}
 
 	token, err := s.queries.GetAPITokenByNameAndEntity(ctx, genDb.GetAPITokenByNameAndEntityParams{
@@ -365,7 +364,7 @@ func (s *TokenServer) RevokeToken(
 	entityID, err := uuid.Parse(r.GetEntityId())
 	if err != nil {
 		slog.ErrorContext(ctx, "invalid entity id format", "entityId", r.GetEntityId())
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid entity id: %w", err).Error())
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidEntityID).WithCause(err)
 	}
 
 	targetEntity := genDb.Entity{
@@ -469,7 +468,7 @@ func (s *TokenServer) CheckPermission(
 
 	entityID, err := uuid.Parse(r.GetEntityId())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid entity_id: %w", err).Error())
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidEntityID).WithCause(err)
 	}
 
 	_, scopes, err := s.tvm.GetToken(ctx, r.GetToken())

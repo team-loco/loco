@@ -37,7 +37,7 @@ func (s *ResourceServer) TransferPartial(
 		actions.New(actions.TransferPartial, r.GetResourceId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to transfer partial", "resourceId", r.GetResourceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	resourceID := uuid.MustParse(r.GetResourceId())

@@ -61,7 +61,7 @@ func (s *WorkspaceServer) CreateWorkspace(
 		actions.New(actions.CreateWorkspace, r.GetOrgId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to create workspace", "orgId", r.GetOrgId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	orgID := uuid.MustParse(r.GetOrgId())
@@ -191,7 +191,7 @@ func (s *WorkspaceServer) GetWorkspace(
 		actions.New(actions.GetWorkspace, r.GetWorkspaceId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to get workspace", "workspaceId", r.GetWorkspaceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 	ws, err := s.queries.GetWorkspaceByIDQuery(ctx, uuid.MustParse(r.GetWorkspaceId()))
 	if err != nil {
@@ -241,7 +241,7 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 		actions.New(actions.GetCurrentUserWorkspaces, entity.ID.String()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to get user workspaces", "userId", entity.ID)
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	pageSize := normalizePageSize(r.GetPageSize())
@@ -250,7 +250,7 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 	if r.GetPageToken() != "" {
 		cursorID, err := decodeCursor(r.GetPageToken())
 		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err).Error())
+			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(err)
 		}
 		pageToken = &cursorID
 	}
@@ -312,7 +312,7 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 		),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to list workspaces", "orgId", r.GetOrgId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	pageSize := normalizePageSize(r.GetPageSize())
@@ -321,7 +321,7 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 	if r.GetPageToken() != "" {
 		cursorID, err := decodeCursor(r.GetPageToken())
 		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err).Error())
+			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(err)
 		}
 		pageToken = &cursorID
 	}
@@ -382,7 +382,7 @@ func (s *WorkspaceServer) UpdateWorkspace(
 		actions.New(actions.UpdateWorkspace, r.GetWorkspaceId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to update workspace", "workspaceId", r.GetWorkspaceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	if r.GetName() != "" {
@@ -461,7 +461,7 @@ func (s *WorkspaceServer) DeleteWorkspace(
 		actions.New(actions.DeleteWorkspace, r.GetWorkspaceId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to delete workspace", "workspaceId", r.GetWorkspaceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	wsID := uuid.MustParse(r.GetWorkspaceId())
@@ -539,7 +539,7 @@ func (s *WorkspaceServer) CreateMember(
 		actions.New(actions.AddWorkspaceMember, r.GetWorkspaceId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to add workspace member", "workspaceId", r.GetWorkspaceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	wsID := uuid.MustParse(r.GetWorkspaceId())
@@ -563,14 +563,14 @@ func (s *WorkspaceServer) CreateMember(
 				"scope",
 				sc,
 			)
-			return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+			return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 		}
 		addScopes = append(addScopes, requested)
 	}
 
 	userID, err := uuid.Parse(r.GetUserId())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid user id: %w", err).Error())
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidUserID).WithCause(err)
 	}
 	grantedScopes := make([]string, len(addScopes))
 	for i, sc := range addScopes {
@@ -622,13 +622,13 @@ func (s *WorkspaceServer) DeleteMember(
 		actions.New(actions.RemoveWorkspaceMember, r.GetWorkspaceId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to remove workspace member", "workspaceId", r.GetWorkspaceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	wsID := uuid.MustParse(r.GetWorkspaceId())
 	userID, err := uuid.Parse(r.GetUserId())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid user id: %w", err).Error())
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidUserID).WithCause(err)
 	}
 
 	tx, err := s.db.Begin(ctx)
@@ -694,7 +694,7 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 		actions.New(actions.ListWorkspaceMembers, r.GetWorkspaceId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to list workspace members", "workspaceId", r.GetWorkspaceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	pageSize := normalizePageSize(r.GetPageSize())
@@ -703,7 +703,7 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 	if r.GetPageToken() != "" {
 		cursorID, err := decodeCursor(r.GetPageToken())
 		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err).Error())
+			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(err)
 		}
 		pageToken = &cursorID
 	}

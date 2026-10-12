@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	"github.com/team-loco/loco/api/authz"
@@ -51,7 +50,7 @@ func (s *ObservabilityAccessServer) GetObservabilityAccess(
 
 	workspaceID, err := uuid.Parse(msg.GetWorkspaceId())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid workspace_id: %w", err).Error())
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidWorkspaceID).WithCause(err)
 	}
 
 	if verifyErr := s.authz.Check(ctx, entityScopes, genDb.EntityScope{

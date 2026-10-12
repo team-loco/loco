@@ -60,7 +60,7 @@ func (s *EnvironmentServer) CreateEnvironment(
 		actions.New(actions.CreateEnvironment, r.GetWorkspaceId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to create environment", "workspaceId", r.GetWorkspaceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
@@ -136,7 +136,7 @@ func (s *EnvironmentServer) GetEnvironment(
 		actions.New(actions.GetEnvironment, env.WorkspaceID.String()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to get environment", "environmentId", r.GetEnvironmentId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	return &environmentv1.GetEnvironmentResponse{
@@ -164,7 +164,7 @@ func (s *EnvironmentServer) ListEnvironments(
 		actions.New(actions.ListEnvironments, r.GetWorkspaceId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to list environments", "workspaceId", r.GetWorkspaceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	workspaceID := uuid.MustParse(r.GetWorkspaceId())
@@ -214,7 +214,7 @@ func (s *EnvironmentServer) UpdateEnvironment(
 		actions.New(actions.UpdateEnvironment, existing.WorkspaceID.String()),
 	); verifyErr != nil {
 		slog.WarnContext(ctx, "unauthorized to update environment", "environmentId", r.GetEnvironmentId())
-		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr.Error()).WithCause(verifyErr)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(verifyErr)
 	}
 
 	// Apply field mask: use existing values for unset fields.
@@ -299,7 +299,7 @@ func (s *EnvironmentServer) DeleteEnvironment(
 		actions.New(actions.DeleteEnvironment, existing.WorkspaceID.String()),
 	); verifyErr != nil {
 		slog.WarnContext(ctx, "unauthorized to delete environment", "environmentId", r.GetEnvironmentId())
-		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr.Error()).WithCause(verifyErr)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(verifyErr)
 	}
 
 	count, err := s.queries.CountDeploymentsByEnvironment(ctx, envID)

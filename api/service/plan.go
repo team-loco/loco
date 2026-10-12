@@ -112,7 +112,7 @@ func (s *PlanServer) loadPlan(
 ) (*plannedFile, error) {
 	file, err := locofile.Parse(rawFile)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidLocofile).WithCause(err)
 	}
 
 	environmentID := uuid.MustParse(rawEnvironmentID)
@@ -135,12 +135,12 @@ func (s *PlanServer) loadPlan(
 	workspaceAction := actions.New(action, env.WorkspaceID.String())
 	if authErr := s.authz.Check(ctx, scopes, workspaceAction); authErr != nil {
 		slog.WarnContext(ctx, "unauthorized to plan", "workspaceId", env.WorkspaceID)
-		return nil, connect.NewError(connect.CodePermissionDenied, authErr.Error()).WithCause(authErr)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(authErr)
 	}
 
 	services, err := locofile.Resolve(file, env.Name)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidLocofile).WithCause(err)
 	}
 
 	environments, err := s.queries.ListWorkspaceEnvironments(ctx, env.WorkspaceID)
@@ -200,7 +200,7 @@ func (s *PlanServer) loadPlan(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to compute plan", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
 	}
 	return &plannedFile{
 		file:            file,

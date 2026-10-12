@@ -109,7 +109,7 @@ func (s *SecretServer) authorizeTarget(
 	required := actions.New(action, resourceID)
 	if err := s.authz.Check(ctx, scopes, required); err != nil {
 		slog.WarnContext(ctx, "unauthorized secret access", "resourceId", resourceID)
-		return secretTarget{}, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return secretTarget{}, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 	resource, err := s.queries.GetResourceByID(ctx, uuid.MustParse(resourceID))
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -164,7 +164,7 @@ func (s *SecretServer) SetSecrets(
 	for _, name := range names {
 		if int64(len(values[name])) > int64(s.config.MaxValueBytes) {
 			tooLarge := fmt.Errorf("%w: %s", ErrSecretValueTooLarge, name)
-			return nil, connect.NewError(connect.CodeInvalidArgument, tooLarge.Error()).WithCause(tooLarge)
+			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(tooLarge)
 		}
 	}
 
@@ -504,7 +504,7 @@ func (s *SecretServer) RewrapEnvironmentKeys(
 	}
 	if err := s.authz.Check(ctx, scopes, actions.NewSystem(actions.RewrapEnvironmentKeys)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to rewrap environment keys")
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 	if s.provider == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrSecretsNotConfigured.Error()).

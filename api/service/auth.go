@@ -479,7 +479,7 @@ func (s *AuthServer) RefreshCLIToken(
 
 	access, newRefresh, err := s.machine.Refresh(ctx, refresh)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
 	return &authv1.RefreshCLITokenResponse{Tokens: &authv1.CLITokens{
 		AccessToken:  access,

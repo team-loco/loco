@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 
 	"github.com/team-loco/loco/api/events"
@@ -120,7 +119,7 @@ func (s *UserServer) WhoAmI(
 	err := s.authz.Check(ctx, entityScopes, actions.New(actions.GetCurrentUser, entity.ID.String()))
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to verify token", "error", err)
-		return nil, connect.NewError(connect.CodeUnauthenticated, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
 
 	user, err := s.getUserByID(ctx, entity.ID.String())
@@ -164,7 +163,7 @@ func (s *UserServer) UpdateUser(
 			"currentUserId",
 			entity.ID.String(),
 		)
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	userID := uuid.MustParse(r.GetUserId())
@@ -204,7 +203,7 @@ func (s *UserServer) ListUsers(
 
 	if err := s.authz.Check(ctx, entityScopes, actions.NewSystem(actions.ListUsers)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to list users")
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	pageSize := normalizePageSize(r.GetPageSize())
@@ -213,7 +212,7 @@ func (s *UserServer) ListUsers(
 	if r.GetPageToken() != "" {
 		cursorID, err := decodeCursor(r.GetPageToken())
 		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err).Error())
+			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(err)
 		}
 		pageToken = &cursorID
 	}
@@ -262,7 +261,7 @@ func (s *UserServer) DeleteUser(
 		actions.New(actions.DeleteUser, r.GetUserId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to delete user", "userId", r.GetUserId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	userID := uuid.MustParse(r.GetUserId())
@@ -350,7 +349,7 @@ func (s *UserServer) Logout(
 	err := s.tvm.Revoke(ctx, token)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to revoke token", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to revoke token: %w", err).Error())
+		return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
 	}
 
 	slog.InfoContext(ctx, "user logged out")

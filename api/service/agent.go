@@ -101,7 +101,7 @@ func (s *AgentServer) Register(
 	// Authenticate using bearer token
 	cluster, err := s.authenticateAgent(ctx, info.RequestHeader().Get("Authorization"))
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
 
 	// Update cluster with agent info
@@ -129,7 +129,7 @@ func (s *AgentServer) Register(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update cluster agent info", "error", err, "cluster_id", cluster.ID)
-		return nil, connect.NewError(connect.CodeInternal, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
 	}
 
 	slog.InfoContext(ctx, "agent registered",

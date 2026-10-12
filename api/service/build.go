@@ -110,7 +110,7 @@ func (s *BuildServer) authorize(ctx context.Context, action actions.Action, reso
 	scope := actions.New(action, resourceIDStr)
 	if err := s.authz.Check(ctx, scopes, scope); err != nil {
 		slog.WarnContext(ctx, "unauthorized build request", "resourceId", resourceIDStr)
-		return connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 	return nil
 }
@@ -146,7 +146,7 @@ func (s *BuildServer) CreateBuild(
 	resourceID, err := uuid.Parse(rawResourceID)
 	if err != nil {
 		invalid := fmt.Errorf("invalid resource_id: %w", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, invalid.Error()).WithCause(invalid)
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidResourceID).WithCause(invalid)
 	}
 
 	if authErr := s.authorize(ctx, actions.CreateBuild, resourceID); authErr != nil {
@@ -165,7 +165,7 @@ func (s *BuildServer) CreateBuild(
 	sourceSize := r.GetSourceSize()
 	if sourceSize > s.config.SourceMaxBytes {
 		tooLarge := fmt.Errorf("source is %d bytes, over the %d byte limit", sourceSize, s.config.SourceMaxBytes)
-		return nil, connect.NewError(connect.CodeInvalidArgument, tooLarge.Error()).WithCause(tooLarge)
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicSourceTooLarge).WithCause(tooLarge)
 	}
 
 	resource, err := s.queries.GetResourceByID(ctx, resourceID)
@@ -428,7 +428,7 @@ func (s *BuildServer) ListBuilds(
 	resourceID, err := uuid.Parse(rawResourceID)
 	if err != nil {
 		invalid := fmt.Errorf("invalid resource_id: %w", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, invalid.Error()).WithCause(invalid)
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidResourceID).WithCause(invalid)
 	}
 
 	if authErr := s.authorize(ctx, actions.ListBuilds, resourceID); authErr != nil {
@@ -443,7 +443,7 @@ func (s *BuildServer) ListBuilds(
 		cursorID, decodeErr := decodeCursor(rawToken)
 		if decodeErr != nil {
 			invalid := fmt.Errorf("invalid page_token: %w", decodeErr)
-			return nil, connect.NewError(connect.CodeInvalidArgument, invalid.Error()).WithCause(invalid)
+			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(invalid)
 		}
 		pageToken = &cursorID
 	}
@@ -550,7 +550,7 @@ func (s *BuildServer) getBuild(ctx context.Context, rawID string) (genDb.Build, 
 	buildID, err := uuid.Parse(rawID)
 	if err != nil {
 		invalid := fmt.Errorf("invalid build_id: %w", err)
-		return genDb.Build{}, connect.NewError(connect.CodeInvalidArgument, invalid.Error()).WithCause(invalid)
+		return genDb.Build{}, connect.NewError(connect.CodeInvalidArgument, publicInvalidBuildID).WithCause(invalid)
 	}
 	build, err := s.queries.GetBuildByID(ctx, buildID)
 	if errors.Is(err, pgx.ErrNoRows) {

@@ -117,7 +117,7 @@ func (s *ResourceServer) CreateResource(
 		actions.New(actions.CreateResource, r.GetWorkspaceId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to create resource", "workspaceId", r.GetWorkspaceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	// validate that spec contains a service spec (for now, only services are supported)
@@ -167,7 +167,7 @@ func (s *ResourceServer) CreateResource(
 
 	resourceType, err := protoResourceTypeToDb(r.GetType())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
 
 	workspaceID := uuid.MustParse(r.GetWorkspaceId())
@@ -282,7 +282,7 @@ func marshalResourceSpec(ctx context.Context, spec *resourcev1.ResourceSpec) ([]
 	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to marshal resource spec", "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err).Error())
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidSpec).WithCause(err)
 	}
 	return specJSON, nil
 }
@@ -322,13 +322,13 @@ func (s *ResourceServer) GetResource(
 		actions.New(actions.GetResource, resourceIDStr),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to get resource", "resourceId", resourceIDStr)
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	resourceID, err := uuid.Parse(resourceIDStr)
 	if err != nil {
 		slog.ErrorContext(ctx, "invalid resource id format", "resourceId", resourceIDStr)
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid resource id: %w", err).Error())
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidResourceID).WithCause(err)
 	}
 
 	res, err := s.queries.GetResourceByID(ctx, resourceID)
@@ -363,7 +363,7 @@ func (s *ResourceServer) resourceIDByName(
 	workspaceID, err := uuid.Parse(rawWorkspaceID)
 	if err != nil {
 		invalid := fmt.Errorf("invalid workspace id: %w", err)
-		return uuid.UUID{}, connect.NewError(connect.CodeInvalidArgument, invalid.Error()).WithCause(invalid)
+		return uuid.UUID{}, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(invalid)
 	}
 	name := nameKey.GetName()
 	res, err := s.queries.GetResourceByNameAndWorkspace(ctx, genDb.GetResourceByNameAndWorkspaceParams{
@@ -378,7 +378,8 @@ func (s *ResourceServer) resourceIDByName(
 		}
 		if verifyErr := s.authz.Check(ctx, scopes, workspaceRead); verifyErr != nil {
 			slog.WarnContext(ctx, "unauthorized to look up a resource by name", "workspaceId", workspaceID)
-			return uuid.UUID{}, connect.NewError(connect.CodePermissionDenied, verifyErr.Error()).WithCause(verifyErr)
+			return uuid.UUID{}, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).
+				WithCause(verifyErr)
 		}
 		return uuid.UUID{}, connect.NewError(connect.CodeNotFound, ErrResourceNotFound.Error()).
 			WithCause(ErrResourceNotFound)
@@ -412,7 +413,7 @@ func (s *ResourceServer) ListWorkspaceResources(
 		actions.New(actions.ListResources, r.GetWorkspaceId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to list resources", "workspaceId", r.GetWorkspaceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	pageSize := normalizePageSize(r.GetPageSize())
@@ -421,7 +422,7 @@ func (s *ResourceServer) ListWorkspaceResources(
 	if r.GetPageToken() != "" {
 		cursorID, err := decodeCursor(r.GetPageToken())
 		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err).Error())
+			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(err)
 		}
 		pageToken = &cursorID
 	}
@@ -499,7 +500,7 @@ func (s *ResourceServer) UpdateResource(
 		actions.New(actions.UpdateResource, r.GetResourceId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to update resource", "resourceId", r.GetResourceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	resourceID := uuid.MustParse(r.GetResourceId())
@@ -558,7 +559,7 @@ func (s *ResourceServer) DeleteResource(
 		actions.New(actions.DeleteResource, r.GetResourceId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to delete resource", "resourceId", r.GetResourceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	resourceID := uuid.MustParse(r.GetResourceId())
@@ -651,7 +652,7 @@ func (s *ResourceServer) ScaleResource(
 		actions.New(actions.ScaleResource, r.GetResourceId()),
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to scale resource", "resourceId", r.GetResourceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	if err := validateScaleRequest(ctx, r); err != nil {
@@ -800,7 +801,7 @@ func currentServiceSpec(
 	deploymentSpec, err := converter.DeserializeDeploymentSpec(current.Spec, string(resourceType))
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to deserialize deployment spec", "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err).Error())
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidSpec).WithCause(err)
 	}
 
 	serviceDeploymentSpec := deploymentSpec.GetService()
@@ -835,8 +836,8 @@ func (s *ResourceServer) planRegionRedeploy(
 		slog.ErrorContext(ctx, "failed to marshal service deployment spec", "error", err)
 		return regionRedeploy{}, connect.NewError(
 			connect.CodeInvalidArgument,
-			fmt.Errorf("invalid spec: %w", err).Error(),
-		)
+			publicInvalidSpec,
+		).WithCause(err)
 	}
 
 	deploymentEnv, err := s.queries.GetEnvironmentByID(ctx, current.EnvironmentID)
@@ -910,7 +911,7 @@ func (s *ResourceServer) redeployRegions(
 	resourceSpec, err := converter.DeserializeResourceSpecByType(res.Spec, string(res.Type))
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to deserialize resource spec", "error", err)
-		return connect.NewError(connect.CodeInternal, fmt.Errorf("invalid resource spec: %w", err).Error())
+		return connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -1000,14 +1001,14 @@ func validateScaleRequest(ctx context.Context, r *resourcev1.ScaleResourceReques
 	if cpu := r.GetCpu(); cpu != "" {
 		if _, err := servicedefaults.ParseCPU(cpu); err != nil {
 			slog.WarnContext(ctx, "invalid cpu format", "cpu", cpu, "error", err)
-			return connect.NewError(connect.CodeInvalidArgument, err.Error()).WithCause(err)
+			return connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 		}
 	}
 
 	if memory := r.GetMemory(); memory != "" {
 		if _, err := servicedefaults.ParseMemory(memory); err != nil {
 			slog.WarnContext(ctx, "invalid memory format", "memory", memory, "error", err)
-			return connect.NewError(connect.CodeInvalidArgument, err.Error()).WithCause(err)
+			return connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 		}
 	}
 
@@ -1279,7 +1280,7 @@ func deploymentTxError(ctx context.Context, err error) error {
 	}
 	if errors.Is(err, errDesiredSpec) {
 		slog.ErrorContext(ctx, "failed to build desired application spec", "error", err)
-		return connect.NewError(connect.CodeInternal, err.Error()).WithCause(err)
+		return connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
 	}
 	if isPgConstraintViolation(err) {
 		slog.WarnContext(ctx, "concurrent deployment rejected", "error", err)
@@ -1436,7 +1437,7 @@ func (s *ResourceServer) GetResourceEnv(
 	}
 	if err := s.authz.Check(ctx, scopes, actions.New(actions.GetResourceEnv, r.GetResourceId())); err != nil {
 		slog.WarnContext(ctx, "unauthorized to get resource env", "resourceId", r.GetResourceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 	res, err := s.queries.GetResourceByID(ctx, uuid.MustParse(r.GetResourceId()))
 	if errors.Is(err, pgx.ErrNoRows) {

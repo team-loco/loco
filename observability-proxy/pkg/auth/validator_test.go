@@ -8,6 +8,8 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connectinprocess"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
+	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
 	"github.com/team-loco/loco/observability-proxy/pkg/cache"
@@ -29,6 +31,28 @@ func (s *permissionServer) CheckPermission(
 		return nil, s.failure
 	}
 	return &tokenv1.CheckPermissionResponse{Allowed: s.allowed}, nil
+}
+
+type permissionRelay struct {
+	configv1connect.UnimplementedConfigServiceHandler
+	validator *Validator
+}
+
+func (r *permissionRelay) GetConfig(
+	ctx context.Context,
+	_ *configv1.GetConfigRequest,
+) (*configv1.GetConfigResponse, error) {
+	err := r.validator.CheckPermission(
+		ctx,
+		"caller",
+		tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
+		"workspace",
+		tokenv1.Scope_SCOPE_READ,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &configv1.GetConfigResponse{}, nil
 }
 
 func TestPermissionErrorsHaveExplicitLocalCodes(t *testing.T) {
@@ -104,6 +128,15 @@ func TestPermissionErrorsHaveExplicitLocalCodes(t *testing.T) {
 			}
 			if failure.Code() != tc.code || failure.Message() != tc.message {
 				t.Fatalf("error = %v, want %s: %s", failure, tc.code, tc.message)
+			}
+			relayServer := connect.NewServer()
+			configv1connect.RegisterConfigServiceHandler(relayServer, &permissionRelay{validator: validator})
+			relayTransport := connectinprocess.New(relayServer)
+			relayClient := configv1connect.NewConfigServiceClient(connect.NewClient(relayTransport))
+			_, wireErr := relayClient.GetConfig(t.Context(), &configv1.GetConfigRequest{})
+			publicError, isConnect := errors.AsType[*connect.Error](wireErr)
+			if !isConnect || publicError.Code() != tc.code || publicError.Message() != tc.message {
+				t.Fatalf("relayed wire error = %v", wireErr)
 			}
 		})
 	}

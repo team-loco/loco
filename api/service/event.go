@@ -104,7 +104,7 @@ func (s *EventServer) verify(ctx context.Context, scope genDb.EntityScope) error
 		return connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized.Error()).WithCause(ErrUnauthorized)
 	}
 	if err := s.authz.Check(ctx, scopes, scope); err != nil {
-		return connect.NewError(connect.CodePermissionDenied, err.Error()).WithCause(err)
+		return connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 	return nil
 }
@@ -162,7 +162,7 @@ func (s *EventServer) StreamEvents(
 	}
 	position, err := decodeStreamCursor(req.GetCursor())
 	if err != nil {
-		return connect.NewError(connect.CodeInvalidArgument, err.Error()).WithCause(err)
+		return connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
 	ticker := time.NewTicker(s.poll)
 	defer ticker.Stop()
