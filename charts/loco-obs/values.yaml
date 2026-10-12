@@ -296,7 +296,13 @@ otel-col-daemon:
         extract: *tenancyExtract
     exporters:
       clickhouse: &clickhouseExporter
-        endpoint: tcp://{{ include "loco-obs.clickhouseAddress" . }}?dial_timeout=10s&compress=lz4&async_insert=1&log_queries=0{{ if .Values.global.clickhouse.secure }}&secure=true{{ end }}
+        endpoint: tcp://{{ include "loco-obs.clickhouseAddress" . }}
+        compress: lz4
+        async_insert: true
+        connection_params:
+          dial_timeout: 10s
+          log_queries: "0"
+          secure: "{{ .Values.global.clickhouse.secure }}"
         username: loco_ingest
         password: ${env:CLICKHOUSE_INGEST_PASSWORD}
         traces_table_name: otel_traces
