@@ -18,6 +18,7 @@ func QueryMetrics(
 	ctx context.Context,
 	conn driver.Conn,
 	workspaceID string,
+	environmentID string,
 	resourceIDs []string,
 	startTime, endTime time.Time,
 	metricName string,
@@ -27,6 +28,7 @@ func QueryMetrics(
 ) ([]*observabilityv1.MetricSeries, error) {
 	query, args := buildMetricsQuery(
 		workspaceID,
+		environmentID,
 		resourceIDs,
 		startTime,
 		endTime,
@@ -79,6 +81,7 @@ func QueryMetrics(
 
 func buildMetricsQuery(
 	workspaceID string,
+	environmentID string,
 	resourceIDs []string,
 	startTime, endTime time.Time,
 	metricName string,
@@ -94,6 +97,11 @@ func buildMetricsQuery(
 
 	whereParts := []string{workspaceColumn + " = ?"}
 	args := []any{workspaceID}
+
+	if environmentID != "" {
+		whereParts = append(whereParts, environmentColumn+" = ?")
+		args = append(args, environmentID)
+	}
 
 	if len(resourceIDs) > 0 {
 		clause, values := inFilter(resourceColumn, resourceIDs)
