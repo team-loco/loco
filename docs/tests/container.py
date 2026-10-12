@@ -79,7 +79,7 @@ class ContainerTests(unittest.TestCase):
                         page = context.new_page()
                         violations = []
                         page.on('console', lambda message: violations.append(message.text) if 'Content Security Policy' in message.text else None)
-                        page.goto(f'https://{host}{prefix}/', wait_until='networkidle')
+                        page.goto(f'https://{host}{prefix}/')
                         expect(page.get_by_role('heading', name='Deploy with Loco')).to_be_visible()
                         self.assertTrue(page.evaluate('document.documentElement.scrollWidth <= innerWidth'))
                         page.screenshot(path=str(screenshots / f'{environment}-{entry}-{scheme}-{viewport}.png'), full_page=True)
@@ -110,7 +110,7 @@ class ContainerTests(unittest.TestCase):
 
                 context.route('https://' + ui_host + '/**', dashboard_proxy)
                 page = context.new_page()
-                page.goto('https://' + ui_host + '/', wait_until='networkidle')
+                page.goto('https://' + ui_host + '/')
                 expect(page.get_by_role('heading', name='Deploy containers,')).to_be_visible()
                 context.unroute_all(behavior='ignoreErrors')
                 context.close()
