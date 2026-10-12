@@ -6,7 +6,7 @@ import { nonEmpty } from "@/lib/utils";
 
 import { createAuthClient, type AuthClient } from "./oidc";
 
-const BASE_URL = nonEmpty(import.meta.env.VITE_API_URL, "http://localhost:8000");
+export const BASE_URL = nonEmpty(import.meta.env.VITE_API_URL, "http://localhost:8000");
 
 async function loadAuthClient(): Promise<AuthClient> {
 	const transport = createConnectTransport({ baseUrl: BASE_URL, useBinaryFormat: false });
