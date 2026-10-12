@@ -73,6 +73,11 @@ Builds, tests, code generation, linting and the local environment are mise tasks
 - **Magic numbers**: no unexplained literals in logic (`5 << 20`, `1024`, `65535`, timeouts, limits, ports). Tunable values belong in the config struct; the rest are named `const`s at the top of the file. Before submitting, check the whole change for any you missed.
 - **Names**: never use numbered suffixes (`uniqueJSONErr2`, `uniqueJSONErr3`). Name each value after what it holds.
 - **Nested calls**: name a call's result in a local before passing it to another call or a struct literal.
+- **Factory results**: assign constructor and factory results to a named local before
+  selecting a field. Keep construction and selection in separate statements. Name
+  the selected value after its role so its type is clear: assign
+  `clients := rpc.NewHTTPClients(httpClient, host, token)`, then
+  `agentClient := clients.Agent`.
 
 ## Repo Hygiene
 
