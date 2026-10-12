@@ -290,6 +290,44 @@ class ObservabilitySchema(unittest.TestCase):
             self.assertRegex(str(local[setting]), r'^[0-9]+$', setting)
         self.assertEqual(capped & set(default), set())
 
+    def test_in_cluster_clickhouse_is_the_default_endpoint(self):
+        documents = render_chart('loco-obs', {'obsProxy': TEST_PROXY})
+        host = 'clickhouse-loco-obs-clickhouse.platform-test.svc.cluster.local:9000'
+        for collector, config in collector_relays(documents).items():
+            exporter = config['exporters']['clickhouse']
+            self.assertEqual(exporter['endpoint'], f'tcp://{host}', collector)
+            self.assertEqual(exporter['connection_params']['secure'], 'false', collector)
+        self.assertIn('ClickHouseInstallation', {document['kind'] for document in documents})
+
+    def test_external_clickhouse_replaces_the_in_cluster_server(self):
+        overrides = {'obsProxy': TEST_PROXY, 'clickhouse': {'enabled': False}, 'global': {'clickhouse': {'host': 'abc.clickhouse.example.test', 'port': 9440, 'secure': True}}}
+        documents = render_chart('loco-obs', overrides)
+        host = 'abc.clickhouse.example.test:9440'
+        for collector, config in collector_relays(documents).items():
+            exporter = config['exporters']['clickhouse']
+            self.assertEqual(exporter['endpoint'], f'tcp://{host}', collector)
+            self.assertEqual(exporter['connection_params']['secure'], 'true', collector)
+        proxy = next(document for document in documents if document['kind'] == 'Deployment' and document['metadata']['name'] == 'loco-obs-obs-proxy')
+        env = {item['name']: item for item in proxy['spec']['template']['spec']['containers'][0]['env']}
+        self.assertEqual(env['CLICKHOUSE_URL']['value'], f'clickhouse://loco_reader:$(CLICKHOUSE_READER_PASSWORD)@{host}?secure=true')
+        self.assertEqual(env['CLICKHOUSE_MIGRATOR_URL']['value'], f'clickhouse://loco_migrator:$(CLICKHOUSE_MIGRATOR_PASSWORD)@{host}?secure=true')
+        names = {document['metadata']['name'] for document in documents}
+        kinds = {document['kind'] for document in documents}
+        self.assertNotIn('ClickHouseInstallation', kinds)
+        self.assertNotIn('allow-clickhouse-ingress', names)
+
+    def test_collectors_set_connection_options_as_exporter_fields(self):
+        for collector, config in collector_relays(render_chart('loco-obs', {'obsProxy': TEST_PROXY})).items():
+            exporter = config['exporters']['clickhouse']
+            self.assertNotIn('?', exporter['endpoint'], collector)
+            self.assertEqual(exporter['compress'], 'lz4', collector)
+            self.assertTrue(exporter['async_insert'], collector)
+            self.assertEqual(exporter['connection_params'], {'dial_timeout': '10s', 'log_queries': '0', 'secure': 'false'}, collector)
+
+    def test_external_clickhouse_needs_a_host(self):
+        with self.assertRaises(subprocess.CalledProcessError):
+            render_chart('loco-obs', {'obsProxy': TEST_PROXY, 'clickhouse': {'enabled': False}})
+
     def test_collectors_ingest_into_the_proxy_database(self):
         values = chart_values('loco-obs')
         database = values['obsProxy']['clickhouse']['database']

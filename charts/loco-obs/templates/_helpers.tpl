@@ -9,8 +9,9 @@
 {{- required (printf "clickhouse user %s needs a password_secret_name in clickhouse.clickhouse.users" $user) $secret -}}
 {{- end -}}
 
-{{- define "loco-obs.clickhouseHost" -}}
-clickhouse-{{ .Release.Name }}-clickhouse.{{ .Release.Namespace }}.svc.cluster.local:9000
+{{- define "loco-obs.clickhouseAddress" -}}
+{{- $clickhouse := .Values.global.clickhouse -}}
+{{- $clickhouse.host | default (printf "clickhouse-%s-clickhouse.%s.svc.cluster.local" .Release.Name .Release.Namespace) }}:{{ $clickhouse.port }}
 {{- end -}}
 
 {{- define "loco-obs.clickhouseDSN" -}}
@@ -29,6 +30,6 @@ clickhouse-{{ .Release.Name }}-clickhouse.{{ .Release.Namespace }}.svc.cluster.l
       name: {{ include "loco-obs.clickhouseUserSecret" (dict "root" $root "user" .user) | quote }}
       key: password
 - name: {{ .env }}
-  value: "clickhouse://{{ .user }}:$({{ .passwordEnv }})@{{ include "loco-obs.clickhouseHost" $root }}"
+  value: "clickhouse://{{ .user }}:$({{ .passwordEnv }})@{{ include "loco-obs.clickhouseAddress" $root }}{{ if $root.Values.global.clickhouse.secure }}?secure=true{{ end }}"
 {{- end }}
 {{- end -}}

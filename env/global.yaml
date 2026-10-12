@@ -24,4 +24,3 @@ global:
   # Observability service names (can be constructed dynamically)
   observability:
     otelCollectorDeployment: otel-col-deploy
-    clickhouse: clickhouse-loco-obs-clickhouse

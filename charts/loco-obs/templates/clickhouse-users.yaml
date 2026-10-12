@@ -1,3 +1,6 @@
+{{- if and (not .Values.clickhouse.enabled) (not .Values.global.clickhouse.host) }}
+{{- fail "global.clickhouse.host is required when clickhouse.enabled is false" }}
+{{- end }}
 {{- $ingest := index .Values "otel-col-daemon" "config" "exporters" "clickhouse" "username" -}}
 {{- $daemonNamespace := index .Values "otel-col-daemon" "namespaceOverride" -}}
 {{- range .Values.clickhouse.clickhouse.users }}
