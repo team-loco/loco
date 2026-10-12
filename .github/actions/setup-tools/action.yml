@@ -1,5 +1,5 @@
 name: Setup tools
-description: Install every tool pinned in mise.toml at the versions and checksums recorded in mise.lock.
+description: Install every tool pinned in mise.toml at the versions and checksums recorded in mise.lock. Caches are saved only on main, the one ref whose caches pull requests and merge groups can restore.
 
 inputs:
   go-cache:
@@ -13,9 +13,21 @@ runs:
     - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
       with:
         version: 2026.10.6
+        cache_save: ${{ github.ref == 'refs/heads/main' }}
 
-    - if: inputs.go-cache != ''
+    - if: inputs.go-cache != '' && github.ref == 'refs/heads/main'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+          ~/.cache/golangci-lint
+        key: go-${{ runner.os }}-${{ inputs.go-cache }}-${{ hashFiles('mise.lock', '**/go.sum') }}
+        restore-keys: |
+          go-${{ runner.os }}-${{ inputs.go-cache }}-
+
+    - if: inputs.go-cache != '' && github.ref != 'refs/heads/main'
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: |
           ~/go/pkg/mod

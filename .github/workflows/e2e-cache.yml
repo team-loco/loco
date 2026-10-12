@@ -1,0 +1,36 @@
+name: E2E Cache
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "**/go.sum"
+      - "mise.lock"
+      - "mise-tasks/e2e/**"
+      - ".github/actions/setup-tools/**"
+      - ".github/workflows/e2e-cache.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  warm:
+    name: Warm the E2E Go Cache
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-tools
+        with:
+          go-cache: e2e
+
+      - name: Build the e2e binaries
+        run: mise run e2e:build "$RUNNER_TEMP/e2e-bin" e2e

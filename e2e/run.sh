@@ -610,20 +610,7 @@ build_binaries() {
     fi
 
     log_step "Building binaries..."
-    local ldflags="-X main.version=${E2E_VERSION}"
-
-    log_info "Building API..."
-    (cd "$ROOT_DIR/api" && go build -ldflags "$ldflags" -o "$BIN_DIR/loco-api" .)
-
-    log_info "Building Agent..."
-    (cd "$ROOT_DIR/agent" && go build -ldflags "$ldflags" -o "$BIN_DIR/loco-agent" .)
-
-    log_info "Building Observability Proxy..."
-    (cd "$ROOT_DIR/observability-proxy" && go build -ldflags "$ldflags" -o "$BIN_DIR/loco-obs-proxy" .)
-
-    log_info "Building the CLI..."
-    (cd "$ROOT_DIR" && go build -ldflags "$ldflags" -o "$BIN_DIR/loco" .)
-
+    mise run --quiet e2e:build "$BIN_DIR" "$E2E_VERSION"
     log_ok "All binaries built"
 }
 

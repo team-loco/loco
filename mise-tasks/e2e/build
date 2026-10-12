@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+#MISE description="Build the API, agent, observability proxy and CLI binaries the end-to-end tests run: e2e:build <bin-dir> <version>"
+set -euo pipefail
+
+if [[ $# -ne 2 ]]; then
+	echo "usage: mise run e2e:build <bin-dir> <version>" >&2
+	exit 2
+fi
+mkdir -p "$1"
+bin_dir=$(cd "$1" && pwd)
+ldflags="-X main.version=$2"
+root=$(git rev-parse --show-toplevel)
+
+echo "Building API..."
+(cd "$root/api" && go build -ldflags "$ldflags" -o "$bin_dir/loco-api" .)
+
+echo "Building Agent..."
+(cd "$root/agent" && go build -ldflags "$ldflags" -o "$bin_dir/loco-agent" .)
+
+echo "Building Observability Proxy..."
+(cd "$root/observability-proxy" && go build -ldflags "$ldflags" -o "$bin_dir/loco-obs-proxy" .)
+
+echo "Building the CLI..."
+(cd "$root" && go build -ldflags "$ldflags" -o "$bin_dir/loco" .)
