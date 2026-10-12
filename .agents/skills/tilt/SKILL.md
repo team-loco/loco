@@ -11,10 +11,7 @@ on :5173. The Tilt UI is on :10350.
 
 `mise run stop` stops Tilt, the compose services and the kind nodes and keeps their state;
 `mise run start` (an alias of `mise run tilt`) starts the stopped nodes and brings the rest back.
-Never run `tilt down`: it removes the `loco-dev` compose containers that every checkout
-shares. The volumes survive, and
-`docker compose -p loco-dev up -d --wait postgres valkey s3 registry dex` followed by
-`mise run cluster:registry` brings the containers back.
+Don't run `tilt down`; it removes the compose containers other checkouts share.
 
 ## One stack at a time
 
