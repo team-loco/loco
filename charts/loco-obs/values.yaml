@@ -56,6 +56,13 @@ clickhouse:
         drop:
           - ALL
     antiAffinity: true
+    resources:
+      requests:
+        cpu: "1"
+        memory: 4Gi
+      limits:
+        cpu: "2"
+        memory: 4Gi
     persistence:
       enabled: true
       storageClass: ""

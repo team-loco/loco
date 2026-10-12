@@ -5,6 +5,13 @@ clickhouse:
   clickhouse:
     defaultUser:
       password: ""
+    resources:
+      requests:
+        cpu: 250m
+        memory: 1Gi
+      limits:
+        cpu: "1"
+        memory: 2Gi
 
 clickhouseUserPasswords:
   loco_migrator: {{ env "CLICKHOUSE_MIGRATOR_PASSWORD" | default "loco-local-migrator" | quote }}
