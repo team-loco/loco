@@ -4,6 +4,8 @@
 set -euo pipefail
 
 cluster=${KIND_CLUSTER:-loco-cluster-local}
+listed_timeout_seconds=30
+listed_poll_seconds=1
 
 normalize() {
 	local ref=$1 first=${1%%/*}
@@ -21,14 +23,23 @@ for image in "$@"; do
 	keep+=("$(normalize "$image")")
 done
 
+listed() {
+	local node=$1 ref=$2 images
+	images=$(docker exec "$node" crictl images -o json)
+	KEEP="$ref" yq -p json -e '.images[] | select(.repoTags | any_c(. == strenv(KEEP)))' <<<"$images" >/dev/null 2>&1
+}
+
 nodes=$(kind get nodes --name "$cluster")
 for node in $nodes; do
-	images=$(docker exec "$node" crictl images -o json)
 	for ref in "${keep[@]}"; do
-		if ! KEEP="$ref" yq -p json -e '.images[] | select(.repoTags | any_c(. == strenv(KEEP)))' <<<"$images" >/dev/null 2>&1; then
-			echo "$ref is not on $node, so nothing was pruned; the image was never loaded into the kind cluster" >&2
-			exit 1
-		fi
+		deadline=$((SECONDS + listed_timeout_seconds))
+		until listed "$node" "$ref"; do
+			if ((SECONDS >= deadline)); then
+				echo "$ref is not on $node after ${listed_timeout_seconds}s, so nothing was pruned; the image was never loaded into the kind cluster" >&2
+				exit 1
+			fi
+			sleep "$listed_poll_seconds"
+		done
 	done
 done
 
