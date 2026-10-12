@@ -19,6 +19,23 @@ Builds, tests, code generation, linting and the local environment are mise tasks
 
 - **Every change has a test** that fails before it and passes after it.
 - **Own regressions.** A test that fails after your change is yours to diagnose; don't argue it was already broken without proof.
+- **No assumptions.** Before implementing, state the assumptions the design rests on, and
+  check each against the code, the docs or a test. If one can't be checked, or there is
+  more than one reasonable reading of the request, stop and ask instead of picking one
+  silently. This covers runtime assumptions most of all: what exists before what, event
+  ordering, cache warmth, a single replica or a single region. A design that only works
+  while one of those holds must either enforce it or survive its failure, and the PR names it.
+- **Push back.** If a simpler approach exists, or the request rests on something untrue, say
+  so before writing code.
+- **Simplicity first.** The least code that solves the problem: no features, abstractions,
+  configurability or error handling for cases nobody asked for or that can't happen. If
+  200 lines could be 50, rewrite it.
+- **Stay on the request.** Every changed line traces to the task. Don't restyle or refactor
+  code that isn't part of it; "Clean as you go" covers stale code in the area you touch,
+  nothing wider. Match the existing style.
+- **Define done before starting.** Turn the task into checks that prove it: "fix the bug" is
+  a test that reproduces it, "refactor X" is the suite passing before and after. For
+  multi-step work, write the plan as steps, each with the check that verifies it.
 - **Evidence over assumptions.** Reproduce a bug before fixing it, and find the root cause instead of patching the symptom.
 - **Find files before reading them.** File and symbol names in issues, reviews and old notes
   go stale. Locate them with `rg --files | rg <name>` or `rg <symbol>` before opening one.
