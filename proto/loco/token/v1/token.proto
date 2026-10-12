@@ -19,8 +19,7 @@ service TokenService {
   rpc RevokeToken(RevokeTokenRequest) returns (RevokeTokenResponse);
   // GetScopes returns the entity and all scopes the current token has access to.
   rpc GetScopes(GetScopesRequest) returns (GetScopesResponse);
-  // CheckPermission validates whether a given token has a specific permission on an entity.
-  // Intended for service-to-service calls (e.g. observability proxy → control plane).
+  // CheckPermission checks whether the token in the Authorization header has the requested scope on an entity.
   rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse);
 }
 
@@ -132,9 +131,8 @@ message RevokeTokenResponse {}
 // GetScopesRequest has no fields; the token is read from the auth context.
 message GetScopesRequest {}
 
-// CheckPermissionRequest validates whether a token has a specific permission.
+// CheckPermissionRequest specifies the entity and scope to check for the authenticated caller.
 message CheckPermissionRequest {
-  string token = 1 [(buf.validate.field).string.min_len = 1];
   EntityType entity_type = 2 [(buf.validate.field).enum = {
     defined_only: true
     not_in: [0]

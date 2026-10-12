@@ -70,8 +70,7 @@ export const TokenService = {
       kind: MethodKind.Unary,
     },
     /**
-     * CheckPermission validates whether a given token has a specific permission on an entity.
-     * Intended for service-to-service calls (e.g. observability proxy → control plane).
+     * CheckPermission checks whether the token in the Authorization header has the requested scope on an entity.
      *
      * @generated from rpc loco.token.v1.TokenService.CheckPermission
      */

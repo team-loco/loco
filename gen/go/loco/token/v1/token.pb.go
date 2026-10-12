@@ -758,10 +758,9 @@ func (*GetScopesRequest) Descriptor() ([]byte, []int) {
 	return file_loco_token_v1_token_proto_rawDescGZIP(), []int{10}
 }
 
-// CheckPermissionRequest validates whether a token has a specific permission.
+// CheckPermissionRequest specifies the entity and scope to check for the authenticated caller.
 type CheckPermissionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
 	EntityType    EntityType             `protobuf:"varint,2,opt,name=entity_type,json=entityType,proto3,enum=loco.token.v1.EntityType" json:"entity_type,omitempty"`
 	EntityId      string                 `protobuf:"bytes,3,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
 	Scope         Scope                  `protobuf:"varint,4,opt,name=scope,proto3,enum=loco.token.v1.Scope" json:"scope,omitempty"`
@@ -797,13 +796,6 @@ func (x *CheckPermissionRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CheckPermissionRequest.ProtoReflect.Descriptor instead.
 func (*CheckPermissionRequest) Descriptor() ([]byte, []int) {
 	return file_loco_token_v1_token_proto_rawDescGZIP(), []int{11}
-}
-
-func (x *CheckPermissionRequest) GetToken() string {
-	if x != nil {
-		return x.Token
-	}
-	return ""
 }
 
 func (x *CheckPermissionRequest) GetEntityType() EntityType {
@@ -991,9 +983,8 @@ const file_loco_token_v1_token_proto_rawDesc = "" +
 	"entityType\x12%\n" +
 	"\tentity_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\bentityId\"\x15\n" +
 	"\x13RevokeTokenResponse\"\x12\n" +
-	"\x10GetScopesRequest\"\xde\x01\n" +
-	"\x16CheckPermissionRequest\x12\x1d\n" +
-	"\x05token\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05token\x12F\n" +
+	"\x10GetScopesRequest\"\xbf\x01\n" +
+	"\x16CheckPermissionRequest\x12F\n" +
 	"\ventity_type\x18\x02 \x01(\x0e2\x19.loco.token.v1.EntityTypeB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\n" +
 	"entityType\x12%\n" +

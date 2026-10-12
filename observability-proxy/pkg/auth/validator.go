@@ -16,7 +16,6 @@ import (
 )
 
 const (
-	readinessToken    = "readiness-probe"
 	readinessEntityID = "00000000-0000-4000-8000-000000000000"
 )
 
@@ -27,8 +26,9 @@ var (
 
 // Validator checks token permissions by calling CheckPermission on the control plane.
 type Validator struct {
-	client tokenv1connect.TokenServiceClient
-	cache  cache.Cache
+	client    tokenv1connect.TokenServiceClient
+	authToken string
+	cache     cache.Cache
 }
 
 func NewValidator(controlPlaneURL string, authToken string, c cache.Cache) *Validator {
@@ -38,12 +38,13 @@ func NewValidator(controlPlaneURL string, authToken string, c cache.Cache) *Vali
 	transport.Protocols.SetHTTP2(true)
 	httpClient := &http.Client{Transport: transport}
 
-	clients := rpc.NewHTTPClients(httpClient, controlPlaneURL, authToken)
+	clients := rpc.NewHTTPClients(httpClient, controlPlaneURL, "")
 	tokenClient := clients.Token
 
 	return &Validator{
-		client: tokenClient,
-		cache:  c,
+		client:    tokenClient,
+		authToken: authToken,
+		cache:     c,
 	}
 }
 
@@ -66,16 +67,18 @@ func (v *Validator) CheckPermission(
 	}
 
 	req := &tokenv1.CheckPermissionRequest{
-		Token:      token,
 		EntityType: entityType,
 		EntityId:   entityID,
 		Scope:      scope,
 	}
 
+	ctx, info := connect.NewClientContext(ctx)
+	info.RequestHeader().Set("Authorization", "Bearer "+token)
 	resp, err := v.client.CheckPermission(ctx, req)
 	if err != nil {
 		slog.ErrorContext(ctx, "CheckPermission call failed", "error", err)
-		if connect.CodeOf(err) == connect.CodePermissionDenied {
+		code := connect.CodeOf(err)
+		if code == connect.CodePermissionDenied || code == connect.CodeUnauthenticated {
 			return errPermissionDenied.WithCause(err)
 		}
 		return errPermissionCheckUnavailable.WithCause(err)
@@ -91,11 +94,12 @@ func (v *Validator) CheckPermission(
 
 func (v *Validator) Ready(ctx context.Context) error {
 	message := &tokenv1.CheckPermissionRequest{
-		Token:      readinessToken,
 		EntityType: tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
 		EntityId:   readinessEntityID,
 		Scope:      tokenv1.Scope_SCOPE_READ,
 	}
+	ctx, info := connect.NewClientContext(ctx)
+	info.RequestHeader().Set("Authorization", "Bearer "+v.authToken)
 	if _, err := v.client.CheckPermission(ctx, message); err != nil {
 		return fmt.Errorf("control plane permission endpoint: %w", err)
 	}
