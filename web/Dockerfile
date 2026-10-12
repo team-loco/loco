@@ -18,8 +18,8 @@ RUN bun install --frozen-lockfile
 COPY gen/ts ./gen/ts
 COPY web ./web
 
-# renovate: datasource=repology depName=alpine_3_22/brotli versioning=loose
-ARG BROTLI_VERSION=1.1.0-r2
+# renovate: datasource=repology depName=alpine_3_24/brotli versioning=loose
+ARG BROTLI_VERSION=1.2.0-r1
 RUN apk add --no-cache brotli=${BROTLI_VERSION}
 
 ARG VERSION
