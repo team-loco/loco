@@ -2,13 +2,12 @@ package service
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
+	"connectrpc.com/connect/v2/connectinprocess"
+
 	"connectrpc.com/connect/v2"
-	"connectrpc.com/connect/v2/connecthttp"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/clusternotify"
@@ -256,13 +255,7 @@ func startSyncServerWithSources(
 	server := NewAgentServer(f.pool, f.queries, notifier, sources, nil, testHeartbeatInterval)
 	rpcServer := connect.NewServer()
 	agentv1connect.RegisterAgentServiceHandler(rpcServer, server)
-	mux := http.NewServeMux()
-	connecthttp.Mount(mux, rpcServer)
-	srv := httptest.NewUnstartedServer(mux)
-	srv.EnableHTTP2 = true
-	srv.StartTLS()
-	t.Cleanup(func() { srv.CloseClientConnections(); srv.Close() })
-	transport := connecthttp.NewTransport(srv.Client(), srv.URL)
+	transport := connectinprocess.New(rpcServer)
 	return agentv1connect.NewAgentServiceClient(connect.NewClient(transport))
 }
 

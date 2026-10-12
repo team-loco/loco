@@ -531,6 +531,19 @@ func TestResourceStatusIsUnknownOnceTheSyncStreamDrops(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	responsesStopped := make(chan struct{})
+	go func() {
+		defer close(responsesStopped)
+		for {
+			if _, receiveErr := stream.Receive(); receiveErr != nil {
+				return
+			}
+		}
+	}()
+	defer func() {
+		dropStream()
+		<-responsesStopped
+	}()
 	agentStopped := make(chan struct{})
 	go func() {
 		defer close(agentStopped)
