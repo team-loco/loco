@@ -186,3 +186,31 @@ func TestLoadWithoutLockIgnoresLeaseSettings(t *testing.T) {
 		t.Errorf("MigrationLease = %+v, want zero without a lock", cfg.MigrationLease)
 	}
 }
+
+func TestCORSOrigins(t *testing.T) {
+	setRequiredEnv(t)
+	t.Setenv("CORS_ALLOWED_ORIGINS", " https://app.example.test, http://localhost:5173, ")
+	cfg := Load()
+	if len(cfg.CORSAllowedOrigins) != 2 || cfg.CORSAllowedOrigins[0] != "https://app.example.test" ||
+		cfg.CORSAllowedOrigins[1] != "http://localhost:5173" {
+		t.Fatalf("origins = %v", cfg.CORSAllowedOrigins)
+	}
+	invalidOrigins := []string{
+		"*", "https://app.example.test/path", "ftp://app.example.test", "https://user:password@app.example.test",
+	}
+	for _, origin := range invalidOrigins {
+		t.Run(origin, func(t *testing.T) {
+			t.Setenv("CORS_ALLOWED_ORIGINS", origin)
+			defer func() {
+				if recover() == nil {
+					t.Fatal("invalid origin accepted")
+				}
+			}()
+			Load()
+		})
+	}
+	t.Setenv("CORS_ALLOWED_ORIGINS", "")
+	if origins := Load().CORSAllowedOrigins; len(origins) != 0 {
+		t.Fatalf("empty allowlist = %v", origins)
+	}
+}

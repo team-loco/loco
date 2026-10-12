@@ -172,6 +172,27 @@ class ObservabilitySchema(unittest.TestCase):
         container = deployment['spec']['template']['spec']['containers'][0]
         return container, [item['name'] for item in container['env']], {item['name']: item for item in container['env']}
 
+    def test_proxy_cors_origins_are_explicit(self):
+        _, _, env = self.proxy_env({'cors': {'allowedOrigins': ['https://app.example.test', 'http://localhost:5173']}})
+        self.assertEqual(env['CORS_ALLOWED_ORIGINS']['value'], 'https://app.example.test,http://localhost:5173')
+        _, _, env = self.proxy_env()
+        self.assertEqual(env['CORS_ALLOWED_ORIGINS']['value'], '')
+
+    def test_helmfile_passes_dashboard_origins_in_both_environments(self):
+        variables = {
+            **CLICKHOUSE_USER_PASSWORDS, 'GH_SHA': 'test', 'APP_PORT': '8000',
+            'CLICKHOUSE_PASSWORD': 'test', 'OBS_PROXY_AUTH_SECRET': 'proxy-auth',
+            'CONTROL_PLANE_URL': 'https://api.example.test',
+            'CORS_ALLOWED_ORIGINS': ' https://app.example.test, http://localhost:5173 ',
+        }
+        for environment in ('local', 'prod'):
+            with self.subTest(environment=environment):
+                values = environment_values(environment, variables)
+                values['obsProxy']['image'] = {'tag': 'test'}
+                deployment = render('loco-obs', 'obs-proxy-deployment.yaml', values)
+                env = {item['name']: item for item in deployment['spec']['template']['spec']['containers'][0]['env']}
+                self.assertEqual(env['CORS_ALLOWED_ORIGINS']['value'], 'https://app.example.test,http://localhost:5173')
+
     def test_proxy_connects_as_the_reader_and_migrator_users(self):
         _, order, env = self.proxy_env()
         host = 'clickhouse-loco-obs-clickhouse.platform-test.svc.cluster.local:9000'

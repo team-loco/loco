@@ -114,7 +114,8 @@ func newProxy(cfg *config.Config, lock migrationLock) (*proxy, error) {
 	})
 
 	path, handler := observabilityv1connect.NewObservabilityProxyServiceHandler(svc, interceptors)
-	mux.Handle(path, handler)
+	corsHandler := withCORS(cfg.CORSAllowedOrigins, handler)
+	mux.Handle(path, corsHandler)
 
 	protocols := new(http.Protocols)
 	protocols.SetHTTP1(true)
