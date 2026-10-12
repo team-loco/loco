@@ -29,6 +29,7 @@ releases:
 {{- if .Values.installCNI }}
   # phase 1: networking
   - name: loco-networking
+    wait: true
     chart: ./charts/loco-networking
     namespace: kube-system
     createNamespace: true
@@ -46,6 +47,7 @@ releases:
       phase: "2-core"
 
   - name: cert-manager
+    wait: true
     chart: jetstack/cert-manager
     version: v1.21.2
     namespace: cert-manager
