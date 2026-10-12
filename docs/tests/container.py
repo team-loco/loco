@@ -25,6 +25,7 @@ REQUEST_TIMEOUT = 5
 NOT_FOUND_TITLE = 'Page not found | Loco'
 NOT_FOUND_PATH = '/config'
 SCHEMA_PATH = '/schemas/loco.v1.json'
+BUILD_CACHE = os.environ.get('DOCS_BUILD_CACHE')
 
 
 def docker(*args):
@@ -168,7 +169,8 @@ class ContainerTests(unittest.TestCase):
             with self.subTest(environment=environment):
                 image = f'loco-ui-docs-test:{environment}'
                 api_host = 'api.staging.loco.build' if environment == 'staging' else 'api.loco.build'
-                docker('buildx', 'build', '--load', '-t', image, '-f', 'web/Dockerfile', '--build-arg', f'DOCS_ENVIRONMENT={environment}', '--build-arg', f'PUBLIC_API_URL=https://{api_host}', '--build-arg', 'PUBLIC_APP_ENV=PRODUCTION', '--build-arg', f'VERSION={version}', '.')
+                cache = ['--cache-from', f'{BUILD_CACHE},scope=docs-container-{environment}', '--cache-to', f'{BUILD_CACHE},mode=max,scope=docs-container-{environment}'] if BUILD_CACHE else []
+                docker('buildx', 'build', '--load', *cache, '-t', image, '-f', 'web/Dockerfile', '--build-arg', f'DOCS_ENVIRONMENT={environment}', '--build-arg', f'PUBLIC_API_URL=https://{api_host}', '--build-arg', 'PUBLIC_APP_ENV=PRODUCTION', '--build-arg', f'VERSION={version}', '.')
                 container = docker('run', '--rm', '-d', '-p', f'127.0.0.1::{PORT}', image)
                 try:
                     address = docker('port', container, str(PORT)).splitlines()[0]

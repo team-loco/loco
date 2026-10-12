@@ -65,11 +65,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-tools
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
       - name: Install browser
         run: uv run --frozen --project docs playwright install --with-deps chromium
       - name: Check shared UI and docs hosting
         env:
           DOCS_SCREENSHOT_DIR: ${{ runner.temp }}/hosted-docs-screenshots
+          DOCS_BUILD_CACHE: type=gha
         run: mise run docs:check:container
       - name: Save hosted documentation screenshots
         if: always()
