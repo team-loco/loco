@@ -43,9 +43,9 @@ spec:
             - name: PROXY_AUTH_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: {{ default (printf "%s-obs-proxy-auth" .Release.Name) .Values.obsProxy.auth.existingSecret }}
+                  name: {{ required "obsProxy.auth.existingSecret is required" .Values.obsProxy.auth.existingSecret | quote }}
                   key: token
-                  optional: {{ not .Values.obsProxy.auth.existingSecret }}
+                  optional: false
             {{- include "loco-obs.clickhouseDSN" (dict "root" . "env" "CLICKHOUSE_URL" "passwordEnv" "CLICKHOUSE_READER_PASSWORD" "user" .Values.obsProxy.clickhouse.readerUser "existingSecret" .Values.obsProxy.clickhouse.existingSecret "path" "obsProxy.clickhouse.existingSecret") | nindent 12 }}
             {{- include "loco-obs.clickhouseDSN" (dict "root" . "env" "CLICKHOUSE_MIGRATOR_URL" "passwordEnv" "CLICKHOUSE_MIGRATOR_PASSWORD" "user" .Values.obsProxy.clickhouse.migratorUser "existingSecret" .Values.obsProxy.clickhouse.migratorExistingSecret "path" "obsProxy.clickhouse.migratorExistingSecret") | nindent 12 }}
             - name: CLICKHOUSE_DB

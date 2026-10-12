@@ -31,7 +31,7 @@ const (
 type Config struct {
 	Port            int
 	ControlPlaneURL string
-	ProxyAuthToken  string // Bearer token for calling ValidateObservabilityToken
+	ProxyAuthToken  string
 	ClickHouseURL   string
 	ClickHouseDB    string
 
@@ -66,7 +66,7 @@ func Load() *Config {
 	return &Config{
 		Port:            intEnv("PORT", defaultPort),
 		ControlPlaneURL: stringEnv("CONTROL_PLANE_URL", defaultControlPlaneURL),
-		ProxyAuthToken:  stringEnv("PROXY_AUTH_TOKEN", ""),
+		ProxyAuthToken:  requiredStringEnv("PROXY_AUTH_TOKEN"),
 		ClickHouseURL:   stringEnv("CLICKHOUSE_URL", defaultClickHouseURL),
 		ClickHouseDB:    identifierEnv("CLICKHOUSE_DB"),
 

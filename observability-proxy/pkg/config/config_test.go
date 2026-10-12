@@ -25,6 +25,7 @@ const (
 
 func setRequiredEnv(t *testing.T) {
 	t.Helper()
+	t.Setenv("PROXY_AUTH_TOKEN", "test-proxy-token")
 	t.Setenv("CLICKHOUSE_MIGRATOR_URL", testMigratorURL)
 	t.Setenv("CLICKHOUSE_DB", testDatabase)
 	t.Setenv("CLICKHOUSE_LOGS_TTL", testLogsTTL.String())
@@ -87,6 +88,7 @@ func TestLoadReadsSchemaSettings(t *testing.T) {
 
 func TestLoadPanicsWithoutRequiredSettings(t *testing.T) {
 	required := append([]string{
+		"PROXY_AUTH_TOKEN",
 		"CLICKHOUSE_MIGRATOR_URL",
 		"CLICKHOUSE_DB",
 		"CLICKHOUSE_LOGS_TTL",

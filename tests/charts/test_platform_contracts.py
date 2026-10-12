@@ -23,7 +23,7 @@ GATEWAY_LABELS = {
 CLIENT_POD_IDENTITY = ('k8s.pod.ip', 'k8s.pod.uid')
 ENVOY_CLUSTER_ATTRIBUTES = {'trace_statements': 'upstream_cluster', 'log_statements': 'upstream_cluster', 'metric_statements': 'envoy.cluster_name'}
 ROUTE_TENANCY = ('loco.workspace.id', 'loco.resource.id')
-TEST_PROXY = {'image': {'tag': 'test'}, 'controlPlane': {'url': 'https://api.example.test'}}
+TEST_PROXY = {'image': {'tag': 'test'}, 'controlPlane': {'url': 'https://api.example.test'}, 'auth': {'existingSecret': 'proxy-auth'}}
 CLICKHOUSE_USER_PASSWORDS = {'CLICKHOUSE_MIGRATOR_PASSWORD': 'test', 'CLICKHOUSE_INGEST_PASSWORD': 'test', 'CLICKHOUSE_READER_PASSWORD': 'test'}
 
 
@@ -94,7 +94,7 @@ class PlatformContracts(unittest.TestCase):
         variables = {
             'GH_SHA': 'test', 'CERT_MANAGER_EMAIL': 'test@example.test',
             'CLOUDFLARE_TOKEN': 'test', 'LOG_LEVEL': 'info', 'AGENT_TOKEN': 'test',
-            'CLICKHOUSE_PASSWORD': 'test', 'CONTROL_PLANE_URL': 'https://api.example.test',
+            'CLICKHOUSE_PASSWORD': 'test', 'OBS_PROXY_AUTH_SECRET': 'proxy-auth', 'CONTROL_PLANE_URL': 'https://api.example.test',
             **CLICKHOUSE_USER_PASSWORDS,
         }
         core = environment_values('prod', variables, 'loco-core')
@@ -106,7 +106,7 @@ class PlatformContracts(unittest.TestCase):
         cases = [
             ('local', {'APP_PORT': ':8123'}, 'http://host.docker.internal:8123'),
             ('local', {'APP_PORT': '0.0.0.0:8123'}, 'http://host.docker.internal:8123'),
-            ('prod', {'GH_SHA': 'test', 'CLICKHOUSE_PASSWORD': 'test',
+            ('prod', {'GH_SHA': 'test', 'CLICKHOUSE_PASSWORD': 'test', 'OBS_PROXY_AUTH_SECRET': 'proxy-auth',
                       'CONTROL_PLANE_URL': 'https://api.example.test', **CLICKHOUSE_USER_PASSWORDS}, 'https://api.example.test'),
         ]
         for environment, variables, expected in cases:
@@ -116,6 +116,9 @@ class PlatformContracts(unittest.TestCase):
                 deployment = render('loco-obs', 'obs-proxy-deployment.yaml', values)
                 env = {item['name']: item for item in deployment['spec']['template']['spec']['containers'][0]['env']}
                 self.assertEqual(env['CONTROL_PLANE_URL']['value'], expected)
+                expected_secret = variables.get('OBS_PROXY_AUTH_SECRET', 'loco-obs-obs-proxy-auth')
+                self.assertEqual(env['PROXY_AUTH_TOKEN']['valueFrom']['secretKeyRef'],
+                                 {'name': expected_secret, 'key': 'token', 'optional': False})
 
     def test_regional_certificate_names(self):
         certificate = render('loco-core', 'cm-cert.yaml', {
@@ -138,14 +141,21 @@ class PlatformContracts(unittest.TestCase):
         self.assertEqual(env['PROXY_AUTH_TOKEN']['valueFrom']['secretKeyRef'], {'name': 'proxy-auth', 'key': 'token', 'optional': False})
 
     def test_local_defaults_remain_available(self):
-        deployment = render('loco-obs', 'obs-proxy-deployment.yaml', {'obsProxy': {'image': {'tag': 'test'}, 'controlPlane': {'url': 'https://api.example.test'}}})
+        deployment = render('loco-obs', 'obs-proxy-deployment.yaml', {'obsProxy': {'image': {'tag': 'test'}, 'controlPlane': {'url': 'https://api.example.test'}, 'auth': {'existingSecret': 'proxy-auth'}}})
         env = {item['name']: item for item in deployment['spec']['template']['spec']['containers'][0]['env']}
         self.assertEqual(env['CLICKHOUSE_URL']['value'], 'clickhouse://loco_reader:$(CLICKHOUSE_READER_PASSWORD)@clickhouse-loco-obs-clickhouse.platform-test.svc.cluster.local:9000')
-        self.assertTrue(env['PROXY_AUTH_TOKEN']['valueFrom']['secretKeyRef']['optional'])
+        self.assertFalse(env['PROXY_AUTH_TOKEN']['valueFrom']['secretKeyRef']['optional'])
+
+    def test_missing_proxy_secret_name_is_rejected(self):
+        with self.assertRaises(subprocess.CalledProcessError) as caught:
+            render('loco-obs', 'obs-proxy-deployment.yaml', {'obsProxy': {
+                **TEST_PROXY, 'auth': {'existingSecret': ''},
+            }})
+        self.assertIn('obsProxy.auth.existingSecret is required', caught.exception.output)
 
     def test_missing_database_secret_key_is_rejected(self):
         with self.assertRaises(subprocess.CalledProcessError):
-            render('loco-obs', 'obs-proxy-deployment.yaml', {'obsProxy': {'image': {'tag': 'test'}, 'controlPlane': {'url': 'https://api.example.test'}, 'clickhouse': {'existingSecret': {'name': 'db', 'key': ''}}}})
+            render('loco-obs', 'obs-proxy-deployment.yaml', {'obsProxy': {'image': {'tag': 'test'}, 'controlPlane': {'url': 'https://api.example.test'}, 'auth': {'existingSecret': 'proxy-auth'}, 'clickhouse': {'existingSecret': {'name': 'db', 'key': ''}}}})
 
     def test_missing_permission_endpoint_is_rejected(self):
         with self.assertRaises(subprocess.CalledProcessError) as caught:
