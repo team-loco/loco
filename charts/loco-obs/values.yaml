@@ -153,8 +153,10 @@ otel-col-daemon:
       enabled: true
   config:
     receivers:
+      hostmetrics:
+        collection_interval: &collectionInterval 60s
       kubeletstats:
-        collection_interval: 20s
+        collection_interval: *collectionInterval
         auth_type: "serviceAccount"
         endpoint: "https://${env:OTEL_K8S_NODE_IP}:10250"
         insecure_skip_verify: true
@@ -411,6 +413,8 @@ otel-col-deploy:
           - loco.workspace.id
           - loco.resource.id
     receivers:
+      k8s_cluster:
+        collection_interval: *collectionInterval
       otlp:
         protocols:
           grpc:

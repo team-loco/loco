@@ -93,6 +93,10 @@ metadata:
 spec:
   {{- $collectorHost := printf "%s.%s.svc.cluster.local" .Values.global.observability.otelCollectorDeployment .Values.global.observability.namespace }}
   {{- $collectorPort := .Values.global.observability.otelCollectorGrpcPort }}
+  bootstrap:
+    type: Merge
+    value: |
+      stats_flush_interval: {{ .Values.envoyProxy.statsFlushInterval }}
   telemetry:
     metrics:
       prometheus:
