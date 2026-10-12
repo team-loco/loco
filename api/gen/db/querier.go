@@ -145,7 +145,6 @@ type Querier interface {
 	ListAPITokensForEntity(ctx context.Context, arg ListAPITokensForEntityParams) ([]ListAPITokensForEntityRow, error)
 	ListActiveBuildSourceKeys(ctx context.Context, keys []string) ([]string, error)
 	ListActiveDeployments(ctx context.Context) ([]uuid.UUID, error)
-	ListActiveDeploymentsByResourceID(ctx context.Context, resourceID uuid.UUID) ([]DeploymentStatus, error)
 	ListActiveDeploymentsForEnvironment(ctx context.Context, environmentID uuid.UUID) ([]Deployment, error)
 	ListActiveDeploymentsForResource(ctx context.Context, resourceID uuid.UUID) ([]Deployment, error)
 	ListActivePlatformDomains(ctx context.Context) ([]PlatformDomain, error)
@@ -175,6 +174,7 @@ type Querier interface {
 	ListPlacementsByIDs(ctx context.Context, arg ListPlacementsByIDsParams) ([]Placement, error)
 	ListPlatformDomains(ctx context.Context, activeOnly *bool) ([]PlatformDomain, error)
 	ListQueuedClusterBuilds(ctx context.Context, clusterID *uuid.UUID) ([]ListQueuedClusterBuildsRow, error)
+	ListRegionStatusesForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListRegionStatusesForResourcesRow, error)
 	ListResourceDomains(ctx context.Context, resourceID uuid.UUID) ([]ResourceDomain, error)
 	ListResourceDomainsForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ResourceDomain, error)
 	ListResourceEnvironmentPlacements(ctx context.Context, arg ListResourceEnvironmentPlacementsParams) ([]Placement, error)
@@ -252,7 +252,6 @@ type Querier interface {
 	UpdateResourceDomain(ctx context.Context, arg UpdateResourceDomainParams) (uuid.UUID, error)
 	UpdateResourceDomainPrimary(ctx context.Context, arg UpdateResourceDomainPrimaryParams) error
 	UpdateResourceSpec(ctx context.Context, arg UpdateResourceSpecParams) error
-	UpdateResourceStatus(ctx context.Context, arg UpdateResourceStatusParams) error
 	UpdateUserAvatarURL(ctx context.Context, arg UpdateUserAvatarURLParams) (User, error)
 	UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (uuid.UUID, error)
 	UpsertInstallWebhook(ctx context.Context, arg UpsertInstallWebhookParams) error

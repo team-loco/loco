@@ -1,6 +1,6 @@
 import { ChevronRightIcon } from "lucide-react";
 import { Link } from "react-router";
-import { RegionIntentStatus, ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
+import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 
 import { Section } from "@/components/design/Page";
 import { ResourceStatusBadge } from "@/components/design/StatusBadge";
@@ -28,38 +28,34 @@ function needsAttention(status: ResourceStatus): boolean {
 			return true;
 		case ResourceStatus.DEPLOYING:
 			return true;
+		case ResourceStatus.UNKNOWN:
+			return true;
 		case ResourceStatus.HEALTHY:
-			return false;
-		case ResourceStatus.SUSPENDED:
 			return false;
 		case ResourceStatus.UNSPECIFIED:
 			return false;
 	}
 }
 
-function isBadIntent(status: RegionIntentStatus): boolean {
-	return status === RegionIntentStatus.DEGRADED || status === RegionIntentStatus.FAILED;
-}
-
 export function buildAttention(items: EnvResource[], hrefFor: (id: string) => string, nowMs: number): AttentionItem[] {
 	const out: AttentionItem[] = [];
 	for (const item of items) {
-		const { resource, last } = item;
-		if (item.neverDeployed || !needsAttention(resource.status)) continue;
-		const badRegion = resource.regions.find((r) => isBadIntent(r.status));
+		const { resource, last, status } = item;
+		if (item.neverDeployed || !needsAttention(status)) continue;
+		const badRegion = item.environment?.regions.find((r) => r.status !== ResourceStatus.HEALTHY);
 		const region = badRegion?.region ?? last?.region ?? resource.regions[0]?.region ?? "";
 		const deployMessage = last?.message ?? "";
 		const tag = last !== undefined ? imageVersion(deploymentImage(last)) : "";
 		const message =
-			resource.status === ResourceStatus.DEPLOYING
+			status === ResourceStatus.DEPLOYING
 				? [tag, deployMessage].filter((s) => s !== "").join(" · ")
-				: (badRegion?.lastError ?? deployMessage);
+				: (badRegion?.message ?? deployMessage);
 		const whenMs =
-			resource.status === ResourceStatus.DEPLOYING ? tsMs(last?.createdAt) : tsMs(last?.updatedAt ?? resource.updatedAt);
+			status === ResourceStatus.DEPLOYING ? tsMs(last?.createdAt) : tsMs(last?.updatedAt ?? resource.updatedAt);
 		out.push({
 			key: resource.id,
 			href: hrefFor(resource.id),
-			status: resource.status,
+			status,
 			name: resource.name,
 			region,
 			message,

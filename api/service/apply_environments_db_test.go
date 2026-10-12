@@ -52,7 +52,7 @@ const (
 func (f *deployFixture) prepareStaging(t *testing.T) uuid.UUID {
 	t.Helper()
 	stagingID := f.addStagingEnvironment(t)
-	f.setClusterTier(t, f.otherCluster, stagingName)
+	f.setStagingTier(t, f.otherCluster)
 	return stagingID
 }
 

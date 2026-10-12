@@ -1,10 +1,10 @@
 import { CheckIcon, ClockIcon, CopyIcon, FileCodeIcon, HashIcon, PackageIcon } from "lucide-react";
-import { ResourceStatus, ResourceType, type Resource } from "@gen/loco/resource/v1/resource_pb";
+import { ResourceStatus, ResourceType, type EnvironmentStatus, type Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { PartialBadge } from "@/components/design/PartialBadge";
-import { effectiveResourceStatus, ResourceStatusBadge } from "@/components/design/StatusBadge";
+import { ResourceStatusBadge } from "@/components/design/StatusBadge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { useCopy } from "@/hooks/useCopy";
 import { useNow } from "@/hooks/useNow";
@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 
 import { CopyId } from "./CopyId";
 import { formatDuration, formatStarted, shortId } from "./format";
-import { depImage, isRunning, startedMs, type RegionView } from "./model";
+import { depImage, startedMs, type RegionView } from "./model";
 
 function typeLabel(type: ResourceType): string {
 	switch (type) {
@@ -34,8 +34,7 @@ function typeLabel(type: ResourceType): string {
 	}
 }
 
-function healthDotClass(status: ResourceStatus, desired: number): string {
-	if (desired === 0) return "bg-fg4";
+function healthDotClass(status: ResourceStatus): string {
 	switch (status) {
 		case ResourceStatus.HEALTHY:
 			return "bg-[#16a34a]";
@@ -45,7 +44,7 @@ function healthDotClass(status: ResourceStatus, desired: number): string {
 			return "bg-warn";
 		case ResourceStatus.UNAVAILABLE:
 			return "bg-err";
-		case ResourceStatus.SUSPENDED:
+		case ResourceStatus.UNKNOWN:
 			return "bg-fg4";
 		case ResourceStatus.UNSPECIFIED:
 			return "bg-fg4";
@@ -86,31 +85,28 @@ function ImageRef({ image }: { image: string }) {
 
 export function ResourceHeader({
 	resource,
+	environment,
 	regions,
-	hasDeployments,
 	onViewSpec,
 }: {
 	resource: Resource;
+	environment: EnvironmentStatus | undefined;
 	regions: RegionView[];
-	hasDeployments: boolean;
 	onViewSpec: () => void;
 }) {
-	const status = effectiveResourceStatus(resource.status, hasDeployments);
+	const status = environment?.status ?? ResourceStatus.UNSPECIFIED;
 	const now = useNow(60_000);
 	const primary = regions.find((r) => r.primary) ?? regions[0];
 	const prim = primary?.current;
 	const actives = regions.flatMap((r) => (r.current === undefined ? [] : [r.current]));
-	const desired = actives.reduce((sum, d) => sum + d.replicas, 0);
-	const allRunning = actives.length > 0 && actives.every((d) => isRunning(d));
-	const regionSuffix = regions.length > 1 ? ` · ${regions.length.toString()} regions` : "";
+	const statusRegions = environment?.regions ?? [];
+	const desired = statusRegions.reduce((sum, r) => sum + r.desiredReplicas, 0);
+	const ready = statusRegions.reduce((sum, r) => sum + r.readyReplicas, 0);
+	const regionSuffix = statusRegions.length > 1 ? ` · ${statusRegions.length.toString()} regions` : "";
 	const readyLine =
-		actives.length === 0
+		environment === undefined
 			? "Not deployed"
-			: desired === 0
-				? "Scaled to zero"
-				: allRunning
-					? `${desired.toString()}/${desired.toString()} replicas healthy${regionSuffix}`
-					: `${desired.toString()} replicas desired${regionSuffix}`;
+			: `${ready.toString()}/${desired.toString()} replicas ready${regionSuffix}`;
 	const primImage = depImage(prim);
 	const sameImage = actives.every((d) => depImage(d) === primImage);
 	const since = prim === undefined ? undefined : startedMs(prim);
@@ -134,7 +130,7 @@ export function ResourceHeader({
 			)}
 			<div className="mt-1.5 flex flex-wrap items-center gap-x-[18px] gap-y-1.5 text-fg2">
 				<span className="flex items-center gap-1.5">
-					<span className={cn("size-2 rounded-full", healthDotClass(status, desired))} />
+					<span className={cn("size-2 rounded-full", healthDotClass(status))} />
 					{readyLine}
 				</span>
 				{prim !== undefined && primImage !== "" && sameImage && <ImageRef image={primImage} />}

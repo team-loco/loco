@@ -111,14 +111,13 @@ application_annotated() {
 
 test_agent_applies_placement() {
     e2e_psql "
-        INSERT INTO resources (id, workspace_id, name, type, description, status, spec, spec_version)
+        INSERT INTO resources (id, workspace_id, name, type, description, spec, spec_version)
         VALUES (
             '${e2e_resource_id}',
             '00000000-0000-7000-8000-000000000003',
             'e2e-test-resource',
             'service',
             'E2E test resource',
-            'deploying',
             '{\"image\": \"nginx:latest\", \"port\": 80}',
             1
         ) ON CONFLICT (workspace_id, name) DO NOTHING;

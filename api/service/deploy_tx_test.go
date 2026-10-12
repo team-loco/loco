@@ -90,8 +90,8 @@ WITH u AS (
     INSERT INTO clusters (name, region, provider, is_active, is_default)
     VALUES ('c2', 'us-east-1', 'kind', true, false) RETURNING id
 ), r AS (
-    INSERT INTO resources (workspace_id, name, type, description, status, spec, spec_version)
-    SELECT w.id, 'svc', 'service', '', 'healthy', '{}', 1 FROM w RETURNING id
+    INSERT INTO resources (workspace_id, name, type, description, spec, spec_version)
+    SELECT w.id, 'svc', 'service', '', '{}', 1 FROM w RETURNING id
 ), rr AS (
     INSERT INTO resource_regions (resource_id, region, is_primary, status)
     SELECT r.id, 'us-east-1', true, 'active' FROM r RETURNING id

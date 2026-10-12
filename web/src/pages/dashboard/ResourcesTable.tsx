@@ -9,7 +9,7 @@ import { FilterMenu } from "@/components/design/FilterMenu";
 import { Input } from "@/components/design/Input";
 import { Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
-import { effectiveResourceStatus, ResourceStatusBadge } from "@/components/design/StatusBadge";
+import { ResourceStatusBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { imageVersion } from "@/lib/image";
 import { pageSlice } from "@/lib/paging";
@@ -30,7 +30,7 @@ const STATUS_OPTIONS: { value: string; status: ResourceStatus; label: string }[]
 	{ value: "deploying", status: ResourceStatus.DEPLOYING, label: "Deploying" },
 	{ value: "degraded", status: ResourceStatus.DEGRADED, label: "Degraded" },
 	{ value: "unavailable", status: ResourceStatus.UNAVAILABLE, label: "Unavailable" },
-	{ value: "suspended", status: ResourceStatus.SUSPENDED, label: "Suspended" },
+	{ value: "unknown", status: ResourceStatus.UNKNOWN, label: "Unknown" },
 ];
 
 const TYPE_OPTIONS: { value: string; type: ResourceType; label: string }[] = [
@@ -55,10 +55,7 @@ function compare(key: SortKey, a: EnvResource, b: EnvResource): number {
 		case "name":
 			return a.resource.name.localeCompare(b.resource.name);
 		case "status":
-			return (
-				statusRank(effectiveResourceStatus(a.resource.status, !a.neverDeployed)) -
-				statusRank(effectiveResourceStatus(b.resource.status, !b.neverDeployed))
-			);
+			return statusRank(a.status) - statusRank(b.status);
 		case "regions":
 			return (a.regions[0]?.region ?? "").localeCompare(b.regions[0]?.region ?? "");
 		case "replicas":
@@ -68,34 +65,37 @@ function compare(key: SortKey, a: EnvResource, b: EnvResource): number {
 	}
 }
 
+function regionNote(item: EnvResource): string {
+	return item.environment?.regions.find((r) => (r.message ?? "") !== "")?.message ?? "";
+}
+
 function statusNote(item: EnvResource): string {
 	if (item.neverDeployed) return "Not deployed";
-	const { resource, last } = item;
-	switch (resource.status) {
+	switch (item.status) {
 		case ResourceStatus.DEPLOYING:
-			return last?.message ?? "";
+			return item.last?.message ?? "";
 		case ResourceStatus.DEGRADED:
-			return resource.regions.find((r) => (r.lastError ?? "") !== "")?.lastError ?? "";
+			return regionNote(item);
 		case ResourceStatus.UNAVAILABLE:
-			return resource.regions.find((r) => (r.lastError ?? "") !== "")?.lastError ?? "";
-		case ResourceStatus.SUSPENDED:
-			return item.totalReplicas === 0 ? "Scaled to 0" : "";
+			return regionNote(item);
+		case ResourceStatus.UNKNOWN:
+			return regionNote(item);
 		case ResourceStatus.HEALTHY:
-			return "";
+			return regionNote(item);
 		case ResourceStatus.UNSPECIFIED:
 			return "";
 	}
 }
 
-function ReplicaCells({ count, running }: { count: number; running: boolean }) {
+function ReplicaCells({ desired, ready }: { desired: number; ready: number }) {
 	return (
 		<div className="flex gap-0.5">
-			{Array.from({ length: count }, (_, i) => (
+			{Array.from({ length: desired }, (_, i) => (
 				<span
 					key={i}
 					className={cn(
 						"h-3.5 w-[7px] rounded-[2px] border",
-						running ? "border-foreground bg-foreground" : "border-fg4 bg-background",
+						i < ready ? "border-foreground bg-foreground" : "border-fg4 bg-background",
 					)}
 				/>
 			))}
@@ -132,7 +132,7 @@ export function ResourcesTable({
 	const visible = items
 		.filter(
 			(it) =>
-				(statusFilter === undefined || it.resource.status === statusFilter.status) &&
+				(statusFilter === undefined || it.status === statusFilter.status) &&
 				(typeFilter === undefined || it.resource.type === typeFilter.type) &&
 				(region === "all" || it.regions.some((g) => g.region === region)) &&
 				(q === "" || it.resource.name.toLowerCase().includes(q)),
@@ -146,7 +146,7 @@ export function ResourcesTable({
 	const typeCounts = new Map<ResourceType, number>();
 	const regionCounts = new Map<string, number>();
 	for (const it of items) {
-		statusCounts.set(it.resource.status, (statusCounts.get(it.resource.status) ?? 0) + 1);
+		statusCounts.set(it.status, (statusCounts.get(it.status) ?? 0) + 1);
 		typeCounts.set(it.resource.type, (typeCounts.get(it.resource.type) ?? 0) + 1);
 		const itemRegions = new Set(it.regions.map((g) => g.region));
 		for (const name of itemRegions) {
@@ -283,7 +283,7 @@ export function ResourcesTable({
 								</TableCell>
 								<TableCell className="py-1.5 pr-3 pl-0">
 									<div className="flex min-w-0 flex-col items-start gap-[3px]">
-										<ResourceStatusBadge status={effectiveResourceStatus(resource.status, !it.neverDeployed)} />
+										<ResourceStatusBadge status={it.status} />
 										{note !== "" && <span className="max-w-full truncate text-sm text-fg3">{note}</span>}
 									</div>
 								</TableCell>
@@ -298,9 +298,9 @@ export function ResourcesTable({
 									<div className="flex flex-col justify-center gap-[3px]">
 										{it.regions.map((g) => (
 											<div key={g.region} className="flex h-[15px] items-center gap-2">
-												<ReplicaCells count={g.replicas} running={g.running} />
+												<ReplicaCells desired={g.desired} ready={g.ready} />
 												<span className="text-sm text-fg3 tabular-nums">
-													{g.replicas === 0 ? "0" : g.replicas.toString()}
+													{g.ready.toString()}/{g.desired.toString()}
 												</span>
 											</div>
 										))}

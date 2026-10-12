@@ -21,14 +21,19 @@ enum ResourceType {
   RESOURCE_TYPE_BLOB = 6;
 }
 
-// ResourceStatus represents the operational status of a resource based on current deployment and health checks.
+// ResourceStatus is whether a resource is serving, derived from the replicas its clusters report ready.
+// HEALTHY: every desired replica is ready. DEGRADED: some replicas or regions are not ready.
+// UNAVAILABLE: no replica is ready. DEPLOYING: a first rollout has no ready replica yet.
+// UNKNOWN: the cluster running it stopped reporting, so its last report cannot be trusted.
 enum ResourceStatus {
   RESOURCE_STATUS_UNSPECIFIED = 0;
   RESOURCE_STATUS_HEALTHY = 1;
   RESOURCE_STATUS_DEPLOYING = 2;
   RESOURCE_STATUS_DEGRADED = 3;
   RESOURCE_STATUS_UNAVAILABLE = 4;
-  RESOURCE_STATUS_SUSPENDED = 5;
+  reserved 5;
+  reserved "RESOURCE_STATUS_SUSPENDED";
+  RESOURCE_STATUS_UNKNOWN = 6;
 }
 
 // RegionIntentStatus represents the state of a region intent for a resource.
@@ -168,7 +173,8 @@ message Resource {
   ResourceType type = 4;
   repeated domain.v1.ResourceDomain domains = 5;
   repeated RegionConfig regions = 6;
-  ResourceStatus status = 7;
+  reserved 7;
+  reserved "status";
   optional ResourceSpec spec = 8;
   int32 spec_version = 9;
   optional string description = 10;
@@ -178,6 +184,28 @@ message Resource {
   reserved 14;
   reserved "environment_id";
   optional string partial = 15;
+  repeated EnvironmentStatus environment_statuses = 16;
+}
+
+// EnvironmentStatus is a resource's status in one environment it has an active deployment in.
+message EnvironmentStatus {
+  string environment_id = 1;
+  string environment_name = 2;
+  ResourceStatus status = 3;
+  repeated RegionStatus regions = 4;
+}
+
+// RegionStatus is a resource's status in one region of an environment: its active deployment and
+// the replicas the cluster running it reports ready.
+message RegionStatus {
+  string region = 1;
+  ResourceStatus status = 2;
+  int32 ready_replicas = 3;
+  int32 desired_replicas = 4;
+  string deployment_id = 5;
+  deployment.v1.DeploymentPhase deployment_status = 6;
+  optional string message = 7;
+  optional google.protobuf.Timestamp reported_at = 8;
 }
 
 // RegionConfig represents a region deployment intent for a resource.
@@ -299,18 +327,11 @@ message GetResourceStatusRequest {
   string resource_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
-// DeploymentStatus represents the status of a resource deployment, including phase, replica count, and messages.
-message DeploymentStatus {
-  string id = 1;
-  deployment.v1.DeploymentPhase status = 2;
-  int32 replicas = 3;
-  optional string message = 4;
-}
-
 // GetResourceStatusResponse is the response containing resource status information.
 message GetResourceStatusResponse {
   Resource resource = 1;
-  DeploymentStatus current_deployment = 2;
+  reserved 2;
+  reserved "current_deployment";
 }
 
 // --- Events ---

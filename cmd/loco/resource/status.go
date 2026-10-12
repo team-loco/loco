@@ -6,11 +6,14 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
+	"strings"
 
 	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/table"
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
+	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/internal/client"
@@ -20,7 +23,16 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-var statusJSON = protojson.MarshalOptions{Multiline: true, Indent: "  "}
+const (
+	notDeployedMessage    = "Not deployed to any environment."
+	deploymentPhasePrefix = "DEPLOYMENT_PHASE_"
+)
+
+var (
+	statusJSON   = protojson.MarshalOptions{Multiline: true, Indent: "  "}
+	sectionStyle = lipgloss.NewStyle().MarginLeft(2)
+	tableMargin  = lipgloss.NewStyle().Margin(0, 2, 1, 2)
+)
 
 type statusDeps struct {
 	LoadSessionConfig func() (*session.SessionConfig, error)
@@ -154,10 +166,6 @@ func renderStatusView(stdout io.Writer, name string, resp *resourcev1.GetResourc
 		Padding(1, 2).
 		Margin(1, 2)
 
-	var status, replicas string
-	status = resp.GetCurrentDeployment().GetStatus().String()
-	replicas = strconv.Itoa(int(resp.GetCurrentDeployment().GetReplicas()))
-
 	resource := resp.GetResource()
 	url := publicURL(resource)
 	if url == "" {
@@ -165,10 +173,8 @@ func renderStatusView(stdout io.Writer, name string, resp *resourcev1.GetResourc
 	}
 
 	content := fmt.Sprintf(
-		"%s %s\n%s %s\n%s %s\n%s %s",
+		"%s %s\n%s %s",
 		labelStyle.Render("Service:"), valueStyle.Render(name),
-		labelStyle.Render("Status:"), valueStyle.Render(status),
-		labelStyle.Render("Replicas:"), valueStyle.Render(replicas),
 		labelStyle.Render("URL:"), valueStyle.Render(url),
 	)
 
@@ -177,8 +183,106 @@ func renderStatusView(stdout io.Writer, name string, resp *resourcev1.GetResourc
 		return err
 	}
 	block := blockStyle.Render(content)
-	_, err := lipgloss.Fprintln(stdout, block)
+	if _, err := lipgloss.Fprintln(stdout, block); err != nil {
+		return err
+	}
+
+	statuses := resource.GetEnvironmentStatuses()
+	if len(statuses) == 0 {
+		_, err := lipgloss.Fprintln(stdout, sectionStyle.Render(notDeployedMessage))
+		return err
+	}
+	for _, environment := range statuses {
+		if err := renderEnvironmentStatus(stdout, environment); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func renderEnvironmentStatus(stdout io.Writer, environment *resourcev1.EnvironmentStatus) error {
+	nameStyle := lipgloss.NewStyle().Foreground(ui.Fg).Bold(true)
+	status := environment.GetStatus()
+	statusStyle := lipgloss.NewStyle().Foreground(statusColor(status))
+	heading := nameStyle.Render(environment.GetEnvironmentName()) + "  " + statusStyle.Render(statusLabel(status))
+	if _, err := lipgloss.Fprintln(stdout, sectionStyle.Render(heading)); err != nil {
+		return err
+	}
+
+	rows := make([][]string, 0, len(environment.GetRegions()))
+	for _, region := range environment.GetRegions() {
+		ready := strconv.Itoa(int(region.GetReadyReplicas())) + "/" + strconv.Itoa(int(region.GetDesiredReplicas()))
+		rows = append(rows, []string{
+			region.GetRegion(),
+			statusLabel(region.GetStatus()),
+			ready,
+			deploymentLabel(region.GetDeploymentStatus()),
+			simplifyMessage(region.GetMessage()),
+		})
+	}
+	cellStyle := lipgloss.NewStyle().Padding(0, 1)
+	headerStyle := cellStyle.Foreground(ui.Fg3)
+	t := table.New().
+		Border(lipgloss.NormalBorder()).
+		BorderStyle(lipgloss.NewStyle().Foreground(ui.Line2)).
+		BorderTop(false).
+		BorderBottom(false).
+		BorderLeft(false).
+		BorderRight(false).
+		BorderColumn(false).
+		Headers("REGION", "STATUS", "READY", "DEPLOYMENT", "MESSAGE").
+		Rows(rows...).
+		StyleFunc(func(row, _ int) lipgloss.Style {
+			if row == table.HeaderRow {
+				return headerStyle
+			}
+			return cellStyle
+		})
+	_, err := lipgloss.Fprintln(stdout, tableMargin.Render(t.String()))
 	return err
+}
+
+func statusLabel(status resourcev1.ResourceStatus) string {
+	switch status {
+	case resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY:
+		return "Healthy"
+	case resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING:
+		return "Deploying"
+	case resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED:
+		return "Degraded"
+	case resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE:
+		return "Unavailable"
+	case resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN:
+		return "Unknown"
+	case resourcev1.ResourceStatus_RESOURCE_STATUS_UNSPECIFIED:
+		return "Not deployed"
+	default:
+		return status.String()
+	}
+}
+
+func statusColor(status resourcev1.ResourceStatus) ui.Color {
+	switch status {
+	case resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY:
+		return ui.Ok
+	case resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING:
+		return ui.Info
+	case resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED:
+		return ui.Warn
+	case resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE:
+		return ui.Bad
+	case resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN:
+		return ui.Fg3
+	case resourcev1.ResourceStatus_RESOURCE_STATUS_UNSPECIFIED:
+		return ui.Fg3
+	default:
+		return ui.Fg3
+	}
+}
+
+func deploymentLabel(phase deploymentv1.DeploymentPhase) string {
+	name := strings.TrimPrefix(phase.String(), deploymentPhasePrefix)
+	return strings.ToLower(name)
 }
 
 func publicURL(resource *resourcev1.Resource) string {
