@@ -370,6 +370,12 @@ class CollectorTenancy(unittest.TestCase):
     def test_both_collectors_render(self):
         self.assertEqual(set(self.configs), set(COLLECTOR_CONFIGMAPS))
 
+    def test_collectors_run_without_an_operator(self):
+        names = {document['metadata'].get('labels', {}).get('app.kubernetes.io/name') for document in self.documents}
+        kinds = {document['kind'] for document in self.documents}
+        self.assertNotIn('opentelemetry-operator', names)
+        self.assertFalse({'MutatingWebhookConfiguration', 'ValidatingWebhookConfiguration'} & kinds)
+
     def test_memory_limiter_runs_first_and_batch_last(self):
         for collector, _, name, pipeline in self.pipelines():
             processors = pipeline.get('processors', [])

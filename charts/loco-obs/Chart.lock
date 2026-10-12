@@ -2,14 +2,11 @@ dependencies:
 - name: clickhouse
   repository: https://helm.altinity.com
   version: 0.3.13
-- name: opentelemetry-operator
-  repository: https://open-telemetry.github.io/opentelemetry-helm-charts
-  version: 0.124.1
 - name: opentelemetry-collector
   repository: https://open-telemetry.github.io/opentelemetry-helm-charts
   version: 0.175.1
 - name: opentelemetry-collector
   repository: https://open-telemetry.github.io/opentelemetry-helm-charts
   version: 0.175.1
-digest: sha256:d59d57f9ab300c6a9b1af549572207b25ce91280baa5206c29cc73312af10a6e
-generated: "2026-10-10T17:23:12.050288-07:00"
+digest: sha256:61716ef9bcbfd19b4dcc18a993a52f502d25c34943c58c0bac193036a458ae56
+generated: "2026-10-12T13:06:14.03434-07:00"

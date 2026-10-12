@@ -10,10 +10,5 @@ clickhouseUserPasswords:
   loco_ingest: loco-e2e-ingest
   loco_reader: loco-e2e-reader
 
-opentelemetry-operator:
-  admissionWebhooks:
-    certManager:
-      enabled: false
-
 obsProxy:
   enabled: false
