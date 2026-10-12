@@ -40,6 +40,8 @@ spec:
               value: {{ .Values.obsProxy.port | quote }}
             - name: CONTROL_PLANE_URL
               value: {{ required "obsProxy.controlPlane.url is required" .Values.obsProxy.controlPlane.url | quote }}
+            - name: CORS_ALLOWED_ORIGINS
+              value: {{ join "," .Values.obsProxy.cors.allowedOrigins | quote }}
             - name: PROXY_AUTH_TOKEN
               valueFrom:
                 secretKeyRef:

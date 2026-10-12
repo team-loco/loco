@@ -20,6 +20,13 @@ clickhouseUserPasswords:
 
 obsProxy:
   enabled: true
+  cors:
+    allowedOrigins:
+    {{- range (env "CORS_ALLOWED_ORIGINS" | splitList ",") }}
+    {{- if . | trim }}
+      - {{ . | trim | quote }}
+    {{- end }}
+    {{- end }}
   auth:
     existingSecret: {{ env "OBS_PROXY_AUTH_SECRET" | default "loco-obs-obs-proxy-auth" | quote }}
   controlPlane:

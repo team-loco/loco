@@ -60,3 +60,20 @@ test_p04_token_is_scoped_to_its_workspace() {
     status=$(proxy_status "$cli_workspace_id" -H "Authorization: Bearer ${token}")
     assert "QueryLogs for the token's workspace succeeds (HTTP ${status})" test "$status" = 200
 }
+
+
+test_p05_browser_preflight_and_error_responses() {
+    local origin=https://dashboard.e2e.test headers status
+    headers=$(curl -s -D - -o /dev/null -X OPTIONS "$proxy_query_logs" \
+        -H "Origin: $origin" -H 'Access-Control-Request-Method: POST' \
+        -H 'Access-Control-Request-Headers: authorization,connect-protocol-version,connect-timeout-ms,content-type')
+    assert "Browser preflight allows the configured dashboard" bash -c '[[ "$1" == *"Access-Control-Allow-Origin: $2"* ]]' _ "$headers" "$origin"
+    status=$(proxy_status "$cli_workspace_id" -H "Origin: $origin")
+    assert "CORS preserves authentication requirements" test "$status" = 401
+    headers=$(curl -s -D - -o /dev/null -X POST "$proxy_query_logs" \
+        -H "Origin: $origin" -H 'Content-Type: application/json' -d "$(proxy_logs_body "$cli_workspace_id")")
+    assert "Browser can read authentication errors" bash -c '[[ "$1" == *"Access-Control-Allow-Origin: $2"* ]]' _ "$headers" "$origin"
+    headers=$(curl -s -D - -o /dev/null -X OPTIONS "$proxy_query_logs" \
+        -H 'Origin: https://other.e2e.test' -H 'Access-Control-Request-Method: POST')
+    assert "Other origins are excluded" bash -c '[[ "$1" != *"Access-Control-Allow-Origin:"* ]]' _ "$headers"
+}

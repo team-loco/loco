@@ -4,9 +4,12 @@ go 1.27.2
 
 require (
 	connectrpc.com/connect v1.21.0
+	connectrpc.com/cors v0.1.0
 	github.com/ClickHouse/clickhouse-go/v2 v2.49.0
 	github.com/dgraph-io/ristretto/v2 v2.4.2
+	github.com/google/uuid v1.6.0
 	github.com/pressly/goose/v3 v3.28.0
+	github.com/rs/cors v1.11.1
 	github.com/team-loco/loco v0.0.0
 	google.golang.org/protobuf v1.36.12
 	k8s.io/apimachinery v0.37.1
@@ -43,7 +46,6 @@ require (
 	github.com/go-openapi/swag/typeutils v0.27.1 // indirect
 	github.com/go-openapi/swag/yamlutils v0.27.1 // indirect
 	github.com/google/gnostic-models v0.7.0 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.20.1 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect

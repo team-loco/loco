@@ -464,6 +464,8 @@ otel-col-deploy:
 
 obsProxy:
   enabled: true
+  cors:
+    allowedOrigins: []
   image:
     repository: ghcr.io/team-loco/loco-obs-proxy
     tag: ""

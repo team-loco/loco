@@ -3,14 +3,17 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"regexp"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 )
 
 var (
+	errInvalidOrigin   = errors.New("must contain only HTTP or HTTPS origins")
 	errMissing         = errors.New("is required")
 	errInvalidInt      = errors.New("is not an integer")
 	errInvalidDuration = errors.New("is not a duration")
@@ -95,4 +98,21 @@ func ttlEnv(name string) time.Duration {
 		panic(fmt.Errorf("%s %q %w", name, ttl, errFractional))
 	}
 	return ttl
+}
+
+func originsEnv(name string) []string {
+	var origins []string
+	for raw := range strings.SplitSeq(os.Getenv(name), ",") {
+		origin := strings.TrimSpace(raw)
+		if origin == "" {
+			continue
+		}
+		parsed, err := url.Parse(origin)
+		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" ||
+			parsed.User != nil || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+			panic(fmt.Errorf("%s %w", name, errInvalidOrigin))
+		}
+		origins = append(origins, origin)
+	}
+	return origins
 }

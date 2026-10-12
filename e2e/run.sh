@@ -777,6 +777,7 @@ start_obs_proxy() {
     PORT="$OBS_PROXY_PORT" \
     CONTROL_PLANE_URL="$E2E_API_URL" \
     PROXY_AUTH_TOKEN="$proxy_token" \
+    CORS_ALLOWED_ORIGINS="https://dashboard.e2e.test" \
     PERMISSION_CHECK_TIMEOUT="$(yq '.obsProxy.guardrails.permissionCheckTimeoutSeconds' "$OBS_VALUES")s" \
     CLICKHOUSE_URL="$reader_dsn" \
     CLICKHOUSE_MIGRATOR_URL="$migrator_dsn" \
