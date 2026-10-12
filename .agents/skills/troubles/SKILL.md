@@ -30,6 +30,10 @@ concurrent agents never edit the same file.
 ## Rules
 
 - Log it when it happens, not from memory at the end.
+- Log obstacles in the repo, its tools or its instructions. A compile error or lint finding
+  in your own new code that the next run fixes is ordinary work, not a trouble.
+- One obstacle per file. A second obstacle in the same task gets its own file, not a
+  section appended to the first.
 - Fix the cause when you can: a mise task, a skill, AGENTS.md or the code. Set Status to
   the PR that fixes it and keep the entry; the user reviews entries and deletes them.
 - A fix that teaches a workaround belongs in the matching skill, so the next agent
