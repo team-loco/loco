@@ -308,7 +308,7 @@ description = "Check documentation navigation, search, themes and Markdown copyi
 run = "uv run --frozen --project docs python docs/tests/browser.py"
 
 [tasks."docs:check:container"]
-description = "Check combined UI and documentation images in production and staging"
+description = "Check the combined UI and documentation image"
 run = "uv run --frozen --project docs python docs/tests/container.py"
 
 [tasks."test:chart-contracts"]
