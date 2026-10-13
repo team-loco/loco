@@ -122,7 +122,7 @@ otel-col-daemon:
   fullnameOverride: "otel-col-daemon"
   namespaceOverride: observability-node
   mode: daemonset
-  extraEnvs:
+  extraEnvs: &ingestEnvs
     - name: CLICKHOUSE_INGEST_PASSWORD
       valueFrom:
         secretKeyRef:
@@ -336,14 +336,14 @@ otel-col-deploy:
         secretKeyRef:
           name: loco-obs-clickhouse-ingest
           key: password
-  image:
+  image: &collectorImage
     repository: "otel/opentelemetry-collector-contrib"
     tag: "0.162.0"
-  podSecurityContext:
+  podSecurityContext: &collectorPodSecurityContext
     runAsNonRoot: true
     seccompProfile:
       type: RuntimeDefault
-  securityContext:
+  securityContext: &collectorSecurityContext
     allowPrivilegeEscalation: false
     capabilities:
       drop:
@@ -367,11 +367,6 @@ otel-col-deploy:
         resources:
           - replicasets
         verbs: ["get", "watch", "list"]
-  presets:
-    kubernetesEvents:
-      enabled: true
-    clusterMetrics:
-      enabled: true
   config:
     processors:
       resource/strip_tenancy: *stripTenancy
@@ -425,8 +420,6 @@ otel-col-deploy:
           - loco.workspace.id
           - loco.resource.id
     receivers:
-      k8s_cluster:
-        collection_interval: *collectionInterval
       otlp:
         protocols:
           grpc:
@@ -438,24 +431,91 @@ otel-col-deploy:
     service:
       pipelines:
         logs:
-          receivers: [k8sobjects]
-          processors: [memory_limiter, batch]
-          exporters: [clickhouse]
-        logs/otlp:
           receivers: [otlp]
           processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, batch]
           exporters: [clickhouse]
         metrics:
-          receivers: [k8s_cluster]
-          processors: [memory_limiter, k8s_attributes/pod_uid, batch]
-          exporters: [clickhouse]
-        metrics/otlp:
           receivers: [otlp]
           processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, batch]
           exporters: [clickhouse]
         traces:
           receivers: [otlp, jaeger, zipkin]
           processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, batch]
+          exporters: [clickhouse]
+
+otel-col-cluster:
+  enabled: true
+  fullnameOverride: otel-col-cluster
+  mode: deployment
+  replicaCount: 1
+  rollout:
+    strategy: Recreate
+  extraEnvs: *ingestEnvs
+  image: *collectorImage
+  podSecurityContext: *collectorPodSecurityContext
+  securityContext: *collectorSecurityContext
+  resources:
+    limits:
+      cpu: 250m
+      memory: 512Mi
+  clusterRole:
+    create: true
+    rules:
+      - apiGroups: [""]
+        resources: [pods, namespaces]
+        verbs: ["get", "watch", "list"]
+      - apiGroups: [apps]
+        resources: [replicasets]
+        verbs: ["get", "watch", "list"]
+  presets:
+    kubernetesEvents:
+      enabled: true
+    clusterMetrics:
+      enabled: true
+  service:
+    enabled: false
+  ports:
+    otlp:
+      enabled: false
+    otlp-http:
+      enabled: false
+    jaeger-compact:
+      enabled: false
+    jaeger-thrift:
+      enabled: false
+    jaeger-grpc:
+      enabled: false
+    zipkin:
+      enabled: false
+  alternateConfig:
+    receivers:
+      k8s_cluster:
+        collection_interval: *collectionInterval
+    extensions:
+      health_check:
+        endpoint: ${env:MY_POD_IP}:13133
+    processors:
+      memory_limiter:
+        check_interval: 5s
+        limit_percentage: 80
+        spike_limit_percentage: 25
+      batch: {}
+      k8s_attributes/pod_uid:
+        passthrough: false
+        pod_association: *podUIDAssociation
+        extract: *tenancyExtract
+    exporters:
+      clickhouse: *clickhouseExporter
+    service:
+      extensions: [health_check]
+      pipelines:
+        logs:
+          receivers: [k8sobjects]
+          processors: [memory_limiter, batch]
+          exporters: [clickhouse]
+        metrics:
+          receivers: [k8s_cluster]
+          processors: [memory_limiter, k8s_attributes/pod_uid, batch]
           exporters: [clickhouse]
 
 obsProxy:

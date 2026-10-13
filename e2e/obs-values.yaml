@@ -12,3 +12,6 @@ clickhouseUserPasswords:
 
 obsProxy:
   enabled: false
+
+otel-col-deploy:
+  replicaCount: 2

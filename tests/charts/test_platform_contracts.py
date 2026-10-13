@@ -7,7 +7,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-COLLECTOR_CONFIGMAPS = ('otel-col-daemon-agent', 'otel-col-deploy')
+COLLECTOR_CONFIGMAPS = ('otel-col-daemon-agent', 'otel-col-deploy', 'otel-col-cluster')
 PUSH_RECEIVERS = {'otlp', 'jaeger', 'zipkin'}
 TENANT_LABELS = {
     'loco.io/organization-id': 'loco.organization.id',
@@ -367,7 +367,7 @@ class CollectorTenancy(unittest.TestCase):
     def k8s_attributes(self, pipeline):
         return [processor for processor in pipeline.get('processors', []) if processor.split('/')[0] == 'k8s_attributes']
 
-    def test_both_collectors_render(self):
+    def test_all_collectors_render(self):
         self.assertEqual(set(self.configs), set(COLLECTOR_CONFIGMAPS))
 
     def test_collectors_run_without_an_operator(self):
@@ -436,6 +436,43 @@ class CollectorTenancy(unittest.TestCase):
                 self.assertFalse(extract.get('otel_annotations', False), f'{collector} {enricher}')
                 for key in ('k8s.namespace.name', 'k8s.pod.name', 'k8s.pod.uid', 'k8s.deployment.name', 'service.name'):
                     self.assertIn(key, extract['metadata'], f'{collector} {enricher}')
+
+
+class ClusterCollector(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.documents = render_chart('loco-obs', {'obsProxy': TEST_PROXY})
+        cls.configs = collector_relays(cls.documents)
+
+    def test_only_the_singleton_collects_cluster_metrics_and_events(self):
+        for receiver in ('k8s_cluster', 'k8sobjects'):
+            collectors = {name for name, config in self.configs.items()
+                          if receiver in config['receivers']}
+            self.assertEqual(collectors, {'otel-col-cluster'}, receiver)
+        deployment = next(document for document in self.documents
+                          if document['kind'] == 'Deployment'
+                          and document['metadata']['name'] == 'otel-col-cluster')
+        self.assertEqual(deployment['spec']['replicas'], 1)
+        self.assertEqual(deployment['spec']['strategy'], {'type': 'Recreate'})
+        self.assertFalse(any(document['kind'] == 'HorizontalPodAutoscaler'
+                             and document['spec']['scaleTargetRef']['name'] == 'otel-col-cluster'
+                             for document in self.documents))
+
+    def test_the_singleton_accepts_no_pushed_telemetry(self):
+        config = self.configs['otel-col-cluster']
+        self.assertFalse(PUSH_RECEIVERS & set(config['receivers']))
+        for pipeline in config['service']['pipelines'].values():
+            self.assertFalse(PUSH_RECEIVERS & set(pipeline['receivers']))
+        services = [document for document in self.documents
+                    if document['kind'] == 'Service'
+                    and document['metadata']['name'] == 'otel-col-cluster']
+        self.assertFalse({4317, 4318, 6831, 14250, 14268, 9411}
+                         & {port['port'] for service in services for port in service['spec'].get('ports', [])})
+
+    def test_ingest_keeps_only_push_pipelines(self):
+        config = self.configs['otel-col-deploy']
+        for pipeline in config['service']['pipelines'].values():
+            self.assertLessEqual(set(pipeline['receivers']), PUSH_RECEIVERS)
 
 
 class EnvoyTelemetry(unittest.TestCase):

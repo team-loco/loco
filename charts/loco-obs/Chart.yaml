@@ -18,6 +18,11 @@ dependencies:
       version: 0.175.1
       alias: otel-col-deploy
       condition: otel-col-deploy.enabled
+    - name: opentelemetry-collector
+      repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+      version: 0.175.1
+      alias: otel-col-cluster
+      condition: otel-col-cluster.enabled
 maintainers:
     - name: Nikhil
 sources:
