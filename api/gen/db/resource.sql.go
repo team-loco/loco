@@ -80,7 +80,7 @@ func (q *Queries) GetClusterDetails(ctx context.Context, id uuid.UUID) (GetClust
 }
 
 const getResourceByID = `-- name: GetResourceByID :one
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.spec, r.spec_version, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_at, r.updated_at
 FROM resources r
 WHERE r.id = $1
 `
@@ -97,6 +97,8 @@ func (q *Queries) GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, 
 		&i.Spec,
 		&i.SpecVersion,
 		&i.Partial,
+		&i.MaxApplyAttempts,
+		&i.ApplyRetryDelaySeconds,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -104,7 +106,7 @@ func (q *Queries) GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, 
 }
 
 const getResourceByNameAndWorkspace = `-- name: GetResourceByNameAndWorkspace :one
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.spec, r.spec_version, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.name = $2
 `
@@ -126,6 +128,8 @@ func (q *Queries) GetResourceByNameAndWorkspace(ctx context.Context, arg GetReso
 		&i.Spec,
 		&i.SpecVersion,
 		&i.Partial,
+		&i.MaxApplyAttempts,
+		&i.ApplyRetryDelaySeconds,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -373,7 +377,7 @@ func (q *Queries) ListRegionStatusesForResources(ctx context.Context, resourceId
 }
 
 const listResourcesForWorkspace = `-- name: ListResourcesForWorkspace :many
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.spec, r.spec_version, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1
    AND ($3::text IS NULL
@@ -409,6 +413,8 @@ func (q *Queries) ListResourcesForWorkspace(ctx context.Context, arg ListResourc
 			&i.Spec,
 			&i.SpecVersion,
 			&i.Partial,
+			&i.MaxApplyAttempts,
+			&i.ApplyRetryDelaySeconds,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -423,7 +429,7 @@ func (q *Queries) ListResourcesForWorkspace(ctx context.Context, arg ListResourc
 }
 
 const listWorkspaceServiceResources = `-- name: ListWorkspaceServiceResources :many
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.spec, r.spec_version, r.partial, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.spec, r.spec_version, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.type = 'service'
 ORDER BY r.name ASC
@@ -447,6 +453,8 @@ func (q *Queries) ListWorkspaceServiceResources(ctx context.Context, workspaceID
 			&i.Spec,
 			&i.SpecVersion,
 			&i.Partial,
+			&i.MaxApplyAttempts,
+			&i.ApplyRetryDelaySeconds,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {

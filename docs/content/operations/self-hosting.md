@@ -29,7 +29,7 @@ Configure the API's database, cache, authentication, registry, and API/dashboard
 
 Set `DATABASE_LISTEN_URL` to a direct PostgreSQL or session-pooler URL when `DATABASE_URL` uses a transaction-mode pooler. The API holds this connection for placement notifications and uses `DATABASE_URL` for ordinary queries. Both URLs must reach the same database. With `DATABASE_LISTEN_URL` empty, the listener uses `DATABASE_URL`.
 
-`LOCO_PLACEMENT_RETRY_DELAY` sets how long the API defers a placement after the agent reports an apply failure it will not retry. The default is `1h`. Inventory reports and new connections respect the delay; after it expires, the next inventory or new connection can resend the placement. A new desired revision clears the delay immediately.
+When the agent reports an apply failure it will not retry, the API counts an apply attempt and defers the placement. `LOCO_PLACEMENT_RETRY_DELAY` sets how long it waits before the next inventory report or new connection can resend the placement; the default is `1h`. `LOCO_PLACEMENT_MAX_APPLY_ATTEMPTS` sets how many failed attempts a placement gets; the default is `3`. When a placement uses its last attempt, the API marks it failed, fails its deployment and stops resending it. A resource's `max_apply_attempts` and `apply_retry_delay_seconds` override these defaults. A new desired revision or a successful apply resets the count.
 
 The cluster needs Cilium, Envoy Gateway, cert-manager, and the Loco controller. Observability uses OpenTelemetry, ClickHouse, and the observability proxy. The charts and environment values define their configuration.
 

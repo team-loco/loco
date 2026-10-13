@@ -334,7 +334,7 @@ func (ss *syncSession) reconcilePlacementInventory(ctx context.Context, inventor
 		})
 		switch action {
 		case inventorySend:
-			if !row.RetryDeferred {
+			if !row.SendHeld {
 				toSend = append(toSend, row.ID)
 			}
 		case inventoryMarkApplied:
@@ -503,7 +503,7 @@ func (s *AgentServer) recordApplyError(
 ) {
 	revision := applied.GetRevision()
 	errMessage := applied.GetError()
-	retryDelaySeconds := s.config.PlacementRetryDelay.Seconds()
+	retryDelaySeconds := int32(s.config.PlacementRetryDelay.Seconds())
 	slog.WarnContext(ctx, "placement failed to apply",
 		"cluster_id", clusterID,
 		"placement_id", placementID,
@@ -514,12 +514,13 @@ func (s *AgentServer) recordApplyError(
 
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		row, setErr := qtx.SetPlacementApplyError(ctx, genDb.SetPlacementApplyErrorParams{
-			ID:                placementID,
-			ClusterID:         clusterID,
-			DesiredRevision:   revision,
-			AppliedError:      &errMessage,
-			Retrying:          applied.GetRetrying(),
-			RetryDelaySeconds: retryDelaySeconds,
+			ID:                       placementID,
+			ClusterID:                clusterID,
+			DesiredRevision:          revision,
+			AppliedError:             &errMessage,
+			Retrying:                 applied.GetRetrying(),
+			DefaultMaxAttempts:       s.config.PlacementMaxApplyAttempts,
+			DefaultRetryDelaySeconds: retryDelaySeconds,
 		})
 		if errors.Is(setErr, pgx.ErrNoRows) {
 			return nil
@@ -527,7 +528,7 @@ func (s *AgentServer) recordApplyError(
 		if setErr != nil {
 			return fmt.Errorf("record apply error: %w", setErr)
 		}
-		if applied.GetRetrying() || row.DesiredDeleted || row.DeploymentID == nil {
+		if !row.ApplyFailed || row.DesiredDeleted || row.DeploymentID == nil {
 			return nil
 		}
 		return qtx.AdvanceDeploymentStatus(ctx, genDb.AdvanceDeploymentStatusParams{

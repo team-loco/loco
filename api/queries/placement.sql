@@ -11,6 +11,8 @@ SET region = EXCLUDED.region,
     desired_revision = placements.desired_revision + 1,
     applied_error = NULL,
     retry_after = NULL,
+    apply_attempts = 0,
+    apply_failed = false,
     updated_at = NOW()
 RETURNING id, desired_revision;
 
@@ -21,6 +23,8 @@ SET desired_deleted = true,
     desired_revision = desired_revision + 1,
     applied_error = NULL,
     retry_after = NULL,
+    apply_attempts = 0,
+    apply_failed = false,
     updated_at = NOW()
 WHERE resource_id = $1 AND cluster_id = $2 AND NOT desired_deleted
 RETURNING id, cluster_id, desired_revision;
@@ -32,6 +36,8 @@ SET desired_deleted = true,
     desired_revision = desired_revision + 1,
     applied_error = NULL,
     retry_after = NULL,
+    apply_attempts = 0,
+    apply_failed = false,
     updated_at = NOW()
 WHERE resource_id = $1 AND NOT desired_deleted
 RETURNING id, cluster_id, desired_revision;
@@ -43,18 +49,20 @@ WHERE resource_id = $1 AND cluster_id = $2;
 -- name: ListPendingPlacements :many
 SELECT id, desired_revision FROM placements
 WHERE cluster_id = $1 AND applied_revision < desired_revision
+  AND NOT apply_failed
   AND (retry_after IS NULL OR retry_after <= NOW())
 ORDER BY updated_at, id;
 
 -- name: ListClusterPlacementRevisions :many
 SELECT id, desired_revision, desired_deleted, applied_revision,
-       COALESCE(retry_after > NOW(), false)::boolean AS retry_deferred
+       (apply_failed OR COALESCE(retry_after > NOW(), false))::boolean AS send_held
 FROM placements
 WHERE cluster_id = $1;
 
 -- name: ListPlacementsByIDs :many
 SELECT * FROM placements
 WHERE cluster_id = $1 AND id = ANY(sqlc.arg(ids)::uuid[])
+  AND NOT apply_failed
   AND (retry_after IS NULL OR retry_after <= NOW());
 
 -- name: MarkPlacementApplied :one
@@ -63,18 +71,32 @@ SET applied_revision = desired_revision,
     applied_at = NOW(),
     applied_error = NULL,
     retry_after = NULL,
+    apply_attempts = 0,
+    apply_failed = false,
     updated_at = NOW()
 WHERE id = $1 AND cluster_id = $2 AND desired_revision = $3 AND NOT desired_deleted
 RETURNING deployment_id;
 
 -- name: SetPlacementApplyError :one
+WITH policy AS (
+    SELECT p.id,
+           p.apply_attempts + CASE WHEN sqlc.arg(retrying)::boolean THEN 0 ELSE 1 END AS attempts,
+           COALESCE(r.max_apply_attempts, sqlc.arg(default_max_attempts)::int) AS max_attempts,
+           COALESCE(r.apply_retry_delay_seconds, sqlc.arg(default_retry_delay_seconds)::int) * INTERVAL '1 second' AS retry_delay
+    FROM placements p
+    LEFT JOIN resources r ON r.id = p.resource_id
+    WHERE p.id = sqlc.arg(id) AND p.cluster_id = sqlc.arg(cluster_id) AND p.desired_revision = sqlc.arg(desired_revision)
+)
 UPDATE placements
-SET applied_error = $4,
-    retry_after = CASE WHEN sqlc.arg(retrying)::boolean THEN NULL
-        ELSE NOW() + sqlc.arg(retry_delay_seconds)::double precision * INTERVAL '1 second' END,
+SET applied_error = sqlc.arg(applied_error),
+    apply_attempts = policy.attempts,
+    apply_failed = policy.attempts >= policy.max_attempts,
+    retry_after = CASE WHEN sqlc.arg(retrying)::boolean OR policy.attempts >= policy.max_attempts THEN NULL
+        ELSE NOW() + policy.retry_delay END,
     updated_at = NOW()
-WHERE id = $1 AND cluster_id = $2 AND desired_revision = $3
-RETURNING deployment_id, desired_deleted;
+FROM policy
+WHERE placements.id = policy.id
+RETURNING placements.deployment_id, placements.desired_deleted, placements.apply_failed;
 
 -- name: DeleteAppliedPlacement :execrows
 DELETE FROM placements
@@ -85,6 +107,8 @@ UPDATE placements
 SET desired_revision = sqlc.arg(observed_revision)::bigint + 1,
     applied_error = NULL,
     retry_after = NULL,
+    apply_attempts = 0,
+    apply_failed = false,
     updated_at = NOW()
 WHERE id = sqlc.arg(id)
   AND cluster_id = sqlc.arg(cluster_id)
@@ -125,6 +149,8 @@ UPDATE placements
 SET desired_revision = desired_revision + 1,
     applied_error = NULL,
     retry_after = NULL,
+    apply_attempts = 0,
+    apply_failed = false,
     updated_at = NOW()
 WHERE resource_id = sqlc.arg(resource_id)
   AND environment_id = sqlc.arg(environment_id)

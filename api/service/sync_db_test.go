@@ -359,5 +359,5 @@ func TestSyncStreamRejectsUnknownAgents(t *testing.T) {
 }
 
 func testAgentConfig() AgentConfig {
-	return AgentConfig{PlacementRetryDelay: time.Hour}
+	return AgentConfig{PlacementRetryDelay: time.Hour, PlacementMaxApplyAttempts: 1}
 }

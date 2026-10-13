@@ -54,6 +54,7 @@ var adminIssuers = `[{"issuer":"` + testIssuer + `","audience":"loco",` +
 func clearAPIConfigEnv(t *testing.T) {
 	t.Helper()
 	t.Setenv("LOCO_PLACEMENT_RETRY_DELAY", "")
+	t.Setenv("LOCO_PLACEMENT_MAX_APPLY_ATTEMPTS", "")
 	t.Setenv("DATABASE_LISTEN_URL", "")
 	t.Setenv("CACHE_TYPE", "")
 	t.Setenv("CACHE_ADDR", "")
@@ -670,6 +671,23 @@ func TestPlacementRetryDelayConfiguration(t *testing.T) {
 		t.Setenv("LOCO_PLACEMENT_RETRY_DELAY", value)
 		if err := panicValue(t, func() { newAgentConfig() }); err == nil {
 			t.Fatalf("invalid retry delay %s accepted", value)
+		}
+	}
+}
+
+func TestPlacementMaxApplyAttemptsConfiguration(t *testing.T) {
+	t.Setenv("LOCO_PLACEMENT_MAX_APPLY_ATTEMPTS", "")
+	if got := newAgentConfig().PlacementMaxApplyAttempts; got != defaultPlacementMaxApplyAttempts {
+		t.Fatalf("max apply attempts = %d", got)
+	}
+	t.Setenv("LOCO_PLACEMENT_MAX_APPLY_ATTEMPTS", "5")
+	if got := newAgentConfig().PlacementMaxApplyAttempts; got != 5 {
+		t.Fatalf("max apply attempts = %d, want 5", got)
+	}
+	for _, value := range []string{"0", "-1", "bad"} {
+		t.Setenv("LOCO_PLACEMENT_MAX_APPLY_ATTEMPTS", value)
+		if err := panicValue(t, func() { newAgentConfig() }); err == nil {
+			t.Fatalf("invalid max apply attempts %s accepted", value)
 		}
 	}
 }

@@ -92,8 +92,9 @@ const (
 	defaultSecretsTransitRetry   = 10 * time.Second
 	defaultSecretsTransitDEKTTL  = 5 * time.Minute
 
-	defaultHeartbeatInterval   = 30 * time.Second
-	defaultPlacementRetryDelay = time.Hour
+	defaultHeartbeatInterval         = 30 * time.Second
+	defaultPlacementRetryDelay       = time.Hour
+	defaultPlacementMaxApplyAttempts = 3
 )
 
 type APIConfig struct {
@@ -450,5 +451,6 @@ func newDatabaseListenConfig(databaseURL string) *pgx.ConnConfig {
 
 func newAgentConfig() service.AgentConfig {
 	delay := positiveDurationEnv("LOCO_PLACEMENT_RETRY_DELAY", defaultPlacementRetryDelay)
-	return service.AgentConfig{PlacementRetryDelay: delay}
+	maxAttempts := positiveInt32Env("LOCO_PLACEMENT_MAX_APPLY_ATTEMPTS", defaultPlacementMaxApplyAttempts)
+	return service.AgentConfig{PlacementRetryDelay: delay, PlacementMaxApplyAttempts: maxAttempts}
 }

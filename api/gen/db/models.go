@@ -430,6 +430,8 @@ type Placement struct {
 	AppliedAt        *time.Time `json:"appliedAt"`
 	AppliedError     *string    `json:"appliedError"`
 	RetryAfter       *time.Time `json:"retryAfter"`
+	ApplyAttempts    int32      `json:"applyAttempts"`
+	ApplyFailed      bool       `json:"applyFailed"`
 	ObservedRevision int64      `json:"observedRevision"`
 	Ready            bool       `json:"ready"`
 	ReadyReplicas    int32      `json:"readyReplicas"`
@@ -448,16 +450,18 @@ type PlatformDomain struct {
 }
 
 type Resource struct {
-	ID          uuid.UUID    `json:"id"`
-	WorkspaceID uuid.UUID    `json:"workspaceId"`
-	Name        string       `json:"name"`
-	Type        ResourceType `json:"type"`
-	Description string       `json:"description"`
-	Spec        []byte       `json:"spec"`
-	SpecVersion int32        `json:"specVersion"`
-	Partial     *string      `json:"partial"`
-	CreatedAt   time.Time    `json:"createdAt"`
-	UpdatedAt   time.Time    `json:"updatedAt"`
+	ID                     uuid.UUID    `json:"id"`
+	WorkspaceID            uuid.UUID    `json:"workspaceId"`
+	Name                   string       `json:"name"`
+	Type                   ResourceType `json:"type"`
+	Description            string       `json:"description"`
+	Spec                   []byte       `json:"spec"`
+	SpecVersion            int32        `json:"specVersion"`
+	Partial                *string      `json:"partial"`
+	MaxApplyAttempts       *int32       `json:"maxApplyAttempts"`
+	ApplyRetryDelaySeconds *int32       `json:"applyRetryDelaySeconds"`
+	CreatedAt              time.Time    `json:"createdAt"`
+	UpdatedAt              time.Time    `json:"updatedAt"`
 }
 
 type ResourceDomain struct {
