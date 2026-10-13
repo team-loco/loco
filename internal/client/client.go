@@ -11,7 +11,6 @@ import (
 	"connectrpc.com/connect/v2"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
-	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
@@ -69,24 +68,8 @@ func (c *Client) GetCurrentUser(ctx context.Context) (*userv1.User, error) {
 	return resp.GetUser(), nil
 }
 
-func (c *Client) GetCurrentUserOrgs(ctx context.Context, userID string) ([]*orgv1.Organization, error) {
-	req := &orgv1.ListUserOrgsRequest{
-		UserId:   userID,
-		PageSize: 100,
-	}
-
-	resp, err := c.Org.ListUserOrgs(ctx, req)
-	if err != nil {
-		logRequestID(ctx, err, "failed to get user orgs")
-		return nil, err
-	}
-
-	return resp.GetOrgs(), nil
-}
-
-func (c *Client) GetUserWorkspaces(ctx context.Context, userID string) ([]*workspacev1.Workspace, error) {
+func (c *Client) GetUserWorkspaces(ctx context.Context) ([]*workspacev1.Workspace, error) {
 	req := &workspacev1.ListUserWorkspacesRequest{
-		UserId:   userID,
 		PageSize: 100,
 	}
 
