@@ -43,8 +43,8 @@ test_c01_cli_deploys_from_source() {
     assert_contains "CLI followed the build to success" "succeeded in" cat "$cli_dir/deploy.out"
     assert_contains "CLI applied the file with the build" "Started deployment" cat "$cli_dir/deploy.out"
     assert_contains "CLI prints the public URL" "${cli_app}: https://${cli_app}.e2e.test.local" cat "$cli_dir/deploy.out"
-    assert_contains "Without a log proxy, the CLI says so and keeps following the build" \
-        "Build logs are unavailable" cat "$cli_dir/deploy.out"
+    assert "The CLI finds the cluster's registered log proxy" \
+        bash -c '! grep -q "Build logs are unavailable" "$1"' _ "$cli_dir/deploy.out"
     wait_for "the app to be Ready" 120 cli_application_is_ready "$cli_app"
     assert "The Application is Ready" cli_application_is_ready "$cli_app"
 }
