@@ -40,8 +40,9 @@ Builds, tests, code generation, linting and the local environment are mise tasks
 - **Find files before reading them.** File and symbol names in issues, reviews and old notes
   go stale. Locate them with `rg --files | rg <name>` or `rg <symbol>` before opening one.
 - **Fail fast on invalid states.** Assert invariants; don't hide defects behind defensive conditionals.
-- **Clean as you go.** Fix stale code you find in the area you touch (unread fields, outdated
-  comments, unused files) in the same PR.
+- **Clean as you go.** In the same PR, fix stale code in the files your change edits
+  (unread fields, outdated comments, dead functions) and remove anything your change leaves
+  unused, including whole files. Stale code in files you don't edit goes in an issue.
 - **Features ship with an e2e suite**: one `mise run e2e:<suite>` that builds its own kind
   cluster from a clean machine and cleans up after itself. Extend `e2e/`.
 - **Run e2e sparingly.** Unit and DB tests come first. Locally, run only the suite your change
