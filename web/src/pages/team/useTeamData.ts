@@ -1,5 +1,5 @@
 import { createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-query";
-import { getOrg, listOrgUsers } from "@gen/loco/org/v1/org-OrgService_connectquery";
+import { getOrg, listOrgMembers } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import type { User } from "@gen/loco/org/v1/org_pb";
 import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { EntityType, type EntityScope } from "@gen/loco/token/v1/token_pb";
@@ -46,7 +46,7 @@ export function useTeamData(orgId: string, meId: string, myScopes: EntityScope[]
 	const transport = useTransport();
 	const enabled = orgId !== "";
 	const orgQuery = useQuery(getOrg, { key: { case: "orgId", value: orgId } }, { enabled });
-	const usersQuery = useQuery(listOrgUsers, { orgId, pageSize: 200 }, { enabled });
+	const membersQuery = useQuery(listOrgMembers, { orgId, pageSize: 200 }, { enabled });
 	const wsQuery = useQuery(listOrgWorkspaces, { orgId, pageSize: 200 }, { enabled });
 	const org = orgQuery.data?.organization;
 	const workspaces = wsQuery.data?.workspaces ?? [];
@@ -110,7 +110,8 @@ export function useTeamData(orgId: string, meId: string, myScopes: EntityScope[]
 		}
 	}
 
-	const members: Member[] = (usersQuery.data?.users ?? []).map((user) => {
+	const users = (membersQuery.data?.members ?? []).flatMap((m) => (m.user ? [m.user] : []));
+	const members: Member[] = users.map((user) => {
 		const map = user.id === meId ? mine : byUser.get(user.id);
 		const entries = map ? sortEntries([...map.values()]) : [];
 		return { user, entries };
@@ -120,9 +121,9 @@ export function useTeamData(orgId: string, meId: string, myScopes: EntityScope[]
 		org,
 		members,
 		workspaces,
-		isLoading: orgQuery.isLoading || usersQuery.isLoading,
+		isLoading: orgQuery.isLoading || membersQuery.isLoading,
 		scopesLoading:
 			wsQuery.isLoading || memberQueries.some((q) => q.isLoading) || resourceQueries.some((q) => q.isLoading),
-		error: orgQuery.error ?? usersQuery.error,
+		error: orgQuery.error ?? membersQuery.error,
 	};
 }

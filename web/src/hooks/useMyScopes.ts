@@ -12,6 +12,8 @@ export function scopeLevel(scope: Scope): AccessLevel {
 			return 2;
 		case Scope.ADMIN:
 			return 3;
+		case Scope.MEMBER:
+			return 0;
 		case Scope.UNSPECIFIED:
 			return 0;
 	}

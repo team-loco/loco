@@ -7,7 +7,6 @@ package db
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -34,19 +33,6 @@ func (q *Queries) CreateOrg(ctx context.Context, arg CreateOrgParams) (Organizat
 		&i.UpdatedAt,
 	)
 	return i, err
-}
-
-const deleteEmptyWorkspacesForOrg = `-- name: DeleteEmptyWorkspacesForOrg :exec
-DELETE FROM workspaces
-WHERE org_id = $1
-AND NOT EXISTS (
-  SELECT 1 FROM resources WHERE workspace_id = workspaces.id
-)
-`
-
-func (q *Queries) DeleteEmptyWorkspacesForOrg(ctx context.Context, orgID uuid.UUID) error {
-	_, err := q.db.Exec(ctx, deleteEmptyWorkspacesForOrg, orgID)
-	return err
 }
 
 const deleteOrg = `-- name: DeleteOrg :exec
@@ -111,46 +97,51 @@ func (q *Queries) IsOrgNameUnique(ctx context.Context, arg IsOrgNameUniqueParams
 	return is_unique, err
 }
 
-const listOrgUsersWithDetails = `-- name: ListOrgUsersWithDetails :many
-SELECT u.id, u.email, u.name, u.avatar_url
-FROM users u
-WHERE u.id IN (
-  SELECT us.user_id FROM user_scopes us
+const listOrgMembersWithDetails = `-- name: ListOrgMembersWithDetails :many
+WITH member_scopes AS (
+  SELECT us.user_id, array_agg(us.scope ORDER BY us.scope)::text[] AS scopes
+  FROM user_scopes us
   WHERE us.entity_type = 'organization' AND us.entity_id = $1
+  GROUP BY us.user_id
 )
-  AND ($3::text IS NULL
+SELECT u.id, u.email, u.name, u.avatar_url, ms.scopes
+FROM member_scopes ms
+JOIN users u ON u.id = ms.user_id
+WHERE ($3::text IS NULL
        OR u.id < $3::uuid)
 ORDER BY u.id DESC
 LIMIT $2
 `
 
-type ListOrgUsersWithDetailsParams struct {
+type ListOrgMembersWithDetailsParams struct {
 	EntityID  uuid.UUID `json:"entityId"`
 	Limit     int32     `json:"limit"`
 	PageToken *string   `json:"pageToken"`
 }
 
-type ListOrgUsersWithDetailsRow struct {
+type ListOrgMembersWithDetailsRow struct {
 	ID        uuid.UUID `json:"id"`
 	Email     string    `json:"email"`
 	Name      *string   `json:"name"`
 	AvatarUrl *string   `json:"avatarUrl"`
+	Scopes    []string  `json:"scopes"`
 }
 
-func (q *Queries) ListOrgUsersWithDetails(ctx context.Context, arg ListOrgUsersWithDetailsParams) ([]ListOrgUsersWithDetailsRow, error) {
-	rows, err := q.db.Query(ctx, listOrgUsersWithDetails, arg.EntityID, arg.Limit, arg.PageToken)
+func (q *Queries) ListOrgMembersWithDetails(ctx context.Context, arg ListOrgMembersWithDetailsParams) ([]ListOrgMembersWithDetailsRow, error) {
+	rows, err := q.db.Query(ctx, listOrgMembersWithDetails, arg.EntityID, arg.Limit, arg.PageToken)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListOrgUsersWithDetailsRow
+	var items []ListOrgMembersWithDetailsRow
 	for rows.Next() {
-		var i ListOrgUsersWithDetailsRow
+		var i ListOrgMembersWithDetailsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Email,
 			&i.Name,
 			&i.AvatarUrl,
+			&i.Scopes,
 		); err != nil {
 			return nil, err
 		}
@@ -212,57 +203,6 @@ func (q *Queries) ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams
 	return items, nil
 }
 
-const listWorkspacesForOrg = `-- name: ListWorkspacesForOrg :many
-SELECT w.id, w.name, w.created_by, w.created_at
-FROM workspaces w
-WHERE w.org_id = $1
-  AND ($3::text IS NULL
-       OR (w.created_at, w.id) < (
-         (SELECT created_at FROM workspaces WHERE id = $3::uuid),
-         $3::uuid
-       ))
-ORDER BY w.created_at DESC, w.id DESC
-LIMIT $2
-`
-
-type ListWorkspacesForOrgParams struct {
-	OrgID     uuid.UUID `json:"orgId"`
-	Limit     int32     `json:"limit"`
-	PageToken *string   `json:"pageToken"`
-}
-
-type ListWorkspacesForOrgRow struct {
-	ID        uuid.UUID `json:"id"`
-	Name      string    `json:"name"`
-	CreatedBy uuid.UUID `json:"createdBy"`
-	CreatedAt time.Time `json:"createdAt"`
-}
-
-func (q *Queries) ListWorkspacesForOrg(ctx context.Context, arg ListWorkspacesForOrgParams) ([]ListWorkspacesForOrgRow, error) {
-	rows, err := q.db.Query(ctx, listWorkspacesForOrg, arg.OrgID, arg.Limit, arg.PageToken)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListWorkspacesForOrgRow
-	for rows.Next() {
-		var i ListWorkspacesForOrgRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.CreatedBy,
-			&i.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const orgHasWorkspacesWithResources = `-- name: OrgHasWorkspacesWithResources :one
 SELECT EXISTS(
   SELECT 1 FROM workspaces w
@@ -278,6 +218,30 @@ func (q *Queries) OrgHasWorkspacesWithResources(ctx context.Context, orgID uuid.
 	var has_resources_in_workspaces bool
 	err := row.Scan(&has_resources_in_workspaces)
 	return has_resources_in_workspaces, err
+}
+
+const removeOrgMember = `-- name: RemoveOrgMember :exec
+DELETE FROM user_scopes us
+WHERE us.user_id = $1
+  AND (
+    (us.entity_type = 'organization' AND us.entity_id = $2)
+    OR (us.entity_type = 'workspace' AND us.entity_id IN (
+      SELECT w.id FROM workspaces w WHERE w.org_id = $2
+    ))
+    OR (us.entity_type = 'resource' AND us.entity_id IN (
+      SELECT r.id FROM resources r JOIN workspaces w ON w.id = r.workspace_id WHERE w.org_id = $2
+    ))
+  )
+`
+
+type RemoveOrgMemberParams struct {
+	UserID uuid.UUID `json:"userId"`
+	OrgID  uuid.UUID `json:"orgId"`
+}
+
+func (q *Queries) RemoveOrgMember(ctx context.Context, arg RemoveOrgMemberParams) error {
+	_, err := q.db.Exec(ctx, removeOrgMember, arg.UserID, arg.OrgID)
+	return err
 }
 
 const updateOrgName = `-- name: UpdateOrgName :one

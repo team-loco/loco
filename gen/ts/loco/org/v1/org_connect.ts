@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateOrgRequest, CreateOrgResponse, DeleteOrgRequest, DeleteOrgResponse, GetOrgRequest, GetOrgResponse, ListOrgUsersRequest, ListOrgUsersResponse, ListOrgWorkspacesRequest, ListOrgWorkspacesResponse, ListUserOrgsRequest, ListUserOrgsResponse, UpdateOrgRequest, UpdateOrgResponse } from "./org_pb";
+import { AddOrgMemberRequest, AddOrgMemberResponse, CreateOrgRequest, CreateOrgResponse, DeleteOrgRequest, DeleteOrgResponse, GetOrgRequest, GetOrgResponse, ListOrgMembersRequest, ListOrgMembersResponse, ListOrgWorkspacesRequest, ListOrgWorkspacesResponse, ListUserOrgsRequest, ListUserOrgsResponse, RemoveOrgMemberRequest, RemoveOrgMemberResponse, UpdateOrgRequest, UpdateOrgResponse } from "./org_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -70,14 +70,30 @@ export const OrgService = {
       kind: MethodKind.Unary,
     },
     /**
-     * ListOrgUsers lists users in an organization.
-     *
-     * @generated from rpc loco.org.v1.OrgService.ListOrgUsers
+     * @generated from rpc loco.org.v1.OrgService.ListOrgMembers
      */
-    listOrgUsers: {
-      name: "ListOrgUsers",
-      I: ListOrgUsersRequest,
-      O: ListOrgUsersResponse,
+    listOrgMembers: {
+      name: "ListOrgMembers",
+      I: ListOrgMembersRequest,
+      O: ListOrgMembersResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc loco.org.v1.OrgService.AddOrgMember
+     */
+    addOrgMember: {
+      name: "AddOrgMember",
+      I: AddOrgMemberRequest,
+      O: AddOrgMemberResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc loco.org.v1.OrgService.RemoveOrgMember
+     */
+    removeOrgMember: {
+      name: "RemoveOrgMember",
+      I: RemoveOrgMemberRequest,
+      O: RemoveOrgMemberResponse,
       kind: MethodKind.Unary,
     },
     /**

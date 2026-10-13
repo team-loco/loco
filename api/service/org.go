@@ -27,7 +27,7 @@ var (
 	ErrOrgNameNotUnique              = errors.New("organization name already exists")
 	ErrOrgHasWorkspacesWithResources = errors.New("organization has workspaces with resources")
 	ErrNotOrgMember                  = errors.New("user is not a member of this organization")
-	ErrNotOrgAdmin                   = errors.New("user is not an admin of this organization")
+	ErrRemoveSelfFromOrg             = errors.New("you cannot remove yourself from the organization")
 )
 
 // OrgServer implements the OrgService gRPC server
@@ -408,11 +408,10 @@ func (s *OrgServer) DeleteOrg(
 	return &orgv1.DeleteOrgResponse{}, nil
 }
 
-// ListOrgUsers lists users in an organization
-func (s *OrgServer) ListOrgUsers(
+func (s *OrgServer) ListOrgMembers(
 	ctx context.Context,
-	req *orgv1.ListOrgUsersRequest,
-) (*orgv1.ListOrgUsersResponse, error) {
+	req *orgv1.ListOrgMembersRequest,
+) (*orgv1.ListOrgMembersResponse, error) {
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
@@ -424,7 +423,7 @@ func (s *OrgServer) ListOrgUsers(
 		scopes,
 		actions.New(actions.ListOrgMembers, req.GetOrgId()),
 	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to list org users", "orgId", req.GetOrgId())
+		slog.WarnContext(ctx, "unauthorized to list org members", "orgId", req.GetOrgId())
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
@@ -439,24 +438,25 @@ func (s *OrgServer) ListOrgUsers(
 		pageToken = &cursorID
 	}
 
-	rows, err := s.queries.ListOrgUsersWithDetails(ctx, genDb.ListOrgUsersWithDetailsParams{
+	rows, err := s.queries.ListOrgMembersWithDetails(ctx, genDb.ListOrgMembersWithDetailsParams{
 		EntityID:  uuid.MustParse(req.GetOrgId()),
 		Limit:     pageSize,
 		PageToken: pageToken,
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list org users", "error", err)
+		slog.ErrorContext(ctx, "failed to list org members", "error", err)
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
-	users := make([]*orgv1.User, len(rows))
+	members := make([]*orgv1.OrgMember, len(rows))
 	for i, row := range rows {
-		users[i] = &orgv1.User{
+		user := &orgv1.User{
 			Id:        row.ID.String(),
 			Email:     row.Email,
 			Name:      derefString(row.Name),
 			AvatarUrl: derefString(row.AvatarUrl),
 		}
+		members[i] = &orgv1.OrgMember{User: user, Scopes: row.Scopes}
 	}
 
 	var nextPageToken string
@@ -465,10 +465,107 @@ func (s *OrgServer) ListOrgUsers(
 		nextPageToken = encodeCursor(lastID)
 	}
 
-	return &orgv1.ListOrgUsersResponse{
-		Users:         users,
+	return &orgv1.ListOrgMembersResponse{
+		Members:       members,
 		NextPageToken: nextPageToken,
 	}, nil
+}
+
+func (s *OrgServer) AddOrgMember(
+	ctx context.Context,
+	req *orgv1.AddOrgMemberRequest,
+) (*orgv1.AddOrgMemberResponse, error) {
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
+	}
+
+	if err := s.authz.Check(
+		ctx,
+		scopes,
+		actions.New(actions.AddOrgMember, req.GetOrgId()),
+	); err != nil {
+		slog.WarnContext(ctx, "unauthorized to add org member", "orgId", req.GetOrgId())
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+	}
+
+	orgID := uuid.MustParse(req.GetOrgId())
+	userID := uuid.MustParse(req.GetUserId())
+	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if addErr := qtx.AddUserScope(ctx, genDb.AddUserScopeParams{
+			UserID:     userID,
+			EntityType: genDb.EntityTypeOrganization,
+			EntityID:   orgID,
+			Scope:      genDb.ScopeMember,
+		}); addErr != nil {
+			return addErr
+		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.OrgMemberAdded,
+			OrgID:       new(orgID),
+			SubjectType: events.SubjectUser,
+			SubjectID:   new(userID),
+		})
+	})
+	if isPgForeignKeyViolation(err) {
+		return nil, rpcerr.New(connect.CodeNotFound, ErrUserNotFound)
+	}
+	if err != nil {
+		return nil, txError(ctx, "failed to add org member", err)
+	}
+
+	return &orgv1.AddOrgMemberResponse{}, nil
+}
+
+func (s *OrgServer) RemoveOrgMember(
+	ctx context.Context,
+	req *orgv1.RemoveOrgMemberRequest,
+) (*orgv1.RemoveOrgMemberResponse, error) {
+	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
+	if !ok {
+		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
+	}
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
+	}
+
+	if err := s.authz.Check(
+		ctx,
+		scopes,
+		actions.New(actions.RemoveOrgMember, req.GetOrgId()),
+	); err != nil {
+		slog.WarnContext(ctx, "unauthorized to remove org member", "orgId", req.GetOrgId())
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+	}
+
+	orgID := uuid.MustParse(req.GetOrgId())
+	userID := uuid.MustParse(req.GetUserId())
+	if userID == entity.ID {
+		return nil, rpcerr.New(connect.CodeFailedPrecondition, ErrRemoveSelfFromOrg)
+	}
+
+	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if removeErr := qtx.RemoveOrgMember(ctx, genDb.RemoveOrgMemberParams{
+			UserID: userID,
+			OrgID:  orgID,
+		}); removeErr != nil {
+			return removeErr
+		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.OrgMemberRemoved,
+			OrgID:       new(orgID),
+			SubjectType: events.SubjectUser,
+			SubjectID:   new(userID),
+		})
+	})
+	if err != nil {
+		return nil, txError(ctx, "failed to remove org member", err)
+	}
+
+	return &orgv1.RemoveOrgMemberResponse{}, nil
 }
 
 // ListOrgWorkspaces lists workspaces in an organization

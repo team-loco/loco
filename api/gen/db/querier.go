@@ -59,7 +59,6 @@ type Querier interface {
 	DeleteAPITokenByNameAndEntity(ctx context.Context, arg DeleteAPITokenByNameAndEntityParams) error
 	DeleteAPITokensForEntity(ctx context.Context, arg DeleteAPITokensForEntityParams) error
 	DeleteAppliedPlacement(ctx context.Context, arg DeleteAppliedPlacementParams) (int64, error)
-	DeleteEmptyWorkspacesForOrg(ctx context.Context, orgID uuid.UUID) error
 	DeleteEnvironment(ctx context.Context, id uuid.UUID) error
 	DeleteEventsBefore(ctx context.Context, createdAt time.Time) (int64, error)
 	DeleteExpiredAPITokens(ctx context.Context) error
@@ -163,7 +162,7 @@ type Querier interface {
 	ListLatestSucceededBuildsForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListLatestSucceededBuildsForResourcesRow, error)
 	ListLiveBuildDigests(ctx context.Context, resourceIds []uuid.UUID) ([]ListLiveBuildDigestsRow, error)
 	ListOrgEvents(ctx context.Context, arg ListOrgEventsParams) ([]ListOrgEventsRow, error)
-	ListOrgUsersWithDetails(ctx context.Context, arg ListOrgUsersWithDetailsParams) ([]ListOrgUsersWithDetailsRow, error)
+	ListOrgMembersWithDetails(ctx context.Context, arg ListOrgMembersWithDetailsParams) ([]ListOrgMembersWithDetailsRow, error)
 	ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams) ([]Organization, error)
 	ListPendingPlacements(ctx context.Context, clusterID uuid.UUID) ([]ListPendingPlacementsRow, error)
 	ListPlacementSecretSizes(ctx context.Context, arg ListPlacementSecretSizesParams) ([]ListPlacementSecretSizesRow, error)
@@ -188,7 +187,6 @@ type Querier interface {
 	ListWorkspaceResourcesForDeletion(ctx context.Context, workspaceID uuid.UUID) ([]ListWorkspaceResourcesForDeletionRow, error)
 	ListWorkspaceServiceResources(ctx context.Context, workspaceID uuid.UUID) ([]Resource, error)
 	ListWorkspaceWebhooks(ctx context.Context, workspaceID uuid.UUID) ([]Webhook, error)
-	ListWorkspacesForOrg(ctx context.Context, arg ListWorkspacesForOrgParams) ([]ListWorkspacesForOrgRow, error)
 	ListWorkspacesForUser(ctx context.Context, arg ListWorkspacesForUserParams) ([]Workspace, error)
 	ListWorkspacesInOrg(ctx context.Context, arg ListWorkspacesInOrgParams) ([]Workspace, error)
 	LockBuildImageForDelete(ctx context.Context, id uuid.UUID) (*time.Time, error)
@@ -215,6 +213,7 @@ type Querier interface {
 	RemoveAllScopesForEntity(ctx context.Context, arg RemoveAllScopesForEntityParams) error
 	RemoveAllScopesForUser(ctx context.Context, userID uuid.UUID) error
 	RemoveAllScopesForUserOnEntity(ctx context.Context, arg RemoveAllScopesForUserOnEntityParams) error
+	RemoveOrgMember(ctx context.Context, arg RemoveOrgMemberParams) error
 	RemoveResourceScopesForUserInWorkspace(ctx context.Context, arg RemoveResourceScopesForUserInWorkspaceParams) error
 	RemoveUserScope(ctx context.Context, arg RemoveUserScopeParams) error
 	RemoveWorkspace(ctx context.Context, id uuid.UUID) error

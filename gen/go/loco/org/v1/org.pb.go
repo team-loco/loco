@@ -502,8 +502,7 @@ func (x *ListUserOrgsResponse) GetNextPageToken() string {
 	return ""
 }
 
-// ListOrgUsersRequest is the request to list users in an organization.
-type ListOrgUsersRequest struct {
+type ListOrgMembersRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
 	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // default: 50, max: 200
@@ -512,20 +511,20 @@ type ListOrgUsersRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListOrgUsersRequest) Reset() {
-	*x = ListOrgUsersRequest{}
+func (x *ListOrgMembersRequest) Reset() {
+	*x = ListOrgMembersRequest{}
 	mi := &file_loco_org_v1_org_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListOrgUsersRequest) String() string {
+func (x *ListOrgMembersRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListOrgUsersRequest) ProtoMessage() {}
+func (*ListOrgMembersRequest) ProtoMessage() {}
 
-func (x *ListOrgUsersRequest) ProtoReflect() protoreflect.Message {
+func (x *ListOrgMembersRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_loco_org_v1_org_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -537,55 +536,54 @@ func (x *ListOrgUsersRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListOrgUsersRequest.ProtoReflect.Descriptor instead.
-func (*ListOrgUsersRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListOrgMembersRequest.ProtoReflect.Descriptor instead.
+func (*ListOrgMembersRequest) Descriptor() ([]byte, []int) {
 	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *ListOrgUsersRequest) GetOrgId() string {
+func (x *ListOrgMembersRequest) GetOrgId() string {
 	if x != nil {
 		return x.OrgId
 	}
 	return ""
 }
 
-func (x *ListOrgUsersRequest) GetPageSize() int32 {
+func (x *ListOrgMembersRequest) GetPageSize() int32 {
 	if x != nil {
 		return x.PageSize
 	}
 	return 0
 }
 
-func (x *ListOrgUsersRequest) GetPageToken() string {
+func (x *ListOrgMembersRequest) GetPageToken() string {
 	if x != nil {
 		return x.PageToken
 	}
 	return ""
 }
 
-// ListOrgUsersResponse is the response containing user list.
-type ListOrgUsersResponse struct {
+type ListOrgMembersResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Users         []*User                `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
+	Members       []*OrgMember           `protobuf:"bytes,1,rep,name=members,proto3" json:"members,omitempty"`
 	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"` // empty if no more pages
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListOrgUsersResponse) Reset() {
-	*x = ListOrgUsersResponse{}
+func (x *ListOrgMembersResponse) Reset() {
+	*x = ListOrgMembersResponse{}
 	mi := &file_loco_org_v1_org_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListOrgUsersResponse) String() string {
+func (x *ListOrgMembersResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListOrgUsersResponse) ProtoMessage() {}
+func (*ListOrgMembersResponse) ProtoMessage() {}
 
-func (x *ListOrgUsersResponse) ProtoReflect() protoreflect.Message {
+func (x *ListOrgMembersResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_loco_org_v1_org_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -597,23 +595,251 @@ func (x *ListOrgUsersResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListOrgUsersResponse.ProtoReflect.Descriptor instead.
-func (*ListOrgUsersResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListOrgMembersResponse.ProtoReflect.Descriptor instead.
+func (*ListOrgMembersResponse) Descriptor() ([]byte, []int) {
 	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *ListOrgUsersResponse) GetUsers() []*User {
+func (x *ListOrgMembersResponse) GetMembers() []*OrgMember {
 	if x != nil {
-		return x.Users
+		return x.Members
 	}
 	return nil
 }
 
-func (x *ListOrgUsersResponse) GetNextPageToken() string {
+func (x *ListOrgMembersResponse) GetNextPageToken() string {
 	if x != nil {
 		return x.NextPageToken
 	}
 	return ""
+}
+
+type OrgMember struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	User          *User                  `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	Scopes        []string               `protobuf:"bytes,2,rep,name=scopes,proto3" json:"scopes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OrgMember) Reset() {
+	*x = OrgMember{}
+	mi := &file_loco_org_v1_org_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OrgMember) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OrgMember) ProtoMessage() {}
+
+func (x *OrgMember) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_org_v1_org_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OrgMember.ProtoReflect.Descriptor instead.
+func (*OrgMember) Descriptor() ([]byte, []int) {
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *OrgMember) GetUser() *User {
+	if x != nil {
+		return x.User
+	}
+	return nil
+}
+
+func (x *OrgMember) GetScopes() []string {
+	if x != nil {
+		return x.Scopes
+	}
+	return nil
+}
+
+type AddOrgMemberRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddOrgMemberRequest) Reset() {
+	*x = AddOrgMemberRequest{}
+	mi := &file_loco_org_v1_org_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddOrgMemberRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddOrgMemberRequest) ProtoMessage() {}
+
+func (x *AddOrgMemberRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_org_v1_org_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddOrgMemberRequest.ProtoReflect.Descriptor instead.
+func (*AddOrgMemberRequest) Descriptor() ([]byte, []int) {
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *AddOrgMemberRequest) GetOrgId() string {
+	if x != nil {
+		return x.OrgId
+	}
+	return ""
+}
+
+func (x *AddOrgMemberRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type AddOrgMemberResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddOrgMemberResponse) Reset() {
+	*x = AddOrgMemberResponse{}
+	mi := &file_loco_org_v1_org_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddOrgMemberResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddOrgMemberResponse) ProtoMessage() {}
+
+func (x *AddOrgMemberResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_org_v1_org_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddOrgMemberResponse.ProtoReflect.Descriptor instead.
+func (*AddOrgMemberResponse) Descriptor() ([]byte, []int) {
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{12}
+}
+
+type RemoveOrgMemberRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveOrgMemberRequest) Reset() {
+	*x = RemoveOrgMemberRequest{}
+	mi := &file_loco_org_v1_org_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveOrgMemberRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveOrgMemberRequest) ProtoMessage() {}
+
+func (x *RemoveOrgMemberRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_org_v1_org_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveOrgMemberRequest.ProtoReflect.Descriptor instead.
+func (*RemoveOrgMemberRequest) Descriptor() ([]byte, []int) {
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *RemoveOrgMemberRequest) GetOrgId() string {
+	if x != nil {
+		return x.OrgId
+	}
+	return ""
+}
+
+func (x *RemoveOrgMemberRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type RemoveOrgMemberResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveOrgMemberResponse) Reset() {
+	*x = RemoveOrgMemberResponse{}
+	mi := &file_loco_org_v1_org_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveOrgMemberResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveOrgMemberResponse) ProtoMessage() {}
+
+func (x *RemoveOrgMemberResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_org_v1_org_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveOrgMemberResponse.ProtoReflect.Descriptor instead.
+func (*RemoveOrgMemberResponse) Descriptor() ([]byte, []int) {
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{14}
 }
 
 // User is a lightweight representation of a user for listing.
@@ -629,7 +855,7 @@ type User struct {
 
 func (x *User) Reset() {
 	*x = User{}
-	mi := &file_loco_org_v1_org_proto_msgTypes[10]
+	mi := &file_loco_org_v1_org_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -641,7 +867,7 @@ func (x *User) String() string {
 func (*User) ProtoMessage() {}
 
 func (x *User) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_org_v1_org_proto_msgTypes[10]
+	mi := &file_loco_org_v1_org_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -654,7 +880,7 @@ func (x *User) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use User.ProtoReflect.Descriptor instead.
 func (*User) Descriptor() ([]byte, []int) {
-	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{10}
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *User) GetId() string {
@@ -697,7 +923,7 @@ type ListOrgWorkspacesRequest struct {
 
 func (x *ListOrgWorkspacesRequest) Reset() {
 	*x = ListOrgWorkspacesRequest{}
-	mi := &file_loco_org_v1_org_proto_msgTypes[11]
+	mi := &file_loco_org_v1_org_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -709,7 +935,7 @@ func (x *ListOrgWorkspacesRequest) String() string {
 func (*ListOrgWorkspacesRequest) ProtoMessage() {}
 
 func (x *ListOrgWorkspacesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_org_v1_org_proto_msgTypes[11]
+	mi := &file_loco_org_v1_org_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -722,7 +948,7 @@ func (x *ListOrgWorkspacesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListOrgWorkspacesRequest.ProtoReflect.Descriptor instead.
 func (*ListOrgWorkspacesRequest) Descriptor() ([]byte, []int) {
-	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{11}
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ListOrgWorkspacesRequest) GetOrgId() string {
@@ -757,7 +983,7 @@ type ListOrgWorkspacesResponse struct {
 
 func (x *ListOrgWorkspacesResponse) Reset() {
 	*x = ListOrgWorkspacesResponse{}
-	mi := &file_loco_org_v1_org_proto_msgTypes[12]
+	mi := &file_loco_org_v1_org_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -769,7 +995,7 @@ func (x *ListOrgWorkspacesResponse) String() string {
 func (*ListOrgWorkspacesResponse) ProtoMessage() {}
 
 func (x *ListOrgWorkspacesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_org_v1_org_proto_msgTypes[12]
+	mi := &file_loco_org_v1_org_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -782,7 +1008,7 @@ func (x *ListOrgWorkspacesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListOrgWorkspacesResponse.ProtoReflect.Descriptor instead.
 func (*ListOrgWorkspacesResponse) Descriptor() ([]byte, []int) {
-	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{12}
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ListOrgWorkspacesResponse) GetWorkspaces() []*WorkspaceSummary {
@@ -811,7 +1037,7 @@ type UpdateOrgRequest struct {
 
 func (x *UpdateOrgRequest) Reset() {
 	*x = UpdateOrgRequest{}
-	mi := &file_loco_org_v1_org_proto_msgTypes[13]
+	mi := &file_loco_org_v1_org_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -823,7 +1049,7 @@ func (x *UpdateOrgRequest) String() string {
 func (*UpdateOrgRequest) ProtoMessage() {}
 
 func (x *UpdateOrgRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_org_v1_org_proto_msgTypes[13]
+	mi := &file_loco_org_v1_org_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -836,7 +1062,7 @@ func (x *UpdateOrgRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateOrgRequest.ProtoReflect.Descriptor instead.
 func (*UpdateOrgRequest) Descriptor() ([]byte, []int) {
-	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{13}
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *UpdateOrgRequest) GetOrgId() string {
@@ -870,7 +1096,7 @@ type UpdateOrgResponse struct {
 
 func (x *UpdateOrgResponse) Reset() {
 	*x = UpdateOrgResponse{}
-	mi := &file_loco_org_v1_org_proto_msgTypes[14]
+	mi := &file_loco_org_v1_org_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -882,7 +1108,7 @@ func (x *UpdateOrgResponse) String() string {
 func (*UpdateOrgResponse) ProtoMessage() {}
 
 func (x *UpdateOrgResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_org_v1_org_proto_msgTypes[14]
+	mi := &file_loco_org_v1_org_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -895,7 +1121,7 @@ func (x *UpdateOrgResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateOrgResponse.ProtoReflect.Descriptor instead.
 func (*UpdateOrgResponse) Descriptor() ([]byte, []int) {
-	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{14}
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *UpdateOrgResponse) GetOrgId() string {
@@ -915,7 +1141,7 @@ type DeleteOrgRequest struct {
 
 func (x *DeleteOrgRequest) Reset() {
 	*x = DeleteOrgRequest{}
-	mi := &file_loco_org_v1_org_proto_msgTypes[15]
+	mi := &file_loco_org_v1_org_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -927,7 +1153,7 @@ func (x *DeleteOrgRequest) String() string {
 func (*DeleteOrgRequest) ProtoMessage() {}
 
 func (x *DeleteOrgRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_org_v1_org_proto_msgTypes[15]
+	mi := &file_loco_org_v1_org_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -940,7 +1166,7 @@ func (x *DeleteOrgRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteOrgRequest.ProtoReflect.Descriptor instead.
 func (*DeleteOrgRequest) Descriptor() ([]byte, []int) {
-	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{15}
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *DeleteOrgRequest) GetOrgId() string {
@@ -959,7 +1185,7 @@ type DeleteOrgResponse struct {
 
 func (x *DeleteOrgResponse) Reset() {
 	*x = DeleteOrgResponse{}
-	mi := &file_loco_org_v1_org_proto_msgTypes[16]
+	mi := &file_loco_org_v1_org_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -971,7 +1197,7 @@ func (x *DeleteOrgResponse) String() string {
 func (*DeleteOrgResponse) ProtoMessage() {}
 
 func (x *DeleteOrgResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_org_v1_org_proto_msgTypes[16]
+	mi := &file_loco_org_v1_org_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -984,7 +1210,7 @@ func (x *DeleteOrgResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteOrgResponse.ProtoReflect.Descriptor instead.
 func (*DeleteOrgResponse) Descriptor() ([]byte, []int) {
-	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{16}
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{21}
 }
 
 var File_loco_org_v1_org_proto protoreflect.FileDescriptor
@@ -1027,16 +1253,27 @@ const file_loco_org_v1_org_proto_rawDesc = "" +
 	"page_token\x18\x03 \x01(\tR\tpageToken\"m\n" +
 	"\x14ListUserOrgsResponse\x12-\n" +
 	"\x04orgs\x18\x01 \x03(\v2\x19.loco.org.v1.OrganizationR\x04orgs\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"~\n" +
-	"\x13ListOrgUsersRequest\x12\x1f\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\x80\x01\n" +
+	"\x15ListOrgMembersRequest\x12\x1f\n" +
 	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12'\n" +
 	"\tpage_size\x18\x02 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x03 \x01(\tR\tpageToken\"g\n" +
-	"\x14ListOrgUsersResponse\x12'\n" +
-	"\x05users\x18\x01 \x03(\v2\x11.loco.org.v1.UserR\x05users\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"_\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\"r\n" +
+	"\x16ListOrgMembersResponse\x120\n" +
+	"\amembers\x18\x01 \x03(\v2\x16.loco.org.v1.OrgMemberR\amembers\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"J\n" +
+	"\tOrgMember\x12%\n" +
+	"\x04user\x18\x01 \x01(\v2\x11.loco.org.v1.UserR\x04user\x12\x16\n" +
+	"\x06scopes\x18\x02 \x03(\tR\x06scopes\"Y\n" +
+	"\x13AddOrgMemberRequest\x12\x1f\n" +
+	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12!\n" +
+	"\auser_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06userId\"\x16\n" +
+	"\x14AddOrgMemberResponse\"\\\n" +
+	"\x16RemoveOrgMemberRequest\x12\x1f\n" +
+	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12!\n" +
+	"\auser_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06userId\"\x19\n" +
+	"\x17RemoveOrgMemberResponse\"_\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\x12\n" +
@@ -1064,15 +1301,17 @@ const file_loco_org_v1_org_proto_rawDesc = "" +
 	"\x06org_id\x18\x01 \x01(\tR\x05orgId\"3\n" +
 	"\x10DeleteOrgRequest\x12\x1f\n" +
 	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\"\x13\n" +
-	"\x11DeleteOrgResponse2\xc1\x04\n" +
+	"\x11DeleteOrgResponse2\xfa\x05\n" +
 	"\n" +
 	"OrgService\x12J\n" +
 	"\tCreateOrg\x12\x1d.loco.org.v1.CreateOrgRequest\x1a\x1e.loco.org.v1.CreateOrgResponse\x12A\n" +
 	"\x06GetOrg\x12\x1a.loco.org.v1.GetOrgRequest\x1a\x1b.loco.org.v1.GetOrgResponse\x12J\n" +
 	"\tUpdateOrg\x12\x1d.loco.org.v1.UpdateOrgRequest\x1a\x1e.loco.org.v1.UpdateOrgResponse\x12J\n" +
 	"\tDeleteOrg\x12\x1d.loco.org.v1.DeleteOrgRequest\x1a\x1e.loco.org.v1.DeleteOrgResponse\x12S\n" +
-	"\fListUserOrgs\x12 .loco.org.v1.ListUserOrgsRequest\x1a!.loco.org.v1.ListUserOrgsResponse\x12S\n" +
-	"\fListOrgUsers\x12 .loco.org.v1.ListOrgUsersRequest\x1a!.loco.org.v1.ListOrgUsersResponse\x12b\n" +
+	"\fListUserOrgs\x12 .loco.org.v1.ListUserOrgsRequest\x1a!.loco.org.v1.ListUserOrgsResponse\x12Y\n" +
+	"\x0eListOrgMembers\x12\".loco.org.v1.ListOrgMembersRequest\x1a#.loco.org.v1.ListOrgMembersResponse\x12S\n" +
+	"\fAddOrgMember\x12 .loco.org.v1.AddOrgMemberRequest\x1a!.loco.org.v1.AddOrgMemberResponse\x12\\\n" +
+	"\x0fRemoveOrgMember\x12#.loco.org.v1.RemoveOrgMemberRequest\x1a$.loco.org.v1.RemoveOrgMemberResponse\x12b\n" +
 	"\x11ListOrgWorkspaces\x12%.loco.org.v1.ListOrgWorkspacesRequest\x1a&.loco.org.v1.ListOrgWorkspacesResponseB4Z2github.com/team-loco/loco/gen/go/loco/org/v1;orgv1b\x06proto3"
 
 var (
@@ -1087,7 +1326,7 @@ func file_loco_org_v1_org_proto_rawDescGZIP() []byte {
 	return file_loco_org_v1_org_proto_rawDescData
 }
 
-var file_loco_org_v1_org_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_loco_org_v1_org_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_loco_org_v1_org_proto_goTypes = []any{
 	(*Organization)(nil),              // 0: loco.org.v1.Organization
 	(*WorkspaceSummary)(nil),          // 1: loco.org.v1.WorkspaceSummary
@@ -1097,46 +1336,56 @@ var file_loco_org_v1_org_proto_goTypes = []any{
 	(*GetOrgResponse)(nil),            // 5: loco.org.v1.GetOrgResponse
 	(*ListUserOrgsRequest)(nil),       // 6: loco.org.v1.ListUserOrgsRequest
 	(*ListUserOrgsResponse)(nil),      // 7: loco.org.v1.ListUserOrgsResponse
-	(*ListOrgUsersRequest)(nil),       // 8: loco.org.v1.ListOrgUsersRequest
-	(*ListOrgUsersResponse)(nil),      // 9: loco.org.v1.ListOrgUsersResponse
-	(*User)(nil),                      // 10: loco.org.v1.User
-	(*ListOrgWorkspacesRequest)(nil),  // 11: loco.org.v1.ListOrgWorkspacesRequest
-	(*ListOrgWorkspacesResponse)(nil), // 12: loco.org.v1.ListOrgWorkspacesResponse
-	(*UpdateOrgRequest)(nil),          // 13: loco.org.v1.UpdateOrgRequest
-	(*UpdateOrgResponse)(nil),         // 14: loco.org.v1.UpdateOrgResponse
-	(*DeleteOrgRequest)(nil),          // 15: loco.org.v1.DeleteOrgRequest
-	(*DeleteOrgResponse)(nil),         // 16: loco.org.v1.DeleteOrgResponse
-	(*timestamppb.Timestamp)(nil),     // 17: google.protobuf.Timestamp
-	(*fieldmaskpb.FieldMask)(nil),     // 18: google.protobuf.FieldMask
+	(*ListOrgMembersRequest)(nil),     // 8: loco.org.v1.ListOrgMembersRequest
+	(*ListOrgMembersResponse)(nil),    // 9: loco.org.v1.ListOrgMembersResponse
+	(*OrgMember)(nil),                 // 10: loco.org.v1.OrgMember
+	(*AddOrgMemberRequest)(nil),       // 11: loco.org.v1.AddOrgMemberRequest
+	(*AddOrgMemberResponse)(nil),      // 12: loco.org.v1.AddOrgMemberResponse
+	(*RemoveOrgMemberRequest)(nil),    // 13: loco.org.v1.RemoveOrgMemberRequest
+	(*RemoveOrgMemberResponse)(nil),   // 14: loco.org.v1.RemoveOrgMemberResponse
+	(*User)(nil),                      // 15: loco.org.v1.User
+	(*ListOrgWorkspacesRequest)(nil),  // 16: loco.org.v1.ListOrgWorkspacesRequest
+	(*ListOrgWorkspacesResponse)(nil), // 17: loco.org.v1.ListOrgWorkspacesResponse
+	(*UpdateOrgRequest)(nil),          // 18: loco.org.v1.UpdateOrgRequest
+	(*UpdateOrgResponse)(nil),         // 19: loco.org.v1.UpdateOrgResponse
+	(*DeleteOrgRequest)(nil),          // 20: loco.org.v1.DeleteOrgRequest
+	(*DeleteOrgResponse)(nil),         // 21: loco.org.v1.DeleteOrgResponse
+	(*timestamppb.Timestamp)(nil),     // 22: google.protobuf.Timestamp
+	(*fieldmaskpb.FieldMask)(nil),     // 23: google.protobuf.FieldMask
 }
 var file_loco_org_v1_org_proto_depIdxs = []int32{
-	17, // 0: loco.org.v1.Organization.created_at:type_name -> google.protobuf.Timestamp
-	17, // 1: loco.org.v1.Organization.updated_at:type_name -> google.protobuf.Timestamp
-	17, // 2: loco.org.v1.WorkspaceSummary.created_at:type_name -> google.protobuf.Timestamp
+	22, // 0: loco.org.v1.Organization.created_at:type_name -> google.protobuf.Timestamp
+	22, // 1: loco.org.v1.Organization.updated_at:type_name -> google.protobuf.Timestamp
+	22, // 2: loco.org.v1.WorkspaceSummary.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 3: loco.org.v1.GetOrgResponse.organization:type_name -> loco.org.v1.Organization
 	0,  // 4: loco.org.v1.ListUserOrgsResponse.orgs:type_name -> loco.org.v1.Organization
-	10, // 5: loco.org.v1.ListOrgUsersResponse.users:type_name -> loco.org.v1.User
-	1,  // 6: loco.org.v1.ListOrgWorkspacesResponse.workspaces:type_name -> loco.org.v1.WorkspaceSummary
-	18, // 7: loco.org.v1.UpdateOrgRequest.update_mask:type_name -> google.protobuf.FieldMask
-	2,  // 8: loco.org.v1.OrgService.CreateOrg:input_type -> loco.org.v1.CreateOrgRequest
-	4,  // 9: loco.org.v1.OrgService.GetOrg:input_type -> loco.org.v1.GetOrgRequest
-	13, // 10: loco.org.v1.OrgService.UpdateOrg:input_type -> loco.org.v1.UpdateOrgRequest
-	15, // 11: loco.org.v1.OrgService.DeleteOrg:input_type -> loco.org.v1.DeleteOrgRequest
-	6,  // 12: loco.org.v1.OrgService.ListUserOrgs:input_type -> loco.org.v1.ListUserOrgsRequest
-	8,  // 13: loco.org.v1.OrgService.ListOrgUsers:input_type -> loco.org.v1.ListOrgUsersRequest
-	11, // 14: loco.org.v1.OrgService.ListOrgWorkspaces:input_type -> loco.org.v1.ListOrgWorkspacesRequest
-	3,  // 15: loco.org.v1.OrgService.CreateOrg:output_type -> loco.org.v1.CreateOrgResponse
-	5,  // 16: loco.org.v1.OrgService.GetOrg:output_type -> loco.org.v1.GetOrgResponse
-	14, // 17: loco.org.v1.OrgService.UpdateOrg:output_type -> loco.org.v1.UpdateOrgResponse
-	16, // 18: loco.org.v1.OrgService.DeleteOrg:output_type -> loco.org.v1.DeleteOrgResponse
-	7,  // 19: loco.org.v1.OrgService.ListUserOrgs:output_type -> loco.org.v1.ListUserOrgsResponse
-	9,  // 20: loco.org.v1.OrgService.ListOrgUsers:output_type -> loco.org.v1.ListOrgUsersResponse
-	12, // 21: loco.org.v1.OrgService.ListOrgWorkspaces:output_type -> loco.org.v1.ListOrgWorkspacesResponse
-	15, // [15:22] is the sub-list for method output_type
-	8,  // [8:15] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	10, // 5: loco.org.v1.ListOrgMembersResponse.members:type_name -> loco.org.v1.OrgMember
+	15, // 6: loco.org.v1.OrgMember.user:type_name -> loco.org.v1.User
+	1,  // 7: loco.org.v1.ListOrgWorkspacesResponse.workspaces:type_name -> loco.org.v1.WorkspaceSummary
+	23, // 8: loco.org.v1.UpdateOrgRequest.update_mask:type_name -> google.protobuf.FieldMask
+	2,  // 9: loco.org.v1.OrgService.CreateOrg:input_type -> loco.org.v1.CreateOrgRequest
+	4,  // 10: loco.org.v1.OrgService.GetOrg:input_type -> loco.org.v1.GetOrgRequest
+	18, // 11: loco.org.v1.OrgService.UpdateOrg:input_type -> loco.org.v1.UpdateOrgRequest
+	20, // 12: loco.org.v1.OrgService.DeleteOrg:input_type -> loco.org.v1.DeleteOrgRequest
+	6,  // 13: loco.org.v1.OrgService.ListUserOrgs:input_type -> loco.org.v1.ListUserOrgsRequest
+	8,  // 14: loco.org.v1.OrgService.ListOrgMembers:input_type -> loco.org.v1.ListOrgMembersRequest
+	11, // 15: loco.org.v1.OrgService.AddOrgMember:input_type -> loco.org.v1.AddOrgMemberRequest
+	13, // 16: loco.org.v1.OrgService.RemoveOrgMember:input_type -> loco.org.v1.RemoveOrgMemberRequest
+	16, // 17: loco.org.v1.OrgService.ListOrgWorkspaces:input_type -> loco.org.v1.ListOrgWorkspacesRequest
+	3,  // 18: loco.org.v1.OrgService.CreateOrg:output_type -> loco.org.v1.CreateOrgResponse
+	5,  // 19: loco.org.v1.OrgService.GetOrg:output_type -> loco.org.v1.GetOrgResponse
+	19, // 20: loco.org.v1.OrgService.UpdateOrg:output_type -> loco.org.v1.UpdateOrgResponse
+	21, // 21: loco.org.v1.OrgService.DeleteOrg:output_type -> loco.org.v1.DeleteOrgResponse
+	7,  // 22: loco.org.v1.OrgService.ListUserOrgs:output_type -> loco.org.v1.ListUserOrgsResponse
+	9,  // 23: loco.org.v1.OrgService.ListOrgMembers:output_type -> loco.org.v1.ListOrgMembersResponse
+	12, // 24: loco.org.v1.OrgService.AddOrgMember:output_type -> loco.org.v1.AddOrgMemberResponse
+	14, // 25: loco.org.v1.OrgService.RemoveOrgMember:output_type -> loco.org.v1.RemoveOrgMemberResponse
+	17, // 26: loco.org.v1.OrgService.ListOrgWorkspaces:output_type -> loco.org.v1.ListOrgWorkspacesResponse
+	18, // [18:27] is the sub-list for method output_type
+	9,  // [9:18] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_loco_org_v1_org_proto_init() }
@@ -1149,14 +1398,14 @@ func file_loco_org_v1_org_proto_init() {
 		(*GetOrgRequest_OrgId)(nil),
 		(*GetOrgRequest_OrgName)(nil),
 	}
-	file_loco_org_v1_org_proto_msgTypes[13].OneofWrappers = []any{}
+	file_loco_org_v1_org_proto_msgTypes[18].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_org_v1_org_proto_rawDesc), len(file_loco_org_v1_org_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

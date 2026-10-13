@@ -40,11 +40,19 @@ export const deleteOrg = OrgService.method.deleteOrg;
 export const listUserOrgs = OrgService.method.listUserOrgs;
 
 /**
- * ListOrgUsers lists users in an organization.
- *
- * @generated from rpc loco.org.v1.OrgService.ListOrgUsers
+ * @generated from rpc loco.org.v1.OrgService.ListOrgMembers
  */
-export const listOrgUsers = OrgService.method.listOrgUsers;
+export const listOrgMembers = OrgService.method.listOrgMembers;
+
+/**
+ * @generated from rpc loco.org.v1.OrgService.AddOrgMember
+ */
+export const addOrgMember = OrgService.method.addOrgMember;
+
+/**
+ * @generated from rpc loco.org.v1.OrgService.RemoveOrgMember
+ */
+export const removeOrgMember = OrgService.method.removeOrgMember;
 
 /**
  * ListOrgWorkspaces lists workspaces in an organization.

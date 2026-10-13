@@ -39,6 +39,7 @@ enum Scope {
   SCOPE_READ = 1;
   SCOPE_WRITE = 2;
   SCOPE_ADMIN = 3;
+  SCOPE_MEMBER = 4;
 }
 
 // EntityScope represents a permission on a specific entity.
