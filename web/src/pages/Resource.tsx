@@ -36,7 +36,7 @@ export function Resource() {
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const navigate = useNavigate();
 	const [params, setParams] = useSearchParams();
-	const { resource, environmentId, deployments, isLoading, error, refresh } = useResourceData(resourceId);
+	const { resource, environmentId, deployments, currentDeployments, hasMoreHistory, isLoadingMoreHistory, historyError, loadMoreHistory, isLoading, error, refresh } = useResourceData(resourceId);
 	const { resourceLevel } = useMyScopes();
 
 	const [regionName, setRegionName] = useState<string | null>(null);
@@ -67,7 +67,7 @@ export function Resource() {
 	}
 
 	const environment = environmentStatus(resource, environmentId);
-	const regions = buildRegions(resource, deployments, environment);
+	const regions = buildRegions(resource, deployments, environment, currentDeployments);
 	const region = regions.find((r) => r.name === regionName) ?? regions[0];
 	const currents = regions.flatMap((r) => (r.current?.spec === undefined ? [] : [r.current]));
 	const primaryDomain = resource.domains.find((d) => d.isPrimary) ?? resource.domains[0];
@@ -202,7 +202,12 @@ export function Resource() {
 						</section>
 					)}
 					<DeploymentsSection
+						key={`${resource.id}:${environmentId ?? ""}`}
 						regions={regions}
+						hasMore={hasMoreHistory}
+						isLoadingMore={isLoadingMoreHistory}
+						historyError={historyError}
+						onLoadMore={loadMoreHistory}
 						onDiff={(r, fromId, toId) => {
 							setModal({ kind: "diff", region: r, fromId, toId });
 						}}
