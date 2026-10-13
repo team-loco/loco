@@ -475,6 +475,41 @@ class ClusterCollector(unittest.TestCase):
             self.assertLessEqual(set(pipeline['receivers']), PUSH_RECEIVERS)
 
 
+class IngestAutoscaling(unittest.TestCase):
+    def test_ingest_has_cpu_requests_and_an_hpa(self):
+        documents = render_chart('loco-obs', {'obsProxy': TEST_PROXY})
+        values = chart_values('loco-obs')['otel-col-deploy']
+        hpa = next(document for document in documents
+                   if document['kind'] == 'HorizontalPodAutoscaler'
+                   and document['spec']['scaleTargetRef']['name'] == 'otel-col-deploy')
+        self.assertEqual(hpa['spec']['minReplicas'], values['autoscaling']['minReplicas'])
+        self.assertEqual(hpa['spec']['maxReplicas'], values['autoscaling']['maxReplicas'])
+        self.assertEqual(hpa['spec']['metrics'], [{
+            'type': 'Resource', 'resource': {
+                'name': 'cpu', 'target': {'type': 'Utilization',
+                    'averageUtilization': values['autoscaling']['targetCPUUtilizationPercentage']},
+            },
+        }])
+        deployment = next(document for document in documents
+                          if document['kind'] == 'Deployment'
+                          and document['metadata']['name'] == 'otel-col-deploy')
+        self.assertNotIn('replicas', deployment['spec'])
+        resources = deployment['spec']['template']['spec']['containers'][0]['resources']
+        for resource in ('cpu', 'memory'):
+            self.assertGreater(quantity(resources['requests'][resource]), 0)
+            self.assertLessEqual(quantity(resources['requests'][resource]),
+                                 quantity(resources['limits'][resource]))
+
+    def test_disabling_autoscaling_restores_the_explicit_replica_count(self):
+        documents = render_chart('loco-obs', {'obsProxy': TEST_PROXY,
+            'otel-col-deploy': {'autoscaling': {'enabled': False}, 'replicaCount': 2}})
+        self.assertFalse(any(document['kind'] == 'HorizontalPodAutoscaler' for document in documents))
+        deployment = next(document for document in documents
+                          if document['kind'] == 'Deployment'
+                          and document['metadata']['name'] == 'otel-col-deploy')
+        self.assertEqual(deployment['spec']['replicas'], 2)
+
+
 class EnvoyTelemetry(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

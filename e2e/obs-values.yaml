@@ -15,3 +15,5 @@ obsProxy:
 
 otel-col-deploy:
   replicaCount: 2
+  autoscaling:
+    enabled: false
