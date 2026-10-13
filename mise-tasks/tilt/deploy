@@ -22,6 +22,6 @@ for image in $(compgen -v | grep -xE 'TILT_IMAGE_[0-9]+'); do
 done
 mise run cluster:prune-images "${deployed[@]}" >&2
 
-helm get manifest "$release" -n "$namespace" |
+helm get manifest "$release" -n "$namespace" --kube-context "kind-$KIND_CLUSTER" |
 	yq "select(. != null) | .metadata.namespace = (.metadata.namespace // \"$namespace\")" |
-	kubectl get -o yaml -f -
+	kubectl --context "kind-$KIND_CLUSTER" get -o yaml -f -

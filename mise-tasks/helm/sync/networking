@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #MISE description="Sync the networking phase (Cilium) to the local cluster"
-#MISE env={_.file=".env"}
+#MISE env={_.file=".env", _.source="env/local/stack.sh"}
 set -euo pipefail
 
 helmfile -e local -l phase=1-networking sync --skip-deps

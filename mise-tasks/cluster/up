@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-#MISE description="Create the local kind cluster, start its nodes if mise run stop stopped them, or recreate it if it is unreachable, and export its kubeconfig"
+#MISE description="Create the local kind cluster, start its nodes if mise run stop stopped them, or recreate it if it is unreachable, and export its kubeconfig; a worktree's stack leaves the current kubectl context as it was"
+#MISE env={_.source="env/local/stack.sh"}
 set -euo pipefail
 
-name=$(yq .name env/local/kind-cluster.yml)
+name=$KIND_CLUSTER
 api_ready_timeout_seconds=120
 nodes_ready_timeout=180s
+previous=$(kubectl config current-context 2>/dev/null || true)
 
 if kind get clusters 2>/dev/null | grep -qx "$name"; then
 	stopped=$(docker ps --quiet --filter "label=io.x-k8s.kind.cluster=$name" --filter status=exited)
@@ -20,9 +22,12 @@ if kind get clusters 2>/dev/null | grep -qx "$name"; then
 	if ! kubectl cluster-info --context "kind-$name" >/dev/null 2>&1; then
 		echo "cluster exists but is unreachable, recreating..."
 		kind delete cluster --name "$name"
-		kind create cluster --config env/local/kind-cluster.yml
+		kind create cluster --config env/local/kind-cluster.yml --name "$name"
 	fi
 else
-	kind create cluster --config env/local/kind-cluster.yml
+	kind create cluster --config env/local/kind-cluster.yml --name "$name"
 fi
 kind export kubeconfig --name "$name" --kubeconfig "$HOME/.kube/config"
+if [ "$LOCO_STACK_SLOT" -ne 0 ] && [ -n "$previous" ]; then
+	kubectl config use-context "$previous" >/dev/null
+fi
