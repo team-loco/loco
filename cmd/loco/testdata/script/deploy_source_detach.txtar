@@ -18,16 +18,16 @@ stderr '(?i)detached from build 0199b6c4-5d1e-7f00-8000-000000000001'
 
 -- home/.loco/credentials.json --
 {"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
--- home/.loco/config.toml --
-currentScope = "default"
-
-[scopes.default.organization]
-name = "acme"
-id = "1"
-
-[scopes.default.workspace]
-name = "production"
-id = "2"
+-- home/.loco/config.yaml --
+currentScope: default
+scopes:
+  default:
+    organization:
+      name: acme
+      id: "1"
+    workspace:
+      name: production
+      id: "2"
 -- app/loco.yaml --
 version: 1
 partial: web

@@ -3,45 +3,48 @@ package session
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 
-	"github.com/BurntSushi/toml"
+	"sigs.k8s.io/yaml"
 )
 
 var errEmptyScopeName = errors.New("scope name cannot be empty")
 
 const (
-	ConfigFileName = "config.toml"
+	ConfigFileName = "config.yaml"
 	DefaultScope   = "default"
+
+	configFileMode = 0o600
 )
 
 // SessionConfig represents the CLI's local state and authentication configuration.
-// It is persisted to ~/.loco/config.toml.
+// It is persisted to ~/.loco/config.yaml.
 type SessionConfig struct {
-	LocoHost         string            `toml:"locoHost,omitempty"`
-	WebHost          string            `toml:"webHost,omitempty"`
-	DefaultAppDomain string            `toml:"defaultAppDomain,omitempty"`
-	Scopes           map[string]*Scope `toml:"scopes"`
-	CurrentScope     string            `toml:"currentScope"`
+	LocoHost         string            `json:"locoHost,omitempty"`
+	WebHost          string            `json:"webHost,omitempty"`
+	DefaultAppDomain string            `json:"defaultAppDomain,omitempty"`
+	Scopes           map[string]*Scope `json:"scopes"`
+	CurrentScope     string            `json:"currentScope"`
 }
 
 // Scope represents a CLI context with an organization and workspace.
 type Scope struct {
-	Organization SimpleOrg       `toml:"organization"`
-	Workspace    SimpleWorkspace `toml:"workspace"`
+	Organization SimpleOrg       `json:"organization"`
+	Workspace    SimpleWorkspace `json:"workspace"`
 }
 
 // SimpleOrg represents an organization with its ID and name.
 type SimpleOrg struct {
-	Name string `toml:"name"`
-	ID   string `toml:"id"`
+	Name string `json:"name"`
+	ID   string `json:"id"`
 }
 
 // SimpleWorkspace represents a workspace with its ID and name.
 type SimpleWorkspace struct {
-	Name string `toml:"name"`
-	ID   string `toml:"id"`
+	Name string `json:"name"`
+	ID   string `json:"id"`
 }
 
 func Dir() (string, error) {
@@ -74,19 +77,23 @@ func NewSessionConfig() *SessionConfig {
 	}
 }
 
-// Load reads the SessionConfig from ~/.loco/config.toml. Returns a new config if the file doesn't exist.
+// Load reads the SessionConfig from ~/.loco/config.yaml. Returns a new config if the file doesn't exist.
 func Load() (*SessionConfig, error) {
 	configPath, err := GetConfigPath()
 	if err != nil {
 		return nil, err
 	}
 
-	var cfg SessionConfig
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+	data, err := os.ReadFile(configPath)
+	if errors.Is(err, fs.ErrNotExist) {
 		return NewSessionConfig(), nil
 	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config: %w", err)
+	}
 
-	if _, err := toml.DecodeFile(configPath, &cfg); err != nil {
+	var cfg SessionConfig
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("failed to decode config: %w", err)
 	}
 
@@ -97,22 +104,20 @@ func Load() (*SessionConfig, error) {
 	return &cfg, nil
 }
 
-// Save persists the SessionConfig to ~/.loco/config.toml.
+// Save persists the SessionConfig to ~/.loco/config.yaml.
 func (c *SessionConfig) Save() error {
 	configPath, err := GetConfigPath()
 	if err != nil {
 		return err
 	}
 
-	f, err := os.Create(configPath)
+	data, err := yaml.Marshal(c)
 	if err != nil {
-		return fmt.Errorf("failed to create config file: %w", err)
-	}
-	defer f.Close()
-
-	encoder := toml.NewEncoder(f)
-	if err := encoder.Encode(c); err != nil {
 		return fmt.Errorf("failed to encode config: %w", err)
+	}
+
+	if err := os.WriteFile(configPath, data, configFileMode); err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
 	return nil

@@ -9,16 +9,16 @@ stderr 'Apply refused: each environment needs its own cluster, and this cluster 
 
 -- home/.loco/credentials.json --
 {"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
--- home/.loco/config.toml --
-currentScope = "default"
-
-[scopes.default.organization]
-name = "acme"
-id = "1"
-
-[scopes.default.workspace]
-name = "production"
-id = "2"
+-- home/.loco/config.yaml --
+currentScope: default
+scopes:
+  default:
+    organization:
+      name: acme
+      id: "1"
+    workspace:
+      name: production
+      id: "2"
 -- app/loco.yaml --
 version: 1
 partial: web
