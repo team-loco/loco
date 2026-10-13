@@ -37,32 +37,43 @@ local_resource(
 # Images: built from this checkout with the Dockerfiles CI ships, loaded into kind
 # ---------------------------------------------------------------------------
 
+def copy_sources(dockerfile):
+    sources = []
+    for line in str(read_file(dockerfile)).splitlines():
+        words = line.split()
+        if len(words) < 3 or words[0] != 'COPY' or words[1].startswith('--'):
+            continue
+        for source in words[1:-1]:
+            if source not in sources:
+                sources.append(source)
+    return sources
+
 docker_build(
     'loco-agent',
     '.',
     dockerfile='agent/Dockerfile',
-    only=['agent', 'gen/go', 'k8sapi', 'internal/buildinfo', 'internal/loglevel', 'go.mod', 'go.sum'],
+    only=copy_sources('agent/Dockerfile'),
 )
 
 docker_build(
     'loco-obs-proxy',
     '.',
     dockerfile='observability-proxy/Dockerfile',
-    only=['observability-proxy', 'gen/go', 'internal/buildinfo', 'go.mod', 'go.sum'],
+    only=copy_sources('observability-proxy/Dockerfile'),
 )
 
 docker_build(
     'loco-controller',
     '.',
     dockerfile='controller/Dockerfile',
-    only=['controller', 'k8sapi'],
+    only=copy_sources('controller/Dockerfile'),
 )
 
 docker_build(
     'loco-builder',
     '.',
     dockerfile='builder/Dockerfile',
-    only=['builder'],
+    only=copy_sources('builder/Dockerfile'),
 )
 
 control_plane_url = 'http://host.docker.internal:${APP_PORT##*:}'
@@ -220,7 +231,7 @@ local_resource(
     'api',
     cmd='mise run build:api',
     serve_cmd='api/bin/loco-api',
-    deps=['api/', 'gen/go/', 'k8sapi/', 'internal/buildinfo/', 'internal/loglevel/', 'internal/locofile/', 'go.mod', 'go.sum'],
+    deps=copy_sources('api/Dockerfile'),
     resource_deps=['db-migrate', 'valkey', 's3', 'dex'],
     allow_parallel=True,
     labels=['services'],
