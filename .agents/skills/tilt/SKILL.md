@@ -1,6 +1,6 @@
 ---
 name: tilt
-description: Run the full local stack (kind cluster, compose services, API, web UI) with Tilt, from the main checkout or a git worktree, alongside other checkouts' stacks, and check a change in the browser. Load before running `mise run tilt`, looking at the local web UI, or taking PR screenshots.
+description: Run the full local stack (kind cluster, compose services, API, web UI) with Tilt, from the main checkout or a git worktree, alongside other checkouts' stacks, and check a change in the browser. Load before running `mise run tilt` or looking at the local web UI. PR screenshots come from the ui-evidence skill, which needs no Tilt.
 ---
 
 # Running the local stack with Tilt
@@ -97,9 +97,3 @@ Start Tilt again; `db-migrate` recreates the schema and seeds `api/seed/local.sq
 - After `navigate`, the first click only focuses the tab. Click once more to open a menu or
   dropdown, and take a throwaway screenshot before the saved one so fade-in animations
   finish.
-- `resize_window` cannot reach a phone width: Chrome keeps a page zoom for the web UI's origin
-  and enforces a minimum window width. For a 390px screenshot, append a same-origin
-  `<iframe>` 390px wide with the page URL, screenshot it and crop the image with
-  `sips --cropOffset <y> <x> -c <height> <width>` (the offset goes before `-c`).
-- For "before" screenshots, commit the branch, run `git checkout origin/main -- web/src`
-  in the worktree and let Bun reload; `git checkout HEAD -- web/src` restores the branch.

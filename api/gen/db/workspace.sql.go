@@ -49,15 +49,30 @@ func (q *Queries) GetOrganizationIDByWorkspaceID(ctx context.Context, id uuid.UU
 }
 
 const getWorkspaceByIDQuery = `-- name: GetWorkspaceByIDQuery :one
-SELECT id, org_id, name, description, created_by, created_at, updated_at FROM workspaces WHERE id = $1
+SELECT w.id, w.org_id, o.name AS org_name, w.name, w.description, w.created_by, w.created_at, w.updated_at
+FROM workspaces w
+JOIN organizations o ON o.id = w.org_id
+WHERE w.id = $1
 `
 
-func (q *Queries) GetWorkspaceByIDQuery(ctx context.Context, id uuid.UUID) (Workspace, error) {
+type GetWorkspaceByIDQueryRow struct {
+	ID          uuid.UUID `json:"id"`
+	OrgID       uuid.UUID `json:"orgId"`
+	OrgName     string    `json:"orgName"`
+	Name        string    `json:"name"`
+	Description *string   `json:"description"`
+	CreatedBy   uuid.UUID `json:"createdBy"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
+func (q *Queries) GetWorkspaceByIDQuery(ctx context.Context, id uuid.UUID) (GetWorkspaceByIDQueryRow, error) {
 	row := q.db.QueryRow(ctx, getWorkspaceByIDQuery, id)
-	var i Workspace
+	var i GetWorkspaceByIDQueryRow
 	err := row.Scan(
 		&i.ID,
 		&i.OrgID,
+		&i.OrgName,
 		&i.Name,
 		&i.Description,
 		&i.CreatedBy,
@@ -194,13 +209,15 @@ func (q *Queries) ListWorkspaceResourcesForDeletion(ctx context.Context, workspa
 }
 
 const listWorkspacesForUser = `-- name: ListWorkspacesForUser :many
-SELECT w.id, w.org_id, w.name, w.description, w.created_by, w.created_at, w.updated_at
+SELECT w.id, w.org_id, o.name AS org_name, w.name, w.description, w.created_by, w.created_at, w.updated_at
 FROM workspaces w
+JOIN organizations o ON o.id = w.org_id
 WHERE EXISTS (
     SELECT 1 FROM user_scopes us
     WHERE us.user_id = $1
-      AND us.entity_type = 'workspace'
-      AND us.entity_id = w.id
+      AND us.scope = 'read'
+      AND ((us.entity_type = 'workspace' AND us.entity_id = w.id)
+        OR (us.entity_type = 'organization' AND us.entity_id = w.org_id))
   )
   AND ($3::text IS NULL
        OR (w.created_at, w.id) < (
@@ -217,18 +234,30 @@ type ListWorkspacesForUserParams struct {
 	PageToken *string   `json:"pageToken"`
 }
 
-func (q *Queries) ListWorkspacesForUser(ctx context.Context, arg ListWorkspacesForUserParams) ([]Workspace, error) {
+type ListWorkspacesForUserRow struct {
+	ID          uuid.UUID `json:"id"`
+	OrgID       uuid.UUID `json:"orgId"`
+	OrgName     string    `json:"orgName"`
+	Name        string    `json:"name"`
+	Description *string   `json:"description"`
+	CreatedBy   uuid.UUID `json:"createdBy"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
+func (q *Queries) ListWorkspacesForUser(ctx context.Context, arg ListWorkspacesForUserParams) ([]ListWorkspacesForUserRow, error) {
 	rows, err := q.db.Query(ctx, listWorkspacesForUser, arg.UserID, arg.Limit, arg.PageToken)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Workspace
+	var items []ListWorkspacesForUserRow
 	for rows.Next() {
-		var i Workspace
+		var i ListWorkspacesForUserRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.OrgID,
+			&i.OrgName,
 			&i.Name,
 			&i.Description,
 			&i.CreatedBy,
@@ -246,35 +275,58 @@ func (q *Queries) ListWorkspacesForUser(ctx context.Context, arg ListWorkspacesF
 }
 
 const listWorkspacesInOrg = `-- name: ListWorkspacesInOrg :many
-SELECT w.id, w.org_id, w.name, w.description, w.created_by, w.created_at, w.updated_at FROM workspaces w
+SELECT w.id, w.org_id, o.name AS org_name, w.name, w.description, w.created_by, w.created_at, w.updated_at
+FROM workspaces w
+JOIN organizations o ON o.id = w.org_id
 WHERE w.org_id = $1
-  AND ($3::text IS NULL
+  AND ($3::bool OR w.id = ANY($4::uuid[]))
+  AND ($5::text IS NULL
        OR (w.created_at, w.id) < (
-         (SELECT created_at FROM workspaces WHERE id = $3::uuid),
-         $3::uuid
+         (SELECT created_at FROM workspaces WHERE id = $5::uuid),
+         $5::uuid
        ))
 ORDER BY w.created_at DESC, w.id DESC
 LIMIT $2
 `
 
 type ListWorkspacesInOrgParams struct {
-	OrgID     uuid.UUID `json:"orgId"`
-	Limit     int32     `json:"limit"`
-	PageToken *string   `json:"pageToken"`
+	OrgID         uuid.UUID   `json:"orgId"`
+	Limit         int32       `json:"limit"`
+	AllWorkspaces bool        `json:"allWorkspaces"`
+	WorkspaceIds  []uuid.UUID `json:"workspaceIds"`
+	PageToken     *string     `json:"pageToken"`
 }
 
-func (q *Queries) ListWorkspacesInOrg(ctx context.Context, arg ListWorkspacesInOrgParams) ([]Workspace, error) {
-	rows, err := q.db.Query(ctx, listWorkspacesInOrg, arg.OrgID, arg.Limit, arg.PageToken)
+type ListWorkspacesInOrgRow struct {
+	ID          uuid.UUID `json:"id"`
+	OrgID       uuid.UUID `json:"orgId"`
+	OrgName     string    `json:"orgName"`
+	Name        string    `json:"name"`
+	Description *string   `json:"description"`
+	CreatedBy   uuid.UUID `json:"createdBy"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
+func (q *Queries) ListWorkspacesInOrg(ctx context.Context, arg ListWorkspacesInOrgParams) ([]ListWorkspacesInOrgRow, error) {
+	rows, err := q.db.Query(ctx, listWorkspacesInOrg,
+		arg.OrgID,
+		arg.Limit,
+		arg.AllWorkspaces,
+		arg.WorkspaceIds,
+		arg.PageToken,
+	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Workspace
+	var items []ListWorkspacesInOrgRow
 	for rows.Next() {
-		var i Workspace
+		var i ListWorkspacesInOrgRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.OrgID,
+			&i.OrgName,
 			&i.Name,
 			&i.Description,
 			&i.CreatedBy,
