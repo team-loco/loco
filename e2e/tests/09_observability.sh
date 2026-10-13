@@ -30,6 +30,8 @@ obs_output_rows=20
 obs_body_chars=140
 obs_proxy_limit=50
 obs_curl_timeout_seconds=10
+obs_event_flush_seconds=10
+obs_ingest_replicas=2
 obs_http_ok=200
 obs_http_forbidden=403
 obs_trace_flags_sampled=01
@@ -178,6 +180,7 @@ obs_versions() {
         "| loco-obs dependencies | ${deps} |" \
         "| ClickHouse server | ${clickhouse} |" \
         "| otel-col-deploy | $(obs_image "$E2E_OBS_NAMESPACE" deployments -l app.kubernetes.io/name=otel-col-deploy) |" \
+        "| otel-col-cluster | $(obs_image "$E2E_OBS_NAMESPACE" deployments -l app.kubernetes.io/name=otel-col-cluster) |" \
         "| otel-col-daemon | $(obs_image "$obs_daemon_namespace" daemonsets -l app.kubernetes.io/name=otel-col-daemon) |" \
         "| loco-controller | $(obs_image "$E2E_LOCO_NAMESPACE" deployments -l app.kubernetes.io/name=loco-controller) |" \
         "| API, agent, CLI, obs-proxy | host binaries built from the commit, version ${E2E_VERSION} |" \
@@ -266,6 +269,49 @@ test_o01_deploys_the_fixture_through_loco() {
             grep -E '^(resource-|\{|OTEL_|LOCO_WORKSPACE)' || true
         printf '```\n\n'
     } >>"$obs_evidence"
+}
+
+test_o02_cluster_events_are_collected_once() {
+    local marker event_time rows query
+    obs_kube -n "$E2E_OBS_NAMESPACE" rollout status deployment/otel-col-deploy \
+        --timeout="${obs_route_timeout_seconds}s" || return 1
+    obs_kube -n "$E2E_OBS_NAMESPACE" rollout status deployment/otel-col-cluster \
+        --timeout="${obs_route_timeout_seconds}s" || return 1
+    rows=$(obs_kube -n "$E2E_OBS_NAMESPACE" get deployment otel-col-deploy \
+        -o jsonpath='{.status.readyReplicas}')
+    assert "OTLP ingestion has two ready replicas" test "$rows" -eq "$obs_ingest_replicas" || return 1
+    marker="obs-event-$(obs_random_hex "$obs_marker_bytes")"
+    event_time=$(utc_timestamp "$(obs_now)" | sed 's/Z$/.000000Z/')
+    assert "The Kubernetes event is created" obs_kube -n "$E2E_OBS_NAMESPACE" create -f - <<JSON || return 1
+{
+  "apiVersion": "events.k8s.io/v1",
+  "kind": "Event",
+  "metadata": {"name": "${marker}", "namespace": "${E2E_OBS_NAMESPACE}"},
+  "eventTime": "${event_time}",
+  "reportingController": "loco.io/e2e",
+  "reportingInstance": "observability",
+  "action": "CheckCollector",
+  "reason": "CollectorIsolation",
+  "regarding": {"apiVersion": "apps/v1", "kind": "Deployment", "name": "otel-col-cluster", "namespace": "${E2E_OBS_NAMESPACE}"},
+  "note": "${marker}",
+  "type": "Normal"
+}
+JSON
+    query="SELECT count() FROM otel_logs WHERE position(Body, '${marker}') > 0"
+    assert "The Kubernetes event reaches ClickHouse" \
+        wait_for "the Kubernetes event in ClickHouse" "$obs_telemetry_timeout_seconds" \
+        obs_event_arrived "$query" || return 1
+    sleep "$obs_event_flush_seconds"
+    rows=$(obs_ch "$query" TabSeparated)
+    : >"$obs_section"
+    ev_query "Kubernetes event copies with two OTLP replicas" "$query"
+    cat "$obs_section" >>"$obs_evidence"
+    assert "The Kubernetes event is stored exactly once" test "$rows" -eq 1 || return 1
+    obs_kube -n "$E2E_OBS_NAMESPACE" delete events.events.k8s.io "$marker"
+}
+
+obs_event_arrived() {
+    test "$(obs_ch "$1" TabSeparated)" -gt 0
 }
 
 obs_gateway_status() {
