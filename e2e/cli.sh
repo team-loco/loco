@@ -34,17 +34,17 @@ cli_write_credentials() {
     mkdir -p "$cli_home/.loco"
     printf '{"Host":"%s","ExpiresAt":"2099-01-01T00:00:00Z","Token":"%s","RefreshToken":""}\n' \
         "$E2E_API_URL" "$E2E_USER_TOKEN" >"$cli_home/.loco/credentials.json"
-    cat >"$cli_home/.loco/config.toml" <<TOML
-currentScope = "default"
-
-[scopes.default.organization]
-name = "e2e-test-org"
-id = "${cli_org_id}"
-
-[scopes.default.workspace]
-name = "e2e-test-workspace"
-id = "${cli_workspace_id}"
-TOML
+    cat >"$cli_home/.loco/config.yaml" <<YAML
+currentScope: default
+scopes:
+  default:
+    organization:
+      name: e2e-test-org
+      id: "${cli_org_id}"
+    workspace:
+      name: e2e-test-workspace
+      id: "${cli_workspace_id}"
+YAML
 }
 
 # Write a loco.yaml with one service. source is "dockerfile: deploy/Dockerfile" or

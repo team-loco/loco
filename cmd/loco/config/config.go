@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// validKeys lists all configurable keys in ~/.loco/config.toml.
+// validKeys lists all configurable keys in ~/.loco/config.yaml.
 const (
 	keyLocoHost         = "locoHost"
 	keyWebHost          = "webHost"
@@ -17,7 +17,7 @@ func BuildConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
 		Short: "Manage loco CLI configuration",
-		Long:  "Get, set, and unset CLI configuration values stored in ~/.loco/config.toml.",
+		Long:  "Get, set, and unset CLI configuration values stored in ~/.loco/config.yaml.",
 		Example: `  # List all configuration values
   loco config list
 

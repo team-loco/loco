@@ -61,10 +61,10 @@ test_s01_deploy_reports_healthy() {
     assert_contains "The table view shows the environment as healthy" "Healthy" \
         loco_cli resource status "$status_app"
 
-    mv "$cli_home/.loco/config.toml" "$status_dir/config.toml"
+    mv "$cli_home/.loco/config.yaml" "$status_dir/config.yaml"
     assert_contains "A workspace-only member resolves the workspace by name without a cached scope" "Healthy" \
         loco_cli resource status "$status_app" --org e2e-test-org --workspace e2e-test-workspace
-    mv "$status_dir/config.toml" "$cli_home/.loco/config.toml"
+    mv "$status_dir/config.yaml" "$cli_home/.loco/config.yaml"
 }
 
 test_s02_crashed_pods_report_unavailable() {
