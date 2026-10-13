@@ -7,6 +7,7 @@ import { Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
 import { DeploymentPhaseBadge } from "@/components/design/StatusBadge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
+import { getErrorMessage } from "@/lib/error-handler";
 import { pageRangeLabel, pageSlice } from "@/lib/paging";
 import { tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -38,15 +39,23 @@ function IconAction({ label, onClick, children }: { label: string; onClick: () =
 
 export function DeploymentsSection({
 	regions,
+	hasMore,
+	isLoadingMore,
+	historyError,
+	onLoadMore,
 	onDiff,
 	onRollback,
 }: {
 	regions: RegionView[];
+	hasMore: boolean;
+	isLoadingMore: boolean;
+	historyError: unknown;
+	onLoadMore: () => Promise<boolean>;
 	onDiff: (region: string, fromId: string, toId: string) => void;
 	onRollback: (target: Deployment, current: Deployment | undefined) => void;
 }) {
-	const [page, setPage] = useState(0);
-	const [size, setSize] = useState(10);
+	const [pagination, setPagination] = useState({ page: 0, size: 10 });
+	const { page, size } = pagination;
 
 	const all: Row[] = regions.flatMap((region) =>
 		region.history.map((dep, i) => ({
@@ -64,11 +73,13 @@ export function DeploymentsSection({
 			title={
 				<span className="flex items-baseline gap-2.5">
 					Deployments
-					<span className="text-sm font-normal text-fg3">{all.length} total</span>
+					<span role="status" className="text-sm font-normal text-fg3">
+						{all.length} {hasMore ? "loaded" : "total"}{isLoadingMore ? " · Loading…" : ""}
+					</span>
 				</span>
 			}
 		>
-			<div className="overflow-x-auto">
+			<div className="overflow-x-auto" aria-busy={isLoadingMore}>
 				<div className="lg:min-w-[860px]">
 					<div
 						className={cn(
@@ -140,16 +151,26 @@ export function DeploymentsSection({
 				</div>
 			</div>
 			<Pager
-				label={all.length > 0 ? pageRangeLabel(slice.page, size, all.length) : "0 of 0"}
+				label={all.length > 0 ? `${pageRangeLabel(slice.page, size, all.length)}${hasMore ? "+" : ""}` : "0 of 0"}
 				pageSizes={PAGE_SIZES}
 				pageSize={size}
 				onPageSize={(n) => {
-					setSize(n);
-					setPage(0);
+					setPagination({ page: 0, size: n });
 				}}
-				onPrev={slice.page > 0 ? () => { setPage(slice.page - 1); } : null}
-				onNext={slice.page < slice.pages - 1 ? () => { setPage(slice.page + 1); } : null}
+				onPrev={slice.page > 0 ? () => { setPagination({ page: slice.page - 1, size }); } : null}
+				onNext={isLoadingMore ? null : slice.page < slice.pages - 1
+					? () => { setPagination({ page: slice.page + 1, size }); }
+					: hasMore ? () => {
+						void onLoadMore().then((loaded) => {
+							if (loaded) setPagination((current) => current === pagination ? { page: slice.page + 1, size } : current);
+						});
+					} : null}
 			/>
+			{historyError !== null && (
+				<div role="alert" className="px-4 pb-3 text-bad-fg">
+					{getErrorMessage(historyError, "Could not load older deployments. Try Next again.")}
+				</div>
+			)}
 		</Section>
 	);
 }
