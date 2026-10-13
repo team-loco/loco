@@ -29,7 +29,13 @@ const TYPE_FILTERS: { value: TypeFilter; label: string }[] = [
 	{ value: "normal", label: "Normal" },
 ];
 
-const GRID = "grid grid-cols-[140px_72px_150px_minmax(0,1fr)_56px_220px] items-center gap-3 px-4";
+const GRID = "lg:grid-cols-[140px_72px_150px_minmax(0,1fr)_56px_220px]";
+const ROW = cn(
+	GRID,
+	"grid min-h-[38px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 border-b border-line px-4 py-2 lg:py-0",
+);
+const WIDE = "col-span-3 lg:col-span-1";
+const COUNT = "col-start-3 row-start-1 text-right lg:col-start-auto lg:row-start-auto";
 
 function severityBadge(s: Severity): { label: string; tone: BadgeTone } {
 	switch (s) {
@@ -119,8 +125,13 @@ export function EventsSection({
 				)}
 			</div>
 			<div className="overflow-x-auto">
-				<div className="min-w-[860px]">
-					<div className={cn(GRID, "h-9 border-b border-line text-sm font-semibold text-fg2")}>
+				<div className="lg:min-w-[860px]">
+					<div
+						className={cn(
+							GRID,
+							"hidden h-9 items-center gap-3 border-b border-line px-4 text-sm font-semibold text-fg2 lg:grid",
+						)}
+					>
 						<span>Time</span>
 						<span>Type</span>
 						<span>Reason</span>
@@ -130,13 +141,13 @@ export function EventsSection({
 					</div>
 					{isLoading &&
 						SKELETON_ROWS.map((i) => (
-							<div key={i} className={cn(GRID, "h-[38px] border-b border-line")}>
+							<div key={i} className={ROW}>
 								<Skeleton className="h-3.5 w-28" />
 								<Skeleton className="h-4 w-12" />
-								<Skeleton className="h-3.5 w-20" />
-								<Skeleton className="h-3.5 w-full" />
-								<Skeleton className="h-3.5 w-6" />
-								<Skeleton className="h-3.5 w-32" />
+								<Skeleton className={cn(WIDE, "h-3.5 w-20")} />
+								<Skeleton className={cn(WIDE, "h-3.5 w-full")} />
+								<Skeleton className={cn(COUNT, "h-3.5 w-6")} />
+								<Skeleton className={cn(WIDE, "h-3.5 w-32")} />
 							</div>
 						))}
 					{error !== null && (
@@ -148,19 +159,22 @@ export function EventsSection({
 							const ms = maybeTsMs(e.timestamp);
 							const object = objectLabel(e);
 							return (
-								<div key={`${String(ms)}-${String(i)}`} className={cn(GRID, "h-[38px] border-b border-line")}>
+								<div key={`${String(ms)}-${String(i)}`} className={ROW}>
 									<span className="text-fg3 tabular-nums">{ms === undefined ? "—" : formatFullTime(ms)}</span>
-									<Badge tone={sev.tone} size="sm">
+									<Badge tone={sev.tone} size="sm" className="justify-self-start">
 										{sev.label}
 									</Badge>
-									<span className="truncate font-medium" title={e.reason}>
+									<span className={cn(WIDE, "truncate font-medium")} title={e.reason}>
 										{e.reason}
 									</span>
-									<span className="truncate text-fg2" title={e.message}>
+									<span className={cn(WIDE, "wrap-break-word text-fg2 lg:truncate")} title={e.message}>
 										{e.message}
 									</span>
-									<span className="text-right text-fg3 tabular-nums">{e.count.toString()}</span>
-									<span className="truncate text-fg3" title={object}>
+									<span className={cn(COUNT, "text-fg3 tabular-nums")}>
+										{e.count.toString()}
+										<span className="lg:hidden">{e.count === 1n ? " time" : " times"}</span>
+									</span>
+									<span className={cn(WIDE, "truncate text-fg3")} title={object}>
 										{object}
 									</span>
 								</div>
