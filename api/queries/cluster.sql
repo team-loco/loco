@@ -13,6 +13,7 @@ SET agent_version = $2,
     capacity_cpu_millicores = $3,
     capacity_memory_bytes = $4,
     builds_enabled = $5,
+    observability_proxy_endpoint = $6,
     updated_at = NOW()
 WHERE id = $1;
 
@@ -63,11 +64,6 @@ WHERE c.is_active = true
     )
   )
 ORDER BY c.region, c.id;
-
--- name: SetClusterObservabilityEndpoint :exec
-UPDATE clusters
-SET observability_proxy_endpoint = $2, updated_at = NOW()
-WHERE id = $1;
 
 -- name: SetClusterGatewayHostname :exec
 UPDATE clusters

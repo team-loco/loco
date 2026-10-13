@@ -118,17 +118,19 @@ def collector_relays(documents):
 
 
 class PlatformContracts(unittest.TestCase):
-    def test_production_agent_and_proxy_use_the_same_api(self):
+    def test_production_agent_and_proxy_urls_come_from_the_environment(self):
         variables = {
             'GH_SHA': 'test', 'CERT_MANAGER_EMAIL': 'test@example.test',
             'CLOUDFLARE_TOKEN': 'test', 'LOG_LEVEL': 'info', 'AGENT_TOKEN': 'test',
             'CLICKHOUSE_PASSWORD': 'test', 'OBS_PROXY_AUTH_SECRET': 'proxy-auth', 'CONTROL_PLANE_URL': 'https://api.example.test',
+            'OBSERVABILITY_PROXY_URL': 'https://observability.example.test',
             **CLICKHOUSE_USER_PASSWORDS,
         }
         core = environment_values('prod', variables, 'loco-core')
         obs = environment_values('prod', variables)
         self.assertEqual(core['env']['CONTROL_PLANE_URL'], variables['CONTROL_PLANE_URL'])
         self.assertEqual(obs['obsProxy']['controlPlane']['url'], variables['CONTROL_PLANE_URL'])
+        self.assertEqual(core['agent']['observabilityProxyUrl'], variables['OBSERVABILITY_PROXY_URL'])
 
     def test_environment_permission_checks_use_the_api(self):
         cases = [

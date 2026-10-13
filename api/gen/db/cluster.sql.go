@@ -215,38 +215,24 @@ func (q *Queries) SetClusterGatewayHostname(ctx context.Context, arg SetClusterG
 	return err
 }
 
-const setClusterObservabilityEndpoint = `-- name: SetClusterObservabilityEndpoint :exec
-UPDATE clusters
-SET observability_proxy_endpoint = $2, updated_at = NOW()
-WHERE id = $1
-`
-
-type SetClusterObservabilityEndpointParams struct {
-	ID                         uuid.UUID `json:"id"`
-	ObservabilityProxyEndpoint *string   `json:"observabilityProxyEndpoint"`
-}
-
-func (q *Queries) SetClusterObservabilityEndpoint(ctx context.Context, arg SetClusterObservabilityEndpointParams) error {
-	_, err := q.db.Exec(ctx, setClusterObservabilityEndpoint, arg.ID, arg.ObservabilityProxyEndpoint)
-	return err
-}
-
 const updateClusterAgentInfo = `-- name: UpdateClusterAgentInfo :exec
 UPDATE clusters
 SET agent_version = $2,
     capacity_cpu_millicores = $3,
     capacity_memory_bytes = $4,
     builds_enabled = $5,
+    observability_proxy_endpoint = $6,
     updated_at = NOW()
 WHERE id = $1
 `
 
 type UpdateClusterAgentInfoParams struct {
-	ID                    uuid.UUID `json:"id"`
-	AgentVersion          *string   `json:"agentVersion"`
-	CapacityCpuMillicores *int64    `json:"capacityCpuMillicores"`
-	CapacityMemoryBytes   *int64    `json:"capacityMemoryBytes"`
-	BuildsEnabled         bool      `json:"buildsEnabled"`
+	ID                         uuid.UUID `json:"id"`
+	AgentVersion               *string   `json:"agentVersion"`
+	CapacityCpuMillicores      *int64    `json:"capacityCpuMillicores"`
+	CapacityMemoryBytes        *int64    `json:"capacityMemoryBytes"`
+	BuildsEnabled              bool      `json:"buildsEnabled"`
+	ObservabilityProxyEndpoint *string   `json:"observabilityProxyEndpoint"`
 }
 
 func (q *Queries) UpdateClusterAgentInfo(ctx context.Context, arg UpdateClusterAgentInfoParams) error {
@@ -256,6 +242,7 @@ func (q *Queries) UpdateClusterAgentInfo(ctx context.Context, arg UpdateClusterA
 		arg.CapacityCpuMillicores,
 		arg.CapacityMemoryBytes,
 		arg.BuildsEnabled,
+		arg.ObservabilityProxyEndpoint,
 	)
 	return err
 }

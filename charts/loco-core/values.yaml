@@ -62,6 +62,7 @@ agent:
   reconnectBaseDelay: 1s
   reconnectMaxDelay: 30s
   healthyStreamDuration: 1m
+  observabilityProxyUrl: ""
 
 secrets:
   cloudflareToken: ""

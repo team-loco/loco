@@ -84,7 +84,7 @@ export E2E_AGENT_TOKEN="$AGENT_TOKEN"
 export E2E_USER_TOKEN="$USER_TOKEN"
 export E2E_KIND_CLUSTER="$KIND_CLUSTER_NAME"
 export E2E_LOCO_NAMESPACE="$LOCO_NAMESPACE"
-export E2E_OBS_PROXY_PORT="$OBS_PROXY_PORT"
+export E2E_OBS_PROXY_URL="http://127.0.0.1:${OBS_PROXY_PORT}"
 export E2E_GATEWAY_URL="http://127.0.0.1:${GATEWAY_PORT}"
 export E2E_OBS_NAMESPACE="$OBS_NAMESPACE"
 export E2E_OBS_RELEASE="$OBS_RELEASE"
@@ -745,6 +745,7 @@ start_agent() {
     LOCO_RECONNECT_BASE_DELAY="$(yq '.agent.reconnectBaseDelay' "$core_values")" \
     LOCO_RECONNECT_MAX_DELAY="$(yq '.agent.reconnectMaxDelay' "$core_values")" \
     LOCO_HEALTHY_STREAM_DURATION="$(yq '.agent.healthyStreamDuration' "$core_values")" \
+    LOCO_OBSERVABILITY_PROXY_URL="$E2E_OBS_PROXY_URL" \
     KUBECONFIG="$KUBECONFIG_FILE" \
         "$BIN_DIR/loco-agent" \
         >"$LOG_DIR/agent.log" 2>&1 &

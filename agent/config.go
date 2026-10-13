@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"strconv"
 	"time"
@@ -34,6 +35,7 @@ const (
 	envReconnectBaseDelay       = "LOCO_RECONNECT_BASE_DELAY"
 	envReconnectMaxDelay        = "LOCO_RECONNECT_MAX_DELAY"
 	envHealthyStreamDuration    = "LOCO_HEALTHY_STREAM_DURATION"
+	envObservabilityProxyURL    = "LOCO_OBSERVABILITY_PROXY_URL"
 	envLogLevel                 = "LOG_LEVEL"
 )
 
@@ -41,6 +43,7 @@ var (
 	errMissingEnv      = errors.New("is required")
 	errInvalidDuration = errors.New("must be a positive duration")
 	errInvalidInteger  = errors.New("must be a positive integer")
+	errInvalidURL      = errors.New("must be an http or https URL with a host")
 )
 
 var version string
@@ -69,6 +72,7 @@ type Config struct {
 	ReconnectBaseDelay       time.Duration
 	ReconnectMaxDelay        time.Duration
 	HealthyStreamDuration    time.Duration
+	ObservabilityProxyURL    string
 }
 
 func newAgentConfig() *Config {
@@ -108,6 +112,10 @@ func parseAgentConfig(getenv func(string) string, agentVersion string) (*Config,
 		return nil, fmt.Errorf("%s %w", envLogLevel, err)
 	}
 	cfg.LogLevel = level
+	cfg.ObservabilityProxyURL, err = parseProxyURL(getenv)
+	if err != nil {
+		return nil, err
+	}
 	cfg.ControllerNamespace = getenv(envControllerNamespace)
 	if cfg.ControllerNamespace == "" {
 		cfg.ControllerNamespace = cfg.Namespace
@@ -155,6 +163,18 @@ func parseAgentConfig(getenv func(string) string, agentVersion string) (*Config,
 		*field = parsed
 	}
 	return cfg, nil
+}
+
+func parseProxyURL(getenv func(string) string) (string, error) {
+	raw, err := requireEnv(getenv, envObservabilityProxyURL)
+	if err != nil {
+		return "", err
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		return "", fmt.Errorf("%s %q %w", envObservabilityProxyURL, raw, errInvalidURL)
+	}
+	return raw, nil
 }
 
 func requireEnv(getenv func(string) string, name string) (string, error) {

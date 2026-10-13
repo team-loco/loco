@@ -12,7 +12,7 @@ Copy `.env.example` to `.env` and supply the credentials required by that revisi
 mise run tilt
 ```
 
-Tilt starts the local cluster and services. The API listens at `http://localhost:8000`, and the dashboard at `http://localhost:5173`.
+Tilt starts the local cluster and services. The API listens at `http://localhost:8000`, and the dashboard at `http://localhost:5173`. Tilt forwards `http://localhost:8091` to the cluster's observability proxy, and the agent records that address, so the dashboard's logs, metrics and events read from the local cluster.
 
 ## Connect the CLI
 

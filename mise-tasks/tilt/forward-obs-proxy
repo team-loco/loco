@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+#MISE description="Forward a localhost port to the observability proxy, reconnecting whenever its pod is replaced, so the web UI can query it"
+#USAGE arg "<port>" help="localhost port the cluster records as its observability proxy URL"
+set -euo pipefail
+
+port=$1
+context="kind-$(yq .name env/local/kind-cluster.yml)"
+reconnect_delay_seconds=1
+
+while true; do
+	kubectl --context "$context" -n observability port-forward svc/loco-obs-obs-proxy "$port:80" || true
+	sleep "$reconnect_delay_seconds"
+done

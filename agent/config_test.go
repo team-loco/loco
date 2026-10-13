@@ -33,6 +33,7 @@ func agentEnv() map[string]string {
 		envReconnectMaxDelay:        "34s",
 		envHealthyStreamDuration:    "2m",
 		envLogLevel:                 "warn",
+		envObservabilityProxyURL:    "https://observability.loco.test",
 	}
 }
 
@@ -73,6 +74,7 @@ func TestParseAgentConfigReadsTheEnvironment(t *testing.T) {
 		ReconnectBaseDelay:       4 * time.Second,
 		ReconnectMaxDelay:        34 * time.Second,
 		HealthyStreamDuration:    2 * time.Minute,
+		ObservabilityProxyURL:    "https://observability.loco.test",
 		Kubeconfig:               "/tmp/kubeconfig",
 	}
 	if *cfg != want {
@@ -112,6 +114,7 @@ func TestParseAgentConfigRejectsMissingValues(t *testing.T) {
 		envReconnectMaxDelay,
 		envHealthyStreamDuration,
 		envLogLevel,
+		envObservabilityProxyURL,
 	}
 	for _, name := range required {
 		t.Run(name, func(t *testing.T) {
@@ -187,6 +190,18 @@ func TestParseAgentConfigRejectsUnknownLogLevel(t *testing.T) {
 			env[envLogLevel] = value
 			if _, err := parseAgentConfig(lookup(env), testAgentVersion); !errors.Is(err, loglevel.ErrUnknown) {
 				t.Errorf("parseAgentConfig with %s=%s = %v, want loglevel.ErrUnknown", envLogLevel, value, err)
+			}
+		})
+	}
+}
+
+func TestParseAgentConfigRejectsInvalidObservabilityProxyURLs(t *testing.T) {
+	for _, value := range []string{"observability.loco.test", "ftp://observability.loco.test", "https://", "http://[::1"} {
+		t.Run(value, func(t *testing.T) {
+			env := agentEnv()
+			env[envObservabilityProxyURL] = value
+			if _, err := parseAgentConfig(lookup(env), testAgentVersion); !errors.Is(err, errInvalidURL) {
+				t.Errorf("parseAgentConfig with %s=%q = %v, want errInvalidURL", envObservabilityProxyURL, value, err)
 			}
 		})
 	}

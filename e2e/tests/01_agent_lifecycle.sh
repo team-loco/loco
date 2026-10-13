@@ -21,6 +21,13 @@ test_agent_registered() {
         test "$version" = "$E2E_VERSION"
 }
 
+test_agent_records_the_observability_proxy() {
+    local endpoint
+    endpoint=$(e2e_psql "SELECT observability_proxy_endpoint FROM clusters WHERE id = '00000000-0000-7000-8000-000000000005'")
+    assert "Agent registration records the cluster's observability proxy" \
+        test "$endpoint" = "$E2E_OBS_PROXY_URL"
+}
+
 test_binaries_report_their_build_version() {
     assert_contains "API logs the version it was built as" "version=${E2E_VERSION}" \
         grep "starting loco api" "$E2E_LOG_DIR/api.log"

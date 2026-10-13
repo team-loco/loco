@@ -49,6 +49,7 @@ func main() {
 		"controller_namespace", cfg.ControllerNamespace,
 		"controller_deployment", cfg.ControllerDeployment,
 		"build_namespace", cfg.BuildNamespace,
+		"observability_proxy_url", cfg.ObservabilityProxyURL,
 	)
 	transport := &http.Transport{}
 	transport.Protocols = new(http.Protocols)
@@ -199,9 +200,10 @@ func (a *Agent) Run(ctx context.Context) error {
 func (a *Agent) register(ctx context.Context) error {
 	capacity := a.getCapacity(ctx)
 	req := &agentv1.RegisterRequest{
-		AgentVersion:  a.cfg.AgentVersion,
-		Capacity:      capacity,
-		BuildsEnabled: a.buildsEnabled,
+		AgentVersion:          a.cfg.AgentVersion,
+		Capacity:              capacity,
+		BuildsEnabled:         a.buildsEnabled,
+		ObservabilityProxyUrl: a.cfg.ObservabilityProxyURL,
 	}
 
 	resp, err := a.client.Register(ctx, req)

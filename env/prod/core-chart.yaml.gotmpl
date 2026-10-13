@@ -3,6 +3,7 @@
 agent:
   image:
     tag: sha-{{ requiredEnv "GH_SHA" }}
+  observabilityProxyUrl: {{ requiredEnv "OBSERVABILITY_PROXY_URL" | quote }}
 
 # Cert-manager configuration for production
 certManager:

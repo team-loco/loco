@@ -35,6 +35,7 @@ def main():
             values = hr['spec']['values']
             if name == 'loco-core':
                 values['certManager'] = {'issuer': {'email': 'release-test@example.invalid'}}
+                values['agent']['observabilityProxyUrl'] = 'https://observability.example.invalid'
             if name == 'loco-obs':
                 values['obsProxy']['controlPlane'] = {'url': 'https://api.example.invalid'}
                 values['obsProxy']['auth'] = {'existingSecret': 'release-test-proxy-auth'}

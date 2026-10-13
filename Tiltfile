@@ -66,6 +66,7 @@ docker_build(
 )
 
 control_plane_url = 'http://host.docker.internal:${APP_PORT##*:}'
+obs_proxy_port = '8091'
 
 
 def helm_release(name, namespace, images, values, deps, resource_deps):
@@ -170,6 +171,7 @@ helm_release(
     values=[
         'env.AGENT_TOKEN=$AGENT_TOKEN',
         'env.CONTROL_PLANE_URL=' + control_plane_url,
+        'agent.observabilityProxyUrl=http://localhost:' + obs_proxy_port,
     ],
     deps=['charts/loco-core/', 'env/local/core-chart.yaml.gotmpl'],
     resource_deps=['helm-namespaces', 'helm-cert-manager', 'loco-operator'],
@@ -210,6 +212,14 @@ helm_release(
     values=['obsProxy.controlPlane.url=' + control_plane_url],
     deps=['charts/loco-obs/', 'env/local/obs-chart.yaml.gotmpl'],
     resource_deps=['loco-core'],
+)
+
+local_resource(
+    'obs-proxy-forward',
+    serve_cmd='mise run tilt:forward-obs-proxy ' + obs_proxy_port,
+    deps=['mise-tasks/tilt/forward-obs-proxy'],
+    resource_deps=['loco-obs'],
+    labels=['infra'],
 )
 
 # ---------------------------------------------------------------------------

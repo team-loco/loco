@@ -5,10 +5,14 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connectinprocess"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
+	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 )
 
@@ -36,6 +40,30 @@ func observabilityAccess(t *testing.T, f *deployFixture) []*observabilityv1.Clus
 		t.Fatalf("get observability access: %v", err)
 	}
 	return resp.GetClusters()
+}
+
+func TestRegisterRecordsTheObservabilityProxyEndpoint(t *testing.T) {
+	f := newBuildFixture(t)
+	server := NewAgentServer(f.pool, f.queries, nil, f.bucket, nil, testHeartbeatInterval)
+	rpcServer := connect.NewServer()
+	agentv1connect.RegisterAgentServiceHandler(rpcServer, server)
+	transport := connectinprocess.New(rpcServer)
+	client := agentv1connect.NewAgentServiceClient(connect.NewClient(transport))
+	ctx, info := connect.NewClientContext(f.ctx)
+	info.RequestHeader().Set("Authorization", "Bearer "+testAgentToken)
+	req := &agentv1.RegisterRequest{AgentVersion: "test", ObservabilityProxyUrl: testProxyURL}
+	if _, err := client.Register(ctx, req); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+
+	var endpoint string
+	if err := f.pool.QueryRow(f.ctx, `SELECT observability_proxy_endpoint FROM clusters WHERE id = $1`, f.clusterID).
+		Scan(&endpoint); err != nil {
+		t.Fatalf("read proxy endpoint: %v", err)
+	}
+	if endpoint != testProxyURL {
+		t.Fatalf("observability_proxy_endpoint = %q, want %q", endpoint, testProxyURL)
+	}
 }
 
 func TestObservabilityAccessIncludesClustersThatRanBuilds(t *testing.T) {

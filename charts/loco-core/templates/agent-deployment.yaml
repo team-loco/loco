@@ -72,6 +72,8 @@ spec:
               value: {{ .Values.agent.reconnectMaxDelay | quote }}
             - name: LOCO_HEALTHY_STREAM_DURATION
               value: {{ .Values.agent.healthyStreamDuration | quote }}
+            - name: LOCO_OBSERVABILITY_PROXY_URL
+              value: {{ required "agent.observabilityProxyUrl is required" .Values.agent.observabilityProxyUrl | quote }}
           envFrom:
             - secretRef:
                 name: {{ .Release.Name }}-env

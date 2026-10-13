@@ -7,7 +7,8 @@ description: Run the full local stack (kind cluster, compose services, API, web 
 
 `mise run tilt` starts everything: the kind cluster, Postgres, Valkey, the registry and
 the source bucket from `compose.yaml`, the helm releases, the API on :8000 and the web UI
-on :5173. The Tilt UI is on :10350.
+on :5173. The `obs-proxy-forward` resource forwards :8091 to the observability proxy, the
+address the agent records for the dashboard's logs, metrics and events. The Tilt UI is on :10350.
 
 `mise run stop` stops Tilt, the compose services and the kind nodes and keeps their state;
 `mise run start` (an alias of `mise run tilt`) starts the stopped nodes and brings the rest back.

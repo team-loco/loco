@@ -107,13 +107,15 @@ func (s *AgentServer) Register(
 	agentVersion := req.GetAgentVersion()
 	cpuCores := req.GetCapacity().GetCpuMillicoresTotal()
 	memBytes := req.GetCapacity().GetMemoryBytesTotal()
+	observabilityProxyURL := req.GetObservabilityProxyUrl()
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if updateErr := qtx.UpdateClusterAgentInfo(ctx, genDb.UpdateClusterAgentInfoParams{
-			ID:                    cluster.ID,
-			AgentVersion:          &agentVersion,
-			CapacityCpuMillicores: &cpuCores,
-			CapacityMemoryBytes:   &memBytes,
-			BuildsEnabled:         req.GetBuildsEnabled(),
+			ID:                         cluster.ID,
+			AgentVersion:               &agentVersion,
+			CapacityCpuMillicores:      &cpuCores,
+			CapacityMemoryBytes:        &memBytes,
+			BuildsEnabled:              req.GetBuildsEnabled(),
+			ObservabilityProxyEndpoint: &observabilityProxyURL,
 		}); updateErr != nil {
 			return updateErr
 		}
@@ -137,6 +139,7 @@ func (s *AgentServer) Register(
 		"region", cluster.Region,
 		"agent_version", req.GetAgentVersion(),
 		"builds_enabled", req.GetBuildsEnabled(),
+		"observability_proxy_url", observabilityProxyURL,
 	)
 
 	heartbeatInterval := durationpb.New(s.heartbeatInterval)
