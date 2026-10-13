@@ -466,6 +466,7 @@ install_envoy_gateway() {
         --namespace "$LOCO_NAMESPACE" \
         --values "$SCRIPT_DIR/gateway-values.yaml" \
         --set "global.domain.apps={${PLATFORM_DOMAIN}}" \
+        --set "agent.observabilityProxyUrl=${E2E_OBS_PROXY_URL}" \
         --show-only templates/gateway.yaml |
         kube apply -f - >/dev/null
     wait_for "the Envoy proxy Deployment" "$OBS_READY_TIMEOUT" envoy_proxy_deployment
