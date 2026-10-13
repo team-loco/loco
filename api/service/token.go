@@ -544,6 +544,8 @@ func protoScopeToDb(s tokenv1.Scope) genDb.Scope {
 		return genDb.ScopeWrite
 	case tokenv1.Scope_SCOPE_ADMIN:
 		return genDb.ScopeAdmin
+	case tokenv1.Scope_SCOPE_MEMBER:
+		return genDb.ScopeMember
 	default:
 		return genDb.ScopeRead
 	}
@@ -557,6 +559,8 @@ func dbScopeToProto(s genDb.Scope) tokenv1.Scope {
 		return tokenv1.Scope_SCOPE_WRITE
 	case genDb.ScopeAdmin:
 		return tokenv1.Scope_SCOPE_ADMIN
+	case genDb.ScopeMember:
+		return tokenv1.Scope_SCOPE_MEMBER
 	default:
 		return tokenv1.Scope_SCOPE_UNSPECIFIED
 	}

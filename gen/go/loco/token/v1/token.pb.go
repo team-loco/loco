@@ -90,6 +90,7 @@ const (
 	Scope_SCOPE_READ        Scope = 1
 	Scope_SCOPE_WRITE       Scope = 2
 	Scope_SCOPE_ADMIN       Scope = 3
+	Scope_SCOPE_MEMBER      Scope = 4
 )
 
 // Enum value maps for Scope.
@@ -99,12 +100,14 @@ var (
 		1: "SCOPE_READ",
 		2: "SCOPE_WRITE",
 		3: "SCOPE_ADMIN",
+		4: "SCOPE_MEMBER",
 	}
 	Scope_value = map[string]int32{
 		"SCOPE_UNSPECIFIED": 0,
 		"SCOPE_READ":        1,
 		"SCOPE_WRITE":       2,
 		"SCOPE_ADMIN":       3,
+		"SCOPE_MEMBER":      4,
 	}
 )
 
@@ -1005,13 +1008,14 @@ const file_loco_token_v1_token_proto_rawDesc = "" +
 	"\x18ENTITY_TYPE_ORGANIZATION\x10\x02\x12\x19\n" +
 	"\x15ENTITY_TYPE_WORKSPACE\x10\x03\x12\x18\n" +
 	"\x14ENTITY_TYPE_RESOURCE\x10\x04\x12\x14\n" +
-	"\x10ENTITY_TYPE_USER\x10\x05*P\n" +
+	"\x10ENTITY_TYPE_USER\x10\x05*b\n" +
 	"\x05Scope\x12\x15\n" +
 	"\x11SCOPE_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
 	"SCOPE_READ\x10\x01\x12\x0f\n" +
 	"\vSCOPE_WRITE\x10\x02\x12\x0f\n" +
-	"\vSCOPE_ADMIN\x10\x032\x8c\x04\n" +
+	"\vSCOPE_ADMIN\x10\x03\x12\x10\n" +
+	"\fSCOPE_MEMBER\x10\x042\x8c\x04\n" +
 	"\fTokenService\x12T\n" +
 	"\vCreateToken\x12!.loco.token.v1.CreateTokenRequest\x1a\".loco.token.v1.CreateTokenResponse\x12Q\n" +
 	"\n" +

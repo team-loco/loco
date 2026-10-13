@@ -30,6 +30,8 @@ const (
 	WorkspaceDeleted     = "workspace.deleted"
 	MemberAdded          = "member.added"
 	MemberRemoved        = "member.removed"
+	OrgMemberAdded       = "org_member.added"
+	OrgMemberRemoved     = "org_member.removed"
 	EnvironmentCreated   = "environment.created"
 	EnvironmentUpdated   = "environment.updated"
 	EnvironmentDeleted   = "environment.deleted"

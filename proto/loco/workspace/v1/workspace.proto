@@ -41,6 +41,7 @@ message Workspace {
   string created_by = 5;
   google.protobuf.Timestamp created_at = 6;
   google.protobuf.Timestamp updated_at = 7;
+  string org_name = 8;
 }
 
 // WorkspaceMember represents a user's membership in a workspace and their granted scopes.

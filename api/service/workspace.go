@@ -196,6 +196,7 @@ func (s *WorkspaceServer) GetWorkspace(
 		Workspace: &workspacev1.Workspace{
 			Id:          ws.ID.String(),
 			OrgId:       ws.OrgID.String(),
+			OrgName:     ws.OrgName,
 			Name:        ws.Name,
 			Description: derefString(ws.Description),
 			CreatedBy:   ws.CreatedBy.String(),
@@ -261,6 +262,7 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 		workspaces = append(workspaces, &workspacev1.Workspace{
 			Id:          ws.ID.String(),
 			OrgId:       ws.OrgID.String(),
+			OrgName:     ws.OrgName,
 			Name:        ws.Name,
 			Description: derefString(ws.Description),
 			CreatedBy:   ws.CreatedBy.String(),
@@ -316,11 +318,14 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 	}
 
 	orgID := uuid.MustParse(req.GetOrgId())
+	allWorkspaces, workspaceIDs := s.authz.ReadableWorkspaces(ctx, scopes, orgID)
 
 	workspaceList, err := s.queries.ListWorkspacesInOrg(ctx, genDb.ListWorkspacesInOrgParams{
-		OrgID:     orgID,
-		Limit:     pageSize,
-		PageToken: pageToken,
+		OrgID:         orgID,
+		AllWorkspaces: allWorkspaces,
+		WorkspaceIds:  workspaceIDs,
+		Limit:         pageSize,
+		PageToken:     pageToken,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list workspaces", "error", err)
@@ -332,6 +337,7 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 		workspaces = append(workspaces, &workspacev1.Workspace{
 			Id:          ws.ID.String(),
 			OrgId:       ws.OrgID.String(),
+			OrgName:     ws.OrgName,
 			Name:        ws.Name,
 			Description: derefString(ws.Description),
 			CreatedBy:   ws.CreatedBy.String(),
@@ -555,6 +561,24 @@ func (s *WorkspaceServer) CreateMember(
 		grantedScopes[i] = sc.Scope
 	}
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		_, lockErr := qtx.LockUserForMembership(ctx, userID)
+		if errors.Is(lockErr, pgx.ErrNoRows) {
+			return rpcerr.New(connect.CodeNotFound, ErrUserNotFound)
+		}
+		if lockErr != nil {
+			return lockErr
+		}
+		orgID, orgErr := qtx.GetOrganizationIDByWorkspaceID(ctx, wsID)
+		if orgErr != nil {
+			return orgErr
+		}
+		isMember, memberErr := qtx.IsOrgMember(ctx, genDb.IsOrgMemberParams{UserID: userID, OrgID: orgID})
+		if memberErr != nil {
+			return memberErr
+		}
+		if !isMember {
+			return rpcerr.New(connect.CodeFailedPrecondition, ErrNotOrgMember)
+		}
 		if applyErr := authz.ApplyRoles(ctx, qtx, userID, addScopes, nil); applyErr != nil {
 			return applyErr
 		}
@@ -566,12 +590,8 @@ func (s *WorkspaceServer) CreateMember(
 			Data:        map[string]any{"scopes": grantedScopes},
 		})
 	})
-	if isPgForeignKeyViolation(err) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrUserNotFound)
-	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to add workspace member scopes", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, txError(ctx, "failed to add workspace member scopes", err)
 	}
 
 	return &workspacev1.CreateMemberResponse{

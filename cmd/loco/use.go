@@ -52,17 +52,7 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 
 	apiClient := client.NewClient(host, t.Token)
 
-	currentUser, err := apiClient.GetCurrentUser(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get current user: %w", err)
-	}
-
-	orgs, err := apiClient.GetCurrentUserOrgs(ctx, currentUser.GetId())
-	if err != nil {
-		return fmt.Errorf("failed to get organizations: %w", err)
-	}
-
-	workspaces, err := apiClient.GetUserWorkspaces(ctx, currentUser.GetId())
+	workspaces, err := apiClient.GetUserWorkspaces(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get workspaces: %w", err)
 	}
@@ -83,17 +73,9 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 			workspaceName string
 		}
 
-		orgByID := make(map[string]string, len(orgs))
-		for _, o := range orgs {
-			orgByID[o.GetId()] = o.GetName()
-		}
-
 		var options []ui.SelectOption
 		for _, ws := range workspaces {
-			oName, ok := orgByID[ws.GetOrgId()]
-			if !ok {
-				continue
-			}
+			oName := ws.GetOrgName()
 			label := fmt.Sprintf("%s / %s", oName, ws.GetName())
 			options = append(options, ui.SelectOption{
 				Label:       label,
@@ -139,21 +121,10 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 	orgName = parts[0]
 	workspaceName = parts[1]
 
-	// direct switch via argument — look up IDs
-	var orgID string
-	for _, o := range orgs {
-		if o.GetName() == orgName {
-			orgID = o.GetId()
-			break
-		}
-	}
-	if orgID == "" {
-		return fmt.Errorf("organization %q not found", orgName)
-	}
-
-	var workspaceID string
+	var orgID, workspaceID string
 	for _, ws := range workspaces {
-		if ws.GetName() == workspaceName && ws.GetOrgId() == orgID {
+		if ws.GetName() == workspaceName && ws.GetOrgName() == orgName {
+			orgID = ws.GetOrgId()
 			workspaceID = ws.GetId()
 			break
 		}

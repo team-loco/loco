@@ -1,5 +1,5 @@
 import { useQuery } from "@connectrpc/connect-query";
-import { getOrg, listOrgUsers } from "@gen/loco/org/v1/org-OrgService_connectquery";
+import { getOrg, listOrgMembers } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { Building2Icon, LayersIcon, ScrollTextIcon } from "lucide-react";
 import { useParams, useSearchParams } from "react-router";
@@ -29,12 +29,12 @@ export function Settings() {
 
 	const orgQuery = useQuery(getOrg, { key: { case: "orgId", value: orgId } }, { enabled: orgId !== "" });
 	const wsQuery = useQuery(listOrgWorkspaces, { orgId, pageSize: 200 }, { enabled: orgId !== "" });
-	const usersQuery = useQuery(listOrgUsers, { orgId, pageSize: 200 }, { enabled: orgId !== "" });
+	const membersQuery = useQuery(listOrgMembers, { orgId, pageSize: 200 }, { enabled: orgId !== "" });
 	const scopes = useMyScopes();
 
 	const org = orgQuery.data?.organization;
 	const workspaces = wsQuery.data?.workspaces ?? [];
-	const users = usersQuery.data?.users ?? [];
+	const users = (membersQuery.data?.members ?? []).flatMap((m) => (m.user ? [m.user] : []));
 	const workspaceIds = workspaces.map((w) => w.id);
 	const { counts, isLoading: countsLoading } = useResourceCounts(workspaceIds);
 	const currentWs = workspaces.find((w) => w.id === workspaceId);

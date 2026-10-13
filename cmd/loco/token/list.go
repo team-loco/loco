@@ -176,6 +176,8 @@ func formatScopes(scopes []*tokenv1.EntityScope) string {
 			scopeNames = append(scopeNames, "write")
 		case tokenv1.Scope_SCOPE_ADMIN:
 			scopeNames = append(scopeNames, "admin")
+		case tokenv1.Scope_SCOPE_MEMBER:
+			scopeNames = append(scopeNames, "member")
 		}
 	}
 

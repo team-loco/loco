@@ -150,21 +150,16 @@ var (
 	}
 
 	// orgs
-	// ListOrgs requires org:read.
-	ListOrgs = Action{
-		entityType: db.EntityTypeOrganization,
-		scope:      db.ScopeRead,
-	}
 	// CreateOrg requires user:write. (user scopes are only granted when the user is onboarded,
 	// so this kinda exists as a check to ensure the user is onboarded)
 	CreateOrg = Action{
 		entityType: db.EntityTypeUser,
 		scope:      db.ScopeWrite,
 	}
-	// GetOrg requires organization:read.
+	// GetOrg requires organization:member.
 	GetOrg = Action{
 		entityType: db.EntityTypeOrganization,
-		scope:      db.ScopeRead,
+		scope:      db.ScopeMember,
 	}
 	// UpdateOrg requires organization:write.
 	UpdateOrg = Action{
@@ -176,20 +171,20 @@ var (
 		entityType: db.EntityTypeOrganization,
 		scope:      db.ScopeAdmin,
 	}
-	// AddOrgMember requires organization:write.
+	// AddOrgMember requires organization:admin.
 	AddOrgMember = Action{
 		entityType: db.EntityTypeOrganization,
-		scope:      db.ScopeWrite,
+		scope:      db.ScopeAdmin,
 	}
 	// RemoveOrgMember requires organization:admin.
 	RemoveOrgMember = Action{
 		entityType: db.EntityTypeOrganization,
 		scope:      db.ScopeAdmin,
 	}
-	// ListOrgMembers requires organization:read.
+	// ListOrgMembers requires organization:member.
 	ListOrgMembers = Action{
 		entityType: db.EntityTypeOrganization,
-		scope:      db.ScopeRead,
+		scope:      db.ScopeMember,
 	}
 
 	// users
@@ -231,10 +226,10 @@ var (
 	}
 
 	// workspace
-	// ListWorkspaces requires organization:read (assuming workspaces are scoped to orgs).
+	// ListWorkspaces requires organization:member.
 	ListWorkspaces = Action{
 		entityType: db.EntityTypeOrganization,
-		scope:      db.ScopeRead,
+		scope:      db.ScopeMember,
 	}
 	// CreateWorkspace requires organization:write.
 	CreateWorkspace = Action{

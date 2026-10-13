@@ -33,10 +33,13 @@ func New(pool *pgxpool.Pool, q queries.Querier) *Authorizer {
 // [ErrInsufficientPermissions] when no granted scope covers it.
 func (a *Authorizer) Check(ctx context.Context, granted []queries.EntityScope, required queries.EntityScope) error {
 	for _, scope := range granted {
-		if scope == required {
+		if !covers(scope.Scope, required.Scope) {
+			continue
+		}
+		if scope.EntityType == required.EntityType && scope.EntityID == required.EntityID {
 			return nil
 		}
-		if scope.EntityType == queries.EntityTypeSystem && scope.Scope == required.Scope {
+		if scope.EntityType == queries.EntityTypeSystem {
 			return nil
 		}
 	}
@@ -78,6 +81,32 @@ func (a *Authorizer) Check(ctx context.Context, granted []queries.EntityScope, r
 		}
 	}
 	return ErrInsufficientPermissions
+}
+
+func (a *Authorizer) ReadableWorkspaces(
+	ctx context.Context,
+	granted []queries.EntityScope,
+	orgID uuid.UUID,
+) (bool, []uuid.UUID) {
+	orgRead := queries.EntityScope{
+		EntityType: queries.EntityTypeOrganization,
+		EntityID:   orgID,
+		Scope:      queries.ScopeRead,
+	}
+	if a.Check(ctx, granted, orgRead) == nil {
+		return true, nil
+	}
+	var ids []uuid.UUID
+	for _, scope := range granted {
+		if scope.EntityType == queries.EntityTypeWorkspace && scope.Scope == queries.ScopeRead {
+			ids = append(ids, scope.EntityID)
+		}
+	}
+	return false, ids
+}
+
+func covers(held queries.Scope, required queries.Scope) bool {
+	return held == required || required == queries.ScopeMember
 }
 
 func (a *Authorizer) UserScopes(ctx context.Context, userID uuid.UUID) ([]queries.EntityScope, error) {

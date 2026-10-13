@@ -15,6 +15,8 @@ export function toScopeName(s: Scope): ScopeName | null {
 			return "write";
 		case Scope.ADMIN:
 			return "admin";
+		case Scope.MEMBER:
+			return null;
 		case Scope.UNSPECIFIED:
 			return null;
 	}

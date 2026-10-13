@@ -20,9 +20,10 @@ type EntityScope struct {
 type Scope = string
 
 const (
-	ScopeRead  Scope = "read"
-	ScopeWrite Scope = "write"
-	ScopeAdmin Scope = "admin"
+	ScopeMember Scope = "member"
+	ScopeRead   Scope = "read"
+	ScopeWrite  Scope = "write"
+	ScopeAdmin  Scope = "admin"
 )
 
 // TokenHead represents a token without the actual token string.

@@ -595,3 +595,50 @@ func TestUser5Permissions(t *testing.T) {
 		}
 	})
 }
+
+func TestOrgMemberScopeDoesNotCascade(t *testing.T) {
+	a := authz.New(nil, &fakeQueries{})
+	granted := []queries.EntityScope{
+		{EntityType: queries.EntityTypeOrganization, EntityID: org1UUID, Scope: queries.ScopeMember},
+	}
+	denied := []queries.EntityScope{
+		{EntityType: queries.EntityTypeOrganization, EntityID: org1UUID, Scope: queries.ScopeRead},
+		{EntityType: queries.EntityTypeOrganization, EntityID: org2UUID, Scope: queries.ScopeMember},
+		{EntityType: queries.EntityTypeWorkspace, EntityID: ws1UUID, Scope: queries.ScopeRead},
+		{EntityType: queries.EntityTypeResource, EntityID: res1UUID, Scope: queries.ScopeRead},
+	}
+	for _, required := range denied {
+		if err := a.Check(t.Context(), granted, required); !errors.Is(err, authz.ErrInsufficientPermissions) {
+			t.Errorf("org member got %+v: %v", required, err)
+		}
+	}
+	member := queries.EntityScope{
+		EntityType: queries.EntityTypeOrganization,
+		EntityID:   org1UUID,
+		Scope:      queries.ScopeMember,
+	}
+	if err := a.Check(t.Context(), granted, member); err != nil {
+		t.Errorf("org member denied membership: %v", err)
+	}
+}
+
+func TestEveryOrgScopeImpliesMembership(t *testing.T) {
+	a := authz.New(nil, &fakeQueries{})
+	member := queries.EntityScope{
+		EntityType: queries.EntityTypeOrganization,
+		EntityID:   org1UUID,
+		Scope:      queries.ScopeMember,
+	}
+	for _, scope := range []queries.Scope{queries.ScopeRead, queries.ScopeWrite, queries.ScopeAdmin} {
+		granted := []queries.EntityScope{{EntityType: queries.EntityTypeOrganization, EntityID: org1UUID, Scope: scope}}
+		if err := a.Check(t.Context(), granted, member); err != nil {
+			t.Errorf("org %s denied membership: %v", scope, err)
+		}
+	}
+	system := []queries.EntityScope{
+		{EntityType: queries.EntityTypeSystem, EntityID: uuid.Nil, Scope: queries.ScopeRead},
+	}
+	if err := a.Check(t.Context(), system, member); err != nil {
+		t.Errorf("system read denied membership: %v", err)
+	}
+}

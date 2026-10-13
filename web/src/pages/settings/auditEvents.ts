@@ -13,6 +13,8 @@ const AUDIT_TYPES: Record<string, AuditType> = {
 	"org.deleted": { label: "Deleted the organization", category: "organization" },
 	"member.added": { label: "Added a member", category: "access" },
 	"member.removed": { label: "Removed a member", category: "access" },
+	"org_member.added": { label: "Added an organization member", category: "access" },
+	"org_member.removed": { label: "Removed an organization member", category: "access" },
 	"workspace.created": { label: "Created a workspace", category: "workspaces" },
 	"workspace.updated": { label: "Updated a workspace", category: "workspaces" },
 	"workspace.deleted": { label: "Deleted a workspace", category: "workspaces" },
@@ -146,6 +148,12 @@ export function auditDetail(event: DetailFields, users: ReadonlyMap<string, Audi
 			return scopes.length === 0 ? member : `${member} · ${scopes.join(", ")}`;
 		}
 		case "member.removed": {
+			return memberName(event.subjectId, users);
+		}
+		case "org_member.added": {
+			return memberName(event.subjectId, users);
+		}
+		case "org_member.removed": {
 			return memberName(event.subjectId, users);
 		}
 		case "secret.set": {

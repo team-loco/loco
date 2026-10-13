@@ -28,6 +28,7 @@ import {
 } from "@/components/design/DropdownMenu";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { environmentTypeLabel, useEnvironments } from "@/hooks/useEnvironment";
+import { useMyScopes } from "@/hooks/useMyScopes";
 import { workspacePath } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
@@ -135,6 +136,7 @@ function ScopeSwitcher({
 	const peek = useSidebarPeek();
 	const transport = useTransport();
 	const { orgs, activeWorkspaceId } = useOrgWorkspace();
+	const { orgLevel } = useMyScopes();
 	const [open, setOpen] = useState(false);
 	const results = useQueries({
 		queries: orgs.map((o) => createQueryOptions(listOrgWorkspaces, { orgId: o.id }, { transport })),
@@ -204,14 +206,16 @@ function ScopeSwitcher({
 						);
 					})}
 					<DropdownMenuSeparator />
-					<DropdownMenuItem
-						onClick={() => {
-							onCreate("workspace");
-						}}
-					>
-						<PlusIcon className="text-fg3" />
-						New workspace
-					</DropdownMenuItem>
+					{orgLevel(org.id) >= 2 && (
+						<DropdownMenuItem
+							onClick={() => {
+								onCreate("workspace");
+							}}
+						>
+							<PlusIcon className="text-fg3" />
+							New workspace
+						</DropdownMenuItem>
+					)}
 					<DropdownMenuItem
 						onClick={() => {
 							onCreate("org");
