@@ -209,6 +209,15 @@ helm_release(
 # Phase 3: Observability (ClickHouse + OpenTelemetry)
 # ---------------------------------------------------------------------------
 
+local_resource(
+    'obs-proxy-auth',
+    cmd='mise run obs:bootstrap-auth',
+    deps=['mise-tasks/obs/bootstrap-auth', 'api/migrations/', 'env/local/obs-chart.yaml.gotmpl'],
+    resource_deps=['db-migrate', 'helm-namespaces'],
+    allow_parallel=True,
+    labels=['infra'],
+)
+
 helm_release(
     'loco-obs',
     'observability',
@@ -220,7 +229,7 @@ helm_release(
     }],
     values=['obsProxy.controlPlane.url=' + control_plane_url],
     deps=['charts/loco-obs/', 'env/local/obs-chart.yaml.gotmpl'],
-    resource_deps=['loco-core'],
+    resource_deps=['loco-core', 'obs-proxy-auth'],
 )
 
 # ---------------------------------------------------------------------------

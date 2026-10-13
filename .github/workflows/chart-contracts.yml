@@ -7,6 +7,9 @@ on:
       - "env/**"
       - "helmfile.yaml.gotmpl"
       - "tests/charts/**"
+      - "tests/local_obs_auth/**"
+      - "mise-tasks/obs/bootstrap-auth"
+      - "Tiltfile"
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
@@ -18,6 +21,9 @@ on:
       - "env/**"
       - "helmfile.yaml.gotmpl"
       - "tests/charts/**"
+      - "tests/local_obs_auth/**"
+      - "mise-tasks/obs/bootstrap-auth"
+      - "Tiltfile"
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
@@ -38,3 +44,4 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-tools
       - run: mise run test:chart-contracts
+      - run: mise run test:local-obs-auth

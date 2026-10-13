@@ -328,3 +328,12 @@ run = "python tools/platform-release/release.py"
 description = "Render and package the real platform charts, CRDs and Flux layers"
 depends = ["helm:deps"]
 run = "python tools/platform-release/verify.py"
+
+[tasks."test:local-obs-auth"]
+description = "Test fresh local proxy credentials, restart recovery and Tilt ordering"
+run = "python -m unittest discover -s tests/local_obs_auth"
+
+[tasks."obs:bootstrap-auth"]
+description = "Create the local observability proxy credential and restore its database record"
+env = { _.file = ".env" }
+run = "bash mise-tasks/obs/bootstrap-auth"

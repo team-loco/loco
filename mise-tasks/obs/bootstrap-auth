@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+#MISE description="Create the local observability proxy credential and restore its database record"
+set -euo pipefail
+
+cluster=${KIND_CLUSTER:-$(yq '.name' env/local/kind-cluster.yml)}
+namespace=$(yq '.global.observability.namespace' charts/loco-core/values.yaml)
+secret=$(helmfile -e local -l name=loco-obs build --embed-values |
+    yq -r '.releases[] | select(.name == "loco-obs") | [.values[].obsProxy.auth.existingSecret | select(. != null)] | .[-1]')
+: "${secret:?the local observability chart must name its proxy auth Secret}"
+project=${COMPOSE_PROJECT_NAME:-loco-dev}
+token_lifetime_days=365
+token_random_bytes=16
+
+kube=(kubectl --context "kind-$cluster" -n "$namespace")
+token=$("${kube[@]}" get secret "$secret" --ignore-not-found \
+    -o go-template='{{if .data.token}}{{.data.token | base64decode}}{{end}}')
+if [ -z "$token" ]; then
+    token="loco_k_$(openssl rand -base64 "$token_random_bytes" | tr '+/' '-_' | tr -d '=\n')"
+fi
+if [[ ! $token =~ ^loco_k_[A-Za-z0-9_-]+$ ]]; then
+    echo "the local proxy credential must be a Loco API token" >&2
+    exit 1
+fi
+
+token_hash=$(printf '%s' "$token" | openssl dgst -sha256 -r | cut -d ' ' -f 1)
+
+docker compose -p "$project" exec -T postgres \
+    sh -c 'exec psql -q -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<SQL
+BEGIN;
+INSERT INTO users (email, name)
+VALUES ('obs-proxy@loco.test', 'Local observability proxy')
+ON CONFLICT (email) DO NOTHING;
+SELECT id AS proxy_user_id FROM users WHERE email = 'obs-proxy@loco.test' \gset
+INSERT INTO api_tokens (token_hash, name, entity_type, entity_id, scopes, created_by, expires_at)
+SELECT '$token_hash',
+       'local-obs-proxy', 'user', :'proxy_user_id', '[]', :'proxy_user_id',
+       NOW() + INTERVAL '$token_lifetime_days days'
+WHERE NOT EXISTS (
+    SELECT 1 FROM api_tokens
+    WHERE token_hash = '$token_hash'
+)
+ON CONFLICT (name, entity_type, entity_id) DO UPDATE
+SET token_hash = EXCLUDED.token_hash, expires_at = EXCLUDED.expires_at;
+UPDATE api_tokens SET expires_at = NOW() + INTERVAL '$token_lifetime_days days'
+WHERE name = 'local-obs-proxy' AND created_by = :'proxy_user_id'
+  AND token_hash = '$token_hash';
+COMMIT;
+SQL
+
+printf '%s' "$token" | "${kube[@]}" create secret generic "$secret" \
+    --from-file=token=/dev/stdin --dry-run=client -o yaml | "${kube[@]}" apply -f - >/dev/null
