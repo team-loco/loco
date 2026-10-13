@@ -53,10 +53,3 @@ export const addOrgMember = OrgService.method.addOrgMember;
  * @generated from rpc loco.org.v1.OrgService.RemoveOrgMember
  */
 export const removeOrgMember = OrgService.method.removeOrgMember;
-
-/**
- * ListOrgWorkspaces lists workspaces in an organization.
- *
- * @generated from rpc loco.org.v1.OrgService.ListOrgWorkspaces
- */
-export const listOrgWorkspaces = OrgService.method.listOrgWorkspaces;

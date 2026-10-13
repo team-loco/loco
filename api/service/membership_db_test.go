@@ -34,7 +34,11 @@ import (
 	"github.com/team-loco/loco/internal/session"
 )
 
-const membershipSessionDuration = time.Hour
+const (
+	membershipSessionDuration = time.Hour
+	membershipOrgName         = "acme"
+	membershipSharedPath      = membershipOrgName + "/shared"
+)
 
 type membershipAPI struct {
 	pool     *pgxpool.Pool
@@ -117,7 +121,7 @@ func newMembershipOrg(t *testing.T) *membershipOrg {
 	t.Helper()
 	api := newMembershipAPI(t)
 	owner := api.signUp(t, "owner")
-	org, err := owner.clients.Org.CreateOrg(t.Context(), &orgv1.CreateOrgRequest{Name: new("acme")})
+	org, err := owner.clients.Org.CreateOrg(t.Context(), &orgv1.CreateOrgRequest{Name: new(membershipOrgName)})
 	if err != nil {
 		t.Fatalf("create org: %v", err)
 	}
@@ -312,7 +316,7 @@ func TestWorkspaceOnlyMemberResolvesWorkspaceWithTheCLI(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.Flags().String("org", "", "")
 	cmd.Flags().String("workspace", "", "")
-	if err := cmd.Flags().Set("org", "acme"); err != nil {
+	if err := cmd.Flags().Set("org", membershipOrgName); err != nil {
 		t.Fatalf("set org: %v", err)
 	}
 	if err := cmd.Flags().Set("workspace", "shared"); err != nil {
@@ -323,6 +327,128 @@ func TestWorkspaceOnlyMemberResolvesWorkspaceWithTheCLI(t *testing.T) {
 
 	id, err := cmdutil.ResolveWorkspaceID(t.Context(), cmd, noCachedScope, apiClient)
 	if err != nil || id != o.shared {
-		t.Fatalf("resolve acme/shared = %q (%v), want %s", id, err, o.shared)
+		t.Fatalf("resolve "+membershipSharedPath+" = %q (%v), want %s", id, err, o.shared)
+	}
+}
+
+func workspaceNames(list []*workspacev1.Workspace) []string {
+	names := make([]string, len(list))
+	for i, ws := range list {
+		names[i] = ws.GetOrgName() + "/" + ws.GetName()
+	}
+	slices.Sort(names)
+	return names
+}
+
+func TestCreateMemberRequiresOrgMembership(t *testing.T) {
+	o := newMembershipOrg(t)
+	outsider := o.api.signUp(t, "outsider")
+	request := &workspacev1.CreateMemberRequest{
+		WorkspaceId: o.shared, UserId: outsider.id.String(), Scopes: []string{genDb.ScopeRead},
+	}
+
+	_, err := o.owner.clients.Workspace.CreateMember(t.Context(), request)
+	if codeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("granted a workspace to a non-member: %v", err)
+	}
+	remaining, err := o.api.queries.GetUserScopes(t.Context(), outsider.id)
+	if err != nil {
+		t.Fatalf("scopes: %v", err)
+	}
+	for _, scope := range remaining {
+		if scope.EntityType == genDb.EntityTypeWorkspace {
+			t.Fatalf("rejected grant left a scope: %+v", scope)
+		}
+	}
+
+	unknown := &workspacev1.CreateMemberRequest{
+		WorkspaceId: o.shared, UserId: uuid.NewString(), Scopes: []string{genDb.ScopeRead},
+	}
+	_, err = o.owner.clients.Workspace.CreateMember(t.Context(), unknown)
+	if codeOf(err) != connect.CodeNotFound {
+		t.Fatalf("granted a workspace to an unknown user: %v", err)
+	}
+
+	o.addOrgMember(t, outsider)
+	if _, err = o.owner.clients.Workspace.CreateMember(t.Context(), request); err != nil {
+		t.Fatalf("grant to org member: %v", err)
+	}
+}
+
+func TestWorkspaceOnlyMemberSeesOnlyTheirWorkspace(t *testing.T) {
+	o := newMembershipOrg(t)
+	member := o.api.signUp(t, "member")
+	o.addOrgMember(t, member)
+	ctx := t.Context()
+
+	listed, err := member.clients.Workspace.ListOrgWorkspaces(
+		ctx,
+		&workspacev1.ListOrgWorkspacesRequest{OrgId: o.orgID},
+	)
+	if err != nil || len(listed.GetWorkspaces()) != 0 {
+		t.Fatalf("member without grants listed %v (%v)", workspaceNames(listed.GetWorkspaces()), err)
+	}
+
+	o.grantWorkspace(t, member, o.shared)
+
+	if ids := userOrgIDs(t, member); !slices.Equal(ids, []string{o.orgID}) {
+		t.Fatalf("member orgs = %v, want [%s]", ids, o.orgID)
+	}
+	listed, err = member.clients.Workspace.ListOrgWorkspaces(ctx, &workspacev1.ListOrgWorkspacesRequest{OrgId: o.orgID})
+	if err != nil {
+		t.Fatalf("member list org workspaces: %v", err)
+	}
+	if got := workspaceNames(listed.GetWorkspaces()); !slices.Equal(got, []string{membershipSharedPath}) {
+		t.Fatalf("member org workspaces = %v", got)
+	}
+	mine, err := member.clients.Workspace.ListUserWorkspaces(ctx, &workspacev1.ListUserWorkspacesRequest{})
+	if err != nil {
+		t.Fatalf("member list own workspaces: %v", err)
+	}
+	if got := workspaceNames(mine.GetWorkspaces()); !slices.Equal(got, []string{membershipSharedPath}) {
+		t.Fatalf("member workspaces = %v", got)
+	}
+	shared, err := member.clients.Workspace.GetWorkspace(ctx, &workspacev1.GetWorkspaceRequest{WorkspaceId: o.shared})
+	if err != nil || shared.GetWorkspace().GetOrgName() != membershipOrgName {
+		t.Fatalf("member get shared = %+v (%v)", shared.GetWorkspace(), err)
+	}
+
+	_, err = member.clients.Workspace.GetWorkspace(ctx, &workspacev1.GetWorkspaceRequest{WorkspaceId: o.sibling})
+	if codeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("member read sibling workspace: %v", err)
+	}
+	_, err = member.clients.Resource.ListWorkspaceResources(ctx, &resourcev1.ListWorkspaceResourcesRequest{
+		WorkspaceId: o.sibling,
+	})
+	if codeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("member listed sibling resources: %v", err)
+	}
+}
+
+func TestOrgReaderSeesEveryWorkspaceInTheOrg(t *testing.T) {
+	o := newMembershipOrg(t)
+	_, err := o.api.pool.Exec(t.Context(), `
+INSERT INTO workspaces (org_id, name, created_by) VALUES ($1, 'ungranted', $2)`,
+		uuid.MustParse(o.orgID), o.owner.id)
+	if err != nil {
+		t.Fatalf("seed workspace: %v", err)
+	}
+	want := []string{membershipSharedPath, membershipOrgName + "/sibling", membershipOrgName + "/ungranted"}
+
+	listed, err := o.owner.clients.Workspace.ListOrgWorkspaces(t.Context(), &workspacev1.ListOrgWorkspacesRequest{
+		OrgId: o.orgID,
+	})
+	if err != nil {
+		t.Fatalf("owner list org workspaces: %v", err)
+	}
+	if got := workspaceNames(listed.GetWorkspaces()); !slices.Equal(got, want) {
+		t.Fatalf("owner org workspaces = %v", got)
+	}
+	mine, err := o.owner.clients.Workspace.ListUserWorkspaces(t.Context(), &workspacev1.ListUserWorkspacesRequest{})
+	if err != nil {
+		t.Fatalf("owner list own workspaces: %v", err)
+	}
+	if got := workspaceNames(mine.GetWorkspaces()); !slices.Equal(got, want) {
+		t.Fatalf("owner workspaces = %v", got)
 	}
 }

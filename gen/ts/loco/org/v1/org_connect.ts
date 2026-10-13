@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AddOrgMemberRequest, AddOrgMemberResponse, CreateOrgRequest, CreateOrgResponse, DeleteOrgRequest, DeleteOrgResponse, GetOrgRequest, GetOrgResponse, ListOrgMembersRequest, ListOrgMembersResponse, ListOrgWorkspacesRequest, ListOrgWorkspacesResponse, ListUserOrgsRequest, ListUserOrgsResponse, RemoveOrgMemberRequest, RemoveOrgMemberResponse, UpdateOrgRequest, UpdateOrgResponse } from "./org_pb";
+import { AddOrgMemberRequest, AddOrgMemberResponse, CreateOrgRequest, CreateOrgResponse, DeleteOrgRequest, DeleteOrgResponse, GetOrgRequest, GetOrgResponse, ListOrgMembersRequest, ListOrgMembersResponse, ListUserOrgsRequest, ListUserOrgsResponse, RemoveOrgMemberRequest, RemoveOrgMemberResponse, UpdateOrgRequest, UpdateOrgResponse } from "./org_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -94,17 +94,6 @@ export const OrgService = {
       name: "RemoveOrgMember",
       I: RemoveOrgMemberRequest,
       O: RemoveOrgMemberResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * ListOrgWorkspaces lists workspaces in an organization.
-     *
-     * @generated from rpc loco.org.v1.OrgService.ListOrgWorkspaces
-     */
-    listOrgWorkspaces: {
-      name: "ListOrgWorkspaces",
-      I: ListOrgWorkspacesRequest,
-      O: ListOrgWorkspacesResponse,
       kind: MethodKind.Unary,
     },
   }

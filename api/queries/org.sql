@@ -65,6 +65,17 @@ WHERE (sqlc.narg('page_token')::text IS NULL
 ORDER BY u.id DESC
 LIMIT $2;
 
+-- name: IsOrgMember :one
+SELECT EXISTS (
+  SELECT 1 FROM user_scopes us
+  WHERE us.user_id = sqlc.arg('user_id')
+    AND us.entity_type = 'organization'
+    AND us.entity_id = sqlc.arg('org_id')
+) AS is_member;
+
+-- name: LockUserForMembership :one
+SELECT id FROM users WHERE id = $1 FOR UPDATE;
+
 -- name: RemoveOrgMember :exec
 DELETE FROM user_scopes us
 WHERE us.user_id = sqlc.arg('user_id')

@@ -78,6 +78,27 @@ func (q *Queries) GetOrgByName(ctx context.Context, name string) (Organization, 
 	return i, err
 }
 
+const isOrgMember = `-- name: IsOrgMember :one
+SELECT EXISTS (
+  SELECT 1 FROM user_scopes us
+  WHERE us.user_id = $1
+    AND us.entity_type = 'organization'
+    AND us.entity_id = $2
+) AS is_member
+`
+
+type IsOrgMemberParams struct {
+	UserID uuid.UUID `json:"userId"`
+	OrgID  uuid.UUID `json:"orgId"`
+}
+
+func (q *Queries) IsOrgMember(ctx context.Context, arg IsOrgMemberParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isOrgMember, arg.UserID, arg.OrgID)
+	var is_member bool
+	err := row.Scan(&is_member)
+	return is_member, err
+}
+
 const isOrgNameUnique = `-- name: IsOrgNameUnique :one
 SELECT COUNT(*) = 0 as is_unique
 FROM organizations
@@ -201,6 +222,17 @@ func (q *Queries) ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockUserForMembership = `-- name: LockUserForMembership :one
+SELECT id FROM users WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) LockUserForMembership(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, lockUserForMembership, id)
+	var id_2 uuid.UUID
+	err := row.Scan(&id_2)
+	return id_2, err
 }
 
 const orgHasWorkspacesWithResources = `-- name: OrgHasWorkspacesWithResources :one

@@ -26,8 +26,10 @@ var (
 	ErrOrgNotFound                   = errors.New("organization not found")
 	ErrOrgNameNotUnique              = errors.New("organization name already exists")
 	ErrOrgHasWorkspacesWithResources = errors.New("organization has workspaces with resources")
-	ErrNotOrgMember                  = errors.New("user is not a member of this organization")
-	ErrRemoveSelfFromOrg             = errors.New("you cannot remove yourself from the organization")
+	ErrNotOrgMember                  = errors.New(
+		"user is not a member of the workspace's organization; add them to the organization first",
+	)
+	ErrRemoveSelfFromOrg = errors.New("you cannot remove yourself from the organization")
 )
 
 // OrgServer implements the OrgService gRPC server
@@ -548,6 +550,13 @@ func (s *OrgServer) RemoveOrgMember(
 	}
 
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		_, lockErr := qtx.LockUserForMembership(ctx, userID)
+		if errors.Is(lockErr, pgx.ErrNoRows) {
+			return rpcerr.New(connect.CodeNotFound, ErrUserNotFound)
+		}
+		if lockErr != nil {
+			return lockErr
+		}
 		if removeErr := qtx.RemoveOrgMember(ctx, genDb.RemoveOrgMemberParams{
 			UserID: userID,
 			OrgID:  orgID,
@@ -566,67 +575,4 @@ func (s *OrgServer) RemoveOrgMember(
 	}
 
 	return &orgv1.RemoveOrgMemberResponse{}, nil
-}
-
-// ListOrgWorkspaces lists workspaces in an organization
-func (s *OrgServer) ListOrgWorkspaces(
-	ctx context.Context,
-	req *orgv1.ListOrgWorkspacesRequest,
-) (*orgv1.ListOrgWorkspacesResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
-
-	// Check authorization
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.ListWorkspaces, req.GetOrgId()),
-	); err != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
-	}
-
-	pageSize := normalizePageSize(req.GetPageSize())
-
-	var pageToken *string
-	if req.GetPageToken() != "" {
-		cursorID, err := decodeCursor(req.GetPageToken())
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(err)
-		}
-		pageToken = &cursorID
-	}
-
-	// Get workspaces for org
-	workspaces, err := s.queries.ListWorkspacesInOrg(ctx, genDb.ListWorkspacesInOrgParams{
-		OrgID:     uuid.MustParse(req.GetOrgId()),
-		Limit:     pageSize,
-		PageToken: pageToken,
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list workspaces", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-
-	workspaceSummaries := make([]*orgv1.WorkspaceSummary, len(workspaces))
-	for i, ws := range workspaces {
-		workspaceSummaries[i] = &orgv1.WorkspaceSummary{
-			Id:        ws.ID.String(),
-			Name:      ws.Name,
-			CreatedBy: ws.CreatedBy.String(),
-			CreatedAt: timeutil.ParsePostgresTimestamp(ws.CreatedAt),
-		}
-	}
-
-	var nextPageToken string
-	if len(workspaces) == int(pageSize) {
-		nextPageToken = encodeCursor(workspaces[len(workspaces)-1].ID.String())
-	}
-
-	return &orgv1.ListOrgWorkspacesResponse{
-		Workspaces:    workspaceSummaries,
-		NextPageToken: nextPageToken,
-	}, nil
 }

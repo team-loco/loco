@@ -4,19 +4,24 @@ VALUES ($1, $2, $3, $4)
 RETURNING id;
 
 -- name: GetWorkspaceByIDQuery :one
-SELECT * FROM workspaces WHERE id = $1;
+SELECT w.id, w.org_id, o.name AS org_name, w.name, w.description, w.created_by, w.created_at, w.updated_at
+FROM workspaces w
+JOIN organizations o ON o.id = w.org_id
+WHERE w.id = $1;
 
 -- name: GetOrganizationIDByWorkspaceID :one
 SELECT org_id FROM workspaces WHERE id = $1;
 
 -- name: ListWorkspacesForUser :many
-SELECT w.id, w.org_id, w.name, w.description, w.created_by, w.created_at, w.updated_at
+SELECT w.id, w.org_id, o.name AS org_name, w.name, w.description, w.created_by, w.created_at, w.updated_at
 FROM workspaces w
+JOIN organizations o ON o.id = w.org_id
 WHERE EXISTS (
     SELECT 1 FROM user_scopes us
     WHERE us.user_id = $1
-      AND us.entity_type = 'workspace'
-      AND us.entity_id = w.id
+      AND us.scope = 'read'
+      AND ((us.entity_type = 'workspace' AND us.entity_id = w.id)
+        OR (us.entity_type = 'organization' AND us.entity_id = w.org_id))
   )
   AND (sqlc.narg('page_token')::text IS NULL
        OR (w.created_at, w.id) < (
@@ -27,8 +32,11 @@ ORDER BY w.created_at DESC, w.id DESC
 LIMIT $2;
 
 -- name: ListWorkspacesInOrg :many
-SELECT w.* FROM workspaces w
+SELECT w.id, w.org_id, o.name AS org_name, w.name, w.description, w.created_by, w.created_at, w.updated_at
+FROM workspaces w
+JOIN organizations o ON o.id = w.org_id
 WHERE w.org_id = $1
+  AND (sqlc.arg('all_workspaces')::bool OR w.id = ANY(sqlc.arg('workspace_ids')::uuid[]))
   AND (sqlc.narg('page_token')::text IS NULL
        OR (w.created_at, w.id) < (
          (SELECT created_at FROM workspaces WHERE id = sqlc.narg('page_token')::uuid),

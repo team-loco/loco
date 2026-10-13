@@ -226,10 +226,10 @@ var (
 	}
 
 	// workspace
-	// ListWorkspaces requires organization:read (assuming workspaces are scoped to orgs).
+	// ListWorkspaces requires organization:member.
 	ListWorkspaces = Action{
 		entityType: db.EntityTypeOrganization,
-		scope:      db.ScopeRead,
+		scope:      db.ScopeMember,
 	}
 	// CreateWorkspace requires organization:write.
 	CreateWorkspace = Action{

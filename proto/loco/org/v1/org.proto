@@ -24,8 +24,6 @@ service OrgService {
   rpc ListOrgMembers(ListOrgMembersRequest) returns (ListOrgMembersResponse);
   rpc AddOrgMember(AddOrgMemberRequest) returns (AddOrgMemberResponse);
   rpc RemoveOrgMember(RemoveOrgMemberRequest) returns (RemoveOrgMemberResponse);
-  // ListOrgWorkspaces lists workspaces in an organization.
-  rpc ListOrgWorkspaces(ListOrgWorkspacesRequest) returns (ListOrgWorkspacesResponse);
 }
 
 // Organization represents a top-level organization container for users, workspaces, and resources.
@@ -35,14 +33,6 @@ message Organization {
   string created_by = 3;
   google.protobuf.Timestamp created_at = 4;
   google.protobuf.Timestamp updated_at = 5;
-}
-
-// WorkspaceSummary provides a lightweight summary of a workspace for listing operations.
-message WorkspaceSummary {
-  string id = 1;
-  string name = 2;
-  string created_by = 3;
-  google.protobuf.Timestamp created_at = 4;
 }
 
 // CreateOrgRequest is the request to create a new organization.
@@ -126,22 +116,6 @@ message User {
   string email = 2;
   string name = 3;
   string avatar_url = 4;
-}
-
-// ListOrgWorkspacesRequest is the request to list workspaces in an organization.
-message ListOrgWorkspacesRequest {
-  string org_id = 1 [(buf.validate.field).string.uuid = true];
-  int32 page_size = 2 [(buf.validate.field).int32 = {
-    gte: 0
-    lte: 200
-  }]; // default: 50, max: 200
-  string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
-}
-
-// ListOrgWorkspacesResponse is the response containing workspace list.
-message ListOrgWorkspacesResponse {
-  repeated WorkspaceSummary workspaces = 1;
-  string next_page_token = 2; // empty if no more pages
 }
 
 // UpdateOrgRequest is the request to update an organization.

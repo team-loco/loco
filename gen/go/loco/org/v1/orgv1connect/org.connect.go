@@ -40,9 +40,6 @@ const (
 	OrgServiceAddOrgMemberProcedure = "/loco.org.v1.OrgService/AddOrgMember"
 	// OrgServiceRemoveOrgMemberProcedure is the procedure name of the OrgService's RemoveOrgMember RPC.
 	OrgServiceRemoveOrgMemberProcedure = "/loco.org.v1.OrgService/RemoveOrgMember"
-	// OrgServiceListOrgWorkspacesProcedure is the procedure name of the OrgService's ListOrgWorkspaces
-	// RPC.
-	OrgServiceListOrgWorkspacesProcedure = "/loco.org.v1.OrgService/ListOrgWorkspaces"
 )
 
 var (
@@ -102,13 +99,6 @@ var (
 			Procedure:  OrgServiceRemoveOrgMemberProcedure,
 		}
 	})
-	orgServiceListOrgWorkspacesSpec = sync.OnceValue(func() connect.Spec {
-		return connect.Spec{
-			StreamType: connect.StreamTypeUnary,
-			Schema:     v1.File_loco_org_v1_org_proto.Services().ByName("OrgService").Methods().ByName("ListOrgWorkspaces"),
-			Procedure:  OrgServiceListOrgWorkspacesProcedure,
-		}
-	})
 )
 
 // OrgServiceClient is a client for the loco.org.v1.OrgService service.
@@ -126,8 +116,6 @@ type OrgServiceClient interface {
 	ListOrgMembers(context.Context, *v1.ListOrgMembersRequest) (*v1.ListOrgMembersResponse, error)
 	AddOrgMember(context.Context, *v1.AddOrgMemberRequest) (*v1.AddOrgMemberResponse, error)
 	RemoveOrgMember(context.Context, *v1.RemoveOrgMemberRequest) (*v1.RemoveOrgMemberResponse, error)
-	// ListOrgWorkspaces lists workspaces in an organization.
-	ListOrgWorkspaces(context.Context, *v1.ListOrgWorkspacesRequest) (*v1.ListOrgWorkspacesResponse, error)
 }
 
 // NewOrgServiceClient constructs a client for the loco.org.v1.OrgService service. Multiple service
@@ -151,8 +139,6 @@ type OrgServiceHandler interface {
 	ListOrgMembers(context.Context, *v1.ListOrgMembersRequest) (*v1.ListOrgMembersResponse, error)
 	AddOrgMember(context.Context, *v1.AddOrgMemberRequest) (*v1.AddOrgMemberResponse, error)
 	RemoveOrgMember(context.Context, *v1.RemoveOrgMemberRequest) (*v1.RemoveOrgMemberResponse, error)
-	// ListOrgWorkspaces lists workspaces in an organization.
-	ListOrgWorkspaces(context.Context, *v1.ListOrgWorkspacesRequest) (*v1.ListOrgWorkspacesResponse, error)
 }
 
 // RegisterOrgServiceHandler registers svc as the loco.org.v1.OrgService implementation on server.
@@ -167,7 +153,6 @@ func RegisterOrgServiceHandler(server *connect.Server, svc OrgServiceHandler) {
 		connect.Method{Spec: orgServiceListOrgMembersSpec(), Handler: adapter.listOrgMembers},
 		connect.Method{Spec: orgServiceAddOrgMemberSpec(), Handler: adapter.addOrgMember},
 		connect.Method{Spec: orgServiceRemoveOrgMemberSpec(), Handler: adapter.removeOrgMember},
-		connect.Method{Spec: orgServiceListOrgWorkspacesSpec(), Handler: adapter.listOrgWorkspaces},
 	)
 }
 
@@ -204,10 +189,6 @@ func (UnimplementedOrgServiceHandler) AddOrgMember(context.Context, *v1.AddOrgMe
 
 func (UnimplementedOrgServiceHandler) RemoveOrgMember(context.Context, *v1.RemoveOrgMemberRequest) (*v1.RemoveOrgMemberResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.org.v1.OrgService.RemoveOrgMember is not implemented")
-}
-
-func (UnimplementedOrgServiceHandler) ListOrgWorkspaces(context.Context, *v1.ListOrgWorkspacesRequest) (*v1.ListOrgWorkspacesResponse, error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, "loco.org.v1.OrgService.ListOrgWorkspaces is not implemented")
 }
 
 type orgServiceClient struct {
@@ -273,14 +254,6 @@ func (c *orgServiceClient) AddOrgMember(ctx context.Context, req *v1.AddOrgMembe
 func (c *orgServiceClient) RemoveOrgMember(ctx context.Context, req *v1.RemoveOrgMemberRequest) (*v1.RemoveOrgMemberResponse, error) {
 	var res v1.RemoveOrgMemberResponse
 	if err := c.client.CallUnary(ctx, orgServiceRemoveOrgMemberSpec(), req, &res); err != nil {
-		return nil, err
-	}
-	return &res, nil
-}
-
-func (c *orgServiceClient) ListOrgWorkspaces(ctx context.Context, req *v1.ListOrgWorkspacesRequest) (*v1.ListOrgWorkspacesResponse, error) {
-	var res v1.ListOrgWorkspacesResponse
-	if err := c.client.CallUnary(ctx, orgServiceListOrgWorkspacesSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -378,18 +351,6 @@ func (h orgServiceHandler) removeOrgMember(ctx context.Context, _ connect.Spec, 
 		return err
 	}
 	res, err := h.svc.RemoveOrgMember(ctx, &req)
-	if err != nil {
-		return err
-	}
-	return stream.Send(res)
-}
-
-func (h orgServiceHandler) listOrgWorkspaces(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
-	var req v1.ListOrgWorkspacesRequest
-	if err := stream.Receive(&req); err != nil {
-		return err
-	}
-	res, err := h.svc.ListOrgWorkspaces(ctx, &req)
 	if err != nil {
 		return err
 	}

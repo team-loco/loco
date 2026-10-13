@@ -83,6 +83,28 @@ func (a *Authorizer) Check(ctx context.Context, granted []queries.EntityScope, r
 	return ErrInsufficientPermissions
 }
 
+func (a *Authorizer) ReadableWorkspaces(
+	ctx context.Context,
+	granted []queries.EntityScope,
+	orgID uuid.UUID,
+) (bool, []uuid.UUID) {
+	orgRead := queries.EntityScope{
+		EntityType: queries.EntityTypeOrganization,
+		EntityID:   orgID,
+		Scope:      queries.ScopeRead,
+	}
+	if a.Check(ctx, granted, orgRead) == nil {
+		return true, nil
+	}
+	var ids []uuid.UUID
+	for _, scope := range granted {
+		if scope.EntityType == queries.EntityTypeWorkspace && scope.Scope == queries.ScopeRead {
+			ids = append(ids, scope.EntityID)
+		}
+	}
+	return false, ids
+}
+
 func covers(held queries.Scope, required queries.Scope) bool {
 	return held == required || required == queries.ScopeMember
 }

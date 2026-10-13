@@ -34,6 +34,7 @@ type Workspace struct {
 	CreatedBy     string                 `protobuf:"bytes,5,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	OrgName       string                 `protobuf:"bytes,8,opt,name=org_name,json=orgName,proto3" json:"org_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -115,6 +116,13 @@ func (x *Workspace) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *Workspace) GetOrgName() string {
+	if x != nil {
+		return x.OrgName
+	}
+	return ""
 }
 
 // WorkspaceMember represents a user's membership in a workspace and their granted scopes.
@@ -1229,7 +1237,7 @@ var File_loco_workspace_v1_workspace_proto protoreflect.FileDescriptor
 
 const file_loco_workspace_v1_workspace_proto_rawDesc = "" +
 	"\n" +
-	"!loco/workspace/v1/workspace.proto\x12\x11loco.workspace.v1\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xfd\x01\n" +
+	"!loco/workspace/v1/workspace.proto\x12\x11loco.workspace.v1\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x98\x02\n" +
 	"\tWorkspace\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x15\n" +
 	"\x06org_id\x18\x02 \x01(\tR\x05orgId\x12\x12\n" +
@@ -1240,7 +1248,8 @@ const file_loco_workspace_v1_workspace_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xa0\x01\n" +
+	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x19\n" +
+	"\borg_name\x18\b \x01(\tR\aorgName\"\xa0\x01\n" +
 	"\x0fWorkspaceMember\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x16\n" +
