@@ -1,0 +1,12 @@
+{
+  "shots": [
+    {
+      "name": "workspace-switcher",
+      "user": "member",
+      "path": "/dashboard",
+      "steps": [{"click": "[title=\"Switch workspace\"]"}, {"wait": "[role=\"menu\"]"}],
+      "crop": {"clip": [0, 0, 640, 300]}
+    },
+    {"name": "dashboard", "user": "member", "path": "/dashboard", "crop": "full", "narrow": true}
+  ]
+}

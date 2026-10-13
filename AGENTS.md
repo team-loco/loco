@@ -116,8 +116,8 @@ Builds, tests, code generation, linting and the local environment are mise tasks
 - **Frontend PRs carry before and after screenshots.** Any PR that changes what the web UI
   looks like or how it behaves must include screenshots of the affected screens before and
   after the change in the PR body, as evidence. Cover light and dark mode, and a narrow
-  viewport when the layout changes. Upload them through the PR editor as attachments; never
-  push image files or image branches.
+  viewport when the layout changes. The `ui-evidence` skill captures and tabulates them.
+  Upload them with `gh pr edit --attach`.
 - **Other agents may be working in this repo at the same time.** The index is shared
   state: never run `git commit` on whatever happens to be staged. Check `git status`
   first, and commit explicit paths (`git commit -- <paths>`) so another agent's staged
@@ -198,6 +198,7 @@ first time and run `mise run lint:go` before pushing. The one that bites most:
 
 ## Skills
 
-Task-specific guidance lives in `.agents/skills/` (`.claude/skills` links to it). Claude Code
-loads a skill when its description matches the task; other agents should read the matching
-`SKILL.md` before starting.
+Task-specific guidance lives in `.agents/skills/` (`.claude/skills` links to it), and the
+subagents those skills run in live in `.agents/agents/` (`.claude/agents` links to it).
+Claude Code loads a skill when its description matches the task; other agents should read
+the matching `SKILL.md` before starting.

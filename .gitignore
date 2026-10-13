@@ -58,6 +58,7 @@ node_modules/
 CLAUDE.local.md
 .claude/*
 !.claude/skills
+!.claude/agents
 
 # local helm charts and values
 **/values/local.yaml
