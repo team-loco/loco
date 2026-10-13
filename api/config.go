@@ -24,6 +24,7 @@ var (
 	errCacheAddrMissing   = errors.New("CACHE_ADDR required when CACHE_TYPE=valkey")
 	errUnknownCacheType   = errors.New("unknown cache type")
 	errInvalidSourceBytes = errors.New("LOCO_SOURCE_MAX_BYTES is not a positive integer")
+	errShortRetryDelay    = errors.New("LOCO_PLACEMENT_RETRY_DELAY must be at least 1s")
 
 	errInvalidForcePathStyle   = errors.New("LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE is not a boolean")
 	errInvalidServiceDefault   = errors.New("invalid service default")
@@ -451,6 +452,9 @@ func newDatabaseListenConfig(databaseURL string) *pgx.ConnConfig {
 
 func newAgentConfig() service.AgentConfig {
 	delay := positiveDurationEnv("LOCO_PLACEMENT_RETRY_DELAY", defaultPlacementRetryDelay)
+	if delay < time.Second {
+		panic(errShortRetryDelay)
+	}
 	maxAttempts := positiveInt32Env("LOCO_PLACEMENT_MAX_APPLY_ATTEMPTS", defaultPlacementMaxApplyAttempts)
 	return service.AgentConfig{PlacementRetryDelay: delay, PlacementMaxApplyAttempts: maxAttempts}
 }

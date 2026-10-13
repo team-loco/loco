@@ -22,10 +22,8 @@ import (
 )
 
 var (
-	ErrAgentNotAuthenticated       = errors.New("agent not authenticated")
-	ErrInvalidAgentToken           = errors.New("invalid agent token")
-	errInvalidPlacementRetryDelay  = errors.New("placement retry delay must be at least one second")
-	errInvalidPlacementMaxAttempts = errors.New("placement max apply attempts must be positive")
+	ErrAgentNotAuthenticated = errors.New("agent not authenticated")
+	ErrInvalidAgentToken     = errors.New("invalid agent token")
 )
 
 type AgentConfig struct {
@@ -55,12 +53,6 @@ func NewAgentServer(
 	heartbeatInterval time.Duration,
 	config AgentConfig,
 ) *AgentServer {
-	if config.PlacementRetryDelay < time.Second {
-		panic(errInvalidPlacementRetryDelay)
-	}
-	if config.PlacementMaxApplyAttempts <= 0 {
-		panic(errInvalidPlacementMaxAttempts)
-	}
 	return &AgentServer{
 		db:                db,
 		queries:           queries,

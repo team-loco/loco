@@ -667,7 +667,7 @@ func TestPlacementRetryDelayConfiguration(t *testing.T) {
 	if got := newAgentConfig().PlacementRetryDelay; got != 30*time.Minute {
 		t.Fatalf("retry delay = %v, want 30m", got)
 	}
-	for _, value := range []string{"0s", "-1m", "bad"} {
+	for _, value := range []string{"0s", "-1m", "500ms", "bad"} {
 		t.Setenv("LOCO_PLACEMENT_RETRY_DELAY", value)
 		if err := panicValue(t, func() { newAgentConfig() }); err == nil {
 			t.Fatalf("invalid retry delay %s accepted", value)
