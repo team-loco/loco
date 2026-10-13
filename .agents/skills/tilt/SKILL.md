@@ -1,6 +1,6 @@
 ---
 name: tilt
-description: Run the full local stack (kind cluster, compose services, API, web UI) with Tilt, from the main checkout or a git worktree, and check a change in the browser. Load before running `mise run tilt`, looking at the web UI on localhost:5173, or taking PR screenshots.
+description: Run the full local stack (kind cluster, compose services, API, web UI) with Tilt, from the main checkout or a git worktree, and check a change in the browser. Load before running `mise run tilt` or looking at the web UI on localhost:5173. PR screenshots come from the ui-evidence skill, which needs no Tilt.
 ---
 
 # Running the local stack with Tilt
@@ -19,9 +19,7 @@ Every checkout shares the compose project `loco-dev`, its volumes (`loco-dev_pos
 holds the database) and the same ports. Before starting Tilt, check for one already
 running with `pgrep -fl 'tilt up'`. Stop a Tilt you started with `TaskStop` on its
 background task. A Tilt another session started belongs to that session: leave it
-running, and skip `mise run stop`, which stops every Tilt on the local cluster. When it
-blocks screenshots, open the PR as a draft without them and say so in the reply to the
-user.
+running, and skip `mise run stop`, which stops every Tilt on the local cluster.
 
 ## Worktree setup
 
@@ -78,9 +76,3 @@ Start Tilt again; `db-migrate` recreates the schema and seeds `api/seed/local.sq
 - After `navigate`, the first click only focuses the tab. Click once more to open a menu or
   dropdown, and take a throwaway screenshot before the saved one so fade-in animations
   finish.
-- `resize_window` cannot reach a phone width: Chrome keeps a page zoom for localhost:5173
-  and enforces a minimum window width. For a 390px screenshot, append a same-origin
-  `<iframe>` 390px wide with the page URL, screenshot it and crop the image with
-  `sips --cropOffset <y> <x> -c <height> <width>` (the offset goes before `-c`).
-- For "before" screenshots, commit the branch, run `git checkout origin/main -- web/src`
-  in the worktree and let Bun reload; `git checkout HEAD -- web/src` restores the branch.
