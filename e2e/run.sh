@@ -564,12 +564,12 @@ setup_registry() {
     registry_port=$(compose_host_port registry 5000)
     export E2E_REGISTRY_URL="http://127.0.0.1:${registry_port}"
     KIND_CLUSTER="$KIND_CLUSTER_NAME" \
-    COMPOSE_PROJECT="$E2E_COMPOSE_PROJECT" \
+    COMPOSE_PROJECT_NAME="$E2E_COMPOSE_PROJECT" \
     REGISTRY_PORT="$registry_port" \
     REGISTRY_ALIAS="$E2E_REGISTRY_ALIAS" \
     S3_ALIAS="$E2E_S3_ALIAS" \
         mise run cluster:registry >/dev/null
-    BUILD_EGRESS_CIDRS=$(COMPOSE_PROJECT="$E2E_COMPOSE_PROJECT" mise run --quiet cluster:build-egress)
+    BUILD_EGRESS_CIDRS=$(COMPOSE_PROJECT_NAME="$E2E_COMPOSE_PROJECT" mise run --quiet cluster:build-egress)
     log_ok "Registry at ${E2E_REGISTRY_HOST} (host port ${registry_port}), source bucket at ${E2E_S3_ENDPOINT}, build egress to ${BUILD_EGRESS_CIDRS}"
 }
 

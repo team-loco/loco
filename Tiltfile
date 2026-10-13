@@ -8,7 +8,7 @@
 #   1. mise run setup
 #   2. Copy .env.example to .env and fill in secrets (or ensure .env is populated)
 
-kind_context = 'kind-' + read_yaml('env/local/kind-cluster.yml')['name']
+kind_context = 'kind-' + os.environ['KIND_CLUSTER']
 allow_k8s_contexts(kind_context)
 if k8s_context() != kind_context:
     fail('Tilt is on Kubernetes context %s instead of %s; start it with mise run tilt' % (k8s_context(), kind_context))
@@ -103,7 +103,7 @@ def helm_release(name, namespace, images, values, deps, resource_deps):
 # Infrastructure: Postgres, Valkey, the identity provider, the image registry and the source bucket from compose.yaml
 # ---------------------------------------------------------------------------
 
-docker_compose('compose.yaml', project_name='loco-dev')
+docker_compose('compose.yaml', project_name=os.environ['COMPOSE_PROJECT_NAME'])
 
 dc_resource('postgres', labels=['infrastructure'])
 dc_resource('valkey', labels=['infrastructure'])

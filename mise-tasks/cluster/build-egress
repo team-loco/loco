@@ -2,7 +2,7 @@
 #MISE description="Print the kind network addresses of the compose registry and source bucket as CIDRs, the private addresses build pods may reach"
 set -euo pipefail
 
-project=${COMPOSE_PROJECT:-loco-dev}
+project=${COMPOSE_PROJECT_NAME:?}
 format='{{with index .NetworkSettings.Networks "kind"}}{{.IPAddress}} {{.GlobalIPv6Address}}{{end}}'
 
 cidrs=()

@@ -144,6 +144,10 @@ run = ["bun run lint:fast", "bun run lint:types", "bun run typecheck"]
 description = "Test CI component selection and pull-request diffs"
 run = ["python3 -m unittest discover -s .github/actions/go-changes/tests", "python3 -m unittest discover -s .github/actions/ci-gate/tests"]
 
+[tasks."test:stack"]
+description = "Test how each checkout's local stack gets its slot, names, ports and LoadBalancer range"
+run = "python3 -m unittest discover -s tests/stack"
+
 [tasks."lint:actions"]
 description = "Run actionlint on the GitHub workflows, and check that every action is pinned to a commit SHA"
 run = ["actionlint -shellcheck=", "pinact run --check"]
@@ -155,12 +159,13 @@ run = "git ls-files '*Dockerfile' | grep -v '^examples/' | xargs hadolint --no-c
 [tasks.ui]
 description = "Run the web UI dev server"
 dir = "web"
+env = { _.source = "env/local/stack.sh" }
 run = "bun run dev"
 
 [tasks.tilt]
-description = "Start the full local environment (cluster, infrastructure and services) with Tilt, including one mise run stop stopped"
+description = "Start this checkout's local environment (cluster, infrastructure and services) with Tilt, including one mise run stop stopped; mise run stack prints its URLs"
 alias = "start"
-env = { _.file = ".env" }
+env = { _.file = ".env", _.source = "env/local/stack.sh" }
 run = """
 if [ ! -f .env ]; then
   echo ".env is missing: copy .env.example to .env, or in a git worktree link the main checkout's .env" >&2
@@ -172,21 +177,22 @@ if [ -z "${DOCKER_HOST:-}" ] && [ -S "$orbstack_sock" ]; then
 fi
 mise run doctor
 mise run cluster:up
-cluster=$(yq .name env/local/kind-cluster.yml)
-tilt up --context "kind-$cluster"
+tilt up --context "kind-$KIND_CLUSTER"
 """
 
 [tasks."infra:up"]
 description = "Start Postgres, Valkey, the identity provider, the image registry and the source bucket from compose.yaml and wait until they are up"
+env = { _.source = "env/local/stack.sh" }
 run = "docker compose up -d --wait postgres valkey dex registry s3"
 
 [tasks."infra:down"]
 description = "Stop the compose services; the database, images and sources are kept in their volumes"
+env = { _.source = "env/local/stack.sh" }
 run = "docker compose down"
 
 [tasks."db:migrate"]
 description = "Apply api/migrations with goose and seed api/seed/local.sql into the local database"
-env = { _.file = ".env" }
+env = { _.file = ".env", _.source = "env/local/stack.sh" }
 run = [
   "docker compose up -d --wait postgres",
   'goose -dir api/migrations postgres "$DATABASE_URL" up',
@@ -195,17 +201,45 @@ run = [
 
 [tasks."db:status"]
 description = "Show which migrations goose has applied to the local database"
-env = { _.file = ".env" }
+env = { _.file = ".env", _.source = "env/local/stack.sh" }
 run = 'goose -dir api/migrations postgres "$DATABASE_URL" status'
 
 [tasks."db:psql"]
 description = "Open psql against the local database, inside the Postgres container"
+env = { _.source = "env/local/stack.sh" }
 raw = true
 run = "docker compose exec postgres sh -c 'exec psql -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\"'"
 
 [tasks."cluster:down"]
-description = "Delete the local kind cluster"
-run = "kind delete cluster --name loco-cluster-local"
+description = "Delete this checkout's kind cluster"
+env = { _.source = "env/local/stack.sh" }
+run = 'kind delete cluster --name "$KIND_CLUSTER"'
+
+[tasks.down]
+description = "Remove this checkout's local environment: stop it, delete its kind cluster, its compose containers and volumes, and free its stack slot"
+env = { _.source = "env/local/stack.sh" }
+run = [
+  "mise run stop",
+  "mise run cluster:down",
+  "docker compose down --volumes",
+  'if [ -n "$LOCO_STACK_CLAIM" ]; then rm -f "$LOCO_STACK_CLAIM"; fi',
+]
+
+[tasks.stack]
+description = "Print this checkout's local stack: its slot, URLs, kind context and compose project"
+quiet = true
+env = { _.source = "env/local/stack.sh" }
+run = """
+cat <<EOF
+slot             $LOCO_STACK_SLOT
+web UI           $WEB_URL
+API              $PUBLIC_API_URL
+Dex              http://localhost:$DEX_PORT/dex
+Tilt UI          http://localhost:$TILT_PORT
+kube context     kind-$KIND_CLUSTER
+compose project  $COMPOSE_PROJECT_NAME
+EOF
+"""
 
 [tasks."helm:repos"]
 description = "Add and update the helm repositories the charts depend on"
@@ -230,22 +264,23 @@ run = [
 
 [tasks."helm:sync:namespaces"]
 description = "Sync the platform namespaces and their Pod Security labels to the local cluster"
-env = { _.file = ".env" }
+env = { _.file = ".env", _.source = "env/local/stack.sh" }
 run = "helmfile -e local -l name=loco-namespaces sync --skip-deps"
 
 [tasks."helm:sync:cert-manager"]
 description = "Sync cert-manager to the local cluster"
-env = { _.file = ".env" }
+env = { _.file = ".env", _.source = "env/local/stack.sh" }
 run = "helmfile -e local -l name=cert-manager sync --skip-deps"
 
 [tasks."helm:destroy"]
 description = "Uninstall every release from the local cluster"
-env = { _.file = ".env" }
+env = { _.file = ".env", _.source = "env/local/stack.sh" }
 run = "helmfile -e local destroy"
 
 [tasks."helm:fix-clickhouse"]
 description = "Remove the ClickHouse finalizer when it is stuck"
-run = """kubectl -n observability patch clickhouseinstallations.clickhouse.altinity.com/clickhouse -p '{"metadata":{"finalizers":[]}}' --type=merge"""
+env = { _.source = "env/local/stack.sh" }
+run = """kubectl --context "kind-$KIND_CLUSTER" -n observability patch clickhouseinstallations.clickhouse.altinity.com/clickhouse -p '{"metadata":{"finalizers":[]}}' --type=merge"""
 
 [tasks.e2e]
 description = "Run the end-to-end tests in this worktree's own kind cluster and compose project (E2E_RUN_ID overrides the run). Flags: --no-teardown keeps the run, a later run reuses its cluster and resets its state; --skip-build reuses the images and binaries; a trailing filter picks test files"

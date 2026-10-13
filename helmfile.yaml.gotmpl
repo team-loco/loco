@@ -1,6 +1,7 @@
 ---
 environments:
   local:
+    kubeContext: kind-{{ env "KIND_CLUSTER" }}
     values:
       - env/global.yaml
       - installCNI: true

@@ -3,7 +3,7 @@
 #USAGE arg "<image>..." var=#true help="image references to keep, such as loco-agent:tilt-0123abcd"
 set -euo pipefail
 
-cluster=${KIND_CLUSTER:-loco-cluster-local}
+cluster=${KIND_CLUSTER:?}
 listed_timeout_seconds=30
 listed_poll_seconds=1
 
