@@ -30,9 +30,6 @@ Builds, tests, code generation, linting and the local environment are mise tasks
 - **Simplicity first.** The least code that solves the problem: no features, abstractions,
   configurability or error handling for cases nobody asked for or that can't happen. If
   200 lines could be 50, rewrite it.
-- **Stay on the request.** Every changed line traces to the task. Don't restyle or refactor
-  code that isn't part of it; "Clean as you go" covers stale code in the area you touch,
-  nothing wider. Match the existing style.
 - **Define done before starting.** Turn the task into checks that prove it: "fix the bug" is
   a test that reproduces it, "refactor X" is the suite passing before and after. For
   multi-step work, write the plan as steps, each with the check that verifies it.
