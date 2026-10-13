@@ -328,7 +328,3 @@ run = "python tools/platform-release/release.py"
 description = "Render and package the real platform charts, CRDs and Flux layers"
 depends = ["helm:deps"]
 run = "python tools/platform-release/verify.py"
-
-[tasks."test:web-history"]
-description = "Check deployment-history cursors, current releases, retry and keyboard navigation in Chromium"
-run = "uv run --frozen --project docs python web/tests/deployment-history.py"

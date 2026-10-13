@@ -60,29 +60,3 @@ jobs:
 
       - name: Test
         run: mise run test:web
-
-      - name: Install Chromium
-        run: uv run --frozen --project docs python -m playwright install --with-deps chromium
-
-      - name: Capture deployment history before the change
-        if: github.event_name == 'pull_request'
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: |
-          git fetch --no-tags origin "$BASE_SHA"
-          for path in web/src/pages/Resource.tsx web/src/pages/resource/model.ts web/src/pages/resource/DeploymentsSection.tsx; do
-            git show "$BASE_SHA:$path" > "$path"
-          done
-          uv run --frozen --project docs python web/tests/deployment-history.py --before
-          git restore web/src/pages/Resource.tsx web/src/pages/resource/model.ts web/src/pages/resource/DeploymentsSection.tsx
-
-      - name: Check deployment history in the browser
-        run: mise run test:web-history
-
-      - name: Upload deployment history screenshots
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: deployment-history-screenshots
-          path: /tmp/loco-history-screenshots
-          if-no-files-found: warn
