@@ -144,7 +144,6 @@ func TestStartupDiagnostics(t *testing.T) {
 		ControlPlaneURL: "https://api.example.test?token=control-plane-password",
 		ClickHouseURL:   "clickhouse://reader:database-password@db.example.test:9000?password=query-password",
 		ClickHouseDB:    "telemetry",
-		ProxyAuthToken:  "proxy-password",
 	}
 	logStartup(logger, cfg, "test-version")
 	var record map[string]any
@@ -371,7 +370,6 @@ func waitReady(t *testing.T, base string) {
 }
 
 func TestReplicasTakeTurnsMigratingUnderTheLock(t *testing.T) {
-	_, controlPlaneURL := readinessControlPlane(t)
 	admin, dsn, database := testClickHouse(t)
 	previous := slog.Default()
 	slog.SetDefault(slog.New(slog.NewTextHandler(t.Output(), nil)))
@@ -382,10 +380,7 @@ func TestReplicasTakeTurnsMigratingUnderTheLock(t *testing.T) {
 	runErrs := make(chan error, replicas)
 	for replica := range replicas {
 		cfg := &config.Config{
-			ControlPlaneURL:        controlPlaneURL,
-			ProxyAuthToken:         testProxyCredential,
-			QueryTimeout:           testQueryTimeoutSeconds,
-			PermissionCheckTimeout: healthzDeadline,
+			ControlPlaneURL:        unreachableControlPlane,
 			ClickHouseURL:          dsn,
 			ClickHouseMigratorURL:  dsn,
 			ClickHouseDB:           database,

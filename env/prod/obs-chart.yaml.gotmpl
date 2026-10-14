@@ -28,8 +28,6 @@ obsProxy:
       - {{ . | trim | quote }}
     {{- end }}
     {{- end }}
-  auth:
-    existingSecret: {{ requiredEnv "OBS_PROXY_AUTH_SECRET" | quote }}
   image:
     tag: sha-{{ requiredEnv "GH_SHA" }}
   replicaCount: 2

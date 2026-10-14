@@ -37,7 +37,6 @@ def main():
                 values['certManager'] = {'issuer': {'email': 'release-test@example.invalid'}}
             if name == 'loco-obs':
                 values['obsProxy']['controlPlane'] = {'url': 'https://api.example.invalid'}
-                values['obsProxy']['auth'] = {'existingSecret': 'release-test-proxy-auth'}
                 values['global'] = {**values.get('global', {}), 'region': 'release-test-region'}
             path = temp / (name + '-values.json')
             path.write_text(json.dumps(values))

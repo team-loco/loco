@@ -59,7 +59,7 @@ func newProxy(cfg *config.Config, lock migrationLock) (*proxy, error) {
 		return nil, fmt.Errorf("create permission cache: %w", err)
 	}
 
-	validator := auth.NewValidator(cfg.ControlPlaneURL, cfg.ProxyAuthToken, permCache)
+	validator := auth.NewValidator(cfg.ControlPlaneURL, permCache)
 	svc := service.NewObservabilityService(ch, cfg, validator)
 	rpcServer := connect.NewServer(auth.NewAuthInterceptor().Interceptor())
 
@@ -78,13 +78,6 @@ func newProxy(cfg *config.Config, lock migrationLock) (*proxy, error) {
 		if err := ch.Ping(r.Context()); err != nil {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			fmt.Fprintf(w, "clickhouse: %v\n", err)
-			return
-		}
-		permissionCtx, cancel := context.WithTimeout(r.Context(), cfg.PermissionCheckTimeout)
-		defer cancel()
-		if err := validator.Ready(permissionCtx); err != nil {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			fmt.Fprintln(w, "control plane permission check unavailable")
 			return
 		}
 		w.WriteHeader(http.StatusOK)
