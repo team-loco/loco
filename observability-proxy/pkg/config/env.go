@@ -38,8 +38,8 @@ func requiredStringEnv(name string) string {
 	return value
 }
 
-func identifierEnv(name string) string {
-	value := requiredStringEnv(name)
+func identifierEnv(name, fallback string) string {
+	value := stringEnv(name, fallback)
 	if !identifierPattern.MatchString(value) {
 		panic(fmt.Errorf("%s %q %w", name, value, errInvalidName))
 	}
@@ -70,8 +70,15 @@ func int32Env(name string, fallback int32) int32 {
 	return int32(parsed)
 }
 
-func requiredPositiveDurationEnv(name string) time.Duration {
-	raw := requiredStringEnv(name)
+func positiveDurationEnv(name string, fallback time.Duration) time.Duration {
+	raw := os.Getenv(name)
+	if raw == "" {
+		return fallback
+	}
+	return parsePositiveDuration(name, raw)
+}
+
+func parsePositiveDuration(name, raw string) time.Duration {
 	parsed, err := time.ParseDuration(raw)
 	if err != nil {
 		panic(fmt.Errorf("%s %q %w", name, raw, errInvalidDuration))
@@ -82,8 +89,8 @@ func requiredPositiveDurationEnv(name string) time.Duration {
 	return parsed
 }
 
-func ttlEnv(name string) time.Duration {
-	ttl := requiredPositiveDurationEnv(name)
+func ttlEnv(name string, fallback time.Duration) time.Duration {
+	ttl := positiveDurationEnv(name, fallback)
 	if ttl%time.Second != 0 {
 		panic(fmt.Errorf("%s %q %w", name, ttl, errFractional))
 	}

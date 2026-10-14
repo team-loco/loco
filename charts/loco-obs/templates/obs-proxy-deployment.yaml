@@ -44,38 +44,6 @@ spec:
               value: {{ join "," .Values.obsProxy.cors.allowedOrigins | quote }}
             {{- include "loco-obs.clickhouseDSN" (dict "root" . "env" "CLICKHOUSE_URL" "passwordEnv" "CLICKHOUSE_READER_PASSWORD" "user" .Values.obsProxy.clickhouse.readerUser "existingSecret" .Values.obsProxy.clickhouse.existingSecret "path" "obsProxy.clickhouse.existingSecret") | nindent 12 }}
             {{- include "loco-obs.clickhouseDSN" (dict "root" . "env" "CLICKHOUSE_MIGRATOR_URL" "passwordEnv" "CLICKHOUSE_MIGRATOR_PASSWORD" "user" .Values.obsProxy.clickhouse.migratorUser "existingSecret" .Values.obsProxy.clickhouse.migratorExistingSecret "path" "obsProxy.clickhouse.migratorExistingSecret") | nindent 12 }}
-            - name: CLICKHOUSE_DB
-              value: {{ .Values.obsProxy.clickhouse.database | quote }}
-            - name: CLICKHOUSE_LOGS_TTL
-              value: {{ .Values.obsProxy.clickhouse.retention.logs | quote }}
-            - name: CLICKHOUSE_TRACES_TTL
-              value: {{ .Values.obsProxy.clickhouse.retention.traces | quote }}
-            - name: CLICKHOUSE_METRICS_TTL
-              value: {{ .Values.obsProxy.clickhouse.retention.metrics | quote }}
-            - name: MIGRATION_RETRY_BUDGET
-              value: {{ printf "%ds" (int .Values.obsProxy.clickhouse.migrations.retryBudgetSeconds) | quote }}
-            - name: MIGRATION_RETRY_INTERVAL
-              value: {{ printf "%ds" (int .Values.obsProxy.clickhouse.migrations.retryIntervalSeconds) | quote }}
-            - name: MIGRATION_LOCK_TTL
-              value: {{ printf "%ds" (int .Values.obsProxy.clickhouse.migrations.lock.ttlSeconds) | quote }}
-            - name: MIGRATION_LOCK_RETRY_PERIOD
-              value: {{ printf "%ds" (int .Values.obsProxy.clickhouse.migrations.lock.retryPeriodSeconds) | quote }}
-            - name: DEFAULT_LIMIT
-              value: {{ .Values.obsProxy.guardrails.defaultLimit | quote }}
-            - name: MAX_LIMIT
-              value: {{ .Values.obsProxy.guardrails.maxLimit | quote }}
-            - name: QUERY_TIMEOUT_SECONDS
-              value: {{ .Values.obsProxy.guardrails.queryTimeoutSeconds | quote }}
-            - name: MAX_TIME_RANGE_HOURS
-              value: {{ .Values.obsProxy.guardrails.maxTimeRangeHours | quote }}
-            - name: MAX_CONCURRENT_QUERIES
-              value: {{ .Values.obsProxy.guardrails.maxConcurrentQueries | quote }}
-            - name: MAX_TAIL_DURATION_MINUTES
-              value: {{ .Values.obsProxy.guardrails.maxTailDurationMinutes | quote }}
-            - name: MAX_CONCURRENT_TAILS
-              value: {{ .Values.obsProxy.guardrails.maxConcurrentTails | quote }}
-            - name: TOKEN_CACHE_TTL_SECONDS
-              value: {{ .Values.obsProxy.guardrails.tokenCacheTTLSeconds | quote }}
           ports:
             - containerPort: {{ .Values.obsProxy.port }}
           livenessProbe:

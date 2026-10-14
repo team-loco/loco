@@ -548,7 +548,7 @@ reset_telemetry() {
     log_step "Emptying the previous run's telemetry..."
     local migrator database table
     migrator=$(yq '.obsProxy.clickhouse.migratorUser' "$OBS_VALUES")
-    database=$(yq '.obsProxy.clickhouse.database' "$OBS_VALUES")
+    database=$(yq '.["otel-col-daemon"].config.exporters.clickhouse.database' "$OBS_VALUES")
     for table in $(obs_clickhouse "$migrator" -q "SELECT name FROM system.tables WHERE database = '${database}' AND engine LIKE '%MergeTree' AND name != 'loco_schema_migrations'"); do
         obs_clickhouse "$migrator" -q "TRUNCATE TABLE ${database}.${table}"
     done
@@ -782,14 +782,7 @@ start_obs_proxy() {
     CORS_ALLOWED_ORIGINS="https://dashboard.e2e.test" \
     CLICKHOUSE_URL="$reader_dsn" \
     CLICKHOUSE_MIGRATOR_URL="$migrator_dsn" \
-    CLICKHOUSE_DB="$(yq '.obsProxy.clickhouse.database' "$OBS_VALUES")" \
-    CLICKHOUSE_LOGS_TTL="$(yq '.obsProxy.clickhouse.retention.logs' "$OBS_VALUES")" \
-    CLICKHOUSE_TRACES_TTL="$(yq '.obsProxy.clickhouse.retention.traces' "$OBS_VALUES")" \
-    CLICKHOUSE_METRICS_TTL="$(yq '.obsProxy.clickhouse.retention.metrics' "$OBS_VALUES")" \
-    MIGRATION_RETRY_BUDGET="$(yq '.obsProxy.clickhouse.migrations.retryBudgetSeconds' "$OBS_VALUES")s" \
-    MIGRATION_RETRY_INTERVAL="$(yq '.obsProxy.clickhouse.migrations.retryIntervalSeconds' "$OBS_VALUES")s" \
-    MIGRATION_LOCK_TTL="$(yq '.obsProxy.clickhouse.migrations.lock.ttlSeconds' "$OBS_VALUES")s" \
-    MIGRATION_LOCK_RETRY_PERIOD="$(yq '.obsProxy.clickhouse.migrations.lock.retryPeriodSeconds' "$OBS_VALUES")s" \
+    CLICKHOUSE_DB="$(yq '.["otel-col-daemon"].config.exporters.clickhouse.database' "$OBS_VALUES")" \
     DEFAULT_LIMIT="100" \
     MAX_LIMIT="1000" \
     QUERY_TIMEOUT_SECONDS="5" \

@@ -236,16 +236,11 @@ class ObservabilitySchema(unittest.TestCase):
         self.assertEqual(env['CLICKHOUSE_MIGRATOR_URL']['valueFrom']['secretKeyRef'], {'name': 'proxy-migrator', 'key': 'dsn'})
         self.assertNotIn('CLICKHOUSE_MIGRATOR_PASSWORD', env)
 
-    def test_proxy_owns_schema_settings(self):
-        values = chart_values('loco-obs')['obsProxy']['clickhouse']
+    def test_proxy_uses_its_built_in_schema_settings(self):
         container, _, env = self.proxy_env()
-        self.assertEqual(env['CLICKHOUSE_DB']['value'], 'loco_obs')
-        self.assertEqual(env['CLICKHOUSE_LOGS_TTL']['value'], values['retention']['logs'])
-        self.assertEqual(env['CLICKHOUSE_TRACES_TTL']['value'], values['retention']['traces'])
-        self.assertEqual(env['CLICKHOUSE_METRICS_TTL']['value'], values['retention']['metrics'])
-        budget = values['migrations']['retryBudgetSeconds']
-        self.assertEqual(env['MIGRATION_RETRY_BUDGET']['value'], f'{budget}s')
-        self.assertEqual(env['MIGRATION_RETRY_INTERVAL']['value'], f"{values['migrations']['retryIntervalSeconds']}s")
+        built_in = {'CLICKHOUSE_DB', 'CLICKHOUSE_LOGS_TTL', 'CLICKHOUSE_TRACES_TTL', 'CLICKHOUSE_METRICS_TTL',
+                    'MIGRATION_RETRY_BUDGET', 'MIGRATION_RETRY_INTERVAL', 'MIGRATION_LOCK_TTL', 'MIGRATION_LOCK_RETRY_PERIOD'}
+        self.assertFalse(built_in & set(env), 'the chart sets settings the proxy defaults itself')
         self.assertNotIn('PERMISSION_CHECK_TIMEOUT', env)
         self.assertEqual(container['readinessProbe']['httpGet']['path'], '/readyz')
         self.assertNotIn('startupProbe', container)
@@ -328,10 +323,12 @@ class ObservabilitySchema(unittest.TestCase):
         with self.assertRaises(subprocess.CalledProcessError):
             render_chart('loco-obs', {'obsProxy': TEST_PROXY, 'clickhouse': {'enabled': False}})
 
-    def test_collectors_ingest_into_the_proxy_database(self):
+    def test_collectors_ingest_into_the_database_the_users_are_granted(self):
         values = chart_values('loco-obs')
-        database = values['obsProxy']['clickhouse']['database']
+        database = values['otel-col-daemon']['config']['exporters']['clickhouse']['database']
         users = {user['name']: user for user in values['clickhouse']['clickhouse']['users']}
+        for user in users.values():
+            self.assertTrue(all(grant.endswith(f' ON {database}.*') for grant in user['grants']), user['name'])
         for collector in ('otel-col-daemon', 'otel-col-deploy'):
             config = values[collector]['config']
             exporter = config['exporters']['clickhouse']
@@ -623,9 +620,6 @@ class ControllerTelemetry(unittest.TestCase):
 
 
 class ObservabilityMigrationLock(unittest.TestCase):
-    def lock_values(self):
-        return chart_values('loco-obs')['obsProxy']['clickhouse']['migrations']['lock']
-
     def deployment(self):
         return render('loco-obs', 'obs-proxy-deployment.yaml', {'obsProxy': TEST_PROXY})
 
@@ -633,13 +627,6 @@ class ObservabilityMigrationLock(unittest.TestCase):
         pod = self.deployment()['spec']['template']['spec']
         self.assertNotIn('serviceAccountName', pod)
         self.assertIs(pod['automountServiceAccountToken'], False)
-
-    def test_proxy_serializes_migrations_with_the_lock(self):
-        lock = self.lock_values()
-        env = {item['name']: item for item in self.deployment()['spec']['template']['spec']['containers'][0]['env']}
-        self.assertEqual(env['MIGRATION_LOCK_TTL']['value'], f"{lock['ttlSeconds']}s")
-        self.assertEqual(env['MIGRATION_LOCK_RETRY_PERIOD']['value'], f"{lock['retryPeriodSeconds']}s")
-        self.assertLessEqual(2 * lock['retryPeriodSeconds'], lock['ttlSeconds'])
 
     def test_in_cluster_clickhouse_runs_a_single_node_keeper_for_the_lock(self):
         installation = clickhouse_installation({'obsProxy': TEST_PROXY})

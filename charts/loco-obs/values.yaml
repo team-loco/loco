@@ -576,7 +576,6 @@ obsProxy:
   controlPlane:
     url: ""
   clickhouse:
-    database: loco_obs
     readerUser: loco_reader
     migratorUser: loco_migrator
     existingSecret:
@@ -585,22 +584,3 @@ obsProxy:
     migratorExistingSecret:
       name: ""
       key: url
-    retention:
-      logs: 8760h
-      traces: 8760h
-      metrics: 8760h
-    migrations:
-      retryBudgetSeconds: 120
-      retryIntervalSeconds: 5
-      lock:
-        ttlSeconds: 15
-        retryPeriodSeconds: 2
-  guardrails:
-    defaultLimit: 1000
-    maxLimit: 10000
-    queryTimeoutSeconds: 10
-    maxTimeRangeHours: 24
-    maxConcurrentQueries: 5
-    maxTailDurationMinutes: 30
-    maxConcurrentTails: 3
-    tokenCacheTTLSeconds: 30

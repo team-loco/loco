@@ -117,6 +117,8 @@ proxy_vars=()
 for name in $(yq '.[].name' <<<"$proxy_env"); do
 	proxy_vars+=("$name=$(proxy_value "$name")")
 done
+database=$(collector_config otel-col-deploy | yq '.exporters.clickhouse.database')
+proxy_vars+=("CLICKHOUSE_DB=$database")
 env "${proxy_vars[@]}" PORT="$proxy_port" "$workdir/loco-obs-proxy" >"$workdir/proxy.log" 2>&1 &
 proxy_pid=$!
 if ! wait_for "Observability proxy readiness" curl -sf "http://127.0.0.1:$proxy_port/readyz"; then
@@ -125,7 +127,6 @@ if ! wait_for "Observability proxy readiness" curl -sf "http://127.0.0.1:$proxy_
 fi
 kill "$proxy_pid"
 proxy_pid=""
-database=$(proxy_value CLICKHOUSE_DB)
 
 clickhouse_exporter() {
 	collector_config "$1" | yq -o json -I 0 '.exporters.clickhouse' |
