@@ -15,6 +15,9 @@ const advancePlacementPastRevision = `-- name: AdvancePlacementPastRevision :one
 UPDATE placements
 SET desired_revision = $1::bigint + 1,
     applied_error = NULL,
+    retry_after = NULL,
+    apply_attempts = 0,
+    apply_failed = false,
     updated_at = NOW()
 WHERE id = $2
   AND cluster_id = $3
@@ -60,6 +63,9 @@ const bumpPlacementsForSecretNames = `-- name: BumpPlacementsForSecretNames :man
 UPDATE placements
 SET desired_revision = desired_revision + 1,
     applied_error = NULL,
+    retry_after = NULL,
+    apply_attempts = 0,
+    apply_failed = false,
     updated_at = NOW()
 WHERE resource_id = $1
   AND environment_id = $2
@@ -131,7 +137,7 @@ func (q *Queries) GetClusterSyncGeneration(ctx context.Context, id uuid.UUID) (i
 }
 
 const getPlacementForResourceCluster = `-- name: GetPlacementForResourceCluster :one
-SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_names, desired_revision, desired_spec, desired_deleted, applied_revision, applied_at, applied_error, observed_revision, ready, ready_replicas, status_phase, status_message, status_updated_at, created_at, updated_at FROM placements
+SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_names, desired_revision, desired_spec, desired_deleted, applied_revision, applied_at, applied_error, retry_after, apply_attempts, apply_failed, observed_revision, ready, ready_replicas, status_phase, status_message, status_updated_at, created_at, updated_at FROM placements
 WHERE resource_id = $1 AND cluster_id = $2
 `
 
@@ -157,6 +163,9 @@ func (q *Queries) GetPlacementForResourceCluster(ctx context.Context, arg GetPla
 		&i.AppliedRevision,
 		&i.AppliedAt,
 		&i.AppliedError,
+		&i.RetryAfter,
+		&i.ApplyAttempts,
+		&i.ApplyFailed,
 		&i.ObservedRevision,
 		&i.Ready,
 		&i.ReadyReplicas,
@@ -170,7 +179,8 @@ func (q *Queries) GetPlacementForResourceCluster(ctx context.Context, arg GetPla
 }
 
 const listClusterPlacementRevisions = `-- name: ListClusterPlacementRevisions :many
-SELECT id, desired_revision, desired_deleted, applied_revision
+SELECT id, desired_revision, desired_deleted, applied_revision,
+       (apply_failed OR COALESCE(retry_after > NOW(), false))::boolean AS send_held
 FROM placements
 WHERE cluster_id = $1
 `
@@ -180,6 +190,7 @@ type ListClusterPlacementRevisionsRow struct {
 	DesiredRevision int64     `json:"desiredRevision"`
 	DesiredDeleted  bool      `json:"desiredDeleted"`
 	AppliedRevision int64     `json:"appliedRevision"`
+	SendHeld        bool      `json:"sendHeld"`
 }
 
 func (q *Queries) ListClusterPlacementRevisions(ctx context.Context, clusterID uuid.UUID) ([]ListClusterPlacementRevisionsRow, error) {
@@ -196,6 +207,7 @@ func (q *Queries) ListClusterPlacementRevisions(ctx context.Context, clusterID u
 			&i.DesiredRevision,
 			&i.DesiredDeleted,
 			&i.AppliedRevision,
+			&i.SendHeld,
 		); err != nil {
 			return nil, err
 		}
@@ -210,6 +222,8 @@ func (q *Queries) ListClusterPlacementRevisions(ctx context.Context, clusterID u
 const listPendingPlacements = `-- name: ListPendingPlacements :many
 SELECT id, desired_revision FROM placements
 WHERE cluster_id = $1 AND applied_revision < desired_revision
+  AND NOT apply_failed
+  AND (retry_after IS NULL OR retry_after <= NOW())
 ORDER BY updated_at, id
 `
 
@@ -239,8 +253,10 @@ func (q *Queries) ListPendingPlacements(ctx context.Context, clusterID uuid.UUID
 }
 
 const listPlacementsByIDs = `-- name: ListPlacementsByIDs :many
-SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_names, desired_revision, desired_spec, desired_deleted, applied_revision, applied_at, applied_error, observed_revision, ready, ready_replicas, status_phase, status_message, status_updated_at, created_at, updated_at FROM placements
+SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_names, desired_revision, desired_spec, desired_deleted, applied_revision, applied_at, applied_error, retry_after, apply_attempts, apply_failed, observed_revision, ready, ready_replicas, status_phase, status_message, status_updated_at, created_at, updated_at FROM placements
 WHERE cluster_id = $1 AND id = ANY($2::uuid[])
+  AND NOT apply_failed
+  AND (retry_after IS NULL OR retry_after <= NOW())
 `
 
 type ListPlacementsByIDsParams struct {
@@ -271,6 +287,9 @@ func (q *Queries) ListPlacementsByIDs(ctx context.Context, arg ListPlacementsByI
 			&i.AppliedRevision,
 			&i.AppliedAt,
 			&i.AppliedError,
+			&i.RetryAfter,
+			&i.ApplyAttempts,
+			&i.ApplyFailed,
 			&i.ObservedRevision,
 			&i.Ready,
 			&i.ReadyReplicas,
@@ -291,7 +310,7 @@ func (q *Queries) ListPlacementsByIDs(ctx context.Context, arg ListPlacementsByI
 }
 
 const listResourceEnvironmentPlacements = `-- name: ListResourceEnvironmentPlacements :many
-SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_names, desired_revision, desired_spec, desired_deleted, applied_revision, applied_at, applied_error, observed_revision, ready, ready_replicas, status_phase, status_message, status_updated_at, created_at, updated_at FROM placements
+SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_names, desired_revision, desired_spec, desired_deleted, applied_revision, applied_at, applied_error, retry_after, apply_attempts, apply_failed, observed_revision, ready, ready_replicas, status_phase, status_message, status_updated_at, created_at, updated_at FROM placements
 WHERE resource_id = $1 AND environment_id = $2 AND NOT desired_deleted
 ORDER BY id
 FOR UPDATE
@@ -325,6 +344,9 @@ func (q *Queries) ListResourceEnvironmentPlacements(ctx context.Context, arg Lis
 			&i.AppliedRevision,
 			&i.AppliedAt,
 			&i.AppliedError,
+			&i.RetryAfter,
+			&i.ApplyAttempts,
+			&i.ApplyFailed,
 			&i.ObservedRevision,
 			&i.Ready,
 			&i.ReadyReplicas,
@@ -349,6 +371,9 @@ UPDATE placements
 SET applied_revision = desired_revision,
     applied_at = NOW(),
     applied_error = NULL,
+    retry_after = NULL,
+    apply_attempts = 0,
+    apply_failed = false,
     updated_at = NOW()
 WHERE id = $1 AND cluster_id = $2 AND desired_revision = $3 AND NOT desired_deleted
 RETURNING deployment_id
@@ -373,6 +398,9 @@ SET desired_deleted = true,
     desired_spec = NULL,
     desired_revision = desired_revision + 1,
     applied_error = NULL,
+    retry_after = NULL,
+    apply_attempts = 0,
+    apply_failed = false,
     updated_at = NOW()
 WHERE resource_id = $1 AND cluster_id = $2 AND NOT desired_deleted
 RETURNING id, cluster_id, desired_revision
@@ -415,6 +443,9 @@ SET desired_deleted = true,
     desired_spec = NULL,
     desired_revision = desired_revision + 1,
     applied_error = NULL,
+    retry_after = NULL,
+    apply_attempts = 0,
+    apply_failed = false,
     updated_at = NOW()
 WHERE resource_id = $1 AND NOT desired_deleted
 RETURNING id, cluster_id, desired_revision
@@ -456,34 +487,55 @@ func (q *Queries) NotifyClusterPlacements(ctx context.Context, clusterID string)
 }
 
 const setPlacementApplyError = `-- name: SetPlacementApplyError :one
+WITH policy AS (
+    SELECT p.id,
+           p.apply_attempts + CASE WHEN $2::boolean THEN 0 ELSE 1 END AS attempts,
+           COALESCE(r.max_apply_attempts, $3::int) AS max_attempts,
+           COALESCE(r.apply_retry_delay_seconds, $4::int) * INTERVAL '1 second' AS retry_delay
+    FROM placements p
+    LEFT JOIN resources r ON r.id = p.resource_id
+    WHERE p.id = $5 AND p.cluster_id = $6 AND p.desired_revision = $7
+)
 UPDATE placements
-SET applied_error = $4,
+SET applied_error = $1,
+    apply_attempts = policy.attempts,
+    apply_failed = policy.attempts >= policy.max_attempts,
+    retry_after = CASE WHEN $2::boolean OR policy.attempts >= policy.max_attempts THEN NULL
+        ELSE NOW() + policy.retry_delay END,
     updated_at = NOW()
-WHERE id = $1 AND cluster_id = $2 AND desired_revision = $3
-RETURNING deployment_id, desired_deleted
+FROM policy
+WHERE placements.id = policy.id
+RETURNING placements.deployment_id, placements.desired_deleted, placements.apply_failed
 `
 
 type SetPlacementApplyErrorParams struct {
-	ID              uuid.UUID `json:"id"`
-	ClusterID       uuid.UUID `json:"clusterId"`
-	DesiredRevision int64     `json:"desiredRevision"`
-	AppliedError    *string   `json:"appliedError"`
+	AppliedError             *string   `json:"appliedError"`
+	Retrying                 bool      `json:"retrying"`
+	DefaultMaxAttempts       int32     `json:"defaultMaxAttempts"`
+	DefaultRetryDelaySeconds int32     `json:"defaultRetryDelaySeconds"`
+	ID                       uuid.UUID `json:"id"`
+	ClusterID                uuid.UUID `json:"clusterId"`
+	DesiredRevision          int64     `json:"desiredRevision"`
 }
 
 type SetPlacementApplyErrorRow struct {
 	DeploymentID   *uuid.UUID `json:"deploymentId"`
 	DesiredDeleted bool       `json:"desiredDeleted"`
+	ApplyFailed    bool       `json:"applyFailed"`
 }
 
 func (q *Queries) SetPlacementApplyError(ctx context.Context, arg SetPlacementApplyErrorParams) (SetPlacementApplyErrorRow, error) {
 	row := q.db.QueryRow(ctx, setPlacementApplyError,
+		arg.AppliedError,
+		arg.Retrying,
+		arg.DefaultMaxAttempts,
+		arg.DefaultRetryDelaySeconds,
 		arg.ID,
 		arg.ClusterID,
 		arg.DesiredRevision,
-		arg.AppliedError,
 	)
 	var i SetPlacementApplyErrorRow
-	err := row.Scan(&i.DeploymentID, &i.DesiredDeleted)
+	err := row.Scan(&i.DeploymentID, &i.DesiredDeleted, &i.ApplyFailed)
 	return i, err
 }
 
@@ -546,6 +598,9 @@ SET region = EXCLUDED.region,
     desired_deleted = false,
     desired_revision = placements.desired_revision + 1,
     applied_error = NULL,
+    retry_after = NULL,
+    apply_attempts = 0,
+    apply_failed = false,
     updated_at = NOW()
 RETURNING id, desired_revision
 `

@@ -272,6 +272,7 @@ func main() {
 		sourceBucket,
 		secretKeyProvider,
 		ac.HeartbeatInterval,
+		ac.Agent,
 	)
 	observabilityAccessHandler := service.NewObservabilityAccessServer(pool, queries, machine)
 	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)

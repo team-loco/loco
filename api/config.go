@@ -24,6 +24,7 @@ var (
 	errCacheAddrMissing   = errors.New("CACHE_ADDR required when CACHE_TYPE=valkey")
 	errUnknownCacheType   = errors.New("unknown cache type")
 	errInvalidSourceBytes = errors.New("LOCO_SOURCE_MAX_BYTES is not a positive integer")
+	errShortRetryDelay    = errors.New("LOCO_PLACEMENT_RETRY_DELAY must be at least 1s")
 
 	errInvalidForcePathStyle   = errors.New("LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE is not a boolean")
 	errInvalidServiceDefault   = errors.New("invalid service default")
@@ -92,10 +93,13 @@ const (
 	defaultSecretsTransitRetry   = 10 * time.Second
 	defaultSecretsTransitDEKTTL  = 5 * time.Minute
 
-	defaultHeartbeatInterval = 30 * time.Second
+	defaultHeartbeatInterval         = 30 * time.Second
+	defaultPlacementRetryDelay       = time.Hour
+	defaultPlacementMaxApplyAttempts = 3
 )
 
 type APIConfig struct {
+	Agent                 service.AgentConfig
 	Version               string
 	Env                   string // Environment (e.g., dev, prod)
 	DatabaseURL           string // PostgreSQL connection string
@@ -138,6 +142,7 @@ func newMigrateConfig() MigrateConfig {
 
 func newAPIConfig() *APIConfig {
 	migrateConfig := newMigrateConfig()
+	agentConfig := newAgentConfig()
 	databaseListenConfig := newDatabaseListenConfig(migrateConfig.DatabaseURL)
 	cacheType, cacheAddr := newCacheConfig()
 	registryHost := stringEnv("LOCO_REGISTRY_HOST", "")
@@ -170,6 +175,7 @@ func newAPIConfig() *APIConfig {
 	}
 
 	return &APIConfig{
+		Agent:                 agentConfig,
 		Version:               buildinfo.Version(version),
 		Env:                   stringEnv("APP_ENV", ""),
 		DatabaseURL:           migrateConfig.DatabaseURL,
@@ -442,4 +448,13 @@ func newDatabaseListenConfig(databaseURL string) *pgx.ConnConfig {
 		panic(fmt.Errorf("invalid database listener URL: %w", err))
 	}
 	return config
+}
+
+func newAgentConfig() service.AgentConfig {
+	delay := positiveDurationEnv("LOCO_PLACEMENT_RETRY_DELAY", defaultPlacementRetryDelay)
+	if delay < time.Second {
+		panic(errShortRetryDelay)
+	}
+	maxAttempts := positiveInt32Env("LOCO_PLACEMENT_MAX_APPLY_ATTEMPTS", defaultPlacementMaxApplyAttempts)
+	return service.AgentConfig{PlacementRetryDelay: delay, PlacementMaxApplyAttempts: maxAttempts}
 }

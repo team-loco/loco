@@ -130,7 +130,7 @@ func TestBuildsQueuedOnAClusterThatDisabledBuildsFail(t *testing.T) {
 
 func TestRegisterAndHeartbeatRecordWhetherTheClusterAcceptsBuilds(t *testing.T) {
 	f := newBuildFixture(t)
-	server := NewAgentServer(f.pool, f.queries, nil, f.bucket, nil, testHeartbeatInterval)
+	server := NewAgentServer(f.pool, f.queries, nil, f.bucket, nil, testHeartbeatInterval, testAgentConfig())
 	rpcServer := connect.NewServer()
 	agentv1connect.RegisterAgentServiceHandler(rpcServer, server)
 	transport := connectinprocess.New(rpcServer)

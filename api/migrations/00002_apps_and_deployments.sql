@@ -123,6 +123,8 @@ CREATE TABLE
         spec JSONB NOT NULL,
         spec_version INT NOT NULL,
         partial TEXT CHECK (partial ~ '^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$'),
+        max_apply_attempts INT CHECK (max_apply_attempts > 0),
+        apply_retry_delay_seconds INT CHECK (apply_retry_delay_seconds > 0),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         UNIQUE (workspace_id, name)
@@ -240,6 +242,9 @@ CREATE TABLE
         applied_revision BIGINT NOT NULL DEFAULT 0,
         applied_at TIMESTAMPTZ,
         applied_error TEXT,
+        retry_after TIMESTAMPTZ,
+        apply_attempts INT NOT NULL DEFAULT 0,
+        apply_failed BOOLEAN NOT NULL DEFAULT false,
         observed_revision BIGINT NOT NULL DEFAULT 0,
         ready BOOLEAN NOT NULL DEFAULT false,
         ready_replicas INT NOT NULL DEFAULT 0,

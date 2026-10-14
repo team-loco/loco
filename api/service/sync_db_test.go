@@ -16,7 +16,8 @@ import (
 )
 
 func (f *deployFixture) agentServer() *AgentServer {
-	return NewAgentServer(f.pool, f.queries, nil, nil, nil, testHeartbeatInterval)
+	agentConfig := testAgentConfig()
+	return NewAgentServer(f.pool, f.queries, nil, nil, nil, testHeartbeatInterval, agentConfig)
 }
 
 func applied(placementID uuid.UUID, revision int64) *agentv1.Applied {
@@ -252,7 +253,7 @@ func startSyncServerWithSources(
 	if err := notifier.Start(ctx); err != nil {
 		t.Fatalf("start notifier: %v", err)
 	}
-	server := NewAgentServer(f.pool, f.queries, notifier, sources, nil, testHeartbeatInterval)
+	server := NewAgentServer(f.pool, f.queries, notifier, sources, nil, testHeartbeatInterval, testAgentConfig())
 	rpcServer := connect.NewServer()
 	agentv1connect.RegisterAgentServiceHandler(rpcServer, server)
 	transport := connectinprocess.New(rpcServer)
@@ -355,4 +356,8 @@ func TestSyncStreamRejectsUnknownAgents(t *testing.T) {
 	if connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("err = %v, want unauthenticated", err)
 	}
+}
+
+func testAgentConfig() AgentConfig {
+	return AgentConfig{PlacementRetryDelay: time.Hour, PlacementMaxApplyAttempts: 1}
 }

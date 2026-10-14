@@ -26,6 +26,11 @@ var (
 	ErrInvalidAgentToken     = errors.New("invalid agent token")
 )
 
+type AgentConfig struct {
+	PlacementRetryDelay       time.Duration
+	PlacementMaxApplyAttempts int32
+}
+
 // AgentServer implements the AgentService for agent communication.
 type AgentServer struct {
 	db                *pgxpool.Pool
@@ -33,6 +38,7 @@ type AgentServer struct {
 	notifier          *clusternotify.Notifier
 	sources           SourceBucket
 	provider          secretkeys.Provider
+	config            AgentConfig
 	heartbeatInterval time.Duration
 }
 
@@ -45,6 +51,7 @@ func NewAgentServer(
 	sources SourceBucket,
 	provider secretkeys.Provider,
 	heartbeatInterval time.Duration,
+	config AgentConfig,
 ) *AgentServer {
 	return &AgentServer{
 		db:                db,
@@ -52,6 +59,7 @@ func NewAgentServer(
 		notifier:          notifier,
 		sources:           sources,
 		provider:          provider,
+		config:            config,
 		heartbeatInterval: heartbeatInterval,
 	}
 }
