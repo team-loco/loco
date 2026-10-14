@@ -209,6 +209,7 @@ func (s *ObservabilityService) QueryMetrics(
 		s.ch.Conn(),
 		req.GetWorkspaceId(),
 		req.GetEnvironmentId(),
+		req.GetRegion(),
 		req.GetResourceIds(),
 		req.GetStartTime().AsTime(),
 		req.GetEndTime().AsTime(),

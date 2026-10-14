@@ -66,7 +66,9 @@ proxy_auth_token=obs-stack-fixture-token
 control_plane_pid=$!
 wait_for "Permission endpoint start" test -s "$workdir/control-plane-url"
 control_plane_url=$(cat "$workdir/control-plane-url")
+region=obs-stack-region
 manifest=$(helm template loco-obs "$chart" --namespace "$namespace" --set obsProxy.image.tag="$1" \
+	--set global.region="$region" \
 	--set obsProxy.controlPlane.url="$control_plane_url" \
 	--set obsProxy.auth.existingSecret="$run_id-proxy-auth" "${password_sets[@]}")
 chi=$(yq -o json -I 0 'select(.kind == "ClickHouseInstallation")' <<<"$manifest")

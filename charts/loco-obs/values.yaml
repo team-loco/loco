@@ -1,4 +1,5 @@
 global:
+  region: ""
   domain:
     observability: observability.loco.build
   clickhouse:
@@ -229,6 +230,11 @@ otel-col-daemon:
         check_interval: 1s
         limit_mib: 384
         spike_limit_mib: 96
+      resource/region: &region
+        attributes:
+          - key: loco.region
+            value: '{{ required "global.region is required" .Values.global.region }}'
+            action: upsert
       resource/strip_tenancy: &stripTenancy
         attributes:
           - key: loco.organization.id
@@ -333,19 +339,19 @@ otel-col-daemon:
       pipelines:
         logs:
           receivers: [file_log]
-          processors: [memory_limiter, k8s_attributes/pod_uid, batch]
+          processors: [memory_limiter, k8s_attributes/pod_uid, resource/region, batch]
           exporters: [clickhouse]
         logs/otlp:
           receivers: [otlp]
-          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, batch]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, resource/region, batch]
           exporters: [clickhouse]
         metrics:
           receivers: [kubeletstats]
-          processors: [memory_limiter, k8s_attributes/pod_uid, batch]
+          processors: [memory_limiter, k8s_attributes/pod_uid, resource/region, batch]
           exporters: [clickhouse]
         traces:
           receivers: [otlp, jaeger, zipkin]
-          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, batch]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, resource/region, batch]
           exporters: [clickhouse]
 
 otel-col-deploy:
@@ -399,6 +405,7 @@ otel-col-deploy:
         verbs: ["get", "watch", "list"]
   config:
     processors:
+      resource/region: *region
       resource/strip_tenancy: *stripTenancy
       k8s_attributes/connection:
         passthrough: false
@@ -462,15 +469,15 @@ otel-col-deploy:
       pipelines:
         logs:
           receivers: [otlp]
-          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, batch]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, resource/region, batch]
           exporters: [clickhouse]
         metrics:
           receivers: [otlp]
-          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, batch]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, resource/region, batch]
           exporters: [clickhouse]
         traces:
           receivers: [otlp, jaeger, zipkin]
-          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, batch]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, resource/region, batch]
           exporters: [clickhouse]
 
 otel-col-cluster:
@@ -525,6 +532,7 @@ otel-col-cluster:
       health_check:
         endpoint: ${env:MY_POD_IP}:13133
     processors:
+      resource/region: *region
       memory_limiter:
         check_interval: 5s
         limit_percentage: 80
@@ -541,11 +549,11 @@ otel-col-cluster:
       pipelines:
         logs:
           receivers: [k8sobjects]
-          processors: [memory_limiter, batch]
+          processors: [memory_limiter, resource/region, batch]
           exporters: [clickhouse]
         metrics:
           receivers: [k8s_cluster]
-          processors: [memory_limiter, k8s_attributes/pod_uid, batch]
+          processors: [memory_limiter, k8s_attributes/pod_uid, resource/region, batch]
           exporters: [clickhouse]
 
 obsProxy:

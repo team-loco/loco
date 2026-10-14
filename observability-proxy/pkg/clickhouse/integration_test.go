@@ -1,6 +1,7 @@
 package clickhouse
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -36,6 +37,8 @@ const (
 	workspaceAttributeKey  = "loco.workspace.id"
 	resourceAttributeKey   = "loco.resource.id"
 	environmentAttrKey     = "loco.environment.id"
+	testRegion             = "us-east-1"
+	testWorkerRegion       = "eu-west-1"
 	testEnvironmentID      = "66666666-7777-8888-9999-000000000000"
 	testOtherEnvironmentID = "77777777-8888-9999-0000-111111111111"
 	avgAggregation         = "avg"
@@ -74,6 +77,7 @@ type gaugeRow struct {
 	workspaceID   string
 	environmentID string
 	resourceID    string
+	region        string
 	offset        time.Duration
 	value         float64
 }
@@ -102,6 +106,7 @@ var testGaugeRows = []gaugeRow{
 		workspaceID:   testWorkspaceID,
 		environmentID: testEnvironmentID,
 		resourceID:    testWorkerResourceID,
+		region:        testWorkerRegion,
 		value:         testWorkerValue,
 	},
 	{
@@ -203,6 +208,7 @@ func (f *queryFixture) insertGauges(t *testing.T) {
 	}
 	for _, row := range testGaugeRows {
 		attrs := tenantAttributes(row.workspaceID, row.environmentID, row.resourceID)
+		attrs[regionAttribute] = cmp.Or(row.region, testRegion)
 		ts := f.start.Add(row.offset)
 		if err := batch.Append(attrs, testMetricName, map[string]string{}, ts, row.value); err != nil {
 			t.Fatalf("append gauge row: %v", err)
@@ -389,6 +395,7 @@ func (f *queryFixture) metrics(
 	t *testing.T,
 	workspaceID string,
 	environmentID string,
+	region string,
 	resourceIDs []string,
 ) map[string][]float64 {
 	t.Helper()
@@ -397,6 +404,7 @@ func (f *queryFixture) metrics(
 		f.conn,
 		workspaceID,
 		environmentID,
+		region,
 		resourceIDs,
 		f.start,
 		f.end,
@@ -420,13 +428,14 @@ func (f *queryFixture) metrics(
 	return values
 }
 
-func TestQueryMetricsScopesToWorkspaceAndEnvironment(t *testing.T) {
+func TestQueryMetricsScopesToWorkspaceEnvironmentAndRegion(t *testing.T) {
 	f := newQueryFixture(t)
 	both := []string{testResourceID, testWorkerResourceID}
 	cases := []struct {
 		name          string
 		workspaceID   string
 		environmentID string
+		region        string
 		resourceIDs   []string
 		want          map[string][]float64
 	}{
@@ -445,6 +454,22 @@ func TestQueryMetricsScopesToWorkspaceAndEnvironment(t *testing.T) {
 			workspaceID:   testWorkspaceID,
 			environmentID: testEnvironmentID,
 			resourceIDs:   []string{testWorkerResourceID},
+			want:          map[string][]float64{testWorkerResourceID: {testWorkerValue}},
+		},
+		{
+			name:          "region filter",
+			workspaceID:   testWorkspaceID,
+			environmentID: testEnvironmentID,
+			region:        testRegion,
+			resourceIDs:   both,
+			want:          map[string][]float64{testResourceID: {testWebAverage}},
+		},
+		{
+			name:          "other region",
+			workspaceID:   testWorkspaceID,
+			environmentID: testEnvironmentID,
+			region:        testWorkerRegion,
+			resourceIDs:   both,
 			want:          map[string][]float64{testWorkerResourceID: {testWorkerValue}},
 		},
 		{
@@ -483,7 +508,7 @@ func TestQueryMetricsScopesToWorkspaceAndEnvironment(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := f.metrics(t, tc.workspaceID, tc.environmentID, tc.resourceIDs)
+			got := f.metrics(t, tc.workspaceID, tc.environmentID, tc.region, tc.resourceIDs)
 			if len(got) != len(tc.want) {
 				t.Errorf("series = %v, want %v", got, tc.want)
 			}

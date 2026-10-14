@@ -11,7 +11,10 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-const defaultIntervalSeconds = 60
+const (
+	defaultIntervalSeconds = 60
+	regionAttribute        = "loco.region"
+)
 
 // QueryMetrics executes a metric aggregation query against ClickHouse.
 func QueryMetrics(
@@ -19,6 +22,7 @@ func QueryMetrics(
 	conn driver.Conn,
 	workspaceID string,
 	environmentID string,
+	region string,
 	resourceIDs []string,
 	startTime, endTime time.Time,
 	metricName string,
@@ -29,6 +33,7 @@ func QueryMetrics(
 	query, args := buildMetricsQuery(
 		workspaceID,
 		environmentID,
+		region,
 		resourceIDs,
 		startTime,
 		endTime,
@@ -82,6 +87,7 @@ func QueryMetrics(
 func buildMetricsQuery(
 	workspaceID string,
 	environmentID string,
+	region string,
 	resourceIDs []string,
 	startTime, endTime time.Time,
 	metricName string,
@@ -101,6 +107,11 @@ func buildMetricsQuery(
 	if environmentID != "" {
 		whereParts = append(whereParts, environmentColumn+" = ?")
 		args = append(args, environmentID)
+	}
+
+	if region != "" {
+		whereParts = append(whereParts, "ResourceAttributes[?] = ?")
+		args = append(args, regionAttribute, region)
 	}
 
 	if len(resourceIDs) > 0 {
