@@ -17,6 +17,7 @@ on:
       - "api/interceptor/**"
       - "charts/loco-core/**"
       - "charts/loco-obs/**"
+      - "charts/loco-control-plane/**"
       - "charts/loco-operator/**"
       - "manifests/namespaces/**"
       - "compose.yaml"

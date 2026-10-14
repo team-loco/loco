@@ -1,0 +1,29 @@
+# Gateway namespace where the Envoy Gateway is deployed
+gatewayNamespace: envoy-gateway-system
+
+obsProxy:
+  hostname: observability.loco.build
+  cors:
+    allowedOrigins: []
+  image:
+    repository: ghcr.io/team-loco/loco-obs-proxy
+    tag: ""
+  imagePullPolicy: Always
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  port: 8080
+  controlPlane:
+    url: ""
+  clickhouse:
+    existingSecret:
+      name: ""
+      key: url
+    migratorExistingSecret:
+      name: ""
+      key: url

@@ -1,4 +1,3 @@
-{{- if .Values.obsProxy.enabled }}
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -9,7 +8,7 @@ spec:
     - name: eg
       namespace: {{ .Values.gatewayNamespace }}
   hostnames:
-    - {{ .Values.global.domain.observability | quote }}
+    - {{ .Values.obsProxy.hostname | quote }}
   rules:
     - backendRefs:
         - name: {{ .Release.Name }}-obs-proxy
@@ -18,4 +17,3 @@ spec:
         - path:
             type: PathPrefix
             value: /
-{{- end }}

@@ -1,4 +1,3 @@
-{{- if .Values.obsProxy.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -42,8 +41,16 @@ spec:
               value: {{ required "obsProxy.controlPlane.url is required" .Values.obsProxy.controlPlane.url | quote }}
             - name: CORS_ALLOWED_ORIGINS
               value: {{ join "," .Values.obsProxy.cors.allowedOrigins | quote }}
-            {{- include "loco-obs.clickhouseDSN" (dict "root" . "env" "CLICKHOUSE_URL" "passwordEnv" "CLICKHOUSE_READER_PASSWORD" "user" .Values.obsProxy.clickhouse.readerUser "existingSecret" .Values.obsProxy.clickhouse.existingSecret "path" "obsProxy.clickhouse.existingSecret") | nindent 12 }}
-            {{- include "loco-obs.clickhouseDSN" (dict "root" . "env" "CLICKHOUSE_MIGRATOR_URL" "passwordEnv" "CLICKHOUSE_MIGRATOR_PASSWORD" "user" .Values.obsProxy.clickhouse.migratorUser "existingSecret" .Values.obsProxy.clickhouse.migratorExistingSecret "path" "obsProxy.clickhouse.migratorExistingSecret") | nindent 12 }}
+            - name: CLICKHOUSE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "obsProxy.clickhouse.existingSecret.name is required" .Values.obsProxy.clickhouse.existingSecret.name | quote }}
+                  key: {{ required "obsProxy.clickhouse.existingSecret.key is required" .Values.obsProxy.clickhouse.existingSecret.key | quote }}
+            - name: CLICKHOUSE_MIGRATOR_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "obsProxy.clickhouse.migratorExistingSecret.name is required" .Values.obsProxy.clickhouse.migratorExistingSecret.name | quote }}
+                  key: {{ required "obsProxy.clickhouse.migratorExistingSecret.key is required" .Values.obsProxy.clickhouse.migratorExistingSecret.key | quote }}
           ports:
             - containerPort: {{ .Values.obsProxy.port }}
           livenessProbe:
@@ -61,4 +68,3 @@ spec:
           resources:
             {{- toYaml .Values.obsProxy.resources | nindent 12 }}
       restartPolicy: Always
-{{- end }}

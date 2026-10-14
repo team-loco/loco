@@ -21,7 +21,7 @@ The local environment is a development installation. Review the repository's env
 | Application controller | `controller/` | Reconcile Application custom resources |
 | Custom resource definitions | `k8sapi/` | Kubernetes API types |
 | Platform charts | `charts/` | Kubernetes platform configuration |
-| Regional observability proxy | `observability-proxy/` | Access to regional observability |
+| Observability proxy | `observability-proxy/` | Workspace-scoped reads from ClickHouse, on the control plane |
 
 ## Installation inputs
 
@@ -29,19 +29,17 @@ Configure the API's database, cache, authentication, registry, and API/dashboard
 
 Set `DATABASE_LISTEN_URL` to a direct PostgreSQL or session-pooler URL when `DATABASE_URL` uses a transaction-mode pooler. The API holds this connection for placement notifications and uses `DATABASE_URL` for ordinary queries. Both URLs must reach the same database. With `DATABASE_LISTEN_URL` empty, the listener uses `DATABASE_URL`.
 
-When the agent reports an apply failure it will not retry, the API counts an apply attempt and defers the placement. `LOCO_PLACEMENT_RETRY_DELAY` sets how long it waits before the next inventory report or new connection can resend the placement; the default is `1h`. `LOCO_PLACEMENT_MAX_APPLY_ATTEMPTS` sets how many failed attempts a placement gets; the default is `3`. When a placement uses its last attempt, the API marks it failed, fails its deployment and stops resending it. A resource's `max_apply_attempts` and `apply_retry_delay_seconds` override these defaults. A new desired revision or a successful apply resets the count.
+The cluster needs Cilium, Envoy Gateway, cert-manager, and the Loco controller. Each cluster runs the OpenTelemetry collectors and, by default, ClickHouse from the `loco-obs` chart. The observability proxy runs on the control plane. `charts/loco-control-plane` holds its Kubernetes manifests; that chart is a work in progress, and no Helmfile release, platform bundle or published release ships it. The charts and environment values define their configuration.
 
-The cluster needs Cilium, Envoy Gateway, cert-manager, and the Loco controller. Observability uses OpenTelemetry, ClickHouse, and the observability proxy. The charts and environment values define their configuration.
-
-Set `obsProxy.controlPlane.url` to the API URL reachable from the observability namespace. Production Helmfile reads the agent and proxy's API URL from `CONTROL_PLANE_URL`; local Helmfile derives the host API port from `APP_PORT`.
+Set `obsProxy.controlPlane.url` in the `loco-control-plane` values, or `CONTROL_PLANE_URL` for a standalone proxy, to an API URL the proxy can reach.
 
 The observability proxy reports ready once its ClickHouse migrations complete and a database ping succeeds.
 
 The proxy authenticates each query's permission check with the query's bearer token. Signed OIDC sessions and Loco API or session tokens use the API's authentication path and require read access to the requested workspace. Permission results use the proxy's configured cache lifetime.
 
-Set `obsProxy.cors.allowedOrigins` to the dashboard origins that may call the regional proxy, such as `https://loco.build`. Both Helmfile environments read the comma-separated list from `CORS_ALLOWED_ORIGINS`; a standalone proxy reads the same variable. Origins must use HTTP or HTTPS and contain no credentials, path, query or fragment. An empty list disables cross-origin browser access. The proxy answers Connect preflights and exposes protocol response headers for configured origins; requests still require a bearer token and workspace permissions.
+Set `obsProxy.cors.allowedOrigins` to the dashboard origins that may call the proxy, such as `https://loco.build`; a standalone proxy reads them as a comma-separated list from `CORS_ALLOWED_ORIGINS`. Origins must use HTTP or HTTPS and contain no credentials, path, query or fragment. An empty list disables cross-origin browser access. The proxy answers Connect preflights and exposes protocol response headers for configured origins; requests still require a bearer token and workspace permissions.
 
-The `loco-obs` chart defines three ClickHouse users, each limited to the `loco_obs` database: `loco_migrator` creates the schema for the observability proxy, `loco_ingest` inserts for both collectors, and `loco_reader` serves the proxy's queries. Each user reads its password from the `password` key of a Secret named in `clickhouse.clickhouse.users`. Set `clickhouseUserPasswords.<user>` to have the chart render that Secret, or leave it empty and create the Secret yourself; the ingest Secret is also needed in the collectors' `observability-node` namespace. The proxy puts these passwords in its connection URLs, so they may contain only letters, digits and `._~-`. `env/prod/obs-chart.yaml.gotmpl` reads them from `CLICKHOUSE_MIGRATOR_PASSWORD`, `CLICKHOUSE_INGEST_PASSWORD` and `CLICKHOUSE_READER_PASSWORD`.
+The `loco-obs` chart defines three ClickHouse users, each limited to the `loco_obs` database: `loco_migrator` creates the schema for the observability proxy, `loco_ingest` inserts for both collectors, and `loco_reader` serves the proxy's queries. Each user reads its password from the `password` key of a Secret named in `clickhouse.clickhouse.users`. Set `clickhouseUserPasswords.<user>` to have the chart render that Secret, or leave it empty and create the Secret yourself; the ingest Secret is also needed in the collectors' `observability-node` namespace. The proxy's connection URLs embed the `loco_reader` and `loco_migrator` passwords, so passwords may contain only letters, digits and `._~-`. Store those URLs in Secrets and name them in the `loco-control-plane` values `obsProxy.clickhouse.existingSecret` and `obsProxy.clickhouse.migratorExistingSecret`; a standalone proxy reads them from `CLICKHOUSE_URL` and `CLICKHOUSE_MIGRATOR_URL`. `env/prod/obs-chart.yaml.gotmpl` reads them from `CLICKHOUSE_MIGRATOR_PASSWORD`, `CLICKHOUSE_INGEST_PASSWORD` and `CLICKHOUSE_READER_PASSWORD`.
 
 Set `global.region` in the `loco-obs` values to the region the cluster is registered under in the API. The collectors stamp it on every log, trace and metric as `loco.region`, and the dashboard's per-region metrics filter on it; the chart fails to render without it. Production Helmfile reads it from `LOCO_REGION`.
 
@@ -53,6 +51,6 @@ Your team supplies DNS records, certificate issuance, persistent storage, backup
 
 ## Upgrades
 
-Every commit to `main` publishes the agent, builder, controller, API, observability proxy and UI images tagged `sha-<commit>`, and each binary reports that tag as its version. The charts have no default tag for these images: set `agent.image.tag`, `controller.image.tag`, `builds.builderImage.tag` and `obsProxy.image.tag` to the same `sha-<commit>`. Regenerate CRDs through `mise run controller:gen` when developing schema changes. Review database migrations and infrastructure changes before upgrading a running installation.
+Every commit to `main` publishes the agent, builder, controller, API, observability proxy and UI images tagged `sha-<commit>`, and each binary reports that tag as its version. The charts have no default tag for these images: set `agent.image.tag`, `controller.image.tag`, `builds.builderImage.tag` and, in `loco-control-plane`, `obsProxy.image.tag` to the same `sha-<commit>`. Regenerate CRDs through `mise run controller:gen` when developing schema changes. Review database migrations and infrastructure changes before upgrading a running installation.
 
 A supported production packaging and upgrade procedure is not established by these docs. Inspect the chart values and the release's configuration before deployment.

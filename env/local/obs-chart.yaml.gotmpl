@@ -27,20 +27,3 @@ clickhouseUserPasswords:
   loco_migrator: {{ env "CLICKHOUSE_MIGRATOR_PASSWORD" | default "loco-local-migrator" | quote }}
   loco_ingest: {{ env "CLICKHOUSE_INGEST_PASSWORD" | default "loco-local-ingest" | quote }}
   loco_reader: {{ env "CLICKHOUSE_READER_PASSWORD" | default "loco-local-reader" | quote }}
-
-obsProxy:
-  enabled: true
-  cors:
-    allowedOrigins:
-    {{- range (env "CORS_ALLOWED_ORIGINS" | splitList ",") }}
-    {{- if . | trim }}
-      - {{ . | trim | quote }}
-    {{- end }}
-    {{- end }}
-  controlPlane:
-    url: "http://host.docker.internal:{{ requiredEnv "APP_PORT" | splitList ":" | last }}"
-  clickhouse:
-    retention:
-      logs: 720h
-      traces: 720h
-      metrics: 720h

@@ -17,26 +17,3 @@ clickhouseUserPasswords:
   loco_migrator: {{ requiredEnv "CLICKHOUSE_MIGRATOR_PASSWORD" | quote }}
   loco_ingest: {{ requiredEnv "CLICKHOUSE_INGEST_PASSWORD" | quote }}
   loco_reader: {{ requiredEnv "CLICKHOUSE_READER_PASSWORD" | quote }}
-
-# Observability proxy (enabled by default)
-obsProxy:
-  enabled: true
-  cors:
-    allowedOrigins:
-    {{- range (env "CORS_ALLOWED_ORIGINS" | splitList ",") }}
-    {{- if . | trim }}
-      - {{ . | trim | quote }}
-    {{- end }}
-    {{- end }}
-  image:
-    tag: sha-{{ requiredEnv "GH_SHA" }}
-  replicaCount: 2
-  resources:
-    requests:
-      cpu: 250m
-      memory: 512Mi
-    limits:
-      cpu: 2000m
-      memory: 2Gi
-  controlPlane:
-    url: {{ requiredEnv "CONTROL_PLANE_URL" | quote }}

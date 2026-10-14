@@ -13,9 +13,6 @@ clickhouseUserPasswords:
   loco_ingest: loco-e2e-ingest
   loco_reader: loco-e2e-reader
 
-obsProxy:
-  enabled: false
-
 otel-col-deploy:
   replicaCount: 2
   autoscaling:
