@@ -23,7 +23,7 @@ GATEWAY_LABELS = {
 CLIENT_POD_IDENTITY = ('k8s.pod.ip', 'k8s.pod.uid')
 ENVOY_CLUSTER_ATTRIBUTES = {'trace_statements': 'upstream_cluster', 'log_statements': 'upstream_cluster', 'metric_statements': 'envoy.cluster_name'}
 ROUTE_TENANCY = ('loco.workspace.id', 'loco.resource.id')
-TEST_PROXY = {'image': {'tag': 'test'}, 'controlPlane': {'url': 'https://api.example.test'}, 'auth': {'existingSecret': 'proxy-auth'}}
+TEST_PROXY = {'image': {'tag': 'test'}, 'controlPlane': {'url': 'https://api.example.test'}}
 TEST_REGION = 'test-region-1'
 OBS_BASE_VALUES = {'global': {'region': TEST_REGION}}
 CLICKHOUSE_USER_PASSWORDS = {'CLICKHOUSE_MIGRATOR_PASSWORD': 'test', 'CLICKHOUSE_INGEST_PASSWORD': 'test', 'CLICKHOUSE_READER_PASSWORD': 'test'}
@@ -132,7 +132,7 @@ class PlatformContracts(unittest.TestCase):
         variables = {
             'GH_SHA': 'test', 'CERT_MANAGER_EMAIL': 'test@example.test',
             'CLOUDFLARE_TOKEN': 'test', 'LOG_LEVEL': 'info', 'AGENT_TOKEN': 'test',
-            'CLICKHOUSE_PASSWORD': 'test', 'OBS_PROXY_AUTH_SECRET': 'proxy-auth', 'CONTROL_PLANE_URL': 'https://api.example.test',
+            'CLICKHOUSE_PASSWORD': 'test', 'CONTROL_PLANE_URL': 'https://api.example.test',
             'LOCO_REGION': TEST_REGION, **CLICKHOUSE_USER_PASSWORDS,
         }
         core = environment_values('prod', variables, 'loco-core')
@@ -144,7 +144,7 @@ class PlatformContracts(unittest.TestCase):
         cases = [
             ('local', {'APP_PORT': ':8123'}, 'http://host.docker.internal:8123'),
             ('local', {'APP_PORT': '0.0.0.0:8123'}, 'http://host.docker.internal:8123'),
-            ('prod', {'GH_SHA': 'test', 'CLICKHOUSE_PASSWORD': 'test', 'OBS_PROXY_AUTH_SECRET': 'proxy-auth',
+            ('prod', {'GH_SHA': 'test', 'CLICKHOUSE_PASSWORD': 'test',
                       'CONTROL_PLANE_URL': 'https://api.example.test', 'LOCO_REGION': TEST_REGION,
                       **CLICKHOUSE_USER_PASSWORDS}, 'https://api.example.test'),
         ]
@@ -155,9 +155,7 @@ class PlatformContracts(unittest.TestCase):
                 deployment = render('loco-obs', 'obs-proxy-deployment.yaml', values)
                 env = {item['name']: item for item in deployment['spec']['template']['spec']['containers'][0]['env']}
                 self.assertEqual(env['CONTROL_PLANE_URL']['value'], expected)
-                expected_secret = variables.get('OBS_PROXY_AUTH_SECRET', 'loco-obs-obs-proxy-auth')
-                self.assertEqual(env['PROXY_AUTH_TOKEN']['valueFrom']['secretKeyRef'],
-                                 {'name': expected_secret, 'key': 'token', 'optional': False})
+                self.assertNotIn('PROXY_AUTH_TOKEN', env)
 
     def test_regional_certificate_names(self):
         certificate = render('loco-core', 'cm-cert.yaml', {
@@ -169,32 +167,24 @@ class PlatformContracts(unittest.TestCase):
             '*.staging-east.apps.example.test', '*.staging-west.apps.example.test',
         ])
 
-    def test_database_and_auth_secret_references(self):
+    def test_database_secret_reference(self):
         deployment = render('loco-obs', 'obs-proxy-deployment.yaml', {
-            'obsProxy': {'image': {'tag': 'test'}, 'controlPlane': {'url': 'https://api.example.test'}, 'auth': {'existingSecret': 'proxy-auth'},
+            'obsProxy': {'image': {'tag': 'test'}, 'controlPlane': {'url': 'https://api.example.test'},
                          'clickhouse': {'existingSecret': {'name': 'proxy-database', 'key': 'connection'}}},
         })
         env = {item['name']: item for item in deployment['spec']['template']['spec']['containers'][0]['env']}
         self.assertEqual(env['CLICKHOUSE_URL']['valueFrom']['secretKeyRef'], {'name': 'proxy-database', 'key': 'connection'})
         self.assertNotIn('value', env['CLICKHOUSE_URL'])
-        self.assertEqual(env['PROXY_AUTH_TOKEN']['valueFrom']['secretKeyRef'], {'name': 'proxy-auth', 'key': 'token', 'optional': False})
 
     def test_local_defaults_remain_available(self):
-        deployment = render('loco-obs', 'obs-proxy-deployment.yaml', {'obsProxy': {'image': {'tag': 'test'}, 'controlPlane': {'url': 'https://api.example.test'}, 'auth': {'existingSecret': 'proxy-auth'}}})
+        deployment = render('loco-obs', 'obs-proxy-deployment.yaml', {'obsProxy': {'image': {'tag': 'test'}, 'controlPlane': {'url': 'https://api.example.test'}}})
         env = {item['name']: item for item in deployment['spec']['template']['spec']['containers'][0]['env']}
         self.assertEqual(env['CLICKHOUSE_URL']['value'], 'clickhouse://loco_reader:$(CLICKHOUSE_READER_PASSWORD)@clickhouse-loco-obs-clickhouse.platform-test.svc.cluster.local:9000')
-        self.assertFalse(env['PROXY_AUTH_TOKEN']['valueFrom']['secretKeyRef']['optional'])
-
-    def test_missing_proxy_secret_name_is_rejected(self):
-        with self.assertRaises(subprocess.CalledProcessError) as caught:
-            render('loco-obs', 'obs-proxy-deployment.yaml', {'obsProxy': {
-                **TEST_PROXY, 'auth': {'existingSecret': ''},
-            }})
-        self.assertIn('obsProxy.auth.existingSecret is required', caught.exception.output)
+        self.assertNotIn('PROXY_AUTH_TOKEN', env)
 
     def test_missing_database_secret_key_is_rejected(self):
         with self.assertRaises(subprocess.CalledProcessError):
-            render('loco-obs', 'obs-proxy-deployment.yaml', {'obsProxy': {'image': {'tag': 'test'}, 'controlPlane': {'url': 'https://api.example.test'}, 'auth': {'existingSecret': 'proxy-auth'}, 'clickhouse': {'existingSecret': {'name': 'db', 'key': ''}}}})
+            render('loco-obs', 'obs-proxy-deployment.yaml', {'obsProxy': {'image': {'tag': 'test'}, 'controlPlane': {'url': 'https://api.example.test'}, 'clickhouse': {'existingSecret': {'name': 'db', 'key': ''}}}})
 
     def test_missing_permission_endpoint_is_rejected(self):
         with self.assertRaises(subprocess.CalledProcessError) as caught:
@@ -220,7 +210,7 @@ class ObservabilitySchema(unittest.TestCase):
     def test_helmfile_passes_dashboard_origins_in_both_environments(self):
         variables = {
             **CLICKHOUSE_USER_PASSWORDS, 'GH_SHA': 'test', 'APP_PORT': '8000',
-            'CLICKHOUSE_PASSWORD': 'test', 'OBS_PROXY_AUTH_SECRET': 'proxy-auth',
+            'CLICKHOUSE_PASSWORD': 'test',
             'CONTROL_PLANE_URL': 'https://api.example.test', 'LOCO_REGION': TEST_REGION,
             'CORS_ALLOWED_ORIGINS': ' https://app.example.test, http://localhost:5173 ',
         }
@@ -256,8 +246,7 @@ class ObservabilitySchema(unittest.TestCase):
         budget = values['migrations']['retryBudgetSeconds']
         self.assertEqual(env['MIGRATION_RETRY_BUDGET']['value'], f'{budget}s')
         self.assertEqual(env['MIGRATION_RETRY_INTERVAL']['value'], f"{values['migrations']['retryIntervalSeconds']}s")
-        timeout = chart_values('loco-obs')['obsProxy']['guardrails']['permissionCheckTimeoutSeconds']
-        self.assertEqual(env['PERMISSION_CHECK_TIMEOUT']['value'], f'{timeout}s')
+        self.assertNotIn('PERMISSION_CHECK_TIMEOUT', env)
         self.assertEqual(container['readinessProbe']['httpGet']['path'], '/readyz')
         self.assertNotIn('startupProbe', container)
 
@@ -397,7 +386,7 @@ class CollectorTenancy(unittest.TestCase):
         local = environment_values('local', {'APP_PORT': '8080'})
         self.assertTrue(local['global']['region'])
         prod = environment_values('prod', {
-            'GH_SHA': 'test', 'CLICKHOUSE_PASSWORD': 'test', 'OBS_PROXY_AUTH_SECRET': 'proxy-auth',
+            'GH_SHA': 'test', 'CLICKHOUSE_PASSWORD': 'test',
             'CONTROL_PLANE_URL': 'https://api.example.test', 'LOCO_REGION': TEST_REGION, **CLICKHOUSE_USER_PASSWORDS})
         self.assertEqual(prod['global']['region'], TEST_REGION)
 

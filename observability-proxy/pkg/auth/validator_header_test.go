@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	testServiceCredential = "proxy-service-credential"
-	testQueryCredential   = "signed-provider-session"
+	testQueryCredential = "signed-provider-session"
+	testWorkspaceID     = "00000000-0000-4000-8000-000000000000"
 )
 
 var errTestSubjectCredentialRejected = connect.NewError(connect.CodeUnauthenticated, "test credential rejected")
@@ -34,7 +34,7 @@ func (*subjectTokenServer) CheckPermission(
 		return nil, errTestSubjectCredentialRejected
 	}
 	credential := info.RequestHeader().Get("Authorization")
-	if credential != "Bearer "+testQueryCredential && credential != "Bearer "+testServiceCredential {
+	if credential != "Bearer "+testQueryCredential {
 		return nil, errTestSubjectCredentialRejected
 	}
 	allowed := credential == "Bearer "+testQueryCredential && req.GetScope() == tokenv1.Scope_SCOPE_READ
@@ -58,12 +58,12 @@ func TestValidatorAuthenticatesPermissionChecksAsTheirSubject(t *testing.T) {
 			t.Errorf("close cache: %v", closeErr)
 		}
 	})
-	validator := NewValidator(server.URL, testServiceCredential, store)
+	validator := NewValidator(server.URL, store)
 	if checkErr := validator.CheckPermission(
 		t.Context(),
 		testQueryCredential,
 		tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
-		readinessEntityID,
+		testWorkspaceID,
 		tokenv1.Scope_SCOPE_READ,
 	); checkErr != nil {
 		t.Fatalf("subject read check: %v", checkErr)
@@ -72,7 +72,7 @@ func TestValidatorAuthenticatesPermissionChecksAsTheirSubject(t *testing.T) {
 		t.Context(),
 		testQueryCredential,
 		tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
-		readinessEntityID,
+		testWorkspaceID,
 		tokenv1.Scope_SCOPE_WRITE,
 	); connect.CodeOf(
 		checkErr,
@@ -83,14 +83,11 @@ func TestValidatorAuthenticatesPermissionChecksAsTheirSubject(t *testing.T) {
 		t.Context(),
 		"invalid-caller",
 		tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
-		readinessEntityID,
+		testWorkspaceID,
 		tokenv1.Scope_SCOPE_READ,
 	); connect.CodeOf(
 		checkErr,
 	) != connect.CodePermissionDenied {
 		t.Fatalf("rejected caller: %v", checkErr)
-	}
-	if readyErr := validator.Ready(t.Context()); readyErr != nil {
-		t.Fatalf("readiness with service credential: %v", readyErr)
 	}
 }

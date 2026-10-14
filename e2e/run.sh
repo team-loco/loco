@@ -766,7 +766,7 @@ clickhouse_dsn() {
 start_obs_proxy() {
     log_step "Starting Observability Proxy..."
 
-    local reader_dsn migrator_dsn reader migrator proxy_token token_suffix
+    local reader_dsn migrator_dsn reader migrator
     if [ "$OBSERVABILITY" = true ]; then
         reader=$(yq '.obsProxy.clickhouse.readerUser' "$OBS_VALUES")
         migrator=$(yq '.obsProxy.clickhouse.migratorUser' "$OBS_VALUES")
@@ -776,15 +776,10 @@ start_obs_proxy() {
         reader_dsn=$(clickhouse_dsn "$CLICKHOUSE_USER" "$CLICKHOUSE_PASS")
         migrator_dsn="$reader_dsn"
     fi
-    cli_seed_session
-    token_suffix=$(openssl rand -hex 4)
-    proxy_token=$(mint_api_token "e2e-obs-proxy-${token_suffix}" ENTITY_TYPE_WORKSPACE "$cli_workspace_id" SCOPE_READ)
 
     PORT="$OBS_PROXY_PORT" \
     CONTROL_PLANE_URL="$E2E_API_URL" \
-    PROXY_AUTH_TOKEN="$proxy_token" \
     CORS_ALLOWED_ORIGINS="https://dashboard.e2e.test" \
-    PERMISSION_CHECK_TIMEOUT="$(yq '.obsProxy.guardrails.permissionCheckTimeoutSeconds' "$OBS_VALUES")s" \
     CLICKHOUSE_URL="$reader_dsn" \
     CLICKHOUSE_MIGRATOR_URL="$migrator_dsn" \
     CLICKHOUSE_DB="$(yq '.obsProxy.clickhouse.database' "$OBS_VALUES")" \

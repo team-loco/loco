@@ -37,8 +37,6 @@ obsProxy:
       - {{ . | trim | quote }}
     {{- end }}
     {{- end }}
-  auth:
-    existingSecret: {{ env "OBS_PROXY_AUTH_SECRET" | default "loco-obs-obs-proxy-auth" | quote }}
   controlPlane:
     url: "http://host.docker.internal:{{ requiredEnv "APP_PORT" | splitList ":" | last }}"
   clickhouse:

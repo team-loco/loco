@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -15,10 +14,6 @@ import (
 	"github.com/team-loco/loco/observability-proxy/pkg/cache"
 )
 
-const (
-	readinessEntityID = "00000000-0000-4000-8000-000000000000"
-)
-
 var (
 	errPermissionDenied           = connect.NewError(connect.CodePermissionDenied, "permission denied")
 	errPermissionCheckUnavailable = connect.NewError(connect.CodeUnavailable, "permission check unavailable")
@@ -26,12 +21,11 @@ var (
 
 // Validator checks token permissions by calling CheckPermission on the control plane.
 type Validator struct {
-	client    tokenv1connect.TokenServiceClient
-	authToken string
-	cache     cache.Cache
+	client tokenv1connect.TokenServiceClient
+	cache  cache.Cache
 }
 
-func NewValidator(controlPlaneURL string, authToken string, c cache.Cache) *Validator {
+func NewValidator(controlPlaneURL string, c cache.Cache) *Validator {
 	transport := &http.Transport{}
 	transport.Protocols = new(http.Protocols)
 	transport.Protocols.SetHTTP1(true)
@@ -42,9 +36,8 @@ func NewValidator(controlPlaneURL string, authToken string, c cache.Cache) *Vali
 	tokenClient := clients.Token
 
 	return &Validator{
-		client:    tokenClient,
-		authToken: authToken,
-		cache:     c,
+		client: tokenClient,
+		cache:  c,
 	}
 }
 
@@ -88,20 +81,6 @@ func (v *Validator) CheckPermission(
 
 	if !resp.GetAllowed() {
 		return errPermissionDenied
-	}
-	return nil
-}
-
-func (v *Validator) Ready(ctx context.Context) error {
-	message := &tokenv1.CheckPermissionRequest{
-		EntityType: tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
-		EntityId:   readinessEntityID,
-		Scope:      tokenv1.Scope_SCOPE_READ,
-	}
-	ctx, info := connect.NewClientContext(ctx)
-	info.RequestHeader().Set("Authorization", "Bearer "+v.authToken)
-	if _, err := v.client.CheckPermission(ctx, message); err != nil {
-		return fmt.Errorf("control plane permission endpoint: %w", err)
 	}
 	return nil
 }

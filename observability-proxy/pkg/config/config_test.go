@@ -19,8 +19,6 @@ const (
 
 func setRequiredEnv(t *testing.T) {
 	t.Helper()
-	t.Setenv("PROXY_AUTH_TOKEN", "test-proxy-token")
-	t.Setenv("PERMISSION_CHECK_TIMEOUT", testInterval.String())
 	t.Setenv("CLICKHOUSE_MIGRATOR_URL", testMigratorURL)
 	t.Setenv("CLICKHOUSE_DB", testDatabase)
 	t.Setenv("CLICKHOUSE_LOGS_TTL", testLogsTTL.String())
@@ -55,7 +53,6 @@ func TestLoadReadsSchemaSettings(t *testing.T) {
 	}
 	durations := map[string][2]time.Duration{
 		"LogsTTL":                {cfg.LogsTTL, testLogsTTL},
-		"PermissionCheckTimeout": {cfg.PermissionCheckTimeout, testInterval},
 		"TracesTTL":              {cfg.TracesTTL, testTracesTTL},
 		"MetricsTTL":             {cfg.MetricsTTL, testMetricsTTL},
 		"MigrationRetryBudget":   {cfg.MigrationRetryBudget, testBudget},
@@ -72,8 +69,6 @@ func TestLoadReadsSchemaSettings(t *testing.T) {
 
 func TestLoadPanicsWithoutRequiredSettings(t *testing.T) {
 	required := []string{
-		"PROXY_AUTH_TOKEN",
-		"PERMISSION_CHECK_TIMEOUT",
 		"CLICKHOUSE_MIGRATOR_URL",
 		"CLICKHOUSE_DB",
 		"CLICKHOUSE_LOGS_TTL",
@@ -95,7 +90,6 @@ func TestLoadPanicsWithoutRequiredSettings(t *testing.T) {
 
 func TestLoadPanicsOnInvalidValues(t *testing.T) {
 	invalid := map[string][]string{
-		"PERMISSION_CHECK_TIMEOUT":    {"0s", "-1s", "invalid-duration"},
 		"CLICKHOUSE_DB":               {"loco-obs", "loco_obs; DROP", "1loco"},
 		"CLICKHOUSE_LOGS_TTL":         {"30d", "-1h", "0s", "1500ms"},
 		"CLICKHOUSE_TRACES_TTL":       {"forever"},

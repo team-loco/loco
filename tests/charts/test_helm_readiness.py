@@ -12,7 +12,7 @@ FIXTURE_ENV = {
     'CLOUDFLARE_TOKEN': 'test', 'LOG_LEVEL': 'info', 'AGENT_TOKEN': 'test',
     'CONTROL_PLANE_URL': 'https://api.example.test', 'CLICKHOUSE_PASSWORD': 'test',
     'CLICKHOUSE_MIGRATOR_PASSWORD': 'test', 'CLICKHOUSE_INGEST_PASSWORD': 'test',
-    'CLICKHOUSE_READER_PASSWORD': 'test', 'OBS_PROXY_AUTH_SECRET': 'proxy-auth',
+    'CLICKHOUSE_READER_PASSWORD': 'test',
 }
 
 

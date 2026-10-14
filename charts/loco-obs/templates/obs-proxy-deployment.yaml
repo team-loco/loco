@@ -42,12 +42,6 @@ spec:
               value: {{ required "obsProxy.controlPlane.url is required" .Values.obsProxy.controlPlane.url | quote }}
             - name: CORS_ALLOWED_ORIGINS
               value: {{ join "," .Values.obsProxy.cors.allowedOrigins | quote }}
-            - name: PROXY_AUTH_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ required "obsProxy.auth.existingSecret is required" .Values.obsProxy.auth.existingSecret | quote }}
-                  key: token
-                  optional: false
             {{- include "loco-obs.clickhouseDSN" (dict "root" . "env" "CLICKHOUSE_URL" "passwordEnv" "CLICKHOUSE_READER_PASSWORD" "user" .Values.obsProxy.clickhouse.readerUser "existingSecret" .Values.obsProxy.clickhouse.existingSecret "path" "obsProxy.clickhouse.existingSecret") | nindent 12 }}
             {{- include "loco-obs.clickhouseDSN" (dict "root" . "env" "CLICKHOUSE_MIGRATOR_URL" "passwordEnv" "CLICKHOUSE_MIGRATOR_PASSWORD" "user" .Values.obsProxy.clickhouse.migratorUser "existingSecret" .Values.obsProxy.clickhouse.migratorExistingSecret "path" "obsProxy.clickhouse.migratorExistingSecret") | nindent 12 }}
             - name: CLICKHOUSE_DB
@@ -70,8 +64,6 @@ spec:
               value: {{ .Values.obsProxy.guardrails.defaultLimit | quote }}
             - name: MAX_LIMIT
               value: {{ .Values.obsProxy.guardrails.maxLimit | quote }}
-            - name: PERMISSION_CHECK_TIMEOUT
-              value: {{ printf "%ds" (int .Values.obsProxy.guardrails.permissionCheckTimeoutSeconds) | quote }}
             - name: QUERY_TIMEOUT_SECONDS
               value: {{ .Values.obsProxy.guardrails.queryTimeoutSeconds | quote }}
             - name: MAX_TIME_RANGE_HOURS

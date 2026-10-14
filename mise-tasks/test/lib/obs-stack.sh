@@ -9,15 +9,10 @@ workdir=$(mktemp -d)
 ready_attempts=60
 proxy_port=$((20000 + $$ % 10000))
 proxy_pid=""
-control_plane_pid=""
 failures=0
 containers=("$clickhouse")
 
 obs_cleanup() {
-	if [ -n "$control_plane_pid" ]; then
-		kill "$control_plane_pid" >/dev/null 2>&1 || true
-		wait "$control_plane_pid" >/dev/null 2>&1 || true
-	fi
 	if [ -n "$proxy_pid" ]; then
 		kill "$proxy_pid" >/dev/null 2>&1 || true
 	fi
@@ -59,18 +54,10 @@ password_sets=()
 for user in $(yq '.clickhouseUserPasswords | keys | .[]' "$chart/values.yaml"); do
 	password_sets+=("--set" "clickhouseUserPasswords.$user=$(openssl rand -hex 16)")
 done
-proxy_auth_token=obs-stack-fixture-token
-(cd observability-proxy && go build -o "$workdir/permission-server" ./internal/testpermission)
-"$workdir/permission-server" --token "$proxy_auth_token" --address-file "$workdir/control-plane-url" \
-	>"$workdir/control-plane.log" 2>&1 &
-control_plane_pid=$!
-wait_for "Permission endpoint start" test -s "$workdir/control-plane-url"
-control_plane_url=$(cat "$workdir/control-plane-url")
 region=obs-stack-region
 manifest=$(helm template loco-obs "$chart" --namespace "$namespace" --set obsProxy.image.tag="$1" \
 	--set global.region="$region" \
-	--set obsProxy.controlPlane.url="$control_plane_url" \
-	--set obsProxy.auth.existingSecret="$run_id-proxy-auth" "${password_sets[@]}")
+	--set obsProxy.controlPlane.url=http://control-plane.invalid "${password_sets[@]}")
 chi=$(yq -o json -I 0 'select(.kind == "ClickHouseInstallation")' <<<"$manifest")
 clickhouse_image=$(yq '.spec.templates.podTemplates[0].spec.containers[0].image' <<<"$chi")
 collector_image=$(yq 'select(.kind == "Deployment" and .metadata.name == "otel-col-deploy") | .spec.template.spec.containers[0].image' <<<"$manifest")
@@ -128,10 +115,8 @@ proxy_value() {
 (cd observability-proxy && go build -o "$workdir/loco-obs-proxy" .)
 proxy_vars=()
 for name in $(yq '.[].name' <<<"$proxy_env"); do
-	[ "$name" = PROXY_AUTH_TOKEN ] && continue
 	proxy_vars+=("$name=$(proxy_value "$name")")
 done
-proxy_vars+=("PROXY_AUTH_TOKEN=$proxy_auth_token")
 env "${proxy_vars[@]}" PORT="$proxy_port" "$workdir/loco-obs-proxy" >"$workdir/proxy.log" 2>&1 &
 proxy_pid=$!
 if ! wait_for "Observability proxy readiness" curl -sf "http://127.0.0.1:$proxy_port/readyz"; then

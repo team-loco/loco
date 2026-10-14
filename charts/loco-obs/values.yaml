@@ -575,8 +575,6 @@ obsProxy:
   port: 8080
   controlPlane:
     url: ""
-  auth:
-    existingSecret: ""
   clickhouse:
     database: loco_obs
     readerUser: loco_reader
@@ -601,7 +599,6 @@ obsProxy:
     defaultLimit: 1000
     maxLimit: 10000
     queryTimeoutSeconds: 10
-    permissionCheckTimeoutSeconds: 5
     maxTimeRangeHours: 24
     maxConcurrentQueries: 5
     maxTailDurationMinutes: 30
