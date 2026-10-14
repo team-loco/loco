@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -17,8 +16,6 @@ import (
 	"connectrpc.com/connect/v2/connecthttp"
 
 	"connectrpc.com/connect/v2"
-	coordinationv1client "k8s.io/client-go/kubernetes/typed/coordination/v1"
-	"k8s.io/client-go/rest"
 
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	"github.com/team-loco/loco/internal/buildinfo"
@@ -38,8 +35,6 @@ const (
 
 var version string
 
-var errUnknownMigrationLock = errors.New("unknown migration lock")
-
 type migrationLock interface {
 	WithLock(ctx context.Context, fn func(context.Context) error) error
 }
@@ -50,25 +45,6 @@ type proxy struct {
 	permCache *cache.MemoryCache
 	migrated  *atomic.Bool
 	lock      migrationLock
-}
-
-func newMigrationLock(cfg *config.Config) (migrationLock, error) {
-	switch cfg.MigrationLock {
-	case config.MigrationLockKubernetes:
-		restConfig, err := rest.InClusterConfig()
-		if err != nil {
-			return nil, fmt.Errorf("load in-cluster kubernetes config: %w", err)
-		}
-		client, err := coordinationv1client.NewForConfig(restConfig)
-		if err != nil {
-			return nil, fmt.Errorf("create coordination client: %w", err)
-		}
-		return migrationlock.New(client, cfg.MigrationLease), nil
-	case config.MigrationLockNone:
-		return migrationlock.None{}, nil
-	default:
-		return nil, fmt.Errorf("%w: %q", errUnknownMigrationLock, cfg.MigrationLock)
-	}
 }
 
 func newProxy(cfg *config.Config, lock migrationLock) (*proxy, error) {
@@ -147,8 +123,8 @@ func (p *proxy) migrate(ctx context.Context, cfg *config.Config) error {
 	retry := migrations.Retry{Budget: cfg.MigrationRetryBudget, Interval: cfg.MigrationRetryInterval}
 	budgetCtx, cancel := context.WithTimeout(ctx, cfg.MigrationRetryBudget)
 	defer cancel()
-	err := p.lock.WithLock(budgetCtx, func(leaseCtx context.Context) error {
-		return migrations.UpWithRetry(leaseCtx, schema, retry)
+	err := p.lock.WithLock(budgetCtx, func(lockCtx context.Context) error {
+		return migrations.UpWithRetry(lockCtx, schema, retry)
 	})
 	if err != nil {
 		return fmt.Errorf("migrate clickhouse schema: %w", err)
@@ -225,10 +201,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	lock, err := newMigrationLock(cfg)
-	if err != nil {
-		log.Fatal(err)
-	}
+	lock := migrationlock.New(cfg.MigrationLock())
 	p, err := newProxy(cfg, lock)
 	if err != nil {
 		log.Fatal(err)

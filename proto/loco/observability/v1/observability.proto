@@ -170,6 +170,10 @@ message QueryMetricsRequest {
     (buf.validate.field).string.uuid = true
   ];
 
+  // Region to filter by, matching the loco.region attribute each cluster's collectors stamp
+  // on its telemetry. Empty means every region.
+  string region = 9;
+
   option (buf.validate.message).cel = {
     id: "time_range.start_lte_end"
     message: "start_time must be before or equal to end_time"

@@ -19,7 +19,6 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
 	"github.com/team-loco/loco/internal/rpcerr"
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
-	"github.com/team-loco/loco/observability-proxy/pkg/migrationlock"
 )
 
 const (
@@ -89,7 +88,7 @@ func TestReadyzChecksTheControlPlaneAndRecovers(t *testing.T) {
 		MaxLimit:               testMaxConcurrent,
 		MaxTimeRange:           testTTL,
 	}
-	p, err := newProxy(cfg, migrationlock.None{})
+	p, err := newProxy(cfg, unlocked{})
 	if err != nil {
 		t.Fatalf("newProxy: %v", err)
 	}

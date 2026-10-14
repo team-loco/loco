@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
-	"github.com/team-loco/loco/observability-proxy/pkg/migrationlock"
 )
 
 const corsTestOrigin = "https://dashboard.example.test"
@@ -27,7 +26,7 @@ func TestProxyCORS(t *testing.T) {
 			cfg := &config.Config{ClickHouseURL: unreachableMigrator, ClickHouseMigratorURL: unreachableMigrator,
 				ClickHouseDB: proxyDatabase, ControlPlaneURL: unreachableControlPlane,
 				TokenCacheTTL: testTokenTTL, MaxConcurrent: testMaxConcurrent, CORSAllowedOrigins: test.origins}
-			proxy, err := newProxy(cfg, migrationlock.None{})
+			proxy, err := newProxy(cfg, unlocked{})
 			if err != nil {
 				t.Fatalf("proxy: %v", err)
 			}

@@ -24,6 +24,8 @@ CLIENT_POD_IDENTITY = ('k8s.pod.ip', 'k8s.pod.uid')
 ENVOY_CLUSTER_ATTRIBUTES = {'trace_statements': 'upstream_cluster', 'log_statements': 'upstream_cluster', 'metric_statements': 'envoy.cluster_name'}
 ROUTE_TENANCY = ('loco.workspace.id', 'loco.resource.id')
 TEST_PROXY = {'image': {'tag': 'test'}, 'controlPlane': {'url': 'https://api.example.test'}, 'auth': {'existingSecret': 'proxy-auth'}}
+TEST_REGION = 'test-region-1'
+OBS_BASE_VALUES = {'global': {'region': TEST_REGION}}
 CLICKHOUSE_USER_PASSWORDS = {'CLICKHOUSE_MIGRATOR_PASSWORD': 'test', 'CLICKHOUSE_INGEST_PASSWORD': 'test', 'CLICKHOUSE_READER_PASSWORD': 'test'}
 
 
@@ -71,11 +73,19 @@ def render_documents(chart, template, overrides):
         return [json.loads(line) for line in documents.splitlines() if line.strip() not in ('', 'null')]
 
 
-def render_chart(chart, overrides):
+def render_chart(chart, overrides, check=True):
     with tempfile.TemporaryDirectory() as directory:
+        base = Path(directory) / 'base.json'
+        base.write_text(json.dumps(OBS_BASE_VALUES if chart == 'loco-obs' else {}))
         values = Path(directory) / 'overrides.json'
         values.write_text(json.dumps(overrides))
-        rendered = subprocess.check_output(['helm', 'template', chart, str(ROOT / 'charts' / chart), '-n', 'platform-test', '-f', str(values)], text=True)
+        command = ['helm', 'template', chart, str(ROOT / 'charts' / chart), '-n', 'platform-test', '-f', str(base), '-f', str(values)]
+        result = subprocess.run(command, capture_output=True, text=True)
+        if not check:
+            return result
+        if result.returncode != 0:
+            raise subprocess.CalledProcessError(result.returncode, command, result.stdout, result.stderr)
+        rendered = result.stdout
     documents = subprocess.check_output(['yq', '-o=json', '-I=0', '.', '-'], input=rendered, text=True)
     return [json.loads(line) for line in documents.splitlines() if line.strip() not in ('', 'null')]
 
@@ -123,7 +133,7 @@ class PlatformContracts(unittest.TestCase):
             'GH_SHA': 'test', 'CERT_MANAGER_EMAIL': 'test@example.test',
             'CLOUDFLARE_TOKEN': 'test', 'LOG_LEVEL': 'info', 'AGENT_TOKEN': 'test',
             'CLICKHOUSE_PASSWORD': 'test', 'OBS_PROXY_AUTH_SECRET': 'proxy-auth', 'CONTROL_PLANE_URL': 'https://api.example.test',
-            **CLICKHOUSE_USER_PASSWORDS,
+            'LOCO_REGION': TEST_REGION, **CLICKHOUSE_USER_PASSWORDS,
         }
         core = environment_values('prod', variables, 'loco-core')
         obs = environment_values('prod', variables)
@@ -135,7 +145,8 @@ class PlatformContracts(unittest.TestCase):
             ('local', {'APP_PORT': ':8123'}, 'http://host.docker.internal:8123'),
             ('local', {'APP_PORT': '0.0.0.0:8123'}, 'http://host.docker.internal:8123'),
             ('prod', {'GH_SHA': 'test', 'CLICKHOUSE_PASSWORD': 'test', 'OBS_PROXY_AUTH_SECRET': 'proxy-auth',
-                      'CONTROL_PLANE_URL': 'https://api.example.test', **CLICKHOUSE_USER_PASSWORDS}, 'https://api.example.test'),
+                      'CONTROL_PLANE_URL': 'https://api.example.test', 'LOCO_REGION': TEST_REGION,
+                      **CLICKHOUSE_USER_PASSWORDS}, 'https://api.example.test'),
         ]
         for environment, variables, expected in cases:
             with self.subTest(environment=environment):
@@ -210,7 +221,7 @@ class ObservabilitySchema(unittest.TestCase):
         variables = {
             **CLICKHOUSE_USER_PASSWORDS, 'GH_SHA': 'test', 'APP_PORT': '8000',
             'CLICKHOUSE_PASSWORD': 'test', 'OBS_PROXY_AUTH_SECRET': 'proxy-auth',
-            'CONTROL_PLANE_URL': 'https://api.example.test',
+            'CONTROL_PLANE_URL': 'https://api.example.test', 'LOCO_REGION': TEST_REGION,
             'CORS_ALLOWED_ORIGINS': ' https://app.example.test, http://localhost:5173 ',
         }
         for environment in ('local', 'prod'):
@@ -369,6 +380,26 @@ class CollectorTenancy(unittest.TestCase):
 
     def test_all_collectors_render(self):
         self.assertEqual(set(self.configs), set(COLLECTOR_CONFIGMAPS))
+
+    def test_every_pipeline_stamps_the_region_last(self):
+        for collector, config, name, pipeline in self.pipelines():
+            with self.subTest(collector=collector, pipeline=name):
+                self.assertEqual(pipeline['processors'][-2:], ['resource/region', 'batch'])
+                self.assertEqual(config['processors']['resource/region'], {'attributes': [
+                    {'key': 'loco.region', 'value': TEST_REGION, 'action': 'upsert'}]})
+
+    def test_chart_requires_a_region(self):
+        result = render_chart('loco-obs', {'obsProxy': TEST_PROXY, 'global': {'region': ''}}, check=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('global.region is required', result.stderr)
+
+    def test_every_environment_sets_a_region(self):
+        local = environment_values('local', {'APP_PORT': '8080'})
+        self.assertTrue(local['global']['region'])
+        prod = environment_values('prod', {
+            'GH_SHA': 'test', 'CLICKHOUSE_PASSWORD': 'test', 'OBS_PROXY_AUTH_SECRET': 'proxy-auth',
+            'CONTROL_PLANE_URL': 'https://api.example.test', 'LOCO_REGION': TEST_REGION, **CLICKHOUSE_USER_PASSWORDS})
+        self.assertEqual(prod['global']['region'], TEST_REGION)
 
     def test_collectors_run_without_an_operator(self):
         names = {document['metadata'].get('labels', {}).get('app.kubernetes.io/name') for document in self.documents}
@@ -602,53 +633,31 @@ class ControllerTelemetry(unittest.TestCase):
         self.assertEqual(protocols['http']['endpoint'].rsplit(':', 1)[1], str(collector['httpPort']))
 
 
-class ObservabilityMigrationLease(unittest.TestCase):
-    def lease_values(self):
-        return chart_values('loco-obs')['obsProxy']['clickhouse']['migrations']['lease']
-
-    def rbac(self):
-        documents = render_documents('loco-obs', 'obs-proxy-rbac.yaml', {'obsProxy': TEST_PROXY})
-        return {item['kind']: item for item in documents}
+class ObservabilityMigrationLock(unittest.TestCase):
+    def lock_values(self):
+        return chart_values('loco-obs')['obsProxy']['clickhouse']['migrations']['lock']
 
     def deployment(self):
         return render('loco-obs', 'obs-proxy-deployment.yaml', {'obsProxy': TEST_PROXY})
 
-    def test_proxy_runs_as_its_own_service_account(self):
-        deployment = self.deployment()
-        account = self.rbac()['ServiceAccount']
-        self.assertEqual(deployment['spec']['template']['spec']['serviceAccountName'], account['metadata']['name'])
-        self.assertEqual(account['metadata']['namespace'], 'platform-test')
+    def test_proxy_has_no_kubernetes_api_credentials(self):
+        pod = self.deployment()['spec']['template']['spec']
+        self.assertNotIn('serviceAccountName', pod)
+        self.assertIs(pod['automountServiceAccountToken'], False)
 
-    def test_role_grants_only_the_migration_lease(self):
-        documents = self.rbac()
-        role = documents['Role']
-        self.assertEqual(role['metadata']['namespace'], 'platform-test')
-        self.assertEqual(role['rules'], [
-            {'apiGroups': ['coordination.k8s.io'], 'resources': ['leases'],
-             'resourceNames': [self.lease_values()['name']], 'verbs': ['get', 'update']},
-            {'apiGroups': ['coordination.k8s.io'], 'resources': ['leases'], 'verbs': ['create']},
-        ])
-        binding = documents['RoleBinding']
-        self.assertEqual(binding['metadata']['namespace'], 'platform-test')
-        self.assertEqual(binding['roleRef'], {'apiGroup': 'rbac.authorization.k8s.io', 'kind': 'Role', 'name': role['metadata']['name']})
-        account = documents['ServiceAccount']['metadata']
-        self.assertEqual(binding['subjects'], [{'kind': 'ServiceAccount', 'name': account['name'], 'namespace': account['namespace']}])
-
-    def test_proxy_serializes_migrations_with_the_lease(self):
-        lease = self.lease_values()
+    def test_proxy_serializes_migrations_with_the_lock(self):
+        lock = self.lock_values()
         env = {item['name']: item for item in self.deployment()['spec']['template']['spec']['containers'][0]['env']}
-        self.assertEqual(env['MIGRATION_LOCK']['value'], 'kubernetes')
-        self.assertEqual(env['MIGRATION_LEASE_NAME']['value'], lease['name'])
-        self.assertEqual(env['MIGRATION_LEASE_DURATION']['value'], f"{lease['durationSeconds']}s")
-        self.assertEqual(env['MIGRATION_LEASE_RENEW_DEADLINE']['value'], f"{lease['renewDeadlineSeconds']}s")
-        self.assertEqual(env['MIGRATION_LEASE_RETRY_PERIOD']['value'], f"{lease['retryPeriodSeconds']}s")
-        self.assertEqual(env['POD_NAME']['valueFrom'], {'fieldRef': {'fieldPath': 'metadata.name'}})
-        self.assertEqual(env['POD_NAMESPACE']['valueFrom'], {'fieldRef': {'fieldPath': 'metadata.namespace'}})
-        self.assertLess(lease['renewDeadlineSeconds'], lease['durationSeconds'])
-        self.assertLess(lease['retryPeriodSeconds'], lease['renewDeadlineSeconds'])
+        self.assertEqual(env['MIGRATION_LOCK_TTL']['value'], f"{lock['ttlSeconds']}s")
+        self.assertEqual(env['MIGRATION_LOCK_RETRY_PERIOD']['value'], f"{lock['retryPeriodSeconds']}s")
+        self.assertLessEqual(2 * lock['retryPeriodSeconds'], lock['ttlSeconds'])
 
-    def test_disabled_proxy_has_no_lease_access(self):
-        self.assertEqual(render_documents('loco-obs', 'obs-proxy-rbac.yaml', {'obsProxy': {'enabled': False}}), [])
+    def test_in_cluster_clickhouse_runs_a_single_node_keeper_for_the_lock(self):
+        installation = clickhouse_installation({'obsProxy': TEST_PROXY})
+        config = installation['spec']['configuration']['files']['config.d/extra_config.xml']
+        self.assertIn('<keeper_server>', config)
+        self.assertIn('<keeper_map_path_prefix>', config)
+        self.assertEqual(installation['spec']['configuration']['clusters'][0]['layout']['replicasCount'], 1)
 
 
 class BuildNamespaceOwnership(unittest.TestCase):

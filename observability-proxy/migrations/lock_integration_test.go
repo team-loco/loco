@@ -3,26 +3,17 @@ package migrations
 import (
 	"context"
 	"errors"
-	"fmt"
-	"os"
-	"strings"
 	"sync"
 	"testing"
 	"testing/fstest"
 	"time"
 
-	coordinationv1client "k8s.io/client-go/kubernetes/typed/coordination/v1"
-	"k8s.io/client-go/rest"
-
-	"github.com/team-loco/loco/observability-proxy/internal/testenv"
 	"github.com/team-loco/loco/observability-proxy/pkg/migrationlock"
 )
 
 const (
 	racingRunners      = 8
-	leaseNamespace     = "default"
-	testLeaseDuration  = 2 * time.Second
-	testRenewDeadline  = time.Second
+	testLockTTL        = 2 * time.Second
 	testRetryPeriod    = 200 * time.Millisecond
 	appliedPollPeriod  = 20 * time.Millisecond
 	appliedPollTimeout = 30 * time.Second
@@ -43,10 +34,6 @@ var (
 		"00003_record_entry.sql":  {Data: []byte(recordEntry)},
 	}
 )
-
-func TestMain(m *testing.M) {
-	os.Exit(testenv.Main(m))
-}
 
 func (d *testDatabase) ledgerRows(t *testing.T) uint64 {
 	t.Helper()
@@ -71,24 +58,13 @@ func (d *testDatabase) waitForVersion(t *testing.T, version int64) {
 	t.Fatalf("migration %d was not applied within %s", version, appliedPollTimeout)
 }
 
-func newLease(t *testing.T, server *rest.Config, name, identity string) *migrationlock.Lease {
-	t.Helper()
-	client, err := coordinationv1client.NewForConfig(server)
-	if err != nil {
-		t.Fatalf("coordination client: %v", err)
-	}
-	return migrationlock.New(client, migrationlock.Config{
-		Name:          name,
-		Namespace:     leaseNamespace,
-		Identity:      identity,
-		LeaseDuration: testLeaseDuration,
-		RenewDeadline: testRenewDeadline,
-		RetryPeriod:   testRetryPeriod,
+func newLock(d *testDatabase) *migrationlock.Lock {
+	return migrationlock.New(migrationlock.Config{
+		DSN:         d.cfg.DSN,
+		Database:    d.cfg.Database,
+		TTL:         testLockTTL,
+		RetryPeriod: testRetryPeriod,
 	})
-}
-
-func leaseName(d *testDatabase) string {
-	return strings.ReplaceAll(d.cfg.Database, "_", "-")
 }
 
 func race(t *testing.T, run func(runner int) error) []error {
@@ -123,70 +99,48 @@ func TestUnlockedRunnersApplyANonIdempotentMigrationMoreThanOnce(t *testing.T) {
 	}
 }
 
-func TestLeasedRunnersApplyANonIdempotentMigrationOnce(t *testing.T) {
-	server := testenv.APIServer(t)
+func TestLockedRunnersApplyANonIdempotentMigrationOnce(t *testing.T) {
 	db := newTestDatabase(t)
-	errs := race(t, func(runner int) error {
-		lock := newLease(t, rest.CopyConfig(server), leaseName(db), fmt.Sprintf("runner-%d", runner))
-		return lock.WithLock(t.Context(), func(ctx context.Context) error {
+	errs := race(t, func(int) error {
+		return newLock(db).WithLock(t.Context(), func(ctx context.Context) error {
 			_, err := apply(ctx, db.cfg, nonIdempotentMigrations)
 			return err
 		})
 	})
 	for runner, err := range errs {
 		if err != nil {
-			t.Errorf("leased runner %d: %v", runner, err)
+			t.Errorf("locked runner %d: %v", runner, err)
 		}
 	}
 	rows := db.ledgerRows(t)
-	t.Logf("leased: %d runners inserted %d ledger rows", racingRunners, rows)
+	t.Logf("locked: %d runners inserted %d ledger rows", racingRunners, rows)
 	if rows != 1 {
-		t.Fatalf("leased runners inserted %d ledger rows, want 1", rows)
+		t.Fatalf("locked runners inserted %d ledger rows, want 1", rows)
 	}
 }
 
-func TestHolderKilledMidMigrationIsReplacedAfterTheLeaseExpires(t *testing.T) {
-	server := testenv.APIServer(t)
+func TestSuccessorFinishesAMigrationItsHolderAbandoned(t *testing.T) {
 	db := newTestDatabase(t)
-	var network testenv.Switch
-	holder := newLease(t, network.Wrap(rest.CopyConfig(server)), leaseName(db), "holder")
-	successor := newLease(t, rest.CopyConfig(server), leaseName(db), "successor")
-
 	holderCtx, killHolder := context.WithCancel(t.Context())
 	holderErr := make(chan error, 1)
 	go func() {
-		holderErr <- holder.WithLock(holderCtx, func(ctx context.Context) error {
+		holderErr <- newLock(db).WithLock(holderCtx, func(ctx context.Context) error {
 			_, err := apply(ctx, db.cfg, interruptibleMigrations)
 			return err
 		})
 	}()
 	db.waitForVersion(t, 1)
-
-	var successorStarted time.Time
-	successorErr := make(chan error, 1)
-	go func() {
-		successorErr <- successor.WithLock(t.Context(), func(ctx context.Context) error {
-			successorStarted = time.Now()
-			_, err := apply(ctx, db.cfg, interruptibleMigrations)
-			return err
-		})
-	}()
-
-	diedAt := time.Now()
-	network.Cut()
 	killHolder()
-	err := <-holderErr
-	if !errors.Is(err, context.Canceled) {
+	if err := <-holderErr; !errors.Is(err, context.Canceled) {
 		t.Fatalf("killed holder WithLock() = %v, want %v", err, context.Canceled)
 	}
-	t.Logf("killed holder returned: %v", err)
-	if err := <-successorErr; err != nil {
+
+	err := newLock(db).WithLock(t.Context(), func(ctx context.Context) error {
+		_, err := apply(ctx, db.cfg, interruptibleMigrations)
+		return err
+	})
+	if err != nil {
 		t.Fatalf("successor WithLock(): %v", err)
-	}
-	waited := successorStarted.Sub(diedAt)
-	t.Logf("successor started migrating %s after the holder died (lease %s)", waited, testLeaseDuration)
-	if waited < testLeaseDuration-testRetryPeriod {
-		t.Fatalf("successor started %s after the holder died, before the %s lease expired", waited, testLeaseDuration)
 	}
 	if rows := db.ledgerRows(t); rows != 1 {
 		t.Fatalf("ledger rows = %d, want 1", rows)

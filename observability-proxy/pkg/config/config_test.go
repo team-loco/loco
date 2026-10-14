@@ -3,8 +3,6 @@ package config
 import (
 	"testing"
 	"time"
-
-	"github.com/team-loco/loco/observability-proxy/pkg/migrationlock"
 )
 
 const (
@@ -15,12 +13,8 @@ const (
 	testMetricsTTL  = 2160 * time.Hour
 	testBudget      = 2 * time.Minute
 	testInterval    = 5 * time.Second
-	testLeaseName   = "loco-obs-schema-migrations"
-	testPodName     = "loco-obs-obs-proxy-abc"
-	testNamespace   = "observability"
-	testLease       = 15 * time.Second
-	testRenew       = 10 * time.Second
-	testRetry       = 2 * time.Second
+	testLockTTL     = 15 * time.Second
+	testLockRetry   = 2 * time.Second
 )
 
 func setRequiredEnv(t *testing.T) {
@@ -34,22 +28,8 @@ func setRequiredEnv(t *testing.T) {
 	t.Setenv("CLICKHOUSE_METRICS_TTL", testMetricsTTL.String())
 	t.Setenv("MIGRATION_RETRY_BUDGET", testBudget.String())
 	t.Setenv("MIGRATION_RETRY_INTERVAL", testInterval.String())
-	t.Setenv("MIGRATION_LOCK", string(MigrationLockKubernetes))
-	t.Setenv("MIGRATION_LEASE_NAME", testLeaseName)
-	t.Setenv("POD_NAME", testPodName)
-	t.Setenv("POD_NAMESPACE", testNamespace)
-	t.Setenv("MIGRATION_LEASE_DURATION", testLease.String())
-	t.Setenv("MIGRATION_LEASE_RENEW_DEADLINE", testRenew.String())
-	t.Setenv("MIGRATION_LEASE_RETRY_PERIOD", testRetry.String())
-}
-
-var leaseSettings = []string{
-	"MIGRATION_LEASE_NAME",
-	"POD_NAME",
-	"POD_NAMESPACE",
-	"MIGRATION_LEASE_DURATION",
-	"MIGRATION_LEASE_RENEW_DEADLINE",
-	"MIGRATION_LEASE_RETRY_PERIOD",
+	t.Setenv("MIGRATION_LOCK_TTL", testLockTTL.String())
+	t.Setenv("MIGRATION_LOCK_RETRY_PERIOD", testLockRetry.String())
 }
 
 func expectPanic(t *testing.T, name string) {
@@ -80,6 +60,8 @@ func TestLoadReadsSchemaSettings(t *testing.T) {
 		"MetricsTTL":             {cfg.MetricsTTL, testMetricsTTL},
 		"MigrationRetryBudget":   {cfg.MigrationRetryBudget, testBudget},
 		"MigrationRetryInterval": {cfg.MigrationRetryInterval, testInterval},
+		"MigrationLockTTL":       {cfg.MigrationLockTTL, testLockTTL},
+		"MigrationLockRetry":     {cfg.MigrationLockRetry, testLockRetry},
 	}
 	for name, pair := range durations {
 		if pair[0] != pair[1] {
@@ -89,7 +71,7 @@ func TestLoadReadsSchemaSettings(t *testing.T) {
 }
 
 func TestLoadPanicsWithoutRequiredSettings(t *testing.T) {
-	required := append([]string{
+	required := []string{
 		"PROXY_AUTH_TOKEN",
 		"PERMISSION_CHECK_TIMEOUT",
 		"CLICKHOUSE_MIGRATOR_URL",
@@ -99,8 +81,9 @@ func TestLoadPanicsWithoutRequiredSettings(t *testing.T) {
 		"CLICKHOUSE_METRICS_TTL",
 		"MIGRATION_RETRY_BUDGET",
 		"MIGRATION_RETRY_INTERVAL",
-		"MIGRATION_LOCK",
-	}, leaseSettings...)
+		"MIGRATION_LOCK_TTL",
+		"MIGRATION_LOCK_RETRY_PERIOD",
+	}
 	for _, name := range required {
 		t.Run(name, func(t *testing.T) {
 			setRequiredEnv(t)
@@ -112,21 +95,17 @@ func TestLoadPanicsWithoutRequiredSettings(t *testing.T) {
 
 func TestLoadPanicsOnInvalidValues(t *testing.T) {
 	invalid := map[string][]string{
-		"PERMISSION_CHECK_TIMEOUT":       {"0s", "-1s", "invalid-duration"},
-		"CLICKHOUSE_DB":                  {"loco-obs", "loco_obs; DROP", "1loco"},
-		"CLICKHOUSE_LOGS_TTL":            {"30d", "-1h", "0s", "1500ms"},
-		"CLICKHOUSE_TRACES_TTL":          {"forever"},
-		"CLICKHOUSE_METRICS_TTL":         {"-24h"},
-		"MIGRATION_RETRY_BUDGET":         {"0s", "soon"},
-		"MIGRATION_RETRY_INTERVAL":       {"-5s"},
-		"PORT":                           {"eighty"},
-		"MAX_LIMIT":                      {"10k"},
-		"MIGRATION_LOCK":                 {"etcd", "Kubernetes", "None"},
-		"MIGRATION_LEASE_NAME":           {"Loco_Lease", "-lease"},
-		"POD_NAMESPACE":                  {"Observability"},
-		"MIGRATION_LEASE_DURATION":       {"0s", "10s", "5s", "soon"},
-		"MIGRATION_LEASE_RENEW_DEADLINE": {"-1s", "15s", "2s"},
-		"MIGRATION_LEASE_RETRY_PERIOD":   {"0s", "9s"},
+		"PERMISSION_CHECK_TIMEOUT":    {"0s", "-1s", "invalid-duration"},
+		"CLICKHOUSE_DB":               {"loco-obs", "loco_obs; DROP", "1loco"},
+		"CLICKHOUSE_LOGS_TTL":         {"30d", "-1h", "0s", "1500ms"},
+		"CLICKHOUSE_TRACES_TTL":       {"forever"},
+		"CLICKHOUSE_METRICS_TTL":      {"-24h"},
+		"MIGRATION_RETRY_BUDGET":      {"0s", "soon"},
+		"MIGRATION_RETRY_INTERVAL":    {"-5s"},
+		"PORT":                        {"eighty"},
+		"MAX_LIMIT":                   {"10k"},
+		"MIGRATION_LOCK_TTL":          {"0s", "3s", "soon"},
+		"MIGRATION_LOCK_RETRY_PERIOD": {"-1s", "8s"},
 	}
 	for name, values := range invalid {
 		for _, value := range values {
@@ -139,51 +118,28 @@ func TestLoadPanicsOnInvalidValues(t *testing.T) {
 	}
 }
 
-func TestLoadReadsKubernetesLeaseSettings(t *testing.T) {
+func TestLoadBuildsTheMigrationLockFromTheMigratorSettings(t *testing.T) {
 	setRequiredEnv(t)
 
-	cfg := Load()
+	lock := Load().MigrationLock()
 
-	if cfg.MigrationLock != MigrationLockKubernetes {
-		t.Errorf("MigrationLock = %q, want %q", cfg.MigrationLock, MigrationLockKubernetes)
+	if lock.DSN != testMigratorURL || lock.Database != testDatabase {
+		t.Errorf(
+			"MigrationLock() DSN, Database = %q, %q, want %q, %q",
+			lock.DSN,
+			lock.Database,
+			testMigratorURL,
+			testDatabase,
+		)
 	}
-	lease := cfg.MigrationLease
-	names := map[string][2]string{
-		"Name":      {lease.Name, testLeaseName},
-		"Namespace": {lease.Namespace, testNamespace},
-		"Identity":  {lease.Identity, testPodName},
-	}
-	for name, pair := range names {
-		if pair[0] != pair[1] {
-			t.Errorf("MigrationLease.%s = %q, want %q", name, pair[0], pair[1])
-		}
-	}
-	durations := map[string][2]time.Duration{
-		"LeaseDuration": {lease.LeaseDuration, testLease},
-		"RenewDeadline": {lease.RenewDeadline, testRenew},
-		"RetryPeriod":   {lease.RetryPeriod, testRetry},
-	}
-	for name, pair := range durations {
-		if pair[0] != pair[1] {
-			t.Errorf("MigrationLease.%s = %s, want %s", name, pair[0], pair[1])
-		}
-	}
-}
-
-func TestLoadWithoutLockIgnoresLeaseSettings(t *testing.T) {
-	setRequiredEnv(t)
-	t.Setenv("MIGRATION_LOCK", string(MigrationLockNone))
-	for _, name := range leaseSettings {
-		t.Setenv(name, "")
-	}
-
-	cfg := Load()
-
-	if cfg.MigrationLock != MigrationLockNone {
-		t.Errorf("MigrationLock = %q, want %q", cfg.MigrationLock, MigrationLockNone)
-	}
-	if cfg.MigrationLease != (migrationlock.Config{}) {
-		t.Errorf("MigrationLease = %+v, want zero without a lock", cfg.MigrationLease)
+	if lock.TTL != testLockTTL || lock.RetryPeriod != testLockRetry {
+		t.Errorf(
+			"MigrationLock() TTL, RetryPeriod = %s, %s, want %s, %s",
+			lock.TTL,
+			lock.RetryPeriod,
+			testLockTTL,
+			testLockRetry,
+		)
 	}
 }
 
