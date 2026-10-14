@@ -8,7 +8,7 @@ GLOBAL_PATHS = ('mise.toml', 'mise.lock', '.golangci.yml', 'mise-tasks/lint/go')
 GLOBAL_PREFIXES = ('.github/actions/setup-tools/', '.github/actions/go-changes/')
 WORKFLOWS = ('.github/workflows/lint.yml', '.github/workflows/test.yml')
 ROOT_LIBRARIES = ('internal/', 'gen/go/', 'tools/')
-PROXY_TEST_INPUTS = ('mise-tasks/test/obs-proxy', 'charts/loco-obs/values.yaml', 'controller/Makefile')
+PROXY_TEST_INPUTS = ('mise-tasks/test/obs-proxy', 'charts/loco-obs/values.yaml')
 
 
 def module_dependencies(root):

@@ -5,175 +5,221 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
-	"sync/atomic"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/validation"
-	coordinationv1client "k8s.io/client-go/kubernetes/typed/coordination/v1"
-	"k8s.io/client-go/tools/leaderelection"
-	"k8s.io/client-go/tools/leaderelection/resourcelock"
+	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
+	"github.com/google/uuid"
+)
+
+const (
+	Table   = "loco_migration_lock"
+	lockKey = "schema"
+
+	minRenewalsPerTTL = 2
 )
 
 var (
-	ErrInvalidName      = errors.New("lease name is not a DNS subdomain")
-	ErrInvalidNamespace = errors.New("lease namespace is not a DNS label")
-	ErrMissingIdentity  = errors.New("holder identity is required")
-	ErrNotPositive      = errors.New("lease timings must be positive")
-	ErrRenewDeadline    = errors.New("renew deadline must be shorter than the lease duration")
-	ErrRetryPeriod      = errors.New("retry period with jitter must be shorter than the renew deadline")
-	ErrNotAcquired      = errors.New("migration lease was not acquired")
-	ErrLeaseLost        = errors.New("migration lease was lost before the migration finished")
+	ErrNotPositive = errors.New("lock timings must be positive")
+	ErrRetryPeriod = errors.New("retry period must be at most half the lock ttl")
+	ErrNotAcquired = errors.New("migration lock was not acquired")
+	ErrLockLost    = errors.New("migration lock was lost before the migration finished")
+
+	strictMode = clickhouse.WithSettings(clickhouse.Settings{"keeper_map_strict_mode": 1})
 )
 
 type Config struct {
-	Name          string
-	Namespace     string
-	Identity      string
-	LeaseDuration time.Duration
-	RenewDeadline time.Duration
-	RetryPeriod   time.Duration
+	DSN         string
+	Database    string
+	TTL         time.Duration
+	RetryPeriod time.Duration
 }
 
 func (c Config) Validate() error {
-	if problems := validation.IsDNS1123Subdomain(c.Name); len(problems) > 0 {
-		detail := strings.Join(problems, "; ")
-		return fmt.Errorf("%w: %q: %s", ErrInvalidName, c.Name, detail)
+	if c.TTL <= 0 || c.RetryPeriod <= 0 {
+		return fmt.Errorf("%w: ttl %s, retry period %s", ErrNotPositive, c.TTL, c.RetryPeriod)
 	}
-	if problems := validation.IsDNS1123Label(c.Namespace); len(problems) > 0 {
-		detail := strings.Join(problems, "; ")
-		return fmt.Errorf("%w: %q: %s", ErrInvalidNamespace, c.Namespace, detail)
-	}
-	if c.Identity == "" {
-		return ErrMissingIdentity
-	}
-	if c.LeaseDuration <= 0 || c.RenewDeadline <= 0 || c.RetryPeriod <= 0 {
-		return fmt.Errorf("%w: duration %s, renew deadline %s, retry period %s",
-			ErrNotPositive, c.LeaseDuration, c.RenewDeadline, c.RetryPeriod)
-	}
-	if c.RenewDeadline >= c.LeaseDuration {
-		return fmt.Errorf(
-			"%w: renew deadline %s, lease duration %s",
-			ErrRenewDeadline,
-			c.RenewDeadline,
-			c.LeaseDuration,
-		)
-	}
-	if jittered := time.Duration(leaderelection.JitterFactor * float64(c.RetryPeriod)); jittered >= c.RenewDeadline {
-		return fmt.Errorf("%w: retry period %s, renew deadline %s", ErrRetryPeriod, c.RetryPeriod, c.RenewDeadline)
+	if minRenewalsPerTTL*c.RetryPeriod > c.TTL {
+		return fmt.Errorf("%w: retry period %s, ttl %s", ErrRetryPeriod, c.RetryPeriod, c.TTL)
 	}
 	return nil
 }
 
-type Lease struct {
-	client coordinationv1client.LeasesGetter
-	cfg    Config
+type Lock struct {
+	cfg      Config
+	identity string
+	table    string
 }
 
-func New(client coordinationv1client.LeasesGetter, cfg Config) *Lease {
-	return &Lease{client: client, cfg: cfg}
+func New(cfg Config) *Lock {
+	return &Lock{cfg: cfg, identity: uuid.NewString(), table: cfg.Database + "." + Table}
 }
 
-func (l *Lease) logAttrs() []any {
-	return []any{"lease", l.cfg.Name, "namespace", l.cfg.Namespace, "holder", l.cfg.Identity}
+func (l *Lock) logAttrs() []any {
+	return []any{"table", l.table, "holder", l.identity}
 }
 
-type heldLease struct {
-	*resourcelock.LeaseLock
-	held     atomic.Bool
-	released atomic.Bool
-}
-
-func (h *heldLease) Create(ctx context.Context, record resourcelock.LeaderElectionRecord) error {
-	if err := h.LeaseLock.Create(ctx, record); err != nil {
-		return err
-	}
-	if record.HolderIdentity == h.Identity() {
-		h.held.Store(true)
-	}
-	return nil
-}
-
-func (h *heldLease) Update(ctx context.Context, record resourcelock.LeaderElectionRecord) error {
-	if err := h.LeaseLock.Update(ctx, record); err != nil {
-		return err
-	}
-	if record.HolderIdentity == h.Identity() {
-		h.held.Store(true)
-	}
-	if record.HolderIdentity == "" && h.held.Load() {
-		h.released.Store(true)
-	}
-	return nil
-}
-
-func (l *Lease) WithLock(ctx context.Context, fn func(context.Context) error) error {
-	runCtx, stop := context.WithCancel(ctx)
-	defer stop()
-
-	lock := &heldLease{LeaseLock: &resourcelock.LeaseLock{
-		LeaseMeta:  metav1.ObjectMeta{Name: l.cfg.Name, Namespace: l.cfg.Namespace},
-		Client:     l.client,
-		LockConfig: resourcelock.ResourceLockConfig{Identity: l.cfg.Identity},
-	}}
-	var result error
-	done := make(chan struct{})
-	elector, err := leaderelection.NewLeaderElector(leaderelection.LeaderElectionConfig{
-		Lock:            lock,
-		LeaseDuration:   l.cfg.LeaseDuration,
-		RenewDeadline:   l.cfg.RenewDeadline,
-		RetryPeriod:     l.cfg.RetryPeriod,
-		ReleaseOnCancel: true,
-		Name:            l.cfg.Name,
-		Callbacks: leaderelection.LeaderCallbacks{
-			OnStartedLeading: func(leadCtx context.Context) {
-				defer close(done)
-				slog.InfoContext(ctx, "acquired migration lease", l.logAttrs()...)
-				result = fn(leadCtx)
-				if leadCtx.Err() != nil && runCtx.Err() == nil {
-					result = errors.Join(ErrLeaseLost, result)
-				}
-				stop()
-			},
-			OnStoppedLeading: func() {
-				if lock.released.Load() {
-					slog.InfoContext(ctx, "released migration lease", l.logAttrs()...)
-					return
-				}
-				if lock.held.Load() {
-					slog.WarnContext(
-						ctx,
-						"stopped holding migration lease without releasing it",
-						append(l.logAttrs(), "expires_after", l.cfg.LeaseDuration)...)
-				}
-			},
-			OnNewLeader: func(identity string) {
-				if identity != "" && identity != l.cfg.Identity {
-					slog.InfoContext(
-						ctx,
-						"waiting for migration lease",
-						append(l.logAttrs(), "current_holder", identity)...)
-				}
-			},
-		},
-	})
+func (l *Lock) WithLock(ctx context.Context, fn func(context.Context) error) error {
+	opts, err := clickhouse.ParseDSN(l.cfg.DSN)
 	if err != nil {
-		return fmt.Errorf("configure migration lease: %w", err)
+		return fmt.Errorf("parse migration lock DSN: %w", err)
 	}
+	opts.Auth.Database = ""
+	conn, err := clickhouse.Open(opts)
+	if err != nil {
+		return fmt.Errorf("open migration lock connection: %w", err)
+	}
+	defer func() {
+		if closeErr := conn.Close(); closeErr != nil {
+			slog.WarnContext(ctx, "close migration lock connection", "error", closeErr)
+		}
+	}()
 
-	slog.InfoContext(ctx, "acquiring migration lease", l.logAttrs()...)
-	elector.Run(runCtx)
-	if !lock.held.Load() {
-		cause := context.Cause(ctx)
-		return fmt.Errorf("%w: %s/%s: %w", ErrNotAcquired, l.cfg.Namespace, l.cfg.Name, cause)
+	if err := l.acquire(ctx, conn); err != nil {
+		return err
 	}
-	<-done
+	runCtx, cancel := context.WithCancelCause(ctx)
+	renewed := make(chan struct{})
+	go func() {
+		defer close(renewed)
+		l.renew(runCtx, conn, cancel)
+	}()
+	result := fn(runCtx)
+	cancel(nil)
+	<-renewed
+	l.release(ctx, conn)
+	if errors.Is(context.Cause(runCtx), ErrLockLost) {
+		return errors.Join(ErrLockLost, result)
+	}
 	return result
 }
 
-type None struct{}
+func (l *Lock) acquire(ctx context.Context, conn driver.Conn) error {
+	slog.InfoContext(ctx, "acquiring migration lock", l.logAttrs()...)
+	ticker := time.NewTicker(l.cfg.RetryPeriod)
+	defer ticker.Stop()
+	for {
+		holder, err := l.tryAcquire(ctx, conn)
+		switch {
+		case err != nil:
+			slog.WarnContext(ctx, "migration lock attempt failed", append(l.logAttrs(), "error", err)...)
+		case holder == l.identity:
+			slog.InfoContext(ctx, "acquired migration lock", l.logAttrs()...)
+			return nil
+		default:
+			slog.InfoContext(ctx, "waiting for migration lock", append(l.logAttrs(), "current_holder", holder)...)
+		}
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("%w: %s: %w", ErrNotAcquired, l.table, context.Cause(ctx))
+		case <-ticker.C:
+		}
+	}
+}
 
-func (None) WithLock(ctx context.Context, fn func(context.Context) error) error {
-	return fn(ctx)
+func (l *Lock) tryAcquire(ctx context.Context, conn driver.Conn) (string, error) {
+	if err := l.createTable(ctx, conn); err != nil {
+		return "", err
+	}
+	strictCtx := clickhouse.Context(ctx, strictMode)
+	insert := "INSERT INTO " + l.table + " SELECT ?, ?, now64(3) + toIntervalMillisecond(?)"
+	insertErr := conn.Exec(strictCtx, insert, lockKey, l.identity, l.cfg.TTL.Milliseconds())
+	if insertErr == nil {
+		return l.identity, nil
+	}
+	steal := "ALTER TABLE " + l.table +
+		" UPDATE holder = ?, expires_at = now64(3) + toIntervalMillisecond(?) WHERE key = ? AND expires_at < now64(3)"
+	stealErr := conn.Exec(strictCtx, steal, l.identity, l.cfg.TTL.Milliseconds(), lockKey)
+	holder, err := l.holder(ctx, conn)
+	if err != nil {
+		return "", errors.Join(insertErr, stealErr, err)
+	}
+	return holder, nil
+}
+
+func (l *Lock) createTable(ctx context.Context, conn driver.Conn) error {
+	if err := conn.Exec(ctx, "CREATE DATABASE IF NOT EXISTS "+l.cfg.Database); err != nil {
+		return fmt.Errorf("create database %s: %w", l.cfg.Database, err)
+	}
+	create := "CREATE TABLE IF NOT EXISTS " + l.table +
+		" (key String, holder String, expires_at DateTime64(3))" +
+		" ENGINE = KeeperMap('/" + l.cfg.Database + "/" + Table + "') PRIMARY KEY key"
+	if err := conn.Exec(ctx, create); err != nil {
+		return fmt.Errorf("create %s: %w", l.table, err)
+	}
+	return nil
+}
+
+func (l *Lock) holder(ctx context.Context, conn driver.Conn) (string, error) {
+	rows, err := conn.Query(ctx, "SELECT holder FROM "+l.table+" WHERE key = ?", lockKey)
+	if err != nil {
+		return "", fmt.Errorf("read %s: %w", l.table, err)
+	}
+	defer rows.Close()
+	var holder string
+	if rows.Next() {
+		if err := rows.Scan(&holder); err != nil {
+			return "", fmt.Errorf("scan %s: %w", l.table, err)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return "", fmt.Errorf("read %s: %w", l.table, err)
+	}
+	return holder, nil
+}
+
+func (l *Lock) renew(ctx context.Context, conn driver.Conn, lose context.CancelCauseFunc) {
+	ticker := time.NewTicker(l.cfg.RetryPeriod)
+	defer ticker.Stop()
+	renewedAt := time.Now()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+		attemptedAt := time.Now()
+		holder, err := l.extend(ctx, conn)
+		switch {
+		case err == nil && holder == l.identity:
+			renewedAt = attemptedAt
+			continue
+		case err == nil:
+			slog.WarnContext(ctx, "migration lock taken over", append(l.logAttrs(), "current_holder", holder)...)
+			lose(ErrLockLost)
+			return
+		case ctx.Err() != nil:
+			return
+		}
+		slog.WarnContext(ctx, "migration lock renewal failed", append(l.logAttrs(), "error", err)...)
+		if time.Since(renewedAt) >= l.cfg.TTL {
+			lose(ErrLockLost)
+			return
+		}
+	}
+}
+
+func (l *Lock) extend(ctx context.Context, conn driver.Conn) (string, error) {
+	strictCtx := clickhouse.Context(ctx, strictMode)
+	update := "ALTER TABLE " + l.table +
+		" UPDATE expires_at = now64(3) + toIntervalMillisecond(?) WHERE key = ? AND holder = ?"
+	if err := conn.Exec(strictCtx, update, l.cfg.TTL.Milliseconds(), lockKey, l.identity); err != nil {
+		return "", fmt.Errorf("renew %s: %w", l.table, err)
+	}
+	return l.holder(ctx, conn)
+}
+
+func (l *Lock) release(ctx context.Context, conn driver.Conn) {
+	releaseCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), l.cfg.TTL)
+	defer cancel()
+	strictCtx := clickhouse.Context(releaseCtx, strictMode)
+	err := conn.Exec(strictCtx, "DELETE FROM "+l.table+" WHERE key = ? AND holder = ?", lockKey, l.identity)
+	if err != nil {
+		slog.WarnContext(
+			ctx,
+			"migration lock not released; it expires on its own",
+			append(l.logAttrs(), "expires_after", l.cfg.TTL, "error", err)...)
+		return
+	}
+	slog.InfoContext(ctx, "released migration lock", l.logAttrs()...)
 }

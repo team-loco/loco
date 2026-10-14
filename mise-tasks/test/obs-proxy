@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Test the observability proxy, with its ClickHouse migrations against the ClickHouse image the loco-obs chart pins and its migration lease against the controller's envtest API server; LOCO_TEST_CLICKHOUSE_URL reuses a running server instead"
+#MISE description="Test the observability proxy, with its ClickHouse migrations and migration lock against the ClickHouse image and Keeper config the loco-obs chart pins; LOCO_TEST_CLICKHOUSE_URL reuses a running server with Keeper instead"
 set -euo pipefail
 
 root=$(git rev-parse --show-toplevel)
@@ -8,13 +8,18 @@ ready_attempts=60
 if [ -z "${LOCO_TEST_CLICKHOUSE_URL:-}" ]; then
 	image=$(yq '.clickhouse.clickhouse.image.repository + ":" + .clickhouse.clickhouse.image.tag' "$root/charts/loco-obs/values.yaml")
 	container=loco-obs-proxy-test-$$
+	keeper_config=$(mktemp)
 	cleanup() {
 		docker rm -fv "$container" >/dev/null 2>&1 || true
+		rm -f "$keeper_config"
 	}
 	trap cleanup EXIT
+	printf '<clickhouse>%s</clickhouse>\n' "$(yq '.clickhouse.clickhouse.keeperConfig' "$root/charts/loco-obs/values.yaml")" >"$keeper_config"
+	chmod a+r "$keeper_config"
 	docker run -d --name "$container" -p 127.0.0.1::9000 \
 		-e CLICKHOUSE_USER=loco_test -e CLICKHOUSE_PASSWORD=loco_test \
 		-e CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1 \
+		-v "$keeper_config:/etc/clickhouse-server/config.d/keeper.xml:ro" \
 		"$image" >/dev/null
 	for _ in $(seq "$ready_attempts"); do
 		docker exec "$container" clickhouse-client --user loco_test --password loco_test -q "SELECT 1" >/dev/null 2>&1 && break
@@ -24,10 +29,6 @@ if [ -z "${LOCO_TEST_CLICKHOUSE_URL:-}" ]; then
 	port=$(docker port "$container" 9000/tcp | head -1)
 	export LOCO_TEST_CLICKHOUSE_URL="clickhouse://loco_test:loco_test@${port}"
 fi
-
-make -s --no-print-directory -C "$root/controller" envtest >&2
-KUBEBUILDER_ASSETS=$(make -s --no-print-directory -C "$root/controller" envtest-assets)
-export KUBEBUILDER_ASSETS
 
 cd "$root/observability-proxy"
 go test -v -coverprofile=coverage.out ./... "$@"

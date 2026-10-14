@@ -43,7 +43,7 @@ class GoSelection(unittest.TestCase):
 
     def test_proxy_external_test_inputs(self):
         self.assertEqual(self.selected('charts/loco-obs/values.yaml'), {'observability-proxy'})
-        self.assertEqual(self.selected('controller/Makefile'), {'controller', 'observability-proxy'})
+        self.assertEqual(self.selected('controller/Makefile'), {'controller'})
 
     def test_toolchain_and_selector_changes_select_every_module(self):
         for path in ('mise.toml', '.github/actions/go-changes/select.py', '.github/workflows/test.yml'):

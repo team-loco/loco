@@ -399,8 +399,11 @@ clickhouse_answers() {
 setup_clickhouse() {
     log_step "Setting up ClickHouse..."
     docker rm -fv "$CLICKHOUSE_CONTAINER" >/dev/null 2>&1 || true
+    printf '<clickhouse>%s</clickhouse>\n' "$(yq '.clickhouse.clickhouse.keeperConfig' "$OBS_VALUES")" >"$LOG_DIR/clickhouse-keeper.xml"
+    chmod a+r "$LOG_DIR/clickhouse-keeper.xml"
     docker run -d --name "$CLICKHOUSE_CONTAINER" -p "127.0.0.1:${CLICKHOUSE_PORT}:${CLICKHOUSE_NATIVE_PORT}" \
         -e CLICKHOUSE_USER="$CLICKHOUSE_USER" -e CLICKHOUSE_PASSWORD="$CLICKHOUSE_PASS" \
+        -v "$LOG_DIR/clickhouse-keeper.xml:/etc/clickhouse-server/config.d/keeper.xml:ro" \
         "$CLICKHOUSE_IMAGE" >/dev/null
     wait_for "ClickHouse to answer queries" "$READY_TIMEOUT" clickhouse_answers
     log_ok "ClickHouse ready on port ${CLICKHOUSE_PORT}"
@@ -790,7 +793,8 @@ start_obs_proxy() {
     CLICKHOUSE_METRICS_TTL="$(yq '.obsProxy.clickhouse.retention.metrics' "$OBS_VALUES")" \
     MIGRATION_RETRY_BUDGET="$(yq '.obsProxy.clickhouse.migrations.retryBudgetSeconds' "$OBS_VALUES")s" \
     MIGRATION_RETRY_INTERVAL="$(yq '.obsProxy.clickhouse.migrations.retryIntervalSeconds' "$OBS_VALUES")s" \
-    MIGRATION_LOCK=none \
+    MIGRATION_LOCK_TTL="$(yq '.obsProxy.clickhouse.migrations.lock.ttlSeconds' "$OBS_VALUES")s" \
+    MIGRATION_LOCK_RETRY_PERIOD="$(yq '.obsProxy.clickhouse.migrations.lock.retryPeriodSeconds' "$OBS_VALUES")s" \
     DEFAULT_LIMIT="100" \
     MAX_LIMIT="1000" \
     QUERY_TIMEOUT_SECONDS="5" \
