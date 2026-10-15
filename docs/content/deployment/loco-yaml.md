@@ -108,6 +108,16 @@ loco deploy --env staging
 loco deploy web --env production --yes
 ```
 
+Deploy a prebuilt public image for one service without editing `loco.yaml`:
+
+```sh
+loco deploy web --image ghcr.io/acme/web:release --env production --yes
+```
+
+`--image` accepts a tag or digest reference. Name exactly one service; the name is optional when the selected environment runs only one service. The override replaces that service's image, Dockerfile and build context for the selected environment, including environment-specific build settings. The API resolves and pins the image before confirmation. It stores the applied image in the service's deployment configuration; the local file stays unchanged, so a later deploy uses the file's original build inputs.
+
+This command skips all source builds and uploads, including builds for other services. It still plans and applies the whole file with the normal import and destructive-operation confirmations. Other services can change, and new source services may still require their initial build. An unknown service, a service disabled in the selected environment, multiple service names or an empty image reference is an error. Image resolution errors stop the deploy before apply.
+
 ## Variables and secrets
 
 `env` holds plain values, which appear in the plan and in the file.

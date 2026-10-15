@@ -1,6 +1,7 @@
 package loco
 
 import (
+	"bytes"
 	"slices"
 	"strconv"
 	"time"
@@ -9,6 +10,7 @@ import (
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
+	"github.com/team-loco/loco/internal/locofile"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -84,6 +86,8 @@ func cmdFakePlatform(ts *testscript.TestScript, api *fakeAPI, neg bool, args []s
 		if err := api.platform.setPlan(data); err != nil {
 			ts.Fatalf("fakeapi: %v", err)
 		}
+	case "image-override":
+		checkImageOverride(ts, api, neg, args)
 	case "planned":
 		checkPlanned(ts, api, neg, args)
 	case "revision-moves":
@@ -359,4 +363,33 @@ func waitForCall(ts *testscript.TestScript, api *fakeAPI, method string) {
 		time.Sleep(50 * time.Millisecond)
 	}
 	ts.Fatalf("fakeapi: %s was not called within %s", method, waitTimeout)
+}
+
+func checkImageOverride(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
+	requireArgs(ts, neg, args, 3, "fakeapi image-override <service> <image>")
+	api.mu.Lock()
+	defer api.mu.Unlock()
+	if len(api.platform.applies) == 0 || len(api.platform.planned) == 0 {
+		ts.Fatalf("missing plan or apply")
+	}
+	planned := api.platform.planned[len(api.platform.planned)-1]
+	applied := api.platform.applies[len(api.platform.applies)-1]
+	if !bytes.Equal(planned, applied.GetFile()) {
+		ts.Fatalf("plan and apply received different files")
+	}
+	if len(applied.GetBuilds()) != 0 {
+		ts.Fatalf("image override supplied source builds")
+	}
+	file, err := locofile.Parse(planned)
+	if err != nil {
+		ts.Fatalf("%v", err)
+	}
+	services, err := locofile.Resolve(file, "production")
+	if err != nil {
+		ts.Fatalf("%v", err)
+	}
+	service := services[args[1]]
+	if service.Image != args[2] || service.Dockerfile != "" || service.Context != "" {
+		ts.Fatalf("overridden service = %+v", service)
+	}
 }
