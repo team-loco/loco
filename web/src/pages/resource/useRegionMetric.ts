@@ -18,5 +18,5 @@ export function useRegionMetric(target: RegionMetricTarget) {
 		},
 		enabled: target.workspaceId !== "", staleTime: 60_000, refetchInterval: 60_000,
 	});
-	return { points: query.data ?? [], isLoading: query.isLoading, unavailable: false, error: query.error };
+	return { points: query.data ?? [], isLoading: query.isLoading, error: query.error };
 }
