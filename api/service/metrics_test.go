@@ -1,10 +1,12 @@
 package service
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
 	"buf.build/go/protovalidate"
+	"github.com/google/uuid"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 )
 
@@ -80,5 +82,22 @@ func TestMetricsEndpointWireValidation(t *testing.T) {
 		if err := protovalidate.Validate(endpoint); (err == nil) != valid {
 			t.Fatalf("endpoint %v: %v", endpoint, err)
 		}
+	}
+}
+
+func TestRemovingMetricsOmitsEmptyObservability(t *testing.T) {
+	request := testDeploymentSpec(testDefaultPort)
+	request.GetService().Metrics = &deploymentv1.MetricsEndpoint{}
+	desired := testDesiredSpecFrom(t, testResourceSpec(), request)
+	data, err := desired(uuid.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var payload ApplicationPayload
+	if err := json.Unmarshal(data, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.AppSpec.ServiceSpec.Obs != nil {
+		t.Fatalf("empty observability must be omitted: %s", data)
 	}
 }

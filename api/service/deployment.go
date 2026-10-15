@@ -759,13 +759,15 @@ func buildApplicationSpec(
 		deploymentService := deploymentSpec.GetService()
 		obs := converter.ProtoToObsSpec(resourceService.GetObservability())
 		if metrics := deploymentService.GetMetrics(); metrics != nil {
-			if obs == nil {
+			if obs == nil && metrics.GetEnabled() {
 				obs = &locoControllerV1.ObsSpec{}
 			}
-			obs.Metrics = locoControllerV1.MetricsSpec{
-				Enabled: metrics.GetEnabled(),
-				Port:    metrics.GetPort(),
-				Path:    metrics.GetPath(),
+			if obs != nil {
+				obs.Metrics = locoControllerV1.MetricsSpec{
+					Enabled: metrics.GetEnabled(),
+					Port:    metrics.GetPort(),
+					Path:    metrics.GetPath(),
+				}
 			}
 		}
 		appSpec.ServiceSpec = &locoControllerV1.ServiceSpec{

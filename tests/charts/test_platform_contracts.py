@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -324,6 +325,20 @@ class CollectorTenancy(unittest.TestCase):
         self.assertEqual(pipeline['receivers'], ['prometheus/applications'])
         self.assertEqual(pipeline['processors'], ['memory_limiter', 'resource/strip_tenancy', 'transform/scrape_identity', 'k8s_attributes/pod_uid', 'resource/region', 'batch'])
         self.assertEqual(pipeline['exporters'], ['clickhouse'])
+
+    def test_application_scrape_addresses_support_ipv4_and_ipv6(self):
+        config = self.configs['otel-col-daemon-agent']
+        scrape, = config['receivers']['prometheus/applications']['config']['scrape_configs']
+        rules = [rule for rule in scrape['relabel_configs'] if rule.get('target_label') == '__address__']
+        for pod_ip, expected in [('10.244.0.5', '10.244.0.5:9090'), ('fd00::5', '[fd00::5]:9090')]:
+            with self.subTest(pod_ip=pod_ip):
+                address = None
+                for rule in rules:
+                    match = re.fullmatch(rule['regex'], f'{pod_ip};9090')
+                    if match:
+                        replacement = rule['replacement'].replace('$$', '$')
+                        address = re.sub(r'\$\{(\d+)\}', lambda capture: match.group(int(capture[1])), replacement)
+                self.assertEqual(address, expected)
 
     def test_all_collectors_render(self):
         self.assertEqual(set(self.configs), set(COLLECTOR_CONFIGMAPS))
