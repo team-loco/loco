@@ -1,10 +1,13 @@
 package guardrails
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
@@ -17,12 +20,17 @@ var (
 	errWorkspaceIDRequired = errors.New("workspace_id is required")
 	errSinceTooOld         = errors.New("since is older than the maximum time range")
 	errSinceInFuture       = errors.New("since is in the future")
+	errInvalidTraceID      = errors.New("trace_id must be 32 lowercase hex characters and nonzero")
+	errInvalidTraceLimit   = errors.New("limit must be between 0 and 10000")
+	errTraceTimestampRange = errors.New("timestamp is outside nanosecond precision range")
 	errReservedLabelKey    = errors.New("label keys in the loco. attribute namespace are reserved")
 )
 
 const (
 	reservedAttributePrefix = "loco."
 	kubernetesLabelPrefix   = "loco.io/"
+	traceIDBytes            = 16
+	traceRequestMaxLimit    = 10000
 )
 
 // ValidateLogsRequest validates and clamps the query parameters for a logs request.
@@ -125,4 +133,48 @@ func isAllowedAggregation(agg string) bool {
 	default:
 		return false
 	}
+}
+
+func ValidateTracesRequest(req *observabilityv1.QueryTracesRequest, cfg *config.Config) error {
+	if req.GetWorkspaceId() == "" {
+		return errWorkspaceIDRequired
+	}
+	if err := uuid.Validate(req.GetWorkspaceId()); err != nil {
+		return err
+	}
+	for _, id := range req.GetResourceIds() {
+		if err := uuid.Validate(id); err != nil {
+			return err
+		}
+	}
+	if req.GetEnvironmentId() != "" {
+		if err := uuid.Validate(req.GetEnvironmentId()); err != nil {
+			return err
+		}
+	}
+	if traceID := req.GetTraceId(); traceID != "" {
+		decoded, err := hex.DecodeString(traceID)
+		if err != nil || len(decoded) != traceIDBytes || traceID != strings.ToLower(traceID) ||
+			traceID == strings.Repeat("0", traceIDBytes*2) {
+			return errInvalidTraceID
+		}
+	}
+	if req.GetLimit() < 0 || req.GetLimit() > traceRequestMaxLimit {
+		return errInvalidTraceLimit
+	}
+	if req.GetStartTime() == nil || req.GetEndTime() == nil {
+		return errTimeRangeRequired
+	}
+	if err := req.GetStartTime().CheckValid(); err != nil {
+		return err
+	}
+	if err := req.GetEndTime().CheckValid(); err != nil {
+		return err
+	}
+	start := req.GetStartTime().AsTime()
+	end := req.GetEndTime().AsTime()
+	if !time.Unix(0, start.UnixNano()).Equal(start) || !time.Unix(0, end.UnixNano()).Equal(end) {
+		return errTraceTimestampRange
+	}
+	return validateTimeRange(start, end, cfg.MaxTimeRange)
 }

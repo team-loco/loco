@@ -3,12 +3,12 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { QueryLogsRequest, QueryLogsResponse, QueryMetricsRequest, QueryMetricsResponse, TailLogsRequest, TailLogsResponse } from "./observability_pb";
+import { QueryLogsRequest, QueryLogsResponse, QueryMetricsRequest, QueryMetricsResponse, QueryTracesRequest, QueryTracesResponse, TailLogsRequest, TailLogsResponse } from "./observability_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * ObservabilityProxyService provides secure, workspace-scoped access to logs and metrics
- * stored in cluster-local ClickHouse. Runs in the data plane (per-cluster).
+ * ObservabilityProxyService provides secure, workspace-scoped access to cluster-local telemetry.
+ * Runs in the data plane (per-cluster).
  *
  * @generated from service loco.observability.v1.ObservabilityProxyService
  */
@@ -46,6 +46,15 @@ export const ObservabilityProxyService = {
       name: "QueryMetrics",
       I: QueryMetricsRequest,
       O: QueryMetricsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc loco.observability.v1.ObservabilityProxyService.QueryTraces
+     */
+    queryTraces: {
+      name: "QueryTraces",
+      I: QueryTracesRequest,
+      O: QueryTracesResponse,
       kind: MethodKind.Unary,
     },
   }

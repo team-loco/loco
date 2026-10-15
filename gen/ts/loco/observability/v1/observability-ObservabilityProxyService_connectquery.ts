@@ -17,3 +17,8 @@ export const queryLogs = ObservabilityProxyService.method.queryLogs;
  * @generated from rpc loco.observability.v1.ObservabilityProxyService.QueryMetrics
  */
 export const queryMetrics = ObservabilityProxyService.method.queryMetrics;
+
+/**
+ * @generated from rpc loco.observability.v1.ObservabilityProxyService.QueryTraces
+ */
+export const queryTraces = ObservabilityProxyService.method.queryTraces;

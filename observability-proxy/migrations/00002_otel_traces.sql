@@ -44,7 +44,7 @@ ENGINE = MergeTree
 PARTITION BY toDate(Timestamp)
 ORDER BY (WorkspaceId, ResourceId, toDateTime(Timestamp))
 TTL toDateTime(Timestamp) + ${TRACES_TTL}
-SETTINGS index_granularity = 8192, ttl_only_drop_parts = 1;
+SETTINGS index_granularity = 8192, ttl_only_drop_parts = 1, enable_block_number_column = 1, enable_block_offset_column = 1;
 
 CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_traces_trace_id_ts
 (
