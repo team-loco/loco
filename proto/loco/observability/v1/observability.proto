@@ -220,7 +220,10 @@ message QueryTracesRequest {
     (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
     (buf.validate.field).string.pattern = "^[0-9a-f]{32}$"
   ];
-  int32 limit = 7 [(buf.validate.field).int32 = {gte: 0 lte: 10000}];
+  int32 limit = 7 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 10000
+  }];
   string cursor = 8;
 
   option (buf.validate.message).cel = {
