@@ -137,7 +137,7 @@ func assertObjectMatchesType(t *testing.T, defName string, object schemaObject, 
 		propertyNullable := nullable && name != keyEnabled
 		assertPropertyMatchesType(t, path, property, fieldType, propertyNullable)
 		tag := fieldByJSONName(goType, name).Tag.Get("json")
-		if !strings.Contains(tag, ",omitempty") {
+		if !nullable && !strings.Contains(tag, ",omitempty") {
 			required = append(required, name)
 		}
 	}

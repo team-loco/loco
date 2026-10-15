@@ -520,10 +520,7 @@
           ],
           "description": "Private HTTP metrics endpoint path."
         }
-      },
-      "required": [
-        "port"
-      ]
+      }
     }
   },
   "properties": {

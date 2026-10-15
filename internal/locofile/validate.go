@@ -83,7 +83,6 @@ func validateService(path string, service Service) []error {
 
 func validateOverride(path string, override Override) []error {
 	errs := validateRuntimeIDs(path, override.RunAsUser, override.RunAsGroup)
-	errs = append(errs, validateMetrics(path, override.Metrics)...)
 	for _, name := range sortedKeys(override.Regions) {
 		region := override.Regions[name]
 		errs = append(errs, validateAutoscaling(path+".regions."+name, region.Autoscaling)...)
