@@ -500,6 +500,16 @@ class EnvoyTelemetry(unittest.TestCase):
         self.assertEqual(telemetry['tracing']['provider']['type'], 'OpenTelemetry')
         self.assertTrue(all(sink['type'] == 'OpenTelemetry' for setting in telemetry['accessLog']['settings'] for sink in setting['sinks']))
 
+    def test_gateway_service_settings_are_left_to_envoy_by_default(self):
+        self.assertNotIn('provider', self.proxy['spec'])
+
+    def test_gateway_service_accepts_native_nodeport_configuration(self):
+        service = {'type': 'NodePort', 'externalTrafficPolicy': 'Cluster',
+                   'patch': {'type': 'StrategicMerge', 'value': {'spec': {'ports': [{'port': 80, 'nodePort': 30080}]}}}}
+        documents = render_documents('loco-core', 'gateway.yaml', {'envoyProxy': {'service': service}})
+        proxy = next(document for document in documents if document['kind'] == 'EnvoyProxy')
+        self.assertEqual(proxy['spec']['provider'], {'type': 'Kubernetes', 'kubernetes': {'envoyService': service}})
+
     def test_tracing_samples_at_the_configured_rate(self):
         tracing = self.proxy['spec']['telemetry']['tracing']
         self.assertEqual(tracing['samplingRate'], self.core['envoyProxy']['tracing']['samplingRate'])

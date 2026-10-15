@@ -31,3 +31,22 @@ To use an existing TLS Secret, set its name. This skips the chart's Certificate,
 certManager:
   existingTLSSecret: gateway-tls
 ```
+
+
+The Gateway's Envoy Service uses Envoy Gateway's defaults unless `envoyProxy.service` supplies native [EnvoyService settings](https://gateway.envoyproxy.io/docs/api/extension_types/#kubernetesservicespec). For a kind installation with host port mappings, expose HTTP on a fixed NodePort:
+
+```yaml
+envoyProxy:
+  service:
+    type: NodePort
+    externalTrafficPolicy: Cluster
+    patch:
+      type: StrategicMerge
+      value:
+        spec:
+          ports:
+            - port: 80
+              nodePort: 30080
+```
+
+Envoy Gateway creates and reconciles this Service. `externalTrafficPolicy: Cluster` allows a kind host mapping to reach the proxy even when the proxy pod runs on another node. Map the kind node's port `30080` to the desired host port. The patch merges the HTTP listener's generated Service port and preserves its generated target port.
