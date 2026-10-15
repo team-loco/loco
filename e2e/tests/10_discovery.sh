@@ -142,7 +142,7 @@ test_d03_resource_rename_moves_the_alias_without_a_build() {
     wait_for "the renamed alias" 60 discovery_alias_exists "$discovery_renamed"
     wait_for "the previous alias to be removed" 60 discovery_alias_absent "$discovery_tcp"
     assert_contains "an app reaches the renamed TCP endpoint" 'private-tcp-ok' discovery_call "${discovery_renamed}.local:50051" tcp
-    wait_for "old .local DNS name to disappear" 30 discovery_dns_absent "${discovery_tcp}.local"
+    assert "renamed .local DNS name disappears" wait_for "old .local DNS name" 30 discovery_dns_absent "${discovery_tcp}.local"
     after=$(e2e_psql "SELECT count(*) FROM builds")
     assert "rename starts no build" test "$before" -eq "$after"
 }
@@ -152,7 +152,7 @@ test_d04_resource_delete_removes_only_its_alias() {
     id=$(discovery_resource_id "$discovery_renamed")
     assert "delete succeeds through the Resource API" discovery_api loco.resource.v1.ResourceService/DeleteResource "{\"resourceId\":\"${id}\"}"
     wait_for "the deleted service alias to disappear" 60 discovery_alias_absent "$discovery_renamed"
-    wait_for "deleted .local DNS name to disappear" 30 discovery_dns_absent "${discovery_renamed}.local"
+    assert "deleted .local DNS name disappears" wait_for "deleted .local DNS name" 30 discovery_dns_absent "${discovery_renamed}.local"
     assert "cart still has its logical endpoint" discovery_alias_exists "$discovery_http"
     assert_contains "the other app remains reachable" 'workspace-one' discovery_call "${discovery_http}:8080" http
 }
@@ -167,15 +167,23 @@ test_d05_same_local_name_resolves_only_inside_each_workspace() {
         ('${cli_user_id}', 'read', 'workspace', '${discovery_second_workspace}'),
         ('${cli_user_id}', 'write', 'workspace', '${discovery_second_workspace}') ON CONFLICT DO NOTHING;
     " >/dev/null
-    (
-        local cli_workspace_id=$discovery_second_workspace
-        local discovery_namespace="ws-${discovery_second_workspace}"
-        local discovery_dir="$E2E_BUILD_WORK_DIR/discovery-two"
-        local cli_home="$discovery_dir/home"
-        mkdir -p "$discovery_dir/services/cart"
-        cp -R "$E2E_ROOT_DIR/e2e/fixtures/build-app/." "$discovery_dir/services/cart/"
-        cli_write_credentials
-        cat >"$discovery_dir/loco.yaml" <<YAML
+    discovery_deploy_second_workspace || return 1
+    assert_contains "first workspace still resolves its own http://cart.local" workspace-one discovery_call cart.local http
+    local other_address
+    other_address=$(dk -n "ws-${discovery_second_workspace}" get service cart -o 'jsonpath={.spec.clusterIP}')
+    assert "cross-workspace traffic remains blocked" discovery_unreachable "$other_address"
+}
+
+
+discovery_deploy_second_workspace() {
+    local cli_workspace_id=$discovery_second_workspace
+    local discovery_namespace="ws-${discovery_second_workspace}"
+    local discovery_dir="$E2E_BUILD_WORK_DIR/discovery-two"
+    local cli_home="$discovery_dir/home"
+    mkdir -p "$discovery_dir/services/cart"
+    cp -R "$E2E_ROOT_DIR/e2e/fixtures/build-app/." "$discovery_dir/services/cart/"
+    cli_write_credentials
+    cat >"$discovery_dir/loco.yaml" <<YAML
 version: 1
 partial: discovery-two
 services:
@@ -192,14 +200,9 @@ services:
     regions:
       us-east-1: { cpu: 100m, memory: 128Mi, replicas: { min: 1, max: 1 } }
 YAML
-        discovery_deploy || return 1
-        wait_for "second workspace cart" 120 discovery_is_ready cart
-        wait_for "glibc caller" 120 discovery_is_ready caller
-        assert_contains "glibc app reaches its own http://cart.local with no port" workspace-two discovery_call cart.local http
-        assert_contains "absolute cart.local. resolves to its own workspace" workspace-two discovery_call cart.local. http
-    )
-    assert_contains "first workspace still resolves its own http://cart.local" workspace-one discovery_call cart.local http
-    local other_address
-    other_address=$(dk -n "ws-${discovery_second_workspace}" get service cart -o 'jsonpath={.spec.clusterIP}')
-    assert "cross-workspace traffic remains blocked" discovery_unreachable "$other_address"
+    discovery_deploy || return 1
+    wait_for "second workspace cart" 120 discovery_is_ready cart
+    wait_for "glibc caller" 120 discovery_is_ready caller
+    assert_contains "glibc app reaches its own http://cart.local with no port" workspace-two discovery_call cart.local http
+    assert_contains "absolute cart.local. resolves to its own workspace" workspace-two discovery_call cart.local. http
 }
