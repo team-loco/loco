@@ -64,7 +64,7 @@ export function TraceWaterfall({ trace, incomplete }: { trace: TraceSummary; inc
 									onClick={(event) => { select(span.spanId, event.currentTarget); }}
 									aria-pressed={active}
 									className="min-w-0 flex-1 py-2 pr-3 text-left focus-visible:outline-2 focus-visible:outline-offset-[-2px]">
-									<span className="flex items-center gap-1.5 text-sm text-fg3">{error && <CircleAlertIcon className="size-3 shrink-0 text-bad-fg" />}<span className="truncate">{span.serviceName || "Unknown service"}</span>{missingParent && <span title="Parent span is not available in these results" className="shrink-0 text-[10px] text-warn-fg">Missing parent</span>}
+									<span className="flex items-center gap-1.5 text-sm text-fg3">{error && <CircleAlertIcon className="size-3 shrink-0 text-bad-fg" />}<span className="truncate" title={span.serviceName}>{span.serviceName || "Unknown service"}</span>{missingParent && <span title="Parent span is not available in these results" className="shrink-0 text-[10px] text-warn-fg">Missing parent</span>}
 									</span>
 									<span className={cn("mt-0.5 block truncate", error ? "text-bad-fg" : "text-foreground")} title={span.name}>{span.name || "Unnamed span"}
 									</span>
@@ -109,7 +109,7 @@ function SpanDetails({ span, start, onClose }: { span: TraceSpan; start: bigint;
 		</div>
 		<div className="flex flex-col gap-5 p-4">
 			<div>
-				<p className="mb-1 text-sm text-fg3">{span.serviceName}</p>
+				<p className="mb-1 text-sm break-all text-fg3">{span.serviceName}</p>
 				<h4 className="font-medium break-words">{span.name}</h4>
 			</div>
 			<dl className="grid grid-cols-2 gap-x-3 gap-y-3">

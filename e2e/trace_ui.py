@@ -186,6 +186,18 @@ with sync_playwright() as p:
     evidence.settle(page)
     assert recorded[-1]['environmentId'] == staging
     context.close()
+    raw_service = 'resource-' + workspace_id
+    spans[0]['serviceName'] = raw_service
+    spans[0]['resourceAttributes']['service.name'] = raw_service
+    context = browser.new_context(viewport=evidence.NARROW)
+    context.add_init_script(f'localStorage.setItem({json.dumps(evidence.AUTH_KEY)},{json.dumps(auth)});')
+    context.route('**/loco.observability.v1.ObservabilityProxyService/QueryTraces',handle)
+    page = context.new_page()
+    page.goto(state['ui_url'] + base + '&trace=' + trace + '&span=' + spans[0]['spanId'])
+    evidence.settle(page)
+    page.get_by_role('complementary',name='Span details').get_by_text(raw_service,exact=True).first.wait_for()
+    assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
+    context.close()
     browser.close()
 assert all((row.get('environmentId') for row in recorded))
 assert all((not row.get('resourceIds') for row in recorded if row.get('traceId')))
