@@ -19,12 +19,15 @@ charts/loco-core
 charts/loco-networking
 charts/loco-obs
 charts/loco-operator
+charts/loco-control-plane
 charts/cert-manager
 crds/applications
 crds/builds
 crds/gateway
 platform
 ```
+
+Install `loco-control-plane` separately in each control-plane region using its existing-Secret configuration. The worker-cluster Flux bundle records the chart artifact but does not install control-plane services on workers.
 
 Set these GHCR packages to public before publishing a deployable bundle. The workflow verifies anonymous artifact and image access before publishing the bundle, then verifies anonymous bundle access. Initial package creation can stop before bundle publication while package visibility is configured; use a new version for the next attempt. Every existing version fails publication, including partially published versions.
 

@@ -1,7 +1,7 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: allow-obs-proxy-ingress
+  name: {{ .Release.Name }}-obs-proxy
   namespace: {{ .Release.Namespace }}
 spec:
   podSelector:
@@ -11,13 +11,9 @@ spec:
     - Ingress
   ingress:
     - from:
-        - namespaceSelector:
+        - podSelector:
             matchLabels:
-              kubernetes.io/metadata.name: {{ .Values.gatewayNamespace }}
-          podSelector:
-            matchLabels:
-              app.kubernetes.io/component: proxy
-              app.kubernetes.io/managed-by: envoy-gateway
+              app: {{ .Release.Name }}-api
       ports:
         - protocol: TCP
           port: {{ .Values.obsProxy.port }}

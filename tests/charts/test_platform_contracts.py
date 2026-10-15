@@ -23,8 +23,7 @@ GATEWAY_LABELS = {
 CLIENT_POD_IDENTITY = ('k8s.pod.ip', 'k8s.pod.uid')
 ENVOY_CLUSTER_ATTRIBUTES = {'trace_statements': 'upstream_cluster', 'log_statements': 'upstream_cluster', 'metric_statements': 'envoy.cluster_name'}
 ROUTE_TENANCY = ('loco.workspace.id', 'loco.resource.id')
-TEST_PROXY = {'image': {'tag': 'test'}, 'controlPlane': {'url': 'https://api.example.test'},
-              'clickhouse': {'existingSecret': {'name': 'proxy-reader', 'key': 'url'}, 'migratorExistingSecret': {'name': 'proxy-migrator', 'key': 'url'}}}
+TEST_PROXY = {'image': {'tag': 'test'}, 'clickhouse': {'existingSecret': {'name': 'proxy-reader', 'key': 'url'}, 'migratorExistingSecret': {'name': 'proxy-migrator', 'key': 'url'}}}
 TEST_REGION = 'test-region-1'
 OBS_BASE_VALUES = {'global': {'region': TEST_REGION}}
 CLICKHOUSE_USER_PASSWORDS = {'CLICKHOUSE_MIGRATOR_PASSWORD': 'test', 'CLICKHOUSE_INGEST_PASSWORD': 'test', 'CLICKHOUSE_READER_PASSWORD': 'test'}
@@ -137,12 +136,12 @@ class PlatformContracts(unittest.TestCase):
             '*.staging-east.apps.example.test', '*.staging-west.apps.example.test',
         ])
 
-    def test_observability_route_uses_control_plane_origin_and_rpc_prefix(self):
-        route = render('loco-control-plane', 'obs-proxy-route.yaml', {'controlPlaneHostname': 'api.region.example.test'})
+    def test_api_route_uses_control_plane_origin(self):
+        route = render('loco-control-plane', 'api-route.yaml', {'controlPlaneHostname': 'api.region.example.test'})
         self.assertEqual(route['spec']['hostnames'], ['api.region.example.test'])
         rule, = route['spec']['rules']
-        self.assertEqual(rule['matches'], [{'path': {'type': 'PathPrefix', 'value': '/loco.observability.v1.ObservabilityProxyService/'}}])
-        self.assertEqual(rule['backendRefs'][0]['name'], 'loco-control-plane-obs-proxy')
+        self.assertEqual(rule['matches'], [{'path': {'type': 'PathPrefix', 'value': '/'}}])
+        self.assertEqual(rule['backendRefs'][0]['name'], 'loco-control-plane-api')
 
     def test_database_and_auth_secret_references(self):
         deployment = render('loco-control-plane', 'obs-proxy-deployment.yaml', {'obsProxy': TEST_PROXY})
@@ -167,10 +166,10 @@ class PlatformContracts(unittest.TestCase):
         with self.assertRaises(subprocess.CalledProcessError):
             render('loco-control-plane', 'obs-proxy-deployment.yaml', {'obsProxy': {**TEST_PROXY, 'clickhouse': {**TEST_PROXY['clickhouse'], 'existingSecret': {'name': 'db', 'key': ''}}}})
 
-    def test_missing_permission_endpoint_is_rejected(self):
-        with self.assertRaises(subprocess.CalledProcessError) as caught:
-            render('loco-control-plane', 'obs-proxy-deployment.yaml', {'obsProxy': {'image': {'tag': 'test'}}})
-        self.assertIn('obsProxy.controlPlane.url is required', caught.exception.output)
+    def test_permission_endpoint_uses_the_private_api_service(self):
+        deployment = render('loco-control-plane', 'obs-proxy-deployment.yaml', {'obsProxy': TEST_PROXY})
+        env = {item['name']: item for item in deployment['spec']['template']['spec']['containers'][0]['env']}
+        self.assertEqual(env['CONTROL_PLANE_URL']['value'], 'http://loco-control-plane-api.platform-test.svc.cluster.local')
 
 
 class ObservabilitySchema(unittest.TestCase):

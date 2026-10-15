@@ -1,6 +1,6 @@
 apiVersion: v2
 name: loco-control-plane
-description: Work in progress, not shipped. Helm chart for the services that run on the Loco control plane
+description: Helm chart for the regional Loco API and private observability proxy
 type: application
 version: 0.0.0
 maintainers:

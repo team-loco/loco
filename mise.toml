@@ -291,6 +291,11 @@ description = "Run the end-to-end tests in this worktree's own kind cluster and 
 env = { _.file = ".env" }
 run = "./e2e/run.sh"
 
+[tasks."e2e:control-plane"]
+description = "Install the control-plane Helm chart with Kubernetes Postgres and ClickHouse fixtures; takes --no-teardown and --skip-build"
+depends = ["helm:deps"]
+run = "./e2e/control-plane.sh"
+
 [tasks."e2e:certificates"]
 description = "Issue local Gateway certificates through cert-manager using the core chart; takes --no-teardown"
 depends = ["helm:deps"]
