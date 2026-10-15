@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	testWorkspaceID = "01a11886-e710-7fc9-a6e9-5e0c367f2cd0"
-	testMaxRange    = 24 * time.Hour
+	invalidTraceTestUUID = "invalid"
+	testWorkspaceID      = "01a11886-e710-7fc9-a6e9-5e0c367f2cd0"
+	testMaxRange         = 24 * time.Hour
 )
 
 func tailRequest(since *timestamppb.Timestamp) *observabilityv1.TailLogsRequest {
@@ -84,5 +85,96 @@ func TestLabelFiltersRejectLocoAttributeKeys(t *testing.T) {
 		if err := ValidateTailRequest(tail, cfg, now); err != nil {
 			t.Errorf("tail label %q rejected: %v", key, err)
 		}
+	}
+}
+
+func TestValidateTracesRequest(t *testing.T) {
+	cfg := &config.Config{MaxTimeRange: testMaxRange}
+	now := time.Date(2026, time.October, 14, 0, 0, 0, 1, time.UTC)
+	cases := []struct {
+		name   string
+		change func(*observabilityv1.QueryTracesRequest)
+		valid  bool
+	}{
+		{name: "valid", valid: true},
+		{name: "empty workspace", change: func(r *observabilityv1.QueryTracesRequest) { r.WorkspaceId = "" }},
+		{
+			name:   "invalid workspace",
+			change: func(r *observabilityv1.QueryTracesRequest) { r.WorkspaceId = invalidTraceTestUUID },
+		},
+		{
+			name:   "invalid resource",
+			change: func(r *observabilityv1.QueryTracesRequest) { r.ResourceIds = []string{invalidTraceTestUUID} },
+		},
+		{
+			name:   "invalid environment",
+			change: func(r *observabilityv1.QueryTracesRequest) { r.EnvironmentId = invalidTraceTestUUID },
+		},
+		{name: "missing start", change: func(r *observabilityv1.QueryTracesRequest) { r.StartTime = nil }},
+		{name: "missing end", change: func(r *observabilityv1.QueryTracesRequest) { r.EndTime = nil }},
+		{
+			name:   "invalid timestamp",
+			change: func(r *observabilityv1.QueryTracesRequest) { r.StartTime = &timestamppb.Timestamp{Nanos: -1} },
+		},
+		{name: "unrepresentable nanoseconds", change: func(r *observabilityv1.QueryTracesRequest) {
+			r.StartTime = timestamppb.New(time.Date(2500, time.January, 1, 0, 0, 0, 0, time.UTC))
+			r.EndTime = r.GetStartTime()
+		}},
+		{
+			name:   "reversed range",
+			change: func(r *observabilityv1.QueryTracesRequest) { r.StartTime = timestamppb.New(now.Add(time.Second)) },
+		},
+		{name: "excessive range", change: func(r *observabilityv1.QueryTracesRequest) {
+			r.StartTime = timestamppb.New(now.Add(-testMaxRange - time.Nanosecond))
+		}},
+		{
+			name:   "exact maximum range",
+			valid:  true,
+			change: func(r *observabilityv1.QueryTracesRequest) { r.StartTime = timestamppb.New(now.Add(-testMaxRange)) },
+		},
+		{
+			name:   "equal timestamps",
+			valid:  true,
+			change: func(r *observabilityv1.QueryTracesRequest) { r.StartTime = r.GetEndTime() },
+		},
+		{
+			name:   "known trace",
+			valid:  true,
+			change: func(r *observabilityv1.QueryTracesRequest) { r.TraceId = "0123456789abcdef0123456789abcdef" },
+		},
+		{name: "short trace", change: func(r *observabilityv1.QueryTracesRequest) { r.TraceId = "abcd" }},
+		{
+			name:   "nonhex trace",
+			change: func(r *observabilityv1.QueryTracesRequest) { r.TraceId = "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz" },
+		},
+		{
+			name:   "uppercase trace",
+			change: func(r *observabilityv1.QueryTracesRequest) { r.TraceId = "0123456789ABCDEF0123456789ABCDEF" },
+		},
+		{
+			name:   "zero trace",
+			change: func(r *observabilityv1.QueryTracesRequest) { r.TraceId = "00000000000000000000000000000000" },
+		},
+		{name: "negative limit", change: func(r *observabilityv1.QueryTracesRequest) { r.Limit = -1 }},
+		{
+			name:   "excessive limit",
+			change: func(r *observabilityv1.QueryTracesRequest) { r.Limit = traceRequestMaxLimit + 1 },
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &observabilityv1.QueryTracesRequest{
+				WorkspaceId: testWorkspaceID,
+				StartTime:   timestamppb.New(now.Add(-time.Hour)),
+				EndTime:     timestamppb.New(now),
+			}
+			if tc.change != nil {
+				tc.change(req)
+			}
+			err := ValidateTracesRequest(req, cfg)
+			if (err == nil) != tc.valid {
+				t.Fatalf("validation = %v, valid = %v", err, tc.valid)
+			}
+		})
 	}
 }

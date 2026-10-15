@@ -29,6 +29,8 @@ obs_query_window_seconds=3600
 obs_output_rows=20
 obs_body_chars=140
 obs_proxy_limit=50
+obs_trace_page_limit=1
+obs_trace_max_pages=100
 obs_curl_timeout_seconds=10
 obs_event_flush_seconds=10
 obs_ingest_replicas=2
@@ -53,6 +55,7 @@ obs_forged_workspace=$(awk -F'"' '$1 ~ /^\tforgedWorkspaceID +=/ { print $2 }' "
 obs_forged_organization=$(awk -F'"' '$1 ~ /^\tforgedOrganizationID +=/ { print $2 }' "$obs_fixture_dir/main.go")
 obs_proxy_url="http://127.0.0.1:${E2E_OBS_PROXY_PORT}"
 obs_query_logs="${obs_proxy_url}/loco.observability.v1.ObservabilityProxyService/QueryLogs"
+obs_query_traces="${obs_proxy_url}/loco.observability.v1.ObservabilityProxyService/QueryTraces"
 obs_metric_tables="otel_metrics_sum otel_metrics_gauge otel_metrics_histogram"
 obs_all_tables="otel_traces otel_logs otel_metrics_sum otel_metrics_gauge otel_metrics_histogram otel_metrics_exponential_histogram otel_metrics_summary"
 
@@ -385,14 +388,44 @@ test_o03_migrations() {
     obs_check migrations check_migrations
 }
 
+obs_trace_body() {
+    local workspace=$1 start end
+    start=$(utc_timestamp "$((obs_traffic_started - obs_query_window_seconds))")
+    end=$(utc_timestamp "$(obs_now)")
+    printf '{"workspaceId":"%s","startTime":"%s","endTime":"%s","traceId":"%s","limit":%d}' \
+        "$workspace" "$start" "$end" "$obs_trace_id" "$obs_trace_page_limit"
+}
+
+obs_trace_call() {
+    curl -s -w '\n%{http_code}' --max-time "$obs_curl_timeout_seconds" -X POST "$obs_query_traces" \
+        -H 'Content-Type: application/json' -H "Authorization: Bearer $1" -d "$2"
+}
+
 check_ingress_trace() {
-    local query rows
-    query="SELECT Timestamp, SpanId, ParentSpanId, SpanName, SpanKind, ServiceName, ScopeName, OrganizationId, WorkspaceId, EnvironmentId, ResourceId FROM otel_traces WHERE TraceId = '${obs_trace_id}' ORDER BY Timestamp"
-    ev "Expected WorkspaceId \`${obs_workspace_id}\`, ResourceId \`${obs_resource_id}\`, and on the app's spans OrganizationId \`${obs_organization_id}\`; the client sent parent span \`${obs_client_span_id}\`; the app's spans have scope \`${obs_fixture_scope}\`." ""
-    ev_query "Spans of the known trace" "$query"
-    rows=$(obs_ch "SELECT SpanId, ParentSpanId, ScopeName, WorkspaceId, ResourceId, OrganizationId FROM otel_traces WHERE TraceId = '${obs_trace_id}'" TabSeparated) || return 1
-    awk -F'\t' -v scope="$obs_fixture_scope" -v ws="$obs_workspace_id" -v res="$obs_resource_id" -v org="$obs_organization_id" '
-        {
+    local body output status response cursor="" previous="" rows="" page complete=false
+    body=$(obs_trace_body "$obs_workspace_id")
+    for ((page=0; page<obs_trace_max_pages; page++)); do
+        output=$(obs_trace_call "$obs_workspace_token" "$body") || return 1
+        status=$(tail -n 1 <<<"$output")
+        response=$(sed '$d' <<<"$output")
+        ev_command "QueryTraces page $((page+1)) for the known trace" \
+            "curl -X POST ${obs_query_traces} -H 'Authorization: Bearer <workspace token>' -d '${body}'" \
+            "HTTP ${status}"$'\n'"${response}"
+        test "$status" = "$obs_http_ok" || return 1
+        rows+=$(yq -p json -r '.spans // [] | .[] | [.spanId, (.parentSpanId // ""), .scopeName, .workspaceId, .resourceId, (.resourceAttributes."loco.organization.id" // ""), .traceId] | @tsv' <<<"$response")$'\n'
+        cursor=$(yq -p json -r '.nextCursor // ""' <<<"$response")
+        if [ -z "$cursor" ]; then
+            complete=true
+            break
+        fi
+        test "$cursor" != "$previous" || return 1
+        previous=$cursor
+        body=$(CURSOR="$cursor" yq -p json -o json -I 0 '.cursor = strenv(CURSOR)' <<<"$body")
+    done
+    test "$complete" = true || return 1
+    awk -F'\t' -v scope="$obs_fixture_scope" -v ws="$obs_workspace_id" -v res="$obs_resource_id" -v org="$obs_organization_id" -v trace="$obs_trace_id" '
+        NF {
+            if ($4 != ws || $7 != trace) invalid = 1
             id[NR] = $1; parent[NR] = $2; app[NR] = ($3 == scope && $6 == org); tenant[NR] = ($4 == ws && $5 == res)
         }
         END {
@@ -402,7 +435,7 @@ check_ingress_trace() {
                     if (!app[j] && tenant[j] && id[j] == parent[i]) found = 1
                 }
             }
-            exit !found
+            exit (invalid || !found)
         }' <<<"$rows"
 }
 
@@ -566,8 +599,27 @@ check_proxy_isolation() {
         test "$leaked" -eq 0
 }
 
+check_trace_proxy_isolation() {
+    local body output status response count
+    body=$(obs_trace_body "$obs_workspace_id")
+    output=$(obs_trace_call "$obs_second_token" "$body")
+    status=$(tail -n 1 <<<"$output")
+    test "$status" = "$obs_http_forbidden" || return 1
+    body=$(obs_trace_body "$obs_second_workspace_id")
+    output=$(obs_trace_call "$obs_workspace_token" "$body")
+    status=$(tail -n 1 <<<"$output")
+    test "$status" = "$obs_http_forbidden" || return 1
+    output=$(obs_trace_call "$obs_second_token" "$body")
+    status=$(tail -n 1 <<<"$output")
+    response=$(sed '$d' <<<"$output")
+    count=$(yq -p json -r '.spans // [] | length' <<<"$response")
+    ev "QueryTraces: both cross-workspace requests returned HTTP ${obs_http_forbidden}; second workspace querying the known trace returned HTTP ${status}, spans ${count}." ""
+    test "$status" = "$obs_http_ok" && test "$count" -eq 0
+}
+
 test_o10_proxy_isolation() {
     obs_check proxy_isolation check_proxy_isolation
+    obs_check trace_proxy_isolation check_trace_proxy_isolation
 }
 
 test_o11_writes_the_summary() {

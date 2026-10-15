@@ -7,8 +7,8 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/observability/v1;observabilityv1";
 
-// ObservabilityProxyService provides secure, workspace-scoped access to logs and metrics
-// stored in cluster-local ClickHouse. Runs in the data plane (per-cluster).
+// ObservabilityProxyService provides secure, workspace-scoped access to cluster-local telemetry.
+// Runs in the data plane (per-cluster).
 service ObservabilityProxyService {
   // QueryLogs returns historical log entries matching the given filters.
   rpc QueryLogs(QueryLogsRequest) returns (QueryLogsResponse);
@@ -18,6 +18,8 @@ service ObservabilityProxyService {
 
   // QueryMetrics returns aggregated metric data points for the given time range.
   rpc QueryMetrics(QueryMetricsRequest) returns (QueryMetricsResponse);
+
+  rpc QueryTraces(QueryTracesRequest) returns (QueryTracesResponse);
 }
 
 // ---------- Logs: Historical Query ----------
@@ -203,4 +205,52 @@ message MetricPoint {
   google.protobuf.Timestamp timestamp = 1;
   // Metric value (result of aggregation function).
   double value = 2;
+}
+
+message QueryTracesRequest {
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  repeated string resource_ids = 2 [(buf.validate.field).repeated.items.string.uuid = true];
+  string environment_id = 3 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+  google.protobuf.Timestamp start_time = 4 [(buf.validate.field).required = true];
+  google.protobuf.Timestamp end_time = 5 [(buf.validate.field).required = true];
+  string trace_id = 6 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.pattern = "^[0-9a-f]{32}$"
+  ];
+  int32 limit = 7 [(buf.validate.field).int32 = {gte: 0 lte: 10000}];
+  string cursor = 8;
+
+  option (buf.validate.message).cel = {
+    id: "time_range.start_lte_end"
+    message: "start_time must be before or equal to end_time"
+    expression: "this.start_time <= this.end_time"
+  };
+}
+
+message QueryTracesResponse {
+  repeated TraceSpan spans = 1;
+  string next_cursor = 2;
+}
+
+message TraceSpan {
+  string trace_id = 1;
+  string span_id = 2;
+  string parent_span_id = 3;
+  string name = 4;
+  string kind = 5;
+  string service_name = 6;
+  google.protobuf.Timestamp start_time = 7;
+  uint64 duration_nanos = 8;
+  string status_code = 9;
+  string status_message = 10;
+  string workspace_id = 11;
+  string environment_id = 12;
+  string resource_id = 13;
+  map<string, string> resource_attributes = 14;
+  map<string, string> span_attributes = 15;
+  string scope_name = 16;
+  string scope_version = 17;
 }
