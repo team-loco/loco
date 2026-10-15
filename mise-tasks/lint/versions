@@ -15,7 +15,7 @@ check() {
 				echo "$file: $image:$tag, but mise.toml pins $want"
 				status=1
 			fi
-		done < <(grep -E "^FROM[[:space:]]+$image:" "$file" || true)
+		done < <(grep -E "^FROM[[:space:]]+(--platform=[^[:space:]]+[[:space:]]+)?$image:" "$file" || true)
 	done <<<"$dockerfiles"
 }
 

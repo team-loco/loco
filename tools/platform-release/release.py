@@ -107,6 +107,16 @@ class Registry:
             raise RuntimeError('registry manifest digest mismatch')
         return result
 
+    def require_image_platforms(self, repository, reference):
+        data, _ = self.request('GET', f'/v2/{repository}/manifests/{reference}', headers={'Accept': 'application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json'})
+        if digest(data) != reference:
+            raise RuntimeError('registry image index digest mismatch')
+        platforms = [item.get('platform', {}) for item in json.loads(data).get('manifests', [])]
+        for architecture in ('amd64', 'arm64'):
+            matches = [item for item in platforms if item.get('os') == 'linux' and item.get('architecture') == architecture]
+            if len(matches) != 1:
+                raise RuntimeError(f'platform image must contain exactly one linux/{architecture} manifest')
+
     def assert_absent(self, repository, version):
         if self.manifest(repository, version, missing=True) is not None:
             raise RuntimeError(f'immutable release already exists: {repository}:{version}')
@@ -240,6 +250,7 @@ def publish(version, commit, registry):
     for name in IMAGES:
         image_repository = registry.repository + '-' + name
         image_digest = registry.manifest(image_repository, 'sha-' + commit)
+        registry.require_image_platforms(image_repository, image_digest)
         images[name] = 'ghcr.io/' + image_repository + '@' + image_digest
         run('gh', 'attestation', 'verify', 'oci://' + images[name], '--repo', registry.repository, '--signer-workflow', registry.repository + '/.github/workflows/build-push.yml', '--source-ref', 'refs/heads/main', '--source-digest', commit, '--deny-self-hosted-runners')
     public = Registry(registry.repository, '', '')

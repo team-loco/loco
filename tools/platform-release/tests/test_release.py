@@ -86,6 +86,24 @@ class RegistryTests(unittest.TestCase):
     def setUp(self):
         self.registry = release.Registry('example/platform', 'user', 'token')
 
+    def test_image_index_requires_both_architectures(self):
+        amd64 = {'platform': {'os': 'linux', 'architecture': 'amd64'}}
+        arm64 = {'platform': {'os': 'linux', 'architecture': 'arm64', 'variant': 'v8'}}
+        attestation = {'platform': {'os': 'unknown', 'architecture': 'unknown'}}
+        for manifests, valid in (([amd64, arm64, attestation], True), ([amd64, attestation], False), ([arm64], False), ([amd64, arm64, arm64], False)):
+            data = release.encoded({'manifests': manifests})
+            with self.subTest(manifests=manifests), patch.object(self.registry, 'request', return_value=(data, {})):
+                if valid:
+                    self.registry.require_image_platforms('example/platform-api', release.digest(data))
+                else:
+                    with self.assertRaisesRegex(RuntimeError, 'exactly one linux/'):
+                        self.registry.require_image_platforms('example/platform-api', release.digest(data))
+
+    def test_image_index_content_must_match_digest(self):
+        with patch.object(self.registry, 'request', return_value=(b'{}', {})):
+            with self.assertRaisesRegex(RuntimeError, 'digest mismatch'):
+                self.registry.require_image_platforms('example/platform-api', 'sha256:' + 'a' * 64)
+
     def test_existing_version_fails_before_upload(self):
         with patch.object(self.registry, 'manifest', return_value='sha256:' + 'a' * 64), patch.object(self.registry, 'blob') as upload:
             with self.assertRaisesRegex(RuntimeError, 'immutable release already exists'):
@@ -182,12 +200,19 @@ class PublicationTests(unittest.TestCase):
         self.assertEqual(self.registry.assert_absent.call_count, 9)
         attestations = [call for call in self.calls if call[:3] == ('gh', 'attestation', 'verify')]
         self.assertEqual(len(attestations), len(release.IMAGES))
+        self.assertEqual(self.registry.require_image_platforms.call_count, len(release.IMAGES))
         for call in attestations:
             self.assertIn('refs/heads/main', call)
             self.assertIn(self.commit, call)
             self.assertIn('example/platform/.github/workflows/build-push.yml', call)
             self.assertIn('--deny-self-hosted-runners', call)
             self.assertIn('@sha256:', call[3])
+
+    def test_single_architecture_image_never_publishes_artifacts(self):
+        self.registry.require_image_platforms.side_effect = RuntimeError('missing linux/arm64')
+        with self.assertRaisesRegex(RuntimeError, 'missing linux/arm64'):
+            release.publish('0.7.0-rc.1', self.commit, self.registry)
+        self.registry.publish.assert_not_called()
 
     def test_any_existing_tag_aborts_before_images_or_uploads(self):
         self.registry.assert_absent.side_effect = RuntimeError('exists')

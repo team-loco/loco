@@ -1,6 +1,6 @@
 # Build context is the repository root, not web/ — the UI imports generated
 # TypeScript from gen/ts, and bun workspaces hoist node_modules to the root.
-FROM oven/bun:1.4.3-alpine@sha256:629e17411f1f129dbec3af78d5af9c9f2a937435c80349437206c6b0b7422373 AS builder
+FROM --platform=$BUILDPLATFORM oven/bun:1.4.3-alpine@sha256:629e17411f1f129dbec3af78d5af9c9f2a937435c80349437206c6b0b7422373 AS builder
 
 WORKDIR /app
 
@@ -37,9 +37,9 @@ RUN find web/dist -type f -size +1k \( \
     \) -exec brotli -f -k -q 11 {} \;
 
 
-FROM ghcr.io/astral-sh/uv:0.12.24@sha256:3af4716e991d6956a41e573eab705d0ee08500cd829ed30293eb8472f372c65a AS docs-uv
+FROM --platform=$BUILDPLATFORM ghcr.io/astral-sh/uv:0.12.24@sha256:3af4716e991d6956a41e573eab705d0ee08500cd829ed30293eb8472f372c65a AS docs-uv
 
-FROM python:3.14.8-slim@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170 AS docs-builder
+FROM --platform=$BUILDPLATFORM python:3.14.8-slim@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170 AS docs-builder
 COPY --from=docs-uv /uv /usr/local/bin/uv
 WORKDIR /app/docs
 COPY docs/pyproject.toml docs/uv.lock ./

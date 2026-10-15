@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+#MISE description="Cross-compile each platform Go executable for AMD64 and ARM64, then verify its ELF architecture and static linkage"
+set -euo pipefail
+root=$(git rev-parse --show-toplevel)
+workdir=$(mktemp -d)
+trap 'rm -rf "$workdir"' EXIT
+for architecture in amd64 arm64; do
+    for target in api:. agent:. controller:./cmd builder:. observability-proxy:.; do
+        module=${target%%:*}
+        package=${target#*:}
+        binary="$workdir/$module-$architecture"
+        echo "Building $module for linux/$architecture"
+        (cd "$root/$module" && CGO_ENABLED=0 GOOS=linux GOARCH="$architecture" go build -ldflags '-X main.version=architecture-check' -o "$binary" "$package")
+        python3 "$root/tools/platform-images/verify.py" binary "$binary" "linux/$architecture"
+    done
+done
