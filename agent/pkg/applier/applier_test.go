@@ -263,3 +263,33 @@ func TestInvalidPlacementsAreMarked(t *testing.T) {
 		})
 	}
 }
+
+func TestApplyPlacementPreservesLogicalServiceName(t *testing.T) {
+	a := newTestApplier(t)
+	p := placement(t, testPlacementID, 1)
+	spec := &locoControllerV1.ApplicationSpec{Type: testAppType, ResourceID: testResourceID, ResourceName: "cart"}
+	p.Application = marshalPayload(t, spec)
+	if applyErr := a.ApplyPlacement(context.Background(), p); applyErr != nil {
+		t.Fatal(applyErr)
+	}
+	app, err := a.live(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if app.Spec.ResourceName != spec.ResourceName {
+		t.Fatalf("resourceName = %q, want %q", app.Spec.ResourceName, spec.ResourceName)
+	}
+	spec.ResourceName = "checkout"
+	p.Revision++
+	p.Application = marshalPayload(t, spec)
+	if applyErr := a.ApplyPlacement(context.Background(), p); applyErr != nil {
+		t.Fatal(applyErr)
+	}
+	app, err = a.live(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if app.Spec.ResourceName != spec.ResourceName {
+		t.Fatalf("resourceName after rename = %q, want %q", app.Spec.ResourceName, spec.ResourceName)
+	}
+}

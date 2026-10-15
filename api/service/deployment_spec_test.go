@@ -73,7 +73,7 @@ func testServiceResource() genDb.Resource {
 	return genDb.Resource{
 		ID:          uuid.New(),
 		WorkspaceID: uuid.New(),
-		Name:        "svc",
+		Name:        planSvc,
 		Type:        genDb.ResourceTypeService,
 	}
 }
@@ -314,5 +314,20 @@ func TestDeployRejectsAnOutOfRangeQuantityAsInvalidArgument(t *testing.T) {
 	wantCode(t, txErr, connect.CodeInvalidArgument)
 	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != 0 {
 		t.Fatalf("%d deployments after an invalid deploy, want 0", n)
+	}
+}
+
+func TestDesiredSpecCarriesLogicalServiceName(t *testing.T) {
+	payload := applicationPayload(t, testDesiredSpec(t, 7070))
+	encoded, err := json.Marshal(payload.AppSpec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fields map[string]any
+	if err := json.Unmarshal(encoded, &fields); err != nil {
+		t.Fatal(err)
+	}
+	if fields["resourceName"] != planSvc {
+		t.Fatalf("Application resourceName = %v, want svc", fields["resourceName"])
 	}
 }

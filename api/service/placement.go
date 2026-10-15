@@ -12,6 +12,8 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 )
 
+var errPlacementApplicationMissing = errors.New("placement application spec is missing")
+
 func placeApplication(
 	ctx context.Context,
 	qtx *genDb.Queries,
@@ -133,4 +135,49 @@ func desiredEnv(
 		return nil, nil
 	}
 	return payload.AppSpec.ServiceSpec.Deployment.Env, nil
+}
+
+func renamePlacements(ctx context.Context, qtx *genDb.Queries, resource genDb.Resource) error {
+	environments, err := qtx.ListWorkspaceEnvironments(ctx, resource.WorkspaceID)
+	if err != nil {
+		return fmt.Errorf("list rename environments: %w", err)
+	}
+	for _, environment := range environments {
+		key := genDb.ListResourceEnvironmentPlacementsParams{ResourceID: resource.ID, EnvironmentID: environment.ID}
+		placements, err := qtx.ListResourceEnvironmentPlacements(ctx, key)
+		if err != nil {
+			return fmt.Errorf("list rename placements: %w", err)
+		}
+		for _, placement := range placements {
+			var payload ApplicationPayload
+			if err := json.Unmarshal(placement.DesiredSpec, &payload); err != nil {
+				return fmt.Errorf("decode rename placement: %w", err)
+			}
+			if payload.AppSpec == nil {
+				return errPlacementApplicationMissing
+			}
+			if payload.ResourceName == resource.Name && payload.AppSpec.ResourceName == resource.Name {
+				continue
+			}
+			payload.ResourceName = resource.Name
+			payload.AppSpec.ResourceName = resource.Name
+			desired, err := json.Marshal(payload)
+			if err != nil {
+				return fmt.Errorf("encode rename placement: %w", err)
+			}
+			params := genDb.UpsertPlacementParams{
+				ResourceID:    placement.ResourceID,
+				ClusterID:     placement.ClusterID,
+				Region:        placement.Region,
+				DeploymentID:  placement.DeploymentID,
+				DesiredSpec:   desired,
+				EnvironmentID: placement.EnvironmentID,
+				SecretNames:   placement.SecretNames,
+			}
+			if err := placeApplication(ctx, qtx, params); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
