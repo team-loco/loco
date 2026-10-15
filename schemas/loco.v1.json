@@ -157,6 +157,22 @@
             "null"
           ],
           "description": "Region fields to merge keyed by region name."
+        },
+        "runAsUser": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "description": "Positive numeric UID for the application process. Omitted uses the image user."
+        },
+        "runAsGroup": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "description": "Positive numeric primary GID for the application process. Omitted uses the image group."
         }
       },
       "additionalProperties": false,
@@ -433,6 +449,16 @@
           },
           "type": "object",
           "description": "Per-environment overrides keyed by environment name."
+        },
+        "runAsUser": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Positive numeric UID for the application process. Omitted uses the image user."
+        },
+        "runAsGroup": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Positive numeric primary GID for the application process. Omitted uses the image group."
         }
       },
       "additionalProperties": false,

@@ -185,6 +185,8 @@ func assertPropertyMatchesType(
 		assert.Equal(t, "integer", types[0], path)
 	case reflect.Int32:
 		assert.Equal(t, "integer", types[0], path)
+	case reflect.Int64:
+		assert.Equal(t, "integer", types[0], path)
 	case reflect.Bool:
 		assert.Equal(t, "boolean", types[0], path)
 	default:

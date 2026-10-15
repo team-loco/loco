@@ -66,6 +66,21 @@ Workspace namespaces separate identical names in different workspaces. The works
 
 Upgrade the API, agent, Application controller and operator CRDs together. Applications carrying a logical name gain the port 80 endpoint on controller reconciliation. Existing Application records without a logical name retain their UUID endpoint until their next deploy or resource rename.
 
+## Runtime user
+
+Set `runAsUser` and `runAsGroup` to positive numeric IDs when an image uses a named user that Kubernetes cannot verify as non-root:
+
+```yaml
+services:
+  accounting:
+    runAsUser: 1654
+    runAsGroup: 1654
+```
+
+These fields override the image's UID and primary GID independently. Omitted fields use the image defaults; an environment override can replace an ID or remove it with `null`. Zero and negative IDs are rejected. Loco continues to enforce non-root execution, disabled privilege escalation, dropped capabilities and the runtime's default seccomp profile.
+
+Choose IDs that can read the application and write its working directories. The override does not create users, change file ownership or make an application that requires root compatible. Changes roll out new pods without rebuilding the image. Upgrade the API, controller and Application CRD together before using these fields.
+
 ## Health checks
 
 Omit `health` for process-only monitoring: Loco creates no liveness or readiness probes, and Kubernetes restarts exited containers. This is suitable for gRPC services and workers without an HTTP health endpoint. A running process is considered ready; use protocol-specific E2E checks to verify that it can serve requests or consume messages.

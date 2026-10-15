@@ -159,9 +159,11 @@ func MergeDeploymentSpec(
 
 	// merge build (from request, always required)
 	mergedServiceSpec := &deploymentv1.ServiceDeploymentSpec{
-		Build: requestServiceSpec.GetBuild(),
-		Port:  requestServiceSpec.GetPort(),
-		Env:   requestServiceSpec.GetEnv(),
+		RunAsUser:  requestServiceSpec.RunAsUser,
+		RunAsGroup: requestServiceSpec.RunAsGroup,
+		Build:      requestServiceSpec.GetBuild(),
+		Port:       requestServiceSpec.GetPort(),
+		Env:        requestServiceSpec.GetEnv(),
 	}
 
 	cpu := FirstSet(requestServiceSpec.GetCpu(), regionTarget.GetCpu(), defaults.CPU)
@@ -235,6 +237,8 @@ func ProtoToServiceDeploymentSpec(spec *deploymentv1.DeploymentSpec) *locoContro
 	}
 
 	return &locoControllerV1.ServiceDeploymentSpec{
+		RunAsUser:   serviceSpec.RunAsUser,
+		RunAsGroup:  serviceSpec.RunAsGroup,
 		Image:       serviceSpec.GetBuild().GetImage(),
 		Port:        serviceSpec.GetPort(),
 		HealthCheck: healthCheck,

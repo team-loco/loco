@@ -218,4 +218,47 @@ var _ = Describe("Workspace isolation", func() {
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring(`violates PodSecurity "restricted:latest"`))
 	})
+	It("updates and removes numeric runtime IDs while preserving restricted pod security", func() {
+		app := isolationTestApplication("ws-runtime-user", "runtime-user")
+		Expect(ensureNamespace(ctx, k8sClient, app)).To(Succeed())
+		Expect(reconciler.ensureServiceAccount(ctx, app)).To(Succeed())
+		key := client.ObjectKey{Namespace: getNamespace(app), Name: getName(app)}
+		for _, id := range []int64{1654, 82, 0} {
+			app.Spec.ServiceSpec.Deployment.RunAsUser = nil
+			app.Spec.ServiceSpec.Deployment.RunAsGroup = nil
+			if id != 0 {
+				app.Spec.ServiceSpec.Deployment.RunAsUser = new(id)
+				app.Spec.ServiceSpec.Deployment.RunAsGroup = new(id)
+			}
+			_, err := reconciler.ensureDeployment(ctx, app, envSecretMount{})
+			Expect(err).NotTo(HaveOccurred())
+			deployment := &appsv1.Deployment{}
+			Expect(k8sClient.Get(ctx, key, deployment)).To(Succeed())
+			security := deployment.Spec.Template.Spec.SecurityContext
+			Expect(security.RunAsNonRoot).To(HaveValue(BeTrue()))
+			Expect(security.SeccompProfile.Type).To(Equal(corev1.SeccompProfileTypeRuntimeDefault))
+			if id == 0 {
+				Expect(security.RunAsUser).To(BeNil())
+				Expect(security.RunAsGroup).To(BeNil())
+			} else {
+				Expect(security.RunAsUser).To(HaveValue(Equal(id)))
+				Expect(security.RunAsGroup).To(HaveValue(Equal(id)))
+			}
+			container := deployment.Spec.Template.Spec.Containers[0].SecurityContext
+			Expect(container.AllowPrivilegeEscalation).To(HaveValue(BeFalse()))
+			Expect(container.Capabilities.Drop).To(ContainElement(corev1.Capability("ALL")))
+		}
+	})
+
+	It("rejects root runtime IDs at the Application API boundary", func() {
+		for _, id := range []int64{0, -1} {
+			app := isolationTestApplication("ws-runtime-reject", "reject-user")
+			app.Spec.ServiceSpec.Deployment.RunAsUser = new(id)
+			Expect(k8sClient.Create(ctx, app)).NotTo(Succeed())
+			app.Spec.ServiceSpec.Deployment.RunAsUser = nil
+			app.Spec.ServiceSpec.Deployment.RunAsGroup = new(id)
+			Expect(k8sClient.Create(ctx, app)).NotTo(Succeed())
+		}
+	})
+
 })

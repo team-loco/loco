@@ -21,6 +21,8 @@ type Service struct {
 	Dockerfile   string              `json:"dockerfile,omitempty"`
 	Context      string              `json:"context,omitempty"`
 	Image        string              `json:"image,omitempty"`
+	RunAsUser    *int64              `json:"runAsUser,omitempty"`
+	RunAsGroup   *int64              `json:"runAsGroup,omitempty"`
 	Port         *int32              `json:"port,omitempty"`
 	Health       *Health             `json:"health,omitempty"`
 	Routing      *Routing            `json:"routing,omitempty"`
@@ -37,6 +39,8 @@ type Override struct {
 	Dockerfile string            `json:"dockerfile,omitempty"`
 	Context    string            `json:"context,omitempty"`
 	Image      string            `json:"image,omitempty"`
+	RunAsUser  *int64            `json:"runAsUser,omitempty"`
+	RunAsGroup *int64            `json:"runAsGroup,omitempty"`
 	Port       *int32            `json:"port,omitempty"`
 	Health     *Health           `json:"health,omitempty"`
 	Routing    *Routing          `json:"routing,omitempty"`

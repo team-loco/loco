@@ -129,6 +129,14 @@ spec:
                         maximum: 65535
                         minimum: 1
                         type: integer
+                      runAsGroup:
+                        format: int64
+                        minimum: 1
+                        type: integer
+                      runAsUser:
+                        format: int64
+                        minimum: 1
+                        type: integer
                     required:
                     - image
                     - port

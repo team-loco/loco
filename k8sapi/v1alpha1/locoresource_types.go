@@ -166,6 +166,13 @@ type ServiceDeploymentSpec struct {
 	// +kubebuilder:validation:Maximum=65535
 	Port int32 `json:"port"`
 
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	RunAsUser *int64 `json:"runAsUser,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	RunAsGroup *int64 `json:"runAsGroup,omitempty"`
+
 	HealthCheck  *HealthCheckSpec  `json:"healthCheck,omitempty"`
 	Env          map[string]string `json:"env,omitempty"`
 	EnvSecretRef *EnvSecretRef     `json:"envSecretRef,omitempty"`

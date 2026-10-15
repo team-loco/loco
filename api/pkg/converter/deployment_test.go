@@ -61,3 +61,31 @@ func TestMergeDeploymentSpecResolvesReplicas(t *testing.T) {
 		})
 	}
 }
+
+func TestRuntimeUserSurvivesDeploymentMerge(t *testing.T) {
+	resource := &resourcev1.ResourceSpec{
+		Spec: &resourcev1.ResourceSpec_Service{
+			Service: &resourcev1.ServiceSpec{Regions: map[string]*resourcev1.RegionTarget{testRegion: {Enabled: true}}},
+		},
+	}
+	for _, id := range []*int64{nil, new(int64(1654))} {
+		request := &deploymentv1.DeploymentSpec{
+			Spec: &deploymentv1.DeploymentSpec_Service{
+				Service: &deploymentv1.ServiceDeploymentSpec{RunAsUser: id, RunAsGroup: id},
+			},
+		}
+		merged, err := MergeDeploymentSpec(resource, request, testRegion, servicedefaults.Defaults{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		controller := ProtoToServiceDeploymentSpec(merged)
+		if id == nil {
+			if controller.RunAsUser != nil || controller.RunAsGroup != nil {
+				t.Fatalf("unexpected override: %+v", controller)
+			}
+		} else if controller.RunAsUser == nil || *controller.RunAsUser != *id ||
+			controller.RunAsGroup == nil || *controller.RunAsGroup != *id {
+			t.Fatalf("override lost: %+v", controller)
+		}
+	}
+}

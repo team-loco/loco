@@ -3,6 +3,7 @@ package locofile
 import "errors"
 
 var (
+	ErrRuntimeID              = errors.New("must be a positive numeric ID")
 	ErrServiceNotFound        = errors.New("service is not in the file")
 	ErrNotSupportedYet        = errors.New("not supported yet")
 	ErrUnsupportedVersion     = errors.New("version must be 1")
