@@ -169,6 +169,7 @@ export function TraceWaterfall({
 								<button
 									type="button"
 									className="trace-span-label"
+									aria-label={`${label(span)} ${span.name}`}
 									onClick={(event) => {
 										select(span.spanId, event.currentTarget);
 									}}
@@ -240,11 +241,6 @@ export function TraceWaterfall({
 					</span>
 				))}
 			</div>
-			{incomplete && (
-				<p className="border-t border-line px-2.5 py-1.5 text-[11px] text-warn-fg">
-					Partial waterfall · Load more spans to include later operations.
-				</p>
-			)}
 			{mobile ? (
 				<Sheet
 					open={selected !== undefined}

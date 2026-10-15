@@ -611,7 +611,7 @@ function PageStatus({
 		<div className="flex flex-wrap items-center justify-between gap-2 border-t border-line bg-bg2 px-2.5 py-1.5 text-[10px] text-fg3">
 			<span>
 				{incomplete
-					? "More spans are available. Counts and durations reflect loaded spans."
+					? "Partial results · Counts and durations reflect loaded spans."
 					: detail
 						? "All available spans in this time range are loaded. Sampling or retention may leave gaps."
 						: "All spans in this time range are loaded."}
