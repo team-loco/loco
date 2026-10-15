@@ -35,6 +35,7 @@ def main():
             values = hr['spec']['values']
             if name == 'loco-core':
                 values['certManager'] = {'issuer': {'email': 'release-test@example.invalid'}}
+                values['agent'].update({'clusterName': 'release-test-cluster', 'clusterRegion': 'release-test-region', 'clusterTier': 'production'})
             if name == 'loco-obs':
                 values['global'] = {'region': 'release-test-region'}
             path = temp / (name + '-values.json')

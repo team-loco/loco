@@ -789,11 +789,6 @@ start_obs_proxy() {
     fi
 
     PORT="$OBS_PROXY_PORT" \
-    E2E_CLUSTER_KEY=$(kube get namespace kube-system -o jsonpath='{.metadata.uid}')
-    export E2E_CLUSTER_KEY
-    LOCO_CLUSTER_NAME=e2e-test-cluster \
-    LOCO_CLUSTER_REGION=us-east-1 \
-    LOCO_CLUSTER_TIER=production \
     CONTROL_PLANE_URL="$E2E_API_URL" \
     CORS_ALLOWED_ORIGINS="https://dashboard.e2e.test" \
     CLICKHOUSE_URL="$reader_dsn" \
