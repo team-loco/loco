@@ -39,7 +39,6 @@ So plaintext env exists in Postgres, in the `Application` object in the worker's
 | Agent token | Agent | Agent Secret and API process configuration (`LOCO_AGENT_CONNECTION_SECRETS`) |
 | User session and API tokens | API | Only SHA-256 hashes in Postgres (`access_token_hash`, `refresh_token_hash`, `token_hash`) |
 | OAuth state markers | API | Valkey, 10-minute TTL |
-| Observability proxy token | API and obs-proxy | Chart value / environment variable on both sides |
 | ClickHouse credentials | obs-proxy, collectors | One Secret per ClickHouse user (`loco_migrator`, `loco_ingest`, `loco_reader`), rendered by the `loco-obs` chart from values; the proxy expands them into `CLICKHOUSE_MIGRATOR_URL` and `CLICKHOUSE_URL` |
 | Cloudflare API token | cert-manager (DNS-01) | Chart value rendered into a Secret |
 | SOPS age keys | Flux on each cluster (planned) | In-cluster Secret plus an offline admin key, per the Flux TDD |
@@ -192,7 +191,6 @@ Worker clusters must encrypt Secrets at rest: a KMS provider where the platform 
 | Postgres credentials | KV with a rotation runbook while the database is on Railway. On the control-plane cluster: OpenBao's database secrets engine issues per-instance credentials with a lease, and the pool fetches fresh ones through pgx's `BeforeConnect` |
 | Valkey password | KV |
 | Agent token | Stays a per-cluster token whose hash is in Postgres and whose plaintext is SOPS-encrypted per cluster. Rotation adds a second valid hash for an overlap window |
-| Observability proxy token | KV on the control-plane side; per-cluster SOPS on workers; rotated with an overlap window like agent tokens |
 | ClickHouse credentials | KV; database engine later, as for Postgres |
 | Cloudflare API token | Per-cluster SOPS, scoped to the zones that cluster issues certificates for |
 | SOPS age keys | Unchanged; they sit below OpenBao in the bootstrap order |

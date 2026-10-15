@@ -20,7 +20,6 @@ import { EVENTS_MAX_RANGE, selectedResources, useObs } from "./context";
 import { EventDetail } from "./EventDetail";
 import { groupEvents, severityOf, severityStyle, type Severity } from "./events";
 import { fmtTs } from "./format";
-import { ObsGate } from "./ObsGate";
 import { WidenRangeButton } from "./ObsEmpty";
 import { Dot, Histogram, PAGE_SIZES, type HistoBucket } from "./shared";
 import { ResourceMenu, TimeRangeMenu } from "./Toolbar";
@@ -121,7 +120,7 @@ export function EventsView() {
 
 	if (!loading && unavailable) {
 		return (
-			<ObsGate kind="events">
+			<>
 				{toolbar}
 				<section className="rounded-lg border border-line bg-background">
 					<EmptyState
@@ -135,12 +134,12 @@ export function EventsView() {
 						Events for your services will show up here once Loco records them.
 					</EmptyState>
 				</section>
-			</ObsGate>
+			</>
 		);
 	}
 
 	return (
-		<ObsGate kind="events">
+		<>
 			{toolbar}
 			<div className="grid items-start gap-5" style={{ gridTemplateColumns: open ? "minmax(0,1fr) minmax(340px,400px)" : "minmax(0,1fr)" }}>
 				<div className="flex min-w-0 flex-col gap-3">
@@ -305,6 +304,6 @@ export function EventsView() {
 					/>
 				)}
 			</div>
-		</ObsGate>
+		</>
 	);
 }

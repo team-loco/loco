@@ -1,12 +1,7 @@
-import type { Transport } from "@connectrpc/connect";
-import type { ClusterAccess } from "@gen/loco/observability/v1/observability_access_pb";
 
 export type TimeRange = "15m" | "1h" | "3h" | "6h" | "24h" | "7d";
 
-export interface ClusterTransport {
-	cluster: ClusterAccess;
-	transport: Transport;
-}
+
 
 export function timeRangeMs(range: TimeRange): number {
 	const map: Record<TimeRange, number> = {

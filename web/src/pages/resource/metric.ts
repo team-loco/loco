@@ -1,6 +1,5 @@
 import type { MessageInitShape } from "@bufbuild/protobuf";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
-import type { ClusterAccess } from "@gen/loco/observability/v1/observability_access_pb";
 import type { MetricSeries, QueryMetricsRequestSchema } from "@gen/loco/observability/v1/observability_pb";
 
 import { maybeTsMs, msToTimestamp } from "@/lib/time";
@@ -35,13 +34,9 @@ export interface RegionMetricTarget {
 	metricName: string;
 }
 
-export function metricProxyUrl(clusters: ClusterAccess[], deployment: Deployment): string {
-	return clusters.find((c) => c.clusterId === deployment.clusterId)?.proxyUrl ?? "";
-}
-
-export function regionMetricKey(target: RegionMetricTarget, proxyUrl: string) {
+export function regionMetricKey(target: RegionMetricTarget) {
 	const { workspaceId, deployment, range, metricName } = target;
-	return ["resource-metric", proxyUrl, workspaceId, deployment.environmentId, deployment.resourceId, range, metricName];
+	return ["resource-metric", workspaceId, deployment.environmentId, deployment.resourceId, deployment.region, range, metricName];
 }
 
 export function regionMetricRequest(
@@ -52,6 +47,7 @@ export function regionMetricRequest(
 	return {
 		workspaceId,
 		environmentId: deployment.environmentId,
+		region: deployment.region,
 		resourceIds: [deployment.resourceId],
 		startTime: msToTimestamp(nowMs - RANGE_MS[range]),
 		endTime: msToTimestamp(nowMs),

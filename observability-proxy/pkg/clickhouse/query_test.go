@@ -31,7 +31,7 @@ func TestBuildLogsQueryFiltersOnTenantColumns(t *testing.T) {
 		100,
 		"",
 		observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST,
-		10,
+		10, LogRegions{},
 	)
 
 	if err != nil {
@@ -195,10 +195,41 @@ func TestInvalidLogCursorsAreRejected(t *testing.T) {
 			testPageSize,
 			cursor,
 			observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST,
-			testQueryTimeout,
+			testQueryTimeout, LogRegions{},
 		)
 		if !errors.Is(err, ErrInvalidLogCursor) {
 			t.Fatalf("cursor %q error = %v, want invalid cursor", cursor, err)
+		}
+	}
+}
+
+func TestBuildLogsQueryRegionFiltersKeepWorkspaceScope(t *testing.T) {
+	start, end := time.Now().Add(-time.Hour), time.Now()
+	query, args, err := buildLogsQuery(testWorkspaceID, nil, start, end, "", nil, nil,
+		testPageSize, "", observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST, testQueryTimeout,
+		LogRegions{Include: []string{"US-*", "eu-west-1"}, Exclude: []string{"us-west-*"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, clause := range []string{
+		"WHERE WorkspaceId = ? AND",
+		"(startsWith(lowerUTF8(ResourceAttributes[?]), ?) OR lowerUTF8(ResourceAttributes[?]) = ?)",
+		"NOT (startsWith(lowerUTF8(ResourceAttributes[?]), ?))",
+		"ORDER BY Timestamp DESC, _block_number DESC, _block_offset DESC",
+	} {
+		if !strings.Contains(query, clause) {
+			t.Errorf("missing %q in %s", clause, query)
+		}
+	}
+	if args[0] != testWorkspaceID {
+		t.Fatalf("first argument = %v", args[0])
+	}
+	for _, value := range []string{"us-", "eu-west-1", "us-west-"} {
+		if strings.Contains(query, value) {
+			t.Errorf("region value interpolated into SQL: %s", query)
+		}
+		if !slices.Contains(args, any(value)) {
+			t.Errorf("missing region argument %q: %v", value, args)
 		}
 	}
 }

@@ -15,7 +15,6 @@ import { cn, formatShortId } from "@/lib/utils";
 
 import { fitRange, QUERY_MAX_RANGE, selectedResources, useObs, type ObsResource } from "./context";
 import { MetricCard, MetricChart, type ChartMarker, type ChartSeries } from "./MetricChart";
-import { ObsGate } from "./ObsGate";
 import { ResourceMenu, TimeRangeMenu } from "./Toolbar";
 
 interface MetricDef {
@@ -39,7 +38,7 @@ export function MetricsView() {
 	const visible = sel.filter((r) => !hiddenNames.has(r.name));
 
 	return (
-		<ObsGate kind="metrics">
+		<>
 			<div className="flex flex-wrap items-center gap-2">
 				<ResourceMenu />
 				<div className="flex-1" />
@@ -85,7 +84,7 @@ export function MetricsView() {
 				<TrafficSection />
 				<ComputeSection visible={visible} />
 			</div>
-		</ObsGate>
+		</>
 	);
 }
 
@@ -199,15 +198,14 @@ function ComputeChart({
 	to: number;
 	markers: ChartMarker[];
 }) {
-	const { workspaceId, transports, range, goTo } = useObs();
+	const { workspaceId, resources, range, goTo } = useObs();
 	const result = useQueryMetrics({
-		clusterTransports: transports,
 		workspaceId,
 		resourceIds: visible.map((r) => r.id),
 		timeRange: range,
 		metricName: def.metric,
 		aggregation: "max",
-		enabled: visible.length > 0,
+		enabled: resources.length === 0 || visible.length > 0,
 	});
 
 	const byId = new Map(visible.map((r) => [r.id, r]));
@@ -223,9 +221,8 @@ function ComputeChart({
 	const series: ChartSeries[] = [];
 	for (const [id, pts] of merged) {
 		const r = byId.get(id);
-		if (r === undefined) continue;
 		const points = [...pts.entries()].map(([t, v]) => ({ t, v })).toSorted((a, b) => a.t - b.t);
-		series.push({ name: r.name, color: r.color, points });
+		series.push({ name: r?.name ?? (id.slice(0, 8) || "unknown"), color: r?.color ?? "var(--fg4)", points });
 	}
 
 	let peak = 0;

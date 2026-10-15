@@ -45,7 +45,6 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/domain/v1/domainv1connect"
 	environmentv1connect "github.com/team-loco/loco/gen/go/loco/environment/v1/environmentv1connect"
 	"github.com/team-loco/loco/gen/go/loco/event/v1/eventv1connect"
-	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 	planv1connect "github.com/team-loco/loco/gen/go/loco/plan/v1/planv1connect"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
@@ -267,7 +266,6 @@ func main() {
 		ac.HeartbeatInterval,
 		ac.Agent,
 	)
-	observabilityAccessHandler := service.NewObservabilityAccessServer(pool, queries, machine)
 	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
 	secretServiceHandler := service.NewSecretServer(pool, queries, secretKeyProvider, ac.SecretLimits)
 	configServiceHandler := service.NewConfigServer(
@@ -292,7 +290,6 @@ func main() {
 	domainv1connect.RegisterDomainServiceHandler(authenticatedServer, domainServiceHandler)
 	tokenv1connect.RegisterTokenServiceHandler(authenticatedServer, tokenServiceHandler)
 	agentv1connect.RegisterAgentServiceHandler(baseServer, agentServiceHandler)
-	observabilityv1connect.RegisterObservabilityAccessServiceHandler(authenticatedServer, observabilityAccessHandler)
 	planServiceHandler := service.NewPlanServer(
 		pool,
 		queries,

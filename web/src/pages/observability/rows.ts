@@ -37,36 +37,34 @@ function replicaOf(pod: string): string {
 }
 
 export function toRows(
-	sources: { entries: LogEntry[]; region: string }[],
+	entries: LogEntry[],
 	resourceById: Map<string, ObsResource>,
 ): LogRow[] {
 	const seen = new Map<string, number>();
 	const rows: LogRow[] = [];
-	for (const src of sources) {
-		for (const entry of src.entries) {
-			const ts = tsMs(entry.timestamp);
-			const pod = podName(entry);
-			const base = `${entry.timestamp?.seconds.toString() ?? "0"}.${String(entry.timestamp?.nanos ?? 0)}|${entry.resourceId}|${pod}|${hashString(entry.body)}`;
-			const n = seen.get(base) ?? 0;
-			seen.set(base, n + 1);
-			const res = resourceById.get(entry.resourceId);
-			const sev = entry.severity.toUpperCase();
-			const level = levelOf(entry.severity);
-			rows.push({
-				key: `${base}#${String(n)}`,
-				ts,
-				level,
-				label: sev === "" ? "INFO" : sev.length > 5 ? level.toUpperCase() : sev,
-				resourceId: entry.resourceId,
-				resourceName: res?.name ?? (entry.resourceId.slice(0, 8) || "unknown"),
-				color: res?.color ?? "var(--fg4)",
-				pod,
-				replica: replicaOf(pod),
-				region: src.region,
-				entry,
-				json: parseJsonMsg(entry.body),
-			});
-		}
+	for (const entry of entries) {
+		const ts = tsMs(entry.timestamp);
+		const pod = podName(entry);
+		const base = `${entry.timestamp?.seconds.toString() ?? "0"}.${String(entry.timestamp?.nanos ?? 0)}|${entry.resourceId}|${pod}|${hashString(entry.body)}`;
+		const n = seen.get(base) ?? 0;
+		seen.set(base, n + 1);
+		const res = resourceById.get(entry.resourceId);
+		const sev = entry.severity.toUpperCase();
+		const level = levelOf(entry.severity);
+		rows.push({
+			key: `${base}#${String(n)}`,
+			ts,
+			level,
+			label: sev === "" ? "INFO" : sev.length > 5 ? level.toUpperCase() : sev,
+			resourceId: entry.resourceId,
+			resourceName: res?.name ?? (entry.resourceId.slice(0, 8) || "unknown"),
+			color: res?.color ?? "var(--fg4)",
+			pod,
+			replica: replicaOf(pod),
+			region: entry.resourceAttributes["loco.region"] ?? "",
+			entry,
+			json: parseJsonMsg(entry.body),
+		});
 	}
 	return rows;
 }

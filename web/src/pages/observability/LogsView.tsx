@@ -22,7 +22,6 @@ import { buildBackendQuery, LEVELS, queryStr, type FieldKey } from "./query";
 import { QueryBar } from "./QueryBar";
 import { toRows, type LogRow } from "./rows";
 import { Histogram, PAGE_SIZES, type HistoBucket } from "./shared";
-import { ObsGate } from "./ObsGate";
 import { WidenRangeButton } from "./ObsEmpty";
 import { LiveTailButton, TimeRangeMenu } from "./Toolbar";
 
@@ -43,8 +42,6 @@ export function LogsView() {
 		workspaceId,
 		resources,
 		resourceById,
-		transports,
-		clusters,
 		range,
 		tokens,
 		setTokens,
@@ -64,8 +61,8 @@ export function LogsView() {
 	const now = useNow(tail ? 1000 : 15_000);
 	const nowMs = now.getTime();
 
-	const backend = buildBackendQuery(tokens, appliedText, resources, transports);
-	const queryKey = JSON.stringify([backend.parsed, backend.resourceIds, backend.transports.map((t) => t.cluster.clusterId), range]);
+	const backend = buildBackendQuery(tokens, appliedText, resources);
+	const queryKey = JSON.stringify([backend.parsed, backend.resourceIds, range]);
 	const [prevKey, setPrevKey] = useState(queryKey);
 	if (prevKey !== queryKey) {
 		setPrevKey(queryKey);
@@ -76,7 +73,6 @@ export function LogsView() {
 	const cursor = cursors.at(-1) ?? "";
 
 	const logs = useQueryLogs({
-		clusterTransports: backend.transports,
 		workspaceId,
 		resourceIds: backend.resourceIds,
 		timeRange: range,
@@ -86,28 +82,16 @@ export function LogsView() {
 		enabled: !backend.impossible,
 	});
 	const tailState = useTailLogs({
-		clusterTransports: backend.transports,
 		workspaceId,
 		resourceIds: backend.resourceIds,
 		parsedQuery: backend.parsed,
 		enabled: tail && !backend.impossible,
 	});
 
-	const nextCursors = logs.clusterLogs.map((c) => c.data?.nextCursor ?? "").filter((c) => c !== "");
-	const cutoffs = nextCursors.map((c) => Date.parse(c)).filter((n) => Number.isFinite(n));
-	const cutoff = cutoffs.length > 0 ? Math.max(...cutoffs) : null;
-	const cutoffCursor = cutoff !== null ? nextCursors[cutoffs.indexOf(cutoff)] ?? null : null;
+	const cutoffCursor = logs.nextCursor || null;
+	const batchRows = toRows(logs.entries, resourceById).toSorted((a, b) => b.ts - a.ts);
+	const allTail = tail && cursor === "" ? toRows(tailState.entries, resourceById) : [];
 
-	const batchRows = toRows(
-		logs.clusterLogs.map((c) => ({ entries: c.data?.entries ?? [], region: c.region })),
-		resourceById,
-	)
-		.filter((r) => cutoff === null || r.ts >= cutoff)
-		.toSorted((a, b) => b.ts - a.ts);
-
-	const regionByCluster = new Map(clusters.map((c) => [c.clusterId, c.region]));
-	const tailRegion = backend.transports.length === 1 ? (regionByCluster.get(backend.transports[0]?.cluster.clusterId ?? "") ?? "") : "";
-	const allTail = tail && cursor === "" ? toRows([{ entries: tailState.entries, region: tailRegion }], resourceById) : [];
 	const frozen = selectedKey !== null && freezeTs !== null;
 	const tailRows = frozen ? allTail.filter((r) => r.ts <= freezeTs) : allTail;
 	const held = frozen ? allTail.length - tailRows.length : 0;
@@ -116,7 +100,7 @@ export function LogsView() {
 	const rate = allTail.filter((r) => r.ts > nowMs - 10_000).length / 10;
 
 	const isLoading = logs.isLoading && !backend.impossible;
-	const truncated = cutoff !== null;
+	const truncated = cutoffCursor !== null;
 	const from = nowMs - timeRangeMs(range);
 
 	const bw = timeRangeMs(range) / BUCKETS;
@@ -167,7 +151,6 @@ export function LogsView() {
 		};
 		if (key === "level") LEVELS.forEach((l) => { add(l, 0); });
 		if (key === "resource") resources.forEach((r) => { add(r.name, 0); });
-		if (key === "region") clusters.forEach((c) => { add(c.region, 0); });
 		for (const r of rows) {
 			if (key === "level") add(r.level);
 			if (key === "resource") add(r.resourceName);
@@ -182,7 +165,7 @@ export function LogsView() {
 	const freeWords = appliedText.split(WHITESPACE).filter(Boolean);
 	const rangeLabel = RANGES.find((r) => r.key === range)?.key ?? range;
 	const matched = `${formatCount(rows.length)}${truncated ? "+" : ""} lines`;
-	const error = logs.errors[0];
+	const error = logs.error ?? (tail ? tailState.error : null);
 	const query = queryStr(tokens, appliedText);
 	const widen = range === QUERY_MAX_RANGE ? undefined : <WidenRangeButton max={QUERY_MAX_RANGE} />;
 	const clearSearch = () => {
@@ -192,14 +175,14 @@ export function LogsView() {
 	};
 
 	return (
-		<ObsGate kind="logs">
+		<>
 			<div className="flex flex-wrap items-center gap-2">
 				<QueryBar valueCounts={valueCounts} />
 				<TimeRangeMenu maxRange={QUERY_MAX_RANGE} />
 				<LiveTailButton
 					on={tail}
 					rate={rate}
-					disabled={cursor !== "" || transports.length === 0}
+					disabled={cursor !== "" || backend.impossible}
 					onToggle={() => {
 						setTail(!tail);
 						setPage(0);
@@ -279,13 +262,13 @@ export function LogsView() {
 									}}
 								/>
 								{isLoading && <LoadingRows />}
-								{!isLoading && error !== undefined && (
+								{!isLoading && error !== null && (
 									<div className="px-4 py-6 text-bad-fg">{getErrorMessage(error, "Failed to load logs")}</div>
 								)}
-								{!isLoading && error === undefined && rows.length === 0 && tail && (
+								{!isLoading && error === null && rows.length === 0 && tail && (
 									<div className="px-4 py-6 text-fg3">Waiting for new logs…</div>
 								)}
-								{!isLoading && error === undefined && rows.length === 0 && !tail && (
+								{!isLoading && error === null && rows.length === 0 && !tail && (
 									<div className="border-b border-line">
 										{query === "" ? (
 											<EmptyState
@@ -370,7 +353,7 @@ export function LogsView() {
 					/>
 				)}
 			</div>
-		</ObsGate>
+		</>
 	);
 }
 

@@ -68,9 +68,14 @@ func decodeLogCursor(value string) (logCursor, error) {
 	return logCursor{timestamp: timestamp, blockNumber: blockNumber, blockOffset: blockOffset}, nil
 }
 
+type LogRegions struct {
+	Include []string
+	Exclude []string
+}
+
 func QueryLogs(ctx context.Context, conn driver.Conn, workspaceID string, resourceIDs []string,
 	startTime, endTime time.Time, search string, levels []string, labels map[string]string,
-	limit int32, cursor string, order observabilityv1.LogOrder, queryTimeout int,
+	limit int32, cursor string, order observabilityv1.LogOrder, queryTimeout int, regions LogRegions,
 ) ([]*observabilityv1.LogEntry, string, error) {
 	page, err := QueryLogPage(
 		ctx,
@@ -85,7 +90,7 @@ func QueryLogs(ctx context.Context, conn driver.Conn, workspaceID string, resour
 		limit,
 		cursor,
 		order,
-		queryTimeout,
+		queryTimeout, regions,
 	)
 	if err != nil {
 		return nil, "", err
@@ -105,7 +110,7 @@ func QueryLogPage(
 	limit int32,
 	cursor string,
 	order observabilityv1.LogOrder,
-	queryTimeout int,
+	queryTimeout int, regions LogRegions,
 ) (LogPage, error) {
 	query, args, err := buildLogsQuery(
 		workspaceID,
@@ -118,7 +123,7 @@ func QueryLogPage(
 		limit,
 		cursor,
 		order,
-		queryTimeout,
+		queryTimeout, regions,
 	)
 	if err != nil {
 		return LogPage{}, err
@@ -200,7 +205,7 @@ func buildLogsQuery(
 	limit int32,
 	cursor string,
 	order observabilityv1.LogOrder,
-	queryTimeout int,
+	queryTimeout int, regions LogRegions,
 ) (string, []any, error) {
 	var args []any
 	queryParts := []string{
@@ -238,6 +243,30 @@ func buildLogsQuery(
 	for k, v := range labels {
 		whereParts = append(whereParts, "ResourceAttributes[?] = ?")
 		args = append(args, k, v)
+	}
+
+	for _, group := range []struct {
+		values  []string
+		exclude bool
+	}{
+		{regions.Include, false}, {regions.Exclude, true},
+	} {
+		var clauses []string
+		for _, pattern := range group.values {
+			if strings.HasSuffix(pattern, "*") {
+				clauses = append(clauses, "startsWith(lowerUTF8(ResourceAttributes[?]), ?)")
+			} else {
+				clauses = append(clauses, "lowerUTF8(ResourceAttributes[?]) = ?")
+			}
+			args = append(args, "loco.region", strings.ToLower(strings.TrimSuffix(pattern, "*")))
+		}
+		if len(clauses) > 0 {
+			clause := "(" + strings.Join(clauses, " OR ") + ")"
+			if group.exclude {
+				clause = "NOT " + clause
+			}
+			whereParts = append(whereParts, clause)
+		}
 	}
 
 	if cursor != "" {

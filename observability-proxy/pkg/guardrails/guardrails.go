@@ -14,6 +14,7 @@ import (
 )
 
 var (
+	errInvalidRegionFilter = errors.New("region filters must be nonempty with at most one trailing wildcard")
 	errMetricNameRequired  = errors.New("metric_name is required")
 	errTimeRangeRequired   = errors.New("start_time and end_time are required")
 	errEndBeforeStart      = errors.New("end_time must be after start_time")
@@ -29,6 +30,8 @@ var (
 const (
 	reservedAttributePrefix = "loco."
 	kubernetesLabelPrefix   = "loco.io/"
+	maxRegionPatterns       = 100
+	maxRegionPatternBytes   = 128
 	traceIDBytes            = 16
 	traceRequestMaxLimit    = 10000
 )
@@ -39,6 +42,9 @@ func ValidateLogsRequest(req *observabilityv1.QueryLogsRequest, cfg *config.Conf
 		return errWorkspaceIDRequired
 	}
 	if err := validateLabels(req.GetLabels()); err != nil {
+		return err
+	}
+	if err := validateRegions(req.GetRegions(), req.GetExcludedRegions()); err != nil {
 		return err
 	}
 
@@ -78,6 +84,9 @@ func ValidateTailRequest(req *observabilityv1.TailLogsRequest, cfg *config.Confi
 		return errWorkspaceIDRequired
 	}
 	if err := validateLabels(req.GetLabels()); err != nil {
+		return err
+	}
+	if err := validateRegions(req.GetRegions(), req.GetExcludedRegions()); err != nil {
 		return err
 	}
 	if req.GetSince() == nil {
@@ -177,4 +186,19 @@ func ValidateTracesRequest(req *observabilityv1.QueryTracesRequest, cfg *config.
 		return errTraceTimestampRange
 	}
 	return validateTimeRange(start, end, cfg.MaxTimeRange)
+}
+
+func validateRegions(groups ...[]string) error {
+	for _, group := range groups {
+		if len(group) > maxRegionPatterns {
+			return errInvalidRegionFilter
+		}
+		for _, value := range group {
+			if strings.TrimSpace(value) == "" || len(value) > maxRegionPatternBytes ||
+				strings.Contains(strings.TrimSuffix(value, "*"), "*") {
+				return errInvalidRegionFilter
+			}
+		}
+	}
+	return nil
 }

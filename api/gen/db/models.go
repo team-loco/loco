@@ -331,7 +331,6 @@ type Cluster struct {
 	CapacityCpuMillicores           *int64     `json:"capacityCpuMillicores"`
 	CapacityMemoryBytes             *int64     `json:"capacityMemoryBytes"`
 	AgentVersion                    *string    `json:"agentVersion"`
-	ObservabilityProxyEndpoint      *string    `json:"observabilityProxyEndpoint"`
 	GatewayHostname                 *string    `json:"gatewayHostname"`
 	SyncGeneration                  int64      `json:"syncGeneration"`
 	ConnectionCredentialFingerprint *string    `json:"connectionCredentialFingerprint"`

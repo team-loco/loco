@@ -29,34 +29,6 @@ SELECT id, name, region, provider, is_active, is_default, endpoint, health_statu
 FROM clusters
 WHERE id = $1;
 
--- name: GetObservabilityClustersForWorkspace :many
-SELECT c.id, c.name, c.region, c.observability_proxy_endpoint
-FROM clusters c
-WHERE c.is_active = true
-  AND (
-    EXISTS (
-      SELECT 1
-      FROM deployments d
-      INNER JOIN resources r ON r.id = d.resource_id
-      WHERE d.cluster_id = c.id
-        AND d.is_active = true
-        AND r.workspace_id = $1
-    )
-    OR EXISTS (
-      SELECT 1
-      FROM builds b
-      INNER JOIN resources r ON r.id = b.resource_id
-      WHERE b.cluster_id = c.id
-        AND r.workspace_id = $1
-    )
-  )
-ORDER BY c.region, c.id;
-
--- name: SetClusterObservabilityEndpoint :exec
-UPDATE clusters
-SET observability_proxy_endpoint = $2, updated_at = NOW()
-WHERE id = $1;
-
 -- name: SetClusterGatewayHostname :exec
 UPDATE clusters
 SET gateway_hostname = $2, updated_at = NOW()

@@ -47,11 +47,6 @@ func cmdFakePlatform(ts *testscript.TestScript, api *fakeAPI, neg bool, args []s
 		api.mu.Lock()
 		api.platform.noPlatformDomain = true
 		api.mu.Unlock()
-	case "no-proxy":
-		requireArgs(ts, neg, args, 1, "fakeapi no-proxy")
-		api.mu.Lock()
-		api.platform.noProxy = true
-		api.mu.Unlock()
 	case "seed":
 		requireArgs(ts, neg, args, 2, "fakeapi seed <service>")
 		seedBuild(api, args[1])

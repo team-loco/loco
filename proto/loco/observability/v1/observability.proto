@@ -7,8 +7,7 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/observability/v1;observabilityv1";
 
-// ObservabilityProxyService provides secure, workspace-scoped access to cluster-local telemetry.
-// Runs in the data plane (per-cluster).
+// ObservabilityProxyService queries telemetry in the selected regional control plane.
 service ObservabilityProxyService {
   // QueryLogs returns historical log entries matching the given filters.
   rpc QueryLogs(QueryLogsRequest) returns (QueryLogsResponse);
@@ -55,6 +54,24 @@ message QueryLogsRequest {
 
   // Ordering of results (newest/oldest first).
   LogOrder order = 10;
+  repeated string regions = 11 [(buf.validate.field).repeated = {
+    max_items: 100
+    items: {
+      string: {
+        min_len: 1
+        max_len: 128
+      }
+    }
+  }];
+  repeated string excluded_regions = 12 [(buf.validate.field).repeated = {
+    max_items: 100
+    items: {
+      string: {
+        min_len: 1
+        max_len: 128
+      }
+    }
+  }];
 
   option (buf.validate.message).cel = {
     id: "time_range.start_lte_end"
@@ -119,6 +136,24 @@ message TailLogsRequest {
   // Filter by resource attribute key-value pairs.
   map<string, string> labels = 5;
   google.protobuf.Timestamp since = 6;
+  repeated string regions = 7 [(buf.validate.field).repeated = {
+    max_items: 100
+    items: {
+      string: {
+        min_len: 1
+        max_len: 128
+      }
+    }
+  }];
+  repeated string excluded_regions = 8 [(buf.validate.field).repeated = {
+    max_items: 100
+    items: {
+      string: {
+        min_len: 1
+        max_len: 128
+      }
+    }
+  }];
 }
 
 // TailLogsResponse is a server-streamed event (log entry or heartbeat).
@@ -144,8 +179,8 @@ message Heartbeat {
 message QueryMetricsRequest {
   // Workspace ID to query metrics from (required).
   string workspace_id = 1 [(buf.validate.field).string.uuid = true];
-  // Resource IDs to filter by (required, non-empty).
-  repeated string resource_ids = 2 [(buf.validate.field).repeated.min_items = 1];
+  // Resource IDs to filter by. Empty means all resources in the workspace.
+  repeated string resource_ids = 2;
 
   // Start of time range (inclusive).
   google.protobuf.Timestamp start_time = 3;

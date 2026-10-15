@@ -18,7 +18,7 @@ interface FacetValue {
 }
 
 export function LogFacets({ rows }: { rows: LogRow[] }) {
-	const { tokens, setTokens, resources, clusters } = useObs();
+	const { tokens, setTokens, resources } = useObs();
 
 	const levelCounts = new Map<string, number>();
 	const resCounts = new Map<string, number>();
@@ -31,7 +31,7 @@ export function LogFacets({ rows }: { rows: LogRow[] }) {
 		bump(resCounts, r.resourceName);
 		bump(regionCounts, r.region);
 	}
-	const regions = [...new Set(clusters.map((c) => c.region))];
+	const regions = [...new Set([...regionCounts.keys(), ...tokens.filter((t) => t.key === "region").map((t) => t.value)])];
 
 	const facets: { key: FieldKey; title: string; values: FacetValue[] }[] = [
 		{
@@ -42,7 +42,9 @@ export function LogFacets({ rows }: { rows: LogRow[] }) {
 		{
 			key: "resource",
 			title: "Resource",
-			values: resources.map((r) => ({ value: r.name, count: resCounts.get(r.name) ?? 0, dot: r.color, dotClass: null })),
+			values: [...new Set([...resources.map((r) => r.name), ...resCounts.keys()])].map((name) => ({
+				value: name, count: resCounts.get(name) ?? 0, dot: resources.find((r) => r.name === name)?.color ?? "var(--fg4)", dotClass: null,
+			})),
 		},
 		{
 			key: "region",
