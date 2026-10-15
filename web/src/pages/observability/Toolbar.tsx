@@ -15,8 +15,10 @@ import { cn } from "@/lib/utils";
 import { RANGES, useObs } from "./context";
 import { Dot } from "./shared";
 
-export function TimeRangeMenu({ maxRange }: { maxRange: TimeRange | null }) {
-	const { range, setRange } = useObs();
+export function TimeRangeMenu({ maxRange, value, onChange }: { maxRange: TimeRange | null; value?: TimeRange; onChange?: (range: TimeRange) => void }) {
+	const context = useObs();
+	const range = value ?? context.range;
+	const setRange = onChange ?? context.setRange;
 	const current = RANGES.find((r) => r.key === range);
 	const maxIdx = maxRange === null ? RANGES.length - 1 : RANGES.findIndex((r) => r.key === maxRange);
 	return (
@@ -53,8 +55,11 @@ export function TimeRangeMenu({ maxRange }: { maxRange: TimeRange | null }) {
 	);
 }
 
-export function ResourceMenu() {
-	const { resources, selected, setSelected } = useObs();
+export function ResourceMenu({ value, onChange }: { value?: string[] | null; onChange?: (names: string[] | null) => void } = {}) {
+	const context = useObs();
+	const { resources } = context;
+	const selected = value === undefined ? context.selected : value;
+	const setSelected = onChange ?? context.setSelected;
 	const names = resources.map((r) => r.name);
 	const sel = new Set(selected ?? names);
 	const count = names.filter((n) => sel.has(n)).length;

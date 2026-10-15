@@ -124,7 +124,7 @@ export function AppSidebar() {
 					active: onObs && view === "metrics",
 					preload: pageImporters.Observability,
 				},
-				{ name: "Traces", icon: <WaypointsIcon />, active: false, soon: true },
+				{ name: "Traces", icon: <WaypointsIcon />, to: obs("traces"), active: onObs && view === "traces", preload: pageImporters.Observability },
 				{
 					name: "Events",
 					icon: <BellIcon />,

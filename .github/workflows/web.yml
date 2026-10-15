@@ -7,6 +7,8 @@ on:
       - main
     paths:
       - "web/**"
+      - "e2e/trace_ui.py"
+      - ".agents/skills/ui-evidence/**"
       - "gen/ts/**"
       - "package.json"
       - "bun.lock"
@@ -17,6 +19,8 @@ on:
   pull_request:
     paths:
       - "web/**"
+      - "e2e/trace_ui.py"
+      - ".agents/skills/ui-evidence/**"
       - "gen/ts/**"
       - "package.json"
       - "bun.lock"
@@ -60,3 +64,17 @@ jobs:
 
       - name: Test
         run: mise run test:web
+
+      - name: Install browser
+        run: uv run --frozen --project docs playwright install --with-deps chromium
+
+      - name: Test trace viewer in Chromium
+        run: mise run e2e:trace-ui
+
+      - name: Upload trace viewer browser evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: trace-ui-evidence
+          path: e2e/out/trace-ui
+          if-no-files-found: warn

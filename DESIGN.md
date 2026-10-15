@@ -36,3 +36,5 @@ Loco's dashboard helps developers inspect deployment state, compare releases and
 | Dialogs and confirmations | Shared design Dialog wrappers; existing `AGENTS.md` frontend rules apply |
 
 The deployment-history cursor contract lives in `proto/loco/deployment/v1/deployment.proto`. Use Next and Previous consistently with the other tables. Until the final cursor is exhausted, describe the count as loaded records; fetch older pages on request. Keep typography, colors and control placement consistent with the resource page and the audit log.
+
+The Traces view uses the shared observability shell, TimeRangeMenu and ResourceMenu. Committed trace ID, resource filter, span selection and fixed time bounds live in URL search parameters. Span pages keep the same bounds and regional API transport. Browse counts describe loaded spans; trace detail expands the selection to all resources in the current workspace and environment. The waterfall uses one timing unit across its axis, semantic error colors and parent indentation. On narrow screens, operation labels sit above timing bars and span details follow the waterfall in document flow.

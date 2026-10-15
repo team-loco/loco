@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { useNavigate } from "react-router";
+import { observabilityPath } from "@/lib/routes";
+import { timeRangeMs } from "@/lib/obs";
 import { ChartLineIcon, CheckIcon, CopyIcon, MinusIcon, PlusIcon, ScrollTextIcon, ServerIcon, WaypointsIcon } from "lucide-react";
 
 import { Button } from "@/components/design/Button";
@@ -42,7 +45,8 @@ export function LogDetail({
 	onNext: (() => void) | null;
 	onClose: () => void;
 }) {
-	const { tokens, setTokens, goTo } = useObs();
+	const { tokens, setTokens, goTo, orgId, workspaceId } = useObs();
+	const navigate = useNavigate();
 	const [tab, setTab] = useState<Tab>("details");
 	const [attrQ, setAttrQ] = useState("");
 	const [copied, copy] = useCopy();
@@ -156,7 +160,7 @@ export function LogDetail({
 								icon={<WaypointsIcon />}
 								label="View trace"
 								hint={e.traceId !== "" ? e.traceId.slice(0, 8) : undefined}
-								soon
+								onClick={e.traceId === "" ? undefined : () => { void navigate(observabilityPath(orgId, workspaceId, "traces", { trace: e.traceId, ...(e.spanId !== "" ? { span: e.spanId } : {}), ...(e.resourceAttributes["loco.environment.id"] ? { env: e.resourceAttributes["loco.environment.id"] } : {}), range, start: String(nowMs - timeRangeMs(range)), end: String(nowMs) })); }}
 							/>
 							<JumpButton icon={<ScrollTextIcon />} label="Logs in this trace" soon />
 							<JumpButton
