@@ -1530,7 +1530,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x04type\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04type\x12t\n" +
 	"\x05image\x18\x02 \x01(\tB^\xbaH[\xd8\x01\x01rV2T^([a-z0-9\\-._]+(:[0-9]+)?(/[a-z0-9\\-._]+)*)(:[a-z0-9\\-._]+)?(@sha256:[a-f0-9]{64})?$R\x05image\x12(\n" +
 	"\bbuild_id\x18\x04 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\abuildId\x88\x01\x01B\v\n" +
-	"\t_build_idJ\x04\b\x03\x10\x04R\x0fdockerfile_path\"\xec\a\n" +
+	"\t_build_idJ\x04\b\x03\x10\x04R\x0fdockerfile_path\"\xf8\a\n" +
 	"\x15ServiceDeploymentSpec\x12=\n" +
 	"\x05build\x18\x01 \x01(\v2\x1f.loco.deployment.v1.BuildSourceB\x06\xbaH\x03\xc8\x01\x01R\x05build\x12M\n" +
 	"\fhealth_check\x18\x02 \x01(\v2%.loco.deployment.v1.HealthCheckConfigH\x00R\vhealthCheck\x88\x01\x01\x12\x1e\n" +
@@ -1542,9 +1542,11 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x03env\x18\b \x03(\v22.loco.deployment.v1.ServiceDeploymentSpec.EnvEntryR\x03env\x12\x1f\n" +
 	"\x04port\x18\t \x01(\x05B\v\xbaH\b\x1a\x06\x18\xff\xff\x03(\x01R\x04port\x12A\n" +
 	"\arouting\x18\n" +
-	" \x01(\v2\".loco.deployment.v1.ServiceRoutingH\x06R\arouting\x88\x01\x01\x12,\n" +
-	"\vrun_as_user\x18\v \x01(\x03B\a\xbaH\x04\"\x02 \x00H\aR\trunAsUser\x88\x01\x01\x12.\n" +
-	"\frun_as_group\x18\f \x01(\x03B\a\xbaH\x04\"\x02 \x00H\bR\n" +
+	" \x01(\v2\".loco.deployment.v1.ServiceRoutingH\x06R\arouting\x88\x01\x01\x122\n" +
+	"\vrun_as_user\x18\v \x01(\x03B\r\xbaH\n" +
+	"\"\b\x18\xff\xff\xff\xff\a \x00H\aR\trunAsUser\x88\x01\x01\x124\n" +
+	"\frun_as_group\x18\f \x01(\x03B\r\xbaH\n" +
+	"\"\b\x18\xff\xff\xff\xff\a \x00H\bR\n" +
 	"runAsGroup\x88\x01\x01\x1a6\n" +
 	"\bEnvEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +

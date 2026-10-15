@@ -53,14 +53,14 @@ func TestApplyRuntimeUserPersistsAndClears(t *testing.T) {
 }
 
 func TestRuntimeUserWireValidation(t *testing.T) {
-	for _, id := range []int64{-1, 0, 82, 1654} {
+	for _, id := range []int64{-1, 0, 82, 1654, 2147483648} {
 		service := &deploymentv1.ServiceDeploymentSpec{
 			Build:      &deploymentv1.BuildSource{Type: "image"},
 			Port:       8080,
 			RunAsUser:  &id,
 			RunAsGroup: &id,
 		}
-		if err := protovalidate.Validate(service); (err != nil) != (id <= 0) {
+		if err := protovalidate.Validate(service); (err != nil) != (id <= 0 || id > 2147483647) {
 			t.Fatalf("ID %d validation: %v", id, err)
 		}
 		encoded, err := protojson.Marshal(service)

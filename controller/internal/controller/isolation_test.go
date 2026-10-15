@@ -251,13 +251,17 @@ var _ = Describe("Workspace isolation", func() {
 	})
 
 	It("rejects root runtime IDs at the Application API boundary", func() {
-		for _, id := range []int64{0, -1} {
+		for _, id := range []int64{0, -1, 2147483648} {
 			app := isolationTestApplication("ws-runtime-reject", "reject-user")
 			app.Spec.ServiceSpec.Deployment.RunAsUser = new(id)
-			Expect(k8sClient.Create(ctx, app)).NotTo(Succeed())
+			err := k8sClient.Create(ctx, app)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("runAsUser"))
 			app.Spec.ServiceSpec.Deployment.RunAsUser = nil
 			app.Spec.ServiceSpec.Deployment.RunAsGroup = new(id)
-			Expect(k8sClient.Create(ctx, app)).NotTo(Succeed())
+			err = k8sClient.Create(ctx, app)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("runAsGroup"))
 		}
 	})
 

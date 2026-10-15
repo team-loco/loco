@@ -2,6 +2,7 @@ package locofile
 
 import (
 	"errors"
+	"math"
 	"regexp"
 	"slices"
 )
@@ -120,7 +121,7 @@ func sortedKeys[V any](m map[string]V) []string {
 func validateRuntimeIDs(path string, user, group *int64) []error {
 	var errs []error
 	for field, id := range map[string]*int64{"runAsUser": user, "runAsGroup": group} {
-		if id != nil && *id <= 0 {
+		if id != nil && (*id <= 0 || *id > math.MaxInt32) {
 			errs = append(errs, &FieldError{Path: path + "." + field, Err: ErrRuntimeID})
 		}
 	}

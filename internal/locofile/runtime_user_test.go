@@ -51,7 +51,7 @@ func TestRuntimeUserEnvironmentOverrides(t *testing.T) {
 
 func TestRuntimeUserRejectsRootAndNegativeIDs(t *testing.T) {
 	for _, field := range []string{"runAsUser", "runAsGroup"} {
-		for _, value := range []string{"0", "-1"} {
+		for _, value := range []string{"0", "-1", "2147483648"} {
 			source := strings.Replace(runtimeUserFile, field+": 1654", field+": "+value, 1)
 			if _, err := Parse([]byte(source)); err == nil {
 				t.Errorf("accepted %s=%s", field, value)

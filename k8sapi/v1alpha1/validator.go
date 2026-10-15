@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -23,7 +24,7 @@ var (
 	errBlobValidationTODO     = errors.New("blob resource type validation: TODO")
 	errNilServiceSpec         = errors.New("serviceSpec cannot be nil")
 	errDeploymentMissing      = errors.New("serviceSpec.deployment must be set")
-	ErrRuntimeID              = errors.New("runtime user and group IDs must be positive")
+	ErrRuntimeID              = errors.New("runtime user and group IDs must be between 1 and 2147483647")
 	errNilDeployment          = errors.New("deployment cannot be nil")
 	errImageMissing           = errors.New("image must be set")
 	errHealthPathMissing      = errors.New("healthCheck.path must be set")
@@ -405,7 +406,7 @@ func ValidateRoute(pathPrefix string, idleTimeout int32) error {
 }
 
 func ValidateRuntimeID(id *int64) error {
-	if id != nil && *id <= 0 {
+	if id != nil && (*id <= 0 || *id > math.MaxInt32) {
 		return ErrRuntimeID
 	}
 	return nil

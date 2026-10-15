@@ -168,9 +168,11 @@ type ServiceDeploymentSpec struct {
 
 	// +optional
 	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=2147483647
 	RunAsUser *int64 `json:"runAsUser,omitempty"`
 	// +optional
 	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=2147483647
 	RunAsGroup *int64 `json:"runAsGroup,omitempty"`
 
 	HealthCheck  *HealthCheckSpec  `json:"healthCheck,omitempty"`
