@@ -57,10 +57,10 @@ done
 region=obs-stack-region
 manifest=$(helm template loco-obs "$chart" --namespace "$namespace" --set global.region="$region" "${password_sets[@]}")
 proxy_env=$(helm template loco-control-plane charts/loco-control-plane --set obsProxy.image.tag="$1" \
-	--set obsProxy.controlPlane.url=http://control-plane.invalid \
+	--set api.image.tag="$1" --set api.existingSecret=fixture-api-env \
 	--set obsProxy.clickhouse.existingSecret.name="$run_id-reader-url" \
 	--set obsProxy.clickhouse.migratorExistingSecret.name="$run_id-migrator-url" |
-	yq -o json -I 0 'select(.kind == "Deployment") | .spec.template.spec.containers[0].env')
+	yq -o json -I 0 'select(.kind == "Deployment" and .metadata.name == "loco-control-plane-obs-proxy") | .spec.template.spec.containers[0].env')
 chi=$(yq -o json -I 0 'select(.kind == "ClickHouseInstallation")' <<<"$manifest")
 clickhouse_image=$(yq '.spec.templates.podTemplates[0].spec.containers[0].image' <<<"$chi")
 collector_image=$(yq 'select(.kind == "Deployment" and .metadata.name == "otel-col-deploy") | .spec.template.spec.containers[0].image' <<<"$manifest")
