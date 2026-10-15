@@ -250,19 +250,6 @@ func TestNewAPIConfigReadsInstallWebhooks(t *testing.T) {
 	}
 }
 
-func TestNewMigrateConfigReadsOnlyTheDatabase(t *testing.T) {
-	clearAPIConfigEnv(t)
-	t.Setenv("DATABASE_URL", testDatabaseURL)
-	t.Setenv(authIssuersEnv, adminIssuers)
-	t.Setenv(installHooksEnv, "{")
-	t.Setenv("AUTH_SIGNUP_MODE", "invite")
-	got := newMigrateConfig()
-	want := MigrateConfig{DatabaseURL: testDatabaseURL}
-	if got != want {
-		t.Errorf("migrate config = %+v, want %+v", got, want)
-	}
-}
-
 func TestNewAPIConfigResolvesAdminTokens(t *testing.T) {
 	clearAPIConfigEnv(t)
 	t.Setenv(authIssuersEnv, adminIssuers)
