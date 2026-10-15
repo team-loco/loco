@@ -131,9 +131,13 @@ run = "go tool cover -o coverage.html -html=coverage.out && open coverage.html"
 description = "Run every linter CI runs"
 depends = ["lint:*"]
 
+[tasks."fmt:proto"]
+description = "Format the protobuf definitions with buf"
+run = "buf format -w"
+
 [tasks."lint:proto"]
-description = "Run buf lint on the protobuf definitions"
-run = "buf lint"
+description = "Check protobuf formatting and lint rules"
+run = ["buf format --diff --exit-code", "buf lint"]
 
 [tasks."lint:web"]
 description = "Run oxlint, eslint and the typecheck on the web UI"
