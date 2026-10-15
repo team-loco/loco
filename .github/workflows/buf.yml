@@ -83,6 +83,9 @@ jobs:
 
       - uses: ./.github/actions/setup-tools
 
+      - name: Check protobuf formatting and lint
+        run: mise run lint:proto
+
       - uses: bufbuild/buf-action@85aebf73123b5c15fd5528aaecbf9129cddf7fa7 # v1.6.0
         with:
           token: ${{ secrets.BUF_TOKEN }}
