@@ -19,7 +19,7 @@ func TestMetricsDiscoveryAndIngressAreOptIn(t *testing.T) {
 		template := deployment.Spec.Template
 		if enabled {
 			if template.Labels[labelMetricsPort] != "9090" ||
-				template.Annotations[annotationMetricsPath] != "/metrics" {
+				template.Annotations[annotationMetricsPath] != defaultMetricsPath {
 				t.Fatalf("metadata = %+v", template)
 			}
 		} else if _, present := template.Labels[labelMetricsPort]; present {

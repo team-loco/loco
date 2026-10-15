@@ -186,6 +186,37 @@ var _ = Describe("Workspace isolation", func() {
 		Expect(apierrors.IsNotFound(err)).To(BeTrue())
 	})
 
+	It("updates metrics discovery and removes collector ingress with the application", func() {
+		app := isolationTestApplication("ws-metrics-policy", "metrics-policy")
+		reconciler.Telemetry.ScrapeNamespace = "observability-node"
+		reconciler.Telemetry.ScrapeCollector = "otel-col-daemon"
+		Expect(ensureNamespace(ctx, k8sClient, app)).To(Succeed())
+		app.Spec.ServiceSpec.Obs = &locov1alpha1.ObsSpec{
+			Metrics: locov1alpha1.MetricsSpec{Enabled: true, Port: 9090, Path: defaultMetricsPath},
+		}
+		Expect(reconciler.ensureMetricsIngressPolicy(ctx, app)).To(Succeed())
+		_, err := reconciler.ensureDeployment(ctx, app, envSecretMount{})
+		Expect(err).NotTo(HaveOccurred())
+		key := client.ObjectKey{Namespace: getNamespace(app), Name: getName(app)}
+		deployment := &appsv1.Deployment{}
+		Expect(k8sClient.Get(ctx, key, deployment)).To(Succeed())
+		Expect(deployment.Spec.Template.Labels[labelMetricsPort]).To(Equal("9090"))
+		Expect(deployment.Spec.Template.Annotations[annotationMetricsPath]).To(Equal(defaultMetricsPath))
+		app.Spec.ServiceSpec.Obs = nil
+		Expect(reconciler.ensureMetricsIngressPolicy(ctx, app)).To(Succeed())
+		_, err = reconciler.ensureDeployment(ctx, app, envSecretMount{})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(k8sClient.Get(ctx, key, deployment)).To(Succeed())
+		Expect(deployment.Spec.Template.Labels).NotTo(HaveKey(labelMetricsPort))
+		Expect(deployment.Spec.Template.Annotations).NotTo(HaveKey(annotationMetricsPath))
+		policyName := getName(app) + "-metrics"
+		Expect(getPolicy(getNamespace(app), policyName).Spec.Ingress).To(BeEmpty())
+		Expect(reconciler.deleteAppObjects(ctx, app)).To(Succeed())
+		policyKey := client.ObjectKey{Namespace: getNamespace(app), Name: policyName}
+		err = k8sClient.Get(ctx, policyKey, &networkingv1.NetworkPolicy{})
+		Expect(apierrors.IsNotFound(err)).To(BeTrue())
+	})
+
 	It("runs the app without a service account token under restricted pod security", func() {
 		app := isolationTestApplication("ws-pods", "pods")
 		namespace := getNamespace(app)

@@ -13,6 +13,7 @@ import (
 )
 
 const (
+	defaultMetricsPath             = "/metrics"
 	labelMetricsPort               = "loco.io/metrics-port"
 	annotationMetricsPath          = "loco.io/metrics-path"
 	envOTLPEndpoint                = "OTEL_EXPORTER_OTLP_ENDPOINT"

@@ -26,7 +26,7 @@ func (r *LocoResourceReconciler) metricsIngressPolicy(
 		rule := networkingv1ac.NetworkPolicyIngressRule().WithFrom(peer).WithPorts(tcpPort(obs.Metrics.Port))
 		spec.WithIngress(rule)
 	}
-	return networkingv1ac.NetworkPolicy(getName(app)+"-metrics", getNamespace(app)).
+	return networkingv1ac.NetworkPolicy(getMetricsPolicyName(app), getNamespace(app)).
 		WithLabels(managedLabels(app)).
 		WithAnnotations(ownerAnnotations(app)).
 		WithSpec(spec)
@@ -43,4 +43,8 @@ func (r *LocoResourceReconciler) ensureMetricsIngressPolicy(ctx context.Context,
 		r.Client,
 		[]*networkingv1ac.NetworkPolicyApplyConfiguration{r.metricsIngressPolicy(app)},
 	)
+}
+
+func getMetricsPolicyName(app *locov1alpha1.Application) string {
+	return getName(app) + "-metrics"
 }
