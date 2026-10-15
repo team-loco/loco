@@ -62,7 +62,7 @@ export function Observability() {
 
 	return (
 		<div className="flex w-full max-w-[1440px] min-w-0 flex-col gap-4 px-4 pt-2 pb-16 md:px-8">
-			<PageTitle title={viewTitle(view)} />
+			{view !== "traces" && <PageTitle title={viewTitle(view)} />}
 			<ObsProvider orgId={activeOrgId} workspaceId={activeWorkspaceId} view={view}>
 				<ViewBody view={view} />
 			</ObsProvider>

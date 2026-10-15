@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { RANGES, useObs } from "./context";
 import { Dot } from "./shared";
 
-export function TimeRangeMenu({ maxRange, value, onChange }: { maxRange: TimeRange | null; value?: TimeRange; onChange?: (range: TimeRange) => void }) {
+export function TimeRangeMenu({ maxRange, value, onChange, compact = false }: { maxRange: TimeRange | null; compact?: boolean; value?: TimeRange; onChange?: (range: TimeRange) => void }) {
 	const context = useObs();
 	const range = value ?? context.range;
 	const setRange = onChange ?? context.setRange;
@@ -24,7 +24,7 @@ export function TimeRangeMenu({ maxRange, value, onChange }: { maxRange: TimeRan
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger
-				render={<Button variant="outline" className="h-[38px] rounded-lg px-3 font-normal" />}
+				render={<Button variant="outline" className={compact ? "h-7 rounded-sm px-2 text-[11px] font-normal" : "h-[38px] rounded-lg px-3 font-normal"} />}
 			>
 				<ClockIcon className="text-fg3" />
 				{current?.label ?? range}
@@ -55,7 +55,7 @@ export function TimeRangeMenu({ maxRange, value, onChange }: { maxRange: TimeRan
 	);
 }
 
-export function ResourceMenu({ value, onChange }: { value?: string[] | null; onChange?: (names: string[] | null) => void } = {}) {
+export function ResourceMenu({ value, onChange, compact = false }: { compact?: boolean; value?: string[] | null; onChange?: (names: string[] | null) => void } = {}) {
 	const context = useObs();
 	const { resources } = context;
 	const selected = value === undefined ? context.selected : value;
@@ -68,7 +68,7 @@ export function ResourceMenu({ value, onChange }: { value?: string[] | null; onC
 		count === names.length || count === 0 ? "All resources" : count === 1 && first !== undefined ? first : `${String(count)} resources`;
 	return (
 		<DropdownMenu>
-			<DropdownMenuTrigger render={<Button variant="outline" className="h-[34px] px-2.5 font-normal" />}>
+			<DropdownMenuTrigger render={<Button variant="outline" className={compact ? "h-7 rounded-sm px-2 text-[11px] font-normal" : "h-[34px] px-2.5 font-normal"} />}>
 				<BoxIcon className="text-fg3" />
 				{label}
 				<ChevronDownIcon className="size-[13px] text-fg3" />

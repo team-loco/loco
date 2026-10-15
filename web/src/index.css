@@ -110,6 +110,14 @@
 
 :root {
 	--bg: #ffffff;
+	--trace-service-0: var(--fg3);
+	--trace-service-1: var(--accent);
+	--trace-service-2: var(--sh-keyword);
+	--trace-service-3: var(--sh-class);
+	--trace-service-4: var(--sh-string);
+	--trace-service-5: var(--warn);
+	--trace-service-6: var(--sh-property);
+	--trace-service-7: var(--sh-entity);
 	--bg2: #faf9f8;
 	--bg3: #f1efed;
 	--line: #e8e5e1;

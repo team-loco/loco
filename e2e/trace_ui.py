@@ -13,6 +13,7 @@ sys.dont_write_bytecode = True
 repo = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description='Exercise the production trace viewer with fixture trace responses')
 parser.add_argument('--state')
+parser.add_argument('--keep', action='store_true')
 parser.add_argument('--out', default=str(repo / 'e2e/out/trace-ui'))
 args = parser.parse_args()
 os.chdir(repo)
@@ -24,7 +25,9 @@ if args.state is None:
     with contextlib.redirect_stdout(output):
         evidence.cmd_up(argparse.Namespace(ref='HEAD', name='after', scenario=str(repo / '.agents/skills/ui-evidence/scenario.example.json')))
     args.state = output.getvalue().strip().splitlines()[-1]
-    atexit.register(lambda: evidence.stop_state(evidence.load_state(args.state)))
+    if not args.keep:
+        atexit.register(lambda: evidence.stop_state(evidence.load_state(args.state)))
+    print('Preview state:', args.state, flush=True)
 state = json.loads(Path(args.state).read_text())
 orgs = evidence.rpc(state['api_url'], state['users']['owner']['token'], 'loco.org.v1.OrgService/ListUserOrgs', {'userId': state['users']['owner']['id'], 'pageSize': 200})
 org_id = orgs['orgs'][0]['id']
@@ -70,12 +73,12 @@ with sync_playwright() as p:
             page.on('pageerror', lambda err: errors.append(str(err)))
             page.goto(state['ui_url'] + base)
             evidence.settle(page)
-            page.get_by_role('button', name='POST /api/checkout', exact=False).first.wait_for()
+            page.get_by_role('button', name='Open trace ' + trace, exact=True).first.wait_for()
             suffix = f"{theme}{('-narrow' if narrow else '')}"
             page.screenshot(path=out / f'trace-list-after-{suffix}.png', full_page=True)
-            page.get_by_role('button', name='POST /api/checkout', exact=False).first.click()
+            page.get_by_role('button', name='Open trace ' + trace, exact=True).first.click()
             evidence.settle(page)
-            page.get_by_text('This waterfall is partial.', exact=False).wait_for()
+            page.get_by_text('Partial waterfall', exact=False).wait_for()
             page.evaluate('window.scrollTo(0,0)')
             evidence.settle(page)
             if not narrow:
@@ -86,12 +89,17 @@ with sync_playwright() as p:
             evidence.settle(page)
             page.get_by_role('complementary', name='Span details').wait_for()
             if narrow:
-                assert page.get_by_role('complementary', name='Span details').evaluate('(element) => element === document.activeElement')
-                assert page.get_by_role('complementary', name='Span details').bounding_box()['y'] >= 0
-                page.get_by_role('button',name='Close span details',exact=True).click()
-                assert page.get_by_role('button',name='payment POST /payments/authorize',exact=True).evaluate('(element) => element === document.activeElement')
-                page.get_by_role('button',name='payment POST /payments/authorize',exact=True).click()
+                dialog = page.get_by_role('dialog', name='Span details')
+                dialog.wait_for()
+                assert dialog.evaluate('(element) => element.contains(document.activeElement)')
+                page.screenshot(path=out / f'trace-inspector-after-{suffix}.png', full_page=True)
+                page.keyboard.press('Escape')
                 evidence.settle(page)
+                assert page.get_by_role('button',name='payment POST /payments/authorize',exact=True).evaluate('(element) => element === document.activeElement')
+            assert page.locator('.trace-span-row').first.bounding_box()['height'] <= 28
+            axis = page.locator('.trace-axis').bounding_box()
+            timing = page.locator('.trace-span-time').first.bounding_box()
+            assert abs(axis['x'] - timing['x']) < 1 and abs(axis['width'] - timing['width']) < 1
             page.evaluate('window.scrollTo(0,0)')
             evidence.settle(page)
             page.screenshot(path=out / f'trace-detail-after-{suffix}.png', full_page=True)
@@ -128,10 +136,17 @@ with sync_playwright() as p:
                 assert page.get_by_text('http.response.status_code', exact=True).is_visible()
                 assert page.get_by_text('http.request.method', exact=True).count() == 0
                 page.get_by_role('button', name='Clear attribute search').click()
+                page.get_by_role('tab', name='Resource', exact=True).click()
+                page.get_by_text('service.version', exact=True).wait_for()
+                page.get_by_role('tab', name='Instrumentation', exact=True).click()
+                page.get_by_text('@opentelemetry/instrumentation-http', exact=True).wait_for()
+                page.get_by_role('button', name='All traces', exact=True).click()
+                evidence.settle(page)
                 page.get_by_role('textbox', name='Trace ID', exact=True).fill('invalid')
                 page.get_by_role('button', name='Search', exact=True).click()
                 assert page.get_by_text('Enter a 32-character hexadecimal trace ID.').is_visible()
-                page.get_by_role('button', name='Clear trace search').click()
+                page.get_by_role('textbox', name='Trace ID', exact=True).fill('')
+                page.get_by_role('button', name='Search', exact=True).click()
                 evidence.settle(page)
                 assert page.get_by_role('textbox', name='Trace ID', exact=True).input_value() == ''
                 page.goto(state['ui_url'] + base + '&trace=' + trace + '&span=ffffffffffffffff')
@@ -161,7 +176,7 @@ with sync_playwright() as p:
                 assert len(recorded) == previous_count
                 page.get_by_role('button', name='Show all resources').click()
                 evidence.settle(page)
-                page.get_by_role('button', name='POST /api/checkout', exact=False).first.wait_for()
+                page.get_by_role('button', name='Open trace ' + trace, exact=True).first.wait_for()
             context.close()
     environments = evidence.rpc(state['api_url'], state['users']['owner']['token'], 'loco.environment.v1.EnvironmentService/ListEnvironments', {'workspaceId': workspace_id})['environments']
     staging = next((environment['id'] for environment in environments if environment['name'] == 'staging'), None)
@@ -195,7 +210,8 @@ with sync_playwright() as p:
     page = context.new_page()
     page.goto(state['ui_url'] + base + '&trace=' + trace + '&span=' + spans[0]['spanId'])
     evidence.settle(page)
-    page.get_by_role('complementary',name='Span details').get_by_text(raw_service,exact=True).first.wait_for()
+    page.get_by_role('dialog',name='Span details').get_by_role('tab',name='Resource',exact=True).click()
+    page.get_by_role('dialog',name='Span details').get_by_text(raw_service,exact=True).first.wait_for()
     assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
     context.close()
     browser.close()
