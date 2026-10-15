@@ -74,7 +74,10 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(sbom['with']['image'], '${{ steps.platform.outputs.image }}')
 
     def test_pull_requests_build_each_platform_image_on_both_architectures(self):
-        matrix = self.workflow('docker.yml')['jobs']['buildkit-check']['strategy']['matrix']
+        workflow = self.workflow('docker.yml')
+        self.assertIn('tools/platform-images/**', workflow['on']['pull_request']['paths'])
+        self.assertIn('tests/versions/**', workflow['on']['pull_request']['paths'])
+        matrix = workflow['jobs']['buildkit-check']['strategy']['matrix']
         self.assertEqual({entry['platform'] for entry in matrix['target']}, {'linux/amd64', 'linux/arm64'})
         self.assertEqual({entry['dockerfile'] for entry in matrix['image']}, {'./api/Dockerfile', './agent/Dockerfile', './controller/Dockerfile', './builder/Dockerfile', './observability-proxy/Dockerfile', './web/Dockerfile'})
 
