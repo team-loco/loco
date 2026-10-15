@@ -277,7 +277,7 @@ func (s *BuildServer) StartBuild(
 
 	superseded, txErr := queueBuild(ctx, s.db, build.ID, build.ResourceID, clusterID)
 	if txErr != nil {
-		if errors.Is(txErr, errBuildNotQueueable) {
+		if errors.Is(txErr, errBuildNotQueueable) || errors.Is(txErr, ErrClusterNotAssignable) {
 			return nil, rpcerr.New(connect.CodeFailedPrecondition, txErr)
 		}
 		slog.ErrorContext(ctx, "failed to queue build", "error", txErr, "buildId", build.ID)
@@ -318,6 +318,9 @@ func queueBuild(
 			return lockErr
 		}
 
+		if assignErr := lockAssignableCluster(ctx, qtx, clusterID); assignErr != nil {
+			return assignErr
+		}
 		superseded, cancelErr := qtx.CancelOtherActiveBuilds(ctx, genDb.CancelOtherActiveBuildsParams{
 			Message:    supersededMessage,
 			ResourceID: resourceID,

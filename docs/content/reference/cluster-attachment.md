@@ -22,14 +22,38 @@ Registration updates the display name, capacity and agent version. A changed reg
 
 All holders of a shared secret are trusted to assert a cluster identity. Use TLS outside a local test environment.
 
+## Pause, remove and restore
+
+Run the API binary with the control plane's `DATABASE_URL`. These commands use operator database access and do not require a user login:
+
+```sh
+loco-api cluster list
+loco-api cluster pause <cluster-id>
+loco-api cluster remove <cluster-id>
+loco-api cluster restore <cluster-id>
+loco-api cluster resume <cluster-id>
+```
+
+Pausing prevents new deployments and queued builds. Existing workloads and their agent connection remain available for inspection and cleanup. An assignment already committing finishes before pause returns.
+
+Removal requires a paused cluster and refuses while placements, active deployments or queued/running builds remain. Remove applications through the normal resource configuration flow and wait for their deletion acknowledgments before retrying. The command prints the blocking workload IDs.
+
+For a permanently lost cluster, `loco-api cluster remove <cluster-id> --force` retains those records and prints the workloads whose state cannot be confirmed. Removal keeps cluster identity and history, disconnects the stream, and rejects registration and stream reconnects. It does not uninstall the agent or stop Kubernetes pods.
+
+Restoring clears the removal marker and stale health reports, and leaves the cluster paused. Resume it explicitly; fresh healthy heartbeats are required before deployment. An offline cluster retains its record and can reconnect without restoration.
+
+`LOCO_CLUSTER_OPERATION_TIMEOUT` sets the operator command timeout; the default is 30 seconds.
+
 ## Rotation
 
 Configuration is read at process startup. There is no credential reload endpoint.
 
 1. Set `LOCO_AGENT_CONNECTION_SECRETS=old-secret,new-secret` and roll every API replica.
 2. Replace each agent's `AGENT_TOKEN` with `new-secret` and restart its pods.
-3. Verify every agent, including any that were offline, has the new value.
+3. Use `loco-api cluster list` to check each recent connection's `connectionCredentialFingerprint` against the SHA-256 fingerprint of the replacement secret. Account for offline clusters before retiring the old value.
 4. Set `LOCO_AGENT_CONNECTION_SECRETS=new-secret` and roll every API replica again.
+
+The fingerprint records the credential used to initiate the latest stream; registration requests do not change it. An offline cluster retains its last fingerprint and heartbeat.
 
 The last rollout closes connections on the old processes. Rotation completes only after all old API processes have stopped; during a rolling update, old replicas still accept their configured credentials. The cluster key does not change.
 

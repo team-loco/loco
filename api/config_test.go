@@ -691,3 +691,16 @@ func TestPlacementMaxApplyAttemptsConfiguration(t *testing.T) {
 		}
 	}
 }
+
+func TestClusterOperationConfiguration(t *testing.T) {
+	t.Setenv("DATABASE_URL", testDatabaseURL)
+	t.Setenv("LOCO_CLUSTER_OPERATION_TIMEOUT", "")
+	cfg := newClusterOperationConfig()
+	if cfg.DatabaseURL != testDatabaseURL || cfg.Timeout != defaultClusterOperationTimeout {
+		t.Fatalf("operator config: %+v", cfg)
+	}
+	t.Setenv("LOCO_CLUSTER_OPERATION_TIMEOUT", "1m")
+	if got := newClusterOperationConfig().Timeout; got != time.Minute {
+		t.Fatalf("operator timeout: %v", got)
+	}
+}

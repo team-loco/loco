@@ -93,6 +93,7 @@ const (
 	defaultSecretsTransitRetry   = 10 * time.Second
 	defaultSecretsTransitDEKTTL  = 5 * time.Minute
 
+	defaultClusterOperationTimeout   = 30 * time.Second
 	defaultHeartbeatInterval         = 30 * time.Second
 	defaultPlacementRetryDelay       = time.Hour
 	defaultPlacementMaxApplyAttempts = 3
@@ -134,6 +135,19 @@ type APIConfig struct {
 
 type MigrateConfig struct {
 	DatabaseURL string
+}
+
+type ClusterOperationConfig struct {
+	DatabaseURL string
+	Timeout     time.Duration
+}
+
+func newClusterOperationConfig() ClusterOperationConfig {
+	migrate := newMigrateConfig()
+	return ClusterOperationConfig{
+		DatabaseURL: migrate.DatabaseURL,
+		Timeout:     positiveDurationEnv("LOCO_CLUSTER_OPERATION_TIMEOUT", defaultClusterOperationTimeout),
+	}
 }
 
 func newMigrateConfig() MigrateConfig {

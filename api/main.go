@@ -124,6 +124,15 @@ func newOutboundHTTPClient() *http.Client {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == clusterCommand {
+		cfg := newClusterOperationConfig()
+		ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout)
+		defer cancel()
+		if err := runClusterCommand(ctx, cfg.DatabaseURL, os.Args[2:], os.Stdout); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	if len(os.Args) > 1 && os.Args[1] == migrateCommand {
 		migrateConfig := newMigrateConfig()
 		if err := migrations.Up(context.Background(), migrateConfig.DatabaseURL); err != nil {

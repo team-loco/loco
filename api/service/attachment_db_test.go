@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"testing"
 
@@ -62,6 +63,15 @@ func TestAttachmentCreatesAndReusesCluster(t *testing.T) {
 	count(0)
 	if _, err := call(testAgentToken, &agentv1.RegisterRequest{}); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("invalid metadata: %v", err)
+	}
+	count(0)
+	if _, err := call(
+		testAgentToken,
+		request(strings.Repeat("x", 256), attachmentRegion, environmentTypeProduction),
+	); connect.CodeOf(
+		err,
+	) != connect.CodeInvalidArgument {
+		t.Fatalf("oversized display name: %v", err)
 	}
 	count(0)
 	first, err := call(testAgentToken, request("first", attachmentRegion, environmentTypeProduction))

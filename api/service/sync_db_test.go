@@ -245,6 +245,16 @@ func startSyncServerWithSources(
 	sources SourceBucket,
 ) agentv1connect.AgentServiceClient {
 	t.Helper()
+	return startSyncServerWithConfig(t, f, sources, testAgentConfig())
+}
+
+func startSyncServerWithConfig(
+	t *testing.T,
+	f *deployFixture,
+	sources SourceBucket,
+	cfg AgentConfig,
+) agentv1connect.AgentServiceClient {
+	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
@@ -253,7 +263,7 @@ func startSyncServerWithSources(
 	if err := notifier.Start(ctx); err != nil {
 		t.Fatalf("start notifier: %v", err)
 	}
-	server := NewAgentServer(f.pool, f.queries, notifier, sources, nil, testHeartbeatInterval, testAgentConfig())
+	server := NewAgentServer(f.pool, f.queries, notifier, sources, nil, testHeartbeatInterval, cfg)
 	rpcServer := connect.NewServer()
 	agentv1connect.RegisterAgentServiceHandler(rpcServer, server)
 	transport := connectinprocess.New(rpcServer)
@@ -272,8 +282,19 @@ func openSync(
 	clusterID uuid.UUID,
 ) <-chan syncResult {
 	t.Helper()
+	return openSyncWithToken(ctx, t, client, clusterID, testAgentToken)
+}
+
+func openSyncWithToken(
+	ctx context.Context,
+	t *testing.T,
+	client agentv1connect.AgentServiceClient,
+	clusterID uuid.UUID,
+	token string,
+) <-chan syncResult {
+	t.Helper()
 	ctx, info := connect.NewClientContext(ctx)
-	info.RequestHeader().Set("Authorization", "Bearer "+testAgentToken)
+	info.RequestHeader().Set("Authorization", "Bearer "+token)
 	info.RequestHeader().Set("Loco-Cluster-Key", clusterID.String())
 	stream, err := client.Sync(ctx)
 	if err != nil {

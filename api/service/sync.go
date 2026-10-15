@@ -37,7 +37,14 @@ func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
 	listener := s.notifier.Listen(ctx, cluster.ID)
 	defer listener.Close()
 
-	generation, err := s.queries.BeginClusterSync(ctx, cluster.ID)
+	credentialFingerprint := hashToken(extractBearerToken(info.RequestHeader().Get("Authorization")))
+	generation, err := s.queries.BeginClusterSync(ctx, genDb.BeginClusterSyncParams{
+		ID:                              cluster.ID,
+		ConnectionCredentialFingerprint: &credentialFingerprint,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return rpcerr.New(connect.CodePermissionDenied, ErrClusterRemoved)
+	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to begin cluster sync", "cluster_id", cluster.ID, "error", err)
 		return rpcerr.New(connect.CodeUnavailable, ErrDB)
@@ -47,7 +54,16 @@ func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
 		slog.WarnContext(ctx, "failed to announce sync stream", "cluster_id", cluster.ID, "error", notifyErr)
 	}
 
-	slog.InfoContext(ctx, "sync stream opened", "cluster_id", cluster.ID, "generation", generation)
+	slog.InfoContext(
+		ctx,
+		"sync stream opened",
+		"cluster_id",
+		cluster.ID,
+		"generation",
+		generation,
+		"credential_fingerprint",
+		credentialFingerprint,
+	)
 
 	recvCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -55,10 +71,19 @@ func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
 	recvErr := make(chan error, 1)
 	go receiveSync(recvCtx, stream, messages, recvErr)
 
-	session := newSyncSession(s, cluster.ID, stream.Send)
+	send := func(msg *agentv1.SyncResponse) error {
+		if err := s.checkSyncGeneration(ctx, cluster.ID, generation); err != nil {
+			return err
+		}
+		return stream.Send(msg)
+	}
+	session := newSyncSession(s, cluster.ID, send)
 
 	dirty := true
 	for {
+		if err := s.checkSyncGeneration(ctx, cluster.ID, generation); err != nil {
+			return err
+		}
 		if dirty {
 			if sendErr := session.sendPending(ctx); sendErr != nil {
 				return sendErr
@@ -73,21 +98,30 @@ func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
 			slog.InfoContext(ctx, "sync stream closed", "cluster_id", cluster.ID, "error", err)
 			return err
 		case msg := <-messages:
+			if err := s.checkSyncGeneration(ctx, cluster.ID, generation); err != nil {
+				return err
+			}
 			if handleErr := session.handle(ctx, msg); handleErr != nil {
 				return handleErr
 			}
 		case <-listener.Wake():
-			current, genErr := s.queries.GetClusterSyncGeneration(ctx, cluster.ID)
-			if genErr != nil {
-				slog.WarnContext(ctx, "failed to read sync generation", "cluster_id", cluster.ID, "error", genErr)
-			}
-			if genErr == nil && current != generation {
-				slog.InfoContext(ctx, "sync stream superseded", "cluster_id", cluster.ID, "generation", generation)
-				return rpcerr.New(connect.CodeAborted, errSyncSuperseded)
-			}
 			dirty = true
 		}
 	}
+}
+
+func (s *AgentServer) checkSyncGeneration(ctx context.Context, clusterID uuid.UUID, generation int64) error {
+	current, err := s.queries.GetClusterSyncGeneration(ctx, clusterID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return rpcerr.New(connect.CodePermissionDenied, ErrClusterRemoved)
+	}
+	if err != nil {
+		return connect.NewError(connect.CodeUnavailable, publicRequestFailed).WithCause(err)
+	}
+	if current != generation {
+		return rpcerr.New(connect.CodeAborted, errSyncSuperseded)
+	}
+	return nil
 }
 
 func receiveSync(

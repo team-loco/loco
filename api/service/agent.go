@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"buf.build/go/protovalidate"
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -132,6 +133,10 @@ func (s *AgentServer) Register(
 		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
 
+	if validationErr := protovalidate.Validate(req); validationErr != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidClusterMetadata.Error()).
+			WithCause(validationErr)
+	}
 	key, parseErr := uuid.Parse(req.GetClusterKey())
 	if parseErr != nil || key == uuid.Nil || req.GetDisplayName() == "" || req.GetClusterRegion() == "" ||
 		stringToProtoEnvType(req.GetTier()) == environmentv1.EnvironmentType_ENVIRONMENT_TYPE_UNSPECIFIED {
