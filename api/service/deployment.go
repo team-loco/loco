@@ -322,7 +322,6 @@ func (s *DeploymentServer) CreateDeployment(
 	}
 	replicas := mergedServiceSpec.GetMinReplicas()
 
-	// todo: consider using dedicated secrets management solution.
 	clonedServiceSpec := proto.Clone(mergedServiceSpec)
 	specForDBService, ok := clonedServiceSpec.(*deploymentv1.ServiceDeploymentSpec)
 	if !ok {
@@ -343,18 +342,6 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
-	buildSpec := desiredApplicationSpec(
-		resource,
-		organizationID,
-		resourceSpec,
-		hostname,
-		mergedSpec,
-		region,
-		environmentID,
-		env.Name,
-		s.defaults,
-	)
-
 	var deploymentID uuid.UUID
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, resource.WorkspaceID); lockErr != nil {
@@ -366,6 +353,31 @@ func (s *DeploymentServer) CreateDeployment(
 		if lockErr := lockPinnedBuildImage(ctx, qtx, pinnedBuild); lockErr != nil {
 			return lockErr
 		}
+		requestedEnv := mergedServiceSpec.GetEnv()
+		plainEnv, secretNames, bindingsErr := currentDeploymentBindings(
+			ctx,
+			qtx,
+			resourceID,
+			environmentID,
+			region,
+			requestedEnv,
+		)
+		if bindingsErr != nil {
+			return bindingsErr
+		}
+		mergedServiceSpec.Env = plainEnv
+		buildSpec := desiredApplicationSpec(
+			resource,
+			organizationID,
+			resourceSpec,
+			hostname,
+			mergedSpec,
+			region,
+			environmentID,
+			env.Name,
+			s.defaults,
+		)
+
 		var txErr error
 		deploymentID, txErr = createDeploymentWithCleanup(ctx, qtx, genDb.CreateDeploymentParams{
 			ResourceID:    resourceID,
@@ -378,7 +390,7 @@ func (s *DeploymentServer) CreateDeployment(
 			Spec:          specJSON,
 			SpecVersion:   int32(1),
 			EnvironmentID: environmentID,
-			SecretNames:   []string{},
+			SecretNames:   secretNames,
 		}, buildSpec)
 		if txErr != nil {
 			return txErr

@@ -53,6 +53,8 @@ An OpenTelemetry SDK reads the `OTEL_*` variables, so an instrumented applicatio
 
 An environment variable you set with `loco resource env` or `[Env]` replaces the `OTEL_*` variable of the same name. `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL` go together: setting either one drops both of Loco's values, so an endpoint is never paired with the wrong protocol. The `LOCO_*` variables cannot be overridden.
 
+Dashboard redeploy and rollback keep the current plain environment values and declared secret names for the target environment and region. `CreateDeployment` has the same behavior when its environment map is empty; a nonempty map replaces the plain values while retaining the secret names. To remove plain values or secret declarations, edit `loco.yaml` and apply it.
+
 ## Public and private applications
 
 An application with a domain is public: the gateway routes its hostname to the application. An application without a domain is private: it runs, scales and writes logs like any other, makes outbound connections, and accepts connections only from inside its workspace. To deploy a private application, leave `domains` off the service in `loco.yaml`:
