@@ -59,7 +59,6 @@ const (
 	envProduction           = "PRODUCTION"
 	imageResolveTimeout     = 15 * time.Second
 	eventsRetentionInterval = time.Hour
-	migrateCommand          = "migrate"
 )
 
 var loopbackHosts = []string{"localhost", "127.0.0.1", "::1"}
@@ -124,14 +123,6 @@ func newOutboundHTTPClient() *http.Client {
 }
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == migrateCommand {
-		migrateConfig := newMigrateConfig()
-		if err := migrations.Up(context.Background(), migrateConfig.DatabaseURL); err != nil {
-			log.Fatal(err)
-		}
-		return
-	}
-
 	ac := newAPIConfig()
 
 	logger := slog.New(CustomHandler{Handler: getLoggerHandler(ac)})

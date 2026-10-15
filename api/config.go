@@ -132,18 +132,10 @@ type APIConfig struct {
 	HeartbeatInterval     time.Duration
 }
 
-type MigrateConfig struct {
-	DatabaseURL string
-}
-
-func newMigrateConfig() MigrateConfig {
-	return MigrateConfig{DatabaseURL: stringEnv("DATABASE_URL", "")}
-}
-
 func newAPIConfig() *APIConfig {
-	migrateConfig := newMigrateConfig()
+	databaseURL := stringEnv("DATABASE_URL", "")
 	agentConfig := newAgentConfig()
-	databaseListenConfig := newDatabaseListenConfig(migrateConfig.DatabaseURL)
+	databaseListenConfig := newDatabaseListenConfig(databaseURL)
 	cacheType, cacheAddr := newCacheConfig()
 	registryHost := stringEnv("LOCO_REGISTRY_HOST", "")
 	registryPrefix := stringEnv("LOCO_REGISTRY_PREFIX", "")
@@ -178,7 +170,7 @@ func newAPIConfig() *APIConfig {
 		Agent:                 agentConfig,
 		Version:               buildinfo.Version(version),
 		Env:                   stringEnv("APP_ENV", ""),
-		DatabaseURL:           migrateConfig.DatabaseURL,
+		DatabaseURL:           databaseURL,
 		DatabaseListenConfig:  databaseListenConfig,
 		Port:                  stringEnv("APP_PORT", ""),
 		LogLevel:              logLevel,
