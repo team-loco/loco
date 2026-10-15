@@ -165,7 +165,7 @@ func (q *Queries) GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id
 
 const listClustersActive = `-- name: ListClustersActive :many
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
-       last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
+       last_health_check, last_heartbeat, capacity_cpu_millicores,
        capacity_memory_bytes, agent_version, created_at, updated_at
 FROM clusters
 WHERE is_active = true
@@ -182,7 +182,6 @@ type ListClustersActiveRow struct {
 	Endpoint              *string    `json:"endpoint"`
 	HealthStatus          *string    `json:"healthStatus"`
 	LastHealthCheck       *time.Time `json:"lastHealthCheck"`
-	AgentTokenHash        *string    `json:"agentTokenHash"`
 	LastHeartbeat         *time.Time `json:"lastHeartbeat"`
 	CapacityCpuMillicores *int64     `json:"capacityCpuMillicores"`
 	CapacityMemoryBytes   *int64     `json:"capacityMemoryBytes"`
@@ -210,7 +209,6 @@ func (q *Queries) ListClustersActive(ctx context.Context) ([]ListClustersActiveR
 			&i.Endpoint,
 			&i.HealthStatus,
 			&i.LastHealthCheck,
-			&i.AgentTokenHash,
 			&i.LastHeartbeat,
 			&i.CapacityCpuMillicores,
 			&i.CapacityMemoryBytes,
@@ -230,7 +228,7 @@ func (q *Queries) ListClustersActive(ctx context.Context) ([]ListClustersActiveR
 
 const listEligibleClusters = `-- name: ListEligibleClusters :many
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
-       last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
+       last_health_check, last_heartbeat, capacity_cpu_millicores,
        capacity_memory_bytes, agent_version, created_at, updated_at
 FROM clusters
 WHERE tier = $1
@@ -255,7 +253,6 @@ type ListEligibleClustersRow struct {
 	Endpoint              *string    `json:"endpoint"`
 	HealthStatus          *string    `json:"healthStatus"`
 	LastHealthCheck       *time.Time `json:"lastHealthCheck"`
-	AgentTokenHash        *string    `json:"agentTokenHash"`
 	LastHeartbeat         *time.Time `json:"lastHeartbeat"`
 	CapacityCpuMillicores *int64     `json:"capacityCpuMillicores"`
 	CapacityMemoryBytes   *int64     `json:"capacityMemoryBytes"`
@@ -283,7 +280,6 @@ func (q *Queries) ListEligibleClusters(ctx context.Context, arg ListEligibleClus
 			&i.Endpoint,
 			&i.HealthStatus,
 			&i.LastHealthCheck,
-			&i.AgentTokenHash,
 			&i.LastHeartbeat,
 			&i.CapacityCpuMillicores,
 			&i.CapacityMemoryBytes,

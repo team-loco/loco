@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"errors"
 	"log/slog"
@@ -11,6 +12,7 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/types/known/durationpb"
 
@@ -19,14 +21,18 @@ import (
 	"github.com/team-loco/loco/api/pkg/clusternotify"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 )
 
 var (
-	ErrAgentNotAuthenticated = errors.New("agent not authenticated")
-	ErrInvalidAgentToken     = errors.New("invalid agent token")
+	ErrAgentNotAuthenticated     = errors.New("agent not authenticated")
+	ErrInvalidAgentToken         = errors.New("invalid agent token")
+	errInvalidClusterMetadata    = errors.New("invalid cluster identity, name, region or tier")
+	errClusterAttachmentRejected = errors.New("cluster is removed or its region or tier changed")
 )
 
 type AgentConfig struct {
+	ConnectionSecrets         []string
 	PlacementRetryDelay       time.Duration
 	PlacementMaxApplyAttempts int32
 }
@@ -78,23 +84,38 @@ func extractBearerToken(header string) string {
 	return ""
 }
 
-// authenticateAgent validates the agent token and returns the cluster.
-func (s *AgentServer) authenticateAgent(
-	ctx context.Context,
-	authHeader string,
-) (genDb.GetClusterByAgentTokenRow, error) {
+func (s *AgentServer) authenticateSecret(authHeader string) error {
 	token := extractBearerToken(authHeader)
 	if token == "" {
-		return genDb.GetClusterByAgentTokenRow{}, ErrInvalidAgentToken
+		return ErrInvalidAgentToken
 	}
+	candidate := sha256.Sum256([]byte(token))
+	matched := 0
+	for _, secret := range s.config.ConnectionSecrets {
+		expected := sha256.Sum256([]byte(secret))
+		matched |= subtle.ConstantTimeCompare(candidate[:], expected[:])
+	}
+	if matched != 1 {
+		return ErrInvalidAgentToken
+	}
+	return nil
+}
 
-	tokenHash := hashToken(token)
-	cluster, err := s.queries.GetClusterByAgentToken(ctx, &tokenHash)
+func (s *AgentServer) authenticateAgent(
+	ctx context.Context,
+	authHeader, clusterKey string,
+) (genDb.GetClusterByKeyRow, error) {
+	if err := s.authenticateSecret(authHeader); err != nil {
+		return genDb.GetClusterByKeyRow{}, err
+	}
+	key, err := uuid.Parse(clusterKey)
 	if err != nil {
-		slog.WarnContext(ctx, "invalid agent token", "error", err)
-		return genDb.GetClusterByAgentTokenRow{}, ErrInvalidAgentToken
+		return genDb.GetClusterByKeyRow{}, ErrInvalidAgentToken
 	}
-
+	cluster, err := s.queries.GetClusterByKey(ctx, &key)
+	if err != nil {
+		return genDb.GetClusterByKeyRow{}, ErrInvalidAgentToken
+	}
 	return cluster, nil
 }
 
@@ -106,16 +127,39 @@ func (s *AgentServer) Register(
 	info, _ := connect.CallInfoForServerContext(ctx)
 
 	// Authenticate using bearer token
-	cluster, err := s.authenticateAgent(ctx, info.RequestHeader().Get("Authorization"))
+	err := s.authenticateSecret(info.RequestHeader().Get("Authorization"))
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
 
+	key, parseErr := uuid.Parse(req.GetClusterKey())
+	if parseErr != nil || key == uuid.Nil || req.GetDisplayName() == "" || req.GetClusterRegion() == "" ||
+		stringToProtoEnvType(req.GetTier()) == environmentv1.EnvironmentType_ENVIRONMENT_TYPE_UNSPECIFIED {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidClusterMetadata.Error())
+	}
+	var cluster genDb.AttachClusterRow
 	// Update cluster with agent info
 	agentVersion := req.GetAgentVersion()
 	cpuCores := req.GetCapacity().GetCpuMillicoresTotal()
 	memBytes := req.GetCapacity().GetMemoryBytesTotal()
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		var attachErr error
+		cluster, attachErr = qtx.AttachCluster(
+			ctx,
+			genDb.AttachClusterParams{
+				ClusterKey: &key,
+				Name:       req.GetDisplayName(),
+				Region:     req.GetClusterRegion(),
+				Tier:       req.GetTier(),
+			},
+		)
+		if errors.Is(attachErr, pgx.ErrNoRows) {
+			return connect.NewError(connect.CodeFailedPrecondition, errClusterAttachmentRejected.Error())
+		}
+		if attachErr != nil {
+			return attachErr
+		}
+
 		if updateErr := qtx.UpdateClusterAgentInfo(ctx, genDb.UpdateClusterAgentInfoParams{
 			ID:                    cluster.ID,
 			AgentVersion:          &agentVersion,
@@ -135,6 +179,9 @@ func (s *AgentServer) Register(
 		})
 	})
 	if err != nil {
+		if connect.CodeOf(err) == connect.CodeFailedPrecondition {
+			return nil, err
+		}
 		slog.ErrorContext(ctx, "failed to update cluster agent info", "error", err, "cluster_id", cluster.ID)
 		return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
 	}

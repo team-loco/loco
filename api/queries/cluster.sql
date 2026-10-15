@@ -1,12 +1,5 @@
 -- Cluster queries for agent operations
 
--- name: GetClusterByAgentToken :one
-SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
-       last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
-       capacity_memory_bytes, agent_version, created_at, updated_at
-FROM clusters
-WHERE agent_token_hash = $1;
-
 -- name: UpdateClusterAgentInfo :exec
 UPDATE clusters
 SET agent_version = $2,
@@ -29,14 +22,9 @@ WHERE id = $1;
 -- name: GetClusterBuildsEnabled :one
 SELECT builds_enabled FROM clusters WHERE id = $1;
 
--- name: SetClusterAgentToken :exec
-UPDATE clusters
-SET agent_token_hash = $2, updated_at = NOW()
-WHERE id = $1;
-
 -- name: GetClusterByID :one
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
-       last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
+       last_health_check, last_heartbeat, capacity_cpu_millicores,
        capacity_memory_bytes, agent_version, created_at, updated_at
 FROM clusters
 WHERE id = $1;
@@ -73,3 +61,16 @@ WHERE id = $1;
 UPDATE clusters
 SET gateway_hostname = $2, updated_at = NOW()
 WHERE id = $1;
+
+-- name: AttachCluster :one
+INSERT INTO clusters (cluster_key, name, region, tier, provider, is_active, is_default)
+VALUES ($1, $2, $3, $4, 'kubernetes', true, false)
+ON CONFLICT (cluster_key) DO UPDATE
+SET name = EXCLUDED.name, updated_at = NOW()
+WHERE clusters.region = EXCLUDED.region AND clusters.tier = EXCLUDED.tier
+  AND clusters.removed_at IS NULL
+RETURNING id, name, region;
+
+-- name: GetClusterByKey :one
+SELECT id, name, region FROM clusters
+WHERE cluster_key = $1 AND removed_at IS NULL;

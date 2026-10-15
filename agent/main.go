@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"connectrpc.com/connect/v2"
 	"github.com/team-loco/loco/internal/rpc"
 
 	"k8s.io/client-go/kubernetes"
@@ -168,6 +169,7 @@ type Agent struct {
 	builds            buildRunner
 	buildsEnabled     bool
 	clusterID         string
+	clusterKey        string
 	heartbeatInterval time.Duration
 }
 
@@ -197,9 +199,18 @@ func (a *Agent) Run(ctx context.Context) error {
 
 // register announces the agent to the control plane.
 func (a *Agent) register(ctx context.Context) error {
+	key, err := a.inspector.Key(ctx)
+	if err != nil {
+		return err
+	}
+	a.clusterKey = key
 	capacity := a.getCapacity(ctx)
 	req := &agentv1.RegisterRequest{
 		AgentVersion:  a.cfg.AgentVersion,
+		ClusterKey:    key,
+		DisplayName:   a.cfg.ClusterName,
+		ClusterRegion: a.cfg.ClusterRegion,
+		Tier:          a.cfg.ClusterTier,
 		Capacity:      capacity,
 		BuildsEnabled: a.buildsEnabled,
 	}
@@ -283,6 +294,8 @@ func (a *Agent) syncLoop(ctx context.Context) error {
 	streamCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	streamCtx, callInfo := connect.NewClientContext(streamCtx)
+	callInfo.RequestHeader().Set("Loco-Cluster-Key", a.clusterKey)
 	stream, err := a.client.Sync(streamCtx)
 	if err != nil {
 		return err

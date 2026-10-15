@@ -25,7 +25,11 @@ type syncStream = agentv1connect.AgentServiceSyncServerStream
 
 func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
 	info, _ := connect.CallInfoForServerContext(ctx)
-	cluster, err := s.authenticateAgent(ctx, info.RequestHeader().Get("Authorization"))
+	cluster, err := s.authenticateAgent(
+		ctx,
+		info.RequestHeader().Get("Authorization"),
+		info.RequestHeader().Get("Loco-Cluster-Key"),
+	)
 	if err != nil {
 		return connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}

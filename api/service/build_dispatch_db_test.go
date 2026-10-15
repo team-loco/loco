@@ -455,7 +455,7 @@ func TestSyncStreamDeliversQueuedAndCanceledBuilds(t *testing.T) {
 	client := startSyncServerWithSources(t, f.deployFixture, f.bucket)
 	ctx := t.Context()
 
-	results := openSync(ctx, t, client)
+	results := openSync(ctx, t, client, f.clusterID)
 	select {
 	case r := <-results:
 		t.Fatalf("unexpected message before any build: %v", r)

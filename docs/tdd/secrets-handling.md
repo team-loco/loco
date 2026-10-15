@@ -36,7 +36,7 @@ So plaintext env exists in Postgres, in the `Application` object in the worker's
 | GitLab token, project, registry URL | API (registry service) and the controller on every worker | Railway variable; worker chart values |
 | `DATABASE_URL` (Postgres password) | API, migrations | Railway reference variable; CI secret for the deploy workflows |
 | Valkey password | API | Railway reference variable |
-| Agent token | Agent | Worker Secret; the API stores only its SHA-256 hash (`clusters.agent_token_hash`) |
+| Agent token | Agent | Agent Secret and API process configuration (`LOCO_AGENT_CONNECTION_SECRETS`) |
 | User session and API tokens | API | Only SHA-256 hashes in Postgres (`access_token_hash`, `refresh_token_hash`, `token_hash`) |
 | OAuth state markers | API | Valkey, 10-minute TTL |
 | Observability proxy token | API and obs-proxy | Chart value / environment variable on both sides |

@@ -540,6 +540,7 @@ func TestResourceStatusIsUnknownOnceTheSyncStreamDrops(t *testing.T) {
 	defer dropStream()
 	streamCtx, callInfo := connect.NewClientContext(streamCtx)
 	callInfo.RequestHeader().Set("Authorization", "Bearer "+testAgentToken)
+	callInfo.RequestHeader().Set("Loco-Cluster-Key", f.clusterID.String())
 	stream, err := client.Sync(streamCtx)
 	if err != nil {
 		t.Fatal(err)

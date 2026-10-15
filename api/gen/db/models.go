@@ -318,6 +318,8 @@ type Build struct {
 type Cluster struct {
 	ID                         uuid.UUID  `json:"id"`
 	Name                       string     `json:"name"`
+	ClusterKey                 *uuid.UUID `json:"clusterKey"`
+	RemovedAt                  *time.Time `json:"removedAt"`
 	Region                     string     `json:"region"`
 	Provider                   string     `json:"provider"`
 	IsActive                   bool       `json:"isActive"`
@@ -325,7 +327,6 @@ type Cluster struct {
 	Endpoint                   *string    `json:"endpoint"`
 	HealthStatus               *string    `json:"healthStatus"`
 	LastHealthCheck            *time.Time `json:"lastHealthCheck"`
-	AgentTokenHash             *string    `json:"agentTokenHash"`
 	LastHeartbeat              *time.Time `json:"lastHeartbeat"`
 	CapacityCpuMillicores      *int64     `json:"capacityCpuMillicores"`
 	CapacityMemoryBytes        *int64     `json:"capacityMemoryBytes"`

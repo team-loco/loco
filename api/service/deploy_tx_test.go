@@ -73,7 +73,6 @@ func newDeployFixture(t *testing.T) *deployFixture {
 	})
 
 	f := &deployFixture{pool: pool, queries: genDb.New(pool)}
-	agentTokenHash := hashToken(testAgentToken)
 	row := pool.QueryRow(ctx, `
 WITH u AS (
     INSERT INTO users (email) VALUES ('test@example.com') RETURNING id
@@ -84,8 +83,8 @@ WITH u AS (
 ), e AS (
     INSERT INTO environments (workspace_id, name, created_by) SELECT w.id, 'prod', u.id FROM w, u RETURNING id
 ), c AS (
-    INSERT INTO clusters (name, region, provider, is_active, is_default, agent_token_hash)
-    VALUES ('c1', 'us-east-1', 'kind', true, true, $1) RETURNING id
+    INSERT INTO clusters (name, region, provider, is_active, is_default)
+    VALUES ('c1', 'us-east-1', 'kind', true, true) RETURNING id
 ), c2 AS (
     INSERT INTO clusters (name, region, provider, is_active, is_default)
     VALUES ('c2', 'us-east-1', 'kind', true, false) RETURNING id
@@ -93,9 +92,12 @@ WITH u AS (
     INSERT INTO resources (workspace_id, name, type, description, spec, spec_version)
     SELECT w.id, 'svc', 'service', '', '{}', 1 FROM w RETURNING id
 )
-SELECT c.id, c2.id, r.id, e.id FROM c, c2, r, e`, agentTokenHash)
+SELECT c.id, c2.id, r.id, e.id FROM c, c2, r, e`)
 	if err := row.Scan(&f.clusterID, &f.otherCluster, &f.resourceID, &f.envID); err != nil {
 		t.Fatalf("seed: %v", err)
+	}
+	if _, err := pool.Exec(ctx, "UPDATE clusters SET cluster_key = id"); err != nil {
+		t.Fatal(err)
 	}
 	return f
 }

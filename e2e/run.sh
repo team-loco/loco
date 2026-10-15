@@ -72,7 +72,7 @@ USER_TOKEN="loco_s_e2e-test-session-do-not-use-in-production"
 LOCO_NAMESPACE="loco-system"
 IMAGE_RETENTION=1
 IMAGE_SWEEP_INTERVAL=5s
-SEEDED_CLUSTER_ID="00000000-0000-7000-8000-000000000005"
+E2E_CLUSTER_ID=""
 
 export E2E_ROOT_DIR="$ROOT_DIR"
 export E2E_VERSION
@@ -697,6 +697,7 @@ start_builds() {
 start_api() {
     log_step "Starting API server..."
 
+    LOCO_AGENT_CONNECTION_SECRETS="$AGENT_TOKEN" \
     DATABASE_URL="$E2E_DATABASE_URL" \
     APP_PORT="127.0.0.1:$API_PORT" \
     DEFAULT_PLATFORM_DOMAIN="$PLATFORM_DOMAIN" \
@@ -723,7 +724,7 @@ start_api() {
 
 agent_registered() {
     local version
-    version=$(e2e_psql "SELECT agent_version FROM clusters WHERE id = '${SEEDED_CLUSTER_ID}'")
+    version=$(e2e_psql "SELECT agent_version FROM clusters WHERE cluster_key = '${E2E_CLUSTER_KEY}'")
     test "$version" = "$E2E_VERSION"
 }
 
@@ -731,6 +732,11 @@ start_agent() {
     log_step "Starting Agent..."
 
     local core_values="$ROOT_DIR/charts/loco-core/values.yaml"
+    E2E_CLUSTER_KEY=$(kube get namespace kube-system -o jsonpath='{.metadata.uid}')
+    export E2E_CLUSTER_KEY
+    LOCO_CLUSTER_NAME=e2e-test-cluster \
+    LOCO_CLUSTER_REGION=us-east-1 \
+    LOCO_CLUSTER_TIER=production \
     CONTROL_PLANE_URL="$E2E_API_URL" \
     AGENT_TOKEN="$AGENT_TOKEN" \
     LOG_LEVEL="$(yq '.env.LOG_LEVEL' "$core_values")" \
@@ -758,6 +764,8 @@ start_agent() {
     echo $! > "$PID_DIR/agent.pid"
 
     wait_for "Agent registration" "$READY_TIMEOUT" agent_registered
+    E2E_CLUSTER_ID=$(e2e_psql "SELECT id FROM clusters WHERE cluster_key = '${E2E_CLUSTER_KEY}'")
+    export E2E_CLUSTER_ID
     log_ok "Agent registered"
 }
 
@@ -781,6 +789,11 @@ start_obs_proxy() {
     fi
 
     PORT="$OBS_PROXY_PORT" \
+    E2E_CLUSTER_KEY=$(kube get namespace kube-system -o jsonpath='{.metadata.uid}')
+    export E2E_CLUSTER_KEY
+    LOCO_CLUSTER_NAME=e2e-test-cluster \
+    LOCO_CLUSTER_REGION=us-east-1 \
+    LOCO_CLUSTER_TIER=production \
     CONTROL_PLANE_URL="$E2E_API_URL" \
     CORS_ALLOWED_ORIGINS="https://dashboard.e2e.test" \
     CLICKHOUSE_URL="$reader_dsn" \
@@ -905,6 +918,10 @@ main() {
     fi
     await_job binaries
     start_api
+    if [ "$(e2e_psql 'SELECT count(*) FROM clusters')" != 0 ]; then
+        log_error "Cluster registry must be empty before automatic attachment"
+        return 1
+    fi
     start_agent
     start_obs_proxy
 

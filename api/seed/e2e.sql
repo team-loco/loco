@@ -42,19 +42,6 @@ VALUES (
     '00000000-0000-7000-8000-000000000001'
 ) ON CONFLICT DO NOTHING;
 
--- Test cluster with agent token
-INSERT INTO clusters (id, name, region, provider, is_active, is_default, agent_token_hash, tier)
-VALUES (
-    '00000000-0000-7000-8000-000000000005',
-    'e2e-test-cluster',
-    'us-east-1',
-    'kind',
-    true,
-    true,
-    encode(sha256(convert_to(:'agent_token', 'UTF8')), 'hex'),
-    'production'
-) ON CONFLICT DO NOTHING;
-
 -- Platform domain for test resources
 INSERT INTO platform_domains (id, domain, is_active)
 VALUES ('00000000-0000-7000-8000-000000000006', 'e2e.test.local', true)

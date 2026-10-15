@@ -22,6 +22,22 @@ message RegisterRequest {
   string agent_version = 3;
   AgentCapacity capacity = 4;
   bool builds_enabled = 5;
+  string cluster_key = 6 [(buf.validate.field).string.uuid = true];
+  string display_name = 7 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+  string cluster_region = 8 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+  string tier = 9 [(buf.validate.field).string = {
+    in: [
+      "dev",
+      "staging",
+      "production"
+    ]
+  }];
 }
 
 // RegisterResponse contains the assigned cluster ID.

@@ -287,6 +287,11 @@ description = "Run the end-to-end tests in this worktree's own kind cluster and 
 env = { _.file = ".env" }
 run = "./e2e/run.sh"
 
+[tasks."e2e:attachment"]
+description = "Test automatic cluster attachment, heartbeats and application deployment from an empty cluster registry"
+env = { _.file = ".env" }
+run = "./e2e/run.sh --builds-disabled agent_lifecycle"
+
 [tasks."e2e:builds"]
 description = "Run only the image build end-to-end tests, controller-only and through the API and agent; takes the e2e flags"
 env = { _.file = ".env" }

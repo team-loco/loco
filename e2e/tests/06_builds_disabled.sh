@@ -7,7 +7,7 @@ if [ "${E2E_BUILDS_ENABLED:-true}" = true ]; then
 fi
 
 nobuild_ctx="kind-${E2E_KIND_CLUSTER}"
-nobuild_cluster_id='00000000-0000-7000-8000-000000000005'
+nobuild_cluster_id="$E2E_CLUSTER_ID"
 nobuild_dir="$E2E_BUILD_WORK_DIR/no-builds"
 cli_home="$nobuild_dir/home"
 nobuild_image_dir="$nobuild_dir/image-app"

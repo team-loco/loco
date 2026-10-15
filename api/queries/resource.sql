@@ -63,7 +63,7 @@ SELECT workspace_id FROM resources WHERE id = $1;
 
 -- name: ListEligibleClusters :many
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
-       last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
+       last_health_check, last_heartbeat, capacity_cpu_millicores,
        capacity_memory_bytes, agent_version, created_at, updated_at
 FROM clusters
 WHERE tier = sqlc.arg(tier)
@@ -74,7 +74,7 @@ ORDER BY region ASC, is_default DESC, created_at ASC;
 
 -- name: ListClustersActive :many
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
-       last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
+       last_health_check, last_heartbeat, capacity_cpu_millicores,
        capacity_memory_bytes, agent_version, created_at, updated_at
 FROM clusters
 WHERE is_active = true

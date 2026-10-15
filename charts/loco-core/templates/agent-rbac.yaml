@@ -46,6 +46,10 @@ metadata:
   name: {{ .Release.Name }}-agent
 rules:
   - apiGroups: [""]
+    resources: ["namespaces"]
+    resourceNames: ["kube-system"]
+    verbs: ["get"]
+  - apiGroups: [""]
     resources: ["nodes", "pods"]
     verbs: ["list"]
 ---
