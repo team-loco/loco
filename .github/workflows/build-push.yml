@@ -40,6 +40,7 @@ jobs:
       attestations: write
     outputs:
       image: ${{ steps.meta.outputs.tags }}
+      digest: ${{ steps.push.outputs.digest }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -71,31 +72,102 @@ jobs:
           build-args: |
             VERSION=${{ steps.meta.outputs.version }}
             ${{ inputs.build_args }}
+          platforms: linux/amd64,linux/arm64
+          provenance: mode=max
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Attest build provenance
+  verify-platform:
+    needs: build-and-push-image
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            platform: linux/amd64
+          - runner: ubuntu-24.04-arm
+            platform: linux/arm64
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve and verify platform image
+        id: platform
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ inputs.image_name }}@${{ needs.build-and-push-image.outputs.digest }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          docker buildx imagetools inspect "$IMAGE" --raw > image-index.json
+          image=$(python3 tools/platform-images/verify.py resolve "$IMAGE" "$PLATFORM" image-index.json)
+          docker pull "$image"
+          python3 tools/platform-images/verify.py image "$image" "$PLATFORM"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "digest=${image##*@}" >> "$GITHUB_OUTPUT"
+
+      - name: Attest platform build provenance
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ${{ env.REGISTRY }}/${{ inputs.image_name }}
-          subject-digest: ${{ steps.push.outputs.digest }}
+          subject-digest: ${{ steps.platform.outputs.digest }}
           push-to-registry: true
 
-      - name: Generate SBOM
+      - name: Generate platform SBOM
         uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:
-          image: ${{ env.REGISTRY }}/${{ inputs.image_name }}@${{ steps.push.outputs.digest }}
+          image: ${{ steps.platform.outputs.image }}
           format: cyclonedx-json
           output-file: sbom.cdx.json
           upload-artifact: false
 
-      - name: Attest SBOM
+      - name: Attest platform SBOM
         uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
         with:
           subject-name: ${{ env.REGISTRY }}/${{ inputs.image_name }}
-          subject-digest: ${{ steps.push.outputs.digest }}
+          subject-digest: ${{ steps.platform.outputs.digest }}
           sbom-path: sbom.cdx.json
+          push-to-registry: true
+
+  attest-index:
+    needs: [build-and-push-image, verify-platform]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Attest verified image index
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ inputs.image_name }}
+          subject-digest: ${{ needs.build-and-push-image.outputs.digest }}
           push-to-registry: true

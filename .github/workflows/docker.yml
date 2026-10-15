@@ -11,6 +11,9 @@ on:
       - "**/*compose*.yml"
       - ".github/workflows/*.yml"
       - "mise-tasks/lint/versions"
+      - "mise-tasks/test/platform-binaries"
+      - "tools/platform-images/**"
+      - "tests/versions/**"
       - "mise.toml"
       - "mise.lock"
       - "docs/pyproject.toml"
@@ -23,6 +26,9 @@ on:
       - "**/*compose*.yml"
       - ".github/workflows/*.yml"
       - "mise-tasks/lint/versions"
+      - "mise-tasks/test/platform-binaries"
+      - "tools/platform-images/**"
+      - "tests/versions/**"
       - "mise.toml"
       - "mise.lock"
       - "docs/pyproject.toml"
@@ -39,35 +45,29 @@ concurrency:
 jobs:
 
   buildkit-check:
-    name: ${{ matrix.name }} Dockerfile Check
-    runs-on: ubuntu-latest
+    name: ${{ matrix.image.name }} ${{ matrix.target.platform }}
+    runs-on: ${{ matrix.target.runner }}
 
     strategy:
       fail-fast: false
       matrix:
-        include:
+        target:
+          - runner: ubuntu-latest
+            platform: linux/amd64
+          - runner: ubuntu-24.04-arm
+            platform: linux/arm64
+        image:
           - name: Controller
-            context: .
             dockerfile: ./controller/Dockerfile
-
           - name: API
-            context: .
             dockerfile: ./api/Dockerfile
-
           - name: UI
-            context: .
             dockerfile: ./web/Dockerfile
-
           - name: Agent
-            context: .
             dockerfile: ./agent/Dockerfile
-
           - name: Observability Proxy
-            context: .
             dockerfile: ./observability-proxy/Dockerfile
-
           - name: Builder
-            context: .
             dockerfile: ./builder/Dockerfile
 
     steps:
@@ -81,11 +81,27 @@ jobs:
       - name: Build check
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
+          context: .
+          file: ${{ matrix.image.dockerfile }}
+          platforms: ${{ matrix.target.platform }}
           call: check
           build-args: |
             BUILDKIT_DOCKERFILE_CHECK=skip=InvalidDefinitionDescription,experimental=all
+
+      - name: Build native platform image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: ${{ matrix.image.dockerfile }}
+          platforms: ${{ matrix.target.platform }}
+          load: true
+          tags: loco-platform:check
+          build-args: VERSION=architecture-check
+
+      - name: Verify image platform and executable
+        env:
+          PLATFORM: ${{ matrix.target.platform }}
+        run: python3 tools/platform-images/verify.py image loco-platform:check "$PLATFORM"
 
   base-image-versions:
     name: Image Pins
@@ -95,6 +111,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: ./.github/actions/setup-tools
+
+      - name: Test platform image contracts
+        run: mise run test:platform-images
 
       - name: Check image digests and Dockerfile base images against mise.toml
         run: mise run lint:versions

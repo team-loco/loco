@@ -367,3 +367,7 @@ run = "python tools/platform-release/release.py"
 description = "Render and package the real platform charts, CRDs and Flux layers"
 depends = ["helm:deps"]
 run = "python tools/platform-release/verify.py"
+
+[tasks."test:platform-images"]
+description = "Test image platform selection, executable architecture and Dockerfile version pins"
+run = ["python3 -m unittest discover -s tools/platform-images/tests", "python3 -m unittest discover -s tests/versions"]
