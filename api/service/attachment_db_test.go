@@ -2,11 +2,15 @@ package service
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
 
 	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
 	"connectrpc.com/connect/v2/connectinprocess"
 	"github.com/google/uuid"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
@@ -152,5 +156,53 @@ func TestConnectionSecretsOverlap(t *testing.T) {
 	}
 	if err := server.authenticateSecret("Bearer new-secret"); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestAttachmentHTTPErrorCodes(t *testing.T) {
+	f := newDeployFixture(t)
+	ctx := t.Context()
+	if _, err := ManageCluster(ctx, f.pool, ClusterPause, f.clusterID, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ManageCluster(ctx, f.pool, ClusterRemove, f.clusterID, false); err != nil {
+		t.Fatal(err)
+	}
+	rpcServer := connect.NewServer()
+	agentv1connect.RegisterAgentServiceHandler(rpcServer, f.agentServer())
+	mux := http.NewServeMux()
+	connecthttp.Mount(mux, rpcServer)
+	body := `{"clusterKey":"` + f.clusterID.String() +
+		`","displayName":"c1","clusterRegion":"us-east-1","tier":"production"}`
+	for _, tc := range []struct {
+		token  string
+		status int
+		code   string
+	}{
+		{"incorrect-token", http.StatusUnauthorized, "unauthenticated"},
+		{testAgentToken, http.StatusBadRequest, "failed_precondition"},
+	} {
+		request := httptest.NewRequestWithContext(
+			ctx,
+			http.MethodPost,
+			agentv1connect.AgentServiceRegisterProcedure,
+			strings.NewReader(body),
+		)
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("Authorization", "Bearer "+tc.token)
+		response := httptest.NewRecorder()
+		mux.ServeHTTP(response, request)
+		if response.Code != tc.status {
+			t.Fatalf("HTTP status %d, want %d: %s", response.Code, tc.status, response.Body.String())
+		}
+		var wireError struct {
+			Code string `json:"code"`
+		}
+		if err := json.Unmarshal(response.Body.Bytes(), &wireError); err != nil {
+			t.Fatal(err)
+		}
+		if wireError.Code != tc.code {
+			t.Fatalf("wire code %q, want %q", wireError.Code, tc.code)
+		}
 	}
 }

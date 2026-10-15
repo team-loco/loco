@@ -2,7 +2,7 @@
 
 The agent authenticates to the control plane with an operator-configured shared secret. The control plane creates its cluster record on the first authenticated registration. No cluster rows or agent tokens need to be seeded.
 
-Set `LOCO_AGENT_CONNECTION_SECRETS` on the API process and `AGENT_TOKEN` on each agent to the same value. The API accepts a comma-separated list during rotation. An unset list disables agent authentication. Secrets must not contain commas.
+Set `LOCO_AGENT_CONNECTION_SECRETS` on the API process and `AGENT_TOKEN` on each agent to the same value. The API accepts a comma-separated list during rotation. An unset list rejects all agent connections. Secrets must not contain commas.
 
 Configure the agent's display name, region and tier:
 

@@ -68,7 +68,7 @@ test_z20_pause_remove_and_restore() {
     assert_contains "Force removal reports workloads" 'placement' \
         cluster_operator remove "$E2E_CLUSTER_ID" --force
     assert "Removed cluster rejects registration" \
-        test "$(registration_code "$E2E_API_URL" "$AGENT_TOKEN")" = 412
+        test "$(registration_code "$E2E_API_URL" "$AGENT_TOKEN")" = 400
     assert_fails "Removed cluster cannot resume without restore" \
         cluster_operator resume "$E2E_CLUSTER_ID"
     cluster_operator restore "$E2E_CLUSTER_ID"
