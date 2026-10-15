@@ -40,6 +40,32 @@ services:
 
 A service without `domains` is private. Each region needs `cpu`, `memory`, `replicas.min` and `replicas.max`. Autoscaling is not supported yet: the API rejects a region with `autoscaling` set. Set the replica count explicitly instead. Service and partial names are DNS labels. The API checks resource limits when it plans the file.
 
+## Private service discovery
+
+Applications on the same cluster use a service's logical name and configured TCP port, such as `cart:7070` or `payment:50051`. Both private and publicly routed services have these endpoints. Callers need no resource IDs, OIDC tokens or discovery API calls. Declare dependent services in regions where they run on the same cluster; these DNS names do not connect separate clusters or regions.
+
+For example, a caller can pass dependency addresses through its environment:
+
+```yaml
+services:
+  checkout:
+    env:
+      CART_ADDRESS: cart:7070
+      PAYMENT_ADDRESS: payment:50051
+```
+
+The operator creates a separate ClusterIP Service for the logical name. Its TCP port and target port both match the configured application port. HTTP, gRPC and other TCP protocols use the same path. A non-HTTP service can omit `health` to avoid HTTP probes. The existing `resource-<UUID>:80` endpoint and public HTTP routes continue to work.
+
+Names are lowercase DNS labels of at most 63 characters, including digit-leading labels. Digit-leading Services require [`RelaxedServiceNameValidation`](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/), enabled by default in Kubernetes 1.36 and stable in 1.37. `localhost` and names matching `resource-<UUID>` are reserved. New resources and renames reject these names. Legacy resources with incompatible names retain their UUID endpoint and remain deployable until renamed.
+
+Renaming a resource through the Resource API moves its logical endpoint without an image build. The operator creates the new alias before removing the old alias. Port changes update the logical endpoint while preserving its ClusterIP. Resource deletion removes its aliases. Replacing a resource with another of the same name waits for the previous resource to release that name. An unmanaged Service or a Service owned by another Application causes reconciliation to fail; the operator does not adopt or overwrite it.
+
+Workspace namespaces separate identical names in different workspaces. The workspace network policies permit communication between all applications in that namespace. Other workspaces remain isolated, and each environment runs on its own clusters.
+
+Upgrade the API, agent, Application controller and operator CRDs together. Existing deployments gain their logical endpoints on their next deploy or resource rename.
+
+## Health checks
+
 Omit `health` for process-only monitoring: Loco creates no liveness or readiness probes, and Kubernetes restarts exited containers. This is suitable for gRPC services and workers without an HTTP health endpoint. A running process is considered ready; use protocol-specific E2E checks to verify that it can serve requests or consume messages.
 
 Set `health: {}` to enable HTTP liveness and readiness checks with the API defaults, or configure `path`, `interval`, `timeout`, `failThreshold` and `startupGracePeriod`. An environment override with `health: null` removes an inherited check. Removing `health` from an existing service redeploys it without probes.

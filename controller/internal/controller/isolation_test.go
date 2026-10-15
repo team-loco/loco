@@ -134,7 +134,14 @@ var _ = Describe("Workspace isolation", func() {
 		Expect(access.Spec.Ingress[0].Ports).To(BeEmpty())
 		Expect(access.Spec.Ingress[0].From[0].NamespaceSelector).To(BeNil())
 		Expect(access.Spec.Ingress[0].From[0].PodSelector).NotTo(BeNil())
+		Expect(access.Spec.Ingress[0].From).To(HaveLen(1))
+		Expect(access.Spec.Ingress[0].From[0].PodSelector.MatchLabels).To(BeEmpty())
+		Expect(access.Spec.Egress).To(HaveLen(1))
+		Expect(access.Spec.Egress[0].Ports).To(BeEmpty())
+		Expect(access.Spec.Egress[0].To).To(HaveLen(1))
 		Expect(access.Spec.Egress[0].To[0].NamespaceSelector).To(BeNil())
+		Expect(access.Spec.Egress[0].To[0].PodSelector).NotTo(BeNil())
+		Expect(access.Spec.Egress[0].To[0].PodSelector.MatchLabels).To(BeEmpty())
 
 		telemetry := getPolicy(namespace, policyTelemetryEgress)
 		telemetryNamespace := telemetry.Spec.Egress[0].To[0].NamespaceSelector.MatchLabels
