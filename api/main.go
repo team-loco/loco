@@ -123,10 +123,6 @@ func newOutboundHTTPClient() *http.Client {
 }
 
 func main() {
-	if len(os.Args) > 1 {
-		log.Fatalf("unexpected argument %q: loco-api starts the API without subcommands", os.Args[1])
-	}
-
 	ac := newAPIConfig()
 
 	logger := slog.New(CustomHandler{Handler: getLoggerHandler(ac)})
