@@ -429,6 +429,8 @@ func deploymentSpecFor(
 ) *deploymentv1.ServiceDeploymentSpec {
 	target := state.Regions[region]
 	return &deploymentv1.ServiceDeploymentSpec{
+		RunAsUser:   state.RunAsUser,
+		RunAsGroup:  state.RunAsGroup,
 		Build:       build,
 		HealthCheck: healthCheckFor(state.Health),
 		Cpu:         &target.CPU,

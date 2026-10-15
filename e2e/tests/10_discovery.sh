@@ -41,10 +41,10 @@ discovery_deploy() {
 }
 
 discovery_call() {
-    local target=$1 protocol=$2 id
+    local target=$1 protocol=$2 id path=${3:-/}
     id=$(discovery_resource_id "$discovery_caller")
     if [ "$protocol" = http ]; then
-        dk -n "$discovery_namespace" exec "deployment/resource-${id}" -- curl --fail --silent --show-error --max-time 5 "http://${target}/"
+        dk -n "$discovery_namespace" exec "deployment/resource-${id}" -- curl --fail --silent --show-error --max-time 5 "http://${target}${path}"
     else
         dk -n "$discovery_namespace" exec "deployment/resource-${id}" -- sh -c 'printf "private-tcp-ok\n" | nc -w 5 "$1" "$2"' -- "${target%:*}" "${target##*:}"
     fi
@@ -78,6 +78,8 @@ test_d01_deploys_private_http_and_tcp_services() {
     cli_write_credentials
     cp -R "$E2E_ROOT_DIR/e2e/fixtures/tcp-app/." "$discovery_dir/services/payment/"
     cp -R "$E2E_ROOT_DIR/e2e/fixtures/build-app/." "$discovery_dir/services/cart/"
+    sed 's/USER 65532:65532/USER nonroot/' "$discovery_dir/services/cart/deploy/Dockerfile" >"$discovery_dir/services/cart/deploy/Dockerfile.runtime"
+    mv "$discovery_dir/services/cart/deploy/Dockerfile.runtime" "$discovery_dir/services/cart/deploy/Dockerfile"
     cat >"$discovery_dir/loco.yaml" <<YAML
 version: 1
 partial: discovery
@@ -86,6 +88,8 @@ services:
     context: services/cart
     dockerfile: deploy/Dockerfile
     env: { MESSAGE: workspace-one }
+    runAsUser: 1000
+    runAsGroup: 1000
     port: 8080
     regions:
       us-east-1: { cpu: 100m, memory: 128Mi, replicas: { min: 1, max: 1 } }
@@ -114,6 +118,7 @@ YAML
 }
 
 test_d02_apps_use_logical_names_and_configured_ports() {
+    assert_contains "numeric UID overrides a named image USER" '1000:1000' discovery_call cart http /identity
     assert_contains "an app reaches http://cart.${discovery_namespace}.svc.cluster.local with no port" 'workspace-one' discovery_call "cart.${discovery_namespace}.svc.cluster.local" http
     assert_contains "short native DNS name reaches cart" 'workspace-one' discovery_call cart http
     assert_contains "an app reaches cart:8080 by HTTP" 'workspace-one' discovery_call "${discovery_http}:8080" http
@@ -123,6 +128,24 @@ test_d02_apps_use_logical_names_and_configured_ports() {
     assert_contains "the UUID endpoint remains on port 80" 'private-tcp-ok' discovery_call "resource-${id}:80" tcp
     assert_contains "the private Service uses TCP" 'TCP' \
         dk -n "$discovery_namespace" get service "$discovery_tcp" -o 'jsonpath={.spec.ports[0].protocol}'
+}
+
+discovery_runtime_user_is_updated() {
+    test "$(discovery_call cart http /identity)" = "1001:1000"
+}
+
+test_d02_runtime_user_update_reuses_the_image() {
+    local before after rc=0
+    before=$(e2e_psql "SELECT count(*) FROM builds")
+    yq -i '.services.cart.runAsUser = 1001' "$discovery_dir/loco.yaml"
+    (cd "$discovery_dir" && loco_cli infra apply --yes) >"$discovery_dir/runtime-user.out" 2>"$discovery_dir/runtime-user.err" || rc=$?
+    if ! assert "runtime UID change applies without a build" test "$rc" -eq 0; then
+        cat "$discovery_dir/runtime-user.out" "$discovery_dir/runtime-user.err"
+        return 1
+    fi
+    assert "new pods run with the updated UID" wait_for "runtime UID rollout" 120 discovery_runtime_user_is_updated
+    after=$(e2e_psql "SELECT count(*) FROM builds")
+    assert "runtime UID update starts no build" test "$before" -eq "$after"
 }
 
 test_d03_resource_rename_moves_the_alias_without_a_build() {

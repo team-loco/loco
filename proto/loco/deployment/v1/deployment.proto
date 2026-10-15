@@ -108,6 +108,14 @@ message ServiceDeploymentSpec {
   // service sets no routing and the defaults apply; without the field the resource's routing
   // applies.
   optional ServiceRouting routing = 10;
+  optional int64 run_as_user = 11 [(buf.validate.field).int64 = {
+    gt: 0
+    lte: 2147483647
+  }];
+  optional int64 run_as_group = 12 [(buf.validate.field).int64 = {
+    gt: 0
+    lte: 2147483647
+  }];
 
   option (buf.validate.message).cel = {
     id: "replicas.min_lte_max"

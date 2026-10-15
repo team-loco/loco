@@ -22,6 +22,9 @@ func newHandler(message string) http.Handler {
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprintln(w, "ok")
 	})
+	mux.HandleFunc("GET /identity", func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprintf(w, "%d:%d\n", os.Getuid(), os.Getgid())
+	})
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprintln(w, message)
 	})

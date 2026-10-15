@@ -445,6 +445,8 @@ func (s *PlanServer) liveState(
 		if index > 0 {
 			continue
 		}
+		state.RunAsUser = service.RunAsUser
+		state.RunAsGroup = service.RunAsGroup
 		state.Port = converter.FirstSet(service.GetPort(), state.Port)
 		if service.GetRouting() != nil {
 			state.Routing = liveRouting(service.GetRouting())

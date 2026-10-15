@@ -42,6 +42,8 @@ type State struct {
 	Image      string
 	Dockerfile string
 	Context    string
+	RunAsUser  *int64
+	RunAsGroup *int64
 	Port       int32
 	Health     *Health
 	Routing    *Routing
@@ -83,12 +85,14 @@ type Autoscaling struct {
 
 func fileState(service locofile.Service, pinnedImage string, defaults servicedefaults.Defaults) State {
 	state := State{
-		Image:   pinnedImage,
-		Port:    defaults.Port,
-		Domains: CanonicalDomains(service.Domains),
-		Env:     maps.Clone(service.Env),
-		Secrets: slices.Sorted(slices.Values(service.Secrets)),
-		Regions: make(map[string]Region, len(service.Regions)),
+		RunAsUser:  service.RunAsUser,
+		RunAsGroup: service.RunAsGroup,
+		Image:      pinnedImage,
+		Port:       defaults.Port,
+		Domains:    CanonicalDomains(service.Domains),
+		Env:        maps.Clone(service.Env),
+		Secrets:    slices.Sorted(slices.Values(service.Secrets)),
+		Regions:    make(map[string]Region, len(service.Regions)),
 	}
 	if pinnedImage == "" {
 		state.Dockerfile = locofile.DefaultDockerfile
@@ -196,6 +200,12 @@ func flatten(state *State) map[string]string {
 		pathPort:    formatInt(state.Port),
 		pathDomains: formatList(state.Domains),
 		pathSecrets: formatList(slices.Sorted(slices.Values(state.Secrets))),
+	}
+	if state.RunAsUser != nil {
+		fields["runAsUser"] = strconv.FormatInt(*state.RunAsUser, 10)
+	}
+	if state.RunAsGroup != nil {
+		fields["runAsGroup"] = strconv.FormatInt(*state.RunAsGroup, 10)
 	}
 	if state.Health != nil {
 		fields[pathHealth+".path"] = state.Health.Path
