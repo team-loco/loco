@@ -176,7 +176,7 @@ function TraceSession({ environmentId, environmentLoading, range }: { environmen
 			</div>
 			<section className="min-w-0 overflow-hidden rounded-lg border border-line bg-background">
 				<div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
-					<h2 className="font-semibold">{traces.length} traces <span className="font-normal text-fg3">in {spans.length} loaded spans</span>
+					<h2 className="font-semibold">{traces.length} {traces.length === 1 ? "trace" : "traces"} <span className="font-normal text-fg3">in {spans.length} loaded {spans.length === 1 ? "span" : "spans"}</span>
 					</h2>
 					<span className="text-sm text-fg3">{incomplete ? "Partial results" : "Within selected time range"}</span>
 				</div>
@@ -186,7 +186,7 @@ function TraceSession({ environmentId, environmentLoading, range }: { environmen
 				{spans.length > 0 && <div className="divide-y divide-line sm:hidden">{traces.slice(currentPage * ROWS_PER_PAGE, (currentPage + 1) * ROWS_PER_PAGE).map((item) => <button key={item.id} type="button" onClick={() => { update(item.id); }} className="block w-full px-4 py-3 text-left hover:bg-bg2 focus-visible:outline-2 focus-visible:outline-offset-[-2px]">
 					<span className="block truncate font-medium">{item.root.name}</span>
 					<span className="mt-1 block truncate text-sm text-fg3">{item.root.serviceName} · <span className="font-mono">{item.id.slice(0, 12)}</span></span>
-					<span className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-fg3"><span className="font-mono text-foreground">{durationLabel(item.duration)}</span><span>{item.spans.length} loaded spans</span>{item.errors > 0 && <span className="text-bad-fg">{item.errors} error {item.errors === 1 ? "span" : "spans"}</span>}</span>
+					<span className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-fg3"><span className="font-mono text-foreground">{durationLabel(item.duration)}</span><span>{item.spans.length} loaded {item.spans.length === 1 ? "span" : "spans"}</span>{item.errors > 0 && <span className="text-bad-fg">{item.errors} error {item.errors === 1 ? "span" : "spans"}</span>}</span>
 				</button>)}</div>}
 				{spans.length > 0 && <div className="hidden overflow-x-auto sm:block">
 					<table className="w-full min-w-[650px] text-left">
