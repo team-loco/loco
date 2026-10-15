@@ -40,6 +40,34 @@ services:
 
 A service without `domains` is private. Each region needs `cpu`, `memory`, `replicas.min` and `replicas.max`. Autoscaling is not supported yet: the API rejects a region with `autoscaling` set. Set the replica count explicitly instead. Service and partial names are DNS labels. The API checks resource limits when it plans the file.
 
+## Private service discovery
+
+Applications in the same workspace on the same cluster reach HTTP services through native Kubernetes DNS, such as `http://cart.ws-00000000-0000-7000-8000-000000000003.svc.cluster.local`. Port 80 forwards to the configured application port, so callers omit the port even when cart listens on 7070. Loco uses namespaces named `ws-<workspace UUID>`; replace the example UUID with the caller's workspace UUID. A caller in that namespace can also use `http://cart`. Both private and publicly routed services have these endpoints. Callers need no resource IDs, OIDC tokens or discovery API calls. Declare dependent services in regions where they run on the same cluster; these DNS names do not connect separate clusters or regions.
+
+For example, a caller can pass dependency addresses through its environment:
+
+```yaml
+services:
+  checkout:
+    env:
+      CART_URL: http://cart.ws-00000000-0000-7000-8000-000000000003.svc.cluster.local
+      PAYMENT_ADDRESS: payment.ws-00000000-0000-7000-8000-000000000003.svc.cluster.local:50051
+```
+
+Use the cluster's configured DNS suffix in place of `cluster.local` when it has a custom cluster domain. Namespace-qualified names distinguish identical service names in different workspaces. Loco uses the cluster's DNS. Namespace-qualified names identify Services; network policies control which callers can reach them.
+
+The operator creates a ClusterIP Service for the logical name. It exposes TCP port 80 and the configured application port, both forwarding to that application port. When the application uses port 80, the Service exposes it once. gRPC and other TCP clients can use the configured port or port 80 explicitly; their default port depends on the client protocol. A non-HTTP service can omit `health` to avoid HTTP probes. Short names such as `cart:7070`, the existing `resource-<UUID>:80` endpoint and public HTTP routes continue to work.
+
+Names are lowercase DNS labels of at most 63 characters, including digit-leading labels. Digit-leading Services require [`RelaxedServiceNameValidation`](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/), enabled by default in Kubernetes 1.36 and stable in 1.37. `localhost` and names matching `resource-<UUID>` are reserved. New resources and renames reject these names. Legacy resources with incompatible names retain their UUID endpoint and remain deployable until renamed.
+
+Renaming a resource through the Resource API moves its logical endpoint without an image build. The operator creates the new alias before removing the old alias. Port changes update the logical endpoint while preserving its ClusterIP. Resource deletion removes its aliases. Replacing a resource with another of the same name waits for the previous resource to release that name. An unmanaged Service or a Service owned by another Application causes reconciliation to fail; the operator does not adopt or overwrite it.
+
+Workspace namespaces separate identical names in different workspaces. The workspace network policies permit communication between all applications in that namespace. Other workspaces remain isolated, and each environment runs on its own clusters.
+
+Upgrade the API, agent, Application controller and operator CRDs together. Applications carrying a logical name gain the port 80 endpoint on controller reconciliation. Existing Application records without a logical name retain their UUID endpoint until their next deploy or resource rename.
+
+## Health checks
+
 Omit `health` for process-only monitoring: Loco creates no liveness or readiness probes, and Kubernetes restarts exited containers. This is suitable for gRPC services and workers without an HTTP health endpoint. A running process is considered ready; use protocol-specific E2E checks to verify that it can serve requests or consume messages.
 
 Set `health: {}` to enable HTTP liveness and readiness checks with the API defaults, or configure `path`, `interval`, `timeout`, `failThreshold` and `startupGracePeriod`. An environment override with `health: null` removes an inherited check. Removing `health` from an existing service redeploys it without probes.

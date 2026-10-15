@@ -26,6 +26,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/plan/v1/planv1connect"
 	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/internal/rpcerr"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 // PlanServer implements the PlanService: it diffs a loco.yaml file against an environment.
@@ -200,6 +201,18 @@ func (s *PlanServer) loadPlan(
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to compute plan", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
+	}
+	for _, op := range plan.Operations {
+		if op.Kind == configplan.KindCreate && locoControllerV1.PrivateServiceName(op.Service) == "" {
+			plan.Errors = append(
+				plan.Errors,
+				configplan.Error{Service: op.Service, Path: "name", Err: errPrivateServiceName},
+			)
+		}
+	}
+	if len(plan.Errors) > 0 {
+		plan.Operations = nil
+		plan.Desired = nil
 	}
 	return &plannedFile{
 		file:            file,

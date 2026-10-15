@@ -85,7 +85,8 @@ var (
 // LocoResourceReconciler reconciles a Application object
 type LocoResourceReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	APIReader client.Reader
+	Scheme    *runtime.Scheme
 
 	LocoNamespace  string
 	PullSecretName string
@@ -335,6 +336,9 @@ func (r *LocoResourceReconciler) handleDeletion(
 }
 
 func (r *LocoResourceReconciler) deleteAppObjects(ctx context.Context, locoRes *locov1alpha1.Application) error {
+	if err := r.prunePrivateServices(ctx, locoRes, ""); err != nil {
+		return err
+	}
 	name := getName(locoRes)
 	namespace := getNamespace(locoRes)
 	routeName := getRouteName(locoRes)
@@ -369,7 +373,8 @@ func (r *LocoResourceReconciler) deleteNamespaceIfUnused(
 	locoRes *locov1alpha1.Application,
 ) error {
 	var apps locov1alpha1.ApplicationList
-	if err := r.List(ctx, &apps, client.InNamespace(locoRes.Namespace)); err != nil {
+	reader := r.apiReader()
+	if err := reader.List(ctx, &apps, client.InNamespace(locoRes.Namespace)); err != nil {
 		return fmt.Errorf("list applications: %w", err)
 	}
 	for i := range apps.Items {
@@ -578,7 +583,7 @@ func (r *LocoResourceReconciler) ensureService(ctx context.Context, locoRes *loc
 	if err := r.Apply(ctx, svc, opts...); err != nil {
 		return fmt.Errorf("apply service %s/%s: %w", namespace, name, err)
 	}
-	return nil
+	return r.ensurePrivateService(ctx, locoRes)
 }
 
 func containerResources(
@@ -862,6 +867,7 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.APIReader = mgr.GetAPIReader()
 	if r.PullSecretName != "" && r.LocoNamespace == "" {
 		return errPullSecretWithoutNamespace
 	}
@@ -887,6 +893,7 @@ func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	controllerBuilder := ctrl.NewControllerManagedBy(mgr).
 		For(&locov1alpha1.Application{}, applicationPredicates).
 		Watches(&appsv1.Deployment{}, deploymentHandler).
+		Watches(&corev1.Service{}, deploymentHandler).
 		Watches(&corev1.Secret{}, envSecretHandler).
 		Watches(&corev1.Node{}, nodeHandler, nodePredicates)
 	if r.PullSecretName != "" {

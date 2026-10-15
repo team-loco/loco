@@ -30,12 +30,16 @@ import (
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/internal/rpcerr"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 var (
 	ErrResourceNotFound      = errors.New("resource not found")
 	ErrDomainNotFound        = errors.New("domain not found")
 	ErrResourceNameNotUnique = errors.New("resource name already exists in this workspace")
+	errPrivateServiceName    = errors.New(
+		"service name must be a lowercase DNS label of at most 63 characters; localhost and resource-<UUID> are reserved",
+	)
 	ErrSubdomainNotAvailable = errors.New("subdomain already in use")
 	ErrClusterNotFound       = errors.New("cluster not found")
 	ErrClusterNotHealthy     = errors.New("cluster is not healthy")
@@ -116,6 +120,10 @@ func (s *ResourceServer) CreateResource(
 	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to create resource", "workspaceId", req.GetWorkspaceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+	}
+
+	if locoControllerV1.PrivateServiceName(req.GetName()) == "" {
+		return nil, rpcerr.New(connect.CodeInvalidArgument, errPrivateServiceName)
 	}
 
 	// validate that spec contains a service spec (for now, only services are supported)
@@ -499,8 +507,23 @@ func (s *ResourceServer) UpdateResource(
 		if lockErr := lockResourceEnvironments(ctx, qtx, resourceID); lockErr != nil {
 			return lockErr
 		}
-		if _, updateErr := qtx.UpdateResource(ctx, updateParams); updateErr != nil {
+		resource, getErr := qtx.GetResourceByID(ctx, resourceID)
+		if getErr != nil {
+			return getErr
+		}
+		if req.GetName() != "" && req.GetName() != resource.Name &&
+			locoControllerV1.PrivateServiceName(req.GetName()) == "" {
+			return errPrivateServiceName
+		}
+		_, updateErr := qtx.UpdateResource(ctx, updateParams)
+		if updateErr != nil {
 			return updateErr
+		}
+		if req.GetName() != "" {
+			resource.Name = req.GetName()
+			if renameErr := renamePlacements(ctx, qtx, resource); renameErr != nil {
+				return renameErr
+			}
 		}
 		if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
 			return bumpErr
@@ -513,6 +536,12 @@ func (s *ResourceServer) UpdateResource(
 		})
 	})
 	if err != nil {
+		if errors.Is(err, errPrivateServiceName) {
+			return nil, rpcerr.New(connect.CodeInvalidArgument, errPrivateServiceName)
+		}
+		if isPgConstraintViolation(err) {
+			return nil, rpcerr.New(connect.CodeAlreadyExists, ErrResourceNameNotUnique)
+		}
 		slog.ErrorContext(ctx, "failed to update resource", "error", err)
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}

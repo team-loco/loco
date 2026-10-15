@@ -311,6 +311,11 @@ description = "Run the end-to-end tests for apps with and without a domain: rout
 env = { _.file = ".env" }
 run = "./e2e/run.sh --builds-disabled ingress"
 
+[tasks."e2e:discovery"]
+description = "Run private service discovery end-to-end tests: logical DNS names, HTTP and TCP ports, resource rename and deletion; takes the e2e flags"
+env = { _.file = ".env" }
+run = "./e2e/run.sh discovery"
+
 [tasks."e2e:status"]
 description = "Run the end-to-end tests for resource status: healthy after a deploy, unavailable when its pods cannot run, unknown while its cluster is silent; takes the e2e flags"
 env = { _.file = ".env" }
