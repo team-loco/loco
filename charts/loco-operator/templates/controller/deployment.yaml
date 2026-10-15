@@ -38,6 +38,10 @@ spec:
                           fieldPath: metadata.namespace
                     - name: LOCO_OBSERVABILITY_NAMESPACE
                       value: {{ required "observability.namespace is required" .Values.observability.namespace | quote }}
+                    - name: LOCO_METRICS_COLLECTOR_NAMESPACE
+                      value: {{ required "observability.metricsCollector.namespace is required" .Values.observability.metricsCollector.namespace | quote }}
+                    - name: LOCO_METRICS_COLLECTOR_SERVICE
+                      value: {{ required "observability.metricsCollector.service is required" .Values.observability.metricsCollector.service | quote }}
                     - name: LOCO_OTEL_COLLECTOR_SERVICE
                       value: {{ required "observability.collector.service is required" .Values.observability.collector.service | quote }}
                     - name: LOCO_OTEL_COLLECTOR_GRPC_PORT

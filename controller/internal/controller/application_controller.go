@@ -216,6 +216,10 @@ func (r *LocoResourceReconciler) reconcileResources(
 		return ctrl.Result{}, fmt.Errorf("ensure service: %w", err)
 	}
 
+	err = r.ensureMetricsIngressPolicy(ctx, locoRes)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("ensure metrics ingress policy: %w", err)
+	}
 	err = r.ensureGatewayIngressPolicy(ctx, locoRes)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure gateway ingress policy: %w", err)
@@ -731,6 +735,14 @@ func desiredDeployment(
 		managed.LabelWorkspaceID:    locoRes.Spec.WorkspaceID,
 		managed.LabelResourceID:     locoRes.Spec.ResourceID,
 		labelEnvironmentID:          locoRes.Spec.EnvironmentID,
+	}
+	if obs := spec.Obs; obs != nil && obs.Metrics.Enabled {
+		podLabels[labelMetricsPort] = strconv.FormatInt(int64(obs.Metrics.Port), 10)
+		path := obs.Metrics.Path
+		if path == "" {
+			path = "/metrics"
+		}
+		podAnnotations[annotationMetricsPath] = path
 	}
 	podSecurity := podSecurityContext()
 	if spec.Deployment.RunAsUser != nil {

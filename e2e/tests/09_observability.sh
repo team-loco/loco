@@ -216,6 +216,7 @@ obs_seed_second_workspace() {
 
 obs_write_config() {
     cli_write_service_config "$obs_app_dir" "$obs_app" "$obs_app_port" /healthz
+    obs_app="$obs_app" yq -i '.services[strenv(obs_app)].metrics = {"port": 9090, "path": "/metrics"}' "$obs_app_dir/loco.yaml"
 }
 
 test_o01_deploys_the_fixture_through_loco() {
@@ -673,4 +674,61 @@ test_o11_writes_the_summary() {
     } >>"$obs_evidence"
     log_info "Evidence report: ${obs_evidence}"
     assert "The evidence report lists every check" test "$(wc -l <"$obs_results")" -gt 0
+}
+
+check_pulled_application_metrics() {
+    local output status response body start end matches
+    start=$(utc_timestamp "$(($(date +%s) - obs_query_window_seconds))")
+    end=$(utc_timestamp "$(date +%s)")
+    body=$(printf '{"workspaceId":"%s","resourceIds":["%s"],"metricName":"loco_fixture_temperature","startTime":"%s","endTime":"%s","intervalSeconds":%d,"aggregation":"max"}' \
+        "$obs_workspace_id" "$obs_resource_id" "$start" "$end" "$obs_metric_interval_seconds")
+    output=$(curl -s -w '\n%{http_code}' --max-time "$obs_curl_timeout_seconds" -X POST "$obs_query_metrics" \
+        -H "Authorization: Bearer $obs_workspace_token" -H 'Content-Type: application/json' -d "$body") || return 1
+    status=$(tail -n1 <<<"$output")
+    response=$(sed '$d' <<<"$output")
+    [ "$status" = "$obs_http_ok" ] || return 1
+    matches=$(yq -p json -r '[.series // [] | .[] | .points[] | select(.value == 42)] | length' <<<"$response")
+    test "$matches" -gt 0 || return 1
+    ev "QueryMetrics returned ${matches} gauge points pulled by the node collector for the fixture resource." ""
+    output=$(curl -s -w '\n%{http_code}' --max-time "$obs_curl_timeout_seconds" -X POST "$obs_query_metrics" \
+        -H "Authorization: Bearer $obs_second_token" -H 'Content-Type: application/json' -d "$body") || return 1
+    status=$(tail -n1 <<<"$output")
+    test "$status" = "$obs_http_forbidden"
+}
+
+test_o09_pulls_application_metrics_through_otel() {
+    obs_check pulled_application_metrics check_pulled_application_metrics
+}
+
+obs_metrics_discovery_removed() {
+    local pods count
+    pods=$(obs_kube -n "ws-${obs_workspace_id}" get pods -l "loco.io/resource-id=${obs_resource_id}" -o json) || return 1
+    count=$(yq -p json -r '[.items[] | select(.metadata.deletionTimestamp == null) | select(.metadata.labels."loco.io/metrics-port" != null)] | length' <<<"$pods")
+    test "$count" -eq 0
+}
+
+obs_metrics_quiet_window_elapsed() {
+    test "$(obs_now)" -ge "$obs_metrics_quiet_end"
+}
+
+test_o10_stops_pulling_when_the_endpoint_is_removed() {
+    local rc=0 since interval rows
+    obs_app="$obs_app" yq -i 'del(.services[strenv(obs_app)].metrics)' "$obs_app_dir/loco.yaml"
+    (cd "$obs_app_dir" && loco_cli infra apply --yes) >"$obs_dir/metrics-remove.out" 2>"$obs_dir/metrics-remove.err" || rc=$?
+    if ! assert "removing metrics applies without a source build" test "$rc" -eq 0; then
+        cat "$obs_dir/metrics-remove.out" "$obs_dir/metrics-remove.err"
+        return 1
+    fi
+    obs_kube -n "ws-${obs_workspace_id}" rollout status "deployment/resource-${obs_resource_id}" --timeout="${obs_route_timeout_seconds}s" || return 1
+    assert "the replacement pod has no metrics discovery label" \
+        wait_for "metrics discovery removal" "$obs_route_timeout_seconds" obs_metrics_discovery_removed
+    assert "the undeclared metrics endpoint still serves HTTP" \
+        test "$(obs_gateway_status "${E2E_GATEWAY_URL}/metrics")" = "$obs_http_ok"
+    since=$(($(obs_now) + obs_poll_interval_seconds))
+    interval=$(yq '.["otel-col-daemon"].config.receivers."prometheus/applications".config.scrape_configs[0].scrape_interval' "$obs_chart_values")
+    interval=${interval%s}
+    obs_metrics_quiet_end=$((since + interval * 2))
+    wait_for "two scrape intervals without a declared endpoint" "$obs_telemetry_timeout_seconds" obs_metrics_quiet_window_elapsed || return 1
+    rows=$(obs_ch "SELECT count() FROM otel_metrics_gauge WHERE WorkspaceId = '${obs_workspace_id}' AND ResourceId = '${obs_resource_id}' AND MetricName = 'loco_fixture_temperature' AND TimeUnix >= toDateTime(${since})" TabSeparated) || return 1
+    assert "a pod without the discovery label is not scraped" test "$rows" -eq 0
 }
