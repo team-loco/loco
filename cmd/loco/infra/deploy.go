@@ -22,6 +22,10 @@ import (
 )
 
 var (
+	errImageTarget = errors.New(
+		"--image requires selecting exactly one service; omit the name only for a single-service environment",
+	)
+	errEmptyImage       = errors.New("image reference must not be empty")
 	errServiceNotInFile = errors.New("the file does not run the service in this environment")
 	errServiceHasImage  = errors.New("the service runs a public image and is not built")
 )
@@ -32,8 +36,6 @@ type buildTarget struct {
 	context    string
 }
 
-// BuildDeployCmd creates the "deploy" command, which builds the source services of loco.yaml
-// and applies the file with the builds.
 func BuildDeployCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "deploy [service...]",
@@ -52,6 +54,12 @@ with an error, and the next deploy builds and deploys it.
 Image services are applied without a build. Without service names, every source service the
 file runs in the environment is built.
 
+--image overrides one service's image for this deployment without editing loco.yaml.
+Name exactly one service, or omit its name if the environment runs only one service.
+This skips all source builds and uploads. The whole file is still planned and applied;
+unrelated services can change, and new source services may still need an initial build.
+The API resolves image tags and digests before confirmation.
+
 The plan is shown before anything changes. Destructive operations need
 --confirm-destructive and imports need --confirm-import. Without a terminal, --yes
 replaces the prompt.
@@ -59,10 +67,12 @@ replaces the prompt.
 Examples:
   loco deploy
   loco deploy --env staging --yes
-  loco deploy web worker --file deploy/loco.yaml`,
+  loco deploy web worker --file deploy/loco.yaml
+  loco deploy web --image ghcr.io/acme/web:release --yes`,
 		RunE: runDeploy,
 	}
 	addTargetFlags(cmd)
+	cmd.Flags().String("image", "", "Deploy one service from a public image reference without building source")
 	cmd.Flags().StringP("file", "f", locofile.FileName, "Path to loco.yaml")
 	cmd.Flags().BoolP("yes", "y", false, "Deploy without asking for confirmation")
 	cmd.Flags().Bool("confirm-destructive", false, confirmDestructiveUsage)
@@ -94,9 +104,29 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 	if err != nil {
 		return fmt.Errorf("%s does not resolve for environment %s: %w", filePath, t.environmentName, err)
 	}
-	targets, err := buildTargets(services, names)
-	if err != nil {
-		return err
+	var targets []buildTarget
+	if cmd.Flags().Changed("image") {
+		image, flagErr := cmd.Flags().GetString("image")
+		if flagErr != nil {
+			return fmt.Errorf("read image flag: %w", flagErr)
+		}
+		data, err = imageOverride(file, services, names, t.environmentName, image)
+		if err != nil {
+			return err
+		}
+		file, err = locofile.Parse(data)
+		if err != nil {
+			return err
+		}
+		services, err = locofile.Resolve(file, t.environmentName)
+		if err != nil {
+			return err
+		}
+	} else {
+		targets, err = buildTargets(services, names)
+		if err != nil {
+			return err
+		}
 	}
 
 	plan, err := requestPlan(ctx, t, data)
@@ -162,6 +192,27 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 		return writeErr
 	}
 	return writeReachability(os.Stdout, services)
+}
+
+func imageOverride(
+	file *locofile.File,
+	services map[string]locofile.Service,
+	names []string,
+	environment, image string,
+) ([]byte, error) {
+	if strings.TrimSpace(image) == "" {
+		return nil, errEmptyImage
+	}
+	if len(names) == 0 && len(services) == 1 {
+		names = slices.Collect(maps.Keys(services))
+	}
+	if len(names) != 1 {
+		return nil, errImageTarget
+	}
+	if _, exists := services[names[0]]; !exists {
+		return nil, fmt.Errorf("%w: %s", errServiceNotInFile, names[0])
+	}
+	return locofile.OverrideImage(file, names[0], environment, image)
 }
 
 func buildTargets(services map[string]locofile.Service, names []string) ([]buildTarget, error) {

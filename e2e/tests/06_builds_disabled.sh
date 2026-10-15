@@ -80,3 +80,20 @@ test_n04_source_deploy_explains_builds_are_unavailable() {
     builds=$(e2e_psql "SELECT count(*) FROM builds")
     assert "No build was created" test "$builds" -eq 0
 }
+
+test_n05_image_override_skips_unavailable_builds() {
+    yq -i ".services.${nobuild_source_app}.health.path = \"/\"" "$nobuild_source_dir/loco.yaml"
+    cp "$nobuild_source_dir/loco.yaml" "$nobuild_dir/source-original.yaml"
+    local rc=0
+    (cd "$nobuild_source_dir" && loco_cli deploy "$nobuild_source_app" --image "$nobuild_public_image" --yes) \
+        >"$nobuild_dir/override.out" 2>"$nobuild_dir/override.err" || rc=$?
+    if ! assert "--image deploys a source service without builders (exit ${rc})" test "$rc" -eq 0; then
+        sed 's/^/    /' "$nobuild_dir/override.out" "$nobuild_dir/override.err"
+        return 1
+    fi
+    wait_for "the overridden app to be Ready" 120 cli_application_is_ready "$nobuild_source_app"
+    assert "--image keeps loco.yaml unchanged" cmp "$nobuild_source_dir/loco.yaml" "$nobuild_dir/source-original.yaml"
+    local builds
+    builds=$(e2e_psql "SELECT count(*) FROM builds")
+    assert "--image creates no build" test "$builds" -eq 0
+}
