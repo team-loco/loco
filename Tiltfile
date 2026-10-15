@@ -173,9 +173,6 @@ helm_release(
     }],
     values=[
         'env.AGENT_TOKEN=$AGENT_TOKEN',
-        'agent.clusterName=loco-local',
-        'agent.clusterRegion=us-east-1',
-        'agent.clusterTier=production',
         'env.CONTROL_PLANE_URL=' + control_plane_url,
     ],
     deps=['charts/loco-core/', 'env/local/core-chart.yaml.gotmpl'],
