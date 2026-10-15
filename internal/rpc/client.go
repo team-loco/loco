@@ -28,25 +28,24 @@ import (
 )
 
 type Clients struct {
-	ClusterAdmin        clusterv1connect.ClusterAdminServiceClient
-	Agent               agentv1connect.AgentServiceClient
-	Auth                authv1connect.AuthServiceClient
-	Build               buildv1connect.BuildServiceClient
-	Config              configv1connect.ConfigServiceClient
-	Deployment          deploymentv1connect.DeploymentServiceClient
-	Domain              domainv1connect.DomainServiceClient
-	Environment         environmentv1connect.EnvironmentServiceClient
-	Event               eventv1connect.EventServiceClient
-	Org                 orgv1connect.OrgServiceClient
-	Plan                planv1connect.PlanServiceClient
-	Resource            resourcev1connect.ResourceServiceClient
-	Secret              secretv1connect.SecretServiceClient
-	Token               tokenv1connect.TokenServiceClient
-	User                userv1connect.UserServiceClient
-	Webhook             webhookv1connect.WebhookServiceClient
-	Workspace           workspacev1connect.WorkspaceServiceClient
-	ObservabilityAccess observabilityv1connect.ObservabilityAccessServiceClient
-	ObservabilityProxy  observabilityv1connect.ObservabilityProxyServiceClient
+	ClusterAdmin       clusterv1connect.ClusterAdminServiceClient
+	Agent              agentv1connect.AgentServiceClient
+	Auth               authv1connect.AuthServiceClient
+	Build              buildv1connect.BuildServiceClient
+	Config             configv1connect.ConfigServiceClient
+	Deployment         deploymentv1connect.DeploymentServiceClient
+	Domain             domainv1connect.DomainServiceClient
+	Environment        environmentv1connect.EnvironmentServiceClient
+	Event              eventv1connect.EventServiceClient
+	Org                orgv1connect.OrgServiceClient
+	Plan               planv1connect.PlanServiceClient
+	Resource           resourcev1connect.ResourceServiceClient
+	Secret             secretv1connect.SecretServiceClient
+	Token              tokenv1connect.TokenServiceClient
+	User               userv1connect.UserServiceClient
+	Webhook            webhookv1connect.WebhookServiceClient
+	Workspace          workspacev1connect.WorkspaceServiceClient
+	ObservabilityProxy observabilityv1connect.ObservabilityProxyServiceClient
 }
 
 var defaultHTTPClient = httputil.NewHTTPClient()
@@ -64,25 +63,24 @@ func NewHTTPClients(httpClient *http.Client, host, token string) *Clients {
 
 func NewClients(connectClient *connect.Client) *Clients {
 	return &Clients{
-		ClusterAdmin:        clusterv1connect.NewClusterAdminServiceClient(connectClient),
-		Agent:               agentv1connect.NewAgentServiceClient(connectClient),
-		Auth:                authv1connect.NewAuthServiceClient(connectClient),
-		Build:               buildv1connect.NewBuildServiceClient(connectClient),
-		Config:              configv1connect.NewConfigServiceClient(connectClient),
-		Deployment:          deploymentv1connect.NewDeploymentServiceClient(connectClient),
-		Domain:              domainv1connect.NewDomainServiceClient(connectClient),
-		Environment:         environmentv1connect.NewEnvironmentServiceClient(connectClient),
-		Event:               eventv1connect.NewEventServiceClient(connectClient),
-		Org:                 orgv1connect.NewOrgServiceClient(connectClient),
-		Plan:                planv1connect.NewPlanServiceClient(connectClient),
-		Resource:            resourcev1connect.NewResourceServiceClient(connectClient),
-		Secret:              secretv1connect.NewSecretServiceClient(connectClient),
-		Token:               tokenv1connect.NewTokenServiceClient(connectClient),
-		User:                userv1connect.NewUserServiceClient(connectClient),
-		Webhook:             webhookv1connect.NewWebhookServiceClient(connectClient),
-		Workspace:           workspacev1connect.NewWorkspaceServiceClient(connectClient),
-		ObservabilityAccess: observabilityv1connect.NewObservabilityAccessServiceClient(connectClient),
-		ObservabilityProxy:  observabilityv1connect.NewObservabilityProxyServiceClient(connectClient),
+		ClusterAdmin:       clusterv1connect.NewClusterAdminServiceClient(connectClient),
+		Agent:              agentv1connect.NewAgentServiceClient(connectClient),
+		Auth:               authv1connect.NewAuthServiceClient(connectClient),
+		Build:              buildv1connect.NewBuildServiceClient(connectClient),
+		Config:             configv1connect.NewConfigServiceClient(connectClient),
+		Deployment:         deploymentv1connect.NewDeploymentServiceClient(connectClient),
+		Domain:             domainv1connect.NewDomainServiceClient(connectClient),
+		Environment:        environmentv1connect.NewEnvironmentServiceClient(connectClient),
+		Event:              eventv1connect.NewEventServiceClient(connectClient),
+		Org:                orgv1connect.NewOrgServiceClient(connectClient),
+		Plan:               planv1connect.NewPlanServiceClient(connectClient),
+		Resource:           resourcev1connect.NewResourceServiceClient(connectClient),
+		Secret:             secretv1connect.NewSecretServiceClient(connectClient),
+		Token:              tokenv1connect.NewTokenServiceClient(connectClient),
+		User:               userv1connect.NewUserServiceClient(connectClient),
+		Webhook:            webhookv1connect.NewWebhookServiceClient(connectClient),
+		Workspace:          workspacev1connect.NewWorkspaceServiceClient(connectClient),
+		ObservabilityProxy: observabilityv1connect.NewObservabilityProxyServiceClient(connectClient),
 	}
 }
 func BearerInterceptor(token string) connect.ClientInterceptor {

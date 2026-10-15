@@ -182,21 +182,12 @@ func runResourceLogs(cmd *cobra.Command, deps logsDeps, name string) error {
 		return err
 	}
 
-	access := deps.Clients.Access(host, locoToken.Token)
-	proxies, err := logstream.Proxies(ctx, access, workspaceID, "")
-	if errors.Is(err, logstream.ErrNoProxy) {
-		return fmt.Errorf("no logs to show for %s: it has no running deployment with a log proxy", name)
-	}
-	if err != nil {
-		return err
-	}
-
 	filter := logstream.Filter{WorkspaceID: workspaceID, ResourceIDs: []string{resource.GetId()}}
 	end := time.Now()
 	start := end.Add(-opts.since)
-	logs := deps.Clients.logClient(locoToken.Token)
+	logs := deps.Clients.logClient(host, locoToken.Token)
 	window := logstream.Window{Start: start, End: end, Limit: opts.lines, Follow: opts.follow}
-	streamErr := logs.Stream(ctx, proxies, filter, window, opts.emit)
+	streamErr := logs.Stream(ctx, filter, window, opts.emit)
 	if ctx.Err() != nil {
 		return nil
 	}

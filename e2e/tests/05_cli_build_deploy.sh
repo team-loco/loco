@@ -30,7 +30,7 @@ test_c01_cli_deploys_from_source() {
     cli_seed_session
     cli_setup
 
-    local started elapsed rc=0
+    local started elapsed build_id rc=0
     started=$(date +%s)
     (cd "$cli_app_dir" && loco_cli deploy --yes) >"$cli_dir/deploy.out" 2>"$cli_dir/deploy.err" || rc=$?
     elapsed=$(($(date +%s) - started))
@@ -43,8 +43,8 @@ test_c01_cli_deploys_from_source() {
     assert_contains "CLI followed the build to success" "succeeded in" cat "$cli_dir/deploy.out"
     assert_contains "CLI applied the file with the build" "Started deployment" cat "$cli_dir/deploy.out"
     assert_contains "CLI prints the public URL" "${cli_app}: https://${cli_app}.e2e.test.local" cat "$cli_dir/deploy.out"
-    assert_contains "Without a log proxy, the CLI says so and keeps following the build" \
-        "Build logs are unavailable" cat "$cli_dir/deploy.out"
+    build_id=$(loco_cli builds list "$cli_app" --output json | yq -p json -r ".builds[0].id")
+    assert "CLI queries build logs through the control-plane address" loco_cli builds logs "$build_id"
     wait_for "the app to be Ready" 120 cli_application_is_ready "$cli_app"
     assert "The Application is Ready" cli_application_is_ready "$cli_app"
 }

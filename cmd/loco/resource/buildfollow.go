@@ -183,22 +183,13 @@ func (f *buildFollower) streamLogs(
 	workspaceID string,
 	backfilled func(),
 ) {
-	access := f.clients.Access(f.host, f.token)
-	clusterID := build.GetClusterId()
 	buildID := build.GetId()
-	proxies, err := logstream.Proxies(ctx, access, workspaceID, clusterID)
-	if err != nil {
-		if ctx.Err() == nil {
-			f.note("  Build logs are unavailable: %v\n", err)
-		}
-		return
-	}
-	logs := f.clients.logClient(f.token)
+	logs := f.clients.logClient(f.host, f.token)
 	filter := logstream.BuildFilter(workspaceID, buildID)
 	start := build.GetCreatedAt().AsTime()
 	now := time.Now()
 	window := logstream.Window{Start: start, End: now, Follow: true, Backfilled: backfilled}
-	streamErr := logs.Stream(ctx, proxies, filter, window, f.emitLog)
+	streamErr := logs.Stream(ctx, filter, window, f.emitLog)
 	if streamErr != nil && ctx.Err() == nil {
 		f.note("  Build logs stopped: %v\n", streamErr)
 	}

@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -euo pipefail
+root=$(git rev-parse --show-toplevel)
+chart="$root/charts/loco-obs/values.yaml"
+context="kind-$KIND_CLUSTER"
+namespace=$(yq '.global.observability.namespace' "$root/charts/loco-core/values.yaml")
+database=$(yq '.["otel-col-deploy"].config.exporters.clickhouse.database' "$chart")
+ready_timeout=300
+poll_interval=2
+deadline=$((SECONDS + ready_timeout))
+while true; do
+    pod=$(kubectl --context "$context" -n "$namespace" get pods -l clickhouse.altinity.com/chi -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+    if [ -n "$pod" ]; then break; fi
+    if [ "$SECONDS" -ge "$deadline" ]; then echo "regional ClickHouse pod did not appear" >&2; exit 1; fi
+    sleep "$poll_interval"
+done
+kubectl --context "$context" -n "$namespace" wait "pod/$pod" --for=condition=Ready --timeout="${ready_timeout}s"
+password() {
+    local secret=$1
+    kubectl --context "$context" -n "$namespace" get secret "$secret" -o jsonpath='{.data.password}' | base64 --decode
+}
+dsn() {
+    local grant=$1 user secret
+    user=$(GRANT="$grant" yq '.clickhouse.clickhouse.users[] | select(.grants[] | test("^" + strenv(GRANT) + " ON ")) | .name' "$chart")
+    secret=$(USER_NAME="$user" yq '.clickhouse.clickhouse.users[] | select(.name == strenv(USER_NAME)) | .password_secret_name' "$chart")
+    printf 'clickhouse://%s:%s@127.0.0.1:%s' "$user" "$(password "$secret")" "$CLICKHOUSE_NATIVE_PORT"
+}
+reader_dsn=$(dsn 'GRANT SELECT')
+migrator_dsn=$(dsn 'GRANT ALL')
+kubectl --context "$context" -n "$namespace" port-forward --address 127.0.0.1 "pod/$pod" "$CLICKHOUSE_NATIVE_PORT:9000" >/dev/null 2>&1 &
+forward_pid=$!
+proxy_pid=""
+cleanup() {
+    kill "$forward_pid" 2>/dev/null || true
+    if [ -n "$proxy_pid" ]; then kill "$proxy_pid" 2>/dev/null || true; fi
+}
+trap cleanup EXIT INT TERM
+PORT="$OBS_PROXY_PORT" CONTROL_PLANE_URL="$PUBLIC_API_URL" CLICKHOUSE_URL="$reader_dsn" \
+    CLICKHOUSE_MIGRATOR_URL="$migrator_dsn" CLICKHOUSE_DB="$database" \
+    "$root/observability-proxy/bin/loco-obs-proxy" &
+proxy_pid=$!
+wait "$proxy_pid"

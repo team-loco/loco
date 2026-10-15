@@ -1,8 +1,8 @@
 # Gateway namespace where the Envoy Gateway is deployed
 gatewayNamespace: envoy-gateway-system
+controlPlaneHostname: api.loco.build
 
 obsProxy:
-  hostname: observability.loco.build
   cors:
     allowedOrigins: []
   image:

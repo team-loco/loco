@@ -339,25 +339,15 @@ func runBuildsLogs(cmd *cobra.Command, deps buildsDeps, buildID string) error {
 		return followErr
 	}
 
-	clusterID := build.GetClusterId()
-	if clusterID == "" {
-		_, err = fmt.Fprintf(deps.Stdout, "Build %s has not started on a cluster, so it has no logs yet.\n", buildID)
-		return err
-	}
-	access := deps.Clients.Access(s.host, s.token)
-	proxies, err := logstream.Proxies(s.ctx, access, workspaceID, clusterID)
-	if err != nil {
-		return fmt.Errorf("build logs are unavailable: %w", err)
-	}
 	start := build.GetCreatedAt().AsTime()
 	end := time.Now()
 	if build.GetFinishedAt() != nil {
 		end = build.GetFinishedAt().AsTime().Add(finishedLogMargin)
 	}
 	filter := logstream.BuildFilter(workspaceID, buildID)
-	logs := deps.Clients.logClient(s.token)
+	logs := deps.Clients.logClient(s.host, s.token)
 	window := logstream.Window{Start: start, End: end}
-	streamErr := logs.Stream(s.ctx, proxies, filter, window, opts.emit)
+	streamErr := logs.Stream(s.ctx, filter, window, opts.emit)
 	if s.ctx.Err() != nil {
 		return nil
 	}

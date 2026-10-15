@@ -1,13 +1,10 @@
 import { createContext, use, useState, type ReactNode } from "react";
 import { useQuery } from "@connectrpc/connect-query";
 import { useSearchParams } from "react-router";
-import type { ClusterAccess } from "@gen/loco/observability/v1/observability_access_pb";
 import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
-import { createTransport } from "@/auth/connect-transport";
-import { useObsAccess } from "@/hooks/useObsAccess";
-import type { ClusterTransport, TimeRange } from "@/lib/obs";
+import type { TimeRange } from "@/lib/obs";
 import type { ObservabilityView } from "@/lib/routes";
 
 import type { Token } from "./query";
@@ -62,10 +59,6 @@ interface ObsContextValue {
 	resourcesLoading: boolean;
 	resourceByName: Map<string, ObsResource>;
 	resourceById: Map<string, ObsResource>;
-	clusters: ClusterAccess[];
-	transports: ClusterTransport[];
-	accessLoading: boolean;
-	accessError: Error | null;
 	range: TimeRange;
 	setRange: (r: TimeRange) => void;
 	selected: string[] | null;
@@ -96,7 +89,6 @@ export function ObsProvider({
 	children: ReactNode;
 }) {
 	const [params, setParams] = useSearchParams();
-	const access = useObsAccess(workspaceId);
 	const { data: resourcesData, isLoading: resourcesLoading } = useQuery(
 		listWorkspaceResources,
 		{ workspaceId, pageSize: 200 },
@@ -127,17 +119,6 @@ export function ObsProvider({
 	});
 	const resourceByName = new Map(resources.map((r) => [r.name, r]));
 	const resourceById = new Map(resources.map((r) => [r.id, r]));
-
-	const clusters = access.data?.clusters ?? [];
-	const [transportCache] = useState(() => new Map<string, ClusterTransport>());
-	const transports = clusters.map((cluster) => {
-		const key = `${cluster.clusterId}|${cluster.proxyUrl}`;
-		const cached = transportCache.get(key);
-		if (cached !== undefined) return cached;
-		const created = { cluster, transport: createTransport(cluster.proxyUrl) };
-		transportCache.set(key, created);
-		return created;
-	});
 
 	const goTo = (next: ObservabilityView, opts: GoToOptions = {}) => {
 		if (opts.range !== undefined) setRange(opts.range);
@@ -172,10 +153,6 @@ export function ObsProvider({
 		resourcesLoading,
 		resourceByName,
 		resourceById,
-		clusters,
-		transports,
-		accessLoading: access.isLoading,
-		accessError: access.error,
 		range,
 		setRange,
 		selected,

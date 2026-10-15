@@ -1,14 +1,8 @@
-import { useMemo } from "react";
-import { useQueries } from "@tanstack/react-query";
-import { createClient } from "@connectrpc/connect";
-import { ObservabilityProxyService } from "@gen/loco/observability/v1/observability_pb";
-import type { MetricSeries } from "@gen/loco/observability/v1/observability_pb";
-import {
-	timeRangeMs,
-	timeRangeIntervalSeconds,
-	type ClusterTransport,
-	type TimeRange,
-} from "@/lib/obs";
+import { useQuery } from "@tanstack/react-query";
+import { createClient, type Transport } from "@connectrpc/connect";
+import { createConnectQueryKey, useTransport } from "@connectrpc/connect-query";
+import { ObservabilityProxyService, type MetricSeries } from "@gen/loco/observability/v1/observability_pb";
+import { timeRangeMs, timeRangeIntervalSeconds, type TimeRange } from "@/lib/obs";
 import { msToTimestamp } from "@/lib/time";
 
 export interface MetricResult {
@@ -17,73 +11,36 @@ export interface MetricResult {
 	isLoading: boolean;
 	error: Error | null;
 }
-
 interface UseQueryMetricsOptions {
-	clusterTransports: ClusterTransport[];
 	workspaceId: string;
 	resourceIds: string[];
 	timeRange: TimeRange;
 	metricName: string;
+	environmentId?: string;
+	region?: string;
 	aggregation?: string;
 	enabled?: boolean;
 }
-
-export function useQueryMetrics({
-	clusterTransports,
-	workspaceId,
-	resourceIds,
-	timeRange,
-	metricName,
-	aggregation = "avg",
-	enabled = true,
-}: UseQueryMetricsOptions): MetricResult {
-	const intervalSeconds = timeRangeIntervalSeconds(timeRange);
-
-	const queries = useQueries({
-		queries: clusterTransports.map(({ cluster, transport }) => ({
-			queryKey: [
-				"obs-metrics",
-				cluster.clusterId,
-				workspaceId,
-				resourceIds,
-				timeRange,
-				metricName,
-				aggregation,
-			],
-			queryFn: async () => {
-				// Resolved per fetch, not per render: with refetchInterval set, a
-				// window pinned during render would poll the same frozen span.
-				const now = Date.now();
-				const client = createClient(ObservabilityProxyService, transport);
-				const resp = await client.queryMetrics({
-					workspaceId,
-					resourceIds,
-					startTime: msToTimestamp(now - timeRangeMs(timeRange)),
-					endTime: msToTimestamp(now),
-					metricName,
-					intervalSeconds,
-					aggregation,
-				});
-				return resp.series;
-			},
-			enabled: enabled && !!workspaceId && resourceIds.length > 0 && clusterTransports.length > 0,
-			staleTime: 60_000,
-			refetchInterval: 60_000,
-		})),
-	});
-
-	const series = useMemo(() => {
-		const all: MetricSeries[] = [];
-		for (const q of queries) {
-			if (q.data) all.push(...q.data);
-		}
-		return all;
-	}, [queries]);
-
+export function metricsQueryOptions(transport: Transport, { workspaceId, resourceIds, timeRange, metricName,
+	environmentId = "", region = "", aggregation = "avg", enabled = true,
+}: UseQueryMetricsOptions) {
+	const input = { workspaceId, resourceIds, metricName, environmentId, region, aggregation,
+		intervalSeconds: timeRangeIntervalSeconds(timeRange) };
 	return {
-		metricName,
-		series,
-		isLoading: queries.some((q) => q.isLoading),
-		error: (queries.find((q) => q.error)?.error as Error | null) ?? null,
+		queryKey: [...createConnectQueryKey({ schema: ObservabilityProxyService.method.queryMetrics,
+			transport, cardinality: "finite", input }), timeRange],
+		queryFn: async ({ signal }: { signal: AbortSignal }) => {
+			const now = Date.now();
+			const response = await createClient(ObservabilityProxyService, transport).queryMetrics({ ...input,
+				startTime: msToTimestamp(now - timeRangeMs(timeRange)), endTime: msToTimestamp(now),
+			}, { signal });
+			return response.series;
+		},
+		enabled: enabled && workspaceId !== "", staleTime: 60_000, refetchInterval: 60_000,
 	};
+}
+
+export function useQueryMetrics(options: UseQueryMetricsOptions): MetricResult {
+	const query = useQuery(metricsQueryOptions(useTransport(), options));
+	return { metricName: options.metricName, series: query.data ?? [], isLoading: query.isLoading, error: query.error };
 }

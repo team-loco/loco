@@ -80,7 +80,6 @@ type fakePlatform struct {
 	sourceLimit       int64
 	buildsUnavailable string
 	uploads           map[string]fakeUpload
-	noProxy           bool
 	logQueries        []*observabilityv1.QueryLogsRequest
 	plan              *planv1.PlanResponse
 	planned           [][]byte
@@ -117,7 +116,6 @@ func (f *fakeAPI) registerPlatform(mux *http.ServeMux) {
 	domainv1connect.RegisterDomainServiceHandler(server, &fakeDomainService{api: f})
 	environmentv1connect.RegisterEnvironmentServiceHandler(server, &fakeEnvironmentService{api: f})
 	buildv1connect.RegisterBuildServiceHandler(server, &fakeBuildService{api: f})
-	observabilityv1connect.RegisterObservabilityAccessServiceHandler(server, &fakeAccessService{api: f})
 	observabilityv1connect.RegisterObservabilityProxyServiceHandler(server, &fakeProxyService{api: f})
 	secretv1connect.RegisterSecretServiceHandler(server, &fakeSecretService{api: f})
 	connecthttp.Mount(mux, server)
@@ -602,37 +600,6 @@ func (s *fakeBuildService) CancelBuild(
 	build.Message = "canceled by a user"
 	build.FinishedAt = timestamppb.Now()
 	return &buildv1.CancelBuildResponse{Build: build}, nil
-}
-
-type fakeAccessService struct {
-	observabilityv1connect.UnimplementedObservabilityAccessServiceHandler
-
-	api *fakeAPI
-}
-
-func (s *fakeAccessService) GetObservabilityAccess(
-	ctx context.Context,
-	_ *observabilityv1.GetObservabilityAccessRequest,
-) (*observabilityv1.GetObservabilityAccessResponse, error) {
-	info, _ := connect.CallInfoForServerContext(ctx)
-	f := s.api
-	if _, _, err := f.authenticate(
-		connect.Spec{Procedure: observabilityv1connect.ObservabilityAccessServiceGetObservabilityAccessProcedure},
-		info.RequestHeader(),
-	); err != nil {
-		return nil, err
-	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	resp := &observabilityv1.GetObservabilityAccessResponse{}
-	if !f.platform.noProxy {
-		resp.Clusters = []*observabilityv1.ClusterAccess{{
-			ClusterId: fakeClusterID,
-			ProxyUrl:  f.platform.baseURL,
-			Region:    "us-east-1",
-		}}
-	}
-	return resp, nil
 }
 
 type fakeProxyService struct {

@@ -125,62 +125,6 @@ func (q *Queries) GetClusterByKey(ctx context.Context, clusterKey *uuid.UUID) (G
 	return i, err
 }
 
-const getObservabilityClustersForWorkspace = `-- name: GetObservabilityClustersForWorkspace :many
-SELECT c.id, c.name, c.region, c.observability_proxy_endpoint
-FROM clusters c
-WHERE c.is_active = true
-  AND (
-    EXISTS (
-      SELECT 1
-      FROM deployments d
-      INNER JOIN resources r ON r.id = d.resource_id
-      WHERE d.cluster_id = c.id
-        AND d.is_active = true
-        AND r.workspace_id = $1
-    )
-    OR EXISTS (
-      SELECT 1
-      FROM builds b
-      INNER JOIN resources r ON r.id = b.resource_id
-      WHERE b.cluster_id = c.id
-        AND r.workspace_id = $1
-    )
-  )
-ORDER BY c.region, c.id
-`
-
-type GetObservabilityClustersForWorkspaceRow struct {
-	ID                         uuid.UUID `json:"id"`
-	Name                       string    `json:"name"`
-	Region                     string    `json:"region"`
-	ObservabilityProxyEndpoint *string   `json:"observabilityProxyEndpoint"`
-}
-
-func (q *Queries) GetObservabilityClustersForWorkspace(ctx context.Context, workspaceID uuid.UUID) ([]GetObservabilityClustersForWorkspaceRow, error) {
-	rows, err := q.db.Query(ctx, getObservabilityClustersForWorkspace, workspaceID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetObservabilityClustersForWorkspaceRow
-	for rows.Next() {
-		var i GetObservabilityClustersForWorkspaceRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.Region,
-			&i.ObservabilityProxyEndpoint,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listAdminClusters = `-- name: ListAdminClusters :many
 SELECT id, cluster_key, name, region, tier, is_active, removed_at, health_status,
        last_heartbeat, agent_version, connection_credential_fingerprint
@@ -311,22 +255,6 @@ type SetClusterGatewayHostnameParams struct {
 
 func (q *Queries) SetClusterGatewayHostname(ctx context.Context, arg SetClusterGatewayHostnameParams) error {
 	_, err := q.db.Exec(ctx, setClusterGatewayHostname, arg.ID, arg.GatewayHostname)
-	return err
-}
-
-const setClusterObservabilityEndpoint = `-- name: SetClusterObservabilityEndpoint :exec
-UPDATE clusters
-SET observability_proxy_endpoint = $2, updated_at = NOW()
-WHERE id = $1
-`
-
-type SetClusterObservabilityEndpointParams struct {
-	ID                         uuid.UUID `json:"id"`
-	ObservabilityProxyEndpoint *string   `json:"observabilityProxyEndpoint"`
-}
-
-func (q *Queries) SetClusterObservabilityEndpoint(ctx context.Context, arg SetClusterObservabilityEndpointParams) error {
-	_, err := q.db.Exec(ctx, setClusterObservabilityEndpoint, arg.ID, arg.ObservabilityProxyEndpoint)
 	return err
 }
 

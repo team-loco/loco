@@ -25,8 +25,6 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/environment/v1/environmentv1connect"
 	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
 	"github.com/team-loco/loco/gen/go/loco/event/v1/eventv1connect"
-	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
-	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
@@ -225,15 +223,6 @@ func TestServicesExposePublicWireErrors(t *testing.T) {
 			code:    connect.CodePermissionDenied,
 			message: ErrApproveFromWeb.Error(),
 		},
-		{name: "ObservabilityAccess", register: func(server *connect.Server) {
-			observabilityv1connect.RegisterObservabilityAccessServiceHandler(server, &ObservabilityAccessServer{})
-		},
-			call: func(ctx context.Context, client *connect.Client) error {
-				serviceClient := observabilityv1connect.NewObservabilityAccessServiceClient(client)
-				request := &observabilityv1.GetObservabilityAccessRequest{WorkspaceId: "invalid"}
-				_, err := serviceClient.GetObservabilityAccess(ctx, request)
-				return err
-			}, code: connect.CodeInvalidArgument, message: "invalid workspace_id"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

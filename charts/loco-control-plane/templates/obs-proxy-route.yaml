@@ -8,7 +8,7 @@ spec:
     - name: eg
       namespace: {{ .Values.gatewayNamespace }}
   hostnames:
-    - {{ .Values.obsProxy.hostname | quote }}
+    - {{ .Values.controlPlaneHostname | quote }}
   rules:
     - backendRefs:
         - name: {{ .Release.Name }}-obs-proxy
@@ -16,4 +16,4 @@ spec:
       matches:
         - path:
             type: PathPrefix
-            value: /
+            value: /loco.observability.v1.ObservabilityProxyService/

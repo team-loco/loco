@@ -7,8 +7,7 @@ import { QueryLogsRequest, QueryLogsResponse, QueryMetricsRequest, QueryMetricsR
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * ObservabilityProxyService provides secure, workspace-scoped access to cluster-local telemetry.
- * Runs in the data plane (per-cluster).
+ * ObservabilityProxyService queries telemetry in the selected regional control plane.
  *
  * @generated from service loco.observability.v1.ObservabilityProxyService
  */

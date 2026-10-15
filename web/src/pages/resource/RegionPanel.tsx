@@ -117,8 +117,8 @@ function Charts({ workspaceId, range, dep }: { workspaceId: string; range: Metri
 	const memNow = lastMem === undefined || reqMem === 0 ? "—" : fmtMem(((reqMem * lastMem) / 100) * live);
 	const cpuUnit = replicas > 0 && reqCpu > 0 ? `of ${fmtCpu(reqCpu * replicas)} requested` : "";
 	const memUnit = replicas > 0 && reqMem > 0 ? `of ${fmtMem(reqMem * replicas)} limit` : "";
-	const emptyText = (q: { unavailable: boolean; error: Error | null }) =>
-		q.unavailable ? "Metrics unavailable for this region" : q.error !== null ? "Failed to load metrics" : "No data in this range";
+	const emptyText = (q: { error: Error | null }) =>
+		q.error !== null ? "Failed to load metrics" : "No data in this range";
 	return (
 		<>
 			<MetricChart

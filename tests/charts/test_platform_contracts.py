@@ -137,6 +137,13 @@ class PlatformContracts(unittest.TestCase):
             '*.staging-east.apps.example.test', '*.staging-west.apps.example.test',
         ])
 
+    def test_observability_route_uses_control_plane_origin_and_rpc_prefix(self):
+        route = render('loco-control-plane', 'obs-proxy-route.yaml', {'controlPlaneHostname': 'api.region.example.test'})
+        self.assertEqual(route['spec']['hostnames'], ['api.region.example.test'])
+        rule, = route['spec']['rules']
+        self.assertEqual(rule['matches'], [{'path': {'type': 'PathPrefix', 'value': '/loco.observability.v1.ObservabilityProxyService/'}}])
+        self.assertEqual(rule['backendRefs'][0]['name'], 'loco-control-plane-obs-proxy')
+
     def test_database_and_auth_secret_references(self):
         deployment = render('loco-control-plane', 'obs-proxy-deployment.yaml', {'obsProxy': TEST_PROXY})
         env = {item['name']: item for item in deployment['spec']['template']['spec']['containers'][0]['env']}

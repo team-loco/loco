@@ -93,23 +93,24 @@ func (p *fakeProxy) TailLogs(
 	return nil
 }
 
-func serve(t *testing.T, proxy *fakeProxy) Proxy {
+func serve(t *testing.T, proxy *fakeProxy) string {
 	t.Helper()
 	return serveHandler(t, proxy)
 }
 
-func serveHandler(t *testing.T, proxy observabilityv1connect.ObservabilityProxyServiceHandler) Proxy {
+func serveHandler(t *testing.T, proxy observabilityv1connect.ObservabilityProxyServiceHandler) string {
 	t.Helper()
 	server := connect.NewServer()
 	observabilityv1connect.RegisterObservabilityProxyServiceHandler(server, proxy)
 	endpoint := fmt.Sprintf("inprocess://%p", server)
 	proxyServers.Store(endpoint, server)
 	t.Cleanup(func() { proxyServers.Delete(endpoint) })
-	return Proxy{ClusterID: endpoint, Region: "test", URL: endpoint}
+	return endpoint
 }
 
-func newClient() *Client {
+func newClient(endpoint string) *Client {
 	return &Client{
+		URL:   endpoint,
 		Token: "token",
 		NewClient: func(url, token string) observabilityv1connect.ObservabilityProxyServiceClient {
 			cached, exists := proxyServers.Load(url)
@@ -134,27 +135,35 @@ func collect(entries *[]string) Emit {
 	}
 }
 
-func TestBackfillMergesRegionsOldestFirstAndKeepsTheLastLines(t *testing.T) {
-	east := serve(t, &fakeProxy{entries: []*observabilityv1.LogEntry{entry(0, "east 0"), entry(2, "east 2")}})
-	west := serve(t, &fakeProxy{entries: []*observabilityv1.LogEntry{entry(1, "west 1"), entry(3, "west 3")}})
-	proxies := []Proxy{east, west}
+func TestBackfillQueriesOneRegionalBackendAndKeepsTheLastLines(t *testing.T) {
+	proxy := &fakeProxy{
+		entries: []*observabilityv1.LogEntry{
+			entry(0, "east 0"),
+			entry(1, "west 1"),
+			entry(2, "east 2"),
+			entry(3, "west 3"),
+		},
+	}
+	target := serve(t, proxy)
 	filter := Filter{WorkspaceID: "ws", ResourceIDs: []string{"r"}}
-
 	var all []string
-	if err := newClient().Backfill(t.Context(), proxies, filter, base, base.Add(time.Hour), 0, collect(&all)); err != nil {
-		t.Fatalf("backfill: %v", err)
+	if err := newClient(target).Backfill(t.Context(), filter, base, base.Add(time.Hour), 0, collect(&all)); err != nil {
+		t.Fatal(err)
 	}
-	if want := []string{"east 0", "west 1", "east 2", "west 3"}; !slices.Equal(all, want) {
-		t.Fatalf("entries = %v, want %v", all, want)
+	if !slices.Equal(all, []string{"east 0", "west 1", "east 2", "west 3"}) {
+		t.Fatalf("entries = %v", all)
 	}
-
+	if len(proxy.queries) != 1 {
+		t.Fatalf("queries = %d, want one regional request", len(proxy.queries))
+	}
 	var last []string
-	end := base.Add(time.Hour)
-	if err := newClient().Backfill(t.Context(), proxies, filter, base, end, 2, collect(&last)); err != nil {
-		t.Fatalf("backfill: %v", err)
+	if err := newClient(
+		target,
+	).Backfill(t.Context(), filter, base, base.Add(time.Hour), 2, collect(&last)); err != nil {
+		t.Fatal(err)
 	}
-	if want := []string{"east 2", "west 3"}; !slices.Equal(last, want) {
-		t.Fatalf("last two = %v, want %v", last, want)
+	if !slices.Equal(last, []string{"east 2", "west 3"}) {
+		t.Fatalf("last = %v", last)
 	}
 }
 
@@ -168,7 +177,7 @@ func TestBackfillFollowsCursorsAndClampsTheRange(t *testing.T) {
 	end := base.Add(48 * time.Hour)
 
 	var got []string
-	if err := newClient().Backfill(t.Context(), []Proxy{target}, filter, base, end, 0, collect(&got)); err != nil {
+	if err := newClient(target).Backfill(t.Context(), filter, base, end, 0, collect(&got)); err != nil {
 		t.Fatalf("backfill: %v", err)
 	}
 	if want := []string{"a", "b", "c"}; !slices.Equal(got, want) {
@@ -206,7 +215,7 @@ func TestTailSkipsBackfilledEntriesAndReconnects(t *testing.T) {
 		}
 		return nil
 	}
-	if err := newClient().Tail(ctx, []Proxy{target}, Filter{WorkspaceID: "ws"}, base.Add(time.Second), emit); err != nil {
+	if err := newClient(target).Tail(ctx, Filter{WorkspaceID: "ws"}, base.Add(time.Second), emit); err != nil {
 		t.Fatalf("tail: %v", err)
 	}
 	if want := []string{"tailed", "after reconnect"}; !slices.Equal(got, want) {
@@ -272,7 +281,7 @@ func streamUntil(t *testing.T, proxy *windowProxy, window Window, want int) []*o
 		}
 		return nil
 	}
-	if err := newClient().Stream(ctx, []Proxy{target}, Filter{WorkspaceID: "ws"}, window, emit); err != nil {
+	if err := newClient(target).Stream(ctx, Filter{WorkspaceID: "ws"}, window, emit); err != nil {
 		t.Fatalf("stream: %v", err)
 	}
 	return got

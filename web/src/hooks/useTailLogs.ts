@@ -1,14 +1,12 @@
 import { useState, useEffect, useEffectEvent } from "react";
 import { createClient } from "@connectrpc/connect";
-import { ObservabilityProxyService } from "@gen/loco/observability/v1/observability_pb";
-import type { LogEntry } from "@gen/loco/observability/v1/observability_pb";
-import type { ClusterTransport } from "@/lib/obs";
+import { createConnectQueryKey, useTransport } from "@connectrpc/connect-query";
+import { ObservabilityProxyService, type LogEntry } from "@gen/loco/observability/v1/observability_pb";
 import type { ParsedQuery } from "@/lib/obs-query-parser";
 
 const MAX_TAIL_ENTRIES = 500;
 
 interface UseTailLogsOptions {
-	clusterTransports: ClusterTransport[];
 	workspaceId: string;
 	resourceIds: string[];
 	parsedQuery: ParsedQuery;
@@ -19,66 +17,65 @@ interface TailState {
 	key: string;
 	entries: LogEntry[];
 	isConnected: boolean;
+	error: Error | null;
 }
 
-const NO_TAIL: Omit<TailState, "key"> = { entries: [], isConnected: false };
+const NO_TAIL: Omit<TailState, "key"> = { entries: [], isConnected: false, error: null };
 
-export function useTailLogs({
-	clusterTransports,
-	workspaceId,
-	resourceIds,
-	parsedQuery,
-	enabled = true,
-}: UseTailLogsOptions) {
-	const streamKey = JSON.stringify({
-		enabled,
+export function useTailLogs({ workspaceId, resourceIds, parsedQuery, enabled = true }: UseTailLogsOptions) {
+	const transport = useTransport();
+	const request = {
 		workspaceId,
 		resourceIds,
-		parsedQuery,
-		clusterIds: clusterTransports.map((ct) => ct.cluster.clusterId),
-	});
+		search: parsedQuery.search,
+		levels: parsedQuery.levels,
+		labels: parsedQuery.labels,
+		regions: parsedQuery.regions ?? [],
+		excludedRegions: parsedQuery.excludedRegions ?? [],
+	};
+	const streamKey = JSON.stringify([
+		enabled,
+		createConnectQueryKey({ schema: ObservabilityProxyService, transport, cardinality: "finite" }),
+		request,
+	]);
 	const [tail, setTail] = useState<TailState>({ key: streamKey, ...NO_TAIL });
-
-	const openStreams = useEffectEvent((signal: AbortSignal) => {
-		if (!enabled || workspaceId === "") return;
-
-		const append = (entry: LogEntry) => {
-			setTail((prev) => {
-				const entries = prev.key === streamKey ? [entry, ...prev.entries] : [entry];
-				return { key: streamKey, entries: entries.slice(0, MAX_TAIL_ENTRIES), isConnected: true };
-			});
-		};
-
-		const streamCluster = async (ct: ClusterTransport) => {
-			const client = createClient(ObservabilityProxyService, ct.transport);
-			const request = {
-				workspaceId,
-				resourceIds,
-				search: parsedQuery.search,
-				levels: parsedQuery.levels,
-				labels: parsedQuery.labels,
-			};
+	const openStream = useEffectEvent((signal: AbortSignal) => {
+		const consume = async () => {
+			if (!enabled || workspaceId === "") return;
 			try {
-				for await (const msg of client.tailLogs(request, { signal })) {
+				const client = createClient(ObservabilityProxyService, transport);
+				for await (const message of client.tailLogs(request, { signal })) {
 					if (signal.aborted) return;
-					if (msg.event.case === "entry") append(msg.event.value);
+					setTail((previous) => {
+						const entries = previous.key === streamKey ? previous.entries : [];
+						return {
+							key: streamKey,
+							entries: message.event.case === "entry"
+								? [message.event.value, ...entries].slice(0, MAX_TAIL_ENTRIES)
+								: entries,
+							isConnected: true,
+							error: null,
+						};
+					});
 				}
-			} catch {
-				return;
+				if (!signal.aborted) setTail((previous) => ({ ...previous, isConnected: false }));
+			} catch (error) {
+				if (signal.aborted) return;
+				setTail((previous) => ({
+					key: streamKey,
+					entries: previous.key === streamKey ? previous.entries : [],
+					isConnected: false,
+					error: error instanceof Error ? error : new Error(String(error)),
+				}));
 			}
 		};
-
-		for (const ct of clusterTransports) {
-			void streamCluster(ct);
-		}
+		void consume();
 	});
 
 	useEffect(() => {
 		const abort = new AbortController();
-		openStreams(abort.signal);
-		return () => {
-			abort.abort();
-		};
+		openStream(abort.signal);
+		return () => { abort.abort(); };
 	}, [streamKey]);
 
 	return tail.key === streamKey ? tail : NO_TAIL;

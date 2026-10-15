@@ -3,7 +3,7 @@
 source "$E2E_ROOT_DIR/e2e/cli.sh"
 
 proxy_url="http://127.0.0.1:${E2E_OBS_PROXY_PORT}"
-proxy_query_logs="${proxy_url}/loco.observability.v1.ObservabilityProxyService/QueryLogs"
+proxy_query_logs="${E2E_API_URL}/loco.observability.v1.ObservabilityProxyService/QueryLogs"
 proxy_other_workspace_id='00000000-0000-7000-8000-999999999999'
 proxy_query_window_seconds=3600
 

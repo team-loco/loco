@@ -77,6 +77,7 @@ func (s *ObservabilityService) QueryLogs(
 		req.GetCursor(),
 		req.GetOrder(),
 		s.cfg.QueryTimeout,
+		chClient.LogRegions{Include: req.GetRegions(), Exclude: req.GetExcludedRegions()},
 	)
 	if errors.Is(err, chClient.ErrInvalidLogCursor) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)

@@ -2,6 +2,7 @@ package guardrails
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -176,5 +177,54 @@ func TestValidateTracesRequest(t *testing.T) {
 				t.Fatalf("validation = %v, valid = %v", err, tc.valid)
 			}
 		})
+	}
+}
+
+func TestRegionFiltersPreserveReservedLabelGuardrails(t *testing.T) {
+	cfg := &config.Config{MaxTimeRange: testMaxRange}
+	now := time.Now()
+	for _, patterns := range [][]string{
+		{""}, {"us**"}, {"us*east"}, {strings.Repeat("x", maxRegionPatternRunes+1)},
+		make([]string, maxRegionPatterns+1),
+	} {
+		logs := &observabilityv1.QueryLogsRequest{WorkspaceId: testWorkspaceID, Regions: patterns,
+			StartTime: timestamppb.New(now.Add(-time.Hour)), EndTime: timestamppb.New(now)}
+		tail := &observabilityv1.TailLogsRequest{WorkspaceId: testWorkspaceID, ExcludedRegions: patterns}
+		if err := ValidateLogsRequest(logs, cfg); !errors.Is(err, errInvalidRegionFilter) {
+			t.Errorf("logs: %v", err)
+		}
+		if err := ValidateTailRequest(tail, cfg, now); !errors.Is(err, errInvalidRegionFilter) {
+			t.Errorf("tail: %v", err)
+		}
+	}
+	logs := &observabilityv1.QueryLogsRequest{WorkspaceId: testWorkspaceID, Regions: []string{"us-*"},
+		Labels:    map[string]string{"loco.workspace.id": "another workspace"},
+		StartTime: timestamppb.New(now.Add(-time.Hour)), EndTime: timestamppb.New(now)}
+	if err := ValidateLogsRequest(logs, cfg); !errors.Is(err, errReservedLabelKey) {
+		t.Fatalf("reserved label: %v", err)
+	}
+	logs.Labels = nil
+	if err := ValidateLogsRequest(logs, cfg); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMetricsHistoryAllowsAllResourcesWithinWorkspace(t *testing.T) {
+	now := time.Now()
+	request := &observabilityv1.QueryMetricsRequest{WorkspaceId: testWorkspaceID,
+		StartTime: timestamppb.New(now.Add(-time.Hour)), EndTime: timestamppb.New(now),
+		MetricName: "k8s.pod.cpu.usage", Aggregation: "avg"}
+	if err := ValidateMetricsRequest(request, &config.Config{MaxTimeRange: testMaxRange}); err != nil {
+		t.Fatal(err)
+	}
+	request.WorkspaceId = ""
+	if err := ValidateMetricsRequest(
+		request,
+		&config.Config{MaxTimeRange: testMaxRange},
+	); !errors.Is(
+		err,
+		errWorkspaceIDRequired,
+	) {
+		t.Fatalf("missing workspace: %v", err)
 	}
 }

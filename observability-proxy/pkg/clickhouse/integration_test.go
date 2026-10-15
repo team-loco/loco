@@ -190,6 +190,10 @@ func (f *queryFixture) insertLogs(t *testing.T) {
 	}
 	for index, row := range testLogRows {
 		attrs := tenantAttributes(row.workspaceID, testEnvironmentID, row.resourceID)
+		attrs[regionAttribute] = testRegion
+		if row.resourceID == testWorkerResourceID {
+			attrs[regionAttribute] = testWorkerRegion
+		}
 		ts := f.logTime(index)
 		if err := batch.Append(ts, testSeverity, row.body, attrs, "", "", map[string]string{}); err != nil {
 			t.Fatalf("append log row: %v", err)
@@ -220,6 +224,7 @@ func (f *queryFixture) insertGauges(t *testing.T) {
 }
 
 type logQuery struct {
+	regions     LogRegions
 	workspaceID string
 	resourceIDs []string
 	labels      map[string]string
@@ -242,7 +247,7 @@ func (f *queryFixture) page(t *testing.T, q logQuery, cursor string) ([]*observa
 		q.limit,
 		cursor,
 		q.order,
-		testQueryTimeout,
+		testQueryTimeout, q.regions,
 	)
 	if err != nil {
 		t.Fatalf("QueryLogs: %v", err)
@@ -450,6 +455,20 @@ func TestQueryMetricsScopesToWorkspaceEnvironmentAndRegion(t *testing.T) {
 			},
 		},
 		{
+			name:        "all workspace history without current resource IDs",
+			workspaceID: testWorkspaceID, environmentID: testEnvironmentID,
+			want: map[string][]float64{testResourceID: {testWebAverage}, testWorkerResourceID: {testWorkerValue}},
+		},
+		{
+			name:          "other workspace history without resource IDs",
+			workspaceID:   testOtherWorkspaceID,
+			environmentID: testEnvironmentID,
+			want: map[string][]float64{
+				testResourceID:       {testOtherWorkspaceVal},
+				testWorkerResourceID: {testOtherWorkspaceVal},
+			},
+		},
+		{
 			name:          "resource filter",
 			workspaceID:   testWorkspaceID,
 			environmentID: testEnvironmentID,
@@ -569,7 +588,7 @@ func TestLogPagesKeepEqualTimestampsAcrossMerges(t *testing.T) {
 				testPageSize,
 				cursor,
 				order,
-				testQueryTimeout,
+				testQueryTimeout, LogRegions{},
 			)
 			if err != nil {
 				t.Fatal(err)
@@ -590,6 +609,37 @@ func TestLogPagesKeepEqualTimestampsAcrossMerges(t *testing.T) {
 		}
 		if count != copies*copies {
 			t.Fatalf("order %v returned %d logs, want %d", order, count, copies*copies)
+		}
+	}
+}
+
+func TestQueryLogsFiltersRecordedRegionsBeforePagination(t *testing.T) {
+	f := newQueryFixture(t)
+	for _, order := range []observabilityv1.LogOrder{
+		observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST, observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST,
+	} {
+		cases := []struct {
+			name      string
+			regions   LogRegions
+			resources []string
+		}{
+			{"case insensitive prefix", LogRegions{Include: []string{"US-*"}}, []string{testResourceID}},
+			{"exclude region", LogRegions{Exclude: []string{testWorkerRegion}}, []string{testResourceID}},
+			{
+				"include OR then exclude",
+				LogRegions{Include: []string{"us-*", "eu-*"}, Exclude: []string{"us-*"}},
+				[]string{testWorkerResourceID},
+			},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				query := logQuery{workspaceID: testWorkspaceID, limit: testPageSize, order: order, regions: tc.regions}
+				got := f.allPages(t, query)
+				want := wantBodies(testWorkspaceID, tc.resources, order)
+				if !slices.Equal(got, want) {
+					t.Fatalf("bodies = %v, want %v", got, want)
+				}
+			})
 		}
 	}
 }

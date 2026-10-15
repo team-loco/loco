@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -99,6 +100,7 @@ const (
 )
 
 type APIConfig struct {
+	ObservabilityProxyURL *url.URL
 	Agent                 service.AgentConfig
 	Version               string
 	Env                   string // Environment (e.g., dev, prod)
@@ -134,6 +136,8 @@ type APIConfig struct {
 
 func newAPIConfig() *APIConfig {
 	databaseURL := stringEnv("DATABASE_URL", "")
+	observabilityRaw := stringEnv("OBSERVABILITY_PROXY_URL", "")
+	observabilityURL := parseObservabilityProxyURL(observabilityRaw)
 	agentConfig := newAgentConfig()
 	databaseListenConfig := newDatabaseListenConfig(databaseURL)
 	cacheType, cacheAddr := newCacheConfig()
@@ -173,6 +177,7 @@ func newAPIConfig() *APIConfig {
 		DatabaseURL:           databaseURL,
 		DatabaseListenConfig:  databaseListenConfig,
 		Port:                  stringEnv("APP_PORT", ""),
+		ObservabilityProxyURL: observabilityURL,
 		LogLevel:              logLevel,
 		CacheType:             cacheType,
 		CacheAddr:             cacheAddr,

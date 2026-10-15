@@ -98,9 +98,11 @@ type QueryLogsRequest struct {
 	// Opaque cursor for pagination (from previous response). Empty for first request.
 	Cursor string `protobuf:"bytes,9,opt,name=cursor,proto3" json:"cursor,omitempty"`
 	// Ordering of results (newest/oldest first).
-	Order         LogOrder `protobuf:"varint,10,opt,name=order,proto3,enum=loco.observability.v1.LogOrder" json:"order,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Order           LogOrder `protobuf:"varint,10,opt,name=order,proto3,enum=loco.observability.v1.LogOrder" json:"order,omitempty"`
+	Regions         []string `protobuf:"bytes,11,rep,name=regions,proto3" json:"regions,omitempty"`
+	ExcludedRegions []string `protobuf:"bytes,12,rep,name=excluded_regions,json=excludedRegions,proto3" json:"excluded_regions,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *QueryLogsRequest) Reset() {
@@ -201,6 +203,20 @@ func (x *QueryLogsRequest) GetOrder() LogOrder {
 		return x.Order
 	}
 	return LogOrder_LOG_ORDER_UNSPECIFIED
+}
+
+func (x *QueryLogsRequest) GetRegions() []string {
+	if x != nil {
+		return x.Regions
+	}
+	return nil
+}
+
+func (x *QueryLogsRequest) GetExcludedRegions() []string {
+	if x != nil {
+		return x.ExcludedRegions
+	}
+	return nil
 }
 
 // QueryLogsResponse contains the results of a log query.
@@ -388,10 +404,12 @@ type TailLogsRequest struct {
 	// Filter by severity levels (e.g., ["ERROR", "WARN"]).
 	Levels []string `protobuf:"bytes,4,rep,name=levels,proto3" json:"levels,omitempty"`
 	// Filter by resource attribute key-value pairs.
-	Labels        map[string]string      `protobuf:"bytes,5,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Since         *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=since,proto3" json:"since,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Labels          map[string]string      `protobuf:"bytes,5,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Since           *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=since,proto3" json:"since,omitempty"`
+	Regions         []string               `protobuf:"bytes,7,rep,name=regions,proto3" json:"regions,omitempty"`
+	ExcludedRegions []string               `protobuf:"bytes,8,rep,name=excluded_regions,json=excludedRegions,proto3" json:"excluded_regions,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *TailLogsRequest) Reset() {
@@ -462,6 +480,20 @@ func (x *TailLogsRequest) GetLabels() map[string]string {
 func (x *TailLogsRequest) GetSince() *timestamppb.Timestamp {
 	if x != nil {
 		return x.Since
+	}
+	return nil
+}
+
+func (x *TailLogsRequest) GetRegions() []string {
+	if x != nil {
+		return x.Regions
+	}
+	return nil
+}
+
+func (x *TailLogsRequest) GetExcludedRegions() []string {
+	if x != nil {
+		return x.ExcludedRegions
 	}
 	return nil
 }
@@ -604,7 +636,7 @@ type QueryMetricsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Workspace ID to query metrics from (required).
 	WorkspaceId string `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	// Resource IDs to filter by (required, non-empty).
+	// Resource IDs to filter by. Empty means all resources in the workspace.
 	ResourceIds []string `protobuf:"bytes,2,rep,name=resource_ids,json=resourceIds,proto3" json:"resource_ids,omitempty"`
 	// Start of time range (inclusive).
 	StartTime *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
@@ -1213,7 +1245,7 @@ var File_loco_observability_v1_observability_proto protoreflect.FileDescriptor
 
 const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\n" +
-	")loco/observability/v1/observability.proto\x12\x15loco.observability.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa3\x05\n" +
+	")loco/observability/v1/observability.proto\x12\x15loco.observability.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8e\x06\n" +
 	"\x10QueryLogsRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12!\n" +
 	"\fresource_ids\x18\x02 \x03(\tR\vresourceIds\x129\n" +
@@ -1227,7 +1259,9 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\xbaH\a\x1a\x05\x18\x90N(\x00R\x05limit\x12\x16\n" +
 	"\x06cursor\x18\t \x01(\tR\x06cursor\x125\n" +
 	"\x05order\x18\n" +
-	" \x01(\x0e2\x1f.loco.observability.v1.LogOrderR\x05order\x1a9\n" +
+	" \x01(\x0e2\x1f.loco.observability.v1.LogOrderR\x05order\x12+\n" +
+	"\aregions\x18\v \x03(\tB\x11\xbaH\x0e\x92\x01\v\x10d\"\ar\x05\x10\x01\x18\x80\x01R\aregions\x12<\n" +
+	"\x10excluded_regions\x18\f \x03(\tB\x11\xbaH\x0e\x92\x01\v\x10d\"\ar\x05\x10\x01\x18\x80\x01R\x0fexcludedRegions\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01:\xa3\x01\xbaH\x9f\x01\x1a\x9c\x01\n" +
@@ -1252,14 +1286,16 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a@\n" +
 	"\x12LogAttributesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xca\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb5\x03\n" +
 	"\x0fTailLogsRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12!\n" +
 	"\fresource_ids\x18\x02 \x03(\tR\vresourceIds\x12\x16\n" +
 	"\x06search\x18\x03 \x01(\tR\x06search\x12\x16\n" +
 	"\x06levels\x18\x04 \x03(\tR\x06levels\x12J\n" +
 	"\x06labels\x18\x05 \x03(\v22.loco.observability.v1.TailLogsRequest.LabelsEntryR\x06labels\x120\n" +
-	"\x05since\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x1a9\n" +
+	"\x05since\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x12+\n" +
+	"\aregions\x18\a \x03(\tB\x11\xbaH\x0e\x92\x01\v\x10d\"\ar\x05\x10\x01\x18\x80\x01R\aregions\x12<\n" +
+	"\x10excluded_regions\x18\b \x03(\tB\x11\xbaH\x0e\x92\x01\v\x10d\"\ar\x05\x10\x01\x18\x80\x01R\x0fexcludedRegions\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x96\x01\n" +
@@ -1268,10 +1304,10 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\theartbeat\x18\x02 \x01(\v2 .loco.observability.v1.HeartbeatH\x00R\theartbeatB\a\n" +
 	"\x05event\"E\n" +
 	"\tHeartbeat\x128\n" +
-	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\xf3\x05\n" +
+	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\xe9\x05\n" +
 	"\x13QueryMetricsRequest\x12+\n" +
-	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12+\n" +
-	"\fresource_ids\x18\x02 \x03(\tB\b\xbaH\x05\x92\x01\x02\b\x01R\vresourceIds\x129\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12!\n" +
+	"\fresource_ids\x18\x02 \x03(\tR\vresourceIds\x129\n" +
 	"\n" +
 	"start_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
 	"\bend_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\aendTime\x12(\n" +

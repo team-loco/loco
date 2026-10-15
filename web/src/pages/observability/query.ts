@@ -1,5 +1,4 @@
 import type { ParsedQuery } from "@/lib/obs-query-parser";
-import type { ClusterTransport } from "@/lib/obs";
 import { readStorage, writeStorage } from "@/lib/storage";
 
 import type { ObsResource } from "./context";
@@ -37,7 +36,7 @@ export const FIELDS: FieldDef[] = [
 	{ key: "level", info: "error · warn · info · debug", supported: true },
 	{ key: "resource", info: "service name", supported: true },
 	{ key: "replica", info: "replica name", supported: true },
-	{ key: "region", info: "cluster region", supported: true },
+	{ key: "region", info: "recorded region", supported: true },
 	{ key: "status", info: "HTTP status", supported: false },
 	{ key: "method", info: "HTTP method", supported: false },
 	{ key: "path", info: "request path", supported: false },
@@ -118,7 +117,6 @@ function narrow<T extends string>(universe: T[], tokens: Token[]): T[] | null {
 export interface BackendQuery {
 	parsed: ParsedQuery;
 	resourceIds: string[];
-	transports: ClusterTransport[];
 	impossible: boolean;
 }
 
@@ -126,7 +124,6 @@ export function buildBackendQuery(
 	tokens: Token[],
 	text: string,
 	resources: ObsResource[],
-	transports: ClusterTransport[],
 ): BackendQuery {
 	const support = tokenSupport(tokens);
 	const live = tokens.filter((_, i) => support[i] === true);
@@ -141,23 +138,21 @@ export function buildBackendQuery(
 	const resourceIds =
 		resSet === null ? [] : resources.filter((r) => resSet.has(r.name)).map((r) => r.id);
 
-	const regions = [...new Set(transports.map((t) => t.cluster.region))];
-	const regionNames = narrow(regions, byKey("region"));
-	const regionSet = regionNames === null ? null : new Set(regionNames);
-	const liveTransports =
-		regionSet === null ? transports : transports.filter((t) => regionSet.has(t.cluster.region));
 
 	const labels: Record<string, string> = {};
 	const replica = byKey("replica")[0];
 	if (replica !== undefined) labels["k8s.pod.name"] = replica.value;
 
 	const impossible =
-		levelSet?.length === 0 || resNames?.length === 0 || liveTransports.length === 0;
+		levelSet?.length === 0 || resNames?.length === 0;
 
 	return {
-		parsed: { search: text.trim(), levels, labels },
+		parsed: {
+			search: text.trim(), levels, labels,
+			regions: byKey("region").filter((t) => !t.neg).map((t) => t.value),
+			excludedRegions: byKey("region").filter((t) => t.neg).map((t) => t.value),
+		},
 		resourceIds,
-		transports: liveTransports,
 		impossible,
 	};
 }

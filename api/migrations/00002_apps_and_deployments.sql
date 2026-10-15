@@ -84,7 +84,6 @@ CREATE TABLE
         capacity_cpu_millicores BIGINT,
         capacity_memory_bytes BIGINT,
         agent_version TEXT,
-        observability_proxy_endpoint TEXT,
         -- publicly resolvable FQDN of this cluster's gateway; a hostname, never an address
         gateway_hostname TEXT,
         sync_generation BIGINT NOT NULL DEFAULT 0,

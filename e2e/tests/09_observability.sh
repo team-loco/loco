@@ -54,7 +54,7 @@ obs_fixture_scope=$(awk -F'"' '$1 ~ /^\ttracerName +=/ { print $2 }' "$obs_fixtu
 obs_forged_span=$(awk -F'"' '$1 ~ /^\tforgedSpanName +=/ { print $2 }' "$obs_fixture_dir/main.go")
 obs_forged_workspace=$(awk -F'"' '$1 ~ /^\tforgedWorkspaceID +=/ { print $2 }' "$obs_fixture_dir/main.go")
 obs_forged_organization=$(awk -F'"' '$1 ~ /^\tforgedOrganizationID +=/ { print $2 }' "$obs_fixture_dir/main.go")
-obs_proxy_url="http://127.0.0.1:${E2E_OBS_PROXY_PORT}"
+obs_proxy_url="$E2E_API_URL"
 obs_query_logs="${obs_proxy_url}/loco.observability.v1.ObservabilityProxyService/QueryLogs"
 obs_query_metrics="${obs_proxy_url}/loco.observability.v1.ObservabilityProxyService/QueryMetrics"
 obs_query_traces="${obs_proxy_url}/loco.observability.v1.ObservabilityProxyService/QueryTraces"
@@ -553,7 +553,7 @@ obs_proxy_evidence() {
 }
 
 check_proxy_scoped() {
-    local body output status response matches
+    local body output status response matches region
     body=$(obs_proxy_body "$obs_workspace_id" "\"${obs_resource_id}\"")
     output=$(obs_proxy_call "$obs_workspace_token" "$body")
     status=$(tail -n 1 <<<"$output")
@@ -564,7 +564,22 @@ check_proxy_scoped() {
     test "$status" = "$obs_http_ok" || return 1
     matches=$(yq -p json -r "[.entries // [] | .[] | select(.resourceId == \"${obs_resource_id}\" and (.body | contains(\"trace_id=${obs_trace_id}\")))] | length" <<<"$response")
     ev "Entries for the fixture carrying the known trace id: \`${matches}\`." ""
-    test "$matches" -gt 0
+    test "$matches" -gt 0 || return 1
+    region=$(yq -p json -r '.entries[0].resourceAttributes."loco.region" // ""' <<<"$response")
+    test -n "$region" || return 1
+    body=$(REGION="$region" yq -p json -o json -I 0 '.regions = [strenv(REGION)]' <<<"$body")
+    output=$(obs_proxy_call "$obs_workspace_token" "$body") || return 1
+    test "$(tail -n 1 <<<"$output")" = "$obs_http_ok" || return 1
+    response=$(sed '$d' <<<"$output")
+    matches=$(REGION="$region" yq -p json -r '[.entries // [] | .[] | select(.resourceAttributes."loco.region" == strenv(REGION))] | length' <<<"$response")
+    test "$matches" -gt 0 || return 1
+    body=$(REGION="$region" yq -p json -o json -I 0 '.excludedRegions = [strenv(REGION)]' <<<"$body")
+    output=$(obs_proxy_call "$obs_workspace_token" "$body") || return 1
+    test "$(tail -n 1 <<<"$output")" = "$obs_http_ok" || return 1
+    response=$(sed '$d' <<<"$output")
+    matches=$(yq -p json -r '(.entries // []) | length' <<<"$response")
+    ev "Recorded region inclusion returned fixture logs; excluding the same region returned ${matches} rows through the control-plane address." ""
+    test "$matches" -eq 0
 }
 
 test_o09_proxy_scoped() {

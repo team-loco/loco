@@ -1,6 +1,6 @@
 # Trace query API
 
-`loco.observability.v1.ObservabilityProxyService/QueryTraces` queries spans from a cluster's observability proxy. It uses the same bearer credential and workspace READ permission as QueryLogs and QueryMetrics. A caller must query every relevant cluster endpoint; this RPC does not merge data across clusters. Endpoint registration/discovery is a separate prerequisite and is not implemented by this change.
+`loco.observability.v1.ObservabilityProxyService/QueryTraces` queries spans through the selected regional control-plane address. It uses the same bearer credential and workspace READ permission as QueryLogs and QueryMetrics. The control-plane ingress forwards the RPC to its separate observability service, which reads that region's ClickHouse. One selected regional address receives one request, independent of worker-cluster count or availability. There is no client fanout or cross-region replication. The query address, private ClickHouse DSNs, and collector ingestion endpoint are separate configuration.
 
 ```json
 {
