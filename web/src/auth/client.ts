@@ -3,11 +3,10 @@ import { createConnectTransport } from "@connectrpc/connect-web";
 import { ConfigService } from "@gen/loco/config/v1/config_pb";
 import { PUBLIC_API_URL } from "loco:env";
 
-import { nonEmpty } from "@/lib/utils";
-
+import { resolveAPIURL } from "./api-url";
 import { createAuthClient, type AuthClient } from "./oidc";
 
-export const BASE_URL = nonEmpty(PUBLIC_API_URL, "http://localhost:8000");
+export const BASE_URL = resolveAPIURL(window.locoConfig?.apiURL, PUBLIC_API_URL, window.location.origin);
 
 async function loadAuthClient(): Promise<AuthClient> {
 	const transport = createConnectTransport({ baseUrl: BASE_URL, useBinaryFormat: false });

@@ -1,6 +1,6 @@
 apiVersion: v2
 name: loco-core
-description: Helm chart for deploying the Loco UI and Agent.
+description: Helm chart for the Loco worker agent and application Gateway.
 type: application
 version: 0.0.0
 dependencies:

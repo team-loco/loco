@@ -35,8 +35,12 @@ global:
 
 # Cert-manager configuration
 certManager:
+  existingTLSSecret: ""
   additionalDNSNames: []
   issuer:
+    create: true
+    type: acme
+    kind: ClusterIssuer
     name: letsencrypt-prod
     email: "" # Override in environment-specific values
     server: https://acme-v02.api.letsencrypt.org/directory

@@ -4,3 +4,7 @@ declare module "loco:env" {
 }
 
 declare module "*.css";
+
+interface Window {
+	locoConfig?: { apiURL?: string };
+}

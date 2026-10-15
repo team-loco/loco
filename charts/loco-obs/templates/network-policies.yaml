@@ -69,4 +69,14 @@ spec:
           port: 9000
         - protocol: TCP
           port: 9009
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.controlPlaneNamespace }}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/component: observability-proxy
+      ports:
+        - protocol: TCP
+          port: 9000
 {{- end }}

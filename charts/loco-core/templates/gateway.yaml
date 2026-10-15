@@ -36,7 +36,7 @@ spec:
       tls:
         mode: Terminate
         certificateRefs:
-          - name: {{ $.Release.Name }}-tls
+          - name: {{ include "loco-core.tlsSecret" $ }}
             kind: Secret
             group: ""
     - name: http-apps-{{ $index }}
@@ -67,7 +67,7 @@ spec:
       tls:
         mode: Terminate
         certificateRefs:
-          - name: {{ .Release.Name }}-tls
+          - name: {{ include "loco-core.tlsSecret" . }}
             kind: Secret
             group: ""
     - name: http-platform

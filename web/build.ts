@@ -45,6 +45,7 @@ for (const output of result.outputs) {
 	if (output.path.endsWith(".html")) {
 		const tagged = new HTMLRewriter().on("head", {
 			element(head) {
+				head.prepend('<script src="/runtime-config.js"></script>', { html: true });
 				head.append(`<meta name="loco-version" content="${Bun.escapeHTML(version)}">`, { html: true });
 			},
 		});

@@ -7,6 +7,7 @@ global:
 
 # Gateway namespace where the Envoy Gateway is deployed
 gatewayNamespace: envoy-gateway-system
+controlPlaneNamespace: loco-system
 
 clickhouse:
   enabled: true

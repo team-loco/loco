@@ -55,6 +55,19 @@ def main():
                             pinned_images.add(image)
             if name != 'loco-obs' and not pinned_images:
                 raise RuntimeError('chart rendered no digest-pinned Loco deployments')
+        cp_values = {
+            'ui': {'image': {'repository': images['ui'].split('@')[0], 'tag': f'sha-{FIXTURE_COMMIT}@{FIXTURE_DIGEST}'}},
+            'api': {'image': {'repository': images['api'].split('@')[0], 'tag': f'sha-{FIXTURE_COMMIT}@{FIXTURE_DIGEST}'}, 'existingSecret': 'regional-api-env'},
+            'obsProxy': {'image': {'repository': images['obs-proxy'].split('@')[0], 'tag': f'sha-{FIXTURE_COMMIT}@{FIXTURE_DIGEST}'},
+                         'clickhouse': {'existingSecret': {'name': 'reader'}, 'migratorExistingSecret': {'name': 'migrator'}}},
+        }
+        cp_path = temp / 'control-plane-values.json'
+        cp_path.write_text(json.dumps(cp_values))
+        cp_resources = documents(release.run('helm', 'template', 'regional', str(release.ROOT / 'charts/loco-control-plane'), '--namespace', 'loco-system', '--values', str(cp_path)))
+        cp_images = {container['image'] for item in cp_resources if item.get('kind') == 'Deployment' for container in item['spec']['template']['spec']['containers']}
+        expected_cp_images = {f"{images[name].split('@')[0]}:sha-{FIXTURE_COMMIT}@{FIXTURE_DIGEST}" for name in ('api', 'obs-proxy', 'ui')}
+        if cp_images != expected_cp_images:
+            raise RuntimeError('control-plane chart does not render the pinned API and observability proxy images')
         for name in release.CHARTS:
             release.run('helm', 'package', str(release.ROOT / 'charts' / name), '--version', FIXTURE_VERSION, '--app-version', FIXTURE_VERSION, '--destination', directory)
             package = temp / (name + '-' + FIXTURE_VERSION + '.tgz')

@@ -1,13 +1,14 @@
+{{- if not .Values.certManager.existingTLSSecret }}
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
     name: {{ .Release.Name }}-cert
     namespace: {{ .Release.Namespace }}
 spec:
-    secretName: {{ .Release.Name }}-tls
+    secretName: {{ include "loco-core.tlsSecret" . }}
     issuerRef:
         name: {{ .Values.certManager.issuer.name }}
-        kind: ClusterIssuer
+        kind: {{ .Values.certManager.issuer.kind }}
     {{- $primary := index .Values.global.domain.apps 0 }}
     commonName: {{ printf "*.%s" $primary | quote }}
     dnsNames:
@@ -18,3 +19,4 @@ spec:
         {{- range .Values.certManager.additionalDNSNames }}
         - {{ . | quote }}
         {{- end }}
+{{- end }}

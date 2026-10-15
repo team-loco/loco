@@ -42,8 +42,8 @@ class BundleTests(unittest.TestCase):
             self.assertFalse(ks['spec']['prune'])
             self.assertTrue(ks['spec']['wait'])
 
-    def test_work_in_progress_control_plane_chart_is_not_shipped(self):
-        self.assertNotIn('loco-control-plane', release.CHARTS)
+    def test_control_plane_chart_is_published_without_installing_on_workers(self):
+        self.assertIn('loco-control-plane', release.CHARTS)
         self.assertFalse([name for name in self.files if 'loco-control-plane' in name])
 
     def test_releases_wait_for_matching_release_and_current_generation(self):
@@ -195,9 +195,9 @@ class PublicationTests(unittest.TestCase):
     def test_bundle_is_last_after_all_artifacts_and_provenance(self):
         with patch('builtins.print'):
             release.publish('0.7.0-rc.1', self.commit, self.registry)
-        self.assertEqual(len(self.published), 9)
+        self.assertEqual(len(self.published), 10)
         self.assertEqual(self.published[-1], 'example/platform/platform')
-        self.assertEqual(self.registry.assert_absent.call_count, 9)
+        self.assertEqual(self.registry.assert_absent.call_count, 10)
         attestations = [call for call in self.calls if call[:3] == ('gh', 'attestation', 'verify')]
         self.assertEqual(len(attestations), len(release.IMAGES))
         self.assertEqual(self.registry.require_image_platforms.call_count, len(release.IMAGES))

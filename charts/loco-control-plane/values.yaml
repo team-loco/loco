@@ -1,5 +1,42 @@
+ui:
+  enabled: true
+  hostname: app.loco.build
+  image:
+    repository: ghcr.io/team-loco/loco-ui
+    tag: ""
+  imagePullPolicy: Always
+  replicaCount: 1
+  port: 8080
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+api:
+  image:
+    repository: ghcr.io/team-loco/loco-api
+    tag: ""
+  imagePullPolicy: Always
+  replicaCount: 1
+  port: 8000
+  existingSecret: ""
+  env: {}
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  startupProbe:
+    failureThreshold: 60
+    periodSeconds: 5
+
 # Gateway namespace where the Envoy Gateway is deployed
-gatewayNamespace: envoy-gateway-system
+gatewayNamespace: loco-system
 controlPlaneHostname: api.loco.build
 
 obsProxy:
@@ -18,8 +55,6 @@ obsProxy:
       cpu: 1000m
       memory: 1Gi
   port: 8080
-  controlPlane:
-    url: ""
   clickhouse:
     existingSecret:
       name: ""
