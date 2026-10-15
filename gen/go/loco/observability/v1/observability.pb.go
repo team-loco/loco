@@ -765,12 +765,13 @@ func (x *QueryMetricsResponse) GetSeries() []*MetricSeries {
 	return nil
 }
 
-// MetricSeries represents time-series data for a single resource.
+// MetricSeries represents samples for one resource, metric type and sum temporality.
 type MetricSeries struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// ID of the resource this series is for.
 	ResourceId string `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	// Labels/tags associated with this series.
+	// Sum series label metric_type=sum, aggregation_temporality with the OTel enum number,
+	// and is_monotonic=true/false. Gauge series preserve empty labels.
 	Labels map[string]string `protobuf:"bytes,2,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Data points (sorted by timestamp).
 	Points        []*MetricPoint `protobuf:"bytes,3,rep,name=points,proto3" json:"points,omitempty"`

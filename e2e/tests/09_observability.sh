@@ -29,6 +29,7 @@ obs_query_window_seconds=3600
 obs_output_rows=20
 obs_body_chars=140
 obs_proxy_limit=50
+obs_metric_interval_seconds=60
 obs_trace_page_limit=1
 obs_trace_max_pages=100
 obs_curl_timeout_seconds=10
@@ -55,6 +56,7 @@ obs_forged_workspace=$(awk -F'"' '$1 ~ /^\tforgedWorkspaceID +=/ { print $2 }' "
 obs_forged_organization=$(awk -F'"' '$1 ~ /^\tforgedOrganizationID +=/ { print $2 }' "$obs_fixture_dir/main.go")
 obs_proxy_url="http://127.0.0.1:${E2E_OBS_PROXY_PORT}"
 obs_query_logs="${obs_proxy_url}/loco.observability.v1.ObservabilityProxyService/QueryLogs"
+obs_query_metrics="${obs_proxy_url}/loco.observability.v1.ObservabilityProxyService/QueryMetrics"
 obs_query_traces="${obs_proxy_url}/loco.observability.v1.ObservabilityProxyService/QueryTraces"
 obs_metric_tables="otel_metrics_sum otel_metrics_gauge otel_metrics_histogram"
 obs_all_tables="otel_traces otel_logs otel_metrics_sum otel_metrics_gauge otel_metrics_histogram otel_metrics_exponential_histogram otel_metrics_summary"
@@ -567,6 +569,32 @@ check_proxy_scoped() {
 
 test_o09_proxy_scoped() {
     obs_check proxy_scoped check_proxy_scoped
+}
+
+check_proxy_counter() {
+    local metric start end body output status response matches
+    metric=$(obs_ch "SELECT MetricName FROM otel_metrics_sum WHERE WorkspaceId = '${obs_workspace_id}' AND ResourceId = '${obs_resource_id}' AND TimeUnix >= toDateTime(${obs_traffic_started}) AND Value > 0 LIMIT 1" TabSeparated) || return 1
+    test -n "$metric" || return 1
+    start=$(utc_timestamp "$(($(date +%s) - obs_query_window_seconds))")
+    end=$(utc_timestamp "$(date +%s)")
+    body=$(printf '{"workspaceId":"%s","resourceIds":["%s"],"metricName":"%s","startTime":"%s","endTime":"%s","intervalSeconds":%d,"aggregation":"max"}' \
+        "$obs_workspace_id" "$obs_resource_id" "$metric" "$start" "$end" "$obs_metric_interval_seconds")
+    output=$(curl -s -w '\n%{http_code}' --max-time "$obs_curl_timeout_seconds" -X POST "$obs_query_metrics" \
+        -H "Authorization: Bearer ${obs_workspace_token}" -H 'Content-Type: application/json' -d "$body") || return 1
+    status=$(tail -n 1 <<<"$output")
+    response=$(sed '$d' <<<"$output")
+    test "$status" = "$obs_http_ok" || return 1
+    matches=$(yq -p json -r '[.series // [] | .[] | select(.labels.metric_type == "sum") | .points[] | select(.value > 0)] | length' <<<"$response")
+    ev "QueryMetrics returned HTTP ${status} and ${matches} positive Sum points for ${metric}." ""
+    test "$matches" -gt 0 || return 1
+    output=$(curl -s -w '\n%{http_code}' --max-time "$obs_curl_timeout_seconds" -X POST "$obs_query_metrics" \
+        -H "Authorization: Bearer ${obs_second_token}" -H 'Content-Type: application/json' -d "$body") || return 1
+    status=$(tail -n 1 <<<"$output")
+    test "$status" = "$obs_http_forbidden"
+}
+
+test_o09_proxy_counter() {
+    obs_check proxy_counter check_proxy_counter
 }
 
 check_proxy_isolation() {
