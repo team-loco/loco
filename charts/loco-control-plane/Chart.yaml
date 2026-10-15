@@ -1,6 +1,6 @@
 apiVersion: v2
 name: loco-control-plane
-description: Helm chart for the regional Loco API and private observability proxy
+description: Helm chart for the regional Loco dashboard, API and private observability proxy
 type: application
 version: 0.0.0
 maintainers:

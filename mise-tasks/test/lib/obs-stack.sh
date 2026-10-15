@@ -57,7 +57,7 @@ done
 region=obs-stack-region
 manifest=$(helm template loco-obs "$chart" --namespace "$namespace" --set global.region="$region" "${password_sets[@]}")
 proxy_env=$(helm template loco-control-plane charts/loco-control-plane --set obsProxy.image.tag="$1" \
-	--set api.image.tag="$1" --set api.existingSecret=fixture-api-env \
+	--set api.image.tag="$1" --set api.existingSecret=fixture-api-env --set ui.enabled=false \
 	--set obsProxy.clickhouse.existingSecret.name="$run_id-reader-url" \
 	--set obsProxy.clickhouse.migratorExistingSecret.name="$run_id-migrator-url" |
 	yq -o json -I 0 'select(.kind == "Deployment" and .metadata.name == "loco-control-plane-obs-proxy") | .spec.template.spec.containers[0].env')

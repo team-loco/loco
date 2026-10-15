@@ -40,14 +40,16 @@ trap cleanup EXIT
 
 if [[ $SKIP_BUILD == false ]]; then
     docker build -t loco-api:e2e --build-arg VERSION=e2e -f "$ROOT_DIR/api/Dockerfile" "$ROOT_DIR"
+    docker build -t loco-ui:e2e --build-arg VERSION=e2e --build-arg PUBLIC_API_URL=https://api.loco.build --build-arg PUBLIC_APP_ENV=PRODUCTION -f "$ROOT_DIR/web/Dockerfile" "$ROOT_DIR"
     docker build -t loco-obs-proxy:e2e --build-arg VERSION=e2e -f "$ROOT_DIR/observability-proxy/Dockerfile" "$ROOT_DIR"
 fi
 if ! kind get clusters | rg -x "$CLUSTER_NAME" >/dev/null; then
     kind create cluster --name "$CLUSTER_NAME" --kubeconfig "$KUBECONFIG" --wait "$TIMEOUT"
 fi
-kind load docker-image --name "$CLUSTER_NAME" loco-api:e2e loco-obs-proxy:e2e
+kind load docker-image --name "$CLUSTER_NAME" loco-api:e2e loco-obs-proxy:e2e loco-ui:e2e
 GATEWAY_VERSION=$(yq '.dependencies[] | select(.name == "gateway-helm") | .version' "$ROOT_DIR/charts/loco-core/Chart.yaml")
-helm show crds "$ROOT_DIR/charts/loco-core/charts/gateway-helm-$GATEWAY_VERSION.tgz" | kubectl apply --server-side -f -
+helm upgrade --install eg "$ROOT_DIR/charts/loco-core/charts/gateway-helm-$GATEWAY_VERSION.tgz" \
+    --namespace "$NAMESPACE" --create-namespace --wait --timeout "$TIMEOUT"
 kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
 umask 077
 if [[ ! -s "$RUN_DIR/password" ]]; then
@@ -77,23 +79,35 @@ kubectl -n "$NAMESPACE" create secret generic clickhouse-migrator --from-file=ur
 helm upgrade --install regional "$ROOT_DIR/charts/loco-control-plane" --namespace "$NAMESPACE" \
     --set api.image.repository=loco-api --set api.image.tag=e2e --set api.imagePullPolicy=Never \
     --set api.existingSecret=api-env --set api.replicaCount=2 \
+    --set gatewayNamespace="$NAMESPACE" --set controlPlaneHostname=api.e2e.test.local \
+    --set ui.hostname=app.e2e.test.local --set ui.image.repository=loco-ui --set ui.image.tag=e2e --set ui.imagePullPolicy=Never \
     --set obsProxy.image.repository=loco-obs-proxy --set obsProxy.image.tag=e2e --set obsProxy.imagePullPolicy=Never \
     --set obsProxy.clickhouse.existingSecret.name=clickhouse-reader \
     --set obsProxy.clickhouse.migratorExistingSecret.name=clickhouse-migrator \
     --wait --timeout "$TIMEOUT"
-kubectl -n "$NAMESPACE" port-forward service/regional-api :80 >"$RUN_DIR/port-forward.log" 2>&1 &
+ENVOY_DEPLOYMENT=""
+for attempt in $(seq 1 60); do
+    ENVOY_DEPLOYMENT=$(kubectl -n "$NAMESPACE" get deployments -l gateway.envoyproxy.io/owning-gateway-name=eg -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+    if [[ -n $ENVOY_DEPLOYMENT ]]; then break; fi
+    sleep 1
+done
+kubectl -n "$NAMESPACE" rollout status "deployment/$ENVOY_DEPLOYMENT" --timeout "$TIMEOUT"
+ENVOY_SERVICE=$(kubectl -n "$NAMESPACE" get services -l gateway.envoyproxy.io/owning-gateway-name=eg -o jsonpath='{.items[0].metadata.name}')
+kubectl -n "$NAMESPACE" port-forward "service/$ENVOY_SERVICE" :80 >"$RUN_DIR/port-forward.log" 2>&1 &
 PORT_FORWARD_PID=$!
 for attempt in $(seq 1 30); do
     if rg 'Forwarding from 127.0.0.1:' "$RUN_DIR/port-forward.log" >/dev/null; then break; fi
     sleep 1
 done
 API_PORT=$(sed -n 's/Forwarding from 127.0.0.1:\([0-9]*\) .*/\1/p' "$RUN_DIR/port-forward.log" | head -1)
-curl --fail --silent "http://127.0.0.1:$API_PORT/health"
-curl --fail --silent -H 'Content-Type: application/json' -d '{}' \
-    "http://127.0.0.1:$API_PORT/loco.config.v1.ConfigService/GetConfig" >"$RUN_DIR/config.json"
-curl --silent -H 'Content-Type: application/json' -H 'Authorization: Bearer invalid-e2e-token' \
+curl --fail --silent -H "Host: api.e2e.test.local" "http://127.0.0.1:$API_PORT/health"
+curl --fail --silent -H "Host: app.e2e.test.local" "http://127.0.0.1:$API_PORT/" >"$RUN_DIR/dashboard.html"
+curl --fail --silent --compressed -D "$RUN_DIR/runtime-headers.txt" -H "Host: app.e2e.test.local" "http://127.0.0.1:$API_PORT/runtime-config.js" >"$RUN_DIR/runtime-config.js"
+curl --fail --silent -H 'Host: app.e2e.test.local' -H 'Content-Type: application/json' -d '{}' \
+    "http://127.0.0.1:$API_PORT/api/loco.config.v1.ConfigService/GetConfig" >"$RUN_DIR/config.json"
+curl --silent -H 'Host: app.e2e.test.local' -H 'Content-Type: application/json' -H 'Authorization: Bearer invalid-e2e-token' \
     --data-binary @"$RUN_DIR/query.json" \
-    "http://127.0.0.1:$API_PORT/loco.observability.v1.ObservabilityProxyService/QueryLogs" >"$RUN_DIR/observability.json"
+    "http://127.0.0.1:$API_PORT/api/loco.observability.v1.ObservabilityProxyService/QueryLogs" >"$RUN_DIR/observability.json"
 python3 - "$RUN_DIR" <<'PY'
 import json
 import pathlib
@@ -101,8 +115,13 @@ import sys
 root = pathlib.Path(sys.argv[1])
 config = json.loads((root / 'config.json').read_text())
 assert 'serviceDefaults' in config, config
+html = (root / 'dashboard.html').read_text()
+assert '<script src="/runtime-config.js"></script>' in html, html
+assert html.index('/runtime-config.js') < html.index('type="module"'), html
+assert (root / 'runtime-config.js').read_text().strip() == 'window.locoConfig = {"apiURL":"/api"};'
+assert 'immutable' not in (root / 'runtime-headers.txt').read_text().lower()
 response = json.loads((root / 'observability.json').read_text())
 assert response.get('code') == 'permission_denied', response
 PY
 kubectl -n "$NAMESPACE" exec deployment/postgres -- psql -U loco -d loco -Atc 'SELECT count(*) FROM goose_db_version' >"$RUN_DIR/postgres-migrations.txt"
-printf 'Two API replicas started on an empty database; private proxy is ready and its API permission check passed.\n'
+printf 'Two API replicas started on an empty database; dashboard and same-origin API routing work; private proxy permission check passed.\n'

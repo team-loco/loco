@@ -8,7 +8,7 @@ API_VALUES = {'image': {'tag': 'test'}, 'existingSecret': 'regional-api-env'}
 
 class ControlPlaneInstallation(unittest.TestCase):
     def test_chart_installs_api_and_proxy_without_migration_jobs(self):
-        documents = render_chart('loco-control-plane', {'api': API_VALUES, 'obsProxy': TEST_PROXY})
+        documents = render_chart('loco-control-plane', {'api': API_VALUES, 'obsProxy': TEST_PROXY, 'ui': {'enabled': False}})
         deployments = {document['metadata']['name'] for document in documents if document['kind'] == 'Deployment'}
         self.assertEqual(deployments, {'loco-control-plane-api', 'loco-control-plane-obs-proxy'})
         self.assertFalse(any(document['kind'] == 'Job' for document in documents))
@@ -60,3 +60,24 @@ class ControlPlaneInstallation(unittest.TestCase):
         self.assertIn({'from': [{'namespaceSelector': {'matchLabels': {'kubernetes.io/metadata.name': 'regional-cp'}},
                                 'podSelector': {'matchLabels': {'app.kubernetes.io/component': 'observability-proxy'}}}],
                        'ports': [{'protocol': 'TCP', 'port': 9000}]}, clickhouse['spec']['ingress'])
+
+    def test_dashboard_uses_the_installation_origin(self):
+        documents = render_documents('loco-control-plane', 'ui.yaml', {'ui': {'image': {'tag': 'test'}, 'hostname': 'app.region.example.test'}})
+        config = next(item for item in documents if item['kind'] == 'ConfigMap')
+        self.assertEqual(config['data']['runtime-config.js'], 'window.locoConfig = {"apiURL":"/api"};\n')
+        route = next(item for item in documents if item['kind'] == 'HTTPRoute')
+        self.assertEqual(route['spec']['hostnames'], ['app.region.example.test'])
+        api, ui = route['spec']['rules']
+        self.assertEqual(api['matches'][0]['path']['value'], '/api')
+        self.assertEqual(api['filters'][0]['urlRewrite']['path'], {'type': 'ReplacePrefixMatch', 'replacePrefixMatch': '/'})
+        self.assertEqual(api['backendRefs'][0]['name'], 'loco-control-plane-api')
+        self.assertEqual(api['timeouts'], {'request': '0s'})
+        self.assertEqual(ui['backendRefs'][0]['name'], 'loco-control-plane-ui')
+        deployment = next(item for item in documents if item['kind'] == 'Deployment')
+        mount, = deployment['spec']['template']['spec']['containers'][0]['volumeMounts']
+        self.assertEqual(mount['mountPath'], '/public/runtime-config.js')
+
+    def test_same_hostname_does_not_publish_competing_root_routes(self):
+        routes = render_documents('loco-control-plane', 'api-route.yaml', {
+            'controlPlaneHostname': 'loco.example.test', 'ui': {'hostname': 'loco.example.test'}})
+        self.assertEqual(routes, [])

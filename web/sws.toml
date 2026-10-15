@@ -33,7 +33,7 @@ source = "**/*.{js,css,png,jpg,jpeg,gif,ico,svg,woff,woff2,ttf,eot}"
 Cache-Control = "public, max-age=31536000, immutable"
 
 [[advanced.headers]]
-source = "/index.html"
+source = "/{index.html,runtime-config.js}"
 [advanced.headers.headers]
 Cache-Control = "no-cache"
 
