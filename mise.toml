@@ -401,3 +401,7 @@ run = ["python3 -m unittest discover -s tools/platform-images/tests", "python3 -
 description = "Serve the regional control-plane observability proxy against local ClickHouse"
 env = { _.file = ".env", _.source = "env/local/stack.sh" }
 run = "./mise-tasks/obs/serve"
+
+[tasks."e2e:trace-ui"]
+description = "Test the production trace viewer against fixture trace responses with a throwaway API and database"
+run = "uv run --frozen --project docs python e2e/trace_ui.py"

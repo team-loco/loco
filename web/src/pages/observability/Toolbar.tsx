@@ -15,14 +15,16 @@ import { cn } from "@/lib/utils";
 import { RANGES, useObs } from "./context";
 import { Dot } from "./shared";
 
-export function TimeRangeMenu({ maxRange }: { maxRange: TimeRange | null }) {
-	const { range, setRange } = useObs();
+export function TimeRangeMenu({ maxRange, value, onChange, compact = false }: { maxRange: TimeRange | null; compact?: boolean; value?: TimeRange; onChange?: (range: TimeRange) => void }) {
+	const context = useObs();
+	const range = value ?? context.range;
+	const setRange = onChange ?? context.setRange;
 	const current = RANGES.find((r) => r.key === range);
 	const maxIdx = maxRange === null ? RANGES.length - 1 : RANGES.findIndex((r) => r.key === maxRange);
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger
-				render={<Button variant="outline" className="h-[38px] rounded-lg px-3 font-normal" />}
+				render={<Button variant="outline" className={compact ? "h-7 rounded-sm px-2 text-[11px] font-normal" : "h-[38px] rounded-lg px-3 font-normal"} />}
 			>
 				<ClockIcon className="text-fg3" />
 				{current?.label ?? range}
@@ -53,8 +55,11 @@ export function TimeRangeMenu({ maxRange }: { maxRange: TimeRange | null }) {
 	);
 }
 
-export function ResourceMenu() {
-	const { resources, selected, setSelected } = useObs();
+export function ResourceMenu({ value, onChange, compact = false }: { compact?: boolean; value?: string[] | null; onChange?: (names: string[] | null) => void } = {}) {
+	const context = useObs();
+	const { resources } = context;
+	const selected = value === undefined ? context.selected : value;
+	const setSelected = onChange ?? context.setSelected;
 	const names = resources.map((r) => r.name);
 	const sel = new Set(selected ?? names);
 	const count = names.filter((n) => sel.has(n)).length;
@@ -63,7 +68,7 @@ export function ResourceMenu() {
 		count === names.length || count === 0 ? "All resources" : count === 1 && first !== undefined ? first : `${String(count)} resources`;
 	return (
 		<DropdownMenu>
-			<DropdownMenuTrigger render={<Button variant="outline" className="h-[34px] px-2.5 font-normal" />}>
+			<DropdownMenuTrigger render={<Button variant="outline" className={compact ? "h-7 rounded-sm px-2 text-[11px] font-normal" : "h-[34px] px-2.5 font-normal"} />}>
 				<BoxIcon className="text-fg3" />
 				{label}
 				<ChevronDownIcon className="size-[13px] text-fg3" />
