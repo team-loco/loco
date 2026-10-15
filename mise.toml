@@ -15,6 +15,7 @@ yq = "4.54.1"
 kustomize = "5.8.3"
 
 golangci-lint = "2.14.0"
+"go:golang.org/x/vuln/cmd/govulncheck" = "1.9.0"
 actionlint = "1.7.12"
 pinact = "5.0.0"
 hadolint = "2.15.1"
@@ -147,6 +148,10 @@ run = ["bun run lint:fast", "bun run lint:types", "bun run typecheck"]
 [tasks."test:ci"]
 description = "Test CI component selection and pull-request diffs"
 run = ["python3 -m unittest discover -s .github/actions/go-changes/tests", "python3 -m unittest discover -s .github/actions/ci-gate/tests"]
+
+[tasks."test:govulncheck"]
+description = "Test vulnerability scan module coverage and failure propagation"
+run = "python3 -m unittest discover -s tests/govulncheck"
 
 [tasks."test:stack"]
 description = "Test how each checkout's local stack gets its slot, names, ports and LoadBalancer range"

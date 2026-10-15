@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+#MISE description="Check every Go module for reachable vulnerabilities"
+set -euo pipefail
+
+root=$(git rev-parse --show-toplevel)
+status=0
+while IFS= read -r -d '' modfile; do
+	module=$(dirname "$modfile")
+	echo "govulncheck: $module"
+	(cd "$root/$module" && govulncheck -mode=source -scan=symbol -format=text ./...) || status=1
+done < <(git ls-files -z -- '*go.mod' ':!:gen/**')
+exit "$status"

@@ -1,0 +1,55 @@
+name: Go Vulnerabilities
+
+on:
+  pull_request:
+    paths:
+      - "**/*.go"
+      - "**/go.mod"
+      - "**/go.sum"
+      - "mise.toml"
+      - "mise.lock"
+      - "mise-tasks/lint/govulncheck"
+      - "tests/govulncheck/**"
+      - ".github/actions/setup-tools/**"
+      - ".github/workflows/govulncheck.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "**/*.go"
+      - "**/go.mod"
+      - "**/go.sum"
+      - "mise.toml"
+      - "mise.lock"
+      - "mise-tasks/lint/govulncheck"
+      - "tests/govulncheck/**"
+      - ".github/actions/setup-tools/**"
+      - ".github/workflows/govulncheck.yml"
+  schedule:
+    - cron: "0 13 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  govulncheck:
+    name: Reachable Go Vulnerabilities
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-tools
+        with:
+          go-cache: govulncheck
+
+      - name: Test scanner task
+        run: mise run test:govulncheck
+
+      - name: Scan every Go module
+        run: mise run lint:govulncheck
