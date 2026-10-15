@@ -94,7 +94,6 @@ services:
     image: ${config_image}
     port: 8080
     routing: { pathPrefix: /, idleTimeout: 60 }
-    health: { path: /, interval: 5, timeout: 3, failThreshold: 3, startupGracePeriod: 0 }
     regions:
       us-east-1: { cpu: 100m, memory: 128Mi, replicas: { min: 1, max: 1 } }
 YAML
@@ -155,6 +154,30 @@ test_g05_second_plan_is_clean() {
         return 1
     fi
     assert "the second plan has no changes" config_out_contains clean "No changes"
+}
+
+config_probes_match() {
+    local service=$1 expected=$2 id deployment
+    id=$(e2e_psql "SELECT id FROM resources WHERE name = '${service}'")
+    deployment=$(kubectl --context "$config_ctx" -n "ws-${cli_workspace_id}" \
+        get deployment "resource-${id}" -o json) || return 1
+    jq -e --argjson expected "$expected" \
+        '.spec.template.spec.containers[0] |
+            (has("livenessProbe") == $expected) and (has("readinessProbe") == $expected)' \
+        <<<"$deployment" >/dev/null
+}
+
+test_g05_health_checks_are_optional() {
+    assert "configured health renders HTTP probes" config_probes_match "$config_web" true
+    assert "omitted health renders no probes" config_probes_match "$config_cache" false
+    config_edit ".services.${config_web}.environments.${config_env}.health = null"
+    if ! assert "apply removes inherited health" config_run remove_health infra apply --env "$config_env" --yes; then
+        config_show remove_health
+        return 1
+    fi
+    wait_for "the existing HTTP probes to be removed" 120 config_probes_match "$config_web" false
+    config_run health_clean infra plan --env "$config_env" || true
+    assert "plan stays clean without health" config_out_contains health_clean "No changes"
 }
 
 test_g06_replicas_change_is_one_update() {

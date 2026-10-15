@@ -449,7 +449,10 @@ func deploymentRoutingFor(routing *configplan.Routing) *deploymentv1.ServiceRout
 	return &deploymentv1.ServiceRouting{PathPrefix: routing.PathPrefix, IdleTimeout: routing.IdleTimeout}
 }
 
-func healthCheckFor(health configplan.Health) *deploymentv1.HealthCheckConfig {
+func healthCheckFor(health *configplan.Health) *deploymentv1.HealthCheckConfig {
+	if health == nil {
+		return nil
+	}
 	return &deploymentv1.HealthCheckConfig{
 		Path:                health.Path,
 		InitialDelaySeconds: health.StartupGracePeriod,

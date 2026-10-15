@@ -95,7 +95,7 @@
               "type": "null"
             }
           ],
-          "description": "Health check fields to merge."
+          "description": "HTTP health check fields to merge. Null removes the inherited check."
         },
         "routing": {
           "anyOf": [
@@ -393,7 +393,7 @@
         },
         "health": {
           "$ref": "#/$defs/Health",
-          "description": "Health check. The API fills omitted fields."
+          "description": "Optional HTTP liveness and readiness checks. Omit for process-only monitoring; an empty object uses API defaults."
         },
         "routing": {
           "$ref": "#/$defs/Routing",

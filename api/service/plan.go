@@ -379,7 +379,7 @@ func (s *PlanServer) liveState(
 
 	state := configplan.State{
 		Port:    spec.GetRouting().GetPort(),
-		Health:  s.liveHealth(spec.GetHealthCheck()),
+		Health:  liveHealth(spec.GetHealthCheck()),
 		Regions: make(map[string]configplan.Region, len(spec.GetRegions())),
 	}
 	if spec.GetRouting().GetPathPrefix() != "" || spec.GetRouting().GetIdleTimeout() != 0 {
@@ -436,9 +436,7 @@ func (s *PlanServer) liveState(
 		if service.GetRouting() != nil {
 			state.Routing = liveRouting(service.GetRouting())
 		}
-		if service.GetHealthCheck() != nil {
-			state.Health = s.liveHealth(service.GetHealthCheck())
-		}
+		state.Health = liveHealth(service.GetHealthCheck())
 		build := service.GetBuild()
 		switch build.GetType() {
 		case buildSourceTypeImage:
@@ -478,11 +476,11 @@ func (s *PlanServer) deployedBuild(ctx context.Context, build *deploymentv1.Buil
 	return deployed, nil
 }
 
-func (s *PlanServer) liveHealth(health *deploymentv1.HealthCheckConfig) configplan.Health {
+func liveHealth(health *deploymentv1.HealthCheckConfig) *configplan.Health {
 	if health == nil {
-		return configplan.DefaultHealth(s.defaults)
+		return nil
 	}
-	return configplan.Health{
+	return &configplan.Health{
 		Path:               health.GetPath(),
 		Interval:           health.GetIntervalSeconds(),
 		Timeout:            health.GetTimeoutSeconds(),
