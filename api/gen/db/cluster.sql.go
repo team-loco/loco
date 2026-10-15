@@ -181,6 +181,58 @@ func (q *Queries) GetObservabilityClustersForWorkspace(ctx context.Context, work
 	return items, nil
 }
 
+const listAdminClusters = `-- name: ListAdminClusters :many
+SELECT id, cluster_key, name, region, tier, is_active, removed_at, health_status,
+       last_heartbeat, agent_version, connection_credential_fingerprint
+FROM clusters ORDER BY created_at, id
+`
+
+type ListAdminClustersRow struct {
+	ID                              uuid.UUID  `json:"id"`
+	ClusterKey                      *uuid.UUID `json:"clusterKey"`
+	Name                            string     `json:"name"`
+	Region                          string     `json:"region"`
+	Tier                            string     `json:"tier"`
+	IsActive                        bool       `json:"isActive"`
+	RemovedAt                       *time.Time `json:"removedAt"`
+	HealthStatus                    *string    `json:"healthStatus"`
+	LastHeartbeat                   *time.Time `json:"lastHeartbeat"`
+	AgentVersion                    *string    `json:"agentVersion"`
+	ConnectionCredentialFingerprint *string    `json:"connectionCredentialFingerprint"`
+}
+
+func (q *Queries) ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow, error) {
+	rows, err := q.db.Query(ctx, listAdminClusters)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAdminClustersRow
+	for rows.Next() {
+		var i ListAdminClustersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClusterKey,
+			&i.Name,
+			&i.Region,
+			&i.Tier,
+			&i.IsActive,
+			&i.RemovedAt,
+			&i.HealthStatus,
+			&i.LastHeartbeat,
+			&i.AgentVersion,
+			&i.ConnectionCredentialFingerprint,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listClusterWorkloads = `-- name: ListClusterWorkloads :many
 SELECT p.id, 'placement'::text AS kind FROM placements p
 WHERE p.cluster_id = $1
@@ -208,58 +260,6 @@ func (q *Queries) ListClusterWorkloads(ctx context.Context, clusterID uuid.UUID)
 	for rows.Next() {
 		var i ListClusterWorkloadsRow
 		if err := rows.Scan(&i.ID, &i.Kind); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listOperatorClusters = `-- name: ListOperatorClusters :many
-SELECT id, cluster_key, name, region, tier, is_active, removed_at, health_status,
-       last_heartbeat, agent_version, connection_credential_fingerprint
-FROM clusters ORDER BY created_at, id
-`
-
-type ListOperatorClustersRow struct {
-	ID                              uuid.UUID  `json:"id"`
-	ClusterKey                      *uuid.UUID `json:"clusterKey"`
-	Name                            string     `json:"name"`
-	Region                          string     `json:"region"`
-	Tier                            string     `json:"tier"`
-	IsActive                        bool       `json:"isActive"`
-	RemovedAt                       *time.Time `json:"removedAt"`
-	HealthStatus                    *string    `json:"healthStatus"`
-	LastHeartbeat                   *time.Time `json:"lastHeartbeat"`
-	AgentVersion                    *string    `json:"agentVersion"`
-	ConnectionCredentialFingerprint *string    `json:"connectionCredentialFingerprint"`
-}
-
-func (q *Queries) ListOperatorClusters(ctx context.Context) ([]ListOperatorClustersRow, error) {
-	rows, err := q.db.Query(ctx, listOperatorClusters)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListOperatorClustersRow
-	for rows.Next() {
-		var i ListOperatorClustersRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.ClusterKey,
-			&i.Name,
-			&i.Region,
-			&i.Tier,
-			&i.IsActive,
-			&i.RemovedAt,
-			&i.HealthStatus,
-			&i.LastHeartbeat,
-			&i.AgentVersion,
-			&i.ConnectionCredentialFingerprint,
-		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

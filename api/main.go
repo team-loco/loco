@@ -39,6 +39,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 	"github.com/team-loco/loco/gen/go/loco/build/v1/buildv1connect"
+	"github.com/team-loco/loco/gen/go/loco/cluster/v1/clusterv1connect"
 	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	"github.com/team-loco/loco/gen/go/loco/domain/v1/domainv1connect"
@@ -124,15 +125,6 @@ func newOutboundHTTPClient() *http.Client {
 }
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == clusterCommand {
-		cfg := newClusterOperationConfig()
-		ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout)
-		defer cancel()
-		if err := runClusterCommand(ctx, cfg.DatabaseURL, os.Args[2:], os.Stdout); err != nil {
-			log.Fatal(err)
-		}
-		return
-	}
 	if len(os.Args) > 1 && os.Args[1] == migrateCommand {
 		migrateConfig := newMigrateConfig()
 		if err := migrations.Up(context.Background(), migrateConfig.DatabaseURL); err != nil {
@@ -233,6 +225,7 @@ func main() {
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
 	clusterSilentAfter := service.ClusterSilentAfter(ac.HeartbeatInterval)
+	clusterAdminServiceHandler := service.NewClusterAdminServer(pool, queries)
 	resourceServiceHandler := service.NewResourceServer(pool, queries, ac.ServiceDefaults, clusterSilentAfter)
 	sourceBucket, bucketErr := newSourceBucket(ac.SourceBucket)
 	if bucketErr != nil {
@@ -295,6 +288,7 @@ func main() {
 	)
 
 	configv1connect.RegisterConfigServiceHandler(baseServer, configServiceHandler)
+	clusterv1connect.RegisterClusterAdminServiceHandler(authenticatedServer, clusterAdminServiceHandler)
 	userv1connect.RegisterUserServiceHandler(authenticatedServer, userServiceHandler)
 	authv1connect.RegisterAuthServiceHandler(authenticatedServer, authServiceHandler)
 	eventv1connect.RegisterEventServiceHandler(authenticatedServer, eventServiceHandler)

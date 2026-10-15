@@ -75,7 +75,7 @@ RETURNING id, name, region;
 SELECT id, name, region FROM clusters
 WHERE cluster_key = $1 AND removed_at IS NULL;
 
--- name: ListOperatorClusters :many
+-- name: ListAdminClusters :many
 SELECT id, cluster_key, name, region, tier, is_active, removed_at, health_status,
        last_heartbeat, agent_version, connection_credential_fingerprint
 FROM clusters ORDER BY created_at, id;

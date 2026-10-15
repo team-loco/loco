@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/loco/admin"
 	"github.com/team-loco/loco/cmd/loco/config"
 	envcmd "github.com/team-loco/loco/cmd/loco/env"
 	"github.com/team-loco/loco/cmd/loco/infra"
@@ -71,6 +72,7 @@ func NewRootCmd(env Env) *cobra.Command {
 		config.BuildConfigCmd(),
 	)
 
+	root.AddCommand(admin.BuildAdminCmd())
 	root.AddCommand(infra.BuildDeployCmd())
 	root.AddCommand(resource.BuildResourceCmd())
 	root.AddCommand(resource.BuildBuildsCmd())

@@ -9,6 +9,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 	"github.com/team-loco/loco/gen/go/loco/build/v1/buildv1connect"
+	"github.com/team-loco/loco/gen/go/loco/cluster/v1/clusterv1connect"
 	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	"github.com/team-loco/loco/gen/go/loco/domain/v1/domainv1connect"
@@ -27,6 +28,7 @@ import (
 )
 
 type Clients struct {
+	ClusterAdmin        clusterv1connect.ClusterAdminServiceClient
 	Agent               agentv1connect.AgentServiceClient
 	Auth                authv1connect.AuthServiceClient
 	Build               buildv1connect.BuildServiceClient
@@ -62,6 +64,7 @@ func NewHTTPClients(httpClient *http.Client, host, token string) *Clients {
 
 func NewClients(connectClient *connect.Client) *Clients {
 	return &Clients{
+		ClusterAdmin:        clusterv1connect.NewClusterAdminServiceClient(connectClient),
 		Agent:               agentv1connect.NewAgentServiceClient(connectClient),
 		Auth:                authv1connect.NewAuthServiceClient(connectClient),
 		Build:               buildv1connect.NewBuildServiceClient(connectClient),

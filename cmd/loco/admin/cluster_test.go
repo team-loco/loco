@@ -1,0 +1,190 @@
+package admin
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
+	"connectrpc.com/connect/v2/connectproto"
+	"github.com/spf13/cobra"
+	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
+	"github.com/team-loco/loco/gen/go/loco/cluster/v1/clusterv1connect"
+	"github.com/team-loco/loco/internal/keychain"
+	"github.com/team-loco/loco/internal/rpc"
+	"github.com/team-loco/loco/internal/rpcerr"
+)
+
+const testClusterID = "00000000-0000-7000-8000-000000000001"
+
+var errTestDenied = errors.New("permission denied")
+
+type fakeClusterAdmin struct {
+	clusterv1connect.UnimplementedClusterAdminServiceHandler
+	t     *testing.T
+	calls []string
+	force bool
+	err   error
+}
+
+func (f *fakeClusterAdmin) record(ctx context.Context, method, id string) error {
+	f.t.Helper()
+	info, ok := connect.CallInfoForServerContext(ctx)
+	if !ok || info.RequestHeader().Get("Authorization") != "Bearer ordinary-credential" {
+		f.t.Error("CLI did not authenticate the request")
+	}
+	if id != "" && id != testClusterID {
+		f.t.Errorf("cluster ID: %s", id)
+	}
+	f.calls = append(f.calls, method)
+	return f.err
+}
+
+func (f *fakeClusterAdmin) ListClusters(
+	ctx context.Context,
+	_ *clusterv1.ListClustersRequest,
+) (*clusterv1.ListClustersResponse, error) {
+	if err := f.record(ctx, clusterList, ""); err != nil {
+		return nil, err
+	}
+	return &clusterv1.ListClustersResponse{Clusters: []*clusterv1.Cluster{{Id: testClusterID, Name: "east"}}}, nil
+}
+
+func (f *fakeClusterAdmin) PauseCluster(
+	ctx context.Context,
+	req *clusterv1.PauseClusterRequest,
+) (*clusterv1.PauseClusterResponse, error) {
+	if err := f.record(ctx, clusterPause, req.GetClusterId()); err != nil {
+		return nil, err
+	}
+	return &clusterv1.PauseClusterResponse{ClusterId: req.GetClusterId()}, nil
+}
+
+func (f *fakeClusterAdmin) ResumeCluster(
+	ctx context.Context,
+	req *clusterv1.ResumeClusterRequest,
+) (*clusterv1.ResumeClusterResponse, error) {
+	if err := f.record(ctx, clusterResume, req.GetClusterId()); err != nil {
+		return nil, err
+	}
+	return &clusterv1.ResumeClusterResponse{ClusterId: req.GetClusterId()}, nil
+}
+
+func (f *fakeClusterAdmin) RemoveCluster(
+	ctx context.Context,
+	req *clusterv1.RemoveClusterRequest,
+) (*clusterv1.RemoveClusterResponse, error) {
+	if err := f.record(ctx, clusterRemove, req.GetClusterId()); err != nil {
+		return nil, err
+	}
+	f.force = req.GetForce()
+	return &clusterv1.RemoveClusterResponse{ClusterId: req.GetClusterId()}, nil
+}
+
+func (f *fakeClusterAdmin) RestoreCluster(
+	ctx context.Context,
+	req *clusterv1.RestoreClusterRequest,
+) (*clusterv1.RestoreClusterResponse, error) {
+	if err := f.record(ctx, clusterRestore, req.GetClusterId()); err != nil {
+		return nil, err
+	}
+	return &clusterv1.RestoreClusterResponse{ClusterId: req.GetClusterId()}, nil
+}
+
+func adminTestCommand(t *testing.T, fake *fakeClusterAdmin) (*cobra.Command, *bytes.Buffer) {
+	t.Helper()
+	server := connect.NewServer()
+	clusterv1connect.RegisterClusterAdminServiceHandler(server, fake)
+	mux := http.NewServeMux()
+	connecthttp.Mount(mux, server)
+	endpoint := httptest.NewServer(mux)
+	t.Cleanup(endpoint.Close)
+	t.Setenv("LOCO_HOST", endpoint.URL)
+	deps := dependencies{
+		token: func(*cobra.Command) (*keychain.UserToken, error) {
+			return &keychain.UserToken{Host: endpoint.URL, Token: "ordinary-credential"}, nil
+		},
+		client: func(host, token string) clusterv1connect.ClusterAdminServiceClient {
+			return rpc.NewHTTPClients(endpoint.Client(), host, token).ClusterAdmin
+		},
+	}
+	cmd := newAdminCmd(deps)
+	output := new(bytes.Buffer)
+	cmd.SetOut(output)
+	cmd.SetErr(output)
+	return cmd, output
+}
+
+func TestAdminClusterCommandsUseAuthenticatedHTTP(t *testing.T) {
+	for _, method := range []string{clusterList, clusterPause, clusterResume, clusterRemove, clusterRestore} {
+		t.Run(method, func(t *testing.T) {
+			fake := &fakeClusterAdmin{t: t}
+			cmd, output := adminTestCommand(t, fake)
+			args := []string{clusterCommand, method}
+			if method != clusterList {
+				args = append(args, testClusterID)
+			}
+			if method == clusterRemove {
+				args = append(args, "--force")
+			}
+			cmd.SetArgs(args)
+			if err := cmd.Execute(); err != nil {
+				t.Fatal(err)
+			}
+			if len(fake.calls) != 1 || fake.calls[0] != method || !strings.Contains(output.String(), testClusterID) {
+				t.Fatalf("calls/output: %v, %s", fake.calls, output)
+			}
+			if method == clusterRemove && !fake.force {
+				t.Fatal("force was not forwarded")
+			}
+		})
+	}
+}
+
+func TestAdminClusterPreservesDenialsAndPrintsBlockingWorkloads(t *testing.T) {
+	detail, err := connectproto.NewErrorDetail(
+		&clusterv1.ClusterWorkloads{Workloads: []*clusterv1.ClusterWorkload{{Id: testClusterID, Kind: "placement"}}},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, failure := range []*connect.Error{
+		rpcerr.New(connect.CodePermissionDenied, errTestDenied),
+		rpcerr.New(connect.CodeFailedPrecondition, errTestDenied).WithDetail(detail),
+	} {
+		fake := &fakeClusterAdmin{t: t, err: failure}
+		cmd, output := adminTestCommand(t, fake)
+		cmd.SetArgs([]string{clusterCommand, clusterRemove, testClusterID})
+		if err := cmd.Execute(); connect.CodeOf(err) != failure.Code() {
+			t.Fatalf("error: %v", err)
+		}
+		if failure.Code() == connect.CodeFailedPrecondition &&
+			!strings.Contains(output.String(), "placement "+testClusterID) {
+			t.Fatalf("missing blocker: %s", output)
+		}
+	}
+}
+
+func TestAdminClusterRejectsBadArgumentsBeforeRPC(t *testing.T) {
+	for _, args := range [][]string{
+		{clusterCommand, clusterPause},
+		{clusterCommand, clusterPause, "invalid"},
+		{clusterCommand, clusterList, testClusterID},
+		{clusterCommand, clusterResume, testClusterID, "--force"},
+	} {
+		fake := &fakeClusterAdmin{t: t}
+		cmd, _ := adminTestCommand(t, fake)
+		cmd.SetArgs(args)
+		if err := cmd.Execute(); err == nil {
+			t.Fatalf("accepted %v", args)
+		}
+		if len(fake.calls) != 0 {
+			t.Fatalf("made RPC for invalid args: %v", args)
+		}
+	}
+}

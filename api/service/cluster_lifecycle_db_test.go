@@ -187,7 +187,7 @@ func TestSyncRecordsCredentialUsedByTheConnection(t *testing.T) {
 	waitForSyncGeneration(t, f, f.clusterID, 1)
 	requireFingerprint := func(secret string) {
 		t.Helper()
-		rows, err := f.queries.ListOperatorClusters(ctx)
+		rows, err := f.queries.ListAdminClusters(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
