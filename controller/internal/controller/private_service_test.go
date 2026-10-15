@@ -31,8 +31,9 @@ var _ = Describe("Private service discovery", func() {
 		Expect(
 			k8sClient.Get(ctx, client.ObjectKey{Namespace: getNamespace(app), Name: testPrivateHTTPName}, alias),
 		).To(Succeed())
-		Expect(alias.Spec.Ports).To(HaveLen(1))
-		Expect(alias.Spec.Ports[0].Port).To(Equal(int32(7070)))
+		Expect(alias.Spec.Ports).To(HaveLen(2))
+		Expect(alias.Spec.Ports[0].Port).To(Equal(servicePort))
+		Expect(alias.Spec.Ports[1].Port).To(Equal(int32(7070)))
 		Expect(alias.Spec.Ports[0].TargetPort.IntVal).To(Equal(int32(7070)))
 		Expect(alias.Spec.Ports[0].Protocol).To(Equal(corev1.ProtocolTCP))
 		Expect(alias.Spec.Selector).To(Equal(map[string]string{labelApp: getName(app)}))
@@ -61,7 +62,8 @@ var _ = Describe("Private service discovery", func() {
 		Expect(r.ensureService(ctx, app)).To(Succeed())
 		Expect(k8sClient.Get(ctx, key, svc)).To(Succeed())
 		Expect(svc.Spec.ClusterIP).To(Equal(address))
-		Expect(svc.Spec.Ports[0].Port).To(Equal(int32(3550)))
+		Expect(svc.Spec.Ports[0].Port).To(Equal(servicePort))
+		Expect(svc.Spec.Ports[1].Port).To(Equal(int32(3550)))
 		Expect(svc.Spec.Ports[0].TargetPort.IntVal).To(Equal(int32(3550)))
 		app.Spec.ResourceName = "product-catalog"
 		Expect(r.ensureService(ctx, app)).To(Succeed())
@@ -148,6 +150,22 @@ var _ = Describe("Private service discovery", func() {
 			Expect(services.Items).To(HaveLen(1))
 			Expect(services.Items[0].Name).To(Equal(getName(app)))
 		}
+	})
+
+	It("exposes port 80 once when the target is already port 80", func() {
+		app := isolationTestApplication("discovery-default-port", "default-port")
+		app.Spec.ResourceName = testPrivateHTTPName
+		app.Spec.ServiceSpec.Deployment.Port = servicePort
+		app.UID = "default-port-owner"
+		Expect(ensureNamespace(ctx, k8sClient, app)).To(Succeed())
+		r := &LocoResourceReconciler{Client: k8sClient}
+		Expect(r.ensurePrivateService(ctx, app)).To(Succeed())
+		svc := &corev1.Service{}
+		key := client.ObjectKey{Namespace: getNamespace(app), Name: testPrivateHTTPName}
+		Expect(k8sClient.Get(ctx, key, svc)).To(Succeed())
+		Expect(svc.Spec.Ports).To(HaveLen(1))
+		Expect(svc.Spec.Ports[0].Port).To(Equal(servicePort))
+		Expect(svc.Spec.Ports[0].TargetPort.IntVal).To(Equal(servicePort))
 	})
 
 })

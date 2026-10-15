@@ -57,7 +57,6 @@ import (
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
-// todo: finalize on the domain we wanna use inside kubernetes.
 const (
 	finalizerAppResourcesCleanup = "infra.loco.io/app-resources-cleanup"
 	labelApp                     = "app"
@@ -91,6 +90,7 @@ type LocoResourceReconciler struct {
 	LocoNamespace  string
 	PullSecretName string
 	Telemetry      TelemetryConfig
+	WorkspaceDNS   WorkspaceDNSConfig
 }
 
 // +kubebuilder:rbac:groups=infra.loco.io,resources=applications,verbs=get;list;watch;create;update;patch;delete
@@ -102,6 +102,7 @@ type LocoResourceReconciler struct {
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=delete
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;create;list;watch;patch;update;delete
@@ -184,6 +185,15 @@ func (r *LocoResourceReconciler) reconcileResources(
 
 	if err := r.ensureWorkspacePullSecret(ctx, locoRes); err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure workspace pull secret: %w", err)
+	}
+
+	_, dnsReady, err := r.ensureWorkspaceDNS(ctx, locoRes)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("ensure workspace DNS: %w", err)
+	}
+	if !dnsReady {
+		setPhase(locoRes, phaseDeploying, "Waiting for the workspace DNS resolver")
+		return ctrl.Result{RequeueAfter: deployingRequeue}, nil
 	}
 
 	envSecret, err := r.ensureEnvSecret(ctx, locoRes)
@@ -782,6 +792,18 @@ func (r *LocoResourceReconciler) ensureDeployment(
 		return nil, err
 	}
 
+	if r.WorkspaceDNS.Image != "" {
+		service := &corev1.Service{}
+		key := client.ObjectKey{Namespace: getNamespace(locoRes), Name: workspaceDNSName}
+		if err := r.apiReader().Get(ctx, key, service); err != nil {
+			return nil, fmt.Errorf("read workspace DNS address: %w", err)
+		}
+		if service.Spec.ClusterIP == "" || service.Spec.ClusterIP == corev1.ClusterIPNone {
+			return nil, errWorkspaceDNSAddress
+		}
+		dns := r.WorkspaceDNS.podDNS(getNamespace(locoRes), service.Spec.ClusterIP)
+		dep.Spec.Template.Spec.WithDNSPolicy(corev1.DNSNone).WithDNSConfig(dns)
+	}
 	name := getName(locoRes)
 	namespace := getNamespace(locoRes)
 	slog.DebugContext(ctx, "ensuring deployment", "namespace", namespace, "name", name)
@@ -877,7 +899,7 @@ func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		predicate.AnnotationChangedPredicate{},
 	)
 	applicationPredicates := builder.WithPredicates(applicationChanged)
-	deploymentHandler := handler.EnqueueRequestsFromMapFunc(applicationForObject)
+	deploymentHandler := handler.EnqueueRequestsFromMapFunc(r.applicationsForManagedObject)
 	nodeHandler := handler.EnqueueRequestsFromMapFunc(r.applicationPerWorkspace)
 	nodeChanges := isolation.NodeRangesChanged()
 	nodePredicates := builder.WithPredicates(nodeChanges)
@@ -894,6 +916,7 @@ func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&locov1alpha1.Application{}, applicationPredicates).
 		Watches(&appsv1.Deployment{}, deploymentHandler).
 		Watches(&corev1.Service{}, deploymentHandler).
+		Watches(&corev1.ConfigMap{}, deploymentHandler).
 		Watches(&corev1.Secret{}, envSecretHandler).
 		Watches(&corev1.Node{}, nodeHandler, nodePredicates)
 	if r.PullSecretName != "" {

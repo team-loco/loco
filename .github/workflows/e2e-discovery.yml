@@ -52,5 +52,8 @@ jobs:
         with:
           go-cache: e2e
 
+      - name: Test workspace DNS rewrites on the pinned CoreDNS image
+        run: mise run test:workspace-dns
+
       - name: Run the private discovery end-to-end tests
         run: ./e2e/run.sh --no-teardown discovery

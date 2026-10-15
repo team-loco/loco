@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"os"
 	"reflect"
 	"slices"
 	"testing"
@@ -8,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/yaml"
 
 	"github.com/team-loco/loco/controller/internal/builds/buildstest"
 	"github.com/team-loco/loco/controller/internal/controller"
@@ -38,7 +41,12 @@ func cachedTypes(options cache.Options) []string {
 func TestApplicationReconcilerCachesNoBuildObjects(t *testing.T) {
 	setup, err := selectReconciler(
 		reconcilerApplication,
-		operatorConfig{LocoNamespace: testLocoNamespace, PullSecretName: "registry-pull", Telemetry: testTelemetry()},
+		operatorConfig{
+			LocoNamespace:   testLocoNamespace,
+			PullSecretName:  "registry-pull",
+			Telemetry:       testTelemetry(),
+			RawWorkspaceDNS: testWorkspaceDNS(t),
+		},
 	)
 	if err != nil {
 		t.Fatalf("selectReconciler: %v", err)
@@ -112,5 +120,29 @@ func TestApplicationReconcilerRequiresTheTelemetryConfig(t *testing.T) {
 	_, err := selectReconciler(reconcilerApplication, operatorConfig{LocoNamespace: testLocoNamespace})
 	if err == nil {
 		t.Fatal("selectReconciler started an application reconciler without telemetry settings")
+	}
+}
+
+func testWorkspaceDNS(t *testing.T) string {
+	t.Helper()
+	data, err := os.ReadFile("../../charts/loco-operator/values.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var values map[string]any
+	if decodeErr := yaml.Unmarshal(data, &values); decodeErr != nil {
+		t.Fatal(decodeErr)
+	}
+	raw, err := json.Marshal(values["workspaceDNS"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(raw)
+}
+
+func TestApplicationRequiresWorkspaceDNS(t *testing.T) {
+	_, err := applicationSetup(operatorConfig{Telemetry: testTelemetry()})
+	if err == nil {
+		t.Fatal("application reconciler accepted missing workspace DNS")
 	}
 }

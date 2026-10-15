@@ -16,9 +16,10 @@ import (
 )
 
 const (
-	labelPrivateServiceOwner = "loco.io/private-service-owner"
-	componentPrivateService  = "private-service"
-	privateServicePortName   = "tcp"
+	labelPrivateServiceOwner      = "loco.io/private-service-owner"
+	componentPrivateService       = "private-service"
+	privateServicePortName        = "tcp"
+	privateServiceDefaultPortName = "default"
 )
 
 var (
@@ -46,6 +47,21 @@ func (r *LocoResourceReconciler) ensurePrivateService(ctx context.Context, app *
 	}
 	namespace := getNamespace(app)
 	port := app.Spec.ServiceSpec.Deployment.Port
+	targetPort := intstr.FromInt32(port)
+	ports := []corev1.ServicePort{
+		{Name: privateServiceDefaultPortName, Protocol: corev1.ProtocolTCP, Port: servicePort, TargetPort: targetPort},
+	}
+	if port != servicePort {
+		ports = append(
+			ports,
+			corev1.ServicePort{
+				Name:       privateServicePortName,
+				Protocol:   corev1.ProtocolTCP,
+				Port:       port,
+				TargetPort: targetPort,
+			},
+		)
+	}
 	desired := &corev1.Service{Name: name, Namespace: namespace,
 		Labels: map[string]string{
 			managed.LabelManagedBy:   managed.ManagedByValue,
@@ -55,14 +71,7 @@ func (r *LocoResourceReconciler) ensurePrivateService(ctx context.Context, app *
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
 			Selector: map[string]string{labelApp: getName(app)},
-			Ports: []corev1.ServicePort{
-				{
-					Name:       privateServicePortName,
-					Protocol:   corev1.ProtocolTCP,
-					Port:       port,
-					TargetPort: intstr.FromInt32(port),
-				},
-			},
+			Ports:    ports,
 		},
 	}
 	current := &corev1.Service{}

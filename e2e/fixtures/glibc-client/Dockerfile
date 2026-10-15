@@ -1,0 +1,1 @@
+FROM nginxinc/nginx-unprivileged:1.31.6@sha256:1d26a516fb93b18f9c0214dc9c645054486e516f13ff09ef63d5bd5c622278a2

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Test workspace-local DNS on the CoreDNS image pinned by the operator chart"
+set -euo pipefail
+root=$(git rev-parse --show-toplevel)
+cd "$root/controller"
+LOCO_TEST_WORKSPACE_DNS=1 go test -v ./internal/controller -run '^TestWorkspaceDNSWire$' -count=1 "$@"

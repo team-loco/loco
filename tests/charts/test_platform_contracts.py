@@ -560,6 +560,18 @@ class ControllerTelemetry(unittest.TestCase):
         self.assertEqual(protocols['http']['endpoint'].rsplit(':', 1)[1], str(collector['httpPort']))
 
 
+class WorkspaceDNS(unittest.TestCase):
+    def test_workspace_dns_values_reach_the_application_controller(self):
+        values = chart_values('loco-operator')['workspaceDNS']
+        values['clusterDomain'] = 'corp.internal'
+        deployment = render('loco-operator', 'controller/deployment.yaml', {
+            'controller': {'image': {'tag': 'test'}},
+            'workspaceDNS': values,
+        })
+        env = {item['name']: item for item in deployment['spec']['template']['spec']['containers'][0]['env']}
+        self.assertEqual(json.loads(env['LOCO_WORKSPACE_DNS']['value']), values)
+
+
 class ObservabilityMigrationLock(unittest.TestCase):
     def deployment(self):
         return render('loco-control-plane', 'obs-proxy-deployment.yaml', {'obsProxy': TEST_PROXY})

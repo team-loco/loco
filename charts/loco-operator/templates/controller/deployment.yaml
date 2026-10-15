@@ -32,6 +32,8 @@ spec:
                   command:
                     - /manager
                   env:
+                    - name: LOCO_WORKSPACE_DNS
+                      value: {{ .Values.workspaceDNS | toJson | quote }}
                     - name: LOCO_NAMESPACE
                       valueFrom:
                         fieldRef:

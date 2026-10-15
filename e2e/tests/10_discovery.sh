@@ -14,6 +14,9 @@ discovery_http=cart
 discovery_caller=caller
 discovery_tcp=payment
 discovery_renamed=checkout
+discovery_second_workspace='00000000-0000-7000-8000-000000000023'
+discovery_second_environment='00000000-0000-7000-8000-000000000024'
+discovery_glibc_image=$(awk '$1 == "FROM" { print $2 }' "$E2E_ROOT_DIR/e2e/fixtures/glibc-client/Dockerfile")
 
 dk() {
     kubectl --context "$discovery_ctx" "$@"
@@ -42,7 +45,7 @@ discovery_call() {
     local target=$1 protocol=$2 id
     id=$(discovery_resource_id "$discovery_caller")
     if [ "$protocol" = http ]; then
-        dk -n "$discovery_namespace" exec "deployment/resource-${id}" -- wget -q -T 5 -O - "http://${target}/"
+        dk -n "$discovery_namespace" exec "deployment/resource-${id}" -- curl --fail --silent --show-error --max-time 5 "http://${target}/"
     else
         dk -n "$discovery_namespace" exec "deployment/resource-${id}" -- sh -c 'printf "private-tcp-ok\n" | nc -w 5 "$1" "$2"' -- "${target%:*}" "${target##*:}"
     fi
@@ -56,21 +59,40 @@ discovery_alias_exists() {
     dk -n "$discovery_namespace" get service "$1" >/dev/null 2>&1
 }
 
+discovery_is_ready() {
+    local id
+    id=$(discovery_resource_id "$1")
+    test "$(dk -n "$E2E_LOCO_NAMESPACE" get application "resource-${id}" -o jsonpath='{.status.phase}')" = Ready
+}
+
+discovery_dns_absent() {
+    local id
+    id=$(discovery_resource_id "$discovery_caller")
+    ! dk -n "$discovery_namespace" exec "deployment/resource-${id}" -- getent hosts "$1" >/dev/null 2>&1
+}
+
+discovery_unreachable() {
+    ! discovery_call "$1" http >/dev/null 2>&1
+}
+
 test_d01_deploys_private_http_and_tcp_services() {
     cli_seed_session
     e2e_psql "INSERT INTO user_scopes (user_id, scope, entity_type, entity_id)
         VALUES ('${cli_user_id}', 'admin', 'workspace', '${cli_workspace_id}')
         ON CONFLICT DO NOTHING;" >/dev/null
     rm -rf "$discovery_dir"
-    mkdir -p "$discovery_dir/services/payment"
+    mkdir -p "$discovery_dir/services/payment" "$discovery_dir/services/cart"
     cli_write_credentials
     cp -R "$E2E_ROOT_DIR/e2e/fixtures/tcp-app/." "$discovery_dir/services/payment/"
+    cp -R "$E2E_ROOT_DIR/e2e/fixtures/build-app/." "$discovery_dir/services/cart/"
     cat >"$discovery_dir/loco.yaml" <<YAML
 version: 1
 partial: discovery
 services:
   ${discovery_http}:
-    image: ${E2E_PUBLIC_IMAGE}
+    context: services/cart
+    dockerfile: deploy/Dockerfile
+    env: { MESSAGE: workspace-one }
     port: 8080
     regions:
       us-east-1: { cpu: 100m, memory: 128Mi, replicas: { min: 1, max: 1 } }
@@ -87,9 +109,9 @@ services:
       us-east-1: { cpu: 100m, memory: 128Mi, replicas: { min: 1, max: 1 } }
 YAML
     discovery_deploy || return 1
-    wait_for "cart to be Ready" 120 cli_application_is_ready "$discovery_http"
-    wait_for "caller to be Ready" 120 cli_application_is_ready "$discovery_caller"
-    wait_for "payment to be Ready without HTTP health probes" 120 cli_application_is_ready "$discovery_tcp"
+    wait_for "cart to be Ready" 120 discovery_is_ready "$discovery_http"
+    wait_for "caller to be Ready" 120 discovery_is_ready "$discovery_caller"
+    wait_for "payment to be Ready without HTTP health probes" 120 discovery_is_ready "$discovery_tcp"
     local id
     id=$(discovery_resource_id "$discovery_tcp")
     local probes
@@ -99,8 +121,11 @@ YAML
 }
 
 test_d02_apps_use_logical_names_and_configured_ports() {
-    assert_contains "an app reaches cart:8080 by HTTP" 'Welcome to nginx' discovery_call "${discovery_http}:8080" http
-    assert_contains "an app exchanges non-HTTP TCP with payment:50051" 'private-tcp-ok' discovery_call "${discovery_tcp}:50051" tcp
+    assert_contains "musl app reaches http://cart.local with no port" 'workspace-one' discovery_call cart.local http
+    assert_contains "absolute cart.local. stays in the workspace" 'workspace-one' discovery_call cart.local. http
+    assert_contains "ordinary Kubernetes DNS remains available" 'workspace-one' discovery_call "cart.${discovery_namespace}.svc.cluster.local" http
+    assert_contains "an app reaches cart:8080 by HTTP" 'workspace-one' discovery_call "${discovery_http}:8080" http
+    assert_contains "an app exchanges non-HTTP TCP with payment:50051" 'private-tcp-ok' discovery_call "${discovery_tcp}.local:50051" tcp
     local id
     id=$(discovery_resource_id "$discovery_tcp")
     assert_contains "the UUID endpoint remains on port 80" 'private-tcp-ok' discovery_call "resource-${id}:80" tcp
@@ -116,7 +141,8 @@ test_d03_resource_rename_moves_the_alias_without_a_build() {
         "{\"resourceId\":\"${id}\",\"name\":\"${discovery_renamed}\"}"
     wait_for "the renamed alias" 60 discovery_alias_exists "$discovery_renamed"
     wait_for "the previous alias to be removed" 60 discovery_alias_absent "$discovery_tcp"
-    assert_contains "an app reaches the renamed TCP endpoint" 'private-tcp-ok' discovery_call "${discovery_renamed}:50051" tcp
+    assert_contains "an app reaches the renamed TCP endpoint" 'private-tcp-ok' discovery_call "${discovery_renamed}.local:50051" tcp
+    wait_for "old .local DNS name to disappear" 30 discovery_dns_absent "${discovery_tcp}.local"
     after=$(e2e_psql "SELECT count(*) FROM builds")
     assert "rename starts no build" test "$before" -eq "$after"
 }
@@ -126,6 +152,54 @@ test_d04_resource_delete_removes_only_its_alias() {
     id=$(discovery_resource_id "$discovery_renamed")
     assert "delete succeeds through the Resource API" discovery_api loco.resource.v1.ResourceService/DeleteResource "{\"resourceId\":\"${id}\"}"
     wait_for "the deleted service alias to disappear" 60 discovery_alias_absent "$discovery_renamed"
+    wait_for "deleted .local DNS name to disappear" 30 discovery_dns_absent "${discovery_renamed}.local"
     assert "cart still has its logical endpoint" discovery_alias_exists "$discovery_http"
-    assert_contains "the other app remains reachable" 'Welcome to nginx' discovery_call "${discovery_http}:8080" http
+    assert_contains "the other app remains reachable" 'workspace-one' discovery_call "${discovery_http}:8080" http
+}
+
+test_d05_same_local_name_resolves_only_inside_each_workspace() {
+    e2e_psql "
+        INSERT INTO workspaces (id, org_id, name, description, created_by)
+        VALUES ('${discovery_second_workspace}', '${cli_org_id}', 'e2e-discovery-two', 'Private DNS isolation', '${cli_user_id}') ON CONFLICT DO NOTHING;
+        INSERT INTO environments (id, workspace_id, name, environment_type, created_by)
+        VALUES ('${discovery_second_environment}', '${discovery_second_workspace}', 'production', 'production', '${cli_user_id}') ON CONFLICT DO NOTHING;
+        INSERT INTO user_scopes (user_id, scope, entity_type, entity_id) VALUES
+        ('${cli_user_id}', 'read', 'workspace', '${discovery_second_workspace}'),
+        ('${cli_user_id}', 'write', 'workspace', '${discovery_second_workspace}') ON CONFLICT DO NOTHING;
+    " >/dev/null
+    (
+        local cli_workspace_id=$discovery_second_workspace
+        local discovery_namespace="ws-${discovery_second_workspace}"
+        local discovery_dir="$E2E_BUILD_WORK_DIR/discovery-two"
+        local cli_home="$discovery_dir/home"
+        mkdir -p "$discovery_dir/services/cart"
+        cp -R "$E2E_ROOT_DIR/e2e/fixtures/build-app/." "$discovery_dir/services/cart/"
+        cli_write_credentials
+        cat >"$discovery_dir/loco.yaml" <<YAML
+version: 1
+partial: discovery-two
+services:
+  cart:
+    context: services/cart
+    dockerfile: deploy/Dockerfile
+    port: 8080
+    env: { MESSAGE: workspace-two }
+    regions:
+      us-east-1: { cpu: 100m, memory: 128Mi, replicas: { min: 1, max: 1 } }
+  caller:
+    image: ${discovery_glibc_image}
+    port: 8080
+    regions:
+      us-east-1: { cpu: 100m, memory: 128Mi, replicas: { min: 1, max: 1 } }
+YAML
+        discovery_deploy || return 1
+        wait_for "second workspace cart" 120 discovery_is_ready cart
+        wait_for "glibc caller" 120 discovery_is_ready caller
+        assert_contains "glibc app reaches its own http://cart.local with no port" workspace-two discovery_call cart.local http
+        assert_contains "absolute cart.local. resolves to its own workspace" workspace-two discovery_call cart.local. http
+    )
+    assert_contains "first workspace still resolves its own http://cart.local" workspace-one discovery_call cart.local http
+    local other_address
+    other_address=$(dk -n "ws-${discovery_second_workspace}" get service cart -o 'jsonpath={.spec.clusterIP}')
+    assert "cross-workspace traffic remains blocked" discovery_unreachable "$other_address"
 }
