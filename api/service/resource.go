@@ -1231,6 +1231,9 @@ func desiredApplicationSpec(
 }
 
 func deploymentTxError(ctx context.Context, err error) error {
+	if errors.Is(err, ErrClusterNotAssignable) {
+		return rpcerr.New(connect.CodeFailedPrecondition, err)
+	}
 	if errors.Is(err, errClusterHeldByEnvironment) {
 		slog.WarnContext(ctx, "refused a deployment to another environment's cluster", "error", err)
 		return rpcerr.New(connect.CodeFailedPrecondition, err)
@@ -1313,6 +1316,9 @@ func createDeploymentWithCleanup(
 ) (uuid.UUID, error) {
 	if err := lockResource(ctx, qtx, params.ResourceID); err != nil {
 		return uuid.UUID{}, err
+	}
+	if assignErr := lockAssignableCluster(ctx, qtx, params.ClusterID); assignErr != nil {
+		return uuid.UUID{}, assignErr
 	}
 	if heldErr := checkClusterEnvironment(ctx, qtx, params); heldErr != nil {
 		return uuid.UUID{}, heldErr

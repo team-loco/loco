@@ -16,7 +16,7 @@ test_api_health() {
 
 test_agent_registered() {
     local version
-    version=$(e2e_psql "SELECT agent_version FROM clusters WHERE id = '00000000-0000-7000-8000-000000000005'")
+    version=$(e2e_psql "SELECT agent_version FROM clusters WHERE id = '${E2E_CLUSTER_ID}'")
     assert "Agent registered with correct version" \
         test "$version" = "$E2E_VERSION"
 }
@@ -29,31 +29,31 @@ test_binaries_report_their_build_version() {
 }
 
 agent_heartbeat_recorded() {
-    test "$(e2e_psql "SELECT last_heartbeat IS NOT NULL FROM clusters WHERE id = '00000000-0000-7000-8000-000000000005'")" = "t"
+    test "$(e2e_psql "SELECT last_heartbeat IS NOT NULL FROM clusters WHERE id = '${E2E_CLUSTER_ID}'")" = "t"
 }
 
 test_agent_heartbeat() {
     wait_for "the agent's first heartbeat" 30 agent_heartbeat_recorded || true
 
     local heartbeat
-    heartbeat=$(e2e_psql "SELECT last_heartbeat IS NOT NULL FROM clusters WHERE id = '00000000-0000-7000-8000-000000000005'")
+    heartbeat=$(e2e_psql "SELECT last_heartbeat IS NOT NULL FROM clusters WHERE id = '${E2E_CLUSTER_ID}'")
     assert "Agent sent at least one heartbeat" \
         test "$heartbeat" = "t"
 
     local health
-    health=$(e2e_psql "SELECT health_status FROM clusters WHERE id = '00000000-0000-7000-8000-000000000005'")
+    health=$(e2e_psql "SELECT health_status FROM clusters WHERE id = '${E2E_CLUSTER_ID}'")
     assert "Cluster health status is 'healthy'" \
         test "$health" = "healthy"
 }
 
 test_agent_capacity_reported() {
     local cpu
-    cpu=$(e2e_psql "SELECT capacity_cpu_millicores FROM clusters WHERE id = '00000000-0000-7000-8000-000000000005'")
+    cpu=$(e2e_psql "SELECT capacity_cpu_millicores FROM clusters WHERE id = '${E2E_CLUSTER_ID}'")
     assert "Agent reported CPU capacity" \
         test "$cpu" -gt 0
 
     local mem
-    mem=$(e2e_psql "SELECT capacity_memory_bytes FROM clusters WHERE id = '00000000-0000-7000-8000-000000000005'")
+    mem=$(e2e_psql "SELECT capacity_memory_bytes FROM clusters WHERE id = '${E2E_CLUSTER_ID}'")
     assert "Agent reported memory capacity" \
         test "$mem" -gt 0
 }
@@ -128,12 +128,12 @@ test_agent_applies_placement() {
         VALUES (
             '${e2e_placement_id}',
             '${e2e_resource_id}',
-            '00000000-0000-7000-8000-000000000005',
+            '${E2E_CLUSTER_ID}',
             'us-east-1',
             \$spec\$${e2e_desired_spec}\$spec\$,
             '00000000-0000-7000-8000-000000000004'
         ) ON CONFLICT DO NOTHING;
-        SELECT pg_notify('placements', '00000000-0000-7000-8000-000000000005');
+        SELECT pg_notify('placements', '${E2E_CLUSTER_ID}');
     " >/dev/null
 
     wait_for "agent to apply the placement" 30 application_annotated
@@ -224,4 +224,12 @@ test_agent_logs_no_errors() {
         log_warn "Agent log file not found, skipping log check"
         E2E_SKIP=$((E2E_SKIP + 1))
     fi
+}
+
+test_agent_reconnects_to_same_cluster() {
+    local original_id="$E2E_CLUSTER_ID"
+    kill_pid_file "$PID_DIR/agent.pid"
+    start_agent
+    assert "Agent restart preserves cluster ID" test "$E2E_CLUSTER_ID" = "$original_id"
+    assert "Reconnect keeps a single cluster record" test "$(e2e_psql 'SELECT count(*) FROM clusters')" = 1
 }

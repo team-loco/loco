@@ -448,5 +448,9 @@ func newAgentConfig() service.AgentConfig {
 		panic(errShortRetryDelay)
 	}
 	maxAttempts := positiveInt32Env("LOCO_PLACEMENT_MAX_APPLY_ATTEMPTS", defaultPlacementMaxApplyAttempts)
-	return service.AgentConfig{PlacementRetryDelay: delay, PlacementMaxApplyAttempts: maxAttempts}
+	return service.AgentConfig{
+		ConnectionSecrets:         listEnv("LOCO_AGENT_CONNECTION_SECRETS"),
+		PlacementRetryDelay:       delay,
+		PlacementMaxApplyAttempts: maxAttempts,
+	}
 }

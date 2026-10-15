@@ -16,7 +16,8 @@ type Querier interface {
 	AdvanceDeploymentStatus(ctx context.Context, arg AdvanceDeploymentStatusParams) error
 	AdvancePlacementPastRevision(ctx context.Context, arg AdvancePlacementPastRevisionParams) (int64, error)
 	AdvisoryUnlock(ctx context.Context, lockKey int64) (bool, error)
-	BeginClusterSync(ctx context.Context, id uuid.UUID) (int64, error)
+	AttachCluster(ctx context.Context, arg AttachClusterParams) (AttachClusterRow, error)
+	BeginClusterSync(ctx context.Context, arg BeginClusterSyncParams) (int64, error)
 	BumpEnvironmentRevision(ctx context.Context, id uuid.UUID) error
 	BumpPlacementsForSecretNames(ctx context.Context, arg BumpPlacementsForSecretNamesParams) ([]BumpPlacementsForSecretNamesRow, error)
 	BumpResourceEnvironmentRevisions(ctx context.Context, id uuid.UUID) error
@@ -87,9 +88,8 @@ type Querier interface {
 	GetBuildByID(ctx context.Context, id uuid.UUID) (Build, error)
 	GetBuildCluster(ctx context.Context) (uuid.UUID, error)
 	GetClusterBuildsEnabled(ctx context.Context, id uuid.UUID) (bool, error)
-	// Cluster queries for agent operations
-	GetClusterByAgentToken(ctx context.Context, agentTokenHash *string) (GetClusterByAgentTokenRow, error)
 	GetClusterByID(ctx context.Context, id uuid.UUID) (GetClusterByIDRow, error)
+	GetClusterByKey(ctx context.Context, clusterKey *uuid.UUID) (GetClusterByKeyRow, error)
 	GetClusterDetails(ctx context.Context, id uuid.UUID) (GetClusterDetailsRow, error)
 	GetClusterSyncGeneration(ctx context.Context, id uuid.UUID) (int64, error)
 	GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, error)
@@ -144,11 +144,13 @@ type Querier interface {
 	ListActiveDeploymentsForEnvironment(ctx context.Context, environmentID uuid.UUID) ([]Deployment, error)
 	ListActiveDeploymentsForResource(ctx context.Context, resourceID uuid.UUID) ([]Deployment, error)
 	ListActivePlatformDomains(ctx context.Context) ([]PlatformDomain, error)
+	ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow, error)
 	ListAllLocoOwnedDomains(ctx context.Context) ([]ListAllLocoOwnedDomainsRow, error)
 	ListBuildStatesByIDs(ctx context.Context, ids []uuid.UUID) ([]ListBuildStatesByIDsRow, error)
 	ListBuildTagStates(ctx context.Context, ids []uuid.UUID) ([]ListBuildTagStatesRow, error)
 	ListBuildsForResource(ctx context.Context, arg ListBuildsForResourceParams) ([]Build, error)
 	ListClusterPlacementRevisions(ctx context.Context, clusterID uuid.UUID) ([]ListClusterPlacementRevisionsRow, error)
+	ListClusterWorkloads(ctx context.Context, clusterID uuid.UUID) ([]ListClusterWorkloadsRow, error)
 	ListClustersActive(ctx context.Context) ([]ListClustersActiveRow, error)
 	ListDeclaredSecretNames(ctx context.Context, arg ListDeclaredSecretNamesParams) ([]string, error)
 	ListDeletableBuildImages(ctx context.Context, arg ListDeletableBuildImagesParams) ([]ListDeletableBuildImagesRow, error)
@@ -190,8 +192,10 @@ type Querier interface {
 	ListWorkspaceWebhooks(ctx context.Context, workspaceID uuid.UUID) ([]Webhook, error)
 	ListWorkspacesForUser(ctx context.Context, arg ListWorkspacesForUserParams) ([]ListWorkspacesForUserRow, error)
 	ListWorkspacesInOrg(ctx context.Context, arg ListWorkspacesInOrgParams) ([]ListWorkspacesInOrgRow, error)
+	LockAssignableCluster(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockBuildImageForDelete(ctx context.Context, id uuid.UUID) (*time.Time, error)
 	LockBuildImageForDeploy(ctx context.Context, id uuid.UUID) (*time.Time, error)
+	LockClusterLifecycle(ctx context.Context, id uuid.UUID) (LockClusterLifecycleRow, error)
 	LockEnvironmentKey(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)
 	LockInstallWebhooks(ctx context.Context, lockKey int64) error
 	LockResourceEnvironments(ctx context.Context, id uuid.UUID) ([]LockResourceEnvironmentsRow, error)
@@ -222,7 +226,6 @@ type Querier interface {
 	ResourceHasPrimaryDomain(ctx context.Context, arg ResourceHasPrimaryDomainParams) (bool, error)
 	RewrapEnvironmentKey(ctx context.Context, arg RewrapEnvironmentKeyParams) (int64, error)
 	RotateSessionToken(ctx context.Context, arg RotateSessionTokenParams) (int64, error)
-	SetClusterAgentToken(ctx context.Context, arg SetClusterAgentTokenParams) error
 	SetClusterGatewayHostname(ctx context.Context, arg SetClusterGatewayHostnameParams) error
 	SetClusterObservabilityEndpoint(ctx context.Context, arg SetClusterObservabilityEndpointParams) error
 	SetLockTimeout(ctx context.Context, timeout string) error
@@ -234,8 +237,10 @@ type Querier interface {
 	TouchSessionLastUsed(ctx context.Context, id uuid.UUID) error
 	TryAdvisoryLock(ctx context.Context, lockKey int64) (bool, error)
 	UpdateActiveDeploymentStatus(ctx context.Context, arg UpdateActiveDeploymentStatusParams) error
+	// Cluster queries for agent operations
 	UpdateClusterAgentInfo(ctx context.Context, arg UpdateClusterAgentInfoParams) error
 	UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterHeartbeatParams) error
+	UpdateClusterLifecycle(ctx context.Context, arg UpdateClusterLifecycleParams) error
 	UpdateDeploymentStatus(ctx context.Context, arg UpdateDeploymentStatusParams) error
 	UpdateDeploymentStatusAndActive(ctx context.Context, arg UpdateDeploymentStatusAndActiveParams) error
 	UpdateEnvironment(ctx context.Context, arg UpdateEnvironmentParams) (Environment, error)

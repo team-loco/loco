@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package loco.cluster.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/team-loco/loco/gen/go/loco/cluster/v1;clusterv1";
+
+service ClusterAdminService {
+  rpc ListClusters(ListClustersRequest) returns (ListClustersResponse);
+  rpc PauseCluster(PauseClusterRequest) returns (PauseClusterResponse);
+  rpc ResumeCluster(ResumeClusterRequest) returns (ResumeClusterResponse);
+  rpc RemoveCluster(RemoveClusterRequest) returns (RemoveClusterResponse);
+  rpc RestoreCluster(RestoreClusterRequest) returns (RestoreClusterResponse);
+}
+
+message Cluster {
+  string id = 1;
+  string cluster_key = 2;
+  string name = 3;
+  string region = 4;
+  string tier = 5;
+  bool is_active = 6;
+  google.protobuf.Timestamp removed_at = 7;
+  optional string health_status = 8;
+  google.protobuf.Timestamp last_heartbeat = 9;
+  optional string agent_version = 10;
+  optional string connection_credential_fingerprint = 11;
+}
+
+message ClusterWorkload {
+  string id = 1;
+  string kind = 2;
+}
+
+message ClusterWorkloads {
+  repeated ClusterWorkload workloads = 1;
+}
+
+message ListClustersRequest {}
+
+message ListClustersResponse {
+  repeated Cluster clusters = 1;
+}
+
+message PauseClusterRequest {
+  string cluster_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message PauseClusterResponse {
+  string cluster_id = 1;
+}
+
+message ResumeClusterRequest {
+  string cluster_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message ResumeClusterResponse {
+  string cluster_id = 1;
+}
+
+message RemoveClusterRequest {
+  string cluster_id = 1 [(buf.validate.field).string.uuid = true];
+  bool force = 2;
+}
+
+message RemoveClusterResponse {
+  string cluster_id = 1;
+  repeated ClusterWorkload workloads = 2;
+}
+
+message RestoreClusterRequest {
+  string cluster_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message RestoreClusterResponse {
+  string cluster_id = 1;
+}

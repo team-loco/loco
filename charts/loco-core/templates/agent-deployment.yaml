@@ -36,6 +36,12 @@ spec:
                 - ALL
           imagePullPolicy: {{ .Values.agent.imagePullPolicy }}
           env:
+            - name: LOCO_CLUSTER_NAME
+              value: {{ required "agent.clusterName is required" .Values.agent.clusterName | quote }}
+            - name: LOCO_CLUSTER_REGION
+              value: {{ required "agent.clusterRegion is required" .Values.agent.clusterRegion | quote }}
+            - name: LOCO_CLUSTER_TIER
+              value: {{ required "agent.clusterTier is required" .Values.agent.clusterTier | quote }}
             - name: LOCO_NAMESPACE
               valueFrom:
                 fieldRef:

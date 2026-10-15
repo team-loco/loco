@@ -68,7 +68,9 @@ CREATE TABLE
 CREATE TABLE
     clusters (
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
-        name TEXT UNIQUE NOT NULL,
+        name TEXT NOT NULL,
+        cluster_key UUID UNIQUE,
+        removed_at TIMESTAMPTZ,
         region TEXT NOT NULL,
         provider TEXT NOT NULL,
         is_active BOOLEAN NOT NULL,
@@ -78,7 +80,6 @@ CREATE TABLE
             health_status IN ('healthy', 'unhealthy', 'degraded')
         ),
         last_health_check TIMESTAMPTZ,
-        agent_token_hash TEXT,
         last_heartbeat TIMESTAMPTZ,
         capacity_cpu_millicores BIGINT,
         capacity_memory_bytes BIGINT,
@@ -87,6 +88,7 @@ CREATE TABLE
         -- publicly resolvable FQDN of this cluster's gateway; a hostname, never an address
         gateway_hostname TEXT,
         sync_generation BIGINT NOT NULL DEFAULT 0,
+        connection_credential_fingerprint TEXT,
         builds_enabled BOOLEAN NOT NULL DEFAULT false,
         tier TEXT NOT NULL DEFAULT 'production' CHECK (tier IN ('dev', 'staging', 'production')),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
@@ -98,10 +100,6 @@ CREATE INDEX idx_clusters_region ON clusters (region);
 CREATE INDEX idx_clusters_is_active ON clusters (is_active);
 
 CREATE INDEX idx_clusters_tier ON clusters (tier);
-
-CREATE UNIQUE INDEX idx_clusters_agent_token_hash ON clusters (agent_token_hash)
-WHERE
-    agent_token_hash IS NOT NULL;
 
 -- Platform domains (loco-provided base domains)
 CREATE TABLE

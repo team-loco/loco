@@ -123,3 +123,11 @@ func (i *Inspector) BuildsEnabled(ctx context.Context) (bool, error) {
 	}
 	return false, nil
 }
+
+func (i *Inspector) Key(ctx context.Context) (string, error) {
+	namespace, err := i.client.CoreV1().Namespaces().Get(ctx, metav1.NamespaceSystem, metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("read cluster identity: %w", err)
+	}
+	return string(namespace.UID), nil
+}

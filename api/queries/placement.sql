@@ -137,12 +137,13 @@ SELECT pg_notify('placements', sqlc.arg(cluster_id)::text);
 
 -- name: BeginClusterSync :one
 UPDATE clusters
-SET sync_generation = sync_generation + 1, updated_at = NOW()
-WHERE id = $1
+SET sync_generation = sync_generation + 1,
+    connection_credential_fingerprint = $2, updated_at = NOW()
+WHERE id = $1 AND removed_at IS NULL
 RETURNING sync_generation;
 
 -- name: GetClusterSyncGeneration :one
-SELECT sync_generation FROM clusters WHERE id = $1;
+SELECT sync_generation FROM clusters WHERE id = $1 AND removed_at IS NULL;
 
 -- name: BumpPlacementsForSecretNames :many
 UPDATE placements

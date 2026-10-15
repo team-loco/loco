@@ -271,6 +271,8 @@ var (
 		scope:      db.ScopeRead,
 	}
 
+	ManageClusters = Action{entityType: db.EntityTypeSystem, scope: db.ScopeAdmin}
+
 	// domains
 
 	// CreatePlatformDomain requires system:admin.

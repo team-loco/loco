@@ -29,6 +29,7 @@ PORT_BLOCK_SIZE=10
 RUN_HASH=$(cksum <<<"$RUN_ID" | awk '{print $1}')
 PORT_BASE=$((PORT_RANGE_START + RUN_HASH % PORT_BLOCKS * PORT_BLOCK_SIZE))
 API_PORT=$PORT_BASE
+API_REPLICA_PORT=$((PORT_BASE + 5))
 OBS_PROXY_PORT=$((PORT_BASE + 1))
 S3_PORT=$((PORT_BASE + 2))
 CLICKHOUSE_PORT=$((PORT_BASE + 3))
@@ -72,7 +73,7 @@ USER_TOKEN="loco_s_e2e-test-session-do-not-use-in-production"
 LOCO_NAMESPACE="loco-system"
 IMAGE_RETENTION=1
 IMAGE_SWEEP_INTERVAL=5s
-SEEDED_CLUSTER_ID="00000000-0000-7000-8000-000000000005"
+E2E_CLUSTER_ID=""
 
 export E2E_ROOT_DIR="$ROOT_DIR"
 export E2E_VERSION
@@ -196,6 +197,7 @@ stop_processes() {
     kill_pid_file "$PID_DIR/gateway-forward.pid"
     kill_pid_file "$PID_DIR/clickhouse-forward.pid"
     kill_pid_file "$PID_DIR/agent.pid"
+    kill_pid_file "$PID_DIR/api-replica/api.pid"
     kill_pid_file "$PID_DIR/api.pid"
 }
 
@@ -324,6 +326,7 @@ require_free_port() {
 check_ports() {
     log_step "Checking run ${RUN_ID}'s ports ${PORT_BASE}-$((PORT_BASE + PORT_BLOCK_SIZE - 1))..."
     require_free_port "$API_PORT" "API"
+    require_free_port "$API_REPLICA_PORT" "API replica"
     require_free_port "$OBS_PROXY_PORT" "observability proxy"
     if [ "$OBSERVABILITY" = true ]; then
         require_free_port "$GATEWAY_PORT" "gateway"
@@ -416,7 +419,7 @@ run_migrations() {
     log_step "Resetting the database, running migrations and seeding test data..."
     e2e_psql "DROP SCHEMA public CASCADE; CREATE SCHEMA public;" >/dev/null
     goose -dir "$ROOT_DIR/api/migrations" postgres "$E2E_DATABASE_URL" up >/dev/null
-    SEED_FILE=api/seed/e2e.sql AGENT_TOKEN="$AGENT_TOKEN" e2e_compose run --rm seed >/dev/null
+    SEED_FILE=api/seed/e2e.sql e2e_compose run --rm seed >/dev/null
     log_ok "Migrations applied and test data seeded"
 }
 
@@ -695,8 +698,10 @@ start_builds() {
 }
 
 start_api() {
+    local connection_secrets="${1:-$AGENT_TOKEN}"
     log_step "Starting API server..."
 
+    LOCO_AGENT_CONNECTION_SECRETS="$connection_secrets" \
     DATABASE_URL="$E2E_DATABASE_URL" \
     APP_PORT="127.0.0.1:$API_PORT" \
     DEFAULT_PLATFORM_DOMAIN="$PLATFORM_DOMAIN" \
@@ -722,15 +727,19 @@ start_api() {
 }
 
 agent_registered() {
-    local version
-    version=$(e2e_psql "SELECT agent_version FROM clusters WHERE id = '${SEEDED_CLUSTER_ID}'")
-    test "$version" = "$E2E_VERSION"
+    test "$(e2e_psql "SELECT EXISTS (SELECT 1 FROM clusters WHERE cluster_key = '${E2E_CLUSTER_KEY}' AND agent_version = '${E2E_VERSION}' AND sync_generation > ${E2E_PREVIOUS_SYNC_GENERATION})")" = t
 }
 
 start_agent() {
     log_step "Starting Agent..."
 
     local core_values="$ROOT_DIR/charts/loco-core/values.yaml"
+    E2E_CLUSTER_KEY=$(kube get namespace kube-system -o jsonpath='{.metadata.uid}')
+    export E2E_CLUSTER_KEY
+    E2E_PREVIOUS_SYNC_GENERATION=$(e2e_psql "SELECT COALESCE((SELECT sync_generation FROM clusters WHERE cluster_key = '${E2E_CLUSTER_KEY}'), 0)")
+    LOCO_CLUSTER_NAME=e2e-test-cluster \
+    LOCO_CLUSTER_REGION=us-east-1 \
+    LOCO_CLUSTER_TIER=production \
     CONTROL_PLANE_URL="$E2E_API_URL" \
     AGENT_TOKEN="$AGENT_TOKEN" \
     LOG_LEVEL="$(yq '.env.LOG_LEVEL' "$core_values")" \
@@ -758,6 +767,8 @@ start_agent() {
     echo $! > "$PID_DIR/agent.pid"
 
     wait_for "Agent registration" "$READY_TIMEOUT" agent_registered
+    E2E_CLUSTER_ID=$(e2e_psql "SELECT id FROM clusters WHERE cluster_key = '${E2E_CLUSTER_KEY}'")
+    export E2E_CLUSTER_ID
     log_ok "Agent registered"
 }
 
@@ -905,6 +916,10 @@ main() {
     fi
     await_job binaries
     start_api
+    if [ "$(e2e_psql 'SELECT count(*) FROM clusters')" != 0 ]; then
+        log_error "Cluster registry must be empty before automatic attachment"
+        return 1
+    fi
     start_agent
     start_obs_proxy
 

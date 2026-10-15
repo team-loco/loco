@@ -245,6 +245,16 @@ func startSyncServerWithSources(
 	sources SourceBucket,
 ) agentv1connect.AgentServiceClient {
 	t.Helper()
+	return startSyncServerWithConfig(t, f, sources, testAgentConfig())
+}
+
+func startSyncServerWithConfig(
+	t *testing.T,
+	f *deployFixture,
+	sources SourceBucket,
+	cfg AgentConfig,
+) agentv1connect.AgentServiceClient {
+	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
@@ -253,7 +263,7 @@ func startSyncServerWithSources(
 	if err := notifier.Start(ctx); err != nil {
 		t.Fatalf("start notifier: %v", err)
 	}
-	server := NewAgentServer(f.pool, f.queries, notifier, sources, nil, testHeartbeatInterval, testAgentConfig())
+	server := NewAgentServer(f.pool, f.queries, notifier, sources, nil, testHeartbeatInterval, cfg)
 	rpcServer := connect.NewServer()
 	agentv1connect.RegisterAgentServiceHandler(rpcServer, server)
 	transport := connectinprocess.New(rpcServer)
@@ -269,10 +279,23 @@ func openSync(
 	ctx context.Context,
 	t *testing.T,
 	client agentv1connect.AgentServiceClient,
+	clusterID uuid.UUID,
+) <-chan syncResult {
+	t.Helper()
+	return openSyncWithToken(ctx, t, client, clusterID, testAgentToken)
+}
+
+func openSyncWithToken(
+	ctx context.Context,
+	t *testing.T,
+	client agentv1connect.AgentServiceClient,
+	clusterID uuid.UUID,
+	token string,
 ) <-chan syncResult {
 	t.Helper()
 	ctx, info := connect.NewClientContext(ctx)
-	info.RequestHeader().Set("Authorization", "Bearer "+testAgentToken)
+	info.RequestHeader().Set("Authorization", "Bearer "+token)
+	info.RequestHeader().Set("Loco-Cluster-Key", clusterID.String())
 	stream, err := client.Sync(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -310,7 +333,7 @@ func TestSyncStreamDeliversChangesAndYieldsToANewerStream(t *testing.T) {
 	client := startSyncServer(t, f)
 	ctx := t.Context()
 
-	first := openSync(ctx, t, client)
+	first := openSync(ctx, t, client, f.clusterID)
 	select {
 	case r := <-first:
 		t.Fatalf("unexpected message before any deploy: %v", r)
@@ -325,7 +348,7 @@ func TestSyncStreamDeliversChangesAndYieldsToANewerStream(t *testing.T) {
 		t.Fatalf("first stream got %v, %v; want an Apply at revision 1", got.msg, got.err)
 	}
 
-	second := openSync(ctx, t, client)
+	second := openSync(ctx, t, client, f.clusterID)
 	got = nextResult(t, second)
 	if got.err != nil || got.msg.GetApply().GetRevision() != 1 {
 		t.Fatalf("second stream got %v, %v; want the unacked Apply", got.msg, got.err)
@@ -359,5 +382,9 @@ func TestSyncStreamRejectsUnknownAgents(t *testing.T) {
 }
 
 func testAgentConfig() AgentConfig {
-	return AgentConfig{PlacementRetryDelay: time.Hour, PlacementMaxApplyAttempts: 1}
+	return AgentConfig{
+		ConnectionSecrets:         []string{testAgentToken},
+		PlacementRetryDelay:       time.Hour,
+		PlacementMaxApplyAttempts: 1,
+	}
 }

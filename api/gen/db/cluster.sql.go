@@ -12,6 +12,41 @@ import (
 	"github.com/google/uuid"
 )
 
+const attachCluster = `-- name: AttachCluster :one
+INSERT INTO clusters (cluster_key, name, region, tier, provider, is_active, is_default)
+VALUES ($1, $2, $3, $4, 'kubernetes', true, false)
+ON CONFLICT (cluster_key) DO UPDATE
+SET name = EXCLUDED.name, updated_at = NOW()
+WHERE clusters.region = EXCLUDED.region AND clusters.tier = EXCLUDED.tier
+  AND clusters.removed_at IS NULL
+RETURNING id, name, region
+`
+
+type AttachClusterParams struct {
+	ClusterKey *uuid.UUID `json:"clusterKey"`
+	Name       string     `json:"name"`
+	Region     string     `json:"region"`
+	Tier       string     `json:"tier"`
+}
+
+type AttachClusterRow struct {
+	ID     uuid.UUID `json:"id"`
+	Name   string    `json:"name"`
+	Region string    `json:"region"`
+}
+
+func (q *Queries) AttachCluster(ctx context.Context, arg AttachClusterParams) (AttachClusterRow, error) {
+	row := q.db.QueryRow(ctx, attachCluster,
+		arg.ClusterKey,
+		arg.Name,
+		arg.Region,
+		arg.Tier,
+	)
+	var i AttachClusterRow
+	err := row.Scan(&i.ID, &i.Name, &i.Region)
+	return i, err
+}
+
 const getClusterBuildsEnabled = `-- name: GetClusterBuildsEnabled :one
 SELECT builds_enabled FROM clusters WHERE id = $1
 `
@@ -23,62 +58,9 @@ func (q *Queries) GetClusterBuildsEnabled(ctx context.Context, id uuid.UUID) (bo
 	return builds_enabled, err
 }
 
-const getClusterByAgentToken = `-- name: GetClusterByAgentToken :one
-
-SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
-       last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
-       capacity_memory_bytes, agent_version, created_at, updated_at
-FROM clusters
-WHERE agent_token_hash = $1
-`
-
-type GetClusterByAgentTokenRow struct {
-	ID                    uuid.UUID  `json:"id"`
-	Name                  string     `json:"name"`
-	Region                string     `json:"region"`
-	Provider              string     `json:"provider"`
-	IsActive              bool       `json:"isActive"`
-	IsDefault             bool       `json:"isDefault"`
-	Endpoint              *string    `json:"endpoint"`
-	HealthStatus          *string    `json:"healthStatus"`
-	LastHealthCheck       *time.Time `json:"lastHealthCheck"`
-	AgentTokenHash        *string    `json:"agentTokenHash"`
-	LastHeartbeat         *time.Time `json:"lastHeartbeat"`
-	CapacityCpuMillicores *int64     `json:"capacityCpuMillicores"`
-	CapacityMemoryBytes   *int64     `json:"capacityMemoryBytes"`
-	AgentVersion          *string    `json:"agentVersion"`
-	CreatedAt             time.Time  `json:"createdAt"`
-	UpdatedAt             time.Time  `json:"updatedAt"`
-}
-
-// Cluster queries for agent operations
-func (q *Queries) GetClusterByAgentToken(ctx context.Context, agentTokenHash *string) (GetClusterByAgentTokenRow, error) {
-	row := q.db.QueryRow(ctx, getClusterByAgentToken, agentTokenHash)
-	var i GetClusterByAgentTokenRow
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.Region,
-		&i.Provider,
-		&i.IsActive,
-		&i.IsDefault,
-		&i.Endpoint,
-		&i.HealthStatus,
-		&i.LastHealthCheck,
-		&i.AgentTokenHash,
-		&i.LastHeartbeat,
-		&i.CapacityCpuMillicores,
-		&i.CapacityMemoryBytes,
-		&i.AgentVersion,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const getClusterByID = `-- name: GetClusterByID :one
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
-       last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
+       last_health_check, last_heartbeat, capacity_cpu_millicores,
        capacity_memory_bytes, agent_version, created_at, updated_at
 FROM clusters
 WHERE id = $1
@@ -94,7 +76,6 @@ type GetClusterByIDRow struct {
 	Endpoint              *string    `json:"endpoint"`
 	HealthStatus          *string    `json:"healthStatus"`
 	LastHealthCheck       *time.Time `json:"lastHealthCheck"`
-	AgentTokenHash        *string    `json:"agentTokenHash"`
 	LastHeartbeat         *time.Time `json:"lastHeartbeat"`
 	CapacityCpuMillicores *int64     `json:"capacityCpuMillicores"`
 	CapacityMemoryBytes   *int64     `json:"capacityMemoryBytes"`
@@ -116,7 +97,6 @@ func (q *Queries) GetClusterByID(ctx context.Context, id uuid.UUID) (GetClusterB
 		&i.Endpoint,
 		&i.HealthStatus,
 		&i.LastHealthCheck,
-		&i.AgentTokenHash,
 		&i.LastHeartbeat,
 		&i.CapacityCpuMillicores,
 		&i.CapacityMemoryBytes,
@@ -124,6 +104,24 @@ func (q *Queries) GetClusterByID(ctx context.Context, id uuid.UUID) (GetClusterB
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
+	return i, err
+}
+
+const getClusterByKey = `-- name: GetClusterByKey :one
+SELECT id, name, region FROM clusters
+WHERE cluster_key = $1 AND removed_at IS NULL
+`
+
+type GetClusterByKeyRow struct {
+	ID     uuid.UUID `json:"id"`
+	Name   string    `json:"name"`
+	Region string    `json:"region"`
+}
+
+func (q *Queries) GetClusterByKey(ctx context.Context, clusterKey *uuid.UUID) (GetClusterByKeyRow, error) {
+	row := q.db.QueryRow(ctx, getClusterByKey, clusterKey)
+	var i GetClusterByKeyRow
+	err := row.Scan(&i.ID, &i.Name, &i.Region)
 	return i, err
 }
 
@@ -183,20 +181,121 @@ func (q *Queries) GetObservabilityClustersForWorkspace(ctx context.Context, work
 	return items, nil
 }
 
-const setClusterAgentToken = `-- name: SetClusterAgentToken :exec
-UPDATE clusters
-SET agent_token_hash = $2, updated_at = NOW()
-WHERE id = $1
+const listAdminClusters = `-- name: ListAdminClusters :many
+SELECT id, cluster_key, name, region, tier, is_active, removed_at, health_status,
+       last_heartbeat, agent_version, connection_credential_fingerprint
+FROM clusters ORDER BY created_at, id
 `
 
-type SetClusterAgentTokenParams struct {
-	ID             uuid.UUID `json:"id"`
-	AgentTokenHash *string   `json:"agentTokenHash"`
+type ListAdminClustersRow struct {
+	ID                              uuid.UUID  `json:"id"`
+	ClusterKey                      *uuid.UUID `json:"clusterKey"`
+	Name                            string     `json:"name"`
+	Region                          string     `json:"region"`
+	Tier                            string     `json:"tier"`
+	IsActive                        bool       `json:"isActive"`
+	RemovedAt                       *time.Time `json:"removedAt"`
+	HealthStatus                    *string    `json:"healthStatus"`
+	LastHeartbeat                   *time.Time `json:"lastHeartbeat"`
+	AgentVersion                    *string    `json:"agentVersion"`
+	ConnectionCredentialFingerprint *string    `json:"connectionCredentialFingerprint"`
 }
 
-func (q *Queries) SetClusterAgentToken(ctx context.Context, arg SetClusterAgentTokenParams) error {
-	_, err := q.db.Exec(ctx, setClusterAgentToken, arg.ID, arg.AgentTokenHash)
-	return err
+func (q *Queries) ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow, error) {
+	rows, err := q.db.Query(ctx, listAdminClusters)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAdminClustersRow
+	for rows.Next() {
+		var i ListAdminClustersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClusterKey,
+			&i.Name,
+			&i.Region,
+			&i.Tier,
+			&i.IsActive,
+			&i.RemovedAt,
+			&i.HealthStatus,
+			&i.LastHeartbeat,
+			&i.AgentVersion,
+			&i.ConnectionCredentialFingerprint,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listClusterWorkloads = `-- name: ListClusterWorkloads :many
+SELECT p.id, 'placement'::text AS kind FROM placements p
+WHERE p.cluster_id = $1
+UNION ALL
+SELECT d.id, 'deployment'::text AS kind FROM deployments d
+WHERE d.cluster_id = $1 AND d.is_active = true
+UNION ALL
+SELECT b.id, 'build'::text AS kind FROM builds b
+WHERE b.cluster_id = $1 AND b.status IN ('queued', 'running')
+ORDER BY kind, id
+`
+
+type ListClusterWorkloadsRow struct {
+	ID   uuid.UUID `json:"id"`
+	Kind string    `json:"kind"`
+}
+
+func (q *Queries) ListClusterWorkloads(ctx context.Context, clusterID uuid.UUID) ([]ListClusterWorkloadsRow, error) {
+	rows, err := q.db.Query(ctx, listClusterWorkloads, clusterID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListClusterWorkloadsRow
+	for rows.Next() {
+		var i ListClusterWorkloadsRow
+		if err := rows.Scan(&i.ID, &i.Kind); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const lockAssignableCluster = `-- name: LockAssignableCluster :one
+SELECT id FROM clusters WHERE id = $1 AND is_active = true AND removed_at IS NULL FOR SHARE
+`
+
+func (q *Queries) LockAssignableCluster(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, lockAssignableCluster, id)
+	var id_2 uuid.UUID
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
+const lockClusterLifecycle = `-- name: LockClusterLifecycle :one
+SELECT id, is_active, removed_at FROM clusters WHERE id = $1 FOR UPDATE
+`
+
+type LockClusterLifecycleRow struct {
+	ID        uuid.UUID  `json:"id"`
+	IsActive  bool       `json:"isActive"`
+	RemovedAt *time.Time `json:"removedAt"`
+}
+
+func (q *Queries) LockClusterLifecycle(ctx context.Context, id uuid.UUID) (LockClusterLifecycleRow, error) {
+	row := q.db.QueryRow(ctx, lockClusterLifecycle, id)
+	var i LockClusterLifecycleRow
+	err := row.Scan(&i.ID, &i.IsActive, &i.RemovedAt)
+	return i, err
 }
 
 const setClusterGatewayHostname = `-- name: SetClusterGatewayHostname :exec
@@ -232,6 +331,7 @@ func (q *Queries) SetClusterObservabilityEndpoint(ctx context.Context, arg SetCl
 }
 
 const updateClusterAgentInfo = `-- name: UpdateClusterAgentInfo :exec
+
 UPDATE clusters
 SET agent_version = $2,
     capacity_cpu_millicores = $3,
@@ -249,6 +349,7 @@ type UpdateClusterAgentInfoParams struct {
 	BuildsEnabled         bool      `json:"buildsEnabled"`
 }
 
+// Cluster queries for agent operations
 func (q *Queries) UpdateClusterAgentInfo(ctx context.Context, arg UpdateClusterAgentInfoParams) error {
 	_, err := q.db.Exec(ctx, updateClusterAgentInfo,
 		arg.ID,
@@ -268,7 +369,7 @@ SET last_heartbeat = $2,
     health_status = $5,
     builds_enabled = $6,
     updated_at = NOW()
-WHERE id = $1
+WHERE id = $1 AND removed_at IS NULL
 `
 
 type UpdateClusterHeartbeatParams struct {
@@ -288,6 +389,36 @@ func (q *Queries) UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterH
 		arg.CapacityMemoryBytes,
 		arg.HealthStatus,
 		arg.BuildsEnabled,
+	)
+	return err
+}
+
+const updateClusterLifecycle = `-- name: UpdateClusterLifecycle :exec
+UPDATE clusters
+SET is_active = $1,
+    removed_at = CASE WHEN $2::boolean THEN NOW()
+                      WHEN $3::boolean THEN NULL ELSE removed_at END,
+    last_heartbeat = CASE WHEN $3::boolean THEN NULL ELSE last_heartbeat END,
+    health_status = CASE WHEN $3::boolean THEN NULL ELSE health_status END,
+    sync_generation = sync_generation + CASE
+        WHEN $2::boolean OR $3::boolean THEN 1 ELSE 0 END,
+    updated_at = NOW()
+WHERE id = $4
+`
+
+type UpdateClusterLifecycleParams struct {
+	Active         bool      `json:"active"`
+	RemoveCluster  bool      `json:"removeCluster"`
+	RestoreCluster bool      `json:"restoreCluster"`
+	ID             uuid.UUID `json:"id"`
+}
+
+func (q *Queries) UpdateClusterLifecycle(ctx context.Context, arg UpdateClusterLifecycleParams) error {
+	_, err := q.db.Exec(ctx, updateClusterLifecycle,
+		arg.Active,
+		arg.RemoveCluster,
+		arg.RestoreCluster,
+		arg.ID,
 	)
 	return err
 }
