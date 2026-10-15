@@ -711,6 +711,10 @@ obs_metrics_quiet_window_elapsed() {
     test "$(obs_now)" -ge "$obs_metrics_quiet_end"
 }
 
+obs_metrics_endpoint_serves() {
+    test "$(obs_gateway_status "${E2E_GATEWAY_URL}/metrics")" = "$obs_http_ok"
+}
+
 test_o10_stops_pulling_when_the_endpoint_is_removed() {
     local rc=0 since interval rows
     obs_app="$obs_app" yq -i 'del(.services[strenv(obs_app)].metrics)' "$obs_app_dir/loco.yaml"
@@ -723,7 +727,8 @@ test_o10_stops_pulling_when_the_endpoint_is_removed() {
     assert "the replacement pod has no metrics discovery label" \
         wait_for "metrics discovery removal" "$obs_route_timeout_seconds" obs_metrics_discovery_removed
     assert "the undeclared metrics endpoint still serves HTTP" \
-        test "$(obs_gateway_status "${E2E_GATEWAY_URL}/metrics")" = "$obs_http_ok"
+        wait_for "the gateway to route the replacement pod's metrics endpoint" \
+            "$obs_route_timeout_seconds" obs_metrics_endpoint_serves
     since=$(($(obs_now) + obs_poll_interval_seconds))
     interval=$(yq '.["otel-col-daemon"].config.receivers."prometheus/applications".config.scrape_configs[0].scrape_interval' "$obs_chart_values")
     interval=${interval%s}

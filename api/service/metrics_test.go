@@ -24,6 +24,12 @@ func TestApplyMetricsPersistsChangesAndClears(t *testing.T) {
 		applyOK(t, f, file, applyOptions{})
 		wantCleanPlan(t, f, file)
 		obs := f.workerPayload(t, f.clusterID).AppSpec.ServiceSpec.Obs
+		if endpoint == "" {
+			if obs != nil {
+				t.Fatalf("removed metrics leave observability settings: %+v", obs)
+			}
+			continue
+		}
 		if obs == nil {
 			t.Fatal("missing observability settings")
 		}
