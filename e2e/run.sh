@@ -51,6 +51,9 @@ E2E_VERSION="e2e"
 CONTROLLER_REPOSITORY="loco-controller"
 BUILDER_REPOSITORY="loco-builder"
 OBS_VALUES="$ROOT_DIR/charts/loco-obs/values.yaml"
+CONTROL_PLANE_VALUES="$ROOT_DIR/charts/loco-control-plane/values.yaml"
+OBS_READER_USER=$(yq '.clickhouse.clickhouse.users[] | select(.grants[] | test("^GRANT SELECT ON ")) | .name' "$OBS_VALUES")
+OBS_MIGRATOR_USER=$(yq '.clickhouse.clickhouse.users[] | select(.grants[] | test("^GRANT ALL ON ")) | .name' "$OBS_VALUES")
 OBS_E2E_VALUES="$SCRIPT_DIR/obs-values.yaml"
 OBS_RELEASE="loco-obs"
 CORE_CHART="$ROOT_DIR/charts/loco-core"
@@ -506,7 +509,7 @@ obs_clickhouse() {
 }
 
 clickhouse_user_answers() {
-    obs_clickhouse "$(yq '.obsProxy.clickhouse.migratorUser' "$OBS_VALUES")" -q "SELECT 1"
+    obs_clickhouse "$OBS_MIGRATOR_USER" -q "SELECT 1"
 }
 
 install_loco_obs() {
@@ -547,8 +550,8 @@ reset_telemetry() {
     fi
     log_step "Emptying the previous run's telemetry..."
     local migrator database table
-    migrator=$(yq '.obsProxy.clickhouse.migratorUser' "$OBS_VALUES")
-    database=$(yq '.obsProxy.clickhouse.database' "$OBS_VALUES")
+    migrator=$OBS_MIGRATOR_USER
+    database=$(yq '.["otel-col-daemon"].config.exporters.clickhouse.database' "$OBS_VALUES")
     for table in $(obs_clickhouse "$migrator" -q "SELECT name FROM system.tables WHERE database = '${database}' AND engine LIKE '%MergeTree' AND name != 'loco_schema_migrations'"); do
         obs_clickhouse "$migrator" -q "TRUNCATE TABLE ${database}.${table}"
     done
@@ -768,8 +771,8 @@ start_obs_proxy() {
 
     local reader_dsn migrator_dsn reader migrator
     if [ "$OBSERVABILITY" = true ]; then
-        reader=$(yq '.obsProxy.clickhouse.readerUser' "$OBS_VALUES")
-        migrator=$(yq '.obsProxy.clickhouse.migratorUser' "$OBS_VALUES")
+        reader=$OBS_READER_USER
+        migrator=$OBS_MIGRATOR_USER
         reader_dsn=$(clickhouse_dsn "$reader" "$(obs_clickhouse_password "$reader")")
         migrator_dsn=$(clickhouse_dsn "$migrator" "$(obs_clickhouse_password "$migrator")")
     else
@@ -782,14 +785,7 @@ start_obs_proxy() {
     CORS_ALLOWED_ORIGINS="https://dashboard.e2e.test" \
     CLICKHOUSE_URL="$reader_dsn" \
     CLICKHOUSE_MIGRATOR_URL="$migrator_dsn" \
-    CLICKHOUSE_DB="$(yq '.obsProxy.clickhouse.database' "$OBS_VALUES")" \
-    CLICKHOUSE_LOGS_TTL="$(yq '.obsProxy.clickhouse.retention.logs' "$OBS_VALUES")" \
-    CLICKHOUSE_TRACES_TTL="$(yq '.obsProxy.clickhouse.retention.traces' "$OBS_VALUES")" \
-    CLICKHOUSE_METRICS_TTL="$(yq '.obsProxy.clickhouse.retention.metrics' "$OBS_VALUES")" \
-    MIGRATION_RETRY_BUDGET="$(yq '.obsProxy.clickhouse.migrations.retryBudgetSeconds' "$OBS_VALUES")s" \
-    MIGRATION_RETRY_INTERVAL="$(yq '.obsProxy.clickhouse.migrations.retryIntervalSeconds' "$OBS_VALUES")s" \
-    MIGRATION_LOCK_TTL="$(yq '.obsProxy.clickhouse.migrations.lock.ttlSeconds' "$OBS_VALUES")s" \
-    MIGRATION_LOCK_RETRY_PERIOD="$(yq '.obsProxy.clickhouse.migrations.lock.retryPeriodSeconds' "$OBS_VALUES")s" \
+    CLICKHOUSE_DB="$(yq '.["otel-col-daemon"].config.exporters.clickhouse.database' "$OBS_VALUES")" \
     DEFAULT_LIMIT="100" \
     MAX_LIMIT="1000" \
     QUERY_TIMEOUT_SECONDS="5" \

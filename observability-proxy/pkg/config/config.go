@@ -19,6 +19,13 @@ const (
 	defaultMaxTailMinutes     = 30
 	defaultMaxConcurrentTails = 3
 	defaultTokenCacheSeconds  = 30
+
+	defaultClickHouseDB           = "loco_obs"
+	defaultRetention              = 365 * 24 * time.Hour
+	defaultMigrationRetryBudget   = 2 * time.Minute
+	defaultMigrationRetryInterval = 5 * time.Second
+	defaultMigrationLockTTL       = 15 * time.Second
+	defaultMigrationLockRetry     = 2 * time.Second
 )
 
 type Config struct {
@@ -56,16 +63,16 @@ func Load() *Config {
 		ControlPlaneURL:    stringEnv("CONTROL_PLANE_URL", defaultControlPlaneURL),
 		CORSAllowedOrigins: originsEnv("CORS_ALLOWED_ORIGINS"),
 		ClickHouseURL:      stringEnv("CLICKHOUSE_URL", defaultClickHouseURL),
-		ClickHouseDB:       identifierEnv("CLICKHOUSE_DB"),
+		ClickHouseDB:       identifierEnv("CLICKHOUSE_DB", defaultClickHouseDB),
 
 		ClickHouseMigratorURL:  requiredStringEnv("CLICKHOUSE_MIGRATOR_URL"),
-		LogsTTL:                ttlEnv("CLICKHOUSE_LOGS_TTL"),
-		TracesTTL:              ttlEnv("CLICKHOUSE_TRACES_TTL"),
-		MetricsTTL:             ttlEnv("CLICKHOUSE_METRICS_TTL"),
-		MigrationRetryBudget:   requiredPositiveDurationEnv("MIGRATION_RETRY_BUDGET"),
-		MigrationRetryInterval: requiredPositiveDurationEnv("MIGRATION_RETRY_INTERVAL"),
-		MigrationLockTTL:       requiredPositiveDurationEnv("MIGRATION_LOCK_TTL"),
-		MigrationLockRetry:     requiredPositiveDurationEnv("MIGRATION_LOCK_RETRY_PERIOD"),
+		LogsTTL:                ttlEnv("CLICKHOUSE_LOGS_TTL", defaultRetention),
+		TracesTTL:              ttlEnv("CLICKHOUSE_TRACES_TTL", defaultRetention),
+		MetricsTTL:             ttlEnv("CLICKHOUSE_METRICS_TTL", defaultRetention),
+		MigrationRetryBudget:   positiveDurationEnv("MIGRATION_RETRY_BUDGET", defaultMigrationRetryBudget),
+		MigrationRetryInterval: positiveDurationEnv("MIGRATION_RETRY_INTERVAL", defaultMigrationRetryInterval),
+		MigrationLockTTL:       positiveDurationEnv("MIGRATION_LOCK_TTL", defaultMigrationLockTTL),
+		MigrationLockRetry:     positiveDurationEnv("MIGRATION_LOCK_RETRY_PERIOD", defaultMigrationLockRetry),
 
 		DefaultLimit:       int32Env("DEFAULT_LIMIT", defaultLimit),
 		MaxLimit:           int32Env("MAX_LIMIT", defaultMaxLimit),

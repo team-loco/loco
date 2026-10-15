@@ -55,14 +55,16 @@ for user in $(yq '.clickhouseUserPasswords | keys | .[]' "$chart/values.yaml"); 
 	password_sets+=("--set" "clickhouseUserPasswords.$user=$(openssl rand -hex 16)")
 done
 region=obs-stack-region
-manifest=$(helm template loco-obs "$chart" --namespace "$namespace" --set obsProxy.image.tag="$1" \
-	--set global.region="$region" \
-	--set obsProxy.controlPlane.url=http://control-plane.invalid "${password_sets[@]}")
+manifest=$(helm template loco-obs "$chart" --namespace "$namespace" --set global.region="$region" "${password_sets[@]}")
+proxy_env=$(helm template loco-control-plane charts/loco-control-plane --set obsProxy.image.tag="$1" \
+	--set obsProxy.controlPlane.url=http://control-plane.invalid \
+	--set obsProxy.clickhouse.existingSecret.name="$run_id-reader-url" \
+	--set obsProxy.clickhouse.migratorExistingSecret.name="$run_id-migrator-url" |
+	yq -o json -I 0 'select(.kind == "Deployment") | .spec.template.spec.containers[0].env')
 chi=$(yq -o json -I 0 'select(.kind == "ClickHouseInstallation")' <<<"$manifest")
 clickhouse_image=$(yq '.spec.templates.podTemplates[0].spec.containers[0].image' <<<"$chi")
 collector_image=$(yq 'select(.kind == "Deployment" and .metadata.name == "otel-col-deploy") | .spec.template.spec.containers[0].image' <<<"$manifest")
-proxy_env=$(yq -o json -I 0 'select(.kind == "Deployment" and .metadata.name == "loco-obs-obs-proxy") | .spec.template.spec.containers[0].env' <<<"$manifest")
-clickhouse_host=$(yq '.[] | select(.name == "CLICKHOUSE_MIGRATOR_URL") | .value | sub(".*@", "")' <<<"$proxy_env")
+clickhouse_host=$(collector_config otel-col-deploy | yq '.exporters.clickhouse.endpoint | sub("^tcp://", "")')
 ingest_secret=$(yq 'select(.kind == "Deployment" and .metadata.name == "otel-col-deploy") | .spec.template.spec.containers[0].env[] | select(.name == "CLICKHOUSE_INGEST_PASSWORD") | .valueFrom.secretKeyRef.name' <<<"$manifest")
 yq '.spec.configuration.files["config.d/extra_config.xml"]' <<<"$chi" >"$workdir/extra_config.xml"
 
@@ -98,25 +100,21 @@ fi
 query "SYSTEM FLUSH LOGS"
 clickhouse_port=$(docker port "$clickhouse" 9000/tcp | head -1)
 
-proxy_value() {
-	local item value secret
-	item=$(NAME="$1" yq -o json -I 0 '.[] | select(.name == strenv(NAME))' <<<"$proxy_env")
-	value=$(yq '.value // ""' <<<"$item")
-	secret=$(yq '.valueFrom.secretKeyRef.name // ""' <<<"$item")
-	if [ -n "$secret" ]; then
-		value=$(secret_password "$secret")
-	fi
-	while [[ $value =~ \$\(([A-Z_]+)\) ]]; do
-		value=${value//"${BASH_REMATCH[0]}"/$(proxy_value "${BASH_REMATCH[1]}")}
-	done
-	echo "${value//"$clickhouse_host"/$clickhouse_port}"
+clickhouse_dsn() {
+	local user secret
+	user=$(GRANT="$1" yq '.clickhouse.clickhouse.users[] | select(.grants[] | test("^" + strenv(GRANT) + " ON ")) | .name' "$chart/values.yaml")
+	secret=$(USER_NAME="$user" yq '.clickhouse.clickhouse.users[] | select(.name == strenv(USER_NAME)) | .password_secret_name' "$chart/values.yaml")
+	echo "clickhouse://$user:$(secret_password "$secret")@$clickhouse_port"
 }
 
 (cd observability-proxy && go build -o "$workdir/loco-obs-proxy" .)
 proxy_vars=()
-for name in $(yq '.[].name' <<<"$proxy_env"); do
-	proxy_vars+=("$name=$(proxy_value "$name")")
+for name in $(yq '.[] | select(has("value")) | .name' <<<"$proxy_env"); do
+	proxy_vars+=("$name=$(NAME="$name" yq '.[] | select(.name == strenv(NAME)) | .value' <<<"$proxy_env")")
 done
+proxy_vars+=("CLICKHOUSE_URL=$(clickhouse_dsn "GRANT SELECT")" "CLICKHOUSE_MIGRATOR_URL=$(clickhouse_dsn "GRANT ALL")")
+database=$(collector_config otel-col-deploy | yq '.exporters.clickhouse.database')
+proxy_vars+=("CLICKHOUSE_DB=$database")
 env "${proxy_vars[@]}" PORT="$proxy_port" "$workdir/loco-obs-proxy" >"$workdir/proxy.log" 2>&1 &
 proxy_pid=$!
 if ! wait_for "Observability proxy readiness" curl -sf "http://127.0.0.1:$proxy_port/readyz"; then
@@ -125,7 +123,6 @@ if ! wait_for "Observability proxy readiness" curl -sf "http://127.0.0.1:$proxy_
 fi
 kill "$proxy_pid"
 proxy_pid=""
-database=$(proxy_value CLICKHOUSE_DB)
 
 clickhouse_exporter() {
 	collector_config "$1" | yq -o json -I 0 '.exporters.clickhouse' |

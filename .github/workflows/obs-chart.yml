@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - "charts/loco-obs/**"
+      - "charts/loco-control-plane/**"
       - "mise-tasks/test/obs-retention"
       - "mise-tasks/test/obs-tenancy"
       - "mise-tasks/test/lib/**"
@@ -22,6 +23,7 @@ on:
   pull_request:
     paths:
       - "charts/loco-obs/**"
+      - "charts/loco-control-plane/**"
       - "mise-tasks/test/obs-retention"
       - "mise-tasks/test/obs-tenancy"
       - "mise-tasks/test/lib/**"

@@ -1,7 +1,5 @@
 global:
   region: ""
-  domain:
-    observability: observability.loco.build
   clickhouse:
     host: ""
     port: 9000
@@ -555,52 +553,3 @@ otel-col-cluster:
           receivers: [k8s_cluster]
           processors: [memory_limiter, k8s_attributes/pod_uid, resource/region, batch]
           exporters: [clickhouse]
-
-obsProxy:
-  enabled: true
-  cors:
-    allowedOrigins: []
-  image:
-    repository: ghcr.io/team-loco/loco-obs-proxy
-    tag: ""
-  imagePullPolicy: Always
-  replicaCount: 1
-  resources:
-    requests:
-      cpu: 100m
-      memory: 256Mi
-    limits:
-      cpu: 1000m
-      memory: 1Gi
-  port: 8080
-  controlPlane:
-    url: ""
-  clickhouse:
-    database: loco_obs
-    readerUser: loco_reader
-    migratorUser: loco_migrator
-    existingSecret:
-      name: ""
-      key: url
-    migratorExistingSecret:
-      name: ""
-      key: url
-    retention:
-      logs: 8760h
-      traces: 8760h
-      metrics: 8760h
-    migrations:
-      retryBudgetSeconds: 120
-      retryIntervalSeconds: 5
-      lock:
-        ttlSeconds: 15
-        retryPeriodSeconds: 2
-  guardrails:
-    defaultLimit: 1000
-    maxLimit: 10000
-    queryTimeoutSeconds: 10
-    maxTimeRangeHours: 24
-    maxConcurrentQueries: 5
-    maxTailDurationMinutes: 30
-    maxConcurrentTails: 3
-    tokenCacheTTLSeconds: 30

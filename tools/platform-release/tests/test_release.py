@@ -42,6 +42,10 @@ class BundleTests(unittest.TestCase):
             self.assertFalse(ks['spec']['prune'])
             self.assertTrue(ks['spec']['wait'])
 
+    def test_work_in_progress_control_plane_chart_is_not_shipped(self):
+        self.assertNotIn('loco-control-plane', release.CHARTS)
+        self.assertFalse([name for name in self.files if 'loco-control-plane' in name])
+
     def test_releases_wait_for_matching_release_and_current_generation(self):
         for name in ('loco-core', 'loco-operator', 'loco-obs'):
             hr = json.loads(self.files[f'releases/{name}-helmrelease.yaml'])

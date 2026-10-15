@@ -36,8 +36,7 @@ def main():
             if name == 'loco-core':
                 values['certManager'] = {'issuer': {'email': 'release-test@example.invalid'}}
             if name == 'loco-obs':
-                values['obsProxy']['controlPlane'] = {'url': 'https://api.example.invalid'}
-                values['global'] = {**values.get('global', {}), 'region': 'release-test-region'}
+                values['global'] = {'region': 'release-test-region'}
             path = temp / (name + '-values.json')
             path.write_text(json.dumps(values))
             rendered = release.run('helm', 'template', name, str(release.ROOT / 'charts' / name), '--namespace', hr['spec']['targetNamespace'], '--skip-crds', '--values', str(path))
@@ -53,7 +52,7 @@ def main():
                             if not image.endswith('@' + FIXTURE_DIGEST):
                                 raise RuntimeError('Loco deployment image is not digest pinned')
                             pinned_images.add(image)
-            if not pinned_images:
+            if name != 'loco-obs' and not pinned_images:
                 raise RuntimeError('chart rendered no digest-pinned Loco deployments')
         for name in release.CHARTS:
             release.run('helm', 'package', str(release.ROOT / 'charts' / name), '--version', FIXTURE_VERSION, '--app-version', FIXTURE_VERSION, '--destination', directory)

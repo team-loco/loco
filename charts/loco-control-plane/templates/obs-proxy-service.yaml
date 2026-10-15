@@ -1,4 +1,3 @@
-{{- if .Values.obsProxy.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -13,4 +12,3 @@ spec:
       protocol: TCP
       port: 80
       targetPort: {{ .Values.obsProxy.port }}
-{{- end }}

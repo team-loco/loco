@@ -1,0 +1,12 @@
+apiVersion: v2
+name: loco-control-plane
+description: Work in progress, not shipped. Helm chart for the services that run on the Loco control plane
+type: application
+version: 0.0.0
+maintainers:
+    - name: Nikhil
+sources:
+    - https://github.com/team-loco/loco
+keywords:
+    - loco
+    - observability

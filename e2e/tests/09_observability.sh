@@ -43,8 +43,8 @@ obs_second_workspace_id='00000000-0000-7000-8000-000000000013'
 obs_second_workspace_name='e2e-observability-isolation'
 
 obs_chart_values="$E2E_ROOT_DIR/charts/loco-obs/values.yaml"
-obs_database=$(yq '.obsProxy.clickhouse.database' "$obs_chart_values")
-obs_reader=$(yq '.obsProxy.clickhouse.readerUser' "$obs_chart_values")
+obs_database=$(yq '.["otel-col-daemon"].config.exporters.clickhouse.database' "$obs_chart_values")
+obs_reader=$(yq '.clickhouse.clickhouse.users[] | select(.grants[] | test("^GRANT SELECT ON ")) | .name' "$obs_chart_values")
 obs_reader_password=$(yq ".clickhouseUserPasswords.${obs_reader}" "$E2E_OBS_VALUES")
 obs_daemon_namespace=$(yq '.["otel-col-daemon"].namespaceOverride' "$obs_chart_values")
 obs_fixture_scope=$(awk -F'"' '$1 ~ /^\ttracerName +=/ { print $2 }' "$obs_fixture_dir/main.go")

@@ -56,13 +56,6 @@ docker_build(
 )
 
 docker_build(
-    'loco-obs-proxy',
-    '.',
-    dockerfile='observability-proxy/Dockerfile',
-    only=copy_sources('observability-proxy/Dockerfile'),
-)
-
-docker_build(
     'loco-controller',
     '.',
     dockerfile='controller/Dockerfile',
@@ -212,13 +205,8 @@ helm_release(
 helm_release(
     'loco-obs',
     'observability',
-    images=[{
-        'name': 'loco-obs-proxy',
-        'repository': 'obsProxy.image.repository',
-        'tag': 'obsProxy.image.tag',
-        'pull_policy': 'obsProxy.imagePullPolicy',
-    }],
-    values=['obsProxy.controlPlane.url=' + control_plane_url],
+    images=[],
+    values=[],
     deps=['charts/loco-obs/', 'env/local/obs-chart.yaml.gotmpl'],
     resource_deps=['loco-core'],
 )
