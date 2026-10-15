@@ -94,7 +94,7 @@ jobs:
 
             - component: Observability proxy
               working-directory: observability-proxy
-              test-command: mise run test:obs-proxy
+              test-command: mise run test:counter-metrics
               timeout: 10
 
             - component: K8s API

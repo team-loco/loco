@@ -77,7 +77,7 @@ type ObservabilityProxyServiceClient interface {
 	QueryLogs(context.Context, *v1.QueryLogsRequest) (*v1.QueryLogsResponse, error)
 	// TailLogs streams live log entries as they arrive (server-push, polling-based).
 	TailLogs(context.Context, *v1.TailLogsRequest) (ObservabilityProxyServiceTailLogsClientStream, error)
-	// QueryMetrics returns aggregated metric data points for the given time range.
+	// QueryMetrics aggregates stored scalar gauge and sum samples without temporality conversion.
 	QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error)
 	QueryTraces(context.Context, *v1.QueryTracesRequest) (*v1.QueryTracesResponse, error)
 }
@@ -117,7 +117,7 @@ type ObservabilityProxyServiceHandler interface {
 	QueryLogs(context.Context, *v1.QueryLogsRequest) (*v1.QueryLogsResponse, error)
 	// TailLogs streams live log entries as they arrive (server-push, polling-based).
 	TailLogs(context.Context, *v1.TailLogsRequest, ObservabilityProxyServiceTailLogsServerStream) error
-	// QueryMetrics returns aggregated metric data points for the given time range.
+	// QueryMetrics aggregates stored scalar gauge and sum samples without temporality conversion.
 	QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error)
 	QueryTraces(context.Context, *v1.QueryTracesRequest) (*v1.QueryTracesResponse, error)
 }

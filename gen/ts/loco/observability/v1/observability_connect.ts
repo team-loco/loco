@@ -38,7 +38,7 @@ export const ObservabilityProxyService = {
       kind: MethodKind.ServerStreaming,
     },
     /**
-     * QueryMetrics returns aggregated metric data points for the given time range.
+     * QueryMetrics aggregates stored scalar gauge and sum samples without temporality conversion.
      *
      * @generated from rpc loco.observability.v1.ObservabilityProxyService.QueryMetrics
      */

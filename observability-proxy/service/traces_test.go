@@ -52,7 +52,11 @@ func (p *tracePermissions) CheckPermission(
 	return &tokenv1.CheckPermissionResponse{Allowed: allowed}, nil
 }
 
-func traceTestClient(t *testing.T, ch *chClient.Client) observabilityv1connect.ObservabilityProxyServiceClient {
+func traceTestClient(
+	t *testing.T,
+	ch *chClient.Client,
+	queryTimeout ...int,
+) observabilityv1connect.ObservabilityProxyServiceClient {
 	t.Helper()
 	controlPlane := connect.NewServer()
 	tokenv1connect.RegisterTokenServiceHandler(controlPlane, &tracePermissions{t: t})
@@ -78,7 +82,11 @@ func traceTestClient(t *testing.T, ch *chClient.Client) observabilityv1connect.O
 		}
 		t.Cleanup(ch.Close)
 	}
-	cfg := &config.Config{DefaultLimit: 1, MaxLimit: 2, MaxTimeRange: time.Hour, QueryTimeout: traceHTTPQueryTimeout}
+	timeout := traceHTTPQueryTimeout
+	if len(queryTimeout) > 0 {
+		timeout = queryTimeout[0]
+	}
+	cfg := &config.Config{DefaultLimit: 1, MaxLimit: 2, MaxTimeRange: time.Hour, QueryTimeout: timeout}
 	service := NewObservabilityService(ch, cfg, validator)
 	server := connect.NewServer(auth.NewAuthInterceptor().Interceptor())
 	observabilityv1connect.RegisterObservabilityProxyServiceHandler(server, service)

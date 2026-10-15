@@ -3,6 +3,7 @@ package clickhouse
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 const (
 	defaultIntervalSeconds = 60
 	regionAttribute        = "loco.region"
+	sumMetricType          = "sum"
 )
 
 // QueryMetrics executes a metric aggregation query against ClickHouse.
@@ -49,24 +51,41 @@ func QueryMetrics(
 	}
 	defer rows.Close()
 
-	seriesMap := make(map[string]*observabilityv1.MetricSeries)
+	type seriesKey struct {
+		resourceID  string
+		metricType  string
+		temporality int32
+		monotonic   bool
+	}
+	seriesMap := make(map[seriesKey]*observabilityv1.MetricSeries)
 
 	for rows.Next() {
 		var (
-			resourceID string
-			bucket     time.Time
-			value      float64
+			resourceID  string
+			bucket      time.Time
+			value       float64
+			metricType  string
+			temporality int32
+			monotonic   bool
 		)
-		if err := rows.Scan(&resourceID, &bucket, &value); err != nil {
+		if err := rows.Scan(&resourceID, &bucket, &value, &metricType, &temporality, &monotonic); err != nil {
 			return nil, fmt.Errorf("scan metric row: %w", err)
 		}
 
-		series, ok := seriesMap[resourceID]
+		key := seriesKey{resourceID: resourceID, metricType: metricType, temporality: temporality, monotonic: monotonic}
+		series, ok := seriesMap[key]
 		if !ok {
 			series = &observabilityv1.MetricSeries{
 				ResourceId: resourceID,
 			}
-			seriesMap[resourceID] = series
+			if metricType == sumMetricType {
+				series.Labels = map[string]string{
+					"metric_type":             metricType,
+					"aggregation_temporality": strconv.FormatInt(int64(temporality), 10),
+					"is_monotonic":            strconv.FormatBool(monotonic),
+				}
+			}
+			seriesMap[key] = series
 		}
 		series.Points = append(series.Points, &observabilityv1.MetricPoint{
 			Timestamp: timestamppb.New(bucket),
@@ -123,18 +142,25 @@ func buildMetricsQuery(
 	whereParts = append(whereParts, "MetricName = ?", "TimeUnix >= ?", "TimeUnix <= ?")
 	args = append(args, metricName, startTime, endTime)
 
-	query := fmt.Sprintf(
-		"SELECT %s, toStartOfInterval(TimeUnix, INTERVAL %d SECOND) AS bucket, %s(Value) AS agg_value "+
-			"FROM otel_metrics_gauge WHERE %s GROUP BY %s, bucket ORDER BY %s, bucket "+
-			"SETTINGS max_execution_time = %d",
+	where := strings.Join(whereParts, " AND ")
+	source := fmt.Sprintf(
+		"SELECT %s, TimeUnix, Value, 'gauge' AS MetricType, toInt32(0) AS AggregationTemporality, false AS IsMonotonic "+
+			"FROM otel_metrics_gauge WHERE %s UNION ALL "+
+			"SELECT %s, TimeUnix, Value, 'sum' AS MetricType, AggregationTemporality, IsMonotonic "+
+			"FROM otel_metrics_sum WHERE %s",
 		resourceColumn,
-		interval,
-		aggFunc,
-		strings.Join(whereParts, " AND "),
+		where,
 		resourceColumn,
-		resourceColumn,
-		queryTimeout,
+		where,
 	)
+	query := fmt.Sprintf(
+		"SELECT %s, toStartOfInterval(TimeUnix, INTERVAL %d SECOND) AS bucket, %s(Value) AS agg_value, "+
+			"MetricType, AggregationTemporality, IsMonotonic FROM (%s) "+
+			"GROUP BY %s, bucket, MetricType, AggregationTemporality, IsMonotonic "+
+			"ORDER BY %s, bucket SETTINGS max_execution_time = %d",
+		resourceColumn, interval, aggFunc, source, resourceColumn, resourceColumn, queryTimeout,
+	)
+	args = append(args, args...)
 
 	return query, args
 }

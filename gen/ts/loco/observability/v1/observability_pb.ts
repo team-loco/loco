@@ -753,7 +753,7 @@ export const QueryMetricsResponseSchema: GenMessage<QueryMetricsResponse, {jsonT
   messageDesc(file_loco_observability_v1_observability, 7);
 
 /**
- * MetricSeries represents time-series data for a single resource.
+ * MetricSeries represents samples for one resource, metric type and sum temporality.
  *
  * @generated from message loco.observability.v1.MetricSeries
  */
@@ -766,7 +766,8 @@ export type MetricSeries = Message<"loco.observability.v1.MetricSeries"> & {
   resourceId: string;
 
   /**
-   * Labels/tags associated with this series.
+   * Sum series label metric_type=sum, aggregation_temporality with the OTel enum number,
+   * and is_monotonic=true/false. Gauge series preserve empty labels.
    *
    * @generated from field: map<string, string> labels = 2;
    */
@@ -781,7 +782,7 @@ export type MetricSeries = Message<"loco.observability.v1.MetricSeries"> & {
 };
 
 /**
- * MetricSeries represents time-series data for a single resource.
+ * MetricSeries represents samples for one resource, metric type and sum temporality.
  *
  * @generated from message loco.observability.v1.MetricSeries
  */
@@ -794,7 +795,8 @@ export type MetricSeriesJson = {
   resourceId?: string;
 
   /**
-   * Labels/tags associated with this series.
+   * Sum series label metric_type=sum, aggregation_temporality with the OTel enum number,
+   * and is_monotonic=true/false. Gauge series preserve empty labels.
    *
    * @generated from field: map<string, string> labels = 2;
    */
@@ -1254,7 +1256,7 @@ export const ObservabilityProxyService: GenService<{
     output: typeof TailLogsResponseSchema;
   },
   /**
-   * QueryMetrics returns aggregated metric data points for the given time range.
+   * QueryMetrics aggregates stored scalar gauge and sum samples without temporality conversion.
    *
    * @generated from rpc loco.observability.v1.ObservabilityProxyService.QueryMetrics
    */

@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+#MISE description="Test scalar metrics through the chart-pinned Collector, ClickHouse and authenticated proxy HTTP API"
+set -euo pipefail
+root=$(git rev-parse --show-toplevel)
+run_name=loco-counter-test-$$
+work_dir=$(mktemp -d)
+collector=$run_name-collector
+clickhouse=$run_name-clickhouse
+own_clickhouse=false
+ready_attempts=60
+cleanup() {
+    docker rm -fv "$collector" >/dev/null 2>&1 || true
+    if [ "$own_clickhouse" = true ]; then
+        docker rm -fv "$clickhouse" >/dev/null 2>&1 || true
+    fi
+    rm -rf "$work_dir"
+}
+trap cleanup EXIT
+
+if [ -z "${LOCO_TEST_CLICKHOUSE_URL:-}" ]; then
+    image=$(yq '.clickhouse.clickhouse.image.repository + ":" + .clickhouse.clickhouse.image.tag' "$root/charts/loco-obs/values.yaml")
+    {
+        echo '<clickhouse>'
+        yq '.clickhouse.clickhouse.keeperConfig' "$root/charts/loco-obs/values.yaml"
+        echo '<max_server_memory_usage>1073741824</max_server_memory_usage><mark_cache_size>67108864</mark_cache_size></clickhouse>'
+    } >"$work_dir/server.xml"
+    chmod a+r "$work_dir/server.xml"
+    own_clickhouse=true
+    docker run -d --name "$clickhouse" --memory 2g --memory-swap 2g --cpus 2 -p 127.0.0.1::9000 \
+        -e CLICKHOUSE_USER=loco_test -e CLICKHOUSE_PASSWORD=loco_test -e CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1 \
+        -v "$work_dir/server.xml:/etc/clickhouse-server/config.d/counter-test.xml:ro" "$image" >/dev/null
+    for _ in $(seq "$ready_attempts"); do
+        docker exec "$clickhouse" clickhouse-client --user loco_test --password loco_test -q 'SELECT 1' >/dev/null 2>&1 && break
+        sleep 1
+    done
+    docker exec "$clickhouse" clickhouse-client --user loco_test --password loco_test -q 'SELECT 1' >/dev/null
+    address=$(docker port "$clickhouse" 9000/tcp | head -1)
+    export LOCO_TEST_CLICKHOUSE_URL="clickhouse://loco_test:loco_test@$address"
+fi
+export LOCO_TEST_COUNTER_DATABASE=${run_name//-/_}
+export COUNTER_EXPORTER=$(yq -o json '.otel-col-daemon.config.exporters.clickhouse' "$root/charts/loco-obs/values.yaml")
+python - "$work_dir/collector.json" <<'PY'
+import json
+import os
+import sys
+from urllib.parse import unquote, urlparse
+
+connection = urlparse(os.environ['LOCO_TEST_CLICKHOUSE_URL'])
+host = connection.hostname
+if host in ('127.0.0.1', 'localhost'):
+    host = 'host.docker.internal'
+exporter = json.loads(os.environ['COUNTER_EXPORTER'])
+exporter.update(endpoint=f'tcp://{host}:{connection.port}', username=unquote(connection.username or ''),
+                password=unquote(connection.password or ''), database=os.environ['LOCO_TEST_COUNTER_DATABASE'])
+exporter['connection_params']['secure'] = 'false'
+exporter['timeout'] = '60s'
+config = {'receivers': {'otlp': {'protocols': {'http': {'endpoint': '0.0.0.0:4318'}}}},
+          'exporters': {'clickhouse': exporter},
+          'service': {'pipelines': {'metrics': {'receivers': ['otlp'], 'exporters': ['clickhouse']}}}}
+with open(sys.argv[1], 'w') as target:
+    json.dump(config, target)
+PY
+chmod a+r "$work_dir/collector.json"
+collector_image=$(yq '.otel-col-deploy.image.repository + ":" + .otel-col-deploy.image.tag' "$root/charts/loco-obs/values.yaml")
+docker run -d --name "$collector" --memory 256m --memory-swap 256m --cpus 0.5 \
+    --add-host host.docker.internal:host-gateway -p 127.0.0.1::4318 \
+    -v "$work_dir/collector.json:/etc/collector.json:ro" "$collector_image" --config /etc/collector.json >/dev/null
+address=$(docker port "$collector" 4318/tcp | head -1)
+export LOCO_TEST_COUNTER_OTLP_URL="http://$address"
+for _ in $(seq "$ready_attempts"); do
+    curl -sf -X POST "$LOCO_TEST_COUNTER_OTLP_URL/v1/metrics" -H 'Content-Type: application/json' -d '{}' >/dev/null && break
+    sleep 1
+done
+curl -sf -X POST "$LOCO_TEST_COUNTER_OTLP_URL/v1/metrics" -H 'Content-Type: application/json' -d '{}' >/dev/null
+cd "$root/observability-proxy"
+go test -v -coverprofile=coverage.out ./... "$@"
