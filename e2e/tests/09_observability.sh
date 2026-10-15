@@ -38,6 +38,7 @@ obs_ingest_replicas=2
 obs_http_ok=200
 obs_http_forbidden=403
 obs_trace_flags_sampled=01
+obs_no_recorded_value_mask=1
 obs_trace_id_bytes=16
 obs_span_id_bytes=8
 obs_marker_bytes=6
@@ -715,8 +716,17 @@ obs_metrics_endpoint_serves() {
     test "$(obs_gateway_status "${E2E_GATEWAY_URL}/metrics")" = "$obs_http_ok"
 }
 
+obs_metric_sample_counts() {
+    local relation="$1" condition="$2"
+    obs_ch "SELECT countIf(bitAnd(Flags, ${obs_no_recorded_value_mask}) = 0), countIf(bitAnd(Flags, ${obs_no_recorded_value_mask}) != 0) FROM ${relation} WHERE ${condition}" TabSeparated
+}
+
 test_o10_stops_pulling_when_the_endpoint_is_removed() {
-    local rc=0 since interval rows
+    local rc=0 since interval rows markers counts
+    counts=$(obs_metric_sample_counts "values('Flags UInt32, Value Float64', (0, 42), (0, 0), (1, 0), (2, 42), (3, 0))" "1") || return 1
+    IFS=$'\t' read -r rows markers <<<"$counts"
+    assert "metric sample counting includes recorded zero and excludes only no-recorded-value flags" test "$rows" -eq 3
+    assert "metric sample counting identifies staleness markers separately" test "$markers" -eq 2
     obs_app="$obs_app" yq -i 'del(.services[strenv(obs_app)].metrics)' "$obs_app_dir/loco.yaml"
     (cd "$obs_app_dir" && loco_cli infra apply --yes) >"$obs_dir/metrics-remove.out" 2>"$obs_dir/metrics-remove.err" || rc=$?
     if ! assert "removing metrics applies without a source build" test "$rc" -eq 0; then
@@ -734,6 +744,8 @@ test_o10_stops_pulling_when_the_endpoint_is_removed() {
     interval=${interval%s}
     obs_metrics_quiet_end=$((since + interval * 2))
     wait_for "two scrape intervals without a declared endpoint" "$obs_telemetry_timeout_seconds" obs_metrics_quiet_window_elapsed || return 1
-    rows=$(obs_ch "SELECT count() FROM otel_metrics_gauge WHERE WorkspaceId = '${obs_workspace_id}' AND ResourceId = '${obs_resource_id}' AND MetricName = 'loco_fixture_temperature' AND TimeUnix >= toDateTime(${since})" TabSeparated) || return 1
+    counts=$(obs_metric_sample_counts otel_metrics_gauge "WorkspaceId = '${obs_workspace_id}' AND ResourceId = '${obs_resource_id}' AND MetricName = 'loco_fixture_temperature' AND TimeUnix >= toDateTime(${since})") || return 1
+    IFS=$'\t' read -r rows markers <<<"$counts"
+    log_info "After discovery removal: ${rows} recorded samples and ${markers} no-recorded-value markers since ${since}."
     assert "a pod without the discovery label is not scraped" test "$rows" -eq 0
 }
