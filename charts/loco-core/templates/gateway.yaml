@@ -93,6 +93,13 @@ metadata:
 spec:
   {{- $collectorHost := printf "%s.%s.svc.cluster.local" .Values.global.observability.otelCollectorDeployment .Values.global.observability.namespace }}
   {{- $collectorPort := .Values.global.observability.otelCollectorGrpcPort }}
+  {{- with .Values.envoyProxy.service }}
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyService:
+        {{- toYaml . | nindent 8 }}
+  {{- end }}
   bootstrap:
     type: Merge
     value: |

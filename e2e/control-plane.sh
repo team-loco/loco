@@ -7,6 +7,7 @@ RUN_HASH=$(printf '%s' "$ROOT_DIR" | cksum | awk '{print $1}')
 CLUSTER_NAME="loco-cp-${E2E_RUN_ID:-$RUN_HASH}"
 RUN_DIR="$ROOT_DIR/e2e/runs/$CLUSTER_NAME"
 NAMESPACE=loco-control-plane
+GATEWAY_HTTP_NODE_PORT=30080
 TIMEOUT=300s
 KEEP=false
 SKIP_BUILD=false
@@ -59,6 +60,10 @@ kubectl -n "$NAMESPACE" create secret generic fixture-password --from-file=passw
 yq -n '.postgresImage = load(strenv(ROOT_DIR) + "/compose.yaml").services.postgres.image |
     .clickhouseImage = (load(strenv(ROOT_DIR) + "/charts/loco-obs/values.yaml").clickhouse.clickhouse.image | .repository + ":" + .tag) |
     .keeperConfig = load(strenv(ROOT_DIR) + "/charts/loco-obs/values.yaml").clickhouse.clickhouse.keeperConfig' >"$RUN_DIR/fixtures.yaml"
+helm template gateway "$ROOT_DIR/charts/loco-core" --namespace "$NAMESPACE" \
+    -f "$ROOT_DIR/e2e/gateway-values.yaml" --set gateway-helm.enabled=false \
+    --set-json 'envoyProxy.service={"type":"NodePort","externalTrafficPolicy":"Cluster","patch":{"type":"StrategicMerge","value":{"spec":{"ports":[{"port":80,"nodePort":'"$GATEWAY_HTTP_NODE_PORT"'}]}}}}' \
+    --show-only templates/gateway.yaml | yq 'select(.kind == "EnvoyProxy")' | kubectl -n "$NAMESPACE" apply -f -
 helm upgrade --install fixtures "$ROOT_DIR/e2e/fixtures/control-plane" --namespace "$NAMESPACE" \
     -f "$RUN_DIR/fixtures.yaml" --wait --timeout "$TIMEOUT"
 python3 - "$RUN_DIR" <<'PY'
@@ -93,6 +98,11 @@ for attempt in $(seq 1 60); do
 done
 kubectl -n "$NAMESPACE" rollout status "deployment/$ENVOY_DEPLOYMENT" --timeout "$TIMEOUT"
 ENVOY_SERVICE=$(kubectl -n "$NAMESPACE" get services -l gateway.envoyproxy.io/owning-gateway-name=eg -o jsonpath='{.items[0].metadata.name}')
+NODE_PORT=$(kubectl -n "$NAMESPACE" get "service/$ENVOY_SERVICE" -o jsonpath='{.spec.ports[?(@.port==80)].nodePort}')
+if [[ $NODE_PORT != "$GATEWAY_HTTP_NODE_PORT" ]]; then
+    printf 'Expected chart-configured HTTP NodePort %s, got %s\n' "$GATEWAY_HTTP_NODE_PORT" "$NODE_PORT" >&2
+    exit 1
+fi
 kubectl -n "$NAMESPACE" port-forward "service/$ENVOY_SERVICE" :80 >"$RUN_DIR/port-forward.log" 2>&1 &
 PORT_FORWARD_PID=$!
 for attempt in $(seq 1 30); do

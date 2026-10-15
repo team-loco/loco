@@ -77,6 +77,7 @@ env:
   LOG_LEVEL: debug
 
 envoyProxy:
+  service: {}
   statsFlushInterval: 60s
   tracing:
     samplingRate: 10
