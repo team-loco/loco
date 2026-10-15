@@ -376,3 +376,8 @@ run = "python tools/platform-release/verify.py"
 [tasks."test:platform-images"]
 description = "Test image platform selection, executable architecture and Dockerfile version pins"
 run = ["python3 -m unittest discover -s tools/platform-images/tests", "python3 -m unittest discover -s tests/versions"]
+
+[tasks."obs:serve"]
+description = "Serve the regional control-plane observability proxy against local ClickHouse"
+env = { _.file = ".env", _.source = "env/local/stack.sh" }
+run = "./mise-tasks/obs/serve"

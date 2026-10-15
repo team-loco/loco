@@ -52,7 +52,6 @@ E2E_VERSION="e2e"
 CONTROLLER_REPOSITORY="loco-controller"
 BUILDER_REPOSITORY="loco-builder"
 OBS_VALUES="$ROOT_DIR/charts/loco-obs/values.yaml"
-CONTROL_PLANE_VALUES="$ROOT_DIR/charts/loco-control-plane/values.yaml"
 OBS_READER_USER=$(yq '.clickhouse.clickhouse.users[] | select(.grants[] | test("^GRANT SELECT ON ")) | .name' "$OBS_VALUES")
 OBS_MIGRATOR_USER=$(yq '.clickhouse.clickhouse.users[] | select(.grants[] | test("^GRANT ALL ON ")) | .name' "$OBS_VALUES")
 OBS_E2E_VALUES="$SCRIPT_DIR/obs-values.yaml"
@@ -704,6 +703,8 @@ start_api() {
     LOCO_AGENT_CONNECTION_SECRETS="$connection_secrets" \
     DATABASE_URL="$E2E_DATABASE_URL" \
     APP_PORT="127.0.0.1:$API_PORT" \
+    OBSERVABILITY_PROXY_URL="http://127.0.0.1:$OBS_PROXY_PORT" \
+    CORS_ALLOWED_ORIGINS="https://dashboard.e2e.test" \
     DEFAULT_PLATFORM_DOMAIN="$PLATFORM_DOMAIN" \
     APP_ENV="test" \
     LOG_LEVEL=debug \

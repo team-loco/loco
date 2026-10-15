@@ -8,7 +8,6 @@ import (
 	"maps"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
@@ -26,14 +25,6 @@ const (
 	entryKeyFields = 4
 )
 
-var ErrNoProxy = errors.New("no log proxy is registered for the cluster")
-
-type Proxy struct {
-	ClusterID string
-	Region    string
-	URL       string
-}
-
 type Filter struct {
 	WorkspaceID string
 	ResourceIDs []string
@@ -47,39 +38,9 @@ func BuildFilter(workspaceID, buildID string) Filter {
 type Emit func(entry *observabilityv1.LogEntry) error
 
 type Client struct {
+	URL       string
 	Token     string
 	NewClient func(url, token string) observabilityv1connect.ObservabilityProxyServiceClient
-}
-
-func Proxies(
-	ctx context.Context,
-	access observabilityv1connect.ObservabilityAccessServiceClient,
-	workspaceID string,
-	clusterID string,
-) ([]Proxy, error) {
-	req := &observabilityv1.GetObservabilityAccessRequest{WorkspaceId: workspaceID}
-
-	resp, err := access.GetObservabilityAccess(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("look up log proxies: %w", err)
-	}
-	var proxies []Proxy
-	for _, cluster := range resp.GetClusters() {
-		id := cluster.GetClusterId()
-		url := cluster.GetProxyUrl()
-		if clusterID != "" && id != clusterID {
-			continue
-		}
-		if url == "" {
-			continue
-		}
-		region := cluster.GetRegion()
-		proxies = append(proxies, Proxy{ClusterID: id, Region: region, URL: url})
-	}
-	if len(proxies) == 0 {
-		return nil, ErrNoProxy
-	}
-	return proxies, nil
 }
 
 type Window struct {
@@ -90,7 +51,7 @@ type Window struct {
 	Backfilled func()
 }
 
-func (c *Client) Stream(ctx context.Context, proxies []Proxy, filter Filter, window Window, emit Emit) error {
+func (c *Client) Stream(ctx context.Context, filter Filter, window Window, emit Emit) error {
 	since := window.Start
 	tracked := func(entry *observabilityv1.LogEntry) error {
 		if ts := entry.GetTimestamp().AsTime(); ts.After(since) {
@@ -98,7 +59,7 @@ func (c *Client) Stream(ctx context.Context, proxies []Proxy, filter Filter, win
 		}
 		return emit(entry)
 	}
-	err := c.Backfill(ctx, proxies, filter, window.Start, window.End, window.Limit, tracked)
+	err := c.Backfill(ctx, filter, window.Start, window.End, window.Limit, tracked)
 	if window.Backfilled != nil {
 		window.Backfilled()
 	}
@@ -108,12 +69,11 @@ func (c *Client) Stream(ctx context.Context, proxies []Proxy, filter Filter, win
 	if !window.Follow {
 		return nil
 	}
-	return c.Tail(ctx, proxies, filter, since, emit)
+	return c.Tail(ctx, filter, since, emit)
 }
 
 func (c *Client) Backfill(
 	ctx context.Context,
-	proxies []Proxy,
 	filter Filter,
 	start, end time.Time,
 	limit int32,
@@ -122,14 +82,11 @@ func (c *Client) Backfill(
 	if end.Sub(start) > MaxRange {
 		start = end.Add(-MaxRange)
 	}
-	var entries []*observabilityv1.LogEntry
-	for _, proxy := range proxies {
-		found, err := c.query(ctx, proxy, filter, start, end, limit)
-		if err != nil {
-			return err
-		}
-		entries = append(entries, found...)
+	entries, err := c.query(ctx, filter, start, end, limit)
+	if err != nil {
+		return err
 	}
+
 	slices.SortStableFunc(entries, compareEntries)
 	if limit > 0 && len(entries) > int(limit) {
 		entries = entries[len(entries)-int(limit):]
@@ -144,12 +101,11 @@ func (c *Client) Backfill(
 
 func (c *Client) query(
 	ctx context.Context,
-	proxy Proxy,
 	filter Filter,
 	start, end time.Time,
 	limit int32,
 ) ([]*observabilityv1.LogEntry, error) {
-	client := c.NewClient(proxy.URL, c.Token)
+	client := c.NewClient(c.URL, c.Token)
 	order := observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST
 	size := int32(pageSize)
 	if limit > 0 {
@@ -174,7 +130,7 @@ func (c *Client) query(
 
 		resp, err := client.QueryLogs(ctx, req)
 		if err != nil {
-			return nil, fmt.Errorf("query logs in %s: %w", proxy.Region, err)
+			return nil, fmt.Errorf("query logs: %w", err)
 		}
 		page := resp.GetEntries()
 		entries = append(entries, page...)
@@ -185,39 +141,8 @@ func (c *Client) query(
 	}
 }
 
-func (c *Client) Tail(ctx context.Context, proxies []Proxy, filter Filter, since time.Time, emit Emit) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	var mu sync.Mutex
-	locked := func(entry *observabilityv1.LogEntry) error {
-		mu.Lock()
-		defer mu.Unlock()
-		return emit(entry)
-	}
-	errs := make(chan error, len(proxies))
-	var wg sync.WaitGroup
-	for _, proxy := range proxies {
-		wg.Go(func() {
-			errs <- c.tailProxy(ctx, proxy, filter, since, locked)
-		})
-	}
-	var first error
-	for range proxies {
-		err := <-errs
-		if err != nil && first == nil {
-			first = err
-			cancel()
-		}
-	}
-	wg.Wait()
-	if stopped(ctx) && first == nil {
-		return nil
-	}
-	return first
-}
-
-func (c *Client) tailProxy(ctx context.Context, proxy Proxy, filter Filter, since time.Time, emit Emit) error {
-	client := c.NewClient(proxy.URL, c.Token)
+func (c *Client) Tail(ctx context.Context, filter Filter, since time.Time, emit Emit) error {
+	client := c.NewClient(c.URL, c.Token)
 	seen := newOverlap(since)
 	for {
 		start := timestamppb.New(seen.latest)
@@ -230,7 +155,7 @@ func (c *Client) tailProxy(ctx context.Context, proxy Proxy, filter Filter, sinc
 
 		stream, err := client.TailLogs(ctx, req)
 		if err != nil {
-			return tailError(ctx, proxy, err)
+			return tailError(ctx, err)
 		}
 		var receiveErr error
 		for {
@@ -258,7 +183,7 @@ func (c *Client) tailProxy(ctx context.Context, proxy Proxy, filter Filter, sinc
 		}
 		if streamErr != nil {
 			joined := errors.Join(streamErr, closeErr)
-			return tailError(ctx, proxy, joined)
+			return tailError(ctx, joined)
 		}
 		timer := time.NewTimer(retryBackoff)
 		select {
@@ -270,11 +195,11 @@ func (c *Client) tailProxy(ctx context.Context, proxy Proxy, filter Filter, sinc
 	}
 }
 
-func tailError(ctx context.Context, proxy Proxy, err error) error {
+func tailError(ctx context.Context, err error) error {
 	if stopped(ctx) {
 		return nil
 	}
-	return fmt.Errorf("tail logs in %s: %w", proxy.Region, err)
+	return fmt.Errorf("tail logs: %w", err)
 }
 
 type overlap struct {

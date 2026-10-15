@@ -24,7 +24,6 @@ type platformClients struct {
 	Resources    func(host, token string) resourcev1connect.ResourceServiceClient
 	Builds       func(host, token string) buildv1connect.BuildServiceClient
 	Environments func(host, token string) environmentv1connect.EnvironmentServiceClient
-	Access       func(host, token string) observabilityv1connect.ObservabilityAccessServiceClient
 	Proxy        func(url, token string) observabilityv1connect.ObservabilityProxyServiceClient
 	Upload       *http.Client
 	PollInterval time.Duration
@@ -46,10 +45,6 @@ func defaultPlatformClients() platformClients {
 			environmentClients := rpc.ForHost(host, token)
 			return environmentClients.Environment
 		},
-		Access: func(host, token string) observabilityv1connect.ObservabilityAccessServiceClient {
-			observabilityAccessClients := rpc.ForHost(host, token)
-			return observabilityAccessClients.ObservabilityAccess
-		},
 		Proxy: func(url, token string) observabilityv1connect.ObservabilityProxyServiceClient {
 			observabilityProxyClients := rpc.ForHost(url, token)
 			return observabilityProxyClients.ObservabilityProxy
@@ -60,8 +55,8 @@ func defaultPlatformClients() platformClients {
 	}
 }
 
-func (c platformClients) logClient(token string) *logstream.Client {
-	return &logstream.Client{Token: token, NewClient: c.Proxy}
+func (c platformClients) logClient(host, token string) *logstream.Client {
+	return &logstream.Client{URL: host, Token: token, NewClient: c.Proxy}
 }
 
 func trimNewline(body string) string {

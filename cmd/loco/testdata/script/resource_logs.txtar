@@ -4,7 +4,7 @@ fakeapi seed app
 exec loco resource logs app
 stdout '^2026-10-07T06:00:00Z  listening on :8080$'
 stdout '^2026-10-07T06:00:01Z  GET /healthz 200$'
-fakeapi called GetObservabilityAccess 'Bearer test-token'
+! fakeapi called GetObservabilityAccess 'Bearer test-token'
 fakeapi called QueryLogs 'Bearer test-token'
 
 exec loco resource logs app --output json
@@ -14,8 +14,8 @@ stdout '"body":"listening on :8080"'
 stderr '(?i)the log proxy reads at most 24h back'
 
 fakeapi no-proxy
-! exec loco resource logs app
-stderr '(?i)no logs to show for app'
+exec loco resource logs app
+stdout 'listening on :8080'
 
 -- home/.loco/credentials.json --
 {"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}

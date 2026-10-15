@@ -226,6 +226,16 @@ local_resource(
 )
 
 local_resource(
+    'obs-proxy',
+    cmd='mise run build:obs-proxy',
+    serve_cmd='mise run obs:serve',
+    deps=copy_sources('observability-proxy/Dockerfile') + ['mise-tasks/obs/serve'],
+    resource_deps=['loco-obs', 'api'],
+    allow_parallel=True,
+    labels=['services'],
+)
+
+local_resource(
     'ui',
     serve_cmd='mise run ui',
     labels=['services'],

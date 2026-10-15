@@ -307,6 +307,7 @@ func main() {
 	secretv1connect.RegisterSecretServiceHandler(authenticatedServer, secretServiceHandler)
 
 	mountRPCServers(mux, baseServer, authenticatedServer)
+	mountObservabilityProxy(mux, ac.ObservabilityProxyURL)
 
 	allowLoopback := ac.Env != envProduction
 	corsMiddleware := withCORS(ac.CORSAllowedOrigins, allowLoopback)
