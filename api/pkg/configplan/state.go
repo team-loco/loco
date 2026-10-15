@@ -43,7 +43,7 @@ type State struct {
 	Dockerfile string
 	Context    string
 	Port       int32
-	Health     Health
+	Health     *Health
 	Routing    *Routing
 	Domains    []string
 	Env        map[string]string
@@ -85,7 +85,6 @@ func fileState(service locofile.Service, pinnedImage string, defaults servicedef
 	state := State{
 		Image:   pinnedImage,
 		Port:    defaults.Port,
-		Health:  DefaultHealth(defaults),
 		Domains: CanonicalDomains(service.Domains),
 		Env:     maps.Clone(service.Env),
 		Secrets: slices.Sorted(slices.Values(service.Secrets)),
@@ -105,7 +104,8 @@ func fileState(service locofile.Service, pinnedImage string, defaults servicedef
 		state.Port = *service.Port
 	}
 	if service.Health != nil {
-		state.Health = fileHealth(*service.Health, defaults)
+		health := fileHealth(*service.Health, defaults)
+		state.Health = &health
 	}
 	if service.Routing != nil {
 		routing := Routing{PathPrefix: service.Routing.PathPrefix, IdleTimeout: defaults.IdleTimeout}
@@ -135,7 +135,6 @@ func CanonicalDomains(domains []string) []string {
 	return canonical
 }
 
-// DefaultHealth is the health check the API uses when a service sets none.
 func DefaultHealth(defaults servicedefaults.Defaults) Health {
 	return Health{
 		Path:               defaults.HealthPath,
@@ -194,14 +193,16 @@ func flatten(state *State) map[string]string {
 		return map[string]string{}
 	}
 	fields := map[string]string{
-		pathPort:                           formatInt(state.Port),
-		pathHealth + ".path":               state.Health.Path,
-		pathHealth + ".interval":           formatInt(state.Health.Interval),
-		pathHealth + ".timeout":            formatInt(state.Health.Timeout),
-		pathHealth + ".failThreshold":      formatInt(state.Health.FailThreshold),
-		pathHealth + ".startupGracePeriod": formatInt(state.Health.StartupGracePeriod),
-		pathDomains:                        formatList(state.Domains),
-		pathSecrets:                        formatList(slices.Sorted(slices.Values(state.Secrets))),
+		pathPort:    formatInt(state.Port),
+		pathDomains: formatList(state.Domains),
+		pathSecrets: formatList(slices.Sorted(slices.Values(state.Secrets))),
+	}
+	if state.Health != nil {
+		fields[pathHealth+".path"] = state.Health.Path
+		fields[pathHealth+".interval"] = formatInt(state.Health.Interval)
+		fields[pathHealth+".timeout"] = formatInt(state.Health.Timeout)
+		fields[pathHealth+".failThreshold"] = formatInt(state.Health.FailThreshold)
+		fields[pathHealth+".startupGracePeriod"] = formatInt(state.Health.StartupGracePeriod)
 	}
 	if state.Image != "" {
 		fields[pathImage] = state.Image

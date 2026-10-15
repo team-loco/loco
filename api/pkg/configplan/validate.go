@@ -19,14 +19,17 @@ func validateDesired(name string, desired State) []Error {
 	}
 
 	add(pathPort, locoControllerV1.ValidatePort(desired.Port))
-	health := locoControllerV1.HealthCheckSpec{
-		Path:               desired.Health.Path,
-		Interval:           desired.Health.Interval,
-		Timeout:            desired.Health.Timeout,
-		FailThreshold:      desired.Health.FailThreshold,
-		StartupGracePeriod: desired.Health.StartupGracePeriod,
+	if desired.Health != nil {
+		health := locoControllerV1.HealthCheckSpec{
+			Path:               desired.Health.Path,
+			Interval:           desired.Health.Interval,
+			Timeout:            desired.Health.Timeout,
+			FailThreshold:      desired.Health.FailThreshold,
+			StartupGracePeriod: desired.Health.StartupGracePeriod,
+		}
+		add(pathHealth, health.Validate())
 	}
-	add(pathHealth, health.Validate())
+
 	if desired.Routing != nil {
 		add(pathRouting, locoControllerV1.ValidateRoute(desired.Routing.PathPrefix, desired.Routing.IdleTimeout))
 	}
