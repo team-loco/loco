@@ -159,6 +159,7 @@ func MergeDeploymentSpec(
 
 	// merge build (from request, always required)
 	mergedServiceSpec := &deploymentv1.ServiceDeploymentSpec{
+		Metrics:    requestServiceSpec.GetMetrics(),
 		RunAsUser:  requestServiceSpec.RunAsUser,
 		RunAsGroup: requestServiceSpec.RunAsGroup,
 		Build:      requestServiceSpec.GetBuild(),

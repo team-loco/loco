@@ -45,6 +45,7 @@ type State struct {
 	RunAsUser  *int64
 	RunAsGroup *int64
 	Port       int32
+	Metrics    *locofile.Metrics
 	Health     *Health
 	Routing    *Routing
 	Domains    []string
@@ -85,6 +86,7 @@ type Autoscaling struct {
 
 func fileState(service locofile.Service, pinnedImage string, defaults servicedefaults.Defaults) State {
 	state := State{
+		Metrics:    service.Metrics,
 		RunAsUser:  service.RunAsUser,
 		RunAsGroup: service.RunAsGroup,
 		Image:      pinnedImage,
@@ -106,6 +108,11 @@ func fileState(service locofile.Service, pinnedImage string, defaults servicedef
 	}
 	if service.Port != nil {
 		state.Port = *service.Port
+	}
+	if state.Metrics != nil && state.Metrics.Path == "" {
+		metrics := *state.Metrics
+		metrics.Path = "/metrics"
+		state.Metrics = &metrics
 	}
 	if service.Health != nil {
 		health := fileHealth(*service.Health, defaults)
@@ -206,6 +213,10 @@ func flatten(state *State) map[string]string {
 	}
 	if state.RunAsGroup != nil {
 		fields["runAsGroup"] = strconv.FormatInt(*state.RunAsGroup, 10)
+	}
+	if state.Metrics != nil {
+		fields["metrics.port"] = formatInt(state.Metrics.Port)
+		fields["metrics.path"] = state.Metrics.Path
 	}
 	if state.Health != nil {
 		fields[pathHealth+".path"] = state.Health.Path

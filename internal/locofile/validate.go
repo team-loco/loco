@@ -3,12 +3,16 @@ package locofile
 import (
 	"errors"
 	"math"
+	"net/url"
 	"regexp"
 	"slices"
+	"strings"
 )
 
 const (
 	dnsLabelMaxLength = 63
+	minMetricsPort    = 1024
+	maxMetricsPort    = 65535
 )
 
 var dnsLabelPattern = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`)
@@ -55,6 +59,7 @@ func Validate(file *File) error {
 
 func validateService(path string, service Service) []error {
 	errs := validateRuntimeIDs(path, service.RunAsUser, service.RunAsGroup)
+	errs = append(errs, validateMetrics(path, service.Metrics)...)
 	if service.Image != "" && (service.Dockerfile != "" || service.Context != "") {
 		errs = append(errs, &FieldError{Path: path, Err: ErrImageWithBuild})
 	}
@@ -78,6 +83,7 @@ func validateService(path string, service Service) []error {
 
 func validateOverride(path string, override Override) []error {
 	errs := validateRuntimeIDs(path, override.RunAsUser, override.RunAsGroup)
+	errs = append(errs, validateMetrics(path, override.Metrics)...)
 	for _, name := range sortedKeys(override.Regions) {
 		region := override.Regions[name]
 		errs = append(errs, validateAutoscaling(path+".regions."+name, region.Autoscaling)...)
@@ -126,4 +132,25 @@ func validateRuntimeIDs(path string, user, group *int64) []error {
 		}
 	}
 	return errs
+}
+
+var errMetricsEndpoint = errors.New(
+	"metrics requires a port between 1024 and 65535 and an absolute HTTP path without a query or fragment",
+)
+
+func validateMetrics(path string, metrics *Metrics) []error {
+	if metrics == nil {
+		return nil
+	}
+	validPath := metrics.Path == ""
+	if metrics.Path != "" {
+		parsed, err := url.ParseRequestURI(metrics.Path)
+		validPath = err == nil && strings.HasPrefix(metrics.Path, "/") && !strings.HasPrefix(metrics.Path, "//") &&
+			parsed.RawQuery == "" &&
+			!strings.ContainsAny(metrics.Path, "#\r\n")
+	}
+	if metrics.Port < minMetricsPort || metrics.Port > maxMetricsPort || !validPath {
+		return []error{&FieldError{Path: path + ".metrics", Err: errMetricsEndpoint}}
+	}
+	return nil
 }

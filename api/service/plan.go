@@ -395,6 +395,12 @@ func (s *PlanServer) liveState(
 		Health:  liveHealth(spec.GetHealthCheck()),
 		Regions: make(map[string]configplan.Region, len(spec.GetRegions())),
 	}
+	if metrics := spec.GetObservability().GetMetrics(); metrics.GetEnabled() {
+		state.Metrics = &locofile.Metrics{Port: metrics.GetPort(), Path: metrics.GetPath()}
+		if state.Metrics.Path == "" {
+			state.Metrics.Path = "/metrics"
+		}
+	}
 	if spec.GetRouting().GetPathPrefix() != "" || spec.GetRouting().GetIdleTimeout() != 0 {
 		state.Routing = &configplan.Routing{
 			PathPrefix:  converter.FirstSet(spec.GetRouting().GetPathPrefix(), s.defaults.PathPrefix),
@@ -444,6 +450,12 @@ func (s *PlanServer) liveState(
 		state.Regions[deployment.Region] = region
 		if index > 0 {
 			continue
+		}
+		if metrics := service.GetMetrics(); metrics != nil {
+			state.Metrics = nil
+			if metrics.GetEnabled() {
+				state.Metrics = &locofile.Metrics{Port: metrics.GetPort(), Path: metrics.GetPath()}
+			}
 		}
 		state.RunAsUser = service.RunAsUser
 		state.RunAsGroup = service.RunAsGroup
