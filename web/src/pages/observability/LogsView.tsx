@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { ArrowUpIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, ScrollTextIcon, SearchXIcon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/design/Button";
@@ -191,18 +191,17 @@ export function LogsView() {
 				/>
 			</div>
 			<div
-				className="grid items-start"
+				className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[var(--log-columns)]"
 				style={{
-					gridTemplateColumns: [showFacets ? "200px" : null, "minmax(0,1fr)", panelOpen ? "minmax(360px,420px)" : null]
+					"--log-columns": [showFacets ? "200px" : null, "minmax(0,1fr)", panelOpen ? "minmax(360px,420px)" : null]
 						.filter(Boolean)
 						.join(" "),
-					gap: showFacets || panelOpen ? 20 : 0,
-				}}
+				} as CSSProperties}
 			>
 				{showFacets && <LogFacets rows={rows} />}
 				<div className="flex min-w-0 flex-col gap-4">
 					<section className="rounded-lg border border-line bg-background">
-						<div className="flex items-center gap-2.5 border-b border-line px-4 py-2.5">
+						<div className="flex flex-wrap items-center gap-2.5 border-b border-line px-4 py-2.5">
 							<Button
 								variant="ghost"
 								size="icon-sm"
@@ -263,7 +262,7 @@ export function LogsView() {
 								/>
 								{isLoading && <LoadingRows />}
 								{!isLoading && error !== null && (
-									<div className="px-4 py-6 text-bad-fg">{getErrorMessage(error, "Failed to load logs")}</div>
+									<div className="px-4 py-6 break-words text-bad-fg">{getErrorMessage(error, "Failed to load logs")}</div>
 								)}
 								{!isLoading && error === null && rows.length === 0 && tail && (
 									<div className="px-4 py-6 text-fg3">Waiting for new logs…</div>

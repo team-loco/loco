@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 
@@ -31,7 +32,7 @@ const (
 	reservedAttributePrefix = "loco."
 	kubernetesLabelPrefix   = "loco.io/"
 	maxRegionPatterns       = 100
-	maxRegionPatternBytes   = 128
+	maxRegionPatternRunes   = 128
 	traceIDBytes            = 16
 	traceRequestMaxLimit    = 10000
 )
@@ -194,7 +195,7 @@ func validateRegions(groups ...[]string) error {
 			return errInvalidRegionFilter
 		}
 		for _, value := range group {
-			if strings.TrimSpace(value) == "" || len(value) > maxRegionPatternBytes ||
+			if strings.TrimSpace(value) == "" || utf8.RuneCountInString(value) > maxRegionPatternRunes ||
 				strings.Contains(strings.TrimSuffix(value, "*"), "*") {
 				return errInvalidRegionFilter
 			}

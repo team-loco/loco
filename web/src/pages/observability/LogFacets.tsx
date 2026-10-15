@@ -54,7 +54,7 @@ export function LogFacets({ rows }: { rows: LogRow[] }) {
 	];
 
 	return (
-		<aside className="sticky top-4 flex flex-col gap-[18px]">
+		<aside className="grid grid-cols-2 gap-[18px] lg:sticky lg:top-4 lg:flex lg:flex-col">
 			{facets.map((fc) => (
 				<div key={fc.key} className="flex flex-col gap-px">
 					<div className="px-1.5 pb-1.5 text-sm font-semibold text-fg2">{fc.title}</div>

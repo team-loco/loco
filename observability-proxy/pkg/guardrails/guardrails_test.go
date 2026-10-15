@@ -184,7 +184,7 @@ func TestRegionFiltersPreserveReservedLabelGuardrails(t *testing.T) {
 	cfg := &config.Config{MaxTimeRange: testMaxRange}
 	now := time.Now()
 	for _, patterns := range [][]string{
-		{""}, {"us**"}, {"us*east"}, {strings.Repeat("x", maxRegionPatternBytes+1)},
+		{""}, {"us**"}, {"us*east"}, {strings.Repeat("x", maxRegionPatternRunes+1)},
 		make([]string, maxRegionPatterns+1),
 	} {
 		logs := &observabilityv1.QueryLogsRequest{WorkspaceId: testWorkspaceID, Regions: patterns,

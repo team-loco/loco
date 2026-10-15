@@ -278,7 +278,7 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 
 	let n = 0;
 	return (
-		<div className="relative min-w-0 flex-1">
+		<div className="relative min-w-0 basis-full sm:flex-1 sm:basis-0">
 			<div
 				role="presentation"
 				onClick={focusInput}
