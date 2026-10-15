@@ -75,6 +75,7 @@ WHERE resource_id = $1 AND secret_names = '{"DATABASE_URL","SESSION_KEY"}'`
 func TestRedeployAndRollbackKeepTheCurrentEnvironmentValues(t *testing.T) {
 	f := newDeployFixture(t)
 	provider := testLocalProvider(t, "k1")
+	serverConfig := testAgentConfig()
 	first := imageService()
 	first.Env = map[string]string{"MODE": "original", "KEEP": "retained"}
 	original, err := createDeploymentWith(t, f, sameRegionSpec, first)
@@ -116,7 +117,7 @@ func TestRedeployAndRollbackKeepTheCurrentEnvironmentValues(t *testing.T) {
 		if names := f.placement(t, f.clusterID).SecretNames; !slices.Equal(names, testSecretNames) {
 			t.Fatalf("secret names = %v, want %v", names, testSecretNames)
 		}
-		server := NewAgentServer(f.pool, f.queries, nil, nil, provider, testHeartbeatInterval)
+		server := NewAgentServer(f.pool, f.queries, nil, nil, provider, testHeartbeatInterval, serverConfig)
 		sent := f.sendPending(t, server)
 		if len(sent) != 1 {
 			t.Fatalf("sent %d messages, want 1", len(sent))
