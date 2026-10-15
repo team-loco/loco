@@ -11,6 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/team-loco/loco/controller/internal/managed"
+	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 var errStalePrivateServiceCache = errors.New("private service reads must bypass the cache")
@@ -59,5 +60,36 @@ func TestPrivateServiceLifecycleReadsBypassTheCache(t *testing.T) {
 	key.Name = testPrivateHTTPName
 	if err := base.Get(context.Background(), key, &corev1.Service{}); !apierrors.IsNotFound(err) {
 		t.Fatalf("deleted alias remains: %v", err)
+	}
+}
+
+type staleApplicationInventory struct{ client.Client }
+
+func (c staleApplicationInventory) List(
+	ctx context.Context,
+	list client.ObjectList,
+	options ...client.ListOption,
+) error {
+	if applications, ok := list.(*locov1alpha1.ApplicationList); ok {
+		applications.Items = nil
+		return nil
+	}
+	return c.Client.List(ctx, list, options...)
+}
+
+func TestDeletingAppChecksLiveWorkspaceApplications(t *testing.T) {
+	deleted := workspaceApp("deleted", "old")
+	remaining := workspaceApp("remaining", "new")
+	namespace := &corev1.Namespace{Name: getNamespace(deleted)}
+	base := fake.NewClientBuilder().
+		WithScheme(workspaceTestScheme(t)).
+		WithObjects(deleted, remaining, namespace).
+		Build()
+	r := &LocoResourceReconciler{Client: staleApplicationInventory{base}, APIReader: base}
+	if err := r.deleteNamespaceIfUnused(context.Background(), deleted); err != nil {
+		t.Fatal(err)
+	}
+	if !objectExists(t, base, &corev1.Namespace{Name: namespace.Name}) {
+		t.Fatal("namespace deleted while another Application still uses it")
 	}
 }

@@ -373,7 +373,8 @@ func (r *LocoResourceReconciler) deleteNamespaceIfUnused(
 	locoRes *locov1alpha1.Application,
 ) error {
 	var apps locov1alpha1.ApplicationList
-	if err := r.List(ctx, &apps, client.InNamespace(locoRes.Namespace)); err != nil {
+	reader := r.apiReader()
+	if err := reader.List(ctx, &apps, client.InNamespace(locoRes.Namespace)); err != nil {
 		return fmt.Errorf("list applications: %w", err)
 	}
 	for i := range apps.Items {

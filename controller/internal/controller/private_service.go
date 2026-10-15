@@ -67,7 +67,7 @@ func (r *LocoResourceReconciler) ensurePrivateService(ctx context.Context, app *
 	}
 	current := &corev1.Service{}
 	key := client.ObjectKeyFromObject(desired)
-	reader := r.privateServiceReader()
+	reader := r.apiReader()
 	err := reader.Get(ctx, key, current)
 	if apierrors.IsNotFound(err) {
 		if createErr := r.Create(ctx, desired); createErr != nil {
@@ -108,7 +108,7 @@ func (r *LocoResourceReconciler) prunePrivateServices(
 		labelPrivateServiceOwner: string(app.UID),
 		managed.LabelComponent:   componentPrivateService,
 	}
-	reader := r.privateServiceReader()
+	reader := r.apiReader()
 	if err := reader.List(ctx, list, client.InNamespace(getNamespace(app)), selector); err != nil {
 		return fmt.Errorf("list private services: %w", err)
 	}
@@ -125,7 +125,7 @@ func (r *LocoResourceReconciler) prunePrivateServices(
 	return nil
 }
 
-func (r *LocoResourceReconciler) privateServiceReader() client.Reader {
+func (r *LocoResourceReconciler) apiReader() client.Reader {
 	if r.APIReader != nil {
 		return r.APIReader
 	}
