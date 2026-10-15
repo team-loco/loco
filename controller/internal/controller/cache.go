@@ -47,7 +47,6 @@ func CacheOptions(locoNamespace, pullSecretName string) cache.Options {
 			&corev1.Namespace{}:      managedObjects,
 			&corev1.Secret{}:         secrets,
 			&corev1.Service{}:        managedObjects,
-			&corev1.ConfigMap{}:      managedObjects,
 			&corev1.ServiceAccount{}: managedObjects,
 			&rbacv1.Role{}:           managedObjects,
 			&rbacv1.RoleBinding{}:    managedObjects,
@@ -90,28 +89,6 @@ func (r *LocoResourceReconciler) applicationPerWorkspace(ctx context.Context, _ 
 		seen[app.Spec.WorkspaceID] = true
 		key := client.ObjectKeyFromObject(app)
 		requests = append(requests, reconcile.Request{NamespacedName: key})
-	}
-	return requests
-}
-
-func (r *LocoResourceReconciler) applicationsForManagedObject(
-	ctx context.Context,
-	obj client.Object,
-) []reconcile.Request {
-	if obj.GetLabels()[managed.LabelComponent] != componentWorkspaceDNS {
-		return applicationForObject(ctx, obj)
-	}
-	var apps locov1alpha1.ApplicationList
-	if err := r.List(ctx, &apps); err != nil {
-		slog.WarnContext(ctx, "list applications for workspace DNS change", "error", err)
-		return nil
-	}
-	var requests []reconcile.Request
-	for i := range apps.Items {
-		app := &apps.Items[i]
-		if app.Spec.WorkspaceID == obj.GetLabels()[managed.LabelWorkspaceID] && app.DeletionTimestamp.IsZero() {
-			requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(app)})
-		}
 	}
 	return requests
 }

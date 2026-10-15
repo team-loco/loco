@@ -2,8 +2,6 @@ package main
 
 import (
 	"testing"
-
-	"github.com/team-loco/loco/controller/internal/controller"
 )
 
 func TestOperatorConfigReadsTheTelemetrySettings(t *testing.T) {
@@ -41,12 +39,5 @@ func TestOperatorConfigPanicsOnAnInvalidPort(t *testing.T) {
 			}()
 			newOperatorConfig()
 		})
-	}
-}
-
-func TestOperatorConfigReadsWorkspaceDNS(t *testing.T) {
-	t.Setenv(controller.EnvWorkspaceDNS, "chart-json")
-	if got := newOperatorConfig().RawWorkspaceDNS; got != "chart-json" {
-		t.Errorf("workspace DNS config = %q", got)
 	}
 }

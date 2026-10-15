@@ -42,7 +42,7 @@ A service without `domains` is private. Each region needs `cpu`, `memory`, `repl
 
 ## Private service discovery
 
-Applications in the same workspace on the same cluster reach HTTP services at `http://<service>.local`, such as `http://cart.local`. Port 80 forwards to the configured application port, so callers omit the port even when cart listens on 7070. Both private and publicly routed services have these endpoints. Callers need no resource IDs, OIDC tokens or discovery API calls. Declare dependent services in regions where they run on the same cluster; these DNS names do not connect separate clusters or regions.
+Applications in the same workspace on the same cluster reach HTTP services through native Kubernetes DNS, such as `http://cart.ws-00000000-0000-7000-8000-000000000003.svc.cluster.local`. Port 80 forwards to the configured application port, so callers omit the port even when cart listens on 7070. Loco uses namespaces named `ws-<workspace UUID>`; replace the example UUID with the caller's workspace UUID. A caller in that namespace can also use `http://cart`. Both private and publicly routed services have these endpoints. Callers need no resource IDs, OIDC tokens or discovery API calls. Declare dependent services in regions where they run on the same cluster; these DNS names do not connect separate clusters or regions.
 
 For example, a caller can pass dependency addresses through its environment:
 
@@ -50,15 +50,13 @@ For example, a caller can pass dependency addresses through its environment:
 services:
   checkout:
     env:
-      CART_URL: http://cart.local
-      PAYMENT_ADDRESS: payment.local:50051
+      CART_URL: http://cart.ws-00000000-0000-7000-8000-000000000003.svc.cluster.local
+      PAYMENT_ADDRESS: payment.ws-00000000-0000-7000-8000-000000000003.svc.cluster.local:50051
 ```
 
-The operator creates a ClusterIP Service for the logical name. It exposes TCP port 80 and the configured application port, both forwarding to that application port. When the application uses port 80, the Service exposes it once. gRPC and other TCP clients can use `<service>.local:<configured-port>` or port 80 explicitly; their default port depends on the client protocol. A non-HTTP service can omit `health` to avoid HTTP probes. Short names such as `cart:7070`, the existing `resource-<UUID>:80` endpoint and public HTTP routes continue to work.
+Use the cluster's configured DNS suffix in place of `cluster.local` when it has a custom cluster domain. Namespace-qualified names distinguish identical service names in different workspaces. Loco uses the cluster's DNS. Namespace-qualified names identify Services; network policies control which callers can reach them.
 
-Each workspace has an operator-managed DNS resolver. Application pods use that resolver, so `cart.local` and the absolute name `cart.local.` both resolve to cart in the caller's workspace. Another workspace can independently deploy its own cart. Unknown `.local` names return the workspace's missing-service DNS response; ordinary Kubernetes and external DNS queries go through the cluster resolver. The resolver adds no DNS cache; clients and the cluster resolver retain records for their DNS TTL. Custom images must use unicast DNS for `.local` names; an application that sends these names exclusively to mDNS bypasses the pod's DNS server.
-
-The operator chart's `workspaceDNS.clusterDomain` must match the Kubernetes cluster domain (default `cluster.local`). `workspaceDNS.image` pins CoreDNS by tag and digest; `replicas` and `resources` set the per-workspace resolver budget. The defaults run two replicas, each requesting 10m CPU and 16Mi memory with limits of 100m CPU and 64Mi memory. Application rollouts wait for those replicas to become available. Resolver pods use the cluster DNS directly, so they do not depend on their own Service to start. The operator manages DNS objects in the workspace namespace and rejects unmanaged name collisions. It does not change the cluster's CoreDNS configuration.
+The operator creates a ClusterIP Service for the logical name. It exposes TCP port 80 and the configured application port, both forwarding to that application port. When the application uses port 80, the Service exposes it once. gRPC and other TCP clients can use the configured port or port 80 explicitly; their default port depends on the client protocol. A non-HTTP service can omit `health` to avoid HTTP probes. Short names such as `cart:7070`, the existing `resource-<UUID>:80` endpoint and public HTTP routes continue to work.
 
 Names are lowercase DNS labels of at most 63 characters, including digit-leading labels. Digit-leading Services require [`RelaxedServiceNameValidation`](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/), enabled by default in Kubernetes 1.36 and stable in 1.37. `localhost` and names matching `resource-<UUID>` are reserved. New resources and renames reject these names. Legacy resources with incompatible names retain their UUID endpoint and remain deployable until renamed.
 
@@ -66,7 +64,7 @@ Renaming a resource through the Resource API moves its logical endpoint without 
 
 Workspace namespaces separate identical names in different workspaces. The workspace network policies permit communication between all applications in that namespace. Other workspaces remain isolated, and each environment runs on its own clusters.
 
-Upgrade the API, agent, Application controller, operator chart and CRDs together. Controller reconciliation adds workspace DNS to application pods and rolls them to install the resolver settings. Applications carrying a logical name gain the port 80 endpoint during that reconciliation. Existing Application records without a logical name retain their UUID endpoint until their next deploy or resource rename.
+Upgrade the API, agent, Application controller and operator CRDs together. Applications carrying a logical name gain the port 80 endpoint on controller reconciliation. Existing Application records without a logical name retain their UUID endpoint until their next deploy or resource rename.
 
 ## Health checks
 

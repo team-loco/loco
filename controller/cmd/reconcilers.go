@@ -43,10 +43,6 @@ func applicationSetup(operator operatorConfig) (reconcilerSetup, error) {
 	if err := operator.Telemetry.Validate(); err != nil {
 		return reconcilerSetup{}, fmt.Errorf("application configuration: %w", err)
 	}
-	dns, err := controller.ParseWorkspaceDNSConfig(operator.RawWorkspaceDNS)
-	if err != nil {
-		return reconcilerSetup{}, fmt.Errorf("application configuration: %w", err)
-	}
 	cacheOptions := controller.CacheOptions(operator.LocoNamespace, operator.PullSecretName)
 	register := func(mgr ctrl.Manager) error {
 		reconciler := &controller.LocoResourceReconciler{
@@ -55,7 +51,6 @@ func applicationSetup(operator operatorConfig) (reconcilerSetup, error) {
 			LocoNamespace:  operator.LocoNamespace,
 			PullSecretName: operator.PullSecretName,
 			Telemetry:      operator.Telemetry,
-			WorkspaceDNS:   dns,
 		}
 		return reconciler.SetupWithManager(mgr)
 	}

@@ -16,7 +16,6 @@ discovery_tcp=payment
 discovery_renamed=checkout
 discovery_second_workspace='00000000-0000-7000-8000-000000000023'
 discovery_second_environment='00000000-0000-7000-8000-000000000024'
-discovery_glibc_image=$(awk '$1 == "FROM" { print $2 }' "$E2E_ROOT_DIR/e2e/fixtures/glibc-client/Dockerfile")
 
 dk() {
     kubectl --context "$discovery_ctx" "$@"
@@ -63,12 +62,6 @@ discovery_is_ready() {
     local id
     id=$(discovery_resource_id "$1")
     test "$(dk -n "$E2E_LOCO_NAMESPACE" get application "resource-${id}" -o jsonpath='{.status.phase}')" = Ready
-}
-
-discovery_dns_absent() {
-    local id
-    id=$(discovery_resource_id "$discovery_caller")
-    ! dk -n "$discovery_namespace" exec "deployment/resource-${id}" -- getent hosts "$1" >/dev/null 2>&1
 }
 
 discovery_unreachable() {
@@ -121,11 +114,10 @@ YAML
 }
 
 test_d02_apps_use_logical_names_and_configured_ports() {
-    assert_contains "musl app reaches http://cart.local with no port" 'workspace-one' discovery_call cart.local http
-    assert_contains "absolute cart.local. stays in the workspace" 'workspace-one' discovery_call cart.local. http
-    assert_contains "ordinary Kubernetes DNS remains available" 'workspace-one' discovery_call "cart.${discovery_namespace}.svc.cluster.local" http
+    assert_contains "an app reaches http://cart.${discovery_namespace}.svc.cluster.local with no port" 'workspace-one' discovery_call "cart.${discovery_namespace}.svc.cluster.local" http
+    assert_contains "short native DNS name reaches cart" 'workspace-one' discovery_call cart http
     assert_contains "an app reaches cart:8080 by HTTP" 'workspace-one' discovery_call "${discovery_http}:8080" http
-    assert_contains "an app exchanges non-HTTP TCP with payment:50051" 'private-tcp-ok' discovery_call "${discovery_tcp}.local:50051" tcp
+    assert_contains "an app exchanges non-HTTP TCP with payment:50051" 'private-tcp-ok' discovery_call "${discovery_tcp}:50051" tcp
     local id
     id=$(discovery_resource_id "$discovery_tcp")
     assert_contains "the UUID endpoint remains on port 80" 'private-tcp-ok' discovery_call "resource-${id}:80" tcp
@@ -141,8 +133,7 @@ test_d03_resource_rename_moves_the_alias_without_a_build() {
         "{\"resourceId\":\"${id}\",\"name\":\"${discovery_renamed}\"}"
     wait_for "the renamed alias" 60 discovery_alias_exists "$discovery_renamed"
     wait_for "the previous alias to be removed" 60 discovery_alias_absent "$discovery_tcp"
-    assert_contains "an app reaches the renamed TCP endpoint" 'private-tcp-ok' discovery_call "${discovery_renamed}.local:50051" tcp
-    assert "renamed .local DNS name disappears" wait_for "old .local DNS name" 30 discovery_dns_absent "${discovery_tcp}.local"
+    assert_contains "an app reaches the renamed TCP endpoint" 'private-tcp-ok' discovery_call "${discovery_renamed}:50051" tcp
     after=$(e2e_psql "SELECT count(*) FROM builds")
     assert "rename starts no build" test "$before" -eq "$after"
 }
@@ -152,12 +143,11 @@ test_d04_resource_delete_removes_only_its_alias() {
     id=$(discovery_resource_id "$discovery_renamed")
     assert "delete succeeds through the Resource API" discovery_api loco.resource.v1.ResourceService/DeleteResource "{\"resourceId\":\"${id}\"}"
     wait_for "the deleted service alias to disappear" 60 discovery_alias_absent "$discovery_renamed"
-    assert "deleted .local DNS name disappears" wait_for "deleted .local DNS name" 30 discovery_dns_absent "${discovery_renamed}.local"
     assert "cart still has its logical endpoint" discovery_alias_exists "$discovery_http"
     assert_contains "the other app remains reachable" 'workspace-one' discovery_call "${discovery_http}:8080" http
 }
 
-test_d05_same_local_name_resolves_only_inside_each_workspace() {
+test_d05_namespace_qualified_names_reach_their_workspace() {
     e2e_psql "
         INSERT INTO workspaces (id, org_id, name, description, created_by)
         VALUES ('${discovery_second_workspace}', '${cli_org_id}', 'e2e-discovery-two', 'Private DNS isolation', '${cli_user_id}') ON CONFLICT DO NOTHING;
@@ -168,7 +158,7 @@ test_d05_same_local_name_resolves_only_inside_each_workspace() {
         ('${cli_user_id}', 'write', 'workspace', '${discovery_second_workspace}') ON CONFLICT DO NOTHING;
     " >/dev/null
     discovery_deploy_second_workspace || return 1
-    assert_contains "first workspace still resolves its own http://cart.local" workspace-one discovery_call cart.local http
+    assert_contains "first workspace still resolves its own http://cart.${discovery_namespace}.svc.cluster.local" workspace-one discovery_call "cart.${discovery_namespace}.svc.cluster.local" http
     local other_address
     other_address=$(dk -n "ws-${discovery_second_workspace}" get service cart -o 'jsonpath={.spec.clusterIP}')
     assert "cross-workspace traffic remains blocked" discovery_unreachable "$other_address"
@@ -195,14 +185,13 @@ services:
     regions:
       us-east-1: { cpu: 100m, memory: 128Mi, replicas: { min: 1, max: 1 } }
   caller:
-    image: ${discovery_glibc_image}
+    image: ${E2E_PUBLIC_IMAGE}
     port: 8080
     regions:
       us-east-1: { cpu: 100m, memory: 128Mi, replicas: { min: 1, max: 1 } }
 YAML
     discovery_deploy || return 1
     wait_for "second workspace cart" 120 discovery_is_ready cart
-    wait_for "glibc caller" 120 discovery_is_ready caller
-    assert_contains "glibc app reaches its own http://cart.local with no port" workspace-two discovery_call cart.local http
-    assert_contains "absolute cart.local. resolves to its own workspace" workspace-two discovery_call cart.local. http
+    wait_for "second-workspace caller" 120 discovery_is_ready caller
+    assert_contains "second-workspace app reaches its own http://cart.${discovery_namespace}.svc.cluster.local with no port" workspace-two discovery_call "cart.${discovery_namespace}.svc.cluster.local" http
 }

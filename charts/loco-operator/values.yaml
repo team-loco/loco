@@ -143,15 +143,3 @@ certManager:
 
 prometheus:
   enable: false
-
-workspaceDNS:
-  image: coredns/coredns:1.14.7@sha256:7efd3c635b03efd68c4e8398fc45f0d993d0e9ab016f72c1cefb0fd6d01aa286
-  clusterDomain: cluster.local
-  replicas: 2
-  resources:
-    requests:
-      cpu: 10m
-      memory: 16Mi
-    limits:
-      cpu: 100m
-      memory: 64Mi

@@ -21,11 +21,10 @@ const (
 )
 
 type operatorConfig struct {
-	LocoNamespace   string
-	PullSecretName  string
-	RawBuildConfig  string
-	RawWorkspaceDNS string
-	Telemetry       controller.TelemetryConfig
+	LocoNamespace  string
+	PullSecretName string
+	RawBuildConfig string
+	Telemetry      controller.TelemetryConfig
 }
 
 func newOperatorConfig() operatorConfig {
@@ -36,11 +35,10 @@ func newOperatorConfig() operatorConfig {
 		HTTPPort:         portEnv(envOTelCollectorHTTPPort),
 	}
 	return operatorConfig{
-		LocoNamespace:   os.Getenv(envLocoNamespace),
-		PullSecretName:  os.Getenv(envRegistryPullSecretName),
-		RawBuildConfig:  os.Getenv(builds.EnvConfig),
-		RawWorkspaceDNS: os.Getenv(controller.EnvWorkspaceDNS),
-		Telemetry:       telemetry,
+		LocoNamespace:  os.Getenv(envLocoNamespace),
+		PullSecretName: os.Getenv(envRegistryPullSecretName),
+		RawBuildConfig: os.Getenv(builds.EnvConfig),
+		Telemetry:      telemetry,
 	}
 }
 
