@@ -258,15 +258,17 @@ dump_logs() {
             log_group_end
         done
     fi
-    if [ "$OBSERVABILITY" = true ] && [ -s "$KUBECONFIG_FILE" ] && kube get namespace "$OBS_NAMESPACE" >/dev/null 2>&1; then
-        log_group "${OBS_NAMESPACE} pods"
-        kube get pods -n "$OBS_NAMESPACE" -o wide 2>&1 || true
-        log_group_end
-        local workload
-        for workload in $(kube -n "$OBS_NAMESPACE" get deployments,statefulsets -o name 2>/dev/null); do
-            log_group "$workload"
-            kube -n "$OBS_NAMESPACE" logs "$workload" --all-containers --tail "$LOG_TAIL_LINES" 2>&1 || true
+    if [ "$OBSERVABILITY" = true ] && [ -s "$KUBECONFIG_FILE" ]; then
+        local namespace workload
+        for namespace in "$OBS_NAMESPACE" "$(yq '.["otel-col-daemon"].namespaceOverride' "$OBS_VALUES")"; do
+            log_group "${namespace} pods"
+            kube get pods -n "$namespace" -o wide 2>&1 || true
             log_group_end
+            for workload in $(kube -n "$namespace" get deployments,statefulsets,daemonsets -o name 2>/dev/null); do
+                log_group "${namespace}/${workload}"
+                kube -n "$namespace" logs "$workload" --all-containers --tail "$LOG_TAIL_LINES" 2>&1 || true
+                log_group_end
+            done
         done
     fi
 }

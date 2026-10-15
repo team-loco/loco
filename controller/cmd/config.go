@@ -10,6 +10,8 @@ import (
 )
 
 const (
+	envScrapeNamespace        = "LOCO_METRICS_COLLECTOR_NAMESPACE"
+	envScrapeCollector        = "LOCO_METRICS_COLLECTOR_SERVICE"
 	envLocoNamespace          = "LOCO_NAMESPACE"
 	envObservabilityNamespace = "LOCO_OBSERVABILITY_NAMESPACE"
 	envOTelCollectorService   = "LOCO_OTEL_COLLECTOR_SERVICE"
@@ -29,6 +31,8 @@ type operatorConfig struct {
 
 func newOperatorConfig() operatorConfig {
 	telemetry := controller.TelemetryConfig{
+		ScrapeNamespace:  os.Getenv(envScrapeNamespace),
+		ScrapeCollector:  os.Getenv(envScrapeCollector),
 		Namespace:        os.Getenv(envObservabilityNamespace),
 		CollectorService: os.Getenv(envOTelCollectorService),
 		GRPCPort:         portEnv(envOTelCollectorGRPCPort),

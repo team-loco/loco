@@ -137,7 +137,7 @@ func assertObjectMatchesType(t *testing.T, defName string, object schemaObject, 
 		propertyNullable := nullable && name != keyEnabled
 		assertPropertyMatchesType(t, path, property, fieldType, propertyNullable)
 		tag := fieldByJSONName(goType, name).Tag.Get("json")
-		if !strings.Contains(tag, ",omitempty") {
+		if !nullable && !strings.Contains(tag, ",omitempty") {
 			required = append(required, name)
 		}
 	}
@@ -236,6 +236,7 @@ func TestSchemaMatchesTypes(t *testing.T) {
 
 	defs := map[string]reflect.Type{}
 	nested := []reflect.Type{
+		reflect.TypeFor[Metrics](),
 		reflect.TypeFor[Health](),
 		reflect.TypeFor[Routing](),
 		reflect.TypeFor[Region](),

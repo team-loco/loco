@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 
 const (
 	listenAddr               = ":8080"
+	metricsListenAddr        = ":9090"
 	readHeaderTimeout        = 5 * time.Second
 	shutdownTimeout          = 10 * time.Second
 	tracerName               = "github.com/team-loco/loco/e2e/fixtures/otel-app"
@@ -32,6 +34,7 @@ const (
 )
 
 type app struct {
+	requests   atomic.Uint64
 	tracer     trace.Tracer
 	propagator propagation.TextMapPropagator
 	logger     *slog.Logger
@@ -82,13 +85,18 @@ func run(logger *slog.Logger) error {
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthz)
+	mux.HandleFunc("GET /metrics", a.metrics)
 	mux.HandleFunc("GET /", a.serve)
 	server := &http.Server{Addr: listenAddr, Handler: mux, ReadHeaderTimeout: readHeaderTimeout}
 
-	serveErr := make(chan error, 1)
-	go func() {
-		serveErr <- server.ListenAndServe()
-	}()
+	metricsMux := http.NewServeMux()
+	metricsMux.HandleFunc("GET /metrics", a.metrics)
+	metricsServer := &http.Server{Addr: metricsListenAddr, Handler: metricsMux, ReadHeaderTimeout: readHeaderTimeout}
+	servers := []*http.Server{server, metricsServer}
+	serveErr := make(chan error, len(servers))
+	for _, current := range servers {
+		go func() { serveErr <- current.ListenAndServe() }()
+	}
 	logger.Info("otel-app listening", "addr", listenAddr)
 
 	select {
@@ -98,8 +106,10 @@ func run(logger *slog.Logger) error {
 	}
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
-	if err := server.Shutdown(shutdownCtx); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		return fmt.Errorf("shut down server: %w", err)
+	for _, current := range servers {
+		if err := current.Shutdown(shutdownCtx); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return fmt.Errorf("shut down server: %w", err)
+		}
 	}
 	return nil
 }
@@ -134,6 +144,7 @@ func healthz(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (a *app) serve(w http.ResponseWriter, r *http.Request) {
+	a.requests.Add(1)
 	carrier := propagation.HeaderCarrier(r.Header)
 	parent := a.propagator.Extract(r.Context(), carrier)
 	spanName := r.Method + " " + r.URL.Path
@@ -157,4 +168,19 @@ func (a *app) serve(w http.ResponseWriter, r *http.Request) {
 		"path", r.URL.Path,
 		"status", http.StatusOK,
 	)
+}
+
+func (a *app) metrics(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; version=0.0.4")
+	_, err := fmt.Fprintf(
+		w,
+		"# TYPE loco_fixture_requests_total counter\nloco_fixture_requests_total %d\n"+
+			"# TYPE loco_fixture_temperature gauge\nloco_fixture_temperature 42\n"+
+			"# TYPE target_info gauge\ntarget_info{\"loco.workspace.id\"=\"%s\","+
+			"\"loco.organization.id\"=\"%s\"} 1\n",
+		a.requests.Load(), forgedWorkspaceID, forgedOrganizationID,
+	)
+	if err != nil {
+		a.logger.Error("write metrics", "error", err)
+	}
 }

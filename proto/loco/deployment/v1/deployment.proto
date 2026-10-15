@@ -116,6 +116,7 @@ message ServiceDeploymentSpec {
     gt: 0
     lte: 2147483647
   }];
+  MetricsEndpoint metrics = 13;
 
   option (buf.validate.message).cel = {
     id: "replicas.min_lte_max"
@@ -239,3 +240,14 @@ message DeleteDeploymentRequest {
 
 // DeleteDeploymentResponse is the response after deleting/inactivating a deployment.
 message DeleteDeploymentResponse {}
+
+message MetricsEndpoint {
+  bool enabled = 1;
+  string path = 2;
+  int32 port = 3;
+  option (buf.validate.message).cel = {
+    id: "metrics.endpoint"
+    message: "enabled metrics require a port between 1024 and 65535 and an absolute path"
+    expression: "!this.enabled || (this.port >= 1024 && this.port <= 65535 && this.path.startsWith('/') && !this.path.startsWith('//') && !this.path.contains('?') && !this.path.contains('#') && !this.path.contains('\\r') && !this.path.contains('\\n'))"
+  };
+}

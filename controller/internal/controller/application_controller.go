@@ -216,6 +216,10 @@ func (r *LocoResourceReconciler) reconcileResources(
 		return ctrl.Result{}, fmt.Errorf("ensure service: %w", err)
 	}
 
+	err = r.ensureMetricsIngressPolicy(ctx, locoRes)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("ensure metrics ingress policy: %w", err)
+	}
 	err = r.ensureGatewayIngressPolicy(ctx, locoRes)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure gateway ingress policy: %w", err)
@@ -350,6 +354,7 @@ func (r *LocoResourceReconciler) deleteAppObjects(ctx context.Context, locoRes *
 	objects := []client.Object{
 		&v1Gateway.HTTPRoute{Name: routeName, Namespace: namespace},
 		&networkingv1.NetworkPolicy{Name: gatewayPolicyName, Namespace: namespace},
+		&networkingv1.NetworkPolicy{Name: getMetricsPolicyName(locoRes), Namespace: namespace},
 		&corev1.Service{Name: name, Namespace: namespace},
 		&appsv1.Deployment{Name: name, Namespace: namespace},
 		&rbacv1.RoleBinding{Name: bindingName, Namespace: namespace},
@@ -731,6 +736,14 @@ func desiredDeployment(
 		managed.LabelWorkspaceID:    locoRes.Spec.WorkspaceID,
 		managed.LabelResourceID:     locoRes.Spec.ResourceID,
 		labelEnvironmentID:          locoRes.Spec.EnvironmentID,
+	}
+	if obs := spec.Obs; obs != nil && obs.Metrics.Enabled {
+		podLabels[labelMetricsPort] = strconv.FormatInt(int64(obs.Metrics.Port), 10)
+		path := obs.Metrics.Path
+		if path == "" {
+			path = defaultMetricsPath
+		}
+		podAnnotations[annotationMetricsPath] = path
 	}
 	podSecurity := podSecurityContext()
 	if spec.Deployment.RunAsUser != nil {

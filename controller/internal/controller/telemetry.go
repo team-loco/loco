@@ -13,6 +13,9 @@ import (
 )
 
 const (
+	defaultMetricsPath             = "/metrics"
+	labelMetricsPort               = "loco.io/metrics-port"
+	annotationMetricsPath          = "loco.io/metrics-path"
 	envOTLPEndpoint                = "OTEL_EXPORTER_OTLP_ENDPOINT"
 	envOTLPProtocol                = "OTEL_EXPORTER_OTLP_PROTOCOL"
 	envOTelServiceName             = "OTEL_SERVICE_NAME"
@@ -35,6 +38,8 @@ var errTelemetryIncomplete = errors.New(
 
 // TelemetryConfig locates the OpenTelemetry collector that app pods export to.
 type TelemetryConfig struct {
+	ScrapeNamespace  string
+	ScrapeCollector  string
 	Namespace        string
 	CollectorService string
 	GRPCPort         int32

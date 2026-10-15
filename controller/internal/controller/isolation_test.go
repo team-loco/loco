@@ -8,6 +8,8 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	v1Gateway "sigs.k8s.io/gateway-api/apis/v1"
@@ -183,6 +185,58 @@ var _ = Describe("Workspace isolation", func() {
 		Expect(reconciler.ensureGatewayIngressPolicy(ctx, app)).To(Succeed())
 		Expect(reconciler.deleteAppObjects(ctx, app)).To(Succeed())
 		err = k8sClient.Get(ctx, key, &networkingv1.NetworkPolicy{})
+		Expect(apierrors.IsNotFound(err)).To(BeTrue())
+	})
+
+	It("accepts removing the last observability setting through server-side apply", func() {
+		app := isolationTestApplication("ws-metrics-apply", "metrics-apply")
+		app.APIVersion = locov1alpha1.GroupVersion.String()
+		app.Kind = "Application"
+		app.Spec.ServiceSpec.Obs = &locov1alpha1.ObsSpec{
+			Metrics: locov1alpha1.MetricsSpec{Enabled: true, Port: 9090, Path: defaultMetricsPath},
+		}
+		for _, enabled := range []bool{true, false} {
+			if !enabled {
+				app.Spec.ServiceSpec.Obs = nil
+			}
+			object, err := runtime.DefaultUnstructuredConverter.ToUnstructured(app)
+			Expect(err).NotTo(HaveOccurred())
+			configuration := client.ApplyConfigurationFromUnstructured(&unstructured.Unstructured{Object: object})
+			applyErr := k8sClient.Apply(
+				ctx, configuration, client.FieldOwner("metrics-apply-test"), client.ForceOwnership,
+			)
+			Expect(applyErr).To(Succeed())
+		}
+	})
+
+	It("updates metrics discovery and removes collector ingress with the application", func() {
+		app := isolationTestApplication("ws-metrics-policy", "metrics-policy")
+		reconciler.Telemetry.ScrapeNamespace = "observability-node"
+		reconciler.Telemetry.ScrapeCollector = "otel-col-daemon"
+		Expect(ensureNamespace(ctx, k8sClient, app)).To(Succeed())
+		app.Spec.ServiceSpec.Obs = &locov1alpha1.ObsSpec{
+			Metrics: locov1alpha1.MetricsSpec{Enabled: true, Port: 9090, Path: defaultMetricsPath},
+		}
+		Expect(reconciler.ensureMetricsIngressPolicy(ctx, app)).To(Succeed())
+		_, err := reconciler.ensureDeployment(ctx, app, envSecretMount{})
+		Expect(err).NotTo(HaveOccurred())
+		key := client.ObjectKey{Namespace: getNamespace(app), Name: getName(app)}
+		deployment := &appsv1.Deployment{}
+		Expect(k8sClient.Get(ctx, key, deployment)).To(Succeed())
+		Expect(deployment.Spec.Template.Labels[labelMetricsPort]).To(Equal("9090"))
+		Expect(deployment.Spec.Template.Annotations[annotationMetricsPath]).To(Equal(defaultMetricsPath))
+		app.Spec.ServiceSpec.Obs = nil
+		Expect(reconciler.ensureMetricsIngressPolicy(ctx, app)).To(Succeed())
+		_, err = reconciler.ensureDeployment(ctx, app, envSecretMount{})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(k8sClient.Get(ctx, key, deployment)).To(Succeed())
+		Expect(deployment.Spec.Template.Labels).NotTo(HaveKey(labelMetricsPort))
+		Expect(deployment.Spec.Template.Annotations).NotTo(HaveKey(annotationMetricsPath))
+		policyName := getName(app) + "-metrics"
+		Expect(getPolicy(getNamespace(app), policyName).Spec.Ingress).To(BeEmpty())
+		Expect(reconciler.deleteAppObjects(ctx, app)).To(Succeed())
+		policyKey := client.ObjectKey{Namespace: getNamespace(app), Name: policyName}
+		err = k8sClient.Get(ctx, policyKey, &networkingv1.NetworkPolicy{})
 		Expect(apierrors.IsNotFound(err)).To(BeTrue())
 	})
 

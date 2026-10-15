@@ -36,6 +36,9 @@ registry:
 
 observability:
   namespace: observability
+  metricsCollector:
+    namespace: observability-node
+    service: otel-col-daemon
   collector:
     service: otel-col-deploy
     grpcPort: 4317
