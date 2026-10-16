@@ -9,27 +9,27 @@ import (
 	"github.com/google/uuid"
 )
 
-func TestWorkspaceCursorRetainsTheExactSortPosition(t *testing.T) {
+func TestPositionCursorRetainsTheExactSortPosition(t *testing.T) {
 	id := uuid.New()
 	at := time.Date(2026, 10, 16, 8, 20, 30, 123456000, time.FixedZone("offset", 3600))
-	cursor, err := decodeWorkspaceCursor(encodeWorkspaceCursor(id, at))
+	cursor, err := decodePositionCursor(encodePositionCursor(id, at))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if cursor.ID == nil || *cursor.ID != id.String() || cursor.CreatedAt == nil || !cursor.CreatedAt.Equal(at) {
 		t.Fatalf("cursor = %+v", cursor)
 	}
-	legacy, err := decodeWorkspaceCursor(encodeCursor(id.String()))
+	legacy, err := decodePositionCursor(encodeCursor(id.String()))
 	if err != nil || legacy.ID == nil || *legacy.ID != id.String() || legacy.CreatedAt != nil {
 		t.Fatalf("legacy cursor = %+v, error=%v", legacy, err)
 	}
-	empty, err := decodeWorkspaceCursor("")
+	empty, err := decodePositionCursor("")
 	if err != nil || empty.ID != nil || empty.CreatedAt != nil {
 		t.Fatalf("empty cursor = %+v, error=%v", empty, err)
 	}
 }
 
-func TestWorkspaceCursorRejectsMalformedPositions(t *testing.T) {
+func TestPositionCursorRejectsMalformedPositions(t *testing.T) {
 	id := uuid.NewString()
 	payloads := []string{
 		"v2|2026-10-16T08:20:30Z|" + id,
@@ -40,11 +40,11 @@ func TestWorkspaceCursorRejectsMalformedPositions(t *testing.T) {
 	}
 	for _, payload := range payloads {
 		token := base64.URLEncoding.EncodeToString([]byte(payload))
-		if _, err := decodeWorkspaceCursor(token); err == nil {
+		if _, err := decodePositionCursor(token); err == nil {
 			t.Fatalf("accepted %q", payload)
 		}
 	}
-	if _, err := decodeWorkspaceCursor("%%%"); err == nil {
+	if _, err := decodePositionCursor("%%%"); err == nil {
 		t.Fatal("accepted non-base64 cursor")
 	}
 }

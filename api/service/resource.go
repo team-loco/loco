@@ -410,21 +410,17 @@ func (s *ResourceServer) ListWorkspaceResources(
 
 	pageSize := normalizePageSize(req.GetPageSize())
 
-	var pageToken *string
-	if req.GetPageToken() != "" {
-		cursorID, err := decodeCursor(req.GetPageToken())
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(err)
-		}
-		pageToken = &cursorID
+	wsID := uuid.MustParse(req.GetWorkspaceId())
+	cursor, cursorErr := s.resourcePageCursor(ctx, req.GetPageToken(), wsID)
+	if cursorErr != nil {
+		return nil, cursorErr
 	}
 
-	wsID := uuid.MustParse(req.GetWorkspaceId())
-
 	dbResources, err := s.queries.ListResourcesForWorkspace(ctx, genDb.ListResourcesForWorkspaceParams{
-		WorkspaceID: wsID,
-		Limit:       pageSize,
-		PageToken:   pageToken,
+		WorkspaceID:   wsID,
+		Limit:         pageSize,
+		PageToken:     cursor.ID,
+		PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list resources", "error", err)
@@ -463,7 +459,8 @@ func (s *ResourceServer) ListWorkspaceResources(
 
 	var nextPageToken string
 	if len(dbResources) == int(pageSize) {
-		nextPageToken = encodeCursor(dbResources[len(dbResources)-1].ID.String())
+		last := dbResources[len(dbResources)-1]
+		nextPageToken = encodePositionCursor(last.ID, last.CreatedAt)
 	}
 
 	return &resourcev1.ListWorkspaceResourcesResponse{

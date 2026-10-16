@@ -271,7 +271,7 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 	var nextPageToken string
 	if len(workspaceList) == int(pageSize) {
 		last := workspaceList[len(workspaceList)-1]
-		nextPageToken = encodeWorkspaceCursor(last.ID, last.CreatedAt)
+		nextPageToken = encodePositionCursor(last.ID, last.CreatedAt)
 	}
 
 	return &workspacev1.ListUserWorkspacesResponse{
@@ -344,7 +344,7 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 	var nextPageToken string
 	if len(workspaceList) == int(pageSize) {
 		last := workspaceList[len(workspaceList)-1]
-		nextPageToken = encodeWorkspaceCursor(last.ID, last.CreatedAt)
+		nextPageToken = encodePositionCursor(last.ID, last.CreatedAt)
 	}
 
 	return &workspacev1.ListOrgWorkspacesResponse{
