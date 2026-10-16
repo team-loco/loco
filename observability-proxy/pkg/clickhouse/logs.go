@@ -40,7 +40,8 @@ type logCursor struct {
 }
 
 func (cursor logCursor) encode() string {
-	value := fmt.Sprintf("%s/%d/%d", cursor.timestamp.Format(time.RFC3339Nano), cursor.blockNumber, cursor.blockOffset)
+	timestamp := cursor.timestamp.UTC().Format(time.RFC3339Nano)
+	value := fmt.Sprintf("%s/%d/%d", timestamp, cursor.blockNumber, cursor.blockOffset)
 	return base64.RawURLEncoding.EncodeToString([]byte(value))
 }
 
@@ -54,7 +55,7 @@ func decodeLogCursor(value string) (logCursor, error) {
 		return logCursor{}, ErrInvalidLogCursor
 	}
 	timestamp, err := time.Parse(time.RFC3339Nano, parts[0])
-	if err != nil {
+	if err != nil || !time.Unix(0, timestamp.UnixNano()).Equal(timestamp) {
 		return logCursor{}, ErrInvalidLogCursor
 	}
 	blockNumber, err := strconv.ParseUint(parts[1], 10, cursorIntegerBits)
