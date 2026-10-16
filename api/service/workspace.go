@@ -238,19 +238,16 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 
 	pageSize := normalizePageSize(req.GetPageSize())
 
-	var pageToken *string
-	if req.GetPageToken() != "" {
-		cursorID, err := decodeCursor(req.GetPageToken())
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(err)
-		}
-		pageToken = &cursorID
+	cursor, cursorErr := s.workspacePageCursor(ctx, req.GetPageToken())
+	if cursorErr != nil {
+		return nil, cursorErr
 	}
 
 	workspaceList, err := s.queries.ListWorkspacesForUser(ctx, genDb.ListWorkspacesForUserParams{
-		UserID:    entity.ID,
-		Limit:     pageSize,
-		PageToken: pageToken,
+		UserID:        entity.ID,
+		Limit:         pageSize,
+		PageToken:     cursor.ID,
+		PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list workspaces for user", "error", err)
@@ -273,7 +270,8 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 
 	var nextPageToken string
 	if len(workspaceList) == int(pageSize) {
-		nextPageToken = encodeCursor(workspaceList[len(workspaceList)-1].ID.String())
+		last := workspaceList[len(workspaceList)-1]
+		nextPageToken = encodeWorkspaceCursor(last.ID, last.CreatedAt)
 	}
 
 	return &workspacev1.ListUserWorkspacesResponse{
@@ -308,13 +306,9 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 
 	pageSize := normalizePageSize(req.GetPageSize())
 
-	var pageToken *string
-	if req.GetPageToken() != "" {
-		cursorID, err := decodeCursor(req.GetPageToken())
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(err)
-		}
-		pageToken = &cursorID
+	cursor, cursorErr := s.workspacePageCursor(ctx, req.GetPageToken())
+	if cursorErr != nil {
+		return nil, cursorErr
 	}
 
 	orgID := uuid.MustParse(req.GetOrgId())
@@ -325,7 +319,8 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 		AllWorkspaces: allWorkspaces,
 		WorkspaceIds:  workspaceIDs,
 		Limit:         pageSize,
-		PageToken:     pageToken,
+		PageToken:     cursor.ID,
+		PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list workspaces", "error", err)
@@ -348,7 +343,8 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 
 	var nextPageToken string
 	if len(workspaceList) == int(pageSize) {
-		nextPageToken = encodeCursor(workspaceList[len(workspaceList)-1].ID.String())
+		last := workspaceList[len(workspaceList)-1]
+		nextPageToken = encodeWorkspaceCursor(last.ID, last.CreatedAt)
 	}
 
 	return &workspacev1.ListOrgWorkspacesResponse{

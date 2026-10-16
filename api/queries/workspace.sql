@@ -25,7 +25,7 @@ WHERE EXISTS (
   )
   AND (sqlc.narg('page_token')::text IS NULL
        OR (w.created_at, w.id) < (
-         (SELECT created_at FROM workspaces WHERE id = sqlc.narg('page_token')::uuid),
+         sqlc.narg('page_created_at')::timestamptz,
          sqlc.narg('page_token')::uuid
        ))
 ORDER BY w.created_at DESC, w.id DESC
@@ -39,7 +39,7 @@ WHERE w.org_id = $1
   AND (sqlc.arg('all_workspaces')::bool OR w.id = ANY(sqlc.arg('workspace_ids')::uuid[]))
   AND (sqlc.narg('page_token')::text IS NULL
        OR (w.created_at, w.id) < (
-         (SELECT created_at FROM workspaces WHERE id = sqlc.narg('page_token')::uuid),
+         sqlc.narg('page_created_at')::timestamptz,
          sqlc.narg('page_token')::uuid
        ))
 ORDER BY w.created_at DESC, w.id DESC
