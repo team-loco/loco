@@ -225,7 +225,7 @@ func (f *queryFixture) insertGauges(t *testing.T) {
 
 type logQuery struct {
 	search      string
-	regions     LogRegions
+	scope       LogScope
 	workspaceID string
 	resourceIDs []string
 	labels      map[string]string
@@ -248,7 +248,7 @@ func (f *queryFixture) page(t *testing.T, q logQuery, cursor string) ([]*observa
 		q.limit,
 		cursor,
 		q.order,
-		testQueryTimeout, q.regions,
+		testQueryTimeout, q.scope,
 	)
 	if err != nil {
 		t.Fatalf("QueryLogs: %v", err)
@@ -589,7 +589,7 @@ func TestLogPagesKeepEqualTimestampsAcrossMerges(t *testing.T) {
 				testPageSize,
 				cursor,
 				order,
-				testQueryTimeout, LogRegions{},
+				testQueryTimeout, LogScope{},
 			)
 			if err != nil {
 				t.Fatal(err)
@@ -621,26 +621,59 @@ func TestQueryLogsFiltersRecordedRegionsBeforePagination(t *testing.T) {
 	} {
 		cases := []struct {
 			name      string
-			regions   LogRegions
+			scope     LogScope
 			resources []string
 		}{
-			{"case insensitive prefix", LogRegions{Include: []string{"US-*"}}, []string{testResourceID}},
-			{"exclude region", LogRegions{Exclude: []string{testWorkerRegion}}, []string{testResourceID}},
+			{"case insensitive prefix", LogScope{Include: []string{"US-*"}}, []string{testResourceID}},
+			{"exclude region", LogScope{Exclude: []string{testWorkerRegion}}, []string{testResourceID}},
 			{
 				"include OR then exclude",
-				LogRegions{Include: []string{"us-*", "eu-*"}, Exclude: []string{"us-*"}},
+				LogScope{Include: []string{"us-*", "eu-*"}, Exclude: []string{"us-*"}},
 				[]string{testWorkerResourceID},
 			},
 		}
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
-				query := logQuery{workspaceID: testWorkspaceID, limit: testPageSize, order: order, regions: tc.regions}
+				query := logQuery{workspaceID: testWorkspaceID, limit: testPageSize, order: order, scope: tc.scope}
 				got := f.allPages(t, query)
 				want := wantBodies(testWorkspaceID, tc.resources, order)
 				if !slices.Equal(got, want) {
 					t.Fatalf("bodies = %v, want %v", got, want)
 				}
 			})
+		}
+	}
+}
+
+func TestQueryLogsEnvironmentScopeAcrossPages(t *testing.T) {
+	f := newQueryFixture(t)
+	for _, environmentID := range []string{testOtherEnvironmentID, ""} {
+		attrs := tenantAttributes(testWorkspaceID, environmentID, testResourceID)
+		if err := f.conn.Exec(
+			t.Context(),
+			"INSERT INTO otel_logs (Timestamp, Body, ResourceAttributes) VALUES (?, ?, ?)",
+			f.start.Add(testRowSpacing),
+			"outside environment",
+			attrs,
+		); err != nil {
+			t.Fatal(err)
+		}
+	}
+	orders := []observabilityv1.LogOrder{
+		observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST,
+		observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST,
+	}
+	for _, order := range orders {
+		q := logQuery{
+			workspaceID: testWorkspaceID,
+			limit:       testPageSize,
+			order:       order,
+			scope:       LogScope{EnvironmentID: testEnvironmentID},
+		}
+		got := f.allPages(t, q)
+		want := wantBodies(testWorkspaceID, nil, order)
+		if !slices.Equal(got, want) {
+			t.Fatalf("environment page bodies = %q, want %q", got, want)
 		}
 	}
 }

@@ -16,13 +16,13 @@ interface UseQueryMetricsOptions {
 	resourceIds: string[];
 	timeRange: TimeRange;
 	metricName: string;
-	environmentId?: string;
+	environmentId: string;
 	region?: string;
 	aggregation?: string;
 	enabled?: boolean;
 }
 export function metricsQueryOptions(transport: Transport, { workspaceId, resourceIds, timeRange, metricName,
-	environmentId = "", region = "", aggregation = "avg", enabled = true,
+	environmentId, region = "", aggregation = "avg", enabled = true,
 }: UseQueryMetricsOptions) {
 	const input = { workspaceId, resourceIds, metricName, environmentId, region, aggregation,
 		intervalSeconds: timeRangeIntervalSeconds(timeRange) };
@@ -36,7 +36,7 @@ export function metricsQueryOptions(transport: Transport, { workspaceId, resourc
 			}, { signal });
 			return response.series;
 		},
-		enabled: enabled && workspaceId !== "", staleTime: 60_000, refetchInterval: 60_000,
+		enabled: enabled && workspaceId !== "" && environmentId !== "", staleTime: 60_000, refetchInterval: 60_000,
 	};
 }
 

@@ -101,6 +101,7 @@ type QueryLogsRequest struct {
 	Order           LogOrder `protobuf:"varint,10,opt,name=order,proto3,enum=loco.observability.v1.LogOrder" json:"order,omitempty"`
 	Regions         []string `protobuf:"bytes,11,rep,name=regions,proto3" json:"regions,omitempty"`
 	ExcludedRegions []string `protobuf:"bytes,12,rep,name=excluded_regions,json=excludedRegions,proto3" json:"excluded_regions,omitempty"`
+	EnvironmentId   string   `protobuf:"bytes,13,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -217,6 +218,13 @@ func (x *QueryLogsRequest) GetExcludedRegions() []string {
 		return x.ExcludedRegions
 	}
 	return nil
+}
+
+func (x *QueryLogsRequest) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
 }
 
 // QueryLogsResponse contains the results of a log query.
@@ -408,6 +416,7 @@ type TailLogsRequest struct {
 	Since           *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=since,proto3" json:"since,omitempty"`
 	Regions         []string               `protobuf:"bytes,7,rep,name=regions,proto3" json:"regions,omitempty"`
 	ExcludedRegions []string               `protobuf:"bytes,8,rep,name=excluded_regions,json=excludedRegions,proto3" json:"excluded_regions,omitempty"`
+	EnvironmentId   string                 `protobuf:"bytes,9,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -496,6 +505,13 @@ func (x *TailLogsRequest) GetExcludedRegions() []string {
 		return x.ExcludedRegions
 	}
 	return nil
+}
+
+func (x *TailLogsRequest) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
 }
 
 // TailLogsResponse is a server-streamed event (log entry or heartbeat).
@@ -1245,7 +1261,7 @@ var File_loco_observability_v1_observability_proto protoreflect.FileDescriptor
 
 const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\n" +
-	")loco/observability/v1/observability.proto\x12\x15loco.observability.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8e\x06\n" +
+	")loco/observability/v1/observability.proto\x12\x15loco.observability.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc2\x06\n" +
 	"\x10QueryLogsRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12!\n" +
 	"\fresource_ids\x18\x02 \x03(\tR\vresourceIds\x129\n" +
@@ -1261,7 +1277,8 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\x05order\x18\n" +
 	" \x01(\x0e2\x1f.loco.observability.v1.LogOrderR\x05order\x12+\n" +
 	"\aregions\x18\v \x03(\tB\x11\xbaH\x0e\x92\x01\v\x10d\"\ar\x05\x10\x01\x18\x80\x01R\aregions\x12<\n" +
-	"\x10excluded_regions\x18\f \x03(\tB\x11\xbaH\x0e\x92\x01\v\x10d\"\ar\x05\x10\x01\x18\x80\x01R\x0fexcludedRegions\x1a9\n" +
+	"\x10excluded_regions\x18\f \x03(\tB\x11\xbaH\x0e\x92\x01\v\x10d\"\ar\x05\x10\x01\x18\x80\x01R\x0fexcludedRegions\x122\n" +
+	"\x0eenvironment_id\x18\r \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01:\xa3\x01\xbaH\x9f\x01\x1a\x9c\x01\n" +
@@ -1286,7 +1303,7 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a@\n" +
 	"\x12LogAttributesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb5\x03\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe9\x03\n" +
 	"\x0fTailLogsRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12!\n" +
 	"\fresource_ids\x18\x02 \x03(\tR\vresourceIds\x12\x16\n" +
@@ -1295,7 +1312,8 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\x06labels\x18\x05 \x03(\v22.loco.observability.v1.TailLogsRequest.LabelsEntryR\x06labels\x120\n" +
 	"\x05since\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x12+\n" +
 	"\aregions\x18\a \x03(\tB\x11\xbaH\x0e\x92\x01\v\x10d\"\ar\x05\x10\x01\x18\x80\x01R\aregions\x12<\n" +
-	"\x10excluded_regions\x18\b \x03(\tB\x11\xbaH\x0e\x92\x01\v\x10d\"\ar\x05\x10\x01\x18\x80\x01R\x0fexcludedRegions\x1a9\n" +
+	"\x10excluded_regions\x18\b \x03(\tB\x11\xbaH\x0e\x92\x01\v\x10d\"\ar\x05\x10\x01\x18\x80\x01R\x0fexcludedRegions\x122\n" +
+	"\x0eenvironment_id\x18\t \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x96\x01\n" +

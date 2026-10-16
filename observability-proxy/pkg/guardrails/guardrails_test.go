@@ -228,3 +228,26 @@ func TestMetricsHistoryAllowsAllResourcesWithinWorkspace(t *testing.T) {
 		t.Fatalf("missing workspace: %v", err)
 	}
 }
+
+func TestLogEnvironmentFilterValidation(t *testing.T) {
+	now := time.Now()
+	cfg := &config.Config{MaxTimeRange: time.Hour}
+	for _, environmentID := range []string{"", "66666666-7777-8888-9999-000000000000", "not-a-uuid"} {
+		query := &observabilityv1.QueryLogsRequest{
+			WorkspaceId:   "workspace",
+			EnvironmentId: environmentID,
+			StartTime:     timestamppb.New(now.Add(-time.Minute)),
+			EndTime:       timestamppb.New(now),
+		}
+		tail := &observabilityv1.TailLogsRequest{WorkspaceId: "workspace", EnvironmentId: environmentID}
+		for _, err := range []error{ValidateLogsRequest(query, cfg), ValidateTailRequest(tail, cfg, now)} {
+			if environmentID == "not-a-uuid" {
+				if !errors.Is(err, errInvalidEnvironmentID) {
+					t.Fatalf("invalid environment error = %v", err)
+				}
+			} else if err != nil {
+				t.Fatalf("environment %q: %v", environmentID, err)
+			}
+		}
+	}
+}

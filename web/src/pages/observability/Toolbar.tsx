@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { RANGES, useObs } from "./context";
 import { Dot } from "./shared";
 
-export function TimeRangeMenu({ maxRange, value, onChange, compact = false }: { maxRange: TimeRange | null; compact?: boolean; value?: TimeRange; onChange?: (range: TimeRange) => void }) {
+export function TimeRangeMenu({ maxRange, value, onChange, compact = false, mode = "relative" }: { mode?: "relative" | "window"; maxRange: TimeRange | null; compact?: boolean; value?: TimeRange; onChange?: (range: TimeRange) => void }) {
 	const context = useObs();
 	const range = value ?? context.range;
 	const setRange = onChange ?? context.setRange;
@@ -27,7 +27,7 @@ export function TimeRangeMenu({ maxRange, value, onChange, compact = false }: { 
 				render={<Button variant="outline" className={compact ? "h-7 rounded-sm px-2 text-[11px] font-normal" : "h-[38px] rounded-lg px-3 font-normal"} />}
 			>
 				<ClockIcon className="text-fg3" />
-				{current?.label ?? range}
+				{mode === "window" ? `${range} window` : current?.label ?? range}
 				<ChevronDownIcon className="size-[13px] text-fg3" />
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end" className="w-auto min-w-[200px]">
@@ -42,10 +42,10 @@ export function TimeRangeMenu({ maxRange, value, onChange, compact = false }: { 
 							}}
 							className={cn("justify-between gap-3", range === r.key && "bg-bg3")}
 						>
-							{r.label}
+							{mode === "window" ? `${r.key} window` : r.label}
 							<span className="flex items-center gap-1.5 text-sm text-fg3">
 								{disabled && <SoonTag />}
-								{r.key}
+								{mode === "relative" && r.key}
 							</span>
 						</DropdownMenuItem>
 					);
