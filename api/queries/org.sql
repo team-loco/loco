@@ -32,6 +32,12 @@ SET name = $2, updated_at = NOW()
 WHERE id = $1
 RETURNING *;
 
+-- name: LockOrgForDeletion :exec
+SELECT id FROM organizations WHERE id = $1 FOR UPDATE;
+
+-- name: LockOrgWorkspacesForDeletion :exec
+SELECT id FROM workspaces WHERE org_id = $1 ORDER BY id FOR UPDATE;
+
 -- name: DeleteOrg :exec
 DELETE FROM organizations WHERE id = $1;
 

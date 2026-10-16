@@ -103,6 +103,9 @@ func (s *WorkspaceServer) CreateWorkspace(
 		CreatedBy:   entity.ID,
 	})
 	if err != nil {
+		if pgForeignKeyConstraint(err) == pgWorkspaceOrgReference {
+			return nil, rpcerr.New(connect.CodeNotFound, ErrOrgNotFound)
+		}
 		if isPgConstraintViolation(err) {
 			return nil, rpcerr.New(connect.CodeAlreadyExists, ErrWorkspaceNameNotUnique)
 		}

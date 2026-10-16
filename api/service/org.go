@@ -381,18 +381,20 @@ func (s *OrgServer) DeleteOrg(
 
 	orgID := uuid.MustParse(req.GetOrgId())
 
-	hasResources, err := s.queries.OrgHasWorkspacesWithResources(ctx, orgID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check for resources in workspaces", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-
-	if hasResources {
-		slog.WarnContext(ctx, "org has workspaces with resources", "orgId", req.GetOrgId())
-		return nil, rpcerr.New(connect.CodeFailedPrecondition, ErrOrgHasWorkspacesWithResources)
-	}
-
-	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if lockErr := qtx.LockOrgForDeletion(ctx, orgID); lockErr != nil {
+			return lockErr
+		}
+		if lockErr := qtx.LockOrgWorkspacesForDeletion(ctx, orgID); lockErr != nil {
+			return lockErr
+		}
+		hasResources, queryErr := qtx.OrgHasWorkspacesWithResources(ctx, orgID)
+		if queryErr != nil {
+			return queryErr
+		}
+		if hasResources {
+			return rpcerr.New(connect.CodeFailedPrecondition, ErrOrgHasWorkspacesWithResources)
+		}
 		if deleteErr := qtx.DeleteOrg(ctx, orgID); deleteErr != nil {
 			return deleteErr
 		}

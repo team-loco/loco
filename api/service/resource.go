@@ -199,6 +199,9 @@ func (s *ResourceServer) CreateResource(
 	resourceID, err := qtx.CreateResource(ctx, params)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create resource", "error", err)
+		if pgForeignKeyConstraint(err) == pgResourceWorkspaceReference {
+			return nil, rpcerr.New(connect.CodeNotFound, ErrWorkspaceNotFound)
+		}
 		if isPgConstraintViolation(err) {
 			return nil, connect.NewError(
 				connect.CodeAlreadyExists,

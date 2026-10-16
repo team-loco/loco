@@ -36,9 +36,11 @@ func isPgConstraintViolation(err error) bool {
 }
 
 const (
-	pgOrgScopeReference       = "user_scopes_organization_ref_fkey"
-	pgWorkspaceScopeReference = "user_scopes_workspace_ref_fkey"
-	pgUserScopeOwnerReference = "user_scopes_user_id_fkey"
+	pgResourceWorkspaceReference = "resources_workspace_id_fkey"
+	pgWorkspaceOrgReference      = "workspaces_org_id_fkey"
+	pgOrgScopeReference          = "user_scopes_organization_ref_fkey"
+	pgWorkspaceScopeReference    = "user_scopes_workspace_ref_fkey"
+	pgUserScopeOwnerReference    = "user_scopes_user_id_fkey"
 )
 
 func pgForeignKeyConstraint(err error) string {
