@@ -1286,8 +1286,7 @@ func deploymentTxError(ctx context.Context, err error) error {
 			"another deployment for this resource and region is in progress",
 		)
 	}
-	slog.ErrorContext(ctx, "failed to create deployment", "error", err)
-	return rpcerr.New(connect.CodeInternal, ErrDB)
+	return txError(ctx, "failed to create deployment", err)
 }
 
 func finalizedDeploymentStatus(status genDb.DeploymentStatus) genDb.DeploymentStatus {
