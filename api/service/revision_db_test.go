@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
+
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
@@ -120,5 +122,70 @@ func TestEnvironmentRenameAndRetypeBumpTheRevision(t *testing.T) {
 	updateEnvironment(t, f, &environmentv1.UpdateEnvironmentRequest{Type: &staging})
 	if rev := getEnvironment(t, f).GetRevision(); rev != 2 {
 		t.Fatalf("revision = %d after a type change, want 2", rev)
+	}
+}
+
+func TestEnvironmentDescriptionMaskClearsAndPreservesOtherFields(t *testing.T) {
+	f := newDeployFixture(t)
+	original := getEnvironment(t, f)
+	updateEnvironment(t, f, &environmentv1.UpdateEnvironmentRequest{Description: new("temporary description")})
+	updateEnvironment(t, f, &environmentv1.UpdateEnvironmentRequest{
+		UpdateMask:  &fieldmaskpb.FieldMask{Paths: []string{"description"}},
+		Description: new(""), Name: new("unexpected rename"),
+		Type: new(environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION),
+	})
+	got := getEnvironment(t, f)
+	if got.GetDescription() != "" || got.GetName() != original.GetName() || got.GetType() != original.GetType() ||
+		got.GetRevision() != original.GetRevision() {
+		t.Fatalf("description-only update changed the wrong fields: before=%v after=%v", original, got)
+	}
+}
+
+func TestEnvironmentNameMaskPreservesDescriptionAndType(t *testing.T) {
+	f := newDeployFixture(t)
+	updateEnvironment(t, f, &environmentv1.UpdateEnvironmentRequest{Description: new("keep this")})
+	original := getEnvironment(t, f)
+	updateEnvironment(t, f, &environmentv1.UpdateEnvironmentRequest{
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"name"}},
+		Name:       new("new name"), Description: new("ignore this"),
+		Type: new(environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION),
+	})
+	got := getEnvironment(t, f)
+	if got.GetName() != "new name" || got.GetDescription() != "keep this" || got.GetType() != original.GetType() ||
+		got.GetRevision() != original.GetRevision()+1 {
+		t.Fatalf("name-only update changed the wrong fields: %v", got)
+	}
+}
+
+func TestEnvironmentRejectsInvalidMaskedUpdates(t *testing.T) {
+	f := newDeployFixture(t)
+	server := NewEnvironmentServer(f.pool, f.queries, nil)
+	scopes := []genDb.EntityScope{
+		{EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspaceID(t), Scope: genDb.ScopeWrite},
+	}
+	ctx := context.WithValue(t.Context(), contextkeys.EntityScopesKey, scopes)
+	for _, path := range []string{"environment_id", "missing", "name", "type"} {
+		_, err := server.UpdateEnvironment(ctx, &environmentv1.UpdateEnvironmentRequest{
+			EnvironmentId: f.envID.String(), UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{path}},
+		})
+		wantCode(t, err, connect.CodeInvalidArgument)
+	}
+	if revision := getEnvironment(t, f).GetRevision(); revision != 0 {
+		t.Fatalf("invalid mask changed revision to %d", revision)
+	}
+}
+
+func TestEnvironmentWildcardMaskClearsDescription(t *testing.T) {
+	f := newDeployFixture(t)
+	updateEnvironment(t, f, &environmentv1.UpdateEnvironmentRequest{Description: new("clear this")})
+	updateEnvironment(t, f, &environmentv1.UpdateEnvironmentRequest{
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"*"}},
+		Name:       new("all fields"), Type: new(environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION),
+	})
+	got := getEnvironment(t, f)
+	if got.GetName() != "all fields" || got.GetDescription() != "" ||
+		got.GetType() != environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION ||
+		got.GetRevision() != 1 {
+		t.Fatalf("wildcard update = %v", got)
 	}
 }
