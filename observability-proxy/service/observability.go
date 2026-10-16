@@ -125,14 +125,14 @@ func (s *ObservabilityService) TailLogs(
 	deadline := started.Add(s.cfg.MaxTailDuration)
 	ctx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
-	lastSeen := started.Add(-defaultTailLookback)
+	since := started.Add(-defaultTailLookback)
 	if req.GetSince() != nil {
-		lastSeen = req.GetSince().AsTime()
+		since = req.GetSince().AsTime()
 	}
 	heartbeatInterval := 5 * time.Second
 	pollInterval := 2 * time.Second
 	lastHeartbeat := time.Now()
-	cursor := ""
+	cursor := chClient.TailLogCursor{}
 
 	for {
 		if time.Now().After(deadline) {
@@ -145,18 +145,13 @@ func (s *ObservabilityService) TailLogs(
 			return nil
 		default:
 		}
-
-		now := time.Now()
 		var sendErr error
-		sent, err := s.pollTailLogs(ctx, req, lastSeen, now, &cursor, func(entry *observabilityv1.LogEntry) error {
+		sent, err := s.pollTailLogs(ctx, req, since, cursor, func(entry *observabilityv1.LogEntry) error {
 			sendErr = stream.Send(&observabilityv1.TailLogsResponse{
 				Event: &observabilityv1.TailLogsResponse_Entry{Entry: entry},
 			})
 			if sendErr != nil {
 				return sendErr
-			}
-			if entry.GetTimestamp().AsTime().After(lastSeen) {
-				lastSeen = entry.GetTimestamp().AsTime()
 			}
 			return nil
 		})
