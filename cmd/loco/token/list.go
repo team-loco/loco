@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -50,10 +49,10 @@ func newListCmd(deps listDeps) *cobra.Command {
   loco token list
 
   # List tokens for an organization
-  loco token list --entity-type org --entity-id 123
+  loco token list --entity-type org --entity-id <organization-id>
 
   # List tokens for a workspace
-  loco token list --entity-type workspace --entity-id 456`,
+  loco token list --entity-type workspace --entity-id <workspace-id>`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
@@ -73,7 +72,7 @@ func newListCmd(deps listDeps) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to get entity-type flag: %w", err)
 			}
-			entityIDInt, err := cmd.Flags().GetInt64("entity-id")
+			requestedEntityID, err := cmd.Flags().GetString("entity-id")
 			if err != nil {
 				return fmt.Errorf("failed to get entity-id flag: %w", err)
 			}
@@ -83,7 +82,7 @@ func newListCmd(deps listDeps) *cobra.Command {
 				return err
 			}
 
-			entityID, err := resolveEntityID(ctx, userClient, entityType, entityTypeStr, entityIDInt)
+			entityID, err := resolveEntityID(ctx, userClient, entityType, entityTypeStr, requestedEntityID)
 			if err != nil {
 				return err
 			}
@@ -127,7 +126,7 @@ func newListCmd(deps listDeps) *cobra.Command {
 
 	cmd.Flags().String("host", "", "API host URL")
 	cmd.Flags().String("entity-type", "user", "Entity type: user, org, workspace, resource")
-	cmd.Flags().Int64("entity-id", 0, "Entity ID (defaults to current user for user type)")
+	cmd.Flags().String("entity-id", "", "Entity ID (defaults to current user for user type)")
 
 	return cmd
 }
@@ -137,11 +136,11 @@ func resolveEntityID(
 	userClient userv1connect.UserServiceClient,
 	entityType tokenv1.EntityType,
 	entityTypeStr string,
-	entityIDInt int64,
+	entityID string,
 ) (string, error) {
 	switch {
-	case entityIDInt != 0:
-		return strconv.FormatInt(entityIDInt, 10), nil
+	case entityID != "":
+		return entityID, nil
 	case entityType == tokenv1.EntityType_ENTITY_TYPE_USER:
 		return getCurrentUserID(ctx, userClient)
 	default:

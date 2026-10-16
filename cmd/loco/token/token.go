@@ -23,13 +23,13 @@ Tokens can be scoped to different entity types:
   loco token create my-ci-token --scope read
 
   # Create an organization-scoped token
-  loco token create deploy-token --entity-type org --entity-id 123 --scope write
+  loco token create deploy-token --entity-type org --entity-id <organization-id> --scope write
 
   # List all your personal tokens
   loco token list
 
   # List tokens for an organization
-  loco token list --entity-type org --entity-id 123
+  loco token list --entity-type org --entity-id <organization-id>
 
   # Delete a token
   loco token delete my-ci-token`,
