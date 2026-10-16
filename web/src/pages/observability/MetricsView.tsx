@@ -198,6 +198,7 @@ function ComputeChart({
 				</div>
 			) : (
 				<MetricChart
+					title={def.title}
 					series={series}
 					from={from}
 					to={to}
