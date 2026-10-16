@@ -44,3 +44,13 @@ test("ignores a completed resume after filters or history changed", () => {
 		expect(changed.on).toBe(false);
 	}
 });
+
+test("cancels pending Live when Back restores the anchored URL", () => {
+	const pending = { from: "anchored", to: "latest" };
+	const initial: LogPlayback = { key: "anchored", on: false, pending, paused };
+	const latest = logPlaybackForKey(initial, "latest");
+	const restored = logPlaybackForKey(latest, "anchored");
+	expect(restored.pending).toBeNull();
+	expect(restored.on).toBe(false);
+	expect(completeLogResume(restored, pending, true)).toBe(restored);
+});

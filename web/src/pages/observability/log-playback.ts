@@ -15,7 +15,7 @@ export interface LogPlayback {
 export function logPlaybackForKey(playback: LogPlayback, key: string): LogPlayback {
 	if (playback.key === key) return playback;
 	const pending = playback.pending;
-	const resuming = pending !== null && (key === pending.from || key === pending.to);
+	const resuming = pending !== null && playback.key === pending.from && key === pending.to;
 	return { key, on: playback.on, pending: resuming ? pending : null, paused: resuming ? playback.paused : null };
 }
 
