@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/design/Button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { getErrorMessage } from "@/lib/error-handler";
 import { cn } from "@/lib/utils";
 
 import { ALLOWS, heldLevel, LEVEL_LABEL, LEVELS } from "./model";
@@ -23,6 +24,8 @@ export function AccessPicker({
 	items,
 	allowUser,
 	resourcesLoading,
+	resourcesError,
+	retryResources,
 	invalid,
 	onChange,
 }: {
@@ -31,6 +34,8 @@ export function AccessPicker({
 	items: AccessItem[];
 	allowUser: boolean;
 	resourcesLoading: boolean;
+	resourcesError: unknown;
+	retryResources: () => void;
 	invalid: boolean;
 	onChange: (items: AccessItem[]) => void;
 }) {
@@ -78,6 +83,7 @@ export function AccessPicker({
 			case "org":
 				return "Organization";
 			case "ws":
+				if (resourcesLoading || resourcesError !== null) return "Workspace";
 				return `Workspace · ${(tree.childCount.get(n.key) ?? 0).toString()} resources`;
 			case "res": {
 				const cov = coveredBy(n, 1);
@@ -97,6 +103,7 @@ export function AccessPicker({
 			case "org":
 				return "Organization · everything in it";
 			case "ws":
+				if (resourcesLoading || resourcesError !== null) return "Workspace · all resources";
 				return `Workspace · all ${(tree.childCount.get(n.key) ?? 0).toString()} resources`;
 			case "res": {
 				const parentKey = n.parent;
@@ -171,7 +178,7 @@ export function AccessPicker({
 								}}
 								className={cn(
 									"flex h-[34px] w-full items-center gap-2.5 rounded-sm px-2 text-left text-foreground hover:bg-bg3",
-									disabled ? "cursor-not-allowed opacity-45" : "cursor-pointer",
+									disabled && "opacity-45",
 									covered && "opacity-50",
 								)}
 							>
@@ -181,7 +188,13 @@ export function AccessPicker({
 							</button>
 						);
 					})}
-					{shown.length === 0 && !resourcesLoading && <div className="px-2.5 py-2 text-fg3">No matches</div>}
+					{shown.length === 0 && !resourcesLoading && resourcesError === null && <div className="px-2.5 py-2 text-fg3">No matches</div>}
+					{resourcesError !== null && (
+						<div role="alert" className="flex items-center justify-between gap-2 px-2.5 py-1.5 text-sm">
+							<span className="text-bad-fg">{getErrorMessage(resourcesError, "Failed to load resources")}</span>
+							<Button type="button" variant="outline" size="sm" disabled={resourcesLoading} onClick={retryResources}>Retry</Button>
+						</div>
+					)}
 					{resourcesLoading && <div className="px-2.5 py-1.5 text-sm text-fg3">Loading resources…</div>}
 					{pool.length > shown.length && (
 						<div className="px-2.5 py-1.5 text-sm text-fg3">
