@@ -18,6 +18,7 @@ import (
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
+	"github.com/team-loco/loco/internal/rpcerr"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -206,6 +207,14 @@ func (a *applier) createDomain(
 	if err != nil {
 		return uuid.UUID{}, err
 	}
+	current, currentErr := allocationPlatformDomain(ctx, qtx, platformDomain.ID)
+	if currentErr != nil {
+		return uuid.UUID{}, currentErr
+	}
+	if current.Domain != platformDomain.Domain {
+		return uuid.UUID{}, rpcerr.New(connect.CodeFailedPrecondition, errPlatformDomainChanged)
+	}
+
 	domainID, err := qtx.CreateResourceDomain(ctx, genDb.CreateResourceDomainParams{
 		ResourceID:       resourceID,
 		EnvironmentID:    a.env.ID,

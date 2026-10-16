@@ -140,26 +140,8 @@ func (s *ResourceServer) CreateResource(
 		parsedPlatformDomainID := uuid.MustParse(req.GetDomain().GetPlatformDomainId())
 		platformDomainID = &parsedPlatformDomainID
 
-		platformDomain, err := s.queries.GetPlatformDomain(ctx, parsedPlatformDomainID)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to get platform domain", "error", err)
-			return nil, rpcerr.New(connect.CodeInvalidArgument, ErrPlatformDomainNotFound)
-		}
-
-		fullDomain = req.GetDomain().GetSubdomain() + "." + platformDomain.Domain
 		subdomain := req.GetDomain().GetSubdomain()
 		subdomainLabel = &subdomain
-
-		available, err := s.queries.CheckDomainAvailability(ctx, fullDomain)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to check domain availability", "domain", fullDomain, "error", err)
-			return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-		}
-
-		if !available {
-			slog.WarnContext(ctx, "domain already in use", "domain", fullDomain)
-			return nil, rpcerr.New(connect.CodeAlreadyExists, errDomainInUse)
-		}
 	}
 
 	specJSON, err := marshalResourceSpec(ctx, req.GetSpec())
@@ -194,6 +176,14 @@ func (s *ResourceServer) CreateResource(
 	if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, workspaceID); lockErr != nil {
 		slog.ErrorContext(ctx, "failed to lock environments", "error", lockErr)
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+	}
+
+	if hasDomain {
+		platformDomain, domainErr := allocationPlatformDomain(ctx, qtx, *platformDomainID)
+		if domainErr != nil {
+			return nil, domainErr
+		}
+		fullDomain = req.GetDomain().GetSubdomain() + "." + platformDomain.Domain
 	}
 
 	resourceID, err := qtx.CreateResource(ctx, params)

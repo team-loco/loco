@@ -139,6 +139,38 @@ func (q *Queries) GetPlatformDomainByName(ctx context.Context, domain string) (P
 	return i, err
 }
 
+const getPlatformDomainForAllocation = `-- name: GetPlatformDomainForAllocation :one
+SELECT id, domain, is_active, created_at FROM platform_domains WHERE id = $1 FOR SHARE
+`
+
+func (q *Queries) GetPlatformDomainForAllocation(ctx context.Context, id uuid.UUID) (PlatformDomain, error) {
+	row := q.db.QueryRow(ctx, getPlatformDomainForAllocation, id)
+	var i PlatformDomain
+	err := row.Scan(
+		&i.ID,
+		&i.Domain,
+		&i.IsActive,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getPlatformDomainForUpdate = `-- name: GetPlatformDomainForUpdate :one
+SELECT id, domain, is_active, created_at FROM platform_domains WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) GetPlatformDomainForUpdate(ctx context.Context, id uuid.UUID) (PlatformDomain, error) {
+	row := q.db.QueryRow(ctx, getPlatformDomainForUpdate, id)
+	var i PlatformDomain
+	err := row.Scan(
+		&i.ID,
+		&i.Domain,
+		&i.IsActive,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getPrimaryResourceDomain = `-- name: GetPrimaryResourceDomain :one
 SELECT domain
 FROM resource_domains
@@ -466,6 +498,17 @@ func (q *Queries) ListResourceDomainsForResources(ctx context.Context, resourceI
 	return items, nil
 }
 
+const platformDomainHasResources = `-- name: PlatformDomainHasResources :one
+SELECT EXISTS(SELECT 1 FROM resource_domains WHERE platform_domain_id = $1)
+`
+
+func (q *Queries) PlatformDomainHasResources(ctx context.Context, platformDomainID *uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, platformDomainHasResources, platformDomainID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const resourceHasPrimaryDomain = `-- name: ResourceHasPrimaryDomain :one
 SELECT EXISTS(
     SELECT 1 FROM resource_domains
@@ -503,6 +546,28 @@ func (q *Queries) SetResourceDomainPrimary(ctx context.Context, arg SetResourceD
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const updatePlatformDomain = `-- name: UpdatePlatformDomain :one
+UPDATE platform_domains SET domain = $2, is_active = $3 WHERE id = $1 RETURNING id, domain, is_active, created_at
+`
+
+type UpdatePlatformDomainParams struct {
+	ID       uuid.UUID `json:"id"`
+	Domain   string    `json:"domain"`
+	IsActive bool      `json:"isActive"`
+}
+
+func (q *Queries) UpdatePlatformDomain(ctx context.Context, arg UpdatePlatformDomainParams) (PlatformDomain, error) {
+	row := q.db.QueryRow(ctx, updatePlatformDomain, arg.ID, arg.Domain, arg.IsActive)
+	var i PlatformDomain
+	err := row.Scan(
+		&i.ID,
+		&i.Domain,
+		&i.IsActive,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const updateResourceDomain = `-- name: UpdateResourceDomain :one

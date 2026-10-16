@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 
 	"connectrpc.com/connect/v2"
@@ -28,12 +29,21 @@ import (
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
+const (
+	platformDomainNameField   = "domain"
+	platformDomainActiveField = "is_active"
+)
+
 var (
-	ErrPlatformDomainNotFound  = errors.New("platform domain not found")
-	ErrPlatformDomainUpdate    = errors.New("failed to update platform domain")
-	ErrDomainAlreadyExists     = errors.New("domain already exists")
-	ErrCannotRemovePrimary     = errors.New("make another domain primary before removing the primary domain")
-	errNoProductionEnvironment = errors.New("the workspace has no production environment to hold the domain")
+	ErrPlatformDomainNotFound   = errors.New("platform domain not found")
+	ErrDomainAlreadyExists      = errors.New("domain already exists")
+	errPlatformDomainMask       = errors.New("update mask contains an unsupported platform domain field")
+	errPlatformDomainName       = errors.New("platform domain name is required")
+	errPlatformDomainReferenced = errors.New("cannot rename a platform domain while services use it")
+	errPlatformDomainInactive   = errors.New("platform domain is not active")
+	errPlatformDomainChanged    = errors.New("platform domain changed; plan the file again")
+	ErrCannotRemovePrimary      = errors.New("make another domain primary before removing the primary domain")
+	errNoProductionEnvironment  = errors.New("the workspace has no production environment to hold the domain")
 )
 
 type DomainServer struct {
@@ -186,15 +196,47 @@ func (s *DomainServer) UpdatePlatformDomain(
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
+	updateDomain, updateActive, maskErr := platformDomainUpdateFields(req)
+	if maskErr != nil {
+		return nil, rpcerr.New(connect.CodeInvalidArgument, maskErr)
+	}
 	parsedID := uuid.MustParse(req.GetId())
-
-	// For now, we'll update using the existing deactivate method if is_active is being changed
-	// This is a simplified implementation
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if !req.GetIsActive() {
-			if _, deactivateErr := qtx.DeactivatePlatformDomain(ctx, parsedID); deactivateErr != nil {
-				return deactivateErr
+		existing, getErr := qtx.GetPlatformDomainForUpdate(ctx, parsedID)
+		if errors.Is(getErr, pgx.ErrNoRows) {
+			return rpcerr.New(connect.CodeNotFound, ErrPlatformDomainNotFound)
+		}
+		if getErr != nil {
+			return getErr
+		}
+		domain, active := existing.Domain, existing.IsActive
+		if updateDomain {
+			domain = req.GetDomain()
+		}
+		if updateActive {
+			active = req.GetIsActive()
+		}
+		if domain != existing.Domain {
+			referenced, queryErr := qtx.PlatformDomainHasResources(ctx, &parsedID)
+			if queryErr != nil {
+				return queryErr
 			}
+			if referenced {
+				return rpcerr.New(connect.CodeFailedPrecondition, errPlatformDomainReferenced)
+			}
+		}
+		if domain == existing.Domain && active == existing.IsActive {
+			return nil
+		}
+		_, updateErr := qtx.UpdatePlatformDomain(
+			ctx,
+			genDb.UpdatePlatformDomainParams{ID: parsedID, Domain: domain, IsActive: active},
+		)
+		if isPgConstraintViolation(updateErr) {
+			return rpcerr.New(connect.CodeAlreadyExists, ErrDomainAlreadyExists)
+		}
+		if updateErr != nil {
+			return updateErr
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.PlatformDomainChange,
@@ -204,13 +246,49 @@ func (s *DomainServer) UpdatePlatformDomain(
 		})
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update platform domain", "id", req.GetId(), "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrPlatformDomainUpdate)
+		return nil, txError(ctx, "failed to update platform domain", err)
 	}
 
 	return &domainv1.UpdatePlatformDomainResponse{
 		Id: req.GetId(),
 	}, nil
+}
+
+func platformDomainUpdateFields(req *domainv1.UpdatePlatformDomainRequest) (bool, bool, error) {
+	paths := req.GetUpdateMask().GetPaths()
+	updateDomain := req.GetDomain() != ""
+	activeDescriptor := req.ProtoReflect().Descriptor().Fields().ByName(platformDomainActiveField)
+	updateActive := req.ProtoReflect().Has(activeDescriptor)
+	if len(paths) > 0 {
+		if len(paths) == 1 && paths[0] == "*" {
+			paths = []string{platformDomainNameField, platformDomainActiveField}
+		}
+		for _, path := range paths {
+			if path != platformDomainNameField && path != platformDomainActiveField {
+				return false, false, errPlatformDomainMask
+			}
+		}
+		updateDomain = slices.Contains(paths, platformDomainNameField)
+		updateActive = slices.Contains(paths, platformDomainActiveField)
+	}
+	if updateDomain && strings.TrimSpace(req.GetDomain()) == "" {
+		return false, false, errPlatformDomainName
+	}
+	return updateDomain, updateActive, nil
+}
+
+func allocationPlatformDomain(ctx context.Context, qtx *genDb.Queries, id uuid.UUID) (genDb.PlatformDomain, error) {
+	domain, err := qtx.GetPlatformDomainForAllocation(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return genDb.PlatformDomain{}, rpcerr.New(connect.CodeNotFound, ErrPlatformDomainNotFound)
+	}
+	if err != nil {
+		return genDb.PlatformDomain{}, err
+	}
+	if !domain.IsActive {
+		return genDb.PlatformDomain{}, rpcerr.New(connect.CodeFailedPrecondition, errPlatformDomainInactive)
+	}
+	return domain, nil
 }
 
 // DeletePlatformDomain deletes a platform domain
@@ -316,30 +394,22 @@ func (s *DomainServer) CreateResourceDomain(
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 	platformDomainID := uuid.MustParse(req.GetDomain().GetPlatformDomainId())
-	platformDomain, err := s.queries.GetPlatformDomain(ctx, platformDomainID)
-	if err != nil {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrPlatformDomainNotFound)
-	}
-
 	subdomain := req.GetDomain().GetSubdomain()
-	fullDomain := subdomain + "." + platformDomain.Domain
-
-	// check domain availability
-	available, err := s.queries.CheckDomainAvailability(ctx, fullDomain)
-	if err != nil {
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-	if !available {
-		return nil, rpcerr.New(connect.CodeAlreadyExists, ErrDomainAlreadyExists)
-	}
+	var fullDomain string
 
 	resourceID := uuid.MustParse(req.GetResourceId())
 
 	var resourceDomain uuid.UUID
-	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if lockErr := lockResourceDomains(ctx, qtx, resourceID); lockErr != nil {
 			return lockErr
 		}
+		platformDomain, domainErr := allocationPlatformDomain(ctx, qtx, platformDomainID)
+		if domainErr != nil {
+			return domainErr
+		}
+		fullDomain = subdomain + "." + platformDomain.Domain
+
 		environmentID, envErr := imperativeDomainEnvironment(ctx, qtx, resourceID)
 		if envErr != nil {
 			return envErr
