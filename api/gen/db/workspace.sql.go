@@ -221,7 +221,7 @@ WHERE EXISTS (
   )
   AND ($3::text IS NULL
        OR (w.created_at, w.id) < (
-         (SELECT created_at FROM workspaces WHERE id = $3::uuid),
+         $4::timestamptz,
          $3::uuid
        ))
 ORDER BY w.created_at DESC, w.id DESC
@@ -229,9 +229,10 @@ LIMIT $2
 `
 
 type ListWorkspacesForUserParams struct {
-	UserID    uuid.UUID `json:"userId"`
-	Limit     int32     `json:"limit"`
-	PageToken *string   `json:"pageToken"`
+	UserID        uuid.UUID  `json:"userId"`
+	Limit         int32      `json:"limit"`
+	PageToken     *string    `json:"pageToken"`
+	PageCreatedAt *time.Time `json:"pageCreatedAt"`
 }
 
 type ListWorkspacesForUserRow struct {
@@ -246,7 +247,12 @@ type ListWorkspacesForUserRow struct {
 }
 
 func (q *Queries) ListWorkspacesForUser(ctx context.Context, arg ListWorkspacesForUserParams) ([]ListWorkspacesForUserRow, error) {
-	rows, err := q.db.Query(ctx, listWorkspacesForUser, arg.UserID, arg.Limit, arg.PageToken)
+	rows, err := q.db.Query(ctx, listWorkspacesForUser,
+		arg.UserID,
+		arg.Limit,
+		arg.PageToken,
+		arg.PageCreatedAt,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -282,7 +288,7 @@ WHERE w.org_id = $1
   AND ($3::bool OR w.id = ANY($4::uuid[]))
   AND ($5::text IS NULL
        OR (w.created_at, w.id) < (
-         (SELECT created_at FROM workspaces WHERE id = $5::uuid),
+         $6::timestamptz,
          $5::uuid
        ))
 ORDER BY w.created_at DESC, w.id DESC
@@ -295,6 +301,7 @@ type ListWorkspacesInOrgParams struct {
 	AllWorkspaces bool        `json:"allWorkspaces"`
 	WorkspaceIds  []uuid.UUID `json:"workspaceIds"`
 	PageToken     *string     `json:"pageToken"`
+	PageCreatedAt *time.Time  `json:"pageCreatedAt"`
 }
 
 type ListWorkspacesInOrgRow struct {
@@ -315,6 +322,7 @@ func (q *Queries) ListWorkspacesInOrg(ctx context.Context, arg ListWorkspacesInO
 		arg.AllWorkspaces,
 		arg.WorkspaceIds,
 		arg.PageToken,
+		arg.PageCreatedAt,
 	)
 	if err != nil {
 		return nil, err

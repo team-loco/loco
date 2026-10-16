@@ -247,21 +247,30 @@ func (s *OrgServer) ListUserOrgs(
 
 	pageSize := normalizePageSize(req.GetPageSize())
 
-	var pageToken *string
-	if req.GetPageToken() != "" {
-		cursorID, err := decodeCursor(req.GetPageToken())
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(err)
+	cursor, cursorErr := decodePositionCursor(req.GetPageToken())
+	if cursorErr != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(cursorErr)
+	}
+	if cursor.ID != nil && cursor.CreatedAt == nil {
+		anchor, getErr := s.queries.GetOrgByID(ctx, uuid.MustParse(*cursor.ID))
+		if errors.Is(getErr, pgx.ErrNoRows) {
+			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).
+				WithCause(errPositionCursor)
 		}
-		pageToken = &cursorID
+		if getErr != nil {
+			slog.ErrorContext(ctx, "failed to resolve organization cursor", "error", getErr)
+			return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		}
+		cursor.CreatedAt = new(anchor.CreatedAt)
 	}
 
 	userID := uuid.MustParse(req.GetUserId())
 
 	orgs, err := s.queries.ListOrgsForUser(ctx, genDb.ListOrgsForUserParams{
-		UserID:    userID,
-		Limit:     pageSize,
-		PageToken: pageToken,
+		UserID:        userID,
+		Limit:         pageSize,
+		PageToken:     cursor.ID,
+		PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list orgs", "error", err)
@@ -281,7 +290,8 @@ func (s *OrgServer) ListUserOrgs(
 
 	var nextPageToken string
 	if len(orgs) == int(pageSize) {
-		nextPageToken = encodeCursor(orgs[len(orgs)-1].ID.String())
+		last := orgs[len(orgs)-1]
+		nextPageToken = encodePositionCursor(last.ID, last.CreatedAt)
 	}
 
 	return &orgv1.ListUserOrgsResponse{

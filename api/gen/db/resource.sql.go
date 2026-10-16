@@ -378,7 +378,7 @@ FROM resources r
 WHERE r.workspace_id = $1
    AND ($3::text IS NULL
         OR (r.created_at, r.id) < (
-          (SELECT created_at FROM resources WHERE id = $3::uuid),
+          $4::timestamptz,
           $3::uuid
         ))
 ORDER BY r.created_at DESC, r.id DESC
@@ -386,13 +386,19 @@ LIMIT $2
 `
 
 type ListResourcesForWorkspaceParams struct {
-	WorkspaceID uuid.UUID `json:"workspaceId"`
-	Limit       int32     `json:"limit"`
-	PageToken   *string   `json:"pageToken"`
+	WorkspaceID   uuid.UUID  `json:"workspaceId"`
+	Limit         int32      `json:"limit"`
+	PageToken     *string    `json:"pageToken"`
+	PageCreatedAt *time.Time `json:"pageCreatedAt"`
 }
 
 func (q *Queries) ListResourcesForWorkspace(ctx context.Context, arg ListResourcesForWorkspaceParams) ([]Resource, error) {
-	rows, err := q.db.Query(ctx, listResourcesForWorkspace, arg.WorkspaceID, arg.Limit, arg.PageToken)
+	rows, err := q.db.Query(ctx, listResourcesForWorkspace,
+		arg.WorkspaceID,
+		arg.Limit,
+		arg.PageToken,
+		arg.PageCreatedAt,
+	)
 	if err != nil {
 		return nil, err
 	}
