@@ -90,7 +90,11 @@ message MetricsConfig {
 // TracingConfig defines distributed tracing configuration.
 message TracingConfig {
   bool enabled = 1;
-  double sample_rate = 2; // 0.0 to 1.0
+  double sample_rate = 2 [(buf.validate.field).double = {
+    gte: 0
+    lte: 1
+    finite: true
+  }];
   map<string, string> tags = 3;
 }
 
