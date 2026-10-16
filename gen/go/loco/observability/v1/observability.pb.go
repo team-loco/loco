@@ -76,6 +76,55 @@ func (LogOrder) EnumDescriptor() ([]byte, []int) {
 	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{0}
 }
 
+type WorkloadEventSeverity int32
+
+const (
+	WorkloadEventSeverity_WORKLOAD_EVENT_SEVERITY_UNSPECIFIED WorkloadEventSeverity = 0
+	WorkloadEventSeverity_WORKLOAD_EVENT_SEVERITY_INFO        WorkloadEventSeverity = 1
+	WorkloadEventSeverity_WORKLOAD_EVENT_SEVERITY_WARNING     WorkloadEventSeverity = 2
+)
+
+// Enum value maps for WorkloadEventSeverity.
+var (
+	WorkloadEventSeverity_name = map[int32]string{
+		0: "WORKLOAD_EVENT_SEVERITY_UNSPECIFIED",
+		1: "WORKLOAD_EVENT_SEVERITY_INFO",
+		2: "WORKLOAD_EVENT_SEVERITY_WARNING",
+	}
+	WorkloadEventSeverity_value = map[string]int32{
+		"WORKLOAD_EVENT_SEVERITY_UNSPECIFIED": 0,
+		"WORKLOAD_EVENT_SEVERITY_INFO":        1,
+		"WORKLOAD_EVENT_SEVERITY_WARNING":     2,
+	}
+)
+
+func (x WorkloadEventSeverity) Enum() *WorkloadEventSeverity {
+	p := new(WorkloadEventSeverity)
+	*p = x
+	return p
+}
+
+func (x WorkloadEventSeverity) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (WorkloadEventSeverity) Descriptor() protoreflect.EnumDescriptor {
+	return file_loco_observability_v1_observability_proto_enumTypes[1].Descriptor()
+}
+
+func (WorkloadEventSeverity) Type() protoreflect.EnumType {
+	return &file_loco_observability_v1_observability_proto_enumTypes[1]
+}
+
+func (x WorkloadEventSeverity) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use WorkloadEventSeverity.Descriptor instead.
+func (WorkloadEventSeverity) EnumDescriptor() ([]byte, []int) {
+	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{1}
+}
+
 // QueryLogsRequest specifies filters and pagination for querying historical logs.
 type QueryLogsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1257,6 +1306,298 @@ func (x *TraceSpan) GetScopeVersion() string {
 	return ""
 }
 
+type QueryEventsRequest struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	WorkspaceId   string                  `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	ResourceIds   []string                `protobuf:"bytes,2,rep,name=resource_ids,json=resourceIds,proto3" json:"resource_ids,omitempty"`
+	EnvironmentId string                  `protobuf:"bytes,3,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	StartTime     *timestamppb.Timestamp  `protobuf:"bytes,4,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	EndTime       *timestamppb.Timestamp  `protobuf:"bytes,5,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
+	Region        string                  `protobuf:"bytes,6,opt,name=region,proto3" json:"region,omitempty"`
+	Severities    []WorkloadEventSeverity `protobuf:"varint,7,rep,packed,name=severities,proto3,enum=loco.observability.v1.WorkloadEventSeverity" json:"severities,omitempty"`
+	Search        string                  `protobuf:"bytes,8,opt,name=search,proto3" json:"search,omitempty"`
+	Limit         int32                   `protobuf:"varint,9,opt,name=limit,proto3" json:"limit,omitempty"`
+	Cursor        string                  `protobuf:"bytes,10,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QueryEventsRequest) Reset() {
+	*x = QueryEventsRequest{}
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueryEventsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryEventsRequest) ProtoMessage() {}
+
+func (x *QueryEventsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryEventsRequest.ProtoReflect.Descriptor instead.
+func (*QueryEventsRequest) Descriptor() ([]byte, []int) {
+	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *QueryEventsRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *QueryEventsRequest) GetResourceIds() []string {
+	if x != nil {
+		return x.ResourceIds
+	}
+	return nil
+}
+
+func (x *QueryEventsRequest) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+func (x *QueryEventsRequest) GetStartTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartTime
+	}
+	return nil
+}
+
+func (x *QueryEventsRequest) GetEndTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndTime
+	}
+	return nil
+}
+
+func (x *QueryEventsRequest) GetRegion() string {
+	if x != nil {
+		return x.Region
+	}
+	return ""
+}
+
+func (x *QueryEventsRequest) GetSeverities() []WorkloadEventSeverity {
+	if x != nil {
+		return x.Severities
+	}
+	return nil
+}
+
+func (x *QueryEventsRequest) GetSearch() string {
+	if x != nil {
+		return x.Search
+	}
+	return ""
+}
+
+func (x *QueryEventsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *QueryEventsRequest) GetCursor() string {
+	if x != nil {
+		return x.Cursor
+	}
+	return ""
+}
+
+type QueryEventsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Events        []*WorkloadEvent       `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
+	NextCursor    string                 `protobuf:"bytes,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QueryEventsResponse) Reset() {
+	*x = QueryEventsResponse{}
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueryEventsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryEventsResponse) ProtoMessage() {}
+
+func (x *QueryEventsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryEventsResponse.ProtoReflect.Descriptor instead.
+func (*QueryEventsResponse) Descriptor() ([]byte, []int) {
+	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *QueryEventsResponse) GetEvents() []*WorkloadEvent {
+	if x != nil {
+		return x.Events
+	}
+	return nil
+}
+
+func (x *QueryEventsResponse) GetNextCursor() string {
+	if x != nil {
+		return x.NextCursor
+	}
+	return ""
+}
+
+type WorkloadEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ResourceId    string                 `protobuf:"bytes,2,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	ResourceName  string                 `protobuf:"bytes,3,opt,name=resource_name,json=resourceName,proto3" json:"resource_name,omitempty"`
+	EnvironmentId string                 `protobuf:"bytes,4,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	Region        string                 `protobuf:"bytes,5,opt,name=region,proto3" json:"region,omitempty"`
+	Severity      WorkloadEventSeverity  `protobuf:"varint,6,opt,name=severity,proto3,enum=loco.observability.v1.WorkloadEventSeverity" json:"severity,omitempty"`
+	Code          string                 `protobuf:"bytes,7,opt,name=code,proto3" json:"code,omitempty"`
+	Summary       string                 `protobuf:"bytes,8,opt,name=summary,proto3" json:"summary,omitempty"`
+	Occurrences   uint64                 `protobuf:"varint,9,opt,name=occurrences,proto3" json:"occurrences,omitempty"`
+	FirstSeen     *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=first_seen,json=firstSeen,proto3" json:"first_seen,omitempty"`
+	LastSeen      *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=last_seen,json=lastSeen,proto3" json:"last_seen,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkloadEvent) Reset() {
+	*x = WorkloadEvent{}
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkloadEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkloadEvent) ProtoMessage() {}
+
+func (x *WorkloadEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_observability_v1_observability_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkloadEvent.ProtoReflect.Descriptor instead.
+func (*WorkloadEvent) Descriptor() ([]byte, []int) {
+	return file_loco_observability_v1_observability_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *WorkloadEvent) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *WorkloadEvent) GetResourceId() string {
+	if x != nil {
+		return x.ResourceId
+	}
+	return ""
+}
+
+func (x *WorkloadEvent) GetResourceName() string {
+	if x != nil {
+		return x.ResourceName
+	}
+	return ""
+}
+
+func (x *WorkloadEvent) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+func (x *WorkloadEvent) GetRegion() string {
+	if x != nil {
+		return x.Region
+	}
+	return ""
+}
+
+func (x *WorkloadEvent) GetSeverity() WorkloadEventSeverity {
+	if x != nil {
+		return x.Severity
+	}
+	return WorkloadEventSeverity_WORKLOAD_EVENT_SEVERITY_UNSPECIFIED
+}
+
+func (x *WorkloadEvent) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *WorkloadEvent) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *WorkloadEvent) GetOccurrences() uint64 {
+	if x != nil {
+		return x.Occurrences
+	}
+	return 0
+}
+
+func (x *WorkloadEvent) GetFirstSeen() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FirstSeen
+	}
+	return nil
+}
+
+func (x *WorkloadEvent) GetLastSeen() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastSeen
+	}
+	return nil
+}
+
 var File_loco_observability_v1_observability_proto protoreflect.FileDescriptor
 
 const file_loco_observability_v1_observability_proto_rawDesc = "" +
@@ -1395,16 +1736,57 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aA\n" +
 	"\x13SpanAttributesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01*]\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x96\x04\n" +
+	"\x12QueryEventsRequest\x12+\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x122\n" +
+	"\fresource_ids\x18\x02 \x03(\tB\x0f\xbaH\f\x92\x01\t\x10d\"\x05r\x03\xb0\x01\x01R\vresourceIds\x122\n" +
+	"\x0eenvironment_id\x18\x03 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\x12A\n" +
+	"\n" +
+	"start_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\tstartTime\x12=\n" +
+	"\bend_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\aendTime\x12\"\n" +
+	"\x06region\x18\x06 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\x06region\x12_\n" +
+	"\n" +
+	"severities\x18\a \x03(\x0e2,.loco.observability.v1.WorkloadEventSeverityB\x11\xbaH\x0e\x92\x01\v\x10\x02\"\a\x82\x01\x04\x10\x01 \x00R\n" +
+	"severities\x12 \n" +
+	"\x06search\x18\b \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\x06search\x12 \n" +
+	"\x05limit\x18\t \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\x90N(\x00R\x05limit\x12 \n" +
+	"\x06cursor\x18\n" +
+	" \x01(\tB\b\xbaH\x05r\x03\x18\x80 R\x06cursor\"t\n" +
+	"\x13QueryEventsResponse\x12<\n" +
+	"\x06events\x18\x01 \x03(\v2$.loco.observability.v1.WorkloadEventR\x06events\x12\x1f\n" +
+	"\vnext_cursor\x18\x02 \x01(\tR\n" +
+	"nextCursor\"\xb2\x03\n" +
+	"\rWorkloadEvent\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
+	"\vresource_id\x18\x02 \x01(\tR\n" +
+	"resourceId\x12#\n" +
+	"\rresource_name\x18\x03 \x01(\tR\fresourceName\x12%\n" +
+	"\x0eenvironment_id\x18\x04 \x01(\tR\renvironmentId\x12\x16\n" +
+	"\x06region\x18\x05 \x01(\tR\x06region\x12H\n" +
+	"\bseverity\x18\x06 \x01(\x0e2,.loco.observability.v1.WorkloadEventSeverityR\bseverity\x12\x12\n" +
+	"\x04code\x18\a \x01(\tR\x04code\x12\x18\n" +
+	"\asummary\x18\b \x01(\tR\asummary\x12 \n" +
+	"\voccurrences\x18\t \x01(\x04R\voccurrences\x129\n" +
+	"\n" +
+	"first_seen\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tfirstSeen\x127\n" +
+	"\tlast_seen\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\blastSeen*]\n" +
 	"\bLogOrder\x12\x19\n" +
 	"\x15LOG_ORDER_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16LOG_ORDER_NEWEST_FIRST\x10\x01\x12\x1a\n" +
-	"\x16LOG_ORDER_OLDEST_FIRST\x10\x022\xa9\x03\n" +
+	"\x16LOG_ORDER_OLDEST_FIRST\x10\x02*\x87\x01\n" +
+	"\x15WorkloadEventSeverity\x12'\n" +
+	"#WORKLOAD_EVENT_SEVERITY_UNSPECIFIED\x10\x00\x12 \n" +
+	"\x1cWORKLOAD_EVENT_SEVERITY_INFO\x10\x01\x12#\n" +
+	"\x1fWORKLOAD_EVENT_SEVERITY_WARNING\x10\x022\x8f\x04\n" +
 	"\x19ObservabilityProxyService\x12^\n" +
 	"\tQueryLogs\x12'.loco.observability.v1.QueryLogsRequest\x1a(.loco.observability.v1.QueryLogsResponse\x12]\n" +
 	"\bTailLogs\x12&.loco.observability.v1.TailLogsRequest\x1a'.loco.observability.v1.TailLogsResponse0\x01\x12g\n" +
 	"\fQueryMetrics\x12*.loco.observability.v1.QueryMetricsRequest\x1a+.loco.observability.v1.QueryMetricsResponse\x12d\n" +
-	"\vQueryTraces\x12).loco.observability.v1.QueryTracesRequest\x1a*.loco.observability.v1.QueryTracesResponseBHZFgithub.com/team-loco/loco/gen/go/loco/observability/v1;observabilityv1b\x06proto3"
+	"\vQueryTraces\x12).loco.observability.v1.QueryTracesRequest\x1a*.loco.observability.v1.QueryTracesResponse\x12d\n" +
+	"\vQueryEvents\x12).loco.observability.v1.QueryEventsRequest\x1a*.loco.observability.v1.QueryEventsResponseBHZFgithub.com/team-loco/loco/gen/go/loco/observability/v1;observabilityv1b\x06proto3"
 
 var (
 	file_loco_observability_v1_observability_proto_rawDescOnce sync.Once
@@ -1418,71 +1800,84 @@ func file_loco_observability_v1_observability_proto_rawDescGZIP() []byte {
 	return file_loco_observability_v1_observability_proto_rawDescData
 }
 
-var file_loco_observability_v1_observability_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_loco_observability_v1_observability_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_loco_observability_v1_observability_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_loco_observability_v1_observability_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
 var file_loco_observability_v1_observability_proto_goTypes = []any{
 	(LogOrder)(0),                 // 0: loco.observability.v1.LogOrder
-	(*QueryLogsRequest)(nil),      // 1: loco.observability.v1.QueryLogsRequest
-	(*QueryLogsResponse)(nil),     // 2: loco.observability.v1.QueryLogsResponse
-	(*LogEntry)(nil),              // 3: loco.observability.v1.LogEntry
-	(*TailLogsRequest)(nil),       // 4: loco.observability.v1.TailLogsRequest
-	(*TailLogsResponse)(nil),      // 5: loco.observability.v1.TailLogsResponse
-	(*Heartbeat)(nil),             // 6: loco.observability.v1.Heartbeat
-	(*QueryMetricsRequest)(nil),   // 7: loco.observability.v1.QueryMetricsRequest
-	(*QueryMetricsResponse)(nil),  // 8: loco.observability.v1.QueryMetricsResponse
-	(*MetricSeries)(nil),          // 9: loco.observability.v1.MetricSeries
-	(*MetricPoint)(nil),           // 10: loco.observability.v1.MetricPoint
-	(*QueryTracesRequest)(nil),    // 11: loco.observability.v1.QueryTracesRequest
-	(*QueryTracesResponse)(nil),   // 12: loco.observability.v1.QueryTracesResponse
-	(*TraceSpan)(nil),             // 13: loco.observability.v1.TraceSpan
-	nil,                           // 14: loco.observability.v1.QueryLogsRequest.LabelsEntry
-	nil,                           // 15: loco.observability.v1.LogEntry.ResourceAttributesEntry
-	nil,                           // 16: loco.observability.v1.LogEntry.LogAttributesEntry
-	nil,                           // 17: loco.observability.v1.TailLogsRequest.LabelsEntry
-	nil,                           // 18: loco.observability.v1.MetricSeries.LabelsEntry
-	nil,                           // 19: loco.observability.v1.TraceSpan.ResourceAttributesEntry
-	nil,                           // 20: loco.observability.v1.TraceSpan.SpanAttributesEntry
-	(*timestamppb.Timestamp)(nil), // 21: google.protobuf.Timestamp
+	(WorkloadEventSeverity)(0),    // 1: loco.observability.v1.WorkloadEventSeverity
+	(*QueryLogsRequest)(nil),      // 2: loco.observability.v1.QueryLogsRequest
+	(*QueryLogsResponse)(nil),     // 3: loco.observability.v1.QueryLogsResponse
+	(*LogEntry)(nil),              // 4: loco.observability.v1.LogEntry
+	(*TailLogsRequest)(nil),       // 5: loco.observability.v1.TailLogsRequest
+	(*TailLogsResponse)(nil),      // 6: loco.observability.v1.TailLogsResponse
+	(*Heartbeat)(nil),             // 7: loco.observability.v1.Heartbeat
+	(*QueryMetricsRequest)(nil),   // 8: loco.observability.v1.QueryMetricsRequest
+	(*QueryMetricsResponse)(nil),  // 9: loco.observability.v1.QueryMetricsResponse
+	(*MetricSeries)(nil),          // 10: loco.observability.v1.MetricSeries
+	(*MetricPoint)(nil),           // 11: loco.observability.v1.MetricPoint
+	(*QueryTracesRequest)(nil),    // 12: loco.observability.v1.QueryTracesRequest
+	(*QueryTracesResponse)(nil),   // 13: loco.observability.v1.QueryTracesResponse
+	(*TraceSpan)(nil),             // 14: loco.observability.v1.TraceSpan
+	(*QueryEventsRequest)(nil),    // 15: loco.observability.v1.QueryEventsRequest
+	(*QueryEventsResponse)(nil),   // 16: loco.observability.v1.QueryEventsResponse
+	(*WorkloadEvent)(nil),         // 17: loco.observability.v1.WorkloadEvent
+	nil,                           // 18: loco.observability.v1.QueryLogsRequest.LabelsEntry
+	nil,                           // 19: loco.observability.v1.LogEntry.ResourceAttributesEntry
+	nil,                           // 20: loco.observability.v1.LogEntry.LogAttributesEntry
+	nil,                           // 21: loco.observability.v1.TailLogsRequest.LabelsEntry
+	nil,                           // 22: loco.observability.v1.MetricSeries.LabelsEntry
+	nil,                           // 23: loco.observability.v1.TraceSpan.ResourceAttributesEntry
+	nil,                           // 24: loco.observability.v1.TraceSpan.SpanAttributesEntry
+	(*timestamppb.Timestamp)(nil), // 25: google.protobuf.Timestamp
 }
 var file_loco_observability_v1_observability_proto_depIdxs = []int32{
-	21, // 0: loco.observability.v1.QueryLogsRequest.start_time:type_name -> google.protobuf.Timestamp
-	21, // 1: loco.observability.v1.QueryLogsRequest.end_time:type_name -> google.protobuf.Timestamp
-	14, // 2: loco.observability.v1.QueryLogsRequest.labels:type_name -> loco.observability.v1.QueryLogsRequest.LabelsEntry
+	25, // 0: loco.observability.v1.QueryLogsRequest.start_time:type_name -> google.protobuf.Timestamp
+	25, // 1: loco.observability.v1.QueryLogsRequest.end_time:type_name -> google.protobuf.Timestamp
+	18, // 2: loco.observability.v1.QueryLogsRequest.labels:type_name -> loco.observability.v1.QueryLogsRequest.LabelsEntry
 	0,  // 3: loco.observability.v1.QueryLogsRequest.order:type_name -> loco.observability.v1.LogOrder
-	3,  // 4: loco.observability.v1.QueryLogsResponse.entries:type_name -> loco.observability.v1.LogEntry
-	21, // 5: loco.observability.v1.LogEntry.timestamp:type_name -> google.protobuf.Timestamp
-	15, // 6: loco.observability.v1.LogEntry.resource_attributes:type_name -> loco.observability.v1.LogEntry.ResourceAttributesEntry
-	16, // 7: loco.observability.v1.LogEntry.log_attributes:type_name -> loco.observability.v1.LogEntry.LogAttributesEntry
-	17, // 8: loco.observability.v1.TailLogsRequest.labels:type_name -> loco.observability.v1.TailLogsRequest.LabelsEntry
-	21, // 9: loco.observability.v1.TailLogsRequest.since:type_name -> google.protobuf.Timestamp
-	3,  // 10: loco.observability.v1.TailLogsResponse.entry:type_name -> loco.observability.v1.LogEntry
-	6,  // 11: loco.observability.v1.TailLogsResponse.heartbeat:type_name -> loco.observability.v1.Heartbeat
-	21, // 12: loco.observability.v1.Heartbeat.timestamp:type_name -> google.protobuf.Timestamp
-	21, // 13: loco.observability.v1.QueryMetricsRequest.start_time:type_name -> google.protobuf.Timestamp
-	21, // 14: loco.observability.v1.QueryMetricsRequest.end_time:type_name -> google.protobuf.Timestamp
-	9,  // 15: loco.observability.v1.QueryMetricsResponse.series:type_name -> loco.observability.v1.MetricSeries
-	18, // 16: loco.observability.v1.MetricSeries.labels:type_name -> loco.observability.v1.MetricSeries.LabelsEntry
-	10, // 17: loco.observability.v1.MetricSeries.points:type_name -> loco.observability.v1.MetricPoint
-	21, // 18: loco.observability.v1.MetricPoint.timestamp:type_name -> google.protobuf.Timestamp
-	21, // 19: loco.observability.v1.QueryTracesRequest.start_time:type_name -> google.protobuf.Timestamp
-	21, // 20: loco.observability.v1.QueryTracesRequest.end_time:type_name -> google.protobuf.Timestamp
-	13, // 21: loco.observability.v1.QueryTracesResponse.spans:type_name -> loco.observability.v1.TraceSpan
-	21, // 22: loco.observability.v1.TraceSpan.start_time:type_name -> google.protobuf.Timestamp
-	19, // 23: loco.observability.v1.TraceSpan.resource_attributes:type_name -> loco.observability.v1.TraceSpan.ResourceAttributesEntry
-	20, // 24: loco.observability.v1.TraceSpan.span_attributes:type_name -> loco.observability.v1.TraceSpan.SpanAttributesEntry
-	1,  // 25: loco.observability.v1.ObservabilityProxyService.QueryLogs:input_type -> loco.observability.v1.QueryLogsRequest
-	4,  // 26: loco.observability.v1.ObservabilityProxyService.TailLogs:input_type -> loco.observability.v1.TailLogsRequest
-	7,  // 27: loco.observability.v1.ObservabilityProxyService.QueryMetrics:input_type -> loco.observability.v1.QueryMetricsRequest
-	11, // 28: loco.observability.v1.ObservabilityProxyService.QueryTraces:input_type -> loco.observability.v1.QueryTracesRequest
-	2,  // 29: loco.observability.v1.ObservabilityProxyService.QueryLogs:output_type -> loco.observability.v1.QueryLogsResponse
-	5,  // 30: loco.observability.v1.ObservabilityProxyService.TailLogs:output_type -> loco.observability.v1.TailLogsResponse
-	8,  // 31: loco.observability.v1.ObservabilityProxyService.QueryMetrics:output_type -> loco.observability.v1.QueryMetricsResponse
-	12, // 32: loco.observability.v1.ObservabilityProxyService.QueryTraces:output_type -> loco.observability.v1.QueryTracesResponse
-	29, // [29:33] is the sub-list for method output_type
-	25, // [25:29] is the sub-list for method input_type
-	25, // [25:25] is the sub-list for extension type_name
-	25, // [25:25] is the sub-list for extension extendee
-	0,  // [0:25] is the sub-list for field type_name
+	4,  // 4: loco.observability.v1.QueryLogsResponse.entries:type_name -> loco.observability.v1.LogEntry
+	25, // 5: loco.observability.v1.LogEntry.timestamp:type_name -> google.protobuf.Timestamp
+	19, // 6: loco.observability.v1.LogEntry.resource_attributes:type_name -> loco.observability.v1.LogEntry.ResourceAttributesEntry
+	20, // 7: loco.observability.v1.LogEntry.log_attributes:type_name -> loco.observability.v1.LogEntry.LogAttributesEntry
+	21, // 8: loco.observability.v1.TailLogsRequest.labels:type_name -> loco.observability.v1.TailLogsRequest.LabelsEntry
+	25, // 9: loco.observability.v1.TailLogsRequest.since:type_name -> google.protobuf.Timestamp
+	4,  // 10: loco.observability.v1.TailLogsResponse.entry:type_name -> loco.observability.v1.LogEntry
+	7,  // 11: loco.observability.v1.TailLogsResponse.heartbeat:type_name -> loco.observability.v1.Heartbeat
+	25, // 12: loco.observability.v1.Heartbeat.timestamp:type_name -> google.protobuf.Timestamp
+	25, // 13: loco.observability.v1.QueryMetricsRequest.start_time:type_name -> google.protobuf.Timestamp
+	25, // 14: loco.observability.v1.QueryMetricsRequest.end_time:type_name -> google.protobuf.Timestamp
+	10, // 15: loco.observability.v1.QueryMetricsResponse.series:type_name -> loco.observability.v1.MetricSeries
+	22, // 16: loco.observability.v1.MetricSeries.labels:type_name -> loco.observability.v1.MetricSeries.LabelsEntry
+	11, // 17: loco.observability.v1.MetricSeries.points:type_name -> loco.observability.v1.MetricPoint
+	25, // 18: loco.observability.v1.MetricPoint.timestamp:type_name -> google.protobuf.Timestamp
+	25, // 19: loco.observability.v1.QueryTracesRequest.start_time:type_name -> google.protobuf.Timestamp
+	25, // 20: loco.observability.v1.QueryTracesRequest.end_time:type_name -> google.protobuf.Timestamp
+	14, // 21: loco.observability.v1.QueryTracesResponse.spans:type_name -> loco.observability.v1.TraceSpan
+	25, // 22: loco.observability.v1.TraceSpan.start_time:type_name -> google.protobuf.Timestamp
+	23, // 23: loco.observability.v1.TraceSpan.resource_attributes:type_name -> loco.observability.v1.TraceSpan.ResourceAttributesEntry
+	24, // 24: loco.observability.v1.TraceSpan.span_attributes:type_name -> loco.observability.v1.TraceSpan.SpanAttributesEntry
+	25, // 25: loco.observability.v1.QueryEventsRequest.start_time:type_name -> google.protobuf.Timestamp
+	25, // 26: loco.observability.v1.QueryEventsRequest.end_time:type_name -> google.protobuf.Timestamp
+	1,  // 27: loco.observability.v1.QueryEventsRequest.severities:type_name -> loco.observability.v1.WorkloadEventSeverity
+	17, // 28: loco.observability.v1.QueryEventsResponse.events:type_name -> loco.observability.v1.WorkloadEvent
+	1,  // 29: loco.observability.v1.WorkloadEvent.severity:type_name -> loco.observability.v1.WorkloadEventSeverity
+	25, // 30: loco.observability.v1.WorkloadEvent.first_seen:type_name -> google.protobuf.Timestamp
+	25, // 31: loco.observability.v1.WorkloadEvent.last_seen:type_name -> google.protobuf.Timestamp
+	2,  // 32: loco.observability.v1.ObservabilityProxyService.QueryLogs:input_type -> loco.observability.v1.QueryLogsRequest
+	5,  // 33: loco.observability.v1.ObservabilityProxyService.TailLogs:input_type -> loco.observability.v1.TailLogsRequest
+	8,  // 34: loco.observability.v1.ObservabilityProxyService.QueryMetrics:input_type -> loco.observability.v1.QueryMetricsRequest
+	12, // 35: loco.observability.v1.ObservabilityProxyService.QueryTraces:input_type -> loco.observability.v1.QueryTracesRequest
+	15, // 36: loco.observability.v1.ObservabilityProxyService.QueryEvents:input_type -> loco.observability.v1.QueryEventsRequest
+	3,  // 37: loco.observability.v1.ObservabilityProxyService.QueryLogs:output_type -> loco.observability.v1.QueryLogsResponse
+	6,  // 38: loco.observability.v1.ObservabilityProxyService.TailLogs:output_type -> loco.observability.v1.TailLogsResponse
+	9,  // 39: loco.observability.v1.ObservabilityProxyService.QueryMetrics:output_type -> loco.observability.v1.QueryMetricsResponse
+	13, // 40: loco.observability.v1.ObservabilityProxyService.QueryTraces:output_type -> loco.observability.v1.QueryTracesResponse
+	16, // 41: loco.observability.v1.ObservabilityProxyService.QueryEvents:output_type -> loco.observability.v1.QueryEventsResponse
+	37, // [37:42] is the sub-list for method output_type
+	32, // [32:37] is the sub-list for method input_type
+	32, // [32:32] is the sub-list for extension type_name
+	32, // [32:32] is the sub-list for extension extendee
+	0,  // [0:32] is the sub-list for field type_name
 }
 
 func init() { file_loco_observability_v1_observability_proto_init() }
@@ -1499,8 +1894,8 @@ func file_loco_observability_v1_observability_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_observability_v1_observability_proto_rawDesc), len(file_loco_observability_v1_observability_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   20,
+			NumEnums:      2,
+			NumMessages:   23,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

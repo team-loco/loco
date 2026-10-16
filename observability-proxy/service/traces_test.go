@@ -86,7 +86,13 @@ func traceTestClient(
 	if len(queryTimeout) > 0 {
 		timeout = queryTimeout[0]
 	}
-	cfg := &config.Config{DefaultLimit: 1, MaxLimit: 2, MaxTimeRange: time.Hour, QueryTimeout: timeout}
+	cfg := &config.Config{
+		DefaultLimit: 1,
+		MaxLimit:     2,
+		MaxTimeRange: time.Hour,
+		EventsTTL:    time.Hour,
+		QueryTimeout: timeout,
+	}
 	service := NewObservabilityService(ch, cfg, validator)
 	server := connect.NewServer(auth.NewAuthInterceptor().Interceptor())
 	observabilityv1connect.RegisterObservabilityProxyServiceHandler(server, service)

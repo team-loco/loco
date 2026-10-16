@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { QueryLogsRequest, QueryLogsResponse, QueryMetricsRequest, QueryMetricsResponse, QueryTracesRequest, QueryTracesResponse, TailLogsRequest, TailLogsResponse } from "./observability_pb";
+import { QueryEventsRequest, QueryEventsResponse, QueryLogsRequest, QueryLogsResponse, QueryMetricsRequest, QueryMetricsResponse, QueryTracesRequest, QueryTracesResponse, TailLogsRequest, TailLogsResponse } from "./observability_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -54,6 +54,15 @@ export const ObservabilityProxyService = {
       name: "QueryTraces",
       I: QueryTracesRequest,
       O: QueryTracesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc loco.observability.v1.ObservabilityProxyService.QueryEvents
+     */
+    queryEvents: {
+      name: "QueryEvents",
+      I: QueryEventsRequest,
+      O: QueryEventsResponse,
       kind: MethodKind.Unary,
     },
   }
