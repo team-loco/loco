@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 
 	"github.com/team-loco/loco/internal/rpc"
 
@@ -40,21 +39,17 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 		Long:  "Delete a workspace by ID. This action cannot be undone.",
 		Args:  cobra.ExactArgs(1),
 		Example: `  # Delete a workspace (with confirmation prompt)
-  loco workspace delete 456
+  loco workspace delete <workspace-id>
 
   # Delete a workspace without confirmation
-  loco workspace delete 456 --yes
+  loco workspace delete <workspace-id> --yes
 
   # Delete a workspace and all its apps
-  loco workspace delete 456 --yes --confirm-delete-apps`,
+  loco workspace delete <workspace-id> --yes --confirm-delete-apps`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			idInt, err := strconv.ParseInt(args[0], 10, 64)
-			if err != nil {
-				return fmt.Errorf("invalid workspace ID: %w", err)
-			}
-			id := strconv.FormatInt(idInt, 10)
+			id := args[0]
 
 			host, err := cmdutil.GetHost(cmd)
 			if err != nil {

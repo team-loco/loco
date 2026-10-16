@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 
 	"github.com/team-loco/loco/internal/rpc"
 
@@ -33,21 +32,17 @@ func buildUpdateCmd() *cobra.Command {
 		Long:  "Update a workspace's properties.",
 		Args:  cobra.ExactArgs(1),
 		Example: `  # Rename a workspace
-  loco workspace update 456 --name new-name
+  loco workspace update <workspace-id> --name new-name
 
   # Update workspace description
-  loco workspace update 456 --description "Updated description"
+  loco workspace update <workspace-id> --description "Updated description"
 
   # Update both name and description
-  loco workspace update 456 --name new-name --description "New description"`,
+  loco workspace update <workspace-id> --name new-name --description "New description"`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			idInt, err := strconv.ParseInt(args[0], 10, 64)
-			if err != nil {
-				return fmt.Errorf("invalid workspace ID: %w", err)
-			}
-			id := strconv.FormatInt(idInt, 10)
+			id := args[0]
 
 			name, err := cmd.Flags().GetString("name")
 			if err != nil {
@@ -95,9 +90,7 @@ func buildUpdateCmd() *cobra.Command {
 
 			updateReq.UpdateMask = &fieldmaskpb.FieldMask{Paths: paths}
 
-			req := updateReq
-
-			_, err = deps.UpdateWorkspace(ctx, req)
+			_, err = deps.UpdateWorkspace(ctx, updateReq)
 			if err != nil {
 				return fmt.Errorf("failed to update workspace: %w", err)
 			}

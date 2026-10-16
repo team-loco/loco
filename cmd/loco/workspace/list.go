@@ -2,10 +2,10 @@ package workspace
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 
 	"github.com/team-loco/loco/internal/rpc"
 
@@ -14,6 +14,8 @@ import (
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 )
+
+var errRepeatedWorkspacePage = errors.New("workspace listing returned a repeated page")
 
 type listDeps struct {
 	WhoAmI func(
@@ -41,7 +43,7 @@ func buildListCmd() *cobra.Command {
   loco workspace list
 
   # List workspaces in a specific organization
-  loco workspace list --org-id 123`,
+  loco workspace list --org-id <organization-id>`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
@@ -65,67 +67,34 @@ func buildListCmd() *cobra.Command {
 				Output:             os.Stdout,
 			}
 
-			orgIDInt, err := cmd.Flags().GetInt64("org-id")
+			orgID, err := cmd.Flags().GetString("org-id")
 			if err != nil {
 				return fmt.Errorf("failed to get org-id flag: %w", err)
 			}
 
-			if orgIDInt != 0 {
-				req := &workspacev1.ListOrgWorkspacesRequest{
-					OrgId: strconv.FormatInt(orgIDInt, 10),
+			workspaces, err := listWorkspaces(ctx, deps, orgID)
+			if err != nil {
+				return err
+			}
+			if len(workspaces) == 0 {
+				message := "No workspaces found."
+				if orgID != "" {
+					message = "No workspaces found in this organization."
 				}
-
-				resp, err := deps.ListOrgWorkspaces(ctx, req)
-				if err != nil {
-					return fmt.Errorf("failed to list workspaces: %w", err)
-				}
-
-				if len(resp.GetWorkspaces()) == 0 {
-					_, err = fmt.Fprintln(deps.Output, "No workspaces found in this organization.")
+				_, err = fmt.Fprintln(deps.Output, message)
+				return err
+			}
+			if _, err = fmt.Fprintln(deps.Output, "Workspaces:"); err != nil {
+				return err
+			}
+			for _, workspace := range workspaces {
+				if _, err = fmt.Fprintf(
+					deps.Output,
+					"  - %s (ID: %s)\n",
+					workspace.GetName(),
+					workspace.GetId(),
+				); err != nil {
 					return err
-				}
-
-				_, err = fmt.Fprintln(deps.Output, "Workspaces:")
-				if err != nil {
-					return err
-				}
-				for _, ws := range resp.GetWorkspaces() {
-					_, err = fmt.Fprintf(deps.Output, "  - %s (ID: %s)\n", ws.GetName(), ws.GetId())
-					if err != nil {
-						return err
-					}
-				}
-			} else {
-				whoAmIReq := &userv1.WhoAmIRequest{}
-
-				whoAmIResp, err := deps.WhoAmI(ctx, whoAmIReq)
-				if err != nil {
-					return fmt.Errorf("failed to get current user: %w", err)
-				}
-
-				req := &workspacev1.ListUserWorkspacesRequest{
-					UserId: whoAmIResp.GetUser().GetId(),
-				}
-
-				resp, err := deps.ListUserWorkspaces(ctx, req)
-				if err != nil {
-					return fmt.Errorf("failed to list workspaces: %w", err)
-				}
-
-				if len(resp.GetWorkspaces()) == 0 {
-					_, err = fmt.Fprintln(deps.Output, "No workspaces found.")
-					return err
-				}
-
-				_, err = fmt.Fprintln(deps.Output, "Workspaces:")
-				if err != nil {
-					return err
-				}
-				for _, ws := range resp.GetWorkspaces() {
-					_, err = fmt.Fprintf(deps.Output, "  - %s (ID: %s)\n", ws.GetName(), ws.GetId())
-					if err != nil {
-						return err
-					}
 				}
 			}
 
@@ -134,7 +103,49 @@ func buildListCmd() *cobra.Command {
 	}
 
 	cmd.Flags().String("host", "", "API host URL")
-	cmd.Flags().Int64("org-id", 0, "Filter by organization ID")
+	cmd.Flags().String("org-id", "", "Filter by organization ID")
 
 	return cmd
+}
+
+func listWorkspaces(ctx context.Context, deps listDeps, orgID string) ([]*workspacev1.Workspace, error) {
+	var userID string
+	if orgID == "" {
+		who, err := deps.WhoAmI(ctx, &userv1.WhoAmIRequest{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to get current user: %w", err)
+		}
+		userID = who.GetUser().GetId()
+	}
+	var workspaces []*workspacev1.Workspace
+	var pageToken string
+	seen := make(map[string]struct{})
+	for {
+		var next string
+		if orgID != "" {
+			request := &workspacev1.ListOrgWorkspacesRequest{OrgId: orgID, PageToken: pageToken}
+			response, err := deps.ListOrgWorkspaces(ctx, request)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list workspaces: %w", err)
+			}
+			workspaces = append(workspaces, response.GetWorkspaces()...)
+			next = response.GetNextPageToken()
+		} else {
+			request := &workspacev1.ListUserWorkspacesRequest{UserId: userID, PageToken: pageToken}
+			response, err := deps.ListUserWorkspaces(ctx, request)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list workspaces: %w", err)
+			}
+			workspaces = append(workspaces, response.GetWorkspaces()...)
+			next = response.GetNextPageToken()
+		}
+		if next == "" {
+			return workspaces, nil
+		}
+		if _, duplicate := seen[next]; duplicate {
+			return nil, errRepeatedWorkspacePage
+		}
+		seen[next] = struct{}{}
+		pageToken = next
+	}
 }
