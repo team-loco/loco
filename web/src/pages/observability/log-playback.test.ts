@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
 import { LogEntrySchema } from "@gen/loco/observability/v1/observability_pb";
 
-import { completeLogResume, logPlaybackForKey, type LogPlayback } from "./log-playback";
+import { cancelLogResume, completeLogResume, logPlaybackForKey, type LogPlayback } from "./log-playback";
 import { toRows } from "./rows";
 
 const paused = { rows: toRows([create(LogEntrySchema, { body: "received live row" })], new Map()),
@@ -53,4 +53,14 @@ test("cancels pending Live when Back restores the anchored URL", () => {
 	expect(restored.pending).toBeNull();
 	expect(restored.on).toBe(false);
 	expect(completeLogResume(restored, pending, true)).toBe(restored);
+});
+
+test("Back cancels a resume before the target URL renders", () => {
+	const pending = { from: "anchored", to: "latest" };
+	const initial: LogPlayback = { key: "anchored", on: false, pending, paused };
+	const canceled = cancelLogResume(initial);
+	expect(canceled.paused).toBe(paused);
+	expect(canceled.on).toBe(false);
+	expect(completeLogResume(canceled, pending, true)).toBe(canceled);
+	expect(cancelLogResume(canceled)).toBe(canceled);
 });

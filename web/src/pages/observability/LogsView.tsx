@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useSearchParams } from "react-router";
 import { LogOrder } from "@gen/loco/observability/v1/observability_pb";
 import { ArrowUpIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, ScrollTextIcon, SearchXIcon, XIcon } from "lucide-react";
@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { QUERY_MAX_RANGE, RANGES, useObs } from "./context";
 import { fmtTs } from "./format";
 import { LogDetail } from "./LogDetail";
-import { completeLogResume, logPlaybackForKey, type LogPlayback } from "./log-playback";
+import { cancelLogResume, completeLogResume, logPlaybackForKey, type LogPlayback } from "./log-playback";
 import { LogFacets } from "./LogFacets";
 import { LogTable } from "./LogTable";
 import { buildBackendQuery, LEVELS, queryStr, type FieldKey } from "./query";
@@ -76,9 +76,14 @@ export function LogsView() {
 	const cursor = history.current.cursor;
 	const playbackKey = JSON.stringify([queryKey, cursor, history.current.order]);
 	const [playback, setPlayback] = useState<LogPlayback>({ key: playbackKey, on: false, pending: null, paused: null });
+	useEffect(() => {
+		const cancel = () => { setPlayback(cancelLogResume); };
+		window.addEventListener("popstate", cancel);
+		return () => { window.removeEventListener("popstate", cancel); };
+	}, []);
 	const currentPlayback = logPlaybackForKey(playback, playbackKey);
 	if (currentPlayback !== playback) setPlayback(currentPlayback);
-	const tail = playback.on;
+	const tail = playback.on && anchor === null;
 	const now = useNow(tail ? 1000 : 15_000);
 	const nowMs = now.getTime();
 	if (prevKey !== queryKey) {
@@ -88,6 +93,7 @@ export function LogsView() {
 		setFocusActive(anchor !== null);
 		setPage(0);
 		setSelectedKey(null);
+		if (anchor !== null) setPlayback({ ...currentPlayback, on: false, pending: null, paused: null });
 	}
 	const historyFrom = anchor === null ? windowEnd - timeRangeMs(range) : anchor - timeRangeMs(range) / 2;
 	const historyTo = anchor === null ? windowEnd : Math.min(windowEnd, anchor + timeRangeMs(range) / 2);

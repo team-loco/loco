@@ -23,3 +23,7 @@ export function completeLogResume(playback: LogPlayback, pending: LogResume, suc
 	if (playback.pending !== pending) return playback;
 	return { ...playback, pending: null, on: success, paused: success ? null : playback.paused };
 }
+
+export function cancelLogResume(playback: LogPlayback): LogPlayback {
+	return playback.pending === null ? playback : { ...playback, pending: null };
+}
