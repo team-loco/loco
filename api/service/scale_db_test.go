@@ -39,6 +39,7 @@ func TestScaleResourceRejectsReplicasTheControllerRejects(t *testing.T) {
 		t.Fatalf("create deployment: %v", err)
 	}
 
+	f.finishRollouts(t)
 	err := scaleResource(t, f, 15)
 	wantCode(t, err, connect.CodeInvalidArgument)
 	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != 1 {
@@ -57,6 +58,7 @@ func TestScaleResourceWritesTheReplicasIntoTheDesiredSpec(t *testing.T) {
 	}
 
 	const scaled = 4
+	f.finishRollouts(t)
 	if err := scaleResource(t, f, scaled); err != nil {
 		t.Fatalf("scale: %v", err)
 	}
@@ -83,6 +85,7 @@ func TestScaleResourceKeepsTheRouteOfTheDeployment(t *testing.T) {
 			if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 				t.Fatalf("create deployment: %v", err)
 			}
+			f.finishRollouts(t)
 			if err := scaleResource(t, f, 2); err != nil {
 				t.Fatalf("scale: %v", err)
 			}
@@ -106,6 +109,7 @@ func TestScaleResourceKeepsTheWorkspaceOrganization(t *testing.T) {
 	}
 
 	const scaled = 2
+	f.finishRollouts(t)
 	if err := scaleResource(t, f, scaled); err != nil {
 		t.Fatalf("scale: %v", err)
 	}
@@ -149,6 +153,7 @@ func TestScaleResourceScalesOnlyTheRequestedEnvironment(t *testing.T) {
 			untouched := f.activeDeployment(t, otherID)
 
 			const scaled = 3
+			f.finishRollouts(t)
 			if err := scaleResourceIn(t, f, scaledID, scaled); err != nil {
 				t.Fatalf("scale: %v", err)
 			}

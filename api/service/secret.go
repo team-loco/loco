@@ -252,6 +252,9 @@ func (s *SecretServer) setSecretsOnce(
 			response.Revision = revision
 			return nil
 		}
+		if rolloutErr := ensureNoRollout(ctx, qtx, target.resourceID, target.env.ID, ""); rolloutErr != nil {
+			return rolloutErr
+		}
 		return s.writeSecrets(ctx, qtx, target, revision, params, added, response)
 	})
 	if err != nil {
@@ -411,6 +414,9 @@ func (s *SecretServer) DeleteSecrets(
 				return connect.NewError(connect.CodeNotFound, fmt.Errorf("%w: %s", ErrSecretNotFound, names[0]).Error())
 			}
 			return lockErr
+		}
+		if rolloutErr := ensureNoRollout(ctx, qtx, target.resourceID, target.env.ID, ""); rolloutErr != nil {
+			return rolloutErr
 		}
 		declared, declaredErr := qtx.ListDeclaredSecretNames(ctx, genDb.ListDeclaredSecretNamesParams{
 			ResourceID: target.resourceID, EnvironmentID: target.env.ID, Names: names,

@@ -302,6 +302,9 @@ func (s *DeploymentServer) CreateDeployment(
 		if lockErr := lockResource(ctx, qtx, resourceID); lockErr != nil {
 			return lockErr
 		}
+		if rolloutErr := ensureNoRollout(ctx, qtx, resourceID, environmentID, region); rolloutErr != nil {
+			return rolloutErr
+		}
 		if lockErr := lockPinnedBuildImage(ctx, qtx, pinnedBuild); lockErr != nil {
 			return lockErr
 		}

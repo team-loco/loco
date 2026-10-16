@@ -269,6 +269,9 @@ func (a *applier) deploy(
 		return err
 	}
 	for _, region := range regions {
+		if rolloutErr := ensureNoRollout(ctx, qtx, res.ID, a.env.ID, region); rolloutErr != nil {
+			return rolloutErr
+		}
 		cluster, found := clusterForRegion(clusters, region)
 		if !found {
 			return fmt.Errorf("%w: %s (%s)", errNoActiveCluster, region, a.env.EnvironmentType)

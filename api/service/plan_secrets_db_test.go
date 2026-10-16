@@ -204,6 +204,7 @@ func TestApplyWritesDeclaredSecretsAndDeleteSecretsKeepsThem(t *testing.T) {
 		t.Fatalf("placement secret names = %v, want %v", placement.SecretNames, want)
 	}
 
+	f.finishRollouts(t)
 	_, err = f.secretServer(provider).
 		DeleteSecrets(f.secretWriterContext(t), &secretv1.DeleteSecretsRequest{
 			ResourceId:    worker.String(),
@@ -261,9 +262,7 @@ func racingSecretWrites() []racingSecretWrite {
 			},
 			afterApply: func(t *testing.T, err error) {
 				t.Helper()
-				if err != nil {
-					t.Fatalf("SetSecrets after the apply: %v", err)
-				}
+				wantCode(t, err, connect.CodeFailedPrecondition)
 			},
 		},
 		{

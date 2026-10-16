@@ -21,6 +21,7 @@ func TestApplyMetricsPersistsChangesAndClears(t *testing.T) {
 		if endpoint != "" {
 			file = strings.Replace(base, "    port: 8080", "    port: 8080\n    metrics: "+endpoint, 1)
 		}
+		f.finishRollouts(t)
 		applyOK(t, f, file, applyOptions{})
 		wantCleanPlan(t, f, file)
 		obs := f.workerPayload(t, f.clusterID).AppSpec.ServiceSpec.Obs

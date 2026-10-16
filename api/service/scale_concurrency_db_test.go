@@ -5,18 +5,21 @@ import (
 	"sync"
 	"testing"
 
+	"connectrpc.com/connect/v2"
+
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 )
 
-func TestScaleUsesTheReplacementThatCommitsWhileItWaits(t *testing.T) {
+func TestScaleRejectsTheReplacementThatCommitsWhileItWaits(t *testing.T) {
 	f := newDeployFixture(t)
 	initial := imageService()
 	initial.Env = map[string]string{"KEY": "old"}
 	if _, err := createDeploymentWith(t, f, sameRegionSpec, initial); err != nil {
 		t.Fatal(err)
 	}
+	f.reportRollout(t, testPhaseReady, true)
 	server := NewDeploymentServer(
 		f.pool,
 		f.queries,
@@ -63,9 +66,7 @@ func TestScaleUsesTheReplacementThatCommitsWhileItWaits(t *testing.T) {
 	if replacement.err != nil {
 		t.Fatal(replacement.err)
 	}
-	if err := <-scaled; err != nil {
-		t.Fatal(err)
-	}
+	wantCode(t, <-scaled, connect.CodeFailedPrecondition)
 	desired := desiredPayload(t, f).AppSpec.ServiceSpec
 	if desired.Deployment.Image != replacement.response.GetBuild().GetImage() || desired.Resources.CPU != biggerCPU ||
 		desired.Resources.Memory != "128Mi" {
@@ -79,7 +80,7 @@ func TestScaleUsesTheReplacementThatCommitsWhileItWaits(t *testing.T) {
 	if desired.Deployment.Env["KEY"] != "new" {
 		t.Fatalf("scaled env KEY = %q, want latest new value", desired.Deployment.Env["KEY"])
 	}
-	if desired.Resources.Replicas.Min != 2 || desired.Resources.Replicas.Max != 2 {
-		t.Fatalf("scaled replicas = %+v, want 2-2", desired.Resources.Replicas)
+	if desired.Resources.Replicas.Min != 1 || desired.Resources.Replicas.Max != 1 {
+		t.Fatalf("scaled replicas = %+v, want the replacement 1-1", desired.Resources.Replicas)
 	}
 }

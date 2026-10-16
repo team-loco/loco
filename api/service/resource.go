@@ -693,6 +693,9 @@ func (s *ResourceServer) ScaleResource(
 		if getErr != nil {
 			return fmt.Errorf("read resource before scaling: %w", getErr)
 		}
+		if rolloutErr := ensureNoRollout(ctx, qtx, resourceID, env.ID, req.GetRegion()); rolloutErr != nil {
+			return rolloutErr
+		}
 		return s.scaleCurrentDeployments(ctx, qtx, currentResource, env.ID, req)
 	})
 	if err != nil {
