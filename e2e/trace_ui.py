@@ -9,6 +9,7 @@ import json
 import time
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from trace_resize_ui import check_list_resize, check_waterfall_resize
 sys.dont_write_bytecode = True
 repo = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description='Exercise the production trace viewer with fixture trace responses')
@@ -78,6 +79,7 @@ with sync_playwright() as p:
             evidence.settle(page)
             page.get_by_role('button', name='Open trace ' + trace, exact=True).first.wait_for()
             suffix = f"{theme}{('-narrow' if narrow else '')}"
+            check_list_resize(page, narrow)
             page.screenshot(path=out / f'trace-list-after-{suffix}.png', full_page=True, animations='disabled')
             page.get_by_role('button', name='Open trace ' + trace, exact=True).first.click()
             evidence.settle(page)
@@ -88,6 +90,7 @@ with sync_playwright() as p:
                 page.screenshot(path=out / f'trace-partial-after-{suffix}.png', full_page=True, animations='disabled')
             page.get_by_role('button', name='Load more spans').click()
             evidence.settle(page)
+            check_waterfall_resize(page, narrow)
             page.get_by_role('button',name='payment POST /payments/authorize',exact=True).click()
             evidence.settle(page)
             page.get_by_role('complementary', name='Span details').wait_for()
