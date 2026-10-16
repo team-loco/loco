@@ -10,7 +10,6 @@ import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -484,7 +483,6 @@ func (x *ListEnvironmentsResponse) GetEnvironments() []*Environment {
 type UpdateEnvironmentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EnvironmentId string                 `protobuf:"bytes,1,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
-	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
 	Name          *string                `protobuf:"bytes,3,opt,name=name,proto3,oneof" json:"name,omitempty"`
 	Description   *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	Type          *EnvironmentType       `protobuf:"varint,5,opt,name=type,proto3,enum=loco.environment.v1.EnvironmentType,oneof" json:"type,omitempty"`
@@ -527,13 +525,6 @@ func (x *UpdateEnvironmentRequest) GetEnvironmentId() string {
 		return x.EnvironmentId
 	}
 	return ""
-}
-
-func (x *UpdateEnvironmentRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
-	if x != nil {
-		return x.UpdateMask
-	}
-	return nil
 }
 
 func (x *UpdateEnvironmentRequest) GetName() string {
@@ -688,7 +679,7 @@ var File_loco_environment_v1_environment_proto protoreflect.FileDescriptor
 
 const file_loco_environment_v1_environment_proto_rawDesc = "" +
 	"\n" +
-	"%loco/environment/v1/environment.proto\x12\x13loco.environment.v1\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf6\x02\n" +
+	"%loco/environment/v1/environment.proto\x12\x13loco.environment.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf6\x02\n" +
 	"\vEnvironment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fworkspace_id\x18\x02 \x01(\tR\vworkspaceId\x12\x12\n" +
@@ -719,18 +710,16 @@ const file_loco_environment_v1_environment_proto_rawDesc = "" +
 	"\x17ListEnvironmentsRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\"`\n" +
 	"\x18ListEnvironmentsResponse\x12D\n" +
-	"\fenvironments\x18\x01 \x03(\v2 .loco.environment.v1.EnvironmentR\fenvironments\"\xc8\x02\n" +
+	"\fenvironments\x18\x01 \x03(\v2 .loco.environment.v1.EnvironmentR\fenvironments\"\xa0\x02\n" +
 	"\x18UpdateEnvironmentRequest\x12/\n" +
-	"\x0eenvironment_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\x12;\n" +
-	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
-	"updateMask\x12 \n" +
-	"\x04name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18?H\x00R\x04name\x88\x01\x01\x12/\n" +
+	"\x0eenvironment_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\x12\"\n" +
+	"\x04name\x18\x03 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18?H\x00R\x04name\x88\x01\x01\x12/\n" +
 	"\vdescription\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x01R\vdescription\x88\x01\x01\x12I\n" +
 	"\x04type\x18\x05 \x01(\x0e2$.loco.environment.v1.EnvironmentTypeB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00H\x02R\x04type\x88\x01\x01B\a\n" +
 	"\x05_nameB\x0e\n" +
 	"\f_descriptionB\a\n" +
-	"\x05_type\"B\n" +
+	"\x05_typeJ\x04\b\x02\x10\x03R\vupdate_mask\"B\n" +
 	"\x19UpdateEnvironmentResponse\x12%\n" +
 	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\"K\n" +
 	"\x18DeleteEnvironmentRequest\x12/\n" +
@@ -776,7 +765,6 @@ var file_loco_environment_v1_environment_proto_goTypes = []any{
 	(*DeleteEnvironmentRequest)(nil),  // 10: loco.environment.v1.DeleteEnvironmentRequest
 	(*DeleteEnvironmentResponse)(nil), // 11: loco.environment.v1.DeleteEnvironmentResponse
 	(*timestamppb.Timestamp)(nil),     // 12: google.protobuf.Timestamp
-	(*fieldmaskpb.FieldMask)(nil),     // 13: google.protobuf.FieldMask
 }
 var file_loco_environment_v1_environment_proto_depIdxs = []int32{
 	0,  // 0: loco.environment.v1.Environment.type:type_name -> loco.environment.v1.EnvironmentType
@@ -785,23 +773,22 @@ var file_loco_environment_v1_environment_proto_depIdxs = []int32{
 	0,  // 3: loco.environment.v1.CreateEnvironmentRequest.type:type_name -> loco.environment.v1.EnvironmentType
 	1,  // 4: loco.environment.v1.GetEnvironmentResponse.environment:type_name -> loco.environment.v1.Environment
 	1,  // 5: loco.environment.v1.ListEnvironmentsResponse.environments:type_name -> loco.environment.v1.Environment
-	13, // 6: loco.environment.v1.UpdateEnvironmentRequest.update_mask:type_name -> google.protobuf.FieldMask
-	0,  // 7: loco.environment.v1.UpdateEnvironmentRequest.type:type_name -> loco.environment.v1.EnvironmentType
-	2,  // 8: loco.environment.v1.EnvironmentService.CreateEnvironment:input_type -> loco.environment.v1.CreateEnvironmentRequest
-	4,  // 9: loco.environment.v1.EnvironmentService.GetEnvironment:input_type -> loco.environment.v1.GetEnvironmentRequest
-	6,  // 10: loco.environment.v1.EnvironmentService.ListEnvironments:input_type -> loco.environment.v1.ListEnvironmentsRequest
-	8,  // 11: loco.environment.v1.EnvironmentService.UpdateEnvironment:input_type -> loco.environment.v1.UpdateEnvironmentRequest
-	10, // 12: loco.environment.v1.EnvironmentService.DeleteEnvironment:input_type -> loco.environment.v1.DeleteEnvironmentRequest
-	3,  // 13: loco.environment.v1.EnvironmentService.CreateEnvironment:output_type -> loco.environment.v1.CreateEnvironmentResponse
-	5,  // 14: loco.environment.v1.EnvironmentService.GetEnvironment:output_type -> loco.environment.v1.GetEnvironmentResponse
-	7,  // 15: loco.environment.v1.EnvironmentService.ListEnvironments:output_type -> loco.environment.v1.ListEnvironmentsResponse
-	9,  // 16: loco.environment.v1.EnvironmentService.UpdateEnvironment:output_type -> loco.environment.v1.UpdateEnvironmentResponse
-	11, // 17: loco.environment.v1.EnvironmentService.DeleteEnvironment:output_type -> loco.environment.v1.DeleteEnvironmentResponse
-	13, // [13:18] is the sub-list for method output_type
-	8,  // [8:13] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	0,  // 6: loco.environment.v1.UpdateEnvironmentRequest.type:type_name -> loco.environment.v1.EnvironmentType
+	2,  // 7: loco.environment.v1.EnvironmentService.CreateEnvironment:input_type -> loco.environment.v1.CreateEnvironmentRequest
+	4,  // 8: loco.environment.v1.EnvironmentService.GetEnvironment:input_type -> loco.environment.v1.GetEnvironmentRequest
+	6,  // 9: loco.environment.v1.EnvironmentService.ListEnvironments:input_type -> loco.environment.v1.ListEnvironmentsRequest
+	8,  // 10: loco.environment.v1.EnvironmentService.UpdateEnvironment:input_type -> loco.environment.v1.UpdateEnvironmentRequest
+	10, // 11: loco.environment.v1.EnvironmentService.DeleteEnvironment:input_type -> loco.environment.v1.DeleteEnvironmentRequest
+	3,  // 12: loco.environment.v1.EnvironmentService.CreateEnvironment:output_type -> loco.environment.v1.CreateEnvironmentResponse
+	5,  // 13: loco.environment.v1.EnvironmentService.GetEnvironment:output_type -> loco.environment.v1.GetEnvironmentResponse
+	7,  // 14: loco.environment.v1.EnvironmentService.ListEnvironments:output_type -> loco.environment.v1.ListEnvironmentsResponse
+	9,  // 15: loco.environment.v1.EnvironmentService.UpdateEnvironment:output_type -> loco.environment.v1.UpdateEnvironmentResponse
+	11, // 16: loco.environment.v1.EnvironmentService.DeleteEnvironment:output_type -> loco.environment.v1.DeleteEnvironmentResponse
+	12, // [12:17] is the sub-list for method output_type
+	7,  // [7:12] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_loco_environment_v1_environment_proto_init() }

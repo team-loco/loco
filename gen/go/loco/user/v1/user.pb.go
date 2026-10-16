@@ -10,7 +10,6 @@ import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -241,7 +240,6 @@ func (x *GetUserResponse) GetUser() *User {
 type UpdateUserRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
 	AvatarUrl     *string                `protobuf:"bytes,3,opt,name=avatar_url,json=avatarUrl,proto3,oneof" json:"avatar_url,omitempty"`
 	Name          *string                `protobuf:"bytes,4,opt,name=name,proto3,oneof" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -283,13 +281,6 @@ func (x *UpdateUserRequest) GetUserId() string {
 		return x.UserId
 	}
 	return ""
-}
-
-func (x *UpdateUserRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
-	if x != nil {
-		return x.UpdateMask
-	}
-	return nil
 }
 
 func (x *UpdateUserRequest) GetAvatarUrl() string {
@@ -699,7 +690,7 @@ var File_loco_user_v1_user_proto protoreflect.FileDescriptor
 
 const file_loco_user_v1_user_proto_rawDesc = "" +
 	"\n" +
-	"\x17loco/user/v1/user.proto\x12\floco.user.v1\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe8\x01\n" +
+	"\x17loco/user/v1/user.proto\x12\floco.user.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe8\x01\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05email\x18\x03 \x01(\tR\x05email\x12\x1d\n" +
@@ -715,16 +706,15 @@ const file_loco_user_v1_user_proto_rawDesc = "" +
 	"\x05email\x18\x02 \x01(\tB\a\xbaH\x04r\x02`\x01H\x00R\x05emailB\x05\n" +
 	"\x03key\"9\n" +
 	"\x0fGetUserResponse\x12&\n" +
-	"\x04user\x18\x01 \x01(\v2\x12.loco.user.v1.UserR\x04user\"\xdc\x01\n" +
+	"\x04user\x18\x01 \x01(\v2\x12.loco.user.v1.UserR\x04user\"\xfb\x01\n" +
 	"\x11UpdateUserRequest\x12!\n" +
-	"\auser_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06userId\x12;\n" +
-	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
-	"updateMask\x12,\n" +
+	"\auser_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06userId\x12u\n" +
 	"\n" +
-	"avatar_url\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x88\x01\x01H\x00R\tavatarUrl\x88\x01\x01\x12!\n" +
+	"avatar_url\x18\x03 \x01(\tBQ\xbaHN\xba\x01K\n" +
+	"\x0fuser.avatar_url\x12\x1cmust be empty or a valid URI\x1a\x1athis == '' || this.isUri()H\x00R\tavatarUrl\x88\x01\x01\x12!\n" +
 	"\x04name\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\xc8\x01H\x01R\x04name\x88\x01\x01B\r\n" +
 	"\v_avatar_urlB\a\n" +
-	"\x05_name\"-\n" +
+	"\x05_nameJ\x04\b\x02\x10\x03R\vupdate_mask\"-\n" +
 	"\x12UpdateUserResponse\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"Z\n" +
 	"\x10ListUsersRequest\x12'\n" +
@@ -781,32 +771,30 @@ var file_loco_user_v1_user_proto_goTypes = []any{
 	(*LogoutRequest)(nil),         // 11: loco.user.v1.LogoutRequest
 	(*LogoutResponse)(nil),        // 12: loco.user.v1.LogoutResponse
 	(*timestamppb.Timestamp)(nil), // 13: google.protobuf.Timestamp
-	(*fieldmaskpb.FieldMask)(nil), // 14: google.protobuf.FieldMask
 }
 var file_loco_user_v1_user_proto_depIdxs = []int32{
 	13, // 0: loco.user.v1.User.created_at:type_name -> google.protobuf.Timestamp
 	13, // 1: loco.user.v1.User.updated_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: loco.user.v1.GetUserResponse.user:type_name -> loco.user.v1.User
-	14, // 3: loco.user.v1.UpdateUserRequest.update_mask:type_name -> google.protobuf.FieldMask
-	0,  // 4: loco.user.v1.ListUsersResponse.users:type_name -> loco.user.v1.User
-	0,  // 5: loco.user.v1.WhoAmIResponse.user:type_name -> loco.user.v1.User
-	1,  // 6: loco.user.v1.UserService.GetUser:input_type -> loco.user.v1.GetUserRequest
-	7,  // 7: loco.user.v1.UserService.WhoAmI:input_type -> loco.user.v1.WhoAmIRequest
-	3,  // 8: loco.user.v1.UserService.UpdateUser:input_type -> loco.user.v1.UpdateUserRequest
-	5,  // 9: loco.user.v1.UserService.ListUsers:input_type -> loco.user.v1.ListUsersRequest
-	9,  // 10: loco.user.v1.UserService.DeleteUser:input_type -> loco.user.v1.DeleteUserRequest
-	11, // 11: loco.user.v1.UserService.Logout:input_type -> loco.user.v1.LogoutRequest
-	2,  // 12: loco.user.v1.UserService.GetUser:output_type -> loco.user.v1.GetUserResponse
-	8,  // 13: loco.user.v1.UserService.WhoAmI:output_type -> loco.user.v1.WhoAmIResponse
-	4,  // 14: loco.user.v1.UserService.UpdateUser:output_type -> loco.user.v1.UpdateUserResponse
-	6,  // 15: loco.user.v1.UserService.ListUsers:output_type -> loco.user.v1.ListUsersResponse
-	10, // 16: loco.user.v1.UserService.DeleteUser:output_type -> loco.user.v1.DeleteUserResponse
-	12, // 17: loco.user.v1.UserService.Logout:output_type -> loco.user.v1.LogoutResponse
-	12, // [12:18] is the sub-list for method output_type
-	6,  // [6:12] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	0,  // 3: loco.user.v1.ListUsersResponse.users:type_name -> loco.user.v1.User
+	0,  // 4: loco.user.v1.WhoAmIResponse.user:type_name -> loco.user.v1.User
+	1,  // 5: loco.user.v1.UserService.GetUser:input_type -> loco.user.v1.GetUserRequest
+	7,  // 6: loco.user.v1.UserService.WhoAmI:input_type -> loco.user.v1.WhoAmIRequest
+	3,  // 7: loco.user.v1.UserService.UpdateUser:input_type -> loco.user.v1.UpdateUserRequest
+	5,  // 8: loco.user.v1.UserService.ListUsers:input_type -> loco.user.v1.ListUsersRequest
+	9,  // 9: loco.user.v1.UserService.DeleteUser:input_type -> loco.user.v1.DeleteUserRequest
+	11, // 10: loco.user.v1.UserService.Logout:input_type -> loco.user.v1.LogoutRequest
+	2,  // 11: loco.user.v1.UserService.GetUser:output_type -> loco.user.v1.GetUserResponse
+	8,  // 12: loco.user.v1.UserService.WhoAmI:output_type -> loco.user.v1.WhoAmIResponse
+	4,  // 13: loco.user.v1.UserService.UpdateUser:output_type -> loco.user.v1.UpdateUserResponse
+	6,  // 14: loco.user.v1.UserService.ListUsers:output_type -> loco.user.v1.ListUsersResponse
+	10, // 15: loco.user.v1.UserService.DeleteUser:output_type -> loco.user.v1.DeleteUserResponse
+	12, // 16: loco.user.v1.UserService.Logout:output_type -> loco.user.v1.LogoutResponse
+	11, // [11:17] is the sub-list for method output_type
+	5,  // [5:11] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_loco_user_v1_user_proto_init() }
