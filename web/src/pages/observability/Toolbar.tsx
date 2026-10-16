@@ -102,16 +102,19 @@ export function LiveTailButton({
 	rate,
 	onToggle,
 	disabled,
+	pending = false,
 }: {
 	on: boolean;
 	rate: number;
 	onToggle: () => void;
 	disabled: boolean;
+	pending?: boolean;
 }) {
 	return (
 		<Button
 			variant="outline"
-			disabled={disabled}
+			disabled={disabled || pending}
+			aria-busy={pending}
 			title={on ? "Pause live tail" : "Stream new logs as they arrive"}
 			onClick={onToggle}
 			className={cn(
@@ -130,7 +133,7 @@ export function LiveTailButton({
 					<PlayIcon className="size-[13px] fill-current text-fg2" />
 				)}
 			</span>
-			<span className="flex-1 text-left whitespace-nowrap">{on ? "Live" : "Live tail"}</span>
+			<span className="flex-1 text-left whitespace-nowrap">{pending ? "Starting…" : on ? "Live" : "Live tail"}</span>
 			{on && (
 				<>
 					<span className="text-[11.5px] font-medium tabular-nums opacity-85">{rate.toFixed(1)}/s</span>

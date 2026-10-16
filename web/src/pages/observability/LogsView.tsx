@@ -20,7 +20,7 @@ import { LogFacets } from "./LogFacets";
 import { LogTable } from "./LogTable";
 import { buildBackendQuery, LEVELS, queryStr, type FieldKey } from "./query";
 import { QueryBar } from "./QueryBar";
-import { toRows, type LogRow } from "./rows";
+import { toRows, visibleLogRows, type LogRow } from "./rows";
 import { Histogram, PAGE_SIZES, type HistoBucket } from "./shared";
 import { WidenRangeButton } from "./ObsEmpty";
 import { LiveTailButton, TimeRangeMenu } from "./Toolbar";
@@ -28,6 +28,13 @@ import { LiveTailButton, TimeRangeMenu } from "./Toolbar";
 const BATCH = 1000;
 const WHITESPACE = /\s+/;
 const BUCKETS = 48;
+
+interface LogPlayback {
+	key: string;
+	on: boolean;
+	refreshing: boolean;
+	paused: { rows: LogRow[]; nextCursor: string } | null;
+}
 
 function nearest(rows: LogRow[], ts: number): LogRow | undefined {
 	let best: LogRow | undefined;
@@ -51,18 +58,14 @@ export function LogsView() {
 		logFocusTs,
 		setLogFocusTs,
 	} = useObs();
-	const [tail, setTail] = useState(false);
 	const [facetsOpen, setFacetsOpen] = useState(true);
 	const [size, setSize] = useState(50);
 	const [page, setPage] = useState(0);
 	const [cursors, setCursors] = useState<string[]>([]);
 	const [selectedKey, setSelectedKey] = useState<string | null>(null);
 	const [freezeTs, setFreezeTs] = useState<number | null>(null);
-	const now = useNow(tail ? 1000 : 15_000);
-	const nowMs = now.getTime();
-
 	const backend = buildBackendQuery(tokens, appliedText, resources);
-	const queryKey = JSON.stringify([backend.parsed, backend.resourceIds, range]);
+	const queryKey = JSON.stringify([workspaceId, backend.parsed, backend.resourceIds, backend.impossible, range]);
 	const [prevKey, setPrevKey] = useState(queryKey);
 	if (prevKey !== queryKey) {
 		setPrevKey(queryKey);
@@ -71,6 +74,14 @@ export function LogsView() {
 		setSelectedKey(null);
 	}
 	const cursor = cursors.at(-1) ?? "";
+	const playbackKey = JSON.stringify([queryKey, cursor]);
+	const [playback, setPlayback] = useState<LogPlayback>({ key: playbackKey, on: false, refreshing: false, paused: null });
+	if (playback.key !== playbackKey) {
+		setPlayback({ key: playbackKey, on: playback.on, refreshing: false, paused: null });
+	}
+	const tail = playback.on;
+	const now = useNow(tail ? 1000 : 15_000);
+	const nowMs = now.getTime();
 
 	const logs = useQueryLogs({
 		workspaceId,
@@ -85,19 +96,34 @@ export function LogsView() {
 		workspaceId,
 		resourceIds: backend.resourceIds,
 		parsedQuery: backend.parsed,
-		enabled: tail && !backend.impossible,
+		enabled: tail && cursor === "" && !backend.impossible,
 	});
 
-	const cutoffCursor = logs.nextCursor || null;
+	const cutoffCursor = (playback.paused?.nextCursor ?? logs.nextCursor) || null;
 	const batchRows = toRows(logs.entries, resourceById).toSorted((a, b) => b.ts - a.ts);
 	const allTail = tail && cursor === "" ? toRows(tailState.entries, resourceById) : [];
 
 	const frozen = selectedKey !== null && freezeTs !== null;
 	const tailRows = frozen ? allTail.filter((r) => r.ts <= freezeTs) : allTail;
 	const held = frozen ? allTail.length - tailRows.length : 0;
-	const batchKeys = new Set(batchRows.map((r) => r.key));
-	const rows = [...tailRows.filter((r) => !batchKeys.has(r.key)), ...batchRows].toSorted((a, b) => b.ts - a.ts);
+	const rows = visibleLogRows(batchRows, tailRows, playback.paused?.rows ?? null);
 	const rate = allTail.filter((r) => r.ts > nowMs - 10_000).length / 10;
+	const toggleTail = () => {
+		setPage(0);
+		setFreezeTs(null);
+		if (tail) {
+			setPlayback({ ...playback, on: false, paused: { rows: visibleLogRows(batchRows, allTail), nextCursor: logs.nextCursor } });
+			return;
+		}
+		const pending = { ...playback, refreshing: true };
+		setPlayback(pending);
+		void logs.refetch().then((result) => {
+			setPlayback((current) => current !== pending ? current : {
+				...current, refreshing: false, on: !result.isError,
+				paused: result.isError ? current.paused : null,
+			});
+		});
+	};
 
 	const isLoading = logs.isLoading && !backend.impossible;
 	const truncated = cutoffCursor !== null;
@@ -182,12 +208,9 @@ export function LogsView() {
 				<LiveTailButton
 					on={tail}
 					rate={rate}
+					pending={playback.refreshing}
 					disabled={cursor !== "" || backend.impossible}
-					onToggle={() => {
-						setTail(!tail);
-						setPage(0);
-						setFreezeTs(null);
-					}}
+					onToggle={toggleTail}
 				/>
 			</div>
 			<div
@@ -328,7 +351,7 @@ export function LogsView() {
 											setLogFocusTs(null);
 											if (curPage < pages - 1) setPage(curPage + 1);
 											else if (cutoffCursor !== null) {
-												setTail(false);
+												setPlayback({ ...playback, on: false, refreshing: false, paused: null });
 												setCursors([...cursors, cutoffCursor]);
 												setPage(0);
 											}

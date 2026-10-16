@@ -39,6 +39,9 @@ export function useTailLogs({ workspaceId, resourceIds, parsedQuery, enabled = t
 		request,
 	]);
 	const [tail, setTail] = useState<TailState>({ key: streamKey, ...NO_TAIL });
+	if (tail.key !== streamKey) {
+		setTail({ key: streamKey, ...NO_TAIL });
+	}
 	const openStream = useEffectEvent((signal: AbortSignal) => {
 		const consume = async () => {
 			if (!enabled || workspaceId === "") return;
