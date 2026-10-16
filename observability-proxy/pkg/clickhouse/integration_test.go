@@ -224,6 +224,7 @@ func (f *queryFixture) insertGauges(t *testing.T) {
 }
 
 type logQuery struct {
+	search      string
 	regions     LogRegions
 	workspaceID string
 	resourceIDs []string
@@ -241,7 +242,7 @@ func (f *queryFixture) page(t *testing.T, q logQuery, cursor string) ([]*observa
 		q.resourceIDs,
 		f.start,
 		f.end,
-		"",
+		q.search,
 		nil,
 		q.labels,
 		q.limit,
