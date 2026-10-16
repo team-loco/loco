@@ -3,6 +3,7 @@ package workspace
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -14,6 +15,7 @@ import (
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
 	"github.com/team-loco/loco/internal/keychain"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 const (
@@ -28,9 +30,10 @@ const (
 
 type workspaceIDsServer struct {
 	workspacev1connect.UnimplementedWorkspaceServiceHandler
-	t          *testing.T
-	calls      []string
-	credential string
+	t             *testing.T
+	calls         []string
+	credential    string
+	updateRequest func(*workspacev1.UpdateWorkspaceRequest)
 }
 
 func (s *workspaceIDsServer) record(ctx context.Context, method, got, want string) {
@@ -71,7 +74,9 @@ func (s *workspaceIDsServer) UpdateWorkspace(
 	req *workspacev1.UpdateWorkspaceRequest,
 ) (*workspacev1.UpdateWorkspaceResponse, error) {
 	s.record(ctx, testUpdateAction, req.GetWorkspaceId(), testWorkspaceID)
-	if req.GetName() != "renamed" {
+	if s.updateRequest != nil {
+		s.updateRequest(req)
+	} else if req.GetName() != "renamed" {
 		s.t.Errorf("update request = %v", req)
 	}
 	return &workspacev1.UpdateWorkspaceResponse{}, nil
@@ -162,5 +167,76 @@ func TestWorkspaceCommandsUseUUIDs(t *testing.T) {
 				t.Fatalf("RPC calls = %v, want %v", fake.calls, tc.calls)
 			}
 		})
+	}
+}
+
+func TestWorkspaceUpdatePreservesExplicitEmptyFlags(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		args  []string
+		field string
+	}{
+		{"clear description", []string{"--description", ""}, "description"},
+		{"explicit empty name", []string{"--name", ""}, "name"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("HOME", t.TempDir())
+			t.Setenv(keychain.StoreEnvVar, "file")
+			credential := rand.Text()
+			fake := &workspaceIDsServer{
+				t:          t,
+				credential: credential,
+				updateRequest: func(req *workspacev1.UpdateWorkspaceRequest) {
+					message := req.ProtoReflect()
+					fields := message.Descriptor().Fields()
+					for _, name := range []protoreflect.Name{"name", "description"} {
+						field := fields.ByName(name)
+						if got := message.Has(field); got != (string(name) == tc.field) {
+							t.Errorf("%s present=%v, want %v", name, got, string(name) == tc.field)
+						}
+						if message.Get(field).String() != "" {
+							t.Errorf("%s was not empty", name)
+						}
+					}
+				},
+			}
+			server := connect.NewServer()
+			workspacev1connect.RegisterWorkspaceServiceHandler(server, fake)
+			mux := http.NewServeMux()
+			connecthttp.Mount(mux, server)
+			endpoint := httptest.NewServer(mux)
+			t.Cleanup(endpoint.Close)
+			t.Setenv("LOCO_HOST", endpoint.URL)
+			store, err := keychain.ForCurrentUser()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := store.Set(
+				keychain.UserToken{Host: endpoint.URL, Token: credential, ExpiresAt: time.Now().Add(time.Hour)},
+			); err != nil {
+				t.Fatal(err)
+			}
+			cmd := BuildWorkspaceCmd()
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+			args := append([]string{testUpdateAction, testWorkspaceID}, tc.args...)
+			cmd.SetArgs(args)
+			if err := cmd.Execute(); err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Equal(fake.calls, []string{testUpdateAction}) {
+				t.Fatalf("RPC calls=%v", fake.calls)
+			}
+		})
+	}
+}
+
+func TestWorkspaceUpdateRequiresAnExplicitFlag(t *testing.T) {
+	cmd := BuildWorkspaceCmd()
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+	cmd.SetArgs([]string{testUpdateAction, testWorkspaceID})
+	if err := cmd.Execute(); !errors.Is(err, errNoUpdateFlags) {
+		t.Fatalf("update without flags error=%v", err)
 	}
 }
