@@ -7,6 +7,7 @@ import { Button } from "@/components/design/Button";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Pager } from "@/components/design/Pager";
 import { Skeleton } from "@/components/design/Skeleton";
+import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
 import { useQueryLogs } from "@/hooks/useQueryLogs";
 import { useTailLogs } from "@/hooks/useTailLogs";
@@ -54,6 +55,8 @@ export function LogsView() {
 		appliedText,
 		setAppliedText,
 	} = useObs();
+	const { active: environment, isLoading: environmentLoading } = useEnvironments();
+	const environmentId = environment?.id ?? "";
 	const [facetsOpen, setFacetsOpen] = useState(true);
 	const [size, setSize] = useState(50);
 	const [page, setPage] = useState<number | "last">(0);
@@ -71,7 +74,7 @@ export function LogsView() {
 	const [selectedKey, setSelectedKey] = useState<string | null>(null);
 	const [freezeTs, setFreezeTs] = useState<number | null>(null);
 	const backend = buildBackendQuery(tokens, appliedText, resources);
-	const queryKey = JSON.stringify([workspaceId, backend.parsed, backend.resourceIds, backend.impossible, range, anchor]);
+	const queryKey = JSON.stringify([workspaceId, environmentId, backend.parsed, backend.resourceIds, backend.impossible, range, anchor]);
 	const [prevKey, setPrevKey] = useState(queryKey);
 	const cursor = history.current.cursor;
 	const playbackKey = JSON.stringify([queryKey, cursor, history.current.order]);
@@ -100,6 +103,7 @@ export function LogsView() {
 
 	const logs = useQueryLogs({
 		workspaceId,
+		environmentId,
 		resourceIds: backend.resourceIds,
 		timeRange: range,
 		parsedQuery: backend.parsed,
@@ -113,6 +117,7 @@ export function LogsView() {
 	});
 	const tailState = useTailLogs({
 		workspaceId,
+		environmentId,
 		resourceIds: backend.resourceIds,
 		parsedQuery: backend.parsed,
 		enabled: tail && cursor === "" && !backend.impossible,
@@ -150,7 +155,7 @@ export function LogsView() {
 		});
 	};
 
-	const isLoading = logs.isLoading && !backend.impossible;
+	const isLoading = (logs.isLoading || environmentLoading) && !backend.impossible;
 	const truncated = cutoffCursor !== null || newerCursor !== null || history.older.length > 0 || history.newer.length > 0;
 	const from = tail ? nowMs - timeRangeMs(range) : historyFrom;
 

@@ -11,6 +11,7 @@ const NANOS_PER_SECOND = 1_000_000_000;
 
 interface UseQueryLogsOptions {
 	workspaceId: string;
+	environmentId: string;
 	resourceIds: string[];
 	timeRange: TimeRange;
 	parsedQuery: ParsedQuery;
@@ -24,11 +25,11 @@ interface UseQueryLogsOptions {
 }
 
 export function logsQueryOptions(transport: Transport, {
-	workspaceId, resourceIds, timeRange, parsedQuery, cursor = "", limit = 100,
+	workspaceId, environmentId, resourceIds, timeRange, parsedQuery, cursor = "", limit = 100,
 	order = LogOrder.NEWEST_FIRST, startTime, endTime, around, enabled = true,
 }: UseQueryLogsOptions) {
 	const input = {
-		workspaceId, resourceIds, search: parsedQuery.search, levels: parsedQuery.levels,
+		workspaceId, environmentId, resourceIds, search: parsedQuery.search, levels: parsedQuery.levels,
 		labels: parsedQuery.labels, regions: parsedQuery.regions ?? [],
 		excludedRegions: parsedQuery.excludedRegions ?? [], limit, cursor, order, startTime, endTime,
 	};
@@ -61,7 +62,7 @@ export function logsQueryOptions(transport: Transport, {
 			return { ...response, olderCursor: order === LogOrder.OLDEST_FIRST ? "" : response.nextCursor,
 				newerCursor: order === LogOrder.OLDEST_FIRST ? response.nextCursor : "" };
 		},
-		enabled: enabled && workspaceId !== "",
+		enabled: enabled && workspaceId !== "" && environmentId !== "",
 		staleTime: 30_000,
 	};
 }

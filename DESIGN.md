@@ -48,3 +48,5 @@ Metric charts keep timeline event lines free of overlapping text. Their event me
 Metric-to-log links include the selected timestamp (`at`), time range and resource selection in the URL. Focused log controls describe a time window around that timestamp; the range remains in the URL when it changes. Focused queries load records on both sides of that timestamp with disjoint bounds; Older and Newer retain those bounds while following directional cursors. Return to latest and Live leave the focused window.
 
 Application compute charts query the selected environment and wait for it to load. Build-job telemetry has no runtime environment and stays outside these charts. Changing the environment uses a separate metrics cache.
+
+Historical logs and live tail use the selected environment. Queries wait for that selection; changing it resets pagination and log selection, uses separate cached history, and closes the previous live stream. Build logs remain available through unfiltered API queries.

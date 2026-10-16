@@ -8,6 +8,7 @@ const MAX_TAIL_ENTRIES = 500;
 
 interface UseTailLogsOptions {
 	workspaceId: string;
+	environmentId: string;
 	resourceIds: string[];
 	parsedQuery: ParsedQuery;
 	enabled?: boolean;
@@ -22,10 +23,11 @@ interface TailState {
 
 const NO_TAIL: Omit<TailState, "key"> = { entries: [], isConnected: false, error: null };
 
-export function useTailLogs({ workspaceId, resourceIds, parsedQuery, enabled = true }: UseTailLogsOptions) {
+export function useTailLogs({ workspaceId, environmentId, resourceIds, parsedQuery, enabled = true }: UseTailLogsOptions) {
 	const transport = useTransport();
 	const request = {
 		workspaceId,
+		environmentId,
 		resourceIds,
 		search: parsedQuery.search,
 		levels: parsedQuery.levels,
@@ -44,7 +46,7 @@ export function useTailLogs({ workspaceId, resourceIds, parsedQuery, enabled = t
 	}
 	const openStream = useEffectEvent((signal: AbortSignal) => {
 		const consume = async () => {
-			if (!enabled || workspaceId === "") return;
+			if (!enabled || workspaceId === "" || environmentId === "") return;
 			try {
 				const client = createClient(ObservabilityProxyService, transport);
 				for await (const message of client.tailLogs(request, { signal })) {

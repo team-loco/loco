@@ -9,10 +9,26 @@ import { metricsQueryOptions } from "./useQueryMetrics";
 import { toRows, visibleLogRows } from "@/pages/observability/rows";
 
 const workspaceId = "11111111-2222-3333-4444-555555555555";
-const logOptions = { workspaceId, resourceIds: [], timeRange: "1h" as const,
+const logOptions = { workspaceId, environmentId: workspaceId, resourceIds: [], timeRange: "1h" as const,
 	parsedQuery: { search: "", levels: [], labels: {}, regions: ["us-*"], excludedRegions: ["us-west-*"] } };
 
 describe("regional control-plane queries", () => {
+	test("isolates historical logs by environment and waits for its selection", async () => {
+		const received: QueryLogsRequest[] = [];
+		const transport = createRouterTransport((router) => {
+			router.service(ObservabilityProxyService, { queryLogs(request) { received.push(request); return {}; } });
+		});
+		const client = new QueryClient();
+		try {
+			expect(logsQueryOptions(transport, { ...logOptions, environmentId: "" }).enabled).toBe(false);
+			await client.query(logsQueryOptions(transport, logOptions));
+			await client.query(logsQueryOptions(transport, { ...logOptions, environmentId: "22222222-3333-4444-5555-666666666666" }));
+			expect(received.map((request) => request.environmentId)).toEqual([workspaceId, "22222222-3333-4444-5555-666666666666"]);
+		} finally {
+			client.clear();
+		}
+	});
+
 	test("waits for an environment before enabling dashboard metrics", () => {
 		const transport = createRouterTransport(() => {});
 		const input = { workspaceId, resourceIds: [], metricName: "k8s.pod.cpu_limit_utilization", timeRange: "6h" as const };
