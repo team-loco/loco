@@ -108,6 +108,9 @@ type Event struct {
 }
 
 func Record(ctx context.Context, q genDb.Querier, ev Event) error {
+	if ev.ResourceID == nil && ev.SubjectType == SubjectResource {
+		ev.ResourceID = ev.SubjectID
+	}
 	if ev.WorkspaceID == nil && ev.ResourceID != nil {
 		res, err := q.GetResourceByID(ctx, *ev.ResourceID)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
@@ -139,6 +142,7 @@ func Record(ctx context.Context, q genDb.Querier, ev Event) error {
 		Type:        ev.Type,
 		OrgID:       ev.OrgID,
 		WorkspaceID: ev.WorkspaceID,
+		ResourceID:  ev.ResourceID,
 		ActorType:   actorType,
 		ActorID:     actorID,
 		SubjectID:   ev.SubjectID,

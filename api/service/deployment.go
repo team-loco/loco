@@ -415,6 +415,7 @@ func (s *DeploymentServer) CreateDeployment(
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.DeploymentCreated,
 			WorkspaceID: new(resource.WorkspaceID),
+			ResourceID:  new(resource.ID),
 			SubjectType: events.SubjectDeployment,
 			SubjectID:   new(deploymentID),
 			Data: map[string]any{
@@ -605,6 +606,7 @@ func (s *DeploymentServer) DeleteDeployment(
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.DeploymentDeleted,
 			WorkspaceID: new(resource.WorkspaceID),
+			ResourceID:  new(resource.ID),
 			SubjectType: events.SubjectDeployment,
 			SubjectID:   new(deploymentID),
 		})

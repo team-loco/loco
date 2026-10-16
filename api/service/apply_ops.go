@@ -172,6 +172,7 @@ func (a *applier) removeFromEnvironment(ctx context.Context, qtx *genDb.Queries,
 		if err := events.Record(ctx, qtx, events.Event{
 			Type:        events.DeploymentDeleted,
 			WorkspaceID: new(res.WorkspaceID),
+			ResourceID:  new(res.ID),
 			SubjectType: events.SubjectDeployment,
 			SubjectID:   new(deployment.ID),
 			Data:        map[string]any{events.FieldResourceID: res.ID.String()},
@@ -186,6 +187,7 @@ func (a *applier) removeFromEnvironment(ctx context.Context, qtx *genDb.Queries,
 		if err := events.Record(ctx, qtx, events.Event{
 			Type:        events.DomainDeleted,
 			WorkspaceID: new(res.WorkspaceID),
+			ResourceID:  new(res.ID),
 			SubjectType: events.SubjectDomain,
 			SubjectID:   new(domain.ID),
 			Data:        map[string]any{events.FieldDomain: domain.Domain},
@@ -221,6 +223,7 @@ func (a *applier) createDomain(
 	return domainID, events.Record(ctx, qtx, events.Event{
 		Type:        events.DomainCreated,
 		WorkspaceID: new(a.env.WorkspaceID),
+		ResourceID:  new(resourceID),
 		SubjectType: events.SubjectDomain,
 		SubjectID:   new(domainID),
 		Data:        map[string]any{events.FieldDomain: domain, events.FieldResourceID: resourceID.String()},
@@ -318,6 +321,7 @@ func (a *applier) deploy(
 		if eventErr := events.Record(ctx, qtx, events.Event{
 			Type:        events.DeploymentCreated,
 			WorkspaceID: new(res.WorkspaceID),
+			ResourceID:  new(res.ID),
 			SubjectType: events.SubjectDeployment,
 			SubjectID:   new(deploymentID),
 			Data: map[string]any{
