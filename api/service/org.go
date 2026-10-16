@@ -510,7 +510,10 @@ func (s *OrgServer) AddOrgMember(
 			SubjectID:   new(userID),
 		})
 	})
-	if isPgForeignKeyViolation(err) {
+	switch pgForeignKeyConstraint(err) {
+	case pgOrgScopeReference:
+		return nil, rpcerr.New(connect.CodeNotFound, ErrOrgNotFound)
+	case pgUserScopeOwnerReference:
 		return nil, rpcerr.New(connect.CodeNotFound, ErrUserNotFound)
 	}
 	if err != nil {

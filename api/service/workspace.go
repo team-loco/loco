@@ -590,6 +590,9 @@ func (s *WorkspaceServer) CreateMember(
 			Data:        map[string]any{"scopes": grantedScopes},
 		})
 	})
+	if errors.Is(err, pgx.ErrNoRows) || pgForeignKeyConstraint(err) == pgWorkspaceScopeReference {
+		return nil, rpcerr.New(connect.CodeNotFound, ErrWorkspaceNotFound)
+	}
 	if err != nil {
 		return nil, txError(ctx, "failed to add workspace member scopes", err)
 	}
