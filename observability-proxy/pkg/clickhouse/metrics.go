@@ -140,9 +140,12 @@ func buildMetricsQuery(
 		args = append(args, values...)
 	}
 
-	whereParts = append(whereParts, "MetricName = ?", "TimeUnix >= ?", "TimeUnix <= ?",
+	whereParts = append(whereParts,
+		"MetricName = ?",
+		"TimeUnix >= fromUnixTimestamp64Nano(?)",
+		"TimeUnix <= fromUnixTimestamp64Nano(?)",
 		fmt.Sprintf("bitAnd(Flags, %d) = 0", noRecordedValueFlag))
-	args = append(args, metricName, startTime, endTime)
+	args = append(args, metricName, startTime.UnixNano(), endTime.UnixNano())
 
 	where := strings.Join(whereParts, " AND ")
 	source := fmt.Sprintf(
