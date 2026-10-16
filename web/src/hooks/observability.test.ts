@@ -121,6 +121,7 @@ describe("regional control-plane queries", () => {
 			expect(request?.startTime).toEqual(msToTimestamp(resumed - 60 * 60_000));
 			expect(request?.endTime).toEqual(msToTimestamp(resumed));
 			expect(request?.workspaceId).toBe(workspaceId);
+			expect(request?.environmentId).toBe(logOptions.environmentId);
 			expect(request?.resourceIds).toEqual(["recommendation"]);
 			expect(request?.regions).toEqual(["us-*"]);
 			expect(request?.excludedRegions).toEqual(["us-west-*"]);

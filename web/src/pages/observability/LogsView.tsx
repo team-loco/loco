@@ -141,7 +141,7 @@ export function LogsView() {
 			return;
 		}
 		const latest = logs.refetchLatest();
-		const latestKey = JSON.stringify([workspaceId, backend.parsed, backend.resourceIds, backend.impossible, range, null]);
+		const latestKey = JSON.stringify([workspaceId, environmentId, backend.parsed, backend.resourceIds, backend.impossible, range, null]);
 		const pending = { from: playbackKey, to: JSON.stringify([latestKey, "", LogOrder.NEWEST_FIRST]) };
 		clearAnchor();
 		setHistory(createLogHistory());
