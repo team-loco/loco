@@ -1,6 +1,4 @@
 .trace-surface {
-	--trace-name-width: 42%;
-	--trace-duration-width: 70px;
 	min-width: 0;
 	overflow: hidden;
 	border: 1px solid var(--line);
@@ -28,11 +26,10 @@
 .trace-ruler,
 .trace-span-row {
 	display: grid;
-	grid-template-columns: var(--trace-name-width) minmax(0, 1fr) var(
-			--trace-duration-width
-		);
+	grid-template-columns: var(--column-0) var(--column-1) var(--column-2);
 }
 .trace-ruler {
+	min-width: var(--column-min-width);
 	position: sticky;
 	top: 0;
 	z-index: 2;
@@ -42,7 +39,15 @@
 	color: var(--fg3);
 	font-size: 10px;
 }
+.trace-ruler-time {
+	position: relative;
+	min-width: 0;
+}
+.trace-ruler-time .trace-axis {
+	height: 100%;
+}
 .trace-ruler-label {
+	position: relative;
 	display: flex;
 	align-items: center;
 	padding-left: 10px;
@@ -78,6 +83,7 @@
 	scrollbar-gutter: stable;
 }
 .trace-span-row {
+	min-width: var(--column-min-width);
 	position: relative;
 	height: 25px;
 }
@@ -112,7 +118,7 @@
 	outline-offset: -2px;
 }
 .trace-service-label {
-	max-width: 116px;
+	max-width: 40%;
 	flex: none;
 	overflow: hidden;
 	color: var(--fg2);
@@ -272,13 +278,19 @@
 	overflow-wrap: anywhere;
 	white-space: pre-wrap;
 }
+.trace-results-scroller {
+	min-width: 0;
+	overflow-x: auto;
+}
 .trace-results {
+	min-width: var(--column-min-width);
 	width: 100%;
 	table-layout: fixed;
 	text-align: left;
 	font-size: 11px;
 }
 .trace-results th {
+	position: relative;
 	height: 30px;
 	border-bottom: 1px solid var(--line);
 	background: var(--bg2);
@@ -298,6 +310,9 @@
 .trace-results tbody tr:hover {
 	background: var(--bg2);
 }
+.trace-results-service {
+	max-width: 40%;
+}
 .trace-results-operation {
 	display: flex;
 	min-width: 0;
@@ -314,10 +329,6 @@
 	white-space: nowrap;
 }
 @media (max-width: 767px) {
-	.trace-surface {
-		--trace-name-width: 52%;
-		--trace-duration-width: 58px;
-	}
 	.trace-toolbar {
 		min-height: 30px;
 		padding: 0 7px;

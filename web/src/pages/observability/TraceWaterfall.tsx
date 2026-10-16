@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 
+import { ColumnResizeHandle } from "@/components/design/ColumnResizeHandle";
+import { useColumnWidths } from "@/hooks/useColumnWidths";
 import { Input } from "@/components/design/Input";
 import { Button } from "@/components/design/Button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/design/Sheet";
@@ -38,6 +40,14 @@ import {
 
 const TICKS = [0, 25, 50, 75, 100];
 const MAX_INDENT = 8;
+const WATERFALL_LAYOUT = {
+	minimums: [180, 160, 64],
+	initial: (width: number) => [width * 0.42, width * 0.58 - 70, 70],
+};
+const NARROW_WATERFALL_LAYOUT = {
+	minimums: [128, 112, 56],
+	initial: (width: number) => [width * 0.52, width * 0.48 - 58, 58],
+};
 
 export function TraceWaterfall({
 	trace,
@@ -49,6 +59,13 @@ export function TraceWaterfall({
 	const [params, setParams] = useSearchParams();
 	const { resourceById } = useObs();
 	const mobile = useIsMobile();
+	const { ref: columnRef, style: columnStyle, handles, resize } = useColumnWidths(
+		"loco:trace-waterfall-columns:v1",
+		mobile ? "narrow" : "wide",
+		mobile ? NARROW_WATERFALL_LAYOUT : WATERFALL_LAYOUT,
+	);
+	const nameHandle = handles[0];
+	const timelineHandle = handles[1];
 	const [collapsed, setCollapsed] = useState(() => new Set<string>());
 	const requestedSpan = params.get("span");
 	const selected = trace.spans.find((span) => span.spanId === requestedSpan);
@@ -109,22 +126,42 @@ export function TraceWaterfall({
 					</Button>
 				</div>
 			)}
-			<div className="trace-span-rows">
+			<div className="trace-span-rows" ref={columnRef} style={columnStyle}>
 				<div className="trace-ruler">
-					<span className="trace-ruler-label">Service / operation</span>
-					<div className="trace-axis">
-						{TICKS.map((tick) => (
-							<span
-								key={tick}
-								className="trace-tick font-mono"
-								style={{ left: `${String(tick)}%` }}
-							>
-								{axisLabel(
-									(trace.duration * BigInt(tick)) / 100n,
-									trace.duration,
-								)}
-							</span>
-						))}
+					<span className="trace-ruler-label">
+						Service / operation
+						{nameHandle !== undefined && (
+							<ColumnResizeHandle
+								key={mobile ? "narrow-name" : "wide-name"}
+								label="Resize waterfall name column"
+								{...nameHandle}
+								onResize={(value, commit) => { resize(0, value, commit); }}
+							/>
+						)}
+					</span>
+					<div className="trace-ruler-time">
+						<div className="trace-axis">
+							{TICKS.map((tick) => (
+								<span
+									key={tick}
+									className="trace-tick font-mono"
+									style={{ left: `${String(tick)}%` }}
+								>
+									{axisLabel(
+										(trace.duration * BigInt(tick)) / 100n,
+										trace.duration,
+									)}
+								</span>
+							))}
+						</div>
+						{timelineHandle !== undefined && (
+							<ColumnResizeHandle
+								key={mobile ? "narrow-timeline" : "wide-timeline"}
+								label="Resize waterfall timeline column"
+								{...timelineHandle}
+								onResize={(value, commit) => { resize(1, value, commit); }}
+							/>
+						)}
 					</div>
 					<span className="trace-duration">Duration</span>
 				</div>

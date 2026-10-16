@@ -9,6 +9,8 @@ import {
 	XIcon,
 } from "lucide-react";
 
+import { ColumnResizeHandle } from "@/components/design/ColumnResizeHandle";
+import { useColumnWidths, useNarrowTable } from "@/hooks/useColumnWidths";
 import { Button } from "@/components/design/Button";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Pager } from "@/components/design/Pager";
@@ -34,6 +36,21 @@ import { traceServiceColor, traceServiceLabel } from "./trace-service";
 import { TraceWaterfall } from "./TraceWaterfall";
 
 const ROWS_PER_PAGE = 25;
+const LIST_COLUMNS = [
+	"Service / operation",
+	"Trace ID",
+	"Observed duration",
+	"Spans",
+	"Start",
+];
+const LIST_LAYOUT = {
+	minimums: [200, 108, 120, 52, 76],
+	initial: () => [43, 17, 20, 10, 10],
+};
+const NARROW_LIST_LAYOUT = {
+	minimums: [144, 88, 48],
+	initial: () => [56, 27, 17],
+};
 
 export function TracesView() {
 	const { workspaceId } = useObs();
@@ -90,6 +107,14 @@ function TraceSession({
 	range: TimeRange;
 }) {
 	const { workspaceId, resources, resourcesLoading } = useObs();
+	const narrow = useNarrowTable();
+	const { ref: columnRef, style: columnStyle, handles, resize } = useColumnWidths(
+		"loco:trace-list-columns:v1",
+		narrow ? "narrow" : "wide",
+		narrow ? NARROW_LIST_LAYOUT : LIST_LAYOUT,
+	);
+	const visibleColumns = narrow ? [0, 2, 3] : [0, 1, 2, 3, 4];
+
 	const [params, setParams] = useSearchParams();
 	const traceId = params.get("trace") ?? "";
 	const selected = params.has("r")
@@ -426,92 +451,118 @@ function TraceSession({
 							}}
 						/>
 						{spans.length > 0 && (
-							<table className="trace-results">
-								<thead>
-									<tr>
-										<th className="w-[43%] max-sm:w-[56%]">
-											Service / operation
-										</th>
-										<th className="w-[17%] max-sm:hidden">Trace ID</th>
-										<th className="w-[20%] max-sm:w-[27%]">
-											Observed duration
-										</th>
-										<th className="w-[10%] max-sm:w-[17%]">Spans</th>
-										<th className="w-[10%] max-sm:hidden">Start</th>
-									</tr>
-								</thead>
-								<tbody>
-									{traces
-										.slice(
-											currentPage * ROWS_PER_PAGE,
-											(currentPage + 1) * ROWS_PER_PAGE,
-										)
-										.map((item) => (
-											<tr key={item.id}>
-												<td>
-													<button
-														type="button"
-														className="trace-results-operation w-full focus-visible:outline-2"
-														aria-label={`Open trace ${item.id}`}
-														onClick={() => {
-															update(item.id);
-														}}
-														title={`${item.root.serviceName} · ${item.root.name}`}
-													>
-														<TraceDot
-															color={traceServiceColor(item.root.serviceName)}
-														/>
-														<span className="max-w-28 truncate text-fg3 max-sm:hidden">
-															{traceServiceLabel(
-																item.root,
-																resources.find(
-																	(resource) =>
-																		resource.id === item.root.resourceId,
-																)?.name,
-															)}
-														</span>
-														<strong>{item.root.name || "Unnamed span"}</strong>
-														{item.errors > 0 && (
-															<span
-																title={`${String(item.errors)} error spans`}
-																className="shrink-0 text-bad-fg"
-															>
-																!
-															</span>
-														)}
-													</button>
-												</td>
-												<td className="font-mono text-fg3 max-sm:hidden">
-													{item.id.slice(0, 12)}
-												</td>
-												<td>
-													<span className="flex items-center gap-2">
-														<span className="h-1.5 flex-1 rounded-sm bg-bg3 max-sm:hidden">
-															<span
-																className="block h-full rounded-sm"
-																style={{
-																	width: `${String(Number((item.duration * 100n) / maxDuration))}%`,
-																	background: traceServiceColor(
-																		item.root.serviceName,
-																	),
-																}}
+							<div
+								className="trace-results-scroller"
+								ref={columnRef}
+								style={columnStyle}
+							>
+								<table className="trace-results">
+									<colgroup>
+										{LIST_COLUMNS.map((label, index) => {
+											const visible = visibleColumns.indexOf(index);
+											return (
+												<col
+													key={label}
+													className={index === 1 || index === 4 ? "max-sm:hidden" : undefined}
+													style={visible < 0 ? undefined : { width: `var(--column-${String(visible)})` }}
+												/>
+											);
+										})}
+									</colgroup>
+									<thead>
+										<tr>
+											{LIST_COLUMNS.map((label, index) => {
+												const visible = visibleColumns.indexOf(index);
+												const handle = handles[visible];
+												return (
+													<th key={label} className={index === 1 || index === 4 ? "max-sm:hidden" : undefined}>
+														{label}
+														{handle !== undefined && (
+															<ColumnResizeHandle
+																key={`${narrow ? "narrow" : "wide"}-${String(index)}`}
+																label={`Resize ${label} column`}
+																{...handle}
+																onResize={(value, commit) => { resize(visible, value, commit); }}
 															/>
+														)}
+													</th>
+												);
+											})}
+										</tr>
+									</thead>
+									<tbody>
+										{traces
+											.slice(
+												currentPage * ROWS_PER_PAGE,
+												(currentPage + 1) * ROWS_PER_PAGE,
+											)
+											.map((item) => (
+												<tr key={item.id}>
+													<td>
+														<button
+															type="button"
+															className="trace-results-operation w-full focus-visible:outline-2"
+															aria-label={`Open trace ${item.id}`}
+															onClick={() => {
+																update(item.id);
+															}}
+															title={`${item.root.serviceName} · ${item.root.name}`}
+														>
+															<TraceDot
+																color={traceServiceColor(item.root.serviceName)}
+															/>
+															<span className="trace-results-service truncate text-fg3 max-sm:hidden">
+																{traceServiceLabel(
+																	item.root,
+																	resources.find(
+																		(resource) =>
+																			resource.id === item.root.resourceId,
+																	)?.name,
+																)}
+															</span>
+															<strong>{item.root.name || "Unnamed span"}</strong>
+															{item.errors > 0 && (
+																<span
+																	title={`${String(item.errors)} error spans`}
+																	className="shrink-0 text-bad-fg"
+																>
+																	!
+																</span>
+															)}
+														</button>
+													</td>
+													<td className="font-mono text-fg3 max-sm:hidden">
+														{item.id.slice(0, 12)}
+													</td>
+													<td>
+														<span className="flex items-center gap-2">
+															<span className="h-1.5 flex-1 rounded-sm bg-bg3 max-sm:hidden">
+																<span
+																	className="block h-full rounded-sm"
+																	style={{
+																		width: `${String(Number((item.duration * 100n) / maxDuration))}%`,
+																		background: traceServiceColor(
+																			item.root.serviceName,
+																		),
+																	}}
+																/>
+															</span>
+															<span className="w-20 shrink-0 text-right font-mono text-[10px] max-sm:w-auto">
+																{durationLabel(item.duration)}
+															</span>
 														</span>
-														<span className="w-20 shrink-0 text-right font-mono text-[10px] max-sm:w-auto">
-															{durationLabel(item.duration)}
-														</span>
-													</span>
-												</td>
-												<td className="font-mono text-fg3">
-													{item.spans.length}
-												</td>
-												<td className="font-mono text-[10px] text-fg3 max-sm:hidden">
-													{formatClock(Number(item.start / 1_000_000n), true)}
-												</td>
-											</tr>
-										))}
-								</tbody>
-							</table>
+													</td>
+													<td className="font-mono text-fg3">
+														{item.spans.length}
+													</td>
+													<td className="font-mono text-[10px] text-fg3 max-sm:hidden">
+														{formatClock(Number(item.start / 1_000_000n), true)}
+													</td>
+												</tr>
+											))}
+									</tbody>
+								</table>
+							</div>
 						)}
 						{traces.length > ROWS_PER_PAGE && (
 							<Pager

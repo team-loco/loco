@@ -34,6 +34,7 @@ Loco's dashboard helps developers inspect deployment state, compare releases and
 | Current regional deployment | `RegionStatus.deployment_id` in `proto/loco/resource/v1/resource.proto`, independent of the history page |
 | User-facing errors | `web/src/lib/error-handler.ts`; preserve displayed history when an older page fails |
 | Dialogs and confirmations | Shared design Dialog wrappers; existing `AGENTS.md` frontend rules apply |
+| Column resizing | `ColumnResizeHandle` and `useColumnWidths`; adjacent columns share bounded geometry, keyboard resizing and pointer cancellation. Versioned browser-local preferences keep desktop and narrow layouts separate. |
 
 The deployment-history cursor contract lives in `proto/loco/deployment/v1/deployment.proto`. Use Next and Previous consistently with the other tables. Until the final cursor is exhausted, describe the count as loaded records; fetch older pages on request. Keep typography, colors and control placement consistent with the resource page and the audit log.
 
