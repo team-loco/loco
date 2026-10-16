@@ -58,10 +58,10 @@ Tokens can be scoped to different entity types:
   loco token create deploy-token --scope write --expires 7d
 
   # Create an organization-scoped token
-  loco token create org-deploy-token --entity-type org --entity-id 123 --scope write
+  loco token create org-deploy-token --entity-type org --entity-id <organization-id> --scope write
 
   # Create a workspace-scoped token
-  loco token create ws-token --entity-type workspace --entity-id 456 --scope admin`,
+  loco token create ws-token --entity-type workspace --entity-id <workspace-id> --scope admin`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
@@ -83,7 +83,7 @@ Tokens can be scoped to different entity types:
 			if err != nil {
 				return fmt.Errorf("failed to get entity-type flag: %w", err)
 			}
-			entityIDInt, err := cmd.Flags().GetInt64("entity-id")
+			requestedEntityID, err := cmd.Flags().GetString("entity-id")
 			if err != nil {
 				return fmt.Errorf("failed to get entity-id flag: %w", err)
 			}
@@ -93,7 +93,7 @@ Tokens can be scoped to different entity types:
 				return err
 			}
 
-			entityID, err := resolveEntityID(ctx, userClient, entityType, entityTypeStr, entityIDInt)
+			entityID, err := resolveEntityID(ctx, userClient, entityType, entityTypeStr, requestedEntityID)
 			if err != nil {
 				return err
 			}
@@ -152,7 +152,7 @@ Tokens can be scoped to different entity types:
 	cmd.Flags().StringSlice("scope", []string{"read"}, "Token scopes: read, write, admin")
 	cmd.Flags().String("expires", "30d", "Token expiration (e.g., 1d, 7d, 30d)")
 	cmd.Flags().String("entity-type", "user", "Entity type: user, org, workspace, resource")
-	cmd.Flags().Int64("entity-id", 0, "Entity ID (required for non-user entity types)")
+	cmd.Flags().String("entity-id", "", "Entity ID (required for non-user entity types)")
 
 	return cmd
 }
@@ -161,9 +161,13 @@ func parseEntityType(s string) (tokenv1.EntityType, error) {
 	switch strings.ToLower(s) {
 	case "user":
 		return tokenv1.EntityType_ENTITY_TYPE_USER, nil
-	case "org", "organization":
+	case "org":
 		return tokenv1.EntityType_ENTITY_TYPE_ORGANIZATION, nil
-	case "workspace", "ws":
+	case "organization":
+		return tokenv1.EntityType_ENTITY_TYPE_ORGANIZATION, nil
+	case "workspace":
+		return tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, nil
+	case "ws":
 		return tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, nil
 	case "resource":
 		return tokenv1.EntityType_ENTITY_TYPE_RESOURCE, nil

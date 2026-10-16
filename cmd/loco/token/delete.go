@@ -51,7 +51,7 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
   loco token delete my-ci-token --yes
 
   # Delete an organization token
-  loco token delete org-token --entity-type org --entity-id 123`,
+  loco token delete org-token --entity-type org --entity-id <organization-id>`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
@@ -73,7 +73,7 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to get entity-type flag: %w", err)
 			}
-			entityIDInt, err := cmd.Flags().GetInt64("entity-id")
+			requestedEntityID, err := cmd.Flags().GetString("entity-id")
 			if err != nil {
 				return fmt.Errorf("failed to get entity-id flag: %w", err)
 			}
@@ -83,7 +83,7 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 				return err
 			}
 
-			entityID, err := resolveEntityID(ctx, userClient, entityType, entityTypeStr, entityIDInt)
+			entityID, err := resolveEntityID(ctx, userClient, entityType, entityTypeStr, requestedEntityID)
 			if err != nil {
 				return err
 			}
@@ -124,7 +124,7 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 	cmd.Flags().String("host", "", "API host URL")
 	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompt")
 	cmd.Flags().String("entity-type", "user", "Entity type: user, org, workspace, resource")
-	cmd.Flags().Int64("entity-id", 0, "Entity ID (defaults to current user for user type)")
+	cmd.Flags().String("entity-id", "", "Entity ID (defaults to current user for user type)")
 
 	return cmd
 }
