@@ -836,15 +836,16 @@ const file_loco_build_v1_build_proto_rawDesc = "" +
 	"\v_started_atB\x0e\n" +
 	"\f_finished_atB\x13\n" +
 	"\x11_image_deleted_at\"\x13\n" +
-	"\x11BuildsUnavailable\"\xc2\x01\n" +
+	"\x11BuildsUnavailable\"\xfc\x04\n" +
 	"\x12CreateBuildRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
-	"resourceId\x123\n" +
-	"\x0fdockerfile_path\x18\x02 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\x80\bR\x0edockerfilePath\x12(\n" +
+	"resourceId\x12\x80\x02\n" +
+	"\x0fdockerfile_path\x18\x02 \x01(\tB\xd6\x01\xbaH\xd2\x01\xba\x01\xc7\x01\n" +
+	"\x15build.dockerfile_path\x12@dockerfile_path must be a relative path inside the build context\x1al!this.startsWith('/') && !this.endsWith('/') && !this.split('/').exists(p, p == '..' || p == '.' || p == '')r\x05\x10\x01\x18\x80\bR\x0edockerfilePath\x12(\n" +
 	"\vsource_size\x18\x03 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\n" +
-	"sourceSize\x12\"\n" +
-	"\acontext\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\bR\acontext\"\x97\x01\n" +
+	"sourceSize\x12\x8d\x02\n" +
+	"\acontext\x18\x04 \x01(\tB\xf2\x01\xbaH\xee\x01\xba\x01\xe5\x01\n" +
+	"\rbuild.context\x12Fcontext must be '.' or a relative directory inside the uploaded source\x1a\x8b\x01this == '' || this == '.' || (!this.startsWith('/') && !this.endsWith('/') && !this.split('/').exists(p, p == '..' || p == '.' || p == ''))r\x03\x18\x80\bR\acontext\"\x97\x01\n" +
 	"\x13CreateBuildResponse\x12\x19\n" +
 	"\bbuild_id\x18\x01 \x01(\tR\abuildId\x12\x1d\n" +
 	"\n" +
