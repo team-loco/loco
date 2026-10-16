@@ -224,7 +224,7 @@ export function LogsView() {
 		<>
 			<div className="flex flex-wrap items-center gap-2">
 				<QueryBar valueCounts={valueCounts} />
-				<TimeRangeMenu maxRange={QUERY_MAX_RANGE} />
+				<TimeRangeMenu maxRange={QUERY_MAX_RANGE} mode={anchor === null ? "relative" : "window"} />
 				<LiveTailButton
 					on={tail}
 					rate={rate}

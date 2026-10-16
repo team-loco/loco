@@ -94,8 +94,13 @@ export function ObsProvider({
 	);
 
 	const initialNames = (params.get("r") ?? "").split(",").filter(Boolean);
-	const initialRange = params.get("range");
-	const [range, setRange] = useState<TimeRange>(() => (isTimeRange(initialRange) ? initialRange : "1h"));
+	const requestedRange = params.get("range");
+	const range: TimeRange = isTimeRange(requestedRange) ? requestedRange : "1h";
+	const setRange = (value: TimeRange) => {
+		const next = new URLSearchParams(params);
+		next.set("range", value);
+		setParams(next);
+	};
 	const [selected, setSelected] = useState<string[] | null>(initialNames.length > 0 ? initialNames : null);
 	const [tokens, setTokens] = useState<Token[]>(() =>
 		initialNames.map((value) => ({ neg: false, key: "resource", value })),
@@ -118,7 +123,6 @@ export function ObsProvider({
 	const resourceById = new Map(resources.map((r) => [r.id, r]));
 
 	const goTo = (next: ObservabilityView, opts: GoToOptions = {}) => {
-		if (opts.range !== undefined) setRange(opts.range);
 		if (next === "logs") {
 			if (opts.tokens !== undefined) {
 				setTokens(opts.tokens);

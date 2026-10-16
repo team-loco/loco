@@ -45,4 +45,4 @@ The Metrics view opens with the collected CPU and memory charts below the resour
 
 Metric charts keep timeline event lines free of overlapping text. Their event menu lists the full event titles and times, newest first, and opens logs at the selected event. Use the shared DropdownMenu for keyboard navigation, dismissal and focus recovery.
 
-Log navigation keeps its selected timestamp (`at`), time range and resource selection in the URL. Focused queries load records on both sides of that timestamp with disjoint bounds; Older and Newer retain those bounds while following directional cursors. Return to latest and Live leave the focused window.
+Metric-to-log links include the selected timestamp (`at`), time range and resource selection in the URL. Focused log controls describe a time window around that timestamp; the range remains in the URL when it changes. Focused queries load records on both sides of that timestamp with disjoint bounds; Older and Newer retain those bounds while following directional cursors. Return to latest and Live leave the focused window.
