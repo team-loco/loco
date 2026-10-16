@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { Code, ConnectError, createRouterTransport } from "@connectrpc/connect";
 import { QueryClient } from "@tanstack/react-query";
 import { ObservabilityProxyService, type QueryLogsRequest, type QueryMetricsRequest } from "@gen/loco/observability/v1/observability_pb";
@@ -11,6 +11,32 @@ const logOptions = { workspaceId, resourceIds: [], timeRange: "1h" as const,
 	parsedQuery: { search: "", levels: [], labels: {}, regions: ["us-*"], excludedRegions: ["us-west-*"] } };
 
 describe("regional control-plane queries", () => {
+	test("preserves milliseconds in log and metric query bounds", async () => {
+		const received: (QueryLogsRequest | QueryMetricsRequest)[] = [];
+		const transport = createRouterTransport((router) => {
+			router.service(ObservabilityProxyService, {
+				queryLogs(request) { received.push(request); return {}; },
+				queryMetrics(request) { received.push(request); return {}; },
+			});
+		});
+		const clock = spyOn(Date, "now").mockReturnValue(Date.UTC(2026, 9, 16, 6, 45, 12, 789));
+		const client = new QueryClient();
+		try {
+			await client.query(logsQueryOptions(transport, logOptions));
+			await client.query(metricsQueryOptions(transport, {
+				workspaceId, resourceIds: [], metricName: "k8s.pod.cpu.usage", timeRange: "1h",
+			}));
+			for (const request of received) {
+				expect(request.startTime?.nanos).toBe(789_000_000);
+				expect(request.endTime?.nanos).toBe(789_000_000);
+			}
+			expect(received).toHaveLength(2);
+		} finally {
+			clock.mockRestore();
+			client.clear();
+		}
+	});
+
 	test("queries history once without cluster discovery and preserves an opaque cursor", async () => {
 		const received: QueryLogsRequest[] = [];
 		const transport = createRouterTransport((router) => {
