@@ -51,7 +51,12 @@ func appObjects(app *locov1alpha1.Application) []client.Object {
 		&corev1.ServiceAccount{Name: name, Namespace: namespace},
 		&rbacv1.Role{Name: roleName, Namespace: namespace},
 		&rbacv1.RoleBinding{Name: bindingName, Namespace: namespace},
-		&corev1.Secret{Name: envSecretName, Namespace: namespace},
+		&corev1.Secret{
+			Name:        envSecretName,
+			Namespace:   namespace,
+			Labels:      managedLabels(app),
+			Annotations: ownerAnnotations(app),
+		},
 	}
 }
 

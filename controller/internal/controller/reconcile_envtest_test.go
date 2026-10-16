@@ -97,7 +97,9 @@ var _ = Describe("Application reconcile", func() {
 		Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
 		container := dep.Spec.Template.Spec.Containers[0]
 		Expect(container.EnvFrom[0].SecretRef.Name).To(Equal(envSecretName))
-		Expect(dep.Spec.Selector.MatchLabels).To(Equal(map[string]string{labelApp: getName(app)}))
+		Expect(
+			dep.Spec.Selector.MatchLabels,
+		).To(Equal(map[string]string{labelApp: getName(app), labelEnvironmentID: app.Spec.EnvironmentID}))
 		Expect(dep.Spec.Template.Labels).To(HaveKeyWithValue(labelAppKubernetesName, getName(app)))
 		Expect(container.Env).To(ContainElement(corev1.EnvVar{
 			Name:  envOTLPEndpoint,
@@ -312,7 +314,9 @@ var _ = Describe("Application reconcile", func() {
 		dep := &appsv1.Deployment{}
 		depKey := client.ObjectKey{Namespace: getNamespace(app), Name: getName(app)}
 		Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
-		Expect(dep.Spec.Selector.MatchLabels).To(Equal(map[string]string{labelApp: getName(app)}))
+		Expect(
+			dep.Spec.Selector.MatchLabels,
+		).To(Equal(map[string]string{labelApp: getName(app), labelEnvironmentID: app.Spec.EnvironmentID}))
 		Expect(dep.Spec.Template.Labels).To(HaveKeyWithValue(labelAppKubernetesName, getName(app)))
 
 		Expect(k8sClient.Delete(ctx, app)).To(Succeed())

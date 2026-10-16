@@ -59,21 +59,23 @@ import (
 
 // todo: finalize on the domain we wanna use inside kubernetes.
 const (
-	finalizerAppResourcesCleanup = "infra.loco.io/app-resources-cleanup"
-	labelApp                     = "app"
-	labelEnvironmentID           = "loco.io/environment-id"
-	annotationAppNamespace       = "loco.io/application-namespace"
-	annotationAppName            = "loco.io/application-name"
-	annotationEnvSecretRevision  = "loco.io/env-secret-revision"
-	envRegion                    = "LOCO_REGION"
-	phaseDeploying               = "Deploying"
-	phaseFailed                  = "Failed"
-	phaseReady                   = "Ready"
-	componentApplication         = "application"
-	servicePort                  = int32(80)
-	deployingRequeue             = 15 * time.Second
-	envSecretRequeue             = 5 * time.Second
-	maxConcurrentReconciles      = 4
+	finalizerAppResourcesCleanup    = "infra.loco.io/app-resources-cleanup"
+	labelApp                        = "app"
+	labelEnvironmentID              = "loco.io/environment-id"
+	annotationAppNamespace          = "loco.io/application-namespace"
+	annotationAppName               = "loco.io/application-name"
+	annotationApplicationUID        = "loco.io/application-uid"
+	annotationApplicationGeneration = "loco.io/application-generation"
+	annotationEnvSecretRevision     = "loco.io/env-secret-revision"
+	envRegion                       = "LOCO_REGION"
+	phaseDeploying                  = "Deploying"
+	phaseFailed                     = "Failed"
+	phaseReady                      = "Ready"
+	componentApplication            = "application"
+	servicePort                     = int32(80)
+	deployingRequeue                = 15 * time.Second
+	envSecretRequeue                = 5 * time.Second
+	maxConcurrentReconciles         = 4
 )
 
 var (
@@ -138,6 +140,9 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		observePlacementRevision(locoRes)
 		setPhase(locoRes, phaseFailed, message)
 		if statusErr := r.patchStatus(ctx, locoRes, original); statusErr != nil {
+			if apierrors.IsConflict(statusErr) {
+				return ctrl.Result{RequeueAfter: deployingRequeue}, nil
+			}
 			slog.ErrorContext(ctx, "failed to update status after validation error", "error", statusErr)
 		}
 		wrapped := fmt.Errorf("invalid application spec: %w", err)
@@ -152,6 +157,11 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	original := locoRes.DeepCopy()
 	observePlacementRevision(locoRes)
 	result, err := r.reconcileResources(ctx, locoRes)
+	if apierrors.IsConflict(err) || apierrors.IsAlreadyExists(err) {
+		clearDegraded(locoRes)
+		setPhase(locoRes, phaseDeploying, "Waiting for concurrent application changes")
+		result, err = ctrl.Result{RequeueAfter: deployingRequeue}, nil
+	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to reconcile application", "error", err)
 		message := fmt.Sprintf("failed to %v", err)
@@ -159,6 +169,9 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if statusErr := r.patchStatus(ctx, locoRes, original); statusErr != nil {
+		if apierrors.IsConflict(statusErr) {
+			return ctrl.Result{RequeueAfter: deployingRequeue}, nil
+		}
 		slog.ErrorContext(ctx, "failed to update status", "error", statusErr)
 		if err == nil {
 			return ctrl.Result{}, statusErr
@@ -173,6 +186,17 @@ func (r *LocoResourceReconciler) reconcileResources(
 	ctx context.Context,
 	locoRes *locov1alpha1.Application,
 ) (ctrl.Result, error) {
+	observedDeployment, pending, transitionErr := r.retirePreviousEnvironmentDeployment(ctx, locoRes)
+	if transitionErr != nil {
+		return ctrl.Result{}, transitionErr
+	}
+	if pending {
+		clearDegraded(locoRes)
+		locoRes.Status.ReadyReplicas = 0
+		setPhase(locoRes, phaseDeploying, "Waiting for the previous environment to stop")
+		return ctrl.Result{RequeueAfter: deployingRequeue}, nil
+	}
+
 	// begin reconcile steps - these functions allocate and ensure Kubernetes resources
 	if err := ensureNamespace(ctx, r.Client, locoRes); err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure namespace: %w", err)
@@ -205,11 +229,14 @@ func (r *LocoResourceReconciler) reconcileResources(
 		return ctrl.Result{}, fmt.Errorf("delete role & binding: %w", err)
 	}
 
-	dep, err := r.ensureDeployment(ctx, locoRes, envSecret)
+	dep, err := r.ensureDeployment(ctx, locoRes, envSecret, observedDeployment)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure deployment: %w", err)
 	}
 	setReplicaCounts(locoRes, dep)
+	if pruneErr := r.pruneEnvironmentSecrets(ctx, locoRes, getEnvSecretName(locoRes)); pruneErr != nil {
+		return ctrl.Result{}, pruneErr
+	}
 
 	err = r.ensureService(ctx, locoRes)
 	if err != nil {
@@ -291,7 +318,7 @@ func (r *LocoResourceReconciler) patchStatus(
 	if equality.Semantic.DeepEqual(original.Status, locoRes.Status) {
 		return nil
 	}
-	patch := client.MergeFrom(original)
+	patch := client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{})
 	if err := r.Status().Patch(ctx, locoRes, patch); err != nil {
 		return fmt.Errorf("patch application status: %w", err)
 	}
@@ -349,7 +376,10 @@ func (r *LocoResourceReconciler) deleteAppObjects(ctx context.Context, locoRes *
 	gatewayPolicyName := getGatewayPolicyName(locoRes)
 	bindingName := getRoleBindingName(locoRes)
 	roleName := getRoleName(locoRes)
-	envSecretName := getEnvSecretName(locoRes)
+
+	if err := r.pruneEnvironmentSecrets(ctx, locoRes, ""); err != nil {
+		return err
+	}
 
 	objects := []client.Object{
 		&v1Gateway.HTTPRoute{Name: routeName, Namespace: namespace},
@@ -360,7 +390,6 @@ func (r *LocoResourceReconciler) deleteAppObjects(ctx context.Context, locoRes *
 		&rbacv1.RoleBinding{Name: bindingName, Namespace: namespace},
 		&rbacv1.Role{Name: roleName, Namespace: namespace},
 		&corev1.ServiceAccount{Name: name, Namespace: namespace},
-		&corev1.Secret{Name: envSecretName, Namespace: namespace},
 	}
 	for _, obj := range objects {
 		err := r.Delete(ctx, obj)
@@ -412,7 +441,10 @@ func getNamespace(locoRes *locov1alpha1.Application) string {
 }
 
 func getEnvSecretName(locoRes *locov1alpha1.Application) string {
-	return fmt.Sprintf("%s-env", getName(locoRes))
+	if locoRes.Spec.EnvironmentID == "" {
+		return fmt.Sprintf("%s-env", getName(locoRes))
+	}
+	return fmt.Sprintf("%s-env-%s", getName(locoRes), locoRes.Spec.EnvironmentID)
 }
 
 func getRoleName(locoRes *locov1alpha1.Application) string {
@@ -469,53 +501,6 @@ type envSecretMount struct {
 	Mounted  bool
 	Revision int64
 	Names    []string
-}
-
-// ensureEnvSecret copies the staging Secret the Application references into the app namespace.
-func (r *LocoResourceReconciler) ensureEnvSecret(
-	ctx context.Context,
-	locoRes *locov1alpha1.Application,
-) (envSecretMount, error) {
-	namespace := getNamespace(locoRes)
-	envSecretName := getEnvSecretName(locoRes)
-	ref := locoRes.Spec.ServiceSpec.Deployment.EnvSecretRef
-	if ref == nil {
-		stale := &corev1.Secret{Name: envSecretName, Namespace: namespace}
-		if err := r.Delete(ctx, stale); err != nil && !apierrors.IsNotFound(err) {
-			return envSecretMount{}, fmt.Errorf("delete env secret %s/%s: %w", namespace, envSecretName, err)
-		}
-		return envSecretMount{}, nil
-	}
-	slog.DebugContext(ctx, "ensuring env secret", "namespace", namespace, "name", envSecretName)
-
-	staged := &corev1.Secret{}
-	stagedKey := client.ObjectKey{Namespace: locoRes.Namespace, Name: ref.Name}
-	err := r.apiReader().Get(ctx, stagedKey, staged)
-	if apierrors.IsNotFound(err) {
-		return envSecretMount{}, errEnvSecretPending
-	}
-	if err != nil {
-		return envSecretMount{}, fmt.Errorf("get staged env secret %s: %w", stagedKey, err)
-	}
-	revision, ok := locov1alpha1.EnvSecretRevision(staged.Labels)
-	if !ok || revision != ref.Revision {
-		return envSecretMount{}, errEnvSecretPending
-	}
-
-	labels := managedLabels(locoRes)
-	annotations := ownerAnnotations(locoRes)
-	envSecret := corev1ac.Secret(envSecretName, namespace).
-		WithLabels(labels).
-		WithAnnotations(annotations).
-		WithType(corev1.SecretTypeOpaque).
-		WithData(staged.Data)
-
-	opts := managed.ApplyOptions()
-	if err := r.Apply(ctx, envSecret, opts...); err != nil {
-		return envSecretMount{}, fmt.Errorf("apply env secret %s/%s: %w", namespace, envSecretName, err)
-	}
-	names := slices.Sorted(maps.Keys(staged.Data))
-	return envSecretMount{Mounted: true, Revision: ref.Revision, Names: names}, nil
 }
 
 // ensureServiceAccount ensures the service account exists for the deployment and references image pull secret
@@ -766,7 +751,7 @@ func desiredDeployment(
 		WithAnnotations(podAnnotations).
 		WithSpec(podSpec)
 
-	selectorLabels := map[string]string{labelApp: name}
+	selectorLabels := map[string]string{labelApp: name, labelEnvironmentID: locoRes.Spec.EnvironmentID}
 	selector := metav1ac.LabelSelector().WithMatchLabels(selectorLabels)
 	surge := intstr.FromString("25%")
 	rollingUpdate := appsv1ac.RollingUpdateDeployment().WithMaxSurge(surge).WithMaxUnavailable(surge)
@@ -798,6 +783,7 @@ func (r *LocoResourceReconciler) ensureDeployment(
 	ctx context.Context,
 	locoRes *locov1alpha1.Application,
 	envSecret envSecretMount,
+	observed *appsv1.Deployment,
 ) (*appsv1ac.DeploymentApplyConfiguration, error) {
 	dep, err := desiredDeployment(locoRes, envSecret, r.Telemetry)
 	if err != nil {
@@ -808,9 +794,29 @@ func (r *LocoResourceReconciler) ensureDeployment(
 	namespace := getNamespace(locoRes)
 	slog.DebugContext(ctx, "ensuring deployment", "namespace", namespace, "name", name)
 
-	opts := managed.ApplyOptions()
-	if err := r.Apply(ctx, dep, opts...); err != nil {
-		return nil, fmt.Errorf("apply deployment %s/%s: %w", namespace, name, err)
+	if observed == nil {
+		labels := map[string]string{labelApp: name, labelEnvironmentID: locoRes.Spec.EnvironmentID}
+		bootstrap := &appsv1.Deployment{
+			Name: name, Namespace: namespace, Labels: labels, Annotations: ownerAnnotations(locoRes),
+			Spec: appsv1.DeploymentSpec{
+				Replicas: new(int32(0)),
+				Selector: &metav1.LabelSelector{MatchLabels: labels},
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{Labels: labels},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{Name: name, Image: locoRes.Spec.ServiceSpec.Deployment.Image}},
+					},
+				},
+			},
+		}
+		if createErr := r.Create(ctx, bootstrap, client.FieldOwner(managed.FieldOwner)); createErr != nil {
+			return nil, fmt.Errorf("create deployment %s/%s: %w", namespace, name, createErr)
+		}
+		observed = bootstrap
+	}
+	dep.WithUID(observed.UID).WithResourceVersion(observed.ResourceVersion)
+	if applyErr := r.Apply(ctx, dep, managed.ApplyOptions()...); applyErr != nil {
+		return nil, fmt.Errorf("apply deployment %s/%s: %w", namespace, name, applyErr)
 	}
 	return dep, nil
 }
@@ -918,6 +924,7 @@ func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&appsv1.Deployment{}, deploymentHandler).
 		Watches(&corev1.Service{}, deploymentHandler).
 		Watches(&corev1.Secret{}, envSecretHandler).
+		Watches(&corev1.Secret{}, deploymentHandler).
 		Watches(&corev1.Node{}, nodeHandler, nodePredicates)
 	if r.PullSecretName != "" {
 		pullSecretHandler := handler.EnqueueRequestsFromMapFunc(r.applicationPerWorkspace)
