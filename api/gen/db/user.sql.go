@@ -283,20 +283,23 @@ func (q *Queries) MoveAccountEmail(ctx context.Context, arg MoveAccountEmailPara
 	return i, err
 }
 
-const updateUserAvatarURL = `-- name: UpdateUserAvatarURL :one
+const updateUserProfile = `-- name: UpdateUserProfile :one
 UPDATE users
-SET avatar_url = $2, updated_at = NOW()
-WHERE id = $1
+SET name = COALESCE($1, name),
+    avatar_url = COALESCE($2, avatar_url),
+    updated_at = NOW()
+WHERE id = $3
 RETURNING id, email, name, avatar_url, created_at, updated_at
 `
 
-type UpdateUserAvatarURLParams struct {
-	ID        uuid.UUID `json:"id"`
+type UpdateUserProfileParams struct {
+	Name      *string   `json:"name"`
 	AvatarUrl *string   `json:"avatarUrl"`
+	ID        uuid.UUID `json:"id"`
 }
 
-func (q *Queries) UpdateUserAvatarURL(ctx context.Context, arg UpdateUserAvatarURLParams) (User, error) {
-	row := q.db.QueryRow(ctx, updateUserAvatarURL, arg.ID, arg.AvatarUrl)
+func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUserProfile, arg.Name, arg.AvatarUrl, arg.ID)
 	var i User
 	err := row.Scan(
 		&i.ID,

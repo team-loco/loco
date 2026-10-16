@@ -3,7 +3,6 @@ syntax = "proto3";
 package loco.org.v1;
 
 import "buf/validate/validate.proto";
-import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/org/v1;orgv1";
@@ -121,7 +120,8 @@ message User {
 // UpdateOrgRequest is the request to update an organization.
 message UpdateOrgRequest {
   string org_id = 1 [(buf.validate.field).string.uuid = true];
-  google.protobuf.FieldMask update_mask = 2;
+  reserved 2;
+  reserved "update_mask";
   optional string name = 3 [(buf.validate.field).string = {
     min_len: 1
     max_len: 100

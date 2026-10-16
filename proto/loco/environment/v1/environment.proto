@@ -3,7 +3,6 @@ syntax = "proto3";
 package loco.environment.v1;
 
 import "buf/validate/validate.proto";
-import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/environment/v1;environmentv1";
@@ -82,8 +81,12 @@ message ListEnvironmentsResponse {
 // UpdateEnvironmentRequest is the request to update an environment.
 message UpdateEnvironmentRequest {
   string environment_id = 1 [(buf.validate.field).string.uuid = true];
-  google.protobuf.FieldMask update_mask = 2;
-  optional string name = 3 [(buf.validate.field).string.max_len = 63];
+  reserved 2;
+  reserved "update_mask";
+  optional string name = 3 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 63
+  }];
   optional string description = 4 [(buf.validate.field).string.max_len = 256];
   optional EnvironmentType type = 5 [(buf.validate.field).enum = {
     defined_only: true

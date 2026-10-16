@@ -516,18 +516,20 @@ func (q *Queries) SetResourcePartial(ctx context.Context, arg SetResourcePartial
 const updateResource = `-- name: UpdateResource :one
 UPDATE resources
 SET name = COALESCE($2, name),
+    description = COALESCE($3, description),
     updated_at = NOW()
 WHERE id = $1
 RETURNING id
 `
 
 type UpdateResourceParams struct {
-	ID   uuid.UUID `json:"id"`
-	Name *string   `json:"name"`
+	ID          uuid.UUID `json:"id"`
+	Name        *string   `json:"name"`
+	Description *string   `json:"description"`
 }
 
 func (q *Queries) UpdateResource(ctx context.Context, arg UpdateResourceParams) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, updateResource, arg.ID, arg.Name)
+	row := q.db.QueryRow(ctx, updateResource, arg.ID, arg.Name, arg.Description)
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err

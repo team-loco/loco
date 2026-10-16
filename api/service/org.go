@@ -24,6 +24,7 @@ import (
 
 var (
 	ErrOrgNotFound                   = errors.New("organization not found")
+	ErrOrgNameRequired               = errors.New("organization name is required")
 	ErrOrgNameNotUnique              = errors.New("organization name already exists")
 	ErrOrgHasWorkspacesWithResources = errors.New("organization has workspaces with resources")
 	ErrNotOrgMember                  = errors.New(
@@ -320,8 +321,13 @@ func (s *OrgServer) UpdateOrg(
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
+	message := req.ProtoReflect()
+	rename := message.Has(message.Descriptor().Fields().ByName(updateNameField))
+	if rename && req.GetName() == "" {
+		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrOrgNameRequired)
+	}
 	orgID := uuid.MustParse(req.GetOrgId())
-	if req.GetName() != "" {
+	if rename {
 		isUnique, err := s.queries.IsOrgNameUnique(ctx, genDb.IsOrgNameUniqueParams{
 			Name:      req.GetName(),
 			ExcludeID: &orgID,
@@ -338,7 +344,7 @@ func (s *OrgServer) UpdateOrg(
 	}
 
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if req.GetName() != "" {
+		if rename {
 			_, updateErr := qtx.UpdateOrgName(ctx, genDb.UpdateOrgNameParams{
 				ID:   orgID,
 				Name: req.GetName(),
@@ -351,6 +357,13 @@ func (s *OrgServer) UpdateOrg(
 			}
 			if updateErr != nil {
 				return updateErr
+			}
+		}
+		if !rename {
+			if _, loadErr := qtx.GetOrgByID(ctx, orgID); errors.Is(loadErr, pgx.ErrNoRows) {
+				return rpcerr.New(connect.CodeNotFound, ErrOrgNotFound)
+			} else if loadErr != nil {
+				return loadErr
 			}
 		}
 		return events.Record(ctx, qtx, events.Event{
