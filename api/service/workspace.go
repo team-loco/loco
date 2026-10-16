@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
@@ -25,6 +26,7 @@ import (
 
 var (
 	ErrWorkspaceNotFound      = errors.New("workspace not found")
+	ErrWorkspaceNameRequired  = errors.New("workspace name must not be empty")
 	ErrWorkspaceNameNotUnique = errors.New("workspace name already exists in this organization")
 	ErrWorkspaceHasResources  = errors.New("workspace has resources, delete them first")
 )
@@ -377,10 +379,33 @@ func (s *WorkspaceServer) UpdateWorkspace(
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
-	if req.GetName() != "" {
-		wsUUID := uuid.MustParse(req.GetWorkspaceId())
+	fields := []string{updateNameField, updateDescriptionField}
+	message := req.ProtoReflect()
+	provided := []string{}
+	for _, field := range fields {
+		if message.Has(message.Descriptor().Fields().ByName(protoreflect.Name(field))) {
+			provided = append(provided, field)
+		}
+	}
+	paths, maskErr := updateMaskPaths(req.GetUpdateMask(), fields, provided)
+	if maskErr != nil {
+		return nil, rpcerr.New(connect.CodeInvalidArgument, maskErr)
+	}
+	wsID := uuid.MustParse(req.GetWorkspaceId())
+	params := genDb.UpdateWorkspaceParams{ID: wsID}
+	rename := slices.Contains(paths, updateNameField)
+	if rename {
+		if req.GetName() == "" {
+			return nil, rpcerr.New(connect.CodeInvalidArgument, ErrWorkspaceNameRequired)
+		}
+		params.Name = new(req.GetName())
+	}
+	if slices.Contains(paths, updateDescriptionField) {
+		params.Description = new(req.GetDescription())
+	}
 
-		orgID, err := s.queries.GetWorkspaceOrgID(ctx, wsUUID)
+	if rename {
+		orgID, err := s.queries.GetWorkspaceOrgID(ctx, wsID)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to get workspace org", "error", err)
 			return nil, rpcerr.New(connect.CodeInternal, ErrDB)
@@ -389,7 +414,7 @@ func (s *WorkspaceServer) UpdateWorkspace(
 		isUnique, err := s.queries.IsWorkspaceNameUniqueInOrg(ctx, genDb.IsWorkspaceNameUniqueInOrgParams{
 			OrgID:     orgID,
 			Name:      req.GetName(),
-			ExcludeID: &wsUUID,
+			ExcludeID: &wsID,
 		})
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to check workspace name uniqueness", "error", err)
@@ -402,13 +427,8 @@ func (s *WorkspaceServer) UpdateWorkspace(
 		}
 	}
 
-	wsID := uuid.MustParse(req.GetWorkspaceId())
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		_, updateErr := qtx.UpdateWorkspace(ctx, genDb.UpdateWorkspaceParams{
-			ID:          wsID,
-			Name:        req.Name,
-			Description: req.Description,
-		})
+		_, updateErr := qtx.UpdateWorkspace(ctx, params)
 		if errors.Is(updateErr, pgx.ErrNoRows) {
 			slog.WarnContext(ctx, "workspace not found", "id", req.GetWorkspaceId())
 			return rpcerr.New(connect.CodeNotFound, ErrWorkspaceNotFound)
