@@ -4,8 +4,6 @@ import { useQueries } from "@tanstack/react-query";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 
 import { Skeleton } from "@/components/design/Skeleton";
-import { SoonTag } from "@/components/design/SoonTag";
-import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useNow } from "@/hooks/useNow";
 import { useQueryMetrics } from "@/hooks/useQueryMetrics";
 import { getErrorMessage } from "@/lib/error-handler";
@@ -68,20 +66,7 @@ export function MetricsView() {
 							);
 						})}
 					</div>
-					<div className="flex items-center gap-2">
-						<span className="text-sm text-fg3">Split by</span>
-						<ToggleGroup variant="segmented" value={["service"]}>
-							<ToggleGroupItem value="service" className="h-[26px]! text-sm">
-								Service
-							</ToggleGroupItem>
-							<ToggleGroupItem value="replica" disabled className="h-[26px]! gap-1.5 text-sm">
-								Replica
-								<SoonTag />
-							</ToggleGroupItem>
-						</ToggleGroup>
-					</div>
 				</div>
-				<TrafficSection />
 				<ComputeSection visible={visible} />
 			</div>
 		</>
@@ -90,60 +75,6 @@ export function MetricsView() {
 
 function SectionTitle({ children }: { children: string }) {
 	return <span className="text-sm font-semibold tracking-[0.04em] text-fg3 uppercase">{children}</span>;
-}
-
-function SoonChart({ height }: { height: number }) {
-	return (
-		<div
-			className="flex items-center justify-center rounded-sm border border-dashed border-line2 text-sm text-fg4"
-			style={{ height }}
-		>
-			Request metrics aren't collected yet
-		</div>
-	);
-}
-
-function TrafficSection() {
-	const soonTitle = (t: string) => (
-		<span className="flex items-center gap-1.5">
-			{t}
-			<SoonTag />
-		</span>
-	);
-	return (
-		<div className="flex flex-col gap-2.5">
-			<SectionTitle>Traffic</SectionTitle>
-			<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-				<MetricCard title={soonTitle("Requests")} unit="req/s" big="—" delta="" deltaBad={false} bigNote="" muted>
-					<SoonChart height={200} />
-				</MetricCard>
-				<MetricCard title={soonTitle("5xx errors")} unit="req/s" big="—" delta="" deltaBad={false} bigNote="" muted>
-					<SoonChart height={200} />
-				</MetricCard>
-				<MetricCard
-					title={soonTitle("Latency")}
-					unit="p95"
-					big="—"
-					delta=""
-					deltaBad={false}
-					bigNote=""
-					span
-					muted
-					actions={
-						<ToggleGroup variant="segmented" value={["p95"]} className="rounded-md p-0.5">
-							{["p50", "p95", "p99"].map((a) => (
-								<ToggleGroupItem key={a} value={a} disabled className="h-[22px]! rounded-sm! px-2 text-sm">
-									{a}
-								</ToggleGroupItem>
-							))}
-						</ToggleGroup>
-					}
-				>
-					<SoonChart height={220} />
-				</MetricCard>
-			</div>
-		</div>
-	);
 }
 
 function useDeployMarkers(visible: ObsResource[], from: number, to: number): ChartMarker[] {

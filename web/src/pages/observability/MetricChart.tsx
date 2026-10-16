@@ -64,10 +64,7 @@ export function MetricCard({
 	delta,
 	deltaBad,
 	bigNote,
-	actions,
-	span,
 	children,
-	muted,
 }: {
 	title: ReactNode;
 	unit: ReactNode;
@@ -75,26 +72,18 @@ export function MetricCard({
 	delta: string;
 	deltaBad: boolean;
 	bigNote: string;
-	actions?: ReactNode;
-	span?: boolean;
 	children: ReactNode;
-	muted?: boolean;
 }) {
 	return (
-		<section
-			className={cn(
-				"flex min-w-0 flex-col gap-2.5 rounded-lg border border-line bg-background px-4 pt-3.5 pb-2.5",
-				span === true && "col-span-full",
-			)}
-		>
+		<section className="flex min-w-0 flex-col gap-2.5 rounded-lg border border-line bg-background px-4 pt-3.5 pb-2.5">
 			<div className="flex items-start gap-2">
 				<div className="flex min-w-0 flex-1 flex-col gap-1">
 					<span className="flex items-baseline gap-1.5">
-						<span className={cn("font-semibold", muted === true ? "text-fg4" : "text-fg2")}>{title}</span>
+						<span className="font-semibold text-fg2">{title}</span>
 						<span className="text-sm text-fg3">{unit}</span>
 					</span>
 					<span className="flex items-baseline gap-2">
-						<span className={cn("text-[22px] font-semibold tracking-[-0.01em] tabular-nums", muted === true && "text-fg4")}>
+						<span className="text-[22px] font-semibold tracking-[-0.01em] tabular-nums">
 							{big}
 						</span>
 						{delta !== "" && (
@@ -103,7 +92,6 @@ export function MetricCard({
 						<span className="text-sm text-fg3">{bigNote}</span>
 					</span>
 				</div>
-				{actions}
 			</div>
 			{children}
 		</section>
