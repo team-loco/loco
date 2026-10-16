@@ -1,7 +1,17 @@
 import type { ReactNode } from "react";
+import { ListIcon } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ReferenceLine, XAxis, YAxis } from "recharts";
 
+import { Button } from "@/components/design/Button";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/design/Chart";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuGroup,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuTrigger,
+} from "@/components/design/DropdownMenu";
 import { DAY_MS, formatHourMinute, formatSlashDate } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +28,31 @@ export interface ChartMarker {
 	label: string;
 	title: string;
 	color: string;
+}
+
+function MetricEvents({ title, markers, onPick }: { title: string; markers: ChartMarker[]; onPick: (t: number) => void }) {
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger render={<Button variant="ghost" size="sm" className="self-start" />} aria-label={`View ${title} timeline events`}>
+				<ListIcon className="text-fg3" />
+				{markers.length} timeline {markers.length === 1 ? "event" : "events"}
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="start" className="max-h-64 w-[min(360px,calc(100vw-32px))] overflow-y-auto">
+				<DropdownMenuGroup>
+					<DropdownMenuLabel>View logs at an event</DropdownMenuLabel>
+					{markers.toSorted((a, b) => b.t - a.t).map((marker) => (
+						<DropdownMenuItem key={`${String(marker.t)}-${marker.label}`} onClick={() => { onPick(marker.t); }} className="h-auto items-start py-2">
+							<span className="mt-1.5 size-2 shrink-0 rounded-[2px]" style={{ background: marker.color }} />
+							<span className="flex min-w-0 flex-col gap-0.5">
+								<span className="break-words whitespace-normal">{marker.title}</span>
+								<time dateTime={new Date(marker.t).toISOString()} className="text-sm text-fg3 tabular-nums">{fmtTs(marker.t)}</time>
+							</span>
+						</DropdownMenuItem>
+					))}
+				</DropdownMenuGroup>
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
 }
 
 type Datum = { t: number; [series: string]: number };
@@ -64,10 +99,7 @@ export function MetricCard({
 	delta,
 	deltaBad,
 	bigNote,
-	actions,
-	span,
 	children,
-	muted,
 }: {
 	title: ReactNode;
 	unit: ReactNode;
@@ -75,26 +107,18 @@ export function MetricCard({
 	delta: string;
 	deltaBad: boolean;
 	bigNote: string;
-	actions?: ReactNode;
-	span?: boolean;
 	children: ReactNode;
-	muted?: boolean;
 }) {
 	return (
-		<section
-			className={cn(
-				"flex min-w-0 flex-col gap-2.5 rounded-lg border border-line bg-background px-4 pt-3.5 pb-2.5",
-				span === true && "col-span-full",
-			)}
-		>
+		<section className="flex min-w-0 flex-col gap-2.5 rounded-lg border border-line bg-background px-4 pt-3.5 pb-2.5">
 			<div className="flex items-start gap-2">
 				<div className="flex min-w-0 flex-1 flex-col gap-1">
 					<span className="flex items-baseline gap-1.5">
-						<span className={cn("font-semibold", muted === true ? "text-fg4" : "text-fg2")}>{title}</span>
+						<span className="font-semibold text-fg2">{title}</span>
 						<span className="text-sm text-fg3">{unit}</span>
 					</span>
 					<span className="flex items-baseline gap-2">
-						<span className={cn("text-[22px] font-semibold tracking-[-0.01em] tabular-nums", muted === true && "text-fg4")}>
+						<span className="text-[22px] font-semibold tracking-[-0.01em] tabular-nums">
 							{big}
 						</span>
 						{delta !== "" && (
@@ -103,7 +127,6 @@ export function MetricCard({
 						<span className="text-sm text-fg3">{bigNote}</span>
 					</span>
 				</div>
-				{actions}
 			</div>
 			{children}
 		</section>
@@ -111,6 +134,7 @@ export function MetricCard({
 }
 
 export function MetricChart({
+	title,
 	series,
 	from,
 	to,
@@ -121,6 +145,7 @@ export function MetricChart({
 	height,
 	onPick,
 }: {
+	title: string;
 	series: ChartSeries[];
 	from: number;
 	to: number;
@@ -150,75 +175,77 @@ export function MetricChart({
 	const single = series.length === 1;
 
 	return (
-		<ChartContainer config={config} className="aspect-auto w-full cursor-crosshair" style={{ height }}>
-			<AreaChart
-				data={data}
-				margin={{ top: 6, right: 4, bottom: 0, left: 0 }}
-				onClick={(state) => {
-					const t = Number(state.activeLabel);
-					if (Number.isFinite(t)) onPick(t);
-				}}
-			>
-				<CartesianGrid vertical={false} stroke="var(--line)" />
-				<XAxis
-					dataKey="t"
-					type="number"
-					scale="time"
-					domain={[from, to]}
-					ticks={ticks}
-					tickFormatter={tickLabel}
-					tickLine={false}
-					axisLine={{ stroke: "var(--line)" }}
-					tick={{ fontSize: 11, fill: "var(--fg4)" }}
-				/>
-				<YAxis
-					domain={[0, max]}
-					ticks={[0, max / 2, max]}
-					tickFormatter={fmt}
-					tickLine={false}
-					axisLine={false}
-					width={40}
-					tick={{ fontSize: 11, fill: "var(--fg4)" }}
-				/>
-				<ChartTooltip
-					cursor={{ stroke: "var(--fg3)", strokeWidth: 1 }}
-					content={<MetricTooltip byT={byT} series={series} fmt={fmt} />}
-				/>
-				{limit !== null && (
-					<ReferenceLine
-						y={limit.v}
-						stroke="var(--err)"
-						strokeDasharray="5 4"
-						label={{ value: limit.label, position: "insideTopRight", fill: "var(--err)", fontSize: 10.5 }}
+		<>
+			<ChartContainer config={config} className="aspect-auto w-full cursor-crosshair" style={{ height }}>
+				<AreaChart
+					data={data}
+					margin={{ top: 6, right: 4, bottom: 0, left: 0 }}
+					onClick={(state) => {
+						const t = Number(state.activeLabel);
+						if (Number.isFinite(t)) onPick(t);
+					}}
+				>
+					<CartesianGrid vertical={false} stroke="var(--line)" />
+					<XAxis
+						dataKey="t"
+						type="number"
+						scale="time"
+						domain={[from, to]}
+						ticks={ticks}
+						tickFormatter={tickLabel}
+						tickLine={false}
+						axisLine={{ stroke: "var(--line)" }}
+						tick={{ fontSize: 11, fill: "var(--fg4)" }}
 					/>
-				)}
-				{markers.map((m) => (
-					<ReferenceLine
-						key={`${String(m.t)}-${m.label}`}
-						x={m.t}
-						stroke={m.color}
-						strokeDasharray="3 3"
-						strokeOpacity={0.8}
-						label={{ value: m.label, position: "insideTopLeft", fill: m.color, fontSize: 10.5, fontWeight: 600 }}
+					<YAxis
+						domain={[0, max]}
+						ticks={[0, max / 2, max]}
+						tickFormatter={fmt}
+						tickLine={false}
+						axisLine={false}
+						width={40}
+						tick={{ fontSize: 11, fill: "var(--fg4)" }}
 					/>
-				))}
-				{series.map((s, i) => (
-					<Area
-						key={s.name}
-						dataKey={`s${String(i)}`}
-						name={s.name}
-						type="monotone"
-						stroke={s.color}
-						strokeWidth={1.75}
-						fill={s.color}
-						fillOpacity={single ? 0.08 : 0}
-						dot={false}
-						activeDot={{ r: 4, stroke: "var(--bg)", strokeWidth: 2 }}
-						isAnimationActive={false}
-						connectNulls
+					<ChartTooltip
+						cursor={{ stroke: "var(--fg3)", strokeWidth: 1 }}
+						content={<MetricTooltip byT={byT} series={series} fmt={fmt} />}
 					/>
-				))}
-			</AreaChart>
-		</ChartContainer>
+					{limit !== null && (
+						<ReferenceLine
+							y={limit.v}
+							stroke="var(--err)"
+							strokeDasharray="5 4"
+							label={{ value: limit.label, position: "insideTopRight", fill: "var(--err)", fontSize: 10.5 }}
+						/>
+					)}
+					{markers.map((m) => (
+						<ReferenceLine
+							key={`${String(m.t)}-${m.label}`}
+							x={m.t}
+							stroke={m.color}
+							strokeDasharray="3 3"
+							strokeOpacity={0.8}
+						/>
+					))}
+					{series.map((s, i) => (
+						<Area
+							key={s.name}
+							dataKey={`s${String(i)}`}
+							name={s.name}
+							type="monotone"
+							stroke={s.color}
+							strokeWidth={1.75}
+							fill={s.color}
+							fillOpacity={single ? 0.08 : 0}
+							dot={false}
+							activeDot={{ r: 4, stroke: "var(--bg)", strokeWidth: 2 }}
+							isAnimationActive={false}
+							connectNulls
+						/>
+					))}
+				</AreaChart>
+			</ChartContainer>
+		{markers.length > 0 && <MetricEvents title={title} markers={markers} onPick={onPick} />}
+		</>
 	);
 }

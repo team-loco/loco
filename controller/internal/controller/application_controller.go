@@ -468,6 +468,7 @@ func ensureNamespace(ctx context.Context, kubeClient client.Client, locoRes *loc
 type envSecretMount struct {
 	Mounted  bool
 	Revision int64
+	Names    []string
 }
 
 // ensureEnvSecret copies the staging Secret the Application references into the app namespace.
@@ -513,7 +514,8 @@ func (r *LocoResourceReconciler) ensureEnvSecret(
 	if err := r.Apply(ctx, envSecret, opts...); err != nil {
 		return envSecretMount{}, fmt.Errorf("apply env secret %s/%s: %w", namespace, envSecretName, err)
 	}
-	return envSecretMount{Mounted: true, Revision: ref.Revision}, nil
+	names := slices.Sorted(maps.Keys(staged.Data))
+	return envSecretMount{Mounted: true, Revision: ref.Revision, Names: names}, nil
 }
 
 // ensureServiceAccount ensures the service account exists for the deployment and references image pull secret
@@ -619,6 +621,7 @@ func parseResourceList(cpu, memory string) (corev1.ResourceList, error) {
 func systemEnvVars(
 	locoRes *locov1alpha1.Application,
 	telemetry TelemetryConfig,
+	secretNames []string,
 ) []*corev1ac.EnvVarApplyConfiguration {
 	publicDomain := ""
 	if locoRes.Spec.ServiceSpec.Routing != nil {
@@ -636,7 +639,7 @@ func systemEnvVars(
 		{Name: "LOCO_INTERNAL_DOMAIN", Value: internalDomain},
 		{Name: "LOCO_PUBLIC_DOMAIN", Value: publicDomain},
 	}
-	otelVars := openTelemetryEnvVars(locoRes, telemetry)
+	otelVars := openTelemetryEnvVars(locoRes, telemetry, secretNames)
 	vars := slices.Concat(locoVars, otelVars)
 
 	envVars := make([]*corev1ac.EnvVarApplyConfiguration, 0, len(vars))
@@ -697,7 +700,7 @@ func desiredDeployment(
 		return nil, fmt.Errorf("resources: %w", err)
 	}
 
-	systemVars := systemEnvVars(locoRes, telemetry)
+	systemVars := systemEnvVars(locoRes, telemetry, envSecret.Names)
 	plainVars := plainEnvVars(spec.Deployment.Env, systemVars)
 	envVars := slices.Concat(plainVars, systemVars)
 	port := corev1ac.ContainerPort().

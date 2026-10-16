@@ -1,5 +1,6 @@
-import { create } from "@bufbuild/protobuf";
-import { TimestampSchema, type Timestamp } from "@bufbuild/protobuf/wkt";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
+
+export { timestampFromMs as msToTimestamp } from "@bufbuild/protobuf/wkt";
 
 export const DAY_MS = 86_400_000;
 
@@ -10,10 +11,6 @@ export function maybeTsMs(ts: Timestamp | undefined): number | undefined {
 
 export function tsMs(ts: Timestamp | undefined): number {
 	return maybeTsMs(ts) ?? 0;
-}
-
-export function msToTimestamp(ms: number): Timestamp {
-	return create(TimestampSchema, { seconds: BigInt(Math.floor(ms / 1000)), nanos: 0 });
 }
 
 function pad(n: number, width = 2): string {

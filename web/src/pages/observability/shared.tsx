@@ -27,11 +27,13 @@ export interface HistoBucket {
 export function Histogram({
 	buckets,
 	from,
+	to = "now",
 	height,
 	className,
 }: {
 	buckets: HistoBucket[];
 	from: string;
+	to?: string;
 	height: number;
 	className?: string;
 }) {
@@ -57,7 +59,7 @@ export function Histogram({
 			</div>
 			<div className="flex justify-between px-4 pt-1 pb-2.5 text-xs text-fg4">
 				<span>{from}</span>
-				<span>now</span>
+				<span>{to}</span>
 			</div>
 		</div>
 	);

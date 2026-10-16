@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -185,7 +186,7 @@ WHERE EXISTS (
   )
   AND ($3::text IS NULL
        OR (o.created_at, o.id) < (
-         (SELECT created_at FROM organizations WHERE id = $3::uuid),
+         $4::timestamptz,
          $3::uuid
        ))
 ORDER BY o.created_at DESC, o.id DESC
@@ -193,13 +194,19 @@ LIMIT $2
 `
 
 type ListOrgsForUserParams struct {
-	UserID    uuid.UUID `json:"userId"`
-	Limit     int32     `json:"limit"`
-	PageToken *string   `json:"pageToken"`
+	UserID        uuid.UUID  `json:"userId"`
+	Limit         int32      `json:"limit"`
+	PageToken     *string    `json:"pageToken"`
+	PageCreatedAt *time.Time `json:"pageCreatedAt"`
 }
 
 func (q *Queries) ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams) ([]Organization, error) {
-	rows, err := q.db.Query(ctx, listOrgsForUser, arg.UserID, arg.Limit, arg.PageToken)
+	rows, err := q.db.Query(ctx, listOrgsForUser,
+		arg.UserID,
+		arg.Limit,
+		arg.PageToken,
+		arg.PageCreatedAt,
+	)
 	if err != nil {
 		return nil, err
 	}

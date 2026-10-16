@@ -21,11 +21,12 @@ var _ = Describe("Staged environment secret reads", func() {
 		app := workspaceApp("stage-reader", "stage-reader")
 		app.Spec.WorkspaceID = "staged-reader-cache"
 		app.Namespace = testNamespace
+		app.Spec.ServiceSpec.Obs = tracingEnabled()
 		stage := &corev1.Secret{
 			Name:      "env-staged-reader",
 			Namespace: testNamespace,
 			Labels:    map[string]string{locov1alpha1.LabelPlacementRevision: "1"},
-			Data:      map[string][]byte{"VALUE": []byte("initial")},
+			Data:      map[string][]byte{"VALUE": []byte("initial"), envOTelTracesSamplerArg: []byte("0")},
 		}
 		Expect(k8sClient.Create(ctx, stage)).To(Succeed())
 		DeferCleanup(func() { Expect(k8sClient.Delete(ctx, stage)).To(Succeed()) })
@@ -51,13 +52,20 @@ var _ = Describe("Staged environment secret reads", func() {
 		r := &LocoResourceReconciler{Client: cached, APIReader: k8sClient}
 		mount, err := r.ensureEnvSecret(ctx, app)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(mount).To(Equal(envSecretMount{Mounted: true, Revision: 1}))
+		Expect(mount.Mounted).To(BeTrue())
+		Expect(mount.Revision).To(Equal(int64(1)))
+		deployment, err := desiredDeployment(app, mount, testTelemetry())
+		Expect(err).NotTo(HaveOccurred())
+		Expect(deployment.Spec.Template.Spec.Containers[0].Env).NotTo(
+			ContainElement(HaveField("Name", new(envOTelTracesSamplerArg))),
+		)
 		target := &corev1.Secret{}
 		targetKey := client.ObjectKey{Namespace: namespace.Name, Name: getEnvSecretName(app)}
 		Expect(k8sClient.Get(ctx, targetKey, target)).To(Succeed())
 		Expect(target.Data).To(Equal(stage.Data))
 		stage.Labels[locov1alpha1.LabelPlacementRevision] = "2"
 		stage.Data["VALUE"] = []byte("rotated")
+		stage.Data[envOTelTracesSamplerArg] = []byte("1")
 		Expect(k8sClient.Update(ctx, stage)).To(Succeed())
 		app.Spec.ServiceSpec.Deployment.EnvSecretRef.Revision = 2
 		mount, err = r.ensureEnvSecret(ctx, app)
@@ -65,5 +73,22 @@ var _ = Describe("Staged environment secret reads", func() {
 		Expect(mount.Revision).To(Equal(int64(2)))
 		Expect(k8sClient.Get(ctx, targetKey, target)).To(Succeed())
 		Expect(target.Data).To(Equal(stage.Data))
+		deployment, err = desiredDeployment(app, mount, testTelemetry())
+		Expect(err).NotTo(HaveOccurred())
+		Expect(deployment.Spec.Template.Spec.Containers[0].Env).NotTo(
+			ContainElement(HaveField("Name", new(envOTelTracesSamplerArg))),
+		)
+
+		delete(stage.Data, envOTelTracesSamplerArg)
+		stage.Labels[locov1alpha1.LabelPlacementRevision] = "3"
+		Expect(k8sClient.Update(ctx, stage)).To(Succeed())
+		app.Spec.ServiceSpec.Deployment.EnvSecretRef.Revision = 3
+		mount, err = r.ensureEnvSecret(ctx, app)
+		Expect(err).NotTo(HaveOccurred())
+		deployment, err = desiredDeployment(app, mount, testTelemetry())
+		Expect(err).NotTo(HaveOccurred())
+		Expect(deployment.Spec.Template.Spec.Containers[0].Env).To(ContainElement(
+			And(HaveField("Name", new(envOTelTracesSamplerArg)), HaveField("Value", new(testSampleRate))),
+		))
 	})
 })

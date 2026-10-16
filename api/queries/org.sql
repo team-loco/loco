@@ -20,7 +20,7 @@ WHERE EXISTS (
   )
   AND (sqlc.narg('page_token')::text IS NULL
        OR (o.created_at, o.id) < (
-         (SELECT created_at FROM organizations WHERE id = sqlc.narg('page_token')::uuid),
+         sqlc.narg('page_created_at')::timestamptz,
          sqlc.narg('page_token')::uuid
        ))
 ORDER BY o.created_at DESC, o.id DESC

@@ -58,7 +58,9 @@ func (c TelemetryConfig) otlpHTTPEndpoint() string {
 	return fmt.Sprintf(otlpHTTPEndpointFormat, c.CollectorService, c.Namespace, c.HTTPPort)
 }
 
-func openTelemetryEnvVars(locoRes *locov1alpha1.Application, telemetry TelemetryConfig) []corev1.EnvVar {
+func openTelemetryEnvVars(
+	locoRes *locov1alpha1.Application, telemetry TelemetryConfig, secretNames []string,
+) []corev1.EnvVar {
 	endpoint := telemetry.otlpHTTPEndpoint()
 	serviceName := getName(locoRes)
 	connection := [][]corev1.EnvVar{
@@ -75,7 +77,7 @@ func openTelemetryEnvVars(locoRes *locov1alpha1.Application, telemetry Telemetry
 	userEnv := locoRes.Spec.ServiceSpec.Deployment.Env
 	var vars []corev1.EnvVar
 	for _, setting := range settings {
-		if userSetsAny(userEnv, setting) {
+		if userSetsAny(userEnv, secretNames, setting) {
 			continue
 		}
 		vars = append(vars, setting...)
@@ -83,9 +85,10 @@ func openTelemetryEnvVars(locoRes *locov1alpha1.Application, telemetry Telemetry
 	return vars
 }
 
-func userSetsAny(userEnv map[string]string, setting []corev1.EnvVar) bool {
+func userSetsAny(userEnv map[string]string, secretNames []string, setting []corev1.EnvVar) bool {
 	for _, envVar := range setting {
-		if _, ok := userEnv[envVar.Name]; ok {
+		_, plain := userEnv[envVar.Name]
+		if plain || slices.Contains(secretNames, envVar.Name) {
 			return true
 		}
 	}

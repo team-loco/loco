@@ -21,7 +21,7 @@ FROM resources r
 WHERE r.workspace_id = $1
    AND (sqlc.narg('page_token')::text IS NULL
         OR (r.created_at, r.id) < (
-          (SELECT created_at FROM resources WHERE id = sqlc.narg('page_token')::uuid),
+          sqlc.narg('page_created_at')::timestamptz,
           sqlc.narg('page_token')::uuid
         ))
 ORDER BY r.created_at DESC, r.id DESC

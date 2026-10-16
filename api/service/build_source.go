@@ -25,7 +25,7 @@ const (
 var (
 	errCloneDeploymentSpec   = errors.New("failed to clone deployment spec")
 	errBuildSourceRequired   = errors.New("spec.service.build is required")
-	errDockerfileImageSet    = errors.New("image must not be set for dockerfile deployments; pass build_id instead")
+	errBuildImageMismatch    = errors.New("image does not match the referenced build")
 	errDockerfileNoBuildID   = errors.New("build_id is required for dockerfile deployments")
 	errBuildNotSucceeded     = errors.New("build has not succeeded")
 	errImageBuildIDSet       = errors.New("build_id must not be set for image deployments")
@@ -71,9 +71,6 @@ func pinDockerfileBuild(
 	resourceID uuid.UUID,
 	src *deploymentv1.BuildSource,
 ) (*deploymentv1.BuildSource, error) {
-	if src.GetImage() != "" {
-		return nil, rpcerr.New(connect.CodeInvalidArgument, errDockerfileImageSet)
-	}
 	rawBuildID := src.GetBuildId()
 	if rawBuildID == "" {
 		return nil, rpcerr.New(connect.CodeInvalidArgument, errDockerfileNoBuildID)
@@ -104,6 +101,9 @@ func pinDockerfileBuild(
 	}
 
 	image := build.ImageRepository + "@" + *build.ImageDigest
+	if src.GetImage() != "" && src.GetImage() != image {
+		return nil, rpcerr.New(connect.CodeInvalidArgument, errBuildImageMismatch)
+	}
 	buildIDStr := build.ID.String()
 	return &deploymentv1.BuildSource{
 		Type:    buildSourceTypeDockerfile,

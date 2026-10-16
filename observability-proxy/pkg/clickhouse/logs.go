@@ -69,14 +69,15 @@ func decodeLogCursor(value string) (logCursor, error) {
 	return logCursor{timestamp: timestamp, blockNumber: blockNumber, blockOffset: blockOffset}, nil
 }
 
-type LogRegions struct {
-	Include []string
-	Exclude []string
+type LogScope struct {
+	EnvironmentID string
+	Include       []string
+	Exclude       []string
 }
 
 func QueryLogs(ctx context.Context, conn driver.Conn, workspaceID string, resourceIDs []string,
 	startTime, endTime time.Time, search string, levels []string, labels map[string]string,
-	limit int32, cursor string, order observabilityv1.LogOrder, queryTimeout int, regions LogRegions,
+	limit int32, cursor string, order observabilityv1.LogOrder, queryTimeout int, scope LogScope,
 ) ([]*observabilityv1.LogEntry, string, error) {
 	page, err := QueryLogPage(
 		ctx,
@@ -91,7 +92,7 @@ func QueryLogs(ctx context.Context, conn driver.Conn, workspaceID string, resour
 		limit,
 		cursor,
 		order,
-		queryTimeout, regions,
+		queryTimeout, scope,
 	)
 	if err != nil {
 		return nil, "", err
@@ -111,7 +112,7 @@ func QueryLogPage(
 	limit int32,
 	cursor string,
 	order observabilityv1.LogOrder,
-	queryTimeout int, regions LogRegions,
+	queryTimeout int, scope LogScope,
 ) (LogPage, error) {
 	query, args, err := buildLogsQuery(
 		workspaceID,
@@ -124,7 +125,7 @@ func QueryLogPage(
 		limit,
 		cursor,
 		order,
-		queryTimeout, regions,
+		queryTimeout, scope,
 	)
 	if err != nil {
 		return LogPage{}, err
@@ -206,7 +207,7 @@ func buildLogsQuery(
 	limit int32,
 	cursor string,
 	order observabilityv1.LogOrder,
-	queryTimeout int, regions LogRegions,
+	queryTimeout int, scope LogScope,
 ) (string, []any, error) {
 	var args []any
 	queryParts := []string{
@@ -216,6 +217,11 @@ func buildLogsQuery(
 
 	whereParts := []string{workspaceColumn + " = ?"}
 	args = append(args, workspaceID)
+
+	if scope.EnvironmentID != "" {
+		whereParts = append(whereParts, environmentColumn+" = ?")
+		args = append(args, scope.EnvironmentID)
+	}
 
 	if len(resourceIDs) > 0 {
 		clause, values := inFilter(resourceColumn, resourceIDs)
@@ -250,7 +256,7 @@ func buildLogsQuery(
 		values  []string
 		exclude bool
 	}{
-		{regions.Include, false}, {regions.Exclude, true},
+		{scope.Include, false}, {scope.Exclude, true},
 	} {
 		var clauses []string
 		for _, pattern := range group.values {

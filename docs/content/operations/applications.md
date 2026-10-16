@@ -33,7 +33,7 @@ loco env list --service web --env production
 
 ## Container requirements
 
-Applications run under Kubernetes' `restricted` Pod Security profile. Images must run as a numeric non-root user, such as `USER 10001`, and use an unprivileged application port. Configure the routing port to match the port the application listens on.
+Applications run under Kubernetes' `restricted` Pod Security profile. Use an image with a numeric non-root `USER`, or set `runAsUser` in `loco.yaml` to a positive numeric UID compatible with the image. Set `runAsGroup` when it also needs an explicit primary GID; see [Runtime user](../deployment/loco-yaml.md#runtime-user). Use an unprivileged application port and configure the routing port to match it.
 
 ## Runtime environment
 
@@ -47,11 +47,11 @@ The controller sets these variables in every application container:
 | `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL` | the region's OpenTelemetry collector over OTLP/HTTP (`http/protobuf`) |
 | `OTEL_SERVICE_NAME` | the application's workload name, `resource-<resource id>` |
 | `OTEL_RESOURCE_ATTRIBUTES` | `deployment.environment.name` and `loco.deployment.id` |
-| `OTEL_TRACES_SAMPLER`, `OTEL_TRACES_SAMPLER_ARG` | `parentbased_traceidratio` at `[Obs.Tracing] SampleRate` when tracing is enabled, otherwise `parentbased_always_off` |
+| `OTEL_TRACES_SAMPLER`, `OTEL_TRACES_SAMPLER_ARG` | `parentbased_traceidratio` at the resource's configured sampling rate when tracing is enabled, otherwise `parentbased_always_off` |
 
 An OpenTelemetry SDK reads the `OTEL_*` variables, so an instrumented application exports to Loco without configuration. With tracing disabled, the application starts no traces of its own but records spans for requests the gateway sampled at ingress, so a trace runs from the gateway into the application. The collector attaches the workspace, environment and resource IDs from the pod's labels and drops any values the application sends for them.
 
-An environment variable you set with `loco resource env` or `[Env]` replaces the `OTEL_*` variable of the same name. `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL` go together: setting either one drops both of Loco's values, so an endpoint is never paired with the wrong protocol. The `LOCO_*` variables cannot be overridden.
+An `OTEL_*` variable in `loco.yaml` under `env`, or named in `secrets` and set with `loco env`, replaces the injected variable of the same name. Plain values take precedence when the same name also appears in `secrets`. `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL` go together: setting either one drops both of Loco's values, so an endpoint is never paired with the wrong protocol. The `LOCO_*` variables cannot be overridden.
 
 Dashboard redeploy and rollback keep the current plain environment values and declared secret names for the target environment and region. `CreateDeployment` has the same behavior when its environment map is empty; a nonempty map replaces the plain values while retaining the secret names. To remove plain values or secret declarations, edit `loco.yaml` and apply it.
 

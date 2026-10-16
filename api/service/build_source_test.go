@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -167,6 +168,13 @@ func TestPinDockerfileBuild(t *testing.T) {
 		}
 		if pinnedBuildID := pinned.GetBuildId(); pinnedBuildID != succeededIDStr {
 			t.Fatalf("build id = %q, want %q", pinnedBuildID, succeededIDStr)
+		}
+		restored, restoreErr := pinBuildSource(ctx, builds, resolver, testRegistryHost, resourceID, pinned)
+		if restoreErr != nil {
+			t.Fatalf("reuse stored build spec: %v", restoreErr)
+		}
+		if !proto.Equal(restored, pinned) {
+			t.Fatalf("reused build spec = %v, want %v", restored, pinned)
 		}
 	})
 

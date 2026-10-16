@@ -22,7 +22,7 @@ func TestHistoryQueryCursorsRejectTimestampOverflow(t *testing.T) {
 			cursor := position.encode()
 			start, end := time.Now().Add(-time.Hour), time.Now()
 			_, _, logsErr := buildLogsQuery(testWorkspaceID, nil, start, end, "", nil, nil,
-				testPageSize, cursor, observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST, testQueryTimeout, LogRegions{})
+				testPageSize, cursor, observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST, testQueryTimeout, LogScope{})
 			if !errors.Is(logsErr, ErrInvalidLogCursor) {
 				t.Errorf("log cursor error=%v, want invalid cursor", logsErr)
 			}

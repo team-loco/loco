@@ -1,12 +1,12 @@
-import { createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-query";
+import { useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQueries } from "@tanstack/react-query";
-import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { getScopes, listTokens } from "@gen/loco/token/v1/token-TokenService_connectquery";
 import { EntityType } from "@gen/loco/token/v1/token_pb";
 import type { Token } from "@gen/loco/token/v1/token_pb";
 
 import { useAuth } from "@/auth/AuthProvider";
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 
 import { buildHeld, holds, nodeKey, withScopeEntities } from "./model";
 import type { EntityNode, EntityTree, HeldScopes, OwnerKey } from "./model";
@@ -37,6 +37,8 @@ export interface TokenData {
 	scopesLoading: boolean;
 	scopesError: unknown;
 	resourcesLoading: boolean;
+	resourcesError: unknown;
+	retryResources: () => void;
 }
 
 function buildTree(
@@ -93,12 +95,11 @@ export function useTokenData(): TokenData {
 	const orgWorkspaces = workspaces.filter((w) => w.orgId === activeOrgId);
 
 	const resourceQueries = useQueries({
-		queries: orgWorkspaces.map((w) =>
-			createQueryOptions(listWorkspaceResources, { workspaceId: w.id, pageSize: 200 }, { transport }),
-		),
+		queries: orgWorkspaces.map((w) => workspaceResourcesOptions(transport, w.id)),
 	});
 	const resources = resourceQueries.flatMap((q) => q.data?.resources ?? []);
-	const resourcesLoading = resourceQueries.some((q) => q.isLoading);
+	const resourcesLoading = resourceQueries.some((q) => q.isPending || q.isFetching);
+	const resourcesError = resourceQueries.find((q) => q.error !== null)?.error ?? null;
 
 	const tree = buildTree(orgs, activeOrgId, orgWorkspaces, resources, userId);
 	const scopeList = scopesQuery.data?.scopes ?? [];
@@ -168,5 +169,7 @@ export function useTokenData(): TokenData {
 		scopesLoading: scopesQuery.isLoading,
 		scopesError: scopesQuery.error,
 		resourcesLoading,
+		resourcesError,
+		retryResources: () => { for (const q of resourceQueries) void q.refetch(); },
 	};
 }

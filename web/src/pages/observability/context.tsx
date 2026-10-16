@@ -69,8 +69,6 @@ interface ObsContextValue {
 	setText: (t: string) => void;
 	appliedText: string;
 	setAppliedText: (t: string) => void;
-	logFocusTs: number | null;
-	setLogFocusTs: (ts: number | null) => void;
 	metricsFocusTs: number | null;
 	goTo: (view: ObservabilityView, opts?: GoToOptions) => void;
 }
@@ -96,15 +94,19 @@ export function ObsProvider({
 	);
 
 	const initialNames = (params.get("r") ?? "").split(",").filter(Boolean);
-	const initialRange = params.get("range");
-	const [range, setRange] = useState<TimeRange>(() => (isTimeRange(initialRange) ? initialRange : "1h"));
+	const requestedRange = params.get("range");
+	const range: TimeRange = isTimeRange(requestedRange) ? requestedRange : "1h";
+	const setRange = (value: TimeRange) => {
+		const next = new URLSearchParams(params);
+		next.set("range", value);
+		setParams(next);
+	};
 	const [selected, setSelected] = useState<string[] | null>(initialNames.length > 0 ? initialNames : null);
 	const [tokens, setTokens] = useState<Token[]>(() =>
 		initialNames.map((value) => ({ neg: false, key: "resource", value })),
 	);
 	const [text, setText] = useState("");
 	const [appliedText, setAppliedText] = useState("");
-	const [logFocusTs, setLogFocusTs] = useState<number | null>(null);
 	const [metricsFocusTs, setMetricsFocusTs] = useState<number | null>(null);
 
 	const sorted = (resourcesData?.resources ?? []).toSorted((a, b) => a.name.localeCompare(b.name));
@@ -121,7 +123,6 @@ export function ObsProvider({
 	const resourceById = new Map(resources.map((r) => [r.id, r]));
 
 	const goTo = (next: ObservabilityView, opts: GoToOptions = {}) => {
-		if (opts.range !== undefined) setRange(opts.range);
 		if (next === "logs") {
 			if (opts.tokens !== undefined) {
 				setTokens(opts.tokens);
@@ -132,7 +133,6 @@ export function ObsProvider({
 				setText("");
 				setAppliedText("");
 			}
-			setLogFocusTs(opts.focusTs ?? null);
 		}
 		if (next === "metrics") {
 			if (opts.resource !== undefined) setSelected([opts.resource]);
@@ -142,6 +142,11 @@ export function ObsProvider({
 		const env = params.get("env");
 		const search = new URLSearchParams({ view: next });
 		if (env !== null) search.set("env", env);
+		search.set("range", opts.range ?? range);
+		if (next === "logs" && opts.focusTs !== undefined) search.set("at", String(opts.focusTs));
+		const names = opts.resource !== undefined ? [opts.resource] :
+			opts.tokens?.filter((token) => token.key === "resource" && !token.neg).map((token) => token.value);
+		if (names !== undefined && names.length > 0) search.set("r", names.join(","));
 		setParams(search);
 	};
 
@@ -163,8 +168,6 @@ export function ObsProvider({
 		setText,
 		appliedText,
 		setAppliedText,
-		logFocusTs,
-		setLogFocusTs,
 		metricsFocusTs,
 		goTo,
 	};

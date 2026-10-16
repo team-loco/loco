@@ -249,6 +249,8 @@ export function Tokens() {
 				held={data.held}
 				takenNames={tokens.map((t) => t.name)}
 				resourcesLoading={data.resourcesLoading}
+				resourcesError={data.resourcesError}
+				retryResources={data.retryResources}
 				onClose={() => {
 					setDraft(null);
 				}}

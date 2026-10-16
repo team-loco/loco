@@ -16,17 +16,18 @@ import (
 )
 
 var (
-	errInvalidRegionFilter = errors.New("region filters must be nonempty with at most one trailing wildcard")
-	errMetricNameRequired  = errors.New("metric_name is required")
-	errTimeRangeRequired   = errors.New("start_time and end_time are required")
-	errEndBeforeStart      = errors.New("end_time must be after start_time")
-	errWorkspaceIDRequired = errors.New("workspace_id is required")
-	errSinceTooOld         = errors.New("since is older than the maximum time range")
-	errSinceInFuture       = errors.New("since is in the future")
-	errInvalidTraceID      = errors.New("trace_id must be 32 lowercase hex characters and nonzero")
-	errInvalidTraceLimit   = errors.New("limit must be between 0 and 10000")
-	errTimestampRange      = errors.New("timestamp is outside nanosecond precision range")
-	errReservedLabelKey    = errors.New("label keys in the loco. attribute namespace are reserved")
+	errInvalidEnvironmentID = errors.New("environment_id must be a UUID")
+	errInvalidRegionFilter  = errors.New("region filters must be nonempty with at most one trailing wildcard")
+	errMetricNameRequired   = errors.New("metric_name is required")
+	errTimeRangeRequired    = errors.New("start_time and end_time are required")
+	errEndBeforeStart       = errors.New("end_time must be after start_time")
+	errWorkspaceIDRequired  = errors.New("workspace_id is required")
+	errSinceTooOld          = errors.New("since is older than the maximum time range")
+	errSinceInFuture        = errors.New("since is in the future")
+	errInvalidTraceID       = errors.New("trace_id must be 32 lowercase hex characters and nonzero")
+	errInvalidTraceLimit    = errors.New("limit must be between 0 and 10000")
+	errTimestampRange       = errors.New("timestamp is outside nanosecond precision range")
+	errReservedLabelKey     = errors.New("label keys in the loco. attribute namespace are reserved")
 )
 
 const (
@@ -42,6 +43,9 @@ const (
 func ValidateLogsRequest(req *observabilityv1.QueryLogsRequest, cfg *config.Config) error {
 	if req.GetWorkspaceId() == "" {
 		return errWorkspaceIDRequired
+	}
+	if err := validateEnvironmentID(req.GetEnvironmentId()); err != nil {
+		return err
 	}
 	if err := validateLabels(req.GetLabels()); err != nil {
 		return err
@@ -78,6 +82,9 @@ func ValidateMetricsRequest(req *observabilityv1.QueryMetricsRequest, cfg *confi
 func ValidateTailRequest(req *observabilityv1.TailLogsRequest, cfg *config.Config, now time.Time) error {
 	if req.GetWorkspaceId() == "" {
 		return errWorkspaceIDRequired
+	}
+	if err := validateEnvironmentID(req.GetEnvironmentId()); err != nil {
+		return err
 	}
 	if err := validateLabels(req.GetLabels()); err != nil {
 		return err
@@ -199,6 +206,16 @@ func validateRegions(groups ...[]string) error {
 				return errInvalidRegionFilter
 			}
 		}
+	}
+	return nil
+}
+
+func validateEnvironmentID(value string) error {
+	if value == "" {
+		return nil
+	}
+	if _, err := uuid.Parse(value); err != nil {
+		return errInvalidEnvironmentID
 	}
 	return nil
 }

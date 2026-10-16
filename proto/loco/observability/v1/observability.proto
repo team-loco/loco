@@ -73,6 +73,11 @@ message QueryLogsRequest {
     }
   }];
 
+  string environment_id = 13 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+
   option (buf.validate.message).cel = {
     id: "time_range.start_lte_end"
     message: "start_time must be before or equal to end_time"
@@ -154,6 +159,10 @@ message TailLogsRequest {
       }
     }
   }];
+  string environment_id = 9 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
 }
 
 // TailLogsResponse is a server-streamed event (log entry or heartbeat).

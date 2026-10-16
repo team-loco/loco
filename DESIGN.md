@@ -40,3 +40,13 @@ The deployment-history cursor contract lives in `proto/loco/deployment/v1/deploy
 The Traces view uses the shared observability shell, TimeRangeMenu and ResourceMenu. Committed trace ID, resource filter, span selection and fixed time bounds live in URL search parameters. Span pages keep the same bounds and regional API transport. Browse counts describe loaded spans; trace detail expands the selection to all resources in the current workspace and environment. The waterfall uses compact single-line rows, one timing unit across its axis, stable service colors and separate semantic error markers. The ruler and rows share a scroller to keep their timing columns aligned. Span details sit below the waterfall on desktop, with searchable Attributes, Resource and Instrumentation tabs. Narrow screens preserve single-line operation/timing rows and open span details in the shared bottom Sheet with Escape and focus recovery.
 
 Log message previews and details remove terminal color and style sequences before highlighting text. The JSON record and raw-message copy preserve the original log body.
+
+The Metrics view opens with the collected CPU and memory charts below the resource and time filters. Keep planned metrics and inactive controls out of the chart area; preserve loading, empty and error states for the collected metrics.
+
+Metric charts keep timeline event lines free of overlapping text. Their event menu lists the full event titles and times, newest first, and opens logs at the selected event. Use the shared DropdownMenu for keyboard navigation, dismissal and focus recovery.
+
+Metric-to-log links include the selected timestamp (`at`), time range and resource selection in the URL. Focused log controls describe a time window around that timestamp; the range remains in the URL when it changes. Focused queries load records on both sides of that timestamp with disjoint bounds; Older and Newer retain those bounds while following directional cursors. Return to latest and Live leave the focused window.
+
+Application compute charts query the selected environment and wait for it to load. Build-job telemetry has no runtime environment and stays outside these charts. Changing the environment uses a separate metrics cache.
+
+Historical logs and live tail use the selected environment. Queries wait for that selection; changing it resets pagination and log selection, uses separate cached history, and closes the previous live stream. Build logs remain available through unfiltered API queries.
