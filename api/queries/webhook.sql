@@ -11,6 +11,9 @@ ORDER BY created_at;
 -- name: CountWorkspaceWebhooks :one
 SELECT count(*) FROM webhooks WHERE kind = 'workspace' AND workspace_id = sqlc.arg('workspace_id')::uuid;
 
+-- name: LockWorkspaceForWebhookCreation :one
+SELECT id FROM workspaces WHERE id = $1 FOR NO KEY UPDATE;
+
 -- name: GetWorkspaceWebhook :one
 SELECT * FROM webhooks
 WHERE id = sqlc.arg('id') AND kind = 'workspace' AND workspace_id = sqlc.arg('workspace_id')::uuid;

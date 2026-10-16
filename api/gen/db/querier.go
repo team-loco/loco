@@ -202,6 +202,7 @@ type Querier interface {
 	LockUserForMembership(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockWorkspaceEnvironments(ctx context.Context, workspaceID uuid.UUID) ([]LockWorkspaceEnvironmentsRow, error)
 	LockWorkspaceForDeletion(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
+	LockWorkspaceForWebhookCreation(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	MarkBuildImageDeleted(ctx context.Context, id uuid.UUID) (int64, error)
 	MarkBuildRunning(ctx context.Context, arg MarkBuildRunningParams) (int64, error)
 	MarkBuildSourceDeleted(ctx context.Context, id uuid.UUID) error
