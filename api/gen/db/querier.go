@@ -106,6 +106,8 @@ type Querier interface {
 	GetPlacementForResourceCluster(ctx context.Context, arg GetPlacementForResourceClusterParams) (Placement, error)
 	GetPlatformDomain(ctx context.Context, id uuid.UUID) (PlatformDomain, error)
 	GetPlatformDomainByName(ctx context.Context, domain string) (PlatformDomain, error)
+	GetPlatformDomainForAllocation(ctx context.Context, id uuid.UUID) (PlatformDomain, error)
+	GetPlatformDomainForUpdate(ctx context.Context, id uuid.UUID) (PlatformDomain, error)
 	GetPrimaryResourceDomain(ctx context.Context, arg GetPrimaryResourceDomainParams) (string, error)
 	GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, error)
 	GetResourceByNameAndWorkspace(ctx context.Context, arg GetResourceByNameAndWorkspaceParams) (Resource, error)
@@ -216,6 +218,7 @@ type Querier interface {
 	MoveAccountEmail(ctx context.Context, arg MoveAccountEmailParams) (User, error)
 	NotifyClusterPlacements(ctx context.Context, clusterID string) error
 	OrgHasWorkspacesWithResources(ctx context.Context, orgID uuid.UUID) (bool, error)
+	PlatformDomainHasResources(ctx context.Context, platformDomainID *uuid.UUID) (bool, error)
 	QueueBuild(ctx context.Context, arg QueueBuildParams) (int64, error)
 	ReencryptSecrets(ctx context.Context, arg ReencryptSecretsParams) (int64, error)
 	RemoveAllScopesForEntity(ctx context.Context, arg RemoveAllScopesForEntityParams) error
@@ -247,6 +250,7 @@ type Querier interface {
 	UpdateEnvironment(ctx context.Context, arg UpdateEnvironmentParams) (Environment, error)
 	UpdateOrgName(ctx context.Context, arg UpdateOrgNameParams) (Organization, error)
 	UpdatePlacementStatus(ctx context.Context, arg UpdatePlacementStatusParams) (UpdatePlacementStatusRow, error)
+	UpdatePlatformDomain(ctx context.Context, arg UpdatePlatformDomainParams) (PlatformDomain, error)
 	UpdateQueuedBuildMessage(ctx context.Context, arg UpdateQueuedBuildMessageParams) (int64, error)
 	UpdateResource(ctx context.Context, arg UpdateResourceParams) (uuid.UUID, error)
 	UpdateResourceDomain(ctx context.Context, arg UpdateResourceDomainParams) (uuid.UUID, error)

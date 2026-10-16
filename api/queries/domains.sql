@@ -34,6 +34,18 @@ SELECT * FROM platform_domains
 WHERE (sqlc.narg('active_only')::boolean IS NULL OR is_active = sqlc.narg('active_only')::boolean)
 ORDER BY domain;
 
+-- name: GetPlatformDomainForUpdate :one
+SELECT * FROM platform_domains WHERE id = $1 FOR UPDATE;
+
+-- name: GetPlatformDomainForAllocation :one
+SELECT * FROM platform_domains WHERE id = $1 FOR SHARE;
+
+-- name: PlatformDomainHasResources :one
+SELECT EXISTS(SELECT 1 FROM resource_domains WHERE platform_domain_id = $1);
+
+-- name: UpdatePlatformDomain :one
+UPDATE platform_domains SET domain = $2, is_active = $3 WHERE id = $1 RETURNING *;
+
 -- name: DeactivatePlatformDomain :one
 UPDATE platform_domains
 SET is_active = false

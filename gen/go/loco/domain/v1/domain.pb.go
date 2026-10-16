@@ -10,7 +10,6 @@ import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -638,7 +637,6 @@ func (x *ListPlatformDomainsResponse) GetPlatformDomains() []*PlatformDomain {
 type UpdatePlatformDomainRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
 	Domain        *string                `protobuf:"bytes,3,opt,name=domain,proto3,oneof" json:"domain,omitempty"`
 	IsActive      *bool                  `protobuf:"varint,4,opt,name=is_active,json=isActive,proto3,oneof" json:"is_active,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -680,13 +678,6 @@ func (x *UpdatePlatformDomainRequest) GetId() string {
 		return x.Id
 	}
 	return ""
-}
-
-func (x *UpdatePlatformDomainRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
-	if x != nil {
-		return x.UpdateMask
-	}
-	return nil
 }
 
 func (x *UpdatePlatformDomainRequest) GetDomain() string {
@@ -1091,7 +1082,6 @@ func (x *CreateResourceDomainResponse) GetDomainId() string {
 type UpdateResourceDomainRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	DomainId      string                 `protobuf:"bytes,1,opt,name=domain_id,json=domainId,proto3" json:"domain_id,omitempty"`
-	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
 	Domain        *string                `protobuf:"bytes,3,opt,name=domain,proto3,oneof" json:"domain,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1132,13 +1122,6 @@ func (x *UpdateResourceDomainRequest) GetDomainId() string {
 		return x.DomainId
 	}
 	return ""
-}
-
-func (x *UpdateResourceDomainRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
-	if x != nil {
-		return x.UpdateMask
-	}
-	return nil
 }
 
 func (x *UpdateResourceDomainRequest) GetDomain() string {
@@ -1475,7 +1458,7 @@ var File_loco_domain_v1_domain_proto protoreflect.FileDescriptor
 
 const file_loco_domain_v1_domain_proto_rawDesc = "" +
 	"\n" +
-	"\x1bloco/domain/v1/domain.proto\x12\x0eloco.domain.v1\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcb\x01\n" +
+	"\x1bloco/domain/v1/domain.proto\x12\x0eloco.domain.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcb\x01\n" +
 	"\x0ePlatformDomain\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06domain\x18\x02 \x01(\tR\x06domain\x12\x1b\n" +
@@ -1526,16 +1509,14 @@ const file_loco_domain_v1_domain_proto_rawDesc = "" +
 	"activeOnly\x88\x01\x01B\x0e\n" +
 	"\f_active_only\"h\n" +
 	"\x1bListPlatformDomainsResponse\x12I\n" +
-	"\x10platform_domains\x18\x01 \x03(\v2\x1e.loco.domain.v1.PlatformDomainR\x0fplatformDomains\"\xd5\x01\n" +
+	"\x10platform_domains\x18\x01 \x03(\v2\x1e.loco.domain.v1.PlatformDomainR\x0fplatformDomains\"\xab\x01\n" +
 	"\x1bUpdatePlatformDomainRequest\x12\x18\n" +
-	"\x02id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x02id\x12;\n" +
-	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
-	"updateMask\x12$\n" +
+	"\x02id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x02id\x12$\n" +
 	"\x06domain\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x06domain\x88\x01\x01\x12 \n" +
 	"\tis_active\x18\x04 \x01(\bH\x01R\bisActive\x88\x01\x01B\t\n" +
 	"\a_domainB\f\n" +
 	"\n" +
-	"_is_active\".\n" +
+	"_is_activeJ\x04\b\x02\x10\x03R\vupdate_mask\".\n" +
 	"\x1cUpdatePlatformDomainResponse\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"7\n" +
 	"\x1bDeletePlatformDomainRequest\x12\x18\n" +
@@ -1556,13 +1537,11 @@ const file_loco_domain_v1_domain_proto_rawDesc = "" +
 	"resourceId\x12;\n" +
 	"\x06domain\x18\x02 \x01(\v2\x1b.loco.domain.v1.DomainInputB\x06\xbaH\x03\xc8\x01\x01R\x06domain\";\n" +
 	"\x1cCreateResourceDomainResponse\x12\x1b\n" +
-	"\tdomain_id\x18\x01 \x01(\tR\bdomainId\"\xb2\x01\n" +
+	"\tdomain_id\x18\x01 \x01(\tR\bdomainId\"\x88\x01\n" +
 	"\x1bUpdateResourceDomainRequest\x12%\n" +
-	"\tdomain_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\bdomainId\x12;\n" +
-	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
-	"updateMask\x12$\n" +
+	"\tdomain_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\bdomainId\x12$\n" +
 	"\x06domain\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x06domain\x88\x01\x01B\t\n" +
-	"\a_domain\";\n" +
+	"\a_domainJ\x04\b\x02\x10\x03R\vupdate_mask\";\n" +
 	"\x1cUpdateResourceDomainResponse\x12\x1b\n" +
 	"\tdomain_id\x18\x01 \x01(\tR\bdomainId\"s\n" +
 	"\x1fSetPrimaryResourceDomainRequest\x12)\n" +
@@ -1641,7 +1620,6 @@ var file_loco_domain_v1_domain_proto_goTypes = []any{
 	(*CheckDomainAvailabilityRequest)(nil),   // 25: loco.domain.v1.CheckDomainAvailabilityRequest
 	(*CheckDomainAvailabilityResponse)(nil),  // 26: loco.domain.v1.CheckDomainAvailabilityResponse
 	(*timestamppb.Timestamp)(nil),            // 27: google.protobuf.Timestamp
-	(*fieldmaskpb.FieldMask)(nil),            // 28: google.protobuf.FieldMask
 }
 var file_loco_domain_v1_domain_proto_depIdxs = []int32{
 	27, // 0: loco.domain.v1.PlatformDomain.created_at:type_name -> google.protobuf.Timestamp
@@ -1652,37 +1630,35 @@ var file_loco_domain_v1_domain_proto_depIdxs = []int32{
 	27, // 5: loco.domain.v1.ResourceDomain.updated_at:type_name -> google.protobuf.Timestamp
 	1,  // 6: loco.domain.v1.GetPlatformDomainResponse.platform_domain:type_name -> loco.domain.v1.PlatformDomain
 	1,  // 7: loco.domain.v1.ListPlatformDomainsResponse.platform_domains:type_name -> loco.domain.v1.PlatformDomain
-	28, // 8: loco.domain.v1.UpdatePlatformDomainRequest.update_mask:type_name -> google.protobuf.FieldMask
-	14, // 9: loco.domain.v1.ListLocoOwnedDomainsResponse.domains:type_name -> loco.domain.v1.LocoOwnedDomain
-	2,  // 10: loco.domain.v1.CreateResourceDomainRequest.domain:type_name -> loco.domain.v1.DomainInput
-	28, // 11: loco.domain.v1.UpdateResourceDomainRequest.update_mask:type_name -> google.protobuf.FieldMask
-	4,  // 12: loco.domain.v1.DomainService.CreatePlatformDomain:input_type -> loco.domain.v1.CreatePlatformDomainRequest
-	6,  // 13: loco.domain.v1.DomainService.GetPlatformDomain:input_type -> loco.domain.v1.GetPlatformDomainRequest
-	8,  // 14: loco.domain.v1.DomainService.ListPlatformDomains:input_type -> loco.domain.v1.ListPlatformDomainsRequest
-	10, // 15: loco.domain.v1.DomainService.UpdatePlatformDomain:input_type -> loco.domain.v1.UpdatePlatformDomainRequest
-	12, // 16: loco.domain.v1.DomainService.DeletePlatformDomain:input_type -> loco.domain.v1.DeletePlatformDomainRequest
-	17, // 17: loco.domain.v1.DomainService.CreateResourceDomain:input_type -> loco.domain.v1.CreateResourceDomainRequest
-	19, // 18: loco.domain.v1.DomainService.UpdateResourceDomain:input_type -> loco.domain.v1.UpdateResourceDomainRequest
-	21, // 19: loco.domain.v1.DomainService.SetPrimaryResourceDomain:input_type -> loco.domain.v1.SetPrimaryResourceDomainRequest
-	23, // 20: loco.domain.v1.DomainService.DeleteResourceDomain:input_type -> loco.domain.v1.DeleteResourceDomainRequest
-	15, // 21: loco.domain.v1.DomainService.ListLocoOwnedDomains:input_type -> loco.domain.v1.ListLocoOwnedDomainsRequest
-	25, // 22: loco.domain.v1.DomainService.CheckDomainAvailability:input_type -> loco.domain.v1.CheckDomainAvailabilityRequest
-	5,  // 23: loco.domain.v1.DomainService.CreatePlatformDomain:output_type -> loco.domain.v1.CreatePlatformDomainResponse
-	7,  // 24: loco.domain.v1.DomainService.GetPlatformDomain:output_type -> loco.domain.v1.GetPlatformDomainResponse
-	9,  // 25: loco.domain.v1.DomainService.ListPlatformDomains:output_type -> loco.domain.v1.ListPlatformDomainsResponse
-	11, // 26: loco.domain.v1.DomainService.UpdatePlatformDomain:output_type -> loco.domain.v1.UpdatePlatformDomainResponse
-	13, // 27: loco.domain.v1.DomainService.DeletePlatformDomain:output_type -> loco.domain.v1.DeletePlatformDomainResponse
-	18, // 28: loco.domain.v1.DomainService.CreateResourceDomain:output_type -> loco.domain.v1.CreateResourceDomainResponse
-	20, // 29: loco.domain.v1.DomainService.UpdateResourceDomain:output_type -> loco.domain.v1.UpdateResourceDomainResponse
-	22, // 30: loco.domain.v1.DomainService.SetPrimaryResourceDomain:output_type -> loco.domain.v1.SetPrimaryResourceDomainResponse
-	24, // 31: loco.domain.v1.DomainService.DeleteResourceDomain:output_type -> loco.domain.v1.DeleteResourceDomainResponse
-	16, // 32: loco.domain.v1.DomainService.ListLocoOwnedDomains:output_type -> loco.domain.v1.ListLocoOwnedDomainsResponse
-	26, // 33: loco.domain.v1.DomainService.CheckDomainAvailability:output_type -> loco.domain.v1.CheckDomainAvailabilityResponse
-	23, // [23:34] is the sub-list for method output_type
-	12, // [12:23] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	14, // 8: loco.domain.v1.ListLocoOwnedDomainsResponse.domains:type_name -> loco.domain.v1.LocoOwnedDomain
+	2,  // 9: loco.domain.v1.CreateResourceDomainRequest.domain:type_name -> loco.domain.v1.DomainInput
+	4,  // 10: loco.domain.v1.DomainService.CreatePlatformDomain:input_type -> loco.domain.v1.CreatePlatformDomainRequest
+	6,  // 11: loco.domain.v1.DomainService.GetPlatformDomain:input_type -> loco.domain.v1.GetPlatformDomainRequest
+	8,  // 12: loco.domain.v1.DomainService.ListPlatformDomains:input_type -> loco.domain.v1.ListPlatformDomainsRequest
+	10, // 13: loco.domain.v1.DomainService.UpdatePlatformDomain:input_type -> loco.domain.v1.UpdatePlatformDomainRequest
+	12, // 14: loco.domain.v1.DomainService.DeletePlatformDomain:input_type -> loco.domain.v1.DeletePlatformDomainRequest
+	17, // 15: loco.domain.v1.DomainService.CreateResourceDomain:input_type -> loco.domain.v1.CreateResourceDomainRequest
+	19, // 16: loco.domain.v1.DomainService.UpdateResourceDomain:input_type -> loco.domain.v1.UpdateResourceDomainRequest
+	21, // 17: loco.domain.v1.DomainService.SetPrimaryResourceDomain:input_type -> loco.domain.v1.SetPrimaryResourceDomainRequest
+	23, // 18: loco.domain.v1.DomainService.DeleteResourceDomain:input_type -> loco.domain.v1.DeleteResourceDomainRequest
+	15, // 19: loco.domain.v1.DomainService.ListLocoOwnedDomains:input_type -> loco.domain.v1.ListLocoOwnedDomainsRequest
+	25, // 20: loco.domain.v1.DomainService.CheckDomainAvailability:input_type -> loco.domain.v1.CheckDomainAvailabilityRequest
+	5,  // 21: loco.domain.v1.DomainService.CreatePlatformDomain:output_type -> loco.domain.v1.CreatePlatformDomainResponse
+	7,  // 22: loco.domain.v1.DomainService.GetPlatformDomain:output_type -> loco.domain.v1.GetPlatformDomainResponse
+	9,  // 23: loco.domain.v1.DomainService.ListPlatformDomains:output_type -> loco.domain.v1.ListPlatformDomainsResponse
+	11, // 24: loco.domain.v1.DomainService.UpdatePlatformDomain:output_type -> loco.domain.v1.UpdatePlatformDomainResponse
+	13, // 25: loco.domain.v1.DomainService.DeletePlatformDomain:output_type -> loco.domain.v1.DeletePlatformDomainResponse
+	18, // 26: loco.domain.v1.DomainService.CreateResourceDomain:output_type -> loco.domain.v1.CreateResourceDomainResponse
+	20, // 27: loco.domain.v1.DomainService.UpdateResourceDomain:output_type -> loco.domain.v1.UpdateResourceDomainResponse
+	22, // 28: loco.domain.v1.DomainService.SetPrimaryResourceDomain:output_type -> loco.domain.v1.SetPrimaryResourceDomainResponse
+	24, // 29: loco.domain.v1.DomainService.DeleteResourceDomain:output_type -> loco.domain.v1.DeleteResourceDomainResponse
+	16, // 30: loco.domain.v1.DomainService.ListLocoOwnedDomains:output_type -> loco.domain.v1.ListLocoOwnedDomainsResponse
+	26, // 31: loco.domain.v1.DomainService.CheckDomainAvailability:output_type -> loco.domain.v1.CheckDomainAvailabilityResponse
+	21, // [21:32] is the sub-list for method output_type
+	10, // [10:21] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_loco_domain_v1_domain_proto_init() }
