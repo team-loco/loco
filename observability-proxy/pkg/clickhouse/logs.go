@@ -237,8 +237,8 @@ func buildLogsQuery(
 	}
 
 	if search != "" {
-		whereParts = append(whereParts, "Body LIKE ?")
-		args = append(args, "%"+search+"%")
+		whereParts = append(whereParts, "position(Body, ?) > 0")
+		args = append(args, search)
 	}
 
 	for k, v := range labels {
