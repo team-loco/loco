@@ -9,7 +9,7 @@ import {
 } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
@@ -49,6 +49,11 @@ export function WorkspaceTab({
 	level: AccessLevel;
 	resourceCount: ResourceCount | undefined;
 }) {
+	const nameId = useId();
+	const nameHintId = `${nameId}-hint`;
+	const nameErrorId = `${nameId}-error`;
+	const descriptionId = useId();
+	const descriptionHintId = `${descriptionId}-hint`;
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const { data, isLoading, error } = useQuery(getWorkspace, { workspaceId });
@@ -144,12 +149,14 @@ export function WorkspaceTab({
 	return (
 		<div className="flex flex-col gap-5">
 			<SettingsCard>
-				<SettingsRow label="Name" hint={`Used in URLs and the CLI. Must be unique in ${orgName}.`}>
+				<SettingsRow label="Name" hint={`Used in URLs and the CLI. Must be unique in ${orgName}.`} controlId={nameId} hintId={nameHintId}>
 					<Input
+						id={nameId}
 						value={current.name}
 						placeholder="storefront"
 						disabled={!canWrite}
 						aria-invalid={shownErr !== null}
+						aria-describedby={shownErr === null ? nameHintId : `${nameHintId} ${nameErrorId}`}
 						className="h-9 max-w-[320px] text-[13.5px]"
 						onChange={(e) => {
 							setDraft({ ...current, name: e.target.value.toLowerCase() });
@@ -157,10 +164,12 @@ export function WorkspaceTab({
 							setServerNameErr(null);
 						}}
 					/>
-					{shownErr !== null && <span className="text-sm text-bad-fg">{shownErr}</span>}
+					{shownErr !== null && <span id={nameErrorId} className="text-sm text-bad-fg">{shownErr}</span>}
 				</SettingsRow>
-				<SettingsRow label="Description">
+				<SettingsRow label="Description" controlId={descriptionId}>
 					<Textarea
+						id={descriptionId}
+						aria-describedby={descriptionHintId}
 						rows={3}
 						maxLength={256}
 						value={current.desc}
@@ -172,7 +181,7 @@ export function WorkspaceTab({
 							setSaved(false);
 						}}
 					/>
-					<span className={cn("self-end text-sm", current.desc.length > 240 ? "text-warn-fg" : "text-fg4")}>
+					<span id={descriptionHintId} className={cn("self-end text-sm", current.desc.length > 240 ? "text-warn-fg" : "text-fg4")}>
 						{current.desc.length} / 256
 					</span>
 				</SettingsRow>

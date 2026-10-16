@@ -88,7 +88,7 @@ Application pages import from [`components/design`](web/src/components/design), 
 - Distinguish no data, no filter matches, unavailable capability, permission denied and request failure. The current Events unavailable card is not an example of zero recorded events. Give filtered-empty states a clear reset action.
 - Keep existing rows visible when loading an older page fails, with a retry at the failed control. Describe incomplete results as loaded/partial; the Traces count and footer provide an existing example.
 - Put validation beside the field and use its invalid treatment. The settings form's Name required message and Unsaved changes bar show different levels of feedback. Keep the draft on failure; pending submission must prevent duplicate mutation.
-- Use semantic labels for fields and accessible names for icon-only controls. Preserve visible keyboard focus, Escape dismissal and focus return. A tooltip or colored border alone does not provide a field label or an error relationship.
+- Use SettingsRow's `controlId` and `hintId` for editable rows, with matching field IDs and `aria-describedby` references for hints and current validation errors. Read-only metadata keeps its text treatment. Use accessible names for icon-only controls. Preserve visible keyboard focus, Escape dismissal and focus return. A tooltip or colored border alone does not provide a field label or an error relationship.
 - Show a disabled action's reason near the action when it matters. The workspace deletion card explains which resources must be removed first. Keep destructive actions separate and use the existing confirmation flow.
 - Verify light/dark, narrow layout, long names, keyboard operation, loading, empty, error and retry behavior. Screenshots establish visual evidence; they do not certify accessibility or an API contract.
 
@@ -100,7 +100,6 @@ These observations are not approved conventions for new screens:
 | --- | --- | --- |
 | Architecture can push the resource list below a long diagram and requires horizontal navigation on narrow screens | Sixteen-service dashboard capture; [ArchitectureDiagram](web/src/pages/dashboard/ArchitectureDiagram.tsx) | Review task priority and navigation at larger service counts; do not copy its height as a section-spacing rule |
 | Visible page-heading treatment varies across observability and operational pages | [Observability](web/src/pages/Observability.tsx), [TracesView](web/src/pages/observability/TracesView.tsx), PageHeader | Preserve the compact telemetry workflow; clarify a shared heading convention before changing it |
-| Settings' visible Name text is not programmatically connected to its input | SettingsRow renders a span; [WorkspaceTab](web/src/pages/settings/WorkspaceTab.tsx) supplies no label association, confirmed in the captured DOM | Repair the label relationship in a separate UI change; do not copy this markup for new fields |
 
 ### Review checklist
 
