@@ -1,4 +1,5 @@
 import { useState, type CSSProperties } from "react";
+import { useSearchParams } from "react-router";
 import { ArrowUpIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, ScrollTextIcon, SearchXIcon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/design/Button";
@@ -10,7 +11,9 @@ import { useQueryLogs } from "@/hooks/useQueryLogs";
 import { useTailLogs } from "@/hooks/useTailLogs";
 import { getErrorMessage } from "@/lib/error-handler";
 import { formatCount } from "@/lib/format";
+import { createLogHistory, logAnchor, moveLogHistory } from "@/lib/log-history";
 import { timeRangeMs } from "@/lib/obs";
+import { msToTimestamp } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { QUERY_MAX_RANGE, RANGES, useObs } from "./context";
@@ -33,7 +36,7 @@ interface LogPlayback {
 	key: string;
 	on: boolean;
 	refreshing: boolean;
-	paused: { rows: LogRow[]; nextCursor: string } | null;
+	paused: { rows: LogRow[]; olderCursor: string; newerCursor: string } | null;
 }
 
 function nearest(rows: LogRow[], ts: number): LogRow | undefined {
@@ -55,26 +58,28 @@ export function LogsView() {
 		setText,
 		appliedText,
 		setAppliedText,
-		logFocusTs,
-		setLogFocusTs,
 	} = useObs();
 	const [facetsOpen, setFacetsOpen] = useState(true);
 	const [size, setSize] = useState(50);
-	const [page, setPage] = useState(0);
-	const [cursors, setCursors] = useState<string[]>([]);
+	const [page, setPage] = useState<number | "last">(0);
+	const [history, setHistory] = useState(createLogHistory);
+	const [params, setParams] = useSearchParams();
+	const anchor = logAnchor(params.get("at"));
+	const [focusActive, setFocusActive] = useState(anchor !== null);
+	const clearAnchor = () => {
+		const next = new URLSearchParams(params);
+		next.delete("at");
+		setParams(next);
+		setFocusActive(false);
+	};
+	const [windowEnd, setWindowEnd] = useState(Date.now);
 	const [selectedKey, setSelectedKey] = useState<string | null>(null);
 	const [freezeTs, setFreezeTs] = useState<number | null>(null);
 	const backend = buildBackendQuery(tokens, appliedText, resources);
-	const queryKey = JSON.stringify([workspaceId, backend.parsed, backend.resourceIds, backend.impossible, range]);
+	const queryKey = JSON.stringify([workspaceId, backend.parsed, backend.resourceIds, backend.impossible, range, anchor]);
 	const [prevKey, setPrevKey] = useState(queryKey);
-	if (prevKey !== queryKey) {
-		setPrevKey(queryKey);
-		setCursors([]);
-		setPage(0);
-		setSelectedKey(null);
-	}
-	const cursor = cursors.at(-1) ?? "";
-	const playbackKey = JSON.stringify([queryKey, cursor]);
+	const cursor = history.current.cursor;
+	const playbackKey = JSON.stringify([queryKey, cursor, history.current.order]);
 	const [playback, setPlayback] = useState<LogPlayback>({ key: playbackKey, on: false, refreshing: false, paused: null });
 	if (playback.key !== playbackKey) {
 		setPlayback({ key: playbackKey, on: playback.on, refreshing: false, paused: null });
@@ -82,6 +87,16 @@ export function LogsView() {
 	const tail = playback.on;
 	const now = useNow(tail ? 1000 : 15_000);
 	const nowMs = now.getTime();
+	if (prevKey !== queryKey) {
+		setPrevKey(queryKey);
+		setHistory(createLogHistory());
+		setWindowEnd(Math.max(windowEnd, nowMs));
+		setFocusActive(anchor !== null);
+		setPage(0);
+		setSelectedKey(null);
+	}
+	const historyFrom = anchor === null ? windowEnd - timeRangeMs(range) : anchor - timeRangeMs(range) / 2;
+	const historyTo = anchor === null ? windowEnd : Math.min(windowEnd, anchor + timeRangeMs(range) / 2);
 
 	const logs = useQueryLogs({
 		workspaceId,
@@ -89,6 +104,10 @@ export function LogsView() {
 		timeRange: range,
 		parsedQuery: backend.parsed,
 		cursor,
+		order: history.current.order,
+		startTime: msToTimestamp(historyFrom),
+		endTime: msToTimestamp(historyTo),
+		around: anchor ?? undefined,
 		limit: BATCH,
 		enabled: !backend.impossible,
 	});
@@ -99,7 +118,8 @@ export function LogsView() {
 		enabled: tail && cursor === "" && !backend.impossible,
 	});
 
-	const cutoffCursor = (playback.paused?.nextCursor ?? logs.nextCursor) || null;
+	const cutoffCursor = (playback.paused?.olderCursor ?? logs.olderCursor) || null;
+	const newerCursor = (playback.paused?.newerCursor ?? logs.newerCursor) || null;
 	const batchRows = toRows(logs.entries, resourceById).toSorted((a, b) => b.ts - a.ts);
 	const allTail = tail && cursor === "" ? toRows(tailState.entries, resourceById) : [];
 
@@ -112,7 +132,7 @@ export function LogsView() {
 		setPage(0);
 		setFreezeTs(null);
 		if (tail) {
-			setPlayback({ ...playback, on: false, paused: { rows: visibleLogRows(batchRows, allTail), nextCursor: logs.nextCursor } });
+			setPlayback({ ...playback, on: false, paused: { rows: visibleLogRows(batchRows, allTail), olderCursor: logs.olderCursor, newerCursor: logs.newerCursor } });
 			return;
 		}
 		const pending = { ...playback, refreshing: true };
@@ -126,10 +146,10 @@ export function LogsView() {
 	};
 
 	const isLoading = logs.isLoading && !backend.impossible;
-	const truncated = cutoffCursor !== null;
-	const from = nowMs - timeRangeMs(range);
+	const truncated = cutoffCursor !== null || newerCursor !== null || history.older.length > 0 || history.newer.length > 0;
+	const from = tail ? nowMs - timeRangeMs(range) : historyFrom;
 
-	const bw = timeRangeMs(range) / BUCKETS;
+	const bw = ((tail ? nowMs : historyTo) - from) / BUCKETS;
 	const counts = Array.from({ length: BUCKETS }, () => ({ e: 0, w: 0, i: 0 }));
 	for (const r of rows) {
 		const idx = Math.min(BUCKETS - 1, Math.floor((r.ts - from) / bw));
@@ -149,17 +169,17 @@ export function LogsView() {
 	}));
 
 	const pages = Math.max(1, Math.ceil(rows.length / size));
-	const focused = selectedKey === null && logFocusTs !== null ? nearest(rows, logFocusTs) : undefined;
+	const focused = selectedKey === null && focusActive && anchor !== null ? nearest(rows, anchor) : undefined;
 	const effectiveKey = selectedKey ?? focused?.key ?? null;
 	const selIdx = effectiveKey !== null ? rows.findIndex((r) => r.key === effectiveKey) : -1;
 	const selRow = selIdx >= 0 ? rows[selIdx] : undefined;
-	const curPage = focused !== undefined && selIdx >= 0 ? Math.floor(selIdx / size) : Math.min(page, pages - 1);
+	const curPage = focused !== undefined && selIdx >= 0 ? Math.floor(selIdx / size) : page === "last" ? pages - 1 : Math.min(page, pages - 1);
 	const pageRows = rows.slice(curPage * size, curPage * size + size);
-	const canOlder = curPage < pages - 1 || cutoffCursor !== null;
-	const canNewer = curPage > 0 || cursors.length > 0;
+	const canOlder = curPage < pages - 1 || history.older.length > 0 || cutoffCursor !== null;
+	const canNewer = curPage > 0 || history.newer.length > 0 || newerCursor !== null;
 
 	const select = (key: string | null) => {
-		setLogFocusTs(null);
+		setFocusActive(false);
 		setSelectedKey(key);
 		if (key === null) {
 			setFreezeTs(null);
@@ -190,7 +210,7 @@ export function LogsView() {
 	const showFacets = facetsOpen && !panelOpen;
 	const freeWords = appliedText.split(WHITESPACE).filter(Boolean);
 	const rangeLabel = RANGES.find((r) => r.key === range)?.key ?? range;
-	const matched = `${formatCount(rows.length)}${truncated ? "+" : ""} lines`;
+	const matched = `${formatCount(rows.length)}${truncated ? "+" : ""} loaded lines`;
 	const error = logs.error ?? (tail ? tailState.error : null);
 	const query = queryStr(tokens, appliedText);
 	const widen = range === QUERY_MAX_RANGE ? undefined : <WidenRangeButton max={QUERY_MAX_RANGE} />;
@@ -237,7 +257,12 @@ export function LogsView() {
 								{facetsOpen ? <PanelLeftCloseIcon className="size-[15px]" /> : <PanelLeftOpenIcon className="size-[15px]" />}
 							</Button>
 							{isLoading ? <Skeleton className="h-4 w-20" /> : <span className="font-semibold">{matched}</span>}
-							<span className="text-fg3">last {rangeLabel}</span>
+							<span className="text-fg3">{anchor === null ? `last ${rangeLabel}` : `around ${fmtTs(anchor, true)}`}</span>
+							{anchor !== null && <Button variant="ghost" size="xs" onClick={() => {
+								clearAnchor();
+								setWindowEnd(Date.now());
+								setSelectedKey(null);
+							}}>Return to latest</Button>}
 							<div className="flex-1" />
 							<span className="flex items-center gap-3 text-sm text-fg3">
 								<span className="flex items-center gap-[5px]">
@@ -254,7 +279,7 @@ export function LogsView() {
 								</span>
 							</span>
 						</div>
-						<Histogram buckets={histo} from={fmtTs(from)} height={84} />
+						<Histogram buckets={histo} from={fmtTs(from)} to={anchor === null ? "now" : fmtTs(historyTo)} height={84} />
 					</section>
 
 					<section className="overflow-hidden rounded-lg border border-line bg-background">
@@ -295,7 +320,7 @@ export function LogsView() {
 										{query === "" ? (
 											<EmptyState
 												icon={<ScrollTextIcon />}
-												title={`No logs in the last ${range}`}
+												title={anchor === null ? `No logs in the last ${range}` : `No logs around ${fmtTs(anchor)}`}
 												action={widen}
 											/>
 										) : (
@@ -336,11 +361,12 @@ export function LogsView() {
 							onPrev={
 								canNewer
 									? () => {
-											setLogFocusTs(null);
+											setFocusActive(false);
 											if (curPage > 0) setPage(curPage - 1);
 											else {
-												setCursors(cursors.slice(0, -1));
-												setPage(0);
+												setPlayback({ ...playback, on: false, refreshing: false, paused: null });
+												setHistory(moveLogHistory(history, "newer", newerCursor ?? ""));
+												setPage("last");
 											}
 										}
 									: null
@@ -348,11 +374,11 @@ export function LogsView() {
 							onNext={
 								canOlder
 									? () => {
-											setLogFocusTs(null);
+											setFocusActive(false);
 											if (curPage < pages - 1) setPage(curPage + 1);
-											else if (cutoffCursor !== null) {
+											else {
 												setPlayback({ ...playback, on: false, refreshing: false, paused: null });
-												setCursors([...cursors, cutoffCursor]);
+												setHistory(moveLogHistory(history, "older", cutoffCursor ?? ""));
 												setPage(0);
 											}
 										}

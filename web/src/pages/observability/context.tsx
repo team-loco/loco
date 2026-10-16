@@ -69,8 +69,6 @@ interface ObsContextValue {
 	setText: (t: string) => void;
 	appliedText: string;
 	setAppliedText: (t: string) => void;
-	logFocusTs: number | null;
-	setLogFocusTs: (ts: number | null) => void;
 	metricsFocusTs: number | null;
 	goTo: (view: ObservabilityView, opts?: GoToOptions) => void;
 }
@@ -104,7 +102,6 @@ export function ObsProvider({
 	);
 	const [text, setText] = useState("");
 	const [appliedText, setAppliedText] = useState("");
-	const [logFocusTs, setLogFocusTs] = useState<number | null>(null);
 	const [metricsFocusTs, setMetricsFocusTs] = useState<number | null>(null);
 
 	const sorted = (resourcesData?.resources ?? []).toSorted((a, b) => a.name.localeCompare(b.name));
@@ -132,7 +129,6 @@ export function ObsProvider({
 				setText("");
 				setAppliedText("");
 			}
-			setLogFocusTs(opts.focusTs ?? null);
 		}
 		if (next === "metrics") {
 			if (opts.resource !== undefined) setSelected([opts.resource]);
@@ -142,6 +138,11 @@ export function ObsProvider({
 		const env = params.get("env");
 		const search = new URLSearchParams({ view: next });
 		if (env !== null) search.set("env", env);
+		search.set("range", opts.range ?? range);
+		if (next === "logs" && opts.focusTs !== undefined) search.set("at", String(opts.focusTs));
+		const names = opts.resource !== undefined ? [opts.resource] :
+			opts.tokens?.filter((token) => token.key === "resource" && !token.neg).map((token) => token.value);
+		if (names !== undefined && names.length > 0) search.set("r", names.join(","));
 		setParams(search);
 	};
 
@@ -163,8 +164,6 @@ export function ObsProvider({
 		setText,
 		appliedText,
 		setAppliedText,
-		logFocusTs,
-		setLogFocusTs,
 		metricsFocusTs,
 		goTo,
 	};

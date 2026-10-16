@@ -1,9 +1,10 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import { Code, ConnectError, createRouterTransport } from "@connectrpc/connect";
 import { QueryClient } from "@tanstack/react-query";
-import { ObservabilityProxyService, type QueryLogsRequest, type QueryMetricsRequest } from "@gen/loco/observability/v1/observability_pb";
+import { LogOrder, ObservabilityProxyService, type QueryLogsRequest, type QueryMetricsRequest } from "@gen/loco/observability/v1/observability_pb";
 
 import { logsQueryOptions } from "./useQueryLogs";
+import { msToTimestamp } from "@/lib/time";
 import { metricsQueryOptions } from "./useQueryMetrics";
 
 const workspaceId = "11111111-2222-3333-4444-555555555555";
@@ -33,6 +34,58 @@ describe("regional control-plane queries", () => {
 			expect(received).toHaveLength(2);
 		} finally {
 			clock.mockRestore();
+			client.clear();
+		}
+	});
+
+	test("loads logs on both sides of a selected time and preserves directional cursors", async () => {
+		const received: QueryLogsRequest[] = [];
+		const target = Date.UTC(2026, 9, 16, 6, 8, 29, 123);
+		const transport = createRouterTransport((router) => {
+			router.service(ObservabilityProxyService, { queryLogs(request) {
+				received.push(request);
+				const newer = request.order === LogOrder.OLDEST_FIRST;
+				return { entries: [{ body: newer ? "after target" : "before target" }],
+					nextCursor: newer ? "newer-cursor" : "older-cursor" };
+			} });
+		});
+		const client = new QueryClient();
+		const options = { ...logOptions, around: target,
+			startTime: msToTimestamp(target - 30 * 60_000), endTime: msToTimestamp(target + 30 * 60_000) };
+		try {
+			const response = await client.query(logsQueryOptions(transport, options));
+			expect(response.entries.map((entry) => entry.body)).toEqual(["before target", "after target"]);
+			expect(received).toHaveLength(2);
+			expect(received[0]?.endTime?.nanos).toBe(122_999_999);
+			expect(received[1]?.startTime?.nanos).toBe(123_000_000);
+			expect(response.olderCursor).toBe("older-cursor");
+			expect(response.newerCursor).toBe("newer-cursor");
+			await client.query(logsQueryOptions(transport, { ...options, cursor: response.olderCursor }));
+			expect(received[2]?.order).toBe(LogOrder.NEWEST_FIRST);
+			expect(received[2]?.endTime?.nanos).toBe(122_999_999);
+			await client.query(logsQueryOptions(transport, { ...options, cursor: response.newerCursor, order: LogOrder.OLDEST_FIRST }));
+			expect(received[3]?.order).toBe(LogOrder.OLDEST_FIRST);
+			expect(received[3]?.startTime?.nanos).toBe(123_000_000);
+			expect(received.every((request) => request.workspaceId === workspaceId)).toBe(true);
+		} finally {
+			client.clear();
+		}
+	});
+
+	test("keeps the two focus ranges disjoint at an exact second", async () => {
+		const received: QueryLogsRequest[] = [];
+		const transport = createRouterTransport((router) => {
+			router.service(ObservabilityProxyService, { queryLogs(request) { received.push(request); return {}; } });
+		});
+		const client = new QueryClient();
+		const target = Date.UTC(2026, 9, 16, 6, 8, 29);
+		try {
+			await client.query(logsQueryOptions(transport, { ...logOptions, around: target }));
+			expect(received[0]?.endTime?.seconds).toBe(BigInt(target / 1000 - 1));
+			expect(received[0]?.endTime?.nanos).toBe(999_999_999);
+			expect(received[1]?.startTime?.seconds).toBe(BigInt(target / 1000));
+			expect(received[1]?.startTime?.nanos).toBe(0);
+		} finally {
 			client.clear();
 		}
 	});
