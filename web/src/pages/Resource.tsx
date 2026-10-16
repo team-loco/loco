@@ -27,12 +27,13 @@ import { ResourceSkeleton } from "@/pages/resource/ResourceSkeleton";
 import { parseTab, ResourceToolbar, type ObsLinks, type ResourceTab } from "@/pages/resource/ResourceToolbar";
 import { SettingsTab } from "@/pages/resource/SettingsTab";
 import type { MetricRange } from "@/pages/resource/metric";
+import { ActivityPanel } from "@/pages/settings/ActivityPanel";
 import { VariablesTab } from "@/pages/resource/VariablesTab";
 
 const WRITE_LEVEL = 2;
 
 export function Resource() {
-	const { resourceId = "" } = useParams<{ resourceId: string }>();
+	const { orgId = "", resourceId = "" } = useParams<{ orgId: string; resourceId: string }>();
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const navigate = useNavigate();
 	const [params, setParams] = useSearchParams();
@@ -215,6 +216,16 @@ export function Resource() {
 							setModal({ kind: "rollback", target, current });
 						}}
 					/>
+					{orgId !== "" && (
+						<ActivityPanel
+							key={resource.id}
+							orgId={orgId}
+							workspaceId={resource.workspaceId}
+							resourceId={resource.id}
+							description={`Changes made to ${resource.name}, newest first.`}
+							names={new Map([[resource.id, resource.name]])}
+						/>
+					)}
 					<EventsSection resourceId={resourceId} resourceName={resource.name} multiRegion={regions.length > 1} />
 				</div>
 			)}
