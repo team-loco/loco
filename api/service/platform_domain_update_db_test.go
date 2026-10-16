@@ -9,7 +9,6 @@ import (
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
-	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
 const (
@@ -24,59 +23,48 @@ func platformOperator(t *testing.T, f *deployFixture) (*DomainServer, context.Co
 	return c.server, context.WithValue(t.Context(), contextkeys.EntityScopesKey, scopes), c.platformDomainID
 }
 
-func TestPlatformDomainUpdateSelectsFields(t *testing.T) {
+func TestPlatformDomainUpdateUsesProvidedFields(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
 		domain     *string
 		active     *bool
-		paths      []string
 		wantDomain string
 		wantActive bool
 	}{
 		{
 			name:       "activate",
 			active:     new(true),
-			paths:      []string{platformDomainActiveField},
 			wantDomain: platformOriginalName,
 			wantActive: true,
 		},
 		{
 			name:       "rename preserves activity",
 			domain:     new(platformUpdatedName),
-			paths:      []string{platformDomainNameField},
 			wantDomain: platformUpdatedName,
 			wantActive: true,
 		},
 		{
-			name:       "unmasked explicit false",
+			name:       "explicit false",
 			active:     new(false),
 			wantDomain: platformOriginalName,
 		},
 		{
-			name:       "unmasked absent preserves activity",
+			name:       "absent preserves activity",
 			wantDomain: platformOriginalName,
 			wantActive: true,
 		},
 		{
-			name:       "unmasked rename",
+			name:       "rename",
 			domain:     new(platformUpdatedName),
 			wantDomain: platformUpdatedName,
 			wantActive: true,
 		},
 		{
-			name:       "wildcard",
+			name:       "rename and activate",
 			domain:     new(platformUpdatedName),
 			active:     new(true),
-			paths:      []string{"*"},
 			wantDomain: platformUpdatedName,
 			wantActive: true,
-		},
-		{
-			name:       "unselected domain ignored",
-			domain:     new(platformUpdatedName),
-			active:     new(false),
-			paths:      []string{platformDomainActiveField},
-			wantDomain: platformOriginalName,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -90,10 +78,9 @@ func TestPlatformDomainUpdateSelectsFields(t *testing.T) {
 			_, err := server.UpdatePlatformDomain(
 				ctx,
 				&domainv1.UpdatePlatformDomainRequest{
-					Id:         id.String(),
-					Domain:     tc.domain,
-					IsActive:   tc.active,
-					UpdateMask: &fieldmaskpb.FieldMask{Paths: tc.paths},
+					Id:       id.String(),
+					Domain:   tc.domain,
+					IsActive: tc.active,
 				},
 			)
 			if err != nil {
@@ -111,22 +98,16 @@ func TestPlatformDomainUpdateSelectsFields(t *testing.T) {
 }
 
 func TestPlatformDomainUpdateRejectsInvalidChangesAtomically(t *testing.T) {
-	cases := [][]string{
-		{"created_at"},
-		{platformDomainNameField, "created_at"},
-		{platformDomainNameField},
-		{"*"},
-	}
-	for _, paths := range cases {
-		t.Run("mask_"+paths[0], func(t *testing.T) {
+	for _, domain := range []string{"", " "} {
+		t.Run("domain_"+domain, func(t *testing.T) {
 			f := newDeployFixture(t)
 			server, ctx, id := platformOperator(t, f)
 			_, err := server.UpdatePlatformDomain(
 				ctx,
 				&domainv1.UpdatePlatformDomainRequest{
-					Id:         id.String(),
-					IsActive:   new(false),
-					UpdateMask: &fieldmaskpb.FieldMask{Paths: paths},
+					Id:       id.String(),
+					IsActive: new(false),
+					Domain:   new(domain),
 				},
 			)
 			if connect.CodeOf(err) != connect.CodeInvalidArgument {
@@ -220,5 +201,41 @@ func TestPlatformDomainReferencedNameCannotChange(t *testing.T) {
 	)
 	if err != nil {
 		t.Fatalf("deactivate referenced root without rename: %v", err)
+	}
+}
+
+func TestResourceDomainOptionalNamePreservesOrRejectsEmpty(t *testing.T) {
+	f := newDeployFixture(t)
+	client := newDomainClient(t, f)
+	if err := client.add(testPrimaryDomain); err != nil {
+		t.Fatal(err)
+	}
+	id := client.domainID(t, testPrimaryDomain)
+	if _, err := client.server.UpdateResourceDomain(
+		client.ctx,
+		&domainv1.UpdateResourceDomainRequest{DomainId: id},
+	); err != nil {
+		t.Fatal(err)
+	}
+	var auditBefore int
+	if err := f.pool.QueryRow(t.Context(), "SELECT count(*) FROM events").Scan(&auditBefore); err != nil {
+		t.Fatal(err)
+	}
+	_, err := client.server.UpdateResourceDomain(
+		client.ctx,
+		&domainv1.UpdateResourceDomainRequest{DomainId: id, Domain: new("")},
+	)
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty domain error=%v", err)
+	}
+	if got := client.domainID(t, testPrimaryDomain); got != id {
+		t.Fatalf("domain changed: %s -> %s", id, got)
+	}
+	var auditAfter int
+	if err := f.pool.QueryRow(t.Context(), "SELECT count(*) FROM events").Scan(&auditAfter); err != nil {
+		t.Fatal(err)
+	}
+	if auditAfter != auditBefore {
+		t.Fatalf("invalid rename recorded event: %d -> %d", auditBefore, auditAfter)
 	}
 }

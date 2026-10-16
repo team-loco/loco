@@ -27,7 +27,7 @@ The local environment is a development installation. Review the repository's env
 
 Configure the API's database, cache, authentication, registry, and API/dashboard endpoints using the repository's [environment template](https://github.com/team-loco/loco/blob/main/.env.example). Check the template and deployed release together; authentication and registry changes are under active review. Choose a [secrets key provider](secrets-key-provider.md) for the key that protects environment secrets.
 
-Platform domain changes use `DomainService.UpdatePlatformDomain` and require `system:admin`. The update mask selects `domain` and `is_active`; without a mask, only supplied fields change, including an explicit `is_active: false`. An inactive platform domain cannot receive new service domains. Rename a platform domain only while no service domains reference it; existing assigned hostnames remain unchanged when a platform domain is deactivated.
+Platform domain changes use `DomainService.UpdatePlatformDomain` and require `system:admin`. Only supplied optional fields change: omitting `domain` preserves the current root, and an explicit `is_active: false` deactivates it. An inactive platform domain cannot receive new service domains. Rename a platform domain only while no service domains reference it; existing assigned hostnames remain unchanged when a platform domain is deactivated.
 
 Set `DATABASE_LISTEN_URL` to a direct PostgreSQL or session-pooler URL when `DATABASE_URL` uses a transaction-mode pooler. The API holds this connection for placement notifications and uses `DATABASE_URL` for ordinary queries. Both URLs must reach the same database. With `DATABASE_LISTEN_URL` empty, the listener uses `DATABASE_URL`.
 

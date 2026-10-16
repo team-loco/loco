@@ -3,7 +3,6 @@ syntax = "proto3";
 package loco.domain.v1;
 
 import "buf/validate/validate.proto";
-import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/domain/v1;domainv1";
@@ -138,7 +137,8 @@ message ListPlatformDomainsResponse {
 // UpdatePlatformDomainRequest is the request to update a platform domain.
 message UpdatePlatformDomainRequest {
   string id = 1 [(buf.validate.field).string.uuid = true];
-  google.protobuf.FieldMask update_mask = 2;
+  reserved 2;
+  reserved "update_mask";
   optional string domain = 3 [(buf.validate.field).string.min_len = 1];
   optional bool is_active = 4;
 }
@@ -193,7 +193,8 @@ message CreateResourceDomainResponse {
 // UpdateResourceDomainRequest is the request to update a resource's domain.
 message UpdateResourceDomainRequest {
   string domain_id = 1 [(buf.validate.field).string.uuid = true];
-  google.protobuf.FieldMask update_mask = 2;
+  reserved 2;
+  reserved "update_mask";
   optional string domain = 3 [(buf.validate.field).string.min_len = 1];
 }
 

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"slices"
 	"strings"
 
 	"connectrpc.com/connect/v2"
@@ -37,8 +36,7 @@ const (
 var (
 	ErrPlatformDomainNotFound   = errors.New("platform domain not found")
 	ErrDomainAlreadyExists      = errors.New("domain already exists")
-	errPlatformDomainMask       = errors.New("update mask contains an unsupported platform domain field")
-	errPlatformDomainName       = errors.New("platform domain name is required")
+	errDomainNameRequired       = errors.New("domain name is required")
 	errPlatformDomainReferenced = errors.New("cannot rename a platform domain while services use it")
 	errPlatformDomainInactive   = errors.New("platform domain is not active")
 	errPlatformDomainChanged    = errors.New("platform domain changed; plan the file again")
@@ -196,9 +194,12 @@ func (s *DomainServer) UpdatePlatformDomain(
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
-	updateDomain, updateActive, maskErr := platformDomainUpdateFields(req)
-	if maskErr != nil {
-		return nil, rpcerr.New(connect.CodeInvalidArgument, maskErr)
+	message := req.ProtoReflect()
+	fields := message.Descriptor().Fields()
+	updateDomain := message.Has(fields.ByName(platformDomainNameField))
+	updateActive := message.Has(fields.ByName(platformDomainActiveField))
+	if updateDomain && strings.TrimSpace(req.GetDomain()) == "" {
+		return nil, rpcerr.New(connect.CodeInvalidArgument, errDomainNameRequired)
 	}
 	parsedID := uuid.MustParse(req.GetId())
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -252,29 +253,6 @@ func (s *DomainServer) UpdatePlatformDomain(
 	return &domainv1.UpdatePlatformDomainResponse{
 		Id: req.GetId(),
 	}, nil
-}
-
-func platformDomainUpdateFields(req *domainv1.UpdatePlatformDomainRequest) (bool, bool, error) {
-	paths := req.GetUpdateMask().GetPaths()
-	updateDomain := req.GetDomain() != ""
-	activeDescriptor := req.ProtoReflect().Descriptor().Fields().ByName(platformDomainActiveField)
-	updateActive := req.ProtoReflect().Has(activeDescriptor)
-	if len(paths) > 0 {
-		if len(paths) == 1 && paths[0] == "*" {
-			paths = []string{platformDomainNameField, platformDomainActiveField}
-		}
-		for _, path := range paths {
-			if path != platformDomainNameField && path != platformDomainActiveField {
-				return false, false, errPlatformDomainMask
-			}
-		}
-		updateDomain = slices.Contains(paths, platformDomainNameField)
-		updateActive = slices.Contains(paths, platformDomainActiveField)
-	}
-	if updateDomain && strings.TrimSpace(req.GetDomain()) == "" {
-		return false, false, errPlatformDomainName
-	}
-	return updateDomain, updateActive, nil
 }
 
 func allocationPlatformDomain(ctx context.Context, qtx *genDb.Queries, id uuid.UUID) (genDb.PlatformDomain, error) {
@@ -495,7 +473,12 @@ func (s *DomainServer) UpdateResourceDomain(
 	}
 
 	// check if new domain is available (unless it's the same domain)
-	changed := req.GetDomain() != "" && req.GetDomain() != domainRow.Domain
+	message := req.ProtoReflect()
+	updateDomain := message.Has(message.Descriptor().Fields().ByName(platformDomainNameField))
+	if updateDomain && strings.TrimSpace(req.GetDomain()) == "" {
+		return nil, rpcerr.New(connect.CodeInvalidArgument, errDomainNameRequired)
+	}
+	changed := updateDomain && req.GetDomain() != domainRow.Domain
 	var subdomainLabel *string
 	if changed {
 		available, err := s.queries.CheckDomainAvailability(ctx, req.GetDomain())
