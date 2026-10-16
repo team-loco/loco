@@ -88,7 +88,8 @@ spec:
   hostnames:
     - {{ .Values.ui.hostname | quote }}
   rules:
-    - matches:
+    - name: api
+      matches:
         - path:
             type: PathPrefix
             value: /api
