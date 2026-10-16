@@ -9,7 +9,7 @@ import "google/protobuf/timestamp.proto";
 option go_package = "github.com/team-loco/loco/gen/go/loco/event/v1;eventv1";
 
 service EventService {
-  rpc ListOrgEvents(ListOrgEventsRequest) returns (ListOrgEventsResponse);
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse);
   rpc StreamEvents(StreamEventsRequest) returns (stream StreamEventsResponse);
 }
 
@@ -28,9 +28,10 @@ message Event {
   google.protobuf.Timestamp created_at = 12;
   string actor_email = 13;
   string actor_name = 14;
+  string resource_id = 15;
 }
 
-message ListOrgEventsRequest {
+message ListEventsRequest {
   string org_id = 1 [(buf.validate.field).string.uuid = true];
   int64 before_seq = 2 [(buf.validate.field).int64.gte = 0];
   repeated string types = 3 [(buf.validate.field).repeated.max_items = 50];
@@ -38,9 +39,17 @@ message ListOrgEventsRequest {
     gte: 0
     lte: 500
   }];
+  string workspace_id = 5 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+  string resource_id = 6 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
 }
 
-message ListOrgEventsResponse {
+message ListEventsResponse {
   repeated Event events = 1;
   int64 next_before_seq = 2;
 }

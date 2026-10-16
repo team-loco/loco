@@ -52,7 +52,10 @@ func TestRecordFillsActorScopeAndRequest(t *testing.T) {
 		t.Fatalf("record agent event: %v", recordErr)
 	}
 
-	rows, err := q.ListOrgEvents(ctx, genDb.ListOrgEventsParams{OrgID: &org.ID, Types: []string{}, MaxRows: 10})
+	rows, err := q.ListOrgAuditEvents(
+		ctx,
+		genDb.ListOrgAuditEventsParams{OrgID: &org.ID, Types: []string{}, MaxRows: 10},
+	)
 	if err != nil || len(rows) != 1 {
 		t.Fatalf("org events = %d (%v)", len(rows), err)
 	}

@@ -40,6 +40,7 @@ type Event struct {
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	ActorEmail    string                 `protobuf:"bytes,13,opt,name=actor_email,json=actorEmail,proto3" json:"actor_email,omitempty"`
 	ActorName     string                 `protobuf:"bytes,14,opt,name=actor_name,json=actorName,proto3" json:"actor_name,omitempty"`
+	ResourceId    string                 `protobuf:"bytes,15,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -172,30 +173,39 @@ func (x *Event) GetActorName() string {
 	return ""
 }
 
-type ListOrgEventsRequest struct {
+func (x *Event) GetResourceId() string {
+	if x != nil {
+		return x.ResourceId
+	}
+	return ""
+}
+
+type ListEventsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
 	BeforeSeq     int64                  `protobuf:"varint,2,opt,name=before_seq,json=beforeSeq,proto3" json:"before_seq,omitempty"`
 	Types         []string               `protobuf:"bytes,3,rep,name=types,proto3" json:"types,omitempty"`
 	PageSize      int32                  `protobuf:"varint,4,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	WorkspaceId   string                 `protobuf:"bytes,5,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	ResourceId    string                 `protobuf:"bytes,6,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListOrgEventsRequest) Reset() {
-	*x = ListOrgEventsRequest{}
+func (x *ListEventsRequest) Reset() {
+	*x = ListEventsRequest{}
 	mi := &file_loco_event_v1_event_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListOrgEventsRequest) String() string {
+func (x *ListEventsRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListOrgEventsRequest) ProtoMessage() {}
+func (*ListEventsRequest) ProtoMessage() {}
 
-func (x *ListOrgEventsRequest) ProtoReflect() protoreflect.Message {
+func (x *ListEventsRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_loco_event_v1_event_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -207,40 +217,54 @@ func (x *ListOrgEventsRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListOrgEventsRequest.ProtoReflect.Descriptor instead.
-func (*ListOrgEventsRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListEventsRequest.ProtoReflect.Descriptor instead.
+func (*ListEventsRequest) Descriptor() ([]byte, []int) {
 	return file_loco_event_v1_event_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ListOrgEventsRequest) GetOrgId() string {
+func (x *ListEventsRequest) GetOrgId() string {
 	if x != nil {
 		return x.OrgId
 	}
 	return ""
 }
 
-func (x *ListOrgEventsRequest) GetBeforeSeq() int64 {
+func (x *ListEventsRequest) GetBeforeSeq() int64 {
 	if x != nil {
 		return x.BeforeSeq
 	}
 	return 0
 }
 
-func (x *ListOrgEventsRequest) GetTypes() []string {
+func (x *ListEventsRequest) GetTypes() []string {
 	if x != nil {
 		return x.Types
 	}
 	return nil
 }
 
-func (x *ListOrgEventsRequest) GetPageSize() int32 {
+func (x *ListEventsRequest) GetPageSize() int32 {
 	if x != nil {
 		return x.PageSize
 	}
 	return 0
 }
 
-type ListOrgEventsResponse struct {
+func (x *ListEventsRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *ListEventsRequest) GetResourceId() string {
+	if x != nil {
+		return x.ResourceId
+	}
+	return ""
+}
+
+type ListEventsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Events        []*Event               `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
 	NextBeforeSeq int64                  `protobuf:"varint,2,opt,name=next_before_seq,json=nextBeforeSeq,proto3" json:"next_before_seq,omitempty"`
@@ -248,20 +272,20 @@ type ListOrgEventsResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListOrgEventsResponse) Reset() {
-	*x = ListOrgEventsResponse{}
+func (x *ListEventsResponse) Reset() {
+	*x = ListEventsResponse{}
 	mi := &file_loco_event_v1_event_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListOrgEventsResponse) String() string {
+func (x *ListEventsResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListOrgEventsResponse) ProtoMessage() {}
+func (*ListEventsResponse) ProtoMessage() {}
 
-func (x *ListOrgEventsResponse) ProtoReflect() protoreflect.Message {
+func (x *ListEventsResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_loco_event_v1_event_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -273,19 +297,19 @@ func (x *ListOrgEventsResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListOrgEventsResponse.ProtoReflect.Descriptor instead.
-func (*ListOrgEventsResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListEventsResponse.ProtoReflect.Descriptor instead.
+func (*ListEventsResponse) Descriptor() ([]byte, []int) {
 	return file_loco_event_v1_event_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *ListOrgEventsResponse) GetEvents() []*Event {
+func (x *ListEventsResponse) GetEvents() []*Event {
 	if x != nil {
 		return x.Events
 	}
 	return nil
 }
 
-func (x *ListOrgEventsResponse) GetNextBeforeSeq() int64 {
+func (x *ListEventsResponse) GetNextBeforeSeq() int64 {
 	if x != nil {
 		return x.NextBeforeSeq
 	}
@@ -392,7 +416,7 @@ var File_loco_event_v1_event_proto protoreflect.FileDescriptor
 
 const file_loco_event_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/event/v1/event.proto\x12\rloco.event.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xba\x03\n" +
+	"\x19loco/event/v1/event.proto\x12\rloco.event.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xdb\x03\n" +
 	"\x05Event\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x03R\x03seq\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
@@ -414,24 +438,30 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"\vactor_email\x18\r \x01(\tR\n" +
 	"actorEmail\x12\x1d\n" +
 	"\n" +
-	"actor_name\x18\x0e \x01(\tR\tactorName\"\xa8\x01\n" +
-	"\x14ListOrgEventsRequest\x12\x1f\n" +
+	"actor_name\x18\x0e \x01(\tR\tactorName\x12\x1f\n" +
+	"\vresource_id\x18\x0f \x01(\tR\n" +
+	"resourceId\"\x83\x02\n" +
+	"\x11ListEventsRequest\x12\x1f\n" +
 	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12&\n" +
 	"\n" +
 	"before_seq\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\tbeforeSeq\x12\x1e\n" +
 	"\x05types\x18\x03 \x03(\tB\b\xbaH\x05\x92\x01\x02\x102R\x05types\x12'\n" +
 	"\tpage_size\x18\x04 \x01(\x05B\n" +
-	"\xbaH\a\x1a\x05\x18\xf4\x03(\x00R\bpageSize\"m\n" +
-	"\x15ListOrgEventsResponse\x12,\n" +
+	"\xbaH\a\x1a\x05\x18\xf4\x03(\x00R\bpageSize\x12.\n" +
+	"\fworkspace_id\x18\x05 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\vworkspaceId\x12,\n" +
+	"\vresource_id\x18\x06 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\n" +
+	"resourceId\"j\n" +
+	"\x12ListEventsResponse\x12,\n" +
 	"\x06events\x18\x01 \x03(\v2\x14.loco.event.v1.EventR\x06events\x12&\n" +
 	"\x0fnext_before_seq\x18\x02 \x01(\x03R\rnextBeforeSeq\"6\n" +
 	"\x13StreamEventsRequest\x12\x1f\n" +
 	"\x06cursor\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18@R\x06cursor\"\\\n" +
 	"\x14StreamEventsResponse\x12,\n" +
 	"\x06events\x18\x01 \x03(\v2\x14.loco.event.v1.EventR\x06events\x12\x16\n" +
-	"\x06cursor\x18\x02 \x01(\tR\x06cursor2\xc5\x01\n" +
-	"\fEventService\x12Z\n" +
-	"\rListOrgEvents\x12#.loco.event.v1.ListOrgEventsRequest\x1a$.loco.event.v1.ListOrgEventsResponse\x12Y\n" +
+	"\x06cursor\x18\x02 \x01(\tR\x06cursor2\xbc\x01\n" +
+	"\fEventService\x12Q\n" +
+	"\n" +
+	"ListEvents\x12 .loco.event.v1.ListEventsRequest\x1a!.loco.event.v1.ListEventsResponse\x12Y\n" +
 	"\fStreamEvents\x12\".loco.event.v1.StreamEventsRequest\x1a#.loco.event.v1.StreamEventsResponse0\x01B8Z6github.com/team-loco/loco/gen/go/loco/event/v1;eventv1b\x06proto3"
 
 var (
@@ -449,8 +479,8 @@ func file_loco_event_v1_event_proto_rawDescGZIP() []byte {
 var file_loco_event_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_loco_event_v1_event_proto_goTypes = []any{
 	(*Event)(nil),                 // 0: loco.event.v1.Event
-	(*ListOrgEventsRequest)(nil),  // 1: loco.event.v1.ListOrgEventsRequest
-	(*ListOrgEventsResponse)(nil), // 2: loco.event.v1.ListOrgEventsResponse
+	(*ListEventsRequest)(nil),     // 1: loco.event.v1.ListEventsRequest
+	(*ListEventsResponse)(nil),    // 2: loco.event.v1.ListEventsResponse
 	(*StreamEventsRequest)(nil),   // 3: loco.event.v1.StreamEventsRequest
 	(*StreamEventsResponse)(nil),  // 4: loco.event.v1.StreamEventsResponse
 	(*structpb.Struct)(nil),       // 5: google.protobuf.Struct
@@ -459,11 +489,11 @@ var file_loco_event_v1_event_proto_goTypes = []any{
 var file_loco_event_v1_event_proto_depIdxs = []int32{
 	5, // 0: loco.event.v1.Event.data:type_name -> google.protobuf.Struct
 	6, // 1: loco.event.v1.Event.created_at:type_name -> google.protobuf.Timestamp
-	0, // 2: loco.event.v1.ListOrgEventsResponse.events:type_name -> loco.event.v1.Event
+	0, // 2: loco.event.v1.ListEventsResponse.events:type_name -> loco.event.v1.Event
 	0, // 3: loco.event.v1.StreamEventsResponse.events:type_name -> loco.event.v1.Event
-	1, // 4: loco.event.v1.EventService.ListOrgEvents:input_type -> loco.event.v1.ListOrgEventsRequest
+	1, // 4: loco.event.v1.EventService.ListEvents:input_type -> loco.event.v1.ListEventsRequest
 	3, // 5: loco.event.v1.EventService.StreamEvents:input_type -> loco.event.v1.StreamEventsRequest
-	2, // 6: loco.event.v1.EventService.ListOrgEvents:output_type -> loco.event.v1.ListOrgEventsResponse
+	2, // 6: loco.event.v1.EventService.ListEvents:output_type -> loco.event.v1.ListEventsResponse
 	4, // 7: loco.event.v1.EventService.StreamEvents:output_type -> loco.event.v1.StreamEventsResponse
 	6, // [6:8] is the sub-list for method output_type
 	4, // [4:6] is the sub-list for method input_type

@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from "@connectrpc/connect-query";
-import { listOrgEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
+import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
 import type { Event } from "@gen/loco/event/v1/event_pb";
 import type { Organization, User } from "@gen/loco/org/v1/org_pb";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
@@ -75,7 +75,7 @@ export function AuditLogTab({
 	const names = new Map<string, string>([[org.id, org.name], ...workspaces.map((w): [string, string] => [w.id, w.name])]);
 	const [category, setCategory] = useState<AuditCategory | "all">("all");
 	const query = useInfiniteQuery(
-		listOrgEvents,
+		listEvents,
 		{ orgId, types: typesIn(category), pageSize: PAGE_SIZE, beforeSeq: 0n },
 		{
 			pageParamKey: "beforeSeq",
