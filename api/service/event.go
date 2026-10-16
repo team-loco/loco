@@ -11,6 +11,7 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -84,6 +85,7 @@ func eventToProto(e genDb.Event) *eventv1.Event {
 		Type:        e.Type,
 		OrgId:       uuidString(e.OrgID),
 		WorkspaceId: uuidString(e.WorkspaceID),
+		ResourceId:  uuidString(e.ResourceID),
 		ActorType:   e.ActorType,
 		ActorId:     uuidString(e.ActorID),
 		SubjectType: derefString(e.SubjectType),
@@ -111,46 +113,143 @@ func (s *EventServer) verify(ctx context.Context, scope genDb.EntityScope) error
 	return nil
 }
 
-func (s *EventServer) ListOrgEvents(
+func (s *EventServer) ListEvents(
 	ctx context.Context,
-	req *eventv1.ListOrgEventsRequest,
-) (*eventv1.ListOrgEventsResponse, error) {
-	if err := s.verify(ctx, actions.New(actions.ListOrgEvents, req.GetOrgId())); err != nil {
+	req *eventv1.ListEventsRequest,
+) (*eventv1.ListEventsResponse, error) {
+	workspaceID, err := s.authorizeEventScope(ctx, req)
+	if err != nil {
 		return nil, err
 	}
 	pageSize := req.GetPageSize()
 	if pageSize == 0 {
 		pageSize = defaultEventPage
 	}
-	params := genDb.ListOrgEventsParams{
-		OrgID:   new(uuid.MustParse(req.GetOrgId())),
-		Types:   req.GetTypes(),
-		MaxRows: pageSize,
-	}
-	if params.Types == nil {
-		params.Types = []string{}
-	}
-	if req.GetBeforeSeq() > 0 {
-		before := req.GetBeforeSeq()
-		params.BeforeSeq = &before
-	}
-	rows, err := s.queries.ListOrgEvents(ctx, params)
+	rows, err := s.listAuditEvents(ctx, req, workspaceID, pageSize+1)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list org events", "error", err)
+		slog.ErrorContext(ctx, "failed to list audit events", "error", err)
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
-	out := make([]*eventv1.Event, len(rows))
-	for i, row := range rows {
-		event := eventToProto(row.Event)
-		event.ActorEmail = derefString(row.ActorEmail)
-		event.ActorName = derefString(row.ActorName)
-		out[i] = event
+	response := &eventv1.ListEventsResponse{Events: rows}
+	if len(rows) > int(pageSize) {
+		response.Events = rows[:pageSize]
+		response.NextBeforeSeq = response.GetEvents()[len(response.GetEvents())-1].GetSeq()
 	}
-	resp := &eventv1.ListOrgEventsResponse{Events: out}
-	if len(rows) == int(pageSize) {
-		resp.NextBeforeSeq = rows[len(rows)-1].Event.Seq
+	return response, nil
+}
+
+func (s *EventServer) authorizeEventScope(ctx context.Context, req *eventv1.ListEventsRequest) (*uuid.UUID, error) {
+	orgID := uuid.MustParse(req.GetOrgId())
+	if req.GetResourceId() != "" {
+		readErr := s.verify(ctx, actions.New(actions.ListResourceAuditEvents, req.GetResourceId()))
+		if readErr != nil {
+			if adminErr := s.verify(
+				ctx,
+				actions.New(actions.ListResourceAuditAdminEvents, req.GetResourceId()),
+			); adminErr != nil {
+				return nil, readErr
+			}
+		}
+		resourceID := uuid.MustParse(req.GetResourceId())
+		parents, err := s.queries.GetWorkspaceOrganizationIDByResourceID(ctx, resourceID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
+		}
+		if err != nil {
+			return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		}
+		if parents.OrgID != orgID ||
+			(req.GetWorkspaceId() != "" && parents.WorkspaceID.String() != req.GetWorkspaceId()) {
+			return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
+		}
+		return new(parents.WorkspaceID), nil
 	}
-	return resp, nil
+	if req.GetWorkspaceId() != "" {
+		if err := s.verify(ctx, actions.New(actions.ListWorkspaceAuditEvents, req.GetWorkspaceId())); err != nil {
+			return nil, err
+		}
+		workspaceID := uuid.MustParse(req.GetWorkspaceId())
+		parent, err := s.queries.GetOrganizationIDByWorkspaceID(ctx, workspaceID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, rpcerr.New(connect.CodeNotFound, ErrWorkspaceNotFound)
+		}
+		if err != nil {
+			return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		}
+		if parent != orgID {
+			return nil, rpcerr.New(connect.CodeNotFound, ErrWorkspaceNotFound)
+		}
+		return &workspaceID, nil
+	}
+	if err := s.verify(ctx, actions.New(actions.ListOrgAuditEvents, req.GetOrgId())); err != nil {
+		return nil, err
+	}
+	return nil, nil
+}
+
+func auditEvent(row genDb.Event, email, name *string) *eventv1.Event {
+	event := eventToProto(row)
+	event.ActorEmail = derefString(email)
+	event.ActorName = derefString(name)
+	return event
+}
+
+func (s *EventServer) listAuditEvents(
+	ctx context.Context,
+	req *eventv1.ListEventsRequest,
+	workspaceID *uuid.UUID,
+	maxRows int32,
+) ([]*eventv1.Event, error) {
+	orgID := uuid.MustParse(req.GetOrgId())
+	types := req.GetTypes()
+	if types == nil {
+		types = []string{}
+	}
+	var before *int64
+	if req.GetBeforeSeq() > 0 {
+		before = new(req.GetBeforeSeq())
+	}
+	out := []*eventv1.Event{}
+	if req.GetResourceId() != "" {
+		resourceID := uuid.MustParse(req.GetResourceId())
+		rows, err := s.queries.ListResourceAuditEvents(ctx, genDb.ListResourceAuditEventsParams{
+			OrgID:       &orgID,
+			WorkspaceID: workspaceID,
+			ResourceID:  &resourceID,
+			Types:       types,
+			BeforeSeq:   before,
+			MaxRows:     maxRows,
+		})
+		if err != nil {
+			return nil, err
+		}
+		for _, row := range rows {
+			out = append(out, auditEvent(row.Event, row.ActorEmail, row.ActorName))
+		}
+		return out, nil
+	}
+	if workspaceID != nil {
+		rows, err := s.queries.ListWorkspaceAuditEvents(ctx, genDb.ListWorkspaceAuditEventsParams{
+			OrgID: &orgID, WorkspaceID: workspaceID, Types: types, BeforeSeq: before, MaxRows: maxRows})
+		if err != nil {
+			return nil, err
+		}
+		for _, row := range rows {
+			out = append(out, auditEvent(row.Event, row.ActorEmail, row.ActorName))
+		}
+		return out, nil
+	}
+	rows, err := s.queries.ListOrgAuditEvents(
+		ctx,
+		genDb.ListOrgAuditEventsParams{OrgID: &orgID, Types: types, BeforeSeq: before, MaxRows: maxRows},
+	)
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		out = append(out, auditEvent(row.Event, row.ActorEmail, row.ActorName))
+	}
+	return out, nil
 }
 
 func (s *EventServer) StreamEvents(

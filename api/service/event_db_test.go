@@ -26,6 +26,8 @@ import (
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 )
 
+const auditOwnerEmail = "owner@acme.test"
+
 type eventFixture struct {
 	pool    *pgxpool.Pool
 	queries *genDb.Queries
@@ -60,7 +62,7 @@ func newEventFixture(t *testing.T) *eventFixture {
 		t.Fatalf("policy: %v", err)
 	}
 	owner, err := auth.NewResolver(pool, policy).Resolve(t.Context(), auth.Identity{
-		Issuer: testIssuer, Subject: "owner", Email: "owner@acme.test", EmailVerified: true,
+		Issuer: testIssuer, Subject: "owner", Email: auditOwnerEmail, EmailVerified: true,
 	})
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
@@ -105,7 +107,7 @@ func TestSignupAndOrgCreationAreRecorded(t *testing.T) {
 	}
 }
 
-func TestListOrgEventsAuthorizationPagingAndFilter(t *testing.T) {
+func TestListOrganizationEventsAuthorizationPagingAndFilter(t *testing.T) {
 	f := newEventFixture(t)
 	orgID := uuid.MustParse(f.orgID)
 	for range 5 {
@@ -118,7 +120,7 @@ func TestListOrgEventsAuthorizationPagingAndFilter(t *testing.T) {
 		}
 	}
 
-	first, err := f.events.ListOrgEvents(f.owner, &eventv1.ListOrgEventsRequest{
+	first, err := f.events.ListEvents(f.owner, &eventv1.ListEventsRequest{
 		OrgId: f.orgID, PageSize: 4,
 	})
 	if err != nil {
@@ -127,18 +129,18 @@ func TestListOrgEventsAuthorizationPagingAndFilter(t *testing.T) {
 	if len(first.GetEvents()) != 4 || first.GetNextBeforeSeq() == 0 {
 		t.Fatalf("first page = %v next=%d", eventTypes(first.GetEvents()), first.GetNextBeforeSeq())
 	}
-	second, err := f.events.ListOrgEvents(f.owner, &eventv1.ListOrgEventsRequest{
+	second, err := f.events.ListEvents(f.owner, &eventv1.ListEventsRequest{
 		OrgId: f.orgID, PageSize: 4, BeforeSeq: first.GetNextBeforeSeq(),
 	})
 	if err != nil || len(second.GetEvents()) != 2 || second.GetNextBeforeSeq() != 0 {
 		t.Fatalf("second page = %v (%v)", eventTypes(second.GetEvents()), err)
 	}
 	if got := second.GetEvents()[1]; got.GetType() != events.OrgCreated ||
-		got.GetData().GetFields()["name"].GetStringValue() != "acme" || got.GetActorEmail() != "owner@acme.test" {
+		got.GetData().GetFields()["name"].GetStringValue() != "acme" || got.GetActorEmail() != auditOwnerEmail {
 		t.Fatalf("oldest event = %+v", got)
 	}
 
-	filtered, err := f.events.ListOrgEvents(f.owner, &eventv1.ListOrgEventsRequest{
+	filtered, err := f.events.ListEvents(f.owner, &eventv1.ListEventsRequest{
 		OrgId: f.orgID, Types: []string{events.OrgCreated},
 	})
 	if err != nil || len(filtered.GetEvents()) != 1 {
@@ -154,7 +156,7 @@ func TestListOrgEventsAuthorizationPagingAndFilter(t *testing.T) {
 	}); grantErr != nil {
 		t.Fatalf("grant: %v", grantErr)
 	}
-	_, err = f.events.ListOrgEvents(scoped(t, f.queries, outsider.ID), &eventv1.ListOrgEventsRequest{
+	_, err = f.events.ListEvents(scoped(t, f.queries, outsider.ID), &eventv1.ListEventsRequest{
 		OrgId: f.orgID,
 	})
 	if codeOf(err) != connect.CodePermissionDenied {
