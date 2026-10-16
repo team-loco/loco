@@ -67,6 +67,7 @@ func TestApplyRemovesHealthFromResourceDeploymentAndPlacement(t *testing.T) {
 		{name: "disable", file: without},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			f.finishRollouts(t)
 			applyOK(t, f, tc.file, applyOptions{})
 			wantCleanPlan(t, f, tc.file)
 			resource, found := f.resourceByName(t, applyWorker)

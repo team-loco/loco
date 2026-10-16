@@ -26,6 +26,10 @@ LOCO_WORKSPACE=my-team LOCO_ENV=production loco infra plan
 
 The same `loco.yaml` serves every environment. A service's `environments` block overrides its fields for one environment, or turns the service off there with `enabled: false`; see [loco.yaml](loco-yaml.md#environment-overrides). Staging and production keep separate resources and deployment history.
 
+While a deployment is pending or rolling out, Loco rejects scaling, replacement deployments, runtime configuration changes and secret changes for the affected service and environment with `failed_precondition`. A regional scaling or deployment request checks only its target regions. Other services and environments remain available for changes.
+
+Secret rotation also starts a rollout when the service declares the changed secret. Changes become available again when the current rollout becomes ready or fails. Setting a secret to its existing value remains a no-op, and deleting or disabling a service remains available during a rollout.
+
 ## Promote the dashboard and documentation
 
 The UI image includes its documentation build. Repository merges build production and staging UI images for the same commit. The existing staging workflow deploys that commit automatically. The production workflow promotes the selected commit's production UI image, including the docs, after staging verification. See [documentation maintenance](../contributing/documentation.md).

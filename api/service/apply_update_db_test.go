@@ -105,6 +105,7 @@ func TestApplyUpdateRollsADeploymentForRuntimeChanges(t *testing.T) {
 	first := applyOK(t, f, planFileHeader+applyFileWorker, applyOptions{})
 	firstDeployment := uuid.MustParse(first.GetDeployments()[0].GetDeploymentId())
 
+	f.finishRollouts(t)
 	resp := applyOK(t, f, planFileHeader+applyFileWorkerDebug, applyOptions{})
 	ops := resp.GetOperations()
 	if len(ops) != 1 || ops[0].GetKind() != planv1.PlanOperationKind_PLAN_OPERATION_KIND_UPDATE ||
@@ -114,8 +115,8 @@ func TestApplyUpdateRollsADeploymentForRuntimeChanges(t *testing.T) {
 	if len(resp.GetDeployments()) != 1 || resp.GetDeployments()[0].GetDeploymentId() == firstDeployment.String() {
 		t.Fatalf("deployments = %v, want one new deployment", resp.GetDeployments())
 	}
-	if status := f.deploymentStatus(t, firstDeployment); status != genDb.DeploymentStatusCanceled {
-		t.Fatalf("first deployment status = %s, want canceled by the new one", status)
+	if status := f.deploymentStatus(t, firstDeployment); status != genDb.DeploymentStatusSucceeded {
+		t.Fatalf("first deployment status = %s, want succeeded before the new one", status)
 	}
 	service := f.workerPayload(t, f.clusterID).AppSpec.ServiceSpec
 	if service.Deployment.Env["LOG_LEVEL"] != "debug" || service.Resources.CPU != biggerCPU {
@@ -138,6 +139,7 @@ func TestApplyUpdateReplacesDomainsAndReroutes(t *testing.T) {
 	applyOK(t, f, planFileHeader+applyFileWorker, applyOptions{})
 	twoDomains := strings.Replace(applyFileWorker, "[worker.loco.test]", "[api.loco.test, worker.loco.test]", 1)
 
+	f.finishRollouts(t)
 	resp := applyOK(t, f, planFileHeader+twoDomains, applyOptions{})
 	if len(resp.GetDeployments()) != 1 {
 		t.Fatalf("deployments = %v, want one for the new route", resp.GetDeployments())
@@ -156,6 +158,7 @@ func TestApplyUpdateReplacesDomainsAndReroutes(t *testing.T) {
 	wantCleanPlan(t, f, planFileHeader+twoDomains)
 
 	onlyAPI := strings.Replace(applyFileWorker, "[worker.loco.test]", "[api.loco.test]", 1)
+	f.finishRollouts(t)
 	applyOK(t, f, planFileHeader+onlyAPI, applyOptions{})
 	domains, err = f.queries.ListResourceDomains(context.Background(), res.ID)
 	if err != nil {
@@ -179,6 +182,7 @@ VALUES ('c3', $1, 'kind', true, false, 'healthy', NOW()) RETURNING id`
 	}
 	applyOK(t, f, planFileHeader+applyFileOtherRegion, applyOptions{})
 
+	f.finishRollouts(t)
 	resp := applyOK(t, f, planFileHeader+applyFileTwoRegions, applyOptions{})
 	started := resp.GetDeployments()
 	if len(started) != 1 || started[0].GetRegion() != testRegion {
@@ -200,6 +204,7 @@ VALUES ('c3', $1, 'kind', true, false, 'healthy', NOW()) RETURNING id`
 		t.Fatalf("%d active deployments after the refused apply, want both regions", len(active))
 	}
 
+	f.finishRollouts(t)
 	resp = applyOK(t, f, planFileHeader+applyFileOtherRegion, applyOptions{confirmDestructive: true})
 	if len(resp.GetDeployments()) != 0 {
 		t.Fatalf("deployments = %v, want none for a removed region", resp.GetDeployments())

@@ -57,6 +57,7 @@ func TestScaleKeepsTheSecretNamesOfTheDeployment(t *testing.T) {
 		t.Fatalf("set secret names: %v", err)
 	}
 
+	f.finishRollouts(t)
 	if err := scaleResource(t, f, 2); err != nil {
 		t.Fatalf("scale: %v", err)
 	}
@@ -104,10 +105,12 @@ func TestRedeployAndRollbackKeepTheCurrentEnvironmentValues(t *testing.T) {
 	latest := map[string]string{"MODE": "current", "KEEP": "retained"}
 	explicit := imageService()
 	explicit.Env = latest
+	f.finishRollouts(t)
 	if _, err := createDeploymentWith(t, f, sameRegionSpec, explicit); err != nil {
 		t.Fatal(err)
 	}
 	for _, service := range []*deploymentv1.ServiceDeploymentSpec{imageService(), rollback} {
+		f.finishRollouts(t)
 		if _, err := createDeploymentWith(t, f, sameRegionSpec, service); err != nil {
 			t.Fatal(err)
 		}
@@ -144,6 +147,7 @@ func TestRedeployReadsEnvironmentFromThePreviousCluster(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
+	f.finishRollouts(t)
 	if _, err := createDeploymentWith(t, f, sameRegionSpec, imageService()); err != nil {
 		t.Fatal(err)
 	}

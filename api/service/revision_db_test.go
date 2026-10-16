@@ -53,6 +53,7 @@ func TestEnvironmentRevisionFollowsWrites(t *testing.T) {
 		t.Fatalf("revision = %d after a deployment, want 1", rev)
 	}
 
+	f.finishRollouts(t)
 	if err := scaleResource(t, f, 2); err != nil {
 		t.Fatalf("scale: %v", err)
 	}
@@ -79,6 +80,7 @@ func TestRejectedScaleLeavesTheRevisionAlone(t *testing.T) {
 		t.Fatalf("create deployment: %v", err)
 	}
 
+	f.finishRollouts(t)
 	err := scaleResource(t, f, 15)
 	wantCode(t, err, connect.CodeInvalidArgument)
 	if rev := getEnvironment(t, f).GetRevision(); rev != 1 {

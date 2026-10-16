@@ -27,6 +27,7 @@ func TestApplyRuntimeUserPersistsAndClears(t *testing.T) {
 		if id == 82 {
 			file = strings.Replace(base, "    port: 8080", "    port: 8080\n    runAsUser: 82\n    runAsGroup: 82", 1)
 		}
+		f.finishRollouts(t)
 		applyOK(t, f, file, applyOptions{})
 		wantCleanPlan(t, f, file)
 		deployments := f.workerDeployments(t)

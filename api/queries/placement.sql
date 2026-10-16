@@ -146,6 +146,7 @@ RETURNING sync_generation;
 SELECT sync_generation FROM clusters WHERE id = $1 AND removed_at IS NULL;
 
 -- name: BumpPlacementsForSecretNames :many
+WITH rolled AS (
 UPDATE placements
 SET desired_revision = desired_revision + 1,
     applied_error = NULL,
@@ -153,11 +154,18 @@ SET desired_revision = desired_revision + 1,
     apply_attempts = 0,
     apply_failed = false,
     updated_at = NOW()
-WHERE resource_id = sqlc.arg(resource_id)
-  AND environment_id = sqlc.arg(environment_id)
+WHERE placements.resource_id = sqlc.arg(resource_id)
+  AND placements.environment_id = sqlc.arg(environment_id)
   AND NOT desired_deleted
   AND secret_names && sqlc.arg(names)::text[]
-RETURNING id, cluster_id, desired_revision;
+RETURNING placements.id, placements.cluster_id, placements.desired_revision, placements.deployment_id
+), deploying AS (
+UPDATE deployments
+SET status = 'deploying', message = 'Applying environment secrets', completed_at = NULL, updated_at = NOW()
+FROM rolled
+WHERE deployments.id = rolled.deployment_id AND deployments.is_active
+)
+SELECT id, cluster_id, desired_revision FROM rolled;
 
 -- name: ListResourceEnvironmentPlacements :many
 SELECT * FROM placements

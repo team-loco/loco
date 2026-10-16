@@ -99,6 +99,7 @@ func TestApplyDeploysASourceServiceFromTheNamedBuild(t *testing.T) {
 	wantCleanPlan(t, f, file)
 
 	next := f.addSucceededBuild(t, applyWorker, applyBuildDockerfile, defaultBuildContext)
+	f.finishRollouts(t)
 	again, err := applyBuilds(t, f, file, map[string]string{applyWorker: next.String()})
 	if err != nil {
 		t.Fatalf("Apply with a new build: %v", err)
@@ -110,8 +111,8 @@ func TestApplyDeploysASourceServiceFromTheNamedBuild(t *testing.T) {
 	if deployed := f.deployedBuild(t, again.GetDeployments()[0]); deployed != next.String() {
 		t.Fatalf("deployment runs build %s, want %s", deployed, next)
 	}
-	if status := f.deploymentStatus(t, first); status != genDb.DeploymentStatusCanceled {
-		t.Fatalf("first deployment status = %s, want canceled by the new one", status)
+	if status := f.deploymentStatus(t, first); status != genDb.DeploymentStatusSucceeded {
+		t.Fatalf("first deployment status = %s, want succeeded before the new one", status)
 	}
 	wantCleanPlan(t, f, file)
 }

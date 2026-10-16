@@ -105,3 +105,49 @@ test_s03_silent_cluster_reports_unknown() {
     assert "The API reports ${status_app} healthy once the agent reports again" \
         environment_status_is RESOURCE_STATUS_HEALTHY
 }
+
+status_rejects_rollout() {
+    local name=$1
+    shift
+    if "$@" >"$status_dir/$name.out" 2>&1; then
+        log_error "${name} unexpectedly accepted a mutation during rollout"
+        return 1
+    fi
+    grep -q 'a deployment is rolling out; wait for it to finish before changing this service' \
+        "$status_dir/$name.out"
+}
+
+status_hold_rollout_and_reject_mutations() (
+    local agent_pid resource_id environment_id body
+    agent_pid=$(cat "$PID_DIR/agent.pid")
+    trap 'kill -CONT "$agent_pid" 2>/dev/null || true' EXIT
+    kill -STOP "$agent_pid"
+    loco_cli resource scale "$status_app" --cpu 125m >"$status_dir/start-rollout.out" 2>&1 || exit 1
+    resource_id=$(e2e_psql "SELECT id FROM resources WHERE name = '${status_app}'")
+    environment_id=$(e2e_psql "SELECT environment_id FROM deployments WHERE resource_id = '${resource_id}' AND is_active")
+    status_rejects_rollout scale-during-rollout loco_cli resource scale "$status_app" --cpu 150m || exit 1
+    status_rejects_rollout secret-during-rollout loco_cli env set --service "$status_app" \
+        --env production ROLLOUT_TEST=changed || exit 1
+    body="{\"resourceId\":\"${resource_id}\",\"environmentId\":\"${environment_id}\",\"region\":\"us-east-1\",\"spec\":{\"service\":{\"build\":{\"type\":\"image\",\"image\":\"${E2E_PUBLIC_IMAGE}\"},\"env\":{\"ROLLOUT_TEST\":\"changed\"}}}}"
+    status_rejects_rollout deployment-during-rollout curl -sS --fail-with-body \
+        "${E2E_API_URL}/loco.deployment.v1.DeploymentService/CreateDeployment" \
+        -H "Authorization: Bearer ${E2E_USER_TOKEN}" -H 'Content-Type: application/json' -d "$body"
+)
+
+status_rollout_is_finished() {
+    test "$(region_field deploymentStatus)" = DEPLOYMENT_PHASE_RUNNING &&
+        environment_status_is RESOURCE_STATUS_HEALTHY
+}
+
+test_s04_rollout_rejects_runtime_mutations() {
+    local rc=0
+    status_hold_rollout_and_reject_mutations >"$status_dir/rollout-guard.out" 2>&1 || rc=$?
+    if ! assert "Scaling, secret edits and replacement deployments reject an active rollout" test "$rc" -eq 0; then
+        cat "$status_dir/rollout-guard.out" "$status_dir/"*during-rollout.out
+        return 1
+    fi
+    wait_for "the held rollout to finish after the agent resumes" 180 status_rollout_is_finished
+    assert "Scaling becomes available after rollout" \
+        loco_cli resource scale "$status_app" --cpu 150m
+    wait_for "the follow-up scaling rollout to finish" 180 status_rollout_is_finished
+}
