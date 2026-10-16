@@ -682,37 +682,74 @@ func (s *ResourceServer) ScaleResource(
 		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
 	}
 
-	currentByRegion, err := s.activeDeploymentsForRegions(ctx, resourceID, env.ID, req.GetRegion())
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, res.WorkspaceID); lockErr != nil {
+			return lockErr
+		}
+		if lockErr := lockResource(ctx, qtx, resourceID); lockErr != nil {
+			return lockErr
+		}
+		currentResource, getErr := qtx.GetResourceByID(ctx, resourceID)
+		if getErr != nil {
+			return fmt.Errorf("read resource before scaling: %w", getErr)
+		}
+		return s.scaleCurrentDeployments(ctx, qtx, currentResource, env.ID, req)
+	})
 	if err != nil {
-		return nil, err
+		return nil, deploymentTxError(ctx, err)
+	}
+	return &resourcev1.ScaleResourceResponse{}, nil
+}
+
+func (s *ResourceServer) scaleCurrentDeployments(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	res genDb.Resource,
+	environmentID uuid.UUID,
+	req *resourcev1.ScaleResourceRequest,
+) error {
+	resourceID := res.ID
+	currentByRegion, err := activeDeploymentsForRegions(ctx, qtx, resourceID, environmentID, req.GetRegion())
+	if err != nil {
+		return err
 	}
 
 	plans := make([]regionRedeploy, 0, len(currentByRegion))
 	for _, current := range currentByRegion {
 		serviceDeploymentSpec, specErr := currentServiceSpec(ctx, current, res.Type)
 		if specErr != nil {
-			return nil, specErr
+			return specErr
 		}
 
 		if !scaleChangesDeployment(req, serviceDeploymentSpec, current.Replicas) {
 			continue
 		}
 
-		replicas := applyScale(req, serviceDeploymentSpec, current.Replicas)
-		plan, planErr := s.planRegionRedeploy(ctx, current, serviceDeploymentSpec, replicas, "Scheduled scaling event.")
-		if planErr != nil {
-			return nil, planErr
+		plainEnv, envErr := desiredEnv(ctx, qtx, resourceID, current.ClusterID)
+		if envErr != nil {
+			return fmt.Errorf("read scaling environment: %w", envErr)
 		}
-		envSourceCluster := current.ClusterID
-		plan.envSourceCluster = &envSourceCluster
+		serviceDeploymentSpec.Env = plainEnv
+		replicas := applyScale(req, serviceDeploymentSpec, current.Replicas)
+		plan, planErr := s.planRegionRedeploy(
+			ctx,
+			qtx,
+			current,
+			serviceDeploymentSpec,
+			replicas,
+			"Scheduled scaling event.",
+		)
+		if planErr != nil {
+			return planErr
+		}
 		plans = append(plans, plan)
 	}
 
 	if len(plans) == 0 {
-		return nil, rpcerr.New(connect.CodeInvalidArgument, errScaleUnchanged)
+		return rpcerr.New(connect.CodeInvalidArgument, errScaleUnchanged)
 	}
 
-	scaled := map[string]any{events.FieldEnvironmentID: env.ID.String()}
+	scaled := map[string]any{events.FieldEnvironmentID: environmentID.String()}
 	if req.Replicas != nil {
 		scaled["replicas"] = req.GetReplicas()
 	}
@@ -732,26 +769,23 @@ func (s *ResourceServer) ScaleResource(
 		SubjectID:   new(resourceID),
 		Data:        scaled,
 	}
-	if err := s.redeployRegions(ctx, res, plans, scaledEvent); err != nil {
-		return nil, err
-	}
-	return &resourcev1.ScaleResourceResponse{}, nil
+	return s.redeployRegions(ctx, qtx, res, plans, scaledEvent)
 }
 
 type regionRedeploy struct {
-	params           genDb.CreateDeploymentParams
-	deploymentSpec   *deploymentv1.DeploymentSpec
-	environmentName  string
-	envSourceCluster *uuid.UUID
+	params          genDb.CreateDeploymentParams
+	deploymentSpec  *deploymentv1.DeploymentSpec
+	environmentName string
 }
 
-func (s *ResourceServer) activeDeploymentsForRegions(
+func activeDeploymentsForRegions(
 	ctx context.Context,
+	qtx *genDb.Queries,
 	resourceID uuid.UUID,
 	environmentID uuid.UUID,
 	requestedRegion string,
 ) ([]genDb.Deployment, error) {
-	deploymentList, err := s.queries.ListActiveDeploymentsForResource(ctx, resourceID)
+	deploymentList, err := qtx.ListActiveDeploymentsForResource(ctx, resourceID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list active deployments", "error", err)
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
@@ -814,6 +848,7 @@ func currentServiceSpec(
 
 func (s *ResourceServer) planRegionRedeploy(
 	ctx context.Context,
+	qtx *genDb.Queries,
 	current genDb.Deployment,
 	serviceDeploymentSpec *deploymentv1.ServiceDeploymentSpec,
 	replicas int32,
@@ -836,13 +871,13 @@ func (s *ResourceServer) planRegionRedeploy(
 		).WithCause(err)
 	}
 
-	deploymentEnv, err := s.queries.GetEnvironmentByID(ctx, current.EnvironmentID)
+	deploymentEnv, err := qtx.GetEnvironmentByID(ctx, current.EnvironmentID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get environment for deployment", "error", err)
 		return regionRedeploy{}, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
-	cluster, err := eligibleCluster(ctx, s.queries, current.Region, deploymentEnv.EnvironmentType, s.clusterSilentAfter)
+	cluster, err := eligibleCluster(ctx, qtx, current.Region, deploymentEnv.EnvironmentType, s.clusterSilentAfter)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get active cluster for region", "region", current.Region, "error", err)
 		return regionRedeploy{}, rpcerr.New(connect.CodeFailedPrecondition, err)
@@ -873,6 +908,7 @@ func (s *ResourceServer) planRegionRedeploy(
 
 func (s *ResourceServer) redeployRegions(
 	ctx context.Context,
+	qtx *genDb.Queries,
 	res genDb.Resource,
 	plans []regionRedeploy,
 	ev events.Event,
@@ -883,7 +919,7 @@ func (s *ResourceServer) redeployRegions(
 		if _, found := hostnames[environmentID]; found {
 			continue
 		}
-		hostname, hostnameErr := primaryHostname(ctx, s.queries, res.ID, environmentID)
+		hostname, hostnameErr := primaryHostname(ctx, qtx, res.ID, environmentID)
 		if hostnameErr != nil {
 			slog.ErrorContext(
 				ctx,
@@ -898,7 +934,7 @@ func (s *ResourceServer) redeployRegions(
 		hostnames[environmentID] = hostname
 	}
 
-	organizationID, err := s.queries.GetOrganizationIDByWorkspaceID(ctx, res.WorkspaceID)
+	organizationID, err := qtx.GetOrganizationIDByWorkspaceID(ctx, res.WorkspaceID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get workspace organization", "resourceId", res.ID, "error", err)
 		return rpcerr.New(connect.CodeInternal, ErrDB)
@@ -910,62 +946,31 @@ func (s *ResourceServer) redeployRegions(
 		return connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
 	}
 
-	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, res.WorkspaceID); lockErr != nil {
-			return lockErr
+	bumped := make(map[uuid.UUID]bool, len(plans))
+	for _, plan := range plans {
+		environmentID := plan.params.EnvironmentID
+		if !bumped[environmentID] {
+			if bumpErr := bumpEnvironmentRevision(ctx, qtx, environmentID); bumpErr != nil {
+				return bumpErr
+			}
+			bumped[environmentID] = true
 		}
-		bumped := make(map[uuid.UUID]bool, len(plans))
-		for _, plan := range plans {
-			if inheritErr := inheritDesiredEnv(ctx, qtx, plan); inheritErr != nil {
-				return inheritErr
-			}
-			environmentID := plan.params.EnvironmentID
-			if !bumped[environmentID] {
-				if bumpErr := bumpEnvironmentRevision(ctx, qtx, environmentID); bumpErr != nil {
-					return bumpErr
-				}
-				bumped[environmentID] = true
-			}
-			buildSpec := desiredApplicationSpec(
-				res,
-				organizationID,
-				resourceSpec,
-				hostnames[plan.params.EnvironmentID],
-				plan.deploymentSpec,
-				plan.params.Region,
-				plan.params.EnvironmentID,
-				plan.environmentName,
-				s.defaults,
-			)
-			if _, deployErr := createDeploymentWithCleanup(ctx, qtx, plan.params, buildSpec); deployErr != nil {
-				return deployErr
-			}
+		buildSpec := desiredApplicationSpec(
+			res,
+			organizationID,
+			resourceSpec,
+			hostnames[plan.params.EnvironmentID],
+			plan.deploymentSpec,
+			plan.params.Region,
+			plan.params.EnvironmentID,
+			plan.environmentName,
+			s.defaults,
+		)
+		if _, deployErr := createDeploymentWithCleanup(ctx, qtx, plan.params, buildSpec); deployErr != nil {
+			return deployErr
 		}
-		return events.Record(ctx, qtx, ev)
-	})
-	if err != nil {
-		return deploymentTxError(ctx, err)
 	}
-	return nil
-}
-
-func inheritDesiredEnv(ctx context.Context, qtx *genDb.Queries, plan regionRedeploy) error {
-	if plan.envSourceCluster == nil {
-		return nil
-	}
-	service := plan.deploymentSpec.GetService()
-	if service == nil {
-		return errors.New("redeploy plan has no service spec")
-	}
-	if err := lockResource(ctx, qtx, plan.params.ResourceID); err != nil {
-		return err
-	}
-	env, err := desiredEnv(ctx, qtx, plan.params.ResourceID, *plan.envSourceCluster)
-	if err != nil {
-		return fmt.Errorf("failed to read desired env: %w", err)
-	}
-	service.Env = env
-	return nil
+	return events.Record(ctx, qtx, ev)
 }
 
 // deploymentStatusToProto converts database deployment status to proto enum
@@ -1286,8 +1291,7 @@ func deploymentTxError(ctx context.Context, err error) error {
 			"another deployment for this resource and region is in progress",
 		)
 	}
-	slog.ErrorContext(ctx, "failed to create deployment", "error", err)
-	return rpcerr.New(connect.CodeInternal, ErrDB)
+	return txError(ctx, "failed to create deployment", err)
 }
 
 func finalizedDeploymentStatus(status genDb.DeploymentStatus) genDb.DeploymentStatus {
