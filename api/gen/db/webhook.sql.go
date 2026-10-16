@@ -348,6 +348,17 @@ func (q *Queries) LockInstallWebhooks(ctx context.Context, lockKey int64) error 
 	return err
 }
 
+const lockWorkspaceForWebhookCreation = `-- name: LockWorkspaceForWebhookCreation :one
+SELECT id FROM workspaces WHERE id = $1 FOR NO KEY UPDATE
+`
+
+func (q *Queries) LockWorkspaceForWebhookCreation(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, lockWorkspaceForWebhookCreation, id)
+	var id_2 uuid.UUID
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
 const upsertInstallWebhook = `-- name: UpsertInstallWebhook :exec
 INSERT INTO webhooks (kind, url, secret, event_types)
 VALUES ('install', $1, $2, $3)

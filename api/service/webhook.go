@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"net/url"
 
 	"connectrpc.com/connect/v2"
@@ -92,13 +91,6 @@ func (s *WebhookServer) CreateWebhook(
 		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrWebhookURL)
 	}
 	workspaceID := uuid.MustParse(req.GetWorkspaceId())
-	count, err := s.queries.CountWorkspaceWebhooks(ctx, workspaceID)
-	if err != nil {
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-	if count >= maxWebhooksPerWorkspace {
-		return nil, rpcerr.New(connect.CodeFailedPrecondition, ErrWebhookLimit)
-	}
 	secret, err := webhooks.NewSecret()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
@@ -112,7 +104,22 @@ func (s *WebhookServer) CreateWebhook(
 		types = []string{}
 	}
 	var row genDb.Webhook
-	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+	err = pgx.BeginTxFunc(ctx, s.db, pgx.TxOptions{IsoLevel: pgx.ReadCommitted}, func(tx pgx.Tx) error {
+		qtx := genDb.New(tx)
+		_, lockErr := qtx.LockWorkspaceForWebhookCreation(ctx, workspaceID)
+		if errors.Is(lockErr, pgx.ErrNoRows) {
+			return rpcerr.New(connect.CodeNotFound, ErrWorkspaceNotFound)
+		}
+		if lockErr != nil {
+			return lockErr
+		}
+		count, countErr := qtx.CountWorkspaceWebhooks(ctx, workspaceID)
+		if countErr != nil {
+			return countErr
+		}
+		if count >= maxWebhooksPerWorkspace {
+			return rpcerr.New(connect.CodeFailedPrecondition, ErrWebhookLimit)
+		}
 		created, createErr := qtx.CreateWorkspaceWebhook(ctx, genDb.CreateWorkspaceWebhookParams{
 			WorkspaceID: workspaceID,
 			Url:         req.GetUrl(),
@@ -133,8 +140,7 @@ func (s *WebhookServer) CreateWebhook(
 		})
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to create webhook", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, txError(ctx, "failed to create webhook", err)
 	}
 	return &webhookv1.CreateWebhookResponse{Webhook: webhookToProto(row), Secret: secret}, nil
 }
@@ -189,11 +195,15 @@ func (s *WebhookServer) DeleteWebhook(
 		return nil, err
 	}
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if _, deleteErr := qtx.DeleteWorkspaceWebhook(
+		deleted, deleteErr := qtx.DeleteWorkspaceWebhook(
 			ctx,
 			genDb.DeleteWorkspaceWebhookParams{ID: row.ID, WorkspaceID: workspaceID},
-		); deleteErr != nil {
+		)
+		if deleteErr != nil {
 			return deleteErr
+		}
+		if deleted == 0 {
+			return rpcerr.New(connect.CodeNotFound, ErrWebhookNotFound)
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.WebhookDeleted,
