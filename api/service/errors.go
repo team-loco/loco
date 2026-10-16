@@ -35,9 +35,20 @@ func isPgConstraintViolation(err error) bool {
 	return errors.As(err, &pgErr) && pgErr.Code == "23505" // unique_violation
 }
 
-func isPgForeignKeyViolation(err error) bool {
-	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == "23503"
+const (
+	pgResourceWorkspaceReference = "resources_workspace_id_fkey"
+	pgWorkspaceOrgReference      = "workspaces_org_id_fkey"
+	pgOrgScopeReference          = "user_scopes_organization_ref_fkey"
+	pgWorkspaceScopeReference    = "user_scopes_workspace_ref_fkey"
+	pgUserScopeOwnerReference    = "user_scopes_user_id_fkey"
+)
+
+func pgForeignKeyConstraint(err error) string {
+	pgErr, ok := errors.AsType[*pgconn.PgError](err)
+	if !ok || pgErr.Code != "23503" {
+		return ""
+	}
+	return pgErr.ConstraintName
 }
 
 const pgLockNotAvailable = "55P03"

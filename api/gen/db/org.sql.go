@@ -231,6 +231,24 @@ func (q *Queries) ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams
 	return items, nil
 }
 
+const lockOrgForDeletion = `-- name: LockOrgForDeletion :exec
+SELECT id FROM organizations WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) LockOrgForDeletion(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, lockOrgForDeletion, id)
+	return err
+}
+
+const lockOrgWorkspacesForDeletion = `-- name: LockOrgWorkspacesForDeletion :exec
+SELECT id FROM workspaces WHERE org_id = $1 ORDER BY id FOR UPDATE
+`
+
+func (q *Queries) LockOrgWorkspacesForDeletion(ctx context.Context, orgID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, lockOrgWorkspacesForDeletion, orgID)
+	return err
+}
+
 const lockUserForMembership = `-- name: LockUserForMembership :one
 SELECT id FROM users WHERE id = $1 FOR UPDATE
 `

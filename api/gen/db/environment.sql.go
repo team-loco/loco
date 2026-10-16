@@ -167,10 +167,16 @@ func (q *Queries) ListWorkspaceEnvironments(ctx context.Context, workspaceID uui
 }
 
 const lockResourceEnvironments = `-- name: LockResourceEnvironments :many
-SELECT id, revision FROM environments
-WHERE workspace_id = (SELECT r.workspace_id FROM resources r WHERE r.id = $1)
-ORDER BY id
-FOR UPDATE
+WITH workspace_lock AS MATERIALIZED (
+    SELECT w.id FROM workspaces w
+    JOIN resources r ON r.workspace_id = w.id
+    WHERE r.id = $1
+    FOR KEY SHARE OF w
+)
+SELECT e.id, e.revision FROM environments e
+JOIN workspace_lock w ON w.id = e.workspace_id
+ORDER BY e.id
+FOR UPDATE OF e
 `
 
 type LockResourceEnvironmentsRow struct {
@@ -199,10 +205,13 @@ func (q *Queries) LockResourceEnvironments(ctx context.Context, id uuid.UUID) ([
 }
 
 const lockWorkspaceEnvironments = `-- name: LockWorkspaceEnvironments :many
-SELECT id, revision FROM environments
-WHERE workspace_id = $1
-ORDER BY id
-FOR UPDATE
+WITH workspace_lock AS MATERIALIZED (
+    SELECT w.id FROM workspaces w WHERE w.id = $1 FOR KEY SHARE OF w
+)
+SELECT e.id, e.revision FROM environments e
+JOIN workspace_lock w ON w.id = e.workspace_id
+ORDER BY e.id
+FOR UPDATE OF e
 `
 
 type LockWorkspaceEnvironmentsRow struct {
@@ -210,8 +219,8 @@ type LockWorkspaceEnvironmentsRow struct {
 	Revision int64     `json:"revision"`
 }
 
-func (q *Queries) LockWorkspaceEnvironments(ctx context.Context, workspaceID uuid.UUID) ([]LockWorkspaceEnvironmentsRow, error) {
-	rows, err := q.db.Query(ctx, lockWorkspaceEnvironments, workspaceID)
+func (q *Queries) LockWorkspaceEnvironments(ctx context.Context, id uuid.UUID) ([]LockWorkspaceEnvironmentsRow, error) {
+	rows, err := q.db.Query(ctx, lockWorkspaceEnvironments, id)
 	if err != nil {
 		return nil, err
 	}

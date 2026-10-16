@@ -103,6 +103,9 @@ func (s *WorkspaceServer) CreateWorkspace(
 		CreatedBy:   entity.ID,
 	})
 	if err != nil {
+		if pgForeignKeyConstraint(err) == pgWorkspaceOrgReference {
+			return nil, rpcerr.New(connect.CodeNotFound, ErrOrgNotFound)
+		}
 		if isPgConstraintViolation(err) {
 			return nil, rpcerr.New(connect.CodeAlreadyExists, ErrWorkspaceNameNotUnique)
 		}
@@ -586,6 +589,9 @@ func (s *WorkspaceServer) CreateMember(
 			Data:        map[string]any{"scopes": grantedScopes},
 		})
 	})
+	if errors.Is(err, pgx.ErrNoRows) || pgForeignKeyConstraint(err) == pgWorkspaceScopeReference {
+		return nil, rpcerr.New(connect.CodeNotFound, ErrWorkspaceNotFound)
+	}
 	if err != nil {
 		return nil, txError(ctx, "failed to add workspace member scopes", err)
 	}

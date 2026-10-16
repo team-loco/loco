@@ -517,11 +517,14 @@ type User struct {
 }
 
 type UserScope struct {
-	UserID     uuid.UUID  `json:"userId"`
-	Scope      Scope      `json:"scope"`
-	EntityType EntityType `json:"entityType"`
-	EntityID   uuid.UUID  `json:"entityId"`
-	CreatedAt  time.Time  `json:"createdAt"`
+	UserID          uuid.UUID  `json:"userId"`
+	Scope           Scope      `json:"scope"`
+	EntityType      EntityType `json:"entityType"`
+	EntityID        uuid.UUID  `json:"entityId"`
+	OrganizationRef *uuid.UUID `json:"organizationRef"`
+	WorkspaceRef    *uuid.UUID `json:"workspaceRef"`
+	ResourceRef     *uuid.UUID `json:"resourceRef"`
+	CreatedAt       time.Time  `json:"createdAt"`
 }
 
 type Webhook struct {

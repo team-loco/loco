@@ -197,10 +197,12 @@ type Querier interface {
 	LockClusterLifecycle(ctx context.Context, id uuid.UUID) (LockClusterLifecycleRow, error)
 	LockEnvironmentKey(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)
 	LockInstallWebhooks(ctx context.Context, lockKey int64) error
+	LockOrgForDeletion(ctx context.Context, id uuid.UUID) error
+	LockOrgWorkspacesForDeletion(ctx context.Context, orgID uuid.UUID) error
 	LockResourceEnvironments(ctx context.Context, id uuid.UUID) ([]LockResourceEnvironmentsRow, error)
 	LockResources(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
 	LockUserForMembership(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
-	LockWorkspaceEnvironments(ctx context.Context, workspaceID uuid.UUID) ([]LockWorkspaceEnvironmentsRow, error)
+	LockWorkspaceEnvironments(ctx context.Context, id uuid.UUID) ([]LockWorkspaceEnvironmentsRow, error)
 	LockWorkspaceForDeletion(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockWorkspaceForWebhookCreation(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	MarkBuildImageDeleted(ctx context.Context, id uuid.UUID) (int64, error)

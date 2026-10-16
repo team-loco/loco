@@ -4,8 +4,17 @@ CREATE TYPE entity_type AS ENUM ('system', 'organization', 'workspace', 'resourc
 CREATE TABLE user_scopes (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     scope TEXT NOT NULL, -- e.g. 'read', 'write', 'admin'
-    entity_type entity_type NOT NULL, -- e.g. 'organization', 'workspace', 'resource', will never be 'user' since users cannot have scopes on themselves
+    entity_type entity_type NOT NULL,
     entity_id UUID NOT NULL, -- e.g. organization_id or workspace_id
+    organization_ref UUID GENERATED ALWAYS AS (
+        CASE WHEN entity_type = 'organization' THEN entity_id END
+    ) STORED REFERENCES organizations(id) ON DELETE CASCADE,
+    workspace_ref UUID GENERATED ALWAYS AS (
+        CASE WHEN entity_type = 'workspace' THEN entity_id END
+    ) STORED REFERENCES workspaces(id) ON DELETE CASCADE,
+    resource_ref UUID GENERATED ALWAYS AS (
+        CASE WHEN entity_type = 'resource' THEN entity_id END
+    ) STORED REFERENCES resources(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (user_id, scope, entity_type, entity_id)
 );
@@ -15,6 +24,9 @@ CREATE INDEX user_scopes_user_entity_idx ON user_scopes (user_id, entity_type, e
 
 -- what users have scope z on entity y?
 CREATE INDEX user_scopes_entity_scope_idx ON user_scopes (entity_type, entity_id, scope);
+CREATE INDEX user_scopes_organization_idx ON user_scopes (organization_ref) WHERE organization_ref IS NOT NULL;
+CREATE INDEX user_scopes_workspace_idx ON user_scopes (workspace_ref) WHERE workspace_ref IS NOT NULL;
+CREATE INDEX user_scopes_resource_idx ON user_scopes (resource_ref) WHERE resource_ref IS NOT NULL;
 
 -- session tokens: ephemeral, unlogged, scopes always resolved live from user_scopes
 -- token format: loco_s_<base64url(uuidv7 bytes)>  access token
