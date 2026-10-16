@@ -208,6 +208,7 @@ func TestDeploymentReady(t *testing.T) {
 	build := func(generation, observed int64, updated, available int32) *appsv1ac.DeploymentApplyConfiguration {
 		status := appsv1ac.DeploymentStatus().
 			WithObservedGeneration(observed).
+			WithReplicas(2).
 			WithUpdatedReplicas(updated).
 			WithAvailableReplicas(available)
 		return appsv1ac.Deployment("d", "ns").WithGeneration(generation).WithStatus(status)
@@ -218,12 +219,15 @@ func TestDeploymentReady(t *testing.T) {
 	unobserved := build(4, 3, 2, 2)
 	inProgress := build(3, 3, 1, 2)
 	unavailable := build(3, 3, 2, 1)
+	oldReplicaAvailable := build(3, 3, 2, 2)
+	oldReplicaAvailable.Status.WithReplicas(3)
 	cases := []struct {
 		name string
 		dep  *appsv1ac.DeploymentApplyConfiguration
 		want bool
 	}{
 		{name: "rolled out", dep: rolledOut, want: true},
+		{name: "old replica still available", dep: oldReplicaAvailable, want: false},
 		{name: "generation not observed", dep: unobserved, want: false},
 		{name: "rollout in progress", dep: inProgress, want: false},
 		{name: "not available", dep: unavailable, want: false},
