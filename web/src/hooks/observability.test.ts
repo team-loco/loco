@@ -13,6 +13,13 @@ const logOptions = { workspaceId, resourceIds: [], timeRange: "1h" as const,
 	parsedQuery: { search: "", levels: [], labels: {}, regions: ["us-*"], excludedRegions: ["us-west-*"] } };
 
 describe("regional control-plane queries", () => {
+	test("waits for an environment before enabling dashboard metrics", () => {
+		const transport = createRouterTransport(() => {});
+		const input = { workspaceId, resourceIds: [], metricName: "k8s.pod.cpu_limit_utilization", timeRange: "6h" as const };
+		expect(metricsQueryOptions(transport, { ...input, environmentId: "" }).enabled).toBe(false);
+		expect(metricsQueryOptions(transport, { ...input, environmentId: workspaceId }).enabled).toBe(true);
+	});
+
 	test("preserves milliseconds in log and metric query bounds", async () => {
 		const received: (QueryLogsRequest | QueryMetricsRequest)[] = [];
 		const transport = createRouterTransport((router) => {
@@ -26,7 +33,7 @@ describe("regional control-plane queries", () => {
 		try {
 			await client.query(logsQueryOptions(transport, logOptions));
 			await client.query(metricsQueryOptions(transport, {
-				workspaceId, resourceIds: [], metricName: "k8s.pod.cpu.usage", timeRange: "1h",
+				workspaceId, environmentId: workspaceId, resourceIds: [], metricName: "k8s.pod.cpu.usage", timeRange: "1h",
 			}));
 			for (const request of received) {
 				expect(request.startTime?.nanos).toBe(789_000_000);
@@ -191,15 +198,17 @@ describe("regional control-plane queries", () => {
 		const otherTransport = createRouterTransport((router) => {
 			router.service(ObservabilityProxyService, { queryMetrics() { throw new ConnectError("other control plane", Code.Unavailable); } });
 		});
-		const input = { workspaceId, resourceIds: [], metricName: "k8s.pod.cpu.usage", timeRange: "1h" as const };
+		const input = { workspaceId, environmentId: workspaceId, resourceIds: [], metricName: "k8s.pod.cpu.usage", timeRange: "1h" as const };
 		const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 		const east = metricsQueryOptions(transport, { ...input, region: "us-east-1" });
 		const west = metricsQueryOptions(transport, { ...input, region: "eu-west-1" });
 		expect(east.enabled).toBe(true);
 		expect(east.queryKey).not.toEqual(west.queryKey);
+		expect(east.queryKey).not.toEqual(metricsQueryOptions(transport, { ...input, region: "us-east-1", environmentId: "22222222-3333-4444-5555-666666666666" }).queryKey);
 		await client.query(east);
 		await client.query(west);
 		expect(received.map((request) => request.region)).toEqual(["us-east-1", "eu-west-1"]);
+		expect(received.map((request) => request.environmentId)).toEqual([workspaceId, workspaceId]);
 		expect(metricsQueryOptions(otherTransport, input).queryKey).not.toEqual(metricsQueryOptions(transport, input).queryKey);
 		expect(await client.query(metricsQueryOptions(otherTransport, input)).catch(String)).toContain("other control plane");
 		expect(received).toHaveLength(2);

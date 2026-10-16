@@ -4,6 +4,7 @@ import { useQueries } from "@tanstack/react-query";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 
 import { Skeleton } from "@/components/design/Skeleton";
+import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
 import { useQueryMetrics } from "@/hooks/useQueryMetrics";
 import { getErrorMessage } from "@/lib/error-handler";
@@ -130,8 +131,10 @@ function ComputeChart({
 	markers: ChartMarker[];
 }) {
 	const { workspaceId, resources, range, goTo } = useObs();
+	const { active: environment, isLoading: environmentLoading } = useEnvironments();
 	const result = useQueryMetrics({
 		workspaceId,
+		environmentId: environment?.id ?? "",
 		resourceIds: visible.map((r) => r.id),
 		timeRange: range,
 		metricName: def.metric,
@@ -186,7 +189,7 @@ function ComputeChart({
 			deltaBad={pct > 0}
 			bigNote={hasData ? (series.length > 1 ? "now · highest" : "now") : ""}
 		>
-			{result.isLoading ? (
+			{result.isLoading || environmentLoading ? (
 				<Skeleton className="h-[200px] w-full" />
 			) : result.error !== null ? (
 				<div className="flex h-[200px] items-center justify-center text-sm text-bad-fg">
