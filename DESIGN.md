@@ -109,6 +109,7 @@ A new screen should have an identifiable task and scope, the appropriate existin
 
 These are feature/API requirements, separate from the visual guidance above. Follow the maintained implementation and protocol when behavior changes:
 
+- Column resizing: `ColumnResizeHandle` and `useColumnWidths`; adjacent columns share bounded geometry, keyboard resizing and pointer cancellation. Versioned browser-local preferences keep desktop and narrow layouts separate.
 - Scoped audit history: [ActivityPanel](web/src/pages/settings/ActivityPanel.tsx) reuses audit actors, categories and rows across organization, workspace and resource history. [EventService.ListEvents](proto/loco/event/v1/event.proto) owns authorization and sequence cursors; failed older pages preserve loaded rows and retry the same cursor.
 - Async request identity: Connect Query/TanStack Query, scoped by resource and environment.
 - Current regional deployment: `RegionStatus.deployment_id` in [resource.proto](proto/loco/resource/v1/resource.proto), independent of the history page.
