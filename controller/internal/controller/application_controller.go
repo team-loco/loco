@@ -489,7 +489,7 @@ func (r *LocoResourceReconciler) ensureEnvSecret(
 
 	staged := &corev1.Secret{}
 	stagedKey := client.ObjectKey{Namespace: locoRes.Namespace, Name: ref.Name}
-	err := r.Get(ctx, stagedKey, staged)
+	err := r.apiReader().Get(ctx, stagedKey, staged)
 	if apierrors.IsNotFound(err) {
 		return envSecretMount{}, errEnvSecretPending
 	}
