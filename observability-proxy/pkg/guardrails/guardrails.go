@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
@@ -24,7 +25,7 @@ var (
 	errSinceInFuture       = errors.New("since is in the future")
 	errInvalidTraceID      = errors.New("trace_id must be 32 lowercase hex characters and nonzero")
 	errInvalidTraceLimit   = errors.New("limit must be between 0 and 10000")
-	errTraceTimestampRange = errors.New("timestamp is outside nanosecond precision range")
+	errTimestampRange      = errors.New("timestamp is outside nanosecond precision range")
 	errReservedLabelKey    = errors.New("label keys in the loco. attribute namespace are reserved")
 )
 
@@ -49,10 +50,7 @@ func ValidateLogsRequest(req *observabilityv1.QueryLogsRequest, cfg *config.Conf
 		return err
 	}
 
-	start := req.GetStartTime().AsTime()
-	end := req.GetEndTime().AsTime()
-
-	return validateTimeRange(start, end, cfg.MaxTimeRange)
+	return validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), cfg.MaxTimeRange)
 }
 
 // ValidateMetricsRequest validates and clamps the query parameters for a metrics request.
@@ -64,10 +62,7 @@ func ValidateMetricsRequest(req *observabilityv1.QueryMetricsRequest, cfg *confi
 		return errMetricNameRequired
 	}
 
-	start := req.GetStartTime().AsTime()
-	end := req.GetEndTime().AsTime()
-
-	if err := validateTimeRange(start, end, cfg.MaxTimeRange); err != nil {
+	if err := validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), cfg.MaxTimeRange); err != nil {
 		return err
 	}
 
@@ -172,21 +167,25 @@ func ValidateTracesRequest(req *observabilityv1.QueryTracesRequest, cfg *config.
 	if req.GetLimit() < 0 || req.GetLimit() > traceRequestMaxLimit {
 		return errInvalidTraceLimit
 	}
-	if req.GetStartTime() == nil || req.GetEndTime() == nil {
+	return validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), cfg.MaxTimeRange)
+}
+
+func validateQueryTimeRange(startTimestamp, endTimestamp *timestamppb.Timestamp, maxRange time.Duration) error {
+	if startTimestamp == nil || endTimestamp == nil {
 		return errTimeRangeRequired
 	}
-	if err := req.GetStartTime().CheckValid(); err != nil {
+	if err := startTimestamp.CheckValid(); err != nil {
 		return err
 	}
-	if err := req.GetEndTime().CheckValid(); err != nil {
+	if err := endTimestamp.CheckValid(); err != nil {
 		return err
 	}
-	start := req.GetStartTime().AsTime()
-	end := req.GetEndTime().AsTime()
+	start := startTimestamp.AsTime()
+	end := endTimestamp.AsTime()
 	if !time.Unix(0, start.UnixNano()).Equal(start) || !time.Unix(0, end.UnixNano()).Equal(end) {
-		return errTraceTimestampRange
+		return errTimestampRange
 	}
-	return validateTimeRange(start, end, cfg.MaxTimeRange)
+	return validateTimeRange(start, end, maxRange)
 }
 
 func validateRegions(groups ...[]string) error {
