@@ -31,7 +31,7 @@ const OrgWorkspaceContext = createContext<OrgWorkspaceContextType>(NO_CONTEXT);
 
 export function pickActive(items: readonly { id: string }[], fromUrl: string | undefined, storageKey: string): string | null {
 	const known = (id: string) => items.length === 0 || items.some((item) => item.id === id);
-	if (fromUrl !== undefined && known(fromUrl)) return fromUrl;
+	if (fromUrl !== undefined) return fromUrl;
 	const stored = readStorage(storageKey);
 	if (stored !== null && known(stored)) return stored;
 	return items[0]?.id ?? null;

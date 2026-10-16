@@ -422,6 +422,10 @@ run = "uv run --frozen --project docs python e2e/deployment_history_ui.py"
 description = "Test resource image copy, spec geometry, scoped secrets and managed deletion"
 run = "uv run --frozen --project docs python e2e/resource_details_ui.py"
 
+[tasks."e2e:activity-ui"]
+description = "Test scoped audit Activity with real limited-user API permissions and production Chromium"
+run = "uv run --frozen --project docs python e2e/activity_ui.py"
+
 [tasks."e2e:trace-ui"]
 description = "Test the production trace viewer against fixture trace responses with a throwaway API and database"
 run = "uv run --frozen --project docs python e2e/trace_ui.py"

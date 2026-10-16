@@ -7,6 +7,12 @@ on:
       - main
     paths:
       - "web/**"
+      - "api/events/**"
+      - "api/authz/**"
+      - "api/service/event*"
+      - "api/queries/events.sql"
+      - "api/migrations/00004_events.sql"
+      - "proto/loco/event/**"
       - "e2e/trace_ui.py"
       - "e2e/settings_labels_ui.py"
       - "e2e/fixtures/settings-labels/**"
@@ -21,6 +27,9 @@ on:
       - "gen/go/loco/{deployment,resource,environment,workspace,org,user}/**"
       - "go.{mod,sum}"
       - "compose.yaml"
+      - "e2e/activity_ui.py"
+      - "e2e/activity_fixture.py"
+      - "e2e/fixtures/activity/**"
       - ".agents/skills/ui-evidence/**"
       - "gen/ts/**"
       - "package.json"
@@ -32,6 +41,12 @@ on:
   pull_request:
     paths:
       - "web/**"
+      - "api/events/**"
+      - "api/authz/**"
+      - "api/service/event*"
+      - "api/queries/events.sql"
+      - "api/migrations/00004_events.sql"
+      - "proto/loco/event/**"
       - "e2e/trace_ui.py"
       - "e2e/settings_labels_ui.py"
       - "e2e/fixtures/settings-labels/**"
@@ -46,6 +61,9 @@ on:
       - "gen/go/loco/{deployment,resource,environment,workspace,org,user}/**"
       - "go.{mod,sum}"
       - "compose.yaml"
+      - "e2e/activity_ui.py"
+      - "e2e/activity_fixture.py"
+      - "e2e/fixtures/activity/**"
       - ".agents/skills/ui-evidence/**"
       - "gen/ts/**"
       - "package.json"
@@ -96,6 +114,17 @@ jobs:
 
       - name: Test trace viewer in Chromium
         run: mise run e2e:trace-ui
+
+      - name: Test scoped Activity in Chromium
+        run: mise run e2e:activity-ui
+
+      - name: Upload Activity browser evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: activity-ui-evidence
+          path: e2e/out/activity-ui
+          if-no-files-found: warn
 
       - name: Upload trace viewer browser evidence
         if: always()

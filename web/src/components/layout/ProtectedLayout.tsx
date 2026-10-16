@@ -1,3 +1,4 @@
+import { useMyScopes } from "@/hooks/useMyScopes";
 import { useAuth } from "@/auth/AuthProvider";
 import { ErrorCard } from "@/components/ErrorCard";
 import { AppShell } from "@/components/shell/AppShell";
@@ -26,13 +27,14 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 		{ enabled: !!user },
 	);
 	const orgs = orgsRes?.orgs ?? [];
+	const scopes = useMyScopes({ enabled: !!user });
 
 	const activeOrgId = pickActive(orgs, orgParam, ORG_STORAGE_KEY);
 
 	const { data: workspacesRes } = useQuery(
 		listOrgWorkspaces,
 		activeOrgId ? { orgId: activeOrgId } : undefined,
-		{ enabled: !!activeOrgId },
+		{ enabled: !!activeOrgId && !scopes.isLoading && scopes.orgMember(activeOrgId) },
 	);
 	const workspaces = workspacesRes?.workspaces ?? [];
 

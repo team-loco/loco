@@ -1,4 +1,5 @@
 import type { JsonObject } from "@bufbuild/protobuf";
+import type { Event } from "@gen/loco/event/v1/event_pb";
 
 export type AuditCategory = "access" | "organization" | "workspaces" | "deploys" | "tokens";
 
@@ -166,4 +167,13 @@ export function auditDetail(event: DetailFields, users: ReadonlyMap<string, Audi
 			return text(data, "name") ?? text(data, "domain");
 		}
 	}
+}
+
+export function distinctAuditEvents(events: readonly Event[]): Event[] {
+	const seen = new Set<string>();
+	return events.filter((event) => {
+		if (seen.has(event.id)) return false;
+		seen.add(event.id);
+		return true;
+	});
 }

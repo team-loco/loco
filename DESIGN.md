@@ -109,6 +109,7 @@ A new screen should have an identifiable task and scope, the appropriate existin
 
 These are feature/API requirements, separate from the visual guidance above. Follow the maintained implementation and protocol when behavior changes:
 
+- Scoped audit history: [ActivityPanel](web/src/pages/settings/ActivityPanel.tsx) reuses audit actors, categories and rows across organization, workspace and resource history. [EventService.ListEvents](proto/loco/event/v1/event.proto) owns authorization and sequence cursors; failed older pages preserve loaded rows and retry the same cursor.
 - Async request identity: Connect Query/TanStack Query, scoped by resource and environment.
 - Current regional deployment: `RegionStatus.deployment_id` in [resource.proto](proto/loco/resource/v1/resource.proto), independent of the history page.
 - Deployment-history pagination: [deployment.proto](proto/loco/deployment/v1/deployment.proto) and [DeploymentsSection](web/src/pages/resource/DeploymentsSection.tsx).
@@ -135,3 +136,5 @@ Compute charts share percentage formatting and evenly spaced percentage levels i
 Shared buttons and segmented controls use the compact 28px default height from their design wrappers. Single-select segmented controls slide one surface between selections; multiple-select controls keep independent surfaces. Motion follows the system reduced-motion preference. The top scope and search bar stays at the top of document scrolling with an opaque background.
 
 The resource page uses the selected environment for secrets and plain variables; the Secrets section has no second environment selector. Image labels compact long repository and tag identifiers while copy preserves the full reference. Deployment specs use a viewport-bounded dialog with wrapped code and an internal scroller for unusually long specs. Managed resource deletion remains available with typed name confirmation and an explicit loco.yaml drift and recreation warning.
+
+Workspace Activity is available to workspace admins in Settings. Resource Activity is available to resource readers in Overview, separate from workload Events. Use route organization IDs and the resource’s authoritative workspace ID for audit requests. Organization metadata, member lists and environment queries wait for matching capabilities; direct grants do not imply access to their parent organization. Explicit URL scope IDs take precedence over discovery lists and validated storage fallbacks.
