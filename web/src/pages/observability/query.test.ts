@@ -27,3 +27,23 @@ describe("regional telemetry filters", () => {
 		expect(new Set(rows.map((row) => row.key)).size).toBe(3);
 	});
 });
+
+
+describe("log severity filters", () => {
+	test("includes records displayed as INFO when they have no severity", () => {
+		const entry = create(LogEntrySchema, { body: "unstructured stdout", severity: "" });
+		const row = toRows([entry], new Map())[0];
+		expect(row?.label).toBe("INFO");
+		const { tokens, text } = parseQuery("@level:info unstructured stdout");
+		const query = buildBackendQuery(tokens, text, []);
+		expect(query.parsed.levels).toContain(entry.severity);
+		expect(query.parsed.search).toBe(entry.body);
+	});
+
+	test("keeps unclassified records out of other levels and excluded INFO", () => {
+		for (const filter of ["@level:error", "@level:warn", "@level:debug", "-@level:info"]) {
+			const { tokens, text } = parseQuery(filter);
+			expect(buildBackendQuery(tokens, text, []).parsed.levels).not.toContain("");
+		}
+	});
+});
