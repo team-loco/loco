@@ -1,5 +1,6 @@
 import { useState, type CSSProperties } from "react";
 import { useSearchParams } from "react-router";
+import { LogOrder } from "@gen/loco/observability/v1/observability_pb";
 import { ArrowUpIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, ScrollTextIcon, SearchXIcon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/design/Button";
@@ -128,20 +129,28 @@ export function LogsView() {
 	const held = frozen ? allTail.length - tailRows.length : 0;
 	const rows = visibleLogRows(batchRows, tailRows, playback.paused?.rows ?? null);
 	const rate = allTail.filter((r) => r.ts > nowMs - 10_000).length / 10;
-	const toggleTail = () => {
+	const handleToggleTail = () => {
 		setPage(0);
 		setFreezeTs(null);
 		if (tail) {
 			setPlayback({ ...playback, on: false, paused: { rows: visibleLogRows(batchRows, allTail), olderCursor: logs.olderCursor, newerCursor: logs.newerCursor } });
 			return;
 		}
-		const pending = { ...playback, refreshing: true };
+		const latest = logs.refetchLatest();
+		const latestKey = JSON.stringify([workspaceId, backend.parsed, backend.resourceIds, backend.impossible, range, null]);
+		const pending = { ...playback, key: JSON.stringify([latestKey, "", LogOrder.NEWEST_FIRST]), refreshing: true };
+		setPrevKey(latestKey);
+		clearAnchor();
+		setHistory(createLogHistory());
+		setWindowEnd(latest.end);
+		setSelectedKey(null);
 		setPlayback(pending);
-		void logs.refetch().then((result) => {
+		void latest.result.then(() => {
 			setPlayback((current) => current !== pending ? current : {
-				...current, refreshing: false, on: !result.isError,
-				paused: result.isError ? current.paused : null,
+				...current, refreshing: false, on: true, paused: null,
 			});
+		}, () => {
+			setPlayback((current) => current !== pending ? current : { ...current, refreshing: false });
 		});
 	};
 
@@ -230,7 +239,7 @@ export function LogsView() {
 					rate={rate}
 					pending={playback.refreshing}
 					disabled={cursor !== "" || backend.impossible}
-					onToggle={toggleTail}
+					onToggle={handleToggleTail}
 				/>
 			</div>
 			<div

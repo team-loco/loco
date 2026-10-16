@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient, type Transport } from "@connectrpc/connect";
 import { createConnectQueryKey, useTransport } from "@connectrpc/connect-query";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
@@ -66,9 +66,22 @@ export function logsQueryOptions(transport: Transport, {
 	};
 }
 
+export function latestLogsQueryOptions(transport: Transport, options: UseQueryLogsOptions, end: number) {
+	return { ...logsQueryOptions(transport, {
+		...options, cursor: "", order: LogOrder.NEWEST_FIRST, around: undefined,
+		startTime: msToTimestamp(end - timeRangeMs(options.timeRange)), endTime: msToTimestamp(end),
+	}), staleTime: 0 };
+}
+
 export function useQueryLogs(options: UseQueryLogsOptions) {
-	const query = useQuery(logsQueryOptions(useTransport(), options));
+	const transport = useTransport();
+	const client = useQueryClient();
+	const query = useQuery(logsQueryOptions(transport, options));
 	return { entries: query.data?.entries ?? [],
 		olderCursor: query.data?.olderCursor ?? "", newerCursor: query.data?.newerCursor ?? "",
-		isLoading: query.isLoading, error: query.error, refetch: query.refetch };
+		isLoading: query.isLoading, error: query.error,
+		refetchLatest: () => {
+			const end = Date.now();
+			return { end, result: client.query(latestLogsQueryOptions(transport, options, end)) };
+		} };
 }

@@ -3,9 +3,10 @@ import { Code, ConnectError, createRouterTransport } from "@connectrpc/connect";
 import { QueryClient } from "@tanstack/react-query";
 import { LogOrder, ObservabilityProxyService, type QueryLogsRequest, type QueryMetricsRequest } from "@gen/loco/observability/v1/observability_pb";
 
-import { logsQueryOptions } from "./useQueryLogs";
+import { latestLogsQueryOptions, logsQueryOptions } from "./useQueryLogs";
 import { msToTimestamp } from "@/lib/time";
 import { metricsQueryOptions } from "./useQueryMetrics";
+import { toRows, visibleLogRows } from "@/pages/observability/rows";
 
 const workspaceId = "11111111-2222-3333-4444-555555555555";
 const logOptions = { workspaceId, resourceIds: [], timeRange: "1h" as const,
@@ -67,6 +68,75 @@ describe("regional control-plane queries", () => {
 			expect(received[3]?.order).toBe(LogOrder.OLDEST_FIRST);
 			expect(received[3]?.startTime?.nanos).toBe(123_000_000);
 			expect(received.every((request) => request.workspaceId === workspaceId)).toBe(true);
+		} finally {
+			client.clear();
+		}
+	});
+
+	test("resumes anchored history with a fresh latest window and no directional cursor", async () => {
+		const received: QueryLogsRequest[] = [];
+		const target = Date.UTC(2026, 9, 16, 6, 0);
+		const resumed = target + 40 * 60_000;
+		const transport = createRouterTransport((router) => {
+			router.service(ObservabilityProxyService, { queryLogs(request) {
+				received.push(request);
+				return { entries: request.endTime?.seconds === BigInt(resumed / 1000)
+					? [{ body: "arrived while paused" }] : [], nextCursor: "latest-older" };
+			} });
+		});
+		const client = new QueryClient();
+		try {
+			const response = await client.query(latestLogsQueryOptions(transport, {
+				...logOptions, resourceIds: ["recommendation"], around: target,
+				cursor: "focused-newer-page", order: LogOrder.OLDEST_FIRST,
+				startTime: msToTimestamp(target - 30 * 60_000), endTime: msToTimestamp(target + 30 * 60_000),
+			}, resumed));
+			expect(received).toHaveLength(1);
+			const request = received[0];
+			expect(request?.cursor).toBe("");
+			expect(request?.order).toBe(LogOrder.NEWEST_FIRST);
+			expect(request?.startTime).toEqual(msToTimestamp(resumed - 60 * 60_000));
+			expect(request?.endTime).toEqual(msToTimestamp(resumed));
+			expect(request?.workspaceId).toBe(workspaceId);
+			expect(request?.resourceIds).toEqual(["recommendation"]);
+			expect(request?.regions).toEqual(["us-*"]);
+			expect(request?.excludedRegions).toEqual(["us-west-*"]);
+			expect(response.entries.map((entry) => entry.body)).toEqual(["arrived while paused"]);
+			expect(response.olderCursor).toBe("latest-older");
+			expect(response.newerCursor).toBe("");
+		} finally {
+			client.clear();
+		}
+	});
+
+	test("keeps paused rows after a failed latest refresh and fills the gap on retry", async () => {
+		let fail = false;
+		const target = Date.UTC(2026, 9, 16, 6, 0);
+		const resumed = target + 40 * 60_000;
+		const transport = createRouterTransport((router) => {
+			router.service(ObservabilityProxyService, { queryLogs(request) {
+				if (fail) throw new ConnectError("history temporarily unavailable", Code.Unavailable);
+				const latest = request.endTime?.seconds === BigInt(resumed / 1000);
+				return { entries: [{ body: latest ? "pause gap" : "history", timestamp: msToTimestamp(latest ? resumed : target) }],
+					nextCursor: "older-history" };
+			} });
+		});
+		const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+		const historyOptions = logsQueryOptions(transport, { ...logOptions,
+			startTime: msToTimestamp(target - 60 * 60_000), endTime: msToTimestamp(target) });
+		try {
+			const history = await client.query(historyOptions);
+			const snapshot = visibleLogRows(toRows(history.entries, new Map()), []);
+			fail = true;
+			const latestOptions = latestLogsQueryOptions(transport, logOptions, resumed);
+			expect(await client.query(latestOptions).catch(String)).toContain("history temporarily unavailable");
+			expect(visibleLogRows([], [], snapshot).map((row) => row.entry.body)).toEqual(["history"]);
+			expect(client.getQueryData<typeof history>(historyOptions.queryKey)).toEqual(history);
+			fail = false;
+			const latest = await client.query(latestOptions);
+			const batch = toRows(latest.entries, new Map());
+			expect(visibleLogRows(batch, batch).map((row) => row.entry.body)).toEqual(["pause gap"]);
+			expect(latest.olderCursor).toBe("older-history");
 		} finally {
 			client.clear();
 		}
