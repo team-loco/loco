@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -25,6 +26,7 @@ import (
 var (
 	ErrOrgNotFound                   = errors.New("organization not found")
 	ErrOrgNameNotUnique              = errors.New("organization name already exists")
+	ErrOrgNameRequired               = errors.New("organization name is required")
 	ErrOrgHasWorkspacesWithResources = errors.New("organization has workspaces with resources")
 	ErrNotOrgMember                  = errors.New(
 		"user is not a member of the workspace's organization; add them to the organization first",
@@ -310,8 +312,21 @@ func (s *OrgServer) UpdateOrg(
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
-	orgID := uuid.MustParse(req.GetOrgId())
+	fields := []string{updateNameField}
+	provided := []string{}
 	if req.GetName() != "" {
+		provided = fields
+	}
+	paths, maskErr := updateMaskPaths(req.GetUpdateMask(), fields, provided)
+	if maskErr != nil {
+		return nil, rpcerr.New(connect.CodeInvalidArgument, maskErr)
+	}
+	rename := slices.Contains(paths, updateNameField)
+	if rename && req.GetName() == "" {
+		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrOrgNameRequired)
+	}
+	orgID := uuid.MustParse(req.GetOrgId())
+	if rename {
 		isUnique, err := s.queries.IsOrgNameUnique(ctx, genDb.IsOrgNameUniqueParams{
 			Name:      req.GetName(),
 			ExcludeID: &orgID,
@@ -328,7 +343,7 @@ func (s *OrgServer) UpdateOrg(
 	}
 
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if req.GetName() != "" {
+		if rename {
 			_, updateErr := qtx.UpdateOrgName(ctx, genDb.UpdateOrgNameParams{
 				ID:   orgID,
 				Name: req.GetName(),
