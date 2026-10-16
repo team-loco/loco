@@ -156,8 +156,8 @@ func TestServicesExposePublicWireErrors(t *testing.T) {
 		},
 			call: func(ctx context.Context, client *connect.Client) error {
 				serviceClient := eventv1connect.NewEventServiceClient(client)
-				request := &eventv1.ListOrgEventsRequest{OrgId: wireEntityID}
-				_, err := serviceClient.ListOrgEvents(ctx, request)
+				request := &eventv1.ListEventsRequest{OrgId: wireEntityID}
+				_, err := serviceClient.ListEvents(ctx, request)
 				return err
 			}, code: connect.CodePermissionDenied, message: expectedPermissionMessage},
 		{name: "Webhook", register: func(server *connect.Server) {

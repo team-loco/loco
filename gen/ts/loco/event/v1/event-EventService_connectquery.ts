@@ -5,6 +5,6 @@
 import { EventService } from "./event_pb";
 
 /**
- * @generated from rpc loco.event.v1.EventService.ListOrgEvents
+ * @generated from rpc loco.event.v1.EventService.ListEvents
  */
-export const listOrgEvents = EventService.method.listOrgEvents;
+export const listEvents = EventService.method.listEvents;

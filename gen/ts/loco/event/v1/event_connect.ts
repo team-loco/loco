@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ListOrgEventsRequest, ListOrgEventsResponse, StreamEventsRequest, StreamEventsResponse } from "./event_pb";
+import { ListEventsRequest, ListEventsResponse, StreamEventsRequest, StreamEventsResponse } from "./event_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -13,12 +13,12 @@ export const EventService = {
   typeName: "loco.event.v1.EventService",
   methods: {
     /**
-     * @generated from rpc loco.event.v1.EventService.ListOrgEvents
+     * @generated from rpc loco.event.v1.EventService.ListEvents
      */
-    listOrgEvents: {
-      name: "ListOrgEvents",
-      I: ListOrgEventsRequest,
-      O: ListOrgEventsResponse,
+    listEvents: {
+      name: "ListEvents",
+      I: ListEventsRequest,
+      O: ListEventsResponse,
       kind: MethodKind.Unary,
     },
     /**

@@ -367,11 +367,14 @@ var (
 
 	// Token management actions are dynamically defined.
 
-	ListOrgEvents = Action{
+	ListOrgAuditEvents = Action{
 		entityType: db.EntityTypeOrganization,
 		scope:      db.ScopeAdmin,
 	}
-	StreamEvents = Action{
+	ListWorkspaceAuditEvents     = Action{entityType: db.EntityTypeWorkspace, scope: db.ScopeAdmin}
+	ListResourceAuditEvents      = Action{entityType: db.EntityTypeResource, scope: db.ScopeRead}
+	ListResourceAuditAdminEvents = Action{entityType: db.EntityTypeResource, scope: db.ScopeAdmin}
+	StreamEvents                 = Action{
 		entityType: db.EntityTypeSystem,
 		scope:      db.ScopeAdmin,
 	}
