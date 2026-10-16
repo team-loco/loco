@@ -31,7 +31,7 @@ func TestBuildLogsQueryFiltersOnTenantColumns(t *testing.T) {
 		100,
 		"",
 		observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST,
-		10, LogRegions{},
+		10, LogScope{},
 	)
 
 	if err != nil {
@@ -195,7 +195,7 @@ func TestInvalidLogCursorsAreRejected(t *testing.T) {
 			testPageSize,
 			cursor,
 			observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST,
-			testQueryTimeout, LogRegions{},
+			testQueryTimeout, LogScope{},
 		)
 		if !errors.Is(err, ErrInvalidLogCursor) {
 			t.Fatalf("cursor %q error = %v, want invalid cursor", cursor, err)
@@ -207,7 +207,7 @@ func TestBuildLogsQueryRegionFiltersKeepWorkspaceScope(t *testing.T) {
 	start, end := time.Now().Add(-time.Hour), time.Now()
 	query, args, err := buildLogsQuery(testWorkspaceID, nil, start, end, "", nil, nil,
 		testPageSize, "", observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST, testQueryTimeout,
-		LogRegions{Include: []string{"US-*", "eu-west-1"}, Exclude: []string{"us-west-*"}})
+		LogScope{Include: []string{"US-*", "eu-west-1"}, Exclude: []string{"us-west-*"}})
 	if err != nil {
 		t.Fatal(err)
 	}

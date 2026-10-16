@@ -18,6 +18,7 @@ import (
 var errTailTestSend = errors.New("tail receiver disconnected")
 
 const (
+	tailTestEnvironment  = "66666666-7777-8888-9999-000000000000"
 	tailTestWorkspace    = "11111111-2222-3333-4444-555555555555"
 	tailTestQueryTimeout = 10
 	tailTestBurstSize    = tailPageSize*2 + 1
@@ -51,7 +52,10 @@ func TestTailPollDrainsEqualTimestampPagesAndKeepsItsCursor(t *testing.T) {
 	}()
 	service := NewObservabilityService(client, &config.Config{QueryTimeout: tailTestQueryTimeout}, nil)
 	timestamp := time.Now().UTC().Add(-time.Minute)
-	attrs := map[string]string{"loco.workspace.id": tailTestWorkspace}
+	attrs := map[string]string{
+		counterHTTPWorkspaceAttribute: tailTestWorkspace,
+		"loco.environment.id":         tailTestEnvironment,
+	}
 	insert := func(count int) {
 		t.Helper()
 		batch, err := client.Conn().
@@ -69,7 +73,13 @@ func TestTailPollDrainsEqualTimestampPagesAndKeepsItsCursor(t *testing.T) {
 		}
 	}
 	insert(tailTestBurstSize)
-	request := &observabilityv1.TailLogsRequest{WorkspaceId: tailTestWorkspace}
+	foreign := map[string]string{counterHTTPWorkspaceAttribute: tailTestWorkspace}
+	insertSQL := "INSERT INTO otel_logs (Timestamp, Body, ResourceAttributes) VALUES (?, ?, ?)"
+	if err := client.Conn().
+		Exec(t.Context(), insertSQL, timestamp, "build log", foreign); err != nil {
+		t.Fatal(err)
+	}
+	request := &observabilityv1.TailLogsRequest{WorkspaceId: tailTestWorkspace, EnvironmentId: tailTestEnvironment}
 	cursor := ""
 	var sends int
 	var sendErr error

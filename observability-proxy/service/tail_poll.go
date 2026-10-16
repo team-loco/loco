@@ -36,7 +36,11 @@ func (s *ObservabilityService) pollTailLogs(
 			*cursor,
 			observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST,
 			s.cfg.QueryTimeout,
-			chClient.LogRegions{Include: request.GetRegions(), Exclude: request.GetExcludedRegions()},
+			chClient.LogScope{
+				EnvironmentID: request.GetEnvironmentId(),
+				Include:       request.GetRegions(),
+				Exclude:       request.GetExcludedRegions(),
+			},
 		)
 		if err != nil {
 			return sent, err
