@@ -31,12 +31,14 @@ type LogPage struct {
 	Entries    []*observabilityv1.LogEntry
 	NextCursor string
 	LastCursor string
+	positions  []logCursor
 }
 
 type logCursor struct {
 	timestamp   time.Time
 	blockNumber uint64
 	blockOffset uint64
+	partitionID string
 }
 
 func (cursor logCursor) encode() string {
@@ -132,6 +134,10 @@ func QueryLogPage(
 	}
 	slog.Debug("executing log query", "query", query)
 
+	return queryLogPage(ctx, conn, query, args, limit)
+}
+
+func queryLogPage(ctx context.Context, conn driver.Conn, query string, args []any, limit int32) (LogPage, error) {
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
 		return LogPage{}, fmt.Errorf("clickhouse query: %w", err)
@@ -153,6 +159,7 @@ func QueryLogPage(
 			logAttrs      map[string]string
 			blockNumber   uint64
 			blockOffset   uint64
+			partitionID   string
 		)
 
 		if err := rows.Scan(
@@ -166,11 +173,15 @@ func QueryLogPage(
 			&logAttrs,
 			&blockNumber,
 			&blockOffset,
+			&partitionID,
 		); err != nil {
 			return LogPage{}, fmt.Errorf("scan row: %w", err)
 		}
 
-		positions = append(positions, logCursor{timestamp: ts, blockNumber: blockNumber, blockOffset: blockOffset})
+		positions = append(
+			positions,
+			logCursor{timestamp: ts, blockNumber: blockNumber, blockOffset: blockOffset, partitionID: partitionID},
+		)
 		entries = append(entries, &observabilityv1.LogEntry{
 			Timestamp:          timestamppb.New(ts),
 			Severity:           severity,
@@ -186,9 +197,10 @@ func QueryLogPage(
 		return LogPage{}, fmt.Errorf("rows iteration: %w", err)
 	}
 
-	page := LogPage{Entries: entries}
+	page := LogPage{Entries: entries, positions: positions}
 	if int32(len(entries)) > limit {
 		page.Entries = entries[:limit]
+		page.positions = positions[:limit]
 		page.NextCursor = positions[limit-1].encode()
 	}
 	if len(page.Entries) > 0 {
@@ -209,10 +221,47 @@ func buildLogsQuery(
 	order observabilityv1.LogOrder,
 	queryTimeout int, scope LogScope,
 ) (string, []any, error) {
+	return buildLogPageQuery(
+		workspaceID,
+		resourceIDs,
+		startTime,
+		endTime,
+		search,
+		levels,
+		labels,
+		limit,
+		cursor,
+		order,
+		queryTimeout,
+		scope,
+		false,
+	)
+}
+
+func buildLogPageQuery(
+	workspaceID string,
+	resourceIDs []string,
+	startTime, endTime time.Time,
+	search string,
+	levels []string,
+	labels map[string]string,
+	limit int32,
+	cursor string,
+	order observabilityv1.LogOrder,
+	queryTimeout int, scope LogScope,
+	tail bool,
+) (string, []any, error) {
 	var args []any
 	queryParts := []string{
 		"SELECT Timestamp, SeverityText, Body, " + resourceColumn + ", TraceId, SpanId, " +
-			"ResourceAttributes, LogAttributes, _block_number, _block_offset FROM otel_logs",
+			"ResourceAttributes, LogAttributes, _block_number, _block_offset, _partition_id FROM otel_logs",
+	}
+
+	if tail {
+		queryParts[0] = "WITH JSONExtractKeysAndValues({tail_seen:String}, 'UInt64') AS tail_positions " +
+			queryParts[0] + " LEFT JOIN (SELECT position.1 AS tail_block, position.2 AS tail_offset, 1 AS tail_found " +
+			"FROM (SELECT arrayJoin(tail_positions) AS position) AS block_rows) AS delivered ON " +
+			tailBlockKey + " = tail_block"
 	}
 
 	whereParts := []string{workspaceColumn + " = ?"}
@@ -229,12 +278,12 @@ func buildLogsQuery(
 		args = append(args, values...)
 	}
 
-	whereParts = append(
-		whereParts,
-		"Timestamp >= fromUnixTimestamp64Nano(?)",
-		"Timestamp <= fromUnixTimestamp64Nano(?)",
-	)
-	args = append(args, startTime.UnixNano(), endTime.UnixNano())
+	whereParts = append(whereParts, "Timestamp >= fromUnixTimestamp64Nano(?)")
+	args = append(args, startTime.UnixNano())
+	if !tail {
+		whereParts = append(whereParts, "Timestamp <= fromUnixTimestamp64Nano(?)")
+		args = append(args, endTime.UnixNano())
+	}
 
 	if len(levels) > 0 {
 		clause, values := inFilter("SeverityText", levels)
@@ -276,6 +325,13 @@ func buildLogsQuery(
 		}
 	}
 
+	if tail {
+		whereParts = append(
+			whereParts,
+			"(coalesce(tail_found, 0) = 0 OR _block_offset > tail_offset)",
+		)
+	}
+
 	if cursor != "" {
 		position, err := decodeLogCursor(cursor)
 		if err != nil {
@@ -291,9 +347,12 @@ func buildLogsQuery(
 
 	queryParts = append(queryParts, "WHERE "+strings.Join(whereParts, " AND "))
 
-	if order == observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST {
+	switch {
+	case tail:
+		queryParts = append(queryParts, "ORDER BY _partition_id ASC, _block_number ASC, _block_offset ASC")
+	case order == observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST:
 		queryParts = append(queryParts, "ORDER BY Timestamp ASC, _block_number ASC, _block_offset ASC")
-	} else {
+	default:
 		queryParts = append(queryParts, "ORDER BY Timestamp DESC, _block_number DESC, _block_offset DESC")
 	}
 
@@ -301,6 +360,9 @@ func buildLogsQuery(
 	args = append(args, limit+pageLookahead)
 
 	settingsQuery := fmt.Sprintf("SETTINGS max_execution_time = %d", queryTimeout)
+	if tail {
+		settingsQuery += ", join_algorithm = 'hash'"
+	}
 	queryParts = append(queryParts, settingsQuery)
 
 	return strings.Join(queryParts, " "), args, nil

@@ -39,6 +39,7 @@ const (
 	environmentAttrKey     = "loco.environment.id"
 	testRegion             = "us-east-1"
 	testWorkerRegion       = "eu-west-1"
+	testUSRegionPattern    = "us-*"
 	testEnvironmentID      = "66666666-7777-8888-9999-000000000000"
 	testOtherEnvironmentID = "77777777-8888-9999-0000-111111111111"
 	avgAggregation         = "avg"
@@ -628,7 +629,7 @@ func TestQueryLogsFiltersRecordedRegionsBeforePagination(t *testing.T) {
 			{"exclude region", LogScope{Exclude: []string{testWorkerRegion}}, []string{testResourceID}},
 			{
 				"include OR then exclude",
-				LogScope{Include: []string{"us-*", "eu-*"}, Exclude: []string{"us-*"}},
+				LogScope{Include: []string{testUSRegionPattern, "eu-*"}, Exclude: []string{testUSRegionPattern}},
 				[]string{testWorkerResourceID},
 			},
 		}
