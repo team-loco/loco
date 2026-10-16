@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { QUERY_MAX_RANGE, RANGES, useObs } from "./context";
 import { fmtTs } from "./format";
 import { LogDetail } from "./LogDetail";
+import { completeLogResume, logPlaybackForKey, type LogPlayback } from "./log-playback";
 import { LogFacets } from "./LogFacets";
 import { LogTable } from "./LogTable";
 import { buildBackendQuery, LEVELS, queryStr, type FieldKey } from "./query";
@@ -32,13 +33,6 @@ import { LiveTailButton, TimeRangeMenu } from "./Toolbar";
 const BATCH = 1000;
 const WHITESPACE = /\s+/;
 const BUCKETS = 48;
-
-interface LogPlayback {
-	key: string;
-	on: boolean;
-	refreshing: boolean;
-	paused: { rows: LogRow[]; olderCursor: string; newerCursor: string } | null;
-}
 
 function nearest(rows: LogRow[], ts: number): LogRow | undefined {
 	let best: LogRow | undefined;
@@ -81,10 +75,9 @@ export function LogsView() {
 	const [prevKey, setPrevKey] = useState(queryKey);
 	const cursor = history.current.cursor;
 	const playbackKey = JSON.stringify([queryKey, cursor, history.current.order]);
-	const [playback, setPlayback] = useState<LogPlayback>({ key: playbackKey, on: false, refreshing: false, paused: null });
-	if (playback.key !== playbackKey) {
-		setPlayback({ key: playbackKey, on: playback.on, refreshing: false, paused: null });
-	}
+	const [playback, setPlayback] = useState<LogPlayback>({ key: playbackKey, on: false, pending: null, paused: null });
+	const currentPlayback = logPlaybackForKey(playback, playbackKey);
+	if (currentPlayback !== playback) setPlayback(currentPlayback);
 	const tail = playback.on;
 	const now = useNow(tail ? 1000 : 15_000);
 	const nowMs = now.getTime();
@@ -138,19 +131,16 @@ export function LogsView() {
 		}
 		const latest = logs.refetchLatest();
 		const latestKey = JSON.stringify([workspaceId, backend.parsed, backend.resourceIds, backend.impossible, range, null]);
-		const pending = { ...playback, key: JSON.stringify([latestKey, "", LogOrder.NEWEST_FIRST]), refreshing: true };
-		setPrevKey(latestKey);
+		const pending = { from: playbackKey, to: JSON.stringify([latestKey, "", LogOrder.NEWEST_FIRST]) };
 		clearAnchor();
 		setHistory(createLogHistory());
 		setWindowEnd(latest.end);
 		setSelectedKey(null);
-		setPlayback(pending);
+		setPlayback({ ...playback, pending });
 		void latest.result.then(() => {
-			setPlayback((current) => current !== pending ? current : {
-				...current, refreshing: false, on: true, paused: null,
-			});
+			setPlayback((current) => completeLogResume(current, pending, true));
 		}, () => {
-			setPlayback((current) => current !== pending ? current : { ...current, refreshing: false });
+			setPlayback((current) => completeLogResume(current, pending, false));
 		});
 	};
 
@@ -237,7 +227,7 @@ export function LogsView() {
 				<LiveTailButton
 					on={tail}
 					rate={rate}
-					pending={playback.refreshing}
+					pending={playback.pending !== null}
 					disabled={cursor !== "" || backend.impossible}
 					onToggle={handleToggleTail}
 				/>
@@ -373,7 +363,7 @@ export function LogsView() {
 											setFocusActive(false);
 											if (curPage > 0) setPage(curPage - 1);
 											else {
-												setPlayback({ ...playback, on: false, refreshing: false, paused: null });
+												setPlayback({ ...playback, on: false, pending: null, paused: null });
 												setHistory(moveLogHistory(history, "newer", newerCursor ?? ""));
 												setPage("last");
 											}
@@ -386,7 +376,7 @@ export function LogsView() {
 											setFocusActive(false);
 											if (curPage < pages - 1) setPage(curPage + 1);
 											else {
-												setPlayback({ ...playback, on: false, refreshing: false, paused: null });
+												setPlayback({ ...playback, on: false, pending: null, paused: null });
 												setHistory(moveLogHistory(history, "older", cutoffCursor ?? ""));
 												setPage(0);
 											}
