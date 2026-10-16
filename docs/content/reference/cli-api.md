@@ -25,6 +25,12 @@ loco config --help
 | `loco update` | Update the installed CLI |
 | `loco completion` | Generate shell completions |
 
+Workspace updates change only supplied flags. To clear a description, pass an empty value:
+
+```sh
+loco workspace update <workspace-id> --description ""
+```
+
 ## API schema
 
 Browse [Loco on the Buf Schema Registry](https://buf.build/team-loco/loco) for service definitions and generated client options. The repository's `proto/` directory owns the schema.
@@ -34,3 +40,5 @@ mise run gen
 ```
 
 That task regenerates Go and TypeScript clients and SQL query bindings. Do not hand-edit generated files.
+
+Settings update requests use optional fields. Omitted fields and JSON `null` preserve the stored value. An explicit empty description clears it; an empty profile name or avatar URL clears that field. Organization, workspace, environment and application names must remain nonempty. An explicitly unspecified environment type is invalid.

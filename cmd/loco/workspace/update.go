@@ -52,7 +52,7 @@ func buildUpdateCmd() *cobra.Command {
 				return fmt.Errorf("failed to get description flag: %w", err)
 			}
 
-			if name == "" && description == "" {
+			if !cmd.Flags().Changed("name") && !cmd.Flags().Changed("description") {
 				return errNoUpdateFlags
 			}
 
@@ -77,10 +77,10 @@ func buildUpdateCmd() *cobra.Command {
 				WorkspaceId: id,
 			}
 
-			if name != "" {
+			if cmd.Flags().Changed("name") {
 				updateReq.Name = &name
 			}
-			if description != "" {
+			if cmd.Flags().Changed("description") {
 				updateReq.Description = &description
 			}
 
