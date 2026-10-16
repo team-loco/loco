@@ -1,0 +1,12 @@
+{
+  "users": {
+    "owner": {"email": "owner@acme.test", "name": "Olivia Owner"},
+    "member": {"email": "member@acme.test", "name": "Max Member"}
+  },
+  "orgs": [
+    {"name": "acme", "owner": "owner", "members": ["member"], "workspaces": ["shared", "sibling"]}
+  ],
+  "grants": [
+    {"user": "member", "workspace": "acme/shared", "scopes": ["read"]}
+  ]
+}

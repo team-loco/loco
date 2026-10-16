@@ -32,6 +32,7 @@ nav = [
   ] },
   { "Contribute" = [
     { "Local development" = "contributing/development.md" },
+    { "Dashboard browser tests" = "contributing/browser-testing.md" },
     { "Documentation" = "contributing/documentation.md" },
   ] },
 ]
