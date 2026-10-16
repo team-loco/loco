@@ -22,17 +22,11 @@ import (
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
-const (
-	environmentTypeProduction   = "production"
-	environmentNameField        = "name"
-	environmentDescriptionField = "description"
-	environmentTypeField        = "type"
-)
+const environmentTypeProduction = "production"
 
 var (
 	ErrEnvironmentNotFound      = errors.New("environment not found")
 	ErrEnvironmentNameNotUnique = errors.New("environment name already exists in this workspace")
-	ErrEnvironmentUpdateMask    = errors.New("update mask must name only name, description or type")
 	ErrEnvironmentNameRequired  = errors.New("environment name must not be blank")
 	ErrEnvironmentTypeRequired  = errors.New("environment type is required")
 	ErrEnvironmentInUse         = errors.New("environment has deployments - cannot delete")
@@ -213,30 +207,28 @@ func (s *EnvironmentServer) UpdateEnvironment(
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(verifyErr)
 	}
 
-	paths := req.GetUpdateMask().GetPaths()
-	if len(paths) == 0 {
-		if req.GetName() != "" {
-			paths = append(paths, environmentNameField)
-		}
-		if req.GetDescription() != "" {
-			paths = append(paths, environmentDescriptionField)
-		}
-		if req.GetType() != environmentv1.EnvironmentType_ENVIRONMENT_TYPE_UNSPECIFIED {
-			paths = append(paths, environmentTypeField)
-		}
+	provided := []string{}
+	if req.GetName() != "" {
+		provided = append(provided, updateNameField)
 	}
-	if len(paths) == 1 && paths[0] == "*" {
-		paths = []string{environmentNameField, environmentDescriptionField, environmentTypeField}
+	if req.GetDescription() != "" {
+		provided = append(provided, updateDescriptionField)
 	}
-	for _, path := range paths {
-		if !slices.Contains([]string{environmentNameField, environmentDescriptionField, environmentTypeField}, path) {
-			return nil, rpcerr.New(connect.CodeInvalidArgument, ErrEnvironmentUpdateMask)
-		}
+	if req.GetType() != environmentv1.EnvironmentType_ENVIRONMENT_TYPE_UNSPECIFIED {
+		provided = append(provided, updateTypeField)
 	}
-	if slices.Contains(paths, environmentNameField) && strings.TrimSpace(req.GetName()) == "" {
+	paths, maskErr := updateMaskPaths(
+		req.GetUpdateMask(),
+		[]string{updateNameField, updateDescriptionField, updateTypeField},
+		provided,
+	)
+	if maskErr != nil {
+		return nil, rpcerr.New(connect.CodeInvalidArgument, maskErr)
+	}
+	if slices.Contains(paths, updateNameField) && strings.TrimSpace(req.GetName()) == "" {
 		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrEnvironmentNameRequired)
 	}
-	if slices.Contains(paths, environmentTypeField) &&
+	if slices.Contains(paths, updateTypeField) &&
 		req.GetType() == environmentv1.EnvironmentType_ENVIRONMENT_TYPE_UNSPECIFIED {
 		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrEnvironmentTypeRequired)
 	}
@@ -250,15 +242,15 @@ func (s *EnvironmentServer) UpdateEnvironment(
 			return loadErr
 		}
 		name := current.Name
-		if slices.Contains(paths, environmentNameField) {
+		if slices.Contains(paths, updateNameField) {
 			name = req.GetName()
 		}
 		description := current.Description
-		if slices.Contains(paths, environmentDescriptionField) {
+		if slices.Contains(paths, updateDescriptionField) {
 			description = new(req.GetDescription())
 		}
 		envType := current.EnvironmentType
-		if slices.Contains(paths, environmentTypeField) {
+		if slices.Contains(paths, updateTypeField) {
 			envType = protoEnvTypeToString(req.GetType())
 		}
 		updated, updateErr := qtx.UpdateEnvironment(ctx, genDb.UpdateEnvironmentParams{

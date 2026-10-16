@@ -30,6 +30,7 @@ LIMIT $2;
 -- name: UpdateResource :one
 UPDATE resources
 SET name = COALESCE(sqlc.narg('name'), name),
+    description = COALESCE(sqlc.narg('description'), description),
     updated_at = NOW()
 WHERE id = $1
 RETURNING id;

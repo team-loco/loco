@@ -494,13 +494,24 @@ func (s *ResourceServer) UpdateResource(
 
 	resourceID := uuid.MustParse(req.GetResourceId())
 
-	updateParams := genDb.UpdateResourceParams{
-		ID: resourceID,
-	}
-
+	provided := []string{}
 	if req.GetName() != "" {
-		n := req.GetName()
-		updateParams.Name = &n
+		provided = append(provided, updateNameField)
+	}
+	if req.GetDescription() != "" {
+		provided = append(provided, updateDescriptionField)
+	}
+	paths, maskErr := updateMaskPaths(req.GetUpdateMask(), []string{updateNameField, updateDescriptionField}, provided)
+	if maskErr != nil {
+		return nil, rpcerr.New(connect.CodeInvalidArgument, maskErr)
+	}
+	rename := slices.Contains(paths, updateNameField)
+	updateParams := genDb.UpdateResourceParams{ID: resourceID}
+	if rename {
+		updateParams.Name = new(req.GetName())
+	}
+	if slices.Contains(paths, updateDescriptionField) {
+		updateParams.Description = new(req.GetDescription())
 	}
 
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -511,7 +522,7 @@ func (s *ResourceServer) UpdateResource(
 		if getErr != nil {
 			return getErr
 		}
-		if req.GetName() != "" && req.GetName() != resource.Name &&
+		if rename && req.GetName() != resource.Name &&
 			locoControllerV1.PrivateServiceName(req.GetName()) == "" {
 			return errPrivateServiceName
 		}
@@ -519,7 +530,7 @@ func (s *ResourceServer) UpdateResource(
 		if updateErr != nil {
 			return updateErr
 		}
-		if req.GetName() != "" {
+		if rename {
 			resource.Name = req.GetName()
 			if renameErr := renamePlacements(ctx, qtx, resource); renameErr != nil {
 				return renameErr
