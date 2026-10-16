@@ -3,6 +3,9 @@ name: Chart Contracts
 on:
   pull_request:
     paths:
+      - "pytest.ini"
+      - "tests/pyproject.toml"
+      - "tests/uv.lock"
       - "charts/**"
       - "env/**"
       - "helmfile.yaml.gotmpl"
@@ -17,6 +20,9 @@ on:
   push:
     branches: [main]
     paths:
+      - "pytest.ini"
+      - "tests/pyproject.toml"
+      - "tests/uv.lock"
       - "charts/**"
       - "env/**"
       - "helmfile.yaml.gotmpl"

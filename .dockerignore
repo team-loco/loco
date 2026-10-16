@@ -70,3 +70,7 @@ examples/
 references/
 web/
 README.md
+
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/

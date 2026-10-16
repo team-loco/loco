@@ -7,6 +7,8 @@ on:
       - "**/go.mod"
       - "**/go.sum"
       - "**/package.json"
+      - "**/pyproject.toml"
+      - "**/uv.lock"
       - "bun.lock"
       - ".github/workflows/osv.yml"
   push:
@@ -17,6 +19,8 @@ on:
       - "**/go.mod"
       - "**/go.sum"
       - "**/package.json"
+      - "**/pyproject.toml"
+      - "**/uv.lock"
       - "bun.lock"
       - ".github/workflows/osv.yml"
   schedule:

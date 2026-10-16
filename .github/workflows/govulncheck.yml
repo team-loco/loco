@@ -3,6 +3,9 @@ name: Go Vulnerabilities
 on:
   pull_request:
     paths:
+      - "pytest.ini"
+      - "tests/pyproject.toml"
+      - "tests/uv.lock"
       - "**/*.go"
       - "**/go.mod"
       - "**/go.sum"
@@ -16,6 +19,9 @@ on:
     branches:
       - main
     paths:
+      - "pytest.ini"
+      - "tests/pyproject.toml"
+      - "tests/uv.lock"
       - "**/*.go"
       - "**/go.mod"
       - "**/go.sum"

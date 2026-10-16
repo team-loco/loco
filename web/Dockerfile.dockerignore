@@ -53,3 +53,7 @@ README.md
 .env.*
 *.pem
 secrets.md
+
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/

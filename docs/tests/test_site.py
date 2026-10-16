@@ -1,14 +1,13 @@
-from html.parser import HTMLParser
-from pathlib import Path
 import re
 import subprocess
 import sys
 import tomllib
-import unittest
+from html.parser import HTMLParser
+from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 DOCS = Path(__file__).resolve().parents[1]
-BUILD = DOCS / 'scripts' / 'build.py'
+BUILD = DOCS / "scripts" / "build.py"
 
 
 class Links(HTMLParser):
@@ -18,67 +17,82 @@ class Links(HTMLParser):
 
     def handle_starttag(self, tag, attributes):
         for name, value in attributes:
-            if name in ['href', 'src'] and value:
+            if name in ["href", "src"] and value:
                 self.targets.append(value)
 
 
-class SiteTests(unittest.TestCase):
-    def test_environment_builds(self):
-        for environment, host in [('production', 'docs.loco.build'), ('staging', 'docs.staging.loco.build')]:
-            with self.subTest(environment=environment):
-                subprocess.run([sys.executable, str(BUILD), 'build', environment], check=True)
-                site = DOCS / 'site'
-                html = (site / 'index.html').read_text()
-                self.assertIn(f'https://{host}/', html)
-                self.assertIn('md-sidebar--primary', html)
-                self.assertIn('Copy as Markdown', html)
-                self.assertIn(f'https://{host}/', (site / 'llms.txt').read_text())
-                self.assertIn('Deployment modes', (site / 'llms-full.txt').read_text())
-                self.assertTrue((site / 'index.md').is_file())
-                web = DOCS.parent / 'web'
-                self.assertEqual((site / 'assets/favicon.svg').read_text(), (web / 'public/favicon.svg').read_text())
-                strokes = re.findall(r'\["([^"]+)", ([\d.]+),', (web / 'src/components/design/logo-strokes.ts').read_text())
-                logo = (DOCS / 'overrides/partials/logo.html').read_text()
-                for path, width in strokes:
-                    self.assertIn(f'<path d="{path}" stroke-width="{width}"/>', logo)
-                self.assertEqual(logo.count('<path '), len(strokes))
-                self.assertIn(logo.strip(), html)
-                self.assertTrue((site / '404.html').is_file())
-                for document in site.rglob('*.html'):
-                    links = Links()
-                    links.feed(document.read_text())
-                    for target in links.targets:
-                        url = urlsplit(target)
-                        if url.scheme or url.netloc or not url.path:
-                            continue
-                        path = site / unquote(url.path.lstrip('/')) if url.path.startswith('/') else document.parent / unquote(url.path)
-                        self.assertTrue(path.exists(), f'{document.relative_to(site)} links to missing {target}')
-                self.assertFalse((site / 'notes.html').exists())
-                self.assertFalse((site / 'checklist.html').exists())
-                self.assertFalse((site / 'tdd').exists())
-                self.assertFalse((site / 'pyproject.toml').exists())
-                if environment == 'staging':
-                    self.assertIn('noindex, nofollow', html)
-                    self.assertIn('Disallow: /', (site / 'robots.txt').read_text())
-                    self.assertIn('Staging documentation', html)
-                else:
-                    self.assertNotIn('noindex, nofollow', html)
-                    self.assertIn('Allow: /', (site / 'robots.txt').read_text())
+def test_environment_builds(subtests):
+    for environment, host in [
+        ("production", "docs.loco.build"),
+        ("staging", "docs.staging.loco.build"),
+    ]:
+        with subtests.test(environment=environment):
+            subprocess.run(
+                [sys.executable, str(BUILD), "build", environment], check=True
+            )
+            site = DOCS / "site"
+            html = (site / "index.html").read_text()
+            assert f"https://{host}/" in html
+            assert "md-sidebar--primary" in html
+            assert "Copy as Markdown" in html
+            assert f"https://{host}/" in (site / "llms.txt").read_text()
+            assert "Deployment modes" in (site / "llms-full.txt").read_text()
+            assert (site / "index.md").is_file()
+            web = DOCS.parent / "web"
+            assert (site / "assets/favicon.svg").read_text() == (
+                web / "public/favicon.svg"
+            ).read_text()
+            strokes = re.findall(
+                '\\["([^"]+)", ([\\d.]+),',
+                (web / "src/components/design/logo-strokes.ts").read_text(),
+            )
+            logo = (DOCS / "overrides/partials/logo.html").read_text()
+            for path, width in strokes:
+                assert f'<path d="{path}" stroke-width="{width}"/>' in logo
+            assert logo.count("<path ") == len(strokes)
+            assert logo.strip() in html
+            assert (site / "404.html").is_file()
+            for document in site.rglob("*.html"):
+                links = Links()
+                links.feed(document.read_text())
+                for target in links.targets:
+                    url = urlsplit(target)
+                    if url.scheme or url.netloc or (not url.path):
+                        continue
+                    path = (
+                        site / unquote(url.path.lstrip("/"))
+                        if url.path.startswith("/")
+                        else document.parent / unquote(url.path)
+                    )
+                    assert path.exists(), (
+                        f"{document.relative_to(site)} links to missing {target}"
+                    )
+            assert not (site / "notes.html").exists()
+            assert not (site / "checklist.html").exists()
+            assert not (site / "tdd").exists()
+            assert not (site / "pyproject.toml").exists()
+            if environment == "staging":
+                assert "noindex, nofollow" in html
+                assert "Disallow: /" in (site / "robots.txt").read_text()
+                assert "Staging documentation" in html
+            else:
+                assert "noindex, nofollow" not in html
+                assert "Allow: /" in (site / "robots.txt").read_text()
 
-    def test_navigation_stays_expanded(self):
-        config = tomllib.loads((DOCS / 'zensical.toml').read_text())
-        features = config['project']['theme']['features']
-        self.assertIn('navigation.expand', features)
-        self.assertNotIn('navigation.prune', features)
-        self.assertNotIn('navigation.tabs', features)
-        self.assertNotIn('header.autohide', features)
-        for page in (DOCS / 'content').rglob('*.md'):
-            self.assertNotIn('hide:', page.read_text(), str(page))
 
-    def test_unknown_environment_is_rejected(self):
-        result = subprocess.run([sys.executable, str(BUILD), 'build', 'preview'], capture_output=True)
-        self.assertNotEqual(result.returncode, 0)
+def test_navigation_stays_expanded():
+    config = tomllib.loads((DOCS / "zensical.toml").read_text())
+    features = config["project"]["theme"]["features"]
+    assert "navigation.expand" in features
+    assert "navigation.prune" not in features
+    assert "navigation.tabs" not in features
+    assert "header.autohide" not in features
+    for page in (DOCS / "content").rglob("*.md"):
+        assert "hide:" not in page.read_text(), str(page)
 
 
-if __name__ == '__main__':
-    unittest.main()
+def test_unknown_environment_is_rejected():
+    result = subprocess.run(
+        [sys.executable, str(BUILD), "build", "preview"], capture_output=True
+    )
+    assert result.returncode != 0

@@ -84,3 +84,7 @@ e2e/out/
 .sops.yaml
 v1-report.html
 clusters/
+
+__pycache__/
+.pytest_cache/
+.venv/

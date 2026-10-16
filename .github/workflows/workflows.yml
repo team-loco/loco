@@ -5,12 +5,18 @@ on:
     branches:
       - main
     paths:
+      - "pytest.ini"
+      - "tests/pyproject.toml"
+      - "tests/uv.lock"
       - ".github/workflows/**"
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/**"
   pull_request:
     paths:
+      - "pytest.ini"
+      - "tests/pyproject.toml"
+      - "tests/uv.lock"
       - ".github/workflows/**"
       - "mise.toml"
       - "mise.lock"

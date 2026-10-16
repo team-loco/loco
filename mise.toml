@@ -147,15 +147,15 @@ run = ["bun run lint:fast", "bun run lint:types", "bun run typecheck"]
 
 [tasks."test:ci"]
 description = "Test CI component selection and pull-request diffs"
-run = ["python3 -m unittest discover -s .github/actions/go-changes/tests", "python3 -m unittest discover -s .github/actions/ci-gate/tests"]
+run = "uv run --locked --project tests pytest .github/actions/go-changes/tests .github/actions/ci-gate/tests"
 
 [tasks."test:govulncheck"]
 description = "Test vulnerability scan module coverage and failure propagation"
-run = "python3 -m unittest discover -s tests/govulncheck"
+run = "uv run --locked --project tests pytest tests/govulncheck"
 
 [tasks."test:stack"]
 description = "Test how each checkout's local stack gets its slot, names, ports and LoadBalancer range"
-run = "python3 -m unittest discover -s tests/stack"
+run = "uv run --locked --project tests pytest tests/stack"
 
 [tasks."lint:actions"]
 description = "Run actionlint on the GitHub workflows, and check that every action is pinned to a commit SHA"
@@ -365,24 +365,24 @@ run = "uv run --frozen --project docs python docs/scripts/build.py serve"
 
 [tasks."test:docs"]
 description = "Test production and staging documentation builds"
-run = "uv run --frozen --project docs python -m unittest discover -s docs/tests"
+run = "uv run --locked --project docs pytest docs/tests"
 
 [tasks."docs:check:browser"]
 description = "Check documentation navigation, search, themes and Markdown copying in Chromium"
-run = "uv run --frozen --project docs python docs/tests/browser.py"
+run = "uv run --locked --project docs pytest docs/tests/browser.py"
 
 [tasks."docs:check:container"]
 description = "Check the combined UI and documentation image"
-run = "uv run --frozen --project docs python docs/tests/container.py"
+run = "uv run --locked --project docs pytest docs/tests/container.py"
 
 [tasks."test:chart-contracts"]
 description = "Render regional certificate, observability Secret and collector pipeline contracts"
 depends = ["helm:deps"]
-run = "python3 -m unittest discover -s tests/charts"
+run = "uv run --locked --project tests pytest tests/charts"
 
 [tasks."test:platform-release"]
 description = "Test immutable platform artifacts and Flux release manifests offline"
-run = "python -m unittest discover -s tools/platform-release/tests"
+run = "uv run --locked --project tests pytest tools/platform-release/tests"
 
 [tasks."release:platform"]
 description = "Publish immutable platform charts, CRDs and the final OCI bundle"
@@ -395,7 +395,7 @@ run = "python tools/platform-release/verify.py"
 
 [tasks."test:platform-images"]
 description = "Test image platform selection, executable architecture and Dockerfile version pins"
-run = ["python3 -m unittest discover -s tools/platform-images/tests", "python3 -m unittest discover -s tests/versions"]
+run = "uv run --locked --project tests pytest tools/platform-images/tests tests/versions"
 
 [tasks."obs:serve"]
 description = "Serve the regional control-plane observability proxy against local ClickHouse"
@@ -405,3 +405,8 @@ run = "./mise-tasks/obs/serve"
 [tasks."e2e:trace-ui"]
 description = "Test the production trace viewer against fixture trace responses with a throwaway API and database"
 run = "uv run --frozen --project docs python e2e/trace_ui.py"
+
+[tasks."test:python"]
+description = "Run all Python unit tests"
+depends = ["helm:deps"]
+run = "uv run --locked --project docs pytest"

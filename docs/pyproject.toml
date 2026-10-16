@@ -8,4 +8,7 @@ dependencies = ["zensical==0.0.69"]
 package = false
 
 [dependency-groups]
-dev = ["playwright==1.63.0"]
+dev = ["playwright==1.63.0", "loco-tests"]
+
+[tool.uv.sources]
+loco-tests = { path = "../tests", package = false }
