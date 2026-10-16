@@ -144,6 +144,36 @@ otel-col-daemon:
   fullnameOverride: "otel-col-daemon"
   namespaceOverride: observability-node
   mode: daemonset
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    runAsUser: 10001
+    runAsGroup: 0
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: [ALL]
+  initContainers:
+    - name: log-checkpoint-permissions
+      image: busybox:1.38.0@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e
+      command: [chown, -R, '{{ .Values.securityContext.runAsUser }}:{{ .Values.securityContext.runAsGroup }}', &logCheckpointDirectory /var/lib/otelcol]
+      securityContext:
+        runAsUser: 0
+        runAsNonRoot: false
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: [ALL]
+          add: [CHOWN]
+      volumeMounts:
+        - name: log-checkpoint-permissions
+          mountPath: *logCheckpointDirectory
+  extraVolumes:
+    - name: log-checkpoint-permissions
+      hostPath:
+        path: *logCheckpointDirectory
+        type: DirectoryOrCreate
   extraEnvs: &ingestEnvs
     - name: CLICKHOUSE_INGEST_PASSWORD
       valueFrom:
@@ -178,6 +208,7 @@ otel-col-daemon:
   presets:
     logsCollection:
       enabled: true
+      storeCheckpoints: true
     hostMetrics:
       enabled: true
   config:
