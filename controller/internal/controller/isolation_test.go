@@ -218,7 +218,7 @@ var _ = Describe("Workspace isolation", func() {
 			Metrics: locov1alpha1.MetricsSpec{Enabled: true, Port: 9090, Path: defaultMetricsPath},
 		}
 		Expect(reconciler.ensureMetricsIngressPolicy(ctx, app)).To(Succeed())
-		_, err := reconciler.ensureDeployment(ctx, app, envSecretMount{})
+		_, err := reconciler.ensureDeployment(ctx, app, envSecretMount{}, existingTestDeployment(app))
 		Expect(err).NotTo(HaveOccurred())
 		key := client.ObjectKey{Namespace: getNamespace(app), Name: getName(app)}
 		deployment := &appsv1.Deployment{}
@@ -227,7 +227,7 @@ var _ = Describe("Workspace isolation", func() {
 		Expect(deployment.Spec.Template.Annotations[annotationMetricsPath]).To(Equal(defaultMetricsPath))
 		app.Spec.ServiceSpec.Obs = nil
 		Expect(reconciler.ensureMetricsIngressPolicy(ctx, app)).To(Succeed())
-		_, err = reconciler.ensureDeployment(ctx, app, envSecretMount{})
+		_, err = reconciler.ensureDeployment(ctx, app, envSecretMount{}, existingTestDeployment(app))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(k8sClient.Get(ctx, key, deployment)).To(Succeed())
 		Expect(deployment.Spec.Template.Labels).NotTo(HaveKey(labelMetricsPort))
@@ -245,7 +245,7 @@ var _ = Describe("Workspace isolation", func() {
 		namespace := getNamespace(app)
 		Expect(ensureNamespace(ctx, k8sClient, app)).To(Succeed())
 		Expect(reconciler.ensureServiceAccount(ctx, app)).To(Succeed())
-		_, err := reconciler.ensureDeployment(ctx, app, envSecretMount{})
+		_, err := reconciler.ensureDeployment(ctx, app, envSecretMount{}, existingTestDeployment(app))
 		Expect(err).NotTo(HaveOccurred())
 
 		sa := &corev1.ServiceAccount{}
@@ -284,7 +284,7 @@ var _ = Describe("Workspace isolation", func() {
 				app.Spec.ServiceSpec.Deployment.RunAsUser = new(id)
 				app.Spec.ServiceSpec.Deployment.RunAsGroup = new(id)
 			}
-			_, err := reconciler.ensureDeployment(ctx, app, envSecretMount{})
+			_, err := reconciler.ensureDeployment(ctx, app, envSecretMount{}, existingTestDeployment(app))
 			Expect(err).NotTo(HaveOccurred())
 			deployment := &appsv1.Deployment{}
 			Expect(k8sClient.Get(ctx, key, deployment)).To(Succeed())
@@ -320,3 +320,13 @@ var _ = Describe("Workspace isolation", func() {
 	})
 
 })
+
+func existingTestDeployment(app *locov1alpha1.Application) *appsv1.Deployment {
+	current := &appsv1.Deployment{}
+	err := k8sClient.Get(ctx, client.ObjectKey{Namespace: getNamespace(app), Name: getName(app)}, current)
+	if apierrors.IsNotFound(err) {
+		return nil
+	}
+	Expect(err).NotTo(HaveOccurred())
+	return current
+}
