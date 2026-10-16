@@ -25,8 +25,8 @@ func (q *Queries) DeleteEventsBefore(ctx context.Context, createdAt time.Time) (
 }
 
 const insertEvent = `-- name: InsertEvent :one
-INSERT INTO events (type, org_id, workspace_id, actor_type, actor_id, subject_type, subject_id, request_id, data)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+INSERT INTO events (type, org_id, workspace_id, resource_id, actor_type, actor_id, subject_type, subject_id, request_id, data)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 RETURNING seq
 `
 
@@ -34,6 +34,7 @@ type InsertEventParams struct {
 	Type        string     `json:"type"`
 	OrgID       *uuid.UUID `json:"orgId"`
 	WorkspaceID *uuid.UUID `json:"workspaceId"`
+	ResourceID  *uuid.UUID `json:"resourceId"`
 	ActorType   string     `json:"actorType"`
 	ActorID     *uuid.UUID `json:"actorId"`
 	SubjectType *string    `json:"subjectType"`
@@ -47,6 +48,7 @@ func (q *Queries) InsertEvent(ctx context.Context, arg InsertEventParams) (int64
 		arg.Type,
 		arg.OrgID,
 		arg.WorkspaceID,
+		arg.ResourceID,
 		arg.ActorType,
 		arg.ActorID,
 		arg.SubjectType,
@@ -60,7 +62,7 @@ func (q *Queries) InsertEvent(ctx context.Context, arg InsertEventParams) (int64
 }
 
 const listEventsAfter = `-- name: ListEventsAfter :many
-SELECT seq, txid, id, type, org_id, workspace_id, actor_type, actor_id, subject_type, subject_id, request_id, data, created_at
+SELECT seq, txid, id, type, org_id, workspace_id, resource_id, actor_type, actor_id, subject_type, subject_id, request_id, data, created_at
 FROM events
 WHERE (txid, seq) > ($1::xid8, $2::bigint)
   AND txid < pg_snapshot_xmin(pg_current_snapshot())
@@ -90,6 +92,7 @@ func (q *Queries) ListEventsAfter(ctx context.Context, arg ListEventsAfterParams
 			&i.Type,
 			&i.OrgID,
 			&i.WorkspaceID,
+			&i.ResourceID,
 			&i.ActorType,
 			&i.ActorID,
 			&i.SubjectType,
@@ -109,7 +112,7 @@ func (q *Queries) ListEventsAfter(ctx context.Context, arg ListEventsAfterParams
 }
 
 const listOrgEvents = `-- name: ListOrgEvents :many
-SELECT e.seq, e.txid, e.id, e.type, e.org_id, e.workspace_id, e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id, e.data, e.created_at, u.email AS actor_email, u.name AS actor_name
+SELECT e.seq, e.txid, e.id, e.type, e.org_id, e.workspace_id, e.resource_id, e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id, e.data, e.created_at, u.email AS actor_email, u.name AS actor_name
 FROM events e
 LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
 WHERE e.org_id = $1
@@ -153,6 +156,7 @@ func (q *Queries) ListOrgEvents(ctx context.Context, arg ListOrgEventsParams) ([
 			&i.Event.Type,
 			&i.Event.OrgID,
 			&i.Event.WorkspaceID,
+			&i.Event.ResourceID,
 			&i.Event.ActorType,
 			&i.Event.ActorID,
 			&i.Event.SubjectType,

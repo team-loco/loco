@@ -388,6 +388,7 @@ type Event struct {
 	Type        string     `json:"type"`
 	OrgID       *uuid.UUID `json:"orgId"`
 	WorkspaceID *uuid.UUID `json:"workspaceId"`
+	ResourceID  *uuid.UUID `json:"resourceId"`
 	ActorType   string     `json:"actorType"`
 	ActorID     *uuid.UUID `json:"actorId"`
 	SubjectType *string    `json:"subjectType"`
