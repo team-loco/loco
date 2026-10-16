@@ -23,11 +23,15 @@ export function SettingsCard({ children }: { children: ReactNode }) {
 export function SettingsRow({
 	label,
 	hint,
+	controlId,
+	hintId,
 	last,
 	children,
 }: {
 	label: string;
 	hint?: string | undefined;
+	controlId?: string | undefined;
+	hintId?: string | undefined;
 	last?: boolean | undefined;
 	children: ReactNode;
 }) {
@@ -39,8 +43,10 @@ export function SettingsRow({
 			)}
 		>
 			<div className="flex flex-col gap-1">
-				<span className="font-semibold">{label}</span>
-				{hint !== undefined && <span className="text-[12.5px] leading-[1.45] text-fg3">{hint}</span>}
+				{controlId === undefined
+					? <span className="font-semibold">{label}</span>
+					: <label htmlFor={controlId} className="font-semibold">{label}</label>}
+				{hint !== undefined && <span id={hintId} className="text-[12.5px] leading-[1.45] text-fg3">{hint}</span>}
 			</div>
 			<div className="flex max-w-[520px] min-w-0 flex-col gap-1.5">{children}</div>
 		</div>

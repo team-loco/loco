@@ -5,7 +5,7 @@ import type { Organization, User } from "@gen/loco/org/v1/org_pb";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 import { useQueryClient } from "@tanstack/react-query";
 import { LayersIcon, PlusIcon } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Link } from "react-router";
 import { toast } from "sonner";
 
@@ -40,6 +40,9 @@ export function OrgTab({
 	counts: Map<string, ResourceCount>;
 	countsLoading: boolean;
 }) {
+	const nameId = useId();
+	const nameHintId = `${nameId}-hint`;
+	const nameErrorId = `${nameId}-error`;
 	const queryClient = useQueryClient();
 	const { clearContext } = useOrgWorkspace();
 	const update = useMutation(updateOrg);
@@ -144,12 +147,14 @@ export function OrgTab({
 	return (
 		<div className="flex flex-col gap-5">
 			<SettingsCard>
-				<SettingsRow label="Name" hint="Must be unique across loco.">
+				<SettingsRow label="Name" hint="Must be unique across loco." controlId={nameId} hintId={nameHintId}>
 					<Input
+						id={nameId}
 						value={name}
 						placeholder="team-loco"
 						disabled={!canWrite}
 						aria-invalid={shownErr !== null}
+						aria-describedby={shownErr === null ? nameHintId : `${nameHintId} ${nameErrorId}`}
 						className="h-9 max-w-[320px] text-[13.5px]"
 						onChange={(e) => {
 							setDraft(e.target.value.toLowerCase());
@@ -157,7 +162,7 @@ export function OrgTab({
 							setServerNameErr(null);
 						}}
 					/>
-					{shownErr !== null && <span className="text-sm text-bad-fg">{shownErr}</span>}
+					{shownErr !== null && <span id={nameErrorId} className="text-sm text-bad-fg">{shownErr}</span>}
 				</SettingsRow>
 				<SettingsRow label="Created" last>
 					<span className="text-fg2">{formatDay(org.createdAt)}</span>

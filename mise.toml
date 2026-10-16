@@ -406,6 +406,10 @@ description = "Serve the regional control-plane observability proxy against loca
 env = { _.file = ".env", _.source = "env/local/stack.sh" }
 run = "./mise-tasks/obs/serve"
 
+[tasks."e2e:settings-labels"]
+description = "Test settings field labels and descriptions in the production browser with isolated API fixtures"
+run = "uv run --frozen --project docs python e2e/settings_labels_ui.py"
+
 [tasks."e2e:trace-ui"]
 description = "Test the production trace viewer against fixture trace responses with a throwaway API and database"
 run = "uv run --frozen --project docs python e2e/trace_ui.py"

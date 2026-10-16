@@ -8,6 +8,17 @@ on:
     paths:
       - "web/**"
       - "e2e/trace_ui.py"
+      - "e2e/settings_labels_ui.py"
+      - "e2e/fixtures/settings-labels/**"
+      - "api/service/{org,workspace,user}*.go"
+      - "api/{auth,authz,interceptor,migrations,db}/**"
+      - "api/{main,config,env}*.go"
+      - "api/queries/{org,workspace,user}*.sql"
+      - "api/gen/db/{org,workspace,user}*.go"
+      - "compose.yaml"
+      - "gen/go/loco/{org,workspace,user}/**"
+      - "go.{mod,sum}"
+      - "api/go.{mod,sum}"
       - ".agents/skills/ui-evidence/**"
       - "gen/ts/**"
       - "package.json"
@@ -20,6 +31,17 @@ on:
     paths:
       - "web/**"
       - "e2e/trace_ui.py"
+      - "e2e/settings_labels_ui.py"
+      - "e2e/fixtures/settings-labels/**"
+      - "api/service/{org,workspace,user}*.go"
+      - "api/{auth,authz,interceptor,migrations,db}/**"
+      - "api/{main,config,env}*.go"
+      - "api/queries/{org,workspace,user}*.sql"
+      - "api/gen/db/{org,workspace,user}*.go"
+      - "compose.yaml"
+      - "gen/go/loco/{org,workspace,user}/**"
+      - "go.{mod,sum}"
+      - "api/go.{mod,sum}"
       - ".agents/skills/ui-evidence/**"
       - "gen/ts/**"
       - "package.json"
@@ -77,4 +99,15 @@ jobs:
         with:
           name: trace-ui-evidence
           path: e2e/out/trace-ui
+          if-no-files-found: warn
+
+      - name: Test settings field labels in Chromium
+        run: mise run e2e:settings-labels
+
+      - name: Upload settings field evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: settings-field-evidence
+          path: e2e/out/settings-labels
           if-no-files-found: warn
