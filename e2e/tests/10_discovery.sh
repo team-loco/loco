@@ -17,6 +17,21 @@ discovery_renamed=checkout
 discovery_second_workspace='00000000-0000-7000-8000-000000000023'
 discovery_second_environment='00000000-0000-7000-8000-000000000024'
 
+discovery_failures_before=$E2E_FAIL
+
+discovery_diagnostics() {
+    local status=$1
+    if [ "$status" -ne 0 ] || [ "$E2E_FAIL" -gt "$discovery_failures_before" ]; then
+        python3 "$E2E_ROOT_DIR/e2e/discovery_diagnostics.py" \
+            --kubeconfig "$KUBECONFIG_FILE" --context "$discovery_ctx" \
+            --namespace "$discovery_namespace" --namespace "ws-${discovery_second_workspace}" \
+            --output "$E2E_ROOT_DIR/e2e/out/discovery/$E2E_RUN_ID" || true
+    fi
+    return "$status"
+}
+
+trap 'discovery_diagnostics "$?"' EXIT
+
 dk() {
     kubectl --context "$discovery_ctx" "$@"
 }
