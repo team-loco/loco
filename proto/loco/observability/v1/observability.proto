@@ -19,6 +19,8 @@ service ObservabilityProxyService {
   rpc QueryMetrics(QueryMetricsRequest) returns (QueryMetricsResponse);
 
   rpc QueryTraces(QueryTracesRequest) returns (QueryTracesResponse);
+
+  rpc QueryEvents(QueryEventsRequest) returns (QueryEventsResponse);
 }
 
 // ---------- Logs: Historical Query ----------
@@ -301,4 +303,64 @@ message TraceSpan {
   map<string, string> span_attributes = 15;
   string scope_name = 16;
   string scope_version = 17;
+}
+
+enum WorkloadEventSeverity {
+  WORKLOAD_EVENT_SEVERITY_UNSPECIFIED = 0;
+  WORKLOAD_EVENT_SEVERITY_INFO = 1;
+  WORKLOAD_EVENT_SEVERITY_WARNING = 2;
+}
+
+message QueryEventsRequest {
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  repeated string resource_ids = 2 [(buf.validate.field).repeated = {
+    max_items: 100
+    items: {
+      string: {uuid: true}
+    }
+  }];
+  string environment_id = 3 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+  google.protobuf.Timestamp start_time = 4 [(buf.validate.field).required = true];
+  google.protobuf.Timestamp end_time = 5 [(buf.validate.field).required = true];
+  string region = 6 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 128
+  }];
+  repeated WorkloadEventSeverity severities = 7 [(buf.validate.field).repeated = {
+    max_items: 2
+    items: {
+      enum: {
+        defined_only: true
+        not_in: [0]
+      }
+    }
+  }];
+  string search = 8 [(buf.validate.field).string.max_len = 256];
+  int32 limit = 9 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 10000
+  }];
+  string cursor = 10 [(buf.validate.field).string.max_len = 4096];
+}
+
+message QueryEventsResponse {
+  repeated WorkloadEvent events = 1;
+  string next_cursor = 2;
+}
+
+message WorkloadEvent {
+  string id = 1;
+  string resource_id = 2;
+  string resource_name = 3;
+  string environment_id = 4;
+  string region = 5;
+  WorkloadEventSeverity severity = 6;
+  string code = 7;
+  string summary = 8;
+  uint64 occurrences = 9;
+  google.protobuf.Timestamp first_seen = 10;
+  google.protobuf.Timestamp last_seen = 11;
 }
