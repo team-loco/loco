@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"testing"
 	"time"
@@ -22,9 +23,11 @@ const (
 	tailTestWorkspace    = "11111111-2222-3333-4444-555555555555"
 	tailTestQueryTimeout = 10
 	tailTestBurstSize    = tailPageSize*2 + 1
+	tailTestLogsTTL      = 48 * time.Hour
 )
 
-func TestTailPollDrainsEqualTimestampPagesAndKeepsItsCursor(t *testing.T) {
+func newTailTestService(t *testing.T) *ObservabilityService {
+	t.Helper()
 	dsn := os.Getenv("LOCO_TEST_CLICKHOUSE_URL")
 	if dsn == "" {
 		t.Skip("LOCO_TEST_CLICKHOUSE_URL not set")
@@ -33,7 +36,7 @@ func TestTailPollDrainsEqualTimestampPagesAndKeepsItsCursor(t *testing.T) {
 	migration := migrations.Config{
 		DSN:        dsn,
 		Database:   database,
-		LogsTTL:    time.Hour,
+		LogsTTL:    tailTestLogsTTL,
 		TracesTTL:  time.Hour,
 		MetricsTTL: time.Hour,
 	}
@@ -44,13 +47,20 @@ func TestTailPollDrainsEqualTimestampPagesAndKeepsItsCursor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer client.Close()
-	defer func() {
+	t.Cleanup(client.Close)
+	t.Cleanup(func() {
 		if err := client.Conn().Exec(context.Background(), "DROP DATABASE "+database+" SYNC"); err != nil {
 			t.Error(err)
 		}
-	}()
+	})
 	service := NewObservabilityService(client, &config.Config{QueryTimeout: tailTestQueryTimeout}, nil)
+	return service
+}
+
+func TestTailPollDrainsEqualTimestampPagesAndKeepsItsCursor(t *testing.T) {
+	service := newTailTestService(t)
+	client := service.ch
+
 	timestamp := time.Now().UTC().Add(-time.Minute)
 	attrs := map[string]string{
 		counterHTTPWorkspaceAttribute: tailTestWorkspace,
@@ -80,7 +90,7 @@ func TestTailPollDrainsEqualTimestampPagesAndKeepsItsCursor(t *testing.T) {
 		t.Fatal(err)
 	}
 	request := &observabilityv1.TailLogsRequest{WorkspaceId: tailTestWorkspace, EnvironmentId: tailTestEnvironment}
-	cursor := ""
+	cursor := chClient.TailLogCursor{}
 	var sends int
 	var sendErr error
 	send := func(*observabilityv1.LogEntry) error {
@@ -92,7 +102,7 @@ func TestTailPollDrainsEqualTimestampPagesAndKeepsItsCursor(t *testing.T) {
 	}
 	poll := func(want int) {
 		t.Helper()
-		sent, err := service.pollTailLogs(t.Context(), request, timestamp, time.Now(), &cursor, send)
+		sent, err := service.pollTailLogs(t.Context(), request, timestamp, cursor, send)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -101,7 +111,7 @@ func TestTailPollDrainsEqualTimestampPagesAndKeepsItsCursor(t *testing.T) {
 		}
 	}
 	poll(tailTestBurstSize)
-	if cursor == "" {
+	if len(cursor) == 0 {
 		t.Fatal("tail has no resume cursor after draining its final page")
 	}
 	poll(0)
@@ -112,14 +122,13 @@ func TestTailPollDrainsEqualTimestampPagesAndKeepsItsCursor(t *testing.T) {
 		t.Fatalf("sent %d entries, want %d", sends, tailTestBurstSize+1)
 	}
 	insert(1)
-	before := cursor
+	before := maps.Clone(cursor)
 	sendErr = errTailTestSend
 	if _, err := service.pollTailLogs(
 		t.Context(),
 		request,
 		timestamp,
-		time.Now(),
-		&cursor,
+		cursor,
 		send,
 	); !errors.Is(
 		err,
@@ -127,7 +136,7 @@ func TestTailPollDrainsEqualTimestampPagesAndKeepsItsCursor(t *testing.T) {
 	) {
 		t.Fatalf("send error = %v", err)
 	}
-	if cursor != before {
+	if !maps.Equal(cursor, before) {
 		t.Fatal("failed send advanced the cursor")
 	}
 	sendErr = nil
@@ -138,13 +147,76 @@ func TestTailPollDrainsEqualTimestampPagesAndKeepsItsCursor(t *testing.T) {
 		ctx,
 		request,
 		timestamp,
-		time.Now(),
-		&cursor,
+		cursor,
 		send,
 	); !errors.Is(
 		err,
 		context.Canceled,
 	) {
 		t.Fatalf("canceled poll error = %v", err)
+	}
+}
+
+func TestTailPollDeliversLateRecordsAcrossPartitionsAndMerges(t *testing.T) {
+	service := newTailTestService(t)
+	midnight := time.Now().UTC().Truncate(24 * time.Hour)
+	since := midnight.Add(-time.Minute)
+	first := time.Now().UTC()
+	insert := func(timestamp time.Time, body string) {
+		t.Helper()
+		batch, err := service.ch.Conn().
+			PrepareBatch(t.Context(), "INSERT INTO otel_logs (Timestamp, Body, ResourceAttributes)")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := batch.Append(
+			timestamp,
+			body,
+			map[string]string{counterHTTPWorkspaceAttribute: tailTestWorkspace},
+		); err != nil {
+			t.Fatal(err)
+		}
+		if err := batch.Send(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	request := &observabilityv1.TailLogsRequest{WorkspaceId: tailTestWorkspace}
+	cursor := chClient.TailLogCursor{}
+	var bodies []string
+	poll := func(want string) {
+		t.Helper()
+		bodies = nil
+		_, err := service.pollTailLogs(
+			t.Context(),
+			request,
+			since,
+			cursor,
+			func(entry *observabilityv1.LogEntry) error { bodies = append(bodies, entry.GetBody()); return nil },
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(bodies) != 1 || bodies[0] != want {
+			t.Fatalf("tail records=%v, want [%s]", bodies, want)
+		}
+	}
+	insert(first, "first")
+	poll("first")
+	insert(midnight.Add(-time.Second), "late previous partition")
+	poll("late previous partition")
+	if err := service.ch.Conn().Exec(t.Context(), "OPTIMIZE TABLE otel_logs FINAL"); err != nil {
+		t.Fatal(err)
+	}
+	insert(midnight, "late same partition")
+	poll("late same partition")
+	sent, err := service.pollTailLogs(
+		t.Context(),
+		request,
+		since,
+		cursor,
+		func(*observabilityv1.LogEntry) error { t.Error("tail repeated a delivered row"); return nil },
+	)
+	if err != nil || sent != 0 {
+		t.Fatalf("unchanged poll=%d, %v", sent, err)
 	}
 }

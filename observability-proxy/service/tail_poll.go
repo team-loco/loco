@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"maps"
 	"time"
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
@@ -13,8 +14,8 @@ const tailPageSize = 100
 func (s *ObservabilityService) pollTailLogs(
 	ctx context.Context,
 	request *observabilityv1.TailLogsRequest,
-	start, end time.Time,
-	cursor *string,
+	start time.Time,
+	cursor chClient.TailLogCursor,
 	send func(*observabilityv1.LogEntry) error,
 ) (int, error) {
 	var sent int
@@ -22,25 +23,14 @@ func (s *ObservabilityService) pollTailLogs(
 		if err := ctx.Err(); err != nil {
 			return sent, err
 		}
-		page, err := chClient.QueryLogPage(
+		page, err := chClient.QueryTailLogPage(
 			ctx,
 			s.ch.Conn(),
-			request.GetWorkspaceId(),
-			request.GetResourceIds(),
+			request,
 			start,
-			end,
-			request.GetSearch(),
-			request.GetLevels(),
-			request.GetLabels(),
 			tailPageSize,
-			*cursor,
-			observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST,
 			s.cfg.QueryTimeout,
-			chClient.LogScope{
-				EnvironmentID: request.GetEnvironmentId(),
-				Include:       request.GetRegions(),
-				Exclude:       request.GetExcludedRegions(),
-			},
+			cursor,
 		)
 		if err != nil {
 			return sent, err
@@ -51,10 +41,8 @@ func (s *ObservabilityService) pollTailLogs(
 			}
 			sent++
 		}
-		if page.LastCursor != "" {
-			*cursor = page.LastCursor
-		}
-		if page.NextCursor == "" {
+		maps.Copy(cursor, page.Blocks)
+		if !page.More {
 			return sent, nil
 		}
 	}
