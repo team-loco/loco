@@ -16,6 +16,7 @@ const (
 	defaultIntervalSeconds = 60
 	regionAttribute        = "loco.region"
 	sumMetricType          = "sum"
+	noRecordedValueFlag    = 1
 )
 
 // QueryMetrics executes a metric aggregation query against ClickHouse.
@@ -139,7 +140,8 @@ func buildMetricsQuery(
 		args = append(args, values...)
 	}
 
-	whereParts = append(whereParts, "MetricName = ?", "TimeUnix >= ?", "TimeUnix <= ?")
+	whereParts = append(whereParts, "MetricName = ?", "TimeUnix >= ?", "TimeUnix <= ?",
+		fmt.Sprintf("bitAnd(Flags, %d) = 0", noRecordedValueFlag))
 	args = append(args, metricName, startTime, endTime)
 
 	where := strings.Join(whereParts, " AND ")

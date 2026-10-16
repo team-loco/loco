@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json/v2"
 	"io"
+	"maps"
 	"net/http"
 	"os"
 	"strconv"
@@ -33,6 +34,7 @@ const (
 	counterHTTPInterval           = 60
 	counterHTTPValue              = 7.0
 	counterOtherValue             = 900.0
+	counterUnrecordedValue        = 10000.0
 )
 
 func counterRequest(workspace string, timestamp time.Time) *observabilityv1.QueryMetricsRequest {
@@ -188,10 +190,20 @@ func counterPayload(t *testing.T, timestamp time.Time) []byte {
 			"timeUnixNano":      strconv.FormatInt(timestamp.UnixNano(), 10),
 			"startTimeUnixNano": strconv.FormatInt(timestamp.Add(-time.Minute).UnixNano(), 10),
 			"asDouble":          row.value,
+			"flags":             2,
+		}
+		unrecordedFlags := []uint32{1, 3}
+		points := make([]any, 1, 1+len(unrecordedFlags))
+		points[0] = point
+		for _, flags := range unrecordedFlags {
+			marker := maps.Clone(point)
+			marker["asDouble"] = counterUnrecordedValue
+			marker["flags"] = flags
+			points = append(points, marker)
 		}
 		metric := map[string]any{
 			"name": counterHTTPMetric,
-			"sum":  map[string]any{"aggregationTemporality": 2, "isMonotonic": true, "dataPoints": []any{point}},
+			"sum":  map[string]any{"aggregationTemporality": 2, "isMonotonic": true, "dataPoints": points},
 		}
 		resources = append(
 			resources,
