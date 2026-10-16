@@ -28,6 +28,7 @@ func setOverrides(t *testing.T) {
 	t.Setenv("CLICKHOUSE_LOGS_TTL", testLogsTTL.String())
 	t.Setenv("CLICKHOUSE_TRACES_TTL", testTracesTTL.String())
 	t.Setenv("CLICKHOUSE_METRICS_TTL", testMetricsTTL.String())
+	t.Setenv("CLICKHOUSE_EVENTS_TTL", testLogsTTL.String())
 	t.Setenv("MIGRATION_RETRY_BUDGET", testBudget.String())
 	t.Setenv("MIGRATION_RETRY_INTERVAL", testInterval.String())
 	t.Setenv("MIGRATION_LOCK_TTL", testLockTTL.String())
@@ -56,6 +57,7 @@ func TestLoadDefaultsSchemaSettings(t *testing.T) {
 		"LogsTTL":                {cfg.LogsTTL, defaultRetention},
 		"TracesTTL":              {cfg.TracesTTL, defaultRetention},
 		"MetricsTTL":             {cfg.MetricsTTL, defaultRetention},
+		"EventsTTL":              {cfg.EventsTTL, defaultRetention},
 		"MigrationRetryBudget":   {cfg.MigrationRetryBudget, defaultMigrationRetryBudget},
 		"MigrationRetryInterval": {cfg.MigrationRetryInterval, defaultMigrationRetryInterval},
 		"MigrationLockTTL":       {cfg.MigrationLockTTL, defaultMigrationLockTTL},
@@ -84,6 +86,7 @@ func TestLoadReadsSchemaOverrides(t *testing.T) {
 		"LogsTTL":                {cfg.LogsTTL, testLogsTTL},
 		"TracesTTL":              {cfg.TracesTTL, testTracesTTL},
 		"MetricsTTL":             {cfg.MetricsTTL, testMetricsTTL},
+		"EventsTTL":              {cfg.EventsTTL, testLogsTTL},
 		"MigrationRetryBudget":   {cfg.MigrationRetryBudget, testBudget},
 		"MigrationRetryInterval": {cfg.MigrationRetryInterval, testInterval},
 		"MigrationLockTTL":       {cfg.MigrationLockTTL, testLockTTL},
@@ -115,6 +118,7 @@ func TestLoadPanicsOnInvalidValues(t *testing.T) {
 		"CLICKHOUSE_LOGS_TTL":         {"30d", "-1h", "0s", "1500ms"},
 		"CLICKHOUSE_TRACES_TTL":       {"forever"},
 		"CLICKHOUSE_METRICS_TTL":      {"-24h"},
+		"CLICKHOUSE_EVENTS_TTL":       {"forever", "-1h", "0s", "1500ms"},
 		"MIGRATION_RETRY_BUDGET":      {"0s", "soon"},
 		"MIGRATION_RETRY_INTERVAL":    {"-5s"},
 		"PORT":                        {"eighty"},

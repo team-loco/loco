@@ -68,3 +68,13 @@ def test_networking_is_ready_before_local_providers():
     assert releases["loco-networking"].get("wait", state["helmDefaults"]["wait"])
     for name in ("cert-manager", "loco-operator"):
         assert "kube-system/loco-networking" in releases[name]["needs"]
+
+
+def test_workload_inventory_crd_provider_is_ready_before_observability(subtests):
+    for environment in ("local", "prod"):
+        with subtests.test(environment=environment):
+            state, releases = _release_state(environment)
+            operator = releases["loco-operator"]
+            assert operator.get("wait", state["helmDefaults"]["wait"])
+            assert "loco-system/loco-operator" in releases["loco-core"]["needs"]
+            assert "loco-system/loco-core" in releases["loco-obs"]["needs"]

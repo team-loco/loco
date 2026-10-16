@@ -77,6 +77,8 @@ var expectedTables = []string{
 	tracesTable,
 	traceLookupTable,
 	"otel_traces_trace_id_ts_mv",
+	workloadEventsTable,
+	workloadOwnersTable,
 }
 
 type testDatabase struct {
@@ -119,6 +121,7 @@ func newTestDatabase(t *testing.T) *testDatabase {
 			LogsTTL:    testLogsTTL,
 			TracesTTL:  testTracesTTL,
 			MetricsTTL: testMetricsTTL,
+			EventsTTL:  testLogsTTL,
 		},
 	}
 }
@@ -605,7 +608,7 @@ func (d *testDatabase) assertTenancy(t *testing.T, table string) {
 	}
 }
 
-func TestOrderingKeysLeadWithWorkspace(t *testing.T) {
+func TestOrderingKeysKeepApplicationTenancyAndWorkloadIdentity(t *testing.T) {
 	db := newTestDatabase(t)
 	if err := Up(t.Context(), db.cfg); err != nil {
 		t.Fatalf("Up: %v", err)
@@ -625,7 +628,11 @@ func TestOrderingKeysLeadWithWorkspace(t *testing.T) {
 		if err := rows.Scan(&name, &key); err != nil {
 			t.Fatalf("scan sorting key: %v", err)
 		}
-		if !strings.HasPrefix(key, "WorkspaceId, ") {
+		if name == workloadEventsTable || name == workloadOwnersTable {
+			if key != "ClusterUid, ObjectUid, Timestamp, ResourceVersion" {
+				t.Errorf("%s sorting key %q does not preserve workload identity/version ordering", name, key)
+			}
+		} else if !strings.HasPrefix(key, "WorkspaceId, ") {
 			t.Errorf("%s sorting key %q does not lead with WorkspaceId", name, key)
 		}
 	}
@@ -657,9 +664,11 @@ func TestInsertOnlyUserPopulatesTraceLookup(t *testing.T) {
 	}
 	user := db.cfg.Database + "_ingest"
 	password := hex.EncodeToString([]byte(user))
-	statements := []string{
-		"CREATE USER " + user + " IDENTIFIED WITH plaintext_password BY '" + password + "'",
-		"GRANT INSERT ON " + db.cfg.Database + ".* TO " + user,
+	inserts := exporterInserts()
+	statements := make([]string, 0, len(inserts)+1)
+	statements = append(statements, "CREATE USER "+user+" IDENTIFIED WITH plaintext_password BY '"+password+"'")
+	for _, insert := range inserts {
+		statements = append(statements, "GRANT INSERT ON "+db.cfg.Database+"."+insert.table+" TO "+user)
 	}
 	for _, statement := range statements {
 		if err := db.admin.Exec(t.Context(), statement); err != nil {
@@ -689,7 +698,7 @@ func TestInsertOnlyUserPopulatesTraceLookup(t *testing.T) {
 	})
 
 	now := time.Now().UTC().Truncate(time.Second)
-	for _, insert := range exporterInserts() {
+	for _, insert := range inserts {
 		query := fmt.Sprintf("INSERT INTO %s (%s)", insert.table, strings.Join(insert.columns, ", "))
 		batch, err := ingest.PrepareBatch(t.Context(), query)
 		if err != nil {

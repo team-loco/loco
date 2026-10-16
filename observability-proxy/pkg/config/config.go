@@ -39,6 +39,7 @@ type Config struct {
 	LogsTTL                time.Duration
 	TracesTTL              time.Duration
 	MetricsTTL             time.Duration
+	EventsTTL              time.Duration
 	MigrationRetryBudget   time.Duration
 	MigrationRetryInterval time.Duration
 	MigrationLockTTL       time.Duration
@@ -66,9 +67,10 @@ func Load() *Config {
 		ClickHouseDB:       identifierEnv("CLICKHOUSE_DB", defaultClickHouseDB),
 
 		ClickHouseMigratorURL:  requiredStringEnv("CLICKHOUSE_MIGRATOR_URL"),
-		LogsTTL:                ttlEnv("CLICKHOUSE_LOGS_TTL", defaultRetention),
-		TracesTTL:              ttlEnv("CLICKHOUSE_TRACES_TTL", defaultRetention),
-		MetricsTTL:             ttlEnv("CLICKHOUSE_METRICS_TTL", defaultRetention),
+		LogsTTL:                ttlEnv("CLICKHOUSE_LOGS_TTL"),
+		TracesTTL:              ttlEnv("CLICKHOUSE_TRACES_TTL"),
+		MetricsTTL:             ttlEnv("CLICKHOUSE_METRICS_TTL"),
+		EventsTTL:              ttlEnv("CLICKHOUSE_EVENTS_TTL"),
 		MigrationRetryBudget:   positiveDurationEnv("MIGRATION_RETRY_BUDGET", defaultMigrationRetryBudget),
 		MigrationRetryInterval: positiveDurationEnv("MIGRATION_RETRY_INTERVAL", defaultMigrationRetryInterval),
 		MigrationLockTTL:       positiveDurationEnv("MIGRATION_LOCK_TTL", defaultMigrationLockTTL),

@@ -49,6 +49,7 @@ func render(cfg Config) (fs.FS, error) {
 		"LOGS_TTL":    interval(cfg.LogsTTL),
 		"TRACES_TTL":  interval(cfg.TracesTTL),
 		"METRICS_TTL": interval(cfg.MetricsTTL),
+		"EVENTS_TTL":  interval(cfg.EventsTTL),
 	}
 	names, err := fs.Glob(files, "*.sql")
 	if err != nil {

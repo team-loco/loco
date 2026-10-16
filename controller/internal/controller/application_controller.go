@@ -64,6 +64,7 @@ const (
 	labelEnvironmentID           = "loco.io/environment-id"
 	annotationAppNamespace       = "loco.io/application-namespace"
 	annotationAppName            = "loco.io/application-name"
+	annotationApplicationUID     = "loco.io/application-uid"
 	annotationEnvSecretRevision  = "loco.io/env-secret-revision"
 	envRegion                    = "LOCO_REGION"
 	phaseDeploying               = "Deploying"
@@ -785,6 +786,7 @@ func desiredDeployment(
 	depLabels[managed.LabelResourceID] = locoRes.Spec.ResourceID
 	depLabels[labelEnvironmentID] = locoRes.Spec.EnvironmentID
 	annotations := ownerAnnotations(locoRes)
+	annotations[annotationApplicationUID] = string(locoRes.UID)
 
 	return appsv1ac.Deployment(name, namespace).
 		WithLabels(depLabels).

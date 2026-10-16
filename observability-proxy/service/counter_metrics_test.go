@@ -84,6 +84,7 @@ func TestCounterMetricsCollectorToAuthenticatedHTTP(t *testing.T) {
 		LogsTTL:    time.Hour,
 		TracesTTL:  time.Hour,
 		MetricsTTL: time.Hour,
+		EventsTTL:  time.Hour,
 	}
 	if err := migrations.Up(t.Context(), cfg); err != nil {
 		t.Fatal(err)

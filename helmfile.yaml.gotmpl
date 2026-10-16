@@ -79,6 +79,7 @@ releases:
       - env/{{ .Environment.Name }}/core-chart.yaml.gotmpl
 
   - name: loco-operator
+    wait: true
     chart: ./charts/loco-operator
     namespace: loco-system
     createNamespace: false

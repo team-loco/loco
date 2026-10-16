@@ -11,6 +11,7 @@ clickhouse:
 clickhouseUserPasswords:
   loco_migrator: loco-e2e-migrator
   loco_ingest: loco-e2e-ingest
+  loco_workload_ingest: loco-e2e-workload-ingest
   loco_reader: loco-e2e-reader
 
 otel-col-deploy:

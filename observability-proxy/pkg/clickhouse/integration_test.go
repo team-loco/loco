@@ -147,6 +147,7 @@ func newQueryFixture(t *testing.T) *queryFixture {
 		LogsTTL:    testLogsTTL,
 		TracesTTL:  testTracesTTL,
 		MetricsTTL: testMetricsTTL,
+		EventsTTL:  testMetricsTTL,
 	}
 	if err := migrations.Up(t.Context(), cfg); err != nil {
 		t.Fatalf("migrate: %v", err)
