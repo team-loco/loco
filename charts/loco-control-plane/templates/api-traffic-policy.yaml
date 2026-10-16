@@ -1,0 +1,26 @@
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: {{ .Release.Name }}-api
+  namespace: {{ .Release.Namespace }}
+spec:
+  targetRefs:
+    {{- if or (not .Values.ui.enabled) (ne .Values.ui.hostname .Values.controlPlaneHostname) }}
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: {{ .Release.Name }}-api
+      sectionName: api
+    {{- end }}
+    {{- if .Values.ui.enabled }}
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: {{ .Release.Name }}-ui
+      sectionName: api
+    {{- end }}
+  retry:
+    numRetries: 1
+    retryOn:
+      triggers:
+        - connect-failure
+        - reset-before-request
+        - refused-stream

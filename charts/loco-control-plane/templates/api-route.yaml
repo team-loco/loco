@@ -11,7 +11,8 @@ spec:
   hostnames:
     - {{ .Values.controlPlaneHostname | quote }}
   rules:
-    - timeouts:
+    - name: api
+      timeouts:
         request: 0s
       backendRefs:
         - name: {{ .Release.Name }}-api

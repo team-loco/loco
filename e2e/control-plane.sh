@@ -40,6 +40,7 @@ cleanup() {
 trap cleanup EXIT
 
 if [[ $SKIP_BUILD == false ]]; then
+    docker build -t loco-api-failover:e2e --build-arg VERSION=e2e -f "$ROOT_DIR/e2e/fixtures/api-failover/Dockerfile" "$ROOT_DIR"
     docker build -t loco-api:e2e --build-arg VERSION=e2e -f "$ROOT_DIR/api/Dockerfile" "$ROOT_DIR"
     docker build -t loco-ui:e2e --build-arg VERSION=e2e --build-arg PUBLIC_API_URL=https://api.loco.build --build-arg PUBLIC_APP_ENV=PRODUCTION -f "$ROOT_DIR/web/Dockerfile" "$ROOT_DIR"
     docker build -t loco-obs-proxy:e2e --build-arg VERSION=e2e -f "$ROOT_DIR/observability-proxy/Dockerfile" "$ROOT_DIR"
@@ -47,7 +48,7 @@ fi
 if ! kind get clusters | rg -x "$CLUSTER_NAME" >/dev/null; then
     kind create cluster --name "$CLUSTER_NAME" --kubeconfig "$KUBECONFIG" --wait "$TIMEOUT"
 fi
-kind load docker-image --name "$CLUSTER_NAME" loco-api:e2e loco-obs-proxy:e2e loco-ui:e2e
+kind load docker-image --name "$CLUSTER_NAME" loco-api:e2e loco-obs-proxy:e2e loco-ui:e2e loco-api-failover:e2e
 GATEWAY_VERSION=$(yq '.dependencies[] | select(.name == "gateway-helm") | .version' "$ROOT_DIR/charts/loco-core/Chart.yaml")
 helm upgrade --install eg "$ROOT_DIR/charts/loco-core/charts/gateway-helm-$GATEWAY_VERSION.tgz" \
     --namespace "$NAMESPACE" --create-namespace --wait --timeout "$TIMEOUT"
@@ -91,7 +92,7 @@ helm upgrade --install regional "$ROOT_DIR/charts/loco-control-plane" --namespac
     --set obsProxy.clickhouse.migratorExistingSecret.name=clickhouse-migrator \
     --wait --timeout "$TIMEOUT"
 ENVOY_DEPLOYMENT=""
-for attempt in $(seq 1 60); do
+for _attempt in $(seq 1 60); do
     ENVOY_DEPLOYMENT=$(kubectl -n "$NAMESPACE" get deployments -l gateway.envoyproxy.io/owning-gateway-name=eg -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
     if [[ -n $ENVOY_DEPLOYMENT ]]; then break; fi
     sleep 1
@@ -105,7 +106,7 @@ if [[ $NODE_PORT != "$GATEWAY_HTTP_NODE_PORT" ]]; then
 fi
 kubectl -n "$NAMESPACE" port-forward "service/$ENVOY_SERVICE" :80 >"$RUN_DIR/port-forward.log" 2>&1 &
 PORT_FORWARD_PID=$!
-for attempt in $(seq 1 30); do
+for _attempt in $(seq 1 30); do
     if rg 'Forwarding from 127.0.0.1:' "$RUN_DIR/port-forward.log" >/dev/null; then break; fi
     sleep 1
 done
@@ -135,3 +136,7 @@ assert response.get('code') == 'permission_denied', response
 PY
 kubectl -n "$NAMESPACE" exec deployment/postgres -- psql -U loco -d loco -Atc 'SELECT count(*) FROM goose_db_version' >"$RUN_DIR/postgres-migrations.txt"
 printf 'Two API replicas started on an empty database; dashboard and same-origin API routing work; private proxy permission check passed.\n'
+
+python3 "$ROOT_DIR/e2e/api-failover.py" --namespace "$NAMESPACE" --gateway-namespace "$NAMESPACE" \
+    --gateway-url "http://127.0.0.1:$API_PORT" \
+    --hostname-suffix "$(yq '.global.domain.platform' "$ROOT_DIR/e2e/gateway-values.yaml")" --image loco-api-failover:e2e --output "$RUN_DIR/api-failover"
