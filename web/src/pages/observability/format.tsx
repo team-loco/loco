@@ -71,6 +71,9 @@ function highlight(s: string, words: string[], keyBase: string): ReactNode[] {
 	);
 }
 
+// oxlint-disable-next-line no-control-regex
+const SGR_RE = /(?:\u001b\[|\u009b)[\d:;]*m/g;
+
 const BODY_RE = /(\b[1-5]\d\d\b)|(\b\d+(?:\.\d+)?(?:ms|s|MB|MiB)\b)|(\b[\w.]+=[^\s]+)|("[^"]*")/g;
 
 function statusClass(code: string): string {
@@ -80,7 +83,8 @@ function statusClass(code: string): string {
 	return "text-fg3";
 }
 
-export function bodyParts(body: string, words: string[]): ReactNode[] {
+export function bodyParts(source: string, words: string[]): ReactNode[] {
+	const body = source.replace(SGR_RE, "");
 	const out: ReactNode[] = [];
 	let last = 0;
 	let k = 0;
