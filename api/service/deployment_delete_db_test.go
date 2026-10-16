@@ -16,6 +16,7 @@ func TestDeletingSupersededDeploymentPreservesConcurrentReplacement(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
+	f.finishRollouts(t)
 	server := NewDeploymentServer(
 		f.pool,
 		f.queries,
