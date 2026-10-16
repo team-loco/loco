@@ -564,6 +564,61 @@ def _k8s_attributes(collector_tenancy, pipeline):
     ]
 
 
+def test_node_log_offsets_survive_collector_pod_replacement(collector_tenancy):
+    config = collector_tenancy.configs["otel-col-daemon-agent"]
+    assert config["receivers"]["file_log"]["storage"] == "file_storage"
+    assert "file_storage" in config["service"]["extensions"]
+    directory = config["extensions"]["file_storage"]["directory"]
+    daemon = next(
+        document for document in collector_tenancy.documents
+        if document["kind"] == "DaemonSet"
+    )
+    pod = daemon["spec"]["template"]["spec"]
+    collector = pod["containers"][0]
+    assert collector["securityContext"]["runAsUser"] == 10001
+    assert collector["securityContext"]["runAsGroup"] == 0
+    assert pod["securityContext"]["runAsNonRoot"]
+    mount = next(
+        mount for mount in collector["volumeMounts"]
+        if mount["mountPath"] == directory
+    )
+    volume = next(
+        volume for volume in pod["volumes"] if volume["name"] == mount["name"]
+    )
+    assert volume["hostPath"] == {"path": directory, "type": "DirectoryOrCreate"}
+    init = next(
+        container for container in pod["initContainers"]
+        if container["name"] == "log-checkpoint-permissions"
+    )
+    assert init["command"] == ["chown", "-R", "10001:0", directory]
+    (init_mount,) = init["volumeMounts"]
+    assert init_mount["mountPath"] == directory
+    init_volume = next(
+        volume for volume in pod["volumes"]
+        if volume["name"] == init_mount["name"]
+    )
+    assert init_volume["hostPath"] == volume["hostPath"]
+    assert init["securityContext"]["capabilities"] == {
+        "drop": ["ALL"], "add": ["CHOWN"]
+    }
+    assert not init["securityContext"]["allowPrivilegeEscalation"]
+
+
+def test_disabling_log_checkpoints_keeps_volume_references_valid():
+    documents = render_chart(
+        "loco-obs",
+        {"otel-col-daemon": {"presets": {"logsCollection": {"storeCheckpoints": False}}}},
+    )
+    config = collector_relays(documents)["otel-col-daemon-agent"]
+    assert "storage" not in config["receivers"]["file_log"]
+    daemon = next(document for document in documents if document["kind"] == "DaemonSet")
+    pod = daemon["spec"]["template"]["spec"]
+    volume_names = {volume["name"] for volume in pod["volumes"]}
+    for container in pod["containers"] + pod.get("initContainers", []):
+        for mount in container.get("volumeMounts", []):
+            assert mount["name"] in volume_names
+
+
 def test_application_metrics_use_node_local_otel_pulling(collector_tenancy):
     config = collector_tenancy.configs["otel-col-daemon-agent"]
     (scrape,) = config["receivers"]["prometheus/applications"]["config"][
