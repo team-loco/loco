@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"slices"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/authz"
@@ -20,6 +22,8 @@ import (
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
+
+const updateAvatarField = "avatar_url"
 
 var (
 	ErrUserNotFound           = errors.New("user not found")
@@ -162,12 +166,28 @@ func (s *UserServer) UpdateUser(
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
+	fields := []string{updateNameField, updateAvatarField}
+	message := req.ProtoReflect()
+	provided := []string{}
+	for _, field := range fields {
+		if message.Has(message.Descriptor().Fields().ByName(protoreflect.Name(field))) {
+			provided = append(provided, field)
+		}
+	}
+	paths, maskErr := updateMaskPaths(req.GetUpdateMask(), fields, provided)
+	if maskErr != nil {
+		return nil, rpcerr.New(connect.CodeInvalidArgument, maskErr)
+	}
 	userID := uuid.MustParse(req.GetUserId())
+	params := genDb.UpdateUserProfileParams{ID: userID}
+	if slices.Contains(paths, updateNameField) {
+		params.Name = new(req.GetName())
+	}
+	if slices.Contains(paths, updateAvatarField) {
+		params.AvatarUrl = new(req.GetAvatarUrl())
+	}
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if _, updateErr := qtx.UpdateUserAvatarURL(ctx, genDb.UpdateUserAvatarURLParams{
-			ID:        userID,
-			AvatarUrl: req.AvatarUrl,
-		}); updateErr != nil {
+		if _, updateErr := qtx.UpdateUserProfile(ctx, params); updateErr != nil {
 			return updateErr
 		}
 		return events.Record(ctx, qtx, events.Event{
