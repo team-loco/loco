@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 
 	"github.com/team-loco/loco/internal/rpc"
 
@@ -37,10 +36,10 @@ func newCreateCmd(deps createDeps) *cobra.Command {
 		Long:  "Create a new workspace within an organization.",
 		Args:  cobra.ExactArgs(1),
 		Example: `  # Create a workspace in an organization
-  loco workspace create my-workspace --org-id 123
+  loco workspace create my-workspace --org-id <organization-id>
 
   # Create a workspace with a description
-  loco workspace create my-workspace --org-id 123 --description "Production environment"`,
+  loco workspace create my-workspace --org-id <organization-id> --description "Production environment"`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
@@ -56,7 +55,7 @@ func newCreateCmd(deps createDeps) *cobra.Command {
 			wsClient := deps.NewWorkspaceClient(host, locoToken.Token)
 
 			name := args[0]
-			orgIDInt, err := cmd.Flags().GetInt64("org-id")
+			orgID, err := cmd.Flags().GetString("org-id")
 			if err != nil {
 				return fmt.Errorf("failed to get org-id flag: %w", err)
 			}
@@ -66,16 +65,14 @@ func newCreateCmd(deps createDeps) *cobra.Command {
 			}
 
 			createReq := &workspacev1.CreateWorkspaceRequest{
-				OrgId: strconv.FormatInt(orgIDInt, 10),
+				OrgId: orgID,
 				Name:  name,
 			}
 			if description != "" {
 				createReq.Description = &description
 			}
 
-			req := createReq
-
-			resp, err := wsClient.CreateWorkspace(ctx, req)
+			resp, err := wsClient.CreateWorkspace(ctx, createReq)
 			if err != nil {
 				return fmt.Errorf("failed to create workspace: %w", err)
 			}
@@ -86,7 +83,7 @@ func newCreateCmd(deps createDeps) *cobra.Command {
 	}
 
 	cmd.Flags().String("host", "", "API host URL")
-	cmd.Flags().Int64("org-id", 0, "Organization ID (required)")
+	cmd.Flags().String("org-id", "", "Organization ID (required)")
 	cmd.Flags().String("description", "", "Workspace description")
 	if err := cmd.MarkFlagRequired("org-id"); err != nil {
 		panic(fmt.Sprintf("failed to mark org-id as required: %v", err))

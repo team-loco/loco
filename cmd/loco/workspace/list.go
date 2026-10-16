@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 
 	"github.com/team-loco/loco/internal/rpc"
 
@@ -41,7 +40,7 @@ func buildListCmd() *cobra.Command {
   loco workspace list
 
   # List workspaces in a specific organization
-  loco workspace list --org-id 123`,
+  loco workspace list --org-id <organization-id>`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
@@ -65,14 +64,14 @@ func buildListCmd() *cobra.Command {
 				Output:             os.Stdout,
 			}
 
-			orgIDInt, err := cmd.Flags().GetInt64("org-id")
+			orgID, err := cmd.Flags().GetString("org-id")
 			if err != nil {
 				return fmt.Errorf("failed to get org-id flag: %w", err)
 			}
 
-			if orgIDInt != 0 {
+			if orgID != "" {
 				req := &workspacev1.ListOrgWorkspacesRequest{
-					OrgId: strconv.FormatInt(orgIDInt, 10),
+					OrgId: orgID,
 				}
 
 				resp, err := deps.ListOrgWorkspaces(ctx, req)
@@ -134,7 +133,7 @@ func buildListCmd() *cobra.Command {
 	}
 
 	cmd.Flags().String("host", "", "API host URL")
-	cmd.Flags().Int64("org-id", 0, "Filter by organization ID")
+	cmd.Flags().String("org-id", "", "Filter by organization ID")
 
 	return cmd
 }
