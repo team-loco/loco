@@ -22,6 +22,7 @@ import { pluralize } from "@/lib/format";
 import { workspacePath } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
+import { ActivityPanel } from "./ActivityPanel";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 import { WebhooksCard } from "./WebhooksCard";
 import { DangerCard, formatDay, NAME_RE, SavedBar, SaveBar, SettingsCard, SettingsRow } from "./parts";
@@ -203,6 +204,16 @@ export function WorkspaceTab({
 			</SettingsCard>
 
 			{canAdmin && <WebhooksCard workspaceId={ws.id} />}
+
+			{canAdmin && (
+				<ActivityPanel
+					key={ws.id}
+					orgId={orgId}
+					workspaceId={ws.id}
+					description={`Changes made to ${ws.name} and its resources, newest first.`}
+					names={new Map([[ws.id, ws.name]])}
+				/>
+			)}
 
 			<DangerCard
 				title="Delete workspace"

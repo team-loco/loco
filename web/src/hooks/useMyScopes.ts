@@ -30,8 +30,17 @@ function levelOn(scopes: EntityScope[], type: EntityType, id: string): AccessLev
 	return best;
 }
 
-export function useMyScopes() {
-	const { data, isLoading } = useQuery(getScopes, {});
+export function hasOrganizationMembership(scopes: readonly EntityScope[], orgId: string): boolean {
+	return scopes.some((scope) =>
+		scope.scope !== Scope.UNSPECIFIED && (
+			scope.entityType === EntityType.SYSTEM ||
+			(scope.entityType === EntityType.ORGANIZATION && scope.entityId === orgId)
+		),
+	);
+}
+
+export function useMyScopes({ enabled = true }: { enabled?: boolean } = {}) {
+	const { data, isLoading } = useQuery(getScopes, {}, { enabled });
 	const scopes = data?.scopes ?? [];
 
 	const orgLevel = (orgId: string): AccessLevel => levelOn(scopes, EntityType.ORGANIZATION, orgId);
@@ -56,5 +65,13 @@ export function useMyScopes() {
 					(s.entityType === EntityType.WORKSPACE && s.entityId === workspaceId)),
 		);
 
-	return { isLoading, scopes, orgLevel, workspaceLevel, resourceLevel, holds };
+	return {
+		isLoading,
+		scopes,
+		orgLevel,
+		workspaceLevel,
+		resourceLevel,
+		holds,
+		orgMember: (orgId: string) => hasOrganizationMembership(scopes, orgId),
+	};
 }

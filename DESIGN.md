@@ -109,6 +109,8 @@ A new screen should have an identifiable task and scope, the appropriate existin
 
 These are feature/API requirements, separate from the visual guidance above. Follow the maintained implementation and protocol when behavior changes:
 
+- Column resizing: `ColumnResizeHandle` and `useColumnWidths`; adjacent columns share bounded geometry, keyboard resizing and pointer cancellation. Versioned browser-local preferences keep desktop and narrow layouts separate.
+- Scoped audit history: [ActivityPanel](web/src/pages/settings/ActivityPanel.tsx) reuses audit actors, categories and rows across organization, workspace and resource history. [EventService.ListEvents](proto/loco/event/v1/event.proto) owns authorization and sequence cursors; failed older pages preserve loaded rows and retry the same cursor.
 - Async request identity: Connect Query/TanStack Query, scoped by resource and environment.
 - Current regional deployment: `RegionStatus.deployment_id` in [resource.proto](proto/loco/resource/v1/resource.proto), independent of the history page.
 - Deployment-history pagination: [deployment.proto](proto/loco/deployment/v1/deployment.proto) and [DeploymentsSection](web/src/pages/resource/DeploymentsSection.tsx).
@@ -130,3 +132,5 @@ Metric-to-log links include the selected timestamp (`at`), time range and resour
 Application compute charts query the selected environment and wait for it to load. Build-job telemetry has no runtime environment and stays outside these charts. Changing the environment uses a separate metrics cache.
 
 Historical logs and live tail use the selected environment. Queries wait for that selection; changing it resets pagination and log selection, uses separate cached history, and closes the previous live stream. Build logs remain available through unfiltered API queries.
+
+Workspace Activity is available to workspace admins in Settings. Resource Activity is available to resource readers in Overview, separate from workload Events. Use route organization IDs and the resource’s authoritative workspace ID for audit requests. Organization metadata, member lists and environment queries wait for matching capabilities; direct grants do not imply access to their parent organization. Explicit URL scope IDs take precedence over discovery lists and validated storage fallbacks.
