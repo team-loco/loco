@@ -43,5 +43,5 @@ export function logsQueryOptions(transport: Transport, {
 export function useQueryLogs(options: UseQueryLogsOptions) {
 	const query = useQuery(logsQueryOptions(useTransport(), options));
 	return { entries: query.data?.entries ?? [], nextCursor: query.data?.nextCursor ?? "",
-		isLoading: query.isLoading, error: query.error };
+		isLoading: query.isLoading, error: query.error, refetch: query.refetch };
 }

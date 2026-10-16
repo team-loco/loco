@@ -68,3 +68,9 @@ export function toRows(
 	}
 	return rows;
 }
+
+export function visibleLogRows(batch: LogRow[], tail: LogRow[], paused: LogRow[] | null = null): LogRow[] {
+	if (paused !== null) return paused;
+	const batchKeys = new Set(batch.map((row) => row.key));
+	return [...tail.filter((row) => !batchKeys.has(row.key)), ...batch].toSorted((a, b) => b.ts - a.ts);
+}
