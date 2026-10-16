@@ -820,7 +820,8 @@ func deploymentReady(dep *appsv1ac.DeploymentApplyConfiguration, replicas int32)
 	observed := ptr.Deref(dep.Status.ObservedGeneration, 0)
 	updated := ptr.Deref(dep.Status.UpdatedReplicas, 0)
 	available := ptr.Deref(dep.Status.AvailableReplicas, 0)
-	return generation > 0 && observed == generation && updated == replicas && available == replicas
+	total := ptr.Deref(dep.Status.Replicas, 0)
+	return generation > 0 && observed == generation && updated == replicas && available == replicas && total == replicas
 }
 
 func setReplicaCounts(app *locov1alpha1.Application, dep *appsv1ac.DeploymentApplyConfiguration) {
