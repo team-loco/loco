@@ -3,7 +3,9 @@ package token
 import (
 	"fmt"
 	"io"
+	"math"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,6 +17,8 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 )
+
+const secondsPerDay = int64(24 * time.Hour / time.Second)
 
 type createDeps struct {
 	NewTokenClient func(host, token string) tokenv1connect.TokenServiceClient
@@ -195,12 +199,14 @@ func parseScope(s string) (tokenv1.Scope, error) {
 func parseDuration(s string) (int64, error) {
 	s = strings.TrimSpace(strings.ToLower(s))
 	if before, ok := strings.CutSuffix(s, "d"); ok {
-		days := before
-		var d int
-		if _, err := fmt.Sscanf(days, "%d", &d); err != nil {
-			return 0, fmt.Errorf("invalid duration %q", s)
+		days, err := strconv.ParseInt(before, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("invalid duration %q: days must be a whole number", s)
 		}
-		return int64(d) * 24 * 60 * 60, nil
+		if days > math.MaxInt64/secondsPerDay || days < math.MinInt64/secondsPerDay {
+			return 0, fmt.Errorf("invalid duration %q: duration is too large", s)
+		}
+		return days * secondsPerDay, nil
 	}
 
 	dur, err := time.ParseDuration(s)

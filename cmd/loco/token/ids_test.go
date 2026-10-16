@@ -22,13 +22,14 @@ import (
 )
 
 const (
-	testEntityID      = "00000000-0000-7000-8000-000000000001"
-	testCurrentUserID = "00000000-0000-7000-8000-000000000002"
-	testTokenName     = "example-token"
-	testCreateAction  = "create"
-	testListAction    = "list"
-	testDeleteAction  = "delete"
-	testTokenLifetime = 60
+	testWorkspaceEntity = "workspace"
+	testEntityID        = "00000000-0000-7000-8000-000000000001"
+	testCurrentUserID   = "00000000-0000-7000-8000-000000000002"
+	testTokenName       = "example-token"
+	testCreateAction    = "create"
+	testListAction      = "list"
+	testDeleteAction    = "delete"
+	testTokenLifetime   = 60
 )
 
 type tokenIDsServer struct {
@@ -147,7 +148,7 @@ func TestTokenCommandsUseUUIDs(t *testing.T) {
 	}{
 		{name: "user", kind: tokenv1.EntityType_ENTITY_TYPE_USER, id: testEntityID, explicit: true},
 		{name: "org", kind: tokenv1.EntityType_ENTITY_TYPE_ORGANIZATION, id: testEntityID, explicit: true},
-		{name: "workspace", kind: tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, id: testEntityID, explicit: true},
+		{name: testWorkspaceEntity, kind: tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, id: testEntityID, explicit: true},
 		{name: "resource", kind: tokenv1.EntityType_ENTITY_TYPE_RESOURCE, id: testEntityID, explicit: true},
 		{name: "personal", kind: tokenv1.EntityType_ENTITY_TYPE_USER, id: testCurrentUserID},
 	}
@@ -197,7 +198,7 @@ func TestTokenCommandsRequireNonUserEntityID(t *testing.T) {
 			cmd := tokenIDCommand(t, fake, action)
 			cmd.SilenceErrors = true
 			cmd.SilenceUsage = true
-			args := []string{"--entity-type", "workspace"}
+			args := []string{"--entity-type", testWorkspaceEntity}
 			if action != testListAction {
 				args = append(args, testTokenName)
 			}
