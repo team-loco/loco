@@ -1,6 +1,7 @@
 package org
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -14,6 +15,8 @@ import (
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 )
+
+var errRepeatedOrganizationPage = errors.New("organization listing returned a repeated page")
 
 type listDeps struct {
 	NewOrgClient  func(host, token string) orgv1connect.OrgServiceClient
@@ -70,18 +73,32 @@ func newListCmd(deps listDeps) *cobra.Command {
 				UserId: whoAmIResp.GetUser().GetId(),
 			}
 
-			resp, err := orgClient.ListUserOrgs(ctx, req)
-			if err != nil {
-				return fmt.Errorf("unable to list organizations: %w", err)
+			var organizations []*orgv1.Organization
+			seen := make(map[string]struct{})
+			for {
+				resp, err := orgClient.ListUserOrgs(ctx, req)
+				if err != nil {
+					return fmt.Errorf("unable to list organizations: %w", err)
+				}
+				organizations = append(organizations, resp.GetOrgs()...)
+				next := resp.GetNextPageToken()
+				if next == "" {
+					break
+				}
+				if _, duplicate := seen[next]; duplicate {
+					return errRepeatedOrganizationPage
+				}
+				seen[next] = struct{}{}
+				req.PageToken = next
 			}
 
-			if len(resp.GetOrgs()) == 0 {
+			if len(organizations) == 0 {
 				fmt.Fprintln(deps.Output, "No organizations found.")
 				return nil
 			}
 
 			fmt.Fprintln(deps.Output, "Organizations:")
-			for _, org := range resp.GetOrgs() {
+			for _, org := range organizations {
 				fmt.Fprintf(deps.Output, "  - %s (ID: %s)\n", org.GetName(), org.GetId())
 			}
 
