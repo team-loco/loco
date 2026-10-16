@@ -259,12 +259,6 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
 	}
 
-	hostname, err := primaryHostname(ctx, s.queries, resourceID, environmentID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get the resource's primary domain", "resourceId", resourceID, "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-
 	cluster, err := eligibleCluster(ctx, s.queries, region, env.EnvironmentType, s.silentAfter)
 	if err != nil {
 		slog.ErrorContext(
@@ -294,48 +288,6 @@ func (s *DeploymentServer) CreateDeployment(
 	}
 	requestSpec.GetService().Build = pinnedBuild
 
-	// deserialize resource spec and merge with request spec
-	resourceSpec, deserializeErr := converter.DeserializeResourceSpec(resource.Spec, resource.Type)
-	if deserializeErr != nil {
-		slog.ErrorContext(ctx, deserializeErr.Error())
-		return nil, connect.NewError(
-			connect.CodeInternal,
-			publicRequestFailed,
-		).WithCause(deserializeErr)
-	}
-
-	mergedSpec, mergeErr := converter.MergeDeploymentSpec(resourceSpec, requestSpec, region, s.defaults)
-	if errors.Is(mergeErr, converter.ErrRegionNotFound) || errors.Is(mergeErr, converter.ErrRegionDisabled) {
-		slog.WarnContext(ctx, "deployment targets a region the resource does not run in", "error", mergeErr)
-		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(mergeErr)
-	}
-	if mergeErr != nil {
-		slog.ErrorContext(ctx, mergeErr.Error())
-		return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(mergeErr)
-	}
-
-	// create spec copy without env for DB persistence (no plaintext secrets in DB)
-	mergedServiceSpec := mergedSpec.GetService()
-	if quantityErr := validateQuantities(mergedServiceSpec); quantityErr != nil {
-		slog.WarnContext(ctx, "invalid resource quantity", "error", quantityErr)
-		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(quantityErr)
-	}
-	replicas := mergedServiceSpec.GetMinReplicas()
-
-	clonedServiceSpec := proto.Clone(mergedServiceSpec)
-	specForDBService, ok := clonedServiceSpec.(*deploymentv1.ServiceDeploymentSpec)
-	if !ok {
-		slog.ErrorContext(ctx, "failed to clone service spec")
-		return nil, rpcerr.New(connect.CodeInternal, errCloneServiceSpec)
-	}
-	specForDBService.Env = nil
-
-	specJSON, err := protojson.Marshal(specForDBService)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to marshal spec", "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidSpec).WithCause(err)
-	}
-
 	organizationID, err := s.queries.GetOrganizationIDByWorkspaceID(ctx, resource.WorkspaceID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get workspace organization", "error", err)
@@ -353,6 +305,65 @@ func (s *DeploymentServer) CreateDeployment(
 		if lockErr := lockPinnedBuildImage(ctx, qtx, pinnedBuild); lockErr != nil {
 			return lockErr
 		}
+		resource, getErr := qtx.GetResourceByID(ctx, resourceID)
+		if getErr != nil {
+			return fmt.Errorf("read resource before deployment: %w", getErr)
+		}
+		hostname, hostnameErr := primaryHostname(ctx, qtx, resourceID, environmentID)
+		if hostnameErr != nil {
+			slog.ErrorContext(
+				ctx,
+				"failed to get the resource's primary domain",
+				"resourceId",
+				resourceID,
+				"error",
+				hostnameErr,
+			)
+			return rpcerr.New(connect.CodeInternal, ErrDB)
+		}
+
+		// deserialize resource spec and merge with request spec
+		resourceSpec, deserializeErr := converter.DeserializeResourceSpec(resource.Spec, resource.Type)
+		if deserializeErr != nil {
+			slog.ErrorContext(ctx, deserializeErr.Error())
+			return connect.NewError(
+				connect.CodeInternal,
+				publicRequestFailed,
+			).WithCause(deserializeErr)
+		}
+
+		mergedSpec, mergeErr := converter.MergeDeploymentSpec(resourceSpec, requestSpec, region, s.defaults)
+		if errors.Is(mergeErr, converter.ErrRegionNotFound) || errors.Is(mergeErr, converter.ErrRegionDisabled) {
+			slog.WarnContext(ctx, "deployment targets a region the resource does not run in", "error", mergeErr)
+			return connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(mergeErr)
+		}
+		if mergeErr != nil {
+			slog.ErrorContext(ctx, mergeErr.Error())
+			return connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(mergeErr)
+		}
+
+		// create spec copy without env for DB persistence (no plaintext secrets in DB)
+		mergedServiceSpec := mergedSpec.GetService()
+		if quantityErr := validateQuantities(mergedServiceSpec); quantityErr != nil {
+			slog.WarnContext(ctx, "invalid resource quantity", "error", quantityErr)
+			return connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(quantityErr)
+		}
+		replicas := mergedServiceSpec.GetMinReplicas()
+
+		clonedServiceSpec := proto.Clone(mergedServiceSpec)
+		specForDBService, ok := clonedServiceSpec.(*deploymentv1.ServiceDeploymentSpec)
+		if !ok {
+			slog.ErrorContext(ctx, "failed to clone service spec")
+			return rpcerr.New(connect.CodeInternal, errCloneServiceSpec)
+		}
+		specForDBService.Env = nil
+
+		specJSON, marshalErr := protojson.Marshal(specForDBService)
+		if marshalErr != nil {
+			slog.ErrorContext(ctx, "failed to marshal spec", "error", marshalErr)
+			return connect.NewError(connect.CodeInvalidArgument, publicInvalidSpec).WithCause(marshalErr)
+		}
+
 		requestedEnv := mergedServiceSpec.GetEnv()
 		plainEnv, secretNames, bindingsErr := currentDeploymentBindings(
 			ctx,
