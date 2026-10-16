@@ -50,13 +50,27 @@ message BuildsUnavailable {}
 
 message CreateBuildRequest {
   string resource_id = 1 [(buf.validate.field).string.uuid = true];
-  string dockerfile_path = 2 [(buf.validate.field).string = {
-    min_len: 1
-    max_len: 1024
-  }];
+  string dockerfile_path = 2 [
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 1024
+    },
+    (buf.validate.field).cel = {
+      id: "build.dockerfile_path"
+      message: "dockerfile_path must be a relative path inside the build context"
+      expression: "!this.startsWith('/') && !this.endsWith('/') && !this.split('/').exists(p, p == '..' || p == '.' || p == '')"
+    }
+  ];
   int64 source_size = 3 [(buf.validate.field).int64.gt = 0];
   // context is the build context directory relative to the uploaded source; "." when empty.
-  string context = 4 [(buf.validate.field).string.max_len = 1024];
+  string context = 4 [
+    (buf.validate.field).string.max_len = 1024,
+    (buf.validate.field).cel = {
+      id: "build.context"
+      message: "context must be '.' or a relative directory inside the uploaded source"
+      expression: "this == '' || this == '.' || (!this.startsWith('/') && !this.endsWith('/') && !this.split('/').exists(p, p == '..' || p == '.' || p == ''))"
+    }
+  ];
 }
 
 message CreateBuildResponse {

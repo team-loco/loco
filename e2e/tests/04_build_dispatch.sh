@@ -200,6 +200,24 @@ build_cr_gone() {
     ! agent_created_build "$1"
 }
 
+reject_build_path() {
+    local resource_id=$1 dockerfile=$2 context=$3 body response id
+    body=$(json -n "
+        .resourceId = \"${resource_id}\" |
+        .dockerfilePath = \"${dockerfile}\" |
+        .context = \"${context}\" |
+        .sourceSize = 1
+    ")
+    if response=$(api loco.build.v1.BuildService/CreateBuild "$body" 2>/dev/null); then
+        id=$(printf '%s' "$response" | field .buildId)
+        if [ -n "$id" ]; then
+            api loco.build.v1.BuildService/CancelBuild "{\"buildId\":\"${id}\"}" >/dev/null
+        fi
+        return 1
+    fi
+    test "$(printf '%s' "$response" | field .code)" = invalid_argument
+}
+
 test_d01_build_through_the_api() {
     seed_session
     local resource_id
@@ -208,6 +226,11 @@ test_d01_build_through_the_api() {
     if ! assert "API created the resource (${resource_id})" test -n "$resource_id"; then
         return 1
     fi
+
+    assert "Reject a dockerfile outside the context" reject_build_path "$resource_id" ../Dockerfile .
+    assert "Reject an absolute dockerfile" reject_build_path "$resource_id" /Dockerfile .
+    assert "Reject a context outside the source" reject_build_path "$resource_id" Dockerfile ../services
+    assert "Reject empty context segments" reject_build_path "$resource_id" Dockerfile services//api
 
     local id
     id=$(start_build first)
