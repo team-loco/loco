@@ -3,6 +3,9 @@ name: Local Stack
 on:
   pull_request:
     paths:
+      - "pytest.ini"
+      - "tests/pyproject.toml"
+      - "tests/uv.lock"
       - "env/local/stack.sh"
       - "mise-tasks/cluster/lb-range"
       - "tests/stack/**"
@@ -10,6 +13,9 @@ on:
   push:
     branches: [main]
     paths:
+      - "pytest.ini"
+      - "tests/pyproject.toml"
+      - "tests/uv.lock"
       - "env/local/stack.sh"
       - "mise-tasks/cluster/lb-range"
       - "tests/stack/**"
