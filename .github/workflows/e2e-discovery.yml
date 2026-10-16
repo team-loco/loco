@@ -19,6 +19,7 @@ on:
       - "mise-tasks/cluster/registry"
       - "mise-tasks/cluster/build-egress"
       - "e2e/**"
+      - "tests/e2e/test_discovery_diagnostics.py"
       - "mise-tasks/e2e/**"
       - "cmd/loco/**"
       - "internal/**"
@@ -52,5 +53,16 @@ jobs:
         with:
           go-cache: e2e
 
+      - name: Test discovery failure diagnostics
+        run: mise run test:e2e-diagnostics
+
       - name: Run the private discovery end-to-end tests
         run: ./e2e/run.sh --no-teardown discovery
+
+      - name: Upload discovery failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: discovery-failure-diagnostics
+          path: e2e/out/discovery
+          if-no-files-found: warn

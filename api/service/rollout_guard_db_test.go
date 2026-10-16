@@ -14,6 +14,8 @@ import (
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 )
 
+const rolloutDeleteOperation = "delete"
+
 func (f *deployFixture) rolloutContext(t *testing.T) context.Context {
 	t.Helper()
 	var userID uuid.UUID
@@ -132,7 +134,7 @@ func (f *deployFixture) rolloutSnapshot(t *testing.T) string {
 }
 
 func TestSecretWritesRejectAnActiveRolloutWithoutChangingState(t *testing.T) {
-	for _, operation := range []string{"set", "delete"} {
+	for _, operation := range []string{"set", rolloutDeleteOperation} {
 		t.Run(operation, func(t *testing.T) {
 			f := newDeployFixture(t)
 			provider := testLocalProvider(t, "k1")

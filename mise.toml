@@ -145,6 +145,10 @@ description = "Run oxlint, eslint and the typecheck on the web UI"
 dir = "web"
 run = ["bun run lint:fast", "bun run lint:types", "bun run typecheck"]
 
+[tasks."test:e2e-diagnostics"]
+description = "Test discovery failure diagnostics without a cluster"
+run = "uv run --locked --project tests pytest tests/e2e/test_discovery_diagnostics.py"
+
 [tasks."test:ci"]
 description = "Test CI component selection and pull-request diffs"
 run = "uv run --locked --project tests pytest .github/actions/go-changes/tests .github/actions/ci-gate/tests"
