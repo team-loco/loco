@@ -112,6 +112,7 @@ func (p *proxy) migrate(ctx context.Context, cfg *config.Config) error {
 		LogsTTL:    cfg.LogsTTL,
 		TracesTTL:  cfg.TracesTTL,
 		MetricsTTL: cfg.MetricsTTL,
+		EventsTTL:  cfg.EventsTTL,
 	}
 	retry := migrations.Retry{Budget: cfg.MigrationRetryBudget, Interval: cfg.MigrationRetryInterval}
 	budgetCtx, cancel := context.WithTimeout(ctx, cfg.MigrationRetryBudget)

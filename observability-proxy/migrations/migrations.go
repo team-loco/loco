@@ -35,6 +35,7 @@ type Config struct {
 	LogsTTL    time.Duration
 	TracesTTL  time.Duration
 	MetricsTTL time.Duration
+	EventsTTL  time.Duration
 }
 
 type Retry struct {
@@ -46,7 +47,7 @@ func validate(cfg Config) error {
 	if !identifierPattern.MatchString(cfg.Database) {
 		return fmt.Errorf("%w: %q", ErrInvalidDatabase, cfg.Database)
 	}
-	for _, ttl := range []time.Duration{cfg.LogsTTL, cfg.TracesTTL, cfg.MetricsTTL} {
+	for _, ttl := range []time.Duration{cfg.LogsTTL, cfg.TracesTTL, cfg.MetricsTTL, cfg.EventsTTL} {
 		if ttl <= 0 || ttl%time.Second != 0 {
 			return fmt.Errorf("%w: %s", ErrInvalidTTL, ttl)
 		}

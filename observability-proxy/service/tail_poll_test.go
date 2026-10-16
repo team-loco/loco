@@ -39,6 +39,7 @@ func newTailTestService(t *testing.T) *ObservabilityService {
 		LogsTTL:    tailTestLogsTTL,
 		TracesTTL:  time.Hour,
 		MetricsTTL: time.Hour,
+		EventsTTL:  time.Hour,
 	}
 	if err := migrations.Up(t.Context(), migration); err != nil {
 		t.Fatal(err)

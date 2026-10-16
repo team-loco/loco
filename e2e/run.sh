@@ -897,7 +897,6 @@ main() {
         install_observability_namespaces
         build_chart_dependencies
         start_job envoy-gateway install_envoy_gateway
-        start_job loco-obs install_loco_obs
     else
         install_gateway_api
     fi
@@ -911,6 +910,9 @@ main() {
     load_controller_image
     await_job envoy-gateway
     install_operator
+    if [ "$OBSERVABILITY" = true ]; then
+        start_job loco-obs install_loco_obs
+    fi
     reset_cluster_state
     if [ "$OBSERVABILITY" = true ]; then
         await_job loco-obs

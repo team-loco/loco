@@ -27,3 +27,4 @@ clickhouseUserPasswords:
   loco_migrator: {{ env "CLICKHOUSE_MIGRATOR_PASSWORD" | default "loco-local-migrator" | quote }}
   loco_ingest: {{ env "CLICKHOUSE_INGEST_PASSWORD" | default "loco-local-ingest" | quote }}
   loco_reader: {{ env "CLICKHOUSE_READER_PASSWORD" | default "loco-local-reader" | quote }}
+  loco_workload_ingest: {{ env "CLICKHOUSE_WORKLOAD_INGEST_PASSWORD" | default "loco-local-workload-ingest" | quote }}

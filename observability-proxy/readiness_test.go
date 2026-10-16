@@ -18,6 +18,7 @@ func TestReadyzDoesNotDependOnTheControlPlane(t *testing.T) {
 		LogsTTL:                testTTL,
 		TracesTTL:              testTTL,
 		MetricsTTL:             testTTL,
+		EventsTTL:              testTTL,
 		MigrationRetryBudget:   sharedRetryBudget,
 		MigrationRetryInterval: testRetryInterval,
 		MaxConcurrent:          testMaxConcurrent,

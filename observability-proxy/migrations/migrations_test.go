@@ -24,6 +24,7 @@ func validConfig() Config {
 		LogsTTL:    testTTL,
 		TracesTTL:  testTTL,
 		MetricsTTL: testTTL,
+		EventsTTL:  testTTL,
 	}
 }
 
@@ -49,6 +50,7 @@ func TestValidateRejectsInvalidConfig(t *testing.T) {
 		"database with a dash":      {func(c *Config) { c.Database = "loco-obs" }, ErrInvalidDatabase},
 		"database with a statement": {func(c *Config) { c.Database = "x; DROP TABLE y" }, ErrInvalidDatabase},
 		"empty database":            {func(c *Config) { c.Database = "" }, ErrInvalidDatabase},
+		"zero events ttl":           {func(c *Config) { c.EventsTTL = 0 }, ErrInvalidTTL},
 		"zero logs ttl":             {func(c *Config) { c.LogsTTL = 0 }, ErrInvalidTTL},
 		"negative traces ttl":       {func(c *Config) { c.TracesTTL = -time.Hour }, ErrInvalidTTL},
 		"fractional metrics ttl":    {func(c *Config) { c.MetricsTTL = 1500 * time.Millisecond }, ErrInvalidTTL},

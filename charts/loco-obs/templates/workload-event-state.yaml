@@ -1,0 +1,49 @@
+{{- $collector := index .Values "otel-col-cluster" -}}
+{{- if $collector.enabled -}}
+{{- $context := index .Subcharts "otel-col-cluster" -}}
+{{- $serviceAccount := include "opentelemetry-collector.serviceAccountName" $context -}}
+{{- $namespace := include "opentelemetry-collector.namespace" $context -}}
+{{- if ne $namespace .Release.Namespace -}}
+{{- fail "otel-col-cluster namespaceOverride must resolve to the loco-obs release namespace for workload event state" -}}
+{{- end -}}
+{{- if or (ne $collector.mode "deployment") (ne (int $collector.replicaCount) 1) $collector.autoscaling.enabled (ne $collector.rollout.strategy "Recreate") -}}
+{{- fail "otel-col-cluster workload event state requires one Deployment replica, autoscaling disabled and rollout.strategy=Recreate" -}}
+{{- end -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ required "global.workloadEvents.stateClaimName is required" .Values.global.workloadEvents.stateClaimName | quote }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- with .Values.global.workloadEvents.storageClass }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.global.workloadEvents.stateSize | quote }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $collector.fullnameOverride }}-application-inventory
+  namespace: {{ required "global.workloadEvents.applicationNamespace is required" .Values.global.workloadEvents.applicationNamespace | quote }}
+rules:
+  - apiGroups: [infra.loco.io]
+    resources: [applications]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $collector.fullnameOverride }}-application-inventory
+  namespace: {{ .Values.global.workloadEvents.applicationNamespace | quote }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccount }}
+    namespace: {{ $namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $collector.fullnameOverride }}-application-inventory
+{{- end }}

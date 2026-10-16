@@ -89,8 +89,8 @@ func parsePositiveDuration(name, raw string) time.Duration {
 	return parsed
 }
 
-func ttlEnv(name string, fallback time.Duration) time.Duration {
-	ttl := positiveDurationEnv(name, fallback)
+func ttlEnv(name string) time.Duration {
+	ttl := positiveDurationEnv(name, defaultRetention)
 	if ttl%time.Second != 0 {
 		panic(fmt.Errorf("%s %q %w", name, ttl, errFractional))
 	}

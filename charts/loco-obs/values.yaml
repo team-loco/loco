@@ -1,5 +1,11 @@
 global:
   region: ""
+  workloadEvents:
+    applicationNamespace: loco-system
+    stateClaimName: otel-col-cluster-state
+    stateSize: 1Gi
+    storageClass: ""
+    refreshInterval: 30s
   clickhouse:
     host: ""
     port: 9000
@@ -128,7 +134,18 @@ clickhouse:
       - name: loco_ingest
         password_secret_name: loco-obs-clickhouse-ingest
         grants:
-          - "GRANT INSERT, SHOW COLUMNS ON loco_obs.*"
+          - "GRANT INSERT, SHOW COLUMNS ON loco_obs.otel_logs"
+          - "GRANT INSERT, SHOW COLUMNS ON loco_obs.otel_traces"
+          - "GRANT INSERT, SHOW COLUMNS ON loco_obs.otel_metrics_gauge"
+          - "GRANT INSERT, SHOW COLUMNS ON loco_obs.otel_metrics_sum"
+          - "GRANT INSERT, SHOW COLUMNS ON loco_obs.otel_metrics_histogram"
+          - "GRANT INSERT, SHOW COLUMNS ON loco_obs.otel_metrics_exponential_histogram"
+          - "GRANT INSERT, SHOW COLUMNS ON loco_obs.otel_metrics_summary"
+      - name: loco_workload_ingest
+        password_secret_name: loco-obs-clickhouse-workload-ingest
+        grants:
+          - "GRANT INSERT, SHOW COLUMNS ON loco_obs.otel_workload_events"
+          - "GRANT INSERT, SHOW COLUMNS ON loco_obs.otel_workload_owners"
       - name: loco_reader
         password_secret_name: loco-obs-clickhouse-reader
         grants:
@@ -138,6 +155,7 @@ clickhouseUserPasswords:
   loco_migrator: ""
   loco_ingest: ""
   loco_reader: ""
+  loco_workload_ingest: ""
 
 otel-col-daemon:
   enabled: true
@@ -175,7 +193,8 @@ otel-col-daemon:
         path: *logCheckpointDirectory
         type: DirectoryOrCreate
   extraEnvs: &ingestEnvs
-    - name: CLICKHOUSE_INGEST_PASSWORD
+    - &clickhouseIngestEnv
+      name: CLICKHOUSE_INGEST_PASSWORD
       valueFrom:
         secretKeyRef:
           name: loco-obs-clickhouse-ingest
@@ -571,9 +590,27 @@ otel-col-cluster:
   replicaCount: 1
   rollout:
     strategy: Recreate
-  extraEnvs: *ingestEnvs
+  extraEnvs:
+    - *clickhouseIngestEnv
+    - name: WORKLOAD_INGEST_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: loco-obs-clickhouse-workload-ingest
+          key: password
+    - name: MY_POD_UID
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.uid
+    - name: MY_POD_NAMESPACE
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.namespace
   image: *collectorImage
-  podSecurityContext: *collectorPodSecurityContext
+  podSecurityContext:
+    <<: *collectorPodSecurityContext
+    runAsUser: 10001
+    runAsGroup: 10001
+    fsGroup: 10001
   securityContext: *collectorSecurityContext
   resources:
     limits:
@@ -586,11 +623,14 @@ otel-col-cluster:
         resources: [pods, namespaces]
         verbs: ["get", "watch", "list"]
       - apiGroups: [apps]
-        resources: [replicasets]
+        resources: [replicasets, deployments]
+        verbs: ["get", "watch", "list"]
+      - apiGroups: [events.k8s.io]
+        resources: [events]
         verbs: ["get", "watch", "list"]
   presets:
     kubernetesEvents:
-      enabled: true
+      enabled: false
     clusterMetrics:
       enabled: true
   service:
@@ -612,9 +652,69 @@ otel-col-cluster:
     receivers:
       k8s_cluster:
         collection_interval: *collectionInterval
+      k8sobjects/workload_events:
+        auth_type: serviceAccount
+        error_mode: propagate
+        storage: file_storage/workload_events
+        include_initial_state: true
+        objects:
+          - name: events
+            group: events.k8s.io
+            mode: watch
+      k8sobjects/workload_owners:
+        auth_type: serviceAccount
+        error_mode: propagate
+        storage: file_storage/workload_events
+        include_initial_state: true
+        objects:
+          - name: deployments
+            group: apps
+            mode: watch
+            label_selector: app.kubernetes.io/managed-by=loco-controller
+          - name: replicasets
+            group: apps
+            mode: watch
+            label_selector: app.kubernetes.io/managed-by=loco-controller
+          - name: pods
+            group: ""
+            mode: watch
+            label_selector: app.kubernetes.io/managed-by=loco-controller
+          - name: applications
+            group: infra.loco.io
+            mode: watch
+            namespaces:
+              - '{{ .Values.global.workloadEvents.applicationNamespace }}'
+      k8sobjects/workload_owners_refresh:
+        auth_type: serviceAccount
+        error_mode: propagate
+        objects:
+          - name: deployments
+            group: apps
+            mode: pull
+            label_selector: app.kubernetes.io/managed-by=loco-controller
+            interval: '{{ .Values.global.workloadEvents.refreshInterval }}'
+          - name: replicasets
+            group: apps
+            mode: pull
+            label_selector: app.kubernetes.io/managed-by=loco-controller
+            interval: '{{ .Values.global.workloadEvents.refreshInterval }}'
+          - name: pods
+            group: ""
+            mode: pull
+            label_selector: app.kubernetes.io/managed-by=loco-controller
+            interval: '{{ .Values.global.workloadEvents.refreshInterval }}'
+          - name: applications
+            group: infra.loco.io
+            mode: pull
+            namespaces:
+              - '{{ .Values.global.workloadEvents.applicationNamespace }}'
+            interval: '{{ .Values.global.workloadEvents.refreshInterval }}'
     extensions:
       health_check:
         endpoint: ${env:MY_POD_IP}:13133
+      file_storage/workload_events:
+        directory: /var/lib/otelcol/workload-events
+        create_directory: true
     processors:
       resource/region: *region
       memory_limiter:
@@ -626,16 +726,150 @@ otel-col-cluster:
         passthrough: false
         pod_association: *podUIDAssociation
         extract: *tenancyExtract
+      resource/observer:
+        attributes:
+          - key: k8s.pod.uid
+            value: ${env:MY_POD_UID}
+            action: upsert
+      k8sattributes/observer:
+        auth_type: serviceAccount
+        filter:
+          namespace: ${env:MY_POD_NAMESPACE}
+        wait_for_metadata: true
+        wait_for_metadata_timeout: 20s
+        extract:
+          metadata:
+            - k8s.cluster.uid
+        pod_association:
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.uid
+      resource/clear_observer:
+        attributes:
+          - key: k8s.pod.uid
+            action: delete
+      transform/workload_owners:
+        error_mode: propagate
+        log_statements:
+          - context: log
+            statements:
+              - set(cache["object"], body)
+              - set(cache["object"], body["object"]) where body["object"] != nil
+              - set(cache["watch_type"], "SNAPSHOT")
+              - set(cache["watch_type"], body["type"]) where body["type"] != nil
+              - set(body, ParseJSON("{}"))
+              - set(body["watchType"], cache["watch_type"])
+              - set(body["apiVersion"], cache["object"]["apiVersion"]) where cache["object"]["apiVersion"] != nil
+              - set(body["kind"], cache["object"]["kind"]) where cache["object"]["kind"] != nil
+              - set(body["uid"], cache["object"]["metadata"]["uid"]) where cache["object"]["metadata"]["uid"] != nil
+              - set(body["namespace"], cache["object"]["metadata"]["namespace"]) where cache["object"]["metadata"]["namespace"] != nil
+              - set(body["resourceVersion"], cache["object"]["metadata"]["resourceVersion"]) where cache["object"]["metadata"]["resourceVersion"] != nil
+              - set(body["creationTimestamp"], cache["object"]["metadata"]["creationTimestamp"]) where cache["object"]["metadata"]["creationTimestamp"] != nil
+              - set(body["deletionTimestamp"], cache["object"]["metadata"]["deletionTimestamp"]) where cache["object"]["metadata"]["deletionTimestamp"] != nil
+              - set(body["ownerReferences"], cache["object"]["metadata"]["ownerReferences"]) where cache["object"]["metadata"]["ownerReferences"] != nil
+              - set(body["applicationUid"], cache["object"]["metadata"]["annotations"]["loco.io/application-uid"]) where cache["object"]["kind"] == "Deployment" and cache["object"]["metadata"]["annotations"] != nil
+              - set(body["environmentId"], cache["object"]["metadata"]["labels"]["loco.io/environment-id"]) where cache["object"]["kind"] == "Deployment" and cache["object"]["metadata"]["labels"] != nil
+              - set(body["organizationId"], cache["object"]["spec"]["organizationId"]) where cache["object"]["kind"] == "Application"
+              - set(body["workspaceId"], cache["object"]["spec"]["workspaceId"]) where cache["object"]["kind"] == "Application"
+              - set(body["resourceId"], cache["object"]["spec"]["resourceId"]) where cache["object"]["kind"] == "Application"
+              - set(body["resourceName"], cache["object"]["spec"]["resourceName"]) where cache["object"]["kind"] == "Application"
+              - set(body["applicationUid"], cache["object"]["metadata"]["uid"]) where cache["object"]["kind"] == "Application"
+              - keep_keys(attributes, ["k8s.resource.name"])
+      transform/workload_events:
+        error_mode: propagate
+        log_statements:
+          - context: log
+            statements:
+              - set(cache["object"], body)
+              - set(cache["object"], body["object"]) where body["object"] != nil
+              - set(cache["watch_type"], "SNAPSHOT")
+              - set(cache["watch_type"], body["type"]) where body["type"] != nil
+              - set(body, ParseJSON("{}"))
+              - set(body["watchType"], cache["watch_type"])
+              - set(body["apiVersion"], cache["object"]["apiVersion"]) where cache["object"]["apiVersion"] != nil
+              - set(body["kind"], cache["object"]["kind"]) where cache["object"]["kind"] != nil
+              - set(body["uid"], cache["object"]["metadata"]["uid"]) where cache["object"]["metadata"]["uid"] != nil
+              - set(body["namespace"], cache["object"]["metadata"]["namespace"]) where cache["object"]["metadata"]["namespace"] != nil
+              - set(body["resourceVersion"], cache["object"]["metadata"]["resourceVersion"]) where cache["object"]["metadata"]["resourceVersion"] != nil
+              - set(body["creationTimestamp"], cache["object"]["metadata"]["creationTimestamp"]) where cache["object"]["metadata"]["creationTimestamp"] != nil
+              - set(body["deletionTimestamp"], cache["object"]["metadata"]["deletionTimestamp"]) where cache["object"]["metadata"]["deletionTimestamp"] != nil
+              - set(body["regarding"], cache["object"]["regarding"]) where cache["object"]["regarding"] != nil
+              - set(body["type"], cache["object"]["type"]) where cache["object"]["type"] != nil
+              - set(body["reason"], cache["object"]["reason"]) where cache["object"]["reason"] != nil
+              - set(body["note"], cache["object"]["note"]) where cache["object"]["note"] != nil
+              - set(body["deprecatedCount"], cache["object"]["deprecatedCount"]) where cache["object"]["deprecatedCount"] != nil
+              - set(body["deprecatedFirstTimestamp"], cache["object"]["deprecatedFirstTimestamp"]) where cache["object"]["deprecatedFirstTimestamp"] != nil
+              - set(body["deprecatedLastTimestamp"], cache["object"]["deprecatedLastTimestamp"]) where cache["object"]["deprecatedLastTimestamp"] != nil
+              - set(body["eventTime"], cache["object"]["eventTime"]) where cache["object"]["eventTime"] != nil
+              - set(body["series"], cache["object"]["series"]) where cache["object"]["series"] != nil
+              - set(body["reportingController"], cache["object"]["reportingController"]) where cache["object"]["reportingController"] != nil
+              - set(body["action"], cache["object"]["action"]) where cache["object"]["action"] != nil
+              - keep_keys(attributes, ["k8s.resource.name"])
     exporters:
       clickhouse: *clickhouseExporter
+      clickhouse/workload_events:
+        <<: *clickhouseExporter
+        username: loco_workload_ingest
+        password: ${env:WORKLOAD_INGEST_PASSWORD}
+        logs_table_name: otel_workload_events
+        sending_queue: &workloadEventQueue
+          enabled: true
+          queue_size: 1000
+          num_consumers: 2
+          block_on_overflow: true
+          storage: file_storage/workload_events
+        retry_on_failure: &workloadEventRetry
+          enabled: true
+          initial_interval: 1s
+          max_interval: 30s
+          max_elapsed_time: 0s
+      clickhouse/workload_owners:
+        <<: *clickhouseExporter
+        username: loco_workload_ingest
+        password: ${env:WORKLOAD_INGEST_PASSWORD}
+        logs_table_name: otel_workload_owners
+        sending_queue: *workloadEventQueue
+        retry_on_failure: *workloadEventRetry
     service:
-      extensions: [health_check]
+      extensions:
+        - health_check
+        - file_storage/workload_events
       pipelines:
-        logs:
-          receivers: [k8sobjects]
-          processors: [memory_limiter, resource/region, batch]
-          exporters: [clickhouse]
         metrics:
           receivers: [k8s_cluster]
           processors: [memory_limiter, k8s_attributes/pod_uid, resource/region, batch]
           exporters: [clickhouse]
+        logs/workload_events:
+          receivers:
+            - k8sobjects/workload_events
+          processors:
+            - memory_limiter
+            - resource/observer
+            - k8sattributes/observer
+            - resource/clear_observer
+            - transform/workload_events
+            - resource/region
+          exporters:
+            - clickhouse/workload_events
+        logs/workload_owners:
+          receivers:
+            - k8sobjects/workload_owners
+            - k8sobjects/workload_owners_refresh
+          processors:
+            - memory_limiter
+            - resource/observer
+            - k8sattributes/observer
+            - resource/clear_observer
+            - transform/workload_owners
+            - resource/region
+          exporters:
+            - clickhouse/workload_owners
+  autoscaling:
+    enabled: false
+  extraVolumes:
+    - name: workload-event-state
+      persistentVolumeClaim:
+        claimName: '{{ .Values.global.workloadEvents.stateClaimName }}'
+  extraVolumeMounts:
+    - name: workload-event-state
+      mountPath: /var/lib/otelcol/workload-events

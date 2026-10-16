@@ -43,6 +43,7 @@ CLICKHOUSE_USER_PASSWORDS = {
     "CLICKHOUSE_MIGRATOR_PASSWORD": "test",
     "CLICKHOUSE_INGEST_PASSWORD": "test",
     "CLICKHOUSE_READER_PASSWORD": "test",
+    "CLICKHOUSE_WORKLOAD_INGEST_PASSWORD": "test",
 }
 
 
@@ -371,6 +372,7 @@ def test_proxy_uses_its_built_in_schema_settings():
         "CLICKHOUSE_LOGS_TTL",
         "CLICKHOUSE_TRACES_TTL",
         "CLICKHOUSE_METRICS_TTL",
+        "CLICKHOUSE_EVENTS_TTL",
         "MIGRATION_RETRY_BUDGET",
         "MIGRATION_RETRY_INTERVAL",
         "MIGRATION_LOCK_TTL",
@@ -386,6 +388,7 @@ def test_user_secrets_follow_the_clickhouse_users():
     passwords = {
         "loco_migrator": "migrator-pw",
         "loco_ingest": "ingest-pw",
+        "loco_workload_ingest": "workload-pw",
         "loco_reader": "reader-pw",
     }
     secrets = render_documents(
@@ -400,6 +403,7 @@ def test_user_secrets_follow_the_clickhouse_users():
     assert found == {
         ("platform-test", "loco-obs-clickhouse-migrator"): "migrator-pw",
         ("platform-test", "loco-obs-clickhouse-ingest"): "ingest-pw",
+        ("platform-test", "loco-obs-clickhouse-workload-ingest"): "workload-pw",
         ("platform-test", "loco-obs-clickhouse-reader"): "reader-pw",
         ("observability-node", "loco-obs-clickhouse-ingest"): "ingest-pw",
     }
@@ -512,7 +516,7 @@ def test_collectors_ingest_into_the_database_the_users_are_granted():
     ]
     users = {user["name"]: user for user in values["clickhouse"]["clickhouse"]["users"]}
     for user in users.values():
-        assert all((grant.endswith(f" ON {database}.*") for grant in user["grants"])), (
+        assert all((f" ON {database}." in grant for grant in user["grants"])), (
             user["name"]
         )
     for collector in ("otel-col-daemon", "otel-col-deploy"):
@@ -533,7 +537,7 @@ def test_collectors_ingest_into_the_database_the_users_are_granted():
         assert exporter["password"] == "${env:CLICKHOUSE_INGEST_PASSWORD}", collector
     for user in users.values():
         for grant in user["grants"]:
-            assert f" ON {database}.*" in grant, user["name"]
+            assert f" ON {database}." in grant, user["name"]
 
 
 @pytest.fixture(scope="module")
@@ -686,7 +690,10 @@ def test_all_collectors_render(collector_tenancy):
 def test_every_pipeline_stamps_the_region_last(collector_tenancy, subtests):
     for collector, config, name, pipeline in _pipelines(collector_tenancy):
         with subtests.test(collector=collector, pipeline=name):
-            assert pipeline["processors"][-2:] == ["resource/region", "batch"]
+            if name.startswith("logs/workload_"):
+                assert pipeline["processors"][-1] == "resource/region"
+            else:
+                assert pipeline["processors"][-2:] == ["resource/region", "batch"]
             assert config["processors"]["resource/region"] == {
                 "attributes": [
                     {"key": "loco.region", "value": TEST_REGION, "action": "upsert"}
@@ -733,7 +740,10 @@ def test_memory_limiter_runs_first_and_batch_last(collector_tenancy):
         processors = pipeline.get("processors", [])
         assert len(processors) >= 2, f"{collector} {name}"
         assert processors[0] == "memory_limiter", f"{collector} {name}"
-        assert processors[-1] == "batch", f"{collector} {name}"
+        if name.startswith("logs/workload_"):
+            assert "batch" not in processors, f"{collector} {name}"
+        else:
+            assert processors[-1] == "batch", f"{collector} {name}"
 
 
 def test_push_receivers_have_their_own_pipelines(collector_tenancy):
@@ -831,6 +841,9 @@ def test_tenancy_comes_from_explicit_pod_labels(collector_tenancy):
     for collector, config, name, pipeline in _pipelines(collector_tenancy):
         for enricher in _k8s_attributes(collector_tenancy, pipeline):
             extract = config["processors"][enricher]["extract"]
+            if enricher == "k8s_attributes/observer":
+                assert extract == {"metadata": ["k8s.cluster.uid"]}
+                continue
             labels = {
                 rule.get("key"): rule.get("tag_name")
                 for rule in extract["labels"]
@@ -863,7 +876,7 @@ def cluster_collector():
 
 
 def test_only_the_singleton_collects_cluster_metrics_and_events(cluster_collector):
-    for receiver in ("k8s_cluster", "k8sobjects"):
+    for receiver in ("k8s_cluster", "k8sobjects/workload_events", "k8sobjects/workload_owners", "k8sobjects/workload_owners_refresh"):
         collectors = {
             name
             for name, config in cluster_collector.configs.items()
@@ -1216,3 +1229,137 @@ def test_gitops_can_own_build_namespace():
         "loco-operator", "builds/namespace.yaml", {"builds": {"createNamespace": False}}
     )
     assert namespace is None
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"replicaCount": 2},
+        {"autoscaling": {"enabled": True}},
+        {"rollout": {"strategy": "RollingUpdate"}},
+        {"mode": "daemonset"},
+    ],
+)
+def test_workload_queue_requires_one_persistent_owner(overrides):
+    result = render_chart("loco-obs", {"otel-col-cluster": overrides}, check=False)
+    assert result.returncode != 0
+    assert "workload event state requires one Deployment replica" in result.stderr
+
+
+def test_workload_metadata_isolated_from_application_ingestion(collector_tenancy):
+    values = chart_values("loco-obs")
+    users = {user["name"]: user for user in values["clickhouse"]["clickhouse"]["users"]}
+    workload_tables = {"otel_workload_events", "otel_workload_owners"}
+    expected = {
+        f"GRANT INSERT, SHOW COLUMNS ON loco_obs.{table}" for table in workload_tables
+    }
+    assert set(users["loco_workload_ingest"]["grants"]) == expected
+    assert all(
+        "*" not in grant and not any(table in grant for table in workload_tables)
+        for grant in users["loco_ingest"]["grants"]
+    )
+    config = collector_tenancy.configs["otel-col-cluster"]
+    for suffix in ("events", "owners"):
+        pipeline = config["service"]["pipelines"][f"logs/workload_{suffix}"]
+        assert pipeline["exporters"] == [f"clickhouse/workload_{suffix}"]
+        exporter = config["exporters"][pipeline["exporters"][0]]
+        assert exporter["username"] == "loco_workload_ingest"
+        assert exporter["logs_table_name"] == f"otel_workload_{suffix}"
+        assert not exporter["create_schema"]
+        assert exporter["sending_queue"]["block_on_overflow"]
+        assert exporter["sending_queue"]["storage"] == "file_storage/workload_events"
+        assert exporter["retry_on_failure"]["max_elapsed_time"] == "0s"
+        assert config["processors"][f"transform/workload_{suffix}"]["error_mode"] == "propagate"
+    events = config["receivers"]["k8sobjects/workload_events"]["objects"]
+    assert events == [{"name": "events", "group": "events.k8s.io", "mode": "watch"}]
+
+
+def test_workload_state_and_application_reader_share_exact_identity(collector_tenancy):
+    documents = collector_tenancy.documents
+    claim = next(document for document in documents if document["kind"] == "PersistentVolumeClaim")
+    assert claim["spec"]["accessModes"] == ["ReadWriteOnce"]
+    deployment = next(
+        document for document in documents
+        if document["kind"] == "Deployment" and document["metadata"]["name"] == "otel-col-cluster"
+    )
+    pod = deployment["spec"]["template"]["spec"]
+    volume = next(volume for volume in pod["volumes"] if volume["name"] == "workload-event-state")
+    assert volume["persistentVolumeClaim"]["claimName"] == claim["metadata"]["name"]
+    assert pod["securityContext"]["runAsNonRoot"]
+    assert pod["securityContext"]["fsGroup"] == 10001
+    binding = next(
+        document for document in documents
+        if document["kind"] == "RoleBinding" and document["metadata"]["name"].endswith("-application-inventory")
+    )
+    assert binding["metadata"]["namespace"] == "loco-system"
+    assert binding["subjects"] == [{
+        "kind": "ServiceAccount", "name": pod["serviceAccountName"], "namespace": "platform-test"
+    }]
+    role = next(
+        document for document in documents
+        if document["kind"] == "Role" and document["metadata"]["name"] == binding["roleRef"]["name"]
+    )
+    assert role["rules"] == [{
+        "apiGroups": ["infra.loco.io"], "resources": ["applications"], "verbs": ["get", "list", "watch"]
+    }]
+
+
+@pytest.mark.parametrize("installation", ["e2e", "local", "prod"])
+def test_installations_supply_every_enabled_collector_password_secret(installation):
+    if installation == "e2e":
+        overrides = json.loads(subprocess.check_output(
+            ["yq", "-o=json", ".", str(ROOT / "e2e" / "obs-values.yaml")], text=True
+        ))
+    else:
+        overrides = environment_values(installation, {
+            "APP_PORT": "8080", "GH_SHA": "test", "CLICKHOUSE_PASSWORD": "test",
+            "CONTROL_PLANE_URL": "https://api.example.test", "LOCO_REGION": TEST_REGION,
+            **CLICKHOUSE_USER_PASSWORDS,
+        })
+    documents = render_chart("loco-obs", overrides)
+    secrets = {
+        (document["metadata"].get("namespace", "platform-test"), document["metadata"]["name"]): document
+        for document in documents if document["kind"] == "Secret"
+    }
+    for document in documents:
+        if document["kind"] not in {"Deployment", "DaemonSet"}:
+            continue
+        if document["metadata"]["name"] not in {"otel-col-cluster", "otel-col-daemon-agent", "otel-col-deploy"}:
+            continue
+        namespace = document["metadata"].get("namespace", "platform-test")
+        for container in document["spec"]["template"]["spec"]["containers"]:
+            for variable in container.get("env", []):
+                reference = variable.get("valueFrom", {}).get("secretKeyRef")
+                if reference:
+                    secret = secrets[(namespace, reference["name"])]
+                    assert secret["stringData"][reference["key"]]
+
+
+@pytest.mark.parametrize("service_account", ["workload-observer", "default"])
+def test_application_inventory_binding_follows_collector_service_account(service_account):
+    documents = render_chart("loco-obs", {
+        "otel-col-cluster": {"serviceAccount": {
+            "name": service_account, "create": service_account != "default"
+        }}
+    })
+    deployment = next(
+        document for document in documents
+        if document["kind"] == "Deployment" and document["metadata"]["name"] == "otel-col-cluster"
+    )
+    binding = next(
+        document for document in documents
+        if document["kind"] == "RoleBinding" and document["metadata"]["name"].endswith("-application-inventory")
+    )
+    assert deployment["spec"]["template"]["spec"]["serviceAccountName"] == service_account
+    assert binding["subjects"] == [{
+        "kind": "ServiceAccount", "name": service_account, "namespace": "platform-test"
+    }]
+
+
+
+def test_workload_state_rejects_a_different_collector_namespace():
+    result = render_chart("loco-obs", {
+        "otel-col-cluster": {"namespaceOverride": "another-namespace"}
+    }, check=False)
+    assert result.returncode != 0
+    assert "namespaceOverride must resolve to the loco-obs release namespace" in result.stderr
