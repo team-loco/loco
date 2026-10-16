@@ -31,6 +31,8 @@ export function CreateTokenDialog({
 	held,
 	takenNames,
 	resourcesLoading,
+	resourcesError,
+	retryResources,
 	onClose,
 	onCreated,
 }: {
@@ -40,6 +42,8 @@ export function CreateTokenDialog({
 	held: HeldScopes;
 	takenNames: string[];
 	resourcesLoading: boolean;
+	resourcesError: unknown;
+	retryResources: () => void;
 	onClose: () => void;
 	onCreated: (name: string, secret: string) => void;
 }) {
@@ -58,6 +62,8 @@ export function CreateTokenDialog({
 					held={held}
 					takenNames={takenNames}
 					resourcesLoading={resourcesLoading}
+					resourcesError={resourcesError}
+					retryResources={retryResources}
 					onClose={onClose}
 					onCreated={onCreated}
 				/>
@@ -73,6 +79,8 @@ function CreateTokenForm({
 	held,
 	takenNames,
 	resourcesLoading,
+	resourcesError,
+	retryResources,
 	onClose,
 	onCreated,
 }: {
@@ -82,6 +90,8 @@ function CreateTokenForm({
 	held: HeldScopes;
 	takenNames: string[];
 	resourcesLoading: boolean;
+	resourcesError: unknown;
+	retryResources: () => void;
 	onClose: () => void;
 	onCreated: (name: string, secret: string) => void;
 }) {
@@ -173,6 +183,8 @@ function CreateTokenForm({
 							items={items}
 							allowUser={owner.key === "personal"}
 							resourcesLoading={resourcesLoading}
+							resourcesError={resourcesError}
+							retryResources={retryResources}
 							invalid={accessErr !== null}
 							onChange={setItems}
 						/>
