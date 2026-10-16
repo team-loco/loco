@@ -10,7 +10,7 @@ export const LEVELS: Level[] = ["error", "warn", "info", "debug"];
 const LEVEL_VARIANTS: Record<Level, string[]> = {
 	error: ["ERROR", "error", "Error", "FATAL", "fatal", "Fatal", "CRITICAL", "critical", "Critical"],
 	warn: ["WARN", "warn", "Warn", "WARNING", "warning", "Warning"],
-	info: ["INFO", "info", "Info", "Information", "NOTICE", "notice"],
+	info: ["", "INFO", "info", "Info", "Information", "NOTICE", "notice"],
 	debug: ["DEBUG", "debug", "Debug", "TRACE", "trace", "Trace"],
 };
 
