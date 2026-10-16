@@ -12,7 +12,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
-	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
 var errNoUpdateFlags = errors.New("at least one update flag is required (--name or --description)")
@@ -74,21 +73,16 @@ func buildUpdateCmd() *cobra.Command {
 				Output:          os.Stdout,
 			}
 
-			var paths []string
 			updateReq := &workspacev1.UpdateWorkspaceRequest{
 				WorkspaceId: id,
 			}
 
 			if name != "" {
-				paths = append(paths, "name")
 				updateReq.Name = &name
 			}
 			if description != "" {
-				paths = append(paths, "description")
 				updateReq.Description = &description
 			}
-
-			updateReq.UpdateMask = &fieldmaskpb.FieldMask{Paths: paths}
 
 			_, err = deps.UpdateWorkspace(ctx, updateReq)
 			if err != nil {

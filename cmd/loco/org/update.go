@@ -12,7 +12,6 @@ import (
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
-	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
 var errNoUpdateFlags = errors.New("at least one update flag is required (e.g., --new-name)")
@@ -75,9 +74,8 @@ func newUpdateCmd(deps updateDeps) *cobra.Command {
 			}
 
 			updateReq := &orgv1.UpdateOrgRequest{
-				OrgId:      getResp.GetOrganization().GetId(),
-				UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"name"}},
-				Name:       &newName,
+				OrgId: getResp.GetOrganization().GetId(),
+				Name:  &newName,
 			}
 
 			_, err = orgClient.UpdateOrg(ctx, updateReq)

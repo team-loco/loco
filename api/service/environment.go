@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"strings"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -20,10 +21,17 @@ import (
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
-const environmentTypeProduction = "production"
+const (
+	environmentTypeProduction = "production"
+	updateNameField           = "name"
+	updateDescriptionField    = "description"
+	updateTypeField           = "type"
+)
 
 var (
 	ErrEnvironmentNotFound      = errors.New("environment not found")
+	ErrEnvironmentNameRequired  = errors.New("environment name must not be blank")
+	ErrEnvironmentTypeRequired  = errors.New("environment type is required")
 	ErrEnvironmentNameNotUnique = errors.New("environment name already exists in this workspace")
 	ErrEnvironmentInUse         = errors.New("environment has deployments - cannot delete")
 )
@@ -203,24 +211,38 @@ func (s *EnvironmentServer) UpdateEnvironment(
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(verifyErr)
 	}
 
-	// Apply field mask: use existing values for unset fields.
-	name := existing.Name
-	if req.GetName() != "" {
-		name = req.GetName()
+	message := req.ProtoReflect()
+	fields := message.Descriptor().Fields()
+	updateName := message.Has(fields.ByName(updateNameField))
+	updateDescription := message.Has(fields.ByName(updateDescriptionField))
+	updateType := message.Has(fields.ByName(updateTypeField))
+	if updateName && strings.TrimSpace(req.GetName()) == "" {
+		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrEnvironmentNameRequired)
 	}
-	description := existing.Description
-	if req.GetDescription() != "" {
-		d := req.GetDescription()
-		description = &d
-	}
-	envType := existing.EnvironmentType
-	if req.Type != nil {
-		envType = protoEnvTypeToString(req.GetType())
+	if updateType &&
+		req.GetType() == environmentv1.EnvironmentType_ENVIRONMENT_TYPE_UNSPECIFIED {
+		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrEnvironmentTypeRequired)
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, existing.WorkspaceID); lockErr != nil {
 			return lockErr
+		}
+		current, loadErr := qtx.GetEnvironmentByID(ctx, envID)
+		if loadErr != nil {
+			return loadErr
+		}
+		name := current.Name
+		if updateName {
+			name = req.GetName()
+		}
+		description := current.Description
+		if updateDescription {
+			description = new(req.GetDescription())
+		}
+		envType := current.EnvironmentType
+		if updateType {
+			envType = protoEnvTypeToString(req.GetType())
 		}
 		updated, updateErr := qtx.UpdateEnvironment(ctx, genDb.UpdateEnvironmentParams{
 			ID:              envID,
@@ -234,7 +256,7 @@ func (s *EnvironmentServer) UpdateEnvironment(
 		if updateErr != nil {
 			return updateErr
 		}
-		if updated.Name != existing.Name || updated.EnvironmentType != existing.EnvironmentType {
+		if updated.Name != current.Name || updated.EnvironmentType != current.EnvironmentType {
 			if bumpErr := bumpEnvironmentRevision(ctx, qtx, envID); bumpErr != nil {
 				return bumpErr
 			}

@@ -71,7 +71,7 @@ func (s *workspaceIDsServer) UpdateWorkspace(
 	req *workspacev1.UpdateWorkspaceRequest,
 ) (*workspacev1.UpdateWorkspaceResponse, error) {
 	s.record(ctx, testUpdateAction, req.GetWorkspaceId(), testWorkspaceID)
-	if req.GetName() != "renamed" || !slices.Equal(req.GetUpdateMask().GetPaths(), []string{"name"}) {
+	if req.GetName() != "renamed" {
 		s.t.Errorf("update request = %v", req)
 	}
 	return &workspacev1.UpdateWorkspaceResponse{}, nil

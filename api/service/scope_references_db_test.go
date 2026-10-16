@@ -160,7 +160,7 @@ func TestHierarchyScopeGrantAndDeleteSerialize(t *testing.T) {
 		genDb.EntityTypeWorkspace,
 		genDb.EntityTypeResource,
 	} {
-		for _, first := range []string{"grant", "delete"} {
+		for _, first := range []string{"grant", rolloutDeleteOperation} {
 			t.Run(string(kind)+"/"+first, func(t *testing.T) {
 				f := newDeployFixture(t)
 				scope := hierarchyScopes(t, f)[index]
@@ -187,7 +187,7 @@ func TestHierarchyScopeGrantAndDeleteSerialize(t *testing.T) {
 					t.Fatal(commitErr)
 				}
 				operationErr := <-done
-				if first == "delete" {
+				if first == rolloutDeleteOperation {
 					var postgresError *pgconn.PgError
 					if !errors.As(operationErr, &postgresError) || postgresError.Code != "23503" {
 						t.Fatalf("grant after deletion=%v, want foreign key violation", operationErr)

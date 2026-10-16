@@ -21,6 +21,8 @@ import (
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
+const updateAvatarField = "avatar_url"
+
 var (
 	ErrUserNotFound           = errors.New("user not found")
 	ErrUserAlreadyExists      = errors.New("user already exists")
@@ -162,12 +164,18 @@ func (s *UserServer) UpdateUser(
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
+	message := req.ProtoReflect()
+	fields := message.Descriptor().Fields()
 	userID := uuid.MustParse(req.GetUserId())
+	params := genDb.UpdateUserProfileParams{ID: userID}
+	if message.Has(fields.ByName(updateNameField)) {
+		params.Name = new(req.GetName())
+	}
+	if message.Has(fields.ByName(updateAvatarField)) {
+		params.AvatarUrl = new(req.GetAvatarUrl())
+	}
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if _, updateErr := qtx.UpdateUserAvatarURL(ctx, genDb.UpdateUserAvatarURLParams{
-			ID:        userID,
-			AvatarUrl: req.AvatarUrl,
-		}); updateErr != nil {
+		if _, updateErr := qtx.UpdateUserProfile(ctx, params); updateErr != nil {
 			return updateErr
 		}
 		return events.Record(ctx, qtx, events.Event{
