@@ -195,11 +195,15 @@ func (s *WebhookServer) DeleteWebhook(
 		return nil, err
 	}
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if _, deleteErr := qtx.DeleteWorkspaceWebhook(
+		deleted, deleteErr := qtx.DeleteWorkspaceWebhook(
 			ctx,
 			genDb.DeleteWorkspaceWebhookParams{ID: row.ID, WorkspaceID: workspaceID},
-		); deleteErr != nil {
+		)
+		if deleteErr != nil {
 			return deleteErr
+		}
+		if deleted == 0 {
+			return rpcerr.New(connect.CodeNotFound, ErrWebhookNotFound)
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.WebhookDeleted,
