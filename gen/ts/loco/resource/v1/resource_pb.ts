@@ -17,7 +17,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/resource/v1/resource.proto.
  */
 export const file_loco_resource_v1_resource: GenFile = /*@__PURE__*/
-  fileDesc("Ch9sb2NvL3Jlc291cmNlL3YxL3Jlc291cmNlLnByb3RvEhBsb2NvLnJlc291cmNlLnYxIkgKDVJvdXRpbmdDb25maWcSDAoEcG9ydBgBIAEoBRITCgtwYXRoX3ByZWZpeBgCIAEoCRIUCgxpZGxlX3RpbWVvdXQYAyABKAUiTgoNTG9nZ2luZ0NvbmZpZxIPCgdlbmFibGVkGAEgASgIEhgKEHJldGVudGlvbl9wZXJpb2QYAiABKAkSEgoKc3RydWN0dXJlZBgDIAEoCCI8Cg1NZXRyaWNzQ29uZmlnEg8KB2VuYWJsZWQYASABKAgSDAoEcGF0aBgCIAEoCRIMCgRwb3J0GAMgASgFIrYBCg1UcmFjaW5nQ29uZmlnEg8KB2VuYWJsZWQYASABKAgSLgoLc2FtcGxlX3JhdGUYAiABKAFCGbpIFhIUQAEZAAAAAAAA8D8pAAAAAAAAAAASNwoEdGFncxgDIAMoCzIpLmxvY28ucmVzb3VyY2UudjEuVHJhY2luZ0NvbmZpZy5UYWdzRW50cnkaKwoJVGFnc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiqwEKE09ic2VydmFiaWxpdHlDb25maWcSMAoHbG9nZ2luZxgBIAEoCzIfLmxvY28ucmVzb3VyY2UudjEuTG9nZ2luZ0NvbmZpZxIwCgdtZXRyaWNzGAIgASgLMh8ubG9jby5yZXNvdXJjZS52MS5NZXRyaWNzQ29uZmlnEjAKB3RyYWNpbmcYAyABKAsyHy5sb2NvLnJlc291cmNlLnYxLlRyYWNpbmdDb25maWcitgEKDFJlZ2lvblRhcmdldBIPCgdlbmFibGVkGAEgASgIEgsKA2NwdRgDIAEoCRIOCgZtZW1vcnkYBCABKAkSFAoMbWluX3JlcGxpY2FzGAUgASgFEhQKDG1heF9yZXBsaWNhcxgGIAEoBRIxCgdzY2FsZXJzGAcgASgLMhsubG9jby5kZXBsb3ltZW50LnYxLlNjYWxlcnNIAIgBAUIKCghfc2NhbGVyc0oECAIQA1IHcHJpbWFyeSLnAgoLU2VydmljZVNwZWMSMAoHcm91dGluZxgBIAEoCzIfLmxvY28ucmVzb3VyY2UudjEuUm91dGluZ0NvbmZpZxI8Cg1vYnNlcnZhYmlsaXR5GAIgASgLMiUubG9jby5yZXNvdXJjZS52MS5PYnNlcnZhYmlsaXR5Q29uZmlnEkUKB3JlZ2lvbnMYAyADKAsyKi5sb2NvLnJlc291cmNlLnYxLlNlcnZpY2VTcGVjLlJlZ2lvbnNFbnRyeUIIukgFmgECCAESQAoMaGVhbHRoX2NoZWNrGAQgASgLMiUubG9jby5kZXBsb3ltZW50LnYxLkhlYWx0aENoZWNrQ29uZmlnSACIAQEaTgoMUmVnaW9uc0VudHJ5EgsKA2tleRgBIAEoCRItCgV2YWx1ZRgCIAEoCzIeLmxvY28ucmVzb3VyY2UudjEuUmVnaW9uVGFyZ2V0OgI4AUIPCg1faGVhbHRoX2NoZWNrIg4KDERhdGFiYXNlU3BlYyILCglDYWNoZVNwZWMiCwoJUXVldWVTcGVjIgoKCEJsb2JTcGVjIoQCCgxSZXNvdXJjZVNwZWMSMAoHc2VydmljZRgBIAEoCzIdLmxvY28ucmVzb3VyY2UudjEuU2VydmljZVNwZWNIABIyCghkYXRhYmFzZRgCIAEoCzIeLmxvY28ucmVzb3VyY2UudjEuRGF0YWJhc2VTcGVjSAASLAoFY2FjaGUYAyABKAsyGy5sb2NvLnJlc291cmNlLnYxLkNhY2hlU3BlY0gAEiwKBXF1ZXVlGAQgASgLMhsubG9jby5yZXNvdXJjZS52MS5RdWV1ZVNwZWNIABIqCgRibG9iGAUgASgLMhoubG9jby5yZXNvdXJjZS52MS5CbG9iU3BlY0gAQgYKBHNwZWMioQQKCFJlc291cmNlEgoKAmlkGAEgASgJEhQKDHdvcmtzcGFjZV9pZBgCIAEoCRIMCgRuYW1lGAMgASgJEiwKBHR5cGUYBCABKA4yHi5sb2NvLnJlc291cmNlLnYxLlJlc291cmNlVHlwZRIvCgdkb21haW5zGAUgAygLMh4ubG9jby5kb21haW4udjEuUmVzb3VyY2VEb21haW4SMQoEc3BlYxgIIAEoCzIeLmxvY28ucmVzb3VyY2UudjEuUmVzb3VyY2VTcGVjSACIAQESFAoMc3BlY192ZXJzaW9uGAkgASgFEhgKC2Rlc2NyaXB0aW9uGAogASgJSAGIAQESEgoKY3JlYXRlZF9ieRgLIAEoCRIuCgpjcmVhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GA0gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIUCgdwYXJ0aWFsGA8gASgJSAKIAQESQQoUZW52aXJvbm1lbnRfc3RhdHVzZXMYECADKAsyIy5sb2NvLnJlc291cmNlLnYxLkVudmlyb25tZW50U3RhdHVzQgcKBV9zcGVjQg4KDF9kZXNjcmlwdGlvbkIKCghfcGFydGlhbEoECAYQB0oECAcQCEoECA4QD1IHcmVnaW9uc1IGc3RhdHVzUg5lbnZpcm9ubWVudF9pZCKoAQoRRW52aXJvbm1lbnRTdGF0dXMSFgoOZW52aXJvbm1lbnRfaWQYASABKAkSGAoQZW52aXJvbm1lbnRfbmFtZRgCIAEoCRIwCgZzdGF0dXMYAyABKA4yIC5sb2NvLnJlc291cmNlLnYxLlJlc291cmNlU3RhdHVzEi8KB3JlZ2lvbnMYBCADKAsyHi5sb2NvLnJlc291cmNlLnYxLlJlZ2lvblN0YXR1cyLBAgoMUmVnaW9uU3RhdHVzEg4KBnJlZ2lvbhgBIAEoCRIwCgZzdGF0dXMYAiABKA4yIC5sb2NvLnJlc291cmNlLnYxLlJlc291cmNlU3RhdHVzEhYKDnJlYWR5X3JlcGxpY2FzGAMgASgFEhgKEGRlc2lyZWRfcmVwbGljYXMYBCABKAUSFQoNZGVwbG95bWVudF9pZBgFIAEoCRI+ChFkZXBsb3ltZW50X3N0YXR1cxgGIAEoDjIjLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50UGhhc2USFAoHbWVzc2FnZRgHIAEoCUgAiAEBEjQKC3JlcG9ydGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgBiAEBQgoKCF9tZXNzYWdlQg4KDF9yZXBvcnRlZF9hdCLFAgoVQ3JlYXRlUmVzb3VyY2VSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQESFQoEbmFtZRgCIAEoCUIHukgEcgIYPxI4CgR0eXBlGAMgASgOMh4ubG9jby5yZXNvdXJjZS52MS5SZXNvdXJjZVR5cGVCCrpIB4IBBBABIAASMAoGZG9tYWluGAQgASgLMhsubG9jby5kb21haW4udjEuRG9tYWluSW5wdXRIAIgBARI0CgRzcGVjGAUgASgLMh4ubG9jby5yZXNvdXJjZS52MS5SZXNvdXJjZVNwZWNCBrpIA8gBARIiCgtkZXNjcmlwdGlvbhgGIAEoCUIIukgFcgMYgAJIAYgBAUIJCgdfZG9tYWluQg4KDF9kZXNjcmlwdGlvbkoECAcQCFIOZW52aXJvbm1lbnRfaWQiLQoWQ3JlYXRlUmVzb3VyY2VSZXNwb25zZRITCgtyZXNvdXJjZV9pZBgBIAEoCSJLChJHZXRSZXNvdXJjZU5hbWVLZXkSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIVCgRuYW1lGAIgASgJQge6SARyAhABImwKEkdldFJlc291cmNlUmVxdWVzdBIVCgtyZXNvdXJjZV9pZBgBIAEoCUgAEjgKCG5hbWVfa2V5GAIgASgLMiQubG9jby5yZXNvdXJjZS52MS5HZXRSZXNvdXJjZU5hbWVLZXlIAEIFCgNrZXkiQwoTR2V0UmVzb3VyY2VSZXNwb25zZRIsCghyZXNvdXJjZRgBIAEoCzIaLmxvY28ucmVzb3VyY2UudjEuUmVzb3VyY2UicgodTGlzdFdvcmtzcGFjZVJlc291cmNlc1JlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIdCglwYWdlX3NpemUYAiABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgDIAEoCSJoCh5MaXN0V29ya3NwYWNlUmVzb3VyY2VzUmVzcG9uc2USLQoJcmVzb3VyY2VzGAEgAygLMhoubG9jby5yZXNvdXJjZS52MS5SZXNvdXJjZRIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkiwAEKFVVwZGF0ZVJlc291cmNlUmVxdWVzdBIdCgtyZXNvdXJjZV9pZBgBIAEoCUIIukgFcgOwAQESLwoLdXBkYXRlX21hc2sYAiABKAsyGi5nb29nbGUucHJvdG9idWYuRmllbGRNYXNrEhoKBG5hbWUYAyABKAlCB7pIBHICGD9IAIgBARIiCgtkZXNjcmlwdGlvbhgEIAEoCUIIukgFcgMYgAJIAYgBAUIHCgVfbmFtZUIOCgxfZGVzY3JpcHRpb24iLQoWVXBkYXRlUmVzb3VyY2VSZXNwb25zZRITCgtyZXNvdXJjZV9pZBgBIAEoCSI2ChVEZWxldGVSZXNvdXJjZVJlcXVlc3QSHQoLcmVzb3VyY2VfaWQYASABKAlCCLpIBXIDsAEBIhgKFkRlbGV0ZVJlc291cmNlUmVzcG9uc2UiRwoKUmVnaW9uSW5mbxIOCgZyZWdpb24YASABKAkSEgoKaXNfZGVmYXVsdBgCIAEoCBIVCg1oZWFsdGhfc3RhdHVzGAMgASgJIhQKEkxpc3RSZWdpb25zUmVxdWVzdCJEChNMaXN0UmVnaW9uc1Jlc3BvbnNlEi0KB3JlZ2lvbnMYASADKAsyHC5sb2NvLnJlc291cmNlLnYxLlJlZ2lvbkluZm8iWAoVR2V0UmVzb3VyY2VFbnZSZXF1ZXN0Eh0KC3Jlc291cmNlX2lkGAEgASgJQgi6SAVyA7ABARIgCg5lbnZpcm9ubWVudF9pZBgCIAEoCUIIukgFcgOwAQEimgEKFkdldFJlc291cmNlRW52UmVzcG9uc2USPgoDZW52GAEgAygLMjEubG9jby5yZXNvdXJjZS52MS5HZXRSZXNvdXJjZUVudlJlc3BvbnNlLkVudkVudHJ5EhQKDHNlY3JldF9uYW1lcxgCIAMoCRoqCghFbnZFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIncKBUV2ZW50Ei0KCXRpbWVzdGFtcBgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGcmVhc29uGAIgASgJEg8KB21lc3NhZ2UYAyABKAkSDAoEdHlwZRgEIAEoCRIQCghwb2RfbmFtZRgFIAEoCSJkChlMaXN0UmVzb3VyY2VFdmVudHNSZXF1ZXN0Eh0KC3Jlc291cmNlX2lkGAEgASgJQgi6SAVyA7ABARIeCgVsaW1pdBgCIAEoBUIKukgHGgUY6AcoAUgAiAEBQggKBl9saW1pdCJFChpMaXN0UmVzb3VyY2VFdmVudHNSZXNwb25zZRInCgZldmVudHMYASADKAsyFy5sb2NvLnJlc291cmNlLnYxLkV2ZW50IvABChRTY2FsZVJlc291cmNlUmVxdWVzdBIdCgtyZXNvdXJjZV9pZBgBIAEoCUIIukgFcgOwAQESHgoIcmVwbGljYXMYAiABKAVCB7pIBBoCKAFIAIgBARIZCgNjcHUYAyABKAlCB7pIBHICEAFIAYgBARIcCgZtZW1vcnkYBCABKAlCB7pIBHICEAFIAogBARITCgZyZWdpb24YBSABKAlIA4gBARIgCg5lbnZpcm9ubWVudF9pZBgGIAEoCUIIukgFcgOwAQFCCwoJX3JlcGxpY2FzQgYKBF9jcHVCCQoHX21lbW9yeUIJCgdfcmVnaW9uIhcKFVNjYWxlUmVzb3VyY2VSZXNwb25zZSJ0ChZUcmFuc2ZlclBhcnRpYWxSZXF1ZXN0Eh0KC3Jlc291cmNlX2lkGAEgASgJQgi6SAVyA7ABARI7CgdwYXJ0aWFsGAIgASgJQiq6SCdyJRABGD8yH15bYS16MC05XShbLWEtejAtOV0qW2EtejAtOV0pPyQiGQoXVHJhbnNmZXJQYXJ0aWFsUmVzcG9uc2UqygEKDFJlc291cmNlVHlwZRIdChlSRVNPVVJDRV9UWVBFX1VOU1BFQ0lGSUVEEAASGQoVUkVTT1VSQ0VfVFlQRV9TRVJWSUNFEAESGgoWUkVTT1VSQ0VfVFlQRV9EQVRBQkFTRRACEhoKFlJFU09VUkNFX1RZUEVfRlVOQ1RJT04QAxIXChNSRVNPVVJDRV9UWVBFX0NBQ0hFEAQSFwoTUkVTT1VSQ0VfVFlQRV9RVUVVRRAFEhYKElJFU09VUkNFX1RZUEVfQkxPQhAGKuoBCg5SZXNvdXJjZVN0YXR1cxIfChtSRVNPVVJDRV9TVEFUVVNfVU5TUEVDSUZJRUQQABIbChdSRVNPVVJDRV9TVEFUVVNfSEVBTFRIWRABEh0KGVJFU09VUkNFX1NUQVRVU19ERVBMT1lJTkcQAhIcChhSRVNPVVJDRV9TVEFUVVNfREVHUkFERUQQAxIfChtSRVNPVVJDRV9TVEFUVVNfVU5BVkFJTEFCTEUQBBIbChdSRVNPVVJDRV9TVEFUVVNfVU5LTk9XThAGIgQIBRAFKhlSRVNPVVJDRV9TVEFUVVNfU1VTUEVOREVEMpUICg9SZXNvdXJjZVNlcnZpY2USYwoOQ3JlYXRlUmVzb3VyY2USJy5sb2NvLnJlc291cmNlLnYxLkNyZWF0ZVJlc291cmNlUmVxdWVzdBooLmxvY28ucmVzb3VyY2UudjEuQ3JlYXRlUmVzb3VyY2VSZXNwb25zZRJaCgtHZXRSZXNvdXJjZRIkLmxvY28ucmVzb3VyY2UudjEuR2V0UmVzb3VyY2VSZXF1ZXN0GiUubG9jby5yZXNvdXJjZS52MS5HZXRSZXNvdXJjZVJlc3BvbnNlEmMKDlVwZGF0ZVJlc291cmNlEicubG9jby5yZXNvdXJjZS52MS5VcGRhdGVSZXNvdXJjZVJlcXVlc3QaKC5sb2NvLnJlc291cmNlLnYxLlVwZGF0ZVJlc291cmNlUmVzcG9uc2USYwoORGVsZXRlUmVzb3VyY2USJy5sb2NvLnJlc291cmNlLnYxLkRlbGV0ZVJlc291cmNlUmVxdWVzdBooLmxvY28ucmVzb3VyY2UudjEuRGVsZXRlUmVzb3VyY2VSZXNwb25zZRJ7ChZMaXN0V29ya3NwYWNlUmVzb3VyY2VzEi8ubG9jby5yZXNvdXJjZS52MS5MaXN0V29ya3NwYWNlUmVzb3VyY2VzUmVxdWVzdBowLmxvY28ucmVzb3VyY2UudjEuTGlzdFdvcmtzcGFjZVJlc291cmNlc1Jlc3BvbnNlEloKC0xpc3RSZWdpb25zEiQubG9jby5yZXNvdXJjZS52MS5MaXN0UmVnaW9uc1JlcXVlc3QaJS5sb2NvLnJlc291cmNlLnYxLkxpc3RSZWdpb25zUmVzcG9uc2USYwoOR2V0UmVzb3VyY2VFbnYSJy5sb2NvLnJlc291cmNlLnYxLkdldFJlc291cmNlRW52UmVxdWVzdBooLmxvY28ucmVzb3VyY2UudjEuR2V0UmVzb3VyY2VFbnZSZXNwb25zZRJvChJMaXN0UmVzb3VyY2VFdmVudHMSKy5sb2NvLnJlc291cmNlLnYxLkxpc3RSZXNvdXJjZUV2ZW50c1JlcXVlc3QaLC5sb2NvLnJlc291cmNlLnYxLkxpc3RSZXNvdXJjZUV2ZW50c1Jlc3BvbnNlEmAKDVNjYWxlUmVzb3VyY2USJi5sb2NvLnJlc291cmNlLnYxLlNjYWxlUmVzb3VyY2VSZXF1ZXN0GicubG9jby5yZXNvdXJjZS52MS5TY2FsZVJlc291cmNlUmVzcG9uc2USZgoPVHJhbnNmZXJQYXJ0aWFsEigubG9jby5yZXNvdXJjZS52MS5UcmFuc2ZlclBhcnRpYWxSZXF1ZXN0GikubG9jby5yZXNvdXJjZS52MS5UcmFuc2ZlclBhcnRpYWxSZXNwb25zZUI+WjxnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL3Jlc291cmNlL3YxO3Jlc291cmNldjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_field_mask, file_google_protobuf_timestamp, file_loco_deployment_v1_deployment, file_loco_domain_v1_domain]);
+  fileDesc("Ch9sb2NvL3Jlc291cmNlL3YxL3Jlc291cmNlLnByb3RvEhBsb2NvLnJlc291cmNlLnYxIkgKDVJvdXRpbmdDb25maWcSDAoEcG9ydBgBIAEoBRITCgtwYXRoX3ByZWZpeBgCIAEoCRIUCgxpZGxlX3RpbWVvdXQYAyABKAUiTgoNTG9nZ2luZ0NvbmZpZxIPCgdlbmFibGVkGAEgASgIEhgKEHJldGVudGlvbl9wZXJpb2QYAiABKAkSEgoKc3RydWN0dXJlZBgDIAEoCCI8Cg1NZXRyaWNzQ29uZmlnEg8KB2VuYWJsZWQYASABKAgSDAoEcGF0aBgCIAEoCRIMCgRwb3J0GAMgASgFIogBChNPYnNlcnZhYmlsaXR5Q29uZmlnEjAKB2xvZ2dpbmcYASABKAsyHy5sb2NvLnJlc291cmNlLnYxLkxvZ2dpbmdDb25maWcSMAoHbWV0cmljcxgCIAEoCzIfLmxvY28ucmVzb3VyY2UudjEuTWV0cmljc0NvbmZpZ0oECAMQBFIHdHJhY2luZyK2AQoMUmVnaW9uVGFyZ2V0Eg8KB2VuYWJsZWQYASABKAgSCwoDY3B1GAMgASgJEg4KBm1lbW9yeRgEIAEoCRIUCgxtaW5fcmVwbGljYXMYBSABKAUSFAoMbWF4X3JlcGxpY2FzGAYgASgFEjEKB3NjYWxlcnMYByABKAsyGy5sb2NvLmRlcGxveW1lbnQudjEuU2NhbGVyc0gAiAEBQgoKCF9zY2FsZXJzSgQIAhADUgdwcmltYXJ5IucCCgtTZXJ2aWNlU3BlYxIwCgdyb3V0aW5nGAEgASgLMh8ubG9jby5yZXNvdXJjZS52MS5Sb3V0aW5nQ29uZmlnEjwKDW9ic2VydmFiaWxpdHkYAiABKAsyJS5sb2NvLnJlc291cmNlLnYxLk9ic2VydmFiaWxpdHlDb25maWcSRQoHcmVnaW9ucxgDIAMoCzIqLmxvY28ucmVzb3VyY2UudjEuU2VydmljZVNwZWMuUmVnaW9uc0VudHJ5Qgi6SAWaAQIIARJACgxoZWFsdGhfY2hlY2sYBCABKAsyJS5sb2NvLmRlcGxveW1lbnQudjEuSGVhbHRoQ2hlY2tDb25maWdIAIgBARpOCgxSZWdpb25zRW50cnkSCwoDa2V5GAEgASgJEi0KBXZhbHVlGAIgASgLMh4ubG9jby5yZXNvdXJjZS52MS5SZWdpb25UYXJnZXQ6AjgBQg8KDV9oZWFsdGhfY2hlY2siDgoMRGF0YWJhc2VTcGVjIgsKCUNhY2hlU3BlYyILCglRdWV1ZVNwZWMiCgoIQmxvYlNwZWMihAIKDFJlc291cmNlU3BlYxIwCgdzZXJ2aWNlGAEgASgLMh0ubG9jby5yZXNvdXJjZS52MS5TZXJ2aWNlU3BlY0gAEjIKCGRhdGFiYXNlGAIgASgLMh4ubG9jby5yZXNvdXJjZS52MS5EYXRhYmFzZVNwZWNIABIsCgVjYWNoZRgDIAEoCzIbLmxvY28ucmVzb3VyY2UudjEuQ2FjaGVTcGVjSAASLAoFcXVldWUYBCABKAsyGy5sb2NvLnJlc291cmNlLnYxLlF1ZXVlU3BlY0gAEioKBGJsb2IYBSABKAsyGi5sb2NvLnJlc291cmNlLnYxLkJsb2JTcGVjSABCBgoEc3BlYyKhBAoIUmVzb3VyY2USCgoCaWQYASABKAkSFAoMd29ya3NwYWNlX2lkGAIgASgJEgwKBG5hbWUYAyABKAkSLAoEdHlwZRgEIAEoDjIeLmxvY28ucmVzb3VyY2UudjEuUmVzb3VyY2VUeXBlEi8KB2RvbWFpbnMYBSADKAsyHi5sb2NvLmRvbWFpbi52MS5SZXNvdXJjZURvbWFpbhIxCgRzcGVjGAggASgLMh4ubG9jby5yZXNvdXJjZS52MS5SZXNvdXJjZVNwZWNIAIgBARIUCgxzcGVjX3ZlcnNpb24YCSABKAUSGAoLZGVzY3JpcHRpb24YCiABKAlIAYgBARISCgpjcmVhdGVkX2J5GAsgASgJEi4KCmNyZWF0ZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhQKB3BhcnRpYWwYDyABKAlIAogBARJBChRlbnZpcm9ubWVudF9zdGF0dXNlcxgQIAMoCzIjLmxvY28ucmVzb3VyY2UudjEuRW52aXJvbm1lbnRTdGF0dXNCBwoFX3NwZWNCDgoMX2Rlc2NyaXB0aW9uQgoKCF9wYXJ0aWFsSgQIBhAHSgQIBxAISgQIDhAPUgdyZWdpb25zUgZzdGF0dXNSDmVudmlyb25tZW50X2lkIqgBChFFbnZpcm9ubWVudFN0YXR1cxIWCg5lbnZpcm9ubWVudF9pZBgBIAEoCRIYChBlbnZpcm9ubWVudF9uYW1lGAIgASgJEjAKBnN0YXR1cxgDIAEoDjIgLmxvY28ucmVzb3VyY2UudjEuUmVzb3VyY2VTdGF0dXMSLwoHcmVnaW9ucxgEIAMoCzIeLmxvY28ucmVzb3VyY2UudjEuUmVnaW9uU3RhdHVzIsECCgxSZWdpb25TdGF0dXMSDgoGcmVnaW9uGAEgASgJEjAKBnN0YXR1cxgCIAEoDjIgLmxvY28ucmVzb3VyY2UudjEuUmVzb3VyY2VTdGF0dXMSFgoOcmVhZHlfcmVwbGljYXMYAyABKAUSGAoQZGVzaXJlZF9yZXBsaWNhcxgEIAEoBRIVCg1kZXBsb3ltZW50X2lkGAUgASgJEj4KEWRlcGxveW1lbnRfc3RhdHVzGAYgASgOMiMubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRQaGFzZRIUCgdtZXNzYWdlGAcgASgJSACIAQESNAoLcmVwb3J0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAGIAQFCCgoIX21lc3NhZ2VCDgoMX3JlcG9ydGVkX2F0IsUCChVDcmVhdGVSZXNvdXJjZVJlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIVCgRuYW1lGAIgASgJQge6SARyAhg/EjgKBHR5cGUYAyABKA4yHi5sb2NvLnJlc291cmNlLnYxLlJlc291cmNlVHlwZUIKukgHggEEEAEgABIwCgZkb21haW4YBCABKAsyGy5sb2NvLmRvbWFpbi52MS5Eb21haW5JbnB1dEgAiAEBEjQKBHNwZWMYBSABKAsyHi5sb2NvLnJlc291cmNlLnYxLlJlc291cmNlU3BlY0IGukgDyAEBEiIKC2Rlc2NyaXB0aW9uGAYgASgJQgi6SAVyAxiAAkgBiAEBQgkKB19kb21haW5CDgoMX2Rlc2NyaXB0aW9uSgQIBxAIUg5lbnZpcm9ubWVudF9pZCItChZDcmVhdGVSZXNvdXJjZVJlc3BvbnNlEhMKC3Jlc291cmNlX2lkGAEgASgJIksKEkdldFJlc291cmNlTmFtZUtleRIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBEhUKBG5hbWUYAiABKAlCB7pIBHICEAEibAoSR2V0UmVzb3VyY2VSZXF1ZXN0EhUKC3Jlc291cmNlX2lkGAEgASgJSAASOAoIbmFtZV9rZXkYAiABKAsyJC5sb2NvLnJlc291cmNlLnYxLkdldFJlc291cmNlTmFtZUtleUgAQgUKA2tleSJDChNHZXRSZXNvdXJjZVJlc3BvbnNlEiwKCHJlc291cmNlGAEgASgLMhoubG9jby5yZXNvdXJjZS52MS5SZXNvdXJjZSJyCh1MaXN0V29ya3NwYWNlUmVzb3VyY2VzUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBEh0KCXBhZ2Vfc2l6ZRgCIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAMgASgJImgKHkxpc3RXb3Jrc3BhY2VSZXNvdXJjZXNSZXNwb25zZRItCglyZXNvdXJjZXMYASADKAsyGi5sb2NvLnJlc291cmNlLnYxLlJlc291cmNlEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSLAAQoVVXBkYXRlUmVzb3VyY2VSZXF1ZXN0Eh0KC3Jlc291cmNlX2lkGAEgASgJQgi6SAVyA7ABARIvCgt1cGRhdGVfbWFzaxgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5GaWVsZE1hc2sSGgoEbmFtZRgDIAEoCUIHukgEcgIYP0gAiAEBEiIKC2Rlc2NyaXB0aW9uGAQgASgJQgi6SAVyAxiAAkgBiAEBQgcKBV9uYW1lQg4KDF9kZXNjcmlwdGlvbiItChZVcGRhdGVSZXNvdXJjZVJlc3BvbnNlEhMKC3Jlc291cmNlX2lkGAEgASgJIjYKFURlbGV0ZVJlc291cmNlUmVxdWVzdBIdCgtyZXNvdXJjZV9pZBgBIAEoCUIIukgFcgOwAQEiGAoWRGVsZXRlUmVzb3VyY2VSZXNwb25zZSJHCgpSZWdpb25JbmZvEg4KBnJlZ2lvbhgBIAEoCRISCgppc19kZWZhdWx0GAIgASgIEhUKDWhlYWx0aF9zdGF0dXMYAyABKAkiFAoSTGlzdFJlZ2lvbnNSZXF1ZXN0IkQKE0xpc3RSZWdpb25zUmVzcG9uc2USLQoHcmVnaW9ucxgBIAMoCzIcLmxvY28ucmVzb3VyY2UudjEuUmVnaW9uSW5mbyJYChVHZXRSZXNvdXJjZUVudlJlcXVlc3QSHQoLcmVzb3VyY2VfaWQYASABKAlCCLpIBXIDsAEBEiAKDmVudmlyb25tZW50X2lkGAIgASgJQgi6SAVyA7ABASKaAQoWR2V0UmVzb3VyY2VFbnZSZXNwb25zZRI+CgNlbnYYASADKAsyMS5sb2NvLnJlc291cmNlLnYxLkdldFJlc291cmNlRW52UmVzcG9uc2UuRW52RW50cnkSFAoMc2VjcmV0X25hbWVzGAIgAygJGioKCEVudkVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEidwoFRXZlbnQSLQoJdGltZXN0YW1wGAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIOCgZyZWFzb24YAiABKAkSDwoHbWVzc2FnZRgDIAEoCRIMCgR0eXBlGAQgASgJEhAKCHBvZF9uYW1lGAUgASgJImQKGUxpc3RSZXNvdXJjZUV2ZW50c1JlcXVlc3QSHQoLcmVzb3VyY2VfaWQYASABKAlCCLpIBXIDsAEBEh4KBWxpbWl0GAIgASgFQgq6SAcaBRjoBygBSACIAQFCCAoGX2xpbWl0IkUKGkxpc3RSZXNvdXJjZUV2ZW50c1Jlc3BvbnNlEicKBmV2ZW50cxgBIAMoCzIXLmxvY28ucmVzb3VyY2UudjEuRXZlbnQi8AEKFFNjYWxlUmVzb3VyY2VSZXF1ZXN0Eh0KC3Jlc291cmNlX2lkGAEgASgJQgi6SAVyA7ABARIeCghyZXBsaWNhcxgCIAEoBUIHukgEGgIoAUgAiAEBEhkKA2NwdRgDIAEoCUIHukgEcgIQAUgBiAEBEhwKBm1lbW9yeRgEIAEoCUIHukgEcgIQAUgCiAEBEhMKBnJlZ2lvbhgFIAEoCUgDiAEBEiAKDmVudmlyb25tZW50X2lkGAYgASgJQgi6SAVyA7ABAUILCglfcmVwbGljYXNCBgoEX2NwdUIJCgdfbWVtb3J5QgkKB19yZWdpb24iFwoVU2NhbGVSZXNvdXJjZVJlc3BvbnNlInQKFlRyYW5zZmVyUGFydGlhbFJlcXVlc3QSHQoLcmVzb3VyY2VfaWQYASABKAlCCLpIBXIDsAEBEjsKB3BhcnRpYWwYAiABKAlCKrpIJ3IlEAEYPzIfXlthLXowLTldKFstYS16MC05XSpbYS16MC05XSk/JCIZChdUcmFuc2ZlclBhcnRpYWxSZXNwb25zZSrKAQoMUmVzb3VyY2VUeXBlEh0KGVJFU09VUkNFX1RZUEVfVU5TUEVDSUZJRUQQABIZChVSRVNPVVJDRV9UWVBFX1NFUlZJQ0UQARIaChZSRVNPVVJDRV9UWVBFX0RBVEFCQVNFEAISGgoWUkVTT1VSQ0VfVFlQRV9GVU5DVElPThADEhcKE1JFU09VUkNFX1RZUEVfQ0FDSEUQBBIXChNSRVNPVVJDRV9UWVBFX1FVRVVFEAUSFgoSUkVTT1VSQ0VfVFlQRV9CTE9CEAYq6gEKDlJlc291cmNlU3RhdHVzEh8KG1JFU09VUkNFX1NUQVRVU19VTlNQRUNJRklFRBAAEhsKF1JFU09VUkNFX1NUQVRVU19IRUFMVEhZEAESHQoZUkVTT1VSQ0VfU1RBVFVTX0RFUExPWUlORxACEhwKGFJFU09VUkNFX1NUQVRVU19ERUdSQURFRBADEh8KG1JFU09VUkNFX1NUQVRVU19VTkFWQUlMQUJMRRAEEhsKF1JFU09VUkNFX1NUQVRVU19VTktOT1dOEAYiBAgFEAUqGVJFU09VUkNFX1NUQVRVU19TVVNQRU5ERUQylQgKD1Jlc291cmNlU2VydmljZRJjCg5DcmVhdGVSZXNvdXJjZRInLmxvY28ucmVzb3VyY2UudjEuQ3JlYXRlUmVzb3VyY2VSZXF1ZXN0GigubG9jby5yZXNvdXJjZS52MS5DcmVhdGVSZXNvdXJjZVJlc3BvbnNlEloKC0dldFJlc291cmNlEiQubG9jby5yZXNvdXJjZS52MS5HZXRSZXNvdXJjZVJlcXVlc3QaJS5sb2NvLnJlc291cmNlLnYxLkdldFJlc291cmNlUmVzcG9uc2USYwoOVXBkYXRlUmVzb3VyY2USJy5sb2NvLnJlc291cmNlLnYxLlVwZGF0ZVJlc291cmNlUmVxdWVzdBooLmxvY28ucmVzb3VyY2UudjEuVXBkYXRlUmVzb3VyY2VSZXNwb25zZRJjCg5EZWxldGVSZXNvdXJjZRInLmxvY28ucmVzb3VyY2UudjEuRGVsZXRlUmVzb3VyY2VSZXF1ZXN0GigubG9jby5yZXNvdXJjZS52MS5EZWxldGVSZXNvdXJjZVJlc3BvbnNlEnsKFkxpc3RXb3Jrc3BhY2VSZXNvdXJjZXMSLy5sb2NvLnJlc291cmNlLnYxLkxpc3RXb3Jrc3BhY2VSZXNvdXJjZXNSZXF1ZXN0GjAubG9jby5yZXNvdXJjZS52MS5MaXN0V29ya3NwYWNlUmVzb3VyY2VzUmVzcG9uc2USWgoLTGlzdFJlZ2lvbnMSJC5sb2NvLnJlc291cmNlLnYxLkxpc3RSZWdpb25zUmVxdWVzdBolLmxvY28ucmVzb3VyY2UudjEuTGlzdFJlZ2lvbnNSZXNwb25zZRJjCg5HZXRSZXNvdXJjZUVudhInLmxvY28ucmVzb3VyY2UudjEuR2V0UmVzb3VyY2VFbnZSZXF1ZXN0GigubG9jby5yZXNvdXJjZS52MS5HZXRSZXNvdXJjZUVudlJlc3BvbnNlEm8KEkxpc3RSZXNvdXJjZUV2ZW50cxIrLmxvY28ucmVzb3VyY2UudjEuTGlzdFJlc291cmNlRXZlbnRzUmVxdWVzdBosLmxvY28ucmVzb3VyY2UudjEuTGlzdFJlc291cmNlRXZlbnRzUmVzcG9uc2USYAoNU2NhbGVSZXNvdXJjZRImLmxvY28ucmVzb3VyY2UudjEuU2NhbGVSZXNvdXJjZVJlcXVlc3QaJy5sb2NvLnJlc291cmNlLnYxLlNjYWxlUmVzb3VyY2VSZXNwb25zZRJmCg9UcmFuc2ZlclBhcnRpYWwSKC5sb2NvLnJlc291cmNlLnYxLlRyYW5zZmVyUGFydGlhbFJlcXVlc3QaKS5sb2NvLnJlc291cmNlLnYxLlRyYW5zZmVyUGFydGlhbFJlc3BvbnNlQj5aPGdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vcmVzb3VyY2UvdjE7cmVzb3VyY2V2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_field_mask, file_google_protobuf_timestamp, file_loco_deployment_v1_deployment, file_loco_domain_v1_domain]);
 
 /**
  * RoutingConfig defines routing configuration for a resource.
@@ -201,57 +201,6 @@ export const MetricsConfigSchema: GenMessage<MetricsConfig, {jsonType: MetricsCo
   messageDesc(file_loco_resource_v1_resource, 2);
 
 /**
- * TracingConfig defines distributed tracing configuration.
- *
- * @generated from message loco.resource.v1.TracingConfig
- */
-export type TracingConfig = Message<"loco.resource.v1.TracingConfig"> & {
-  /**
-   * @generated from field: bool enabled = 1;
-   */
-  enabled: boolean;
-
-  /**
-   * @generated from field: double sample_rate = 2;
-   */
-  sampleRate: number;
-
-  /**
-   * @generated from field: map<string, string> tags = 3;
-   */
-  tags: { [key: string]: string };
-};
-
-/**
- * TracingConfig defines distributed tracing configuration.
- *
- * @generated from message loco.resource.v1.TracingConfig
- */
-export type TracingConfigJson = {
-  /**
-   * @generated from field: bool enabled = 1;
-   */
-  enabled?: boolean;
-
-  /**
-   * @generated from field: double sample_rate = 2;
-   */
-  sampleRate?: number | "NaN" | "Infinity" | "-Infinity";
-
-  /**
-   * @generated from field: map<string, string> tags = 3;
-   */
-  tags?: { [key: string]: string };
-};
-
-/**
- * Describes the message loco.resource.v1.TracingConfig.
- * Use `create(TracingConfigSchema)` to create a new message.
- */
-export const TracingConfigSchema: GenMessage<TracingConfig, {jsonType: TracingConfigJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 3);
-
-/**
  * ObservabilityConfig defines observability settings.
  *
  * @generated from message loco.resource.v1.ObservabilityConfig
@@ -266,11 +215,6 @@ export type ObservabilityConfig = Message<"loco.resource.v1.ObservabilityConfig"
    * @generated from field: loco.resource.v1.MetricsConfig metrics = 2;
    */
   metrics?: MetricsConfig | undefined;
-
-  /**
-   * @generated from field: loco.resource.v1.TracingConfig tracing = 3;
-   */
-  tracing?: TracingConfig | undefined;
 };
 
 /**
@@ -288,11 +232,6 @@ export type ObservabilityConfigJson = {
    * @generated from field: loco.resource.v1.MetricsConfig metrics = 2;
    */
   metrics?: MetricsConfigJson;
-
-  /**
-   * @generated from field: loco.resource.v1.TracingConfig tracing = 3;
-   */
-  tracing?: TracingConfigJson;
 };
 
 /**
@@ -300,7 +239,7 @@ export type ObservabilityConfigJson = {
  * Use `create(ObservabilityConfigSchema)` to create a new message.
  */
 export const ObservabilityConfigSchema: GenMessage<ObservabilityConfig, {jsonType: ObservabilityConfigJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 4);
+  messageDesc(file_loco_resource_v1_resource, 3);
 
 /**
  * RegionTarget defines the desired state for a specific region.
@@ -393,7 +332,7 @@ export type RegionTargetJson = {
  * Use `create(RegionTargetSchema)` to create a new message.
  */
 export const RegionTargetSchema: GenMessage<RegionTarget, {jsonType: RegionTargetJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 5);
+  messageDesc(file_loco_resource_v1_resource, 4);
 
 /**
  * ServiceSpec is the resource specification for SERVICE type resources.
@@ -462,7 +401,7 @@ export type ServiceSpecJson = {
  * Use `create(ServiceSpecSchema)` to create a new message.
  */
 export const ServiceSpecSchema: GenMessage<ServiceSpec, {jsonType: ServiceSpecJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 6);
+  messageDesc(file_loco_resource_v1_resource, 5);
 
 /**
  * DatabaseSpec is a placeholder for DATABASE type resources (future implementation).
@@ -489,7 +428,7 @@ export type DatabaseSpecJson = {
  * Use `create(DatabaseSpecSchema)` to create a new message.
  */
 export const DatabaseSpecSchema: GenMessage<DatabaseSpec, {jsonType: DatabaseSpecJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 7);
+  messageDesc(file_loco_resource_v1_resource, 6);
 
 /**
  * CacheSpec is a placeholder for CACHE type resources (future implementation).
@@ -516,7 +455,7 @@ export type CacheSpecJson = {
  * Use `create(CacheSpecSchema)` to create a new message.
  */
 export const CacheSpecSchema: GenMessage<CacheSpec, {jsonType: CacheSpecJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 8);
+  messageDesc(file_loco_resource_v1_resource, 7);
 
 /**
  * QueueSpec is a placeholder for QUEUE type resources (future implementation).
@@ -543,7 +482,7 @@ export type QueueSpecJson = {
  * Use `create(QueueSpecSchema)` to create a new message.
  */
 export const QueueSpecSchema: GenMessage<QueueSpec, {jsonType: QueueSpecJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 9);
+  messageDesc(file_loco_resource_v1_resource, 8);
 
 /**
  * BlobSpec is a placeholder for BLOB type resources (future implementation).
@@ -570,7 +509,7 @@ export type BlobSpecJson = {
  * Use `create(BlobSpecSchema)` to create a new message.
  */
 export const BlobSpecSchema: GenMessage<BlobSpec, {jsonType: BlobSpecJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 10);
+  messageDesc(file_loco_resource_v1_resource, 9);
 
 /**
  * ResourceSpec defines the global infrastructure intent for a resource.
@@ -653,7 +592,7 @@ export type ResourceSpecJson = {
  * Use `create(ResourceSpecSchema)` to create a new message.
  */
 export const ResourceSpecSchema: GenMessage<ResourceSpec, {jsonType: ResourceSpecJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 11);
+  messageDesc(file_loco_resource_v1_resource, 10);
 
 /**
  * Resource represents a resource in a workspace.
@@ -804,7 +743,7 @@ export type ResourceJson = {
  * Use `create(ResourceSchema)` to create a new message.
  */
 export const ResourceSchema: GenMessage<Resource, {jsonType: ResourceJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 12);
+  messageDesc(file_loco_resource_v1_resource, 11);
 
 /**
  * EnvironmentStatus is a resource's status in one environment it has an active deployment in.
@@ -865,7 +804,7 @@ export type EnvironmentStatusJson = {
  * Use `create(EnvironmentStatusSchema)` to create a new message.
  */
 export const EnvironmentStatusSchema: GenMessage<EnvironmentStatus, {jsonType: EnvironmentStatusJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 13);
+  messageDesc(file_loco_resource_v1_resource, 12);
 
 /**
  * RegionStatus is a resource's status in one region of an environment: its active deployment and
@@ -968,7 +907,7 @@ export type RegionStatusJson = {
  * Use `create(RegionStatusSchema)` to create a new message.
  */
 export const RegionStatusSchema: GenMessage<RegionStatus, {jsonType: RegionStatusJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 14);
+  messageDesc(file_loco_resource_v1_resource, 13);
 
 /**
  * CreateResourceRequest is the request to create a new resource.
@@ -1049,7 +988,7 @@ export type CreateResourceRequestJson = {
  * Use `create(CreateResourceRequestSchema)` to create a new message.
  */
 export const CreateResourceRequestSchema: GenMessage<CreateResourceRequest, {jsonType: CreateResourceRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 15);
+  messageDesc(file_loco_resource_v1_resource, 14);
 
 /**
  * CreateResourceResponse is the response containing the created resource ID.
@@ -1080,7 +1019,7 @@ export type CreateResourceResponseJson = {
  * Use `create(CreateResourceResponseSchema)` to create a new message.
  */
 export const CreateResourceResponseSchema: GenMessage<CreateResourceResponse, {jsonType: CreateResourceResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 16);
+  messageDesc(file_loco_resource_v1_resource, 15);
 
 /**
  * GetResourceNameKey is used to lookup a resource by name within a workspace.
@@ -1121,7 +1060,7 @@ export type GetResourceNameKeyJson = {
  * Use `create(GetResourceNameKeySchema)` to create a new message.
  */
 export const GetResourceNameKeySchema: GenMessage<GetResourceNameKey, {jsonType: GetResourceNameKeyJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 17);
+  messageDesc(file_loco_resource_v1_resource, 16);
 
 /**
  * GetResourceRequest is the request to retrieve a resource.
@@ -1169,7 +1108,7 @@ export type GetResourceRequestJson = {
  * Use `create(GetResourceRequestSchema)` to create a new message.
  */
 export const GetResourceRequestSchema: GenMessage<GetResourceRequest, {jsonType: GetResourceRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 18);
+  messageDesc(file_loco_resource_v1_resource, 17);
 
 /**
  * GetResourceResponse is the response containing the resource.
@@ -1200,7 +1139,7 @@ export type GetResourceResponseJson = {
  * Use `create(GetResourceResponseSchema)` to create a new message.
  */
 export const GetResourceResponseSchema: GenMessage<GetResourceResponse, {jsonType: GetResourceResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 19);
+  messageDesc(file_loco_resource_v1_resource, 18);
 
 /**
  * ListWorkspaceResourcesRequest is the request to list resources.
@@ -1259,7 +1198,7 @@ export type ListWorkspaceResourcesRequestJson = {
  * Use `create(ListWorkspaceResourcesRequestSchema)` to create a new message.
  */
 export const ListWorkspaceResourcesRequestSchema: GenMessage<ListWorkspaceResourcesRequest, {jsonType: ListWorkspaceResourcesRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 20);
+  messageDesc(file_loco_resource_v1_resource, 19);
 
 /**
  * ListWorkspaceResourcesResponse is the response containing the list of resources.
@@ -1304,7 +1243,7 @@ export type ListWorkspaceResourcesResponseJson = {
  * Use `create(ListWorkspaceResourcesResponseSchema)` to create a new message.
  */
 export const ListWorkspaceResourcesResponseSchema: GenMessage<ListWorkspaceResourcesResponse, {jsonType: ListWorkspaceResourcesResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 21);
+  messageDesc(file_loco_resource_v1_resource, 20);
 
 /**
  * UpdateResourceRequest is the request to update a resource.
@@ -1365,7 +1304,7 @@ export type UpdateResourceRequestJson = {
  * Use `create(UpdateResourceRequestSchema)` to create a new message.
  */
 export const UpdateResourceRequestSchema: GenMessage<UpdateResourceRequest, {jsonType: UpdateResourceRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 22);
+  messageDesc(file_loco_resource_v1_resource, 21);
 
 /**
  * UpdateResourceResponse is the response containing the updated resource ID.
@@ -1396,7 +1335,7 @@ export type UpdateResourceResponseJson = {
  * Use `create(UpdateResourceResponseSchema)` to create a new message.
  */
 export const UpdateResourceResponseSchema: GenMessage<UpdateResourceResponse, {jsonType: UpdateResourceResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 23);
+  messageDesc(file_loco_resource_v1_resource, 22);
 
 /**
  * DeleteResourceRequest is the request to delete a resource.
@@ -1427,7 +1366,7 @@ export type DeleteResourceRequestJson = {
  * Use `create(DeleteResourceRequestSchema)` to create a new message.
  */
 export const DeleteResourceRequestSchema: GenMessage<DeleteResourceRequest, {jsonType: DeleteResourceRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 24);
+  messageDesc(file_loco_resource_v1_resource, 23);
 
 /**
  * DeleteResourceResponse is the response after deleting a resource.
@@ -1450,7 +1389,7 @@ export type DeleteResourceResponseJson = {
  * Use `create(DeleteResourceResponseSchema)` to create a new message.
  */
 export const DeleteResourceResponseSchema: GenMessage<DeleteResourceResponse, {jsonType: DeleteResourceResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 25);
+  messageDesc(file_loco_resource_v1_resource, 24);
 
 /**
  * RegionInfo represents available region information.
@@ -1501,7 +1440,7 @@ export type RegionInfoJson = {
  * Use `create(RegionInfoSchema)` to create a new message.
  */
 export const RegionInfoSchema: GenMessage<RegionInfo, {jsonType: RegionInfoJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 26);
+  messageDesc(file_loco_resource_v1_resource, 25);
 
 /**
  * ListRegionsRequest is the request to list available deployment regions.
@@ -1524,7 +1463,7 @@ export type ListRegionsRequestJson = {
  * Use `create(ListRegionsRequestSchema)` to create a new message.
  */
 export const ListRegionsRequestSchema: GenMessage<ListRegionsRequest, {jsonType: ListRegionsRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 27);
+  messageDesc(file_loco_resource_v1_resource, 26);
 
 /**
  * ListRegionsResponse is the response containing available regions.
@@ -1555,7 +1494,7 @@ export type ListRegionsResponseJson = {
  * Use `create(ListRegionsResponseSchema)` to create a new message.
  */
 export const ListRegionsResponseSchema: GenMessage<ListRegionsResponse, {jsonType: ListRegionsResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 28);
+  messageDesc(file_loco_resource_v1_resource, 27);
 
 /**
  * GetResourceEnvRequest names the service and the environment whose plain env variables to read.
@@ -1596,7 +1535,7 @@ export type GetResourceEnvRequestJson = {
  * Use `create(GetResourceEnvRequestSchema)` to create a new message.
  */
 export const GetResourceEnvRequestSchema: GenMessage<GetResourceEnvRequest, {jsonType: GetResourceEnvRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 29);
+  messageDesc(file_loco_resource_v1_resource, 28);
 
 /**
  * GetResourceEnvResponse holds the plain env variables and the declared secret names of the
@@ -1639,7 +1578,7 @@ export type GetResourceEnvResponseJson = {
  * Use `create(GetResourceEnvResponseSchema)` to create a new message.
  */
 export const GetResourceEnvResponseSchema: GenMessage<GetResourceEnvResponse, {jsonType: GetResourceEnvResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 30);
+  messageDesc(file_loco_resource_v1_resource, 29);
 
 /**
  * Event represents a Kubernetes event related to a resource (e.g., pod created, failed, crash loop).
@@ -1710,7 +1649,7 @@ export type EventJson = {
  * Use `create(EventSchema)` to create a new message.
  */
 export const EventSchema: GenMessage<Event, {jsonType: EventJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 31);
+  messageDesc(file_loco_resource_v1_resource, 30);
 
 /**
  * ListResourceEventsRequest is the request to retrieve resource events.
@@ -1755,7 +1694,7 @@ export type ListResourceEventsRequestJson = {
  * Use `create(ListResourceEventsRequestSchema)` to create a new message.
  */
 export const ListResourceEventsRequestSchema: GenMessage<ListResourceEventsRequest, {jsonType: ListResourceEventsRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 32);
+  messageDesc(file_loco_resource_v1_resource, 31);
 
 /**
  * ListResourceEventsResponse is the response containing resource events.
@@ -1786,7 +1725,7 @@ export type ListResourceEventsResponseJson = {
  * Use `create(ListResourceEventsResponseSchema)` to create a new message.
  */
 export const ListResourceEventsResponseSchema: GenMessage<ListResourceEventsResponse, {jsonType: ListResourceEventsResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 33);
+  messageDesc(file_loco_resource_v1_resource, 32);
 
 /**
  * ScaleResourceRequest is the request to scale a resource's active deployments in one environment.
@@ -1871,7 +1810,7 @@ export type ScaleResourceRequestJson = {
  * Use `create(ScaleResourceRequestSchema)` to create a new message.
  */
 export const ScaleResourceRequestSchema: GenMessage<ScaleResourceRequest, {jsonType: ScaleResourceRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 34);
+  messageDesc(file_loco_resource_v1_resource, 33);
 
 /**
  * ScaleResourceResponse is the response after scaling a resource.
@@ -1894,7 +1833,7 @@ export type ScaleResourceResponseJson = {
  * Use `create(ScaleResourceResponseSchema)` to create a new message.
  */
 export const ScaleResourceResponseSchema: GenMessage<ScaleResourceResponse, {jsonType: ScaleResourceResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 35);
+  messageDesc(file_loco_resource_v1_resource, 34);
 
 /**
  * TransferPartialRequest is the request to move a resource to another partial.
@@ -1935,7 +1874,7 @@ export type TransferPartialRequestJson = {
  * Use `create(TransferPartialRequestSchema)` to create a new message.
  */
 export const TransferPartialRequestSchema: GenMessage<TransferPartialRequest, {jsonType: TransferPartialRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 36);
+  messageDesc(file_loco_resource_v1_resource, 35);
 
 /**
  * TransferPartialResponse is the response after moving a resource to another partial.
@@ -1958,7 +1897,7 @@ export type TransferPartialResponseJson = {
  * Use `create(TransferPartialResponseSchema)` to create a new message.
  */
 export const TransferPartialResponseSchema: GenMessage<TransferPartialResponse, {jsonType: TransferPartialResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_resource_v1_resource, 37);
+  messageDesc(file_loco_resource_v1_resource, 36);
 
 /**
  * ResourceType categorizes the type of resource being deployed.

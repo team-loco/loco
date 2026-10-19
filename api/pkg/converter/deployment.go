@@ -31,12 +31,12 @@ func DeserializeResourceSpec(specBytes []byte, resourceType genDb.ResourceType) 
 
 	switch resourceType {
 	case genDb.ResourceTypeService:
-		var serviceSpec resourcev1.ServiceSpec
-		if err := protojson.Unmarshal(specBytes, &serviceSpec); err != nil {
+		serviceSpec, err := DeserializeStoredServiceSpec(specBytes)
+		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal service deployment spec: %w", err)
 		}
 		return &resourcev1.ResourceSpec{
-			Spec: &resourcev1.ResourceSpec_Service{Service: &serviceSpec},
+			Spec: &resourcev1.ResourceSpec_Service{Service: serviceSpec},
 		}, nil
 	default:
 		return nil, fmt.Errorf("unknown resource type for deployment: %s", resourceType)
@@ -73,12 +73,12 @@ func DeserializeResourceSpecByType(specBytes []byte, resourceType string) (*reso
 
 	switch resourceType {
 	case "service":
-		var serviceSpec resourcev1.ServiceSpec
-		if err := protojson.Unmarshal(specBytes, &serviceSpec); err != nil {
+		serviceSpec, err := DeserializeStoredServiceSpec(specBytes)
+		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal service spec: %w", err)
 		}
 		return &resourcev1.ResourceSpec{
-			Spec: &resourcev1.ResourceSpec_Service{Service: &serviceSpec},
+			Spec: &resourcev1.ResourceSpec_Service{Service: serviceSpec},
 		}, nil
 	case "database":
 		var databaseSpec resourcev1.DatabaseSpec
@@ -271,19 +271,9 @@ func ProtoToObsSpec(obs *resourcev1.ObservabilityConfig) *locoControllerV1.ObsSp
 		}
 	}
 
-	var tracing locoControllerV1.TracingSpec
-	if obs.GetTracing() != nil {
-		tracing = locoControllerV1.TracingSpec{
-			Enabled:    obs.GetTracing().GetEnabled(),
-			SampleRate: fmt.Sprintf("%v", obs.GetTracing().GetSampleRate()),
-			Tags:       obs.GetTracing().GetTags(),
-		}
-	}
-
 	return &locoControllerV1.ObsSpec{
 		Logging: logging,
 		Metrics: metrics,
-		Tracing: tracing,
 	}
 }
 

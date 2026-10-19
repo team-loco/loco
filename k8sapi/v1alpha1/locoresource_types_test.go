@@ -22,7 +22,6 @@ func TestZeroScalarFieldsAreOmittedUnderJSONV2(t *testing.T) {
 		Obs: &ObsSpec{
 			Logging: LoggingSpec{RetentionPeriod: "7d"},
 			Metrics: MetricsSpec{Path: "/metrics"},
-			Tracing: TracingSpec{SampleRate: "0.1"},
 		},
 	}
 	values := []any{spec, ApplicationStatus{}}

@@ -47,9 +47,22 @@ The controller sets these variables in every application container:
 | `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL` | the region's OpenTelemetry collector over OTLP/HTTP (`http/protobuf`) |
 | `OTEL_SERVICE_NAME` | the application's workload name, `resource-<resource id>` |
 | `OTEL_RESOURCE_ATTRIBUTES` | `deployment.environment.name` and `loco.deployment.id` |
-| `OTEL_TRACES_SAMPLER`, `OTEL_TRACES_SAMPLER_ARG` | `parentbased_traceidratio` at the resource's configured sampling rate when tracing is enabled, otherwise `parentbased_always_off` |
 
-An OpenTelemetry SDK reads the `OTEL_*` variables, so an instrumented application exports to Loco without configuration. With tracing disabled, the application starts no traces of its own but records spans for requests the gateway sampled at ingress, so a trace runs from the gateway into the application. The collector attaches the workspace, environment and resource IDs from the pod's labels and drops any values the application sends for them.
+An instrumented application whose OpenTelemetry SDK supports environment configuration uses these variables to export to Loco. The collector attaches the workspace, environment and resource IDs from the pod's labels and drops any values the application sends for them.
+
+Loco leaves application trace sampling to the SDK. Set the standard OpenTelemetry variables under the service's `env` map to sample 10% of new root traces while respecting a parent's sampling decision:
+
+```yaml
+services:
+  web:
+    env:
+      OTEL_TRACES_SAMPLER: parentbased_traceidratio
+      OTEL_TRACES_SAMPLER_ARG: "0.1"
+```
+
+These settings work outside Loco with an SDK that supports them. When they are unset, the application's SDK defaults apply. The [OpenTelemetry environment specification](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#general-sdk-configuration) specifies `parentbased_always_on`: sample new root traces and follow the parent's decision for child spans. Check your SDK's configuration support and any sampler set in application code. To drop new root traces while following sampled incoming traces, set `OTEL_TRACES_SAMPLER: parentbased_always_off`.
+
+`loco.yaml` has no tracing configuration block. Application sampling is independent of the self-hosted gateway's `envoyProxy.tracing.samplingRate`, which controls ingress sampling.
 
 An `OTEL_*` variable in `loco.yaml` under `env`, or named in `secrets` and set with `loco env`, replaces the injected variable of the same name. Plain values take precedence when the same name also appears in `secrets`. `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL` go together: setting either one drops both of Loco's values, so an endpoint is never paired with the wrong protocol. The `LOCO_*` variables cannot be overridden.
 

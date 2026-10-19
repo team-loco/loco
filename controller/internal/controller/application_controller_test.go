@@ -95,13 +95,6 @@ var _ = Describe("Application Controller", func() {
 									Path:    defaultMetricsPath,
 									Port:    9090,
 								},
-								Tracing: locov1alpha1.TracingSpec{
-									Enabled:    true,
-									SampleRate: "0.1",
-									Tags: map[string]string{
-										"service": "test",
-									},
-								},
 							},
 						},
 					},

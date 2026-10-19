@@ -87,38 +87,6 @@ func TestDockerImagePattern(t *testing.T) {
 	}
 }
 
-func TestObsSpecRequiresAValidSampleRateWhenTracing(t *testing.T) {
-	accepted := map[string]TracingSpec{
-		"disabled without a rate":  {},
-		"disabled with any rate":   {SampleRate: "lots"},
-		"enabled at zero":          {Enabled: true, SampleRate: "0"},
-		"enabled at a fraction":    {Enabled: true, SampleRate: "0.1"},
-		"enabled at one":           {Enabled: true, SampleRate: "1"},
-		"enabled in exponent form": {Enabled: true, SampleRate: "1e-05"},
-	}
-	for name, tracing := range accepted {
-		t.Run(name, func(t *testing.T) {
-			if err := validateObsSpec(&ObsSpec{Tracing: tracing}); err != nil {
-				t.Errorf("%+v rejected: %v", tracing, err)
-			}
-		})
-	}
-	rejected := map[string]TracingSpec{
-		"enabled without a rate": {Enabled: true},
-		"enabled with text":      {Enabled: true, SampleRate: "lots"},
-		"enabled below zero":     {Enabled: true, SampleRate: "-0.1"},
-		"enabled above one":      {Enabled: true, SampleRate: "1.5"},
-		"enabled not a number":   {Enabled: true, SampleRate: "NaN"},
-	}
-	for name, tracing := range rejected {
-		t.Run(name, func(t *testing.T) {
-			if err := validateObsSpec(&ObsSpec{Tracing: tracing}); !errors.Is(err, errSampleRateInvalid) {
-				t.Errorf("validateObsSpec(%+v) = %v, want errSampleRateInvalid", tracing, err)
-			}
-		})
-	}
-}
-
 func TestEnabledAutoscalingIsRejected(t *testing.T) {
 	resources := ResourcesSpec{
 		CPU:      "250m",
