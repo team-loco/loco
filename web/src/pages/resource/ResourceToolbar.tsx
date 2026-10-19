@@ -66,11 +66,10 @@ export function ResourceToolbar({
 					const next = v[0];
 					if (next !== undefined) onTab(parseTab(next));
 				}}
-				className="rounded-xl"
 			>
 				{TABS.map((t) => (
-					<ToggleGroupItem key={t.value} value={t.value} className="h-8! gap-2 px-3.5 text-[13.5px]">
-						<t.icon className="size-[15px] opacity-85" />
+					<ToggleGroupItem key={t.value} value={t.value} className="gap-1.5">
+						<t.icon className="size-3.5 opacity-85" />
 						{t.label}
 					</ToggleGroupItem>
 				))}
@@ -93,7 +92,7 @@ export function ResourceToolbar({
 							key={o.label}
 							to={o.href}
 							className={cn(
-								"flex h-8 items-center gap-1.5 px-3 text-foreground no-underline hover:bg-bg3 hover:no-underline",
+								"flex h-7 items-center gap-1.5 px-2.5 text-sm text-foreground no-underline hover:bg-bg3 hover:no-underline",
 								i > 0 && "border-l border-line",
 							)}
 						>

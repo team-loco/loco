@@ -253,6 +253,7 @@
 		@apply border-border;
 	}
 	html {
+		@apply scroll-pt-16;
 		color-scheme: light;
 	}
 	html.dark {
