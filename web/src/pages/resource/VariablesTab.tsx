@@ -343,7 +343,7 @@ export function VariablesTab({
 							placeholder="KEY=value"
 							rows={6}
 							spellCheck={false}
-							className="bg-bg2 p-2.5 font-mono text-sm leading-normal"
+							className="resize-none bg-bg2 p-2.5 font-mono text-sm leading-normal"
 						/>
 						<div className="flex flex-wrap items-center gap-2.5">
 							<span className="flex-1 text-sm text-fg3">
