@@ -10,6 +10,7 @@ on:
       - "env/**"
       - "helmfile.yaml.gotmpl"
       - "tests/charts/**"
+      - "tests/collector/**"
       - "e2e/certificates.sh"
       - "e2e/control-plane.sh"
       - "e2e/api-failover.py"
@@ -29,6 +30,7 @@ on:
       - "env/**"
       - "helmfile.yaml.gotmpl"
       - "tests/charts/**"
+      - "tests/collector/**"
       - "e2e/certificates.sh"
       - "e2e/control-plane.sh"
       - "e2e/api-failover.py"
@@ -54,6 +56,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-tools
       - run: mise run test:chart-contracts
+      - run: mise run test:collector-logs
 
   certificates:
     runs-on: ubuntu-latest

@@ -379,6 +379,10 @@ run = "uv run --locked --project docs pytest docs/tests/browser.py"
 description = "Check the combined UI and documentation image"
 run = "uv run --locked --project docs pytest docs/tests/container.py"
 
+[tasks."test:collector-logs"]
+description = "Verify collected log severity with the chart-pinned OpenTelemetry Collector"
+run = "uv run --locked --project tests pytest tests/collector"
+
 [tasks."test:chart-contracts"]
 description = "Render regional certificate, observability Secret and collector pipeline contracts"
 depends = ["helm:deps"]
