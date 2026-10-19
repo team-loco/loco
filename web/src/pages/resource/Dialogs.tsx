@@ -25,7 +25,7 @@ export function SpecDialogContent({ dep, specVersion }: { dep: Deployment; specV
 	return (
 		<DialogContent className="top-[5vh] max-h-[90vh] w-[min(960px,calc(100%-32px))]" title={<TitleWithSub title="Deployment spec" sub={sub} />}>
 			<DialogBody className="overflow-hidden">
-				<CodeBlock language="json" className="min-h-0">{specText(dep)}</CodeBlock>
+				<CodeBlock language="json" className="min-h-0 [&_.code-lines]:w-full [&_.sh__line]:break-all [&_.sh__line]:whitespace-pre-wrap">{specText(dep)}</CodeBlock>
 			</DialogBody>
 		</DialogContent>
 	);
