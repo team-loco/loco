@@ -16,7 +16,6 @@ import { MANAGED_NOTICE_ID, ManagedNotice } from "./ManagedNotice";
 import type { Notice, RegionView } from "./model";
 import { ScaleSection } from "./ScaleSection";
 
-const DELETE_MANAGED_ID = "delete-managed";
 const NAME = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
 
 function GeneralSection({
@@ -59,6 +58,7 @@ function GeneralSection({
 	return (
 		<Section title="General">
 			<form
+				noValidate
 				className="grid grid-cols-1 gap-4 px-4 py-3.5 sm:grid-cols-2"
 				onSubmit={(e) => {
 					e.preventDefault();
@@ -133,7 +133,7 @@ export function SettingsTab({
 	const managed = resource.partial !== undefined;
 	return (
 		<div className="flex max-w-[880px] flex-col gap-5">
-			{resource.partial !== undefined && <ManagedNotice partial={resource.partial} />}
+			{resource.partial !== undefined && <ManagedNotice />}
 			<GeneralSection resource={resource} managed={managed} onSaved={onSaved} />
 			<ScaleSection
 				resourceId={resource.id}
@@ -148,19 +148,16 @@ export function SettingsTab({
 			<section className="rounded-lg border border-red bg-background">
 				<div className="flex items-center gap-4 px-4 py-3.5">
 					<div className="flex min-w-0 flex-1 flex-col gap-0.5">
-						<span className="font-semibold text-red">Delete {resource.name}</span>
+						<span className="font-semibold text-red">Delete resource</span>
 						{managed && (
-							<span id={DELETE_MANAGED_ID} className="text-sm text-fg3">
-								loco.yaml declares this service. Remove it from the file and run <code className="font-mono">loco infra apply</code>{" "}
-								to delete it.
+							<span className="text-sm text-fg3">
+								Deleting here causes drift with <code className="font-mono">loco.yaml</code>.
 							</span>
 						)}
 					</div>
 					<Button
 						variant="destructive-outline"
 						className="h-[30px] border-red"
-						disabled={managed}
-						aria-describedby={managed ? DELETE_MANAGED_ID : undefined}
 						onClick={onDelete}
 					>
 						Delete resource

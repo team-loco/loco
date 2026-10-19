@@ -1,4 +1,7 @@
 const SHORT_DIGEST_HEX = 12;
+const SHORT_REPOSITORY_LENGTH = 24;
+const SHORT_TAG_LENGTH = 16;
+const SHORT_SUFFIX_LENGTH = 6;
 const IMPLICIT_TAG = "latest";
 
 interface ImageParts {
@@ -32,9 +35,15 @@ export function imageVersion(image: string): string {
 	return IMPLICIT_TAG;
 }
 
+function compactImagePart(part: string, limit: number): string {
+	if (part.length <= limit) return part;
+	return `${part.slice(0, limit - SHORT_SUFFIX_LENGTH - 1)}…${part.slice(-SHORT_SUFFIX_LENGTH)}`;
+}
+
 export function shortImageRef(image: string): string {
 	const { repository, tag, digest } = parseImage(image);
-	if (tag !== "") return `${repository}:${tag}`;
-	if (digest !== "") return `${repository}@${shortDigest(digest)}`;
-	return repository;
+	const shortRepository = compactImagePart(repository, SHORT_REPOSITORY_LENGTH);
+	if (tag !== "") return `${shortRepository}:${compactImagePart(tag, SHORT_TAG_LENGTH)}`;
+	if (digest !== "") return `${shortRepository}@${shortDigest(digest)}`;
+	return shortRepository;
 }

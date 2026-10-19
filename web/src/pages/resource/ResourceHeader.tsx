@@ -73,7 +73,7 @@ function ImageRef({ image }: { image: string }) {
 				}
 			>
 				<PackageIcon className="size-3.5 shrink-0 text-fg3" />
-				<span className="truncate">{short}</span>
+				<span className="max-w-[44ch] truncate font-mono text-sm">{short}</span>
 				<span className="flex text-fg3">
 					{copied ? <CheckIcon className="size-[13px]" /> : <CopyIcon className="size-[13px]" />}
 				</span>
@@ -118,7 +118,7 @@ export function ResourceHeader({
 				<Badge tone="outline" size="sm" className="text-sm text-fg3">
 					{typeLabel(resource.type)}
 				</Badge>
-				{resource.partial !== undefined && <PartialBadge partial={resource.partial} />}
+				{resource.partial !== undefined && <PartialBadge />}
 			</div>
 			{resource.description !== undefined && resource.description !== "" && (
 				<div className="text-fg3">{resource.description}</div>
