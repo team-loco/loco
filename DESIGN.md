@@ -131,4 +131,5 @@ Application compute charts query the selected environment and wait for it to loa
 
 Historical logs and live tail use the selected environment. Queries wait for that selection; changing it resets pagination and log selection, uses separate cached history, and closes the previous live stream. Build logs remain available through unfiltered API queries.
 
+Compute charts share percentage formatting and evenly spaced percentage levels in `web/src/lib/compute-chart.ts`. Resource overview charts show average replica utilization against requests; collected Metrics shows the busiest replica against limits. Axes cover the requested time window, retain values above 100%, and include date/time ticks for day-long windows.
 Shared buttons and segmented controls use the compact 28px default height from their design wrappers. Single-select segmented controls slide one surface between selections; multiple-select controls keep independent surfaces. Motion follows the system reduced-motion preference. The top scope and search bar stays at the top of document scrolling with an opaque background.

@@ -12,7 +12,8 @@ import {
 	DropdownMenuLabel,
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
-import { DAY_MS, formatHourMinute, formatSlashDate } from "@/lib/time";
+import { DAY_MS } from "@/lib/time";
+import { formatMetricTime, timeAxis } from "@/lib/compute-chart";
 import { cn } from "@/lib/utils";
 
 import { fmtTs } from "./format";
@@ -166,12 +167,8 @@ export function MetricChart({
 	});
 	const data = [...byT.values()].toSorted((a, b) => a.t - b.t);
 	const config: ChartConfig = Object.fromEntries(series.map((s, i) => [`s${String(i)}`, { label: s.name, color: s.color }]));
-	const span = to - from;
-	const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => from + f * span);
-	const tickLabel = (v: number) => {
-		if (Math.abs(v - to) < span * 0.01) return "now";
-		return span > DAY_MS ? formatSlashDate(v) : formatHourMinute(v);
-	};
+	const ticks = timeAxis(from, to);
+	const tickLabel = (value: number) => formatMetricTime(value, from, to);
 	const single = series.length === 1;
 
 	return (
@@ -179,7 +176,7 @@ export function MetricChart({
 			<ChartContainer config={config} className="aspect-auto w-full cursor-crosshair" style={{ height }}>
 				<AreaChart
 					data={data}
-					margin={{ top: 6, right: 4, bottom: 0, left: 0 }}
+					margin={{ top: 6, right: to - from >= DAY_MS ? 40 : 12, bottom: 0, left: 0 }}
 					onClick={(state) => {
 						const t = Number(state.activeLabel);
 						if (Number.isFinite(t)) onPick(t);
@@ -195,16 +192,16 @@ export function MetricChart({
 						tickFormatter={tickLabel}
 						tickLine={false}
 						axisLine={{ stroke: "var(--line)" }}
-						tick={{ fontSize: 11, fill: "var(--fg4)" }}
+						tick={{ fontSize: 11, fill: "var(--fg3)" }}
 					/>
 					<YAxis
 						domain={[0, max]}
-						ticks={[0, max / 2, max]}
+						ticks={[0, max / 4, max / 2, max * 3 / 4, max]}
 						tickFormatter={fmt}
 						tickLine={false}
 						axisLine={false}
-						width={40}
-						tick={{ fontSize: 11, fill: "var(--fg4)" }}
+						width={48}
+						tick={{ fontSize: 11, fill: "var(--fg3)" }}
 					/>
 					<ChartTooltip
 						cursor={{ stroke: "var(--fg3)", strokeWidth: 1 }}
@@ -213,9 +210,9 @@ export function MetricChart({
 					{limit !== null && (
 						<ReferenceLine
 							y={limit.v}
-							stroke="var(--err)"
+							stroke="var(--r-fg)"
 							strokeDasharray="5 4"
-							label={{ value: limit.label, position: "insideTopRight", fill: "var(--err)", fontSize: 10.5 }}
+							label={{ value: limit.label, position: "insideTopRight", fill: "var(--r-fg)", fontSize: 10.5 }}
 						/>
 					)}
 					{markers.map((m) => (

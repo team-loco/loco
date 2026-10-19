@@ -8,7 +8,7 @@ export type MetricRange = "1h" | "6h" | "24h";
 
 export const METRIC_RANGES: MetricRange[] = ["1h", "6h", "24h"];
 
-const RANGE_MS: Record<MetricRange, number> = {
+export const RANGE_MS: Record<MetricRange, number> = {
 	"1h": 3_600_000,
 	"6h": 21_600_000,
 	"24h": 86_400_000,

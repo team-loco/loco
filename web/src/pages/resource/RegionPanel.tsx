@@ -12,9 +12,10 @@ import {
 import { DeploymentPhaseBadge } from "@/components/design/StatusBadge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { cn } from "@/lib/utils";
+import { formatPercent } from "@/lib/compute-chart";
 
 import { CopyId } from "./CopyId";
-import { fmtCpu, fmtMem, parseCpuMilli, parseMemMi, shortId } from "./format";
+import { shortId } from "./format";
 import { MetricChart } from "./MetricChart";
 import { depService, regionDotClass, type RegionView } from "./model";
 import { METRIC_RANGES, type MetricRange } from "./metric";
@@ -106,41 +107,32 @@ function ReplicasCell({ dep }: { dep: Deployment }) {
 function Charts({ workspaceId, range, dep }: { workspaceId: string; range: MetricRange; dep: Deployment }) {
 	const cpuQ = useRegionMetric({ workspaceId, deployment: dep, range, metricName: "k8s.pod.cpu_request_utilization" });
 	const memQ = useRegionMetric({ workspaceId, deployment: dep, range, metricName: "k8s.pod.memory_request_utilization" });
-	const svc = depService(dep);
-	const replicas = dep.replicas;
-	const reqCpu = parseCpuMilli(svc?.cpu ?? "");
-	const reqMem = parseMemMi(svc?.memory ?? "");
-	const live = Math.max(replicas, 1);
 	const lastCpu = cpuQ.points.at(-1)?.pct;
 	const lastMem = memQ.points.at(-1)?.pct;
-	const cpuNow = lastCpu === undefined || reqCpu === 0 ? "—" : fmtCpu(((reqCpu * lastCpu) / 100) * live);
-	const memNow = lastMem === undefined || reqMem === 0 ? "—" : fmtMem(((reqMem * lastMem) / 100) * live);
-	const cpuUnit = replicas > 0 && reqCpu > 0 ? `of ${fmtCpu(reqCpu * replicas)} requested` : "";
-	const memUnit = replicas > 0 && reqMem > 0 ? `of ${fmtMem(reqMem * replicas)} limit` : "";
 	const emptyText = (q: { error: Error | null }) =>
 		q.error !== null ? "Failed to load metrics" : "No data in this range";
 	return (
 		<>
 			<MetricChart
 				label="CPU"
-				current={cpuNow}
-				unit={cpuUnit}
+				current={lastCpu === undefined ? "—" : formatPercent(lastCpu)}
+				unit="of request · average replica"
 				points={cpuQ.points}
 				isLoading={cpuQ.isLoading}
 				emptyText={emptyText(cpuQ)}
-				limitLine={false}
-				from={`${range} ago`}
+				from={cpuQ.from}
+				to={cpuQ.to}
 				last={false}
 			/>
 			<MetricChart
 				label="Memory"
-				current={memNow}
-				unit={memUnit}
+				current={lastMem === undefined ? "—" : formatPercent(lastMem)}
+				unit="of request · average replica"
 				points={memQ.points}
 				isLoading={memQ.isLoading}
 				emptyText={emptyText(memQ)}
-				limitLine
-				from={`${range} ago`}
+				from={memQ.from}
+				to={memQ.to}
 				last
 			/>
 		</>
