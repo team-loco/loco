@@ -12,6 +12,7 @@ import {
 	DropdownMenuLabel,
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
+import { DAY_MS } from "@/lib/time";
 import { formatMetricTime, timeAxis } from "@/lib/compute-chart";
 import { cn } from "@/lib/utils";
 
@@ -175,7 +176,7 @@ export function MetricChart({
 			<ChartContainer config={config} className="aspect-auto w-full cursor-crosshair" style={{ height }}>
 				<AreaChart
 					data={data}
-					margin={{ top: 6, right: 4, bottom: 0, left: 0 }}
+					margin={{ top: 6, right: to - from >= DAY_MS ? 40 : 12, bottom: 0, left: 0 }}
 					onClick={(state) => {
 						const t = Number(state.activeLabel);
 						if (Number.isFinite(t)) onPick(t);
