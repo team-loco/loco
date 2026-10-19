@@ -7,7 +7,7 @@ type BaseVariant = "default" | "outline" | "secondary" | "ghost" | "destructive"
 type BaseSize = "default" | "xs" | "sm" | "lg" | "icon" | "icon-xs" | "icon-sm" | "icon-lg"
 
 const buttonVariants = cva(
-	"cursor-pointer gap-2 rounded-sm text-base active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-2 disabled:pointer-events-auto disabled:cursor-not-allowed disabled:opacity-55 [&_svg:not([class*='size-'])]:size-3.5",
+	"gap-1.5 rounded-sm text-sm active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-2 disabled:pointer-events-auto disabled:cursor-not-allowed disabled:opacity-55 [&_svg:not([class*='size-'])]:size-3.5",
 	{
 		variants: {
 			variant: {
@@ -24,12 +24,12 @@ const buttonVariants = cva(
 				link: "h-auto p-0 font-normal text-fg3 underline hover:text-foreground",
 			},
 			size: {
-				default: "h-8 px-3",
+				default: "h-7 px-2.5",
 				xs: "h-6.5 px-2.5 text-sm",
 				sm: "h-7 px-2.5 text-sm",
 				lg: "h-[34px] rounded-lg px-4",
 				xl: "h-[42px] rounded-lg px-4 text-md font-semibold",
-				icon: "size-8",
+				icon: "size-7",
 				"icon-sm": "size-7",
 				"icon-xs": "size-6",
 			},
