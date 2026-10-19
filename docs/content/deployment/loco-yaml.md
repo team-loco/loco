@@ -181,7 +181,7 @@ This command skips all source builds and uploads, including builds for other ser
 
 ## Variables and secrets
 
-`env` holds plain values, which appear in the plan and in the file.
+`env` holds plain values, which appear in the plan and in the file. Configure application trace sampling with standard OpenTelemetry variables under `env`; there is no separate tracing block. See [Trace sampling](../operations/applications.md#trace-sampling) for a portable example and SDK defaults.
 
 `secrets` lists the secret names the service reads; the file never contains their values. A secret belongs to one service in one environment, and `loco env` sets it:
 
