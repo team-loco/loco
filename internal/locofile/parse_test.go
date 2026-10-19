@@ -49,6 +49,17 @@ services:
       us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
 `
 
+func TestParsePortableOpenTelemetrySampling(t *testing.T) {
+	input := strings.Replace(minimalFile, "    image:", `    env:
+      OTEL_TRACES_SAMPLER: parentbased_traceidratio
+      OTEL_TRACES_SAMPLER_ARG: "0.1"
+    image:`, 1)
+	file, err := Parse([]byte(input))
+	require.NoError(t, err)
+	assert.Equal(t, "parentbased_traceidratio", file.Services["api"].Env["OTEL_TRACES_SAMPLER"])
+	assert.Equal(t, "0.1", file.Services["api"].Env["OTEL_TRACES_SAMPLER_ARG"])
+}
+
 func TestParseTDDExample(t *testing.T) {
 	file, err := Parse([]byte(tddExample))
 	require.NoError(t, err)
@@ -108,6 +119,11 @@ func TestParseRejects(t *testing.T) {
 			yaml: minimalFile + "buckets: {}\n",
 			err:  ErrNotSupportedYet,
 			path: "buckets",
+		},
+		{
+			name: "tracing on a service",
+			yaml: strings.Replace(minimalFile, "    image:", "    tracing: { enabled: true }\n    image:", 1),
+			err:  errUnknownKey,
 		},
 		{
 			name: "observability on a service",

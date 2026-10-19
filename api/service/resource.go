@@ -1145,8 +1145,8 @@ func reconstructResourceSpec(resourceType genDb.ResourceType, specBytes []byte) 
 
 	switch resourceType {
 	case "service":
-		serviceSpec := &resourcev1.ServiceSpec{}
-		if err := protojson.Unmarshal(specBytes, serviceSpec); err != nil {
+		serviceSpec, err := converter.DeserializeStoredServiceSpec(specBytes)
+		if err != nil {
 			slog.WarnContext(context.Background(), "failed to unmarshal service spec", "error", err)
 			return nil
 		}

@@ -13,23 +13,19 @@ import (
 )
 
 const (
-	defaultMetricsPath             = "/metrics"
-	labelMetricsPort               = "loco.io/metrics-port"
-	annotationMetricsPath          = "loco.io/metrics-path"
-	envOTLPEndpoint                = "OTEL_EXPORTER_OTLP_ENDPOINT"
-	envOTLPProtocol                = "OTEL_EXPORTER_OTLP_PROTOCOL"
-	envOTelServiceName             = "OTEL_SERVICE_NAME"
-	envOTelResourceAttributes      = "OTEL_RESOURCE_ATTRIBUTES"
-	envOTelTracesSampler           = "OTEL_TRACES_SAMPLER"
-	envOTelTracesSamplerArg        = "OTEL_TRACES_SAMPLER_ARG"
-	otlpProtocolHTTP               = "http/protobuf"
-	otlpHTTPEndpointFormat         = "http://%s.%s.svc.cluster.local:%d"
-	samplerParentBasedAlwaysOff    = "parentbased_always_off"
-	samplerParentBasedTraceIDRatio = "parentbased_traceidratio"
-	attributeEnvironmentName       = "deployment.environment.name"
-	attributeDeploymentID          = "loco.deployment.id"
-	attributeSeparator             = ","
-	attributeAssignment            = "="
+	defaultMetricsPath        = "/metrics"
+	labelMetricsPort          = "loco.io/metrics-port"
+	annotationMetricsPath     = "loco.io/metrics-path"
+	envOTLPEndpoint           = "OTEL_EXPORTER_OTLP_ENDPOINT"
+	envOTLPProtocol           = "OTEL_EXPORTER_OTLP_PROTOCOL"
+	envOTelServiceName        = "OTEL_SERVICE_NAME"
+	envOTelResourceAttributes = "OTEL_RESOURCE_ATTRIBUTES"
+	otlpProtocolHTTP          = "http/protobuf"
+	otlpHTTPEndpointFormat    = "http://%s.%s.svc.cluster.local:%d"
+	attributeEnvironmentName  = "deployment.environment.name"
+	attributeDeploymentID     = "loco.deployment.id"
+	attributeSeparator        = ","
+	attributeAssignment       = "="
 )
 
 var errTelemetryIncomplete = errors.New(
@@ -63,7 +59,7 @@ func openTelemetryEnvVars(
 ) []corev1.EnvVar {
 	endpoint := telemetry.otlpHTTPEndpoint()
 	serviceName := getName(locoRes)
-	connection := [][]corev1.EnvVar{
+	settings := [][]corev1.EnvVar{
 		{
 			{Name: envOTLPEndpoint, Value: endpoint},
 			{Name: envOTLPProtocol, Value: otlpProtocolHTTP},
@@ -71,9 +67,6 @@ func openTelemetryEnvVars(
 		{{Name: envOTelServiceName, Value: serviceName}},
 		resourceAttributeVars(locoRes),
 	}
-	sampler := tracesSamplerSettings(locoRes.Spec.ServiceSpec.Obs)
-	settings := slices.Concat(connection, sampler)
-
 	userEnv := locoRes.Spec.ServiceSpec.Deployment.Env
 	var vars []corev1.EnvVar
 	for _, setting := range settings {
@@ -113,14 +106,4 @@ func resourceAttributeVars(locoRes *locov1alpha1.Application) []corev1.EnvVar {
 	}
 	value := strings.Join(pairs, attributeSeparator)
 	return []corev1.EnvVar{{Name: envOTelResourceAttributes, Value: value}}
-}
-
-func tracesSamplerSettings(obs *locov1alpha1.ObsSpec) [][]corev1.EnvVar {
-	if obs == nil || !obs.Tracing.Enabled {
-		return [][]corev1.EnvVar{{{Name: envOTelTracesSampler, Value: samplerParentBasedAlwaysOff}}}
-	}
-	return [][]corev1.EnvVar{
-		{{Name: envOTelTracesSampler, Value: samplerParentBasedTraceIDRatio}},
-		{{Name: envOTelTracesSamplerArg, Value: obs.Tracing.SampleRate}},
-	}
 }

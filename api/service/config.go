@@ -76,10 +76,6 @@ func (s *ConfigServer) GetConfig(
 					Path:    "/metrics",
 					Port:    9090,
 				},
-				Tracing: &resourcev1.TracingConfig{
-					Enabled:    false,
-					SampleRate: 0.1,
-				},
 			},
 			PlatformDomain: s.platformDomain,
 		},

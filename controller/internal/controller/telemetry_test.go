@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"errors"
 	"maps"
 	"slices"
@@ -14,17 +15,18 @@ import (
 )
 
 const (
-	testTelemetryNamespace    = "telemetry"
-	testCollectorService      = "collector"
-	testCollectorGRPCPort     = int32(14317)
-	testCollectorHTTPPort     = int32(14318)
-	testCollectorEndpoint     = "http://collector.telemetry.svc.cluster.local:14318"
-	testEnvironmentName       = "production"
-	testDeploymentID          = "019a6f3e-8c2b-7d41-9e5f-3b2a1c0d9e8f"
-	testOrganizationID        = "019a6f3e-8c2b-7d41-9e5f-3b2a1c0d9e90"
-	testSampleRate            = "0.25"
-	wantSamplerWithoutTracing = "parentbased_always_off"
-	userEnvValue              = "user"
+	testTelemetryNamespace  = "telemetry"
+	testCollectorService    = "collector"
+	testCollectorGRPCPort   = int32(14317)
+	testCollectorHTTPPort   = int32(14318)
+	testCollectorEndpoint   = "http://collector.telemetry.svc.cluster.local:14318"
+	testEnvironmentName     = "production"
+	testDeploymentID        = "019a6f3e-8c2b-7d41-9e5f-3b2a1c0d9e8f"
+	testOrganizationID      = "019a6f3e-8c2b-7d41-9e5f-3b2a1c0d9e90"
+	testSampleRate          = "0.25"
+	envOTelTracesSampler    = "OTEL_TRACES_SAMPLER"
+	envOTelTracesSamplerArg = "OTEL_TRACES_SAMPLER_ARG"
+	userEnvValue            = "user"
 )
 
 func testTelemetry() TelemetryConfig {
@@ -42,11 +44,6 @@ func telemetryTestApplication() *locov1alpha1.Application {
 	app.Spec.DeploymentID = testDeploymentID
 	app.Spec.OrganizationID = testOrganizationID
 	return app
-}
-
-func tracingEnabled() *locov1alpha1.ObsSpec {
-	tracing := locov1alpha1.TracingSpec{Enabled: true, SampleRate: testSampleRate}
-	return &locov1alpha1.ObsSpec{Tracing: tracing}
 }
 
 func buildDeployment(t *testing.T, app *locov1alpha1.Application) *appsv1ac.DeploymentApplyConfiguration {
@@ -135,45 +132,39 @@ func TestResourceAttributesSkipEmptyValues(t *testing.T) {
 	requireNoEnv(t, dep, envOTelResourceAttributes)
 }
 
-func TestTracesSamplerFollowsTheObsSpec(t *testing.T) {
-	cases := []struct {
-		name       string
-		obs        *locov1alpha1.ObsSpec
-		sampler    string
-		samplerArg string
-	}{
-		{name: "no obs spec", obs: nil, sampler: wantSamplerWithoutTracing},
-		{name: "no tracing spec", obs: &locov1alpha1.ObsSpec{}, sampler: wantSamplerWithoutTracing},
-		{
-			name:    "tracing disabled",
-			obs:     &locov1alpha1.ObsSpec{Tracing: locov1alpha1.TracingSpec{SampleRate: "0.5"}},
-			sampler: wantSamplerWithoutTracing,
-		},
-		{
-			name:       "tracing enabled",
-			obs:        tracingEnabled(),
-			sampler:    "parentbased_traceidratio",
-			samplerArg: testSampleRate,
-		},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			app := telemetryTestApplication()
-			app.Spec.ServiceSpec.Obs = tc.obs
-			dep := buildDeployment(t, app)
-
-			requireEnv(t, dep, envOTelTracesSampler, tc.sampler)
-			if tc.samplerArg == "" {
-				requireNoEnv(t, dep, envOTelTracesSamplerArg)
-				return
-			}
-			requireEnv(t, dep, envOTelTracesSamplerArg, tc.samplerArg)
-		})
+func TestTracingSamplingBelongsToTheApplicationSDK(t *testing.T) {
+	for _, obs := range []*locov1alpha1.ObsSpec{nil, {}, {Logging: locov1alpha1.LoggingSpec{Enabled: true}}} {
+		app := telemetryTestApplication()
+		app.Spec.ServiceSpec.Obs = obs
+		dep := buildDeployment(t, app)
+		requireNoEnv(t, dep, envOTelTracesSampler)
+		requireNoEnv(t, dep, envOTelTracesSamplerArg)
 	}
 }
 
+func TestLegacyApplicationTracingDoesNotInjectSampling(t *testing.T) {
+	app := telemetryTestApplication()
+	legacy := []byte(`{"spec":{"serviceSpec":{"obs":{"tracing":{"enabled":true,"sampleRate":"0.25"}}}}}`)
+	if err := json.Unmarshal(legacy, app); err != nil {
+		t.Fatal(err)
+	}
+	dep := buildDeployment(t, app)
+	requireNoEnv(t, dep, envOTelTracesSampler)
+	requireNoEnv(t, dep, envOTelTracesSamplerArg)
+	requireEnv(t, dep, envOTLPEndpoint, testCollectorEndpoint)
+}
+
+func TestUserTracingSamplerAndArgumentArePreserved(t *testing.T) {
+	app := telemetryTestApplication()
+	app.Spec.ServiceSpec.Deployment.Env[envOTelTracesSampler] = "parentbased_traceidratio"
+	app.Spec.ServiceSpec.Deployment.Env[envOTelTracesSamplerArg] = testSampleRate
+	dep := buildDeployment(t, app)
+	requireSingleEnv(t, dep, envOTelTracesSampler, "parentbased_traceidratio")
+	requireSingleEnv(t, dep, envOTelTracesSamplerArg, testSampleRate)
+	requireEnv(t, dep, envOTLPEndpoint, testCollectorEndpoint)
+}
+
 func TestUserEnvOverridesInjectedOpenTelemetryEnv(t *testing.T) {
-	enabled := tracingEnabled()
 	cases := []struct {
 		name     string
 		userEnv  string
@@ -190,7 +181,6 @@ func TestUserEnvOverridesInjectedOpenTelemetryEnv(t *testing.T) {
 			name:     "endpoint replaces the protocol with it",
 			userEnv:  envOTLPEndpoint,
 			replaced: []string{envOTLPEndpoint, envOTLPProtocol},
-			kept:     map[string]string{envOTelTracesSampler: samplerParentBasedTraceIDRatio},
 		},
 		{
 			name:     "protocol replaces the endpoint with it",
@@ -203,22 +193,19 @@ func TestUserEnvOverridesInjectedOpenTelemetryEnv(t *testing.T) {
 			replaced: []string{envOTelResourceAttributes},
 		},
 		{
-			name:     "sampler argument keeps the sampler",
+			name:     "sampler argument does not inject a sampler",
 			userEnv:  envOTelTracesSamplerArg,
-			replaced: []string{envOTelTracesSamplerArg},
-			kept:     map[string]string{envOTelTracesSampler: samplerParentBasedTraceIDRatio},
+			replaced: []string{envOTelTracesSamplerArg, envOTelTracesSampler},
 		},
 		{
-			name:     "sampler keeps the sampler argument",
+			name:     "sampler does not inject an argument",
 			userEnv:  envOTelTracesSampler,
-			replaced: []string{envOTelTracesSampler},
-			kept:     map[string]string{envOTelTracesSamplerArg: testSampleRate},
+			replaced: []string{envOTelTracesSampler, envOTelTracesSamplerArg},
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			app := telemetryTestApplication()
-			app.Spec.ServiceSpec.Obs = enabled
 			app.Spec.ServiceSpec.Deployment.Env[tc.userEnv] = userEnvValue
 			dep := buildDeployment(t, app)
 

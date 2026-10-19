@@ -71,7 +71,6 @@ func TestMountedSecretsOverrideOpenTelemetryDefaults(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			app := telemetryTestApplication()
-			app.Spec.ServiceSpec.Obs = tracingEnabled()
 			r, _ := telemetrySecretFixture(t, app, name)
 			dep := mountTelemetryDeployment(t, r, app)
 			requireNoEnv(t, dep, name)
@@ -79,31 +78,30 @@ func TestMountedSecretsOverrideOpenTelemetryDefaults(t *testing.T) {
 				requireNoEnv(t, dep, envOTLPEndpoint)
 				requireNoEnv(t, dep, envOTLPProtocol)
 			}
-			if name == envOTelTracesSamplerArg {
-				requireEnv(t, dep, envOTelTracesSampler, samplerParentBasedTraceIDRatio)
-			}
-			if name == envOTelTracesSampler {
-				requireEnv(t, dep, envOTelTracesSamplerArg, testSampleRate)
+			if name == envOTelTracesSamplerArg || name == envOTelTracesSampler {
+				requireNoEnv(t, dep, envOTelTracesSampler)
+				requireNoEnv(t, dep, envOTelTracesSamplerArg)
 			}
 		})
 	}
 }
 
 func TestMountedTelemetrySecretsKeepPlainAndLocoPrecedence(t *testing.T) {
+	for _, name := range []string{envOTelServiceName, envOTelTracesSampler, envOTelTracesSamplerArg} {
+		app := telemetryTestApplication()
+		app.Spec.ServiceSpec.Deployment.Env[name] = userEnvValue
+		r, _ := telemetrySecretFixture(t, app, name)
+		dep := mountTelemetryDeployment(t, r, app)
+		requireSingleEnv(t, dep, name, userEnvValue)
+	}
 	app := telemetryTestApplication()
-	app.Spec.ServiceSpec.Deployment.Env[envOTelServiceName] = userEnvValue
-	r, _ := telemetrySecretFixture(t, app, envOTelServiceName)
+	r, _ := telemetrySecretFixture(t, app, "LOCO_DEPLOYMENT_ID")
 	dep := mountTelemetryDeployment(t, r, app)
-	requireSingleEnv(t, dep, envOTelServiceName, userEnvValue)
-
-	r, _ = telemetrySecretFixture(t, app, "LOCO_DEPLOYMENT_ID")
-	dep = mountTelemetryDeployment(t, r, app)
 	requireSingleEnv(t, dep, "LOCO_DEPLOYMENT_ID", testDeploymentID)
 }
 
-func TestRemovingMountedTelemetrySecretRestoresDefault(t *testing.T) {
+func TestRemovingMountedSamplerSecretLeavesSDKDefault(t *testing.T) {
 	app := telemetryTestApplication()
-	app.Spec.ServiceSpec.Obs = tracingEnabled()
 	r, stage := telemetrySecretFixture(t, app, envOTelTracesSamplerArg)
 	dep := mountTelemetryDeployment(t, r, app)
 	requireNoEnv(t, dep, envOTelTracesSamplerArg)
@@ -118,9 +116,11 @@ func TestRemovingMountedTelemetrySecretRestoresDefault(t *testing.T) {
 	}
 	app.Spec.ServiceSpec.Deployment.EnvSecretRef.Revision = 2
 	dep = mountTelemetryDeployment(t, r, app)
-	requireSingleEnv(t, dep, envOTelTracesSamplerArg, testSampleRate)
+	requireNoEnv(t, dep, envOTelTracesSamplerArg)
+	requireNoEnv(t, dep, envOTelTracesSampler)
 
 	app.Spec.ServiceSpec.Deployment.EnvSecretRef = nil
 	dep = mountTelemetryDeployment(t, r, app)
-	requireSingleEnv(t, dep, envOTelTracesSamplerArg, testSampleRate)
+	requireNoEnv(t, dep, envOTelTracesSamplerArg)
+	requireNoEnv(t, dep, envOTelTracesSampler)
 }

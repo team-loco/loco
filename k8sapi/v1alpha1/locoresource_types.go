@@ -79,23 +79,15 @@ type MetricsSpec struct {
 	Port    int32  `json:"port,omitzero"`
 }
 
-// ObsSpec contains logging, metrics, tracing
 type ObsSpec struct {
 	Logging LoggingSpec `json:"logging,omitzero"`
 	Metrics MetricsSpec `json:"metrics,omitzero"`
-	Tracing TracingSpec `json:"tracing,omitzero"`
 }
 
 type LoggingSpec struct {
 	Enabled         bool   `json:"enabled,omitzero"`
 	RetentionPeriod string `json:"retentionPeriod,omitempty"` // e.g. 7d
 	Structured      bool   `json:"structured,omitzero"`
-}
-
-type TracingSpec struct {
-	Enabled    bool              `json:"enabled,omitzero"`
-	SampleRate string            `json:"sampleRate,omitempty"`
-	Tags       map[string]string `json:"tags,omitempty"`
 }
 
 // RoutingSpec exposes the service on the gateway at HostName.
@@ -152,7 +144,6 @@ type ServiceSpec struct {
 	// Routing exposes the service to the internet. Without it the service gets no HTTPRoute and no gateway ingress.
 	Routing *RoutingSpec `json:"routing,omitempty"`
 
-	// Observability configuration (logging, metrics, tracing)
 	Obs *ObsSpec `json:"obs,omitempty"`
 }
 

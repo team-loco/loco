@@ -6,7 +6,6 @@ import (
 	"math"
 	"net/url"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -40,7 +39,6 @@ var (
 	errGraceNegative          = errors.New("healthCheck.startupGracePeriod cannot be negative")
 	errEnvSecretNameMissing   = errors.New("envSecretRef.name must be set")
 	errEnvSecretRevision      = errors.New("envSecretRef.revision must be positive")
-	errSampleRateInvalid      = errors.New("tracing.sampleRate must be a number from 0 to 1 when tracing is enabled")
 )
 
 const (
@@ -53,9 +51,6 @@ const (
 	maxHealthTimeout       = 60
 	minHealthFailThreshold = 1
 	maxHealthFailThreshold = 10
-	minSampleRate          = 0.0
-	maxSampleRate          = 1.0
-	sampleRateBits         = 64
 )
 
 var (
@@ -354,26 +349,7 @@ func validateObsSpec(spec *ObsSpec) error {
 		return nil
 	}
 
-	if err := spec.Metrics.Validate(); err != nil {
-		return err
-	}
-
-	if spec.Tracing.Enabled {
-		return validateSampleRate(spec.Tracing.SampleRate)
-	}
-
-	return nil
-}
-
-func validateSampleRate(raw string) error {
-	rate, err := strconv.ParseFloat(raw, sampleRateBits)
-	if err != nil {
-		return fmt.Errorf("%w: %w", errSampleRateInvalid, err)
-	}
-	if !(rate >= minSampleRate && rate <= maxSampleRate) {
-		return fmt.Errorf("%w: got %s", errSampleRateInvalid, raw)
-	}
-	return nil
+	return spec.Metrics.Validate()
 }
 
 // validateRoutingSpec validates the RoutingSpec

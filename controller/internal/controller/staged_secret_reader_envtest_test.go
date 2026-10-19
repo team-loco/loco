@@ -21,7 +21,6 @@ var _ = Describe("Staged environment secret reads", func() {
 		app := workspaceApp("stage-reader", "stage-reader")
 		app.Spec.WorkspaceID = "staged-reader-cache"
 		app.Namespace = testNamespace
-		app.Spec.ServiceSpec.Obs = tracingEnabled()
 		stage := &corev1.Secret{
 			Name:      "env-staged-reader",
 			Namespace: testNamespace,
@@ -87,8 +86,8 @@ var _ = Describe("Staged environment secret reads", func() {
 		Expect(err).NotTo(HaveOccurred())
 		deployment, err = desiredDeployment(app, mount, testTelemetry())
 		Expect(err).NotTo(HaveOccurred())
-		Expect(deployment.Spec.Template.Spec.Containers[0].Env).To(ContainElement(
-			And(HaveField("Name", new(envOTelTracesSamplerArg)), HaveField("Value", new(testSampleRate))),
-		))
+		Expect(deployment.Spec.Template.Spec.Containers[0].Env).NotTo(
+			ContainElement(HaveField("Name", new(envOTelTracesSamplerArg))),
+		)
 	})
 })
