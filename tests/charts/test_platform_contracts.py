@@ -1216,3 +1216,14 @@ def test_gitops_can_own_build_namespace():
         "loco-operator", "builds/namespace.yaml", {"builds": {"createNamespace": False}}
     )
     assert namespace is None
+
+
+def test_file_logs_extract_application_severity(collector_tenancy):
+    for _, config, _, pipeline in _pipelines(collector_tenancy):
+        if "file_log" not in pipeline["receivers"]:
+            continue
+        processors = pipeline["processors"]
+        assert "transform/log_severity" in processors
+        assert processors.index("transform/log_severity") > processors.index("memory_limiter")
+        assert processors.index("transform/log_severity") < processors.index("batch")
+        assert "log_statements" in config["processors"]["transform/log_severity"]

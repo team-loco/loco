@@ -326,6 +326,35 @@ otel-col-daemon:
             action: delete
           - key: gateway.envoyproxy.io/owning-gateway-namespace
             action: delete
+      transform/log_severity:
+        error_mode: silent
+        log_statements:
+          - context: log
+            conditions:
+              - severity_number == 0 and severity_text == ""
+            statements:
+              - set(cache["message"], body) where IsString(body)
+              - replace_pattern(cache["message"], "\\x1b\\[[0-?]*[ -/]*[@-~]", "") where IsString(cache["message"])
+              - set(cache["record"], ParseJSON(cache["message"])) where IsString(body) and IsMatch(cache["message"], "^\\s*\\{")
+              - set(cache["level"], cache["record"]["level"]) where IsMap(cache["record"])
+              - set(cache["level"], cache["record"]["severity"]) where cache["level"] == nil and IsMap(cache["record"])
+              - set(cache["level"], cache["record"]["severityText"]) where cache["level"] == nil and IsMap(cache["record"])
+              - merge_maps(cache, ExtractPatterns(cache["message"], "(?i)^(?:[0-9]{4}-[0-9T:.+Z/ -]+\\s+)?(?:level=|\\[)?(?P<level>TRACE|DEBUG|INFO|NOTICE|WARN(?:ING)?|ERROR|FATAL|CRITICAL)(?:\\]|[\\s:=]|$)"), "upsert") where cache["level"] == nil and IsString(body) and not IsMatch(cache["message"], "^\\s*\\{")
+              - set(cache["fields"], ParseKeyValue(cache["message"])) where cache["level"] == nil and IsString(body) and not IsMatch(cache["message"], "^\\s*\\{")
+              - set(cache["level"], cache["fields"]["level"]) where cache["level"] == nil and IsMap(cache["fields"])
+              - set(cache["level"], ToUpperCase(cache["level"])) where IsString(cache["level"])
+              - set(severity_text, "TRACE") where cache["level"] == "TRACE"
+              - set(severity_number, 1) where severity_text == "TRACE"
+              - set(severity_text, "DEBUG") where cache["level"] == "DEBUG"
+              - set(severity_number, 5) where severity_text == "DEBUG"
+              - set(severity_text, "INFO") where cache["level"] == "INFO" or cache["level"] == "NOTICE" or cache["level"] == "INFORMATION"
+              - set(severity_number, 9) where severity_text == "INFO"
+              - set(severity_text, "WARN") where cache["level"] == "WARN" or cache["level"] == "WARNING"
+              - set(severity_number, 13) where severity_text == "WARN"
+              - set(severity_text, "ERROR") where cache["level"] == "ERROR" or cache["level"] == "ERR"
+              - set(severity_number, 17) where severity_text == "ERROR"
+              - set(severity_text, "FATAL") where cache["level"] == "FATAL" or cache["level"] == "CRITICAL" or cache["level"] == "PANIC"
+              - set(severity_number, 21) where severity_text == "FATAL"
       transform/scrape_identity:
         error_mode: propagate
         metric_statements:
@@ -419,7 +448,7 @@ otel-col-daemon:
       pipelines:
         logs:
           receivers: [file_log]
-          processors: [memory_limiter, k8s_attributes/pod_uid, resource/region, batch]
+          processors: [memory_limiter, transform/log_severity, k8s_attributes/pod_uid, resource/region, batch]
           exporters: [clickhouse]
         logs/otlp:
           receivers: [otlp]

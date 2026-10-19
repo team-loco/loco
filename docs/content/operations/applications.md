@@ -55,6 +55,12 @@ An `OTEL_*` variable in `loco.yaml` under `env`, or named in `secrets` and set w
 
 Dashboard redeploy and rollback keep the current plain environment values and declared secret names for the target environment and region. `CreateDeployment` has the same behavior when its environment map is empty; a nonempty map replaces the plain values while retaining the secret names. To remove plain values or secret declarations, edit `loco.yaml` and apply it.
 
+## Collected log levels
+
+Container stdout and stderr records keep their original message. When a record has no severity, the collector extracts a string `level`, `severity` or `severityText` from a JSON object, a leading level such as `[WARNING]`, or a `level=warn` field. An ISO timestamp can precede a leading level; terminal color codes do not affect detection. `warning` becomes `WARN`; trace, debug, info, error and fatal levels are also recognized, without regard to case. Existing severity is preserved.
+
+Malformed JSON, unknown levels and messages without a recognized level remain unclassified and appear as INFO in the dashboard. A word such as “warning” inside an ordinary message does not set its severity. Structured OTLP logs retain the severity supplied by the application SDK.
+
 ## Public and private applications
 
 An application with a domain is public: the gateway routes its hostname to the application. An application without a domain is private: it runs, scales and writes logs like any other, makes outbound connections, and accepts connections only from inside its workspace. To deploy a private application, leave `domains` off the service in `loco.yaml`:
