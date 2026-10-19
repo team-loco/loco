@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/design/Skeleton";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
 import { useQueryMetrics } from "@/hooks/useQueryMetrics";
+import { formatPercent, percentAxis } from "@/lib/compute-chart";
 import { getErrorMessage } from "@/lib/error-handler";
 import { timeRangeMs } from "@/lib/obs";
 import { formatClock, tsMs } from "@/lib/time";
@@ -26,8 +27,6 @@ const COMPUTE: MetricDef[] = [
 	{ key: "cpu", metric: "k8s.pod.cpu_limit_utilization", title: "CPU" },
 	{ key: "mem", metric: "k8s.pod.memory_limit_utilization", title: "Memory" },
 ];
-
-const fmtPct = (v: number) => `${v < 10 ? v.toFixed(1) : Math.round(v).toString()}%`;
 
 export function MetricsView() {
 	const { resources, selected } = useObs();
@@ -163,7 +162,7 @@ function ComputeChart({
 	for (const s of series) {
 		for (const p of s.points) if (p.v > peak) peak = p.v;
 	}
-	const max = Math.max(112, peak * 1.15);
+	const max = percentAxis(peak).maximum;
 	const lastOf = (s: ChartSeries) => s.points.at(-1)?.v ?? 0;
 	const firstOf = (s: ChartSeries) => s.points[0]?.v ?? 0;
 	const cur = series.length > 0 ? Math.max(...series.map(lastOf)) : 0;
@@ -184,7 +183,7 @@ function ComputeChart({
 		<MetricCard
 			title={def.title}
 			unit="% of limit · busiest replica"
-			big={hasData ? fmtPct(cur) : "—"}
+			big={hasData ? formatPercent(cur) : "—"}
 			delta={hasData && Math.abs(pct) >= 1 ? `${pct > 0 ? "↑" : "↓"} ${Math.abs(pct).toFixed(0)}%` : ""}
 			deltaBad={pct > 0}
 			bigNote={hasData ? (series.length > 1 ? "now · highest" : "now") : ""}
@@ -206,7 +205,7 @@ function ComputeChart({
 					from={from}
 					to={to}
 					max={max}
-					fmt={fmtPct}
+					fmt={formatPercent}
 					limit={{ v: 100, label: "limit" }}
 					markers={markers}
 					height={200}

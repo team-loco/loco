@@ -130,3 +130,5 @@ Metric-to-log links include the selected timestamp (`at`), time range and resour
 Application compute charts query the selected environment and wait for it to load. Build-job telemetry has no runtime environment and stays outside these charts. Changing the environment uses a separate metrics cache.
 
 Historical logs and live tail use the selected environment. Queries wait for that selection; changing it resets pagination and log selection, uses separate cached history, and closes the previous live stream. Build logs remain available through unfiltered API queries.
+
+Compute charts share percentage formatting and evenly spaced percentage levels in `web/src/lib/compute-chart.ts`. Resource overview charts show average replica utilization against requests; collected Metrics shows the busiest replica against limits. Axes cover the requested time window, retain values above 100%, and include date/time ticks for day-long windows.
