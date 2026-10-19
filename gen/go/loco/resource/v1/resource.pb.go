@@ -2409,10 +2409,10 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\rMetricsConfig\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x12\n" +
-	"\x04port\x18\x03 \x01(\x05R\x04port\"\x9a\x01\n" +
+	"\x04port\x18\x03 \x01(\x05R\x04port\"\x8b\x01\n" +
 	"\x13ObservabilityConfig\x129\n" +
 	"\alogging\x18\x01 \x01(\v2\x1f.loco.resource.v1.LoggingConfigR\alogging\x129\n" +
-	"\ametrics\x18\x02 \x01(\v2\x1f.loco.resource.v1.MetricsConfigR\ametricsJ\x04\b\x03\x10\x04R\atracing\"\xef\x01\n" +
+	"\ametrics\x18\x02 \x01(\v2\x1f.loco.resource.v1.MetricsConfigR\ametrics\"\xef\x01\n" +
 	"\fRegionTarget\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x10\n" +
 	"\x03cpu\x18\x03 \x01(\tR\x03cpu\x12\x16\n" +

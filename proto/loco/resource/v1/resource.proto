@@ -91,8 +91,6 @@ message MetricsConfig {
 message ObservabilityConfig {
   LoggingConfig logging = 1;
   MetricsConfig metrics = 2;
-  reserved 3;
-  reserved "tracing";
 }
 
 // RegionTarget defines the desired state for a specific region.
