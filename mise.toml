@@ -422,3 +422,7 @@ run = "uv run --frozen --project docs python e2e/trace_ui.py"
 description = "Run all Python unit tests"
 depends = ["helm:deps"]
 run = "uv run --locked --project docs pytest"
+
+[tasks."e2e:shared-controls"]
+description = "Test compact shared controls, segmented selection and pinned navigation in the production browser"
+run = "uv run --frozen --project docs python e2e/shared_controls_ui.py"

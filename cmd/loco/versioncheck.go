@@ -117,7 +117,7 @@ func newerReleaseHint(current, latest string) string {
 func printUpdateHint(w io.Writer, hint, changelog string) {
 	style := lipgloss.NewStyle().Foreground(ui.Warn)
 	styled := style.Render(hint)
-	message := fmt.Sprintf("\n%s\n  Update:    loco update\n  Changelog: %s\n", styled, changelog)
+	message := fmt.Sprintf("\n%s\n  Run loco update\n  Changelog: %s\n", styled, changelog)
 	if _, err := lipgloss.Fprint(w, message); err != nil {
 		slog.Debug("could not print update hint", "error", err)
 	}
