@@ -62,13 +62,27 @@ with sync_playwright() as playwright:
                     if not args.capture_only:
                         assert overview.bounding_box()["height"] == 28
                         assert page.get_by_role("button", name="Redeploy", exact=True).bounding_box()["height"] == 28
-                        assert page.get_by_role("link", name="Logs", exact=True).bounding_box()["height"] == 28
+                        assert page.get_by_role("link", name="Logs", exact=True).last.bounding_box()["height"] == 28
                         indicator = page.locator('[data-slot="segmented-indicator"]').first
                         assert abs(indicator.bounding_box()["x"] - overview.bounding_box()["x"]) <= 1
-                        variables.click()
+                        variables.evaluate("""node => {
+                            window.indicatorPositions = [];
+                            const group = node.parentElement;
+                            const started = performance.now();
+                            const sample = () => {
+                                window.indicatorPositions.push(group.querySelector('[data-slot="segmented-indicator"]').getBoundingClientRect().x);
+                                if (performance.now() - started < 220) requestAnimationFrame(sample);
+                            };
+                            node.click();
+                            requestAnimationFrame(sample);
+                        }""")
                         expect(variables).to_have_attribute("aria-pressed", "true")
                         page.wait_for_timeout(250)
                         assert abs(indicator.bounding_box()["x"] - variables.bounding_box()["x"]) <= 1
+                        positions = page.evaluate("window.indicatorPositions")
+                        start = overview.bounding_box()["x"]
+                        end = variables.bounding_box()["x"]
+                        assert any(start + 2 < position < end - 2 for position in positions), positions
                         variables.focus()
                         page.keyboard.press("ArrowRight")
                         expect(settings).to_be_focused()
@@ -91,6 +105,19 @@ with sync_playwright() as playwright:
                         assert page.evaluate("window.scrollY") > 0
                         assert abs(page.locator('[data-slot="top-bar"]').bounding_box()["y"]) <= 1
                     page.screenshot(path=str(out / f"pinned-navigation-{suffix}.png"))
+                    if not args.capture_only:
+                        name = page.get_by_role("textbox", name="Name", exact=True)
+                        name.focus()
+                        page.wait_for_timeout(300)
+                        assert name.bounding_box()["y"] >= 56
+                        access = page.get_by_role("button", name="Access", exact=True)
+                        workspaces = page.get_by_role("button", name="Workspaces", exact=True)
+                        access.click()
+                        workspaces.click()
+                        expect(access).to_have_attribute("aria-pressed", "true")
+                        expect(workspaces).to_have_attribute("aria-pressed", "true")
+                        assert access.locator('[data-slot="segmented-indicator"]').count() == 1
+                        assert workspaces.locator('[data-slot="segmented-indicator"]').count() == 1
                     assert not errors, errors
                     results.append({"theme": theme, "narrow": narrow, "passed": True})
                 except BaseException:
