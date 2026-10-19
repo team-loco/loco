@@ -91,7 +91,7 @@ func TestReportNewerRelease(t *testing.T) {
 			current: currentVersion,
 			want: []string{
 				"A new version of loco is available: " + currentVersion + " -> " + latestTag,
-				"Update:    loco update",
+				"Run loco update",
 				"Changelog: " + srv.URL + "/releases/tag/" + latestTag,
 			},
 		},
