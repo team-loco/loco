@@ -222,9 +222,7 @@ export function Resource() {
 			{tab === "variables" && (
 				<VariablesTab
 					resourceId={resourceId}
-					resourceName={resource.name}
 					workspaceId={resource.workspaceId}
-					partial={resource.partial}
 					canWrite={hasWs && resourceLevel(activeOrgId, activeWorkspaceId, resourceId) >= WRITE_LEVEL}
 				/>
 			)}

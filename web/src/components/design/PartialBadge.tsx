@@ -3,8 +3,8 @@ import { FileCogIcon } from "lucide-react";
 import { Badge } from "./Badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./Tooltip";
 
-export function PartialBadge({ partial }: { partial: string }) {
-	const label = `Managed by loco.yaml (${partial})`;
+export function PartialBadge() {
+	const label = "Managed by loco.yaml";
 	return (
 		<Tooltip>
 			<TooltipTrigger

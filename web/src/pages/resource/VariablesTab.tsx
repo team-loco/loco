@@ -1,9 +1,8 @@
 import { createConnectQueryKey, useMutation, useQuery } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
-import { CheckIcon, ChevronDownIcon, ClipboardPasteIcon, KeyRoundIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { ClipboardPasteIcon, KeyRoundIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 import { getResourceEnv } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { deleteSecrets, listSecrets, setSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectquery";
 import type { Secret } from "@gen/loco/secret/v1/secret_pb";
@@ -22,25 +21,18 @@ import {
 import { Badge, type BadgeTone } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { Dialog, DialogBody, DialogContent, DialogFooter } from "@/components/design/Dialog";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@/components/design/DropdownMenu";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { Section } from "@/components/design/Page";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { Textarea } from "@/components/design/Textarea";
-import { environmentTypeLabel, useEnvironments } from "@/hooks/useEnvironment";
+import { useEnvironments } from "@/hooks/useEnvironment";
 import { parseDotEnv } from "@/lib/dotenv";
 import { toastConnectError } from "@/lib/error-handler";
 import { tsMs } from "@/lib/time";
 
 import { formatStarted } from "./format";
-import { ManagedNotice } from "./ManagedNotice";
 
 const SECRET_NAME = /^[A-Z_][A-Z0-9_]*$/;
 const MEMBERS_PAGE_SIZE = 200;
@@ -153,53 +145,16 @@ function RowActions({
 	);
 }
 
-function EnvironmentPicker({
-	environments,
-	active,
-	onSelect,
-}: {
-	environments: Environment[];
-	active: Environment;
-	onSelect: (env: Environment) => void;
-}) {
-	return (
-		<DropdownMenu>
-			<DropdownMenuTrigger render={<Button variant="outline" size="sm" aria-label="Environment" />}>
-				{active.name}
-				<ChevronDownIcon />
-			</DropdownMenuTrigger>
-			<DropdownMenuContent align="start" className="min-w-[200px]">
-				{environments.map((e) => (
-					<DropdownMenuItem
-						key={e.id}
-						onClick={() => {
-							onSelect(e);
-						}}
-					>
-						<span className="flex-1 truncate">{e.name}</span>
-						<span className="text-sm text-fg3">{environmentTypeLabel(e.type)}</span>
-						{e.id === active.id && <CheckIcon className="size-3.5" />}
-					</DropdownMenuItem>
-				))}
-			</DropdownMenuContent>
-		</DropdownMenu>
-	);
-}
-
 export function VariablesTab({
 	resourceId,
-	resourceName,
 	workspaceId,
-	partial,
 	canWrite,
 }: {
 	resourceId: string;
-	resourceName: string;
 	workspaceId: string;
-	partial: string | undefined;
 	canWrite: boolean;
 }) {
-	const { environments, active, setActive, isLoading: envsLoading } = useEnvironments();
+	const { active, isLoading: envsLoading } = useEnvironments();
 	const environmentId = active?.id ?? "";
 	const queryClient = useQueryClient();
 	const secretsQuery = useQuery(listSecrets, { resourceId, environmentId }, { enabled: environmentId !== "" });
@@ -224,7 +179,6 @@ export function VariablesTab({
 	const parsed = parseDotEnv(pasteText);
 	const invalidPasted = parsed.filter(([k]) => !SECRET_NAME.test(k)).map(([k]) => k);
 	const newNameProblem = newName === "" ? undefined : nameProblem(newName);
-	const envName = active?.name ?? "";
 
 	const refresh = async () => {
 		const key = createConnectQueryKey({
@@ -249,7 +203,7 @@ export function VariablesTab({
 
 	const submitNew = async () => {
 		if (nameProblem(newName) !== undefined) return;
-		if (await write({ [newName]: newValue }, `Set ${newName} on ${resourceName} in ${envName}`)) {
+		if (await write({ [newName]: newValue }, `Set ${newName}`)) {
 			setAdding(false);
 			setNewName("");
 			setNewValue("");
@@ -259,7 +213,7 @@ export function VariablesTab({
 	const submitPaste = async () => {
 		if (parsed.length === 0 || invalidPasted.length > 0) return;
 		const count = parsed.length.toString();
-		if (await write(Object.fromEntries(parsed), `Set ${count} secrets on ${resourceName} in ${envName}`)) {
+		if (await write(Object.fromEntries(parsed), `Set ${count} secrets`)) {
 			setPasting(false);
 			setPasteText("");
 		}
@@ -268,7 +222,7 @@ export function VariablesTab({
 	const submitReplace = async () => {
 		if (replacing === null) return;
 		const verb = replacing.stored ? "Replaced" : "Set";
-		if (await write({ [replacing.name]: replaceValue }, `${verb} ${replacing.name} on ${resourceName} in ${envName}`)) {
+		if (await write({ [replacing.name]: replaceValue }, `${verb} ${replacing.name}`)) {
 			setReplacing(null);
 			setReplaceValue("");
 		}
@@ -279,7 +233,7 @@ export function VariablesTab({
 		try {
 			await remove.mutateAsync({ resourceId, environmentId, names: [deleting] });
 			await refresh();
-			toast.success(`Removed ${deleting} from ${resourceName} in ${envName}`);
+			toast.success(`Removed ${deleting}`);
 		} catch (err) {
 			toastConnectError(err, `Failed to remove ${deleting}`);
 		}
@@ -330,23 +284,10 @@ export function VariablesTab({
 
 	return (
 		<div className="flex flex-col gap-5">
-			{partial !== undefined && (
-				<ManagedNotice partial={partial}>
-					loco.yaml (<span className="break-all">{partial}</span>) declares which secrets {resourceName} reads and sets its
-					plain variables. Secret values never live in the file: set them here or with <code>loco env set</code>.
-				</ManagedNotice>
-			)}
-			<Section
-				title="Secrets"
-				toolbar={
-					active !== undefined && (
-						<EnvironmentPicker environments={environments} active={active} onSelect={setActive} />
-					)
-				}
-				actions={actions}
-			>
+			<Section title="Secrets" actions={actions}>
 				{adding && (
 					<form
+						noValidate
 						className="flex flex-col gap-3 border-b border-line px-4 py-3.5 sm:flex-row sm:items-start"
 						onSubmit={(e) => {
 							e.preventDefault();
@@ -431,9 +372,8 @@ export function VariablesTab({
 					</div>
 				)}
 				{rows.length === 0 && !secretsQuery.isLoading ? (
-					<EmptyState icon={<KeyRoundIcon />} title={`No secrets in ${envName}`}>
-						Secrets of {resourceName} in {envName} appear here. Values are write-only: they are never shown again
-						once set.
+					<EmptyState icon={<KeyRoundIcon />} title="No secrets for this resource">
+						Either set them here or with <code className="font-mono">loco env set</code>.
 					</EmptyState>
 				) : (
 					<>
@@ -503,7 +443,7 @@ export function VariablesTab({
 
 			<Section title="Plain variables">
 				{plain.length === 0 ? (
-					<EmptyState title={`No plain variables in ${envName}`}>
+					<EmptyState title="No plain variables">
 						The <code className="font-mono">env</code> map of loco.yaml sets them when the file is applied.
 					</EmptyState>
 				) : (
@@ -536,6 +476,7 @@ export function VariablesTab({
 			>
 				<DialogContent title={`${settingMissing ? "Set" : "Replace"} ${replacing?.name ?? ""}`}>
 					<form
+						noValidate
 						onSubmit={(e) => {
 							e.preventDefault();
 							void submitReplace();
@@ -546,8 +487,8 @@ export function VariablesTab({
 								label={settingMissing ? "Value" : "New value"}
 								hint={
 									settingMissing
-										? `${resourceName} declares ${replacing.name} in ${envName} but it has no value. Saving rolls ${resourceName} in ${envName}.`
-										: `The current value is never shown. Saving rolls ${resourceName} in ${envName} if the value changed.`
+										? "This secret is declared but has no value. Saving restarts the resource in the selected environment."
+										: "The current value is never shown. Saving restarts the resource in the selected environment if the value changed."
 								}
 							>
 								<Input
@@ -589,7 +530,7 @@ export function VariablesTab({
 					<AlertDialogHeader>
 						<AlertDialogTitle>Remove {deleting}?</AlertDialogTitle>
 						<AlertDialogDescription>
-							{resourceName} loses {deleting} in {envName}. Loco refuses while the service&apos;s active deployment still
+							This removes the stored value. Loco refuses while the service&apos;s active deployment still
 							declares it in loco.yaml.
 						</AlertDialogDescription>
 					</AlertDialogHeader>

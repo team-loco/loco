@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
@@ -13,7 +13,7 @@ import { specText } from "./spec";
 
 function TitleWithSub({ title, sub }: { title: string; sub: string }) {
 	return (
-		<span className="flex items-baseline gap-2.5">
+		<span className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
 			{title}
 			{sub !== "" && <span className="text-sm font-normal text-fg3">{sub}</span>}
 		</span>
@@ -23,9 +23,9 @@ function TitleWithSub({ title, sub }: { title: string; sub: string }) {
 export function SpecDialogContent({ dep, specVersion }: { dep: Deployment; specVersion: number }) {
 	const sub = `${shortId(dep.id)} · ${dep.region} · spec v${(dep.specVersion || specVersion).toString()}`;
 	return (
-		<DialogContent className="w-[640px]" title={<TitleWithSub title="Deployment spec" sub={sub} />}>
-			<DialogBody>
-				<CodeBlock language="json">{specText(dep)}</CodeBlock>
+		<DialogContent className="top-[5vh] max-h-[90vh] w-[min(960px,calc(100%-32px))]" title={<TitleWithSub title="Deployment spec" sub={sub} />}>
+			<DialogBody className="overflow-hidden">
+				<CodeBlock language="json" className="min-h-0">{specText(dep)}</CodeBlock>
 			</DialogBody>
 		</DialogContent>
 	);
@@ -112,6 +112,7 @@ export function DeleteDialogContent({
 	onConfirm: () => void;
 }) {
 	const [typed, setTyped] = useState("");
+	const cancelRef = useRef<HTMLButtonElement>(null);
 	const ok = typed.trim() === resource.name;
 	const deployCount =
 		places.length === 1 ? "its active deployment" : `its ${places.length.toString()} active deployments`;
@@ -124,24 +125,30 @@ export function DeleteDialogContent({
 				? `the domain ${domains[0]?.domain ?? ""}`
 				: `${domains.length.toString()} domains`;
 	return (
-		<DialogContent className="w-[520px]" title={`Delete ${resource.name}?`}>
+		<DialogContent className="w-[520px]" title="Delete resource?" initialFocus={cancelRef}>
 			<form
+				noValidate
 				onSubmit={(e) => {
 					e.preventDefault();
 					if (ok && !pending) onConfirm();
 				}}
 			>
 				<DialogBody className="gap-3">
+					<code className="w-fit max-w-full rounded-sm bg-bg2 px-2 py-1 font-mono font-semibold break-all">{resource.name}</code>
 					<span className="leading-normal text-fg2">
 						Removes the resource, {deployCount}
 						{placeList}, and {domainText}. Running replicas stop immediately.
 					</span>
+					{resource.partial !== undefined && (
+						<p className="rounded-md border border-warn/30 bg-warn-bg px-3 py-2 text-sm text-warn-fg">
+							Deleting here causes drift with <code className="font-mono">loco.yaml</code>. Applying the file again can recreate this resource. Remove it from the file to keep it deleted.
+						</p>
+					)}
 					<label className="flex flex-col gap-1.5">
 						<span className="text-sm text-fg3">
-							Type <span className="font-semibold text-foreground">{resource.name}</span> to confirm
+							Type <span className="font-mono font-semibold text-foreground">{resource.name}</span> to confirm
 						</span>
 						<Input
-							autoFocus
 							value={typed}
 							placeholder={resource.name}
 							className="h-[34px]"
@@ -152,7 +159,7 @@ export function DeleteDialogContent({
 					</label>
 				</DialogBody>
 				<DialogFooter>
-					<DialogClose render={<Button type="button" variant="outline" className="h-[30px]" />}>Cancel</DialogClose>
+					<DialogClose render={<Button ref={cancelRef} type="button" variant="outline" className="h-[30px]" />}>Cancel</DialogClose>
 					<Button type="submit" variant="destructive" className="h-[30px]" disabled={!ok || pending}>
 						{pending ? "Deleting…" : "Delete resource"}
 					</Button>
