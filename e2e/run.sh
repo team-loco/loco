@@ -626,7 +626,9 @@ load_builder_images() {
     log_step "Loading the builder image..."
     BUILDER_IMAGE=$(image_reference "$BUILDER_REPOSITORY")
     load_image "$BUILDER_IMAGE"
-    kind load docker-image "$BUILDKIT_IMAGE" --name "$KIND_CLUSTER_NAME" >/dev/null
+    local platform
+    platform=$(kube get nodes -o jsonpath='{.items[0].status.nodeInfo.operatingSystem}/{.items[0].status.nodeInfo.architecture}')
+    load_kind_image "$BUILDKIT_IMAGE" "$KIND_CLUSTER_NAME" "$platform" >/dev/null
     log_ok "Builder ${BUILDER_IMAGE} and BuildKit images loaded into Kind"
 }
 

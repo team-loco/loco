@@ -8,7 +8,6 @@ on:
       - "cmd/**"
       - "internal/**"
       - "gen/go/**"
-      - "main.go"
       - "go.mod"
       - "go.sum"
       - ".github/workflows/release-cli.yml"
@@ -95,7 +94,7 @@ jobs:
         run: |
           go build -trimpath \
             -ldflags "-s -w -X main.version=${VERSION}" \
-            -o "bin/loco-${GOOS}-${GOARCH}" -v
+            -o "bin/loco-${GOOS}-${GOARCH}" -v ./cmd/loco
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -133,7 +132,7 @@ jobs:
             range="${LATEST_TAG}..HEAD"
           fi
           git log "$range" --pretty=format:"* %s (%h)" \
-            -- cmd internal gen/go main.go go.mod go.sum > notes.md
+            -- cmd internal gen/go go.mod go.sum > notes.md
 
       - name: Create and push Git tag
         env:

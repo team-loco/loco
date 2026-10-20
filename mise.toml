@@ -43,12 +43,12 @@ run = ["mise install", "bun install --frozen-lockfile", "lefthook install", "mis
 
 [tasks.build]
 description = "Build the loco CLI into bin/loco"
-run = "go build -o bin/loco ."
+run = "go build -o bin/loco ./cmd/loco"
 
 [tasks."build:linux"]
 description = "Build the loco CLI for linux/amd64"
 env = { CGO_ENABLED = "0", GOOS = "linux", GOARCH = "amd64" }
-run = "go build -o bin/loco_unix ."
+run = "go build -o bin/loco_unix ./cmd/loco"
 
 [tasks."build:api"]
 description = "Build the API server into api/bin"
@@ -92,7 +92,7 @@ depends = ["test:*"]
 
 [tasks."test:cli"]
 description = "Test the CLI and the dev tools in the root module"
-run = "go test -v -coverprofile=coverage.out . ./cmd/... ./internal/... ./tools/..."
+run = "go test -v -coverprofile=coverage.out ./cmd/... ./internal/... ./tools/..."
 
 [tasks."test:api"]
 description = "Test the API server"

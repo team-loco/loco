@@ -1,4 +1,4 @@
-package loco
+package main
 
 import (
 	"context"
@@ -13,8 +13,16 @@ import (
 	"charm.land/lipgloss/v2"
 	"connectrpc.com/connect/v2"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
+	"github.com/team-loco/loco/internal/buildinfo"
 	"github.com/team-loco/loco/internal/ui"
 )
+
+var version string
+
+func main() {
+	resolved := buildinfo.Version(version)
+	Cli(resolved)
+}
 
 func LocoColorScheme() fang.ColorSchemeFunc {
 	return func(ldf lipgloss.LightDarkFunc) fang.ColorScheme {

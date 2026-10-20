@@ -244,7 +244,7 @@ local_resource(
 local_resource(
     'cli',
     cmd='mise run build',
-    deps=['main.go', 'cmd/', 'internal/', 'gen/go/', 'go.mod', 'go.sum'],
+    deps=['cmd/', 'internal/', 'gen/go/', 'go.mod', 'go.sum'],
     allow_parallel=True,
     labels=['services'],
 )

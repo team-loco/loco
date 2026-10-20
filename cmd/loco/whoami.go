@@ -1,4 +1,4 @@
-package loco
+package main
 
 import (
 	"fmt"
