@@ -26,7 +26,6 @@ on:
       - "mise-tasks/e2e/**"
       - "cmd/loco/**"
       - "internal/**"
-      - "main.go"
       - "go.mod"
       - "go.sum"
       - "proto/loco/observability/**"

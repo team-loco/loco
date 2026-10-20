@@ -48,7 +48,7 @@ def test_root_libraries_select_consumers(module_dependencies, subtests):
 
 
 def test_cli_entrypoint_does_not_select_library_consumers(module_dependencies):
-    assert _selected(module_dependencies, "cmd/loco/deploy.go", "main.go") == {"."}
+    assert _selected(module_dependencies, "cmd/loco/main.go", "cmd/loco/main_test.go", "cmd/loco/resource/scale.go") == {"."}
 
 
 def test_kubernetes_types_select_every_importing_module(module_dependencies):
