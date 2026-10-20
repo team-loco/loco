@@ -218,3 +218,11 @@ kill_pid_file() {
         rm -f "$pidfile"
     fi
 }
+
+load_kind_image() (
+    image=$1 cluster=$2 platform=$3
+    archive=$(mktemp)
+    trap 'rm -f "$archive"' EXIT
+    docker image save --platform "$platform" --output "$archive" "$image"
+    kind load image-archive "$archive" --name "$cluster"
+)
