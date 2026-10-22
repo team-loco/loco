@@ -1,5 +1,32 @@
 global:
   region: ""
+  platformTelemetry:
+    enabled: false
+    platformOnly: false
+    installation: ""
+    cluster: ""
+    environment: ""
+    collectionInterval: 60s
+    nodeConditions: [Ready, MemoryPressure, DiskPressure, PIDPressure]
+    allocatableTypes: [cpu, memory, ephemeral-storage, pods]
+    namespaces: [kube-system, loco-system, observability, observability-node, envoy-gateway-system, cert-manager]
+    destination: clickhouse
+    clickhouse: {}
+    otlp:
+      endpoint: ""
+      headers: {}
+      tls:
+        insecure: false
+        insecure_skip_verify: false
+    sendingQueue:
+      enabled: true
+      num_consumers: 2
+      queue_size: 256
+    retry:
+      enabled: true
+      initial_interval: 1s
+      max_interval: 10s
+      max_elapsed_time: 60s
   clickhouse:
     host: ""
     port: 9000
