@@ -5,7 +5,7 @@ FROM --platform=$BUILDPLATFORM oven/bun:1.4.3-alpine@sha256:629e17411f1f129dbec3
 WORKDIR /app
 
 # renovate: datasource=repology depName=alpine_3_24/brotli versioning=loose
-ARG BROTLI_VERSION=1.2.0-r1
+ARG BROTLI_VERSION=1.2.1-r0
 RUN apk add --no-cache brotli=${BROTLI_VERSION}
 
 # Workspace manifests first, so dependency install caches independently of source.
