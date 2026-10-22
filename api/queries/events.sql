@@ -1,13 +1,36 @@
 -- name: InsertEvent :one
-INSERT INTO events (type, org_id, workspace_id, actor_type, actor_id, subject_type, subject_id, request_id, data)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+INSERT INTO events (type, org_id, workspace_id, resource_id, actor_type, actor_id, subject_type, subject_id, request_id, data)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 RETURNING seq;
 
--- name: ListOrgEvents :many
+-- name: ListOrgAuditEvents :many
 SELECT sqlc.embed(e), u.email AS actor_email, u.name AS actor_name
 FROM events e
 LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
 WHERE e.org_id = sqlc.arg('org_id')
+  AND (sqlc.narg('before_seq')::bigint IS NULL OR e.seq < sqlc.narg('before_seq')::bigint)
+  AND (cardinality(sqlc.arg('types')::text[]) = 0 OR e.type = ANY(sqlc.arg('types')::text[]))
+ORDER BY e.seq DESC
+LIMIT sqlc.arg('max_rows');
+
+-- name: ListWorkspaceAuditEvents :many
+SELECT sqlc.embed(e), u.email AS actor_email, u.name AS actor_name
+FROM events e
+LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
+WHERE e.org_id = sqlc.arg('org_id')
+  AND e.workspace_id = sqlc.arg('workspace_id')
+  AND (sqlc.narg('before_seq')::bigint IS NULL OR e.seq < sqlc.narg('before_seq')::bigint)
+  AND (cardinality(sqlc.arg('types')::text[]) = 0 OR e.type = ANY(sqlc.arg('types')::text[]))
+ORDER BY e.seq DESC
+LIMIT sqlc.arg('max_rows');
+
+-- name: ListResourceAuditEvents :many
+SELECT sqlc.embed(e), u.email AS actor_email, u.name AS actor_name
+FROM events e
+LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
+WHERE e.org_id = sqlc.arg('org_id')
+  AND e.workspace_id = sqlc.arg('workspace_id')
+  AND e.resource_id = sqlc.arg('resource_id')
   AND (sqlc.narg('before_seq')::bigint IS NULL OR e.seq < sqlc.narg('before_seq')::bigint)
   AND (cardinality(sqlc.arg('types')::text[]) = 0 OR e.type = ANY(sqlc.arg('types')::text[]))
 ORDER BY e.seq DESC

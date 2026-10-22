@@ -25,8 +25,8 @@ func (q *Queries) DeleteEventsBefore(ctx context.Context, createdAt time.Time) (
 }
 
 const insertEvent = `-- name: InsertEvent :one
-INSERT INTO events (type, org_id, workspace_id, actor_type, actor_id, subject_type, subject_id, request_id, data)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+INSERT INTO events (type, org_id, workspace_id, resource_id, actor_type, actor_id, subject_type, subject_id, request_id, data)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 RETURNING seq
 `
 
@@ -34,6 +34,7 @@ type InsertEventParams struct {
 	Type        string     `json:"type"`
 	OrgID       *uuid.UUID `json:"orgId"`
 	WorkspaceID *uuid.UUID `json:"workspaceId"`
+	ResourceID  *uuid.UUID `json:"resourceId"`
 	ActorType   string     `json:"actorType"`
 	ActorID     *uuid.UUID `json:"actorId"`
 	SubjectType *string    `json:"subjectType"`
@@ -47,6 +48,7 @@ func (q *Queries) InsertEvent(ctx context.Context, arg InsertEventParams) (int64
 		arg.Type,
 		arg.OrgID,
 		arg.WorkspaceID,
+		arg.ResourceID,
 		arg.ActorType,
 		arg.ActorID,
 		arg.SubjectType,
@@ -60,7 +62,7 @@ func (q *Queries) InsertEvent(ctx context.Context, arg InsertEventParams) (int64
 }
 
 const listEventsAfter = `-- name: ListEventsAfter :many
-SELECT seq, txid, id, type, org_id, workspace_id, actor_type, actor_id, subject_type, subject_id, request_id, data, created_at
+SELECT seq, txid, id, type, org_id, workspace_id, resource_id, actor_type, actor_id, subject_type, subject_id, request_id, data, created_at
 FROM events
 WHERE (txid, seq) > ($1::xid8, $2::bigint)
   AND txid < pg_snapshot_xmin(pg_current_snapshot())
@@ -90,6 +92,7 @@ func (q *Queries) ListEventsAfter(ctx context.Context, arg ListEventsAfterParams
 			&i.Type,
 			&i.OrgID,
 			&i.WorkspaceID,
+			&i.ResourceID,
 			&i.ActorType,
 			&i.ActorID,
 			&i.SubjectType,
@@ -108,8 +111,8 @@ func (q *Queries) ListEventsAfter(ctx context.Context, arg ListEventsAfterParams
 	return items, nil
 }
 
-const listOrgEvents = `-- name: ListOrgEvents :many
-SELECT e.seq, e.txid, e.id, e.type, e.org_id, e.workspace_id, e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id, e.data, e.created_at, u.email AS actor_email, u.name AS actor_name
+const listOrgAuditEvents = `-- name: ListOrgAuditEvents :many
+SELECT e.seq, e.txid, e.id, e.type, e.org_id, e.workspace_id, e.resource_id, e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id, e.data, e.created_at, u.email AS actor_email, u.name AS actor_name
 FROM events e
 LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
 WHERE e.org_id = $1
@@ -119,21 +122,21 @@ ORDER BY e.seq DESC
 LIMIT $4
 `
 
-type ListOrgEventsParams struct {
+type ListOrgAuditEventsParams struct {
 	OrgID     *uuid.UUID `json:"orgId"`
 	BeforeSeq *int64     `json:"beforeSeq"`
 	Types     []string   `json:"types"`
 	MaxRows   int32      `json:"maxRows"`
 }
 
-type ListOrgEventsRow struct {
+type ListOrgAuditEventsRow struct {
 	Event      Event   `json:"event"`
 	ActorEmail *string `json:"actorEmail"`
 	ActorName  *string `json:"actorName"`
 }
 
-func (q *Queries) ListOrgEvents(ctx context.Context, arg ListOrgEventsParams) ([]ListOrgEventsRow, error) {
-	rows, err := q.db.Query(ctx, listOrgEvents,
+func (q *Queries) ListOrgAuditEvents(ctx context.Context, arg ListOrgAuditEventsParams) ([]ListOrgAuditEventsRow, error) {
+	rows, err := q.db.Query(ctx, listOrgAuditEvents,
 		arg.OrgID,
 		arg.BeforeSeq,
 		arg.Types,
@@ -143,9 +146,9 @@ func (q *Queries) ListOrgEvents(ctx context.Context, arg ListOrgEventsParams) ([
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListOrgEventsRow
+	var items []ListOrgAuditEventsRow
 	for rows.Next() {
-		var i ListOrgEventsRow
+		var i ListOrgAuditEventsRow
 		if err := rows.Scan(
 			&i.Event.Seq,
 			&i.Event.Txid,
@@ -153,6 +156,148 @@ func (q *Queries) ListOrgEvents(ctx context.Context, arg ListOrgEventsParams) ([
 			&i.Event.Type,
 			&i.Event.OrgID,
 			&i.Event.WorkspaceID,
+			&i.Event.ResourceID,
+			&i.Event.ActorType,
+			&i.Event.ActorID,
+			&i.Event.SubjectType,
+			&i.Event.SubjectID,
+			&i.Event.RequestID,
+			&i.Event.Data,
+			&i.Event.CreatedAt,
+			&i.ActorEmail,
+			&i.ActorName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listResourceAuditEvents = `-- name: ListResourceAuditEvents :many
+SELECT e.seq, e.txid, e.id, e.type, e.org_id, e.workspace_id, e.resource_id, e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id, e.data, e.created_at, u.email AS actor_email, u.name AS actor_name
+FROM events e
+LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
+WHERE e.org_id = $1
+  AND e.workspace_id = $2
+  AND e.resource_id = $3
+  AND ($4::bigint IS NULL OR e.seq < $4::bigint)
+  AND (cardinality($5::text[]) = 0 OR e.type = ANY($5::text[]))
+ORDER BY e.seq DESC
+LIMIT $6
+`
+
+type ListResourceAuditEventsParams struct {
+	OrgID       *uuid.UUID `json:"orgId"`
+	WorkspaceID *uuid.UUID `json:"workspaceId"`
+	ResourceID  *uuid.UUID `json:"resourceId"`
+	BeforeSeq   *int64     `json:"beforeSeq"`
+	Types       []string   `json:"types"`
+	MaxRows     int32      `json:"maxRows"`
+}
+
+type ListResourceAuditEventsRow struct {
+	Event      Event   `json:"event"`
+	ActorEmail *string `json:"actorEmail"`
+	ActorName  *string `json:"actorName"`
+}
+
+func (q *Queries) ListResourceAuditEvents(ctx context.Context, arg ListResourceAuditEventsParams) ([]ListResourceAuditEventsRow, error) {
+	rows, err := q.db.Query(ctx, listResourceAuditEvents,
+		arg.OrgID,
+		arg.WorkspaceID,
+		arg.ResourceID,
+		arg.BeforeSeq,
+		arg.Types,
+		arg.MaxRows,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListResourceAuditEventsRow
+	for rows.Next() {
+		var i ListResourceAuditEventsRow
+		if err := rows.Scan(
+			&i.Event.Seq,
+			&i.Event.Txid,
+			&i.Event.ID,
+			&i.Event.Type,
+			&i.Event.OrgID,
+			&i.Event.WorkspaceID,
+			&i.Event.ResourceID,
+			&i.Event.ActorType,
+			&i.Event.ActorID,
+			&i.Event.SubjectType,
+			&i.Event.SubjectID,
+			&i.Event.RequestID,
+			&i.Event.Data,
+			&i.Event.CreatedAt,
+			&i.ActorEmail,
+			&i.ActorName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listWorkspaceAuditEvents = `-- name: ListWorkspaceAuditEvents :many
+SELECT e.seq, e.txid, e.id, e.type, e.org_id, e.workspace_id, e.resource_id, e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id, e.data, e.created_at, u.email AS actor_email, u.name AS actor_name
+FROM events e
+LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
+WHERE e.org_id = $1
+  AND e.workspace_id = $2
+  AND ($3::bigint IS NULL OR e.seq < $3::bigint)
+  AND (cardinality($4::text[]) = 0 OR e.type = ANY($4::text[]))
+ORDER BY e.seq DESC
+LIMIT $5
+`
+
+type ListWorkspaceAuditEventsParams struct {
+	OrgID       *uuid.UUID `json:"orgId"`
+	WorkspaceID *uuid.UUID `json:"workspaceId"`
+	BeforeSeq   *int64     `json:"beforeSeq"`
+	Types       []string   `json:"types"`
+	MaxRows     int32      `json:"maxRows"`
+}
+
+type ListWorkspaceAuditEventsRow struct {
+	Event      Event   `json:"event"`
+	ActorEmail *string `json:"actorEmail"`
+	ActorName  *string `json:"actorName"`
+}
+
+func (q *Queries) ListWorkspaceAuditEvents(ctx context.Context, arg ListWorkspaceAuditEventsParams) ([]ListWorkspaceAuditEventsRow, error) {
+	rows, err := q.db.Query(ctx, listWorkspaceAuditEvents,
+		arg.OrgID,
+		arg.WorkspaceID,
+		arg.BeforeSeq,
+		arg.Types,
+		arg.MaxRows,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListWorkspaceAuditEventsRow
+	for rows.Next() {
+		var i ListWorkspaceAuditEventsRow
+		if err := rows.Scan(
+			&i.Event.Seq,
+			&i.Event.Txid,
+			&i.Event.ID,
+			&i.Event.Type,
+			&i.Event.OrgID,
+			&i.Event.WorkspaceID,
+			&i.Event.ResourceID,
 			&i.Event.ActorType,
 			&i.Event.ActorID,
 			&i.Event.SubjectType,

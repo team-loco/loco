@@ -6,6 +6,7 @@ CREATE TABLE events (
     type TEXT NOT NULL,
     org_id UUID,
     workspace_id UUID,
+    resource_id UUID,
     actor_type TEXT NOT NULL,
     actor_id UUID,
     subject_type TEXT,
@@ -15,6 +16,8 @@ CREATE TABLE events (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE INDEX events_workspace_seq_idx ON events (workspace_id, seq DESC);
+CREATE INDEX events_resource_seq_idx ON events (resource_id, seq DESC);
 CREATE INDEX events_org_seq_idx ON events (org_id, seq DESC);
 CREATE INDEX events_created_at_idx ON events (created_at);
 CREATE INDEX events_txid_seq_idx ON events (txid, seq);

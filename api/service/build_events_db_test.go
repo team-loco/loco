@@ -17,12 +17,13 @@ type buildEventRow struct {
 	subjectID   uuid.UUID
 	workspaceID *uuid.UUID
 	orgID       *uuid.UUID
+	resourceID  *uuid.UUID
 }
 
 func (f *buildFixture) buildEvents(t *testing.T) []buildEventRow {
 	t.Helper()
 	rows, err := f.pool.Query(t.Context(),
-		`SELECT type, subject_id, workspace_id, org_id FROM events WHERE subject_type = $1 ORDER BY seq`,
+		`SELECT type, subject_id, workspace_id, org_id, resource_id FROM events WHERE subject_type = $1 ORDER BY seq`,
 		events.SubjectBuild)
 	if err != nil {
 		t.Fatalf("list build events: %v", err)
@@ -31,7 +32,13 @@ func (f *buildFixture) buildEvents(t *testing.T) []buildEventRow {
 	var out []buildEventRow
 	for rows.Next() {
 		var row buildEventRow
-		if scanErr := rows.Scan(&row.eventType, &row.subjectID, &row.workspaceID, &row.orgID); scanErr != nil {
+		if scanErr := rows.Scan(
+			&row.eventType,
+			&row.subjectID,
+			&row.workspaceID,
+			&row.orgID,
+			&row.resourceID,
+		); scanErr != nil {
 			t.Fatalf("scan build event: %v", scanErr)
 		}
 		out = append(out, row)
@@ -63,6 +70,9 @@ func TestBuildMutationsRecordEvents(t *testing.T) {
 	types := make([]string, len(got))
 	for i, row := range got {
 		types[i] = row.eventType
+		if row.resourceID == nil || *row.resourceID != resource.ID {
+			t.Fatalf("%s resource = %v, want %s", row.eventType, row.resourceID, resource.ID)
+		}
 		if row.subjectID.String() != buildID {
 			t.Fatalf("%s subject = %s, want build %s", row.eventType, row.subjectID, buildID)
 		}

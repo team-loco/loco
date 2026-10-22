@@ -6,7 +6,8 @@ import { matchPath, useLocation, useNavigate } from "react-router";
 
 import type { Organization } from "@gen/loco/org/v1/org_pb";
 import { getResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
-import { listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
+import { Scope } from "@gen/loco/token/v1/token_pb";
+import { getWorkspace, listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 
 import {
@@ -245,7 +246,17 @@ export function ShellBreadcrumb() {
 	const pageCrumb = resourceId !== "" ? resourceRes?.resource?.name : staticCrumb(pathname, search);
 
 	const org = orgs.find((o) => o.id === activeOrgId);
-	const workspace = workspaces.find((w) => w.id === activeWorkspaceId);
+	const scopes = useMyScopes();
+	const directWorkspace = useQuery(
+		getWorkspace,
+		{ workspaceId: activeWorkspaceId ?? "" },
+		{
+			enabled: org === undefined && activeOrgId !== null && activeWorkspaceId !== null
+				&& !scopes.isLoading && scopes.holds(activeOrgId, activeWorkspaceId, Scope.READ),
+		},
+	);
+	const workspace = workspaces.find((w) => w.id === activeWorkspaceId) ?? directWorkspace.data?.workspace;
+	const hasScopeCrumb = org !== undefined || workspace !== undefined;
 	const inWorkspace = matchPath(WORKSPACE_ROUTE, pathname) !== null;
 	const showEnv = inWorkspace && !pathname.endsWith("/settings");
 
@@ -262,9 +273,15 @@ export function ShellBreadcrumb() {
 					/>
 				)}
 
+				{org === undefined && workspace !== undefined && (
+					<BreadcrumbItem className="min-w-0">
+						<span className="truncate px-2 text-fg2">{workspace.orgName} / {workspace.name}</span>
+					</BreadcrumbItem>
+				)}
+
 				{showEnv && env !== undefined && (
 					<>
-						<Slash />
+						{hasScopeCrumb && <Slash />}
 						<CrumbMenu
 							title="Environment"
 							heading="Environments"
@@ -288,7 +305,7 @@ export function ShellBreadcrumb() {
 
 				{pageCrumb !== undefined && pageCrumb !== null && (
 					<>
-						<Slash />
+						{(hasScopeCrumb || (showEnv && env !== undefined)) && <Slash />}
 						<BreadcrumbItem className="min-w-0">
 							<BreadcrumbPage className="px-2 font-medium">{pageCrumb}</BreadcrumbPage>
 						</BreadcrumbItem>

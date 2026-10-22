@@ -24,18 +24,18 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// EventServiceListOrgEventsProcedure is the procedure name of the EventService's ListOrgEvents RPC.
-	EventServiceListOrgEventsProcedure = "/loco.event.v1.EventService/ListOrgEvents"
+	// EventServiceListEventsProcedure is the procedure name of the EventService's ListEvents RPC.
+	EventServiceListEventsProcedure = "/loco.event.v1.EventService/ListEvents"
 	// EventServiceStreamEventsProcedure is the procedure name of the EventService's StreamEvents RPC.
 	EventServiceStreamEventsProcedure = "/loco.event.v1.EventService/StreamEvents"
 )
 
 var (
-	eventServiceListOrgEventsSpec = sync.OnceValue(func() connect.Spec {
+	eventServiceListEventsSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
-			Schema:     v1.File_loco_event_v1_event_proto.Services().ByName("EventService").Methods().ByName("ListOrgEvents"),
-			Procedure:  EventServiceListOrgEventsProcedure,
+			Schema:     v1.File_loco_event_v1_event_proto.Services().ByName("EventService").Methods().ByName("ListEvents"),
+			Procedure:  EventServiceListEventsProcedure,
 		}
 	})
 	eventServiceStreamEventsSpec = sync.OnceValue(func() connect.Spec {
@@ -49,7 +49,7 @@ var (
 
 // EventServiceClient is a client for the loco.event.v1.EventService service.
 type EventServiceClient interface {
-	ListOrgEvents(context.Context, *v1.ListOrgEventsRequest) (*v1.ListOrgEventsResponse, error)
+	ListEvents(context.Context, *v1.ListEventsRequest) (*v1.ListEventsResponse, error)
 	StreamEvents(context.Context, *v1.StreamEventsRequest) (EventServiceStreamEventsClientStream, error)
 }
 
@@ -82,7 +82,7 @@ func (s EventServiceStreamEventsClientStream) Close() error {
 
 // EventServiceHandler is an implementation of the loco.event.v1.EventService service.
 type EventServiceHandler interface {
-	ListOrgEvents(context.Context, *v1.ListOrgEventsRequest) (*v1.ListOrgEventsResponse, error)
+	ListEvents(context.Context, *v1.ListEventsRequest) (*v1.ListEventsResponse, error)
 	StreamEvents(context.Context, *v1.StreamEventsRequest, EventServiceStreamEventsServerStream) error
 }
 
@@ -91,7 +91,7 @@ type EventServiceHandler interface {
 func RegisterEventServiceHandler(server *connect.Server, svc EventServiceHandler) {
 	adapter := eventServiceHandler{svc: svc}
 	server.Register(
-		connect.Method{Spec: eventServiceListOrgEventsSpec(), Handler: adapter.listOrgEvents},
+		connect.Method{Spec: eventServiceListEventsSpec(), Handler: adapter.listEvents},
 		connect.Method{Spec: eventServiceStreamEventsSpec(), Handler: adapter.streamEvents},
 	)
 }
@@ -115,8 +115,8 @@ func (s EventServiceStreamEventsServerStream) Send(res *v1.StreamEventsResponse)
 // UnimplementedEventServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedEventServiceHandler struct{}
 
-func (UnimplementedEventServiceHandler) ListOrgEvents(context.Context, *v1.ListOrgEventsRequest) (*v1.ListOrgEventsResponse, error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, "loco.event.v1.EventService.ListOrgEvents is not implemented")
+func (UnimplementedEventServiceHandler) ListEvents(context.Context, *v1.ListEventsRequest) (*v1.ListEventsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.event.v1.EventService.ListEvents is not implemented")
 }
 
 func (UnimplementedEventServiceHandler) StreamEvents(context.Context, *v1.StreamEventsRequest, EventServiceStreamEventsServerStream) error {
@@ -127,9 +127,9 @@ type eventServiceClient struct {
 	client *connect.Client
 }
 
-func (c *eventServiceClient) ListOrgEvents(ctx context.Context, req *v1.ListOrgEventsRequest) (*v1.ListOrgEventsResponse, error) {
-	var res v1.ListOrgEventsResponse
-	if err := c.client.CallUnary(ctx, eventServiceListOrgEventsSpec(), req, &res); err != nil {
+func (c *eventServiceClient) ListEvents(ctx context.Context, req *v1.ListEventsRequest) (*v1.ListEventsResponse, error) {
+	var res v1.ListEventsResponse
+	if err := c.client.CallUnary(ctx, eventServiceListEventsSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -145,12 +145,12 @@ func (c *eventServiceClient) StreamEvents(ctx context.Context, req *v1.StreamEve
 
 type eventServiceHandler struct{ svc EventServiceHandler }
 
-func (h eventServiceHandler) listOrgEvents(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
-	var req v1.ListOrgEventsRequest
+func (h eventServiceHandler) listEvents(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListEventsRequest
 	if err := stream.Receive(&req); err != nil {
 		return err
 	}
-	res, err := h.svc.ListOrgEvents(ctx, &req)
+	res, err := h.svc.ListEvents(ctx, &req)
 	if err != nil {
 		return err
 	}

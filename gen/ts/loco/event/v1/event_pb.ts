@@ -13,7 +13,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file loco/event/v1/event.proto.
  */
 export const file_loco_event_v1_event: GenFile = /*@__PURE__*/
-  fileDesc("Chlsb2NvL2V2ZW50L3YxL2V2ZW50LnByb3RvEg1sb2NvLmV2ZW50LnYxIrgCCgVFdmVudBILCgNzZXEYASABKAMSCgoCaWQYAiABKAkSDAoEdHlwZRgDIAEoCRIOCgZvcmdfaWQYBCABKAkSFAoMd29ya3NwYWNlX2lkGAUgASgJEhIKCmFjdG9yX3R5cGUYBiABKAkSEAoIYWN0b3JfaWQYByABKAkSFAoMc3ViamVjdF90eXBlGAggASgJEhIKCnN1YmplY3RfaWQYCSABKAkSEgoKcmVxdWVzdF9pZBgKIAEoCRIlCgRkYXRhGAsgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIuCgpjcmVhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgthY3Rvcl9lbWFpbBgNIAEoCRISCgphY3Rvcl9uYW1lGA4gASgJIoUBChRMaXN0T3JnRXZlbnRzUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEhsKCmJlZm9yZV9zZXEYAiABKANCB7pIBCICKAASFwoFdHlwZXMYAyADKAlCCLpIBZIBAhAyEh0KCXBhZ2Vfc2l6ZRgEIAEoBUIKukgHGgUY9AMoACJWChVMaXN0T3JnRXZlbnRzUmVzcG9uc2USJAoGZXZlbnRzGAEgAygLMhQubG9jby5ldmVudC52MS5FdmVudBIXCg9uZXh0X2JlZm9yZV9zZXEYAiABKAMiLgoTU3RyZWFtRXZlbnRzUmVxdWVzdBIXCgZjdXJzb3IYASABKAlCB7pIBHICGEAiTAoUU3RyZWFtRXZlbnRzUmVzcG9uc2USJAoGZXZlbnRzGAEgAygLMhQubG9jby5ldmVudC52MS5FdmVudBIOCgZjdXJzb3IYAiABKAkyxQEKDEV2ZW50U2VydmljZRJaCg1MaXN0T3JnRXZlbnRzEiMubG9jby5ldmVudC52MS5MaXN0T3JnRXZlbnRzUmVxdWVzdBokLmxvY28uZXZlbnQudjEuTGlzdE9yZ0V2ZW50c1Jlc3BvbnNlElkKDFN0cmVhbUV2ZW50cxIiLmxvY28uZXZlbnQudjEuU3RyZWFtRXZlbnRzUmVxdWVzdBojLmxvY28uZXZlbnQudjEuU3RyZWFtRXZlbnRzUmVzcG9uc2UwAUI4WjZnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2V2ZW50L3YxO2V2ZW50djFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_struct, file_google_protobuf_timestamp]);
+  fileDesc("Chlsb2NvL2V2ZW50L3YxL2V2ZW50LnByb3RvEg1sb2NvLmV2ZW50LnYxIs0CCgVFdmVudBILCgNzZXEYASABKAMSCgoCaWQYAiABKAkSDAoEdHlwZRgDIAEoCRIOCgZvcmdfaWQYBCABKAkSFAoMd29ya3NwYWNlX2lkGAUgASgJEhIKCmFjdG9yX3R5cGUYBiABKAkSEAoIYWN0b3JfaWQYByABKAkSFAoMc3ViamVjdF90eXBlGAggASgJEhIKCnN1YmplY3RfaWQYCSABKAkSEgoKcmVxdWVzdF9pZBgKIAEoCRIlCgRkYXRhGAsgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIuCgpjcmVhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgthY3Rvcl9lbWFpbBgNIAEoCRISCgphY3Rvcl9uYW1lGA4gASgJEhMKC3Jlc291cmNlX2lkGA8gASgJIscBChFMaXN0RXZlbnRzUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEhsKCmJlZm9yZV9zZXEYAiABKANCB7pIBCICKAASFwoFdHlwZXMYAyADKAlCCLpIBZIBAhAyEh0KCXBhZ2Vfc2l6ZRgEIAEoBUIKukgHGgUY9AMoABIhCgx3b3Jrc3BhY2VfaWQYBSABKAlCC7pICNgBAXIDsAEBEiAKC3Jlc291cmNlX2lkGAYgASgJQgu6SAjYAQFyA7ABASJTChJMaXN0RXZlbnRzUmVzcG9uc2USJAoGZXZlbnRzGAEgAygLMhQubG9jby5ldmVudC52MS5FdmVudBIXCg9uZXh0X2JlZm9yZV9zZXEYAiABKAMiLgoTU3RyZWFtRXZlbnRzUmVxdWVzdBIXCgZjdXJzb3IYASABKAlCB7pIBHICGEAiTAoUU3RyZWFtRXZlbnRzUmVzcG9uc2USJAoGZXZlbnRzGAEgAygLMhQubG9jby5ldmVudC52MS5FdmVudBIOCgZjdXJzb3IYAiABKAkyvAEKDEV2ZW50U2VydmljZRJRCgpMaXN0RXZlbnRzEiAubG9jby5ldmVudC52MS5MaXN0RXZlbnRzUmVxdWVzdBohLmxvY28uZXZlbnQudjEuTGlzdEV2ZW50c1Jlc3BvbnNlElkKDFN0cmVhbUV2ZW50cxIiLmxvY28uZXZlbnQudjEuU3RyZWFtRXZlbnRzUmVxdWVzdBojLmxvY28uZXZlbnQudjEuU3RyZWFtRXZlbnRzUmVzcG9uc2UwAUI4WjZnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2V2ZW50L3YxO2V2ZW50djFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_struct, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.event.v1.Event
@@ -88,6 +88,11 @@ export type Event = Message<"loco.event.v1.Event"> & {
    * @generated from field: string actor_name = 14;
    */
   actorName: string;
+
+  /**
+   * @generated from field: string resource_id = 15;
+   */
+  resourceId: string;
 };
 
 /**
@@ -163,6 +168,11 @@ export type EventJson = {
    * @generated from field: string actor_name = 14;
    */
   actorName?: string;
+
+  /**
+   * @generated from field: string resource_id = 15;
+   */
+  resourceId?: string;
 };
 
 /**
@@ -173,9 +183,9 @@ export const EventSchema: GenMessage<Event, {jsonType: EventJson}> = /*@__PURE__
   messageDesc(file_loco_event_v1_event, 0);
 
 /**
- * @generated from message loco.event.v1.ListOrgEventsRequest
+ * @generated from message loco.event.v1.ListEventsRequest
  */
-export type ListOrgEventsRequest = Message<"loco.event.v1.ListOrgEventsRequest"> & {
+export type ListEventsRequest = Message<"loco.event.v1.ListEventsRequest"> & {
   /**
    * @generated from field: string org_id = 1;
    */
@@ -195,12 +205,22 @@ export type ListOrgEventsRequest = Message<"loco.event.v1.ListOrgEventsRequest">
    * @generated from field: int32 page_size = 4;
    */
   pageSize: number;
+
+  /**
+   * @generated from field: string workspace_id = 5;
+   */
+  workspaceId: string;
+
+  /**
+   * @generated from field: string resource_id = 6;
+   */
+  resourceId: string;
 };
 
 /**
- * @generated from message loco.event.v1.ListOrgEventsRequest
+ * @generated from message loco.event.v1.ListEventsRequest
  */
-export type ListOrgEventsRequestJson = {
+export type ListEventsRequestJson = {
   /**
    * @generated from field: string org_id = 1;
    */
@@ -220,19 +240,29 @@ export type ListOrgEventsRequestJson = {
    * @generated from field: int32 page_size = 4;
    */
   pageSize?: number;
+
+  /**
+   * @generated from field: string workspace_id = 5;
+   */
+  workspaceId?: string;
+
+  /**
+   * @generated from field: string resource_id = 6;
+   */
+  resourceId?: string;
 };
 
 /**
- * Describes the message loco.event.v1.ListOrgEventsRequest.
- * Use `create(ListOrgEventsRequestSchema)` to create a new message.
+ * Describes the message loco.event.v1.ListEventsRequest.
+ * Use `create(ListEventsRequestSchema)` to create a new message.
  */
-export const ListOrgEventsRequestSchema: GenMessage<ListOrgEventsRequest, {jsonType: ListOrgEventsRequestJson}> = /*@__PURE__*/
+export const ListEventsRequestSchema: GenMessage<ListEventsRequest, {jsonType: ListEventsRequestJson}> = /*@__PURE__*/
   messageDesc(file_loco_event_v1_event, 1);
 
 /**
- * @generated from message loco.event.v1.ListOrgEventsResponse
+ * @generated from message loco.event.v1.ListEventsResponse
  */
-export type ListOrgEventsResponse = Message<"loco.event.v1.ListOrgEventsResponse"> & {
+export type ListEventsResponse = Message<"loco.event.v1.ListEventsResponse"> & {
   /**
    * @generated from field: repeated loco.event.v1.Event events = 1;
    */
@@ -245,9 +275,9 @@ export type ListOrgEventsResponse = Message<"loco.event.v1.ListOrgEventsResponse
 };
 
 /**
- * @generated from message loco.event.v1.ListOrgEventsResponse
+ * @generated from message loco.event.v1.ListEventsResponse
  */
-export type ListOrgEventsResponseJson = {
+export type ListEventsResponseJson = {
   /**
    * @generated from field: repeated loco.event.v1.Event events = 1;
    */
@@ -260,10 +290,10 @@ export type ListOrgEventsResponseJson = {
 };
 
 /**
- * Describes the message loco.event.v1.ListOrgEventsResponse.
- * Use `create(ListOrgEventsResponseSchema)` to create a new message.
+ * Describes the message loco.event.v1.ListEventsResponse.
+ * Use `create(ListEventsResponseSchema)` to create a new message.
  */
-export const ListOrgEventsResponseSchema: GenMessage<ListOrgEventsResponse, {jsonType: ListOrgEventsResponseJson}> = /*@__PURE__*/
+export const ListEventsResponseSchema: GenMessage<ListEventsResponse, {jsonType: ListEventsResponseJson}> = /*@__PURE__*/
   messageDesc(file_loco_event_v1_event, 2);
 
 /**
@@ -335,12 +365,12 @@ export const StreamEventsResponseSchema: GenMessage<StreamEventsResponse, {jsonT
  */
 export const EventService: GenService<{
   /**
-   * @generated from rpc loco.event.v1.EventService.ListOrgEvents
+   * @generated from rpc loco.event.v1.EventService.ListEvents
    */
-  listOrgEvents: {
+  listEvents: {
     methodKind: "unary";
-    input: typeof ListOrgEventsRequestSchema;
-    output: typeof ListOrgEventsResponseSchema;
+    input: typeof ListEventsRequestSchema;
+    output: typeof ListEventsResponseSchema;
   },
   /**
    * @generated from rpc loco.event.v1.EventService.StreamEvents

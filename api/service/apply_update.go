@@ -146,6 +146,7 @@ func (a *applier) stopRemovedRegions(
 		if eventErr := events.Record(ctx, qtx, events.Event{
 			Type:        events.DeploymentDeleted,
 			WorkspaceID: new(res.WorkspaceID),
+			ResourceID:  new(res.ID),
 			SubjectType: events.SubjectDeployment,
 			SubjectID:   new(deployment.ID),
 			Data:        map[string]any{events.FieldResourceID: res.ID.String()},
@@ -198,6 +199,7 @@ func (a *applier) syncDomains(ctx context.Context, qtx *genDb.Queries, resourceI
 		if eventErr := events.Record(ctx, qtx, events.Event{
 			Type:        events.DomainDeleted,
 			WorkspaceID: new(a.env.WorkspaceID),
+			ResourceID:  new(resourceID),
 			SubjectType: events.SubjectDomain,
 			SubjectID:   new(row.ID),
 			Data:        map[string]any{events.FieldDomain: row.Domain},
@@ -230,6 +232,7 @@ func (a *applier) syncDomains(ctx context.Context, qtx *genDb.Queries, resourceI
 	return events.Record(ctx, qtx, events.Event{
 		Type:        events.DomainUpdated,
 		WorkspaceID: new(a.env.WorkspaceID),
+		ResourceID:  new(resourceID),
 		SubjectType: events.SubjectDomain,
 		SubjectID:   new(primaryID),
 		Data:        map[string]any{events.FieldPrimary: true},
