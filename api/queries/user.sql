@@ -26,10 +26,12 @@ WHERE u.id = sqlc.arg('user_id')
     )
 RETURNING id, email, name, avatar_url, created_at, updated_at;
 
--- name: UpdateUserAvatarURL :one
+-- name: UpdateUserProfile :one
 UPDATE users
-SET avatar_url = $2, updated_at = NOW()
-WHERE id = $1
+SET name = COALESCE(sqlc.narg('name'), name),
+    avatar_url = COALESCE(sqlc.narg('avatar_url'), avatar_url),
+    updated_at = NOW()
+WHERE id = sqlc.arg('id')
 RETURNING id, email, name, avatar_url, created_at, updated_at;
 
 -- name: ListUsers :many

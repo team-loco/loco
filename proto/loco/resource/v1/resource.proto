@@ -3,7 +3,6 @@ syntax = "proto3";
 package loco.resource.v1;
 
 import "buf/validate/validate.proto";
-import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 import "loco/deployment/v1/deployment.proto";
 import "loco/domain/v1/domain.proto";
@@ -249,8 +248,12 @@ message ListWorkspaceResourcesResponse {
 // UpdateResourceRequest is the request to update a resource.
 message UpdateResourceRequest {
   string resource_id = 1 [(buf.validate.field).string.uuid = true];
-  google.protobuf.FieldMask update_mask = 2;
-  optional string name = 3 [(buf.validate.field).string.max_len = 63];
+  reserved 2;
+  reserved "update_mask";
+  optional string name = 3 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 63
+  }];
   optional string description = 4 [(buf.validate.field).string.max_len = 256];
 }
 

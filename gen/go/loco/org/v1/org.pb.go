@@ -10,7 +10,6 @@ import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -846,7 +845,6 @@ func (x *User) GetAvatarUrl() string {
 type UpdateOrgRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
-	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
 	Name          *string                `protobuf:"bytes,3,opt,name=name,proto3,oneof" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -887,13 +885,6 @@ func (x *UpdateOrgRequest) GetOrgId() string {
 		return x.OrgId
 	}
 	return ""
-}
-
-func (x *UpdateOrgRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
-	if x != nil {
-		return x.UpdateMask
-	}
-	return nil
 }
 
 func (x *UpdateOrgRequest) GetName() string {
@@ -1034,7 +1025,7 @@ var File_loco_org_v1_org_proto protoreflect.FileDescriptor
 
 const file_loco_org_v1_org_proto_rawDesc = "" +
 	"\n" +
-	"\x15loco/org/v1/org.proto\x12\vloco.org.v1\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc7\x01\n" +
+	"\x15loco/org/v1/org.proto\x12\vloco.org.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc7\x01\n" +
 	"\fOrganization\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n" +
@@ -1089,13 +1080,11 @@ const file_loco_org_v1_org_proto_rawDesc = "" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12\x1d\n" +
 	"\n" +
-	"avatar_url\x18\x04 \x01(\tR\tavatarUrl\"\x9d\x01\n" +
+	"avatar_url\x18\x04 \x01(\tR\tavatarUrl\"s\n" +
 	"\x10UpdateOrgRequest\x12\x1f\n" +
-	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12;\n" +
-	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
-	"updateMask\x12\"\n" +
+	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12\"\n" +
 	"\x04name\x18\x03 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18dH\x00R\x04name\x88\x01\x01B\a\n" +
-	"\x05_name\"*\n" +
+	"\x05_nameJ\x04\b\x02\x10\x03R\vupdate_mask\"*\n" +
 	"\x11UpdateOrgResponse\x12\x15\n" +
 	"\x06org_id\x18\x01 \x01(\tR\x05orgId\"3\n" +
 	"\x10DeleteOrgRequest\x12\x1f\n" +
@@ -1146,7 +1135,6 @@ var file_loco_org_v1_org_proto_goTypes = []any{
 	(*DeleteOrgRequest)(nil),        // 17: loco.org.v1.DeleteOrgRequest
 	(*DeleteOrgResponse)(nil),       // 18: loco.org.v1.DeleteOrgResponse
 	(*timestamppb.Timestamp)(nil),   // 19: google.protobuf.Timestamp
-	(*fieldmaskpb.FieldMask)(nil),   // 20: google.protobuf.FieldMask
 }
 var file_loco_org_v1_org_proto_depIdxs = []int32{
 	19, // 0: loco.org.v1.Organization.created_at:type_name -> google.protobuf.Timestamp
@@ -1155,28 +1143,27 @@ var file_loco_org_v1_org_proto_depIdxs = []int32{
 	0,  // 3: loco.org.v1.ListUserOrgsResponse.orgs:type_name -> loco.org.v1.Organization
 	9,  // 4: loco.org.v1.ListOrgMembersResponse.members:type_name -> loco.org.v1.OrgMember
 	14, // 5: loco.org.v1.OrgMember.user:type_name -> loco.org.v1.User
-	20, // 6: loco.org.v1.UpdateOrgRequest.update_mask:type_name -> google.protobuf.FieldMask
-	1,  // 7: loco.org.v1.OrgService.CreateOrg:input_type -> loco.org.v1.CreateOrgRequest
-	3,  // 8: loco.org.v1.OrgService.GetOrg:input_type -> loco.org.v1.GetOrgRequest
-	15, // 9: loco.org.v1.OrgService.UpdateOrg:input_type -> loco.org.v1.UpdateOrgRequest
-	17, // 10: loco.org.v1.OrgService.DeleteOrg:input_type -> loco.org.v1.DeleteOrgRequest
-	5,  // 11: loco.org.v1.OrgService.ListUserOrgs:input_type -> loco.org.v1.ListUserOrgsRequest
-	7,  // 12: loco.org.v1.OrgService.ListOrgMembers:input_type -> loco.org.v1.ListOrgMembersRequest
-	10, // 13: loco.org.v1.OrgService.AddOrgMember:input_type -> loco.org.v1.AddOrgMemberRequest
-	12, // 14: loco.org.v1.OrgService.RemoveOrgMember:input_type -> loco.org.v1.RemoveOrgMemberRequest
-	2,  // 15: loco.org.v1.OrgService.CreateOrg:output_type -> loco.org.v1.CreateOrgResponse
-	4,  // 16: loco.org.v1.OrgService.GetOrg:output_type -> loco.org.v1.GetOrgResponse
-	16, // 17: loco.org.v1.OrgService.UpdateOrg:output_type -> loco.org.v1.UpdateOrgResponse
-	18, // 18: loco.org.v1.OrgService.DeleteOrg:output_type -> loco.org.v1.DeleteOrgResponse
-	6,  // 19: loco.org.v1.OrgService.ListUserOrgs:output_type -> loco.org.v1.ListUserOrgsResponse
-	8,  // 20: loco.org.v1.OrgService.ListOrgMembers:output_type -> loco.org.v1.ListOrgMembersResponse
-	11, // 21: loco.org.v1.OrgService.AddOrgMember:output_type -> loco.org.v1.AddOrgMemberResponse
-	13, // 22: loco.org.v1.OrgService.RemoveOrgMember:output_type -> loco.org.v1.RemoveOrgMemberResponse
-	15, // [15:23] is the sub-list for method output_type
-	7,  // [7:15] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	1,  // 6: loco.org.v1.OrgService.CreateOrg:input_type -> loco.org.v1.CreateOrgRequest
+	3,  // 7: loco.org.v1.OrgService.GetOrg:input_type -> loco.org.v1.GetOrgRequest
+	15, // 8: loco.org.v1.OrgService.UpdateOrg:input_type -> loco.org.v1.UpdateOrgRequest
+	17, // 9: loco.org.v1.OrgService.DeleteOrg:input_type -> loco.org.v1.DeleteOrgRequest
+	5,  // 10: loco.org.v1.OrgService.ListUserOrgs:input_type -> loco.org.v1.ListUserOrgsRequest
+	7,  // 11: loco.org.v1.OrgService.ListOrgMembers:input_type -> loco.org.v1.ListOrgMembersRequest
+	10, // 12: loco.org.v1.OrgService.AddOrgMember:input_type -> loco.org.v1.AddOrgMemberRequest
+	12, // 13: loco.org.v1.OrgService.RemoveOrgMember:input_type -> loco.org.v1.RemoveOrgMemberRequest
+	2,  // 14: loco.org.v1.OrgService.CreateOrg:output_type -> loco.org.v1.CreateOrgResponse
+	4,  // 15: loco.org.v1.OrgService.GetOrg:output_type -> loco.org.v1.GetOrgResponse
+	16, // 16: loco.org.v1.OrgService.UpdateOrg:output_type -> loco.org.v1.UpdateOrgResponse
+	18, // 17: loco.org.v1.OrgService.DeleteOrg:output_type -> loco.org.v1.DeleteOrgResponse
+	6,  // 18: loco.org.v1.OrgService.ListUserOrgs:output_type -> loco.org.v1.ListUserOrgsResponse
+	8,  // 19: loco.org.v1.OrgService.ListOrgMembers:output_type -> loco.org.v1.ListOrgMembersResponse
+	11, // 20: loco.org.v1.OrgService.AddOrgMember:output_type -> loco.org.v1.AddOrgMemberResponse
+	13, // 21: loco.org.v1.OrgService.RemoveOrgMember:output_type -> loco.org.v1.RemoveOrgMemberResponse
+	14, // [14:22] is the sub-list for method output_type
+	6,  // [6:14] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_loco_org_v1_org_proto_init() }
