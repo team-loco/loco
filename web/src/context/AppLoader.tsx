@@ -7,7 +7,7 @@ const SHOW_DELAY_MS = 120;
 const GRACE_MS = 150;
 const FADE_MS = 200;
 
-type Phase = "hidden" | "visible" | "finishing" | "fading";
+type Phase = "hidden" | "visible" | "fading";
 
 interface AppLoaderApi {
 	set: (id: string, message: string | undefined) => void;
@@ -74,8 +74,13 @@ export function AppLoading({ message }: { message?: string | undefined }) {
 function AppLoaderOverlay({ active, message }: { active: boolean; message: string | undefined }) {
 	const [phase, setPhase] = useState<Phase>("hidden");
 	const fadeTimerRef = useRef<number | undefined>(undefined);
-	const reactivated = active && (phase === "finishing" || phase === "fading");
+	const reactivated = active && phase === "fading";
 	const shown: Phase = reactivated ? "visible" : phase;
+
+	const finishFade = () => {
+		window.clearTimeout(fadeTimerRef.current);
+		setPhase((p) => (p === "fading" ? "hidden" : p));
+	};
 
 	useEffect(() => {
 		if (active) {
@@ -100,7 +105,8 @@ function AppLoaderOverlay({ active, message }: { active: boolean; message: strin
 		}
 		if (phase === "visible") {
 			const t = window.setTimeout(() => {
-				setPhase("finishing");
+				setPhase("fading");
+				fadeTimerRef.current = window.setTimeout(finishFade, FADE_MS + 100);
 			}, GRACE_MS);
 			return () => {
 				window.clearTimeout(t);
@@ -110,11 +116,6 @@ function AppLoaderOverlay({ active, message }: { active: boolean; message: strin
 	}, [active, phase, reactivated]);
 
 	if (shown === "hidden") return null;
-
-	const finishFade = () => {
-		window.clearTimeout(fadeTimerRef.current);
-		setPhase((p) => (p === "fading" ? "hidden" : p));
-	};
 
 	return (
 		<div
@@ -130,18 +131,7 @@ function AppLoaderOverlay({ active, message }: { active: boolean; message: strin
 				if (e.target === e.currentTarget) finishFade();
 			}}
 		>
-			<LocoLogo
-				motion="loop"
-				speed={1.6}
-				finishing={shown === "finishing" || shown === "fading"}
-				onFinished={() => {
-					setPhase((p) => (p === "finishing" ? "fading" : p));
-					window.clearTimeout(fadeTimerRef.current);
-					fadeTimerRef.current = window.setTimeout(finishFade, FADE_MS + 100);
-				}}
-				className="w-28"
-				title="Loading"
-			/>
+			<LocoLogo className="w-28" title="Loading" />
 			<span className={cn("h-5 text-fg3 transition-opacity", message === undefined && "opacity-0")}>
 				{message ?? ""}
 			</span>

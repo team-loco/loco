@@ -19,7 +19,7 @@ def prepare_brand_assets():
     shutil.copyfile(web / 'public' / 'favicon.svg', assets / 'favicon.svg')
     source = (web / 'src' / 'components' / 'design' / 'logo-strokes.ts').read_text()
     viewbox = re.search(r'LOGO_VIEWBOX = "([^"]+)"', source)
-    strokes = re.findall(r'\["([^"]+)", ([\d.]+),', source)
+    strokes = re.findall(r'\["([^"]+)", ([\d.]+)\]', source)
     assert viewbox is not None, 'web logo has no viewbox'
     assert strokes, 'web logo has no strokes'
     svg = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{viewbox.group(1)}" role="img"><title>Loco</title>'
