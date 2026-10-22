@@ -142,6 +142,11 @@ clickhouseUserPasswords:
 otel-col-daemon:
   enabled: true
   fullnameOverride: "otel-col-daemon"
+  configMap:
+    create: false
+    existingName: '{{ include "opentelemetry-collector.fullname" . }}-agent'
+  podAnnotations:
+    checksum/platform-telemetry: '{{ toJson .Values | sha256sum }}'
   namespaceOverride: observability-node
   mode: daemonset
   podSecurityContext:
@@ -596,6 +601,11 @@ otel-col-deploy:
 otel-col-cluster:
   enabled: true
   fullnameOverride: otel-col-cluster
+  configMap:
+    create: false
+    existingName: '{{ include "opentelemetry-collector.fullname" . }}'
+  podAnnotations:
+    checksum/platform-telemetry: '{{ toJson .Values | sha256sum }}'
   mode: deployment
   replicaCount: 1
   rollout:
