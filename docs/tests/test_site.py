@@ -43,7 +43,7 @@ def test_environment_builds(subtests):
                 web / "public/favicon.svg"
             ).read_text()
             strokes = re.findall(
-                '\\["([^"]+)", ([\\d.]+),',
+                '\\["([^"]+)", ([\\d.]+)\\]',
                 (web / "src/components/design/logo-strokes.ts").read_text(),
             )
             logo = (DOCS / "overrides/partials/logo.html").read_text()

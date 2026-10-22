@@ -371,42 +371,6 @@
 	backdrop-filter: none;
 }
 
-.loco-logo-animated path {
-	stroke-dasharray: 1 1;
-	stroke-dashoffset: 1;
-	visibility: hidden;
-}
-
-@keyframes loco-logo-draw {
-	from {
-		visibility: visible;
-		stroke-dashoffset: 1;
-	}
-	to {
-		visibility: visible;
-		stroke-dashoffset: 0;
-	}
-}
-
-@keyframes loco-logo-cycle {
-	0%,
-	93% {
-		opacity: 1;
-	}
-	100% {
-		opacity: 0;
-	}
-}
-
-@media (prefers-reduced-motion: reduce) {
-	.loco-logo-animated,
-	.loco-logo-animated path {
-		animation: none !important;
-		visibility: visible;
-		stroke-dashoffset: 0;
-	}
-}
-
 @keyframes drawer-in {
 	from {
 		transform: translateX(100%);
