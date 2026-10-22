@@ -1,3 +1,3 @@
 module github.com/team-loco/loco/e2e/fixtures/build-app
 
-go 1.27.2
+go 1.27.3
