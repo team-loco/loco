@@ -511,6 +511,12 @@ type SessionToken struct {
 	CreatedAt        time.Time   `json:"createdAt"`
 }
 
+type SystemBootstrap struct {
+	Singleton      bool       `json:"singleton"`
+	BootstrappedBy *uuid.UUID `json:"bootstrappedBy"`
+	BootstrappedAt time.Time  `json:"bootstrappedAt"`
+}
+
 type User struct {
 	ID        uuid.UUID `json:"id"`
 	Email     string    `json:"email"`

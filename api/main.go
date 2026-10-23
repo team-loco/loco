@@ -38,6 +38,7 @@ import (
 	"github.com/team-loco/loco/api/webhooks"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
+	"github.com/team-loco/loco/gen/go/loco/bootstrap/v1/bootstrapv1connect"
 	"github.com/team-loco/loco/gen/go/loco/build/v1/buildv1connect"
 	"github.com/team-loco/loco/gen/go/loco/cluster/v1/clusterv1connect"
 	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
@@ -216,6 +217,7 @@ func main() {
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
 	clusterSilentAfter := service.ClusterSilentAfter(ac.HeartbeatInterval)
 	clusterAdminServiceHandler := service.NewClusterAdminServer(pool, queries, ac.Agent.JoinTokenTTL)
+	bootstrapServiceHandler := service.NewBootstrapServer(pool, ac.BootstrapTokenHash)
 	resourceServiceHandler := service.NewResourceServer(pool, queries, ac.ServiceDefaults, clusterSilentAfter)
 	sourceBucket, bucketErr := newSourceBucket(ac.SourceBucket)
 	if bucketErr != nil {
@@ -277,6 +279,7 @@ func main() {
 
 	configv1connect.RegisterConfigServiceHandler(baseServer, configServiceHandler)
 	clusterv1connect.RegisterClusterAdminServiceHandler(authenticatedServer, clusterAdminServiceHandler)
+	bootstrapv1connect.RegisterBootstrapServiceHandler(authenticatedServer, bootstrapServiceHandler)
 	userv1connect.RegisterUserServiceHandler(authenticatedServer, userServiceHandler)
 	authv1connect.RegisterAuthServiceHandler(authenticatedServer, authServiceHandler)
 	eventv1connect.RegisterEventServiceHandler(authenticatedServer, eventServiceHandler)

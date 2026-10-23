@@ -77,6 +77,30 @@ def test_chart_owns_port_and_proxy_wiring():
     assert "wrong" not in [entry["value"] for entry in env]
 
 
+def test_api_reads_bootstrap_token_from_existing_secret():
+    deployment = render(
+        "loco-control-plane",
+        "api-deployment.yaml",
+        {
+            "api": {
+                **API_VALUES,
+                "bootstrapToken": {
+                    "existingSecret": {"name": "loco-bootstrap", "key": "value"}
+                },
+            }
+        },
+    )
+    env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
+    (bootstrap,) = [entry for entry in env if entry["name"] == "LOCO_BOOTSTRAP_TOKEN"]
+    assert bootstrap == {
+        "name": "LOCO_BOOTSTRAP_TOKEN",
+        "valueFrom": {"secretKeyRef": {"name": "loco-bootstrap", "key": "value"}},
+    }
+    default = render("loco-control-plane", "api-deployment.yaml", {"api": API_VALUES})
+    default_env = default["spec"]["template"]["spec"]["containers"][0]["env"]
+    assert "LOCO_BOOTSTRAP_TOKEN" not in [entry["name"] for entry in default_env]
+
+
 def test_only_api_can_reach_private_proxy():
     policy = render("loco-control-plane", "obs-proxy-query-network-policy.yaml", {})
     (rule,) = policy["spec"]["ingress"]

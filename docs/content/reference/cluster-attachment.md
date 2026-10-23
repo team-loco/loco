@@ -61,7 +61,7 @@ For a permanently lost cluster, `locoadm cluster remove <cluster-id> --force` re
 
 Restoring clears the removal marker and stale health reports, and leaves the cluster paused. The agent reconnects with its existing key. Resume it explicitly; fresh healthy heartbeats are required before deployment.
 
-A `loco-admin` account must already have a durable `system:admin` grant; organization and workspace admins do not receive that grant. Loco does not provision the first admin.
+The account needs the `system:admin` grant; organization and workspace admins do not receive it. `locoadm bootstrap` grants it to an installation's first admin, as described in [self-hosting](../operations/self-hosting.md#first-system-admin).
 
 ## Verification
 

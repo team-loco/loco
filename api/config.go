@@ -42,6 +42,7 @@ var (
 	errInvalidSecretsLocalKeys = errors.New("LOCO_SECRETS_LOCAL_KEYS is invalid")
 	errUnknownSecretsProvider  = errors.New("LOCO_SECRETS_KEY_PROVIDER is invalid")
 	errInvalidSecretsTransit   = errors.New("LOCO_SECRETS_TRANSIT_* is invalid")
+	errShortBootstrapToken     = errors.New("LOCO_BOOTSTRAP_TOKEN is too short")
 )
 
 const (
@@ -99,6 +100,8 @@ const (
 	defaultPlacementMaxApplyAttempts = 3
 	defaultClusterJoinTokenTTL       = time.Hour
 	defaultAgentAssertionMaxLifetime = 5 * time.Minute
+
+	minBootstrapTokenLength = 32
 )
 
 type APIConfig struct {
@@ -133,6 +136,7 @@ type APIConfig struct {
 	Secrets               secretkeys.Config
 	SecretLimits          service.SecretConfig
 	HeartbeatInterval     time.Duration
+	BootstrapTokenHash    []byte
 }
 
 func newAPIConfig() *APIConfig {
@@ -164,6 +168,7 @@ func newAPIConfig() *APIConfig {
 	eventsRetention := time.Duration(eventsRetentionDays) * day
 	secrets := newSecretsConfig()
 	heartbeatInterval := positiveDurationEnv("LOCO_AGENT_HEARTBEAT_INTERVAL", defaultHeartbeatInterval)
+	bootstrapTokenHash := newBootstrapTokenHash()
 	secretLimits := service.SecretConfig{
 		MaxValueBytes:     positiveInt32Env("LOCO_SECRETS_MAX_VALUE_BYTES", defaultSecretMaxValueBytes),
 		MaxPerService:     positiveInt32Env("LOCO_SECRETS_MAX_PER_SERVICE", defaultSecretMaxPerService),
@@ -203,7 +208,19 @@ func newAPIConfig() *APIConfig {
 		Secrets:               secrets,
 		SecretLimits:          secretLimits,
 		HeartbeatInterval:     heartbeatInterval,
+		BootstrapTokenHash:    bootstrapTokenHash,
 	}
+}
+
+func newBootstrapTokenHash() []byte {
+	token := stringEnv("LOCO_BOOTSTRAP_TOKEN", "")
+	if token == "" {
+		return nil
+	}
+	if len(token) < minBootstrapTokenLength {
+		panic(fmt.Errorf("%w: use at least %d characters", errShortBootstrapToken, minBootstrapTokenLength))
+	}
+	return service.HashBootstrapToken(token)
 }
 
 func newSecretKeyProvider(ctx context.Context, cfg secretkeys.Config) (secretkeys.Provider, error) {

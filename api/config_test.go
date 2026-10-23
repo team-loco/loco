@@ -46,6 +46,8 @@ const (
 	testTransitAddr  = "https://bao.loco.test:8200"
 	testTransitKey   = "loco-dek"
 	testTransitAuth  = "s.transit"
+	bootstrapEnv     = "LOCO_BOOTSTRAP_TOKEN"
+	testBootstrap    = "bootstrap-token-0123456789abcdef0123456789"
 )
 
 var adminIssuers = `[{"issuer":"` + testIssuer + `","audience":"loco",` +
@@ -121,6 +123,19 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv("LOCO_SECRETS_MAX_PER_SERVICE", "")
 	t.Setenv("LOCO_SECRETS_MAX_PLACEMENT_BYTES", "")
 	t.Setenv("LOCO_SECRETS_LOCK_TIMEOUT", "")
+	t.Setenv(bootstrapEnv, "")
+}
+
+func TestNewAPIConfigReadsBootstrapToken(t *testing.T) {
+	clearAPIConfigEnv(t)
+	if ac := newAPIConfig(); ac.BootstrapTokenHash != nil {
+		t.Fatalf("bootstrap token hash = %x without a token", ac.BootstrapTokenHash)
+	}
+	t.Setenv(bootstrapEnv, testBootstrap)
+	ac := newAPIConfig()
+	if !slices.Equal(ac.BootstrapTokenHash, service.HashBootstrapToken(testBootstrap)) {
+		t.Fatalf("bootstrap token hash = %x", ac.BootstrapTokenHash)
+	}
 }
 
 func TestNewAPIConfigDefaults(t *testing.T) {
@@ -456,6 +471,7 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 			map[string]string{installHooksEnv: `[{"url":"` + testHookURL + `"}]`},
 			errInvalidInstallWebhooks,
 		},
+		{"short bootstrap token", map[string]string{bootstrapEnv: "short"}, errShortBootstrapToken},
 		{"malformed auth issuers", map[string]string{authIssuersEnv: "["}, errInvalidAuthIssuers},
 		{"admin token env unset", map[string]string{authIssuersEnv: adminIssuers}, errAdminTokenMissing},
 		{"unknown signup mode", map[string]string{"AUTH_SIGNUP_MODE": "invite"}, errInvalidSignupPolicy},
