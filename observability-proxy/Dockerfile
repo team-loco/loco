@@ -20,6 +20,7 @@ COPY gen/go ./gen/go
 COPY internal/buildinfo ./internal/buildinfo
 COPY internal/httputil ./internal/httputil
 COPY internal/rpcerr ./internal/rpcerr
+COPY internal/ingesttoken ./internal/ingesttoken
 
 WORKDIR /app/observability-proxy
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build go build -ldflags "-X main.version=${VERSION}" -o loco-obs-proxy .

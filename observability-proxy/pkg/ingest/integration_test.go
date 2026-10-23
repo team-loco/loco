@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -26,6 +27,7 @@ import (
 	"go.uber.org/zap/zaptest"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
@@ -230,16 +232,21 @@ func testMetrics(now time.Time) pmetric.Metrics {
 	return metrics
 }
 
-func postOTLP(t *testing.T, endpoint, contentType string, body []byte) {
+func postOTLP(t *testing.T, endpoint, authorization, contentType string, body []byte) []byte {
 	t.Helper()
 	request, err := http.NewRequestWithContext(t.Context(), http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
 		t.Fatalf("build request: %v", err)
 	}
 	request.Header.Set("Content-Type", contentType)
+	request.Header.Set(authorizationHeader, authorization)
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		t.Fatalf("POST %s: %v", endpoint, err)
+	}
+	payload, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
 	}
 	if err := response.Body.Close(); err != nil {
 		t.Errorf("close body: %v", err)
@@ -247,6 +254,7 @@ func postOTLP(t *testing.T, endpoint, contentType string, body []byte) {
 	if response.StatusCode != http.StatusOK {
 		t.Fatalf("POST %s status = %d", endpoint, response.StatusCode)
 	}
+	return payload
 }
 
 func startServers(t *testing.T, service *Service) (string, ptraceotlp.GRPCClient) {
@@ -277,8 +285,8 @@ func startServers(t *testing.T, service *Service) (string, ptraceotlp.GRPCClient
 	return httpServer.URL, ptraceotlp.NewGRPCClient(conn)
 }
 
-func TestOTLPIngestIsReadableThroughTheQueryPath(t *testing.T) {
-	f := newIngestFixture(t)
+func (f *ingestFixture) startedWriter(t *testing.T) *Writer {
+	t.Helper()
 	f.migrate(t)
 	writer := f.writer(t)
 	if err := WaitForSchema(t.Context(), f.ingestConn(t), f.database, writer.Tables(), testWaitInterval); err != nil {
@@ -292,7 +300,14 @@ func TestOTLPIngestIsReadableThroughTheQueryPath(t *testing.T) {
 			t.Errorf("Shutdown: %v", err)
 		}
 	})
-	service := NewService(writer.Consumers(), testMaxRequestBytes)
+	return writer
+}
+
+func TestOTLPIngestIsReadableThroughTheQueryPath(t *testing.T) {
+	f := newIngestFixture(t)
+	writer := f.startedWriter(t)
+	cp := newPlacedControlPlane(t)
+	service := newGatedService(writer.Consumers(), cp)
 	httpURL, tracesClient := startServers(t, service)
 
 	now := time.Now().UTC().Truncate(time.Second)
@@ -301,15 +316,16 @@ func TestOTLPIngestIsReadableThroughTheQueryPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal logs: %v", err)
 	}
-	postOTLP(t, httpURL+LogsPath, protobufContentType, logsBody)
+	postOTLP(t, httpURL+LogsPath, cp.bearer(), protobufContentType, logsBody)
 	metricsRequest := pmetricotlp.NewExportRequestFromMetrics(testMetrics(now))
 	metricsBody, err := metricsRequest.MarshalJSON()
 	if err != nil {
 		t.Fatalf("marshal metrics: %v", err)
 	}
-	postOTLP(t, httpURL+MetricsPath, jsonContentType, metricsBody)
+	postOTLP(t, httpURL+MetricsPath, cp.bearer(), jsonContentType, metricsBody)
 	tracesRequest := ptraceotlp.NewExportRequestFromTraces(testTraces(now))
-	if _, err = tracesClient.Export(t.Context(), tracesRequest); err != nil {
+	tracesCtx := metadata.AppendToOutgoingContext(t.Context(), authorizationMetadata, cp.bearer())
+	if _, err = tracesClient.Export(tracesCtx, tracesRequest); err != nil {
 		t.Fatalf("export traces over grpc: %v", err)
 	}
 
@@ -359,6 +375,51 @@ func TestOTLPIngestIsReadableThroughTheQueryPath(t *testing.T) {
 	}
 	if eventName != testEventName || organizationID != testOrganizationID {
 		t.Fatalf("EventName = %q, OrganizationId = %q", eventName, organizationID)
+	}
+}
+
+func TestOnlyRecordsOfPlacedWorkspacesReachClickHouse(t *testing.T) {
+	f := newIngestFixture(t)
+	writer := f.startedWriter(t)
+	cp := newPlacedControlPlane(t)
+	service := newGatedService(writer.Consumers(), cp)
+	httpURL, _ := startServers(t, service)
+
+	now := time.Now().UTC().Truncate(time.Second)
+	logs := testLogs(now)
+	foreign := logs.ResourceLogs().AppendEmpty()
+	testLogs(now).ResourceLogs().At(0).CopyTo(foreign)
+	foreign.Resource().Attributes().PutStr(workspaceAttribute, testOtherWorkspaceID)
+	body, err := plogotlp.NewExportRequestFromLogs(logs).MarshalProto()
+	if err != nil {
+		t.Fatalf("marshal logs: %v", err)
+	}
+	payload := postOTLP(t, httpURL+LogsPath, cp.bearer(), protobufContentType, body)
+	response := plogotlp.NewExportResponse()
+	if decodeErr := response.UnmarshalProto(payload); decodeErr != nil {
+		t.Fatalf("decode response: %v", decodeErr)
+	}
+	if response.PartialSuccess().RejectedLogRecords() != 1 {
+		t.Fatalf("partial success = %v, want one rejected record", response.PartialSuccess())
+	}
+
+	countQuery := "SELECT WorkspaceId, count() FROM " + f.database + ".otel_logs GROUP BY WorkspaceId"
+	rows, err := f.admin.Query(t.Context(), countQuery)
+	if err != nil {
+		t.Fatalf("count rows: %v", err)
+	}
+	defer rows.Close()
+	stored := map[string]uint64{}
+	for rows.Next() {
+		var workspaceID string
+		var count uint64
+		if err := rows.Scan(&workspaceID, &count); err != nil {
+			t.Fatalf("scan: %v", err)
+		}
+		stored[workspaceID] = count
+	}
+	if len(stored) != 1 || stored[testWorkspaceID] != 1 {
+		t.Fatalf("stored rows by workspace = %v, want one row for %s", stored, testWorkspaceID)
 	}
 }
 

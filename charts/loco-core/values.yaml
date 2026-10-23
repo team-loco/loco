@@ -51,6 +51,11 @@ agent:
     existingSecret: ""
     secretKey: join-token
   assertionLifetime: 1m
+  # Secret in global.observability.namespace that the agent fills with the telemetry ingest token;
+  # collectors mount it for their bearertokenauth extension. an empty secretName disables it.
+  ingestToken:
+    secretName: loco-otlp-exporter
+    secretKey: token
   image:
     repository: ghcr.io/team-loco/loco-agent
     tag: ""

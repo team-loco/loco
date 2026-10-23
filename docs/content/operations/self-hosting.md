@@ -42,6 +42,19 @@ Set `obsProxy.enabled: false` to install the control plane without the proxy. Th
 Set `global.exporter.endpoint` in the `loco-obs` values to the OTLP/HTTP base URL the collectors export to; the exporter appends `/v1/logs`, `/v1/traces` and `/v1/metrics`, and the chart fails to render without it. For Loco's own ingest, that is `https://<obsProxy.ingest.hostname>`. `global.exporter.headers` adds request headers. `global.exporter.bearerToken.enabled: true` sends the `token` key of the Secret named by `global.exporter.bearerToken.secretName` (`loco-otlp-exporter`) as a bearer token from both collector namespaces; `loco-core` takes the same value. Each collector queues unsent batches on disk, up to `global.exporter.queue.queue_size`, and retries without a time limit: the node collector in a hostPath directory, the two StatefulSet collectors on a PersistentVolumeClaim per replica. Telemetry survives an unreachable endpoint and collector pod replacement. Any OTLP/HTTP backend can replace the proxy.
 
 `loco-control-plane` creates its own Gateway by default: a GatewayClass named `gateway.className`, an EnvoyProxy that takes Envoy Service settings from `gateway.service`, and a Gateway named `gateway.name` in `gatewayNamespace` with one listener for each of `ui.hostname`, `controlPlaneHostname` and, when published, `obsProxy.ingest.hostname`. Listeners serve HTTP on port 80, or HTTPS on port 443 with the certificate in `gateway.tlsSecretName`. Set `gateway.create: false` and `gateway.name` to attach the routes to an existing Gateway instead. The chart publishes ingest at `obsProxy.ingest.hostname` only when `obsProxy.ingest.enabled` is true and the hostname is set. Ingest does not authenticate requests yet, so the hostname is empty by default.
+Ingest accepts only clusters with an ingest token from the API; see [architecture](../reference/architecture.md#observability). Set `LOCO_INGEST_SIGNING_KEYS` in the API Secret to comma-separated `<key-id>:<base64 Ed25519 seed>` entries, each seed 32 bytes such as `openssl rand -base64 32` prints. The API signs with the first key and publishes every key at `/.well-known/loco-ingest-jwks.json`. To rotate, put the new key first and keep the previous one until the tokens it signed expire after `LOCO_INGEST_TOKEN_LIFETIME` (1h). Without keys the API issues no ingest tokens. The `loco-core` chart creates the token Secret `agent.ingestToken.secretName` (`loco-otlp-exporter`) in `global.observability.namespace` and lets the agent `get` and `update` only that Secret; set `secretName` to empty to turn it off. Mount the Secret into the collectors and point their exporter at it:
+
+```yaml
+extensions:
+  bearertokenauth:
+    filename: /etc/otelcol-exporter/token
+exporters:
+  otlphttp:
+    auth:
+      authenticator: bearertokenauth
+```
+
+The ingest proxy reads the API from `CONTROL_PLANE_URL`, which the chart sets, and accepts records up to `INGEST_CLOCK_SKEW` (5m) outside a placement window; raise it when worker clocks drift further. A standalone ingest proxy also reads `INGEST_AUTH_TIMEOUT` (5s), `INGEST_JWKS_REFRESH_INTERVAL` (30s), `INGEST_PLACEMENT_CACHE_TTL` (30s), `INGEST_PLACEMENT_REFETCH_INTERVAL` (5s) and `INGEST_RETRY_AFTER` (30s).
 
 The proxy authenticates each query's permission check with the query's bearer token. Signed OIDC sessions and Loco API or session tokens use the API's authentication path and require read access to the requested workspace. Permission results use the proxy's configured cache lifetime.
 

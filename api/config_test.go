@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/ed25519"
+	"encoding/base64"
 	"errors"
 	"slices"
 	"strings"
@@ -727,5 +729,31 @@ func TestClusterEnrollmentDurations(t *testing.T) {
 			t.Fatalf("%s accepted 0s", tc.env)
 		}
 		t.Setenv(tc.env, "")
+	}
+}
+
+func TestIngestTokenConfiguration(t *testing.T) {
+	t.Setenv("LOCO_INGEST_SIGNING_KEYS", "")
+	t.Setenv("LOCO_INGEST_TOKEN_LIFETIME", "")
+	unset := newIngestConfig()
+	if len(unset.SigningKeys) != 0 || unset.TokenLifetime != defaultIngestTokenLifetime {
+		t.Fatalf("defaults = %+v", unset)
+	}
+	t.Setenv("LOCO_INGEST_SIGNING_KEYS", "current:"+base64.StdEncoding.EncodeToString(make([]byte, ed25519.SeedSize)))
+	t.Setenv("LOCO_INGEST_TOKEN_LIFETIME", "15m")
+	set := newIngestConfig()
+	if len(set.SigningKeys) != 1 || set.SigningKeys[0].ID != "current" || set.TokenLifetime != 15*time.Minute {
+		t.Fatalf("configured = %+v", set)
+	}
+	for env, value := range map[string]string{
+		"LOCO_INGEST_SIGNING_KEYS":   "current:short",
+		"LOCO_INGEST_TOKEN_LIFETIME": "0s",
+	} {
+		t.Run(env, func(t *testing.T) {
+			t.Setenv(env, value)
+			if err := panicValue(t, func() { newIngestConfig() }); err == nil {
+				t.Fatalf("invalid %s %q accepted", env, value)
+			}
+		})
 	}
 }

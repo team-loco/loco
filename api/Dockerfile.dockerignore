@@ -9,6 +9,7 @@
 !internal/rpcerr
 !internal/loglevel
 !internal/clusterassertion
+!internal/ingesttoken
 !internal/locofile
 !k8sapi
 **/node_modules

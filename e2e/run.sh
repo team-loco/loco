@@ -74,6 +74,8 @@ BUILDKIT_IMAGE=$(yq '.builds.buildkitImage.repository + ":" + .builds.buildkitIm
 CLUSTER_ADMIN_TOKEN="loco_s_e2e-admin-session-do-not-use-in-production"
 CLUSTER_ADMIN_HOME="$RUN_DIR/cluster-admin-home"
 AGENT_KEY_SECRET="e2e-agent-key"
+INGEST_TOKEN_SECRET=$(yq '.agent.ingestToken.secretName' "$CORE_CHART/values.yaml")
+INGEST_TOKEN_SECRET_KEY=$(yq '.agent.ingestToken.secretKey' "$CORE_CHART/values.yaml")
 E2E_CLUSTER_NAME="e2e-test-cluster"
 E2E_CLUSTER_REGION="us-east-1"
 E2E_CLUSTER_TIER="production"
@@ -96,6 +98,8 @@ export E2E_API_URL="http://127.0.0.1:${API_PORT}"
 export E2E_CLUSTER_ADMIN_TOKEN="$CLUSTER_ADMIN_TOKEN"
 export E2E_AGENT_KEY_SECRET="$AGENT_KEY_SECRET"
 export E2E_BOOTSTRAP_TOKEN="$BOOTSTRAP_TOKEN"
+export E2E_INGEST_TOKEN_SECRET="$INGEST_TOKEN_SECRET"
+export E2E_INGEST_TOKEN_SECRET_KEY="$INGEST_TOKEN_SECRET_KEY"
 export E2E_USER_TOKEN="$USER_TOKEN"
 export E2E_KIND_CLUSTER="$KIND_CLUSTER_NAME"
 export E2E_LOCO_NAMESPACE="$LOCO_NAMESPACE"
@@ -726,6 +730,7 @@ start_api() {
     LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE=true \
     LOCO_SECRETS_KEY_PROVIDER=local \
     LOCO_SECRETS_LOCAL_KEYS="e2e:ZTJlLXNlY3JldHMta2V5LTAwMDAwMDAwMDAwMDAwMDA=" \
+    LOCO_INGEST_SIGNING_KEYS="e2e:ZTJlLWluZ2VzdC1zaWduaW5nLWtleS0wMDAwMDAwMDA=" \
         "$BIN_DIR/loco-api" \
         >"$LOG_DIR/api.log" 2>&1 &
 
@@ -774,6 +779,12 @@ create_e2e_cluster() {
     log_ok "Cluster $(yq -p json '.clusterId' <<<"$created") is pending enrollment"
 }
 
+create_ingest_token_secret() {
+    kube create namespace "$OBS_NAMESPACE" --dry-run=client -o yaml | kube apply -f - >/dev/null
+    kube -n "$OBS_NAMESPACE" create secret generic "$INGEST_TOKEN_SECRET" --dry-run=client -o yaml |
+        kube apply -f - >/dev/null
+}
+
 agent_registered() {
     test "$(e2e_psql "SELECT EXISTS (SELECT 1 FROM clusters WHERE cluster_key = '${E2E_CLUSTER_KEY}' AND agent_version = '${E2E_VERSION}' AND sync_generation > ${E2E_PREVIOUS_SYNC_GENERATION})")" = t
 }
@@ -789,6 +800,9 @@ start_agent() {
     LOCO_JOIN_TOKEN="${E2E_JOIN_TOKEN:-}" \
     LOCO_AGENT_KEY_SECRET="$AGENT_KEY_SECRET" \
     LOCO_ASSERTION_LIFETIME="$(yq '.agent.assertionLifetime' "$core_values")" \
+    LOCO_INGEST_TOKEN_SECRET="$INGEST_TOKEN_SECRET" \
+    LOCO_INGEST_TOKEN_SECRET_KEY="$INGEST_TOKEN_SECRET_KEY" \
+    LOCO_INGEST_TOKEN_NAMESPACE="$OBS_NAMESPACE" \
     LOG_LEVEL="$(yq '.env.LOG_LEVEL' "$core_values")" \
     LOCO_NAMESPACE="$LOCO_NAMESPACE" \
     LOCO_BUILD_NAMESPACE="$(yq '.agent.buildNamespace' "$core_values")" \
@@ -964,6 +978,7 @@ main() {
     fi
     seed_cluster_admin
     create_e2e_cluster
+    create_ingest_token_secret
     start_agent
     start_obs_proxy
     if [ "$OBSERVABILITY" = true ]; then

@@ -1,0 +1,33 @@
+{{- with .Values.agent.ingestToken.secretName }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ . }}
+  namespace: {{ $.Values.global.observability.namespace }}
+type: Opaque
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $.Release.Name }}-agent-ingest-token
+  namespace: {{ $.Values.global.observability.namespace }}
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: [{{ . | quote }}]
+    verbs: ["get", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $.Release.Name }}-agent-ingest-token
+  namespace: {{ $.Values.global.observability.namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $.Release.Name }}-agent-ingest-token
+subjects:
+  - kind: ServiceAccount
+    name: {{ $.Release.Name }}-agent
+    namespace: {{ $.Release.Namespace }}
+{{- end }}

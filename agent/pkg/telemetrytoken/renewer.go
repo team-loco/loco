@@ -1,0 +1,90 @@
+package telemetrytoken
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
+	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
+
+	ingestv1 "github.com/team-loco/loco/gen/go/loco/ingest/v1"
+	"github.com/team-loco/loco/gen/go/loco/ingest/v1/ingestv1connect"
+)
+
+const renewalDivisor = 2
+
+type Secret struct {
+	Namespace string
+	Name      string
+	Key       string
+}
+
+type Renewer struct {
+	client  ingestv1connect.IngestServiceClient
+	secrets corev1client.SecretInterface
+	secret  Secret
+	backoff func() wait.Backoff
+}
+
+func NewRenewer(
+	client ingestv1connect.IngestServiceClient,
+	kube kubernetes.Interface,
+	secret Secret,
+	backoff func() wait.Backoff,
+) *Renewer {
+	secrets := kube.CoreV1().Secrets(secret.Namespace)
+	return &Renewer{client: client, secrets: secrets, secret: secret, backoff: backoff}
+}
+
+func RenewalDelay(now, expiresAt time.Time) time.Duration {
+	return expiresAt.Sub(now) / renewalDivisor
+}
+
+func (r *Renewer) Run(ctx context.Context) {
+	backoff := r.backoff()
+	for {
+		expiresAt, err := r.renew(ctx)
+		if ctx.Err() != nil {
+			return
+		}
+		var delay time.Duration
+		if err != nil {
+			delay = backoff.Step()
+			slog.WarnContext(ctx, "telemetry token renewal failed", "error", err, "retry_in", delay)
+		} else {
+			backoff = r.backoff()
+			delay = RenewalDelay(time.Now(), expiresAt)
+			slog.InfoContext(ctx, "telemetry token renewed", "expires_at", expiresAt, "next_renewal_in", delay)
+		}
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return
+		case <-timer.C:
+		}
+	}
+}
+
+func (r *Renewer) renew(ctx context.Context) (time.Time, error) {
+	resp, err := r.client.IssueToken(ctx, &ingestv1.IssueTokenRequest{})
+	if err != nil {
+		return time.Time{}, fmt.Errorf("issue telemetry token: %w", err)
+	}
+	secret, err := r.secrets.Get(ctx, r.secret.Name, metav1.GetOptions{})
+	if err != nil {
+		return time.Time{}, fmt.Errorf("read telemetry token Secret %s/%s: %w", r.secret.Namespace, r.secret.Name, err)
+	}
+	if secret.Data == nil {
+		secret.Data = map[string][]byte{}
+	}
+	secret.Data[r.secret.Key] = []byte(resp.GetToken())
+	if _, err := r.secrets.Update(ctx, secret, metav1.UpdateOptions{}); err != nil {
+		return time.Time{}, fmt.Errorf("write telemetry token Secret %s/%s: %w", r.secret.Namespace, r.secret.Name, err)
+	}
+	return resp.GetExpiresAt().AsTime(), nil
+}

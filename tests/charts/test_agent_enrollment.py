@@ -56,3 +56,38 @@ def test_enrolled_agent_needs_no_join_token():
 def test_join_token_value_and_existing_secret_are_exclusive():
     with pytest.raises(subprocess.CalledProcessError):
         _agent_env({"joinToken": {"value": JOIN_TOKEN, "existingSecret": "enrollment"}})
+
+
+def test_agent_writes_the_ingest_token_to_one_observability_secret():
+    env = _agent_env({})
+    namespace = chart_values(CHART)["global"]["observability"]["namespace"]
+    token = DEFAULTS["ingestToken"]
+    assert env["LOCO_INGEST_TOKEN_SECRET"]["value"] == token["secretName"]
+    assert env["LOCO_INGEST_TOKEN_SECRET_KEY"]["value"] == token["secretKey"]
+    assert env["LOCO_INGEST_TOKEN_NAMESPACE"]["value"] == namespace
+    documents = {
+        document["kind"]: document
+        for document in render_documents(CHART, "agent-ingest-token.yaml", {})
+    }
+    assert set(documents) == {"Secret", "Role", "RoleBinding"}
+    for document in documents.values():
+        assert document["metadata"]["namespace"] == namespace
+    assert documents["Secret"]["metadata"]["name"] == token["secretName"]
+    assert "data" not in documents["Secret"]
+    (rule,) = documents["Role"]["rules"]
+    assert rule == {
+        "apiGroups": [""],
+        "resources": ["secrets"],
+        "resourceNames": [token["secretName"]],
+        "verbs": ["get", "update"],
+    }
+    (subject,) = documents["RoleBinding"]["subjects"]
+    assert subject["name"].endswith("-agent")
+    assert documents["RoleBinding"]["roleRef"]["name"] == documents["Role"]["metadata"]["name"]
+
+
+def test_an_empty_ingest_token_secret_disables_it():
+    disabled = {"ingestToken": {"secretName": ""}}
+    env = _agent_env(disabled)
+    assert not {name for name in env if name.startswith("LOCO_INGEST_TOKEN")}
+    assert render_documents(CHART, "agent-ingest-token.yaml", {"agent": disabled}) == []

@@ -3,6 +3,8 @@ package config
 import (
 	"testing"
 	"time"
+
+	"github.com/team-loco/loco/observability-proxy/pkg/ingest"
 )
 
 const (
@@ -112,22 +114,28 @@ func TestLoadPanicsWithoutRequiredSettings(t *testing.T) {
 
 func TestLoadPanicsOnInvalidValues(t *testing.T) {
 	invalid := map[string][]string{
-		"CLICKHOUSE_DB":                  {"loco-obs", "loco_obs; DROP", "1loco"},
-		"CLICKHOUSE_LOGS_TTL":            {"30d", "-1h", "0s", "1500ms"},
-		"CLICKHOUSE_TRACES_TTL":          {"forever"},
-		"CLICKHOUSE_METRICS_TTL":         {"-24h"},
-		"MIGRATION_RETRY_BUDGET":         {"0s", "soon"},
-		"MIGRATION_RETRY_INTERVAL":       {"-5s"},
-		"PORT":                           {"eighty"},
-		"MAX_LIMIT":                      {"10k"},
-		"MIGRATION_LOCK_TTL":             {"0s", "3s", "soon"},
-		"MIGRATION_LOCK_RETRY_PERIOD":    {"-1s", "8s"},
-		"QUERY_ENABLED":                  {"maybe"},
-		"INGEST_ENABLED":                 {"yes please"},
-		"OTLP_GRPC_PORT":                 {"grpc"},
-		"OTLP_MAX_REQUEST_BYTES":         {"0", "-1"},
-		"CLICKHOUSE_INGEST_TIMEOUT":      {"0s"},
-		"CLICKHOUSE_INGEST_DIAL_TIMEOUT": {"later"},
+		"CLICKHOUSE_DB":                     {"loco-obs", "loco_obs; DROP", "1loco"},
+		"CLICKHOUSE_LOGS_TTL":               {"30d", "-1h", "0s", "1500ms"},
+		"CLICKHOUSE_TRACES_TTL":             {"forever"},
+		"CLICKHOUSE_METRICS_TTL":            {"-24h"},
+		"MIGRATION_RETRY_BUDGET":            {"0s", "soon"},
+		"MIGRATION_RETRY_INTERVAL":          {"-5s"},
+		"PORT":                              {"eighty"},
+		"MAX_LIMIT":                         {"10k"},
+		"MIGRATION_LOCK_TTL":                {"0s", "3s", "soon"},
+		"MIGRATION_LOCK_RETRY_PERIOD":       {"-1s", "8s"},
+		"QUERY_ENABLED":                     {"maybe"},
+		"INGEST_ENABLED":                    {"yes please"},
+		"OTLP_GRPC_PORT":                    {"grpc"},
+		"OTLP_MAX_REQUEST_BYTES":            {"0", "-1"},
+		"CLICKHOUSE_INGEST_TIMEOUT":         {"0s"},
+		"CLICKHOUSE_INGEST_DIAL_TIMEOUT":    {"later"},
+		"INGEST_AUTH_TIMEOUT":               {"0s"},
+		"INGEST_JWKS_REFRESH_INTERVAL":      {"-1s"},
+		"INGEST_PLACEMENT_CACHE_TTL":        {"-30s"},
+		"INGEST_PLACEMENT_REFETCH_INTERVAL": {"0s"},
+		"INGEST_CLOCK_SKEW":                 {"-5m"},
+		"INGEST_RETRY_AFTER":                {"1500ms", "0s"},
 	}
 	for name, values := range invalid {
 		for _, value := range values {
@@ -191,6 +199,31 @@ func TestCORSOrigins(t *testing.T) {
 	t.Setenv("CORS_ALLOWED_ORIGINS", "")
 	if origins := Load().CORSAllowedOrigins; len(origins) != 0 {
 		t.Fatalf("empty allowlist = %v", origins)
+	}
+}
+
+func TestLoadReadsIngestAuthSettings(t *testing.T) {
+	t.Setenv("QUERY_ENABLED", "false")
+	t.Setenv("INGEST_ENABLED", "true")
+	t.Setenv("CLICKHOUSE_INGEST_URL", testIngestURL)
+	cfg := Load()
+	gate := cfg.IngestGate()
+	wantGate := ingest.GateConfig{
+		ControlPlaneURL:     defaultControlPlaneURL,
+		RequestTimeout:      defaultIngestAuthTimeout,
+		JWKSRefreshInterval: defaultIngestJWKSRefreshInterval,
+		PlacementTTL:        defaultIngestPlacementCacheTTL,
+		RefetchInterval:     defaultIngestPlacementRefetch,
+		ClockSkew:           defaultIngestClockSkew,
+	}
+	if gate != wantGate {
+		t.Fatalf("IngestGate() = %+v, want %+v", gate, wantGate)
+	}
+	t.Setenv("INGEST_CLOCK_SKEW", "2m")
+	t.Setenv("INGEST_RETRY_AFTER", "10s")
+	overridden := Load()
+	if overridden.IngestGate().ClockSkew != 2*time.Minute || overridden.IngestService().RetryAfter != 10*time.Second {
+		t.Fatalf("overrides = %+v, %+v", overridden.IngestGate(), overridden.IngestService())
 	}
 }
 

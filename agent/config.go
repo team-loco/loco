@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/team-loco/loco/agent/pkg/telemetrytoken"
 	"github.com/team-loco/loco/internal/buildinfo"
 	"github.com/team-loco/loco/internal/loglevel"
 )
@@ -42,6 +43,9 @@ const (
 	envCertificate              = "LOCO_CERTIFICATE"
 	envAppDomains               = "LOCO_APP_DOMAINS"
 	appDomainSeparator          = ","
+	envIngestTokenSecret        = "LOCO_INGEST_TOKEN_SECRET"     //nolint:gosec
+	envIngestTokenSecretKey     = "LOCO_INGEST_TOKEN_SECRET_KEY" //nolint:gosec
+	envIngestTokenNamespace     = "LOCO_INGEST_TOKEN_NAMESPACE"  //nolint:gosec
 )
 
 var (
@@ -81,6 +85,7 @@ type Config struct {
 	Gateway                  string
 	Certificate              string
 	AppDomains               []string
+	IngestTokenSecret        telemetrytoken.Secret
 }
 
 func newAgentConfig() *Config {
@@ -175,7 +180,27 @@ func parseAgentConfig(getenv func(string) string, agentVersion string) (*Config,
 		}
 		*field = parsed
 	}
+	ingestSecret, secretErr := parseIngestTokenSecret(getenv)
+	if secretErr != nil {
+		return nil, secretErr
+	}
+	cfg.IngestTokenSecret = ingestSecret
 	return cfg, nil
+}
+
+func parseIngestTokenSecret(getenv func(string) string) (telemetrytoken.Secret, error) {
+	secret := telemetrytoken.Secret{Name: getenv(envIngestTokenSecret)}
+	if secret.Name == "" {
+		return secret, nil
+	}
+	var err error
+	if secret.Key, err = requireEnv(getenv, envIngestTokenSecretKey); err != nil {
+		return secret, err
+	}
+	if secret.Namespace, err = requireEnv(getenv, envIngestTokenNamespace); err != nil {
+		return secret, err
+	}
+	return secret, nil
 }
 
 func requireEnv(getenv func(string) string, name string) (string, error) {

@@ -23,6 +23,10 @@ func placeApplication(
 	if err != nil {
 		return fmt.Errorf("upsert placement: %w", err)
 	}
+	window := genDb.OpenPlacementWindowParams{ResourceID: params.ResourceID, ClusterID: params.ClusterID}
+	if err := qtx.OpenPlacementWindow(ctx, window); err != nil {
+		return fmt.Errorf("open placement window: %w", err)
+	}
 	clusterID := params.ClusterID.String()
 	if err := qtx.NotifyClusterPlacements(ctx, clusterID); err != nil {
 		return fmt.Errorf("notify placements: %w", err)
@@ -66,6 +70,10 @@ func notifyRemovedPlacements(
 	removed []genDb.MarkPlacementDeletedRow,
 ) error {
 	for _, placement := range removed {
+		window := genDb.ClosePlacementWindowParams{ResourceID: resourceID, ClusterID: placement.ClusterID}
+		if err := qtx.ClosePlacementWindow(ctx, window); err != nil {
+			return fmt.Errorf("close placement window: %w", err)
+		}
 		clusterID := placement.ClusterID.String()
 		if err := qtx.NotifyClusterPlacements(ctx, clusterID); err != nil {
 			return fmt.Errorf("notify placements: %w", err)

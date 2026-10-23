@@ -7,10 +7,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/team-loco/loco/agent/pkg/telemetrytoken"
 	"github.com/team-loco/loco/internal/loglevel"
 )
 
-const testAgentVersion = "sha-test"
+const (
+	testAgentVersion    = "sha-test"
+	testIngestSecret    = "loco-otlp-exporter" //nolint:gosec
+	testIngestSecretKey = "token"
+	testIngestNamespace = "observability"
+)
 
 func agentEnv() map[string]string {
 	return map[string]string{
@@ -204,5 +210,37 @@ func TestParseAgentConfigRejectsUnknownLogLevel(t *testing.T) {
 				t.Errorf("parseAgentConfig with %s=%s = %v, want loglevel.ErrUnknown", envLogLevel, value, err)
 			}
 		})
+	}
+}
+
+func TestParseAgentConfigReadsTheIngestTokenSecret(t *testing.T) {
+	cfg, err := parseAgentConfig(lookup(agentEnv()), testAgentVersion)
+	if err != nil {
+		t.Fatalf("parseAgentConfig: %v", err)
+	}
+	if cfg.IngestTokenSecret != (telemetrytoken.Secret{}) {
+		t.Fatalf("ingest token Secret = %+v, want none when %s is unset", cfg.IngestTokenSecret, envIngestTokenSecret)
+	}
+	env := agentEnv()
+	env[envIngestTokenSecret] = testIngestSecret
+	env[envIngestTokenSecretKey] = testIngestSecretKey
+	env[envIngestTokenNamespace] = testIngestNamespace
+	cfg, err = parseAgentConfig(lookup(env), testAgentVersion)
+	if err != nil {
+		t.Fatalf("parseAgentConfig: %v", err)
+	}
+	want := telemetrytoken.Secret{Namespace: testIngestNamespace, Name: testIngestSecret, Key: testIngestSecretKey}
+	if cfg.IngestTokenSecret != want {
+		t.Fatalf("ingest token Secret = %+v, want %+v", cfg.IngestTokenSecret, want)
+	}
+	for _, name := range []string{envIngestTokenSecretKey, envIngestTokenNamespace} {
+		missing := agentEnv()
+		missing[envIngestTokenSecret] = testIngestSecret
+		missing[envIngestTokenSecretKey] = testIngestSecretKey
+		missing[envIngestTokenNamespace] = testIngestNamespace
+		delete(missing, name)
+		if _, err := parseAgentConfig(lookup(missing), testAgentVersion); !errors.Is(err, errMissingEnv) {
+			t.Errorf("parseAgentConfig without %s = %v, want errMissingEnv", name, err)
+		}
 	}
 }
