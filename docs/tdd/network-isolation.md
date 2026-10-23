@@ -74,6 +74,13 @@ sorted, so the policy only changes when the cluster's ranges do. The controller 
 Nodes and, when a node is added, removed, or its pod CIDRs or internal addresses change,
 reconciles one Application per workspace, which re-applies that workspace's policy.
 
+### Private egress for build pods
+
+Build pods get the policies above and no private destination. An operator opens one with
+the operator chart value `builds.privateEgress`, a list of `{cidr, port}` entries, each
+rendered as a TCP egress rule to that CIDR on that port. The `allow-private-egress`
+policy is applied on every reconcile, so removing an entry revokes it.
+
 ---
 
 ## Implementation
