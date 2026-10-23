@@ -165,9 +165,6 @@ def execute():
     image = f'{image_config["repository"]}:{image_config["tag"]}'
     clickhouse_image = chart["clickhouse"]["clickhouse"]["image"]
     clickhouse_ref = f'{clickhouse_image["repository"]}:{clickhouse_image["tag"]}'
-    if not run("docker", "image", "ls", "--quiet", image):
-        run("docker", "pull", image)
-    run("kind", "load", "docker-image", image, "--name", CLUSTER)
     apply(namespace(NAMESPACE, privileged=True), namespace(NODE_NAMESPACE, privileged=True), namespace(TENANT_NAMESPACE))
     run("helm", "uninstall", "metrics", "--ignore-not-found", "--kubeconfig", str(KUBECONFIG), "--namespace", NAMESPACE)
     kube("-n", NAMESPACE, "delete", "deployment", "otlp-sink", "--ignore-not-found", "--wait=true")
