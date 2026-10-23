@@ -3,6 +3,7 @@
 !go.mod
 !go.sum
 !gen/go
+!internal/bearer
 !internal/buildinfo
 !internal/httputil
 !internal/rpcerr

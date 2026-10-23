@@ -19,6 +19,7 @@ WORKDIR /app
 COPY api ./api
 COPY gen/go ./gen/go
 COPY k8sapi ./k8sapi
+COPY internal/bearer ./internal/bearer
 COPY internal/buildinfo ./internal/buildinfo
 COPY internal/httputil ./internal/httputil
 COPY internal/rpcerr ./internal/rpcerr
