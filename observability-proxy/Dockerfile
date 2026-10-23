@@ -19,7 +19,6 @@ COPY observability-proxy ./observability-proxy
 COPY gen/go ./gen/go
 COPY internal/buildinfo ./internal/buildinfo
 COPY internal/httputil ./internal/httputil
-COPY internal/rpc ./internal/rpc
 COPY internal/rpcerr ./internal/rpcerr
 
 WORKDIR /app/observability-proxy

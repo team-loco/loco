@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"errors"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -32,14 +33,30 @@ const (
 	testAssertionTTL   = time.Minute
 )
 
-var errUnexpectedRegistration = errors.New("unexpected registration")
+var errRejectedCall = errors.New("call lacks a valid fresh assertion")
 
 type fakeRegistrar struct {
 	agentv1connect.UnimplementedAgentServiceHandler
 	t         *testing.T
 	publicKey ed25519.PublicKey
+	jtis      map[string]bool
 	enrolled  int
 	asserted  int
+	synced    int
+}
+
+func (f *fakeRegistrar) verify(ctx context.Context) error {
+	info, _ := connect.CallInfoForServerContext(ctx)
+	token, ok := strings.CutPrefix(info.RequestHeader().Get("Authorization"), "Bearer ")
+	if !ok || f.publicKey == nil {
+		return connect.NewError(connect.CodeUnauthenticated, errRejectedCall.Error())
+	}
+	claims, err := clusterassertion.Verify(token, f.publicKey, time.Now(), testAssertionTTL)
+	if err != nil || claims.ClusterID != testClusterID || f.jtis[claims.ID] {
+		return connect.NewError(connect.CodeUnauthenticated, errRejectedCall.Error())
+	}
+	f.jtis[claims.ID] = true
+	return nil
 }
 
 func (f *fakeRegistrar) Register(
@@ -51,63 +68,87 @@ func (f *fakeRegistrar) Register(
 	}
 	response := &agentv1.RegisterResponse{ClusterId: testClusterID, HeartbeatInterval: durationpb.New(time.Second)}
 	if enrollment := req.GetEnrollment(); enrollment != nil {
+		info, _ := connect.CallInfoForServerContext(ctx)
+		if header := info.RequestHeader().Get("Authorization"); header != "" {
+			f.t.Errorf("enrollment sent Authorization %q", header)
+		}
 		if enrollment.GetJoinToken() != testJoinToken || f.publicKey != nil {
-			return nil, connect.NewError(connect.CodeUnauthenticated, errUnexpectedRegistration.Error())
+			return nil, connect.NewError(connect.CodeUnauthenticated, errRejectedCall.Error())
 		}
 		f.publicKey = enrollment.GetPublicKey()
 		f.enrolled++
 		return response, nil
 	}
-	info, _ := connect.CallInfoForServerContext(ctx)
-	token, ok := strings.CutPrefix(info.RequestHeader().Get("Authorization"), "Bearer ")
-	if !ok || f.publicKey == nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errUnexpectedRegistration.Error())
-	}
-	claims, err := clusterassertion.Verify(token, f.publicKey, time.Now(), testAssertionTTL)
-	if err != nil || claims.ClusterID != testClusterID {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errUnexpectedRegistration.Error())
+	if err := f.verify(ctx); err != nil {
+		return nil, err
 	}
 	f.asserted++
 	return response, nil
 }
 
-func TestRegisterEnrollsOnceAndThenAuthenticatesWithTheStoredKey(t *testing.T) {
+func (f *fakeRegistrar) Sync(ctx context.Context, _ agentv1connect.AgentServiceSyncServerStream) error {
+	if err := f.verify(ctx); err != nil {
+		return err
+	}
+	f.synced++
+	return nil
+}
+
+func openTestSync(t *testing.T, a *Agent) {
+	t.Helper()
+	stream, err := a.client.Sync(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := stream.Send(&agentv1.SyncRequest{}); err != nil {
+		t.Logf("send: %v", err)
+	}
+	if _, err := stream.Receive(); !errors.Is(err, io.EOF) {
+		t.Fatalf("sync stream: %v", err)
+	}
+}
+
+func TestEveryAgentCallCarriesAFreshAssertionOnceEnrolled(t *testing.T) {
 	kube := fake.NewClientset(&corev1.Namespace{
 		Name: metav1.NamespaceSystem,
 		UID:  types.UID(testClusterKey),
 	})
-	registrar := &fakeRegistrar{t: t}
+	registrar := &fakeRegistrar{t: t, jtis: map[string]bool{}}
 	server := connect.NewServer()
 	agentv1connect.RegisterAgentServiceHandler(server, registrar)
-	client := agentv1connect.NewAgentServiceClient(connect.NewClient(connectinprocess.New(server)))
+	transport := connectinprocess.New(server)
 	newAgent := func(joinToken string) *Agent {
+		credentials := identity.NewCredentials(testAssertionTTL)
+		connectClient := connect.NewClient(transport, credentials.Interceptor())
 		return &Agent{
-			cfg:        &Config{JoinToken: joinToken, AssertionLifetime: testAssertionTTL},
-			client:     client,
-			inspector:  cluster.NewInspector(kube, testAgentNamespace, "loco-controller"),
-			identities: identity.NewStore(kube, testAgentNamespace, testKeySecret),
+			cfg:         &Config{JoinToken: joinToken},
+			client:      agentv1connect.NewAgentServiceClient(connectClient),
+			inspector:   cluster.NewInspector(kube, testAgentNamespace, "loco-controller"),
+			identities:  identity.NewStore(kube, testAgentNamespace, testKeySecret),
+			credentials: credentials,
 		}
 	}
 
 	if err := newAgent("").register(t.Context()); !errors.Is(err, errNotEnrolled) {
 		t.Fatalf("register without a key or join token: %v", err)
 	}
-	if err := newAgent(testJoinToken).register(t.Context()); err != nil {
+	enrolled := newAgent(testJoinToken)
+	if err := enrolled.register(t.Context()); err != nil {
 		t.Fatal(err)
 	}
+	openTestSync(t, enrolled)
+	openTestSync(t, enrolled)
 	for range 2 {
 		restarted := newAgent(testJoinToken)
 		if err := restarted.register(t.Context()); err != nil {
 			t.Fatal(err)
 		}
-		if restarted.identity.ClusterID != testClusterID {
-			t.Fatalf("cluster ID %q", restarted.identity.ClusterID)
-		}
+		openTestSync(t, restarted)
 	}
 	if err := newAgent("").register(t.Context()); err != nil {
 		t.Fatalf("restart without the join token: %v", err)
 	}
-	if registrar.enrolled != 1 || registrar.asserted != 3 {
-		t.Fatalf("enrolled %d times, asserted %d times", registrar.enrolled, registrar.asserted)
+	if registrar.enrolled != 1 || registrar.asserted != 3 || registrar.synced != 4 {
+		t.Fatalf("enrolled %d, asserted %d, synced %d", registrar.enrolled, registrar.asserted, registrar.synced)
 	}
 }
