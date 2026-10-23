@@ -7,7 +7,7 @@ cluster_admin_token="loco_s_e2e-admin-session-do-not-use-in-production"
 
 cluster_admin() {
     HOME="$cluster_admin_home" LOCO_CREDENTIAL_STORE=file LOCO_HOST="$E2E_API_URL" \
-        "$BIN_DIR/loco" admin cluster "$@"
+        "$BIN_DIR/locoadm" cluster "$@"
 }
 
 cluster_admin_code() {

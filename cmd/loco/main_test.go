@@ -22,3 +22,11 @@ func TestReportsTheLinkedVersion(t *testing.T) {
 		t.Errorf("loco --version printed %q, want it to contain %q", out, linked)
 	}
 }
+
+func TestRootHasNoAdminCommand(t *testing.T) {
+	for _, command := range NewRootCmd(NewEnv()).Commands() {
+		if command.Name() == "admin" {
+			t.Fatal("loco registers an admin command; operator commands belong to locoadm")
+		}
+	}
+}

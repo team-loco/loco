@@ -92,14 +92,18 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           VERSION: ${{ needs.version.outputs.new_tag }}
         run: |
-          go build -trimpath \
-            -ldflags "-s -w -X main.version=${VERSION}" \
-            -o "bin/loco-${GOOS}-${GOARCH}" -v ./cmd/loco
+          for binary in loco locoadm; do
+            go build -trimpath \
+              -ldflags "-s -w -X main.version=${VERSION}" \
+              -o "bin/${binary}-${GOOS}-${GOARCH}" -v "./cmd/${binary}"
+          done
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: loco-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: bin/loco-*
+          path: |
+            bin/loco-*
+            bin/locoadm-*
           if-no-files-found: error
 
   release:
@@ -121,7 +125,7 @@ jobs:
 
       - name: Generate checksums
         working-directory: bin
-        run: sha256sum loco-* > checksums.txt
+        run: sha256sum loco-* locoadm-* > checksums.txt
 
       - name: Generate changelog
         env:
@@ -149,4 +153,4 @@ jobs:
           gh release create "$NEW_TAG" \
             --title "Release $NEW_TAG" \
             --notes-file notes.md \
-            bin/loco-* bin/checksums.txt
+            bin/loco-* bin/locoadm-* bin/checksums.txt

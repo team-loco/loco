@@ -45,6 +45,10 @@ run = ["mise install", "bun install --frozen-lockfile", "lefthook install", "mis
 description = "Build the loco CLI into bin/loco"
 run = "go build -o bin/loco ./cmd/loco"
 
+[tasks."build:locoadm"]
+description = "Build the locoadm operator CLI into bin/locoadm"
+run = "go build -o bin/locoadm ./cmd/locoadm"
+
 [tasks."build:linux"]
 description = "Build the loco CLI for linux/amd64"
 env = { CGO_ENABLED = "0", GOOS = "linux", GOARCH = "amd64" }

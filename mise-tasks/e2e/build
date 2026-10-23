@@ -36,6 +36,7 @@ build API api loco-api
 build Agent agent loco-agent
 build "Observability Proxy" observability-proxy loco-obs-proxy
 build "the CLI" cmd/loco loco
+build "the operator CLI" cmd/locoadm locoadm
 
 failed=0
 for i in "${!pids[@]}"; do

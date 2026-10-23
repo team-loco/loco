@@ -1,4 +1,4 @@
-package admin
+package cluster
 
 import (
 	"bytes"
@@ -96,7 +96,7 @@ func (f *fakeClusterAdmin) RestoreCluster(
 	return &clusterv1.RestoreClusterResponse{ClusterId: req.GetClusterId()}, nil
 }
 
-func adminTestCommand(t *testing.T, fake *fakeClusterAdmin) (*cobra.Command, *bytes.Buffer) {
+func clusterTestCommand(t *testing.T, fake *fakeClusterAdmin) (*cobra.Command, *bytes.Buffer) {
 	t.Helper()
 	server := connect.NewServer()
 	clusterv1connect.RegisterClusterAdminServiceHandler(server, fake)
@@ -113,19 +113,19 @@ func adminTestCommand(t *testing.T, fake *fakeClusterAdmin) (*cobra.Command, *by
 			return rpc.NewHTTPClients(endpoint.Client(), host, token).ClusterAdmin
 		},
 	}
-	cmd := newAdminCmd(deps)
+	cmd := newClusterCmd(deps)
 	output := new(bytes.Buffer)
 	cmd.SetOut(output)
 	cmd.SetErr(output)
 	return cmd, output
 }
 
-func TestAdminClusterCommandsUseAuthenticatedHTTP(t *testing.T) {
+func TestClusterCommandsUseAuthenticatedHTTP(t *testing.T) {
 	for _, method := range []string{clusterList, clusterPause, clusterResume, clusterRemove, clusterRestore} {
 		t.Run(method, func(t *testing.T) {
 			fake := &fakeClusterAdmin{t: t}
-			cmd, output := adminTestCommand(t, fake)
-			args := []string{clusterCommand, method}
+			cmd, output := clusterTestCommand(t, fake)
+			args := []string{method}
 			if method != clusterList {
 				args = append(args, testClusterID)
 			}
@@ -146,7 +146,7 @@ func TestAdminClusterCommandsUseAuthenticatedHTTP(t *testing.T) {
 	}
 }
 
-func TestAdminClusterPreservesDenialsAndPrintsBlockingWorkloads(t *testing.T) {
+func TestClusterPreservesDenialsAndPrintsBlockingWorkloads(t *testing.T) {
 	detail, err := connectproto.NewErrorDetail(
 		&clusterv1.ClusterWorkloads{Workloads: []*clusterv1.ClusterWorkload{{Id: testClusterID, Kind: "placement"}}},
 	)
@@ -158,8 +158,8 @@ func TestAdminClusterPreservesDenialsAndPrintsBlockingWorkloads(t *testing.T) {
 		rpcerr.New(connect.CodeFailedPrecondition, errTestDenied).WithDetail(detail),
 	} {
 		fake := &fakeClusterAdmin{t: t, err: failure}
-		cmd, output := adminTestCommand(t, fake)
-		cmd.SetArgs([]string{clusterCommand, clusterRemove, testClusterID})
+		cmd, output := clusterTestCommand(t, fake)
+		cmd.SetArgs([]string{clusterRemove, testClusterID})
 		if err := cmd.Execute(); connect.CodeOf(err) != failure.Code() {
 			t.Fatalf("error: %v", err)
 		}
@@ -170,15 +170,15 @@ func TestAdminClusterPreservesDenialsAndPrintsBlockingWorkloads(t *testing.T) {
 	}
 }
 
-func TestAdminClusterRejectsBadArgumentsBeforeRPC(t *testing.T) {
+func TestClusterRejectsBadArgumentsBeforeRPC(t *testing.T) {
 	for _, args := range [][]string{
-		{clusterCommand, clusterPause},
-		{clusterCommand, clusterPause, "invalid"},
-		{clusterCommand, clusterList, testClusterID},
-		{clusterCommand, clusterResume, testClusterID, "--force"},
+		{clusterPause},
+		{clusterPause, "invalid"},
+		{clusterList, testClusterID},
+		{clusterResume, testClusterID, "--force"},
 	} {
 		fake := &fakeClusterAdmin{t: t}
-		cmd, _ := adminTestCommand(t, fake)
+		cmd, _ := clusterTestCommand(t, fake)
 		cmd.SetArgs(args)
 		if err := cmd.Execute(); err == nil {
 			t.Fatalf("accepted %v", args)

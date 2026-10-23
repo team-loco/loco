@@ -1,4 +1,4 @@
-package admin
+package cluster
 
 import (
 	"errors"
@@ -18,7 +18,6 @@ import (
 )
 
 const (
-	clusterCommand = "cluster"
 	clusterList    = "list"
 	clusterPause   = "pause"
 	clusterResume  = "resume"
@@ -31,19 +30,18 @@ type dependencies struct {
 	client func(string, string) clusterv1connect.ClusterAdminServiceClient
 }
 
-func BuildAdminCmd() *cobra.Command {
+func BuildClusterCmd() *cobra.Command {
 	deps := dependencies{
 		token: cmdutil.GetCurrentLocoToken,
 		client: func(host, token string) clusterv1connect.ClusterAdminServiceClient {
 			return rpc.ForHost(host, token).ClusterAdmin
 		},
 	}
-	return newAdminCmd(deps)
+	return newClusterCmd(deps)
 }
 
-func newAdminCmd(deps dependencies) *cobra.Command {
-	admin := &cobra.Command{Use: "admin", Short: "Administer the Loco control plane"}
-	cluster := &cobra.Command{Use: clusterCommand, Short: "Manage clusters (requires system admin)"}
+func newClusterCmd(deps dependencies) *cobra.Command {
+	cluster := &cobra.Command{Use: "cluster", Short: "Manage clusters (requires system admin)"}
 	for _, operation := range []string{clusterList, clusterPause, clusterResume, clusterRemove, clusterRestore} {
 		command := &cobra.Command{
 			Use:   operation + " <cluster-id>",
@@ -87,8 +85,7 @@ func newAdminCmd(deps dependencies) *cobra.Command {
 		}
 		cluster.AddCommand(command)
 	}
-	admin.AddCommand(cluster)
-	return admin
+	return cluster
 }
 
 func call(
