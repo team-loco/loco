@@ -39,7 +39,6 @@ GATEWAY_PORT=$((PORT_BASE + 4))
 READY_TIMEOUT=120
 OBS_READY_TIMEOUT=600
 OBS_HELM_TIMEOUT=10m
-POD_READY_PROBE_TIMEOUT=1s
 CLICKHOUSE_NATIVE_PORT=9000
 GATEWAY_HTTP_PORT=80
 LOG_TAIL_LINES=200
@@ -54,9 +53,7 @@ E2E_VERSION="e2e"
 CONTROLLER_REPOSITORY="loco-controller"
 BUILDER_REPOSITORY="loco-builder"
 OBS_VALUES="$ROOT_DIR/charts/loco-obs/values.yaml"
-OBS_READER_USER=$(yq '.clickhouse.clickhouse.users[] | select(.grants[] | test("^GRANT SELECT ON ")) | .name' "$OBS_VALUES")
-OBS_MIGRATOR_USER=$(yq '.clickhouse.clickhouse.users[] | select(.grants[] | test("^GRANT ALL ON ")) | .name' "$OBS_VALUES")
-OBS_INGEST_USER=$(yq '.clickhouse.clickhouse.users[] | select(.grants[] | test("^GRANT INSERT, ")) | .name' "$OBS_VALUES")
+CONTROL_PLANE_VALUES="$ROOT_DIR/charts/loco-control-plane/values.yaml"
 OBS_E2E_VALUES="$SCRIPT_DIR/obs-values.yaml"
 OBS_RELEASE="loco-obs"
 CORE_CHART="$ROOT_DIR/charts/loco-core"
@@ -66,8 +63,11 @@ OBS_NAMESPACE=$(yq '.global.observability.namespace' "$CORE_CHART/values.yaml")
 PLATFORM_DOMAIN="e2e.test.local"
 GATEWAY_TLS_SECRET="e2e-gateway-tls"
 GATEWAY_TLS_DAYS=1
-CLICKHOUSE_IMAGE=$(yq '.clickhouse.clickhouse.image.repository + ":" + .clickhouse.clickhouse.image.tag' "$OBS_VALUES")
+CLICKHOUSE_IMAGE=$(yq '.clickhouse.clickhouse.image.repository + ":" + .clickhouse.clickhouse.image.tag' "$CONTROL_PLANE_VALUES")
 CLICKHOUSE_CONTAINER="${RUN_NAME}-clickhouse"
+OBS_PROXY_REPOSITORY="loco-obs-proxy"
+INGEST_CONTAINER="${RUN_NAME}-obs-ingest"
+INGEST_OTLP_HTTP_PORT=$(yq '.obsProxy.ingest.httpPort' "$CONTROL_PLANE_VALUES")
 CLICKHOUSE_USER="loco_e2e"
 CLICKHOUSE_PASS="loco_e2e_pass"
 BUILDKIT_IMAGE=$(yq '.builds.buildkitImage.repository + ":" + .builds.buildkitImage.tag' "$ROOT_DIR/charts/loco-operator/values.yaml")
@@ -103,6 +103,10 @@ export E2E_GATEWAY_URL="http://127.0.0.1:${GATEWAY_PORT}"
 export E2E_OBS_NAMESPACE="$OBS_NAMESPACE"
 export E2E_OBS_RELEASE="$OBS_RELEASE"
 export E2E_OBS_VALUES="$OBS_E2E_VALUES"
+export E2E_CLICKHOUSE_CONTAINER="$CLICKHOUSE_CONTAINER"
+export E2E_OBS_INGEST_CONTAINER="$INGEST_CONTAINER"
+export E2E_CLICKHOUSE_USER="$CLICKHOUSE_USER"
+export E2E_CLICKHOUSE_PASSWORD="$CLICKHOUSE_PASS"
 export E2E_PLATFORM_DOMAIN="$PLATFORM_DOMAIN"
 export LOCO_SOURCE_BUCKET="loco-e2e-sources"
 export LOCO_SOURCE_BUCKET_ACCESS_KEY_ID="loco-e2e"
@@ -205,7 +209,6 @@ stop_jobs() {
 stop_processes() {
     kill_pid_file "$PID_DIR/obs-proxy.pid"
     kill_pid_file "$PID_DIR/gateway-forward.pid"
-    kill_pid_file "$PID_DIR/clickhouse-forward.pid"
     kill_pid_file "$PID_DIR/agent.pid"
     kill_pid_file "$PID_DIR/api-replica/api.pid"
     kill_pid_file "$PID_DIR/api.pid"
@@ -223,13 +226,13 @@ teardown() {
         kind delete cluster --name "$KIND_CLUSTER_NAME" --kubeconfig "$KUBECONFIG_FILE"
     fi
 
-    docker rm -fv "$CLICKHOUSE_CONTAINER" >/dev/null 2>&1 || true
+    docker rm -fv "$INGEST_CONTAINER" "$CLICKHOUSE_CONTAINER" >/dev/null 2>&1 || true
 
     log_info "Removing compose project ${E2E_COMPOSE_PROJECT}..."
     e2e_compose --profile tools down -v --remove-orphans >/dev/null 2>&1 || true
 
     local repository
-    for repository in "$CONTROLLER_REPOSITORY" "$BUILDER_REPOSITORY"; do
+    for repository in "$CONTROLLER_REPOSITORY" "$BUILDER_REPOSITORY" "$OBS_PROXY_REPOSITORY"; do
         docker image rm "${repository}:e2e-${RUN_ID}" >/dev/null 2>&1 || true
     done
 
@@ -268,6 +271,11 @@ dump_logs() {
             kube -n "$LOCO_NAMESPACE" logs "$deployment" --all-containers --tail "$LOG_TAIL_LINES" 2>&1 || true
             log_group_end
         done
+    fi
+    if [ "$OBSERVABILITY" = true ]; then
+        log_group "obs-proxy ingest container"
+        docker logs --tail "$LOG_TAIL_LINES" "$INGEST_CONTAINER" 2>&1 || true
+        log_group_end
     fi
     if [ "$OBSERVABILITY" = true ] && [ -s "$KUBECONFIG_FILE" ]; then
         local namespace workload
@@ -344,8 +352,8 @@ check_ports() {
     require_free_port "$OTLP_HTTP_PORT" "OTLP/HTTP ingest"
     if [ "$OBSERVABILITY" = true ]; then
         require_free_port "$GATEWAY_PORT" "gateway"
-        require_free_port "$CLICKHOUSE_PORT" "ClickHouse"
-    elif ! docker port "$CLICKHOUSE_CONTAINER" "${CLICKHOUSE_NATIVE_PORT}/tcp" >/dev/null 2>&1; then
+    fi
+    if ! docker port "$CLICKHOUSE_CONTAINER" "${CLICKHOUSE_NATIVE_PORT}/tcp" >/dev/null 2>&1; then
         require_free_port "$CLICKHOUSE_PORT" "ClickHouse"
     fi
     if ! e2e_compose port s3 "$S3_PORT" >/dev/null 2>&1; then
@@ -419,9 +427,9 @@ clickhouse_answers() {
 setup_clickhouse() {
     log_step "Setting up ClickHouse..."
     docker rm -fv "$CLICKHOUSE_CONTAINER" >/dev/null 2>&1 || true
-    printf '<clickhouse>%s</clickhouse>\n' "$(yq '.clickhouse.clickhouse.keeperConfig' "$OBS_VALUES")" >"$LOG_DIR/clickhouse-keeper.xml"
+    printf '<clickhouse>%s</clickhouse>\n' "$(yq '.clickhouse.clickhouse.keeperConfig' "$CONTROL_PLANE_VALUES")" >"$LOG_DIR/clickhouse-keeper.xml"
     chmod a+r "$LOG_DIR/clickhouse-keeper.xml"
-    docker run -d --name "$CLICKHOUSE_CONTAINER" -p "127.0.0.1:${CLICKHOUSE_PORT}:${CLICKHOUSE_NATIVE_PORT}" \
+    docker run -d --name "$CLICKHOUSE_CONTAINER" --network kind -p "127.0.0.1:${CLICKHOUSE_PORT}:${CLICKHOUSE_NATIVE_PORT}" \
         -e CLICKHOUSE_USER="$CLICKHOUSE_USER" -e CLICKHOUSE_PASSWORD="$CLICKHOUSE_PASS" \
         -v "$LOG_DIR/clickhouse-keeper.xml:/etc/clickhouse-server/config.d/keeper.xml:ro" \
         "$CLICKHOUSE_IMAGE" >/dev/null
@@ -507,39 +515,6 @@ install_envoy_gateway() {
     log_ok "Envoy Gateway serving the ${GATEWAY_RELEASE} Gateway"
 }
 
-clickhouse_pod() {
-    kube -n "$OBS_NAMESPACE" get pods -l clickhouse.altinity.com/chi \
-        -o jsonpath='{.items[0].metadata.name}' | grep .
-}
-
-clickhouse_installation_completed() {
-    local status
-    status=$(kube -n "$OBS_NAMESPACE" get clickhouseinstallations.clickhouse.altinity.com \
-        -o jsonpath='{.items[0].status.status}')
-    test "$status" = Completed
-}
-
-clickhouse_pod_ready() {
-    local pod
-    pod=$(clickhouse_pod) || return 1
-    kube -n "$OBS_NAMESPACE" wait "pod/${pod}" --for=condition=Ready --timeout="$POD_READY_PROBE_TIMEOUT"
-}
-
-obs_clickhouse_password() {
-    yq ".clickhouseUserPasswords.$1" "$OBS_E2E_VALUES"
-}
-
-obs_clickhouse() {
-    local user=$1
-    shift
-    kube -n "$OBS_NAMESPACE" exec "$(clickhouse_pod)" -c clickhouse -- \
-        clickhouse-client --user "$user" --password "$(obs_clickhouse_password "$user")" "$@"
-}
-
-clickhouse_user_answers() {
-    obs_clickhouse "$OBS_MIGRATOR_USER" -q "SELECT 1"
-}
-
 install_loco_obs() {
     log_step "Installing the loco-obs chart..."
     helm upgrade --install "$OBS_RELEASE" "$ROOT_DIR/charts/loco-obs" \
@@ -548,10 +523,8 @@ install_loco_obs() {
         --namespace "$OBS_NAMESPACE" \
         --values "$OBS_VALUES" \
         --values "$OBS_E2E_VALUES" \
+        --set "global.exporter.endpoint=http://${INGEST_CONTAINER}:${INGEST_OTLP_HTTP_PORT}" \
         --wait --timeout "$OBS_HELM_TIMEOUT" >/dev/null
-    wait_for "the ClickHouse installation" "$OBS_READY_TIMEOUT" clickhouse_installation_completed
-    wait_for "the ClickHouse pod" "$OBS_READY_TIMEOUT" clickhouse_pod_ready
-    wait_for "the ClickHouse migrator user" "$OBS_READY_TIMEOUT" clickhouse_user_answers
     log_ok "loco-obs installed in ${OBS_NAMESPACE}"
 }
 
@@ -566,24 +539,28 @@ port_forward() {
 }
 
 forward_observability_ports() {
-    log_step "Forwarding the gateway and ClickHouse to the host..."
-    port_forward clickhouse "$OBS_NAMESPACE" "pod/$(clickhouse_pod)" "$CLICKHOUSE_PORT" "$CLICKHOUSE_NATIVE_PORT"
+    log_step "Forwarding the gateway to the host..."
     port_forward gateway "$LOCO_NAMESPACE" "$(envoy_proxy_service)" "$GATEWAY_PORT" "$GATEWAY_HTTP_PORT"
-    log_ok "Gateway at ${E2E_GATEWAY_URL}, ClickHouse at 127.0.0.1:${CLICKHOUSE_PORT}"
+    log_ok "Gateway at ${E2E_GATEWAY_URL}"
 }
 
-reset_telemetry() {
-    if [ "$CLUSTER_REUSED" = false ]; then
-        return 0
-    fi
-    log_step "Emptying the previous run's telemetry..."
-    local migrator database table
-    migrator=$OBS_MIGRATOR_USER
-    database=$(yq '.["otel-col-daemon"].config.exporters.clickhouse.database' "$OBS_VALUES")
-    for table in $(obs_clickhouse "$migrator" -q "SELECT name FROM system.tables WHERE database = '${database}' AND engine LIKE '%MergeTree' AND name != 'loco_schema_migrations'"); do
-        obs_clickhouse "$migrator" -q "TRUNCATE TABLE ${database}.${table}"
-    done
-    log_ok "Telemetry emptied"
+ingest_ready() {
+    curl -sf "http://$(docker port "$INGEST_CONTAINER" "$(yq '.obsProxy.ingest.port' "$CONTROL_PLANE_VALUES")/tcp" | head -1)/readyz"
+}
+
+start_ingest() {
+    log_step "Starting the observability proxy ingest role on the kind network..."
+    docker rm -fv "$INGEST_CONTAINER" >/dev/null 2>&1 || true
+    docker run -d --name "$INGEST_CONTAINER" --network kind \
+        -p "127.0.0.1::$(yq '.obsProxy.ingest.port' "$CONTROL_PLANE_VALUES")" \
+        -e QUERY_ENABLED=false -e INGEST_ENABLED=true \
+        -e PORT="$(yq '.obsProxy.ingest.port' "$CONTROL_PLANE_VALUES")" \
+        -e OTLP_GRPC_PORT="$(yq '.obsProxy.ingest.grpcPort' "$CONTROL_PLANE_VALUES")" \
+        -e OTLP_HTTP_PORT="$INGEST_OTLP_HTTP_PORT" \
+        -e CLICKHOUSE_INGEST_URL="clickhouse://${CLICKHOUSE_USER}:${CLICKHOUSE_PASS}@${CLICKHOUSE_CONTAINER}:${CLICKHOUSE_NATIVE_PORT}" \
+        "${OBS_PROXY_REPOSITORY}:e2e-${RUN_ID}" >/dev/null
+    wait_for "the ingest role readiness" "$READY_TIMEOUT" ingest_ready
+    log_ok "Ingest serving OTLP/HTTP at http://${INGEST_CONTAINER}:${INGEST_OTLP_HTTP_PORT} on the kind network"
 }
 
 setup_registry() {
@@ -718,6 +695,9 @@ start_builds() {
     fi
     log_step "Building the images and binaries in the background..."
     start_job controller-image build_image "$CONTROLLER_REPOSITORY" controller/Dockerfile
+    if [ "$OBSERVABILITY" = true ]; then
+        start_job obs-proxy-image build_image "$OBS_PROXY_REPOSITORY" observability-proxy/Dockerfile
+    fi
     if [ "$BUILDS_ENABLED" = true ]; then
         start_job builder-image build_image "$BUILDER_REPOSITORY" builder/Dockerfile
     fi
@@ -843,30 +823,18 @@ clickhouse_dsn() {
 start_obs_proxy() {
     log_step "Starting Observability Proxy..."
 
-    local reader_dsn migrator_dsn ingest_dsn reader migrator ingest
-    if [ "$OBSERVABILITY" = true ]; then
-        reader=$OBS_READER_USER
-        migrator=$OBS_MIGRATOR_USER
-        ingest=$OBS_INGEST_USER
-        reader_dsn=$(clickhouse_dsn "$reader" "$(obs_clickhouse_password "$reader")")
-        migrator_dsn=$(clickhouse_dsn "$migrator" "$(obs_clickhouse_password "$migrator")")
-        ingest_dsn=$(clickhouse_dsn "$ingest" "$(obs_clickhouse_password "$ingest")")
-    else
-        reader_dsn=$(clickhouse_dsn "$CLICKHOUSE_USER" "$CLICKHOUSE_PASS")
-        migrator_dsn="$reader_dsn"
-        ingest_dsn="$reader_dsn"
-    fi
+    local dsn
+    dsn=$(clickhouse_dsn "$CLICKHOUSE_USER" "$CLICKHOUSE_PASS")
 
     PORT="$OBS_PROXY_PORT" \
     CONTROL_PLANE_URL="$E2E_API_URL" \
     CORS_ALLOWED_ORIGINS="https://dashboard.e2e.test" \
-    CLICKHOUSE_URL="$reader_dsn" \
-    CLICKHOUSE_MIGRATOR_URL="$migrator_dsn" \
+    CLICKHOUSE_URL="$dsn" \
+    CLICKHOUSE_MIGRATOR_URL="$dsn" \
     INGEST_ENABLED=true \
-    CLICKHOUSE_INGEST_URL="$ingest_dsn" \
+    CLICKHOUSE_INGEST_URL="$dsn" \
     OTLP_GRPC_PORT="$OTLP_GRPC_PORT" \
     OTLP_HTTP_PORT="$OTLP_HTTP_PORT" \
-    CLICKHOUSE_DB="$(yq '.["otel-col-daemon"].config.exporters.clickhouse.database' "$OBS_VALUES")" \
     DEFAULT_LIMIT="100" \
     MAX_LIMIT="1000" \
     QUERY_TIMEOUT_SECONDS="5" \
@@ -969,9 +937,7 @@ main() {
         start_job loco-obs install_loco_obs
     fi
     setup_postgres
-    if [ "$OBSERVABILITY" = false ]; then
-        setup_clickhouse
-    fi
+    setup_clickhouse
     run_migrations
     setup_registry
     load_builder_images
@@ -982,7 +948,6 @@ main() {
     if [ "$OBSERVABILITY" = true ]; then
         await_job loco-obs
         forward_observability_ports
-        reset_telemetry
     fi
     await_job binaries
     start_api
@@ -994,6 +959,10 @@ main() {
     create_e2e_cluster
     start_agent
     start_obs_proxy
+    if [ "$OBSERVABILITY" = true ]; then
+        await_job obs-proxy-image
+        start_ingest
+    fi
 
     echo ""
     echo "════════════════════════════════════════"

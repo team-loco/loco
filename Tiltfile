@@ -198,7 +198,7 @@ helm_release(
 )
 
 # ---------------------------------------------------------------------------
-# Phase 3: Observability (ClickHouse + OpenTelemetry)
+# Phase 3: Observability (OpenTelemetry collectors exporting OTLP to the host proxy)
 # ---------------------------------------------------------------------------
 
 helm_release(
@@ -229,7 +229,7 @@ local_resource(
     cmd='mise run build:obs-proxy',
     serve_cmd='mise run obs:serve',
     deps=copy_sources('observability-proxy/Dockerfile') + ['mise-tasks/obs/serve'],
-    resource_deps=['loco-obs', 'api'],
+    resource_deps=['api'],
     allow_parallel=True,
     labels=['services'],
 )

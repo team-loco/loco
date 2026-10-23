@@ -78,6 +78,13 @@ def test_control_plane_chart_is_published_without_installing_on_workers(bundle):
     assert not [name for name in bundle.files if "loco-control-plane" in name]
 
 
+def test_only_the_core_release_reads_secret_values(bundle):
+    for name in ("loco-core", "loco-operator", "loco-obs"):
+        hr = json.loads(bundle.files[f"releases/{name}-helmrelease.yaml"])
+        secrets = [source for source in hr["spec"]["valuesFrom"] if source["kind"] == "Secret"]
+        assert bool(secrets) == (name == "loco-core"), name
+
+
 def test_releases_wait_for_matching_release_and_current_generation(bundle):
     for name in ("loco-core", "loco-operator", "loco-obs"):
         hr = json.loads(bundle.files[f"releases/{name}-helmrelease.yaml"])

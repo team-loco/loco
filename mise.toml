@@ -238,6 +238,8 @@ run = [
   "mise run stop",
   "mise run cluster:down",
   "docker compose down --volumes",
+  'docker rm -fv "$CLICKHOUSE_CONTAINER" >/dev/null 2>&1 || true',
+  'docker volume rm -f "$CLICKHOUSE_CONTAINER" >/dev/null',
   'if [ -n "$LOCO_STACK_CLAIM" ]; then rm -f "$LOCO_STACK_CLAIM"; fi',
 ]
 
@@ -276,6 +278,7 @@ run = [
   "helm dependency build --skip-refresh ./charts/loco-networking",
   "helm dependency build --skip-refresh ./charts/loco-obs",
   "helm dependency build --skip-refresh ./charts/loco-core",
+  "helm dependency build --skip-refresh ./charts/loco-control-plane",
 ]
 
 [tasks."helm:sync:namespaces"]
@@ -292,11 +295,6 @@ run = "helmfile -e local -l name=cert-manager sync --skip-deps"
 description = "Uninstall every release from the local cluster"
 env = { _.file = ".env", _.source = "env/local/stack.sh" }
 run = "helmfile -e local destroy"
-
-[tasks."helm:fix-clickhouse"]
-description = "Remove the ClickHouse finalizer when it is stuck"
-env = { _.source = "env/local/stack.sh" }
-run = """kubectl --context "kind-$KIND_CLUSTER" -n observability patch clickhouseinstallations.clickhouse.altinity.com/clickhouse -p '{"metadata":{"finalizers":[]}}' --type=merge"""
 
 [tasks.e2e]
 description = "Run the end-to-end tests in this worktree's own kind cluster and compose project (E2E_RUN_ID overrides the run). Flags: --no-teardown keeps the run, a later run reuses its cluster and resets its state; --skip-build reuses the images and binaries; a trailing filter picks test files"
@@ -349,7 +347,7 @@ env = { _.file = ".env" }
 run = "./e2e/run.sh config_apply"
 
 [tasks."e2e:observability"]
-description = "Run the end-to-end tests for telemetry from the Envoy gateway through ClickHouse to the observability proxy, with Envoy Gateway and the loco-obs chart installed; writes e2e/out/observability-evidence.md (E2E_OBS_EVIDENCE overrides the path); takes the e2e flags"
+description = "Run the end-to-end tests for telemetry from the loco-obs collectors in kind over OTLP to the observability proxy ingest role, ClickHouse and the API, with Envoy Gateway and the loco-obs chart installed; writes e2e/out/observability-evidence.md (E2E_OBS_EVIDENCE overrides the path); takes the e2e flags"
 env = { _.file = ".env" }
 run = "./e2e/run.sh --observability observability"
 
@@ -409,7 +407,7 @@ description = "Test image platform selection, executable architecture and Docker
 run = "uv run --locked --project tests pytest tools/platform-images/tests tests/versions"
 
 [tasks."obs:serve"]
-description = "Serve the regional control-plane observability proxy against local ClickHouse"
+description = "Run a local ClickHouse container and serve the observability proxy query and OTLP ingest roles against it; the kind collectors export to the ingest port"
 env = { _.file = ".env", _.source = "env/local/stack.sh" }
 run = "./mise-tasks/obs/serve"
 

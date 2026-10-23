@@ -50,8 +50,7 @@ spec:
             - name: CLICKHOUSE_INGEST_URL
               valueFrom:
                 secretKeyRef:
-                  name: {{ required "obsProxy.ingest.clickhouse.existingSecret.name is required" .Values.obsProxy.ingest.clickhouse.existingSecret.name | quote }}
-                  key: {{ required "obsProxy.ingest.clickhouse.existingSecret.key is required" .Values.obsProxy.ingest.clickhouse.existingSecret.key | quote }}
+                  {{- include "loco-control-plane.clickhouseURL" (dict "root" . "grant" "GRANT INSERT" "path" "obsProxy.ingest.clickhouse.existingSecret" "secret" .Values.obsProxy.ingest.clickhouse.existingSecret) | nindent 18 }}
           ports:
             - name: health
               containerPort: {{ .Values.obsProxy.ingest.port }}

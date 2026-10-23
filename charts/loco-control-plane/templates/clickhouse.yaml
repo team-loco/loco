@@ -1,0 +1,58 @@
+{{- if .Values.clickhouse.enabled }}
+{{- if not .Values.obsProxy.enabled }}
+{{- fail "clickhouse.enabled requires obsProxy.enabled" }}
+{{- end }}
+{{- range .Values.clickhouse.clickhouse.users }}
+{{- $password := required (printf "clickhouseUserPasswords.%s is required" .name) (index $.Values.clickhouseUserPasswords .name) }}
+{{- if not (regexMatch "^[A-Za-z0-9._~-]+$" $password) }}
+{{- fail (printf "clickhouseUserPasswords.%s may contain only letters, digits and ._~-" .name) }}
+{{- end }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .password_secret_name }}
+  namespace: {{ $.Release.Namespace }}
+type: Opaque
+stringData:
+  password: {{ $password | quote }}
+  url: {{ printf "clickhouse://%s:%s@%s:9000" .name $password (include "loco-control-plane.clickhouseHost" $) | quote }}
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-clickhouse
+  namespace: {{ .Release.Namespace }}
+spec:
+  podSelector:
+    matchExpressions:
+      - key: clickhouse.altinity.com/chi
+        operator: Exists
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: observability-proxy
+      ports:
+        - protocol: TCP
+          port: 9000
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: clickhouse.altinity.com/chi
+                operator: Exists
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: operator
+              app.kubernetes.io/instance: {{ .Release.Name }}
+      ports:
+        - protocol: TCP
+          port: 8123
+        - protocol: TCP
+          port: 9000
+        - protocol: TCP
+          port: 9009
+{{- end }}

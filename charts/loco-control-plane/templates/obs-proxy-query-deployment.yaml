@@ -46,13 +46,11 @@ spec:
             - name: CLICKHOUSE_URL
               valueFrom:
                 secretKeyRef:
-                  name: {{ required "obsProxy.query.clickhouse.existingSecret.name is required" .Values.obsProxy.query.clickhouse.existingSecret.name | quote }}
-                  key: {{ required "obsProxy.query.clickhouse.existingSecret.key is required" .Values.obsProxy.query.clickhouse.existingSecret.key | quote }}
+                  {{- include "loco-control-plane.clickhouseURL" (dict "root" . "grant" "GRANT SELECT" "path" "obsProxy.query.clickhouse.existingSecret" "secret" .Values.obsProxy.query.clickhouse.existingSecret) | nindent 18 }}
             - name: CLICKHOUSE_MIGRATOR_URL
               valueFrom:
                 secretKeyRef:
-                  name: {{ required "obsProxy.query.clickhouse.migratorExistingSecret.name is required" .Values.obsProxy.query.clickhouse.migratorExistingSecret.name | quote }}
-                  key: {{ required "obsProxy.query.clickhouse.migratorExistingSecret.key is required" .Values.obsProxy.query.clickhouse.migratorExistingSecret.key | quote }}
+                  {{- include "loco-control-plane.clickhouseURL" (dict "root" . "grant" "GRANT ALL" "path" "obsProxy.query.clickhouse.migratorExistingSecret" "secret" .Values.obsProxy.query.clickhouse.migratorExistingSecret) | nindent 18 }}
           ports:
             - containerPort: {{ .Values.obsProxy.query.port }}
           livenessProbe:

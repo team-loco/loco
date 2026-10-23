@@ -36,7 +36,7 @@ def main():
             if name == 'loco-core':
                 values['certManager'] = {'issuer': {'email': 'release-test@example.invalid'}}
             if name == 'loco-obs':
-                values['global'] = {'region': 'release-test-region'}
+                values['global'] = {'region': 'release-test-region', 'exporter': {'endpoint': 'https://ingest.release-test.example.invalid'}}
             path = temp / (name + '-values.json')
             path.write_text(json.dumps(values))
             rendered = release.run('helm', 'template', name, str(release.ROOT / 'charts' / name), '--namespace', hr['spec']['targetNamespace'], '--skip-crds', '--values', str(path))

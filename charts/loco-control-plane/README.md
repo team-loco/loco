@@ -1,6 +1,6 @@
 # loco-control-plane
 
-`loco-control-plane` installs one region's dashboard, API and private observability proxy. The API serves ordinary RPCs and forwards observability RPCs to the proxy at the same public API address. Agents connect to this API with the shared connection secret; user authentication uses the configured identity provider.
+`loco-control-plane` installs one region's dashboard, API, observability proxy, Gateway and, optionally, ClickHouse. The API serves ordinary RPCs and forwards observability RPCs to the proxy at the same public API address. Agents connect to this API with the shared connection secret; user authentication uses the configured identity provider.
 
 Provide these dependencies before installing the chart:
 
@@ -10,18 +10,14 @@ Provide these dependencies before installing the chart:
 | Identity provider | `AUTH_ISSUERS` in the API environment Secret, with the issuer, audience and web-client settings supported by the API. |
 | Source object storage | Existing S3-compatible bucket and `LOCO_SOURCE_BUCKET*` API environment settings. Without a bucket, source builds are disabled. |
 | Application image registry | Existing registry and `LOCO_REGISTRY_*` API environment settings. Builders and worker nodes must also reach this registry. |
-| Regional ClickHouse | Install `loco-obs` or provide an external ClickHouse with Keeper. Supply separate reader and migrator DSNs through existing Secrets. |
-| Envoy Gateway | Existing `eg` Gateway in `gatewayNamespace`, with a TLS listener covering `controlPlaneHostname` and `ui.hostname` and permission to attach routes from the control-plane namespace. |
+| Regional ClickHouse | `clickhouse.enabled: true` runs it in the release namespace, or provide an external ClickHouse with Keeper and supply reader, migrator and ingest DSNs through existing Secrets. |
+| Envoy Gateway | The Envoy Gateway controller in `gatewayNamespace`. The chart creates its own GatewayClass, EnvoyProxy and Gateway; `gateway.create: false` attaches the routes to the existing Gateway `gateway.name` instead. |
 
 Create the API environment Secret outside Helm. The chart reads environment-variable keys directly from that Secret, so credentials do not enter Helm values or the release manifest. A complete installation configures `DATABASE_URL`, `AUTH_ISSUERS`, the source bucket and registry, and a supported `LOCO_SECRETS_KEY_PROVIDER`. Store local key material or transit credentials in the same operator-managed Secret. Existing API configuration names and rotation procedures apply.
 
 ```sh
 kubectl -n loco-system create secret generic regional-api-env \
   --from-env-file=/secure/loco-api.env
-kubectl -n loco-system create secret generic regional-clickhouse-reader \
-  --from-file=url=/secure/clickhouse-reader-url
-kubectl -n loco-system create secret generic regional-clickhouse-migrator \
-  --from-file=url=/secure/clickhouse-migrator-url
 ```
 
 Set nonsecret API options through `api.env`. The chart supplies `APP_PORT` and `OBSERVABILITY_PROXY_URL` to connect its own Services.
@@ -33,6 +29,8 @@ ui:
   image:
     tag: sha-COMMIT@sha256:DIGEST
 gatewayNamespace: loco-system
+gateway:
+  tlsSecretName: regional-tls
 api:
   image:
     tag: sha-COMMIT@sha256:DIGEST
@@ -44,15 +42,17 @@ api:
 obsProxy:
   image:
     tag: sha-COMMIT@sha256:DIGEST
-  query:
-    clickhouse:
-      existingSecret:
-        name: regional-clickhouse-reader
-        key: url
-      migratorExistingSecret:
-        name: regional-clickhouse-migrator
-        key: url
+  ingest:
+    enabled: true
+clickhouse:
+  enabled: true
+clickhouseUserPasswords:
+  loco_migrator: MIGRATOR_PASSWORD
+  loco_ingest: INGEST_PASSWORD
+  loco_reader: READER_PASSWORD
 ```
+
+With an external ClickHouse, leave `clickhouse.enabled: false` and name Secrets holding each user's URL in `obsProxy.query.clickhouse.existingSecret`, `obsProxy.query.clickhouse.migratorExistingSecret` and `obsProxy.ingest.clickhouse.existingSecret`.
 
 Install from the checked-out release or its published chart artifact with these values:
 
@@ -62,7 +62,7 @@ helm upgrade --install regional ./charts/loco-control-plane \
   --values /secure/regional-values.yaml --wait --timeout 10m
 ```
 
-For `loco-obs` in another namespace, set its `controlPlaneNamespace` to the namespace containing this chart. That allows only observability-proxy pods from the control-plane namespace to reach ClickHouse's native port. The proxy reader and migrator DSNs use the regional ClickHouse endpoint; no cross-region replication is configured. Worker-side collectors send telemetry to that region's ingestion endpoint. Query clients select one regional API address.
+The Gateway has one listener per hostname: `ui.hostname`, `controlPlaneHostname` and, when ingest is published, `obsProxy.ingest.hostname`. HTTP on port 80 without `gateway.tlsSecretName`, HTTPS on 443 with it. `gateway.service` takes the same Envoy Service settings as `loco-core`'s `envoyProxy.service`. Worker collectors export to the ingest hostname; the proxy reader and migrator DSNs use the regional ClickHouse, and no cross-region replication is configured.
 
 The API runs database migrations during normal startup while holding the existing PostgreSQL migration lock. There is no migration Job or separate migration command. Its startup probe allows five minutes before liveness checks begin; adjust `api.startupProbe` for larger databases. Existing Secrets remain owned by the operator. After rotating their values, restart the corresponding Deployment so it reads the new environment.
 
@@ -70,7 +70,7 @@ The dashboard serves its API at `/api` on the dashboard's own origin. Its HTTPRo
 
 API routes retry once when a connection fails before the upstream handles the request (`connect-failure`, `reset-before-request`, or `refused-stream`). This allows an available alternate API replica to handle the request during endpoint withdrawal. Handled HTTP errors are not retried. The policy targets only named API rules, including the dashboard’s `/api` rule; dashboard routes and streaming timeouts remain unchanged. The retry is bounded and can still fail, including when a healthy alternate replica exists.
 
-The proxy image runs as two Deployments that share `obsProxy.image` and `obsProxy.imagePullPolicy`: `<release>-obs-proxy-query`, configured under `obsProxy.query`, and `<release>-obs-proxy-ingest`, configured under `obsProxy.ingest`. `obsProxy.enabled: false` renders neither and leaves `OBSERVABILITY_PROXY_URL` unset, so the API answers observability requests with `Unavailable`. `obsProxy.ingest.enabled: true` adds the OTLP ingest Deployment and Service, with the `loco_ingest` DSN in `obsProxy.ingest.clickhouse.existingSecret`; only pods in the release namespace can reach it. The query role exposes only a ClusterIP Service. Its ingress policy permits API pods, and its permission checks use the chart's private API Service. No public observability route or cluster endpoint discovery is required.
+The proxy image runs as two Deployments that share `obsProxy.image` and `obsProxy.imagePullPolicy`: `<release>-obs-proxy-query`, configured under `obsProxy.query`, and `<release>-obs-proxy-ingest`, configured under `obsProxy.ingest`. `obsProxy.enabled: false` renders neither and leaves `OBSERVABILITY_PROXY_URL` unset, so the API answers observability requests with `Unavailable`. `obsProxy.ingest.enabled: true` adds the OTLP ingest Deployment and Service, reachable from pods in the release namespace. Setting `obsProxy.ingest.hostname` as well publishes `/v1/` on that hostname through the Gateway. Ingest does not authenticate requests yet, so the hostname is empty by default. The query role exposes only a ClusterIP Service. Its ingress policy permits API pods, and its permission checks use the chart's private API Service. The query role has no public route.
 
 Validate rendering and a Kubernetes installation with:
 
@@ -80,4 +80,4 @@ mise run test:platform-render
 mise run e2e:control-plane
 ```
 
-The E2E suite builds the actual dashboard, API and proxy images, installs PostgreSQL and ClickHouse/Keeper fixtures in a fresh kind cluster, and installs this chart with two API replicas against an empty database. It checks startup migrations, the dashboard and runtime configuration, Config RPCs through the dashboard origin, and an observability request forwarded through the API whose permission check returns through the private API Service. It also renders all three API/dashboard hostname layouts against Envoy, measures the reduction in failed connections to a mixed healthy/closed endpoint set, recording any exhausted retries, checks that handled HTTP 500/503 responses execute once, and compares intact 8 KiB and 2 MiB request bodies. The 2 MiB control uses only a healthy endpoint and does not assert retry buffering for large requests. Fixtures use ephemeral storage and are not production database templates. `--no-teardown` keeps the cluster; `--skip-build` reuses the images on a subsequent run.
+The E2E suite builds the dashboard, API and proxy images, installs PostgreSQL and the Envoy Gateway controller in a fresh kind cluster, and installs this chart with its own Gateway, in-cluster ClickHouse, published ingest and two API replicas against an empty database. It checks the Gateway's listeners, startup migrations, the dashboard and runtime configuration, Config RPCs through the dashboard origin, an observability request forwarded through the API whose permission check returns through the private API Service, and an OTLP/HTTP log sent to the ingest hostname that lands in ClickHouse. It then renders all three API/dashboard hostname layouts against the Gateway, measures the reduction in failed connections to a mixed healthy/closed endpoint set, checks that handled HTTP 500/503 responses execute once, and compares intact 8 KiB and 2 MiB request bodies. `--no-teardown` keeps the cluster; `--skip-build` reuses the images on a subsequent run.

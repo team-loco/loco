@@ -2,18 +2,8 @@
 
 global:
   region: {{ requiredEnv "LOCO_REGION" | quote }}
+  exporter:
+    endpoint: {{ requiredEnv "LOCO_OTLP_ENDPOINT" | quote }}
 
 # Gateway namespace where the Envoy Gateway is deployed
 gatewayNamespace: loco-system
-
-# ClickHouse configuration for production
-clickhouse:
-  enabled: true
-  clickhouse:
-    defaultUser:
-      password: {{ requiredEnv "CLICKHOUSE_PASSWORD" | quote }}
-
-clickhouseUserPasswords:
-  loco_migrator: {{ requiredEnv "CLICKHOUSE_MIGRATOR_PASSWORD" | quote }}
-  loco_ingest: {{ requiredEnv "CLICKHOUSE_INGEST_PASSWORD" | quote }}
-  loco_reader: {{ requiredEnv "CLICKHOUSE_READER_PASSWORD" | quote }}

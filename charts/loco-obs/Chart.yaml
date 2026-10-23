@@ -4,10 +4,6 @@ description: Helm chart for deploying Loco observability stack
 type: application
 version: 0.0.0
 dependencies:
-    - name: clickhouse
-      version: 0.3.13
-      repository: https://helm.altinity.com
-      condition: clickhouse.enabled
     - name: opentelemetry-collector
       repository: https://open-telemetry.github.io/opentelemetry-helm-charts
       version: 0.175.1

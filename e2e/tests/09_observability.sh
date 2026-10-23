@@ -52,9 +52,11 @@ obs_second_workspace_id='00000000-0000-7000-8000-000000000013'
 obs_second_workspace_name='e2e-observability-isolation'
 
 obs_chart_values="$E2E_ROOT_DIR/charts/loco-obs/values.yaml"
-obs_database=$(yq '.["otel-col-daemon"].config.exporters.clickhouse.database' "$obs_chart_values")
-obs_reader=$(yq '.clickhouse.clickhouse.users[] | select(.grants[] | test("^GRANT SELECT ON ")) | .name' "$obs_chart_values")
-obs_reader_password=$(yq ".clickhouseUserPasswords.${obs_reader}" "$E2E_OBS_VALUES")
+obs_clickhouse_client() {
+    docker exec "$E2E_CLICKHOUSE_CONTAINER" clickhouse-client \
+        --user "$E2E_CLICKHOUSE_USER" --password "$E2E_CLICKHOUSE_PASSWORD" "$@"
+}
+obs_database=$(obs_clickhouse_client -q "SELECT database FROM system.tables WHERE name = 'loco_schema_migrations'")
 obs_daemon_namespace=$(yq '.["otel-col-daemon"].namespaceOverride' "$obs_chart_values")
 obs_fixture_scope=$(awk -F'"' '$1 ~ /^\ttracerName +=/ { print $2 }' "$obs_fixture_dir/main.go")
 obs_forged_span=$(awk -F'"' '$1 ~ /^\tforgedSpanName +=/ { print $2 }' "$obs_fixture_dir/main.go")
@@ -84,10 +86,8 @@ obs_kube() {
 }
 
 obs_ch() {
-    local query=$1 format=$2 pod
-    pod=$(obs_kube -n "$E2E_OBS_NAMESPACE" get pods -l clickhouse.altinity.com/chi -o jsonpath='{.items[0].metadata.name}')
-    obs_kube -n "$E2E_OBS_NAMESPACE" exec "$pod" -c clickhouse -- clickhouse-client \
-        --user "$obs_reader" --password "$obs_reader_password" --database "$obs_database" \
+    local query=$1 format=$2
+    obs_clickhouse_client --database "$obs_database" \
         --format "$format" -q "$query"
 }
 
@@ -190,11 +190,12 @@ obs_versions() {
         "| Envoy proxy | ${envoy_proxy} |" \
         "| loco-obs dependencies | ${deps} |" \
         "| ClickHouse server | ${clickhouse} |" \
-        "| otel-col-deploy | $(obs_image "$E2E_OBS_NAMESPACE" deployments -l app.kubernetes.io/name=otel-col-deploy) |" \
-        "| otel-col-cluster | $(obs_image "$E2E_OBS_NAMESPACE" deployments -l app.kubernetes.io/name=otel-col-cluster) |" \
+        "| otel-col-deploy | $(obs_image "$E2E_OBS_NAMESPACE" statefulsets -l app.kubernetes.io/name=otel-col-deploy) |" \
+        "| otel-col-cluster | $(obs_image "$E2E_OBS_NAMESPACE" statefulsets -l app.kubernetes.io/name=otel-col-cluster) |" \
         "| otel-col-daemon | $(obs_image "$obs_daemon_namespace" daemonsets -l app.kubernetes.io/name=otel-col-daemon) |" \
         "| loco-controller | $(obs_image "$E2E_LOCO_NAMESPACE" deployments -l app.kubernetes.io/name=loco-controller) |" \
-        "| API, agent, CLI, obs-proxy | host binaries built from the commit, version ${E2E_VERSION} |" \
+        "| API, agent, CLI, obs-proxy query | host binaries built from the commit, version ${E2E_VERSION} |" \
+        "| obs-proxy ingest | $(docker inspect -f '{{.Config.Image}}' "${E2E_OBS_INGEST_CONTAINER}") on the kind network |" \
         "| Fixture OTel Go SDK | ${otel_sdk} |"
 }
 
@@ -322,11 +323,11 @@ test_o01_resolves_the_collector_reference() {
 
 test_o02_cluster_events_are_collected_once() {
     local marker event_time rows query
-    obs_kube -n "$E2E_OBS_NAMESPACE" rollout status deployment/otel-col-deploy \
+    obs_kube -n "$E2E_OBS_NAMESPACE" rollout status statefulset/otel-col-deploy \
         --timeout="${obs_route_timeout_seconds}s" || return 1
-    obs_kube -n "$E2E_OBS_NAMESPACE" rollout status deployment/otel-col-cluster \
+    obs_kube -n "$E2E_OBS_NAMESPACE" rollout status statefulset/otel-col-cluster \
         --timeout="${obs_route_timeout_seconds}s" || return 1
-    rows=$(obs_kube -n "$E2E_OBS_NAMESPACE" get deployment otel-col-deploy \
+    rows=$(obs_kube -n "$E2E_OBS_NAMESPACE" get statefulset otel-col-deploy \
         -o jsonpath='{.status.readyReplicas}')
     assert "OTLP ingestion has two ready replicas" test "$rows" -eq "$obs_ingest_replicas" || return 1
     marker="obs-event-$(obs_random_hex "$obs_marker_bytes")"
@@ -341,7 +342,7 @@ test_o02_cluster_events_are_collected_once() {
   "reportingInstance": "observability",
   "action": "CheckCollector",
   "reason": "CollectorIsolation",
-  "regarding": {"apiVersion": "apps/v1", "kind": "Deployment", "name": "otel-col-cluster", "namespace": "${E2E_OBS_NAMESPACE}"},
+  "regarding": {"apiVersion": "apps/v1", "kind": "StatefulSet", "name": "otel-col-cluster", "namespace": "${E2E_OBS_NAMESPACE}"},
   "note": "${marker}",
   "type": "Normal"
 }
@@ -654,6 +655,31 @@ check_proxy_counter() {
 
 test_o09_proxy_counter() {
     obs_check proxy_counter check_proxy_counter
+}
+
+obs_cluster_metrics="k8s.pod.phase k8s.pod.memory.usage"
+
+check_cluster_metrics() {
+    local metric start end body output status response points
+    start=$(utc_timestamp "$(($(date +%s) - obs_query_window_seconds))")
+    end=$(utc_timestamp "$(date +%s)")
+    for metric in $obs_cluster_metrics; do
+        ev_query "${metric} rows for the fixture" "SELECT MetricName, WorkspaceId, ResourceId, count() AS Points FROM otel_metrics_gauge WHERE MetricName = '${metric}' AND ResourceId = '${obs_resource_id}' GROUP BY MetricName, WorkspaceId, ResourceId"
+        body=$(printf '{"workspaceId":"%s","resourceIds":["%s"],"metricName":"%s","startTime":"%s","endTime":"%s","intervalSeconds":%d,"aggregation":"max"}' \
+            "$obs_workspace_id" "$obs_resource_id" "$metric" "$start" "$end" "$obs_metric_interval_seconds")
+        output=$(curl -s -w '\n%{http_code}' --max-time "$obs_curl_timeout_seconds" -X POST "$obs_query_metrics" \
+            -H "Authorization: Bearer ${obs_workspace_token}" -H 'Content-Type: application/json' -d "$body") || return 1
+        status=$(tail -n 1 <<<"$output")
+        response=$(sed '$d' <<<"$output")
+        test "$status" = "$obs_http_ok" || return 1
+        points=$(yq -p json -r '[.series // [] | .[] | .points[]] | length' <<<"$response")
+        ev "QueryMetrics returned HTTP ${status} and ${points} points for ${metric}." ""
+        test "$points" -gt 0 || return 1
+    done
+}
+
+test_o09_cluster_metrics_reach_the_api() {
+    obs_check cluster_metrics check_cluster_metrics
 }
 
 check_proxy_isolation() {

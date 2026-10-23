@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-#MISE description="Test the observability proxy, with its ClickHouse migrations and migration lock against the ClickHouse image and Keeper config the loco-obs chart pins; LOCO_TEST_CLICKHOUSE_URL reuses a running server with Keeper instead"
+#MISE description="Test the observability proxy, with its ClickHouse migrations and migration lock against the ClickHouse image and Keeper config the loco-control-plane chart pins; LOCO_TEST_CLICKHOUSE_URL reuses a running server with Keeper instead"
 set -euo pipefail
 
 root=$(git rev-parse --show-toplevel)
 ready_attempts=60
 
 if [ -z "${LOCO_TEST_CLICKHOUSE_URL:-}" ]; then
-	image=$(yq '.clickhouse.clickhouse.image.repository + ":" + .clickhouse.clickhouse.image.tag' "$root/charts/loco-obs/values.yaml")
+	image=$(yq '.clickhouse.clickhouse.image.repository + ":" + .clickhouse.clickhouse.image.tag' "$root/charts/loco-control-plane/values.yaml")
 	container=loco-obs-proxy-test-$$
 	keeper_config=$(mktemp)
 	cleanup() {
@@ -14,7 +14,7 @@ if [ -z "${LOCO_TEST_CLICKHOUSE_URL:-}" ]; then
 		rm -f "$keeper_config"
 	}
 	trap cleanup EXIT
-	printf '<clickhouse>%s</clickhouse>\n' "$(yq '.clickhouse.clickhouse.keeperConfig' "$root/charts/loco-obs/values.yaml")" >"$keeper_config"
+	printf '<clickhouse>%s</clickhouse>\n' "$(yq '.clickhouse.clickhouse.keeperConfig' "$root/charts/loco-control-plane/values.yaml")" >"$keeper_config"
 	chmod a+r "$keeper_config"
 	docker run -d --name "$container" -p 127.0.0.1::9000 \
 		-e CLICKHOUSE_USER=loco_test -e CLICKHOUSE_PASSWORD=loco_test \

@@ -18,4 +18,17 @@ spec:
           port: {{ .Values.obsProxy.ingest.grpcPort }}
         - protocol: TCP
           port: {{ .Values.obsProxy.ingest.httpPort }}
+    {{- if include "loco-control-plane.ingestRouted" . }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.gatewayNamespace }}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/component: proxy
+              app.kubernetes.io/managed-by: envoy-gateway
+      ports:
+        - protocol: TCP
+          port: {{ .Values.obsProxy.ingest.httpPort }}
+    {{- end }}
 {{- end }}

@@ -40,12 +40,8 @@ TEST_PROXY = {
     },
 }
 TEST_REGION = "test-region-1"
-OBS_BASE_VALUES = {"global": {"region": TEST_REGION}}
-CLICKHOUSE_USER_PASSWORDS = {
-    "CLICKHOUSE_MIGRATOR_PASSWORD": "test",
-    "CLICKHOUSE_INGEST_PASSWORD": "test",
-    "CLICKHOUSE_READER_PASSWORD": "test",
-}
+TEST_EXPORTER_ENDPOINT = "https://ingest.test.local"
+OBS_BASE_VALUES = {"global": {"region": TEST_REGION, "exporter": {"endpoint": TEST_EXPORTER_ENDPOINT}}}
 
 
 def environment_values(environment, variables, chart="loco-obs"):
@@ -185,30 +181,6 @@ def quantity(value):
         if value.endswith(suffix):
             return float(value.removesuffix(suffix)) * scale
     return float(value)
-
-
-def clickhouse_installation(overrides):
-    for document in render_chart("loco-obs", overrides):
-        if document["kind"] == "ClickHouseInstallation":
-            return document
-    raise AssertionError("loco-obs renders no ClickHouseInstallation")
-
-
-def clickhouse_resources(overrides):
-    containers = clickhouse_installation(overrides)["spec"]["templates"][
-        "podTemplates"
-    ][0]["spec"]["containers"]
-    return next(
-        (
-            container["resources"]
-            for container in containers
-            if container["name"] == "clickhouse"
-        )
-    )
-
-
-def local_obs_values():
-    return environment_values("local", {"APP_PORT": "8080"})
 
 
 def collector_relays(documents):
@@ -388,158 +360,97 @@ def test_proxy_uses_its_built_in_schema_settings():
     assert "startupProbe" not in container
 
 
-def test_user_secrets_follow_the_clickhouse_users():
-    passwords = {
-        "loco_migrator": "migrator-pw",
-        "loco_ingest": "ingest-pw",
-        "loco_reader": "reader-pw",
-    }
-    secrets = render_documents(
-        "loco-obs", "clickhouse-users.yaml", {"clickhouseUserPasswords": passwords}
-    )
-    found = {
-        (item["metadata"]["namespace"], item["metadata"]["name"]): item["stringData"][
-            "password"
-        ]
-        for item in secrets
-    }
-    assert found == {
-        ("platform-test", "loco-obs-clickhouse-migrator"): "migrator-pw",
-        ("platform-test", "loco-obs-clickhouse-ingest"): "ingest-pw",
-        ("platform-test", "loco-obs-clickhouse-reader"): "reader-pw",
-        ("observability-node", "loco-obs-clickhouse-ingest"): "ingest-pw",
-    }
+def exporter_settings():
+    return chart_values("loco-obs")["global"]["exporter"]
 
 
-def test_user_secrets_are_left_to_the_cluster_without_passwords():
-    assert render_documents("loco-obs", "clickhouse-users.yaml", {}) == []
-
-
-def test_passwords_that_break_a_dsn_are_rejected():
-    with pytest.raises(subprocess.CalledProcessError):
-        render_documents(
-            "loco-obs",
-            "clickhouse-users.yaml",
-            {"clickhouseUserPasswords": {"loco_reader": "a b@c"}},
-        )
-
-
-def test_clickhouse_has_requests_and_limits():
-    resources = clickhouse_resources({})
-    for kind in ("requests", "limits"):
-        assert set(resources[kind]) == {"cpu", "memory"}, kind
-    assert resources["requests"]["memory"] == resources["limits"]["memory"]
-
-
-def test_local_clickhouse_is_smaller_than_the_default():
-    default = clickhouse_resources({})
-    local = clickhouse_resources(local_obs_values())
-    for kind in ("requests", "limits"):
-        for resource in ("cpu", "memory"):
-            assert quantity(local[kind][resource]) < quantity(
-                default[kind][resource]
-            ), f"{kind}.{resource}"
-
-
-def test_local_clickhouse_caps_its_caches_and_schedule_pool():
-    capped = {
-        "mark_cache_size",
-        "index_mark_cache_size",
-        "primary_index_cache_size",
-        "uncompressed_cache_size",
-        "background_schedule_pool_size",
-        "max_concurrent_queries",
-    }
-    local = clickhouse_installation(local_obs_values())["spec"]["configuration"].get(
-        "settings", {}
-    )
-    default = clickhouse_installation({})["spec"]["configuration"].get("settings", {})
-    assert capped - set(local) == set()
-    for setting in capped:
-        assert re.search("^[0-9]+$", str(local[setting])), setting
-    assert capped & set(default) == set()
-
-
-def test_in_cluster_clickhouse_is_the_default_endpoint():
+def test_collectors_export_only_otlp_to_the_configured_endpoint():
     documents = render_chart("loco-obs", {})
-    host = "clickhouse-loco-obs-clickhouse.platform-test.svc.cluster.local:9000"
+    configs = collector_relays(documents)
+    assert set(configs) == set(COLLECTOR_CONFIGMAPS)
+    settings = exporter_settings()
+    queue = {key: value for key, value in settings["queue"].items() if key != "directory"}
+    for collector, config in configs.items():
+        (exporter,) = config["exporters"].values()
+        assert list(config["exporters"]) == ["otlp_http"], collector
+        assert exporter["endpoint"] == TEST_EXPORTER_ENDPOINT, collector
+        assert exporter["sending_queue"] == {
+            "enabled": True, "storage": "file_storage/exporter", **queue
+        }, collector
+        assert exporter["retry_on_failure"] == {"enabled": True, **settings["retry"]}, collector
+        assert "auth" not in exporter, collector
+        assert config["extensions"]["file_storage/exporter"] == {
+            "directory": settings["queue"]["directory"]
+        }, collector
+        assert "file_storage/exporter" in config["service"]["extensions"], collector
+        for name, pipeline in config["service"]["pipelines"].items():
+            assert pipeline["exporters"] == ["otlp_http"], (collector, name)
+    rendered = json.dumps(documents)
+    assert "clickhouse" not in rendered.lower()
+    assert not {"ClickHouseInstallation", "Secret"} & {document["kind"] for document in documents}
+
+
+def test_collectors_require_an_exporter_endpoint():
+    result = render_chart("loco-obs", {"global": {"exporter": {"endpoint": ""}}}, check=False)
+    assert result.returncode != 0
+    assert "global.exporter.endpoint is required" in result.stderr
+
+
+def test_exporter_headers_and_bearer_token_come_from_values():
+    headers = {"X-Loco-Cluster": "cluster-a"}
+    documents = render_chart(
+        "loco-obs",
+        {"global": {"exporter": {"headers": headers, "bearerToken": {"enabled": True, "secretName": "cluster-token"}}}},
+    )
+    token = exporter_settings()["bearerToken"]
+    filename = f"{token['directory']}/{token['secretKey']}"
     for collector, config in collector_relays(documents).items():
-        exporter = config["exporters"]["clickhouse"]
-        assert exporter["endpoint"] == f"tcp://{host}", collector
-        assert exporter["connection_params"]["secure"] == "false", collector
-    assert "ClickHouseInstallation" in {document["kind"] for document in documents}
+        exporter = config["exporters"]["otlp_http"]
+        assert exporter["headers"] == headers, collector
+        assert exporter["auth"] == {"authenticator": "bearertokenauth/exporter"}, collector
+        assert config["extensions"]["bearertokenauth/exporter"] == {"filename": filename}, collector
+        assert "bearertokenauth/exporter" in config["service"]["extensions"], collector
+    workloads = [document for document in documents if document["kind"] in ("DaemonSet", "StatefulSet")]
+    assert len(workloads) == len(COLLECTOR_CONFIGMAPS)
+    for workload in workloads:
+        pod = workload["spec"]["template"]["spec"]
+        volumes = {volume["name"]: volume for volume in pod["volumes"]}
+        mounts = {mount["name"]: mount for mount in pod["containers"][0]["volumeMounts"]}
+        assert volumes["exporter-token"]["secret"] == {"secretName": "cluster-token", "optional": True}
+        assert mounts["exporter-token"]["mountPath"] == token["directory"]
+        assert mounts["exporter-token"]["readOnly"]
+        assert mounts["exporter-queue"]["mountPath"] == exporter_settings()["queue"]["directory"]
 
 
-def test_external_clickhouse_replaces_the_in_cluster_server():
-    overrides = {
-        "clickhouse": {"enabled": False},
-        "global": {
-            "clickhouse": {
-                "host": "abc.clickhouse.example.test",
-                "port": 9440,
-                "secure": True,
-            }
-        },
+def test_exporter_queues_survive_collector_pod_replacement():
+    documents = render_chart("loco-obs", {})
+    directory = exporter_settings()["queue"]["directory"]
+    workloads = {document["metadata"]["name"]: document for document in documents if document["kind"] in ("DaemonSet", "StatefulSet")}
+    assert {name: workload["kind"] for name, workload in workloads.items()} == {
+        "otel-col-daemon-agent": "DaemonSet",
+        "otel-col-deploy": "StatefulSet",
+        "otel-col-cluster": "StatefulSet",
     }
-    documents = render_chart("loco-obs", overrides)
-    host = "abc.clickhouse.example.test:9440"
-    for collector, config in collector_relays(documents).items():
-        exporter = config["exporters"]["clickhouse"]
-        assert exporter["endpoint"] == f"tcp://{host}", collector
-        assert exporter["connection_params"]["secure"] == "true", collector
-    names = {document["metadata"]["name"] for document in documents}
-    kinds = {document["kind"] for document in documents}
-    assert "ClickHouseInstallation" not in kinds
-    assert "allow-clickhouse-ingress" not in names
-
-
-def test_collectors_set_connection_options_as_exporter_fields():
-    for collector, config in collector_relays(render_chart("loco-obs", {})).items():
-        exporter = config["exporters"]["clickhouse"]
-        assert "?" not in exporter["endpoint"], collector
-        assert exporter["compress"] == "lz4", collector
-        assert exporter["async_insert"], collector
-        assert exporter["connection_params"] == {
-            "dial_timeout": "10s",
-            "log_queries": "0",
-            "secure": "false",
-        }, collector
-
-
-def test_external_clickhouse_needs_a_host():
-    with pytest.raises(subprocess.CalledProcessError):
-        render_chart("loco-obs", {"clickhouse": {"enabled": False}})
-
-
-def test_collectors_ingest_into_the_database_the_users_are_granted():
-    values = chart_values("loco-obs")
-    database = values["otel-col-daemon"]["config"]["exporters"]["clickhouse"][
-        "database"
-    ]
-    users = {user["name"]: user for user in values["clickhouse"]["clickhouse"]["users"]}
-    for user in users.values():
-        assert all((grant.endswith(f" ON {database}.*") for grant in user["grants"])), (
-            user["name"]
-        )
-    for collector in ("otel-col-daemon", "otel-col-deploy"):
-        config = values[collector]["config"]
-        exporter = config["exporters"]["clickhouse"]
-        assert not exporter["create_schema"], collector
-        assert exporter["database"] == database, collector
-        assert "ttl" not in exporter, collector
-        assert config["service"]["pipelines"]["traces"]["exporters"] == [
-            "clickhouse"
-        ], collector
-        user = users[exporter["username"]]
-        env = {item["name"]: item for item in values[collector]["extraEnvs"]}
-        assert env["CLICKHOUSE_INGEST_PASSWORD"]["valueFrom"]["secretKeyRef"] == {
-            "name": user["password_secret_name"],
-            "key": "password",
-        }, collector
-        assert exporter["password"] == "${env:CLICKHOUSE_INGEST_PASSWORD}", collector
-    for user in users.values():
-        for grant in user["grants"]:
-            assert f" ON {database}.*" in grant, user["name"]
+    daemon = workloads["otel-col-daemon-agent"]["spec"]["template"]["spec"]
+    collector = daemon["containers"][0]
+    queue = next(volume for volume in daemon["volumes"] if volume["name"] == "exporter-queue")
+    assert queue["hostPath"] == {"path": f"{directory}/observability-node/otel-col-daemon", "type": "DirectoryOrCreate"}
+    init = next(container for container in daemon["initContainers"] if container["name"] == "state-permissions")
+    user = collector["securityContext"]["runAsUser"]
+    group = collector["securityContext"]["runAsGroup"]
+    assert init["command"][:3] == ["chown", "-R", f"{user}:{group}"]
+    assert directory in init["command"][3:]
+    assert {"name": "exporter-queue", "mountPath": directory} in init["volumeMounts"]
+    for name in ("otel-col-deploy", "otel-col-cluster"):
+        spec = workloads[name]["spec"]
+        (claim,) = spec["volumeClaimTemplates"]
+        assert claim["metadata"]["name"] == "exporter-queue", name
+        assert claim["spec"]["accessModes"] == ["ReadWriteOnce"], name
+        assert quantity(claim["spec"]["resources"]["requests"]["storage"]) > 0, name
+        pod = spec["template"]["spec"]
+        assert "exporter-queue" not in {volume["name"] for volume in pod["volumes"]}, name
+        assert {"name": "exporter-queue", "mountPath": directory} in pod["containers"][0]["volumeMounts"], name
+        assert pod["securityContext"]["fsGroup"] == user, name
 
 
 @pytest.fixture(scope="module")
@@ -594,11 +505,10 @@ def test_node_log_offsets_survive_collector_pod_replacement(collector_tenancy):
     assert volume["hostPath"] == {"path": directory, "type": "DirectoryOrCreate"}
     init = next(
         container for container in pod["initContainers"]
-        if container["name"] == "log-checkpoint-permissions"
+        if container["name"] == "state-permissions"
     )
-    assert init["command"] == ["chown", "-R", "10001:0", directory]
-    (init_mount,) = init["volumeMounts"]
-    assert init_mount["mountPath"] == directory
+    assert init["command"][:4] == ["chown", "-R", "10001:0", directory]
+    init_mount = next(mount for mount in init["volumeMounts"] if mount["mountPath"] == directory)
     init_volume = next(
         volume for volume in pod["volumes"]
         if volume["name"] == init_mount["name"]
@@ -652,7 +562,7 @@ def test_application_metrics_use_node_local_otel_pulling(collector_tenancy):
         "resource/region",
         "batch",
     ]
-    assert pipeline["exporters"] == ["clickhouse"]
+    assert pipeline["exporters"] == ["otlp_http"]
 
 
 def test_application_scrape_addresses_support_ipv4_and_ipv6(
@@ -706,20 +616,16 @@ def test_chart_requires_a_region(collector_tenancy):
     assert "global.region is required" in result.stderr
 
 
-def test_every_environment_sets_a_region(collector_tenancy):
-    local = environment_values("local", {"APP_PORT": "8080"})
+def test_every_environment_sets_a_region_and_an_exporter_endpoint(collector_tenancy):
+    local = environment_values("local", {"OBS_OTLP_HTTP_PORT": "4318"})
     assert local["global"]["region"]
+    assert local["global"]["exporter"]["endpoint"] == "http://host.docker.internal:4318"
     prod = environment_values(
         "prod",
-        {
-            "GH_SHA": "test",
-            "CLICKHOUSE_PASSWORD": "test",
-            "CONTROL_PLANE_URL": "https://api.example.test",
-            "LOCO_REGION": TEST_REGION,
-            **CLICKHOUSE_USER_PASSWORDS,
-        },
+        {"LOCO_REGION": TEST_REGION, "LOCO_OTLP_ENDPOINT": TEST_EXPORTER_ENDPOINT},
     )
     assert prod["global"]["region"] == TEST_REGION
+    assert prod["global"]["exporter"]["endpoint"] == TEST_EXPORTER_ENDPOINT
 
 
 def test_collectors_run_without_an_operator(collector_tenancy):
@@ -880,12 +786,12 @@ def test_only_the_singleton_collects_cluster_metrics_and_events(cluster_collecto
         (
             document
             for document in cluster_collector.documents
-            if document["kind"] == "Deployment"
+            if document["kind"] == "StatefulSet"
             and document["metadata"]["name"] == "otel-col-cluster"
         )
     )
     assert deployment["spec"]["replicas"] == 1
-    assert deployment["spec"]["strategy"] == {"type": "Recreate"}
+    assert deployment["spec"]["updateStrategy"]["type"] == "RollingUpdate"
     assert not any(
         (
             document["kind"] == "HorizontalPodAutoscaler"
@@ -950,7 +856,7 @@ def test_ingest_has_cpu_requests_and_an_hpa():
         (
             document
             for document in documents
-            if document["kind"] == "Deployment"
+            if document["kind"] == "StatefulSet"
             and document["metadata"]["name"] == "otel-col-deploy"
         )
     )
@@ -975,7 +881,7 @@ def test_disabling_autoscaling_restores_the_explicit_replica_count():
         (
             document
             for document in documents
-            if document["kind"] == "Deployment"
+            if document["kind"] == "StatefulSet"
             and document["metadata"]["name"] == "otel-col-deploy"
         )
     )
@@ -1194,17 +1100,6 @@ def test_proxy_has_no_kubernetes_api_credentials():
     pod = _deployment()["spec"]["template"]["spec"]
     assert "serviceAccountName" not in pod
     assert pod["automountServiceAccountToken"] is False
-
-
-def test_in_cluster_clickhouse_runs_a_single_node_keeper_for_the_lock():
-    installation = clickhouse_installation({})
-    config = installation["spec"]["configuration"]["files"]["config.d/extra_config.xml"]
-    assert "<keeper_server>" in config
-    assert "<keeper_map_path_prefix>" in config
-    assert (
-        installation["spec"]["configuration"]["clusters"][0]["layout"]["replicasCount"]
-        == 1
-    )
 
 
 def test_chart_creates_build_namespace_by_default():

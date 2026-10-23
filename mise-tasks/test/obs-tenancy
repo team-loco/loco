@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Run each collector's rendered OTLP pipelines in the collector image against ClickHouse, with pod labels standing in for the Kubernetes API, and check that tenancy columns come only from pod labels or, for the Envoy gateway, from the route of each request, and that every row carries the chart's region"
+#MISE description="Run each collector's rendered OTLP pipelines and OTLP/HTTP exporter in the collector image against the observability proxy ingest role and ClickHouse, with pod labels standing in for the Kubernetes API, and check that tenancy columns come only from pod labels or, for the Envoy gateway, from the route of each request, and that every row carries the chart's region"
 #MISE depends=["helm:deps"]
 set -euo pipefail
 
@@ -25,10 +25,9 @@ gateway_name=eg
 gateway_namespace=loco-system
 
 test_config() {
-	EXPORTER=$(clickhouse_exporter "$1") LABEL_PREFIX="$label_prefix" yq '
+	LABEL_PREFIX="$label_prefix" yq '
 		.service.pipelines |= with_entries(select(.value.receivers | any_c(. == "otlp"))) |
 		.service.pipelines[].receivers = ["otlp"] |
-		.service.pipelines[].exporters = ["clickhouse"] |
 		.service.pipelines[].processors |= map(sub("^k8s_attributes/?", "resource/fixture_")) |
 		.processors |= with_entries(
 			select(.key | test("^k8s_attributes")) |= (
@@ -39,9 +38,8 @@ test_config() {
 		. as $config |
 		.service.pipelines[].processors |= map(select(. as $name | $config.processors | has($name))) |
 		.receivers = {"otlp": {"protocols": {"http": {"endpoint": "0.0.0.0:4318"}}}} |
-		.exporters = {"clickhouse": (strenv(EXPORTER) | from_json)} |
-		del(.extensions) | del(.service.extensions) | del(.service.telemetry)
-	' <<<"$(collector_config "$1")"
+		del(.service.telemetry)
+	' <<<"$(collector_config "$1")" | exporter_extensions
 }
 
 attribute() {
@@ -207,6 +205,7 @@ if [ "$failures" -gt 0 ]; then
 	for collector in $collectors; do
 		collector_logs "$collector"
 	done
+	proxy_logs
 	echo "$failures check(s) failed"
 	exit 1
 fi

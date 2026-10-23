@@ -83,8 +83,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   parentRefs:
-    - name: eg
-      namespace: {{ .Values.gatewayNamespace }}
+    {{- include "loco-control-plane.gatewayRef" . | nindent 4 }}
   hostnames:
     - {{ .Values.ui.hostname | quote }}
   rules:
