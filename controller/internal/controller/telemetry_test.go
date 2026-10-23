@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	appsv1ac "k8s.io/client-go/applyconfigurations/apps/v1"
+	corev1ac "k8s.io/client-go/applyconfigurations/core/v1"
 
 	"github.com/team-loco/loco/controller/internal/managed"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -19,7 +20,9 @@ const (
 	testCollectorService    = "collector"
 	testCollectorGRPCPort   = int32(14317)
 	testCollectorHTTPPort   = int32(14318)
+	testCollectorHost       = "collector.telemetry.svc.cluster.local"
 	testCollectorEndpoint   = "http://collector.telemetry.svc.cluster.local:14318"
+	testCollectorReference  = "$(LOCO_OTEL_HOST):$(LOCO_OTEL_GRPC_PORT)"
 	testEnvironmentName     = "production"
 	testDeploymentID        = "019a6f3e-8c2b-7d41-9e5f-3b2a1c0d9e8f"
 	testOrganizationID      = "019a6f3e-8c2b-7d41-9e5f-3b2a1c0d9e90"
@@ -95,6 +98,65 @@ func TestDesiredDeploymentPointsOpenTelemetryAtTheCollector(t *testing.T) {
 	requireEnv(t, dep, envOTelServiceName, getName(app))
 	requireEnv(t, dep, envOTelResourceAttributes,
 		"deployment.environment.name=production,loco.deployment.id="+testDeploymentID)
+}
+
+func TestDesiredDeploymentInjectsTheCollectorAddress(t *testing.T) {
+	dep := buildDeployment(t, telemetryTestApplication())
+
+	requireEnv(t, dep, envOTelHost, testCollectorHost)
+	requireEnv(t, dep, envOTelGRPCPort, "14317")
+	requireEnv(t, dep, envOTelHTTPPort, "14318")
+}
+
+func TestOTLPEndpointIsBuiltFromTheCollectorAddress(t *testing.T) {
+	telemetry := testTelemetry()
+	telemetry.CollectorService = "other"
+	telemetry.Namespace = "elsewhere"
+	telemetry.HTTPPort = 9999
+	app := telemetryTestApplication()
+	dep, err := desiredDeployment(app, envSecretMount{}, telemetry)
+	if err != nil {
+		t.Fatalf("desiredDeployment: %v", err)
+	}
+
+	host, _ := envValue(t, dep, envOTelHost)
+	port, _ := envValue(t, dep, envOTelHTTPPort)
+	requireEnv(t, dep, envOTLPEndpoint, "http://"+host+":"+port)
+	requireEnv(t, dep, envOTLPEndpoint, "http://other.elsewhere.svc.cluster.local:9999")
+}
+
+func TestUserEnvDoesNotOverrideTheCollectorAddress(t *testing.T) {
+	for _, name := range []string{envOTelHost, envOTelGRPCPort, envOTelHTTPPort} {
+		app := telemetryTestApplication()
+		app.Spec.ServiceSpec.Deployment.Env[name] = userEnvValue
+		dep := buildDeployment(t, app)
+		requireSingleEnv(t, dep, envOTelHost, testCollectorHost)
+		requireSingleEnv(t, dep, envOTelGRPCPort, "14317")
+		requireSingleEnv(t, dep, envOTelHTTPPort, "14318")
+	}
+}
+
+func TestSystemEnvPrecedesUserEnvSoUserValuesCanReferenceIt(t *testing.T) {
+	app := telemetryTestApplication()
+	app.Spec.ServiceSpec.Deployment.Env["AAA_COLLECTOR"] = testCollectorReference
+	app.Spec.ServiceSpec.Deployment.Env[envOTLPEndpoint] = "http://$(LOCO_OTEL_HOST):$(LOCO_OTEL_HTTP_PORT)"
+	dep := buildDeployment(t, app)
+
+	env := dep.Spec.Template.Spec.Containers[0].Env
+	userEnv := app.Spec.ServiceSpec.Deployment.Env
+	firstUser := slices.IndexFunc(env, func(envVar corev1ac.EnvVarApplyConfiguration) bool {
+		_, user := userEnv[*envVar.Name]
+		return user
+	})
+	if firstUser < 0 {
+		t.Fatalf("no user env in %v", env)
+	}
+	for _, envVar := range env[firstUser:] {
+		if _, user := userEnv[*envVar.Name]; !user {
+			t.Errorf("system env %s follows user env, so user values cannot reference it", *envVar.Name)
+		}
+	}
+	requireSingleEnv(t, dep, "AAA_COLLECTOR", testCollectorReference)
 }
 
 func TestResourceAttributesCarryNoTenantIdentity(t *testing.T) {

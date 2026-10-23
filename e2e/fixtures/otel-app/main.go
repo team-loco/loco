@@ -31,6 +31,7 @@ const (
 	forgedWorkspaceID        = "forged-workspace"
 	forgedOrgAttribute       = "loco.organization.id"
 	forgedOrganizationID     = "forged-organization"
+	envOTLPEndpoint          = "OTEL_EXPORTER_OTLP_ENDPOINT"
 )
 
 type app struct {
@@ -97,7 +98,8 @@ func run(logger *slog.Logger) error {
 	for _, current := range servers {
 		go func() { serveErr <- current.ListenAndServe() }()
 	}
-	logger.Info("otel-app listening", "addr", listenAddr)
+	otlpEndpoint := os.Getenv(envOTLPEndpoint)
+	logger.Info("otel-app listening", "addr", listenAddr, "otlp_endpoint", otlpEndpoint)
 
 	select {
 	case err := <-serveErr:

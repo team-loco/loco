@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"slices"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -119,8 +120,14 @@ func TestDesiredDeploymentInlinesPlainEnvAndMountsTheEnvSecret(t *testing.T) {
 		}
 	}
 	container := dep.Spec.Template.Spec.Containers[0]
-	if ptr.Deref(container.Env[0].Name, "") != "ALPHA" || ptr.Deref(container.Env[3].Name, "") != "ZETA" {
-		t.Errorf("plain env is not sorted by name: %v", container.Env)
+	plainStart := len(container.Env) - len(app.Spec.ServiceSpec.Deployment.Env)
+	plain := container.Env[plainStart:]
+	names := make([]string, 0, len(plain))
+	for _, envVar := range plain {
+		names = append(names, ptr.Deref(envVar.Name, ""))
+	}
+	if want := []string{"ALPHA", "BETA", "MID", "ZETA"}; !slices.Equal(names, want) {
+		t.Errorf("plain env tail = %v, want %v sorted by name after the system env", names, want)
 	}
 	if len(container.EnvFrom) != 1 || container.EnvFrom[0].SecretRef == nil {
 		t.Fatalf("expected a single secret envFrom, got %+v", container.EnvFrom)

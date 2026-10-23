@@ -3,8 +3,10 @@ package controller
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -21,7 +23,11 @@ const (
 	envOTelServiceName        = "OTEL_SERVICE_NAME"
 	envOTelResourceAttributes = "OTEL_RESOURCE_ATTRIBUTES"
 	otlpProtocolHTTP          = "http/protobuf"
-	otlpHTTPEndpointFormat    = "http://%s.%s.svc.cluster.local:%d"
+	envOTelHost               = "LOCO_OTEL_HOST"
+	envOTelGRPCPort           = "LOCO_OTEL_GRPC_PORT"
+	envOTelHTTPPort           = "LOCO_OTEL_HTTP_PORT"
+	collectorHostFormat       = "%s.%s.svc.cluster.local"
+	otlpHTTPScheme            = "http"
 	attributeEnvironmentName  = "deployment.environment.name"
 	attributeDeploymentID     = "loco.deployment.id"
 	attributeSeparator        = ","
@@ -50,8 +56,31 @@ func (c TelemetryConfig) Validate() error {
 	return nil
 }
 
+func (c TelemetryConfig) collectorHost() string {
+	return fmt.Sprintf(collectorHostFormat, c.CollectorService, c.Namespace)
+}
+
 func (c TelemetryConfig) otlpHTTPEndpoint() string {
-	return fmt.Sprintf(otlpHTTPEndpointFormat, c.CollectorService, c.Namespace, c.HTTPPort)
+	host := c.collectorHost()
+	httpPort := formatPort(c.HTTPPort)
+	hostPort := net.JoinHostPort(host, httpPort)
+	endpoint := url.URL{Scheme: otlpHTTPScheme, Host: hostPort}
+	return endpoint.String()
+}
+
+func formatPort(port int32) string {
+	return strconv.Itoa(int(port))
+}
+
+func collectorEnvVars(telemetry TelemetryConfig) []corev1.EnvVar {
+	host := telemetry.collectorHost()
+	grpcPort := formatPort(telemetry.GRPCPort)
+	httpPort := formatPort(telemetry.HTTPPort)
+	return []corev1.EnvVar{
+		{Name: envOTelHost, Value: host},
+		{Name: envOTelGRPCPort, Value: grpcPort},
+		{Name: envOTelHTTPPort, Value: httpPort},
+	}
 }
 
 func openTelemetryEnvVars(
