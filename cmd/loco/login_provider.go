@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
@@ -20,6 +19,7 @@ import (
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
+	"github.com/team-loco/loco/internal/bearer"
 )
 
 const (
@@ -39,14 +39,6 @@ var (
 
 	errNoIdentityProvider = errors.New("this Loco server has no identity provider configured")
 )
-
-func randomURLToken() (string, error) {
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return base64.RawURLEncoding.EncodeToString(b), nil
-}
 
 type loopbackResult struct {
 	code string
@@ -71,14 +63,8 @@ func browserLogin(
 	webHost string,
 	open func(context.Context, string) error,
 ) (*authv1.CLITokens, error) {
-	state, err := randomURLToken()
-	if err != nil {
-		return nil, err
-	}
-	verifier, err := randomURLToken()
-	if err != nil {
-		return nil, err
-	}
+	state := bearer.New("")
+	verifier := bearer.New("")
 	sum := sha256.Sum256([]byte(verifier))
 	challenge := base64.RawURLEncoding.EncodeToString(sum[:])
 
