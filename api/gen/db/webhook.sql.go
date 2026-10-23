@@ -339,15 +339,6 @@ func (q *Queries) ListWorkspaceWebhooks(ctx context.Context, workspaceID uuid.UU
 	return items, nil
 }
 
-const lockInstallWebhooks = `-- name: LockInstallWebhooks :exec
-SELECT pg_advisory_xact_lock($1::bigint)
-`
-
-func (q *Queries) LockInstallWebhooks(ctx context.Context, lockKey int64) error {
-	_, err := q.db.Exec(ctx, lockInstallWebhooks, lockKey)
-	return err
-}
-
 const lockWorkspaceForWebhookCreation = `-- name: LockWorkspaceForWebhookCreation :one
 SELECT id FROM workspaces WHERE id = $1 FOR NO KEY UPDATE
 `

@@ -23,6 +23,7 @@ api:
   replicaCount: 1
   port: 8000
   existingSecret: ""
+  platformDomains: []
   env: {}
   resources:
     requests:

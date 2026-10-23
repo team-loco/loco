@@ -105,6 +105,18 @@ func (q *Queries) DeleteResourceDomain(ctx context.Context, id uuid.UUID) error 
 	return err
 }
 
+const ensurePlatformDomain = `-- name: EnsurePlatformDomain :exec
+INSERT INTO platform_domains (domain, is_active)
+VALUES ($1, true)
+ON CONFLICT (domain) DO UPDATE SET is_active = true
+WHERE NOT platform_domains.is_active
+`
+
+func (q *Queries) EnsurePlatformDomain(ctx context.Context, domain string) error {
+	_, err := q.db.Exec(ctx, ensurePlatformDomain, domain)
+	return err
+}
+
 const getPlatformDomain = `-- name: GetPlatformDomain :one
 SELECT id, domain, is_active, created_at FROM platform_domains
 WHERE id = $1

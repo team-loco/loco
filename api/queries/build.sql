@@ -134,6 +134,9 @@ SELECT pg_try_advisory_lock(sqlc.arg(lock_key)::bigint);
 -- name: AdvisoryUnlock :one
 SELECT pg_advisory_unlock(sqlc.arg(lock_key)::bigint);
 
+-- name: AdvisoryXactLock :exec
+SELECT pg_advisory_xact_lock(sqlc.arg(lock_key)::bigint);
+
 -- name: ExpireAwaitingUploadBuilds :many
 UPDATE builds
 SET status = 'failed',

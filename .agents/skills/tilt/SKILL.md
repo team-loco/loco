@@ -79,7 +79,7 @@ docker compose -p loco-dev rm -sf postgres
 docker volume rm loco-dev_postgres-data
 ```
 
-Start Tilt again; `db-migrate` recreates the schema and seeds `api/seed/local.sql`.
+Start Tilt again; `db-migrate` recreates the schema and the API recreates the platform domains in `LOCO_PLATFORM_DOMAINS` from `.env` when it starts.
 
 ## Browser checks
 

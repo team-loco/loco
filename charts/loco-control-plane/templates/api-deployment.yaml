@@ -31,7 +31,7 @@ spec:
             - secretRef:
                 name: {{ required "api.existingSecret is required" .Values.api.existingSecret | quote }}
           env:
-            {{- range $name, $value := omit .Values.api.env "APP_PORT" "OBSERVABILITY_PROXY_URL" }}
+            {{- range $name, $value := omit .Values.api.env "APP_PORT" "OBSERVABILITY_PROXY_URL" "LOCO_PLATFORM_DOMAINS" }}
             - name: {{ $name }}
               value: {{ $value | quote }}
             {{- end }}
@@ -39,6 +39,8 @@ spec:
               value: {{ printf "0.0.0.0:%v" .Values.api.port | quote }}
             - name: OBSERVABILITY_PROXY_URL
               value: {{ include "loco-control-plane.obsProxyURL" . | quote }}
+            - name: LOCO_PLATFORM_DOMAINS
+              value: {{ join "," .Values.api.platformDomains | quote }}
           ports:
             - name: http
               containerPort: {{ .Values.api.port }}

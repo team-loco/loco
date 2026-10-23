@@ -144,6 +144,9 @@ func main() {
 	if syncErr := webhooks.SyncInstallWebhooks(context.Background(), pool, ac.InstallWebhooks); syncErr != nil {
 		log.Fatalf("INSTALL_WEBHOOKS: %v", syncErr)
 	}
+	if syncErr := service.SyncPlatformDomains(context.Background(), pool, ac.PlatformDomains); syncErr != nil {
+		log.Fatalf("LOCO_PLATFORM_DOMAINS: %v", syncErr)
+	}
 
 	machine := tvm.NewVendingMachine(pool, queries, tvm.Config{
 		MaxAPITokenDuration:         time.Hour * 24 * 365,
@@ -269,7 +272,7 @@ func main() {
 	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
 	secretServiceHandler := service.NewSecretServer(pool, queries, secretKeyProvider, ac.SecretLimits)
 	configServiceHandler := service.NewConfigServer(
-		ac.DefaultPlatformDomain,
+		ac.PlatformDomains,
 		ac.MinCLIVersion,
 		ac.SchemaURL,
 		ac.ServiceDefaults,

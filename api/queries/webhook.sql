@@ -63,9 +63,6 @@ SET status = sqlc.arg('status'),
     delivered_at = sqlc.narg('delivered_at')
 WHERE id = sqlc.arg('id');
 
--- name: LockInstallWebhooks :exec
-SELECT pg_advisory_xact_lock(sqlc.arg(lock_key)::bigint);
-
 -- name: UpsertInstallWebhook :exec
 INSERT INTO webhooks (kind, url, secret, event_types)
 VALUES ('install', sqlc.arg('url'), sqlc.arg('secret'), sqlc.arg('event_types'))

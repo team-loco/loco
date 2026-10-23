@@ -20,15 +20,18 @@ type ConfigServer struct {
 }
 
 func NewConfigServer(
-	platformDomain, minCLIVersion, schemaURL string,
+	platformDomains []string,
+	minCLIVersion, schemaURL string,
 	defaults servicedefaults.Defaults,
 	issuers []auth.IssuerConfig,
 ) *ConfigServer {
 	s := &ConfigServer{
-		platformDomain: platformDomain,
-		minCLIVersion:  minCLIVersion,
-		schemaURL:      schemaURL,
-		defaults:       defaults,
+		minCLIVersion: minCLIVersion,
+		schemaURL:     schemaURL,
+		defaults:      defaults,
+	}
+	if len(platformDomains) > 0 {
+		s.platformDomain = platformDomains[0]
 	}
 	if ic, ok := auth.WebIssuer(issuers); ok {
 		s.auth = &configv1.AuthConfig{

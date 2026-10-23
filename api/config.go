@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -19,6 +21,7 @@ import (
 	"github.com/team-loco/loco/api/webhooks"
 	"github.com/team-loco/loco/internal/buildinfo"
 	"golang.org/x/mod/semver"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 var (
@@ -42,6 +45,8 @@ var (
 	errInvalidSecretsLocalKeys = errors.New("LOCO_SECRETS_LOCAL_KEYS is invalid")
 	errUnknownSecretsProvider  = errors.New("LOCO_SECRETS_KEY_PROVIDER is invalid")
 	errInvalidSecretsTransit   = errors.New("LOCO_SECRETS_TRANSIT_* is invalid")
+	errInvalidPlatformDomain   = errors.New("LOCO_PLATFORM_DOMAINS lists a name that is not a DNS subdomain")
+	errDuplicatePlatformDomain = errors.New("LOCO_PLATFORM_DOMAINS lists a domain twice")
 )
 
 const (
@@ -111,7 +116,7 @@ type APIConfig struct {
 	CacheType             string   // Cache backend type: "in-memory" or "valkey"
 	CacheAddr             string   // Valkey address (when CacheType is "valkey")
 	CORSAllowedOrigins    []string // CORS allowed origins (e.g., http://localhost:5173)
-	DefaultPlatformDomain string   // Default platform domain returned by the config service
+	PlatformDomains       []string
 	MinCLIVersion         string
 	PprofAddr             string
 	SourceBucket          sourcebucket.Config
@@ -154,6 +159,7 @@ func newAPIConfig() *APIConfig {
 		logLevel = slog.LevelInfo
 	}
 	corsOrigins := listEnv("CORS_ALLOWED_ORIGINS")
+	platformDomains := newPlatformDomains()
 	webhooksAllowPrivate := boolEnv("WEBHOOK_ALLOW_PRIVATE_NETWORKS", false, errInvalidWebhooksPrivate)
 	installWebhooks := newInstallWebhooks()
 	authIssuers := newAuthIssuers()
@@ -182,7 +188,7 @@ func newAPIConfig() *APIConfig {
 		CacheType:             cacheType,
 		CacheAddr:             cacheAddr,
 		CORSAllowedOrigins:    corsOrigins,
-		DefaultPlatformDomain: stringEnv("DEFAULT_PLATFORM_DOMAIN", ""),
+		PlatformDomains:       platformDomains,
 		MinCLIVersion:         minCLIVersion,
 		PprofAddr:             stringEnv("PPROF_ADDR", ""),
 		SourceBucket:          sourceBucket,
@@ -255,6 +261,19 @@ func newSecretsConfig() secretkeys.Config {
 	default:
 		panic(fmt.Errorf("%w: %q", errUnknownSecretsProvider, provider))
 	}
+}
+
+func newPlatformDomains() []string {
+	domains := listEnv("LOCO_PLATFORM_DOMAINS")
+	for i, domain := range domains {
+		if problems := validation.IsDNS1123Subdomain(domain); len(problems) > 0 {
+			panic(fmt.Errorf("%w: %q: %s", errInvalidPlatformDomain, domain, strings.Join(problems, "; ")))
+		}
+		if slices.Contains(domains[:i], domain) {
+			panic(fmt.Errorf("%w: %q", errDuplicatePlatformDomain, domain))
+		}
+	}
+	return domains
 }
 
 func newMinCLIVersion() string {

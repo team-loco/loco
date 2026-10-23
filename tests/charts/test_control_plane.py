@@ -68,13 +68,32 @@ def test_chart_owns_port_and_proxy_wiring():
         {
             "api": {
                 **API_VALUES,
-                "env": {"APP_PORT": "wrong", "OBSERVABILITY_PROXY_URL": "wrong"},
+                "env": {
+                    "APP_PORT": "wrong",
+                    "OBSERVABILITY_PROXY_URL": "wrong",
+                    "LOCO_PLATFORM_DOMAINS": "wrong",
+                },
             }
         },
     )
     env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
-    assert [entry["name"] for entry in env] == ["APP_PORT", "OBSERVABILITY_PROXY_URL"]
+    assert [entry["name"] for entry in env] == [
+        "APP_PORT",
+        "OBSERVABILITY_PROXY_URL",
+        "LOCO_PLATFORM_DOMAINS",
+    ]
     assert "wrong" not in [entry["value"] for entry in env]
+
+
+def test_api_reads_platform_domains_from_values():
+    deployment = render(
+        "loco-control-plane",
+        "api-deployment.yaml",
+        {"api": {**API_VALUES, "platformDomains": ["apps.example.com", "demo.localhost"]}},
+    )
+    env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
+    values = {entry["name"]: entry["value"] for entry in env}
+    assert values["LOCO_PLATFORM_DOMAINS"] == "apps.example.com,demo.localhost"
 
 
 def test_only_api_can_reach_private_proxy():

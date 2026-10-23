@@ -24,7 +24,7 @@ kubectl -n loco-system create secret generic regional-clickhouse-migrator \
   --from-file=url=/secure/clickhouse-migrator-url
 ```
 
-Set nonsecret API options through `api.env`. The chart supplies `APP_PORT` and `OBSERVABILITY_PROXY_URL` to connect its own Services.
+Set nonsecret API options through `api.env`. The chart supplies `APP_PORT` and `OBSERVABILITY_PROXY_URL` to connect its own Services, and `LOCO_PLATFORM_DOMAINS` from `api.platformDomains`, the platform domains the API creates and activates on startup.
 
 ```yaml
 controlPlaneHostname: api.region.example.com
@@ -37,6 +37,7 @@ api:
   image:
     tag: sha-COMMIT@sha256:DIGEST
   existingSecret: regional-api-env
+  platformDomains: [apps.region.example.com]
   env:
     APP_ENV: PRODUCTION
     WEB_URL: https://app.region.example.com
@@ -79,4 +80,4 @@ mise run test:platform-render
 mise run e2e:control-plane
 ```
 
-The E2E suite builds the actual dashboard, API and proxy images, installs PostgreSQL and ClickHouse/Keeper fixtures in a fresh kind cluster, and installs this chart with two API replicas against an empty database. It checks startup migrations, the dashboard and runtime configuration, Config RPCs through the dashboard origin, and an observability request forwarded through the API whose permission check returns through the private API Service. It also renders all three API/dashboard hostname layouts against Envoy, measures the reduction in failed connections to a mixed healthy/closed endpoint set, recording any exhausted retries, checks that handled HTTP 500/503 responses execute once, and compares intact 8 KiB and 2 MiB request bodies. The 2 MiB control uses only a healthy endpoint and does not assert retry buffering for large requests. Fixtures use ephemeral storage and are not production database templates. `--no-teardown` keeps the cluster; `--skip-build` reuses the images on a subsequent run.
+The E2E suite builds the actual dashboard, API and proxy images, installs PostgreSQL and ClickHouse/Keeper fixtures in a fresh kind cluster, and installs this chart with two API replicas against an empty database. It checks startup migrations, the dashboard and runtime configuration, Config RPCs through the dashboard origin including the configured platform domain, and an observability request forwarded through the API whose permission check returns through the private API Service. It also renders all three API/dashboard hostname layouts against Envoy, measures the reduction in failed connections to a mixed healthy/closed endpoint set, recording any exhausted retries, checks that handled HTTP 500/503 responses execute once, and compares intact 8 KiB and 2 MiB request bodies. The 2 MiB control uses only a healthy endpoint and does not assert retry buffering for large requests. Fixtures use ephemeral storage and are not production database templates. `--no-teardown` keeps the cluster; `--skip-build` reuses the images on a subsequent run.

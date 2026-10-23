@@ -420,7 +420,7 @@ run_migrations() {
     log_step "Resetting the database, running migrations and seeding test data..."
     e2e_psql "DROP SCHEMA public CASCADE; CREATE SCHEMA public;" >/dev/null
     goose -dir "$ROOT_DIR/api/migrations" postgres "$E2E_DATABASE_URL" up >/dev/null
-    SEED_FILE=api/seed/e2e.sql e2e_compose run --rm seed >/dev/null
+    e2e_compose run --rm seed >/dev/null
     log_ok "Migrations applied and test data seeded"
 }
 
@@ -709,7 +709,7 @@ start_api() {
     APP_PORT="127.0.0.1:$API_PORT" \
     OBSERVABILITY_PROXY_URL="http://127.0.0.1:$OBS_PROXY_PORT" \
     CORS_ALLOWED_ORIGINS="https://dashboard.e2e.test" \
-    DEFAULT_PLATFORM_DOMAIN="$PLATFORM_DOMAIN" \
+    LOCO_PLATFORM_DOMAINS="$PLATFORM_DOMAIN" \
     APP_ENV="test" \
     LOG_LEVEL=debug \
     LOCO_REGISTRY_HOST="$E2E_REGISTRY_HOST" \

@@ -46,6 +46,8 @@ const (
 	testTransitAddr  = "https://bao.loco.test:8200"
 	testTransitKey   = "loco-dek"
 	testTransitAuth  = "s.transit"
+
+	platformDomainsEnv = "LOCO_PLATFORM_DOMAINS"
 )
 
 var adminIssuers = `[{"issuer":"` + testIssuer + `","audience":"loco",` +
@@ -119,6 +121,7 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv("LOCO_SECRETS_MAX_PER_SERVICE", "")
 	t.Setenv("LOCO_SECRETS_MAX_PLACEMENT_BYTES", "")
 	t.Setenv("LOCO_SECRETS_LOCK_TIMEOUT", "")
+	t.Setenv(platformDomainsEnv, "")
 }
 
 func TestNewAPIConfigDefaults(t *testing.T) {
@@ -223,6 +226,18 @@ func TestNewAPIConfigReadsSecretLimits(t *testing.T) {
 				t.Errorf("panic = %v, want %v", err, errNotPositive)
 			}
 		})
+	}
+}
+
+func TestNewAPIConfigReadsPlatformDomains(t *testing.T) {
+	clearAPIConfigEnv(t)
+	if domains := newAPIConfig().PlatformDomains; len(domains) != 0 {
+		t.Errorf("platform domains = %v, want none", domains)
+	}
+	t.Setenv(platformDomainsEnv, "apps.example.com, demo.localhost")
+	want := []string{"apps.example.com", "demo.localhost"}
+	if domains := newAPIConfig().PlatformDomains; !slices.Equal(domains, want) {
+		t.Errorf("platform domains = %v, want %v", domains, want)
 	}
 }
 
@@ -457,6 +472,26 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 		{"malformed auth issuers", map[string]string{authIssuersEnv: "["}, errInvalidAuthIssuers},
 		{"admin token env unset", map[string]string{authIssuersEnv: adminIssuers}, errAdminTokenMissing},
 		{"unknown signup mode", map[string]string{"AUTH_SIGNUP_MODE": "invite"}, errInvalidSignupPolicy},
+		{
+			"uppercase platform domain",
+			map[string]string{platformDomainsEnv: "Apps.Example.com"},
+			errInvalidPlatformDomain,
+		},
+		{
+			"platform domain with a scheme",
+			map[string]string{platformDomainsEnv: "https://apps.test"},
+			errInvalidPlatformDomain,
+		},
+		{
+			"empty platform domain entry",
+			map[string]string{platformDomainsEnv: "apps.test,,web.test"},
+			errInvalidPlatformDomain,
+		},
+		{
+			"duplicate platform domain",
+			map[string]string{platformDomainsEnv: "apps.test, apps.test"},
+			errDuplicatePlatformDomain,
+		},
 		{"non-semver min cli version", map[string]string{"MIN_CLI_VERSION": "0.0.61"}, errInvalidMinCLIVersion},
 		{
 			"registry username without password",

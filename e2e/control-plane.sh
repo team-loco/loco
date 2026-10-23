@@ -84,7 +84,7 @@ kubectl -n "$NAMESPACE" create secret generic clickhouse-reader --from-file=url=
 kubectl -n "$NAMESPACE" create secret generic clickhouse-migrator --from-file=url="$RUN_DIR/reader" --dry-run=client -o yaml | kubectl apply -f -
 helm upgrade --install regional "$ROOT_DIR/charts/loco-control-plane" --namespace "$NAMESPACE" \
     --set api.image.repository=loco-api --set api.image.tag=e2e --set api.imagePullPolicy=Never \
-    --set api.existingSecret=api-env --set api.replicaCount=2 \
+    --set api.existingSecret=api-env --set api.replicaCount=2 --set 'api.platformDomains={apps.e2e.test.local}' \
     --set gatewayNamespace="$NAMESPACE" --set controlPlaneHostname=api.e2e.test.local \
     --set ui.hostname=app.e2e.test.local --set ui.image.repository=loco-ui --set ui.image.tag=e2e --set ui.imagePullPolicy=Never \
     --set obsProxy.image.repository=loco-obs-proxy --set obsProxy.image.tag=e2e --set obsProxy.imagePullPolicy=Never \
@@ -125,7 +125,7 @@ import pathlib
 import sys
 root = pathlib.Path(sys.argv[1])
 config = json.loads((root / 'config.json').read_text())
-assert 'serviceDefaults' in config, config
+assert config['serviceDefaults']['platformDomain'] == 'apps.e2e.test.local', config
 html = (root / 'dashboard.html').read_text()
 assert '<script src="/runtime-config.js"></script>' in html, html
 assert html.index('/runtime-config.js') < html.index('type="module"'), html

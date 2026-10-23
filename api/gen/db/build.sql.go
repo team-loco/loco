@@ -23,6 +23,15 @@ func (q *Queries) AdvisoryUnlock(ctx context.Context, lockKey int64) (bool, erro
 	return pg_advisory_unlock, err
 }
 
+const advisoryXactLock = `-- name: AdvisoryXactLock :exec
+SELECT pg_advisory_xact_lock($1::bigint)
+`
+
+func (q *Queries) AdvisoryXactLock(ctx context.Context, lockKey int64) error {
+	_, err := q.db.Exec(ctx, advisoryXactLock, lockKey)
+	return err
+}
+
 const cancelBuild = `-- name: CancelBuild :one
 UPDATE builds
 SET status = 'canceled',

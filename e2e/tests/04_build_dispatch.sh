@@ -10,7 +10,6 @@ dispatch_dir="$E2E_BUILD_WORK_DIR/dispatch"
 dispatch_user_id='00000000-0000-7000-8000-000000000001'
 dispatch_workspace_id='00000000-0000-7000-8000-000000000003'
 dispatch_environment_id='00000000-0000-7000-8000-000000000004'
-dispatch_platform_domain_id='00000000-0000-7000-8000-000000000006'
 dispatch_session_id='00000000-0000-7000-8000-000000000007'
 dispatch_resource_name='e2e-built-app'
 dispatch_digest_pattern='^sha256:[a-f0-9]{64}$'
@@ -66,14 +65,15 @@ seed_session() {
 }
 
 create_resource() {
-    local body
+    local body platform_domain_id
+    platform_domain_id=$(e2e_psql "SELECT id FROM platform_domains WHERE domain = '${E2E_PLATFORM_DOMAIN}'")
     body=$(json -n "
         .workspaceId = \"${dispatch_workspace_id}\" |
         .name = \"${dispatch_resource_name}\" |
         .type = \"RESOURCE_TYPE_SERVICE\" |
         .domain.domainSource = \"DOMAIN_TYPE_PLATFORM_PROVIDED\" |
         .domain.subdomain = \"${dispatch_resource_name}\" |
-        .domain.platformDomainId = \"${dispatch_platform_domain_id}\" |
+        .domain.platformDomainId = \"${platform_domain_id}\" |
         .spec.service.routing.port = 8080 |
         .spec.service.routing.pathPrefix = \"/\" |
         .spec.service.regions.\"us-east-1\".enabled = true |

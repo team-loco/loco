@@ -16,6 +16,7 @@ type Querier interface {
 	AdvanceDeploymentStatus(ctx context.Context, arg AdvanceDeploymentStatusParams) error
 	AdvancePlacementPastRevision(ctx context.Context, arg AdvancePlacementPastRevisionParams) (int64, error)
 	AdvisoryUnlock(ctx context.Context, lockKey int64) (bool, error)
+	AdvisoryXactLock(ctx context.Context, lockKey int64) error
 	AttachCluster(ctx context.Context, arg AttachClusterParams) (AttachClusterRow, error)
 	BeginClusterSync(ctx context.Context, arg BeginClusterSyncParams) (int64, error)
 	BumpEnvironmentRevision(ctx context.Context, id uuid.UUID) error
@@ -77,6 +78,7 @@ type Querier interface {
 	DeleteUser(ctx context.Context, id uuid.UUID) error
 	DeleteWorkspace(ctx context.Context, id uuid.UUID) error
 	DeleteWorkspaceWebhook(ctx context.Context, arg DeleteWorkspaceWebhookParams) (int64, error)
+	EnsurePlatformDomain(ctx context.Context, domain string) error
 	ExpireAwaitingUploadBuilds(ctx context.Context, arg ExpireAwaitingUploadBuildsParams) ([]uuid.UUID, error)
 	FailMissingClusterBuilds(ctx context.Context, arg FailMissingClusterBuildsParams) ([]FailMissingClusterBuildsRow, error)
 	FailQueuedClusterBuilds(ctx context.Context, arg FailQueuedClusterBuildsParams) ([]FailQueuedClusterBuildsRow, error)
@@ -198,7 +200,6 @@ type Querier interface {
 	LockBuildImageForDeploy(ctx context.Context, id uuid.UUID) (*time.Time, error)
 	LockClusterLifecycle(ctx context.Context, id uuid.UUID) (LockClusterLifecycleRow, error)
 	LockEnvironmentKey(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)
-	LockInstallWebhooks(ctx context.Context, lockKey int64) error
 	LockOrgForDeletion(ctx context.Context, id uuid.UUID) error
 	LockOrgWorkspacesForDeletion(ctx context.Context, orgID uuid.UUID) error
 	LockResourceEnvironments(ctx context.Context, id uuid.UUID) ([]LockResourceEnvironmentsRow, error)

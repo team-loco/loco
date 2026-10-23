@@ -75,7 +75,7 @@ func SyncInstallWebhooks(ctx context.Context, pool *pgxpool.Pool, hooks []Instal
 	}
 	return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
 		q := genDb.New(tx)
-		if err := q.LockInstallWebhooks(ctx, installSyncLockKey); err != nil {
+		if err := q.AdvisoryXactLock(ctx, installSyncLockKey); err != nil {
 			return fmt.Errorf("lock install webhooks: %w", err)
 		}
 		if _, err := q.DeleteInstallWebhooksExcept(ctx, urls); err != nil {

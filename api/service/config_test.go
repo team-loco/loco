@@ -9,7 +9,7 @@ import (
 func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 	defaults := testServiceDefaults()
 	const schemaURL = "https://loco.test/schemas/loco.v1.json"
-	server := NewConfigServer("onloco.test", "v1.2.3", schemaURL, defaults, nil)
+	server := NewConfigServer([]string{"onloco.test", "onloco.other"}, "v1.2.3", schemaURL, defaults, nil)
 	req := &configv1.GetConfigRequest{}
 	resp, err := server.GetConfig(t.Context(), req)
 	if err != nil {
@@ -44,5 +44,16 @@ func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 	}
 	if got.GetPlatformDomain() != "onloco.test" || resp.GetMinCliVersion() != "v1.2.3" {
 		t.Errorf("platform domain %q, min CLI version %q", got.GetPlatformDomain(), resp.GetMinCliVersion())
+	}
+}
+
+func TestGetConfigReportsNoPlatformDomainWithoutConfiguredDomains(t *testing.T) {
+	server := NewConfigServer(nil, "", "", testServiceDefaults(), nil)
+	resp, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
+	if err != nil {
+		t.Fatalf("GetConfig: %v", err)
+	}
+	if domain := resp.GetServiceDefaults().GetPlatformDomain(); domain != "" {
+		t.Errorf("platform domain = %q, want none", domain)
 	}
 }

@@ -16,6 +16,12 @@ INSERT INTO platform_domains (domain, is_active)
 VALUES ($1, $2)
 RETURNING id;
 
+-- name: EnsurePlatformDomain :exec
+INSERT INTO platform_domains (domain, is_active)
+VALUES ($1, true)
+ON CONFLICT (domain) DO UPDATE SET is_active = true
+WHERE NOT platform_domains.is_active;
+
 -- name: GetPlatformDomain :one
 SELECT * FROM platform_domains
 WHERE id = $1;
