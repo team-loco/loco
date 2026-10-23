@@ -357,8 +357,6 @@ func dbEnvToProto(env genDb.Environment) *environmentv1.Environment {
 
 func protoEnvTypeToString(t environmentv1.EnvironmentType) string {
 	switch t {
-	case environmentv1.EnvironmentType_ENVIRONMENT_TYPE_DEV:
-		return "dev"
 	case environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING:
 		return "staging"
 	case environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION:
@@ -370,8 +368,6 @@ func protoEnvTypeToString(t environmentv1.EnvironmentType) string {
 
 func stringToProtoEnvType(s string) environmentv1.EnvironmentType {
 	switch s {
-	case "dev":
-		return environmentv1.EnvironmentType_ENVIRONMENT_TYPE_DEV
 	case "staging":
 		return environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING
 	case environmentTypeProduction:

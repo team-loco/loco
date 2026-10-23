@@ -33,7 +33,7 @@ func (f *deployFixture) addEnvironment(t *testing.T, name string) uuid.UUID {
 	var id uuid.UUID
 	insert := `
 INSERT INTO environments (workspace_id, name, environment_type, created_by)
-SELECT workspace_id, $2, 'dev', (SELECT id FROM users LIMIT 1) FROM resources WHERE id = $1
+SELECT workspace_id, $2, 'staging', (SELECT id FROM users LIMIT 1) FROM resources WHERE id = $1
 RETURNING id`
 	if err := f.pool.QueryRow(context.Background(), insert, f.resourceID, name).Scan(&id); err != nil {
 		t.Fatalf("add environment %s: %v", name, err)

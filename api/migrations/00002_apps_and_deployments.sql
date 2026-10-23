@@ -39,7 +39,7 @@ CREATE TABLE
         name TEXT NOT NULL,
         description TEXT,
         environment_type TEXT NOT NULL DEFAULT 'production' CHECK (
-            environment_type IN ('dev', 'staging', 'production')
+            environment_type IN ('staging', 'production')
         ),
         created_by UUID NOT NULL REFERENCES users (id),
         revision BIGINT NOT NULL DEFAULT 0,

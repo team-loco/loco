@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/user/v1/user.proto.
  */
 export const file_loco_user_v1_user: GenFile = /*@__PURE__*/
-  fileDesc("Chdsb2NvL3VzZXIvdjEvdXNlci5wcm90bxIMbG9jby51c2VyLnYxIrYBCgRVc2VyEgoKAmlkGAEgASgJEg0KBWVtYWlsGAMgASgJEhIKCmF2YXRhcl91cmwYBCABKAkSDAoEbmFtZRgFIAEoCRIuCgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEoECAIQA1ILZXh0ZXJuYWxfaWQiTgoOR2V0VXNlclJlcXVlc3QSGwoHdXNlcl9pZBgBIAEoCUIIukgFcgOwAQFIABIYCgVlbWFpbBgCIAEoCUIHukgEcgJgAUgAQgUKA2tleSIzCg9HZXRVc2VyUmVzcG9uc2USIAoEdXNlchgBIAEoCzISLmxvY28udXNlci52MS5Vc2VyIuIBChFVcGRhdGVVc2VyUmVxdWVzdBIZCgd1c2VyX2lkGAEgASgJQgi6SAVyA7ABARJqCgphdmF0YXJfdXJsGAMgASgJQlG6SE66AUsKD3VzZXIuYXZhdGFyX3VybBIcbXVzdCBiZSBlbXB0eSBvciBhIHZhbGlkIFVSSRoadGhpcyA9PSAnJyB8fCB0aGlzLmlzVXJpKClIAIgBARIbCgRuYW1lGAQgASgJQgi6SAVyAxjIAUgBiAEBQg0KC19hdmF0YXJfdXJsQgcKBV9uYW1lSgQIAhADUgt1cGRhdGVfbWFzayIlChJVcGRhdGVVc2VyUmVzcG9uc2USDwoHdXNlcl9pZBgBIAEoCSJFChBMaXN0VXNlcnNSZXF1ZXN0Eh0KCXBhZ2Vfc2l6ZRgBIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAIgASgJIk8KEUxpc3RVc2Vyc1Jlc3BvbnNlEiEKBXVzZXJzGAEgAygLMhIubG9jby51c2VyLnYxLlVzZXISFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIg8KDVdob0FtSVJlcXVlc3QiMgoOV2hvQW1JUmVzcG9uc2USIAoEdXNlchgBIAEoCzISLmxvY28udXNlci52MS5Vc2VyIi4KEURlbGV0ZVVzZXJSZXF1ZXN0EhkKB3VzZXJfaWQYASABKAlCCLpIBXIDsAEBIhQKEkRlbGV0ZVVzZXJSZXNwb25zZSIPCg1Mb2dvdXRSZXF1ZXN0IhAKDkxvZ291dFJlc3BvbnNlMs8DCgtVc2VyU2VydmljZRJGCgdHZXRVc2VyEhwubG9jby51c2VyLnYxLkdldFVzZXJSZXF1ZXN0Gh0ubG9jby51c2VyLnYxLkdldFVzZXJSZXNwb25zZRJDCgZXaG9BbUkSGy5sb2NvLnVzZXIudjEuV2hvQW1JUmVxdWVzdBocLmxvY28udXNlci52MS5XaG9BbUlSZXNwb25zZRJPCgpVcGRhdGVVc2VyEh8ubG9jby51c2VyLnYxLlVwZGF0ZVVzZXJSZXF1ZXN0GiAubG9jby51c2VyLnYxLlVwZGF0ZVVzZXJSZXNwb25zZRJMCglMaXN0VXNlcnMSHi5sb2NvLnVzZXIudjEuTGlzdFVzZXJzUmVxdWVzdBofLmxvY28udXNlci52MS5MaXN0VXNlcnNSZXNwb25zZRJPCgpEZWxldGVVc2VyEh8ubG9jby51c2VyLnYxLkRlbGV0ZVVzZXJSZXF1ZXN0GiAubG9jby51c2VyLnYxLkRlbGV0ZVVzZXJSZXNwb25zZRJDCgZMb2dvdXQSGy5sb2NvLnVzZXIudjEuTG9nb3V0UmVxdWVzdBocLmxvY28udXNlci52MS5Mb2dvdXRSZXNwb25zZUI2WjRnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL3VzZXIvdjE7dXNlcnYxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("Chdsb2NvL3VzZXIvdjEvdXNlci5wcm90bxIMbG9jby51c2VyLnYxIqMBCgRVc2VyEgoKAmlkGAEgASgJEg0KBWVtYWlsGAIgASgJEhIKCmF2YXRhcl91cmwYAyABKAkSDAoEbmFtZRgEIAEoCRIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJOCg5HZXRVc2VyUmVxdWVzdBIbCgd1c2VyX2lkGAEgASgJQgi6SAVyA7ABAUgAEhgKBWVtYWlsGAIgASgJQge6SARyAmABSABCBQoDa2V5IjMKD0dldFVzZXJSZXNwb25zZRIgCgR1c2VyGAEgASgLMhIubG9jby51c2VyLnYxLlVzZXIizwEKEVVwZGF0ZVVzZXJSZXF1ZXN0EhkKB3VzZXJfaWQYASABKAlCCLpIBXIDsAEBEmoKCmF2YXRhcl91cmwYAiABKAlCUbpITroBSwoPdXNlci5hdmF0YXJfdXJsEhxtdXN0IGJlIGVtcHR5IG9yIGEgdmFsaWQgVVJJGhp0aGlzID09ICcnIHx8IHRoaXMuaXNVcmkoKUgAiAEBEhsKBG5hbWUYAyABKAlCCLpIBXIDGMgBSAGIAQFCDQoLX2F2YXRhcl91cmxCBwoFX25hbWUiJQoSVXBkYXRlVXNlclJlc3BvbnNlEg8KB3VzZXJfaWQYASABKAkiRQoQTGlzdFVzZXJzUmVxdWVzdBIdCglwYWdlX3NpemUYASABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgCIAEoCSJPChFMaXN0VXNlcnNSZXNwb25zZRIhCgV1c2VycxgBIAMoCzISLmxvY28udXNlci52MS5Vc2VyEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSIPCg1XaG9BbUlSZXF1ZXN0IjIKDldob0FtSVJlc3BvbnNlEiAKBHVzZXIYASABKAsyEi5sb2NvLnVzZXIudjEuVXNlciIuChFEZWxldGVVc2VyUmVxdWVzdBIZCgd1c2VyX2lkGAEgASgJQgi6SAVyA7ABASIUChJEZWxldGVVc2VyUmVzcG9uc2UiDwoNTG9nb3V0UmVxdWVzdCIQCg5Mb2dvdXRSZXNwb25zZTLPAwoLVXNlclNlcnZpY2USRgoHR2V0VXNlchIcLmxvY28udXNlci52MS5HZXRVc2VyUmVxdWVzdBodLmxvY28udXNlci52MS5HZXRVc2VyUmVzcG9uc2USQwoGV2hvQW1JEhsubG9jby51c2VyLnYxLldob0FtSVJlcXVlc3QaHC5sb2NvLnVzZXIudjEuV2hvQW1JUmVzcG9uc2USTwoKVXBkYXRlVXNlchIfLmxvY28udXNlci52MS5VcGRhdGVVc2VyUmVxdWVzdBogLmxvY28udXNlci52MS5VcGRhdGVVc2VyUmVzcG9uc2USTAoJTGlzdFVzZXJzEh4ubG9jby51c2VyLnYxLkxpc3RVc2Vyc1JlcXVlc3QaHy5sb2NvLnVzZXIudjEuTGlzdFVzZXJzUmVzcG9uc2USTwoKRGVsZXRlVXNlchIfLmxvY28udXNlci52MS5EZWxldGVVc2VyUmVxdWVzdBogLmxvY28udXNlci52MS5EZWxldGVVc2VyUmVzcG9uc2USQwoGTG9nb3V0EhsubG9jby51c2VyLnYxLkxvZ291dFJlcXVlc3QaHC5sb2NvLnVzZXIudjEuTG9nb3V0UmVzcG9uc2VCNlo0Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby91c2VyL3YxO3VzZXJ2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * User represents a user account with OAuth identity and profile information.
@@ -27,27 +27,27 @@ export type User = Message<"loco.user.v1.User"> & {
   id: string;
 
   /**
-   * @generated from field: string email = 3;
+   * @generated from field: string email = 2;
    */
   email: string;
 
   /**
-   * @generated from field: string avatar_url = 4;
+   * @generated from field: string avatar_url = 3;
    */
   avatarUrl: string;
 
   /**
-   * @generated from field: string name = 5;
+   * @generated from field: string name = 4;
    */
   name: string;
 
   /**
-   * @generated from field: google.protobuf.Timestamp created_at = 6;
+   * @generated from field: google.protobuf.Timestamp created_at = 5;
    */
   createdAt?: Timestamp | undefined;
 
   /**
-   * @generated from field: google.protobuf.Timestamp updated_at = 7;
+   * @generated from field: google.protobuf.Timestamp updated_at = 6;
    */
   updatedAt?: Timestamp | undefined;
 };
@@ -64,27 +64,27 @@ export type UserJson = {
   id?: string;
 
   /**
-   * @generated from field: string email = 3;
+   * @generated from field: string email = 2;
    */
   email?: string;
 
   /**
-   * @generated from field: string avatar_url = 4;
+   * @generated from field: string avatar_url = 3;
    */
   avatarUrl?: string;
 
   /**
-   * @generated from field: string name = 5;
+   * @generated from field: string name = 4;
    */
   name?: string;
 
   /**
-   * @generated from field: google.protobuf.Timestamp created_at = 6;
+   * @generated from field: google.protobuf.Timestamp created_at = 5;
    */
   createdAt?: TimestampJson;
 
   /**
-   * @generated from field: google.protobuf.Timestamp updated_at = 7;
+   * @generated from field: google.protobuf.Timestamp updated_at = 6;
    */
   updatedAt?: TimestampJson;
 };
@@ -187,12 +187,12 @@ export type UpdateUserRequest = Message<"loco.user.v1.UpdateUserRequest"> & {
   userId: string;
 
   /**
-   * @generated from field: optional string avatar_url = 3;
+   * @generated from field: optional string avatar_url = 2;
    */
   avatarUrl?: string | undefined;
 
   /**
-   * @generated from field: optional string name = 4;
+   * @generated from field: optional string name = 3;
    */
   name?: string | undefined;
 };
@@ -209,12 +209,12 @@ export type UpdateUserRequestJson = {
   userId?: string;
 
   /**
-   * @generated from field: optional string avatar_url = 3;
+   * @generated from field: optional string avatar_url = 2;
    */
   avatarUrl?: string;
 
   /**
-   * @generated from field: optional string name = 4;
+   * @generated from field: optional string name = 3;
    */
   name?: string;
 };

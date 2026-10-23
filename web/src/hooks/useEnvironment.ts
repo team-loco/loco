@@ -46,8 +46,6 @@ export function environmentTypeLabel(type: EnvironmentType): string {
 			return "production";
 		case EnvironmentType.STAGING:
 			return "staging";
-		case EnvironmentType.DEV:
-			return "dev";
 		case EnvironmentType.UNSPECIFIED:
 			return "";
 	}

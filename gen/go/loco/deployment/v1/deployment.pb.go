@@ -340,7 +340,7 @@ type BuildSource struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`   // "dockerfile" (build_id of a succeeded build) or "image" (public image reference, pinned by digest)
 	Image         string                 `protobuf:"bytes,2,opt,name=image,proto3" json:"image,omitempty"` // final image or pre-built
-	BuildId       *string                `protobuf:"bytes,4,opt,name=build_id,json=buildId,proto3,oneof" json:"build_id,omitempty"`
+	BuildId       *string                `protobuf:"bytes,3,opt,name=build_id,json=buildId,proto3,oneof" json:"build_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -593,7 +593,7 @@ func (x *ServiceRouting) GetIdleTimeout() int32 {
 	return 0
 }
 
-// DatabaseDeploymentSpec is a placeholder for DATABASE type deployments (future implementation).
+// DatabaseDeploymentSpec is the spec of the corresponding resource type.
 type DatabaseDeploymentSpec struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -630,7 +630,7 @@ func (*DatabaseDeploymentSpec) Descriptor() ([]byte, []int) {
 	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{7}
 }
 
-// CacheDeploymentSpec is a placeholder for CACHE type deployments (future implementation).
+// CacheDeploymentSpec is the spec of the corresponding resource type.
 type CacheDeploymentSpec struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -667,7 +667,7 @@ func (*CacheDeploymentSpec) Descriptor() ([]byte, []int) {
 	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{8}
 }
 
-// QueueDeploymentSpec is a placeholder for QUEUE type deployments (future implementation).
+// QueueDeploymentSpec is the spec of the corresponding resource type.
 type QueueDeploymentSpec struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -1593,12 +1593,12 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\rmemory_target\x18\x03 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x00H\x01R\fmemoryTarget\x88\x01\x01:U\xbaHR\x1aP\n" +
 	"\x1dscalers.autoscaling_supported\x12 autoscaling is not supported yet\x1a\r!this.enabledB\r\n" +
 	"\v_cpu_targetB\x10\n" +
-	"\x0e_memory_target\"\xee\x01\n" +
+	"\x0e_memory_target\"\xd7\x01\n" +
 	"\vBuildSource\x12\x1b\n" +
 	"\x04type\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04type\x12t\n" +
 	"\x05image\x18\x02 \x01(\tB^\xbaH[\xd8\x01\x01rV2T^([a-z0-9\\-._]+(:[0-9]+)?(/[a-z0-9\\-._]+)*)(:[a-z0-9\\-._]+)?(@sha256:[a-f0-9]{64})?$R\x05image\x12(\n" +
-	"\bbuild_id\x18\x04 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\abuildId\x88\x01\x01B\v\n" +
-	"\t_build_idJ\x04\b\x03\x10\x04R\x0fdockerfile_path\"\xb7\b\n" +
+	"\bbuild_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\abuildId\x88\x01\x01B\v\n" +
+	"\t_build_id\"\xb7\b\n" +
 	"\x15ServiceDeploymentSpec\x12=\n" +
 	"\x05build\x18\x01 \x01(\v2\x1f.loco.deployment.v1.BuildSourceB\x06\xbaH\x03\xc8\x01\x01R\x05build\x12M\n" +
 	"\fhealth_check\x18\x02 \x01(\v2%.loco.deployment.v1.HealthCheckConfigH\x00R\vhealthCheck\x88\x01\x01\x12\x1e\n" +
