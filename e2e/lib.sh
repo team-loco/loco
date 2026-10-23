@@ -111,6 +111,26 @@ assert_fails() {
     fi
 }
 
+# Assert a command fails and its output contains a string.
+# Usage: assert_fails_with "description" "expected_substring" <command...>
+assert_fails_with() {
+    local desc="$1"
+    local expected="$2"
+    shift 2
+    local output
+    if ! output=$("$@" 2>&1) && grep -q -- "$expected" <<<"$output"; then
+        log_ok "PASS: ${desc}"
+        E2E_PASS=$((E2E_PASS + 1))
+        return 0
+    else
+        log_error "FAIL: ${desc}"
+        log_error "  Expected a failure containing: ${expected}"
+        log_error "  Got: ${output}"
+        E2E_FAIL=$((E2E_FAIL + 1))
+        return 1
+    fi
+}
+
 # Run docker compose against the e2e project of the repository's compose.yaml.
 e2e_compose() {
     docker compose -f "$E2E_ROOT_DIR/compose.yaml" -f "$E2E_ROOT_DIR/e2e/compose.kind.yaml" \

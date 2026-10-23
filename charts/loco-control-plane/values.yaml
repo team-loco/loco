@@ -23,6 +23,10 @@ api:
   replicaCount: 1
   port: 8000
   existingSecret: ""
+  bootstrapToken:
+    existingSecret:
+      name: ""
+      key: token
   env: {}
   resources:
     requests:

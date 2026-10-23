@@ -12,6 +12,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/service"
+	"github.com/team-loco/loco/internal/bearer"
 )
 
 const (
@@ -121,6 +122,20 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv("LOCO_SECRETS_MAX_PER_SERVICE", "")
 	t.Setenv("LOCO_SECRETS_MAX_PLACEMENT_BYTES", "")
 	t.Setenv("LOCO_SECRETS_LOCK_TIMEOUT", "")
+	t.Setenv(bootstrapEnv, "")
+}
+
+func TestNewAPIConfigReadsBootstrapToken(t *testing.T) {
+	clearAPIConfigEnv(t)
+	if ac := newAPIConfig(); ac.BootstrapTokenHash != nil {
+		t.Fatalf("bootstrap token hash = %x without a token", ac.BootstrapTokenHash)
+	}
+	token := bearer.New("")
+	t.Setenv(bootstrapEnv, token)
+	ac := newAPIConfig()
+	if !slices.Equal(ac.BootstrapTokenHash, service.HashBootstrapToken(token)) {
+		t.Fatalf("bootstrap token hash = %x", ac.BootstrapTokenHash)
+	}
 }
 
 func TestNewAPIConfigDefaults(t *testing.T) {
@@ -455,6 +470,11 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 			"install webhook without a secret",
 			map[string]string{installHooksEnv: `[{"url":"` + testHookURL + `"}]`},
 			errInvalidInstallWebhooks,
+		},
+		{
+			"short bootstrap token",
+			map[string]string{bootstrapEnv: bearer.New("")[:minBootstrapTokenLength-1]},
+			errShortBootstrapToken,
 		},
 		{"malformed auth issuers", map[string]string{authIssuersEnv: "["}, errInvalidAuthIssuers},
 		{"admin token env unset", map[string]string{authIssuersEnv: adminIssuers}, errAdminTokenMissing},

@@ -24,6 +24,8 @@ kubectl -n loco-system create secret generic regional-clickhouse-migrator \
   --from-file=url=/secure/clickhouse-migrator-url
 ```
 
+`api.bootstrapToken.existingSecret` names the Secret key holding the one-time `LOCO_BOOTSTRAP_TOKEN` for `locoadm bootstrap`. Remove it after the first system admin exists; see [self-hosting](../../docs/content/operations/self-hosting.md#first-system-admin).
+
 Set nonsecret API options through `api.env`. The chart supplies `APP_PORT` and `OBSERVABILITY_PROXY_URL` to connect its own Services.
 
 ```yaml

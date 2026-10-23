@@ -24,6 +24,13 @@ mise run build
 ./bin/loco config set webHost http://localhost:5173
 ```
 
+Make the signed-in user the local installation's system admin with the `LOCO_BOOTSTRAP_TOKEN` that `.env.example` sets:
+
+```sh
+mise run build:locoadm
+./bin/locoadm bootstrap --host http://localhost:8000 --token "$(sed -n 's/^LOCO_BOOTSTRAP_TOKEN=//p' .env)"
+```
+
 ## Attach the local cluster
 
 The local agent enrolls with a join token. With an account that has `system:admin`, create the cluster, set `LOCO_JOIN_TOKEN` in `.env` to the printed token, and let Tilt redeploy `loco-core`:

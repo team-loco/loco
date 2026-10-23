@@ -31,7 +31,7 @@ Set `DATABASE_LISTEN_URL` to a direct PostgreSQL or session-pooler URL when `DAT
 
 The cluster needs Cilium, Envoy Gateway, cert-manager, and the Loco controller. Each cluster runs the OpenTelemetry collectors and, by default, ClickHouse from the `loco-obs` chart. The observability proxy runs on the control plane. `charts/loco-control-plane` holds its Kubernetes manifests; that chart is a work in progress, and no Helmfile release, platform bundle or published release ships it. The charts and environment values define their configuration.
 
-Attach each cluster by creating its record with `locoadm cluster create` and passing the printed join token to the agent's first start; see [cluster attachment](../reference/cluster-attachment.md). Set the platform domains a cluster serves in `global.domain.apps` of its `loco-core` values and point `*.<domain>` at its gateway; the API stores no domains of its own.
+As a [system admin](#first-system-admin), attach each cluster by creating its record with `locoadm cluster create` and passing the printed join token to the agent's first start; see [cluster attachment](../reference/cluster-attachment.md). Set the platform domains a cluster serves in `global.domain.apps` of its `loco-core` values and point `*.<domain>` at its gateway; the API stores no domains of its own.
 
 The `loco-control-plane` chart points the proxy at its own API Service; a standalone proxy reads the API URL from `CONTROL_PLANE_URL`.
 
@@ -52,6 +52,36 @@ The chart runs ClickHouse in the cluster by default. To use an external server s
 The proxy serializes its migrations through a KeeperMap table, so the ClickHouse server needs ClickHouse Keeper and a `keeper_map_path_prefix`. The in-cluster server runs a single-node Keeper from `clickhouse.clickhouse.keeperConfig`. An external server must provide both, and `loco_migrator` must be allowed to create KeeperMap tables.
 
 Your team supplies DNS records, certificate issuance, persistent storage, backups, and capacity. Keep credentials separate across installations and environments. Use [architecture](../reference/architecture.md) to identify the control-plane and regional boundaries.
+
+## First system admin
+
+Operator commands in `locoadm` require the `system:admin` grant. A new installation grants it once, to a signed-in user who presents the installation's bootstrap token.
+
+1. Generate a token of at least 32 characters, store it in a Secret, and name it in the `loco-control-plane` values. A standalone API reads it from `LOCO_BOOTSTRAP_TOKEN`.
+
+   ```sh
+   kubectl -n loco-system create secret generic loco-bootstrap \
+     --from-literal=token="$(openssl rand -hex 32)"
+   ```
+
+   ```yaml
+   api:
+     bootstrapToken:
+       existingSecret:
+         name: loco-bootstrap
+         key: token
+   ```
+
+2. Sign in as the future admin and present the token:
+
+   ```sh
+   loco login --host https://api.example.com
+   locoadm bootstrap --token "$(kubectl -n loco-system get secret loco-bootstrap -o jsonpath='{.data.token}' | base64 -d)"
+   ```
+
+3. Remove `api.bootstrapToken` from the values, upgrade the release and delete the Secret.
+
+The first successful bootstrap closes bootstrap permanently in the database; the token cannot reopen it after a restart. Bootstrap fails when any system admin already exists.
 
 ## Upgrades
 

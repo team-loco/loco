@@ -3,6 +3,7 @@ import subprocess
 import pytest
 from test_platform_contracts import TEST_PROXY, render, render_chart, render_documents
 
+BOOTSTRAP_TOKEN_ENV = "LOCO_BOOTSTRAP_TOKEN"
 API_VALUES = {"image": {"tag": "test"}, "existingSecret": "regional-api-env"}
 
 
@@ -75,6 +76,30 @@ def test_chart_owns_port_and_proxy_wiring():
     env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
     assert [entry["name"] for entry in env] == ["APP_PORT", "OBSERVABILITY_PROXY_URL"]
     assert "wrong" not in [entry["value"] for entry in env]
+
+
+def test_api_reads_bootstrap_token_from_existing_secret():
+    deployment = render(
+        "loco-control-plane",
+        "api-deployment.yaml",
+        {
+            "api": {
+                **API_VALUES,
+                "bootstrapToken": {
+                    "existingSecret": {"name": "loco-bootstrap", "key": "value"}
+                },
+            }
+        },
+    )
+    env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
+    (bootstrap,) = [entry for entry in env if entry["name"] == BOOTSTRAP_TOKEN_ENV]
+    assert bootstrap == {
+        "name": BOOTSTRAP_TOKEN_ENV,
+        "valueFrom": {"secretKeyRef": {"name": "loco-bootstrap", "key": "value"}},
+    }
+    default = render("loco-control-plane", "api-deployment.yaml", {"api": API_VALUES})
+    default_env = default["spec"]["template"]["spec"]["containers"][0]["env"]
+    assert BOOTSTRAP_TOKEN_ENV not in [entry["name"] for entry in default_env]
 
 
 def test_only_api_can_reach_private_proxy():

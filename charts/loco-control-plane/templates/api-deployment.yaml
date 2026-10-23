@@ -37,6 +37,15 @@ spec:
             {{- end }}
             - name: APP_PORT
               value: {{ printf "0.0.0.0:%v" .Values.api.port | quote }}
+            {{- with .Values.api.bootstrapToken.existingSecret }}
+            {{- if .name }}
+            - name: LOCO_BOOTSTRAP_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .name | quote }}
+                  key: {{ .key | quote }}
+            {{- end }}
+            {{- end }}
             {{- if .Values.obsProxy.enabled }}
             - name: OBSERVABILITY_PROXY_URL
               value: {{ include "loco-control-plane.obsProxyURL" . | quote }}

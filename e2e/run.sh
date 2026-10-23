@@ -77,6 +77,7 @@ AGENT_KEY_SECRET="e2e-agent-key"
 E2E_CLUSTER_NAME="e2e-test-cluster"
 E2E_CLUSTER_REGION="us-east-1"
 E2E_CLUSTER_TIER="production"
+BOOTSTRAP_TOKEN=$(openssl rand -hex 32)
 USER_TOKEN="loco_s_e2e-test-session-do-not-use-in-production"
 LOCO_NAMESPACE="loco-system"
 IMAGE_RETENTION=1
@@ -94,6 +95,7 @@ export POSTGRES_PORT="127.0.0.1:" REGISTRY_PORT="127.0.0.1:" S3_PORT
 export E2E_API_URL="http://127.0.0.1:${API_PORT}"
 export E2E_CLUSTER_ADMIN_TOKEN="$CLUSTER_ADMIN_TOKEN"
 export E2E_AGENT_KEY_SECRET="$AGENT_KEY_SECRET"
+export E2E_BOOTSTRAP_TOKEN="$BOOTSTRAP_TOKEN"
 export E2E_USER_TOKEN="$USER_TOKEN"
 export E2E_KIND_CLUSTER="$KIND_CLUSTER_NAME"
 export E2E_LOCO_NAMESPACE="$LOCO_NAMESPACE"
@@ -727,6 +729,7 @@ start_builds() {
 start_api() {
     log_step "Starting API server..."
 
+    LOCO_BOOTSTRAP_TOKEN="$BOOTSTRAP_TOKEN" \
     DATABASE_URL="$E2E_DATABASE_URL" \
     APP_PORT="127.0.0.1:$API_PORT" \
     OBSERVABILITY_PROXY_URL="http://127.0.0.1:$OBS_PROXY_PORT" \
@@ -752,16 +755,18 @@ start_api() {
     log_ok "API server running on port ${API_PORT}"
 }
 
-cluster_admin() {
+locoadm_as_admin() {
     HOME="$CLUSTER_ADMIN_HOME" LOCO_CREDENTIAL_STORE=file LOCO_HOST="$E2E_API_URL" \
-        "$BIN_DIR/locoadm" cluster "$@"
+        "$BIN_DIR/locoadm" "$@"
+}
+
+cluster_admin() {
+    locoadm_as_admin cluster "$@"
 }
 
 seed_cluster_admin() {
     e2e_psql "
         INSERT INTO users (id, email) VALUES ('00000000-0000-7000-8000-000000000008', 'loco-admin@test.local');
-        INSERT INTO user_scopes (user_id, scope, entity_type, entity_id)
-        VALUES ('00000000-0000-7000-8000-000000000008', 'admin', 'system', '00000000-0000-0000-0000-000000000000');
         INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id, access_expires_at, refresh_expires_at)
         VALUES ('00000000-0000-7000-8000-000000000009',
                 encode(sha256(convert_to('${CLUSTER_ADMIN_TOKEN}', 'UTF8')), 'hex'),
@@ -771,6 +776,8 @@ seed_cluster_admin() {
     mkdir -p "$CLUSTER_ADMIN_HOME/.loco"
     printf '{"Host":"%s","ExpiresAt":"2099-01-01T00:00:00Z","Token":"%s","RefreshToken":""}\n' \
         "$E2E_API_URL" "$CLUSTER_ADMIN_TOKEN" >"$CLUSTER_ADMIN_HOME/.loco/credentials.json"
+    locoadm_as_admin bootstrap --token "$BOOTSTRAP_TOKEN" >/dev/null
+    log_ok "Cluster admin bootstrapped"
 }
 
 delete_agent_key() {

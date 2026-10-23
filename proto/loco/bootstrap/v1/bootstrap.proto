@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package loco.bootstrap.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/team-loco/loco/gen/go/loco/bootstrap/v1;bootstrapv1";
+
+service BootstrapService {
+  rpc Bootstrap(BootstrapRequest) returns (BootstrapResponse);
+}
+
+message BootstrapRequest {
+  string token = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message BootstrapResponse {
+  string user_id = 1;
+}

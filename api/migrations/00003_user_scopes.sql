@@ -28,6 +28,12 @@ CREATE INDEX user_scopes_organization_idx ON user_scopes (organization_ref) WHER
 CREATE INDEX user_scopes_workspace_idx ON user_scopes (workspace_ref) WHERE workspace_ref IS NOT NULL;
 CREATE INDEX user_scopes_resource_idx ON user_scopes (resource_ref) WHERE resource_ref IS NOT NULL;
 
+CREATE TABLE system_bootstrap (
+    singleton BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (singleton),
+    bootstrapped_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    bootstrapped_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- session tokens: ephemeral, unlogged, scopes always resolved live from user_scopes
 -- token format: loco_s_<base64url(32 random bytes)>  access token
 --               loco_r_<base64url(32 random bytes)>  refresh token
@@ -77,5 +83,6 @@ CREATE INDEX api_tokens_created_by_idx ON api_tokens (created_by);
 -- +goose Down
 DROP TABLE IF EXISTS api_tokens;
 DROP TABLE IF EXISTS session_tokens;
+DROP TABLE IF EXISTS system_bootstrap;
 DROP TABLE IF EXISTS user_scopes;
 DROP TYPE IF EXISTS entity_type;

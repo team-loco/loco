@@ -26,6 +26,7 @@ type Querier interface {
 	CheckUserHasOrganizations(ctx context.Context, createdBy uuid.UUID) (bool, error)
 	CheckUserHasWorkspaces(ctx context.Context, userID uuid.UUID) (bool, error)
 	ClaimWebhookDeliveries(ctx context.Context, arg ClaimWebhookDeliveriesParams) ([]ClaimWebhookDeliveriesRow, error)
+	CloseSystemBootstrap(ctx context.Context, bootstrappedBy *uuid.UUID) (int64, error)
 	CountDeploymentsByEnvironment(ctx context.Context, environmentID uuid.UUID) (int64, error)
 	CountSecrets(ctx context.Context, arg CountSecretsParams) (int64, error)
 	CountWorkspaceWebhooks(ctx context.Context, workspaceID uuid.UUID) (int64, error)
@@ -233,6 +234,7 @@ type Querier interface {
 	SetPlacementApplyError(ctx context.Context, arg SetPlacementApplyErrorParams) (SetPlacementApplyErrorRow, error)
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
 	SetResourcePartial(ctx context.Context, arg SetResourcePartialParams) error
+	SystemAdminExists(ctx context.Context) (bool, error)
 	TouchAPITokenLastUsed(ctx context.Context, id uuid.UUID) error
 	TouchIdentity(ctx context.Context, arg TouchIdentityParams) error
 	TouchSessionLastUsed(ctx context.Context, id uuid.UUID) error
