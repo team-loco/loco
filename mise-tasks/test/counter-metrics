@@ -1,90 +1,96 @@
 #!/usr/bin/env bash
-#MISE description="Test scalar metrics through the chart-pinned Collector, ClickHouse and authenticated proxy HTTP API"
+#MISE description="Test scalar metrics through the chart-pinned Collector and its rendered OTLP/HTTP exporter, the observability proxy ingest role, ClickHouse and the authenticated proxy HTTP API; LOCO_TEST_CLICKHOUSE_URL reuses a running server with Keeper instead"
+#MISE depends=["helm:deps"]
 set -euo pipefail
 root=$(git rev-parse --show-toplevel)
 run_name=loco-counter-test-$$
 work_dir=$(mktemp -d)
 collector=$run_name-collector
 clickhouse=$run_name-clickhouse
-network=$run_name-network
 own_clickhouse=false
 ready_attempts=60
+ports_per_run=4
+first_port=$((20000 + $$ % 10000 * ports_per_run))
+proxy_port=$first_port
+otlp_grpc_port=$((first_port + 1))
+otlp_http_port=$((first_port + 2))
+proxy_pid=""
 cleanup() {
     local status=$?
     if [ "$status" -ne 0 ]; then
         docker logs --tail 50 "$collector" >&2 || true
+        tail -50 "$work_dir/proxy.log" >&2 || true
         if [ "$own_clickhouse" = true ]; then
             docker logs --tail 50 "$clickhouse" >&2 || true
         fi
+    fi
+    if [ -n "$proxy_pid" ]; then
+        kill "$proxy_pid" >/dev/null 2>&1 || true
     fi
     docker rm -fv "$collector" >/dev/null 2>&1 || true
     if [ "$own_clickhouse" = true ]; then
         docker rm -fv "$clickhouse" >/dev/null 2>&1 || true
     fi
-    docker network rm "$network" >/dev/null 2>&1 || true
     rm -rf "$work_dir"
     return "$status"
 }
 trap cleanup EXIT
-docker network create "$network" >/dev/null
-export COUNTER_CLICKHOUSE_ENDPOINT=""
+
+wait_for() {
+    for _ in $(seq "$ready_attempts"); do
+        "$@" >/dev/null 2>&1 && return 0
+        sleep 1
+    done
+    "$@" >/dev/null
+}
 
 if [ -z "${LOCO_TEST_CLICKHOUSE_URL:-}" ]; then
-    image=$(yq '.clickhouse.clickhouse.image.repository + ":" + .clickhouse.clickhouse.image.tag' "$root/charts/loco-obs/values.yaml")
+    image=$(yq '.clickhouse.clickhouse.image.repository + ":" + .clickhouse.clickhouse.image.tag' "$root/charts/loco-control-plane/values.yaml")
     {
         echo '<clickhouse>'
-        yq '.clickhouse.clickhouse.keeperConfig' "$root/charts/loco-obs/values.yaml"
+        yq '.clickhouse.clickhouse.keeperConfig' "$root/charts/loco-control-plane/values.yaml"
         echo '<max_server_memory_usage>1073741824</max_server_memory_usage><mark_cache_size>67108864</mark_cache_size></clickhouse>'
     } >"$work_dir/server.xml"
     chmod a+r "$work_dir/server.xml"
     own_clickhouse=true
-    docker run -d --name "$clickhouse" --network "$network" --memory 2g --memory-swap 2g --cpus 2 -p 127.0.0.1::9000 \
+    docker run -d --name "$clickhouse" --memory 2g --memory-swap 2g --cpus 2 -p 127.0.0.1::9000 \
         -e CLICKHOUSE_USER=loco_test -e CLICKHOUSE_PASSWORD=loco_test -e CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1 \
         -v "$work_dir/server.xml:/etc/clickhouse-server/config.d/counter-test.xml:ro" "$image" >/dev/null
-    for _ in $(seq "$ready_attempts"); do
-        docker exec "$clickhouse" clickhouse-client --user loco_test --password loco_test -q 'SELECT 1' >/dev/null 2>&1 && break
-        sleep 1
-    done
-    docker exec "$clickhouse" clickhouse-client --user loco_test --password loco_test -q 'SELECT 1' >/dev/null
+    wait_for docker exec "$clickhouse" clickhouse-client --user loco_test --password loco_test -q 'SELECT 1'
     address=$(docker port "$clickhouse" 9000/tcp | head -1)
     export LOCO_TEST_CLICKHOUSE_URL="clickhouse://loco_test:loco_test@$address"
-    export COUNTER_CLICKHOUSE_ENDPOINT="tcp://$clickhouse:9000"
 fi
 export LOCO_TEST_COUNTER_DATABASE=${run_name//-/_}
-export COUNTER_EXPORTER=$(yq -o json '.otel-col-daemon.config.exporters.clickhouse' "$root/charts/loco-obs/values.yaml")
-python - "$work_dir/collector.json" <<'PY'
-import json
-import os
-import sys
-from urllib.parse import unquote, urlparse
 
-connection = urlparse(os.environ['LOCO_TEST_CLICKHOUSE_URL'])
-host = connection.hostname
-if host in ('127.0.0.1', 'localhost'):
-    host = 'host.docker.internal'
-exporter = json.loads(os.environ['COUNTER_EXPORTER'])
-endpoint = os.environ['COUNTER_CLICKHOUSE_ENDPOINT'] or f'tcp://{host}:{connection.port}'
-exporter.update(endpoint=endpoint, username=unquote(connection.username or ''),
-                password=unquote(connection.password or ''), database=os.environ['LOCO_TEST_COUNTER_DATABASE'])
-exporter['connection_params']['secure'] = 'false'
-exporter['timeout'] = '60s'
-config = {'receivers': {'otlp': {'protocols': {'http': {'endpoint': '0.0.0.0:4318'}}}},
-          'exporters': {'clickhouse': exporter},
-          'service': {'pipelines': {'metrics': {'receivers': ['otlp'], 'exporters': ['clickhouse']}}}}
-with open(sys.argv[1], 'w') as target:
-    json.dump(config, target)
-PY
-chmod a+r "$work_dir/collector.json"
+(cd "$root/observability-proxy" && go build -o "$work_dir/loco-obs-proxy" .)
+QUERY_ENABLED=true INGEST_ENABLED=true PORT="$proxy_port" OTLP_GRPC_PORT="$otlp_grpc_port" OTLP_HTTP_PORT="$otlp_http_port" \
+    CLICKHOUSE_URL="$LOCO_TEST_CLICKHOUSE_URL" CLICKHOUSE_MIGRATOR_URL="$LOCO_TEST_CLICKHOUSE_URL" \
+    CLICKHOUSE_INGEST_URL="$LOCO_TEST_CLICKHOUSE_URL" CLICKHOUSE_DB="$LOCO_TEST_COUNTER_DATABASE" \
+    "$work_dir/loco-obs-proxy" >"$work_dir/proxy.log" 2>&1 &
+proxy_pid=$!
+wait_for curl -sf "http://127.0.0.1:$proxy_port/readyz"
+
+helm template loco-obs "$root/charts/loco-obs" --set global.region=counter-test \
+    --set global.exporter.endpoint="http://host.docker.internal:$otlp_http_port" |
+    yq 'select(.kind == "ConfigMap" and .metadata.name == "otel-col-daemon-agent") | .data.relay' |
+    yq '
+        [.exporters[] | (.sending_queue.storage, .auth.authenticator) | select(. != null)] as $used |
+        {"receivers": {"otlp": {"protocols": {"http": {"endpoint": "0.0.0.0:4318"}}}},
+         "exporters": .exporters,
+         "extensions": (.extensions | with_entries(select(.key as $name | $used | any_c(. == $name)))),
+         "service": {"pipelines": {"metrics": {"receivers": ["otlp"], "exporters": (.exporters | keys)}}}} |
+        .service.extensions = (.extensions | keys)' >"$work_dir/collector.yaml"
+chmod a+r "$work_dir/collector.yaml"
+mounts=()
+for directory in $(yq '.extensions | with_entries(select(.key | test("^file_storage"))) | .[].directory' "$work_dir/collector.yaml"); do
+    mounts+=("--tmpfs" "$directory")
+done
 collector_image=$(yq '.otel-col-deploy.image.repository + ":" + .otel-col-deploy.image.tag' "$root/charts/loco-obs/values.yaml")
-docker run -d --name "$collector" --network "$network" --memory 256m --memory-swap 256m --cpus 0.5 \
-    --add-host host.docker.internal:host-gateway -p 127.0.0.1::4318 \
-    -v "$work_dir/collector.json:/etc/collector.json:ro" "$collector_image" --config /etc/collector.json >/dev/null
+docker run -d --name "$collector" --memory 256m --memory-swap 256m --cpus 0.5 \
+    --add-host host.docker.internal:host-gateway -p 127.0.0.1::4318 "${mounts[@]}" \
+    -v "$work_dir/collector.yaml:/etc/collector.yaml:ro" "$collector_image" --config /etc/collector.yaml >/dev/null
 address=$(docker port "$collector" 4318/tcp | head -1)
 export LOCO_TEST_COUNTER_OTLP_URL="http://$address"
-for _ in $(seq "$ready_attempts"); do
-    curl -sf -X POST "$LOCO_TEST_COUNTER_OTLP_URL/v1/metrics" -H 'Content-Type: application/json' -d '{}' >/dev/null && break
-    sleep 1
-done
-curl -sf -X POST "$LOCO_TEST_COUNTER_OTLP_URL/v1/metrics" -H 'Content-Type: application/json' -d '{}' >/dev/null
+wait_for curl -sf -X POST "$LOCO_TEST_COUNTER_OTLP_URL/v1/metrics" -H 'Content-Type: application/json' -d '{}'
 cd "$root/observability-proxy"
 go test -v -count=1 -coverprofile=coverage.out ./... "$@"

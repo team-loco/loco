@@ -1,4 +1,4 @@
-{{- range $name := list "otel-col-daemon" "otel-col-cluster" }}
+{{- range $name := list "otel-col-daemon" "otel-col-deploy" "otel-col-cluster" }}
 {{- if index $.Values $name "enabled" }}
 {{- $collector := index $.Subcharts $name }}
 ---

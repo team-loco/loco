@@ -164,41 +164,22 @@ Deploys:
 
 #### loco-obs Chart
 
-Deploys:
+Deploys three OpenTelemetry Collector contrib 0.163.2 instances on each worker cluster: `otel-col-deploy` (OTLP from applications and Envoy), `otel-col-daemon` (container logs and node metrics) and `otel-col-cluster` (cluster metrics and events). They export everything over OTLP/HTTP to one configured endpoint.
 
-**OpenTelemetry Stack**:
+#### loco-control-plane Chart
 
-- **OpenTelemetry Operator** (v0.99.2)
-  - Manages instrumentation of applications
-  - Configures SDK injection
-  - Manages Collector instances
-
-- **OpenTelemetry Collector (Daemon)** (v0.140.1 via otel-col-daemon alias)
-  - Node-level collection of telemetry data
-  - Runs as DaemonSet
-  - Receives spans, metrics, logs from apps and services
-
-- **OpenTelemetry Collector (Deployment)** (v0.140.1 via otel-col-deploy alias)
-  - Centralized collection and aggregation
-  - Processes and exports data to ClickHouse
-
-**Data Storage**:
-
-- **ClickHouse** (26.3 Altinity stable image, Altinity chart 0.3.13)
-  - Time-series data store for metrics, logs, traces
-  - OLAP database optimized for analytics
-  - Read through the observability proxy
+Runs the observability proxy and, with `clickhouse.enabled`, ClickHouse (26.3 Altinity stable image, Altinity chart 0.3.13). The proxy's ingest role writes OTLP to ClickHouse with the contrib ClickHouse exporter v0.163.0; its query role serves reads.
 
 **Observability Data Flow**:
 
 ```
 Applications → OpenTelemetry SDK
   ↓
-Collector (Daemon/Deployment)
+Worker collectors (OTLP/HTTP)
   ↓
-ClickHouse
+Observability proxy ingest → ClickHouse
   ↓
-Observability proxy
+Observability proxy query → API
 ```
 
 ---
@@ -221,7 +202,7 @@ Observability proxy
 
 ## External Helm Chart Repositories
 
-Used in `helmfile.yaml.gotmpl`:
+Used in `helmfile.yaml.gotmpl` and the chart dependencies:
 
 | Repository         | URL                                                        | Purpose              |
 | ------------------ | ---------------------------------------------------------- | -------------------- |

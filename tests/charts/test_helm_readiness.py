@@ -12,10 +12,6 @@ FIXTURE_ENV = {
     "CLOUDFLARE_TOKEN": "test",
     "LOG_LEVEL": "info",
     "CONTROL_PLANE_URL": "https://api.example.test",
-    "CLICKHOUSE_PASSWORD": "test",
-    "CLICKHOUSE_MIGRATOR_PASSWORD": "test",
-    "CLICKHOUSE_INGEST_PASSWORD": "test",
-    "CLICKHOUSE_READER_PASSWORD": "test",
 }
 
 
@@ -25,6 +21,7 @@ def _release_state(environment):
         shutil.copyfile(ROOT / "helmfile.yaml.gotmpl", root / "helmfile.yaml.gotmpl")
         (root / "env" / environment).mkdir(parents=True)
         shutil.copyfile(ROOT / "env" / "global.yaml", root / "env" / "global.yaml")
+        shutil.copyfile(ROOT / "env" / "exporter-token.yaml.gotmpl", root / "env" / "exporter-token.yaml.gotmpl")
         for source in (ROOT / "env" / environment).glob("*-chart.yaml.gotmpl"):
             (root / "env" / environment / source.name).write_text("{}")
         for source in (ROOT / "charts").glob("*/values.yaml"):
@@ -67,3 +64,19 @@ def test_networking_is_ready_before_local_providers():
     assert releases["loco-networking"].get("wait", state["helmDefaults"]["wait"])
     for name in ("cert-manager", "loco-operator"):
         assert "kube-system/loco-networking" in releases[name]["needs"]
+
+
+def test_core_and_obs_take_one_exporter_token_secret_name(subtests):
+    values = subprocess.check_output(["yq", "-o=json", ".", str(ROOT / "charts/loco-obs/values.yaml")], text=True)
+    expected = json.loads(values)["global"]["exporter"]["bearerToken"]["secretName"]
+    for environment in ("local", "prod"):
+        with subtests.test(environment=environment):
+            _, releases = _release_state(environment)
+            for name in ("loco-core", "loco-obs"):
+                names = [
+                    source["global"]["exporter"]["bearerToken"]["secretName"]
+                    for source in releases[name]["values"]
+                    if isinstance(source, dict) and "exporter" in source.get("global", {})
+                    and "bearerToken" in source["global"]["exporter"]
+                ]
+                assert names[-1] == expected, name

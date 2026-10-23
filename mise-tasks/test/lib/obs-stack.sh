@@ -1,23 +1,29 @@
 root=$(git rev-parse --show-toplevel)
 cd "$root"
 chart=charts/loco-obs
+control_plane_chart=charts/loco-control-plane
 namespace=observability
+control_plane_namespace=loco
+control_plane_release=loco-control-plane
 run_id=loco-obs-$1-$$
-network=$run_id
 clickhouse=$run_id-clickhouse
 workdir=$(mktemp -d)
 ready_attempts=60
-proxy_port=$((20000 + $$ % 10000))
-proxy_pid=""
+ports_per_run=4
+first_port=$((20000 + $$ % 10000 * ports_per_run))
+query_port=$first_port
+ingest_port=$((first_port + 1))
+ingest_grpc_port=$((first_port + 2))
+ingest_http_port=$((first_port + 3))
+proxy_pids=()
 failures=0
 containers=("$clickhouse")
 
 obs_cleanup() {
-	if [ -n "$proxy_pid" ]; then
-		kill "$proxy_pid" >/dev/null 2>&1 || true
+	if [ "${#proxy_pids[@]}" -gt 0 ]; then
+		kill "${proxy_pids[@]}" >/dev/null 2>&1 || true
 	fi
 	docker rm -fv "${containers[@]}" >/dev/null 2>&1 || true
-	docker network rm "$network" >/dev/null 2>&1 || true
 	rm -rf "$workdir"
 }
 trap obs_cleanup EXIT
@@ -42,30 +48,38 @@ wait_for() {
 	return 1
 }
 
-secret_password() {
-	yq "select(.kind == \"Secret\" and .metadata.namespace == \"$namespace\" and .metadata.name == \"$1\") | .stringData.password" <<<"$manifest"
+secret_value() {
+	yq "select(.kind == \"Secret\" and .metadata.name == \"$1\") | .stringData.$2" <<<"$control_plane_manifest"
 }
 
 collector_config() {
 	yq "select(.kind == \"ConfigMap\" and .metadata.name == \"$1\") | .data.relay" <<<"$manifest"
 }
 
+exporter_extensions() {
+	yq '
+		[.exporters[] | (.sending_queue.storage, .auth.authenticator) | select(. != null)] as $used |
+		.extensions |= with_entries(select(.key as $name | $used | any_c(. == $name))) |
+		.service.extensions = (.extensions | keys)'
+}
+
 password_sets=()
-for user in $(yq '.clickhouseUserPasswords | keys | .[]' "$chart/values.yaml"); do
+for user in $(yq '.clickhouse.clickhouse.users[].name' "$control_plane_chart/values.yaml"); do
 	password_sets+=("--set" "clickhouseUserPasswords.$user=$(openssl rand -hex 16)")
 done
 region=obs-stack-region
-manifest=$(helm template loco-obs "$chart" --namespace "$namespace" --set global.region="$region" "${password_sets[@]}")
-proxy_env=$(helm template loco-control-plane charts/loco-control-plane --set obsProxy.image.tag="$1" \
+ingest_endpoint=http://host.docker.internal:$ingest_http_port
+manifest=$(helm template loco-obs "$chart" --namespace "$namespace" --set global.region="$region" \
+	--set global.exporter.endpoint="$ingest_endpoint")
+control_plane_manifest=$(helm template "$control_plane_release" "$control_plane_chart" \
+	--namespace "$control_plane_namespace" --set obsProxy.image.tag="$1" \
 	--set api.image.tag="$1" --set api.existingSecret=fixture-api-env --set ui.enabled=false \
-	--set obsProxy.query.clickhouse.existingSecret.name="$run_id-reader-url" \
-	--set obsProxy.query.clickhouse.migratorExistingSecret.name="$run_id-migrator-url" |
-	yq -o json -I 0 'select(.kind == "Deployment" and .metadata.name == "loco-control-plane-obs-proxy-query") | .spec.template.spec.containers[0].env')
-chi=$(yq -o json -I 0 'select(.kind == "ClickHouseInstallation")' <<<"$manifest")
+	--set clickhouse.enabled=true --set obsProxy.ingest.enabled=true "${password_sets[@]}")
+chi=$(yq -o json -I 0 'select(.kind == "ClickHouseInstallation")' <<<"$control_plane_manifest")
 clickhouse_image=$(yq '.spec.templates.podTemplates[0].spec.containers[0].image' <<<"$chi")
-collector_image=$(yq 'select(.kind == "Deployment" and .metadata.name == "otel-col-deploy") | .spec.template.spec.containers[0].image' <<<"$manifest")
-clickhouse_host=$(collector_config otel-col-deploy | yq '.exporters.clickhouse.endpoint | sub("^tcp://", "")')
-ingest_secret=$(yq 'select(.kind == "Deployment" and .metadata.name == "otel-col-deploy") | .spec.template.spec.containers[0].env[] | select(.name == "CLICKHOUSE_INGEST_PASSWORD") | .valueFrom.secretKeyRef.name' <<<"$manifest")
+collector_image=$(yq 'select(.kind == "StatefulSet" and .metadata.name == "otel-col-deploy") | .spec.template.spec.containers[0].image' <<<"$manifest")
+ingest_user=$(yq '.clickhouse.clickhouse.users[] | select(.grants[] | test("^GRANT INSERT")) | .name' "$control_plane_chart/values.yaml")
+database=$(yq '.clickhouse.clickhouse.users[] | select(.grants[] | test("^GRANT INSERT")) | .grants[0] | sub("^.* ON ([^.]+)\..*$", "${1}")' "$control_plane_chart/values.yaml")
 yq '.spec.configuration.files["config.d/extra_config.xml"]' <<<"$chi" >"$workdir/extra_config.xml"
 
 users=$(yq '.spec.configuration.users | keys | .[] | split("/") | .[0]' <<<"$chi" | sort -u | grep -vx default)
@@ -74,7 +88,7 @@ users=$(yq '.spec.configuration.users | keys | .[] | split("/") | .[0]' <<<"$chi
 	for user in $users; do
 		secret=$(yq ".spec.configuration.users[\"$user/password\"].valueFrom.secretKeyRef.name" <<<"$chi")
 		echo "<$user>"
-		echo "<password>$(secret_password "$secret")</password>"
+		echo "<password>$(secret_value "$secret" password)</password>"
 		echo "<networks><ip>$(yq ".spec.configuration.users[\"$user/networks/ip\"]" <<<"$chi")</ip></networks>"
 		echo "<profile>default</profile><quota>default</quota>"
 		echo "<access_management>$(yq ".spec.configuration.users[\"$user/access_management\"]" <<<"$chi")</access_management>"
@@ -86,8 +100,7 @@ users=$(yq '.spec.configuration.users | keys | .[] | split("/") | .[0]' <<<"$chi
 	echo "</users></clickhouse>"
 } >"$workdir/loco_users.xml"
 
-docker network create "$network" >/dev/null
-docker run -d --name "$clickhouse" --network "$network" -p 127.0.0.1::9000 \
+docker run -d --name "$clickhouse" -p 127.0.0.1::9000 \
 	-e CLICKHOUSE_SKIP_USER_SETUP=1 \
 	-v "$workdir/extra_config.xml:/etc/clickhouse-server/config.d/extra_config.xml:ro" \
 	-v "$workdir/loco_users.xml:/etc/clickhouse-server/users.d/loco_users.xml:ro" \
@@ -100,43 +113,51 @@ fi
 query "SYSTEM FLUSH LOGS"
 clickhouse_port=$(docker port "$clickhouse" 9000/tcp | head -1)
 
-clickhouse_dsn() {
-	local user secret
-	user=$(GRANT="$1" yq '.clickhouse.clickhouse.users[] | select(.grants[] | test("^" + strenv(GRANT) + " ON ")) | .name' "$chart/values.yaml")
-	secret=$(USER_NAME="$user" yq '.clickhouse.clickhouse.users[] | select(.name == strenv(USER_NAME)) | .password_secret_name' "$chart/values.yaml")
-	echo "clickhouse://$user:$(secret_password "$secret")@$clickhouse_port"
-}
-
 (cd observability-proxy && go build -o "$workdir/loco-obs-proxy" .)
-proxy_vars=()
-for name in $(yq '.[] | select(has("value")) | .name' <<<"$proxy_env"); do
-	proxy_vars+=("$name=$(NAME="$name" yq '.[] | select(.name == strenv(NAME)) | .value' <<<"$proxy_env")")
-done
-proxy_vars+=("CLICKHOUSE_URL=$(clickhouse_dsn "GRANT SELECT")" "CLICKHOUSE_MIGRATOR_URL=$(clickhouse_dsn "GRANT ALL")")
-database=$(collector_config otel-col-deploy | yq '.exporters.clickhouse.database')
-proxy_vars+=("CLICKHOUSE_DB=$database")
-env "${proxy_vars[@]}" PORT="$proxy_port" "$workdir/loco-obs-proxy" >"$workdir/proxy.log" 2>&1 &
-proxy_pid=$!
-if ! wait_for "Observability proxy readiness" curl -sf "http://127.0.0.1:$proxy_port/readyz"; then
-	tail -20 "$workdir/proxy.log"
-	exit 1
-fi
-kill "$proxy_pid"
-proxy_pid=""
 
-clickhouse_exporter() {
-	collector_config "$1" | yq -o json -I 0 '.exporters.clickhouse' |
-		CLICKHOUSE_HOST="$clickhouse_host" CLICKHOUSE_CONTAINER="$clickhouse:9000" \
-			yq -o json -I 0 '.endpoint |= sub(strenv(CLICKHOUSE_HOST), strenv(CLICKHOUSE_CONTAINER))'
+start_proxy() {
+	local role=$1 port=$2 env vars=()
+	shift 2
+	env=$(yq -o json -I 0 "select(.kind == \"Deployment\" and .metadata.name == \"$control_plane_release-obs-proxy-$role\") | .spec.template.spec.containers[0].env" <<<"$control_plane_manifest")
+	for name in $(yq '.[] | select(has("value")) | .name' <<<"$env"); do
+		vars+=("$name=$(NAME="$name" yq '.[] | select(.name == strenv(NAME)) | .value' <<<"$env")")
+	done
+	for name in $(yq '.[] | select(.valueFrom.secretKeyRef) | .name' <<<"$env"); do
+		local secret key url
+		secret=$(NAME="$name" yq '.[] | select(.name == strenv(NAME)) | .valueFrom.secretKeyRef.name' <<<"$env")
+		key=$(NAME="$name" yq '.[] | select(.name == strenv(NAME)) | .valueFrom.secretKeyRef.key' <<<"$env")
+		url=$(secret_value "$secret" "$key")
+		vars+=("$name=${url%@*}@$clickhouse_port")
+	done
+	env "${vars[@]}" PORT="$port" "$@" "$workdir/loco-obs-proxy" >"$workdir/proxy-$role.log" 2>&1 &
+	proxy_pids+=($!)
 }
+
+wait_for_proxy() {
+	if ! wait_for "Observability proxy $1 readiness" curl -sf "http://127.0.0.1:$2/readyz"; then
+		tail -20 "$workdir/proxy-$1.log"
+		exit 1
+	fi
+}
+
+start_proxy query "$query_port"
+start_proxy ingest "$ingest_port" OTLP_GRPC_PORT="$ingest_grpc_port" OTLP_HTTP_PORT="$ingest_http_port"
+wait_for_proxy query "$query_port"
+wait_for_proxy ingest "$ingest_port"
 
 start_collector() {
-	local name=$run_id-$1 config=$2
+	local name=$run_id-$1 config=$2 mounts=()
 	containers+=("$name")
-	docker run -d --name "$name" --network "$network" -p 127.0.0.1::4318 \
-		-e CLICKHOUSE_INGEST_PASSWORD="$(secret_password "$ingest_secret")" \
-		-v "$config:/etc/collector.yaml:ro" \
+	for directory in $(yq '.extensions | with_entries(select(.key | test("^file_storage"))) | .[].directory' "$config"); do
+		mounts+=("--tmpfs" "$directory")
+	done
+	docker run -d --name "$name" -p 127.0.0.1::4318 --add-host host.docker.internal:host-gateway \
+		"${mounts[@]}" -v "$config:/etc/collector.yaml:ro" \
 		"$collector_image" --config /etc/collector.yaml >/dev/null
+}
+
+proxy_logs() {
+	tail -20 "$workdir/proxy-ingest.log"
 }
 
 collector_logs() {

@@ -86,6 +86,9 @@ export DEX_PORT=$((5556 + port_offset))
 export TILT_PORT=$((10350 + port_offset))
 export OBS_PROXY_PORT=$((8050 + port_offset))
 export CLICKHOUSE_NATIVE_PORT=$((19050 + port_offset))
+export OBS_OTLP_GRPC_PORT=$((4317 + port_offset))
+export OBS_OTLP_HTTP_PORT=$((4318 + port_offset))
+export CLICKHOUSE_CONTAINER="$COMPOSE_PROJECT_NAME-clickhouse"
 export OBSERVABILITY_PROXY_URL="http://127.0.0.1:$OBS_PROXY_PORT"
 
 app_port=$(env_value APP_PORT)

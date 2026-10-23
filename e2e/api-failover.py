@@ -129,6 +129,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--namespace", required=True)
     parser.add_argument("--gateway-namespace", required=True)
+    parser.add_argument("--gateway-name", required=True)
     parser.add_argument("--gateway-url", required=True)
     parser.add_argument("--hostname-suffix", required=True)
     parser.add_argument("--image", required=True)
@@ -176,7 +177,7 @@ def main():
         kube("-n", args.namespace, "wait", "pod/" + name, "--for=condition=Ready", "--timeout=120s")
         ip = json.loads(kube("-n", args.namespace, "get", "pod", name, "-o", "json"))["status"]["podIP"]
         pods = json.loads(kube("-n", args.gateway_namespace, "get", "pods", "-l",
-            "gateway.envoyproxy.io/owning-gateway-name=eg,app.kubernetes.io/component=proxy", "-o", "json"))["items"]
+            "gateway.envoyproxy.io/owning-gateway-name=" + args.gateway_name + ",app.kubernetes.io/component=proxy", "-o", "json"))["items"]
         assert len(pods) == 1
         process, admin = forward(args.gateway_namespace, pods[0]["metadata"]["name"], 19000, args.output)
         forwards.append(process)
@@ -189,6 +190,7 @@ def main():
             current = {}
             evidence["layouts"][layout] = current
             values = {"gatewayNamespace": args.gateway_namespace, "controlPlaneHostname": host,
+                "gateway": {"name": args.gateway_name},
                 "api": {"image": {"tag": "e2e"}, "existingSecret": "unused"},
                 "obsProxy": {"image": {"tag": "e2e"}, "query": {"clickhouse": {
                     "existingSecret": {"name": "unused", "key": "url"},
@@ -202,6 +204,8 @@ def main():
             documents = [json.loads(line) for line in command("yq", "-o=json", "-I=0", ".", "-", input=rendered).splitlines() if line != "null"]
             routes = [document for document in documents if document["kind"] == "HTTPRoute"]
             (traffic,) = [document for document in documents if document["kind"] == "BackendTrafficPolicy"]
+            (gateway,) = [document for document in documents if document["kind"] == "Gateway"]
+            kube("apply", "-f", "-", input=json.dumps(gateway))
             for suffix in ["-api", "-ui"]:
                 service = obj("Service", release + suffix)
                 service["spec"] = {"ports": [{"name": "http", "port": 80}]}

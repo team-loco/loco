@@ -21,8 +21,6 @@ KUBE_REQUEST_TIMEOUT = "20s"
 OUTAGE_SECONDS = 8
 INTERVAL = "3s"
 SINK_PATH = "/var/local/loco-platform-metrics"
-CLICKHOUSE = f"{CLUSTER}-clickhouse"
-DATABASE = "platform_metrics_e2e"
 TOKEN = "local-metrics-fixture"
 RUN_DIR = ROOT / "e2e/runs" / CLUSTER
 KUBECONFIG = RUN_DIR / "kubeconfig"
@@ -126,54 +124,43 @@ def install_sink(image):
     rollout("deployments", "otlp-sink", NAMESPACE)
 
 
-def install_collectors(destination):
+def install_collectors():
     settings = {
         "enabled": True, "platformOnly": True, "installation": "metrics-e2e",
         "cluster": CLUSTER, "environment": "test", "collectionInterval": INTERVAL,
-        "namespaces": [NAMESPACE, NODE_NAMESPACE], "destination": destination,
-        "otlp": {"endpoint": f"http://otlp-sink.{NAMESPACE}:4318", "headers": {"Authorization": "${env:PLATFORM_AUTHORIZATION}"}},
-        "clickhouse": {"endpoint": f"tcp://{CLICKHOUSE}:9000", "database": DATABASE, "username": "default", "password": "${env:PLATFORM_CLICKHOUSE_PASSWORD}", "create_schema": True},
+        "namespaces": [NAMESPACE, NODE_NAMESPACE],
     }
-    secret = {"apiVersion": "v1", "kind": "Secret", "type": "Opaque", "metadata": {"name": "platform-export", "namespace": NAMESPACE}, "stringData": {"PLATFORM_AUTHORIZATION": f"Bearer {TOKEN}", "PLATFORM_CLICKHOUSE_PASSWORD": TOKEN}}
-    node_secret = {**secret, "metadata": {"name": "platform-export", "namespace": NODE_NAMESPACE}}
+    token = values()["global"]["exporter"]["bearerToken"]
+    secret = {"apiVersion": "v1", "kind": "Secret", "type": "Opaque", "metadata": {"name": token["secretName"], "namespace": NAMESPACE}, "stringData": {token["secretKey"]: TOKEN}}
+    node_secret = {**secret, "metadata": {"name": token["secretName"], "namespace": NODE_NAMESPACE}}
     apply(secret, node_secret)
-    collector = {"extraEnvs": [], "extraEnvsFrom": [{"secretRef": {"name": "platform-export"}}]}
+    exporter = {"endpoint": f"http://otlp-sink.{NAMESPACE}:4318", "bearerToken": {"enabled": True}}
     overrides = {
-        "global": {"region": "test-region", "platformTelemetry": settings},
-        "clickhouse": {"enabled": False}, "otel-col-deploy": {"enabled": False},
-        "otel-col-daemon": {**collector, "namespaceOverride": NODE_NAMESPACE},
-        "otel-col-cluster": collector,
+        "global": {"region": "test-region", "platformTelemetry": settings, "exporter": exporter},
+        "otel-col-deploy": {"enabled": False},
+        "otel-col-daemon": {"namespaceOverride": NODE_NAMESPACE},
     }
     path = RUN_DIR / "values.json"
     path.write_text(json.dumps(overrides))
     run("helm", "upgrade", "--install", "metrics", str(ROOT / "charts/loco-obs"), "--kubeconfig", str(KUBECONFIG), "--namespace", NAMESPACE, "--values", str(path))
     rollout("daemonsets", "otel-col-daemon-agent", NODE_NAMESPACE)
-    rollout("deployments", "otel-col-cluster", NAMESPACE)
+    rollout("statefulsets", "otel-col-cluster", NAMESPACE)
 
 
 def event(name, namespace_name):
     apply({"apiVersion": "v1", "kind": "Event", "metadata": {"name": name, "namespace": namespace_name}, "involvedObject": {"apiVersion": "v1", "kind": "Pod", "name": "metrics-fixture", "namespace": namespace_name}, "reason": "MetricsFixture", "message": name, "type": "Normal", "source": {"component": "metrics-e2e"}})
 
 
-def clickhouse_query(query):
-    return run("docker", "exec", CLICKHOUSE, "clickhouse-client", "--password", TOKEN, "--query", query)
-
-
 def execute():
     chart = values()
     image_config = chart["otel-col-daemon"]["image"]
     image = f'{image_config["repository"]}:{image_config["tag"]}'
-    clickhouse_image = chart["clickhouse"]["clickhouse"]["image"]
-    clickhouse_ref = f'{clickhouse_image["repository"]}:{clickhouse_image["tag"]}'
     apply(namespace(NAMESPACE, privileged=True), namespace(NODE_NAMESPACE, privileged=True), namespace(TENANT_NAMESPACE))
     run("helm", "uninstall", "metrics", "--ignore-not-found", "--kubeconfig", str(KUBECONFIG), "--namespace", NAMESPACE)
     kube("-n", NAMESPACE, "delete", "deployment", "otlp-sink", "--ignore-not-found", "--wait=true")
     run("docker", "exec", NODE, "rm", "-f", f"{SINK_PATH}/output.json")
-    previous = run("docker", "inspect", "--format", '{{ index .Config.Labels "loco.metrics-test" }}', CLICKHOUSE, check=False)
-    if previous == RUN:
-        run("docker", "rm", "--force", CLICKHOUSE)
     install_sink(image)
-    install_collectors("otlp_http")
+    install_collectors()
     wait("actual cluster and node metrics reach the authenticated OTLP destination", lambda: {"k8s.deployment.available", "k8s.node.allocatable_cpu", "system.cpu.time"} <= {name for name, _, _ in metric_points(sink_documents())})
     points = metric_points(sink_documents())
     assert any(name == "k8s.deployment.available" and attrs.get("k8s.deployment.name") == "otlp-sink" and int(point.get("asInt", point.get("asDouble", 0))) == 1 for name, attrs, point in points)
@@ -188,21 +175,18 @@ def execute():
     kube("-n", NAMESPACE, "wait", "--for=delete", "pod", "-l", "app=otlp-sink", f"--timeout={TIMEOUT}s")
     event(f"platform-queued-{MARKER}", NAMESPACE)
     time.sleep(OUTAGE_SECONDS)
+    for namespace_name, selector in ((NAMESPACE, "app.kubernetes.io/name=otel-col-cluster"), (NODE_NAMESPACE, "app.kubernetes.io/name=otel-col-daemon")):
+        kube("-n", namespace_name, "delete", "pod", "-l", selector, "--wait=true")
+    rollout("statefulsets", "otel-col-cluster", NAMESPACE)
+    rollout("daemonsets", "otel-col-daemon-agent", NODE_NAMESPACE)
     recovery = time.time_ns()
     kube("-n", NAMESPACE, "scale", "deployment/otlp-sink", "--replicas=1")
     rollout("deployments", "otlp-sink", NAMESPACE)
-    wait("queued events survive destination failure", lambda: f"platform-queued-{MARKER}" in json.dumps(log_records(sink_documents())))
+    wait("queued events survive destination failure and collector pod replacement", lambda: f"platform-queued-{MARKER}" in json.dumps(log_records(sink_documents())))
     wait("replayed metrics retain timestamps from the outage", lambda: any(cutoff < int(point.get("timeUnixNano", 0)) < recovery for _, _, point in metric_points(sink_documents())))
     assert f"tenant-before-{MARKER}" not in json.dumps(sink_documents())
     assert not any(attrs.get("k8s.namespace.name") == TENANT_NAMESPACE for _, attrs, _ in metric_points(sink_documents()))
-    run("docker", "run", "--detach", "--name", CLICKHOUSE, "--label", f"loco.metrics-test={RUN}", "--network", "kind", "--env", f"CLICKHOUSE_PASSWORD={TOKEN}", "--env", "CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1", clickhouse_ref)
-    wait("ClickHouse responds", lambda: clickhouse_query("SELECT 1") == "1")
-    install_collectors("clickhouse")
-    wait("actual cluster metrics reach ClickHouse", lambda: int(clickhouse_query(f"SELECT count() FROM {DATABASE}.otel_metrics_gauge WHERE MetricName = 'k8s.deployment.available' AND ResourceAttributes['loco.telemetry.scope'] = 'platform'")) > 0)
-    wait("actual node usage reaches ClickHouse", lambda: int(clickhouse_query(f"SELECT count() FROM {DATABASE}.otel_metrics_sum WHERE MetricName = 'system.cpu.time' AND ResourceAttributes['k8s.cluster.name'] = '{CLUSTER}'")) > 0)
-    event(f"platform-clickhouse-{MARKER}", NAMESPACE)
-    wait("Kubernetes events reach ClickHouse", lambda: int(clickhouse_query(f"SELECT count() FROM {DATABASE}.otel_logs WHERE Body LIKE '%platform-clickhouse-{MARKER}%'")) > 0)
-    (RUN_DIR / "result.txt").write_text("PASS: real Kubernetes node/cluster metrics, scoped events, Secret-backed OTLP, ClickHouse and outage replay timestamps\n")
+    (RUN_DIR / "result.txt").write_text("PASS: real Kubernetes node/cluster metrics, scoped events, Secret-backed bearer token OTLP, and outage replay across collector pod replacement\n")
 
 
 def main():
@@ -222,14 +206,13 @@ def main():
         execute()
     except Exception:
         diagnostics = kube("get", "pods", "-A", "-o", "wide", check=False)
-        for namespace_name, workload in ((NAMESPACE, "deployment/otel-col-cluster"), (NODE_NAMESPACE, "daemonset/otel-col-daemon-agent"), (NAMESPACE, "deployment/otlp-sink")):
+        for namespace_name, workload in ((NAMESPACE, "statefulset/otel-col-cluster"), (NODE_NAMESPACE, "daemonset/otel-col-daemon-agent"), (NAMESPACE, "deployment/otlp-sink")):
             diagnostics += "\n" + kube("-n", namespace_name, "logs", workload, "--tail=80", check=False)
         (RUN_DIR / "diagnostics.txt").write_text(diagnostics)
         print(f"Diagnostics: {RUN_DIR / 'diagnostics.txt'}", flush=True)
         raise
     finally:
         if not options.no_teardown:
-            run("docker", "rm", "--force", CLICKHOUSE, check=False)
             for attempt in range(2):
                 try:
                     run("kind", "delete", "cluster", "--name", CLUSTER)

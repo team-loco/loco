@@ -5,7 +5,7 @@ from test_platform_contracts import collector_relays, render_chart
 
 @pytest.mark.parametrize("name,kind,namespace,key", [
     ("otel-col-daemon", "DaemonSet", "observability-node", "config"),
-    ("otel-col-cluster", "Deployment", "platform-test", "alternateConfig"),
+    ("otel-col-cluster", "StatefulSet", "platform-test", "alternateConfig"),
 ])
 def test_collector_config_changes_roll_pods_and_match_mounted_config(name, kind, namespace, key):
     checksums = []

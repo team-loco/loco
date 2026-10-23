@@ -50,7 +50,7 @@ services:
     metrics: { port: 9090, path: /metrics }
 ```
 
-The endpoint serves Prometheus or OpenMetrics exposition. The collector converts samples into OpenTelemetry metrics and stores them in the regional ClickHouse database. Loco runs no Prometheus server. Query these metrics through the regional API, like metrics pushed over OTLP. Applications can continue to push OTLP without declaring this field; avoid exporting the same metric through both paths.
+The endpoint serves Prometheus or OpenMetrics exposition. The collector converts samples into OpenTelemetry metrics and exports them to the control plane, which stores them in ClickHouse. Loco runs no Prometheus server. Query these metrics through the regional API, like metrics pushed over OTLP. Applications can continue to push OTLP without declaring this field; avoid exporting the same metric through both paths.
 
 `port` is required and must be between 1024 and 65535. `path` defaults to `/metrics`. It must be an absolute path without a query or fragment. The collector uses HTTP to reach the pod directly, so a metrics endpoint needs no public domain or Kubernetes Service port. Each node's collector discovers only its own pods. Workspace and resource attribution comes from Kubernetes metadata.
 

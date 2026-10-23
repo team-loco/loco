@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Boot ClickHouse with the users and config the loco-obs chart renders, apply the schema with the observability proxy, send logs, metrics and traces through the collector, check that every table expires its rows, and check that ClickHouse keeps no profiler logs and no query log rows for the collectors"
+#MISE description="Boot ClickHouse with the users and config the loco-control-plane chart renders, apply the schema with the observability proxy query role, send logs, metrics and traces through the collector's rendered OTLP/HTTP exporter to the proxy ingest role, check that the collectors export traces over OTLP/HTTP, check that every table expires its rows, and check that ClickHouse keeps no profiler logs and no query log rows for the ingest user"
 #MISE depends=["helm:deps"]
 set -euo pipefail
 
@@ -9,20 +9,19 @@ environment_id=retention-environment
 resource_id=retention-resource
 
 for name in otel-col-deploy otel-col-daemon-agent; do
-	config=$(collector_config "$name")
-	[ "$(yq '.exporters.clickhouse.create_schema' <<<"$config")" = false ] || fail "$name creates the schema itself"
-	[ "$(yq '.exporters.clickhouse.database' <<<"$config")" = "$database" ] || fail "$name does not write to $database"
-	yq -e '.service.pipelines.traces.exporters[] | select(. == "clickhouse")' <<<"$config" >/dev/null ||
-		fail "$name does not export traces to ClickHouse"
+	yq -e '.service.pipelines.traces.exporters[] | select(. == "otlp_http")' <<<"$(collector_config "$name")" >/dev/null ||
+		fail "$name does not export traces over OTLP/HTTP"
 done
 
-EXPORTER=$(clickhouse_exporter otel-col-deploy) yq -n '
-	.receivers.otlp.protocols.http.endpoint = "0.0.0.0:4318" |
-	.exporters.clickhouse = (strenv(EXPORTER) | from_json) |
-	.service.pipelines.logs = {"receivers": ["otlp"], "exporters": ["clickhouse"]} |
-	.service.pipelines.metrics = {"receivers": ["otlp"], "exporters": ["clickhouse"]} |
-	.service.pipelines.traces = {"receivers": ["otlp"], "exporters": ["clickhouse"]}
-' >"$workdir/collector.yaml"
+collector_config otel-col-deploy | yq '{
+	"receivers": {"otlp": {"protocols": {"http": {"endpoint": "0.0.0.0:4318"}}}},
+	"exporters": .exporters,
+	"extensions": .extensions,
+	"service": {"pipelines": {
+		"logs": {"receivers": ["otlp"], "exporters": ["otlp_http"]},
+		"metrics": {"receivers": ["otlp"], "exporters": ["otlp_http"]},
+		"traces": {"receivers": ["otlp"], "exporters": ["otlp_http"]}}}
+}' | exporter_extensions >"$workdir/collector.yaml"
 start_collector collector "$workdir/collector.yaml"
 otlp=$(otlp_endpoint collector)
 
@@ -63,7 +62,7 @@ otel_tables="otel_logs otel_traces otel_traces_trace_id_ts otel_metrics_gauge ot
 for table in $otel_tables; do
 	tenant_rows="SELECT count() FROM $database.$table WHERE WorkspaceId = '$workspace_id' AND EnvironmentId = '$environment_id' AND ResourceId = '$resource_id'"
 	if ! wait_for "A row in $database.$table" has_rows "$tenant_rows"; then
-		fail "the collector did not insert into $database.$table with its tenancy columns set"
+		fail "the ingest proxy did not insert into $database.$table with its tenancy columns set"
 	fi
 done
 
@@ -74,7 +73,6 @@ for table in trace_log processors_profile_log; do
 done
 [ "$(query "SELECT value FROM system.server_settings WHERE name = 'asynchronous_metrics_update_period_s'")" = 60 ] ||
 	fail "ClickHouse updates its asynchronous metrics more often than every 60s"
-ingest_user=$(collector_config otel-col-deploy | yq '.exporters.clickhouse.username')
 logged_queries=$(query "SELECT count() FROM system.query_log WHERE user = '$ingest_user'")
 [ "$logged_queries" = 0 ] || fail "system.query_log records $logged_queries queries from $ingest_user"
 
@@ -98,7 +96,8 @@ done
 
 if [ "$failures" -gt 0 ]; then
 	collector_logs collector
+	proxy_logs
 	echo "$failures check(s) failed"
 	exit 1
 fi
-echo "the proxy created the schema, the collector inserted logs, metrics and traces, and every system log and telemetry table has a TTL"
+echo "the proxy created the schema, the collector exported logs, metrics and traces to the ingest proxy, which inserted them, and every system log and telemetry table has a TTL"

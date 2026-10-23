@@ -21,8 +21,9 @@ if pgrep -f "$tilt_pattern" >/dev/null; then
 	fi
 fi
 
-echo "stopping the compose services..."
+echo "stopping the compose services and ClickHouse..."
 docker compose stop
+docker stop "$CLICKHOUSE_CONTAINER" >/dev/null 2>&1 || true
 
 nodes=$(kind get nodes --name "$name" 2>/dev/null)
 if [ -n "$nodes" ]; then

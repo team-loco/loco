@@ -43,6 +43,13 @@ api:
 gatewayNamespace: loco-system
 controlPlaneHostname: api.loco.build
 
+gateway:
+  create: true
+  name: loco-control-plane
+  className: loco-control-plane
+  service: {}
+  tlsSecretName: ""
+
 obsProxy:
   enabled: true
   image:
@@ -81,7 +88,135 @@ obsProxy:
     port: 8080
     grpcPort: 4317
     httpPort: 4318
+    hostname: ""
     clickhouse:
       existingSecret:
         name: ""
         key: url
+
+clickhouse:
+  enabled: false
+  nameOverride: "clickhouse"
+  operator:
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 65534
+      runAsGroup: 65534
+      seccompProfile:
+        type: RuntimeDefault
+    operator:
+      containerSecurityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+    metrics:
+      containerSecurityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+    crdHook:
+      podSecurityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      containerSecurityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+  clickhouse:
+    image:
+      repository: altinity/clickhouse-server
+      tag: "26.3.33.10001.altinitystable@sha256:5bd62b50208bae1d065de7685b0b0a1812f267d1a179aabb15f97c78aed47d1a"
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 101
+      runAsGroup: 101
+      fsGroup: 101
+      seccompProfile:
+        type: RuntimeDefault
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+    antiAffinity: true
+    resources:
+      requests:
+        cpu: "1"
+        memory: 4Gi
+      limits:
+        cpu: "2"
+        memory: 4Gi
+    persistence:
+      enabled: true
+      storageClass: ""
+    systemLogRetentionDays: 3
+    keeperConfig: |
+      <keeper_server>
+        <tcp_port>9181</tcp_port>
+        <server_id>1</server_id>
+        <log_storage_path>/var/lib/clickhouse/coordination/log</log_storage_path>
+        <snapshot_storage_path>/var/lib/clickhouse/coordination/snapshots</snapshot_storage_path>
+        <raft_configuration>
+          <server>
+            <id>1</id>
+            <hostname>localhost</hostname>
+            <port>9234</port>
+          </server>
+        </raft_configuration>
+      </keeper_server>
+      <zookeeper>
+        <node>
+          <host>localhost</host>
+          <port>9181</port>
+        </node>
+      </zookeeper>
+      <keeper_map_path_prefix>/keeper_map_tables</keeper_map_path_prefix>
+    extraConfig: |
+      <clickhouse>
+        {{- $.Values.clickhouse.keeperConfig | nindent 2 }}
+        <logger>
+          <level>information</level>
+        </logger>
+        {{- range list "query_log" "part_log" }}
+        <{{ . }} replace="1">
+          <database>system</database>
+          <table>{{ . }}</table>
+          <partition_by>event_date</partition_by>
+          <ttl>event_date + INTERVAL {{ $.Values.clickhouse.systemLogRetentionDays }} DAY DELETE</ttl>
+          <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+        </{{ . }}>
+        {{- end }}
+        <query_thread_log remove="1"/>
+        <trace_log remove="1"/>
+        <processors_profile_log remove="1"/>
+        <asynchronous_metrics_update_period_s>60</asynchronous_metrics_update_period_s>
+        <opentelemetry_span_log remove="1"/>
+        {{- range list "text_log" "metric_log" "asynchronous_metric_log" "error_log" "latency_log" "query_metric_log" "query_views_log" "asynchronous_insert_log" "s3queue_log" "backup_log" "crash_log" "background_schedule_pool_log" "delta_lake_metadata_log" "iceberg_metadata_log" }}
+        <{{ . }}>
+          <ttl>event_date + INTERVAL {{ $.Values.clickhouse.systemLogRetentionDays }} DAY DELETE</ttl>
+        </{{ . }}>
+        {{- end }}
+      </clickhouse>
+    users:
+      - name: loco_migrator
+        password_secret_name: loco-clickhouse-migrator
+        grants:
+          - "GRANT ALL ON loco_obs.*"
+      - name: loco_ingest
+        password_secret_name: loco-clickhouse-ingest
+        grants:
+          - "GRANT INSERT, SHOW COLUMNS ON loco_obs.*"
+      - name: loco_reader
+        password_secret_name: loco-clickhouse-reader
+        grants:
+          - "GRANT SELECT ON loco_obs.*"
+
+clickhouseUserPasswords:
+  loco_migrator: ""
+  loco_ingest: ""
+  loco_reader: ""

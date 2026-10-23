@@ -26,6 +26,8 @@ STACK_NAMES = (
     "DEX_PORT",
     "TILT_PORT",
     "WEB_PORT",
+    "OBS_OTLP_GRPC_PORT",
+    "OBS_OTLP_HTTP_PORT",
     "APP_PORT",
     "PUBLIC_API_URL",
     "WEB_URL",
@@ -155,6 +157,8 @@ def test_worktrees_get_their_own_names_and_ports(local_stack):
         "DEX_PORT",
         "TILT_PORT",
         "WEB_PORT",
+        "OBS_OTLP_GRPC_PORT",
+        "OBS_OTLP_HTTP_PORT",
     )
     used = [stack[name] for stack in (main, first, second) for name in ports]
     used += [stack["APP_PORT"] for stack in (main, first, second)]

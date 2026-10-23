@@ -7,12 +7,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 )
 
 var errTableMissing = errors.New("table does not exist")
 
 func missingTable(ctx context.Context, conn driver.Conn, database string, tables []string) error {
+	settings := clickhouse.Settings{logQueriesParam: logQueriesDisable}
+	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(settings))
 	for _, table := range tables {
 		var exists uint8
 		query := fmt.Sprintf("EXISTS TABLE %s.%s", database, table)

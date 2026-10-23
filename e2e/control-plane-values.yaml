@@ -1,0 +1,51 @@
+controlPlaneHostname: api.e2e.test.local
+gatewayNamespace: loco-control-plane
+gateway:
+  service:
+    type: NodePort
+    externalTrafficPolicy: Cluster
+    patch:
+      type: StrategicMerge
+      value:
+        spec:
+          ports:
+            - port: 80
+              nodePort: 30080
+ui:
+  hostname: app.e2e.test.local
+  image:
+    repository: loco-ui
+    tag: e2e
+  imagePullPolicy: Never
+api:
+  image:
+    repository: loco-api
+    tag: e2e
+  imagePullPolicy: Never
+  existingSecret: api-env
+  replicaCount: 2
+obsProxy:
+  image:
+    repository: loco-obs-proxy
+    tag: e2e
+  imagePullPolicy: Never
+  ingest:
+    enabled: true
+    hostname: ingest.e2e.test.local
+clickhouse:
+  enabled: true
+  clickhouse:
+    resources:
+      requests:
+        cpu: 250m
+        memory: 1Gi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+    settings:
+      mark_cache_size: "67108864"
+      index_mark_cache_size: "67108864"
+      primary_index_cache_size: "67108864"
+      uncompressed_cache_size: "0"
+      background_schedule_pool_size: "16"
+      max_concurrent_queries: "100"

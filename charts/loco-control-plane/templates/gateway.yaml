@@ -1,0 +1,71 @@
+{{- if .Values.gateway.create }}
+{{- $listeners := list }}
+{{- if .Values.ui.enabled }}
+{{- $listeners = append $listeners (dict "name" "ui" "hostname" .Values.ui.hostname) }}
+{{- end }}
+{{- if or (not .Values.ui.enabled) (ne .Values.ui.hostname .Values.controlPlaneHostname) }}
+{{- $listeners = append $listeners (dict "name" "api" "hostname" .Values.controlPlaneHostname) }}
+{{- end }}
+{{- if include "loco-control-plane.ingestRouted" . }}
+{{- $listeners = append $listeners (dict "name" "ingest" "hostname" .Values.obsProxy.ingest.hostname) }}
+{{- end }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: {{ .Values.gateway.className }}
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: {{ .Values.gateway.name }}
+  namespace: {{ .Values.gatewayNamespace }}
+spec: {{ if not .Values.gateway.service }}{}{{ end }}
+  {{- with .Values.gateway.service }}
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyService:
+        {{- toYaml . | nindent 8 }}
+  {{- end }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ .Values.gateway.name }}
+  namespace: {{ .Values.gatewayNamespace }}
+spec:
+  gatewayClassName: {{ .Values.gateway.className }}
+  infrastructure:
+    parametersRef:
+      group: gateway.envoyproxy.io
+      kind: EnvoyProxy
+      name: {{ .Values.gateway.name }}
+  listeners:
+    {{- range $listeners }}
+    {{- if $.Values.gateway.tlsSecretName }}
+    - name: https-{{ .name }}
+      hostname: {{ .hostname | quote }}
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: {{ $.Values.gateway.tlsSecretName }}
+            kind: Secret
+            group: ""
+    {{- else }}
+    - name: http-{{ .name }}
+      hostname: {{ .hostname | quote }}
+      protocol: HTTP
+      port: 80
+    {{- end }}
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $.Release.Namespace }}
+    {{- end }}
+{{- end }}

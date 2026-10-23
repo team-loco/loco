@@ -19,15 +19,13 @@ def test_platform_collection_is_opt_in():
         assert "metrics/platform" not in config["service"]["pipelines"]
 
 
-@pytest.mark.parametrize("destination", ["clickhouse", "otlp_http"])
-def test_platform_metrics_have_a_separate_configurable_destination(destination):
-    values = configured(destination=destination, otlp={"endpoint": "https://metrics.example.test"})
-    configs = collector_relays(render_chart("loco-obs", values))
+def test_platform_metrics_share_the_cluster_exporter():
+    configs = collector_relays(render_chart("loco-obs", configured()))
     for name in ("otel-col-daemon-agent", "otel-col-cluster"):
         config = configs[name]
         pipeline = config["service"]["pipelines"]["metrics/platform"]
-        assert pipeline["exporters"] == [f"{destination}/platform"]
-        assert config["service"]["pipelines"]["metrics"]["exporters"] == ["clickhouse"]
+        assert pipeline["exporters"] == ["otlp_http"]
+        assert config["service"]["pipelines"]["metrics"]["exporters"] == ["otlp_http"]
         assert "filter/platform" in pipeline["processors"]
         assert "resource/platform" in pipeline["processors"]
     assert "metrics/platform" not in configs["otel-col-deploy"]["service"]["pipelines"]
@@ -40,30 +38,18 @@ def test_platform_identity_is_required(field):
     assert field in result.stderr
 
 
-def test_otlp_requires_a_destination():
-    result = render_chart("loco-obs", configured(destination="otlp_http"), check=False)
-    assert result.returncode != 0
-    assert "endpoint" in result.stderr
-
-
-def test_invalid_destination_fails_rendering():
-    result = render_chart("loco-obs", configured(destination="unrecognized"), check=False)
-    assert result.returncode != 0
-    assert "destination" in result.stderr
-
-
-def test_platform_only_otlp_does_not_require_clickhouse():
-    values = configured(platformOnly=True, destination="otlp_http", otlp={"endpoint": "https://metrics.example.test"})
-    values.update({"clickhouse": {"enabled": False}, "otel-col-deploy": {"enabled": False}})
+def test_platform_only_keeps_only_platform_pipelines():
+    values = configured(platformOnly=True)
+    values.update({"otel-col-deploy": {"enabled": False}})
     configs = collector_relays(render_chart("loco-obs", values))
     for config in configs.values():
         assert set(config["service"]["pipelines"]) <= {"metrics/platform", "logs/platform"}
-        assert set(config["exporters"]) == {"otlp_http/platform"}
+        assert set(config["exporters"]) == {"otlp_http"}
 
 
 def test_application_pipelines_keep_their_configuration():
     original = collector_relays(render_chart("loco-obs", {}))
-    enabled = collector_relays(render_chart("loco-obs", configured(destination="otlp_http", otlp={"endpoint": "https://metrics.example.test"})))
+    enabled = collector_relays(render_chart("loco-obs", configured()))
     for name, config in original.items():
         for pipeline, settings in config["service"]["pipelines"].items():
             assert enabled[name]["service"]["pipelines"][pipeline] == settings
@@ -89,7 +75,7 @@ def test_changing_platform_settings_restarts_the_collectors():
     checksums = []
     for interval in ("30s", "60s"):
         workloads = [document for document in render_chart("loco-obs", configured(collectionInterval=interval))
-                     if document["kind"] in ("DaemonSet", "Deployment") and document["metadata"]["name"] in ("otel-col-daemon-agent", "otel-col-cluster")]
+                     if document["kind"] in ("DaemonSet", "StatefulSet") and document["metadata"]["name"] in ("otel-col-daemon-agent", "otel-col-cluster")]
         checksums.append({document["metadata"]["name"]: document["spec"]["template"]["metadata"]["annotations"]["checksum/platform-telemetry"] for document in workloads})
     assert checksums[0].keys() == checksums[1].keys()
     assert all(checksums[0][name] != checksums[1][name] for name in checksums[0])
