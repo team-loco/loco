@@ -1,0 +1,21 @@
+{{- if and .Values.obsProxy.enabled .Values.obsProxy.ingest.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-obs-proxy-ingest
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    app: {{ .Release.Name }}-obs-proxy-ingest
+  type: ClusterIP
+  ports:
+    - name: otlp-grpc
+      protocol: TCP
+      appProtocol: grpc
+      port: {{ .Values.obsProxy.ingest.grpcPort }}
+      targetPort: otlp-grpc
+    - name: otlp-http
+      protocol: TCP
+      port: {{ .Values.obsProxy.ingest.httpPort }}
+      targetPort: otlp-http
+{{- end }}

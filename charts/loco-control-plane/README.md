@@ -69,7 +69,7 @@ The dashboard serves its API at `/api` on the dashboard's own origin. Its HTTPRo
 
 API routes retry once when a connection fails before the upstream handles the request (`connect-failure`, `reset-before-request`, or `refused-stream`). This allows an available alternate API replica to handle the request during endpoint withdrawal. Handled HTTP errors are not retried. The policy targets only named API rules, including the dashboard’s `/api` rule; dashboard routes and streaming timeouts remain unchanged. The retry is bounded and can still fail, including when a healthy alternate replica exists.
 
-The observability proxy exposes only a ClusterIP Service. Its ingress policy permits API pods, and its permission checks use the chart's private API Service. No public observability route or cluster endpoint discovery is required.
+`obsProxy.enabled: false` renders no proxy resources and leaves `OBSERVABILITY_PROXY_URL` unset, so the API answers observability requests with `Unavailable`. `obsProxy.ingest.enabled: true` adds an OTLP ingest Deployment and Service from the proxy image, with the `loco_ingest` DSN in `obsProxy.ingest.clickhouse.existingSecret`; only pods in the release namespace can reach it. The observability proxy exposes only a ClusterIP Service. Its ingress policy permits API pods, and its permission checks use the chart's private API Service. No public observability route or cluster endpoint discovery is required.
 
 Validate rendering and a Kubernetes installation with:
 

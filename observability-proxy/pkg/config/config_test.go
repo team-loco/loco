@@ -15,6 +15,7 @@ const (
 	testInterval    = 5 * time.Second
 	testLockTTL     = 15 * time.Second
 	testLockRetry   = 2 * time.Second
+	testIngestURL   = "clickhouse://loco_ingest@clickhouse:9000"
 )
 
 func setRequiredEnv(t *testing.T) {
@@ -111,16 +112,22 @@ func TestLoadPanicsWithoutRequiredSettings(t *testing.T) {
 
 func TestLoadPanicsOnInvalidValues(t *testing.T) {
 	invalid := map[string][]string{
-		"CLICKHOUSE_DB":               {"loco-obs", "loco_obs; DROP", "1loco"},
-		"CLICKHOUSE_LOGS_TTL":         {"30d", "-1h", "0s", "1500ms"},
-		"CLICKHOUSE_TRACES_TTL":       {"forever"},
-		"CLICKHOUSE_METRICS_TTL":      {"-24h"},
-		"MIGRATION_RETRY_BUDGET":      {"0s", "soon"},
-		"MIGRATION_RETRY_INTERVAL":    {"-5s"},
-		"PORT":                        {"eighty"},
-		"MAX_LIMIT":                   {"10k"},
-		"MIGRATION_LOCK_TTL":          {"0s", "3s", "soon"},
-		"MIGRATION_LOCK_RETRY_PERIOD": {"-1s", "8s"},
+		"CLICKHOUSE_DB":                  {"loco-obs", "loco_obs; DROP", "1loco"},
+		"CLICKHOUSE_LOGS_TTL":            {"30d", "-1h", "0s", "1500ms"},
+		"CLICKHOUSE_TRACES_TTL":          {"forever"},
+		"CLICKHOUSE_METRICS_TTL":         {"-24h"},
+		"MIGRATION_RETRY_BUDGET":         {"0s", "soon"},
+		"MIGRATION_RETRY_INTERVAL":       {"-5s"},
+		"PORT":                           {"eighty"},
+		"MAX_LIMIT":                      {"10k"},
+		"MIGRATION_LOCK_TTL":             {"0s", "3s", "soon"},
+		"MIGRATION_LOCK_RETRY_PERIOD":    {"-1s", "8s"},
+		"QUERY_ENABLED":                  {"maybe"},
+		"INGEST_ENABLED":                 {"yes please"},
+		"OTLP_GRPC_PORT":                 {"grpc"},
+		"OTLP_MAX_REQUEST_BYTES":         {"0", "-1"},
+		"CLICKHOUSE_INGEST_TIMEOUT":      {"0s"},
+		"CLICKHOUSE_INGEST_DIAL_TIMEOUT": {"later"},
 	}
 	for name, values := range invalid {
 		for _, value := range values {
@@ -185,4 +192,41 @@ func TestCORSOrigins(t *testing.T) {
 	if origins := Load().CORSAllowedOrigins; len(origins) != 0 {
 		t.Fatalf("empty allowlist = %v", origins)
 	}
+}
+
+func TestLoadRoles(t *testing.T) {
+	t.Run("query only by default", func(t *testing.T) {
+		setRequiredEnv(t)
+		cfg := Load()
+		if !cfg.QueryEnabled || cfg.IngestEnabled {
+			t.Fatalf("QueryEnabled, IngestEnabled = %t, %t, want true, false", cfg.QueryEnabled, cfg.IngestEnabled)
+		}
+	})
+	t.Run("ingest only needs no migrator", func(t *testing.T) {
+		t.Setenv("QUERY_ENABLED", "false")
+		t.Setenv("INGEST_ENABLED", "true")
+		t.Setenv("CLICKHOUSE_INGEST_URL", testIngestURL)
+		t.Setenv("CLICKHOUSE_DB", testDatabase)
+		cfg := Load()
+		if cfg.ClickHouseMigratorURL != "" {
+			t.Fatalf("ClickHouseMigratorURL = %q, want none", cfg.ClickHouseMigratorURL)
+		}
+		ingest := cfg.Ingest("test")
+		if ingest.DSN != testIngestURL || ingest.Database != testDatabase {
+			t.Fatalf("Ingest() DSN, Database = %q, %q", ingest.DSN, ingest.Database)
+		}
+		if cfg.OTLPGRPCPort != defaultOTLPGRPCPort || cfg.OTLPHTTPPort != defaultOTLPHTTPPort {
+			t.Fatalf("OTLP ports = %d, %d", cfg.OTLPGRPCPort, cfg.OTLPHTTPPort)
+		}
+	})
+	t.Run("ingest requires its DSN", func(t *testing.T) {
+		setRequiredEnv(t)
+		t.Setenv("INGEST_ENABLED", "true")
+		expectPanic(t, "CLICKHOUSE_INGEST_URL")
+	})
+	t.Run("a role is required", func(t *testing.T) {
+		setRequiredEnv(t)
+		t.Setenv("QUERY_ENABLED", "false")
+		expectPanic(t, "QUERY_ENABLED")
+	})
 }

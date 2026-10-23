@@ -40,6 +40,7 @@ gatewayNamespace: loco-system
 controlPlaneHostname: api.loco.build
 
 obsProxy:
+  enabled: true
   cors:
     allowedOrigins: []
   image:
@@ -62,3 +63,19 @@ obsProxy:
     migratorExistingSecret:
       name: ""
       key: url
+  ingest:
+    enabled: false
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+    grpcPort: 4317
+    httpPort: 4318
+    clickhouse:
+      existingSecret:
+        name: ""
+        key: url

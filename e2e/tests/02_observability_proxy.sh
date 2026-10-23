@@ -77,3 +77,26 @@ test_p05_browser_preflight_and_error_responses() {
         -H 'Origin: https://other.e2e.test' -H 'Access-Control-Request-Method: POST')
     assert "Other origins are excluded" bash -c '[[ "$1" != *"Access-Control-Allow-Origin:"* ]]' _ "$headers"
 }
+
+otlp_logs_url="http://127.0.0.1:${E2E_OTLP_HTTP_PORT}/v1/logs"
+
+otlp_logs_body() {
+    local workspace_id=$1 body=$2
+    printf '{"resourceLogs":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"e2e-ingest"}},{"key":"loco.workspace.id","value":{"stringValue":"%s"}}]},"scopeLogs":[{"logRecords":[{"timeUnixNano":"%s000000000","severityText":"INFO","body":{"stringValue":"%s"}}]}]}]}' \
+        "$workspace_id" "$(date -u +%s)" "$body"
+}
+
+test_p06_otlp_ingest_is_queryable() {
+    local token marker status response
+    marker="e2e-otlp-ingest-$(openssl rand -hex 4)"
+    status=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$otlp_logs_url" \
+        -H 'Content-Type: application/json' -d "$(otlp_logs_body "$cli_workspace_id" "$marker")")
+    assert "OTLP/HTTP JSON logs are accepted (HTTP ${status})" test "$status" = 200
+    status=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$otlp_logs_url" \
+        -H 'Content-Type: application/json' -d '{"resourceLogs":')
+    assert "An undecodable OTLP request is rejected as permanent (HTTP ${status})" test "$status" = 400
+    token=$(mint_api_token "$(proxy_token_name ingest)" ENTITY_TYPE_WORKSPACE "$cli_workspace_id" SCOPE_READ)
+    response=$(curl -s -X POST "$proxy_query_logs" -H 'Content-Type: application/json' \
+        -H "Authorization: Bearer ${token}" -d "$(proxy_logs_body "$cli_workspace_id")")
+    assert "QueryLogs returns the record written through OTLP ingest" bash -c '[[ "$1" == *"$2"* ]]' _ "$response" "$marker"
+}

@@ -15,6 +15,7 @@ var (
 	errInvalidOrigin   = errors.New("must contain only HTTP or HTTPS origins")
 	errMissing         = errors.New("is required")
 	errInvalidInt      = errors.New("is not an integer")
+	errInvalidBool     = errors.New("is not a boolean")
 	errInvalidDuration = errors.New("is not a duration")
 	errNotPositive     = errors.New("must be positive")
 	errFractional      = errors.New("must be a whole number of seconds")
@@ -54,6 +55,26 @@ func intEnv(name string, fallback int) int {
 	parsed, err := strconv.Atoi(raw)
 	if err != nil {
 		panic(fmt.Errorf("%s %q %w", name, raw, errInvalidInt))
+	}
+	return parsed
+}
+
+func positiveIntEnv(name string, fallback int) int {
+	value := intEnv(name, fallback)
+	if value <= 0 {
+		panic(fmt.Errorf("%s %d %w", name, value, errNotPositive))
+	}
+	return value
+}
+
+func boolEnv(name string, fallback bool) bool {
+	raw := os.Getenv(name)
+	if raw == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseBool(raw)
+	if err != nil {
+		panic(fmt.Errorf("%s %q %w", name, raw, errInvalidBool))
 	}
 	return parsed
 }

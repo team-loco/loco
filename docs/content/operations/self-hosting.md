@@ -31,9 +31,11 @@ Set `DATABASE_LISTEN_URL` to a direct PostgreSQL or session-pooler URL when `DAT
 
 The cluster needs Cilium, Envoy Gateway, cert-manager, and the Loco controller. Each cluster runs the OpenTelemetry collectors and, by default, ClickHouse from the `loco-obs` chart. The observability proxy runs on the control plane. `charts/loco-control-plane` holds its Kubernetes manifests; that chart is a work in progress, and no Helmfile release, platform bundle or published release ships it. The charts and environment values define their configuration.
 
-Set `obsProxy.controlPlane.url` in the `loco-control-plane` values, or `CONTROL_PLANE_URL` for a standalone proxy, to an API URL the proxy can reach.
+The `loco-control-plane` chart points the proxy at its own API Service; a standalone proxy reads the API URL from `CONTROL_PLANE_URL`.
 
 The observability proxy reports ready once its ClickHouse migrations complete and a database ping succeeds.
+
+Set `obsProxy.enabled: false` to install the control plane without the proxy. The API then answers observability requests with `Unavailable`, and the dashboard's logs, traces and metrics show their error state. Set `obsProxy.ingest.enabled: true` to run OTLP ingest as a separate Deployment of the proxy image, scaled by `obsProxy.ingest.replicaCount`, with the `loco_ingest` URL in the Secret named by `obsProxy.ingest.clickhouse.existingSecret`. Its Service serves OTLP/gRPC on `obsProxy.ingest.grpcPort` (4317) and OTLP/HTTP on `obsProxy.ingest.httpPort` (4318) to pods in the control-plane namespace only. A standalone proxy enables the roles with `QUERY_ENABLED` and `INGEST_ENABLED` and reads `CLICKHOUSE_INGEST_URL`, `OTLP_GRPC_PORT`, `OTLP_HTTP_PORT`, `OTLP_MAX_REQUEST_BYTES` (4 MiB), `CLICKHOUSE_INGEST_TIMEOUT` (5s) and `CLICKHOUSE_INGEST_DIAL_TIMEOUT` (10s). Ingest pods report ready once the query role's migrations have created the tables.
 
 The proxy authenticates each query's permission check with the query's bearer token. Signed OIDC sessions and Loco API or session tokens use the API's authentication path and require read access to the requested workspace. Permission results use the proxy's configured cache lifetime.
 

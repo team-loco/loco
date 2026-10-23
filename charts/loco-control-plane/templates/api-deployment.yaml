@@ -37,8 +37,10 @@ spec:
             {{- end }}
             - name: APP_PORT
               value: {{ printf "0.0.0.0:%v" .Values.api.port | quote }}
+            {{- if .Values.obsProxy.enabled }}
             - name: OBSERVABILITY_PROXY_URL
               value: {{ include "loco-control-plane.obsProxyURL" . | quote }}
+            {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.api.port }}
