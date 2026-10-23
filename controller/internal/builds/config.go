@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/netip"
 	"time"
 
@@ -29,6 +30,8 @@ var (
 	errWorkspaceTooSmall = errors.New("storage.workspace must be at least maxContextSize")
 	errOutTooSmall       = errors.New("storage.out must be at least maxImageSize")
 	errNoStorage         = errors.New("storage.cache and storage.buildkit must be positive")
+	errEgressPort        = errors.New("port must be between 1 and 65535")
+	errEgressDuplicate   = errors.New("duplicate entry")
 )
 
 type Image struct {
@@ -42,6 +45,11 @@ func (i Image) Reference() string {
 		return i.Repository
 	}
 	return i.Repository + ":" + i.Tag
+}
+
+type PrivateEgress struct {
+	CIDR string `json:"cidr"`
+	Port int32  `json:"port"`
 }
 
 type Resources struct {
@@ -70,7 +78,7 @@ type Config struct {
 	MaxContextFiles         int                 `json:"maxContextFiles"`
 	MaxImageSize            resource.Quantity   `json:"maxImageSize"`
 	InsecureRegistry        bool                `json:"insecureRegistry"`
-	PrivateEgressCIDRs      []string            `json:"privateEgressCIDRs"`
+	PrivateEgress           []PrivateEgress     `json:"privateEgress"`
 	SeccompLocalhostProfile string              `json:"seccompLocalhostProfile"`
 	RuntimeClassName        string              `json:"runtimeClassName"`
 	NodeSelector            map[string]string   `json:"nodeSelector"`
@@ -127,10 +135,22 @@ func (c *Config) validate() error {
 	if c.Storage.Cache.Sign() <= 0 || c.Storage.Buildkit.Sign() <= 0 {
 		return errNoStorage
 	}
-	for _, cidr := range c.PrivateEgressCIDRs {
-		if _, err := netip.ParsePrefix(cidr); err != nil {
-			return fmt.Errorf("privateEgressCIDRs: %w", err)
+	return c.validatePrivateEgress()
+}
+
+func (c *Config) validatePrivateEgress() error {
+	seen := make(map[PrivateEgress]bool, len(c.PrivateEgress))
+	for i, entry := range c.PrivateEgress {
+		if _, err := netip.ParsePrefix(entry.CIDR); err != nil {
+			return fmt.Errorf("privateEgress[%d].cidr: %w", i, err)
 		}
+		if entry.Port < 1 || entry.Port > math.MaxUint16 {
+			return fmt.Errorf("privateEgress[%d]: %w", i, errEgressPort)
+		}
+		if seen[entry] {
+			return fmt.Errorf("privateEgress[%d]: %w", i, errEgressDuplicate)
+		}
+		seen[entry] = true
 	}
 	return nil
 }

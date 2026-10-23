@@ -81,9 +81,9 @@ func firstEnvTestBinaryDir() string {
 	return ""
 }
 
-func getPolicy(namespace, name string) *networkingv1.NetworkPolicy {
+func getPolicy(name string) *networkingv1.NetworkPolicy {
 	policy := &networkingv1.NetworkPolicy{}
-	key := client.ObjectKey{Namespace: namespace, Name: name}
+	key := client.ObjectKey{Namespace: testBuildNamespace, Name: name}
 	Expect(k8sClient.Get(ctx, key, policy)).To(Succeed())
 	return policy
 }

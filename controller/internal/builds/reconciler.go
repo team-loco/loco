@@ -18,6 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	corev1ac "k8s.io/client-go/applyconfigurations/core/v1"
 	networkingv1ac "k8s.io/client-go/applyconfigurations/networking/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -424,19 +425,18 @@ func (r *Reconciler) buildNetworkPolicies(
 		isolation.NamespacePolicy(isolation.PolicyDNSEgress, namespace, labels, dnsEgress),
 		isolation.NamespacePolicy(isolation.PolicyInternetEgress, namespace, labels, internetEgress),
 	)
-	if len(r.Config.PrivateEgressCIDRs) == 0 {
-		return policies
-	}
-	peers := make([]*networkingv1ac.NetworkPolicyPeerApplyConfiguration, 0, len(r.Config.PrivateEgressCIDRs))
-	for _, cidr := range r.Config.PrivateEgressCIDRs {
-		block := networkingv1ac.IPBlock().WithCIDR(cidr)
+	rules := make([]*networkingv1ac.NetworkPolicyEgressRuleApplyConfiguration, 0, len(r.Config.PrivateEgress))
+	for _, entry := range r.Config.PrivateEgress {
+		block := networkingv1ac.IPBlock().WithCIDR(entry.CIDR)
 		peer := networkingv1ac.NetworkPolicyPeer().WithIPBlock(block)
-		peers = append(peers, peer)
+		port := networkingv1ac.NetworkPolicyPort().
+			WithProtocol(corev1.ProtocolTCP).
+			WithPort(intstr.FromInt32(entry.Port))
+		rules = append(rules, networkingv1ac.NetworkPolicyEgressRule().WithTo(peer).WithPorts(port))
 	}
-	privateRule := networkingv1ac.NetworkPolicyEgressRule().WithTo(peers...)
 	privateEgress := networkingv1ac.NetworkPolicySpec().
 		WithPolicyTypes(networkingv1.PolicyTypeEgress).
-		WithEgress(privateRule)
+		WithEgress(rules...)
 	privatePolicy := isolation.NamespacePolicy(policyPrivateEgress, namespace, labels, privateEgress)
 	return append(policies, privatePolicy)
 }

@@ -1,28 +1,34 @@
 #!/usr/bin/env bash
-#MISE description="Print the kind network addresses of the compose registry and source bucket as CIDRs, the private addresses build pods may reach"
+#MISE description="Print builds.privateEgress as JSON: the kind network subnets on the registry and source bucket ports, taken from LOCO_REGISTRY_HOST and LOCO_SOURCE_BUCKET_ENDPOINT"
 set -euo pipefail
 
-project=${COMPOSE_PROJECT_NAME:?}
-format='{{with index .NetworkSettings.Networks "kind"}}{{.IPAddress}} {{.GlobalIPv6Address}}{{end}}'
+registry_host=${LOCO_REGISTRY_HOST:?}
+bucket_endpoint=${LOCO_SOURCE_BUCKET_ENDPOINT:?}
+network=kind
 
-cidrs=()
-for service in registry s3; do
-	container=$(docker ps -q \
-		--filter "label=com.docker.compose.project=$project" \
-		--filter "label=com.docker.compose.service=$service")
-	if [ -z "$container" ]; then
-		echo "the $project $service container is not running" >&2
+port_of() {
+	local port=${1##*:}
+	if [ "$port" = "$1" ] || ! [[ $port =~ ^[0-9]+$ ]]; then
+		echo "$2 has no port: $1" >&2
 		exit 1
 	fi
-	addresses=$(docker inspect -f "$format" "$container")
-	read -r ipv4 ipv6 <<<"$addresses" || true
-	if [ -z "${ipv4:-}" ]; then
-		echo "the $project $service container is not on the kind network; run mise run cluster:registry" >&2
-		exit 1
-	fi
-	cidrs+=("$ipv4/32")
-	if [ -n "${ipv6:-}" ]; then
-		cidrs+=("$ipv6/128")
-	fi
+	echo "$port"
+}
+
+registry_port=$(port_of "$registry_host" LOCO_REGISTRY_HOST)
+bucket_authority=${bucket_endpoint#*://}
+bucket_port=$(port_of "${bucket_authority%%/*}" LOCO_SOURCE_BUCKET_ENDPOINT)
+
+subnets=$(docker network inspect "$network" --format '{{range .IPAM.Config}}{{.Subnet}} {{end}}')
+if [ -z "${subnets// /}" ]; then
+	echo "the $network docker network has no subnets" >&2
+	exit 1
+fi
+
+entries=()
+for subnet in $subnets; do
+	for port in $(printf '%s\n' "$registry_port" "$bucket_port" | sort -un); do
+		entries+=("{\"cidr\":\"$subnet\",\"port\":$port}")
+	done
 done
-echo "${cidrs[*]}"
+(IFS=,; echo "[${entries[*]}]")

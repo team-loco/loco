@@ -270,3 +270,59 @@ test_b06_untrusted_build_finds_no_credentials() {
         grep -E 'PROBE-' "$builds_dir/e2e-probe.build.log" | sed 's/^/    /'
     fi
 }
+
+builds_probe_timeout=60
+builds_probe_connect_timeout=3
+builds_api_server_port=6443
+builds_policy_set="inet kindnet-network-policies podips-v4"
+
+policy_covers_pod() {
+    docker exec "${E2E_KIND_CLUSTER}-control-plane" nft list set $builds_policy_set | grep -qw "$1"
+}
+
+probe_tcp() {
+    local namespace=$1 host=$2 port=$3 name pod_ip result=0
+    name="tcp-probe-${RANDOM}"
+    bk -n "$namespace" apply -f - >/dev/null <<YAML
+apiVersion: v1
+kind: Pod
+metadata:
+  name: $name
+spec:
+  terminationGracePeriodSeconds: 0
+  automountServiceAccountToken: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65534
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: probe
+      image: $E2E_PUBLIC_IMAGE
+      command: ["sleep", "$builds_probe_timeout"]
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+YAML
+    bk -n "$namespace" wait --for=condition=Ready "pod/$name" --timeout="${builds_probe_timeout}s" >/dev/null
+    pod_ip=$(bk -n "$namespace" get pod "$name" -o jsonpath='{.status.podIP}')
+    wait_for "the CNI to enforce policy on ${name}" "$builds_probe_timeout" policy_covers_pod "$pod_ip" >/dev/null
+    bk -n "$namespace" exec "$name" -- nc -z -w "$builds_probe_connect_timeout" "$host" "$port" >/dev/null 2>&1 || result=1
+    bk -n "$namespace" delete pod "$name" --wait=false >/dev/null
+    return $result
+}
+
+test_b07_build_egress_is_limited_to_its_port() {
+    local registry_host=${E2E_REGISTRY_HOST%:*} registry_port=${E2E_REGISTRY_HOST##*:} node_ip
+    node_ip=$(bk get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+    node_ip=${node_ip%% *}
+    assert "Default namespace reaches the registry on port ${registry_port}" \
+        probe_tcp default "$registry_host" "$registry_port"
+    assert "Default namespace reaches ${node_ip}:${builds_api_server_port}" \
+        probe_tcp default "$node_ip" "$builds_api_server_port"
+    assert "Build namespace reaches the registry on port ${registry_port}" \
+        probe_tcp "$builds_ns" "$registry_host" "$registry_port"
+    assert_fails "Build namespace cannot reach ${node_ip}:${builds_api_server_port} in the allowed subnet" \
+        probe_tcp "$builds_ns" "$node_ip" "$builds_api_server_port"
+}

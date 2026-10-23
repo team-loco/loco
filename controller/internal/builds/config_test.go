@@ -2,6 +2,7 @@ package builds
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 	"time"
 
@@ -9,6 +10,16 @@ import (
 
 	"github.com/team-loco/loco/controller/internal/builds/buildstest"
 )
+
+const (
+	egressCIDRv4 = "10.0.0.0/24"
+	egressCIDRv6 = "fd00::/64"
+	egressKey    = "privateEgress"
+)
+
+func egressEntry(cidr string, port any) map[string]any {
+	return map[string]any{"cidr": cidr, "port": port}
+}
 
 func chartConfig(t *testing.T, overrides map[string]any) string {
 	t.Helper()
@@ -85,6 +96,28 @@ func TestParseConfigRequiresTheChartSettings(t *testing.T) {
 	}
 }
 
+func TestParseConfigAcceptsPrivateEgress(t *testing.T) {
+	entries := []any{
+		egressEntry(egressCIDRv4, 5000),
+		egressEntry(egressCIDRv4, 9000),
+		egressEntry(egressCIDRv6, 5000),
+		egressEntry("172.18.0.2/32", 65535),
+	}
+	cfg, err := ParseConfig(chartConfig(t, map[string]any{egressKey: entries}))
+	if err != nil {
+		t.Fatalf("ParseConfig: %v", err)
+	}
+	want := []PrivateEgress{
+		{CIDR: egressCIDRv4, Port: 5000},
+		{CIDR: egressCIDRv4, Port: 9000},
+		{CIDR: egressCIDRv6, Port: 5000},
+		{CIDR: "172.18.0.2/32", Port: 65535},
+	}
+	if !reflect.DeepEqual(cfg.PrivateEgress, want) {
+		t.Errorf("PrivateEgress = %v, want %v", cfg.PrivateEgress, want)
+	}
+}
+
 func TestParseConfigRejectsInvalid(t *testing.T) {
 	cases := map[string]map[string]any{
 		"short ttl":         {"ttlAfterFinished": "30s"},
@@ -94,7 +127,16 @@ func TestParseConfigRejectsInvalid(t *testing.T) {
 		"no source limit":   {"maxSourceSize": "0"},
 		"no context files":  {"maxContextFiles": 0},
 		"small workspace":   {"maxContextSize": "4Gi", "storage": map[string]any{"workspace": "1Gi"}},
-		"bad registry cidr": {"privateEgressCIDRs": []any{"10.0.0.1"}},
+		"egress no prefix":  {egressKey: []any{egressEntry("10.0.0.1", 5000)}},
+		"egress no cidr":    {egressKey: []any{map[string]any{"port": 5000}}},
+		"egress no port":    {egressKey: []any{map[string]any{"cidr": egressCIDRv4}}},
+		"egress port zero":  {egressKey: []any{egressEntry(egressCIDRv4, 0)}},
+		"egress port high":  {egressKey: []any{egressEntry(egressCIDRv4, 65536)}},
+		"egress port text":  {egressKey: []any{egressEntry(egressCIDRv4, "5000")}},
+		"egress duplicate": {egressKey: []any{
+			egressEntry(egressCIDRv4, 5000),
+			egressEntry(egressCIDRv4, 5000),
+		}},
 	}
 	for name, overrides := range cases {
 		t.Run(name, func(t *testing.T) {

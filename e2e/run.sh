@@ -585,8 +585,8 @@ setup_registry() {
     REGISTRY_ALIAS="$E2E_REGISTRY_ALIAS" \
     S3_ALIAS="$E2E_S3_ALIAS" \
         mise run cluster:registry >/dev/null
-    BUILD_EGRESS_CIDRS=$(COMPOSE_PROJECT_NAME="$E2E_COMPOSE_PROJECT" mise run --quiet cluster:build-egress)
-    log_ok "Registry at ${E2E_REGISTRY_HOST} (host port ${registry_port}), source bucket at ${E2E_S3_ENDPOINT}, build egress to ${BUILD_EGRESS_CIDRS}"
+    BUILD_PRIVATE_EGRESS=$(LOCO_REGISTRY_HOST="$E2E_REGISTRY_HOST" LOCO_SOURCE_BUCKET_ENDPOINT="$E2E_S3_ENDPOINT" mise run --quiet cluster:build-egress)
+    log_ok "Registry at ${E2E_REGISTRY_HOST} (host port ${registry_port}), source bucket at ${E2E_S3_ENDPOINT}, build egress ${BUILD_PRIVATE_EGRESS}"
 }
 
 build_image() {
@@ -653,7 +653,7 @@ install_operator() {
         build_values=(
             --set builds.builderImage.repository="${BUILDER_IMAGE%%:*}"
             --set builds.builderImage.tag="${BUILDER_IMAGE##*:}"
-            --set "builds.privateEgressCIDRs={${BUILD_EGRESS_CIDRS// /,}}"
+            --set-json "builds.privateEgress=${BUILD_PRIVATE_EGRESS}"
         )
     fi
     helm upgrade --install loco-operator "$ROOT_DIR/charts/loco-operator" \

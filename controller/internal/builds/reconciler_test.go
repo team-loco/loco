@@ -62,7 +62,7 @@ func testReconciler() *Reconciler {
 	cfg := chartDefaults()
 	cfg.Namespace = testBuildNamespace
 	cfg.PushSecretName = testPushSecretName
-	cfg.PrivateEgressCIDRs = []string{"10.1.2.3/32"}
+	cfg.PrivateEgress = []PrivateEgress{{CIDR: "10.1.2.3/32", Port: 5000}, {CIDR: egressCIDRv6, Port: 9000}}
 	cfg.RuntimeClassName = "gvisor"
 	cfg.NodeSelector = map[string]string{"loco.io/pool": "builds"}
 	return &Reconciler{
@@ -355,13 +355,38 @@ var _ = Describe("Build reconcile", Ordered, func() {
 			policyPrivateEgress,
 		}
 		Expect(names).To(ConsistOf(wantPolicies))
-		internet := getPolicy(testBuildNamespace, isolation.PolicyInternetEgress)
+		internet := getPolicy(isolation.PolicyInternetEgress)
 		ipv4 := internet.Spec.Egress[0].To[0].IPBlock
 		Expect(ipv4.CIDR).To(Equal("0.0.0.0/0"))
 		Expect(ipv4.Except).To(ContainElements("10.0.0.0/8", "169.254.0.0/16", "172.16.0.0/12", "192.168.0.0/16"))
 
+		private := getPolicy(policyPrivateEgress)
+		Expect(private.Spec.Egress).To(HaveLen(2))
+		for i, entry := range r.Config.PrivateEgress {
+			rule := private.Spec.Egress[i]
+			Expect(rule.To).To(HaveLen(1))
+			Expect(rule.To[0].IPBlock.CIDR).To(Equal(entry.CIDR))
+			Expect(rule.Ports).To(HaveLen(1))
+			Expect(*rule.Ports[0].Protocol).To(Equal(corev1.ProtocolTCP))
+			Expect(rule.Ports[0].Port.IntValue()).To(BeEquivalentTo(entry.Port))
+		}
+
 		reconcileBuild(r, build)
 		Expect(build.Status.Phase).To(Equal(locov1alpha1.BuildPhasePending))
+	})
+
+	It("revokes private egress entries that are removed from the configuration", func() {
+		r := testReconciler()
+		Expect(r.ensureBuildNetworkPolicies(ctx)).To(Succeed())
+		Expect(getPolicy(policyPrivateEgress).Spec.Egress).To(HaveLen(2))
+
+		r.Config.PrivateEgress = r.Config.PrivateEgress[:1]
+		Expect(r.ensureBuildNetworkPolicies(ctx)).To(Succeed())
+		Expect(getPolicy(policyPrivateEgress).Spec.Egress).To(HaveLen(1))
+
+		r.Config.PrivateEgress = nil
+		Expect(r.ensureBuildNetworkPolicies(ctx)).To(Succeed())
+		Expect(getPolicy(policyPrivateEgress).Spec.Egress).To(BeEmpty())
 	})
 
 	It("moves through Running to Succeeded with the pushed digests", func() {
