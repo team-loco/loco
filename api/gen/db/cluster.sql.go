@@ -218,6 +218,44 @@ func (q *Queries) ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow
 	return items, nil
 }
 
+const listClusterDomains = `-- name: ListClusterDomains :many
+SELECT id, name, region, domains FROM clusters
+WHERE id = ANY($1::uuid[])
+ORDER BY region, name
+`
+
+type ListClusterDomainsRow struct {
+	ID      uuid.UUID `json:"id"`
+	Name    string    `json:"name"`
+	Region  string    `json:"region"`
+	Domains []string  `json:"domains"`
+}
+
+func (q *Queries) ListClusterDomains(ctx context.Context, ids []uuid.UUID) ([]ListClusterDomainsRow, error) {
+	rows, err := q.db.Query(ctx, listClusterDomains, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListClusterDomainsRow
+	for rows.Next() {
+		var i ListClusterDomainsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Region,
+			&i.Domains,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listClusterWorkloads = `-- name: ListClusterWorkloads :many
 SELECT p.id, 'placement'::text AS kind FROM placements p
 WHERE p.cluster_id = $1
@@ -350,6 +388,7 @@ SET agent_version = $2,
     capacity_cpu_millicores = $3,
     capacity_memory_bytes = $4,
     builds_enabled = $5,
+    domains = $6::text[],
     updated_at = NOW()
 WHERE id = $1
 `
@@ -360,6 +399,7 @@ type UpdateClusterAgentInfoParams struct {
 	CapacityCpuMillicores *int64    `json:"capacityCpuMillicores"`
 	CapacityMemoryBytes   *int64    `json:"capacityMemoryBytes"`
 	BuildsEnabled         bool      `json:"buildsEnabled"`
+	Domains               []string  `json:"domains"`
 }
 
 // Cluster queries for agent operations
@@ -370,6 +410,7 @@ func (q *Queries) UpdateClusterAgentInfo(ctx context.Context, arg UpdateClusterA
 		arg.CapacityCpuMillicores,
 		arg.CapacityMemoryBytes,
 		arg.BuildsEnabled,
+		arg.Domains,
 	)
 	return err
 }
@@ -381,6 +422,7 @@ SET last_heartbeat = $2,
     capacity_memory_bytes = $4,
     health_status = $5,
     builds_enabled = $6,
+    domains = $7::text[],
     updated_at = NOW()
 WHERE id = $1 AND removed_at IS NULL
 `
@@ -392,6 +434,7 @@ type UpdateClusterHeartbeatParams struct {
 	CapacityMemoryBytes   *int64     `json:"capacityMemoryBytes"`
 	HealthStatus          *string    `json:"healthStatus"`
 	BuildsEnabled         bool       `json:"buildsEnabled"`
+	Domains               []string   `json:"domains"`
 }
 
 func (q *Queries) UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterHeartbeatParams) error {
@@ -402,6 +445,7 @@ func (q *Queries) UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterH
 		arg.CapacityMemoryBytes,
 		arg.HealthStatus,
 		arg.BuildsEnabled,
+		arg.Domains,
 	)
 	return err
 }

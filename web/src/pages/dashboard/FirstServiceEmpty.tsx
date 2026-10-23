@@ -1,25 +1,27 @@
 import { CheckIcon, CopyIcon, ServerIcon, ShieldCheckIcon } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@connectrpc/connect-query";
-import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
+import { listPlatformDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 
 import { Button } from "@/components/design/Button";
 import { Input } from "@/components/design/Input";
 import { useCopy } from "@/hooks/useCopy";
 import { INSTALL_COMMAND } from "@/pages/splash/links";
 
-import { imageError } from "./drafts";
+import { imageError, servedDomain } from "./drafts";
 
 const STEPS = [INSTALL_COMMAND, "loco infra init", "loco deploy <name>"];
 
 export function FirstServiceEmpty({
 	scope,
+	environmentId,
 	region,
 	otherEnvName,
 	onSwitchEnv,
 	onImage,
 }: {
 	scope: string;
+	environmentId: string;
 	region: string;
 	otherEnvName: string | null;
 	onSwitchEnv: () => void;
@@ -27,8 +29,8 @@ export function FirstServiceEmpty({
 }) {
 	const [image, setImage] = useState("");
 	const [copied, copy] = useCopy(1400);
-	const { data: configRes } = useQuery(getConfig, {});
-	const platformDomain = configRes?.serviceDefaults?.platformDomain ?? "";
+	const { data: domainsRes } = useQuery(listPlatformDomains, { environmentId });
+	const platformDomain = servedDomain(domainsRes?.platformDomains ?? [], region);
 	const trimmed = image.trim();
 	const error = trimmed === "" ? null : imageError(trimmed);
 	const ok = trimmed !== "" && error === null;

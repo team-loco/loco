@@ -6,6 +6,7 @@ SET agent_version = $2,
     capacity_cpu_millicores = $3,
     capacity_memory_bytes = $4,
     builds_enabled = $5,
+    domains = sqlc.arg(domains)::text[],
     updated_at = NOW()
 WHERE id = $1;
 
@@ -16,6 +17,7 @@ SET last_heartbeat = $2,
     capacity_memory_bytes = $4,
     health_status = $5,
     builds_enabled = $6,
+    domains = sqlc.arg(domains)::text[],
     updated_at = NOW()
 WHERE id = $1 AND removed_at IS NULL;
 
@@ -107,3 +109,8 @@ UNION ALL
 SELECT b.id, 'build'::text AS kind FROM builds b
 WHERE b.cluster_id = $1 AND b.status IN ('queued', 'running')
 ORDER BY kind, id;
+
+-- name: ListClusterDomains :many
+SELECT id, name, region, domains FROM clusters
+WHERE id = ANY(sqlc.arg(ids)::uuid[])
+ORDER BY region, name;

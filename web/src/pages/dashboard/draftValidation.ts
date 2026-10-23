@@ -33,13 +33,15 @@ export function validateDraft(
 		region: region === "" ? "Choose a region" : null,
 		sub: isPrivate(draft)
 			? null
-			: sub === ""
-				? "Choose a subdomain"
-				: !NAME_RE.test(sub)
-					? "Lowercase letters, numbers and hyphens"
-					: takenSubs.has(sub) || availability === "taken"
-						? `${full} is taken`
-						: null,
+			: platformDomain === ""
+				? `No cluster in ${region} serves a platform domain`
+				: sub === ""
+					? "Choose a subdomain"
+					: !NAME_RE.test(sub)
+						? "Lowercase letters, numbers and hyphens"
+						: takenSubs.has(sub) || availability === "taken"
+							? `${full} is taken`
+							: null,
 		port: !Number.isInteger(port) || port < 1024 || port > 65535 ? "Port must be 1024–65535" : null,
 		cpuTarget:
 			draft.min !== draft.max && (!Number.isInteger(target) || target < 1 || target > 100)

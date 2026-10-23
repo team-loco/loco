@@ -114,14 +114,14 @@ local_resource(
 )
 
 # ---------------------------------------------------------------------------
-# Infrastructure: DB migrations + seed data, applied from a container
+# Infrastructure: DB migrations
 # ---------------------------------------------------------------------------
 
 local_resource(
     'db-migrate',
     cmd='mise run db:migrate',
     resource_deps=['postgres'],
-    deps=['api/migrations/', 'api/seed/'],
+    deps=['api/migrations/'],
     allow_parallel=True,
     labels=['infrastructure'],
 )

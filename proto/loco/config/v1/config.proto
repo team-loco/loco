@@ -22,35 +22,26 @@ message GetConfigResponse {
 }
 
 message AuthConfig {
-  reserved 1, 3;
-  reserved "adapter", "url";
-
-  string issuer = 2;
-  string client_id = 4;
-  string scopes = 5;
+  string issuer = 1;
+  string client_id = 2;
+  string scopes = 3;
 }
 
 // DefaultServiceConfig contains default values for service deployments.
 // These values are used when users don't specify explicit configuration.
 message DefaultServiceConfig {
-  reserved 1, 2;
-  reserved "build_type", "dockerfile_path";
-
   // Default routing configuration
-  resource.v1.RoutingConfig routing = 3;
+  resource.v1.RoutingConfig routing = 1;
 
   // Default health check configuration
-  deployment.v1.HealthCheckConfig health_check = 4;
+  deployment.v1.HealthCheckConfig health_check = 2;
 
   // Default resource allocation
-  string cpu = 5; // e.g., "0.25"
-  string memory = 6; // e.g., "256Mi"
-  int32 min_replicas = 7;
-  int32 max_replicas = 8;
+  string cpu = 3; // e.g., "0.25"
+  string memory = 4; // e.g., "256Mi"
+  int32 min_replicas = 5;
+  int32 max_replicas = 6;
 
   // Default observability configuration
-  resource.v1.ObservabilityConfig observability = 9;
-
-  // Default platform domain (e.g., "onloco.app")
-  string platform_domain = 10;
+  resource.v1.ObservabilityConfig observability = 7;
 }

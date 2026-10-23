@@ -43,7 +43,7 @@ type applier struct {
 	desired         map[string]configplan.State
 	builds          map[string]*deploymentv1.BuildSource
 	deployed        map[string]bool
-	platformDomains []genDb.PlatformDomain
+	platformDomains []string
 	defaults        servicedefaults.Defaults
 	started         []*planv1.StartedDeployment
 	provisioning    bool
@@ -204,18 +204,18 @@ func (a *applier) createDomain(
 	resourceID uuid.UUID,
 	domain string,
 ) (uuid.UUID, error) {
-	platformDomain, label, err := a.platformDomainFor(domain)
+	platformDomain, label, err := configplan.MatchPlatformDomain(domain, a.platformDomains)
 	if err != nil {
-		return uuid.UUID{}, err
+		return uuid.UUID{}, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
 	domainID, err := qtx.CreateResourceDomain(ctx, genDb.CreateResourceDomainParams{
-		ResourceID:       resourceID,
-		EnvironmentID:    a.env.ID,
-		Domain:           domain,
-		DomainSource:     genDb.DomainSourcePlatformProvided,
-		SubdomainLabel:   &label,
-		PlatformDomainID: &platformDomain.ID,
-		IsPrimary:        false,
+		ResourceID:     resourceID,
+		EnvironmentID:  a.env.ID,
+		Domain:         domain,
+		DomainSource:   genDb.DomainSourcePlatformProvided,
+		SubdomainLabel: &label,
+		PlatformDomain: &platformDomain,
+		IsPrimary:      false,
 	})
 	if err != nil {
 		return uuid.UUID{}, fmt.Errorf("create domain %s: %w", domain, err)
@@ -228,20 +228,6 @@ func (a *applier) createDomain(
 		SubjectID:   new(domainID),
 		Data:        map[string]any{events.FieldDomain: domain, events.FieldResourceID: resourceID.String()},
 	})
-}
-
-func (a *applier) platformDomainFor(domain string) (genDb.PlatformDomain, string, error) {
-	names := make([]string, 0, len(a.platformDomains))
-	for _, platformDomain := range a.platformDomains {
-		names = append(names, platformDomain.Domain)
-	}
-	matched, label, err := configplan.MatchPlatformDomain(domain, names)
-	if err != nil {
-		return genDb.PlatformDomain{}, "", connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).
-			WithCause(err)
-	}
-	index := slices.Index(names, matched)
-	return a.platformDomains[index], label, nil
 }
 
 func (a *applier) deploy(

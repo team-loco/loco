@@ -84,14 +84,7 @@ func applyFile(
 
 func (f *deployFixture) prepareApply(t *testing.T) {
 	t.Helper()
-	setup := `
-WITH c AS (
-    UPDATE clusters SET health_status = 'healthy', last_heartbeat = NOW()
-)
-INSERT INTO platform_domains (domain, is_active) VALUES ($1, true)`
-	if _, err := f.pool.Exec(context.Background(), setup, testPlatformDomain); err != nil {
-		t.Fatalf("prepare apply: %v", err)
-	}
+	f.serveDomains(t, testPlatformDomain)
 }
 
 func (f *deployFixture) applyScopes(t *testing.T) []genDb.EntityScope {

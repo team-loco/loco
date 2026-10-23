@@ -65,7 +65,7 @@ SELECT workspace_id FROM resources WHERE id = $1;
 -- name: ListEligibleClusters :many
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
        last_health_check, last_heartbeat, capacity_cpu_millicores,
-       capacity_memory_bytes, agent_version, created_at, updated_at
+       capacity_memory_bytes, agent_version, created_at, updated_at, domains
 FROM clusters
 WHERE tier = sqlc.arg(tier)
   AND is_active = true
@@ -95,7 +95,15 @@ SELECT d.resource_id,
        COALESCE(p.status_message, '')::text AS status_message,
        p.status_updated_at,
        c.last_heartbeat,
-       c.health_status
+       c.health_status,
+       ARRAY(
+           SELECT rd.domain FROM resource_domains rd
+           WHERE rd.resource_id = d.resource_id
+             AND rd.environment_id = d.environment_id
+             AND rd.domain_source = 'platform_provided'
+             AND NOT (rd.platform_domain = ANY(c.domains))
+           ORDER BY rd.domain
+       )::text[] AS unserved_domains
 FROM deployments d
 JOIN environments e ON e.id = d.environment_id
 JOIN clusters c ON c.id = d.cluster_id

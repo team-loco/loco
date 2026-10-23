@@ -129,9 +129,9 @@ func (x *GetConfigResponse) GetSchemaUrl() string {
 
 type AuthConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Issuer        string                 `protobuf:"bytes,2,opt,name=issuer,proto3" json:"issuer,omitempty"`
-	ClientId      string                 `protobuf:"bytes,4,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
-	Scopes        string                 `protobuf:"bytes,5,opt,name=scopes,proto3" json:"scopes,omitempty"`
+	Issuer        string                 `protobuf:"bytes,1,opt,name=issuer,proto3" json:"issuer,omitempty"`
+	ClientId      string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	Scopes        string                 `protobuf:"bytes,3,opt,name=scopes,proto3" json:"scopes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -192,20 +192,18 @@ func (x *AuthConfig) GetScopes() string {
 type DefaultServiceConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Default routing configuration
-	Routing *v1.RoutingConfig `protobuf:"bytes,3,opt,name=routing,proto3" json:"routing,omitempty"`
+	Routing *v1.RoutingConfig `protobuf:"bytes,1,opt,name=routing,proto3" json:"routing,omitempty"`
 	// Default health check configuration
-	HealthCheck *v11.HealthCheckConfig `protobuf:"bytes,4,opt,name=health_check,json=healthCheck,proto3" json:"health_check,omitempty"`
+	HealthCheck *v11.HealthCheckConfig `protobuf:"bytes,2,opt,name=health_check,json=healthCheck,proto3" json:"health_check,omitempty"`
 	// Default resource allocation
-	Cpu         string `protobuf:"bytes,5,opt,name=cpu,proto3" json:"cpu,omitempty"`       // e.g., "0.25"
-	Memory      string `protobuf:"bytes,6,opt,name=memory,proto3" json:"memory,omitempty"` // e.g., "256Mi"
-	MinReplicas int32  `protobuf:"varint,7,opt,name=min_replicas,json=minReplicas,proto3" json:"min_replicas,omitempty"`
-	MaxReplicas int32  `protobuf:"varint,8,opt,name=max_replicas,json=maxReplicas,proto3" json:"max_replicas,omitempty"`
+	Cpu         string `protobuf:"bytes,3,opt,name=cpu,proto3" json:"cpu,omitempty"`       // e.g., "0.25"
+	Memory      string `protobuf:"bytes,4,opt,name=memory,proto3" json:"memory,omitempty"` // e.g., "256Mi"
+	MinReplicas int32  `protobuf:"varint,5,opt,name=min_replicas,json=minReplicas,proto3" json:"min_replicas,omitempty"`
+	MaxReplicas int32  `protobuf:"varint,6,opt,name=max_replicas,json=maxReplicas,proto3" json:"max_replicas,omitempty"`
 	// Default observability configuration
-	Observability *v1.ObservabilityConfig `protobuf:"bytes,9,opt,name=observability,proto3" json:"observability,omitempty"`
-	// Default platform domain (e.g., "onloco.app")
-	PlatformDomain string `protobuf:"bytes,10,opt,name=platform_domain,json=platformDomain,proto3" json:"platform_domain,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	Observability *v1.ObservabilityConfig `protobuf:"bytes,7,opt,name=observability,proto3" json:"observability,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DefaultServiceConfig) Reset() {
@@ -287,13 +285,6 @@ func (x *DefaultServiceConfig) GetObservability() *v1.ObservabilityConfig {
 	return nil
 }
 
-func (x *DefaultServiceConfig) GetPlatformDomain() string {
-	if x != nil {
-		return x.PlatformDomain
-	}
-	return ""
-}
-
 var File_loco_config_v1_config_proto protoreflect.FileDescriptor
 
 const file_loco_config_v1_config_proto_rawDesc = "" +
@@ -305,23 +296,20 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\x0fmin_cli_version\x18\x02 \x01(\tR\rminCliVersion\x12.\n" +
 	"\x04auth\x18\x03 \x01(\v2\x1a.loco.config.v1.AuthConfigR\x04auth\x12\x1d\n" +
 	"\n" +
-	"schema_url\x18\x04 \x01(\tR\tschemaUrl\"s\n" +
+	"schema_url\x18\x04 \x01(\tR\tschemaUrl\"Y\n" +
 	"\n" +
 	"AuthConfig\x12\x16\n" +
-	"\x06issuer\x18\x02 \x01(\tR\x06issuer\x12\x1b\n" +
-	"\tclient_id\x18\x04 \x01(\tR\bclientId\x12\x16\n" +
-	"\x06scopes\x18\x05 \x01(\tR\x06scopesJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04R\aadapterR\x03url\"\xaa\x03\n" +
+	"\x06issuer\x18\x01 \x01(\tR\x06issuer\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\x16\n" +
+	"\x06scopes\x18\x03 \x01(\tR\x06scopes\"\xd8\x02\n" +
 	"\x14DefaultServiceConfig\x129\n" +
-	"\arouting\x18\x03 \x01(\v2\x1f.loco.resource.v1.RoutingConfigR\arouting\x12H\n" +
-	"\fhealth_check\x18\x04 \x01(\v2%.loco.deployment.v1.HealthCheckConfigR\vhealthCheck\x12\x10\n" +
-	"\x03cpu\x18\x05 \x01(\tR\x03cpu\x12\x16\n" +
-	"\x06memory\x18\x06 \x01(\tR\x06memory\x12!\n" +
-	"\fmin_replicas\x18\a \x01(\x05R\vminReplicas\x12!\n" +
-	"\fmax_replicas\x18\b \x01(\x05R\vmaxReplicas\x12K\n" +
-	"\robservability\x18\t \x01(\v2%.loco.resource.v1.ObservabilityConfigR\robservability\x12'\n" +
-	"\x0fplatform_domain\x18\n" +
-	" \x01(\tR\x0eplatformDomainJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\n" +
-	"build_typeR\x0fdockerfile_path2a\n" +
+	"\arouting\x18\x01 \x01(\v2\x1f.loco.resource.v1.RoutingConfigR\arouting\x12H\n" +
+	"\fhealth_check\x18\x02 \x01(\v2%.loco.deployment.v1.HealthCheckConfigR\vhealthCheck\x12\x10\n" +
+	"\x03cpu\x18\x03 \x01(\tR\x03cpu\x12\x16\n" +
+	"\x06memory\x18\x04 \x01(\tR\x06memory\x12!\n" +
+	"\fmin_replicas\x18\x05 \x01(\x05R\vminReplicas\x12!\n" +
+	"\fmax_replicas\x18\x06 \x01(\x05R\vmaxReplicas\x12K\n" +
+	"\robservability\x18\a \x01(\v2%.loco.resource.v1.ObservabilityConfigR\robservability2a\n" +
 	"\rConfigService\x12P\n" +
 	"\tGetConfig\x12 .loco.config.v1.GetConfigRequest\x1a!.loco.config.v1.GetConfigResponseB:Z8github.com/team-loco/loco/gen/go/loco/config/v1;configv1b\x06proto3"
 

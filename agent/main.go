@@ -23,6 +23,7 @@ import (
 	"github.com/team-loco/loco/agent/pkg/appwatch"
 	"github.com/team-loco/loco/agent/pkg/buildwatch"
 	"github.com/team-loco/loco/agent/pkg/cluster"
+	"github.com/team-loco/loco/agent/pkg/domains"
 	"github.com/team-loco/loco/agent/pkg/identity"
 	"github.com/team-loco/loco/agent/pkg/kube"
 	"github.com/team-loco/loco/agent/pkg/reconciler"
@@ -90,6 +91,17 @@ func main() {
 	}
 
 	inspector := cluster.NewInspector(clientset, cfg.ControllerNamespace, cfg.ControllerDeployment)
+	domainReader, err := domains.NewReader(&inspectorConfig)
+	if err != nil {
+		slog.Error("failed to create the gateway client", "error", err)
+		os.Exit(1)
+	}
+	domainReporter := domains.New(domainReader, domains.Config{
+		Namespace:   cfg.Namespace,
+		Gateway:     cfg.Gateway,
+		Certificate: cfg.Certificate,
+		Domains:     cfg.AppDomains,
+	})
 	identities := identity.NewStore(clientset, cfg.Namespace, cfg.KeySecret)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -128,6 +140,7 @@ func main() {
 		client:        agentClient,
 		applier:       kubeApplier,
 		inspector:     inspector,
+		domains:       domainReporter,
 		identities:    identities,
 		credentials:   credentials,
 		watcher:       watcher,
@@ -156,6 +169,10 @@ type buildRunner interface {
 	RunCollector(ctx context.Context, interval time.Duration)
 }
 
+type domainReporter interface {
+	Served(ctx context.Context) ([]string, error)
+}
+
 type buildsDetector interface {
 	BuildsEnabled(ctx context.Context) (bool, error)
 }
@@ -173,6 +190,7 @@ type Agent struct {
 	client            agentv1connect.AgentServiceClient
 	applier           *applier.Applier
 	inspector         *cluster.Inspector
+	domains           domainReporter
 	identities        *identity.Store
 	credentials       *identity.Credentials
 	watcher           *appwatch.Watcher
@@ -221,6 +239,7 @@ func (a *Agent) register(ctx context.Context) error {
 		ClusterKey:    key,
 		Capacity:      capacity,
 		BuildsEnabled: a.buildsEnabled,
+		Domains:       a.servedDomains(ctx),
 	}
 	if stored.ClusterID == "" {
 		if a.cfg.JoinToken == "" {
@@ -255,6 +274,7 @@ func (a *Agent) register(ctx context.Context) error {
 		"cluster_id", stored.ClusterID,
 		"enrolled", req.GetEnrollment() != nil,
 		"heartbeat_interval", a.heartbeatInterval,
+		"domains", req.GetDomains(),
 	)
 	return nil
 }
@@ -583,11 +603,22 @@ func (a *Agent) sendHeartbeats(ctx context.Context, enqueue func(*agentv1.SyncRe
 func (a *Agent) heartbeat(ctx context.Context) *agentv1.Heartbeat {
 	capacity := a.getCapacity(ctx)
 	health := a.getHealth(ctx)
+	served := a.servedDomains(ctx)
 	return &agentv1.Heartbeat{
 		Capacity:      capacity,
 		Health:        health,
 		BuildsEnabled: a.buildsEnabled,
+		Domains:       served,
 	}
+}
+
+func (a *Agent) servedDomains(ctx context.Context) []string {
+	served, err := a.domains.Served(ctx)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to read the domains the gateway serves", "error", err)
+		return nil
+	}
+	return served
 }
 
 func (a *Agent) getCapacity(ctx context.Context) *agentv1.AgentCapacity {

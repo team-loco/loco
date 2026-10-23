@@ -208,12 +208,11 @@ env = { _.source = "env/local/stack.sh" }
 run = "docker compose down"
 
 [tasks."db:migrate"]
-description = "Apply api/migrations with goose and seed api/seed/local.sql into the local database"
+description = "Apply api/migrations with goose to the local database"
 env = { _.file = ".env", _.source = "env/local/stack.sh" }
 run = [
   "docker compose up -d --wait postgres",
   'goose -dir api/migrations postgres "$DATABASE_URL" up',
-  "docker compose run --rm seed",
 ]
 
 [tasks."db:status"]

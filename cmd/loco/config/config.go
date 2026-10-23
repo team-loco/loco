@@ -6,12 +6,11 @@ import (
 
 // validKeys lists all configurable keys in ~/.loco/config.yaml.
 const (
-	keyLocoHost         = "locoHost"
-	keyWebHost          = "webHost"
-	keyDefaultAppDomain = "defaultAppDomain"
+	keyLocoHost = "locoHost"
+	keyWebHost  = "webHost"
 )
 
-var validKeys = []string{keyLocoHost, keyWebHost, keyDefaultAppDomain}
+var validKeys = []string{keyLocoHost, keyWebHost}
 
 func BuildConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{

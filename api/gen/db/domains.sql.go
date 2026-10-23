@@ -25,24 +25,6 @@ func (q *Queries) CheckDomainAvailability(ctx context.Context, domain string) (b
 	return is_available, err
 }
 
-const createPlatformDomain = `-- name: CreatePlatformDomain :one
-INSERT INTO platform_domains (domain, is_active)
-VALUES ($1, $2)
-RETURNING id
-`
-
-type CreatePlatformDomainParams struct {
-	Domain   string `json:"domain"`
-	IsActive bool   `json:"isActive"`
-}
-
-func (q *Queries) CreatePlatformDomain(ctx context.Context, arg CreatePlatformDomainParams) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, createPlatformDomain, arg.Domain, arg.IsActive)
-	var id uuid.UUID
-	err := row.Scan(&id)
-	return id, err
-}
-
 const createResourceDomain = `-- name: CreateResourceDomain :one
 INSERT INTO resource_domains (
     resource_id,
@@ -50,7 +32,7 @@ INSERT INTO resource_domains (
     domain,
     domain_source,
     subdomain_label,
-    platform_domain_id,
+    platform_domain,
     is_primary
 )
 VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -58,13 +40,13 @@ RETURNING id
 `
 
 type CreateResourceDomainParams struct {
-	ResourceID       uuid.UUID    `json:"resourceId"`
-	EnvironmentID    uuid.UUID    `json:"environmentId"`
-	Domain           string       `json:"domain"`
-	DomainSource     DomainSource `json:"domainSource"`
-	SubdomainLabel   *string      `json:"subdomainLabel"`
-	PlatformDomainID *uuid.UUID   `json:"platformDomainId"`
-	IsPrimary        bool         `json:"isPrimary"`
+	ResourceID     uuid.UUID    `json:"resourceId"`
+	EnvironmentID  uuid.UUID    `json:"environmentId"`
+	Domain         string       `json:"domain"`
+	DomainSource   DomainSource `json:"domainSource"`
+	SubdomainLabel *string      `json:"subdomainLabel"`
+	PlatformDomain *string      `json:"platformDomain"`
+	IsPrimary      bool         `json:"isPrimary"`
 }
 
 func (q *Queries) CreateResourceDomain(ctx context.Context, arg CreateResourceDomainParams) (uuid.UUID, error) {
@@ -74,26 +56,12 @@ func (q *Queries) CreateResourceDomain(ctx context.Context, arg CreateResourceDo
 		arg.Domain,
 		arg.DomainSource,
 		arg.SubdomainLabel,
-		arg.PlatformDomainID,
+		arg.PlatformDomain,
 		arg.IsPrimary,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
-}
-
-const deactivatePlatformDomain = `-- name: DeactivatePlatformDomain :one
-UPDATE platform_domains
-SET is_active = false
-WHERE id = $1
-RETURNING id
-`
-
-func (q *Queries) DeactivatePlatformDomain(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, deactivatePlatformDomain, id)
-	var id_2 uuid.UUID
-	err := row.Scan(&id_2)
-	return id_2, err
 }
 
 const deleteResourceDomain = `-- name: DeleteResourceDomain :exec
@@ -103,40 +71,6 @@ DELETE FROM resource_domains WHERE id = $1
 func (q *Queries) DeleteResourceDomain(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteResourceDomain, id)
 	return err
-}
-
-const getPlatformDomain = `-- name: GetPlatformDomain :one
-SELECT id, domain, is_active, created_at FROM platform_domains
-WHERE id = $1
-`
-
-func (q *Queries) GetPlatformDomain(ctx context.Context, id uuid.UUID) (PlatformDomain, error) {
-	row := q.db.QueryRow(ctx, getPlatformDomain, id)
-	var i PlatformDomain
-	err := row.Scan(
-		&i.ID,
-		&i.Domain,
-		&i.IsActive,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
-const getPlatformDomainByName = `-- name: GetPlatformDomainByName :one
-SELECT id, domain, is_active, created_at FROM platform_domains
-WHERE domain = $1
-`
-
-func (q *Queries) GetPlatformDomainByName(ctx context.Context, domain string) (PlatformDomain, error) {
-	row := q.db.QueryRow(ctx, getPlatformDomainByName, domain)
-	var i PlatformDomain
-	err := row.Scan(
-		&i.ID,
-		&i.Domain,
-		&i.IsActive,
-		&i.CreatedAt,
-	)
-	return i, err
 }
 
 const getPrimaryResourceDomain = `-- name: GetPrimaryResourceDomain :one
@@ -165,7 +99,7 @@ SELECT
     rd.domain,
     rd.domain_source,
     rd.subdomain_label,
-    rd.platform_domain_id,
+    rd.platform_domain,
     rd.is_primary,
     rd.created_at,
     rd.updated_at
@@ -183,7 +117,7 @@ func (q *Queries) GetResourceDomainByID(ctx context.Context, id uuid.UUID) (Reso
 		&i.Domain,
 		&i.DomainSource,
 		&i.SubdomainLabel,
-		&i.PlatformDomainID,
+		&i.PlatformDomain,
 		&i.IsPrimary,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -207,47 +141,15 @@ func (q *Queries) GetResourceDomainCount(ctx context.Context, arg GetResourceDom
 	return count, err
 }
 
-const listActivePlatformDomains = `-- name: ListActivePlatformDomains :many
-SELECT id, domain, is_active, created_at FROM platform_domains
-WHERE is_active = true
-ORDER BY domain
-`
-
-func (q *Queries) ListActivePlatformDomains(ctx context.Context) ([]PlatformDomain, error) {
-	rows, err := q.db.Query(ctx, listActivePlatformDomains)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []PlatformDomain
-	for rows.Next() {
-		var i PlatformDomain
-		if err := rows.Scan(
-			&i.ID,
-			&i.Domain,
-			&i.IsActive,
-			&i.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listAllLocoOwnedDomains = `-- name: ListAllLocoOwnedDomains :many
 SELECT 
     rd.id,
     rd.domain,
     r.name as resource_name,
     r.id as resource_id,
-    pd.domain as platform_domain
+    rd.platform_domain::text AS platform_domain
 FROM resource_domains rd
 JOIN resources r ON rd.resource_id = r.id
-JOIN platform_domains pd ON rd.platform_domain_id = pd.id
 WHERE rd.domain_source = 'platform_provided'
 ORDER BY rd.created_at DESC
 `
@@ -294,7 +196,7 @@ SELECT
     rd.domain,
     rd.domain_source,
     rd.subdomain_label,
-    rd.platform_domain_id,
+    rd.platform_domain,
     rd.is_primary,
     rd.created_at,
     rd.updated_at
@@ -324,41 +226,10 @@ func (q *Queries) ListEnvironmentResourceDomains(ctx context.Context, arg ListEn
 			&i.Domain,
 			&i.DomainSource,
 			&i.SubdomainLabel,
-			&i.PlatformDomainID,
+			&i.PlatformDomain,
 			&i.IsPrimary,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listPlatformDomains = `-- name: ListPlatformDomains :many
-SELECT id, domain, is_active, created_at FROM platform_domains
-WHERE ($1::boolean IS NULL OR is_active = $1::boolean)
-ORDER BY domain
-`
-
-func (q *Queries) ListPlatformDomains(ctx context.Context, activeOnly *bool) ([]PlatformDomain, error) {
-	rows, err := q.db.Query(ctx, listPlatformDomains, activeOnly)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []PlatformDomain
-	for rows.Next() {
-		var i PlatformDomain
-		if err := rows.Scan(
-			&i.ID,
-			&i.Domain,
-			&i.IsActive,
-			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -378,7 +249,7 @@ SELECT
     rd.domain,
     rd.domain_source,
     rd.subdomain_label,
-    rd.platform_domain_id,
+    rd.platform_domain,
     rd.is_primary,
     rd.created_at,
     rd.updated_at
@@ -403,7 +274,7 @@ func (q *Queries) ListResourceDomains(ctx context.Context, resourceID uuid.UUID)
 			&i.Domain,
 			&i.DomainSource,
 			&i.SubdomainLabel,
-			&i.PlatformDomainID,
+			&i.PlatformDomain,
 			&i.IsPrimary,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -426,7 +297,7 @@ SELECT
     rd.domain,
     rd.domain_source,
     rd.subdomain_label,
-    rd.platform_domain_id,
+    rd.platform_domain,
     rd.is_primary,
     rd.created_at,
     rd.updated_at
@@ -451,7 +322,7 @@ func (q *Queries) ListResourceDomainsForResources(ctx context.Context, resourceI
 			&i.Domain,
 			&i.DomainSource,
 			&i.SubdomainLabel,
-			&i.PlatformDomainID,
+			&i.PlatformDomain,
 			&i.IsPrimary,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -509,6 +380,7 @@ const updateResourceDomain = `-- name: UpdateResourceDomain :one
 UPDATE resource_domains
 SET domain = $2,
     subdomain_label = $3,
+    platform_domain = $4,
     updated_at = NOW()
 WHERE id = $1
 RETURNING id
@@ -518,10 +390,16 @@ type UpdateResourceDomainParams struct {
 	ID             uuid.UUID `json:"id"`
 	Domain         string    `json:"domain"`
 	SubdomainLabel *string   `json:"subdomainLabel"`
+	PlatformDomain *string   `json:"platformDomain"`
 }
 
 func (q *Queries) UpdateResourceDomain(ctx context.Context, arg UpdateResourceDomainParams) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, updateResourceDomain, arg.ID, arg.Domain, arg.SubdomainLabel)
+	row := q.db.QueryRow(ctx, updateResourceDomain,
+		arg.ID,
+		arg.Domain,
+		arg.SubdomainLabel,
+		arg.PlatformDomain,
+	)
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err

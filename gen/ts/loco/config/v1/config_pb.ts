@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/config/v1/config.proto.
  */
 export const file_loco_config_v1_config: GenFile = /*@__PURE__*/
-  fileDesc("Chtsb2NvL2NvbmZpZy92MS9jb25maWcucHJvdG8SDmxvY28uY29uZmlnLnYxIhIKEEdldENvbmZpZ1JlcXVlc3QiqgEKEUdldENvbmZpZ1Jlc3BvbnNlEj4KEHNlcnZpY2VfZGVmYXVsdHMYASABKAsyJC5sb2NvLmNvbmZpZy52MS5EZWZhdWx0U2VydmljZUNvbmZpZxIXCg9taW5fY2xpX3ZlcnNpb24YAiABKAkSKAoEYXV0aBgDIAEoCzIaLmxvY28uY29uZmlnLnYxLkF1dGhDb25maWcSEgoKc2NoZW1hX3VybBgEIAEoCSJZCgpBdXRoQ29uZmlnEg4KBmlzc3VlchgCIAEoCRIRCgljbGllbnRfaWQYBCABKAkSDgoGc2NvcGVzGAUgASgJSgQIARACSgQIAxAEUgdhZGFwdGVyUgN1cmwizgIKFERlZmF1bHRTZXJ2aWNlQ29uZmlnEjAKB3JvdXRpbmcYAyABKAsyHy5sb2NvLnJlc291cmNlLnYxLlJvdXRpbmdDb25maWcSOwoMaGVhbHRoX2NoZWNrGAQgASgLMiUubG9jby5kZXBsb3ltZW50LnYxLkhlYWx0aENoZWNrQ29uZmlnEgsKA2NwdRgFIAEoCRIOCgZtZW1vcnkYBiABKAkSFAoMbWluX3JlcGxpY2FzGAcgASgFEhQKDG1heF9yZXBsaWNhcxgIIAEoBRI8Cg1vYnNlcnZhYmlsaXR5GAkgASgLMiUubG9jby5yZXNvdXJjZS52MS5PYnNlcnZhYmlsaXR5Q29uZmlnEhcKD3BsYXRmb3JtX2RvbWFpbhgKIAEoCUoECAEQAkoECAIQA1IKYnVpbGRfdHlwZVIPZG9ja2VyZmlsZV9wYXRoMmEKDUNvbmZpZ1NlcnZpY2USUAoJR2V0Q29uZmlnEiAubG9jby5jb25maWcudjEuR2V0Q29uZmlnUmVxdWVzdBohLmxvY28uY29uZmlnLnYxLkdldENvbmZpZ1Jlc3BvbnNlQjpaOGdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vY29uZmlnL3YxO2NvbmZpZ3YxYgZwcm90bzM", [file_loco_deployment_v1_deployment, file_loco_resource_v1_resource]);
+  fileDesc("Chtsb2NvL2NvbmZpZy92MS9jb25maWcucHJvdG8SDmxvY28uY29uZmlnLnYxIhIKEEdldENvbmZpZ1JlcXVlc3QiqgEKEUdldENvbmZpZ1Jlc3BvbnNlEj4KEHNlcnZpY2VfZGVmYXVsdHMYASABKAsyJC5sb2NvLmNvbmZpZy52MS5EZWZhdWx0U2VydmljZUNvbmZpZxIXCg9taW5fY2xpX3ZlcnNpb24YAiABKAkSKAoEYXV0aBgDIAEoCzIaLmxvY28uY29uZmlnLnYxLkF1dGhDb25maWcSEgoKc2NoZW1hX3VybBgEIAEoCSI/CgpBdXRoQ29uZmlnEg4KBmlzc3VlchgBIAEoCRIRCgljbGllbnRfaWQYAiABKAkSDgoGc2NvcGVzGAMgASgJIowCChREZWZhdWx0U2VydmljZUNvbmZpZxIwCgdyb3V0aW5nGAEgASgLMh8ubG9jby5yZXNvdXJjZS52MS5Sb3V0aW5nQ29uZmlnEjsKDGhlYWx0aF9jaGVjaxgCIAEoCzIlLmxvY28uZGVwbG95bWVudC52MS5IZWFsdGhDaGVja0NvbmZpZxILCgNjcHUYAyABKAkSDgoGbWVtb3J5GAQgASgJEhQKDG1pbl9yZXBsaWNhcxgFIAEoBRIUCgxtYXhfcmVwbGljYXMYBiABKAUSPAoNb2JzZXJ2YWJpbGl0eRgHIAEoCzIlLmxvY28ucmVzb3VyY2UudjEuT2JzZXJ2YWJpbGl0eUNvbmZpZzJhCg1Db25maWdTZXJ2aWNlElAKCUdldENvbmZpZxIgLmxvY28uY29uZmlnLnYxLkdldENvbmZpZ1JlcXVlc3QaIS5sb2NvLmNvbmZpZy52MS5HZXRDb25maWdSZXNwb25zZUI6WjhnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2NvbmZpZy92MTtjb25maWd2MWIGcHJvdG8z", [file_loco_deployment_v1_deployment, file_loco_resource_v1_resource]);
 
 /**
  * @generated from message loco.config.v1.GetConfigRequest
@@ -97,17 +97,17 @@ export const GetConfigResponseSchema: GenMessage<GetConfigResponse, {jsonType: G
  */
 export type AuthConfig = Message<"loco.config.v1.AuthConfig"> & {
   /**
-   * @generated from field: string issuer = 2;
+   * @generated from field: string issuer = 1;
    */
   issuer: string;
 
   /**
-   * @generated from field: string client_id = 4;
+   * @generated from field: string client_id = 2;
    */
   clientId: string;
 
   /**
-   * @generated from field: string scopes = 5;
+   * @generated from field: string scopes = 3;
    */
   scopes: string;
 };
@@ -117,17 +117,17 @@ export type AuthConfig = Message<"loco.config.v1.AuthConfig"> & {
  */
 export type AuthConfigJson = {
   /**
-   * @generated from field: string issuer = 2;
+   * @generated from field: string issuer = 1;
    */
   issuer?: string;
 
   /**
-   * @generated from field: string client_id = 4;
+   * @generated from field: string client_id = 2;
    */
   clientId?: string;
 
   /**
-   * @generated from field: string scopes = 5;
+   * @generated from field: string scopes = 3;
    */
   scopes?: string;
 };
@@ -149,14 +149,14 @@ export type DefaultServiceConfig = Message<"loco.config.v1.DefaultServiceConfig"
   /**
    * Default routing configuration
    *
-   * @generated from field: loco.resource.v1.RoutingConfig routing = 3;
+   * @generated from field: loco.resource.v1.RoutingConfig routing = 1;
    */
   routing?: RoutingConfig | undefined;
 
   /**
    * Default health check configuration
    *
-   * @generated from field: loco.deployment.v1.HealthCheckConfig health_check = 4;
+   * @generated from field: loco.deployment.v1.HealthCheckConfig health_check = 2;
    */
   healthCheck?: HealthCheckConfig | undefined;
 
@@ -165,40 +165,33 @@ export type DefaultServiceConfig = Message<"loco.config.v1.DefaultServiceConfig"
    *
    * e.g., "0.25"
    *
-   * @generated from field: string cpu = 5;
+   * @generated from field: string cpu = 3;
    */
   cpu: string;
 
   /**
    * e.g., "256Mi"
    *
-   * @generated from field: string memory = 6;
+   * @generated from field: string memory = 4;
    */
   memory: string;
 
   /**
-   * @generated from field: int32 min_replicas = 7;
+   * @generated from field: int32 min_replicas = 5;
    */
   minReplicas: number;
 
   /**
-   * @generated from field: int32 max_replicas = 8;
+   * @generated from field: int32 max_replicas = 6;
    */
   maxReplicas: number;
 
   /**
    * Default observability configuration
    *
-   * @generated from field: loco.resource.v1.ObservabilityConfig observability = 9;
+   * @generated from field: loco.resource.v1.ObservabilityConfig observability = 7;
    */
   observability?: ObservabilityConfig | undefined;
-
-  /**
-   * Default platform domain (e.g., "onloco.app")
-   *
-   * @generated from field: string platform_domain = 10;
-   */
-  platformDomain: string;
 };
 
 /**
@@ -211,14 +204,14 @@ export type DefaultServiceConfigJson = {
   /**
    * Default routing configuration
    *
-   * @generated from field: loco.resource.v1.RoutingConfig routing = 3;
+   * @generated from field: loco.resource.v1.RoutingConfig routing = 1;
    */
   routing?: RoutingConfigJson;
 
   /**
    * Default health check configuration
    *
-   * @generated from field: loco.deployment.v1.HealthCheckConfig health_check = 4;
+   * @generated from field: loco.deployment.v1.HealthCheckConfig health_check = 2;
    */
   healthCheck?: HealthCheckConfigJson;
 
@@ -227,40 +220,33 @@ export type DefaultServiceConfigJson = {
    *
    * e.g., "0.25"
    *
-   * @generated from field: string cpu = 5;
+   * @generated from field: string cpu = 3;
    */
   cpu?: string;
 
   /**
    * e.g., "256Mi"
    *
-   * @generated from field: string memory = 6;
+   * @generated from field: string memory = 4;
    */
   memory?: string;
 
   /**
-   * @generated from field: int32 min_replicas = 7;
+   * @generated from field: int32 min_replicas = 5;
    */
   minReplicas?: number;
 
   /**
-   * @generated from field: int32 max_replicas = 8;
+   * @generated from field: int32 max_replicas = 6;
    */
   maxReplicas?: number;
 
   /**
    * Default observability configuration
    *
-   * @generated from field: loco.resource.v1.ObservabilityConfig observability = 9;
+   * @generated from field: loco.resource.v1.ObservabilityConfig observability = 7;
    */
   observability?: ObservabilityConfigJson;
-
-  /**
-   * Default platform domain (e.g., "onloco.app")
-   *
-   * @generated from field: string platform_domain = 10;
-   */
-  platformDomain?: string;
 };
 
 /**

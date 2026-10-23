@@ -6,7 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
+	"slices"
+	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -19,9 +20,9 @@ import (
 	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
-	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
@@ -29,19 +30,18 @@ import (
 )
 
 var (
-	ErrPlatformDomainNotFound  = errors.New("platform domain not found")
-	ErrPlatformDomainUpdate    = errors.New("failed to update platform domain")
 	ErrDomainAlreadyExists     = errors.New("domain already exists")
 	ErrCannotRemovePrimary     = errors.New("make another domain primary before removing the primary domain")
 	errNoProductionEnvironment = errors.New("the workspace has no production environment to hold the domain")
 )
 
 type DomainServer struct {
-	db       *pgxpool.Pool
-	queries  genDb.Querier
-	authz    *authz.Authorizer
-	machine  *tvm.VendingMachine
-	defaults servicedefaults.Defaults
+	db          *pgxpool.Pool
+	queries     genDb.Querier
+	authz       *authz.Authorizer
+	machine     *tvm.VendingMachine
+	defaults    servicedefaults.Defaults
+	silentAfter time.Duration
 }
 
 func NewDomainServer(
@@ -49,210 +49,59 @@ func NewDomainServer(
 	queries genDb.Querier,
 	machine *tvm.VendingMachine,
 	defaults servicedefaults.Defaults,
+	clusterSilentAfter time.Duration,
 ) *DomainServer {
-	return &DomainServer{db: db, queries: queries, machine: machine, authz: authz.New(db, queries), defaults: defaults}
+	return &DomainServer{
+		db:          db,
+		queries:     queries,
+		machine:     machine,
+		authz:       authz.New(db, queries),
+		defaults:    defaults,
+		silentAfter: clusterSilentAfter,
+	}
 }
 
-// CreatePlatformDomain creates a new platform domain (admin only)
-func (s *DomainServer) CreatePlatformDomain(
-	ctx context.Context,
-	req *domainv1.CreatePlatformDomainRequest,
-) (*domainv1.CreatePlatformDomainResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
-
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.NewSystem(actions.CreatePlatformDomain),
-	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to create platform domain")
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
-	}
-
-	var platformDomain uuid.UUID
-	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		created, createErr := qtx.CreatePlatformDomain(ctx, genDb.CreatePlatformDomainParams{
-			Domain:   req.GetDomain(),
-			IsActive: req.GetIsActive(),
-		})
-		if createErr != nil {
-			return createErr
-		}
-		platformDomain = created
-		return events.Record(ctx, qtx, events.Event{
-			Type:        events.PlatformDomainChange,
-			SubjectType: events.SubjectPlatformDomain,
-			SubjectID:   new(platformDomain),
-			Data:        map[string]any{events.FieldAction: "created", events.FieldDomain: req.GetDomain()},
-		})
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to create platform domain", "domain", req.GetDomain(), "error", err)
-		return nil, connect.NewError(connect.CodeInternal, "failed to create platform domain")
-	}
-
-	return &domainv1.CreatePlatformDomainResponse{
-		Id: platformDomain.String(),
-	}, nil
-}
-
-// GetPlatformDomain retrieves a platform domain by ID or name (public - used for domain selection)
-func (s *DomainServer) GetPlatformDomain(
-	ctx context.Context,
-	req *domainv1.GetPlatformDomainRequest,
-) (*domainv1.GetPlatformDomainResponse, error) {
-	var result genDb.PlatformDomain
-	var err error
-
-	switch key := req.GetKey().(type) {
-	case *domainv1.GetPlatformDomainRequest_Id:
-		result, err = s.queries.GetPlatformDomain(ctx, uuid.MustParse(key.Id))
-	case *domainv1.GetPlatformDomainRequest_Domain:
-		result, err = s.queries.GetPlatformDomainByName(ctx, key.Domain)
-	default:
-		return nil, connect.NewError(connect.CodeInvalidArgument, "either id or domain must be provided")
-	}
-
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get platform domain", "error", err)
-		return nil, rpcerr.New(connect.CodeNotFound, ErrPlatformDomainNotFound)
-	}
-
-	return &domainv1.GetPlatformDomainResponse{
-		PlatformDomain: &domainv1.PlatformDomain{
-			Id:        result.ID.String(),
-			Domain:    result.Domain,
-			IsActive:  result.IsActive,
-			CreatedAt: timeutil.ParsePostgresTimestamp(result.CreatedAt),
-		},
-	}, nil
-}
-
-// ListPlatformDomains lists platform domains with optional filters
+// ListPlatformDomains lists the platform domains the clusters an environment deploys to serve.
 func (s *DomainServer) ListPlatformDomains(
 	ctx context.Context,
 	req *domainv1.ListPlatformDomainsRequest,
 ) (*domainv1.ListPlatformDomainsResponse, error) {
-	var results []genDb.PlatformDomain
-	var err error
-
-	if req.GetActiveOnly() {
-		results, err = s.queries.ListActivePlatformDomains(ctx)
-	} else {
-		results, err = s.queries.ListPlatformDomains(ctx, nil)
+	environmentID := uuid.MustParse(req.GetEnvironmentId())
+	env, err := s.queries.GetEnvironmentByID(ctx, environmentID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
 	}
-
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list platform domains", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, "failed to list platform domains")
+		slog.ErrorContext(ctx, "failed to get environment", "error", err, "environmentId", environmentID)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
-
-	domains := make([]*domainv1.PlatformDomain, len(results))
-	for i, result := range results {
-		domains[i] = &domainv1.PlatformDomain{
-			Id:        result.ID.String(),
-			Domain:    result.Domain,
-			IsActive:  result.IsActive,
-			CreatedAt: timeutil.ParsePostgresTimestamp(result.CreatedAt),
-		}
-	}
-
-	return &domainv1.ListPlatformDomainsResponse{
-		PlatformDomains: domains,
-	}, nil
-}
-
-// UpdatePlatformDomain updates a platform domain
-func (s *DomainServer) UpdatePlatformDomain(
-	ctx context.Context,
-	req *domainv1.UpdatePlatformDomainRequest,
-) (*domainv1.UpdatePlatformDomainResponse, error) {
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
 	}
-
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.NewSystem(actions.UpdatePlatformDomain),
-	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to update platform domain")
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+	workspaceAction := actions.New(actions.ListPlatformDomains, env.WorkspaceID.String())
+	if authErr := s.authz.Check(ctx, scopes, workspaceAction); authErr != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(authErr)
 	}
-
-	parsedID := uuid.MustParse(req.GetId())
-
-	// For now, we'll update using the existing deactivate method if is_active is being changed
-	// This is a simplified implementation
-	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if !req.GetIsActive() {
-			if _, deactivateErr := qtx.DeactivatePlatformDomain(ctx, parsedID); deactivateErr != nil {
-				return deactivateErr
+	eligible, err := eligibleClusters(ctx, s.queries, env.EnvironmentType, s.silentAfter)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list clusters", "error", err)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+	}
+	clusters := regionClusters(eligible)
+	served := configplan.ServedDomains(clusters)
+	domains := make([]*domainv1.PlatformDomain, 0, len(served))
+	for _, domain := range served {
+		platformDomain := &domainv1.PlatformDomain{Domain: domain}
+		for _, cluster := range clusters {
+			if slices.Contains(cluster.Domains, domain) {
+				platformDomain.Regions = append(platformDomain.Regions, cluster.Region)
 			}
 		}
-		return events.Record(ctx, qtx, events.Event{
-			Type:        events.PlatformDomainChange,
-			SubjectType: events.SubjectPlatformDomain,
-			SubjectID:   new(parsedID),
-			Data:        map[string]any{events.FieldAction: "updated"},
-		})
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to update platform domain", "id", req.GetId(), "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrPlatformDomainUpdate)
+		domains = append(domains, platformDomain)
 	}
-
-	return &domainv1.UpdatePlatformDomainResponse{
-		Id: req.GetId(),
-	}, nil
-}
-
-// DeletePlatformDomain deletes a platform domain
-func (s *DomainServer) DeletePlatformDomain(
-	ctx context.Context,
-	req *domainv1.DeletePlatformDomainRequest,
-) (*domainv1.DeletePlatformDomainResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
-
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.NewSystem(actions.DeletePlatformDomain),
-	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to delete platform domain")
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
-	}
-
-	parsedID := uuid.MustParse(req.GetId())
-
-	// Use deactivate for now as delete equivalent
-	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if _, deactivateErr := qtx.DeactivatePlatformDomain(ctx, parsedID); deactivateErr != nil {
-			return deactivateErr
-		}
-		return events.Record(ctx, qtx, events.Event{
-			Type:        events.PlatformDomainChange,
-			SubjectType: events.SubjectPlatformDomain,
-			SubjectID:   new(parsedID),
-			Data:        map[string]any{events.FieldAction: "deleted"},
-		})
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to delete platform domain", "id", req.GetId(), "error", err)
-		return nil, connect.NewError(connect.CodeInternal, "failed to delete platform domain")
-	}
-
-	return &domainv1.DeletePlatformDomainResponse{}, nil
+	return &domainv1.ListPlatformDomainsResponse{PlatformDomains: domains}, nil
 }
 
 // ListLocoOwnedDomains lists all loco-owned (subdomain) domains (admin only)
@@ -315,14 +164,12 @@ func (s *DomainServer) CreateResourceDomain(
 	); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
-	platformDomainID := uuid.MustParse(req.GetDomain().GetPlatformDomainId())
-	platformDomain, err := s.queries.GetPlatformDomain(ctx, platformDomainID)
+	resourceID := uuid.MustParse(req.GetResourceId())
+	fullDomain := req.GetDomain().GetSubdomain() + "." + req.GetDomain().GetPlatformDomain()
+	platformDomain, subdomain, err := s.checkResourceDomain(ctx, resourceID, fullDomain)
 	if err != nil {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrPlatformDomainNotFound)
+		return nil, err
 	}
-
-	subdomain := req.GetDomain().GetSubdomain()
-	fullDomain := subdomain + "." + platformDomain.Domain
 
 	// check domain availability
 	available, err := s.queries.CheckDomainAvailability(ctx, fullDomain)
@@ -332,8 +179,6 @@ func (s *DomainServer) CreateResourceDomain(
 	if !available {
 		return nil, rpcerr.New(connect.CodeAlreadyExists, ErrDomainAlreadyExists)
 	}
-
-	resourceID := uuid.MustParse(req.GetResourceId())
 
 	var resourceDomain uuid.UUID
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -352,13 +197,13 @@ func (s *DomainServer) CreateResourceDomain(
 			return fmt.Errorf("check primary domain: %w", primaryErr)
 		}
 		created, createErr := qtx.CreateResourceDomain(ctx, genDb.CreateResourceDomainParams{
-			ResourceID:       resourceID,
-			EnvironmentID:    environmentID,
-			Domain:           fullDomain,
-			DomainSource:     genDb.DomainSourcePlatformProvided,
-			SubdomainLabel:   &subdomain,
-			PlatformDomainID: &platformDomainID,
-			IsPrimary:        !hasPrimary,
+			ResourceID:     resourceID,
+			EnvironmentID:  environmentID,
+			Domain:         fullDomain,
+			DomainSource:   genDb.DomainSourcePlatformProvided,
+			SubdomainLabel: &subdomain,
+			PlatformDomain: &platformDomain,
+			IsPrimary:      !hasPrimary,
 		})
 		if createErr != nil {
 			return createErr
@@ -427,6 +272,7 @@ func (s *DomainServer) UpdateResourceDomain(
 	// check if new domain is available (unless it's the same domain)
 	changed := req.GetDomain() != "" && req.GetDomain() != domainRow.Domain
 	var subdomainLabel *string
+	var platformDomain *string
 	if changed {
 		available, err := s.queries.CheckDomainAvailability(ctx, req.GetDomain())
 		if err != nil {
@@ -437,11 +283,12 @@ func (s *DomainServer) UpdateResourceDomain(
 		}
 
 		if domainRow.DomainSource == genDb.DomainSourcePlatformProvided {
-			label, labelErr := s.platformSubdomainLabel(ctx, domainRow.PlatformDomainID, req.GetDomain())
-			if labelErr != nil {
-				return nil, labelErr
+			platform, label, checkErr := s.checkResourceDomain(ctx, domainRow.ResourceID, req.GetDomain())
+			if checkErr != nil {
+				return nil, checkErr
 			}
 			subdomainLabel = &label
+			platformDomain = &platform
 		}
 	}
 
@@ -454,6 +301,7 @@ func (s *DomainServer) UpdateResourceDomain(
 				ID:             domainID,
 				Domain:         req.GetDomain(),
 				SubdomainLabel: subdomainLabel,
+				PlatformDomain: platformDomain,
 			})
 			if isPgConstraintViolation(updateErr) {
 				return rpcerr.New(connect.CodeAlreadyExists, ErrDomainAlreadyExists)
@@ -488,37 +336,6 @@ func (s *DomainServer) UpdateResourceDomain(
 	return &domainv1.UpdateResourceDomainResponse{
 		DomainId: req.GetDomainId(),
 	}, nil
-}
-
-func (s *DomainServer) platformSubdomainLabel(
-	ctx context.Context,
-	platformDomainID *uuid.UUID,
-	domain string,
-) (string, error) {
-	if platformDomainID == nil {
-		slog.ErrorContext(ctx, "platform-provided domain has no platform domain id")
-		return "", rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-	platformDomain, err := s.queries.GetPlatformDomain(ctx, *platformDomainID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return "", rpcerr.New(connect.CodeNotFound, ErrPlatformDomainNotFound)
-	}
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get platform domain", "error", err)
-		return "", rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-	return subdomainLabelFor(domain, platformDomain.Domain)
-}
-
-func subdomainLabelFor(domain string, platformDomain string) (string, error) {
-	label, found := strings.CutSuffix(domain, "."+platformDomain)
-	if !found || label == "" || strings.Contains(label, ".") {
-		return "", connect.Errorf(
-			connect.CodeInvalidArgument,
-			"domain must be a single label under %s", platformDomain,
-		)
-	}
-	return label, nil
 }
 
 // SetPrimaryResourceDomain sets which domain is primary for a resource
@@ -715,6 +532,53 @@ func (s *DomainServer) CheckDomainAvailability(
 	return &domainv1.CheckDomainAvailabilityResponse{
 		IsAvailable: result,
 	}, nil
+}
+
+func (s *DomainServer) checkResourceDomain(
+	ctx context.Context,
+	resourceID uuid.UUID,
+	hostname string,
+) (string, string, error) {
+	resource, err := s.queries.GetResourceByID(ctx, resourceID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", "", rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
+	}
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get resource", "error", err, "resourceId", resourceID)
+		return "", "", rpcerr.New(connect.CodeInternal, ErrDB)
+	}
+	env, err := s.queries.GetWorkspaceProductionEnvironment(ctx, resource.WorkspaceID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", "", rpcerr.New(connect.CodeFailedPrecondition, errNoProductionEnvironment)
+	}
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get the production environment", "error", err)
+		return "", "", rpcerr.New(connect.CodeInternal, ErrDB)
+	}
+	spec, err := converter.DeserializeResourceSpec(resource.Spec, resource.Type)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to decode resource spec", "error", err, "resourceId", resourceID)
+		return "", "", rpcerr.New(connect.CodeInternal, ErrDB)
+	}
+	placements, err := s.queries.ListResourceEnvironmentPlacements(
+		ctx,
+		genDb.ListResourceEnvironmentPlacementsParams{ResourceID: resourceID, EnvironmentID: env.ID},
+	)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list placements", "error", err, "resourceId", resourceID)
+		return "", "", rpcerr.New(connect.CodeInternal, ErrDB)
+	}
+	placed := make([]uuid.UUID, 0, len(placements))
+	for _, placement := range placements {
+		placed = append(placed, placement.ClusterID)
+	}
+	regions := enabledRegions(spec.GetService().GetRegions())
+	check, err := resourceDomainCheck(ctx, s.queries, env.EnvironmentType, regions, placed, s.silentAfter)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list domain clusters", "error", err)
+		return "", "", rpcerr.New(connect.CodeInternal, ErrDB)
+	}
+	return check.check(hostname)
 }
 
 // imperativeDomainEnvironment is the environment a domain added through the domain or resource

@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import type { PlatformDomain } from "@gen/loco/domain/v1/domain_pb";
 
 import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
 
@@ -18,6 +19,10 @@ export const DRAFT_DEFAULTS = {
 	hcTimeout: "5",
 	hcFail: "3",
 };
+
+export function servedDomain(domains: PlatformDomain[], region: string): string {
+	return domains.find((d) => d.regions.includes(region))?.domain ?? "";
+}
 
 export type Networking = "public" | "private";
 

@@ -87,6 +87,7 @@ CREATE TABLE
         -- publicly resolvable FQDN of this cluster's gateway; a hostname, never an address
         gateway_hostname TEXT,
         sync_generation BIGINT NOT NULL DEFAULT 0,
+        domains TEXT[] NOT NULL DEFAULT '{}',
         agent_public_key BYTEA CHECK (octet_length(agent_public_key) = 32),
         join_token_hash TEXT UNIQUE,
         join_token_expires_at TIMESTAMPTZ,
@@ -112,15 +113,6 @@ CREATE TABLE
     );
 
 CREATE INDEX idx_cluster_assertions_expires_at ON cluster_assertions (expires_at);
-
--- Platform domains (loco-provided base domains)
-CREATE TABLE
-    platform_domains (
-        id UUID PRIMARY KEY DEFAULT uuidv7 (),
-        domain TEXT NOT NULL UNIQUE,
-        is_active BOOLEAN NOT NULL,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
-    );
 
 -- Resources table
 CREATE TABLE
@@ -170,7 +162,7 @@ CREATE TABLE
         domain TEXT NOT NULL UNIQUE,
         domain_source domain_source NOT NULL,
         subdomain_label TEXT,
-        platform_domain_id UUID REFERENCES platform_domains (id),
+        platform_domain TEXT,
         is_primary BOOLEAN NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
@@ -178,12 +170,12 @@ CREATE TABLE
             (
                 domain_source = 'platform_provided'
                 AND subdomain_label IS NOT NULL
-                AND platform_domain_id IS NOT NULL
+                AND platform_domain IS NOT NULL
             )
             OR (
                 domain_source = 'user_provided'
                 AND subdomain_label IS NULL
-                AND platform_domain_id IS NULL
+                AND platform_domain IS NULL
             )
         )
     );
@@ -198,7 +190,7 @@ WHERE
     is_primary = true;
 
 -- Ensure platform subdomain uniqueness
-CREATE UNIQUE INDEX uniq_platform_subdomain ON resource_domains (platform_domain_id, subdomain_label)
+CREATE UNIQUE INDEX uniq_platform_subdomain ON resource_domains (platform_domain, subdomain_label)
 WHERE
     domain_source = 'platform_provided';
 
@@ -328,7 +320,6 @@ DROP TABLE IF EXISTS deployments;
 DROP TABLE IF EXISTS resource_domains;
 DROP TABLE IF EXISTS secrets;
 DROP TABLE IF EXISTS resources;
-DROP TABLE IF EXISTS platform_domains;
 DROP TABLE IF EXISTS cluster_assertions;
 DROP TABLE IF EXISTS clusters;
 DROP TABLE IF EXISTS environment_keys;

@@ -203,23 +203,18 @@ func (c *fakeConfigService) GetConfig(
 	if err := c.api.record(connect.Spec{Procedure: configv1connect.ConfigServiceGetConfigProcedure}, ""); err != nil {
 		return nil, err
 	}
-	platformDomain := fakePlatformDomain
 	var auth *configv1.AuthConfig
 	c.api.mu.Lock()
-	if c.api.platform.noPlatformDomain {
-		platformDomain = ""
-	}
 	if c.api.identityProvider {
 		auth = &configv1.AuthConfig{Issuer: fakeIssuer, ClientId: fakeClientID}
 	}
 	c.api.mu.Unlock()
 	defaults := &configv1.DefaultServiceConfig{
-		Routing:        &resourcev1.RoutingConfig{Port: fakeDefaultPort},
-		Cpu:            fakeDefaultCPU,
-		Memory:         fakeDefaultMemory,
-		MinReplicas:    fakeDefaultMinReplicas,
-		MaxReplicas:    fakeDefaultMaxReplicas,
-		PlatformDomain: platformDomain,
+		Routing:     &resourcev1.RoutingConfig{Port: fakeDefaultPort},
+		Cpu:         fakeDefaultCPU,
+		Memory:      fakeDefaultMemory,
+		MinReplicas: fakeDefaultMinReplicas,
+		MaxReplicas: fakeDefaultMaxReplicas,
 	}
 	resp := &configv1.GetConfigResponse{ServiceDefaults: defaults, SchemaUrl: fakeSchemaURL, Auth: auth}
 	return resp, nil

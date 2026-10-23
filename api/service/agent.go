@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
@@ -142,6 +143,7 @@ func (s *AgentServer) Register(
 			CapacityCpuMillicores: &cpuCores,
 			CapacityMemoryBytes:   &memBytes,
 			BuildsEnabled:         req.GetBuildsEnabled(),
+			Domains:               reportedDomains(req.GetDomains()),
 		}); updateErr != nil {
 			return updateErr
 		}
@@ -169,6 +171,7 @@ func (s *AgentServer) Register(
 		"enrolled", req.GetEnrollment() != nil,
 		"agent_version", req.GetAgentVersion(),
 		"builds_enabled", req.GetBuildsEnabled(),
+		"domains", req.GetDomains(),
 	)
 
 	heartbeatInterval := durationpb.New(s.heartbeatInterval)
@@ -224,10 +227,17 @@ func (s *AgentServer) recordHeartbeat(ctx context.Context, clusterID uuid.UUID, 
 		CapacityMemoryBytes:   &memBytes,
 		HealthStatus:          &healthStatus,
 		BuildsEnabled:         heartbeat.GetBuildsEnabled(),
+		Domains:               reportedDomains(heartbeat.GetDomains()),
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update heartbeat", "error", err, "cluster_id", clusterID)
 	}
+}
+
+func reportedDomains(domains []string) []string {
+	reported := append([]string{}, domains...)
+	slices.Sort(reported)
+	return slices.Compact(reported)
 }
 
 // healthStatusFromProto converts agent health to a status string.

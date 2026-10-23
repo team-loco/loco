@@ -229,7 +229,7 @@ func (q *Queries) ListClustersActive(ctx context.Context) ([]ListClustersActiveR
 const listEligibleClusters = `-- name: ListEligibleClusters :many
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
        last_health_check, last_heartbeat, capacity_cpu_millicores,
-       capacity_memory_bytes, agent_version, created_at, updated_at
+       capacity_memory_bytes, agent_version, created_at, updated_at, domains
 FROM clusters
 WHERE tier = $1
   AND is_active = true
@@ -259,6 +259,7 @@ type ListEligibleClustersRow struct {
 	AgentVersion          *string    `json:"agentVersion"`
 	CreatedAt             time.Time  `json:"createdAt"`
 	UpdatedAt             time.Time  `json:"updatedAt"`
+	Domains               []string   `json:"domains"`
 }
 
 func (q *Queries) ListEligibleClusters(ctx context.Context, arg ListEligibleClustersParams) ([]ListEligibleClustersRow, error) {
@@ -286,6 +287,7 @@ func (q *Queries) ListEligibleClusters(ctx context.Context, arg ListEligibleClus
 			&i.AgentVersion,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Domains,
 		); err != nil {
 			return nil, err
 		}
@@ -311,7 +313,15 @@ SELECT d.resource_id,
        COALESCE(p.status_message, '')::text AS status_message,
        p.status_updated_at,
        c.last_heartbeat,
-       c.health_status
+       c.health_status,
+       ARRAY(
+           SELECT rd.domain FROM resource_domains rd
+           WHERE rd.resource_id = d.resource_id
+             AND rd.environment_id = d.environment_id
+             AND rd.domain_source = 'platform_provided'
+             AND NOT (rd.platform_domain = ANY(c.domains))
+           ORDER BY rd.domain
+       )::text[] AS unserved_domains
 FROM deployments d
 JOIN environments e ON e.id = d.environment_id
 JOIN clusters c ON c.id = d.cluster_id
@@ -335,6 +345,7 @@ type ListRegionStatusesForResourcesRow struct {
 	StatusUpdatedAt   *time.Time       `json:"statusUpdatedAt"`
 	LastHeartbeat     *time.Time       `json:"lastHeartbeat"`
 	HealthStatus      *string          `json:"healthStatus"`
+	UnservedDomains   []string         `json:"unservedDomains"`
 }
 
 func (q *Queries) ListRegionStatusesForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListRegionStatusesForResourcesRow, error) {
@@ -361,6 +372,7 @@ func (q *Queries) ListRegionStatusesForResources(ctx context.Context, resourceId
 			&i.StatusUpdatedAt,
 			&i.LastHeartbeat,
 			&i.HealthStatus,
+			&i.UnservedDomains,
 		); err != nil {
 			return nil, err
 		}

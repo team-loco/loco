@@ -2,6 +2,16 @@
 {{- default (printf "%s-tls" .Release.Name) .Values.certManager.existingTLSSecret -}}
 {{- end -}}
 
+{{- define "loco-core.gateway" -}}
+eg
+{{- end -}}
+
+{{- define "loco-core.certificate" -}}
+{{- if not .Values.certManager.existingTLSSecret -}}
+{{- printf "%s-cert" .Release.Name -}}
+{{- end -}}
+{{- end -}}
+
 {{- define "loco-core.agentKeySecret" -}}
 {{- printf "%s-agent-key" .Release.Name -}}
 {{- end -}}

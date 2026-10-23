@@ -44,17 +44,11 @@ func testCreateResourceDomain(t *testing.T, platform bool) {
 	workspace := workspaceID.String()
 	var input *domainv1.DomainInput
 	if platform {
-		platformID, err := f.queries.CreatePlatformDomain(ctx, genDb.CreatePlatformDomainParams{
-			Domain: "example.com", IsActive: true,
-		})
-		if err != nil {
-			t.Fatalf("create platform domain: %v", err)
-		}
-		platformIDString := platformID.String()
+		f.serveDomains(t, testDomainPlatform)
 		label := "private"
 		input = &domainv1.DomainInput{
-			DomainSource:     domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED,
-			PlatformDomainId: &platformIDString, Subdomain: &label,
+			DomainSource:   domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED,
+			PlatformDomain: new(testDomainPlatform), Subdomain: &label,
 		}
 	}
 	req := &resourcev1.CreateResourceRequest{

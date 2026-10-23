@@ -1,13 +1,18 @@
-# an install with no platform domain and no session default cannot name a hostname, so init writes nothing.
+# with no cluster serving a platform domain in the default region, init cannot name a hostname and writes nothing.
 fakeapi no-platform-domain
 ! exec loco infra init --name my-app
-stderr '(?i)this install has no platform domain'
+stderr '(?i)no cluster of the environment serves a platform domain in the region: us-east-1 in production'
 ! exists loco.yaml
-
-# the session's default app domain still works.
-exec loco config set defaultAppDomain custom.example
-exec loco infra init --name my-app
-grep 'domains: \[my-app.custom.example\]' loco.yaml
 
 -- home/.loco/credentials.json --
 {"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.yaml --
+currentScope: default
+scopes:
+  default:
+    organization:
+      name: acme
+      id: "1"
+    workspace:
+      name: production
+      id: "2"

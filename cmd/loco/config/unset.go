@@ -26,8 +26,6 @@ func buildUnsetCmd() *cobra.Command {
 				cfg.LocoHost = ""
 			case keyWebHost:
 				cfg.WebHost = ""
-			case keyDefaultAppDomain:
-				cfg.DefaultAppDomain = ""
 			default:
 				return fmt.Errorf("unknown key %q — valid keys: %v", key, validKeys)
 			}

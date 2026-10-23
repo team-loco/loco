@@ -12,23 +12,24 @@ import (
 )
 
 const (
-	testPartial    = webService
-	testRegion     = "us-east-1"
-	testImage      = "ghcr.io/acme/worker:1.4.2"
-	webService     = "web"
-	workerService  = "worker"
-	apiService     = "api"
-	oldService     = "old"
-	otherPartial   = "backend"
-	sessionSecret  = "SESSION_KEY"
-	logLevelKey    = "LOG_LEVEL"
-	logLevelPath   = "env." + logLevelKey
-	testRegionPath = "regions." + testRegion
-	logLevelInfo   = "info"
-	testCPU        = "250m"
-	testMemory     = "512Mi"
-	appDomain      = "app.example.com"
-	testPinned     = "ghcr.io/acme/worker@sha256:7781a08afca1adb11b6294ca81ee6e04f9fc677f4f04c9d9daf2b0e068f5e89a"
+	testPartial        = webService
+	testRegion         = "us-east-1"
+	testImage          = "ghcr.io/acme/worker:1.4.2"
+	webService         = "web"
+	workerService      = "worker"
+	apiService         = "api"
+	oldService         = "old"
+	otherPartial       = "backend"
+	sessionSecret      = "SESSION_KEY"
+	logLevelKey        = "LOG_LEVEL"
+	logLevelPath       = "env." + logLevelKey
+	testRegionPath     = "regions." + testRegion
+	logLevelInfo       = "info"
+	testCPU            = "250m"
+	testMemory         = "512Mi"
+	appDomain          = "app.example.com"
+	testPlatformDomain = "example.com"
+	testPinned         = "ghcr.io/acme/worker@sha256:7781a08afca1adb11b6294ca81ee6e04f9fc677f4f04c9d9daf2b0e068f5e89a"
 )
 
 func testDefaults() servicedefaults.Defaults {
@@ -85,16 +86,19 @@ const (
 
 func input(services map[string]locofile.Service, live ...Service) Input {
 	return Input{
-		Partial:         testPartial,
-		Services:        services,
-		Environments:    []string{"prod"},
-		Regions:         []string{testRegion},
-		PlatformDomains: []string{"example.com"},
-		MaxSecretBytes:  testMaxSecretBytes,
-		Live:            live,
-		Defaults:        testDefaults(),
-		Images:          map[string]ImageResult{testImage: {Pinned: testPinned}},
+		Partial:        testPartial,
+		Services:       services,
+		Environments:   []string{"prod"},
+		Clusters:       []Cluster{testCluster(testRegion)},
+		MaxSecretBytes: testMaxSecretBytes,
+		Live:           live,
+		Defaults:       testDefaults(),
+		Images:         map[string]ImageResult{testImage: {Pinned: testPinned}},
 	}
+}
+
+func testCluster(region string) Cluster {
+	return Cluster{Name: "cluster-" + region, Region: region, Domains: []string{testPlatformDomain}}
 }
 
 func compute(t *testing.T, in Input) Plan {
@@ -245,7 +249,7 @@ func TestRemovingARunningRegionIsDestructive(t *testing.T) {
 			State:          liveState(),
 		}
 		in := input(map[string]locofile.Service{webService: service}, live)
-		in.Regions = []string{testRegion, movedRegion}
+		in.Clusters = []Cluster{testCluster(testRegion), testCluster(movedRegion)}
 		op := onlyOperation(t, compute(t, in))
 		if !op.Destructive {
 			t.Fatalf("%v operation = %+v, want destructive for the stopped region", op.Kind, op)
@@ -259,7 +263,7 @@ func TestRemovingARegionThatDoesNotRunIsNotDestructive(t *testing.T) {
 	service.Regions = map[string]locofile.Region{movedRegion: service.Regions[testRegion]}
 	live := Service{Name: webService, Partial: testPartial, Built: true, State: liveState()}
 	in := input(map[string]locofile.Service{webService: service}, live)
-	in.Regions = []string{testRegion, movedRegion}
+	in.Clusters = []Cluster{testCluster(testRegion), testCluster(movedRegion)}
 	if op := onlyOperation(t, compute(t, in)); op.Destructive {
 		t.Fatalf("operation = %+v, want no confirmation for a region nothing runs in", op)
 	}
@@ -466,10 +470,43 @@ func TestCustomDomainIsAnError(t *testing.T) {
 	service := fileService()
 	service.Domains = []string{appDomain, "www.acme.dev"}
 	planErr := onlyError(t, compute(t, input(map[string]locofile.Service{webService: service})), ErrCustomDomain)
-	wantMessage := "domain is not under an active platform domain: www.acme.dev"
+	wantMessage := "domain is not under a platform domain any cluster serves: www.acme.dev"
 	if planErr.Path != "domains" || planErr.Err.Error() != wantMessage {
 		t.Fatalf("error = %+v, want the custom domain", planErr)
 	}
+}
+
+func TestDomainMustBeServedByEveryClusterTheServiceDeploysTo(t *testing.T) {
+	const otherRegion = "eu-west-1"
+	service := fileService()
+	service.Regions = map[string]locofile.Region{
+		testRegion:  service.Regions[testRegion],
+		otherRegion: service.Regions[testRegion],
+	}
+	missing := Cluster{Name: "cluster-eu", Region: otherRegion, Domains: []string{"other.test"}}
+	in := input(map[string]locofile.Service{webService: service})
+	in.Clusters = []Cluster{testCluster(testRegion), missing}
+	planErr := onlyError(t, compute(t, in), ErrDomainNotServed)
+	wantMessage := "a cluster the service deploys to does not serve the domain: " +
+		appDomain + " is under " + testPlatformDomain + ", which cluster-eu (eu-west-1) does not serve"
+	if planErr.Path != pathDomains || planErr.Err.Error() != wantMessage {
+		t.Fatalf("error = %+v, want %q", planErr, wantMessage)
+	}
+}
+
+func TestDomainServedOnlyInARegionTheServiceSkipsIsAllowed(t *testing.T) {
+	missing := Cluster{Name: "cluster-eu", Region: "eu-west-1"}
+	in := input(map[string]locofile.Service{webService: fileService()})
+	in.Clusters = append(in.Clusters, missing)
+	if plan := compute(t, in); len(plan.Errors) > 0 {
+		t.Fatalf("errors = %v, want none for a region the service does not use", plan.Errors)
+	}
+}
+
+func TestDomainNoClusterServesIsACustomDomain(t *testing.T) {
+	in := input(map[string]locofile.Service{webService: fileService()})
+	in.Clusters = []Cluster{{Name: "cluster-bare", Region: testRegion}}
+	onlyError(t, compute(t, in), ErrCustomDomain)
 }
 
 func TestMatchPlatformDomainPicksTheLongestSuffix(t *testing.T) {

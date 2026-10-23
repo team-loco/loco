@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -19,15 +20,15 @@ import (
 )
 
 const (
-	testSecondDomain = "alt.example.com"
-	domainRaceRounds = 25
+	testSecondDomain   = "alt.example.com"
+	testDomainPlatform = "example.com"
+	domainRaceRounds   = 25
 )
 
 type domainClient struct {
-	server           *DomainServer
-	ctx              context.Context
-	f                *deployFixture
-	platformDomainID uuid.UUID
+	server *DomainServer
+	ctx    context.Context
+	f      *deployFixture
 }
 
 func newDomainClient(t *testing.T, f *deployFixture) *domainClient {
@@ -38,14 +39,9 @@ func newDomainClient(t *testing.T, f *deployFixture) *domainClient {
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
 	}
 	scoped := context.WithValue(context.Background(), contextkeys.EntityScopesKey, scopes)
-	server := NewDomainServer(f.pool, f.queries, machine, testServiceDefaults())
-	var platformDomainID uuid.UUID
-	if err := f.pool.QueryRow(scoped, `
-INSERT INTO platform_domains (domain, is_active) VALUES ('example.com', true)
-ON CONFLICT (domain) DO UPDATE SET domain = EXCLUDED.domain RETURNING id`).Scan(&platformDomainID); err != nil {
-		t.Fatalf("create platform domain: %v", err)
-	}
-	return &domainClient{server: server, ctx: scoped, f: f, platformDomainID: platformDomainID}
+	server := NewDomainServer(f.pool, f.queries, machine, testServiceDefaults(), testClusterSilentAfter)
+	f.serveDomains(t, testDomainPlatform)
+	return &domainClient{server: server, ctx: scoped, f: f}
 }
 
 func (c *domainClient) domainID(t *testing.T, domain string) string {
@@ -65,20 +61,8 @@ func (c *domainClient) removeByID(id string) error {
 }
 
 func (c *domainClient) add(domain string) error {
-	label, err := subdomainLabelFor(domain, "example.com")
-	if err != nil {
-		return err
-	}
-	platformDomainID := c.platformDomainID.String()
-	input := &domainv1.DomainInput{
-		DomainSource:     domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED,
-		Subdomain:        &label,
-		PlatformDomainId: &platformDomainID,
-	}
-	resourceID := c.f.resourceID.String()
-	req := &domainv1.CreateResourceDomainRequest{ResourceId: resourceID, Domain: input}
-	_, err = c.server.CreateResourceDomain(c.ctx, req)
-	return err
+	label := strings.TrimSuffix(domain, "."+testDomainPlatform)
+	return c.addUnder(label, testDomainPlatform)
 }
 
 func removeDomain(t *testing.T, f *deployFixture, domain string) error {

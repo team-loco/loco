@@ -22,11 +22,10 @@ const (
 // SessionConfig represents the CLI's local state and authentication configuration.
 // It is persisted to ~/.loco/config.yaml.
 type SessionConfig struct {
-	LocoHost         string            `json:"locoHost,omitempty"`
-	WebHost          string            `json:"webHost,omitempty"`
-	DefaultAppDomain string            `json:"defaultAppDomain,omitempty"`
-	Scopes           map[string]*Scope `json:"scopes"`
-	CurrentScope     string            `json:"currentScope"`
+	LocoHost     string            `json:"locoHost,omitempty"`
+	WebHost      string            `json:"webHost,omitempty"`
+	Scopes       map[string]*Scope `json:"scopes"`
+	CurrentScope string            `json:"currentScope"`
 }
 
 // Scope represents a CLI context with an organization and workspace.
