@@ -1,5 +1,76 @@
 global:
+  # region label attached to platform records as loco.region.
   region: ""
+  # export node metrics, Kubernetes state and platform events through a separate pipeline.
+  # these settings apply to the node DaemonSet and the single cluster collector.
+  platformTelemetry:
+    # opt in; false leaves the existing application telemetry pipelines in place.
+    enabled: false
+    # keep only platform pipelines in the node and cluster collectors.
+    # requires enabled: true and otel-col-deploy.enabled: false.
+    # for OTLP without ClickHouse, also set clickhouse.enabled: false and clear both
+    # collectors' extraEnvs to remove their default ClickHouse Secret references.
+    platformOnly: false
+    # required when enabled: stable ID for the Loco installation, shared by its clusters.
+    # exported as loco.installation.id; supplied by the operator, not discovered.
+    installation: ""
+    # required when enabled: stable name of this Kubernetes cluster (k8s.cluster.name).
+    cluster: ""
+    # required when enabled: this cluster's environment (deployment.environment.name),
+    # such as development, staging or production.
+    environment: ""
+    # duration between node scrapes and cluster metric emissions; 60s limits collection load.
+    # also changes the shared cluster receiver's existing pipeline interval.
+    # Kubernetes events arrive through a watch and do not wait for this interval.
+    collectionInterval: 60s
+    # node condition metrics: Ready=true is healthy; a pressure condition=true is unhealthy.
+    # these defaults cover readiness and memory, disk and process ID exhaustion.
+    nodeConditions: [Ready, MemoryPressure, DiskPressure, PIDPressure]
+    # node capacity available to pods after Kubernetes reservations: CPU cores,
+    # memory bytes, temporary storage bytes and pod slots. these are capacity, not usage.
+    allocatableTypes: [cpu, memory, ephemeral-storage, pods]
+    # allowlist for namespaced workload metrics and events in the platform pipeline.
+    # defaults cover Loco and its infrastructure; adjust to match installed namespaces.
+    # at least one is required. node and cluster metrics without a namespace remain included.
+    namespaces: [kube-system, loco-system, observability, observability-node, envoy-gateway-system, cert-manager]
+    # clickhouse reuses existing storage by default; otlp_http sends to the endpoint below.
+    destination: clickhouse
+    # ClickHouse exporter overrides (endpoint, database, username, password, create_schema).
+    # omitted fields inherit the collector's existing ClickHouse exporter configuration.
+    clickhouse: {}
+    # used only with destination: otlp_http; sends metrics and events over OTLP/HTTP.
+    otlp:
+      # required for otlp_http: base URL; the exporter appends /v1/metrics or /v1/logs.
+      # use https:// for an encrypted connection.
+      endpoint: ""
+      # outbound headers, including authentication. use ${env:NAME} for Secret-backed
+      # values and load the Secret through extraEnvsFrom on both collectors.
+      headers: {}
+      tls:
+        # collector TLS setting; the endpoint's http:// or https:// scheme selects
+        # transport encryption. false does not upgrade an http:// endpoint to HTTPS.
+        insecure: false
+        # false verifies the server certificate and hostname for HTTPS connections.
+        insecure_skip_verify: false
+    # each platform exporter has its own bounded in-memory queue.
+    # queued data is lost on restart; a full queue can drop new records.
+    sendingQueue:
+      # buffer export requests so a slow destination does not immediately block collection.
+      enabled: true
+      # two workers send queued requests concurrently.
+      num_consumers: 2
+      # capacity in requests/batches, not metric points or bytes.
+      queue_size: 256
+    # retry temporary export failures; permanent errors can still drop records immediately.
+    retry:
+      enabled: true
+      # starting retry delay; backoff increases this delay with jitter.
+      initial_interval: 1s
+      # nominal backoff limit; jitter can produce a longer individual delay.
+      max_interval: 10s
+      # retry time budget per request after export starts; excludes time waiting in the queue.
+      # a longer outage can lose data after this budget expires.
+      max_elapsed_time: 60s
   clickhouse:
     host: ""
     port: 9000
