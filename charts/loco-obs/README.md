@@ -95,4 +95,7 @@ The collectors expose their normal internal telemetry. Monitor exporter failures
 
 ```sh
 mise run test:chart-contracts
+mise run e2e:cluster-metrics
 ```
+
+The end-to-end suite creates its own kind cluster, checks node and cluster measurements and namespace-scoped events in authenticated OTLP and ClickHouse destinations, and stops the OTLP destination to check retry and timestamp behavior. It deletes its resources afterward. Use `--no-teardown` to keep that test cluster for a rerun.
