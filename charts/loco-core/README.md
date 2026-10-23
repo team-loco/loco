@@ -1,6 +1,6 @@
 # loco-core
 
-`loco-core` installs the worker-cluster agent and application Gateway. Install cert-manager and the Loco operator before installing this chart, and provide the agent image tag and connection configuration.
+`loco-core` installs the worker-cluster agent and application Gateway. Install cert-manager and the Loco operator before installing this chart, and provide the agent image tag, the control plane URL and, for the first start, a join token from `locoadm cluster create`.
 
 The Gateway terminates TLS with a Secret in the Helm release's namespace. By default the chart creates a Let's Encrypt ACME ClusterIssuer, a wildcard Certificate, and a Cloudflare API-token Secret. Set `certManager.issuer.email` and `secrets.cloudflareToken` for this mode.
 

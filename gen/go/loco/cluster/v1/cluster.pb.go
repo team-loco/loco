@@ -8,6 +8,7 @@ package clusterv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	v1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -24,20 +25,20 @@ const (
 )
 
 type Cluster struct {
-	state                           protoimpl.MessageState `protogen:"open.v1"`
-	Id                              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	ClusterKey                      string                 `protobuf:"bytes,2,opt,name=cluster_key,json=clusterKey,proto3" json:"cluster_key,omitempty"`
-	Name                            string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Region                          string                 `protobuf:"bytes,4,opt,name=region,proto3" json:"region,omitempty"`
-	Tier                            string                 `protobuf:"bytes,5,opt,name=tier,proto3" json:"tier,omitempty"`
-	IsActive                        bool                   `protobuf:"varint,6,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
-	RemovedAt                       *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=removed_at,json=removedAt,proto3" json:"removed_at,omitempty"`
-	HealthStatus                    *string                `protobuf:"bytes,8,opt,name=health_status,json=healthStatus,proto3,oneof" json:"health_status,omitempty"`
-	LastHeartbeat                   *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=last_heartbeat,json=lastHeartbeat,proto3" json:"last_heartbeat,omitempty"`
-	AgentVersion                    *string                `protobuf:"bytes,10,opt,name=agent_version,json=agentVersion,proto3,oneof" json:"agent_version,omitempty"`
-	ConnectionCredentialFingerprint *string                `protobuf:"bytes,11,opt,name=connection_credential_fingerprint,json=connectionCredentialFingerprint,proto3,oneof" json:"connection_credential_fingerprint,omitempty"`
-	unknownFields                   protoimpl.UnknownFields
-	sizeCache                       protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Id                  string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ClusterKey          string                 `protobuf:"bytes,2,opt,name=cluster_key,json=clusterKey,proto3" json:"cluster_key,omitempty"`
+	Name                string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Region              string                 `protobuf:"bytes,4,opt,name=region,proto3" json:"region,omitempty"`
+	Tier                v1.EnvironmentType     `protobuf:"varint,5,opt,name=tier,proto3,enum=loco.environment.v1.EnvironmentType" json:"tier,omitempty"`
+	IsActive            bool                   `protobuf:"varint,6,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
+	RemovedAt           *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=removed_at,json=removedAt,proto3" json:"removed_at,omitempty"`
+	HealthStatus        *string                `protobuf:"bytes,8,opt,name=health_status,json=healthStatus,proto3,oneof" json:"health_status,omitempty"`
+	LastHeartbeat       *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=last_heartbeat,json=lastHeartbeat,proto3" json:"last_heartbeat,omitempty"`
+	AgentVersion        *string                `protobuf:"bytes,10,opt,name=agent_version,json=agentVersion,proto3,oneof" json:"agent_version,omitempty"`
+	AgentKeyFingerprint *string                `protobuf:"bytes,11,opt,name=agent_key_fingerprint,json=agentKeyFingerprint,proto3,oneof" json:"agent_key_fingerprint,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *Cluster) Reset() {
@@ -98,11 +99,11 @@ func (x *Cluster) GetRegion() string {
 	return ""
 }
 
-func (x *Cluster) GetTier() string {
+func (x *Cluster) GetTier() v1.EnvironmentType {
 	if x != nil {
 		return x.Tier
 	}
-	return ""
+	return v1.EnvironmentType(0)
 }
 
 func (x *Cluster) GetIsActive() bool {
@@ -140,9 +141,9 @@ func (x *Cluster) GetAgentVersion() string {
 	return ""
 }
 
-func (x *Cluster) GetConnectionCredentialFingerprint() string {
-	if x != nil && x.ConnectionCredentialFingerprint != nil {
-		return *x.ConnectionCredentialFingerprint
+func (x *Cluster) GetAgentKeyFingerprint() string {
+	if x != nil && x.AgentKeyFingerprint != nil {
+		return *x.AgentKeyFingerprint
 	}
 	return ""
 }
@@ -243,6 +244,266 @@ func (x *ClusterWorkloads) GetWorkloads() []*ClusterWorkload {
 	return nil
 }
 
+type JoinToken struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *JoinToken) Reset() {
+	*x = JoinToken{}
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *JoinToken) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*JoinToken) ProtoMessage() {}
+
+func (x *JoinToken) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use JoinToken.ProtoReflect.Descriptor instead.
+func (*JoinToken) Descriptor() ([]byte, []int) {
+	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *JoinToken) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+func (x *JoinToken) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+type CreateClusterRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Region        string                 `protobuf:"bytes,2,opt,name=region,proto3" json:"region,omitempty"`
+	Tier          v1.EnvironmentType     `protobuf:"varint,3,opt,name=tier,proto3,enum=loco.environment.v1.EnvironmentType" json:"tier,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateClusterRequest) Reset() {
+	*x = CreateClusterRequest{}
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateClusterRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateClusterRequest) ProtoMessage() {}
+
+func (x *CreateClusterRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateClusterRequest.ProtoReflect.Descriptor instead.
+func (*CreateClusterRequest) Descriptor() ([]byte, []int) {
+	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *CreateClusterRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateClusterRequest) GetRegion() string {
+	if x != nil {
+		return x.Region
+	}
+	return ""
+}
+
+func (x *CreateClusterRequest) GetTier() v1.EnvironmentType {
+	if x != nil {
+		return x.Tier
+	}
+	return v1.EnvironmentType(0)
+}
+
+type CreateClusterResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ClusterId     string                 `protobuf:"bytes,1,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	JoinToken     *JoinToken             `protobuf:"bytes,2,opt,name=join_token,json=joinToken,proto3" json:"join_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateClusterResponse) Reset() {
+	*x = CreateClusterResponse{}
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateClusterResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateClusterResponse) ProtoMessage() {}
+
+func (x *CreateClusterResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateClusterResponse.ProtoReflect.Descriptor instead.
+func (*CreateClusterResponse) Descriptor() ([]byte, []int) {
+	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *CreateClusterResponse) GetClusterId() string {
+	if x != nil {
+		return x.ClusterId
+	}
+	return ""
+}
+
+func (x *CreateClusterResponse) GetJoinToken() *JoinToken {
+	if x != nil {
+		return x.JoinToken
+	}
+	return nil
+}
+
+type IssueJoinTokenRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ClusterId     string                 `protobuf:"bytes,1,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IssueJoinTokenRequest) Reset() {
+	*x = IssueJoinTokenRequest{}
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IssueJoinTokenRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IssueJoinTokenRequest) ProtoMessage() {}
+
+func (x *IssueJoinTokenRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IssueJoinTokenRequest.ProtoReflect.Descriptor instead.
+func (*IssueJoinTokenRequest) Descriptor() ([]byte, []int) {
+	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *IssueJoinTokenRequest) GetClusterId() string {
+	if x != nil {
+		return x.ClusterId
+	}
+	return ""
+}
+
+type IssueJoinTokenResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ClusterId     string                 `protobuf:"bytes,1,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	JoinToken     *JoinToken             `protobuf:"bytes,2,opt,name=join_token,json=joinToken,proto3" json:"join_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IssueJoinTokenResponse) Reset() {
+	*x = IssueJoinTokenResponse{}
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IssueJoinTokenResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IssueJoinTokenResponse) ProtoMessage() {}
+
+func (x *IssueJoinTokenResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IssueJoinTokenResponse.ProtoReflect.Descriptor instead.
+func (*IssueJoinTokenResponse) Descriptor() ([]byte, []int) {
+	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *IssueJoinTokenResponse) GetClusterId() string {
+	if x != nil {
+		return x.ClusterId
+	}
+	return ""
+}
+
+func (x *IssueJoinTokenResponse) GetJoinToken() *JoinToken {
+	if x != nil {
+		return x.JoinToken
+	}
+	return nil
+}
+
 type ListClustersRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -251,7 +512,7 @@ type ListClustersRequest struct {
 
 func (x *ListClustersRequest) Reset() {
 	*x = ListClustersRequest{}
-	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[3]
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -263,7 +524,7 @@ func (x *ListClustersRequest) String() string {
 func (*ListClustersRequest) ProtoMessage() {}
 
 func (x *ListClustersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[3]
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -276,7 +537,7 @@ func (x *ListClustersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListClustersRequest.ProtoReflect.Descriptor instead.
 func (*ListClustersRequest) Descriptor() ([]byte, []int) {
-	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{3}
+	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{8}
 }
 
 type ListClustersResponse struct {
@@ -288,7 +549,7 @@ type ListClustersResponse struct {
 
 func (x *ListClustersResponse) Reset() {
 	*x = ListClustersResponse{}
-	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[4]
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -300,7 +561,7 @@ func (x *ListClustersResponse) String() string {
 func (*ListClustersResponse) ProtoMessage() {}
 
 func (x *ListClustersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[4]
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -313,7 +574,7 @@ func (x *ListClustersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListClustersResponse.ProtoReflect.Descriptor instead.
 func (*ListClustersResponse) Descriptor() ([]byte, []int) {
-	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{4}
+	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ListClustersResponse) GetClusters() []*Cluster {
@@ -332,7 +593,7 @@ type PauseClusterRequest struct {
 
 func (x *PauseClusterRequest) Reset() {
 	*x = PauseClusterRequest{}
-	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[5]
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -344,7 +605,7 @@ func (x *PauseClusterRequest) String() string {
 func (*PauseClusterRequest) ProtoMessage() {}
 
 func (x *PauseClusterRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[5]
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -357,7 +618,7 @@ func (x *PauseClusterRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PauseClusterRequest.ProtoReflect.Descriptor instead.
 func (*PauseClusterRequest) Descriptor() ([]byte, []int) {
-	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{5}
+	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *PauseClusterRequest) GetClusterId() string {
@@ -376,7 +637,7 @@ type PauseClusterResponse struct {
 
 func (x *PauseClusterResponse) Reset() {
 	*x = PauseClusterResponse{}
-	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[6]
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -388,7 +649,7 @@ func (x *PauseClusterResponse) String() string {
 func (*PauseClusterResponse) ProtoMessage() {}
 
 func (x *PauseClusterResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[6]
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -401,7 +662,7 @@ func (x *PauseClusterResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PauseClusterResponse.ProtoReflect.Descriptor instead.
 func (*PauseClusterResponse) Descriptor() ([]byte, []int) {
-	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{6}
+	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *PauseClusterResponse) GetClusterId() string {
@@ -420,7 +681,7 @@ type ResumeClusterRequest struct {
 
 func (x *ResumeClusterRequest) Reset() {
 	*x = ResumeClusterRequest{}
-	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[7]
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -432,7 +693,7 @@ func (x *ResumeClusterRequest) String() string {
 func (*ResumeClusterRequest) ProtoMessage() {}
 
 func (x *ResumeClusterRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[7]
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -445,7 +706,7 @@ func (x *ResumeClusterRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeClusterRequest.ProtoReflect.Descriptor instead.
 func (*ResumeClusterRequest) Descriptor() ([]byte, []int) {
-	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{7}
+	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ResumeClusterRequest) GetClusterId() string {
@@ -464,7 +725,7 @@ type ResumeClusterResponse struct {
 
 func (x *ResumeClusterResponse) Reset() {
 	*x = ResumeClusterResponse{}
-	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[8]
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -476,7 +737,7 @@ func (x *ResumeClusterResponse) String() string {
 func (*ResumeClusterResponse) ProtoMessage() {}
 
 func (x *ResumeClusterResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[8]
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -489,7 +750,7 @@ func (x *ResumeClusterResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeClusterResponse.ProtoReflect.Descriptor instead.
 func (*ResumeClusterResponse) Descriptor() ([]byte, []int) {
-	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{8}
+	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ResumeClusterResponse) GetClusterId() string {
@@ -509,7 +770,7 @@ type RemoveClusterRequest struct {
 
 func (x *RemoveClusterRequest) Reset() {
 	*x = RemoveClusterRequest{}
-	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[9]
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -521,7 +782,7 @@ func (x *RemoveClusterRequest) String() string {
 func (*RemoveClusterRequest) ProtoMessage() {}
 
 func (x *RemoveClusterRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[9]
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -534,7 +795,7 @@ func (x *RemoveClusterRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveClusterRequest.ProtoReflect.Descriptor instead.
 func (*RemoveClusterRequest) Descriptor() ([]byte, []int) {
-	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{9}
+	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *RemoveClusterRequest) GetClusterId() string {
@@ -561,7 +822,7 @@ type RemoveClusterResponse struct {
 
 func (x *RemoveClusterResponse) Reset() {
 	*x = RemoveClusterResponse{}
-	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[10]
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -573,7 +834,7 @@ func (x *RemoveClusterResponse) String() string {
 func (*RemoveClusterResponse) ProtoMessage() {}
 
 func (x *RemoveClusterResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[10]
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -586,7 +847,7 @@ func (x *RemoveClusterResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveClusterResponse.ProtoReflect.Descriptor instead.
 func (*RemoveClusterResponse) Descriptor() ([]byte, []int) {
-	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{10}
+	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *RemoveClusterResponse) GetClusterId() string {
@@ -612,7 +873,7 @@ type RestoreClusterRequest struct {
 
 func (x *RestoreClusterRequest) Reset() {
 	*x = RestoreClusterRequest{}
-	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[11]
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -624,7 +885,7 @@ func (x *RestoreClusterRequest) String() string {
 func (*RestoreClusterRequest) ProtoMessage() {}
 
 func (x *RestoreClusterRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[11]
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -637,7 +898,7 @@ func (x *RestoreClusterRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RestoreClusterRequest.ProtoReflect.Descriptor instead.
 func (*RestoreClusterRequest) Descriptor() ([]byte, []int) {
-	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{11}
+	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *RestoreClusterRequest) GetClusterId() string {
@@ -656,7 +917,7 @@ type RestoreClusterResponse struct {
 
 func (x *RestoreClusterResponse) Reset() {
 	*x = RestoreClusterResponse{}
-	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[12]
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -668,7 +929,7 @@ func (x *RestoreClusterResponse) String() string {
 func (*RestoreClusterResponse) ProtoMessage() {}
 
 func (x *RestoreClusterResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[12]
+	mi := &file_loco_cluster_v1_cluster_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -681,7 +942,7 @@ func (x *RestoreClusterResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RestoreClusterResponse.ProtoReflect.Descriptor instead.
 func (*RestoreClusterResponse) Descriptor() ([]byte, []int) {
-	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{12}
+	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *RestoreClusterResponse) GetClusterId() string {
@@ -695,30 +956,54 @@ var File_loco_cluster_v1_cluster_proto protoreflect.FileDescriptor
 
 const file_loco_cluster_v1_cluster_proto_rawDesc = "" +
 	"\n" +
-	"\x1dloco/cluster/v1/cluster.proto\x12\x0floco.cluster.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x84\x04\n" +
+	"\x1dloco/cluster/v1/cluster.proto\x12\x0floco.cluster.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a%loco/environment/v1/environment.proto\"\x86\x04\n" +
 	"\aCluster\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vcluster_key\x18\x02 \x01(\tR\n" +
 	"clusterKey\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12\x16\n" +
-	"\x06region\x18\x04 \x01(\tR\x06region\x12\x12\n" +
-	"\x04tier\x18\x05 \x01(\tR\x04tier\x12\x1b\n" +
+	"\x06region\x18\x04 \x01(\tR\x06region\x128\n" +
+	"\x04tier\x18\x05 \x01(\x0e2$.loco.environment.v1.EnvironmentTypeR\x04tier\x12\x1b\n" +
 	"\tis_active\x18\x06 \x01(\bR\bisActive\x129\n" +
 	"\n" +
 	"removed_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAt\x12(\n" +
 	"\rhealth_status\x18\b \x01(\tH\x00R\fhealthStatus\x88\x01\x01\x12A\n" +
 	"\x0elast_heartbeat\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\rlastHeartbeat\x12(\n" +
 	"\ragent_version\x18\n" +
-	" \x01(\tH\x01R\fagentVersion\x88\x01\x01\x12O\n" +
-	"!connection_credential_fingerprint\x18\v \x01(\tH\x02R\x1fconnectionCredentialFingerprint\x88\x01\x01B\x10\n" +
+	" \x01(\tH\x01R\fagentVersion\x88\x01\x01\x127\n" +
+	"\x15agent_key_fingerprint\x18\v \x01(\tH\x02R\x13agentKeyFingerprint\x88\x01\x01B\x10\n" +
 	"\x0e_health_statusB\x10\n" +
-	"\x0e_agent_versionB$\n" +
-	"\"_connection_credential_fingerprint\"5\n" +
+	"\x0e_agent_versionB\x18\n" +
+	"\x16_agent_key_fingerprint\"5\n" +
 	"\x0fClusterWorkload\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\"R\n" +
 	"\x10ClusterWorkloads\x12>\n" +
-	"\tworkloads\x18\x01 \x03(\v2 .loco.cluster.v1.ClusterWorkloadR\tworkloads\"\x15\n" +
+	"\tworkloads\x18\x01 \x03(\v2 .loco.cluster.v1.ClusterWorkloadR\tworkloads\"\\\n" +
+	"\tJoinToken\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\x129\n" +
+	"\n" +
+	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\xa0\x01\n" +
+	"\x14CreateClusterRequest\x12\x1e\n" +
+	"\x04name\x18\x01 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\xff\x01R\x04name\x12\"\n" +
+	"\x06region\x18\x02 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\xff\x01R\x06region\x12D\n" +
+	"\x04tier\x18\x03 \x01(\x0e2$.loco.environment.v1.EnvironmentTypeB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04tier\"q\n" +
+	"\x15CreateClusterResponse\x12\x1d\n" +
+	"\n" +
+	"cluster_id\x18\x01 \x01(\tR\tclusterId\x129\n" +
+	"\n" +
+	"join_token\x18\x02 \x01(\v2\x1a.loco.cluster.v1.JoinTokenR\tjoinToken\"@\n" +
+	"\x15IssueJoinTokenRequest\x12'\n" +
+	"\n" +
+	"cluster_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tclusterId\"r\n" +
+	"\x16IssueJoinTokenResponse\x12\x1d\n" +
+	"\n" +
+	"cluster_id\x18\x01 \x01(\tR\tclusterId\x129\n" +
+	"\n" +
+	"join_token\x18\x02 \x01(\v2\x1a.loco.cluster.v1.JoinTokenR\tjoinToken\"\x15\n" +
 	"\x13ListClustersRequest\"L\n" +
 	"\x14ListClustersResponse\x124\n" +
 	"\bclusters\x18\x01 \x03(\v2\x18.loco.cluster.v1.ClusterR\bclusters\">\n" +
@@ -747,8 +1032,10 @@ const file_loco_cluster_v1_cluster_proto_rawDesc = "" +
 	"cluster_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tclusterId\"7\n" +
 	"\x16RestoreClusterResponse\x12\x1d\n" +
 	"\n" +
-	"cluster_id\x18\x01 \x01(\tR\tclusterId2\xf2\x03\n" +
-	"\x13ClusterAdminService\x12[\n" +
+	"cluster_id\x18\x01 \x01(\tR\tclusterId2\xb5\x05\n" +
+	"\x13ClusterAdminService\x12^\n" +
+	"\rCreateCluster\x12%.loco.cluster.v1.CreateClusterRequest\x1a&.loco.cluster.v1.CreateClusterResponse\x12a\n" +
+	"\x0eIssueJoinToken\x12&.loco.cluster.v1.IssueJoinTokenRequest\x1a'.loco.cluster.v1.IssueJoinTokenResponse\x12[\n" +
 	"\fListClusters\x12$.loco.cluster.v1.ListClustersRequest\x1a%.loco.cluster.v1.ListClustersResponse\x12[\n" +
 	"\fPauseCluster\x12$.loco.cluster.v1.PauseClusterRequest\x1a%.loco.cluster.v1.PauseClusterResponse\x12^\n" +
 	"\rResumeCluster\x12%.loco.cluster.v1.ResumeClusterRequest\x1a&.loco.cluster.v1.ResumeClusterResponse\x12^\n" +
@@ -767,44 +1054,59 @@ func file_loco_cluster_v1_cluster_proto_rawDescGZIP() []byte {
 	return file_loco_cluster_v1_cluster_proto_rawDescData
 }
 
-var file_loco_cluster_v1_cluster_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_loco_cluster_v1_cluster_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_loco_cluster_v1_cluster_proto_goTypes = []any{
 	(*Cluster)(nil),                // 0: loco.cluster.v1.Cluster
 	(*ClusterWorkload)(nil),        // 1: loco.cluster.v1.ClusterWorkload
 	(*ClusterWorkloads)(nil),       // 2: loco.cluster.v1.ClusterWorkloads
-	(*ListClustersRequest)(nil),    // 3: loco.cluster.v1.ListClustersRequest
-	(*ListClustersResponse)(nil),   // 4: loco.cluster.v1.ListClustersResponse
-	(*PauseClusterRequest)(nil),    // 5: loco.cluster.v1.PauseClusterRequest
-	(*PauseClusterResponse)(nil),   // 6: loco.cluster.v1.PauseClusterResponse
-	(*ResumeClusterRequest)(nil),   // 7: loco.cluster.v1.ResumeClusterRequest
-	(*ResumeClusterResponse)(nil),  // 8: loco.cluster.v1.ResumeClusterResponse
-	(*RemoveClusterRequest)(nil),   // 9: loco.cluster.v1.RemoveClusterRequest
-	(*RemoveClusterResponse)(nil),  // 10: loco.cluster.v1.RemoveClusterResponse
-	(*RestoreClusterRequest)(nil),  // 11: loco.cluster.v1.RestoreClusterRequest
-	(*RestoreClusterResponse)(nil), // 12: loco.cluster.v1.RestoreClusterResponse
-	(*timestamppb.Timestamp)(nil),  // 13: google.protobuf.Timestamp
+	(*JoinToken)(nil),              // 3: loco.cluster.v1.JoinToken
+	(*CreateClusterRequest)(nil),   // 4: loco.cluster.v1.CreateClusterRequest
+	(*CreateClusterResponse)(nil),  // 5: loco.cluster.v1.CreateClusterResponse
+	(*IssueJoinTokenRequest)(nil),  // 6: loco.cluster.v1.IssueJoinTokenRequest
+	(*IssueJoinTokenResponse)(nil), // 7: loco.cluster.v1.IssueJoinTokenResponse
+	(*ListClustersRequest)(nil),    // 8: loco.cluster.v1.ListClustersRequest
+	(*ListClustersResponse)(nil),   // 9: loco.cluster.v1.ListClustersResponse
+	(*PauseClusterRequest)(nil),    // 10: loco.cluster.v1.PauseClusterRequest
+	(*PauseClusterResponse)(nil),   // 11: loco.cluster.v1.PauseClusterResponse
+	(*ResumeClusterRequest)(nil),   // 12: loco.cluster.v1.ResumeClusterRequest
+	(*ResumeClusterResponse)(nil),  // 13: loco.cluster.v1.ResumeClusterResponse
+	(*RemoveClusterRequest)(nil),   // 14: loco.cluster.v1.RemoveClusterRequest
+	(*RemoveClusterResponse)(nil),  // 15: loco.cluster.v1.RemoveClusterResponse
+	(*RestoreClusterRequest)(nil),  // 16: loco.cluster.v1.RestoreClusterRequest
+	(*RestoreClusterResponse)(nil), // 17: loco.cluster.v1.RestoreClusterResponse
+	(v1.EnvironmentType)(0),        // 18: loco.environment.v1.EnvironmentType
+	(*timestamppb.Timestamp)(nil),  // 19: google.protobuf.Timestamp
 }
 var file_loco_cluster_v1_cluster_proto_depIdxs = []int32{
-	13, // 0: loco.cluster.v1.Cluster.removed_at:type_name -> google.protobuf.Timestamp
-	13, // 1: loco.cluster.v1.Cluster.last_heartbeat:type_name -> google.protobuf.Timestamp
-	1,  // 2: loco.cluster.v1.ClusterWorkloads.workloads:type_name -> loco.cluster.v1.ClusterWorkload
-	0,  // 3: loco.cluster.v1.ListClustersResponse.clusters:type_name -> loco.cluster.v1.Cluster
-	1,  // 4: loco.cluster.v1.RemoveClusterResponse.workloads:type_name -> loco.cluster.v1.ClusterWorkload
-	3,  // 5: loco.cluster.v1.ClusterAdminService.ListClusters:input_type -> loco.cluster.v1.ListClustersRequest
-	5,  // 6: loco.cluster.v1.ClusterAdminService.PauseCluster:input_type -> loco.cluster.v1.PauseClusterRequest
-	7,  // 7: loco.cluster.v1.ClusterAdminService.ResumeCluster:input_type -> loco.cluster.v1.ResumeClusterRequest
-	9,  // 8: loco.cluster.v1.ClusterAdminService.RemoveCluster:input_type -> loco.cluster.v1.RemoveClusterRequest
-	11, // 9: loco.cluster.v1.ClusterAdminService.RestoreCluster:input_type -> loco.cluster.v1.RestoreClusterRequest
-	4,  // 10: loco.cluster.v1.ClusterAdminService.ListClusters:output_type -> loco.cluster.v1.ListClustersResponse
-	6,  // 11: loco.cluster.v1.ClusterAdminService.PauseCluster:output_type -> loco.cluster.v1.PauseClusterResponse
-	8,  // 12: loco.cluster.v1.ClusterAdminService.ResumeCluster:output_type -> loco.cluster.v1.ResumeClusterResponse
-	10, // 13: loco.cluster.v1.ClusterAdminService.RemoveCluster:output_type -> loco.cluster.v1.RemoveClusterResponse
-	12, // 14: loco.cluster.v1.ClusterAdminService.RestoreCluster:output_type -> loco.cluster.v1.RestoreClusterResponse
-	10, // [10:15] is the sub-list for method output_type
-	5,  // [5:10] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	18, // 0: loco.cluster.v1.Cluster.tier:type_name -> loco.environment.v1.EnvironmentType
+	19, // 1: loco.cluster.v1.Cluster.removed_at:type_name -> google.protobuf.Timestamp
+	19, // 2: loco.cluster.v1.Cluster.last_heartbeat:type_name -> google.protobuf.Timestamp
+	1,  // 3: loco.cluster.v1.ClusterWorkloads.workloads:type_name -> loco.cluster.v1.ClusterWorkload
+	19, // 4: loco.cluster.v1.JoinToken.expires_at:type_name -> google.protobuf.Timestamp
+	18, // 5: loco.cluster.v1.CreateClusterRequest.tier:type_name -> loco.environment.v1.EnvironmentType
+	3,  // 6: loco.cluster.v1.CreateClusterResponse.join_token:type_name -> loco.cluster.v1.JoinToken
+	3,  // 7: loco.cluster.v1.IssueJoinTokenResponse.join_token:type_name -> loco.cluster.v1.JoinToken
+	0,  // 8: loco.cluster.v1.ListClustersResponse.clusters:type_name -> loco.cluster.v1.Cluster
+	1,  // 9: loco.cluster.v1.RemoveClusterResponse.workloads:type_name -> loco.cluster.v1.ClusterWorkload
+	4,  // 10: loco.cluster.v1.ClusterAdminService.CreateCluster:input_type -> loco.cluster.v1.CreateClusterRequest
+	6,  // 11: loco.cluster.v1.ClusterAdminService.IssueJoinToken:input_type -> loco.cluster.v1.IssueJoinTokenRequest
+	8,  // 12: loco.cluster.v1.ClusterAdminService.ListClusters:input_type -> loco.cluster.v1.ListClustersRequest
+	10, // 13: loco.cluster.v1.ClusterAdminService.PauseCluster:input_type -> loco.cluster.v1.PauseClusterRequest
+	12, // 14: loco.cluster.v1.ClusterAdminService.ResumeCluster:input_type -> loco.cluster.v1.ResumeClusterRequest
+	14, // 15: loco.cluster.v1.ClusterAdminService.RemoveCluster:input_type -> loco.cluster.v1.RemoveClusterRequest
+	16, // 16: loco.cluster.v1.ClusterAdminService.RestoreCluster:input_type -> loco.cluster.v1.RestoreClusterRequest
+	5,  // 17: loco.cluster.v1.ClusterAdminService.CreateCluster:output_type -> loco.cluster.v1.CreateClusterResponse
+	7,  // 18: loco.cluster.v1.ClusterAdminService.IssueJoinToken:output_type -> loco.cluster.v1.IssueJoinTokenResponse
+	9,  // 19: loco.cluster.v1.ClusterAdminService.ListClusters:output_type -> loco.cluster.v1.ListClustersResponse
+	11, // 20: loco.cluster.v1.ClusterAdminService.PauseCluster:output_type -> loco.cluster.v1.PauseClusterResponse
+	13, // 21: loco.cluster.v1.ClusterAdminService.ResumeCluster:output_type -> loco.cluster.v1.ResumeClusterResponse
+	15, // 22: loco.cluster.v1.ClusterAdminService.RemoveCluster:output_type -> loco.cluster.v1.RemoveClusterResponse
+	17, // 23: loco.cluster.v1.ClusterAdminService.RestoreCluster:output_type -> loco.cluster.v1.RestoreClusterResponse
+	17, // [17:24] is the sub-list for method output_type
+	10, // [10:17] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_loco_cluster_v1_cluster_proto_init() }
@@ -819,7 +1121,7 @@ func file_loco_cluster_v1_cluster_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_cluster_v1_cluster_proto_rawDesc), len(file_loco_cluster_v1_cluster_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -47,19 +47,13 @@ func (q *Queries) AdvancePlacementPastRevision(ctx context.Context, arg AdvanceP
 
 const beginClusterSync = `-- name: BeginClusterSync :one
 UPDATE clusters
-SET sync_generation = sync_generation + 1,
-    connection_credential_fingerprint = $2, updated_at = NOW()
+SET sync_generation = sync_generation + 1, updated_at = NOW()
 WHERE id = $1 AND removed_at IS NULL
 RETURNING sync_generation
 `
 
-type BeginClusterSyncParams struct {
-	ID                              uuid.UUID `json:"id"`
-	ConnectionCredentialFingerprint *string   `json:"connectionCredentialFingerprint"`
-}
-
-func (q *Queries) BeginClusterSync(ctx context.Context, arg BeginClusterSyncParams) (int64, error) {
-	row := q.db.QueryRow(ctx, beginClusterSync, arg.ID, arg.ConnectionCredentialFingerprint)
+func (q *Queries) BeginClusterSync(ctx context.Context, id uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, beginClusterSync, id)
 	var sync_generation int64
 	err := row.Scan(&sync_generation)
 	return sync_generation, err

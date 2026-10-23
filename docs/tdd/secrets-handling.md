@@ -36,7 +36,7 @@ So plaintext env exists in Postgres, in the `Application` object in the worker's
 | GitLab token, project, registry URL | API (registry service) and the controller on every worker | Railway variable; worker chart values |
 | `DATABASE_URL` (Postgres password) | API, migrations | Railway reference variable; CI secret for the deploy workflows |
 | Valkey password | API | Railway reference variable |
-| Agent token | Agent | Agent Secret and API process configuration (`LOCO_AGENT_CONNECTION_SECRETS`) |
+| Agent key | Agent | `<release>-agent-key` Secret in the agent namespace; the API stores only the public key |
 | User session and API tokens | API | Only SHA-256 hashes in Postgres (`access_token_hash`, `refresh_token_hash`, `token_hash`) |
 | OAuth state markers | API | Valkey, 10-minute TTL |
 | ClickHouse credentials | obs-proxy, collectors | One Secret per ClickHouse user (`loco_migrator`, `loco_ingest`, `loco_reader`), rendered by the `loco-obs` chart from values; the proxy expands them into `CLICKHOUSE_MIGRATOR_URL`, `CLICKHOUSE_URL` and, for ingest, `CLICKHOUSE_INGEST_URL` |

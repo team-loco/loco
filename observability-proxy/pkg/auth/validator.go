@@ -6,8 +6,7 @@ import (
 	"net/http"
 
 	"connectrpc.com/connect/v2"
-
-	"github.com/team-loco/loco/internal/rpc"
+	"connectrpc.com/connect/v2/connecthttp"
 
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
@@ -32,8 +31,9 @@ func NewValidator(controlPlaneURL string, c cache.Cache) *Validator {
 	transport.Protocols.SetHTTP2(true)
 	httpClient := &http.Client{Transport: transport}
 
-	clients := rpc.NewHTTPClients(httpClient, controlPlaneURL, "")
-	tokenClient := clients.Token
+	rpcTransport := connecthttp.NewTransport(httpClient, controlPlaneURL)
+	connectClient := connect.NewClient(rpcTransport)
+	tokenClient := tokenv1connect.NewTokenServiceClient(connectClient)
 
 	return &Validator{
 		client: tokenClient,

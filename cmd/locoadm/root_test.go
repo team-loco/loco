@@ -20,7 +20,7 @@ func TestRootCommandRegistersCluster(t *testing.T) {
 	for _, operation := range cluster.Commands() {
 		operations = append(operations, operation.Name())
 	}
-	want := "list pause remove restore resume"
+	want := "create join-token list pause remove restore resume"
 	if got := strings.Join(operations, " "); got != want {
 		t.Errorf("cluster operations = %q, want %q", got, want)
 	}

@@ -5,9 +5,6 @@ certManager:
   issuer:
     email: e2e@test.local
 agent:
-  clusterName: e2e-test-cluster
-  clusterRegion: us-east-1
-  clusterTier: production
   image:
     tag: e2e
 envoyProxy:

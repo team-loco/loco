@@ -2,17 +2,22 @@ package service
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/sha256"
 	"errors"
 	"net/url"
 	"os"
 	"sync"
 	"testing"
+	"time"
 
+	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/migrations"
+	"github.com/team-loco/loco/internal/clusterassertion"
 )
 
 type deployFixture struct {
@@ -24,7 +29,49 @@ type deployFixture struct {
 	envID        uuid.UUID
 }
 
-const testAgentToken = "test-agent-token"
+const testAssertionLifetime = time.Minute
+
+func testClusterKey(clusterID uuid.UUID) ed25519.PrivateKey {
+	seed := sha256.Sum256(clusterID[:])
+	return ed25519.NewKeyFromSeed(seed[:])
+}
+
+func testAssertion(t *testing.T, clusterID uuid.UUID) string {
+	t.Helper()
+	token, err := clusterassertion.Sign(
+		testClusterKey(clusterID),
+		clusterID.String(),
+		time.Now(),
+		testAssertionLifetime,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return token
+}
+
+func agentContext(ctx context.Context, t *testing.T, clusterID uuid.UUID) context.Context {
+	t.Helper()
+	ctx, info := connect.NewClientContext(ctx)
+	info.RequestHeader().Set("Authorization", "Bearer "+testAssertion(t, clusterID))
+	return ctx
+}
+
+func enrollTestCluster(t *testing.T, pool *pgxpool.Pool, clusterID uuid.UUID) {
+	t.Helper()
+	publicKey, ok := testClusterKey(clusterID).Public().(ed25519.PublicKey)
+	if !ok {
+		t.Fatal("ed25519 private key returned a non-ed25519 public key")
+	}
+	if _, err := pool.Exec(
+		context.Background(),
+		"UPDATE clusters SET cluster_key = id, agent_public_key = $2 WHERE id = $1",
+		clusterID,
+		[]byte(publicKey),
+	); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func newDeployFixture(t *testing.T) *deployFixture {
 	t.Helper()
@@ -96,9 +143,8 @@ SELECT c.id, c2.id, r.id, e.id FROM c, c2, r, e`)
 	if err := row.Scan(&f.clusterID, &f.otherCluster, &f.resourceID, &f.envID); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	if _, err := pool.Exec(ctx, "UPDATE clusters SET cluster_key = id"); err != nil {
-		t.Fatal(err)
-	}
+	enrollTestCluster(t, pool, f.clusterID)
+	enrollTestCluster(t, pool, f.otherCluster)
 	return f
 }
 

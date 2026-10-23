@@ -41,7 +41,6 @@ render_certificate() {
     shift
     helm template "$release" "$ROOT_DIR/charts/loco-core" -n loco-certificates \
         --set gateway-helm.enabled=false --set agent.image.tag=e2e \
-        --set agent.clusterName=certificates --set agent.clusterRegion=test --set agent.clusterTier=production \
         --set certManager.issuer.name=loco-certificates-local \
         --set certManager.issuer.type=selfSigned \
         --set-json 'global.domain.apps=["apps.example.test"]' \
@@ -51,7 +50,6 @@ render_certificate() {
 
 helm template local "$ROOT_DIR/charts/loco-core" -n loco-certificates \
     --set gateway-helm.enabled=false --set agent.image.tag=e2e \
-        --set agent.clusterName=certificates --set agent.clusterRegion=test --set agent.clusterTier=production \
     --set certManager.issuer.name=loco-certificates-local --set certManager.issuer.type=selfSigned \
     --show-only templates/cm-issuer.yaml | kubectl apply -f -
 render_certificate local | kubectl apply -f -

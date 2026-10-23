@@ -97,7 +97,7 @@ def chart_values(chart):
     )
 
 
-def render_documents(chart, template, overrides):
+def render_documents(chart, template, overrides, includes=()):
     source = ROOT / "charts" / chart
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
@@ -112,6 +112,8 @@ def render_documents(chart, template, overrides):
         target = root / "templates" / template
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source / "templates" / template, target)
+        for included in includes:
+            shutil.copyfile(source / "templates" / included, root / "templates" / included)
         for helper in (source / "templates").glob("*.tpl"):
             shutil.copyfile(helper, root / "templates" / helper.name)
         (root / "overrides.json").write_text(json.dumps(overrides))

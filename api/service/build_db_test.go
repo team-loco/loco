@@ -412,7 +412,7 @@ func TestStartBuildPicksTheOldestActiveCluster(t *testing.T) {
 
 	exec(`UPDATE clusters SET tier = 'production', health_status = 'healthy' WHERE id = $1`, f.clusterID)
 	exec(
-		`UPDATE clusters SET created_at = NOW() - INTERVAL '2 hours', tier = 'dev', health_status = NULL,
+		`UPDATE clusters SET created_at = NOW() - INTERVAL '2 hours', tier = 'staging', health_status = NULL,
 		 region = 'eu-west-1', is_default = false WHERE id = $1`,
 		f.otherCluster,
 	)

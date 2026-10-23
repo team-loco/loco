@@ -13,7 +13,7 @@ Provide these dependencies before installing the chart:
 | Regional ClickHouse | Install `loco-obs` or provide an external ClickHouse with Keeper. Supply separate reader and migrator DSNs through existing Secrets. |
 | Envoy Gateway | Existing `eg` Gateway in `gatewayNamespace`, with a TLS listener covering `controlPlaneHostname` and `ui.hostname` and permission to attach routes from the control-plane namespace. |
 
-Create the API environment Secret outside Helm. The chart reads environment-variable keys directly from that Secret, so credentials do not enter Helm values or the release manifest. A complete installation configures `DATABASE_URL`, `LOCO_AGENT_CONNECTION_SECRETS`, `AUTH_ISSUERS`, the source bucket and registry, and a supported `LOCO_SECRETS_KEY_PROVIDER`. Store local key material or transit credentials in the same operator-managed Secret. Existing API configuration names and rotation procedures apply.
+Create the API environment Secret outside Helm. The chart reads environment-variable keys directly from that Secret, so credentials do not enter Helm values or the release manifest. A complete installation configures `DATABASE_URL`, `AUTH_ISSUERS`, the source bucket and registry, and a supported `LOCO_SECRETS_KEY_PROVIDER`. Store local key material or transit credentials in the same operator-managed Secret. Existing API configuration names and rotation procedures apply.
 
 ```sh
 kubectl -n loco-system create secret generic regional-api-env \

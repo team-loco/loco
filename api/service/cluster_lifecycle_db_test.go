@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
@@ -172,81 +171,5 @@ func TestPauseWaitsForAnInFlightAssignment(t *testing.T) {
 	}
 	if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 		t.Fatal(err)
-	}
-}
-
-func TestSyncRecordsCredentialUsedByTheConnection(t *testing.T) {
-	f := newDeployFixture(t)
-	const original = "original-rotation-secret"
-	const replacement = "replacement-rotation-secret"
-	cfg := testAgentConfig()
-	cfg.ConnectionSecrets = []string{original, replacement}
-	client := startSyncServerWithConfig(t, f, nil, cfg)
-	ctx := t.Context()
-	first := openSyncWithToken(ctx, t, client, f.clusterID, original)
-	waitForSyncGeneration(t, f, f.clusterID, 1)
-	requireFingerprint := func(secret string) {
-		t.Helper()
-		rows, err := f.queries.ListAdminClusters(ctx)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, row := range rows {
-			if row.ID == f.clusterID {
-				if row.ConnectionCredentialFingerprint == nil ||
-					*row.ConnectionCredentialFingerprint != hashToken(secret) {
-					t.Fatalf("unexpected fingerprint: %v", row.ConnectionCredentialFingerprint)
-				}
-				return
-			}
-		}
-		t.Fatal("connected cluster missing from operator list")
-	}
-	requireFingerprint(original)
-	registerCtx, info := connect.NewClientContext(ctx)
-	info.RequestHeader().Set("Authorization", "Bearer "+replacement)
-	_, err := client.Register(registerCtx, &agentv1.RegisterRequest{
-		ClusterKey:    f.clusterID.String(),
-		DisplayName:   "c1",
-		ClusterRegion: attachmentRegion,
-		Tier:          environmentTypeProduction,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	requireFingerprint(original)
-	second := openSyncWithToken(ctx, t, client, f.clusterID, replacement)
-	waitForSyncGeneration(t, f, f.clusterID, 2)
-	requireFingerprint(replacement)
-	if got := nextResult(t, first); connect.CodeOf(got.err) != connect.CodeAborted {
-		t.Fatalf("superseded stream: %v", got.err)
-	}
-	if _, err := ManageCluster(ctx, f.pool, ClusterPause, f.clusterID, false); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := ManageCluster(ctx, f.pool, ClusterRemove, f.clusterID, false); err != nil {
-		t.Fatal(err)
-	}
-	if got := nextResult(t, second); connect.CodeOf(got.err) != connect.CodePermissionDenied {
-		t.Fatalf("removed stream: %v", got.err)
-	}
-}
-
-func waitForSyncGeneration(t *testing.T, f *deployFixture, id uuid.UUID, minimum int64) {
-	t.Helper()
-	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
-	defer cancel()
-	ticker := time.NewTicker(10 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		generation, err := f.queries.GetClusterSyncGeneration(ctx, id)
-		if err == nil && generation >= minimum {
-			return
-		}
-		select {
-		case <-ctx.Done():
-			t.Fatalf("sync generation never reached %d: %v", minimum, err)
-		case <-ticker.C:
-		}
 	}
 }

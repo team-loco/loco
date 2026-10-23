@@ -282,20 +282,18 @@ func openSync(
 	clusterID uuid.UUID,
 ) <-chan syncResult {
 	t.Helper()
-	return openSyncWithToken(ctx, t, client, clusterID, testAgentToken)
+	return openSyncWithAssertion(ctx, t, client, testAssertion(t, clusterID))
 }
 
-func openSyncWithToken(
+func openSyncWithAssertion(
 	ctx context.Context,
 	t *testing.T,
 	client agentv1connect.AgentServiceClient,
-	clusterID uuid.UUID,
-	token string,
+	assertion string,
 ) <-chan syncResult {
 	t.Helper()
 	ctx, info := connect.NewClientContext(ctx)
-	info.RequestHeader().Set("Authorization", "Bearer "+token)
-	info.RequestHeader().Set("Loco-Cluster-Key", clusterID.String())
+	info.RequestHeader().Set("Authorization", "Bearer "+assertion)
 	stream, err := client.Sync(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -383,7 +381,8 @@ func TestSyncStreamRejectsUnknownAgents(t *testing.T) {
 
 func testAgentConfig() AgentConfig {
 	return AgentConfig{
-		ConnectionSecrets:         []string{testAgentToken},
+		AssertionMaxLifetime:      5 * testAssertionLifetime,
+		JoinTokenTTL:              time.Hour,
 		PlacementRetryDelay:       time.Hour,
 		PlacementMaxApplyAttempts: 1,
 	}

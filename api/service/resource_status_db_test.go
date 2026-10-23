@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 
 	"github.com/team-loco/loco/api/contextkeys"
@@ -538,9 +537,7 @@ func TestResourceStatusIsUnknownOnceTheSyncStreamDrops(t *testing.T) {
 	client := startSyncServer(t, f.deployFixture)
 	streamCtx, dropStream := context.WithCancel(f.ctx)
 	defer dropStream()
-	streamCtx, callInfo := connect.NewClientContext(streamCtx)
-	callInfo.RequestHeader().Set("Authorization", "Bearer "+testAgentToken)
-	callInfo.RequestHeader().Set("Loco-Cluster-Key", f.clusterID.String())
+	streamCtx = agentContext(streamCtx, t, f.clusterID)
 	stream, err := client.Sync(streamCtx)
 	if err != nil {
 		t.Fatal(err)

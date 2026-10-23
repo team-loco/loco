@@ -20,9 +20,8 @@ COPY agent ./agent
 COPY gen/go ./gen/go
 COPY k8sapi ./k8sapi
 COPY internal/buildinfo ./internal/buildinfo
-COPY internal/httputil ./internal/httputil
-COPY internal/rpc ./internal/rpc
 COPY internal/loglevel ./internal/loglevel
+COPY internal/clusterassertion ./internal/clusterassertion
 
 WORKDIR /app/agent
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build go build -ldflags "-X main.version=${VERSION}" -o loco-agent .

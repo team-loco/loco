@@ -25,23 +25,15 @@ type syncStream = agentv1connect.AgentServiceSyncServerStream
 
 func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
 	info, _ := connect.CallInfoForServerContext(ctx)
-	cluster, err := s.authenticateAgent(
-		ctx,
-		info.RequestHeader().Get("Authorization"),
-		info.RequestHeader().Get("Loco-Cluster-Key"),
-	)
+	cluster, err := s.clusters.Authenticate(ctx, info.RequestHeader().Get("Authorization"))
 	if err != nil {
-		return connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
+		return agentAuthError(err)
 	}
 
 	listener := s.notifier.Listen(ctx, cluster.ID)
 	defer listener.Close()
 
-	credentialFingerprint := hashToken(extractBearerToken(info.RequestHeader().Get("Authorization")))
-	generation, err := s.queries.BeginClusterSync(ctx, genDb.BeginClusterSyncParams{
-		ID:                              cluster.ID,
-		ConnectionCredentialFingerprint: &credentialFingerprint,
-	})
+	generation, err := s.queries.BeginClusterSync(ctx, cluster.ID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return rpcerr.New(connect.CodePermissionDenied, ErrClusterRemoved)
 	}
@@ -54,16 +46,7 @@ func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
 		slog.WarnContext(ctx, "failed to announce sync stream", "cluster_id", cluster.ID, "error", notifyErr)
 	}
 
-	slog.InfoContext(
-		ctx,
-		"sync stream opened",
-		"cluster_id",
-		cluster.ID,
-		"generation",
-		generation,
-		"credential_fingerprint",
-		credentialFingerprint,
-	)
+	slog.InfoContext(ctx, "sync stream opened", "cluster_id", cluster.ID, "generation", generation)
 
 	recvCtx, cancel := context.WithCancel(ctx)
 	defer cancel()

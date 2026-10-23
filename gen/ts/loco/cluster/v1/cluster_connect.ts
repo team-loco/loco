@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ListClustersRequest, ListClustersResponse, PauseClusterRequest, PauseClusterResponse, RemoveClusterRequest, RemoveClusterResponse, RestoreClusterRequest, RestoreClusterResponse, ResumeClusterRequest, ResumeClusterResponse } from "./cluster_pb";
+import { CreateClusterRequest, CreateClusterResponse, IssueJoinTokenRequest, IssueJoinTokenResponse, ListClustersRequest, ListClustersResponse, PauseClusterRequest, PauseClusterResponse, RemoveClusterRequest, RemoveClusterResponse, RestoreClusterRequest, RestoreClusterResponse, ResumeClusterRequest, ResumeClusterResponse } from "./cluster_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -12,6 +12,24 @@ import { MethodKind } from "@bufbuild/protobuf";
 export const ClusterAdminService = {
   typeName: "loco.cluster.v1.ClusterAdminService",
   methods: {
+    /**
+     * @generated from rpc loco.cluster.v1.ClusterAdminService.CreateCluster
+     */
+    createCluster: {
+      name: "CreateCluster",
+      I: CreateClusterRequest,
+      O: CreateClusterResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc loco.cluster.v1.ClusterAdminService.IssueJoinToken
+     */
+    issueJoinToken: {
+      name: "IssueJoinToken",
+      I: IssueJoinTokenRequest,
+      O: IssueJoinTokenResponse,
+      kind: MethodKind.Unary,
+    },
     /**
      * @generated from rpc loco.cluster.v1.ClusterAdminService.ListClusters
      */

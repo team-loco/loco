@@ -229,7 +229,7 @@ test_agent_logs_no_errors() {
 test_agent_reconnects_to_same_cluster() {
     local original_id="$E2E_CLUSTER_ID"
     kill_pid_file "$PID_DIR/agent.pid"
-    start_agent
-    assert "Agent restart preserves cluster ID" test "$E2E_CLUSTER_ID" = "$original_id"
+    E2E_JOIN_TOKEN="" start_agent
+    assert "Agent restart without the join token preserves cluster ID" test "$E2E_CLUSTER_ID" = "$original_id"
     assert "Reconnect keeps a single cluster record" test "$(e2e_psql 'SELECT count(*) FROM clusters')" = 1
 }

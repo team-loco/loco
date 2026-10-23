@@ -11,7 +11,6 @@ FIXTURE_ENV = {
     "CERT_MANAGER_EMAIL": "test@example.test",
     "CLOUDFLARE_TOKEN": "test",
     "LOG_LEVEL": "info",
-    "AGENT_TOKEN": "test",
     "CONTROL_PLANE_URL": "https://api.example.test",
     "CLICKHOUSE_PASSWORD": "test",
     "CLICKHOUSE_MIGRATOR_PASSWORD": "test",

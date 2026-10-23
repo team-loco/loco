@@ -5,7 +5,6 @@
 !gen/go
 !internal/buildinfo
 !internal/httputil
-!internal/rpc
 !internal/rpcerr
 **/node_modules
 **/dist

@@ -55,6 +55,8 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Helper()
 	t.Setenv("LOCO_PLACEMENT_RETRY_DELAY", "")
 	t.Setenv("LOCO_PLACEMENT_MAX_APPLY_ATTEMPTS", "")
+	t.Setenv("LOCO_CLUSTER_JOIN_TOKEN_TTL", "")
+	t.Setenv("LOCO_AGENT_ASSERTION_MAX_LIFETIME", "")
 	t.Setenv("DATABASE_LISTEN_URL", "")
 	t.Setenv("CACHE_TYPE", "")
 	t.Setenv("CACHE_ADDR", "")
@@ -676,5 +678,34 @@ func TestPlacementMaxApplyAttemptsConfiguration(t *testing.T) {
 		if err := panicValue(t, func() { newAgentConfig() }); err == nil {
 			t.Fatalf("invalid max apply attempts %s accepted", value)
 		}
+	}
+}
+
+func TestClusterEnrollmentDurations(t *testing.T) {
+	for _, tc := range []struct {
+		env      string
+		fallback time.Duration
+		read     func(service.AgentConfig) time.Duration
+	}{
+		{"LOCO_CLUSTER_JOIN_TOKEN_TTL", defaultClusterJoinTokenTTL, func(c service.AgentConfig) time.Duration {
+			return c.JoinTokenTTL
+		}},
+		{"LOCO_AGENT_ASSERTION_MAX_LIFETIME", defaultAgentAssertionMaxLifetime, func(c service.AgentConfig) time.Duration {
+			return c.AssertionMaxLifetime
+		}},
+	} {
+		t.Setenv(tc.env, "")
+		if got := tc.read(newAgentConfig()); got != tc.fallback {
+			t.Fatalf("%s default = %v, want %v", tc.env, got, tc.fallback)
+		}
+		t.Setenv(tc.env, "10m")
+		if got := tc.read(newAgentConfig()); got != 10*time.Minute {
+			t.Fatalf("%s = %v, want 10m", tc.env, got)
+		}
+		t.Setenv(tc.env, "0s")
+		if err := panicValue(t, func() { newAgentConfig() }); err == nil {
+			t.Fatalf("%s accepted 0s", tc.env)
+		}
+		t.Setenv(tc.env, "")
 	}
 }

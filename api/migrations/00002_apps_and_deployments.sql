@@ -87,9 +87,12 @@ CREATE TABLE
         -- publicly resolvable FQDN of this cluster's gateway; a hostname, never an address
         gateway_hostname TEXT,
         sync_generation BIGINT NOT NULL DEFAULT 0,
-        connection_credential_fingerprint TEXT,
+        agent_public_key BYTEA CHECK (octet_length(agent_public_key) = 32),
+        join_token_hash TEXT UNIQUE,
+        join_token_expires_at TIMESTAMPTZ,
+        join_token_used_at TIMESTAMPTZ,
         builds_enabled BOOLEAN NOT NULL DEFAULT false,
-        tier TEXT NOT NULL DEFAULT 'production' CHECK (tier IN ('dev', 'staging', 'production')),
+        tier TEXT NOT NULL DEFAULT 'production' CHECK (tier IN ('staging', 'production')),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
     );
@@ -99,6 +102,16 @@ CREATE INDEX idx_clusters_region ON clusters (region);
 CREATE INDEX idx_clusters_is_active ON clusters (is_active);
 
 CREATE INDEX idx_clusters_tier ON clusters (tier);
+
+CREATE TABLE
+    cluster_assertions (
+        cluster_id UUID NOT NULL REFERENCES clusters (id) ON DELETE CASCADE,
+        jti TEXT NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        PRIMARY KEY (cluster_id, jti)
+    );
+
+CREATE INDEX idx_cluster_assertions_expires_at ON cluster_assertions (expires_at);
 
 -- Platform domains (loco-provided base domains)
 CREATE TABLE
@@ -316,6 +329,7 @@ DROP TABLE IF EXISTS resource_domains;
 DROP TABLE IF EXISTS secrets;
 DROP TABLE IF EXISTS resources;
 DROP TABLE IF EXISTS platform_domains;
+DROP TABLE IF EXISTS cluster_assertions;
 DROP TABLE IF EXISTS clusters;
 DROP TABLE IF EXISTS environment_keys;
 DROP TABLE IF EXISTS environments;

@@ -20,6 +20,7 @@ import (
 	"github.com/team-loco/loco/api/tvm"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/gen/go/loco/cluster/v1/clusterv1connect"
+	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	"github.com/team-loco/loco/internal/rpc"
 )
 
@@ -32,7 +33,10 @@ func clusterAdminHTTP(t *testing.T, pool *pgxpool.Pool, machine *tvm.VendingMach
 		interceptor.NewAuthInterceptor(machine, nil, nil, authz.New(pool, queries)).Interceptor(),
 		validate.NewServerInterceptor(),
 	)
-	clusterv1connect.RegisterClusterAdminServiceHandler(server, NewClusterAdminServer(pool, queries))
+	clusterv1connect.RegisterClusterAdminServiceHandler(
+		server,
+		NewClusterAdminServer(pool, queries, testAgentConfig().JoinTokenTTL),
+	)
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, server)
 	httpServer := httptest.NewServer(mux)
@@ -50,6 +54,7 @@ VALUES ('admin-test', 'east', 'kubernetes', true, false) RETURNING id`).
 		Scan(&clusterID); err != nil {
 		t.Fatal(err)
 	}
+	enrollTestCluster(t, a.pool, clusterID)
 	endpoint := clusterAdminHTTP(t, a.pool, a.machine)
 	grant := func(user membershipUser, entityType genDb.EntityType, entityID uuid.UUID, scope genDb.Scope) {
 		t.Helper()
@@ -81,6 +86,21 @@ VALUES ('admin-test', 'east', 'kubernetes', true, false) RETURNING id`).
 		t.Fatal(tokenErr)
 	}
 	methods := map[string]func(clusterv1connect.ClusterAdminServiceClient) error{
+		"create": func(client clusterv1connect.ClusterAdminServiceClient) error {
+			_, err := client.CreateCluster(
+				ctx,
+				&clusterv1.CreateClusterRequest{
+					Name:   "created",
+					Region: "east",
+					Tier:   environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION,
+				},
+			)
+			return err
+		},
+		"join-token": func(client clusterv1connect.ClusterAdminServiceClient) error {
+			_, err := client.IssueJoinToken(ctx, &clusterv1.IssueJoinTokenRequest{ClusterId: clusterID.String()})
+			return err
+		},
 		"list": func(client clusterv1connect.ClusterAdminServiceClient) error {
 			_, err := client.ListClusters(ctx, &clusterv1.ListClustersRequest{})
 			return err
@@ -114,7 +134,7 @@ VALUES ('admin-test', 'east', 'kubernetes', true, false) RETURNING id`).
 		code        connect.Code
 	}{
 		{"anonymous", "", connect.CodeUnauthenticated},
-		{"agent shared secret", testAgentToken, connect.CodeUnauthenticated},
+		{"agent assertion", testAssertion(t, clusterID), connect.CodeUnauthenticated},
 		{"ordinary user", ordinary.token, connect.CodePermissionDenied},
 		{"organization admin", f.owner.token, connect.CodePermissionDenied},
 		{"workspace admin", workspaceAdmin.token, connect.CodePermissionDenied},
