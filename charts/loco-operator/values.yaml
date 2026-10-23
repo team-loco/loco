@@ -97,7 +97,7 @@ builds:
   maxContextFiles: 200000
   maxImageSize: 1Gi
   insecureRegistry: false
-  privateEgressCIDRs: []
+  privateEgressHosts: []
   seccompLocalhostProfile: ""
   runtimeClassName: ""
   nodeSelector: {}

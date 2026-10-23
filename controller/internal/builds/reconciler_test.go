@@ -31,7 +31,20 @@ const (
 	testBuildRepository = "registry.example.com/loco/ws-1/res-1"
 	testImageDigest     = "sha256:1111111111111111111111111111111111111111111111111111111111111111"
 	testCacheDigest     = "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+	testRegistryHost    = "registry.internal"
+	testSourcesHost     = "sources.internal"
 )
+
+func ciliumPortRule(port, protocol string) map[string]any {
+	return map[string]any{"ports": []any{map[string]any{"port": port, "protocol": protocol}}}
+}
+
+func ciliumHostRule(name, port string) map[string]any {
+	return map[string]any{
+		"toFQDNs": []any{map[string]any{"matchName": name}},
+		"toPorts": []any{ciliumPortRule(port, "TCP")},
+	}
+}
 
 func testBuild(name string) *locov1alpha1.Build {
 	return &locov1alpha1.Build{
@@ -62,7 +75,10 @@ func testReconciler() *Reconciler {
 	cfg := chartDefaults()
 	cfg.Namespace = testBuildNamespace
 	cfg.PushSecretName = testPushSecretName
-	cfg.PrivateEgressCIDRs = []string{"10.1.2.3/32"}
+	cfg.PrivateEgressHosts = []EgressHost{
+		{Name: testRegistryHost, Port: 5000},
+		{Name: testSourcesHost, Port: 9000},
+	}
 	cfg.RuntimeClassName = "gvisor"
 	cfg.NodeSelector = map[string]string{"loco.io/pool": "builds"}
 	return &Reconciler{
@@ -352,9 +368,15 @@ var _ = Describe("Build reconcile", Ordered, func() {
 			isolation.PolicyDefaultDeny,
 			isolation.PolicyDNSEgress,
 			isolation.PolicyInternetEgress,
-			policyPrivateEgress,
 		}
 		Expect(names).To(ConsistOf(wantPolicies))
+		dnsRule := ciliumPortRule("53", "ANY")
+		dnsRule["rules"] = map[string]any{"dns": []any{map[string]any{"matchPattern": "*"}}}
+		Expect(privateEgressRules(testBuildNamespace)).To(Equal([]any{
+			map[string]any{"toPorts": []any{dnsRule}},
+			ciliumHostRule(testRegistryHost, "5000"),
+			ciliumHostRule(testSourcesHost, "9000"),
+		}))
 		internet := getPolicy(testBuildNamespace, isolation.PolicyInternetEgress)
 		ipv4 := internet.Spec.Egress[0].To[0].IPBlock
 		Expect(ipv4.CIDR).To(Equal("0.0.0.0/0"))

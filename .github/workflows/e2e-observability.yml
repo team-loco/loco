@@ -18,6 +18,7 @@ on:
       - "charts/loco-core/**"
       - "charts/loco-obs/**"
       - "charts/loco-control-plane/**"
+      - "charts/loco-networking/**"
       - "charts/loco-operator/**"
       - "manifests/namespaces/**"
       - "compose.yaml"

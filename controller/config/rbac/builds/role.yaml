@@ -53,6 +53,13 @@ rules:
   - list
   - watch
 - apiGroups:
+  - cilium.io
+  resources:
+  - ciliumnetworkpolicies
+  verbs:
+  - create
+  - patch
+- apiGroups:
   - infra.loco.io
   resources:
   - builds

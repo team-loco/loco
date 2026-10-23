@@ -270,3 +270,16 @@ test_b06_untrusted_build_finds_no_credentials() {
         grep -E 'PROBE-' "$builds_dir/e2e-probe.build.log" | sed 's/^/    /'
     fi
 }
+
+egress_probe() {
+    local name=$1 url=$2
+    bk -n "$builds_ns" run "$name" --rm -i --quiet --restart=Never --pod-running-timeout=2m \
+        --image="$E2E_PUBLIC_IMAGE" --command -- wget -q -T 5 -O /dev/null "$url" 2>&1 || true
+}
+
+test_b07_private_egress_by_hostname() {
+    assert_contains "build namespace reaches the registry listed by hostname" "401 Unauthorized" \
+        egress_probe egress-registry "http://${E2E_REGISTRY_HOST}/v2/"
+    assert_contains "build namespace cannot reach an unlisted private host" "timed out" \
+        egress_probe egress-unlisted "http://${E2E_KIND_CLUSTER}-control-plane:6443/"
+}

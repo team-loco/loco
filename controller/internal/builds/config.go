@@ -4,12 +4,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/netip"
+	"strconv"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 const (
@@ -29,6 +33,8 @@ var (
 	errWorkspaceTooSmall = errors.New("storage.workspace must be at least maxContextSize")
 	errOutTooSmall       = errors.New("storage.out must be at least maxImageSize")
 	errNoStorage         = errors.New("storage.cache and storage.buildkit must be positive")
+	errEgressHostAddress = errors.New("is an IP address; list the destination by hostname")
+	errEgressHostPort    = errors.New("needs a port from 1 to 65535")
 )
 
 type Image struct {
@@ -57,6 +63,35 @@ type Storage struct {
 	Buildkit  resource.Quantity `json:"buildkit"`
 }
 
+type EgressHost struct {
+	Name string
+	Port uint16
+}
+
+func (h *EgressHost) UnmarshalJSON(data []byte) error {
+	var raw string
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return fmt.Errorf("privateEgressHosts: %w", err)
+	}
+	name, port, err := net.SplitHostPort(raw)
+	if err != nil {
+		return fmt.Errorf("privateEgressHosts: %w", err)
+	}
+	if _, addrErr := netip.ParseAddr(name); addrErr == nil {
+		return fmt.Errorf("privateEgressHosts: %q %w", raw, errEgressHostAddress)
+	}
+	if problems := validation.IsDNS1123Subdomain(name); len(problems) > 0 {
+		return fmt.Errorf("privateEgressHosts: %q: %s", raw, strings.Join(problems, "; "))
+	}
+	number, err := strconv.ParseUint(port, 10, 16)
+	if err != nil || number == 0 {
+		return fmt.Errorf("privateEgressHosts: %q %w", raw, errEgressHostPort)
+	}
+	h.Name = name
+	h.Port = uint16(number)
+	return nil
+}
+
 type Config struct {
 	Namespace               string              `json:"namespace"`
 	PushSecretName          string              `json:"pushSecretName"`
@@ -70,7 +105,7 @@ type Config struct {
 	MaxContextFiles         int                 `json:"maxContextFiles"`
 	MaxImageSize            resource.Quantity   `json:"maxImageSize"`
 	InsecureRegistry        bool                `json:"insecureRegistry"`
-	PrivateEgressCIDRs      []string            `json:"privateEgressCIDRs"`
+	PrivateEgressHosts      []EgressHost        `json:"privateEgressHosts"`
 	SeccompLocalhostProfile string              `json:"seccompLocalhostProfile"`
 	RuntimeClassName        string              `json:"runtimeClassName"`
 	NodeSelector            map[string]string   `json:"nodeSelector"`
@@ -126,11 +161,6 @@ func (c *Config) validate() error {
 	}
 	if c.Storage.Cache.Sign() <= 0 || c.Storage.Buildkit.Sign() <= 0 {
 		return errNoStorage
-	}
-	for _, cidr := range c.PrivateEgressCIDRs {
-		if _, err := netip.ParsePrefix(cidr); err != nil {
-			return fmt.Errorf("privateEgressCIDRs: %w", err)
-		}
 	}
 	return nil
 }

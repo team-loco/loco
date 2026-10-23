@@ -9,6 +9,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -16,6 +17,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	"github.com/team-loco/loco/controller/internal/managed"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -44,8 +46,9 @@ var _ = BeforeSuite(func() {
 	Expect(locov1alpha1.AddToScheme(scheme.Scheme)).To(Succeed())
 
 	crdPath := filepath.Join("..", "..", "config", "crd", "bases")
+	ciliumCRDPath := filepath.Join("testdata", "crd")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{crdPath},
+		CRDDirectoryPaths:     []string{crdPath, ciliumCRDPath},
 		ErrorIfCRDPathMissing: true,
 	}
 	if dir := firstEnvTestBinaryDir(); dir != "" {
@@ -86,4 +89,20 @@ func getPolicy(namespace, name string) *networkingv1.NetworkPolicy {
 	key := client.ObjectKey{Namespace: namespace, Name: name}
 	Expect(k8sClient.Get(ctx, key, policy)).To(Succeed())
 	return policy
+}
+
+func privateEgressRules(namespace string) []any {
+	policy := &unstructured.Unstructured{}
+	policy.SetGroupVersionKind(ciliumNetworkPolicy)
+	key := client.ObjectKey{Namespace: namespace, Name: policyPrivateEgress}
+	Expect(k8sClient.Get(ctx, key, policy)).To(Succeed())
+	Expect(policy.GetLabels()).To(Equal(managed.Labels()))
+	selector, found, err := unstructured.NestedMap(policy.Object, "spec", "endpointSelector")
+	Expect(err).NotTo(HaveOccurred())
+	Expect(found).To(BeTrue())
+	Expect(selector).To(BeEmpty())
+	rules, found, err := unstructured.NestedSlice(policy.Object, "spec", "egress")
+	Expect(err).NotTo(HaveOccurred())
+	Expect(found).To(BeTrue())
+	return rules
 }

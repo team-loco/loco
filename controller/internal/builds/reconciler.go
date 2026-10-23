@@ -8,15 +8,17 @@ import (
 	"log/slog"
 	"regexp"
 	"slices"
+	"strconv"
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	corev1ac "k8s.io/client-go/applyconfigurations/core/v1"
 	networkingv1ac "k8s.io/client-go/applyconfigurations/networking/v1"
@@ -34,6 +36,9 @@ const (
 	labelJobName             = "batch.kubernetes.io/job-name"
 	labelJobControllerUID    = "batch.kubernetes.io/controller-uid"
 	policyPrivateEgress      = "allow-private-egress"
+	dnsPort                  = "53"
+	protocolAny              = "ANY"
+	protocolTCP              = "TCP"
 	maxBuildMessageLength    = 1024
 	buildCacheLagRequeue     = time.Second
 	jobReasonDeadline        = "DeadlineExceeded"
@@ -45,10 +50,13 @@ const (
 )
 
 var (
-	errBuildPodGone    = errors.New("the build pod is gone, so the pushed digest is unknown")
-	errNoLocoNamespace = errors.New("build registry secrets require the loco namespace to be set")
-	sha256Digest       = regexp.MustCompile(`^sha256:[a-f0-9]{64}$`)
-	stuckReasons       = []string{
+	errBuildPodGone     = errors.New("the build pod is gone, so the pushed digest is unknown")
+	errNoLocoNamespace  = errors.New("build registry secrets require the loco namespace to be set")
+	ciliumNetworkPolicy = schema.GroupVersionKind{
+		Group: "cilium.io", Version: "v2", Kind: "CiliumNetworkPolicy",
+	}
+	sha256Digest = regexp.MustCompile(`^sha256:[a-f0-9]{64}$`)
+	stuckReasons = []string{
 		"CreateContainerError",
 		"CreateContainerConfigError",
 		"ErrImagePull",
@@ -79,6 +87,7 @@ type buildResult struct {
 // +kubebuilder:rbac:groups=core,namespace=loco-builds,resources=pods,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,namespace=loco-builds,resources=secrets,verbs=create;patch
 // +kubebuilder:rbac:groups=networking.k8s.io,namespace=loco-builds,resources=networkpolicies,verbs=create;patch
+// +kubebuilder:rbac:groups=cilium.io,namespace=loco-builds,resources=ciliumnetworkpolicies,verbs=create;patch
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=servicecidrs,verbs=get;list;watch
 
@@ -418,27 +427,38 @@ func (r *Reconciler) buildNetworkPolicies(
 	denyAll := isolation.DenyAllSpec()
 	dnsEgress := isolation.DNSEgressSpec()
 	internetEgress := isolation.InternetEgressSpec(exclusions)
-	policies := make([]*networkingv1ac.NetworkPolicyApplyConfiguration, 0, 4)
-	policies = append(policies,
+	return []*networkingv1ac.NetworkPolicyApplyConfiguration{
 		isolation.NamespacePolicy(isolation.PolicyDefaultDeny, namespace, labels, denyAll),
 		isolation.NamespacePolicy(isolation.PolicyDNSEgress, namespace, labels, dnsEgress),
 		isolation.NamespacePolicy(isolation.PolicyInternetEgress, namespace, labels, internetEgress),
-	)
-	if len(r.Config.PrivateEgressCIDRs) == 0 {
-		return policies
 	}
-	peers := make([]*networkingv1ac.NetworkPolicyPeerApplyConfiguration, 0, len(r.Config.PrivateEgressCIDRs))
-	for _, cidr := range r.Config.PrivateEgressCIDRs {
-		block := networkingv1ac.IPBlock().WithCIDR(cidr)
-		peer := networkingv1ac.NetworkPolicyPeer().WithIPBlock(block)
-		peers = append(peers, peer)
+}
+
+func (r *Reconciler) privateEgressPolicy() *unstructured.Unstructured {
+	dnsPorts := []any{map[string]any{"port": dnsPort, "protocol": protocolAny}}
+	dnsRules := map[string]any{"dns": []any{map[string]any{"matchPattern": "*"}}}
+	dnsRule := map[string]any{
+		"toPorts": []any{map[string]any{"ports": dnsPorts, "rules": dnsRules}},
 	}
-	privateRule := networkingv1ac.NetworkPolicyEgressRule().WithTo(peers...)
-	privateEgress := networkingv1ac.NetworkPolicySpec().
-		WithPolicyTypes(networkingv1.PolicyTypeEgress).
-		WithEgress(privateRule)
-	privatePolicy := isolation.NamespacePolicy(policyPrivateEgress, namespace, labels, privateEgress)
-	return append(policies, privatePolicy)
+	egress := make([]any, 0, len(r.Config.PrivateEgressHosts)+1)
+	egress = append(egress, dnsRule)
+	for _, host := range r.Config.PrivateEgressHosts {
+		port := strconv.FormatUint(uint64(host.Port), 10)
+		ports := []any{map[string]any{"port": port, "protocol": protocolTCP}}
+		rule := map[string]any{
+			"toFQDNs": []any{map[string]any{"matchName": host.Name}},
+			"toPorts": []any{map[string]any{"ports": ports}},
+		}
+		egress = append(egress, rule)
+	}
+	spec := map[string]any{"endpointSelector": map[string]any{}, "egress": egress}
+	policy := &unstructured.Unstructured{Object: map[string]any{"spec": spec}}
+	labels := managed.Labels()
+	policy.SetGroupVersionKind(ciliumNetworkPolicy)
+	policy.SetName(policyPrivateEgress)
+	policy.SetNamespace(r.Config.Namespace)
+	policy.SetLabels(labels)
+	return policy
 }
 
 func (r *Reconciler) ensureBuildNetworkPolicies(ctx context.Context) error {
@@ -447,7 +467,16 @@ func (r *Reconciler) ensureBuildNetworkPolicies(ctx context.Context) error {
 		return err
 	}
 	policies := r.buildNetworkPolicies(exclusions)
-	return isolation.ApplyPolicies(ctx, r.Client, policies)
+	if err := isolation.ApplyPolicies(ctx, r.Client, policies); err != nil {
+		return err
+	}
+	privateEgress := r.privateEgressPolicy()
+	config := client.ApplyConfigurationFromUnstructured(privateEgress)
+	opts := managed.ApplyOptions()
+	if err := r.Apply(ctx, config, opts...); err != nil {
+		return fmt.Errorf("apply cilium network policy %s/%s: %w", r.Config.Namespace, policyPrivateEgress, err)
+	}
+	return nil
 }
 
 func buildForPod(_ context.Context, obj client.Object) []reconcile.Request {

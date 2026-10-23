@@ -31,6 +31,8 @@ Set `DATABASE_LISTEN_URL` to a direct PostgreSQL or session-pooler URL when `DAT
 
 The cluster needs Cilium, Envoy Gateway, cert-manager, and the Loco controller. Each cluster runs the OpenTelemetry collectors and, by default, ClickHouse from the `loco-obs` chart. The observability proxy runs on the control plane. `charts/loco-control-plane` holds its Kubernetes manifests; that chart is a work in progress, and no Helmfile release, platform bundle or published release ships it. The charts and environment values define their configuration.
 
+Build pods reach public addresses only. When the image registry or the source bucket has a private address, list it by hostname and port in the `loco-operator` value `builds.privateEgressHosts`, such as `registry.internal:5000`. Cilium allows the addresses a build resolves for those names on those ports.
+
 Set `obsProxy.controlPlane.url` in the `loco-control-plane` values, or `CONTROL_PLANE_URL` for a standalone proxy, to an API URL the proxy can reach.
 
 The observability proxy reports ready once its ClickHouse migrations complete and a database ping succeeds.

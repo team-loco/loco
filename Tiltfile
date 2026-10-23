@@ -194,7 +194,7 @@ helm_release(
         'pull_policy': 'builds.builderImage.pullPolicy',
     }],
     values=[],
-    deps=['charts/loco-operator/', 'env/local/operator-chart.yaml.gotmpl', 'mise-tasks/cluster/build-egress'],
+    deps=['charts/loco-operator/', 'env/local/operator-chart.yaml.gotmpl'],
     resource_deps=['helm-networking', 'cluster-registry'],
 )
 

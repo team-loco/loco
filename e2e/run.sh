@@ -379,6 +379,19 @@ setup_kind() {
     log_ok "kubectl context set to ${KUBE_CONTEXT}"
 }
 
+install_networking() {
+    log_step "Installing the loco-networking chart (Cilium)..."
+    helm upgrade --install loco-networking "$ROOT_DIR/charts/loco-networking" \
+        --kubeconfig "$KUBECONFIG_FILE" \
+        --kube-context "$KUBE_CONTEXT" \
+        --namespace kube-system \
+        --values "$SCRIPT_DIR/networking-values.yaml" \
+        --set cilium.k8sServiceHost="${KIND_CLUSTER_NAME}-control-plane" \
+        --wait --timeout 5m >/dev/null
+    kube wait nodes --all --for=condition=Ready --timeout="${READY_TIMEOUT}s" >/dev/null
+    log_ok "Cilium running in Kind"
+}
+
 compose_host_port() {
     local published
     published=$(e2e_compose port "$1" "$2")
@@ -579,8 +592,7 @@ setup_registry() {
     REGISTRY_ALIAS="$E2E_REGISTRY_ALIAS" \
     S3_ALIAS="$E2E_S3_ALIAS" \
         mise run cluster:registry >/dev/null
-    BUILD_EGRESS_CIDRS=$(COMPOSE_PROJECT_NAME="$E2E_COMPOSE_PROJECT" mise run --quiet cluster:build-egress)
-    log_ok "Registry at ${E2E_REGISTRY_HOST} (host port ${registry_port}), source bucket at ${E2E_S3_ENDPOINT}, build egress to ${BUILD_EGRESS_CIDRS}"
+    log_ok "Registry at ${E2E_REGISTRY_HOST} (host port ${registry_port}), source bucket at ${E2E_S3_ENDPOINT}"
 }
 
 build_image() {
@@ -647,7 +659,7 @@ install_operator() {
         build_values=(
             --set builds.builderImage.repository="${BUILDER_IMAGE%%:*}"
             --set builds.builderImage.tag="${BUILDER_IMAGE##*:}"
-            --set "builds.privateEgressCIDRs={${BUILD_EGRESS_CIDRS// /,}}"
+            --set "builds.privateEgressHosts={${E2E_REGISTRY_HOST},${E2E_S3_ENDPOINT#http://}}"
         )
     fi
     helm upgrade --install loco-operator "$ROOT_DIR/charts/loco-operator" \
@@ -894,10 +906,11 @@ main() {
     setup_dirs
     start_builds
     setup_kind
+    build_chart_dependencies
+    install_networking
     create_namespace
     if [ "$OBSERVABILITY" = true ]; then
         install_observability_namespaces
-        build_chart_dependencies
         start_job envoy-gateway install_envoy_gateway
         start_job loco-obs install_loco_obs
     else

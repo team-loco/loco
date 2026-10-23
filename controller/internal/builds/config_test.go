@@ -2,6 +2,7 @@ package builds
 
 import (
 	"encoding/json"
+	"slices"
 	"testing"
 	"time"
 
@@ -56,10 +57,11 @@ func TestParseConfigReadsTheChartValues(t *testing.T) {
 func TestParseConfigReadsOverrides(t *testing.T) {
 	toleration := map[string]any{"key": "builds", "operator": "Exists", "effect": "NoSchedule"}
 	raw := chartConfig(t, map[string]any{
-		"timeout":         "45m",
-		"downloadTimeout": "5m",
-		"pushSecretName":  "push",
-		"tolerations":     []any{toleration},
+		"timeout":            "45m",
+		"downloadTimeout":    "5m",
+		"pushSecretName":     "push",
+		"tolerations":        []any{toleration},
+		"privateEgressHosts": []any{testRegistryHost + ":5000", "sources:9000"},
 	})
 	cfg, err := ParseConfig(raw)
 	if err != nil {
@@ -70,6 +72,10 @@ func TestParseConfigReadsOverrides(t *testing.T) {
 	}
 	if cfg.PushSecretName != "push" {
 		t.Errorf("push secret = %q", cfg.PushSecretName)
+	}
+	wantHosts := []EgressHost{{Name: testRegistryHost, Port: 5000}, {Name: "sources", Port: 9000}}
+	if !slices.Equal(cfg.PrivateEgressHosts, wantHosts) {
+		t.Errorf("private egress hosts = %+v, want %+v", cfg.PrivateEgressHosts, wantHosts)
 	}
 	if len(cfg.Tolerations) != 1 || cfg.Tolerations[0].Effect != corev1.TaintEffectNoSchedule {
 		t.Errorf("tolerations = %+v", cfg.Tolerations)
@@ -94,7 +100,6 @@ func TestParseConfigRejectsInvalid(t *testing.T) {
 		"no source limit":   {"maxSourceSize": "0"},
 		"no context files":  {"maxContextFiles": 0},
 		"small workspace":   {"maxContextSize": "4Gi", "storage": map[string]any{"workspace": "1Gi"}},
-		"bad registry cidr": {"privateEgressCIDRs": []any{"10.0.0.1"}},
 	}
 	for name, overrides := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -106,5 +111,25 @@ func TestParseConfigRejectsInvalid(t *testing.T) {
 	}
 	if _, err := ParseConfig(`builds`); err == nil {
 		t.Error("ParseConfig accepted invalid JSON")
+	}
+}
+
+func TestParseConfigRejectsInvalidEgressHosts(t *testing.T) {
+	hosts := []string{
+		testRegistryHost,
+		"10.0.0.1:5000",
+		"[fd00::1]:5000",
+		"Registry_Internal:5000",
+		testRegistryHost + ":0",
+		testRegistryHost + ":65536",
+		testRegistryHost + ":http",
+	}
+	for _, host := range hosts {
+		t.Run(host, func(t *testing.T) {
+			raw := chartConfig(t, map[string]any{"privateEgressHosts": []any{host}})
+			if _, err := ParseConfig(raw); err == nil {
+				t.Errorf("ParseConfig accepted the egress host %q", host)
+			}
+		})
 	}
 }

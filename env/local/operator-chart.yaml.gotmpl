@@ -3,7 +3,6 @@ registry:
 builds:
   pushSecretName: loco-registry-push
   insecureRegistry: true
-  privateEgressCIDRs:
-  {{- range exec "mise" (list "run" "--quiet" "cluster:build-egress") | trim | splitList " " }}
-    - {{ . | quote }}
-  {{- end }}
+  privateEgressHosts:
+    - {{ requiredEnv "LOCO_REGISTRY_HOST" | quote }}
+    - {{ (requiredEnv "LOCO_SOURCE_BUCKET_ENDPOINT" | urlParse).host | quote }}

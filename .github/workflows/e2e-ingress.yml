@@ -17,6 +17,7 @@ on:
       - "api/service/resource.go"
       - "api/service/sync.go"
       - "api/pkg/converter/**"
+      - "charts/loco-networking/**"
       - "charts/loco-operator/**"
       - "compose.yaml"
       - "e2e/**"
