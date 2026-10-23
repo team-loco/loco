@@ -23,10 +23,17 @@ func TestProxyCORS(t *testing.T) {
 		{name: "empty allowlist", origin: corsTestOrigin},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			cfg := &config.Config{ClickHouseURL: unreachableMigrator, ClickHouseMigratorURL: unreachableMigrator,
-				ClickHouseDB: proxyDatabase, ControlPlaneURL: unreachableControlPlane,
-				TokenCacheTTL: testTokenTTL, MaxConcurrent: testMaxConcurrent, CORSAllowedOrigins: test.origins}
-			proxy, err := newProxy(cfg, unlocked{})
+			cfg := &config.Config{
+				QueryEnabled:          true,
+				ClickHouseURL:         unreachableMigrator,
+				ClickHouseMigratorURL: unreachableMigrator,
+				ClickHouseDB:          proxyDatabase,
+				ControlPlaneURL:       unreachableControlPlane,
+				TokenCacheTTL:         testTokenTTL,
+				MaxConcurrent:         testMaxConcurrent,
+				CORSAllowedOrigins:    test.origins,
+			}
+			proxy, err := newProxy(cfg, unlocked{}, testVersion)
 			if err != nil {
 				t.Fatalf("proxy: %v", err)
 			}

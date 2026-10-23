@@ -190,9 +190,9 @@ def main():
             evidence["layouts"][layout] = current
             values = {"gatewayNamespace": args.gateway_namespace, "controlPlaneHostname": host,
                 "api": {"image": {"tag": "e2e"}, "existingSecret": "unused"},
-                "obsProxy": {"image": {"tag": "e2e"}, "clickhouse": {
+                "obsProxy": {"image": {"tag": "e2e"}, "query": {"clickhouse": {
                     "existingSecret": {"name": "unused", "key": "url"},
-                    "migratorExistingSecret": {"name": "unused", "key": "url"}}},
+                    "migratorExistingSecret": {"name": "unused", "key": "url"}}}},
                 "ui": {"enabled": layout != "headless", "hostname": host if layout == "shared" else "ui-" + host,
                     "image": {"tag": "e2e"}}}
             value_file = args.output / (layout + "-values.json")

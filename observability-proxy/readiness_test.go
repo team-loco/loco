@@ -11,6 +11,7 @@ import (
 func TestReadyzDoesNotDependOnTheControlPlane(t *testing.T) {
 	_, dsn, database := testClickHouse(t)
 	cfg := &config.Config{
+		QueryEnabled:           true,
 		ControlPlaneURL:        unreachableControlPlane,
 		ClickHouseURL:          dsn,
 		ClickHouseMigratorURL:  dsn,
@@ -23,7 +24,7 @@ func TestReadyzDoesNotDependOnTheControlPlane(t *testing.T) {
 		MaxConcurrent:          testMaxConcurrent,
 		TokenCacheTTL:          testTokenTTL,
 	}
-	p, err := newProxy(cfg, unlocked{})
+	p, err := newProxy(cfg, unlocked{}, testVersion)
 	if err != nil {
 		t.Fatalf("newProxy: %v", err)
 	}

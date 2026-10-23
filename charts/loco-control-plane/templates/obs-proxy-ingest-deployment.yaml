@@ -1,0 +1,77 @@
+{{- if and .Values.obsProxy.enabled .Values.obsProxy.ingest.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-obs-proxy-ingest
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-obs-proxy-ingest
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-obs-proxy-ingest
+  replicas: {{ .Values.obsProxy.ingest.replicaCount }}
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-obs-proxy-ingest
+        app.kubernetes.io/component: observability-proxy
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: obs-proxy-ingest
+          image: "{{ .Values.obsProxy.image.repository }}:{{ required "obsProxy.image.tag is required" .Values.obsProxy.image.tag }}"
+          imagePullPolicy: {{ .Values.obsProxy.imagePullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: QUERY_ENABLED
+              value: "false"
+            - name: INGEST_ENABLED
+              value: "true"
+            - name: PORT
+              value: {{ .Values.obsProxy.ingest.port | quote }}
+            - name: OTLP_GRPC_PORT
+              value: {{ .Values.obsProxy.ingest.grpcPort | quote }}
+            - name: OTLP_HTTP_PORT
+              value: {{ .Values.obsProxy.ingest.httpPort | quote }}
+            - name: CLICKHOUSE_INGEST_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "obsProxy.ingest.clickhouse.existingSecret.name is required" .Values.obsProxy.ingest.clickhouse.existingSecret.name | quote }}
+                  key: {{ required "obsProxy.ingest.clickhouse.existingSecret.key is required" .Values.obsProxy.ingest.clickhouse.existingSecret.key | quote }}
+          ports:
+            - name: health
+              containerPort: {{ .Values.obsProxy.ingest.port }}
+            - name: otlp-grpc
+              containerPort: {{ .Values.obsProxy.ingest.grpcPort }}
+            - name: otlp-http
+              containerPort: {{ .Values.obsProxy.ingest.httpPort }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.obsProxy.ingest.resources | nindent 12 }}
+      restartPolicy: Always
+{{- end }}

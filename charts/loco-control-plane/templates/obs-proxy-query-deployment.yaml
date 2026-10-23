@@ -1,15 +1,16 @@
+{{- if .Values.obsProxy.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-obs-proxy
+  name: {{ .Release.Name }}-obs-proxy-query
   namespace: {{ .Release.Namespace }}
   labels:
-    app: {{ .Release.Name }}-obs-proxy
+    app: {{ .Release.Name }}-obs-proxy-query
 spec:
   selector:
     matchLabels:
-      app: {{ .Release.Name }}-obs-proxy
-  replicas: {{ .Values.obsProxy.replicaCount }}
+      app: {{ .Release.Name }}-obs-proxy-query
+  replicas: {{ .Values.obsProxy.query.replicaCount }}
   strategy:
     rollingUpdate:
       maxSurge: 25%
@@ -18,7 +19,7 @@ spec:
   template:
     metadata:
       labels:
-        app: {{ .Release.Name }}-obs-proxy
+        app: {{ .Release.Name }}-obs-proxy-query
         app.kubernetes.io/component: observability-proxy
     spec:
       automountServiceAccountToken: false
@@ -27,7 +28,7 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-        - name: obs-proxy
+        - name: obs-proxy-query
           image: "{{ .Values.obsProxy.image.repository }}:{{ required "obsProxy.image.tag is required" .Values.obsProxy.image.tag }}"
           imagePullPolicy: {{ .Values.obsProxy.imagePullPolicy }}
           securityContext:
@@ -37,35 +38,36 @@ spec:
                 - ALL
           env:
             - name: PORT
-              value: {{ .Values.obsProxy.port | quote }}
+              value: {{ .Values.obsProxy.query.port | quote }}
             - name: CONTROL_PLANE_URL
               value: {{ include "loco-control-plane.apiURL" . | quote }}
             - name: CORS_ALLOWED_ORIGINS
-              value: {{ join "," .Values.obsProxy.cors.allowedOrigins | quote }}
+              value: {{ join "," .Values.obsProxy.query.cors.allowedOrigins | quote }}
             - name: CLICKHOUSE_URL
               valueFrom:
                 secretKeyRef:
-                  name: {{ required "obsProxy.clickhouse.existingSecret.name is required" .Values.obsProxy.clickhouse.existingSecret.name | quote }}
-                  key: {{ required "obsProxy.clickhouse.existingSecret.key is required" .Values.obsProxy.clickhouse.existingSecret.key | quote }}
+                  name: {{ required "obsProxy.query.clickhouse.existingSecret.name is required" .Values.obsProxy.query.clickhouse.existingSecret.name | quote }}
+                  key: {{ required "obsProxy.query.clickhouse.existingSecret.key is required" .Values.obsProxy.query.clickhouse.existingSecret.key | quote }}
             - name: CLICKHOUSE_MIGRATOR_URL
               valueFrom:
                 secretKeyRef:
-                  name: {{ required "obsProxy.clickhouse.migratorExistingSecret.name is required" .Values.obsProxy.clickhouse.migratorExistingSecret.name | quote }}
-                  key: {{ required "obsProxy.clickhouse.migratorExistingSecret.key is required" .Values.obsProxy.clickhouse.migratorExistingSecret.key | quote }}
+                  name: {{ required "obsProxy.query.clickhouse.migratorExistingSecret.name is required" .Values.obsProxy.query.clickhouse.migratorExistingSecret.name | quote }}
+                  key: {{ required "obsProxy.query.clickhouse.migratorExistingSecret.key is required" .Values.obsProxy.query.clickhouse.migratorExistingSecret.key | quote }}
           ports:
-            - containerPort: {{ .Values.obsProxy.port }}
+            - containerPort: {{ .Values.obsProxy.query.port }}
           livenessProbe:
             httpGet:
               path: /healthz
-              port: {{ .Values.obsProxy.port }}
+              port: {{ .Values.obsProxy.query.port }}
             initialDelaySeconds: 5
             periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /readyz
-              port: {{ .Values.obsProxy.port }}
+              port: {{ .Values.obsProxy.query.port }}
             initialDelaySeconds: 5
             periodSeconds: 10
           resources:
-            {{- toYaml .Values.obsProxy.resources | nindent 12 }}
+            {{- toYaml .Values.obsProxy.query.resources | nindent 12 }}
       restartPolicy: Always
+{{- end }}

@@ -16,7 +16,7 @@ def test_chart_installs_api_and_proxy_without_migration_jobs():
         for document in documents
         if document["kind"] == "Deployment"
     }
-    assert deployments == {"loco-control-plane-api", "loco-control-plane-obs-proxy"}
+    assert deployments == {"loco-control-plane-api", "loco-control-plane-obs-proxy-query"}
     assert not any((document["kind"] == "Job" for document in documents))
     routes = [document for document in documents if document["kind"] == "HTTPRoute"]
     assert len(routes) == 1
@@ -42,7 +42,7 @@ def test_api_uses_existing_secret_and_private_proxy():
     assert env["APP_ENV"] == "production"
     assert (
         env["OBSERVABILITY_PROXY_URL"]
-        == "http://loco-control-plane-obs-proxy.platform-test.svc.cluster.local"
+        == "http://loco-control-plane-obs-proxy-query.platform-test.svc.cluster.local"
     )
     assert api["startupProbe"] == {
         "httpGet": {"path": "/health", "port": "http"},
@@ -78,7 +78,7 @@ def test_chart_owns_port_and_proxy_wiring():
 
 
 def test_only_api_can_reach_private_proxy():
-    policy = render("loco-control-plane", "obs-proxy-network-policy.yaml", {})
+    policy = render("loco-control-plane", "obs-proxy-query-network-policy.yaml", {})
     (rule,) = policy["spec"]["ingress"]
     assert rule["from"] == [
         {"podSelector": {"matchLabels": {"app": "loco-control-plane-api"}}}
@@ -95,7 +95,7 @@ def test_gateway_and_proxy_can_reach_api():
         "kubernetes.io/metadata.name": "gateway"
     }
     assert rule["from"][1] == {
-        "podSelector": {"matchLabels": {"app": "loco-control-plane-obs-proxy"}}
+        "podSelector": {"matchLabels": {"app": "loco-control-plane-obs-proxy-query"}}
     }
 
 
@@ -164,3 +164,114 @@ def test_same_hostname_does_not_publish_competing_root_routes():
         },
     )
     assert routes == []
+
+
+def test_disabled_proxy_renders_nothing_and_leaves_the_api_unwired():
+    documents = render_chart(
+        "loco-control-plane",
+        {"api": API_VALUES, "obsProxy": {"enabled": False}, "ui": {"enabled": False}},
+    )
+    names = {document["metadata"]["name"] for document in documents}
+    assert not any("obs-proxy" in name for name in names)
+    (api,) = [
+        document
+        for document in documents
+        if document["metadata"]["name"] == "loco-control-plane-api"
+        and document["kind"] == "Deployment"
+    ]
+    env = api["spec"]["template"]["spec"]["containers"][0]["env"]
+    assert [entry["name"] for entry in env] == ["APP_PORT"]
+    (policy,) = [
+        document
+        for document in documents
+        if document["kind"] == "NetworkPolicy"
+        and document["metadata"]["name"] == "loco-control-plane-api"
+    ]
+    (rule,) = policy["spec"]["ingress"]
+    assert len(rule["from"]) == 1
+
+
+INGEST = {
+    "enabled": True,
+    "clickhouse": {"existingSecret": {"name": "proxy-ingest", "key": "url"}},
+}
+
+
+def test_ingest_runs_as_its_own_deployment_without_migrator_rights():
+    documents = render_chart(
+        "loco-control-plane",
+        {
+            "api": API_VALUES,
+            "obsProxy": {**TEST_PROXY, "ingest": INGEST},
+            "ui": {"enabled": False},
+        },
+    )
+    deployments = {
+        document["metadata"]["name"]: document
+        for document in documents
+        if document["kind"] == "Deployment"
+    }
+    assert set(deployments) == {
+        "loco-control-plane-api",
+        "loco-control-plane-obs-proxy-query",
+        "loco-control-plane-obs-proxy-ingest",
+    }
+    pod = deployments["loco-control-plane-obs-proxy-ingest"]["spec"]["template"]
+    assert pod["metadata"]["labels"] == {
+        "app": "loco-control-plane-obs-proxy-ingest",
+        "app.kubernetes.io/component": "observability-proxy",
+    }
+    (container,) = pod["spec"]["containers"]
+    env = {item["name"]: item for item in container["env"]}
+    assert env["QUERY_ENABLED"]["value"] == "false"
+    assert env["INGEST_ENABLED"]["value"] == "true"
+    assert env["CLICKHOUSE_INGEST_URL"]["valueFrom"]["secretKeyRef"] == {
+        "name": "proxy-ingest",
+        "key": "url",
+    }
+    assert not {"CLICKHOUSE_URL", "CLICKHOUSE_MIGRATOR_URL", "CONTROL_PLANE_URL"} & set(env)
+    ports = {port["name"]: port["containerPort"] for port in container["ports"]}
+    assert ports == {"health": 8080, "otlp-grpc": 4317, "otlp-http": 4318}
+    assert env["PORT"]["value"] == "8080"
+    assert env["OTLP_GRPC_PORT"]["value"] == "4317"
+    assert env["OTLP_HTTP_PORT"]["value"] == "4318"
+    assert container["readinessProbe"]["httpGet"] == {"path": "/readyz", "port": "health"}
+
+    services = {
+        document["metadata"]["name"]: document
+        for document in documents
+        if document["kind"] == "Service"
+    }
+    ingest = services["loco-control-plane-obs-proxy-ingest"]["spec"]
+    assert ingest["selector"] == {"app": "loco-control-plane-obs-proxy-ingest"}
+    assert [(port["port"], port["targetPort"]) for port in ingest["ports"]] == [
+        (4317, "otlp-grpc"),
+        (4318, "otlp-http"),
+    ]
+    assert services["loco-control-plane-obs-proxy-query"]["spec"]["selector"] == {
+        "app": "loco-control-plane-obs-proxy-query"
+    }
+
+    (policy,) = [
+        document
+        for document in documents
+        if document["kind"] == "NetworkPolicy"
+        and document["metadata"]["name"] == "loco-control-plane-obs-proxy-ingest"
+    ]
+    (rule,) = policy["spec"]["ingress"]
+    assert rule["from"] == [{"podSelector": {}}]
+    assert [port["port"] for port in rule["ports"]] == [4317, 4318]
+
+
+def test_ingest_is_off_by_default_and_requires_its_secret():
+    documents = render_documents(
+        "loco-control-plane", "obs-proxy-ingest-deployment.yaml", {"obsProxy": TEST_PROXY}
+    )
+    assert documents == []
+    with pytest.raises(subprocess.CalledProcessError) as caught:
+        render(
+            "loco-control-plane",
+            "obs-proxy-ingest-deployment.yaml",
+            {"obsProxy": {**TEST_PROXY, "ingest": {"enabled": True}}},
+        )
+    assert "obsProxy.ingest.clickhouse.existingSecret.name is required" in caught.value.output

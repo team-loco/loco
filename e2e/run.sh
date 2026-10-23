@@ -30,6 +30,8 @@ RUN_HASH=$(cksum <<<"$RUN_ID" | awk '{print $1}')
 PORT_BASE=$((PORT_RANGE_START + RUN_HASH % PORT_BLOCKS * PORT_BLOCK_SIZE))
 API_PORT=$PORT_BASE
 API_REPLICA_PORT=$((PORT_BASE + 5))
+OTLP_GRPC_PORT=$((PORT_BASE + 6))
+OTLP_HTTP_PORT=$((PORT_BASE + 7))
 OBS_PROXY_PORT=$((PORT_BASE + 1))
 S3_PORT=$((PORT_BASE + 2))
 CLICKHOUSE_PORT=$((PORT_BASE + 3))
@@ -54,6 +56,7 @@ BUILDER_REPOSITORY="loco-builder"
 OBS_VALUES="$ROOT_DIR/charts/loco-obs/values.yaml"
 OBS_READER_USER=$(yq '.clickhouse.clickhouse.users[] | select(.grants[] | test("^GRANT SELECT ON ")) | .name' "$OBS_VALUES")
 OBS_MIGRATOR_USER=$(yq '.clickhouse.clickhouse.users[] | select(.grants[] | test("^GRANT ALL ON ")) | .name' "$OBS_VALUES")
+OBS_INGEST_USER=$(yq '.clickhouse.clickhouse.users[] | select(.grants[] | test("^GRANT INSERT, ")) | .name' "$OBS_VALUES")
 OBS_E2E_VALUES="$SCRIPT_DIR/obs-values.yaml"
 OBS_RELEASE="loco-obs"
 CORE_CHART="$ROOT_DIR/charts/loco-core"
@@ -88,6 +91,7 @@ export E2E_USER_TOKEN="$USER_TOKEN"
 export E2E_KIND_CLUSTER="$KIND_CLUSTER_NAME"
 export E2E_LOCO_NAMESPACE="$LOCO_NAMESPACE"
 export E2E_OBS_PROXY_PORT="$OBS_PROXY_PORT"
+export E2E_OTLP_HTTP_PORT="$OTLP_HTTP_PORT"
 export E2E_GATEWAY_URL="http://127.0.0.1:${GATEWAY_PORT}"
 export E2E_OBS_NAMESPACE="$OBS_NAMESPACE"
 export E2E_OBS_RELEASE="$OBS_RELEASE"
@@ -329,6 +333,8 @@ check_ports() {
     require_free_port "$API_PORT" "API"
     require_free_port "$API_REPLICA_PORT" "API replica"
     require_free_port "$OBS_PROXY_PORT" "observability proxy"
+    require_free_port "$OTLP_GRPC_PORT" "OTLP/gRPC ingest"
+    require_free_port "$OTLP_HTTP_PORT" "OTLP/HTTP ingest"
     if [ "$OBSERVABILITY" = true ]; then
         require_free_port "$GATEWAY_PORT" "gateway"
         require_free_port "$CLICKHOUSE_PORT" "ClickHouse"
@@ -785,15 +791,18 @@ clickhouse_dsn() {
 start_obs_proxy() {
     log_step "Starting Observability Proxy..."
 
-    local reader_dsn migrator_dsn reader migrator
+    local reader_dsn migrator_dsn ingest_dsn reader migrator ingest
     if [ "$OBSERVABILITY" = true ]; then
         reader=$OBS_READER_USER
         migrator=$OBS_MIGRATOR_USER
+        ingest=$OBS_INGEST_USER
         reader_dsn=$(clickhouse_dsn "$reader" "$(obs_clickhouse_password "$reader")")
         migrator_dsn=$(clickhouse_dsn "$migrator" "$(obs_clickhouse_password "$migrator")")
+        ingest_dsn=$(clickhouse_dsn "$ingest" "$(obs_clickhouse_password "$ingest")")
     else
         reader_dsn=$(clickhouse_dsn "$CLICKHOUSE_USER" "$CLICKHOUSE_PASS")
         migrator_dsn="$reader_dsn"
+        ingest_dsn="$reader_dsn"
     fi
 
     PORT="$OBS_PROXY_PORT" \
@@ -801,6 +810,10 @@ start_obs_proxy() {
     CORS_ALLOWED_ORIGINS="https://dashboard.e2e.test" \
     CLICKHOUSE_URL="$reader_dsn" \
     CLICKHOUSE_MIGRATOR_URL="$migrator_dsn" \
+    INGEST_ENABLED=true \
+    CLICKHOUSE_INGEST_URL="$ingest_dsn" \
+    OTLP_GRPC_PORT="$OTLP_GRPC_PORT" \
+    OTLP_HTTP_PORT="$OTLP_HTTP_PORT" \
     CLICKHOUSE_DB="$(yq '.["otel-col-daemon"].config.exporters.clickhouse.database' "$OBS_VALUES")" \
     DEFAULT_LIMIT="100" \
     MAX_LIMIT="1000" \

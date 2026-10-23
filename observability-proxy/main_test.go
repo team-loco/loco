@@ -36,6 +36,7 @@ const (
 	unreachableControlPlane = "http://127.0.0.1:1"
 	unreachableMigrator     = "clickhouse://127.0.0.1:1"
 	proxyDatabase           = "loco_obs"
+	testVersion             = "test"
 )
 
 type unlocked struct{}
@@ -88,6 +89,7 @@ func TestHealthzServedWhenClickHouseNeverAnswers(t *testing.T) {
 	ln := silentListener(t)
 	addr := ln.Addr().String()
 	cfg := &config.Config{
+		QueryEnabled:    true,
 		ControlPlaneURL: unreachableControlPlane,
 		ClickHouseURL:   "clickhouse://" + addr,
 		ClickHouseDB:    "default",
@@ -98,7 +100,7 @@ func TestHealthzServedWhenClickHouseNeverAnswers(t *testing.T) {
 	started := make(chan *proxy, 1)
 	startErr := make(chan error, 1)
 	go func() {
-		p, err := newProxy(cfg, unlocked{})
+		p, err := newProxy(cfg, unlocked{}, testVersion)
 		if err != nil {
 			startErr <- err
 			return
@@ -140,6 +142,7 @@ func TestStartupDiagnostics(t *testing.T) {
 	var output bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&output, nil))
 	cfg := &config.Config{
+		QueryEnabled:    true,
 		Port:            8080,
 		ControlPlaneURL: "https://api.example.test?token=control-plane-password",
 		ClickHouseURL:   "clickhouse://reader:database-password@db.example.test:9000?password=query-password",
@@ -190,6 +193,7 @@ func TestReadyzUnavailableUntilMigrationsSucceed(t *testing.T) {
 	ln := silentListener(t)
 	addr := ln.Addr().String()
 	cfg := &config.Config{
+		QueryEnabled:           true,
 		ControlPlaneURL:        unreachableControlPlane,
 		ClickHouseURL:          "clickhouse://" + addr,
 		ClickHouseMigratorURL:  unreachableMigrator,
@@ -202,7 +206,7 @@ func TestReadyzUnavailableUntilMigrationsSucceed(t *testing.T) {
 		MaxConcurrent:          testMaxConcurrent,
 		TokenCacheTTL:          testTokenTTL,
 	}
-	p, err := newProxy(cfg, unlocked{})
+	p, err := newProxy(cfg, unlocked{}, testVersion)
 	if err != nil {
 		t.Fatalf("newProxy: %v", err)
 	}
@@ -228,6 +232,7 @@ func TestReadyzUnavailableUntilMigrationsSucceed(t *testing.T) {
 func TestServesProbesWhileMigrating(t *testing.T) {
 	ln := silentListener(t)
 	cfg := &config.Config{
+		QueryEnabled:           true,
 		ControlPlaneURL:        unreachableControlPlane,
 		ClickHouseURL:          "clickhouse://" + ln.Addr().String(),
 		ClickHouseMigratorURL:  unreachableMigrator,
@@ -240,7 +245,7 @@ func TestServesProbesWhileMigrating(t *testing.T) {
 		MaxConcurrent:          testMaxConcurrent,
 		TokenCacheTTL:          testTokenTTL,
 	}
-	p, err := newProxy(cfg, unlocked{})
+	p, err := newProxy(cfg, unlocked{}, testVersion)
 	if err != nil {
 		t.Fatalf("newProxy: %v", err)
 	}
@@ -254,7 +259,7 @@ func TestServesProbesWhileMigrating(t *testing.T) {
 	base := "http://" + serverLn.Addr().String()
 
 	runErr := make(chan error, 1)
-	go func() { runErr <- p.run(t.Context(), cfg, serverLn) }()
+	go func() { runErr <- p.run(t.Context(), cfg, listeners{main: serverLn}) }()
 
 	if status := getStatus(t, base+"/healthz"); status != http.StatusOK {
 		t.Fatalf("GET /healthz while migrating status = %d, want %d", status, http.StatusOK)
@@ -283,6 +288,7 @@ func (heldElsewhere) WithLock(ctx context.Context, _ func(context.Context) error
 func TestRetryBudgetCoversWaitingForTheMigrationLock(t *testing.T) {
 	ln := silentListener(t)
 	cfg := &config.Config{
+		QueryEnabled:           true,
 		ControlPlaneURL:        unreachableControlPlane,
 		ClickHouseURL:          "clickhouse://" + ln.Addr().String(),
 		ClickHouseMigratorURL:  unreachableMigrator,
@@ -295,7 +301,7 @@ func TestRetryBudgetCoversWaitingForTheMigrationLock(t *testing.T) {
 		MaxConcurrent:          testMaxConcurrent,
 		TokenCacheTTL:          testTokenTTL,
 	}
-	p, err := newProxy(cfg, heldElsewhere{})
+	p, err := newProxy(cfg, heldElsewhere{}, testVersion)
 	if err != nil {
 		t.Fatalf("newProxy: %v", err)
 	}
@@ -380,6 +386,7 @@ func TestReplicasTakeTurnsMigratingUnderTheLock(t *testing.T) {
 	runErrs := make(chan error, replicas)
 	for replica := range replicas {
 		cfg := &config.Config{
+			QueryEnabled:           true,
 			ControlPlaneURL:        unreachableControlPlane,
 			ClickHouseURL:          dsn,
 			ClickHouseMigratorURL:  dsn,
@@ -394,7 +401,7 @@ func TestReplicasTakeTurnsMigratingUnderTheLock(t *testing.T) {
 			MaxConcurrent:          testMaxConcurrent,
 			TokenCacheTTL:          testTokenTTL,
 		}
-		p, err := newProxy(cfg, migrationlock.New(cfg.MigrationLock()))
+		p, err := newProxy(cfg, migrationlock.New(cfg.MigrationLock()), testVersion)
 		if err != nil {
 			t.Fatalf("newProxy(replica %d): %v", replica, err)
 		}
@@ -405,7 +412,7 @@ func TestReplicasTakeTurnsMigratingUnderTheLock(t *testing.T) {
 			t.Fatalf("listen: %v", err)
 		}
 		bases = append(bases, "http://"+ln.Addr().String())
-		go func() { runErrs <- p.run(ctx, cfg, ln) }()
+		go func() { runErrs <- p.run(ctx, cfg, listeners{main: ln}) }()
 	}
 	for _, base := range bases {
 		waitReady(t, base)

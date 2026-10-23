@@ -21,16 +21,21 @@ done
 mkdir -p "$RUN_DIR"
 export KUBECONFIG="$RUN_DIR/kubeconfig"
 PORT_FORWARD_PID=""
+INGEST_FORWARD_PID=""
 
 cleanup() {
     local result=$?
     if [[ -n $PORT_FORWARD_PID ]]; then
         kill "$PORT_FORWARD_PID" 2>/dev/null || true
     fi
+    if [[ -n $INGEST_FORWARD_PID ]]; then
+        kill "$INGEST_FORWARD_PID" 2>/dev/null || true
+    fi
     if [[ $result -ne 0 ]]; then
         kubectl -n "$NAMESPACE" get pods,events -o wide >"$RUN_DIR/diagnostics.txt" 2>&1 || true
         kubectl -n "$NAMESPACE" logs -l app=regional-api --all-pods=true --tail=200 >>"$RUN_DIR/diagnostics.txt" 2>&1 || true
-        kubectl -n "$NAMESPACE" logs deployment/regional-obs-proxy --tail=200 >>"$RUN_DIR/diagnostics.txt" 2>&1 || true
+        kubectl -n "$NAMESPACE" logs deployment/regional-obs-proxy-query --tail=200 >>"$RUN_DIR/diagnostics.txt" 2>&1 || true
+        kubectl -n "$NAMESPACE" logs deployment/regional-obs-proxy-ingest --tail=200 >>"$RUN_DIR/diagnostics.txt" 2>&1 || true
     fi
     if [[ $KEEP == false ]]; then
         kind delete cluster --name "$CLUSTER_NAME"
@@ -82,14 +87,16 @@ PY
 kubectl -n "$NAMESPACE" create secret generic api-env --from-env-file="$RUN_DIR/api.env" --dry-run=client -o yaml | kubectl apply -f -
 kubectl -n "$NAMESPACE" create secret generic clickhouse-reader --from-file=url="$RUN_DIR/reader" --dry-run=client -o yaml | kubectl apply -f -
 kubectl -n "$NAMESPACE" create secret generic clickhouse-migrator --from-file=url="$RUN_DIR/reader" --dry-run=client -o yaml | kubectl apply -f -
+kubectl -n "$NAMESPACE" create secret generic clickhouse-ingest --from-file=url="$RUN_DIR/reader" --dry-run=client -o yaml | kubectl apply -f -
 helm upgrade --install regional "$ROOT_DIR/charts/loco-control-plane" --namespace "$NAMESPACE" \
     --set api.image.repository=loco-api --set api.image.tag=e2e --set api.imagePullPolicy=Never \
     --set api.existingSecret=api-env --set api.replicaCount=2 \
     --set gatewayNamespace="$NAMESPACE" --set controlPlaneHostname=api.e2e.test.local \
     --set ui.hostname=app.e2e.test.local --set ui.image.repository=loco-ui --set ui.image.tag=e2e --set ui.imagePullPolicy=Never \
     --set obsProxy.image.repository=loco-obs-proxy --set obsProxy.image.tag=e2e --set obsProxy.imagePullPolicy=Never \
-    --set obsProxy.clickhouse.existingSecret.name=clickhouse-reader \
-    --set obsProxy.clickhouse.migratorExistingSecret.name=clickhouse-migrator \
+    --set obsProxy.query.clickhouse.existingSecret.name=clickhouse-reader \
+    --set obsProxy.query.clickhouse.migratorExistingSecret.name=clickhouse-migrator \
+    --set obsProxy.ingest.enabled=true --set obsProxy.ingest.clickhouse.existingSecret.name=clickhouse-ingest \
     --wait --timeout "$TIMEOUT"
 ENVOY_DEPLOYMENT=""
 for _attempt in $(seq 1 60); do
@@ -136,6 +143,27 @@ assert response.get('code') == 'permission_denied', response
 PY
 kubectl -n "$NAMESPACE" exec deployment/postgres -- psql -U loco -d loco -Atc 'SELECT count(*) FROM goose_db_version' >"$RUN_DIR/postgres-migrations.txt"
 printf 'Two API replicas started on an empty database; dashboard and same-origin API routing work; private proxy permission check passed.\n'
+
+INGEST_HTTP_PORT=$(yq '.obsProxy.ingest.httpPort' "$ROOT_DIR/charts/loco-control-plane/values.yaml")
+kubectl -n "$NAMESPACE" port-forward service/regional-obs-proxy-ingest ":$INGEST_HTTP_PORT" >"$RUN_DIR/ingest-forward.log" 2>&1 &
+INGEST_FORWARD_PID=$!
+for _attempt in $(seq 1 30); do
+    if rg 'Forwarding from 127.0.0.1:' "$RUN_DIR/ingest-forward.log" >/dev/null; then break; fi
+    sleep 1
+done
+INGEST_PORT=$(sed -n 's/Forwarding from 127.0.0.1:\([0-9]*\) .*/\1/p' "$RUN_DIR/ingest-forward.log" | head -1)
+INGEST_MARKER="control-plane-ingest-$(openssl rand -hex 4)"
+printf '{"resourceLogs":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"e2e-ingest"}}]},"scopeLogs":[{"logRecords":[{"timeUnixNano":"%s000000000","body":{"stringValue":"%s"}}]}]}]}' \
+    "$(date -u +%s)" "$INGEST_MARKER" >"$RUN_DIR/otlp-logs.json"
+curl --fail --silent -H 'Content-Type: application/json' --data-binary @"$RUN_DIR/otlp-logs.json" \
+    "http://127.0.0.1:$INGEST_PORT/v1/logs" >/dev/null
+INGESTED=$(kubectl -n "$NAMESPACE" exec deployment/clickhouse -- clickhouse-client --user loco --password "$(cat "$RUN_DIR/password")" \
+    -q "SELECT count() FROM loco_obs.otel_logs WHERE Body = '$INGEST_MARKER'")
+if [[ $INGESTED != 1 ]]; then
+    printf 'Expected one ingested log row, got %s\n' "$INGESTED" >&2
+    exit 1
+fi
+printf 'The ingest Deployment wrote an OTLP/HTTP log to ClickHouse.\n'
 
 python3 "$ROOT_DIR/e2e/api-failover.py" --namespace "$NAMESPACE" --gateway-namespace "$NAMESPACE" \
     --gateway-url "http://127.0.0.1:$API_PORT" \

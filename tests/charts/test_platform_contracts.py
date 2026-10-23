@@ -32,9 +32,11 @@ ENVOY_CLUSTER_ATTRIBUTES = {
 ROUTE_TENANCY = ("loco.workspace.id", "loco.resource.id")
 TEST_PROXY = {
     "image": {"tag": "test"},
-    "clickhouse": {
-        "existingSecret": {"name": "proxy-reader", "key": "url"},
-        "migratorExistingSecret": {"name": "proxy-migrator", "key": "url"},
+    "query": {
+        "clickhouse": {
+            "existingSecret": {"name": "proxy-reader", "key": "url"},
+            "migratorExistingSecret": {"name": "proxy-migrator", "key": "url"},
+        },
     },
 }
 TEST_REGION = "test-region-1"
@@ -264,7 +266,7 @@ def test_api_route_uses_control_plane_origin():
 
 def test_database_and_auth_secret_references():
     deployment = render(
-        "loco-control-plane", "obs-proxy-deployment.yaml", {"obsProxy": TEST_PROXY}
+        "loco-control-plane", "obs-proxy-query-deployment.yaml", {"obsProxy": TEST_PROXY}
     )
     env = {
         item["name"]: item
@@ -285,17 +287,17 @@ def test_missing_clickhouse_secrets_are_rejected(subtests):
     for secret in ("existingSecret", "migratorExistingSecret"):
         with subtests.test(secret=secret):
             clickhouse = {
-                **TEST_PROXY["clickhouse"],
+                **TEST_PROXY["query"]["clickhouse"],
                 secret: {"name": "", "key": "url"},
             }
             with pytest.raises(subprocess.CalledProcessError) as caught:
                 render(
                     "loco-control-plane",
-                    "obs-proxy-deployment.yaml",
-                    {"obsProxy": {**TEST_PROXY, "clickhouse": clickhouse}},
+                    "obs-proxy-query-deployment.yaml",
+                    {"obsProxy": {**TEST_PROXY, "query": {"clickhouse": clickhouse}}},
                 )
             assert (
-                f"obsProxy.clickhouse.{secret}.name is required" in caught.value.output
+                f"obsProxy.query.clickhouse.{secret}.name is required" in caught.value.output
             )
 
 
@@ -308,13 +310,15 @@ def test_missing_database_secret_key_is_rejected():
     with pytest.raises(subprocess.CalledProcessError):
         render(
             "loco-control-plane",
-            "obs-proxy-deployment.yaml",
+            "obs-proxy-query-deployment.yaml",
             {
                 "obsProxy": {
                     **TEST_PROXY,
-                    "clickhouse": {
-                        **TEST_PROXY["clickhouse"],
-                        "existingSecret": {"name": "db", "key": ""},
+                    "query": {
+                        "clickhouse": {
+                            **TEST_PROXY["query"]["clickhouse"],
+                            "existingSecret": {"name": "db", "key": ""},
+                        },
                     },
                 }
             },
@@ -323,7 +327,7 @@ def test_missing_database_secret_key_is_rejected():
 
 def test_permission_endpoint_uses_the_private_api_service():
     deployment = render(
-        "loco-control-plane", "obs-proxy-deployment.yaml", {"obsProxy": TEST_PROXY}
+        "loco-control-plane", "obs-proxy-query-deployment.yaml", {"obsProxy": TEST_PROXY}
     )
     env = {
         item["name"]: item
@@ -336,10 +340,10 @@ def test_permission_endpoint_uses_the_private_api_service():
 
 
 def _proxy_env(overrides=None):
-    values = {"obsProxy": dict(TEST_PROXY)}
+    values = {"obsProxy": {**TEST_PROXY, "query": dict(TEST_PROXY["query"])}}
     for key, value in (overrides or {}).items():
-        values["obsProxy"][key] = value
-    deployment = render("loco-control-plane", "obs-proxy-deployment.yaml", values)
+        values["obsProxy"]["query"][key] = value
+    deployment = render("loco-control-plane", "obs-proxy-query-deployment.yaml", values)
     container = deployment["spec"]["template"]["spec"]["containers"][0]
     return (
         container,
@@ -1180,7 +1184,7 @@ def test_operator_collector_matches_the_obs_chart():
 
 def _deployment():
     return render(
-        "loco-control-plane", "obs-proxy-deployment.yaml", {"obsProxy": TEST_PROXY}
+        "loco-control-plane", "obs-proxy-query-deployment.yaml", {"obsProxy": TEST_PROXY}
     )
 
 
