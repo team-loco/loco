@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
@@ -84,6 +86,17 @@ func (r *Renewer) renew(ctx context.Context) (time.Time, error) {
 
 func (r *Renewer) write(ctx context.Context, secrets corev1client.SecretInterface, token string) error {
 	secret, err := secrets.Get(ctx, r.secret.Name, metav1.GetOptions{})
+	if apierrors.IsNotFound(err) {
+		created := &corev1.Secret{
+			Name: r.secret.Name,
+			Type: corev1.SecretTypeOpaque,
+			Data: map[string][]byte{r.secret.Key: []byte(token)},
+		}
+		if _, createErr := secrets.Create(ctx, created, metav1.CreateOptions{}); createErr != nil {
+			return fmt.Errorf("create: %w", createErr)
+		}
+		return nil
+	}
 	if err != nil {
 		return fmt.Errorf("read: %w", err)
 	}

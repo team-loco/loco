@@ -10,6 +10,7 @@ forged_workspace=forged-workspace
 forged_environment=forged-environment
 forged_resource=forged-resource
 forged_region=forged-region
+forged_cluster=forged-cluster
 pod_organization=pod-organization
 pod_workspace=pod-workspace
 pod_environment=pod-environment
@@ -51,7 +52,8 @@ forged_attributes() {
 	echo "$(attribute loco.organization.id "$forged_organization"), $(attribute loco.workspace.id "$forged_workspace"),
 		$(attribute loco.environment.id "$forged_environment"),
 		$(attribute loco.resource.id "$forged_resource"), $(attribute loco.io/build-id "$forged_build"),
-		$(attribute k8s.pod.uid forged-pod-uid), $(attribute k8s.pod.ip 192.0.2.1), $(attribute loco.region "$forged_region")"
+		$(attribute k8s.pod.uid forged-pod-uid), $(attribute k8s.pod.ip 192.0.2.1), $(attribute loco.region "$forged_region"),
+		$(attribute loco.cluster.id "$forged_cluster")"
 }
 
 pod_label_attributes() {
@@ -151,6 +153,11 @@ for collector in $collectors; do
 		send "$otlp" "$signal" "$(payload "$signal" "$(attribute service.name "$build"), $(forged_attributes), $(build_label_attributes)" b7ad6b7169203335)"
 		otel_table=$(table "$signal")
 		checked_tables="$checked_tables $otel_table"
+		if ! wait_for "$collector $signal rows" has_rows "$(rows "$otel_table" "$forged" 1)"; then
+			fail "$collector wrote no $signal for a client that forged its tenancy"
+		fi
+		forged_rows=$(query "$(rows "$otel_table" "$forged" "(OrganizationId != '' OR WorkspaceId != '' OR EnvironmentId != '' OR ResourceId != '' OR ResourceAttributes['loco.io/build-id'] != '' OR ResourceAttributes['k8s.pod.uid'] != '' OR ResourceAttributes['k8s.pod.ip'] != '')")")
+		[ "$forged_rows" -eq 0 ] || fail "$collector kept client-supplied tenancy on $forged_rows $signal row(s)"
 		pod_tenancy="OrganizationId = '$pod_organization' AND WorkspaceId = '$pod_workspace' AND EnvironmentId = '$pod_environment' AND ResourceId = '$pod_resource'"
 		if ! wait_for "$collector $signal rows from pod labels" has_rows "$(rows "$otel_table" "$labelled" "$pod_tenancy")"; then
 			fail "$collector did not take $signal tenancy from the pod labels"
@@ -159,8 +166,6 @@ for collector in $collectors; do
 		if ! wait_for "$collector $signal rows from build pod labels" has_rows "$(rows "$otel_table" "$build" "$build_tenancy")"; then
 			fail "$collector did not take $signal build id from the build pod labels"
 		fi
-		forged_rows=$(query "$(rows "$otel_table" "$forged" 1)")
-		[ "$forged_rows" -eq 0 ] || fail "the ingest proxy stored $forged_rows $signal row(s) without placed tenancy"
 	done
 done
 
@@ -184,12 +189,13 @@ for signal in logs traces metrics; do
 	if ! wait_for "Envoy $signal rows with route tenancy" has_rows "$(rows "$otel_table" "$envoy" "$route_tenancy")"; then
 		fail "$envoy_collector did not take Envoy $signal tenancy from the upstream cluster"
 	fi
-	impostor_rows=$(query "$(rows "$otel_table" "$impostor" 1)")
-	[ "$impostor_rows" -eq 0 ] || fail "the ingest proxy stored $impostor_rows $signal row(s) from a client that copied Envoy's attributes"
+	if ! wait_for "$envoy_collector $signal rows" has_rows "$(rows "$otel_table" "$impostor" 1)"; then
+		fail "$envoy_collector wrote no $signal for a client that copied Envoy's attributes"
+	fi
+	impostor_rows=$(query "$(rows "$otel_table" "$impostor" "(OrganizationId != '' OR WorkspaceId != '' OR EnvironmentId != '' OR ResourceId != '')")")
+	[ "$impostor_rows" -eq 0 ] || fail "$envoy_collector gave route tenancy to $impostor_rows $signal row(s) from a client that is not Envoy"
 done
 
-[ "$(rejected_records missing_tenancy)" -gt 0 ] ||
-	fail "the ingest proxy rejected no records for missing tenancy, so forged and impostor records did not reach it stripped"
 not_placed=$(rejected_records workspace_not_placed)
 [ "$not_placed" -eq 0 ] || fail "$not_placed record(s) reached the ingest proxy with a client-supplied workspace"
 
@@ -197,6 +203,8 @@ evidence=""
 for otel_table in $(tr ' ' '\n' <<<"$checked_tables" | sort -u); do
 	unregioned=$(query "SELECT count() FROM $database.$otel_table WHERE ServiceName LIKE 'tenancy-%' AND ResourceAttributes['loco.region'] != '$region'")
 	[ "$unregioned" -eq 0 ] || fail "$unregioned $otel_table row(s) do not carry the chart's region $region"
+	unattributed=$(query "SELECT count() FROM $database.$otel_table WHERE ServiceName LIKE 'tenancy-%' AND ResourceAttributes['loco.cluster.id'] != '$ingest_cluster'")
+	[ "$unattributed" -eq 0 ] || fail "$unattributed $otel_table row(s) do not carry the sending cluster $ingest_cluster"
 	evidence="$evidence${evidence:+ UNION ALL }SELECT '$otel_table' AS table, ServiceName, OrganizationId, WorkspaceId, EnvironmentId, ResourceId, ResourceAttributes['loco.io/build-id'] AS build_id, ResourceAttributes['k8s.pod.uid'] AS pod_uid, ResourceAttributes['loco.region'] AS region FROM $database.$otel_table WHERE ServiceName LIKE 'tenancy-%'"
 done
 query "SELECT * FROM ($evidence) ORDER BY table, ServiceName FORMAT PrettyCompactMonoBlock"
@@ -209,4 +217,4 @@ if [ "$failures" -gt 0 ]; then
 	echo "$failures check(s) failed"
 	exit 1
 fi
-echo "every OTLP pipeline dropped client-supplied tenancy and took it from the pod labels, only Envoy's telemetry took it from the route, the ingest proxy dropped the records left without tenancy, and every row carries the chart's region"
+echo "every OTLP pipeline dropped client-supplied tenancy and took it from the pod labels, only Envoy's telemetry took it from the route, the ingest proxy stamped every row with the sending cluster, and every row carries the chart's region"

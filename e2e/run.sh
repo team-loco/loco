@@ -77,7 +77,6 @@ AGENT_KEY_SECRET="e2e-agent-key"
 INGEST_TOKEN_SECRET=$(yq '.global.exporter.bearerToken.secretName' "$OBS_VALUES")
 INGEST_TOKEN_SECRET_KEY=$(yq '.global.exporter.bearerToken.secretKey' "$OBS_VALUES")
 OBS_NODE_NAMESPACE=$(yq '.["otel-col-daemon"].namespaceOverride' "$OBS_VALUES")
-PENDING_INGEST_TOKEN=$(yq '.agent.pendingIngestToken' "$CORE_CHART/values.yaml")
 E2E_CLUSTER_NAME="e2e-test-cluster"
 E2E_CLUSTER_REGION="us-east-1"
 E2E_CLUSTER_TIER="production"
@@ -102,7 +101,6 @@ export E2E_AGENT_KEY_SECRET="$AGENT_KEY_SECRET"
 export E2E_BOOTSTRAP_TOKEN="$BOOTSTRAP_TOKEN"
 export E2E_INGEST_TOKEN_SECRET="$INGEST_TOKEN_SECRET"
 export E2E_INGEST_TOKEN_SECRET_KEY="$INGEST_TOKEN_SECRET_KEY"
-export E2E_PENDING_INGEST_TOKEN="$PENDING_INGEST_TOKEN"
 export E2E_USER_TOKEN="$USER_TOKEN"
 export E2E_KIND_CLUSTER="$KIND_CLUSTER_NAME"
 export E2E_LOCO_NAMESPACE="$LOCO_NAMESPACE"
@@ -793,13 +791,10 @@ create_e2e_cluster() {
     log_ok "Cluster $(yq -p json '.clusterId' <<<"$created") is pending enrollment"
 }
 
-create_ingest_token_secret() {
+create_collector_namespaces() {
     local namespace
     for namespace in "$OBS_NAMESPACE" "$OBS_NODE_NAMESPACE"; do
         kube create namespace "$namespace" --dry-run=client -o yaml | kube apply -f - >/dev/null
-        kube -n "$namespace" create secret generic "$INGEST_TOKEN_SECRET" \
-            --from-literal="$INGEST_TOKEN_SECRET_KEY=$PENDING_INGEST_TOKEN" --dry-run=client -o yaml |
-            kube apply -f - >/dev/null
     done
 }
 
@@ -967,15 +962,12 @@ main() {
     start_builds
     setup_kind
     create_namespace
-    create_ingest_token_secret
+    create_collector_namespaces
     build_chart_dependencies
     if [ "$OBSERVABILITY" = true ]; then
         install_observability_namespaces
     fi
     start_job envoy-gateway install_envoy_gateway
-    if [ "$OBSERVABILITY" = true ]; then
-        start_job loco-obs install_loco_obs
-    fi
     setup_postgres
     setup_clickhouse
     run_migrations
@@ -985,10 +977,6 @@ main() {
     await_job envoy-gateway
     install_operator
     reset_cluster_state
-    if [ "$OBSERVABILITY" = true ]; then
-        await_job loco-obs
-        forward_observability_ports
-    fi
     await_job binaries
     start_api
     if [ "$(e2e_psql 'SELECT count(*) FROM clusters')" != 0 ]; then
@@ -998,6 +986,10 @@ main() {
     seed_cluster_admin
     create_e2e_cluster
     start_agent
+    if [ "$OBSERVABILITY" = true ]; then
+        install_loco_obs
+        forward_observability_ports
+    fi
     start_obs_proxy
     if [ "$OBSERVABILITY" = true ]; then
         await_job obs-proxy-image

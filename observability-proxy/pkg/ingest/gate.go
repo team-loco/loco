@@ -221,14 +221,13 @@ type verdict string
 
 const (
 	accepted              verdict = ""
-	rejectMissingTenancy  verdict = "missing_tenancy"
 	rejectNotPlaced       verdict = "workspace_not_placed"
 	rejectOutsideOfWindow verdict = "outside_placement_window"
 )
 
 func (a *Admission) check(ctx context.Context, workspaceID string, at time.Time) (verdict, error) {
 	if workspaceID == "" {
-		return rejectMissingTenancy, nil
+		return accepted, nil
 	}
 	result := a.match(workspaceID, at)
 	if result == accepted || a.refetched {

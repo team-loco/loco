@@ -62,6 +62,7 @@ const (
 	testSpanDuration     = 1500 * time.Microsecond
 	ingestGrants         = "INSERT, SHOW COLUMNS"
 	avgAggregation       = "avg"
+	sumAggregation       = "sum"
 	regionAttribute      = "loco.region"
 	serviceNameAttribute = "service.name"
 )
@@ -420,6 +421,98 @@ func TestOnlyRecordsOfPlacedWorkspacesReachClickHouse(t *testing.T) {
 	}
 	if len(stored) != 1 || stored[testWorkspaceID] != 1 {
 		t.Fatalf("stored rows by workspace = %v, want one row for %s", stored, testWorkspaceID)
+	}
+}
+
+func clusterLevel(resource pcommon.Resource) {
+	resource.Attributes().Remove(workspaceAttribute)
+	resource.Attributes().PutStr(clusterAttribute, testForgedClusterID)
+}
+
+func TestClusterLevelRowsStayOutOfTenantQueries(t *testing.T) {
+	f := newIngestFixture(t)
+	writer := f.startedWriter(t)
+	cp := newPlacedControlPlane(t)
+	service := newGatedService(writer.Consumers(), cp)
+	httpURL, tracesClient := startServers(t, service)
+
+	now := time.Now().UTC().Truncate(time.Second)
+	logs := testLogs(now)
+	testLogs(now).ResourceLogs().At(0).CopyTo(logs.ResourceLogs().AppendEmpty())
+	clusterLevel(logs.ResourceLogs().At(1).Resource())
+	traces := testTraces(now)
+	testTraces(now).ResourceSpans().At(0).CopyTo(traces.ResourceSpans().AppendEmpty())
+	clusterLevel(traces.ResourceSpans().At(1).Resource())
+	metrics := testMetrics(now)
+	testMetrics(now).ResourceMetrics().At(0).CopyTo(metrics.ResourceMetrics().AppendEmpty())
+	clusterLevel(metrics.ResourceMetrics().At(1).Resource())
+
+	logsBody, err := plogotlp.NewExportRequestFromLogs(logs).MarshalProto()
+	if err != nil {
+		t.Fatalf("marshal logs: %v", err)
+	}
+	postOTLP(t, httpURL+LogsPath, cp.bearer(), protobufContentType, logsBody)
+	metricsBody, err := pmetricotlp.NewExportRequestFromMetrics(metrics).MarshalProto()
+	if err != nil {
+		t.Fatalf("marshal metrics: %v", err)
+	}
+	postOTLP(t, httpURL+MetricsPath, cp.bearer(), protobufContentType, metricsBody)
+	tracesCtx := metadata.AppendToOutgoingContext(t.Context(), authorizationMetadata, cp.bearer())
+	if _, err = tracesClient.Export(tracesCtx, ptraceotlp.NewExportRequestFromTraces(traces)); err != nil {
+		t.Fatalf("export traces: %v", err)
+	}
+
+	for _, table := range []string{"otel_logs", "otel_traces", "otel_metrics_gauge"} {
+		var count uint64
+		query := "SELECT count() FROM " + f.database + "." + table +
+			" WHERE WorkspaceId = '' AND ResourceAttributes[?] = ?"
+		row := f.admin.QueryRow(t.Context(), query, clusterAttribute, testClusterID)
+		if scanErr := row.Scan(&count); scanErr != nil {
+			t.Fatalf("operator read of %s: %v", table, scanErr)
+		}
+		if count != 1 {
+			t.Fatalf(
+				"operator read of %s found %d cluster-level rows stamped with %s, want 1",
+				table,
+				count,
+				testClusterID,
+			)
+		}
+	}
+
+	reader := f.readerConn(t)
+	start := now.Add(-testWindow)
+	end := now.Add(testWindow)
+	entries, _, err := chClient.QueryLogs(
+		t.Context(), reader, testWorkspaceID, nil, start, end, "", nil, nil,
+		testQueryLimit, "", observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST, testQueryTimeout, chClient.LogScope{},
+	)
+	if err != nil {
+		t.Fatalf("QueryLogs: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("QueryLogs returned %d entries, want only the workspace's record", len(entries))
+	}
+	traceResult, err := chClient.QueryTraces(t.Context(), reader, &observabilityv1.QueryTracesRequest{
+		WorkspaceId: testWorkspaceID,
+		StartTime:   timestamppb.New(start),
+		EndTime:     timestamppb.New(end),
+	}, testQueryLimit, testQueryTimeout)
+	if err != nil {
+		t.Fatalf("QueryTraces: %v", err)
+	}
+	if len(traceResult.GetSpans()) != 1 {
+		t.Fatalf("QueryTraces returned %d spans, want only the workspace's span", len(traceResult.GetSpans()))
+	}
+	series, err := chClient.QueryMetrics(
+		t.Context(), reader, testWorkspaceID, testEnvironmentID, testRegion, []string{testResourceID},
+		start, end, testMetricName, testIntervalSeconds, sumAggregation, testQueryTimeout,
+	)
+	if err != nil {
+		t.Fatalf("QueryMetrics: %v", err)
+	}
+	if len(series) != 1 || len(series[0].GetPoints()) != 1 || series[0].GetPoints()[0].GetValue() != testMetricValue {
+		t.Fatalf("QueryMetrics = %v, want only the workspace's point summed", series)
 	}
 }
 

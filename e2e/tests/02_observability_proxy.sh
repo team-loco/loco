@@ -96,9 +96,7 @@ ingest_token() {
 }
 
 ingest_token_written() {
-    local token
-    token=$(ingest_token)
-    test -n "$token" && test "$token" != "$E2E_PENDING_INGEST_TOKEN"
+    test -n "$(ingest_token)"
 }
 
 otlp_post() {
@@ -132,7 +130,7 @@ test_p06_otlp_ingest_requires_an_enrolled_cluster_token() {
     marker="e2e-otlp-ingest-$(openssl rand -hex 4)"
     wait_for "the agent to write the ingest token" 60 ingest_token_written
     token=$(ingest_token)
-    assert "The agent replaced the pending placeholder with an ingest token" ingest_token_written
+    assert "The agent wrote an ingest token to the collector Secret" ingest_token_written
     assert "The node collector namespace holds the same token" test "$(ingest_token "$E2E_OBS_NODE_NAMESPACE")" = "$token"
     status=$(otlp_status "$cli_workspace_id" "$marker")
     assert "OTLP without a token is unauthenticated (HTTP ${status})" test "$status" = 401

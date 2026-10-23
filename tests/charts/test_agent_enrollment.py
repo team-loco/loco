@@ -1,4 +1,3 @@
-import base64
 import subprocess
 
 import pytest
@@ -95,17 +94,16 @@ def test_agent_writes_the_ingest_token_to_each_collector_namespace():
         by_namespace.setdefault(document["metadata"]["namespace"], {})[document["kind"]] = document
     assert sorted(by_namespace) == sorted(namespaces)
     for kinds in by_namespace.values():
-        assert set(kinds) == {"Secret", "Role", "RoleBinding"}
-        assert kinds["Secret"]["metadata"]["name"] == token["secretName"]
-        pending = base64.b64encode(DEFAULTS["pendingIngestToken"].encode()).decode()
-        assert kinds["Secret"]["data"] == {token["secretKey"]: pending}
-        (rule,) = kinds["Role"]["rules"]
-        assert rule == {
-            "apiGroups": [""],
-            "resources": ["secrets"],
-            "resourceNames": [token["secretName"]],
-            "verbs": ["get", "update"],
-        }
+        assert set(kinds) == {"Role", "RoleBinding"}
+        assert kinds["Role"]["rules"] == [
+            {"apiGroups": [""], "resources": ["secrets"], "verbs": ["create"]},
+            {
+                "apiGroups": [""],
+                "resources": ["secrets"],
+                "resourceNames": [token["secretName"]],
+                "verbs": ["get", "update"],
+            },
+        ]
         (subject,) = kinds["RoleBinding"]["subjects"]
         assert subject["name"].endswith("-agent")
 

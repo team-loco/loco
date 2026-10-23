@@ -120,7 +120,8 @@ ingest_keys="obs-stack:$(openssl rand -base64 32)"
 token_directory=$(yq '.global.exporter.bearerToken.directory' "$chart/values.yaml")
 token_key=$(yq '.global.exporter.bearerToken.secretKey' "$chart/values.yaml")
 mkdir -p "$workdir/token"
-"$workdir/ingesttoken" -keys "$ingest_keys" -cluster "$run_id" >"$workdir/token/$token_key"
+ingest_cluster=$run_id
+"$workdir/ingesttoken" -keys "$ingest_keys" -cluster "$ingest_cluster" >"$workdir/token/$token_key"
 chmod -R a+rX "$workdir/token"
 
 start_control_plane() {

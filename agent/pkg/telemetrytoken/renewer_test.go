@@ -215,24 +215,24 @@ func TestRenewerRecoversAfterTheTokenExpired(t *testing.T) {
 	waitForStoredToken(t, kube, issued[1].token)
 }
 
-func TestRenewerRetriesUntilTheSecretExists(t *testing.T) {
+func TestRenewerCreatesMissingSecrets(t *testing.T) {
 	issuer := &scriptedIssuer{}
 	kube := fake.NewClientset(existingSecret(testNamespace))
 	startRenewer(t, issuer, kube)
 
-	waitForIssuances(t, issuer, 2)
-	if storedToken(t, kube) != "" {
-		t.Fatal("token stored before every namespace had its Secret")
-	}
-	secrets := kube.CoreV1().Secrets(testNodeNamespace)
-	if _, err := secrets.Create(t.Context(), existingSecret(testNodeNamespace), metav1.CreateOptions{}); err != nil {
-		t.Fatal(err)
-	}
+	issued := waitForIssuances(t, issuer, 1)
 	deadline := time.Now().Add(testWait)
-	for storedToken(t, kube) == "" && time.Now().Before(deadline) {
+	for time.Now().Before(deadline) {
+		created, err := kube.CoreV1().Secrets(testNodeNamespace).Get(t.Context(), testSecretName, metav1.GetOptions{})
+		if err == nil && string(created.Data[testSecretKey]) == issued[0].token {
+			kept, keptErr := kube.CoreV1().Secrets(testNamespace).Get(t.Context(), testSecretName, metav1.GetOptions{})
+			if keptErr != nil || string(kept.Data[testSecretKey]) != issued[0].token ||
+				string(kept.Data[testOtherKey]) != testOtherValue {
+				t.Fatalf("existing Secret = %v, %v", kept, keptErr)
+			}
+			return
+		}
 		time.Sleep(testPoll)
 	}
-	if storedToken(t, kube) == "" {
-		t.Fatal("renewer never wrote the token once the Secret existed")
-	}
+	t.Fatal("renewer did not create the missing Secret")
 }

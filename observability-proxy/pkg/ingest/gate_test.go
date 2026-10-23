@@ -33,6 +33,7 @@ const (
 	testRemovedWorkspaceID = "33333333-4444-5555-6666-777777777777"
 	testNeverPlacedID      = "44444444-5555-6666-7777-888888888888"
 	testForeignAudience    = "loco-api"
+	testForgedClusterID    = "forged-cluster"
 )
 
 func signedWith(t *testing.T, key ingesttoken.SigningKey, audience string, issuedAt time.Time) string {
@@ -254,16 +255,15 @@ func tenancyCases(now time.Time) []tenancyCase {
 		{workspaceID: testRemovedWorkspaceID, at: now.Add(-testPlacedFor / 2), accepted: true},
 		{workspaceID: testRemovedWorkspaceID, at: now},
 		{workspaceID: testOtherWorkspaceID, at: now},
-		{at: now},
+		{at: now, accepted: true},
 	}
 }
 
 const (
-	wantRejected  = 4
-	wantAccepted  = 3
+	wantRejected  = 3
+	wantAccepted  = 4
 	wantNotPlaced = 1
 	wantOutside   = 2
-	wantNoTenancy = 1
 )
 
 func tenancyControlPlane(t *testing.T, now time.Time) *controlPlane {
@@ -275,6 +275,7 @@ func tenancyControlPlane(t *testing.T, now time.Time) *controlPlane {
 }
 
 func tagWorkspace(resource pcommon.Resource, workspaceID string) {
+	resource.Attributes().PutStr(clusterAttribute, testForgedClusterID)
 	if workspaceID != "" {
 		resource.Attributes().PutStr(workspaceAttribute, workspaceID)
 	}
@@ -360,12 +361,24 @@ func (c *capturingConsumers) consumers(t *testing.T) Consumers {
 	return Consumers{Logs: logs, Traces: traces, Metrics: metrics}
 }
 
+func requireClusterStamp(t *testing.T, resource pcommon.Resource) {
+	t.Helper()
+	value, ok := resource.Attributes().Get(clusterAttribute)
+	if !ok || value.Str() != testClusterID {
+		t.Fatalf(
+			"%s = %v, want the token's cluster %s over the client's value",
+			clusterAttribute,
+			value.AsRaw(),
+			testClusterID,
+		)
+	}
+}
+
 func requireRejectionMetrics(t *testing.T, service *Service, factor int) {
 	t.Helper()
 	for reason, want := range map[verdict]int{
 		rejectNotPlaced:       wantNotPlaced,
 		rejectOutsideOfWindow: wantOutside,
-		rejectMissingTenancy:  wantNoTenancy,
 	} {
 		counter := service.rejected.WithLabelValues(testClusterID, string(reason))
 		if got := testutil.ToFloat64(counter); got != float64(want*factor) {
@@ -379,7 +392,6 @@ func requireRejectionMessage(t *testing.T, message string) {
 	for _, part := range []string{
 		string(rejectNotPlaced) + "=1",
 		string(rejectOutsideOfWindow) + "=2",
-		string(rejectMissingTenancy) + "=1",
 	} {
 		if !strings.Contains(message, part) {
 			t.Fatalf("partial success message %q lacks %q", message, part)
@@ -410,10 +422,12 @@ func TestTenancyFilterDropsRecordsOutsideThePlacementWindows(t *testing.T) {
 		t.Fatalf("stored %v, want %d log records", captured.logs, wantAccepted)
 	}
 	for i := range captured.logs[0].ResourceLogs().Len() {
-		record := captured.logs[0].ResourceLogs().At(i).ScopeLogs().At(0).LogRecords().At(0)
+		resourceLogs := captured.logs[0].ResourceLogs().At(i)
+		record := resourceLogs.ScopeLogs().At(0).LogRecords().At(0)
 		if record.Body().Str() != strconv.FormatBool(true) {
 			t.Fatalf("stored a record that should be rejected: %v", record.Body().Str())
 		}
+		requireClusterStamp(t, resourceLogs.Resource())
 	}
 
 	tracesRequest := ptraceotlp.NewExportRequestFromTraces(tenancyTraces(now))
@@ -427,6 +441,9 @@ func TestTenancyFilterDropsRecordsOutsideThePlacementWindows(t *testing.T) {
 	if len(captured.traces) != 1 || captured.traces[0].SpanCount() != wantAccepted {
 		t.Fatalf("stored %d spans, want %d", captured.traces[0].SpanCount(), wantAccepted)
 	}
+	for i := range captured.traces[0].ResourceSpans().Len() {
+		requireClusterStamp(t, captured.traces[0].ResourceSpans().At(i).Resource())
+	}
 
 	metricsRequest := pmetricotlp.NewExportRequestFromMetrics(tenancyMetrics(now))
 	metricsResponse, err := service.exportMetrics(ctx, admission, metricsRequest)
@@ -438,6 +455,9 @@ func TestTenancyFilterDropsRecordsOutsideThePlacementWindows(t *testing.T) {
 	}
 	if len(captured.metrics) != 1 || captured.metrics[0].DataPointCount() != 2*wantAccepted {
 		t.Fatalf("stored %d data points, want %d", captured.metrics[0].DataPointCount(), 2*wantAccepted)
+	}
+	for i := range captured.metrics[0].ResourceMetrics().Len() {
+		requireClusterStamp(t, captured.metrics[0].ResourceMetrics().At(i).Resource())
 	}
 	requireRejectionMetrics(t, service, 1+1+2)
 }
