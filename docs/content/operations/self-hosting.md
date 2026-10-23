@@ -91,4 +91,6 @@ The first successful bootstrap closes bootstrap permanently in the database; the
 
 Every commit to `main` publishes the agent, builder, controller, API, observability proxy and UI images tagged `sha-<commit>`, and each binary reports that tag as its version. The charts have no default tag for these images: set `agent.image.tag`, `controller.image.tag`, `builds.builderImage.tag` and, in `loco-control-plane`, `obsProxy.image.tag` to the same `sha-<commit>`. Regenerate CRDs through `mise run controller:gen` when developing schema changes. Review database migrations and infrastructure changes before upgrading a running installation.
 
+The controller includes the environment ID in each application Deployment’s immutable selector. Upgrading a Deployment created without that selector recreates it once: its existing Pods stop before replacements start, so plan for an interruption. Subsequent updates within the same environment use rolling updates. When a placement changes environment, the controller waits for the old Deployment and its descendants to be removed before copying the target environment’s secrets and creating its new Deployment.
+
 A supported production packaging and upgrade procedure is not established by these docs. Inspect the chart values and the release's configuration before deployment.

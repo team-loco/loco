@@ -173,6 +173,7 @@ var _ = Describe("Application with replicas that cannot start", func() {
 		reconcileStuckApp(r, app)
 		Expect(app.Status.Phase).To(Equal(phaseFailed))
 		Expect(app.Status.Message).To(ContainSubstring("progress deadline"))
+		Expect(k8sClient.Get(ctx, key, dep)).To(Succeed())
 		dep.Status.ObservedGeneration = dep.Generation - 1
 		Expect(k8sClient.Status().Update(ctx, dep)).To(Succeed())
 		reconcileStuckApp(r, app)

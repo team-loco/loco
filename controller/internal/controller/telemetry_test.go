@@ -300,7 +300,7 @@ func TestPodTemplateCarriesTheAppNameLabelOutsideTheSelector(t *testing.T) {
 	if got := labels[labelAppKubernetesName]; got != name {
 		t.Errorf("pod label %s = %q, want %q", labelAppKubernetesName, got, name)
 	}
-	wantSelector := map[string]string{labelApp: name}
+	wantSelector := map[string]string{labelApp: name, labelEnvironmentID: app.Spec.EnvironmentID}
 	if got := dep.Spec.Selector.MatchLabels; !maps.Equal(got, wantSelector) {
 		t.Errorf("selector = %v, want %v", got, wantSelector)
 	}
