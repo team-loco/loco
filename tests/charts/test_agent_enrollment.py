@@ -1,3 +1,4 @@
+import base64
 import subprocess
 
 import pytest
@@ -96,7 +97,8 @@ def test_agent_writes_the_ingest_token_to_each_collector_namespace():
     for kinds in by_namespace.values():
         assert set(kinds) == {"Secret", "Role", "RoleBinding"}
         assert kinds["Secret"]["metadata"]["name"] == token["secretName"]
-        assert "data" not in kinds["Secret"]
+        pending = base64.b64encode(DEFAULTS["pendingIngestToken"].encode()).decode()
+        assert kinds["Secret"]["data"] == {token["secretKey"]: pending}
         (rule,) = kinds["Role"]["rules"]
         assert rule == {
             "apiGroups": [""],

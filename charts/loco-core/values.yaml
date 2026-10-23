@@ -51,6 +51,7 @@ agent:
     existingSecret: ""
     secretKey: join-token
   assertionLifetime: 1m
+  pendingIngestToken: pending
   image:
     repository: ghcr.io/team-loco/loco-agent
     tag: ""

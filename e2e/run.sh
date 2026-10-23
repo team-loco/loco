@@ -77,6 +77,7 @@ AGENT_KEY_SECRET="e2e-agent-key"
 INGEST_TOKEN_SECRET=$(yq '.global.exporter.bearerToken.secretName' "$OBS_VALUES")
 INGEST_TOKEN_SECRET_KEY=$(yq '.global.exporter.bearerToken.secretKey' "$OBS_VALUES")
 OBS_NODE_NAMESPACE=$(yq '.["otel-col-daemon"].namespaceOverride' "$OBS_VALUES")
+PENDING_INGEST_TOKEN=$(yq '.agent.pendingIngestToken' "$CORE_CHART/values.yaml")
 E2E_CLUSTER_NAME="e2e-test-cluster"
 E2E_CLUSTER_REGION="us-east-1"
 E2E_CLUSTER_TIER="production"
@@ -101,6 +102,7 @@ export E2E_AGENT_KEY_SECRET="$AGENT_KEY_SECRET"
 export E2E_BOOTSTRAP_TOKEN="$BOOTSTRAP_TOKEN"
 export E2E_INGEST_TOKEN_SECRET="$INGEST_TOKEN_SECRET"
 export E2E_INGEST_TOKEN_SECRET_KEY="$INGEST_TOKEN_SECRET_KEY"
+export E2E_PENDING_INGEST_TOKEN="$PENDING_INGEST_TOKEN"
 export E2E_USER_TOKEN="$USER_TOKEN"
 export E2E_KIND_CLUSTER="$KIND_CLUSTER_NAME"
 export E2E_LOCO_NAMESPACE="$LOCO_NAMESPACE"
@@ -532,6 +534,7 @@ install_loco_obs() {
         --values "$OBS_VALUES" \
         --values "$OBS_E2E_VALUES" \
         --set "global.exporter.endpoint=http://${INGEST_CONTAINER}:${INGEST_OTLP_HTTP_PORT}" \
+        --set global.exporter.bearerToken.enabled=true \
         --wait --timeout "$OBS_HELM_TIMEOUT" >/dev/null
     log_ok "loco-obs installed in ${OBS_NAMESPACE}"
 }
@@ -559,7 +562,8 @@ ingest_ready() {
 start_ingest() {
     log_step "Starting the observability proxy ingest role on the kind network..."
     docker rm -fv "$INGEST_CONTAINER" >/dev/null 2>&1 || true
-    docker run -d --name "$INGEST_CONTAINER" --network kind \
+    docker run -d --name "$INGEST_CONTAINER" --network kind --add-host host.docker.internal:host-gateway \
+        -e CONTROL_PLANE_URL="http://host.docker.internal:${API_PORT}" \
         -p "127.0.0.1::$(yq '.obsProxy.ingest.port' "$CONTROL_PLANE_VALUES")" \
         -e QUERY_ENABLED=false -e INGEST_ENABLED=true \
         -e PORT="$(yq '.obsProxy.ingest.port' "$CONTROL_PLANE_VALUES")" \
@@ -712,12 +716,20 @@ start_builds() {
     start_job binaries nice -n "$BUILD_NICENESS" mise run --quiet e2e:build "$BIN_DIR" "$E2E_VERSION"
 }
 
+api_bind_address() {
+    if [ "$OBSERVABILITY" = true ]; then
+        echo 0.0.0.0
+        return
+    fi
+    echo 127.0.0.1
+}
+
 start_api() {
     log_step "Starting API server..."
 
     LOCO_BOOTSTRAP_TOKEN="$BOOTSTRAP_TOKEN" \
     DATABASE_URL="$E2E_DATABASE_URL" \
-    APP_PORT="127.0.0.1:$API_PORT" \
+    APP_PORT="$(api_bind_address):$API_PORT" \
     OBSERVABILITY_PROXY_URL="http://127.0.0.1:$OBS_PROXY_PORT" \
     CORS_ALLOWED_ORIGINS="https://dashboard.e2e.test" \
     APP_ENV="test" \
@@ -785,7 +797,8 @@ create_ingest_token_secret() {
     local namespace
     for namespace in "$OBS_NAMESPACE" "$OBS_NODE_NAMESPACE"; do
         kube create namespace "$namespace" --dry-run=client -o yaml | kube apply -f - >/dev/null
-        kube -n "$namespace" create secret generic "$INGEST_TOKEN_SECRET" --dry-run=client -o yaml |
+        kube -n "$namespace" create secret generic "$INGEST_TOKEN_SECRET" \
+            --from-literal="$INGEST_TOKEN_SECRET_KEY=$PENDING_INGEST_TOKEN" --dry-run=client -o yaml |
             kube apply -f - >/dev/null
     done
 }
@@ -954,6 +967,7 @@ main() {
     start_builds
     setup_kind
     create_namespace
+    create_ingest_token_secret
     build_chart_dependencies
     if [ "$OBSERVABILITY" = true ]; then
         install_observability_namespaces
@@ -983,7 +997,6 @@ main() {
     fi
     seed_cluster_admin
     create_e2e_cluster
-    create_ingest_token_secret
     start_agent
     start_obs_proxy
     if [ "$OBSERVABILITY" = true ]; then

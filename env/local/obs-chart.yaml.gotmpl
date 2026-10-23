@@ -1,6 +1,8 @@
 global:
   region: us-east-1
   exporter:
+    bearerToken:
+      enabled: true
     endpoint: http://host.docker.internal:{{ requiredEnv "OBS_OTLP_HTTP_PORT" }}
 
 gatewayNamespace: loco-system

@@ -26,6 +26,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/team-loco/loco/internal/ingesttoken"
+	"github.com/team-loco/loco/internal/ingesttoken/ingesttest"
 )
 
 const (
@@ -60,7 +61,7 @@ func TestHTTPAuthStatusMapping(t *testing.T) {
 	for _, test := range []struct {
 		name          string
 		authorization func(*controlPlane) string
-		setup         func(*controlPlane)
+		setup         func(*ingesttest.State)
 		wantHTTP      int
 		wantCode      codes.Code
 	}{
@@ -85,14 +86,14 @@ func TestHTTPAuthStatusMapping(t *testing.T) {
 		{
 			name: "wrong audience",
 			authorization: func(cp *controlPlane) string {
-				return bearerPrefix + signedWith(cp.t, cp.keys[0], testForeignAudience, time.Now())
+				return bearerPrefix + signedWith(cp.t, cp.SigningKey(), testForeignAudience, time.Now())
 			},
 			wantHTTP: http.StatusUnauthorized, wantCode: codes.Unauthenticated,
 		},
 		{
 			name: "expired with a wrong audience",
 			authorization: func(cp *controlPlane) string {
-				return bearerPrefix + signedWith(cp.t, cp.keys[0], testForeignAudience, expired)
+				return bearerPrefix + signedWith(cp.t, cp.SigningKey(), testForeignAudience, expired)
 			},
 			wantHTTP: http.StatusUnauthorized, wantCode: codes.Unauthenticated,
 		},
@@ -106,20 +107,20 @@ func TestHTTPAuthStatusMapping(t *testing.T) {
 		{
 			name:          "revoked cluster",
 			authorization: func(cp *controlPlane) string { return cp.bearer() },
-			setup:         func(cp *controlPlane) { cp.revoked = true },
+			setup:         func(s *ingesttest.State) { s.Revoked = true },
 			wantHTTP:      http.StatusForbidden, wantCode: codes.PermissionDenied,
 		},
 		{
 			name:          "control plane unavailable",
 			authorization: func(cp *controlPlane) string { return cp.bearer() },
-			setup:         func(cp *controlPlane) { cp.outage = true },
+			setup:         func(s *ingesttest.State) { s.Outage = true },
 			wantHTTP:      http.StatusServiceUnavailable, wantCode: codes.Unavailable,
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			service, recorder, cp := newTestService(t, nil)
 			if test.setup != nil {
-				cp.set(test.setup)
+				cp.Update(test.setup)
 			}
 			response := post(t, service, test.authorization(cp), protobufContentType, "", protoBody(t))
 			if response.Code != test.wantHTTP {
@@ -148,7 +149,7 @@ func TestGRPCAuthStatusMapping(t *testing.T) {
 	for _, test := range []struct {
 		name          string
 		authorization func(*controlPlane) string
-		setup         func(*controlPlane)
+		setup         func(*ingesttest.State)
 		want          codes.Code
 	}{
 		{
@@ -174,14 +175,14 @@ func TestGRPCAuthStatusMapping(t *testing.T) {
 		{
 			name:          "revoked cluster",
 			authorization: func(cp *controlPlane) string { return cp.bearer() },
-			setup:         func(cp *controlPlane) { cp.revoked = true },
+			setup:         func(s *ingesttest.State) { s.Revoked = true },
 			want:          codes.PermissionDenied,
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			service, recorder, cp := newTestService(t, nil)
 			if test.setup != nil {
-				cp.set(test.setup)
+				cp.Update(test.setup)
 			}
 			ctx := t.Context()
 			if authorization := test.authorization(cp); authorization != "" {
@@ -219,7 +220,7 @@ func TestJWKSRefreshesOnAnUnknownKeyAtMostOncePerInterval(t *testing.T) {
 		t.Fatal(err)
 	}
 	rotated := newSigningKey(t, testRotatedKeyID)
-	cp.set(func(cp *controlPlane) { cp.keys = append([]ingesttoken.SigningKey{rotated}, cp.keys...) })
+	cp.Update(func(s *ingesttest.State) { s.Keys = append([]ingesttoken.SigningKey{rotated}, s.Keys...) })
 	gate.keysFetched = time.Now().Add(-2 * time.Hour)
 	if _, err := gate.Admit(ctx, cp.bearer()); err != nil {
 		t.Fatalf("token from the rotated key: %v", err)
@@ -229,7 +230,7 @@ func TestJWKSRefreshesOnAnUnknownKeyAtMostOncePerInterval(t *testing.T) {
 	if !strings.Contains(err.Error(), ErrAuthUnavailable.Error()) {
 		t.Fatalf("unknown key within the refresh interval = %v, want a retryable failure", err)
 	}
-	if _, jwks := cp.calls(); jwks != 2 {
+	if _, jwks := cp.Calls(); jwks != 2 {
 		t.Fatalf("JWKS fetched %d times, want 2", jwks)
 	}
 	gate.keysFetched = time.Now().Add(-2 * time.Hour)
@@ -268,8 +269,8 @@ const (
 func tenancyControlPlane(t *testing.T, now time.Time) *controlPlane {
 	t.Helper()
 	cp := newControlPlane(t)
-	cp.place(testWorkspaceID, now.Add(-testPlacedFor), time.Time{})
-	cp.place(testRemovedWorkspaceID, now.Add(-testPlacedFor), now.Add(-testPlacedFor/4))
+	cp.Place(testWorkspaceID, now.Add(-testPlacedFor), time.Time{})
+	cp.Place(testRemovedWorkspaceID, now.Add(-testPlacedFor), now.Add(-testPlacedFor/4))
 	return cp
 }
 
@@ -513,16 +514,16 @@ func TestPlacementCacheRefetchesOnceOnAMiss(t *testing.T) {
 
 	exportFor(t, service, cp, testWorkspaceID)
 	exportFor(t, service, cp, testWorkspaceID)
-	if list, _ := cp.calls(); list != 1 {
+	if list, _ := cp.Calls(); list != 1 {
 		t.Fatalf("placements fetched %d times for cached hits, want 1", list)
 	}
 
-	cp.place(testOtherWorkspaceID, time.Now().Add(-time.Minute), time.Time{})
+	cp.Place(testOtherWorkspaceID, time.Now().Add(-time.Minute), time.Time{})
 	response := exportFor(t, service, cp, testOtherWorkspaceID)
 	if response.PartialSuccess().RejectedLogRecords() != 0 {
 		t.Fatalf("newly placed workspace rejected: %v", response.PartialSuccess())
 	}
-	if list, _ := cp.calls(); list != 2 {
+	if list, _ := cp.Calls(); list != 2 {
 		t.Fatalf("placements fetched %d times, want a refetch on the miss", list)
 	}
 
@@ -530,13 +531,13 @@ func TestPlacementCacheRefetchesOnceOnAMiss(t *testing.T) {
 	if response.PartialSuccess().RejectedLogRecords() != 3 {
 		t.Fatalf("never placed workspace: %v", response.PartialSuccess())
 	}
-	if list, _ := cp.calls(); list != 3 {
+	if list, _ := cp.Calls(); list != 3 {
 		t.Fatalf("placements fetched %d times, want one refetch per request", list)
 	}
 
 	service.gate.cfg.RefetchInterval = time.Hour
 	exportFor(t, service, cp, testNeverPlacedID)
-	if list, _ := cp.calls(); list != 3 {
+	if list, _ := cp.Calls(); list != 3 {
 		t.Fatalf("placements fetched %d times, want no refetch within the refetch interval", list)
 	}
 }
@@ -553,7 +554,7 @@ func TestRevocationSeenOnRefetchFailsTheRequest(t *testing.T) {
 	); response.Code != http.StatusOK {
 		t.Fatalf("status = %d", response.Code)
 	}
-	cp.set(func(cp *controlPlane) { cp.revoked = true })
+	cp.Update(func(s *ingesttest.State) { s.Revoked = true })
 	body, err := logsFor(testOtherWorkspaceID).MarshalProto()
 	if err != nil {
 		t.Fatal(err)

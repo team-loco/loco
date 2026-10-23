@@ -1,6 +1,8 @@
 {{- with include "loco-core.exporterTokenSecret" . }}
 {{- $secret := . }}
+{{- $key := include "loco-core.exporterTokenKey" $ }}
 {{- range $namespace := include "loco-core.exporterTokenNamespaces" $ | splitList "," }}
+{{- $live := (lookup "v1" "Secret" $namespace $secret).data | default dict }}
 ---
 apiVersion: v1
 kind: Secret
@@ -8,6 +10,8 @@ metadata:
   name: {{ $secret }}
   namespace: {{ $namespace }}
 type: Opaque
+data:
+  {{ $key }}: {{ dig $key (b64enc $.Values.agent.pendingIngestToken) $live | quote }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role

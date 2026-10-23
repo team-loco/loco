@@ -23,6 +23,7 @@ route_resource=01a126f5-020e-7f3c-ac04-822067278d4b
 route_cluster=httproute/ws-$route_workspace/resource-$route_resource-route/rule/0
 gateway_name=eg
 gateway_namespace=loco-system
+start_control_plane "$pod_workspace" "$route_workspace"
 
 test_config() {
 	LABEL_PREFIX="$label_prefix" yq '
@@ -150,11 +151,6 @@ for collector in $collectors; do
 		send "$otlp" "$signal" "$(payload "$signal" "$(attribute service.name "$build"), $(forged_attributes), $(build_label_attributes)" b7ad6b7169203335)"
 		otel_table=$(table "$signal")
 		checked_tables="$checked_tables $otel_table"
-		if ! wait_for "$collector $signal rows" has_rows "$(rows "$otel_table" "$forged" 1)"; then
-			fail "$collector wrote no $signal for a client that forged its tenancy"
-		fi
-		forged_rows=$(query "$(rows "$otel_table" "$forged" "(OrganizationId != '' OR WorkspaceId != '' OR EnvironmentId != '' OR ResourceId != '' OR ResourceAttributes['loco.io/build-id'] != '' OR ResourceAttributes['k8s.pod.uid'] != '' OR ResourceAttributes['k8s.pod.ip'] != '')")")
-		[ "$forged_rows" -eq 0 ] || fail "$collector kept client-supplied tenancy on $forged_rows $signal row(s)"
 		pod_tenancy="OrganizationId = '$pod_organization' AND WorkspaceId = '$pod_workspace' AND EnvironmentId = '$pod_environment' AND ResourceId = '$pod_resource'"
 		if ! wait_for "$collector $signal rows from pod labels" has_rows "$(rows "$otel_table" "$labelled" "$pod_tenancy")"; then
 			fail "$collector did not take $signal tenancy from the pod labels"
@@ -163,6 +159,8 @@ for collector in $collectors; do
 		if ! wait_for "$collector $signal rows from build pod labels" has_rows "$(rows "$otel_table" "$build" "$build_tenancy")"; then
 			fail "$collector did not take $signal build id from the build pod labels"
 		fi
+		forged_rows=$(query "$(rows "$otel_table" "$forged" 1)")
+		[ "$forged_rows" -eq 0 ] || fail "the ingest proxy stored $forged_rows $signal row(s) without placed tenancy"
 	done
 done
 
@@ -186,12 +184,14 @@ for signal in logs traces metrics; do
 	if ! wait_for "Envoy $signal rows with route tenancy" has_rows "$(rows "$otel_table" "$envoy" "$route_tenancy")"; then
 		fail "$envoy_collector did not take Envoy $signal tenancy from the upstream cluster"
 	fi
-	if ! wait_for "$envoy_collector $signal rows" has_rows "$(rows "$otel_table" "$impostor" 1)"; then
-		fail "$envoy_collector wrote no $signal for a client that copied Envoy's attributes"
-	fi
-	impostor_rows=$(query "$(rows "$otel_table" "$impostor" "(OrganizationId != '' OR WorkspaceId != '' OR EnvironmentId != '' OR ResourceId != '')")")
-	[ "$impostor_rows" -eq 0 ] || fail "$envoy_collector gave route tenancy to $impostor_rows $signal row(s) from a client that is not Envoy"
+	impostor_rows=$(query "$(rows "$otel_table" "$impostor" 1)")
+	[ "$impostor_rows" -eq 0 ] || fail "the ingest proxy stored $impostor_rows $signal row(s) from a client that copied Envoy's attributes"
 done
+
+[ "$(rejected_records missing_tenancy)" -gt 0 ] ||
+	fail "the ingest proxy rejected no records for missing tenancy, so forged and impostor records did not reach it stripped"
+not_placed=$(rejected_records workspace_not_placed)
+[ "$not_placed" -eq 0 ] || fail "$not_placed record(s) reached the ingest proxy with a client-supplied workspace"
 
 evidence=""
 for otel_table in $(tr ' ' '\n' <<<"$checked_tables" | sort -u); do
@@ -209,4 +209,4 @@ if [ "$failures" -gt 0 ]; then
 	echo "$failures check(s) failed"
 	exit 1
 fi
-echo "every OTLP pipeline dropped client-supplied tenancy and took it from the pod labels, only Envoy's telemetry took it from the route, and every row carries the chart's region"
+echo "every OTLP pipeline dropped client-supplied tenancy and took it from the pod labels, only Envoy's telemetry took it from the route, the ingest proxy dropped the records left without tenancy, and every row carries the chart's region"
