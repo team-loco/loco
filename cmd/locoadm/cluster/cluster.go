@@ -3,6 +3,7 @@ package cluster
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connectproto"
@@ -11,6 +12,7 @@ import (
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/gen/go/loco/cluster/v1/clusterv1connect"
+	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	"github.com/team-loco/loco/internal/keychain"
 	"github.com/team-loco/loco/internal/rpc"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -29,7 +31,11 @@ const (
 	flagName   = "name"
 	flagRegion = "region"
 	flagTier   = "tier"
+
+	tierEnumPrefix = "ENVIRONMENT_TYPE_"
 )
+
+var errInvalidTier = errors.New("tier must be staging or production")
 
 type dependencies struct {
 	token  func(*cobra.Command) (*keychain.UserToken, error)
@@ -68,8 +74,10 @@ func newClusterCmd(deps dependencies) *cobra.Command {
 			command.Use = operation
 			command.Short = "create a pending cluster and print its one-time join token"
 			command.Args = cobra.NoArgs
+			command.Flags().String(flagName, "", "Cluster name")
+			command.Flags().String(flagRegion, "", "Cluster region")
+			command.Flags().String(flagTier, "", "Cluster tier: staging or production")
 			for _, flag := range []string{flagName, flagRegion, flagTier} {
-				command.Flags().String(flag, "", "Cluster "+flag)
 				cobra.CheckErr(command.MarkFlagRequired(flag))
 			}
 		}
@@ -119,13 +127,21 @@ func call(
 	switch operation {
 	case clusterCreate:
 		request := &clusterv1.CreateClusterRequest{}
-		fields := map[string]*string{flagName: &request.Name, flagRegion: &request.Region, flagTier: &request.Tier}
+		fields := map[string]*string{flagName: &request.Name, flagRegion: &request.Region}
 		for flag, field := range fields {
 			value, err := cmd.Flags().GetString(flag)
 			if err != nil {
 				return nil, err
 			}
 			*field = value
+		}
+		tierFlag, err := cmd.Flags().GetString(flagTier)
+		if err != nil {
+			return nil, err
+		}
+		request.Tier, err = parseTier(tierFlag)
+		if err != nil {
+			return nil, err
 		}
 		return client.CreateCluster(ctx, request)
 	case clusterJoinToken:
@@ -145,6 +161,14 @@ func call(
 		}
 		return client.RemoveCluster(ctx, &clusterv1.RemoveClusterRequest{ClusterId: args[0], Force: force})
 	}
+}
+
+func parseTier(value string) (environmentv1.EnvironmentType, error) {
+	tier, ok := environmentv1.EnvironmentType_value[tierEnumPrefix+strings.ToUpper(value)]
+	if !ok || tier == int32(environmentv1.EnvironmentType_ENVIRONMENT_TYPE_UNSPECIFIED) {
+		return environmentv1.EnvironmentType_ENVIRONMENT_TYPE_UNSPECIFIED, fmt.Errorf("%w: %q", errInvalidTier, value)
+	}
+	return environmentv1.EnvironmentType(tier), nil
 }
 
 func printWorkloads(cmd *cobra.Command, err error) {

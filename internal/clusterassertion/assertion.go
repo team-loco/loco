@@ -11,10 +11,7 @@ import (
 	"github.com/go-jose/go-jose/v4/jwt"
 )
 
-const (
-	Audience = "loco-api"
-	Leeway   = jwt.DefaultLeeway
-)
+const Audience = "loco-api"
 
 var (
 	ErrInvalid         = errors.New("invalid cluster assertion")
@@ -88,7 +85,7 @@ func Verify(token string, key ed25519.PublicKey, now time.Time, maxLifetime time
 		return Claims{}, ErrLifetime
 	}
 	expected := jwt.Expected{Issuer: claims.Issuer, AnyAudience: jwt.Audience{Audience}, Time: now}
-	if err := claims.ValidateWithLeeway(expected, Leeway); err != nil {
+	if err := claims.ValidateWithLeeway(expected, jwt.DefaultLeeway); err != nil {
 		return Claims{}, fmt.Errorf("%w: %w", ErrInvalid, err)
 	}
 	return Claims{ClusterID: claims.Issuer, ID: claims.ID, Expiry: expiry}, nil

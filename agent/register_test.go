@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/rand"
 	"errors"
 	"io"
 	"strings"
@@ -11,6 +12,7 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connectinprocess"
+	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/durationpb"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,25 +26,21 @@ import (
 	"github.com/team-loco/loco/internal/clusterassertion"
 )
 
-const (
-	testClusterKey     = "00000000-0000-7000-8000-0000000000aa"
-	testClusterID      = "00000000-0000-7000-8000-0000000000bb"
-	testJoinToken      = "loco_j_test"
-	testKeySecret      = "loco-core-agent-key" //nolint:gosec
-	testAgentNamespace = "loco-system"
-	testAssertionTTL   = time.Minute
-)
+const testAssertionTTL = time.Minute
 
 var errRejectedCall = errors.New("call lacks a valid fresh assertion")
 
 type fakeRegistrar struct {
 	agentv1connect.UnimplementedAgentServiceHandler
-	t         *testing.T
-	publicKey ed25519.PublicKey
-	jtis      map[string]bool
-	enrolled  int
-	asserted  int
-	synced    int
+	t          *testing.T
+	clusterKey string
+	clusterID  string
+	joinToken  string
+	publicKey  ed25519.PublicKey
+	jtis       map[string]bool
+	enrolled   int
+	asserted   int
+	synced     int
 }
 
 func (f *fakeRegistrar) verify(ctx context.Context) error {
@@ -52,7 +50,7 @@ func (f *fakeRegistrar) verify(ctx context.Context) error {
 		return connect.NewError(connect.CodeUnauthenticated, errRejectedCall.Error())
 	}
 	claims, err := clusterassertion.Verify(token, f.publicKey, time.Now(), testAssertionTTL)
-	if err != nil || claims.ClusterID != testClusterID || f.jtis[claims.ID] {
+	if err != nil || claims.ClusterID != f.clusterID || f.jtis[claims.ID] {
 		return connect.NewError(connect.CodeUnauthenticated, errRejectedCall.Error())
 	}
 	f.jtis[claims.ID] = true
@@ -63,16 +61,16 @@ func (f *fakeRegistrar) Register(
 	ctx context.Context,
 	req *agentv1.RegisterRequest,
 ) (*agentv1.RegisterResponse, error) {
-	if req.GetClusterKey() != testClusterKey {
+	if req.GetClusterKey() != f.clusterKey {
 		f.t.Errorf("cluster key %q", req.GetClusterKey())
 	}
-	response := &agentv1.RegisterResponse{ClusterId: testClusterID, HeartbeatInterval: durationpb.New(time.Second)}
+	response := &agentv1.RegisterResponse{ClusterId: f.clusterID, HeartbeatInterval: durationpb.New(time.Second)}
 	if enrollment := req.GetEnrollment(); enrollment != nil {
 		info, _ := connect.CallInfoForServerContext(ctx)
 		if header := info.RequestHeader().Get("Authorization"); header != "" {
 			f.t.Errorf("enrollment sent Authorization %q", header)
 		}
-		if enrollment.GetJoinToken() != testJoinToken || f.publicKey != nil {
+		if enrollment.GetJoinToken() != f.joinToken || f.publicKey != nil {
 			return nil, connect.NewError(connect.CodeUnauthenticated, errRejectedCall.Error())
 		}
 		f.publicKey = enrollment.GetPublicKey()
@@ -109,11 +107,17 @@ func openTestSync(t *testing.T, a *Agent) {
 }
 
 func TestEveryAgentCallCarriesAFreshAssertionOnceEnrolled(t *testing.T) {
+	registrar := &fakeRegistrar{
+		t:          t,
+		clusterKey: uuid.NewString(),
+		clusterID:  uuid.NewString(),
+		joinToken:  rand.Text(),
+		jtis:       map[string]bool{},
+	}
 	kube := fake.NewClientset(&corev1.Namespace{
 		Name: metav1.NamespaceSystem,
-		UID:  types.UID(testClusterKey),
+		UID:  types.UID(registrar.clusterKey),
 	})
-	registrar := &fakeRegistrar{t: t, jtis: map[string]bool{}}
 	server := connect.NewServer()
 	agentv1connect.RegisterAgentServiceHandler(server, registrar)
 	transport := connectinprocess.New(server)
@@ -123,8 +127,8 @@ func TestEveryAgentCallCarriesAFreshAssertionOnceEnrolled(t *testing.T) {
 		return &Agent{
 			cfg:         &Config{JoinToken: joinToken},
 			client:      agentv1connect.NewAgentServiceClient(connectClient),
-			inspector:   cluster.NewInspector(kube, testAgentNamespace, "loco-controller"),
-			identities:  identity.NewStore(kube, testAgentNamespace, testKeySecret),
+			inspector:   cluster.NewInspector(kube, metav1.NamespaceDefault, ""),
+			identities:  identity.NewStore(kube, metav1.NamespaceDefault, t.Name()),
 			credentials: credentials,
 		}
 	}
@@ -132,14 +136,14 @@ func TestEveryAgentCallCarriesAFreshAssertionOnceEnrolled(t *testing.T) {
 	if err := newAgent("").register(t.Context()); !errors.Is(err, errNotEnrolled) {
 		t.Fatalf("register without a key or join token: %v", err)
 	}
-	enrolled := newAgent(testJoinToken)
+	enrolled := newAgent(registrar.joinToken)
 	if err := enrolled.register(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	openTestSync(t, enrolled)
 	openTestSync(t, enrolled)
 	for range 2 {
-		restarted := newAgent(testJoinToken)
+		restarted := newAgent(registrar.joinToken)
 		if err := restarted.register(t.Context()); err != nil {
 			t.Fatal(err)
 		}

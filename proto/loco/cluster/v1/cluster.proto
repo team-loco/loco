@@ -4,6 +4,7 @@ package loco.cluster.v1;
 
 import "buf/validate/validate.proto";
 import "google/protobuf/timestamp.proto";
+import "loco/environment/v1/environment.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/cluster/v1;clusterv1";
 
@@ -22,15 +23,13 @@ message Cluster {
   string cluster_key = 2;
   string name = 3;
   string region = 4;
-  string tier = 5;
+  loco.environment.v1.EnvironmentType tier = 5;
   bool is_active = 6;
   google.protobuf.Timestamp removed_at = 7;
   optional string health_status = 8;
   google.protobuf.Timestamp last_heartbeat = 9;
   optional string agent_version = 10;
-  reserved 11;
-  reserved "connection_credential_fingerprint";
-  optional string agent_key_fingerprint = 12;
+  optional string agent_key_fingerprint = 11;
 }
 
 message ClusterWorkload {
@@ -56,12 +55,9 @@ message CreateClusterRequest {
     min_len: 1
     max_len: 255
   }];
-  string tier = 3 [(buf.validate.field).string = {
-    in: [
-      "dev",
-      "staging",
-      "production"
-    ]
+  loco.environment.v1.EnvironmentType tier = 3 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
   }];
 }
 

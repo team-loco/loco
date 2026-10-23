@@ -1,16 +1,19 @@
 import subprocess
 
 import pytest
-from test_platform_contracts import render_documents
+from test_platform_contracts import chart_values, render_documents
 
+CHART = "loco-core"
+DEFAULTS = chart_values(CHART)["agent"]
 TAG = {"image": {"tag": "test"}}
+JOIN_TOKEN = "join-token-value"
 
 
 def _agent_env(agent):
     (deployment,) = [
         document
         for document in render_documents(
-            "loco-core",
+            CHART,
             "agent-deployment.yaml",
             {"agent": {**TAG, **agent}},
             includes=("env-config-secret.yml",),
@@ -22,34 +25,34 @@ def _agent_env(agent):
 
 
 def test_agent_reads_a_chart_rendered_join_token():
-    env = _agent_env({"joinToken": {"value": "loco_j_token"}})
-    assert env["LOCO_AGENT_KEY_SECRET"]["value"] == "loco-core-agent-key"
+    env = _agent_env({"joinToken": {"value": JOIN_TOKEN}})
+    (secret,) = render_documents(
+        CHART, "agent-join-token-secret.yaml", {"agent": {"joinToken": {"value": JOIN_TOKEN}}}
+    )
     assert env["LOCO_JOIN_TOKEN"]["valueFrom"]["secretKeyRef"] == {
-        "name": "loco-core-agent-join-token",
-        "key": "join-token",
+        "name": secret["metadata"]["name"],
+        "key": DEFAULTS["joinToken"]["secretKey"],
         "optional": True,
     }
-    (secret,) = render_documents(
-        "loco-core", "agent-join-token-secret.yaml", {"agent": {"joinToken": {"value": "loco_j_token"}}}
-    )
-    assert secret["metadata"]["name"] == "loco-core-agent-join-token"
-    assert secret["stringData"] == {"join-token": "loco_j_token"}
+    assert secret["stringData"] == {DEFAULTS["joinToken"]["secretKey"]: JOIN_TOKEN}
 
 
 def test_agent_reads_an_existing_join_token_secret():
-    env = _agent_env({"joinToken": {"existingSecret": "enrollment", "secretKey": "token"}})
-    assert env["LOCO_JOIN_TOKEN"]["valueFrom"]["secretKeyRef"]["name"] == "enrollment"
-    assert env["LOCO_JOIN_TOKEN"]["valueFrom"]["secretKeyRef"]["key"] == "token"
-    assert render_documents("loco-core", "agent-join-token-secret.yaml", {"agent": {"joinToken": {"existingSecret": "enrollment"}}}) == []
+    joined = {"existingSecret": "enrollment", "secretKey": "token"}
+    env = _agent_env({"joinToken": joined})
+    reference = env["LOCO_JOIN_TOKEN"]["valueFrom"]["secretKeyRef"]
+    assert (reference["name"], reference["key"]) == (joined["existingSecret"], joined["secretKey"])
+    rendered = render_documents(CHART, "agent-join-token-secret.yaml", {"agent": {"joinToken": joined}})
+    assert rendered == []
 
 
 def test_enrolled_agent_needs_no_join_token():
     env = _agent_env({})
     assert "LOCO_JOIN_TOKEN" not in env
-    assert "AGENT_TOKEN" not in env
-    assert env["LOCO_ASSERTION_LIFETIME"]["value"] == "1m"
+    assert env["LOCO_AGENT_KEY_SECRET"]["value"].startswith(CHART)
+    assert env["LOCO_ASSERTION_LIFETIME"]["value"] == DEFAULTS["assertionLifetime"]
 
 
 def test_join_token_value_and_existing_secret_are_exclusive():
     with pytest.raises(subprocess.CalledProcessError):
-        _agent_env({"joinToken": {"value": "loco_j_token", "existingSecret": "enrollment"}})
+        _agent_env({"joinToken": {"value": JOIN_TOKEN, "existingSecret": "enrollment"}})

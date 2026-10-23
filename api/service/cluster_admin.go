@@ -30,7 +30,7 @@ const joinTokenPrefix = "loco_j_"
 var (
 	errClusterAdmin         = errors.New("cluster administration failed")
 	errInvalidClusterFields = errors.New(
-		"cluster name and region are required and tier must be dev, staging or production",
+		"cluster name and region are required and tier must be staging or production",
 	)
 )
 
@@ -77,10 +77,11 @@ func (s *ClusterAdminServer) CreateCluster(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidClusterFields.Error()).WithCause(err)
 	}
 	token := s.newJoinToken()
+	tier := protoEnvTypeToString(req.GetTier())
 	id, err := s.queries.CreateCluster(ctx, genDb.CreateClusterParams{
 		Name:               req.GetName(),
 		Region:             req.GetRegion(),
-		Tier:               req.GetTier(),
+		Tier:               tier,
 		JoinTokenHash:      &token.hash,
 		JoinTokenExpiresAt: &token.expiresAt,
 	})
@@ -146,7 +147,7 @@ func (s *ClusterAdminServer) ListClusters(
 	result := &clusterv1.ListClustersResponse{}
 	for _, row := range rows {
 		cluster := &clusterv1.Cluster{
-			Id: row.ID.String(), Name: row.Name, Region: row.Region, Tier: row.Tier,
+			Id: row.ID.String(), Name: row.Name, Region: row.Region, Tier: stringToProtoEnvType(row.Tier),
 			IsActive: row.IsActive, RemovedAt: timeutil.ParsePostgresTimestampPtr(row.RemovedAt),
 			LastHeartbeat: timeutil.ParsePostgresTimestampPtr(row.LastHeartbeat),
 			HealthStatus:  row.HealthStatus, AgentVersion: row.AgentVersion,

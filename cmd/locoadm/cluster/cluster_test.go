@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/gen/go/loco/cluster/v1/clusterv1connect"
+	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	"github.com/team-loco/loco/internal/keychain"
 	"github.com/team-loco/loco/internal/rpc"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -25,12 +26,15 @@ const (
 	testJoinToken = "loco_j_test"
 	testName      = "east"
 	testRegion    = "us-east-1"
-	testTier      = "production"
+	testTier      = environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION
 )
 
-var createArgs = []string{
-	clusterCreate, "--" + flagName, testName, "--" + flagRegion, testRegion, "--" + flagTier, testTier,
-}
+var (
+	testTierFlag = strings.ToLower(strings.TrimPrefix(testTier.String(), tierEnumPrefix))
+	createArgs   = []string{
+		clusterCreate, "--" + flagName, testName, "--" + flagRegion, testRegion, "--" + flagTier, testTierFlag,
+	}
+)
 
 var errTestDenied = errors.New("permission denied")
 
@@ -241,6 +245,7 @@ func TestClusterRejectsBadArgumentsBeforeRPC(t *testing.T) {
 		{clusterResume, testClusterID, "--force"},
 		createArgs[:len(createArgs)-2],
 		append([]string{clusterCreate, testClusterID}, createArgs[1:]...),
+		append(createArgs[:len(createArgs)-1:len(createArgs)-1], "qa"),
 		{clusterJoinToken},
 		{clusterJoinToken, "invalid"},
 	} {

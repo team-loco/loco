@@ -84,11 +84,11 @@ func (BuildPhase) EnumDescriptor() ([]byte, []int) {
 // RegisterRequest is sent by the agent on startup to announce itself.
 type RegisterRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	AgentVersion  string                 `protobuf:"bytes,3,opt,name=agent_version,json=agentVersion,proto3" json:"agent_version,omitempty"`
-	Capacity      *AgentCapacity         `protobuf:"bytes,4,opt,name=capacity,proto3" json:"capacity,omitempty"`
-	BuildsEnabled bool                   `protobuf:"varint,5,opt,name=builds_enabled,json=buildsEnabled,proto3" json:"builds_enabled,omitempty"`
-	ClusterKey    string                 `protobuf:"bytes,6,opt,name=cluster_key,json=clusterKey,proto3" json:"cluster_key,omitempty"`
-	Enrollment    *Enrollment            `protobuf:"bytes,10,opt,name=enrollment,proto3" json:"enrollment,omitempty"`
+	AgentVersion  string                 `protobuf:"bytes,1,opt,name=agent_version,json=agentVersion,proto3" json:"agent_version,omitempty"`
+	Capacity      *AgentCapacity         `protobuf:"bytes,2,opt,name=capacity,proto3" json:"capacity,omitempty"`
+	BuildsEnabled bool                   `protobuf:"varint,3,opt,name=builds_enabled,json=buildsEnabled,proto3" json:"builds_enabled,omitempty"`
+	ClusterKey    string                 `protobuf:"bytes,4,opt,name=cluster_key,json=clusterKey,proto3" json:"cluster_key,omitempty"`
+	Enrollment    *Enrollment            `protobuf:"bytes,5,opt,name=enrollment,proto3" json:"enrollment,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1453,18 +1453,16 @@ var File_loco_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/agent/v1/agent.proto\x12\rloco.agent.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\"\xd5\x02\n" +
+	"\x19loco/agent/v1/agent.proto\x12\rloco.agent.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\"\xfd\x01\n" +
 	"\x0fRegisterRequest\x12#\n" +
-	"\ragent_version\x18\x03 \x01(\tR\fagentVersion\x128\n" +
-	"\bcapacity\x18\x04 \x01(\v2\x1c.loco.agent.v1.AgentCapacityR\bcapacity\x12%\n" +
-	"\x0ebuilds_enabled\x18\x05 \x01(\bR\rbuildsEnabled\x12)\n" +
-	"\vcluster_key\x18\x06 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
+	"\ragent_version\x18\x01 \x01(\tR\fagentVersion\x128\n" +
+	"\bcapacity\x18\x02 \x01(\v2\x1c.loco.agent.v1.AgentCapacityR\bcapacity\x12%\n" +
+	"\x0ebuilds_enabled\x18\x03 \x01(\bR\rbuildsEnabled\x12)\n" +
+	"\vcluster_key\x18\x04 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"clusterKey\x129\n" +
 	"\n" +
-	"enrollment\x18\n" +
-	" \x01(\v2\x19.loco.agent.v1.EnrollmentR\n" +
-	"enrollmentJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\a\x10\bJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
-	"R\fcluster_nameR\x06regionR\fdisplay_nameR\x0ecluster_regionR\x04tier\"\\\n" +
+	"enrollment\x18\x05 \x01(\v2\x19.loco.agent.v1.EnrollmentR\n" +
+	"enrollment\"\\\n" +
 	"\n" +
 	"Enrollment\x12&\n" +
 	"\n" +

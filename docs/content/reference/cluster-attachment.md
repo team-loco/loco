@@ -10,7 +10,7 @@ Cluster administration requires the `system:admin` scope. `locoadm`, the operato
 locoadm cluster create --name production-east --region us-east-1 --tier production
 ```
 
-The tier is `dev`, `staging` or `production`. The command prints the cluster ID and a join token. The token works once and expires after `LOCO_CLUSTER_JOIN_TOKEN_TTL` (API configuration, default `1h`); the API stores only its SHA-256 hash. Pass it to the agent's first start:
+The tier is `staging` or `production`. The command prints the cluster ID and a join token. The token works once and expires after `LOCO_CLUSTER_JOIN_TOKEN_TTL` (API configuration, default `1h`); the API stores only its SHA-256 hash. Pass it to the agent's first start:
 
 ```yaml
 agent:

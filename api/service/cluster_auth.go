@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
@@ -60,7 +61,7 @@ func (a *ClusterAuthenticator) Authenticate(
 	recorded, err := a.queries.RecordClusterAssertion(ctx, genDb.RecordClusterAssertionParams{
 		ClusterID: id,
 		Jti:       claims.ID,
-		ExpiresAt: claims.Expiry.Add(clusterassertion.Leeway),
+		ExpiresAt: claims.Expiry.Add(jwt.DefaultLeeway),
 	})
 	if err != nil {
 		return genDb.GetEnrolledClusterRow{}, fmt.Errorf("record cluster assertion: %w", err)

@@ -18,13 +18,11 @@ import (
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
+	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	"github.com/team-loco/loco/internal/clusterassertion"
 )
 
-const (
-	concurrentEnrollments = 8
-	attachmentRegion      = "us-east-1"
-)
+const concurrentEnrollments = 8
 
 type enrollmentFixture struct {
 	*deployFixture
@@ -63,7 +61,7 @@ func publicKeyBytes(t *testing.T, key ed25519.PrivateKey) []byte {
 func (e *enrollmentFixture) createCluster(t *testing.T) (uuid.UUID, string) {
 	t.Helper()
 	resp, err := e.admin.CreateCluster(systemAdminContext(t), &clusterv1.CreateClusterRequest{
-		Name: "enrolled", Region: attachmentRegion, Tier: environmentTypeProduction,
+		Name: "enrolled", Region: testRegion, Tier: environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION,
 	})
 	if err != nil {
 		t.Fatal(err)

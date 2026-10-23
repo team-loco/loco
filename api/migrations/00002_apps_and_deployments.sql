@@ -92,7 +92,7 @@ CREATE TABLE
         join_token_expires_at TIMESTAMPTZ,
         join_token_used_at TIMESTAMPTZ,
         builds_enabled BOOLEAN NOT NULL DEFAULT false,
-        tier TEXT NOT NULL DEFAULT 'production' CHECK (tier IN ('dev', 'staging', 'production')),
+        tier TEXT NOT NULL DEFAULT 'production' CHECK (tier IN ('staging', 'production')),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
     );

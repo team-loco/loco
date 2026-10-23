@@ -20,6 +20,7 @@ import (
 	"github.com/team-loco/loco/api/tvm"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/gen/go/loco/cluster/v1/clusterv1connect"
+	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	"github.com/team-loco/loco/internal/rpc"
 )
 
@@ -88,7 +89,11 @@ VALUES ('admin-test', 'east', 'kubernetes', true, false) RETURNING id`).
 		"create": func(client clusterv1connect.ClusterAdminServiceClient) error {
 			_, err := client.CreateCluster(
 				ctx,
-				&clusterv1.CreateClusterRequest{Name: "created", Region: "east", Tier: environmentTypeProduction},
+				&clusterv1.CreateClusterRequest{
+					Name:   "created",
+					Region: "east",
+					Tier:   environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION,
+				},
 			)
 			return err
 		},

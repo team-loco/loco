@@ -12,10 +12,10 @@ import (
 const testAgentVersion = "sha-test"
 
 func agentEnv() map[string]string {
-	return map[string]string{ //nolint:gosec
+	return map[string]string{
 		envControlPlaneURL:          "https://api.loco.test",
-		envKeySecret:                "loco-core-agent-key",
-		envAssertionLifetime:        "1m",
+		envKeySecret:                "agent-identity",
+		envAssertionLifetime:        "90s",
 		envNamespace:                "loco-system",
 		envControllerDeployment:     "loco-controller",
 		envBuildNamespace:           "loco-builds",
@@ -52,12 +52,12 @@ func TestParseAgentConfigReadsTheEnvironment(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parseAgentConfig: %v", err)
 	}
-	want := Config{ //nolint:gosec
+	want := Config{
 		LogLevel:                 slog.LevelWarn,
 		ControlPlaneURL:          "https://api.loco.test",
 		JoinToken:                "loco_j_join",
-		KeySecret:                "loco-core-agent-key",
-		AssertionLifetime:        time.Minute,
+		KeySecret:                "agent-identity",
+		AssertionLifetime:        90 * time.Second,
 		AgentVersion:             testAgentVersion,
 		Namespace:                "loco-system",
 		ControllerNamespace:      "loco-operator",

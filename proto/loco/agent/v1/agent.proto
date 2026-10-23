@@ -17,13 +17,11 @@ service AgentService {
 
 // RegisterRequest is sent by the agent on startup to announce itself.
 message RegisterRequest {
-  reserved 1, 2, 7, 8, 9;
-  reserved "cluster_name", "region", "display_name", "cluster_region", "tier";
-  string agent_version = 3;
-  AgentCapacity capacity = 4;
-  bool builds_enabled = 5;
-  string cluster_key = 6 [(buf.validate.field).string.uuid = true];
-  Enrollment enrollment = 10;
+  string agent_version = 1;
+  AgentCapacity capacity = 2;
+  bool builds_enabled = 3;
+  string cluster_key = 4 [(buf.validate.field).string.uuid = true];
+  Enrollment enrollment = 5;
 }
 
 // Enrollment binds the agent's public key to the cluster that issued the join token.

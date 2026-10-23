@@ -10,12 +10,12 @@ import (
 
 	"github.com/go-jose/go-jose/v4"
 	"github.com/go-jose/go-jose/v4/jwt"
+	"github.com/google/uuid"
 )
 
 const (
-	testClusterID   = "00000000-0000-7000-8000-000000000001"
 	testLifetime    = time.Minute
-	testMaxLifetime = 5 * time.Minute
+	testMaxLifetime = 2 * testLifetime
 )
 
 func newKey(t *testing.T) (ed25519.PublicKey, ed25519.PrivateKey) {
@@ -42,23 +42,24 @@ func signClaims(t *testing.T, key ed25519.PrivateKey, claims jwt.Claims) string 
 
 func TestSignedAssertionVerifies(t *testing.T) {
 	public, private := newKey(t)
+	clusterID := uuid.NewString()
 	now := time.Now()
-	token, err := Sign(private, testClusterID, now, testLifetime)
+	token, err := Sign(private, clusterID, now, testLifetime)
 	if err != nil {
 		t.Fatal(err)
 	}
 	issuer, err := ClusterID(token)
-	if err != nil || issuer != testClusterID {
+	if err != nil || issuer != clusterID {
 		t.Fatalf("ClusterID = %q, %v", issuer, err)
 	}
 	claims, err := Verify(token, public, now, testMaxLifetime)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if claims.ClusterID != testClusterID || claims.ID == "" {
+	if claims.ClusterID != clusterID || claims.ID == "" {
 		t.Fatalf("claims = %+v", claims)
 	}
-	other, err := Sign(private, testClusterID, now, testLifetime)
+	other, err := Sign(private, clusterID, now, testLifetime)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,10 +75,11 @@ func TestSignedAssertionVerifies(t *testing.T) {
 func TestVerifyRejectsInvalidAssertions(t *testing.T) {
 	public, private := newKey(t)
 	otherPublic, _ := newKey(t)
+	clusterID := uuid.NewString()
 	now := time.Now()
 	valid := jwt.Claims{
-		Issuer:   testClusterID,
-		Subject:  testClusterID,
+		Issuer:   clusterID,
+		Subject:  clusterID,
 		Audience: jwt.Audience{Audience},
 		IssuedAt: jwt.NewNumericDate(now),
 		Expiry:   jwt.NewNumericDate(now.Add(testLifetime)),
