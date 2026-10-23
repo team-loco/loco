@@ -46,9 +46,11 @@ certManager:
     server: https://acme-v02.api.letsencrypt.org/directory
 
 agent:
-  clusterName: ""
-  clusterRegion: ""
-  clusterTier: ""
+  joinToken:
+    value: ""
+    existingSecret: ""
+    secretKey: join-token
+  assertionLifetime: 1m
   image:
     repository: ghcr.io/team-loco/loco-agent
     tag: ""

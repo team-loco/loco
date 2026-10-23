@@ -14,10 +14,9 @@ import (
 
 const (
 	envControlPlaneURL          = "CONTROL_PLANE_URL"
-	envAgentToken               = "AGENT_TOKEN"
-	envClusterName              = "LOCO_CLUSTER_NAME"
-	envClusterRegion            = "LOCO_CLUSTER_REGION"
-	envClusterTier              = "LOCO_CLUSTER_TIER"
+	envJoinToken                = "LOCO_JOIN_TOKEN"       //nolint:gosec
+	envKeySecret                = "LOCO_AGENT_KEY_SECRET" //nolint:gosec
+	envAssertionLifetime        = "LOCO_ASSERTION_LIFETIME"
 	envKubeconfig               = "KUBECONFIG"
 	envNamespace                = "LOCO_NAMESPACE"
 	envControllerNamespace      = "LOCO_CONTROLLER_NAMESPACE"
@@ -51,10 +50,9 @@ var version string
 type Config struct {
 	LogLevel                 slog.Level
 	ControlPlaneURL          string
-	AgentToken               string
-	ClusterName              string
-	ClusterRegion            string
-	ClusterTier              string
+	JoinToken                string
+	KeySecret                string
+	AssertionLifetime        time.Duration
 	AgentVersion             string
 	Kubeconfig               string
 	Namespace                string
@@ -90,13 +88,11 @@ func parseAgentConfig(getenv func(string) string, agentVersion string) (*Config,
 	cfg := &Config{
 		AgentVersion: agentVersion,
 		Kubeconfig:   getenv(envKubeconfig),
+		JoinToken:    getenv(envJoinToken),
 	}
 	required := map[string]*string{
 		envControlPlaneURL:      &cfg.ControlPlaneURL,
-		envAgentToken:           &cfg.AgentToken,
-		envClusterName:          &cfg.ClusterName,
-		envClusterRegion:        &cfg.ClusterRegion,
-		envClusterTier:          &cfg.ClusterTier,
+		envKeySecret:            &cfg.KeySecret,
 		envNamespace:            &cfg.Namespace,
 		envControllerDeployment: &cfg.ControllerDeployment,
 		envBuildNamespace:       &cfg.BuildNamespace,
@@ -133,6 +129,7 @@ func parseAgentConfig(getenv func(string) string, agentVersion string) (*Config,
 		envReconnectBaseDelay:      &cfg.ReconnectBaseDelay,
 		envReconnectMaxDelay:       &cfg.ReconnectMaxDelay,
 		envHealthyStreamDuration:   &cfg.HealthyStreamDuration,
+		envAssertionLifetime:       &cfg.AssertionLifetime,
 	}
 	for name, field := range durations {
 		raw, err := requireEnv(getenv, name)

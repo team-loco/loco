@@ -24,6 +24,12 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// ClusterAdminServiceCreateClusterProcedure is the procedure name of the ClusterAdminService's
+	// CreateCluster RPC.
+	ClusterAdminServiceCreateClusterProcedure = "/loco.cluster.v1.ClusterAdminService/CreateCluster"
+	// ClusterAdminServiceIssueJoinTokenProcedure is the procedure name of the ClusterAdminService's
+	// IssueJoinToken RPC.
+	ClusterAdminServiceIssueJoinTokenProcedure = "/loco.cluster.v1.ClusterAdminService/IssueJoinToken"
 	// ClusterAdminServiceListClustersProcedure is the procedure name of the ClusterAdminService's
 	// ListClusters RPC.
 	ClusterAdminServiceListClustersProcedure = "/loco.cluster.v1.ClusterAdminService/ListClusters"
@@ -42,6 +48,20 @@ const (
 )
 
 var (
+	clusterAdminServiceCreateClusterSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_cluster_v1_cluster_proto.Services().ByName("ClusterAdminService").Methods().ByName("CreateCluster"),
+			Procedure:  ClusterAdminServiceCreateClusterProcedure,
+		}
+	})
+	clusterAdminServiceIssueJoinTokenSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_cluster_v1_cluster_proto.Services().ByName("ClusterAdminService").Methods().ByName("IssueJoinToken"),
+			Procedure:  ClusterAdminServiceIssueJoinTokenProcedure,
+		}
+	})
 	clusterAdminServiceListClustersSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -81,6 +101,8 @@ var (
 
 // ClusterAdminServiceClient is a client for the loco.cluster.v1.ClusterAdminService service.
 type ClusterAdminServiceClient interface {
+	CreateCluster(context.Context, *v1.CreateClusterRequest) (*v1.CreateClusterResponse, error)
+	IssueJoinToken(context.Context, *v1.IssueJoinTokenRequest) (*v1.IssueJoinTokenResponse, error)
 	ListClusters(context.Context, *v1.ListClustersRequest) (*v1.ListClustersResponse, error)
 	PauseCluster(context.Context, *v1.PauseClusterRequest) (*v1.PauseClusterResponse, error)
 	ResumeCluster(context.Context, *v1.ResumeClusterRequest) (*v1.ResumeClusterResponse, error)
@@ -97,6 +119,8 @@ func NewClusterAdminServiceClient(client *connect.Client) ClusterAdminServiceCli
 // ClusterAdminServiceHandler is an implementation of the loco.cluster.v1.ClusterAdminService
 // service.
 type ClusterAdminServiceHandler interface {
+	CreateCluster(context.Context, *v1.CreateClusterRequest) (*v1.CreateClusterResponse, error)
+	IssueJoinToken(context.Context, *v1.IssueJoinTokenRequest) (*v1.IssueJoinTokenResponse, error)
 	ListClusters(context.Context, *v1.ListClustersRequest) (*v1.ListClustersResponse, error)
 	PauseCluster(context.Context, *v1.PauseClusterRequest) (*v1.PauseClusterResponse, error)
 	ResumeCluster(context.Context, *v1.ResumeClusterRequest) (*v1.ResumeClusterResponse, error)
@@ -109,6 +133,8 @@ type ClusterAdminServiceHandler interface {
 func RegisterClusterAdminServiceHandler(server *connect.Server, svc ClusterAdminServiceHandler) {
 	adapter := clusterAdminServiceHandler{svc: svc}
 	server.Register(
+		connect.Method{Spec: clusterAdminServiceCreateClusterSpec(), Handler: adapter.createCluster},
+		connect.Method{Spec: clusterAdminServiceIssueJoinTokenSpec(), Handler: adapter.issueJoinToken},
 		connect.Method{Spec: clusterAdminServiceListClustersSpec(), Handler: adapter.listClusters},
 		connect.Method{Spec: clusterAdminServicePauseClusterSpec(), Handler: adapter.pauseCluster},
 		connect.Method{Spec: clusterAdminServiceResumeClusterSpec(), Handler: adapter.resumeCluster},
@@ -119,6 +145,14 @@ func RegisterClusterAdminServiceHandler(server *connect.Server, svc ClusterAdmin
 
 // UnimplementedClusterAdminServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedClusterAdminServiceHandler struct{}
+
+func (UnimplementedClusterAdminServiceHandler) CreateCluster(context.Context, *v1.CreateClusterRequest) (*v1.CreateClusterResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.cluster.v1.ClusterAdminService.CreateCluster is not implemented")
+}
+
+func (UnimplementedClusterAdminServiceHandler) IssueJoinToken(context.Context, *v1.IssueJoinTokenRequest) (*v1.IssueJoinTokenResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.cluster.v1.ClusterAdminService.IssueJoinToken is not implemented")
+}
 
 func (UnimplementedClusterAdminServiceHandler) ListClusters(context.Context, *v1.ListClustersRequest) (*v1.ListClustersResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.cluster.v1.ClusterAdminService.ListClusters is not implemented")
@@ -142,6 +176,22 @@ func (UnimplementedClusterAdminServiceHandler) RestoreCluster(context.Context, *
 
 type clusterAdminServiceClient struct {
 	client *connect.Client
+}
+
+func (c *clusterAdminServiceClient) CreateCluster(ctx context.Context, req *v1.CreateClusterRequest) (*v1.CreateClusterResponse, error) {
+	var res v1.CreateClusterResponse
+	if err := c.client.CallUnary(ctx, clusterAdminServiceCreateClusterSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *clusterAdminServiceClient) IssueJoinToken(ctx context.Context, req *v1.IssueJoinTokenRequest) (*v1.IssueJoinTokenResponse, error) {
+	var res v1.IssueJoinTokenResponse
+	if err := c.client.CallUnary(ctx, clusterAdminServiceIssueJoinTokenSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
 }
 
 func (c *clusterAdminServiceClient) ListClusters(ctx context.Context, req *v1.ListClustersRequest) (*v1.ListClustersResponse, error) {
@@ -185,6 +235,30 @@ func (c *clusterAdminServiceClient) RestoreCluster(ctx context.Context, req *v1.
 }
 
 type clusterAdminServiceHandler struct{ svc ClusterAdminServiceHandler }
+
+func (h clusterAdminServiceHandler) createCluster(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.CreateClusterRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.CreateCluster(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h clusterAdminServiceHandler) issueJoinToken(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.IssueJoinTokenRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.IssueJoinToken(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
 
 func (h clusterAdminServiceHandler) listClusters(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
 	var req v1.ListClustersRequest

@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/agent/v1/agent.proto.
  */
 export const file_loco_agent_v1_agent: GenFile = /*@__PURE__*/
-  fileDesc("Chlsb2NvL2FnZW50L3YxL2FnZW50LnByb3RvEg1sb2NvLmFnZW50LnYxIqYCCg9SZWdpc3RlclJlcXVlc3QSFQoNYWdlbnRfdmVyc2lvbhgDIAEoCRIuCghjYXBhY2l0eRgEIAEoCzIcLmxvY28uYWdlbnQudjEuQWdlbnRDYXBhY2l0eRIWCg5idWlsZHNfZW5hYmxlZBgFIAEoCBIdCgtjbHVzdGVyX2tleRgGIAEoCUIIukgFcgOwAQESIAoMZGlzcGxheV9uYW1lGAcgASgJQgq6SAdyBRABGP8BEiIKDmNsdXN0ZXJfcmVnaW9uGAggASgJQgq6SAdyBRABGP8BEi0KBHRpZXIYCSABKAlCH7pIHHIaUgNkZXZSB3N0YWdpbmdSCnByb2R1Y3Rpb25KBAgBEAJKBAgCEANSDGNsdXN0ZXJfbmFtZVIGcmVnaW9uIl0KEFJlZ2lzdGVyUmVzcG9uc2USEgoKY2x1c3Rlcl9pZBgBIAEoCRI1ChJoZWFydGJlYXRfaW50ZXJ2YWwYAiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24ihwIKC1N5bmNSZXF1ZXN0Ei0KCWludmVudG9yeRgBIAEoCzIYLmxvY28uYWdlbnQudjEuSW52ZW50b3J5SAASKQoHYXBwbGllZBgCIAEoCzIWLmxvY28uYWdlbnQudjEuQXBwbGllZEgAEjAKBnN0YXR1cxgDIAEoCzIeLmxvY28uYWdlbnQudjEuUGxhY2VtZW50U3RhdHVzSAASMgoMYnVpbGRfc3RhdHVzGAQgASgLMhoubG9jby5hZ2VudC52MS5CdWlsZFN0YXR1c0gAEi0KCWhlYXJ0YmVhdBgFIAEoCzIYLmxvY28uYWdlbnQudjEuSGVhcnRiZWF0SABCCQoHbWVzc2FnZSJqCglJbnZlbnRvcnkSLgoHZW50cmllcxgBIAMoCzIdLmxvY28uYWdlbnQudjEuSW52ZW50b3J5RW50cnkSLQoGYnVpbGRzGAIgAygLMh0ubG9jby5hZ2VudC52MS5JbnZlbnRvcnlCdWlsZCJUCg5JbnZlbnRvcnlFbnRyeRIUCgxwbGFjZW1lbnRfaWQYASABKAkSEAoIcmV2aXNpb24YAiABKAMSGgoSZW52X3NlY3JldF9wZW5kaW5nGAMgASgIImAKDkludmVudG9yeUJ1aWxkEhoKCGJ1aWxkX2lkGAEgASgJQgi6SAVyA7ABARIyCgVwaGFzZRgCIAEoDjIZLmxvY28uYWdlbnQudjEuQnVpbGRQaGFzZUIIukgFggECEAEi6AEKC0J1aWxkU3RhdHVzEhoKCGJ1aWxkX2lkGAEgASgJQgi6SAVyA7ABARI0CgVwaGFzZRgCIAEoDjIZLmxvY28uYWdlbnQudjEuQnVpbGRQaGFzZUIKukgHggEEEAEgABI1CgxpbWFnZV9kaWdlc3QYAyABKAlCH7pIHHIaMhheKHNoYTI1NjpbYS1mMC05XXs2NH0pPyQSNQoMY2FjaGVfZGlnZXN0GAQgASgJQh+6SBxyGjIYXihzaGEyNTY6W2EtZjAtOV17NjR9KT8kEhkKB21lc3NhZ2UYBSABKAlCCLpIBXIDGIAgIlIKB0FwcGxpZWQSFAoMcGxhY2VtZW50X2lkGAEgASgJEhAKCHJldmlzaW9uGAIgASgDEg0KBWVycm9yGAMgASgJEhAKCHJldHJ5aW5nGAQgASgIIokBCg9QbGFjZW1lbnRTdGF0dXMSFAoMcGxhY2VtZW50X2lkGAEgASgJEhkKEW9ic2VydmVkX3JldmlzaW9uGAIgASgDEg0KBXJlYWR5GAMgASgIEhYKDnJlYWR5X3JlcGxpY2FzGAQgASgFEg0KBXBoYXNlGAUgASgJEg8KB21lc3NhZ2UYBiABKAkizwEKDFN5bmNSZXNwb25zZRIlCgVhcHBseRgBIAEoCzIULmxvY28uYWdlbnQudjEuQXBwbHlIABInCgZkZWxldGUYAiABKAsyFS5sb2NvLmFnZW50LnYxLkRlbGV0ZUgAEjAKC3N0YXJ0X2J1aWxkGAMgASgLMhkubG9jby5hZ2VudC52MS5TdGFydEJ1aWxkSAASMgoMY2FuY2VsX2J1aWxkGAQgASgLMhoubG9jby5hZ2VudC52MS5DYW5jZWxCdWlsZEgAQgkKB21lc3NhZ2UihwEKBUFwcGx5EhQKDHBsYWNlbWVudF9pZBgBIAEoCRIQCghyZXZpc2lvbhgCIAEoAxITCgtyZXNvdXJjZV9pZBgDIAEoCRITCgthcHBsaWNhdGlvbhgEIAEoDBIsCgplbnZfc2VjcmV0GAUgASgLMhgubG9jby5hZ2VudC52MS5FbnZTZWNyZXQifAoJRW52U2VjcmV0EhAKCHJldmlzaW9uGAEgASgDEjAKBGRhdGEYAiADKAsyIi5sb2NvLmFnZW50LnYxLkVudlNlY3JldC5EYXRhRW50cnkaKwoJRGF0YUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoDDoCOAEiRQoGRGVsZXRlEhQKDHBsYWNlbWVudF9pZBgBIAEoCRIQCghyZXZpc2lvbhgCIAEoAxITCgtyZXNvdXJjZV9pZBgDIAEoCSKdAgoKU3RhcnRCdWlsZBIaCghidWlsZF9pZBgBIAEoCUIIukgFcgOwAQESHgoMd29ya3NwYWNlX2lkGAIgASgJQgi6SAVyA7ABARIdCgtyZXNvdXJjZV9pZBgDIAEoCUIIukgFcgOwAQESHAoKc291cmNlX3VybBgEIAEoCUIIukgFcgOIAQESIAoPZG9ja2VyZmlsZV9wYXRoGAUgASgJQge6SARyAhABEiEKEGltYWdlX3JlcG9zaXRvcnkYBiABKAlCB7pIBHICEAESEQoJY2FjaGVfcmVmGAcgASgJEhgKB2NvbnRleHQYCCABKAlCB7pIBHICEAESJAoPb3JnYW5pemF0aW9uX2lkGAkgASgJQgu6SAjYAQFyA7ABASIpCgtDYW5jZWxCdWlsZBIaCghidWlsZF9pZBgBIAEoCUIIukgFcgOwAQEifwoJSGVhcnRiZWF0Ei4KCGNhcGFjaXR5GAEgASgLMhwubG9jby5hZ2VudC52MS5BZ2VudENhcGFjaXR5EioKBmhlYWx0aBgCIAEoCzIaLmxvY28uYWdlbnQudjEuQWdlbnRIZWFsdGgSFgoOYnVpbGRzX2VuYWJsZWQYAyABKAgiqwEKDUFnZW50Q2FwYWNpdHkSHAoUY3B1X21pbGxpY29yZXNfdG90YWwYASABKAMSGwoTY3B1X21pbGxpY29yZXNfdXNlZBgCIAEoAxIaChJtZW1vcnlfYnl0ZXNfdG90YWwYAyABKAMSGQoRbWVtb3J5X2J5dGVzX3VzZWQYBCABKAMSEgoKcG9kc190b3RhbBgFIAEoBRIUCgxwb2RzX3J1bm5pbmcYBiABKAUiVgoLQWdlbnRIZWFsdGgSGgoSa3ViZXJuZXRlc19oZWFsdGh5GAEgASgIEhoKEmNvbnRyb2xsZXJfaGVhbHRoeRgCIAEoCBIPCgdtZXNzYWdlGAMgASgJKqgBCgpCdWlsZFBoYXNlEhsKF0JVSUxEX1BIQVNFX1VOU1BFQ0lGSUVEEAASFwoTQlVJTERfUEhBU0VfUEVORElORxABEhcKE0JVSUxEX1BIQVNFX1JVTk5JTkcQAhIZChVCVUlMRF9QSEFTRV9TVUNDRUVERUQQAxIWChJCVUlMRF9QSEFTRV9GQUlMRUQQBBIYChRCVUlMRF9QSEFTRV9DQU5DRUxFRBAFMqABCgxBZ2VudFNlcnZpY2USSwoIUmVnaXN0ZXISHi5sb2NvLmFnZW50LnYxLlJlZ2lzdGVyUmVxdWVzdBofLmxvY28uYWdlbnQudjEuUmVnaXN0ZXJSZXNwb25zZRJDCgRTeW5jEhoubG9jby5hZ2VudC52MS5TeW5jUmVxdWVzdBobLmxvY28uYWdlbnQudjEuU3luY1Jlc3BvbnNlKAEwAUI4WjZnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2FnZW50L3YxO2FnZW50djFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_duration]);
+  fileDesc("Chlsb2NvL2FnZW50L3YxL2FnZW50LnByb3RvEg1sb2NvLmFnZW50LnYxIpYCCg9SZWdpc3RlclJlcXVlc3QSFQoNYWdlbnRfdmVyc2lvbhgDIAEoCRIuCghjYXBhY2l0eRgEIAEoCzIcLmxvY28uYWdlbnQudjEuQWdlbnRDYXBhY2l0eRIWCg5idWlsZHNfZW5hYmxlZBgFIAEoCBIdCgtjbHVzdGVyX2tleRgGIAEoCUIIukgFcgOwAQESLQoKZW5yb2xsbWVudBgKIAEoCzIZLmxvY28uYWdlbnQudjEuRW5yb2xsbWVudEoECAEQAkoECAIQA0oECAcQCEoECAgQCUoECAkQClIMY2x1c3Rlcl9uYW1lUgZyZWdpb25SDGRpc3BsYXlfbmFtZVIOY2x1c3Rlcl9yZWdpb25SBHRpZXIiRgoKRW5yb2xsbWVudBIbCgpqb2luX3Rva2VuGAEgASgJQge6SARyAhABEhsKCnB1YmxpY19rZXkYAiABKAxCB7pIBHoCaCAiXQoQUmVnaXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJEjUKEmhlYXJ0YmVhdF9pbnRlcnZhbBgCIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbiKHAgoLU3luY1JlcXVlc3QSLQoJaW52ZW50b3J5GAEgASgLMhgubG9jby5hZ2VudC52MS5JbnZlbnRvcnlIABIpCgdhcHBsaWVkGAIgASgLMhYubG9jby5hZ2VudC52MS5BcHBsaWVkSAASMAoGc3RhdHVzGAMgASgLMh4ubG9jby5hZ2VudC52MS5QbGFjZW1lbnRTdGF0dXNIABIyCgxidWlsZF9zdGF0dXMYBCABKAsyGi5sb2NvLmFnZW50LnYxLkJ1aWxkU3RhdHVzSAASLQoJaGVhcnRiZWF0GAUgASgLMhgubG9jby5hZ2VudC52MS5IZWFydGJlYXRIAEIJCgdtZXNzYWdlImoKCUludmVudG9yeRIuCgdlbnRyaWVzGAEgAygLMh0ubG9jby5hZ2VudC52MS5JbnZlbnRvcnlFbnRyeRItCgZidWlsZHMYAiADKAsyHS5sb2NvLmFnZW50LnYxLkludmVudG9yeUJ1aWxkIlQKDkludmVudG9yeUVudHJ5EhQKDHBsYWNlbWVudF9pZBgBIAEoCRIQCghyZXZpc2lvbhgCIAEoAxIaChJlbnZfc2VjcmV0X3BlbmRpbmcYAyABKAgiYAoOSW52ZW50b3J5QnVpbGQSGgoIYnVpbGRfaWQYASABKAlCCLpIBXIDsAEBEjIKBXBoYXNlGAIgASgOMhkubG9jby5hZ2VudC52MS5CdWlsZFBoYXNlQgi6SAWCAQIQASLoAQoLQnVpbGRTdGF0dXMSGgoIYnVpbGRfaWQYASABKAlCCLpIBXIDsAEBEjQKBXBoYXNlGAIgASgOMhkubG9jby5hZ2VudC52MS5CdWlsZFBoYXNlQgq6SAeCAQQQASAAEjUKDGltYWdlX2RpZ2VzdBgDIAEoCUIfukgcchoyGF4oc2hhMjU2OlthLWYwLTldezY0fSk/JBI1CgxjYWNoZV9kaWdlc3QYBCABKAlCH7pIHHIaMhheKHNoYTI1NjpbYS1mMC05XXs2NH0pPyQSGQoHbWVzc2FnZRgFIAEoCUIIukgFcgMYgCAiUgoHQXBwbGllZBIUCgxwbGFjZW1lbnRfaWQYASABKAkSEAoIcmV2aXNpb24YAiABKAMSDQoFZXJyb3IYAyABKAkSEAoIcmV0cnlpbmcYBCABKAgiiQEKD1BsYWNlbWVudFN0YXR1cxIUCgxwbGFjZW1lbnRfaWQYASABKAkSGQoRb2JzZXJ2ZWRfcmV2aXNpb24YAiABKAMSDQoFcmVhZHkYAyABKAgSFgoOcmVhZHlfcmVwbGljYXMYBCABKAUSDQoFcGhhc2UYBSABKAkSDwoHbWVzc2FnZRgGIAEoCSLPAQoMU3luY1Jlc3BvbnNlEiUKBWFwcGx5GAEgASgLMhQubG9jby5hZ2VudC52MS5BcHBseUgAEicKBmRlbGV0ZRgCIAEoCzIVLmxvY28uYWdlbnQudjEuRGVsZXRlSAASMAoLc3RhcnRfYnVpbGQYAyABKAsyGS5sb2NvLmFnZW50LnYxLlN0YXJ0QnVpbGRIABIyCgxjYW5jZWxfYnVpbGQYBCABKAsyGi5sb2NvLmFnZW50LnYxLkNhbmNlbEJ1aWxkSABCCQoHbWVzc2FnZSKHAQoFQXBwbHkSFAoMcGxhY2VtZW50X2lkGAEgASgJEhAKCHJldmlzaW9uGAIgASgDEhMKC3Jlc291cmNlX2lkGAMgASgJEhMKC2FwcGxpY2F0aW9uGAQgASgMEiwKCmVudl9zZWNyZXQYBSABKAsyGC5sb2NvLmFnZW50LnYxLkVudlNlY3JldCJ8CglFbnZTZWNyZXQSEAoIcmV2aXNpb24YASABKAMSMAoEZGF0YRgCIAMoCzIiLmxvY28uYWdlbnQudjEuRW52U2VjcmV0LkRhdGFFbnRyeRorCglEYXRhRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgMOgI4ASJFCgZEZWxldGUSFAoMcGxhY2VtZW50X2lkGAEgASgJEhAKCHJldmlzaW9uGAIgASgDEhMKC3Jlc291cmNlX2lkGAMgASgJIp0CCgpTdGFydEJ1aWxkEhoKCGJ1aWxkX2lkGAEgASgJQgi6SAVyA7ABARIeCgx3b3Jrc3BhY2VfaWQYAiABKAlCCLpIBXIDsAEBEh0KC3Jlc291cmNlX2lkGAMgASgJQgi6SAVyA7ABARIcCgpzb3VyY2VfdXJsGAQgASgJQgi6SAVyA4gBARIgCg9kb2NrZXJmaWxlX3BhdGgYBSABKAlCB7pIBHICEAESIQoQaW1hZ2VfcmVwb3NpdG9yeRgGIAEoCUIHukgEcgIQARIRCgljYWNoZV9yZWYYByABKAkSGAoHY29udGV4dBgIIAEoCUIHukgEcgIQARIkCg9vcmdhbml6YXRpb25faWQYCSABKAlCC7pICNgBAXIDsAEBIikKC0NhbmNlbEJ1aWxkEhoKCGJ1aWxkX2lkGAEgASgJQgi6SAVyA7ABASJ/CglIZWFydGJlYXQSLgoIY2FwYWNpdHkYASABKAsyHC5sb2NvLmFnZW50LnYxLkFnZW50Q2FwYWNpdHkSKgoGaGVhbHRoGAIgASgLMhoubG9jby5hZ2VudC52MS5BZ2VudEhlYWx0aBIWCg5idWlsZHNfZW5hYmxlZBgDIAEoCCKrAQoNQWdlbnRDYXBhY2l0eRIcChRjcHVfbWlsbGljb3Jlc190b3RhbBgBIAEoAxIbChNjcHVfbWlsbGljb3Jlc191c2VkGAIgASgDEhoKEm1lbW9yeV9ieXRlc190b3RhbBgDIAEoAxIZChFtZW1vcnlfYnl0ZXNfdXNlZBgEIAEoAxISCgpwb2RzX3RvdGFsGAUgASgFEhQKDHBvZHNfcnVubmluZxgGIAEoBSJWCgtBZ2VudEhlYWx0aBIaChJrdWJlcm5ldGVzX2hlYWx0aHkYASABKAgSGgoSY29udHJvbGxlcl9oZWFsdGh5GAIgASgIEg8KB21lc3NhZ2UYAyABKAkqqAEKCkJ1aWxkUGhhc2USGwoXQlVJTERfUEhBU0VfVU5TUEVDSUZJRUQQABIXChNCVUlMRF9QSEFTRV9QRU5ESU5HEAESFwoTQlVJTERfUEhBU0VfUlVOTklORxACEhkKFUJVSUxEX1BIQVNFX1NVQ0NFRURFRBADEhYKEkJVSUxEX1BIQVNFX0ZBSUxFRBAEEhgKFEJVSUxEX1BIQVNFX0NBTkNFTEVEEAUyoAEKDEFnZW50U2VydmljZRJLCghSZWdpc3RlchIeLmxvY28uYWdlbnQudjEuUmVnaXN0ZXJSZXF1ZXN0Gh8ubG9jby5hZ2VudC52MS5SZWdpc3RlclJlc3BvbnNlEkMKBFN5bmMSGi5sb2NvLmFnZW50LnYxLlN5bmNSZXF1ZXN0GhsubG9jby5hZ2VudC52MS5TeW5jUmVzcG9uc2UoATABQjhaNmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vYWdlbnQvdjE7YWdlbnR2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_duration]);
 
 /**
  * RegisterRequest is sent by the agent on startup to announce itself.
@@ -42,19 +42,9 @@ export type RegisterRequest = Message<"loco.agent.v1.RegisterRequest"> & {
   clusterKey: string;
 
   /**
-   * @generated from field: string display_name = 7;
+   * @generated from field: loco.agent.v1.Enrollment enrollment = 10;
    */
-  displayName: string;
-
-  /**
-   * @generated from field: string cluster_region = 8;
-   */
-  clusterRegion: string;
-
-  /**
-   * @generated from field: string tier = 9;
-   */
-  tier: string;
+  enrollment?: Enrollment | undefined;
 };
 
 /**
@@ -84,19 +74,9 @@ export type RegisterRequestJson = {
   clusterKey?: string;
 
   /**
-   * @generated from field: string display_name = 7;
+   * @generated from field: loco.agent.v1.Enrollment enrollment = 10;
    */
-  displayName?: string;
-
-  /**
-   * @generated from field: string cluster_region = 8;
-   */
-  clusterRegion?: string;
-
-  /**
-   * @generated from field: string tier = 9;
-   */
-  tier?: string;
+  enrollment?: EnrollmentJson;
 };
 
 /**
@@ -105,6 +85,47 @@ export type RegisterRequestJson = {
  */
 export const RegisterRequestSchema: GenMessage<RegisterRequest, {jsonType: RegisterRequestJson}> = /*@__PURE__*/
   messageDesc(file_loco_agent_v1_agent, 0);
+
+/**
+ * Enrollment binds the agent's public key to the cluster that issued the join token.
+ *
+ * @generated from message loco.agent.v1.Enrollment
+ */
+export type Enrollment = Message<"loco.agent.v1.Enrollment"> & {
+  /**
+   * @generated from field: string join_token = 1;
+   */
+  joinToken: string;
+
+  /**
+   * @generated from field: bytes public_key = 2;
+   */
+  publicKey: Uint8Array;
+};
+
+/**
+ * Enrollment binds the agent's public key to the cluster that issued the join token.
+ *
+ * @generated from message loco.agent.v1.Enrollment
+ */
+export type EnrollmentJson = {
+  /**
+   * @generated from field: string join_token = 1;
+   */
+  joinToken?: string;
+
+  /**
+   * @generated from field: bytes public_key = 2;
+   */
+  publicKey?: string;
+};
+
+/**
+ * Describes the message loco.agent.v1.Enrollment.
+ * Use `create(EnrollmentSchema)` to create a new message.
+ */
+export const EnrollmentSchema: GenMessage<Enrollment, {jsonType: EnrollmentJson}> = /*@__PURE__*/
+  messageDesc(file_loco_agent_v1_agent, 1);
 
 /**
  * RegisterResponse contains the assigned cluster ID.
@@ -145,7 +166,7 @@ export type RegisterResponseJson = {
  * Use `create(RegisterResponseSchema)` to create a new message.
  */
 export const RegisterResponseSchema: GenMessage<RegisterResponse, {jsonType: RegisterResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 1);
+  messageDesc(file_loco_agent_v1_agent, 2);
 
 /**
  * @generated from message loco.agent.v1.SyncRequest
@@ -222,7 +243,7 @@ export type SyncRequestJson = {
  * Use `create(SyncRequestSchema)` to create a new message.
  */
 export const SyncRequestSchema: GenMessage<SyncRequest, {jsonType: SyncRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 2);
+  messageDesc(file_loco_agent_v1_agent, 3);
 
 /**
  * @generated from message loco.agent.v1.Inventory
@@ -259,7 +280,7 @@ export type InventoryJson = {
  * Use `create(InventorySchema)` to create a new message.
  */
 export const InventorySchema: GenMessage<Inventory, {jsonType: InventoryJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 3);
+  messageDesc(file_loco_agent_v1_agent, 4);
 
 /**
  * @generated from message loco.agent.v1.InventoryEntry
@@ -306,7 +327,7 @@ export type InventoryEntryJson = {
  * Use `create(InventoryEntrySchema)` to create a new message.
  */
 export const InventoryEntrySchema: GenMessage<InventoryEntry, {jsonType: InventoryEntryJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 4);
+  messageDesc(file_loco_agent_v1_agent, 5);
 
 /**
  * @generated from message loco.agent.v1.InventoryBuild
@@ -343,7 +364,7 @@ export type InventoryBuildJson = {
  * Use `create(InventoryBuildSchema)` to create a new message.
  */
 export const InventoryBuildSchema: GenMessage<InventoryBuild, {jsonType: InventoryBuildJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 5);
+  messageDesc(file_loco_agent_v1_agent, 6);
 
 /**
  * @generated from message loco.agent.v1.BuildStatus
@@ -410,7 +431,7 @@ export type BuildStatusJson = {
  * Use `create(BuildStatusSchema)` to create a new message.
  */
 export const BuildStatusSchema: GenMessage<BuildStatus, {jsonType: BuildStatusJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 6);
+  messageDesc(file_loco_agent_v1_agent, 7);
 
 /**
  * @generated from message loco.agent.v1.Applied
@@ -467,7 +488,7 @@ export type AppliedJson = {
  * Use `create(AppliedSchema)` to create a new message.
  */
 export const AppliedSchema: GenMessage<Applied, {jsonType: AppliedJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 7);
+  messageDesc(file_loco_agent_v1_agent, 8);
 
 /**
  * @generated from message loco.agent.v1.PlacementStatus
@@ -544,7 +565,7 @@ export type PlacementStatusJson = {
  * Use `create(PlacementStatusSchema)` to create a new message.
  */
 export const PlacementStatusSchema: GenMessage<PlacementStatus, {jsonType: PlacementStatusJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 8);
+  messageDesc(file_loco_agent_v1_agent, 9);
 
 /**
  * @generated from message loco.agent.v1.SyncResponse
@@ -610,7 +631,7 @@ export type SyncResponseJson = {
  * Use `create(SyncResponseSchema)` to create a new message.
  */
 export const SyncResponseSchema: GenMessage<SyncResponse, {jsonType: SyncResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 9);
+  messageDesc(file_loco_agent_v1_agent, 10);
 
 /**
  * @generated from message loco.agent.v1.Apply
@@ -677,7 +698,7 @@ export type ApplyJson = {
  * Use `create(ApplySchema)` to create a new message.
  */
 export const ApplySchema: GenMessage<Apply, {jsonType: ApplyJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 10);
+  messageDesc(file_loco_agent_v1_agent, 11);
 
 /**
  * EnvSecret carries the secret values a placement declares, beside the Application that never holds them.
@@ -718,7 +739,7 @@ export type EnvSecretJson = {
  * Use `create(EnvSecretSchema)` to create a new message.
  */
 export const EnvSecretSchema: GenMessage<EnvSecret, {jsonType: EnvSecretJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 11);
+  messageDesc(file_loco_agent_v1_agent, 12);
 
 /**
  * @generated from message loco.agent.v1.Delete
@@ -765,7 +786,7 @@ export type DeleteJson = {
  * Use `create(DeleteSchema)` to create a new message.
  */
 export const DeleteSchema: GenMessage<Delete, {jsonType: DeleteJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 12);
+  messageDesc(file_loco_agent_v1_agent, 13);
 
 /**
  * @generated from message loco.agent.v1.StartBuild
@@ -876,7 +897,7 @@ export type StartBuildJson = {
  * Use `create(StartBuildSchema)` to create a new message.
  */
 export const StartBuildSchema: GenMessage<StartBuild, {jsonType: StartBuildJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 13);
+  messageDesc(file_loco_agent_v1_agent, 14);
 
 /**
  * @generated from message loco.agent.v1.CancelBuild
@@ -903,7 +924,7 @@ export type CancelBuildJson = {
  * Use `create(CancelBuildSchema)` to create a new message.
  */
 export const CancelBuildSchema: GenMessage<CancelBuild, {jsonType: CancelBuildJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 14);
+  messageDesc(file_loco_agent_v1_agent, 15);
 
 /**
  * Heartbeat is sent periodically by the agent.
@@ -954,7 +975,7 @@ export type HeartbeatJson = {
  * Use `create(HeartbeatSchema)` to create a new message.
  */
 export const HeartbeatSchema: GenMessage<Heartbeat, {jsonType: HeartbeatJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 15);
+  messageDesc(file_loco_agent_v1_agent, 16);
 
 /**
  * AgentCapacity reports cluster resource capacity.
@@ -1035,7 +1056,7 @@ export type AgentCapacityJson = {
  * Use `create(AgentCapacitySchema)` to create a new message.
  */
 export const AgentCapacitySchema: GenMessage<AgentCapacity, {jsonType: AgentCapacityJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 16);
+  messageDesc(file_loco_agent_v1_agent, 17);
 
 /**
  * AgentHealth reports agent and cluster health status.
@@ -1086,7 +1107,7 @@ export type AgentHealthJson = {
  * Use `create(AgentHealthSchema)` to create a new message.
  */
 export const AgentHealthSchema: GenMessage<AgentHealth, {jsonType: AgentHealthJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 17);
+  messageDesc(file_loco_agent_v1_agent, 18);
 
 /**
  * @generated from enum loco.agent.v1.BuildPhase

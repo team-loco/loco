@@ -117,7 +117,7 @@ Secrets are SOPS-encrypted with age and committed under `clusters/<name>/secrets
 - **Every file is also encrypted to an admin recipient**, held offline, so a lost cluster key does not lose the secrets.
 - **Only `data` and `stringData` are encrypted** (`encrypted_regex`). Names and kinds stay readable in review.
 
-The per-worker secret that matters most is the agent's `AGENT_TOKEN`, together with that cluster's row in the control plane's `clusters` table. Registering a worker means generating the token, storing its hash in the API database, and committing the encrypted token to `clusters/<name>/secrets/`.
+The per-worker secret that matters most is the agent's key Secret, which the agent creates on first start from a one-time join token. Registering a worker means running `locoadm cluster create` and committing the encrypted join token to `clusters/<name>/secrets/`; the token is spent after the first start.
 
 Locally, secrets stay in `.env`. Running SOPS in the inner loop would add a key to every laptop for no benefit.
 

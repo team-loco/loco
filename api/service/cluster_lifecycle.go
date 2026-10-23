@@ -27,6 +27,9 @@ var (
 	)
 	ErrInvalidClusterOperation = errors.New("cluster operation must be pause, resume, remove or restore")
 	ErrClusterNotAssignable    = errors.New("cluster is paused or removed")
+	ErrClusterNotEnrollable    = errors.New(
+		"cluster does not exist or is removed; restore it before issuing a join token",
+	)
 )
 
 type ClusterOperationResult struct {

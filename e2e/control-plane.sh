@@ -79,7 +79,7 @@ import pathlib
 import sys
 root = pathlib.Path(sys.argv[1])
 password = (root / 'password').read_text().strip()
-(root / 'api.env').write_text(f'DATABASE_URL=postgresql://loco:{password}@postgres:5432/loco?sslmode=disable\nLOCO_AGENT_CONNECTION_SECRETS={password}\nLOCO_IMAGE_RETENTION=0\n')
+(root / 'api.env').write_text(f'DATABASE_URL=postgresql://loco:{password}@postgres:5432/loco?sslmode=disable\nLOCO_IMAGE_RETENTION=0\n')
 (root / 'reader').write_text(f'clickhouse://loco:{password}@clickhouse:9000/loco_obs')
 now = datetime.datetime.now(datetime.UTC)
 (root / 'query.json').write_text(json.dumps({'workspaceId': '00000000-0000-0000-0000-000000000001', 'startTime': (now - datetime.timedelta(minutes=5)).isoformat(), 'endTime': now.isoformat()}))

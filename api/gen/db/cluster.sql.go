@@ -12,38 +12,71 @@ import (
 	"github.com/google/uuid"
 )
 
-const attachCluster = `-- name: AttachCluster :one
-INSERT INTO clusters (cluster_key, name, region, tier, provider, is_active, is_default)
-VALUES ($1, $2, $3, $4, 'kubernetes', true, false)
-ON CONFLICT (cluster_key) DO UPDATE
-SET name = EXCLUDED.name, updated_at = NOW()
-WHERE clusters.region = EXCLUDED.region AND clusters.tier = EXCLUDED.tier
-  AND clusters.removed_at IS NULL
-RETURNING id, name, region
+const createCluster = `-- name: CreateCluster :one
+INSERT INTO clusters (name, region, tier, provider, is_active, is_default, join_token_hash, join_token_expires_at)
+VALUES ($1, $2, $3, 'kubernetes', true, false,
+        $4, $5)
+RETURNING id
 `
 
-type AttachClusterParams struct {
-	ClusterKey *uuid.UUID `json:"clusterKey"`
-	Name       string     `json:"name"`
-	Region     string     `json:"region"`
-	Tier       string     `json:"tier"`
+type CreateClusterParams struct {
+	Name               string     `json:"name"`
+	Region             string     `json:"region"`
+	Tier               string     `json:"tier"`
+	JoinTokenHash      *string    `json:"joinTokenHash"`
+	JoinTokenExpiresAt *time.Time `json:"joinTokenExpiresAt"`
 }
 
-type AttachClusterRow struct {
-	ID     uuid.UUID `json:"id"`
-	Name   string    `json:"name"`
-	Region string    `json:"region"`
-}
-
-func (q *Queries) AttachCluster(ctx context.Context, arg AttachClusterParams) (AttachClusterRow, error) {
-	row := q.db.QueryRow(ctx, attachCluster,
-		arg.ClusterKey,
+func (q *Queries) CreateCluster(ctx context.Context, arg CreateClusterParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, createCluster,
 		arg.Name,
 		arg.Region,
 		arg.Tier,
+		arg.JoinTokenHash,
+		arg.JoinTokenExpiresAt,
 	)
-	var i AttachClusterRow
-	err := row.Scan(&i.ID, &i.Name, &i.Region)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const enrollCluster = `-- name: EnrollCluster :one
+UPDATE clusters
+SET agent_public_key = $1,
+    cluster_key = $2,
+    join_token_used_at = NOW(),
+    sync_generation = sync_generation + 1,
+    updated_at = NOW()
+WHERE join_token_hash = $3
+  AND join_token_expires_at > NOW()
+  AND removed_at IS NULL
+  AND (cluster_key IS NULL OR cluster_key = $2)
+  AND (join_token_used_at IS NULL OR agent_public_key = $1)
+RETURNING id, name, region, cluster_key
+`
+
+type EnrollClusterParams struct {
+	PublicKey     []byte     `json:"publicKey"`
+	ClusterKey    *uuid.UUID `json:"clusterKey"`
+	JoinTokenHash *string    `json:"joinTokenHash"`
+}
+
+type EnrollClusterRow struct {
+	ID         uuid.UUID  `json:"id"`
+	Name       string     `json:"name"`
+	Region     string     `json:"region"`
+	ClusterKey *uuid.UUID `json:"clusterKey"`
+}
+
+func (q *Queries) EnrollCluster(ctx context.Context, arg EnrollClusterParams) (EnrollClusterRow, error) {
+	row := q.db.QueryRow(ctx, enrollCluster, arg.PublicKey, arg.ClusterKey, arg.JoinTokenHash)
+	var i EnrollClusterRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Region,
+		&i.ClusterKey,
+	)
 	return i, err
 }
 
@@ -107,42 +140,50 @@ func (q *Queries) GetClusterByID(ctx context.Context, id uuid.UUID) (GetClusterB
 	return i, err
 }
 
-const getClusterByKey = `-- name: GetClusterByKey :one
-SELECT id, name, region FROM clusters
-WHERE cluster_key = $1 AND removed_at IS NULL
+const getEnrolledCluster = `-- name: GetEnrolledCluster :one
+SELECT id, name, region, cluster_key, agent_public_key FROM clusters
+WHERE id = $1 AND removed_at IS NULL AND agent_public_key IS NOT NULL
 `
 
-type GetClusterByKeyRow struct {
-	ID     uuid.UUID `json:"id"`
-	Name   string    `json:"name"`
-	Region string    `json:"region"`
+type GetEnrolledClusterRow struct {
+	ID             uuid.UUID  `json:"id"`
+	Name           string     `json:"name"`
+	Region         string     `json:"region"`
+	ClusterKey     *uuid.UUID `json:"clusterKey"`
+	AgentPublicKey []byte     `json:"agentPublicKey"`
 }
 
-func (q *Queries) GetClusterByKey(ctx context.Context, clusterKey *uuid.UUID) (GetClusterByKeyRow, error) {
-	row := q.db.QueryRow(ctx, getClusterByKey, clusterKey)
-	var i GetClusterByKeyRow
-	err := row.Scan(&i.ID, &i.Name, &i.Region)
+func (q *Queries) GetEnrolledCluster(ctx context.Context, id uuid.UUID) (GetEnrolledClusterRow, error) {
+	row := q.db.QueryRow(ctx, getEnrolledCluster, id)
+	var i GetEnrolledClusterRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Region,
+		&i.ClusterKey,
+		&i.AgentPublicKey,
+	)
 	return i, err
 }
 
 const listAdminClusters = `-- name: ListAdminClusters :many
 SELECT id, cluster_key, name, region, tier, is_active, removed_at, health_status,
-       last_heartbeat, agent_version, connection_credential_fingerprint
+       last_heartbeat, agent_version, agent_public_key
 FROM clusters ORDER BY created_at, id
 `
 
 type ListAdminClustersRow struct {
-	ID                              uuid.UUID  `json:"id"`
-	ClusterKey                      *uuid.UUID `json:"clusterKey"`
-	Name                            string     `json:"name"`
-	Region                          string     `json:"region"`
-	Tier                            string     `json:"tier"`
-	IsActive                        bool       `json:"isActive"`
-	RemovedAt                       *time.Time `json:"removedAt"`
-	HealthStatus                    *string    `json:"healthStatus"`
-	LastHeartbeat                   *time.Time `json:"lastHeartbeat"`
-	AgentVersion                    *string    `json:"agentVersion"`
-	ConnectionCredentialFingerprint *string    `json:"connectionCredentialFingerprint"`
+	ID             uuid.UUID  `json:"id"`
+	ClusterKey     *uuid.UUID `json:"clusterKey"`
+	Name           string     `json:"name"`
+	Region         string     `json:"region"`
+	Tier           string     `json:"tier"`
+	IsActive       bool       `json:"isActive"`
+	RemovedAt      *time.Time `json:"removedAt"`
+	HealthStatus   *string    `json:"healthStatus"`
+	LastHeartbeat  *time.Time `json:"lastHeartbeat"`
+	AgentVersion   *string    `json:"agentVersion"`
+	AgentPublicKey []byte     `json:"agentPublicKey"`
 }
 
 func (q *Queries) ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow, error) {
@@ -165,7 +206,7 @@ func (q *Queries) ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow
 			&i.HealthStatus,
 			&i.LastHeartbeat,
 			&i.AgentVersion,
-			&i.ConnectionCredentialFingerprint,
+			&i.AgentPublicKey,
 		); err != nil {
 			return nil, err
 		}
@@ -242,6 +283,27 @@ func (q *Queries) LockClusterLifecycle(ctx context.Context, id uuid.UUID) (LockC
 	return i, err
 }
 
+const recordClusterAssertion = `-- name: RecordClusterAssertion :execrows
+WITH expired AS (DELETE FROM cluster_assertions WHERE expires_at < NOW())
+INSERT INTO cluster_assertions (cluster_id, jti, expires_at)
+VALUES ($1, $2, $3)
+ON CONFLICT (cluster_id, jti) DO NOTHING
+`
+
+type RecordClusterAssertionParams struct {
+	ClusterID uuid.UUID `json:"clusterId"`
+	Jti       string    `json:"jti"`
+	ExpiresAt time.Time `json:"expiresAt"`
+}
+
+func (q *Queries) RecordClusterAssertion(ctx context.Context, arg RecordClusterAssertionParams) (int64, error) {
+	result, err := q.db.Exec(ctx, recordClusterAssertion, arg.ClusterID, arg.Jti, arg.ExpiresAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const setClusterGatewayHostname = `-- name: SetClusterGatewayHostname :exec
 UPDATE clusters
 SET gateway_hostname = $2, updated_at = NOW()
@@ -256,6 +318,29 @@ type SetClusterGatewayHostnameParams struct {
 func (q *Queries) SetClusterGatewayHostname(ctx context.Context, arg SetClusterGatewayHostnameParams) error {
 	_, err := q.db.Exec(ctx, setClusterGatewayHostname, arg.ID, arg.GatewayHostname)
 	return err
+}
+
+const setClusterJoinToken = `-- name: SetClusterJoinToken :one
+UPDATE clusters
+SET join_token_hash = $1,
+    join_token_expires_at = $2,
+    join_token_used_at = NULL,
+    updated_at = NOW()
+WHERE id = $3 AND removed_at IS NULL
+RETURNING id
+`
+
+type SetClusterJoinTokenParams struct {
+	JoinTokenHash      *string    `json:"joinTokenHash"`
+	JoinTokenExpiresAt *time.Time `json:"joinTokenExpiresAt"`
+	ID                 uuid.UUID  `json:"id"`
+}
+
+func (q *Queries) SetClusterJoinToken(ctx context.Context, arg SetClusterJoinTokenParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, setClusterJoinToken, arg.JoinTokenHash, arg.JoinTokenExpiresAt, arg.ID)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const updateClusterAgentInfo = `-- name: UpdateClusterAgentInfo :exec
@@ -328,6 +413,7 @@ SET is_active = $1,
                       WHEN $3::boolean THEN NULL ELSE removed_at END,
     last_heartbeat = CASE WHEN $3::boolean THEN NULL ELSE last_heartbeat END,
     health_status = CASE WHEN $3::boolean THEN NULL ELSE health_status END,
+    join_token_hash = CASE WHEN $2::boolean THEN NULL ELSE join_token_hash END,
     sync_generation = sync_generation + CASE
         WHEN $2::boolean OR $3::boolean THEN 1 ELSE 0 END,
     updated_at = NOW()

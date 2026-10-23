@@ -70,7 +70,12 @@ CLICKHOUSE_USER="loco_e2e"
 CLICKHOUSE_PASS="loco_e2e_pass"
 BUILDKIT_IMAGE=$(yq '.builds.buildkitImage.repository + ":" + .builds.buildkitImage.tag' "$ROOT_DIR/charts/loco-operator/values.yaml")
 GATEWAY_API_VERSION=$(awk '$1 == "sigs.k8s.io/gateway-api" { print $2 }' "$ROOT_DIR/controller/go.mod")
-AGENT_TOKEN="e2e-test-token-do-not-use-in-production"
+CLUSTER_ADMIN_TOKEN="loco_s_e2e-admin-session-do-not-use-in-production"
+CLUSTER_ADMIN_HOME="$RUN_DIR/cluster-admin-home"
+AGENT_KEY_SECRET="e2e-agent-key"
+E2E_CLUSTER_NAME="e2e-test-cluster"
+E2E_CLUSTER_REGION="us-east-1"
+E2E_CLUSTER_TIER="production"
 USER_TOKEN="loco_s_e2e-test-session-do-not-use-in-production"
 LOCO_NAMESPACE="loco-system"
 IMAGE_RETENTION=1
@@ -86,7 +91,8 @@ export E2E_COMPOSE_PROJECT="$RUN_NAME"
 export POSTGRES_USER="$PG_USER" POSTGRES_PASSWORD="$PG_PASS" POSTGRES_DB="$PG_DB"
 export POSTGRES_PORT="127.0.0.1:" REGISTRY_PORT="127.0.0.1:" S3_PORT
 export E2E_API_URL="http://127.0.0.1:${API_PORT}"
-export E2E_AGENT_TOKEN="$AGENT_TOKEN"
+export E2E_CLUSTER_ADMIN_TOKEN="$CLUSTER_ADMIN_TOKEN"
+export E2E_AGENT_KEY_SECRET="$AGENT_KEY_SECRET"
 export E2E_USER_TOKEN="$USER_TOKEN"
 export E2E_KIND_CLUSTER="$KIND_CLUSTER_NAME"
 export E2E_LOCO_NAMESPACE="$LOCO_NAMESPACE"
@@ -707,10 +713,8 @@ start_builds() {
 }
 
 start_api() {
-    local connection_secrets="${1:-$AGENT_TOKEN}"
     log_step "Starting API server..."
 
-    LOCO_AGENT_CONNECTION_SECRETS="$connection_secrets" \
     DATABASE_URL="$E2E_DATABASE_URL" \
     APP_PORT="127.0.0.1:$API_PORT" \
     OBSERVABILITY_PROXY_URL="http://127.0.0.1:$OBS_PROXY_PORT" \
@@ -737,6 +741,41 @@ start_api() {
     log_ok "API server running on port ${API_PORT}"
 }
 
+cluster_admin() {
+    HOME="$CLUSTER_ADMIN_HOME" LOCO_CREDENTIAL_STORE=file LOCO_HOST="$E2E_API_URL" \
+        "$BIN_DIR/locoadm" cluster "$@"
+}
+
+seed_cluster_admin() {
+    e2e_psql "
+        INSERT INTO users (id, email) VALUES ('00000000-0000-7000-8000-000000000008', 'loco-admin@test.local');
+        INSERT INTO user_scopes (user_id, scope, entity_type, entity_id)
+        VALUES ('00000000-0000-7000-8000-000000000008', 'admin', 'system', '00000000-0000-0000-0000-000000000000');
+        INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id, access_expires_at, refresh_expires_at)
+        VALUES ('00000000-0000-7000-8000-000000000009',
+                encode(sha256(convert_to('${CLUSTER_ADMIN_TOKEN}', 'UTF8')), 'hex'),
+                encode(sha256(convert_to('refresh-${CLUSTER_ADMIN_TOKEN}', 'UTF8')), 'hex'),
+                '00000000-0000-7000-8000-000000000008', NOW() + INTERVAL '1 day', NOW() + INTERVAL '1 day');
+    " >/dev/null
+    mkdir -p "$CLUSTER_ADMIN_HOME/.loco"
+    printf '{"Host":"%s","ExpiresAt":"2099-01-01T00:00:00Z","Token":"%s","RefreshToken":""}\n' \
+        "$E2E_API_URL" "$CLUSTER_ADMIN_TOKEN" >"$CLUSTER_ADMIN_HOME/.loco/credentials.json"
+}
+
+delete_agent_key() {
+    kube -n "$LOCO_NAMESPACE" delete secret "$AGENT_KEY_SECRET" --ignore-not-found >/dev/null
+}
+
+create_e2e_cluster() {
+    log_step "Creating the cluster record and its join token..."
+    local created
+    created=$(cluster_admin create --name "$E2E_CLUSTER_NAME" --region "$E2E_CLUSTER_REGION" --tier "$E2E_CLUSTER_TIER")
+    E2E_JOIN_TOKEN=$(yq -p json '.joinToken.token' <<<"$created")
+    export E2E_JOIN_TOKEN
+    delete_agent_key
+    log_ok "Cluster $(yq -p json '.clusterId' <<<"$created") is pending enrollment"
+}
+
 agent_registered() {
     test "$(e2e_psql "SELECT EXISTS (SELECT 1 FROM clusters WHERE cluster_key = '${E2E_CLUSTER_KEY}' AND agent_version = '${E2E_VERSION}' AND sync_generation > ${E2E_PREVIOUS_SYNC_GENERATION})")" = t
 }
@@ -748,11 +787,10 @@ start_agent() {
     E2E_CLUSTER_KEY=$(kube get namespace kube-system -o jsonpath='{.metadata.uid}')
     export E2E_CLUSTER_KEY
     E2E_PREVIOUS_SYNC_GENERATION=$(e2e_psql "SELECT COALESCE((SELECT sync_generation FROM clusters WHERE cluster_key = '${E2E_CLUSTER_KEY}'), 0)")
-    LOCO_CLUSTER_NAME=e2e-test-cluster \
-    LOCO_CLUSTER_REGION=us-east-1 \
-    LOCO_CLUSTER_TIER=production \
     CONTROL_PLANE_URL="$E2E_API_URL" \
-    AGENT_TOKEN="$AGENT_TOKEN" \
+    LOCO_JOIN_TOKEN="${E2E_JOIN_TOKEN:-}" \
+    LOCO_AGENT_KEY_SECRET="$AGENT_KEY_SECRET" \
+    LOCO_ASSERTION_LIFETIME="$(yq '.agent.assertionLifetime' "$core_values")" \
     LOG_LEVEL="$(yq '.env.LOG_LEVEL' "$core_values")" \
     LOCO_NAMESPACE="$LOCO_NAMESPACE" \
     LOCO_BUILD_NAMESPACE="$(yq '.agent.buildNamespace' "$core_values")" \
@@ -935,9 +973,11 @@ main() {
     await_job binaries
     start_api
     if [ "$(e2e_psql 'SELECT count(*) FROM clusters')" != 0 ]; then
-        log_error "Cluster registry must be empty before automatic attachment"
+        log_error "Cluster registry must be empty before enrollment"
         return 1
     fi
+    seed_cluster_admin
+    create_e2e_cluster
     start_agent
     start_obs_proxy
 

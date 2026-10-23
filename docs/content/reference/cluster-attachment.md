@@ -1,30 +1,45 @@
 # Cluster attachment
 
-The agent authenticates to the control plane with an operator-configured shared secret. The control plane creates its cluster record on the first authenticated registration. No cluster rows or agent tokens need to be seeded.
+Each cluster's agent holds its own Ed25519 key and authenticates to the control plane with it. An operator creates the cluster record first and gives the agent a one-time join token; the agent's first start binds its public key to that record.
 
-Set `LOCO_AGENT_CONNECTION_SECRETS` on the API process and `AGENT_TOKEN` on each agent to the same value. The API accepts a comma-separated list during rotation. An unset list rejects all agent connections. Secrets must not contain commas.
+## Create and enroll a cluster
 
-Configure the agent's display name, region and tier:
+Cluster administration requires the `system:admin` scope. `locoadm`, the operator CLI, shares the credentials and API host `loco login` stores. Install it with `curl -fsSL https://loco.build/install.sh | sh -s -- --binary locoadm`.
+
+```sh
+locoadm cluster create --name production-east --region us-east-1 --tier production
+```
+
+The tier is `dev`, `staging` or `production`. The command prints the cluster ID and a join token. The token works once and expires after `LOCO_CLUSTER_JOIN_TOKEN_TTL` (API configuration, default `1h`); the API stores only its SHA-256 hash. Pass it to the agent's first start:
 
 ```yaml
 agent:
-  clusterName: production-east
-  clusterRegion: us-east-1
-  clusterTier: production
+  joinToken:
+    value: <join-token>
 env:
   CONTROL_PLANE_URL: https://api.example.com
-  AGENT_TOKEN: <connection-secret>
 ```
 
-The tier is `dev`, `staging` or `production`. The agent reads the UID of Kubernetes' `kube-system` namespace as its cluster key. The Helm chart grants read access to that namespace. Restarts, upgrades and agent reinstalls reuse the record. A replacement Kubernetes cluster gets a new record, even with the same display name.
+`agent.joinToken.existingSecret` and `agent.joinToken.secretKey` name a Secret you create instead of `value`.
 
-Registration updates the display name, capacity and agent version. A changed region or tier is rejected. New clusters become eligible for deployment after healthy heartbeats arrive. Registration and heartbeats preserve the control plane's paused state.
+On first start the agent generates a key pair and stores the private key in the `<release>-agent-key` Secret in its namespace. It sends the join token, its public key and its cluster key, the UID of Kubernetes' `kube-system` namespace, to the API. The API consumes the token and binds the key and cluster key to the record. A Kubernetes cluster can be enrolled into one record only. New clusters become eligible for deployment after healthy heartbeats arrive.
 
-All holders of a shared secret are trusted to assert a cluster identity. Use TLS outside a local test environment.
+After enrollment the agent ignores the join token. Every registration and sync stream carries a JWT the agent signs with its key: `iss` and `sub` are the cluster ID, `aud` is `loco-api`, and `exp` is `agent.assertionLifetime` (default `1m`) after `iat`. The API verifies it against the bound public key, rejects assertions that live longer than `LOCO_AGENT_ASSERTION_MAX_LIFETIME` (default `5m`), and records each `jti` in PostgreSQL so every API replica rejects a reused assertion. The agent needs no credential issued by the API, so it reconnects after an outage of any length.
+
+`locoadm cluster list` shows each cluster's `agentKeyFingerprint`, the SHA-256 of its public key; a pending cluster has none.
+
+## Re-enroll
+
+To replace a lost key or rotate it, issue a new join token, delete the key Secret and restart the agent with the token:
+
+```sh
+locoadm cluster join-token <cluster-id>
+kubectl -n loco-system delete secret loco-core-agent-key
+```
+
+Enrollment replaces the bound key and closes the stream that used the old key. A new token replaces any unused one. Re-enrollment must come from the same Kubernetes cluster; a replacement Kubernetes cluster needs its own record.
 
 ## Pause, remove and restore
-
-Cluster administration uses `ClusterAdminService` on the authenticated API. Every operation, including listing clusters, requires the existing `system:admin` scope. Log in with an account that has that scope, then use `locoadm`, the operator CLI. Install it with `curl -fsSL https://loco.build/install.sh | sh -s -- --binary locoadm`:
 
 ```sh
 locoadm cluster list
@@ -38,27 +53,12 @@ Pausing prevents new deployments and queued builds. Existing workloads and their
 
 Removal requires a paused cluster and refuses while placements, active deployments or queued/running builds remain. Remove applications through the normal resource configuration flow and wait for their deletion acknowledgments before retrying. A refused removal returns the blocking workload IDs as typed error details; the CLI prints them.
 
-For a permanently lost cluster, `locoadm cluster remove <cluster-id> --force` retains those records and prints the workloads whose state cannot be confirmed. Removal keeps cluster identity and history, disconnects the stream, and rejects registration and stream reconnects. It does not uninstall the agent or stop Kubernetes pods.
+For a permanently lost cluster, `locoadm cluster remove <cluster-id> --force` retains those records and prints the workloads whose state cannot be confirmed. Removal closes the sync stream, rejects the agent's registrations and streams, and invalidates an unused join token. It does not uninstall the agent or stop Kubernetes pods.
 
-Restoring clears the removal marker and stale health reports, and leaves the cluster paused. Resume it explicitly; fresh healthy heartbeats are required before deployment. An offline cluster retains its record and can reconnect without restoration.
+Restoring clears the removal marker and stale health reports, and leaves the cluster paused. The agent reconnects with its existing key. Resume it explicitly; fresh healthy heartbeats are required before deployment.
 
-`locoadm` shares the credentials and API host `loco login` stores; log in once with `loco login`. It does not connect to the database. A `loco-admin` account must already have a durable `system:admin` grant; organization and workspace admins do not receive that grant. This change does not provide first-admin provisioning or change login policy. Agent attachment still uses only the operator shared secret.
-
-## Rotation
-
-Configuration is read at process startup. There is no credential reload endpoint.
-
-1. Set `LOCO_AGENT_CONNECTION_SECRETS=old-secret,new-secret` and roll every API replica.
-2. Replace each agent's `AGENT_TOKEN` with `new-secret` and restart its pods.
-3. Use `locoadm cluster list` to check each recent connection's `connectionCredentialFingerprint` against the SHA-256 fingerprint of the replacement secret. Account for offline clusters before retiring the old value.
-4. Set `LOCO_AGENT_CONNECTION_SECRETS=new-secret` and roll every API replica again.
-
-The fingerprint records the credential used to initiate the latest stream; registration requests do not change it. An offline cluster retains its last fingerprint and heartbeat.
-
-The last rollout closes connections on the old processes. Rotation completes only after all old API processes have stopped; during a rolling update, old replicas still accept their configured credentials. The cluster key does not change.
+A `loco-admin` account must already have a durable `system:admin` grant; organization and workspace admins do not receive that grant. Loco does not provision the first admin.
 
 ## Verification
 
-`mise run e2e:attachment` builds an isolated kind environment, starts with no cluster rows, attaches the agent and deploys an application. `--no-teardown` keeps the environment; `--skip-build` reuses its binaries and images on another run.
-
-Existing installations must associate each retained cluster row with its Kubernetes `kube-system` UID before switching agent protocols. This repository edits the initial schema in place and requires a fresh development database when the schema changes.
+`mise run e2e:attachment` builds an isolated kind environment, creates the cluster with `locoadm`, enrolls the agent and deploys an application. `--no-teardown` keeps the environment; `--skip-build` reuses its binaries and images on another run.

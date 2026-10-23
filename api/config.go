@@ -97,6 +97,8 @@ const (
 	defaultHeartbeatInterval         = 30 * time.Second
 	defaultPlacementRetryDelay       = time.Hour
 	defaultPlacementMaxApplyAttempts = 3
+	defaultClusterJoinTokenTTL       = time.Hour
+	defaultAgentAssertionMaxLifetime = 5 * time.Minute
 )
 
 type APIConfig struct {
@@ -453,8 +455,11 @@ func newAgentConfig() service.AgentConfig {
 		panic(errShortRetryDelay)
 	}
 	maxAttempts := positiveInt32Env("LOCO_PLACEMENT_MAX_APPLY_ATTEMPTS", defaultPlacementMaxApplyAttempts)
+	assertionLifetime := positiveDurationEnv("LOCO_AGENT_ASSERTION_MAX_LIFETIME", defaultAgentAssertionMaxLifetime)
+	joinTokenTTL := positiveDurationEnv("LOCO_CLUSTER_JOIN_TOKEN_TTL", defaultClusterJoinTokenTTL)
 	return service.AgentConfig{
-		ConnectionSecrets:         listEnv("LOCO_AGENT_CONNECTION_SECRETS"),
+		AssertionMaxLifetime:      assertionLifetime,
+		JoinTokenTTL:              joinTokenTTL,
 		PlacementRetryDelay:       delay,
 		PlacementMaxApplyAttempts: maxAttempts,
 	}

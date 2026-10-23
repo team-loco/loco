@@ -215,7 +215,7 @@ func main() {
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
 	clusterSilentAfter := service.ClusterSilentAfter(ac.HeartbeatInterval)
-	clusterAdminServiceHandler := service.NewClusterAdminServer(pool, queries)
+	clusterAdminServiceHandler := service.NewClusterAdminServer(pool, queries, ac.Agent.JoinTokenTTL)
 	resourceServiceHandler := service.NewResourceServer(pool, queries, ac.ServiceDefaults, clusterSilentAfter)
 	sourceBucket, bucketErr := newSourceBucket(ac.SourceBucket)
 	if bucketErr != nil {

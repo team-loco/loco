@@ -316,28 +316,37 @@ type Build struct {
 }
 
 type Cluster struct {
-	ID                              uuid.UUID  `json:"id"`
-	Name                            string     `json:"name"`
-	ClusterKey                      *uuid.UUID `json:"clusterKey"`
-	RemovedAt                       *time.Time `json:"removedAt"`
-	Region                          string     `json:"region"`
-	Provider                        string     `json:"provider"`
-	IsActive                        bool       `json:"isActive"`
-	IsDefault                       bool       `json:"isDefault"`
-	Endpoint                        *string    `json:"endpoint"`
-	HealthStatus                    *string    `json:"healthStatus"`
-	LastHealthCheck                 *time.Time `json:"lastHealthCheck"`
-	LastHeartbeat                   *time.Time `json:"lastHeartbeat"`
-	CapacityCpuMillicores           *int64     `json:"capacityCpuMillicores"`
-	CapacityMemoryBytes             *int64     `json:"capacityMemoryBytes"`
-	AgentVersion                    *string    `json:"agentVersion"`
-	GatewayHostname                 *string    `json:"gatewayHostname"`
-	SyncGeneration                  int64      `json:"syncGeneration"`
-	ConnectionCredentialFingerprint *string    `json:"connectionCredentialFingerprint"`
-	BuildsEnabled                   bool       `json:"buildsEnabled"`
-	Tier                            string     `json:"tier"`
-	CreatedAt                       time.Time  `json:"createdAt"`
-	UpdatedAt                       time.Time  `json:"updatedAt"`
+	ID                    uuid.UUID  `json:"id"`
+	Name                  string     `json:"name"`
+	ClusterKey            *uuid.UUID `json:"clusterKey"`
+	RemovedAt             *time.Time `json:"removedAt"`
+	Region                string     `json:"region"`
+	Provider              string     `json:"provider"`
+	IsActive              bool       `json:"isActive"`
+	IsDefault             bool       `json:"isDefault"`
+	Endpoint              *string    `json:"endpoint"`
+	HealthStatus          *string    `json:"healthStatus"`
+	LastHealthCheck       *time.Time `json:"lastHealthCheck"`
+	LastHeartbeat         *time.Time `json:"lastHeartbeat"`
+	CapacityCpuMillicores *int64     `json:"capacityCpuMillicores"`
+	CapacityMemoryBytes   *int64     `json:"capacityMemoryBytes"`
+	AgentVersion          *string    `json:"agentVersion"`
+	GatewayHostname       *string    `json:"gatewayHostname"`
+	SyncGeneration        int64      `json:"syncGeneration"`
+	AgentPublicKey        []byte     `json:"agentPublicKey"`
+	JoinTokenHash         *string    `json:"joinTokenHash"`
+	JoinTokenExpiresAt    *time.Time `json:"joinTokenExpiresAt"`
+	JoinTokenUsedAt       *time.Time `json:"joinTokenUsedAt"`
+	BuildsEnabled         bool       `json:"buildsEnabled"`
+	Tier                  string     `json:"tier"`
+	CreatedAt             time.Time  `json:"createdAt"`
+	UpdatedAt             time.Time  `json:"updatedAt"`
+}
+
+type ClusterAssertion struct {
+	ClusterID uuid.UUID `json:"clusterId"`
+	Jti       string    `json:"jti"`
+	ExpiresAt time.Time `json:"expiresAt"`
 }
 
 type Deployment struct {

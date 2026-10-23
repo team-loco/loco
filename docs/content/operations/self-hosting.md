@@ -31,6 +31,8 @@ Set `DATABASE_LISTEN_URL` to a direct PostgreSQL or session-pooler URL when `DAT
 
 The cluster needs Cilium, Envoy Gateway, cert-manager, and the Loco controller. Each cluster runs the OpenTelemetry collectors and, by default, ClickHouse from the `loco-obs` chart. The observability proxy runs on the control plane. `charts/loco-control-plane` holds its Kubernetes manifests; that chart is a work in progress, and no Helmfile release, platform bundle or published release ships it. The charts and environment values define their configuration.
 
+Attach each cluster by creating its record with `locoadm cluster create` and passing the printed join token to the agent's first start; see [cluster attachment](../reference/cluster-attachment.md).
+
 The `loco-control-plane` chart points the proxy at its own API Service; a standalone proxy reads the API URL from `CONTROL_PLANE_URL`.
 
 The observability proxy reports ready once its ClickHouse migrations complete and a database ping succeeds.

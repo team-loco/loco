@@ -45,6 +45,5 @@ gateway-helm:
                 protocol: grpc
 
 agent:
-  clusterName: loco-local
-  clusterRegion: us-east-1
-  clusterTier: production
+  joinToken:
+    value: {{ env "LOCO_JOIN_TOKEN" | quote }}

@@ -8,6 +8,8 @@ import "google/protobuf/timestamp.proto";
 option go_package = "github.com/team-loco/loco/gen/go/loco/cluster/v1;clusterv1";
 
 service ClusterAdminService {
+  rpc CreateCluster(CreateClusterRequest) returns (CreateClusterResponse);
+  rpc IssueJoinToken(IssueJoinTokenRequest) returns (IssueJoinTokenResponse);
   rpc ListClusters(ListClustersRequest) returns (ListClustersResponse);
   rpc PauseCluster(PauseClusterRequest) returns (PauseClusterResponse);
   rpc ResumeCluster(ResumeClusterRequest) returns (ResumeClusterResponse);
@@ -26,7 +28,9 @@ message Cluster {
   optional string health_status = 8;
   google.protobuf.Timestamp last_heartbeat = 9;
   optional string agent_version = 10;
-  optional string connection_credential_fingerprint = 11;
+  reserved 11;
+  reserved "connection_credential_fingerprint";
+  optional string agent_key_fingerprint = 12;
 }
 
 message ClusterWorkload {
@@ -36,6 +40,43 @@ message ClusterWorkload {
 
 message ClusterWorkloads {
   repeated ClusterWorkload workloads = 1;
+}
+
+message JoinToken {
+  string token = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+message CreateClusterRequest {
+  string name = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+  string region = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+  string tier = 3 [(buf.validate.field).string = {
+    in: [
+      "dev",
+      "staging",
+      "production"
+    ]
+  }];
+}
+
+message CreateClusterResponse {
+  string cluster_id = 1;
+  JoinToken join_token = 2;
+}
+
+message IssueJoinTokenRequest {
+  string cluster_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message IssueJoinTokenResponse {
+  string cluster_id = 1;
+  JoinToken join_token = 2;
 }
 
 message ListClustersRequest {}

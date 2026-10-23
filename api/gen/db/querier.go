@@ -16,8 +16,7 @@ type Querier interface {
 	AdvanceDeploymentStatus(ctx context.Context, arg AdvanceDeploymentStatusParams) error
 	AdvancePlacementPastRevision(ctx context.Context, arg AdvancePlacementPastRevisionParams) (int64, error)
 	AdvisoryUnlock(ctx context.Context, lockKey int64) (bool, error)
-	AttachCluster(ctx context.Context, arg AttachClusterParams) (AttachClusterRow, error)
-	BeginClusterSync(ctx context.Context, arg BeginClusterSyncParams) (int64, error)
+	BeginClusterSync(ctx context.Context, id uuid.UUID) (int64, error)
 	BumpEnvironmentRevision(ctx context.Context, id uuid.UUID) error
 	BumpPlacementsForSecretNames(ctx context.Context, arg BumpPlacementsForSecretNamesParams) ([]BumpPlacementsForSecretNamesRow, error)
 	BumpResourceEnvironmentRevisions(ctx context.Context, id uuid.UUID) error
@@ -35,6 +34,7 @@ type Querier interface {
 	// -----------------------------------------------------------------------------
 	CreateAPIToken(ctx context.Context, arg CreateAPITokenParams) error
 	CreateBuild(ctx context.Context, arg CreateBuildParams) (Build, error)
+	CreateCluster(ctx context.Context, arg CreateClusterParams) (uuid.UUID, error)
 	// Deployment queries
 	CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (uuid.UUID, error)
 	CreateEnvironment(ctx context.Context, arg CreateEnvironmentParams) (Environment, error)
@@ -77,6 +77,7 @@ type Querier interface {
 	DeleteUser(ctx context.Context, id uuid.UUID) error
 	DeleteWorkspace(ctx context.Context, id uuid.UUID) error
 	DeleteWorkspaceWebhook(ctx context.Context, arg DeleteWorkspaceWebhookParams) (int64, error)
+	EnrollCluster(ctx context.Context, arg EnrollClusterParams) (EnrollClusterRow, error)
 	ExpireAwaitingUploadBuilds(ctx context.Context, arg ExpireAwaitingUploadBuildsParams) ([]uuid.UUID, error)
 	FailMissingClusterBuilds(ctx context.Context, arg FailMissingClusterBuildsParams) ([]FailMissingClusterBuildsRow, error)
 	FailQueuedClusterBuilds(ctx context.Context, arg FailQueuedClusterBuildsParams) ([]FailQueuedClusterBuildsRow, error)
@@ -89,12 +90,12 @@ type Querier interface {
 	GetBuildCluster(ctx context.Context) (uuid.UUID, error)
 	GetClusterBuildsEnabled(ctx context.Context, id uuid.UUID) (bool, error)
 	GetClusterByID(ctx context.Context, id uuid.UUID) (GetClusterByIDRow, error)
-	GetClusterByKey(ctx context.Context, clusterKey *uuid.UUID) (GetClusterByKeyRow, error)
 	GetClusterDetails(ctx context.Context, id uuid.UUID) (GetClusterDetailsRow, error)
 	GetClusterSyncGeneration(ctx context.Context, id uuid.UUID) (int64, error)
 	GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, error)
 	GetDeploymentResourceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	GetDeploymentStatus(ctx context.Context, id uuid.UUID) (GetDeploymentStatusRow, error)
+	GetEnrolledCluster(ctx context.Context, id uuid.UUID) (GetEnrolledClusterRow, error)
 	GetEnvironmentByID(ctx context.Context, id uuid.UUID) (Environment, error)
 	GetEnvironmentKey(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)
 	GetIdentity(ctx context.Context, arg GetIdentityParams) (Identity, error)
@@ -219,6 +220,7 @@ type Querier interface {
 	NotifyClusterPlacements(ctx context.Context, clusterID string) error
 	OrgHasWorkspacesWithResources(ctx context.Context, orgID uuid.UUID) (bool, error)
 	QueueBuild(ctx context.Context, arg QueueBuildParams) (int64, error)
+	RecordClusterAssertion(ctx context.Context, arg RecordClusterAssertionParams) (int64, error)
 	ReencryptSecrets(ctx context.Context, arg ReencryptSecretsParams) (int64, error)
 	RemoveAllScopesForEntity(ctx context.Context, arg RemoveAllScopesForEntityParams) error
 	RemoveAllScopesForUser(ctx context.Context, userID uuid.UUID) error
@@ -231,6 +233,7 @@ type Querier interface {
 	RewrapEnvironmentKey(ctx context.Context, arg RewrapEnvironmentKeyParams) (int64, error)
 	RotateSessionToken(ctx context.Context, arg RotateSessionTokenParams) (int64, error)
 	SetClusterGatewayHostname(ctx context.Context, arg SetClusterGatewayHostnameParams) error
+	SetClusterJoinToken(ctx context.Context, arg SetClusterJoinTokenParams) (uuid.UUID, error)
 	SetLockTimeout(ctx context.Context, timeout string) error
 	SetPlacementApplyError(ctx context.Context, arg SetPlacementApplyErrorParams) (SetPlacementApplyErrorRow, error)
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)

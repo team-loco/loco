@@ -20,16 +20,27 @@ import (
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
-const testClusterID = "00000000-0000-7000-8000-000000000001"
+const (
+	testClusterID = "00000000-0000-7000-8000-000000000001"
+	testJoinToken = "loco_j_test"
+	testName      = "east"
+	testRegion    = "us-east-1"
+	testTier      = "production"
+)
+
+var createArgs = []string{
+	clusterCreate, "--" + flagName, testName, "--" + flagRegion, testRegion, "--" + flagTier, testTier,
+}
 
 var errTestDenied = errors.New("permission denied")
 
 type fakeClusterAdmin struct {
 	clusterv1connect.UnimplementedClusterAdminServiceHandler
-	t     *testing.T
-	calls []string
-	force bool
-	err   error
+	t       *testing.T
+	calls   []string
+	force   bool
+	created *clusterv1.CreateClusterRequest
+	err     error
 }
 
 func (f *fakeClusterAdmin) record(ctx context.Context, method, id string) error {
@@ -45,6 +56,33 @@ func (f *fakeClusterAdmin) record(ctx context.Context, method, id string) error 
 	return f.err
 }
 
+func (f *fakeClusterAdmin) CreateCluster(
+	ctx context.Context,
+	req *clusterv1.CreateClusterRequest,
+) (*clusterv1.CreateClusterResponse, error) {
+	if err := f.record(ctx, clusterCreate, ""); err != nil {
+		return nil, err
+	}
+	f.created = req
+	return &clusterv1.CreateClusterResponse{
+		ClusterId: testClusterID,
+		JoinToken: &clusterv1.JoinToken{Token: testJoinToken},
+	}, nil
+}
+
+func (f *fakeClusterAdmin) IssueJoinToken(
+	ctx context.Context,
+	req *clusterv1.IssueJoinTokenRequest,
+) (*clusterv1.IssueJoinTokenResponse, error) {
+	if err := f.record(ctx, clusterJoinToken, req.GetClusterId()); err != nil {
+		return nil, err
+	}
+	return &clusterv1.IssueJoinTokenResponse{
+		ClusterId: req.GetClusterId(),
+		JoinToken: &clusterv1.JoinToken{Token: testJoinToken},
+	}, nil
+}
+
 func (f *fakeClusterAdmin) ListClusters(
 	ctx context.Context,
 	_ *clusterv1.ListClustersRequest,
@@ -52,7 +90,7 @@ func (f *fakeClusterAdmin) ListClusters(
 	if err := f.record(ctx, clusterList, ""); err != nil {
 		return nil, err
 	}
-	return &clusterv1.ListClustersResponse{Clusters: []*clusterv1.Cluster{{Id: testClusterID, Name: "east"}}}, nil
+	return &clusterv1.ListClustersResponse{Clusters: []*clusterv1.Cluster{{Id: testClusterID, Name: testName}}}, nil
 }
 
 func (f *fakeClusterAdmin) PauseCluster(
@@ -146,6 +184,31 @@ func TestClusterCommandsUseAuthenticatedHTTP(t *testing.T) {
 	}
 }
 
+func TestClusterCreateAndJoinTokenPrintTheToken(t *testing.T) {
+	for _, args := range [][]string{
+		createArgs,
+		{clusterJoinToken, testClusterID},
+	} {
+		fake := &fakeClusterAdmin{t: t}
+		cmd, output := clusterTestCommand(t, fake)
+		cmd.SetArgs(args)
+		if err := cmd.Execute(); err != nil {
+			t.Fatal(err)
+		}
+		if len(fake.calls) != 1 || fake.calls[0] != args[0] {
+			t.Fatalf("calls: %v", fake.calls)
+		}
+		if !strings.Contains(output.String(), testJoinToken) || !strings.Contains(output.String(), testClusterID) {
+			t.Fatalf("output lacks the cluster ID or join token: %s", output)
+		}
+		if args[0] == clusterCreate &&
+			(fake.created.GetName() != testName || fake.created.GetRegion() != testRegion ||
+				fake.created.GetTier() != testTier) {
+			t.Fatalf("created %v", fake.created)
+		}
+	}
+}
+
 func TestClusterPreservesDenialsAndPrintsBlockingWorkloads(t *testing.T) {
 	detail, err := connectproto.NewErrorDetail(
 		&clusterv1.ClusterWorkloads{Workloads: []*clusterv1.ClusterWorkload{{Id: testClusterID, Kind: "placement"}}},
@@ -176,6 +239,10 @@ func TestClusterRejectsBadArgumentsBeforeRPC(t *testing.T) {
 		{clusterPause, "invalid"},
 		{clusterList, testClusterID},
 		{clusterResume, testClusterID, "--force"},
+		createArgs[:len(createArgs)-2],
+		append([]string{clusterCreate, testClusterID}, createArgs[1:]...),
+		{clusterJoinToken},
+		{clusterJoinToken, "invalid"},
 	} {
 		fake := &fakeClusterAdmin{t: t}
 		cmd, _ := clusterTestCommand(t, fake)

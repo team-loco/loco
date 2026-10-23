@@ -23,6 +23,7 @@ import (
 	"github.com/team-loco/loco/agent/pkg/appwatch"
 	"github.com/team-loco/loco/agent/pkg/buildwatch"
 	"github.com/team-loco/loco/agent/pkg/cluster"
+	"github.com/team-loco/loco/agent/pkg/identity"
 	"github.com/team-loco/loco/agent/pkg/kube"
 	"github.com/team-loco/loco/agent/pkg/reconciler"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
@@ -32,6 +33,8 @@ import (
 var (
 	errBuildSupportChanged      = errors.New("the cluster's build support changed; restarting to pick it up")
 	errInvalidHeartbeatInterval = errors.New("control plane sent no positive heartbeat interval")
+	errNotEnrolled              = errors.New("agent is not enrolled and LOCO_JOIN_TOKEN is not set")
+	errClusterIDChanged         = errors.New("control plane registered the agent as a different cluster")
 )
 
 func main() {
@@ -61,7 +64,7 @@ func main() {
 	}
 	httpClient := &http.Client{Transport: transport}
 
-	clients := rpc.NewHTTPClients(httpClient, cfg.ControlPlaneURL, cfg.AgentToken)
+	clients := rpc.NewHTTPClients(httpClient, cfg.ControlPlaneURL, "")
 	agentClient := clients.Agent
 
 	restConfig, err := kube.RestConfig(cfg.Kubeconfig)
@@ -85,6 +88,7 @@ func main() {
 	}
 
 	inspector := cluster.NewInspector(clientset, cfg.ControllerNamespace, cfg.ControllerDeployment)
+	identities := identity.NewStore(clientset, cfg.Namespace, cfg.KeySecret)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -122,6 +126,7 @@ func main() {
 		client:        agentClient,
 		applier:       kubeApplier,
 		inspector:     inspector,
+		identities:    identities,
 		watcher:       watcher,
 		builds:        builds,
 		buildsEnabled: buildsEnabled,
@@ -165,11 +170,11 @@ type Agent struct {
 	client            agentv1connect.AgentServiceClient
 	applier           *applier.Applier
 	inspector         *cluster.Inspector
+	identities        *identity.Store
+	identity          identity.Identity
 	watcher           *appwatch.Watcher
 	builds            buildRunner
 	buildsEnabled     bool
-	clusterID         string
-	clusterKey        string
 	heartbeatInterval time.Duration
 }
 
@@ -203,34 +208,66 @@ func (a *Agent) register(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	a.clusterKey = key
+	stored, err := a.identities.Ensure(ctx)
+	if err != nil {
+		return err
+	}
+	a.identity = stored
 	capacity := a.getCapacity(ctx)
 	req := &agentv1.RegisterRequest{
 		AgentVersion:  a.cfg.AgentVersion,
 		ClusterKey:    key,
-		DisplayName:   a.cfg.ClusterName,
-		ClusterRegion: a.cfg.ClusterRegion,
-		Tier:          a.cfg.ClusterTier,
 		Capacity:      capacity,
 		BuildsEnabled: a.buildsEnabled,
 	}
+	callCtx := ctx
+	if stored.ClusterID == "" {
+		if a.cfg.JoinToken == "" {
+			return errNotEnrolled
+		}
+		req.Enrollment = &agentv1.Enrollment{JoinToken: a.cfg.JoinToken, PublicKey: stored.PublicKey()}
+	} else {
+		callCtx, err = a.authenticated(ctx)
+		if err != nil {
+			return err
+		}
+	}
 
-	resp, err := a.client.Register(ctx, req)
+	resp, err := a.client.Register(callCtx, req)
 	if err != nil {
 		return fmt.Errorf("register RPC failed: %w", err)
+	}
+	if stored.ClusterID == "" {
+		if err := a.identities.SaveClusterID(ctx, resp.GetClusterId()); err != nil {
+			return err
+		}
+		a.identity.ClusterID = resp.GetClusterId()
+	}
+	if resp.GetClusterId() != a.identity.ClusterID {
+		return fmt.Errorf("%w: %s, enrolled as %s", errClusterIDChanged, resp.GetClusterId(), a.identity.ClusterID)
 	}
 
 	heartbeatInterval := resp.GetHeartbeatInterval().AsDuration()
 	if heartbeatInterval <= 0 {
 		return fmt.Errorf("%w: %s", errInvalidHeartbeatInterval, heartbeatInterval)
 	}
-	a.clusterID = resp.GetClusterId()
 	a.heartbeatInterval = heartbeatInterval
 	slog.InfoContext(ctx, "registered with control plane",
-		"cluster_id", a.clusterID,
+		"cluster_id", a.identity.ClusterID,
+		"enrolled", req.GetEnrollment() != nil,
 		"heartbeat_interval", a.heartbeatInterval,
 	)
 	return nil
+}
+
+func (a *Agent) authenticated(ctx context.Context) (context.Context, error) {
+	assertion, err := a.identity.Assertion(time.Now(), a.cfg.AssertionLifetime)
+	if err != nil {
+		return nil, err
+	}
+	ctx, callInfo := connect.NewClientContext(ctx)
+	callInfo.RequestHeader().Set("Authorization", "Bearer "+assertion)
+	return ctx, nil
 }
 
 func (a *Agent) runSync(ctx context.Context) error {
@@ -294,8 +331,10 @@ func (a *Agent) syncLoop(ctx context.Context) error {
 	streamCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	streamCtx, callInfo := connect.NewClientContext(streamCtx)
-	callInfo.RequestHeader().Set("Loco-Cluster-Key", a.clusterKey)
+	streamCtx, err := a.authenticated(streamCtx)
+	if err != nil {
+		return err
+	}
 	stream, err := a.client.Sync(streamCtx)
 	if err != nil {
 		return err

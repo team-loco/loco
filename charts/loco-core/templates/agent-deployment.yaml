@@ -36,12 +36,18 @@ spec:
                 - ALL
           imagePullPolicy: {{ .Values.agent.imagePullPolicy }}
           env:
-            - name: LOCO_CLUSTER_NAME
-              value: {{ required "agent.clusterName is required" .Values.agent.clusterName | quote }}
-            - name: LOCO_CLUSTER_REGION
-              value: {{ required "agent.clusterRegion is required" .Values.agent.clusterRegion | quote }}
-            - name: LOCO_CLUSTER_TIER
-              value: {{ required "agent.clusterTier is required" .Values.agent.clusterTier | quote }}
+            - name: LOCO_AGENT_KEY_SECRET
+              value: {{ include "loco-core.agentKeySecret" . | quote }}
+            - name: LOCO_ASSERTION_LIFETIME
+              value: {{ .Values.agent.assertionLifetime | quote }}
+            {{- with include "loco-core.joinTokenSecret" . }}
+            - name: LOCO_JOIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ . | quote }}
+                  key: {{ $.Values.agent.joinToken.secretKey | quote }}
+                  optional: true
+            {{- end }}
             - name: LOCO_NAMESPACE
               valueFrom:
                 fieldRef:

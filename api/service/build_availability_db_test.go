@@ -141,13 +141,8 @@ func TestRegisterAndHeartbeatRecordWhetherTheClusterAcceptsBuilds(t *testing.T) 
 			AgentVersion:  "test",
 			BuildsEnabled: enabled,
 			ClusterKey:    f.clusterID.String(),
-			DisplayName:   "c1",
-			ClusterRegion: attachmentRegion,
-			Tier:          environmentTypeProduction,
 		}
-		ctx, info := connect.NewClientContext(f.ctx)
-		info.RequestHeader().Set("Authorization", "Bearer "+testAgentToken)
-		info.RequestHeader().Set("Loco-Cluster-Key", f.clusterID.String())
+		ctx := agentContext(f.ctx, t, f.clusterID)
 		resp, err := registerClient.Register(ctx, req)
 		if err != nil {
 			t.Fatalf("register: %v", err)
@@ -175,9 +170,7 @@ func TestRegisterAndHeartbeatRecordWhetherTheClusterAcceptsBuilds(t *testing.T) 
 	}
 
 	client := startSyncServerWithSources(t, f.deployFixture, f.bucket)
-	ctx, info := connect.NewClientContext(f.ctx)
-	info.RequestHeader().Set("Authorization", "Bearer "+testAgentToken)
-	info.RequestHeader().Set("Loco-Cluster-Key", f.clusterID.String())
+	ctx := agentContext(f.ctx, t, f.clusterID)
 	stream, err := client.Sync(ctx)
 	if err != nil {
 		t.Fatal(err)

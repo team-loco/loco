@@ -172,7 +172,6 @@ helm_release(
         'pull_policy': 'agent.imagePullPolicy',
     }],
     values=[
-        'env.AGENT_TOKEN=$AGENT_TOKEN',
         'env.CONTROL_PLANE_URL=' + control_plane_url,
     ],
     deps=['charts/loco-core/', 'env/local/core-chart.yaml.gotmpl'],

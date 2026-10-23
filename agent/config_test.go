@@ -12,12 +12,10 @@ import (
 const testAgentVersion = "sha-test"
 
 func agentEnv() map[string]string {
-	return map[string]string{
+	return map[string]string{ //nolint:gosec
 		envControlPlaneURL:          "https://api.loco.test",
-		envAgentToken:               "token",
-		envClusterName:              "test",
-		envClusterRegion:            "us-east-1",
-		envClusterTier:              "production",
+		envKeySecret:                "loco-core-agent-key",
+		envAssertionLifetime:        "1m",
 		envNamespace:                "loco-system",
 		envControllerDeployment:     "loco-controller",
 		envBuildNamespace:           "loco-builds",
@@ -49,17 +47,17 @@ func TestParseAgentConfigReadsTheEnvironment(t *testing.T) {
 	env := agentEnv()
 	env[envControllerNamespace] = "loco-operator"
 	env[envKubeconfig] = "/tmp/kubeconfig"
+	env[envJoinToken] = "loco_j_join"
 	cfg, err := parseAgentConfig(lookup(env), testAgentVersion)
 	if err != nil {
 		t.Fatalf("parseAgentConfig: %v", err)
 	}
-	want := Config{
+	want := Config{ //nolint:gosec
 		LogLevel:                 slog.LevelWarn,
 		ControlPlaneURL:          "https://api.loco.test",
-		AgentToken:               "token",
-		ClusterName:              "test",
-		ClusterRegion:            "us-east-1",
-		ClusterTier:              "production",
+		JoinToken:                "loco_j_join",
+		KeySecret:                "loco-core-agent-key",
+		AssertionLifetime:        time.Minute,
 		AgentVersion:             testAgentVersion,
 		Namespace:                "loco-system",
 		ControllerNamespace:      "loco-operator",
@@ -99,7 +97,8 @@ func TestParseAgentConfigDefaultsTheControllerNamespaceToItsOwn(t *testing.T) {
 func TestParseAgentConfigRejectsMissingValues(t *testing.T) {
 	required := []string{
 		envControlPlaneURL,
-		envAgentToken,
+		envKeySecret,
+		envAssertionLifetime,
 		envNamespace,
 		envControllerDeployment,
 		envBuildNamespace,
@@ -142,6 +141,7 @@ func TestParseAgentConfigRejectsInvalidDurations(t *testing.T) {
 		envReconnectBaseDelay,
 		envReconnectMaxDelay,
 		envHealthyStreamDuration,
+		envAssertionLifetime,
 	}
 	for _, name := range durations {
 		for _, value := range []string{"soon", "0s", "-1m", "5"} {

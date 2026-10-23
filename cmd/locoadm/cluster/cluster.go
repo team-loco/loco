@@ -18,11 +18,17 @@ import (
 )
 
 const (
-	clusterList    = "list"
-	clusterPause   = "pause"
-	clusterResume  = "resume"
-	clusterRemove  = "remove"
-	clusterRestore = "restore"
+	clusterCreate    = "create"
+	clusterJoinToken = "join-token"
+	clusterList      = "list"
+	clusterPause     = "pause"
+	clusterResume    = "resume"
+	clusterRemove    = "remove"
+	clusterRestore   = "restore"
+
+	flagName   = "name"
+	flagRegion = "region"
+	flagTier   = "tier"
 )
 
 type dependencies struct {
@@ -42,7 +48,10 @@ func BuildClusterCmd() *cobra.Command {
 
 func newClusterCmd(deps dependencies) *cobra.Command {
 	cluster := &cobra.Command{Use: "cluster", Short: "Manage clusters (requires system admin)"}
-	for _, operation := range []string{clusterList, clusterPause, clusterResume, clusterRemove, clusterRestore} {
+	operations := []string{
+		clusterCreate, clusterJoinToken, clusterList, clusterPause, clusterResume, clusterRemove, clusterRestore,
+	}
+	for _, operation := range operations {
 		command := &cobra.Command{
 			Use:   operation + " <cluster-id>",
 			Short: operation + " cluster",
@@ -51,6 +60,18 @@ func newClusterCmd(deps dependencies) *cobra.Command {
 		if operation == clusterList {
 			command.Use = operation
 			command.Args = cobra.NoArgs
+		}
+		if operation == clusterJoinToken {
+			command.Short = "issue a one-time join token that enrolls an agent into the cluster"
+		}
+		if operation == clusterCreate {
+			command.Use = operation
+			command.Short = "create a pending cluster and print its one-time join token"
+			command.Args = cobra.NoArgs
+			for _, flag := range []string{flagName, flagRegion, flagTier} {
+				command.Flags().String(flag, "", "Cluster "+flag)
+				cobra.CheckErr(command.MarkFlagRequired(flag))
+			}
 		}
 		command.Flags().String("host", "", "API host URL")
 		if operation == clusterRemove {
@@ -96,6 +117,19 @@ func call(
 ) (proto.Message, error) {
 	ctx := cmd.Context()
 	switch operation {
+	case clusterCreate:
+		request := &clusterv1.CreateClusterRequest{}
+		fields := map[string]*string{flagName: &request.Name, flagRegion: &request.Region, flagTier: &request.Tier}
+		for flag, field := range fields {
+			value, err := cmd.Flags().GetString(flag)
+			if err != nil {
+				return nil, err
+			}
+			*field = value
+		}
+		return client.CreateCluster(ctx, request)
+	case clusterJoinToken:
+		return client.IssueJoinToken(ctx, &clusterv1.IssueJoinTokenRequest{ClusterId: args[0]})
 	case clusterList:
 		return client.ListClusters(ctx, &clusterv1.ListClustersRequest{})
 	case clusterPause:

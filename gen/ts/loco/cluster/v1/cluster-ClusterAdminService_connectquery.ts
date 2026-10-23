@@ -5,6 +5,16 @@
 import { ClusterAdminService } from "./cluster_pb";
 
 /**
+ * @generated from rpc loco.cluster.v1.ClusterAdminService.CreateCluster
+ */
+export const createCluster = ClusterAdminService.method.createCluster;
+
+/**
+ * @generated from rpc loco.cluster.v1.ClusterAdminService.IssueJoinToken
+ */
+export const issueJoinToken = ClusterAdminService.method.issueJoinToken;
+
+/**
  * @generated from rpc loco.cluster.v1.ClusterAdminService.ListClusters
  */
 export const listClusters = ClusterAdminService.method.listClusters;

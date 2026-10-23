@@ -315,7 +315,7 @@ depends = ["helm:deps"]
 run = "./e2e/certificates.sh"
 
 [tasks."e2e:attachment"]
-description = "Test automatic cluster attachment, heartbeats and application deployment from an empty cluster registry"
+description = "Test cluster enrollment with a join token, agent key reuse and rotation, heartbeats and application deployment from an empty cluster registry"
 env = { _.file = ".env" }
 run = "./e2e/run.sh --builds-disabled cluster_attachment"
 
