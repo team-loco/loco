@@ -3,16 +3,18 @@ set -eu
 
 repo="team-loco/loco"
 version="${LOCO_VERSION:-latest}"
+binary="loco"
 install_dir="${LOCO_INSTALL_DIR:-${HOME:-}/.local/bin}"
 
 usage() {
-  printf 'Usage: install.sh [--version VERSION] [--bin-dir DIRECTORY]\n'
+  printf 'Usage: install.sh [--version VERSION] [--bin-dir DIRECTORY] [--binary loco|locoadm]\n'
   printf '\n'
-  printf 'Install the Loco CLI from a GitHub release.\n'
+  printf 'Install the Loco CLI or the locoadm operator CLI from a release.\n'
   printf '\n'
   printf 'Options:\n'
   printf '  -v, --version VERSION  Install a release tag (default: latest)\n'
   printf '  -b, --bin-dir DIR      Install directory (default: ~/.local/bin)\n'
+  printf '      --binary NAME      Binary to install: loco or locoadm (default: loco)\n'
   printf '  -h, --help             Show this help\n'
 }
 
@@ -41,6 +43,15 @@ while [ "$#" -gt 0 ]; do
       install_dir="${1#*=}"
       shift
       ;;
+    --binary)
+      [ "$#" -ge 2 ] || error "--binary requires a value"
+      binary="$2"
+      shift 2
+      ;;
+    --binary=*)
+      binary="${1#*=}"
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -53,6 +64,10 @@ done
 
 [ -n "$install_dir" ] || error 'HOME is not set; specify --bin-dir'
 [ -n "$version" ] || error 'version cannot be empty'
+case "$binary" in
+  loco|locoadm) ;;
+  *) error "unknown binary: ${binary}" ;;
+esac
 
 case "$(uname -s)" in
   Linux) os=linux ;;
@@ -89,14 +104,14 @@ fi
 tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/loco-install.XXXXXX")" || error 'could not create a temporary directory'
 trap 'rm -rf "$tmp_dir"' EXIT
 trap 'exit 1' HUP INT TERM
-asset="loco-${os}-${arch}"
+asset="${binary}-${os}-${arch}"
 if [ "$version" = latest ]; then
   release_url="https://github.com/${repo}/releases/latest/download"
 else
   release_url="https://github.com/${repo}/releases/download/${version}"
 fi
 
-printf 'Downloading Loco CLI (%s, %s)\n' "$os" "$arch"
+printf 'Downloading %s (%s, %s)\n' "$binary" "$os" "$arch"
 download "${release_url}/${asset}" "${tmp_dir}/${asset}" || error "download failed for ${asset} (${version})"
 download "${release_url}/checksums.txt" "${tmp_dir}/checksums.txt" || error "could not download release checksums (${version})"
 
@@ -106,13 +121,13 @@ actual="$(checksum "${tmp_dir}/${asset}")"
 
 mkdir -p "$install_dir" || error "could not create install directory: ${install_dir}"
 chmod 0755 "$tmp_dir/$asset"
-mv "$tmp_dir/$asset" "$install_dir/loco" || error "could not install loco to ${install_dir}"
-printf 'Installed loco to %s/loco\n' "$install_dir"
+mv "$tmp_dir/$asset" "$install_dir/$binary" || error "could not install ${binary} to ${install_dir}"
+printf 'Installed %s to %s/%s\n' "$binary" "$install_dir" "$binary"
 
 case ":${PATH}:" in
   *":${install_dir}:"*) ;;
   *)
-    printf 'Add this directory to your PATH to run loco from any shell:\n'
+    printf 'Add this directory to your PATH to run %s from any shell:\n' "$binary"
     printf '  export PATH="%s:$PATH"\n' "$install_dir"
     ;;
 esac

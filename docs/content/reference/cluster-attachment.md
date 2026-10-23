@@ -24,25 +24,25 @@ All holders of a shared secret are trusted to assert a cluster identity. Use TLS
 
 ## Pause, remove and restore
 
-Cluster administration uses `ClusterAdminService` on the authenticated API. Every operation, including listing clusters, requires the existing `system:admin` scope. Log in with an account that has that scope, then use the ordinary CLI:
+Cluster administration uses `ClusterAdminService` on the authenticated API. Every operation, including listing clusters, requires the existing `system:admin` scope. Log in with an account that has that scope, then use `locoadm`, the operator CLI. Install it with `curl -fsSL https://loco.build/install.sh | sh -s -- --binary locoadm`:
 
 ```sh
-loco admin cluster list
-loco admin cluster pause <cluster-id>
-loco admin cluster remove <cluster-id>
-loco admin cluster restore <cluster-id>
-loco admin cluster resume <cluster-id>
+locoadm cluster list
+locoadm cluster pause <cluster-id>
+locoadm cluster remove <cluster-id>
+locoadm cluster restore <cluster-id>
+locoadm cluster resume <cluster-id>
 ```
 
 Pausing prevents new deployments and queued builds. Existing workloads and their agent connection remain available for inspection and cleanup. An assignment already committing finishes before pause returns.
 
 Removal requires a paused cluster and refuses while placements, active deployments or queued/running builds remain. Remove applications through the normal resource configuration flow and wait for their deletion acknowledgments before retrying. A refused removal returns the blocking workload IDs as typed error details; the CLI prints them.
 
-For a permanently lost cluster, `loco admin cluster remove <cluster-id> --force` retains those records and prints the workloads whose state cannot be confirmed. Removal keeps cluster identity and history, disconnects the stream, and rejects registration and stream reconnects. It does not uninstall the agent or stop Kubernetes pods.
+For a permanently lost cluster, `locoadm cluster remove <cluster-id> --force` retains those records and prints the workloads whose state cannot be confirmed. Removal keeps cluster identity and history, disconnects the stream, and rejects registration and stream reconnects. It does not uninstall the agent or stop Kubernetes pods.
 
 Restoring clears the removal marker and stale health reports, and leaves the cluster paused. Resume it explicitly; fresh healthy heartbeats are required before deployment. An offline cluster retains its record and can reconnect without restoration.
 
-The CLI uses its normal stored credentials and API host. It does not connect to the database. A `loco-admin` account must already have a durable `system:admin` grant; organization and workspace admins do not receive that grant. This change does not provide first-admin provisioning or change login policy. Agent attachment still uses only the operator shared secret.
+`locoadm` shares the credentials and API host `loco login` stores; log in once with `loco login`. It does not connect to the database. A `loco-admin` account must already have a durable `system:admin` grant; organization and workspace admins do not receive that grant. This change does not provide first-admin provisioning or change login policy. Agent attachment still uses only the operator shared secret.
 
 ## Rotation
 
@@ -50,7 +50,7 @@ Configuration is read at process startup. There is no credential reload endpoint
 
 1. Set `LOCO_AGENT_CONNECTION_SECRETS=old-secret,new-secret` and roll every API replica.
 2. Replace each agent's `AGENT_TOKEN` with `new-secret` and restart its pods.
-3. Use `loco admin cluster list` to check each recent connection's `connectionCredentialFingerprint` against the SHA-256 fingerprint of the replacement secret. Account for offline clusters before retiring the old value.
+3. Use `locoadm cluster list` to check each recent connection's `connectionCredentialFingerprint` against the SHA-256 fingerprint of the replacement secret. Account for offline clusters before retiring the old value.
 4. Set `LOCO_AGENT_CONNECTION_SECRETS=new-secret` and roll every API replica again.
 
 The fingerprint records the credential used to initiate the latest stream; registration requests do not change it. An offline cluster retains its last fingerprint and heartbeat.
