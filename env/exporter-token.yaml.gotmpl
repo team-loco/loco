@@ -2,3 +2,5 @@ global:
   exporter:
     bearerToken:
       secretName: {{ (readFile "../charts/loco-obs/values.yaml" | fromYaml).global.exporter.bearerToken.secretName | quote }}
+      secretKey: {{ (readFile "../charts/loco-obs/values.yaml" | fromYaml).global.exporter.bearerToken.secretKey | quote }}
+      nodeNamespace: {{ index (readFile "../charts/loco-obs/values.yaml" | fromYaml) "otel-col-daemon" "namespaceOverride" | quote }}

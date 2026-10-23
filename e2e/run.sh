@@ -74,8 +74,9 @@ BUILDKIT_IMAGE=$(yq '.builds.buildkitImage.repository + ":" + .builds.buildkitIm
 CLUSTER_ADMIN_TOKEN="loco_s_e2e-admin-session-do-not-use-in-production"
 CLUSTER_ADMIN_HOME="$RUN_DIR/cluster-admin-home"
 AGENT_KEY_SECRET="e2e-agent-key"
-INGEST_TOKEN_SECRET=$(yq '.agent.ingestToken.secretName' "$CORE_CHART/values.yaml")
-INGEST_TOKEN_SECRET_KEY=$(yq '.agent.ingestToken.secretKey' "$CORE_CHART/values.yaml")
+INGEST_TOKEN_SECRET=$(yq '.global.exporter.bearerToken.secretName' "$OBS_VALUES")
+INGEST_TOKEN_SECRET_KEY=$(yq '.global.exporter.bearerToken.secretKey' "$OBS_VALUES")
+OBS_NODE_NAMESPACE=$(yq '.["otel-col-daemon"].namespaceOverride' "$OBS_VALUES")
 E2E_CLUSTER_NAME="e2e-test-cluster"
 E2E_CLUSTER_REGION="us-east-1"
 E2E_CLUSTER_TIER="production"
@@ -107,6 +108,7 @@ export E2E_OBS_PROXY_PORT="$OBS_PROXY_PORT"
 export E2E_OTLP_HTTP_PORT="$OTLP_HTTP_PORT"
 export E2E_GATEWAY_URL="http://127.0.0.1:${GATEWAY_PORT}"
 export E2E_OBS_NAMESPACE="$OBS_NAMESPACE"
+export E2E_OBS_NODE_NAMESPACE="$OBS_NODE_NAMESPACE"
 export E2E_OBS_RELEASE="$OBS_RELEASE"
 export E2E_OBS_VALUES="$OBS_E2E_VALUES"
 export E2E_CLICKHOUSE_CONTAINER="$CLICKHOUSE_CONTAINER"
@@ -780,9 +782,12 @@ create_e2e_cluster() {
 }
 
 create_ingest_token_secret() {
-    kube create namespace "$OBS_NAMESPACE" --dry-run=client -o yaml | kube apply -f - >/dev/null
-    kube -n "$OBS_NAMESPACE" create secret generic "$INGEST_TOKEN_SECRET" --dry-run=client -o yaml |
-        kube apply -f - >/dev/null
+    local namespace
+    for namespace in "$OBS_NAMESPACE" "$OBS_NODE_NAMESPACE"; do
+        kube create namespace "$namespace" --dry-run=client -o yaml | kube apply -f - >/dev/null
+        kube -n "$namespace" create secret generic "$INGEST_TOKEN_SECRET" --dry-run=client -o yaml |
+            kube apply -f - >/dev/null
+    done
 }
 
 agent_registered() {
@@ -802,7 +807,7 @@ start_agent() {
     LOCO_ASSERTION_LIFETIME="$(yq '.agent.assertionLifetime' "$core_values")" \
     LOCO_INGEST_TOKEN_SECRET="$INGEST_TOKEN_SECRET" \
     LOCO_INGEST_TOKEN_SECRET_KEY="$INGEST_TOKEN_SECRET_KEY" \
-    LOCO_INGEST_TOKEN_NAMESPACE="$OBS_NAMESPACE" \
+    LOCO_INGEST_TOKEN_NAMESPACES="$OBS_NAMESPACE,$OBS_NODE_NAMESPACE" \
     LOG_LEVEL="$(yq '.env.LOG_LEVEL' "$core_values")" \
     LOCO_NAMESPACE="$LOCO_NAMESPACE" \
     LOCO_BUILD_NAMESPACE="$(yq '.agent.buildNamespace' "$core_values")" \

@@ -43,9 +43,10 @@ const (
 	envCertificate              = "LOCO_CERTIFICATE"
 	envAppDomains               = "LOCO_APP_DOMAINS"
 	appDomainSeparator          = ","
+	namespaceSeparator          = ","
 	envIngestTokenSecret        = "LOCO_INGEST_TOKEN_SECRET"     //nolint:gosec
 	envIngestTokenSecretKey     = "LOCO_INGEST_TOKEN_SECRET_KEY" //nolint:gosec
-	envIngestTokenNamespace     = "LOCO_INGEST_TOKEN_NAMESPACE"  //nolint:gosec
+	envIngestTokenNamespaces    = "LOCO_INGEST_TOKEN_NAMESPACES" //nolint:gosec
 )
 
 var (
@@ -197,9 +198,11 @@ func parseIngestTokenSecret(getenv func(string) string) (telemetrytoken.Secret, 
 	if secret.Key, err = requireEnv(getenv, envIngestTokenSecretKey); err != nil {
 		return secret, err
 	}
-	if secret.Namespace, err = requireEnv(getenv, envIngestTokenNamespace); err != nil {
+	namespaces, err := requireEnv(getenv, envIngestTokenNamespaces)
+	if err != nil {
 		return secret, err
 	}
+	secret.Namespaces = strings.Split(namespaces, namespaceSeparator)
 	return secret, nil
 }
 

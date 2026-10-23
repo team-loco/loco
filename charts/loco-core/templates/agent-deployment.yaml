@@ -40,13 +40,13 @@ spec:
               value: {{ include "loco-core.agentKeySecret" . | quote }}
             - name: LOCO_ASSERTION_LIFETIME
               value: {{ .Values.agent.assertionLifetime | quote }}
-            {{- with .Values.agent.ingestToken.secretName }}
+            {{- with include "loco-core.exporterTokenSecret" . }}
             - name: LOCO_INGEST_TOKEN_SECRET
               value: {{ . | quote }}
             - name: LOCO_INGEST_TOKEN_SECRET_KEY
-              value: {{ $.Values.agent.ingestToken.secretKey | quote }}
-            - name: LOCO_INGEST_TOKEN_NAMESPACE
-              value: {{ $.Values.global.observability.namespace | quote }}
+              value: {{ include "loco-core.exporterTokenKey" $ | quote }}
+            - name: LOCO_INGEST_TOKEN_NAMESPACES
+              value: {{ include "loco-core.exporterTokenNamespaces" $ | quote }}
             {{- end }}
             {{- with include "loco-core.joinTokenSecret" . }}
             - name: LOCO_JOIN_TOKEN

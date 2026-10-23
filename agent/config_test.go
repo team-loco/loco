@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log/slog"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,10 +13,10 @@ import (
 )
 
 const (
-	testAgentVersion    = "sha-test"
-	testIngestSecret    = "loco-otlp-exporter" //nolint:gosec
-	testIngestSecretKey = "token"
-	testIngestNamespace = "observability"
+	testAgentVersion     = "sha-test"
+	testIngestSecret     = "loco-otlp-exporter" //nolint:gosec
+	testIngestSecretKey  = "token"
+	testIngestNamespaces = "observability,observability-node"
 )
 
 func agentEnv() map[string]string {
@@ -218,26 +219,30 @@ func TestParseAgentConfigReadsTheIngestTokenSecret(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parseAgentConfig: %v", err)
 	}
-	if cfg.IngestTokenSecret != (telemetrytoken.Secret{}) {
+	if !reflect.DeepEqual(cfg.IngestTokenSecret, telemetrytoken.Secret{}) {
 		t.Fatalf("ingest token Secret = %+v, want none when %s is unset", cfg.IngestTokenSecret, envIngestTokenSecret)
 	}
 	env := agentEnv()
 	env[envIngestTokenSecret] = testIngestSecret
 	env[envIngestTokenSecretKey] = testIngestSecretKey
-	env[envIngestTokenNamespace] = testIngestNamespace
+	env[envIngestTokenNamespaces] = testIngestNamespaces
 	cfg, err = parseAgentConfig(lookup(env), testAgentVersion)
 	if err != nil {
 		t.Fatalf("parseAgentConfig: %v", err)
 	}
-	want := telemetrytoken.Secret{Namespace: testIngestNamespace, Name: testIngestSecret, Key: testIngestSecretKey}
-	if cfg.IngestTokenSecret != want {
+	want := telemetrytoken.Secret{
+		Namespaces: strings.Split(testIngestNamespaces, namespaceSeparator),
+		Name:       testIngestSecret,
+		Key:        testIngestSecretKey,
+	}
+	if !reflect.DeepEqual(cfg.IngestTokenSecret, want) {
 		t.Fatalf("ingest token Secret = %+v, want %+v", cfg.IngestTokenSecret, want)
 	}
-	for _, name := range []string{envIngestTokenSecretKey, envIngestTokenNamespace} {
+	for _, name := range []string{envIngestTokenSecretKey, envIngestTokenNamespaces} {
 		missing := agentEnv()
 		missing[envIngestTokenSecret] = testIngestSecret
 		missing[envIngestTokenSecretKey] = testIngestSecretKey
-		missing[envIngestTokenNamespace] = testIngestNamespace
+		missing[envIngestTokenNamespaces] = testIngestNamespaces
 		delete(missing, name)
 		if _, err := parseAgentConfig(lookup(missing), testAgentVersion); !errors.Is(err, errMissingEnv) {
 			t.Errorf("parseAgentConfig without %s = %v, want errMissingEnv", name, err)

@@ -1,27 +1,30 @@
-{{- with .Values.agent.ingestToken.secretName }}
+{{- with include "loco-core.exporterTokenSecret" . }}
+{{- $secret := . }}
+{{- range $namespace := include "loco-core.exporterTokenNamespaces" $ | splitList "," }}
+---
 apiVersion: v1
 kind: Secret
 metadata:
-  name: {{ . }}
-  namespace: {{ $.Values.global.observability.namespace }}
+  name: {{ $secret }}
+  namespace: {{ $namespace }}
 type: Opaque
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: {{ $.Release.Name }}-agent-ingest-token
-  namespace: {{ $.Values.global.observability.namespace }}
+  namespace: {{ $namespace }}
 rules:
   - apiGroups: [""]
     resources: ["secrets"]
-    resourceNames: [{{ . | quote }}]
+    resourceNames: [{{ $secret | quote }}]
     verbs: ["get", "update"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: {{ $.Release.Name }}-agent-ingest-token
-  namespace: {{ $.Values.global.observability.namespace }}
+  namespace: {{ $namespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -30,4 +33,5 @@ subjects:
   - kind: ServiceAccount
     name: {{ $.Release.Name }}-agent
     namespace: {{ $.Release.Namespace }}
+{{- end }}
 {{- end }}

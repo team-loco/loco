@@ -18,14 +18,14 @@ import (
 const renewalDivisor = 2
 
 type Secret struct {
-	Namespace string
-	Name      string
-	Key       string
+	Namespaces []string
+	Name       string
+	Key        string
 }
 
 type Renewer struct {
 	client  ingestv1connect.IngestServiceClient
-	secrets corev1client.SecretInterface
+	kube    kubernetes.Interface
 	secret  Secret
 	backoff func() wait.Backoff
 }
@@ -36,8 +36,7 @@ func NewRenewer(
 	secret Secret,
 	backoff func() wait.Backoff,
 ) *Renewer {
-	secrets := kube.CoreV1().Secrets(secret.Namespace)
-	return &Renewer{client: client, secrets: secrets, secret: secret, backoff: backoff}
+	return &Renewer{client: client, kube: kube, secret: secret, backoff: backoff}
 }
 
 func RenewalDelay(now, expiresAt time.Time) time.Duration {
@@ -75,16 +74,25 @@ func (r *Renewer) renew(ctx context.Context) (time.Time, error) {
 	if err != nil {
 		return time.Time{}, fmt.Errorf("issue telemetry token: %w", err)
 	}
-	secret, err := r.secrets.Get(ctx, r.secret.Name, metav1.GetOptions{})
+	for _, namespace := range r.secret.Namespaces {
+		if err := r.write(ctx, r.kube.CoreV1().Secrets(namespace), resp.GetToken()); err != nil {
+			return time.Time{}, fmt.Errorf("telemetry token Secret %s/%s: %w", namespace, r.secret.Name, err)
+		}
+	}
+	return resp.GetExpiresAt().AsTime(), nil
+}
+
+func (r *Renewer) write(ctx context.Context, secrets corev1client.SecretInterface, token string) error {
+	secret, err := secrets.Get(ctx, r.secret.Name, metav1.GetOptions{})
 	if err != nil {
-		return time.Time{}, fmt.Errorf("read telemetry token Secret %s/%s: %w", r.secret.Namespace, r.secret.Name, err)
+		return fmt.Errorf("read: %w", err)
 	}
 	if secret.Data == nil {
 		secret.Data = map[string][]byte{}
 	}
-	secret.Data[r.secret.Key] = []byte(resp.GetToken())
-	if _, err := r.secrets.Update(ctx, secret, metav1.UpdateOptions{}); err != nil {
-		return time.Time{}, fmt.Errorf("write telemetry token Secret %s/%s: %w", r.secret.Namespace, r.secret.Name, err)
+	secret.Data[r.secret.Key] = []byte(token)
+	if _, err := secrets.Update(ctx, secret, metav1.UpdateOptions{}); err != nil {
+		return fmt.Errorf("write: %w", err)
 	}
-	return resp.GetExpiresAt().AsTime(), nil
+	return nil
 }

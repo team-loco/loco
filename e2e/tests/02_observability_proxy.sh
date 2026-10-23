@@ -90,7 +90,8 @@ otlp_logs_body() {
 }
 
 ingest_token() {
-    kubectl --context "kind-${E2E_KIND_CLUSTER}" -n "$E2E_OBS_NAMESPACE" get secret "$E2E_INGEST_TOKEN_SECRET" \
+    local namespace=${1:-$E2E_OBS_NAMESPACE}
+    kubectl --context "kind-${E2E_KIND_CLUSTER}" -n "$namespace" get secret "$E2E_INGEST_TOKEN_SECRET" \
         -o jsonpath="{.data.${E2E_INGEST_TOKEN_SECRET_KEY}}" | base64 -d
 }
 
@@ -130,6 +131,7 @@ test_p06_otlp_ingest_requires_an_enrolled_cluster_token() {
     wait_for "the agent to write the ingest token" 60 ingest_token_written
     token=$(ingest_token)
     assert "The agent wrote an ingest token to the collector Secret" test -n "$token"
+    assert "The node collector namespace holds the same token" test "$(ingest_token "$E2E_OBS_NODE_NAMESPACE")" = "$token"
     status=$(otlp_status "$cli_workspace_id" "$marker")
     assert "OTLP without a token is unauthenticated (HTTP ${status})" test "$status" = 401
     status=$(otlp_status "$cli_workspace_id" "$marker" -H "Authorization: Bearer $(forged_token "$token")")

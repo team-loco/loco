@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -21,6 +22,7 @@ import (
 
 const (
 	testNamespace     = "observability"
+	testNodeNamespace = "observability-node"
 	testSecretName    = "otlp-exporter"
 	testSecretKey     = "token"
 	testOtherKey      = "other"
@@ -83,10 +85,12 @@ func testBackoff() wait.Backoff {
 	return wait.Backoff{Duration: testRetryDelay, Factor: 1, Steps: 1 << 30, Cap: testRetryDelay}
 }
 
-func existingSecret() *corev1.Secret {
+var testNamespaces = []string{testNamespace, testNodeNamespace}
+
+func existingSecret(namespace string) *corev1.Secret {
 	return &corev1.Secret{
 		Name:      testSecretName,
-		Namespace: testNamespace,
+		Namespace: namespace,
 		Data:      map[string][]byte{testOtherKey: []byte(testOtherValue)},
 	}
 }
@@ -96,7 +100,7 @@ func startRenewer(t *testing.T, issuer *scriptedIssuer, kube *fake.Clientset) {
 	server := connect.NewServer()
 	ingestv1connect.RegisterIngestServiceHandler(server, issuer)
 	client := ingestv1connect.NewIngestServiceClient(connect.NewClient(connectinprocess.New(server)))
-	secret := Secret{Namespace: testNamespace, Name: testSecretName, Key: testSecretKey}
+	secret := Secret{Namespaces: testNamespaces, Name: testSecretName, Key: testSecretKey}
 	renewer := NewRenewer(client, kube, secret, testBackoff)
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
@@ -112,14 +116,30 @@ func startRenewer(t *testing.T, issuer *scriptedIssuer, kube *fake.Clientset) {
 
 func storedToken(t *testing.T, kube *fake.Clientset) string {
 	t.Helper()
-	secret, err := kube.CoreV1().Secrets(testNamespace).Get(t.Context(), testSecretName, metav1.GetOptions{})
-	if err != nil {
-		return ""
+	var token string
+	for i, namespace := range testNamespaces {
+		secret, err := kube.CoreV1().Secrets(namespace).Get(t.Context(), testSecretName, metav1.GetOptions{})
+		if err != nil {
+			return ""
+		}
+		if string(secret.Data[testOtherKey]) != testOtherValue {
+			t.Fatalf("renewal dropped key %s from the Secret in %s", testOtherKey, namespace)
+		}
+		stored := string(secret.Data[testSecretKey])
+		if i > 0 && stored != token {
+			return ""
+		}
+		token = stored
 	}
-	if string(secret.Data[testOtherKey]) != testOtherValue {
-		t.Fatalf("renewal dropped key %s from the Secret", testOtherKey)
+	return token
+}
+
+func existingSecrets() []runtime.Object {
+	objects := make([]runtime.Object, 0, len(testNamespaces))
+	for _, namespace := range testNamespaces {
+		objects = append(objects, existingSecret(namespace))
 	}
-	return string(secret.Data[testSecretKey])
+	return objects
 }
 
 func waitForIssuances(t *testing.T, issuer *scriptedIssuer, count int) []issuance {
@@ -156,7 +176,7 @@ func TestRenewalDelayIsHalfTheRemainingLifetime(t *testing.T) {
 
 func TestRenewerWritesEachTokenBeforeThePreviousExpires(t *testing.T) {
 	issuer := &scriptedIssuer{script: []step{{lifetime: testShortLifetime}, {lifetime: testShortLifetime}}}
-	kube := fake.NewClientset(existingSecret())
+	kube := fake.NewClientset(existingSecrets()...)
 	startRenewer(t, issuer, kube)
 
 	issued := waitForIssuances(t, issuer, 3)
@@ -171,7 +191,7 @@ func TestRenewerWritesEachTokenBeforeThePreviousExpires(t *testing.T) {
 
 func TestRenewerRetriesAFailedRenewal(t *testing.T) {
 	issuer := &scriptedIssuer{script: []step{{fail: true}, {fail: true}, {fail: true}}}
-	kube := fake.NewClientset(existingSecret())
+	kube := fake.NewClientset(existingSecrets()...)
 	startRenewer(t, issuer, kube)
 
 	issued := waitForIssuances(t, issuer, 1)
@@ -185,7 +205,7 @@ func TestRenewerRecoversAfterTheTokenExpired(t *testing.T) {
 		outage = append(outage, step{fail: true})
 	}
 	issuer := &scriptedIssuer{script: outage}
-	kube := fake.NewClientset(existingSecret())
+	kube := fake.NewClientset(existingSecrets()...)
 	startRenewer(t, issuer, kube)
 
 	issued := waitForIssuances(t, issuer, 2)
@@ -197,12 +217,15 @@ func TestRenewerRecoversAfterTheTokenExpired(t *testing.T) {
 
 func TestRenewerRetriesUntilTheSecretExists(t *testing.T) {
 	issuer := &scriptedIssuer{}
-	kube := fake.NewClientset()
+	kube := fake.NewClientset(existingSecret(testNamespace))
 	startRenewer(t, issuer, kube)
 
 	waitForIssuances(t, issuer, 2)
-	secrets := kube.CoreV1().Secrets(testNamespace)
-	if _, err := secrets.Create(t.Context(), existingSecret(), metav1.CreateOptions{}); err != nil {
+	if storedToken(t, kube) != "" {
+		t.Fatal("token stored before every namespace had its Secret")
+	}
+	secrets := kube.CoreV1().Secrets(testNodeNamespace)
+	if _, err := secrets.Create(t.Context(), existingSecret(testNodeNamespace), metav1.CreateOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	deadline := time.Now().Add(testWait)
