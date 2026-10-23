@@ -2,11 +2,10 @@ package tvm
 
 import (
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/hex"
 	"strings"
 
-	"github.com/google/uuid"
+	"github.com/team-loco/loco/internal/bearer"
 )
 
 const (
@@ -15,14 +14,8 @@ const (
 	prefixAPIKey  = "loco_k_"
 )
 
-// generateToken creates a new token with the given prefix using a UUIDv7,
-// and returns both the raw token string and its SHA-256 hex hash.
-// The raw token is returned to the caller once and never stored.
-// Only the hash is persisted.
 func generateToken(prefix string) (token string, hash string) {
-	id := uuid.Must(uuid.NewV7())
-	encoded := base64.RawURLEncoding.EncodeToString(id[:])
-	token = prefix + encoded
+	token = bearer.New(prefix)
 	return token, hashToken(token)
 }
 

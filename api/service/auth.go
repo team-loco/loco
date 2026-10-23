@@ -26,6 +26,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/tvm"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
+	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
@@ -101,14 +102,6 @@ func devicePollKey(deviceDigest string) string {
 func digest(value string) string {
 	sum := sha256.Sum256([]byte(value))
 	return hex.EncodeToString(sum[:])
-}
-
-func randomToken() (string, error) {
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
 func randomUserCode() (string, error) {
@@ -215,10 +208,7 @@ func (s *AuthServer) ApproveCLILogin(
 		return nil, err
 	}
 	grant.Challenge = req.GetCodeChallenge()
-	code, err := randomToken()
-	if err != nil {
-		return nil, rpcerr.New(connect.CodeInternal, ErrAuthStoreAvailable)
-	}
+	code := bearer.New("")
 	payload, err := json.Marshal(grant)
 	if err != nil {
 		return nil, rpcerr.New(connect.CodeInternal, ErrAuthStoreAvailable)
@@ -282,10 +272,7 @@ func (s *AuthServer) StartDeviceLogin(
 	ctx context.Context,
 	_ *authv1.StartDeviceLoginRequest,
 ) (*authv1.StartDeviceLoginResponse, error) {
-	deviceCode, err := randomToken()
-	if err != nil {
-		return nil, rpcerr.New(connect.CodeInternal, ErrAuthStoreAvailable)
-	}
+	deviceCode := bearer.New("")
 	userCode, err := randomUserCode()
 	if err != nil {
 		return nil, rpcerr.New(connect.CodeInternal, ErrAuthStoreAvailable)

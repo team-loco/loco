@@ -29,8 +29,8 @@ CREATE INDEX user_scopes_workspace_idx ON user_scopes (workspace_ref) WHERE work
 CREATE INDEX user_scopes_resource_idx ON user_scopes (resource_ref) WHERE resource_ref IS NOT NULL;
 
 -- session tokens: ephemeral, unlogged, scopes always resolved live from user_scopes
--- token format: loco_s_<base64url(uuidv7 bytes)>  access token
---               loco_r_<base64url(uuidv7 bytes)>  refresh token
+-- token format: loco_s_<base64url(32 random bytes)>  access token
+--               loco_r_<base64url(32 random bytes)>  refresh token
 -- stored as sha256(full_token_string), never the raw token
 CREATE UNLOGGED TABLE session_tokens (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
@@ -53,7 +53,7 @@ CREATE INDEX session_tokens_access_expires_idx ON session_tokens (access_expires
 CREATE INDEX session_tokens_refresh_expires_idx ON session_tokens (refresh_expires_at);
 
 -- api tokens: logged, durable, scopes baked in at creation and never change
--- token format: loco_k_<base64url(uuidv7 bytes)>
+-- token format: loco_k_<base64url(32 random bytes)>
 -- stored as sha256(full_token_string), never the raw token
 CREATE TABLE api_tokens (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
