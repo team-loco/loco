@@ -183,6 +183,16 @@ This command skips all source builds and uploads, including builds for other ser
 
 `env` holds plain values, which appear in the plan and in the file. Configure application trace sampling with standard OpenTelemetry variables under `env`; there is no separate tracing block. See [Trace sampling](../operations/applications.md#trace-sampling) for a portable example and SDK defaults.
 
+A plain value can reference a variable Loco sets, listed in [Runtime environment](../operations/applications.md#runtime-environment), as `$(NAME)`; Kubernetes expands it when the container starts. Use it for software that takes the collector address in its own variables:
+
+```yaml
+env:
+  OTEL_COLLECTOR_HOST: $(LOCO_OTEL_HOST)
+  OTEL_COLLECTOR_PORT_GRPC: $(LOCO_OTEL_GRPC_PORT)
+```
+
+`$$(NAME)` produces a literal `$(NAME)`.
+
 `secrets` lists the secret names the service reads; the file never contains their values. A secret belongs to one service in one environment, and `loco env` sets it:
 
 ```sh

@@ -43,6 +43,11 @@ obs_trace_id_bytes=16
 obs_span_id_bytes=8
 obs_marker_bytes=6
 
+obs_endpoint_reference='http://$(LOCO_OTEL_HOST):$(LOCO_OTEL_HTTP_PORT)'
+obs_operator_values="$E2E_ROOT_DIR/charts/loco-operator/values.yaml"
+obs_collector_host=$(yq '.observability.collector.service + "." + .observability.namespace + ".svc.cluster.local"' "$obs_operator_values")
+obs_collector_endpoint="http://${obs_collector_host}:$(yq '.observability.collector.httpPort' "$obs_operator_values")"
+
 obs_second_workspace_id='00000000-0000-7000-8000-000000000013'
 obs_second_workspace_name='e2e-observability-isolation'
 
@@ -218,6 +223,21 @@ obs_seed_second_workspace() {
 obs_write_config() {
     cli_write_service_config "$obs_app_dir" "$obs_app" "$obs_app_port" /healthz
     obs_app="$obs_app" yq -i '.services[strenv(obs_app)].metrics = {"port": 9090, "path": "/metrics"}' "$obs_app_dir/loco.yaml"
+    obs_app="$obs_app" endpoint="$obs_endpoint_reference" \
+        yq -i '.services[strenv(obs_app)].env.OTEL_EXPORTER_OTLP_ENDPOINT = strenv(endpoint)' "$obs_app_dir/loco.yaml"
+}
+
+obs_container_env() {
+    obs_kube -n "ws-${obs_workspace_id}" get deployment "resource-${obs_resource_id}" \
+        -o jsonpath='{range .spec.template.spec.containers[0].env[*]}{.name}={.value}{"\n"}{end}'
+}
+
+obs_fixture_logs() {
+    obs_kube -n "ws-${obs_workspace_id}" logs "deployment/resource-${obs_resource_id}"
+}
+
+obs_fixture_logs_endpoint() {
+    obs_fixture_logs | grep -F "otlp_endpoint=${obs_collector_endpoint}"
 }
 
 test_o01_deploys_the_fixture_through_loco() {
@@ -273,7 +293,29 @@ test_o01_deploys_the_fixture_through_loco() {
         printf '**Pod environment and labels**\n\n```console\n'
         obs_kube -n "ws-${obs_workspace_id}" get pods -l "loco.io/resource-id=${obs_resource_id}" \
             -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{.metadata.labels}{"\n"}{range .spec.containers[*].env[*]}{.name}={.value}{"\n"}{end}{end}' |
-            grep -E '^(resource-|\{|OTEL_|LOCO_WORKSPACE)' || true
+            grep -E '^(resource-|\{|OTEL_|LOCO_WORKSPACE|LOCO_OTEL_)' || true
+        printf '```\n\n'
+    } >>"$obs_evidence"
+}
+
+test_o01_resolves_the_collector_reference() {
+    local env host_line reference_line
+    env=$(obs_container_env) || return 1
+    host_line=$(grep -n -x -F "LOCO_OTEL_HOST=${obs_collector_host}" <<<"$env" | cut -d: -f1)
+    reference_line=$(grep -n -x -F "OTEL_EXPORTER_OTLP_ENDPOINT=${obs_endpoint_reference}" <<<"$env" | cut -d: -f1)
+    assert "LOCO_OTEL_HOST is the collector Service ${obs_collector_host}" test -n "$host_line" || return 1
+    assert "loco.yaml's ${obs_endpoint_reference} follows LOCO_OTEL_HOST in the container env" \
+        test "${reference_line:-0}" -gt "$host_line" || return 1
+    assert "the fixture's OTLP endpoint expands to ${obs_collector_endpoint}" \
+        wait_for "the fixture's startup log" "$obs_route_timeout_seconds" obs_fixture_logs_endpoint || {
+        obs_fixture_logs | sed 's/^/    /'
+        return 1
+    }
+    {
+        printf '## Collector reference\n\n'
+        printf 'loco.yaml sets `OTEL_EXPORTER_OTLP_ENDPOINT: %s`; the fixture logs the value it reads.\n\n' "$obs_endpoint_reference"
+        printf '```console\n'
+        obs_fixture_logs | grep -F 'otlp_endpoint=' || true
         printf '```\n\n'
     } >>"$obs_evidence"
 }

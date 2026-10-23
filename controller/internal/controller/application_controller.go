@@ -639,8 +639,9 @@ func systemEnvVars(
 		{Name: "LOCO_INTERNAL_DOMAIN", Value: internalDomain},
 		{Name: "LOCO_PUBLIC_DOMAIN", Value: publicDomain},
 	}
+	collectorVars := collectorEnvVars(telemetry)
 	otelVars := openTelemetryEnvVars(locoRes, telemetry, secretNames)
-	vars := slices.Concat(locoVars, otelVars)
+	vars := slices.Concat(locoVars, collectorVars, otelVars)
 
 	envVars := make([]*corev1ac.EnvVarApplyConfiguration, 0, len(vars))
 	for _, v := range vars {
@@ -702,7 +703,7 @@ func desiredDeployment(
 
 	systemVars := systemEnvVars(locoRes, telemetry, envSecret.Names)
 	plainVars := plainEnvVars(spec.Deployment.Env, systemVars)
-	envVars := slices.Concat(plainVars, systemVars)
+	envVars := slices.Concat(systemVars, plainVars)
 	port := corev1ac.ContainerPort().
 		WithName("http").
 		WithContainerPort(containerPort).

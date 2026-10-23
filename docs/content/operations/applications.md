@@ -44,13 +44,14 @@ By default, the controller sets these variables in every application container:
 | `LOCO_APP_NAME`, `LOCO_RESOURCE_ID`, `LOCO_WORKSPACE_ID`, `LOCO_DEPLOYMENT_ID` | the application's identifiers |
 | `LOCO_REGION`, `LOCO_ENVIRONMENT` | the region and environment the deployment targets |
 | `LOCO_INTERNAL_DOMAIN`, `LOCO_PUBLIC_DOMAIN` | the in-cluster hostname, and the public hostname or an empty string |
+| `LOCO_OTEL_HOST`, `LOCO_OTEL_GRPC_PORT`, `LOCO_OTEL_HTTP_PORT` | the region's OpenTelemetry collector hostname and its OTLP/gRPC and OTLP/HTTP ports |
 | `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL` | the region's OpenTelemetry collector over OTLP/HTTP (`http/protobuf`) |
 | `OTEL_SERVICE_NAME` | the application's workload name, `resource-<resource id>` |
 | `OTEL_RESOURCE_ATTRIBUTES` | `deployment.environment.name` and `loco.deployment.id` |
 
 An instrumented application whose OpenTelemetry SDK supports environment configuration uses these variables to export to Loco. The collector attaches the workspace, environment and resource IDs from the pod's labels and drops any values the application sends for them.
 
-An `OTEL_*` variable in `loco.yaml` under `env`, or named in `secrets` and set with `loco env`, replaces Loco's connection or identity default when the name matches. Sampler variables pass directly to the SDK. Plain values take precedence when the same name also appears in `secrets`. `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL` go together: setting either one drops both of Loco's values, so an endpoint is never paired with the wrong protocol. The `LOCO_*` variables cannot be overridden.
+An `OTEL_*` variable in `loco.yaml` under `env`, or named in `secrets` and set with `loco env`, replaces Loco's connection or identity default when the name matches. Sampler variables pass directly to the SDK. Plain values take precedence when the same name also appears in `secrets`. `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL` go together: setting either one drops both of Loco's values, so an endpoint is never paired with the wrong protocol. The `LOCO_*` variables cannot be overridden. A plain value can reference them as `$(LOCO_OTEL_HOST)`; see [Variables and secrets](../deployment/loco-yaml.md#variables-and-secrets).
 
 Dashboard redeploy and rollback keep the current plain environment values and declared secret names for the target environment and region. `CreateDeployment` has the same behavior when its environment map is empty; a nonempty map replaces the plain values while retaining the secret names. To remove plain values or secret declarations, edit `loco.yaml` and apply it.
 

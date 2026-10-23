@@ -103,7 +103,16 @@ var _ = Describe("Application reconcile", func() {
 			Name:  envOTLPEndpoint,
 			Value: testCollectorEndpoint,
 		}))
-		Expect(container.Env[0]).To(Equal(corev1.EnvVar{Name: "A", Value: "1"}))
+		Expect(container.Env).To(ContainElement(corev1.EnvVar{
+			Name:  envOTelHost,
+			Value: testCollectorHost,
+		}))
+		plainStart := len(container.Env) - len(app.Spec.ServiceSpec.Deployment.Env)
+		Expect(container.Env[plainStart:]).To(Equal([]corev1.EnvVar{
+			{Name: "A", Value: "1"},
+			{Name: "B", Value: "2"},
+			{Name: "C", Value: "3"},
+		}))
 		Expect(dep.Spec.Template.Annotations).To(HaveKeyWithValue(annotationEnvSecretRevision, "2"))
 		envSecret := &corev1.Secret{}
 		Expect(k8sClient.Get(ctx, envKey, envSecret)).To(Succeed())
