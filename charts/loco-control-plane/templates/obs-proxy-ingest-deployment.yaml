@@ -42,7 +42,7 @@ spec:
             - name: INGEST_ENABLED
               value: "true"
             - name: PORT
-              value: {{ .Values.obsProxy.port | quote }}
+              value: {{ .Values.obsProxy.ingest.port | quote }}
             - name: OTLP_GRPC_PORT
               value: {{ .Values.obsProxy.ingest.grpcPort | quote }}
             - name: OTLP_HTTP_PORT
@@ -54,7 +54,7 @@ spec:
                   key: {{ required "obsProxy.ingest.clickhouse.existingSecret.key is required" .Values.obsProxy.ingest.clickhouse.existingSecret.key | quote }}
           ports:
             - name: health
-              containerPort: {{ .Values.obsProxy.port }}
+              containerPort: {{ .Values.obsProxy.ingest.port }}
             - name: otlp-grpc
               containerPort: {{ .Values.obsProxy.ingest.grpcPort }}
             - name: otlp-http

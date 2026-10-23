@@ -21,7 +21,7 @@ spec:
         {{- if .Values.obsProxy.enabled }}
         - podSelector:
             matchLabels:
-              app: {{ .Release.Name }}-obs-proxy
+              app: {{ .Release.Name }}-obs-proxy-query
         {{- end }}
       ports:
         - protocol: TCP

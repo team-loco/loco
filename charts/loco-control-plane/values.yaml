@@ -41,28 +41,29 @@ controlPlaneHostname: api.loco.build
 
 obsProxy:
   enabled: true
-  cors:
-    allowedOrigins: []
   image:
     repository: ghcr.io/team-loco/loco-obs-proxy
     tag: ""
   imagePullPolicy: Always
-  replicaCount: 1
-  resources:
-    requests:
-      cpu: 100m
-      memory: 256Mi
-    limits:
-      cpu: 1000m
-      memory: 1Gi
-  port: 8080
-  clickhouse:
-    existingSecret:
-      name: ""
-      key: url
-    migratorExistingSecret:
-      name: ""
-      key: url
+  query:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+    port: 8080
+    cors:
+      allowedOrigins: []
+    clickhouse:
+      existingSecret:
+        name: ""
+        key: url
+      migratorExistingSecret:
+        name: ""
+        key: url
   ingest:
     enabled: false
     replicaCount: 1
@@ -73,6 +74,7 @@ obsProxy:
       limits:
         cpu: 1000m
         memory: 1Gi
+    port: 8080
     grpcPort: 4317
     httpPort: 4318
     clickhouse:

@@ -34,7 +34,7 @@ cleanup() {
     if [[ $result -ne 0 ]]; then
         kubectl -n "$NAMESPACE" get pods,events -o wide >"$RUN_DIR/diagnostics.txt" 2>&1 || true
         kubectl -n "$NAMESPACE" logs -l app=regional-api --all-pods=true --tail=200 >>"$RUN_DIR/diagnostics.txt" 2>&1 || true
-        kubectl -n "$NAMESPACE" logs deployment/regional-obs-proxy --tail=200 >>"$RUN_DIR/diagnostics.txt" 2>&1 || true
+        kubectl -n "$NAMESPACE" logs deployment/regional-obs-proxy-query --tail=200 >>"$RUN_DIR/diagnostics.txt" 2>&1 || true
         kubectl -n "$NAMESPACE" logs deployment/regional-obs-proxy-ingest --tail=200 >>"$RUN_DIR/diagnostics.txt" 2>&1 || true
     fi
     if [[ $KEEP == false ]]; then
@@ -94,8 +94,8 @@ helm upgrade --install regional "$ROOT_DIR/charts/loco-control-plane" --namespac
     --set gatewayNamespace="$NAMESPACE" --set controlPlaneHostname=api.e2e.test.local \
     --set ui.hostname=app.e2e.test.local --set ui.image.repository=loco-ui --set ui.image.tag=e2e --set ui.imagePullPolicy=Never \
     --set obsProxy.image.repository=loco-obs-proxy --set obsProxy.image.tag=e2e --set obsProxy.imagePullPolicy=Never \
-    --set obsProxy.clickhouse.existingSecret.name=clickhouse-reader \
-    --set obsProxy.clickhouse.migratorExistingSecret.name=clickhouse-migrator \
+    --set obsProxy.query.clickhouse.existingSecret.name=clickhouse-reader \
+    --set obsProxy.query.clickhouse.migratorExistingSecret.name=clickhouse-migrator \
     --set obsProxy.ingest.enabled=true --set obsProxy.ingest.clickhouse.existingSecret.name=clickhouse-ingest \
     --wait --timeout "$TIMEOUT"
 ENVOY_DEPLOYMENT=""

@@ -16,7 +16,7 @@ def test_chart_installs_api_and_proxy_without_migration_jobs():
         for document in documents
         if document["kind"] == "Deployment"
     }
-    assert deployments == {"loco-control-plane-api", "loco-control-plane-obs-proxy"}
+    assert deployments == {"loco-control-plane-api", "loco-control-plane-obs-proxy-query"}
     assert not any((document["kind"] == "Job" for document in documents))
     routes = [document for document in documents if document["kind"] == "HTTPRoute"]
     assert len(routes) == 1
@@ -42,7 +42,7 @@ def test_api_uses_existing_secret_and_private_proxy():
     assert env["APP_ENV"] == "production"
     assert (
         env["OBSERVABILITY_PROXY_URL"]
-        == "http://loco-control-plane-obs-proxy.platform-test.svc.cluster.local"
+        == "http://loco-control-plane-obs-proxy-query.platform-test.svc.cluster.local"
     )
     assert api["startupProbe"] == {
         "httpGet": {"path": "/health", "port": "http"},
@@ -78,7 +78,7 @@ def test_chart_owns_port_and_proxy_wiring():
 
 
 def test_only_api_can_reach_private_proxy():
-    policy = render("loco-control-plane", "obs-proxy-network-policy.yaml", {})
+    policy = render("loco-control-plane", "obs-proxy-query-network-policy.yaml", {})
     (rule,) = policy["spec"]["ingress"]
     assert rule["from"] == [
         {"podSelector": {"matchLabels": {"app": "loco-control-plane-api"}}}
@@ -95,7 +95,7 @@ def test_gateway_and_proxy_can_reach_api():
         "kubernetes.io/metadata.name": "gateway"
     }
     assert rule["from"][1] == {
-        "podSelector": {"matchLabels": {"app": "loco-control-plane-obs-proxy"}}
+        "podSelector": {"matchLabels": {"app": "loco-control-plane-obs-proxy-query"}}
     }
 
 
@@ -213,7 +213,7 @@ def test_ingest_runs_as_its_own_deployment_without_migrator_rights():
     }
     assert set(deployments) == {
         "loco-control-plane-api",
-        "loco-control-plane-obs-proxy",
+        "loco-control-plane-obs-proxy-query",
         "loco-control-plane-obs-proxy-ingest",
     }
     pod = deployments["loco-control-plane-obs-proxy-ingest"]["spec"]["template"]
@@ -232,6 +232,7 @@ def test_ingest_runs_as_its_own_deployment_without_migrator_rights():
     assert not {"CLICKHOUSE_URL", "CLICKHOUSE_MIGRATOR_URL", "CONTROL_PLANE_URL"} & set(env)
     ports = {port["name"]: port["containerPort"] for port in container["ports"]}
     assert ports == {"health": 8080, "otlp-grpc": 4317, "otlp-http": 4318}
+    assert env["PORT"]["value"] == "8080"
     assert env["OTLP_GRPC_PORT"]["value"] == "4317"
     assert env["OTLP_HTTP_PORT"]["value"] == "4318"
     assert container["readinessProbe"]["httpGet"] == {"path": "/readyz", "port": "health"}
@@ -247,8 +248,8 @@ def test_ingest_runs_as_its_own_deployment_without_migrator_rights():
         (4317, "otlp-grpc"),
         (4318, "otlp-http"),
     ]
-    assert services["loco-control-plane-obs-proxy"]["spec"]["selector"] == {
-        "app": "loco-control-plane-obs-proxy"
+    assert services["loco-control-plane-obs-proxy-query"]["spec"]["selector"] == {
+        "app": "loco-control-plane-obs-proxy-query"
     }
 
     (policy,) = [

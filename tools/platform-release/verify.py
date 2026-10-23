@@ -59,7 +59,7 @@ def main():
             'ui': {'image': {'repository': images['ui'].split('@')[0], 'tag': f'sha-{FIXTURE_COMMIT}@{FIXTURE_DIGEST}'}},
             'api': {'image': {'repository': images['api'].split('@')[0], 'tag': f'sha-{FIXTURE_COMMIT}@{FIXTURE_DIGEST}'}, 'existingSecret': 'regional-api-env'},
             'obsProxy': {'image': {'repository': images['obs-proxy'].split('@')[0], 'tag': f'sha-{FIXTURE_COMMIT}@{FIXTURE_DIGEST}'},
-                         'clickhouse': {'existingSecret': {'name': 'reader'}, 'migratorExistingSecret': {'name': 'migrator'}}},
+                         'query': {'clickhouse': {'existingSecret': {'name': 'reader'}, 'migratorExistingSecret': {'name': 'migrator'}}}},
         }
         cp_path = temp / 'control-plane-values.json'
         cp_path.write_text(json.dumps(cp_values))
