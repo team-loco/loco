@@ -18,6 +18,7 @@ import (
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/webhooks"
 	"github.com/team-loco/loco/internal/buildinfo"
+	"github.com/team-loco/loco/internal/ingesttoken"
 	"golang.org/x/mod/semver"
 )
 
@@ -43,6 +44,7 @@ var (
 	errUnknownSecretsProvider  = errors.New("LOCO_SECRETS_KEY_PROVIDER is invalid")
 	errInvalidSecretsTransit   = errors.New("LOCO_SECRETS_TRANSIT_* is invalid")
 	errShortBootstrapToken     = errors.New(bootstrapEnv + " is too short")
+	errInvalidIngestKeys       = errors.New("LOCO_INGEST_SIGNING_KEYS is invalid")
 )
 
 const (
@@ -101,13 +103,15 @@ const (
 	defaultClusterJoinTokenTTL       = time.Hour
 	defaultAgentAssertionMaxLifetime = 5 * time.Minute
 
-	bootstrapEnv            = "LOCO_BOOTSTRAP_TOKEN"
-	minBootstrapTokenLength = 32
+	bootstrapEnv               = "LOCO_BOOTSTRAP_TOKEN"
+	minBootstrapTokenLength    = 32
+	defaultIngestTokenLifetime = time.Hour
 )
 
 type APIConfig struct {
 	ObservabilityProxyURL *url.URL
 	Agent                 service.AgentConfig
+	Ingest                service.IngestConfig
 	Version               string
 	Env                   string // Environment (e.g., dev, prod)
 	DatabaseURL           string // PostgreSQL connection string
@@ -145,6 +149,7 @@ func newAPIConfig() *APIConfig {
 	observabilityRaw := stringEnv("OBSERVABILITY_PROXY_URL", "")
 	observabilityURL := parseObservabilityProxyURL(observabilityRaw)
 	agentConfig := newAgentConfig()
+	ingestConfig := newIngestConfig()
 	databaseListenConfig := newDatabaseListenConfig(databaseURL)
 	cacheType, cacheAddr := newCacheConfig()
 	registryHost := stringEnv("LOCO_REGISTRY_HOST", "")
@@ -179,6 +184,7 @@ func newAPIConfig() *APIConfig {
 
 	return &APIConfig{
 		Agent:                 agentConfig,
+		Ingest:                ingestConfig,
 		Version:               buildinfo.Version(version),
 		Env:                   stringEnv("APP_ENV", ""),
 		DatabaseURL:           databaseURL,
@@ -463,6 +469,19 @@ func newDatabaseListenConfig(databaseURL string) *pgx.ConnConfig {
 		panic(fmt.Errorf("invalid database listener URL: %w", err))
 	}
 	return config
+}
+
+func newIngestConfig() service.IngestConfig {
+	lifetime := positiveDurationEnv("LOCO_INGEST_TOKEN_LIFETIME", defaultIngestTokenLifetime)
+	raw := stringEnv("LOCO_INGEST_SIGNING_KEYS", "")
+	if raw == "" {
+		return service.IngestConfig{TokenLifetime: lifetime}
+	}
+	keys, err := ingesttoken.ParseSigningKeys(raw)
+	if err != nil {
+		panic(fmt.Errorf("%w: %w", errInvalidIngestKeys, err))
+	}
+	return service.IngestConfig{SigningKeys: keys, TokenLifetime: lifetime}
 }
 
 func newAgentConfig() service.AgentConfig {

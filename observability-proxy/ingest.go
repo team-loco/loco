@@ -10,6 +10,7 @@ import (
 	"os"
 	"sync/atomic"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
@@ -31,7 +32,7 @@ type ingestRole struct {
 	started atomic.Bool
 }
 
-func newIngestRole(cfg *config.Config, proxyVersion string) (*ingestRole, error) {
+func newIngestRole(cfg *config.Config, proxyVersion string, registerer prometheus.Registerer) (*ingestRole, error) {
 	probe, err := chClient.NewClient(cfg.ClickHouseIngestURL, cfg.ClickHouseDB, ingestProbeConns)
 	if err != nil {
 		return nil, fmt.Errorf("connect to clickhouse for ingest: %w", err)
@@ -45,7 +46,8 @@ func newIngestRole(cfg *config.Config, proxyVersion string) (*ingestRole, error)
 		probe.Close()
 		return nil, err
 	}
-	service := ingest.NewService(writer.Consumers(), cfg.OTLPMaxRequestBytes)
+	gate := ingest.NewGate(cfg.IngestGate())
+	service := ingest.NewService(writer.Consumers(), gate, cfg.IngestService(), registerer)
 	server := &http.Server{
 		Handler:           service.Handler(),
 		ReadHeaderTimeout: readHeaderTimeout,

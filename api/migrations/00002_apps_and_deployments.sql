@@ -268,6 +268,23 @@ CREATE INDEX idx_placements_cluster_id ON placements (cluster_id);
 CREATE INDEX idx_placements_deployment_id ON placements (deployment_id);
 
 CREATE TABLE
+    placement_windows (
+        id UUID PRIMARY KEY DEFAULT uuidv7 (),
+        resource_id UUID NOT NULL,
+        cluster_id UUID NOT NULL REFERENCES clusters (id) ON DELETE CASCADE,
+        workspace_id UUID NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
+        placed_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+        removed_at TIMESTAMPTZ,
+        CHECK (removed_at IS NULL OR removed_at >= placed_at)
+    );
+
+CREATE UNIQUE INDEX uniq_placement_windows_open ON placement_windows (resource_id, cluster_id)
+WHERE
+    removed_at IS NULL;
+
+CREATE INDEX idx_placement_windows_cluster_id ON placement_windows (cluster_id);
+
+CREATE TABLE
     builds (
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
         resource_id UUID NOT NULL REFERENCES resources (id) ON DELETE CASCADE,
@@ -315,6 +332,7 @@ WHERE
 
 -- +goose Down
 DROP TABLE IF EXISTS builds;
+DROP TABLE IF EXISTS placement_windows;
 DROP TABLE IF EXISTS placements;
 DROP TABLE IF EXISTS deployments;
 DROP TABLE IF EXISTS resource_domains;

@@ -66,6 +66,9 @@ umask 077
 if [[ ! -s "$RUN_DIR/password" ]]; then
     openssl rand -hex 24 | tr -d '\n' >"$RUN_DIR/password"
 fi
+if [[ ! -s "$RUN_DIR/ingest-keys" ]]; then
+    printf 'e2e:%s' "$(openssl rand -base64 32)" >"$RUN_DIR/ingest-keys"
+fi
 kubectl -n "$NAMESPACE" create secret generic fixture-password --from-file=password="$RUN_DIR/password" --dry-run=client -o yaml | kubectl apply -f -
 yq -n '.postgresImage = load(strenv(ROOT_DIR) + "/compose.yaml").services.postgres.image' >"$RUN_DIR/fixtures.yaml"
 helm upgrade --install fixtures "$ROOT_DIR/e2e/fixtures/control-plane" --namespace "$NAMESPACE" \
@@ -77,7 +80,8 @@ import pathlib
 import sys
 root = pathlib.Path(sys.argv[1])
 password = (root / 'password').read_text().strip()
-(root / 'api.env').write_text(f'DATABASE_URL=postgresql://loco:{password}@postgres:5432/loco?sslmode=disable\nLOCO_IMAGE_RETENTION=0\n')
+ingest_keys = (root / 'ingest-keys').read_text().strip()
+(root / 'api.env').write_text(f'DATABASE_URL=postgresql://loco:{password}@postgres:5432/loco?sslmode=disable\nLOCO_IMAGE_RETENTION=0\nLOCO_INGEST_SIGNING_KEYS={ingest_keys}\n')
 now = datetime.datetime.now(datetime.UTC)
 (root / 'query.json').write_text(json.dumps({'workspaceId': '00000000-0000-0000-0000-000000000001', 'startTime': (now - datetime.timedelta(minutes=5)).isoformat(), 'endTime': now.isoformat()}))
 PY
@@ -139,11 +143,31 @@ PY
 kubectl -n "$NAMESPACE" exec deployment/postgres -- psql -U loco -d loco -Atc 'SELECT count(*) FROM goose_db_version' >"$RUN_DIR/postgres-migrations.txt"
 printf 'Two API replicas started on an empty database; dashboard and same-origin API routing work; private proxy permission check passed.\n'
 
+read -r INGEST_CLUSTER INGEST_WORKSPACE < <(kubectl -n "$NAMESPACE" exec deployment/postgres -- psql -U loco -d loco -AtF ' ' -c "
+    WITH u AS (INSERT INTO users (email) VALUES ('ingest-e2e@test.local') RETURNING id),
+    o AS (INSERT INTO organizations (name, created_by) SELECT 'ingest-e2e', id FROM u RETURNING id),
+    w AS (INSERT INTO workspaces (org_id, name, created_by) SELECT o.id, 'ingest-e2e', u.id FROM o, u RETURNING id),
+    c AS (INSERT INTO clusters (name, region, provider, is_active, is_default, agent_public_key)
+          VALUES ('ingest-e2e', 'us-east-1', 'kind', true, false, decode(repeat('00', 32), 'hex')) RETURNING id),
+    p AS (INSERT INTO placement_windows (resource_id, cluster_id, workspace_id, placed_at)
+          SELECT uuidv7(), c.id, w.id, NOW() - INTERVAL '1 hour' FROM c, w)
+    SELECT c.id, w.id FROM c, w")
+INGEST_TOKEN=$(cd "$ROOT_DIR" && go run ./tools/ingesttoken -keys "$(cat "$RUN_DIR/ingest-keys")" -cluster "$INGEST_CLUSTER")
 INGEST_MARKER="control-plane-ingest-$(openssl rand -hex 4)"
-printf '{"resourceLogs":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"e2e-ingest"}}]},"scopeLogs":[{"logRecords":[{"timeUnixNano":"%s000000000","body":{"stringValue":"%s"}}]}]}]}' \
-    "$(date -u +%s)" "$INGEST_MARKER" >"$RUN_DIR/otlp-logs.json"
-curl --fail --silent -H "Host: $INGEST_HOST" -H 'Content-Type: application/json' --data-binary @"$RUN_DIR/otlp-logs.json" \
-    "http://127.0.0.1:$API_PORT/v1/logs" >/dev/null
+printf '{"resourceLogs":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"e2e-ingest"}},{"key":"loco.workspace.id","value":{"stringValue":"%s"}}]},"scopeLogs":[{"logRecords":[{"timeUnixNano":"%s000000000","body":{"stringValue":"%s"}}]}]}]}' \
+    "$INGEST_WORKSPACE" "$(date -u +%s)" "$INGEST_MARKER" >"$RUN_DIR/otlp-logs.json"
+INGEST_STATUS=$(curl --silent -o /dev/null -w '%{http_code}' -H "Host: $INGEST_HOST" -H 'Content-Type: application/json' \
+    --data-binary @"$RUN_DIR/otlp-logs.json" "http://127.0.0.1:$API_PORT/v1/logs")
+if [[ $INGEST_STATUS != 401 ]]; then
+    printf 'Expected OTLP without an ingest token to be rejected with 401, got %s\n' "$INGEST_STATUS" >&2
+    exit 1
+fi
+curl --fail --silent -H "Host: $INGEST_HOST" -H 'Content-Type: application/json' -H "Authorization: Bearer $INGEST_TOKEN" \
+    --data-binary @"$RUN_DIR/otlp-logs.json" "http://127.0.0.1:$API_PORT/v1/logs" >"$RUN_DIR/otlp-response.json"
+if grep -q rejectedLogRecords "$RUN_DIR/otlp-response.json"; then
+    printf 'Expected the placed workspace record to be accepted, got %s\n' "$(cat "$RUN_DIR/otlp-response.json")" >&2
+    exit 1
+fi
 READER=$(yq '.clickhouse.clickhouse.users[] | select(.grants[] | test("^GRANT SELECT ")) | .name' "$CHART_VALUES")
 CLICKHOUSE_POD=$(kubectl -n "$NAMESPACE" get pods -l clickhouse.altinity.com/chi -o jsonpath='{.items[0].metadata.name}')
 INGESTED=$(kubectl -n "$NAMESPACE" exec "$CLICKHOUSE_POD" -c clickhouse -- clickhouse-client --user "$READER" --password "$(cat "$RUN_DIR/password")" \
@@ -152,7 +176,7 @@ if [[ $INGESTED != 1 ]]; then
     printf 'Expected one ingested log row, got %s\n' "$INGESTED" >&2
     exit 1
 fi
-printf 'The chart Gateway routed an OTLP/HTTP log through the ingest Deployment to the in-cluster ClickHouse.\n'
+printf 'The chart Gateway routed an authenticated OTLP/HTTP log through the ingest Deployment to the in-cluster ClickHouse.\n'
 
 python3 "$ROOT_DIR/e2e/api-failover.py" --namespace "$NAMESPACE" --gateway-namespace "$NAMESPACE" --gateway-name "$GATEWAY_NAME" \
     --gateway-url "http://127.0.0.1:$API_PORT" \

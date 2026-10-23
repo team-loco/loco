@@ -68,13 +68,17 @@ def test_networking_is_ready_before_local_providers():
 
 def test_core_and_obs_take_one_exporter_token_secret_name(subtests):
     values = subprocess.check_output(["yq", "-o=json", ".", str(ROOT / "charts/loco-obs/values.yaml")], text=True)
-    expected = json.loads(values)["global"]["exporter"]["bearerToken"]["secretName"]
+    token = json.loads(values)["global"]["exporter"]["bearerToken"]
+    expected = (token["secretName"], token["secretKey"])
     for environment in ("local", "prod"):
         with subtests.test(environment=environment):
             _, releases = _release_state(environment)
             for name in ("loco-core", "loco-obs"):
                 names = [
-                    source["global"]["exporter"]["bearerToken"]["secretName"]
+                    (
+                        source["global"]["exporter"]["bearerToken"]["secretName"],
+                        source["global"]["exporter"]["bearerToken"]["secretKey"],
+                    )
                     for source in releases[name]["values"]
                     if isinstance(source, dict) and "exporter" in source.get("global", {})
                     and "bearerToken" in source["global"]["exporter"]

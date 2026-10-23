@@ -454,6 +454,15 @@ type Placement struct {
 	UpdatedAt        time.Time  `json:"updatedAt"`
 }
 
+type PlacementWindow struct {
+	ID          uuid.UUID  `json:"id"`
+	ResourceID  uuid.UUID  `json:"resourceId"`
+	ClusterID   uuid.UUID  `json:"clusterId"`
+	WorkspaceID uuid.UUID  `json:"workspaceId"`
+	PlacedAt    time.Time  `json:"placedAt"`
+	RemovedAt   *time.Time `json:"removedAt"`
+}
+
 type Resource struct {
 	ID                     uuid.UUID    `json:"id"`
 	WorkspaceID            uuid.UUID    `json:"workspaceId"`

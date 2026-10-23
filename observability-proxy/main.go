@@ -17,6 +17,8 @@ import (
 	"connectrpc.com/connect/v2/connecthttp"
 
 	"connectrpc.com/connect/v2"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	"github.com/team-loco/loco/internal/buildinfo"
@@ -33,6 +35,7 @@ const (
 	readHeaderTimeout = 10 * time.Second
 	shutdownTimeout   = 30 * time.Second
 	serversPerProxy   = 3
+	metricsPath       = "/metrics"
 )
 
 var version string
@@ -81,7 +84,9 @@ func newProxy(cfg *config.Config, lock migrationLock, proxyVersion string) (*pro
 		}
 	}
 	if cfg.IngestEnabled {
-		ingest, err := newIngestRole(cfg, proxyVersion)
+		registry := prometheus.NewRegistry()
+		mux.Handle("GET "+metricsPath, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
+		ingest, err := newIngestRole(cfg, proxyVersion, registry)
 		if err != nil {
 			p.close()
 			return nil, err

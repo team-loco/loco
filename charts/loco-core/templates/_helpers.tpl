@@ -27,3 +27,16 @@ eg
 {{- $token.existingSecret -}}
 {{- end -}}
 {{- end -}}
+
+{{- define "loco-core.exporterTokenSecret" -}}
+{{- dig "exporter" "bearerToken" "secretName" "" .Values.global -}}
+{{- end -}}
+
+{{- define "loco-core.exporterTokenKey" -}}
+{{- dig "exporter" "bearerToken" "secretKey" "" .Values.global | required "global.exporter.bearerToken.secretKey is required with secretName" -}}
+{{- end -}}
+
+{{- define "loco-core.exporterTokenNamespaces" -}}
+{{- $node := dig "exporter" "bearerToken" "nodeNamespace" "" .Values.global | required "global.exporter.bearerToken.nodeNamespace is required with secretName" -}}
+{{- list .Values.global.observability.namespace $node | uniq | join "," -}}
+{{- end -}}

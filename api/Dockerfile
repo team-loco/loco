@@ -25,6 +25,7 @@ COPY internal/httputil ./internal/httputil
 COPY internal/rpcerr ./internal/rpcerr
 COPY internal/loglevel ./internal/loglevel
 COPY internal/clusterassertion ./internal/clusterassertion
+COPY internal/ingesttoken ./internal/ingesttoken
 COPY internal/locofile ./internal/locofile
 
 WORKDIR /app/api

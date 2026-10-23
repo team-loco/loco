@@ -17,6 +17,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
 
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/team-loco/loco/agent/pkg/applier"
@@ -27,8 +28,10 @@ import (
 	"github.com/team-loco/loco/agent/pkg/identity"
 	"github.com/team-loco/loco/agent/pkg/kube"
 	"github.com/team-loco/loco/agent/pkg/reconciler"
+	"github.com/team-loco/loco/agent/pkg/telemetrytoken"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
+	"github.com/team-loco/loco/gen/go/loco/ingest/v1/ingestv1connect"
 )
 
 var (
@@ -69,6 +72,7 @@ func main() {
 	rpcTransport := connecthttp.NewTransport(httpClient, cfg.ControlPlaneURL)
 	connectClient := connect.NewClient(rpcTransport, credentials.Interceptor())
 	agentClient := agentv1connect.NewAgentServiceClient(connectClient)
+	ingestClient := ingestv1connect.NewIngestServiceClient(connectClient)
 
 	restConfig, err := kube.RestConfig(cfg.Kubeconfig)
 	if err != nil {
@@ -135,6 +139,12 @@ func main() {
 	slog.Info("build support detected", "builds_enabled", buildsEnabled)
 	go builds.RunCollector(ctx, cfg.BuildCollectInterval)
 
+	var telemetryTokens *telemetrytoken.Renewer
+	if cfg.IngestTokenSecret.Name != "" {
+		backoff := func() wait.Backoff { return newReconnectBackoff(cfg) }
+		telemetryTokens = telemetrytoken.NewRenewer(ingestClient, clientset, cfg.IngestTokenSecret, backoff)
+	}
+
 	agent := &Agent{
 		cfg:           cfg,
 		client:        agentClient,
@@ -146,6 +156,7 @@ func main() {
 		watcher:       watcher,
 		builds:        builds,
 		buildsEnabled: buildsEnabled,
+		ingest:        telemetryTokens,
 	}
 
 	sigChan := make(chan os.Signal, 1)
@@ -197,12 +208,17 @@ type Agent struct {
 	builds            buildRunner
 	buildsEnabled     bool
 	heartbeatInterval time.Duration
+	ingest            *telemetrytoken.Renewer
 }
 
 // Run starts the agent's main loop.
 func (a *Agent) Run(ctx context.Context) error {
 	if err := a.register(ctx); err != nil {
 		return fmt.Errorf("registration failed: %w", err)
+	}
+
+	if a.ingest != nil {
+		go a.ingest.Run(ctx)
 	}
 
 	errCh := make(chan error, 2)

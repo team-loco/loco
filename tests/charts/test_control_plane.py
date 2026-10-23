@@ -227,7 +227,11 @@ def test_ingest_runs_as_its_own_deployment_without_migrator_rights():
         "name": "proxy-ingest",
         "key": "url",
     }
-    assert not {"CLICKHOUSE_URL", "CLICKHOUSE_MIGRATOR_URL", "CONTROL_PLANE_URL"} & set(env)
+    assert not {"CLICKHOUSE_URL", "CLICKHOUSE_MIGRATOR_URL"} & set(env)
+    assert (
+        env["CONTROL_PLANE_URL"]["value"]
+        == "http://loco-control-plane-api.platform-test.svc.cluster.local"
+    )
     ports = {port["name"]: port["containerPort"] for port in container["ports"]}
     assert ports == {"health": 8080, "otlp-grpc": 4317, "otlp-http": 4318}
     assert env["PORT"]["value"] == "8080"
@@ -259,6 +263,15 @@ def test_ingest_runs_as_its_own_deployment_without_migrator_rights():
     (rule,) = policy["spec"]["ingress"]
     assert rule["from"] == [{"podSelector": {}}]
     assert [port["port"] for port in rule["ports"]] == [4317, 4318]
+
+    (api_policy,) = [
+        document
+        for document in documents
+        if document["kind"] == "NetworkPolicy"
+        and document["metadata"]["name"] == "loco-control-plane-api"
+    ]
+    (api_rule,) = api_policy["spec"]["ingress"]
+    assert {"podSelector": {"matchLabels": {"app": "loco-control-plane-obs-proxy-ingest"}}} in api_rule["from"]
 
 
 def test_ingest_is_off_by_default_and_requires_its_secret():

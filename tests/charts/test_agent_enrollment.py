@@ -56,3 +56,59 @@ def test_enrolled_agent_needs_no_join_token():
 def test_join_token_value_and_existing_secret_are_exclusive():
     with pytest.raises(subprocess.CalledProcessError):
         _agent_env({"joinToken": {"value": JOIN_TOKEN, "existingSecret": "enrollment"}})
+
+
+def _exporter_token():
+    obs = chart_values("loco-obs")
+    token = obs["global"]["exporter"]["bearerToken"]
+    node = obs["otel-col-daemon"]["namespaceOverride"]
+    return {
+        "secretName": token["secretName"],
+        "secretKey": token["secretKey"],
+        "nodeNamespace": node,
+    }
+
+
+def test_agent_writes_the_ingest_token_to_each_collector_namespace():
+    token = _exporter_token()
+    overrides = {"global": {"exporter": {"bearerToken": token}}}
+    (deployment,) = [
+        document
+        for document in render_documents(
+            CHART,
+            "agent-deployment.yaml",
+            {"agent": TAG, **overrides},
+            includes=("env-config-secret.yml",),
+        )
+        if document["kind"] == "Deployment"
+    ]
+    (container,) = deployment["spec"]["template"]["spec"]["containers"]
+    env = {variable["name"]: variable for variable in container["env"]}
+    namespaces = [chart_values(CHART)["global"]["observability"]["namespace"], token["nodeNamespace"]]
+    assert env["LOCO_INGEST_TOKEN_SECRET"]["value"] == token["secretName"]
+    assert env["LOCO_INGEST_TOKEN_SECRET_KEY"]["value"] == token["secretKey"]
+    assert env["LOCO_INGEST_TOKEN_NAMESPACES"]["value"] == ",".join(namespaces)
+    documents = render_documents(CHART, "agent-ingest-token.yaml", overrides)
+    by_namespace = {}
+    for document in documents:
+        by_namespace.setdefault(document["metadata"]["namespace"], {})[document["kind"]] = document
+    assert sorted(by_namespace) == sorted(namespaces)
+    for kinds in by_namespace.values():
+        assert set(kinds) == {"Role", "RoleBinding"}
+        assert kinds["Role"]["rules"] == [
+            {"apiGroups": [""], "resources": ["secrets"], "verbs": ["create"]},
+            {
+                "apiGroups": [""],
+                "resources": ["secrets"],
+                "resourceNames": [token["secretName"]],
+                "verbs": ["get", "update"],
+            },
+        ]
+        (subject,) = kinds["RoleBinding"]["subjects"]
+        assert subject["name"].endswith("-agent")
+
+
+def test_the_ingest_token_secret_is_off_without_a_name():
+    env = _agent_env({})
+    assert not {name for name in env if name.startswith("LOCO_INGEST_TOKEN")}
+    assert render_documents(CHART, "agent-ingest-token.yaml", {}) == []

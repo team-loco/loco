@@ -7,6 +7,7 @@ source "$(dirname "$0")/lib/obs-stack.sh" retention
 workspace_id=retention-workspace
 environment_id=retention-environment
 resource_id=retention-resource
+start_control_plane "$workspace_id"
 
 for name in otel-col-deploy otel-col-daemon-agent; do
 	yq -e '.service.pipelines.traces.exporters[] | select(. == "otlp_http")' <<<"$(collector_config "$name")" >/dev/null ||
