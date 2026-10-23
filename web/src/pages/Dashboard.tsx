@@ -194,6 +194,7 @@ export function Dashboard() {
 			) : isEmpty ? (
 				<FirstServiceEmpty
 					scope={`${workspaceName} / ${active.name}`}
+					environmentId={active.id}
 					region={defaultRegion}
 					otherEnvName={otherEnv?.name ?? null}
 					onSwitchEnv={() => {

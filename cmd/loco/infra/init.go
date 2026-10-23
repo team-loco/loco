@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/team-loco/loco/internal/rpc"
@@ -14,9 +15,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
+	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/locofile"
-	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
 )
 
@@ -29,9 +30,7 @@ var (
 	errConfigExists     = errors.New(locofile.FileName + " already exists. Use --force to overwrite")
 	errNoDefaultRegion  = errors.New("the API lists no default region")
 	errNoSchemaURL      = errors.New("the API reports no schema URL")
-	errNoPlatformDomain = errors.New(
-		"this install has no platform domain; set one with `loco config set defaultAppDomain <domain>`",
-	)
+	errNoPlatformDomain = errors.New("no cluster of the environment serves a platform domain in the region")
 )
 
 func buildInitCmd() *cobra.Command {
@@ -45,7 +44,7 @@ func buildInitCmd() *cobra.Command {
 	}
 	cmd.Flags().BoolP("force", "f", false, "Force overwrite of an existing "+locofile.FileName)
 	cmd.Flags().StringP("name", "n", "", "Service name (skips interactive prompt)")
-	cmd.Flags().String("host", "", "API host URL")
+	addTargetFlags(cmd)
 	return cmd
 }
 
@@ -98,11 +97,16 @@ func initCmdFunc(cmd *cobra.Command) error {
 		return errNoSchemaURL
 	}
 	defaults := apiConfig.GetServiceDefaults()
-	appDomain, err := platformDomain(defaults)
+	ctx := cmd.Context()
+	t, err := resolveTarget(ctx, cmd)
 	if err != nil {
 		return err
 	}
-	region, err := fetchDefaultRegion(cmd)
+	region, err := fetchDefaultRegion(ctx, t)
+	if err != nil {
+		return err
+	}
+	appDomain, err := servedDomain(ctx, t, region)
 	if err != nil {
 		return err
 	}
@@ -152,20 +156,12 @@ func fetchConfig(cmd *cobra.Command) (*configv1.GetConfigResponse, error) {
 	return resp, nil
 }
 
-func fetchDefaultRegion(cmd *cobra.Command) (string, error) {
-	token, err := cmdutil.GetCurrentLocoToken(cmd)
-	if err != nil {
-		return "", err
-	}
-
-	ctx, cancel := context.WithTimeout(cmd.Context(), initConfigTimeout)
+func fetchDefaultRegion(ctx context.Context, t target) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, initConfigTimeout)
 	defer cancel()
 
-	resourceClients := rpc.ForHost(token.Host, token.Token)
-	resourceClient := resourceClients.Resource
 	req := &resourcev1.ListRegionsRequest{}
-
-	resp, err := resourceClient.ListRegions(ctx, req)
+	resp, err := t.resourceClient().ListRegions(ctx, req)
 	if err != nil {
 		return "", fmt.Errorf("could not list regions from the API: %w", err)
 	}
@@ -177,12 +173,20 @@ func fetchDefaultRegion(cmd *cobra.Command) (string, error) {
 	return "", errNoDefaultRegion
 }
 
-func platformDomain(defaults *configv1.DefaultServiceConfig) (string, error) {
-	if cfg, err := session.Load(); err == nil && cfg.DefaultAppDomain != "" {
-		return cfg.DefaultAppDomain, nil
+func servedDomain(ctx context.Context, t target, region string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, initConfigTimeout)
+	defer cancel()
+
+	domainClients := rpc.ForHost(t.host, t.token)
+	req := &domainv1.ListPlatformDomainsRequest{EnvironmentId: t.environmentID}
+	resp, err := domainClients.Domain.ListPlatformDomains(ctx, req)
+	if err != nil {
+		return "", fmt.Errorf("could not list platform domains from the API: %w", err)
 	}
-	if domain := defaults.GetPlatformDomain(); domain != "" {
-		return domain, nil
+	for _, domain := range resp.GetPlatformDomains() {
+		if slices.Contains(domain.GetRegions(), region) {
+			return domain.GetDomain(), nil
+		}
 	}
-	return "", errNoPlatformDomain
+	return "", fmt.Errorf("%w: %s in %s", errNoPlatformDomain, region, t.environmentName)
 }

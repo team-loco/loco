@@ -29,14 +29,8 @@ func buildListCmd() *cobra.Command {
 				webHost = cmdutil.DefaultWebHost + " (default)"
 			}
 
-			defaultAppDomain := cfg.DefaultAppDomain
-			if defaultAppDomain == "" {
-				defaultAppDomain = "onloco.app (default)"
-			}
-
-			fmt.Printf("locoHost         = %s\n", locoHost)
-			fmt.Printf("webHost          = %s\n", webHost)
-			fmt.Printf("defaultAppDomain = %s\n", defaultAppDomain)
+			fmt.Printf("locoHost = %s\n", locoHost)
+			fmt.Printf("webHost  = %s\n", webHost)
 
 			return nil
 		},

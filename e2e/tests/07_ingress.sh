@@ -107,6 +107,24 @@ workspace_reaches() {
     probe_reaches "$ingress_namespace" "e2e-workspace-probe-$2" "$1" "{}"
 }
 
+ingress_unserved_app="e2e-ingress-unserved"
+ingress_unserved_host="${ingress_unserved_app}.unserved.test"
+
+cluster_serves_the_platform_domain() {
+    test "$(e2e_psql "SELECT '${E2E_PLATFORM_DOMAIN}' = ANY(domains) FROM clusters WHERE id = '${E2E_CLUSTER_ID}'")" = t
+}
+
+no_platform_domain_seed() {
+    test "$(e2e_psql "SELECT to_regclass('platform_domains') IS NULL")" = t
+}
+
+test_i00_the_cluster_reports_the_domain_its_gateway_serves() {
+    assert "The install seeds no platform domain" no_platform_domain_seed
+    wait_for "the agent to report ${E2E_PLATFORM_DOMAIN}" 60 cluster_serves_the_platform_domain
+    assert "The cluster reports the domain its Gateway listener and certificate serve" \
+        cluster_serves_the_platform_domain
+}
+
 test_i01_deploys_with_and_without_a_domain() {
     cli_seed_session
     rm -rf "$ingress_dir"
@@ -203,4 +221,18 @@ test_i06_losing_the_domain_removes_the_route() {
     wait_for "the app to be Ready again" 120 application_is_ready "$ingress_public_app"
     assert "The app stays Ready without its domain" application_is_ready "$ingress_public_app"
     assert_fails "A gateway pod can no longer reach the app" gateway_reaches "$ingress_public_app" lost
+}
+
+test_i07_plan_rejects_a_domain_no_cluster_serves() {
+    mkdir -p "$ingress_dir/$ingress_unserved_app"
+    cli_write_image_config "$ingress_dir/$ingress_unserved_app" "$ingress_unserved_app" "$ingress_image" \
+        "$ingress_port" "[${ingress_unserved_host}]"
+    local rc=0
+    (cd "$ingress_dir/$ingress_unserved_app" && loco_cli infra plan --json) \
+        >"$ingress_dir/unserved.out" 2>&1 || rc=$?
+    assert "loco infra plan fails for a domain no cluster serves (exit ${rc})" test "$rc" -ne 0
+    assert_contains "The plan names the unserved domain" \
+        "domain is not under a platform domain any cluster serves: ${ingress_unserved_host}" \
+        yq -p json -r '.errors[].message' "$ingress_dir/unserved.out"
+    assert_fails "No resource is created for the unserved domain" ingress_resource "$ingress_unserved_app"
 }

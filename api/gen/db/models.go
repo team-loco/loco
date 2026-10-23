@@ -333,6 +333,7 @@ type Cluster struct {
 	AgentVersion          *string    `json:"agentVersion"`
 	GatewayHostname       *string    `json:"gatewayHostname"`
 	SyncGeneration        int64      `json:"syncGeneration"`
+	Domains               []string   `json:"domains"`
 	AgentPublicKey        []byte     `json:"agentPublicKey"`
 	JoinTokenHash         *string    `json:"joinTokenHash"`
 	JoinTokenExpiresAt    *time.Time `json:"joinTokenExpiresAt"`
@@ -453,13 +454,6 @@ type Placement struct {
 	UpdatedAt        time.Time  `json:"updatedAt"`
 }
 
-type PlatformDomain struct {
-	ID        uuid.UUID `json:"id"`
-	Domain    string    `json:"domain"`
-	IsActive  bool      `json:"isActive"`
-	CreatedAt time.Time `json:"createdAt"`
-}
-
 type Resource struct {
 	ID                     uuid.UUID    `json:"id"`
 	WorkspaceID            uuid.UUID    `json:"workspaceId"`
@@ -476,16 +470,16 @@ type Resource struct {
 }
 
 type ResourceDomain struct {
-	ID               uuid.UUID    `json:"id"`
-	ResourceID       uuid.UUID    `json:"resourceId"`
-	EnvironmentID    uuid.UUID    `json:"environmentId"`
-	Domain           string       `json:"domain"`
-	DomainSource     DomainSource `json:"domainSource"`
-	SubdomainLabel   *string      `json:"subdomainLabel"`
-	PlatformDomainID *uuid.UUID   `json:"platformDomainId"`
-	IsPrimary        bool         `json:"isPrimary"`
-	CreatedAt        time.Time    `json:"createdAt"`
-	UpdatedAt        time.Time    `json:"updatedAt"`
+	ID             uuid.UUID    `json:"id"`
+	ResourceID     uuid.UUID    `json:"resourceId"`
+	EnvironmentID  uuid.UUID    `json:"environmentId"`
+	Domain         string       `json:"domain"`
+	DomainSource   DomainSource `json:"domainSource"`
+	SubdomainLabel *string      `json:"subdomainLabel"`
+	PlatformDomain *string      `json:"platformDomain"`
+	IsPrimary      bool         `json:"isPrimary"`
+	CreatedAt      time.Time    `json:"createdAt"`
+	UpdatedAt      time.Time    `json:"updatedAt"`
 }
 
 type Secret struct {

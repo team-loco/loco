@@ -22,6 +22,7 @@ message RegisterRequest {
   bool builds_enabled = 3;
   string cluster_key = 4 [(buf.validate.field).string.uuid = true];
   Enrollment enrollment = 5;
+  repeated string domains = 6 [(buf.validate.field).repeated.items.string.hostname = true];
 }
 
 // Enrollment binds the agent's public key to the cluster that issued the join token.
@@ -152,6 +153,7 @@ message Heartbeat {
   AgentCapacity capacity = 1;
   AgentHealth health = 2;
   bool builds_enabled = 3;
+  repeated string domains = 4 [(buf.validate.field).repeated.items.string.hostname = true];
 }
 
 // AgentCapacity reports cluster resource capacity.

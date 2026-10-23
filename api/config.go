@@ -113,7 +113,6 @@ type APIConfig struct {
 	CacheType             string   // Cache backend type: "in-memory" or "valkey"
 	CacheAddr             string   // Valkey address (when CacheType is "valkey")
 	CORSAllowedOrigins    []string // CORS allowed origins (e.g., http://localhost:5173)
-	DefaultPlatformDomain string   // Default platform domain returned by the config service
 	MinCLIVersion         string
 	PprofAddr             string
 	SourceBucket          sourcebucket.Config
@@ -184,7 +183,6 @@ func newAPIConfig() *APIConfig {
 		CacheType:             cacheType,
 		CacheAddr:             cacheAddr,
 		CORSAllowedOrigins:    corsOrigins,
-		DefaultPlatformDomain: stringEnv("DEFAULT_PLATFORM_DOMAIN", ""),
 		MinCLIVersion:         minCLIVersion,
 		PprofAddr:             stringEnv("PPROF_ADDR", ""),
 		SourceBucket:          sourceBucket,

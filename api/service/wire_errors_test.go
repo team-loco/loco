@@ -126,8 +126,8 @@ func TestServicesExposePublicWireErrors(t *testing.T) {
 		},
 			call: func(ctx context.Context, client *connect.Client) error {
 				serviceClient := domainv1connect.NewDomainServiceClient(client)
-				request := &domainv1.CreatePlatformDomainRequest{}
-				_, err := serviceClient.CreatePlatformDomain(ctx, request)
+				request := &domainv1.ListLocoOwnedDomainsRequest{}
+				_, err := serviceClient.ListLocoOwnedDomains(ctx, request)
 				return err
 			}, code: connect.CodePermissionDenied, message: expectedPermissionMessage},
 		{name: "Token", register: func(server *connect.Server) {

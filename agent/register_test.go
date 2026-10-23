@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"io"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -63,6 +64,9 @@ func (f *fakeRegistrar) Register(
 ) (*agentv1.RegisterResponse, error) {
 	if req.GetClusterKey() != f.clusterKey {
 		f.t.Errorf("cluster key %q", req.GetClusterKey())
+	}
+	if !slices.Equal(req.GetDomains(), []string{testServedDomain}) {
+		f.t.Errorf("domains %v, want [%s]", req.GetDomains(), testServedDomain)
 	}
 	response := &agentv1.RegisterResponse{ClusterId: f.clusterID, HeartbeatInterval: durationpb.New(time.Second)}
 	if enrollment := req.GetEnrollment(); enrollment != nil {
@@ -130,6 +134,7 @@ func TestEveryAgentCallCarriesAFreshAssertionOnceEnrolled(t *testing.T) {
 			inspector:   cluster.NewInspector(kube, metav1.NamespaceDefault, ""),
 			identities:  identity.NewStore(kube, metav1.NamespaceDefault, t.Name()),
 			credentials: credentials,
+			domains:     servedDomains{testServedDomain},
 		}
 	}
 

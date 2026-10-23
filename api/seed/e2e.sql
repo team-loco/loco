@@ -41,8 +41,3 @@ VALUES (
     'production',
     '00000000-0000-7000-8000-000000000001'
 ) ON CONFLICT DO NOTHING;
-
--- Platform domain for test resources
-INSERT INTO platform_domains (id, domain, is_active)
-VALUES ('00000000-0000-7000-8000-000000000006', 'e2e.test.local', true)
-ON CONFLICT DO NOTHING;

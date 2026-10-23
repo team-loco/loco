@@ -172,7 +172,7 @@ first time and run `mise run lint:go` before pushing. The one that bites most:
 - **Commands**: `loco infra init|validate|plan|apply|transfer` and `loco deploy`. A file belongs to
   one `partial`; `transfer` moves a service between partials. `deploy` builds the source services
   once and calls `PlanService.Apply`.
-- **Domains**: `domains` lists full hostnames under an active platform domain; without it the
+- **Domains**: `domains` lists full hostnames under a platform domain a cluster reports; without it the
   service is private. The platform domain comes from the API, never from the CLI.
 - **Defaults and limits**: the API owns them (`GetConfig`, plan validation); the CLI hard-codes none.
 - **Reference**: `docs/content/deployment/loco-yaml.md` documents every field.

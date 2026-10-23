@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,6 +18,7 @@ const (
 	regionMessageClusterSilent     = "the cluster running this region has stopped reporting"
 	regionMessageClusterUnhealthy  = "the cluster running this region reports that it is unhealthy"
 	regionMessageClusterNeverHeard = "the cluster running this region has never reported"
+	regionMessageDomainsUnserved   = "the cluster running this region does not serve "
 )
 
 var (
@@ -111,6 +113,10 @@ func regionStatus(
 		region.Status = resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE
 	}
 	region.Message = regionMessage(row, region.GetStatus())
+	if region.GetStatus() == resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY && len(row.UnservedDomains) > 0 {
+		region.Status = resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED
+		region.Message = new(regionMessageDomainsUnserved + strings.Join(row.UnservedDomains, ", "))
+	}
 	return region, nil
 }
 

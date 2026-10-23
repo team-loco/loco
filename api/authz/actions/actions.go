@@ -275,20 +275,9 @@ var (
 
 	// domains
 
-	// CreatePlatformDomain requires system:admin.
-	CreatePlatformDomain = Action{
-		entityType: db.EntityTypeSystem,
-		scope:      db.ScopeAdmin,
-	}
-	// UpdatePlatformDomain requires system:admin.
-	UpdatePlatformDomain = Action{
-		entityType: db.EntityTypeSystem,
-		scope:      db.ScopeAdmin,
-	}
-	// DeletePlatformDomain requires system:admin.
-	DeletePlatformDomain = Action{
-		entityType: db.EntityTypeSystem,
-		scope:      db.ScopeAdmin,
+	ListPlatformDomains = Action{
+		entityType: db.EntityTypeWorkspace,
+		scope:      db.ScopeRead,
 	}
 	// ListLocoOwnedDomains requires system:admin.
 	ListLocoOwnedDomains = Action{

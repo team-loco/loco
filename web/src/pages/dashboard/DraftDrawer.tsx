@@ -7,8 +7,8 @@ import { useNavigate } from "react-router";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { DeploymentPhase, DeploymentService } from "@gen/loco/deployment/v1/deployment_pb";
 import { createDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
-import { DomainType } from "@gen/loco/domain/v1/domain_pb";
 import { checkDomainAvailability, listPlatformDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
+import { DomainType } from "@gen/loco/domain/v1/domain_pb";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 import { ResourceType, type RegionInfo } from "@gen/loco/resource/v1/resource_pb";
 import { createResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 
 import { DraftForm } from "./DraftForm";
 import { DraftProgress, progressSteps } from "./DraftProgress";
-import { isPrivate, NAME_RE, type Draft } from "./drafts";
+import { isPrivate, NAME_RE, servedDomain, type Draft } from "./drafts";
 import { firstError, validateDraft } from "./draftValidation";
 
 function useDebounced<T>(value: T, ms: number): T {
@@ -180,14 +180,12 @@ function DraftDrawerBody({
 	const [error, setError] = useState<string | null>(null);
 
 	const { data: configRes } = useQuery(getConfig, {});
-	const { data: domainsRes } = useQuery(listPlatformDomains, { activeOnly: true });
+	const { data: domainsRes } = useQuery(listPlatformDomains, { environmentId: env.id });
 	const config = configRes?.serviceDefaults;
-	const platformDomains = domainsRes?.platformDomains ?? [];
-	const platform = platformDomains.find((d) => d.domain === config?.platformDomain) ?? platformDomains[0];
-	const platformDomain = platform?.domain ?? config?.platformDomain ?? "onloco.app";
 
 	const defaultRegion = regions.find((r) => r.isDefault)?.region ?? regions[0]?.region ?? "";
 	const region = regions.some((r) => r.region === draft.region) ? draft.region : defaultRegion;
+	const platformDomain = servedDomain(domainsRes?.platformDomains ?? [], region);
 
 	const sub = draft.sub.trim();
 	const privateService = isPrivate(draft);
@@ -196,7 +194,10 @@ function DraftDrawerBody({
 	const availabilityQuery = useQuery(
 		checkDomainAvailability,
 		{ domain: `${debouncedSub}.${platformDomain}` },
-		{ enabled: !privateService && subLooksValid && draft.resourceId === undefined, staleTime: 10_000 },
+		{
+			enabled: !privateService && platformDomain !== "" && subLooksValid && draft.resourceId === undefined,
+			staleTime: 10_000,
+		},
 	);
 	const availability =
 		debouncedSub !== sub || availabilityQuery.isFetching
@@ -268,7 +269,7 @@ function DraftDrawerBody({
 				const platformDomainInput = {
 					domainSource: DomainType.PLATFORM_PROVIDED,
 					subdomain: sub,
-					...(platform !== undefined ? { platformDomainId: platform.id } : {}),
+					platformDomain,
 				};
 				const res = await createResourceMutation.mutateAsync({
 					workspaceId,

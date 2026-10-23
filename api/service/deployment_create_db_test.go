@@ -109,6 +109,14 @@ VALUES ($1, $2, $3, 'user_provided', $4)`
 	}
 }
 
+func (f *deployFixture) serveDomains(t *testing.T, domains ...string) {
+	t.Helper()
+	update := `UPDATE clusters SET health_status = 'healthy', last_heartbeat = NOW(), domains = $1`
+	if _, err := f.pool.Exec(context.Background(), update, domains); err != nil {
+		t.Fatalf("serve domains: %v", err)
+	}
+}
+
 func TestCreateDeploymentRoutesThePrimaryDomain(t *testing.T) {
 	f := newDeployFixture(t)
 	f.addDomain(t, "alt.example.com", false)

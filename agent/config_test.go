@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"log/slog"
+	"reflect"
 	"testing"
 	"time"
 
@@ -34,6 +35,8 @@ func agentEnv() map[string]string {
 		envReconnectMaxDelay:        "34s",
 		envHealthyStreamDuration:    "2m",
 		envLogLevel:                 "warn",
+		envGateway:                  "ingress",
+		envAppDomains:               "apps.test,other.test",
 	}
 }
 
@@ -48,6 +51,7 @@ func TestParseAgentConfigReadsTheEnvironment(t *testing.T) {
 	env[envControllerNamespace] = "loco-operator"
 	env[envKubeconfig] = "/tmp/kubeconfig"
 	env[envJoinToken] = "loco_j_join"
+	env[envCertificate] = "wildcard"
 	cfg, err := parseAgentConfig(lookup(env), testAgentVersion)
 	if err != nil {
 		t.Fatalf("parseAgentConfig: %v", err)
@@ -78,8 +82,11 @@ func TestParseAgentConfigReadsTheEnvironment(t *testing.T) {
 		ReconnectMaxDelay:        34 * time.Second,
 		HealthyStreamDuration:    2 * time.Minute,
 		Kubeconfig:               "/tmp/kubeconfig",
+		Gateway:                  "ingress",
+		Certificate:              "wildcard",
+		AppDomains:               []string{"apps.test", "other.test"},
 	}
-	if *cfg != want {
+	if !reflect.DeepEqual(*cfg, want) {
 		t.Errorf("config = %+v, want %+v", *cfg, want)
 	}
 }
@@ -117,6 +124,8 @@ func TestParseAgentConfigRejectsMissingValues(t *testing.T) {
 		envReconnectMaxDelay,
 		envHealthyStreamDuration,
 		envLogLevel,
+		envGateway,
+		envAppDomains,
 	}
 	for _, name := range required {
 		t.Run(name, func(t *testing.T) {

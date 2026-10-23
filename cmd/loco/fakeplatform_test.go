@@ -35,32 +35,30 @@ import (
 )
 
 const (
-	fakeWorkspaceID      = "2"
-	fakeEnvironmentID    = "00000000-0000-7000-8000-0000000000e1"
-	fakeClusterID        = "00000000-0000-7000-8000-0000000000c1"
-	fakeImageRepo        = "registry.loco.test/ws/app"
-	fakeImageDigest      = "sha256:1111111111111111111111111111111111111111111111111111111111111111"
-	fakeDeletedDigest    = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
-	fakeDockerfile       = "Dockerfile"
-	fakePlatformDomainID = "00000000-0000-7000-8000-0000000000d1"
-	fakePlatformDomain   = "onloco.test"
-	fakeDefaultRegion    = "us-east-1"
-	fakeSecondaryRegion  = "eu-west-1"
-	uploadModeOK         = "ok"
-	uploadModeDenied     = "forbidden"
-	uploadModeReset      = "reset"
-	outcomeSucceeded     = "succeeded"
-	outcomeFailed        = "failed"
-	outcomeRunning       = "running"
-	uploadPathPrefix     = "/upload/"
-	sourceTypeUpload     = "upload"
-	sourceTypeImage      = "image"
+	fakeWorkspaceID     = "2"
+	fakeEnvironmentID   = "00000000-0000-7000-8000-0000000000e1"
+	fakeClusterID       = "00000000-0000-7000-8000-0000000000c1"
+	fakeImageRepo       = "registry.loco.test/ws/app"
+	fakeImageDigest     = "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+	fakeDeletedDigest   = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+	fakeDockerfile      = "Dockerfile"
+	fakePlatformDomain  = "onloco.test"
+	fakeDefaultRegion   = "us-east-1"
+	fakeSecondaryRegion = "eu-west-1"
+	uploadModeOK        = "ok"
+	uploadModeDenied    = "forbidden"
+	uploadModeReset     = "reset"
+	outcomeSucceeded    = "succeeded"
+	outcomeFailed       = "failed"
+	outcomeRunning      = "running"
+	uploadPathPrefix    = "/upload/"
+	sourceTypeUpload    = "upload"
+	sourceTypeImage     = "image"
 )
 
 var (
-	errFakeUnknownPlatformDomain = errors.New("fakeapi: unknown platform domain")
-	errFakeResourceNotFound      = errors.New("resource not found")
-	errFakeEnvironmentNotFound   = errors.New("environment not found")
+	errFakeResourceNotFound    = errors.New("resource not found")
+	errFakeEnvironmentNotFound = errors.New("environment not found")
 )
 
 type fakeUpload struct {
@@ -280,37 +278,6 @@ func (s *fakeResourceService) GetResource(
 	return nil, rpcerr.New(connect.CodeNotFound, errFakeResourceNotFound)
 }
 
-func (s *fakeResourceService) CreateResource(
-	ctx context.Context,
-	req *resourcev1.CreateResourceRequest,
-) (*resourcev1.CreateResourceResponse, error) {
-	info, _ := connect.CallInfoForServerContext(ctx)
-	f := s.api
-	if _, _, err := f.authenticate(
-		connect.Spec{Procedure: resourcev1connect.ResourceServiceCreateResourceProcedure},
-		info.RequestHeader(),
-	); err != nil {
-		return nil, err
-	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	id := fmt.Sprintf("00000000-0000-7000-8000-%012d", len(f.platform.resources)+1)
-	resource := &resourcev1.Resource{
-		Id:          id,
-		WorkspaceId: req.GetWorkspaceId(),
-		Name:        req.GetName(),
-	}
-	if input := req.GetDomain(); input != nil {
-		if input.GetPlatformDomainId() != fakePlatformDomainID {
-			return nil, rpcerr.New(connect.CodeInvalidArgument, errFakeUnknownPlatformDomain)
-		}
-		hostname := input.GetSubdomain() + "." + fakePlatformDomain
-		resource.Domains = []*domainv1.ResourceDomain{{ResourceId: id, Domain: hostname, IsPrimary: true}}
-	}
-	f.platform.resources = append(f.platform.resources, resource)
-	return &resourcev1.CreateResourceResponse{ResourceId: id}, nil
-}
-
 func (s *fakeResourceService) ListRegions(
 	ctx context.Context,
 	_ *resourcev1.ListRegionsRequest,
@@ -394,8 +361,13 @@ func (s *fakeDomainService) ListPlatformDomains(
 	); err != nil {
 		return nil, err
 	}
-	platformDomain := &domainv1.PlatformDomain{Id: fakePlatformDomainID, Domain: fakePlatformDomain, IsActive: true}
-	resp := &domainv1.ListPlatformDomainsResponse{PlatformDomains: []*domainv1.PlatformDomain{platformDomain}}
+	resp := &domainv1.ListPlatformDomainsResponse{}
+	s.api.mu.Lock()
+	defer s.api.mu.Unlock()
+	if !s.api.platform.noPlatformDomain {
+		platformDomain := &domainv1.PlatformDomain{Domain: fakePlatformDomain, Regions: []string{fakeDefaultRegion}}
+		resp.PlatformDomains = []*domainv1.PlatformDomain{platformDomain}
+	}
 	return resp, nil
 }
 

@@ -8,7 +8,7 @@
 loco infra init --name storefront
 ```
 
-`init` writes a starter `loco.yaml` from the API's defaults: the port, CPU, memory and replica counts, the default region, and a hostname under the platform domain. The platform domain is the one set with `loco config set defaultAppDomain`, or else the one the API reports. When neither exists, `init` fails. The first line of the file points editors at the JSON Schema URL the API reports, `https://loco.build/schemas/loco.v1.json` on Loco's hosted service, which gives completion and inline errors. The dashboard serves the schema at `/schemas/loco.v1.json`.
+`init` writes a starter `loco.yaml` from the API's defaults: the port, CPU, memory and replica counts, the default region, and a hostname under a platform domain the environment's cluster in that region serves. When that cluster serves none, `init` fails. The first line of the file points editors at the JSON Schema URL the API reports, `https://loco.build/schemas/loco.v1.json` on Loco's hosted service, which gives completion and inline errors. The dashboard serves the schema at `/schemas/loco.v1.json`.
 
 ```yaml
 version: 1
@@ -38,7 +38,7 @@ services:
     dockerfile: deploy/Dockerfile
 ```
 
-A service without `domains` is private. Each region needs `cpu`, `memory`, `replicas.min` and `replicas.max`. Autoscaling is not supported yet: the API rejects a region with `autoscaling` set. Set the replica count explicitly instead. Service and partial names are DNS labels. The API checks resource limits when it plans the file.
+A service without `domains` is private. Each entry of `domains` is one label under a platform domain, such as `storefront.example.com` under `example.com`. A platform domain is one a cluster serves: the cluster's agent reports it once the Gateway listeners for `*.<domain>` are accepted and programmed and the certificate covering it is ready. The plan rejects a hostname unless the cluster of every region the service runs in serves its platform domain, and names the clusters that do not. When a cluster stops serving a domain, assigned hostnames stay, and the region's status turns degraded with the hostnames it no longer serves. Each region needs `cpu`, `memory`, `replicas.min` and `replicas.max`. Autoscaling is not supported yet: the API rejects a region with `autoscaling` set. Set the replica count explicitly instead. Service and partial names are DNS labels. The API checks resource limits when it plans the file.
 
 ## Pull application metrics
 

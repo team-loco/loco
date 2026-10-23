@@ -163,9 +163,14 @@ export function DraftForm({
 										update({ sub: e.target.value.toLowerCase() });
 									}}
 								/>
-								<InputGroupAddon align="inline-end" className="h-full border-l border-line bg-bg2 px-2.5 py-0 text-fg2">
-									.{platformDomain}
-								</InputGroupAddon>
+								{platformDomain !== "" && (
+									<InputGroupAddon
+										align="inline-end"
+										className="h-full border-l border-line bg-bg2 px-2.5 py-0 text-fg2"
+									>
+										.{platformDomain}
+									</InputGroupAddon>
+								)}
 							</InputGroup>
 						</div>
 					)}

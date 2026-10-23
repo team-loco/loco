@@ -12,23 +12,21 @@ import (
 
 // ConfigServer implements the ConfigService, returning default values for use by the CLI and UI.
 type ConfigServer struct {
-	platformDomain string
-	minCLIVersion  string
-	schemaURL      string
-	defaults       servicedefaults.Defaults
-	auth           *configv1.AuthConfig
+	minCLIVersion string
+	schemaURL     string
+	defaults      servicedefaults.Defaults
+	auth          *configv1.AuthConfig
 }
 
 func NewConfigServer(
-	platformDomain, minCLIVersion, schemaURL string,
+	minCLIVersion, schemaURL string,
 	defaults servicedefaults.Defaults,
 	issuers []auth.IssuerConfig,
 ) *ConfigServer {
 	s := &ConfigServer{
-		platformDomain: platformDomain,
-		minCLIVersion:  minCLIVersion,
-		schemaURL:      schemaURL,
-		defaults:       defaults,
+		minCLIVersion: minCLIVersion,
+		schemaURL:     schemaURL,
+		defaults:      defaults,
 	}
 	if ic, ok := auth.WebIssuer(issuers); ok {
 		s.auth = &configv1.AuthConfig{
@@ -77,7 +75,6 @@ func (s *ConfigServer) GetConfig(
 					Port:    9090,
 				},
 			},
-			PlatformDomain: s.platformDomain,
 		},
 	}, nil
 }

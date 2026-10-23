@@ -71,7 +71,7 @@ type plannedFile struct {
 	file            *locofile.File
 	env             genDb.Environment
 	live            liveEnvironment
-	platformDomains []genDb.PlatformDomain
+	platformDomains []string
 	images          map[string]string
 	plan            configplan.Plan
 }
@@ -153,11 +153,6 @@ func (s *PlanServer) loadPlan(
 		slog.ErrorContext(ctx, "failed to list clusters", "error", err)
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
-	platformDomains, err := s.queries.ListActivePlatformDomains(ctx)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list platform domains", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
 	live, err := s.liveEnvironment(ctx, env)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load the environment's services", "error", err)
@@ -173,14 +168,7 @@ func (s *PlanServer) loadPlan(
 	for _, environment := range environments {
 		environmentNames = append(environmentNames, environment.Name)
 	}
-	regions := make([]string, 0, len(clusters))
-	for _, cluster := range clusters {
-		regions = append(regions, cluster.Region)
-	}
-	platformDomainNames := make([]string, 0, len(platformDomains))
-	for _, platformDomain := range platformDomains {
-		platformDomainNames = append(platformDomainNames, platformDomain.Domain)
-	}
+	targets := regionClusters(clusters)
 
 	images := s.resolveImages(ctx, services)
 	plan, err := configplan.Compute(configplan.Input{
@@ -189,11 +177,10 @@ func (s *PlanServer) loadPlan(
 		Disabled:         locofile.Disabled(file, env.Name),
 		FileEnvironments: fileEnvironments(file),
 		Environments:     environmentNames,
-		Regions:          regions,
+		Clusters:         targets,
 		Secrets:          secrets,
 		MaxSecretBytes:   int64(s.secrets.MaxPlacementBytes),
 		Provision:        provision,
-		PlatformDomains:  platformDomainNames,
 		Live:             live.services,
 		Defaults:         s.defaults,
 		Images:           images,
@@ -218,7 +205,7 @@ func (s *PlanServer) loadPlan(
 		file:            file,
 		env:             env,
 		live:            live,
-		platformDomains: platformDomains,
+		platformDomains: configplan.ServedDomains(targets),
 		images:          pinnedImages(images),
 		plan:            plan,
 	}, nil

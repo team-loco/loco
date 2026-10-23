@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/team-loco/loco/internal/buildinfo"
@@ -37,6 +38,10 @@ const (
 	envReconnectMaxDelay        = "LOCO_RECONNECT_MAX_DELAY"
 	envHealthyStreamDuration    = "LOCO_HEALTHY_STREAM_DURATION"
 	envLogLevel                 = "LOG_LEVEL"
+	envGateway                  = "LOCO_GATEWAY"
+	envCertificate              = "LOCO_CERTIFICATE"
+	envAppDomains               = "LOCO_APP_DOMAINS"
+	appDomainSeparator          = ","
 )
 
 var (
@@ -73,6 +78,9 @@ type Config struct {
 	ReconnectBaseDelay       time.Duration
 	ReconnectMaxDelay        time.Duration
 	HealthyStreamDuration    time.Duration
+	Gateway                  string
+	Certificate              string
+	AppDomains               []string
 }
 
 func newAgentConfig() *Config {
@@ -89,6 +97,7 @@ func parseAgentConfig(getenv func(string) string, agentVersion string) (*Config,
 		AgentVersion: agentVersion,
 		Kubeconfig:   getenv(envKubeconfig),
 		JoinToken:    getenv(envJoinToken),
+		Certificate:  getenv(envCertificate),
 	}
 	required := map[string]*string{
 		envControlPlaneURL:      &cfg.ControlPlaneURL,
@@ -96,6 +105,7 @@ func parseAgentConfig(getenv func(string) string, agentVersion string) (*Config,
 		envNamespace:            &cfg.Namespace,
 		envControllerDeployment: &cfg.ControllerDeployment,
 		envBuildNamespace:       &cfg.BuildNamespace,
+		envGateway:              &cfg.Gateway,
 	}
 	for name, field := range required {
 		value, err := requireEnv(getenv, name)
@@ -104,6 +114,11 @@ func parseAgentConfig(getenv func(string) string, agentVersion string) (*Config,
 		}
 		*field = value
 	}
+	appDomains, err := requireEnv(getenv, envAppDomains)
+	if err != nil {
+		return nil, err
+	}
+	cfg.AppDomains = strings.Split(appDomains, appDomainSeparator)
 	rawLevel, err := requireEnv(getenv, envLogLevel)
 	if err != nil {
 		return nil, err

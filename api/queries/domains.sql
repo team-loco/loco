@@ -5,39 +5,10 @@ INSERT INTO resource_domains (
     domain,
     domain_source,
     subdomain_label,
-    platform_domain_id,
+    platform_domain,
     is_primary
 )
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id;
-
--- name: CreatePlatformDomain :one
-INSERT INTO platform_domains (domain, is_active)
-VALUES ($1, $2)
-RETURNING id;
-
--- name: GetPlatformDomain :one
-SELECT * FROM platform_domains
-WHERE id = $1;
-
--- name: GetPlatformDomainByName :one
-SELECT * FROM platform_domains
-WHERE domain = $1;
-
--- name: ListActivePlatformDomains :many
-SELECT * FROM platform_domains
-WHERE is_active = true
-ORDER BY domain;
-
--- name: ListPlatformDomains :many
-SELECT * FROM platform_domains
-WHERE (sqlc.narg('active_only')::boolean IS NULL OR is_active = sqlc.narg('active_only')::boolean)
-ORDER BY domain;
-
--- name: DeactivatePlatformDomain :one
-UPDATE platform_domains
-SET is_active = false
-WHERE id = $1
 RETURNING id;
 
 -- name: CheckDomainAvailability :one
@@ -59,7 +30,7 @@ SELECT
     rd.domain,
     rd.domain_source,
     rd.subdomain_label,
-    rd.platform_domain_id,
+    rd.platform_domain,
     rd.is_primary,
     rd.created_at,
     rd.updated_at
@@ -74,7 +45,7 @@ SELECT
     rd.domain,
     rd.domain_source,
     rd.subdomain_label,
-    rd.platform_domain_id,
+    rd.platform_domain,
     rd.is_primary,
     rd.created_at,
     rd.updated_at
@@ -90,7 +61,7 @@ SELECT
     rd.domain,
     rd.domain_source,
     rd.subdomain_label,
-    rd.platform_domain_id,
+    rd.platform_domain,
     rd.is_primary,
     rd.created_at,
     rd.updated_at
@@ -106,7 +77,7 @@ SELECT
     rd.domain,
     rd.domain_source,
     rd.subdomain_label,
-    rd.platform_domain_id,
+    rd.platform_domain,
     rd.is_primary,
     rd.created_at,
     rd.updated_at
@@ -120,10 +91,9 @@ SELECT
     rd.domain,
     r.name as resource_name,
     r.id as resource_id,
-    pd.domain as platform_domain
+    rd.platform_domain::text AS platform_domain
 FROM resource_domains rd
 JOIN resources r ON rd.resource_id = r.id
-JOIN platform_domains pd ON rd.platform_domain_id = pd.id
 WHERE rd.domain_source = 'platform_provided'
 ORDER BY rd.created_at DESC;
 
@@ -151,6 +121,7 @@ RETURNING id;
 UPDATE resource_domains
 SET domain = $2,
     subdomain_label = sqlc.narg('subdomain_label'),
+    platform_domain = sqlc.narg('platform_domain'),
     updated_at = NOW()
 WHERE id = $1
 RETURNING id;

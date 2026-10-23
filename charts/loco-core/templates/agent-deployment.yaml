@@ -84,6 +84,12 @@ spec:
               value: {{ .Values.agent.reconnectMaxDelay | quote }}
             - name: LOCO_HEALTHY_STREAM_DURATION
               value: {{ .Values.agent.healthyStreamDuration | quote }}
+            - name: LOCO_GATEWAY
+              value: {{ include "loco-core.gateway" . | quote }}
+            - name: LOCO_CERTIFICATE
+              value: {{ include "loco-core.certificate" . | quote }}
+            - name: LOCO_APP_DOMAINS
+              value: {{ join "," .Values.global.domain.apps | quote }}
           envFrom:
             - secretRef:
                 name: {{ .Release.Name }}-env

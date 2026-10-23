@@ -5,40 +5,11 @@
 import { DomainService } from "./domain_pb";
 
 /**
- * Platform Domain CRUD
- * CreatePlatformDomain creates a new platform-provided domain.
- *
- * @generated from rpc loco.domain.v1.DomainService.CreatePlatformDomain
- */
-export const createPlatformDomain = DomainService.method.createPlatformDomain;
-
-/**
- * GetPlatformDomain retrieves a platform domain by ID or name.
- *
- * @generated from rpc loco.domain.v1.DomainService.GetPlatformDomain
- */
-export const getPlatformDomain = DomainService.method.getPlatformDomain;
-
-/**
- * ListPlatformDomains lists platform domains with optional filters.
+ * ListPlatformDomains lists the domains the clusters an environment deploys to serve.
  *
  * @generated from rpc loco.domain.v1.DomainService.ListPlatformDomains
  */
 export const listPlatformDomains = DomainService.method.listPlatformDomains;
-
-/**
- * UpdatePlatformDomain updates a platform domain.
- *
- * @generated from rpc loco.domain.v1.DomainService.UpdatePlatformDomain
- */
-export const updatePlatformDomain = DomainService.method.updatePlatformDomain;
-
-/**
- * DeletePlatformDomain deletes a platform domain.
- *
- * @generated from rpc loco.domain.v1.DomainService.DeletePlatformDomain
- */
-export const deletePlatformDomain = DomainService.method.deletePlatformDomain;
 
 /**
  * Resource Domain Management

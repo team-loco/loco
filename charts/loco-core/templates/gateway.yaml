@@ -8,7 +8,7 @@ spec:
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
-  name: eg
+  name: {{ include "loco-core.gateway" . }}
   namespace: {{ .Release.Namespace }}
 spec:
   infrastructure:
@@ -143,4 +143,4 @@ spec:
   targetRefs:
     - group: gateway.networking.k8s.io
       kind: Gateway
-      name: eg
+      name: {{ include "loco-core.gateway" . }}

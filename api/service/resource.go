@@ -134,21 +134,17 @@ func (s *ResourceServer) CreateResource(
 	hasDomain := req.GetDomain() != nil
 	var fullDomain string
 	var subdomainLabel *string
-	var platformDomainID *uuid.UUID
+	var platformDomain *string
+	workspaceID := uuid.MustParse(req.GetWorkspaceId())
 
 	if hasDomain {
-		parsedPlatformDomainID := uuid.MustParse(req.GetDomain().GetPlatformDomainId())
-		platformDomainID = &parsedPlatformDomainID
-
-		platformDomain, err := s.queries.GetPlatformDomain(ctx, parsedPlatformDomainID)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to get platform domain", "error", err)
-			return nil, rpcerr.New(connect.CodeInvalidArgument, ErrPlatformDomainNotFound)
+		fullDomain = req.GetDomain().GetSubdomain() + "." + req.GetDomain().GetPlatformDomain()
+		platform, label, checkErr := s.checkNewResourceDomain(ctx, workspaceID, req.GetSpec(), fullDomain)
+		if checkErr != nil {
+			return nil, checkErr
 		}
-
-		fullDomain = req.GetDomain().GetSubdomain() + "." + platformDomain.Domain
-		subdomain := req.GetDomain().GetSubdomain()
-		subdomainLabel = &subdomain
+		subdomainLabel = &label
+		platformDomain = &platform
 
 		available, err := s.queries.CheckDomainAvailability(ctx, fullDomain)
 		if err != nil {
@@ -171,8 +167,6 @@ func (s *ResourceServer) CreateResource(
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
-
-	workspaceID := uuid.MustParse(req.GetWorkspaceId())
 
 	params := genDb.CreateResourceParams{
 		WorkspaceID: workspaceID,
@@ -226,13 +220,13 @@ func (s *ResourceServer) CreateResource(
 			return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 		}
 		domainParams := genDb.CreateResourceDomainParams{
-			ResourceID:       resourceID,
-			EnvironmentID:    environmentID,
-			Domain:           fullDomain,
-			DomainSource:     genDb.DomainSourcePlatformProvided,
-			SubdomainLabel:   subdomainLabel,
-			PlatformDomainID: platformDomainID,
-			IsPrimary:        true,
+			ResourceID:     resourceID,
+			EnvironmentID:  environmentID,
+			Domain:         fullDomain,
+			DomainSource:   genDb.DomainSourcePlatformProvided,
+			SubdomainLabel: subdomainLabel,
+			PlatformDomain: platformDomain,
+			IsPrimary:      true,
 		}
 
 		_, err = qtx.CreateResourceDomain(ctx, domainParams)
@@ -261,6 +255,29 @@ func (s *ResourceServer) CreateResource(
 	}
 
 	return &resourcev1.CreateResourceResponse{ResourceId: resourceID.String()}, nil
+}
+
+func (s *ResourceServer) checkNewResourceDomain(
+	ctx context.Context,
+	workspaceID uuid.UUID,
+	spec *resourcev1.ResourceSpec,
+	hostname string,
+) (string, string, error) {
+	env, err := s.queries.GetWorkspaceProductionEnvironment(ctx, workspaceID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", "", rpcerr.New(connect.CodeFailedPrecondition, errNoProductionEnvironment)
+	}
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get the production environment", "error", err)
+		return "", "", rpcerr.New(connect.CodeInternal, ErrDB)
+	}
+	regions := enabledRegions(spec.GetService().GetRegions())
+	check, err := resourceDomainCheck(ctx, s.queries, env.EnvironmentType, regions, nil, s.clusterSilentAfter)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list domain clusters", "error", err)
+		return "", "", rpcerr.New(connect.CodeInternal, ErrDB)
+	}
+	return check.check(hostname)
 }
 
 func marshalResourceSpec(ctx context.Context, spec *resourcev1.ResourceSpec) ([]byte, error) {
@@ -1077,13 +1094,8 @@ func resourceDomainToListProto(domains []genDb.ResourceDomain) []*domainv1.Resou
 			UpdatedAt:    timeutil.ParsePostgresTimestamp(d.UpdatedAt),
 		}
 
-		if d.SubdomainLabel != nil {
-			domain.SubdomainLabel = d.SubdomainLabel
-		}
-		if d.PlatformDomainID != nil {
-			s := d.PlatformDomainID.String()
-			domain.PlatformDomainId = &s
-		}
+		domain.SubdomainLabel = d.SubdomainLabel
+		domain.PlatformDomain = d.PlatformDomain
 
 		protoDomains = append(protoDomains, domain)
 	}

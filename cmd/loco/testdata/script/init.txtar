@@ -1,8 +1,10 @@
-# init writes a starter loco.yaml from the API's service defaults, platform domain and default region.
+# init writes a starter loco.yaml from the API's service defaults, the default region and a domain
+# the environment's cluster in that region serves.
 exec loco infra init --name my-app
 stdout 'Created .*loco.yaml'
 fakeapi called GetConfig
 fakeapi called ListRegions 'Bearer test-token'
+fakeapi called ListPlatformDomains 'Bearer test-token'
 cmp loco.yaml want.yaml
 exec loco infra validate
 stdout 'loco.yaml is valid'
@@ -18,6 +20,16 @@ grep '^partial: other$' loco.yaml
 
 -- home/.loco/credentials.json --
 {"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.yaml --
+currentScope: default
+scopes:
+  default:
+    organization:
+      name: acme
+      id: "1"
+    workspace:
+      name: production
+      id: "2"
 -- want.yaml --
 # yaml-language-server: $schema=https://loco.test/schemas/loco.v1.json
 version: 1

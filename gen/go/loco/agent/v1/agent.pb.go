@@ -89,6 +89,7 @@ type RegisterRequest struct {
 	BuildsEnabled bool                   `protobuf:"varint,3,opt,name=builds_enabled,json=buildsEnabled,proto3" json:"builds_enabled,omitempty"`
 	ClusterKey    string                 `protobuf:"bytes,4,opt,name=cluster_key,json=clusterKey,proto3" json:"cluster_key,omitempty"`
 	Enrollment    *Enrollment            `protobuf:"bytes,5,opt,name=enrollment,proto3" json:"enrollment,omitempty"`
+	Domains       []string               `protobuf:"bytes,6,rep,name=domains,proto3" json:"domains,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -154,6 +155,13 @@ func (x *RegisterRequest) GetClusterKey() string {
 func (x *RegisterRequest) GetEnrollment() *Enrollment {
 	if x != nil {
 		return x.Enrollment
+	}
+	return nil
+}
+
+func (x *RegisterRequest) GetDomains() []string {
+	if x != nil {
+		return x.Domains
 	}
 	return nil
 }
@@ -1248,6 +1256,7 @@ type Heartbeat struct {
 	Capacity      *AgentCapacity         `protobuf:"bytes,1,opt,name=capacity,proto3" json:"capacity,omitempty"`
 	Health        *AgentHealth           `protobuf:"bytes,2,opt,name=health,proto3" json:"health,omitempty"`
 	BuildsEnabled bool                   `protobuf:"varint,3,opt,name=builds_enabled,json=buildsEnabled,proto3" json:"builds_enabled,omitempty"`
+	Domains       []string               `protobuf:"bytes,4,rep,name=domains,proto3" json:"domains,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1301,6 +1310,13 @@ func (x *Heartbeat) GetBuildsEnabled() bool {
 		return x.BuildsEnabled
 	}
 	return false
+}
+
+func (x *Heartbeat) GetDomains() []string {
+	if x != nil {
+		return x.Domains
+	}
+	return nil
 }
 
 // AgentCapacity reports cluster resource capacity.
@@ -1453,7 +1469,7 @@ var File_loco_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/agent/v1/agent.proto\x12\rloco.agent.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\"\xfd\x01\n" +
+	"\x19loco/agent/v1/agent.proto\x12\rloco.agent.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\"\xa5\x02\n" +
 	"\x0fRegisterRequest\x12#\n" +
 	"\ragent_version\x18\x01 \x01(\tR\fagentVersion\x128\n" +
 	"\bcapacity\x18\x02 \x01(\v2\x1c.loco.agent.v1.AgentCapacityR\bcapacity\x12%\n" +
@@ -1462,7 +1478,8 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"clusterKey\x129\n" +
 	"\n" +
 	"enrollment\x18\x05 \x01(\v2\x19.loco.agent.v1.EnrollmentR\n" +
-	"enrollment\"\\\n" +
+	"enrollment\x12&\n" +
+	"\adomains\x18\x06 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02h\x01R\adomains\"\\\n" +
 	"\n" +
 	"Enrollment\x12&\n" +
 	"\n" +
@@ -1549,11 +1566,12 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\acontext\x18\b \x01(\tB\a\xbaH\x04r\x02\x10\x01R\acontext\x124\n" +
 	"\x0forganization_id\x18\t \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\x0eorganizationId\"2\n" +
 	"\vCancelBuild\x12#\n" +
-	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\"\xa0\x01\n" +
+	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\"\xc8\x01\n" +
 	"\tHeartbeat\x128\n" +
 	"\bcapacity\x18\x01 \x01(\v2\x1c.loco.agent.v1.AgentCapacityR\bcapacity\x122\n" +
 	"\x06health\x18\x02 \x01(\v2\x1a.loco.agent.v1.AgentHealthR\x06health\x12%\n" +
-	"\x0ebuilds_enabled\x18\x03 \x01(\bR\rbuildsEnabled\"\x8d\x02\n" +
+	"\x0ebuilds_enabled\x18\x03 \x01(\bR\rbuildsEnabled\x12&\n" +
+	"\adomains\x18\x04 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02h\x01R\adomains\"\x8d\x02\n" +
 	"\rAgentCapacity\x120\n" +
 	"\x14cpu_millicores_total\x18\x01 \x01(\x03R\x12cpuMillicoresTotal\x12.\n" +
 	"\x13cpu_millicores_used\x18\x02 \x01(\x03R\x11cpuMillicoresUsed\x12,\n" +

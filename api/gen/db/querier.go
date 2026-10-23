@@ -42,7 +42,6 @@ type Querier interface {
 	CreateOrg(ctx context.Context, arg CreateOrgParams) (Organization, error)
 	// Organization queries
 	CreateOrganization(ctx context.Context, arg CreateOrganizationParams) (Organization, error)
-	CreatePlatformDomain(ctx context.Context, arg CreatePlatformDomainParams) (uuid.UUID, error)
 	// Resource queries
 	CreateResource(ctx context.Context, arg CreateResourceParams) (uuid.UUID, error)
 	CreateResourceDomain(ctx context.Context, arg CreateResourceDomainParams) (uuid.UUID, error)
@@ -54,7 +53,6 @@ type Querier interface {
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) (uuid.UUID, error)
 	CreateWorkspaceWebhook(ctx context.Context, arg CreateWorkspaceWebhookParams) (Webhook, error)
-	DeactivatePlatformDomain(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	DeleteAPIToken(ctx context.Context, id uuid.UUID) error
 	DeleteAPITokenByHash(ctx context.Context, tokenHash string) error
 	DeleteAPITokenByNameAndEntity(ctx context.Context, arg DeleteAPITokenByNameAndEntityParams) error
@@ -105,8 +103,6 @@ type Querier interface {
 	GetOrganizationByName(ctx context.Context, name string) (Organization, error)
 	GetOrganizationIDByWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	GetPlacementForResourceCluster(ctx context.Context, arg GetPlacementForResourceClusterParams) (Placement, error)
-	GetPlatformDomain(ctx context.Context, id uuid.UUID) (PlatformDomain, error)
-	GetPlatformDomainByName(ctx context.Context, domain string) (PlatformDomain, error)
 	GetPrimaryResourceDomain(ctx context.Context, arg GetPrimaryResourceDomainParams) (string, error)
 	GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, error)
 	GetResourceByNameAndWorkspace(ctx context.Context, arg GetResourceByNameAndWorkspaceParams) (Resource, error)
@@ -143,12 +139,12 @@ type Querier interface {
 	ListActiveDeployments(ctx context.Context) ([]uuid.UUID, error)
 	ListActiveDeploymentsForEnvironment(ctx context.Context, environmentID uuid.UUID) ([]Deployment, error)
 	ListActiveDeploymentsForResource(ctx context.Context, resourceID uuid.UUID) ([]Deployment, error)
-	ListActivePlatformDomains(ctx context.Context) ([]PlatformDomain, error)
 	ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow, error)
 	ListAllLocoOwnedDomains(ctx context.Context) ([]ListAllLocoOwnedDomainsRow, error)
 	ListBuildStatesByIDs(ctx context.Context, ids []uuid.UUID) ([]ListBuildStatesByIDsRow, error)
 	ListBuildTagStates(ctx context.Context, ids []uuid.UUID) ([]ListBuildTagStatesRow, error)
 	ListBuildsForResource(ctx context.Context, arg ListBuildsForResourceParams) ([]Build, error)
+	ListClusterDomains(ctx context.Context, ids []uuid.UUID) ([]ListClusterDomainsRow, error)
 	ListClusterPlacementRevisions(ctx context.Context, clusterID uuid.UUID) ([]ListClusterPlacementRevisionsRow, error)
 	ListClusterWorkloads(ctx context.Context, clusterID uuid.UUID) ([]ListClusterWorkloadsRow, error)
 	ListClustersActive(ctx context.Context) ([]ListClustersActiveRow, error)
@@ -170,7 +166,6 @@ type Querier interface {
 	ListPendingPlacements(ctx context.Context, clusterID uuid.UUID) ([]ListPendingPlacementsRow, error)
 	ListPlacementSecretSizes(ctx context.Context, arg ListPlacementSecretSizesParams) ([]ListPlacementSecretSizesRow, error)
 	ListPlacementsByIDs(ctx context.Context, arg ListPlacementsByIDsParams) ([]Placement, error)
-	ListPlatformDomains(ctx context.Context, activeOnly *bool) ([]PlatformDomain, error)
 	ListQueuedClusterBuilds(ctx context.Context, clusterID *uuid.UUID) ([]ListQueuedClusterBuildsRow, error)
 	ListRegionStatusesForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListRegionStatusesForResourcesRow, error)
 	ListResourceAuditEvents(ctx context.Context, arg ListResourceAuditEventsParams) ([]ListResourceAuditEventsRow, error)

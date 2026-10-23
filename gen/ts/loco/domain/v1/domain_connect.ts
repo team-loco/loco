@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CheckDomainAvailabilityRequest, CheckDomainAvailabilityResponse, CreatePlatformDomainRequest, CreatePlatformDomainResponse, CreateResourceDomainRequest, CreateResourceDomainResponse, DeletePlatformDomainRequest, DeletePlatformDomainResponse, DeleteResourceDomainRequest, DeleteResourceDomainResponse, GetPlatformDomainRequest, GetPlatformDomainResponse, ListLocoOwnedDomainsRequest, ListLocoOwnedDomainsResponse, ListPlatformDomainsRequest, ListPlatformDomainsResponse, SetPrimaryResourceDomainRequest, SetPrimaryResourceDomainResponse, UpdatePlatformDomainRequest, UpdatePlatformDomainResponse, UpdateResourceDomainRequest, UpdateResourceDomainResponse } from "./domain_pb";
+import { CheckDomainAvailabilityRequest, CheckDomainAvailabilityResponse, CreateResourceDomainRequest, CreateResourceDomainResponse, DeleteResourceDomainRequest, DeleteResourceDomainResponse, ListLocoOwnedDomainsRequest, ListLocoOwnedDomainsResponse, ListPlatformDomainsRequest, ListPlatformDomainsResponse, SetPrimaryResourceDomainRequest, SetPrimaryResourceDomainResponse, UpdateResourceDomainRequest, UpdateResourceDomainResponse } from "./domain_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -15,30 +15,7 @@ export const DomainService = {
   typeName: "loco.domain.v1.DomainService",
   methods: {
     /**
-     * Platform Domain CRUD
-     * CreatePlatformDomain creates a new platform-provided domain.
-     *
-     * @generated from rpc loco.domain.v1.DomainService.CreatePlatformDomain
-     */
-    createPlatformDomain: {
-      name: "CreatePlatformDomain",
-      I: CreatePlatformDomainRequest,
-      O: CreatePlatformDomainResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * GetPlatformDomain retrieves a platform domain by ID or name.
-     *
-     * @generated from rpc loco.domain.v1.DomainService.GetPlatformDomain
-     */
-    getPlatformDomain: {
-      name: "GetPlatformDomain",
-      I: GetPlatformDomainRequest,
-      O: GetPlatformDomainResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * ListPlatformDomains lists platform domains with optional filters.
+     * ListPlatformDomains lists the domains the clusters an environment deploys to serve.
      *
      * @generated from rpc loco.domain.v1.DomainService.ListPlatformDomains
      */
@@ -46,28 +23,6 @@ export const DomainService = {
       name: "ListPlatformDomains",
       I: ListPlatformDomainsRequest,
       O: ListPlatformDomainsResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * UpdatePlatformDomain updates a platform domain.
-     *
-     * @generated from rpc loco.domain.v1.DomainService.UpdatePlatformDomain
-     */
-    updatePlatformDomain: {
-      name: "UpdatePlatformDomain",
-      I: UpdatePlatformDomainRequest,
-      O: UpdatePlatformDomainResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * DeletePlatformDomain deletes a platform domain.
-     *
-     * @generated from rpc loco.domain.v1.DomainService.DeletePlatformDomain
-     */
-    deletePlatformDomain: {
-      name: "DeletePlatformDomain",
-      I: DeletePlatformDomainRequest,
-      O: DeletePlatformDomainResponse,
       kind: MethodKind.Unary,
     },
     /**

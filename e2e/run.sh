@@ -64,12 +64,13 @@ GATEWAY_RELEASE="eg"
 GATEWAY_CHART_VERSION=$(yq '.dependencies[] | select(.name == "gateway-helm") | .version' "$CORE_CHART/Chart.yaml")
 OBS_NAMESPACE=$(yq '.global.observability.namespace' "$CORE_CHART/values.yaml")
 PLATFORM_DOMAIN="e2e.test.local"
+GATEWAY_TLS_SECRET="e2e-gateway-tls"
+GATEWAY_TLS_DAYS=1
 CLICKHOUSE_IMAGE=$(yq '.clickhouse.clickhouse.image.repository + ":" + .clickhouse.clickhouse.image.tag' "$OBS_VALUES")
 CLICKHOUSE_CONTAINER="${RUN_NAME}-clickhouse"
 CLICKHOUSE_USER="loco_e2e"
 CLICKHOUSE_PASS="loco_e2e_pass"
 BUILDKIT_IMAGE=$(yq '.builds.buildkitImage.repository + ":" + .builds.buildkitImage.tag' "$ROOT_DIR/charts/loco-operator/values.yaml")
-GATEWAY_API_VERSION=$(awk '$1 == "sigs.k8s.io/gateway-api" { print $2 }' "$ROOT_DIR/controller/go.mod")
 CLUSTER_ADMIN_TOKEN="loco_s_e2e-admin-session-do-not-use-in-production"
 CLUSTER_ADMIN_HOME="$RUN_DIR/cluster-admin-home"
 AGENT_KEY_SECRET="e2e-agent-key"
@@ -442,14 +443,6 @@ create_namespace() {
     log_ok "Namespace ready"
 }
 
-install_gateway_api() {
-    log_step "Installing the Gateway API CRDs..."
-    kube apply --server-side \
-        -f "https://github.com/kubernetes-sigs/gateway-api/releases/download/${GATEWAY_API_VERSION}/standard-install.yaml" \
-        >/dev/null
-    log_ok "Gateway API ${GATEWAY_API_VERSION} CRDs installed"
-}
-
 install_observability_namespaces() {
     log_step "Applying the platform namespaces..."
     kube apply -f "$ROOT_DIR/manifests/namespaces/namespaces.yaml" >/dev/null
@@ -474,6 +467,28 @@ envoy_proxy_service() {
         -o name | grep .
 }
 
+render_core() {
+    helm template loco-core "$CORE_CHART" \
+        --namespace "$LOCO_NAMESPACE" \
+        --values "$SCRIPT_DIR/gateway-values.yaml" \
+        --set "global.domain.apps={${PLATFORM_DOMAIN}}" \
+        --set "certManager.existingTLSSecret=${GATEWAY_TLS_SECRET}" \
+        --show-only "$1"
+}
+
+agent_chart_env() {
+    yq ".spec.template.spec.containers[0].env[] | select(.name == \"$1\") | .value" "$RUN_DIR/agent-deployment.yaml"
+}
+
+create_gateway_tls_secret() {
+    openssl req -x509 -newkey rsa:2048 -nodes -days "$GATEWAY_TLS_DAYS" \
+        -subj "/CN=*.${PLATFORM_DOMAIN}" -addext "subjectAltName=DNS:*.${PLATFORM_DOMAIN}" \
+        -keyout "$RUN_DIR/gateway-tls.key" -out "$RUN_DIR/gateway-tls.crt" >/dev/null 2>&1
+    kube -n "$LOCO_NAMESPACE" create secret tls "$GATEWAY_TLS_SECRET" \
+        --cert "$RUN_DIR/gateway-tls.crt" --key "$RUN_DIR/gateway-tls.key" \
+        --dry-run=client -o yaml | kube apply -f - >/dev/null
+}
+
 install_envoy_gateway() {
     log_step "Installing Envoy Gateway ${GATEWAY_CHART_VERSION}, its Gateway API CRDs and the loco-core Gateway..."
     local gateway_values="$RUN_DIR/gateway-helm-values.yaml"
@@ -484,12 +499,9 @@ install_envoy_gateway() {
         --namespace "$LOCO_NAMESPACE" \
         --values "$gateway_values" \
         --wait --timeout "$OBS_HELM_TIMEOUT" >/dev/null
-    helm template loco-core "$CORE_CHART" \
-        --namespace "$LOCO_NAMESPACE" \
-        --values "$SCRIPT_DIR/gateway-values.yaml" \
-        --set "global.domain.apps={${PLATFORM_DOMAIN}}" \
-        --show-only templates/gateway.yaml |
-        kube apply -f - >/dev/null
+    create_gateway_tls_secret
+    render_core templates/agent-deployment.yaml >"$RUN_DIR/agent-deployment.yaml"
+    render_core templates/gateway.yaml | kube apply -f - >/dev/null
     wait_for "the Envoy proxy Deployment" "$OBS_READY_TIMEOUT" envoy_proxy_deployment
     kube -n "$LOCO_NAMESPACE" rollout status "$(envoy_proxy_deployment)" --timeout "${OBS_READY_TIMEOUT}s" >/dev/null
     log_ok "Envoy Gateway serving the ${GATEWAY_RELEASE} Gateway"
@@ -719,7 +731,6 @@ start_api() {
     APP_PORT="127.0.0.1:$API_PORT" \
     OBSERVABILITY_PROXY_URL="http://127.0.0.1:$OBS_PROXY_PORT" \
     CORS_ALLOWED_ORIGINS="https://dashboard.e2e.test" \
-    DEFAULT_PLATFORM_DOMAIN="$PLATFORM_DOMAIN" \
     APP_ENV="test" \
     LOG_LEVEL=debug \
     LOCO_REGISTRY_HOST="$E2E_REGISTRY_HOST" \
@@ -809,6 +820,9 @@ start_agent() {
     LOCO_RECONNECT_BASE_DELAY="$(yq '.agent.reconnectBaseDelay' "$core_values")" \
     LOCO_RECONNECT_MAX_DELAY="$(yq '.agent.reconnectMaxDelay' "$core_values")" \
     LOCO_HEALTHY_STREAM_DURATION="$(yq '.agent.healthyStreamDuration' "$core_values")" \
+    LOCO_GATEWAY="$(agent_chart_env LOCO_GATEWAY)" \
+    LOCO_CERTIFICATE="$(agent_chart_env LOCO_CERTIFICATE)" \
+    LOCO_APP_DOMAINS="$(agent_chart_env LOCO_APP_DOMAINS)" \
     KUBECONFIG="$KUBECONFIG_FILE" \
         "$BIN_DIR/loco-agent" \
         >"$LOG_DIR/agent.log" 2>&1 &
@@ -946,13 +960,13 @@ main() {
     start_builds
     setup_kind
     create_namespace
+    build_chart_dependencies
     if [ "$OBSERVABILITY" = true ]; then
         install_observability_namespaces
-        build_chart_dependencies
-        start_job envoy-gateway install_envoy_gateway
+    fi
+    start_job envoy-gateway install_envoy_gateway
+    if [ "$OBSERVABILITY" = true ]; then
         start_job loco-obs install_loco_obs
-    else
-        install_gateway_api
     fi
     setup_postgres
     if [ "$OBSERVABILITY" = false ]; then

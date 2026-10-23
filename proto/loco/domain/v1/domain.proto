@@ -10,9 +10,6 @@ option go_package = "github.com/team-loco/loco/gen/go/loco/domain/v1;domainv1";
 
 // DomainType indicates the source of a domain.
 enum DomainType {
-  reserved 2;
-  reserved "DOMAIN_TYPE_USER_PROVIDED";
-
   DOMAIN_TYPE_UNSPECIFIED = 0;
   DOMAIN_TYPE_PLATFORM_PROVIDED = 1;
   // eventually add support for custom domains.
@@ -20,26 +17,20 @@ enum DomainType {
 
 // --- Messages ---
 
-// PlatformDomain represents a platform-provided domain.
+// PlatformDomain is a domain the clusters of an environment serve, with the regions whose cluster serves it.
 message PlatformDomain {
-  string id = 1;
-  string domain = 2;
-  bool is_active = 3;
-  google.protobuf.Timestamp created_at = 4;
-  google.protobuf.Timestamp updated_at = 5;
+  string domain = 1;
+  repeated string regions = 2;
 }
 
 // DomainInput specifies domain configuration for a resource.
 message DomainInput {
-  reserved 4;
-  reserved "domain";
-
   DomainType domain_source = 1 [(buf.validate.field).enum = {
     defined_only: true
     not_in: [0]
   }];
   optional string subdomain = 2; // for PLATFORM_PROVIDED: "myapp"
-  optional string platform_domain_id = 3 [(buf.validate.field).string.uuid = true]; // for PLATFORM_PROVIDED: id of the platform domain
+  optional string platform_domain = 3 [(buf.validate.field).string.hostname = true]; // for PLATFORM_PROVIDED: a domain a cluster serves
 
   option (buf.validate.message).cel = {
     id: "platform_provided.subdomain_required"
@@ -47,9 +38,9 @@ message DomainInput {
     expression: "this.domain_source != 1 || (has(this.subdomain) && this.subdomain != '')"
   };
   option (buf.validate.message).cel = {
-    id: "platform_provided.platform_domain_id_required"
-    message: "platform_domain_id is required for platform-provided domains"
-    expression: "this.domain_source != 1 || (has(this.platform_domain_id) && this.platform_domain_id != '')"
+    id: "platform_provided.platform_domain_required"
+    message: "platform_domain is required for platform-provided domains"
+    expression: "this.domain_source != 1 || (has(this.platform_domain) && this.platform_domain != '')"
   };
 }
 
@@ -60,7 +51,7 @@ message ResourceDomain {
   string domain = 3;
   DomainType domain_source = 4;
   optional string subdomain_label = 5;
-  optional string platform_domain_id = 6;
+  optional string platform_domain = 6;
   bool is_primary = 7;
   google.protobuf.Timestamp created_at = 8;
   google.protobuf.Timestamp updated_at = 9;
@@ -70,17 +61,8 @@ message ResourceDomain {
 
 // DomainService manages domains for resources.
 service DomainService {
-  // Platform Domain CRUD
-  // CreatePlatformDomain creates a new platform-provided domain.
-  rpc CreatePlatformDomain(CreatePlatformDomainRequest) returns (CreatePlatformDomainResponse);
-  // GetPlatformDomain retrieves a platform domain by ID or name.
-  rpc GetPlatformDomain(GetPlatformDomainRequest) returns (GetPlatformDomainResponse);
-  // ListPlatformDomains lists platform domains with optional filters.
+  // ListPlatformDomains lists the domains the clusters an environment deploys to serve.
   rpc ListPlatformDomains(ListPlatformDomainsRequest) returns (ListPlatformDomainsResponse);
-  // UpdatePlatformDomain updates a platform domain.
-  rpc UpdatePlatformDomain(UpdatePlatformDomainRequest) returns (UpdatePlatformDomainResponse);
-  // DeletePlatformDomain deletes a platform domain.
-  rpc DeletePlatformDomain(DeletePlatformDomainRequest) returns (DeletePlatformDomainResponse);
 
   // Resource Domain Management
   // CreateResourceDomain assigns a domain to a resource.
@@ -101,60 +83,15 @@ service DomainService {
 
 // --- Platform Domain Requests/Responses ---
 
-// CreatePlatformDomainRequest is the request to create a platform domain.
-message CreatePlatformDomainRequest {
-  string domain = 1 [(buf.validate.field).string.min_len = 1];
-  bool is_active = 2;
-}
-
-// CreatePlatformDomainResponse is the response containing the created platform domain ID.
-message CreatePlatformDomainResponse {
-  string id = 1;
-}
-
-// GetPlatformDomainRequest is the request to retrieve a platform domain.
-message GetPlatformDomainRequest {
-  oneof key {
-    string id = 1 [(buf.validate.field).string.uuid = true];
-    string domain = 2 [(buf.validate.field).string.min_len = 1];
-  }
-}
-
-// GetPlatformDomainResponse is the response containing the platform domain.
-message GetPlatformDomainResponse {
-  PlatformDomain platform_domain = 1;
-}
-
-// ListPlatformDomainsRequest is the request to list platform domains.
+// ListPlatformDomainsRequest names the environment whose clusters' domains to list.
 message ListPlatformDomainsRequest {
-  optional bool active_only = 1;
+  string environment_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
-// ListPlatformDomainsResponse contains the list of platform domains.
+// ListPlatformDomainsResponse contains the domains the environment's clusters serve.
 message ListPlatformDomainsResponse {
   repeated PlatformDomain platform_domains = 1;
 }
-
-// UpdatePlatformDomainRequest is the request to update a platform domain.
-message UpdatePlatformDomainRequest {
-  string id = 1 [(buf.validate.field).string.uuid = true];
-  google.protobuf.FieldMask update_mask = 2;
-  optional string domain = 3 [(buf.validate.field).string.min_len = 1];
-  optional bool is_active = 4;
-}
-
-// UpdatePlatformDomainResponse is the response containing the updated platform domain ID.
-message UpdatePlatformDomainResponse {
-  string id = 1;
-}
-
-// DeletePlatformDomainRequest is the request to delete a platform domain.
-message DeletePlatformDomainRequest {
-  string id = 1 [(buf.validate.field).string.uuid = true];
-}
-
-// DeletePlatformDomainResponse is the response after deleting a platform domain.
-message DeletePlatformDomainResponse {}
 
 // --- List Loco Owned Domains ---
 

@@ -35,12 +35,6 @@ func buildGetCmd() *cobra.Command {
 				} else {
 					fmt.Println("(not set, default: " + cmdutil.DefaultWebHost + ")")
 				}
-			case keyDefaultAppDomain:
-				if cfg.DefaultAppDomain != "" {
-					fmt.Println(cfg.DefaultAppDomain)
-				} else {
-					fmt.Println("(not set, default: onloco.app)")
-				}
 			default:
 				return fmt.Errorf("unknown key %q — valid keys: %v", key, validKeys)
 			}

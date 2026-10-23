@@ -51,27 +51,60 @@ type ImageResult struct {
 // Input is everything the planner needs. Services are the file's services resolved for the
 // environment, Disabled the file's services the environment turns off, FileEnvironments the
 // environment names the file mentions, Environments the
-// names that exist in the workspace, Regions the regions with an active cluster, Secrets the
-// value size in bytes of every secret name each service holds in the environment, keyed by
-// service name, MaxSecretBytes the largest total of name and value bytes one placement of a
-// service may carry, Provision the services an apply creates without deploying, whose missing
-// secrets are not errors when the plan creates them, PlatformDomains the active platform domains
-// a service domain must end with, and Images a resolution for every image reference the services
-// use.
+// names that exist in the workspace, Clusters the cluster a deployment to each region lands on,
+// Secrets the value size in bytes of every secret name each service holds in the environment,
+// keyed by service name, MaxSecretBytes the largest total of name and value bytes one placement
+// of a service may carry, Provision the services an apply creates without deploying, whose
+// missing secrets are not errors when the plan creates them, and Images a resolution for every
+// image reference the services use.
 type Input struct {
 	Partial          string
 	Services         map[string]locofile.Service
 	Disabled         []string
 	FileEnvironments []string
 	Environments     []string
-	Regions          []string
+	Clusters         []Cluster
 	Secrets          map[string]map[string]int64
 	MaxSecretBytes   int64
 	Provision        []string
-	PlatformDomains  []string
 	Live             []Service
 	Defaults         servicedefaults.Defaults
 	Images           map[string]ImageResult
+}
+
+type Cluster struct {
+	Name    string
+	Region  string
+	Domains []string
+}
+
+func ServedDomains(clusters []Cluster) []string {
+	var domains []string
+	for _, cluster := range clusters {
+		domains = append(domains, cluster.Domains...)
+	}
+	slices.Sort(domains)
+	return slices.Compact(domains)
+}
+
+func CheckDomain(domain string, clusters, targets []Cluster) (string, string, error) {
+	platform, label, err := MatchPlatformDomain(domain, ServedDomains(clusters))
+	if err != nil {
+		return "", "", err
+	}
+	var missing []string
+	for _, cluster := range targets {
+		if !slices.Contains(cluster.Domains, platform) {
+			missing = append(missing, cluster.Name+" ("+cluster.Region+")")
+		}
+	}
+	if len(missing) > 0 {
+		return "", "", fmt.Errorf(
+			"%w: %s is under %s, which %s does not serve",
+			ErrDomainNotServed, domain, platform, strings.Join(missing, ", "),
+		)
+	}
+	return platform, label, nil
 }
 
 // Change is one field an apply would set.
@@ -237,15 +270,18 @@ func unknownEnvironments(in Input) []Error {
 
 func checkService(name string, service locofile.Service, in Input) []Error {
 	var errs []Error
+	var targets []Cluster
 	for _, region := range slices.Sorted(maps.Keys(service.Regions)) {
-		if slices.Contains(in.Regions, region) {
+		index := slices.IndexFunc(in.Clusters, func(cluster Cluster) bool { return cluster.Region == region })
+		if index >= 0 {
+			targets = append(targets, in.Clusters[index])
 			continue
 		}
 		unknown := fmt.Errorf("%w: %s", ErrUnknownRegion, region)
 		errs = append(errs, Error{Service: name, Path: pathRegions + "." + region, Err: unknown})
 	}
 	for _, domain := range service.Domains {
-		if _, _, err := MatchPlatformDomain(domain, in.PlatformDomains); err != nil {
+		if _, _, err := CheckDomain(domain, in.Clusters, targets); err != nil {
 			errs = append(errs, Error{Service: name, Path: pathDomains, Err: err})
 		}
 	}
@@ -291,7 +327,7 @@ func withEnabled(current Service, changes []Change) []Change {
 
 // MatchPlatformDomain returns the platform domain a service domain belongs to and the label in
 // front of it. When platform domains nest, the longest suffix wins, so with loco.test and
-// stage.loco.test active, api.stage.loco.test is the label api under stage.loco.test. The
+// stage.loco.test served, api.stage.loco.test is the label api under stage.loco.test. The
 // domain must be exactly one label under that platform domain. Plan and Apply both use it.
 func MatchPlatformDomain(domain string, platformDomains []string) (string, string, error) {
 	matched := ""
