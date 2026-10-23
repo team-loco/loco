@@ -85,9 +85,7 @@ message BuildSource {
     (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
     (buf.validate.field).string = {pattern: "^([a-z0-9\\-._]+(:[0-9]+)?(/[a-z0-9\\-._]+)*)(:[a-z0-9\\-._]+)?(@sha256:[a-f0-9]{64})?$"}
   ]; // final image or pre-built
-  reserved 3;
-  reserved "dockerfile_path";
-  optional string build_id = 4 [(buf.validate.field).string.uuid = true];
+  optional string build_id = 3 [(buf.validate.field).string.uuid = true];
 }
 
 // ServiceDeploymentSpec is the deployment specification for SERVICE type resources.
@@ -131,20 +129,14 @@ message ServiceRouting {
   int32 idle_timeout = 2;
 }
 
-// DatabaseDeploymentSpec is a placeholder for DATABASE type deployments (future implementation).
-message DatabaseDeploymentSpec {
-  // reserved for future expansion
-}
+// DatabaseDeploymentSpec is the spec of the corresponding resource type.
+message DatabaseDeploymentSpec {}
 
-// CacheDeploymentSpec is a placeholder for CACHE type deployments (future implementation).
-message CacheDeploymentSpec {
-  // reserved for future expansion
-}
+// CacheDeploymentSpec is the spec of the corresponding resource type.
+message CacheDeploymentSpec {}
 
-// QueueDeploymentSpec is a placeholder for QUEUE type deployments (future implementation).
-message QueueDeploymentSpec {
-  // reserved for future expansion
-}
+// QueueDeploymentSpec is the spec of the corresponding resource type.
+message QueueDeploymentSpec {}
 
 // DeploymentSpec is the immutable runtime snapshot for a deployment.
 // Uses oneof to support different resource types.

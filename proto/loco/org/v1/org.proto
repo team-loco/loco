@@ -120,9 +120,7 @@ message User {
 // UpdateOrgRequest is the request to update an organization.
 message UpdateOrgRequest {
   string org_id = 1 [(buf.validate.field).string.uuid = true];
-  reserved 2;
-  reserved "update_mask";
-  optional string name = 3 [(buf.validate.field).string = {
+  optional string name = 2 [(buf.validate.field).string = {
     min_len: 1
     max_len: 100
   }];

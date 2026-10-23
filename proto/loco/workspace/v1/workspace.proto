@@ -122,13 +122,11 @@ message ListOrgWorkspacesResponse {
 // UpdateWorkspaceRequest is the request to update a workspace.
 message UpdateWorkspaceRequest {
   string workspace_id = 1 [(buf.validate.field).string.uuid = true];
-  reserved 2;
-  reserved "update_mask";
-  optional string name = 3 [(buf.validate.field).string = {
+  optional string name = 2 [(buf.validate.field).string = {
     min_len: 1
     max_len: 63
   }];
-  optional string description = 4 [(buf.validate.field).string.max_len = 256];
+  optional string description = 3 [(buf.validate.field).string.max_len = 256];
 }
 
 // UpdateWorkspaceResponse is the response containing the updated workspace ID.

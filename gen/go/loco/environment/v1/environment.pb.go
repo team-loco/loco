@@ -28,24 +28,21 @@ type EnvironmentType int32
 
 const (
 	EnvironmentType_ENVIRONMENT_TYPE_UNSPECIFIED EnvironmentType = 0
-	EnvironmentType_ENVIRONMENT_TYPE_DEV         EnvironmentType = 1
-	EnvironmentType_ENVIRONMENT_TYPE_STAGING     EnvironmentType = 2
-	EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION  EnvironmentType = 3
+	EnvironmentType_ENVIRONMENT_TYPE_STAGING     EnvironmentType = 1
+	EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION  EnvironmentType = 2
 )
 
 // Enum value maps for EnvironmentType.
 var (
 	EnvironmentType_name = map[int32]string{
 		0: "ENVIRONMENT_TYPE_UNSPECIFIED",
-		1: "ENVIRONMENT_TYPE_DEV",
-		2: "ENVIRONMENT_TYPE_STAGING",
-		3: "ENVIRONMENT_TYPE_PRODUCTION",
+		1: "ENVIRONMENT_TYPE_STAGING",
+		2: "ENVIRONMENT_TYPE_PRODUCTION",
 	}
 	EnvironmentType_value = map[string]int32{
 		"ENVIRONMENT_TYPE_UNSPECIFIED": 0,
-		"ENVIRONMENT_TYPE_DEV":         1,
-		"ENVIRONMENT_TYPE_STAGING":     2,
-		"ENVIRONMENT_TYPE_PRODUCTION":  3,
+		"ENVIRONMENT_TYPE_STAGING":     1,
+		"ENVIRONMENT_TYPE_PRODUCTION":  2,
 	}
 )
 
@@ -483,9 +480,9 @@ func (x *ListEnvironmentsResponse) GetEnvironments() []*Environment {
 type UpdateEnvironmentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EnvironmentId string                 `protobuf:"bytes,1,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
-	Name          *string                `protobuf:"bytes,3,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	Description   *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	Type          *EnvironmentType       `protobuf:"varint,5,opt,name=type,proto3,enum=loco.environment.v1.EnvironmentType,oneof" json:"type,omitempty"`
+	Name          *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	Description   *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	Type          *EnvironmentType       `protobuf:"varint,4,opt,name=type,proto3,enum=loco.environment.v1.EnvironmentType,oneof" json:"type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -710,26 +707,25 @@ const file_loco_environment_v1_environment_proto_rawDesc = "" +
 	"\x17ListEnvironmentsRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\"`\n" +
 	"\x18ListEnvironmentsResponse\x12D\n" +
-	"\fenvironments\x18\x01 \x03(\v2 .loco.environment.v1.EnvironmentR\fenvironments\"\xa0\x02\n" +
+	"\fenvironments\x18\x01 \x03(\v2 .loco.environment.v1.EnvironmentR\fenvironments\"\x8d\x02\n" +
 	"\x18UpdateEnvironmentRequest\x12/\n" +
 	"\x0eenvironment_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\x12\"\n" +
-	"\x04name\x18\x03 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18?H\x00R\x04name\x88\x01\x01\x12/\n" +
-	"\vdescription\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x01R\vdescription\x88\x01\x01\x12I\n" +
-	"\x04type\x18\x05 \x01(\x0e2$.loco.environment.v1.EnvironmentTypeB\n" +
+	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18?H\x00R\x04name\x88\x01\x01\x12/\n" +
+	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x01R\vdescription\x88\x01\x01\x12I\n" +
+	"\x04type\x18\x04 \x01(\x0e2$.loco.environment.v1.EnvironmentTypeB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00H\x02R\x04type\x88\x01\x01B\a\n" +
 	"\x05_nameB\x0e\n" +
 	"\f_descriptionB\a\n" +
-	"\x05_typeJ\x04\b\x02\x10\x03R\vupdate_mask\"B\n" +
+	"\x05_type\"B\n" +
 	"\x19UpdateEnvironmentResponse\x12%\n" +
 	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\"K\n" +
 	"\x18DeleteEnvironmentRequest\x12/\n" +
 	"\x0eenvironment_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\"\x1b\n" +
-	"\x19DeleteEnvironmentResponse*\x8c\x01\n" +
+	"\x19DeleteEnvironmentResponse*r\n" +
 	"\x0fEnvironmentType\x12 \n" +
-	"\x1cENVIRONMENT_TYPE_UNSPECIFIED\x10\x00\x12\x18\n" +
-	"\x14ENVIRONMENT_TYPE_DEV\x10\x01\x12\x1c\n" +
-	"\x18ENVIRONMENT_TYPE_STAGING\x10\x02\x12\x1f\n" +
-	"\x1bENVIRONMENT_TYPE_PRODUCTION\x10\x032\xcc\x04\n" +
+	"\x1cENVIRONMENT_TYPE_UNSPECIFIED\x10\x00\x12\x1c\n" +
+	"\x18ENVIRONMENT_TYPE_STAGING\x10\x01\x12\x1f\n" +
+	"\x1bENVIRONMENT_TYPE_PRODUCTION\x10\x022\xcc\x04\n" +
 	"\x12EnvironmentService\x12r\n" +
 	"\x11CreateEnvironment\x12-.loco.environment.v1.CreateEnvironmentRequest\x1a..loco.environment.v1.CreateEnvironmentResponse\x12i\n" +
 	"\x0eGetEnvironment\x12*.loco.environment.v1.GetEnvironmentRequest\x1a+.loco.environment.v1.GetEnvironmentResponse\x12o\n" +

@@ -99,7 +99,7 @@ const (
 	ResourceStatus_RESOURCE_STATUS_DEPLOYING   ResourceStatus = 2
 	ResourceStatus_RESOURCE_STATUS_DEGRADED    ResourceStatus = 3
 	ResourceStatus_RESOURCE_STATUS_UNAVAILABLE ResourceStatus = 4
-	ResourceStatus_RESOURCE_STATUS_UNKNOWN     ResourceStatus = 6
+	ResourceStatus_RESOURCE_STATUS_UNKNOWN     ResourceStatus = 5
 )
 
 // Enum value maps for ResourceStatus.
@@ -110,7 +110,7 @@ var (
 		2: "RESOURCE_STATUS_DEPLOYING",
 		3: "RESOURCE_STATUS_DEGRADED",
 		4: "RESOURCE_STATUS_UNAVAILABLE",
-		6: "RESOURCE_STATUS_UNKNOWN",
+		5: "RESOURCE_STATUS_UNKNOWN",
 	}
 	ResourceStatus_value = map[string]int32{
 		"RESOURCE_STATUS_UNSPECIFIED": 0,
@@ -118,7 +118,7 @@ var (
 		"RESOURCE_STATUS_DEPLOYING":   2,
 		"RESOURCE_STATUS_DEGRADED":    3,
 		"RESOURCE_STATUS_UNAVAILABLE": 4,
-		"RESOURCE_STATUS_UNKNOWN":     6,
+		"RESOURCE_STATUS_UNKNOWN":     5,
 	}
 )
 
@@ -389,11 +389,11 @@ func (x *ObservabilityConfig) GetMetrics() *MetricsConfig {
 type RegionTarget struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Enabled       bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	Cpu           string                 `protobuf:"bytes,3,opt,name=cpu,proto3" json:"cpu,omitempty"`       // e.g., "100m"
-	Memory        string                 `protobuf:"bytes,4,opt,name=memory,proto3" json:"memory,omitempty"` // e.g., "256Mi"
-	MinReplicas   int32                  `protobuf:"varint,5,opt,name=min_replicas,json=minReplicas,proto3" json:"min_replicas,omitempty"`
-	MaxReplicas   int32                  `protobuf:"varint,6,opt,name=max_replicas,json=maxReplicas,proto3" json:"max_replicas,omitempty"`
-	Scalers       *v1.Scalers            `protobuf:"bytes,7,opt,name=scalers,proto3,oneof" json:"scalers,omitempty"` // autoscaling config
+	Cpu           string                 `protobuf:"bytes,2,opt,name=cpu,proto3" json:"cpu,omitempty"`       // e.g., "100m"
+	Memory        string                 `protobuf:"bytes,3,opt,name=memory,proto3" json:"memory,omitempty"` // e.g., "256Mi"
+	MinReplicas   int32                  `protobuf:"varint,4,opt,name=min_replicas,json=minReplicas,proto3" json:"min_replicas,omitempty"`
+	MaxReplicas   int32                  `protobuf:"varint,5,opt,name=max_replicas,json=maxReplicas,proto3" json:"max_replicas,omitempty"`
+	Scalers       *v1.Scalers            `protobuf:"bytes,6,opt,name=scalers,proto3,oneof" json:"scalers,omitempty"` // autoscaling config
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -539,7 +539,7 @@ func (x *ServiceSpec) GetHealthCheck() *v1.HealthCheckConfig {
 	return nil
 }
 
-// DatabaseSpec is a placeholder for DATABASE type resources (future implementation).
+// DatabaseSpec is the spec of the corresponding resource type.
 type DatabaseSpec struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -576,7 +576,7 @@ func (*DatabaseSpec) Descriptor() ([]byte, []int) {
 	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{6}
 }
 
-// CacheSpec is a placeholder for CACHE type resources (future implementation).
+// CacheSpec is the spec of the corresponding resource type.
 type CacheSpec struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -613,7 +613,7 @@ func (*CacheSpec) Descriptor() ([]byte, []int) {
 	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{7}
 }
 
-// QueueSpec is a placeholder for QUEUE type resources (future implementation).
+// QueueSpec is the spec of the corresponding resource type.
 type QueueSpec struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -650,7 +650,7 @@ func (*QueueSpec) Descriptor() ([]byte, []int) {
 	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{8}
 }
 
-// BlobSpec is a placeholder for BLOB type resources (future implementation).
+// BlobSpec is the spec of the corresponding resource type.
 type BlobSpec struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -827,14 +827,14 @@ type Resource struct {
 	Name                string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Type                ResourceType           `protobuf:"varint,4,opt,name=type,proto3,enum=loco.resource.v1.ResourceType" json:"type,omitempty"`
 	Domains             []*v11.ResourceDomain  `protobuf:"bytes,5,rep,name=domains,proto3" json:"domains,omitempty"`
-	Spec                *ResourceSpec          `protobuf:"bytes,8,opt,name=spec,proto3,oneof" json:"spec,omitempty"`
-	SpecVersion         int32                  `protobuf:"varint,9,opt,name=spec_version,json=specVersion,proto3" json:"spec_version,omitempty"`
-	Description         *string                `protobuf:"bytes,10,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	CreatedBy           string                 `protobuf:"bytes,11,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
-	CreatedAt           *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt           *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	Partial             *string                `protobuf:"bytes,15,opt,name=partial,proto3,oneof" json:"partial,omitempty"`
-	EnvironmentStatuses []*EnvironmentStatus   `protobuf:"bytes,16,rep,name=environment_statuses,json=environmentStatuses,proto3" json:"environment_statuses,omitempty"`
+	Spec                *ResourceSpec          `protobuf:"bytes,6,opt,name=spec,proto3,oneof" json:"spec,omitempty"`
+	SpecVersion         int32                  `protobuf:"varint,7,opt,name=spec_version,json=specVersion,proto3" json:"spec_version,omitempty"`
+	Description         *string                `protobuf:"bytes,8,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	CreatedBy           string                 `protobuf:"bytes,9,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
+	CreatedAt           *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt           *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	Partial             *string                `protobuf:"bytes,12,opt,name=partial,proto3,oneof" json:"partial,omitempty"`
+	EnvironmentStatuses []*EnvironmentStatus   `protobuf:"bytes,13,rep,name=environment_statuses,json=environmentStatuses,proto3" json:"environment_statuses,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -1560,8 +1560,8 @@ func (x *ListWorkspaceResourcesResponse) GetNextPageToken() string {
 type UpdateResourceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	Name          *string                `protobuf:"bytes,3,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	Description   *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	Name          *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	Description   *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2403,16 +2403,16 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x04port\x18\x03 \x01(\x05R\x04port\"\x8b\x01\n" +
 	"\x13ObservabilityConfig\x129\n" +
 	"\alogging\x18\x01 \x01(\v2\x1f.loco.resource.v1.LoggingConfigR\alogging\x129\n" +
-	"\ametrics\x18\x02 \x01(\v2\x1f.loco.resource.v1.MetricsConfigR\ametrics\"\xef\x01\n" +
+	"\ametrics\x18\x02 \x01(\v2\x1f.loco.resource.v1.MetricsConfigR\ametrics\"\xe0\x01\n" +
 	"\fRegionTarget\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x10\n" +
-	"\x03cpu\x18\x03 \x01(\tR\x03cpu\x12\x16\n" +
-	"\x06memory\x18\x04 \x01(\tR\x06memory\x12!\n" +
-	"\fmin_replicas\x18\x05 \x01(\x05R\vminReplicas\x12!\n" +
-	"\fmax_replicas\x18\x06 \x01(\x05R\vmaxReplicas\x12:\n" +
-	"\ascalers\x18\a \x01(\v2\x1b.loco.deployment.v1.ScalersH\x00R\ascalers\x88\x01\x01B\n" +
+	"\x03cpu\x18\x02 \x01(\tR\x03cpu\x12\x16\n" +
+	"\x06memory\x18\x03 \x01(\tR\x06memory\x12!\n" +
+	"\fmin_replicas\x18\x04 \x01(\x05R\vminReplicas\x12!\n" +
+	"\fmax_replicas\x18\x05 \x01(\x05R\vmaxReplicas\x12:\n" +
+	"\ascalers\x18\x06 \x01(\v2\x1b.loco.deployment.v1.ScalersH\x00R\ascalers\x88\x01\x01B\n" +
 	"\n" +
-	"\b_scalersJ\x04\b\x02\x10\x03R\aprimary\"\xa1\x03\n" +
+	"\b_scalers\"\xa1\x03\n" +
 	"\vServiceSpec\x129\n" +
 	"\arouting\x18\x01 \x01(\v2\x1f.loco.resource.v1.RoutingConfigR\arouting\x12K\n" +
 	"\robservability\x18\x02 \x01(\v2%.loco.resource.v1.ObservabilityConfigR\robservability\x12N\n" +
@@ -2433,29 +2433,29 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x05cache\x18\x03 \x01(\v2\x1b.loco.resource.v1.CacheSpecH\x00R\x05cache\x123\n" +
 	"\x05queue\x18\x04 \x01(\v2\x1b.loco.resource.v1.QueueSpecH\x00R\x05queue\x120\n" +
 	"\x04blob\x18\x05 \x01(\v2\x1a.loco.resource.v1.BlobSpecH\x00R\x04blobB\x06\n" +
-	"\x04spec\"\xa6\x05\n" +
+	"\x04spec\"\xf3\x04\n" +
 	"\bResource\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fworkspace_id\x18\x02 \x01(\tR\vworkspaceId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x122\n" +
 	"\x04type\x18\x04 \x01(\x0e2\x1e.loco.resource.v1.ResourceTypeR\x04type\x128\n" +
 	"\adomains\x18\x05 \x03(\v2\x1e.loco.domain.v1.ResourceDomainR\adomains\x127\n" +
-	"\x04spec\x18\b \x01(\v2\x1e.loco.resource.v1.ResourceSpecH\x00R\x04spec\x88\x01\x01\x12!\n" +
-	"\fspec_version\x18\t \x01(\x05R\vspecVersion\x12%\n" +
-	"\vdescription\x18\n" +
-	" \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x1d\n" +
+	"\x04spec\x18\x06 \x01(\v2\x1e.loco.resource.v1.ResourceSpecH\x00R\x04spec\x88\x01\x01\x12!\n" +
+	"\fspec_version\x18\a \x01(\x05R\vspecVersion\x12%\n" +
+	"\vdescription\x18\b \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x1d\n" +
 	"\n" +
-	"created_by\x18\v \x01(\tR\tcreatedBy\x129\n" +
+	"created_by\x18\t \x01(\tR\tcreatedBy\x129\n" +
 	"\n" +
-	"created_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"created_at\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1d\n" +
-	"\apartial\x18\x0f \x01(\tH\x02R\apartial\x88\x01\x01\x12V\n" +
-	"\x14environment_statuses\x18\x10 \x03(\v2#.loco.resource.v1.EnvironmentStatusR\x13environmentStatusesB\a\n" +
+	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1d\n" +
+	"\apartial\x18\f \x01(\tH\x02R\apartial\x88\x01\x01\x12V\n" +
+	"\x14environment_statuses\x18\r \x03(\v2#.loco.resource.v1.EnvironmentStatusR\x13environmentStatusesB\a\n" +
 	"\x05_specB\x0e\n" +
 	"\f_descriptionB\n" +
 	"\n" +
-	"\b_partialJ\x04\b\x06\x10\aJ\x04\b\a\x10\bJ\x04\b\x0e\x10\x0fR\aregionsR\x06statusR\x0eenvironment_id\"\xd9\x01\n" +
+	"\b_partial\"\xd9\x01\n" +
 	"\x11EnvironmentStatus\x12%\n" +
 	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\x12)\n" +
 	"\x10environment_name\x18\x02 \x01(\tR\x0fenvironmentName\x128\n" +
@@ -2473,7 +2473,7 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"reportedAt\x88\x01\x01B\n" +
 	"\n" +
 	"\b_messageB\x0e\n" +
-	"\f_reported_at\"\xf9\x02\n" +
+	"\f_reported_at\"\xe3\x02\n" +
 	"\x15CreateResourceRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12\x1b\n" +
 	"\x04name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18?R\x04name\x12>\n" +
@@ -2483,7 +2483,7 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x04spec\x18\x05 \x01(\v2\x1e.loco.resource.v1.ResourceSpecB\x06\xbaH\x03\xc8\x01\x01R\x04spec\x12/\n" +
 	"\vdescription\x18\x06 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x01R\vdescription\x88\x01\x01B\t\n" +
 	"\a_domainB\x0e\n" +
-	"\f_descriptionJ\x04\b\a\x10\bR\x0eenvironment_id\"9\n" +
+	"\f_description\"9\n" +
 	"\x16CreateResourceResponse\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\tR\n" +
 	"resourceId\"^\n" +
@@ -2505,14 +2505,14 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"page_token\x18\x03 \x01(\tR\tpageToken\"\x82\x01\n" +
 	"\x1eListWorkspaceResourcesResponse\x128\n" +
 	"\tresources\x18\x01 \x03(\v2\x1a.loco.resource.v1.ResourceR\tresources\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xc3\x01\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xb0\x01\n" +
 	"\x15UpdateResourceRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12\"\n" +
-	"\x04name\x18\x03 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18?H\x00R\x04name\x88\x01\x01\x12/\n" +
-	"\vdescription\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x01R\vdescription\x88\x01\x01B\a\n" +
+	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18?H\x00R\x04name\x88\x01\x01\x12/\n" +
+	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x01R\vdescription\x88\x01\x01B\a\n" +
 	"\x05_nameB\x0e\n" +
-	"\f_descriptionJ\x04\b\x02\x10\x03R\vupdate_mask\"9\n" +
+	"\f_description\"9\n" +
 	"\x16UpdateResourceResponse\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\tR\n" +
 	"resourceId\"B\n" +
@@ -2578,14 +2578,14 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x16RESOURCE_TYPE_FUNCTION\x10\x03\x12\x17\n" +
 	"\x13RESOURCE_TYPE_CACHE\x10\x04\x12\x17\n" +
 	"\x13RESOURCE_TYPE_QUEUE\x10\x05\x12\x16\n" +
-	"\x12RESOURCE_TYPE_BLOB\x10\x06*\xea\x01\n" +
+	"\x12RESOURCE_TYPE_BLOB\x10\x06*\xc9\x01\n" +
 	"\x0eResourceStatus\x12\x1f\n" +
 	"\x1bRESOURCE_STATUS_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17RESOURCE_STATUS_HEALTHY\x10\x01\x12\x1d\n" +
 	"\x19RESOURCE_STATUS_DEPLOYING\x10\x02\x12\x1c\n" +
 	"\x18RESOURCE_STATUS_DEGRADED\x10\x03\x12\x1f\n" +
 	"\x1bRESOURCE_STATUS_UNAVAILABLE\x10\x04\x12\x1b\n" +
-	"\x17RESOURCE_STATUS_UNKNOWN\x10\x06\"\x04\b\x05\x10\x05*\x19RESOURCE_STATUS_SUSPENDED2\x95\b\n" +
+	"\x17RESOURCE_STATUS_UNKNOWN\x10\x052\x95\b\n" +
 	"\x0fResourceService\x12c\n" +
 	"\x0eCreateResource\x12'.loco.resource.v1.CreateResourceRequest\x1a(.loco.resource.v1.CreateResourceResponse\x12Z\n" +
 	"\vGetResource\x12$.loco.resource.v1.GetResourceRequest\x1a%.loco.resource.v1.GetResourceResponse\x12c\n" +

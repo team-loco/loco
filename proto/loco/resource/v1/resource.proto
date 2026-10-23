@@ -30,9 +30,7 @@ enum ResourceStatus {
   RESOURCE_STATUS_DEPLOYING = 2;
   RESOURCE_STATUS_DEGRADED = 3;
   RESOURCE_STATUS_UNAVAILABLE = 4;
-  reserved 5;
-  reserved "RESOURCE_STATUS_SUSPENDED";
-  RESOURCE_STATUS_UNKNOWN = 6;
+  RESOURCE_STATUS_UNKNOWN = 5;
 }
 
 // ResourceService manages resource lifecycle and operations.
@@ -95,13 +93,11 @@ message ObservabilityConfig {
 // RegionTarget defines the desired state for a specific region.
 message RegionTarget {
   bool enabled = 1;
-  reserved 2;
-  reserved "primary";
-  string cpu = 3; // e.g., "100m"
-  string memory = 4; // e.g., "256Mi"
-  int32 min_replicas = 5;
-  int32 max_replicas = 6;
-  optional deployment.v1.Scalers scalers = 7; // autoscaling config
+  string cpu = 2; // e.g., "100m"
+  string memory = 3; // e.g., "256Mi"
+  int32 min_replicas = 4;
+  int32 max_replicas = 5;
+  optional deployment.v1.Scalers scalers = 6; // autoscaling config
 }
 
 // ServiceSpec is the resource specification for SERVICE type resources.
@@ -112,25 +108,17 @@ message ServiceSpec {
   optional deployment.v1.HealthCheckConfig health_check = 4; // health check defaults
 }
 
-// DatabaseSpec is a placeholder for DATABASE type resources (future implementation).
-message DatabaseSpec {
-  // reserved for future expansion
-}
+// DatabaseSpec is the spec of the corresponding resource type.
+message DatabaseSpec {}
 
-// CacheSpec is a placeholder for CACHE type resources (future implementation).
-message CacheSpec {
-  // reserved for future expansion
-}
+// CacheSpec is the spec of the corresponding resource type.
+message CacheSpec {}
 
-// QueueSpec is a placeholder for QUEUE type resources (future implementation).
-message QueueSpec {
-  // reserved for future expansion
-}
+// QueueSpec is the spec of the corresponding resource type.
+message QueueSpec {}
 
-// BlobSpec is a placeholder for BLOB type resources (future implementation).
-message BlobSpec {
-  // reserved for future expansion
-}
+// BlobSpec is the spec of the corresponding resource type.
+message BlobSpec {}
 
 // ResourceSpec defines the global infrastructure intent for a resource.
 // Uses oneof to support different resource types.
@@ -151,20 +139,14 @@ message Resource {
   string name = 3;
   ResourceType type = 4;
   repeated domain.v1.ResourceDomain domains = 5;
-  reserved 6;
-  reserved "regions";
-  reserved 7;
-  reserved "status";
-  optional ResourceSpec spec = 8;
-  int32 spec_version = 9;
-  optional string description = 10;
-  string created_by = 11;
-  google.protobuf.Timestamp created_at = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  reserved 14;
-  reserved "environment_id";
-  optional string partial = 15;
-  repeated EnvironmentStatus environment_statuses = 16;
+  optional ResourceSpec spec = 6;
+  int32 spec_version = 7;
+  optional string description = 8;
+  string created_by = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+  optional string partial = 12;
+  repeated EnvironmentStatus environment_statuses = 13;
 }
 
 // EnvironmentStatus is a resource's status in one environment it has an active deployment in.
@@ -201,8 +183,6 @@ message CreateResourceRequest {
   optional domain.v1.DomainInput domain = 4;
   ResourceSpec spec = 5 [(buf.validate.field).required = true];
   optional string description = 6 [(buf.validate.field).string.max_len = 256];
-  reserved 7;
-  reserved "environment_id";
 }
 
 // CreateResourceResponse is the response containing the created resource ID.
@@ -248,13 +228,11 @@ message ListWorkspaceResourcesResponse {
 // UpdateResourceRequest is the request to update a resource.
 message UpdateResourceRequest {
   string resource_id = 1 [(buf.validate.field).string.uuid = true];
-  reserved 2;
-  reserved "update_mask";
-  optional string name = 3 [(buf.validate.field).string = {
+  optional string name = 2 [(buf.validate.field).string = {
     min_len: 1
     max_len: 63
   }];
-  optional string description = 4 [(buf.validate.field).string.max_len = 256];
+  optional string description = 3 [(buf.validate.field).string.max_len = 256];
 }
 
 // UpdateResourceResponse is the response containing the updated resource ID.
