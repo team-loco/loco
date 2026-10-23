@@ -7,16 +7,12 @@ import { BootstrapRequest, BootstrapResponse } from "./bootstrap_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * BootstrapService makes the first system admin of an installation.
- *
  * @generated from service loco.bootstrap.v1.BootstrapService
  */
 export const BootstrapService = {
   typeName: "loco.bootstrap.v1.BootstrapService",
   methods: {
     /**
-     * Bootstrap grants the calling user system admin when the installation has none, then closes bootstrap.
-     *
      * @generated from rpc loco.bootstrap.v1.BootstrapService.Bootstrap
      */
     bootstrap: {

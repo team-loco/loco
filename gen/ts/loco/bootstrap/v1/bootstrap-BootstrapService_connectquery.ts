@@ -5,8 +5,6 @@
 import { BootstrapService } from "./bootstrap_pb";
 
 /**
- * Bootstrap grants the calling user system admin when the installation has none, then closes bootstrap.
- *
  * @generated from rpc loco.bootstrap.v1.BootstrapService.Bootstrap
  */
 export const bootstrap = BootstrapService.method.bootstrap;

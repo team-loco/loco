@@ -42,7 +42,7 @@ var (
 	errInvalidSecretsLocalKeys = errors.New("LOCO_SECRETS_LOCAL_KEYS is invalid")
 	errUnknownSecretsProvider  = errors.New("LOCO_SECRETS_KEY_PROVIDER is invalid")
 	errInvalidSecretsTransit   = errors.New("LOCO_SECRETS_TRANSIT_* is invalid")
-	errShortBootstrapToken     = errors.New("LOCO_BOOTSTRAP_TOKEN is too short")
+	errShortBootstrapToken     = errors.New(bootstrapEnv + " is too short")
 )
 
 const (
@@ -101,6 +101,7 @@ const (
 	defaultClusterJoinTokenTTL       = time.Hour
 	defaultAgentAssertionMaxLifetime = 5 * time.Minute
 
+	bootstrapEnv            = "LOCO_BOOTSTRAP_TOKEN"
 	minBootstrapTokenLength = 32
 )
 
@@ -213,7 +214,7 @@ func newAPIConfig() *APIConfig {
 }
 
 func newBootstrapTokenHash() []byte {
-	token := stringEnv("LOCO_BOOTSTRAP_TOKEN", "")
+	token := stringEnv(bootstrapEnv, "")
 	if token == "" {
 		return nil
 	}

@@ -14,8 +14,6 @@ export const file_loco_bootstrap_v1_bootstrap: GenFile = /*@__PURE__*/
   fileDesc("CiFsb2NvL2Jvb3RzdHJhcC92MS9ib290c3RyYXAucHJvdG8SEWxvY28uYm9vdHN0cmFwLnYxIioKEEJvb3RzdHJhcFJlcXVlc3QSFgoFdG9rZW4YASABKAlCB7pIBHICEAEiJAoRQm9vdHN0cmFwUmVzcG9uc2USDwoHdXNlcl9pZBgBIAEoCTJqChBCb290c3RyYXBTZXJ2aWNlElYKCUJvb3RzdHJhcBIjLmxvY28uYm9vdHN0cmFwLnYxLkJvb3RzdHJhcFJlcXVlc3QaJC5sb2NvLmJvb3RzdHJhcC52MS5Cb290c3RyYXBSZXNwb25zZUJAWj5naXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2Jvb3RzdHJhcC92MTtib290c3RyYXB2MWIGcHJvdG8z", [file_buf_validate_validate]);
 
 /**
- * BootstrapRequest carries the installation's bootstrap token.
- *
  * @generated from message loco.bootstrap.v1.BootstrapRequest
  */
 export type BootstrapRequest = Message<"loco.bootstrap.v1.BootstrapRequest"> & {
@@ -26,8 +24,6 @@ export type BootstrapRequest = Message<"loco.bootstrap.v1.BootstrapRequest"> & {
 };
 
 /**
- * BootstrapRequest carries the installation's bootstrap token.
- *
  * @generated from message loco.bootstrap.v1.BootstrapRequest
  */
 export type BootstrapRequestJson = {
@@ -45,8 +41,6 @@ export const BootstrapRequestSchema: GenMessage<BootstrapRequest, {jsonType: Boo
   messageDesc(file_loco_bootstrap_v1_bootstrap, 0);
 
 /**
- * BootstrapResponse names the user that became system admin.
- *
  * @generated from message loco.bootstrap.v1.BootstrapResponse
  */
 export type BootstrapResponse = Message<"loco.bootstrap.v1.BootstrapResponse"> & {
@@ -57,8 +51,6 @@ export type BootstrapResponse = Message<"loco.bootstrap.v1.BootstrapResponse"> &
 };
 
 /**
- * BootstrapResponse names the user that became system admin.
- *
  * @generated from message loco.bootstrap.v1.BootstrapResponse
  */
 export type BootstrapResponseJson = {
@@ -76,14 +68,10 @@ export const BootstrapResponseSchema: GenMessage<BootstrapResponse, {jsonType: B
   messageDesc(file_loco_bootstrap_v1_bootstrap, 1);
 
 /**
- * BootstrapService makes the first system admin of an installation.
- *
  * @generated from service loco.bootstrap.v1.BootstrapService
  */
 export const BootstrapService: GenService<{
   /**
-   * Bootstrap grants the calling user system admin when the installation has none, then closes bootstrap.
-   *
    * @generated from rpc loco.bootstrap.v1.BootstrapService.Bootstrap
    */
   bootstrap: {

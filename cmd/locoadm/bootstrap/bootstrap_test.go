@@ -11,27 +11,30 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	bootstrapv1 "github.com/team-loco/loco/gen/go/loco/bootstrap/v1"
 	"github.com/team-loco/loco/gen/go/loco/bootstrap/v1/bootstrapv1connect"
+	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/keychain"
 	"github.com/team-loco/loco/internal/rpc"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
-const (
-	testUserID         = "00000000-0000-7000-8000-000000000001"
-	testSession        = "signed-in-session"
-	testBootstrapToken = "bootstrap-token"
-)
-
-var errTestClosed = errors.New("this installation already has a system admin")
+var errTestClosed = errors.New("closed")
 
 type fakeBootstrap struct {
 	bootstrapv1connect.UnimplementedBootstrapServiceHandler
-	t      *testing.T
-	tokens []string
-	err    error
+	t       *testing.T
+	session string
+	userID  string
+	tokens  []string
+	err     error
+}
+
+func newFakeBootstrap(t *testing.T, err error) *fakeBootstrap {
+	t.Helper()
+	return &fakeBootstrap{t: t, session: bearer.New(""), userID: uuid.NewString(), err: err}
 }
 
 func (f *fakeBootstrap) Bootstrap(
@@ -39,14 +42,14 @@ func (f *fakeBootstrap) Bootstrap(
 	req *bootstrapv1.BootstrapRequest,
 ) (*bootstrapv1.BootstrapResponse, error) {
 	info, ok := connect.CallInfoForServerContext(ctx)
-	if !ok || info.RequestHeader().Get("Authorization") != "Bearer "+testSession {
+	if !ok || info.RequestHeader().Get("Authorization") != "Bearer "+f.session {
 		f.t.Error("CLI did not send the signed-in session")
 	}
 	f.tokens = append(f.tokens, req.GetToken())
 	if f.err != nil {
 		return nil, f.err
 	}
-	return &bootstrapv1.BootstrapResponse{UserId: testUserID}, nil
+	return &bootstrapv1.BootstrapResponse{UserId: f.userID}, nil
 }
 
 func bootstrapTestCommand(t *testing.T, fake *fakeBootstrap) (*cobra.Command, *bytes.Buffer) {
@@ -60,7 +63,7 @@ func bootstrapTestCommand(t *testing.T, fake *fakeBootstrap) (*cobra.Command, *b
 	t.Setenv("LOCO_HOST", endpoint.URL)
 	cmd := newBootstrapCmd(dependencies{
 		token: func(*cobra.Command) (*keychain.UserToken, error) {
-			return &keychain.UserToken{Host: endpoint.URL, Token: testSession}, nil
+			return &keychain.UserToken{Host: endpoint.URL, Token: fake.session}, nil
 		},
 		client: func(host, token string) bootstrapv1connect.BootstrapServiceClient {
 			return rpc.NewHTTPClients(endpoint.Client(), host, token).Bootstrap
@@ -73,8 +76,9 @@ func bootstrapTestCommand(t *testing.T, fake *fakeBootstrap) (*cobra.Command, *b
 }
 
 func TestBootstrapSendsTokenAsSignedInUser(t *testing.T) {
-	fake := &fakeBootstrap{t: t}
+	fake := newFakeBootstrap(t, nil)
 	cmd, output := bootstrapTestCommand(t, fake)
+	testBootstrapToken := bearer.New("")
 	cmd.SetArgs([]string{"--token", testBootstrapToken})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
@@ -82,13 +86,13 @@ func TestBootstrapSendsTokenAsSignedInUser(t *testing.T) {
 	if len(fake.tokens) != 1 || fake.tokens[0] != testBootstrapToken {
 		t.Fatalf("tokens = %v", fake.tokens)
 	}
-	if !strings.Contains(output.String(), testUserID) {
+	if !strings.Contains(output.String(), fake.userID) {
 		t.Fatalf("output = %q", output)
 	}
 }
 
 func TestBootstrapRequiresToken(t *testing.T) {
-	fake := &fakeBootstrap{t: t}
+	fake := newFakeBootstrap(t, nil)
 	cmd, _ := bootstrapTestCommand(t, fake)
 	cmd.SetArgs([]string{})
 	if err := cmd.Execute(); err == nil {
@@ -100,9 +104,9 @@ func TestBootstrapRequiresToken(t *testing.T) {
 }
 
 func TestBootstrapReturnsServerError(t *testing.T) {
-	fake := &fakeBootstrap{t: t, err: rpcerr.New(connect.CodeAlreadyExists, errTestClosed)}
+	fake := newFakeBootstrap(t, rpcerr.New(connect.CodeAlreadyExists, errTestClosed))
 	cmd, _ := bootstrapTestCommand(t, fake)
-	cmd.SetArgs([]string{"--token", testBootstrapToken})
+	cmd.SetArgs([]string{"--token", bearer.New("")})
 	err := cmd.Execute()
 	if connect.CodeOf(err) != connect.CodeAlreadyExists || !strings.Contains(err.Error(), errTestClosed.Error()) {
 		t.Fatalf("error = %v", err)

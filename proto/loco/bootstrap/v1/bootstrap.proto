@@ -6,18 +6,14 @@ import "buf/validate/validate.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/bootstrap/v1;bootstrapv1";
 
-// BootstrapService makes the first system admin of an installation.
 service BootstrapService {
-  // Bootstrap grants the calling user system admin when the installation has none, then closes bootstrap.
   rpc Bootstrap(BootstrapRequest) returns (BootstrapResponse);
 }
 
-// BootstrapRequest carries the installation's bootstrap token.
 message BootstrapRequest {
   string token = 1 [(buf.validate.field).string.min_len = 1];
 }
 
-// BootstrapResponse names the user that became system admin.
 message BootstrapResponse {
   string user_id = 1;
 }

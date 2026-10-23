@@ -17,14 +17,11 @@ import (
 	bootstrapv1 "github.com/team-loco/loco/gen/go/loco/bootstrap/v1"
 	"github.com/team-loco/loco/gen/go/loco/bootstrap/v1/bootstrapv1connect"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
+	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/rpc"
 )
 
-const (
-	testBootstrapToken  = "bootstrap-token-0123456789abcdef0123456789"
-	wrongBootstrapToken = "bootstrap-token-fedcba9876543210fedcba9876"
-	bootstrapContenders = 8
-)
+const bootstrapContenders = 8
 
 func bootstrapHTTP(t *testing.T, a *membershipAPI, tokenHash []byte) string {
 	t.Helper()
@@ -77,6 +74,7 @@ func requireBootstrapError(t *testing.T, err error, code connect.Code, want erro
 
 func TestBootstrapGrantsFirstSystemAdmin(t *testing.T) {
 	a := newMembershipAPI(t)
+	testBootstrapToken := bearer.New("")
 	endpoint := bootstrapHTTP(t, a, HashBootstrapToken(testBootstrapToken))
 	first := a.signUp(t, "first")
 	response, err := bootstrapAs(t, endpoint, first, testBootstrapToken)
@@ -103,8 +101,10 @@ func TestBootstrapGrantsFirstSystemAdmin(t *testing.T) {
 
 func TestBootstrapRejectsWrongToken(t *testing.T) {
 	a := newMembershipAPI(t)
+	testBootstrapToken := bearer.New("")
 	endpoint := bootstrapHTTP(t, a, HashBootstrapToken(testBootstrapToken))
 	user := a.signUp(t, "guesser")
+	wrongBootstrapToken := bearer.New("")
 	_, err := bootstrapAs(t, endpoint, user, wrongBootstrapToken)
 	requireBootstrapError(t, err, connect.CodePermissionDenied, ErrBootstrapTokenInvalid)
 	if admins := systemAdmins(t, a); len(admins) != 0 {
@@ -119,6 +119,7 @@ func TestBootstrapRejectsWrongToken(t *testing.T) {
 
 func TestBootstrapIsDisabledWithoutToken(t *testing.T) {
 	a := newMembershipAPI(t)
+	testBootstrapToken := bearer.New("")
 	endpoint := bootstrapHTTP(t, a, nil)
 	user := a.signUp(t, "early")
 	_, err := bootstrapAs(t, endpoint, user, testBootstrapToken)
@@ -130,6 +131,7 @@ func TestBootstrapIsDisabledWithoutToken(t *testing.T) {
 
 func TestBootstrapRequiresSignedInUser(t *testing.T) {
 	a := newMembershipAPI(t)
+	testBootstrapToken := bearer.New("")
 	endpoint := bootstrapHTTP(t, a, HashBootstrapToken(testBootstrapToken))
 	_, err := bootstrapAs(t, endpoint, membershipUser{}, testBootstrapToken)
 	if connect.CodeOf(err) != connect.CodeUnauthenticated {
@@ -139,6 +141,7 @@ func TestBootstrapRequiresSignedInUser(t *testing.T) {
 
 func TestBootstrapRefusesWhenAdminExists(t *testing.T) {
 	a := newMembershipAPI(t)
+	testBootstrapToken := bearer.New("")
 	existing := a.signUp(t, "existing")
 	if err := a.queries.AddUserScope(t.Context(), genDb.AddUserScopeParams{
 		UserID: existing.id, Scope: genDb.ScopeAdmin, EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil,
@@ -156,6 +159,7 @@ func TestBootstrapRefusesWhenAdminExists(t *testing.T) {
 
 func TestBootstrapConcurrentAttemptsHaveOneWinner(t *testing.T) {
 	a := newMembershipAPI(t)
+	testBootstrapToken := bearer.New("")
 	endpoint := bootstrapHTTP(t, a, HashBootstrapToken(testBootstrapToken))
 	users := make([]membershipUser, bootstrapContenders)
 	for i := range users {
@@ -190,6 +194,7 @@ func TestBootstrapConcurrentAttemptsHaveOneWinner(t *testing.T) {
 
 func TestBootstrapStaysClosedAfterRestart(t *testing.T) {
 	a := newMembershipAPI(t)
+	testBootstrapToken := bearer.New("")
 	tokenHash := HashBootstrapToken(testBootstrapToken)
 	first := a.signUp(t, "first")
 	if _, err := bootstrapAs(t, bootstrapHTTP(t, a, tokenHash), first, testBootstrapToken); err != nil {

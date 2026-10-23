@@ -40,7 +40,6 @@ var (
 
 // BootstrapServiceClient is a client for the loco.bootstrap.v1.BootstrapService service.
 type BootstrapServiceClient interface {
-	// Bootstrap grants the calling user system admin when the installation has none, then closes bootstrap.
 	Bootstrap(context.Context, *v1.BootstrapRequest) (*v1.BootstrapResponse, error)
 }
 
@@ -52,7 +51,6 @@ func NewBootstrapServiceClient(client *connect.Client) BootstrapServiceClient {
 
 // BootstrapServiceHandler is an implementation of the loco.bootstrap.v1.BootstrapService service.
 type BootstrapServiceHandler interface {
-	// Bootstrap grants the calling user system admin when the installation has none, then closes bootstrap.
 	Bootstrap(context.Context, *v1.BootstrapRequest) (*v1.BootstrapResponse, error)
 }
 

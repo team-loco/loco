@@ -12,6 +12,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/service"
+	"github.com/team-loco/loco/internal/bearer"
 )
 
 const (
@@ -46,8 +47,6 @@ const (
 	testTransitAddr  = "https://bao.loco.test:8200"
 	testTransitKey   = "loco-dek"
 	testTransitAuth  = "s.transit"
-	bootstrapEnv     = "LOCO_BOOTSTRAP_TOKEN"
-	testBootstrap    = "bootstrap-token-0123456789abcdef0123456789"
 )
 
 var adminIssuers = `[{"issuer":"` + testIssuer + `","audience":"loco",` +
@@ -131,9 +130,10 @@ func TestNewAPIConfigReadsBootstrapToken(t *testing.T) {
 	if ac := newAPIConfig(); ac.BootstrapTokenHash != nil {
 		t.Fatalf("bootstrap token hash = %x without a token", ac.BootstrapTokenHash)
 	}
-	t.Setenv(bootstrapEnv, testBootstrap)
+	token := bearer.New("")
+	t.Setenv(bootstrapEnv, token)
 	ac := newAPIConfig()
-	if !slices.Equal(ac.BootstrapTokenHash, service.HashBootstrapToken(testBootstrap)) {
+	if !slices.Equal(ac.BootstrapTokenHash, service.HashBootstrapToken(token)) {
 		t.Fatalf("bootstrap token hash = %x", ac.BootstrapTokenHash)
 	}
 }
@@ -471,7 +471,11 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 			map[string]string{installHooksEnv: `[{"url":"` + testHookURL + `"}]`},
 			errInvalidInstallWebhooks,
 		},
-		{"short bootstrap token", map[string]string{bootstrapEnv: "short"}, errShortBootstrapToken},
+		{
+			"short bootstrap token",
+			map[string]string{bootstrapEnv: bearer.New("")[:minBootstrapTokenLength-1]},
+			errShortBootstrapToken,
+		},
 		{"malformed auth issuers", map[string]string{authIssuersEnv: "["}, errInvalidAuthIssuers},
 		{"admin token env unset", map[string]string{authIssuersEnv: adminIssuers}, errAdminTokenMissing},
 		{"unknown signup mode", map[string]string{"AUTH_SIGNUP_MODE": "invite"}, errInvalidSignupPolicy},
