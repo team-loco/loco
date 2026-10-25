@@ -39,7 +39,7 @@ func TestBuilds(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
-	ctx, cancel = context.WithCancel(context.TODO())
+	ctx, cancel = context.WithCancel(context.Background())
 
 	Expect(locov1alpha1.AddToScheme(scheme.Scheme)).To(Succeed())
 

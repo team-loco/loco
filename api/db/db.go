@@ -28,9 +28,6 @@ func NewDB(ctx context.Context, databaseURL string) (*DB, error) {
 		return nil, fmt.Errorf("failed to parse database config: %w", err)
 	}
 
-	// todo: are these the best settings
-	// todo: ensure we use pool all the time
-	// todo: ensure we use pg tx where necessary.
 	cfg.MaxConns = 25
 	cfg.MinConns = 5
 	cfg.MaxConnLifetime = time.Hour

@@ -57,7 +57,6 @@ import (
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
-// todo: finalize on the domain we wanna use inside kubernetes.
 const (
 	finalizerAppResourcesCleanup = "infra.loco.io/app-resources-cleanup"
 	labelApp                     = "app"
