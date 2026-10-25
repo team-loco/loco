@@ -32,6 +32,8 @@ func TestWithCORS(t *testing.T) {
 		{"localhost on any port outside production", true, "http://localhost:5199", true},
 		{"ipv4 loopback outside production", true, "http://127.0.0.1:3000", true},
 		{"ipv6 loopback outside production", true, "http://[::1]:5173", true},
+		{"ipv4 loopback range outside production", true, "http://127.0.0.2:3000", true},
+		{"ipv4-mapped ipv6 loopback outside production", true, "http://[::ffff:127.0.0.1]:3000", true},
 		{"https localhost outside production", true, "https://localhost", true},
 		{"localhost in production", false, "http://localhost:5199", false},
 		{"other host outside production", true, "https://evil.example", false},

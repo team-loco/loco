@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/pprof"
+	"net/netip"
 	"net/url"
 	"os"
 	"os/signal"
@@ -62,8 +63,6 @@ const (
 	eventsRetentionInterval = time.Hour
 )
 
-var loopbackHosts = []string{"localhost", "127.0.0.1", "::1"}
-
 var version string
 
 func isLoopbackOrigin(origin string) bool {
@@ -74,7 +73,12 @@ func isLoopbackOrigin(origin string) bool {
 	if u.Scheme != "http" && u.Scheme != "https" {
 		return false
 	}
-	return slices.Contains(loopbackHosts, u.Hostname())
+	host := u.Hostname()
+	if host == "localhost" {
+		return true
+	}
+	ip, err := netip.ParseAddr(host)
+	return err == nil && ip.IsLoopback()
 }
 
 func withCORS(allowedOrigins []string, allowLoopback bool) func(http.Handler) http.Handler {
