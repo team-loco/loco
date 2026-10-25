@@ -19,13 +19,7 @@ WORKDIR /app
 COPY api ./api
 COPY gen/go ./gen/go
 COPY k8sapi ./k8sapi
-COPY internal/bearer ./internal/bearer
-COPY internal/buildinfo ./internal/buildinfo
-COPY internal/httputil ./internal/httputil
-COPY internal/rpcerr ./internal/rpcerr
-COPY internal/loglevel ./internal/loglevel
-COPY internal/clusterassertion ./internal/clusterassertion
-COPY internal/locofile ./internal/locofile
+COPY internal ./internal
 
 WORKDIR /app/api
 RUN go build -ldflags "-X main.version=${VERSION}" -o loco-api .
