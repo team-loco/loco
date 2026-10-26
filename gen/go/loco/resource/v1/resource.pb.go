@@ -1805,9 +1805,10 @@ func (x *RegionInfo) GetHealthStatus() string {
 	return ""
 }
 
-// ListRegionsRequest is the request to list available deployment regions.
+// ListRegionsRequest names the environment whose clusters' regions to list.
 type ListRegionsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	EnvironmentId string                 `protobuf:"bytes,1,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1842,7 +1843,14 @@ func (*ListRegionsRequest) Descriptor() ([]byte, []int) {
 	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{26}
 }
 
-// ListRegionsResponse is the response containing available regions.
+func (x *ListRegionsRequest) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+// ListRegionsResponse contains the regions the environment's clusters serve.
 type ListRegionsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Regions       []*RegionInfo          `protobuf:"bytes,1,rep,name=regions,proto3" json:"regions,omitempty"`
@@ -2525,8 +2533,9 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x06region\x18\x01 \x01(\tR\x06region\x12\x1d\n" +
 	"\n" +
 	"is_default\x18\x02 \x01(\bR\tisDefault\x12#\n" +
-	"\rhealth_status\x18\x03 \x01(\tR\fhealthStatus\"\x14\n" +
-	"\x12ListRegionsRequest\"M\n" +
+	"\rhealth_status\x18\x03 \x01(\tR\fhealthStatus\"E\n" +
+	"\x12ListRegionsRequest\x12/\n" +
+	"\x0eenvironment_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\"M\n" +
 	"\x13ListRegionsResponse\x126\n" +
 	"\aregions\x18\x01 \x03(\v2\x1c.loco.resource.v1.RegionInfoR\aregions\"s\n" +
 	"\x15GetResourceEnvRequest\x12)\n" +

@@ -280,14 +280,23 @@ func (s *fakeResourceService) GetResource(
 
 func (s *fakeResourceService) ListRegions(
 	ctx context.Context,
-	_ *resourcev1.ListRegionsRequest,
+	req *resourcev1.ListRegionsRequest,
 ) (*resourcev1.ListRegionsResponse, error) {
 	info, _ := connect.CallInfoForServerContext(ctx)
-	if _, _, err := s.api.authenticate(
+	f := s.api
+	if _, _, err := f.authenticate(
 		connect.Spec{Procedure: resourcev1connect.ResourceServiceListRegionsProcedure},
 		info.RequestHeader(),
 	); err != nil {
 		return nil, err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	knownEnvironment := slices.ContainsFunc(f.platform.environments, func(env *environmentv1.Environment) bool {
+		return env.GetId() == req.GetEnvironmentId()
+	})
+	if !knownEnvironment {
+		return nil, rpcerr.New(connect.CodeNotFound, errFakeEnvironmentNotFound)
 	}
 	regions := []*resourcev1.RegionInfo{
 		{Region: fakeSecondaryRegion},

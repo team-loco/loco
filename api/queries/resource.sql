@@ -73,14 +73,6 @@ WHERE tier = sqlc.arg(tier)
   AND last_heartbeat >= sqlc.arg(heard_since)::timestamptz
 ORDER BY region ASC, is_default DESC, created_at ASC;
 
--- name: ListClustersActive :many
-SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
-       last_health_check, last_heartbeat, capacity_cpu_millicores,
-       capacity_memory_bytes, agent_version, created_at, updated_at
-FROM clusters
-WHERE is_active = true
-ORDER BY region ASC;
-
 -- name: ListRegionStatusesForResources :many
 SELECT d.resource_id,
        d.environment_id,

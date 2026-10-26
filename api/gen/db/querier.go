@@ -148,7 +148,6 @@ type Querier interface {
 	ListClusterDomains(ctx context.Context, ids []uuid.UUID) ([]ListClusterDomainsRow, error)
 	ListClusterPlacementRevisions(ctx context.Context, clusterID uuid.UUID) ([]ListClusterPlacementRevisionsRow, error)
 	ListClusterWorkloads(ctx context.Context, clusterID uuid.UUID) ([]ListClusterWorkloadsRow, error)
-	ListClustersActive(ctx context.Context) ([]ListClustersActiveRow, error)
 	ListDeclaredSecretNames(ctx context.Context, arg ListDeclaredSecretNamesParams) ([]string, error)
 	ListDeletableBuildImages(ctx context.Context, arg ListDeletableBuildImagesParams) ([]ListDeletableBuildImagesRow, error)
 	ListDeploymentsForResource(ctx context.Context, arg ListDeploymentsForResourceParams) ([]Deployment, error)

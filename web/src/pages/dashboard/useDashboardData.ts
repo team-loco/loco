@@ -63,7 +63,11 @@ export function useDashboardData(workspaceId: string | null, env: Environment | 
 			},
 		},
 	);
-	const regionsQuery = useQuery(listRegions, {});
+	const regionsQuery = useQuery(
+		listRegions,
+		{ environmentId: env?.id ?? "" },
+		{ enabled: env !== undefined },
+	);
 	const resources = resourcesQuery.data?.resources ?? [];
 
 	const deploymentQueries = useQueries({
