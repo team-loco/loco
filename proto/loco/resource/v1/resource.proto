@@ -46,7 +46,7 @@ service ResourceService {
 
   // ListWorkspaceResources lists all resources in a workspace.
   rpc ListWorkspaceResources(ListWorkspaceResourcesRequest) returns (ListWorkspaceResourcesResponse);
-  // ListRegions lists available regions for resource deployment.
+  // ListRegions lists the regions an environment deploys to.
   rpc ListRegions(ListRegionsRequest) returns (ListRegionsResponse);
   // GetResourceEnv returns the plain env variables a service runs with in an environment, the
   // env map of loco.yaml, and the secret names it declares. Secret values are never included.
@@ -255,10 +255,12 @@ message RegionInfo {
   string health_status = 3;
 }
 
-// ListRegionsRequest is the request to list available deployment regions.
-message ListRegionsRequest {}
+// ListRegionsRequest names the environment whose clusters' regions to list.
+message ListRegionsRequest {
+  string environment_id = 1 [(buf.validate.field).string.uuid = true];
+}
 
-// ListRegionsResponse is the response containing available regions.
+// ListRegionsResponse contains the regions the environment's clusters serve.
 message ListRegionsResponse {
   repeated RegionInfo regions = 1;
 }

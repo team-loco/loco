@@ -70,7 +70,7 @@ export const ResourceService = {
       kind: MethodKind.Unary,
     },
     /**
-     * ListRegions lists available regions for resource deployment.
+     * ListRegions lists the regions an environment deploys to.
      *
      * @generated from rpc loco.resource.v1.ResourceService.ListRegions
      */

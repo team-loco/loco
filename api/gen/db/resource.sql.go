@@ -163,69 +163,6 @@ func (q *Queries) GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id
 	return i, err
 }
 
-const listClustersActive = `-- name: ListClustersActive :many
-SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
-       last_health_check, last_heartbeat, capacity_cpu_millicores,
-       capacity_memory_bytes, agent_version, created_at, updated_at
-FROM clusters
-WHERE is_active = true
-ORDER BY region ASC
-`
-
-type ListClustersActiveRow struct {
-	ID                    uuid.UUID  `json:"id"`
-	Name                  string     `json:"name"`
-	Region                string     `json:"region"`
-	Provider              string     `json:"provider"`
-	IsActive              bool       `json:"isActive"`
-	IsDefault             bool       `json:"isDefault"`
-	Endpoint              *string    `json:"endpoint"`
-	HealthStatus          *string    `json:"healthStatus"`
-	LastHealthCheck       *time.Time `json:"lastHealthCheck"`
-	LastHeartbeat         *time.Time `json:"lastHeartbeat"`
-	CapacityCpuMillicores *int64     `json:"capacityCpuMillicores"`
-	CapacityMemoryBytes   *int64     `json:"capacityMemoryBytes"`
-	AgentVersion          *string    `json:"agentVersion"`
-	CreatedAt             time.Time  `json:"createdAt"`
-	UpdatedAt             time.Time  `json:"updatedAt"`
-}
-
-func (q *Queries) ListClustersActive(ctx context.Context) ([]ListClustersActiveRow, error) {
-	rows, err := q.db.Query(ctx, listClustersActive)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListClustersActiveRow
-	for rows.Next() {
-		var i ListClustersActiveRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.Region,
-			&i.Provider,
-			&i.IsActive,
-			&i.IsDefault,
-			&i.Endpoint,
-			&i.HealthStatus,
-			&i.LastHealthCheck,
-			&i.LastHeartbeat,
-			&i.CapacityCpuMillicores,
-			&i.CapacityMemoryBytes,
-			&i.AgentVersion,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listEligibleClusters = `-- name: ListEligibleClusters :many
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
        last_health_check, last_heartbeat, capacity_cpu_millicores,

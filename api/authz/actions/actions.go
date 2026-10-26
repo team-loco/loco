@@ -22,6 +22,11 @@ var (
 		entityType: db.EntityTypeWorkspace,
 		scope:      db.ScopeRead,
 	}
+	// ListRegions requires workspace:read.
+	ListRegions = Action{
+		entityType: db.EntityTypeWorkspace,
+		scope:      db.ScopeRead,
+	}
 	// CreateResource requires workspace:write.
 	CreateResource = Action{
 		entityType: db.EntityTypeWorkspace,

@@ -160,7 +160,7 @@ func fetchDefaultRegion(ctx context.Context, t target) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, initConfigTimeout)
 	defer cancel()
 
-	req := &resourcev1.ListRegionsRequest{}
+	req := &resourcev1.ListRegionsRequest{EnvironmentId: t.environmentID}
 	resp, err := t.resourceClient().ListRegions(ctx, req)
 	if err != nil {
 		return "", fmt.Errorf("could not list regions from the API: %w", err)

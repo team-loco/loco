@@ -622,36 +622,48 @@ func (s *ResourceServer) DeleteResource(
 	return &resourcev1.DeleteResourceResponse{}, nil
 }
 
-// ListRegions lists available regions for resource deployment
+// ListRegions lists the regions of the clusters an environment deploys to.
 func (s *ResourceServer) ListRegions(
 	ctx context.Context,
-	_ *resourcev1.ListRegionsRequest,
+	req *resourcev1.ListRegionsRequest,
 ) (*resourcev1.ListRegionsResponse, error) {
-	clusters, err := s.queries.ListClustersActive(ctx)
+	environmentID := uuid.MustParse(req.GetEnvironmentId())
+	env, err := s.queries.GetEnvironmentByID(ctx, environmentID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
+	}
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get environment", "error", err, "environmentId", environmentID)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+	}
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
+	}
+	workspaceAction := actions.New(actions.ListRegions, env.WorkspaceID.String())
+	if authErr := s.authz.Check(ctx, scopes, workspaceAction); authErr != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(authErr)
+	}
+	eligible, err := eligibleClusters(ctx, s.queries, env.EnvironmentType, s.clusterSilentAfter)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list clusters", "error", err)
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
-
-	regionMap := make(map[string]*resourcev1.RegionInfo)
-	for _, cluster := range clusters {
-		if _, exists := regionMap[cluster.Region]; !exists {
-			regionMap[cluster.Region] = &resourcev1.RegionInfo{
-				Region:       cluster.Region,
-				IsDefault:    cluster.IsDefault,
-				HealthStatus: derefString(cluster.HealthStatus),
-			}
+	regions := make([]*resourcev1.RegionInfo, 0, len(eligible))
+	for _, cluster := range eligible {
+		first, _ := clusterForRegion(eligible, cluster.Region)
+		if first.ID != cluster.ID {
+			continue
 		}
+		info := &resourcev1.RegionInfo{
+			Region:       cluster.Region,
+			IsDefault:    cluster.IsDefault,
+			HealthStatus: derefString(cluster.HealthStatus),
+		}
+		regions = append(regions, info)
 	}
-
-	var protoRegions []*resourcev1.RegionInfo
-	for _, info := range regionMap {
-		protoRegions = append(protoRegions, info)
-	}
-
-	return &resourcev1.ListRegionsResponse{
-		Regions: protoRegions,
-	}, nil
+	return &resourcev1.ListRegionsResponse{Regions: regions}, nil
 }
 
 // ScaleResource scales a resource by creating a new deployment with updated resources

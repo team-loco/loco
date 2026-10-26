@@ -141,7 +141,7 @@ type ResourceServiceClient interface {
 	DeleteResource(context.Context, *v1.DeleteResourceRequest) (*v1.DeleteResourceResponse, error)
 	// ListWorkspaceResources lists all resources in a workspace.
 	ListWorkspaceResources(context.Context, *v1.ListWorkspaceResourcesRequest) (*v1.ListWorkspaceResourcesResponse, error)
-	// ListRegions lists available regions for resource deployment.
+	// ListRegions lists the regions an environment deploys to.
 	ListRegions(context.Context, *v1.ListRegionsRequest) (*v1.ListRegionsResponse, error)
 	// GetResourceEnv returns the plain env variables a service runs with in an environment, the
 	// env map of loco.yaml, and the secret names it declares. Secret values are never included.
@@ -174,7 +174,7 @@ type ResourceServiceHandler interface {
 	DeleteResource(context.Context, *v1.DeleteResourceRequest) (*v1.DeleteResourceResponse, error)
 	// ListWorkspaceResources lists all resources in a workspace.
 	ListWorkspaceResources(context.Context, *v1.ListWorkspaceResourcesRequest) (*v1.ListWorkspaceResourcesResponse, error)
-	// ListRegions lists available regions for resource deployment.
+	// ListRegions lists the regions an environment deploys to.
 	ListRegions(context.Context, *v1.ListRegionsRequest) (*v1.ListRegionsResponse, error)
 	// GetResourceEnv returns the plain env variables a service runs with in an environment, the
 	// env map of loco.yaml, and the secret names it declares. Secret values are never included.
