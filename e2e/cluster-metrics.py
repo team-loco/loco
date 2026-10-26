@@ -23,6 +23,8 @@ INTERVAL = "3s"
 SINK_PATH = "/var/local/loco-platform-metrics"
 TOKEN = "local-metrics-fixture"
 RUN_DIR = ROOT / "e2e/runs" / CLUSTER
+CHART = ROOT / "charts/loco-worker"
+COLLECTOR_PART_OF = "opentelemetry-collector"
 KUBECONFIG = RUN_DIR / "kubeconfig"
 
 
@@ -70,7 +72,7 @@ def rollout(kind, name, namespace_name):
 
 
 def values():
-    return json.loads(run("yq", "-o=json", ".", str(ROOT / "charts/loco-obs/values.yaml")))
+    return json.loads(run("yq", "-o=json", ".", str(CHART / "values.yaml")))
 
 
 def namespace(name, privileged=False):
@@ -124,25 +126,38 @@ def install_sink(image):
     rollout("deployments", "otlp-sink", NAMESPACE)
 
 
-def install_collectors():
+def collector_manifest():
     settings = {
         "enabled": True, "platformOnly": True, "installation": "metrics-e2e",
         "cluster": CLUSTER, "environment": "test", "collectionInterval": INTERVAL,
         "namespaces": [NAMESPACE, NODE_NAMESPACE],
     }
-    token = values()["global"]["exporter"]["bearerToken"]
-    secret = {"apiVersion": "v1", "kind": "Secret", "type": "Opaque", "metadata": {"name": token["secretName"], "namespace": NAMESPACE}, "stringData": {token["secretKey"]: TOKEN}}
-    node_secret = {**secret, "metadata": {"name": token["secretName"], "namespace": NODE_NAMESPACE}}
-    apply(secret, node_secret)
     exporter = {"endpoint": f"http://otlp-sink.{NAMESPACE}:4318", "bearerToken": {"enabled": True}}
     overrides = {
         "global": {"region": "test-region", "platformTelemetry": settings, "exporter": exporter},
+        "agent": {"image": {"tag": "unused"}},
+        "controller": {"image": {"tag": "unused"}},
+        "builds": {"enabled": False},
+        "certManager": {"existingTLSSecret": "unused"},
+        "gateway-helm": {"enabled": False},
         "otel-col-deploy": {"enabled": False},
+        "otel-col-cluster": {"namespaceOverride": NAMESPACE},
         "otel-col-daemon": {"namespaceOverride": NODE_NAMESPACE},
     }
     path = RUN_DIR / "values.json"
     path.write_text(json.dumps(overrides))
-    run("helm", "upgrade", "--install", "metrics", str(ROOT / "charts/loco-obs"), "--kubeconfig", str(KUBECONFIG), "--namespace", NAMESPACE, "--values", str(path))
+    rendered = run("helm", "template", "metrics", str(CHART), "--namespace", NAMESPACE, "--values", str(path))
+    documents = [json.loads(line) for line in run("yq", "-o=json", "-I=0", ".", "-", body=rendered).splitlines() if line.strip() not in ("", "null")]
+    collectors = [document for document in documents if document["metadata"].get("labels", {}).get("app.kubernetes.io/part-of") == COLLECTOR_PART_OF]
+    return json.dumps({"apiVersion": "v1", "kind": "List", "items": collectors})
+
+
+def install_collectors(collectors):
+    token = values()["global"]["exporter"]["bearerToken"]
+    secret = {"apiVersion": "v1", "kind": "Secret", "type": "Opaque", "metadata": {"name": token["secretName"], "namespace": NAMESPACE}, "stringData": {token["secretKey"]: TOKEN}}
+    node_secret = {**secret, "metadata": {"name": token["secretName"], "namespace": NODE_NAMESPACE}}
+    apply(secret, node_secret)
+    kube("apply", "-f", "-", body=collectors)
     rollout("daemonsets", "otel-col-daemon-agent", NODE_NAMESPACE)
     rollout("statefulsets", "otel-col-cluster", NAMESPACE)
 
@@ -156,12 +171,13 @@ def execute():
     image_config = chart["otel-col-daemon"]["image"]
     image = f'{image_config["repository"]}:{image_config["tag"]}'
     apply(namespace(NAMESPACE, privileged=True), namespace(NODE_NAMESPACE, privileged=True), namespace(TENANT_NAMESPACE))
-    run("helm", "uninstall", "metrics", "--ignore-not-found", "--kubeconfig", str(KUBECONFIG), "--namespace", NAMESPACE)
+    collectors = collector_manifest()
+    kube("delete", "--ignore-not-found", "--wait=true", "-f", "-", body=collectors)
     kube("-n", NAMESPACE, "delete", "deployment", "otlp-sink", "--ignore-not-found", "--wait=true")
     run("docker", "exec", NODE, "rm", "-f", f"{SINK_PATH}/output.json")
     install_sink(image)
-    install_collectors()
-    wait("actual cluster and node metrics reach the authenticated OTLP destination", lambda: {"k8s.deployment.available", "k8s.node.allocatable_cpu", "system.cpu.time"} <= {name for name, _, _ in metric_points(sink_documents())})
+    install_collectors(collectors)
+    wait("actual cluster and node metrics reach the authenticated OTLP destination", lambda: {"k8s.deployment.available", "k8s.node.allocatable_cpu", "k8s.node.cpu.usage"} <= {name for name, _, _ in metric_points(sink_documents())})
     points = metric_points(sink_documents())
     assert any(name == "k8s.deployment.available" and attrs.get("k8s.deployment.name") == "otlp-sink" and int(point.get("asInt", point.get("asDouble", 0))) == 1 for name, attrs, point in points)
     assert all(attrs.get("loco.telemetry.scope") == "platform" and attrs.get("k8s.cluster.name") == CLUSTER and attrs.get("loco.region") == "test-region" for _, attrs, _ in points)

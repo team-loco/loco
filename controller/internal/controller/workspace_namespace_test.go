@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	v1Gateway "sigs.k8s.io/gateway-api/apis/v1"
 
+	"github.com/team-loco/loco/controller/internal/managed"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -41,7 +42,7 @@ func workspaceApp(name, resourceID string) *locov1alpha1.Application {
 
 func appObjects(app *locov1alpha1.Application) []client.Object {
 	name := getName(app)
-	namespace := getNamespace(app)
+	namespace := testWorkspaceNamespace(app)
 	roleName := getRoleName(app)
 	bindingName := getRoleBindingName(app)
 	envSecretName := getEnvSecretName(app)
@@ -71,8 +72,8 @@ func objectExists(t *testing.T, kubeClient client.Client, obj client.Object) boo
 func TestAppsInAWorkspaceShareANamespace(t *testing.T) {
 	first := workspaceApp("first", "1")
 	second := workspaceApp("second", "3")
-	if getNamespace(first) != getNamespace(second) {
-		t.Fatalf("namespaces differ: %q and %q", getNamespace(first), getNamespace(second))
+	if testWorkspaceNamespace(first) != testWorkspaceNamespace(second) {
+		t.Fatalf("namespaces differ: %q and %q", testWorkspaceNamespace(first), testWorkspaceNamespace(second))
 	}
 	if getName(first) == getName(second) {
 		t.Fatalf("apps share the object name %q", getName(first))
@@ -83,7 +84,7 @@ func TestDeletingAnAppKeepsTheWorkspaceNamespace(t *testing.T) {
 	scheme := workspaceTestScheme(t)
 	deleted := workspaceApp("first", "1")
 	remaining := workspaceApp("second", "3")
-	namespace := &corev1.Namespace{Name: getNamespace(deleted)}
+	namespace := &corev1.Namespace{Name: testWorkspaceNamespace(deleted)}
 	pullSecret := &corev1.Secret{Name: workspacePullSecretName, Namespace: namespace.Name}
 	deletedObjects := appObjects(deleted)
 	remainingObjects := appObjects(remaining)
@@ -91,7 +92,11 @@ func TestDeletingAnAppKeepsTheWorkspaceNamespace(t *testing.T) {
 	builder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(namespace, pullSecret, deleted, remaining)
 	builder = builder.WithObjects(deletedObjects...).WithObjects(remainingObjects...)
 	kubeClient := builder.Build()
-	r := &LocoResourceReconciler{Client: kubeClient}
+	r := &LocoResourceReconciler{
+		Client:                   kubeClient,
+		Gateway:                  testGateway,
+		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+	}
 
 	ctx := context.Background()
 	if err := r.deleteAppObjects(ctx, deleted); err != nil {
@@ -125,10 +130,14 @@ func TestDeletingTheLastAppRemovesTheWorkspaceNamespace(t *testing.T) {
 	app := workspaceApp("only", "1")
 	other := workspaceApp("elsewhere", "5")
 	other.Spec.WorkspaceID = "9"
-	namespace := &corev1.Namespace{Name: getNamespace(app)}
+	namespace := &corev1.Namespace{Name: testWorkspaceNamespace(app), Labels: managed.Labels()}
 
 	kubeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(namespace, app, other).Build()
-	r := &LocoResourceReconciler{Client: kubeClient}
+	r := &LocoResourceReconciler{
+		Client:                   kubeClient,
+		Gateway:                  testGateway,
+		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+	}
 
 	if err := r.deleteNamespaceIfUnused(context.Background(), app); err != nil {
 		t.Fatalf("deleteNamespaceIfUnused: %v", err)

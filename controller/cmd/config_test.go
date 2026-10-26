@@ -19,6 +19,15 @@ func TestOperatorConfigReadsTheTelemetrySettings(t *testing.T) {
 	}
 }
 
+func TestOperatorConfigReadsTheGatewayAndWorkspacePrefix(t *testing.T) {
+	t.Setenv(envGateway, "edge")
+	t.Setenv(envWorkspacePrefix, "tenant-")
+	operator := newOperatorConfig()
+	if operator.Gateway != "edge" || operator.WorkspaceNamespacePrefix != "tenant-" {
+		t.Errorf("gateway = %q, workspace prefix = %q", operator.Gateway, operator.WorkspaceNamespacePrefix)
+	}
+}
+
 func TestOperatorConfigLeavesUnsetPortsZero(t *testing.T) {
 	t.Setenv(envOTelCollectorGRPCPort, "")
 	t.Setenv(envOTelCollectorHTTPPort, "")

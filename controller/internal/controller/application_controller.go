@@ -54,10 +54,10 @@ import (
 
 	"github.com/team-loco/loco/controller/internal/isolation"
 	"github.com/team-loco/loco/controller/internal/managed"
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
-// todo: finalize on the domain we wanna use inside kubernetes.
 const (
 	finalizerAppResourcesCleanup = "infra.loco.io/app-resources-cleanup"
 	labelApp                     = "app"
@@ -88,9 +88,11 @@ type LocoResourceReconciler struct {
 	APIReader client.Reader
 	Scheme    *runtime.Scheme
 
-	LocoNamespace  string
-	PullSecretName string
-	Telemetry      TelemetryConfig
+	LocoNamespace            string
+	PullSecretName           string
+	Gateway                  string
+	WorkspaceNamespacePrefix string
+	Telemetry                TelemetryConfig
 }
 
 // +kubebuilder:rbac:groups=infra.loco.io,resources=applications,verbs=get;list;watch;create;update;patch;delete
@@ -107,8 +109,6 @@ type LocoResourceReconciler struct {
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=servicecidrs,verbs=get;list;watch
-
-// todo: abuse of power. we should delete based on owner refs, not delete namespace access;
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -174,7 +174,7 @@ func (r *LocoResourceReconciler) reconcileResources(
 	locoRes *locov1alpha1.Application,
 ) (ctrl.Result, error) {
 	// begin reconcile steps - these functions allocate and ensure Kubernetes resources
-	if err := ensureNamespace(ctx, r.Client, locoRes); err != nil {
+	if err := r.ensureNamespace(ctx, locoRes); err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure namespace: %w", err)
 	}
 
@@ -344,7 +344,7 @@ func (r *LocoResourceReconciler) deleteAppObjects(ctx context.Context, locoRes *
 		return err
 	}
 	name := getName(locoRes)
-	namespace := getNamespace(locoRes)
+	namespace := r.workspaceNamespace(locoRes)
 	routeName := getRouteName(locoRes)
 	gatewayPolicyName := getGatewayPolicyName(locoRes)
 	bindingName := getRoleBindingName(locoRes)
@@ -392,8 +392,18 @@ func (r *LocoResourceReconciler) deleteNamespaceIfUnused(
 		}
 	}
 
-	namespace := getNamespace(locoRes)
-	ns := &corev1.Namespace{Name: namespace}
+	namespace := r.workspaceNamespace(locoRes)
+	ns := &corev1.Namespace{}
+	if err := reader.Get(ctx, client.ObjectKey{Name: namespace}, ns); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("get namespace %s: %w", namespace, err)
+	}
+	if ns.Labels[locolabels.LabelManagedBy] != managed.ManagedByValue {
+		slog.InfoContext(ctx, "namespace not managed by the controller, leaving it", "namespace", namespace)
+		return nil
+	}
 	if err := r.Delete(ctx, ns); err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("delete namespace %s: %w", namespace, err)
 	}
@@ -406,9 +416,8 @@ func getName(locoRes *locov1alpha1.Application) string {
 	return fmt.Sprintf("resource-%v", locoRes.Spec.ResourceID)
 }
 
-// getNamespace derives the namespace from the Application
-func getNamespace(locoRes *locov1alpha1.Application) string {
-	return fmt.Sprintf("ws-%v", locoRes.Spec.WorkspaceID)
+func (r *LocoResourceReconciler) workspaceNamespace(locoRes *locov1alpha1.Application) string {
+	return r.WorkspaceNamespacePrefix + locoRes.Spec.WorkspaceID
 }
 
 func getEnvSecretName(locoRes *locov1alpha1.Application) string {
@@ -431,15 +440,15 @@ func getGatewayPolicyName(locoRes *locov1alpha1.Application) string {
 	return fmt.Sprintf("%s-gateway", getName(locoRes))
 }
 
-func getInternalDomain(locoRes *locov1alpha1.Application) string {
-	return fmt.Sprintf("%s.%s.svc.cluster.local", getName(locoRes), getNamespace(locoRes))
+func getInternalDomain(locoRes *locov1alpha1.Application, namespace string) string {
+	return fmt.Sprintf("%s.%s.svc.cluster.local", getName(locoRes), namespace)
 }
 
 func managedLabels(locoRes *locov1alpha1.Application) map[string]string {
 	name := getName(locoRes)
 	return map[string]string{
-		labelApp:               name,
-		managed.LabelManagedBy: managed.ManagedByValue,
+		labelApp:                  name,
+		locolabels.LabelManagedBy: managed.ManagedByValue,
 	}
 }
 
@@ -451,15 +460,15 @@ func ownerAnnotations(locoRes *locov1alpha1.Application) map[string]string {
 }
 
 // ensureNamespace ensures the application namespace exists and is configured
-func ensureNamespace(ctx context.Context, kubeClient client.Client, locoRes *locov1alpha1.Application) error {
-	namespace := getNamespace(locoRes)
+func (r *LocoResourceReconciler) ensureNamespace(ctx context.Context, locoRes *locov1alpha1.Application) error {
+	namespace := r.workspaceNamespace(locoRes)
 	slog.DebugContext(ctx, "ensuring namespace", "namespace", namespace)
 
 	labels := workspaceNamespaceLabels(locoRes)
 	ns := corev1ac.Namespace(namespace).WithLabels(labels)
 
 	opts := managed.ApplyOptions()
-	if err := kubeClient.Apply(ctx, ns, opts...); err != nil {
+	if err := r.Apply(ctx, ns, opts...); err != nil {
 		return fmt.Errorf("apply namespace %s: %w", namespace, err)
 	}
 	return nil
@@ -476,7 +485,7 @@ func (r *LocoResourceReconciler) ensureEnvSecret(
 	ctx context.Context,
 	locoRes *locov1alpha1.Application,
 ) (envSecretMount, error) {
-	namespace := getNamespace(locoRes)
+	namespace := r.workspaceNamespace(locoRes)
 	envSecretName := getEnvSecretName(locoRes)
 	ref := locoRes.Spec.ServiceSpec.Deployment.EnvSecretRef
 	if ref == nil {
@@ -521,7 +530,7 @@ func (r *LocoResourceReconciler) ensureEnvSecret(
 // ensureServiceAccount ensures the service account exists for the deployment and references image pull secret
 func (r *LocoResourceReconciler) ensureServiceAccount(ctx context.Context, locoRes *locov1alpha1.Application) error {
 	name := getName(locoRes)
-	namespace := getNamespace(locoRes)
+	namespace := r.workspaceNamespace(locoRes)
 
 	slog.DebugContext(ctx, "ensuring service account", "namespace", namespace, "name", name)
 
@@ -545,7 +554,7 @@ func (r *LocoResourceReconciler) ensureServiceAccount(ctx context.Context, locoR
 
 // deleteRoleAndBinding removes the Role and RoleBinding that once let the pod read its env Secret.
 func (r *LocoResourceReconciler) deleteRoleAndBinding(ctx context.Context, locoRes *locov1alpha1.Application) error {
-	namespace := getNamespace(locoRes)
+	namespace := r.workspaceNamespace(locoRes)
 	objects := []client.Object{
 		&rbacv1.RoleBinding{Name: getRoleBindingName(locoRes), Namespace: namespace},
 		&rbacv1.Role{Name: getRoleName(locoRes), Namespace: namespace},
@@ -563,7 +572,7 @@ func (r *LocoResourceReconciler) deleteRoleAndBinding(ctx context.Context, locoR
 // ensureService ensures the Kubernetes service exists for the deployment
 func (r *LocoResourceReconciler) ensureService(ctx context.Context, locoRes *locov1alpha1.Application) error {
 	name := getName(locoRes)
-	namespace := getNamespace(locoRes)
+	namespace := r.workspaceNamespace(locoRes)
 	containerPort := locoRes.Spec.ServiceSpec.Deployment.Port
 
 	slog.DebugContext(ctx, "ensuring service", "namespace", namespace, "name", name, "containerPort", containerPort)
@@ -620,6 +629,7 @@ func parseResourceList(cpu, memory string) (corev1.ResourceList, error) {
 
 func systemEnvVars(
 	locoRes *locov1alpha1.Application,
+	namespace string,
 	telemetry TelemetryConfig,
 	secretNames []string,
 ) []*corev1ac.EnvVarApplyConfiguration {
@@ -627,7 +637,7 @@ func systemEnvVars(
 	if locoRes.Spec.ServiceSpec.Routing != nil {
 		publicDomain = locoRes.Spec.ServiceSpec.Routing.HostName
 	}
-	internalDomain := getInternalDomain(locoRes)
+	internalDomain := getInternalDomain(locoRes, namespace)
 
 	locoVars := []corev1.EnvVar{
 		{Name: "LOCO_APP_NAME", Value: locoRes.Name},
@@ -684,11 +694,11 @@ func healthProbe(hc *locov1alpha1.HealthCheckSpec, port int32) *corev1ac.ProbeAp
 
 func desiredDeployment(
 	locoRes *locov1alpha1.Application,
+	namespace string,
 	envSecret envSecretMount,
 	telemetry TelemetryConfig,
 ) (*appsv1ac.DeploymentApplyConfiguration, error) {
 	name := getName(locoRes)
-	namespace := getNamespace(locoRes)
 	spec := locoRes.Spec.ServiceSpec
 	if spec.Resources == nil {
 		return nil, errNoResources
@@ -701,7 +711,7 @@ func desiredDeployment(
 		return nil, fmt.Errorf("resources: %w", err)
 	}
 
-	systemVars := systemEnvVars(locoRes, telemetry, envSecret.Names)
+	systemVars := systemEnvVars(locoRes, namespace, telemetry, envSecret.Names)
 	plainVars := plainEnvVars(spec.Deployment.Env, systemVars)
 	envVars := slices.Concat(systemVars, plainVars)
 	port := corev1ac.ContainerPort().
@@ -734,7 +744,7 @@ func desiredDeployment(
 	podLabels := map[string]string{
 		labelApp:                    name,
 		labelAppKubernetesName:      name,
-		managed.LabelManagedBy:      managed.ManagedByValue,
+		locolabels.LabelManagedBy:   managed.ManagedByValue,
 		managed.LabelComponent:      componentApplication,
 		managed.LabelOrganizationID: locoRes.Spec.OrganizationID,
 		managed.LabelWorkspaceID:    locoRes.Spec.WorkspaceID,
@@ -800,13 +810,13 @@ func (r *LocoResourceReconciler) ensureDeployment(
 	locoRes *locov1alpha1.Application,
 	envSecret envSecretMount,
 ) (*appsv1ac.DeploymentApplyConfiguration, error) {
-	dep, err := desiredDeployment(locoRes, envSecret, r.Telemetry)
+	dep, err := desiredDeployment(locoRes, r.workspaceNamespace(locoRes), envSecret, r.Telemetry)
 	if err != nil {
 		return nil, err
 	}
 
 	name := getName(locoRes)
-	namespace := getNamespace(locoRes)
+	namespace := r.workspaceNamespace(locoRes)
 	slog.DebugContext(ctx, "ensuring deployment", "namespace", namespace, "name", name)
 
 	opts := managed.ApplyOptions()
@@ -839,7 +849,7 @@ func setReplicaCounts(app *locov1alpha1.Application, dep *appsv1ac.DeploymentApp
 // ensureHTTPRoute ensures the HTTPRoute exists for traffic ingress (Envoy Gateway)
 func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *locov1alpha1.Application) error {
 	name := getName(locoRes)
-	namespace := getNamespace(locoRes)
+	namespace := r.workspaceNamespace(locoRes)
 	routeName := getRouteName(locoRes)
 	routing := locoRes.Spec.ServiceSpec.Routing
 
@@ -854,10 +864,10 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 
 	slog.DebugContext(ctx, "ensuring HTTPRoute", "namespace", namespace, "name", routeName)
 
-	// todo: remove the hardooded gateway name and namespace.
 	gatewayNamespace := v1Gateway.Namespace(r.LocoNamespace)
+	gatewayName := v1Gateway.ObjectName(r.Gateway)
 	parentRef := gatewayac.ParentReference().
-		WithName("eg").
+		WithName(gatewayName).
 		WithNamespace(gatewayNamespace)
 	pathMatch := gatewayac.HTTPPathMatch().
 		WithType(v1Gateway.PathMatchPathPrefix).

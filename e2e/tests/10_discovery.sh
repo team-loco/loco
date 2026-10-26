@@ -8,7 +8,7 @@ fi
 
 discovery_ctx="kind-${E2E_KIND_CLUSTER}"
 discovery_dir="$E2E_BUILD_WORK_DIR/discovery"
-discovery_namespace="ws-${cli_workspace_id}"
+discovery_namespace="${E2E_WORKSPACE_PREFIX}${cli_workspace_id}"
 cli_home="$discovery_dir/home"
 discovery_http=cart
 discovery_caller=caller
@@ -24,7 +24,7 @@ discovery_diagnostics() {
     if [ "$status" -ne 0 ] || [ "$E2E_FAIL" -gt "$discovery_failures_before" ]; then
         python3 "$E2E_ROOT_DIR/e2e/discovery_diagnostics.py" \
             --kubeconfig "$KUBECONFIG_FILE" --context "$discovery_ctx" \
-            --namespace "$discovery_namespace" --namespace "ws-${discovery_second_workspace}" \
+            --namespace "$discovery_namespace" --namespace "${E2E_WORKSPACE_PREFIX}${discovery_second_workspace}" \
             --output "$E2E_ROOT_DIR/e2e/out/discovery/$E2E_RUN_ID" || true
     fi
     return "$status"
@@ -198,14 +198,14 @@ test_d05_namespace_qualified_names_reach_their_workspace() {
     discovery_deploy_second_workspace || return 1
     assert_contains "first workspace still resolves its own http://cart.${discovery_namespace}.svc.cluster.local" workspace-one discovery_call "cart.${discovery_namespace}.svc.cluster.local" http
     local other_address
-    other_address=$(dk -n "ws-${discovery_second_workspace}" get service cart -o 'jsonpath={.spec.clusterIP}')
+    other_address=$(dk -n "${E2E_WORKSPACE_PREFIX}${discovery_second_workspace}" get service cart -o 'jsonpath={.spec.clusterIP}')
     assert "cross-workspace traffic remains blocked" discovery_unreachable "$other_address"
 }
 
 
 discovery_deploy_second_workspace() {
     local cli_workspace_id=$discovery_second_workspace
-    local discovery_namespace="ws-${discovery_second_workspace}"
+    local discovery_namespace="${E2E_WORKSPACE_PREFIX}${discovery_second_workspace}"
     local discovery_dir="$E2E_BUILD_WORK_DIR/discovery-two"
     local cli_home="$discovery_dir/home"
     mkdir -p "$discovery_dir/services/cart"

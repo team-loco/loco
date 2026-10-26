@@ -78,6 +78,12 @@
       matchPackageNames: ["opentelemetry-**"],
     },
     {
+      description: "A chart publishes only when its version moves, and lint:chart-versions requires the bump",
+      matchManagers: ["helmv3", "helm-values"],
+      matchFileNames: ["charts/**"],
+      bumpVersion: "patch",
+    },
+    {
       matchManagers: ["dockerfile", "docker-compose"],
       pinDigests: true,
     },
@@ -159,6 +165,13 @@
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?\\n(?:ARG )?[A-Z0-9_]+_VERSION ?\\??= ?(?<currentValue>\\S+)",
       ],
       versioningTemplate: "{{#if versioning}}{{{versioning}}}{{else}}semver-coerced{{/if}}",
+    },
+    {
+      customType: "regex",
+      description: "cert-manager, the one chart installed straight from its repository rather than as a chart dependency",
+      managerFilePatterns: ["/^charts/cert-manager\\.yaml$/"],
+      matchStrings: ["repository: (?<registryUrl>\\S+)\\nchart: (?<depName>\\S+)\\nversion: (?<currentValue>\\S+)"],
+      datasourceTemplate: "helm",
     },
   ],
 }

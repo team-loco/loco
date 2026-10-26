@@ -99,32 +99,22 @@ Loco is a container orchestration platform with the following components:
 
 ## Kubernetes Infrastructure (via Helm Charts)
 
-### Phase 1: Networking
+Each cluster needs a CNI that enforces Kubernetes NetworkPolicy; the controller isolates workspaces with `networking.k8s.io/v1` NetworkPolicy objects. Local development uses kind's default CNI.
 
-#### loco-networking Chart
+### Phase 1: Core Services
 
-Deploys:
-
-- **Cilium** (v1.18.4)
-  - **CNI (Container Network Interface)** implementation
-  - Pod-to-pod networking with eBPF
-  - Network policies enforcement
-
-**Cilium Dependencies**:
-
-- Linux kernel eBPF support
-- Kubernetes network plugin interface
-
----
-
-### Phase 2: Core Services
-
-#### loco-core Chart
+#### loco-worker Chart
 
 Deploys:
 
-- **API Server Deployment**: Loco API running in pods
-- **UI Server Deployment**: React frontend
+- **loco-agent**: connects the cluster to the control plane
+- **loco-controller** (the Application controller)
+  - Watches Application CRDs
+  - Reconciles to Deployments, Services, HTTPRoutes and NetworkPolicies
+- **loco-build-controller** (the build controller, only with `builds.enabled`)
+  - Watches Build CRDs in the `loco-builds` namespace
+  - Runs each Build as a BuildKit Job and reports the pushed digest
+- **OpenTelemetry collectors**: three OpenTelemetry Collector contrib 0.163.2 instances, `otel-col-deploy` (OTLP from applications and Envoy) and `otel-col-cluster` (cluster metrics and events) in `loco-obs`, `otel-col-daemon` (container logs and node metrics) in `loco-obs-node`. They export everything over OTLP/HTTP to one configured endpoint.
 - **Envoy Gateway** (v1.6.1 via gateway-helm dependency)
   - **HTTP routing** and load balancing
   - **TLS termination** (HTTPS)
@@ -147,24 +137,9 @@ Deploys:
 - Kubernetes API for CustomResourceDefinitions (Certificate, Issuer, ClusterIssuer)
 - External ACME server (Let's Encrypt production/staging)
 
-#### loco-operator Chart
-
-Deploys:
-
-- **loco-controller** (the Application controller)
-  - Watches Application CRDs
-  - Reconciles to Deployments, Services, HTTPRoutes and NetworkPolicies
-- **loco-build-controller** (the build controller, only with `builds.enabled`)
-  - Watches Build CRDs in the `loco-builds` namespace
-  - Runs each Build as a BuildKit Job and reports the pushed digest
-
 ---
 
-### Phase 3: Observability
-
-#### loco-obs Chart
-
-Deploys three OpenTelemetry Collector contrib 0.163.2 instances on each worker cluster: `otel-col-deploy` (OTLP from applications and Envoy), `otel-col-daemon` (container logs and node metrics) and `otel-col-cluster` (cluster metrics and events). They export everything over OTLP/HTTP to one configured endpoint.
+### Phase 2: Observability
 
 #### loco-control-plane Chart
 
@@ -202,12 +177,11 @@ Observability proxy query → API
 
 ## External Helm Chart Repositories
 
-Used in `helmfile.yaml.gotmpl` and the chart dependencies:
+Used by the chart dependencies and `charts/cert-manager.yaml`:
 
 | Repository         | URL                                                        | Purpose              |
 | ------------------ | ---------------------------------------------------------- | -------------------- |
 | **jetstack**       | https://charts.jetstack.io                                 | cert-manager chart   |
-| **cilium**         | https://helm.cilium.io                                     | Cilium CNI chart     |
 | **altinity**       | https://helm.altinity.com                                  | ClickHouse chart     |
 | **open-telemetry** | https://open-telemetry.github.io/opentelemetry-helm-charts | OpenTelemetry charts |
 
@@ -229,8 +203,7 @@ Controller Reconciles:
   - Service (internal networking)
   - Ingress (via Envoy Gateway)
   ↓
-Envoy Gateway (loco-core)
-  - Routes traffic via Cilium networking
+Envoy Gateway (loco-worker)
   - Terminates TLS (via cert-manager certificates)
   - Exposes HTTP/3
 ```
@@ -252,7 +225,7 @@ Envoy Gateway (loco-core)
 
 - Kubernetes cluster (1.34+)
 - PostgreSQL database
-- Cilium CNI
+- A CNI that enforces Kubernetes NetworkPolicy
 - cert-manager + Let's Encrypt
 - Envoy Gateway
 - OpenTelemetry (if observability needed)
@@ -260,14 +233,14 @@ Envoy Gateway (loco-core)
 ### Integration Points
 
 - **Kubernetes API**: All components talk to the API server
-- **Helm/helmfile**: Deployment and lifecycle management
+- **Helm**: Deployment and lifecycle management
 - **OpenTelemetry SDK**: Instrumentation in API and Controller
 
 ---
 
 ## Notes
 
-- All Helm chart versions are pinned in `helmfile.yaml.gotmpl` and individual `Chart.yaml` files
+- All Helm chart versions are pinned in `charts/cert-manager.yaml` and individual `Chart.yaml` files
 - Go module dependencies are managed per component (`cli/go.mod`, `api/go.mod`, `controller/go.mod`, `shared/go.mod`)
 - Protobuf definitions are shared across CLI, API, and Controller via the `shared` module
 - CI/CD integration (GitHub Actions, GitLab CI) is handled at deployment time, not runtime dependency

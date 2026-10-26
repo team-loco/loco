@@ -2,81 +2,107 @@ import json
 import os
 import shutil
 import subprocess
-import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+RELEASE_TASK = ROOT / "mise-tasks/helm/sync/release"
+CERT_MANAGER = ROOT / "charts/cert-manager.yaml"
+HELM = shutil.which("helm")
+BUILD_EGRESS = [{"cidr": "172.30.0.0/16", "port": 5001}]
 FIXTURE_ENV = {
-    "GH_SHA": "test",
-    "CERT_MANAGER_EMAIL": "test@example.test",
-    "CLOUDFLARE_TOKEN": "test",
-    "LOG_LEVEL": "info",
-    "CONTROL_PLANE_URL": "https://api.example.test",
+    "KIND_CLUSTER": "loco-test",
+    "OBS_OTLP_HTTP_PORT": "4318",
+    "CLOUDFLARE_TOKEN": "cloudflare-fixture",
+    "LOCO_JOIN_TOKEN": "join-fixture",
 }
+STACK_ENV = ("CERT_MANAGER_EMAIL", *FIXTURE_ENV)
+TILT_VALUES = {
+    "cert-manager": (),
+    "loco-worker": ("agent.image.tag=fixture", "controller.image.tag=fixture", "builds.builderImage.tag=fixture"),
+}
+PROVIDERS = ("cert-manager",)
+CONSUMERS = ("loco-worker",)
 
 
-def _release_state(environment):
-    with tempfile.TemporaryDirectory() as directory:
-        root = Path(directory)
-        shutil.copyfile(ROOT / "helmfile.yaml.gotmpl", root / "helmfile.yaml.gotmpl")
-        (root / "env" / environment).mkdir(parents=True)
-        shutil.copyfile(ROOT / "env" / "global.yaml", root / "env" / "global.yaml")
-        shutil.copyfile(ROOT / "env" / "exporter-token.yaml.gotmpl", root / "env" / "exporter-token.yaml.gotmpl")
-        for source in (ROOT / "env" / environment).glob("*-chart.yaml.gotmpl"):
-            (root / "env" / environment / source.name).write_text("{}")
-        for source in (ROOT / "charts").glob("*/values.yaml"):
-            target = root / source.relative_to(ROOT)
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(source, target)
-        built = subprocess.check_output(
-            [
-                "helmfile",
-                "-f",
-                str(root / "helmfile.yaml.gotmpl"),
-                "-e",
-                environment,
-                "build",
-                "--embed-values",
-            ],
-            env={**os.environ, **FIXTURE_ENV},
-            text=True,
-        )
-    raw = subprocess.check_output(["yq", "-o=json", ".", "-"], input=built, text=True)
-    state = json.loads(raw)
-    releases = {release["name"]: release for release in state["releases"]}
-    return (state, releases)
+def _yaml(path):
+    return json.loads(subprocess.check_output(["yq", "-o=json", ".", str(path)], text=True))
 
 
-def test_cert_manager_is_ready_before_consumers_in_both_environments(subtests):
-    for environment in ("local", "prod"):
-        with subtests.test(environment=environment):
-            state, releases = _release_state(environment)
-            provider = releases["cert-manager"]
-            assert provider.get("wait", state["helmDefaults"]["wait"])
-            assert "cert-manager/cert-manager" in releases["loco-core"]["needs"]
-            assert "loco-system/loco-core" in releases["loco-obs"]["needs"]
-            for name in ("loco-core", "loco-obs"):
-                assert not releases[name].get("wait", state["helmDefaults"]["wait"])
+def install_args(tmp_path, release, environment=None):
+    stubs = tmp_path / "bin"
+    stubs.mkdir(exist_ok=True)
+    (stubs / "helm").write_text('#!/usr/bin/env bash\nprintf \'%s\\0\' "$@" > "$HELM_ARGS"\n')
+    (stubs / "mise").write_text(
+        "#!/usr/bin/env bash\n"
+        "case $* in\n"
+        f"*cluster:build-egress) echo '{json.dumps(BUILD_EGRESS)}' ;;\n"
+        "*) exit 1 ;;\n"
+        "esac\n"
+    )
+    for stub in stubs.iterdir():
+        stub.chmod(0o755)
+    record = tmp_path / "helm-args"
+    base = {name: value for name, value in os.environ.items() if name not in STACK_ENV}
+    subprocess.run(
+        ["bash", str(RELEASE_TASK), release, *TILT_VALUES[release]],
+        cwd=ROOT,
+        env={
+            **base,
+            **FIXTURE_ENV,
+            **(environment or {}),
+            "PATH": f"{stubs}{os.pathsep}{os.environ['PATH']}",
+            "HELM_ARGS": str(record),
+        },
+        check=True,
+    )
+    return record.read_text().split("\0")[:-1]
 
 
-def test_networking_is_ready_before_local_providers():
-    state, releases = _release_state("local")
-    assert releases["loco-networking"].get("wait", state["helmDefaults"]["wait"])
-    for name in ("cert-manager", "loco-operator"):
-        assert "kube-system/loco-networking" in releases[name]["needs"]
+def render(args):
+    assert args[:2] == ["upgrade", "--install"]
+    template = [arg for arg in args[2:] if arg != "--cleanup-on-fail"]
+    return subprocess.check_output([HELM, "template", *template], cwd=ROOT, text=True)
 
 
-def test_core_and_obs_take_one_exporter_token_secret_name(subtests):
-    values = subprocess.check_output(["yq", "-o=json", ".", str(ROOT / "charts/loco-obs/values.yaml")], text=True)
-    expected = json.loads(values)["global"]["exporter"]["bearerToken"]["secretName"]
-    for environment in ("local", "prod"):
-        with subtests.test(environment=environment):
-            _, releases = _release_state(environment)
-            for name in ("loco-core", "loco-obs"):
-                names = [
-                    source["global"]["exporter"]["bearerToken"]["secretName"]
-                    for source in releases[name]["values"]
-                    if isinstance(source, dict) and "exporter" in source.get("global", {})
-                    and "bearerToken" in source["global"]["exporter"]
-                ]
-                assert names[-1] == expected, name
+def test_providers_wait_and_consumers_do_not(tmp_path, subtests):
+    for release in (*PROVIDERS, *CONSUMERS):
+        with subtests.test(release=release):
+            args = install_args(tmp_path, release)
+            assert ("--wait" in args) == (release in PROVIDERS)
+            assert "--force-conflicts" in args
+            assert args[args.index("--kube-context") + 1] == "kind-" + FIXTURE_ENV["KIND_CLUSTER"]
+
+
+def test_cert_manager_installs_the_pinned_chart(tmp_path):
+    pin = _yaml(CERT_MANAGER)
+    args = install_args(tmp_path, "cert-manager")
+    assert args[3] == pin["chart"]
+    assert args[args.index("--repo") + 1] == pin["repository"]
+    assert args[args.index("--version") + 1] == pin["version"]
+
+
+def test_tilt_values_reach_helm(tmp_path):
+    args = install_args(tmp_path, "loco-worker")
+    for value in TILT_VALUES["loco-worker"]:
+        assert args[args.index(value) - 1] == "--set"
+
+
+def test_local_releases_render_with_the_stack_values(tmp_path, subtests):
+    manifest = render(install_args(tmp_path, "loco-worker"))
+    for needle in (
+        FIXTURE_ENV["CLOUDFLARE_TOKEN"],
+        FIXTURE_ENV["LOCO_JOIN_TOKEN"],
+        BUILD_EGRESS[0]["cidr"],
+        "http://host.docker.internal:" + FIXTURE_ENV["OBS_OTLP_HTTP_PORT"],
+    ):
+        with subtests.test(needle=needle):
+            assert needle in manifest
+
+
+def test_cert_manager_email_overrides_the_local_default(tmp_path):
+    default = _yaml(ROOT / "env/local/worker-chart.yaml")["certManager"]["issuer"]["email"]
+    assert default in render(install_args(tmp_path, "loco-worker"))
+    override = "ops@example.test"
+    manifest = render(install_args(tmp_path, "loco-worker", {"CERT_MANAGER_EMAIL": override}))
+    assert override in manifest
+    assert default not in manifest

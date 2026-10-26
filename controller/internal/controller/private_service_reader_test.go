@@ -11,6 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/team-loco/loco/controller/internal/managed"
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -31,19 +32,24 @@ func TestPrivateServiceLifecycleReadsBypassTheCache(t *testing.T) {
 	app.UID = "app-uid"
 	app.Spec.ResourceName = testPrivateHTTPName
 	labels := map[string]string{
-		labelPrivateServiceOwner: string(app.UID),
-		managed.LabelManagedBy:   managed.ManagedByValue,
-		managed.LabelComponent:   componentPrivateService,
+		labelPrivateServiceOwner:  string(app.UID),
+		locolabels.LabelManagedBy: managed.ManagedByValue,
+		managed.LabelComponent:    componentPrivateService,
 	}
 	old := &corev1.Service{
 		Name:        "old-cart",
-		Namespace:   getNamespace(app),
+		Namespace:   testWorkspaceNamespace(app),
 		UID:         "old-alias-uid",
 		Labels:      labels,
 		Annotations: ownerAnnotations(app),
 	}
 	base := fake.NewClientBuilder().WithScheme(workspaceTestScheme(t)).WithObjects(old).Build()
-	r := &LocoResourceReconciler{Client: stalePrivateServiceCache{base}, APIReader: base}
+	r := &LocoResourceReconciler{
+		Client:                   stalePrivateServiceCache{base},
+		APIReader:                base,
+		Gateway:                  testGateway,
+		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+	}
 	if err := r.ensurePrivateService(context.Background(), app); err != nil {
 		t.Fatal(err)
 	}
@@ -80,12 +86,17 @@ func (c staleApplicationInventory) List(
 func TestDeletingAppChecksLiveWorkspaceApplications(t *testing.T) {
 	deleted := workspaceApp("deleted", "old")
 	remaining := workspaceApp("remaining", "new")
-	namespace := &corev1.Namespace{Name: getNamespace(deleted)}
+	namespace := &corev1.Namespace{Name: testWorkspaceNamespace(deleted)}
 	base := fake.NewClientBuilder().
 		WithScheme(workspaceTestScheme(t)).
 		WithObjects(deleted, remaining, namespace).
 		Build()
-	r := &LocoResourceReconciler{Client: staleApplicationInventory{base}, APIReader: base}
+	r := &LocoResourceReconciler{
+		Client:                   staleApplicationInventory{base},
+		APIReader:                base,
+		Gateway:                  testGateway,
+		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+	}
 	if err := r.deleteNamespaceIfUnused(context.Background(), deleted); err != nil {
 		t.Fatal(err)
 	}

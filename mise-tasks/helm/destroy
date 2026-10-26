@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+#MISE description="Uninstall every release from the local cluster"
+#MISE env={_.file=".env", _.source="env/local/stack.sh"}
+set -euo pipefail
+
+context="kind-$KIND_CLUSTER"
+helm list --all-namespaces --kube-context "$context" -o json |
+	yq -p json -o tsv '.[] | [.name, .namespace]' |
+	while read -r name namespace; do
+		helm uninstall "$name" --namespace "$namespace" --kube-context "$context"
+	done

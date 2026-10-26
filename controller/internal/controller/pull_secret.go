@@ -21,7 +21,7 @@ func (r *LocoResourceReconciler) ensureWorkspacePullSecret(
 	ctx context.Context,
 	locoRes *locov1alpha1.Application,
 ) error {
-	namespace := getNamespace(locoRes)
+	namespace := r.workspaceNamespace(locoRes)
 	key := client.ObjectKey{Namespace: namespace, Name: workspacePullSecretName}
 
 	if r.PullSecretName == "" {

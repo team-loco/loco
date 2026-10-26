@@ -24,8 +24,6 @@ connectrpc.com/grpcreflect/v2 v2.0.0 h1:Ah7U5kSd/kslH5KFNS8jh/e3u6UYVoX7lwkjcIfS
 connectrpc.com/grpcreflect/v2 v2.0.0/go.mod h1:V7Hj+ibxuZH3667Ng2zKKvxJQJIri20iG50vzG7i8GM=
 connectrpc.com/validate v0.9.0 h1:NLl+dbx87CZh1LId4FF87t92L5tsdmS0qDXxjZRe054=
 connectrpc.com/validate v0.9.0/go.mod h1:dBEUzscHj4InQpm6J5xF8zX51MIUAPWZ7Jq8aNXRY9Y=
-github.com/BurntSushi/toml v1.6.0 h1:dRaEfpa2VI55EwlIW72hMRHdWouJeRF7TPYhI+AUQjk=
-github.com/BurntSushi/toml v1.6.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
 github.com/Masterminds/semver/v3 v3.4.0 h1:Zog+i5UMtVoCU8oKka5P7i9q9HgrJeGzI9SA1Xbatp0=
 github.com/Masterminds/semver/v3 v3.4.0/go.mod h1:4V+yj/TJE1HU9XfppCwVMZq3I84lprf4nC11bSS5beM=
 github.com/antlr4-go/antlr/v4 v4.13.1 h1:SqQKkuVZ+zWkMMNkjy5FZe5mr5WURWnlpmOuzYWrPrQ=

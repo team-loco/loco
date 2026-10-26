@@ -15,6 +15,7 @@ import (
 
 	"github.com/team-loco/loco/controller/internal/isolation"
 	"github.com/team-loco/loco/controller/internal/managed"
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -24,7 +25,6 @@ const (
 	labelGatewayName       = "gateway.envoyproxy.io/owning-gateway-name"
 	labelGatewayNamespace  = "gateway.envoyproxy.io/owning-gateway-namespace"
 	labelAppKubernetesName = "app.kubernetes.io/name"
-	gatewayName            = "eg"
 	podSecurityLevel       = "restricted"
 	podSecurityVersion     = "latest"
 	policyWorkspaceAccess  = "allow-workspace"
@@ -45,7 +45,7 @@ func podSecurityLabels() map[string]string {
 func workspaceNamespaceLabels(locoRes *locov1alpha1.Application) map[string]string {
 	labels := podSecurityLabels()
 	labels[labelLocoApp] = "true"
-	labels[managed.LabelManagedBy] = managed.ManagedByValue
+	labels[locolabels.LabelManagedBy] = managed.ManagedByValue
 	labels[managed.LabelWorkspaceID] = locoRes.Spec.WorkspaceID
 	labels[labelEnvironmentID] = locoRes.Spec.EnvironmentID
 	return labels
@@ -53,8 +53,8 @@ func workspaceNamespaceLabels(locoRes *locov1alpha1.Application) map[string]stri
 
 func workspaceObjectLabels(locoRes *locov1alpha1.Application) map[string]string {
 	return map[string]string{
-		managed.LabelManagedBy:   managed.ManagedByValue,
-		managed.LabelWorkspaceID: locoRes.Spec.WorkspaceID,
+		locolabels.LabelManagedBy: managed.ManagedByValue,
+		managed.LabelWorkspaceID:  locoRes.Spec.WorkspaceID,
 	}
 }
 
@@ -100,7 +100,7 @@ func (r *LocoResourceReconciler) workspaceNetworkPolicies(
 	locoRes *locov1alpha1.Application,
 	exclusions isolation.EgressExclusions,
 ) []*networkingv1ac.NetworkPolicyApplyConfiguration {
-	namespace := getNamespace(locoRes)
+	namespace := r.workspaceNamespace(locoRes)
 	labels := workspaceObjectLabels(locoRes)
 	ingress := networkingv1.PolicyTypeIngress
 	egress := networkingv1.PolicyTypeEgress
@@ -154,7 +154,7 @@ func (r *LocoResourceReconciler) gatewayIngressPolicy(
 	locoRes *locov1alpha1.Application,
 ) *networkingv1ac.NetworkPolicyApplyConfiguration {
 	name := getName(locoRes)
-	namespace := getNamespace(locoRes)
+	namespace := r.workspaceNamespace(locoRes)
 	policyName := getGatewayPolicyName(locoRes)
 	labels := managedLabels(locoRes)
 	annotations := ownerAnnotations(locoRes)
@@ -162,7 +162,7 @@ func (r *LocoResourceReconciler) gatewayIngressPolicy(
 	appLabels := map[string]string{labelApp: name}
 	appSelector := metav1ac.LabelSelector().WithMatchLabels(appLabels)
 	gatewayLabels := map[string]string{
-		labelGatewayName:      gatewayName,
+		labelGatewayName:      r.Gateway,
 		labelGatewayNamespace: r.LocoNamespace,
 	}
 	gatewayPeer := namespacedPodPeer(r.LocoNamespace, gatewayLabels)
@@ -184,7 +184,7 @@ func (r *LocoResourceReconciler) ensureGatewayIngressPolicy(
 	ctx context.Context,
 	locoRes *locov1alpha1.Application,
 ) error {
-	namespace := getNamespace(locoRes)
+	namespace := r.workspaceNamespace(locoRes)
 	policyName := getGatewayPolicyName(locoRes)
 
 	if locoRes.Spec.ServiceSpec.Routing == nil {

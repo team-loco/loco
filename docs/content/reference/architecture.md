@@ -8,7 +8,7 @@ The Go API exposes ConnectRPC services and stores platform state in PostgreSQL. 
 
 ## Regional runtime
 
-The in-cluster agent exchanges state with the API. The controller reconciles Application custom resources into Kubernetes workloads and routing resources. Cilium provides networking; Envoy Gateway handles ingress and TLS termination; cert-manager provisions certificates.
+The in-cluster agent exchanges state with the API. The controller reconciles Application custom resources into Kubernetes workloads and routing resources. A CNI that enforces NetworkPolicy isolates workspaces; Envoy Gateway handles ingress and TLS termination; cert-manager provisions certificates.
 
 ## Observability
 

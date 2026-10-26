@@ -1,14 +1,6 @@
 {{- if .Values.gateway.create }}
-{{- $listeners := list }}
-{{- if .Values.ui.enabled }}
-{{- $listeners = append $listeners (dict "name" "ui" "hostname" .Values.ui.hostname) }}
-{{- end }}
-{{- if or (not .Values.ui.enabled) (ne .Values.ui.hostname .Values.controlPlaneHostname) }}
-{{- $listeners = append $listeners (dict "name" "api" "hostname" .Values.controlPlaneHostname) }}
-{{- end }}
-{{- if include "loco-control-plane.ingestRouted" . }}
-{{- $listeners = append $listeners (dict "name" "ingest" "hostname" .Values.obsProxy.ingest.hostname) }}
-{{- end }}
+{{- $listeners := include "loco-control-plane.listeners" . | fromJsonArray }}
+{{- $tlsSecret := include "loco-control-plane.tlsSecret" . }}
 apiVersion: gateway.networking.k8s.io/v1
 kind: GatewayClass
 metadata:
@@ -44,7 +36,7 @@ spec:
       name: {{ .Values.gateway.name }}
   listeners:
     {{- range $listeners }}
-    {{- if $.Values.gateway.tlsSecretName }}
+    {{- if $tlsSecret }}
     - name: https-{{ .name }}
       hostname: {{ .hostname | quote }}
       protocol: HTTPS
@@ -52,7 +44,7 @@ spec:
       tls:
         mode: Terminate
         certificateRefs:
-          - name: {{ $.Values.gateway.tlsSecretName }}
+          - name: {{ $tlsSecret }}
             kind: Secret
             group: ""
     {{- else }}

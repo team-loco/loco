@@ -56,11 +56,11 @@ The endpoint serves Prometheus or OpenMetrics exposition. The collector converts
 
 Environment overrides can change the endpoint or set `metrics: null` to stop pulling. Applying a change updates the pod discovery metadata and the ingress rule for the collector. The chart's `otel-col-daemon.config.receivers.prometheus/applications.config.scrape_configs` configures the interval (30 seconds), timeout (10 seconds), sample limit (10,000 per scrape), and response body limit (10 MB).
 
-When changing the node collector namespace or name, match `loco-operator` values `observability.metricsCollector.namespace` and `observability.metricsCollector.service` to the `loco-obs` daemon collector. These settings restrict metrics ingress to the node collector.
+The controller restricts metrics ingress to the node collector, which it finds through the `loco-worker` value `otel-col-daemon.namespaceOverride`.
 
 ## Private service discovery
 
-Applications in the same workspace on the same cluster reach HTTP services through native Kubernetes DNS, such as `http://cart.ws-00000000-0000-7000-8000-000000000003.svc.cluster.local`. Port 80 forwards to the configured application port, so callers omit the port even when cart listens on 7070. Loco uses namespaces named `ws-<workspace UUID>`; replace the example UUID with the caller's workspace UUID. A caller in that namespace can also use `http://cart`. Both private and publicly routed services have these endpoints. Callers need no resource IDs, OIDC tokens or discovery API calls. Declare dependent services in regions where they run on the same cluster; these DNS names do not connect separate clusters or regions.
+Applications in the same workspace on the same cluster reach HTTP services through native Kubernetes DNS, such as `http://cart.loco-ws-00000000-0000-7000-8000-000000000003.svc.cluster.local`. Port 80 forwards to the configured application port, so callers omit the port even when cart listens on 7070. Loco uses namespaces named `loco-ws-<workspace UUID>`; replace the example UUID with the caller's workspace UUID. A caller in that namespace can also use `http://cart`. Both private and publicly routed services have these endpoints. Callers need no resource IDs, OIDC tokens or discovery API calls. Declare dependent services in regions where they run on the same cluster; these DNS names do not connect separate clusters or regions.
 
 For example, a caller can pass dependency addresses through its environment:
 
@@ -68,8 +68,8 @@ For example, a caller can pass dependency addresses through its environment:
 services:
   checkout:
     env:
-      CART_URL: http://cart.ws-00000000-0000-7000-8000-000000000003.svc.cluster.local
-      PAYMENT_ADDRESS: payment.ws-00000000-0000-7000-8000-000000000003.svc.cluster.local:50051
+      CART_URL: http://cart.loco-ws-00000000-0000-7000-8000-000000000003.svc.cluster.local
+      PAYMENT_ADDRESS: payment.loco-ws-00000000-0000-7000-8000-000000000003.svc.cluster.local:50051
 ```
 
 Use the cluster's configured DNS suffix in place of `cluster.local` when it has a custom cluster domain. Namespace-qualified names distinguish identical service names in different workspaces. Loco uses the cluster's DNS. Namespace-qualified names identify Services; network policies control which callers can reach them.

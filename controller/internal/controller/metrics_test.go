@@ -9,7 +9,9 @@ import (
 func TestMetricsDiscoveryAndIngressAreOptIn(t *testing.T) {
 	app := telemetryTestApplication()
 	r := &LocoResourceReconciler{
-		Telemetry: TelemetryConfig{ScrapeNamespace: "metrics-node", ScrapeCollector: "node-collector"},
+		Gateway:                  testGateway,
+		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+		Telemetry:                TelemetryConfig{ScrapeNamespace: "metrics-node", ScrapeCollector: "node-collector"},
 	}
 	for _, enabled := range []bool{true, false} {
 		app.Spec.ServiceSpec.Obs = &locov1alpha1.ObsSpec{

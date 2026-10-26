@@ -16,7 +16,7 @@ POLL_SECONDS = 0.1
 
 def chart_value(expression):
     return json.loads(subprocess.check_output(
-        ["yq", "-o=json", expression, str(ROOT / "charts/loco-obs/values.yaml")], text=True
+        ["yq", "-o=json", expression, str(ROOT / "charts/loco-worker/values.yaml")], text=True
     ))
 
 

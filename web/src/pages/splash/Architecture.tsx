@@ -7,7 +7,7 @@ import { CornerMarks, Frame, SectionHeading } from "./primitives";
 const STACK = [
 	{ layer: "Edge", parts: ["Envoy Gateway", "HTTP/3", "TLS termination"] },
 	{ layer: "Certificates", parts: ["cert-manager", "Let's Encrypt"] },
-	{ layer: "Network", parts: ["Cilium CNI"] },
+	{ layer: "Network", parts: ["Kubernetes NetworkPolicy"] },
 	{ layer: "Compute", parts: ["Kubernetes"] },
 	{ layer: "Telemetry", parts: ["OpenTelemetry", "ClickHouse"] },
 	{ layer: "Control plane", parts: ["Go", "Connect RPC", "PostgreSQL"] },

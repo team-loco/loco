@@ -6,12 +6,13 @@ require (
 	connectrpc.com/connect/v2 v2.0.0
 	github.com/google/uuid v1.6.0
 	github.com/team-loco/loco v0.0.0
-	github.com/team-loco/loco/k8sapi v0.0.0-00010101000000-000000000000
+	github.com/team-loco/loco/k8sapi v0.0.0
 	google.golang.org/protobuf v1.36.12
 	k8s.io/api v0.37.1
 	k8s.io/apimachinery v0.37.1
 	k8s.io/client-go v0.37.1
 	sigs.k8s.io/controller-runtime v0.25.2
+	sigs.k8s.io/gateway-api v1.6.3
 )
 
 require (
@@ -64,7 +65,6 @@ require (
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20260721132016-d427ff9ee9ad // indirect
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3 // indirect
-	sigs.k8s.io/gateway-api v1.6.3 // indirect
 	sigs.k8s.io/json v0.0.0-20260909141634-11ed52e25bc5 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect

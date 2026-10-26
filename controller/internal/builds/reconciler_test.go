@@ -20,6 +20,7 @@ import (
 	"github.com/team-loco/loco/controller/internal/builds/buildstest"
 	"github.com/team-loco/loco/controller/internal/isolation"
 	"github.com/team-loco/loco/controller/internal/managed"
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -138,10 +139,10 @@ func mountNames(c corev1.Container) []string {
 
 func createBuildPod(job *batchv1.Job, status corev1.PodStatus) *corev1.Pod {
 	labels := map[string]string{
-		labelJobControllerUID:  string(job.UID),
-		labelJobName:           job.Name,
-		managed.LabelManagedBy: managed.ManagedByValue,
-		managed.LabelComponent: componentBuild,
+		labelJobControllerUID:     string(job.UID),
+		labelJobName:              job.Name,
+		locolabels.LabelManagedBy: managed.ManagedByValue,
+		managed.LabelComponent:    componentBuild,
 	}
 	pod := &corev1.Pod{
 		GenerateName: job.Name + "-",
@@ -244,8 +245,8 @@ var _ = Describe("Build reconcile", Ordered, func() {
 			managed.LabelOrganizationID: testBuildOrg,
 			managed.LabelWorkspaceID:    testBuildWorkspace,
 			managed.LabelResourceID:     "res-1",
-			labelBuildID:                "shape",
-			managed.LabelManagedBy:      managed.ManagedByValue,
+			locolabels.LabelBuildID:     "shape",
+			locolabels.LabelManagedBy:   managed.ManagedByValue,
 		}
 		for key, value := range wantLabels {
 			Expect(job.Labels).To(HaveKeyWithValue(key, value))

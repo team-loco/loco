@@ -1,5 +1,7 @@
 controlPlaneHostname: api.e2e.test.local
 gatewayNamespace: loco-control-plane
+certManager:
+  enabled: false
 gateway:
   service:
     type: NodePort

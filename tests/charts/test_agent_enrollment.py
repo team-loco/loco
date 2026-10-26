@@ -3,7 +3,7 @@ import subprocess
 import pytest
 from test_platform_contracts import chart_values, render_documents
 
-CHART = "loco-core"
+CHART = "loco-worker"
 DEFAULTS = chart_values(CHART)["agent"]
 TAG = {"image": {"tag": "test"}}
 JOIN_TOKEN = "join-token-value"

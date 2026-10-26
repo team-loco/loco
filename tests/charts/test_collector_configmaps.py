@@ -4,13 +4,13 @@ from test_platform_contracts import collector_relays, render_chart
 
 
 @pytest.mark.parametrize("name,kind,namespace,key", [
-    ("otel-col-daemon", "DaemonSet", "observability-node", "config"),
-    ("otel-col-cluster", "StatefulSet", "platform-test", "alternateConfig"),
+    ("otel-col-daemon", "DaemonSet", "loco-obs-node", "config"),
+    ("otel-col-cluster", "StatefulSet", "loco-obs", "alternateConfig"),
 ])
 def test_collector_config_changes_roll_pods_and_match_mounted_config(name, kind, namespace, key):
     checksums = []
     for timeout in ("1s", "2s"):
-        documents = render_chart("loco-obs", {name: {key: {"processors": {"batch": {"timeout": timeout}}}}})
+        documents = render_chart("loco-worker", {name: {key: {"processors": {"batch": {"timeout": timeout}}}}})
         workload = next(document for document in documents if document["kind"] == kind and document["metadata"]["labels"].get("app.kubernetes.io/name") == name)
         pod = workload["spec"]["template"]
         checksums.append(pod["metadata"]["annotations"]["checksum/platform-telemetry"])

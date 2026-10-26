@@ -165,7 +165,7 @@ test_application_becomes_ready() {
 probe_reaches_app() {
     local namespace="$1"
     local probe="$2"
-    local target="http://resource-${e2e_resource_id}.ws-${e2e_workspace_id}.svc.cluster.local/"
+    local target="http://resource-${e2e_resource_id}.${E2E_WORKSPACE_PREFIX}${e2e_workspace_id}.svc.cluster.local/"
     kubectl apply --context "kind-${E2E_KIND_CLUSTER}" -f - >/dev/null <<YAML
 apiVersion: v1
 kind: Pod
@@ -196,7 +196,7 @@ YAML
 }
 
 test_network_isolation() {
-    local workspace_namespace="ws-${e2e_workspace_id}"
+    local workspace_namespace="${E2E_WORKSPACE_PREFIX}${e2e_workspace_id}"
     kubectl create namespace e2e-outsider --context "kind-${E2E_KIND_CLUSTER}" >/dev/null 2>&1 || true
 
     assert "A pod in the app's workspace namespace reaches the app" \

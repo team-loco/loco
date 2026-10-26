@@ -23,6 +23,6 @@ for _ in $(seq "$ready_attempts"); do
 done
 docker exec "$CLICKHOUSE_CONTAINER" clickhouse-client --user "$user" --password "$password" -q "SELECT 1" >/dev/null
 dsn="clickhouse://$user:$password@127.0.0.1:$CLICKHOUSE_NATIVE_PORT"
-PORT="$OBS_PROXY_PORT" CONTROL_PLANE_URL="$PUBLIC_API_URL" CLICKHOUSE_URL="$dsn" CLICKHOUSE_MIGRATOR_URL="$dsn" \
+PORT="$OBS_PROXY_PORT" CONTROL_PLANE_URL="$PUBLIC_API_URL" CLICKHOUSE_DB="$(yq '.clickhouse.clickhouse.database' "$values")" CLICKHOUSE_URL="$dsn" CLICKHOUSE_MIGRATOR_URL="$dsn" \
     INGEST_ENABLED=true CLICKHOUSE_INGEST_URL="$dsn" OTLP_GRPC_PORT="$OBS_OTLP_GRPC_PORT" OTLP_HTTP_PORT="$OBS_OTLP_HTTP_PORT" \
     exec "$root/observability-proxy/bin/loco-obs-proxy"

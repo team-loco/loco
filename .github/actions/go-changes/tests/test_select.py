@@ -62,7 +62,7 @@ def test_kubernetes_types_select_every_importing_module(module_dependencies):
 
 
 def test_proxy_external_test_inputs(module_dependencies):
-    assert _selected(module_dependencies, "charts/loco-obs/values.yaml") == {
+    assert _selected(module_dependencies, "charts/loco-worker/values.yaml") == {
         "observability-proxy"
     }
     assert _selected(module_dependencies, "controller/Makefile") == {"controller"}

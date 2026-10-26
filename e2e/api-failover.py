@@ -190,7 +190,7 @@ def main():
             current = {}
             evidence["layouts"][layout] = current
             values = {"gatewayNamespace": args.gateway_namespace, "controlPlaneHostname": host,
-                "gateway": {"name": args.gateway_name},
+                "gateway": {"name": args.gateway_name}, "certManager": {"enabled": False},
                 "api": {"image": {"tag": "e2e"}, "existingSecret": "unused"},
                 "obsProxy": {"image": {"tag": "e2e"}, "query": {"clickhouse": {
                     "existingSecret": {"name": "unused", "key": "url"},

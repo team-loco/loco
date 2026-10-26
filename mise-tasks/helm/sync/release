@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+#MISE description="Install or upgrade one release on the local cluster with its env/local values, overriding fields another field manager owns"
+#MISE env={_.file=".env", _.source="env/local/stack.sh"}
+#USAGE arg "<release>" help="cert-manager or loco-worker"
+#USAGE arg "[values]..." var=#true help="extra values, each passed to helm as --set"
+set -euo pipefail
+
+release=$1
+shift
+timeout=600s
+cert_manager=charts/cert-manager.yaml
+
+case $release in
+cert-manager)
+	install=("$(yq .chart "$cert_manager")" --repo "$(yq .repository "$cert_manager")" --version "$(yq .version "$cert_manager")"
+		--namespace cert-manager --create-namespace --wait
+		--set crds.enabled=true)
+	;;
+loco-worker)
+	install=(./charts/loco-worker --namespace loco-system
+		--values env/local/worker-chart.yaml
+		--set-string "secrets.cloudflareToken=${CLOUDFLARE_TOKEN:-}"
+		--set-string "agent.joinToken.value=${LOCO_JOIN_TOKEN:-}"
+		--set-json "builds.privateEgress=$(mise run --quiet cluster:build-egress)"
+		--set-string "global.exporter.endpoint=http://host.docker.internal:$OBS_OTLP_HTTP_PORT")
+	if [ -n "${CERT_MANAGER_EMAIL:-}" ]; then
+		install+=(--set-string "certManager.issuer.email=$CERT_MANAGER_EMAIL")
+	fi
+	;;
+*)
+	echo "unknown release $release" >&2
+	exit 1
+	;;
+esac
+
+for value in "$@"; do
+	install+=(--set "$value")
+done
+
+helm upgrade --install "$release" "${install[@]}" --kube-context "kind-$KIND_CLUSTER" \
+	--timeout "$timeout" --cleanup-on-fail --force-conflicts

@@ -24,12 +24,20 @@ var _ = Describe("Private service discovery", func() {
 		Expect(json.Unmarshal([]byte(`{"resourceName":"cart"}`), &app.Spec)).To(Succeed())
 		app.Spec.ServiceSpec.Deployment.Port = 7070
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
-		Expect(ensureNamespace(ctx, k8sClient, app)).To(Succeed())
-		reconciler := &LocoResourceReconciler{Client: k8sClient}
+		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
+		reconciler := &LocoResourceReconciler{
+			Client:                   k8sClient,
+			Gateway:                  testGateway,
+			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+		}
 		Expect(reconciler.ensureService(ctx, app)).To(Succeed())
 		alias := &corev1.Service{}
 		Expect(
-			k8sClient.Get(ctx, client.ObjectKey{Namespace: getNamespace(app), Name: testPrivateHTTPName}, alias),
+			k8sClient.Get(
+				ctx,
+				client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: testPrivateHTTPName},
+				alias,
+			),
 		).To(Succeed())
 		Expect(alias.Spec.Ports).To(HaveLen(2))
 		Expect(alias.Spec.Ports[0].Port).To(Equal(servicePort))
@@ -39,7 +47,7 @@ var _ = Describe("Private service discovery", func() {
 		Expect(alias.Spec.Selector).To(Equal(map[string]string{labelApp: getName(app)}))
 		legacy := &corev1.Service{}
 		Expect(
-			k8sClient.Get(ctx, client.ObjectKey{Namespace: getNamespace(app), Name: getName(app)}, legacy),
+			k8sClient.Get(ctx, client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: getName(app)}, legacy),
 		).To(Succeed())
 		Expect(legacy.Spec.Ports[0].Port).To(Equal(servicePort))
 	})
@@ -48,10 +56,14 @@ var _ = Describe("Private service discovery", func() {
 		app.Spec.ResourceName = testPrivateTCPName
 		app.Spec.ServiceSpec.Deployment.Port = 50051
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
-		Expect(ensureNamespace(ctx, k8sClient, app)).To(Succeed())
-		r := &LocoResourceReconciler{Client: k8sClient}
+		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
+		r := &LocoResourceReconciler{
+			Client:                   k8sClient,
+			Gateway:                  testGateway,
+			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+		}
 		Expect(r.ensureService(ctx, app)).To(Succeed())
-		key := client.ObjectKey{Namespace: getNamespace(app), Name: testPrivateTCPName}
+		key := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: testPrivateTCPName}
 		svc := &corev1.Service{}
 		Expect(k8sClient.Get(ctx, key, svc)).To(Succeed())
 		address, version := svc.Spec.ClusterIP, svc.ResourceVersion
@@ -81,15 +93,19 @@ var _ = Describe("Private service discovery", func() {
 		replacement.Spec.ResourceName = testPrivateHTTPName
 		Expect(k8sClient.Create(ctx, old)).To(Succeed())
 		Expect(k8sClient.Create(ctx, replacement)).To(Succeed())
-		Expect(ensureNamespace(ctx, k8sClient, old)).To(Succeed())
-		r := &LocoResourceReconciler{Client: k8sClient}
+		Expect(ensureTestNamespace(ctx, k8sClient, old)).To(Succeed())
+		r := &LocoResourceReconciler{
+			Client:                   k8sClient,
+			Gateway:                  testGateway,
+			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+		}
 		Expect(r.ensureService(ctx, old)).To(Succeed())
 		Expect(r.ensureService(ctx, replacement)).To(MatchError(ContainSubstring(errPrivateServiceCollision.Error())))
 		Expect(r.deleteAppObjects(ctx, old)).To(Succeed())
 		Expect(r.ensureService(ctx, replacement)).To(Succeed())
 		Expect(r.prunePrivateServices(ctx, old, "")).To(Succeed())
 		svc := &corev1.Service{}
-		key := client.ObjectKey{Namespace: getNamespace(replacement), Name: testPrivateHTTPName}
+		key := client.ObjectKey{Namespace: testWorkspaceNamespace(replacement), Name: testPrivateHTTPName}
 		Expect(k8sClient.Get(ctx, key, svc)).To(Succeed())
 		Expect(ownsPrivateService(replacement, svc)).To(BeTrue())
 		Expect(svc.Spec.Selector).To(Equal(map[string]string{labelApp: getName(replacement)}))
@@ -99,13 +115,21 @@ var _ = Describe("Private service discovery", func() {
 		app := isolationTestApplication("discovery-collision", "collision")
 		app.Spec.ResourceName = testPrivateHTTPName
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
-		Expect(ensureNamespace(ctx, k8sClient, app)).To(Succeed())
-		existing := &corev1.Service{Name: testPrivateHTTPName, Namespace: getNamespace(app), Spec: corev1.ServiceSpec{
-			Ports: []corev1.ServicePort{{Port: 7070}}, Selector: map[string]string{"unmanaged": "true"},
-		}}
+		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
+		existing := &corev1.Service{
+			Name:      testPrivateHTTPName,
+			Namespace: testWorkspaceNamespace(app),
+			Spec: corev1.ServiceSpec{
+				Ports: []corev1.ServicePort{{Port: 7070}}, Selector: map[string]string{"unmanaged": "true"},
+			},
+		}
 		Expect(k8sClient.Create(ctx, existing)).To(Succeed())
 		version := existing.ResourceVersion
-		r := &LocoResourceReconciler{Client: k8sClient}
+		r := &LocoResourceReconciler{
+			Client:                   k8sClient,
+			Gateway:                  testGateway,
+			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+		}
 		Expect(r.ensureService(ctx, app)).To(MatchError(ContainSubstring(errPrivateServiceCollision.Error())))
 		Expect(r.prunePrivateServices(ctx, app, "")).To(Succeed())
 		Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(existing), existing)).To(Succeed())
@@ -114,15 +138,19 @@ var _ = Describe("Private service discovery", func() {
 	})
 
 	It("scopes identical logical names to separate workspaces", func() {
-		r := &LocoResourceReconciler{Client: k8sClient}
+		r := &LocoResourceReconciler{
+			Client:                   k8sClient,
+			Gateway:                  testGateway,
+			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+		}
 		for _, workspace := range []string{"discovery-first", "discovery-second"} {
 			app := isolationTestApplication(workspace, workspace)
 			app.Spec.ResourceName = testPrivateTCPName
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
-			Expect(ensureNamespace(ctx, k8sClient, app)).To(Succeed())
+			Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 			Expect(r.ensureService(ctx, app)).To(Succeed())
 			svc := &corev1.Service{}
-			key := client.ObjectKey{Namespace: getNamespace(app), Name: testPrivateTCPName}
+			key := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: testPrivateTCPName}
 			Expect(k8sClient.Get(ctx, key, svc)).To(Succeed())
 			Expect(ownsPrivateService(app, svc)).To(BeTrue())
 		}
@@ -132,8 +160,12 @@ var _ = Describe("Private service discovery", func() {
 		app := isolationTestApplication("discovery-digit", "digit")
 		app.Spec.ResourceName = "123cart"
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
-		Expect(ensureNamespace(ctx, k8sClient, app)).To(Succeed())
-		r := &LocoResourceReconciler{Client: k8sClient}
+		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
+		r := &LocoResourceReconciler{
+			Client:                   k8sClient,
+			Gateway:                  testGateway,
+			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+		}
 		Expect(r.ensureService(ctx, app)).To(Succeed())
 	})
 
@@ -142,11 +174,15 @@ var _ = Describe("Private service discovery", func() {
 			app := isolationTestApplication("discovery-legacy", "legacy")
 			app.Spec.ResourceName = name
 			app.UID = "legacy-uid"
-			Expect(ensureNamespace(ctx, k8sClient, app)).To(Succeed())
-			r := &LocoResourceReconciler{Client: k8sClient}
+			Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
+			r := &LocoResourceReconciler{
+				Client:                   k8sClient,
+				Gateway:                  testGateway,
+				WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+			}
 			Expect(r.ensureService(ctx, app)).To(Succeed())
 			services := &corev1.ServiceList{}
-			Expect(k8sClient.List(ctx, services, client.InNamespace(getNamespace(app)))).To(Succeed())
+			Expect(k8sClient.List(ctx, services, client.InNamespace(testWorkspaceNamespace(app)))).To(Succeed())
 			Expect(services.Items).To(HaveLen(1))
 			Expect(services.Items[0].Name).To(Equal(getName(app)))
 		}
@@ -157,11 +193,15 @@ var _ = Describe("Private service discovery", func() {
 		app.Spec.ResourceName = testPrivateHTTPName
 		app.Spec.ServiceSpec.Deployment.Port = servicePort
 		app.UID = "default-port-owner"
-		Expect(ensureNamespace(ctx, k8sClient, app)).To(Succeed())
-		r := &LocoResourceReconciler{Client: k8sClient}
+		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
+		r := &LocoResourceReconciler{
+			Client:                   k8sClient,
+			Gateway:                  testGateway,
+			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+		}
 		Expect(r.ensurePrivateService(ctx, app)).To(Succeed())
 		svc := &corev1.Service{}
-		key := client.ObjectKey{Namespace: getNamespace(app), Name: testPrivateHTTPName}
+		key := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: testPrivateHTTPName}
 		Expect(k8sClient.Get(ctx, key, svc)).To(Succeed())
 		Expect(svc.Spec.Ports).To(HaveLen(1))
 		Expect(svc.Spec.Ports[0].Port).To(Equal(servicePort))

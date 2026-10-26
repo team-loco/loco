@@ -1,12 +1,38 @@
 package controller
 
 import (
+	"context"
 	"testing"
 
 	"k8s.io/apimachinery/pkg/util/validation"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
+
+const (
+	testGateway                  = "test-gateway"
+	testWorkspaceNamespacePrefix = "loco-ws-"
+)
+
+func testWorkspaceNamespace(app *locov1alpha1.Application) string {
+	r := &LocoResourceReconciler{WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix}
+	return r.workspaceNamespace(app)
+}
+
+func ensureTestNamespace(ctx context.Context, kubeClient client.Client, app *locov1alpha1.Application) error {
+	r := &LocoResourceReconciler{Client: kubeClient, WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix}
+	return r.ensureNamespace(ctx, app)
+}
+
+func TestWorkspaceNamespaceUsesTheConfiguredPrefix(t *testing.T) {
+	app := testApplication()
+	r := &LocoResourceReconciler{WorkspaceNamespacePrefix: "tenant-"}
+	want := "tenant-" + app.Spec.WorkspaceID
+	if got := r.workspaceNamespace(app); got != want {
+		t.Errorf("workspace namespace = %q, want %q", got, want)
+	}
+}
 
 func TestNamesFitKubernetesLimitsForRealIDs(t *testing.T) {
 	app := &locov1alpha1.Application{
@@ -17,7 +43,7 @@ func TestNamesFitKubernetesLimitsForRealIDs(t *testing.T) {
 		},
 	}
 
-	namespace := getNamespace(app)
+	namespace := testWorkspaceNamespace(app)
 	if errs := validation.IsDNS1123Label(namespace); len(errs) > 0 {
 		t.Errorf("namespace %q is not a valid namespace name: %v", namespace, errs)
 	}

@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+#MISE description="Server-side apply the Loco CRDs and the Gateway API and Envoy Gateway CRDs from the pinned gateway-helm chart to the KIND_CLUSTER cluster; no chart installs CRDs, so this runs before any of them"
+#MISE depends=["helm:deps"]
+#USAGE flag "--without-builds" help="apply no Build CRD and delete it if present, for an install with builds.enabled=false"
+set -euo pipefail
+
+cluster=${KIND_CLUSTER:?}
+context=kind-$cluster
+field_manager=loco-crds
+established_timeout=60s
+worker_chart=charts/loco-worker
+build_crd=builds.infra.loco.io
+build_crd_file=controller/config/crd/bases/infra.loco.io_builds.yaml
+gateway_crds=gateway-helm/charts/crds/crds
+
+gateway_version=$(yq '.dependencies[] | select(.name == "gateway-helm") | .version' "$worker_chart/Chart.lock")
+workdir=$(mktemp -d)
+trap 'rm -rf "$workdir"' EXIT
+tar -xzf "$worker_chart/charts/gateway-helm-$gateway_version.tgz" -C "$workdir" "$gateway_crds"
+
+files=(--recursive -f "$workdir/$gateway_crds")
+for crd in controller/config/crd/bases/*.yaml; do
+	if [ "${usage_without_builds:-false}" = true ] && [ "$crd" = "$build_crd_file" ]; then
+		continue
+	fi
+	files+=(-f "$crd")
+done
+
+if [ "${usage_without_builds:-false}" = true ]; then
+	kubectl --context "$context" delete crd "$build_crd" --ignore-not-found --wait
+fi
+kubectl --context "$context" apply --server-side --force-conflicts --field-manager "$field_manager" "${files[@]}"
+kubectl --context "$context" wait --for condition=Established --timeout "$established_timeout" "${files[@]}"

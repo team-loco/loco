@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-#MISE description="Copy the generated controller RBAC into the loco-operator chart's roles for each controller"
+#MISE description="Copy the generated controller RBAC into the loco-worker chart's roles for each controller"
 set -euo pipefail
 
-controller_role=charts/loco-operator/templates/controller/manager-role.yaml
+controller_role=charts/loco-worker/templates/controller/manager-role.yaml
 generated_controller_role=controller/config/rbac/role.yaml
 
 yq -P -I 4 -i ".rules = load(\"$generated_controller_role\").rules" "$controller_role"
 echo "synced $controller_role"
 
-build_role=charts/loco-operator/templates/builds/manager-role.yaml
+build_role=charts/loco-worker/templates/builds/manager-role.yaml
 generated_build_role=controller/config/rbac/builds/role.yaml
 namespace_placeholder=LOCO_BUILD_NAMESPACE
 

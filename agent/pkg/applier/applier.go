@@ -18,11 +18,11 @@ import (
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/team-loco/loco/agent/pkg/identity"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
-	fieldOwner      = "loco-agent"
 	applicationKind = "Application"
 )
 
@@ -222,7 +222,7 @@ func (a *Applier) applyApplication(
 	if applyErr := a.client.Apply(
 		ctx,
 		applyConfig,
-		client.FieldOwner(fieldOwner),
+		client.FieldOwner(identity.FieldOwner),
 		client.ForceOwnership,
 	); applyErr != nil {
 		return fmt.Errorf("failed to apply Application: %w", applyErr)

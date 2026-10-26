@@ -183,28 +183,16 @@ type EnvSecretRef struct {
 }
 
 // DatabaseSpec is a placeholder for future DATABASE type resources
-type DatabaseSpec struct {
-	// TODO: Add when implementing database support
-	// Engine      string `json:"engine,omitempty"`      // "postgres", "mysql"
-	// Version     string `json:"version,omitempty"`     // "15"
-	// Storage     *StorageSpec `json:"storage,omitempty"`
-	// Replication *ReplicationSpec `json:"replication,omitempty"`
-}
+type DatabaseSpec struct{}
 
 // CacheSpec is a placeholder for future CACHE type resources
-type CacheSpec struct {
-	// TODO: Add when implementing cache support
-}
+type CacheSpec struct{}
 
 // QueueSpec is a placeholder for future QUEUE type resources
-type QueueSpec struct {
-	// TODO: Add when implementing queue support
-}
+type QueueSpec struct{}
 
 // BlobSpec is a placeholder for future BLOB type resources
-type BlobSpec struct {
-	// TODO: Add when implementing blob storage support
-}
+type BlobSpec struct{}
 
 // ApplicationStatus defines the observed state of Application.
 type ApplicationStatus struct {

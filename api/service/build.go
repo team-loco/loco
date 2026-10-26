@@ -123,7 +123,7 @@ func imageRepository(registryHost, registryPrefix string, workspaceID, resourceI
 	if prefix != "" {
 		parts = append(parts, prefix)
 	}
-	workspacePath := "ws-" + workspaceID.String()
+	workspacePath := workspacePathPrefix + workspaceID.String()
 	resourcePath := resourceID.String()
 	parts = append(parts, workspacePath, resourcePath)
 	return strings.Join(parts, "/")

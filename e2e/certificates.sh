@@ -11,7 +11,7 @@ if [[ ${1:-} == --no-teardown ]]; then
 fi
 mkdir -p "$RUN_DIR"
 export KUBECONFIG="$RUN_DIR/kubeconfig"
-CERT_MANAGER_VERSION=$(awk '/chart: jetstack\/cert-manager/ { found=1; next } found && $1 == "version:" { print $2; exit }' "$ROOT_DIR/helmfile.yaml.gotmpl")
+CERT_MANAGER="$ROOT_DIR/charts/cert-manager.yaml"
 TIMEOUT=300s
 
 cleanup() {
@@ -31,16 +31,19 @@ trap cleanup EXIT
 if ! kind get clusters | rg -x "$CLUSTER_NAME" >/dev/null; then
     kind create cluster --name "$CLUSTER_NAME" --kubeconfig "$KUBECONFIG" --wait "$TIMEOUT"
 fi
-helm upgrade --install cert-manager cert-manager --repo https://charts.jetstack.io \
-    --version "$CERT_MANAGER_VERSION" --namespace cert-manager --create-namespace \
+helm upgrade --install cert-manager "$(yq .chart "$CERT_MANAGER")" --repo "$(yq .repository "$CERT_MANAGER")" \
+    --version "$(yq .version "$CERT_MANAGER")" --namespace cert-manager --create-namespace \
     --set crds.enabled=true --wait --timeout "$TIMEOUT"
 kubectl create namespace loco-certificates --dry-run=client -o yaml | kubectl apply -f -
+
+CHART_VALUES=(--set gateway-helm.enabled=false --set agent.image.tag=e2e --set controller.image.tag=e2e
+    --set builds.enabled=false --set otel-col-daemon.enabled=false --set otel-col-deploy.enabled=false
+    --set otel-col-cluster.enabled=false)
 
 render_certificate() {
     local release=$1
     shift
-    helm template "$release" "$ROOT_DIR/charts/loco-core" -n loco-certificates \
-        --set gateway-helm.enabled=false --set agent.image.tag=e2e \
+    helm template "$release" "$ROOT_DIR/charts/loco-worker" -n loco-certificates "${CHART_VALUES[@]}" \
         --set certManager.issuer.name=loco-certificates-local \
         --set certManager.issuer.type=selfSigned \
         --set-json 'global.domain.apps=["apps.example.test"]' \
@@ -48,8 +51,7 @@ render_certificate() {
         --show-only templates/cm-cert.yaml "$@"
 }
 
-helm template local "$ROOT_DIR/charts/loco-core" -n loco-certificates \
-    --set gateway-helm.enabled=false --set agent.image.tag=e2e \
+helm template local "$ROOT_DIR/charts/loco-worker" -n loco-certificates "${CHART_VALUES[@]}" \
     --set certManager.issuer.name=loco-certificates-local --set certManager.issuer.type=selfSigned \
     --show-only templates/cm-issuer.yaml | kubectl apply -f -
 render_certificate local | kubectl apply -f -

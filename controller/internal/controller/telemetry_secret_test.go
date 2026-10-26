@@ -39,7 +39,12 @@ func telemetrySecretFixture(
 		},
 	}
 	kube := fake.NewClientBuilder().WithScheme(scheme).WithObjects(stage).WithInterceptorFuncs(funcs).Build()
-	return &LocoResourceReconciler{Client: kube, APIReader: kube}, stage
+	return &LocoResourceReconciler{
+		Client:                   kube,
+		APIReader:                kube,
+		Gateway:                  testGateway,
+		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+	}, stage
 }
 
 func mountTelemetryDeployment(
@@ -50,7 +55,7 @@ func mountTelemetryDeployment(
 	if err != nil {
 		t.Fatal(err)
 	}
-	dep, err := desiredDeployment(app, mount, testTelemetry())
+	dep, err := desiredDeployment(app, testWorkspaceNamespace(app), mount, testTelemetry())
 	if err != nil {
 		t.Fatal(err)
 	}

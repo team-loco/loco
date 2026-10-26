@@ -1,0 +1,16 @@
+{{- range $name := list "otel-col-daemon" "otel-col-deploy" "otel-col-cluster" }}
+{{- if index $.Values $name "enabled" }}
+{{- $collector := index $.Subcharts $name }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "opentelemetry-collector.configName" $collector }}
+  namespace: {{ include "opentelemetry-collector.namespace" $collector }}
+  labels:
+    {{- include "opentelemetry-collector.labels" $collector | nindent 4 }}
+data:
+  relay: |
+    {{- include "loco-worker.collectorConfig" (dict "root" $ "collector" $collector "name" $name) | nindent 4 }}
+{{- end }}
+{{- end }}

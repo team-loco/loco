@@ -8,7 +8,7 @@
 
 - **CLI**: Go app using Cobra + Charm libraries (Bubble Tea, Lipgloss) for terminal UI
 - **API Server**: Go with ConnectRPC on connect-go v2 (`connectrpc.com/connect/v2`), PostgreSQL database
-- **Infrastructure**: Kubernetes with Cilium networking, Envoy Gateway, cert-manager, OpenTelemetry, ClickHouse metrics read through the observability proxy
+- **Infrastructure**: Kubernetes with a CNI that enforces NetworkPolicy, Envoy Gateway, cert-manager, OpenTelemetry, ClickHouse metrics read through the observability proxy
 - **Key modules**: `api/` (ConnectRPC services), `cmd/loco/` (CLI commands), `cmd/locoadm/` (operator CLI), `agent/` (in-cluster agent), `controller/` (kubebuilder operator), `k8sapi/` (CRD types), `internal/` (shared logic), `web/` (dashboard), `gen/` (generated protobuf types)
 - **Each environment runs on its own clusters.** Staging and production never share a cluster, so a cluster belongs to exactly one environment and a resource has at most one placement per cluster. Don't design for two environments of a resource on the same cluster.
 
@@ -152,11 +152,14 @@ Never hand-edit. Regenerate via `mise run gen` after any changes to `proto/`, `a
 - `k8sapi/**/zz_generated.deepcopy.go`, `controller/config/crd/bases/**`,
   `controller/config/rbac/role.yaml` (Application controller, from the markers in
   `controller/internal/controller`), `controller/config/rbac/builds/role.yaml` (build
-  controller, from `controller/internal/builds`) and the `charts/loco-operator` copies of
-  them: `templates/crd/*.infra.loco.io.yaml`, `templates/controller/manager-role.yaml` and
+  controller, from `controller/internal/builds`) and the `charts/loco-worker` copies of
+  the roles: `templates/controller/manager-role.yaml` and
   `templates/builds/manager-role.yaml` — `mise run controller:gen`. CI fails when any of
   them is out of date. Read the diff: unrelated-looking changes in the chart copies are
   usually real drift.
+- No chart installs CRDs. `mise run crds:apply` server-side applies
+  `controller/config/crd/bases/*.yaml` and the Gateway API CRDs from the pinned
+  `gateway-helm` chart before any chart is installed.
 - The database has no users yet: edit migrations in place instead of adding new ones.
 
 ## Linting

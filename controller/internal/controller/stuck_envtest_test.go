@@ -33,7 +33,7 @@ func reconcileStuckApp(r *LocoResourceReconciler, app *locov1alpha1.Application)
 
 func createReplica(app *locov1alpha1.Application, name, image string) *corev1.Pod {
 	dep := &appsv1.Deployment{}
-	depKey := client.ObjectKey{Namespace: getNamespace(app), Name: getName(app)}
+	depKey := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: getName(app)}
 	Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
 	template := dep.Spec.Template
 	pod := &corev1.Pod{
@@ -71,10 +71,12 @@ var _ = Describe("Application with replicas that cannot start", func() {
 	BeforeEach(func() {
 		Expect(v1Gateway.Install(scheme.Scheme)).To(Succeed())
 		r = &LocoResourceReconciler{
-			Client:        k8sClient,
-			Scheme:        k8sClient.Scheme(),
-			LocoNamespace: testNamespace,
-			Telemetry:     testTelemetry(),
+			Gateway:                  testGateway,
+			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+			Client:                   k8sClient,
+			Scheme:                   k8sClient.Scheme(),
+			LocoNamespace:            testNamespace,
+			Telemetry:                testTelemetry(),
 		}
 	})
 
@@ -160,7 +162,7 @@ var _ = Describe("Application with replicas that cannot start", func() {
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		reconcileStuckApp(r, app)
 		dep := &appsv1.Deployment{}
-		key := client.ObjectKey{Namespace: getNamespace(app), Name: getName(app)}
+		key := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: getName(app)}
 		Expect(k8sClient.Get(ctx, key, dep)).To(Succeed())
 		dep.Status.ObservedGeneration = dep.Generation
 		dep.Status.Conditions = []appsv1.DeploymentCondition{{

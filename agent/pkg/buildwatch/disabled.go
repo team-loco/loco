@@ -9,7 +9,7 @@ import (
 )
 
 const DisabledMessage = "builds are not enabled on this cluster: " +
-	"the loco-operator chart was installed with builds.enabled=false"
+	"the loco-worker chart was installed with builds.enabled=false"
 
 type Disabled struct{}
 

@@ -11,6 +11,7 @@ on:
       - "go.mod"
       - "go.sum"
       - "mise-tasks/chart/**"
+      - "mise-tasks/crds/**"
       - "mise-tasks/test/chart"
       - "mise.toml"
       - "mise.lock"
@@ -24,6 +25,7 @@ on:
       - "go.mod"
       - "go.sum"
       - "mise-tasks/chart/**"
+      - "mise-tasks/crds/**"
       - "mise-tasks/test/chart"
       - "mise.toml"
       - "mise.lock"
@@ -51,7 +53,7 @@ jobs:
         with:
           go-cache: controller-codegen
 
-      - name: Regenerate CRDs, RBAC, deepcopy, and the chart's CRD and RBAC copies
+      - name: Regenerate CRDs, RBAC, deepcopy, and the chart's RBAC copies
         run: mise run controller:gen
 
       - name: Fail if anything is out of date
@@ -88,20 +90,33 @@ jobs:
 
       - name: Lint Helm Chart
         run: |
-          helm lint ./charts/loco-operator \
+          helm lint ./charts/loco-worker \
+            --set agent.image.tag="$IMAGE_TAG" \
             --set controller.image.tag="$IMAGE_TAG" \
-            --set builds.builderImage.tag="$IMAGE_TAG"
+            --set builds.builderImage.tag="$IMAGE_TAG" \
+            --set certManager.existingTLSSecret=ci-tls \
+            --set global.region=ci \
+            --set global.exporter.endpoint=http://ci.invalid
+
+      - name: Apply the CRDs
+        run: mise run crds:apply
+        env:
+          KIND_CLUSTER: kind
 
       - name: Install Helm chart
         run: |
-          helm install loco-operator ./charts/loco-operator \
+          helm install loco-worker ./charts/loco-worker \
             --create-namespace \
             --namespace controller-system \
+            --set agent.image.tag="$IMAGE_TAG" \
             --set controller.image.repository="$CONTROLLER_IMAGE" \
             --set controller.image.tag="$IMAGE_TAG" \
             --set controller.image.pullPolicy=IfNotPresent \
-            --set builds.builderImage.tag="$IMAGE_TAG"
+            --set builds.builderImage.tag="$IMAGE_TAG" \
+            --set certManager.existingTLSSecret=ci-tls \
+            --set global.region=ci \
+            --set global.exporter.endpoint=http://ci.invalid
 
       - name: Check Helm release status
         run: |
-          helm status loco-operator --namespace controller-system
+          helm status loco-worker --namespace controller-system

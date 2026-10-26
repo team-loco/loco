@@ -19,7 +19,7 @@ const (
 )
 
 var (
-	errNoConfig     = errors.New("the build settings are missing; the loco-operator chart sets them")
+	errNoConfig     = errors.New("the build settings are missing; the loco-worker chart sets them")
 	errNoNamespace  = errors.New("namespace is required")
 	errNoImages     = errors.New("builderImage and buildkitImage are required")
 	errNoTimeout    = errors.New("timeout must be positive")

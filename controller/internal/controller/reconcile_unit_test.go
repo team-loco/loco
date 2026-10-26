@@ -84,7 +84,12 @@ func envValue(t *testing.T, dep *appsv1ac.DeploymentApplyConfiguration, name str
 
 func TestDesiredDeploymentIsDeterministic(t *testing.T) {
 	app := testApplication()
-	first, err := desiredDeployment(app, envSecretMount{Mounted: true, Revision: 7}, testTelemetry())
+	first, err := desiredDeployment(
+		app,
+		testWorkspaceNamespace(app),
+		envSecretMount{Mounted: true, Revision: 7},
+		testTelemetry(),
+	)
 	if err != nil {
 		t.Fatalf("desiredDeployment: %v", err)
 	}
@@ -93,7 +98,12 @@ func TestDesiredDeploymentIsDeterministic(t *testing.T) {
 		t.Fatalf("marshal: %v", err)
 	}
 	for range 20 {
-		next, err := desiredDeployment(app, envSecretMount{Mounted: true, Revision: 7}, testTelemetry())
+		next, err := desiredDeployment(
+			app,
+			testWorkspaceNamespace(app),
+			envSecretMount{Mounted: true, Revision: 7},
+			testTelemetry(),
+		)
 		if err != nil {
 			t.Fatalf("desiredDeployment: %v", err)
 		}
@@ -109,7 +119,12 @@ func TestDesiredDeploymentIsDeterministic(t *testing.T) {
 
 func TestDesiredDeploymentInlinesPlainEnvAndMountsTheEnvSecret(t *testing.T) {
 	app := testApplication()
-	dep, err := desiredDeployment(app, envSecretMount{Mounted: true, Revision: 7}, testTelemetry())
+	dep, err := desiredDeployment(
+		app,
+		testWorkspaceNamespace(app),
+		envSecretMount{Mounted: true, Revision: 7},
+		testTelemetry(),
+	)
 	if err != nil {
 		t.Fatalf("desiredDeployment: %v", err)
 	}
@@ -145,7 +160,7 @@ func TestDesiredDeploymentInlinesPlainEnvAndMountsTheEnvSecret(t *testing.T) {
 		t.Errorf("replicas = %d, want 2", got)
 	}
 
-	dep, err = desiredDeployment(app, envSecretMount{}, testTelemetry())
+	dep, err = desiredDeployment(app, testWorkspaceNamespace(app), envSecretMount{}, testTelemetry())
 	if err != nil {
 		t.Fatalf("desiredDeployment without a secret: %v", err)
 	}
@@ -161,7 +176,7 @@ func TestDesiredDeploymentInlinesPlainEnvAndMountsTheEnvSecret(t *testing.T) {
 func TestDesiredDeploymentWithoutRouting(t *testing.T) {
 	app := testApplication()
 	app.Spec.ServiceSpec.Routing = nil
-	dep, err := desiredDeployment(app, envSecretMount{}, testTelemetry())
+	dep, err := desiredDeployment(app, testWorkspaceNamespace(app), envSecretMount{}, testTelemetry())
 	if err != nil {
 		t.Fatalf("desiredDeployment: %v", err)
 	}
@@ -177,14 +192,22 @@ func TestDesiredDeploymentWithoutRouting(t *testing.T) {
 func TestDesiredDeploymentRequiresResources(t *testing.T) {
 	app := testApplication()
 	app.Spec.ServiceSpec.Resources = nil
-	if _, err := desiredDeployment(app, envSecretMount{}, testTelemetry()); !errors.Is(err, errNoResources) {
+	if _, err := desiredDeployment(
+		app,
+		testWorkspaceNamespace(app),
+		envSecretMount{},
+		testTelemetry(),
+	); !errors.Is(
+		err,
+		errNoResources,
+	) {
 		t.Fatalf("desiredDeployment without resources = %v, want errNoResources", err)
 	}
 }
 
 func TestDesiredDeploymentUsesSpecResources(t *testing.T) {
 	app := testApplication()
-	dep, err := desiredDeployment(app, envSecretMount{}, testTelemetry())
+	dep, err := desiredDeployment(app, testWorkspaceNamespace(app), envSecretMount{}, testTelemetry())
 	if err != nil {
 		t.Fatalf("desiredDeployment: %v", err)
 	}
@@ -206,7 +229,7 @@ func TestDesiredDeploymentUsesSpecResources(t *testing.T) {
 func TestDesiredDeploymentRejectsInvalidQuantity(t *testing.T) {
 	app := testApplication()
 	app.Spec.ServiceSpec.Resources.CPU = "lots"
-	if _, err := desiredDeployment(app, envSecretMount{}, testTelemetry()); err == nil {
+	if _, err := desiredDeployment(app, testWorkspaceNamespace(app), envSecretMount{}, testTelemetry()); err == nil {
 		t.Fatal("expected an error for an unparsable cpu quantity")
 	}
 }
@@ -252,7 +275,7 @@ func TestDeploymentReady(t *testing.T) {
 
 func TestReplicaCountsTrackDeploymentStatus(t *testing.T) {
 	app := testApplication()
-	deployment, err := desiredDeployment(app, envSecretMount{}, testTelemetry())
+	deployment, err := desiredDeployment(app, testWorkspaceNamespace(app), envSecretMount{}, testTelemetry())
 	if err != nil {
 		t.Fatalf("desiredDeployment: %v", err)
 	}
@@ -279,11 +302,15 @@ func TestEnsureHTTPRouteDeletesRouteWhenRoutingRemoved(t *testing.T) {
 
 	app := testApplication()
 	app.Spec.ServiceSpec.Routing = nil
-	namespace := getNamespace(app)
+	namespace := testWorkspaceNamespace(app)
 	routeName := getRouteName(app)
 	existing := &v1Gateway.HTTPRoute{Name: routeName, Namespace: namespace}
 	kubeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(existing).Build()
-	r := &LocoResourceReconciler{Client: kubeClient}
+	r := &LocoResourceReconciler{
+		Client:                   kubeClient,
+		Gateway:                  testGateway,
+		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+	}
 
 	testCtx := context.Background()
 	if err := r.ensureHTTPRoute(testCtx, app); err != nil {
@@ -297,6 +324,37 @@ func TestEnsureHTTPRouteDeletesRouteWhenRoutingRemoved(t *testing.T) {
 
 	if err := r.ensureHTTPRoute(testCtx, app); err != nil {
 		t.Fatalf("ensureHTTPRoute without an existing route: %v", err)
+	}
+}
+
+func TestEnsureHTTPRouteAttachesToTheConfiguredGateway(t *testing.T) {
+	scheme := runtime.NewScheme()
+	if err := v1Gateway.Install(scheme); err != nil {
+		t.Fatalf("install gateway scheme: %v", err)
+	}
+	app := testApplication()
+	app.Spec.ServiceSpec.Routing = testRouting()
+	kubeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+	r := &LocoResourceReconciler{
+		Client:                   kubeClient,
+		LocoNamespace:            testLocoNamespace,
+		Gateway:                  testGateway,
+		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+	}
+
+	testCtx := context.Background()
+	if err := r.ensureHTTPRoute(testCtx, app); err != nil {
+		t.Fatalf("ensureHTTPRoute: %v", err)
+	}
+	route := &v1Gateway.HTTPRoute{}
+	key := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: getRouteName(app)}
+	if err := kubeClient.Get(testCtx, key, route); err != nil {
+		t.Fatalf("get route: %v", err)
+	}
+	parents := route.Spec.ParentRefs
+	if len(parents) != 1 || string(parents[0].Name) != testGateway ||
+		parents[0].Namespace == nil || string(*parents[0].Namespace) != testLocoNamespace {
+		t.Errorf("parent refs = %+v, want %s/%s", parents, testLocoNamespace, testGateway)
 	}
 }
 

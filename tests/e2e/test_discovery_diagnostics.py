@@ -74,7 +74,7 @@ def failure_environment(tmp_path):
     arguments = tmp_path / "args"
     env = {**os.environ, "PATH": f"{tmp_path}:{os.environ['PATH']}", "DIAGNOSTIC_ARGS": str(arguments),
            "E2E_ROOT_DIR": str(ROOT), "E2E_KIND_CLUSTER": "fixture", "E2E_BUILD_WORK_DIR": str(tmp_path),
-           "E2E_RUN_ID": "fixture", "KUBECONFIG_FILE": str(tmp_path / "private-kubeconfig")}
+           "E2E_RUN_ID": "fixture", "E2E_WORKSPACE_PREFIX": "loco-ws-", "KUBECONFIG_FILE": str(tmp_path / "private-kubeconfig")}
     return env, arguments
 
 

@@ -43,6 +43,8 @@ spec:
               value: {{ include "loco-control-plane.apiURL" . | quote }}
             - name: CORS_ALLOWED_ORIGINS
               value: {{ join "," .Values.obsProxy.query.cors.allowedOrigins | quote }}
+            - name: CLICKHOUSE_DB
+              value: {{ .Values.clickhouse.clickhouse.database | quote }}
             - name: CLICKHOUSE_URL
               valueFrom:
                 secretKeyRef:

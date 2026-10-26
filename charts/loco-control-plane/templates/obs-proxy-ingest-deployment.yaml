@@ -47,6 +47,8 @@ spec:
               value: {{ .Values.obsProxy.ingest.grpcPort | quote }}
             - name: OTLP_HTTP_PORT
               value: {{ .Values.obsProxy.ingest.httpPort | quote }}
+            - name: CLICKHOUSE_DB
+              value: {{ .Values.clickhouse.clickhouse.database | quote }}
             - name: CLICKHOUSE_INGEST_URL
               valueFrom:
                 secretKeyRef:

@@ -290,7 +290,7 @@ deploy_and_wait() {
 
     wait_for "build ${build_id} to roll out" 240 deployment_running "$deployment_id"
     if ! assert "Deployment of build ${build_id} is RUNNING" deployment_running "$deployment_id"; then
-        dk -n "ws-${dispatch_workspace_id}" describe pods | sed 's/^/    /'
+        dk -n "${E2E_WORKSPACE_PREFIX}${dispatch_workspace_id}" describe pods | sed 's/^/    /'
         return 1
     fi
 }
@@ -306,7 +306,7 @@ test_d02_deploy_the_built_image() {
     repository=$(get_build "$build_id" | field .build.imageRepository)
     digest=$(get_build "$build_id" | field .build.imageDigest)
     assert_contains "The app runs the built image by digest" "${repository}@${digest}" \
-        dk -n "ws-${dispatch_workspace_id}" get deployments \
+        dk -n "${E2E_WORKSPACE_PREFIX}${dispatch_workspace_id}" get deployments \
         -o jsonpath='{.items[*].spec.template.spec.containers[*].image}'
 }
 

@@ -1,0 +1,3 @@
+{{- if and .Values.metrics.enable .Values.prometheus.enable }}
+{{- include "loco-worker.serviceMonitor" (dict "root" . "name" "loco-controller") }}
+{{- end }}

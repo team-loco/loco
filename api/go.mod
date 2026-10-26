@@ -37,7 +37,6 @@ require (
 	charm.land/bubbletea/v2 v2.1.0 // indirect
 	charm.land/lipgloss/v2 v2.0.6 // indirect
 	connectrpc.com/connect v1.21.0 // indirect
-	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.21 // indirect

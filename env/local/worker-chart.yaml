@@ -1,0 +1,47 @@
+certManager:
+  issuer:
+    email: dev@example.com
+
+global:
+  domain:
+    apps:
+      - onloco.app
+      - onloco.build
+    platform: loco.build
+
+  cloudProvider:
+    type: local
+    annotations: {}
+
+  region: us-east-1
+
+env:
+  LOG_LEVEL: debug
+
+envoyProxy:
+  tracing:
+    samplingRate: 100
+
+gateway-helm:
+  enabled: true
+  config:
+    envoyGateway:
+      logging:
+        default: info
+      telemetry:
+        metrics:
+          prometheus:
+            disable: true
+          sinks:
+            - type: OpenTelemetry
+              openTelemetry:
+                host: otel-col-deploy.loco-obs.svc.cluster.local
+                port: 4317
+                protocol: grpc
+
+registry:
+  pullSecretName: loco-registry
+
+builds:
+  pushSecretName: loco-registry-push
+  insecureRegistry: true

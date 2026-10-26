@@ -18,6 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -115,7 +116,7 @@ func TestCreateMakesOneBuildPerID(t *testing.T) {
 	if got.Spec != want {
 		t.Fatalf("spec = %+v, want %+v", got.Spec, want)
 	}
-	if got.Labels[labelBuildID] != testBuildID {
+	if got.Labels[locolabels.LabelBuildID] != testBuildID {
 		t.Fatalf("labels = %v", got.Labels)
 	}
 

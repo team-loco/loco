@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"reflect"
 	"slices"
 	"testing"
@@ -12,13 +13,29 @@ import (
 	"github.com/team-loco/loco/controller/internal/builds/buildstest"
 	"github.com/team-loco/loco/controller/internal/controller"
 	"github.com/team-loco/loco/controller/internal/managed"
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 )
 
-const testLocoNamespace = "loco-system"
+const (
+	testLocoNamespace   = "loco-system"
+	testGateway         = "eg"
+	testWorkspacePrefix = "loco-ws-"
+	testPullSecretName  = "registry-pull"
+)
+
+func testApplicationConfig() operatorConfig {
+	return operatorConfig{
+		LocoNamespace:            testLocoNamespace,
+		PullSecretName:           testPullSecretName,
+		Gateway:                  testGateway,
+		WorkspaceNamespacePrefix: testWorkspacePrefix,
+		Telemetry:                testTelemetry(),
+	}
+}
 
 func testTelemetry() controller.TelemetryConfig {
 	return controller.TelemetryConfig{
-		Namespace:        "observability",
+		Namespace:        "loco-obs",
 		CollectorService: "otel-col-deploy",
 		GRPCPort:         4317,
 		HTTPPort:         4318,
@@ -36,10 +53,7 @@ func cachedTypes(options cache.Options) []string {
 }
 
 func TestApplicationReconcilerCachesNoBuildObjects(t *testing.T) {
-	setup, err := selectReconciler(
-		reconcilerApplication,
-		operatorConfig{LocoNamespace: testLocoNamespace, PullSecretName: "registry-pull", Telemetry: testTelemetry()},
-	)
+	setup, err := selectReconciler(reconcilerApplication, testApplicationConfig())
 	if err != nil {
 		t.Fatalf("selectReconciler: %v", err)
 	}
@@ -50,8 +64,8 @@ func TestApplicationReconcilerCachesNoBuildObjects(t *testing.T) {
 		}
 	}
 	buildPod := labels.Set{
-		managed.LabelManagedBy: managed.ManagedByValue,
-		managed.LabelComponent: "build",
+		locolabels.LabelManagedBy: managed.ManagedByValue,
+		managed.LabelComponent:    "build",
 	}
 	for obj, byObject := range setup.cache.ByObject {
 		if _, ok := obj.(*corev1.Pod); !ok {
@@ -112,5 +126,18 @@ func TestApplicationReconcilerRequiresTheTelemetryConfig(t *testing.T) {
 	_, err := selectReconciler(reconcilerApplication, operatorConfig{LocoNamespace: testLocoNamespace})
 	if err == nil {
 		t.Fatal("selectReconciler started an application reconciler without telemetry settings")
+	}
+}
+
+func TestApplicationReconcilerRequiresTheGatewayAndWorkspacePrefix(t *testing.T) {
+	withoutGateway := testApplicationConfig()
+	withoutGateway.Gateway = ""
+	if _, err := selectReconciler(reconcilerApplication, withoutGateway); !errors.Is(err, errGatewayMissing) {
+		t.Errorf("without a gateway: err = %v, want %v", err, errGatewayMissing)
+	}
+	withoutPrefix := testApplicationConfig()
+	withoutPrefix.WorkspaceNamespacePrefix = ""
+	if _, err := selectReconciler(reconcilerApplication, withoutPrefix); !errors.Is(err, errWorkspacePrefixMissing) {
+		t.Errorf("without a workspace prefix: err = %v, want %v", err, errWorkspacePrefixMissing)
 	}
 }

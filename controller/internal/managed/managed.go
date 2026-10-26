@@ -2,10 +2,11 @@ package managed
 
 import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 )
 
 const (
-	LabelManagedBy      = "app.kubernetes.io/managed-by"
 	LabelComponent      = "app.kubernetes.io/component"
 	LabelOrganizationID = "loco.io/organization-id"
 	LabelWorkspaceID    = "loco.io/workspace-id"
@@ -15,7 +16,7 @@ const (
 )
 
 func Labels() map[string]string {
-	return map[string]string{LabelManagedBy: ManagedByValue}
+	return map[string]string{locolabels.LabelManagedBy: ManagedByValue}
 }
 
 func ApplyOptions() []client.ApplyOption {
