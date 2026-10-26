@@ -16,6 +16,7 @@ import (
 	v1Gateway "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/team-loco/loco/controller/internal/managed"
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -123,7 +124,7 @@ var _ = Describe("Application reconcile", func() {
 		Expect(k8sClient.Get(ctx, imageKey, imageSecret)).To(Succeed())
 		Expect(imageSecret.Type).To(Equal(corev1.SecretTypeDockerConfigJson))
 		Expect(imageSecret.Data).To(Equal(pullSecret.Data))
-		Expect(imageSecret.Labels).To(HaveKeyWithValue(managed.LabelManagedBy, managed.ManagedByValue))
+		Expect(imageSecret.Labels).To(HaveKeyWithValue(locolabels.LabelManagedBy, managed.ManagedByValue))
 		Expect(imageSecret.Labels).To(HaveKeyWithValue(managed.LabelWorkspaceID, app.Spec.WorkspaceID))
 		Expect(imageSecret.Annotations).NotTo(HaveKey(annotationAppName))
 		sa := &corev1.ServiceAccount{}

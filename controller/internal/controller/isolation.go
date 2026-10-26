@@ -15,6 +15,7 @@ import (
 
 	"github.com/team-loco/loco/controller/internal/isolation"
 	"github.com/team-loco/loco/controller/internal/managed"
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -45,7 +46,7 @@ func podSecurityLabels() map[string]string {
 func workspaceNamespaceLabels(locoRes *locov1alpha1.Application) map[string]string {
 	labels := podSecurityLabels()
 	labels[labelLocoApp] = "true"
-	labels[managed.LabelManagedBy] = managed.ManagedByValue
+	labels[locolabels.LabelManagedBy] = managed.ManagedByValue
 	labels[managed.LabelWorkspaceID] = locoRes.Spec.WorkspaceID
 	labels[labelEnvironmentID] = locoRes.Spec.EnvironmentID
 	return labels
@@ -53,8 +54,8 @@ func workspaceNamespaceLabels(locoRes *locov1alpha1.Application) map[string]stri
 
 func workspaceObjectLabels(locoRes *locov1alpha1.Application) map[string]string {
 	return map[string]string{
-		managed.LabelManagedBy:   managed.ManagedByValue,
-		managed.LabelWorkspaceID: locoRes.Spec.WorkspaceID,
+		locolabels.LabelManagedBy: managed.ManagedByValue,
+		managed.LabelWorkspaceID:  locoRes.Spec.WorkspaceID,
 	}
 }
 

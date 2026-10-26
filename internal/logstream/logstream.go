@@ -20,7 +20,8 @@ const (
 	pageSize      = 1000
 	overlapWindow = 5 * time.Second
 	retryBackoff  = 2 * time.Second
-	labelBuildID  = "loco.io/build-id"
+	// keep in sync with LabelBuildID in k8sapi/labels/labels.go
+	labelBuildID = "loco.io/build-id"
 
 	entryKeyFields = 4
 )

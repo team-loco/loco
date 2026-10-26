@@ -15,6 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/team-loco/loco/controller/internal/managed"
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -35,8 +36,8 @@ func CacheOptions(locoNamespace, pullSecretName string) cache.Options {
 		}
 	}
 	podSet := labels.Set{
-		managed.LabelManagedBy: managed.ManagedByValue,
-		managed.LabelComponent: componentApplication,
+		locolabels.LabelManagedBy: managed.ManagedByValue,
+		managed.LabelComponent:    componentApplication,
 	}
 	podSelector := labels.SelectorFromSet(podSet)
 	applicationPods := cache.ByObject{Label: podSelector}

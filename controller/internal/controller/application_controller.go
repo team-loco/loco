@@ -54,6 +54,7 @@ import (
 
 	"github.com/team-loco/loco/controller/internal/isolation"
 	"github.com/team-loco/loco/controller/internal/managed"
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -397,7 +398,7 @@ func (r *LocoResourceReconciler) deleteNamespaceIfUnused(
 		}
 		return fmt.Errorf("get namespace %s: %w", namespace, err)
 	}
-	if ns.Labels[managed.LabelManagedBy] != managed.ManagedByValue {
+	if ns.Labels[locolabels.LabelManagedBy] != managed.ManagedByValue {
 		slog.InfoContext(ctx, "namespace not managed by the controller, leaving it", "namespace", namespace)
 		return nil
 	}
@@ -445,8 +446,8 @@ func getInternalDomain(locoRes *locov1alpha1.Application) string {
 func managedLabels(locoRes *locov1alpha1.Application) map[string]string {
 	name := getName(locoRes)
 	return map[string]string{
-		labelApp:               name,
-		managed.LabelManagedBy: managed.ManagedByValue,
+		labelApp:                  name,
+		locolabels.LabelManagedBy: managed.ManagedByValue,
 	}
 }
 
@@ -741,7 +742,7 @@ func desiredDeployment(
 	podLabels := map[string]string{
 		labelApp:                    name,
 		labelAppKubernetesName:      name,
-		managed.LabelManagedBy:      managed.ManagedByValue,
+		locolabels.LabelManagedBy:   managed.ManagedByValue,
 		managed.LabelComponent:      componentApplication,
 		managed.LabelOrganizationID: locoRes.Spec.OrganizationID,
 		managed.LabelWorkspaceID:    locoRes.Spec.WorkspaceID,

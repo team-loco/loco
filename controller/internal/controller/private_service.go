@@ -12,6 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/team-loco/loco/controller/internal/managed"
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -31,7 +32,7 @@ var (
 func ownsPrivateService(app *locov1alpha1.Application, svc *corev1.Service) bool {
 	return app.UID != "" &&
 		svc.Labels[labelPrivateServiceOwner] == string(app.UID) &&
-		svc.Labels[managed.LabelManagedBy] == managed.ManagedByValue &&
+		svc.Labels[locolabels.LabelManagedBy] == managed.ManagedByValue &&
 		svc.Labels[managed.LabelComponent] == componentPrivateService &&
 		svc.Annotations[annotationAppNamespace] == app.Namespace &&
 		svc.Annotations[annotationAppName] == app.Name
@@ -64,9 +65,9 @@ func (r *LocoResourceReconciler) ensurePrivateService(ctx context.Context, app *
 	}
 	desired := &corev1.Service{Name: name, Namespace: namespace,
 		Labels: map[string]string{
-			managed.LabelManagedBy:   managed.ManagedByValue,
-			managed.LabelComponent:   componentPrivateService,
-			labelPrivateServiceOwner: string(app.UID),
+			locolabels.LabelManagedBy: managed.ManagedByValue,
+			managed.LabelComponent:    componentPrivateService,
+			labelPrivateServiceOwner:  string(app.UID),
 		}, Annotations: ownerAnnotations(app),
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,

@@ -19,16 +19,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/team-loco/loco/agent/pkg/identity"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
 	namePrefix        = "build-"
-	fieldOwner        = "loco-agent"
-	labelManagedBy    = "app.kubernetes.io/managed-by"
-	labelBuildID      = "loco.io/build-id"
-	managedByValue    = "loco-agent"
 	maxMessageLength  = 4000
 	truncatedPrefix   = "..."
 	createRetryFactor = 2
@@ -138,8 +136,8 @@ func (w *Watcher) Create(ctx context.Context, start *agentv1.StartBuild) error {
 		Name:      name,
 		Namespace: w.namespace,
 		Labels: map[string]string{
-			labelManagedBy: managedByValue,
-			labelBuildID:   buildID,
+			locolabels.LabelManagedBy: identity.FieldOwner,
+			locolabels.LabelBuildID:   buildID,
 		},
 		Spec: locoControllerV1.BuildSpec{
 			BuildID:         buildID,
@@ -153,7 +151,7 @@ func (w *Watcher) Create(ctx context.Context, start *agentv1.StartBuild) error {
 			CacheRef:        start.GetCacheRef(),
 		},
 	}
-	err := w.client.Create(ctx, build, client.FieldOwner(fieldOwner))
+	err := w.client.Create(ctx, build, client.FieldOwner(identity.FieldOwner))
 	if apierrors.IsAlreadyExists(err) {
 		return nil
 	}
