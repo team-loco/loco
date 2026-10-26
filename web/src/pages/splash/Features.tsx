@@ -14,8 +14,8 @@ const FEATURES: readonly { glyph: GlyphKind; title: string; body: string }[] = [
 	},
 	{
 		glyph: "roll",
-		title: "Zero-downtime rollouts",
-		body: "New replicas must pass health checks before old ones drain. One-click rollback.",
+		title: "Health-checked rollouts",
+		body: "Deployments track replica readiness and health before completion.",
 	},
 	{
 		glyph: "scale",
