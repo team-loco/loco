@@ -50,6 +50,19 @@ gateway:
   service: {}
   tlsSecretName: ""
 
+certManager:
+  enabled: true
+  issuer:
+    create: true
+    type: acme
+    kind: ClusterIssuer
+    name: letsencrypt-prod
+    email: ""
+    server: https://acme-v02.api.letsencrypt.org/directory
+
+secrets:
+  cloudflareToken: ""
+
 obsProxy:
   enabled: true
   image:

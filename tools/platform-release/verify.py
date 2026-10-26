@@ -55,6 +55,7 @@ def main():
             if name != 'loco-obs' and not pinned_images:
                 raise RuntimeError('chart rendered no digest-pinned Loco deployments')
         cp_values = {
+            'certManager': {'issuer': {'email': 'ops@example.test'}},
             'ui': {'image': {'repository': images['ui'].split('@')[0], 'tag': f'sha-{FIXTURE_COMMIT}@{FIXTURE_DIGEST}'}},
             'api': {'image': {'repository': images['api'].split('@')[0], 'tag': f'sha-{FIXTURE_COMMIT}@{FIXTURE_DIGEST}'}, 'existingSecret': 'regional-api-env'},
             'obsProxy': {'image': {'repository': images['obs-proxy'].split('@')[0], 'tag': f'sha-{FIXTURE_COMMIT}@{FIXTURE_DIGEST}'},

@@ -1,0 +1,16 @@
+{{- if include "loco-control-plane.issueCertificate" . }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ .Release.Name }}-cert
+  namespace: {{ .Values.gatewayNamespace }}
+spec:
+  secretName: {{ include "loco-control-plane.tlsSecret" . }}
+  issuerRef:
+    name: {{ .Values.certManager.issuer.name }}
+    kind: {{ .Values.certManager.issuer.kind }}
+  dnsNames:
+    {{- range include "loco-control-plane.listeners" . | fromJsonArray }}
+    - {{ .hostname | quote }}
+    {{- end }}
+{{- end }}

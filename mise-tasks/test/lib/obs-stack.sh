@@ -74,7 +74,7 @@ manifest=$(helm template loco-obs "$chart" --namespace "$namespace" --set global
 	--set global.exporter.endpoint="$ingest_endpoint")
 control_plane_manifest=$(helm template "$control_plane_release" "$control_plane_chart" \
 	--namespace "$control_plane_namespace" --set obsProxy.image.tag="$1" \
-	--set api.image.tag="$1" --set api.existingSecret=fixture-api-env --set ui.enabled=false \
+	--set api.image.tag="$1" --set api.existingSecret=fixture-api-env --set ui.enabled=false --set certManager.enabled=false \
 	--set clickhouse.enabled=true --set obsProxy.ingest.enabled=true "${password_sets[@]}")
 chi=$(yq -o json -I 0 'select(.kind == "ClickHouseInstallation")' <<<"$control_plane_manifest")
 clickhouse_image=$(yq '.spec.templates.podTemplates[0].spec.containers[0].image' <<<"$chi")

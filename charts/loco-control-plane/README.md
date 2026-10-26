@@ -11,6 +11,7 @@ Provide these dependencies before installing the chart:
 | Source object storage | Existing S3-compatible bucket and `LOCO_SOURCE_BUCKET*` API environment settings. Without a bucket, source builds are disabled. |
 | Application image registry | Existing registry and `LOCO_REGISTRY_*` API environment settings. Builders and worker nodes must also reach this registry. |
 | Regional ClickHouse | `clickhouse.enabled: true` runs it in the release namespace, or provide an external ClickHouse with Keeper and supply reader, migrator and ingest DSNs through existing Secrets. |
+| cert-manager | The cert-manager controller. The chart issues one Certificate for the Gateway hostnames with the Issuer set in `certManager.issuer`, the same options as `loco-core`: `type: acme` solves DNS-01 through Cloudflare with `secrets.cloudflareToken`, `selfSigned` needs no token. `certManager.issuer.create: false` uses an existing issuer by `name` and `kind`. `gateway.tlsSecretName` serves your own Secret and renders no cert-manager objects; `certManager.enabled: false` serves plain HTTP on port 80. |
 | Envoy Gateway | The Envoy Gateway controller in `gatewayNamespace`. The chart creates its own GatewayClass, EnvoyProxy and Gateway; `gateway.create: false` attaches the routes to the existing Gateway `gateway.name` instead. |
 
 Create the API environment Secret outside Helm. The chart reads environment-variable keys directly from that Secret, so credentials do not enter Helm values or the release manifest. A complete installation configures `DATABASE_URL`, `AUTH_ISSUERS`, the source bucket and registry, and a supported `LOCO_SECRETS_KEY_PROVIDER`. Store local key material or transit credentials in the same operator-managed Secret. Existing API configuration names and rotation procedures apply.
@@ -31,8 +32,11 @@ ui:
   image:
     tag: sha-COMMIT@sha256:DIGEST
 gatewayNamespace: loco-system
-gateway:
-  tlsSecretName: regional-tls
+certManager:
+  issuer:
+    email: ops@region.example.com
+secrets:
+  cloudflareToken: CLOUDFLARE_API_TOKEN
 api:
   image:
     tag: sha-COMMIT@sha256:DIGEST
@@ -64,7 +68,7 @@ helm upgrade --install regional ./charts/loco-control-plane \
   --values /secure/regional-values.yaml --wait --timeout 10m
 ```
 
-The Gateway has one listener per hostname: `ui.hostname`, `controlPlaneHostname` and, when ingest is published, `obsProxy.ingest.hostname`. HTTP on port 80 without `gateway.tlsSecretName`, HTTPS on 443 with it. `gateway.service` takes the same Envoy Service settings as `loco-core`'s `envoyProxy.service`. Worker collectors export to the ingest hostname; the proxy reader and migrator DSNs use the regional ClickHouse, and no cross-region replication is configured.
+The Gateway has one listener per hostname: `ui.hostname`, `controlPlaneHostname` and, when ingest is published, `obsProxy.ingest.hostname`. HTTPS on 443 with the Secret from cert-manager or `gateway.tlsSecretName`, HTTP on port 80 when `certManager.enabled` is false. `gateway.service` takes the same Envoy Service settings as `loco-core`'s `envoyProxy.service`. Worker collectors export to the ingest hostname; the proxy reader and migrator DSNs use the regional ClickHouse, and no cross-region replication is configured.
 
 The API runs database migrations during normal startup while holding the existing PostgreSQL migration lock. There is no migration Job or separate migration command. Its startup probe allows five minutes before liveness checks begin; adjust `api.startupProbe` for larger databases. Existing Secrets remain owned by the operator. After rotating their values, restart the corresponding Deployment so it reads the new environment.
 

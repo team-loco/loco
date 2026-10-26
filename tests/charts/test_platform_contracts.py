@@ -41,6 +41,7 @@ TEST_PROXY = {
 }
 TEST_REGION = "test-region-1"
 TEST_EXPORTER_ENDPOINT = "https://ingest.test.local"
+CONTROL_PLANE_BASE_VALUES = {"certManager": {"issuer": {"email": "ops@region.test"}}}
 OBS_BASE_VALUES = {"global": {"region": TEST_REGION, "exporter": {"endpoint": TEST_EXPORTER_ENDPOINT}}}
 
 
@@ -140,7 +141,8 @@ def render_documents(chart, template, overrides, includes=()):
 def render_chart(chart, overrides, check=True):
     with tempfile.TemporaryDirectory() as directory:
         base = Path(directory) / "base.json"
-        base.write_text(json.dumps(OBS_BASE_VALUES if chart == "loco-obs" else {}))
+        base_values = {"loco-obs": OBS_BASE_VALUES, "loco-control-plane": CONTROL_PLANE_BASE_VALUES}
+        base.write_text(json.dumps(base_values.get(chart, {})))
         values = Path(directory) / "overrides.json"
         values.write_text(json.dumps(overrides))
         command = [

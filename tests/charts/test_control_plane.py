@@ -332,7 +332,7 @@ def test_grants_name_the_database_value():
 def test_external_clickhouse_uses_existing_secrets_and_renders_no_server():
     documents = render_chart(
         "loco-control-plane",
-        {"api": API_VALUES, "ui": {"enabled": False}, "obsProxy": {**TEST_PROXY, "ingest": INGEST}},
+        {"api": API_VALUES, "ui": {"enabled": False}, "obsProxy": {**TEST_PROXY, "ingest": INGEST}, "certManager": {"enabled": False}},
     )
     assert not {"ClickHouseInstallation", "Secret"} & kinds(documents)
     assert "loco-control-plane-clickhouse" not in by_kind(documents, "NetworkPolicy")
@@ -405,8 +405,11 @@ def gateway_listeners(overrides):
     return documents, gateways
 
 
+PLAIN_HTTP = {"certManager": {"enabled": False}}
+
+
 def test_chart_creates_its_own_gateway_for_its_hostnames():
-    documents, gateways = gateway_listeners({"gatewayNamespace": "edge"})
+    documents, gateways = gateway_listeners({"gatewayNamespace": "edge", **PLAIN_HTTP})
     gateway = gateways["loco-control-plane"]
     assert gateway["metadata"]["namespace"] == "edge"
     assert gateway["spec"]["gatewayClassName"] == "loco-control-plane"
@@ -422,6 +425,7 @@ def test_chart_creates_its_own_gateway_for_its_hostnames():
     proxy = by_kind(documents, "EnvoyProxy")["loco-control-plane"]
     assert gateway["spec"]["infrastructure"]["parametersRef"] == {"group": "gateway.envoyproxy.io", "kind": "EnvoyProxy", "name": "loco-control-plane"}
     assert "provider" not in proxy["spec"]
+    assert not {"Certificate", "ClusterIssuer", "Secret"} & kinds(documents)
 
 
 def test_gateway_takes_envoy_service_settings_and_a_tls_secret():
@@ -436,7 +440,7 @@ def test_gateway_takes_envoy_service_settings_and_a_tls_secret():
 
 
 def test_shared_hostname_gets_one_listener():
-    _, gateways = gateway_listeners({"controlPlaneHostname": "app.region.test"})
+    _, gateways = gateway_listeners({"controlPlaneHostname": "app.region.test", **PLAIN_HTTP})
     assert [listener["hostname"] for listener in gateways["loco-control-plane"]["spec"]["listeners"]] == ["app.region.test"]
 
 
@@ -476,3 +480,83 @@ def test_ingest_route_needs_ingest_and_a_hostname(subtests):
 def test_ingest_route_is_off_by_default():
     assert chart_values("loco-control-plane")["obsProxy"]["ingest"]["hostname"] == ""
     assert chart_values("loco-control-plane")["obsProxy"]["ingest"]["enabled"] is False
+
+
+CERT_MANAGER_KINDS = {"Certificate", "ClusterIssuer"}
+
+
+def https_listeners(gateways):
+    return gateways["loco-control-plane"]["spec"]["listeners"]
+
+
+def test_default_render_issues_one_certificate_for_every_served_hostname():
+    documents, gateways = gateway_listeners({"gatewayNamespace": "edge", "secrets": {"cloudflareToken": "token"}})
+    (issuer,) = by_kind(documents, "ClusterIssuer").values()
+    assert issuer["metadata"]["name"] == "letsencrypt-prod"
+    assert issuer["spec"]["acme"]["email"] == "ops@region.test"
+    assert issuer["spec"]["acme"]["solvers"][0]["dns01"]["cloudflare"]["apiTokenSecretRef"] == {"name": "cloudflare-api-token-secret", "key": "api-token"}
+    (token,) = by_kind(documents, "Secret").values()
+    assert token["metadata"]["namespace"] == "cert-manager"
+    assert token["stringData"] == {"api-token": "token"}
+    (certificate,) = by_kind(documents, "Certificate").values()
+    assert certificate["metadata"]["namespace"] == "edge"
+    assert certificate["spec"]["issuerRef"] == {"name": "letsencrypt-prod", "kind": "ClusterIssuer"}
+    assert certificate["spec"]["dnsNames"] == ["app.region.test", "api.region.test"]
+    secret = certificate["spec"]["secretName"]
+    listeners = https_listeners(gateways)
+    assert [listener["hostname"] for listener in listeners] == certificate["spec"]["dnsNames"]
+    for listener in listeners:
+        assert listener["protocol"] == "HTTPS"
+        assert listener["tls"]["certificateRefs"] == [{"name": secret, "kind": "Secret", "group": ""}]
+
+
+def test_certificate_covers_ingest_only_when_published():
+    for ingest, published in (({**INGEST, "hostname": "ingest.region.test"}, True), (INGEST, False)):
+        documents, gateways = gateway_listeners({"obsProxy": {**TEST_PROXY, "ingest": ingest}})
+        (certificate,) = by_kind(documents, "Certificate").values()
+        assert ("ingest.region.test" in certificate["spec"]["dnsNames"]) is published
+        assert [listener["hostname"] for listener in https_listeners(gateways)] == certificate["spec"]["dnsNames"]
+
+
+def test_self_signed_issuer_needs_no_token_or_email():
+    documents, _ = gateway_listeners({"certManager": {"issuer": {"type": "selfSigned", "email": "", "name": "local"}}})
+    (issuer,) = by_kind(documents, "ClusterIssuer").values()
+    assert issuer["spec"] == {"selfSigned": {}}
+    (certificate,) = by_kind(documents, "Certificate").values()
+    assert certificate["spec"]["issuerRef"]["name"] == "local"
+    assert "Secret" not in kinds(documents)
+
+
+def test_existing_issuer_renders_only_the_certificate():
+    documents, _ = gateway_listeners({"certManager": {"issuer": {"create": False, "name": "shared", "kind": "Issuer"}}})
+    assert kinds(documents) & CERT_MANAGER_KINDS == {"Certificate"}
+    assert "Secret" not in kinds(documents)
+    (certificate,) = by_kind(documents, "Certificate").values()
+    assert certificate["spec"]["issuerRef"] == {"name": "shared", "kind": "Issuer"}
+
+
+def test_acme_issuer_requires_an_email():
+    result = render_chart("loco-control-plane", {"api": API_VALUES, "obsProxy": TEST_PROXY, **GATEWAY_HOSTS, "certManager": {"issuer": {"email": ""}}}, check=False)
+    assert result.returncode != 0
+    assert "certManager.issuer.email is required" in result.stderr
+
+
+def test_existing_tls_secret_renders_no_cert_manager_objects():
+    documents, gateways = gateway_listeners({"gateway": {"tlsSecretName": "regional-tls"}})
+    assert not CERT_MANAGER_KINDS & kinds(documents)
+    assert "Secret" not in kinds(documents)
+    for listener in https_listeners(gateways):
+        assert listener["tls"]["certificateRefs"][0]["name"] == "regional-tls"
+
+
+def test_plain_http_renders_http_listeners_without_cert_manager_objects():
+    documents, gateways = gateway_listeners(PLAIN_HTTP)
+    assert not CERT_MANAGER_KINDS & kinds(documents)
+    for listener in https_listeners(gateways):
+        assert (listener["protocol"], listener["port"]) == ("HTTP", 80)
+        assert "tls" not in listener
+
+
+def test_existing_gateway_renders_no_certificate():
+    documents, _ = gateway_listeners({"gateway": {"create": False, "name": "eg"}})
+    assert not CERT_MANAGER_KINDS & kinds(documents)
