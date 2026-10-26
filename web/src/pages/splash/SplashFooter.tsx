@@ -53,8 +53,8 @@ export function SplashFooter({ onSignIn, redirecting }: { onSignIn: () => void; 
 					<button type="button" onClick={onSignIn} disabled={redirecting} className={LINK_CLASS}>
 						Sign in
 					</button>
-					<a href="#access" className={LINK_CLASS}>
-						Request access
+					<a href="#agents" className={LINK_CLASS}>
+						For agents
 					</a>
 				</Column>
 			</div>
