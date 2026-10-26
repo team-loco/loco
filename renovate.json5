@@ -109,6 +109,11 @@
       rangeStrategy: "bump",
     },
     {
+      description: "bunfig.toml blocks packages younger than this, so the bun install in an update PR fails on a newer release; lint:versions keeps the two equal",
+      matchManagers: ["bun"],
+      minimumReleaseAge: "3 days",
+    },
+    {
       groupName: "javascript",
       matchManagers: ["bun"],
       matchUpdateTypes: ["minor", "patch"],

@@ -19,6 +19,8 @@ on:
       - "mise.toml"
       - "mise.lock"
       - "docs/pyproject.toml"
+      - "bunfig.toml"
+      - "renovate.json5"
       - ".github/actions/setup-tools/**"
   pull_request:
     paths:
@@ -36,6 +38,8 @@ on:
       - "mise.toml"
       - "mise.lock"
       - "docs/pyproject.toml"
+      - "bunfig.toml"
+      - "renovate.json5"
       - ".github/actions/setup-tools/**"
   workflow_call:
 
