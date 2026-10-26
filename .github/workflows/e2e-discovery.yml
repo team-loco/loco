@@ -20,7 +20,6 @@ on:
       - "mise-tasks/cluster/registry"
       - "mise-tasks/cluster/build-egress"
       - "e2e/**"
-      - "tests/e2e/test_discovery_diagnostics.py"
       - "mise-tasks/e2e/**"
       - "mise-tasks/crds/**"
       - "cmd/**"

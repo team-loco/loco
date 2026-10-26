@@ -5,7 +5,6 @@ on:
     branches:
       - main
     paths:
-      - "pytest.ini"
       - "tests/pyproject.toml"
       - "tests/uv.lock"
       - ".github/workflows/**"
@@ -14,7 +13,6 @@ on:
       - ".github/actions/**"
   pull_request:
     paths:
-      - "pytest.ini"
       - "tests/pyproject.toml"
       - "tests/uv.lock"
       - ".github/workflows/**"

@@ -5,7 +5,6 @@ on:
     branches:
       - main
     paths:
-      - "pytest.ini"
       - "tests/pyproject.toml"
       - "tests/uv.lock"
       - "docs/**"
@@ -20,7 +19,6 @@ on:
       - ".github/actions/setup-tools/**"
   pull_request:
     paths:
-      - "pytest.ini"
       - "tests/pyproject.toml"
       - "tests/uv.lock"
       - "docs/**"
