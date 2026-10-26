@@ -1,6 +1,6 @@
 import pytest
 
-from test_platform_contracts import collector_relays, render_chart
+from helpers import collector_relays, render_chart
 
 
 @pytest.mark.parametrize("name,kind,namespace,key", [

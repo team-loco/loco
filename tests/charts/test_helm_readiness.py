@@ -2,9 +2,9 @@ import json
 import os
 import shutil
 import subprocess
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+from helpers import ROOT
+
 RELEASE_TASK = ROOT / "mise-tasks/helm/sync/release"
 CERT_MANAGER = ROOT / "charts/cert-manager.yaml"
 HELM = shutil.which("helm")

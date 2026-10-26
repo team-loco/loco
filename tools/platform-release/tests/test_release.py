@@ -44,7 +44,7 @@ def bundle():
     return bundle
 
 
-def test_bundle_pins_every_source_and_image(bundle):
+def test_bundle_pins_every_source_by_digest(bundle):
     resources = [
         json.loads(value)
         for path, value in bundle.files.items()
@@ -54,9 +54,15 @@ def test_bundle_pins_every_source_and_image(bundle):
     assert len(sources) == 5
     for source in sources:
         assert source["spec"]["ref"] == {"digest": bundle.digest}
+
+
+def test_bundle_lock_records_the_commit_and_images(bundle):
     lock = json.loads(bundle.files["release.json"])
     assert lock["coreCommit"] == bundle.commit
     assert lock["images"] == bundle.images
+
+
+def test_worker_release_pins_each_image_by_commit_and_digest(bundle):
     worker = json.loads(bundle.files["releases/loco-worker-helmrelease.yaml"])
     values = worker["spec"]["values"]
     for image in (
@@ -70,9 +76,12 @@ def test_bundle_pins_every_source_and_image(bundle):
     assert values["builds"]["builderImage"]["repository"] == "ghcr.io/example/platform-builder"
 
 
-def test_crds_are_protected_and_owned_separately(bundle):
+def test_worker_release_does_not_own_crds(bundle):
     worker = json.loads(bundle.files["releases/loco-worker-helmrelease.yaml"])
     assert "crd" not in worker["spec"]["values"]
+
+
+def test_crd_kustomizations_wait_without_pruning(bundle):
     for name in ("applications", "builds", "gateway"):
         ks = json.loads(bundle.files[f"crds/loco-{name}-crd-kustomization.yaml"])
         assert not ks["spec"]["prune"]
@@ -97,12 +106,20 @@ def test_worker_release_reads_its_values_sources(bundle):
         assert f"releases/{dep['name']}-helmrelease.yaml" in bundle.files
 
 
-def test_releases_wait_for_matching_release_and_current_generation(bundle):
+def test_releases_carry_the_bundle_release_label(bundle):
     hr = json.loads(bundle.files["releases/loco-worker-helmrelease.yaml"])
     assert hr["metadata"]["labels"]["platform.loco.io/release"] == "0.7.0-rc.1"
+
+
+def test_release_dependencies_must_be_current_at_the_same_release(bundle):
+    hr = json.loads(bundle.files["releases/loco-worker-helmrelease.yaml"])
     for dep in hr["spec"]["dependsOn"]:
         assert "dep.status.observedGeneration" in dep["readyExpr"]
         assert "platform.loco.io/release" in dep["readyExpr"]
+
+
+def test_failed_release_upgrades_roll_back(bundle):
+    hr = json.loads(bundle.files["releases/loco-worker-helmrelease.yaml"])
     assert hr["spec"]["upgrade"]["remediation"]["strategy"] == "rollback"
 
 
@@ -115,14 +132,27 @@ def test_bundle_archive_contains_only_declared_files(bundle):
             assert ".." not in Path(member.name).parts
 
 
-def test_parent_layers_gate_current_bundle_and_child_crd_digests(bundle):
+def _layers(bundle):
     crds, platform = [
         json.loads(item) for item in bundle.files["layers.yaml"].split(b"\n---\n")
     ]
+    return crds, platform
+
+
+def test_layers_build_from_one_source_with_one_substitution_set(bundle):
+    crds, platform = _layers(bundle)
     assert crds["spec"]["sourceRef"] == platform["spec"]["sourceRef"]
+    assert crds["spec"]["postBuild"] == platform["spec"]["postBuild"]
+
+
+def test_platform_layer_waits_for_the_crds_layer(bundle):
+    _, platform = _layers(bundle)
     assert platform["spec"]["dependsOn"] == [{"name": "crds"}]
     assert "readyExpr" not in platform["spec"]["dependsOn"][0]
-    assert crds["spec"]["postBuild"] == platform["spec"]["postBuild"]
+
+
+def test_crds_layer_is_healthy_only_at_the_current_bundle_revision(bundle):
+    crds, _ = _layers(bundle)
     health = crds["spec"]["healthCheckExprs"][0]["current"]
     assert "status.lastAppliedRevision" in health
     assert bundle.digest in health
@@ -401,18 +431,29 @@ def _command(publication, *args):
     return ""
 
 
-def test_artifacts_publish_each_chart_and_crd_at_its_own_version(publication):
+@pytest.fixture
+def published_artifacts(publication):
     with patch("builtins.print"):
         release.publish_artifacts(publication.commit, publication.registry)
-    ensured = {call.args[0]: call.args[1] for call in publication.registry.ensure.call_args_list}
-    names = release.repositories(publication.registry)
+    return publication
+
+
+def test_artifacts_publish_each_chart_and_crd_at_its_own_version(published_artifacts):
+    ensured = {call.args[0]: call.args[1] for call in published_artifacts.registry.ensure.call_args_list}
+    names = release.repositories(published_artifacts.registry)
     assert ensured == {names[name]: version for name, version in VERSIONS.items()}
-    data = {call.args[0]: call.args[2] for call in publication.registry.ensure.call_args_list}
+    data = {call.args[0]: call.args[2] for call in published_artifacts.registry.ensure.call_args_list}
     assert data[names["loco-worker"]] == b"loco-worker"
     assert data[names["loco-gateway-crd"]] == b"gateway"
-    publication.registry.publish.assert_not_called()
-    assert publication.public.manifest.call_count == len(VERSIONS)
-    assert not [call for call in publication.calls if call[:2] == ("gh", "attestation")]
+
+
+def test_artifacts_look_up_each_version_once(published_artifacts):
+    assert published_artifacts.public.manifest.call_count == len(VERSIONS)
+
+
+def test_artifacts_publish_no_bundle(published_artifacts):
+    published_artifacts.registry.publish.assert_not_called()
+    assert not [call for call in published_artifacts.calls if call[:2] == ("gh", "attestation")]
 
 
 def test_artifacts_stop_at_a_version_published_with_other_content(publication):
@@ -428,31 +469,46 @@ def test_private_artifact_fails_publication(publication):
         release.publish_artifacts(publication.commit, publication.registry)
 
 
-def test_bundle_pins_published_versions_and_publishes_only_itself(publication):
+@pytest.fixture
+def published_bundle(publication):
     with patch("builtins.print"):
         release.publish_bundle("0.7.0-rc.1", publication.commit, publication.registry)
-    names = release.repositories(publication.registry)
-    looked_up = {call.args[0]: call.args[1] for call in publication.public.manifest.call_args_list if call.kwargs.get("missing")}
+    return publication
+
+
+def test_bundle_pins_the_published_versions(published_bundle):
+    names = release.repositories(published_bundle.registry)
+    looked_up = {call.args[0]: call.args[1] for call in published_bundle.public.manifest.call_args_list if call.kwargs.get("missing")}
     assert looked_up == {names[name]: version for name, version in VERSIONS.items()}
-    publication.registry.ensure.assert_not_called()
-    assert [call.args[0] for call in publication.registry.publish.call_args_list] == [names["platform"]]
-    publication.registry.assert_absent.assert_called_once_with(names["platform"], "0.7.0-rc.1")
+
+
+def test_bundle_publishes_only_itself(published_bundle):
+    names = release.repositories(published_bundle.registry)
+    published_bundle.registry.ensure.assert_not_called()
+    assert [call.args[0] for call in published_bundle.registry.publish.call_args_list] == [names["platform"]]
+    published_bundle.registry.assert_absent.assert_called_once_with(names["platform"], "0.7.0-rc.1")
+    assert not [call for call in published_bundle.calls if call[0] == "helm"]
+
+
+def test_bundle_verifies_each_image_attestation_from_main(published_bundle):
     attestations = [
         call
-        for call in publication.calls
+        for call in published_bundle.calls
         if call[:3] == ("gh", "attestation", "verify")
     ]
     assert len(attestations) == len(release.IMAGES)
-    assert publication.registry.require_image_platforms.call_count == len(
-        release.IMAGES
-    )
     for call in attestations:
         assert "refs/heads/main" in call
-        assert publication.commit in call
+        assert published_bundle.commit in call
         assert "example/platform/.github/workflows/build-push.yml" in call
         assert "--deny-self-hosted-runners" in call
         assert "@sha256:" in call[3]
-    assert not [call for call in publication.calls if call[0] == "helm"]
+
+
+def test_bundle_requires_each_image_platform(published_bundle):
+    assert published_bundle.registry.require_image_platforms.call_count == len(
+        release.IMAGES
+    )
 
 
 def test_bundle_fails_when_a_pinned_version_is_not_published(publication):

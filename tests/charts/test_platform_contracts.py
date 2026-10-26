@@ -1,15 +1,23 @@
-import json
 import re
-import shutil
 import subprocess
-import tempfile
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[2]
-COLLECTOR_CONFIGMAPS = ("otel-col-daemon-agent", "otel-col-deploy", "otel-col-cluster")
+from helpers import (
+    COLLECTOR_CONFIGMAPS,
+    TEST_EXPORTER_ENDPOINT,
+    TEST_PROXY,
+    TEST_REGION,
+    chart_values,
+    collector_relays,
+    container_env,
+    quantity,
+    render_chart,
+    render_template,
+    render_template_object,
+)
+
 PUSH_RECEIVERS = {"otlp", "jaeger", "zipkin"}
 TENANT_LABELS = {
     "loco.io/organization-id": "loco.organization.id",
@@ -29,159 +37,11 @@ ENVOY_CLUSTER_ATTRIBUTES = {
     "metric_statements": "envoy.cluster_name",
 }
 ROUTE_TENANCY = ("loco.workspace.id", "loco.resource.id")
-TEST_PROXY = {
-    "image": {"tag": "test"},
-    "query": {
-        "clickhouse": {
-            "existingSecret": {"name": "proxy-reader", "key": "url"},
-            "migratorExistingSecret": {"name": "proxy-migrator", "key": "url"},
-        },
-    },
-}
-TEST_REGION = "test-region-1"
-TEST_EXPORTER_ENDPOINT = "https://ingest.test.local"
-CONTROL_PLANE_BASE_VALUES = {"certManager": {"issuer": {"email": "ops@region.test"}}}
-TEST_IMAGE = {"tag": "test"}
-WORKER_BASE_VALUES = {
-    "global": {"region": TEST_REGION, "exporter": {"endpoint": TEST_EXPORTER_ENDPOINT}},
-    "certManager": {"issuer": {"email": "ops@worker.test"}},
-    "agent": {"image": TEST_IMAGE},
-    "controller": {"image": TEST_IMAGE},
-    "builds": {"builderImage": TEST_IMAGE},
-}
-
-
-def render(chart, template, overrides):
-    documents = render_documents(chart, template, overrides)
-    return documents[0] if documents else None
-
-
-def chart_values(chart):
-    return json.loads(
-        subprocess.check_output(
-            ["yq", "-o=json", ".", str(ROOT / "charts" / chart / "values.yaml")],
-            text=True,
-        )
-    )
-
-
-def render_documents(chart, template, overrides, includes=()):
-    source = ROOT / "charts" / chart
-    with tempfile.TemporaryDirectory() as directory:
-        root = Path(directory)
-        (root / "templates").mkdir()
-        metadata = subprocess.check_output(
-            ["yq", "-o=json", ".", str(source / "Chart.yaml")], text=True
-        )
-        chart_values = json.loads(metadata)
-        chart_values.pop("dependencies", None)
-        (root / "Chart.yaml").write_text(json.dumps(chart_values))
-        shutil.copyfile(source / "values.yaml", root / "values.yaml")
-        target = root / "templates" / template
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(source / "templates" / template, target)
-        for included in includes:
-            shutil.copyfile(source / "templates" / included, root / "templates" / included)
-        for helper in (source / "templates").glob("*.tpl"):
-            shutil.copyfile(helper, root / "templates" / helper.name)
-        (root / "overrides.json").write_text(json.dumps(overrides))
-        rendered = subprocess.check_output(
-            [
-                "helm",
-                "template",
-                chart,
-                str(root),
-                "-n",
-                "platform-test",
-                "-f",
-                str(root / "overrides.json"),
-            ],
-            text=True,
-            stderr=subprocess.STDOUT,
-        )
-        documents = subprocess.check_output(
-            ["yq", "-o=json", "-I=0", ".", "-"], input=rendered, text=True
-        )
-        return [
-            json.loads(line)
-            for line in documents.splitlines()
-            if line.strip() not in ("", "null")
-        ]
-
-
-def render_chart(chart, overrides, check=True):
-    with tempfile.TemporaryDirectory() as directory:
-        base = Path(directory) / "base.json"
-        base_values = {"loco-worker": WORKER_BASE_VALUES, "loco-control-plane": CONTROL_PLANE_BASE_VALUES}
-        base.write_text(json.dumps(base_values.get(chart, {})))
-        values = Path(directory) / "overrides.json"
-        values.write_text(json.dumps(overrides))
-        command = [
-            "helm",
-            "template",
-            chart,
-            str(ROOT / "charts" / chart),
-            "-n",
-            "platform-test",
-            "-f",
-            str(base),
-            "-f",
-            str(values),
-        ]
-        result = subprocess.run(command, capture_output=True, text=True)
-        if not check:
-            return result
-        if result.returncode != 0:
-            raise subprocess.CalledProcessError(
-                result.returncode, command, result.stdout, result.stderr
-            )
-        rendered = result.stdout
-    documents = subprocess.check_output(
-        ["yq", "-o=json", "-I=0", ".", "-"], input=rendered, text=True
-    )
-    return [
-        json.loads(line)
-        for line in documents.splitlines()
-        if line.strip() not in ("", "null")
-    ]
-
-
-QUANTITY_SUFFIXES = {"m": 0.001, "Mi": 2**20, "Gi": 2**30}
-
-
-def quantity(value):
-    for suffix, scale in QUANTITY_SUFFIXES.items():
-        if value.endswith(suffix):
-            return float(value.removesuffix(suffix)) * scale
-    return float(value)
-
-
-def collector_documents(documents):
-    return [
-        document
-        for document in documents
-        if document["metadata"].get("labels", {}).get("app.kubernetes.io/part-of") == "opentelemetry-collector"
-    ]
-
-
-def collector_relays(documents):
-    configs = {}
-    for document in documents:
-        if (
-            document["kind"] == "ConfigMap"
-            and document["metadata"]["name"] in COLLECTOR_CONFIGMAPS
-        ):
-            relay = subprocess.check_output(
-                ["yq", "-o=json", "-I=0", ".", "-"],
-                input=document["data"]["relay"],
-                text=True,
-            )
-            configs[document["metadata"]["name"]] = json.loads(relay)
-    return configs
+EXPORTER_HEADERS = {"X-Loco-Cluster": "cluster-a"}
 
 
 def test_regional_certificate_names():
-    certificate = render(
+    certificate = render_template_object(
         "loco-worker",
         "cm-cert.yaml",
         {
@@ -208,7 +68,7 @@ def test_regional_certificate_names():
 
 
 def test_api_route_uses_control_plane_origin():
-    route = render(
+    route = render_template_object(
         "loco-control-plane",
         "api-route.yaml",
         {"controlPlaneHostname": "api.region.example.test"},
@@ -219,14 +79,18 @@ def test_api_route_uses_control_plane_origin():
     assert rule["backendRefs"][0]["name"] == "loco-control-plane-api"
 
 
+def _proxy_deployment(query=None):
+    values = {"obsProxy": {**TEST_PROXY, "query": {**TEST_PROXY["query"], **(query or {})}}}
+    return render_template_object("loco-control-plane", "obs-proxy-query-deployment.yaml", values)
+
+
+def _proxy_env(query=None):
+    deployment = _proxy_deployment(query)
+    return container_env(deployment)
+
+
 def test_database_and_auth_secret_references():
-    deployment = render(
-        "loco-control-plane", "obs-proxy-query-deployment.yaml", {"obsProxy": TEST_PROXY}
-    )
-    env = {
-        item["name"]: item
-        for item in deployment["spec"]["template"]["spec"]["containers"][0]["env"]
-    }
+    env = _proxy_env()
     assert env["CLICKHOUSE_URL"]["valueFrom"]["secretKeyRef"] == {
         "name": "proxy-reader",
         "key": "url",
@@ -245,7 +109,7 @@ def test_missing_clickhouse_secrets_are_rejected(subtests):
                 secret: {"name": "", "key": "url"},
             }
             with pytest.raises(subprocess.CalledProcessError) as caught:
-                render(
+                render_template_object(
                     "loco-control-plane",
                     "obs-proxy-query-deployment.yaml",
                     {"obsProxy": {**TEST_PROXY, "query": {"clickhouse": clickhouse}}},
@@ -257,7 +121,7 @@ def test_missing_clickhouse_secrets_are_rejected(subtests):
 
 def test_missing_database_secret_key_is_rejected():
     with pytest.raises(subprocess.CalledProcessError):
-        render(
+        render_template_object(
             "loco-control-plane",
             "obs-proxy-query-deployment.yaml",
             {
@@ -275,34 +139,15 @@ def test_missing_database_secret_key_is_rejected():
 
 
 def test_permission_endpoint_uses_the_private_api_service():
-    deployment = render(
-        "loco-control-plane", "obs-proxy-query-deployment.yaml", {"obsProxy": TEST_PROXY}
-    )
-    env = {
-        item["name"]: item
-        for item in deployment["spec"]["template"]["spec"]["containers"][0]["env"]
-    }
+    env = _proxy_env()
     assert (
         env["CONTROL_PLANE_URL"]["value"]
         == "http://loco-control-plane-api.platform-test.svc.cluster.local"
     )
 
 
-def _proxy_env(overrides=None):
-    values = {"obsProxy": {**TEST_PROXY, "query": dict(TEST_PROXY["query"])}}
-    for key, value in (overrides or {}).items():
-        values["obsProxy"]["query"][key] = value
-    deployment = render("loco-control-plane", "obs-proxy-query-deployment.yaml", values)
-    container = deployment["spec"]["template"]["spec"]["containers"][0]
-    return (
-        container,
-        [item["name"] for item in container["env"]],
-        {item["name"]: item for item in container["env"]},
-    )
-
-
 def test_proxy_cors_origins_are_explicit():
-    _, _, env = _proxy_env(
+    env = _proxy_env(
         {
             "cors": {
                 "allowedOrigins": ["https://app.example.test", "http://localhost:5173"]
@@ -313,18 +158,18 @@ def test_proxy_cors_origins_are_explicit():
         env["CORS_ALLOWED_ORIGINS"]["value"]
         == "https://app.example.test,http://localhost:5173"
     )
-    _, _, env = _proxy_env()
+    env = _proxy_env()
     assert env["CORS_ALLOWED_ORIGINS"]["value"] == ""
 
 
 def test_proxy_reads_its_database_from_the_one_chart_value():
     database = chart_values("loco-control-plane")["clickhouse"]["clickhouse"]["database"]
-    _, _, env = _proxy_env()
+    env = _proxy_env()
     assert env["CLICKHOUSE_DB"] == {"name": "CLICKHOUSE_DB", "value": database}
 
 
 def test_proxy_readiness_checks_readyz():
-    container, _, _ = _proxy_env()
+    container = _proxy_deployment()["spec"]["template"]["spec"]["containers"][0]
     assert container["readinessProbe"]["httpGet"]["path"] == "/readyz"
 
 
@@ -332,27 +177,44 @@ def exporter_settings():
     return chart_values("loco-worker")["global"]["exporter"]
 
 
-def test_collectors_export_only_otlp_to_the_configured_endpoint():
-    documents = render_chart("loco-worker", {})
-    configs = collector_relays(documents)
-    assert set(configs) == set(COLLECTOR_CONFIGMAPS)
+def test_collectors_export_only_otlp_http(worker_relays):
+    for collector, config in worker_relays.items():
+        assert list(config["exporters"]) == ["otlp_http"], collector
+        for name, pipeline in config["service"]["pipelines"].items():
+            assert pipeline["exporters"] == ["otlp_http"], (collector, name)
+
+
+def test_collectors_export_to_the_configured_endpoint(worker_relays):
+    for collector, config in worker_relays.items():
+        (exporter,) = config["exporters"].values()
+        assert exporter["endpoint"] == TEST_EXPORTER_ENDPOINT, collector
+
+
+def test_exporters_queue_on_file_storage_with_the_configured_settings(worker_relays):
     settings = exporter_settings()
     queue = {key: value for key, value in settings["queue"].items() if key != "directory"}
-    for collector, config in configs.items():
+    for collector, config in worker_relays.items():
         (exporter,) = config["exporters"].values()
-        assert list(config["exporters"]) == ["otlp_http"], collector
-        assert exporter["endpoint"] == TEST_EXPORTER_ENDPOINT, collector
         assert exporter["sending_queue"] == {
             "enabled": True, "storage": "file_storage/exporter", **queue
         }, collector
-        assert exporter["retry_on_failure"] == {"enabled": True, **settings["retry"]}, collector
-        assert "auth" not in exporter, collector
         assert config["extensions"]["file_storage/exporter"] == {
             "directory": settings["queue"]["directory"]
         }, collector
         assert "file_storage/exporter" in config["service"]["extensions"], collector
-        for name, pipeline in config["service"]["pipelines"].items():
-            assert pipeline["exporters"] == ["otlp_http"], (collector, name)
+
+
+def test_exporters_retry_with_the_configured_settings(worker_relays):
+    settings = exporter_settings()
+    for collector, config in worker_relays.items():
+        (exporter,) = config["exporters"].values()
+        assert exporter["retry_on_failure"] == {"enabled": True, **settings["retry"]}, collector
+
+
+def test_exporters_send_no_auth_by_default(worker_relays):
+    for collector, config in worker_relays.items():
+        (exporter,) = config["exporters"].values()
+        assert "auth" not in exporter, collector
 
 
 def test_collectors_require_an_exporter_endpoint():
@@ -361,21 +223,32 @@ def test_collectors_require_an_exporter_endpoint():
     assert "global.exporter.endpoint is required" in result.stderr
 
 
-def test_exporter_headers_and_bearer_token_come_from_values():
-    headers = {"X-Loco-Cluster": "cluster-a"}
-    documents = render_chart(
+@pytest.fixture(scope="module")
+def authenticated_exporter():
+    return render_chart(
         "loco-worker",
-        {"global": {"exporter": {"headers": headers, "bearerToken": {"enabled": True, "secretName": "cluster-token"}}}},
+        {"global": {"exporter": {"headers": EXPORTER_HEADERS, "bearerToken": {"enabled": True, "secretName": "cluster-token"}}}},
     )
+
+
+def test_exporter_headers_come_from_values(authenticated_exporter):
+    for collector, config in collector_relays(authenticated_exporter).items():
+        assert config["exporters"]["otlp_http"]["headers"] == EXPORTER_HEADERS, collector
+
+
+def test_exporter_authenticates_with_the_mounted_bearer_token(authenticated_exporter):
     token = exporter_settings()["bearerToken"]
     filename = f"{token['directory']}/{token['secretKey']}"
-    for collector, config in collector_relays(documents).items():
+    for collector, config in collector_relays(authenticated_exporter).items():
         exporter = config["exporters"]["otlp_http"]
-        assert exporter["headers"] == headers, collector
         assert exporter["auth"] == {"authenticator": "bearertokenauth/exporter"}, collector
         assert config["extensions"]["bearertokenauth/exporter"] == {"filename": filename}, collector
         assert "bearertokenauth/exporter" in config["service"]["extensions"], collector
-    workloads = [document for document in documents if document["kind"] in ("DaemonSet", "StatefulSet")]
+
+
+def test_collectors_mount_the_bearer_token_secret(authenticated_exporter):
+    token = exporter_settings()["bearerToken"]
+    workloads = [document for document in authenticated_exporter if document["kind"] in ("DaemonSet", "StatefulSet")]
     assert len(workloads) == len(COLLECTOR_CONFIGMAPS)
     for workload in workloads:
         pod = workload["spec"]["template"]["spec"]
@@ -387,26 +260,49 @@ def test_exporter_headers_and_bearer_token_come_from_values():
         assert mounts["exporter-queue"]["mountPath"] == exporter_settings()["queue"]["directory"]
 
 
-def test_exporter_queues_survive_collector_pod_replacement():
-    documents = render_chart("loco-worker", {})
-    directory = exporter_settings()["queue"]["directory"]
-    workloads = {document["metadata"]["name"]: document for document in documents if document["kind"] in ("DaemonSet", "StatefulSet")}
+def _collector_workloads(worker_documents):
+    return {document["metadata"]["name"]: document for document in worker_documents if document["kind"] in ("DaemonSet", "StatefulSet")}
+
+
+def _daemon_pod(worker_documents):
+    return _collector_workloads(worker_documents)["otel-col-daemon-agent"]["spec"]["template"]["spec"]
+
+
+def _collector_user(pod):
+    context = pod["containers"][0]["securityContext"]
+    return context["runAsUser"], context["runAsGroup"]
+
+
+def test_only_the_node_collector_runs_as_a_daemonset(worker_documents):
+    workloads = _collector_workloads(worker_documents)
     assert {name: workload["kind"] for name, workload in workloads.items()} == {
         "otel-col-daemon-agent": "DaemonSet",
         "otel-col-deploy": "StatefulSet",
         "otel-col-cluster": "StatefulSet",
     }
-    daemon = workloads["otel-col-daemon-agent"]["spec"]["template"]["spec"]
-    collector = daemon["containers"][0]
+
+
+def test_node_collector_queues_exports_on_a_host_path(worker_documents):
+    directory = exporter_settings()["queue"]["directory"]
+    daemon = _daemon_pod(worker_documents)
     queue = next(volume for volume in daemon["volumes"] if volume["name"] == "exporter-queue")
     assert queue["hostPath"]["path"].startswith(f"{directory}/")
     assert queue["hostPath"]["type"] == "DirectoryOrCreate"
+
+
+def test_node_collector_owns_its_export_queue_before_starting(worker_documents):
+    directory = exporter_settings()["queue"]["directory"]
+    daemon = _daemon_pod(worker_documents)
     init = next(container for container in daemon["initContainers"] if container["name"] == "state-permissions")
-    user = collector["securityContext"]["runAsUser"]
-    group = collector["securityContext"]["runAsGroup"]
+    user, group = _collector_user(daemon)
     assert init["command"][:3] == ["chown", "-R", f"{user}:{group}"]
     assert directory in init["command"][3:]
     assert {"name": "exporter-queue", "mountPath": directory} in init["volumeMounts"]
+
+
+def test_statefulset_collectors_queue_exports_on_their_own_claim(worker_documents):
+    directory = exporter_settings()["queue"]["directory"]
+    workloads = _collector_workloads(worker_documents)
     for name in ("otel-col-deploy", "otel-col-cluster"):
         spec = workloads[name]["spec"]
         (claim,) = spec["volumeClaimTemplates"]
@@ -416,30 +312,29 @@ def test_exporter_queues_survive_collector_pod_replacement():
         pod = spec["template"]["spec"]
         assert "exporter-queue" not in {volume["name"] for volume in pod["volumes"]}, name
         assert {"name": "exporter-queue", "mountPath": directory} in pod["containers"][0]["volumeMounts"], name
+
+
+def test_statefulset_collectors_own_their_claim_through_fs_group(worker_documents):
+    workloads = _collector_workloads(worker_documents)
+    user, _ = _collector_user(_daemon_pod(worker_documents))
+    for name in ("otel-col-deploy", "otel-col-cluster"):
+        pod = workloads[name]["spec"]["template"]["spec"]
         assert pod["securityContext"]["fsGroup"] == user, name
 
 
-@pytest.fixture(scope="module")
-def collector_tenancy():
-    collector_tenancy = SimpleNamespace()
-    collector_tenancy.documents = render_chart("loco-worker", {})
-    collector_tenancy.configs = collector_relays(collector_tenancy.documents)
-    return collector_tenancy
-
-
-def _pipelines(collector_tenancy):
-    for collector, config in collector_tenancy.configs.items():
+def _pipelines(worker_relays):
+    for collector, config in worker_relays.items():
         for name, pipeline in config["service"]["pipelines"].items():
             yield (collector, config, name, pipeline)
 
 
-def _push_pipelines(collector_tenancy):
-    for collector, config, name, pipeline in _pipelines(collector_tenancy):
+def _push_pipelines(worker_relays):
+    for collector, config, name, pipeline in _pipelines(worker_relays):
         if PUSH_RECEIVERS & set(pipeline["receivers"]):
             yield (collector, config, name, pipeline)
 
 
-def _k8s_attributes(collector_tenancy, pipeline):
+def _k8s_attributes(pipeline):
     return [
         processor
         for processor in pipeline.get("processors", [])
@@ -447,39 +342,48 @@ def _k8s_attributes(collector_tenancy, pipeline):
     ]
 
 
-def test_node_log_offsets_survive_collector_pod_replacement(collector_tenancy):
-    config = collector_tenancy.configs["otel-col-daemon-agent"]
+def _checkpoint_directory(worker_relays):
+    return worker_relays["otel-col-daemon-agent"]["extensions"]["file_storage"]["directory"]
+
+
+def _checkpoint_volume(pod, container, directory):
+    mount = next(mount for mount in container["volumeMounts"] if mount["mountPath"] == directory)
+    return next(volume for volume in pod["volumes"] if volume["name"] == mount["name"])
+
+
+def _state_permissions(pod):
+    return next(container for container in pod["initContainers"] if container["name"] == "state-permissions")
+
+
+def test_file_log_receiver_checkpoints_to_file_storage(worker_relays):
+    config = worker_relays["otel-col-daemon-agent"]
     assert config["receivers"]["file_log"]["storage"] == "file_storage"
     assert "file_storage" in config["service"]["extensions"]
-    directory = config["extensions"]["file_storage"]["directory"]
-    daemon = next(
-        document for document in collector_tenancy.documents
-        if document["kind"] == "DaemonSet"
-    )
-    pod = daemon["spec"]["template"]["spec"]
-    collector = pod["containers"][0]
-    user = collector["securityContext"]["runAsUser"]
-    group = collector["securityContext"]["runAsGroup"]
-    assert pod["securityContext"]["runAsNonRoot"]
-    mount = next(
-        mount for mount in collector["volumeMounts"]
-        if mount["mountPath"] == directory
-    )
-    volume = next(
-        volume for volume in pod["volumes"] if volume["name"] == mount["name"]
-    )
+
+
+def test_node_collector_runs_as_non_root(worker_documents):
+    assert _daemon_pod(worker_documents)["securityContext"]["runAsNonRoot"]
+
+
+def test_log_checkpoints_live_on_a_host_path(worker_documents, worker_relays):
+    directory = _checkpoint_directory(worker_relays)
+    pod = _daemon_pod(worker_documents)
+    volume = _checkpoint_volume(pod, pod["containers"][0], directory)
     assert volume["hostPath"] == {"path": directory, "type": "DirectoryOrCreate"}
-    init = next(
-        container for container in pod["initContainers"]
-        if container["name"] == "state-permissions"
-    )
+
+
+def test_node_collector_owns_its_log_checkpoints_before_starting(worker_documents, worker_relays):
+    directory = _checkpoint_directory(worker_relays)
+    pod = _daemon_pod(worker_documents)
+    user, group = _collector_user(pod)
+    init = _state_permissions(pod)
     assert init["command"][:4] == ["chown", "-R", f"{user}:{group}", directory]
-    init_mount = next(mount for mount in init["volumeMounts"] if mount["mountPath"] == directory)
-    init_volume = next(
-        volume for volume in pod["volumes"]
-        if volume["name"] == init_mount["name"]
-    )
-    assert init_volume["hostPath"] == volume["hostPath"]
+    volume = _checkpoint_volume(pod, pod["containers"][0], directory)
+    assert _checkpoint_volume(pod, init, directory)["hostPath"] == volume["hostPath"]
+
+
+def test_state_permissions_can_only_chown(worker_documents):
+    init = _state_permissions(_daemon_pod(worker_documents))
     assert init["securityContext"]["capabilities"] == {
         "drop": ["ALL"], "add": ["CHOWN"]
     }
@@ -501,12 +405,16 @@ def test_disabling_log_checkpoints_keeps_volume_references_valid():
             assert mount["name"] in volume_names
 
 
-def test_application_metrics_use_node_local_otel_pulling(collector_tenancy):
-    config = collector_tenancy.configs["otel-col-daemon-agent"]
+def _application_scrape(worker_relays):
+    config = worker_relays["otel-col-daemon-agent"]
     (scrape,) = config["receivers"]["prometheus/applications"]["config"][
         "scrape_configs"
     ]
-    (discovery,) = scrape["kubernetes_sd_configs"]
+    return scrape
+
+
+def test_application_scrapes_discover_only_pods_on_their_node(worker_relays):
+    (discovery,) = _application_scrape(worker_relays)["kubernetes_sd_configs"]
     assert discovery["selectors"] == [
         {
             "role": "pod",
@@ -514,26 +422,37 @@ def test_application_metrics_use_node_local_otel_pulling(collector_tenancy):
             "label": "loco.io/metrics-port",
         }
     ]
+
+
+def test_application_scrapes_use_the_configured_limits(worker_relays):
+    scrape = _application_scrape(worker_relays)
     limits = chart_values("loco-worker")["otel-col-daemon"]["config"]["receivers"]["prometheus/applications"]["config"]["scrape_configs"][0]
     assert scrape["sample_limit"] == limits["sample_limit"]
     assert scrape["body_size_limit"] == limits["body_size_limit"]
+
+
+def test_application_scrapes_ignore_target_labels_and_redirects(worker_relays):
+    scrape = _application_scrape(worker_relays)
     assert not scrape["honor_labels"]
     assert not scrape["follow_redirects"]
-    pipeline = config["service"]["pipelines"]["metrics/applications"]
+
+
+def test_application_metrics_pipeline_reads_only_the_application_scrape(worker_relays):
+    pipeline = worker_relays["otel-col-daemon-agent"]["service"]["pipelines"]["metrics/applications"]
     assert pipeline["receivers"] == ["prometheus/applications"]
-    processors = pipeline["processors"]
+
+
+def test_application_metrics_drop_scraped_tenancy_before_enrichment(worker_relays):
+    processors = worker_relays["otel-col-daemon-agent"]["service"]["pipelines"]["metrics/applications"]["processors"]
     enrichment = processors.index("k8s_attributes/pod_uid")
     assert processors.index("resource/strip_tenancy") < enrichment
     assert processors.index("transform/scrape_identity") < enrichment
 
 
 def test_application_scrape_addresses_support_ipv4_and_ipv6(
-    collector_tenancy, subtests
+    worker_relays, subtests
 ):
-    config = collector_tenancy.configs["otel-col-daemon-agent"]
-    (scrape,) = config["receivers"]["prometheus/applications"]["config"][
-        "scrape_configs"
-    ]
+    scrape = _application_scrape(worker_relays)
     rules = [
         rule
         for rule in scrape["relabel_configs"]
@@ -557,12 +476,12 @@ def test_application_scrape_addresses_support_ipv4_and_ipv6(
             assert address == expected
 
 
-def test_all_collectors_render(collector_tenancy):
-    assert set(collector_tenancy.configs) == set(COLLECTOR_CONFIGMAPS)
+def test_all_collectors_render(worker_relays):
+    assert set(worker_relays) == set(COLLECTOR_CONFIGMAPS)
 
 
-def test_every_pipeline_stamps_the_region_last(collector_tenancy, subtests):
-    for collector, config, name, pipeline in _pipelines(collector_tenancy):
+def test_every_pipeline_stamps_the_region_last(worker_relays, subtests):
+    for collector, config, name, pipeline in _pipelines(worker_relays):
         with subtests.test(collector=collector, pipeline=name):
             assert pipeline["processors"][-2:] == ["resource/region", "batch"]
             assert config["processors"]["resource/region"] == {
@@ -572,35 +491,35 @@ def test_every_pipeline_stamps_the_region_last(collector_tenancy, subtests):
             }
 
 
-def test_chart_requires_a_region(collector_tenancy):
+def test_chart_requires_a_region():
     result = render_chart("loco-worker", {"global": {"region": ""}}, check=False)
     assert result.returncode != 0
     assert "global.region is required" in result.stderr
 
 
-def test_memory_limiter_runs_first_and_batch_last(collector_tenancy):
-    for collector, _, name, pipeline in _pipelines(collector_tenancy):
+def test_memory_limiter_runs_first_and_batch_last(worker_relays):
+    for collector, _, name, pipeline in _pipelines(worker_relays):
         processors = pipeline.get("processors", [])
         assert len(processors) >= 2, f"{collector} {name}"
         assert processors[0] == "memory_limiter", f"{collector} {name}"
         assert processors[-1] == "batch", f"{collector} {name}"
 
 
-def test_push_receivers_have_their_own_pipelines(collector_tenancy):
-    for collector, _, name, pipeline in _push_pipelines(collector_tenancy):
+def test_push_receivers_have_their_own_pipelines(worker_relays):
+    for collector, _, name, pipeline in _push_pipelines(worker_relays):
         assert set(pipeline["receivers"]) <= PUSH_RECEIVERS, f"{collector} {name}"
 
 
-def test_client_tenancy_is_removed_before_kubernetes_attributes(collector_tenancy):
+def test_client_tenancy_is_removed_before_kubernetes_attributes(worker_relays):
     stripped = (
         set(TENANT_LABELS.values())
         | set(BUILD_LABELS.values())
         | set(GATEWAY_LABELS.values())
         | set(CLIENT_POD_IDENTITY)
     )
-    for collector, config, name, pipeline in _push_pipelines(collector_tenancy):
+    for collector, config, name, pipeline in _push_pipelines(worker_relays):
         processors = pipeline["processors"]
-        enrichers = _k8s_attributes(collector_tenancy, pipeline)
+        enrichers = _k8s_attributes(pipeline)
         assert len(enrichers) == 1, f"{collector} {name}"
         strips = [
             index
@@ -617,34 +536,34 @@ def test_client_tenancy_is_removed_before_kubernetes_attributes(collector_tenanc
         assert strips[0] < processors.index(enrichers[0]), f"{collector} {name}"
 
 
-def test_push_pipelines_associate_pods_by_connection_only(collector_tenancy):
-    for collector, config, name, pipeline in _push_pipelines(collector_tenancy):
-        for enricher in _k8s_attributes(collector_tenancy, pipeline):
+def test_push_pipelines_associate_pods_by_connection_only(worker_relays):
+    for collector, config, name, pipeline in _push_pipelines(worker_relays):
+        for enricher in _k8s_attributes(pipeline):
             assert config["processors"][enricher]["pod_association"] == [
                 {"sources": [{"from": "connection"}]}
             ], f"{collector} {name}"
 
 
-def test_file_logs_associate_pods_by_uid(collector_tenancy):
-    config = collector_tenancy.configs["otel-col-daemon-agent"]
+def test_file_logs_associate_pods_by_uid(worker_relays):
+    config = worker_relays["otel-col-daemon-agent"]
     pipelines = [
         pipeline
         for pipeline in config["service"]["pipelines"].values()
         if "file_log" in pipeline["receivers"]
     ]
     assert len(pipelines) == 1
-    enrichers = _k8s_attributes(collector_tenancy, pipelines[0])
+    enrichers = _k8s_attributes(pipelines[0])
     assert len(enrichers) == 1
     assert config["processors"][enrichers[0]]["pod_association"] == [
         {"sources": [{"from": "resource_attribute", "name": "k8s.pod.uid"}]}
     ]
 
 
-def test_collectors_can_read_the_pod_metadata_they_extract(collector_tenancy):
+def test_collectors_can_read_the_pod_metadata_they_extract(worker_documents):
     needed = {("", "pods"), ("", "namespaces"), ("apps", "replicasets")}
     roles = {
         document["metadata"]["name"]: document
-        for document in collector_tenancy.documents
+        for document in worker_documents
         if document["kind"] == "ClusterRole"
     }
     for collector in ("otel-col-daemon", "otel-col-deploy"):
@@ -658,8 +577,8 @@ def test_collectors_can_read_the_pod_metadata_they_extract(collector_tenancy):
         assert needed <= granted, collector
 
 
-def test_build_logs_keep_their_build_id(collector_tenancy):
-    config = collector_tenancy.configs["otel-col-daemon-agent"]
+def test_build_logs_keep_their_build_id(worker_relays):
+    config = worker_relays["otel-col-daemon-agent"]
     pipeline = next(
         (
             pipeline
@@ -667,7 +586,7 @@ def test_build_logs_keep_their_build_id(collector_tenancy):
             if "file_log" in pipeline["receivers"]
         )
     )
-    extract = config["processors"][_k8s_attributes(collector_tenancy, pipeline)[0]][
+    extract = config["processors"][_k8s_attributes(pipeline)[0]][
         "extract"
     ]
     assert {
@@ -677,9 +596,9 @@ def test_build_logs_keep_their_build_id(collector_tenancy):
     } in extract["labels"]
 
 
-def test_tenancy_comes_from_explicit_pod_labels(collector_tenancy):
-    for collector, config, name, pipeline in _pipelines(collector_tenancy):
-        for enricher in _k8s_attributes(collector_tenancy, pipeline):
+def test_tenancy_comes_from_explicit_pod_labels(worker_relays):
+    for collector, config, name, pipeline in _pipelines(worker_relays):
+        for enricher in _k8s_attributes(pipeline):
             extract = config["processors"][enricher]["extract"]
             labels = {
                 rule.get("key"): rule.get("tag_name")
@@ -704,26 +623,18 @@ def test_tenancy_comes_from_explicit_pod_labels(collector_tenancy):
                 assert key in extract["metadata"], f"{collector} {enricher}"
 
 
-@pytest.fixture(scope="module")
-def cluster_collector():
-    cluster_collector = SimpleNamespace()
-    cluster_collector.documents = render_chart("loco-worker", {})
-    cluster_collector.configs = collector_relays(cluster_collector.documents)
-    return cluster_collector
-
-
-def test_only_the_singleton_collects_cluster_metrics_and_events(cluster_collector):
+def test_only_the_singleton_collects_cluster_metrics_and_events(worker_documents, worker_relays):
     for receiver in ("k8s_cluster", "k8sobjects"):
         collectors = {
             name
-            for name, config in cluster_collector.configs.items()
+            for name, config in worker_relays.items()
             if receiver in config["receivers"]
         }
         assert collectors == {"otel-col-cluster"}, receiver
     deployment = next(
         (
             document
-            for document in cluster_collector.documents
+            for document in worker_documents
             if document["kind"] == "StatefulSet"
             and document["metadata"]["name"] == "otel-col-cluster"
         )
@@ -734,24 +645,34 @@ def test_only_the_singleton_collects_cluster_metrics_and_events(cluster_collecto
         (
             document["kind"] == "HorizontalPodAutoscaler"
             and document["spec"]["scaleTargetRef"]["name"] == "otel-col-cluster"
-            for document in cluster_collector.documents
+            for document in worker_documents
         )
     )
 
 
-def test_ingest_keeps_only_push_pipelines(cluster_collector):
-    config = cluster_collector.configs["otel-col-deploy"]
+def test_ingest_keeps_only_push_pipelines(worker_relays):
+    config = worker_relays["otel-col-deploy"]
     for pipeline in config["service"]["pipelines"].values():
         assert set(pipeline["receivers"]) <= PUSH_RECEIVERS
 
 
-def test_ingest_has_cpu_requests_and_an_hpa():
-    documents = render_chart("loco-worker", {})
+def _ingest_collector(worker_documents):
+    return next(
+        (
+            document
+            for document in worker_documents
+            if document["kind"] == "StatefulSet"
+            and document["metadata"]["name"] == "otel-col-deploy"
+        )
+    )
+
+
+def test_ingest_hpa_follows_the_autoscaling_values(worker_documents):
     values = chart_values("loco-worker")["otel-col-deploy"]
     hpa = next(
         (
             document
-            for document in documents
+            for document in worker_documents
             if document["kind"] == "HorizontalPodAutoscaler"
             and document["spec"]["scaleTargetRef"]["name"] == "otel-col-deploy"
         )
@@ -772,16 +693,14 @@ def test_ingest_has_cpu_requests_and_an_hpa():
             },
         }
     ]
-    deployment = next(
-        (
-            document
-            for document in documents
-            if document["kind"] == "StatefulSet"
-            and document["metadata"]["name"] == "otel-col-deploy"
-        )
-    )
-    assert "replicas" not in deployment["spec"]
-    resources = deployment["spec"]["template"]["spec"]["containers"][0]["resources"]
+
+
+def test_ingest_leaves_replicas_to_the_hpa(worker_documents):
+    assert "replicas" not in _ingest_collector(worker_documents)["spec"]
+
+
+def test_ingest_requests_resources_within_its_limits(worker_documents):
+    resources = _ingest_collector(worker_documents)["spec"]["template"]["spec"]["containers"][0]["resources"]
     for resource in ("cpu", "memory"):
         assert quantity(resources["requests"][resource]) > 0
         assert quantity(resources["requests"][resource]) <= quantity(
@@ -809,16 +728,14 @@ def test_disabling_autoscaling_restores_the_explicit_replica_count():
 
 
 @pytest.fixture(scope="module")
-def envoy_telemetry():
+def envoy_telemetry(worker_relays):
     envoy_telemetry = SimpleNamespace()
-    documents = render_documents("loco-worker", "gateway.yaml", {})
+    documents = render_template("loco-worker", "gateway.yaml", {})
     envoy_telemetry.proxy = next(
         (document for document in documents if document["kind"] == "EnvoyProxy")
     )
     envoy_telemetry.core = chart_values("loco-worker")
-    envoy_telemetry.collector = collector_relays(render_chart("loco-worker", {}))[
-        "otel-col-deploy"
-    ]
+    envoy_telemetry.collector = worker_relays["otel-col-deploy"]
     return envoy_telemetry
 
 
@@ -869,7 +786,7 @@ def test_gateway_service_accepts_native_nodeport_configuration(envoy_telemetry):
             "value": {"spec": {"ports": [{"port": 80, "nodePort": 30080}]}},
         },
     }
-    documents = render_documents(
+    documents = render_template(
         "loco-worker", "gateway.yaml", {"envoyProxy": {"service": service}}
     )
     proxy = next(
@@ -970,7 +887,7 @@ def test_only_envoy_telemetry_gets_route_tenancy(envoy_telemetry):
 
 
 def test_controller_reads_the_collector_from_values():
-    deployment = render(
+    deployment = render_template_object(
         "loco-worker",
         "controller/deployment.yaml",
         {
@@ -982,10 +899,7 @@ def test_controller_reads_the_collector_from_values():
             },
         },
     )
-    env = {
-        item["name"]: item
-        for item in deployment["spec"]["template"]["spec"]["containers"][0]["env"]
-    }
+    env = container_env(deployment)
     assert env["LOCO_OBSERVABILITY_NAMESPACE"]["value"] == "telemetry"
     assert env["LOCO_OTEL_COLLECTOR_SERVICE"]["value"] == "collector"
     assert env["LOCO_OTEL_COLLECTOR_GRPC_PORT"]["value"] == "14317"
@@ -999,21 +913,15 @@ def test_collector_service_ports_reach_the_receivers():
     assert protocols["http"]["endpoint"].rsplit(":", 1)[1] == str(deploy["ports"]["otlp-http"]["servicePort"])
 
 
-def _deployment():
-    return render(
-        "loco-control-plane", "obs-proxy-query-deployment.yaml", {"obsProxy": TEST_PROXY}
-    )
-
-
 def test_proxy_has_no_kubernetes_api_credentials():
-    pod = _deployment()["spec"]["template"]["spec"]
+    pod = _proxy_deployment()["spec"]["template"]["spec"]
     assert "serviceAccountName" not in pod
     assert pod["automountServiceAccountToken"] is False
 
 
 def test_chart_creates_build_namespace_by_default():
     builds = chart_values("loco-worker")["builds"]
-    namespace = render("loco-worker", "builds/namespace.yaml", {})
+    namespace = render_template_object("loco-worker", "builds/namespace.yaml", {})
     assert namespace["kind"] == "Namespace"
     assert namespace["metadata"]["name"] == builds["namespace"]
     assert (
@@ -1023,14 +931,14 @@ def test_chart_creates_build_namespace_by_default():
 
 
 def test_gitops_can_own_build_namespace():
-    namespace = render(
+    namespace = render_template_object(
         "loco-worker", "builds/namespace.yaml", {"builds": {"createNamespace": False}}
     )
     assert namespace is None
 
 
-def test_file_logs_extract_application_severity(collector_tenancy):
-    for _, config, _, pipeline in _pipelines(collector_tenancy):
+def test_file_logs_extract_application_severity(worker_relays):
+    for _, config, _, pipeline in _pipelines(worker_relays):
         if "file_log" not in pipeline["receivers"]:
             continue
         processors = pipeline["processors"]
