@@ -514,8 +514,9 @@ def test_application_metrics_use_node_local_otel_pulling(collector_tenancy):
             "label": "loco.io/metrics-port",
         }
     ]
-    assert scrape["sample_limit"] > 0
-    assert scrape["body_size_limit"]
+    limits = chart_values("loco-worker")["otel-col-daemon"]["config"]["receivers"]["prometheus/applications"]["config"]["scrape_configs"][0]
+    assert scrape["sample_limit"] == limits["sample_limit"]
+    assert scrape["body_size_limit"] == limits["body_size_limit"]
     assert not scrape["honor_labels"]
     assert not scrape["follow_redirects"]
     pipeline = config["service"]["pipelines"]["metrics/applications"]
