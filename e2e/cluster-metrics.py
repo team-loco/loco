@@ -130,7 +130,7 @@ def collector_manifest():
     settings = {
         "enabled": True, "platformOnly": True, "installation": "metrics-e2e",
         "cluster": CLUSTER, "environment": "test", "collectionInterval": INTERVAL,
-        "namespaces": [NAMESPACE, NODE_NAMESPACE],
+        "namespaces": [],
     }
     exporter = {"endpoint": f"http://otlp-sink.{NAMESPACE}:4318", "bearerToken": {"enabled": True}}
     overrides = {
