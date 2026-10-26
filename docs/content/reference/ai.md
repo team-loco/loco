@@ -16,7 +16,7 @@ curl -fsSL https://loco.build/skills.md
 | --- | --- |
 | [`llms.txt`](../llms.txt) | Find pages by section and follow their Markdown links |
 | [`llms-full.txt`](../llms-full.txt) | Load the complete published documentation as text |
-| [`skills.md`](../skills.md) | Guide an agent through deploying an application to Loco's managed platform |
+| [`skills.md`](../skills.md) | Guide an agent through deploying an application to Loco |
 | Copy as Markdown | Copy the current page into an assistant |
 
 Use the page action beside the title to copy Markdown. Page-specific Markdown URLs appear in `llms.txt`.
