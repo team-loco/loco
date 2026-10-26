@@ -12,7 +12,7 @@ curl -fsSL https://loco.build/install.sh | sh
 loco login
 ```
 
-Inspect the project before deploying. Decide whether it has one service or several. Run deployment commands from the project directory.
+Inspect the project before deploying. Decide whether it has one service (like a single web-server) or several (like separate ui / backend). Run deployment commands from the project directory.
 
 ## Quick deploy
 
