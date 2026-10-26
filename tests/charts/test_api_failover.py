@@ -1,8 +1,8 @@
 import runpy
 
 import pytest
-from test_control_plane import API_VALUES
-from test_platform_contracts import ROOT, TEST_PROXY, render_chart
+
+from helpers import API_VALUES, ROOT, TEST_PROXY, render_chart
 
 PRE_REQUEST_FAILURES = {"connect-failure", "reset-before-request", "refused-stream"}
 

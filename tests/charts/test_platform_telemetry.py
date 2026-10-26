@@ -1,6 +1,6 @@
 import pytest
 
-from test_platform_contracts import chart_values, collector_relays, render_chart
+from helpers import chart_values, collector_relays, render_chart
 
 IDENTITY = {
     "enabled": True,
@@ -14,21 +14,25 @@ def configured(**settings):
     return {"global": {"platformTelemetry": {**IDENTITY, **settings}}}
 
 
-def test_platform_collection_is_opt_in():
-    for config in collector_relays(render_chart("loco-worker", {})).values():
+@pytest.fixture(scope="module")
+def configured_relays():
+    return collector_relays(render_chart("loco-worker", configured()))
+
+
+def test_platform_collection_is_opt_in(worker_relays):
+    for config in worker_relays.values():
         assert "metrics/platform" not in config["service"]["pipelines"]
 
 
-def test_platform_metrics_share_the_cluster_exporter():
-    configs = collector_relays(render_chart("loco-worker", configured()))
+def test_platform_metrics_share_the_cluster_exporter(configured_relays):
     for name in ("otel-col-daemon-agent", "otel-col-cluster"):
-        config = configs[name]
+        config = configured_relays[name]
         pipeline = config["service"]["pipelines"]["metrics/platform"]
         assert pipeline["exporters"] == ["otlp_http"]
         assert config["service"]["pipelines"]["metrics"]["exporters"] == ["otlp_http"]
         assert "filter/platform" in pipeline["processors"]
         assert "resource/platform" in pipeline["processors"]
-    assert "metrics/platform" not in configs["otel-col-deploy"]["service"]["pipelines"]
+    assert "metrics/platform" not in configured_relays["otel-col-deploy"]["service"]["pipelines"]
 
 
 @pytest.mark.parametrize("field", ["installation", "cluster", "environment"])
@@ -47,18 +51,15 @@ def test_platform_only_keeps_only_platform_pipelines():
         assert set(config["exporters"]) == {"otlp_http"}
 
 
-def test_application_pipelines_keep_their_configuration():
-    original = collector_relays(render_chart("loco-worker", {}))
-    enabled = collector_relays(render_chart("loco-worker", configured()))
-    for name, config in original.items():
+def test_application_pipelines_keep_their_configuration(worker_relays, configured_relays):
+    for name, config in worker_relays.items():
         for pipeline, settings in config["service"]["pipelines"].items():
-            assert enabled[name]["service"]["pipelines"][pipeline] == settings
+            assert configured_relays[name]["service"]["pipelines"][pipeline] == settings
 
 
-def test_platform_identity_and_capacity_are_exported():
-    configs = collector_relays(render_chart("loco-worker", configured()))
+def test_platform_identity_is_exported(configured_relays):
     for name in ("otel-col-daemon-agent", "otel-col-cluster"):
-        attributes = {item["key"]: item["value"] for item in configs[name]["processors"]["resource/platform"]["attributes"]}
+        attributes = {item["key"]: item["value"] for item in configured_relays[name]["processors"]["resource/platform"]["attributes"]}
         assert attributes.items() >= {
             "loco.installation.id": "test-installation",
             "k8s.cluster.name": "test-cluster",
@@ -66,8 +67,11 @@ def test_platform_identity_and_capacity_are_exported():
             "loco.region": "test-region-1",
             "loco.telemetry.scope": "platform",
         }.items()
+
+
+def test_platform_capacity_follows_the_configured_reports(configured_relays):
     settings = chart_values("loco-worker")["global"]["platformTelemetry"]
-    receiver = configs["otel-col-cluster"]["receivers"]["k8s_cluster"]
+    receiver = configured_relays["otel-col-cluster"]["receivers"]["k8s_cluster"]
     assert receiver["node_conditions_to_report"] == settings["nodeConditions"]
     assert receiver["allocatable_types_to_report"] == settings["allocatableTypes"]
 
@@ -113,9 +117,8 @@ def test_cluster_collection_cannot_duplicate_watchers(scaling):
     assert "one otel-col-cluster replica" in result.stderr
 
 
-def test_platform_allowlist_covers_the_release_and_collector_namespaces():
-    configs = collector_relays(render_chart("loco-worker", configured()))
-    (condition, *_) = configs["otel-col-cluster"]["processors"]["filter/platform"]["metric_conditions"]
+def test_platform_allowlist_covers_the_release_and_collector_namespaces(configured_relays):
+    (condition, *_) = configured_relays["otel-col-cluster"]["processors"]["filter/platform"]["metric_conditions"]
     pattern = condition.split("IsMatch(", 1)[1]
     for namespace in ("kube-system", "cert-manager", "platform-test", "loco-obs", "loco-obs-node"):
         assert f"|{namespace}|" in pattern.replace("(", "|").replace(")", "|")

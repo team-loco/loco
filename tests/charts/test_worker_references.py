@@ -1,14 +1,11 @@
 import pytest
 
-from test_platform_contracts import collector_documents, collector_relays, render_chart
-
-RELEASE_NAMESPACE = "platform-test"
+from helpers import RELEASE_NAMESPACE, collector_documents, collector_relays, render_chart
 
 
 @pytest.fixture(scope="module")
-def worker():
-    documents = render_chart("loco-worker", {})
-    return {(document["kind"], document["metadata"]["name"], document["metadata"].get("namespace")): document for document in documents}
+def worker(worker_documents):
+    return {(document["kind"], document["metadata"]["name"], document["metadata"].get("namespace")): document for document in worker_documents}
 
 
 def _one(worker, kind, name):

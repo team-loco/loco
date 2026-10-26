@@ -125,12 +125,22 @@ def test_main_checkout_keeps_the_env_file_values(local_stack):
         assert stack[name] == dotenv[name], name
 
 
-def test_worktrees_get_their_own_names_and_ports(local_stack):
-    first = _stack(local_stack, _worktree(local_stack, "first"))
-    second = _stack(local_stack, _worktree(local_stack, "second"))
-    main = _stack(local_stack, local_stack.main)
-    assert first["LOCO_STACK_SLOT"] == "1"
-    assert second["LOCO_STACK_SLOT"] == "2"
+@pytest.fixture
+def stacks(local_stack):
+    stacks = SimpleNamespace()
+    stacks.first = _stack(local_stack, _worktree(local_stack, "first"))
+    stacks.second = _stack(local_stack, _worktree(local_stack, "second"))
+    stacks.main = _stack(local_stack, local_stack.main)
+    return stacks
+
+
+def test_worktrees_take_slots_in_creation_order(stacks):
+    assert stacks.first["LOCO_STACK_SLOT"] == "1"
+    assert stacks.second["LOCO_STACK_SLOT"] == "2"
+
+
+def test_a_worktree_offsets_its_stack_by_its_slot(stacks):
+    second = stacks.second
     assert second["KIND_CLUSTER"] == "loco-cluster-local-2"
     assert second["COMPOSE_PROJECT_NAME"] == "loco-dev-2"
     assert second["APP_PORT"] == ":8200"
@@ -146,6 +156,10 @@ def test_worktrees_get_their_own_names_and_ports(local_stack):
     assert second["LOCO_REGISTRY_HOST"] == "loco-registry-2:5000"
     assert second["LOCO_REGISTRY_URL"] == "http://localhost:5201"
     assert second["LOCO_SOURCE_BUCKET_ENDPOINT"] == "http://loco-s3-2.localhost:9200"
+
+
+def test_stacks_share_no_port_or_name(stacks):
+    every = (stacks.main, stacks.first, stacks.second)
     ports = (
         "POSTGRES_PORT",
         "VALKEY_PORT",
@@ -157,11 +171,11 @@ def test_worktrees_get_their_own_names_and_ports(local_stack):
         "OBS_OTLP_GRPC_PORT",
         "OBS_OTLP_HTTP_PORT",
     )
-    used = [stack[name] for stack in (main, first, second) for name in ports]
-    used += [stack["APP_PORT"] for stack in (main, first, second)]
+    used = [stack[name] for stack in every for name in ports]
+    used += [stack["APP_PORT"] for stack in every]
     assert len(used) == len({port.lstrip(":") for port in used})
     for name in ("KIND_CLUSTER", "COMPOSE_PROJECT_NAME", "REGISTRY_ALIAS", "S3_ALIAS"):
-        assert len({main[name], first[name], second[name]}) == 3, name
+        assert len({stack[name] for stack in every}) == 3, name
 
 
 def test_a_worktree_keeps_its_slot(local_stack):
