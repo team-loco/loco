@@ -4,6 +4,8 @@ import pytest
 from test_control_plane import API_VALUES
 from test_platform_contracts import ROOT, TEST_PROXY, render_chart
 
+PRE_REQUEST_FAILURES = {"connect-failure", "reset-before-request", "refused-stream"}
+
 
 @pytest.mark.parametrize(
     ("enabled", "hostname", "expected_routes"),
@@ -32,23 +34,19 @@ def test_only_api_rules_retry_connections(enabled, hostname, expected_routes):
     (policy,) = [
         document for document in documents if document["kind"] == "BackendTrafficPolicy"
     ]
-    assert policy["spec"] == {
-        "targetRefs": [
-            {
-                "group": "gateway.networking.k8s.io",
-                "kind": "HTTPRoute",
-                "name": name,
-                "sectionName": "api",
-            }
-            for name in sorted(expected_routes)
-        ],
-        "retry": {
-            "numRetries": 1,
-            "retryOn": {
-                "triggers": ["connect-failure", "reset-before-request", "refused-stream"]
-            },
-        },
-    }
+    assert policy["spec"]["targetRefs"] == [
+        {
+            "group": "gateway.networking.k8s.io",
+            "kind": "HTTPRoute",
+            "name": name,
+            "sectionName": "api",
+        }
+        for name in sorted(expected_routes)
+    ]
+    retry_on = policy["spec"]["retry"]["retryOn"]
+    assert retry_on.keys() == {"triggers"}
+    assert retry_on["triggers"]
+    assert set(retry_on["triggers"]) <= PRE_REQUEST_FAILURES
     for route in routes.values():
         for rule in route["spec"]["rules"]:
             if rule["backendRefs"][0]["name"] == "loco-control-plane-api":

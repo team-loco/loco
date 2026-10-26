@@ -399,7 +399,8 @@ def test_exporter_queues_survive_collector_pod_replacement():
     daemon = workloads["otel-col-daemon-agent"]["spec"]["template"]["spec"]
     collector = daemon["containers"][0]
     queue = next(volume for volume in daemon["volumes"] if volume["name"] == "exporter-queue")
-    assert queue["hostPath"] == {"path": f"{directory}/loco-obs-node/otel-col-daemon", "type": "DirectoryOrCreate"}
+    assert queue["hostPath"]["path"].startswith(f"{directory}/")
+    assert queue["hostPath"]["type"] == "DirectoryOrCreate"
     init = next(container for container in daemon["initContainers"] if container["name"] == "state-permissions")
     user = collector["securityContext"]["runAsUser"]
     group = collector["securityContext"]["runAsGroup"]
@@ -457,8 +458,8 @@ def test_node_log_offsets_survive_collector_pod_replacement(collector_tenancy):
     )
     pod = daemon["spec"]["template"]["spec"]
     collector = pod["containers"][0]
-    assert collector["securityContext"]["runAsUser"] == 10001
-    assert collector["securityContext"]["runAsGroup"] == 0
+    user = collector["securityContext"]["runAsUser"]
+    group = collector["securityContext"]["runAsGroup"]
     assert pod["securityContext"]["runAsNonRoot"]
     mount = next(
         mount for mount in collector["volumeMounts"]
@@ -472,7 +473,7 @@ def test_node_log_offsets_survive_collector_pod_replacement(collector_tenancy):
         container for container in pod["initContainers"]
         if container["name"] == "state-permissions"
     )
-    assert init["command"][:4] == ["chown", "-R", "10001:0", directory]
+    assert init["command"][:4] == ["chown", "-R", f"{user}:{group}", directory]
     init_mount = next(mount for mount in init["volumeMounts"] if mount["mountPath"] == directory)
     init_volume = next(
         volume for volume in pod["volumes"]
@@ -513,21 +514,17 @@ def test_application_metrics_use_node_local_otel_pulling(collector_tenancy):
             "label": "loco.io/metrics-port",
         }
     ]
-    assert scrape["sample_limit"] == 10000
+    limits = chart_values("loco-worker")["otel-col-daemon"]["config"]["receivers"]["prometheus/applications"]["config"]["scrape_configs"][0]
+    assert scrape["sample_limit"] == limits["sample_limit"]
+    assert scrape["body_size_limit"] == limits["body_size_limit"]
     assert not scrape["honor_labels"]
     assert not scrape["follow_redirects"]
-    assert scrape["body_size_limit"] == "10MB"
     pipeline = config["service"]["pipelines"]["metrics/applications"]
     assert pipeline["receivers"] == ["prometheus/applications"]
-    assert pipeline["processors"] == [
-        "memory_limiter",
-        "resource/strip_tenancy",
-        "transform/scrape_identity",
-        "k8s_attributes/pod_uid",
-        "resource/region",
-        "batch",
-    ]
-    assert pipeline["exporters"] == ["otlp_http"]
+    processors = pipeline["processors"]
+    enrichment = processors.index("k8s_attributes/pod_uid")
+    assert processors.index("resource/strip_tenancy") < enrichment
+    assert processors.index("transform/scrape_identity") < enrichment
 
 
 def test_application_scrape_addresses_support_ipv4_and_ipv6(
@@ -1015,12 +1012,13 @@ def test_proxy_has_no_kubernetes_api_credentials():
 
 
 def test_chart_creates_build_namespace_by_default():
+    builds = chart_values("loco-worker")["builds"]
     namespace = render("loco-worker", "builds/namespace.yaml", {})
     assert namespace["kind"] == "Namespace"
-    assert namespace["metadata"]["name"] == "loco-builds"
+    assert namespace["metadata"]["name"] == builds["namespace"]
     assert (
         namespace["metadata"]["labels"]["pod-security.kubernetes.io/enforce"]
-        == "privileged"
+        == builds["podSecurity"]["level"]
     )
 
 

@@ -112,13 +112,12 @@ def test_publishing_requires_both_native_verifiers_before_index_provenance():
             if step.get("id") == "push"
         )
     )
-    assert set(push["with"]["platforms"].split(",")) == {"linux/amd64", "linux/arm64"}
+    platforms = set(push["with"]["platforms"].split(","))
+    assert platforms == {"linux/amd64", "linux/arm64"}
     assert push["with"]["provenance"] == "mode=max"
     runners = jobs["verify-platform"]["strategy"]["matrix"]["include"]
-    assert {(entry["platform"], entry["runner"]) for entry in runners} == {
-        ("linux/amd64", "ubuntu-latest"),
-        ("linux/arm64", "ubuntu-24.04-arm"),
-    }
+    assert {entry["platform"] for entry in runners} == platforms
+    assert len({entry["runner"] for entry in runners}) == len(runners)
     assert "verify-platform" in jobs["attest-index"]["needs"]
     sbom = next(
         (

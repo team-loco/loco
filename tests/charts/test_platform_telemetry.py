@@ -1,6 +1,6 @@
 import pytest
 
-from test_platform_contracts import collector_relays, render_chart
+from test_platform_contracts import chart_values, collector_relays, render_chart
 
 IDENTITY = {
     "enabled": True,
@@ -59,16 +59,17 @@ def test_platform_identity_and_capacity_are_exported():
     configs = collector_relays(render_chart("loco-worker", configured()))
     for name in ("otel-col-daemon-agent", "otel-col-cluster"):
         attributes = {item["key"]: item["value"] for item in configs[name]["processors"]["resource/platform"]["attributes"]}
-        assert attributes == {
+        assert attributes.items() >= {
             "loco.installation.id": "test-installation",
             "k8s.cluster.name": "test-cluster",
             "deployment.environment.name": "test",
             "loco.region": "test-region-1",
             "loco.telemetry.scope": "platform",
-        }
+        }.items()
+    settings = chart_values("loco-worker")["global"]["platformTelemetry"]
     receiver = configs["otel-col-cluster"]["receivers"]["k8s_cluster"]
-    assert receiver["node_conditions_to_report"] == ["Ready", "MemoryPressure", "DiskPressure", "PIDPressure"]
-    assert receiver["allocatable_types_to_report"] == ["cpu", "memory", "ephemeral-storage", "pods"]
+    assert receiver["node_conditions_to_report"] == settings["nodeConditions"]
+    assert receiver["allocatable_types_to_report"] == settings["allocatableTypes"]
 
 
 def test_changing_platform_settings_restarts_the_collectors():

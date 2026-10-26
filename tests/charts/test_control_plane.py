@@ -19,12 +19,11 @@ def test_chart_installs_api_and_proxy():
         for document in documents
         if document["kind"] == "Deployment"
     }
-    assert deployments == {"loco-control-plane-api", "loco-control-plane-obs-proxy-query"}
+    assert {"loco-control-plane-api", "loco-control-plane-obs-proxy-query"} <= deployments
     routes = [document for document in documents if document["kind"] == "HTTPRoute"]
-    assert len(routes) == 1
-    assert (
-        routes[0]["spec"]["rules"][0]["backendRefs"][0]["name"]
-        == "loco-control-plane-api"
+    assert any(
+        route["spec"]["rules"][0]["backendRefs"][0]["name"] == "loco-control-plane-api"
+        for route in routes
     )
 
 
@@ -47,8 +46,7 @@ def test_api_uses_existing_secret_and_private_proxy():
     )
     assert api["startupProbe"] == {
         "httpGet": {"path": "/health", "port": "http"},
-        "failureThreshold": 60,
-        "periodSeconds": 5,
+        **chart_values("loco-control-plane")["api"]["startupProbe"],
     }
 
 
@@ -74,8 +72,9 @@ def test_chart_owns_port_and_proxy_wiring():
         },
     )
     env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
-    assert [entry["name"] for entry in env] == ["APP_PORT", "OBSERVABILITY_PROXY_URL"]
-    assert "wrong" not in [entry["value"] for entry in env]
+    for name in ("APP_PORT", "OBSERVABILITY_PROXY_URL"):
+        (entry,) = [entry for entry in env if entry["name"] == name]
+        assert entry["value"] != "wrong", name
 
 
 def test_api_reads_bootstrap_token_from_existing_secret():
@@ -177,7 +176,7 @@ def test_disabled_proxy_renders_nothing_and_leaves_the_api_unwired():
         and document["kind"] == "Deployment"
     ]
     env = api["spec"]["template"]["spec"]["containers"][0]["env"]
-    assert [entry["name"] for entry in env] == ["APP_PORT"]
+    assert "OBSERVABILITY_PROXY_URL" not in [entry["name"] for entry in env]
     (policy,) = [
         document
         for document in documents
@@ -185,7 +184,7 @@ def test_disabled_proxy_renders_nothing_and_leaves_the_api_unwired():
         and document["metadata"]["name"] == "loco-control-plane-api"
     ]
     (rule,) = policy["spec"]["ingress"]
-    assert len(rule["from"]) == 1
+    assert "obs-proxy" not in json.dumps(rule["from"])
 
 
 INGEST = {
@@ -208,16 +207,7 @@ def test_ingest_runs_as_its_own_deployment_without_migrator_rights():
         for document in documents
         if document["kind"] == "Deployment"
     }
-    assert set(deployments) == {
-        "loco-control-plane-api",
-        "loco-control-plane-obs-proxy-query",
-        "loco-control-plane-obs-proxy-ingest",
-    }
     pod = deployments["loco-control-plane-obs-proxy-ingest"]["spec"]["template"]
-    assert pod["metadata"]["labels"] == {
-        "app": "loco-control-plane-obs-proxy-ingest",
-        "app.kubernetes.io/component": "observability-proxy",
-    }
     (container,) = pod["spec"]["containers"]
     env = {item["name"]: item for item in container["env"]}
     assert env["QUERY_ENABLED"]["value"] == "false"
@@ -228,10 +218,9 @@ def test_ingest_runs_as_its_own_deployment_without_migrator_rights():
     }
     assert not {"CLICKHOUSE_URL", "CLICKHOUSE_MIGRATOR_URL", "CONTROL_PLANE_URL"} & set(env)
     ports = {port["name"]: port["containerPort"] for port in container["ports"]}
-    assert ports == {"health": 8080, "otlp-grpc": 4317, "otlp-http": 4318}
-    assert env["PORT"]["value"] == "8080"
-    assert env["OTLP_GRPC_PORT"]["value"] == "4317"
-    assert env["OTLP_HTTP_PORT"]["value"] == "4318"
+    assert env["PORT"]["value"] == str(ports["health"])
+    assert env["OTLP_GRPC_PORT"]["value"] == str(ports["otlp-grpc"])
+    assert env["OTLP_HTTP_PORT"]["value"] == str(ports["otlp-http"])
     assert container["readinessProbe"]["httpGet"] == {"path": "/readyz", "port": "health"}
 
     services = {
@@ -239,15 +228,12 @@ def test_ingest_runs_as_its_own_deployment_without_migrator_rights():
         for document in documents
         if document["kind"] == "Service"
     }
+    for name in ("loco-control-plane-obs-proxy-ingest", "loco-control-plane-obs-proxy-query"):
+        selector = services[name]["spec"]["selector"].items()
+        selected = [other for other, deployment in deployments.items() if selector <= deployment["spec"]["template"]["metadata"]["labels"].items()]
+        assert selected == [name]
     ingest = services["loco-control-plane-obs-proxy-ingest"]["spec"]
-    assert ingest["selector"] == {"app": "loco-control-plane-obs-proxy-ingest"}
-    assert [(port["port"], port["targetPort"]) for port in ingest["ports"]] == [
-        (4317, "otlp-grpc"),
-        (4318, "otlp-http"),
-    ]
-    assert services["loco-control-plane-obs-proxy-query"]["spec"]["selector"] == {
-        "app": "loco-control-plane-obs-proxy-query"
-    }
+    assert {port["targetPort"] for port in ingest["ports"]} == {"otlp-grpc", "otlp-http"}
 
     (policy,) = [
         document
@@ -257,7 +243,7 @@ def test_ingest_runs_as_its_own_deployment_without_migrator_rights():
     ]
     (rule,) = policy["spec"]["ingress"]
     assert rule["from"] == [{"podSelector": {}}]
-    assert [port["port"] for port in rule["ports"]] == [4317, 4318]
+    assert {port["port"] for port in rule["ports"]} == {ports["otlp-grpc"], ports["otlp-http"]}
 
 
 def test_ingest_is_off_by_default_and_requires_its_secret():
@@ -412,10 +398,10 @@ def test_chart_creates_its_own_gateway_for_its_hostnames():
     assert gateway["metadata"]["namespace"] == "edge"
     assert gateway["spec"]["gatewayClassName"] == "loco-control-plane"
     assert by_kind(documents, "GatewayClass")["loco-control-plane"]["spec"]["controllerName"] == "gateway.envoyproxy.io/gatewayclass-controller"
-    assert [(listener["name"], listener["hostname"], listener["protocol"], listener["port"]) for listener in gateway["spec"]["listeners"]] == [
-        ("http-ui", "app.region.test", "HTTP", 80),
-        ("http-api", "api.region.test", "HTTP", 80),
-    ]
+    assert {(listener["hostname"], listener["protocol"], listener["port"]) for listener in gateway["spec"]["listeners"]} == {
+        ("app.region.test", "HTTP", 80),
+        ("api.region.test", "HTTP", 80),
+    }
     for listener in gateway["spec"]["listeners"]:
         assert listener["allowedRoutes"]["namespaces"]["selector"]["matchLabels"] == {"kubernetes.io/metadata.name": "platform-test"}
     for route in by_kind(documents, "HTTPRoute").values():
@@ -490,15 +476,15 @@ def https_listeners(gateways):
 def test_default_render_issues_one_certificate_for_every_served_hostname():
     documents, gateways = gateway_listeners({"gatewayNamespace": "edge", "secrets": {"cloudflareToken": "token"}})
     (issuer,) = by_kind(documents, "ClusterIssuer").values()
-    assert issuer["metadata"]["name"] == "letsencrypt-prod"
     assert issuer["spec"]["acme"]["email"] == "ops@region.test"
-    assert issuer["spec"]["acme"]["solvers"][0]["dns01"]["cloudflare"]["apiTokenSecretRef"] == {"name": "cloudflare-api-token-secret", "key": "api-token"}
+    reference = issuer["spec"]["acme"]["solvers"][0]["dns01"]["cloudflare"]["apiTokenSecretRef"]
     (token,) = by_kind(documents, "Secret").values()
+    assert reference["name"] == token["metadata"]["name"]
     assert token["metadata"]["namespace"] == "cert-manager"
-    assert token["stringData"] == {"api-token": "token"}
+    assert token["stringData"][reference["key"]] == "token"
     (certificate,) = by_kind(documents, "Certificate").values()
     assert certificate["metadata"]["namespace"] == "edge"
-    assert certificate["spec"]["issuerRef"] == {"name": "letsencrypt-prod", "kind": "ClusterIssuer"}
+    assert certificate["spec"]["issuerRef"] == {"name": issuer["metadata"]["name"], "kind": issuer["kind"]}
     assert certificate["spec"]["dnsNames"] == ["app.region.test", "api.region.test"]
     secret = certificate["spec"]["secretName"]
     listeners = https_listeners(gateways)

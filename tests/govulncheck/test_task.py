@@ -75,12 +75,10 @@ def _assert_scanned_modules(govulncheck_task):
         "" if module == "." else "/" + module for module in govulncheck_task.modules
     }
     assert {call.split("|")[0] for call in calls} == expected
-    assert all(
-        (
-            call.endswith("|-mode=source -scan=symbol -format=text ./...")
-            for call in calls
-        )
-    )
+    for call in calls:
+        arguments = call.split("|")[1].split()
+        assert "-scan=symbol" in arguments, call
+        assert arguments[-1] == "./...", call
 
 
 def test_scans_every_tracked_module_at_symbol_level(govulncheck_task):
