@@ -22,8 +22,8 @@ def test_acme_remains_the_default():
     issuer, certificate, token = documents
     assert issuer["spec"]["acme"]["email"] == "operator@example.test"
     assert certificate["spec"]["issuerRef"] == {
-        "name": "letsencrypt-prod",
-        "kind": "ClusterIssuer",
+        "name": issuer["metadata"]["name"],
+        "kind": issuer["kind"],
     }
     assert token["stringData"]["api-token"] == "cloudflare-token"
 

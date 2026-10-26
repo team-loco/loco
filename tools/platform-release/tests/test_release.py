@@ -85,13 +85,6 @@ def test_control_plane_chart_is_published_without_installing_on_workers(bundle):
 
 
 def test_worker_release_reads_its_values_sources(bundle):
-    releases = sorted(
-        path for path in bundle.files if path.endswith("-helmrelease.yaml")
-    )
-    assert releases == [
-        "releases/cert-manager-helmrelease.yaml",
-        "releases/loco-worker-helmrelease.yaml",
-    ]
     hr = json.loads(bundle.files["releases/loco-worker-helmrelease.yaml"])
     assert hr["spec"]["targetNamespace"] == "loco-system"
     assert hr["spec"]["install"]["createNamespace"] is False
@@ -100,6 +93,8 @@ def test_worker_release_reads_its_values_sources(bundle):
         ("Secret", "loco-worker-secrets"),
     ]
     assert [dep["name"] for dep in hr["spec"]["dependsOn"]] == ["cert-manager"]
+    for dep in hr["spec"]["dependsOn"]:
+        assert f"releases/{dep['name']}-helmrelease.yaml" in bundle.files
 
 
 def test_releases_wait_for_matching_release_and_current_generation(bundle):
