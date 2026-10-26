@@ -499,8 +499,18 @@ create_gateway_tls_secret() {
         --dry-run=client -o yaml | kube apply -f - >/dev/null
 }
 
+install_crds() {
+    log_step "Applying the Loco and Gateway API CRDs..."
+    local flags=()
+    if [ "$BUILDS_ENABLED" = false ]; then
+        flags=(--without-builds)
+    fi
+    KIND_CLUSTER="$KIND_CLUSTER_NAME" mise run --quiet crds:apply ${flags[@]+"${flags[@]}"} >/dev/null
+    log_ok "CRDs applied"
+}
+
 install_envoy_gateway() {
-    log_step "Installing Envoy Gateway ${GATEWAY_CHART_VERSION}, its Gateway API CRDs and the loco-core Gateway..."
+    log_step "Installing Envoy Gateway ${GATEWAY_CHART_VERSION} and the loco-core Gateway..."
     local gateway_values="$RUN_DIR/gateway-helm-values.yaml"
     yq '.["gateway-helm"]' "$CORE_CHART/values.yaml" >"$gateway_values"
     helm upgrade --install "$GATEWAY_RELEASE" "$CORE_CHART/charts/gateway-helm-${GATEWAY_CHART_VERSION}.tgz" \
@@ -936,6 +946,7 @@ main() {
     setup_kind
     create_namespace
     build_chart_dependencies
+    install_crds
     if [ "$OBSERVABILITY" = true ]; then
         install_observability_namespaces
     fi

@@ -11,6 +11,7 @@ on:
       - "go.mod"
       - "go.sum"
       - "mise-tasks/chart/**"
+      - "mise-tasks/crds/**"
       - "mise-tasks/test/chart"
       - "mise.toml"
       - "mise.lock"
@@ -24,6 +25,7 @@ on:
       - "go.mod"
       - "go.sum"
       - "mise-tasks/chart/**"
+      - "mise-tasks/crds/**"
       - "mise-tasks/test/chart"
       - "mise.toml"
       - "mise.lock"
@@ -51,7 +53,7 @@ jobs:
         with:
           go-cache: controller-codegen
 
-      - name: Regenerate CRDs, RBAC, deepcopy, and the chart's CRD and RBAC copies
+      - name: Regenerate CRDs, RBAC, deepcopy, and the chart's RBAC copies
         run: mise run controller:gen
 
       - name: Fail if anything is out of date
@@ -91,6 +93,11 @@ jobs:
           helm lint ./charts/loco-operator \
             --set controller.image.tag="$IMAGE_TAG" \
             --set builds.builderImage.tag="$IMAGE_TAG"
+
+      - name: Apply the CRDs
+        run: mise run crds:apply
+        env:
+          KIND_CLUSTER: kind
 
       - name: Install Helm chart
         run: |

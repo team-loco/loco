@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Render the loco-operator chart with builds on and off and check which objects it renders"
+#MISE description="Render the loco-operator chart with builds on and off and check which objects it renders, and that it renders no CRDs"
 set -euo pipefail
 
 chart=charts/loco-operator
@@ -8,7 +8,7 @@ tags=("--set=controller.image.tag=$tag" "--set=builds.builderImage.tag=$tag")
 failures=0
 
 render() {
-	helm template loco-operator "$chart" --namespace loco-system "${tags[@]}" "$@" |
+	helm template loco-operator "$chart" --namespace loco-system --include-crds "${tags[@]}" "$@" |
 		yq -N '.kind + "/" + .metadata.name'
 }
 
@@ -25,7 +25,6 @@ expect() {
 }
 
 build_objects=(
-	CustomResourceDefinition/builds.infra.loco.io
 	Namespace/loco-builds
 	Deployment/loco-build-controller
 	ServiceAccount/loco-build-controller
@@ -38,7 +37,6 @@ build_objects=(
 	RoleBinding/loco-agent-builds
 )
 controller_objects=(
-	CustomResourceDefinition/applications.infra.loco.io
 	Deployment/loco-controller
 	ServiceAccount/loco-controller
 	ClusterRole/loco-controller
@@ -56,6 +54,10 @@ for object in "${build_objects[@]}"; do
 	expect "builds.enabled=true" present "$object" "$enabled"
 	expect "builds.enabled=false" absent "$object" "$disabled"
 done
+if grep -q '^CustomResourceDefinition/' <<<"$enabled$disabled"; then
+	echo "FAIL: the chart renders a CustomResourceDefinition; mise run crds:apply owns them"
+	failures=$((failures + 1))
+fi
 
 disabled_manifest=$(helm template loco-operator "$chart" --namespace loco-system "${tags[@]}" --set builds.enabled=false)
 for term in LOCO_BUILD_CONFIG loco-builder moby/buildkit 'kind: Build$'; do

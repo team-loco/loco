@@ -43,7 +43,7 @@ The cluster configuration supplies `platform-reconciler` in `flux-system`, names
 | loco-operator | loco-operator-values | none |
 | loco-obs | loco-obs-values | none |
 
-Each source has a `values.yaml` key. ConfigMaps and Secrets remain owned by the cluster configuration. For a cluster's first agent start, `loco-core-values` sets `agent.joinToken.existingSecret` to a Secret holding the join token `locoadm cluster create` printed. `loco-obs-values` must set `global.region` to the region the cluster is registered under in the API and `global.exporter.endpoint` to the OTLP/HTTP endpoint the collectors export to; the chart fails to render without either. Bundle values override image references and disable operator chart CRDs with `crd.enable: false`. CRD Kustomizations disable pruning; each CRD also carries a prune protection annotation.
+Each source has a `values.yaml` key. ConfigMaps and Secrets remain owned by the cluster configuration. For a cluster's first agent start, `loco-core-values` sets `agent.joinToken.existingSecret` to a Secret holding the join token `locoadm cluster create` printed. `loco-obs-values` must set `global.region` to the region the cluster is registered under in the API and `global.exporter.endpoint` to the OTLP/HTTP endpoint the collectors export to; the chart fails to render without either. Bundle values override image references. No chart installs CRDs: the `crds` layer applies them. CRD Kustomizations disable pruning; each CRD also carries a prune protection annotation.
 
 Validate packaging and failure paths without registry writes:
 

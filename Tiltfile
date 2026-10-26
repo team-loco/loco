@@ -143,13 +143,26 @@ local_resource(
 )
 
 # ---------------------------------------------------------------------------
-# Phase 2: Core (cert-manager + Envoy Gateway + loco-core + loco-operator)
+# Phase 2: Core (CRDs + cert-manager + Envoy Gateway + loco-core + loco-operator)
 # ---------------------------------------------------------------------------
 
 local_resource(
     'helm-namespaces',
     cmd='mise run helm:sync:namespaces',
     deps=['manifests/namespaces/'],
+    allow_parallel=True,
+    labels=['infra'],
+)
+
+local_resource(
+    'crds',
+    cmd='mise run crds:apply',
+    resource_deps=['helm-deps'],
+    deps=[
+        'controller/config/crd/bases/',
+        'charts/loco-core/Chart.lock',
+        'mise-tasks/crds/apply',
+    ],
     allow_parallel=True,
     labels=['infra'],
 )
@@ -175,7 +188,7 @@ helm_release(
         'env.CONTROL_PLANE_URL=' + control_plane_url,
     ],
     deps=['charts/loco-core/', 'env/local/core-chart.yaml.gotmpl'],
-    resource_deps=['helm-namespaces', 'helm-cert-manager', 'loco-operator'],
+    resource_deps=['helm-namespaces', 'helm-cert-manager', 'crds', 'loco-operator'],
 )
 
 helm_release(
@@ -194,7 +207,7 @@ helm_release(
     }],
     values=[],
     deps=['charts/loco-operator/', 'env/local/operator-chart.yaml.gotmpl', 'mise-tasks/cluster/build-egress'],
-    resource_deps=['helm-networking', 'cluster-registry'],
+    resource_deps=['helm-networking', 'cluster-registry', 'crds'],
 )
 
 # ---------------------------------------------------------------------------

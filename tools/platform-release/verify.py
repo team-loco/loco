@@ -39,10 +39,10 @@ def main():
                 values['global'] = {'region': 'release-test-region', 'exporter': {'endpoint': 'https://ingest.release-test.example.invalid'}}
             path = temp / (name + '-values.json')
             path.write_text(json.dumps(values))
-            rendered = release.run('helm', 'template', name, str(release.ROOT / 'charts' / name), '--namespace', hr['spec']['targetNamespace'], '--skip-crds', '--values', str(path))
+            rendered = release.run('helm', 'template', name, str(release.ROOT / 'charts' / name), '--namespace', hr['spec']['targetNamespace'], '--include-crds', '--values', str(path))
             resources = documents(rendered)
-            if name == 'loco-operator' and any(item.get('kind') == 'CustomResourceDefinition' for item in resources):
-                raise RuntimeError('operator rendered CRDs despite independent CRD ownership')
+            if any(item.get('kind') == 'CustomResourceDefinition' for item in resources):
+                raise RuntimeError(name + ' rendered CRDs despite independent CRD ownership')
             pinned_images = set()
             for item in resources:
                 if item.get('kind') == 'Deployment':

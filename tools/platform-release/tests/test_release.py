@@ -66,7 +66,7 @@ def test_bundle_pins_every_source_and_image(bundle):
 
 def test_crds_are_protected_and_owned_separately(bundle):
     operator = json.loads(bundle.files["releases/loco-operator-helmrelease.yaml"])
-    assert not operator["spec"]["values"]["crd"]["enable"]
+    assert "crd" not in operator["spec"]["values"]
     for name in ("applications", "builds", "gateway"):
         ks = json.loads(bundle.files[f"crds/loco-{name}-crd-kustomization.yaml"])
         assert not ks["spec"]["prune"]

@@ -102,7 +102,7 @@ envoyProxy:
 gateway-helm:
   enabled: true
   crds:
-    enabled: true
+    enabled: false
   config:
     envoyGateway:
       logging:

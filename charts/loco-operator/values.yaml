@@ -133,10 +133,6 @@ builds:
 rbacHelpers:
   enable: false
 
-crd:
-  enable: true
-  keep: true
-
 metrics:
   enable: true
   port: 8443

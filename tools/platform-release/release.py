@@ -178,7 +178,7 @@ def bundle(version, commit, refs, images):
     releases.append(cert)
     platform_values = {
         'loco-core': {'agent': {'image': {'repository': images['agent'].split('@')[0], 'tag': f'sha-{commit}@{images["agent"].split("@")[1]}'}}},
-        'loco-operator': {'crd': {'enable': False}, 'controller': {'image': {'repository': images['controller'].split('@')[0], 'tag': f'sha-{commit}@{images["controller"].split("@")[1]}'}}, 'builds': {'builderImage': {'repository': images['builder'].split('@')[0], 'tag': f'sha-{commit}@{images["builder"].split("@")[1]}'}}},
+        'loco-operator': {'controller': {'image': {'repository': images['controller'].split('@')[0], 'tag': f'sha-{commit}@{images["controller"].split("@")[1]}'}}, 'builds': {'builderImage': {'repository': images['builder'].split('@')[0], 'tag': f'sha-{commit}@{images["builder"].split("@")[1]}'}}},
         'loco-obs': {},
     }
     for name, values in platform_values.items():

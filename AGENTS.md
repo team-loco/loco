@@ -153,10 +153,13 @@ Never hand-edit. Regenerate via `mise run gen` after any changes to `proto/`, `a
   `controller/config/rbac/role.yaml` (Application controller, from the markers in
   `controller/internal/controller`), `controller/config/rbac/builds/role.yaml` (build
   controller, from `controller/internal/builds`) and the `charts/loco-operator` copies of
-  them: `templates/crd/*.infra.loco.io.yaml`, `templates/controller/manager-role.yaml` and
+  the roles: `templates/controller/manager-role.yaml` and
   `templates/builds/manager-role.yaml` — `mise run controller:gen`. CI fails when any of
   them is out of date. Read the diff: unrelated-looking changes in the chart copies are
   usually real drift.
+- No chart installs CRDs. `mise run crds:apply` server-side applies
+  `controller/config/crd/bases/*.yaml` and the Gateway API CRDs from the pinned
+  `gateway-helm` chart before any chart is installed.
 - The database has no users yet: edit migrations in place instead of adding new ones.
 
 ## Linting

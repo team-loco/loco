@@ -58,9 +58,11 @@ if ! kind get clusters | rg -x "$CLUSTER_NAME" >/dev/null; then
     kind create cluster --name "$CLUSTER_NAME" --kubeconfig "$KUBECONFIG" --wait "$TIMEOUT"
 fi
 kind load docker-image --name "$CLUSTER_NAME" loco-api:e2e loco-obs-proxy:e2e loco-ui:e2e loco-api-failover:e2e
+KIND_CLUSTER="$CLUSTER_NAME" mise run crds:apply
 GATEWAY_VERSION=$(yq '.dependencies[] | select(.name == "gateway-helm") | .version' "$ROOT_DIR/charts/loco-core/Chart.yaml")
+yq '.["gateway-helm"]' "$ROOT_DIR/charts/loco-core/values.yaml" >"$RUN_DIR/gateway-helm-values.yaml"
 helm upgrade --install eg "$ROOT_DIR/charts/loco-core/charts/gateway-helm-$GATEWAY_VERSION.tgz" \
-    --namespace "$NAMESPACE" --create-namespace --wait --timeout "$TIMEOUT"
+    --namespace "$NAMESPACE" --create-namespace --values "$RUN_DIR/gateway-helm-values.yaml" --wait --timeout "$TIMEOUT"
 kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
 umask 077
 if [[ ! -s "$RUN_DIR/password" ]]; then
