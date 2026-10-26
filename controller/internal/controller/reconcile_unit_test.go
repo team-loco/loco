@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"slices"
 	"testing"
 
@@ -189,22 +188,6 @@ func TestDesiredDeploymentWithoutRouting(t *testing.T) {
 	}
 }
 
-func TestDesiredDeploymentRequiresResources(t *testing.T) {
-	app := testApplication()
-	app.Spec.ServiceSpec.Resources = nil
-	if _, err := desiredDeployment(
-		app,
-		testWorkspaceNamespace(app),
-		envSecretMount{},
-		testTelemetry(),
-	); !errors.Is(
-		err,
-		errNoResources,
-	) {
-		t.Fatalf("desiredDeployment without resources = %v, want errNoResources", err)
-	}
-}
-
 func TestDesiredDeploymentUsesSpecResources(t *testing.T) {
 	app := testApplication()
 	dep, err := desiredDeployment(app, testWorkspaceNamespace(app), envSecretMount{}, testTelemetry())
@@ -262,7 +245,6 @@ func TestDeploymentReady(t *testing.T) {
 		{name: "rollout in progress", dep: inProgress, want: false},
 		{name: "not available", dep: unavailable, want: false},
 		{name: "no status", dep: noStatus, want: false},
-		{name: "nil", dep: nil, want: false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

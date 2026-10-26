@@ -78,7 +78,6 @@ const (
 
 var (
 	errPullSecretWithoutNamespace = errors.New("a registry pull secret requires the loco namespace")
-	errNoResources                = errors.New("serviceSpec.resources is required")
 	errEnvSecretPending           = errors.New("the staging env secret does not hold the referenced revision")
 )
 
@@ -700,9 +699,6 @@ func desiredDeployment(
 ) (*appsv1ac.DeploymentApplyConfiguration, error) {
 	name := getName(locoRes)
 	spec := locoRes.Spec.ServiceSpec
-	if spec.Resources == nil {
-		return nil, errNoResources
-	}
 	containerPort := spec.Deployment.Port
 	replicas := spec.Resources.Replicas.Min
 
@@ -827,7 +823,7 @@ func (r *LocoResourceReconciler) ensureDeployment(
 }
 
 func deploymentReady(dep *appsv1ac.DeploymentApplyConfiguration, replicas int32) bool {
-	if dep == nil || dep.ObjectMetaApplyConfiguration == nil || dep.Status == nil {
+	if dep.Status == nil {
 		return false
 	}
 	generation := ptr.Deref(dep.Generation, 0)

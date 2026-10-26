@@ -27,10 +27,7 @@ const (
 	specVersion            = 1
 )
 
-var (
-	errUnknownOperation = errors.New("unknown plan operation")
-	errNoBuildToDeploy  = errors.New("the service has no build to deploy")
-)
+var errNoBuildToDeploy = errors.New("the service has no build to deploy")
 
 // applier performs the operations of one plan inside one transaction. builds are the builds the
 // request named per service; deployed records the services the operations have deployed;
@@ -61,7 +58,7 @@ func (a *applier) apply(ctx context.Context, qtx *genDb.Queries, op configplan.O
 	case configplan.KindDelete:
 		return a.delete(ctx, qtx, op)
 	default:
-		return fmt.Errorf("%w: %d", errUnknownOperation, op.Kind)
+		panic(fmt.Errorf("%w: %d", errUnknownOperation, op.Kind))
 	}
 }
 
@@ -378,11 +375,7 @@ func (a *applier) deployBuilds(ctx context.Context, qtx *genDb.Queries) error {
 }
 
 func deploymentSpecJSON(service *deploymentv1.ServiceDeploymentSpec) ([]byte, error) {
-	cloned := proto.Clone(service)
-	stored, ok := cloned.(*deploymentv1.ServiceDeploymentSpec)
-	if !ok {
-		return nil, errCloneServiceSpec
-	}
+	stored := proto.CloneOf(service)
 	stored.Env = nil
 	specJSON, err := protojson.Marshal(stored)
 	if err != nil {

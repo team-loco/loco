@@ -18,7 +18,7 @@ var (
 	ErrUnauthorized  = errors.New("unauthorized")
 
 	errEntityScopesNotFound = errors.New("entity scopes not found in context")
-	errCloneServiceSpec     = errors.New("failed to clone service spec")
+	errUnknownOperation     = errors.New("configplan produced an operation kind outside KindCreate..KindImport")
 )
 
 func txError(ctx context.Context, msg string, err error) error {

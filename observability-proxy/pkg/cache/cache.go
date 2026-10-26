@@ -18,7 +18,7 @@ type Cache interface {
 	Get(ctx context.Context, key string) ([]byte, error)
 
 	// Set stores a value with the given TTL. TTL of 0 means use the cache default.
-	Set(ctx context.Context, key string, value []byte, ttl time.Duration) error
+	Set(ctx context.Context, key string, value []byte, ttl time.Duration)
 
 	// Close releases any resources held by the cache.
 	Close() error
@@ -57,7 +57,7 @@ func (m *MemoryCache) Get(_ context.Context, key string) ([]byte, error) {
 	return out, nil
 }
 
-func (m *MemoryCache) Set(_ context.Context, key string, value []byte, ttl time.Duration) error {
+func (m *MemoryCache) Set(_ context.Context, key string, value []byte, ttl time.Duration) {
 	if ttl == 0 {
 		ttl = m.defaultTTL
 	}
@@ -65,7 +65,6 @@ func (m *MemoryCache) Set(_ context.Context, key string, value []byte, ttl time.
 	copy(stored, value)
 	cost := int64(len(key) + len(stored))
 	m.cache.SetWithTTL(key, stored, cost, ttl)
-	return nil
 }
 
 func (m *MemoryCache) Close() error {

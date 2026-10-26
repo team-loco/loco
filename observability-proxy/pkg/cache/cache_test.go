@@ -26,12 +26,8 @@ func TestMemoryCacheHonoursPerEntryTTL(t *testing.T) {
 	ctx := context.Background()
 	c := newTestMemory(t)
 
-	if err := c.Set(ctx, "short", []byte("1"), 20*time.Millisecond); err != nil {
-		t.Fatal(err)
-	}
-	if err := c.Set(ctx, "default", []byte("2"), 0); err != nil {
-		t.Fatal(err)
-	}
+	c.Set(ctx, "short", []byte("1"), 20*time.Millisecond)
+	c.Set(ctx, "default", []byte("2"), 0)
 	c.cache.Wait()
 
 	got, err := c.Get(ctx, "short")

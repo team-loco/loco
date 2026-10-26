@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -29,6 +30,8 @@ var (
 
 	errNameRequired       = errors.New("name is required")
 	errEntityTypeRequired = errors.New("entity_type is required")
+	errUnknownEntityType  = errors.New("request validation admitted an undefined entity type")
+	errUnknownScope       = errors.New("request validation admitted an undefined scope")
 )
 
 // TokenServer implements the TokenService gRPC server
@@ -515,7 +518,7 @@ func protoEntityTypeToDb(et tokenv1.EntityType) genDb.EntityType {
 	case tokenv1.EntityType_ENTITY_TYPE_USER:
 		return genDb.EntityTypeUser
 	default:
-		return genDb.EntityTypeUser
+		panic(fmt.Errorf("%w: %s", errUnknownEntityType, et))
 	}
 }
 
@@ -547,7 +550,7 @@ func protoScopeToDb(s tokenv1.Scope) genDb.Scope {
 	case tokenv1.Scope_SCOPE_MEMBER:
 		return genDb.ScopeMember
 	default:
-		return genDb.ScopeRead
+		panic(fmt.Errorf("%w: %s", errUnknownScope, s))
 	}
 }
 

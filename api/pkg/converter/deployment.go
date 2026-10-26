@@ -13,9 +13,6 @@ import (
 )
 
 var (
-	errNilResourceSpec          = errors.New("resourceSpec cannot be nil")
-	errNilRequestSpec           = errors.New("requestSpec cannot be nil")
-	errRegionRequired           = errors.New("region is required")
 	ErrRegionNotFound           = errors.New("region not found in resource spec")
 	ErrRegionDisabled           = errors.New("region is not enabled")
 	errResourceSpecNotService   = errors.New("resourceSpec must contain a service spec")
@@ -126,16 +123,6 @@ func MergeDeploymentSpec(
 	region string,
 	defaults servicedefaults.Defaults,
 ) (*deploymentv1.DeploymentSpec, error) {
-	if resourceSpec == nil {
-		return nil, errNilResourceSpec
-	}
-	if requestSpec == nil {
-		return nil, errNilRequestSpec
-	}
-	if region == "" {
-		return nil, errRegionRequired
-	}
-
 	// extract ServiceSpec from resourceSpec oneof
 	resourceServiceSpec := resourceSpec.GetService()
 	if resourceServiceSpec == nil {
@@ -253,27 +240,19 @@ func ProtoToObsSpec(obs *resourcev1.ObservabilityConfig) *locoControllerV1.ObsSp
 		return nil
 	}
 
-	var logging locoControllerV1.LoggingSpec
-	if obs.GetLogging() != nil {
-		logging = locoControllerV1.LoggingSpec{
-			Enabled:         obs.GetLogging().GetEnabled(),
-			RetentionPeriod: obs.GetLogging().GetRetentionPeriod(),
-			Structured:      obs.GetLogging().GetStructured(),
-		}
-	}
-
-	var metrics locoControllerV1.MetricsSpec
-	if obs.GetMetrics() != nil {
-		metrics = locoControllerV1.MetricsSpec{
-			Enabled: obs.GetMetrics().GetEnabled(),
-			Path:    obs.GetMetrics().GetPath(),
-			Port:    obs.GetMetrics().GetPort(),
-		}
-	}
-
+	logging := obs.GetLogging()
+	metrics := obs.GetMetrics()
 	return &locoControllerV1.ObsSpec{
-		Logging: logging,
-		Metrics: metrics,
+		Logging: locoControllerV1.LoggingSpec{
+			Enabled:         logging.GetEnabled(),
+			RetentionPeriod: logging.GetRetentionPeriod(),
+			Structured:      logging.GetStructured(),
+		},
+		Metrics: locoControllerV1.MetricsSpec{
+			Enabled: metrics.GetEnabled(),
+			Path:    metrics.GetPath(),
+			Port:    metrics.GetPort(),
+		},
 	}
 }
 

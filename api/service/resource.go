@@ -872,12 +872,7 @@ func (s *ResourceServer) planRegionRedeploy(
 	replicas int32,
 	message string,
 ) (regionRedeploy, error) {
-	clonedSpec := proto.Clone(serviceDeploymentSpec)
-	specForDB, ok := clonedSpec.(*deploymentv1.ServiceDeploymentSpec)
-	if !ok {
-		slog.ErrorContext(ctx, "failed to clone service deployment spec")
-		return regionRedeploy{}, rpcerr.New(connect.CodeInternal, errCloneServiceSpec)
-	}
+	specForDB := proto.CloneOf(serviceDeploymentSpec)
 	specForDB.Env = nil
 
 	specJSON, err := protojson.Marshal(specForDB)
