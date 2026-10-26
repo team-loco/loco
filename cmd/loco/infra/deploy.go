@@ -2,6 +2,8 @@ package infra
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -13,21 +15,39 @@ import (
 	"slices"
 	"strings"
 
+	"connectrpc.com/connect/v2"
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/cmd/loco/resource"
+	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/locofile"
+	"github.com/team-loco/loco/internal/rpc"
 	"github.com/team-loco/loco/internal/sourcepack"
+	"github.com/team-loco/loco/internal/ui"
+	"sigs.k8s.io/yaml"
+)
+
+const (
+	domainSuffixLength = 4
+	domainAlphabetSize = 26
+	maxDNSLabelLength  = 63
 )
 
 var (
 	errImageTarget = errors.New(
 		"--image requires selecting exactly one service; omit the name only for a single-service environment",
 	)
-	errEmptyImage       = errors.New("image reference must not be empty")
-	errServiceNotInFile = errors.New("the file does not run the service in this environment")
-	errServiceHasImage  = errors.New("the service runs a public image and is not built")
+	errEmptyImage          = errors.New("image reference must not be empty")
+	errServiceNotInFile    = errors.New("the file does not run the service in this environment")
+	errServiceHasImage     = errors.New("the service runs a public image and is not built")
+	errQuickDeployFlags    = errors.New("deployment flags for a new service require omitting loco.yaml")
+	errNameConflict        = errors.New("set the service name with either an argument or --name")
+	errMultipleNames       = errors.New("without loco.yaml, deploy one service at a time")
+	errDomainConflict      = errors.New("--domain and --private cannot be used together")
+	errUnsafeDirectoryName = errors.New("directory name has no usable letters or digits; set --name")
+	errDomainUnavailable   = errors.New("generated public hostname is unavailable; set --domain")
 )
 
 type buildTarget struct {
@@ -39,9 +59,17 @@ type buildTarget struct {
 func BuildDeployCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "deploy [service...]",
-		Short: "Build and deploy the services of loco.yaml",
-		Long: `Build the source services of loco.yaml on Loco and apply the file to an environment
-with the builds.
+		Short: "Build and deploy an application",
+		Long: `Deploy from the current directory. If it has no loco.yaml, Loco deploys one
+service using API defaults for the port, region, resources, and platform domain. It
+turns the directory name into a safe service name and adds a four-letter suffix to
+the public hostname. It uses Dockerfile in that directory for a source
+build. In a terminal, it asks for the service name. No file is written. Set --name,
+--port, --region, --domain, --dockerfile, or --context to override those choices;
+--private omits the public domain. Use --yes without a terminal.
+
+If loco.yaml exists, build its source services and apply the file to an environment
+with the builds. The file's services and environments remain the source of truth.
 
 The directory that holds loco.yaml is packed once and uploaded for every build; each
 service builds with its own dockerfile and context. The archive honors the .dockerignore in
@@ -54,11 +82,11 @@ with an error, and the next deploy builds and deploys it.
 Image services are applied without a build. Without service names, every source service the
 file runs in the environment is built.
 
---image overrides one service's image for this deployment without editing loco.yaml.
-Name exactly one service, or omit its name if the environment runs only one service.
-This skips all source builds and uploads. The whole file is still planned and applied;
-unrelated services can change, and new source services may still need an initial build.
-The API resolves image tags and digests before confirmation.
+--image deploys a public image without a source build. With loco.yaml, it overrides
+one service's image for this deployment without editing the file. Name exactly one
+service, or omit its name if the environment runs only one service. The whole file
+is still planned and applied. The API resolves image tags and digests before
+confirmation.
 
 The plan is shown before anything changes. Destructive operations need
 --confirm-destructive and imports need --confirm-import. Without a terminal, --yes
@@ -66,14 +94,23 @@ replaces the prompt.
 
 Examples:
   loco deploy
+  loco deploy --name web --port 8080 --yes
+  loco deploy --name worker --private --image ghcr.io/acme/worker:release --yes
   loco deploy --env staging --yes
   loco deploy web worker --file deploy/loco.yaml
   loco deploy web --image ghcr.io/acme/web:release --yes`,
 		RunE: runDeploy,
 	}
 	addTargetFlags(cmd)
-	cmd.Flags().String("image", "", "Deploy one service from a public image reference without building source")
+	cmd.Flags().String("image", "", "Deploy from a public image reference without building source")
 	cmd.Flags().StringP("file", "f", locofile.FileName, "Path to loco.yaml")
+	cmd.Flags().String("name", "", "Service name when deploying without loco.yaml (defaults to the directory name)")
+	cmd.Flags().Int32("port", 0, "Application port when deploying without loco.yaml (defaults to the API value)")
+	cmd.Flags().String("region", "", "Region when deploying without loco.yaml (defaults to the API region)")
+	cmd.Flags().String("domain", "", "Public hostname when deploying without loco.yaml")
+	cmd.Flags().Bool("private", false, "Deploy without a public hostname")
+	cmd.Flags().String("dockerfile", "", "Dockerfile path when deploying without loco.yaml")
+	cmd.Flags().String("context", "", "Build context when deploying without loco.yaml")
 	cmd.Flags().BoolP("yes", "y", false, "Deploy without asking for confirmation")
 	cmd.Flags().Bool("confirm-destructive", false, confirmDestructiveUsage)
 	cmd.Flags().Bool("confirm-import", false, confirmImportUsage)
@@ -89,7 +126,7 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 	if err != nil {
 		return fmt.Errorf("error reading file flag: %w", err)
 	}
-	file, data, err := loadLocoFile(filePath)
+	file, data, quickDeploy, err := loadDeployFile(cmd, filePath)
 	if err != nil {
 		return err
 	}
@@ -100,33 +137,21 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 	if err != nil {
 		return err
 	}
+	if quickDeploy {
+		file, data, err = buildQuickDeploy(cmd, names, t, confirm.yes)
+		if err != nil {
+			return err
+		}
+		filePath = "current directory"
+		names = nil
+	}
 	services, err := locofile.Resolve(file, t.environmentName)
 	if err != nil {
 		return fmt.Errorf("%s does not resolve for environment %s: %w", filePath, t.environmentName, err)
 	}
-	var targets []buildTarget
-	if cmd.Flags().Changed("image") {
-		image, flagErr := cmd.Flags().GetString("image")
-		if flagErr != nil {
-			return fmt.Errorf("read image flag: %w", flagErr)
-		}
-		data, err = imageOverride(file, services, names, t.environmentName, image)
-		if err != nil {
-			return err
-		}
-		file, err = locofile.Parse(data)
-		if err != nil {
-			return err
-		}
-		services, err = locofile.Resolve(file, t.environmentName)
-		if err != nil {
-			return err
-		}
-	} else {
-		targets, err = buildTargets(services, names)
-		if err != nil {
-			return err
-		}
+	services, targets, data, err := deployTargets(cmd, file, services, data, names, t.environmentName, quickDeploy)
+	if err != nil {
+		return err
 	}
 
 	plan, err := requestPlan(ctx, t, data)
@@ -192,6 +217,268 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 		return writeErr
 	}
 	return writeReachability(os.Stdout, services)
+}
+
+func deployTargets(
+	cmd *cobra.Command,
+	file *locofile.File,
+	services map[string]locofile.Service,
+	data []byte,
+	names []string,
+	environment string,
+	quickDeploy bool,
+) (map[string]locofile.Service, []buildTarget, []byte, error) {
+	if cmd.Flags().Changed("image") && !quickDeploy {
+		image, err := cmd.Flags().GetString("image")
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("read image flag: %w", err)
+		}
+		data, err = imageOverride(file, services, names, environment, image)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		file, err = locofile.Parse(data)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		services, err = locofile.Resolve(file, environment)
+		return services, nil, data, err
+	}
+	targets, err := buildTargets(services, names)
+	return services, targets, data, err
+}
+
+func loadDeployFile(cmd *cobra.Command, filePath string) (*locofile.File, []byte, bool, error) {
+	file, data, err := loadLocoFile(filePath)
+	quickDeploy := errors.Is(err, os.ErrNotExist) && !cmd.Flags().Changed("file")
+	if err != nil && !quickDeploy {
+		return nil, nil, false, err
+	}
+	if !quickDeploy && changedQuickDeployFlag(cmd) {
+		return nil, nil, false, errQuickDeployFlags
+	}
+	return file, data, quickDeploy, nil
+}
+
+func changedQuickDeployFlag(cmd *cobra.Command) bool {
+	for _, name := range []string{"name", "port", "region", "domain", "private", "dockerfile", "context"} {
+		if cmd.Flags().Changed(name) {
+			return true
+		}
+	}
+	return false
+}
+
+func buildQuickDeploy(cmd *cobra.Command, names []string, t target, yes bool) (*locofile.File, []byte, error) {
+	name, err := quickServiceName(cmd, names, yes)
+	if err != nil {
+		return nil, nil, err
+	}
+	config, err := fetchConfig(cmd)
+	if err != nil {
+		return nil, nil, err
+	}
+	defaults := config.GetServiceDefaults()
+	port, err := cmd.Flags().GetInt32("port")
+	if err != nil {
+		return nil, nil, err
+	}
+	if !cmd.Flags().Changed("port") {
+		port = defaults.GetRouting().GetPort()
+	}
+	region, err := cmd.Flags().GetString("region")
+	if err != nil {
+		return nil, nil, err
+	}
+	if region == "" {
+		ctx := cmd.Context()
+		region, err = fetchDefaultRegion(ctx, t)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	domain, err := quickDomain(cmd, t, name, region)
+	if err != nil {
+		return nil, nil, err
+	}
+	dockerfile, err := cmd.Flags().GetString("dockerfile")
+	if err != nil {
+		return nil, nil, err
+	}
+	contextDir, err := cmd.Flags().GetString("context")
+	if err != nil {
+		return nil, nil, err
+	}
+	image, err := cmd.Flags().GetString("image")
+	if err != nil {
+		return nil, nil, err
+	}
+	if cmd.Flags().Changed("image") && strings.TrimSpace(image) == "" {
+		return nil, nil, errEmptyImage
+	}
+	minReplicas := defaults.GetMinReplicas()
+	maxReplicas := defaults.GetMaxReplicas()
+	service := locofile.Service{
+		Port:       new(port),
+		Dockerfile: dockerfile,
+		Context:    contextDir,
+		Image:      image,
+		Regions: map[string]locofile.Region{region: {
+			CPU:      defaults.GetCpu(),
+			Memory:   defaults.GetMemory(),
+			Replicas: &locofile.Replicas{Min: new(minReplicas), Max: new(maxReplicas)},
+		}},
+	}
+	if domain != "" {
+		service.Domains = []string{domain}
+	}
+	generated := locofile.File{
+		Version:  locofile.Version,
+		Partial:  name,
+		Services: map[string]locofile.Service{name: service},
+	}
+	data, err := yaml.Marshal(generated)
+	if err != nil {
+		return nil, nil, fmt.Errorf("render deployment: %w", err)
+	}
+	file, err := locofile.Parse(data)
+	if err != nil {
+		return nil, nil, fmt.Errorf("generated deployment: %w", err)
+	}
+	return file, data, nil
+}
+
+func quickServiceName(cmd *cobra.Command, names []string, yes bool) (string, error) {
+	if len(names) > 1 {
+		return "", errMultipleNames
+	}
+	name, err := cmd.Flags().GetString("name")
+	if err != nil {
+		return "", err
+	}
+	if name != "" && len(names) > 0 {
+		return "", errNameConflict
+	}
+	if len(names) == 1 {
+		name = names[0]
+	}
+	if name == "" && cmdutil.IsInteractive() && !yes {
+		name, err = ui.AskForString("Service name (press Enter to use the directory name): ")
+		if err != nil {
+			return "", fmt.Errorf("read service name: %w", err)
+		}
+	}
+	if name == "" {
+		dir, getwdErr := os.Getwd()
+		if getwdErr != nil {
+			return "", fmt.Errorf("get current directory: %w", getwdErr)
+		}
+		name, err = safeDirectoryName(filepath.Base(dir))
+		if err != nil {
+			return "", err
+		}
+	}
+	return name, nil
+}
+
+func safeDirectoryName(dir string) (string, error) {
+	var b strings.Builder
+	for _, char := range strings.ToLower(dir) {
+		if char >= 'a' && char <= 'z' || char >= '0' && char <= '9' {
+			b.WriteRune(char)
+		} else if b.Len() > 0 && !strings.HasSuffix(b.String(), "-") {
+			b.WriteByte('-')
+		}
+		if b.Len() >= maxDNSLabelLength {
+			break
+		}
+	}
+	name := strings.Trim(b.String(), "-")
+	if name == "" {
+		return "", errUnsafeDirectoryName
+	}
+	return name, nil
+}
+
+func quickDomain(cmd *cobra.Command, t target, name, region string) (string, error) {
+	domain, err := cmd.Flags().GetString("domain")
+	if err != nil {
+		return "", err
+	}
+	private, err := cmd.Flags().GetBool("private")
+	if err != nil {
+		return "", err
+	}
+	if private && domain != "" {
+		return "", errDomainConflict
+	}
+	if !private && domain == "" {
+		ctx := cmd.Context()
+		platformDomain, domainErr := servedDomain(ctx, t, region)
+		if domainErr != nil {
+			return "", domainErr
+		}
+		return generatedDomain(ctx, t, name, platformDomain)
+	}
+	return domain, nil
+}
+
+func generatedDomain(ctx context.Context, t target, name, platformDomain string) (string, error) {
+	prefix := name
+	if len(prefix) > maxDNSLabelLength-domainSuffixLength-1 {
+		prefix = strings.TrimSuffix(prefix[:maxDNSLabelLength-domainSuffixLength-1], "-")
+	}
+	base := prefix + "-"
+	res, err := t.lookupResource(ctx, name)
+	if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
+		return "", err
+	}
+	if err == nil {
+		for _, assigned := range res.GetDomains() {
+			domain := assigned.GetDomain()
+			if strings.HasPrefix(domain, base) && strings.HasSuffix(domain, "."+platformDomain) {
+				suffix := strings.TrimSuffix(strings.TrimPrefix(domain, base), "."+platformDomain)
+				if isDomainSuffix(suffix) {
+					return domain, nil
+				}
+			}
+		}
+	}
+	client := rpc.ForHost(t.host, t.token).Domain
+	candidate := base + domainSuffix(t.workspaceID, name) + "." + platformDomain
+	request := &domainv1.CheckDomainAvailabilityRequest{Domain: candidate}
+	response, checkErr := client.CheckDomainAvailability(ctx, request)
+	if checkErr != nil {
+		return "", fmt.Errorf("check public hostname %s: %w", candidate, checkErr)
+	}
+	if !response.GetIsAvailable() {
+		return "", fmt.Errorf("%w: %s", errDomainUnavailable, candidate)
+	}
+	return candidate, nil
+}
+
+func domainSuffix(workspaceID, name string) string {
+	input := workspaceID + "/" + name
+	hash := sha256.Sum256([]byte(input))
+	value := binary.BigEndian.Uint32(hash[:])
+	suffix := [domainSuffixLength]byte{}
+	for index := domainSuffixLength - 1; index >= 0; index-- {
+		suffix[index] = 'a' + byte(value%domainAlphabetSize)
+		value /= domainAlphabetSize
+	}
+	return string(suffix[:])
+}
+
+func isDomainSuffix(suffix string) bool {
+	if len(suffix) != domainSuffixLength {
+		return false
+	}
+	for _, char := range suffix {
+		if char < 'a' || char > 'z' {
+			return false
+		}
+	}
+	return true
 }
 
 func imageOverride(

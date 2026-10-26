@@ -711,6 +711,7 @@ start_api() {
 
     LOCO_BOOTSTRAP_TOKEN="$BOOTSTRAP_TOKEN" \
     DATABASE_URL="$E2E_DATABASE_URL" \
+    CACHE_TYPE=in-memory \
     APP_PORT="127.0.0.1:$API_PORT" \
     OBSERVABILITY_PROXY_URL="http://127.0.0.1:$OBS_PROXY_PORT" \
     CORS_ALLOWED_ORIGINS="https://dashboard.e2e.test" \

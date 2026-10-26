@@ -15,7 +15,7 @@ loco config --help
 | `loco login`, `loco logout`, `loco whoami` | Sign in to a Loco instance, sign out, show the signed-in user |
 | `loco org`, `loco workspace`, `loco use` | Manage organizations and workspaces and choose the current one |
 | `loco infra init`, `validate`, `plan`, `apply`, `transfer` | Work with [`loco.yaml`](../deployment/loco-yaml.md) |
-| `loco deploy` | Build and deploy the services of `loco.yaml` |
+| `loco deploy` | Deploy from the current directory with API defaults, or build and deploy the services of `loco.yaml` |
 | `loco resource` | Inspect and manage applications |
 | `loco builds` | List, inspect, follow and cancel builds |
 | `loco env` | Set, remove and list a service's secrets in an environment |

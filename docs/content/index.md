@@ -21,6 +21,7 @@ Loco handles application orchestration across regions, with HTTPS routing, resou
 | Connect to a Loco instance | [Install](getting-started/install.md) and [connect](getting-started/connect.md) |
 | Choose who operates the platform | [Multi-tenant SaaS, dedicated, and self-hosted](deployment/modes.md) |
 | Declare services and deploy them | [loco.yaml](deployment/loco-yaml.md) |
+| Deploy one service with API defaults | Run `loco deploy` from the application directory |
 | Inspect running applications | [Application operations](operations/applications.md) |
 | Run Loco yourself | [Self-hosting](operations/self-hosting.md) |
 | Contribute to the platform | [Local development](contributing/development.md) |
