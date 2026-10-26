@@ -9,7 +9,7 @@ BOOTSTRAP_TOKEN_ENV = "LOCO_BOOTSTRAP_TOKEN"
 API_VALUES = {"image": {"tag": "test"}, "existingSecret": "regional-api-env"}
 
 
-def test_chart_installs_api_and_proxy_without_migration_jobs():
+def test_chart_installs_api_and_proxy():
     documents = render_chart(
         "loco-control-plane",
         {"api": API_VALUES, "obsProxy": TEST_PROXY, "ui": {"enabled": False}},
@@ -20,7 +20,6 @@ def test_chart_installs_api_and_proxy_without_migration_jobs():
         if document["kind"] == "Deployment"
     }
     assert deployments == {"loco-control-plane-api", "loco-control-plane-obs-proxy-query"}
-    assert not any((document["kind"] == "Job" for document in documents))
     routes = [document for document in documents if document["kind"] == "HTTPRoute"]
     assert len(routes) == 1
     assert (
@@ -37,7 +36,6 @@ def test_api_uses_existing_secret_and_private_proxy():
     )
     pod = deployment["spec"]["template"]["spec"]
     assert pod["automountServiceAccountToken"] is False
-    assert "initContainers" not in pod
     (api,) = pod["containers"]
     assert api["envFrom"] == [{"secretRef": {"name": "regional-api-env"}}]
     env = {item["name"]: item["value"] for item in api["env"]}

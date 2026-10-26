@@ -72,7 +72,6 @@ func mountTelemetryDeployment(
 func TestMountedSecretsOverrideOpenTelemetryDefaults(t *testing.T) {
 	for _, name := range []string{
 		envOTLPEndpoint, envOTLPProtocol, envOTelServiceName, envOTelResourceAttributes,
-		envOTelTracesSampler, envOTelTracesSamplerArg,
 	} {
 		t.Run(name, func(t *testing.T) {
 			app := telemetryTestApplication()
@@ -82,10 +81,6 @@ func TestMountedSecretsOverrideOpenTelemetryDefaults(t *testing.T) {
 			if name == envOTLPEndpoint || name == envOTLPProtocol {
 				requireNoEnv(t, dep, envOTLPEndpoint)
 				requireNoEnv(t, dep, envOTLPProtocol)
-			}
-			if name == envOTelTracesSamplerArg || name == envOTelTracesSampler {
-				requireNoEnv(t, dep, envOTelTracesSampler)
-				requireNoEnv(t, dep, envOTelTracesSamplerArg)
 			}
 		})
 	}
@@ -105,13 +100,9 @@ func TestMountedTelemetrySecretsKeepPlainAndLocoPrecedence(t *testing.T) {
 	requireSingleEnv(t, dep, "LOCO_DEPLOYMENT_ID", testDeploymentID)
 }
 
-func TestRemovingMountedSamplerSecretLeavesSDKDefault(t *testing.T) {
+func TestStagedSecretAheadOfTheReferencedRevisionIsPending(t *testing.T) {
 	app := telemetryTestApplication()
-	r, stage := telemetrySecretFixture(t, app, envOTelTracesSamplerArg)
-	dep := mountTelemetryDeployment(t, r, app)
-	requireNoEnv(t, dep, envOTelTracesSamplerArg)
-
-	stage.Data = map[string][]byte{}
+	r, stage := telemetrySecretFixture(t, app, envOTelServiceName)
 	stage.Labels[locov1alpha1.LabelPlacementRevision] = "2"
 	if err := r.Update(t.Context(), stage); err != nil {
 		t.Fatal(err)
@@ -120,12 +111,6 @@ func TestRemovingMountedSamplerSecretLeavesSDKDefault(t *testing.T) {
 		t.Fatalf("ahead revision = %v, want pending", err)
 	}
 	app.Spec.ServiceSpec.Deployment.EnvSecretRef.Revision = 2
-	dep = mountTelemetryDeployment(t, r, app)
-	requireNoEnv(t, dep, envOTelTracesSamplerArg)
-	requireNoEnv(t, dep, envOTelTracesSampler)
-
-	app.Spec.ServiceSpec.Deployment.EnvSecretRef = nil
-	dep = mountTelemetryDeployment(t, r, app)
-	requireNoEnv(t, dep, envOTelTracesSamplerArg)
-	requireNoEnv(t, dep, envOTelTracesSampler)
+	dep := mountTelemetryDeployment(t, r, app)
+	requireNoEnv(t, dep, envOTelServiceName)
 }

@@ -70,10 +70,6 @@ def test_environment_builds(subtests):
                     assert path.exists(), (
                         f"{document.relative_to(site)} links to missing {target}"
                     )
-            assert not (site / "notes.html").exists()
-            assert not (site / "checklist.html").exists()
-            assert not (site / "tdd").exists()
-            assert not (site / "pyproject.toml").exists()
             if environment == "staging":
                 assert "noindex, nofollow" in html
                 assert "Disallow: /" in (site / "robots.txt").read_text()

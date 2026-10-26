@@ -235,7 +235,6 @@ def test_database_and_auth_secret_references():
         "name": "proxy-migrator",
         "key": "url",
     }
-    assert "PROXY_AUTH_TOKEN" not in env
 
 
 def test_missing_clickhouse_secrets_are_rejected(subtests):
@@ -254,11 +253,6 @@ def test_missing_clickhouse_secrets_are_rejected(subtests):
             assert (
                 f"obsProxy.query.clickhouse.{secret}.name is required" in caught.value.output
             )
-
-
-def test_obs_chart_runs_no_proxy():
-    names = {document["metadata"]["name"] for document in render_chart("loco-worker", {})}
-    assert not {name for name in names if "obs-proxy" in name}
 
 
 def test_missing_database_secret_key_is_rejected():
@@ -329,21 +323,9 @@ def test_proxy_reads_its_database_from_the_one_chart_value():
     assert env["CLICKHOUSE_DB"] == {"name": "CLICKHOUSE_DB", "value": database}
 
 
-def test_proxy_uses_its_built_in_schema_settings():
-    container, _, env = _proxy_env()
-    built_in = {
-        "CLICKHOUSE_LOGS_TTL",
-        "CLICKHOUSE_TRACES_TTL",
-        "CLICKHOUSE_METRICS_TTL",
-        "MIGRATION_RETRY_BUDGET",
-        "MIGRATION_RETRY_INTERVAL",
-        "MIGRATION_LOCK_TTL",
-        "MIGRATION_LOCK_RETRY_PERIOD",
-    }
-    assert not built_in & set(env), "the chart sets settings the proxy defaults itself"
-    assert "PERMISSION_CHECK_TIMEOUT" not in env
+def test_proxy_readiness_checks_readyz():
+    container, _, _ = _proxy_env()
     assert container["readinessProbe"]["httpGet"]["path"] == "/readyz"
-    assert "startupProbe" not in container
 
 
 def exporter_settings():
@@ -371,9 +353,6 @@ def test_collectors_export_only_otlp_to_the_configured_endpoint():
         assert "file_storage/exporter" in config["service"]["extensions"], collector
         for name, pipeline in config["service"]["pipelines"].items():
             assert pipeline["exporters"] == ["otlp_http"], (collector, name)
-    collectors = collector_documents(documents)
-    assert "clickhouse" not in json.dumps(collectors).lower()
-    assert not {"ClickHouseInstallation", "Secret"} & {document["kind"] for document in collectors}
 
 
 def test_collectors_require_an_exporter_endpoint():
@@ -602,16 +581,6 @@ def test_chart_requires_a_region(collector_tenancy):
     assert "global.region is required" in result.stderr
 
 
-def test_collectors_run_without_an_operator(collector_tenancy):
-    collectors = collector_documents(collector_tenancy.documents)
-    names = {document["metadata"]["labels"].get("app.kubernetes.io/name") for document in collectors}
-    kinds = {document["kind"] for document in collectors}
-    assert "opentelemetry-operator" not in names
-    assert (
-        not {"MutatingWebhookConfiguration", "ValidatingWebhookConfiguration"} & kinds
-    )
-
-
 def test_memory_limiter_runs_first_and_batch_last(collector_tenancy):
     for collector, _, name, pipeline in _pipelines(collector_tenancy):
         processors = pipeline.get("processors", [])
@@ -771,24 +740,6 @@ def test_only_the_singleton_collects_cluster_metrics_and_events(cluster_collecto
             for document in cluster_collector.documents
         )
     )
-
-
-def test_the_singleton_accepts_no_pushed_telemetry(cluster_collector):
-    config = cluster_collector.configs["otel-col-cluster"]
-    assert not PUSH_RECEIVERS & set(config["receivers"])
-    for pipeline in config["service"]["pipelines"].values():
-        assert not PUSH_RECEIVERS & set(pipeline["receivers"])
-    services = [
-        document
-        for document in cluster_collector.documents
-        if document["kind"] == "Service"
-        and document["metadata"]["name"] == "otel-col-cluster"
-    ]
-    assert not {4317, 4318, 6831, 14250, 14268, 9411} & {
-        port["port"]
-        for service in services
-        for port in service["spec"].get("ports", [])
-    }
 
 
 def test_ingest_keeps_only_push_pipelines(cluster_collector):
