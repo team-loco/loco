@@ -6,11 +6,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def _check(tag):
+def _check(tag, bunfig=None):
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         (root / "docs").mkdir()
         (root / "mise.toml").write_text((ROOT / "mise.toml").read_text())
+        (root / "renovate.json5").write_text((ROOT / "renovate.json5").read_text())
+        (root / "bunfig.toml").write_text(bunfig or (ROOT / "bunfig.toml").read_text())
         (root / "docs/pyproject.toml").write_text(
             (ROOT / "docs/pyproject.toml").read_text()
         )
@@ -50,3 +52,10 @@ def test_build_platform_stage_accepts_pinned_version():
     pinned = tomllib.loads((ROOT / "mise.toml").read_text())["tools"]["go"]
     result = _check(pinned)
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_renovate_waits_as_long_as_bunfig():
+    pinned = tomllib.loads((ROOT / "mise.toml").read_text())["tools"]["go"]
+    result = _check(pinned, '[install]\nminimumReleaseAge = "1 hour"\n')
+    assert result.returncode != 0
+    assert "but bunfig.toml sets 1 hour" in result.stdout

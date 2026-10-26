@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Check that every container image is pinned by tag and digest, that the Dockerfile base images use the Go, bun, uv and Python versions pinned in mise.toml, and that docs/pyproject.toml requires that Python minor version"
+#MISE description="Check that every container image is pinned by tag and digest, that the Dockerfile base images use the Go, bun, uv and Python versions pinned in mise.toml, and that docs/pyproject.toml requires that Python minor version, and that Renovate waits the minimumReleaseAge bunfig.toml sets"
 set -euo pipefail
 
 status=0
@@ -65,7 +65,13 @@ if [[ $requires_python != "$want_requires_python" ]]; then
 	echo "docs/pyproject.toml: requires-python $requires_python, but mise.toml pins python $python"
 	status=1
 fi
+bun_release_age=$(yq -p toml -oy '.install.minimumReleaseAge' bunfig.toml)
+renovate_release_age=$(bun -e 'const config = Bun.JSON5.parse(await Bun.file("renovate.json5").text()); console.log(config.packageRules.find((rule) => rule.matchManagers?.includes("bun") && rule.minimumReleaseAge)?.minimumReleaseAge)')
+if [[ $renovate_release_age != "$bun_release_age" ]]; then
+	echo "renovate.json5: the bun minimumReleaseAge is $renovate_release_age, but bunfig.toml sets $bun_release_age"
+	status=1
+fi
 if [[ $status -eq 0 ]]; then
-	echo "Container images are pinned by tag and digest, and Dockerfile base images and docs requires-python match mise.toml"
+	echo "Container images are pinned by tag and digest, Dockerfile base images and docs requires-python match mise.toml, and Renovate waits as long as bunfig.toml"
 fi
 exit $status
