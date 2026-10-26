@@ -132,3 +132,22 @@ def test_superseded_cancelled_run_waits_for_its_replacement():
 def test_runs_of_every_event_are_listed():
     calls, _ = _run_gate([run(1, "completed", "success")], run(1, "completed", "success"))
     assert "event=" not in calls[0]
+
+
+def test_a_workflow_the_gate_does_not_hear_is_ignored():
+    scan = {
+        "id": 30,
+        "name": "Scan dependencies",
+        "status": "in_progress",
+        "conclusion": None,
+        "check_suite": {"id": 3},
+    }
+    calls, body = _run_gate(
+        [
+            run(1, "completed", "success"),
+            run(3, "in_progress", None, workflow=3, name="Renovate"),
+        ],
+        run(1, "completed", "success"),
+        [scan],
+    )
+    assert (body["state"], body["description"]) == ("success", "0 failing, 0 running, 1 total")

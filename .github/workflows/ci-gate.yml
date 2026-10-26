@@ -49,7 +49,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          sparse-checkout: .github/actions/ci-gate
+          sparse-checkout: |
+            .github/actions/ci-gate
+            .github/workflows
 
       - name: Report the newest run of every check on the pull request head
         env:
@@ -62,5 +64,6 @@ jobs:
           set -euo pipefail
           gh api --paginate --slurp "repos/$REPO/actions/runs?head_sha=$SHA&per_page=100" > "$RUNNER_TEMP/runs.json"
           gh api --paginate --slurp "repos/$REPO/commits/$SHA/check-runs?per_page=100" > "$RUNNER_TEMP/checks.json"
-          request=$(python3 .github/actions/ci-gate/filter_checks.py "$RUNNER_TEMP/runs.json" "$RUNNER_TEMP/checks.json" "$GITHUB_EVENT_PATH" "$SELF" "$DETAILS" "$RUNNER_TEMP/gate.json")
+          yq -o json ".on.workflow_run.workflows" .github/workflows/ci-gate.yml > "$RUNNER_TEMP/gated.json"
+          request=$(python3 .github/actions/ci-gate/filter_checks.py "$RUNNER_TEMP/runs.json" "$RUNNER_TEMP/checks.json" "$RUNNER_TEMP/gated.json" "$GITHUB_EVENT_PATH" "$SELF" "$DETAILS" "$RUNNER_TEMP/gate.json")
           gh api --method "${request%% *}" "repos/$REPO/${request#* }" --input "$RUNNER_TEMP/gate.json" > /dev/null
