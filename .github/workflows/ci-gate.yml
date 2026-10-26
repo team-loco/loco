@@ -1,105 +1,66 @@
 name: CI Gate
 
 on:
-  pull_request:
+  workflow_run:
+    types: [completed]
+    workflows:
+      - Auth Conformance
+      - Buf
+      - Build E2E
+      - Chart Contracts
+      - CI Gate Trigger
+      - Config E2E
+      - Controller Helm Chart Tests
+      - Docker
+      - Docs Drift
+      - Documentation
+      - Go Vulnerabilities
+      - Ingress E2E
+      - Lint
+      - Local Stack
+      - Observability Chart
+      - Observability E2E
+      - OSV
+      - Private Discovery E2E
+      - Publish platform release
+      - Tests
+      - Transit Conformance
+      - Web
+      - Workflows
 
 permissions:
-  checks: read
   actions: read
+  checks: write
   contents: read
+
+concurrency:
+  group: ci-gate-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
 
 jobs:
   gate:
-    name: CI Gate
+    name: Evaluate CI Gate
+    if: github.event.workflow_run.event == 'pull_request' || github.event.workflow_run.pull_requests[0] != null
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 5
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: .github/actions/ci-gate
 
-      - name: Wait for every other check to finish
+      - name: Report the newest run of every check on the pull request head
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          SHA: ${{ github.event.pull_request.head.sha }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
           SELF: CI Gate
+          DETAILS: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-
-          # A check that has not been created yet is indistinguishable from one
-          # that will never run, so pass only after the set of checks has
-          # stopped changing for settle_seconds and everything in it has
-          # completed. Fail as soon as the latest run of any check has failed.
-          interval=5
-          settle_seconds=30
-          settle_seconds_empty=120
-          deadline=$((SECONDS + 50 * 60))
-
-          workflows_file=$(mktemp)
-          checks_file=$(mktemp)
-          trap 'rm -f "$workflows_file" "$checks_file"' EXIT
-
-          stable_since=$SECONDS
-          settled=0
-          prev=""
-          runs=""
-          total=0
-          pending=0
-
-          report() {
-            echo
-            printf '%s\n' "$runs" | awk -F'\t' '{printf "  %-34s %s\n", $1, ($3 == "" ? $2 : $3)}'
-            echo
-          }
-
-          while [ "$SECONDS" -lt "$deadline" ]; do
-            gh api --paginate --slurp "repos/$REPO/actions/runs?head_sha=$SHA&event=pull_request&per_page=100" > "$workflows_file"
-            gh api --paginate --slurp "repos/$REPO/commits/$SHA/check-runs?per_page=100" > "$checks_file"
-            runs=$(python3 .github/actions/ci-gate/filter_checks.py "$workflows_file" "$checks_file" "$SELF")
-
-            total=$(printf '%s' "$runs" | grep -c . || true)
-            pending=$(printf '%s\n' "$runs" | awk -F'\t' '$2 != "completed"' | grep -c . || true)
-
-            failed=$(printf '%s\n' "$runs" \
-              | awk -F'\t' '$2 == "completed" && ($3 == "failure" || $3 == "timed_out" || $3 == "cancelled" || $3 == "action_required") {print $1}')
-
-            if [ -n "$failed" ]; then
-              report
-              echo "::error::failing checks:"
-              printf '%s\n' "$failed" | sed 's/^/  /'
-              exit 1
-            fi
-
-            if [ "$runs" != "$prev" ] || [ "$pending" -ne 0 ]; then
-              stable_since=$SECONDS
-            fi
-            if [ "$runs" != "$prev" ]; then
-              echo "$total checks, $pending still running"
-            fi
-            prev="$runs"
-
-            need=$settle_seconds
-            if [ "$total" -eq 0 ]; then
-              need=$settle_seconds_empty
-            fi
-
-            if [ "$pending" -eq 0 ] && [ $((SECONDS - stable_since)) -ge "$need" ]; then
-              settled=1
-              break
-            fi
-
-            sleep "$interval"
-          done
-
-          if [ "$settled" -ne 1 ]; then
-            echo "::error::timed out waiting for checks to report ($total seen, $pending pending)"
-            exit 1
+          gh api --paginate --slurp "repos/$REPO/actions/runs?head_sha=$SHA&per_page=100" > "$RUNNER_TEMP/runs.json"
+          gh api --paginate --slurp "repos/$REPO/commits/$SHA/check-runs?per_page=100" > "$RUNNER_TEMP/checks.json"
+          request=$(python3 .github/actions/ci-gate/filter_checks.py "$RUNNER_TEMP/runs.json" "$RUNNER_TEMP/checks.json" "$GITHUB_EVENT_PATH" "$SELF" "$DETAILS" "$RUNNER_TEMP/gate.json")
+          if [ -n "$request" ]; then
+            gh api --method "${request%% *}" "repos/$REPO/${request#* }" --input "$RUNNER_TEMP/gate.json" > /dev/null
           fi
-
-          if [ "$total" -eq 0 ]; then
-            echo "no other checks ran for this change"
-            exit 0
-          fi
-
-          report
-          echo "all $total checks passed or were skipped"

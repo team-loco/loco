@@ -67,3 +67,20 @@ def test_gate_does_not_wait_for_itself():
     own = run(1, "in_progress", None)
     own["name"] = "CI Gate"
     assert _selected([own]) == []
+
+
+def test_superseded_cancelled_run_is_not_a_failure():
+    rows = _selected([run(1, "completed", "cancelled"), run(2, "queued", None)])
+    assert gate.verdict(rows) == ("in_progress", None)
+
+
+def test_unknown_conclusions_fail(subtests):
+    for conclusion in ("startup_failure", "stale", "action_required"):
+        with subtests.test(conclusion=conclusion):
+            rows = _selected([run(2, "completed", conclusion)])
+            assert gate.verdict(rows) == ("completed", "failure")
+
+
+def test_failure_wins_over_pending_checks():
+    rows = [("Lint (workflow)", "completed", "failure"), ("Tests (workflow)", "in_progress", "")]
+    assert gate.verdict(rows) == ("completed", "failure")
