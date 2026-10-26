@@ -1,0 +1,25 @@
+# OpenTelemetry Demo Configuration
+# Configured to send telemetry data to ClickStack
+
+# Configure the demo's OpenTelemetry Collector to export to ClickStack
+# We need to fully configure pipelines including the spanmetrics connector
+# that the demo uses to generate metrics from traces
+opentelemetry-collector:
+  config:
+    exporters:
+      # Export to ClickStack's OTEL collector
+      otlp/clickstack:
+        endpoint: clickstack-otel-collector.clickstack.svc.cluster.local:4317
+        tls:
+          insecure: true
+
+    connectors:
+      spanmetrics: {}
+
+    service:
+      pipelines:
+        traces:
+          exporters: [otlp/clickstack, spanmetrics]
+        metrics:
+          receivers: [spanmetrics]
+          exporters: [otlp/clickstack]

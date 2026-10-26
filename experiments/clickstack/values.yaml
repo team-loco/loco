@@ -1,0 +1,67 @@
+# ClickStack Helm Chart Values
+# Explicit configuration for testing ClickStack observability platform
+
+# HyperDX Frontend Configuration
+hyperdx:
+  frontendUrl: "http://localhost:8080"  # Update with your actual domain/ingress
+
+  # API Key for telemetry collection
+  # Configure this after deployment via HyperDX dashboard
+  apiKey: ""  # Set via --set or after deployment
+
+  # Ingress Configuration
+  ingress:
+    enabled: false  # Set to true when using ingress
+    host: ""  # e.g., hyperdx.yourdomain.com
+
+    # TLS/HTTPS Configuration
+    tls:
+      enabled: false
+      tlsSecretName: ""  # Reference to TLS certificate secret
+
+  # Resource Configuration
+  resources:
+    limits:
+      cpu: "1000m"
+      memory: "2Gi"
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+
+# ClickHouse Configuration
+clickhouse:
+  enabled: true
+
+  # Resource Configuration
+  resources:
+    limits:
+      cpu: "2000m"
+      memory: "4Gi"
+    requests:
+      cpu: "1000m"
+      memory: "2Gi"
+
+  # Persistence
+  persistence:
+    enabled: true
+    size: "10Gi"
+
+# Additional Services
+otel:
+  enabled: true
+
+  resources:
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+    requests:
+      cpu: "200m"
+      memory: "512Mi"
+
+# Replica Configuration
+replicaCount: 1
+
+# Service Configuration
+service:
+  type: ClusterIP
+  port: 8080
