@@ -371,6 +371,20 @@ func (s *fakeDomainService) ListPlatformDomains(
 	return resp, nil
 }
 
+func (s *fakeDomainService) CheckDomainAvailability(
+	ctx context.Context,
+	_ *domainv1.CheckDomainAvailabilityRequest,
+) (*domainv1.CheckDomainAvailabilityResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
+	if _, _, err := s.api.authenticate(
+		connect.Spec{Procedure: domainv1connect.DomainServiceCheckDomainAvailabilityProcedure},
+		info.RequestHeader(),
+	); err != nil {
+		return nil, err
+	}
+	return &domainv1.CheckDomainAvailabilityResponse{IsAvailable: true}, nil
+}
+
 type fakeEnvironmentService struct {
 	environmentv1connect.UnimplementedEnvironmentServiceHandler
 

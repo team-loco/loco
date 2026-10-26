@@ -2,6 +2,8 @@ package infra
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -11,30 +13,43 @@ import (
 	"path"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
+	"connectrpc.com/connect/v2"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/cmd/loco/resource"
+	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/locofile"
+	"github.com/team-loco/loco/internal/rpc"
 	"github.com/team-loco/loco/internal/sourcepack"
 	"github.com/team-loco/loco/internal/ui"
 	"sigs.k8s.io/yaml"
+)
+
+const (
+	filelessSuffixLength   = 4
+	filelessAlphabetSize   = 26
+	filelessDomainAttempts = 32
+	maxDNSLabelLength      = 63
 )
 
 var (
 	errImageTarget = errors.New(
 		"--image requires selecting exactly one service; omit the name only for a single-service environment",
 	)
-	errEmptyImage       = errors.New("image reference must not be empty")
-	errServiceNotInFile = errors.New("the file does not run the service in this environment")
-	errServiceHasImage  = errors.New("the service runs a public image and is not built")
-	errFilelessFlags    = errors.New("deployment flags for a new service require omitting loco.yaml")
-	errNameConflict     = errors.New("set the service name with either an argument or --name")
-	errMultipleNames    = errors.New("without loco.yaml, deploy one service at a time")
-	errDomainConflict   = errors.New("--domain and --private cannot be used together")
+	errEmptyImage          = errors.New("image reference must not be empty")
+	errServiceNotInFile    = errors.New("the file does not run the service in this environment")
+	errServiceHasImage     = errors.New("the service runs a public image and is not built")
+	errFilelessFlags       = errors.New("deployment flags for a new service require omitting loco.yaml")
+	errNameConflict        = errors.New("set the service name with either an argument or --name")
+	errMultipleNames       = errors.New("without loco.yaml, deploy one service at a time")
+	errDomainConflict      = errors.New("--domain and --private cannot be used together")
+	errUnsafeDirectoryName = errors.New("directory name has no usable letters or digits; set --name")
+	errNoAvailableDomain   = errors.New("could not find an available public hostname; set --domain")
 )
 
 type buildTarget struct {
@@ -48,8 +63,9 @@ func BuildDeployCmd() *cobra.Command {
 		Use:   "deploy [service...]",
 		Short: "Build and deploy an application",
 		Long: `Deploy from the current directory. If it has no loco.yaml, Loco deploys one
-service using API defaults for the port, region, resources, and public domain. It uses
-the directory name as the service name and Dockerfile in that directory for a source
+service using API defaults for the port, region, resources, and platform domain. It
+turns the directory name into a safe service name and adds a four-letter suffix to
+the public hostname. It uses Dockerfile in that directory for a source
 build. In a terminal, it asks for the service name. No file is written. Set --name,
 --port, --region, --domain, --dockerfile, or --context to override those choices;
 --private omits the public domain. Use --yes without a terminal.
@@ -359,7 +375,29 @@ func filelessServiceName(cmd *cobra.Command, names []string, yes bool) (string, 
 		if getwdErr != nil {
 			return "", fmt.Errorf("get current directory: %w", getwdErr)
 		}
-		name = filepath.Base(dir)
+		name, err = safeDirectoryName(filepath.Base(dir))
+		if err != nil {
+			return "", err
+		}
+	}
+	return name, nil
+}
+
+func safeDirectoryName(dir string) (string, error) {
+	var b strings.Builder
+	for _, char := range strings.ToLower(dir) {
+		if char >= 'a' && char <= 'z' || char >= '0' && char <= '9' {
+			b.WriteRune(char)
+		} else if b.Len() > 0 && !strings.HasSuffix(b.String(), "-") {
+			b.WriteByte('-')
+		}
+		if b.Len() >= maxDNSLabelLength {
+			break
+		}
+	}
+	name := strings.Trim(b.String(), "-")
+	if name == "" {
+		return "", errUnsafeDirectoryName
 	}
 	return name, nil
 }
@@ -382,9 +420,69 @@ func filelessDomain(cmd *cobra.Command, t target, name, region string) (string, 
 		if domainErr != nil {
 			return "", domainErr
 		}
-		domain = name + "." + platformDomain
+		return generatedDomain(ctx, t, name, platformDomain)
 	}
 	return domain, nil
+}
+
+func generatedDomain(ctx context.Context, t target, name, platformDomain string) (string, error) {
+	prefix := name
+	if len(prefix) > maxDNSLabelLength-filelessSuffixLength-1 {
+		prefix = strings.TrimSuffix(prefix[:maxDNSLabelLength-filelessSuffixLength-1], "-")
+	}
+	base := prefix + "-"
+	res, err := t.lookupResource(ctx, name)
+	if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
+		return "", err
+	}
+	if err == nil {
+		for _, assigned := range res.GetDomains() {
+			domain := assigned.GetDomain()
+			if strings.HasPrefix(domain, base) && strings.HasSuffix(domain, "."+platformDomain) {
+				suffix := strings.TrimSuffix(strings.TrimPrefix(domain, base), "."+platformDomain)
+				if isFilelessSuffix(suffix) {
+					return domain, nil
+				}
+			}
+		}
+	}
+	client := rpc.ForHost(t.host, t.token).Domain
+	for attempt := range filelessDomainAttempts {
+		candidate := base + filelessSuffix(t.workspaceID, name, attempt) + "." + platformDomain
+		request := &domainv1.CheckDomainAvailabilityRequest{Domain: candidate}
+		response, checkErr := client.CheckDomainAvailability(ctx, request)
+		if checkErr != nil {
+			return "", fmt.Errorf("check public hostname %s: %w", candidate, checkErr)
+		}
+		if response.GetIsAvailable() {
+			return candidate, nil
+		}
+	}
+	return "", errNoAvailableDomain
+}
+
+func filelessSuffix(workspaceID, name string, attempt int) string {
+	input := workspaceID + "/" + name + "/" + strconv.Itoa(attempt)
+	hash := sha256.Sum256([]byte(input))
+	value := binary.BigEndian.Uint32(hash[:])
+	suffix := [filelessSuffixLength]byte{}
+	for index := filelessSuffixLength - 1; index >= 0; index-- {
+		suffix[index] = 'a' + byte(value%filelessAlphabetSize)
+		value /= filelessAlphabetSize
+	}
+	return string(suffix[:])
+}
+
+func isFilelessSuffix(suffix string) bool {
+	if len(suffix) != filelessSuffixLength {
+		return false
+	}
+	for _, char := range suffix {
+		if char < 'a' || char > 'z' {
+			return false
+		}
+	}
+	return true
 }
 
 func imageOverride(

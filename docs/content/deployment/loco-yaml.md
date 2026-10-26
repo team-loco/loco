@@ -1,6 +1,6 @@
 # loco.yaml
 
-`loco.yaml` declares the services of a workspace: what to run, where, and how much. The CLI sends the file to the API, which plans the difference against an environment and applies it. The file is optional for a single service: `loco deploy` can deploy from the current directory with API defaults.
+`loco.yaml` declares the services of a workspace: what to run, where, and how much. The CLI sends the file to the API, which plans the difference against an environment and applies it. The file is optional for a single service: `loco deploy` can deploy from the current directory with API defaults and a public hostname formed from the safe directory name and a four-letter suffix.
 
 ## Create a file
 
