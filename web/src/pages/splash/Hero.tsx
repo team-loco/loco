@@ -32,14 +32,8 @@ export function Hero() {
           <div className="relative flex h-full flex-col justify-between gap-5">
             <div className="flex items-center justify-between font-mono text-[11px] uppercase tracking-wide text-fg3"><span>Deployment / production</span><span>01 — 03</span></div>
             <div className="rounded-md border border-line bg-background p-5 shadow-sm">
-              <div className="mb-3 text-[12px] font-medium text-fg3">loco.yaml</div>
-              <pre className="overflow-x-auto font-mono text-[13px] leading-[1.9] text-foreground">{`services:
-  api:
-    dockerfile: Dockerfile
-    context: .
-    regions:
-      us-east-1:
-        replicas: 2`}</pre>
+              <div className="mb-3 text-[12px] font-medium text-fg3">CLI workflow</div>
+              <pre className="overflow-x-auto font-mono text-[13px] leading-[1.9] text-foreground">{`$ loco infra init\n$ loco infra validate\n$ loco deploy`}</pre>
             </div>
             <div className="flex items-center gap-3 font-mono text-[12px]"><span className="text-fg3">$</span><span>loco deploy</span><span className="ml-auto text-fg3">build → rollout</span></div>
             <div className="rounded-md border border-line bg-background p-5">
