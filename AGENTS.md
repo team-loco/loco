@@ -8,7 +8,7 @@
 
 - **CLI**: Go app using Cobra + Charm libraries (Bubble Tea, Lipgloss) for terminal UI
 - **API Server**: Go with ConnectRPC on connect-go v2 (`connectrpc.com/connect/v2`), PostgreSQL database
-- **Infrastructure**: Kubernetes with Cilium networking, Envoy Gateway, cert-manager, OpenTelemetry, ClickHouse metrics read through the observability proxy
+- **Infrastructure**: Kubernetes with a CNI that enforces NetworkPolicy, Envoy Gateway, cert-manager, OpenTelemetry, ClickHouse metrics read through the observability proxy
 - **Key modules**: `api/` (ConnectRPC services), `cmd/loco/` (CLI commands), `cmd/locoadm/` (operator CLI), `agent/` (in-cluster agent), `controller/` (kubebuilder operator), `k8sapi/` (CRD types), `internal/` (shared logic), `web/` (dashboard), `gen/` (generated protobuf types)
 - **Each environment runs on its own clusters.** Staging and production never share a cluster, so a cluster belongs to exactly one environment and a resource has at most one placement per cluster. Don't design for two environments of a resource on the same cluster.
 

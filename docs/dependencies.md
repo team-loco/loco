@@ -99,25 +99,9 @@ Loco is a container orchestration platform with the following components:
 
 ## Kubernetes Infrastructure (via Helm Charts)
 
-### Phase 1: Networking
+Each cluster needs a CNI that enforces Kubernetes NetworkPolicy; the controller isolates workspaces with `networking.k8s.io/v1` NetworkPolicy objects. Local development uses kind's default CNI.
 
-#### loco-networking Chart
-
-Deploys:
-
-- **Cilium** (v1.18.4)
-  - **CNI (Container Network Interface)** implementation
-  - Pod-to-pod networking with eBPF
-  - Network policies enforcement
-
-**Cilium Dependencies**:
-
-- Linux kernel eBPF support
-- Kubernetes network plugin interface
-
----
-
-### Phase 2: Core Services
+### Phase 1: Core Services
 
 #### loco-core Chart
 
@@ -160,7 +144,7 @@ Deploys:
 
 ---
 
-### Phase 3: Observability
+### Phase 2: Observability
 
 #### loco-obs Chart
 
@@ -207,7 +191,6 @@ Used by the chart dependencies and `charts/cert-manager.yaml`:
 | Repository         | URL                                                        | Purpose              |
 | ------------------ | ---------------------------------------------------------- | -------------------- |
 | **jetstack**       | https://charts.jetstack.io                                 | cert-manager chart   |
-| **cilium**         | https://helm.cilium.io                                     | Cilium CNI chart     |
 | **altinity**       | https://helm.altinity.com                                  | ClickHouse chart     |
 | **open-telemetry** | https://open-telemetry.github.io/opentelemetry-helm-charts | OpenTelemetry charts |
 
@@ -230,7 +213,6 @@ Controller Reconciles:
   - Ingress (via Envoy Gateway)
   ↓
 Envoy Gateway (loco-core)
-  - Routes traffic via Cilium networking
   - Terminates TLS (via cert-manager certificates)
   - Exposes HTTP/3
 ```
@@ -252,7 +234,7 @@ Envoy Gateway (loco-core)
 
 - Kubernetes cluster (1.34+)
 - PostgreSQL database
-- Cilium CNI
+- A CNI that enforces Kubernetes NetworkPolicy
 - cert-manager + Let's Encrypt
 - Envoy Gateway
 - OpenTelemetry (if observability needed)

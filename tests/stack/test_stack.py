@@ -1,4 +1,3 @@
-import ipaddress
 import os
 import shutil
 import subprocess
@@ -11,7 +10,6 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 STACK = "env/local/stack.sh"
-LB_RANGE = "mise-tasks/cluster/lb-range"
 STACK_NAMES = (
     "LOCO_STACK_SLOT",
     "LOCO_STACK_CLAIM",
@@ -39,7 +37,6 @@ STACK_NAMES = (
     "LOCO_REGISTRY_URL",
     "LOCO_SOURCE_BUCKET_ENDPOINT",
 )
-KIND_SUBNET = "192.168.97.0/24"
 MAX_SLOT = 9
 
 
@@ -201,34 +198,3 @@ def test_a_checkout_without_an_env_file_fails(local_stack):
     (local_stack.main / ".env").unlink()
     with pytest.raises(AssertionError, match="\\.env is missing"):
         _stack(local_stack, local_stack.main)
-
-
-def _lb_range(slot):
-    with tempfile.TemporaryDirectory() as directory:
-        docker = Path(directory) / "docker"
-        docker.write_text(f"#!/usr/bin/env bash\necho {KIND_SUBNET}\n")
-        docker.chmod(0o755)
-        env = {
-            **os.environ,
-            "PATH": f"{directory}:{os.environ['PATH']}",
-            "LOCO_STACK_SLOT": str(slot),
-        }
-        output = subprocess.check_output([str(ROOT / LB_RANGE)], env=env, text=True)
-        first, last = (ipaddress.ip_address(address) for address in output.split())
-        return first, last
-
-
-def test_the_main_checkout_keeps_its_range():
-    assert _lb_range(0) == (
-        ipaddress.ip_address("192.168.97.200"),
-        ipaddress.ip_address("192.168.97.249"),
-    )
-
-
-def test_slots_get_ranges_that_do_not_overlap():
-    taken = set()
-    for slot in range(MAX_SLOT + 1):
-        first, last = _lb_range(slot)
-        addresses = set(range(int(first), int(last) + 1))
-        assert not addresses & taken, slot
-        taken |= addresses

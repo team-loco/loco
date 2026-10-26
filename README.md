@@ -67,7 +67,7 @@ Deployable sample apps, each with its own `loco.yaml`:
 
 ### Kubernetes Setup
 
-- **Cilium:** Implements the CNI (Container Network Interface)
+- **CNI:** Any CNI that enforces Kubernetes NetworkPolicy, which isolates workspaces from each other.
 - **Envoy:** Implements the 'new' Kubernetes Gateway API. Responsible for routing, TLS termination, enabling HTTP3
 - **cert-manager:** For automatic SSL certificate management for various components. (Let's Encrypt).
 - **OpenTelemetry:** For observability; collects metrics, logs and traces.
@@ -103,6 +103,8 @@ cd examples/test-api/backend && ../../../bin/loco deploy backend
 ```
 
 Each git worktree runs its own stack next to the main checkout's. `env/local/stack.sh` gives a worktree the first free slot N from 1 to 9 and adds 100×N to the local ports, so slot 1 serves the API on `http://localhost:8100`, the web UI on `http://localhost:5273` and Dex on `http://localhost:5656/dex`. Its kind cluster is `loco-cluster-local-N`, its compose project `loco-dev-N`, and its registry and bucket aliases `loco-registry-N` and `loco-s3-N.localhost`. `mise run stack` prints the current checkout's URLs, kube context and compose project; `mise run stop` stops that stack and `mise run down` deletes its cluster, containers and volumes. The GitHub button only works on the main checkout's stack, whose Dex callback the OAuth app names.
+
+The kind clusters run kind's default CNI. `mise run cluster:up` also starts one [cloud-provider-kind](https://github.com/kubernetes-sigs/cloud-provider-kind) container, shared by every checkout's cluster, which gives each LoadBalancer Service, such as the Gateway's Envoy Service, an address on the `kind` docker network. OrbStack routes those addresses to the host.
 
 Builds push to a local [zot](https://zotregistry.dev) registry and upload sources to a local S3 bucket, both from `compose.yaml`; the `LOCO_REGISTRY_*` and `LOCO_SOURCE_BUCKET_*` values in `.env.example` point the API at them. The registry uses the dev-only accounts in `registry/local/htpasswd`: `builder` (push), `nodes` (pull) and `api` (pull, delete), each with the password `loco-dev-<name>`. `mise run cluster:registry` puts both containers on the `kind` docker network, lets the kind nodes pull from the registry under `localhost:5001` and `loco-registry:5000`, and stores the `nodes` credential as the `loco-registry` pull secret and the `builder` credential as the `loco-registry-push` secret in `loco-system`. The API names images `loco-registry:5000/...`, the address both the build pods and the kind nodes reach.
 

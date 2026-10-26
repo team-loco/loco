@@ -24,8 +24,6 @@ local_resource(
     deps=[
         'charts/loco-core/Chart.yaml',
         'charts/loco-core/Chart.lock',
-        'charts/loco-networking/Chart.yaml',
-        'charts/loco-networking/Chart.lock',
         'charts/loco-obs/Chart.yaml',
         'charts/loco-obs/Chart.lock',
     ],
@@ -127,23 +125,7 @@ local_resource(
 )
 
 # ---------------------------------------------------------------------------
-# Phase 1: Networking (Cilium)
-# ---------------------------------------------------------------------------
-
-local_resource(
-    'helm-networking',
-    cmd='mise run helm:sync:networking',
-    resource_deps=['helm-deps'],
-    deps=[
-        'charts/loco-networking/',
-        'env/local/networking-chart.yaml',
-    ],
-    allow_parallel=True,
-    labels=['infra'],
-)
-
-# ---------------------------------------------------------------------------
-# Phase 2: Core (CRDs + cert-manager + Envoy Gateway + loco-core + loco-operator)
+# Phase 1: Core (CRDs + cert-manager + Envoy Gateway + loco-core + loco-operator)
 # ---------------------------------------------------------------------------
 
 local_resource(
@@ -170,7 +152,6 @@ local_resource(
 local_resource(
     'helm-cert-manager',
     cmd='mise run helm:sync:cert-manager',
-    resource_deps=['helm-networking'],
     allow_parallel=True,
     labels=['infra'],
 )
@@ -207,11 +188,11 @@ helm_release(
     }],
     values=[],
     deps=['charts/loco-operator/', 'env/local/operator-chart.yaml', 'mise-tasks/cluster/build-egress'],
-    resource_deps=['helm-networking', 'cluster-registry', 'crds'],
+    resource_deps=['cluster-registry', 'crds'],
 )
 
 # ---------------------------------------------------------------------------
-# Phase 3: Observability (OpenTelemetry collectors exporting OTLP to the host proxy)
+# Phase 2: Observability (OpenTelemetry collectors exporting OTLP to the host proxy)
 # ---------------------------------------------------------------------------
 
 helm_release(

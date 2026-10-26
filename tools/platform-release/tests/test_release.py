@@ -324,9 +324,9 @@ def _publish(publication, repository, version, data, config, *args):
 def test_bundle_is_last_after_all_artifacts_and_provenance(publication):
     with patch("builtins.print"):
         release.publish("0.7.0-rc.1", publication.commit, publication.registry)
-    assert len(publication.published) == 10
+    assert len(publication.published) == 9
     assert publication.published[-1] == "example/platform/platform"
-    assert publication.registry.assert_absent.call_count == 10
+    assert publication.registry.assert_absent.call_count == 9
     attestations = [
         call
         for call in publication.calls

@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-#MISE description="Create the local kind cluster, start its nodes if mise run stop stopped them, or recreate it if it is unreachable, and export its kubeconfig; a worktree's stack leaves the current kubectl context as it was"
+#MISE description="Create the local kind cluster, start its nodes if mise run stop stopped them, or recreate it if it is unreachable, export its kubeconfig, and start the cloud-provider-kind container that gives the LoadBalancer Services of every kind cluster an address; a worktree's stack leaves the current kubectl context as it was"
 #MISE env={_.source="env/local/stack.sh"}
 set -euo pipefail
 
 name=$KIND_CLUSTER
 api_ready_timeout_seconds=120
 nodes_ready_timeout=180s
+load_balancer_project=cloud-provider-kind
 previous=$(kubectl config current-context 2>/dev/null || true)
 
 if kind get clusters 2>/dev/null | grep -qx "$name"; then
@@ -28,6 +29,7 @@ else
 	kind create cluster --config env/local/kind-cluster.yml --name "$name"
 fi
 kind export kubeconfig --name "$name" --kubeconfig "$HOME/.kube/config"
+docker compose --project-name "$load_balancer_project" --file env/local/compose.cloud-provider-kind.yaml up --detach --wait
 if [ "$LOCO_STACK_SLOT" -ne 0 ] && [ -n "$previous" ]; then
 	kubectl config use-context "$previous" >/dev/null
 fi

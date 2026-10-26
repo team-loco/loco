@@ -16,7 +16,6 @@ Artifacts use these repository paths under `ghcr.io/<owner>/<repository>`:
 
 ```text
 charts/loco-core
-charts/loco-networking
 charts/loco-obs
 charts/loco-operator
 charts/loco-control-plane

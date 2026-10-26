@@ -15,7 +15,7 @@ import urllib.parse
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[2]
-CHARTS = ('loco-core', 'loco-networking', 'loco-obs', 'loco-operator', 'loco-control-plane')
+CHARTS = ('loco-core', 'loco-obs', 'loco-operator', 'loco-control-plane')
 IMAGES = ('agent', 'controller', 'builder', 'obs-proxy', 'api', 'ui')
 MANIFEST_TYPE = 'application/vnd.oci.image.manifest.v1+json'
 LAYER_TYPE = 'application/vnd.oci.image.layer.v1.tar+gzip'

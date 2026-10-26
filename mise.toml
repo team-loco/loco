@@ -160,7 +160,7 @@ description = "Test vulnerability scan module coverage and failure propagation"
 run = "uv run --locked --project tests pytest tests/govulncheck"
 
 [tasks."test:stack"]
-description = "Test how each checkout's local stack gets its slot, names, ports and LoadBalancer range"
+description = "Test how each checkout's local stack gets its slot, names and ports"
 run = "uv run --locked --project tests pytest tests/stack"
 
 [tasks."lint:actions"]
@@ -260,10 +260,9 @@ EOF
 [tasks."helm:repos"]
 description = "Add and update the helm repositories the charts depend on"
 run = [
-  "helm repo add cilium https://helm.cilium.io",
   "helm repo add altinity https://helm.altinity.com",
   "helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts",
-  "helm repo update cilium altinity open-telemetry",
+  "helm repo update altinity open-telemetry",
 ]
 
 [tasks."helm:deps"]
@@ -272,7 +271,6 @@ sources = ["charts/*/Chart.yaml", "charts/*/Chart.lock"]
 outputs = ["charts/*/charts/*.tgz"]
 run = [
   "mise run helm:repos",
-  "helm dependency build --skip-refresh ./charts/loco-networking",
   "helm dependency build --skip-refresh ./charts/loco-obs",
   "helm dependency build --skip-refresh ./charts/loco-core",
   "helm dependency build --skip-refresh ./charts/loco-control-plane",

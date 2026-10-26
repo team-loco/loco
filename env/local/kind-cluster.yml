@@ -10,5 +10,3 @@ nodes:
   - role: worker
 networking:
   apiServerAddress: 127.0.0.1
-  disableDefaultCNI: true
-  kubeProxyMode: "none"

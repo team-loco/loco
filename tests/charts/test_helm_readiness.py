@@ -8,7 +8,6 @@ ROOT = Path(__file__).resolve().parents[2]
 RELEASE_TASK = ROOT / "mise-tasks/helm/sync/release"
 CERT_MANAGER = ROOT / "charts/cert-manager.yaml"
 HELM = shutil.which("helm")
-LB_RANGE = ("172.30.255.200", "172.30.255.249")
 BUILD_EGRESS = [{"cidr": "172.30.0.0/16", "port": 5001}]
 FIXTURE_ENV = {
     "KIND_CLUSTER": "loco-test",
@@ -18,13 +17,12 @@ FIXTURE_ENV = {
 }
 STACK_ENV = ("CERT_MANAGER_EMAIL", *FIXTURE_ENV)
 TILT_VALUES = {
-    "loco-networking": (),
     "cert-manager": (),
     "loco-core": ("agent.image.tag=fixture",),
     "loco-operator": ("controller.image.tag=fixture", "builds.builderImage.tag=fixture"),
     "loco-obs": (),
 }
-PROVIDERS = ("loco-networking", "cert-manager")
+PROVIDERS = ("cert-manager",)
 CONSUMERS = ("loco-core", "loco-operator", "loco-obs")
 
 
@@ -39,7 +37,6 @@ def install_args(tmp_path, release, environment=None):
     (stubs / "mise").write_text(
         "#!/usr/bin/env bash\n"
         "case $* in\n"
-        f"*cluster:lb-range) echo '{' '.join(LB_RANGE)}' ;;\n"
         f"*cluster:build-egress) echo '{json.dumps(BUILD_EGRESS)}' ;;\n"
         "*) exit 1 ;;\n"
         "esac\n"
@@ -94,8 +91,7 @@ def test_tilt_values_reach_helm(tmp_path):
 
 def test_local_releases_render_with_the_stack_values(tmp_path, subtests):
     expected = {
-        "loco-networking": [FIXTURE_ENV["KIND_CLUSTER"] + "-control-plane"],
-        "loco-core": [*LB_RANGE, FIXTURE_ENV["CLOUDFLARE_TOKEN"], FIXTURE_ENV["LOCO_JOIN_TOKEN"]],
+        "loco-core": [FIXTURE_ENV["CLOUDFLARE_TOKEN"], FIXTURE_ENV["LOCO_JOIN_TOKEN"]],
         "loco-operator": [BUILD_EGRESS[0]["cidr"]],
         "loco-obs": ["http://host.docker.internal:" + FIXTURE_ENV["OBS_OTLP_HTTP_PORT"]],
     }

@@ -1,0 +1,12 @@
+services:
+  cloud-provider-kind:
+    image: registry.k8s.io/cloud-provider-kind/cloud-controller-manager:v0.12.0@sha256:1b97632e5dfec8f83c7e970cf18cedb9e6b707e272011d712cabf6ab59d323c9
+    command: ["--gateway-channel=disabled", "--enable-default-ingress=false"]
+    restart: unless-stopped
+    networks: [kind]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+networks:
+  kind:
+    external: true

@@ -29,7 +29,7 @@ Configure the API's database, cache, authentication, registry, and API/dashboard
 
 Set `DATABASE_LISTEN_URL` to a direct PostgreSQL or session-pooler URL when `DATABASE_URL` uses a transaction-mode pooler. The API holds this connection for placement notifications and uses `DATABASE_URL` for ordinary queries. Both URLs must reach the same database. With `DATABASE_LISTEN_URL` empty, the listener uses `DATABASE_URL`.
 
-Each worker cluster needs Cilium, Envoy Gateway, cert-manager, the Loco controller and the OpenTelemetry collectors from the `loco-obs` chart. The collectors export every log, trace and metric over OTLP/HTTP to one endpoint and store nothing in the cluster. The control plane cluster needs Envoy Gateway and cert-manager, and runs the API, dashboard, observability proxy and ClickHouse from the `loco-control-plane` chart.
+Each worker cluster needs a CNI that enforces Kubernetes NetworkPolicy, Envoy Gateway, cert-manager, the Loco controller and the OpenTelemetry collectors from the `loco-obs` chart. The collectors export every log, trace and metric over OTLP/HTTP to one endpoint and store nothing in the cluster. The control plane cluster needs Envoy Gateway and cert-manager, and runs the API, dashboard, observability proxy and ClickHouse from the `loco-control-plane` chart.
 
 As a [system admin](#first-system-admin), attach each cluster by creating its record with `locoadm cluster create` and passing the printed join token to the agent's first start; see [cluster attachment](../reference/cluster-attachment.md). Set the platform domains a cluster serves in `global.domain.apps` of its `loco-core` values and point `*.<domain>` at its gateway; the API stores no domains of its own.
 

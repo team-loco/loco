@@ -7,7 +7,6 @@ on:
       - "tests/pyproject.toml"
       - "tests/uv.lock"
       - "env/local/stack.sh"
-      - "mise-tasks/cluster/lb-range"
       - "tests/stack/**"
       - ".github/workflows/local-stack.yml"
   push:
@@ -17,7 +16,6 @@ on:
       - "tests/pyproject.toml"
       - "tests/uv.lock"
       - "env/local/stack.sh"
-      - "mise-tasks/cluster/lb-range"
       - "tests/stack/**"
       - ".github/workflows/local-stack.yml"
 
