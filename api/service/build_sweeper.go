@@ -9,12 +9,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/advisorylock"
 )
 
 const (
-	sourceSweepLockKey    int64 = 0x6c6f636f0001
-	sourceUploadExpired         = "source upload expired"
-	advisoryUnlockTimeout       = 5 * time.Second
+	sourceUploadExpired   = "source upload expired"
+	advisoryUnlockTimeout = 5 * time.Second
 )
 
 type SourceSweepConfig struct {
@@ -86,7 +86,7 @@ func (s *SourceSweeper) Sweep(ctx context.Context) (SourceSweepResult, error) {
 		return result, fmt.Errorf("acquire connection: %w", err)
 	}
 	lockQueries := genDb.New(conn)
-	locked, err := lockQueries.TryAdvisoryLock(ctx, sourceSweepLockKey)
+	locked, err := lockQueries.TryAdvisoryLock(ctx, advisorylock.SourceSweep)
 	if err != nil {
 		conn.Release()
 		return result, fmt.Errorf("lock source sweep: %w", err)
@@ -95,7 +95,7 @@ func (s *SourceSweeper) Sweep(ctx context.Context) (SourceSweepResult, error) {
 		conn.Release()
 		return result, nil
 	}
-	defer unlockAdvisory(ctx, conn, lockQueries, sourceSweepLockKey)
+	defer unlockAdvisory(ctx, conn, lockQueries, advisorylock.SourceSweep)
 	result.Ran = true
 
 	expired, err := s.expireUploads(ctx)
