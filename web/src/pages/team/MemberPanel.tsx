@@ -145,7 +145,13 @@ export function MemberPanel({
 					variant="ghost"
 					size="icon-xs"
 					aria-label={`Remove access to ${entry.label}`}
-					title={canRemove ? "Revoke all scopes" : isMe ? "You can't remove your own access" : `Requires admin on ${entry.label}`}
+					title={
+						canRemove
+							? "Revoke all scopes"
+							: isMe
+								? "You can't remove your own access"
+								: `Requires admin on ${entry.label}`
+					}
 					className="text-fg3"
 					disabled={!canRemove}
 					onClick={() => {
@@ -207,7 +213,12 @@ export function MemberPanel({
 							{isWs && entries.length === 0 && <span className="text-fg3">No workspace scopes.</span>}
 							{entries.map((e) => (isWs && !isMe ? workspaceRow(e) : readOnlyRow(e)))}
 							{isWs && canAddAny && (
-								<div className={cn("flex flex-col overflow-hidden rounded-lg border", focus ? "border-fg4" : "border-line")}>
+								<div
+									className={cn(
+										"flex flex-col overflow-hidden rounded-lg border",
+										focus ? "border-fg4" : "border-line",
+									)}
+								>
 									<div className="flex h-[34px] items-center gap-2 px-2.5">
 										<PlusIcon className="size-3.5 text-fg3" />
 										<input

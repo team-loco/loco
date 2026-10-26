@@ -60,8 +60,7 @@ export function DeleteOrgDialog({
 				<DialogBody>
 					<span className="leading-normal">
 						Deleting <span className="font-semibold">{orgName}</span> permanently deletes all workspaces in this
-						organization, all resources and deployments, and all configuration and data. This action cannot be
-						undone.
+						organization, all resources and deployments, and all configuration and data. This action cannot be undone.
 					</span>
 					<label className="flex flex-col gap-1.5">
 						<span className="text-[12.5px] text-fg2">

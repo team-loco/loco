@@ -1,18 +1,17 @@
-import { cva, type VariantProps } from "class-variance-authority"
+import { cva, type VariantProps } from "class-variance-authority";
 
-import { Button as ButtonBase } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { Button as ButtonBase } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-type BaseVariant = "default" | "outline" | "secondary" | "ghost" | "destructive" | "link"
-type BaseSize = "default" | "xs" | "sm" | "lg" | "icon" | "icon-xs" | "icon-sm" | "icon-lg"
+type BaseVariant = "default" | "outline" | "secondary" | "ghost" | "destructive" | "link";
+type BaseSize = "default" | "xs" | "sm" | "lg" | "icon" | "icon-xs" | "icon-sm" | "icon-lg";
 
 const buttonVariants = cva(
 	"gap-1.5 rounded-sm text-sm active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-2 disabled:pointer-events-auto disabled:cursor-not-allowed disabled:opacity-55 [&_svg:not([class*='size-'])]:size-3.5",
 	{
 		variants: {
 			variant: {
-				default:
-					"border-primary bg-primary text-primary-foreground hover:border-primary-hover hover:bg-primary-hover",
+				default: "border-primary bg-primary text-primary-foreground hover:border-primary-hover hover:bg-primary-hover",
 				outline:
 					"border-line bg-background font-normal hover:border-fg4 hover:bg-background aria-expanded:border-foreground aria-expanded:bg-background dark:border-line dark:bg-background dark:hover:bg-background",
 				secondary: "border-line bg-background font-normal text-fg2 hover:bg-bg3",
@@ -38,51 +37,51 @@ const buttonVariants = cva(
 			variant: "default",
 			size: "default",
 		},
-	}
-)
+	},
+);
 
-type ButtonVariant = NonNullable<VariantProps<typeof buttonVariants>["variant"]>
-type ButtonSize = NonNullable<VariantProps<typeof buttonVariants>["size"]>
+type ButtonVariant = NonNullable<VariantProps<typeof buttonVariants>["variant"]>;
+type ButtonSize = NonNullable<VariantProps<typeof buttonVariants>["size"]>;
 
 function baseVariant(variant: ButtonVariant): BaseVariant {
 	switch (variant) {
 		case "default":
-			return "default"
+			return "default";
 		case "outline":
-			return "outline"
+			return "outline";
 		case "secondary":
-			return "secondary"
+			return "secondary";
 		case "ghost":
-			return "ghost"
+			return "ghost";
 		case "destructive":
-			return "destructive"
+			return "destructive";
 		case "destructive-outline":
-			return "outline"
+			return "outline";
 		case "inverted":
-			return "default"
+			return "default";
 		case "link":
-			return "link"
+			return "link";
 	}
 }
 
 function baseSize(size: ButtonSize): BaseSize {
 	switch (size) {
 		case "default":
-			return "default"
+			return "default";
 		case "xs":
-			return "xs"
+			return "xs";
 		case "sm":
-			return "sm"
+			return "sm";
 		case "lg":
-			return "lg"
+			return "lg";
 		case "xl":
-			return "lg"
+			return "lg";
 		case "icon":
-			return "icon"
+			return "icon";
 		case "icon-sm":
-			return "icon-sm"
+			return "icon-sm";
 		case "icon-xs":
-			return "icon-xs"
+			return "icon-xs";
 	}
 }
 
@@ -92,8 +91,8 @@ function Button({
 	size = "default",
 	...props
 }: Omit<React.ComponentProps<typeof ButtonBase>, "variant" | "size"> & {
-	variant?: ButtonVariant | undefined
-	size?: ButtonSize | undefined
+	variant?: ButtonVariant | undefined;
+	size?: ButtonSize | undefined;
 }) {
 	return (
 		<ButtonBase
@@ -102,7 +101,7 @@ function Button({
 			className={cn(buttonVariants({ variant, size }), className)}
 			{...props}
 		/>
-	)
+	);
 }
 
-export { Button, buttonVariants, type ButtonVariant, type ButtonSize }
+export { Button, buttonVariants, type ButtonVariant, type ButtonSize };

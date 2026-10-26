@@ -71,23 +71,23 @@ export function AppShell({ children }: { children: ReactNode }) {
 	};
 
 	return (
-			<TooltipProvider>
-				<SidebarPeekContext value={peek}>
-					<SidebarProvider
-						open={pinned || peeking}
-						onOpenChange={onOpenChange}
-						data-peek={peeking && !pinned}
-						className="data-[peek=true]:[&_[data-slot=sidebar-container]]:shadow-drawer data-[peek=true]:[&_[data-slot=sidebar-gap]]:w-(--sidebar-width-icon)"
-					>
-						<AppSidebar />
-						<SidebarInset className="min-w-0 bg-background">
-							<TopBar />
-							<main className="flex min-w-0 flex-1 flex-col">
-								<Suspense fallback={<AppLoading />}>{children}</Suspense>
-							</main>
-						</SidebarInset>
-					</SidebarProvider>
-				</SidebarPeekContext>
-			</TooltipProvider>
+		<TooltipProvider>
+			<SidebarPeekContext value={peek}>
+				<SidebarProvider
+					open={pinned || peeking}
+					onOpenChange={onOpenChange}
+					data-peek={peeking && !pinned}
+					className="data-[peek=true]:[&_[data-slot=sidebar-container]]:shadow-drawer data-[peek=true]:[&_[data-slot=sidebar-gap]]:w-(--sidebar-width-icon)"
+				>
+					<AppSidebar />
+					<SidebarInset className="min-w-0 bg-background">
+						<TopBar />
+						<main className="flex min-w-0 flex-1 flex-col">
+							<Suspense fallback={<AppLoading />}>{children}</Suspense>
+						</main>
+					</SidebarInset>
+				</SidebarProvider>
+			</SidebarPeekContext>
+		</TooltipProvider>
 	);
 }

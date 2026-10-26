@@ -31,11 +31,11 @@ function levelOn(scopes: EntityScope[], type: EntityType, id: string): AccessLev
 }
 
 export function hasOrganizationMembership(scopes: readonly EntityScope[], orgId: string): boolean {
-	return scopes.some((scope) =>
-		scope.scope !== Scope.UNSPECIFIED && (
-			scope.entityType === EntityType.SYSTEM ||
-			(scope.entityType === EntityType.ORGANIZATION && scope.entityId === orgId)
-		),
+	return scopes.some(
+		(scope) =>
+			scope.scope !== Scope.UNSPECIFIED &&
+			(scope.entityType === EntityType.SYSTEM ||
+				(scope.entityType === EntityType.ORGANIZATION && scope.entityId === orgId)),
 	);
 }
 

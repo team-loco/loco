@@ -51,7 +51,10 @@ export function EventsView() {
 	const from = nowMs - timeRangeMs(range);
 
 	const sel = selectedResources(resources, selected);
-	const { events, isLoading, error, unavailable } = useWorkspaceEvents(workspaceId, resources.map((r) => r.raw));
+	const { events, isLoading, error, unavailable } = useWorkspaceEvents(
+		workspaceId,
+		resources.map((r) => r.raw),
+	);
 	const selIds = new Set(sel.map((r) => r.id));
 	const q = query.trim().toLowerCase();
 	const base = events.filter((e) => {
@@ -94,7 +97,9 @@ export function EventsView() {
 	}));
 
 	const open = selItem !== undefined;
-	const rowCols = open ? "84px 150px minmax(0,1fr) minmax(0,1fr) 48px" : "120px 170px minmax(0,1.1fr) 104px minmax(0,1.6fr) 56px";
+	const rowCols = open
+		? "84px 150px minmax(0,1fr) minmax(0,1fr) 48px"
+		: "120px 170px minmax(0,1.1fr) 104px minmax(0,1.6fr) 56px";
 	const select = (key: string | null) => {
 		setSelKey(key);
 		if (key === null) return;
@@ -141,7 +146,10 @@ export function EventsView() {
 	return (
 		<>
 			{toolbar}
-			<div className="grid items-start gap-5" style={{ gridTemplateColumns: open ? "minmax(0,1fr) minmax(340px,400px)" : "minmax(0,1fr)" }}>
+			<div
+				className="grid items-start gap-5"
+				style={{ gridTemplateColumns: open ? "minmax(0,1fr) minmax(340px,400px)" : "minmax(0,1fr)" }}
+			>
 				<div className="flex min-w-0 flex-col gap-3">
 					<div className="flex flex-wrap items-center gap-2">
 						<SearchInput
@@ -166,7 +174,12 @@ export function EventsView() {
 						>
 							{TYPES.map((t) => (
 								<ToggleGroupItem key={t.key} value={t.key} className="h-[26px]! gap-1.5 text-sm">
-									<span className={cn("size-[7px] rounded-[2px]", t.key === "all" ? "bg-transparent" : severityStyle(t.key).dot)} />
+									<span
+										className={cn(
+											"size-[7px] rounded-[2px]",
+											t.key === "all" ? "bg-transparent" : severityStyle(t.key).dot,
+										)}
+									/>
 									{t.label}
 									<span className="text-xs font-normal text-fg3 tabular-nums">
 										{t.key === "all" ? base.length : sevCounts[t.key]}
@@ -225,7 +238,9 @@ export function EventsView() {
 												)}
 												style={{ gridTemplateColumns: rowCols }}
 											>
-												<span className="whitespace-nowrap text-fg3 tabular-nums">{open ? formatClock(e.ts) : fmtTs(e.ts)}</span>
+												<span className="whitespace-nowrap text-fg3 tabular-nums">
+													{open ? formatClock(e.ts) : fmtTs(e.ts)}
+												</span>
 												<span className="flex min-w-0 items-center gap-[7px]">
 													<span className={cn("size-[7px] shrink-0 rounded-[2px]", st.dot)} />
 													<span className={cn("truncate font-semibold", st.fg)}>{e.reason}</span>
@@ -243,7 +258,12 @@ export function EventsView() {
 												</span>
 												<span className="flex justify-end">
 													{e.occ.length > 1 && (
-														<span className={cn("inline-flex h-5 items-center rounded-full px-[7px] text-[11.5px] font-semibold tabular-nums", st.count)}>
+														<span
+															className={cn(
+																"inline-flex h-5 items-center rounded-full px-[7px] text-[11.5px] font-semibold tabular-nums",
+																st.count,
+															)}
+														>
 															×{e.occ.length}
 														</span>
 													)}
@@ -287,8 +307,20 @@ export function EventsView() {
 								setSize(n);
 								setPage(0);
 							}}
-							onPrev={curPage > 0 ? () => { setPage(curPage - 1); } : null}
-							onNext={curPage < pages - 1 ? () => { setPage(curPage + 1); } : null}
+							onPrev={
+								curPage > 0
+									? () => {
+											setPage(curPage - 1);
+										}
+									: null
+							}
+							onNext={
+								curPage < pages - 1
+									? () => {
+											setPage(curPage + 1);
+										}
+									: null
+							}
 						/>
 					</section>
 				</div>
@@ -296,8 +328,20 @@ export function EventsView() {
 					<EventDetail
 						item={selItem}
 						nowMs={nowMs}
-						onPrev={selIdx > 0 ? () => { select(items[selIdx - 1]?.key ?? null); } : null}
-						onNext={selIdx < items.length - 1 ? () => { select(items[selIdx + 1]?.key ?? null); } : null}
+						onPrev={
+							selIdx > 0
+								? () => {
+										select(items[selIdx - 1]?.key ?? null);
+									}
+								: null
+						}
+						onNext={
+							selIdx < items.length - 1
+								? () => {
+										select(items[selIdx + 1]?.key ?? null);
+									}
+								: null
+						}
 						onClose={() => {
 							select(null);
 						}}

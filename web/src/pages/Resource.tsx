@@ -20,7 +20,15 @@ import { DeleteDialogContent, RollbackDialogContent, SpecDialogContent } from "@
 import { DiffDialogContent } from "@/pages/resource/DiffDialog";
 import { EventsSection } from "@/pages/resource/EventsSection";
 import { shortId } from "@/pages/resource/format";
-import { activeDeploymentPlaces, buildRegions, depTag, regionProblem, useResourceData, type ModalState, type Notice } from "@/pages/resource/model";
+import {
+	activeDeploymentPlaces,
+	buildRegions,
+	depTag,
+	regionProblem,
+	useResourceData,
+	type ModalState,
+	type Notice,
+} from "@/pages/resource/model";
 import { RegionPanel } from "@/pages/resource/RegionPanel";
 import { ResourceHeader } from "@/pages/resource/ResourceHeader";
 import { ResourceSkeleton } from "@/pages/resource/ResourceSkeleton";
@@ -37,7 +45,19 @@ export function Resource() {
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const navigate = useNavigate();
 	const [params, setParams] = useSearchParams();
-	const { resource, environmentId, deployments, currentDeployments, hasMoreHistory, isLoadingMoreHistory, historyError, loadMoreHistory, isLoading, error, refresh } = useResourceData(resourceId);
+	const {
+		resource,
+		environmentId,
+		deployments,
+		currentDeployments,
+		hasMoreHistory,
+		isLoadingMoreHistory,
+		historyError,
+		loadMoreHistory,
+		isLoading,
+		error,
+		refresh,
+	} = useResourceData(resourceId);
 	const { resourceLevel } = useMyScopes();
 
 	const [regionName, setRegionName] = useState<string | null>(null);
@@ -59,7 +79,10 @@ export function Resource() {
 	if (isLoading) return <ResourceSkeleton />;
 
 	if (error !== null || resource === undefined) {
-		const message = error !== null ? getErrorMessage(error, "Failed to load resource") : "This resource does not exist or was deleted.";
+		const message =
+			error !== null
+				? getErrorMessage(error, "Failed to load resource")
+				: "This resource does not exist or was deleted.";
 		return (
 			<Page>
 				<EmptyState title={error !== null ? "Couldn't load resource" : "Resource not found"}>{message}</EmptyState>
@@ -76,7 +99,9 @@ export function Resource() {
 	const env = params.get("env");
 	const hasWs = activeOrgId !== null && activeWorkspaceId !== null;
 	const obsLink = (view: "logs" | "metrics" | "traces"): string =>
-		hasWs ? observabilityPath(activeOrgId, activeWorkspaceId, view, { ...(env !== null ? { env } : {}), r: resource.name }) : "";
+		hasWs
+			? observabilityPath(activeOrgId, activeWorkspaceId, view, { ...(env !== null ? { env } : {}), r: resource.name })
+			: "";
 	const obs: ObsLinks | undefined = hasWs
 		? { logs: obsLink("logs"), metrics: obsLink("metrics"), traces: obsLink("traces") }
 		: undefined;
@@ -198,7 +223,8 @@ export function Resource() {
 					) : (
 						<section className="rounded-lg border border-line">
 							<EmptyState title="Not deployed yet">
-								Run <code className="font-mono">loco deploy {resource.name}</code> to create the first deployment of {resource.name}.
+								Run <code className="font-mono">loco deploy {resource.name}</code> to create the first deployment of{" "}
+								{resource.name}.
 							</EmptyState>
 						</section>
 					)}

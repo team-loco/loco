@@ -10,21 +10,14 @@ function formatErrorMessage(message: string): string {
 	formatted = formatted.charAt(0).toUpperCase() + formatted.slice(1);
 
 	// add period if not present
-	if (
-		!formatted.endsWith(".") &&
-		!formatted.endsWith("!") &&
-		!formatted.endsWith("?")
-	) {
+	if (!formatted.endsWith(".") && !formatted.endsWith("!") && !formatted.endsWith("?")) {
 		formatted += ".";
 	}
 
 	return formatted;
 }
 
-export function getErrorMessage(
-	error: unknown,
-	fallback = "An error occurred",
-): string {
+export function getErrorMessage(error: unknown, fallback = "An error occurred"): string {
 	if (error instanceof ConnectError) {
 		if (error.code === Code.Internal) {
 			const requestId = error.metadata.get("x-loco-request-id");
@@ -50,10 +43,7 @@ function getRequestIdFromError(error: unknown): string | null {
 	return null;
 }
 
-export function toastConnectError(
-	error: unknown,
-	fallback = "An unexpected error occurred.",
-): void {
+export function toastConnectError(error: unknown, fallback = "An unexpected error occurred."): void {
 	const message = getErrorMessage(error, fallback);
 	const requestId = getRequestIdFromError(error);
 

@@ -38,7 +38,8 @@ function addScope(map: Map<string, ScopeEntry>, base: Omit<ScopeEntry, "scopes">
 
 function sortEntries(entries: ScopeEntry[]): ScopeEntry[] {
 	return entries.toSorted(
-		(a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || a.parent.localeCompare(b.parent) || a.label.localeCompare(b.label),
+		(a, b) =>
+			KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || a.parent.localeCompare(b.parent) || a.label.localeCompare(b.label),
 	);
 }
 
@@ -91,7 +92,8 @@ export function useTeamData(orgId: string, meId: string, myScopes: EntityScope[]
 				addScope(mine, { kind: "system", id: s.entityId, label: "System", parent: "" }, name);
 				break;
 			case EntityType.ORGANIZATION:
-				if (s.entityId === orgId) addScope(mine, { kind: "org", id: orgId, label: org?.name ?? "Organization", parent: "" }, name);
+				if (s.entityId === orgId)
+					addScope(mine, { kind: "org", id: orgId, label: org?.name ?? "Organization", parent: "" }, name);
 				break;
 			case EntityType.WORKSPACE: {
 				const label = wsName.get(s.entityId);

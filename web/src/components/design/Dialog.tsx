@@ -1,4 +1,4 @@
-import { XIcon } from "lucide-react"
+import { XIcon } from "lucide-react";
 
 import {
 	Dialog,
@@ -9,8 +9,8 @@ import {
 	DialogPortal,
 	DialogTitle,
 	DialogTrigger,
-} from "@/components/ui/dialog"
-import { cn } from "@/lib/utils"
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 function DialogContent({
 	className,
@@ -20,15 +20,15 @@ function DialogContent({
 	showCloseButton = true,
 	...props
 }: Omit<React.ComponentProps<typeof DialogContentBase>, "title"> & {
-	icon?: React.ReactNode
-	title?: React.ReactNode
+	icon?: React.ReactNode;
+	title?: React.ReactNode;
 }) {
 	return (
 		<DialogContentBase
 			showCloseButton={title === undefined && showCloseButton}
 			className={cn(
 				"top-[14vh] flex max-h-[80vh] w-[440px] max-w-[calc(100%-32px)] translate-y-0 flex-col gap-0 rounded-xl border border-line bg-background p-0 text-base shadow-popover ring-0 sm:max-w-[calc(100%-32px)]",
-				className
+				className,
 			)}
 			{...props}
 		>
@@ -48,7 +48,7 @@ function DialogContent({
 			)}
 			{children}
 		</DialogContentBase>
-	)
+	);
 }
 
 function DialogBody({ className, ...props }: React.ComponentProps<"div">) {
@@ -58,7 +58,7 @@ function DialogBody({ className, ...props }: React.ComponentProps<"div">) {
 			className={cn("flex min-h-0 flex-col gap-3.5 overflow-y-auto p-4", className)}
 			{...props}
 		/>
-	)
+	);
 }
 
 function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
@@ -68,15 +68,15 @@ function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
 			className={cn("flex justify-end gap-2 border-t border-line px-4 py-3", className)}
 			{...props}
 		/>
-	)
+	);
 }
 
 function DialogHeader({ className, ...props }: React.ComponentProps<typeof DialogHeaderBase>) {
-	return <DialogHeaderBase className={cn("gap-1 border-b border-line px-4 py-3.5", className)} {...props} />
+	return <DialogHeaderBase className={cn("gap-1 border-b border-line px-4 py-3.5", className)} {...props} />;
 }
 
 function DialogDescription({ className, ...props }: React.ComponentProps<typeof DialogDescriptionBase>) {
-	return <DialogDescriptionBase className={cn("text-base text-fg2", className)} {...props} />
+	return <DialogDescriptionBase className={cn("text-base text-fg2", className)} {...props} />;
 }
 
 export {
@@ -90,4 +90,4 @@ export {
 	DialogPortal,
 	DialogTitle,
 	DialogTrigger,
-}
+};

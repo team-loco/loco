@@ -62,9 +62,7 @@ export function CreateOrgDialog({
 			<DialogContent title="New organization" icon={<Building2 />}>
 				<form onSubmit={handleSubmit} className="flex min-h-0 flex-col">
 					<DialogBody>
-						<DialogDescription>
-							Organizations are used to manage workspaces, resources, and billing.
-						</DialogDescription>
+						<DialogDescription>Organizations are used to manage workspaces, resources, and billing.</DialogDescription>
 						<Field label="Name" strong>
 							<Input
 								value={orgName}

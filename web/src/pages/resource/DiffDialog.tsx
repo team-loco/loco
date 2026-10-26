@@ -85,7 +85,8 @@ export function DiffDialogContent({
 	const to = hist.find((d) => d.id === toId) ?? hist[0];
 	if (from === undefined || to === undefined) return null;
 	const diff = diffLines(specText(from), specText(to));
-	const canRollback = from.id !== region.current?.id && from.status !== DeploymentPhase.FAILED && from.spec !== undefined;
+	const canRollback =
+		from.id !== region.current?.id && from.status !== DeploymentPhase.FAILED && from.spec !== undefined;
 
 	return (
 		<DialogContent

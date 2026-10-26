@@ -133,7 +133,12 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 		const neg = vm[1] === "-";
 		const pref = (vm[3] ?? "").toLowerCase();
 		const def = fieldDef(vmKey);
-		const vals = def?.supported === true ? valueCounts(vmKey).filter(([v]) => v.toLowerCase().startsWith(pref)).slice(0, 10) : [];
+		const vals =
+			def?.supported === true
+				? valueCounts(vmKey)
+						.filter(([v]) => v.toLowerCase().startsWith(pref))
+						.slice(0, 10)
+				: [];
 		groups.push({
 			title: `${neg ? "Exclude " : ""}${vmKey}`,
 			items: vals.map(([v, c]) => {
@@ -321,7 +326,10 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 					placeholder={tokens.length > 0 ? "" : "Search logs, or type @ to filter"}
 					autoComplete="off"
 					spellCheck={false}
-					className={cn("h-[26px] min-w-[180px] flex-1 border-0 bg-transparent text-foreground outline-none placeholder:text-fg4", MONO)}
+					className={cn(
+						"h-[26px] min-w-[180px] flex-1 border-0 bg-transparent text-foreground outline-none placeholder:text-fg4",
+						MONO,
+					)}
 				/>
 				{curQuery !== "" && (
 					<Button
@@ -394,7 +402,9 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 											<span className={cn("flex", s.iconClass)}>{s.icon}</span>
 											<span className={cn("min-w-0 flex-1 truncate", MONO)}>
 												<span className="text-fg3">{s.pre}</span>
-												<span className={cn("font-semibold", s.disabled === true ? "text-fg4" : "text-foreground")}>{s.main}</span>
+												<span className={cn("font-semibold", s.disabled === true ? "text-fg4" : "text-foreground")}>
+													{s.main}
+												</span>
 												<span className="text-fg3">{s.post}</span>
 											</span>
 											<span className="text-sm whitespace-nowrap text-fg3">{s.hint}</span>
@@ -455,7 +465,12 @@ function TokenChip({
 				{neg ? "-" : ""}
 				{token.key}:
 			</span>
-			<span className={cn("inline-flex items-center gap-[5px] font-mono text-sm font-semibold", neg ? "text-bad-fg" : "text-foreground")}>
+			<span
+				className={cn(
+					"inline-flex items-center gap-[5px] font-mono text-sm font-semibold",
+					neg ? "text-bad-fg" : "text-foreground",
+				)}
+			>
 				{levelDot !== null && <span className={cn("size-[7px] rounded-[2px]", levelDot)} />}
 				{color !== undefined && <Dot color={color} />}
 				{token.value}

@@ -139,14 +139,7 @@ export function Dashboard() {
 	const header = (
 		<PageHeader
 			title="Overview"
-			actions={
-				loading ? undefined : (
-					<CreateResourceMenu
-						disabled={!canCreate}
-						onService={openNew}
-					/>
-				)
-			}
+			actions={loading ? undefined : <CreateResourceMenu disabled={!canCreate} onService={openNew} />}
 		>
 			{activeWorkspaceId !== null && (
 				<EnvironmentMenu

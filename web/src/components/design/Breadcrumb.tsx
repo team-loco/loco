@@ -6,19 +6,19 @@ import {
 	BreadcrumbList as BreadcrumbListBase,
 	BreadcrumbPage as BreadcrumbPageBase,
 	BreadcrumbSeparator as BreadcrumbSeparatorBase,
-} from "@/components/ui/breadcrumb"
-import { cn } from "@/lib/utils"
+} from "@/components/ui/breadcrumb";
+import { cn } from "@/lib/utils";
 
 function BreadcrumbList({ className, ...props }: React.ComponentProps<typeof BreadcrumbListBase>) {
-	return <BreadcrumbListBase className={cn("flex-nowrap gap-1.5 text-md text-fg3 sm:gap-1.5", className)} {...props} />
+	return <BreadcrumbListBase className={cn("flex-nowrap gap-1.5 text-md text-fg3 sm:gap-1.5", className)} {...props} />;
 }
 
 function BreadcrumbLink({ className, ...props }: React.ComponentProps<typeof BreadcrumbLinkBase>) {
-	return <BreadcrumbLinkBase className={cn("truncate hover:text-foreground", className)} {...props} />
+	return <BreadcrumbLinkBase className={cn("truncate hover:text-foreground", className)} {...props} />;
 }
 
 function BreadcrumbPage({ className, ...props }: React.ComponentProps<typeof BreadcrumbPageBase>) {
-	return <BreadcrumbPageBase className={cn("truncate font-normal text-foreground", className)} {...props} />
+	return <BreadcrumbPageBase className={cn("truncate font-normal text-foreground", className)} {...props} />;
 }
 
 function BreadcrumbSeparator({ className, children, ...props }: React.ComponentProps<typeof BreadcrumbSeparatorBase>) {
@@ -26,7 +26,15 @@ function BreadcrumbSeparator({ className, children, ...props }: React.ComponentP
 		<BreadcrumbSeparatorBase className={cn("text-fg4", className)} {...props}>
 			{children ?? "›"}
 		</BreadcrumbSeparatorBase>
-	)
+	);
 }
 
-export { Breadcrumb, BreadcrumbEllipsis, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator }
+export {
+	Breadcrumb,
+	BreadcrumbEllipsis,
+	BreadcrumbItem,
+	BreadcrumbLink,
+	BreadcrumbList,
+	BreadcrumbPage,
+	BreadcrumbSeparator,
+};

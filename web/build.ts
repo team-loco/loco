@@ -16,7 +16,9 @@ const injectedModules = ["react/jsx-runtime", "react/compiler-runtime"];
 
 async function appSources(): Promise<string[]> {
 	const graph = await Bun.build({ entrypoints: ["./index.html"], plugins, metafile: true, throw: true });
-	const files = Object.keys(graph.metafile?.inputs ?? {}).filter((file) => !file.includes("node_modules") && /\.tsx?$/.test(file));
+	const files = Object.keys(graph.metafile?.inputs ?? {}).filter(
+		(file) => !file.includes("node_modules") && /\.tsx?$/.test(file),
+	);
 	return await Promise.all(files.map(async (file) => await Bun.file(file).text()));
 }
 

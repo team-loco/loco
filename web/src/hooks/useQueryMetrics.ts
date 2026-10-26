@@ -21,22 +21,49 @@ interface UseQueryMetricsOptions {
 	aggregation?: string;
 	enabled?: boolean;
 }
-export function metricsQueryOptions(transport: Transport, { workspaceId, resourceIds, timeRange, metricName,
-	environmentId, region = "", aggregation = "avg", enabled = true,
-}: UseQueryMetricsOptions) {
-	const input = { workspaceId, resourceIds, metricName, environmentId, region, aggregation,
-		intervalSeconds: timeRangeIntervalSeconds(timeRange) };
+export function metricsQueryOptions(
+	transport: Transport,
+	{
+		workspaceId,
+		resourceIds,
+		timeRange,
+		metricName,
+		environmentId,
+		region = "",
+		aggregation = "avg",
+		enabled = true,
+	}: UseQueryMetricsOptions,
+) {
+	const input = {
+		workspaceId,
+		resourceIds,
+		metricName,
+		environmentId,
+		region,
+		aggregation,
+		intervalSeconds: timeRangeIntervalSeconds(timeRange),
+	};
 	return {
-		queryKey: [...createConnectQueryKey({ schema: ObservabilityProxyService.method.queryMetrics,
-			transport, cardinality: "finite", input }), timeRange],
+		queryKey: [
+			...createConnectQueryKey({
+				schema: ObservabilityProxyService.method.queryMetrics,
+				transport,
+				cardinality: "finite",
+				input,
+			}),
+			timeRange,
+		],
 		queryFn: async ({ signal }: { signal: AbortSignal }) => {
 			const now = Date.now();
-			const response = await createClient(ObservabilityProxyService, transport).queryMetrics({ ...input,
-				startTime: msToTimestamp(now - timeRangeMs(timeRange)), endTime: msToTimestamp(now),
-			}, { signal });
+			const response = await createClient(ObservabilityProxyService, transport).queryMetrics(
+				{ ...input, startTime: msToTimestamp(now - timeRangeMs(timeRange)), endTime: msToTimestamp(now) },
+				{ signal },
+			);
 			return response.series;
 		},
-		enabled: enabled && workspaceId !== "" && environmentId !== "", staleTime: 60_000, refetchInterval: 60_000,
+		enabled: enabled && workspaceId !== "" && environmentId !== "",
+		staleTime: 60_000,
+		refetchInterval: 60_000,
 	};
 }
 

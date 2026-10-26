@@ -19,7 +19,9 @@ export function Stepper({
 				variant="ghost"
 				className="h-full w-[34px] rounded-none px-0 text-[15px] text-fg2"
 				disabled={value <= min}
-				onClick={() => { onChange(Math.max(min, value - 1)); }}
+				onClick={() => {
+					onChange(Math.max(min, value - 1));
+				}}
 				aria-label="Decrease"
 			>
 				−
@@ -29,7 +31,9 @@ export function Stepper({
 				variant="ghost"
 				className="h-full w-[34px] rounded-none px-0 text-[15px] text-fg2"
 				disabled={value >= max}
-				onClick={() => { onChange(Math.min(max, value + 1)); }}
+				onClick={() => {
+					onChange(Math.min(max, value + 1));
+				}}
 				aria-label="Increase"
 			>
 				+

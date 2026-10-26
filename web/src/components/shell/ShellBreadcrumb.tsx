@@ -251,8 +251,12 @@ export function ShellBreadcrumb() {
 		getWorkspace,
 		{ workspaceId: activeWorkspaceId ?? "" },
 		{
-			enabled: org === undefined && activeOrgId !== null && activeWorkspaceId !== null
-				&& !scopes.isLoading && scopes.holds(activeOrgId, activeWorkspaceId, Scope.READ),
+			enabled:
+				org === undefined &&
+				activeOrgId !== null &&
+				activeWorkspaceId !== null &&
+				!scopes.isLoading &&
+				scopes.holds(activeOrgId, activeWorkspaceId, Scope.READ),
 		},
 	);
 	const workspace = workspaces.find((w) => w.id === activeWorkspaceId) ?? directWorkspace.data?.workspace;
@@ -275,18 +279,16 @@ export function ShellBreadcrumb() {
 
 				{org === undefined && workspace !== undefined && (
 					<BreadcrumbItem className="min-w-0">
-						<span className="truncate px-2 text-fg2">{workspace.orgName} / {workspace.name}</span>
+						<span className="truncate px-2 text-fg2">
+							{workspace.orgName} / {workspace.name}
+						</span>
 					</BreadcrumbItem>
 				)}
 
 				{showEnv && env !== undefined && (
 					<>
 						{hasScopeCrumb && <Slash />}
-						<CrumbMenu
-							title="Environment"
-							heading="Environments"
-							label={env.name}
-						>
+						<CrumbMenu title="Environment" heading="Environments" label={env.name}>
 							{environments.map((e) => (
 								<DropdownMenuItem
 									key={e.id}

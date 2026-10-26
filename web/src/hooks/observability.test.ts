@@ -1,7 +1,12 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import { Code, ConnectError, createRouterTransport } from "@connectrpc/connect";
 import { QueryClient } from "@tanstack/react-query";
-import { LogOrder, ObservabilityProxyService, type QueryLogsRequest, type QueryMetricsRequest } from "@gen/loco/observability/v1/observability_pb";
+import {
+	LogOrder,
+	ObservabilityProxyService,
+	type QueryLogsRequest,
+	type QueryMetricsRequest,
+} from "@gen/loco/observability/v1/observability_pb";
 
 import { latestLogsQueryOptions, logsQueryOptions } from "./useQueryLogs";
 import { msToTimestamp } from "@/lib/time";
@@ -9,21 +14,36 @@ import { metricsQueryOptions } from "./useQueryMetrics";
 import { toRows, visibleLogRows } from "@/pages/observability/rows";
 
 const workspaceId = "11111111-2222-3333-4444-555555555555";
-const logOptions = { workspaceId, environmentId: workspaceId, resourceIds: [], timeRange: "1h" as const,
-	parsedQuery: { search: "", levels: [], labels: {}, regions: ["us-*"], excludedRegions: ["us-west-*"] } };
+const logOptions = {
+	workspaceId,
+	environmentId: workspaceId,
+	resourceIds: [],
+	timeRange: "1h" as const,
+	parsedQuery: { search: "", levels: [], labels: {}, regions: ["us-*"], excludedRegions: ["us-west-*"] },
+};
 
 describe("regional control-plane queries", () => {
 	test("isolates historical logs by environment and waits for its selection", async () => {
 		const received: QueryLogsRequest[] = [];
 		const transport = createRouterTransport((router) => {
-			router.service(ObservabilityProxyService, { queryLogs(request) { received.push(request); return {}; } });
+			router.service(ObservabilityProxyService, {
+				queryLogs(request) {
+					received.push(request);
+					return {};
+				},
+			});
 		});
 		const client = new QueryClient();
 		try {
 			expect(logsQueryOptions(transport, { ...logOptions, environmentId: "" }).enabled).toBe(false);
 			await client.query(logsQueryOptions(transport, logOptions));
-			await client.query(logsQueryOptions(transport, { ...logOptions, environmentId: "22222222-3333-4444-5555-666666666666" }));
-			expect(received.map((request) => request.environmentId)).toEqual([workspaceId, "22222222-3333-4444-5555-666666666666"]);
+			await client.query(
+				logsQueryOptions(transport, { ...logOptions, environmentId: "22222222-3333-4444-5555-666666666666" }),
+			);
+			expect(received.map((request) => request.environmentId)).toEqual([
+				workspaceId,
+				"22222222-3333-4444-5555-666666666666",
+			]);
 		} finally {
 			client.clear();
 		}
@@ -31,7 +51,12 @@ describe("regional control-plane queries", () => {
 
 	test("waits for an environment before enabling dashboard metrics", () => {
 		const transport = createRouterTransport(() => {});
-		const input = { workspaceId, resourceIds: [], metricName: "k8s.pod.cpu_limit_utilization", timeRange: "6h" as const };
+		const input = {
+			workspaceId,
+			resourceIds: [],
+			metricName: "k8s.pod.cpu_limit_utilization",
+			timeRange: "6h" as const,
+		};
 		expect(metricsQueryOptions(transport, { ...input, environmentId: "" }).enabled).toBe(false);
 		expect(metricsQueryOptions(transport, { ...input, environmentId: workspaceId }).enabled).toBe(true);
 	});
@@ -40,17 +65,29 @@ describe("regional control-plane queries", () => {
 		const received: (QueryLogsRequest | QueryMetricsRequest)[] = [];
 		const transport = createRouterTransport((router) => {
 			router.service(ObservabilityProxyService, {
-				queryLogs(request) { received.push(request); return {}; },
-				queryMetrics(request) { received.push(request); return {}; },
+				queryLogs(request) {
+					received.push(request);
+					return {};
+				},
+				queryMetrics(request) {
+					received.push(request);
+					return {};
+				},
 			});
 		});
 		const clock = spyOn(Date, "now").mockReturnValue(Date.UTC(2026, 9, 16, 6, 45, 12, 789));
 		const client = new QueryClient();
 		try {
 			await client.query(logsQueryOptions(transport, logOptions));
-			await client.query(metricsQueryOptions(transport, {
-				workspaceId, environmentId: workspaceId, resourceIds: [], metricName: "k8s.pod.cpu.usage", timeRange: "1h",
-			}));
+			await client.query(
+				metricsQueryOptions(transport, {
+					workspaceId,
+					environmentId: workspaceId,
+					resourceIds: [],
+					metricName: "k8s.pod.cpu.usage",
+					timeRange: "1h",
+				}),
+			);
 			for (const request of received) {
 				expect(request.startTime?.nanos).toBe(789_000_000);
 				expect(request.endTime?.nanos).toBe(789_000_000);
@@ -66,16 +103,24 @@ describe("regional control-plane queries", () => {
 		const received: QueryLogsRequest[] = [];
 		const target = Date.UTC(2026, 9, 16, 6, 8, 29, 123);
 		const transport = createRouterTransport((router) => {
-			router.service(ObservabilityProxyService, { queryLogs(request) {
-				received.push(request);
-				const newer = request.order === LogOrder.OLDEST_FIRST;
-				return { entries: [{ body: newer ? "after target" : "before target" }],
-					nextCursor: newer ? "newer-cursor" : "older-cursor" };
-			} });
+			router.service(ObservabilityProxyService, {
+				queryLogs(request) {
+					received.push(request);
+					const newer = request.order === LogOrder.OLDEST_FIRST;
+					return {
+						entries: [{ body: newer ? "after target" : "before target" }],
+						nextCursor: newer ? "newer-cursor" : "older-cursor",
+					};
+				},
+			});
 		});
 		const client = new QueryClient();
-		const options = { ...logOptions, around: target,
-			startTime: msToTimestamp(target - 30 * 60_000), endTime: msToTimestamp(target + 30 * 60_000) };
+		const options = {
+			...logOptions,
+			around: target,
+			startTime: msToTimestamp(target - 30 * 60_000),
+			endTime: msToTimestamp(target + 30 * 60_000),
+		};
 		try {
 			const response = await client.query(logsQueryOptions(transport, options));
 			expect(response.entries.map((entry) => entry.body)).toEqual(["before target", "after target"]);
@@ -87,7 +132,9 @@ describe("regional control-plane queries", () => {
 			await client.query(logsQueryOptions(transport, { ...options, cursor: response.olderCursor }));
 			expect(received[2]?.order).toBe(LogOrder.NEWEST_FIRST);
 			expect(received[2]?.endTime?.nanos).toBe(122_999_999);
-			await client.query(logsQueryOptions(transport, { ...options, cursor: response.newerCursor, order: LogOrder.OLDEST_FIRST }));
+			await client.query(
+				logsQueryOptions(transport, { ...options, cursor: response.newerCursor, order: LogOrder.OLDEST_FIRST }),
+			);
 			expect(received[3]?.order).toBe(LogOrder.OLDEST_FIRST);
 			expect(received[3]?.startTime?.nanos).toBe(123_000_000);
 			expect(received.every((request) => request.workspaceId === workspaceId)).toBe(true);
@@ -101,19 +148,33 @@ describe("regional control-plane queries", () => {
 		const target = Date.UTC(2026, 9, 16, 6, 0);
 		const resumed = target + 40 * 60_000;
 		const transport = createRouterTransport((router) => {
-			router.service(ObservabilityProxyService, { queryLogs(request) {
-				received.push(request);
-				return { entries: request.endTime?.seconds === BigInt(resumed / 1000)
-					? [{ body: "arrived while paused" }] : [], nextCursor: "latest-older" };
-			} });
+			router.service(ObservabilityProxyService, {
+				queryLogs(request) {
+					received.push(request);
+					return {
+						entries: request.endTime?.seconds === BigInt(resumed / 1000) ? [{ body: "arrived while paused" }] : [],
+						nextCursor: "latest-older",
+					};
+				},
+			});
 		});
 		const client = new QueryClient();
 		try {
-			const response = await client.query(latestLogsQueryOptions(transport, {
-				...logOptions, resourceIds: ["recommendation"], around: target,
-				cursor: "focused-newer-page", order: LogOrder.OLDEST_FIRST,
-				startTime: msToTimestamp(target - 30 * 60_000), endTime: msToTimestamp(target + 30 * 60_000),
-			}, resumed));
+			const response = await client.query(
+				latestLogsQueryOptions(
+					transport,
+					{
+						...logOptions,
+						resourceIds: ["recommendation"],
+						around: target,
+						cursor: "focused-newer-page",
+						order: LogOrder.OLDEST_FIRST,
+						startTime: msToTimestamp(target - 30 * 60_000),
+						endTime: msToTimestamp(target + 30 * 60_000),
+					},
+					resumed,
+				),
+			);
 			expect(received).toHaveLength(1);
 			const request = received[0];
 			expect(request?.cursor).toBe("");
@@ -138,16 +199,23 @@ describe("regional control-plane queries", () => {
 		const target = Date.UTC(2026, 9, 16, 6, 0);
 		const resumed = target + 40 * 60_000;
 		const transport = createRouterTransport((router) => {
-			router.service(ObservabilityProxyService, { queryLogs(request) {
-				if (fail) throw new ConnectError("history temporarily unavailable", Code.Unavailable);
-				const latest = request.endTime?.seconds === BigInt(resumed / 1000);
-				return { entries: [{ body: latest ? "pause gap" : "history", timestamp: msToTimestamp(latest ? resumed : target) }],
-					nextCursor: "older-history" };
-			} });
+			router.service(ObservabilityProxyService, {
+				queryLogs(request) {
+					if (fail) throw new ConnectError("history temporarily unavailable", Code.Unavailable);
+					const latest = request.endTime?.seconds === BigInt(resumed / 1000);
+					return {
+						entries: [{ body: latest ? "pause gap" : "history", timestamp: msToTimestamp(latest ? resumed : target) }],
+						nextCursor: "older-history",
+					};
+				},
+			});
 		});
 		const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-		const historyOptions = logsQueryOptions(transport, { ...logOptions,
-			startTime: msToTimestamp(target - 60 * 60_000), endTime: msToTimestamp(target) });
+		const historyOptions = logsQueryOptions(transport, {
+			...logOptions,
+			startTime: msToTimestamp(target - 60 * 60_000),
+			endTime: msToTimestamp(target),
+		});
 		try {
 			const history = await client.query(historyOptions);
 			const snapshot = visibleLogRows(toRows(history.entries, new Map()), []);
@@ -169,7 +237,12 @@ describe("regional control-plane queries", () => {
 	test("keeps the two focus ranges disjoint at an exact second", async () => {
 		const received: QueryLogsRequest[] = [];
 		const transport = createRouterTransport((router) => {
-			router.service(ObservabilityProxyService, { queryLogs(request) { received.push(request); return {}; } });
+			router.service(ObservabilityProxyService, {
+				queryLogs(request) {
+					received.push(request);
+					return {};
+				},
+			});
 		});
 		const client = new QueryClient();
 		const target = Date.UTC(2026, 9, 16, 6, 8, 29);
@@ -187,10 +260,12 @@ describe("regional control-plane queries", () => {
 	test("queries history once without cluster discovery and preserves an opaque cursor", async () => {
 		const received: QueryLogsRequest[] = [];
 		const transport = createRouterTransport((router) => {
-			router.service(ObservabilityProxyService, { queryLogs(request) {
-				received.push(request);
-				return { entries: [{ body: "history" }], nextCursor: "opaque/not-a-date" };
-			} });
+			router.service(ObservabilityProxyService, {
+				queryLogs(request) {
+					received.push(request);
+					return { entries: [{ body: "history" }], nextCursor: "opaque/not-a-date" };
+				},
+			});
 		});
 		const client = new QueryClient();
 		const options = logsQueryOptions(transport, logOptions);
@@ -210,34 +285,65 @@ describe("regional control-plane queries", () => {
 	test("isolates selected control-plane transports and region metric caches", async () => {
 		const received: QueryMetricsRequest[] = [];
 		const transport = createRouterTransport((router) => {
-			router.service(ObservabilityProxyService, { queryMetrics(request) { received.push(request); return {}; } });
+			router.service(ObservabilityProxyService, {
+				queryMetrics(request) {
+					received.push(request);
+					return {};
+				},
+			});
 		});
 		const otherTransport = createRouterTransport((router) => {
-			router.service(ObservabilityProxyService, { queryMetrics() { throw new ConnectError("other control plane", Code.Unavailable); } });
+			router.service(ObservabilityProxyService, {
+				queryMetrics() {
+					throw new ConnectError("other control plane", Code.Unavailable);
+				},
+			});
 		});
-		const input = { workspaceId, environmentId: workspaceId, resourceIds: [], metricName: "k8s.pod.cpu.usage", timeRange: "1h" as const };
+		const input = {
+			workspaceId,
+			environmentId: workspaceId,
+			resourceIds: [],
+			metricName: "k8s.pod.cpu.usage",
+			timeRange: "1h" as const,
+		};
 		const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 		const east = metricsQueryOptions(transport, { ...input, region: "us-east-1" });
 		const west = metricsQueryOptions(transport, { ...input, region: "eu-west-1" });
 		expect(east.enabled).toBe(true);
 		expect(east.queryKey).not.toEqual(west.queryKey);
-		expect(east.queryKey).not.toEqual(metricsQueryOptions(transport, { ...input, region: "us-east-1", environmentId: "22222222-3333-4444-5555-666666666666" }).queryKey);
+		expect(east.queryKey).not.toEqual(
+			metricsQueryOptions(transport, {
+				...input,
+				region: "us-east-1",
+				environmentId: "22222222-3333-4444-5555-666666666666",
+			}).queryKey,
+		);
 		await client.query(east);
 		await client.query(west);
 		expect(received.map((request) => request.region)).toEqual(["us-east-1", "eu-west-1"]);
 		expect(received.map((request) => request.environmentId)).toEqual([workspaceId, workspaceId]);
-		expect(metricsQueryOptions(otherTransport, input).queryKey).not.toEqual(metricsQueryOptions(transport, input).queryKey);
-		expect(await client.query(metricsQueryOptions(otherTransport, input)).catch(String)).toContain("other control plane");
+		expect(metricsQueryOptions(otherTransport, input).queryKey).not.toEqual(
+			metricsQueryOptions(transport, input).queryKey,
+		);
+		expect(await client.query(metricsQueryOptions(otherTransport, input)).catch(String)).toContain(
+			"other control plane",
+		);
 		expect(received).toHaveLength(2);
 		client.clear();
 	});
 
 	test("passes permission errors through without replacing them with empty history", async () => {
 		const transport = createRouterTransport((router) => {
-			router.service(ObservabilityProxyService, { queryLogs() { throw new ConnectError("workspace read required", Code.PermissionDenied); } });
+			router.service(ObservabilityProxyService, {
+				queryLogs() {
+					throw new ConnectError("workspace read required", Code.PermissionDenied);
+				},
+			});
 		});
 		const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-		expect(await client.query(logsQueryOptions(transport, logOptions)).catch(String)).toContain("workspace read required");
+		expect(await client.query(logsQueryOptions(transport, logOptions)).catch(String)).toContain(
+			"workspace read required",
+		);
 		client.clear();
 	});
 });

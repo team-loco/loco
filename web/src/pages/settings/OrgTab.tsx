@@ -75,11 +75,9 @@ export function OrgTab({
 	});
 	const withResNames = withRes.map((w) => w.name);
 	const lastName = withResNames.pop();
-	const joinedNames =
-		withResNames.length > 0 ? `${withResNames.join(", ")} and ${lastName ?? ""}` : (lastName ?? "");
-	const subtitle = withRes.length > 0
-		? `Delete the resources in ${joinedNames} first.`
-		: "Empty workspaces are deleted with it.";
+	const joinedNames = withResNames.length > 0 ? `${withResNames.join(", ")} and ${lastName ?? ""}` : (lastName ?? "");
+	const subtitle =
+		withRes.length > 0 ? `Delete the resources in ${joinedNames} first.` : "Empty workspaces are deleted with it.";
 	const blockedReason = !canAdmin
 		? `Requires Admin on ${org.name}`
 		: countsLoading
@@ -162,7 +160,11 @@ export function OrgTab({
 							setServerNameErr(null);
 						}}
 					/>
-					{shownErr !== null && <span id={nameErrorId} className="text-sm text-bad-fg">{shownErr}</span>}
+					{shownErr !== null && (
+						<span id={nameErrorId} className="text-sm text-bad-fg">
+							{shownErr}
+						</span>
+					)}
 				</SettingsRow>
 				<SettingsRow label="Created" last>
 					<span className="text-fg2">{formatDay(org.createdAt)}</span>
@@ -201,9 +203,7 @@ export function OrgTab({
 							<Skeleton className="h-9 w-full" />
 						</div>
 					))}
-				{!workspacesLoading && workspaces.length === 0 && (
-					<div className="px-5 py-7 text-fg3">No workspaces yet.</div>
-				)}
+				{!workspacesLoading && workspaces.length === 0 && <div className="px-5 py-7 text-fg3">No workspaces yet.</div>}
 				{workspaces.map((w) => {
 					const by = userName(w.createdBy);
 					const day = formatDay(w.createdAt);

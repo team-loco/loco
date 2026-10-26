@@ -154,10 +154,42 @@ const workerDb = `M${BOX.worker.x + BOX.worker.w / 2},${BOX.worker.y + BOX.worke
 const webApi = `M${BOX.web.x + BOX.web.w / 2},${BOX.web.y + BOX.web.h} L${BOX.api.x + BOX.api.w / 2},${BOX.api.y}`;
 
 export const EDGES: readonly Edge[] = [
-	{ id: "in", ends: ["in"], d: ortho(rightOf(BOX.client), leftOf(BOX.gateway)), label: ":443", lx: 180, ly: 221, packet: true },
-	{ id: "gw-web", ends: ["gw", "web"], d: ortho(rightOf(BOX.gateway), leftOf(BOX.web)), label: "/", lx: 417, ly: 135, packet: true },
-	{ id: "gw-api", ends: ["gw", "api"], d: ortho(rightOf(BOX.gateway), leftOf(BOX.api)), label: "/api", lx: 417, ly: 323, packet: true },
-	{ id: "api-db", ends: ["api", "db"], d: ortho(rightOf(BOX.api), leftOf(BOX.db)), label: ":5432", lx: 704, ly: 321, packet: true },
+	{
+		id: "in",
+		ends: ["in"],
+		d: ortho(rightOf(BOX.client), leftOf(BOX.gateway)),
+		label: ":443",
+		lx: 180,
+		ly: 221,
+		packet: true,
+	},
+	{
+		id: "gw-web",
+		ends: ["gw", "web"],
+		d: ortho(rightOf(BOX.gateway), leftOf(BOX.web)),
+		label: "/",
+		lx: 417,
+		ly: 135,
+		packet: true,
+	},
+	{
+		id: "gw-api",
+		ends: ["gw", "api"],
+		d: ortho(rightOf(BOX.gateway), leftOf(BOX.api)),
+		label: "/api",
+		lx: 417,
+		ly: 323,
+		packet: true,
+	},
+	{
+		id: "api-db",
+		ends: ["api", "db"],
+		d: ortho(rightOf(BOX.api), leftOf(BOX.db)),
+		label: ":5432",
+		lx: 704,
+		ly: 321,
+		packet: true,
+	},
 	{ id: "wk-db", ends: ["wk", "db"], d: workerDb, label: ":5432", lx: 880, ly: 241, packet: false },
 	{ id: "web-api", ends: ["web", "api"], d: webApi, label: "http · :8000", lx: 600, ly: 241, packet: true },
 ];

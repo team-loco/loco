@@ -34,9 +34,7 @@ export function FilterMenu({
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger
-				render={
-					<Button variant="outline" className={cn("shrink-0 px-2.5", active && "border-foreground")} />
-				}
+				render={<Button variant="outline" className={cn("shrink-0 px-2.5", active && "border-foreground")} />}
 			>
 				<span>
 					{label}: <span className="font-medium">{current?.label ?? "All"}</span>
@@ -44,7 +42,12 @@ export function FilterMenu({
 				<ChevronDownIcon className="size-3 text-fg3" />
 			</DropdownMenuTrigger>
 			<DropdownMenuContent className="w-auto min-w-[200px]">
-				<DropdownMenuRadioGroup value={value} onValueChange={(v: string) => { onChange(v); }}>
+				<DropdownMenuRadioGroup
+					value={value}
+					onValueChange={(v: string) => {
+						onChange(v);
+					}}
+				>
 					{options.map((o) => (
 						<DropdownMenuRadioItem key={o.value} value={o.value} className="justify-between gap-3 pr-2.5">
 							<span>{o.label}</span>

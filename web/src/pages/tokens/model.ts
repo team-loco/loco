@@ -158,7 +158,9 @@ export function tokenGrants(token: Token): Grants {
 	return grants;
 }
 
-export function grantsToScopes(items: { node: EntityNode; level: Level }[]): { entityType: EntityType; entityId: string; scope: Scope }[] {
+export function grantsToScopes(
+	items: { node: EntityNode; level: Level }[],
+): { entityType: EntityType; entityId: string; scope: Scope }[] {
 	const out: { entityType: EntityType; entityId: string; scope: Scope }[] = [];
 	for (const it of items) {
 		for (const level of LEVELS) {
@@ -170,7 +172,16 @@ export function grantsToScopes(items: { node: EntityNode; level: Level }[]): { e
 }
 
 export function resolveNode(tree: EntityTree, key: string): EntityNode {
-	return tree.nodes.get(key) ?? { key, kind: "system", entityType: EntityType.UNSPECIFIED, id: key, label: key, parent: null };
+	return (
+		tree.nodes.get(key) ?? {
+			key,
+			kind: "system",
+			entityType: EntityType.UNSPECIFIED,
+			id: key,
+			label: key,
+			parent: null,
+		}
+	);
 }
 
 export function withScopeEntities(tree: EntityTree, scopes: EntityScope[]): EntityTree {

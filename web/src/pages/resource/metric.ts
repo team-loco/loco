@@ -36,7 +36,15 @@ export interface RegionMetricTarget {
 
 export function regionMetricKey(target: RegionMetricTarget) {
 	const { workspaceId, deployment, range, metricName } = target;
-	return ["resource-metric", workspaceId, deployment.environmentId, deployment.resourceId, deployment.region, range, metricName];
+	return [
+		"resource-metric",
+		workspaceId,
+		deployment.environmentId,
+		deployment.resourceId,
+		deployment.region,
+		range,
+		metricName,
+	];
 }
 
 export function regionMetricRequest(

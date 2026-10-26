@@ -1,17 +1,14 @@
-import { LayoutGroup, MotionConfig, motion } from "motion/react"
-import { createContext, use, useId, useState } from "react"
+import { LayoutGroup, MotionConfig, motion } from "motion/react";
+import { createContext, use, useId, useState } from "react";
 
-import {
-	ToggleGroup as ToggleGroupBase,
-	ToggleGroupItem as ToggleGroupItemBase,
-} from "@/components/ui/toggle-group"
-import { cn } from "@/lib/utils"
+import { ToggleGroup as ToggleGroupBase, ToggleGroupItem as ToggleGroupItemBase } from "@/components/ui/toggle-group";
+import { cn } from "@/lib/utils";
 
-type ToggleGroupVariant = "default" | "outline" | "segmented"
+type ToggleGroupVariant = "default" | "outline" | "segmented";
 
-const EMPTY_VALUES: readonly string[] = []
+const EMPTY_VALUES: readonly string[] = [];
 
-const SegmentedContext = createContext({ segmented: false, values: EMPTY_VALUES, multiple: false })
+const SegmentedContext = createContext({ segmented: false, values: EMPTY_VALUES, multiple: false });
 
 function ToggleGroup({
 	className,
@@ -23,12 +20,12 @@ function ToggleGroup({
 	children,
 	...props
 }: Omit<React.ComponentProps<typeof ToggleGroupBase>, "variant"> & {
-	variant?: ToggleGroupVariant | undefined
+	variant?: ToggleGroupVariant | undefined;
 }) {
-	const segmented = variant === "segmented"
-	const id = useId()
-	const [localValue, setLocalValue] = useState(defaultValue)
-	const values = value ?? localValue
+	const segmented = variant === "segmented";
+	const id = useId();
+	const [localValue, setLocalValue] = useState(defaultValue);
+	const values = value ?? localValue;
 	return (
 		<SegmentedContext value={{ segmented, values, multiple: props.multiple ?? false }}>
 			<MotionConfig reducedMotion="user">
@@ -39,8 +36,8 @@ function ToggleGroup({
 						className={cn(segmented && "rounded-md bg-bg3 p-0.5", className)}
 						value={values}
 						onValueChange={(next, details) => {
-							if (value === undefined) setLocalValue(next)
-							onValueChange?.(next, details)
+							if (value === undefined) setLocalValue(next);
+							onValueChange?.(next, details);
 						}}
 						{...props}
 					>
@@ -49,19 +46,19 @@ function ToggleGroup({
 				</LayoutGroup>
 			</MotionConfig>
 		</SegmentedContext>
-	)
+	);
 }
 
 function ToggleGroupItem({ className, children, ...props }: React.ComponentProps<typeof ToggleGroupItemBase>) {
-	const { segmented, values, multiple } = use(SegmentedContext)
-	const selected = props.value !== undefined && values.includes(props.value)
+	const { segmented, values, multiple } = use(SegmentedContext);
+	const selected = props.value !== undefined && values.includes(props.value);
 	return (
 		<ToggleGroupItemBase
 			className={cn(
 				"cursor-pointer disabled:pointer-events-auto disabled:cursor-not-allowed data-disabled:pointer-events-auto data-disabled:cursor-not-allowed",
 				segmented &&
 					"relative isolate h-7 rounded-sm! border border-transparent px-2.5 text-sm font-medium text-fg3 hover:bg-transparent hover:text-foreground aria-pressed:bg-transparent aria-pressed:text-foreground data-pressed:bg-transparent data-pressed:text-foreground",
-				className
+				className,
 			)}
 			{...props}
 		>
@@ -77,7 +74,7 @@ function ToggleGroupItem({ className, children, ...props }: React.ComponentProps
 			)}
 			{children}
 		</ToggleGroupItemBase>
-	)
+	);
 }
 
-export { ToggleGroup, ToggleGroupItem }
+export { ToggleGroup, ToggleGroupItem };

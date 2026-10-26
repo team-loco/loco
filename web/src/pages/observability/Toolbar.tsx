@@ -15,7 +15,19 @@ import { cn } from "@/lib/utils";
 import { RANGES, useObs } from "./context";
 import { Dot } from "./shared";
 
-export function TimeRangeMenu({ maxRange, value, onChange, compact = false, mode = "relative" }: { mode?: "relative" | "window"; maxRange: TimeRange | null; compact?: boolean; value?: TimeRange; onChange?: (range: TimeRange) => void }) {
+export function TimeRangeMenu({
+	maxRange,
+	value,
+	onChange,
+	compact = false,
+	mode = "relative",
+}: {
+	mode?: "relative" | "window";
+	maxRange: TimeRange | null;
+	compact?: boolean;
+	value?: TimeRange;
+	onChange?: (range: TimeRange) => void;
+}) {
 	const context = useObs();
 	const range = value ?? context.range;
 	const setRange = onChange ?? context.setRange;
@@ -24,10 +36,15 @@ export function TimeRangeMenu({ maxRange, value, onChange, compact = false, mode
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger
-				render={<Button variant="outline" className={compact ? "h-7 rounded-sm px-2 text-[11px] font-normal" : "h-[38px] rounded-lg px-3 font-normal"} />}
+				render={
+					<Button
+						variant="outline"
+						className={compact ? "h-7 rounded-sm px-2 text-[11px] font-normal" : "h-[38px] rounded-lg px-3 font-normal"}
+					/>
+				}
 			>
 				<ClockIcon className="text-fg3" />
-				{mode === "window" ? `${range} window` : current?.label ?? range}
+				{mode === "window" ? `${range} window` : (current?.label ?? range)}
 				<ChevronDownIcon className="size-[13px] text-fg3" />
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end" className="w-auto min-w-[200px]">
@@ -55,7 +72,11 @@ export function TimeRangeMenu({ maxRange, value, onChange, compact = false, mode
 	);
 }
 
-export function ResourceMenu({ value, onChange, compact = false }: { compact?: boolean; value?: string[] | null; onChange?: (names: string[] | null) => void } = {}) {
+export function ResourceMenu({
+	value,
+	onChange,
+	compact = false,
+}: { compact?: boolean; value?: string[] | null; onChange?: (names: string[] | null) => void } = {}) {
 	const context = useObs();
 	const { resources } = context;
 	const selected = value === undefined ? context.selected : value;
@@ -65,10 +86,21 @@ export function ResourceMenu({ value, onChange, compact = false }: { compact?: b
 	const count = names.filter((n) => sel.has(n)).length;
 	const first = names.find((n) => sel.has(n));
 	const label =
-		count === names.length || count === 0 ? "All resources" : count === 1 && first !== undefined ? first : `${String(count)} resources`;
+		count === names.length || count === 0
+			? "All resources"
+			: count === 1 && first !== undefined
+				? first
+				: `${String(count)} resources`;
 	return (
 		<DropdownMenu>
-			<DropdownMenuTrigger render={<Button variant="outline" className={compact ? "h-7 rounded-sm px-2 text-[11px] font-normal" : "h-[34px] px-2.5 font-normal"} />}>
+			<DropdownMenuTrigger
+				render={
+					<Button
+						variant="outline"
+						className={compact ? "h-7 rounded-sm px-2 text-[11px] font-normal" : "h-[34px] px-2.5 font-normal"}
+					/>
+				}
+			>
 				<BoxIcon className="text-fg3" />
 				{label}
 				<ChevronDownIcon className="size-[13px] text-fg3" />
@@ -82,7 +114,9 @@ export function ResourceMenu({ value, onChange, compact = false }: { compact?: b
 							key={r.id}
 							checked={on}
 							onCheckedChange={() => {
-								const next = on ? names.filter((n) => sel.has(n) && n !== r.name) : names.filter((n) => sel.has(n) || n === r.name);
+								const next = on
+									? names.filter((n) => sel.has(n) && n !== r.name)
+									: names.filter((n) => sel.has(n) || n === r.name);
 								if (next.length === 0) return;
 								setSelected(next.length === names.length ? null : next);
 							}}

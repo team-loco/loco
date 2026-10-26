@@ -12,10 +12,7 @@ import { Splash } from "@/pages/Splash";
 import { TransportProvider } from "@connectrpc/connect-query";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
 import { QueryClient } from "@tanstack/react-query";
-import {
-	PersistQueryClientProvider,
-	type AsyncStorage,
-} from "@tanstack/react-query-persist-client";
+import { PersistQueryClientProvider, type AsyncStorage } from "@tanstack/react-query-persist-client";
 import { lazy, Suspense } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppLoaderProvider, AppLoading } from "@/context/AppLoader";
@@ -90,26 +87,98 @@ function AppRoutes() {
 				<Route path="/" element={<Splash />} />
 				<Route path="/login" element={<Login />} />
 				<Route path="/auth/callback" element={<AuthCallback />} />
-				<Route path="/cli/login" element={<><PageTitle title="Sign in to the CLI" /><CliLogin /></>} />
-				<Route path="/cli/device" element={<><PageTitle title="Sign in a device" /><CliDevice /></>} />
+				<Route
+					path="/cli/login"
+					element={
+						<>
+							<PageTitle title="Sign in to the CLI" />
+							<CliLogin />
+						</>
+					}
+				/>
+				<Route
+					path="/cli/device"
+					element={
+						<>
+							<PageTitle title="Sign in a device" />
+							<CliDevice />
+						</>
+					}
+				/>
 				<Route path="/onboarding" element={<Navigate to="/dashboard" replace />} />
 
 				<Route element={<ProtectedRoute />}>
 					<Route path="/dashboard" element={<DashboardRedirect />} />
-					<Route path="/organizations" element={<><PageTitle title="Organizations" /><Organizations /></>} />
-					<Route path="/profile" element={<><PageTitle title="Profile" /><Profile /></>} />
-					<Route path="/tokens" element={<><PageTitle title="Tokens" /><Tokens /></>} />
+					<Route
+						path="/organizations"
+						element={
+							<>
+								<PageTitle title="Organizations" />
+								<Organizations />
+							</>
+						}
+					/>
+					<Route
+						path="/profile"
+						element={
+							<>
+								<PageTitle title="Profile" />
+								<Profile />
+							</>
+						}
+					/>
+					<Route
+						path="/tokens"
+						element={
+							<>
+								<PageTitle title="Tokens" />
+								<Tokens />
+							</>
+						}
+					/>
 					<Route path="/team" element={<OrgRedirect to="team" />} />
-					<Route path="/org/:orgId/team" element={<><PageTitle title="Team" /><Team /></>} />
+					<Route
+						path="/org/:orgId/team"
+						element={
+							<>
+								<PageTitle title="Team" />
+								<Team />
+							</>
+						}
+					/>
 					<Route path="/org/:orgId/settings" element={<OrgRedirect to="settings" />} />
 
 					<Route path="/org/:orgId/wks/:workspaceId">
-						<Route path="" element={<><PageTitle title="Dashboard" /><Dashboard /></>} />
+						<Route
+							path=""
+							element={
+								<>
+									<PageTitle title="Dashboard" />
+									<Dashboard />
+								</>
+							}
+						/>
 						<Route path="dashboard" element={<Navigate to=".." relative="path" replace />} />
-						<Route path="resource/:resourceId" element={<><ResourceTitle /><Resource /></>} />
+						<Route
+							path="resource/:resourceId"
+							element={
+								<>
+									<ResourceTitle />
+									<Resource />
+								</>
+							}
+						/>
 						<Route path="observability" element={<Observability />} />
 						<Route path="events" element={<Navigate to="../observability?view=events" relative="path" replace />} />
-						<Route path="settings" element={<><PageTitle title="Settings" /><Settings /></>} />
+						<Route
+							path="settings"
+							element={
+								<>
+									<PageTitle title="Settings" />
+									<Settings />
+								</>
+							}
+						/>
 					</Route>
 				</Route>
 
@@ -125,10 +194,7 @@ export default function App() {
 		<ThemeProvider>
 			<BrowserRouter>
 				<TransportProvider transport={transport}>
-					<PersistQueryClientProvider
-						client={queryClient}
-						persistOptions={{ persister }}
-					>
+					<PersistQueryClientProvider client={queryClient} persistOptions={{ persister }}>
 						<AppLoaderProvider>
 							<Suspense fallback={<AppLoading />}>
 								<AuthProvider>

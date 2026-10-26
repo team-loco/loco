@@ -10,9 +10,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 		if (stored === "light" || stored === "dark") {
 			return stored;
 		}
-		return window.matchMedia("(prefers-color-scheme: dark)").matches
-			? "dark"
-			: "light";
+		return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 	});
 
 	useEffect(() => {
@@ -31,9 +29,5 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
 	const contextValue = { theme, toggleTheme };
 
-	return (
-		<ThemeContext value={contextValue}>
-			{children}
-		</ThemeContext>
-	);
+	return <ThemeContext value={contextValue}>{children}</ThemeContext>;
 }

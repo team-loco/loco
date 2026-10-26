@@ -82,7 +82,13 @@ export function Organizations() {
 			);
 		}
 		return orgs.map((org) => (
-			<OrgRow key={org.id} org={org} active={org.id === activeOrgId} onSwitch={setActiveOrg} onDelete={setDeleteTarget} />
+			<OrgRow
+				key={org.id}
+				org={org}
+				active={org.id === activeOrgId}
+				onSwitch={setActiveOrg}
+				onDelete={setDeleteTarget}
+			/>
 		));
 	};
 

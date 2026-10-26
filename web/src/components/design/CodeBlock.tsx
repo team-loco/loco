@@ -37,7 +37,7 @@ function CodeBlock({ children, language = "plaintext", className }: CodeBlockPro
 		<div
 			className={cn(
 				"group/code relative flex min-h-0 flex-col overflow-hidden rounded-lg border border-line bg-code-bg",
-				className
+				className,
 			)}
 		>
 			<pre
@@ -56,7 +56,7 @@ function CodeBlock({ children, language = "plaintext", className }: CodeBlockPro
 				className={cn(
 					"absolute top-1.5 right-1.5 border-line bg-code-bg/85 backdrop-blur-xs hover:bg-bg3 dark:hover:bg-bg3",
 					"opacity-0 group-focus-within/code:opacity-100 group-hover/code:opacity-100 pointer-coarse:opacity-100",
-					copied ? "text-ok-fg opacity-100" : "text-fg3 hover:text-foreground"
+					copied ? "text-ok-fg opacity-100" : "text-fg3 hover:text-foreground",
 				)}
 				onClick={() => {
 					copy("code", children);

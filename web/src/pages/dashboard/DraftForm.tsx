@@ -92,9 +92,7 @@ export function DraftForm({
 		<>
 			<SheetSection title="Region" className="gap-2.5">
 				<DropdownMenu>
-					<DropdownMenuTrigger
-						render={<Button variant="outline" className="h-9 w-full justify-start gap-2 px-2.5" />}
-					>
+					<DropdownMenuTrigger render={<Button variant="outline" className="h-9 w-full justify-start gap-2 px-2.5" />}>
 						<MapPinIcon className="text-fg3" />
 						<span className="font-medium">{region === "" ? "No regions available" : region}</span>
 						{current !== undefined && <NoteBadge note={regionNote(current)} />}

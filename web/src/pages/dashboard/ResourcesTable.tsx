@@ -169,10 +169,12 @@ export function ResourcesTable({
 	];
 
 	const hasFilters = status !== "all" || type !== "all" || region !== "all" || q !== "";
-	const resetPage = <T,>(set: (v: T) => void) => (v: T) => {
-		set(v);
-		setPage(0);
-	};
+	const resetPage =
+		<T,>(set: (v: T) => void) =>
+		(v: T) => {
+			set(v);
+			setPage(0);
+		};
 
 	const clearFilters = () => {
 		setStatus("all");
@@ -197,11 +199,7 @@ export function ResourcesTable({
 			<FilterMenu label="Type" value={type} options={typeOptions} onChange={resetPage(setType)} />
 			<FilterMenu label="Region" value={region} options={regionOptions} onChange={resetPage(setRegion)} />
 			{hasFilters && (
-				<Button
-					variant="link"
-					className="h-8 px-2"
-					onClick={clearFilters}
-				>
+				<Button variant="link" className="h-8 px-2" onClick={clearFilters}>
 					Clear filters
 				</Button>
 			)}
@@ -321,12 +319,7 @@ export function ResourcesTable({
 									)}
 								</TableCell>
 								<TableCell className="py-1.5 pr-4 pl-0 text-right">
-									<ResourceRowMenu
-										resource={resource}
-										orgId={orgId}
-										workspaceId={workspaceId}
-										envName={envName}
-									/>
+									<ResourceRowMenu resource={resource} orgId={orgId} workspaceId={workspaceId} envName={envName} />
 								</TableCell>
 							</TableRow>
 						);
@@ -337,8 +330,20 @@ export function ResourcesTable({
 				label={rangeLabel}
 				buttonSize="sm"
 				className="py-2.5"
-				onPrev={safePage > 0 ? () => { setPage(safePage - 1); } : null}
-				onNext={safePage < pageCount - 1 ? () => { setPage(safePage + 1); } : null}
+				onPrev={
+					safePage > 0
+						? () => {
+								setPage(safePage - 1);
+							}
+						: null
+				}
+				onNext={
+					safePage < pageCount - 1
+						? () => {
+								setPage(safePage + 1);
+							}
+						: null
+				}
 			/>
 		</Section>
 	);

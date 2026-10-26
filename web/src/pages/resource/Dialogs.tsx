@@ -23,9 +23,17 @@ function TitleWithSub({ title, sub }: { title: string; sub: string }) {
 export function SpecDialogContent({ dep, specVersion }: { dep: Deployment; specVersion: number }) {
 	const sub = `${shortId(dep.id)} · ${dep.region} · spec v${(dep.specVersion || specVersion).toString()}`;
 	return (
-		<DialogContent className="top-[5vh] max-h-[90vh] w-[min(960px,calc(100%-32px))]" title={<TitleWithSub title="Deployment spec" sub={sub} />}>
+		<DialogContent
+			className="top-[5vh] max-h-[90vh] w-[min(960px,calc(100%-32px))]"
+			title={<TitleWithSub title="Deployment spec" sub={sub} />}
+		>
 			<DialogBody className="overflow-hidden">
-				<CodeBlock language="json" className="min-h-0 [&_.code-lines]:w-full! [&_.code-lines>span]:break-all [&_.code-lines>span]:whitespace-pre-wrap!">{specText(dep)}</CodeBlock>
+				<CodeBlock
+					language="json"
+					className="min-h-0 [&_.code-lines]:w-full! [&_.code-lines>span]:break-all [&_.code-lines>span]:whitespace-pre-wrap!"
+				>
+					{specText(dep)}
+				</CodeBlock>
 			</DialogBody>
 		</DialogContent>
 	);
@@ -75,9 +83,10 @@ export function RollbackDialogContent({
 		<DialogContent className="w-[520px]" title={`Roll back ${resourceName}`}>
 			<DialogBody className="gap-3 leading-normal text-fg2">
 				<span>
-					Creates a new deployment in <span className="font-semibold text-foreground">{target.region}</span> from the spec of{" "}
-					<span className="font-semibold text-foreground">{shortId(target.id)}</span> ({depTag(target)}).
-					{current !== undefined && ` The current deployment ${shortId(current.id)} is superseded once the new replicas are ready.`}
+					Creates a new deployment in <span className="font-semibold text-foreground">{target.region}</span> from the
+					spec of <span className="font-semibold text-foreground">{shortId(target.id)}</span> ({depTag(target)}).
+					{current !== undefined &&
+						` The current deployment ${shortId(current.id)} is superseded once the new replicas are ready.`}
 				</span>
 				<div className="grid grid-cols-[110px_minmax(0,1fr)] gap-x-3 gap-y-1.5 rounded-sm border border-line bg-bg2 px-3 py-2.5 text-sm">
 					{changes.map((c) => (
@@ -134,14 +143,17 @@ export function DeleteDialogContent({
 				}}
 			>
 				<DialogBody className="gap-3">
-					<code className="w-fit max-w-full rounded-sm bg-bg2 px-2 py-1 font-mono font-semibold break-all">{resource.name}</code>
+					<code className="w-fit max-w-full rounded-sm bg-bg2 px-2 py-1 font-mono font-semibold break-all">
+						{resource.name}
+					</code>
 					<span className="leading-normal text-fg2">
 						Removes the resource, {deployCount}
 						{placeList}, and {domainText}. Running replicas stop immediately.
 					</span>
 					{resource.partial !== undefined && (
 						<p className="rounded-md border border-warn/30 bg-warn-bg px-3 py-2 text-sm text-warn-fg">
-							Deleting here causes drift with <code className="font-mono">loco.yaml</code>. Applying the file again can recreate this resource. Remove it from the file to keep it deleted.
+							Deleting here causes drift with <code className="font-mono">loco.yaml</code>. Applying the file again can
+							recreate this resource. Remove it from the file to keep it deleted.
 						</p>
 					)}
 					<label className="flex flex-col gap-1.5">
@@ -159,7 +171,9 @@ export function DeleteDialogContent({
 					</label>
 				</DialogBody>
 				<DialogFooter>
-					<DialogClose render={<Button ref={cancelRef} type="button" variant="outline" className="h-[30px]" />}>Cancel</DialogClose>
+					<DialogClose render={<Button ref={cancelRef} type="button" variant="outline" className="h-[30px]" />}>
+						Cancel
+					</DialogClose>
 					<Button type="submit" variant="destructive" className="h-[30px]" disabled={!ok || pending}>
 						{pending ? "Deleting…" : "Delete resource"}
 					</Button>

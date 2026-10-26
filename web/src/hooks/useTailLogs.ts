@@ -23,7 +23,13 @@ interface TailState {
 
 const NO_TAIL: Omit<TailState, "key"> = { entries: [], isConnected: false, error: null };
 
-export function useTailLogs({ workspaceId, environmentId, resourceIds, parsedQuery, enabled = true }: UseTailLogsOptions) {
+export function useTailLogs({
+	workspaceId,
+	environmentId,
+	resourceIds,
+	parsedQuery,
+	enabled = true,
+}: UseTailLogsOptions) {
 	const transport = useTransport();
 	const request = {
 		workspaceId,
@@ -55,9 +61,8 @@ export function useTailLogs({ workspaceId, environmentId, resourceIds, parsedQue
 						const entries = previous.key === streamKey ? previous.entries : [];
 						return {
 							key: streamKey,
-							entries: message.event.case === "entry"
-								? [message.event.value, ...entries].slice(0, MAX_TAIL_ENTRIES)
-								: entries,
+							entries:
+								message.event.case === "entry" ? [message.event.value, ...entries].slice(0, MAX_TAIL_ENTRIES) : entries,
 							isConnected: true,
 							error: null,
 						};
@@ -80,7 +85,9 @@ export function useTailLogs({ workspaceId, environmentId, resourceIds, parsedQue
 	useEffect(() => {
 		const abort = new AbortController();
 		openStream(abort.signal);
-		return () => { abort.abort(); };
+		return () => {
+			abort.abort();
+		};
 	}, [streamKey]);
 
 	return tail.key === streamKey ? tail : NO_TAIL;

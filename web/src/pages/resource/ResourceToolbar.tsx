@@ -50,13 +50,14 @@ export function ResourceToolbar({
 	redeploying: boolean;
 	onRedeploy: () => void;
 }) {
-	const obsItems = obs === undefined
-		? []
-		: [
-				{ label: "Logs", icon: ScrollTextIcon, href: obs.logs },
-				{ label: "Metrics", icon: ChartLineIcon, href: obs.metrics },
-				{ label: "Traces", icon: WaypointsIcon, href: obs.traces },
-			];
+	const obsItems =
+		obs === undefined
+			? []
+			: [
+					{ label: "Logs", icon: ScrollTextIcon, href: obs.logs },
+					{ label: "Metrics", icon: ChartLineIcon, href: obs.metrics },
+					{ label: "Traces", icon: WaypointsIcon, href: obs.traces },
+				];
 	return (
 		<div className="flex flex-wrap items-center gap-2.5 border-b border-line pb-4">
 			<ToggleGroup

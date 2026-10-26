@@ -55,7 +55,8 @@ export function progressSteps({ draft, region, envName, phase, message, error, s
 		{
 			label: "Rolling out",
 			state: rollState,
-			meta: rolling && message !== "" ? message : `${image} · ${draft.min.toString()} × ${draft.cpu} CPU · ${draft.memory}`,
+			meta:
+				rolling && message !== "" ? message : `${image} · ${draft.min.toString()} × ${draft.cpu} CPU · ${draft.memory}`,
 		},
 		{
 			label: "Health checks passing",

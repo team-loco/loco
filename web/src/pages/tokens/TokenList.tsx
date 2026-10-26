@@ -35,7 +35,12 @@ export function TokenList({
 		<section className="min-w-0 overflow-hidden rounded-lg border border-line bg-background">
 			<div className="overflow-x-auto">
 				<div className={cn(wide ? "min-w-[680px]" : "min-w-[480px]")}>
-					<div className={cn("grid h-9 items-center gap-4 border-b border-line bg-bg2 px-4 text-sm font-semibold text-fg2", cols)}>
+					<div
+						className={cn(
+							"grid h-9 items-center gap-4 border-b border-line bg-bg2 px-4 text-sm font-semibold text-fg2",
+							cols,
+						)}
+					>
 						<span>Token</span>
 						<span>Access</span>
 						{wide && <span>Last used</span>}
@@ -43,7 +48,10 @@ export function TokenList({
 					</div>
 					{isLoading &&
 						[0, 1, 2, 3].map((i) => (
-							<div key={i} className={cn("grid items-center gap-4 border-b border-line py-3 pr-4 pl-[13px] last:border-b-0", cols)}>
+							<div
+								key={i}
+								className={cn("grid items-center gap-4 border-b border-line py-3 pr-4 pl-[13px] last:border-b-0", cols)}
+							>
 								<div className="flex flex-col gap-1.5 pl-[3px]">
 									<Skeleton className="h-3.5 w-36" />
 									<Skeleton className="h-3 w-20" />
@@ -111,7 +119,9 @@ function TokenRow({
 		>
 			<div className="flex min-w-0 flex-col gap-[3px]">
 				<span className="truncate font-semibold">{token.name}</span>
-				<span className="text-[11.5px] text-fg3">{created === undefined ? "—" : `Created ${formatMonthDay(created)}`}</span>
+				<span className="text-[11.5px] text-fg3">
+					{created === undefined ? "—" : `Created ${formatMonthDay(created)}`}
+				</span>
 			</div>
 			<div className="flex min-w-0 flex-col gap-1">
 				{lines.map((l) => (

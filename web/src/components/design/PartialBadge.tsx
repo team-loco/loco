@@ -8,7 +8,9 @@ export function PartialBadge() {
 	return (
 		<Tooltip>
 			<TooltipTrigger
-				render={<Badge tone="info" size="sm" tabIndex={0} aria-label={label} className="max-w-full min-w-0 shrink text-sm" />}
+				render={
+					<Badge tone="info" size="sm" tabIndex={0} aria-label={label} className="max-w-full min-w-0 shrink text-sm" />
+				}
 			>
 				<FileCogIcon />
 				<span className="min-w-0 truncate">{label}</span>

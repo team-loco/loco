@@ -18,10 +18,14 @@ export function durationLabel(nanos: bigint): string {
 }
 
 export function axisLabel(nanos: bigint, total: bigint): string {
-	const unit = total >= NANOS_PER_SECOND ? { divisor: NANOS_PER_SECOND, name: "s" }
-		: total >= NANOS_PER_MS ? { divisor: NANOS_PER_MS, name: "ms" }
-			: total >= NANOS_PER_MICROSECOND ? { divisor: NANOS_PER_MICROSECOND, name: "µs" }
-				: { divisor: 1n, name: "ns" };
+	const unit =
+		total >= NANOS_PER_SECOND
+			? { divisor: NANOS_PER_SECOND, name: "s" }
+			: total >= NANOS_PER_MS
+				? { divisor: NANOS_PER_MS, name: "ms" }
+				: total >= NANOS_PER_MICROSECOND
+					? { divisor: NANOS_PER_MICROSECOND, name: "µs" }
+					: { divisor: 1n, name: "ns" };
 	return `${(Number(nanos) / Number(unit.divisor)).toFixed(nanos === 0n ? 0 : 2)} ${unit.name}`;
 }
 
@@ -51,7 +55,9 @@ export function summarizeTraces(spans: TraceSpan[]): TraceSummary[] {
 		groups.set(span.traceId, group);
 	}
 	return [...groups].map(([id, group]) => {
-		group.sort((a, b) => spanStart(a) < spanStart(b) ? -1 : spanStart(a) > spanStart(b) ? 1 : a.spanId.localeCompare(b.spanId));
+		group.sort((a, b) =>
+			spanStart(a) < spanStart(b) ? -1 : spanStart(a) > spanStart(b) ? 1 : a.spanId.localeCompare(b.spanId),
+		);
 		const first = group[0];
 		if (first === undefined) throw new Error("Empty trace group");
 		const start = spanStart(first);
@@ -59,16 +65,29 @@ export function summarizeTraces(spans: TraceSpan[]): TraceSummary[] {
 			const value = spanStart(span) + span.durationNanos;
 			return value > max ? value : max;
 		}, start);
-		return { id, root: group.find((span) => span.parentSpanId === "") ?? first, spans: group, start,
-			duration: end - start, services: new Set(group.map((span) => span.serviceName)).size,
-			errors: group.filter(spanError).length };
+		return {
+			id,
+			root: group.find((span) => span.parentSpanId === "") ?? first,
+			spans: group,
+			start,
+			duration: end - start,
+			services: new Set(group.map((span) => span.serviceName)).size,
+			errors: group.filter(spanError).length,
+		};
 	});
 }
 
-export interface SpanRow { span: TraceSpan; depth: number; children: number; missingParent: boolean }
+export interface SpanRow {
+	span: TraceSpan;
+	depth: number;
+	children: number;
+	missingParent: boolean;
+}
 
 export function spanTree(spans: TraceSpan[], collapsed: Set<string>): SpanRow[] {
-	const ordered = uniqueSpans(spans).toSorted((a, b) => spanStart(a) < spanStart(b) ? -1 : spanStart(a) > spanStart(b) ? 1 : a.spanId.localeCompare(b.spanId));
+	const ordered = uniqueSpans(spans).toSorted((a, b) =>
+		spanStart(a) < spanStart(b) ? -1 : spanStart(a) > spanStart(b) ? 1 : a.spanId.localeCompare(b.spanId),
+	);
 	const ids = new Set(ordered.map((span) => span.spanId));
 	const children = new Map<string, TraceSpan[]>();
 	for (const span of ordered) {
@@ -85,7 +104,11 @@ export function spanTree(spans: TraceSpan[], collapsed: Set<string>): SpanRow[] 
 			if (row === undefined || visited.has(row.span.spanId)) continue;
 			visited.add(row.span.spanId);
 			const descendants = children.get(row.span.spanId) ?? [];
-			result.push({ ...row, children: descendants.length, missingParent: row.span.parentSpanId !== "" && !ids.has(row.span.parentSpanId) });
+			result.push({
+				...row,
+				children: descendants.length,
+				missingParent: row.span.parentSpanId !== "" && !ids.has(row.span.parentSpanId),
+			});
 			if (!collapsed.has(row.span.spanId)) {
 				for (const child of descendants.toReversed()) stack.push({ span: child, depth: row.depth + 1 });
 			} else {
@@ -106,6 +129,8 @@ export function spanTree(spans: TraceSpan[], collapsed: Set<string>): SpanRow[] 
 
 export function spanPosition(span: TraceSpan, start: bigint, duration: bigint): { left: string; width: string } {
 	const total = duration > 0n ? duration : 1n;
-	return { left: `${Number((spanStart(span) - start) * 10000n / total) / 100}%`,
-		width: `${Number(span.durationNanos * 10000n / total) / 100}%` };
+	return {
+		left: `${Number(((spanStart(span) - start) * 10000n) / total) / 100}%`,
+		width: `${Number((span.durationNanos * 10000n) / total) / 100}%`,
+	};
 }

@@ -1,6 +1,9 @@
 import { createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQueries } from "@tanstack/react-query";
-import { listResourceEvents, listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import {
+	listResourceEvents,
+	listWorkspaceResources,
+} from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import type { Event, Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { isUnimplemented } from "@/lib/error-handler";
@@ -26,11 +29,7 @@ export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resourc
 
 	const queries = useQueries({
 		queries: resources.map((resource) =>
-			createQueryOptions(
-				listResourceEvents,
-				{ resourceId: resource.id, limit: EVENTS_PER_RESOURCE },
-				{ transport },
-			),
+			createQueryOptions(listResourceEvents, { resourceId: resource.id, limit: EVENTS_PER_RESOURCE }, { transport }),
 		),
 	});
 

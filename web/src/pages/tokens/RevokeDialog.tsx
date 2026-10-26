@@ -58,7 +58,9 @@ export function RevokeDialog({
 					<span>
 						Requests using <span className="font-semibold">{shown?.name ?? ""}</span> will fail immediately.
 					</span>
-					<span className="text-[12.5px] text-fg3">{used === undefined ? "Never used" : `Last used ${relAgo(used, now)}`}</span>
+					<span className="text-[12.5px] text-fg3">
+						{used === undefined ? "Never used" : `Last used ${relAgo(used, now)}`}
+					</span>
 				</AlertDialogDescription>
 				<AlertDialogFooter>
 					<AlertDialogCancel className="px-3">Cancel</AlertDialogCancel>

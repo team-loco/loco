@@ -38,7 +38,13 @@ export function ErrorCard({ error, fallbackMessage = "Failed to load data", minH
 				{requestId !== null && (
 					<div className="mt-2 flex items-center gap-1.5">
 						<code className="rounded-xs bg-bg3 px-2 py-0.5 font-mono text-sm text-fg2">{requestId}</code>
-						<Button size="icon-xs" variant="ghost" onClick={handleCopy} title="Copy request ID" aria-label="Copy request ID">
+						<Button
+							size="icon-xs"
+							variant="ghost"
+							onClick={handleCopy}
+							title="Copy request ID"
+							aria-label="Copy request ID"
+						>
 							{copied ? <Check className="size-3" /> : <Copy className="size-3" />}
 						</Button>
 					</div>

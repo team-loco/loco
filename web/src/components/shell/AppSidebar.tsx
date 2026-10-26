@@ -83,7 +83,6 @@ export function AppSidebar() {
 	const [creating, setCreating] = useState<ScopeKind | null>(null);
 	const peek = useSidebarPeek();
 
-
 	const env = params.get("env");
 	const envParams: Record<string, string> = env !== null ? { env } : {};
 	const view = params.get("view") ?? "logs";
@@ -124,7 +123,13 @@ export function AppSidebar() {
 					active: onObs && view === "metrics",
 					preload: pageImporters.Observability,
 				},
-				{ name: "Traces", icon: <WaypointsIcon />, to: obs("traces"), active: onObs && view === "traces", preload: pageImporters.Observability },
+				{
+					name: "Traces",
+					icon: <WaypointsIcon />,
+					to: obs("traces"),
+					active: onObs && view === "traces",
+					preload: pageImporters.Observability,
+				},
 				{
 					name: "Events",
 					icon: <BellIcon />,
@@ -248,15 +253,37 @@ export function AppSidebar() {
 									</span>
 								</div>
 								<DropdownMenuSeparator />
-								<MenuLink icon={<UserIcon />} onClick={() => { void navigate("/profile"); }}>Profile</MenuLink>
-								<MenuLink icon={<KeyRoundIcon />} onClick={() => { void navigate("/tokens?owner=personal"); }}>
+								<MenuLink
+									icon={<UserIcon />}
+									onClick={() => {
+										void navigate("/profile");
+									}}
+								>
+									Profile
+								</MenuLink>
+								<MenuLink
+									icon={<KeyRoundIcon />}
+									onClick={() => {
+										void navigate("/tokens?owner=personal");
+									}}
+								>
 									Personal access tokens
 								</MenuLink>
 								<DropdownMenuSeparator />
-								<MenuLink icon={<Building2Icon />} onClick={() => { void navigate("/organizations"); }}>
+								<MenuLink
+									icon={<Building2Icon />}
+									onClick={() => {
+										void navigate("/organizations");
+									}}
+								>
 									Organizations
 								</MenuLink>
-								<MenuLink icon={<PlusIcon />} onClick={() => { setCreating("org"); }}>
+								<MenuLink
+									icon={<PlusIcon />}
+									onClick={() => {
+										setCreating("org");
+									}}
+								>
 									New organization
 								</MenuLink>
 								<DropdownMenuSeparator />
@@ -283,7 +310,9 @@ export function AppSidebar() {
 									icon={<LogOutIcon />}
 									destructive
 									onClick={() => {
-										void logout().then(async () => { await navigate("/login"); });
+										void logout().then(async () => {
+											await navigate("/login");
+										});
 									}}
 								>
 									Sign out
@@ -296,7 +325,9 @@ export function AppSidebar() {
 
 			<CreateScopeDialog
 				kind={creating}
-				onOpenChange={(open) => { if (!open) setCreating(null); }}
+				onOpenChange={(open) => {
+					if (!open) setCreating(null);
+				}}
 			/>
 		</Sidebar>
 	);
@@ -330,10 +361,7 @@ function MenuLink({
 
 function ExternalMenuLink({ icon, href, children }: { icon: ReactNode; href: string; children: ReactNode }) {
 	return (
-		<DropdownMenuItem
-			render={<a href={href} target="_blank" rel="noopener noreferrer" />}
-			className="justify-between"
-		>
+		<DropdownMenuItem render={<a href={href} target="_blank" rel="noopener noreferrer" />} className="justify-between">
 			<span className="flex items-center gap-1">
 				{children}
 				<ArrowUpRightIcon className="size-3 text-fg3" />
@@ -348,7 +376,7 @@ function UserAvatar({ name, src, className }: { name: string; src?: string | und
 		<span
 			className={cn(
 				"flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-line text-sm font-semibold text-foreground",
-				className
+				className,
 			)}
 		>
 			{src !== undefined && src !== "" ? <img src={src} alt="" className="size-full object-cover" /> : initials(name)}

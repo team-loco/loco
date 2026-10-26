@@ -18,13 +18,17 @@ export function useEnvironments() {
 		listEnvironments,
 		{ workspaceId: activeWorkspaceId ?? "" },
 		{
-			enabled: activeOrgId !== null && activeWorkspaceId !== null && !scopes.isLoading
-				&& scopes.holds(activeOrgId, activeWorkspaceId, Scope.READ),
+			enabled:
+				activeOrgId !== null &&
+				activeWorkspaceId !== null &&
+				!scopes.isLoading &&
+				scopes.holds(activeOrgId, activeWorkspaceId, Scope.READ),
 		},
 	);
 	const environments = data?.environments ?? [];
 
-	const requested = params.get("env") ?? (activeWorkspaceId !== null ? readStorage(storageKey(activeWorkspaceId)) : null);
+	const requested =
+		params.get("env") ?? (activeWorkspaceId !== null ? readStorage(storageKey(activeWorkspaceId)) : null);
 	const active: Environment | undefined =
 		environments.find((e) => e.name === requested || e.id === requested) ??
 		environments.find((e) => e.type === EnvironmentType.PRODUCTION) ??

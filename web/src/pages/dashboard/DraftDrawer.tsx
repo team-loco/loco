@@ -289,9 +289,7 @@ function DraftDrawerBody({
 										memory: draft.memory,
 										minReplicas: draft.min,
 										maxReplicas: draft.max,
-										...(autoscale
-											? { scalers: { enabled: true, cpuTarget: Number(draft.cpuTarget) } }
-											: {}),
+										...(autoscale ? { scalers: { enabled: true, cpuTarget: Number(draft.cpuTarget) } } : {}),
 									},
 								},
 								healthCheck: {
@@ -322,8 +320,7 @@ function DraftDrawerBody({
 		}
 	};
 
-	const stalled =
-		draft.resourceId !== undefined && draft.deploymentId === undefined && !submitting && error === null;
+	const stalled = draft.resourceId !== undefined && draft.deploymentId === undefined && !submitting && error === null;
 	const shownError = stalled ? "Deployment was not started" : error;
 	const showForm = !inProgress;
 	const statusBadge = showForm

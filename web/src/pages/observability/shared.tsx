@@ -42,11 +42,7 @@ export function Histogram({
 		<div className={className}>
 			<div className="flex items-end gap-0.5 px-4 pt-2.5" style={{ height }}>
 				{buckets.map((b, i) => (
-					<div
-						key={String(i)}
-						title={b.title}
-						className="flex h-full flex-1 flex-col justify-end hover:opacity-75"
-					>
+					<div key={String(i)} title={b.title} className="flex h-full flex-1 flex-col justify-end hover:opacity-75">
 						{b.segments.map((s, j) => (
 							<div
 								key={String(j)}

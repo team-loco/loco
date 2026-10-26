@@ -1,7 +1,4 @@
-
 export type TimeRange = "15m" | "1h" | "3h" | "6h" | "24h" | "7d";
-
-
 
 export function timeRangeMs(range: TimeRange): number {
 	const map: Record<TimeRange, number> = {

@@ -36,13 +36,13 @@ export function Architecture() {
 								}}
 								className={cn(
 									"grid grid-cols-[120px_minmax(0,1fr)] items-center gap-6 px-5 py-4 transition-colors duration-150 not-last:border-b not-last:border-line",
-									on && "bg-primary/[0.05]"
+									on && "bg-primary/[0.05]",
 								)}
 							>
 								<span
 									className={cn(
 										"font-mono text-sm tracking-[0.04em] uppercase transition-colors",
-										on ? "text-primary" : "text-fg3"
+										on ? "text-primary" : "text-fg3",
 									)}
 								>
 									{layer}
@@ -53,7 +53,7 @@ export function Architecture() {
 											key={part}
 											className={cn(
 												"inline-flex h-[26px] items-center rounded-[6px] border bg-background px-2.5 text-[13px] font-medium transition-colors",
-												on ? "border-primary/30" : "border-line"
+												on ? "border-primary/30" : "border-line",
 											)}
 										>
 											{part}

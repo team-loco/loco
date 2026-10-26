@@ -7,7 +7,20 @@ import { pluralize } from "@/lib/format";
 import { formatMonthDay, maybeTsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-import { ALLOWS, daysLeft, kindLabel, LEVEL_BAR, LEVEL_LABEL, LEVEL_TEXT, LEVELS, lastUsedLabel, resolveNode, sortKeys, tokenGrants, tokenStatus } from "./model";
+import {
+	ALLOWS,
+	daysLeft,
+	kindLabel,
+	LEVEL_BAR,
+	LEVEL_LABEL,
+	LEVEL_TEXT,
+	LEVELS,
+	lastUsedLabel,
+	resolveNode,
+	sortKeys,
+	tokenGrants,
+	tokenStatus,
+} from "./model";
 import type { EntityNode, EntityTree, Level } from "./model";
 import { kindIcon, ownerIcon } from "./icons";
 import type { Owner } from "./useTokenData";
@@ -76,7 +89,13 @@ export function TokenPanel({
 					<span className="truncate text-lg font-semibold">{token.name}</span>
 					<span className="text-[11.5px] text-fg3">{owner.kind} token</span>
 				</div>
-				<Button variant="ghost" size="icon-sm" title="Close" className="text-fg3 hover:text-foreground" onClick={onClose}>
+				<Button
+					variant="ghost"
+					size="icon-sm"
+					title="Close"
+					className="text-fg3 hover:text-foreground"
+					onClick={onClose}
+				>
 					<XIcon className="size-4" />
 				</Button>
 			</div>
@@ -90,7 +109,9 @@ export function TokenPanel({
 					<span className="text-fg3">Created</span>
 					<span>{created === undefined ? "—" : formatMonthDay(created)}</span>
 					<span className="text-fg3">Expires</span>
-					<span className={cn(status === "expired" && "text-bad-fg", status === "expiring" && "text-warn-fg")}>{expiresText}</span>
+					<span className={cn(status === "expired" && "text-bad-fg", status === "expiring" && "text-warn-fg")}>
+						{expiresText}
+					</span>
 					<span className="text-fg3">Last used</span>
 					<span className={token.lastUsedAt === undefined ? "text-fg3" : undefined}>{lastUsedLabel(token, now)}</span>
 				</div>
@@ -181,10 +202,15 @@ function GrantRow({
 				<div className="flex-1" />
 				<span className="flex gap-0.5">
 					{LEVELS.map((l) => (
-						<span key={l} className={cn("h-1.5 w-3.5 rounded-[2px]", l <= group.level ? LEVEL_BAR[group.level] : "bg-bg3")} />
+						<span
+							key={l}
+							className={cn("h-1.5 w-3.5 rounded-[2px]", l <= group.level ? LEVEL_BAR[group.level] : "bg-bg3")}
+						/>
 					))}
 				</span>
-				<span className={cn("w-[42px] text-right text-sm font-semibold", LEVEL_TEXT[group.level])}>{LEVEL_LABEL[group.level]}</span>
+				<span className={cn("w-[42px] text-right text-sm font-semibold", LEVEL_TEXT[group.level])}>
+					{LEVEL_LABEL[group.level]}
+				</span>
 			</div>
 			{isRes && (
 				<div className="flex flex-wrap gap-1 pl-[22px]">

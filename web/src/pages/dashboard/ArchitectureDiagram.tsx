@@ -9,7 +9,6 @@ import { resourceStatusStyle } from "@/components/design/StatusBadge";
 import { pluralize } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-
 export interface DiagramService {
 	key: string;
 	name: string;
@@ -73,13 +72,7 @@ function NodeBody({
 const nodeClass =
 	"absolute flex flex-col justify-center gap-1 rounded-lg border px-3 leading-[1.3] text-foreground no-underline hover:no-underline";
 
-export function ArchitectureDiagram({
-	services,
-	regionOrder,
-}: {
-	services: DiagramService[];
-	regionOrder: string[];
-}) {
+export function ArchitectureDiagram({ services, regionOrder }: { services: DiagramService[]; regionOrder: string[] }) {
 	const legend = (
 		<div className="flex gap-4 text-sm text-fg3">
 			<span className="flex items-center gap-1.5">
@@ -122,7 +115,13 @@ export function ArchitectureDiagram({
 		);
 		gateways.push({ region, y: gy, services: mine.length, replicas });
 		for (const s of mine) {
-			edges.push({ x1: GX + W1, y1: gy + H / 2, x2: RX, y2: (svcY.get(s.key) ?? 0) + H / 2, dashed: s.domain === null });
+			edges.push({
+				x1: GX + W1,
+				y1: gy + H / 2,
+				x2: RX,
+				y2: (svcY.get(s.key) ?? 0) + H / 2,
+				dashed: s.domain === null,
+			});
 		}
 	}
 	const iy = gateways.length > 0 ? gateways.reduce((a, g) => a + g.y, 0) / gateways.length : PAD;
@@ -133,7 +132,9 @@ export function ArchitectureDiagram({
 			{sorted.length === 0 ? (
 				<div className="flex flex-col items-center justify-center gap-3 rounded-b-xl bg-[radial-gradient(var(--line)_1px,transparent_1px)] bg-size-[16px_16px] px-4 py-14 text-center">
 					<span className="font-semibold">Nothing deployed here yet</span>
-					<span className="max-w-sm text-fg3">Services you deploy to this environment show up here with their routes.</span>
+					<span className="max-w-sm text-fg3">
+						Services you deploy to this environment show up here with their routes.
+					</span>
 				</div>
 			) : (
 				<div className="overflow-x-auto rounded-b-xl bg-[radial-gradient(var(--line)_1px,transparent_1px)] bg-size-[16px_16px]">
@@ -175,9 +176,7 @@ export function ArchitectureDiagram({
 								</Badge>
 							);
 							const regionsText = s.regions.map((g) => g.region).join(", ");
-							const sub = isDraft
-								? `Not deployed · ${regionsText}`
-								: (s.domain ?? `internal · ${regionsText}`);
+							const sub = isDraft ? `Not deployed · ${regionsText}` : (s.domain ?? `internal · ${regionsText}`);
 							const cls = cn(
 								nodeClass,
 								"hover:border-foreground",

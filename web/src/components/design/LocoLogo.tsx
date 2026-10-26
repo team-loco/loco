@@ -1,6 +1,6 @@
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
-import { LOGO_STROKES, LOGO_VIEWBOX } from "./logo-strokes"
+import { LOGO_STROKES, LOGO_VIEWBOX } from "./logo-strokes";
 
 function LocoLogo({ className, title = "Loco" }: { className?: string | undefined; title?: string | undefined }) {
 	return (
@@ -21,7 +21,7 @@ function LocoLogo({ className, title = "Loco" }: { className?: string | undefine
 				))}
 			</svg>
 		</span>
-	)
+	);
 }
 
-export { LocoLogo }
+export { LocoLogo };

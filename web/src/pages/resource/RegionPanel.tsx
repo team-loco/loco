@@ -81,9 +81,7 @@ function ReplicasCell({ dep }: { dep: Deployment }) {
 			<span className="text-sm text-fg3">Replicas</span>
 			<div className="flex items-baseline gap-1.5">
 				<span className="text-[22px] leading-none font-semibold tabular-nums">{dep.replicas}</span>
-				<span className="text-fg3">
-					{running ? `/ ${dep.replicas.toString()} healthy` : "desired"}
-				</span>
+				<span className="text-fg3">{running ? `/ ${dep.replicas.toString()} healthy` : "desired"}</span>
 			</div>
 			<div className="mt-1 flex gap-[3px]">
 				{slots.map((i) => (
@@ -106,7 +104,12 @@ function ReplicasCell({ dep }: { dep: Deployment }) {
 
 function Charts({ workspaceId, range, dep }: { workspaceId: string; range: MetricRange; dep: Deployment }) {
 	const cpuQ = useRegionMetric({ workspaceId, deployment: dep, range, metricName: "k8s.pod.cpu_request_utilization" });
-	const memQ = useRegionMetric({ workspaceId, deployment: dep, range, metricName: "k8s.pod.memory_request_utilization" });
+	const memQ = useRegionMetric({
+		workspaceId,
+		deployment: dep,
+		range,
+		metricName: "k8s.pod.memory_request_utilization",
+	});
 	const lastCpu = cpuQ.points.at(-1)?.pct;
 	const lastMem = memQ.points.at(-1)?.pct;
 	const emptyText = (q: { error: Error | null }) =>

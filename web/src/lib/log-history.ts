@@ -20,9 +20,12 @@ export function moveLogHistory(history: LogHistory, direction: "older" | "newer"
 	if (cached === undefined && cursor === "") throw new Error("No log batch in this direction");
 	const opposite = direction === "older" ? "newer" : "older";
 	const current = cached ?? { cursor, order: direction === "older" ? LogOrder.NEWEST_FIRST : LogOrder.OLDEST_FIRST };
-	return { ...history, current,
+	return {
+		...history,
+		current,
 		[direction]: cached === undefined ? history[direction] : history[direction].slice(0, -1),
-		[opposite]: [...history[opposite], history.current] };
+		[opposite]: [...history[opposite], history.current],
+	};
 }
 
 export function logAnchor(value: string | null): number | null {

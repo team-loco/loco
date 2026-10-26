@@ -243,8 +243,20 @@ export function EventsSection({
 					setSize(n);
 					setPage(0);
 				}}
-				onPrev={slice.page > 0 ? () => { setPage(slice.page - 1); } : null}
-				onNext={slice.page < slice.pages - 1 ? () => { setPage(slice.page + 1); } : null}
+				onPrev={
+					slice.page > 0
+						? () => {
+								setPage(slice.page - 1);
+							}
+						: null
+				}
+				onNext={
+					slice.page < slice.pages - 1
+						? () => {
+								setPage(slice.page + 1);
+							}
+						: null
+				}
 			/>
 		</Section>
 	);

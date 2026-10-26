@@ -1,7 +1,6 @@
 import type { WorkspaceEventWithResource } from "@/hooks/useWorkspaceEvents";
 import { tsMs } from "@/lib/time";
 
-
 export type Severity = "error" | "warning" | "normal";
 
 const ERROR_REASONS = new Set([
@@ -33,11 +32,32 @@ export interface SeverityStyle {
 export function severityStyle(s: Severity): SeverityStyle {
 	switch (s) {
 		case "error":
-			return { dot: "bg-err", fg: "text-bad-fg", badge: "bg-bad-bg text-bad-fg", count: "bg-bad-bg text-bad-fg", bar: "border-l-err", label: "Error" };
+			return {
+				dot: "bg-err",
+				fg: "text-bad-fg",
+				badge: "bg-bad-bg text-bad-fg",
+				count: "bg-bad-bg text-bad-fg",
+				bar: "border-l-err",
+				label: "Error",
+			};
 		case "warning":
-			return { dot: "bg-warn", fg: "text-warn-fg", badge: "bg-warn-bg text-warn-fg", count: "bg-warn-bg text-warn-fg", bar: "border-l-warn", label: "Warning" };
+			return {
+				dot: "bg-warn",
+				fg: "text-warn-fg",
+				badge: "bg-warn-bg text-warn-fg",
+				count: "bg-warn-bg text-warn-fg",
+				bar: "border-l-warn",
+				label: "Warning",
+			};
 		case "normal":
-			return { dot: "bg-line2", fg: "text-foreground", badge: "bg-neutral-bg text-neutral-fg", count: "bg-bg3 text-fg2", bar: "border-l-transparent", label: "Normal" };
+			return {
+				dot: "bg-line2",
+				fg: "text-foreground",
+				badge: "bg-neutral-bg text-neutral-fg",
+				count: "bg-bg3 text-fg2",
+				bar: "border-l-transparent",
+				label: "Normal",
+			};
 	}
 }
 

@@ -29,7 +29,15 @@ export function CreateScopeDialog({
 }) {
 	return (
 		<Dialog open={kind !== null} onOpenChange={onOpenChange}>
-			{kind !== null && <CreateScopeForm key={kind} kind={kind} onDone={() => { onOpenChange(false); }} />}
+			{kind !== null && (
+				<CreateScopeForm
+					key={kind}
+					kind={kind}
+					onDone={() => {
+						onOpenChange(false);
+					}}
+				/>
+			)}
 		</Dialog>
 	);
 }
@@ -122,7 +130,9 @@ function CreateScopeForm({ kind, onDone }: { kind: ScopeKind; onDone: () => void
 							placeholder={isOrg ? "acme-labs" : "payments"}
 							aria-invalid={error !== null}
 							className="h-9 text-[13.5px]"
-							onChange={(e) => { setName(e.target.value.toLowerCase()); }}
+							onChange={(e) => {
+								setName(e.target.value.toLowerCase());
+							}}
 						/>
 					</Field>
 					{!isOrg && (
@@ -132,7 +142,9 @@ function CreateScopeForm({ kind, onDone }: { kind: ScopeKind; onDone: () => void
 								maxLength={256}
 								value={description}
 								className="text-[13.5px]"
-								onChange={(e) => { setDescription(e.target.value); }}
+								onChange={(e) => {
+									setDescription(e.target.value);
+								}}
 							/>
 						</Field>
 					)}

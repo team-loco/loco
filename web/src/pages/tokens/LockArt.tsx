@@ -26,7 +26,12 @@ export function LockArt() {
 	return (
 		<svg viewBox="0 0 320 156" className="pe-art block w-full max-w-[400px] overflow-visible py-2" aria-hidden="true">
 			{CORNERS.map(([x, y, dx, dy]) => (
-				<path key={`${x.toString()}-${y.toString()}`} d={`M${x.toString()},${(y + dy).toString()} V${y.toString()} H${(x + dx).toString()}`} stroke="var(--line2)" {...LINE} />
+				<path
+					key={`${x.toString()}-${y.toString()}`}
+					d={`M${x.toString()},${(y + dy).toString()} V${y.toString()} H${(x + dx).toString()}`}
+					stroke="var(--line2)"
+					{...LINE}
+				/>
 			))}
 			<path d="M24,80 H296" stroke="var(--line)" strokeDasharray="1 4" {...LINE} />
 			<g style={KEY_STYLE}>
@@ -37,7 +42,17 @@ export function LockArt() {
 			<g style={SHACKLE_STYLE}>
 				<path d="M200,62 V48 a18,18 0 0 1 36,0 V62" stroke="var(--fg3)" {...LINE} style={LOCK_STYLE} />
 			</g>
-			<rect x={188} y={62} width={60} height={48} rx={6} fill="var(--bg)" stroke="var(--fg3)" strokeWidth={STROKE_WIDTH} style={LOCK_STYLE} />
+			<rect
+				x={188}
+				y={62}
+				width={60}
+				height={48}
+				rx={6}
+				fill="var(--bg)"
+				stroke="var(--fg3)"
+				strokeWidth={STROKE_WIDTH}
+				style={LOCK_STYLE}
+			/>
 			<circle cx={218} cy={82} r={4} stroke="var(--fg3)" {...LINE} style={LOCK_STYLE} />
 			<path d="M218,86 V94" stroke="var(--fg3)" {...LINE} style={LOCK_STYLE} />
 			<circle cx={248} cy={62} r={3} fill="var(--accent)" style={DOT_STYLE} />

@@ -48,7 +48,12 @@ export function SplashNav({ onSignIn, redirecting }: { onSignIn: () => void; red
 						GitHub
 						<ArrowUpRight className="-ml-0.5 size-[13px] text-fg4" />
 					</a>
-					<Button variant="ghost" onClick={onSignIn} disabled={redirecting} className="px-2 text-md text-fg2 hover:text-foreground">
+					<Button
+						variant="ghost"
+						onClick={onSignIn}
+						disabled={redirecting}
+						className="px-2 text-md text-fg2 hover:text-foreground"
+					>
 						Sign in
 					</Button>
 					<Button

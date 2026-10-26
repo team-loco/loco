@@ -1,1 +1,1 @@
-export { AnimatedSpan, Terminal, TypingAnimation } from "@/components/ui/terminal"
+export { AnimatedSpan, Terminal, TypingAnimation } from "@/components/ui/terminal";

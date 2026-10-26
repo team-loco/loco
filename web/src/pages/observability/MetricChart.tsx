@@ -31,25 +31,46 @@ export interface ChartMarker {
 	color: string;
 }
 
-function MetricEvents({ title, markers, onPick }: { title: string; markers: ChartMarker[]; onPick: (t: number) => void }) {
+function MetricEvents({
+	title,
+	markers,
+	onPick,
+}: {
+	title: string;
+	markers: ChartMarker[];
+	onPick: (t: number) => void;
+}) {
 	return (
 		<DropdownMenu>
-			<DropdownMenuTrigger render={<Button variant="ghost" size="sm" className="self-start" />} aria-label={`View ${title} timeline events`}>
+			<DropdownMenuTrigger
+				render={<Button variant="ghost" size="sm" className="self-start" />}
+				aria-label={`View ${title} timeline events`}
+			>
 				<ListIcon className="text-fg3" />
 				{markers.length} timeline {markers.length === 1 ? "event" : "events"}
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="start" className="max-h-64 w-[min(360px,calc(100vw-32px))] overflow-y-auto">
 				<DropdownMenuGroup>
 					<DropdownMenuLabel>View logs at an event</DropdownMenuLabel>
-					{markers.toSorted((a, b) => b.t - a.t).map((marker) => (
-						<DropdownMenuItem key={`${String(marker.t)}-${marker.label}`} onClick={() => { onPick(marker.t); }} className="h-auto items-start py-2">
-							<span className="mt-1.5 size-2 shrink-0 rounded-[2px]" style={{ background: marker.color }} />
-							<span className="flex min-w-0 flex-col gap-0.5">
-								<span className="break-words whitespace-normal">{marker.title}</span>
-								<time dateTime={new Date(marker.t).toISOString()} className="text-sm text-fg3 tabular-nums">{fmtTs(marker.t)}</time>
-							</span>
-						</DropdownMenuItem>
-					))}
+					{markers
+						.toSorted((a, b) => b.t - a.t)
+						.map((marker) => (
+							<DropdownMenuItem
+								key={`${String(marker.t)}-${marker.label}`}
+								onClick={() => {
+									onPick(marker.t);
+								}}
+								className="h-auto items-start py-2"
+							>
+								<span className="mt-1.5 size-2 shrink-0 rounded-[2px]" style={{ background: marker.color }} />
+								<span className="flex min-w-0 flex-col gap-0.5">
+									<span className="break-words whitespace-normal">{marker.title}</span>
+									<time dateTime={new Date(marker.t).toISOString()} className="text-sm text-fg3 tabular-nums">
+										{fmtTs(marker.t)}
+									</time>
+								</span>
+							</DropdownMenuItem>
+						))}
 				</DropdownMenuGroup>
 			</DropdownMenuContent>
 		</DropdownMenu>
@@ -119,9 +140,7 @@ export function MetricCard({
 						<span className="text-sm text-fg3">{unit}</span>
 					</span>
 					<span className="flex items-baseline gap-2">
-						<span className="text-[22px] font-semibold tracking-[-0.01em] tabular-nums">
-							{big}
-						</span>
+						<span className="text-[22px] font-semibold tracking-[-0.01em] tabular-nums">{big}</span>
 						{delta !== "" && (
 							<span className={cn("text-sm font-medium", deltaBad ? "text-bad-fg" : "text-ok-fg")}>{delta}</span>
 						)}
@@ -166,7 +185,9 @@ export function MetricChart({
 		}
 	});
 	const data = [...byT.values()].toSorted((a, b) => a.t - b.t);
-	const config: ChartConfig = Object.fromEntries(series.map((s, i) => [`s${String(i)}`, { label: s.name, color: s.color }]));
+	const config: ChartConfig = Object.fromEntries(
+		series.map((s, i) => [`s${String(i)}`, { label: s.name, color: s.color }]),
+	);
 	const ticks = timeAxis(from, to);
 	const tickLabel = (value: number) => formatMetricTime(value, from, to);
 	const single = series.length === 1;
@@ -196,7 +217,7 @@ export function MetricChart({
 					/>
 					<YAxis
 						domain={[0, max]}
-						ticks={[0, max / 4, max / 2, max * 3 / 4, max]}
+						ticks={[0, max / 4, max / 2, (max * 3) / 4, max]}
 						tickFormatter={fmt}
 						tickLine={false}
 						axisLine={false}
@@ -242,7 +263,7 @@ export function MetricChart({
 					))}
 				</AreaChart>
 			</ChartContainer>
-		{markers.length > 0 && <MetricEvents title={title} markers={markers} onPick={onPick} />}
+			{markers.length > 0 && <MetricEvents title={title} markers={markers} onPick={onPick} />}
 		</>
 	);
 }

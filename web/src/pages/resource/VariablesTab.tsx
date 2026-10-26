@@ -530,8 +530,8 @@ export function VariablesTab({
 					<AlertDialogHeader>
 						<AlertDialogTitle>Remove {deleting}?</AlertDialogTitle>
 						<AlertDialogDescription>
-							This removes the stored value. Loco refuses while the service&apos;s active deployment still
-							declares it in loco.yaml.
+							This removes the stored value. Loco refuses while the service&apos;s active deployment still declares it
+							in loco.yaml.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>

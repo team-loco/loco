@@ -69,14 +69,16 @@ export function ScaleSection({
 			const orig = base.find((b) => b.region === row.region);
 			if (orig === undefined) continue;
 			const replicas = Number(row.replicas.trim());
-			if (!Number.isInteger(replicas) || replicas < 1) nextErrors[`${row.region}.replicas`] = "Whole number, at least 1";
+			if (!Number.isInteger(replicas) || replicas < 1)
+				nextErrors[`${row.region}.replicas`] = "Whole number, at least 1";
 			if (!isQuantity(row.cpu)) nextErrors[`${row.region}.cpu`] = "e.g. 250m or 1";
 			if (!isQuantity(row.mem)) nextErrors[`${row.region}.mem`] = "e.g. 512Mi or 1Gi";
 			const change: Change = { region: row.region };
 			if (row.replicas.trim() !== orig.replicas) change.replicas = replicas;
 			if (row.cpu.trim() !== orig.cpu) change.cpu = row.cpu.trim();
 			if (row.mem.trim() !== orig.mem) change.memory = row.mem.trim();
-			if (change.replicas !== undefined || change.cpu !== undefined || change.memory !== undefined) changes.push(change);
+			if (change.replicas !== undefined || change.cpu !== undefined || change.memory !== undefined)
+				changes.push(change);
 		}
 		setErrors(nextErrors);
 		if (Object.keys(nextErrors).length > 0 || changes.length === 0) return;
@@ -106,7 +108,11 @@ export function ScaleSection({
 
 	return (
 		<Section title="Scale">
-			{rows.length === 0 && <div className="px-4 py-5 text-fg3">Scaling is available once the resource has a deployment in this environment.</div>}
+			{rows.length === 0 && (
+				<div className="px-4 py-5 text-fg3">
+					Scaling is available once the resource has a deployment in this environment.
+				</div>
+			)}
 			{rows.map((s) => (
 				<div
 					key={s.region}
