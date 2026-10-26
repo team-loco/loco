@@ -114,7 +114,7 @@ func (r *Reconciler) finish(ctx context.Context, w Work, err error) {
 	id := w.Placement.ID
 	revision := w.Placement.Revision
 
-	if err != nil && IsRetryable(err) && ctx.Err() == nil {
+	if IsRetryable(err) && ctx.Err() == nil {
 		slog.WarnContext(ctx, "placement apply failed, retrying",
 			"placement_id", id,
 			"revision", revision,

@@ -159,9 +159,7 @@ func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.De
 	}
 
 	deployment.StartedAt = timeutil.ParsePostgresTimestamp(d.StartedAt)
-	if d.CompletedAt != nil {
-		deployment.CompletedAt = timeutil.ParsePostgresTimestampPtr(d.CompletedAt)
-	}
+	deployment.CompletedAt = timeutil.ParsePostgresTimestampPtr(d.CompletedAt)
 
 	return deployment
 }
@@ -280,12 +278,7 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, err
 	}
 	originalSpec := req.GetSpec()
-	clonedSpec := proto.Clone(originalSpec)
-	requestSpec, ok := clonedSpec.(*deploymentv1.DeploymentSpec)
-	if !ok {
-		slog.ErrorContext(ctx, "failed to clone deployment spec")
-		return nil, rpcerr.New(connect.CodeInternal, errCloneDeploymentSpec)
-	}
+	requestSpec := proto.CloneOf(originalSpec)
 	requestSpec.GetService().Build = pinnedBuild
 
 	organizationID, err := s.queries.GetOrganizationIDByWorkspaceID(ctx, resource.WorkspaceID)
@@ -353,12 +346,7 @@ func (s *DeploymentServer) CreateDeployment(
 		}
 		replicas := mergedServiceSpec.GetMinReplicas()
 
-		clonedServiceSpec := proto.Clone(mergedServiceSpec)
-		specForDBService, ok := clonedServiceSpec.(*deploymentv1.ServiceDeploymentSpec)
-		if !ok {
-			slog.ErrorContext(ctx, "failed to clone service spec")
-			return rpcerr.New(connect.CodeInternal, errCloneServiceSpec)
-		}
+		specForDBService := proto.CloneOf(mergedServiceSpec)
 		specForDBService.Env = nil
 
 		specJSON, marshalErr := protojson.Marshal(specForDBService)

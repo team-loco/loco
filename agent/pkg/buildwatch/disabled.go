@@ -2,6 +2,7 @@ package buildwatch
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -37,6 +38,6 @@ func (Disabled) Handle(ctx context.Context, msg *agentv1.SyncResponse, report Si
 			"build_id", m.CancelBuild.GetBuildId(),
 		)
 	default:
-		slog.WarnContext(ctx, "ignoring non-build sync message")
+		panic(fmt.Errorf("%w: %T", errNotBuildMessage, m))
 	}
 }

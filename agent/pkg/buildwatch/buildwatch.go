@@ -34,8 +34,9 @@ const (
 )
 
 var (
-	ErrInvalidBuild   = errors.New("invalid build")
-	errCacheNotSynced = errors.New("build cache did not sync")
+	ErrInvalidBuild    = errors.New("invalid build")
+	errCacheNotSynced  = errors.New("build cache did not sync")
+	errNotBuildMessage = errors.New("build handler received a sync message that is not a build operation")
 )
 
 type Config struct {
@@ -398,7 +399,7 @@ func (w *Watcher) Handle(ctx context.Context, msg *agentv1.SyncResponse, report 
 			slog.WarnContext(ctx, "failed to cancel build", "build_id", buildID, "error", err)
 		}
 	default:
-		slog.WarnContext(ctx, "ignoring non-build sync message")
+		panic(fmt.Errorf("%w: %T", errNotBuildMessage, m))
 	}
 }
 

@@ -158,7 +158,7 @@ func clearDegraded(locoRes *locov1alpha1.Application) {
 }
 
 func deploymentFailure(dep *appsv1ac.DeploymentApplyConfiguration) (stuckReplica, bool) {
-	if dep == nil || dep.ObjectMetaApplyConfiguration == nil || dep.Status == nil {
+	if dep.Status == nil {
 		return stuckReplica{}, false
 	}
 	generation := ptr.Deref(dep.Generation, 0)

@@ -564,7 +564,7 @@ func planKindToProto(kind configplan.Kind) planv1.PlanOperationKind {
 	case configplan.KindImport:
 		return planv1.PlanOperationKind_PLAN_OPERATION_KIND_IMPORT
 	default:
-		return planv1.PlanOperationKind_PLAN_OPERATION_KIND_UNSPECIFIED
+		panic(fmt.Errorf("%w: %d", errUnknownOperation, kind))
 	}
 }
 

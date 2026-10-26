@@ -117,9 +117,6 @@ func ClampLimit(requested int32, cfg *config.Config) int32 {
 }
 
 func validateTimeRange(start, end time.Time, maxRange time.Duration) error {
-	if start.IsZero() || end.IsZero() {
-		return errTimeRangeRequired
-	}
 	if end.Before(start) {
 		return errEndBeforeStart
 	}

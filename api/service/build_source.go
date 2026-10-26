@@ -23,7 +23,6 @@ const (
 )
 
 var (
-	errCloneDeploymentSpec   = errors.New("failed to clone deployment spec")
 	errBuildSourceRequired   = errors.New("spec.service.build is required")
 	errBuildImageMismatch    = errors.New("image does not match the referenced build")
 	errDockerfileNoBuildID   = errors.New("build_id is required for dockerfile deployments")
