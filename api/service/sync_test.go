@@ -1,6 +1,7 @@
 package service
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/google/uuid"
@@ -119,27 +120,44 @@ func TestDeploymentTransitionForStatus(t *testing.T) {
 		name   string
 		status *agentv1.PlacementStatus
 		want   genDb.DeploymentStatus
+		from   []genDb.DeploymentStatus
 	}{
 		{
 			name:   "failed",
 			status: &agentv1.PlacementStatus{Phase: applicationPhaseFailed},
 			want:   genDb.DeploymentStatusFailed,
+			from: []genDb.DeploymentStatus{
+				genDb.DeploymentStatusPending,
+				genDb.DeploymentStatusDeploying,
+			},
 		},
 		{
 			name:   "ready",
 			status: &agentv1.PlacementStatus{Phase: testPhaseReady, Ready: true},
 			want:   genDb.DeploymentStatusRunning,
+			from: []genDb.DeploymentStatus{
+				genDb.DeploymentStatusPending,
+				genDb.DeploymentStatusDeploying,
+				genDb.DeploymentStatusFailed,
+			},
 		},
 		{
 			name:   "rolling out",
 			status: &agentv1.PlacementStatus{Phase: "Deploying"},
 			want:   genDb.DeploymentStatusDeploying,
+			from: []genDb.DeploymentStatus{
+				genDb.DeploymentStatusPending,
+			},
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := deploymentTransitionForStatus(tc.status).status; got != tc.want {
-				t.Fatalf("status = %s, want %s", got, tc.want)
+			transition := deploymentTransitionForStatus(tc.status)
+			if transition.status != tc.want {
+				t.Fatalf("status = %s, want %s", transition.status, tc.want)
+			}
+			if !slices.Equal(transition.from, tc.from) {
+				t.Fatalf("from = %v, want %v", transition.from, tc.from)
 			}
 		})
 	}
