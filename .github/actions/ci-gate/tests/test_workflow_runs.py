@@ -20,7 +20,7 @@ def run(identifier, status, conclusion):
 
 def _selected(runs, checks=()):
     return gate.current_checks(
-        [{"workflow_runs": runs}], [{"check_runs": checks}], "CI Gate"
+        [{"workflow_runs": runs}], [{"check_runs": checks}], "CI Gate", {"Tests"}
     )
 
 
