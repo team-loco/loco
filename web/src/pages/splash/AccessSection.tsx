@@ -1,43 +1,20 @@
 import { Button } from "@/components/design/Button";
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/design/InputGroup";
-import { SoonTag } from "@/components/design/SoonTag";
+import { Frame } from "./primitives";
 
-import { GitHubIcon } from "./GitHubIcon";
-
-export function AccessSection() {
-	return (
-		<section id="access" className="relative scroll-mt-16 overflow-hidden bg-foreground text-background">
-			<div className="relative mx-auto flex max-w-[680px] flex-col items-center gap-[18px] px-4 py-[120px] text-center sm:px-7">
-				<h2 className="m-0 text-[clamp(36px,4.8vw,56px)] leading-[1.02] font-semibold tracking-[-0.035em]">
-					Get an invite.
-				</h2>
-				<p className="m-0 max-w-[440px] text-[17px] leading-[1.55] text-balance text-background/65">
-					Access is granted per GitHub account while Loco is in beta.
-				</p>
-				<div className="mt-2.5 flex w-full max-w-[440px] flex-wrap gap-2">
-					<InputGroup className="h-[46px] min-w-[220px] flex-1 rounded-[9px] border-background/20 bg-background/5 has-disabled:bg-background/5 has-disabled:opacity-75 dark:bg-background/5 dark:has-disabled:bg-background/5">
-						<InputGroupAddon className="pl-3.5 text-background/50">
-							<GitHubIcon className="size-4" />
-						</InputGroupAddon>
-						<InputGroupInput
-							disabled
-							placeholder="github-username"
-							aria-label="GitHub username"
-							autoComplete="off"
-							spellCheck={false}
-							className="text-[15px] text-background placeholder:text-background/50 md:text-[15px]"
-						/>
-					</InputGroup>
-					<Button
-						variant="outline"
-						disabled
-						className="h-[46px] gap-2 rounded-[9px] max-sm:w-full border-transparent bg-background px-5 text-lg font-semibold text-foreground disabled:opacity-75 dark:border-transparent dark:bg-background"
-					>
-						Request access
-						<SoonTag />
-					</Button>
-				</div>
-			</div>
-		</section>
-	);
+export function AccessSection({ onSignIn, redirecting }: {onSignIn: () => void; redirecting: boolean}) {
+  return (
+    <section id="access" className="scroll-mt-20 border-t border-line bg-foreground text-background">
+      <Frame className="grid gap-12 py-20 md:grid-cols-[1.1fr_0.9fr] md:items-end md:py-28">
+        <div>
+          <p className="mb-5 font-mono text-[12px] uppercase tracking-wider text-background/55">Ready to deploy?</p>
+          <h2 className="m-0 max-w-[600px] text-[clamp(38px,5vw,64px)] font-semibold leading-[1.07] tracking-[-0.045em]">Your code.<br/>Our infrastructure.</h2>
+          <p className="mt-5 max-w-[480px] text-[16px] text-background/65">Start with the CLI, or explore the open-source project.</p>
+        </div>
+        <div className="flex flex-wrap gap-3 md:justify-end">
+          <Button onClick={onSignIn} disabled={redirecting} className="h-11 bg-background px-6 text-foreground hover:bg-background/85">Sign in</Button>
+          <a href="https://github.com/team-loco/loco" target="_blank" rel="noopener noreferrer" className="inline-flex h-11 items-center rounded-md border border-background/30 px-5 text-[14px] hover:bg-background/10">View on GitHub ↗</a>
+        </div>
+      </Frame>
+    </section>
+  );
 }
