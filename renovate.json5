@@ -104,6 +104,22 @@
       rangeStrategy: "bump",
     },
     {
+      description: "The bun manager reads no locked versions from bun.lock, so the default update-lockfile strategy never finds an update inside a range; bump raises the range and regenerates bun.lock",
+      matchManagers: ["bun"],
+      rangeStrategy: "bump",
+    },
+    {
+      groupName: "javascript",
+      matchManagers: ["bun"],
+      matchUpdateTypes: ["minor", "patch"],
+    },
+    {
+      description: "The protoc plugins stamp their version into gen/ts, so their PR needs mise run gen; the runtimes move with them and the rest of the JavaScript group does not wait on it",
+      groupName: "protobuf-es",
+      matchManagers: ["bun"],
+      matchPackageNames: ["@bufbuild/**", "@connectrpc/**"],
+    },
+    {
       groupName: "bun",
       matchManagers: ["mise", "dockerfile"],
       matchDepNames: ["bun", "oven/bun"],
