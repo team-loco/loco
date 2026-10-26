@@ -68,6 +68,7 @@ CLICKHOUSE_CONTAINER="${RUN_NAME}-clickhouse"
 OBS_PROXY_REPOSITORY="loco-obs-proxy"
 INGEST_CONTAINER="${RUN_NAME}-obs-ingest"
 INGEST_OTLP_HTTP_PORT=$(yq '.obsProxy.ingest.httpPort' "$CONTROL_PLANE_VALUES")
+OBS_DATABASE=$(yq '.clickhouse.clickhouse.database' "$CONTROL_PLANE_VALUES")
 CLICKHOUSE_USER="loco_e2e"
 CLICKHOUSE_PASS="loco_e2e_pass"
 BUILDKIT_IMAGE=$(yq '.builds.buildkitImage.repository + ":" + .builds.buildkitImage.tag' "$ROOT_DIR/charts/loco-operator/values.yaml")
@@ -567,6 +568,7 @@ start_ingest() {
         -p "127.0.0.1::$(yq '.obsProxy.ingest.port' "$CONTROL_PLANE_VALUES")" \
         -e QUERY_ENABLED=false -e INGEST_ENABLED=true \
         -e PORT="$(yq '.obsProxy.ingest.port' "$CONTROL_PLANE_VALUES")" \
+        -e CLICKHOUSE_DB="$OBS_DATABASE" \
         -e OTLP_GRPC_PORT="$(yq '.obsProxy.ingest.grpcPort' "$CONTROL_PLANE_VALUES")" \
         -e OTLP_HTTP_PORT="$INGEST_OTLP_HTTP_PORT" \
         -e CLICKHOUSE_INGEST_URL="clickhouse://${CLICKHOUSE_USER}:${CLICKHOUSE_PASS}@${CLICKHOUSE_CONTAINER}:${CLICKHOUSE_NATIVE_PORT}" \
@@ -846,6 +848,7 @@ start_obs_proxy() {
     PORT="$OBS_PROXY_PORT" \
     CONTROL_PLANE_URL="$E2E_API_URL" \
     CORS_ALLOWED_ORIGINS="https://dashboard.e2e.test" \
+    CLICKHOUSE_DB="$OBS_DATABASE" \
     CLICKHOUSE_URL="$dsn" \
     CLICKHOUSE_MIGRATOR_URL="$dsn" \
     INGEST_ENABLED=true \

@@ -342,10 +342,15 @@ def test_proxy_cors_origins_are_explicit():
     assert env["CORS_ALLOWED_ORIGINS"]["value"] == ""
 
 
+def test_proxy_reads_its_database_from_the_one_chart_value():
+    database = chart_values("loco-control-plane")["clickhouse"]["clickhouse"]["database"]
+    _, _, env = _proxy_env()
+    assert env["CLICKHOUSE_DB"] == {"name": "CLICKHOUSE_DB", "value": database}
+
+
 def test_proxy_uses_its_built_in_schema_settings():
     container, _, env = _proxy_env()
     built_in = {
-        "CLICKHOUSE_DB",
         "CLICKHOUSE_LOGS_TTL",
         "CLICKHOUSE_TRACES_TTL",
         "CLICKHOUSE_METRICS_TTL",

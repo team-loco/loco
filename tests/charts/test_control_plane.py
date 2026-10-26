@@ -1,4 +1,5 @@
 import json
+import re
 import subprocess
 
 import pytest
@@ -319,6 +320,13 @@ def test_in_cluster_clickhouse_wires_each_proxy_role_to_its_user():
         (ingest, "CLICKHOUSE_INGEST_URL", "loco_ingest"),
     ):
         assert secret_ref(deployment, variable) == {"name": users[user]["password_secret_name"], "key": "url"}
+
+
+def test_grants_name_the_database_value():
+    clickhouse = chart_values("loco-control-plane")["clickhouse"]["clickhouse"]
+    for user in clickhouse["users"]:
+        for grant in user["grants"]:
+            assert re.search(rf" ON {re.escape(clickhouse['database'])}\.\*$", grant), (user["name"], grant)
 
 
 def test_external_clickhouse_uses_existing_secrets_and_renders_no_server():

@@ -65,7 +65,7 @@ export LOCO_TEST_COUNTER_DATABASE=${run_name//-/_}
 
 (cd "$root/observability-proxy" && go build -o "$work_dir/loco-obs-proxy" .)
 QUERY_ENABLED=true INGEST_ENABLED=true PORT="$proxy_port" OTLP_GRPC_PORT="$otlp_grpc_port" OTLP_HTTP_PORT="$otlp_http_port" \
-    CLICKHOUSE_URL="$LOCO_TEST_CLICKHOUSE_URL" CLICKHOUSE_MIGRATOR_URL="$LOCO_TEST_CLICKHOUSE_URL" \
+    CONTROL_PLANE_URL="http://localhost:8000" CLICKHOUSE_URL="$LOCO_TEST_CLICKHOUSE_URL" CLICKHOUSE_MIGRATOR_URL="$LOCO_TEST_CLICKHOUSE_URL" \
     CLICKHOUSE_INGEST_URL="$LOCO_TEST_CLICKHOUSE_URL" CLICKHOUSE_DB="$LOCO_TEST_COUNTER_DATABASE" \
     "$work_dir/loco-obs-proxy" >"$work_dir/proxy.log" 2>&1 &
 proxy_pid=$!

@@ -128,6 +128,8 @@ clickhouse:
           drop:
             - ALL
   clickhouse:
+    # keep in sync with the loco_obs.* grants in clickhouse.clickhouse.users below
+    database: loco_obs
     image:
       repository: altinity/clickhouse-server
       tag: "26.3.33.10001.altinitystable@sha256:5bd62b50208bae1d065de7685b0b0a1812f267d1a179aabb15f97c78aed47d1a"
@@ -202,6 +204,7 @@ clickhouse:
         </{{ . }}>
         {{- end }}
       </clickhouse>
+    # keep the database in these grants in sync with clickhouse.clickhouse.database above
     users:
       - name: loco_migrator
         password_secret_name: loco-clickhouse-migrator

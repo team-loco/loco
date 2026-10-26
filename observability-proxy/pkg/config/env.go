@@ -24,13 +24,6 @@ var (
 	identifierPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 )
 
-func stringEnv(name, fallback string) string {
-	if value := os.Getenv(name); value != "" {
-		return value
-	}
-	return fallback
-}
-
 func requiredStringEnv(name string) string {
 	value := os.Getenv(name)
 	if value == "" {
@@ -39,8 +32,8 @@ func requiredStringEnv(name string) string {
 	return value
 }
 
-func identifierEnv(name, fallback string) string {
-	value := stringEnv(name, fallback)
+func requiredIdentifierEnv(name string) string {
+	value := requiredStringEnv(name)
 	if !identifierPattern.MatchString(value) {
 		panic(fmt.Errorf("%s %q %w", name, value, errInvalidName))
 	}
@@ -52,6 +45,15 @@ func intEnv(name string, fallback int) int {
 	if raw == "" {
 		return fallback
 	}
+	parsed, err := strconv.Atoi(raw)
+	if err != nil {
+		panic(fmt.Errorf("%s %q %w", name, raw, errInvalidInt))
+	}
+	return parsed
+}
+
+func requiredIntEnv(name string) int {
+	raw := requiredStringEnv(name)
 	parsed, err := strconv.Atoi(raw)
 	if err != nil {
 		panic(fmt.Errorf("%s %q %w", name, raw, errInvalidInt))
