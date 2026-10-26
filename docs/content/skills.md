@@ -12,7 +12,7 @@ curl -fsSL https://loco.build/install.sh | sh
 loco login
 ```
 
-Inspect the project before deploying. A service is a unit Loco deploys and scales separately. A web API and a long-running queue consumer are two services if each has its own deployment; a goroutine inside the API belongs to the API service. Run deployment commands from the project directory.
+Inspect the project before deploying. Decide whether it has one service or several. Run deployment commands from the project directory.
 
 ## Quick deploy
 
