@@ -44,5 +44,13 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: mise run lint:actions
 
+      - name: Agentic workflows are compiled
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          mise run gen:workflows
+          git status --porcelain -- .github
+          test -z "$(git status --porcelain -- .github)"
+
       - name: Test CI job selection
         run: mise run test:ci

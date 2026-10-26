@@ -17,6 +17,7 @@ kustomize = "5.8.3"
 golangci-lint = "2.14.0"
 "go:golang.org/x/vuln/cmd/govulncheck" = "1.9.0"
 actionlint = "1.7.12"
+"github:github/gh-aw" = { version = "0.93.5", bin = "gh-aw" }
 pinact = "5.0.0"
 hadolint = "2.15.1"
 osv-scanner = "2.6.0"
@@ -86,6 +87,10 @@ run = "for m in $(git ls-files -- '*go.mod' ':!:gen/**' | xargs -n1 dirname); do
 [tasks.gen]
 description = "Generate Go and TypeScript from the protos, and Go from the SQL queries"
 run = ["buf generate", "cd api && sqlc generate"]
+
+[tasks."gen:workflows"]
+description = "Compile the agentic workflows in .github/workflows/*.md into their .lock.yml files"
+run = "gh-aw compile --no-check-update"
 
 [tasks."controller:gen"]
 description = "Generate the controller's CRDs, RBAC and deepcopy code, and sync the chart's RBAC copies"

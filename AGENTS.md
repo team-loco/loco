@@ -204,6 +204,15 @@ first time and run `mise run lint:go` before pushing. The one that bites most:
   `getErrorMessage(error, fallback)` for a string, `toastConnectError(error, fallback)` for a
   toast. Both handle `ConnectError`, `Error` and unknown values.
 
+## Agentic Workflows
+
+Every `.md` file in `.github/workflows/` is an agentic workflow: it is the source, and
+`mise run gen:workflows` compiles it into the `.lock.yml` next to it, which is never edited by
+hand. `shared/loco.md` holds the engine, network and tool setup they import. They run Codex with
+`OPENAI_API_KEY`, read the repository, and write only through their declared safe outputs
+(review comments, draft pull requests, issues). The `agentic-workflows` skill covers the
+frontmatter, triggers and safe outputs.
+
 ## Skills
 
 Task-specific guidance lives in `.agents/skills/` (`.claude/skills` links to it), and the

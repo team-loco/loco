@@ -23,6 +23,8 @@ def _yq(expression, path=WORKFLOW):
 def test_gate_hears_every_pull_request_workflow():
     names = set()
     for path in (ROOT / ".github/workflows").glob("*.yml"):
+        if path.name.endswith(".lock.yml"):
+            continue
         if _yq('.on | has("pull_request")', path) == "true":
             names.add(_yq(".name", path))
     assert set(_yq(".on.workflow_run.workflows[]").splitlines()) == names
