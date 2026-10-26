@@ -38,7 +38,7 @@ CLICKHOUSE_PORT=$((PORT_BASE + 3))
 GATEWAY_PORT=$((PORT_BASE + 4))
 READY_TIMEOUT=120
 OBS_READY_TIMEOUT=600
-OBS_HELM_TIMEOUT=10m
+HELM_TIMEOUT=10m
 CLICKHOUSE_NATIVE_PORT=9000
 GATEWAY_HTTP_PORT=80
 LOG_TAIL_LINES=200
@@ -52,14 +52,15 @@ PG_DB="loco_e2e"
 E2E_VERSION="e2e"
 CONTROLLER_REPOSITORY="loco-controller"
 BUILDER_REPOSITORY="loco-builder"
-OBS_VALUES="$ROOT_DIR/charts/loco-obs/values.yaml"
 CONTROL_PLANE_VALUES="$ROOT_DIR/charts/loco-control-plane/values.yaml"
 OBS_E2E_VALUES="$SCRIPT_DIR/obs-values.yaml"
-OBS_RELEASE="loco-obs"
-CORE_CHART="$ROOT_DIR/charts/loco-core"
-GATEWAY_RELEASE="eg"
-GATEWAY_CHART_VERSION=$(yq '.dependencies[] | select(.name == "gateway-helm") | .version' "$CORE_CHART/Chart.yaml")
-OBS_NAMESPACE=$(yq '.global.observability.namespace' "$CORE_CHART/values.yaml")
+WORKER_RELEASE="loco-worker"
+WORKER_CHART="$ROOT_DIR/charts/loco-worker"
+WORKER_VALUES="$WORKER_CHART/values.yaml"
+WORKER_E2E_VALUES="$SCRIPT_DIR/worker-values.yaml"
+GATEWAY_NAME="eg"
+OBS_NAMESPACE=$(yq '.global.observability.namespace' "$WORKER_VALUES")
+OBS_NODE_NAMESPACE=$(yq '.["otel-col-daemon"].namespaceOverride' "$WORKER_VALUES")
 PLATFORM_DOMAIN="e2e.test.local"
 GATEWAY_TLS_SECRET="e2e-gateway-tls"
 GATEWAY_TLS_DAYS=1
@@ -71,7 +72,7 @@ INGEST_OTLP_HTTP_PORT=$(yq '.obsProxy.ingest.httpPort' "$CONTROL_PLANE_VALUES")
 OBS_DATABASE=$(yq '.clickhouse.clickhouse.database' "$CONTROL_PLANE_VALUES")
 CLICKHOUSE_USER="loco_e2e"
 CLICKHOUSE_PASS="loco_e2e_pass"
-BUILDKIT_IMAGE=$(yq '.builds.buildkitImage.repository + ":" + .builds.buildkitImage.tag' "$ROOT_DIR/charts/loco-operator/values.yaml")
+BUILDKIT_IMAGE=$(yq '.builds.buildkitImage.repository + ":" + .builds.buildkitImage.tag' "$WORKER_VALUES")
 CLUSTER_ADMIN_TOKEN="loco_s_e2e-admin-session-do-not-use-in-production"
 CLUSTER_ADMIN_HOME="$RUN_DIR/cluster-admin-home"
 AGENT_KEY_SECRET="e2e-agent-key"
@@ -104,8 +105,6 @@ export E2E_OBS_PROXY_PORT="$OBS_PROXY_PORT"
 export E2E_OTLP_HTTP_PORT="$OTLP_HTTP_PORT"
 export E2E_GATEWAY_URL="http://127.0.0.1:${GATEWAY_PORT}"
 export E2E_OBS_NAMESPACE="$OBS_NAMESPACE"
-export E2E_OBS_RELEASE="$OBS_RELEASE"
-export E2E_OBS_VALUES="$OBS_E2E_VALUES"
 export E2E_CLICKHOUSE_CONTAINER="$CLICKHOUSE_CONTAINER"
 export E2E_OBS_INGEST_CONTAINER="$INGEST_CONTAINER"
 export E2E_CLICKHOUSE_USER="$CLICKHOUSE_USER"
@@ -282,7 +281,7 @@ dump_logs() {
     fi
     if [ "$OBSERVABILITY" = true ] && [ -s "$KUBECONFIG_FILE" ]; then
         local namespace workload
-        for namespace in "$OBS_NAMESPACE" "$(yq '.["otel-col-daemon"].namespaceOverride' "$OBS_VALUES")"; do
+        for namespace in "$OBS_NAMESPACE" "$OBS_NODE_NAMESPACE"; do
             log_group "${namespace} pods"
             kube get pods -n "$namespace" -o wide 2>&1 || true
             log_group_end
@@ -450,14 +449,8 @@ run_migrations() {
 
 create_namespace() {
     log_step "Creating the ${LOCO_NAMESPACE} namespace..."
-    kube create namespace "$LOCO_NAMESPACE" --dry-run=client -o yaml | kube apply -f - >/dev/null
+    kube apply -f "$ROOT_DIR/manifests/namespaces/${LOCO_NAMESPACE}.yaml" >/dev/null
     log_ok "Namespace ready"
-}
-
-install_observability_namespaces() {
-    log_step "Applying the platform namespaces..."
-    kube apply -f "$ROOT_DIR/manifests/namespaces/namespaces.yaml" >/dev/null
-    log_ok "Platform namespaces ready"
 }
 
 build_chart_dependencies() {
@@ -468,23 +461,14 @@ build_chart_dependencies() {
 
 envoy_proxy_deployment() {
     kube -n "$LOCO_NAMESPACE" get deployments \
-        -l "gateway.envoyproxy.io/owning-gateway-name=${GATEWAY_RELEASE},gateway.envoyproxy.io/owning-gateway-namespace=${LOCO_NAMESPACE}" \
+        -l "gateway.envoyproxy.io/owning-gateway-name=${GATEWAY_NAME},gateway.envoyproxy.io/owning-gateway-namespace=${LOCO_NAMESPACE}" \
         -o name | grep .
 }
 
 envoy_proxy_service() {
     kube -n "$LOCO_NAMESPACE" get services \
-        -l "gateway.envoyproxy.io/owning-gateway-name=${GATEWAY_RELEASE},gateway.envoyproxy.io/owning-gateway-namespace=${LOCO_NAMESPACE}" \
+        -l "gateway.envoyproxy.io/owning-gateway-name=${GATEWAY_NAME},gateway.envoyproxy.io/owning-gateway-namespace=${LOCO_NAMESPACE}" \
         -o name | grep .
-}
-
-render_core() {
-    helm template loco-core "$CORE_CHART" \
-        --namespace "$LOCO_NAMESPACE" \
-        --values "$SCRIPT_DIR/gateway-values.yaml" \
-        --set "global.domain.apps={${PLATFORM_DOMAIN}}" \
-        --set "certManager.existingTLSSecret=${GATEWAY_TLS_SECRET}" \
-        --show-only "$1"
 }
 
 agent_chart_env() {
@@ -508,37 +492,6 @@ install_crds() {
     fi
     KIND_CLUSTER="$KIND_CLUSTER_NAME" mise run --quiet crds:apply ${flags[@]+"${flags[@]}"} >/dev/null
     log_ok "CRDs applied"
-}
-
-install_envoy_gateway() {
-    log_step "Installing Envoy Gateway ${GATEWAY_CHART_VERSION} and the loco-core Gateway..."
-    local gateway_values="$RUN_DIR/gateway-helm-values.yaml"
-    yq '.["gateway-helm"]' "$CORE_CHART/values.yaml" >"$gateway_values"
-    helm upgrade --install "$GATEWAY_RELEASE" "$CORE_CHART/charts/gateway-helm-${GATEWAY_CHART_VERSION}.tgz" \
-        --kubeconfig "$KUBECONFIG_FILE" \
-        --kube-context "$KUBE_CONTEXT" \
-        --namespace "$LOCO_NAMESPACE" \
-        --values "$gateway_values" \
-        --wait --timeout "$OBS_HELM_TIMEOUT" >/dev/null
-    create_gateway_tls_secret
-    render_core templates/agent-deployment.yaml >"$RUN_DIR/agent-deployment.yaml"
-    render_core templates/gateway.yaml | kube apply -f - >/dev/null
-    wait_for "the Envoy proxy Deployment" "$OBS_READY_TIMEOUT" envoy_proxy_deployment
-    kube -n "$LOCO_NAMESPACE" rollout status "$(envoy_proxy_deployment)" --timeout "${OBS_READY_TIMEOUT}s" >/dev/null
-    log_ok "Envoy Gateway serving the ${GATEWAY_RELEASE} Gateway"
-}
-
-install_loco_obs() {
-    log_step "Installing the loco-obs chart..."
-    helm upgrade --install "$OBS_RELEASE" "$ROOT_DIR/charts/loco-obs" \
-        --kubeconfig "$KUBECONFIG_FILE" \
-        --kube-context "$KUBE_CONTEXT" \
-        --namespace "$OBS_NAMESPACE" \
-        --values "$OBS_VALUES" \
-        --values "$OBS_E2E_VALUES" \
-        --set "global.exporter.endpoint=http://${INGEST_CONTAINER}:${INGEST_OTLP_HTTP_PORT}" \
-        --wait --timeout "$OBS_HELM_TIMEOUT" >/dev/null
-    log_ok "loco-obs installed in ${OBS_NAMESPACE}"
 }
 
 port_forward() {
@@ -655,8 +608,8 @@ load_controller_image() {
     log_ok "Controller image ${CONTROLLER_IMAGE} loaded into Kind"
 }
 
-install_operator() {
-    log_step "Installing the loco-operator chart (builds.enabled=${BUILDS_ENABLED})..."
+install_worker() {
+    log_step "Installing the loco-worker chart (builds.enabled=${BUILDS_ENABLED}, observability=${OBSERVABILITY})..."
     local build_values=(--set builds.enabled=false)
     if [ "$BUILDS_ENABLED" = true ]; then
         build_values=(
@@ -665,19 +618,37 @@ install_operator() {
             --set-json "builds.privateEgress=${BUILD_PRIVATE_EGRESS}"
         )
     fi
-    helm upgrade --install loco-operator "$ROOT_DIR/charts/loco-operator" \
+    local obs_values=(--set otel-col-daemon.enabled=false --set otel-col-deploy.enabled=false --set otel-col-cluster.enabled=false)
+    if [ "$OBSERVABILITY" = true ]; then
+        obs_values=(
+            --values "$OBS_E2E_VALUES"
+            --set "global.exporter.endpoint=http://${INGEST_CONTAINER}:${INGEST_OTLP_HTTP_PORT}"
+        )
+    fi
+    create_gateway_tls_secret
+    helm upgrade --install "$WORKER_RELEASE" "$WORKER_CHART" \
         --kubeconfig "$KUBECONFIG_FILE" \
         --kube-context "$KUBE_CONTEXT" \
         --namespace "$LOCO_NAMESPACE" \
-        --values "$SCRIPT_DIR/operator-values.yaml" \
+        --values "$WORKER_E2E_VALUES" \
+        --set "global.domain.apps={${PLATFORM_DOMAIN}}" \
+        --set "certManager.existingTLSSecret=${GATEWAY_TLS_SECRET}" \
         --set controller.image.repository="${CONTROLLER_IMAGE%%:*}" \
         --set controller.image.tag="${CONTROLLER_IMAGE##*:}" \
         "${build_values[@]}" \
-        --wait --timeout 3m >/dev/null
+        "${obs_values[@]}" \
+        --wait --timeout "$HELM_TIMEOUT" >/dev/null
     if [ "$BUILDS_ENABLED" = false ] && [ "$CLUSTER_REUSED" = true ]; then
         kube delete namespace "$E2E_BUILD_NAMESPACE" --ignore-not-found --wait --timeout="${READY_TIMEOUT}s" >/dev/null
     fi
-    log_ok "Controllers running in Kind"
+    helm get manifest "$WORKER_RELEASE" \
+        --kubeconfig "$KUBECONFIG_FILE" \
+        --kube-context "$KUBE_CONTEXT" \
+        --namespace "$LOCO_NAMESPACE" |
+        yq "select(.kind == \"Deployment\" and .metadata.name == \"${WORKER_RELEASE}-agent\")" >"$RUN_DIR/agent-deployment.yaml"
+    wait_for "the Envoy proxy Deployment" "$OBS_READY_TIMEOUT" envoy_proxy_deployment
+    kube -n "$LOCO_NAMESPACE" rollout status "$(envoy_proxy_deployment)" --timeout "${OBS_READY_TIMEOUT}s" >/dev/null
+    log_ok "Controllers running and Envoy Gateway serving the ${GATEWAY_NAME} Gateway"
 }
 
 reset_cluster_state() {
@@ -793,32 +764,31 @@ agent_registered() {
 start_agent() {
     log_step "Starting Agent..."
 
-    local core_values="$ROOT_DIR/charts/loco-core/values.yaml"
     E2E_CLUSTER_KEY=$(kube get namespace kube-system -o jsonpath='{.metadata.uid}')
     export E2E_CLUSTER_KEY
     E2E_PREVIOUS_SYNC_GENERATION=$(e2e_psql "SELECT COALESCE((SELECT sync_generation FROM clusters WHERE cluster_key = '${E2E_CLUSTER_KEY}'), 0)")
     CONTROL_PLANE_URL="$E2E_API_URL" \
     LOCO_JOIN_TOKEN="${E2E_JOIN_TOKEN:-}" \
     LOCO_AGENT_KEY_SECRET="$AGENT_KEY_SECRET" \
-    LOCO_ASSERTION_LIFETIME="$(yq '.agent.assertionLifetime' "$core_values")" \
-    LOG_LEVEL="$(yq '.env.LOG_LEVEL' "$core_values")" \
+    LOCO_ASSERTION_LIFETIME="$(yq '.agent.assertionLifetime' "$WORKER_VALUES")" \
+    LOG_LEVEL="$(yq '.env.LOG_LEVEL' "$WORKER_VALUES")" \
     LOCO_NAMESPACE="$LOCO_NAMESPACE" \
-    LOCO_BUILD_NAMESPACE="$(yq '.agent.buildNamespace' "$core_values")" \
-    LOCO_CONTROLLER_DEPLOYMENT="$(yq '.agent.controllerDeployment' "$core_values")" \
-    LOCO_INVENTORY_INTERVAL="$(yq '.agent.inventoryInterval' "$core_values")" \
-    LOCO_BUILD_RETENTION="$(yq '.agent.buildRetention' "$core_values")" \
-    LOCO_BUILD_COLLECT_INTERVAL="$(yq '.agent.buildCollectInterval' "$core_values")" \
-    LOCO_CLUSTER_QUERY_TIMEOUT="$(yq '.agent.clusterQueryTimeout' "$core_values")" \
-    LOCO_RECONCILE_WORKERS="$(yq '.agent.reconcileWorkers' "$core_values")" \
-    LOCO_RECONCILE_RETRY_BASE_DELAY="$(yq '.agent.reconcileRetryBaseDelay' "$core_values")" \
-    LOCO_RECONCILE_RETRY_MAX_DELAY="$(yq '.agent.reconcileRetryMaxDelay' "$core_values")" \
-    LOCO_SYNC_OUTBOUND_BUFFER="$(yq '.agent.syncOutboundBuffer' "$core_values")" \
-    LOCO_BUILD_QUEUE_SIZE="$(yq '.agent.buildQueueSize' "$core_values")" \
-    LOCO_BUILD_CREATE_RETRY_DELAY="$(yq '.agent.buildCreateRetryDelay' "$core_values")" \
-    LOCO_BUILD_CREATE_RETRY_ATTEMPTS="$(yq '.agent.buildCreateRetryAttempts' "$core_values")" \
-    LOCO_RECONNECT_BASE_DELAY="$(yq '.agent.reconnectBaseDelay' "$core_values")" \
-    LOCO_RECONNECT_MAX_DELAY="$(yq '.agent.reconnectMaxDelay' "$core_values")" \
-    LOCO_HEALTHY_STREAM_DURATION="$(yq '.agent.healthyStreamDuration' "$core_values")" \
+    LOCO_BUILD_NAMESPACE="$(yq '.agent.buildNamespace' "$WORKER_VALUES")" \
+    LOCO_CONTROLLER_DEPLOYMENT="$(yq '.agent.controllerDeployment' "$WORKER_VALUES")" \
+    LOCO_INVENTORY_INTERVAL="$(yq '.agent.inventoryInterval' "$WORKER_VALUES")" \
+    LOCO_BUILD_RETENTION="$(yq '.agent.buildRetention' "$WORKER_VALUES")" \
+    LOCO_BUILD_COLLECT_INTERVAL="$(yq '.agent.buildCollectInterval' "$WORKER_VALUES")" \
+    LOCO_CLUSTER_QUERY_TIMEOUT="$(yq '.agent.clusterQueryTimeout' "$WORKER_VALUES")" \
+    LOCO_RECONCILE_WORKERS="$(yq '.agent.reconcileWorkers' "$WORKER_VALUES")" \
+    LOCO_RECONCILE_RETRY_BASE_DELAY="$(yq '.agent.reconcileRetryBaseDelay' "$WORKER_VALUES")" \
+    LOCO_RECONCILE_RETRY_MAX_DELAY="$(yq '.agent.reconcileRetryMaxDelay' "$WORKER_VALUES")" \
+    LOCO_SYNC_OUTBOUND_BUFFER="$(yq '.agent.syncOutboundBuffer' "$WORKER_VALUES")" \
+    LOCO_BUILD_QUEUE_SIZE="$(yq '.agent.buildQueueSize' "$WORKER_VALUES")" \
+    LOCO_BUILD_CREATE_RETRY_DELAY="$(yq '.agent.buildCreateRetryDelay' "$WORKER_VALUES")" \
+    LOCO_BUILD_CREATE_RETRY_ATTEMPTS="$(yq '.agent.buildCreateRetryAttempts' "$WORKER_VALUES")" \
+    LOCO_RECONNECT_BASE_DELAY="$(yq '.agent.reconnectBaseDelay' "$WORKER_VALUES")" \
+    LOCO_RECONNECT_MAX_DELAY="$(yq '.agent.reconnectMaxDelay' "$WORKER_VALUES")" \
+    LOCO_HEALTHY_STREAM_DURATION="$(yq '.agent.healthyStreamDuration' "$WORKER_VALUES")" \
     LOCO_GATEWAY="$(agent_chart_env LOCO_GATEWAY)" \
     LOCO_CERTIFICATE="$(agent_chart_env LOCO_CERTIFICATE)" \
     LOCO_APP_DOMAINS="$(agent_chart_env LOCO_APP_DOMAINS)" \
@@ -950,24 +920,15 @@ main() {
     create_namespace
     build_chart_dependencies
     install_crds
-    if [ "$OBSERVABILITY" = true ]; then
-        install_observability_namespaces
-    fi
-    start_job envoy-gateway install_envoy_gateway
-    if [ "$OBSERVABILITY" = true ]; then
-        start_job loco-obs install_loco_obs
-    fi
     setup_postgres
     setup_clickhouse
     run_migrations
     setup_registry
     load_builder_images
     load_controller_image
-    await_job envoy-gateway
-    install_operator
+    install_worker
     reset_cluster_state
     if [ "$OBSERVABILITY" = true ]; then
-        await_job loco-obs
         forward_observability_ports
     fi
     await_job binaries

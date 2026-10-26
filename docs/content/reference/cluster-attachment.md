@@ -30,7 +30,7 @@ After enrollment the agent ignores the join token. Every registration and sync s
 
 ## Platform domains
 
-`global.domain.apps` in the `loco-core` values lists the platform domains a cluster serves. The chart renders `*.<domain>` HTTP and HTTPS listeners on the `eg` Gateway and a certificate for each, and passes the list to the agent. On registration and every heartbeat, the agent reports the domains whose listeners are accepted and programmed and whose certificate is ready and names `*.<domain>`. With `certManager.existingTLSSecret` set, the chart renders no certificate and the listeners alone decide. The agent reads the Gateway and the Certificate with `get` on those two names only.
+`global.domain.apps` in the `loco-worker` values lists the platform domains a cluster serves. The chart renders `*.<domain>` HTTP and HTTPS listeners on the `eg` Gateway and a certificate for each, and passes the list to the agent. On registration and every heartbeat, the agent reports the domains whose listeners are accepted and programmed and whose certificate is ready and names `*.<domain>`. With `certManager.existingTLSSecret` set, the chart renders no certificate and the listeners alone decide. The agent reads the Gateway and the Certificate with `get` on those two names only.
 
 ## Re-enroll
 
@@ -38,7 +38,7 @@ To replace a lost key or rotate it, issue a new join token, delete the key Secre
 
 ```sh
 locoadm cluster join-token <cluster-id>
-kubectl -n loco-system delete secret loco-core-agent-key
+kubectl -n loco-system delete secret loco-worker-agent-key
 ```
 
 Enrollment replaces the bound key and closes the stream that used the old key. A new token replaces any unused one. Re-enrollment must come from the same Kubernetes cluster; a replacement Kubernetes cluster needs its own record.

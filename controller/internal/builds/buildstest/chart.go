@@ -26,7 +26,7 @@ func ChartValuesPath() (string, error) {
 	}
 	dir := filepath.Dir(file)
 	root := filepath.Join(dir, "..", "..", "..", "..")
-	return filepath.Join(root, "charts", "loco-operator", "values.yaml"), nil
+	return filepath.Join(root, "charts", "loco-worker", "values.yaml"), nil
 }
 
 func ChartBuilds() (map[string]any, error) {

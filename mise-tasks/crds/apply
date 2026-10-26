@@ -8,15 +8,15 @@ cluster=${KIND_CLUSTER:?}
 context=kind-$cluster
 field_manager=loco-crds
 established_timeout=60s
-core_chart=charts/loco-core
+worker_chart=charts/loco-worker
 build_crd=builds.infra.loco.io
 build_crd_file=controller/config/crd/bases/infra.loco.io_builds.yaml
 gateway_crds=gateway-helm/charts/crds/crds
 
-gateway_version=$(yq '.dependencies[] | select(.name == "gateway-helm") | .version' "$core_chart/Chart.lock")
+gateway_version=$(yq '.dependencies[] | select(.name == "gateway-helm") | .version' "$worker_chart/Chart.lock")
 workdir=$(mktemp -d)
 trap 'rm -rf "$workdir"' EXIT
-tar -xzf "$core_chart/charts/gateway-helm-$gateway_version.tgz" -C "$workdir" "$gateway_crds"
+tar -xzf "$worker_chart/charts/gateway-helm-$gateway_version.tgz" -C "$workdir" "$gateway_crds"
 
 files=(--recursive -f "$workdir/$gateway_crds")
 for crd in controller/config/crd/bases/*.yaml; do

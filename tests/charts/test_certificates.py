@@ -8,7 +8,7 @@ def _resources(values):
     return [
         document
         for template in ("cm-issuer.yaml", "cm-cert.yaml", "cloudflare-secret.yml")
-        for document in render_documents("loco-core", template, values)
+        for document in render_documents("loco-worker", template, values)
     ]
 
 
@@ -67,7 +67,7 @@ def test_existing_secret_skips_all_certificate_resources():
     gateway = next(
         (
             document
-            for document in render_documents("loco-core", "gateway.yaml", values)
+            for document in render_documents("loco-worker", "gateway.yaml", values)
             if document["kind"] == "Gateway"
         )
     )
@@ -84,11 +84,11 @@ def test_existing_secret_skips_all_certificate_resources():
 
 
 def test_default_gateway_uses_the_issued_secret():
-    (certificate,) = render_documents("loco-core", "cm-cert.yaml", {})
+    (certificate,) = render_documents("loco-worker", "cm-cert.yaml", {})
     gateway = next(
         (
             document
-            for document in render_documents("loco-core", "gateway.yaml", {})
+            for document in render_documents("loco-worker", "gateway.yaml", {})
             if document["kind"] == "Gateway"
         )
     )

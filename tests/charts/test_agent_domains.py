@@ -8,7 +8,7 @@ def _agent_env(overrides):
     (deployment,) = [
         document
         for document in render_documents(
-            "loco-core",
+            "loco-worker",
             "agent-deployment.yaml",
             {**TAG, **APPS, **overrides},
             includes=("env-config-secret.yml",),
@@ -22,7 +22,7 @@ def _agent_env(overrides):
 def _agent_role(overrides):
     (role,) = [
         document
-        for document in render_documents("loco-core", "agent-rbac.yaml", {**APPS, **overrides})
+        for document in render_documents("loco-worker", "agent-rbac.yaml", {**APPS, **overrides})
         if document["kind"] == "Role"
     ]
     return role["rules"]
@@ -33,11 +33,11 @@ def test_agent_reads_the_gateway_and_certificate_the_chart_renders():
     assert env["LOCO_APP_DOMAINS"] == "apps.test,other.test"
     (gateway,) = [
         document
-        for document in render_documents("loco-core", "gateway.yaml", APPS)
+        for document in render_documents("loco-worker", "gateway.yaml", APPS)
         if document["kind"] == "Gateway"
     ]
     assert env["LOCO_GATEWAY"] == gateway["metadata"]["name"]
-    (certificate,) = render_documents("loco-core", "cm-cert.yaml", APPS)
+    (certificate,) = render_documents("loco-worker", "cm-cert.yaml", APPS)
     assert env["LOCO_CERTIFICATE"] == certificate["metadata"]["name"]
 
 

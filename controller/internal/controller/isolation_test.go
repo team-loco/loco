@@ -211,7 +211,7 @@ var _ = Describe("Workspace isolation", func() {
 
 	It("updates metrics discovery and removes collector ingress with the application", func() {
 		app := isolationTestApplication("ws-metrics-policy", "metrics-policy")
-		reconciler.Telemetry.ScrapeNamespace = "observability-node"
+		reconciler.Telemetry.ScrapeNamespace = "loco-obs-node"
 		reconciler.Telemetry.ScrapeCollector = "otel-col-daemon"
 		Expect(ensureNamespace(ctx, k8sClient, app)).To(Succeed())
 		app.Spec.ServiceSpec.Obs = &locov1alpha1.ObsSpec{

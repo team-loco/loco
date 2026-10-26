@@ -103,12 +103,18 @@ Each cluster needs a CNI that enforces Kubernetes NetworkPolicy; the controller 
 
 ### Phase 1: Core Services
 
-#### loco-core Chart
+#### loco-worker Chart
 
 Deploys:
 
-- **API Server Deployment**: Loco API running in pods
-- **UI Server Deployment**: React frontend
+- **loco-agent**: connects the cluster to the control plane
+- **loco-controller** (the Application controller)
+  - Watches Application CRDs
+  - Reconciles to Deployments, Services, HTTPRoutes and NetworkPolicies
+- **loco-build-controller** (the build controller, only with `builds.enabled`)
+  - Watches Build CRDs in the `loco-builds` namespace
+  - Runs each Build as a BuildKit Job and reports the pushed digest
+- **OpenTelemetry collectors**: three OpenTelemetry Collector contrib 0.163.2 instances, `otel-col-deploy` (OTLP from applications and Envoy) and `otel-col-cluster` (cluster metrics and events) in `loco-obs`, `otel-col-daemon` (container logs and node metrics) in `loco-obs-node`. They export everything over OTLP/HTTP to one configured endpoint.
 - **Envoy Gateway** (v1.6.1 via gateway-helm dependency)
   - **HTTP routing** and load balancing
   - **TLS termination** (HTTPS)
@@ -131,24 +137,9 @@ Deploys:
 - Kubernetes API for CustomResourceDefinitions (Certificate, Issuer, ClusterIssuer)
 - External ACME server (Let's Encrypt production/staging)
 
-#### loco-operator Chart
-
-Deploys:
-
-- **loco-controller** (the Application controller)
-  - Watches Application CRDs
-  - Reconciles to Deployments, Services, HTTPRoutes and NetworkPolicies
-- **loco-build-controller** (the build controller, only with `builds.enabled`)
-  - Watches Build CRDs in the `loco-builds` namespace
-  - Runs each Build as a BuildKit Job and reports the pushed digest
-
 ---
 
 ### Phase 2: Observability
-
-#### loco-obs Chart
-
-Deploys three OpenTelemetry Collector contrib 0.163.2 instances on each worker cluster: `otel-col-deploy` (OTLP from applications and Envoy), `otel-col-daemon` (container logs and node metrics) and `otel-col-cluster` (cluster metrics and events). They export everything over OTLP/HTTP to one configured endpoint.
 
 #### loco-control-plane Chart
 
@@ -212,7 +203,7 @@ Controller Reconciles:
   - Service (internal networking)
   - Ingress (via Envoy Gateway)
   ↓
-Envoy Gateway (loco-core)
+Envoy Gateway (loco-worker)
   - Terminates TLS (via cert-manager certificates)
   - Exposes HTTP/3
 ```

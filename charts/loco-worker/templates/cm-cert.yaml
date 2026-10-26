@@ -1,0 +1,22 @@
+{{- if not .Values.certManager.existingTLSSecret }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+    name: {{ include "loco-worker.certificate" . }}
+    namespace: {{ .Release.Namespace }}
+spec:
+    secretName: {{ include "loco-worker.tlsSecret" . }}
+    issuerRef:
+        name: {{ .Values.certManager.issuer.name }}
+        kind: {{ .Values.certManager.issuer.kind }}
+    {{- $primary := index .Values.global.domain.apps 0 }}
+    commonName: {{ printf "*.%s" $primary | quote }}
+    dnsNames:
+        {{- range .Values.global.domain.apps }}
+        - {{ printf "*.%s" . | quote }}
+        {{- end }}
+        - {{ printf "*.%s" .Values.global.domain.platform | quote }}
+        {{- range .Values.certManager.additionalDNSNames }}
+        - {{ . | quote }}
+        {{- end }}
+{{- end }}

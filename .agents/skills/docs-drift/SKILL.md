@@ -65,7 +65,7 @@ Pages state released behaviour and label unreleased workflows with a release not
 - `README.md`: quick start (installer flags, `loco login`, `loco init`, `loco validate`, `loco
   deploy` and `--image`, source packing rules, `loco resource` and `loco builds` subcommands),
   the examples list, the contributing section (mise, Tilt, Dex on `localhost:5556`, the local
-  registry and bucket, build flow, `charts/loco-operator` deployments and `builds.enabled`).
+  registry and bucket, build flow, `charts/loco-worker` controller deployments and `builds.enabled`).
 - `AGENTS.md`, the "loco.yaml" section and the
   behaviour statements in "Dependencies and Configuration" (version reporting, `/version.json`,
   chart tags). The rest of `AGENTS.md` is process guidance, not product documentation.
@@ -74,7 +74,7 @@ Pages state released behaviour and label unreleased workflows with a release not
 Out of scope: `docs/tdd/**`, `docs/notes.html`, `docs/dependencies.md`, `docs/DESIGN.md`,
 `docs/checklist.html`, `experiments/**`, `controller/README.md` and `web/README.md` (scaffold
 boilerplate), `.agents/skills/**`, generated code (`gen/**`, `api/gen/**`,
-`zz_generated.deepcopy.go`, CRD YAML under `controller/config` and `charts/loco-operator`),
+`zz_generated.deepcopy.go`, CRD YAML under `controller/config` and `charts/loco-worker`),
 tests, `e2e/**`, Go doc comments and `//` comments. A missing Go doc comment is not drift. The
 repository has no changelog.
 

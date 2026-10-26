@@ -51,22 +51,28 @@ def test_bundle_pins_every_source_and_image(bundle):
         if path.endswith(".yaml") and path != "layers.yaml"
     ]
     sources = [value for value in resources if value["kind"] == "OCIRepository"]
-    assert len(sources) == 7
+    assert len(sources) == 5
     for source in sources:
         assert source["spec"]["ref"] == {"digest": bundle.digest}
     lock = json.loads(bundle.files["release.json"])
     assert lock["coreCommit"] == bundle.commit
     assert lock["images"] == bundle.images
-    core = json.loads(bundle.files["releases/loco-core-helmrelease.yaml"])
-    assert (
-        core["spec"]["values"]["agent"]["image"]["tag"]
-        == f"sha-{bundle.commit}@{bundle.digest}"
-    )
+    worker = json.loads(bundle.files["releases/loco-worker-helmrelease.yaml"])
+    values = worker["spec"]["values"]
+    for image in (
+        values["agent"]["image"],
+        values["controller"]["image"],
+        values["builds"]["builderImage"],
+    ):
+        assert image["tag"] == f"sha-{bundle.commit}@{bundle.digest}"
+    assert values["agent"]["image"]["repository"] == "ghcr.io/example/platform-agent"
+    assert values["controller"]["image"]["repository"] == "ghcr.io/example/platform-controller"
+    assert values["builds"]["builderImage"]["repository"] == "ghcr.io/example/platform-builder"
 
 
 def test_crds_are_protected_and_owned_separately(bundle):
-    operator = json.loads(bundle.files["releases/loco-operator-helmrelease.yaml"])
-    assert "crd" not in operator["spec"]["values"]
+    worker = json.loads(bundle.files["releases/loco-worker-helmrelease.yaml"])
+    assert "crd" not in worker["spec"]["values"]
     for name in ("applications", "builds", "gateway"):
         ks = json.loads(bundle.files[f"crds/loco-{name}-crd-kustomization.yaml"])
         assert not ks["spec"]["prune"]
@@ -78,21 +84,31 @@ def test_control_plane_chart_is_published_without_installing_on_workers(bundle):
     assert not [name for name in bundle.files if "loco-control-plane" in name]
 
 
-def test_only_the_core_release_reads_secret_values(bundle):
-    for name in ("loco-core", "loco-operator", "loco-obs"):
-        hr = json.loads(bundle.files[f"releases/{name}-helmrelease.yaml"])
-        secrets = [source for source in hr["spec"]["valuesFrom"] if source["kind"] == "Secret"]
-        assert bool(secrets) == (name == "loco-core"), name
+def test_worker_release_reads_its_values_sources(bundle):
+    releases = sorted(
+        path for path in bundle.files if path.endswith("-helmrelease.yaml")
+    )
+    assert releases == [
+        "releases/cert-manager-helmrelease.yaml",
+        "releases/loco-worker-helmrelease.yaml",
+    ]
+    hr = json.loads(bundle.files["releases/loco-worker-helmrelease.yaml"])
+    assert hr["spec"]["targetNamespace"] == "loco-system"
+    assert hr["spec"]["install"]["createNamespace"] is False
+    assert [(source["kind"], source["name"]) for source in hr["spec"]["valuesFrom"]] == [
+        ("ConfigMap", "loco-worker-values"),
+        ("Secret", "loco-worker-secrets"),
+    ]
+    assert [dep["name"] for dep in hr["spec"]["dependsOn"]] == ["cert-manager"]
 
 
 def test_releases_wait_for_matching_release_and_current_generation(bundle):
-    for name in ("loco-core", "loco-operator", "loco-obs"):
-        hr = json.loads(bundle.files[f"releases/{name}-helmrelease.yaml"])
-        assert hr["metadata"]["labels"]["platform.loco.io/release"] == "0.7.0-rc.1"
-        for dep in hr["spec"]["dependsOn"]:
-            assert "dep.status.observedGeneration" in dep["readyExpr"]
-            assert "platform.loco.io/release" in dep["readyExpr"]
-        assert hr["spec"]["upgrade"]["remediation"]["strategy"] == "rollback"
+    hr = json.loads(bundle.files["releases/loco-worker-helmrelease.yaml"])
+    assert hr["metadata"]["labels"]["platform.loco.io/release"] == "0.7.0-rc.1"
+    for dep in hr["spec"]["dependsOn"]:
+        assert "dep.status.observedGeneration" in dep["readyExpr"]
+        assert "platform.loco.io/release" in dep["readyExpr"]
+    assert hr["spec"]["upgrade"]["remediation"]["strategy"] == "rollback"
 
 
 def test_bundle_archive_contains_only_declared_files(bundle):
@@ -275,9 +291,9 @@ def publication():
         publication.directory = tempfile.TemporaryDirectory()
         cleanup.callback(publication.directory.cleanup)
         publication.root = Path(publication.directory.name)
-        (publication.root / "charts/loco-core/charts").mkdir(parents=True)
+        (publication.root / "charts/loco-worker/charts").mkdir(parents=True)
         (
-            publication.root / "charts/loco-core/charts/gateway-helm-test.tgz"
+            publication.root / "charts/loco-worker/charts/gateway-helm-test.tgz"
         ).write_bytes(b"gateway")
         publication.commit = "b" * 40
         publication.published = []
@@ -324,9 +340,9 @@ def _publish(publication, repository, version, data, config, *args):
 def test_bundle_is_last_after_all_artifacts_and_provenance(publication):
     with patch("builtins.print"):
         release.publish("0.7.0-rc.1", publication.commit, publication.registry)
-    assert len(publication.published) == 9
+    assert len(publication.published) == 7
     assert publication.published[-1] == "example/platform/platform"
-    assert publication.registry.assert_absent.call_count == 9
+    assert publication.registry.assert_absent.call_count == 7
     attestations = [
         call
         for call in publication.calls

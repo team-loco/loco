@@ -15,7 +15,7 @@ import urllib.parse
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[2]
-CHARTS = ('loco-core', 'loco-obs', 'loco-operator', 'loco-control-plane')
+CHARTS = ('loco-worker', 'loco-control-plane')
 IMAGES = ('agent', 'controller', 'builder', 'obs-proxy', 'api', 'ui')
 MANIFEST_TYPE = 'application/vnd.oci.image.manifest.v1+json'
 LAYER_TYPE = 'application/vnd.oci.image.layer.v1.tar+gzip'
@@ -176,18 +176,14 @@ def bundle(version, commit, refs, images):
     cert = resource('HelmRelease', 'cert-manager', {'interval': '5m', 'serviceAccountName': 'platform-reconciler', 'releaseName': 'cert-manager', 'targetNamespace': 'cert-manager', 'chartRef': {'kind': 'OCIRepository', 'name': cert_source}, 'commonMetadata': {'labels': {'platform.loco.io/release': version}}, 'install': {'createNamespace': False, 'remediation': {'retries': 2}}, 'upgrade': {'remediation': {'retries': 2, 'strategy': 'rollback'}}, 'values': {'crds': {'enabled': True, 'keep': True}}})
     cert['metadata']['labels'] = {'platform.loco.io/release': version}
     releases.append(cert)
-    platform_values = {
-        'loco-core': {'agent': {'image': {'repository': images['agent'].split('@')[0], 'tag': f'sha-{commit}@{images["agent"].split("@")[1]}'}}},
-        'loco-operator': {'controller': {'image': {'repository': images['controller'].split('@')[0], 'tag': f'sha-{commit}@{images["controller"].split("@")[1]}'}}, 'builds': {'builderImage': {'repository': images['builder'].split('@')[0], 'tag': f'sha-{commit}@{images["builder"].split("@")[1]}'}}},
-        'loco-obs': {},
-    }
-    for name, values in platform_values.items():
-        chart_name = name + '-chart'
-        releases.append(source(chart_name, refs[name], HELM_LAYER_TYPE))
-        dependencies = ['cert-manager'] if name == 'loco-core' else ['loco-core']
-        hr = resource('HelmRelease', name, {'interval': '5m', 'serviceAccountName': 'platform-reconciler', 'releaseName': name, 'targetNamespace': 'observability' if name == 'loco-obs' else 'loco-system', 'chartRef': {'kind': 'OCIRepository', 'name': chart_name}, 'dependsOn': [dependency(item) for item in dependencies], 'valuesFrom': [{'kind': 'ConfigMap', 'name': name + '-values', 'valuesKey': 'values.yaml'}] + ([{'kind': 'Secret', 'name': name + '-secrets', 'valuesKey': 'values.yaml'}] if name == 'loco-core' else []), 'values': values, 'install': {'createNamespace': False, 'crds': 'Skip', 'remediation': {'retries': 2}}, 'upgrade': {'crds': 'Skip', 'remediation': {'retries': 2, 'strategy': 'rollback'}}, 'driftDetection': {'mode': 'enabled'}})
-        hr['metadata']['labels'] = {'platform.loco.io/release': version}
-        releases.append(hr)
+    pinned = {name: {'repository': images[name].split('@')[0], 'tag': f'sha-{commit}@{images[name].split("@")[1]}'} for name in ('agent', 'controller', 'builder')}
+    worker = 'loco-worker'
+    worker_chart = worker + '-chart'
+    releases.append(source(worker_chart, refs[worker], HELM_LAYER_TYPE))
+    values = {'agent': {'image': pinned['agent']}, 'controller': {'image': pinned['controller']}, 'builds': {'builderImage': pinned['builder']}}
+    hr = resource('HelmRelease', worker, {'interval': '5m', 'serviceAccountName': 'platform-reconciler', 'releaseName': worker, 'targetNamespace': 'loco-system', 'chartRef': {'kind': 'OCIRepository', 'name': worker_chart}, 'dependsOn': [dependency('cert-manager')], 'valuesFrom': [{'kind': 'ConfigMap', 'name': worker + '-values', 'valuesKey': 'values.yaml'}, {'kind': 'Secret', 'name': worker + '-secrets', 'valuesKey': 'values.yaml'}], 'values': values, 'install': {'createNamespace': False, 'crds': 'Skip', 'remediation': {'retries': 2}}, 'upgrade': {'crds': 'Skip', 'remediation': {'retries': 2, 'strategy': 'rollback'}}, 'driftDetection': {'mode': 'enabled'}})
+    hr['metadata']['labels'] = {'platform.loco.io/release': version}
+    releases.append(hr)
     for path, documents in (('crds', crds), ('releases', releases)):
         filenames = []
         for item in documents:
@@ -270,7 +266,7 @@ def publish(version, commit, registry):
         run('helm', 'pull', cert['chart'], '--repo', cert['repository'], '--version', cert['version'], '--destination', directory)
         cert_package = next(temp.glob('cert-manager-*.tgz'))
         packages['cert-manager-chart'] = cert_package
-        gateway_package = next((ROOT / 'charts/loco-core/charts').glob('gateway-helm-*.tgz'))
+        gateway_package = next((ROOT / 'charts/loco-worker/charts').glob('gateway-helm-*.tgz'))
         artifacts = {
             'loco-applications-crd': protected_crd(ROOT / 'controller/config/crd/bases/infra.loco.io_applications.yaml'),
             'loco-builds-crd': protected_crd(ROOT / 'controller/config/crd/bases/infra.loco.io_builds.yaml'),

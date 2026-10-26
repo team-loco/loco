@@ -22,10 +22,8 @@ local_resource(
     'helm-deps',
     cmd='mise run helm:deps',
     deps=[
-        'charts/loco-core/Chart.yaml',
-        'charts/loco-core/Chart.lock',
-        'charts/loco-obs/Chart.yaml',
-        'charts/loco-obs/Chart.lock',
+        'charts/loco-worker/Chart.yaml',
+        'charts/loco-worker/Chart.lock',
     ],
     allow_parallel=True,
     labels=['setup'],
@@ -125,7 +123,7 @@ local_resource(
 )
 
 # ---------------------------------------------------------------------------
-# Phase 1: Core (CRDs + cert-manager + Envoy Gateway + loco-core + loco-operator)
+# Worker cluster: CRDs, cert-manager and the loco-worker release
 # ---------------------------------------------------------------------------
 
 local_resource(
@@ -142,7 +140,7 @@ local_resource(
     resource_deps=['helm-deps'],
     deps=[
         'controller/config/crd/bases/',
-        'charts/loco-core/Chart.lock',
+        'charts/loco-worker/Chart.lock',
         'mise-tasks/crds/apply',
     ],
     allow_parallel=True,
@@ -157,25 +155,14 @@ local_resource(
 )
 
 helm_release(
-    'loco-core',
+    'loco-worker',
     'loco-system',
     images=[{
         'name': 'loco-agent',
         'repository': 'agent.image.repository',
         'tag': 'agent.image.tag',
         'pull_policy': 'agent.imagePullPolicy',
-    }],
-    values=[
-        'env.CONTROL_PLANE_URL=' + control_plane_url,
-    ],
-    deps=['charts/loco-core/', 'env/local/core-chart.yaml'],
-    resource_deps=['helm-namespaces', 'helm-cert-manager', 'crds', 'loco-operator'],
-)
-
-helm_release(
-    'loco-operator',
-    'loco-system',
-    images=[{
+    }, {
         'name': 'loco-controller',
         'repository': 'controller.image.repository',
         'tag': 'controller.image.tag',
@@ -186,22 +173,11 @@ helm_release(
         'tag': 'builds.builderImage.tag',
         'pull_policy': 'builds.builderImage.pullPolicy',
     }],
-    values=[],
-    deps=['charts/loco-operator/', 'env/local/operator-chart.yaml', 'mise-tasks/cluster/build-egress'],
-    resource_deps=['cluster-registry', 'crds'],
-)
-
-# ---------------------------------------------------------------------------
-# Phase 2: Observability (OpenTelemetry collectors exporting OTLP to the host proxy)
-# ---------------------------------------------------------------------------
-
-helm_release(
-    'loco-obs',
-    'observability',
-    images=[],
-    values=[],
-    deps=['charts/loco-obs/', 'env/local/obs-chart.yaml'],
-    resource_deps=['loco-core'],
+    values=[
+        'env.CONTROL_PLANE_URL=' + control_plane_url,
+    ],
+    deps=['charts/loco-worker/', 'env/local/worker-chart.yaml', 'mise-tasks/cluster/build-egress'],
+    resource_deps=['helm-namespaces', 'helm-cert-manager', 'crds', 'cluster-registry'],
 )
 
 # ---------------------------------------------------------------------------

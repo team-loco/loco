@@ -19,7 +19,7 @@ const testLocoNamespace = "loco-system"
 
 func testTelemetry() controller.TelemetryConfig {
 	return controller.TelemetryConfig{
-		Namespace:        "observability",
+		Namespace:        "loco-obs",
 		CollectorService: "otel-col-deploy",
 		GRPCPort:         4317,
 		HTTPPort:         4318,

@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-agent
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-agent
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-agent
+  replicas: {{ .Values.global.replicas.agent }}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        # rolls the agent automatically when a value in its env secret changes
+        checksum/env: {{ include (print $.Template.BasePath "/env-config-secret.yml") . | sha256sum }}
+      labels:
+        app: {{ .Release.Name }}-agent
+    spec:
+      shareProcessNamespace: true
+      serviceAccountName: {{ .Release.Name }}-agent
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: {{ .Release.Name }}-agent
+          image: "{{ .Values.agent.image.repository }}:{{ required "agent.image.tag is required" .Values.agent.image.tag }}"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          imagePullPolicy: {{ .Values.agent.imagePullPolicy }}
+          env:
+            - name: LOCO_AGENT_KEY_SECRET
+              value: {{ include "loco-worker.agentKeySecret" . | quote }}
+            - name: LOCO_ASSERTION_LIFETIME
+              value: {{ .Values.agent.assertionLifetime | quote }}
+            {{- with include "loco-worker.joinTokenSecret" . }}
+            - name: LOCO_JOIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ . | quote }}
+                  key: {{ $.Values.agent.joinToken.secretKey | quote }}
+                  optional: true
+            {{- end }}
+            - name: LOCO_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: LOCO_BUILD_NAMESPACE
+              value: {{ .Values.agent.buildNamespace | quote }}
+            - name: LOCO_CONTROLLER_DEPLOYMENT
+              value: {{ .Values.agent.controllerDeployment | quote }}
+            - name: LOCO_INVENTORY_INTERVAL
+              value: {{ .Values.agent.inventoryInterval | quote }}
+            - name: LOCO_BUILD_RETENTION
+              value: {{ .Values.agent.buildRetention | quote }}
+            - name: LOCO_BUILD_COLLECT_INTERVAL
+              value: {{ .Values.agent.buildCollectInterval | quote }}
+            - name: LOCO_CLUSTER_QUERY_TIMEOUT
+              value: {{ .Values.agent.clusterQueryTimeout | quote }}
+            - name: LOCO_RECONCILE_WORKERS
+              value: {{ .Values.agent.reconcileWorkers | quote }}
+            - name: LOCO_RECONCILE_RETRY_BASE_DELAY
+              value: {{ .Values.agent.reconcileRetryBaseDelay | quote }}
+            - name: LOCO_RECONCILE_RETRY_MAX_DELAY
+              value: {{ .Values.agent.reconcileRetryMaxDelay | quote }}
+            - name: LOCO_SYNC_OUTBOUND_BUFFER
+              value: {{ .Values.agent.syncOutboundBuffer | quote }}
+            - name: LOCO_BUILD_QUEUE_SIZE
+              value: {{ .Values.agent.buildQueueSize | quote }}
+            - name: LOCO_BUILD_CREATE_RETRY_DELAY
+              value: {{ .Values.agent.buildCreateRetryDelay | quote }}
+            - name: LOCO_BUILD_CREATE_RETRY_ATTEMPTS
+              value: {{ .Values.agent.buildCreateRetryAttempts | quote }}
+            - name: LOCO_RECONNECT_BASE_DELAY
+              value: {{ .Values.agent.reconnectBaseDelay | quote }}
+            - name: LOCO_RECONNECT_MAX_DELAY
+              value: {{ .Values.agent.reconnectMaxDelay | quote }}
+            - name: LOCO_HEALTHY_STREAM_DURATION
+              value: {{ .Values.agent.healthyStreamDuration | quote }}
+            - name: LOCO_GATEWAY
+              value: {{ include "loco-worker.gateway" . | quote }}
+            - name: LOCO_CERTIFICATE
+              value: {{ include "loco-worker.certificate" . | quote }}
+            - name: LOCO_APP_DOMAINS
+              value: {{ join "," .Values.global.domain.apps | quote }}
+          envFrom:
+            - secretRef:
+                name: {{ .Release.Name }}-env
+          ports:
+            - containerPort: {{ .Values.global.ports.agent }}
+          resources:
+            {{- toYaml .Values.global.resources.agent | nindent 12 }}
+      restartPolicy: Always

@@ -44,14 +44,13 @@ obs_span_id_bytes=8
 obs_marker_bytes=6
 
 obs_endpoint_reference='http://$(LOCO_OTEL_HOST):$(LOCO_OTEL_HTTP_PORT)'
-obs_operator_values="$E2E_ROOT_DIR/charts/loco-operator/values.yaml"
-obs_collector_host=$(yq '.observability.collector.service + "." + .observability.namespace + ".svc.cluster.local"' "$obs_operator_values")
-obs_collector_endpoint="http://${obs_collector_host}:$(yq '.observability.collector.httpPort' "$obs_operator_values")"
+obs_chart_values="$E2E_ROOT_DIR/charts/loco-worker/values.yaml"
+obs_collector_host=$(yq '.observability.collector.service + "." + .observability.namespace + ".svc.cluster.local"' "$obs_chart_values")
+obs_collector_endpoint="http://${obs_collector_host}:$(yq '.observability.collector.httpPort' "$obs_chart_values")"
 
 obs_second_workspace_id='00000000-0000-7000-8000-000000000013'
 obs_second_workspace_name='e2e-observability-isolation'
 
-obs_chart_values="$E2E_ROOT_DIR/charts/loco-obs/values.yaml"
 obs_clickhouse_client() {
     docker exec "$E2E_CLICKHOUSE_CONTAINER" clickhouse-client \
         --user "$E2E_CLICKHOUSE_USER" --password "$E2E_CLICKHOUSE_PASSWORD" "$@"
@@ -176,7 +175,7 @@ obs_versions() {
         -o jsonpath='{.items[0].spec.template.spec.containers[*].image}')
     gateway_api=$(awk '$1 == "sigs.k8s.io/gateway-api" { print $2 }' "$E2E_ROOT_DIR/controller/go.mod")
     otel_sdk=$(awk '$1 == "go.opentelemetry.io/otel/sdk" { print $2 }' "$obs_fixture_dir/go.mod")
-    deps=$(yq -r '.dependencies[] | (.alias // .name) + " " + .version' "$E2E_ROOT_DIR/charts/loco-obs/Chart.yaml" |
+    deps=$(yq -r '.dependencies[] | select(.name == "opentelemetry-collector") | .alias + " " + .version' "$E2E_ROOT_DIR/charts/loco-worker/Chart.yaml" |
         paste -sd ',' - | sed 's/,/, /g')
     printf '%s\n' \
         "| Component | Version |" \
@@ -185,10 +184,10 @@ obs_versions() {
         "| kind | $(kind version) |" \
         "| Kubernetes | ${kubernetes} (${runtime}) |" \
         "| Gateway API CRDs | ${gateway_api} |" \
-        "| Envoy Gateway chart | $(yq '.dependencies[] | select(.name == "gateway-helm") | .version' "$E2E_ROOT_DIR/charts/loco-core/Chart.yaml") |" \
+        "| Envoy Gateway chart | $(yq '.dependencies[] | select(.name == "gateway-helm") | .version' "$E2E_ROOT_DIR/charts/loco-worker/Chart.yaml") |" \
         "| Envoy Gateway controller | $(obs_image "$E2E_LOCO_NAMESPACE" deployments -l control-plane=envoy-gateway) |" \
         "| Envoy proxy | ${envoy_proxy} |" \
-        "| loco-obs dependencies | ${deps} |" \
+        "| OpenTelemetry collector charts | ${deps} |" \
         "| ClickHouse server | ${clickhouse} |" \
         "| otel-col-deploy | $(obs_image "$E2E_OBS_NAMESPACE" statefulsets -l app.kubernetes.io/name=otel-col-deploy) |" \
         "| otel-col-cluster | $(obs_image "$E2E_OBS_NAMESPACE" statefulsets -l app.kubernetes.io/name=otel-col-cluster) |" \

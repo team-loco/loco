@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - "charts/loco-obs/**"
+      - "charts/loco-worker/**"
       - "charts/loco-control-plane/**"
       - "mise-tasks/test/obs-retention"
       - "mise-tasks/test/obs-tenancy"
@@ -22,7 +22,7 @@ on:
       - "!**/*_test.go"
   pull_request:
     paths:
-      - "charts/loco-obs/**"
+      - "charts/loco-worker/**"
       - "charts/loco-control-plane/**"
       - "mise-tasks/test/obs-retention"
       - "mise-tasks/test/obs-tenancy"

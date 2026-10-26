@@ -1,0 +1,837 @@
+# Global configuration (can be overridden by environment-specific values)
+global:
+  domain:
+    apps:
+      - onloco.app
+      - onloco.build
+    platform: loco.build
+
+  cloudProvider:
+    type: ""
+    annotations: {}
+
+  resources:
+    agent:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 200m
+        memory: 512Mi
+
+  observability:
+    otelCollectorDeployment: otel-col-deploy
+    otelCollectorGrpcPort: 4317
+    namespace: loco-obs
+
+  # Replica counts
+  replicas:
+    agent: 1
+
+  # Container ports
+  ports:
+    agent: 8000
+
+  # region label attached to platform records as loco.region.
+  region: ""
+  exporter:
+    endpoint: ""
+    headers: {}
+    bearerToken:
+      enabled: false
+      secretName: loco-otlp-exporter
+      secretKey: token
+      directory: &exporterTokenDirectory /etc/otelcol-exporter
+    queue:
+      directory: &exporterQueueDirectory /var/lib/otelcol-exporter
+      num_consumers: 2
+      queue_size: 5000
+    retry:
+      initial_interval: 1s
+      max_interval: 30s
+      max_elapsed_time: 0s
+  # export node metrics, Kubernetes state and platform events through a separate pipeline.
+  # these settings apply to the node DaemonSet and the single cluster collector.
+  platformTelemetry:
+    # opt in; false leaves the existing application telemetry pipelines in place.
+    enabled: false
+    # keep only platform pipelines in the node and cluster collectors.
+    # requires enabled: true and otel-col-deploy.enabled: false.
+    platformOnly: false
+    # required when enabled: stable ID for the Loco installation, shared by its clusters.
+    # exported as loco.installation.id; supplied by the operator, not discovered.
+    installation: ""
+    # required when enabled: stable name of this Kubernetes cluster (k8s.cluster.name).
+    cluster: ""
+    # required when enabled: this cluster's environment (deployment.environment.name),
+    # such as development, staging or production.
+    environment: ""
+    # duration between node scrapes and cluster metric emissions; 60s limits collection load.
+    # also changes the shared cluster receiver's existing pipeline interval.
+    # Kubernetes events arrive through a watch and do not wait for this interval.
+    collectionInterval: 60s
+    # node condition metrics: Ready=true is healthy; a pressure condition=true is unhealthy.
+    # these defaults cover readiness and memory, disk and process ID exhaustion.
+    nodeConditions: [Ready, MemoryPressure, DiskPressure, PIDPressure]
+    # node capacity available to pods after Kubernetes reservations: CPU cores,
+    # memory bytes, temporary storage bytes and pod slots. these are capacity, not usage.
+    allocatableTypes: [cpu, memory, ephemeral-storage, pods]
+    # allowlist for namespaced workload metrics and events in the platform pipeline.
+    # defaults cover Loco and its infrastructure; adjust to match installed namespaces.
+    # at least one is required. node and cluster metrics without a namespace remain included.
+    namespaces: [kube-system, loco-system, loco-obs, loco-obs-node, envoy-gateway-system, cert-manager]
+
+# Cert-manager configuration
+certManager:
+  existingTLSSecret: ""
+  additionalDNSNames: []
+  issuer:
+    create: true
+    type: acme
+    kind: ClusterIssuer
+    name: letsencrypt-prod
+    email: "" # Override in environment-specific values
+    server: https://acme-v02.api.letsencrypt.org/directory
+
+agent:
+  joinToken:
+    value: ""
+    existingSecret: ""
+    secretKey: join-token
+  assertionLifetime: 1m
+  image:
+    repository: ghcr.io/team-loco/loco-agent
+    tag: ""
+  imagePullPolicy: Always
+  buildNamespace: loco-builds
+  controllerDeployment: loco-controller
+  inventoryInterval: 10m
+  buildRetention: 1h
+  buildCollectInterval: 5m
+  clusterQueryTimeout: 10s
+  reconcileWorkers: 8
+  reconcileRetryBaseDelay: 1s
+  reconcileRetryMaxDelay: 30s
+  syncOutboundBuffer: 256
+  buildQueueSize: 64
+  buildCreateRetryDelay: 1s
+  buildCreateRetryAttempts: 5
+  reconnectBaseDelay: 1s
+  reconnectMaxDelay: 30s
+  healthyStreamDuration: 1m
+
+secrets:
+  cloudflareToken: ""
+
+env:
+  LOG_LEVEL: debug
+
+envoyProxy:
+  service: {}
+  statsFlushInterval: 60s
+  tracing:
+    samplingRate: 10
+  accessLog:
+    attributes:
+      method: "%REQ(:METHOD)%"
+      path: "%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%"
+      authority: "%REQ(:AUTHORITY)%"
+      protocol: "%PROTOCOL%"
+      response_code: "%RESPONSE_CODE%"
+      response_flags: "%RESPONSE_FLAGS%"
+      duration: "%DURATION%"
+      bytes_received: "%BYTES_RECEIVED%"
+      bytes_sent: "%BYTES_SENT%"
+      upstream_cluster: "%UPSTREAM_CLUSTER%"
+      upstream_host: "%UPSTREAM_HOST%"
+      request_id: "%REQ(X-REQUEST-ID)%"
+      trace_id: "%TRACE_ID%"
+
+gateway-helm:
+  enabled: true
+  crds:
+    enabled: false
+  config:
+    envoyGateway:
+      logging:
+        default: info
+
+controller:
+  replicas: 1
+
+  image:
+    repository: ghcr.io/team-loco/loco-controller
+    tag: ""
+    pullPolicy: Always
+
+  args:
+    - --leader-elect
+
+  env: []
+
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 128Mi
+    requests:
+      cpu: 10m
+      memory: 64Mi
+
+registry:
+  pullSecretName: ""
+
+observability:
+  namespace: loco-obs
+  metricsCollector:
+    namespace: loco-obs-node
+    service: otel-col-daemon
+  collector:
+    service: otel-col-deploy
+    grpcPort: 4317
+    httpPort: 4318
+
+builds:
+  enabled: true
+  createNamespace: true
+
+  controller:
+    replicas: 1
+    args:
+      - --leader-elect
+    env: []
+    podSecurityContext:
+      runAsNonRoot: true
+      seccompProfile:
+        type: RuntimeDefault
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 128Mi
+      requests:
+        cpu: 10m
+        memory: 64Mi
+
+  namespace: loco-builds
+  podSecurity:
+    level: privileged
+    version: latest
+
+  agentServiceAccount:
+    # keep in sync with the agent's ServiceAccount, <release name>-agent
+    name: loco-worker-agent
+    namespace: ""
+
+  pushSecretName: ""
+  builderImage:
+    repository: ghcr.io/team-loco/loco-builder
+    tag: ""
+    pullPolicy: Always
+  buildkitImage:
+    repository: moby/buildkit
+    tag: v0.34.0-rootless
+    pullPolicy: IfNotPresent
+  timeout: 30m
+  ttlAfterFinished: 10m
+  downloadTimeout: 10m
+  maxSourceSize: 200Mi
+  maxContextSize: 1Gi
+  maxContextFiles: 200000
+  maxImageSize: 1Gi
+  insecureRegistry: false
+  privateEgress: []
+  seccompLocalhostProfile: ""
+  runtimeClassName: ""
+  nodeSelector: {}
+  tolerations: []
+  resources:
+    fetch:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+      limits:
+        cpu: "1"
+        memory: 256Mi
+    build:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        cpu: "2"
+        memory: 4Gi
+    push:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+      limits:
+        cpu: "1"
+        memory: 512Mi
+  storage:
+    workspace: 2Gi
+    cache: 5Gi
+    out: 10Gi
+    buildkit: 10Gi
+
+rbacHelpers:
+  enable: false
+
+metrics:
+  enable: true
+  port: 8443
+  certManager:
+    enable: false
+
+prometheus:
+  enable: false
+
+otel-col-daemon:
+  enabled: true
+  fullnameOverride: "otel-col-daemon"
+  configMap:
+    create: false
+    existingName: '{{ include "opentelemetry-collector.fullname" . }}-agent'
+  podAnnotations:
+    checksum/platform-telemetry: '{{ toJson .Values | sha256sum }}'
+  # keep in sync with observability.metricsCollector.namespace
+  namespaceOverride: loco-obs-node
+  mode: daemonset
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    runAsUser: &collectorUser 10001
+    runAsGroup: 0
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: [ALL]
+  initContainers:
+    - name: state-permissions
+      image: busybox:1.38.0@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e
+      command: [chown, -R, '{{ .Values.securityContext.runAsUser }}:{{ .Values.securityContext.runAsGroup }}', &logCheckpointDirectory /var/lib/otelcol, *exporterQueueDirectory]
+      securityContext:
+        runAsUser: 0
+        runAsNonRoot: false
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: [ALL]
+          add: [CHOWN]
+      volumeMounts:
+        - name: log-checkpoint-permissions
+          mountPath: *logCheckpointDirectory
+        - name: exporter-queue
+          mountPath: *exporterQueueDirectory
+  extraVolumes:
+    - name: log-checkpoint-permissions
+      hostPath:
+        path: *logCheckpointDirectory
+        type: DirectoryOrCreate
+    - name: exporter-queue
+      hostPath:
+        path: '/var/lib/otelcol-exporter/{{ include "opentelemetry-collector.namespace" . }}/{{ include "opentelemetry-collector.fullname" . }}'
+        type: DirectoryOrCreate
+    - &exporterTokenVolume
+      name: exporter-token
+      secret:
+        secretName: '{{ .Values.global.exporter.bearerToken.secretName }}'
+        optional: true
+  extraVolumeMounts: &exporterVolumeMounts
+    - name: exporter-queue
+      mountPath: *exporterQueueDirectory
+    - name: exporter-token
+      mountPath: *exporterTokenDirectory
+      readOnly: true
+  image: &collectorImage
+    repository: "otel/opentelemetry-collector-contrib"
+    tag: "0.163.2@sha256:7f22d2a6748110ffb6a59bc0df448bccbf501cdb667d610ede4c61d3863d5849"
+  resources:
+    limits:
+      cpu: 250m
+      memory: 512Mi
+  clusterRole:
+    create: true
+    rules:
+      - apiGroups:
+          - ""
+        resources:
+          - nodes/proxy
+          - nodes/stats
+          - endpoints
+          - services
+          - pods
+          - namespaces
+        verbs: ["get", "watch", "list"]
+      - apiGroups:
+          - apps
+        resources:
+          - replicasets
+        verbs: ["get", "watch", "list"]
+  presets:
+    logsCollection:
+      enabled: true
+      storeCheckpoints: true
+    hostMetrics:
+      enabled: true
+  config:
+    receivers:
+      prometheus/applications:
+        config:
+          scrape_configs:
+            - job_name: loco-applications
+              scrape_interval: 30s
+              scrape_timeout: 10s
+              sample_limit: 10000
+              body_size_limit: 10MB
+              honor_labels: false
+              honor_timestamps: false
+              follow_redirects: false
+              kubernetes_sd_configs:
+                - role: pod
+                  selectors:
+                    - role: pod
+                      field: spec.nodeName=${env:OTEL_K8S_NODE_NAME}
+                      label: loco.io/metrics-port
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_label_loco_io_metrics_port]
+                  action: keep
+                  regex: '[0-9]+'
+                - source_labels: [__meta_kubernetes_pod_container_port_name]
+                  action: keep
+                  regex: http
+                - source_labels: [__meta_kubernetes_pod_phase]
+                  action: keep
+                  regex: Running
+                - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_label_loco_io_metrics_port]
+                  target_label: __address__
+                  regex: '(.+);([0-9]+)'
+                  replacement: '$${1}:$${2}'
+                - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_label_loco_io_metrics_port]
+                  target_label: __address__
+                  regex: '(.+:.*);([0-9]+)'
+                  replacement: '[$${1}]:$${2}'
+                - source_labels: [__meta_kubernetes_pod_annotation_loco_io_metrics_path]
+                  target_label: __metrics_path__
+                - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+                  target_label: job
+                - source_labels: [__meta_kubernetes_pod_uid]
+                  target_label: loco_scrape_pod_uid
+      hostmetrics:
+        collection_interval: &collectionInterval 60s
+      kubeletstats:
+        collection_interval: *collectionInterval
+        auth_type: "serviceAccount"
+        endpoint: "https://${env:OTEL_K8S_NODE_IP}:10250"
+        insecure_skip_verify: true
+        node: "${env:OTEL_K8S_NODE_NAME}"
+        k8s_api_config:
+          auth_type: serviceAccount
+        collect_all_network_interfaces:
+          pod: true
+        metrics:
+          k8s.pod.cpu_limit_utilization:
+            enabled: true
+          k8s.pod.cpu_request_utilization:
+            enabled: true
+          k8s.pod.memory_limit_utilization:
+            enabled: true
+          k8s.pod.memory_request_utilization:
+            enabled: true
+          k8s.pod.uptime:
+            enabled: true
+          k8s.node.uptime:
+            enabled: true
+          k8s.container.cpu_limit_utilization:
+            enabled: true
+          k8s.container.cpu_request_utilization:
+            enabled: true
+          k8s.container.memory_limit_utilization:
+            enabled: true
+          k8s.container.memory_request_utilization:
+            enabled: true
+          container.uptime:
+            enabled: true
+          k8s.node.network.io:
+            enabled: true
+          k8s.pod.network.io:
+            enabled: true
+    processors:
+      batch:
+        timeout: 1s
+        send_batch_size: 100
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 384
+        spike_limit_mib: 96
+      resource/region: &region
+        attributes:
+          - key: loco.region
+            value: '{{ required "global.region is required" .Values.global.region }}'
+            action: upsert
+      resource/strip_tenancy: &stripTenancy
+        attributes:
+          - key: loco.organization.id
+            action: delete
+          - key: loco.workspace.id
+            action: delete
+          - key: loco.environment.id
+            action: delete
+          - key: loco.resource.id
+            action: delete
+          - key: loco.io/build-id
+            action: delete
+          - key: k8s.pod.ip
+            action: delete
+          - key: k8s.pod.uid
+            action: delete
+          - key: gateway.envoyproxy.io/owning-gateway-name
+            action: delete
+          - key: gateway.envoyproxy.io/owning-gateway-namespace
+            action: delete
+      transform/log_severity:
+        error_mode: silent
+        log_statements:
+          - context: log
+            conditions:
+              - severity_number == 0 and severity_text == ""
+            statements:
+              - set(cache["message"], body) where IsString(body)
+              - replace_pattern(cache["message"], "\\x1b\\[[0-?]*[ -/]*[@-~]", "") where IsString(cache["message"])
+              - set(cache["record"], ParseJSON(cache["message"])) where IsString(body) and IsMatch(cache["message"], "^\\s*\\{")
+              - set(cache["level"], cache["record"]["level"]) where IsMap(cache["record"])
+              - set(cache["level"], cache["record"]["severity"]) where cache["level"] == nil and IsMap(cache["record"])
+              - set(cache["level"], cache["record"]["severityText"]) where cache["level"] == nil and IsMap(cache["record"])
+              - merge_maps(cache, ExtractPatterns(cache["message"], "(?i)^(?:[0-9]{4}-[0-9T:.+Z/ -]+\\s+)?(?:level=|\\[)?(?P<level>TRACE|DEBUG|INFO|NOTICE|WARN(?:ING)?|ERROR|FATAL|CRITICAL)(?:\\]|[\\s:=]|$)"), "upsert") where cache["level"] == nil and IsString(body) and not IsMatch(cache["message"], "^\\s*\\{")
+              - set(cache["fields"], ParseKeyValue(cache["message"])) where cache["level"] == nil and IsString(body) and not IsMatch(cache["message"], "^\\s*\\{")
+              - set(cache["level"], cache["fields"]["level"]) where cache["level"] == nil and IsMap(cache["fields"])
+              - set(cache["level"], ToUpperCase(cache["level"])) where IsString(cache["level"])
+              - set(severity_text, "TRACE") where cache["level"] == "TRACE"
+              - set(severity_number, 1) where severity_text == "TRACE"
+              - set(severity_text, "DEBUG") where cache["level"] == "DEBUG"
+              - set(severity_number, 5) where severity_text == "DEBUG"
+              - set(severity_text, "INFO") where cache["level"] == "INFO" or cache["level"] == "NOTICE" or cache["level"] == "INFORMATION"
+              - set(severity_number, 9) where severity_text == "INFO"
+              - set(severity_text, "WARN") where cache["level"] == "WARN" or cache["level"] == "WARNING"
+              - set(severity_number, 13) where severity_text == "WARN"
+              - set(severity_text, "ERROR") where cache["level"] == "ERROR" or cache["level"] == "ERR"
+              - set(severity_number, 17) where severity_text == "ERROR"
+              - set(severity_text, "FATAL") where cache["level"] == "FATAL" or cache["level"] == "CRITICAL" or cache["level"] == "PANIC"
+              - set(severity_number, 21) where severity_text == "FATAL"
+      transform/scrape_identity:
+        error_mode: propagate
+        metric_statements:
+          - context: datapoint
+            statements:
+              - set(resource.attributes["k8s.pod.uid"], attributes["loco_scrape_pod_uid"])
+              - delete_key(attributes, "loco_scrape_pod_uid")
+              - delete_key(resource.attributes, "loco_scrape_pod_uid")
+              - delete_matching_keys(attributes, "^loco[._].*")
+      k8s_attributes/connection:
+        filter:
+          node_from_env_var: OTEL_K8S_NODE_NAME
+        passthrough: false
+        pod_association: &connectionAssociation
+          - sources:
+              - from: connection
+        extract: &tenancyExtract
+          metadata:
+            - k8s.namespace.name
+            - k8s.pod.name
+            - k8s.pod.uid
+            - k8s.node.name
+            - k8s.pod.start_time
+            - k8s.deployment.name
+            - k8s.replicaset.name
+            - k8s.replicaset.uid
+            - k8s.daemonset.name
+            - k8s.daemonset.uid
+            - k8s.job.name
+            - k8s.job.uid
+            - k8s.container.name
+            - k8s.cronjob.name
+            - k8s.statefulset.name
+            - k8s.statefulset.uid
+            - container.image.tag
+            - container.image.name
+            - k8s.cluster.uid
+            - service.namespace
+            - service.name
+            - service.version
+            - service.instance.id
+          labels:
+            - from: pod
+              key: loco.io/organization-id
+              tag_name: loco.organization.id
+            - from: pod
+              key: loco.io/workspace-id
+              tag_name: loco.workspace.id
+            - from: pod
+              key: loco.io/environment-id
+              tag_name: loco.environment.id
+            - from: pod
+              key: loco.io/resource-id
+              tag_name: loco.resource.id
+            - from: pod
+              key: loco.io/build-id
+              tag_name: loco.io/build-id
+            - from: pod
+              key: gateway.envoyproxy.io/owning-gateway-name
+              tag_name: gateway.envoyproxy.io/owning-gateway-name
+            - from: pod
+              key: gateway.envoyproxy.io/owning-gateway-namespace
+              tag_name: gateway.envoyproxy.io/owning-gateway-namespace
+      k8s_attributes/pod_uid:
+        filter:
+          node_from_env_var: OTEL_K8S_NODE_NAME
+        passthrough: false
+        pod_association: &podUIDAssociation
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.uid
+        extract: *tenancyExtract
+    service:
+      # memory_limiter must run first so it can refuse data before batch buffers it in memory.
+      pipelines:
+        logs:
+          receivers: [file_log]
+          processors: [memory_limiter, transform/log_severity, k8s_attributes/pod_uid, resource/region, batch]
+        logs/otlp:
+          receivers: [otlp]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, resource/region, batch]
+        metrics/applications:
+          receivers: [prometheus/applications]
+          processors: [memory_limiter, resource/strip_tenancy, transform/scrape_identity, k8s_attributes/pod_uid, resource/region, batch]
+        metrics:
+          receivers: [kubeletstats]
+          processors: [memory_limiter, k8s_attributes/pod_uid, resource/region, batch]
+        traces:
+          receivers: [otlp, jaeger, zipkin]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, resource/region, batch]
+
+otel-col-deploy:
+  enabled: true
+  fullnameOverride: otel-col-deploy
+  # keep in sync with global.observability.namespace and observability.namespace
+  namespaceOverride: loco-obs
+  mode: statefulset
+  statefulset: &exporterQueueClaims
+    volumeClaimTemplates:
+      - metadata:
+          name: exporter-queue
+        spec:
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: 2Gi
+  configMap:
+    create: false
+    existingName: '{{ include "opentelemetry-collector.fullname" . }}'
+  podAnnotations:
+    checksum/platform-telemetry: '{{ toJson .Values | sha256sum }}'
+  extraVolumes: &exporterVolumes [*exporterTokenVolume]
+  extraVolumeMounts: *exporterVolumeMounts
+  image: *collectorImage
+  podSecurityContext: &collectorPodSecurityContext
+    runAsNonRoot: true
+    fsGroup: *collectorUser
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext: &collectorSecurityContext
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 250m
+      memory: 512Mi
+  replicaCount: 1
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 80
+  clusterRole:
+    create: true
+    rules:
+      - apiGroups:
+          - ""
+        resources:
+          - pods
+          - namespaces
+        verbs: ["get", "watch", "list"]
+      - apiGroups:
+          - apps
+        resources:
+          - replicasets
+        verbs: ["get", "watch", "list"]
+  config:
+    processors:
+      resource/region: *region
+      resource/strip_tenancy: *stripTenancy
+      k8s_attributes/connection:
+        passthrough: false
+        pod_association: *connectionAssociation
+        extract: *tenancyExtract
+      k8s_attributes/pod_uid:
+        passthrough: false
+        pod_association: *podUIDAssociation
+        extract: *tenancyExtract
+      transform/envoy_tenancy:
+        error_mode: ignore
+        trace_statements:
+          - context: span
+            statements: &dropRecordTenancy
+              - delete_key(attributes, "loco.organization.id")
+              - delete_key(attributes, "loco.workspace.id")
+              - delete_key(attributes, "loco.environment.id")
+              - delete_key(attributes, "loco.resource.id")
+          - context: span
+            conditions: &envoyResource
+              - resource.attributes["gateway.envoyproxy.io/owning-gateway-name"] != nil
+            statements:
+              - set(cache["cluster"], attributes["upstream_cluster"])
+              - &parseRoute merge_maps(cache, ExtractPatterns(cache["cluster"], "^httproute/ws-(?P<workspace>[^/]+)/resource-(?P<resource>[^/]+)-route/rule/[0-9]+$$"), "upsert") where cache["cluster"] != nil
+              - &setWorkspace set(attributes["loco.workspace.id"], cache["workspace"]) where cache["workspace"] != nil
+              - &setResource set(attributes["loco.resource.id"], cache["resource"]) where cache["resource"] != nil
+        log_statements:
+          - context: log
+            statements: *dropRecordTenancy
+          - context: log
+            conditions: *envoyResource
+            statements:
+              - set(cache["cluster"], attributes["upstream_cluster"])
+              - *parseRoute
+              - *setWorkspace
+              - *setResource
+        metric_statements:
+          - context: datapoint
+            statements: *dropRecordTenancy
+          - context: datapoint
+            conditions: *envoyResource
+            statements:
+              - set(cache["cluster"], attributes["envoy.cluster_name"])
+              - *parseRoute
+              - *setWorkspace
+              - *setResource
+      groupbyattrs/tenancy:
+        keys:
+          - loco.workspace.id
+          - loco.resource.id
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    service:
+      pipelines:
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, resource/region, batch]
+        metrics:
+          receivers: [otlp]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, resource/region, batch]
+        traces:
+          receivers: [otlp, jaeger, zipkin]
+          processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, resource/region, batch]
+
+otel-col-cluster:
+  enabled: true
+  fullnameOverride: otel-col-cluster
+  # keep in sync with global.observability.namespace and observability.namespace
+  namespaceOverride: loco-obs
+  configMap:
+    create: false
+    existingName: '{{ include "opentelemetry-collector.fullname" . }}'
+  podAnnotations:
+    checksum/platform-telemetry: '{{ toJson .Values | sha256sum }}'
+  mode: statefulset
+  statefulset: *exporterQueueClaims
+  replicaCount: 1
+  extraVolumes: *exporterVolumes
+  extraVolumeMounts: *exporterVolumeMounts
+  image: *collectorImage
+  podSecurityContext: *collectorPodSecurityContext
+  securityContext: *collectorSecurityContext
+  resources:
+    limits:
+      cpu: 250m
+      memory: 512Mi
+  clusterRole:
+    create: true
+    rules:
+      - apiGroups: [""]
+        resources: [pods, namespaces]
+        verbs: ["get", "watch", "list"]
+      - apiGroups: [apps]
+        resources: [replicasets]
+        verbs: ["get", "watch", "list"]
+  presets:
+    kubernetesEvents:
+      enabled: true
+    clusterMetrics:
+      enabled: true
+  service:
+    enabled: false
+  ports:
+    otlp:
+      enabled: false
+    otlp-http:
+      enabled: false
+    jaeger-compact:
+      enabled: false
+    jaeger-thrift:
+      enabled: false
+    jaeger-grpc:
+      enabled: false
+    zipkin:
+      enabled: false
+  alternateConfig:
+    receivers:
+      k8s_cluster:
+        collection_interval: *collectionInterval
+    extensions:
+      health_check:
+        endpoint: ${env:MY_POD_IP}:13133
+    processors:
+      resource/region: *region
+      memory_limiter:
+        check_interval: 5s
+        limit_percentage: 80
+        spike_limit_percentage: 25
+      batch: {}
+      k8s_attributes/pod_uid:
+        passthrough: false
+        pod_association: *podUIDAssociation
+        extract: *tenancyExtract
+    service:
+      extensions: [health_check]
+      pipelines:
+        logs:
+          receivers: [k8sobjects]
+          processors: [memory_limiter, resource/region, batch]
+        metrics:
+          receivers: [k8s_cluster]
+          processors: [memory_limiter, k8s_attributes/pod_uid, resource/region, batch]

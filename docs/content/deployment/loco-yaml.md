@@ -56,7 +56,7 @@ The endpoint serves Prometheus or OpenMetrics exposition. The collector converts
 
 Environment overrides can change the endpoint or set `metrics: null` to stop pulling. Applying a change updates the pod discovery metadata and the ingress rule for the collector. The chart's `otel-col-daemon.config.receivers.prometheus/applications.config.scrape_configs` configures the interval (30 seconds), timeout (10 seconds), sample limit (10,000 per scrape), and response body limit (10 MB).
 
-When changing the node collector namespace or name, match `loco-operator` values `observability.metricsCollector.namespace` and `observability.metricsCollector.service` to the `loco-obs` daemon collector. These settings restrict metrics ingress to the node collector.
+When changing the node collector namespace or name, match the `loco-worker` values `observability.metricsCollector.namespace` and `observability.metricsCollector.service` to the `otel-col-daemon` collector. These settings restrict metrics ingress to the node collector.
 
 ## Private service discovery
 

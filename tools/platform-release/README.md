@@ -15,9 +15,7 @@ gh workflow run platform-release.yml --ref main \
 Artifacts use these repository paths under `ghcr.io/<owner>/<repository>`:
 
 ```text
-charts/loco-core
-charts/loco-obs
-charts/loco-operator
+charts/loco-worker
 charts/loco-control-plane
 charts/cert-manager
 crds/applications
@@ -34,15 +32,13 @@ The publisher verifies each reused `sha-<commit>` image's GitHub attestation aga
 
 Point an `OCIRepository` named `platform-bundle` in `flux-system` at the `platform` repository. Reconcile the bundle root with a Kustomization after cluster configuration is ready. The bundle creates `crds` and `platform-releases` Kustomizations and checks both current bundle revision and current CRD artifact revisions before deploying controllers.
 
-The cluster configuration supplies `platform-reconciler` in `flux-system`, namespaces `loco-system`, `loco-builds`, `observability` and `cert-manager`, and these values sources:
+The cluster configuration supplies `platform-reconciler` in `flux-system`, the `cert-manager` namespace, the `loco-system` namespace with the Pod Security labels of `manifests/namespaces/loco-system.yaml`, and these values sources for the `loco-worker` release:
 
 | Release | ConfigMap | Secret |
 | --- | --- | --- |
-| loco-core | loco-core-values | loco-core-secrets |
-| loco-operator | loco-operator-values | none |
-| loco-obs | loco-obs-values | none |
+| loco-worker | loco-worker-values | loco-worker-secrets |
 
-Each source has a `values.yaml` key. ConfigMaps and Secrets remain owned by the cluster configuration. For a cluster's first agent start, `loco-core-values` sets `agent.joinToken.existingSecret` to a Secret holding the join token `locoadm cluster create` printed. `loco-obs-values` must set `global.region` to the region the cluster is registered under in the API and `global.exporter.endpoint` to the OTLP/HTTP endpoint the collectors export to; the chart fails to render without either. Bundle values override image references. No chart installs CRDs: the `crds` layer applies them. CRD Kustomizations disable pruning; each CRD also carries a prune protection annotation.
+Each source has a `values.yaml` key. ConfigMaps and Secrets remain owned by the cluster configuration. The release creates the `loco-obs`, `loco-obs-node` and `loco-builds` namespaces itself. For a cluster's first agent start, the values set `agent.joinToken.existingSecret` to a Secret holding the join token `locoadm cluster create` printed. They must also set `global.region` to the region the cluster is registered under in the API and `global.exporter.endpoint` to the OTLP/HTTP endpoint the collectors export to; the chart fails to render without either. Bundle values override image references. No chart installs CRDs: the `crds` layer applies them. CRD Kustomizations disable pruning; each CRD also carries a prune protection annotation.
 
 Validate packaging and failure paths without registry writes:
 

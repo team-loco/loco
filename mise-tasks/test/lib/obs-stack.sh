@@ -1,8 +1,8 @@
 root=$(git rev-parse --show-toplevel)
 cd "$root"
-chart=charts/loco-obs
+chart=charts/loco-worker
 control_plane_chart=charts/loco-control-plane
-namespace=observability
+namespace=loco-system
 control_plane_namespace=loco
 control_plane_release=loco-control-plane
 run_id=loco-obs-$1-$$
@@ -70,8 +70,9 @@ for user in $(yq '.clickhouse.clickhouse.users[].name' "$control_plane_chart/val
 done
 region=obs-stack-region
 ingest_endpoint=http://host.docker.internal:$ingest_http_port
-manifest=$(helm template loco-obs "$chart" --namespace "$namespace" --set global.region="$region" \
-	--set global.exporter.endpoint="$ingest_endpoint")
+manifest=$(helm template loco-worker "$chart" --namespace "$namespace" --set global.region="$region" \
+	--set global.exporter.endpoint="$ingest_endpoint" --set agent.image.tag="$1" --set controller.image.tag="$1" \
+	--set builds.enabled=false --set certManager.issuer.email=obs-stack@example.test)
 control_plane_manifest=$(helm template "$control_plane_release" "$control_plane_chart" \
 	--namespace "$control_plane_namespace" --set obsProxy.image.tag="$1" \
 	--set api.image.tag="$1" --set api.existingSecret=fixture-api-env --set ui.enabled=false --set certManager.enabled=false \

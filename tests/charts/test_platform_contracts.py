@@ -41,7 +41,14 @@ TEST_PROXY = {
 TEST_REGION = "test-region-1"
 TEST_EXPORTER_ENDPOINT = "https://ingest.test.local"
 CONTROL_PLANE_BASE_VALUES = {"certManager": {"issuer": {"email": "ops@region.test"}}}
-OBS_BASE_VALUES = {"global": {"region": TEST_REGION, "exporter": {"endpoint": TEST_EXPORTER_ENDPOINT}}}
+TEST_IMAGE = {"tag": "test"}
+WORKER_BASE_VALUES = {
+    "global": {"region": TEST_REGION, "exporter": {"endpoint": TEST_EXPORTER_ENDPOINT}},
+    "certManager": {"issuer": {"email": "ops@worker.test"}},
+    "agent": {"image": TEST_IMAGE},
+    "controller": {"image": TEST_IMAGE},
+    "builds": {"builderImage": TEST_IMAGE},
+}
 
 
 def render(chart, template, overrides):
@@ -105,7 +112,7 @@ def render_documents(chart, template, overrides, includes=()):
 def render_chart(chart, overrides, check=True):
     with tempfile.TemporaryDirectory() as directory:
         base = Path(directory) / "base.json"
-        base_values = {"loco-obs": OBS_BASE_VALUES, "loco-control-plane": CONTROL_PLANE_BASE_VALUES}
+        base_values = {"loco-worker": WORKER_BASE_VALUES, "loco-control-plane": CONTROL_PLANE_BASE_VALUES}
         base.write_text(json.dumps(base_values.get(chart, {})))
         values = Path(directory) / "overrides.json"
         values.write_text(json.dumps(overrides))
@@ -149,6 +156,14 @@ def quantity(value):
     return float(value)
 
 
+def collector_documents(documents):
+    return [
+        document
+        for document in documents
+        if document["metadata"].get("labels", {}).get("app.kubernetes.io/part-of") == "opentelemetry-collector"
+    ]
+
+
 def collector_relays(documents):
     configs = {}
     for document in documents:
@@ -167,7 +182,7 @@ def collector_relays(documents):
 
 def test_regional_certificate_names():
     certificate = render(
-        "loco-core",
+        "loco-worker",
         "cm-cert.yaml",
         {
             "global": {
@@ -242,7 +257,7 @@ def test_missing_clickhouse_secrets_are_rejected(subtests):
 
 
 def test_obs_chart_runs_no_proxy():
-    names = {document["metadata"]["name"] for document in render_chart("loco-obs", {})}
+    names = {document["metadata"]["name"] for document in render_chart("loco-worker", {})}
     assert not {name for name in names if "obs-proxy" in name}
 
 
@@ -332,11 +347,11 @@ def test_proxy_uses_its_built_in_schema_settings():
 
 
 def exporter_settings():
-    return chart_values("loco-obs")["global"]["exporter"]
+    return chart_values("loco-worker")["global"]["exporter"]
 
 
 def test_collectors_export_only_otlp_to_the_configured_endpoint():
-    documents = render_chart("loco-obs", {})
+    documents = render_chart("loco-worker", {})
     configs = collector_relays(documents)
     assert set(configs) == set(COLLECTOR_CONFIGMAPS)
     settings = exporter_settings()
@@ -356,13 +371,13 @@ def test_collectors_export_only_otlp_to_the_configured_endpoint():
         assert "file_storage/exporter" in config["service"]["extensions"], collector
         for name, pipeline in config["service"]["pipelines"].items():
             assert pipeline["exporters"] == ["otlp_http"], (collector, name)
-    rendered = json.dumps(documents)
-    assert "clickhouse" not in rendered.lower()
-    assert not {"ClickHouseInstallation", "Secret"} & {document["kind"] for document in documents}
+    collectors = collector_documents(documents)
+    assert "clickhouse" not in json.dumps(collectors).lower()
+    assert not {"ClickHouseInstallation", "Secret"} & {document["kind"] for document in collectors}
 
 
 def test_collectors_require_an_exporter_endpoint():
-    result = render_chart("loco-obs", {"global": {"exporter": {"endpoint": ""}}}, check=False)
+    result = render_chart("loco-worker", {"global": {"exporter": {"endpoint": ""}}}, check=False)
     assert result.returncode != 0
     assert "global.exporter.endpoint is required" in result.stderr
 
@@ -370,7 +385,7 @@ def test_collectors_require_an_exporter_endpoint():
 def test_exporter_headers_and_bearer_token_come_from_values():
     headers = {"X-Loco-Cluster": "cluster-a"}
     documents = render_chart(
-        "loco-obs",
+        "loco-worker",
         {"global": {"exporter": {"headers": headers, "bearerToken": {"enabled": True, "secretName": "cluster-token"}}}},
     )
     token = exporter_settings()["bearerToken"]
@@ -394,7 +409,7 @@ def test_exporter_headers_and_bearer_token_come_from_values():
 
 
 def test_exporter_queues_survive_collector_pod_replacement():
-    documents = render_chart("loco-obs", {})
+    documents = render_chart("loco-worker", {})
     directory = exporter_settings()["queue"]["directory"]
     workloads = {document["metadata"]["name"]: document for document in documents if document["kind"] in ("DaemonSet", "StatefulSet")}
     assert {name: workload["kind"] for name, workload in workloads.items()} == {
@@ -405,7 +420,7 @@ def test_exporter_queues_survive_collector_pod_replacement():
     daemon = workloads["otel-col-daemon-agent"]["spec"]["template"]["spec"]
     collector = daemon["containers"][0]
     queue = next(volume for volume in daemon["volumes"] if volume["name"] == "exporter-queue")
-    assert queue["hostPath"] == {"path": f"{directory}/observability-node/otel-col-daemon", "type": "DirectoryOrCreate"}
+    assert queue["hostPath"] == {"path": f"{directory}/loco-obs-node/otel-col-daemon", "type": "DirectoryOrCreate"}
     init = next(container for container in daemon["initContainers"] if container["name"] == "state-permissions")
     user = collector["securityContext"]["runAsUser"]
     group = collector["securityContext"]["runAsGroup"]
@@ -427,7 +442,7 @@ def test_exporter_queues_survive_collector_pod_replacement():
 @pytest.fixture(scope="module")
 def collector_tenancy():
     collector_tenancy = SimpleNamespace()
-    collector_tenancy.documents = render_chart("loco-obs", {})
+    collector_tenancy.documents = render_chart("loco-worker", {})
     collector_tenancy.configs = collector_relays(collector_tenancy.documents)
     return collector_tenancy
 
@@ -493,7 +508,7 @@ def test_node_log_offsets_survive_collector_pod_replacement(collector_tenancy):
 
 def test_disabling_log_checkpoints_keeps_volume_references_valid():
     documents = render_chart(
-        "loco-obs",
+        "loco-worker",
         {"otel-col-daemon": {"presets": {"logsCollection": {"storeCheckpoints": False}}}},
     )
     config = collector_relays(documents)["otel-col-daemon-agent"]
@@ -582,17 +597,15 @@ def test_every_pipeline_stamps_the_region_last(collector_tenancy, subtests):
 
 
 def test_chart_requires_a_region(collector_tenancy):
-    result = render_chart("loco-obs", {"global": {"region": ""}}, check=False)
+    result = render_chart("loco-worker", {"global": {"region": ""}}, check=False)
     assert result.returncode != 0
     assert "global.region is required" in result.stderr
 
 
 def test_collectors_run_without_an_operator(collector_tenancy):
-    names = {
-        document["metadata"].get("labels", {}).get("app.kubernetes.io/name")
-        for document in collector_tenancy.documents
-    }
-    kinds = {document["kind"] for document in collector_tenancy.documents}
+    collectors = collector_documents(collector_tenancy.documents)
+    names = {document["metadata"]["labels"].get("app.kubernetes.io/name") for document in collectors}
+    kinds = {document["kind"] for document in collectors}
     assert "opentelemetry-operator" not in names
     assert (
         not {"MutatingWebhookConfiguration", "ValidatingWebhookConfiguration"} & kinds
@@ -728,7 +741,7 @@ def test_tenancy_comes_from_explicit_pod_labels(collector_tenancy):
 @pytest.fixture(scope="module")
 def cluster_collector():
     cluster_collector = SimpleNamespace()
-    cluster_collector.documents = render_chart("loco-obs", {})
+    cluster_collector.documents = render_chart("loco-worker", {})
     cluster_collector.configs = collector_relays(cluster_collector.documents)
     return cluster_collector
 
@@ -785,8 +798,8 @@ def test_ingest_keeps_only_push_pipelines(cluster_collector):
 
 
 def test_ingest_has_cpu_requests_and_an_hpa():
-    documents = render_chart("loco-obs", {})
-    values = chart_values("loco-obs")["otel-col-deploy"]
+    documents = render_chart("loco-worker", {})
+    values = chart_values("loco-worker")["otel-col-deploy"]
     hpa = next(
         (
             document
@@ -830,7 +843,7 @@ def test_ingest_has_cpu_requests_and_an_hpa():
 
 def test_disabling_autoscaling_restores_the_explicit_replica_count():
     documents = render_chart(
-        "loco-obs",
+        "loco-worker",
         {"otel-col-deploy": {"autoscaling": {"enabled": False}, "replicaCount": 2}},
     )
     assert not any(
@@ -850,12 +863,12 @@ def test_disabling_autoscaling_restores_the_explicit_replica_count():
 @pytest.fixture(scope="module")
 def envoy_telemetry():
     envoy_telemetry = SimpleNamespace()
-    documents = render_documents("loco-core", "gateway.yaml", {})
+    documents = render_documents("loco-worker", "gateway.yaml", {})
     envoy_telemetry.proxy = next(
         (document for document in documents if document["kind"] == "EnvoyProxy")
     )
-    envoy_telemetry.core = chart_values("loco-core")
-    envoy_telemetry.collector = collector_relays(render_chart("loco-obs", {}))[
+    envoy_telemetry.core = chart_values("loco-worker")
+    envoy_telemetry.collector = collector_relays(render_chart("loco-worker", {}))[
         "otel-col-deploy"
     ]
     return envoy_telemetry
@@ -870,7 +883,7 @@ def _collector_address(envoy_telemetry):
 
 
 def test_envoy_sends_every_signal_to_the_deployment_collector(envoy_telemetry):
-    obs = chart_values("loco-obs")
+    obs = chart_values("loco-worker")
     host, port = _collector_address(envoy_telemetry)
     assert host.split(".")[0] == obs["otel-col-deploy"]["fullnameOverride"]
     assert (
@@ -911,7 +924,7 @@ def test_gateway_service_accepts_native_nodeport_configuration(envoy_telemetry):
         },
     }
     documents = render_documents(
-        "loco-core", "gateway.yaml", {"envoyProxy": {"service": service}}
+        "loco-worker", "gateway.yaml", {"envoyProxy": {"service": service}}
     )
     proxy = next(
         (document for document in documents if document["kind"] == "EnvoyProxy")
@@ -1012,7 +1025,7 @@ def test_only_envoy_telemetry_gets_route_tenancy(envoy_telemetry):
 
 def test_controller_reads_the_collector_from_values():
     deployment = render(
-        "loco-operator",
+        "loco-worker",
         "controller/deployment.yaml",
         {
             "controller": {"image": {"tag": "test"}},
@@ -1037,11 +1050,11 @@ def test_controller_reads_the_collector_from_values():
 
 
 def test_operator_collector_matches_the_obs_chart():
-    collector = chart_values("loco-operator")["observability"]["collector"]
-    deploy = chart_values("loco-obs")["otel-col-deploy"]
+    collector = chart_values("loco-worker")["observability"]["collector"]
+    deploy = chart_values("loco-worker")["otel-col-deploy"]
     assert collector["service"] == deploy["fullnameOverride"]
-    metrics = chart_values("loco-operator")["observability"]["metricsCollector"]
-    daemon = chart_values("loco-obs")["otel-col-daemon"]
+    metrics = chart_values("loco-worker")["observability"]["metricsCollector"]
+    daemon = chart_values("loco-worker")["otel-col-daemon"]
     assert metrics["namespace"] == daemon["namespaceOverride"]
     assert metrics["service"] == daemon["fullnameOverride"]
     protocols = deploy["config"]["receivers"]["otlp"]["protocols"]
@@ -1062,7 +1075,7 @@ def test_proxy_has_no_kubernetes_api_credentials():
 
 
 def test_chart_creates_build_namespace_by_default():
-    namespace = render("loco-operator", "builds/namespace.yaml", {})
+    namespace = render("loco-worker", "builds/namespace.yaml", {})
     assert namespace["kind"] == "Namespace"
     assert namespace["metadata"]["name"] == "loco-builds"
     assert (
@@ -1073,7 +1086,7 @@ def test_chart_creates_build_namespace_by_default():
 
 def test_gitops_can_own_build_namespace():
     namespace = render(
-        "loco-operator", "builds/namespace.yaml", {"builds": {"createNamespace": False}}
+        "loco-worker", "builds/namespace.yaml", {"builds": {"createNamespace": False}}
     )
     assert namespace is None
 

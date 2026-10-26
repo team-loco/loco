@@ -152,7 +152,7 @@ Never hand-edit. Regenerate via `mise run gen` after any changes to `proto/`, `a
 - `k8sapi/**/zz_generated.deepcopy.go`, `controller/config/crd/bases/**`,
   `controller/config/rbac/role.yaml` (Application controller, from the markers in
   `controller/internal/controller`), `controller/config/rbac/builds/role.yaml` (build
-  controller, from `controller/internal/builds`) and the `charts/loco-operator` copies of
+  controller, from `controller/internal/builds`) and the `charts/loco-worker` copies of
   the roles: `templates/controller/manager-role.yaml` and
   `templates/builds/manager-role.yaml` — `mise run controller:gen`. CI fails when any of
   them is out of date. Read the diff: unrelated-looking changes in the chart copies are

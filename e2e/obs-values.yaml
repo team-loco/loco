@@ -1,8 +1,6 @@
 global:
   region: us-east-1
 
-gatewayNamespace: loco-system
-
 otel-col-deploy:
   replicaCount: 2
   autoscaling:

@@ -59,9 +59,9 @@ if ! kind get clusters | rg -x "$CLUSTER_NAME" >/dev/null; then
 fi
 kind load docker-image --name "$CLUSTER_NAME" loco-api:e2e loco-obs-proxy:e2e loco-ui:e2e loco-api-failover:e2e
 KIND_CLUSTER="$CLUSTER_NAME" mise run crds:apply
-GATEWAY_VERSION=$(yq '.dependencies[] | select(.name == "gateway-helm") | .version' "$ROOT_DIR/charts/loco-core/Chart.yaml")
-yq '.["gateway-helm"]' "$ROOT_DIR/charts/loco-core/values.yaml" >"$RUN_DIR/gateway-helm-values.yaml"
-helm upgrade --install eg "$ROOT_DIR/charts/loco-core/charts/gateway-helm-$GATEWAY_VERSION.tgz" \
+GATEWAY_VERSION=$(yq '.dependencies[] | select(.name == "gateway-helm") | .version' "$ROOT_DIR/charts/loco-worker/Chart.yaml")
+yq '.["gateway-helm"]' "$ROOT_DIR/charts/loco-worker/values.yaml" >"$RUN_DIR/gateway-helm-values.yaml"
+helm upgrade --install eg "$ROOT_DIR/charts/loco-worker/charts/gateway-helm-$GATEWAY_VERSION.tgz" \
     --namespace "$NAMESPACE" --create-namespace --values "$RUN_DIR/gateway-helm-values.yaml" --wait --timeout "$TIMEOUT"
 kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
 umask 077
@@ -158,4 +158,4 @@ printf 'The chart Gateway routed an OTLP/HTTP log through the ingest Deployment 
 
 python3 "$ROOT_DIR/e2e/api-failover.py" --namespace "$NAMESPACE" --gateway-namespace "$NAMESPACE" --gateway-name "$GATEWAY_NAME" \
     --gateway-url "http://127.0.0.1:$API_PORT" \
-    --hostname-suffix "$(yq '.global.domain.platform' "$ROOT_DIR/e2e/gateway-values.yaml")" --image loco-api-failover:e2e --output "$RUN_DIR/api-failover"
+    --hostname-suffix "$(yq '.global.domain.platform' "$ROOT_DIR/e2e/worker-values.yaml")" --image loco-api-failover:e2e --output "$RUN_DIR/api-failover"

@@ -33,14 +33,14 @@ mise run build:locoadm
 
 ## Attach the local cluster
 
-The local agent enrolls with a join token. With an account that has `system:admin`, create the cluster, set `LOCO_JOIN_TOKEN` in `.env` to the printed token, and let Tilt redeploy `loco-core`:
+The local agent enrolls with a join token. With an account that has `system:admin`, create the cluster, set `LOCO_JOIN_TOKEN` in `.env` to the printed token, and let Tilt redeploy `loco-worker`:
 
 ```sh
 mise run build:locoadm
 ./bin/locoadm cluster create --name loco-local --region us-east-1 --tier production
 ```
 
-The agent keeps its key in the `loco-core-agent-key` Secret, so the token is needed again only after the kind cluster or that Secret is deleted.
+The agent keeps its key in the `loco-worker-agent-key` Secret, so the token is needed again only after the kind cluster or that Secret is deleted.
 
 ## Tasks
 

@@ -1,0 +1,17 @@
+{{- range $name, $level := dict (index .Values "otel-col-deploy" "namespaceOverride") "restricted" (index .Values "otel-col-daemon" "namespaceOverride") "privileged" }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $name }}
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+    {{- include "loco-worker.labels" $ | nindent 4 }}
+    pod-security.kubernetes.io/enforce: {{ $level }}
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: {{ $level }}
+    pod-security.kubernetes.io/audit-version: latest
+    pod-security.kubernetes.io/warn: {{ $level }}
+    pod-security.kubernetes.io/warn-version: latest
+{{- end }}

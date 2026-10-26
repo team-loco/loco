@@ -18,12 +18,10 @@ FIXTURE_ENV = {
 STACK_ENV = ("CERT_MANAGER_EMAIL", *FIXTURE_ENV)
 TILT_VALUES = {
     "cert-manager": (),
-    "loco-core": ("agent.image.tag=fixture",),
-    "loco-operator": ("controller.image.tag=fixture", "builds.builderImage.tag=fixture"),
-    "loco-obs": (),
+    "loco-worker": ("agent.image.tag=fixture", "controller.image.tag=fixture", "builds.builderImage.tag=fixture"),
 }
 PROVIDERS = ("cert-manager",)
-CONSUMERS = ("loco-core", "loco-operator", "loco-obs")
+CONSUMERS = ("loco-worker",)
 
 
 def _yaml(path):
@@ -84,28 +82,27 @@ def test_cert_manager_installs_the_pinned_chart(tmp_path):
 
 
 def test_tilt_values_reach_helm(tmp_path):
-    args = install_args(tmp_path, "loco-operator")
-    for value in TILT_VALUES["loco-operator"]:
+    args = install_args(tmp_path, "loco-worker")
+    for value in TILT_VALUES["loco-worker"]:
         assert args[args.index(value) - 1] == "--set"
 
 
 def test_local_releases_render_with_the_stack_values(tmp_path, subtests):
-    expected = {
-        "loco-core": [FIXTURE_ENV["CLOUDFLARE_TOKEN"], FIXTURE_ENV["LOCO_JOIN_TOKEN"]],
-        "loco-operator": [BUILD_EGRESS[0]["cidr"]],
-        "loco-obs": ["http://host.docker.internal:" + FIXTURE_ENV["OBS_OTLP_HTTP_PORT"]],
-    }
-    for release, needles in expected.items():
-        with subtests.test(release=release):
-            manifest = render(install_args(tmp_path, release))
-            for needle in needles:
-                assert needle in manifest
+    manifest = render(install_args(tmp_path, "loco-worker"))
+    for needle in (
+        FIXTURE_ENV["CLOUDFLARE_TOKEN"],
+        FIXTURE_ENV["LOCO_JOIN_TOKEN"],
+        BUILD_EGRESS[0]["cidr"],
+        "http://host.docker.internal:" + FIXTURE_ENV["OBS_OTLP_HTTP_PORT"],
+    ):
+        with subtests.test(needle=needle):
+            assert needle in manifest
 
 
 def test_cert_manager_email_overrides_the_local_default(tmp_path):
-    default = _yaml(ROOT / "env/local/core-chart.yaml")["certManager"]["issuer"]["email"]
-    assert default in render(install_args(tmp_path, "loco-core"))
+    default = _yaml(ROOT / "env/local/worker-chart.yaml")["certManager"]["issuer"]["email"]
+    assert default in render(install_args(tmp_path, "loco-worker"))
     override = "ops@example.test"
-    manifest = render(install_args(tmp_path, "loco-core", {"CERT_MANAGER_EMAIL": override}))
+    manifest = render(install_args(tmp_path, "loco-worker", {"CERT_MANAGER_EMAIL": override}))
     assert override in manifest
     assert default not in manifest

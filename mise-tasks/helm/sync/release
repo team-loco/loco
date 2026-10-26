@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #MISE description="Install or upgrade one release on the local cluster with its env/local values, overriding fields another field manager owns"
 #MISE env={_.file=".env", _.source="env/local/stack.sh"}
-#USAGE arg "<release>" help="cert-manager, loco-core, loco-operator or loco-obs"
+#USAGE arg "<release>" help="cert-manager or loco-worker"
 #USAGE arg "[values]..." var=#true help="extra values, each passed to helm as --set"
 set -euo pipefail
 
@@ -16,24 +16,16 @@ cert-manager)
 		--namespace cert-manager --create-namespace --wait
 		--set crds.enabled=true)
 	;;
-loco-core)
-	install=(./charts/loco-core --namespace loco-system
-		--values env/local/core-chart.yaml
+loco-worker)
+	install=(./charts/loco-worker --namespace loco-system
+		--values env/local/worker-chart.yaml
 		--set-string "secrets.cloudflareToken=${CLOUDFLARE_TOKEN:-}"
-		--set-string "agent.joinToken.value=${LOCO_JOIN_TOKEN:-}")
+		--set-string "agent.joinToken.value=${LOCO_JOIN_TOKEN:-}"
+		--set-json "builds.privateEgress=$(mise run --quiet cluster:build-egress)"
+		--set-string "global.exporter.endpoint=http://host.docker.internal:$OBS_OTLP_HTTP_PORT")
 	if [ -n "${CERT_MANAGER_EMAIL:-}" ]; then
 		install+=(--set-string "certManager.issuer.email=$CERT_MANAGER_EMAIL")
 	fi
-	;;
-loco-operator)
-	install=(./charts/loco-operator --namespace loco-system
-		--values env/local/operator-chart.yaml
-		--set-json "builds.privateEgress=$(mise run --quiet cluster:build-egress)")
-	;;
-loco-obs)
-	install=(./charts/loco-obs --namespace observability
-		--values env/local/obs-chart.yaml
-		--set-string "global.exporter.endpoint=http://host.docker.internal:$OBS_OTLP_HTTP_PORT")
 	;;
 *)
 	echo "unknown release $release" >&2
