@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -15,6 +16,11 @@ const (
 	reconcilerBuild             = "build"
 	applicationLeaderElectionID = "be6ed5b1.loco.io"
 	buildLeaderElectionID       = "loco-build-controller.loco.io"
+)
+
+var (
+	errGatewayMissing         = errors.New("the application reconciler requires " + envGateway)
+	errWorkspacePrefixMissing = errors.New("the application reconciler requires " + envWorkspacePrefix)
 )
 
 type reconcilerSetup struct {
@@ -43,14 +49,22 @@ func applicationSetup(operator operatorConfig) (reconcilerSetup, error) {
 	if err := operator.Telemetry.Validate(); err != nil {
 		return reconcilerSetup{}, fmt.Errorf("application configuration: %w", err)
 	}
+	if operator.Gateway == "" {
+		return reconcilerSetup{}, errGatewayMissing
+	}
+	if operator.WorkspaceNamespacePrefix == "" {
+		return reconcilerSetup{}, errWorkspacePrefixMissing
+	}
 	cacheOptions := controller.CacheOptions(operator.LocoNamespace, operator.PullSecretName)
 	register := func(mgr ctrl.Manager) error {
 		reconciler := &controller.LocoResourceReconciler{
-			Client:         mgr.GetClient(),
-			Scheme:         mgr.GetScheme(),
-			LocoNamespace:  operator.LocoNamespace,
-			PullSecretName: operator.PullSecretName,
-			Telemetry:      operator.Telemetry,
+			Client:                   mgr.GetClient(),
+			Scheme:                   mgr.GetScheme(),
+			LocoNamespace:            operator.LocoNamespace,
+			PullSecretName:           operator.PullSecretName,
+			Gateway:                  operator.Gateway,
+			WorkspaceNamespacePrefix: operator.WorkspaceNamespacePrefix,
+			Telemetry:                operator.Telemetry,
 		}
 		return reconciler.SetupWithManager(mgr)
 	}

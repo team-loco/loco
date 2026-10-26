@@ -25,7 +25,6 @@ const (
 	labelGatewayName       = "gateway.envoyproxy.io/owning-gateway-name"
 	labelGatewayNamespace  = "gateway.envoyproxy.io/owning-gateway-namespace"
 	labelAppKubernetesName = "app.kubernetes.io/name"
-	gatewayName            = "eg"
 	podSecurityLevel       = "restricted"
 	podSecurityVersion     = "latest"
 	policyWorkspaceAccess  = "allow-workspace"
@@ -101,7 +100,7 @@ func (r *LocoResourceReconciler) workspaceNetworkPolicies(
 	locoRes *locov1alpha1.Application,
 	exclusions isolation.EgressExclusions,
 ) []*networkingv1ac.NetworkPolicyApplyConfiguration {
-	namespace := getNamespace(locoRes)
+	namespace := r.workspaceNamespace(locoRes)
 	labels := workspaceObjectLabels(locoRes)
 	ingress := networkingv1.PolicyTypeIngress
 	egress := networkingv1.PolicyTypeEgress
@@ -155,7 +154,7 @@ func (r *LocoResourceReconciler) gatewayIngressPolicy(
 	locoRes *locov1alpha1.Application,
 ) *networkingv1ac.NetworkPolicyApplyConfiguration {
 	name := getName(locoRes)
-	namespace := getNamespace(locoRes)
+	namespace := r.workspaceNamespace(locoRes)
 	policyName := getGatewayPolicyName(locoRes)
 	labels := managedLabels(locoRes)
 	annotations := ownerAnnotations(locoRes)
@@ -163,7 +162,7 @@ func (r *LocoResourceReconciler) gatewayIngressPolicy(
 	appLabels := map[string]string{labelApp: name}
 	appSelector := metav1ac.LabelSelector().WithMatchLabels(appLabels)
 	gatewayLabels := map[string]string{
-		labelGatewayName:      gatewayName,
+		labelGatewayName:      r.Gateway,
 		labelGatewayNamespace: r.LocoNamespace,
 	}
 	gatewayPeer := namespacedPodPeer(r.LocoNamespace, gatewayLabels)
@@ -185,7 +184,7 @@ func (r *LocoResourceReconciler) ensureGatewayIngressPolicy(
 	ctx context.Context,
 	locoRes *locov1alpha1.Application,
 ) error {
-	namespace := getNamespace(locoRes)
+	namespace := r.workspaceNamespace(locoRes)
 	policyName := getGatewayPolicyName(locoRes)
 
 	if locoRes.Spec.ServiceSpec.Routing == nil {

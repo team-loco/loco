@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
     labels:
         {{- include "loco-worker.controllerLabels" . | nindent 8 }}
-    name: loco-controller
+    name: {{ .Values.controller.name }}
     namespace: {{ .Release.Namespace }}
 spec:
     replicas: {{ .Values.controller.replicas }}
@@ -37,17 +37,21 @@ spec:
                         fieldRef:
                           fieldPath: metadata.namespace
                     - name: LOCO_OBSERVABILITY_NAMESPACE
-                      value: {{ required "observability.namespace is required" .Values.observability.namespace | quote }}
+                      value: {{ include "loco-worker.observabilityNamespace" . | quote }}
                     - name: LOCO_METRICS_COLLECTOR_NAMESPACE
-                      value: {{ required "observability.metricsCollector.namespace is required" .Values.observability.metricsCollector.namespace | quote }}
+                      value: {{ index .Values "otel-col-daemon" "namespaceOverride" | quote }}
                     - name: LOCO_METRICS_COLLECTOR_SERVICE
-                      value: {{ required "observability.metricsCollector.service is required" .Values.observability.metricsCollector.service | quote }}
+                      value: {{ index .Values "otel-col-daemon" "nameOverride" | default "otel-col-daemon" | quote }}
                     - name: LOCO_OTEL_COLLECTOR_SERVICE
-                      value: {{ required "observability.collector.service is required" .Values.observability.collector.service | quote }}
+                      value: {{ include "loco-worker.collectorService" . | quote }}
                     - name: LOCO_OTEL_COLLECTOR_GRPC_PORT
-                      value: {{ required "observability.collector.grpcPort is required" .Values.observability.collector.grpcPort | quote }}
+                      value: {{ index .Values "otel-col-deploy" "ports" "otlp" "servicePort" | quote }}
                     - name: LOCO_OTEL_COLLECTOR_HTTP_PORT
-                      value: {{ required "observability.collector.httpPort is required" .Values.observability.collector.httpPort | quote }}
+                      value: {{ index .Values "otel-col-deploy" "ports" "otlp-http" "servicePort" | quote }}
+                    - name: LOCO_GATEWAY
+                      value: {{ include "loco-worker.gateway" . | quote }}
+                    - name: LOCO_WORKSPACE_NAMESPACE_PREFIX
+                      value: {{ .Values.global.workspaceNamespacePrefix | quote }}
                     {{- with .Values.registry.pullSecretName }}
                     - name: REGISTRY_PULL_SECRET_NAME
                       value: {{ . | quote }}

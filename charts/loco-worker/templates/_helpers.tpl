@@ -6,6 +6,22 @@
 eg
 {{- end -}}
 
+{{- define "loco-worker.gatewayClass" -}}
+eg
+{{- end -}}
+
+{{- define "loco-worker.agentServiceAccount" -}}
+{{- printf "%s-agent" .Release.Name -}}
+{{- end -}}
+
+{{- define "loco-worker.observabilityNamespace" -}}
+{{- index .Values "otel-col-deploy" "namespaceOverride" -}}
+{{- end -}}
+
+{{- define "loco-worker.collectorService" -}}
+{{- index .Values "otel-col-deploy" "fullnameOverride" -}}
+{{- end -}}
+
 {{- define "loco-worker.certificate" -}}
 {{- if not .Values.certManager.existingTLSSecret -}}
 {{- printf "%s-cert" .Release.Name -}}
@@ -45,7 +61,7 @@ app.kubernetes.io/name: loco-build-controller
 
 {{- define "loco-worker.buildConfig" -}}
 {{- $_ := required "builds.builderImage.tag is required" .Values.builds.builderImage.tag }}
-{{- omit .Values.builds "enabled" "controller" "podSecurity" "agentServiceAccount" | toJson }}
+{{- omit .Values.builds "enabled" "controller" "podSecurity" | toJson }}
 {{- end }}
 
 {{- define "loco-worker.image" -}}

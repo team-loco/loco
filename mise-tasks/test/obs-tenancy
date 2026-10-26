@@ -20,7 +20,8 @@ label_prefix=fixture.pod.label.
 envoy_collector=otel-col-deploy
 route_workspace=01a12668-411a-73d6-80e3-c21f044d5e71
 route_resource=01a126f5-020e-7f3c-ac04-822067278d4b
-route_cluster=httproute/ws-$route_workspace/resource-$route_resource-route/rule/0
+workspace_prefix=$(yq .global.workspaceNamespacePrefix "$chart/values.yaml")
+route_cluster=httproute/$workspace_prefix$route_workspace/resource-$route_resource-route/rule/0
 gateway_name=eg
 gateway_namespace=loco-system
 

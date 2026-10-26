@@ -59,7 +59,7 @@ WORKER_CHART="$ROOT_DIR/charts/loco-worker"
 WORKER_VALUES="$WORKER_CHART/values.yaml"
 WORKER_E2E_VALUES="$SCRIPT_DIR/worker-values.yaml"
 GATEWAY_NAME="eg"
-OBS_NAMESPACE=$(yq '.global.observability.namespace' "$WORKER_VALUES")
+OBS_NAMESPACE=$(yq '.["otel-col-deploy"].namespaceOverride' "$WORKER_VALUES")
 OBS_NODE_NAMESPACE=$(yq '.["otel-col-daemon"].namespaceOverride' "$WORKER_VALUES")
 PLATFORM_DOMAIN="e2e.test.local"
 GATEWAY_TLS_SECRET="e2e-gateway-tls"
@@ -120,7 +120,8 @@ export E2E_REGISTRY_API_USER="api:loco-dev-api"
 export E2E_REGISTRY_NODES_USER="nodes:loco-dev-nodes"
 export E2E_S3_ALIAS="${RUN_NAME}-s3.localhost"
 export E2E_S3_ENDPOINT="http://${E2E_S3_ALIAS}:${S3_PORT}"
-export E2E_BUILD_NAMESPACE="loco-builds"
+E2E_BUILD_NAMESPACE=$(yq '.builds.namespace' "$WORKER_VALUES")
+export E2E_BUILD_NAMESPACE
 export E2E_BUILD_WORK_DIR="$LOG_DIR/builds"
 E2E_AWS_CLI_IMAGE=$(awk '$1 == "FROM" { print $2 }' "$SCRIPT_DIR/fixtures/aws-cli/Dockerfile")
 E2E_PUBLIC_IMAGE=$(awk '$1 == "FROM" { split($2, ref, "@"); print ref[1] }' "$SCRIPT_DIR/fixtures/public-image/Dockerfile")
@@ -773,8 +774,8 @@ start_agent() {
     LOCO_ASSERTION_LIFETIME="$(yq '.agent.assertionLifetime' "$WORKER_VALUES")" \
     LOG_LEVEL="$(yq '.env.LOG_LEVEL' "$WORKER_VALUES")" \
     LOCO_NAMESPACE="$LOCO_NAMESPACE" \
-    LOCO_BUILD_NAMESPACE="$(yq '.agent.buildNamespace' "$WORKER_VALUES")" \
-    LOCO_CONTROLLER_DEPLOYMENT="$(yq '.agent.controllerDeployment' "$WORKER_VALUES")" \
+    LOCO_BUILD_NAMESPACE="$E2E_BUILD_NAMESPACE" \
+    LOCO_CONTROLLER_DEPLOYMENT="$(yq '.controller.name' "$WORKER_VALUES")" \
     LOCO_INVENTORY_INTERVAL="$(yq '.agent.inventoryInterval' "$WORKER_VALUES")" \
     LOCO_BUILD_RETENTION="$(yq '.agent.buildRetention' "$WORKER_VALUES")" \
     LOCO_BUILD_COLLECT_INTERVAL="$(yq '.agent.buildCollectInterval' "$WORKER_VALUES")" \

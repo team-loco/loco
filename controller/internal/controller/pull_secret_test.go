@@ -20,9 +20,11 @@ const (
 
 func pullSecretReconciler(kubeClient client.Client) *LocoResourceReconciler {
 	return &LocoResourceReconciler{
-		Client:         kubeClient,
-		LocoNamespace:  testLocoNamespace,
-		PullSecretName: testPullSecretName,
+		Gateway:                  testGateway,
+		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+		Client:                   kubeClient,
+		LocoNamespace:            testLocoNamespace,
+		PullSecretName:           testPullSecretName,
 	}
 }
 

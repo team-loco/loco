@@ -32,12 +32,13 @@
 {{- range $key := list "installation" "cluster" "environment" -}}
 {{- $_ := required (printf "global.platformTelemetry.%s is required" $key) (index $settings $key) -}}
 {{- end -}}
-{{- if not $settings.namespaces -}}
-{{- fail "global.platformTelemetry.namespaces must include at least one platform namespace" -}}
-{{- end -}}
 {{- if ne .name "otel-col-deploy" -}}
 {{- $namespaces := list -}}
-{{- range $settings.namespaces -}}
+{{- $chartNamespaces := list .root.Release.Namespace -}}
+{{- range $collectorName := list "otel-col-deploy" "otel-col-daemon" "otel-col-cluster" -}}
+{{- $chartNamespaces = append $chartNamespaces (index $.root.Values $collectorName "namespaceOverride") -}}
+{{- end -}}
+{{- range concat $settings.namespaces $chartNamespaces | uniq -}}
 {{- $namespaces = append $namespaces (regexQuoteMeta .) -}}
 {{- end -}}
 {{- $pattern := printf "^(%s)$" (join "|" $namespaces) -}}

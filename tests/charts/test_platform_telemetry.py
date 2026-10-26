@@ -110,3 +110,12 @@ def test_cluster_collection_cannot_duplicate_watchers(scaling):
     result = render_chart("loco-worker", overrides, check=False)
     assert result.returncode != 0
     assert "one otel-col-cluster replica" in result.stderr
+
+
+def test_platform_allowlist_covers_the_release_and_collector_namespaces():
+    configs = collector_relays(render_chart("loco-worker", configured()))
+    (condition, *_) = configs["otel-col-cluster"]["processors"]["filter/platform"]["metric_conditions"]
+    pattern = condition.split("IsMatch(", 1)[1]
+    for namespace in ("kube-system", "cert-manager", "platform-test", "loco-obs", "loco-obs-node"):
+        assert f"|{namespace}|" in pattern.replace("(", "|").replace(")", "|")
+    assert "envoy-gateway-system" not in pattern

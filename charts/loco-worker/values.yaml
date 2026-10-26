@@ -19,10 +19,7 @@ global:
         cpu: 200m
         memory: 512Mi
 
-  observability:
-    otelCollectorDeployment: otel-col-deploy
-    otelCollectorGrpcPort: 4317
-    namespace: loco-obs
+  workspaceNamespacePrefix: ws-
 
   # Replica counts
   replicas:
@@ -76,10 +73,10 @@ global:
     # node capacity available to pods after Kubernetes reservations: CPU cores,
     # memory bytes, temporary storage bytes and pod slots. these are capacity, not usage.
     allocatableTypes: [cpu, memory, ephemeral-storage, pods]
-    # allowlist for namespaced workload metrics and events in the platform pipeline.
-    # defaults cover Loco and its infrastructure; adjust to match installed namespaces.
-    # at least one is required. node and cluster metrics without a namespace remain included.
-    namespaces: [kube-system, loco-system, loco-obs, loco-obs-node, envoy-gateway-system, cert-manager]
+    # namespaces outside this chart allowed in the platform pipeline's namespaced workload metrics
+    # and events, next to the release and collector namespaces. node and cluster metrics without
+    # a namespace remain included.
+    namespaces: [kube-system, cert-manager]
 
 # Cert-manager configuration
 certManager:
@@ -103,8 +100,6 @@ agent:
     repository: ghcr.io/team-loco/loco-agent
     tag: ""
   imagePullPolicy: Always
-  buildNamespace: loco-builds
-  controllerDeployment: loco-controller
   inventoryInterval: 10m
   buildRetention: 1h
   buildCollectInterval: 5m
@@ -157,6 +152,7 @@ gateway-helm:
         default: info
 
 controller:
+  name: loco-controller
   replicas: 1
 
   image:
@@ -192,16 +188,6 @@ controller:
 registry:
   pullSecretName: ""
 
-observability:
-  namespace: loco-obs
-  metricsCollector:
-    namespace: loco-obs-node
-    service: otel-col-daemon
-  collector:
-    service: otel-col-deploy
-    grpcPort: 4317
-    httpPort: 4318
-
 builds:
   enabled: true
   createNamespace: true
@@ -233,11 +219,6 @@ builds:
   podSecurity:
     level: privileged
     version: latest
-
-  agentServiceAccount:
-    # keep in sync with the agent's ServiceAccount, <release name>-agent
-    name: loco-worker-agent
-    namespace: ""
 
   pushSecretName: ""
   builderImage:
@@ -309,7 +290,6 @@ otel-col-daemon:
     existingName: '{{ include "opentelemetry-collector.fullname" . }}-agent'
   podAnnotations:
     checksum/platform-telemetry: '{{ toJson .Values | sha256sum }}'
-  # keep in sync with observability.metricsCollector.namespace
   namespaceOverride: loco-obs-node
   mode: daemonset
   podSecurityContext:
@@ -628,8 +608,12 @@ otel-col-daemon:
 otel-col-deploy:
   enabled: true
   fullnameOverride: otel-col-deploy
-  # keep in sync with global.observability.namespace and observability.namespace
-  namespaceOverride: loco-obs
+  namespaceOverride: &observabilityNamespace loco-obs
+  ports:
+    otlp:
+      servicePort: 4317
+    otlp-http:
+      servicePort: 4318
   mode: statefulset
   statefulset: &exporterQueueClaims
     volumeClaimTemplates:
@@ -711,7 +695,7 @@ otel-col-deploy:
               - resource.attributes["gateway.envoyproxy.io/owning-gateway-name"] != nil
             statements:
               - set(cache["cluster"], attributes["upstream_cluster"])
-              - &parseRoute merge_maps(cache, ExtractPatterns(cache["cluster"], "^httproute/ws-(?P<workspace>[^/]+)/resource-(?P<resource>[^/]+)-route/rule/[0-9]+$$"), "upsert") where cache["cluster"] != nil
+              - &parseRoute merge_maps(cache, ExtractPatterns(cache["cluster"], "^httproute/{{ regexQuoteMeta .Values.global.workspaceNamespacePrefix }}(?P<workspace>[^/]+)/resource-(?P<resource>[^/]+)-route/rule/[0-9]+$$"), "upsert") where cache["cluster"] != nil
               - &setWorkspace set(attributes["loco.workspace.id"], cache["workspace"]) where cache["workspace"] != nil
               - &setResource set(attributes["loco.resource.id"], cache["resource"]) where cache["resource"] != nil
         log_statements:
@@ -760,8 +744,7 @@ otel-col-deploy:
 otel-col-cluster:
   enabled: true
   fullnameOverride: otel-col-cluster
-  # keep in sync with global.observability.namespace and observability.namespace
-  namespaceOverride: loco-obs
+  namespaceOverride: *observabilityNamespace
   configMap:
     create: false
     existingName: '{{ include "opentelemetry-collector.fullname" . }}'

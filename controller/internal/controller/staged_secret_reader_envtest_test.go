@@ -29,7 +29,7 @@ var _ = Describe("Staged environment secret reads", func() {
 		}
 		Expect(k8sClient.Create(ctx, stage)).To(Succeed())
 		DeferCleanup(func() { Expect(k8sClient.Delete(ctx, stage)).To(Succeed()) })
-		namespace := &corev1.Namespace{Name: getNamespace(app)}
+		namespace := &corev1.Namespace{Name: testWorkspaceNamespace(app)}
 		Expect(k8sClient.Create(ctx, namespace)).To(Succeed())
 		DeferCleanup(func() { Expect(k8sClient.Delete(ctx, namespace)).To(Succeed()) })
 		app.Spec.ServiceSpec.Deployment.EnvSecretRef = &locov1alpha1.EnvSecretRef{Name: stage.Name, Revision: 1}
@@ -48,12 +48,17 @@ var _ = Describe("Staged environment secret reads", func() {
 			client.Options{Scheme: k8sClient.Scheme(), Cache: &client.CacheOptions{Reader: filtered}},
 		)
 		Expect(err).NotTo(HaveOccurred())
-		r := &LocoResourceReconciler{Client: cached, APIReader: k8sClient}
+		r := &LocoResourceReconciler{
+			Client:                   cached,
+			APIReader:                k8sClient,
+			Gateway:                  testGateway,
+			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+		}
 		mount, err := r.ensureEnvSecret(ctx, app)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(mount.Mounted).To(BeTrue())
 		Expect(mount.Revision).To(Equal(int64(1)))
-		deployment, err := desiredDeployment(app, mount, testTelemetry())
+		deployment, err := desiredDeployment(app, testWorkspaceNamespace(app), mount, testTelemetry())
 		Expect(err).NotTo(HaveOccurred())
 		Expect(deployment.Spec.Template.Spec.Containers[0].Env).NotTo(
 			ContainElement(HaveField("Name", new(envOTelTracesSamplerArg))),
@@ -72,7 +77,7 @@ var _ = Describe("Staged environment secret reads", func() {
 		Expect(mount.Revision).To(Equal(int64(2)))
 		Expect(k8sClient.Get(ctx, targetKey, target)).To(Succeed())
 		Expect(target.Data).To(Equal(stage.Data))
-		deployment, err = desiredDeployment(app, mount, testTelemetry())
+		deployment, err = desiredDeployment(app, testWorkspaceNamespace(app), mount, testTelemetry())
 		Expect(err).NotTo(HaveOccurred())
 		Expect(deployment.Spec.Template.Spec.Containers[0].Env).NotTo(
 			ContainElement(HaveField("Name", new(envOTelTracesSamplerArg))),
@@ -84,7 +89,7 @@ var _ = Describe("Staged environment secret reads", func() {
 		app.Spec.ServiceSpec.Deployment.EnvSecretRef.Revision = 3
 		mount, err = r.ensureEnvSecret(ctx, app)
 		Expect(err).NotTo(HaveOccurred())
-		deployment, err = desiredDeployment(app, mount, testTelemetry())
+		deployment, err = desiredDeployment(app, testWorkspaceNamespace(app), mount, testTelemetry())
 		Expect(err).NotTo(HaveOccurred())
 		Expect(deployment.Spec.Template.Spec.Containers[0].Env).NotTo(
 			ContainElement(HaveField("Name", new(envOTelTracesSamplerArg))),

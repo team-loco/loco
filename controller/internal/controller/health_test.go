@@ -27,7 +27,7 @@ func TestDesiredDeploymentHealthProbesAreOptional(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			app := testApplication()
 			app.Spec.ServiceSpec.Deployment.HealthCheck = tc.health
-			deployment, err := desiredDeployment(app, envSecretMount{}, testTelemetry())
+			deployment, err := desiredDeployment(app, testWorkspaceNamespace(app), envSecretMount{}, testTelemetry())
 			if err != nil {
 				t.Fatal(err)
 			}

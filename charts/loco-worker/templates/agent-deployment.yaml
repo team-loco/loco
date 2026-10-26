@@ -21,7 +21,7 @@ spec:
         app: {{ .Release.Name }}-agent
     spec:
       shareProcessNamespace: true
-      serviceAccountName: {{ .Release.Name }}-agent
+      serviceAccountName: {{ include "loco-worker.agentServiceAccount" . }}
       securityContext:
         runAsNonRoot: true
         seccompProfile:
@@ -53,9 +53,9 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: LOCO_BUILD_NAMESPACE
-              value: {{ .Values.agent.buildNamespace | quote }}
+              value: {{ .Values.builds.namespace | quote }}
             - name: LOCO_CONTROLLER_DEPLOYMENT
-              value: {{ .Values.agent.controllerDeployment | quote }}
+              value: {{ .Values.controller.name | quote }}
             - name: LOCO_INVENTORY_INTERVAL
               value: {{ .Values.agent.inventoryInterval | quote }}
             - name: LOCO_BUILD_RETENTION

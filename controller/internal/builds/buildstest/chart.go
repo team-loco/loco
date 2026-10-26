@@ -17,7 +17,7 @@ var (
 	errNoBuilds = errors.New("the chart values have no builds block")
 )
 
-var chartOnlyKeys = []string{"enabled", "controller", "podSecurity", "agentServiceAccount"}
+var chartOnlyKeys = []string{"enabled", "controller", "podSecurity"}
 
 func ChartValuesPath() (string, error) {
 	_, file, _, ok := runtime.Caller(0)

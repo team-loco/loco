@@ -50,21 +50,23 @@ var _ = Describe("Application reconcile", func() {
 			},
 		}
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
-		podRole := &rbacv1.Role{Name: getRoleName(app), Namespace: getNamespace(app)}
-		podNamespace := &corev1.Namespace{Name: getNamespace(app)}
+		podRole := &rbacv1.Role{Name: getRoleName(app), Namespace: testWorkspaceNamespace(app)}
+		podNamespace := &corev1.Namespace{Name: testWorkspaceNamespace(app)}
 		Expect(k8sClient.Create(ctx, podNamespace)).To(Succeed())
 		Expect(k8sClient.Create(ctx, podRole)).To(Succeed())
 
 		r := &LocoResourceReconciler{
-			Client:         k8sClient,
-			Scheme:         k8sClient.Scheme(),
-			LocoNamespace:  testNamespace,
-			Telemetry:      testTelemetry(),
-			PullSecretName: pullSecretName,
+			Gateway:                  testGateway,
+			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+			Client:                   k8sClient,
+			Scheme:                   k8sClient.Scheme(),
+			LocoNamespace:            testNamespace,
+			Telemetry:                testTelemetry(),
+			PullSecretName:           pullSecretName,
 		}
 		appKey := client.ObjectKeyFromObject(app)
 		req := reconcile.Request{NamespacedName: appKey}
-		depKey := client.ObjectKey{Namespace: getNamespace(app), Name: getName(app)}
+		depKey := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: getName(app)}
 		envSecretName := getEnvSecretName(app)
 		envKey := client.ObjectKey{Namespace: depKey.Namespace, Name: envSecretName}
 		imageKey := client.ObjectKey{Namespace: depKey.Namespace, Name: workspacePullSecretName}
@@ -223,17 +225,19 @@ var _ = Describe("Application reconcile", func() {
 		Expect(k8sClient.Create(ctx, second)).To(Succeed())
 
 		r := &LocoResourceReconciler{
-			Client:         k8sClient,
-			Scheme:         k8sClient.Scheme(),
-			LocoNamespace:  testNamespace,
-			Telemetry:      testTelemetry(),
-			PullSecretName: pullSecret.Name,
+			Gateway:                  testGateway,
+			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+			Client:                   k8sClient,
+			Scheme:                   k8sClient.Scheme(),
+			LocoNamespace:            testNamespace,
+			Telemetry:                testTelemetry(),
+			PullSecretName:           pullSecret.Name,
 		}
 		firstKey := client.ObjectKeyFromObject(first)
 		secondKey := client.ObjectKeyFromObject(second)
 		firstReq := reconcile.Request{NamespacedName: firstKey}
 		secondReq := reconcile.Request{NamespacedName: secondKey}
-		namespace := getNamespace(first)
+		namespace := testWorkspaceNamespace(first)
 		secretKey := client.ObjectKey{Namespace: namespace, Name: workspacePullSecretName}
 		firstName := getName(first)
 		secondName := getName(second)
@@ -306,21 +310,27 @@ var _ = Describe("Application reconcile", func() {
 		app := isolationTestApplication("ws-name-label", "name-label")
 		app.Spec.ServiceSpec.Routing = nil
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
-		Expect(ensureNamespace(ctx, k8sClient, app)).To(Succeed())
+		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 
-		previous, err := desiredDeployment(app, envSecretMount{}, testTelemetry())
+		previous, err := desiredDeployment(app, testWorkspaceNamespace(app), envSecretMount{}, testTelemetry())
 		Expect(err).NotTo(HaveOccurred())
 		delete(previous.Spec.Template.Labels, labelAppKubernetesName)
 		Expect(k8sClient.Apply(ctx, previous, managed.ApplyOptions()...)).To(Succeed())
 
-		r := &LocoResourceReconciler{Client: k8sClient, Scheme: k8sClient.Scheme(), Telemetry: testTelemetry()}
+		r := &LocoResourceReconciler{
+			Client:                   k8sClient,
+			Scheme:                   k8sClient.Scheme(),
+			Telemetry:                testTelemetry(),
+			Gateway:                  testGateway,
+			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+		}
 		appKey := client.ObjectKeyFromObject(app)
 		req := reconcile.Request{NamespacedName: appKey}
 		_, err = r.Reconcile(ctx, req)
 		Expect(err).NotTo(HaveOccurred())
 
 		dep := &appsv1.Deployment{}
-		depKey := client.ObjectKey{Namespace: getNamespace(app), Name: getName(app)}
+		depKey := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: getName(app)}
 		Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
 		Expect(dep.Spec.Selector.MatchLabels).To(Equal(map[string]string{labelApp: getName(app)}))
 		Expect(dep.Spec.Template.Labels).To(HaveKeyWithValue(labelAppKubernetesName, getName(app)))
@@ -339,10 +349,12 @@ var _ = Describe("Application reconcile", func() {
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 
 		r := &LocoResourceReconciler{
-			Client:        k8sClient,
-			Scheme:        k8sClient.Scheme(),
-			LocoNamespace: testNamespace,
-			Telemetry:     testTelemetry(),
+			Gateway:                  testGateway,
+			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+			Client:                   k8sClient,
+			Scheme:                   k8sClient.Scheme(),
+			LocoNamespace:            testNamespace,
+			Telemetry:                testTelemetry(),
 		}
 		appKey := client.ObjectKeyFromObject(app)
 		req := reconcile.Request{NamespacedName: appKey}
@@ -350,7 +362,7 @@ var _ = Describe("Application reconcile", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		dep := &appsv1.Deployment{}
-		depKey := client.ObjectKey{Namespace: getNamespace(app), Name: getName(app)}
+		depKey := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: getName(app)}
 		Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
 		var regions []corev1.EnvVar
 		for _, envVar := range dep.Spec.Template.Spec.Containers[0].Env {
@@ -375,7 +387,13 @@ var _ = Describe("Application reconcile", func() {
 		}
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 
-		r := &LocoResourceReconciler{Client: k8sClient, Scheme: k8sClient.Scheme(), Telemetry: testTelemetry()}
+		r := &LocoResourceReconciler{
+			Client:                   k8sClient,
+			Scheme:                   k8sClient.Scheme(),
+			Telemetry:                testTelemetry(),
+			Gateway:                  testGateway,
+			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+		}
 		appKey := client.ObjectKeyFromObject(app)
 		req := reconcile.Request{NamespacedName: appKey}
 
@@ -406,10 +424,16 @@ var _ = Describe("Application reconcile", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
-			nsKey := client.ObjectKey{Name: getNamespace(app)}
+			nsKey := client.ObjectKey{Name: testWorkspaceNamespace(app)}
 			Expect(k8sClient.Create(ctx, &corev1.Namespace{Name: nsKey.Name, Labels: labels})).To(Succeed())
 
-			r := &LocoResourceReconciler{Client: k8sClient, Scheme: k8sClient.Scheme(), Telemetry: testTelemetry()}
+			r := &LocoResourceReconciler{
+				Client:                   k8sClient,
+				Scheme:                   k8sClient.Scheme(),
+				Telemetry:                testTelemetry(),
+				Gateway:                  testGateway,
+				WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+			}
 			appKey := client.ObjectKeyFromObject(app)
 			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
 			_, err := r.Reconcile(ctx, reconcile.Request{NamespacedName: appKey})

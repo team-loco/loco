@@ -1,6 +1,6 @@
 import pytest
 
-from test_platform_contracts import collector_documents, render_chart
+from test_platform_contracts import collector_documents, collector_relays, render_chart
 
 RELEASE_NAMESPACE = "platform-test"
 
@@ -38,6 +38,9 @@ def test_agent_references_resolve_to_rendered_objects(worker):
     service_account = agent["spec"]["template"]["spec"]["serviceAccountName"]
     assert ("ServiceAccount", service_account, RELEASE_NAMESPACE) in worker
     assert ("Deployment", env["LOCO_CONTROLLER_DEPLOYMENT"], RELEASE_NAMESPACE) in worker
+    role = worker[("Role", "loco-worker-agent", RELEASE_NAMESPACE)]
+    (deployments,) = [rule for rule in role["rules"] if rule["resources"] == ["deployments"]]
+    assert deployments["resourceNames"] == [env["LOCO_CONTROLLER_DEPLOYMENT"]]
     assert ("Namespace", env["LOCO_BUILD_NAMESPACE"], None) in worker
     binding = _one(worker, "RoleBinding", "loco-agent-builds")
     assert binding["subjects"] == [{"kind": "ServiceAccount", "name": service_account, "namespace": RELEASE_NAMESPACE}]
@@ -46,7 +49,9 @@ def test_agent_references_resolve_to_rendered_objects(worker):
 def test_collector_references_resolve_to_rendered_objects(worker):
     env = _env(_one(worker, "Deployment", "loco-controller"))
     assert ("Service", env["LOCO_OTEL_COLLECTOR_SERVICE"], env["LOCO_OBSERVABILITY_NAMESPACE"]) in worker
-    assert ("DaemonSet", env["LOCO_METRICS_COLLECTOR_SERVICE"] + "-agent", env["LOCO_METRICS_COLLECTOR_NAMESPACE"]) in worker
+    (daemon,) = [document for (kind, _, namespace), document in worker.items()
+                 if kind == "DaemonSet" and namespace == env["LOCO_METRICS_COLLECTOR_NAMESPACE"]]
+    assert daemon["spec"]["template"]["metadata"]["labels"]["app.kubernetes.io/name"] == env["LOCO_METRICS_COLLECTOR_SERVICE"]
     proxy = _one(worker, "EnvoyProxy", "envoy-proxy")
     host = proxy["spec"]["telemetry"]["tracing"]["provider"]["host"]
     service, namespace = host.split(".")[:2]
@@ -60,3 +65,19 @@ def test_collector_references_resolve_to_rendered_objects(worker):
     assert ingress["metadata"]["namespace"] == namespace
     sources = [source["namespaceSelector"]["matchLabels"] for source in ingress["spec"]["ingress"][0]["from"]]
     assert {"kubernetes.io/metadata.name": RELEASE_NAMESPACE} in sources
+
+
+def test_agent_and_controller_attach_to_the_rendered_gateway(worker):
+    for deployment in ("loco-worker-agent", "loco-controller"):
+        env = _env(_one(worker, "Deployment", deployment))
+        assert ("Gateway", env["LOCO_GATEWAY"], RELEASE_NAMESPACE) in worker
+
+
+def test_the_collector_parses_routes_in_the_controllers_workspace_namespaces():
+    prefix = "tenant-"
+    documents = render_chart("loco-worker", {"global": {"workspaceNamespacePrefix": prefix}})
+    (controller,) = [document for document in documents if document["kind"] == "Deployment" and document["metadata"]["name"] == "loco-controller"]
+    assert _env(controller)["LOCO_WORKSPACE_NAMESPACE_PREFIX"] == prefix
+    statements = collector_relays(documents)["otel-col-deploy"]["processors"]["transform/envoy_tenancy"]["trace_statements"][1]["statements"]
+    (parse,) = [statement for statement in statements if "ExtractPatterns" in statement]
+    assert f'"^httproute/{prefix}(?P<workspace>' in parse

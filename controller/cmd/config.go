@@ -18,15 +18,19 @@ const (
 	envOTelCollectorGRPCPort  = "LOCO_OTEL_COLLECTOR_GRPC_PORT"
 	envOTelCollectorHTTPPort  = "LOCO_OTEL_COLLECTOR_HTTP_PORT"
 	envRegistryPullSecretName = "REGISTRY_PULL_SECRET_NAME" //nolint:gosec
+	envGateway                = "LOCO_GATEWAY"
+	envWorkspacePrefix        = "LOCO_WORKSPACE_NAMESPACE_PREFIX"
 	decimalBase               = 10
 	portBits                  = 16
 )
 
 type operatorConfig struct {
-	LocoNamespace  string
-	PullSecretName string
-	RawBuildConfig string
-	Telemetry      controller.TelemetryConfig
+	LocoNamespace            string
+	PullSecretName           string
+	Gateway                  string
+	WorkspaceNamespacePrefix string
+	RawBuildConfig           string
+	Telemetry                controller.TelemetryConfig
 }
 
 func newOperatorConfig() operatorConfig {
@@ -39,10 +43,12 @@ func newOperatorConfig() operatorConfig {
 		HTTPPort:         portEnv(envOTelCollectorHTTPPort),
 	}
 	return operatorConfig{
-		LocoNamespace:  os.Getenv(envLocoNamespace),
-		PullSecretName: os.Getenv(envRegistryPullSecretName),
-		RawBuildConfig: os.Getenv(builds.EnvConfig),
-		Telemetry:      telemetry,
+		LocoNamespace:            os.Getenv(envLocoNamespace),
+		PullSecretName:           os.Getenv(envRegistryPullSecretName),
+		Gateway:                  os.Getenv(envGateway),
+		WorkspaceNamespacePrefix: os.Getenv(envWorkspacePrefix),
+		RawBuildConfig:           os.Getenv(builds.EnvConfig),
+		Telemetry:                telemetry,
 	}
 }
 

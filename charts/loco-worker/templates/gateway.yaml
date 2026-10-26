@@ -1,7 +1,7 @@
 apiVersion: gateway.networking.k8s.io/v1
 kind: GatewayClass
 metadata:
-  name: eg
+  name: {{ include "loco-worker.gatewayClass" . }}
 spec:
   controllerName: gateway.envoyproxy.io/gatewayclass-controller
 ---
@@ -20,7 +20,7 @@ spec:
       group: gateway.envoyproxy.io
       kind: EnvoyProxy
       name: envoy-proxy
-  gatewayClassName: eg
+  gatewayClassName: {{ include "loco-worker.gatewayClass" . }}
   listeners:
     {{- range $index, $domain := .Values.global.domain.apps }}
     - name: https-apps-{{ $index }}
@@ -63,7 +63,7 @@ spec:
                 operator: In
                 values:
                   - {{ .Release.Namespace }}
-                  - {{ .Values.global.observability.namespace }}
+                  - {{ include "loco-worker.observabilityNamespace" . }}
       tls:
         mode: Terminate
         certificateRefs:
@@ -83,7 +83,7 @@ spec:
                 operator: In
                 values:
                   - {{ .Release.Namespace }}
-                  - {{ .Values.global.observability.namespace }}
+                  - {{ include "loco-worker.observabilityNamespace" . }}
 ---
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: EnvoyProxy
@@ -91,8 +91,8 @@ metadata:
   name: envoy-proxy
   namespace: {{ .Release.Namespace }}
 spec:
-  {{- $collectorHost := printf "%s.%s.svc.cluster.local" .Values.global.observability.otelCollectorDeployment .Values.global.observability.namespace }}
-  {{- $collectorPort := .Values.global.observability.otelCollectorGrpcPort }}
+  {{- $collectorHost := printf "%s.%s.svc.cluster.local" (include "loco-worker.collectorService" .) (include "loco-worker.observabilityNamespace" .) }}
+  {{- $collectorPort := index .Values "otel-col-deploy" "ports" "otlp" "servicePort" }}
   {{- with .Values.envoyProxy.service }}
   provider:
     type: Kubernetes

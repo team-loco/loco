@@ -38,13 +38,18 @@ func TestPrivateServiceLifecycleReadsBypassTheCache(t *testing.T) {
 	}
 	old := &corev1.Service{
 		Name:        "old-cart",
-		Namespace:   getNamespace(app),
+		Namespace:   testWorkspaceNamespace(app),
 		UID:         "old-alias-uid",
 		Labels:      labels,
 		Annotations: ownerAnnotations(app),
 	}
 	base := fake.NewClientBuilder().WithScheme(workspaceTestScheme(t)).WithObjects(old).Build()
-	r := &LocoResourceReconciler{Client: stalePrivateServiceCache{base}, APIReader: base}
+	r := &LocoResourceReconciler{
+		Client:                   stalePrivateServiceCache{base},
+		APIReader:                base,
+		Gateway:                  testGateway,
+		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+	}
 	if err := r.ensurePrivateService(context.Background(), app); err != nil {
 		t.Fatal(err)
 	}
@@ -81,12 +86,17 @@ func (c staleApplicationInventory) List(
 func TestDeletingAppChecksLiveWorkspaceApplications(t *testing.T) {
 	deleted := workspaceApp("deleted", "old")
 	remaining := workspaceApp("remaining", "new")
-	namespace := &corev1.Namespace{Name: getNamespace(deleted)}
+	namespace := &corev1.Namespace{Name: testWorkspaceNamespace(deleted)}
 	base := fake.NewClientBuilder().
 		WithScheme(workspaceTestScheme(t)).
 		WithObjects(deleted, remaining, namespace).
 		Build()
-	r := &LocoResourceReconciler{Client: staleApplicationInventory{base}, APIReader: base}
+	r := &LocoResourceReconciler{
+		Client:                   staleApplicationInventory{base},
+		APIReader:                base,
+		Gateway:                  testGateway,
+		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+	}
 	if err := r.deleteNamespaceIfUnused(context.Background(), deleted); err != nil {
 		t.Fatal(err)
 	}

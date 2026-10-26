@@ -45,8 +45,8 @@ obs_marker_bytes=6
 
 obs_endpoint_reference='http://$(LOCO_OTEL_HOST):$(LOCO_OTEL_HTTP_PORT)'
 obs_chart_values="$E2E_ROOT_DIR/charts/loco-worker/values.yaml"
-obs_collector_host=$(yq '.observability.collector.service + "." + .observability.namespace + ".svc.cluster.local"' "$obs_chart_values")
-obs_collector_endpoint="http://${obs_collector_host}:$(yq '.observability.collector.httpPort' "$obs_chart_values")"
+obs_collector_host=$(yq '.["otel-col-deploy"] | .fullnameOverride + "." + .namespaceOverride + ".svc.cluster.local"' "$obs_chart_values")
+obs_collector_endpoint="http://${obs_collector_host}:$(yq '.["otel-col-deploy"].ports["otlp-http"].servicePort' "$obs_chart_values")"
 
 obs_second_workspace_id='00000000-0000-7000-8000-000000000013'
 obs_second_workspace_name='e2e-observability-isolation'

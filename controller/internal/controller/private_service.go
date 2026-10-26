@@ -46,7 +46,7 @@ func (r *LocoResourceReconciler) ensurePrivateService(ctx context.Context, app *
 	if app.UID == "" {
 		return errPrivateServiceOwnerMissing
 	}
-	namespace := getNamespace(app)
+	namespace := r.workspaceNamespace(app)
 	port := app.Spec.ServiceSpec.Deployment.Port
 	targetPort := intstr.FromInt32(port)
 	ports := []corev1.ServicePort{
@@ -119,7 +119,7 @@ func (r *LocoResourceReconciler) prunePrivateServices(
 		managed.LabelComponent:   componentPrivateService,
 	}
 	reader := r.apiReader()
-	if err := reader.List(ctx, list, client.InNamespace(getNamespace(app)), selector); err != nil {
+	if err := reader.List(ctx, list, client.InNamespace(r.workspaceNamespace(app)), selector); err != nil {
 		return fmt.Errorf("list private services: %w", err)
 	}
 	for i := range list.Items {

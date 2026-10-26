@@ -1,5 +1,4 @@
 {{- if .Values.builds.enabled }}
-{{- with .Values.builds.agentServiceAccount }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -32,7 +31,6 @@ roleRef:
     name: loco-agent-builds
 subjects:
     - kind: ServiceAccount
-      name: {{ .name }}
-      namespace: {{ .namespace | default $.Release.Namespace }}
-{{- end }}
+      name: {{ include "loco-worker.agentServiceAccount" $ }}
+      namespace: {{ $.Release.Namespace }}
 {{- end }}

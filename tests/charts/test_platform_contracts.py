@@ -875,17 +875,15 @@ def envoy_telemetry():
 
 
 def _collector_address(envoy_telemetry):
-    observability = envoy_telemetry.core["global"]["observability"]
+    deploy = envoy_telemetry.core["otel-col-deploy"]
     return (
-        f"{observability['otelCollectorDeployment']}.{observability['namespace']}.svc.cluster.local",
-        observability["otelCollectorGrpcPort"],
+        f"{deploy['fullnameOverride']}.{deploy['namespaceOverride']}.svc.cluster.local",
+        deploy["ports"]["otlp"]["servicePort"],
     )
 
 
 def test_envoy_sends_every_signal_to_the_deployment_collector(envoy_telemetry):
-    obs = chart_values("loco-worker")
     host, port = _collector_address(envoy_telemetry)
-    assert host.split(".")[0] == obs["otel-col-deploy"]["fullnameOverride"]
     assert (
         envoy_telemetry.collector["receivers"]["otlp"]["protocols"]["grpc"]["endpoint"]
         == f"0.0.0.0:{port}"
@@ -1029,13 +1027,10 @@ def test_controller_reads_the_collector_from_values():
         "controller/deployment.yaml",
         {
             "controller": {"image": {"tag": "test"}},
-            "observability": {
-                "namespace": "telemetry",
-                "collector": {
-                    "service": "collector",
-                    "grpcPort": 14317,
-                    "httpPort": 14318,
-                },
+            "otel-col-deploy": {
+                "namespaceOverride": "telemetry",
+                "fullnameOverride": "collector",
+                "ports": {"otlp": {"servicePort": 14317}, "otlp-http": {"servicePort": 14318}},
             },
         },
     )
@@ -1049,17 +1044,11 @@ def test_controller_reads_the_collector_from_values():
     assert env["LOCO_OTEL_COLLECTOR_HTTP_PORT"]["value"] == "14318"
 
 
-def test_operator_collector_matches_the_obs_chart():
-    collector = chart_values("loco-worker")["observability"]["collector"]
+def test_collector_service_ports_reach_the_receivers():
     deploy = chart_values("loco-worker")["otel-col-deploy"]
-    assert collector["service"] == deploy["fullnameOverride"]
-    metrics = chart_values("loco-worker")["observability"]["metricsCollector"]
-    daemon = chart_values("loco-worker")["otel-col-daemon"]
-    assert metrics["namespace"] == daemon["namespaceOverride"]
-    assert metrics["service"] == daemon["fullnameOverride"]
     protocols = deploy["config"]["receivers"]["otlp"]["protocols"]
-    assert protocols["grpc"]["endpoint"].rsplit(":", 1)[1] == str(collector["grpcPort"])
-    assert protocols["http"]["endpoint"].rsplit(":", 1)[1] == str(collector["httpPort"])
+    assert protocols["grpc"]["endpoint"].rsplit(":", 1)[1] == str(deploy["ports"]["otlp"]["servicePort"])
+    assert protocols["http"]["endpoint"].rsplit(":", 1)[1] == str(deploy["ports"]["otlp-http"]["servicePort"])
 
 
 def _deployment():
