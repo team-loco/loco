@@ -369,7 +369,7 @@ otel-col-daemon:
       enabled: true
       storeCheckpoints: true
     hostMetrics:
-      enabled: true
+      enabled: false
   config:
     receivers:
       prometheus/applications:
@@ -413,10 +413,8 @@ otel-col-daemon:
                   target_label: job
                 - source_labels: [__meta_kubernetes_pod_uid]
                   target_label: loco_scrape_pod_uid
-      hostmetrics:
-        collection_interval: &collectionInterval 60s
       kubeletstats:
-        collection_interval: *collectionInterval
+        collection_interval: &collectionInterval 60s
         auth_type: "serviceAccount"
         endpoint: "https://${env:OTEL_K8S_NODE_IP}:10250"
         insecure_skip_verify: true

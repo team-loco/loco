@@ -51,13 +51,10 @@
 {{- $_ := set $config.processors "resource/platform" (dict "attributes" $attributes) -}}
 {{- $receivers := list "k8s_cluster" -}}
 {{- if eq .name "otel-col-daemon" -}}
-{{- $receivers = list "kubeletstats/platform" "hostmetrics/platform" -}}
+{{- $receivers = list "kubeletstats/platform" -}}
 {{- $kubelet := deepCopy $config.receivers.kubeletstats -}}
 {{- $_ := set $kubelet "collection_interval" $settings.collectionInterval -}}
 {{- $_ := set $config.receivers "kubeletstats/platform" $kubelet -}}
-{{- $host := deepCopy $config.receivers.hostmetrics -}}
-{{- $_ := set $host "collection_interval" $settings.collectionInterval -}}
-{{- $_ := set $config.receivers "hostmetrics/platform" $host -}}
 {{- else -}}
 {{- $_ := set $config.receivers.k8s_cluster "collection_interval" $settings.collectionInterval -}}
 {{- $_ := set $config.receivers.k8s_cluster "node_conditions_to_report" $settings.nodeConditions -}}

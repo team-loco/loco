@@ -177,7 +177,7 @@ def execute():
     run("docker", "exec", NODE, "rm", "-f", f"{SINK_PATH}/output.json")
     install_sink(image)
     install_collectors(collectors)
-    wait("actual cluster and node metrics reach the authenticated OTLP destination", lambda: {"k8s.deployment.available", "k8s.node.allocatable_cpu", "system.cpu.time"} <= {name for name, _, _ in metric_points(sink_documents())})
+    wait("actual cluster and node metrics reach the authenticated OTLP destination", lambda: {"k8s.deployment.available", "k8s.node.allocatable_cpu", "k8s.node.cpu.usage"} <= {name for name, _, _ in metric_points(sink_documents())})
     points = metric_points(sink_documents())
     assert any(name == "k8s.deployment.available" and attrs.get("k8s.deployment.name") == "otlp-sink" and int(point.get("asInt", point.get("asDouble", 0))) == 1 for name, attrs, point in points)
     assert all(attrs.get("loco.telemetry.scope") == "platform" and attrs.get("k8s.cluster.name") == CLUSTER and attrs.get("loco.region") == "test-region" for _, attrs, _ in points)

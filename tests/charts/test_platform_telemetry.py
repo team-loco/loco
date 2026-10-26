@@ -119,3 +119,17 @@ def test_platform_allowlist_covers_the_release_and_collector_namespaces():
     for namespace in ("kube-system", "cert-manager", "platform-test", "loco-obs", "loco-obs-node"):
         assert f"|{namespace}|" in pattern.replace("(", "|").replace(")", "|")
     assert "envoy-gateway-system" not in pattern
+
+
+def test_node_collector_does_not_mount_the_host_filesystem():
+    documents = render_chart("loco-worker", configured())
+    daemon = next(document for document in documents if document["kind"] == "DaemonSet" and document["metadata"]["name"] == "otel-col-daemon-agent")
+    pod = daemon["spec"]["template"]["spec"]
+    assert "/" not in [volume["hostPath"]["path"] for volume in pod["volumes"] if "hostPath" in volume]
+    assert "/hostfs" not in [mount["mountPath"] for mount in pod["containers"][0]["volumeMounts"]]
+
+
+def test_platform_pipeline_has_no_host_metrics_receiver():
+    config = collector_relays(render_chart("loco-worker", configured()))["otel-col-daemon-agent"]
+    assert config["service"]["pipelines"]["metrics/platform"]["receivers"] == ["kubeletstats/platform"]
+    assert not [name for name in config["receivers"] if name.startswith("hostmetrics")]
