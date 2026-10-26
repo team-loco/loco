@@ -8,8 +8,7 @@ import (
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 )
 
-const DisabledMessage = "builds are not enabled on this cluster: " +
-	"the loco-worker chart was installed with builds.enabled=false"
+const DisabledMessage = "builds are disabled on this cluster"
 
 type Disabled struct{}
 
