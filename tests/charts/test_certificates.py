@@ -28,6 +28,53 @@ def test_acme_remains_the_default():
     assert token["stringData"]["api-token"] == "cloudflare-token"
 
 
+CLOUDFLARE_SOLVERS = [
+    {
+        "dns01": {
+            "cloudflare": {
+                "apiTokenSecretRef": {
+                    "name": "cloudflare-api-token-secret",
+                    "key": "api-token",
+                }
+            }
+        }
+    }
+]
+ROUTE53_SOLVERS = [{"dns01": {"route53": {"region": "us-east-1"}}}]
+HTTP01_SOLVERS = [
+    {
+        "http01": {
+            "gatewayHTTPRoute": {
+                "parentRefs": [{"name": "edge", "namespace": "gateway", "kind": "Gateway"}]
+            }
+        }
+    }
+]
+
+
+def test_default_solver_is_cloudflare_dns01():
+    values = {"certManager": {"issuer": {"email": "operator@example.test"}}}
+    issuer = _resources(values)[0]
+    assert issuer["spec"]["acme"]["solvers"] == CLOUDFLARE_SOLVERS
+
+
+@pytest.mark.parametrize("solvers", [ROUTE53_SOLVERS, HTTP01_SOLVERS])
+def test_configured_solvers_render_verbatim(solvers):
+    values = {
+        "certManager": {
+            "issuer": {"email": "operator@example.test", "solvers": solvers}
+        }
+    }
+    documents = _resources(values)
+    assert documents[0]["spec"]["acme"]["solvers"] == solvers
+    assert [d["kind"] for d in documents] == ["ClusterIssuer", "Certificate"]
+
+
+def test_no_token_renders_no_cloudflare_secret():
+    documents = _resources({"certManager": {"issuer": {"email": "operator@example.test"}}})
+    assert [d["kind"] for d in documents] == ["ClusterIssuer", "Certificate"]
+
+
 def test_self_signed_needs_no_acme_credentials():
     documents = _resources(
         {"certManager": {"issuer": {"name": "local", "type": "selfSigned"}}}

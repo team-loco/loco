@@ -59,6 +59,12 @@ certManager:
     name: letsencrypt-prod
     email: ""
     server: https://acme-v02.api.letsencrypt.org/directory
+    solvers:
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-api-token-secret
+              key: api-token
 
 secrets:
   cloudflareToken: ""
