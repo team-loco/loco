@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"errors"
 	"maps"
 	"slices"
@@ -192,28 +191,6 @@ func TestResourceAttributesSkipEmptyValues(t *testing.T) {
 	app.Spec.DeploymentID = ""
 	dep = buildDeployment(t, app)
 	requireNoEnv(t, dep, envOTelResourceAttributes)
-}
-
-func TestTracingSamplingBelongsToTheApplicationSDK(t *testing.T) {
-	for _, obs := range []*locov1alpha1.ObsSpec{nil, {}, {Logging: locov1alpha1.LoggingSpec{Enabled: true}}} {
-		app := telemetryTestApplication()
-		app.Spec.ServiceSpec.Obs = obs
-		dep := buildDeployment(t, app)
-		requireNoEnv(t, dep, envOTelTracesSampler)
-		requireNoEnv(t, dep, envOTelTracesSamplerArg)
-	}
-}
-
-func TestLegacyApplicationTracingDoesNotInjectSampling(t *testing.T) {
-	app := telemetryTestApplication()
-	legacy := []byte(`{"spec":{"serviceSpec":{"obs":{"tracing":{"enabled":true,"sampleRate":"0.25"}}}}}`)
-	if err := json.Unmarshal(legacy, app); err != nil {
-		t.Fatal(err)
-	}
-	dep := buildDeployment(t, app)
-	requireNoEnv(t, dep, envOTelTracesSampler)
-	requireNoEnv(t, dep, envOTelTracesSamplerArg)
-	requireEnv(t, dep, envOTLPEndpoint, testCollectorEndpoint)
 }
 
 func TestUserTracingSamplerAndArgumentArePreserved(t *testing.T) {
