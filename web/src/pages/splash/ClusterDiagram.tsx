@@ -194,7 +194,7 @@ export function ClusterDiagram({ rollout }: { rollout: Rollout }) {
 				us-east-1 · kubernetes
 			</DiagramLabel>
 			<DiagramLabel x={BOX.ns.x + 90} y={BOX.ns.y}>
-				namespace ws-storefront
+				namespace loco-ws-storefront
 			</DiagramLabel>
 			{EDGES.map((e) => (
 				<DiagramLabel key={e.id} x={e.lx} y={e.ly}>

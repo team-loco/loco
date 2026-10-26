@@ -7,7 +7,7 @@ status_dir="$E2E_BUILD_WORK_DIR/resource-status"
 cli_home="$status_dir/home"
 status_app="e2e-status"
 status_app_dir="$status_dir/$status_app"
-status_namespace="ws-${cli_workspace_id}"
+status_namespace="${E2E_WORKSPACE_PREFIX}${cli_workspace_id}"
 status_node="${E2E_KIND_CLUSTER}-control-plane"
 
 sk() {

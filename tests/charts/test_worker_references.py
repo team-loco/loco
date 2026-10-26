@@ -81,3 +81,8 @@ def test_the_collector_parses_routes_in_the_controllers_workspace_namespaces():
     statements = collector_relays(documents)["otel-col-deploy"]["processors"]["transform/envoy_tenancy"]["trace_statements"][1]["statements"]
     (parse,) = [statement for statement in statements if "ExtractPatterns" in statement]
     assert f'"^httproute/{prefix}(?P<workspace>' in parse
+
+
+def test_workspace_namespaces_default_to_the_loco_prefix(worker):
+    controller = _one(worker, "Deployment", "loco-controller")
+    assert _env(controller)["LOCO_WORKSPACE_NAMESPACE_PREFIX"].startswith("loco-")

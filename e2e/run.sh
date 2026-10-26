@@ -58,7 +58,10 @@ WORKER_RELEASE="loco-worker"
 WORKER_CHART="$ROOT_DIR/charts/loco-worker"
 WORKER_VALUES="$WORKER_CHART/values.yaml"
 WORKER_E2E_VALUES="$SCRIPT_DIR/worker-values.yaml"
+# keep in sync with loco-worker.gateway in charts/loco-worker/templates/_helpers.tpl
 GATEWAY_NAME="eg"
+E2E_WORKSPACE_PREFIX=$(yq .global.workspaceNamespacePrefix "$WORKER_VALUES")
+export E2E_WORKSPACE_PREFIX
 OBS_NAMESPACE=$(yq '.["otel-col-deploy"].namespaceOverride' "$WORKER_VALUES")
 OBS_NODE_NAMESPACE=$(yq '.["otel-col-daemon"].namespaceOverride' "$WORKER_VALUES")
 PLATFORM_DOMAIN="e2e.test.local"
@@ -664,7 +667,7 @@ reset_cluster_state() {
     local namespace namespaces=()
     while read -r namespace; do
         namespaces+=("$namespace")
-    done < <(kube get namespaces -o name | grep -E '^namespace/(ws-|e2e-)' || true)
+    done < <(kube get namespaces -o name | grep -E "^namespace/(${E2E_WORKSPACE_PREFIX}|e2e-)" || true)
     if [ ${#namespaces[@]} -gt 0 ]; then
         kube delete "${namespaces[@]}" --wait >/dev/null
     fi

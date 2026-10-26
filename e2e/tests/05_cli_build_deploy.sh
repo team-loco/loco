@@ -63,6 +63,6 @@ test_c03_cli_deployment_runs_the_build() {
         return 1
     fi
     assert_contains "The deployed app runs the CLI's build by digest" "$image" \
-        kubectl --context "$cli_ctx" -n "ws-${cli_workspace_id}" get deployments \
+        kubectl --context "$cli_ctx" -n "${E2E_WORKSPACE_PREFIX}${cli_workspace_id}" get deployments \
         -o jsonpath='{.items[*].spec.template.spec.containers[*].image}'
 }

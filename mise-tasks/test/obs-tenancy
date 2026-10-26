@@ -22,8 +22,9 @@ route_workspace=01a12668-411a-73d6-80e3-c21f044d5e71
 route_resource=01a126f5-020e-7f3c-ac04-822067278d4b
 workspace_prefix=$(yq .global.workspaceNamespacePrefix "$chart/values.yaml")
 route_cluster=httproute/$workspace_prefix$route_workspace/resource-$route_resource-route/rule/0
+# keep in sync with loco-worker.gateway in charts/loco-worker/templates/_helpers.tpl
 gateway_name=eg
-gateway_namespace=loco-system
+gateway_namespace=$namespace
 
 test_config() {
 	LABEL_PREFIX="$label_prefix" yq '

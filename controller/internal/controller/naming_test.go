@@ -12,7 +12,7 @@ import (
 
 const (
 	testGateway                  = "test-gateway"
-	testWorkspaceNamespacePrefix = "ws-"
+	testWorkspaceNamespacePrefix = "loco-ws-"
 )
 
 func testWorkspaceNamespace(app *locov1alpha1.Application) string {

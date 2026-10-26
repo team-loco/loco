@@ -19,7 +19,7 @@ import (
 const (
 	testLocoNamespace   = "loco-system"
 	testGateway         = "eg"
-	testWorkspacePrefix = "ws-"
+	testWorkspacePrefix = "loco-ws-"
 	testPullSecretName  = "registry-pull"
 )
 

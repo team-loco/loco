@@ -19,7 +19,7 @@ global:
         cpu: 200m
         memory: 512Mi
 
-  workspaceNamespacePrefix: ws-
+  workspaceNamespacePrefix: loco-ws-
 
   # Replica counts
   replicas:

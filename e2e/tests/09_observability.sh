@@ -228,12 +228,12 @@ obs_write_config() {
 }
 
 obs_container_env() {
-    obs_kube -n "ws-${obs_workspace_id}" get deployment "resource-${obs_resource_id}" \
+    obs_kube -n "${E2E_WORKSPACE_PREFIX}${obs_workspace_id}" get deployment "resource-${obs_resource_id}" \
         -o jsonpath='{range .spec.template.spec.containers[0].env[*]}{.name}={.value}{"\n"}{end}'
 }
 
 obs_fixture_logs() {
-    obs_kube -n "ws-${obs_workspace_id}" logs "deployment/resource-${obs_resource_id}"
+    obs_kube -n "${E2E_WORKSPACE_PREFIX}${obs_workspace_id}" logs "deployment/resource-${obs_resource_id}"
 }
 
 obs_fixture_logs_endpoint() {
@@ -291,7 +291,7 @@ test_o01_deploys_the_fixture_through_loco() {
         printf '| ResourceId | `%s` |\n' "$obs_resource_id"
         printf '| Second workspace | `%s` |\n\n' "$obs_second_workspace_id"
         printf '**Pod environment and labels**\n\n```console\n'
-        obs_kube -n "ws-${obs_workspace_id}" get pods -l "loco.io/resource-id=${obs_resource_id}" \
+        obs_kube -n "${E2E_WORKSPACE_PREFIX}${obs_workspace_id}" get pods -l "loco.io/resource-id=${obs_resource_id}" \
             -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{.metadata.labels}{"\n"}{range .spec.containers[*].env[*]}{.name}={.value}{"\n"}{end}{end}' |
             grep -E '^(resource-|\{|OTEL_|LOCO_WORKSPACE|LOCO_OTEL_)' || true
         printf '```\n\n'
@@ -770,7 +770,7 @@ test_o09_pulls_application_metrics_through_otel() {
 
 obs_metrics_discovery_removed() {
     local pods count
-    pods=$(obs_kube -n "ws-${obs_workspace_id}" get pods -l "loco.io/resource-id=${obs_resource_id}" -o json) || return 1
+    pods=$(obs_kube -n "${E2E_WORKSPACE_PREFIX}${obs_workspace_id}" get pods -l "loco.io/resource-id=${obs_resource_id}" -o json) || return 1
     count=$(yq -p json -r '[.items[] | select(.metadata.deletionTimestamp == null) | select(.metadata.labels."loco.io/metrics-port" != null)] | length' <<<"$pods")
     test "$count" -eq 0
 }
@@ -800,7 +800,7 @@ test_o10_stops_pulling_when_the_endpoint_is_removed() {
         cat "$obs_dir/metrics-remove.out" "$obs_dir/metrics-remove.err"
         return 1
     fi
-    obs_kube -n "ws-${obs_workspace_id}" rollout status "deployment/resource-${obs_resource_id}" --timeout="${obs_route_timeout_seconds}s" || return 1
+    obs_kube -n "${E2E_WORKSPACE_PREFIX}${obs_workspace_id}" rollout status "deployment/resource-${obs_resource_id}" --timeout="${obs_route_timeout_seconds}s" || return 1
     assert "the replacement pod has no metrics discovery label" \
         wait_for "metrics discovery removal" "$obs_route_timeout_seconds" obs_metrics_discovery_removed
     assert "the undeclared metrics endpoint still serves HTTP" \

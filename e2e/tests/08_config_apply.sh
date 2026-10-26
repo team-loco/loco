@@ -159,7 +159,7 @@ test_g05_second_plan_is_clean() {
 config_probes_match() {
     local service=$1 expected=$2 id deployment
     id=$(e2e_psql "SELECT id FROM resources WHERE name = '${service}'")
-    deployment=$(kubectl --context "$config_ctx" -n "ws-${cli_workspace_id}" \
+    deployment=$(kubectl --context "$config_ctx" -n "${E2E_WORKSPACE_PREFIX}${cli_workspace_id}" \
         get deployment "resource-${id}" -o json) || return 1
     jq -e --argjson expected "$expected" \
         '.spec.template.spec.containers[0] |
