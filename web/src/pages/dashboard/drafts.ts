@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import type { PlatformDomain } from "@gen/loco/domain/v1/domain_pb";
 
-import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
+import { readStorage, writeStorage } from "@/lib/storage";
 
 export const CPU_STOPS = ["100m", "250m", "500m", "1", "2"];
 export const MEMORY_STOPS = ["128Mi", "256Mi", "512Mi", "1Gi", "2Gi", "4Gi"];
@@ -92,20 +92,8 @@ const listeners = new Set<() => void>();
 const cache = new Map<string, { raw: string | null; drafts: Draft[] }>();
 const EMPTY: Draft[] = [];
 
-interface DraftKeys {
-	key: string;
-	legacy: string;
-}
-
-function draftKeys(workspaceId: string, envId: string): DraftKeys {
-	return {
-		key: `loco:drafts:v1:${workspaceId}:${envId}`,
-		legacy: `loco_drafts_${workspaceId}_${envId}`,
-	};
-}
-
-function readRaw(keys: DraftKeys): string | null {
-	return readStorage(keys.key) ?? readStorage(keys.legacy);
+function draftKey(workspaceId: string, envId: string): string {
+	return `loco:drafts:v1:${workspaceId}:${envId}`;
 }
 
 function isDraft(v: unknown): v is Draft {
@@ -113,9 +101,9 @@ function isDraft(v: unknown): v is Draft {
 	return "id" in v && "name" in v && "image" in v && "vars" in v;
 }
 
-function readDrafts(keys: DraftKeys): Draft[] {
-	const raw = readRaw(keys);
-	const hit = cache.get(keys.key);
+function readDrafts(key: string): Draft[] {
+	const raw = readStorage(key);
+	const hit = cache.get(key);
 	if (hit?.raw === raw) return hit.drafts;
 	let drafts: Draft[] = EMPTY;
 	if (raw !== null) {
@@ -126,7 +114,7 @@ function readDrafts(keys: DraftKeys): Draft[] {
 			drafts = EMPTY;
 		}
 	}
-	cache.set(keys.key, { raw, drafts });
+	cache.set(key, { raw, drafts });
 	return drafts;
 }
 
@@ -136,11 +124,9 @@ function notify() {
 	});
 }
 
-function writeDrafts(keys: DraftKeys, drafts: Draft[]) {
-	if (writeStorage(keys.key, JSON.stringify(drafts))) {
-		removeStorage(keys.legacy);
-	} else {
-		cache.set(keys.key, { raw: readRaw(keys), drafts });
+function writeDrafts(key: string, drafts: Draft[]) {
+	if (!writeStorage(key, JSON.stringify(drafts))) {
+		cache.set(key, { raw: readStorage(key), drafts });
 	}
 	notify();
 }
@@ -155,7 +141,7 @@ function subscribe(listener: () => void) {
 }
 
 export function useDrafts(workspaceId: string | null, envId: string | undefined) {
-	const key = workspaceId !== null && envId !== undefined ? draftKeys(workspaceId, envId) : null;
+	const key = workspaceId !== null && envId !== undefined ? draftKey(workspaceId, envId) : null;
 	const drafts = useSyncExternalStore(
 		subscribe,
 		() => (key === null ? EMPTY : readDrafts(key)),

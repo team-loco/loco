@@ -252,18 +252,6 @@ func (s *OrgServer) ListUserOrgs(
 	if cursorErr != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(cursorErr)
 	}
-	if cursor.ID != nil && cursor.CreatedAt == nil {
-		anchor, getErr := s.queries.GetOrgByID(ctx, uuid.MustParse(*cursor.ID))
-		if errors.Is(getErr, pgx.ErrNoRows) {
-			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).
-				WithCause(errPositionCursor)
-		}
-		if getErr != nil {
-			slog.ErrorContext(ctx, "failed to resolve organization cursor", "error", getErr)
-			return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-		}
-		cursor.CreatedAt = new(anchor.CreatedAt)
-	}
 
 	userID := uuid.MustParse(req.GetUserId())
 

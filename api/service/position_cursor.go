@@ -30,13 +30,6 @@ func decodePositionCursor(token string) (positionCursor, error) {
 		return positionCursor{}, errPositionCursor
 	}
 	parts := strings.Split(string(decoded), "|")
-	if len(parts) == 1 {
-		id, parseErr := uuid.ParseBytes(decoded)
-		if parseErr != nil {
-			return positionCursor{}, errPositionCursor
-		}
-		return positionCursor{ID: new(id.String())}, nil
-	}
 	if len(parts) != 3 || parts[0] != "v1" {
 		return positionCursor{}, errPositionCursor
 	}

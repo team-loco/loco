@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 )
 
@@ -18,10 +17,6 @@ func TestPositionCursorRetainsTheExactSortPosition(t *testing.T) {
 	}
 	if cursor.ID == nil || *cursor.ID != id.String() || cursor.CreatedAt == nil || !cursor.CreatedAt.Equal(at) {
 		t.Fatalf("cursor = %+v", cursor)
-	}
-	legacy, err := decodePositionCursor(encodeCursor(id.String()))
-	if err != nil || legacy.ID == nil || *legacy.ID != id.String() || legacy.CreatedAt != nil {
-		t.Fatalf("legacy cursor = %+v, error=%v", legacy, err)
 	}
 	empty, err := decodePositionCursor("")
 	if err != nil || empty.ID != nil || empty.CreatedAt != nil {
@@ -47,15 +42,4 @@ func TestPositionCursorRejectsMalformedPositions(t *testing.T) {
 	if _, err := decodePositionCursor("%%%"); err == nil {
 		t.Fatal("accepted non-base64 cursor")
 	}
-}
-
-func TestLegacyWorkspaceCursorRequiresItsAnchor(t *testing.T) {
-	f := newDeployFixture(t)
-	server := NewWorkspaceServer(f.pool, f.queries, nil)
-	cursor, err := server.workspacePageCursor(t.Context(), encodeCursor(f.workspaceID(t).String()))
-	if err != nil || cursor.CreatedAt == nil {
-		t.Fatalf("legacy position = %+v, error=%v", cursor, err)
-	}
-	_, err = server.workspacePageCursor(t.Context(), encodeCursor(uuid.NewString()))
-	wantCode(t, err, connect.CodeInvalidArgument)
 }

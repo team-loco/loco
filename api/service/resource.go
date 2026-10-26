@@ -431,9 +431,9 @@ func (s *ResourceServer) ListWorkspaceResources(
 	pageSize := normalizePageSize(req.GetPageSize())
 
 	wsID := uuid.MustParse(req.GetWorkspaceId())
-	cursor, cursorErr := s.resourcePageCursor(ctx, req.GetPageToken(), wsID)
+	cursor, cursorErr := decodePositionCursor(req.GetPageToken())
 	if cursorErr != nil {
-		return nil, cursorErr
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(cursorErr)
 	}
 
 	dbResources, err := s.queries.ListResourcesForWorkspace(ctx, genDb.ListResourcesForWorkspaceParams{
@@ -521,6 +521,9 @@ func (s *ResourceServer) UpdateResource(
 	if message.Has(fields.ByName(updateDescriptionField)) {
 		updateParams.Description = new(req.GetDescription())
 	}
+	if rename && locoControllerV1.PrivateServiceName(req.GetName()) == "" {
+		return nil, rpcerr.New(connect.CodeInvalidArgument, errPrivateServiceName)
+	}
 
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if lockErr := lockResourceEnvironments(ctx, qtx, resourceID); lockErr != nil {
@@ -529,10 +532,6 @@ func (s *ResourceServer) UpdateResource(
 		resource, getErr := qtx.GetResourceByID(ctx, resourceID)
 		if getErr != nil {
 			return getErr
-		}
-		if rename && req.GetName() != resource.Name &&
-			locoControllerV1.PrivateServiceName(req.GetName()) == "" {
-			return errPrivateServiceName
 		}
 		_, updateErr := qtx.UpdateResource(ctx, updateParams)
 		if updateErr != nil {
@@ -555,9 +554,6 @@ func (s *ResourceServer) UpdateResource(
 		})
 	})
 	if err != nil {
-		if errors.Is(err, errPrivateServiceName) {
-			return nil, rpcerr.New(connect.CodeInvalidArgument, errPrivateServiceName)
-		}
 		if isPgConstraintViolation(err) {
 			return nil, rpcerr.New(connect.CodeAlreadyExists, ErrResourceNameNotUnique)
 		}
@@ -1159,8 +1155,8 @@ func reconstructResourceSpec(resourceType genDb.ResourceType, specBytes []byte) 
 
 	switch resourceType {
 	case "service":
-		serviceSpec, err := converter.DeserializeStoredServiceSpec(specBytes)
-		if err != nil {
+		serviceSpec := &resourcev1.ServiceSpec{}
+		if err := protojson.Unmarshal(specBytes, serviceSpec); err != nil {
 			slog.WarnContext(context.Background(), "failed to unmarshal service spec", "error", err)
 			return nil
 		}

@@ -242,9 +242,9 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 
 	pageSize := normalizePageSize(req.GetPageSize())
 
-	cursor, cursorErr := s.workspacePageCursor(ctx, req.GetPageToken())
+	cursor, cursorErr := decodePositionCursor(req.GetPageToken())
 	if cursorErr != nil {
-		return nil, cursorErr
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(cursorErr)
 	}
 
 	workspaceList, err := s.queries.ListWorkspacesForUser(ctx, genDb.ListWorkspacesForUserParams{
@@ -310,9 +310,9 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 
 	pageSize := normalizePageSize(req.GetPageSize())
 
-	cursor, cursorErr := s.workspacePageCursor(ctx, req.GetPageToken())
+	cursor, cursorErr := decodePositionCursor(req.GetPageToken())
 	if cursorErr != nil {
-		return nil, cursorErr
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(cursorErr)
 	}
 
 	orgID := uuid.MustParse(req.GetOrgId())

@@ -86,10 +86,6 @@ func TestWorkspacePaginationSurvivesDeletingTheCursorRow(t *testing.T) {
 			if len(rows) != 1 || rows[0].GetId() != ids[0].String() {
 				t.Fatalf("first page = %v", rows)
 			}
-			legacyRows, _ := page(encodeCursor(ids[0].String()))
-			if len(legacyRows) != 1 || legacyRows[0].GetId() != ids[1].String() {
-				t.Fatalf("legacy next page = %v, want %s", legacyRows, ids[1])
-			}
 			if err := f.queries.RemoveWorkspace(ctx, ids[0]); err != nil {
 				t.Fatal(err)
 			}
