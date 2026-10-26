@@ -35,6 +35,8 @@ The `web/Dockerfile` image packages the dashboard and documentation together. On
 
 Production serves `docs.loco.build` and `loco.build/docs/`. Staging serves `docs.staging.loco.build` and `staging.loco.build/docs/`. The docs hostname is canonical; links inside the rendered site are relative so navigation also works under `/docs/`.
 
+The deployment skill lives in `docs/content/skills.md`. The build preserves its frontmatter at `/skills.md` on the docs hostname. The UI image also serves it at `/skills.md` and `/docs/skills.md` on the dashboard hostname.
+
 Main merges build production and staging UI images containing their matching docs builds, then notify the repository named by the `DEPLOY_DISPATCH_REPOSITORY` variable, which deploys them.
 
 `web/sws.toml` defines static roots and dashboard route rewrites. Existing dashboard routes resolve to the UI entrypoint; missing documentation URLs return HTTP 404. Add a rewrite when introducing a new dashboard route prefix. The container tests check the routes declared in `web/src/App.tsx`.

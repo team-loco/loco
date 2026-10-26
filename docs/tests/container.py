@@ -211,6 +211,14 @@ def test_image_serves_the_ui_and_docs():
             status, _, asset_headers = response(base + "/assets/loco.css", host)
             assert status == 200
             assert asset_headers["Cache-Control"] == "no-cache"
+            status, skill, skill_headers = response(base + "/skills.md", host)
+            assert status == 200
+            assert skill == (ROOT / "docs/content/skills.md").read_text()
+            assert skill_headers["Content-Type"].startswith("text/markdown")
+        status, skill, skill_headers = response(url + "/skills.md", UI_HOST)
+        assert status == 200
+        assert skill == (ROOT / "docs/content/skills.md").read_text()
+        assert skill_headers["Content-Type"].startswith("text/markdown")
         for host, path in [
             (UI_HOST, NOT_FOUND_PATH),
             (DOCS_HOST, NOT_FOUND_PATH),

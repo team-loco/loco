@@ -38,6 +38,9 @@ def test_environment_builds(subtests):
             assert f"https://{host}/" in (site / "llms.txt").read_text()
             assert "Deployment modes" in (site / "llms-full.txt").read_text()
             assert (site / "index.md").is_file()
+            assert (site / "skills.md").read_text() == (
+                DOCS / "content/skills.md"
+            ).read_text()
             web = DOCS.parent / "web"
             assert (site / "assets/favicon.svg").read_text() == (
                 web / "public/favicon.svg"
