@@ -22,7 +22,7 @@ export function Architecture() {
 				<CornerMarks />
 				<SectionHeading index="03" eyebrow="Architecture" title="Open source, end to end." className="max-w-[420px]">
 					<p className="m-0 text-xl leading-[1.55] text-pretty text-fg2">
-						Every request passes through these layers, from the edge to the control plane. No proprietary runtime.
+						The open-source components behind Loco, from routing and certificates to deployment and telemetry.
 					</p>
 				</SectionHeading>
 				<div className="flex flex-col overflow-hidden rounded-[12px] border border-line bg-background">
