@@ -10,7 +10,8 @@ clickhouse=$run_id-clickhouse
 workdir=$(mktemp -d)
 ready_attempts=60
 ports_per_run=4
-first_port=$((20000 + $$ % 10000 * ports_per_run))
+source mise-tasks/test/lib/ports.sh
+first_port=$(first_run_port "$ports_per_run")
 query_port=$first_port
 ingest_port=$((first_port + 1))
 ingest_grpc_port=$((first_port + 2))
