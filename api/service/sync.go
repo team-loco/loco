@@ -622,7 +622,6 @@ func deploymentTransitionForStatus(status *agentv1.PlacementStatus) deploymentTr
 			from: []genDb.DeploymentStatus{
 				genDb.DeploymentStatusPending,
 				genDb.DeploymentStatusDeploying,
-				genDb.DeploymentStatusRunning,
 			},
 		}
 	}
