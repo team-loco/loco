@@ -4,10 +4,10 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/internal/keychain"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	bootstrapv1 "github.com/team-loco/loco/gen/go/loco/bootstrap/v1"
 	"github.com/team-loco/loco/gen/go/loco/bootstrap/v1/bootstrapv1connect"
-	"github.com/team-loco/loco/internal/keychain"
 	"github.com/team-loco/loco/internal/rpc"
 )
 

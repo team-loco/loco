@@ -6,9 +6,9 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/internal/keychain"
+	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	"github.com/team-loco/loco/internal/keychain"
-	"github.com/team-loco/loco/internal/ui"
 )
 
 var errNotLoggedIn = errors.New("not logged in - nothing to revoke")

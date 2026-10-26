@@ -26,7 +26,7 @@ on:
       - "e2e/**"
       - "mise-tasks/e2e/**"
       - "mise-tasks/crds/**"
-      - "cmd/loco/**"
+      - "cmd/**"
       - "internal/**"
       - "go.mod"
       - "go.sum"

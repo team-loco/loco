@@ -12,7 +12,6 @@ import (
 	"connectrpc.com/validate"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/spf13/cobra"
 
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/auth/authtest"
@@ -21,7 +20,6 @@ import (
 	"github.com/team-loco/loco/api/interceptor"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/tvm"
-	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -31,7 +29,6 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
 	"github.com/team-loco/loco/internal/client"
 	"github.com/team-loco/loco/internal/rpc"
-	"github.com/team-loco/loco/internal/session"
 )
 
 const (
@@ -307,27 +304,22 @@ VALUES ($1, 'svc', 'service', '', '{}', 1) RETURNING id`, uuid.MustParse(o.share
 	}
 }
 
-func TestWorkspaceOnlyMemberResolvesWorkspaceWithTheCLI(t *testing.T) {
+func TestWorkspaceOnlyMemberListsWorkspaceUnderItsOrg(t *testing.T) {
 	o := newMembershipOrg(t)
 	member := o.api.signUp(t, "member")
 	o.addOrgMember(t, member)
 	o.grantWorkspace(t, member, o.shared)
-
-	cmd := &cobra.Command{}
-	cmd.Flags().String("org", "", "")
-	cmd.Flags().String("workspace", "", "")
-	if err := cmd.Flags().Set("org", membershipOrgName); err != nil {
-		t.Fatalf("set org: %v", err)
-	}
-	if err := cmd.Flags().Set("workspace", "shared"); err != nil {
-		t.Fatalf("set workspace: %v", err)
-	}
-	noCachedScope := func() (*session.SessionConfig, error) { return session.NewSessionConfig(), nil }
 	apiClient := client.NewClient(o.api.url, member.token)
 
-	id, err := cmdutil.ResolveWorkspaceID(t.Context(), cmd, noCachedScope, apiClient)
-	if err != nil || id != o.shared {
-		t.Fatalf("resolve "+membershipSharedPath+" = %q (%v), want %s", id, err, o.shared)
+	workspaces, err := apiClient.GetUserWorkspaces(t.Context())
+	if err != nil {
+		t.Fatalf("list workspaces: %v", err)
+	}
+	i := slices.IndexFunc(workspaces, func(ws *workspacev1.Workspace) bool {
+		return ws.GetOrgName()+"/"+ws.GetName() == membershipSharedPath
+	})
+	if i < 0 || workspaces[i].GetId() != o.shared {
+		t.Fatalf("workspaces = %v, want %s with id %s", workspaceNames(workspaces), membershipSharedPath, o.shared)
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/internal/keychain"
 	"github.com/team-loco/loco/cmd/loco/config"
 	envcmd "github.com/team-loco/loco/cmd/loco/env"
 	"github.com/team-loco/loco/cmd/loco/infra"
@@ -16,7 +17,6 @@ import (
 	"github.com/team-loco/loco/cmd/loco/resource"
 	"github.com/team-loco/loco/cmd/loco/token"
 	"github.com/team-loco/loco/cmd/loco/workspace"
-	"github.com/team-loco/loco/internal/keychain"
 	"github.com/team-loco/loco/internal/session"
 	"gopkg.in/natefinch/lumberjack.v2"
 )

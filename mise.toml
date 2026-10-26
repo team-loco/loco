@@ -41,16 +41,19 @@ run = ["mise install", "bun install --frozen-lockfile", "lefthook install", "mis
 
 [tasks.build]
 description = "Build the loco CLI into bin/loco"
-run = "go build -o bin/loco ./cmd/loco"
+dir = "cmd"
+run = "go build -o ../bin/loco ./loco"
 
 [tasks."build:locoadm"]
 description = "Build the locoadm operator CLI into bin/locoadm"
-run = "go build -o bin/locoadm ./cmd/locoadm"
+dir = "cmd"
+run = "go build -o ../bin/locoadm ./locoadm"
 
 [tasks."build:linux"]
 description = "Build the loco CLI for linux/amd64"
+dir = "cmd"
 env = { CGO_ENABLED = "0", GOOS = "linux", GOARCH = "amd64" }
-run = "go build -o bin/loco_unix ./cmd/loco"
+run = "go build -o ../bin/loco_unix ./loco"
 
 [tasks."build:api"]
 description = "Build the API server into api/bin"
@@ -93,8 +96,13 @@ description = "Run every test suite"
 depends = ["test:*"]
 
 [tasks."test:cli"]
-description = "Test the CLI and the dev tools in the root module"
-run = "go test -v -coverprofile=coverage.out ./cmd/... ./internal/... ./tools/..."
+description = "Test the loco and locoadm CLIs"
+dir = "cmd"
+run = "go test -v -coverprofile=coverage.out ./..."
+
+[tasks."test:shared"]
+description = "Test the shared packages and dev tools in the root module"
+run = "go test -v -coverprofile=coverage.out ./..."
 
 [tasks."test:api"]
 description = "Test the API server"
@@ -128,6 +136,7 @@ run = "go test -v -coverprofile=coverage.out ./..."
 [tasks.coverage]
 description = "Open an HTML coverage report for the CLI tests"
 depends = ["test:cli"]
+dir = "cmd"
 run = "go tool cover -o coverage.html -html=coverage.out && open coverage.html"
 
 [tasks.lint]

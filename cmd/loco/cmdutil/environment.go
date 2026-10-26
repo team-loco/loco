@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/internal/ui"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	"github.com/team-loco/loco/gen/go/loco/environment/v1/environmentv1connect"
-	"github.com/team-loco/loco/internal/ui"
 )
 
 const envVarEnvironment = "LOCO_ENV"

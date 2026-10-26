@@ -94,7 +94,7 @@ is a candidate; judge what a reader can see, not the directory.
 - `api/service/**`: observable API behaviour, error codes and messages, defaults the API fills
   in (`LOCO_DEFAULT_*`), limits such as `LOCO_SOURCE_MAX_BYTES`.
 - `internal/locofile/**`: loco.yaml fields, defaults and validation rules.
-- `internal/sourcepack/**`: what `loco deploy` packs and excludes.
+- `cmd/internal/sourcepack/**`: what `loco deploy` packs and excludes.
 - `agent/config.go`, `builder/config.go`, `observability-proxy/**`: environment the charts
   must pass; a new required variable changes the chart contract.
 - `charts/*/values.yaml` and `charts/*/templates/**`: install-time knobs (`builds.enabled`,

@@ -7,9 +7,9 @@ import (
 	"charm.land/lipgloss/v2"
 	"connectrpc.com/connect/v2"
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/internal/keychain"
+	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	"github.com/team-loco/loco/internal/keychain"
-	"github.com/team-loco/loco/internal/ui"
 )
 
 func newLogoutCmd(env Env) *cobra.Command {

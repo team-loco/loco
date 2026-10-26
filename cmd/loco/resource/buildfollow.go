@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/team-loco/loco/cmd/internal/logstream"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
-	"github.com/team-loco/loco/internal/logstream"
 )
 
 type detachedError struct {

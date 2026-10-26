@@ -29,10 +29,14 @@ jobs:
 
       - uses: ./.github/actions/setup-tools
         with:
-          go-cache: test-.
+          go-cache: test-cmd
 
-      - name: Run tests
+      - name: Run CLI tests
         run: mise run test:cli
+        timeout-minutes: 10
+
+      - name: Run shared package tests
+        run: mise run test:shared
         timeout-minutes: 10
 
   version:
@@ -86,6 +90,7 @@ jobs:
           go-cache: release-cli
 
       - name: Build binary
+        working-directory: cmd
         env:
           CGO_ENABLED: "0"
           GOOS: ${{ matrix.goos }}
@@ -95,7 +100,7 @@ jobs:
           for binary in loco locoadm; do
             go build -trimpath \
               -ldflags "-s -w -X main.version=${VERSION}" \
-              -o "bin/${binary}-${GOOS}-${GOARCH}" -v "./cmd/${binary}"
+              -o "../bin/${binary}-${GOOS}-${GOARCH}" -v "./${binary}"
           done
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

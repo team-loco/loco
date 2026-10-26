@@ -7,12 +7,12 @@ import (
 
 	"github.com/team-loco/loco/internal/rpc"
 
+	"github.com/team-loco/loco/cmd/internal/logstream"
 	"github.com/team-loco/loco/gen/go/loco/build/v1/buildv1connect"
 	"github.com/team-loco/loco/gen/go/loco/environment/v1/environmentv1connect"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/internal/httputil"
-	"github.com/team-loco/loco/internal/logstream"
 )
 
 const (

@@ -156,6 +156,20 @@ test_g05_second_plan_is_clean() {
     assert "the second plan has no changes" config_out_contains clean "No changes"
 }
 
+test_g05_second_plan_by_name_is_clean() {
+    local rc=0
+    mv "$cli_home/.loco/config.yaml" "$config_dir/config.yaml"
+    config_run by_name infra plan --env "$config_env" \
+        --org e2e-test-org --workspace e2e-test-workspace || rc=$?
+    mv "$config_dir/config.yaml" "$cli_home/.loco/config.yaml"
+    if ! assert "an org member with only a workspace grant plans by name without a cached scope (exit ${rc})" \
+        test "$rc" -eq 0; then
+        config_show by_name
+        return 1
+    fi
+    assert "the plan by name finds the applied services" config_out_contains by_name "No changes"
+}
+
 config_probes_match() {
     local service=$1 expected=$2 id deployment
     id=$(e2e_psql "SELECT id FROM resources WHERE name = '${service}'")

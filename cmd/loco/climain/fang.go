@@ -10,8 +10,8 @@ import (
 	"charm.land/fang/v2"
 	"charm.land/lipgloss/v2"
 	"connectrpc.com/connect/v2"
+	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	"github.com/team-loco/loco/internal/ui"
 )
 
 func ColorScheme() fang.ColorSchemeFunc {

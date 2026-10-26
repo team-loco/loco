@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/team-loco/loco/internal/keychain"
+	"github.com/team-loco/loco/cmd/internal/keychain"
 )
 
 type memoryTokenStore struct {

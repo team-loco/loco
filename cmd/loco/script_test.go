@@ -11,7 +11,7 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/rogpeppe/go-internal/testscript"
-	"github.com/team-loco/loco/internal/keychain"
+	"github.com/team-loco/loco/cmd/internal/keychain"
 )
 
 const (
