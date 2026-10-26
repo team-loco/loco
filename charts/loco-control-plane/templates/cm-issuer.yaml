@@ -16,11 +16,7 @@ spec:
     privateKeySecretRef:
       name: {{ .Values.certManager.issuer.name }}-key
     solvers:
-      - dns01:
-          cloudflare:
-            apiTokenSecretRef:
-              name: cloudflare-api-token-secret
-              key: api-token
+      {{- toYaml .Values.certManager.issuer.solvers | nindent 6 }}
   {{- else }}
   {{- fail "certManager.issuer.type must be acme or selfSigned" }}
   {{- end }}

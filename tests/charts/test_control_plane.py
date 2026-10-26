@@ -406,6 +406,14 @@ def gateway_listeners(overrides):
 PLAIN_HTTP = {"certManager": {"enabled": False}}
 
 
+def test_configured_solvers_render_verbatim_without_a_cloudflare_secret():
+    solvers = [{"dns01": {"route53": {"region": "us-east-1"}}}]
+    documents, _ = gateway_listeners({"certManager": {"issuer": {"solvers": solvers}}})
+    (issuer,) = by_kind(documents, "ClusterIssuer").values()
+    assert issuer["spec"]["acme"]["solvers"] == solvers
+    assert "cloudflare-api-token-secret" not in by_kind(documents, "Secret")
+
+
 def test_chart_creates_its_own_gateway_for_its_hostnames():
     documents, gateways = gateway_listeners({"gatewayNamespace": "edge", **PLAIN_HTTP})
     gateway = gateways["loco-control-plane"]
