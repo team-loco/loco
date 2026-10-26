@@ -390,6 +390,40 @@ var _ = Describe("Application reconcile", func() {
 		err = k8sClient.Get(ctx, appKey, app)
 		Expect(apierrors.IsNotFound(err)).To(BeTrue())
 	})
+	It("deletes the workspace namespace of the last Application only when the controller manages it", func() {
+		cases := map[string]map[string]string{
+			"ws-ns-unmanaged": nil,
+			"ws-ns-managed":   managed.Labels(),
+		}
+		for workspaceID, labels := range cases {
+			app := &locov1alpha1.Application{
+				Name:       "ns-guard-" + workspaceID,
+				Namespace:  testNamespace,
+				Finalizers: []string{finalizerAppResourcesCleanup},
+				Spec: locov1alpha1.ApplicationSpec{
+					Type: testAppType, ResourceID: workspaceID, WorkspaceID: workspaceID,
+				},
+			}
+			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+			nsKey := client.ObjectKey{Name: getNamespace(app)}
+			Expect(k8sClient.Create(ctx, &corev1.Namespace{Name: nsKey.Name, Labels: labels})).To(Succeed())
+
+			r := &LocoResourceReconciler{Client: k8sClient, Scheme: k8sClient.Scheme(), Telemetry: testTelemetry()}
+			appKey := client.ObjectKeyFromObject(app)
+			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+			_, err := r.Reconcile(ctx, reconcile.Request{NamespacedName: appKey})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(apierrors.IsNotFound(k8sClient.Get(ctx, appKey, app))).To(BeTrue())
+
+			ns := &corev1.Namespace{}
+			Expect(k8sClient.Get(ctx, nsKey, ns)).To(Succeed())
+			if labels == nil {
+				Expect(ns.DeletionTimestamp).To(BeNil(), "%s was deleted without being managed", nsKey.Name)
+			} else {
+				Expect(ns.DeletionTimestamp).NotTo(BeNil(), "%s was kept although managed", nsKey.Name)
+			}
+		}
+	})
 	It("rejects an Application without the values the controller requires", func() {
 		valid := isolationTestApplication("ws-required", "required-valid")
 		Expect(k8sClient.Create(ctx, valid)).To(Succeed())

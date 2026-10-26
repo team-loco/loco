@@ -107,8 +107,6 @@ type LocoResourceReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=servicecidrs,verbs=get;list;watch
 
-// todo: abuse of power. we should delete based on owner refs, not delete namespace access;
-
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -392,7 +390,17 @@ func (r *LocoResourceReconciler) deleteNamespaceIfUnused(
 	}
 
 	namespace := getNamespace(locoRes)
-	ns := &corev1.Namespace{Name: namespace}
+	ns := &corev1.Namespace{}
+	if err := reader.Get(ctx, client.ObjectKey{Name: namespace}, ns); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("get namespace %s: %w", namespace, err)
+	}
+	if ns.Labels[managed.LabelManagedBy] != managed.ManagedByValue {
+		slog.InfoContext(ctx, "namespace not managed by the controller, leaving it", "namespace", namespace)
+		return nil
+	}
 	if err := r.Delete(ctx, ns); err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("delete namespace %s: %w", namespace, err)
 	}

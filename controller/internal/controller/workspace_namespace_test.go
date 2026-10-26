@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	v1Gateway "sigs.k8s.io/gateway-api/apis/v1"
 
+	"github.com/team-loco/loco/controller/internal/managed"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -125,7 +126,7 @@ func TestDeletingTheLastAppRemovesTheWorkspaceNamespace(t *testing.T) {
 	app := workspaceApp("only", "1")
 	other := workspaceApp("elsewhere", "5")
 	other.Spec.WorkspaceID = "9"
-	namespace := &corev1.Namespace{Name: getNamespace(app)}
+	namespace := &corev1.Namespace{Name: getNamespace(app), Labels: managed.Labels()}
 
 	kubeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(namespace, app, other).Build()
 	r := &LocoResourceReconciler{Client: kubeClient}
