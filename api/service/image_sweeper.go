@@ -12,15 +12,15 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/advisorylock"
 	"github.com/team-loco/loco/api/pkg/registryclient"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
-	imageSweepLockKey      int64 = 0x6c6f636f0002
-	workspacePathPrefix          = "ws-"
-	repositoryPathParts          = 2
-	uuidVersionTimeOrdered       = 7
+	workspacePathPrefix    = "ws-"
+	repositoryPathParts    = 2
+	uuidVersionTimeOrdered = 7
 )
 
 var (
@@ -111,7 +111,7 @@ func (s *ImageSweeper) Sweep(ctx context.Context) (ImageSweepResult, error) {
 		return result, fmt.Errorf("acquire connection: %w", err)
 	}
 	lockQueries := genDb.New(conn)
-	locked, err := lockQueries.TryAdvisoryLock(ctx, imageSweepLockKey)
+	locked, err := lockQueries.TryAdvisoryLock(ctx, advisorylock.ImageSweep)
 	if err != nil {
 		conn.Release()
 		return result, fmt.Errorf("lock image sweep: %w", err)
@@ -120,7 +120,7 @@ func (s *ImageSweeper) Sweep(ctx context.Context) (ImageSweepResult, error) {
 		conn.Release()
 		return result, nil
 	}
-	defer unlockAdvisory(ctx, conn, lockQueries, imageSweepLockKey)
+	defer unlockAdvisory(ctx, conn, lockQueries, advisorylock.ImageSweep)
 	result.Ran = true
 
 	deleted, err := s.deleteExpiredImages(ctx)

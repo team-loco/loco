@@ -11,12 +11,12 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/advisorylock"
 )
 
 const (
-	installSyncLockKey int64 = 0x6c6f636f0002
-	schemeHTTP               = "http"
-	schemeHTTPS              = "https"
+	schemeHTTP  = "http"
+	schemeHTTPS = "https"
 )
 
 var (
@@ -75,7 +75,7 @@ func SyncInstallWebhooks(ctx context.Context, pool *pgxpool.Pool, hooks []Instal
 	}
 	return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
 		q := genDb.New(tx)
-		if err := q.LockInstallWebhooks(ctx, installSyncLockKey); err != nil {
+		if err := q.LockInstallWebhooks(ctx, advisorylock.InstallWebhookSync); err != nil {
 			return fmt.Errorf("lock install webhooks: %w", err)
 		}
 		if _, err := q.DeleteInstallWebhooksExcept(ctx, urls); err != nil {
