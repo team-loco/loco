@@ -29,4 +29,11 @@ loco login --host https://api.loco.build
 loco config set webHost https://loco.build
 ```
 
-For commands supported by your installed release, run `loco help`. To deploy, write a [`loco.yaml`](../deployment/loco-yaml.md).
+For commands supported by your installed release, run `loco help`. Run `loco deploy` from an application directory to deploy with API defaults, without writing a configuration file:
+
+```sh
+loco deploy
+loco deploy --name web --port 8080 --yes
+```
+
+The CLI uses the default region, resources and a hostname under a platform domain. In a terminal it asks for the service name; without a terminal it uses the directory name unless `--name` is set. Use `--private` to omit a public hostname, or `--image` to deploy a public image. To keep service configuration in the repository, write a [`loco.yaml`](../deployment/loco-yaml.md).

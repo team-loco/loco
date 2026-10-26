@@ -66,3 +66,19 @@ test_c03_cli_deployment_runs_the_build() {
         kubectl --context "$cli_ctx" -n "ws-${cli_workspace_id}" get deployments \
         -o jsonpath='{.items[*].spec.template.spec.containers[*].image}'
 }
+
+test_c04_cli_deploys_without_loco_yaml() {
+    local minimal_dir="$cli_dir/minimal" minimal_app="e2e-cli-minimal" rc=0
+    mkdir -p "$minimal_dir"
+    cp -R "$E2E_ROOT_DIR/e2e/fixtures/build-app/." "$minimal_dir/"
+    (cd "$minimal_dir" && loco_cli deploy --name "$minimal_app" --port 8080 --region us-east-1 \
+        --domain "${minimal_app}.e2e.test.local" --dockerfile deploy/Dockerfile --yes) \
+        >"$cli_dir/minimal.out" 2>"$cli_dir/minimal.err" || rc=$?
+    if ! assert "loco deploy without loco.yaml built ${minimal_app} (exit ${rc})" test "$rc" -eq 0; then
+        sed 's/^/    /' "$cli_dir/minimal.out" "$cli_dir/minimal.err"
+        return 1
+    fi
+    assert "minimal deployment wrote no loco.yaml" test ! -e "$minimal_dir/loco.yaml"
+    assert_contains "minimal deployment reports its public URL" "${minimal_app}: https://${minimal_app}.e2e.test.local" cat "$cli_dir/minimal.out"
+    wait_for "the minimal app to be Ready" 120 cli_application_is_ready "$minimal_app"
+}

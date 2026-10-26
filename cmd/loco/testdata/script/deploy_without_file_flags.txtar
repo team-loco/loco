@@ -1,0 +1,51 @@
+fakeapi resource api
+fakeapi plan plan.json
+cd app
+exec loco deploy --name api --port 9090 --region us-east-1 --domain api.onloco.test --dockerfile deploy/Dockerfile --context src --yes
+stdout '^Building api from deploy/Dockerfile in src$'
+stdout '^api: https://api.onloco.test$'
+fakeapi built api deploy/Dockerfile src
+fakeapi planned ../want.yaml
+! exists loco.yaml
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.yaml --
+currentScope: default
+scopes:
+  default:
+    organization:
+      name: acme
+      id: "1"
+    workspace:
+      name: production
+      id: "2"
+-- app/src/deploy/Dockerfile --
+FROM scratch
+COPY main.go /
+-- app/src/main.go --
+package main
+-- plan.json --
+{
+  "revision": "7",
+  "operations": [
+    {"kind": "PLAN_OPERATION_KIND_UPDATE", "service": "api", "needsDeploy": true}
+  ]
+}
+-- want.yaml --
+partial: api
+services:
+  api:
+    context: src
+    dockerfile: deploy/Dockerfile
+    domains:
+    - api.onloco.test
+    port: 9090
+    regions:
+      us-east-1:
+        cpu: 100m
+        memory: 256Mi
+        replicas:
+          max: 2
+          min: 1
+version: 1
