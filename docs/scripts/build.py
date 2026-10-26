@@ -52,6 +52,7 @@ def main():
     if args.command == 'build':
         rule = 'Disallow: /' if args.environment == 'staging' else 'Allow: /'
         (DOCS / 'site' / 'robots.txt').write_text(f'User-agent: *\n{rule}\nSitemap: {url}sitemap.xml\n')
+        shutil.copyfile(DOCS / 'content' / 'skills.md', DOCS / 'site' / 'skills.md')
 
 
 if __name__ == '__main__':

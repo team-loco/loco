@@ -29,6 +29,7 @@ nav = [
     { "Architecture" = "reference/architecture.md" },
     { "CLI and API" = "reference/cli-api.md" },
     { "Use with AI" = "reference/ai.md" },
+    { "Deploy with an AI agent" = "skills.md" },
   ] },
   { "Contribute" = [
     { "Local development" = "contributing/development.md" },

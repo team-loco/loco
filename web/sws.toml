@@ -44,6 +44,12 @@ Content-Type = "text/plain; charset=utf-8"
 Cache-Control = "no-cache"
 
 [[advanced.headers]]
+source = "/{skills.md,docs/skills.md}"
+[advanced.headers.headers]
+Content-Type = "text/markdown; charset=utf-8"
+Cache-Control = "no-cache"
+
+[[advanced.headers]]
 source = "/{docs/**,assets/loco.css,assets/favicon.svg}"
 [advanced.headers.headers]
 Cache-Control = "no-cache"
