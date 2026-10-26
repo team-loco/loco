@@ -23,6 +23,7 @@ on:
       - OSV
       - Private Discovery E2E
       - Publish platform release
+      - Resource Status E2E
       - Tests
       - Transit Conformance
       - Web
