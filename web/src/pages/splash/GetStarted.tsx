@@ -36,8 +36,8 @@ const STEPS: readonly Step[] = [
 	},
 	{
 		n: "02",
-		title: "Sign in with GitHub",
-		body: "Device flow, no passwords. Your session is scoped to your org and workspaces.",
+		title: "Sign in",
+		body: "Sign in through your Loco instance. Use --device on a headless machine.",
 		command: "loco login",
 		output: [
 			["! one-time code  8F2A-91C3", "warn"],
@@ -49,7 +49,7 @@ const STEPS: readonly Step[] = [
 		n: "03",
 		title: "Deploy",
 		body: "Build, push, roll out, health-check and route. Then it's live.",
-		command: "loco deploy api",
+		command: "loco infra init && loco deploy",
 		output: [
 			["✓ built  sha-8a03f2", "muted"],
 			["✓ 3/3 replicas healthy", "muted"],
@@ -111,7 +111,7 @@ export function GetStarted() {
 		<section id="start" ref={revealRef} className="scroll-mt-16 border-t border-line">
 			<Frame className="flex flex-col gap-14 py-28">
 				<CornerMarks />
-				<SectionHeading index="01" eyebrow="Get started" title="Three commands to production." />
+				<SectionHeading index="01" eyebrow="Get started" title="From source to a running service." />
 				<div className="grid border-t border-line md:grid-cols-3">
 					{STEPS.map((step, i) => {
 						const isCopied = copied === step.n;
