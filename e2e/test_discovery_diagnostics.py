@@ -1,13 +1,11 @@
-import importlib.util
 import json
 import os
 import subprocess
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
-SPEC = importlib.util.spec_from_file_location("discovery_diagnostics", ROOT / "e2e/discovery_diagnostics.py")
-diagnostics = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(diagnostics)
+import discovery_diagnostics as diagnostics
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_dns_failure_keeps_only_allowlisted_diagnostics(monkeypatch, tmp_path):

@@ -7,6 +7,9 @@ on:
       - main
     paths:
       - "web/**"
+      - "tests/install/**"
+      - "tests/pyproject.toml"
+      - "tests/uv.lock"
       - "api/events/**"
       - "api/authz/**"
       - "api/service/event*"
@@ -41,6 +44,9 @@ on:
   pull_request:
     paths:
       - "web/**"
+      - "tests/install/**"
+      - "tests/pyproject.toml"
+      - "tests/uv.lock"
       - "api/events/**"
       - "api/authz/**"
       - "api/service/event*"
@@ -108,6 +114,9 @@ jobs:
 
       - name: Test
         run: mise run test:web
+
+      - name: Test install script
+        run: mise run test:install
 
       - name: Install browser
         run: uv run --frozen --project docs playwright install --with-deps chromium

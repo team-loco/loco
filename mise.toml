@@ -158,11 +158,15 @@ run = ["bun run lint:fast", "bun run lint:types", "bun run typecheck"]
 
 [tasks."test:e2e-diagnostics"]
 description = "Test discovery failure diagnostics without a cluster"
-run = "uv run --locked --project tests pytest tests/e2e/test_discovery_diagnostics.py"
+run = "uv run --locked --project tests pytest e2e/test_discovery_diagnostics.py"
 
 [tasks."test:ci"]
 description = "Test CI component selection and pull-request diffs"
 run = "uv run --locked --project tests pytest .github/actions/go-changes/tests .github/actions/ci-gate/tests"
+
+[tasks."test:install"]
+description = "Test the CLI install script's arguments"
+run = "uv run --locked --project tests pytest tests/install"
 
 [tasks."test:govulncheck"]
 description = "Test vulnerability scan module coverage and failure propagation"
@@ -432,11 +436,6 @@ run = "uv run --frozen --project docs python e2e/activity_ui.py"
 [tasks."e2e:trace-ui"]
 description = "Test the production trace viewer against fixture trace responses with a throwaway API and database"
 run = "uv run --frozen --project docs python e2e/trace_ui.py"
-
-[tasks."test:python"]
-description = "Run all Python unit tests"
-depends = ["helm:deps"]
-run = "uv run --locked --project docs pytest"
 
 [tasks."e2e:shared-controls"]
 description = "Test compact shared controls, segmented selection and pinned navigation in the production browser"

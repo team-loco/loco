@@ -3,7 +3,6 @@ name: Publish platform release
 on:
   pull_request:
     paths:
-      - "pytest.ini"
       - "tests/pyproject.toml"
       - "tests/uv.lock"
       - tools/platform-release/**
