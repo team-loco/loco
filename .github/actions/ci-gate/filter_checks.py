@@ -41,33 +41,17 @@ def verdict(rows):
     return 'completed', 'success'
 
 
-def latest_gate(check_pages, self_name):
-    gates = [check for page in check_pages for check in page['check_runs'] if check['name'] == self_name]
-    return max(gates, key=lambda check: check['id'], default=None)
-
-
-def gate_request(rows, gate, self_name, head_sha, details_url):
+def gate_request(rows, self_name, head_sha, details_url):
     status, conclusion = verdict(rows)
-    if gate is not None and gate['status'] == status and gate['conclusion'] == conclusion:
-        return None
     pending = [name for name, state, _ in rows if state != 'completed']
     failing = [name for name, state, result in rows if state == 'completed' and result not in PASSING]
-    table = '\n'.join(f'| {name} | {result or state} |' for name, state, result in rows)
     body = {
-        'name': self_name,
-        'head_sha': head_sha,
-        'status': status,
-        'details_url': details_url,
-        'output': {
-            'title': f'{len(failing)} failing, {len(pending)} running, {len(rows)} total',
-            'summary': '| Check | Result |\n| --- | --- |\n' + table,
-        },
+        'state': conclusion or 'pending',
+        'context': self_name,
+        'target_url': details_url,
+        'description': f'{len(failing)} failing, {len(pending)} running, {len(rows)} total',
     }
-    if conclusion is not None:
-        body['conclusion'] = conclusion
-    if gate is None or gate['status'] == 'completed':
-        return 'POST check-runs', body
-    return f"PATCH check-runs/{gate['id']}", body
+    return f'POST statuses/{head_sha}', body
 
 
 if __name__ == '__main__':
@@ -79,7 +63,6 @@ if __name__ == '__main__':
     for name, state, result in rows:
         print(f'  {name:<34} {result or state}', file=sys.stderr)
     print(f'{self_name}: {" ".join(filter(None, verdict(rows)))}', file=sys.stderr)
-    request = gate_request(rows, latest_gate(check_pages, self_name), self_name, current['head_sha'], details_url)
-    if request is not None:
-        Path(body_path).write_text(json.dumps(request[1]))
-        print(request[0])
+    request = gate_request(rows, self_name, current['head_sha'], details_url)
+    Path(body_path).write_text(json.dumps(request[1]))
+    print(request[0])

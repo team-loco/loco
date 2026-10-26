@@ -46,16 +46,6 @@ def run(identifier, status, conclusion, workflow=1, name="Tests"):
     }
 
 
-def gate(identifier, status, conclusion):
-    return {
-        "id": identifier,
-        "name": "CI Gate",
-        "status": status,
-        "conclusion": conclusion,
-        "check_suite": {"id": 0},
-    }
-
-
 def _run_gate(runs, current, checks=()):
     script = _yq(".jobs.gate.steps[1].run")
     with tempfile.TemporaryDirectory() as directory:
@@ -93,57 +83,42 @@ def _writes(calls):
     return [call for call in calls if "--method" in call]
 
 
-def test_evaluation_reads_twice_and_writes_once():
+def test_evaluation_reads_twice_and_posts_a_commit_status():
     calls, body = _run_gate(
         [run(1, "completed", "success")], run(1, "completed", "success")
     )
     assert len(calls) == 3
     assert len(_writes(calls)) == 1
-    assert _writes(calls)[0].startswith("api --method POST repos/fixture/repo/check-runs ")
-    assert (body["name"], body["head_sha"], body["status"], body["conclusion"]) == (
+    assert _writes(calls)[0].startswith("api --method POST repos/fixture/repo/statuses/fixture ")
+    assert (body["context"], body["state"], body["target_url"]) == (
         "CI Gate",
-        "fixture",
-        "completed",
         "success",
+        "https://example.test/run",
     )
 
 
-def test_unchanged_verdict_writes_nothing():
+def test_running_checks_post_pending():
     calls, body = _run_gate(
         [run(1, "completed", "success"), run(2, "in_progress", None, workflow=2)],
         run(1, "completed", "success"),
-        [gate(5, "in_progress", None)],
     )
-    assert len(calls) == 2
-    assert body is None
+    assert body["state"] == "pending"
+    assert body["description"] == "0 failing, 1 running, 2 total"
 
 
-def test_pending_gate_is_completed_in_place():
+def test_a_failed_check_posts_failure():
     calls, body = _run_gate(
-        [run(1, "completed", "failure")],
+        [run(1, "completed", "failure"), run(2, "queued", None, workflow=2)],
         run(1, "completed", "failure"),
-        [gate(5, "in_progress", None)],
     )
-    assert _writes(calls)[0].startswith("api --method PATCH repos/fixture/repo/check-runs/5 ")
-    assert body["conclusion"] == "failure"
-
-
-def test_rerun_after_a_verdict_creates_a_new_gate():
-    calls, body = _run_gate(
-        [run(1, "completed", "success"), run(2, "queued", None, workflow=2)],
-        run(1, "completed", "success"),
-        [gate(5, "completed", "failure")],
-    )
-    assert _writes(calls)[0].startswith("api --method POST repos/fixture/repo/check-runs ")
-    assert body["status"] == "in_progress"
-    assert "conclusion" not in body
+    assert body["state"] == "failure"
 
 
 def test_triggering_run_overrides_a_stale_listing():
     calls, body = _run_gate(
         [run(1, "in_progress", None)], run(1, "completed", "success")
     )
-    assert body["conclusion"] == "success"
+    assert body["state"] == "success"
 
 
 def test_superseded_cancelled_run_waits_for_its_replacement():
@@ -151,8 +126,7 @@ def test_superseded_cancelled_run_waits_for_its_replacement():
         [run(1, "completed", "cancelled"), run(2, "queued", None)],
         run(1, "completed", "cancelled"),
     )
-    assert body["status"] == "in_progress"
-    assert "conclusion" not in body
+    assert body["state"] == "pending"
 
 
 def test_runs_of_every_event_are_listed():

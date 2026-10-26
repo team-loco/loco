@@ -30,7 +30,8 @@ on:
 
 permissions:
   actions: read
-  checks: write
+  checks: read
+  statuses: write
   contents: read
 
 concurrency:
@@ -61,6 +62,4 @@ jobs:
           gh api --paginate --slurp "repos/$REPO/actions/runs?head_sha=$SHA&per_page=100" > "$RUNNER_TEMP/runs.json"
           gh api --paginate --slurp "repos/$REPO/commits/$SHA/check-runs?per_page=100" > "$RUNNER_TEMP/checks.json"
           request=$(python3 .github/actions/ci-gate/filter_checks.py "$RUNNER_TEMP/runs.json" "$RUNNER_TEMP/checks.json" "$GITHUB_EVENT_PATH" "$SELF" "$DETAILS" "$RUNNER_TEMP/gate.json")
-          if [ -n "$request" ]; then
-            gh api --method "${request%% *}" "repos/$REPO/${request#* }" --input "$RUNNER_TEMP/gate.json" > /dev/null
-          fi
+          gh api --method "${request%% *}" "repos/$REPO/${request#* }" --input "$RUNNER_TEMP/gate.json" > /dev/null
