@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -27,6 +28,8 @@ import (
 )
 
 const traceHTTPQueryTimeout = 10
+
+var errTraceTestStorage = errors.New("storage unavailable")
 
 const traceTestReader = "workspace-reader"
 
@@ -54,7 +57,7 @@ func (p *tracePermissions) CheckPermission(
 
 func traceTestClient(
 	t *testing.T,
-	ch *chClient.Client,
+	store Store,
 	queryTimeout ...int,
 ) observabilityv1connect.ObservabilityProxyServiceClient {
 	t.Helper()
@@ -74,20 +77,12 @@ func traceTestClient(
 		}
 	})
 	validator := auth.NewValidator(controlHTTP.URL, memory)
-	if ch == nil {
-		var clientErr error
-		ch, clientErr = chClient.NewClient("clickhouse://127.0.0.1:1", "default", 1)
-		if clientErr != nil {
-			t.Fatal(clientErr)
-		}
-		t.Cleanup(ch.Close)
-	}
 	timeout := traceHTTPQueryTimeout
 	if len(queryTimeout) > 0 {
 		timeout = queryTimeout[0]
 	}
 	cfg := &config.Config{DefaultLimit: 1, MaxLimit: 2, MaxTimeRange: time.Hour, QueryTimeout: timeout}
-	service := NewObservabilityService(ch, cfg, validator)
+	service := NewObservabilityService(store, cfg, validator)
 	server := connect.NewServer(auth.NewAuthInterceptor().Interceptor())
 	observabilityv1connect.RegisterObservabilityProxyServiceHandler(server, service)
 	mux := http.NewServeMux()
@@ -99,10 +94,10 @@ func traceTestClient(
 }
 
 func TestQueryTracesHTTPAuthValidationAndErrors(t *testing.T) {
-	client := traceTestClient(t, nil)
 	cases := []struct {
 		name, token, workspace, cursor string
 		missingTime                    bool
+		storeErr                       error
 		code                           connect.Code
 	}{
 		{name: "missing token", workspace: tailTestWorkspace, code: connect.CodeUnauthenticated},
@@ -126,17 +121,21 @@ func TestQueryTracesHTTPAuthValidationAndErrors(t *testing.T) {
 			token:     traceTestReader,
 			workspace: tailTestWorkspace,
 			cursor:    "invalid!",
+			storeErr:  chClient.ErrInvalidTraceCursor,
 			code:      connect.CodeInvalidArgument,
 		},
 		{
 			name:      "authorized storage failure",
 			token:     traceTestReader,
 			workspace: tailTestWorkspace,
+			storeErr:  errTraceTestStorage,
 			code:      connect.CodeInternal,
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			store := &fakeStore{err: tc.storeErr}
+			client := traceTestClient(t, store)
 			now := time.Now()
 			req := &observabilityv1.QueryTracesRequest{
 				WorkspaceId: tc.workspace,
@@ -154,6 +153,9 @@ func TestQueryTracesHTTPAuthValidationAndErrors(t *testing.T) {
 			_, err := client.QueryTraces(ctx, req)
 			if connect.CodeOf(err) != tc.code {
 				t.Fatalf("error = %v, want %v", err, tc.code)
+			}
+			if reached := store.calls > 0; reached != (tc.storeErr != nil) {
+				t.Errorf("store calls = %d with store error %v", store.calls, tc.storeErr)
 			}
 			if tc.code == connect.CodeInternal && err.Error() != "internal: query failed" {
 				t.Errorf("private diagnostic exposed: %v", err)

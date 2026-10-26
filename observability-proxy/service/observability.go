@@ -28,14 +28,34 @@ const defaultTailLookback = 2 * time.Second
 
 var _ observabilityv1connect.ObservabilityProxyServiceHandler = (*ObservabilityService)(nil)
 
+type Store interface {
+	QueryLogs(
+		ctx context.Context, workspaceID string, resourceIDs []string,
+		startTime, endTime time.Time, search string, levels []string, labels map[string]string,
+		limit int32, cursor string, order observabilityv1.LogOrder, queryTimeout int, scope chClient.LogScope,
+	) ([]*observabilityv1.LogEntry, string, error)
+	QueryTailLogPage(
+		ctx context.Context, request *observabilityv1.TailLogsRequest, since time.Time,
+		limit int32, queryTimeout int, cursor chClient.TailLogCursor,
+	) (chClient.TailLogPage, error)
+	QueryMetrics(
+		ctx context.Context, workspaceID, environmentID, region string, resourceIDs []string,
+		startTime, endTime time.Time, metricName string, intervalSeconds int32, aggregation string,
+		queryTimeout int,
+	) ([]*observabilityv1.MetricSeries, error)
+	QueryTraces(
+		ctx context.Context, req *observabilityv1.QueryTracesRequest, limit int32, queryTimeout int,
+	) (*observabilityv1.QueryTracesResponse, error)
+}
+
 type ObservabilityService struct {
-	ch        *chClient.Client
+	store     Store
 	cfg       *config.Config
 	validator *auth.Validator
 }
 
-func NewObservabilityService(ch *chClient.Client, cfg *config.Config, validator *auth.Validator) *ObservabilityService {
-	return &ObservabilityService{ch: ch, cfg: cfg, validator: validator}
+func NewObservabilityService(store Store, cfg *config.Config, validator *auth.Validator) *ObservabilityService {
+	return &ObservabilityService{store: store, cfg: cfg, validator: validator}
 }
 
 func (s *ObservabilityService) QueryLogs(
@@ -63,9 +83,8 @@ func (s *ObservabilityService) QueryLogs(
 
 	limit := guardrails.ClampLimit(req.GetLimit(), s.cfg)
 
-	entries, nextCursor, err := chClient.QueryLogs(
+	entries, nextCursor, err := s.store.QueryLogs(
 		ctx,
-		s.ch.Conn(),
 		req.GetWorkspaceId(),
 		req.GetResourceIds(),
 		req.GetStartTime().AsTime(),
@@ -204,9 +223,8 @@ func (s *ObservabilityService) QueryMetrics(
 		return nil, err
 	}
 
-	series, err := chClient.QueryMetrics(
+	series, err := s.store.QueryMetrics(
 		ctx,
-		s.ch.Conn(),
 		req.GetWorkspaceId(),
 		req.GetEnvironmentId(),
 		req.GetRegion(),

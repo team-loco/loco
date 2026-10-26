@@ -23,9 +23,8 @@ func (s *ObservabilityService) pollTailLogs(
 		if err := ctx.Err(); err != nil {
 			return sent, err
 		}
-		page, err := chClient.QueryTailLogPage(
+		page, err := s.store.QueryTailLogPage(
 			ctx,
-			s.ch.Conn(),
 			request,
 			start,
 			tailPageSize,

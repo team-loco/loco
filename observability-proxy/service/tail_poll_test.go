@@ -26,7 +26,7 @@ const (
 	tailTestLogsTTL      = 48 * time.Hour
 )
 
-func newTailTestService(t *testing.T) *ObservabilityService {
+func newTailTestService(t *testing.T) (*ObservabilityService, *chClient.Client) {
 	t.Helper()
 	dsn := os.Getenv("LOCO_TEST_CLICKHOUSE_URL")
 	if dsn == "" {
@@ -54,12 +54,11 @@ func newTailTestService(t *testing.T) *ObservabilityService {
 		}
 	})
 	service := NewObservabilityService(client, &config.Config{QueryTimeout: tailTestQueryTimeout}, nil)
-	return service
+	return service, client
 }
 
 func TestTailPollDrainsEqualTimestampPagesAndKeepsItsCursor(t *testing.T) {
-	service := newTailTestService(t)
-	client := service.ch
+	service, client := newTailTestService(t)
 
 	timestamp := time.Now().UTC().Add(-time.Minute)
 	attrs := map[string]string{
@@ -158,13 +157,13 @@ func TestTailPollDrainsEqualTimestampPagesAndKeepsItsCursor(t *testing.T) {
 }
 
 func TestTailPollDeliversLateRecordsAcrossPartitionsAndMerges(t *testing.T) {
-	service := newTailTestService(t)
+	service, client := newTailTestService(t)
 	midnight := time.Now().UTC().Truncate(24 * time.Hour)
 	since := midnight.Add(-time.Minute)
 	first := time.Now().UTC()
 	insert := func(timestamp time.Time, body string) {
 		t.Helper()
-		batch, err := service.ch.Conn().
+		batch, err := client.Conn().
 			PrepareBatch(t.Context(), "INSERT INTO otel_logs (Timestamp, Body, ResourceAttributes)")
 		if err != nil {
 			t.Fatal(err)
@@ -204,7 +203,7 @@ func TestTailPollDeliversLateRecordsAcrossPartitionsAndMerges(t *testing.T) {
 	poll("first")
 	insert(midnight.Add(-time.Second), "late previous partition")
 	poll("late previous partition")
-	if err := service.ch.Conn().Exec(t.Context(), "OPTIMIZE TABLE otel_logs FINAL"); err != nil {
+	if err := client.Conn().Exec(t.Context(), "OPTIMIZE TABLE otel_logs FINAL"); err != nil {
 		t.Fatal(err)
 	}
 	insert(midnight, "late same partition")

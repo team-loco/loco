@@ -36,7 +36,7 @@ func (s *ObservabilityService) QueryTraces(
 		return nil, err
 	}
 	limit := guardrails.ClampLimit(req.GetLimit(), s.cfg)
-	response, err := chClient.QueryTraces(ctx, s.ch.Conn(), req, limit, s.cfg.QueryTimeout)
+	response, err := s.store.QueryTraces(ctx, req, limit, s.cfg.QueryTimeout)
 	if errors.Is(err, chClient.ErrInvalidTraceCursor) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
