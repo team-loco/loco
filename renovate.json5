@@ -78,6 +78,12 @@
       matchPackageNames: ["opentelemetry-**"],
     },
     {
+      description: "A chart publishes only when its version moves, and lint:chart-versions requires the bump",
+      matchManagers: ["helmv3", "helm-values"],
+      matchFileNames: ["charts/**"],
+      bumpVersion: "patch",
+    },
+    {
       matchManagers: ["dockerfile", "docker-compose"],
       pinDigests: true,
     },

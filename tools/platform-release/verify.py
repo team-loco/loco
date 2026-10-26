@@ -66,12 +66,17 @@ def main():
         expected_cp_images = {f"{images[name].split('@')[0]}:sha-{FIXTURE_COMMIT}@{FIXTURE_DIGEST}" for name in ('api', 'obs-proxy', 'ui')}
         if cp_images != expected_cp_images:
             raise RuntimeError('control-plane chart does not render the pinned API and observability proxy images')
+        versions = release.versions()
         for name in release.CHARTS:
-            release.run('helm', 'package', str(release.ROOT / 'charts' / name), '--version', FIXTURE_VERSION, '--app-version', FIXTURE_VERSION, '--destination', directory)
-            package = temp / (name + '-' + FIXTURE_VERSION + '.tgz')
+            release.run('helm', 'package', str(release.ROOT / 'charts' / name), '--destination', directory)
+            package = temp / (name + '-' + versions[name] + '.tgz')
             metadata = documents(release.run('helm', 'show', 'chart', str(package)))[0]
-            if metadata['version'] != FIXTURE_VERSION or metadata['appVersion'] != FIXTURE_VERSION:
-                raise RuntimeError('packaged chart version differs from platform release')
+            if metadata['version'] != versions[name]:
+                raise RuntimeError('packaged chart version differs from its Chart.yaml')
+            again = temp / 'again'
+            release.run('helm', 'package', str(release.ROOT / 'charts' / name), '--destination', str(again))
+            if release.content((again / package.name).read_bytes()) != release.content(package.read_bytes()):
+                raise RuntimeError('packaged chart content is not reproducible')
         release.gateway_crds(next((release.ROOT / 'charts/loco-worker/charts').glob('gateway-helm-*.tgz')))
         for name in ('applications', 'builds'):
             release.protected_crd(release.ROOT / f'controller/config/crd/bases/infra.loco.io_{name}.yaml')

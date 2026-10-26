@@ -12,10 +12,18 @@ on:
       - .github/workflows/platform-release.yml
       - mise.toml
       - mise.lock
+  push:
+    branches:
+      - main
+    paths:
+      - tools/platform-release/**
+      - charts/**
+      - controller/config/crd/bases/**
+      - .github/workflows/platform-release.yml
   workflow_dispatch:
     inputs:
       version:
-        description: Immutable version, X.Y.Z or X.Y.Z-rc.N
+        description: Immutable platform bundle version, X.Y.Z or X.Y.Z-rc.N
         required: true
         type: string
       core_commit:
@@ -27,20 +35,65 @@ permissions:
   contents: read
 
 concurrency:
-  group: platform-release-${{ github.event_name == 'workflow_dispatch' && 'publication' || github.event.pull_request.number || github.run_id }}
+  group: platform-release-${{ github.event.pull_request.number || github.event_name }}
   cancel-in-progress: false
 
 jobs:
   validate:
-    if: github.event_name != 'workflow_dispatch'
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: ./.github/actions/setup-tools
       - run: mise run test:platform-release
       - run: mise run test:platform-render
+      - name: Check that changed charts and CRD bundles bump their versions
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: mise run lint:chart-versions "origin/$BASE_REF"
+
+  artifacts:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: platform-release
+    permissions:
+      contents: read
+      packages: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CORE_COMMIT: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-tools
+
+      - name: Validate platform packaging
+        run: |
+          mise run test:platform-release
+          mise run test:platform-render
+
+      - name: Publish every chart and CRD bundle version not yet in the registry
+        env:
+          RELEASE_REPOSITORY: ${{ github.repository }}
+        run: |
+          mise run release:artifacts -- --commit "$CORE_COMMIT" --repository "${RELEASE_REPOSITORY,,}" | tee platform-artifacts.json
+
+      - name: Report the published versions
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          artifacts = json.loads(Path('platform-artifacts.json').read_text())
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.writelines('- `' + reference + '`\n' for reference in artifacts.values())
+          PY
 
   publish:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
@@ -80,7 +133,7 @@ jobs:
           REGISTRY_USER: ${{ github.actor }}
         run: printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$REGISTRY_USER" --password-stdin
 
-      - name: Publish charts and CRDs, then the platform bundle
+      - name: Publish the platform bundle
         env:
           RELEASE_REPOSITORY: ${{ github.repository }}
         run: |

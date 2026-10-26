@@ -16,6 +16,14 @@ import urllib.request
 
 ROOT = Path(__file__).resolve().parents[2]
 CHARTS = ('loco-worker', 'loco-control-plane')
+CRD_SOURCES = {
+    'applications': ('controller/config/crd/bases/infra.loco.io_applications.yaml', '.'),
+    'builds': ('controller/config/crd/bases/infra.loco.io_builds.yaml', '.'),
+    'gateway': ('charts/loco-worker/Chart.yaml', '.dependencies[] | select(.name == "gateway-helm")'),
+}
+CRD_VERSIONS = 'tools/platform-release/crds.yaml'
+CERT_MANAGER = 'charts/cert-manager.yaml'
+CONTENT_ANNOTATION = 'io.loco.platform.content'
 IMAGES = ('agent', 'controller', 'builder', 'obs-proxy', 'api', 'ui')
 MANIFEST_TYPE = 'application/vnd.oci.image.manifest.v1+json'
 LAYER_TYPE = 'application/vnd.oci.image.layer.v1.tar+gzip'
@@ -26,8 +34,20 @@ SHA = re.compile(r'[a-f0-9]{40}\Z')
 DIGEST = re.compile(r'sha256:[a-f0-9]{64}\Z')
 
 
-def run(*args):
-    return subprocess.check_output(args, cwd=ROOT, text=True).strip()
+def run(*args, input=None):
+    return subprocess.check_output(args, cwd=ROOT, text=True, input=input).strip()
+
+
+def parse(text, expression='.'):
+    return json.loads(run('yq', '-o=json', expression, '-', input=text))
+
+
+def order(version):
+    match = VERSION.fullmatch(version)
+    if not match:
+        raise ValueError(f'version must be X.Y.Z or X.Y.Z-rc.N without a v prefix: {version}')
+    major, minor, patch, _, rc = match.groups()
+    return (int(major), int(minor), int(patch), rc is None, int(rc or 0))
 
 
 def encoded(value):
@@ -47,6 +67,12 @@ def archive(files):
             info.mode = 0o644
             tar.addfile(info, io.BytesIO(data))
     return gzip.compress(output.getvalue(), mtime=0)
+
+
+def content(package):
+    with tarfile.open(fileobj=io.BytesIO(package)) as tar:
+        files = {member.name: tar.extractfile(member).read() for member in tar.getmembers() if member.isfile()}
+    return digest(archive(files))
 
 
 class Registry:
@@ -117,6 +143,18 @@ class Registry:
             if len(matches) != 1:
                 raise RuntimeError(f'platform image must contain exactly one linux/{architecture} manifest')
 
+    def annotations(self, repository, reference):
+        data, _ = self.request('GET', f'/v2/{repository}/manifests/{reference}', headers={'Accept': MANIFEST_TYPE}, missing=True)
+        return None if data is None else json.loads(data).get('annotations', {})
+
+    def ensure(self, repository, version, data, config, layer_type=LAYER_TYPE):
+        existing = self.annotations(repository, version)
+        if existing is None:
+            return self.publish(repository, version, data, config, layer_type)
+        if existing.get(CONTENT_ANNOTATION) != content(data):
+            raise RuntimeError(f'{repository}:{version} is already published with different content; bump its version')
+        return self.manifest(repository, version)
+
     def assert_absent(self, repository, version):
         if self.manifest(repository, version, missing=True) is not None:
             raise RuntimeError(f'immutable release already exists: {repository}:{version}')
@@ -137,7 +175,7 @@ class Registry:
     def publish(self, repository, version, data, config, layer_type=LAYER_TYPE):
         self.assert_absent(repository, version)
         config_data = encoded(config)
-        manifest = {'schemaVersion': 2, 'mediaType': MANIFEST_TYPE, 'config': {'mediaType': 'application/vnd.cncf.helm.config.v1+json' if layer_type == HELM_LAYER_TYPE else 'application/vnd.oci.image.config.v1+json', 'digest': self.blob(repository, config_data), 'size': len(config_data)}, 'layers': [{'mediaType': layer_type, 'digest': self.blob(repository, data), 'size': len(data)}], 'annotations': {'org.opencontainers.image.source': 'https://github.com/' + self.repository, 'org.opencontainers.image.version': version}}
+        manifest = {'schemaVersion': 2, 'mediaType': MANIFEST_TYPE, 'config': {'mediaType': 'application/vnd.cncf.helm.config.v1+json' if layer_type == HELM_LAYER_TYPE else 'application/vnd.oci.image.config.v1+json', 'digest': self.blob(repository, config_data), 'size': len(config_data)}, 'layers': [{'mediaType': layer_type, 'digest': self.blob(repository, data), 'size': len(data)}], 'annotations': {'org.opencontainers.image.source': 'https://github.com/' + self.repository, 'org.opencontainers.image.version': version, CONTENT_ANNOTATION: content(data)}}
         body = encoded(manifest)
         self.assert_absent(repository, version)
         self.request('PUT', f'/v2/{repository}/manifests/{version}', data=body, headers={'Content-Type': MANIFEST_TYPE})
@@ -226,9 +264,7 @@ def gateway_crds(package):
     return archive(files)
 
 
-def validate_identity(version, commit):
-    if not VERSION.fullmatch(version):
-        raise ValueError('version must be X.Y.Z or X.Y.Z-rc.N without a v prefix')
+def validate_commit(commit):
     if not SHA.fullmatch(commit):
         raise ValueError('core commit must be a full lowercase Git SHA')
     if run('git', 'rev-parse', 'HEAD') != commit:
@@ -236,12 +272,89 @@ def validate_identity(version, commit):
     run('git', 'merge-base', '--is-ancestor', commit, 'origin/main')
 
 
-def publish(version, commit, registry):
-    validate_identity(version, commit)
-    repositories = {name: registry.repository + '/charts/' + name for name in CHARTS}
-    repositories.update({'loco-applications-crd': registry.repository + '/crds/applications', 'loco-builds-crd': registry.repository + '/crds/builds', 'loco-gateway-crd': registry.repository + '/crds/gateway', 'cert-manager-chart': registry.repository + '/charts/cert-manager', 'platform': registry.repository + '/platform'})
-    for name in repositories.values():
-        registry.assert_absent(name, version)
+def value(path, expression, ref=None):
+    if ref is None:
+        return parse((ROOT / path).read_text(), expression)
+    if not run('git', 'ls-tree', '--name-only', ref, '--', path):
+        return None
+    return parse(run('git', 'show', f'{ref}:{path}'), expression)
+
+
+def versions():
+    result = {name: value(f'charts/{name}/Chart.yaml', '.version') for name in CHARTS}
+    crds = value(CRD_VERSIONS, '.')
+    result.update({'loco-' + name + '-crd': crds[name] for name in CRD_SOURCES})
+    for version in result.values():
+        order(version)
+    result['cert-manager-chart'] = value(CERT_MANAGER, '.version')
+    return result
+
+
+def repositories(registry):
+    result = {name: registry.repository + '/charts/' + name for name in CHARTS}
+    result.update({'loco-' + name + '-crd': registry.repository + '/crds/' + name for name in CRD_SOURCES})
+    result.update({'cert-manager-chart': registry.repository + '/charts/cert-manager', 'platform': registry.repository + '/platform'})
+    return result
+
+
+def unbumped(base):
+    stale = []
+    for name in CHARTS:
+        path = f'charts/{name}/Chart.yaml'
+        old = value(path, '.version', base)
+        if old is not None and run('git', 'diff', '--name-only', base, '--', f'charts/{name}') and order(value(path, '.version')) <= order(old):
+            stale.append(name)
+    for name, (path, expression) in CRD_SOURCES.items():
+        old = value(CRD_VERSIONS, '.' + name, base)
+        if old is not None and value(path, expression, base) != value(path, expression) and order(value(CRD_VERSIONS, '.' + name)) <= order(old):
+            stale.append('loco-' + name + '-crd')
+    return stale
+
+
+def publish_artifacts(commit, registry):
+    validate_commit(commit)
+    pinned = versions()
+    names = repositories(registry)
+    refs = {}
+    with tempfile.TemporaryDirectory(prefix='loco-release-') as directory:
+        temp = Path(directory)
+        run('mise', 'run', 'helm:deps')
+        for name in CHARTS:
+            run('helm', 'package', str(ROOT / 'charts' / name), '--destination', directory)
+            config = value(f'charts/{name}/Chart.yaml', '.')
+            data = (temp / f'{name}-{pinned[name]}.tgz').read_bytes()
+            refs[name] = registry.ensure(names[name], pinned[name], data, config, HELM_LAYER_TYPE)
+        cert = value(CERT_MANAGER, '.')
+        run('helm', 'pull', cert['chart'], '--repo', cert['repository'], '--version', cert['version'], '--destination', directory)
+        data = next(temp.glob('cert-manager-*.tgz')).read_bytes()
+        refs['cert-manager-chart'] = registry.ensure(names['cert-manager-chart'], cert['version'], data, {'name': cert['chart'], 'version': cert['version']}, HELM_LAYER_TYPE)
+        gateway_package = next((ROOT / 'charts/loco-worker/charts').glob('gateway-helm-*.tgz'))
+        crds = {
+            'loco-applications-crd': protected_crd(ROOT / CRD_SOURCES['applications'][0]),
+            'loco-builds-crd': protected_crd(ROOT / CRD_SOURCES['builds'][0]),
+            'loco-gateway-crd': gateway_crds(gateway_package),
+        }
+        for name, data in crds.items():
+            refs[name] = registry.ensure(names[name], pinned[name], data, {'version': pinned[name], 'coreCommit': commit})
+    public = Registry(registry.repository, '', '')
+    for name, result in refs.items():
+        if public.manifest(names[name], result) != result:
+            raise RuntimeError(f'artifact must permit anonymous pulls: {name}')
+    print(json.dumps({name: f'ghcr.io/{names[name]}:{pinned[name]}@{result}' for name, result in refs.items()}, indent=2))
+
+
+def publish_bundle(version, commit, registry):
+    order(version)
+    validate_commit(commit)
+    names = repositories(registry)
+    registry.assert_absent(names['platform'], version)
+    public = Registry(registry.repository, '', '')
+    refs = {}
+    for name, pinned in versions().items():
+        result = public.manifest(names[name], pinned, missing=True)
+        if result is None:
+            raise RuntimeError(f'{name} {pinned} is not published')
+        refs[name] = 'ghcr.io/' + names[name] + '@' + result
     images = {}
     for name in IMAGES:
         image_repository = registry.repository + '-' + name
@@ -249,58 +362,40 @@ def publish(version, commit, registry):
         registry.require_image_platforms(image_repository, image_digest)
         images[name] = 'ghcr.io/' + image_repository + '@' + image_digest
         run('gh', 'attestation', 'verify', 'oci://' + images[name], '--repo', registry.repository, '--signer-workflow', registry.repository + '/.github/workflows/build-push.yml', '--source-ref', 'refs/heads/main', '--source-digest', commit, '--deny-self-hosted-runners')
-    public = Registry(registry.repository, '', '')
     for reference in images.values():
         repository, expected = reference.removeprefix('ghcr.io/').split('@')
         if public.manifest(repository, expected) != expected:
             raise RuntimeError('platform images must permit anonymous pulls')
-    refs = {}
-    with tempfile.TemporaryDirectory(prefix='loco-release-') as directory:
-        temp = Path(directory)
-        run('mise', 'run', 'helm:deps')
-        packages = {}
-        for name in CHARTS:
-            run('helm', 'package', str(ROOT / 'charts' / name), '--version', version, '--app-version', version, '--destination', directory)
-            packages[name] = temp / f'{name}-{version}.tgz'
-        cert = json.loads(run('yq', '-o=json', '.', str(ROOT / 'charts/cert-manager.yaml')))
-        run('helm', 'pull', cert['chart'], '--repo', cert['repository'], '--version', cert['version'], '--destination', directory)
-        cert_package = next(temp.glob('cert-manager-*.tgz'))
-        packages['cert-manager-chart'] = cert_package
-        gateway_package = next((ROOT / 'charts/loco-worker/charts').glob('gateway-helm-*.tgz'))
-        artifacts = {
-            'loco-applications-crd': protected_crd(ROOT / 'controller/config/crd/bases/infra.loco.io_applications.yaml'),
-            'loco-builds-crd': protected_crd(ROOT / 'controller/config/crd/bases/infra.loco.io_builds.yaml'),
-            'loco-gateway-crd': gateway_crds(gateway_package),
-        }
-        for name, path in packages.items():
-            config = json.loads(run('yq', '-o=json', '.', str(ROOT / 'charts' / name / 'Chart.yaml'))) if name in CHARTS else {'name': cert['chart'], 'version': cert['version']}
-            config['version'] = version if name in CHARTS else config['version']
-            if name in CHARTS:
-                config['appVersion'] = version
-            result = registry.publish(repositories[name], version, path.read_bytes(), config, HELM_LAYER_TYPE)
-            refs[name] = 'ghcr.io/' + repositories[name] + '@' + result
-        for name, data in artifacts.items():
-            result = registry.publish(repositories[name], version, data, {'version': version, 'coreCommit': commit})
-            refs[name] = 'ghcr.io/' + repositories[name] + '@' + result
-        for name, reference in refs.items():
-            repository, expected = reference.removeprefix('ghcr.io/').split('@')
-            if public.manifest(repository, expected) != expected:
-                raise RuntimeError(f'artifact must permit anonymous pulls: {name}')
-        data = archive(bundle(version, commit, refs, images))
-        result = registry.publish(repositories['platform'], version, data, {'version': version, 'coreCommit': commit})
-        if public.manifest(repositories['platform'], result) != result:
-            raise RuntimeError('published platform bundle must permit anonymous pulls')
-    print(json.dumps({'version': version, 'coreCommit': commit, 'bundle': 'ghcr.io/' + repositories['platform'] + '@' + result}, indent=2))
+    data = archive(bundle(version, commit, refs, images))
+    result = registry.publish(names['platform'], version, data, {'version': version, 'coreCommit': commit})
+    if public.manifest(names['platform'], result) != result:
+        raise RuntimeError('published platform bundle must permit anonymous pulls')
+    print(json.dumps({'version': version, 'coreCommit': commit, 'bundle': 'ghcr.io/' + names['platform'] + '@' + result}, indent=2))
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--version', required=True)
-    parser.add_argument('--commit', required=True)
-    parser.add_argument('--repository', required=True)
+    commands = parser.add_subparsers(dest='command', required=True)
+    artifacts = commands.add_parser('artifacts')
+    artifacts.add_argument('--commit', required=True)
+    artifacts.add_argument('--repository', required=True)
+    platform = commands.add_parser('bundle')
+    platform.add_argument('--version', required=True)
+    platform.add_argument('--commit', required=True)
+    platform.add_argument('--repository', required=True)
+    check = commands.add_parser('check-versions')
+    check.add_argument('--base', required=True)
     args = parser.parse_args()
+    if args.command == 'check-versions':
+        stale = unbumped(args.base)
+        if stale:
+            raise SystemExit('changed since ' + args.base + ' without a version bump: ' + ', '.join(stale))
+        return
     registry = Registry(args.repository, os.environ['GITHUB_ACTOR'], os.environ['GH_TOKEN'])
-    publish(args.version, args.commit, registry)
+    if args.command == 'artifacts':
+        publish_artifacts(args.commit, registry)
+        return
+    publish_bundle(args.version, args.commit, registry)
 
 
 if __name__ == '__main__':

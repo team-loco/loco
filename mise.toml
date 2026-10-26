@@ -379,12 +379,16 @@ depends = ["helm:deps"]
 run = "uv run --locked --project tests pytest tests/charts"
 
 [tasks."test:platform-release"]
-description = "Test immutable platform artifacts and Flux release manifests offline"
+description = "Test chart and CRD publication, version checks and Flux release manifests offline"
 run = "uv run --locked --project tests pytest tools/platform-release/tests"
 
+[tasks."release:artifacts"]
+description = "Publish every chart and CRD bundle version not yet in the registry"
+run = "python tools/platform-release/release.py artifacts"
+
 [tasks."release:platform"]
-description = "Publish immutable platform charts, CRDs and the final OCI bundle"
-run = "python tools/platform-release/release.py"
+description = "Publish the platform bundle pinning the published chart and CRD bundle versions and the image digests"
+run = "python tools/platform-release/release.py bundle"
 
 [tasks."test:platform-render"]
 description = "Render and package the real platform charts, CRDs and Flux layers"

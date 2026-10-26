@@ -243,7 +243,7 @@ def test_publish_rechecks_tag_after_blob_upload(registry):
         patch.object(registry, "request") as request,
     ):
         with pytest.raises(RuntimeError, match="occupied"):
-            registry.publish("example/platform/chart", "0.7.0", b"data", {})
+            registry.publish("example/platform/chart", "0.7.0", release.archive({}), {})
         assert absent.call_count == 2
         request.assert_not_called()
 
@@ -284,6 +284,76 @@ def test_valid_versions_only(registry):
         assert release.VERSION.fullmatch(version) is None
 
 
+def test_ensure_publishes_an_absent_version(registry):
+    with (
+        patch.object(registry, "annotations", return_value=None),
+        patch.object(registry, "publish", return_value="sha256:" + "a" * 64) as publish,
+    ):
+        registry.ensure("example/platform/chart", "0.1.0", b"data", {})
+    publish.assert_called_once()
+
+
+def test_ensure_skips_a_version_published_with_the_same_content(registry):
+    data = release.archive({"Chart.yaml": b"name: chart"})
+    annotations = {release.CONTENT_ANNOTATION: release.content(data)}
+    with (
+        patch.object(registry, "annotations", return_value=annotations),
+        patch.object(registry, "manifest", return_value="sha256:" + "a" * 64),
+        patch.object(registry, "publish") as publish,
+    ):
+        assert registry.ensure("example/platform/chart", "0.1.0", data, {}) == "sha256:" + "a" * 64
+    publish.assert_not_called()
+
+
+def test_ensure_rejects_a_version_published_with_other_content(registry, subtests):
+    data = release.archive({"Chart.yaml": b"name: chart"})
+    other = release.archive({"Chart.yaml": b"name: other"})
+    for annotations in ({release.CONTENT_ANNOTATION: release.content(other)}, {}):
+        with (
+            subtests.test(annotations=annotations),
+            patch.object(registry, "annotations", return_value=annotations),
+            patch.object(registry, "publish") as publish,
+        ):
+            with pytest.raises(RuntimeError, match="different content"):
+                registry.ensure("example/platform/chart", "0.1.0", data, {})
+            publish.assert_not_called()
+
+
+def test_content_ignores_archive_metadata():
+    files = {"chart/Chart.yaml": b"name: chart", "chart/values.yaml": b"{}"}
+    output = io.BytesIO()
+    with tarfile.open(fileobj=output, mode="w:gz") as tar:
+        for name, data in reversed(files.items()):
+            info = tarfile.TarInfo(name)
+            info.size = len(data)
+            info.mtime = 1234567890
+            tar.addfile(info, io.BytesIO(data))
+    assert release.content(output.getvalue()) == release.content(release.archive(files))
+
+
+def test_published_manifest_records_content(registry):
+    data = release.archive({"Chart.yaml": b"name: chart"})
+    with (
+        patch.object(registry, "assert_absent"),
+        patch.object(registry, "blob", return_value="sha256:" + "a" * 64),
+        patch.object(registry, "request") as request,
+        patch.object(registry, "manifest", side_effect=lambda *args: release.digest(request.call_args.kwargs["data"])),
+    ):
+        registry.publish("example/platform/chart", "0.1.0", data, {})
+    manifest = json.loads(request.call_args.kwargs["data"])
+    assert manifest["annotations"][release.CONTENT_ANNOTATION] == release.content(data)
+
+
+VERSIONS = {
+    "loco-worker": "0.3.0",
+    "loco-control-plane": "0.2.0",
+    "loco-applications-crd": "0.1.1",
+    "loco-builds-crd": "0.1.0",
+    "loco-gateway-crd": "0.4.0",
+    "cert-manager-chart": "v1.0.0",
+}
+
+
 @pytest.fixture
 def publication():
     with ExitStack() as cleanup:
@@ -296,18 +366,20 @@ def publication():
             publication.root / "charts/loco-worker/charts/gateway-helm-test.tgz"
         ).write_bytes(b"gateway")
         publication.commit = "b" * 40
-        publication.published = []
         publication.calls = []
         publication.registry = Mock(
             spec=release.Registry, repository="example/platform"
         )
         publication.registry.manifest.return_value = "sha256:" + "a" * 64
-        publication.registry.publish.side_effect = partial(_publish, publication)
+        publication.registry.ensure.return_value = "sha256:" + "a" * 64
+        publication.registry.publish.return_value = "sha256:" + "a" * 64
         publication.public = Mock()
         publication.public.manifest.return_value = "sha256:" + "a" * 64
         for patcher in (
             patch.object(release, "ROOT", publication.root),
-            patch.object(release, "validate_identity"),
+            patch.object(release, "validate_commit"),
+            patch.object(release, "versions", return_value=dict(VERSIONS)),
+            patch.object(release, "value", side_effect=_value),
             patch.object(release, "run", side_effect=partial(_command, publication)),
             patch.object(release, "protected_crd", return_value=b"crd"),
             patch.object(release, "gateway_crds", return_value=b"gateway"),
@@ -318,31 +390,58 @@ def publication():
         yield publication
 
 
+def _value(path, expression, ref=None):
+    if path == release.CERT_MANAGER:
+        return {"repository": "https://charts.example.test", "chart": "cert-manager", "version": VERSIONS["cert-manager-chart"]}
+    return {"name": Path(path).parent.name, "version": VERSIONS[Path(path).parent.name]}
+
+
 def _command(publication, *args):
     publication.calls.append(args)
     if args[:2] == ("helm", "package"):
         name = Path(args[2]).name
-        (Path(args[-1]) / (name + "-0.7.0-rc.1.tgz")).write_bytes(b"chart")
+        (Path(args[-1]) / f"{name}-{VERSIONS[name]}.tgz").write_bytes(name.encode())
     if args[:2] == ("helm", "pull"):
-        (Path(args[-1]) / "cert-manager-fixture-version.tgz").write_bytes(b"cert")
-    if args[0] == "yq" and args[-1].endswith("charts/cert-manager.yaml"):
-        return '{"repository":"https://charts.example.test","chart":"cert-manager","version":"fixture-version"}'
-    if args[0] == "yq":
-        return '{"name":"fixture","version":"0.0.0"}'
+        (Path(args[-1]) / "cert-manager-fixture.tgz").write_bytes(b"cert")
     return ""
 
 
-def _publish(publication, repository, version, data, config, *args):
-    publication.published.append(repository)
-    return "sha256:" + "a" * 64
-
-
-def test_bundle_is_last_after_all_artifacts_and_provenance(publication):
+def test_artifacts_publish_each_chart_and_crd_at_its_own_version(publication):
     with patch("builtins.print"):
-        release.publish("0.7.0-rc.1", publication.commit, publication.registry)
-    assert len(publication.published) == 7
-    assert publication.published[-1] == "example/platform/platform"
-    assert publication.registry.assert_absent.call_count == 7
+        release.publish_artifacts(publication.commit, publication.registry)
+    ensured = {call.args[0]: call.args[1] for call in publication.registry.ensure.call_args_list}
+    names = release.repositories(publication.registry)
+    assert ensured == {names[name]: version for name, version in VERSIONS.items()}
+    data = {call.args[0]: call.args[2] for call in publication.registry.ensure.call_args_list}
+    assert data[names["loco-worker"]] == b"loco-worker"
+    assert data[names["loco-gateway-crd"]] == b"gateway"
+    publication.registry.publish.assert_not_called()
+    assert publication.public.manifest.call_count == len(VERSIONS)
+    assert not [call for call in publication.calls if call[:2] == ("gh", "attestation")]
+
+
+def test_artifacts_stop_at_a_version_published_with_other_content(publication):
+    publication.registry.ensure.side_effect = RuntimeError("different content")
+    with pytest.raises(RuntimeError, match="different content"):
+        release.publish_artifacts(publication.commit, publication.registry)
+    publication.public.manifest.assert_not_called()
+
+
+def test_private_artifact_fails_publication(publication):
+    publication.public.manifest.side_effect = RuntimeError("unauthorized")
+    with pytest.raises(RuntimeError, match="unauthorized"):
+        release.publish_artifacts(publication.commit, publication.registry)
+
+
+def test_bundle_pins_published_versions_and_publishes_only_itself(publication):
+    with patch("builtins.print"):
+        release.publish_bundle("0.7.0-rc.1", publication.commit, publication.registry)
+    names = release.repositories(publication.registry)
+    looked_up = {call.args[0]: call.args[1] for call in publication.public.manifest.call_args_list if call.kwargs.get("missing")}
+    assert looked_up == {names[name]: version for name, version in VERSIONS.items()}
+    publication.registry.ensure.assert_not_called()
+    assert [call.args[0] for call in publication.registry.publish.call_args_list] == [names["platform"]]
+    publication.registry.assert_absent.assert_called_once_with(names["platform"], "0.7.0-rc.1")
     attestations = [
         call
         for call in publication.calls
@@ -358,43 +457,119 @@ def test_bundle_is_last_after_all_artifacts_and_provenance(publication):
         assert "example/platform/.github/workflows/build-push.yml" in call
         assert "--deny-self-hosted-runners" in call
         assert "@sha256:" in call[3]
+    assert not [call for call in publication.calls if call[0] == "helm"]
 
 
-def test_single_architecture_image_never_publishes_artifacts(publication):
-    publication.registry.require_image_platforms.side_effect = RuntimeError(
-        "missing linux/arm64"
-    )
-    with pytest.raises(RuntimeError, match="missing linux/arm64"):
-        release.publish("0.7.0-rc.1", publication.commit, publication.registry)
+def test_bundle_fails_when_a_pinned_version_is_not_published(publication):
+    publication.public.manifest.side_effect = lambda repository, reference, missing=False: None if repository.endswith("crds/builds") else "sha256:" + "a" * 64
+    with pytest.raises(RuntimeError, match="loco-builds-crd 0.1.0 is not published"):
+        release.publish_bundle("0.7.0-rc.1", publication.commit, publication.registry)
     publication.registry.publish.assert_not_called()
 
 
-def test_any_existing_tag_aborts_before_images_or_uploads(publication):
+def test_existing_bundle_version_aborts_before_images(publication):
     publication.registry.assert_absent.side_effect = RuntimeError("exists")
     with pytest.raises(RuntimeError, match="exists"):
-        release.publish("0.7.0-rc.1", publication.commit, publication.registry)
+        release.publish_bundle("0.7.0-rc.1", publication.commit, publication.registry)
     publication.registry.manifest.assert_not_called()
     publication.registry.publish.assert_not_called()
 
 
-def test_failed_artifact_never_publishes_bundle(publication):
-    publication.registry.publish.side_effect = RuntimeError("upload failed")
-    with pytest.raises(RuntimeError, match="upload failed"):
-        release.publish("0.7.0-rc.1", publication.commit, publication.registry)
-    assert "example/platform/platform" not in publication.published
+def test_single_architecture_image_never_publishes_bundle(publication):
+    publication.registry.require_image_platforms.side_effect = RuntimeError(
+        "missing linux/arm64"
+    )
+    with pytest.raises(RuntimeError, match="missing linux/arm64"):
+        release.publish_bundle("0.7.0-rc.1", publication.commit, publication.registry)
+    publication.registry.publish.assert_not_called()
 
 
-def test_private_artifact_never_publishes_bundle(publication):
-    publication.public.manifest.side_effect = ["sha256:" + "a" * 64] * len(
-        release.IMAGES
-    ) + [RuntimeError("unauthorized")]
-    with pytest.raises(RuntimeError, match="unauthorized"):
-        release.publish("0.7.0-rc.1", publication.commit, publication.registry)
-    assert "example/platform/platform" not in publication.published
-
-
-def test_unverified_image_never_publishes_artifacts(publication):
+def test_unverified_image_never_publishes_bundle(publication):
     with patch.object(release, "run", side_effect=RuntimeError("invalid provenance")):
         with pytest.raises(RuntimeError, match="invalid provenance"):
-            release.publish("0.7.0-rc.1", publication.commit, publication.registry)
+            release.publish_bundle("0.7.0-rc.1", publication.commit, publication.registry)
     publication.registry.publish.assert_not_called()
+
+
+def test_invalid_bundle_version_fails():
+    with pytest.raises(ValueError):
+        release.publish_bundle("v0.7.0", "b" * 40, Mock())
+
+
+WORKER_CHART = """apiVersion: v2
+name: loco-worker
+version: {version}
+dependencies:
+  - name: gateway-helm
+    version: {gateway}
+    repository: oci://docker.io/envoyproxy
+  - name: opentelemetry-collector
+    version: {otel}
+    repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+"""
+
+
+@pytest.fixture
+def repository(tmp_path):
+    def git(*args):
+        release.subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
+
+    def write(path, text):
+        (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / path).write_text(text)
+
+    write("charts/loco-worker/Chart.yaml", WORKER_CHART.format(version="0.1.0", gateway="1.0.0", otel="1.0.0"))
+    write("charts/loco-worker/values.yaml", "replicas: 1\n")
+    write("charts/loco-control-plane/Chart.yaml", "name: loco-control-plane\nversion: 0.1.0\n")
+    write(release.CRD_SOURCES["applications"][0], "kind: CustomResourceDefinition\nmetadata: {name: applications}\n")
+    write(release.CRD_SOURCES["builds"][0], "kind: CustomResourceDefinition\nmetadata: {name: builds}\n")
+    write(release.CRD_VERSIONS, "applications: 0.1.0\nbuilds: 0.1.0\ngateway: 0.1.0\n")
+    write("cmd/loco/main.go", "package main\n")
+    git("init", "-q")
+    git("add", ".")
+    git("-c", "user.name=test", "-c", "user.email=test@example.invalid", "commit", "-q", "-m", "base")
+    with patch.object(release, "ROOT", tmp_path):
+        yield SimpleNamespace(write=write)
+
+
+def test_unchanged_artifacts_need_no_bump(repository):
+    repository.write("cmd/loco/main.go", "package main\n\nfunc main() {}\n")
+    assert release.unbumped("HEAD") == []
+
+
+def test_changed_chart_needs_a_higher_version(repository, subtests):
+    for version, stale in (("0.1.0", ["loco-worker"]), ("0.0.9", ["loco-worker"]), ("0.1.1-rc.0", []), ("0.2.0", [])):
+        with subtests.test(version=version):
+            repository.write("charts/loco-worker/values.yaml", "replicas: 2\n")
+            repository.write("charts/loco-worker/Chart.yaml", WORKER_CHART.format(version=version, gateway="1.0.0", otel="1.0.0"))
+            assert release.unbumped("HEAD") == stale
+
+
+def test_changed_crd_needs_its_bundle_version_bumped(repository, subtests):
+    repository.write(release.CRD_SOURCES["builds"][0], "kind: CustomResourceDefinition\nmetadata: {name: builds, labels: {a: b}}\n")
+    for versions, stale in (("applications: 0.1.0\nbuilds: 0.1.0\ngateway: 0.1.0\n", ["loco-builds-crd"]), ("applications: 0.1.0\nbuilds: 0.1.1\ngateway: 0.1.0\n", [])):
+        with subtests.test(versions=versions):
+            repository.write(release.CRD_VERSIONS, versions)
+            assert release.unbumped("HEAD") == stale
+
+
+def test_gateway_dependency_bump_needs_chart_and_gateway_crd_bumps(repository, subtests):
+    for chart, gateway, stale in (
+        ("0.1.0", "0.1.0", ["loco-worker", "loco-gateway-crd"]),
+        ("0.1.1", "0.1.0", ["loco-gateway-crd"]),
+        ("0.1.1", "0.2.0", []),
+    ):
+        with subtests.test(chart=chart, gateway=gateway):
+            repository.write("charts/loco-worker/Chart.yaml", WORKER_CHART.format(version=chart, gateway="1.1.0", otel="1.0.0"))
+            repository.write(release.CRD_VERSIONS, f"applications: 0.1.0\nbuilds: 0.1.0\ngateway: {gateway}\n")
+            assert release.unbumped("HEAD") == stale
+
+
+def test_other_worker_dependency_bump_leaves_gateway_crds_alone(repository):
+    repository.write("charts/loco-worker/Chart.yaml", WORKER_CHART.format(version="0.1.0", gateway="1.0.0", otel="1.1.0"))
+    assert release.unbumped("HEAD") == ["loco-worker"]
+
+
+def test_repository_versions_are_valid():
+    versions = release.versions()
+    assert set(versions) == set(release.repositories(release.Registry("example/platform", "", ""))) - {"platform"}
