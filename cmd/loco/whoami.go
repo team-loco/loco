@@ -5,11 +5,11 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	"github.com/team-loco/loco/internal/client"
 	"github.com/team-loco/loco/internal/session"
-	"github.com/team-loco/loco/internal/ui"
 )
 
 func newWhoAmICmd(env Env) *cobra.Command {

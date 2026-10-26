@@ -5,10 +5,10 @@ import (
 	"os"
 
 	"charm.land/fang/v2"
+	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/climain"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/internal/buildinfo"
-	"github.com/team-loco/loco/internal/ui"
 )
 
 var version string

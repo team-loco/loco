@@ -15,8 +15,8 @@ import (
 	"connectrpc.com/connect/v2/connectproto"
 
 	"connectrpc.com/connect/v2"
+	"github.com/team-loco/loco/cmd/internal/sourcepack"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
-	"github.com/team-loco/loco/internal/sourcepack"
 )
 
 const (

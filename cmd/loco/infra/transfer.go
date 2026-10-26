@@ -7,8 +7,8 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/internal/ui"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
-	"github.com/team-loco/loco/internal/ui"
 )
 
 const transferTimeout = 30 * time.Second

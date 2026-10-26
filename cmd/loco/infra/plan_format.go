@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/team-loco/loco/cmd/internal/ui"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
-	"github.com/team-loco/loco/internal/ui"
 )
 
 const (

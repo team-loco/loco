@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/internal/dotenv"
+	"github.com/team-loco/loco/cmd/internal/dotenv"
 )
 
 var errEmptyEnvFile = errors.New("the .env input has no KEY=VALUE lines")

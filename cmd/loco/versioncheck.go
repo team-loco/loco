@@ -14,9 +14,9 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/mod/semver"
 
+	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
-	"github.com/team-loco/loco/internal/ui"
 )
 
 const (

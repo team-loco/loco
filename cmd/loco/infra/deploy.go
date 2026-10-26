@@ -17,6 +17,8 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/internal/sourcepack"
+	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/cmd/loco/resource"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
@@ -24,8 +26,6 @@ import (
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/internal/rpc"
-	"github.com/team-loco/loco/internal/sourcepack"
-	"github.com/team-loco/loco/internal/ui"
 	"sigs.k8s.io/yaml"
 )
 

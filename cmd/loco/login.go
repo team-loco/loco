@@ -14,6 +14,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/internal/keychain"
+	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
@@ -21,9 +23,7 @@ import (
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/internal/httputil"
-	"github.com/team-loco/loco/internal/keychain"
 	"github.com/team-loco/loco/internal/session"
-	"github.com/team-loco/loco/internal/ui"
 )
 
 const spinnerFrameDelay = 100 * time.Millisecond

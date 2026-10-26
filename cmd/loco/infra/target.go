@@ -8,13 +8,13 @@ import (
 	"github.com/team-loco/loco/internal/rpc"
 
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/gen/go/loco/plan/v1/planv1connect"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/internal/client"
 	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/internal/session"
-	"github.com/team-loco/loco/internal/ui"
 )
 
 type target struct {

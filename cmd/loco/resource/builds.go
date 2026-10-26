@@ -11,11 +11,11 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/internal/logstream"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/client"
-	"github.com/team-loco/loco/internal/logstream"
 	"github.com/team-loco/loco/internal/session"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"

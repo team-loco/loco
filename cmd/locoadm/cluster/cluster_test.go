@@ -13,10 +13,10 @@ import (
 	"connectrpc.com/connect/v2/connecthttp"
 	"connectrpc.com/connect/v2/connectproto"
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/internal/keychain"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/gen/go/loco/cluster/v1/clusterv1connect"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
-	"github.com/team-loco/loco/internal/keychain"
 	"github.com/team-loco/loco/internal/rpc"
 	"github.com/team-loco/loco/internal/rpcerr"
 )

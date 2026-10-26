@@ -10,9 +10,9 @@ import (
 	"github.com/team-loco/loco/internal/rpc"
 
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/internal/keychain"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	"github.com/team-loco/loco/internal/httputil"
-	"github.com/team-loco/loco/internal/keychain"
 )
 
 var (

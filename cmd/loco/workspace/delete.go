@@ -8,10 +8,10 @@ import (
 	"github.com/team-loco/loco/internal/rpc"
 
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
-	"github.com/team-loco/loco/internal/ui"
 )
 
 type deleteDeps struct {
