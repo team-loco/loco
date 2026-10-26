@@ -33,12 +33,12 @@ def select_modules(paths, dependencies):
             selected.add('observability-proxy')
         owner = next((module for module in ordered if module != '.' and path.startswith(module + '/')), None)
         if owner is None:
-            if path in ('go.mod', 'go.sum') or path.startswith(('cmd/', *ROOT_LIBRARIES)):
+            if path in ('go.mod', 'go.sum') or path.startswith(ROOT_LIBRARIES):
                 owner = '.'
             else:
                 continue
         affected = {owner}
-        if not path.endswith('_test.go') and (owner != '.' or path.startswith(ROOT_LIBRARIES) or path in ('go.mod', 'go.sum')):
+        if not path.endswith('_test.go'):
             pending = [owner]
             while pending:
                 for dependent in dependencies[pending.pop()]:

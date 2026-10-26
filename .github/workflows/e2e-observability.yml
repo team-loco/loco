@@ -23,6 +23,8 @@ on:
       - "mise-tasks/crds/**"
       - "cmd/loco/**"
       - "cmd/internal/**"
+      - "cmd/go.mod"
+      - "cmd/go.sum"
       - "internal/**"
       - "go.mod"
       - "go.sum"

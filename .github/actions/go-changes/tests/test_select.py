@@ -37,7 +37,7 @@ def test_api_changes_do_not_start_other_modules(module_dependencies):
 
 
 def test_root_libraries_select_consumers(module_dependencies, subtests):
-    expected = {".", "api", "agent", "observability-proxy"}
+    expected = {".", "cmd", "api", "agent", "observability-proxy"}
     for path in (
         "internal/buildinfo/version.go",
         "gen/go/loco/token/v1/token.pb.go",
@@ -47,8 +47,14 @@ def test_root_libraries_select_consumers(module_dependencies, subtests):
             assert _selected(module_dependencies, path) == expected
 
 
-def test_cli_entrypoint_does_not_select_library_consumers(module_dependencies):
-    assert _selected(module_dependencies, "cmd/loco/main.go", "cmd/loco/main_test.go", "cmd/loco/resource/scale.go") == {"."}
+def test_cli_changes_select_only_the_cli_module(module_dependencies):
+    assert _selected(
+        module_dependencies,
+        "cmd/loco/main.go",
+        "cmd/loco/main_test.go",
+        "cmd/internal/ui/select.go",
+        "cmd/go.mod",
+    ) == {"cmd"}
 
 
 def test_kubernetes_types_select_every_importing_module(module_dependencies):

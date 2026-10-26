@@ -75,6 +75,9 @@ jobs:
               working-directory: api
 
             - component: CLI
+              working-directory: cmd
+
+            - component: Shared packages
               working-directory: "."
 
             - component: Controller

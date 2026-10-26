@@ -9,7 +9,7 @@
 - **CLI**: Go app using Cobra + Charm libraries (Bubble Tea, Lipgloss) for terminal UI
 - **API Server**: Go with ConnectRPC on connect-go v2 (`connectrpc.com/connect/v2`), PostgreSQL database
 - **Infrastructure**: Kubernetes with a CNI that enforces NetworkPolicy, Envoy Gateway, cert-manager, OpenTelemetry, ClickHouse metrics read through the observability proxy
-- **Key modules**: `api/` (ConnectRPC services), `cmd/loco/` (CLI commands), `cmd/locoadm/` (operator CLI), `agent/` (in-cluster agent), `controller/` (kubebuilder operator), `k8sapi/` (CRD types), `internal/` (shared logic), `web/` (dashboard), `gen/` (generated protobuf types)
+- **Key modules**: `api/` (ConnectRPC services), `cmd/` (CLI module: `loco/` CLI commands, `locoadm/` operator CLI, `internal/` CLI-only packages), `agent/` (in-cluster agent), `controller/` (kubebuilder operator), `k8sapi/` (CRD types), `internal/` (shared logic), `web/` (dashboard), `gen/` (generated protobuf types). The root module holds only `internal/`, `gen/` and `tools/`, the code other modules share; CLI-only dependencies go in `cmd/go.mod`
 - **Each environment runs on its own clusters.** Staging and production never share a cluster, so a cluster belongs to exactly one environment and a resource has at most one placement per cluster. Don't design for two environments of a resource on the same cluster.
 
 ## Build/Lint/Test Commands
@@ -73,7 +73,7 @@ Builds, tests, code generation, linting and the local environment are mise tasks
 - **Imports**: stdlib → third-party → local packages; grouped with blank lines
 - **Error handling**: Wrap with `fmt.Errorf("context: %w", err)`; use `slog.ErrorContext()`
 - **Naming**: camelCase for unexported, PascalCase for exported; descriptive names
-- **Types**: Use protobuf types for API; shared CLI types in `internal/`; interfaces for abstraction
+- **Types**: Use protobuf types for API; shared types in `internal/`, CLI-only packages in `cmd/internal/`; interfaces for abstraction
 - **Logging**: `slog` package with structured logging; `slog.InfoContext(ctx, "message")`
 - **Concurrency**: Context-based cancellation; goroutines with proper cleanup
 - **Formatting**: `gofmt` compatible; single import per line in groups.

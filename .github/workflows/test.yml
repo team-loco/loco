@@ -71,8 +71,13 @@ jobs:
         with:
           matrix: |
             - component: CLI
-              working-directory: "."
+              working-directory: cmd
               test-command: mise run test:cli
+              timeout: 10
+
+            - component: Shared packages
+              working-directory: "."
+              test-command: mise run test:shared
               timeout: 10
 
             - component: Controller
