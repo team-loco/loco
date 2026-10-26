@@ -230,7 +230,12 @@ function AddWebhook({ workspaceId, onCreated }: { workspaceId: string; onCreated
 				<span className="text-sm text-bad-fg">{getErrorMessage(create.error, "Could not add the webhook")}</span>
 			)}
 			<div>
-				<Button type="submit" variant="outline" className="h-[30px] px-2.5" disabled={create.isPending || url.trim() === ""}>
+				<Button
+					type="submit"
+					variant="outline"
+					className="h-[30px] px-2.5"
+					disabled={create.isPending || url.trim() === ""}
+				>
 					Add webhook
 				</Button>
 			</div>

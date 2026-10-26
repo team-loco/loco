@@ -73,7 +73,7 @@ function TerminalLine({ text, tone, shown }: { text: string; tone: Tone; shown: 
 			className={cn(
 				"wrap-anywhere whitespace-pre-wrap transition-opacity duration-[260ms]",
 				TONE_CLASS[tone],
-				!shown && "opacity-[0.08] motion-reduce:opacity-100"
+				!shown && "opacity-[0.08] motion-reduce:opacity-100",
 			)}
 		>
 			{text}
@@ -99,7 +99,7 @@ export function GetStarted() {
 				};
 				reveal(1);
 			},
-			{ threshold: 0.35 }
+			{ threshold: 0.35 },
 		);
 		observer.observe(el);
 		return () => {
@@ -136,7 +136,7 @@ export function GetStarted() {
 										}}
 										className={cn(
 											"absolute top-2 right-2 hover:bg-line hover:text-foreground",
-											isCopied ? "text-ok-fg" : "text-fg4"
+											isCopied ? "text-ok-fg" : "text-fg4",
 										)}
 									>
 										{isCopied ? <Check /> : <Copy />}

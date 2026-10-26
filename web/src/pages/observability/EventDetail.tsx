@@ -58,7 +58,9 @@ export function EventDetail({
 				<>
 					<span className={cn("size-2 rounded-[2px]", st.dot)} />
 					<span className={cn("min-w-0 truncate font-semibold", st.fg)}>{item.reason}</span>
-					<span className={cn("inline-flex h-5 items-center rounded-sm px-[7px] text-xs font-medium", st.badge)}>{st.label}</span>
+					<span className={cn("inline-flex h-5 items-center rounded-sm px-[7px] text-xs font-medium", st.badge)}>
+						{st.label}
+					</span>
 					<div className="flex-1" />
 					<PanelNav onPrev={onPrev} onNext={onNext} onClose={onClose} />
 				</>

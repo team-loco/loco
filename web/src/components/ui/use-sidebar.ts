@@ -1,11 +1,11 @@
-import * as React from "react"
-import { SidebarContext } from "./sidebar-context"
+import * as React from "react";
+import { SidebarContext } from "./sidebar-context";
 
 export function useSidebar() {
-	const context = React.use(SidebarContext)
+	const context = React.use(SidebarContext);
 	if (!context) {
-		throw new Error("useSidebar must be used within a SidebarProvider.")
+		throw new Error("useSidebar must be used within a SidebarProvider.");
 	}
 
-	return context
+	return context;
 }

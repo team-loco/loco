@@ -16,7 +16,13 @@ const LEVEL_VARIANTS: Record<Level, string[]> = {
 
 export function levelOf(severity: string): Level {
 	const s = severity.toLowerCase();
-	if (s.startsWith("err") || s.startsWith("fatal") || s.startsWith("crit") || s.startsWith("emerg") || s.startsWith("alert")) {
+	if (
+		s.startsWith("err") ||
+		s.startsWith("fatal") ||
+		s.startsWith("crit") ||
+		s.startsWith("emerg") ||
+		s.startsWith("alert")
+	) {
 		return "error";
 	}
 	if (s.startsWith("warn")) return "warn";
@@ -120,11 +126,7 @@ export interface BackendQuery {
 	impossible: boolean;
 }
 
-export function buildBackendQuery(
-	tokens: Token[],
-	text: string,
-	resources: ObsResource[],
-): BackendQuery {
+export function buildBackendQuery(tokens: Token[], text: string, resources: ObsResource[]): BackendQuery {
 	const support = tokenSupport(tokens);
 	const live = tokens.filter((_, i) => support[i] === true);
 	const byKey = (k: FieldKey) => live.filter((t) => t.key === k);
@@ -135,22 +137,25 @@ export function buildBackendQuery(
 	const resourceNames = resources.map((r) => r.name);
 	const resNames = narrow(resourceNames, byKey("resource"));
 	const resSet = resNames === null ? null : new Set(resNames);
-	const resourceIds =
-		resSet === null ? [] : resources.filter((r) => resSet.has(r.name)).map((r) => r.id);
-
+	const resourceIds = resSet === null ? [] : resources.filter((r) => resSet.has(r.name)).map((r) => r.id);
 
 	const labels: Record<string, string> = {};
 	const replica = byKey("replica")[0];
 	if (replica !== undefined) labels["k8s.pod.name"] = replica.value;
 
-	const impossible =
-		levelSet?.length === 0 || resNames?.length === 0;
+	const impossible = levelSet?.length === 0 || resNames?.length === 0;
 
 	return {
 		parsed: {
-			search: text.trim(), levels, labels,
-			regions: byKey("region").filter((t) => !t.neg).map((t) => t.value),
-			excludedRegions: byKey("region").filter((t) => t.neg).map((t) => t.value),
+			search: text.trim(),
+			levels,
+			labels,
+			regions: byKey("region")
+				.filter((t) => !t.neg)
+				.map((t) => t.value),
+			excludedRegions: byKey("region")
+				.filter((t) => t.neg)
+				.map((t) => t.value),
 		},
 		resourceIds,
 		impossible,

@@ -17,7 +17,17 @@ describe("column widths", () => {
 		expect(resizeColumnPair([400, 300, 70], [180, 160, 64], 1, 200)).toEqual([400, 200, 170]);
 	});
 	test("rejects corrupt and incompatible saved preferences", () => {
-		for (const value of [null, {}, [1, 2], [1, 2, 0], [1, -2, 3], [1, "2", 3], [1, NaN, 3], [Infinity, 2, 3], [1e308, 1e308, 1e308]]) {
+		for (const value of [
+			null,
+			{},
+			[1, 2],
+			[1, 2, 0],
+			[1, -2, 3],
+			[1, "2", 3],
+			[1, NaN, 3],
+			[Infinity, 2, 3],
+			[1e308, 1e308, 1e308],
+		]) {
 			expect(validColumnWidths(value, 3)).toBe(false);
 		}
 		expect(validColumnWidths([0.1, 0.2, 0.7], 3)).toBe(true);

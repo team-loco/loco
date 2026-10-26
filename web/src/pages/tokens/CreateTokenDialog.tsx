@@ -103,7 +103,8 @@ function CreateTokenForm({
 
 	const trimmed = name.trim();
 	const taken = takenNames.includes(trimmed);
-	const nameErr = tried || trimmed !== "" ? (trimmed === "" ? "Name required" : taken ? `${trimmed} already exists` : null) : null;
+	const nameErr =
+		tried || trimmed !== "" ? (trimmed === "" ? "Name required" : taken ? `${trimmed} already exists` : null) : null;
 	const accessErr = tried && items.length === 0 ? "Add at least one workspace or resource" : null;
 	const ready = trimmed !== "" && !taken && items.length > 0 && owner.id !== null;
 
@@ -133,7 +134,11 @@ function CreateTokenForm({
 	};
 
 	return (
-		<DialogContent title={`New ${owner.noun} token`} icon={<KeyRoundIcon />} className="top-[7vh] max-h-[86vh] w-[600px]">
+		<DialogContent
+			title={`New ${owner.noun} token`}
+			icon={<KeyRoundIcon />}
+			className="top-[7vh] max-h-[86vh] w-[600px]"
+		>
 			<form
 				className="contents"
 				onSubmit={(e) => {

@@ -6,6 +6,10 @@ import { PageTitle } from "@/components/PageTitle";
 
 export function ResourceTitle() {
 	const { resourceId = "" } = useParams<{ resourceId: string }>();
-	const { data } = useQuery(getResource, { key: { case: "resourceId", value: resourceId } }, { enabled: resourceId !== "" });
+	const { data } = useQuery(
+		getResource,
+		{ key: { case: "resourceId", value: resourceId } },
+		{ enabled: resourceId !== "" },
+	);
 	return <PageTitle title={data?.resource?.name ?? "Resource"} />;
 }

@@ -7,7 +7,9 @@ const envPlugin: BunPlugin = {
 	setup(build) {
 		build.onResolve({ filter: /^loco:env$/ }, () => ({ path: "loco:env", namespace: "loco-env" }));
 		build.onLoad({ filter: /.*/, namespace: "loco-env" }, () => ({
-			contents: publicEnv.map((name) => `export const ${name} = ${JSON.stringify(process.env[name] ?? "")};`).join("\n"),
+			contents: publicEnv
+				.map((name) => `export const ${name} = ${JSON.stringify(process.env[name] ?? "")};`)
+				.join("\n"),
 			loader: "js",
 		}));
 	},

@@ -15,7 +15,7 @@ describe("compute chart axes", () => {
 	});
 	test("spreads ticks across the requested range, independent of sparse samples", () => {
 		const ticks = timeAxis(FROM, FROM + HOUR_MS);
-		expect(ticks).toEqual([FROM, FROM + HOUR_MS / 4, FROM + HOUR_MS / 2, FROM + HOUR_MS * 3 / 4, FROM + HOUR_MS]);
+		expect(ticks).toEqual([FROM, FROM + HOUR_MS / 4, FROM + HOUR_MS / 2, FROM + (HOUR_MS * 3) / 4, FROM + HOUR_MS]);
 	});
 	test("keeps subpercent utilization and exact zero legible", () => {
 		expect(formatPercent(0)).toBe("0%");

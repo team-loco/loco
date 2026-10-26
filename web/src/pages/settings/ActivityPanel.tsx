@@ -99,9 +99,7 @@ export function ActivityPanel({
 			<div className="flex flex-wrap items-start gap-3 border-b border-line px-5 py-3.5">
 				<div className="flex min-w-0 flex-1 flex-col gap-1">
 					<h2 className="font-semibold">{title}</h2>
-					<span className="text-[12.5px] text-fg3">
-						{description}
-					</span>
+					<span className="text-[12.5px] text-fg3">{description}</span>
 				</div>
 				<FilterMenu
 					label="Category"
@@ -127,7 +125,9 @@ export function ActivityPanel({
 						variant="outline"
 						disabled={query.isFetching}
 						aria-busy={query.isFetching}
-						onClick={() => { void query.refetch(); }}
+						onClick={() => {
+							void query.refetch();
+						}}
 					>
 						Retry
 					</Button>
@@ -137,9 +137,18 @@ export function ActivityPanel({
 				<EmptyState
 					icon={<ScrollTextIcon />}
 					title={category === "all" ? "No events yet" : "No matching activity"}
-					action={category === "all" ? undefined : (
-						<Button variant="outline" onClick={() => { setCategory("all"); }}>Clear filter</Button>
-					)}
+					action={
+						category === "all" ? undefined : (
+							<Button
+								variant="outline"
+								onClick={() => {
+									setCategory("all");
+								}}
+							>
+								Clear filter
+							</Button>
+						)
+					}
 				>
 					{category === "all" ? "Changes will show up here as they happen." : "No events match this category."}
 				</EmptyState>
@@ -152,7 +161,10 @@ export function ActivityPanel({
 			{query.error !== null && events.length > 0 && (
 				<div role="alert" className="flex flex-wrap items-center gap-3 border-t border-line px-5 py-3 text-fg3">
 					<span className="min-w-0 flex-1">
-						{getErrorMessage(query.error, query.isFetchNextPageError ? "Failed to load older activity" : "Failed to refresh activity")}
+						{getErrorMessage(
+							query.error,
+							query.isFetchNextPageError ? "Failed to load older activity" : "Failed to refresh activity",
+						)}
 					</span>
 					<Button
 						variant="outline"

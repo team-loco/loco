@@ -63,11 +63,7 @@ export function useDashboardData(workspaceId: string | null, env: Environment | 
 			},
 		},
 	);
-	const regionsQuery = useQuery(
-		listRegions,
-		{ environmentId: env?.id ?? "" },
-		{ enabled: env !== undefined },
-	);
+	const regionsQuery = useQuery(listRegions, { environmentId: env?.id ?? "" }, { enabled: env !== undefined });
 	const resources = resourcesQuery.data?.resources ?? [];
 
 	const deploymentQueries = useQueries({
@@ -89,9 +85,7 @@ export function useDashboardData(workspaceId: string | null, env: Environment | 
 
 	resources.forEach((resource, i) => {
 		const all = deploymentQueries[i]?.data?.deployments ?? [];
-		const mine = all
-			.filter((d) => d.environmentId === envId)
-			.toSorted((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt));
+		const mine = all.filter((d) => d.environmentId === envId).toSorted((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt));
 		for (const d of all) usedEnvIds.add(d.environmentId);
 		for (const d of mine) envDeployments.push({ deployment: d, resource });
 		const neverDeployed = all.length === 0;

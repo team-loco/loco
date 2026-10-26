@@ -6,4 +6,4 @@ export {
 	ChartTooltip,
 	ChartTooltipContent,
 	type ChartConfig,
-} from "@/components/ui/chart"
+} from "@/components/ui/chart";

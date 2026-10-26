@@ -1,8 +1,22 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/design/Avatar";
 import { cn } from "@/lib/utils";
 
-const AV_BG = ["oklch(0.9 0.05 250)", "oklch(0.9 0.06 160)", "oklch(0.9 0.07 60)", "oklch(0.9 0.06 320)", "oklch(0.9 0.05 200)", "oklch(0.9 0.07 30)"];
-const AV_FG = ["oklch(0.4 0.12 250)", "oklch(0.4 0.1 160)", "oklch(0.42 0.1 60)", "oklch(0.4 0.12 320)", "oklch(0.4 0.1 200)", "oklch(0.42 0.12 30)"];
+const AV_BG = [
+	"oklch(0.9 0.05 250)",
+	"oklch(0.9 0.06 160)",
+	"oklch(0.9 0.07 60)",
+	"oklch(0.9 0.06 320)",
+	"oklch(0.9 0.05 200)",
+	"oklch(0.9 0.07 30)",
+];
+const AV_FG = [
+	"oklch(0.4 0.12 250)",
+	"oklch(0.4 0.1 160)",
+	"oklch(0.42 0.1 60)",
+	"oklch(0.4 0.12 320)",
+	"oklch(0.4 0.1 200)",
+	"oklch(0.42 0.12 30)",
+];
 
 const NAME_SEPARATORS = /[\s@._-]+/;
 

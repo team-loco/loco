@@ -1,11 +1,6 @@
-import type {
-	Deployment,
-	ServiceDeploymentSpec,
-} from "@gen/loco/deployment/v1/deployment_pb";
+import type { Deployment, ServiceDeploymentSpec } from "@gen/loco/deployment/v1/deployment_pb";
 
-export function getServiceSpec(
-	deployment: Deployment
-): ServiceDeploymentSpec | undefined {
+export function getServiceSpec(deployment: Deployment): ServiceDeploymentSpec | undefined {
 	if (!deployment.spec?.spec) {
 		return undefined;
 	}

@@ -55,7 +55,9 @@ export function LogTable({
 							className="grid min-h-[30px] w-full items-center gap-3 px-4 text-left font-mono text-sm hover:bg-bg2"
 							style={{ gridTemplateColumns: cols }}
 						>
-							<span className="whitespace-nowrap text-fg4">{compact ? formatClock(l.ts, true) : fmtTs(l.ts, true)}</span>
+							<span className="whitespace-nowrap text-fg4">
+								{compact ? formatClock(l.ts, true) : fmtTs(l.ts, true)}
+							</span>
 							<span
 								className={cn(
 									"inline-flex h-[18px] w-12 items-center justify-center rounded-[3px] text-[10.5px] font-semibold tracking-[0.02em]",

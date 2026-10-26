@@ -2,7 +2,16 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { observabilityPath } from "@/lib/routes";
 import { timeRangeMs } from "@/lib/obs";
-import { ChartLineIcon, CheckIcon, CopyIcon, MinusIcon, PlusIcon, ScrollTextIcon, ServerIcon, WaypointsIcon } from "lucide-react";
+import {
+	ChartLineIcon,
+	CheckIcon,
+	CopyIcon,
+	MinusIcon,
+	PlusIcon,
+	ScrollTextIcon,
+	ServerIcon,
+	WaypointsIcon,
+} from "lucide-react";
 
 import { Button } from "@/components/design/Button";
 import { Code, CodeBlock } from "@/components/design/CodeBlock";
@@ -160,7 +169,24 @@ export function LogDetail({
 								icon={<WaypointsIcon />}
 								label="View trace"
 								hint={e.traceId !== "" ? e.traceId.slice(0, 8) : undefined}
-								onClick={e.traceId === "" ? undefined : () => { void navigate(observabilityPath(orgId, workspaceId, "traces", { trace: e.traceId, ...(e.spanId !== "" ? { span: e.spanId } : {}), ...(e.resourceAttributes["loco.environment.id"] ? { env: e.resourceAttributes["loco.environment.id"] } : {}), range, start: String(nowMs - timeRangeMs(range)), end: String(nowMs) })); }}
+								onClick={
+									e.traceId === ""
+										? undefined
+										: () => {
+												void navigate(
+													observabilityPath(orgId, workspaceId, "traces", {
+														trace: e.traceId,
+														...(e.spanId !== "" ? { span: e.spanId } : {}),
+														...(e.resourceAttributes["loco.environment.id"]
+															? { env: e.resourceAttributes["loco.environment.id"] }
+															: {}),
+														range,
+														start: String(nowMs - timeRangeMs(range)),
+														end: String(nowMs),
+													}),
+												);
+											}
+								}
 							/>
 							<JumpButton icon={<ScrollTextIcon />} label="Logs in this trace" soon />
 							<JumpButton
@@ -210,7 +236,9 @@ export function LogDetail({
 											<span className="truncate text-fg3" title={k}>
 												{k}
 											</span>
-											<span className={cn("py-[5px] break-all", NUMERIC_RE.test(v) ? "text-info-fg" : "text-foreground")}>
+											<span
+												className={cn("py-[5px] break-all", NUMERIC_RE.test(v) ? "text-info-fg" : "text-foreground")}
+											>
 												{v}
 											</span>
 											<span className="flex gap-0.5">

@@ -1,7 +1,7 @@
-import { cva, type VariantProps } from "class-variance-authority"
+import { cva, type VariantProps } from "class-variance-authority";
 
-import { Badge as BadgeBase } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
+import { Badge as BadgeBase } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const badgeVariants = cva("gap-1 rounded-sm border-transparent font-medium [&>svg]:size-3!", {
 	variants: {
@@ -23,9 +23,9 @@ const badgeVariants = cva("gap-1 rounded-sm border-transparent font-medium [&>sv
 		tone: "neutral",
 		size: "default",
 	},
-})
+});
 
-type BadgeTone = NonNullable<VariantProps<typeof badgeVariants>["tone"]>
+type BadgeTone = NonNullable<VariantProps<typeof badgeVariants>["tone"]>;
 
 function Badge({
 	className,
@@ -33,10 +33,10 @@ function Badge({
 	size = "default",
 	...props
 }: Omit<React.ComponentProps<typeof BadgeBase>, "variant"> & {
-	tone?: BadgeTone | undefined
-	size?: "default" | "sm" | undefined
+	tone?: BadgeTone | undefined;
+	size?: "default" | "sm" | undefined;
 }) {
-	return <BadgeBase variant="outline" className={cn(badgeVariants({ tone, size }), className)} {...props} />
+	return <BadgeBase variant="outline" className={cn(badgeVariants({ tone, size }), className)} {...props} />;
 }
 
-export { Badge, badgeVariants, type BadgeTone }
+export { Badge, badgeVariants, type BadgeTone };

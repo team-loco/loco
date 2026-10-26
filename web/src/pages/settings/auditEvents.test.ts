@@ -12,7 +12,14 @@ test("appends older audit rows once while preserving the first loaded record", (
 });
 
 test("uses the returned actor identity without organization members", () => {
-	const actor = create(EventSchema, { actorType: "user", actorName: "Wren Workspace", actorEmail: "wren@example.test" });
+	const actor = create(EventSchema, {
+		actorType: "user",
+		actorName: "Wren Workspace",
+		actorEmail: "wren@example.test",
+	});
 	expect(auditActor(actor, new Map())).toEqual({ name: "Wren Workspace", detail: "wren@example.test" });
-	expect(auditActor(create(EventSchema, { actorType: "user" }), new Map())).toEqual({ name: "Deleted user", detail: "" });
+	expect(auditActor(create(EventSchema, { actorType: "user" }), new Map())).toEqual({
+		name: "Deleted user",
+		detail: "",
+	});
 });

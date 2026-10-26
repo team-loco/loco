@@ -1,8 +1,8 @@
-import type { ReactNode } from "react"
+import type { ReactNode } from "react";
 
-import { Button } from "@/components/design/Button"
-import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup"
-import { cn } from "@/lib/utils"
+import { Button } from "@/components/design/Button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { cn } from "@/lib/utils";
 
 function Pager({
 	label,
@@ -16,18 +16,18 @@ function Pager({
 	buttonSize = "xs",
 	className,
 }: {
-	label: ReactNode
-	pageSizes?: readonly number[] | undefined
-	pageSize?: number | undefined
-	onPageSize?: ((size: number) => void) | undefined
-	prevLabel?: string | undefined
-	nextLabel?: string | undefined
-	onPrev: (() => void) | null
-	onNext: (() => void) | null
-	buttonSize?: "xs" | "sm" | undefined
-	className?: string | undefined
+	label: ReactNode;
+	pageSizes?: readonly number[] | undefined;
+	pageSize?: number | undefined;
+	onPageSize?: ((size: number) => void) | undefined;
+	prevLabel?: string | undefined;
+	nextLabel?: string | undefined;
+	onPrev: (() => void) | null;
+	onNext: (() => void) | null;
+	buttonSize?: "xs" | "sm" | undefined;
+	className?: string | undefined;
 }) {
-	const sizes = pageSizes !== undefined && pageSize !== undefined && onPageSize !== undefined
+	const sizes = pageSizes !== undefined && pageSize !== undefined && onPageSize !== undefined;
 	return (
 		<div className={cn("flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-sm text-fg3", className)}>
 			<div className="flex items-center gap-3">
@@ -39,8 +39,8 @@ function Pager({
 							variant="segmented"
 							value={[String(pageSize)]}
 							onValueChange={(v: string[]) => {
-								const n = Number(v[0])
-								if (Number.isFinite(n) && n > 0) onPageSize(n)
+								const n = Number(v[0]);
+								if (Number.isFinite(n) && n > 0) onPageSize(n);
 							}}
 							className="rounded-md p-0.5"
 						>
@@ -62,7 +62,7 @@ function Pager({
 				</Button>
 			</div>
 		</div>
-	)
+	);
 }
 
-export { Pager }
+export { Pager };

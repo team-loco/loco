@@ -55,11 +55,25 @@ function buildTree(
 		if (node.parent !== null) childCount.set(node.parent, (childCount.get(node.parent) ?? 0) + 1);
 	};
 	if (userId !== null) {
-		push({ key: nodeKey(EntityType.USER, userId), kind: "user", entityType: EntityType.USER, id: userId, label: "Your account", parent: null });
+		push({
+			key: nodeKey(EntityType.USER, userId),
+			kind: "user",
+			entityType: EntityType.USER,
+			id: userId,
+			label: "Your account",
+			parent: null,
+		});
 	}
 	const sortedOrgs = orgs.toSorted((a, b) => Number(b.id === activeOrgId) - Number(a.id === activeOrgId));
 	for (const o of sortedOrgs) {
-		push({ key: nodeKey(EntityType.ORGANIZATION, o.id), kind: "org", entityType: EntityType.ORGANIZATION, id: o.id, label: o.name, parent: null });
+		push({
+			key: nodeKey(EntityType.ORGANIZATION, o.id),
+			kind: "org",
+			entityType: EntityType.ORGANIZATION,
+			id: o.id,
+			label: o.name,
+			parent: null,
+		});
 	}
 	for (const w of workspaces) {
 		push({
@@ -114,7 +128,14 @@ export function useTokenData(): TokenData {
 		return holds(held, tree, key, level);
 	};
 
-	const mkOwner = (key: OwnerKey, entityType: EntityType, id: string | null, label: string, kind: string, noun: string): Owner => ({
+	const mkOwner = (
+		key: OwnerKey,
+		entityType: EntityType,
+		id: string | null,
+		label: string,
+		kind: string,
+		noun: string,
+	): Owner => ({
 		key,
 		entityType,
 		id,
@@ -125,8 +146,22 @@ export function useTokenData(): TokenData {
 		canCreate: can(entityType, id, 2),
 	});
 
-	const orgOwner = mkOwner("org", EntityType.ORGANIZATION, activeOrgId, activeOrg?.name ?? "Organization", "Organization", "organization");
-	const wsOwner = mkOwner("workspace", EntityType.WORKSPACE, activeWorkspaceId, activeWs?.name ?? "Workspace", "Workspace", "workspace");
+	const orgOwner = mkOwner(
+		"org",
+		EntityType.ORGANIZATION,
+		activeOrgId,
+		activeOrg?.name ?? "Organization",
+		"Organization",
+		"organization",
+	);
+	const wsOwner = mkOwner(
+		"workspace",
+		EntityType.WORKSPACE,
+		activeWorkspaceId,
+		activeWs?.name ?? "Workspace",
+		"Workspace",
+		"workspace",
+	);
 	const personalOwner = mkOwner("personal", EntityType.USER, userId, "Personal", "You", "personal");
 
 	const orgTokens = useQuery(
@@ -170,6 +205,8 @@ export function useTokenData(): TokenData {
 		scopesError: scopesQuery.error,
 		resourcesLoading,
 		resourcesError,
-		retryResources: () => { for (const q of resourceQueries) void q.refetch(); },
+		retryResources: () => {
+			for (const q of resourceQueries) void q.refetch();
+		},
 	};
 }

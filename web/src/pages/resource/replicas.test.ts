@@ -15,7 +15,13 @@ import { replicaLine } from "./replicas";
 const NOW_MS = Date.UTC(2026, 9, 11, 12, 0, 0);
 const MINUTE_MS = 60_000;
 
-function region(name: string, status: ResourceStatus, ready: number, desired: number, reportedMinutesAgo?: number): RegionStatus {
+function region(
+	name: string,
+	status: ResourceStatus,
+	ready: number,
+	desired: number,
+	reportedMinutesAgo?: number,
+): RegionStatus {
 	return create(RegionStatusSchema, {
 		region: name,
 		status,

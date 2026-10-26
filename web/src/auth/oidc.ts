@@ -145,7 +145,8 @@ export async function createAuthClient(cfg: OIDCConfig): Promise<AuthClient> {
 			return await refreshing;
 		},
 		signIn: async (redirectTo) => {
-			if (as.authorization_endpoint === undefined) throw new Error("The identity provider has no authorization endpoint");
+			if (as.authorization_endpoint === undefined)
+				throw new Error("The identity provider has no authorization endpoint");
 			const pending: PendingLogin = {
 				verifier: oauth.generateRandomCodeVerifier(),
 				state: oauth.generateRandomState(),

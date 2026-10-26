@@ -5,8 +5,11 @@ import { LogEntrySchema } from "@gen/loco/observability/v1/observability_pb";
 import { cancelLogResume, completeLogResume, logPlaybackForKey, type LogPlayback } from "./log-playback";
 import { toRows } from "./rows";
 
-const paused = { rows: toRows([create(LogEntrySchema, { body: "received live row" })], new Map()),
-	olderCursor: "older-page", newerCursor: "newer-page" };
+const paused = {
+	rows: toRows([create(LogEntrySchema, { body: "received live row" })], new Map()),
+	olderCursor: "older-page",
+	newerCursor: "newer-page",
+};
 
 test("keeps a pending resume through the anchored URL transition and then enables Live", () => {
 	const pending = { from: "anchored", to: "latest" };

@@ -5,10 +5,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
-import {
-	deleteResource,
-	listWorkspaceResources,
-} from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { deleteResource, listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 
 import {
 	AlertDialog,
@@ -106,8 +103,7 @@ export function ResourceRowMenu({
 					<AlertDialogHeader>
 						<AlertDialogTitle>Delete {resource.name}?</AlertDialogTitle>
 						<AlertDialogDescription>
-							This removes the resource, its deployments in every environment, and its domains. It cannot be
-							undone.
+							This removes the resource, its deployments in every environment, and its domains. It cannot be undone.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>

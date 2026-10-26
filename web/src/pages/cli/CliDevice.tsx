@@ -63,7 +63,13 @@ export function CliDevice() {
 							}}
 						/>
 					</Field>
-					<Button type="submit" variant="inverted" size="lg" className="w-full" disabled={approve.isPending || userCode.trim() === ""}>
+					<Button
+						type="submit"
+						variant="inverted"
+						size="lg"
+						className="w-full"
+						disabled={approve.isPending || userCode.trim() === ""}
+					>
 						{approve.isPending && <Loader2 className="size-4 animate-spin" />}
 						Approve
 					</Button>

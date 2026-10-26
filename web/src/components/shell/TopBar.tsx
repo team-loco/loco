@@ -11,10 +11,16 @@ export function TopBar() {
 	const { pinned } = useSidebarPeek();
 
 	return (
-		<div data-slot="top-bar" className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-line bg-background px-5 text-md">
+		<div
+			data-slot="top-bar"
+			className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-line bg-background px-5 text-md"
+		>
 			<SidebarTrigger
 				aria-pressed={pinned}
-				className={cn("size-7 rounded-sm hover:bg-bg3", pinned && "bg-info-bg text-primary hover:bg-info-bg hover:text-primary")}
+				className={cn(
+					"size-7 rounded-sm hover:bg-bg3",
+					pinned && "bg-info-bg text-primary hover:bg-info-bg hover:text-primary",
+				)}
 			/>
 			<span className="mx-1 h-4 w-px bg-line" />
 			<ShellBreadcrumb />

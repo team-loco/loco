@@ -21,7 +21,10 @@ export function collectImports(sources: string[], injected: string[]): Map<strin
 					names.add(name);
 				}
 			}
-			const head = clause.replace(/\{[\s\S]*\}/, "").replace(/,\s*$/, "").trim();
+			const head = clause
+				.replace(/\{[\s\S]*\}/, "")
+				.replace(/,\s*$/, "")
+				.trim();
 			if (head === "*" || head.startsWith("* as")) {
 				names.add("*");
 			} else if (head !== "") {

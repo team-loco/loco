@@ -120,10 +120,7 @@ export function EnvironmentMenu({
 				{environments.map((env) => {
 					const used = usedEnvIds.has(env.id);
 					return (
-						<div
-							key={env.id}
-							className={cn("flex items-center rounded-sm", env.id === active?.id && "bg-bg3")}
-						>
+						<div key={env.id} className={cn("flex items-center rounded-sm", env.id === active?.id && "bg-bg3")}>
 							<DropdownMenuItem
 								className="flex-1 gap-2"
 								onClick={() => {

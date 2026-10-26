@@ -43,10 +43,18 @@ export function SettingsRow({
 			)}
 		>
 			<div className="flex flex-col gap-1">
-				{controlId === undefined
-					? <span className="font-semibold">{label}</span>
-					: <label htmlFor={controlId} className="font-semibold">{label}</label>}
-				{hint !== undefined && <span id={hintId} className="text-[12.5px] leading-[1.45] text-fg3">{hint}</span>}
+				{controlId === undefined ? (
+					<span className="font-semibold">{label}</span>
+				) : (
+					<label htmlFor={controlId} className="font-semibold">
+						{label}
+					</label>
+				)}
+				{hint !== undefined && (
+					<span id={hintId} className="text-[12.5px] leading-[1.45] text-fg3">
+						{hint}
+					</span>
+				)}
 			</div>
 			<div className="flex max-w-[520px] min-w-0 flex-col gap-1.5">{children}</div>
 		</div>
@@ -117,9 +125,7 @@ export function DangerCard({
 			<div className="flex flex-wrap items-center gap-5 px-5 py-[18px]">
 				<div className="flex min-w-0 flex-1 basis-60 flex-col gap-1">
 					<span className="font-semibold">{title}</span>
-					<span className={cn("text-[12.5px]", subtitleWarn === true ? "text-warn-fg" : "text-fg3")}>
-						{subtitle}
-					</span>
+					<span className={cn("text-[12.5px]", subtitleWarn === true ? "text-warn-fg" : "text-fg3")}>{subtitle}</span>
 				</div>
 				{blockedReason === null ? (
 					button
@@ -134,7 +140,17 @@ export function DangerCard({
 	);
 }
 
-export function CopyField({ label, value, copied, onCopy }: { label: string; value: string; copied: boolean; onCopy: () => void }) {
+export function CopyField({
+	label,
+	value,
+	copied,
+	onCopy,
+}: {
+	label: string;
+	value: string;
+	copied: boolean;
+	onCopy: () => void;
+}) {
 	return (
 		<div className="flex min-w-0 flex-col gap-1">
 			<span className="text-[12px] text-fg3">{label}</span>

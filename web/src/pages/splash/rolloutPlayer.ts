@@ -48,7 +48,7 @@ export class RolloutPlayer {
 				if (entries.some((e) => e.isIntersecting)) this.play();
 				else this.pause();
 			},
-			{ threshold: 0.25 }
+			{ threshold: 0.25 },
 		);
 		observer.observe(el);
 		return () => {

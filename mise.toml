@@ -151,10 +151,15 @@ run = "buf format -w"
 description = "Check protobuf formatting and lint rules"
 run = ["buf format --diff --exit-code", "buf lint"]
 
-[tasks."lint:web"]
-description = "Run oxlint, eslint and the typecheck on the web UI"
+[tasks."fmt:web"]
+description = "Format the web UI with bun fmt"
 dir = "web"
-run = ["bun run lint:fast", "bun run lint:types", "bun run typecheck"]
+run = "bun fmt"
+
+[tasks."lint:web"]
+description = "Check formatting, then run oxlint, eslint and the typecheck on the web UI"
+dir = "web"
+run = ["bun fmt --check", "bun run lint:fast", "bun run lint:types", "bun run typecheck"]
 
 [tasks."test:e2e-diagnostics"]
 description = "Test discovery failure diagnostics without a cluster"

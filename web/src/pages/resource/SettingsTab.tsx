@@ -18,15 +18,7 @@ import { ScaleSection } from "./ScaleSection";
 
 const NAME = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
 
-function GeneralSection({
-	resource,
-	managed,
-	onSaved,
-}: {
-	resource: Resource;
-	managed: boolean;
-	onSaved: () => void;
-}) {
+function GeneralSection({ resource, managed, onSaved }: { resource: Resource; managed: boolean; onSaved: () => void }) {
 	const [name, setName] = useState<string | null>(null);
 	const [error, setError] = useState<string | undefined>(undefined);
 	const update = useMutation(updateResource);
@@ -155,11 +147,7 @@ export function SettingsTab({
 							</span>
 						)}
 					</div>
-					<Button
-						variant="destructive-outline"
-						className="h-[30px] border-red"
-						onClick={onDelete}
-					>
+					<Button variant="destructive-outline" className="h-[30px] border-red" onClick={onDelete}>
 						Delete resource
 					</Button>
 				</div>

@@ -8,18 +8,13 @@ interface AnimatedSpanProps extends MotionProps {
 	className?: string;
 }
 
-export const AnimatedSpan = ({
-	children,
-	delay = 0,
-	className,
-	...props
-}: AnimatedSpanProps) => (
+export const AnimatedSpan = ({ children, delay = 0, className, ...props }: AnimatedSpanProps) => (
 	<motion.div
 		animate={{ opacity: 1, y: 0 }}
 		className={cn("grid text-sm font-normal tracking-tight", className)}
 		initial={{ opacity: 0, y: -5 }}
 		transition={{ duration: 0.3, delay: delay / 1000 }}
-		{...(props)}
+		{...props}
 	>
 		{children}
 	</motion.div>
@@ -70,7 +65,9 @@ export const TypingAnimation = ({
 		const startTimeout = setTimeout(() => {
 			setStarted(true);
 		}, delay);
-		return () => { clearTimeout(startTimeout); };
+		return () => {
+			clearTimeout(startTimeout);
+		};
 	}, [delay]);
 
 	useEffect(() => {
@@ -86,18 +83,16 @@ export const TypingAnimation = ({
 			}
 		}, duration);
 
-		return () => { clearInterval(typingEffect); };
+		return () => {
+			clearInterval(typingEffect);
+		};
 	}, [children, duration, started]);
 
 	return (
 		// Identity is stable via motionComponentCache; the rule can't see through
 		// the local binding.
 		// oxlint-disable-next-line react/static-components
-		<MotionComponent
-			className={cn("text-sm font-normal tracking-tight", className)}
-			ref={elementRef}
-			{...(props)}
-		>
+		<MotionComponent className={cn("text-sm font-normal tracking-tight", className)} ref={elementRef} {...props}>
 			{displayedText}
 		</MotionComponent>
 	);
@@ -109,11 +104,7 @@ interface TerminalProps {
 	headerClassName?: string;
 }
 
-export const Terminal = ({
-	children,
-	className,
-	headerClassName,
-}: TerminalProps) => {
+export const Terminal = ({ children, className, headerClassName }: TerminalProps) => {
 	return (
 		<div
 			className={cn(
@@ -121,12 +112,7 @@ export const Terminal = ({
 				className,
 			)}
 		>
-			<div
-				className={cn(
-					"flex flex-col gap-y-2 border-b border-border p-2",
-					headerClassName,
-				)}
-			>
+			<div className={cn("flex flex-col gap-y-2 border-b border-border p-2", headerClassName)}>
 				<div className="flex flex-row gap-x-2">
 					<div className="h-2 w-2 rounded-full bg-red-500" />
 					<div className="h-2 w-2 rounded-full bg-yellow-500" />

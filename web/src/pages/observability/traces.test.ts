@@ -3,7 +3,14 @@ import { create } from "@bufbuild/protobuf";
 import { TraceSpanSchema } from "@gen/loco/observability/v1/observability_pb";
 import { axisLabel, durationLabel, spanPosition, spanTree, summarizeTraces, uniqueSpans } from "./traces";
 
-const span = (id: string, parent = "", nanos = 0) => create(TraceSpanSchema, { traceId: "trace", spanId: id, parentSpanId: parent, startTime: { seconds: 1_800_000_000n, nanos }, durationNanos: 100n });
+const span = (id: string, parent = "", nanos = 0) =>
+	create(TraceSpanSchema, {
+		traceId: "trace",
+		spanId: id,
+		parentSpanId: parent,
+		startTime: { seconds: 1_800_000_000n, nanos },
+		durationNanos: 100n,
+	});
 
 describe("trace timing and hierarchy", () => {
 	test("axis uses one unit including zero and short ticks", () => {
@@ -15,13 +22,20 @@ describe("trace timing and hierarchy", () => {
 		const child = span("child", "root", 25);
 		const trace = summarizeTraces([child, root])[0];
 		expect(trace?.duration).toBe(125n);
-		expect(trace === undefined ? null : spanPosition(child, trace.start, trace.duration)).toEqual({ left: "20%", width: "80%" });
+		expect(trace === undefined ? null : spanPosition(child, trace.start, trace.duration)).toEqual({
+			left: "20%",
+			width: "80%",
+		});
 		expect(durationLabel(25n)).toBe("25 ns");
 		expect(durationLabel(1_500_000n)).toBe("1.50 ms");
 	});
 	test("builds a stable parent-first tree even when child arrives first and parent starts later", () => {
 		const rows = spanTree([span("child", "root"), span("root", "", 20), span("missing", "unavailable", 30)], new Set());
-		expect(rows.map((row) => [row.span.spanId, row.depth, row.missingParent])).toEqual([["root", 0, false], ["child", 1, false], ["missing", 0, true]]);
+		expect(rows.map((row) => [row.span.spanId, row.depth, row.missingParent])).toEqual([
+			["root", 0, false],
+			["child", 1, false],
+			["missing", 0, true],
+		]);
 	});
 	test("collapse hides all descendants without reintroducing them as roots", () => {
 		const rows = spanTree([span("root"), span("child", "root"), span("grandchild", "child")], new Set(["root"]));
@@ -40,7 +54,12 @@ describe("trace timing and hierarchy", () => {
 	});
 	test("duration includes children that outlive root and reports errors across services", () => {
 		const root = span("root");
-		const child = create(TraceSpanSchema, { ...span("child", "root", 50), durationNanos: 200n, serviceName: "cart", statusCode: "Error" });
+		const child = create(TraceSpanSchema, {
+			...span("child", "root", 50),
+			durationNanos: 200n,
+			serviceName: "cart",
+			statusCode: "Error",
+		});
 		const trace = summarizeTraces([root, child])[0];
 		expect(trace?.duration).toBe(250n);
 		expect(trace?.errors).toBe(1);

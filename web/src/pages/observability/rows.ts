@@ -36,10 +36,7 @@ function replicaOf(pod: string): string {
 	return parts.length > 1 ? (parts.at(-1) ?? pod) : pod;
 }
 
-export function toRows(
-	entries: LogEntry[],
-	resourceById: Map<string, ObsResource>,
-): LogRow[] {
+export function toRows(entries: LogEntry[], resourceById: Map<string, ObsResource>): LogRow[] {
 	const seen = new Map<string, number>();
 	const rows: LogRow[] = [];
 	for (const entry of entries) {

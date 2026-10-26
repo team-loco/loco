@@ -43,9 +43,12 @@ describe("deploymentsRequest", () => {
 describe("buildRegions", () => {
 	test("keeps a long-lived current deployment outside the history page", () => {
 		const current = create(DeploymentSchema, { id: "current-europe", region: "eu-west-1", isActive: true });
-		const history = Array.from({ length: 200 }, (_, i) => create(DeploymentSchema, {
-			id: `release-${i.toString()}`, region: "us-east-1",
-		}));
+		const history = Array.from({ length: 200 }, (_, i) =>
+			create(DeploymentSchema, {
+				id: `release-${i.toString()}`,
+				region: "us-east-1",
+			}),
+		);
 		const environment = create(EnvironmentStatusSchema, {
 			regions: [create(RegionStatusSchema, { region: "eu-west-1", deploymentId: current.id })],
 		});

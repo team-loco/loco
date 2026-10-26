@@ -22,7 +22,9 @@ function loopbackURL(port: string, params: Record<string, string>): string {
 function validRequest(port: string | null, state: string | null, challenge: string | null): boolean {
 	if (port === null || state === null || challenge === null) return false;
 	const portNumber = Number(port);
-	return PORT_PATTERN.test(port) && portNumber >= 1024 && portNumber <= 65535 && state.length >= 16 && challenge.length >= 43;
+	return (
+		PORT_PATTERN.test(port) && portNumber >= 1024 && portNumber <= 65535 && state.length >= 16 && challenge.length >= 43
+	);
 }
 
 export function CliLogin() {
@@ -36,7 +38,11 @@ export function CliLogin() {
 	if (!validRequest(port, state, challenge) || port === null || state === null || challenge === null) {
 		return (
 			<CliCard title="This sign-in link is incomplete">
-				{() => <p className="m-0 text-center text-fg2">Run <code>loco login</code> again to get a new link.</p>}
+				{() => (
+					<p className="m-0 text-center text-fg2">
+						Run <code>loco login</code> again to get a new link.
+					</p>
+				)}
 			</CliCard>
 		);
 	}

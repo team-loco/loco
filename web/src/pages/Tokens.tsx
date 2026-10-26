@@ -123,7 +123,8 @@ export function Tokens() {
 			if (data.scopesLoading) return null;
 			return <div className="px-4 py-7 text-fg3">{`You don't have access to ${owner.label} tokens.`}</div>;
 		}
-		if (hasListError) return <div className="px-4 py-7 text-fg3">{getErrorMessage(listError, "Failed to load tokens")}</div>;
+		if (hasListError)
+			return <div className="px-4 py-7 text-fg3">{getErrorMessage(listError, "Failed to load tokens")}</div>;
 		if (tokens.length > 0) {
 			return (
 				<EmptyState
@@ -207,7 +208,9 @@ export function Tokens() {
 					<div
 						className={cn(
 							"grid items-start gap-5",
-							selectedToken === undefined ? "grid-cols-1" : "grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]",
+							selectedToken === undefined
+								? "grid-cols-1"
+								: "grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]",
 						)}
 					>
 						<TokenList

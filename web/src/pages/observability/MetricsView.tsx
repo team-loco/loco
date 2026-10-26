@@ -102,14 +102,28 @@ function ComputeSection({ visible }: { visible: ObsResource[] }) {
 	const deployMarkers = useDeployMarkers(visible, from, to);
 	const focus: ChartMarker[] =
 		metricsFocusTs !== null && metricsFocusTs >= from
-			? [{ t: metricsFocusTs, label: `log · ${formatClock(metricsFocusTs)}`, title: "Selected log", color: "var(--fg)" }]
+			? [
+					{
+						t: metricsFocusTs,
+						label: `log · ${formatClock(metricsFocusTs)}`,
+						title: "Selected log",
+						color: "var(--fg)",
+					},
+				]
 			: [];
 	return (
 		<div className="flex flex-col gap-2.5">
 			<SectionTitle>Compute</SectionTitle>
 			<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
 				{COMPUTE.map((d) => (
-					<ComputeChart key={d.key} def={d} visible={visible} from={from} to={to} markers={[...deployMarkers, ...focus]} />
+					<ComputeChart
+						key={d.key}
+						def={d}
+						visible={visible}
+						from={from}
+						to={to}
+						markers={[...deployMarkers, ...focus]}
+					/>
 				))}
 			</div>
 		</div>

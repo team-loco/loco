@@ -32,16 +32,9 @@ const neverSignedIn = () => false;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
 	const client = use(clientForUI);
-	const hasSession = useSyncExternalStore(
-		client?.subscribe ?? noSubscription,
-		client?.hasSession ?? neverSignedIn,
-	);
+	const hasSession = useSyncExternalStore(client?.subscribe ?? noSubscription, client?.hasSession ?? neverSignedIn);
 	const onSignInPage = SIGN_IN_PATHS.some((path) => window.location.pathname.startsWith(path));
-	const {
-		data: user,
-		isPending,
-		error,
-	} = useQuery(whoAmI, {}, { enabled: hasSession && !onSignInPage });
+	const { data: user, isPending, error } = useQuery(whoAmI, {}, { enabled: hasSession && !onSignInPage });
 	const queryClient = useQueryClient();
 	const unauthenticated = error instanceof ConnectError && error.code === Code.Unauthenticated;
 

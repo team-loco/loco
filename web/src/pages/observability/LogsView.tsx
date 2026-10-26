@@ -44,17 +44,8 @@ function nearest(rows: LogRow[], ts: number): LogRow | undefined {
 }
 
 export function LogsView() {
-	const {
-		workspaceId,
-		resources,
-		resourceById,
-		range,
-		tokens,
-		setTokens,
-		setText,
-		appliedText,
-		setAppliedText,
-	} = useObs();
+	const { workspaceId, resources, resourceById, range, tokens, setTokens, setText, appliedText, setAppliedText } =
+		useObs();
 	const { active: environment, isLoading: environmentLoading } = useEnvironments();
 	const environmentId = environment?.id ?? "";
 	const [facetsOpen, setFacetsOpen] = useState(true);
@@ -74,15 +65,27 @@ export function LogsView() {
 	const [selectedKey, setSelectedKey] = useState<string | null>(null);
 	const [freezeTs, setFreezeTs] = useState<number | null>(null);
 	const backend = buildBackendQuery(tokens, appliedText, resources);
-	const queryKey = JSON.stringify([workspaceId, environmentId, backend.parsed, backend.resourceIds, backend.impossible, range, anchor]);
+	const queryKey = JSON.stringify([
+		workspaceId,
+		environmentId,
+		backend.parsed,
+		backend.resourceIds,
+		backend.impossible,
+		range,
+		anchor,
+	]);
 	const [prevKey, setPrevKey] = useState(queryKey);
 	const cursor = history.current.cursor;
 	const playbackKey = JSON.stringify([queryKey, cursor, history.current.order]);
 	const [playback, setPlayback] = useState<LogPlayback>({ key: playbackKey, on: false, pending: null, paused: null });
 	useEffect(() => {
-		const cancel = () => { setPlayback(cancelLogResume); };
+		const cancel = () => {
+			setPlayback(cancelLogResume);
+		};
 		window.addEventListener("popstate", cancel);
-		return () => { window.removeEventListener("popstate", cancel); };
+		return () => {
+			window.removeEventListener("popstate", cancel);
+		};
 	}, []);
 	const currentPlayback = logPlaybackForKey(playback, playbackKey);
 	if (currentPlayback !== playback) setPlayback(currentPlayback);
@@ -137,26 +140,46 @@ export function LogsView() {
 		setPage(0);
 		setFreezeTs(null);
 		if (tail) {
-			setPlayback({ ...playback, on: false, paused: { rows: visibleLogRows(batchRows, allTail), olderCursor: logs.olderCursor, newerCursor: logs.newerCursor } });
+			setPlayback({
+				...playback,
+				on: false,
+				paused: {
+					rows: visibleLogRows(batchRows, allTail),
+					olderCursor: logs.olderCursor,
+					newerCursor: logs.newerCursor,
+				},
+			});
 			return;
 		}
 		const latest = logs.refetchLatest();
-		const latestKey = JSON.stringify([workspaceId, environmentId, backend.parsed, backend.resourceIds, backend.impossible, range, null]);
+		const latestKey = JSON.stringify([
+			workspaceId,
+			environmentId,
+			backend.parsed,
+			backend.resourceIds,
+			backend.impossible,
+			range,
+			null,
+		]);
 		const pending = { from: playbackKey, to: JSON.stringify([latestKey, "", LogOrder.NEWEST_FIRST]) };
 		clearAnchor();
 		setHistory(createLogHistory());
 		setWindowEnd(latest.end);
 		setSelectedKey(null);
 		setPlayback({ ...playback, pending });
-		void latest.result.then(() => {
-			setPlayback((current) => completeLogResume(current, pending, true));
-		}, () => {
-			setPlayback((current) => completeLogResume(current, pending, false));
-		});
+		void latest.result.then(
+			() => {
+				setPlayback((current) => completeLogResume(current, pending, true));
+			},
+			() => {
+				setPlayback((current) => completeLogResume(current, pending, false));
+			},
+		);
 	};
 
 	const isLoading = (logs.isLoading || environmentLoading) && !backend.impossible;
-	const truncated = cutoffCursor !== null || newerCursor !== null || history.older.length > 0 || history.newer.length > 0;
+	const truncated =
+		cutoffCursor !== null || newerCursor !== null || history.older.length > 0 || history.newer.length > 0;
 	const from = tail ? nowMs - timeRangeMs(range) : historyFrom;
 
 	const bw = ((tail ? nowMs : historyTo) - from) / BUCKETS;
@@ -183,7 +206,12 @@ export function LogsView() {
 	const effectiveKey = selectedKey ?? focused?.key ?? null;
 	const selIdx = effectiveKey !== null ? rows.findIndex((r) => r.key === effectiveKey) : -1;
 	const selRow = selIdx >= 0 ? rows[selIdx] : undefined;
-	const curPage = focused !== undefined && selIdx >= 0 ? Math.floor(selIdx / size) : page === "last" ? pages - 1 : Math.min(page, pages - 1);
+	const curPage =
+		focused !== undefined && selIdx >= 0
+			? Math.floor(selIdx / size)
+			: page === "last"
+				? pages - 1
+				: Math.min(page, pages - 1);
 	const pageRows = rows.slice(curPage * size, curPage * size + size);
 	const canOlder = curPage < pages - 1 || history.older.length > 0 || cutoffCursor !== null;
 	const canNewer = curPage > 0 || history.newer.length > 0 || newerCursor !== null;
@@ -205,8 +233,14 @@ export function LogsView() {
 		const add = (v: string, c = 1) => {
 			if (v !== "") m.set(v, (m.get(v) ?? 0) + c);
 		};
-		if (key === "level") LEVELS.forEach((l) => { add(l, 0); });
-		if (key === "resource") resources.forEach((r) => { add(r.name, 0); });
+		if (key === "level")
+			LEVELS.forEach((l) => {
+				add(l, 0);
+			});
+		if (key === "resource")
+			resources.forEach((r) => {
+				add(r.name, 0);
+			});
 		for (const r of rows) {
 			if (key === "level") add(r.level);
 			if (key === "resource") add(r.resourceName);
@@ -245,11 +279,13 @@ export function LogsView() {
 			</div>
 			<div
 				className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[var(--log-columns)]"
-				style={{
-					"--log-columns": [showFacets ? "200px" : null, "minmax(0,1fr)", panelOpen ? "minmax(360px,420px)" : null]
-						.filter(Boolean)
-						.join(" "),
-				} as CSSProperties}
+				style={
+					{
+						"--log-columns": [showFacets ? "200px" : null, "minmax(0,1fr)", panelOpen ? "minmax(360px,420px)" : null]
+							.filter(Boolean)
+							.join(" "),
+					} as CSSProperties
+				}
 			>
 				{showFacets && <LogFacets rows={rows} />}
 				<div className="flex min-w-0 flex-col gap-4">
@@ -264,15 +300,29 @@ export function LogsView() {
 								}}
 								className="-ml-1.5 text-fg3 hover:text-foreground"
 							>
-								{facetsOpen ? <PanelLeftCloseIcon className="size-[15px]" /> : <PanelLeftOpenIcon className="size-[15px]" />}
+								{facetsOpen ? (
+									<PanelLeftCloseIcon className="size-[15px]" />
+								) : (
+									<PanelLeftOpenIcon className="size-[15px]" />
+								)}
 							</Button>
 							{isLoading ? <Skeleton className="h-4 w-20" /> : <span className="font-semibold">{matched}</span>}
-							<span className="text-fg3">{anchor === null ? `last ${rangeLabel}` : `around ${fmtTs(anchor, true)}`}</span>
-							{anchor !== null && <Button variant="ghost" size="xs" onClick={() => {
-								clearAnchor();
-								setWindowEnd(Date.now());
-								setSelectedKey(null);
-							}}>Return to latest</Button>}
+							<span className="text-fg3">
+								{anchor === null ? `last ${rangeLabel}` : `around ${fmtTs(anchor, true)}`}
+							</span>
+							{anchor !== null && (
+								<Button
+									variant="ghost"
+									size="xs"
+									onClick={() => {
+										clearAnchor();
+										setWindowEnd(Date.now());
+										setSelectedKey(null);
+									}}
+								>
+									Return to latest
+								</Button>
+							)}
 							<div className="flex-1" />
 							<span className="flex items-center gap-3 text-sm text-fg3">
 								<span className="flex items-center gap-[5px]">
@@ -320,7 +370,9 @@ export function LogsView() {
 								/>
 								{isLoading && <LoadingRows />}
 								{!isLoading && error !== null && (
-									<div className="px-4 py-6 break-words text-bad-fg">{getErrorMessage(error, "Failed to load logs")}</div>
+									<div className="px-4 py-6 break-words text-bad-fg">
+										{getErrorMessage(error, "Failed to load logs")}
+									</div>
 								)}
 								{!isLoading && error === null && rows.length === 0 && tail && (
 									<div className="px-4 py-6 text-fg3">Waiting for new logs…</div>
@@ -403,8 +455,20 @@ export function LogsView() {
 						row={selRow}
 						words={freeWords}
 						nowMs={nowMs}
-						onPrev={selIdx > 0 ? () => { select(rows[selIdx - 1]?.key ?? null); } : null}
-						onNext={selIdx < rows.length - 1 ? () => { select(rows[selIdx + 1]?.key ?? null); } : null}
+						onPrev={
+							selIdx > 0
+								? () => {
+										select(rows[selIdx - 1]?.key ?? null);
+									}
+								: null
+						}
+						onNext={
+							selIdx < rows.length - 1
+								? () => {
+										select(rows[selIdx + 1]?.key ?? null);
+									}
+								: null
+						}
 						onClose={() => {
 							select(null);
 						}}

@@ -1,4 +1,3 @@
-
 type StorageArea = "local" | "session";
 
 function storageFor(area: StorageArea): Storage {

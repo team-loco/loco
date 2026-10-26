@@ -1,2 +1,6 @@
 [serve.static]
 plugins = ["bun-plugin-tailwind", "./env-plugin.ts"]
+
+[fmt]
+useTabs = true
+printWidth = 120

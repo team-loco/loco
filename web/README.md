@@ -7,11 +7,12 @@ ConnectRPC clients generated into `../gen/ts`.
 
 Run them through mise from the repo root, which pins bun and every other tool:
 
-| Task                | What it does                                     |
-| ------------------- | ------------------------------------------------ |
-| `mise run ui`       | Bun dev server with hot reload on `:5173`        |
-| `mise run lint:web` | oxlint, then type-aware eslint, then `bun check` |
-| `mise run test:web` | `bun test`                                       |
+| Task                | What it does                                                        |
+| ------------------- | ------------------------------------------------------------------- |
+| `mise run ui`       | Bun dev server with hot reload on `:5173`                           |
+| `mise run fmt:web`  | `bun fmt`                                                           |
+| `mise run lint:web` | `bun fmt --check`, oxlint, then type-aware eslint, then `bun check` |
+| `mise run test:web` | `bun test`                                                          |
 
 `bun run build` type-checks and runs `build.ts`, which writes the production bundle to `dist/`.
 `bun run preview` serves `dist/` on `:4173`.
@@ -38,7 +39,6 @@ from `loco:env`, a module `env-plugin.ts` generates from the environment at buil
 
 Every warning fails. Frontend conventions (design wrappers, theme tokens, effects, errors) are
 in the repo's `AGENTS.md`.
-
 
 Published UI images load `/runtime-config.js` before the application bundle. An installation can mount a public configuration file at `/public/runtime-config.js`:
 

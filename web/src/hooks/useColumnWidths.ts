@@ -1,15 +1,5 @@
-import {
-	useCallback,
-	useRef,
-	useState,
-	useSyncExternalStore,
-	type CSSProperties,
-} from "react";
-import {
-	fitColumnWidths,
-	resizeColumnPair,
-	validColumnWidths,
-} from "@/lib/column-widths";
+import { useCallback, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { fitColumnWidths, resizeColumnPair, validColumnWidths } from "@/lib/column-widths";
 import { readStorage, writeStorage } from "@/lib/storage";
 
 const NARROW_TABLE_QUERY = "(width < 40rem)";
@@ -35,25 +25,16 @@ function preferences(key: string): Record<string, unknown> {
 	try {
 		const stored: unknown = JSON.parse(readStorage(key) ?? "{}");
 		return typeof stored === "object" && stored !== null && !Array.isArray(stored)
-			? stored as Record<string, unknown>
+			? (stored as Record<string, unknown>)
 			: {};
 	} catch {
 		return {};
 	}
 }
 function columnStyle(widths: readonly number[]): CSSProperties {
-	return Object.fromEntries(
-		widths.map((width, index) => [
-			`--column-${String(index)}`,
-			`${String(width)}px`,
-		]),
-	);
+	return Object.fromEntries(widths.map((width, index) => [`--column-${String(index)}`, `${String(width)}px`]));
 }
-export function useColumnWidths(
-	key: string,
-	layoutName: string,
-	layout: ColumnLayout,
-) {
+export function useColumnWidths(key: string, layoutName: string, layout: ColumnLayout) {
 	const [saved, setSaved] = useState(() => preferences(key));
 	const [available, setAvailable] = useState(0);
 	const elementRef = useRef<HTMLElement | null>(null);
@@ -74,9 +55,7 @@ export function useColumnWidths(
 	const minimum = layout.minimums.reduce((sum, width) => sum + width, 0);
 	const total = Math.max(available, minimum);
 	const stored = saved[layoutName];
-	const weights = validColumnWidths(stored, layout.minimums.length)
-		? stored
-		: layout.initial(total);
+	const weights = validColumnWidths(stored, layout.minimums.length) ? stored : layout.initial(total);
 	const widths = fitColumnWidths(weights, layout.minimums, total);
 	const style = {
 		...columnStyle(widths),

@@ -31,7 +31,9 @@ export function LogFacets({ rows }: { rows: LogRow[] }) {
 		bump(resCounts, r.resourceName);
 		bump(regionCounts, r.region);
 	}
-	const regions = [...new Set([...regionCounts.keys(), ...tokens.filter((t) => t.key === "region").map((t) => t.value)])];
+	const regions = [
+		...new Set([...regionCounts.keys(), ...tokens.filter((t) => t.key === "region").map((t) => t.value)]),
+	];
 
 	const facets: { key: FieldKey; title: string; values: FacetValue[] }[] = [
 		{
@@ -43,7 +45,10 @@ export function LogFacets({ rows }: { rows: LogRow[] }) {
 			key: "resource",
 			title: "Resource",
 			values: [...new Set([...resources.map((r) => r.name), ...resCounts.keys()])].map((name) => ({
-				value: name, count: resCounts.get(name) ?? 0, dot: resources.find((r) => r.name === name)?.color ?? "var(--fg4)", dotClass: null,
+				value: name,
+				count: resCounts.get(name) ?? 0,
+				dot: resources.find((r) => r.name === name)?.color ?? "var(--fg4)",
+				dotClass: null,
 			})),
 		},
 		{

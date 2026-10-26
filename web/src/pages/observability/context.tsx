@@ -144,8 +144,10 @@ export function ObsProvider({
 		if (env !== null) search.set("env", env);
 		search.set("range", opts.range ?? range);
 		if (next === "logs" && opts.focusTs !== undefined) search.set("at", String(opts.focusTs));
-		const names = opts.resource !== undefined ? [opts.resource] :
-			opts.tokens?.filter((token) => token.key === "resource" && !token.neg).map((token) => token.value);
+		const names =
+			opts.resource !== undefined
+				? [opts.resource]
+				: opts.tokens?.filter((token) => token.key === "resource" && !token.neg).map((token) => token.value);
 		if (names !== undefined && names.length > 0) search.set("r", names.join(","));
 		setParams(search);
 	};

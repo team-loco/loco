@@ -31,9 +31,13 @@ export function Settings() {
 	const scopes = useMyScopes();
 	const { orgs } = useOrgWorkspace();
 	const canReadOrg = !scopes.isLoading && scopes.orgMember(orgId);
-	const workspaceQuery = useQuery(getWorkspace, { workspaceId }, {
-		enabled: workspaceId !== "" && !scopes.isLoading && scopes.workspaceLevel(orgId, workspaceId) >= 1,
-	});
+	const workspaceQuery = useQuery(
+		getWorkspace,
+		{ workspaceId },
+		{
+			enabled: workspaceId !== "" && !scopes.isLoading && scopes.workspaceLevel(orgId, workspaceId) >= 1,
+		},
+	);
 	const orgQuery = useQuery(getOrg, { key: { case: "orgId", value: orgId } }, { enabled: orgId !== "" && canReadOrg });
 	const wsQuery = useQuery(listOrgWorkspaces, { orgId, pageSize: 200 }, { enabled: orgId !== "" && canReadOrg });
 	const membersQuery = useQuery(listOrgMembers, { orgId, pageSize: 200 }, { enabled: orgId !== "" && canReadOrg });
@@ -43,7 +47,8 @@ export function Settings() {
 	const currentWs = workspaceQuery.data?.workspace ?? workspaces.find((w) => w.id === workspaceId);
 	const workspaceIds = canReadOrg ? workspaces.map((w) => w.id) : currentWs ? [currentWs.id] : [];
 	const { counts, isLoading: countsLoading } = useResourceCounts(workspaceIds);
-	const orgName = org?.name ?? currentWs?.orgName ?? orgs.find((item) => item.id === orgId)?.name ?? "this organization";
+	const orgName =
+		org?.name ?? currentWs?.orgName ?? orgs.find((item) => item.id === orgId)?.name ?? "this organization";
 	const canAudit = org !== undefined && scopes.orgLevel(org.id) >= 3;
 	const tab: Tab = !canReadOrg ? "ws" : requested === "audit" && !canAudit ? "org" : requested;
 
@@ -85,7 +90,9 @@ export function Settings() {
 				)}
 			</ToggleGroup>
 
-			{tab !== "ws" && orgError !== null && <div className="rounded-lg border border-line px-5 py-8 text-fg3">{orgError}</div>}
+			{tab !== "ws" && orgError !== null && (
+				<div className="rounded-lg border border-line px-5 py-8 text-fg3">{orgError}</div>
+			)}
 			{(scopes.isLoading || (tab !== "ws" && orgError === null && !org)) && <SettingsSkeleton />}
 			{!scopes.isLoading && tab === "ws" && (
 				<WorkspaceTab

@@ -24,7 +24,12 @@ export function tracesQueryOptions(transport: Transport, options: TraceQueryOpti
 	const endTime = { ...msToTimestamp(end), nanos: (end % MILLIS_PER_SECOND) * NANOS_PER_MILLISECOND };
 	const input = { ...scope, startTime, endTime, limit: TRACE_PAGE_SIZE };
 	return {
-		queryKey: createConnectQueryKey({ schema: ObservabilityProxyService.method.queryTraces, transport, cardinality: "infinite", input }),
+		queryKey: createConnectQueryKey({
+			schema: ObservabilityProxyService.method.queryTraces,
+			transport,
+			cardinality: "infinite",
+			input,
+		}),
 		initialPageParam: "",
 		queryFn: async ({ pageParam, signal }: { pageParam: string; signal: AbortSignal }) =>
 			await createClient(ObservabilityProxyService, transport).queryTraces({ ...input, cursor: pageParam }, { signal }),

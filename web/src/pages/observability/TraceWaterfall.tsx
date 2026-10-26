@@ -1,13 +1,6 @@
 import { useRef, useState } from "react";
 import { useSearchParams } from "react-router";
-import {
-	CheckIcon,
-	ChevronDownIcon,
-	ChevronRightIcon,
-	CircleAlertIcon,
-	CopyIcon,
-	XIcon,
-} from "lucide-react";
+import { CheckIcon, ChevronDownIcon, ChevronRightIcon, CircleAlertIcon, CopyIcon, XIcon } from "lucide-react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 
 import { ColumnResizeHandle } from "@/components/design/ColumnResizeHandle";
@@ -15,28 +8,14 @@ import { useColumnWidths } from "@/hooks/useColumnWidths";
 import { Input } from "@/components/design/Input";
 import { Button } from "@/components/design/Button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/design/Sheet";
-import {
-	TraceDot,
-	TraceTabs,
-	TraceTab,
-	TraceTabList,
-	TraceTabPanel,
-} from "@/components/design/Trace";
+import { TraceDot, TraceTabs, TraceTab, TraceTabList, TraceTabPanel } from "@/components/design/Trace";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useCopy } from "@/hooks/useCopy";
 import { cn } from "@/lib/utils";
 
 import { useObs } from "./context";
 import { traceServiceColor, traceServiceLabel } from "./trace-service";
-import {
-	axisLabel,
-	durationLabel,
-	spanError,
-	spanPosition,
-	spanStart,
-	spanTree,
-	type TraceSummary,
-} from "./traces";
+import { axisLabel, durationLabel, spanError, spanPosition, spanStart, spanTree, type TraceSummary } from "./traces";
 
 const TICKS = [0, 25, 50, 75, 100];
 const MAX_INDENT = 8;
@@ -49,17 +28,16 @@ const NARROW_WATERFALL_LAYOUT = {
 	initial: (width: number) => [width * 0.52, width * 0.48 - 58, 58],
 };
 
-export function TraceWaterfall({
-	trace,
-	incomplete,
-}: {
-	trace: TraceSummary;
-	incomplete: boolean;
-}) {
+export function TraceWaterfall({ trace, incomplete }: { trace: TraceSummary; incomplete: boolean }) {
 	const [params, setParams] = useSearchParams();
 	const { resourceById } = useObs();
 	const mobile = useIsMobile();
-	const { ref: columnRef, style: columnStyle, handles, resize } = useColumnWidths(
+	const {
+		ref: columnRef,
+		style: columnStyle,
+		handles,
+		resize,
+	} = useColumnWidths(
 		"loco:trace-waterfall-columns:v1",
 		mobile ? "narrow" : "wide",
 		mobile ? NARROW_WATERFALL_LAYOUT : WATERFALL_LAYOUT,
@@ -79,19 +57,15 @@ export function TraceWaterfall({
 		else next.set("span", id);
 		setParams(next, { replace: true });
 	};
-	const services = [
-		...new Map(trace.spans.map((span) => [span.serviceName, span])).values(),
-	];
-	const label = (span: TraceSpan) =>
-		traceServiceLabel(span, resourceById.get(span.resourceId)?.name);
+	const services = [...new Map(trace.spans.map((span) => [span.serviceName, span])).values()];
+	const label = (span: TraceSpan) => traceServiceLabel(span, resourceById.get(span.resourceId)?.name);
 	return (
 		<>
 			<div className="trace-toolbar">
 				<h2 className="font-medium">
 					Waterfall{" "}
 					<span className="ml-2 font-normal text-fg3">
-						{trace.spans.length} loaded{" "}
-						{trace.spans.length === 1 ? "span" : "spans"}
+						{trace.spans.length} loaded {trace.spans.length === 1 ? "span" : "spans"}
 					</span>
 				</h2>
 				<Button
@@ -135,22 +109,17 @@ export function TraceWaterfall({
 								key={mobile ? "narrow-name" : "wide-name"}
 								label="Resize waterfall name column"
 								{...nameHandle}
-								onResize={(value, commit) => { resize(0, value, commit); }}
+								onResize={(value, commit) => {
+									resize(0, value, commit);
+								}}
 							/>
 						)}
 					</span>
 					<div className="trace-ruler-time">
 						<div className="trace-axis">
 							{TICKS.map((tick) => (
-								<span
-									key={tick}
-									className="trace-tick font-mono"
-									style={{ left: `${String(tick)}%` }}
-								>
-									{axisLabel(
-										(trace.duration * BigInt(tick)) / 100n,
-										trace.duration,
-									)}
+								<span key={tick} className="trace-tick font-mono" style={{ left: `${String(tick)}%` }}>
+									{axisLabel((trace.duration * BigInt(tick)) / 100n, trace.duration)}
 								</span>
 							))}
 						</div>
@@ -159,7 +128,9 @@ export function TraceWaterfall({
 								key={mobile ? "narrow-timeline" : "wide-timeline"}
 								label="Resize waterfall timeline column"
 								{...timelineHandle}
-								onResize={(value, commit) => { resize(1, value, commit); }}
+								onResize={(value, commit) => {
+									resize(1, value, commit);
+								}}
 							/>
 						)}
 					</div>
@@ -170,11 +141,7 @@ export function TraceWaterfall({
 					const active = selected?.spanId === span.spanId;
 					const color = traceServiceColor(span.serviceName);
 					return (
-						<div
-							key={span.spanId}
-							className="trace-span-row"
-							data-selected={active}
-						>
+						<div key={span.spanId} className="trace-span-row" data-selected={active}>
 							<div
 								className="trace-span-name"
 								style={{
@@ -215,20 +182,10 @@ export function TraceWaterfall({
 								>
 									<TraceDot color={color} />
 									<span className="trace-service-label">{label(span)}</span>
-									<span className="trace-operation">
-										{span.name || "Unnamed span"}
-									</span>
-									{error && (
-										<CircleAlertIcon
-											aria-label="Error span"
-											className="size-3 shrink-0 text-bad-fg"
-										/>
-									)}
+									<span className="trace-operation">{span.name || "Unnamed span"}</span>
+									{error && <CircleAlertIcon aria-label="Error span" className="size-3 shrink-0 text-bad-fg" />}
 									{missingParent && (
-										<span
-											aria-label="Parent span unavailable"
-											className="text-warn-fg"
-										>
+										<span aria-label="Parent span unavailable" className="text-warn-fg">
 											↳
 										</span>
 									)}
@@ -244,12 +201,7 @@ export function TraceWaterfall({
 								aria-pressed={active}
 							>
 								{TICKS.map((tick) => (
-									<span
-										key={tick}
-										className="trace-grid-line"
-										style={{ left: `${String(tick)}%` }}
-										aria-hidden
-									/>
+									<span key={tick} className="trace-grid-line" style={{ left: `${String(tick)}%` }} aria-hidden />
 								))}
 								<span
 									className="trace-span-bar"
@@ -259,20 +211,14 @@ export function TraceWaterfall({
 									}}
 								/>
 							</button>
-							<span className="trace-duration">
-								{durationLabel(span.durationNanos)}
-							</span>
+							<span className="trace-duration">{durationLabel(span.durationNanos)}</span>
 						</div>
 					);
 				})}
 			</div>
 			<div className="trace-legend">
 				{services.map((span) => (
-					<span
-						key={span.serviceName}
-						className="inline-flex items-center gap-1.5"
-						title={span.serviceName}
-					>
+					<span key={span.serviceName} className="inline-flex items-center gap-1.5" title={span.serviceName}>
 						<TraceDot color={traceServiceColor(span.serviceName)} />
 						{label(span)}
 					</span>
@@ -359,18 +305,9 @@ function SpanDetails({
 					<span className="truncate" title={span.name}>
 						{span.name}
 					</span>
-					{error && (
-						<span className="shrink-0 rounded-sm bg-bad-bg px-1.5 py-0.5 text-[10px] text-bad-fg">
-							Error
-						</span>
-					)}
+					{error && <span className="shrink-0 rounded-sm bg-bad-bg px-1.5 py-0.5 text-[10px] text-bad-fg">Error</span>}
 				</h3>
-				<Button
-					variant="ghost"
-					size="icon-xs"
-					aria-label="Close span details"
-					onClick={onClose}
-				>
+				<Button variant="ghost" size="icon-xs" aria-label="Close span details" onClick={onClose}>
 					<XIcon />
 				</Button>
 			</div>
@@ -391,11 +328,7 @@ function SpanDetails({
 							}}
 						>
 							<code>{span.spanId}</code>
-							{copied === "span" ? (
-								<CheckIcon className="size-2.5" />
-							) : (
-								<CopyIcon className="size-2.5" />
-							)}
+							{copied === "span" ? <CheckIcon className="size-2.5" /> : <CopyIcon className="size-2.5" />}
 						</button>
 					</dd>
 				</div>
@@ -428,11 +361,7 @@ function SpanDetails({
 								className="absolute top-0 right-0 size-6"
 								onClick={() => {
 									setSearch("");
-									document
-										.querySelector<HTMLInputElement>(
-											'input[aria-label="Search span attributes"]',
-										)
-										?.focus();
+									document.querySelector<HTMLInputElement>('input[aria-label="Search span attributes"]')?.focus();
 								}}
 							>
 								<XIcon />
@@ -455,12 +384,7 @@ function SpanDetails({
 						`${name} ${value}`.toLowerCase().includes(search.toLowerCase()),
 					);
 					return (
-						<TraceTabPanel
-							key={key}
-							value={key}
-							className="trace-attributes"
-							aria-label={title}
-						>
+						<TraceTabPanel key={key} value={key} className="trace-attributes" aria-label={title}>
 							<dl>
 								{entries.map(([name, value]) => (
 									<div key={name} className="trace-attribute-row">
@@ -470,9 +394,7 @@ function SpanDetails({
 								))}
 							</dl>
 							{entries.length === 0 && (
-								<p className="py-3 text-xs text-fg3">
-									{search === "" ? "No attributes" : "No matching attributes"}
-								</p>
+								<p className="py-3 text-xs text-fg3">{search === "" ? "No attributes" : "No matching attributes"}</p>
 							)}
 						</TraceTabPanel>
 					);

@@ -102,11 +102,7 @@ export function WorkspaceTab({
 	const subtitle = hasRes
 		? `Delete the ${resLabel} ${nRes === 1 ? "resource" : "resources"} in ${ws.name} first.`
 		: `${resLabel} resources, ${pluralize(members, "member")} with direct access`;
-	const blockedReason = !canAdmin
-		? `Requires Admin on ${ws.name}`
-		: hasRes
-			? "Workspace still has resources"
-			: null;
+	const blockedReason = !canAdmin ? `Requires Admin on ${ws.name}` : hasRes ? "Workspace still has resources" : null;
 
 	const save = () => {
 		if (nameErr !== null || update.isPending) return;
@@ -150,7 +146,12 @@ export function WorkspaceTab({
 	return (
 		<div className="flex flex-col gap-5">
 			<SettingsCard>
-				<SettingsRow label="Name" hint={`Used in URLs and the CLI. Must be unique in ${orgName}.`} controlId={nameId} hintId={nameHintId}>
+				<SettingsRow
+					label="Name"
+					hint={`Used in URLs and the CLI. Must be unique in ${orgName}.`}
+					controlId={nameId}
+					hintId={nameHintId}
+				>
 					<Input
 						id={nameId}
 						value={current.name}
@@ -165,7 +166,11 @@ export function WorkspaceTab({
 							setServerNameErr(null);
 						}}
 					/>
-					{shownErr !== null && <span id={nameErrorId} className="text-sm text-bad-fg">{shownErr}</span>}
+					{shownErr !== null && (
+						<span id={nameErrorId} className="text-sm text-bad-fg">
+							{shownErr}
+						</span>
+					)}
 				</SettingsRow>
 				<SettingsRow label="Description" controlId={descriptionId}>
 					<Textarea
@@ -182,7 +187,10 @@ export function WorkspaceTab({
 							setSaved(false);
 						}}
 					/>
-					<span id={descriptionHintId} className={cn("self-end text-sm", current.desc.length > 240 ? "text-warn-fg" : "text-fg4")}>
+					<span
+						id={descriptionHintId}
+						className={cn("self-end text-sm", current.desc.length > 240 ? "text-warn-fg" : "text-fg4")}
+					>
 						{current.desc.length} / 256
 					</span>
 				</SettingsRow>

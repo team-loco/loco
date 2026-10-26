@@ -188,11 +188,15 @@ export function AccessPicker({
 							</button>
 						);
 					})}
-					{shown.length === 0 && !resourcesLoading && resourcesError === null && <div className="px-2.5 py-2 text-fg3">No matches</div>}
+					{shown.length === 0 && !resourcesLoading && resourcesError === null && (
+						<div className="px-2.5 py-2 text-fg3">No matches</div>
+					)}
 					{resourcesError !== null && (
 						<div role="alert" className="flex items-center justify-between gap-2 px-2.5 py-1.5 text-sm">
 							<span className="text-bad-fg">{getErrorMessage(resourcesError, "Failed to load resources")}</span>
-							<Button type="button" variant="outline" size="sm" disabled={resourcesLoading} onClick={retryResources}>Retry</Button>
+							<Button type="button" variant="outline" size="sm" disabled={resourcesLoading} onClick={retryResources}>
+								Retry
+							</Button>
 						</div>
 					)}
 					{resourcesLoading && <div className="px-2.5 py-1.5 text-sm text-fg3">Loading resources…</div>}

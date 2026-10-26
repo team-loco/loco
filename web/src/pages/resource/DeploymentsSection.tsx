@@ -28,7 +28,15 @@ function IconAction({ label, onClick, children }: { label: string; onClick: () =
 	return (
 		<Tooltip>
 			<TooltipTrigger
-				render={<Button variant="outline" size="icon-sm" className="text-fg2 hover:text-foreground" aria-label={label} onClick={onClick} />}
+				render={
+					<Button
+						variant="outline"
+						size="icon-sm"
+						className="text-fg2 hover:text-foreground"
+						aria-label={label}
+						onClick={onClick}
+					/>
+				}
 			>
 				{children}
 			</TooltipTrigger>
@@ -74,7 +82,8 @@ export function DeploymentsSection({
 				<span className="flex items-baseline gap-2.5">
 					Deployments
 					<span role="status" className="text-sm font-normal text-fg3">
-						{all.length} {hasMore ? "loaded" : "total"}{isLoadingMore ? " · Loading…" : ""}
+						{all.length} {hasMore ? "loaded" : "total"}
+						{isLoadingMore ? " · Loading…" : ""}
 					</span>
 				</span>
 			}
@@ -157,14 +166,29 @@ export function DeploymentsSection({
 				onPageSize={(n) => {
 					setPagination({ page: 0, size: n });
 				}}
-				onPrev={slice.page > 0 ? () => { setPagination({ page: slice.page - 1, size }); } : null}
-				onNext={isLoadingMore ? null : slice.page < slice.pages - 1
-					? () => { setPagination({ page: slice.page + 1, size }); }
-					: hasMore ? () => {
-						void onLoadMore().then((loaded) => {
-							if (loaded) setPagination((current) => current === pagination ? { page: slice.page + 1, size } : current);
-						});
-					} : null}
+				onPrev={
+					slice.page > 0
+						? () => {
+								setPagination({ page: slice.page - 1, size });
+							}
+						: null
+				}
+				onNext={
+					isLoadingMore
+						? null
+						: slice.page < slice.pages - 1
+							? () => {
+									setPagination({ page: slice.page + 1, size });
+								}
+							: hasMore
+								? () => {
+										void onLoadMore().then((loaded) => {
+											if (loaded)
+												setPagination((current) => (current === pagination ? { page: slice.page + 1, size } : current));
+										});
+									}
+								: null
+				}
 			/>
 			{historyError !== null && (
 				<div role="alert" className="px-4 pb-3 text-bad-fg">

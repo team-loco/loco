@@ -21,21 +21,15 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	const { user, signedOut } = useAuth();
 	const { isPending, error } = useQuery(whoAmI, {}, { enabled: !signedOut });
 
-	const { data: orgsRes } = useQuery(
-		listUserOrgs,
-		{ userId: user?.id ?? "" },
-		{ enabled: !!user },
-	);
+	const { data: orgsRes } = useQuery(listUserOrgs, { userId: user?.id ?? "" }, { enabled: !!user });
 	const orgs = orgsRes?.orgs ?? [];
 	const scopes = useMyScopes({ enabled: !!user });
 
 	const activeOrgId = pickActive(orgs, orgParam, ORG_STORAGE_KEY);
 
-	const { data: workspacesRes } = useQuery(
-		listOrgWorkspaces,
-		activeOrgId ? { orgId: activeOrgId } : undefined,
-		{ enabled: !!activeOrgId && !scopes.isLoading && scopes.orgMember(activeOrgId) },
-	);
+	const { data: workspacesRes } = useQuery(listOrgWorkspaces, activeOrgId ? { orgId: activeOrgId } : undefined, {
+		enabled: !!activeOrgId && !scopes.isLoading && scopes.orgMember(activeOrgId),
+	});
 	const workspaces = workspacesRes?.workspaces ?? [];
 
 	const unauthenticated = error instanceof ConnectError && error.code === Code.Unauthenticated;

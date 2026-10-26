@@ -81,8 +81,8 @@ export function buildRegions(
 		const history = deployments.filter((d) => d.region === name).toSorted(byNewest);
 		const currentId = status?.deploymentId;
 		const current = currentId
-			? currentDeployments.find((d) => d.id === currentId) ?? history.find((d) => d.id === currentId)
-			: history.find((d) => d.isActive) ?? history[0];
+			? (currentDeployments.find((d) => d.id === currentId) ?? history.find((d) => d.id === currentId))
+			: (history.find((d) => d.isActive) ?? history[0]);
 		return { name, status, history, current };
 	});
 }
@@ -163,7 +163,7 @@ export function useResourceData(resourceId: string) {
 	);
 	const deploymentsQuery = useInfiniteQuery(listDeployments, deploymentsRequest(resourceId, active?.id), {
 		pageParamKey: "pageToken",
-		getNextPageParam: (last) => last.nextPageToken === "" ? undefined : last.nextPageToken,
+		getNextPageParam: (last) => (last.nextPageToken === "" ? undefined : last.nextPageToken),
 		refetchInterval: REFRESH_MS,
 	});
 	const resource = resourceQuery.data?.resource;
@@ -188,14 +188,23 @@ export function useResourceData(resourceId: string) {
 		resource,
 		environmentId: active?.id,
 		deployments: deploymentsQuery.data?.pages.flatMap((page) => page.deployments) ?? [],
-		currentDeployments: currentQueries.flatMap((query) => query.data?.deployment === undefined ? [] : [query.data.deployment]),
+		currentDeployments: currentQueries.flatMap((query) =>
+			query.data?.deployment === undefined ? [] : [query.data.deployment],
+		),
 		hasMoreHistory: deploymentsQuery.hasNextPage,
 		isLoadingMoreHistory: deploymentsQuery.isFetchingNextPage,
 		historyError: deploymentsQuery.isFetchNextPageError ? deploymentsQuery.error : null,
 		loadMoreHistory,
-		isLoading: resourceQuery.isLoading || environmentsLoading || deploymentsQuery.isLoading || currentQueries.some((query) => query.isLoading),
-		error: resourceQuery.error ?? (deploymentsQuery.isFetchNextPageError ? null : deploymentsQuery.error)
-			?? currentQueries.find((query) => query.error !== null)?.error ?? null,
+		isLoading:
+			resourceQuery.isLoading ||
+			environmentsLoading ||
+			deploymentsQuery.isLoading ||
+			currentQueries.some((query) => query.isLoading),
+		error:
+			resourceQuery.error ??
+			(deploymentsQuery.isFetchNextPageError ? null : deploymentsQuery.error) ??
+			currentQueries.find((query) => query.error !== null)?.error ??
+			null,
 		refresh,
 	};
 }

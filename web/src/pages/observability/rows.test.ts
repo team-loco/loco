@@ -4,9 +4,16 @@ import { LogEntrySchema } from "@gen/loco/observability/v1/observability_pb";
 
 import { toRows, visibleLogRows } from "./rows";
 
-const rows = toRows([1, 2, 3].map((seconds) => create(LogEntrySchema, {
-	resourceId: "recommendation", timestamp: { seconds: BigInt(seconds) }, body: `record ${String(seconds)}`,
-})), new Map());
+const rows = toRows(
+	[1, 2, 3].map((seconds) =>
+		create(LogEntrySchema, {
+			resourceId: "recommendation",
+			timestamp: { seconds: BigInt(seconds) },
+			body: `record ${String(seconds)}`,
+		}),
+	),
+	new Map(),
+);
 
 describe("paused log history", () => {
 	test("retains received live rows when disabling the stream clears its buffer", () => {

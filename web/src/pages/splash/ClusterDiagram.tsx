@@ -3,7 +3,19 @@ import { useState, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-import { BOX, EDGES, pctX, pctY, readyCount, VIEW_H, VIEW_W, type Box, type NodeKey, type PodPhase, type Rollout } from "./cluster";
+import {
+	BOX,
+	EDGES,
+	pctX,
+	pctY,
+	readyCount,
+	VIEW_H,
+	VIEW_W,
+	type Box,
+	type NodeKey,
+	type PodPhase,
+	type Rollout,
+} from "./cluster";
 
 interface PodDot {
 	id: string;
@@ -28,7 +40,15 @@ function podClass(phase: PodPhase): string {
 	}
 }
 
-function PodRow({ pods, className, podClassName }: { pods: readonly PodDot[]; className: string; podClassName: string }) {
+function PodRow({
+	pods,
+	className,
+	podClassName,
+}: {
+	pods: readonly PodDot[];
+	className: string;
+	podClassName: string;
+}) {
 	return (
 		<div className={cn("flex flex-wrap gap-[5px]", className)}>
 			{pods.map((p) => (
@@ -88,7 +108,7 @@ function NodeCard({
 			}}
 			className={cn(
 				"absolute flex flex-col gap-1.5 rounded-[10px] border bg-background px-3 py-2.5 shadow-xs transition-colors duration-150",
-				hovered === node ? "border-primary/50" : "border-line"
+				hovered === node ? "border-primary/50" : "border-line",
 			)}
 			style={{ left: pctX(box.x), top: pctY(box.y), width: pctX(box.w), height: pctY(box.h) }}
 		>
@@ -97,12 +117,22 @@ function NodeCard({
 	);
 }
 
-function DiagramLabel({ x, y, className, children }: { x: number; y: number; className?: string | undefined; children: string }) {
+function DiagramLabel({
+	x,
+	y,
+	className,
+	children,
+}: {
+	x: number;
+	y: number;
+	className?: string | undefined;
+	children: string;
+}) {
 	return (
 		<div
 			className={cn(
 				"absolute -translate-x-1/2 -translate-y-1/2 rounded-sm bg-background px-[5px] font-mono text-xs whitespace-nowrap text-fg3",
-				className
+				className,
 			)}
 			style={{ left: pctX(x), top: pctY(y) }}
 		>
@@ -132,7 +162,14 @@ function DiagramBackdrop({ hovered }: { hovered: NodeKey | null }) {
 				strokeDasharray="5 5"
 				className="fill-primary/[0.03] stroke-primary/30"
 			/>
-			<rect x={BOX.ns.x} y={BOX.ns.y} width={BOX.ns.w} height={BOX.ns.h} rx={10} className="fill-background stroke-line" />
+			<rect
+				x={BOX.ns.x}
+				y={BOX.ns.y}
+				width={BOX.ns.w}
+				height={BOX.ns.h}
+				rx={10}
+				className="fill-background stroke-line"
+			/>
 			{EDGES.map((e, i) => {
 				const hot = hovered !== null && e.ends.includes(hovered);
 				return (
@@ -205,7 +242,17 @@ export function ClusterDiagram({ rollout }: { rollout: Rollout }) {
 	);
 }
 
-function StackedCard({ icon: Icon, name, sub, pods }: { icon: LucideIcon; name: string; sub: string; pods?: readonly PodDot[] | undefined }) {
+function StackedCard({
+	icon: Icon,
+	name,
+	sub,
+	pods,
+}: {
+	icon: LucideIcon;
+	name: string;
+	sub: string;
+	pods?: readonly PodDot[] | undefined;
+}) {
 	return (
 		<div className="min-w-0 rounded-[10px] border border-line bg-background px-3 py-2.5">
 			<div className="flex items-center gap-2">
@@ -232,7 +279,7 @@ export function ClusterDiagramStacked({ rollout }: { rollout: Rollout }) {
 			<StackedCard icon={Globe} name="Internet" sub="clients" />
 			<StackedLink>https · :443</StackedLink>
 			<StackedCard icon={ShieldCheck} name="Gateway" sub="envoy · HTTP/3 · TLS 1.3" />
-			<StackedLink>/  ·  /api</StackedLink>
+			<StackedLink>{"/  ·  /api"}</StackedLink>
 			<div className="grid grid-cols-2 gap-2.5">
 				<StackedCard icon={AppWindow} name="web" sub="web:sha-5d02aa" pods={WEB_PODS} />
 				<StackedCard icon={Server} name="api" sub={`api:sha-${rollout.tag}`} pods={rollout.pods} />
