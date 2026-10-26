@@ -49,7 +49,7 @@ def response(url, host=None):
 
 def ui_routes():
     route_source = (ROOT / "web/src/App.tsx").read_text()
-    return re.findall('<Route path="(/[^\\"]*)"', route_source)
+    return re.findall('<Route\\s+path="(/[^\\"]*)"', route_source)
 
 
 def test_rewrites_cover_exactly_the_ui_routes():
