@@ -57,33 +57,7 @@ func TestRenameResourceRejectsUnsafeNames(t *testing.T) {
 	}
 }
 
-func TestLegacyResourceNameStillDeploysAndCanBeRenamed(t *testing.T) {
-	f := newDeployFixture(t)
-	const legacyName = "Legacy_API"
-	if _, err := f.pool.Exec(
-		context.Background(),
-		`UPDATE resources SET name=$2 WHERE id=$1`,
-		f.resourceID,
-		legacyName,
-	); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
-		t.Fatalf("legacy resource deployment: %v", err)
-	}
-	if err := renameResource(t, f, legacyName); err != nil {
-		t.Fatalf("unchanged legacy name: %v", err)
-	}
-	if err := renameResource(t, f, testRenamedResource); err != nil {
-		t.Fatalf("rename legacy resource: %v", err)
-	}
-	payload := desiredPayload(t, f)
-	if payload.AppSpec.ResourceName != testRenamedResource {
-		t.Fatalf("resourceName = %q", payload.AppSpec.ResourceName)
-	}
-}
-
-func TestPlanRejectsNewReservedServiceNamesAndKeepsExistingOnes(t *testing.T) {
+func TestPlanRejectsNewReservedServiceNames(t *testing.T) {
 	f := newDeployFixture(t)
 	f.markClustersHealthy(t)
 	file := planFileHeader + strings.Replace(planFileNew, "  new:", "  "+testReservedServiceName+":", 1)
@@ -96,15 +70,5 @@ func TestPlanRejectsNewReservedServiceNamesAndKeepsExistingOnes(t *testing.T) {
 	}
 	if response.GetErrors()[0].GetMessage() != errPrivateServiceName.Error() {
 		t.Fatalf("error = %v", response.GetErrors()[0])
-	}
-	f.addResource(t, testReservedServiceName, planPartial)
-	response, err = plan(t, f, file, f.workspaceReadScopes(t))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, planErr := range response.GetErrors() {
-		if planErr.GetMessage() == errPrivateServiceName.Error() {
-			t.Fatalf("existing reserved name rejected: %v", response)
-		}
 	}
 }

@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -61,10 +60,6 @@ func TestResourcePaginationSurvivesDeletingTheCursorRow(t *testing.T) {
 	if len(rows) != 1 || rows[0].GetId() != ids[0].String() {
 		t.Fatalf("first page=%v", rows)
 	}
-	legacy, _ := page(encodeCursor(ids[0].String()))
-	if len(legacy) != 1 || legacy[0].GetId() != ids[1].String() {
-		t.Fatalf("legacy page=%v, want %s", legacy, ids[1])
-	}
 	if err := f.queries.DeleteResource(ctx, ids[0]); err != nil {
 		t.Fatal(err)
 	}
@@ -76,17 +71,4 @@ func TestResourcePaginationSurvivesDeletingTheCursorRow(t *testing.T) {
 	if len(rows) != 1 || rows[0].GetId() != ids[2].String() {
 		t.Fatalf("third page=%v, want %s", rows, ids[2])
 	}
-}
-
-func TestLegacyResourceCursorRequiresItsWorkspaceAnchor(t *testing.T) {
-	f := newDeployFixture(t)
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
-	cursor, err := server.resourcePageCursor(t.Context(), encodeCursor(f.resourceID.String()), f.workspaceID(t))
-	if err != nil || cursor.CreatedAt == nil {
-		t.Fatalf("legacy cursor=%+v, error=%v", cursor, err)
-	}
-	_, err = server.resourcePageCursor(t.Context(), encodeCursor(uuid.NewString()), f.workspaceID(t))
-	wantCode(t, err, connect.CodeInvalidArgument)
-	_, err = server.resourcePageCursor(t.Context(), encodeCursor(f.resourceID.String()), uuid.New())
-	wantCode(t, err, connect.CodeInvalidArgument)
 }

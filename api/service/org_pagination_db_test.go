@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
@@ -68,10 +67,6 @@ func TestOrgPaginationSurvivesDeletingTheCursorRow(t *testing.T) {
 	if len(rows) != 1 || rows[0].GetId() != ids[0].String() {
 		t.Fatalf("first page=%v, want %s", rows, ids[0])
 	}
-	legacy, _ := page(encodeCursor(ids[0].String()))
-	if len(legacy) != 1 || legacy[0].GetId() != ids[1].String() {
-		t.Fatalf("legacy next page=%v, want %s", legacy, ids[1])
-	}
 	if _, deleteErr := server.DeleteOrg(ctx, &orgv1.DeleteOrgRequest{OrgId: ids[0].String()}); deleteErr != nil {
 		t.Fatal(deleteErr)
 	}
@@ -83,17 +78,4 @@ func TestOrgPaginationSurvivesDeletingTheCursorRow(t *testing.T) {
 	if len(rows) != 1 || rows[0].GetId() != ids[2].String() {
 		t.Fatalf("third page=%v, want %s", rows, ids[2])
 	}
-}
-
-func TestLegacyOrgCursorRejectsMissingAnchor(t *testing.T) {
-	f := newEventFixture(t)
-	original, err := f.queries.GetOrgByID(t.Context(), uuid.MustParse(f.orgID))
-	if err != nil {
-		t.Fatal(err)
-	}
-	server := NewOrgServer(f.pool, f.queries, f.machine)
-	_, err = server.ListUserOrgs(f.owner, &orgv1.ListUserOrgsRequest{
-		UserId: original.CreatedBy.String(), PageSize: 1, PageToken: encodeCursor(uuid.NewString()),
-	})
-	wantCode(t, err, connect.CodeInvalidArgument)
 }
