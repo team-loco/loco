@@ -136,7 +136,7 @@ local_resource(
     resource_deps=['helm-deps'],
     deps=[
         'charts/loco-networking/',
-        'env/local/networking-chart.yaml.gotmpl',
+        'env/local/networking-chart.yaml',
     ],
     allow_parallel=True,
     labels=['infra'],
@@ -187,7 +187,7 @@ helm_release(
     values=[
         'env.CONTROL_PLANE_URL=' + control_plane_url,
     ],
-    deps=['charts/loco-core/', 'env/local/core-chart.yaml.gotmpl'],
+    deps=['charts/loco-core/', 'env/local/core-chart.yaml'],
     resource_deps=['helm-namespaces', 'helm-cert-manager', 'crds', 'loco-operator'],
 )
 
@@ -206,7 +206,7 @@ helm_release(
         'pull_policy': 'builds.builderImage.pullPolicy',
     }],
     values=[],
-    deps=['charts/loco-operator/', 'env/local/operator-chart.yaml.gotmpl', 'mise-tasks/cluster/build-egress'],
+    deps=['charts/loco-operator/', 'env/local/operator-chart.yaml', 'mise-tasks/cluster/build-egress'],
     resource_deps=['helm-networking', 'cluster-registry', 'crds'],
 )
 
@@ -219,7 +219,7 @@ helm_release(
     'observability',
     images=[],
     values=[],
-    deps=['charts/loco-obs/', 'env/local/obs-chart.yaml.gotmpl'],
+    deps=['charts/loco-obs/', 'env/local/obs-chart.yaml'],
     resource_deps=['loco-core'],
 )
 

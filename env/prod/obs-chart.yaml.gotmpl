@@ -1,9 +1,0 @@
-# Production environment values for loco-obs chart
-
-global:
-  region: {{ requiredEnv "LOCO_REGION" | quote }}
-  exporter:
-    endpoint: {{ requiredEnv "LOCO_OTLP_ENDPOINT" | quote }}
-
-# Gateway namespace where the Envoy Gateway is deployed
-gatewayNamespace: loco-system

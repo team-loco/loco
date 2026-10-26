@@ -1,4 +1,0 @@
-global:
-  exporter:
-    bearerToken:
-      secretName: {{ (readFile "../charts/loco-obs/values.yaml" | fromYaml).global.exporter.bearerToken.secretName | quote }}

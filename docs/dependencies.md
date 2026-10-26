@@ -202,7 +202,7 @@ Observability proxy query → API
 
 ## External Helm Chart Repositories
 
-Used in `helmfile.yaml.gotmpl` and the chart dependencies:
+Used by the chart dependencies and `charts/cert-manager.yaml`:
 
 | Repository         | URL                                                        | Purpose              |
 | ------------------ | ---------------------------------------------------------- | -------------------- |
@@ -260,14 +260,14 @@ Envoy Gateway (loco-core)
 ### Integration Points
 
 - **Kubernetes API**: All components talk to the API server
-- **Helm/helmfile**: Deployment and lifecycle management
+- **Helm**: Deployment and lifecycle management
 - **OpenTelemetry SDK**: Instrumentation in API and Controller
 
 ---
 
 ## Notes
 
-- All Helm chart versions are pinned in `helmfile.yaml.gotmpl` and individual `Chart.yaml` files
+- All Helm chart versions are pinned in `charts/cert-manager.yaml` and individual `Chart.yaml` files
 - Go module dependencies are managed per component (`cli/go.mod`, `api/go.mod`, `controller/go.mod`, `shared/go.mod`)
 - Protobuf definitions are shared across CLI, API, and Controller via the `shared` module
 - CI/CD integration (GitHub Actions, GitLab CI) is handled at deployment time, not runtime dependency

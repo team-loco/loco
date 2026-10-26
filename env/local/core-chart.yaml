@@ -1,6 +1,6 @@
 certManager:
   issuer:
-    email: {{ env "CERT_MANAGER_EMAIL" | default "dev@example.com" | quote }}
+    email: dev@example.com
 
 global:
   domain:
@@ -12,13 +12,6 @@ global:
   cloudProvider:
     type: local
     annotations: {}
-    {{- $lbRange := exec "mise" (list "run" "--quiet" "cluster:lb-range") | trim | splitList " " }}
-    loadBalancerIPPool:
-      start: {{ index $lbRange 0 | quote }}
-      stop: {{ index $lbRange 1 | quote }}
-
-secrets:
-  cloudflareToken: {{ env "CLOUDFLARE_TOKEN" | quote }}
 
 env:
   LOG_LEVEL: debug
@@ -43,7 +36,3 @@ gateway-helm:
                 host: otel-col-deploy.observability.svc.cluster.local
                 port: 4317
                 protocol: grpc
-
-agent:
-  joinToken:
-    value: {{ env "LOCO_JOIN_TOKEN" | quote }}

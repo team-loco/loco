@@ -279,9 +279,6 @@ def publication():
         (
             publication.root / "charts/loco-core/charts/gateway-helm-test.tgz"
         ).write_bytes(b"gateway")
-        (publication.root / "helmfile.yaml.gotmpl").write_text(
-            "chart: jetstack/cert-manager\n  version: fixture-version\n"
-        )
         publication.commit = "b" * 40
         publication.published = []
         publication.calls = []
@@ -312,6 +309,8 @@ def _command(publication, *args):
         (Path(args[-1]) / (name + "-0.7.0-rc.1.tgz")).write_bytes(b"chart")
     if args[:2] == ("helm", "pull"):
         (Path(args[-1]) / "cert-manager-fixture-version.tgz").write_bytes(b"cert")
+    if args[0] == "yq" and args[-1].endswith("charts/cert-manager.yaml"):
+        return '{"repository":"https://charts.example.test","chart":"cert-manager","version":"fixture-version"}'
     if args[0] == "yq":
         return '{"name":"fixture","version":"0.0.0"}'
     return ""

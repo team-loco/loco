@@ -3,4 +3,4 @@
 #MISE env={_.file=".env", _.source="env/local/stack.sh"}
 set -euo pipefail
 
-helmfile -e local -l phase=1-networking sync --skip-deps
+mise run helm:sync:release loco-networking

@@ -31,7 +31,7 @@ Install `loco-control-plane` separately in each control-plane region using its e
 
 Set these GHCR packages to public before publishing a deployable bundle. The workflow verifies anonymous artifact and image access before publishing the bundle, then verifies anonymous bundle access. Initial package creation can stop before bundle publication while package visibility is configured; use a new version for the next attempt. Every existing version fails publication, including partially published versions.
 
-The publisher verifies each reused `sha-<commit>` image's GitHub attestation against the main source commit and `build-push.yml` signer. Helm dependency versions come from the existing chart lockfiles and the cert-manager pin in `helmfile.yaml.gotmpl`. The bundle publishes last, after all individual artifacts succeed.
+The publisher verifies each reused `sha-<commit>` image's GitHub attestation against the main source commit and `build-push.yml` signer. Helm dependency versions come from the existing chart lockfiles and the cert-manager pin in `charts/cert-manager.yaml`. The bundle publishes last, after all individual artifacts succeed.
 
 Point an `OCIRepository` named `platform-bundle` in `flux-system` at the `platform` repository. Reconcile the bundle root with a Kustomization after cluster configuration is ready. The bundle creates `crds` and `platform-releases` Kustomizations and checks both current bundle revision and current CRD artifact revisions before deploying controllers.
 

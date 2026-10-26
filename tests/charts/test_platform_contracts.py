@@ -1,5 +1,4 @@
 import json
-import os
 import re
 import shutil
 import subprocess
@@ -43,41 +42,6 @@ TEST_REGION = "test-region-1"
 TEST_EXPORTER_ENDPOINT = "https://ingest.test.local"
 CONTROL_PLANE_BASE_VALUES = {"certManager": {"issuer": {"email": "ops@region.test"}}}
 OBS_BASE_VALUES = {"global": {"region": TEST_REGION, "exporter": {"endpoint": TEST_EXPORTER_ENDPOINT}}}
-
-
-def environment_values(environment, variables, chart="loco-obs"):
-    with tempfile.TemporaryDirectory() as directory:
-        state = Path(directory) / "helmfile.yaml"
-        config = json.dumps(
-            {
-                "releases": [
-                    {
-                        "name": chart,
-                        "chart": str(ROOT / "charts" / chart),
-                        "values": [
-                            str(
-                                ROOT
-                                / "env"
-                                / environment
-                                / (chart.removeprefix("loco-") + "-chart.yaml.gotmpl")
-                            )
-                        ],
-                    }
-                ]
-            }
-        )
-        state.write_text(
-            subprocess.check_output(["yq", "-P", ".", "-"], input=config, text=True)
-        )
-        built = subprocess.check_output(
-            ["helmfile", "-f", str(state), "build", "--embed-values"],
-            env={**os.environ, **variables},
-            text=True,
-        )
-        document = subprocess.check_output(
-            ["yq", "-o=json", ".", "-"], input=built, text=True
-        )
-        return json.loads(document)["releases"][0]["values"][0]
 
 
 def render(chart, template, overrides):
@@ -621,18 +585,6 @@ def test_chart_requires_a_region(collector_tenancy):
     result = render_chart("loco-obs", {"global": {"region": ""}}, check=False)
     assert result.returncode != 0
     assert "global.region is required" in result.stderr
-
-
-def test_every_environment_sets_a_region_and_an_exporter_endpoint(collector_tenancy):
-    local = environment_values("local", {"OBS_OTLP_HTTP_PORT": "4318"})
-    assert local["global"]["region"]
-    assert local["global"]["exporter"]["endpoint"] == "http://host.docker.internal:4318"
-    prod = environment_values(
-        "prod",
-        {"LOCO_REGION": TEST_REGION, "LOCO_OTLP_ENDPOINT": TEST_EXPORTER_ENDPOINT},
-    )
-    assert prod["global"]["region"] == TEST_REGION
-    assert prod["global"]["exporter"]["endpoint"] == TEST_EXPORTER_ENDPOINT
 
 
 def test_collectors_run_without_an_operator(collector_tenancy):

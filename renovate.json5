@@ -160,5 +160,12 @@
       ],
       versioningTemplate: "{{#if versioning}}{{{versioning}}}{{else}}semver-coerced{{/if}}",
     },
+    {
+      customType: "regex",
+      description: "cert-manager, the one chart installed straight from its repository rather than as a chart dependency",
+      managerFilePatterns: ["/^charts/cert-manager\\.yaml$/"],
+      matchStrings: ["repository: (?<registryUrl>\\S+)\\nchart: (?<depName>\\S+)\\nversion: (?<currentValue>\\S+)"],
+      datasourceTemplate: "helm",
+    },
   ],
 }

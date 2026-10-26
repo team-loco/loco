@@ -3,4 +3,3 @@ registry:
 builds:
   pushSecretName: loco-registry-push
   insecureRegistry: true
-  privateEgress: {{ exec "mise" (list "run" "--quiet" "cluster:build-egress") | trim }}

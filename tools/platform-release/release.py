@@ -266,8 +266,8 @@ def publish(version, commit, registry):
         for name in CHARTS:
             run('helm', 'package', str(ROOT / 'charts' / name), '--version', version, '--app-version', version, '--destination', directory)
             packages[name] = temp / f'{name}-{version}.tgz'
-        cert_version = re.search(r'chart: jetstack/cert-manager\s+version: (\S+)', (ROOT / 'helmfile.yaml.gotmpl').read_text()).group(1)
-        run('helm', 'pull', 'cert-manager', '--repo', 'https://charts.jetstack.io', '--version', cert_version, '--destination', directory)
+        cert = json.loads(run('yq', '-o=json', '.', str(ROOT / 'charts/cert-manager.yaml')))
+        run('helm', 'pull', cert['chart'], '--repo', cert['repository'], '--version', cert['version'], '--destination', directory)
         cert_package = next(temp.glob('cert-manager-*.tgz'))
         packages['cert-manager-chart'] = cert_package
         gateway_package = next((ROOT / 'charts/loco-core/charts').glob('gateway-helm-*.tgz'))
@@ -277,7 +277,7 @@ def publish(version, commit, registry):
             'loco-gateway-crd': gateway_crds(gateway_package),
         }
         for name, path in packages.items():
-            config = json.loads(run('yq', '-o=json', '.', str(ROOT / 'charts' / name / 'Chart.yaml'))) if name in CHARTS else {'name': 'cert-manager', 'version': cert_version}
+            config = json.loads(run('yq', '-o=json', '.', str(ROOT / 'charts' / name / 'Chart.yaml'))) if name in CHARTS else {'name': cert['chart'], 'version': cert['version']}
             config['version'] = version if name in CHARTS else config['version']
             if name in CHARTS:
                 config['appVersion'] = version

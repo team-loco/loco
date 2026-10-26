@@ -19,7 +19,7 @@ global:
       secretName: loco-otlp-exporter
 ```
 
-With `bearerToken.enabled`, each collector sends the Secret's `token` key as a bearer token. The Secret lives in the `observability` and `observability-node` namespaces. `loco-core` takes the same `global.exporter.bearerToken.secretName`; Helmfile passes `env/exporter-token.yaml.gotmpl`, read from this chart's values, to both releases.
+With `bearerToken.enabled`, each collector sends the Secret's `token` key as a bearer token. The Secret lives in the `observability` and `observability-node` namespaces.
 
 Each collector queues unsent batches on disk (`global.exporter.queue`) and retries until the endpoint accepts them (`global.exporter.retry`). The DaemonSet keeps its queue in a hostPath directory per namespace and collector, `/var/lib/otelcol-exporter/<namespace>/<name>`, which its init container hands to the collector user. The two StatefulSets keep theirs on a 2Gi PersistentVolumeClaim per replica, owned through `fsGroup`. Queues survive control-plane outages and pod replacement; a claim outlives a scale-down and replays when its replica returns.
 

@@ -11,7 +11,7 @@ if [[ ${1:-} == --no-teardown ]]; then
 fi
 mkdir -p "$RUN_DIR"
 export KUBECONFIG="$RUN_DIR/kubeconfig"
-CERT_MANAGER_VERSION=$(awk '/chart: jetstack\/cert-manager/ { found=1; next } found && $1 == "version:" { print $2; exit }' "$ROOT_DIR/helmfile.yaml.gotmpl")
+CERT_MANAGER="$ROOT_DIR/charts/cert-manager.yaml"
 TIMEOUT=300s
 
 cleanup() {
@@ -31,8 +31,8 @@ trap cleanup EXIT
 if ! kind get clusters | rg -x "$CLUSTER_NAME" >/dev/null; then
     kind create cluster --name "$CLUSTER_NAME" --kubeconfig "$KUBECONFIG" --wait "$TIMEOUT"
 fi
-helm upgrade --install cert-manager cert-manager --repo https://charts.jetstack.io \
-    --version "$CERT_MANAGER_VERSION" --namespace cert-manager --create-namespace \
+helm upgrade --install cert-manager "$(yq .chart "$CERT_MANAGER")" --repo "$(yq .repository "$CERT_MANAGER")" \
+    --version "$(yq .version "$CERT_MANAGER")" --namespace cert-manager --create-namespace \
     --set crds.enabled=true --wait --timeout "$TIMEOUT"
 kubectl create namespace loco-certificates --dry-run=client -o yaml | kubectl apply -f -
 

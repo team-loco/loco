@@ -44,7 +44,6 @@ go.work
 go.work.sum
 Makefile
 Tiltfile
-helmfile.yaml.gotmpl
 notes.md
 README.md
 

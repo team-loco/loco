@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+#MISE description="Install or upgrade one release on the local cluster with its env/local values, overriding fields another field manager owns"
+#MISE env={_.file=".env", _.source="env/local/stack.sh"}
+#USAGE arg "<release>" help="loco-networking, cert-manager, loco-core, loco-operator or loco-obs"
+#USAGE arg "[values]..." var=#true help="extra values, each passed to helm as --set"
+set -euo pipefail
+
+release=$1
+shift
+timeout=600s
+cert_manager=charts/cert-manager.yaml
+
+case $release in
+loco-networking)
+	install=(./charts/loco-networking --namespace kube-system --create-namespace --wait
+		--values env/local/networking-chart.yaml
+		--set-string "cilium.k8sServiceHost=$KIND_CLUSTER-control-plane")
+	;;
+cert-manager)
+	install=("$(yq .chart "$cert_manager")" --repo "$(yq .repository "$cert_manager")" --version "$(yq .version "$cert_manager")"
+		--namespace cert-manager --create-namespace --wait
+		--set crds.enabled=true)
+	;;
+loco-core)
+	read -r lb_start lb_stop <<<"$(mise run --quiet cluster:lb-range)"
+	install=(./charts/loco-core --namespace loco-system
+		--values env/local/core-chart.yaml
+		--set-string "global.cloudProvider.loadBalancerIPPool.start=$lb_start"
+		--set-string "global.cloudProvider.loadBalancerIPPool.stop=$lb_stop"
+		--set-string "secrets.cloudflareToken=${CLOUDFLARE_TOKEN:-}"
+		--set-string "agent.joinToken.value=${LOCO_JOIN_TOKEN:-}")
+	if [ -n "${CERT_MANAGER_EMAIL:-}" ]; then
+		install+=(--set-string "certManager.issuer.email=$CERT_MANAGER_EMAIL")
+	fi
+	;;
+loco-operator)
+	install=(./charts/loco-operator --namespace loco-system
+		--values env/local/operator-chart.yaml
+		--set-json "builds.privateEgress=$(mise run --quiet cluster:build-egress)")
+	;;
+loco-obs)
+	install=(./charts/loco-obs --namespace observability
+		--values env/local/obs-chart.yaml
+		--set-string "global.exporter.endpoint=http://host.docker.internal:$OBS_OTLP_HTTP_PORT")
+	;;
+*)
+	echo "unknown release $release" >&2
+	exit 1
+	;;
+esac
+
+for value in "$@"; do
+	install+=(--set "$value")
+done
+
+helm upgrade --install "$release" "${install[@]}" --kube-context "kind-$KIND_CLUSTER" \
+	--timeout "$timeout" --cleanup-on-fail --force-conflicts

@@ -50,5 +50,3 @@ envoyProxy:
 ```
 
 Envoy Gateway creates and reconciles this Service. `externalTrafficPolicy: Cluster` allows a kind host mapping to reach the proxy even when the proxy pod runs on another node. Map the kind node's port `30080` to the desired host port. The patch merges the HTTP listener's generated Service port and preserves its generated target port.
-
-`global.exporter.bearerToken.secretName` names the Secret holding the token the `loco-obs` collectors send to the control plane. It takes the same value as in `loco-obs`; Helmfile passes `env/exporter-token.yaml.gotmpl`, read from the `loco-obs` values, to both releases.
