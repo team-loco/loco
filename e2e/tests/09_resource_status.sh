@@ -113,8 +113,8 @@ status_rejects_rollout() {
         log_error "${name} unexpectedly accepted a mutation during rollout"
         return 1
     fi
-    grep -q 'a deployment is rolling out; wait for it to finish before changing this service' \
-        "$status_dir/$name.out"
+    tr -s '[:space:]' ' ' <"$status_dir/$name.out" |
+        grep -q 'a deployment is rolling out; wait for it to finish before changing this service'
 }
 
 status_hold_rollout_and_reject_mutations() (
@@ -128,7 +128,7 @@ status_hold_rollout_and_reject_mutations() (
     status_rejects_rollout scale-during-rollout loco_cli resource scale "$status_app" --cpu 150m || exit 1
     status_rejects_rollout secret-during-rollout loco_cli env set --service "$status_app" \
         --env production ROLLOUT_TEST=changed || exit 1
-    body="{\"resourceId\":\"${resource_id}\",\"environmentId\":\"${environment_id}\",\"region\":\"us-east-1\",\"spec\":{\"service\":{\"build\":{\"type\":\"image\",\"image\":\"${E2E_PUBLIC_IMAGE}\"},\"env\":{\"ROLLOUT_TEST\":\"changed\"}}}}"
+    body="{\"resourceId\":\"${resource_id}\",\"environmentId\":\"${environment_id}\",\"region\":\"us-east-1\",\"spec\":{\"service\":{\"build\":{\"type\":\"image\",\"image\":\"${E2E_PUBLIC_IMAGE}\"},\"port\":8080,\"env\":{\"ROLLOUT_TEST\":\"changed\"}}}}"
     status_rejects_rollout deployment-during-rollout curl -sS --fail-with-body \
         "${E2E_API_URL}/loco.deployment.v1.DeploymentService/CreateDeployment" \
         -H "Authorization: Bearer ${E2E_USER_TOKEN}" -H 'Content-Type: application/json' -d "$body"
