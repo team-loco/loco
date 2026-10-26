@@ -47,7 +47,8 @@ func counterRequest(workspace string, timestamp time.Time) *observabilityv1.Quer
 }
 
 func TestCounterMetricsHTTPRequiresWorkspacePermission(t *testing.T) {
-	client := traceTestClient(t, nil)
+	store := &fakeStore{}
+	client := traceTestClient(t, store)
 	for _, tc := range []struct {
 		token, workspace string
 		code             connect.Code
@@ -64,6 +65,9 @@ func TestCounterMetricsHTTPRequiresWorkspacePermission(t *testing.T) {
 		if connect.CodeOf(err) != tc.code {
 			t.Fatalf("error=%v, want %v", err, tc.code)
 		}
+	}
+	if store.calls != 0 {
+		t.Fatalf("store queried %d times for unauthorized requests", store.calls)
 	}
 }
 
