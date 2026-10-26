@@ -13,7 +13,6 @@ import (
 	"path"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 
 	"connectrpc.com/connect/v2"
@@ -31,10 +30,9 @@ import (
 )
 
 const (
-	filelessSuffixLength   = 4
-	filelessAlphabetSize   = 26
-	filelessDomainAttempts = 32
-	maxDNSLabelLength      = 63
+	domainSuffixLength = 4
+	domainAlphabetSize = 26
+	maxDNSLabelLength  = 63
 )
 
 var (
@@ -44,12 +42,12 @@ var (
 	errEmptyImage          = errors.New("image reference must not be empty")
 	errServiceNotInFile    = errors.New("the file does not run the service in this environment")
 	errServiceHasImage     = errors.New("the service runs a public image and is not built")
-	errFilelessFlags       = errors.New("deployment flags for a new service require omitting loco.yaml")
+	errQuickDeployFlags    = errors.New("deployment flags for a new service require omitting loco.yaml")
 	errNameConflict        = errors.New("set the service name with either an argument or --name")
 	errMultipleNames       = errors.New("without loco.yaml, deploy one service at a time")
 	errDomainConflict      = errors.New("--domain and --private cannot be used together")
 	errUnsafeDirectoryName = errors.New("directory name has no usable letters or digits; set --name")
-	errNoAvailableDomain   = errors.New("could not find an available public hostname; set --domain")
+	errDomainUnavailable   = errors.New("generated public hostname is unavailable; set --domain")
 )
 
 type buildTarget struct {
@@ -128,7 +126,7 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 	if err != nil {
 		return fmt.Errorf("error reading file flag: %w", err)
 	}
-	file, data, fileless, err := loadDeployFile(cmd, filePath)
+	file, data, quickDeploy, err := loadDeployFile(cmd, filePath)
 	if err != nil {
 		return err
 	}
@@ -139,8 +137,8 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 	if err != nil {
 		return err
 	}
-	if fileless {
-		file, data, err = buildFilelessDeploy(cmd, names, t, confirm.yes)
+	if quickDeploy {
+		file, data, err = buildQuickDeploy(cmd, names, t, confirm.yes)
 		if err != nil {
 			return err
 		}
@@ -151,7 +149,7 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 	if err != nil {
 		return fmt.Errorf("%s does not resolve for environment %s: %w", filePath, t.environmentName, err)
 	}
-	services, targets, data, err := deployTargets(cmd, file, services, data, names, t.environmentName, fileless)
+	services, targets, data, err := deployTargets(cmd, file, services, data, names, t.environmentName, quickDeploy)
 	if err != nil {
 		return err
 	}
@@ -228,9 +226,9 @@ func deployTargets(
 	data []byte,
 	names []string,
 	environment string,
-	fileless bool,
+	quickDeploy bool,
 ) (map[string]locofile.Service, []buildTarget, []byte, error) {
-	if cmd.Flags().Changed("image") && !fileless {
+	if cmd.Flags().Changed("image") && !quickDeploy {
 		image, err := cmd.Flags().GetString("image")
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("read image flag: %w", err)
@@ -252,17 +250,17 @@ func deployTargets(
 
 func loadDeployFile(cmd *cobra.Command, filePath string) (*locofile.File, []byte, bool, error) {
 	file, data, err := loadLocoFile(filePath)
-	fileless := errors.Is(err, os.ErrNotExist) && !cmd.Flags().Changed("file")
-	if err != nil && !fileless {
+	quickDeploy := errors.Is(err, os.ErrNotExist) && !cmd.Flags().Changed("file")
+	if err != nil && !quickDeploy {
 		return nil, nil, false, err
 	}
-	if !fileless && changedFilelessFlag(cmd) {
-		return nil, nil, false, errFilelessFlags
+	if !quickDeploy && changedQuickDeployFlag(cmd) {
+		return nil, nil, false, errQuickDeployFlags
 	}
-	return file, data, fileless, nil
+	return file, data, quickDeploy, nil
 }
 
-func changedFilelessFlag(cmd *cobra.Command) bool {
+func changedQuickDeployFlag(cmd *cobra.Command) bool {
 	for _, name := range []string{"name", "port", "region", "domain", "private", "dockerfile", "context"} {
 		if cmd.Flags().Changed(name) {
 			return true
@@ -271,8 +269,8 @@ func changedFilelessFlag(cmd *cobra.Command) bool {
 	return false
 }
 
-func buildFilelessDeploy(cmd *cobra.Command, names []string, t target, yes bool) (*locofile.File, []byte, error) {
-	name, err := filelessServiceName(cmd, names, yes)
+func buildQuickDeploy(cmd *cobra.Command, names []string, t target, yes bool) (*locofile.File, []byte, error) {
+	name, err := quickServiceName(cmd, names, yes)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -299,7 +297,7 @@ func buildFilelessDeploy(cmd *cobra.Command, names []string, t target, yes bool)
 			return nil, nil, err
 		}
 	}
-	domain, err := filelessDomain(cmd, t, name, region)
+	domain, err := quickDomain(cmd, t, name, region)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -350,7 +348,7 @@ func buildFilelessDeploy(cmd *cobra.Command, names []string, t target, yes bool)
 	return file, data, nil
 }
 
-func filelessServiceName(cmd *cobra.Command, names []string, yes bool) (string, error) {
+func quickServiceName(cmd *cobra.Command, names []string, yes bool) (string, error) {
 	if len(names) > 1 {
 		return "", errMultipleNames
 	}
@@ -402,7 +400,7 @@ func safeDirectoryName(dir string) (string, error) {
 	return name, nil
 }
 
-func filelessDomain(cmd *cobra.Command, t target, name, region string) (string, error) {
+func quickDomain(cmd *cobra.Command, t target, name, region string) (string, error) {
 	domain, err := cmd.Flags().GetString("domain")
 	if err != nil {
 		return "", err
@@ -427,8 +425,8 @@ func filelessDomain(cmd *cobra.Command, t target, name, region string) (string, 
 
 func generatedDomain(ctx context.Context, t target, name, platformDomain string) (string, error) {
 	prefix := name
-	if len(prefix) > maxDNSLabelLength-filelessSuffixLength-1 {
-		prefix = strings.TrimSuffix(prefix[:maxDNSLabelLength-filelessSuffixLength-1], "-")
+	if len(prefix) > maxDNSLabelLength-domainSuffixLength-1 {
+		prefix = strings.TrimSuffix(prefix[:maxDNSLabelLength-domainSuffixLength-1], "-")
 	}
 	base := prefix + "-"
 	res, err := t.lookupResource(ctx, name)
@@ -440,41 +438,39 @@ func generatedDomain(ctx context.Context, t target, name, platformDomain string)
 			domain := assigned.GetDomain()
 			if strings.HasPrefix(domain, base) && strings.HasSuffix(domain, "."+platformDomain) {
 				suffix := strings.TrimSuffix(strings.TrimPrefix(domain, base), "."+platformDomain)
-				if isFilelessSuffix(suffix) {
+				if isDomainSuffix(suffix) {
 					return domain, nil
 				}
 			}
 		}
 	}
 	client := rpc.ForHost(t.host, t.token).Domain
-	for attempt := range filelessDomainAttempts {
-		candidate := base + filelessSuffix(t.workspaceID, name, attempt) + "." + platformDomain
-		request := &domainv1.CheckDomainAvailabilityRequest{Domain: candidate}
-		response, checkErr := client.CheckDomainAvailability(ctx, request)
-		if checkErr != nil {
-			return "", fmt.Errorf("check public hostname %s: %w", candidate, checkErr)
-		}
-		if response.GetIsAvailable() {
-			return candidate, nil
-		}
+	candidate := base + domainSuffix(t.workspaceID, name) + "." + platformDomain
+	request := &domainv1.CheckDomainAvailabilityRequest{Domain: candidate}
+	response, checkErr := client.CheckDomainAvailability(ctx, request)
+	if checkErr != nil {
+		return "", fmt.Errorf("check public hostname %s: %w", candidate, checkErr)
 	}
-	return "", errNoAvailableDomain
+	if !response.GetIsAvailable() {
+		return "", fmt.Errorf("%w: %s", errDomainUnavailable, candidate)
+	}
+	return candidate, nil
 }
 
-func filelessSuffix(workspaceID, name string, attempt int) string {
-	input := workspaceID + "/" + name + "/" + strconv.Itoa(attempt)
+func domainSuffix(workspaceID, name string) string {
+	input := workspaceID + "/" + name
 	hash := sha256.Sum256([]byte(input))
 	value := binary.BigEndian.Uint32(hash[:])
-	suffix := [filelessSuffixLength]byte{}
-	for index := filelessSuffixLength - 1; index >= 0; index-- {
-		suffix[index] = 'a' + byte(value%filelessAlphabetSize)
-		value /= filelessAlphabetSize
+	suffix := [domainSuffixLength]byte{}
+	for index := domainSuffixLength - 1; index >= 0; index-- {
+		suffix[index] = 'a' + byte(value%domainAlphabetSize)
+		value /= domainAlphabetSize
 	}
 	return string(suffix[:])
 }
 
-func isFilelessSuffix(suffix string) bool {
-	if len(suffix) != filelessSuffixLength {
+func isDomainSuffix(suffix string) bool {
+	if len(suffix) != domainSuffixLength {
 		return false
 	}
 	for _, char := range suffix {

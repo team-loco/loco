@@ -28,15 +28,15 @@ func TestSafeDirectoryName(t *testing.T) {
 	}
 }
 
-func TestFilelessSuffix(t *testing.T) {
-	first := filelessSuffix("workspace-a", "web", 0)
-	if !isFilelessSuffix(first) {
-		t.Fatalf("filelessSuffix() = %q, want four lowercase letters", first)
+func TestDomainSuffix(t *testing.T) {
+	first := domainSuffix("workspace-a", "web")
+	if !isDomainSuffix(first) {
+		t.Fatalf("domainSuffix() = %q, want four lowercase letters", first)
 	}
-	if got := filelessSuffix("workspace-a", "web", 0); got != first {
-		t.Fatalf("filelessSuffix() = %q, want stable %q", got, first)
+	if got := domainSuffix("workspace-a", "web"); got != first {
+		t.Fatalf("domainSuffix() = %q, want stable %q", got, first)
 	}
-	if got := filelessSuffix("workspace-a", "web", 1); got == first {
-		t.Fatalf("collision retry returned the same suffix %q", got)
+	if got := domainSuffix("workspace-b", "web"); got == first {
+		t.Fatalf("another workspace returned the same suffix %q", got)
 	}
 }
