@@ -46,12 +46,12 @@ func WaitForSchema(
 		}
 		if ctx.Err() == nil {
 			last = err
+			select {
+			case <-ticker.C:
+				continue
+			case <-ctx.Done():
+			}
 		}
-		select {
-		case <-ctx.Done():
-			cause := cmp.Or(last, err)
-			return fmt.Errorf("wait for schema: %w", errors.Join(ctx.Err(), cause))
-		case <-ticker.C:
-		}
+		return fmt.Errorf("wait for schema: %w", errors.Join(ctx.Err(), cmp.Or(last, err)))
 	}
 }

@@ -10,7 +10,8 @@ clickhouse=$run_name-clickhouse
 own_clickhouse=false
 ready_attempts=60
 ports_per_run=4
-first_port=$((20000 + $$ % 10000 * ports_per_run))
+source "$root/mise-tasks/test/lib/ports.sh"
+first_port=$(first_run_port "$ports_per_run")
 proxy_port=$first_port
 otlp_grpc_port=$((first_port + 1))
 otlp_http_port=$((first_port + 2))
