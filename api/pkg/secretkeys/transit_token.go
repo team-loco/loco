@@ -86,8 +86,6 @@ func (t *Transit) renewalDelay(ttl time.Duration) time.Duration {
 	return ttl / shortTokenRenewDivisor
 }
 
-// tokenRejected asks the renewal loop to log in again. Only Kubernetes auth has a loop
-// that listens.
 func (t *Transit) tokenRejected() {
 	if t.rejected == nil {
 		return
@@ -98,9 +96,6 @@ func (t *Transit) tokenRejected() {
 	}
 }
 
-// rejectionBackoff is how long the renewal loop waits before logging in again after the
-// server rejected the token: renewRetry, doubled for each rejection since the last
-// accepted request, and at most renewMargin.
 func (t *Transit) rejectionBackoff() time.Duration {
 	rejections := t.rejections.Add(1)
 	backoff := t.renewRetry

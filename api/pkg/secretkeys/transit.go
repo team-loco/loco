@@ -25,10 +25,7 @@ const (
 	// Transit key.
 	ProviderTransit = "transit"
 
-	// TransitAuthToken authenticates to the server with a token from the configuration.
-	TransitAuthToken = "token"
-	// TransitAuthKubernetes logs in to the server's Kubernetes auth method with the pod's
-	// projected service account token.
+	TransitAuthToken      = "token"
 	TransitAuthKubernetes = "kubernetes"
 
 	transitAuthHeader       = "X-Vault-Token"
@@ -61,8 +58,6 @@ var (
 	ErrTransitResponse         = errors.New("transit response is malformed")
 )
 
-// TransitKubernetesConfig names the Kubernetes auth role the provider logs in with and the
-// projected service account token it presents.
 type TransitKubernetesConfig struct {
 	Mount     string
 	Role      string
