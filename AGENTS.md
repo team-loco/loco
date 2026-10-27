@@ -131,14 +131,12 @@ Builds, tests, code generation, linting and the local environment are mise tasks
   state: never run `git commit` on whatever happens to be staged. Check `git status`
   first, and commit explicit paths (`git commit -- <paths>`) so another agent's staged
   work cannot be swept into your commit.
-- **Use git worktrees.** Do branch work in its own worktree (`git worktree add <path> -b
-  <branch> origin/main`, under a scratch directory), not by switching branches in the main
-  checkout. The main checkout stays on `main` for everyone else. In a new worktree, run
-  `mise trust` and `mise run setup`. A shell that
-  activated mise in another checkout keeps that checkout's tool versions; prefix commands
-  with `env -u __MISE_DIFF -u __MISE_SESSION` when `go version` disagrees with
-  `mise.toml`. Remove the worktree once its PR merges: envtest downloads its binaries
-  read-only, so run `chmod -R u+w controller/bin` first or `git worktree remove` fails.
+- **PRs must be up to date with `main` to merge.** Branch protection requires it, and
+  `CI Gate` reruns on the updated head. Rebase onto `origin/main` before asking for a merge.
+  Commits that landed on `main` meanwhile can change what your work depends on: read
+  `git log HEAD..origin/main` and the files those commits touch, and fix renamed symbols,
+  moved files, new rules in this file and conflicting migrations or protos before pushing,
+  not only the textual conflicts git reports.
 - **Use `gh stack` for readable PRs.** Whenever a change can be split into a chain of
   small, reviewable PRs that build on each other, create them with `gh stack` instead of
   one large PR or hand-rolled branches off each other.
