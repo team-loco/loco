@@ -575,6 +575,68 @@ url = "https://get.helm.sh/helm-v4.3.1-darwin-amd64.tar.gz"
 checksum = "sha256:34bec4eba761ba5c16d1965ee6b8f5b0abe5993974a802274e2a4f0418893d89"
 url = "https://get.helm.sh/helm-v4.3.1-darwin-amd64.tar.gz"
 
+[[tools.infisical]]
+version = "0.44.9"
+backend = "github:Infisical/cli"
+specifiers = ["0.44.9"]
+
+[tools.infisical.options]
+asset_pattern = "cli_{{ version }}_{{ os(macos='darwin') }}_{{ arch(x64='amd64') }}.tar.gz"
+
+[tools.infisical."platforms.linux-arm64"]
+checksum = "sha256:51d48b2cff6a14dce44090db8a7b16804e9ecea4b6252716009c44495021ca52"
+checksum_source = "mise-versions"
+url = "https://github.com/Infisical/cli/releases/download/v0.44.9/cli_0.44.9_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/670489391"
+
+[tools.infisical."platforms.linux-arm64-musl"]
+checksum = "sha256:51d48b2cff6a14dce44090db8a7b16804e9ecea4b6252716009c44495021ca52"
+checksum_source = "mise-versions"
+url = "https://github.com/Infisical/cli/releases/download/v0.44.9/cli_0.44.9_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/670489391"
+
+[tools.infisical."platforms.linux-x64"]
+checksum = "sha256:4005a430258df60401ae5288ab0412371f2e56f224ed461758dd2ec83887d556"
+checksum_source = "mise-versions"
+url = "https://github.com/Infisical/cli/releases/download/v0.44.9/cli_0.44.9_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/670489395"
+
+[tools.infisical."platforms.linux-x64-baseline"]
+checksum = "sha256:4005a430258df60401ae5288ab0412371f2e56f224ed461758dd2ec83887d556"
+checksum_source = "mise-versions"
+url = "https://github.com/Infisical/cli/releases/download/v0.44.9/cli_0.44.9_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/670489395"
+
+[tools.infisical."platforms.linux-x64-musl"]
+checksum = "sha256:4005a430258df60401ae5288ab0412371f2e56f224ed461758dd2ec83887d556"
+checksum_source = "mise-versions"
+url = "https://github.com/Infisical/cli/releases/download/v0.44.9/cli_0.44.9_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/670489395"
+
+[tools.infisical."platforms.linux-x64-musl-baseline"]
+checksum = "sha256:4005a430258df60401ae5288ab0412371f2e56f224ed461758dd2ec83887d556"
+checksum_source = "mise-versions"
+url = "https://github.com/Infisical/cli/releases/download/v0.44.9/cli_0.44.9_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/670489395"
+
+[tools.infisical."platforms.macos-arm64"]
+checksum = "sha256:2e8b66c612a2eb3141492fb0429609b796668a292fe93fe8e356e3ba1088ea87"
+checksum_source = "mise-versions"
+url = "https://github.com/Infisical/cli/releases/download/v0.44.9/cli_0.44.9_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/670473327"
+
+[tools.infisical."platforms.macos-x64"]
+checksum = "sha256:7751b743fb616307ace24afd8397519925eb0b1a976a3bb9902805bc17ff3d22"
+checksum_source = "mise-versions"
+url = "https://github.com/Infisical/cli/releases/download/v0.44.9/cli_0.44.9_darwin_amd64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/670473329"
+
+[tools.infisical."platforms.macos-x64-baseline"]
+checksum = "sha256:7751b743fb616307ace24afd8397519925eb0b1a976a3bb9902805bc17ff3d22"
+checksum_source = "mise-versions"
+url = "https://github.com/Infisical/cli/releases/download/v0.44.9/cli_0.44.9_darwin_amd64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/670473329"
+
 [[tools.kind]]
 version = "0.33.0"
 backend = "aqua:kubernetes-sigs/kind"
