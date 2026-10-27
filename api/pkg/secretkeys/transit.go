@@ -18,6 +18,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const (
@@ -202,7 +204,8 @@ func NewTransit(cfg TransitConfig) (*Transit, error) {
 	}
 	transport = transport.Clone()
 	transport.TLSClientConfig = tlsConfig
-	client := &http.Client{Transport: transport, Timeout: cfg.Timeout}
+	traced := otelhttp.NewTransport(transport)
+	client := &http.Client{Transport: traced, Timeout: cfg.Timeout}
 	transit := &Transit{
 		base:        base,
 		mount:       cfg.Mount,

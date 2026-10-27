@@ -2,21 +2,28 @@ package sourcebucket
 
 import (
 	"context"
+	"net/http"
 	"net/url"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/team-loco/loco/api/pkg/tracingtest"
 )
 
-const testBucket = "loco-sources"
+const (
+	testBucket      = "loco-sources"
+	testAccessKeyID = "key"
+	testSecretKey   = "secret"
+)
 
 func TestPresignPutUsesVirtualHostedStyle(t *testing.T) {
 	bucket, err := New(Config{
 		Endpoint:        "https://storage.example.com",
 		Bucket:          testBucket,
 		Region:          "auto",
-		AccessKeyID:     "key",
-		SecretAccessKey: "secret",
+		AccessKeyID:     testAccessKeyID,
+		SecretAccessKey: testSecretKey,
 	})
 	if err != nil {
 		t.Fatalf("new bucket: %v", err)
@@ -58,8 +65,8 @@ func TestPresignGetUsesPathStyleWhenForced(t *testing.T) {
 		Endpoint:        "http://10.0.0.5:7070",
 		Bucket:          testBucket,
 		Region:          "us-east-1",
-		AccessKeyID:     "key",
-		SecretAccessKey: "secret",
+		AccessKeyID:     testAccessKeyID,
+		SecretAccessKey: testSecretKey,
 		ForcePathStyle:  true,
 	})
 	if err != nil {
@@ -92,4 +99,25 @@ func TestNewRejectsPartialConfig(t *testing.T) {
 	if _, err := New(Config{Bucket: testBucket}); err == nil {
 		t.Fatal("a bucket without credentials was accepted")
 	}
+}
+
+func TestBucketPropagatesTraceContext(t *testing.T) {
+	tracingtest.Record(t)
+	server := tracingtest.NewHeaderServer(t, http.StatusNoContent)
+	bucket, err := New(Config{
+		Endpoint:        server.URL,
+		Bucket:          testBucket,
+		Region:          "auto",
+		AccessKeyID:     testAccessKeyID,
+		SecretAccessKey: testSecretKey,
+		ForcePathStyle:  true,
+	})
+	if err != nil {
+		t.Fatalf("new bucket: %v", err)
+	}
+	ctx := tracingtest.StartParent(t)
+	if err := bucket.Delete(ctx, "sources/abc.tar.gz"); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	tracingtest.AssertContinues(t, server.Traceparent(), ctx)
 }

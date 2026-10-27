@@ -12,6 +12,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const (
@@ -93,7 +94,7 @@ func New(cfg Config) (*Client, error) {
 		registry:  registry,
 		nameOpts:  nameOpts,
 		auth:      auth,
-		transport: remote.DefaultTransport,
+		transport: otelhttp.NewTransport(remote.DefaultTransport),
 		timeout:   cfg.Timeout,
 	}, nil
 }

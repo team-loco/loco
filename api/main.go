@@ -58,6 +58,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/webhook/v1/webhookv1connect"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
 	"github.com/team-loco/loco/internal/ingesttoken"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const (
@@ -127,7 +128,8 @@ func newOutboundHTTPClient() *http.Client {
 	transport.Protocols = new(http.Protocols)
 	transport.Protocols.SetHTTP1(true)
 	transport.Protocols.SetHTTP2(true)
-	return &http.Client{Transport: transport, Timeout: 15 * time.Second}
+	traced := otelhttp.NewTransport(transport)
+	return &http.Client{Transport: traced, Timeout: 15 * time.Second}
 }
 
 func main() {

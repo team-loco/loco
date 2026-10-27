@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 )
 
@@ -46,6 +48,7 @@ func mountObservabilityProxy(mux *http.ServeMux, target *url.URL) {
 		return
 	}
 	handler := &httputil.ReverseProxy{
+		Transport:     otelhttp.NewTransport(http.DefaultTransport),
 		Rewrite:       func(request *httputil.ProxyRequest) { request.SetURL(target); request.SetXForwarded() },
 		FlushInterval: observabilityFlushInterval,
 		ModifyResponse: func(response *http.Response) error {

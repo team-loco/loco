@@ -5,11 +5,14 @@ import (
 	"context"
 	"encoding/pem"
 	"errors"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/team-loco/loco/api/pkg/tracingtest"
 )
 
 const (
@@ -336,4 +339,15 @@ func TestNewSelectsTransit(t *testing.T) {
 	if keyID, err := signer.KeyID(t.Context()); err != nil || keyID != "v1" {
 		t.Fatalf("signer key id = %q, %v", keyID, err)
 	}
+}
+
+func TestTransitPropagatesTraceContext(t *testing.T) {
+	tracingtest.Record(t)
+	server := tracingtest.NewHeaderServer(t, http.StatusInternalServerError)
+	transit := newTestTransit(t, transitConfig(server.URL))
+	ctx := tracingtest.StartParent(t)
+	if _, err := transit.Wrap(ctx, testDEK(t), DEKAAD(environmentID)); err == nil {
+		t.Fatal("wrap succeeded against a failing server")
+	}
+	tracingtest.AssertContinues(t, server.Traceparent(), ctx)
 }
