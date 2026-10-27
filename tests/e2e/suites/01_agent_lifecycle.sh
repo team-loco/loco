@@ -213,17 +213,6 @@ test_controller_running() {
             --timeout 60s
 }
 
-test_agent_logs_no_errors() {
-    local log_file="$E2E_LOG_DIR/agent.log"
-    assert "Agent log exists at ${log_file}" test -f "$log_file" || return 1
-    local errors
-    errors=$(grep '"level":"ERROR"' "$log_file" || true)
-    if ! assert "Agent has no ERROR-level log entries" test -z "$errors"; then
-        echo "$errors"
-        return 1
-    fi
-}
-
 test_agent_reconnects_to_same_cluster() {
     local original_id="$E2E_CLUSTER_ID"
     kill_pid_file "$PID_DIR/agent.pid"

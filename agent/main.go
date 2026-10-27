@@ -297,7 +297,7 @@ func (a *Agent) reconnectLoop(ctx context.Context, name string, attempt func(con
 			backoff = newReconnectBackoff(a.cfg)
 		}
 		delay := backoff.Step()
-		slog.ErrorContext(ctx, name+" error, reconnecting", "error", err, "delay", delay)
+		slog.WarnContext(ctx, name+" error, reconnecting", "error", err, "delay", delay)
 
 		timer := time.NewTimer(delay)
 		select {

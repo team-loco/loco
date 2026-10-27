@@ -91,7 +91,6 @@ test_s02_crashed_pods_report_unavailable() {
 
 test_s03_silent_cluster_reports_unknown() {
     kill_pid_file "$PID_DIR/agent.pid"
-    mv "$LOG_DIR/agent.log" "$LOG_DIR/agent.before-restart.log"
 
     wait_for "the API to stop trusting the silent cluster" 180 environment_status_is RESOURCE_STATUS_UNKNOWN
     local status

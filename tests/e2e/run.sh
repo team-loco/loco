@@ -799,7 +799,7 @@ start_agent() {
     LOCO_APP_DOMAINS="$(agent_chart_env LOCO_APP_DOMAINS)" \
     KUBECONFIG="$KUBECONFIG_FILE" \
         "$BIN_DIR/loco-agent" \
-        >"$LOG_DIR/agent.log" 2>&1 &
+        >>"$LOG_DIR/agent.log" 2>&1 &
 
     echo $! > "$PID_DIR/agent.pid"
 
@@ -902,6 +902,16 @@ run_tests() {
     done
 }
 
+check_agent_log() {
+    log_step "Checking the agent log of the whole run..."
+    local log_file="$LOG_DIR/agent.log" errors
+    assert "Agent log exists at ${log_file}" test -f "$log_file" || return 0
+    errors=$(grep '"level":"ERROR"' "$log_file" || true)
+    if ! assert "Agent logged no ERROR entries during the run" test -z "$errors"; then
+        echo "$errors"
+    fi
+}
+
 # ─── Main ───────────────────────────────────────────────────────────────────
 
 main() {
@@ -944,6 +954,7 @@ main() {
     fi
     seed_cluster_admin
     create_e2e_cluster
+    rm -f "$LOG_DIR/agent.log"
     start_agent
     start_obs_proxy
     if [ "$OBSERVABILITY" = true ]; then
@@ -958,6 +969,7 @@ main() {
     echo ""
 
     run_tests
+    check_agent_log
     print_summary
 }
 
