@@ -120,7 +120,7 @@ func (i *authInterceptor) authenticateProviderToken(
 		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
 
-	user, err := i.resolver.Resolve(ctx, identity)
+	user, claimed, err := i.resolver.Resolve(ctx, identity)
 	if err != nil {
 		if rejected, ok := errors.AsType[*auth.SignupRejectedError](err); ok {
 			slog.InfoContext(ctx, "sign-in rejected", "issuer", identity.Issuer, "reason", rejected.Message)
@@ -147,6 +147,7 @@ func (i *authInterceptor) authenticateProviderToken(
 	c = context.WithValue(c, contextkeys.EntityScopesKey, scopes)
 	c = context.WithValue(c, contextkeys.TokenKey, token)
 	c = context.WithValue(c, contextkeys.IdentityKey, identity)
+	c = context.WithValue(c, contextkeys.ClaimedOrgsKey, claimed)
 	return c, nil
 }
 

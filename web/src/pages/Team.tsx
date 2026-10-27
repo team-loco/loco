@@ -1,10 +1,10 @@
+import { Scope } from "@gen/loco/token/v1/token_pb";
 import { Building2Icon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { useParams } from "react-router";
 
 import { Page, PageHeader } from "@/components/design/Page";
 import { SearchInput } from "@/components/design/SearchInput";
-import { SoonTag } from "@/components/design/SoonTag";
 import { Button } from "@/components/design/Button";
 import { useAuth } from "@/auth/AuthProvider";
 import { useMyScopes } from "@/hooks/useMyScopes";
@@ -12,6 +12,8 @@ import { getErrorMessage } from "@/lib/error-handler";
 import { pluralize } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
+import { InvitationsTable } from "./team/InvitationsTable";
+import { InviteDialog } from "./team/InviteDialog";
 import { MemberPanel } from "./team/MemberPanel";
 import { MembersTable } from "./team/MembersTable";
 import { toScope } from "./team/scopes";
@@ -22,9 +24,21 @@ export function Team() {
 	const { user } = useAuth();
 	const meId = user?.id ?? "";
 	const scopes = useMyScopes();
-	const { org, members, workspaces, isLoading, scopesLoading, error } = useTeamData(orgId, meId, scopes.scopes);
+	const {
+		org,
+		members,
+		workspaces,
+		invitations,
+		invitationsLoading,
+		invalidateInvitations,
+		isLoading,
+		scopesLoading,
+		error,
+	} = useTeamData(orgId, meId, scopes.scopes);
 	const [q, setQ] = useState("");
 	const [selectedId, setSelectedId] = useState<string | null>(null);
+	const [inviting, setInviting] = useState(false);
+	const canInvite = scopes.holds(orgId, "", Scope.ADMIN);
 
 	const tq = q.trim().toLowerCase();
 	const shown = members
@@ -44,13 +58,18 @@ export function Team() {
 			<PageHeader
 				title="Team"
 				actions={
-					<span className="flex items-center gap-2">
-						<SoonTag />
-						<Button size="lg" className="px-3.5" disabled title="Invites aren't available yet">
-							<PlusIcon />
-							Invite
-						</Button>
-					</span>
+					<Button
+						size="lg"
+						className="px-3.5"
+						disabled={!canInvite}
+						title={canInvite ? undefined : "Only organization admins can invite members"}
+						onClick={() => {
+							setInviting(true);
+						}}
+					>
+						<PlusIcon />
+						Invite
+					</Button>
 				}
 			/>
 			<div className="flex flex-wrap items-center gap-2.5">
@@ -107,6 +126,26 @@ export function Team() {
 					)}
 				</div>
 			)}
+			{errorMessage === null && (
+				<InvitationsTable
+					invitations={invitations}
+					isLoading={invitationsLoading}
+					canManage={canInvite}
+					onChanged={() => {
+						void invalidateInvitations();
+					}}
+				/>
+			)}
+			<InviteDialog
+				orgId={orgId}
+				open={inviting}
+				onClose={() => {
+					setInviting(false);
+				}}
+				onInvited={() => {
+					void invalidateInvitations();
+				}}
+			/>
 		</Page>
 	);
 }

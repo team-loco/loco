@@ -14,6 +14,7 @@ interface OrgWorkspaceContextType {
 	activeWorkspaceId: string | null;
 	orgs: Organization[];
 	workspaces: Workspace[];
+	workspacesSettled: boolean;
 	setActiveOrg: (orgId: string) => void;
 	clearContext: () => void;
 }
@@ -23,6 +24,7 @@ const NO_CONTEXT: OrgWorkspaceContextType = {
 	activeWorkspaceId: null,
 	orgs: [],
 	workspaces: [],
+	workspacesSettled: false,
 	setActiveOrg: () => undefined,
 	clearContext: () => undefined,
 };
@@ -48,10 +50,12 @@ export function ContextProvider({
 	children,
 	availableOrgs = NO_ORGS,
 	availableWorkspaces = NO_WORKSPACES,
+	workspacesSettled = false,
 }: {
 	children: ReactNode;
 	availableOrgs?: Organization[];
 	availableWorkspaces?: Workspace[];
+	workspacesSettled?: boolean;
 }) {
 	const { orgId: orgParam, workspaceId: workspaceParam } = useParams();
 	const navigate = useNavigate();
@@ -83,6 +87,7 @@ export function ContextProvider({
 				activeWorkspaceId,
 				orgs: availableOrgs,
 				workspaces: availableWorkspaces,
+				workspacesSettled,
 				setActiveOrg,
 				clearContext,
 			}}

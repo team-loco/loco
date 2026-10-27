@@ -49,7 +49,7 @@ func TestIssuedTokensCarryGeneratedBytesAndStoreOnlyHashes(t *testing.T) {
 	ctx := t.Context()
 
 	resolver := auth.NewResolver(pool, auth.SignupPolicy{Mode: auth.SignupOpen})
-	user, err := resolver.Resolve(ctx, auth.Identity{
+	user, _, err := resolver.Resolve(ctx, auth.Identity{
 		Issuer: "https://issuer.test", Subject: "entropy", Email: "entropy@example.com", EmailVerified: true,
 	})
 	if err != nil {
