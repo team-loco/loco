@@ -1,0 +1,6 @@
+global:
+  platformTelemetry:
+    enabled: true
+    installation: test-installation
+    cluster: test-cluster
+    environment: test

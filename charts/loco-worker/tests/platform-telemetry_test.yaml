@@ -1,0 +1,73 @@
+suite: platform telemetry
+release:
+  name: loco-worker
+  namespace: loco-system
+values:
+  - ../ci/default-values.yaml
+  - values/platform-telemetry.yaml
+tests:
+  - it: requires an installation ID
+    set:
+      global.platformTelemetry.installation: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: "/global/platformTelemetry/installation': minLength"
+
+  - it: requires a cluster name
+    set:
+      global.platformTelemetry.cluster: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: "/global/platformTelemetry/cluster': minLength"
+
+  - it: requires an environment
+    set:
+      global.platformTelemetry.environment: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: "/global/platformTelemetry/environment': minLength"
+
+  - it: needs no identity while platform telemetry is off
+    set:
+      global.platformTelemetry: {enabled: false, installation: "", cluster: "", environment: ""}
+    asserts:
+      - notFailedTemplate: {}
+
+  - it: gives the collectors only read access and no access to Secrets
+    asserts:
+      - matchRegex: &readOnly
+          path: rules[*].verbs[*]
+          pattern: ^(get|list|watch)$
+        template: charts/otel-col-daemon/templates/clusterrole.yaml
+      - matchRegex: *readOnly
+        template: charts/otel-col-deploy/templates/clusterrole.yaml
+      - matchRegex: *readOnly
+        template: charts/otel-col-cluster/templates/clusterrole.yaml
+      - notMatchRegex: &noSecrets
+          path: rules[*].resources[*]
+          pattern: ^secrets$
+        template: charts/otel-col-daemon/templates/clusterrole.yaml
+      - notMatchRegex: *noSecrets
+        template: charts/otel-col-deploy/templates/clusterrole.yaml
+      - notMatchRegex: *noSecrets
+        template: charts/otel-col-cluster/templates/clusterrole.yaml
+      - isKind: {of: ClusterRole}
+        template: charts/otel-col-daemon/templates/clusterrole.yaml
+      - isKind: {of: ClusterRole}
+        template: charts/otel-col-cluster/templates/clusterrole.yaml
+
+  - it: rejects more than one cluster collector replica
+    set:
+      otel-col-cluster.replicaCount: 2
+    asserts:
+      - failedTemplate:
+          errorMessage: platform telemetry requires one otel-col-cluster replica with autoscaling disabled
+        template: templates/collectors/collector-configs.yaml
+
+  - it: rejects an autoscaled cluster collector
+    set:
+      otel-col-cluster.autoscaling.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: platform telemetry requires one otel-col-cluster replica with autoscaling disabled
+        template: templates/collectors/collector-configs.yaml

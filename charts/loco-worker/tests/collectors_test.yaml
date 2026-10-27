@@ -1,0 +1,399 @@
+suite: collectors
+release:
+  name: loco-worker
+  namespace: loco-system
+values:
+  - ../ci/default-values.yaml
+tests:
+  - it: runs only the node collector as a DaemonSet
+    asserts:
+      - isKind:
+          of: DaemonSet
+        template: charts/otel-col-daemon/templates/daemonset.yaml
+      - equal:
+          path: metadata.name
+          value: otel-col-daemon-agent
+        template: charts/otel-col-daemon/templates/daemonset.yaml
+      - hasDocuments:
+          count: 0
+        template: charts/otel-col-deploy/templates/daemonset.yaml
+      - hasDocuments:
+          count: 0
+        template: charts/otel-col-cluster/templates/daemonset.yaml
+      - isKind:
+          of: StatefulSet
+        template: charts/otel-col-deploy/templates/statefulset.yaml
+      - isKind:
+          of: StatefulSet
+        template: charts/otel-col-cluster/templates/statefulset.yaml
+      - hasDocuments:
+          count: 0
+        template: charts/otel-col-daemon/templates/statefulset.yaml
+
+  - it: puts the node collector in the privileged namespace and the others in the restricted one
+    asserts:
+      - equal: {path: metadata.namespace, value: loco-obs-node}
+        template: charts/otel-col-daemon/templates/daemonset.yaml
+      - equal: {path: metadata.namespace, value: loco-obs-node}
+        template: charts/otel-col-daemon/templates/serviceaccount.yaml
+      - equal: {path: metadata.namespace, value: loco-obs}
+        template: charts/otel-col-deploy/templates/statefulset.yaml
+      - equal: {path: metadata.namespace, value: loco-obs}
+        template: charts/otel-col-deploy/templates/service.yaml
+      - equal: {path: metadata.namespace, value: loco-obs}
+        template: charts/otel-col-deploy/templates/serviceaccount.yaml
+      - equal: {path: metadata.namespace, value: loco-obs}
+        template: charts/otel-col-deploy/templates/hpa.yaml
+      - equal: {path: metadata.namespace, value: loco-obs}
+        template: charts/otel-col-cluster/templates/statefulset.yaml
+      - equal: {path: metadata.namespace, value: loco-obs}
+        template: charts/otel-col-cluster/templates/serviceaccount.yaml
+      - equal: {path: metadata.namespace, value: loco-obs-node}
+        template: templates/collectors/collector-configs.yaml
+        documentSelector: {path: metadata.name, value: otel-col-daemon-agent}
+      - equal: {path: metadata.namespace, value: loco-obs}
+        template: templates/collectors/collector-configs.yaml
+        documentSelector: {path: metadata.name, value: otel-col-deploy}
+      - equal: {path: metadata.namespace, value: loco-obs}
+        template: templates/collectors/collector-configs.yaml
+        documentSelector: {path: metadata.name, value: otel-col-cluster}
+
+  - it: labels each collector namespace with its Pod Security level and keeps it on uninstall
+    template: templates/collectors/namespaces.yaml
+    asserts:
+      - isSubset:
+          path: metadata.labels
+          content:
+            pod-security.kubernetes.io/enforce: restricted
+            pod-security.kubernetes.io/audit: restricted
+            pod-security.kubernetes.io/warn: restricted
+        documentSelector: {path: metadata.name, value: loco-obs}
+      - isSubset:
+          path: metadata.labels
+          content:
+            pod-security.kubernetes.io/enforce: privileged
+            pod-security.kubernetes.io/audit: privileged
+            pod-security.kubernetes.io/warn: privileged
+        documentSelector: {path: metadata.name, value: loco-obs-node}
+      - equal:
+          path: metadata.annotations["helm.sh/resource-policy"]
+          value: keep
+
+  - it: admits OTLP to the deployment collector from the release namespace
+    template: templates/collectors/network-policies.yaml
+    documentSelector: {path: metadata.name, value: allow-otlp-ingress}
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: loco-obs
+      - contains:
+          path: spec.ingress[0].from
+          content: {namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: loco-system}}}
+
+  - it: requires an exporter endpoint
+    set:
+      global.exporter.endpoint: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: global.exporter.endpoint is required
+        template: templates/collectors/collector-configs.yaml
+
+  - it: requires a region
+    set:
+      global.region: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: global.region is required
+        template: templates/collectors/collector-configs.yaml
+
+  - it: mounts the bearer token Secret and the export queue in every collector
+    set:
+      global.exporter.bearerToken.enabled: true
+      global.exporter.bearerToken.secretName: cluster-token
+    asserts:
+      - contains: &tokenVolume
+          path: spec.template.spec.volumes
+          content: {name: exporter-token, secret: {secretName: cluster-token, optional: true}}
+        template: charts/otel-col-daemon/templates/daemonset.yaml
+      - contains: *tokenVolume
+        template: charts/otel-col-deploy/templates/statefulset.yaml
+      - contains: *tokenVolume
+        template: charts/otel-col-cluster/templates/statefulset.yaml
+      - contains: &tokenMount
+          path: spec.template.spec.containers[0].volumeMounts
+          content: {name: exporter-token, mountPath: /etc/otelcol-exporter, readOnly: true}
+        template: charts/otel-col-daemon/templates/daemonset.yaml
+      - contains: *tokenMount
+        template: charts/otel-col-deploy/templates/statefulset.yaml
+      - contains: *tokenMount
+        template: charts/otel-col-cluster/templates/statefulset.yaml
+      - contains: &queueMount
+          path: spec.template.spec.containers[0].volumeMounts
+          content: {name: exporter-queue, mountPath: /var/lib/otelcol-exporter}
+        template: charts/otel-col-daemon/templates/daemonset.yaml
+      - contains: *queueMount
+        template: charts/otel-col-deploy/templates/statefulset.yaml
+      - contains: *queueMount
+        template: charts/otel-col-cluster/templates/statefulset.yaml
+
+  - it: queues the node collector's exports in a host path per namespace and collector
+    template: charts/otel-col-daemon/templates/daemonset.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: exporter-queue
+            hostPath: {path: /var/lib/otelcol-exporter/loco-obs-node/otel-col-daemon, type: DirectoryOrCreate}
+
+  - it: hands the node collector's export queue and log checkpoints to the collector user before it starts
+    template: charts/otel-col-daemon/templates/daemonset.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsUser
+          value: 10001
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsGroup
+          value: 0
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == 'state-permissions')].command
+          value: [chown, -R, "10001:0", /var/lib/otelcol, /var/lib/otelcol-exporter]
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == 'state-permissions')].volumeMounts
+          value:
+            - {mountPath: /var/lib/otelcol, name: log-checkpoint-permissions}
+            - {mountPath: /var/lib/otelcol-exporter, name: exporter-queue}
+      - contains:
+          path: spec.template.spec.volumes
+          content: {name: log-checkpoint-permissions, hostPath: {path: /var/lib/otelcol, type: DirectoryOrCreate}}
+
+  - it: keeps the node collector's log checkpoints in a host path
+    template: charts/otel-col-daemon/templates/daemonset.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content: {name: varlibotelcol, mountPath: /var/lib/otelcol}
+      - contains:
+          path: spec.template.spec.volumes
+          content: {name: varlibotelcol, hostPath: {path: /var/lib/otelcol, type: DirectoryOrCreate}}
+
+  - it: lets the state permissions init container only chown
+    template: charts/otel-col-daemon/templates/daemonset.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == 'state-permissions')].securityContext.capabilities
+          value: {drop: [ALL], add: [CHOWN]}
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == 'state-permissions')].securityContext.allowPrivilegeEscalation
+          value: false
+
+  - it: runs the node collector as non-root
+    template: charts/otel-col-daemon/templates/daemonset.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true
+
+  - it: keeps every volume the chart mounts when log checkpoints are off
+    set:
+      otel-col-daemon.presets.logsCollection.storeCheckpoints: false
+    template: charts/otel-col-daemon/templates/daemonset.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content: {name: varlibotelcol}
+          any: true
+      - contains:
+          path: spec.template.spec.volumes
+          content: {name: log-checkpoint-permissions}
+          any: true
+      - contains:
+          path: spec.template.spec.volumes
+          content: {name: exporter-queue}
+          any: true
+      - contains:
+          path: spec.template.spec.volumes
+          content: {name: exporter-token}
+          any: true
+
+  - it: gives each StatefulSet collector its own export queue claim
+    asserts:
+      - equal: &claim
+          path: spec.volumeClaimTemplates[0].metadata.name
+          value: exporter-queue
+        template: charts/otel-col-deploy/templates/statefulset.yaml
+      - equal: *claim
+        template: charts/otel-col-cluster/templates/statefulset.yaml
+      - lengthEqual: &oneClaim
+          path: spec.volumeClaimTemplates
+          count: 1
+        template: charts/otel-col-deploy/templates/statefulset.yaml
+      - lengthEqual: *oneClaim
+        template: charts/otel-col-cluster/templates/statefulset.yaml
+      - equal: &readWriteOnce
+          path: spec.volumeClaimTemplates[0].spec.accessModes
+          value: [ReadWriteOnce]
+        template: charts/otel-col-deploy/templates/statefulset.yaml
+      - equal: *readWriteOnce
+        template: charts/otel-col-cluster/templates/statefulset.yaml
+      - matchRegex: &storage
+          path: spec.volumeClaimTemplates[0].spec.resources.requests.storage
+          pattern: ^[1-9]
+        template: charts/otel-col-deploy/templates/statefulset.yaml
+      - matchRegex: *storage
+        template: charts/otel-col-cluster/templates/statefulset.yaml
+      - notContains: &noQueueVolume
+          path: spec.template.spec.volumes
+          content: {name: exporter-queue}
+          any: true
+        template: charts/otel-col-deploy/templates/statefulset.yaml
+      - notContains: *noQueueVolume
+        template: charts/otel-col-cluster/templates/statefulset.yaml
+
+  - it: lets each StatefulSet collector own its claim through fsGroup
+    asserts:
+      - equal: &fsGroup
+          path: spec.template.spec.securityContext.fsGroup
+          value: 10001
+        template: charts/otel-col-deploy/templates/statefulset.yaml
+      - equal: *fsGroup
+        template: charts/otel-col-cluster/templates/statefulset.yaml
+
+  - it: lets the node and deployment collectors get, list and watch the pods, namespaces and ReplicaSets they extract metadata from
+    asserts:
+      - contains:
+          path: rules[?(@.resources[?(@ == 'pods')])].verbs
+          content: get
+        template: charts/otel-col-daemon/templates/clusterrole.yaml
+      - contains:
+          path: rules[?(@.resources[?(@ == 'pods')])].verbs
+          content: list
+        template: charts/otel-col-daemon/templates/clusterrole.yaml
+      - contains:
+          path: rules[?(@.resources[?(@ == 'pods')])].verbs
+          content: watch
+        template: charts/otel-col-daemon/templates/clusterrole.yaml
+      - contains:
+          path: rules[?(@.resources[?(@ == 'namespaces')])].verbs
+          content: get
+        template: charts/otel-col-daemon/templates/clusterrole.yaml
+      - contains:
+          path: rules[?(@.resources[?(@ == 'namespaces')])].verbs
+          content: list
+        template: charts/otel-col-daemon/templates/clusterrole.yaml
+      - contains:
+          path: rules[?(@.resources[?(@ == 'namespaces')])].verbs
+          content: watch
+        template: charts/otel-col-daemon/templates/clusterrole.yaml
+      - contains:
+          path: rules[?(@.resources[?(@ == 'replicasets')])].verbs
+          content: get
+        template: charts/otel-col-daemon/templates/clusterrole.yaml
+      - contains:
+          path: rules[?(@.resources[?(@ == 'replicasets')])].verbs
+          content: list
+        template: charts/otel-col-daemon/templates/clusterrole.yaml
+      - contains:
+          path: rules[?(@.resources[?(@ == 'replicasets')])].verbs
+          content: watch
+        template: charts/otel-col-daemon/templates/clusterrole.yaml
+      - contains:
+          path: rules[?(@.resources[?(@ == 'pods')])].verbs
+          content: get
+        template: charts/otel-col-deploy/templates/clusterrole.yaml
+      - contains:
+          path: rules[?(@.resources[?(@ == 'pods')])].verbs
+          content: list
+        template: charts/otel-col-deploy/templates/clusterrole.yaml
+      - contains:
+          path: rules[?(@.resources[?(@ == 'pods')])].verbs
+          content: watch
+        template: charts/otel-col-deploy/templates/clusterrole.yaml
+      - contains:
+          path: rules[?(@.resources[?(@ == 'namespaces')])].verbs
+          content: get
+        template: charts/otel-col-deploy/templates/clusterrole.yaml
+      - contains:
+          path: rules[?(@.resources[?(@ == 'namespaces')])].verbs
+          content: list
+        template: charts/otel-col-deploy/templates/clusterrole.yaml
+      - contains:
+          path: rules[?(@.resources[?(@ == 'namespaces')])].verbs
+          content: watch
+        template: charts/otel-col-deploy/templates/clusterrole.yaml
+      - contains:
+          path: rules[?(@.resources[?(@ == 'replicasets')])].verbs
+          content: get
+        template: charts/otel-col-deploy/templates/clusterrole.yaml
+      - contains:
+          path: rules[?(@.resources[?(@ == 'replicasets')])].verbs
+          content: list
+        template: charts/otel-col-deploy/templates/clusterrole.yaml
+      - contains:
+          path: rules[?(@.resources[?(@ == 'replicasets')])].verbs
+          content: watch
+        template: charts/otel-col-deploy/templates/clusterrole.yaml
+
+  - it: runs one cluster collector, without an autoscaler
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 1
+        template: charts/otel-col-cluster/templates/statefulset.yaml
+      - equal:
+          path: spec.updateStrategy.type
+          value: RollingUpdate
+        template: charts/otel-col-cluster/templates/statefulset.yaml
+      - hasDocuments:
+          count: 0
+        template: charts/otel-col-cluster/templates/hpa.yaml
+
+  - it: scales the deployment collector with the autoscaling values
+    set:
+      otel-col-deploy.autoscaling.minReplicas: 3
+      otel-col-deploy.autoscaling.maxReplicas: 7
+      otel-col-deploy.autoscaling.targetCPUUtilizationPercentage: 55
+    template: charts/otel-col-deploy/templates/hpa.yaml
+    asserts:
+      - equal:
+          path: spec.scaleTargetRef.name
+          value: otel-col-deploy
+      - equal:
+          path: spec.minReplicas
+          value: 3
+      - equal:
+          path: spec.maxReplicas
+          value: 7
+      - equal:
+          path: spec.metrics
+          value: [{type: Resource, resource: {name: cpu, target: {type: Utilization, averageUtilization: 55}}}]
+
+  - it: leaves the deployment collector's replicas to the autoscaler
+    template: charts/otel-col-deploy/templates/statefulset.yaml
+    asserts:
+      - notExists:
+          path: spec.replicas
+
+  - it: runs the explicit replica count when autoscaling is off
+    set:
+      otel-col-deploy.autoscaling.enabled: false
+      otel-col-deploy.replicaCount: 2
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: charts/otel-col-deploy/templates/hpa.yaml
+      - equal:
+          path: spec.replicas
+          value: 2
+        template: charts/otel-col-deploy/templates/statefulset.yaml
+
+  - it: serves OTLP gRPC and HTTP from the deployment collector Service on the ports the controller reads
+    template: charts/otel-col-deploy/templates/service.yaml
+    asserts:
+      - contains:
+          path: spec.ports
+          content: {name: otlp, port: 4317}
+          any: true
+      - contains:
+          path: spec.ports
+          content: {name: otlp-http, port: 4318}
+          any: true

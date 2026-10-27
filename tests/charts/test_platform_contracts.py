@@ -217,12 +217,6 @@ def test_exporters_send_no_auth_by_default(worker_relays):
         assert "auth" not in exporter, collector
 
 
-def test_collectors_require_an_exporter_endpoint():
-    result = render_chart("loco-worker", {"global": {"exporter": {"endpoint": ""}}}, check=False)
-    assert result.returncode != 0
-    assert "global.exporter.endpoint is required" in result.stderr
-
-
 @pytest.fixture(scope="module")
 def authenticated_exporter():
     return render_chart(
@@ -244,82 +238,6 @@ def test_exporter_authenticates_with_the_mounted_bearer_token(authenticated_expo
         assert exporter["auth"] == {"authenticator": "bearertokenauth/exporter"}, collector
         assert config["extensions"]["bearertokenauth/exporter"] == {"filename": filename}, collector
         assert "bearertokenauth/exporter" in config["service"]["extensions"], collector
-
-
-def test_collectors_mount_the_bearer_token_secret(authenticated_exporter):
-    token = exporter_settings()["bearerToken"]
-    workloads = [document for document in authenticated_exporter if document["kind"] in ("DaemonSet", "StatefulSet")]
-    assert len(workloads) == len(COLLECTOR_CONFIGMAPS)
-    for workload in workloads:
-        pod = workload["spec"]["template"]["spec"]
-        volumes = {volume["name"]: volume for volume in pod["volumes"]}
-        mounts = {mount["name"]: mount for mount in pod["containers"][0]["volumeMounts"]}
-        assert volumes["exporter-token"]["secret"] == {"secretName": "cluster-token", "optional": True}
-        assert mounts["exporter-token"]["mountPath"] == token["directory"]
-        assert mounts["exporter-token"]["readOnly"]
-        assert mounts["exporter-queue"]["mountPath"] == exporter_settings()["queue"]["directory"]
-
-
-def _collector_workloads(worker_documents):
-    return {document["metadata"]["name"]: document for document in worker_documents if document["kind"] in ("DaemonSet", "StatefulSet")}
-
-
-def _daemon_pod(worker_documents):
-    return _collector_workloads(worker_documents)["otel-col-daemon-agent"]["spec"]["template"]["spec"]
-
-
-def _collector_user(pod):
-    context = pod["containers"][0]["securityContext"]
-    return context["runAsUser"], context["runAsGroup"]
-
-
-def test_only_the_node_collector_runs_as_a_daemonset(worker_documents):
-    workloads = _collector_workloads(worker_documents)
-    assert {name: workload["kind"] for name, workload in workloads.items()} == {
-        "otel-col-daemon-agent": "DaemonSet",
-        "otel-col-deploy": "StatefulSet",
-        "otel-col-cluster": "StatefulSet",
-    }
-
-
-def test_node_collector_queues_exports_on_a_host_path(worker_documents):
-    directory = exporter_settings()["queue"]["directory"]
-    daemon = _daemon_pod(worker_documents)
-    queue = next(volume for volume in daemon["volumes"] if volume["name"] == "exporter-queue")
-    assert queue["hostPath"]["path"].startswith(f"{directory}/")
-    assert queue["hostPath"]["type"] == "DirectoryOrCreate"
-
-
-def test_node_collector_owns_its_export_queue_before_starting(worker_documents):
-    directory = exporter_settings()["queue"]["directory"]
-    daemon = _daemon_pod(worker_documents)
-    init = next(container for container in daemon["initContainers"] if container["name"] == "state-permissions")
-    user, group = _collector_user(daemon)
-    assert init["command"][:3] == ["chown", "-R", f"{user}:{group}"]
-    assert directory in init["command"][3:]
-    assert {"name": "exporter-queue", "mountPath": directory} in init["volumeMounts"]
-
-
-def test_statefulset_collectors_queue_exports_on_their_own_claim(worker_documents):
-    directory = exporter_settings()["queue"]["directory"]
-    workloads = _collector_workloads(worker_documents)
-    for name in ("otel-col-deploy", "otel-col-cluster"):
-        spec = workloads[name]["spec"]
-        (claim,) = spec["volumeClaimTemplates"]
-        assert claim["metadata"]["name"] == "exporter-queue", name
-        assert claim["spec"]["accessModes"] == ["ReadWriteOnce"], name
-        assert quantity(claim["spec"]["resources"]["requests"]["storage"]) > 0, name
-        pod = spec["template"]["spec"]
-        assert "exporter-queue" not in {volume["name"] for volume in pod["volumes"]}, name
-        assert {"name": "exporter-queue", "mountPath": directory} in pod["containers"][0]["volumeMounts"], name
-
-
-def test_statefulset_collectors_own_their_claim_through_fs_group(worker_documents):
-    workloads = _collector_workloads(worker_documents)
-    user, _ = _collector_user(_daemon_pod(worker_documents))
-    for name in ("otel-col-deploy", "otel-col-cluster"):
-        pod = workloads[name]["spec"]["template"]["spec"]
-        assert pod["securityContext"]["fsGroup"] == user, name
 
 
 def _pipelines(worker_relays):
@@ -346,63 +264,23 @@ def _checkpoint_directory(worker_relays):
     return worker_relays["otel-col-daemon-agent"]["extensions"]["file_storage"]["directory"]
 
 
-def _checkpoint_volume(pod, container, directory):
-    mount = next(mount for mount in container["volumeMounts"] if mount["mountPath"] == directory)
-    return next(volume for volume in pod["volumes"] if volume["name"] == mount["name"])
-
-
-def _state_permissions(pod):
-    return next(container for container in pod["initContainers"] if container["name"] == "state-permissions")
-
-
 def test_file_log_receiver_checkpoints_to_file_storage(worker_relays):
     config = worker_relays["otel-col-daemon-agent"]
     assert config["receivers"]["file_log"]["storage"] == "file_storage"
     assert "file_storage" in config["service"]["extensions"]
 
 
-def test_node_collector_runs_as_non_root(worker_documents):
-    assert _daemon_pod(worker_documents)["securityContext"]["runAsNonRoot"]
+def test_log_checkpoints_live_in_the_host_path_the_daemonset_mounts(worker_relays):
+    assert _checkpoint_directory(worker_relays) == "/var/lib/otelcol"
 
 
-def test_log_checkpoints_live_on_a_host_path(worker_documents, worker_relays):
-    directory = _checkpoint_directory(worker_relays)
-    pod = _daemon_pod(worker_documents)
-    volume = _checkpoint_volume(pod, pod["containers"][0], directory)
-    assert volume["hostPath"] == {"path": directory, "type": "DirectoryOrCreate"}
-
-
-def test_node_collector_owns_its_log_checkpoints_before_starting(worker_documents, worker_relays):
-    directory = _checkpoint_directory(worker_relays)
-    pod = _daemon_pod(worker_documents)
-    user, group = _collector_user(pod)
-    init = _state_permissions(pod)
-    assert init["command"][:4] == ["chown", "-R", f"{user}:{group}", directory]
-    volume = _checkpoint_volume(pod, pod["containers"][0], directory)
-    assert _checkpoint_volume(pod, init, directory)["hostPath"] == volume["hostPath"]
-
-
-def test_state_permissions_can_only_chown(worker_documents):
-    init = _state_permissions(_daemon_pod(worker_documents))
-    assert init["securityContext"]["capabilities"] == {
-        "drop": ["ALL"], "add": ["CHOWN"]
-    }
-    assert not init["securityContext"]["allowPrivilegeEscalation"]
-
-
-def test_disabling_log_checkpoints_keeps_volume_references_valid():
+def test_disabling_log_checkpoints_drops_the_file_log_storage():
     documents = render_chart(
         "loco-worker",
         {"otel-col-daemon": {"presets": {"logsCollection": {"storeCheckpoints": False}}}},
     )
     config = collector_relays(documents)["otel-col-daemon-agent"]
     assert "storage" not in config["receivers"]["file_log"]
-    daemon = next(document for document in documents if document["kind"] == "DaemonSet")
-    pod = daemon["spec"]["template"]["spec"]
-    volume_names = {volume["name"] for volume in pod["volumes"]}
-    for container in pod["containers"] + pod.get("initContainers", []):
-        for mount in container.get("volumeMounts", []):
-            assert mount["name"] in volume_names
 
 
 def _application_scrape(worker_relays):
@@ -491,12 +369,6 @@ def test_every_pipeline_stamps_the_region_last(worker_relays, subtests):
             }
 
 
-def test_chart_requires_a_region():
-    result = render_chart("loco-worker", {"global": {"region": ""}}, check=False)
-    assert result.returncode != 0
-    assert "global.region is required" in result.stderr
-
-
 def test_memory_limiter_runs_first_and_batch_last(worker_relays):
     for collector, _, name, pipeline in _pipelines(worker_relays):
         processors = pipeline.get("processors", [])
@@ -559,24 +431,6 @@ def test_file_logs_associate_pods_by_uid(worker_relays):
     ]
 
 
-def test_collectors_can_read_the_pod_metadata_they_extract(worker_documents):
-    needed = {("", "pods"), ("", "namespaces"), ("apps", "replicasets")}
-    roles = {
-        document["metadata"]["name"]: document
-        for document in worker_documents
-        if document["kind"] == "ClusterRole"
-    }
-    for collector in ("otel-col-daemon", "otel-col-deploy"):
-        granted = {
-            (group, resource)
-            for rule in roles[collector]["rules"]
-            if {"get", "list", "watch"} <= set(rule["verbs"])
-            for group in rule["apiGroups"]
-            for resource in rule["resources"]
-        }
-        assert needed <= granted, collector
-
-
 def test_build_logs_keep_their_build_id(worker_relays):
     config = worker_relays["otel-col-daemon-agent"]
     pipeline = next(
@@ -623,7 +477,7 @@ def test_tenancy_comes_from_explicit_pod_labels(worker_relays):
                 assert key in extract["metadata"], f"{collector} {enricher}"
 
 
-def test_only_the_singleton_collects_cluster_metrics_and_events(worker_documents, worker_relays):
+def test_only_the_singleton_collects_cluster_metrics_and_events(worker_relays):
     for receiver in ("k8s_cluster", "k8sobjects"):
         collectors = {
             name
@@ -631,23 +485,6 @@ def test_only_the_singleton_collects_cluster_metrics_and_events(worker_documents
             if receiver in config["receivers"]
         }
         assert collectors == {"otel-col-cluster"}, receiver
-    deployment = next(
-        (
-            document
-            for document in worker_documents
-            if document["kind"] == "StatefulSet"
-            and document["metadata"]["name"] == "otel-col-cluster"
-        )
-    )
-    assert deployment["spec"]["replicas"] == 1
-    assert deployment["spec"]["updateStrategy"]["type"] == "RollingUpdate"
-    assert not any(
-        (
-            document["kind"] == "HorizontalPodAutoscaler"
-            and document["spec"]["scaleTargetRef"]["name"] == "otel-col-cluster"
-            for document in worker_documents
-        )
-    )
 
 
 def test_ingest_keeps_only_push_pipelines(worker_relays):
@@ -667,38 +504,6 @@ def _ingest_collector(worker_documents):
     )
 
 
-def test_ingest_hpa_follows_the_autoscaling_values(worker_documents):
-    values = chart_values("loco-worker")["otel-col-deploy"]
-    hpa = next(
-        (
-            document
-            for document in worker_documents
-            if document["kind"] == "HorizontalPodAutoscaler"
-            and document["spec"]["scaleTargetRef"]["name"] == "otel-col-deploy"
-        )
-    )
-    assert hpa["spec"]["minReplicas"] == values["autoscaling"]["minReplicas"]
-    assert hpa["spec"]["maxReplicas"] == values["autoscaling"]["maxReplicas"]
-    assert hpa["spec"]["metrics"] == [
-        {
-            "type": "Resource",
-            "resource": {
-                "name": "cpu",
-                "target": {
-                    "type": "Utilization",
-                    "averageUtilization": values["autoscaling"][
-                        "targetCPUUtilizationPercentage"
-                    ],
-                },
-            },
-        }
-    ]
-
-
-def test_ingest_leaves_replicas_to_the_hpa(worker_documents):
-    assert "replicas" not in _ingest_collector(worker_documents)["spec"]
-
-
 def test_ingest_requests_resources_within_its_limits(worker_documents):
     resources = _ingest_collector(worker_documents)["spec"]["template"]["spec"]["containers"][0]["resources"]
     for resource in ("cpu", "memory"):
@@ -706,25 +511,6 @@ def test_ingest_requests_resources_within_its_limits(worker_documents):
         assert quantity(resources["requests"][resource]) <= quantity(
             resources["limits"][resource]
         )
-
-
-def test_disabling_autoscaling_restores_the_explicit_replica_count():
-    documents = render_chart(
-        "loco-worker",
-        {"otel-col-deploy": {"autoscaling": {"enabled": False}, "replicaCount": 2}},
-    )
-    assert not any(
-        (document["kind"] == "HorizontalPodAutoscaler" for document in documents)
-    )
-    deployment = next(
-        (
-            document
-            for document in documents
-            if document["kind"] == "StatefulSet"
-            and document["metadata"]["name"] == "otel-col-deploy"
-        )
-    )
-    assert deployment["spec"]["replicas"] == 2
 
 
 @pytest.fixture(scope="module")
@@ -747,85 +533,12 @@ def _collector_address(envoy_telemetry):
     )
 
 
-def test_envoy_sends_every_signal_to_the_deployment_collector(envoy_telemetry):
-    host, port = _collector_address(envoy_telemetry)
+def test_the_deployment_collector_receives_otlp_on_its_service_port(envoy_telemetry):
+    _, port = _collector_address(envoy_telemetry)
     assert (
         envoy_telemetry.collector["receivers"]["otlp"]["protocols"]["grpc"]["endpoint"]
         == f"0.0.0.0:{port}"
     )
-    telemetry = envoy_telemetry.proxy["spec"]["telemetry"]
-    sinks = [sink["openTelemetry"] for sink in telemetry["metrics"]["sinks"]]
-    sinks += [
-        sink["openTelemetry"]
-        for setting in telemetry["accessLog"]["settings"]
-        for sink in setting["sinks"]
-    ]
-    sinks.append(telemetry["tracing"]["provider"])
-    for sink in sinks:
-        assert (sink["host"], sink["port"]) == (host, port)
-    assert telemetry["tracing"]["provider"]["type"] == "OpenTelemetry"
-    assert all(
-        (
-            sink["type"] == "OpenTelemetry"
-            for setting in telemetry["accessLog"]["settings"]
-            for sink in setting["sinks"]
-        )
-    )
-
-
-def test_gateway_service_settings_are_left_to_envoy_by_default(envoy_telemetry):
-    assert "provider" not in envoy_telemetry.proxy["spec"]
-
-
-def test_gateway_service_accepts_native_nodeport_configuration(envoy_telemetry):
-    service = {
-        "type": "NodePort",
-        "externalTrafficPolicy": "Cluster",
-        "patch": {
-            "type": "StrategicMerge",
-            "value": {"spec": {"ports": [{"port": 80, "nodePort": 30080}]}},
-        },
-    }
-    documents = render_template(
-        "loco-worker", "gateway.yaml", {"envoyProxy": {"service": service}}
-    )
-    proxy = next(
-        (document for document in documents if document["kind"] == "EnvoyProxy")
-    )
-    assert proxy["spec"]["provider"] == {
-        "type": "Kubernetes",
-        "kubernetes": {"envoyService": service},
-    }
-
-
-def test_tracing_samples_at_the_configured_rate(envoy_telemetry):
-    tracing = envoy_telemetry.proxy["spec"]["telemetry"]["tracing"]
-    assert (
-        tracing["samplingRate"]
-        == envoy_telemetry.core["envoyProxy"]["tracing"]["samplingRate"]
-    )
-
-
-def test_access_logs_carry_the_request_and_its_upstream(envoy_telemetry):
-    settings = envoy_telemetry.proxy["spec"]["telemetry"]["accessLog"]["settings"]
-    assert len(settings) == 1
-    log_format = settings[0]["format"]
-    assert log_format["type"] == "JSON"
-    assert (
-        log_format["json"]
-        == envoy_telemetry.core["envoyProxy"]["accessLog"]["attributes"]
-    )
-    operators = set(log_format["json"].values())
-    for operator in (
-        "%UPSTREAM_CLUSTER%",
-        "%RESPONSE_CODE%",
-        "%DURATION%",
-        "%REQ(:METHOD)%",
-        "%TRACE_ID%",
-    ):
-        assert operator in operators
-    assert any(("PATH" in operator for operator in operators))
-    assert log_format["json"]["upstream_cluster"] == "%UPSTREAM_CLUSTER%"
 
 
 def test_route_tenancy_runs_after_kubernetes_attributes(envoy_telemetry):
@@ -886,26 +599,6 @@ def test_only_envoy_telemetry_gets_route_tenancy(envoy_telemetry):
             assert len(setters) == 1, f"{statements} {key}"
 
 
-def test_controller_reads_the_collector_from_values():
-    deployment = render_template_object(
-        "loco-worker",
-        "controller/deployment.yaml",
-        {
-            "controller": {"image": {"tag": "test"}},
-            "otel-col-deploy": {
-                "namespaceOverride": "telemetry",
-                "fullnameOverride": "collector",
-                "ports": {"otlp": {"servicePort": 14317}, "otlp-http": {"servicePort": 14318}},
-            },
-        },
-    )
-    env = container_env(deployment)
-    assert env["LOCO_OBSERVABILITY_NAMESPACE"]["value"] == "telemetry"
-    assert env["LOCO_OTEL_COLLECTOR_SERVICE"]["value"] == "collector"
-    assert env["LOCO_OTEL_COLLECTOR_GRPC_PORT"]["value"] == "14317"
-    assert env["LOCO_OTEL_COLLECTOR_HTTP_PORT"]["value"] == "14318"
-
-
 def test_collector_service_ports_reach_the_receivers():
     deploy = chart_values("loco-worker")["otel-col-deploy"]
     protocols = deploy["config"]["receivers"]["otlp"]["protocols"]
@@ -917,24 +610,6 @@ def test_proxy_has_no_kubernetes_api_credentials():
     pod = _proxy_deployment()["spec"]["template"]["spec"]
     assert "serviceAccountName" not in pod
     assert pod["automountServiceAccountToken"] is False
-
-
-def test_chart_creates_build_namespace_by_default():
-    builds = chart_values("loco-worker")["builds"]
-    namespace = render_template_object("loco-worker", "builds/namespace.yaml", {})
-    assert namespace["kind"] == "Namespace"
-    assert namespace["metadata"]["name"] == builds["namespace"]
-    assert (
-        namespace["metadata"]["labels"]["pod-security.kubernetes.io/enforce"]
-        == builds["podSecurity"]["level"]
-    )
-
-
-def test_gitops_can_own_build_namespace():
-    namespace = render_template_object(
-        "loco-worker", "builds/namespace.yaml", {"builds": {"createNamespace": False}}
-    )
-    assert namespace is None
 
 
 def test_file_logs_extract_application_severity(worker_relays):

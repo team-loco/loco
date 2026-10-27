@@ -1,0 +1,126 @@
+suite: gateway
+release:
+  name: loco-worker
+  namespace: loco-system
+values:
+  - ../ci/default-values.yaml
+templates:
+  - templates/gateway.yaml
+  - charts/otel-col-deploy/templates/service.yaml
+tests:
+  - it: sends every Envoy signal to the deployment collector's OTLP gRPC Service
+    asserts:
+      - equal:
+          path: spec.telemetry.metrics.sinks
+          value:
+            - type: OpenTelemetry
+              openTelemetry: {host: otel-col-deploy.loco-obs.svc.cluster.local, port: 4317}
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: EnvoyProxy}
+      - equal:
+          path: spec.telemetry.tracing.provider
+          value: {type: OpenTelemetry, host: otel-col-deploy.loco-obs.svc.cluster.local, port: 4317}
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: EnvoyProxy}
+      - equal:
+          path: spec.telemetry.accessLog.settings[0].sinks
+          value:
+            - type: OpenTelemetry
+              openTelemetry: {host: otel-col-deploy.loco-obs.svc.cluster.local, port: 4317}
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: EnvoyProxy}
+      - equal:
+          path: metadata.name
+          value: otel-col-deploy
+        template: charts/otel-col-deploy/templates/service.yaml
+      - equal:
+          path: metadata.namespace
+          value: loco-obs
+        template: charts/otel-col-deploy/templates/service.yaml
+      - contains:
+          path: spec.ports
+          content: {name: otlp, port: 4317}
+          any: true
+        template: charts/otel-col-deploy/templates/service.yaml
+
+  - it: leaves the Envoy Service settings to Envoy Gateway by default
+    asserts:
+      - notExists:
+          path: spec.provider
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: EnvoyProxy}
+
+  - it: passes native NodePort Service settings through to Envoy
+    set:
+      envoyProxy.service:
+        type: NodePort
+        externalTrafficPolicy: Cluster
+        patch:
+          type: StrategicMerge
+          value: {spec: {ports: [{port: 80, nodePort: 30080}]}}
+    asserts:
+      - equal:
+          path: spec.provider
+          value:
+            type: Kubernetes
+            kubernetes:
+              envoyService:
+                type: NodePort
+                externalTrafficPolicy: Cluster
+                patch:
+                  type: StrategicMerge
+                  value: {spec: {ports: [{port: 80, nodePort: 30080}]}}
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: EnvoyProxy}
+
+  - it: samples traces at the configured rate
+    set:
+      envoyProxy.tracing.samplingRate: 37
+    asserts:
+      - equal:
+          path: spec.telemetry.tracing.samplingRate
+          value: 37
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: EnvoyProxy}
+
+  - it: logs each request and its upstream as JSON
+    asserts:
+      - lengthEqual:
+          path: spec.telemetry.accessLog.settings
+          count: 1
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: EnvoyProxy}
+      - equal:
+          path: spec.telemetry.accessLog.settings[0].format.type
+          value: JSON
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: EnvoyProxy}
+      - isSubset:
+          path: spec.telemetry.accessLog.settings[0].format.json
+          content:
+            method: "%REQ(:METHOD)%"
+            path: "%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%"
+            response_code: "%RESPONSE_CODE%"
+            duration: "%DURATION%"
+            upstream_cluster: "%UPSTREAM_CLUSTER%"
+            trace_id: "%TRACE_ID%"
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: EnvoyProxy}
+
+  - it: logs the access log attributes the values add
+    set:
+      envoyProxy.accessLog.attributes.route: "%ROUTE_NAME%"
+    asserts:
+      - isSubset:
+          path: spec.telemetry.accessLog.settings[0].format.json
+          content: {route: "%ROUTE_NAME%"}
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: EnvoyProxy}
+
+  - it: admits platform routes only from the release and collector namespaces
+    asserts:
+      - equal:
+          path: spec.listeners[?(@.name =~ /-platform$/)].allowedRoutes.namespaces.selector.matchExpressions
+          value: [{key: kubernetes.io/metadata.name, operator: In, values: [loco-system, loco-obs]}]
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: Gateway}

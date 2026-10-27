@@ -1,0 +1,130 @@
+suite: builds
+release:
+  name: loco-worker
+  namespace: loco-system
+values:
+  - ../ci/default-values.yaml
+templates:
+  - templates/builds/*.yaml
+  - templates/controller/*.yaml
+tests:
+  - it: renders the build controller, its namespace and its RBAC with builds enabled
+    asserts:
+      - containsDocument: {kind: Namespace, apiVersion: v1, name: loco-builds}
+        template: templates/builds/namespace.yaml
+      - containsDocument: {kind: Deployment, apiVersion: apps/v1, name: loco-build-controller}
+        template: templates/builds/deployment.yaml
+      - containsDocument: {kind: ServiceAccount, apiVersion: v1, name: loco-build-controller}
+        template: templates/builds/serviceaccount.yaml
+      - containsDocument: {kind: ClusterRole, apiVersion: rbac.authorization.k8s.io/v1, name: loco-build-controller, any: true}
+        template: templates/builds/manager-role.yaml
+      - containsDocument: {kind: Role, apiVersion: rbac.authorization.k8s.io/v1, name: loco-build-controller, any: true}
+        template: templates/builds/manager-role.yaml
+      - containsDocument: {kind: ClusterRoleBinding, apiVersion: rbac.authorization.k8s.io/v1, name: loco-build-controller, any: true}
+        template: templates/builds/manager-rolebinding.yaml
+      - containsDocument: {kind: RoleBinding, apiVersion: rbac.authorization.k8s.io/v1, name: loco-build-controller, any: true}
+        template: templates/builds/manager-rolebinding.yaml
+      - containsDocument: {kind: RoleBinding, apiVersion: rbac.authorization.k8s.io/v1, name: loco-build-controller-leader-election}
+        template: templates/builds/leader-election-rolebinding.yaml
+      - containsDocument: {kind: Role, apiVersion: rbac.authorization.k8s.io/v1, name: loco-agent-builds, any: true}
+        template: templates/builds/agent-rbac.yaml
+      - containsDocument: {kind: RoleBinding, apiVersion: rbac.authorization.k8s.io/v1, name: loco-agent-builds, any: true}
+        template: templates/builds/agent-rbac.yaml
+
+  - it: renders nothing for builds with builds disabled
+    set:
+      builds.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/builds/agent-rbac.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/builds/deployment.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/builds/leader-election-rolebinding.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/builds/manager-role.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/builds/manager-rolebinding.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/builds/metrics.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/builds/namespace.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/builds/registry-secrets-role.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/builds/serviceaccount.yaml
+
+  - it: renders the Application controller with builds enabled
+    asserts: &controller
+      - containsDocument: {kind: Deployment, apiVersion: apps/v1, name: loco-controller}
+        template: templates/controller/deployment.yaml
+      - containsDocument: {kind: ServiceAccount, apiVersion: v1, name: loco-controller}
+        template: templates/controller/serviceaccount.yaml
+      - containsDocument: {kind: ClusterRole, apiVersion: rbac.authorization.k8s.io/v1, name: loco-controller}
+        template: templates/controller/manager-role.yaml
+      - containsDocument: {kind: ClusterRoleBinding, apiVersion: rbac.authorization.k8s.io/v1, name: loco-controller}
+        template: templates/controller/manager-rolebinding.yaml
+
+  - it: renders the Application controller with builds disabled
+    set:
+      builds.enabled: false
+    asserts: *controller
+
+  - it: lets the build controller read only the registry Secrets the values name
+    set:
+      builds.pushSecretName: push
+      registry.pullSecretName: pull
+    template: templates/builds/registry-secrets-role.yaml
+    asserts:
+      - containsDocument: {kind: Role, apiVersion: rbac.authorization.k8s.io/v1, name: loco-build-controller-registry-secrets, any: true}
+      - equal:
+          path: rules
+          value: [{apiGroups: [""], resources: [secrets], resourceNames: [push, pull], verbs: [get]}]
+        documentSelector: {path: kind, value: Role}
+
+  - it: grants no registry Secret access when the values name none
+    template: templates/builds/registry-secrets-role.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: creates the build namespace with its Pod Security level by default
+    template: templates/builds/namespace.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: loco-builds
+      - equal:
+          path: metadata.labels["pod-security.kubernetes.io/enforce"]
+          value: privileged
+
+  - it: leaves the build namespace to GitOps when createNamespace is false
+    set:
+      builds.createNamespace: false
+    template: templates/builds/namespace.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: requires a builder image tag with builds enabled
+    set:
+      builds.builderImage.tag: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: "/builds/builderImage/tag': minLength"
+
+  - it: needs no builder image tag with builds disabled
+    set:
+      builds.enabled: false
+      builds.builderImage.tag: ""
+    asserts:
+      - notFailedTemplate: {}

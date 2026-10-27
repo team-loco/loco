@@ -1,0 +1,178 @@
+suite: agent
+release:
+  name: loco-worker
+  namespace: loco-system
+values:
+  - ../ci/default-values.yaml
+set:
+  global.domain.apps: [apps.test, other.test]
+templates:
+  - templates/agent-deployment.yaml
+  - templates/agent-rbac.yaml
+  - templates/agent-join-token-secret.yaml
+  - templates/env-config-secret.yml
+  - templates/gateway.yaml
+  - templates/cm-cert.yaml
+  - templates/controller/deployment.yaml
+  - templates/builds/namespace.yaml
+  - templates/builds/agent-rbac.yaml
+tests:
+  - it: reads the app domains, Gateway and Certificate the chart renders
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_APP_DOMAINS, value: "apps.test,other.test"}
+        template: templates/agent-deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_GATEWAY, value: eg}
+        template: templates/agent-deployment.yaml
+      - equal:
+          path: metadata.name
+          value: eg
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: Gateway}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_CERTIFICATE, value: loco-worker-cert}
+        template: templates/agent-deployment.yaml
+      - equal:
+          path: metadata.name
+          value: loco-worker-cert
+        template: templates/cm-cert.yaml
+
+  - it: reads no Certificate and gets no Certificate access with an existing TLS Secret
+    set:
+      certManager.existingTLSSecret: wildcard-tls
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_CERTIFICATE, value: ""}
+        template: templates/agent-deployment.yaml
+      - notContains:
+          path: rules
+          content: {apiGroups: [cert-manager.io]}
+          any: true
+        template: templates/agent-rbac.yaml
+        documentSelector: {path: kind, value: Role}
+
+  - it: reads only its own Gateway and Certificate
+    asserts:
+      - contains:
+          path: rules
+          content: {apiGroups: [gateway.networking.k8s.io], resources: [gateways], resourceNames: [eg], verbs: [get]}
+        template: templates/agent-rbac.yaml
+        documentSelector: {path: kind, value: Role}
+      - contains:
+          path: rules
+          content: {apiGroups: [gateway.networking.k8s.io]}
+          any: true
+          count: 1
+        template: templates/agent-rbac.yaml
+        documentSelector: {path: kind, value: Role}
+      - contains:
+          path: rules
+          content: {apiGroups: [cert-manager.io], resources: [certificates], resourceNames: [loco-worker-cert], verbs: [get]}
+        template: templates/agent-rbac.yaml
+        documentSelector: {path: kind, value: Role}
+      - contains:
+          path: rules
+          content: {apiGroups: [cert-manager.io]}
+          any: true
+          count: 1
+        template: templates/agent-rbac.yaml
+        documentSelector: {path: kind, value: Role}
+
+  - it: reads a join token from the Secret the chart renders
+    set:
+      agent.joinToken.value: join-token-value
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LOCO_JOIN_TOKEN
+            valueFrom:
+              secretKeyRef: {name: loco-worker-agent-join-token, key: join-token, optional: true}
+        template: templates/agent-deployment.yaml
+      - equal:
+          path: metadata.name
+          value: loco-worker-agent-join-token
+        template: templates/agent-join-token-secret.yaml
+      - equal:
+          path: stringData
+          value: {join-token: join-token-value}
+        template: templates/agent-join-token-secret.yaml
+
+  - it: reads a join token from an existing Secret and renders none
+    set:
+      agent.joinToken.existingSecret: enrollment
+      agent.joinToken.secretKey: token
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LOCO_JOIN_TOKEN
+            valueFrom:
+              secretKeyRef: {name: enrollment, key: token, optional: true}
+        template: templates/agent-deployment.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/agent-join-token-secret.yaml
+
+  - it: needs no join token once enrolled
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_JOIN_TOKEN}
+          any: true
+        template: templates/agent-deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_AGENT_KEY_SECRET, value: loco-worker-agent-key}
+        template: templates/agent-deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_ASSERTION_LIFETIME, value: 1m}
+        template: templates/agent-deployment.yaml
+
+  - it: rejects both a join token value and an existing Secret
+    set:
+      agent.joinToken.value: join-token-value
+      agent.joinToken.existingSecret: enrollment
+    asserts:
+      - failedTemplate:
+          errorMessage: set agent.joinToken.value or agent.joinToken.existingSecret, not both
+        template: templates/agent-join-token-secret.yaml
+
+  - it: references a ServiceAccount, controller Deployment and build Namespace the chart renders
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: loco-worker-agent
+        template: templates/agent-deployment.yaml
+      - containsDocument: {kind: ServiceAccount, apiVersion: v1, name: loco-worker-agent, namespace: loco-system, any: true}
+        template: templates/agent-rbac.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_CONTROLLER_DEPLOYMENT, value: loco-controller}
+        template: templates/agent-deployment.yaml
+      - equal:
+          path: metadata.name
+          value: loco-controller
+        template: templates/controller/deployment.yaml
+      - contains:
+          path: rules
+          content: {apiGroups: [apps], resources: [deployments], resourceNames: [loco-controller], verbs: [get]}
+        template: templates/agent-rbac.yaml
+        documentSelector: {path: kind, value: Role}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_BUILD_NAMESPACE, value: loco-builds}
+        template: templates/agent-deployment.yaml
+      - containsDocument: {kind: Namespace, apiVersion: v1, name: loco-builds}
+        template: templates/builds/namespace.yaml
+      - equal:
+          path: subjects
+          value: [{kind: ServiceAccount, name: loco-worker-agent, namespace: loco-system}]
+        template: templates/builds/agent-rbac.yaml
+        documentSelector: {path: kind, value: RoleBinding}
