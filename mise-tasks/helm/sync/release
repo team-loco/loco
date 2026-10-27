@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 #MISE description="Install or upgrade one release on the local cluster with its dev/ values, overriding fields another field manager owns"
-#MISE env={_.source="dev/stack.sh"}
 #USAGE arg "<release>" help="cert-manager or loco-worker"
 #USAGE arg "[values]..." var=#true help="extra values, each passed to helm as --set"
 set -euo pipefail

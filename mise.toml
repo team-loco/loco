@@ -247,10 +247,16 @@ env = { _.source = "dev/stack.sh" }
 raw = true
 run = "docker compose exec postgres sh -c 'exec psql -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\"'"
 
+[tasks."cluster:up"]
+env = { _.source = "dev/stack.sh" }
+
 [tasks."cluster:down"]
 description = "Delete this checkout's kind cluster"
 env = { _.source = "dev/stack.sh" }
 run = 'kind delete cluster --name "$KIND_CLUSTER"'
+
+[tasks.stop]
+env = { _.source = "dev/stack.sh" }
 
 [tasks.down]
 description = "Remove this checkout's local environment: stop it, delete its kind cluster, its compose containers and volumes, and free its stack slot"
@@ -297,6 +303,12 @@ run = [
   "helm dependency build --skip-refresh ./charts/loco-worker",
   "helm dependency build --skip-refresh ./charts/loco-control-plane",
 ]
+
+[tasks."helm:sync:release"]
+env = { _.source = "dev/stack.sh" }
+
+[tasks."helm:destroy"]
+env = { _.source = "dev/stack.sh" }
 
 [tasks."helm:sync:namespaces"]
 description = "Sync the loco-system namespace, which the loco-worker release installs into, and its Pod Security labels to the local cluster"

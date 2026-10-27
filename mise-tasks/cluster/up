@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 #MISE description="Create the local kind cluster, start its nodes if mise run stop stopped them, or recreate it if it is unreachable, export its kubeconfig, and start the cloud-provider-kind container that gives the LoadBalancer Services of every kind cluster an address; a worktree's stack leaves the current kubectl context as it was"
-#MISE env={_.source="dev/stack.sh"}
 set -euo pipefail
 
 name=$KIND_CLUSTER
