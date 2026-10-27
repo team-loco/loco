@@ -136,6 +136,7 @@ type Querier interface {
 	InsertEnvironmentKey(ctx context.Context, arg InsertEnvironmentKeyParams) (EnvironmentKey, error)
 	InsertEvent(ctx context.Context, arg InsertEventParams) (int64, error)
 	IsOrgMember(ctx context.Context, arg IsOrgMemberParams) (bool, error)
+	IsOrgMemberEmail(ctx context.Context, arg IsOrgMemberEmailParams) (bool, error)
 	IsOrgNameUnique(ctx context.Context, arg IsOrgNameUniqueParams) (bool, error)
 	IsOrganizationNameUnique(ctx context.Context, name string) (bool, error)
 	IsWorkspaceNameUniqueInOrg(ctx context.Context, arg IsWorkspaceNameUniqueInOrgParams) (bool, error)

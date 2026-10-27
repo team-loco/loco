@@ -53,3 +53,23 @@ export const addOrgMember = OrgService.method.addOrgMember;
  * @generated from rpc loco.org.v1.OrgService.RemoveOrgMember
  */
 export const removeOrgMember = OrgService.method.removeOrgMember;
+
+/**
+ * @generated from rpc loco.org.v1.OrgService.InviteOrgMember
+ */
+export const inviteOrgMember = OrgService.method.inviteOrgMember;
+
+/**
+ * @generated from rpc loco.org.v1.OrgService.ListInvitations
+ */
+export const listInvitations = OrgService.method.listInvitations;
+
+/**
+ * @generated from rpc loco.org.v1.OrgService.RevokeInvitation
+ */
+export const revokeInvitation = OrgService.method.revokeInvitation;
+
+/**
+ * @generated from rpc loco.org.v1.OrgService.ResendInvitation
+ */
+export const resendInvitation = OrgService.method.resendInvitation;
