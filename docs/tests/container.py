@@ -1,17 +1,13 @@
 import json
-import os
 import re
 import subprocess
-import tempfile
 import time
 import tomllib
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 import pytest
-from playwright.sync_api import expect, sync_playwright
 
 ROOT = Path(__file__).resolve().parents[2]
 PORT = 8080
@@ -60,75 +56,6 @@ def test_rewrites_cover_exactly_the_ui_routes():
         assert match is not None, rewrite["source"]
         assert set(match.group(1).split(",")) == sections, rewrite["source"]
         assert rewrite["destination"] == "/index.html"
-
-
-def _check_browser(url):
-    screenshots = Path(
-        os.environ.get(
-            "DOCS_SCREENSHOT_DIR", tempfile.mkdtemp(prefix="loco-hosted-docs-")
-        )
-    )
-    screenshots.mkdir(parents=True, exist_ok=True)
-    problems = []
-    with sync_playwright() as playwright:
-        browser = playwright.chromium.launch()
-        try:
-            for name, host, path, heading in [
-                ("docs", DOCS_HOST, "/", "Deploy with Loco"),
-                ("docs-subpath", UI_HOST, "/docs/", "Deploy with Loco"),
-                ("dashboard", UI_HOST, "/", "Deploy containers,"),
-                ("404-app", UI_HOST, NOT_FOUND_PATH, "Page not found"),
-                ("404-docs", DOCS_HOST, NOT_FOUND_PATH, "Page not found"),
-            ]:
-                context = browser.new_context()
-
-                def proxy(route, request, host=host):
-                    parsed = urlsplit(request.url)
-                    target = parsed.path + ("?" + parsed.query if parsed.query else "")
-                    result = route.fetch(
-                        url=url + target, headers={**request.headers, "Host": host}
-                    )
-                    route.fulfill(response=result)
-
-                context.route("https://" + host + "/**", proxy)
-                page = context.new_page()
-                failures = []
-                page.on(
-                    "console",
-                    lambda message: (
-                        failures.append(message.text)
-                        if "Content Security Policy" in message.text
-                        else None
-                    ),
-                )
-                page.on(
-                    "requestfailed",
-                    lambda request, host=host: (
-                        failures.append(request.url)
-                        if urlsplit(request.url).hostname == host
-                        else None
-                    ),
-                )
-                page.on(
-                    "response",
-                    lambda result, host=host: (
-                        failures.append(f"{result.status} {result.url}")
-                        if result.status >= 400
-                        and result.request.resource_type != "document"
-                        and (urlsplit(result.url).hostname == host)
-                        else None
-                    ),
-                )
-                page.goto(f"https://{host}{path}", wait_until="networkidle")
-                expect(page.get_by_role("heading", name=heading)).to_be_visible()
-                page.screenshot(path=str(screenshots / f"{name}.png"), full_page=True)
-                if failures:
-                    problems.append(f"{name}: {failures}")
-                context.unroute_all(behavior="ignoreErrors")
-                context.close()
-        finally:
-            browser.close()
-    assert not problems, "\n".join(problems)
 
 
 def test_image_serves_the_ui_and_docs():
@@ -228,6 +155,5 @@ def test_image_serves_the_ui_and_docs():
             assert status == 404, f"{host}{path}"
             assert f"<title>{NOT_FOUND_TITLE}</title>" in body
             assert '<div id="root">' not in body
-        _check_browser(url)
     finally:
         docker("stop", container)

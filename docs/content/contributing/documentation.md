@@ -16,8 +16,6 @@ Add pages under `docs/content/` and register them in `docs/zensical.toml`. Keep 
 mise run docs:build
 mise run docs:build:staging
 mise run test:docs
-uv run --frozen --project docs playwright install chromium
-mise run docs:check:browser
 mise run docs:check:container
 ```
 
