@@ -32,7 +32,7 @@ cleanup() {
 trap cleanup EXIT
 "${compose[@]}" up -d --wait
 for _ in $(seq 1 60); do
-	curl -sf -o /dev/null http://localhost:55556/dex/.well-known/openid-configuration && break
+	curl -sf -o /dev/null http://localhost:25556/dex/.well-known/openid-configuration && break
 	sleep 1
 done
 for _ in $(seq 1 120); do
@@ -41,5 +41,5 @@ for _ in $(seq 1 120); do
 done
 cd api
 LOCO_CONFORMANCE_ZITADEL_BOOTSTRAP="$zitadel_bootstrap" \
-	LOCO_TEST_DATABASE_URL="postgres://loco_test:loco_test@localhost:${CONFORMANCE_POSTGRES_PORT:-55440}/loco_test?sslmode=disable" \
+	LOCO_TEST_DATABASE_URL="postgres://loco_test:loco_test@localhost:${CONFORMANCE_POSTGRES_PORT:-25440}/loco_test?sslmode=disable" \
 	go test -tags conformance -count=1 -run TestProviderConformance -v ./auth/ "$@"
