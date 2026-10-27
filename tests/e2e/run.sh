@@ -571,9 +571,24 @@ setup_registry() {
 }
 
 build_image() {
-    local repository=$1 dockerfile=$2
+    local repository=$1 dockerfile=$2 binary=$3 context="$RUN_DIR/images/$1" target
+    target=$(awk '$1 == "COPY" && $2 == "--from=builder" { print $3 }' "$ROOT_DIR/$dockerfile")
+    rm -rf "$context"
+    mkdir -p "$context$(dirname "$target")"
+    cp "$BIN_DIR/images/$binary" "$context$target"
     docker build -t "${repository}:e2e-${RUN_ID}" --build-arg VERSION="$E2E_VERSION" \
-        -f "$ROOT_DIR/$dockerfile" "$ROOT_DIR"
+        --build-context builder="$context" -f "$ROOT_DIR/$dockerfile" "$ROOT_DIR"
+}
+
+build_all() {
+    nice -n "$BUILD_NICENESS" mise run --quiet e2e:build "$BIN_DIR" "$E2E_VERSION"
+    build_image "$CONTROLLER_REPOSITORY" controller/Dockerfile manager
+    if [ "$OBSERVABILITY" = true ]; then
+        build_image "$OBS_PROXY_REPOSITORY" observability-proxy/Dockerfile loco-obs-proxy
+    fi
+    if [ "$BUILDS_ENABLED" = true ]; then
+        build_image "$BUILDER_REPOSITORY" builder/Dockerfile loco-builder
+    fi
 }
 
 pull_build_images() {
@@ -608,7 +623,7 @@ load_builder_images() {
         log_info "Skipping the builder images (--builds-disabled)"
         return 0
     fi
-    await_job builder-image
+    await_job build
     await_job build-image-pulls
     log_step "Loading the builder image..."
     BUILDER_IMAGE=$(image_reference "$BUILDER_REPOSITORY")
@@ -620,7 +635,7 @@ load_builder_images() {
 }
 
 load_controller_image() {
-    await_job controller-image
+    await_job build
     log_step "Loading the controller image..."
     CONTROLLER_IMAGE=$(image_reference "$CONTROLLER_REPOSITORY")
     load_image "$CONTROLLER_IMAGE"
@@ -695,14 +710,7 @@ start_builds() {
         return 0
     fi
     log_step "Building the images and binaries in the background..."
-    start_job controller-image build_image "$CONTROLLER_REPOSITORY" controller/Dockerfile
-    if [ "$OBSERVABILITY" = true ]; then
-        start_job obs-proxy-image build_image "$OBS_PROXY_REPOSITORY" observability-proxy/Dockerfile
-    fi
-    if [ "$BUILDS_ENABLED" = true ]; then
-        start_job builder-image build_image "$BUILDER_REPOSITORY" builder/Dockerfile
-    fi
-    start_job binaries nice -n "$BUILD_NICENESS" mise run --quiet e2e:build "$BIN_DIR" "$E2E_VERSION"
+    start_job build build_all
 }
 
 start_api() {
@@ -964,7 +972,7 @@ main() {
     if [ "$OBSERVABILITY" = true ]; then
         forward_observability_ports
     fi
-    await_job binaries
+    await_job build
     start_api
     if [ "$(e2e_psql 'SELECT count(*) FROM clusters')" != 0 ]; then
         log_error "Cluster registry must be empty before enrollment"
@@ -976,7 +984,7 @@ main() {
     start_agent
     start_obs_proxy
     if [ "$OBSERVABILITY" = true ]; then
-        await_job obs-proxy-image
+        await_job build
         start_ingest
     fi
 
@@ -995,10 +1003,7 @@ build_only() {
     trap stop_jobs EXIT
     setup_dirs
     start_builds
-    local job
-    for job in controller-image obs-proxy-image builder-image binaries; do
-        await_job "$job"
-    done
+    await_job build
     log_ok "Images tagged e2e-${RUN_ID} and binaries in ${BIN_DIR}"
 }
 
