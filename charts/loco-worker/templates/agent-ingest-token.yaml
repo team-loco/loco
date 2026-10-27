@@ -1,4 +1,4 @@
-{{- $token := .Values.global.exporter.bearerToken }}
+{{- $token := .Values.global.exporter.ingestToken }}
 {{- if $token.enabled }}
 {{- range $namespace := include "loco-worker.ingestTokenNamespaces" $ | splitList "," }}
 ---

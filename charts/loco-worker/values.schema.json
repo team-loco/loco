@@ -554,7 +554,13 @@
         "exporter": {
           "type": "object",
           "properties": {
-            "bearerToken": {
+            "endpoint": {
+              "type": "string"
+            },
+            "headers": {
+              "type": "object"
+            },
+            "ingestToken": {
               "type": "object",
               "properties": {
                 "directory": {
@@ -574,12 +580,6 @@
                 }
               },
               "additionalProperties": false
-            },
-            "endpoint": {
-              "type": "string"
-            },
-            "headers": {
-              "type": "object"
             },
             "queue": {
               "type": "object",

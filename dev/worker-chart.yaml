@@ -15,7 +15,7 @@ global:
 
   region: us-east-1
   exporter:
-    bearerToken:
+    ingestToken:
       enabled: true
 
 env:

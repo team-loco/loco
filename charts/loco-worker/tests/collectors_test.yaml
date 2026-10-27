@@ -108,8 +108,8 @@ tests:
 
   - it: mounts the bearer token Secret and the export queue in every collector
     set:
-      global.exporter.bearerToken.enabled: true
-      global.exporter.bearerToken.secretName: cluster-token
+      global.exporter.ingestToken.enabled: true
+      global.exporter.ingestToken.secretName: cluster-token
     asserts:
       - contains: &tokenVolume
           path: spec.template.spec.volumes
@@ -400,9 +400,9 @@ tests:
 
   - it: holds every collector until the agent has written the token file
     set:
-      global.exporter.bearerToken.enabled: true
-      global.exporter.bearerToken.secretKey: bearer
-      global.exporter.bearerToken.waitIntervalSeconds: 7
+      global.exporter.ingestToken.enabled: true
+      global.exporter.ingestToken.secretKey: bearer
+      global.exporter.ingestToken.waitIntervalSeconds: 7
     asserts:
       - equal: &waitCommand
           path: spec.template.spec.initContainers[?(@.name == 'exporter-token-wait')].command
@@ -433,7 +433,7 @@ tests:
 
   - it: runs the token wait as the unprivileged collector user
     set:
-      global.exporter.bearerToken.enabled: true
+      global.exporter.ingestToken.enabled: true
     template: charts/otel-col-deploy/templates/statefulset.yaml
     asserts:
       - equal:

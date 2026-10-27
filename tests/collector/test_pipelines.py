@@ -83,7 +83,7 @@ def test_exporters_send_no_auth_by_default(worker_relays):
 def authenticated_exporter():
     return render_chart(
         "loco-worker",
-        {"global": {"exporter": {"headers": EXPORTER_HEADERS, "bearerToken": {"enabled": True, "secretName": "cluster-token"}}}},
+        {"global": {"exporter": {"headers": EXPORTER_HEADERS, "ingestToken": {"enabled": True, "secretName": "cluster-token"}}}},
     )
 
 
@@ -93,7 +93,7 @@ def test_exporter_headers_come_from_values(authenticated_exporter):
 
 
 def test_exporter_authenticates_with_the_mounted_bearer_token(authenticated_exporter):
-    token = exporter_settings()["bearerToken"]
+    token = exporter_settings()["ingestToken"]
     filename = f"{token['directory']}/{token['secretKey']}"
     for collector, config in collector_relays(authenticated_exporter).items():
         exporter = config["exporters"]["otlp_http"]

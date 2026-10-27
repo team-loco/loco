@@ -42,7 +42,7 @@ global:
     endpoint: ""
     headers: {}
     # @schema additionalProperties: false
-    bearerToken:
+    ingestToken:
       enabled: false
       secretName: loco-otlp-exporter
       secretKey: token
@@ -388,12 +388,12 @@ otel-col-daemon:
       command:
         - sh
         - -c
-        - '{{ if .Values.global.exporter.bearerToken.enabled }}until [ -s "$TOKEN_FILE" ]; do sleep "$WAIT_INTERVAL_SECONDS"; done{{ end }}'
+        - '{{ if .Values.global.exporter.ingestToken.enabled }}until [ -s "$TOKEN_FILE" ]; do sleep "$WAIT_INTERVAL_SECONDS"; done{{ end }}'
       env:
         - name: TOKEN_FILE
-          value: '{{ .Values.global.exporter.bearerToken.directory }}/{{ .Values.global.exporter.bearerToken.secretKey }}'
+          value: '{{ .Values.global.exporter.ingestToken.directory }}/{{ .Values.global.exporter.ingestToken.secretKey }}'
         - name: WAIT_INTERVAL_SECONDS
-          value: '{{ .Values.global.exporter.bearerToken.waitIntervalSeconds }}'
+          value: '{{ .Values.global.exporter.ingestToken.waitIntervalSeconds }}'
       securityContext:
         runAsUser: *collectorUser
         runAsNonRoot: true
@@ -417,7 +417,7 @@ otel-col-daemon:
     - &exporterTokenVolume
       name: exporter-token
       secret:
-        secretName: '{{ .Values.global.exporter.bearerToken.secretName }}'
+        secretName: '{{ .Values.global.exporter.ingestToken.secretName }}'
         optional: true
   extraVolumeMounts: &exporterVolumeMounts
     - name: exporter-queue

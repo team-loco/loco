@@ -40,7 +40,7 @@ spec:
               value: {{ include "loco-worker.agentKeySecret" . | quote }}
             - name: LOCO_ASSERTION_LIFETIME
               value: {{ .Values.agent.assertionLifetime | quote }}
-            {{- with .Values.global.exporter.bearerToken }}
+            {{- with .Values.global.exporter.ingestToken }}
             {{- if .enabled }}
             - name: LOCO_INGEST_TOKEN_SECRET
               value: {{ .secretName | quote }}

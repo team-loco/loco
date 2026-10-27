@@ -180,9 +180,9 @@ tests:
 
   - it: writes the ingest token to the exporter Secret in each collector namespace
     set:
-      global.exporter.bearerToken.enabled: true
-      global.exporter.bearerToken.secretName: cluster-token
-      global.exporter.bearerToken.secretKey: bearer
+      global.exporter.ingestToken.enabled: true
+      global.exporter.ingestToken.secretName: cluster-token
+      global.exporter.ingestToken.secretKey: bearer
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
@@ -206,8 +206,8 @@ tests:
 
   - it: lets the agent create Secrets and change only the exporter Secret
     set:
-      global.exporter.bearerToken.enabled: true
-      global.exporter.bearerToken.secretName: cluster-token
+      global.exporter.ingestToken.enabled: true
+      global.exporter.ingestToken.secretName: cluster-token
     template: templates/agent-ingest-token.yaml
     documentSelector: {path: kind, value: Role, matchMany: true}
     asserts:
@@ -219,7 +219,7 @@ tests:
 
   - it: binds the ingest token Role to the agent
     set:
-      global.exporter.bearerToken.enabled: true
+      global.exporter.ingestToken.enabled: true
     template: templates/agent-ingest-token.yaml
     documentSelector: {path: kind, value: RoleBinding, matchMany: true}
     asserts:

@@ -16,9 +16,9 @@
 {{- $queueStorage := "file_storage/exporter" -}}
 {{- $exporter := dict "endpoint" (required "global.exporter.endpoint is required" $export.endpoint) "headers" $export.headers "sending_queue" (dict "enabled" true "storage" $queueStorage "num_consumers" $export.queue.num_consumers "queue_size" $export.queue.queue_size) "retry_on_failure" (merge (dict "enabled" true) $export.retry) -}}
 {{- $extensions := dict $queueStorage (dict "directory" $export.queue.directory) -}}
-{{- if $export.bearerToken.enabled -}}
+{{- if $export.ingestToken.enabled -}}
 {{- $authenticator := "bearertokenauth/exporter" -}}
-{{- $_ := set $extensions $authenticator (dict "filename" (printf "%s/%s" $export.bearerToken.directory $export.bearerToken.secretKey)) -}}
+{{- $_ := set $extensions $authenticator (dict "filename" (printf "%s/%s" $export.ingestToken.directory $export.ingestToken.secretKey)) -}}
 {{- $_ := set $exporter "auth" (dict "authenticator" $authenticator) -}}
 {{- end -}}
 {{- $_ := set $config "extensions" (merge (default dict $config.extensions) $extensions) -}}
