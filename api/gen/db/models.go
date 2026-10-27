@@ -446,6 +446,7 @@ type Event struct {
 	SubjectType *string    `json:"subjectType"`
 	SubjectID   *uuid.UUID `json:"subjectId"`
 	RequestID   *string    `json:"requestId"`
+	Traceparent *string    `json:"traceparent"`
 	Data        []byte     `json:"data"`
 	CreatedAt   time.Time  `json:"createdAt"`
 }

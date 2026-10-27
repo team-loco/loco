@@ -25,8 +25,8 @@ func (q *Queries) DeleteEventsBefore(ctx context.Context, createdAt time.Time) (
 }
 
 const insertEvent = `-- name: InsertEvent :one
-INSERT INTO events (type, org_id, workspace_id, resource_id, actor_type, actor_id, subject_type, subject_id, request_id, data)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+INSERT INTO events (type, org_id, workspace_id, resource_id, actor_type, actor_id, subject_type, subject_id, request_id, traceparent, data)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 RETURNING seq
 `
 
@@ -40,6 +40,7 @@ type InsertEventParams struct {
 	SubjectType *string    `json:"subjectType"`
 	SubjectID   *uuid.UUID `json:"subjectId"`
 	RequestID   *string    `json:"requestId"`
+	Traceparent *string    `json:"traceparent"`
 	Data        []byte     `json:"data"`
 }
 
@@ -54,6 +55,7 @@ func (q *Queries) InsertEvent(ctx context.Context, arg InsertEventParams) (int64
 		arg.SubjectType,
 		arg.SubjectID,
 		arg.RequestID,
+		arg.Traceparent,
 		arg.Data,
 	)
 	var seq int64
@@ -62,7 +64,7 @@ func (q *Queries) InsertEvent(ctx context.Context, arg InsertEventParams) (int64
 }
 
 const listEventsAfter = `-- name: ListEventsAfter :many
-SELECT seq, txid, id, type, org_id, workspace_id, resource_id, actor_type, actor_id, subject_type, subject_id, request_id, data, created_at
+SELECT seq, txid, id, type, org_id, workspace_id, resource_id, actor_type, actor_id, subject_type, subject_id, request_id, traceparent, data, created_at
 FROM events
 WHERE (txid, seq) > ($1::xid8, $2::bigint)
   AND txid < pg_snapshot_xmin(pg_current_snapshot())
@@ -98,6 +100,7 @@ func (q *Queries) ListEventsAfter(ctx context.Context, arg ListEventsAfterParams
 			&i.SubjectType,
 			&i.SubjectID,
 			&i.RequestID,
+			&i.Traceparent,
 			&i.Data,
 			&i.CreatedAt,
 		); err != nil {
@@ -112,7 +115,7 @@ func (q *Queries) ListEventsAfter(ctx context.Context, arg ListEventsAfterParams
 }
 
 const listOrgAuditEvents = `-- name: ListOrgAuditEvents :many
-SELECT e.seq, e.txid, e.id, e.type, e.org_id, e.workspace_id, e.resource_id, e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id, e.data, e.created_at, u.email AS actor_email, u.name AS actor_name
+SELECT e.seq, e.txid, e.id, e.type, e.org_id, e.workspace_id, e.resource_id, e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id, e.traceparent, e.data, e.created_at, u.email AS actor_email, u.name AS actor_name
 FROM events e
 LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
 WHERE e.org_id = $1
@@ -162,6 +165,7 @@ func (q *Queries) ListOrgAuditEvents(ctx context.Context, arg ListOrgAuditEvents
 			&i.Event.SubjectType,
 			&i.Event.SubjectID,
 			&i.Event.RequestID,
+			&i.Event.Traceparent,
 			&i.Event.Data,
 			&i.Event.CreatedAt,
 			&i.ActorEmail,
@@ -178,7 +182,7 @@ func (q *Queries) ListOrgAuditEvents(ctx context.Context, arg ListOrgAuditEvents
 }
 
 const listResourceAuditEvents = `-- name: ListResourceAuditEvents :many
-SELECT e.seq, e.txid, e.id, e.type, e.org_id, e.workspace_id, e.resource_id, e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id, e.data, e.created_at, u.email AS actor_email, u.name AS actor_name
+SELECT e.seq, e.txid, e.id, e.type, e.org_id, e.workspace_id, e.resource_id, e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id, e.traceparent, e.data, e.created_at, u.email AS actor_email, u.name AS actor_name
 FROM events e
 LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
 WHERE e.org_id = $1
@@ -234,6 +238,7 @@ func (q *Queries) ListResourceAuditEvents(ctx context.Context, arg ListResourceA
 			&i.Event.SubjectType,
 			&i.Event.SubjectID,
 			&i.Event.RequestID,
+			&i.Event.Traceparent,
 			&i.Event.Data,
 			&i.Event.CreatedAt,
 			&i.ActorEmail,
@@ -250,7 +255,7 @@ func (q *Queries) ListResourceAuditEvents(ctx context.Context, arg ListResourceA
 }
 
 const listWorkspaceAuditEvents = `-- name: ListWorkspaceAuditEvents :many
-SELECT e.seq, e.txid, e.id, e.type, e.org_id, e.workspace_id, e.resource_id, e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id, e.data, e.created_at, u.email AS actor_email, u.name AS actor_name
+SELECT e.seq, e.txid, e.id, e.type, e.org_id, e.workspace_id, e.resource_id, e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id, e.traceparent, e.data, e.created_at, u.email AS actor_email, u.name AS actor_name
 FROM events e
 LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
 WHERE e.org_id = $1
@@ -303,6 +308,7 @@ func (q *Queries) ListWorkspaceAuditEvents(ctx context.Context, arg ListWorkspac
 			&i.Event.SubjectType,
 			&i.Event.SubjectID,
 			&i.Event.RequestID,
+			&i.Event.Traceparent,
 			&i.Event.Data,
 			&i.Event.CreatedAt,
 			&i.ActorEmail,

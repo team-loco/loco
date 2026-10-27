@@ -22,6 +22,11 @@ import (
 
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/tracing"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -36,6 +41,13 @@ const (
 	StatusSucceeded   = "succeeded"
 	StatusFailed      = "failed"
 	DefaultPollPeriod = 2 * time.Second
+
+	deliverySpan          = "webhook.deliver"
+	deliveryIDAttr        = "loco.webhook.delivery_id"
+	deliveryAttemptAttr   = "loco.webhook.attempt"
+	deliveryKindAttr      = "loco.webhook.kind"
+	deliveryEventTypeAttr = "loco.event.type"
+	deliveryStatusAttr    = "loco.webhook.status"
 )
 
 var (
@@ -218,10 +230,24 @@ func (d *Dispatcher) DispatchDue(ctx context.Context) (int, error) {
 }
 
 func (d *Dispatcher) deliver(ctx context.Context, id uuid.UUID, attempt int) {
+	deliveryID := attribute.String(deliveryIDAttr, id.String())
+	attempted := attribute.Int(deliveryAttemptAttr, attempt)
+	consumer := trace.WithSpanKind(trace.SpanKindConsumer)
+	attributes := trace.WithAttributes(deliveryID, attempted)
+	ctx, span := tracing.StartRoot(ctx, deliverySpan, consumer, attributes)
 	row, err := d.queries.GetWebhookDeliveryPayload(ctx, id)
 	if err != nil {
+		tracing.End(span, err)
 		slog.ErrorContext(ctx, "failed to load webhook delivery", "deliveryId", id, "error", err)
 		return
+	}
+	kind := attribute.String(deliveryKindAttr, string(row.Kind))
+	eventType := attribute.String(deliveryEventTypeAttr, row.Type)
+	span.SetAttributes(kind, eventType)
+	if row.Traceparent != nil {
+		if link, ok := tracing.LinkTo(*row.Traceparent); ok {
+			span.AddLink(link)
+		}
 	}
 	code, sendErr := d.send(ctx, id, row)
 	params := genDb.FinishWebhookDeliveryParams{ID: id, NextAttemptAt: d.now()}
@@ -248,9 +274,11 @@ func (d *Dispatcher) deliver(ctx context.Context, id uuid.UUID, attempt int) {
 		params.LastError = &message
 		slog.InfoContext(ctx, "webhook delivery failed", "deliveryId", id, "attempt", attempt, "error", sendErr)
 	}
+	span.SetAttributes(attribute.String(deliveryStatusAttr, params.Status))
 	if err := d.queries.FinishWebhookDelivery(ctx, params); err != nil {
 		slog.ErrorContext(ctx, "failed to record webhook delivery", "deliveryId", id, "error", err)
 	}
+	tracing.End(span, sendErr)
 }
 
 func (d *Dispatcher) send(ctx context.Context, id uuid.UUID, row genDb.GetWebhookDeliveryPayloadRow) (int, error) {
@@ -272,6 +300,9 @@ func (d *Dispatcher) send(ctx context.Context, id uuid.UUID, row genDb.GetWebhoo
 	req.Header.Set("Webhook-Id", id.String())
 	req.Header.Set("Webhook-Timestamp", strconv.FormatInt(now.Unix(), 10))
 	req.Header.Set("Webhook-Signature", signature)
+	if row.Kind == genDb.WebhookKindInstall {
+		otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
+	}
 	client, err := d.clientFor(row.Kind)
 	if err != nil {
 		return 0, err

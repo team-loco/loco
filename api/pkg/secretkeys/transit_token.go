@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/team-loco/loco/api/pkg/tracing"
 )
 
 const (
@@ -14,6 +16,7 @@ const (
 	transitRenewSelfPath   = "auth/token/renew-self"
 	shortTokenRenewDivisor = 2
 	rejectionBackoffFactor = 2
+	tokenRefreshSpan       = "transit.refresh_token"
 )
 
 var (
@@ -162,7 +165,7 @@ func (t *Transit) renewToken(ctx context.Context, lease tokenLease) {
 			if !t.waitToRefresh(ctx, delay) {
 				return
 			}
-			next, err := refresh(ctx)
+			next, err := tracedRefresh(ctx, refresh)
 			if err == nil {
 				lease = next
 				break
@@ -202,6 +205,13 @@ func (t *Transit) waitToRefresh(ctx context.Context, delay time.Duration) bool {
 	}
 	t.drainRejections()
 	return true
+}
+
+func tracedRefresh(ctx context.Context, refresh func(context.Context) (tokenLease, error)) (tokenLease, error) {
+	ctx, span := tracing.StartRoot(ctx, tokenRefreshSpan)
+	lease, err := refresh(ctx)
+	tracing.End(span, err)
+	return lease, err
 }
 
 func sleepContext(ctx context.Context, delay time.Duration) bool {

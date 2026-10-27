@@ -169,7 +169,7 @@ func (q *Queries) FinishWebhookDelivery(ctx context.Context, arg FinishWebhookDe
 const getWebhookDeliveryPayload = `-- name: GetWebhookDeliveryPayload :one
 SELECT d.id, w.url, w.secret, w.kind,
        e.seq, e.id AS event_id, e.type, e.org_id, e.workspace_id, e.actor_type, e.actor_id,
-       e.subject_type, e.subject_id, e.request_id, e.data, e.created_at
+       e.subject_type, e.subject_id, e.request_id, e.traceparent, e.data, e.created_at
 FROM webhook_deliveries d
 JOIN webhooks w ON w.id = d.webhook_id
 JOIN events e ON e.seq = d.event_seq
@@ -191,6 +191,7 @@ type GetWebhookDeliveryPayloadRow struct {
 	SubjectType *string     `json:"subjectType"`
 	SubjectID   *uuid.UUID  `json:"subjectId"`
 	RequestID   *string     `json:"requestId"`
+	Traceparent *string     `json:"traceparent"`
 	Data        []byte      `json:"data"`
 	CreatedAt   time.Time   `json:"createdAt"`
 }
@@ -213,6 +214,7 @@ func (q *Queries) GetWebhookDeliveryPayload(ctx context.Context, id uuid.UUID) (
 		&i.SubjectType,
 		&i.SubjectID,
 		&i.RequestID,
+		&i.Traceparent,
 		&i.Data,
 		&i.CreatedAt,
 	)
