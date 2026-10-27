@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package loco.ingest.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/team-loco/loco/gen/go/loco/ingest/v1;ingestv1";
+
+// IngestService authorizes telemetry that worker clusters send to the observability proxy.
+service IngestService {
+  // IssueToken exchanges a cluster assertion for a short-lived ingest token.
+  rpc IssueToken(IssueTokenRequest) returns (IssueTokenResponse);
+
+  // ListPlacementWindows returns when each workspace was placed on the cluster named by the caller's ingest token.
+  rpc ListPlacementWindows(ListPlacementWindowsRequest) returns (ListPlacementWindowsResponse);
+}
+
+message IssueTokenRequest {}
+
+message IssueTokenResponse {
+  string token = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+message ListPlacementWindowsRequest {}
+
+message ListPlacementWindowsResponse {
+  repeated PlacementWindow windows = 1;
+}
+
+// PlacementWindow is the interval [placed_at, removed_at) during which a workspace had a placement on the cluster;
+// removed_at is unset while the placement exists.
+message PlacementWindow {
+  string workspace_id = 1;
+  google.protobuf.Timestamp placed_at = 2;
+  google.protobuf.Timestamp removed_at = 3;
+}
