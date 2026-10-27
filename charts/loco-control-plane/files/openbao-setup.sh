@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-ready_attempts=60
+progress_every=10
 api_policy=loco-api
 api_token_period=24h
 api_login_ttl=1h
@@ -23,7 +23,7 @@ wait_reachable() {
 	attempt=0
 	until [ "$(bao read -field=initialized sys/init 2>/dev/null || true)" != "" ]; do
 		attempt=$((attempt + 1))
-		[ "$attempt" -lt "$ready_attempts" ] || fail "OpenBao at $BAO_ADDR did not answer"
+		[ $((attempt % progress_every)) -ne 0 ] || echo "Waiting for OpenBao at $BAO_ADDR to answer"
 		sleep 1
 	done
 }
@@ -32,7 +32,7 @@ wait_unsealed() {
 	attempt=0
 	until bao status >/dev/null 2>&1; do
 		attempt=$((attempt + 1))
-		[ "$attempt" -lt "$ready_attempts" ] || fail "OpenBao at $BAO_ADDR did not unseal"
+		[ $((attempt % progress_every)) -ne 0 ] || echo "Waiting for OpenBao at $BAO_ADDR to unseal"
 		sleep 1
 	done
 }

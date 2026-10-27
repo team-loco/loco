@@ -349,6 +349,10 @@ openbao:
     # @schema minimum: 1
     threshold: 3
   # @schema additionalProperties: false
+  setup:
+    # @schema minimum: 1
+    timeoutSeconds: 1800
+  # @schema additionalProperties: false
   transit:
     mount: transit
     key: loco

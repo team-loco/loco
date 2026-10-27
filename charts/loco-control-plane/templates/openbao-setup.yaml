@@ -59,6 +59,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   backoffLimit: 3
+  activeDeadlineSeconds: {{ .Values.openbao.setup.timeoutSeconds }}
   template:
     metadata:
       labels:

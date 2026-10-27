@@ -543,6 +543,16 @@
           },
           "additionalProperties": false
         },
+        "setup": {
+          "type": "object",
+          "properties": {
+            "timeoutSeconds": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
         "snapshots": {
           "type": "object",
           "properties": {

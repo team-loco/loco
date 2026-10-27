@@ -109,7 +109,7 @@ services:
     volumes:
       - ../charts/loco-control-plane/files/openbao-setup.sh:/openbao/setup.sh:ro
       - openbao-data:/openbao/file
-    entrypoint: ["sh", "/openbao/setup.sh"]
+    entrypoint: ["timeout", "120", "sh", "/openbao/setup.sh"]
     command: !override [init, configure]
     healthcheck: !reset {}
 

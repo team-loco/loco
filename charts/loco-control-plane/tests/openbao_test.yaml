@@ -166,6 +166,9 @@ tests:
       - notExists:
           path: metadata.annotations
       - equal:
+          path: spec.activeDeadlineSeconds
+          value: 1800
+      - equal:
           path: spec.template.spec.initContainers[0].image
           value: curlimages/curl:8.23.0@sha256:11e64e28c5f58c8d93ee95fcf22ac055f48b0bc440e0ce7d8013bbb5ad6aa8ac
       - contains:
@@ -174,6 +177,16 @@ tests:
       - contains:
           path: spec.template.spec.initContainers[1].env
           content: {name: OPENBAO_GENERATE_ROOT_TOKEN_FILE, value: /work/generate-root-token}
+
+  - it: bounds the setup Job by openbao.setup.timeoutSeconds
+    template: templates/openbao-setup.yaml
+    documentSelector: {path: kind, value: Job}
+    set:
+      openbao.setup.timeoutSeconds: 600
+    asserts:
+      - equal:
+          path: spec.activeDeadlineSeconds
+          value: 600
 
   - it: proves it can write the init Secret before initializing and stores the output in the same pod
     template: templates/openbao-setup.yaml
