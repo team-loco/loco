@@ -27,10 +27,16 @@ def _yaml(path):
     return json.loads(subprocess.check_output(["yq", "-o=json", ".", str(path)], text=True))
 
 
-def install_args(tmp_path, release):
+def install_args(tmp_path, release, webhook_refusals=0):
     stubs = tmp_path / "bin"
     stubs.mkdir(exist_ok=True)
     (stubs / "helm").write_text('#!/usr/bin/env bash\nprintf \'%s\\0\' "$@" > "$HELM_ARGS"\n')
+    (stubs / "kubectl").write_text(
+        "#!/usr/bin/env bash\n"
+        'printf \'%s \' "$@" >> "$KUBECTL_CALLS"\n'
+        'echo >> "$KUBECTL_CALLS"\n'
+        'test "$(wc -l < "$KUBECTL_CALLS")" -gt "$WEBHOOK_REFUSALS"\n'
+    )
     (stubs / "mise").write_text(
         "#!/usr/bin/env bash\n"
         "case $* in\n"
@@ -41,6 +47,8 @@ def install_args(tmp_path, release):
     for stub in stubs.iterdir():
         stub.chmod(0o755)
     record = tmp_path / "helm-args"
+    kubectl_calls = tmp_path / "kubectl-calls"
+    kubectl_calls.write_text("")
     subprocess.run(
         ["bash", str(RELEASE_TASK), release, *TILT_VALUES[release]],
         cwd=ROOT,
@@ -49,6 +57,8 @@ def install_args(tmp_path, release):
             **FIXTURE_ENV,
             "PATH": f"{stubs}{os.pathsep}{os.environ['PATH']}",
             "HELM_ARGS": str(record),
+            "KUBECTL_CALLS": str(kubectl_calls),
+            "WEBHOOK_REFUSALS": str(webhook_refusals),
         },
         check=True,
     )
@@ -61,13 +71,25 @@ def render(args):
     return subprocess.check_output([HELM, "template", *template], cwd=ROOT, text=True)
 
 
-def test_providers_wait_and_consumers_do_not(tmp_path, subtests):
+def webhook_probes(tmp_path):
+    return [call for call in (tmp_path / "kubectl-calls").read_text().splitlines() if "--dry-run=server" in call]
+
+
+def test_providers_wait_for_their_webhook_and_consumers_do_not(tmp_path, subtests):
     for release in (*PROVIDERS, *CONSUMERS):
         with subtests.test(release=release):
             args = install_args(tmp_path, release)
-            assert ("--wait" in args) == (release in PROVIDERS)
+            assert bool(webhook_probes(tmp_path)) == (release in PROVIDERS)
             assert "--force-conflicts" in args
             assert args[args.index("--kube-context") + 1] == "kind-" + FIXTURE_ENV["KIND_CLUSTER"]
+
+
+def test_cert_manager_waits_until_its_webhook_admits_a_request(tmp_path):
+    refusals = 2
+    install_args(tmp_path, "cert-manager", webhook_refusals=refusals)
+    probes = webhook_probes(tmp_path)
+    assert len(probes) == refusals + 1
+    assert all("--context kind-" + FIXTURE_ENV["KIND_CLUSTER"] in probe for probe in probes)
 
 
 def test_cert_manager_installs_the_pinned_chart(tmp_path):
