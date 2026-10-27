@@ -238,7 +238,13 @@ func newSecretsConfig() secretkeys.TransitConfig {
 		Address: stringEnv("LOCO_SECRETS_TRANSIT_ADDR", ""),
 		Mount:   stringEnv("LOCO_SECRETS_TRANSIT_MOUNT", defaultSecretsTransitMount),
 		Key:     stringEnv("LOCO_SECRETS_TRANSIT_KEY", ""),
+		Auth:    stringEnv("LOCO_SECRETS_TRANSIT_AUTH", ""),
 		Token:   stringEnv("LOCO_SECRETS_TRANSIT_TOKEN", ""),
+		Kubernetes: secretkeys.TransitKubernetesConfig{
+			Mount:     stringEnv("LOCO_SECRETS_TRANSIT_KUBERNETES_MOUNT", ""),
+			Role:      stringEnv("LOCO_SECRETS_TRANSIT_KUBERNETES_ROLE", ""),
+			TokenFile: stringEnv("LOCO_SECRETS_TRANSIT_KUBERNETES_TOKEN_FILE", ""),
+		},
 		CAFile:  stringEnv("LOCO_SECRETS_TRANSIT_CA_FILE", ""),
 		Timeout: positiveDurationEnv("LOCO_SECRETS_TRANSIT_TIMEOUT", defaultSecretsTransitTimeout),
 		RenewMargin: positiveDurationEnv(

@@ -13,12 +13,14 @@ const (
 	transitLookupSelfPath  = "auth/token/lookup-self"
 	transitRenewSelfPath   = "auth/token/renew-self"
 	shortTokenRenewDivisor = 2
+	rejectionBackoffFactor = 2
 )
 
 var (
 	ErrTransitRenewal      = errors.New("transit token renewal margin and retry interval must be positive")
 	ErrTransitTokenExpired = errors.New("transit token has expired")
 	ErrTransitNoLease      = errors.New("transit token renewal returned no lease")
+	ErrTransitNotLoggedIn  = errors.New("transit has not logged in yet")
 )
 
 type transitLookupResponse struct {
@@ -36,8 +38,15 @@ type transitRenewResponse struct {
 }
 
 type tokenLease struct {
+	token     string
 	ttl       time.Duration
 	renewable bool
+}
+
+func (t *Transit) currentToken() string {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.token
 }
 
 func (t *Transit) tokenExpiry() time.Time {
@@ -46,17 +55,23 @@ func (t *Transit) tokenExpiry() time.Time {
 	return t.expiresAt
 }
 
-func (t *Transit) setTokenExpiry(lease tokenLease) {
+func (t *Transit) setTokenLease(lease tokenLease) {
 	expiry := time.Time{}
 	if lease.ttl > 0 {
 		expiry = t.now().Add(lease.ttl)
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	if lease.token != "" {
+		t.token = lease.token
+	}
 	t.expiresAt = expiry
 }
 
 func (t *Transit) checkToken() error {
+	if t.currentToken() == "" {
+		return ErrTransitNotLoggedIn
+	}
 	expiry := t.tokenExpiry()
 	if expiry.IsZero() || t.now().Before(expiry) {
 		return nil
@@ -71,11 +86,50 @@ func (t *Transit) renewalDelay(ttl time.Duration) time.Duration {
 	return ttl / shortTokenRenewDivisor
 }
 
-// renewToken looks the token up, then renews it renewMargin before each expiry until ctx
-// is done. It stops when the token has no TTL or can no longer be renewed. A failed
-// lookup or renewal is logged and retried every renewRetry.
+// tokenRejected asks the renewal loop to log in again. Only Kubernetes auth has a loop
+// that listens.
+func (t *Transit) tokenRejected() {
+	if t.rejected == nil {
+		return
+	}
+	select {
+	case t.rejected <- struct{}{}:
+	default:
+	}
+}
+
+// rejectionBackoff is how long the renewal loop waits before logging in again after the
+// server rejected the token: renewRetry, doubled for each rejection since the last
+// accepted request, and at most renewMargin.
+func (t *Transit) rejectionBackoff() time.Duration {
+	rejections := t.rejections.Add(1)
+	backoff := t.renewRetry
+	for range rejections - 1 {
+		if backoff >= t.renewMargin {
+			break
+		}
+		backoff *= rejectionBackoffFactor
+	}
+	return min(backoff, t.renewMargin)
+}
+
+func (t *Transit) drainRejections() {
+	select {
+	case <-t.rejected:
+	default:
+	}
+}
+
+// renewToken keeps the token valid until ctx is done. With token auth it looks the token
+// up, then renews it renewMargin before each expiry, and stops when the token has no TTL
+// or can no longer be renewed. With Kubernetes auth it logs in, then logs in again
+// renewMargin before each expiry, or after rejectionBackoff when the server rejects the
+// token. A failed lookup, renewal or login is logged and retried every renewRetry.
 func (t *Transit) renewToken(ctx context.Context) {
 	refresh := t.lookupToken
+	if t.kubernetes != nil {
+		refresh = t.login
+	}
 	delay := time.Duration(0)
 	for {
 		timer := time.NewTimer(delay)
@@ -84,24 +138,45 @@ func (t *Transit) renewToken(ctx context.Context) {
 			timer.Stop()
 			return
 		case <-timer.C:
+		case <-t.rejected:
+			timer.Stop()
+			backoff := t.rejectionBackoff()
+			slog.WarnContext(ctx, "transit rejected the token; logging in again", "in", backoff)
+			if !sleepContext(ctx, backoff) {
+				return
+			}
 		}
+		t.drainRejections()
 		lease, err := refresh(ctx)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to refresh the transit token", "error", err, "retryIn", t.renewRetry)
 			delay = t.renewRetry
 			continue
 		}
-		t.setTokenExpiry(lease)
+		t.setTokenLease(lease)
 		if lease.ttl <= 0 {
 			slog.InfoContext(ctx, "transit token has no ttl; not renewing it")
 			return
 		}
-		if !lease.renewable {
-			slog.WarnContext(ctx, "transit token is not renewable", "expiresAt", t.tokenExpiry())
-			return
+		if t.kubernetes == nil {
+			if !lease.renewable {
+				slog.WarnContext(ctx, "transit token is not renewable", "expiresAt", t.tokenExpiry())
+				return
+			}
+			refresh = t.renewTokenOnce
 		}
-		refresh = t.renewTokenOnce
 		delay = t.renewalDelay(lease.ttl)
+	}
+}
+
+func sleepContext(ctx context.Context, delay time.Duration) bool {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
 	}
 }
 

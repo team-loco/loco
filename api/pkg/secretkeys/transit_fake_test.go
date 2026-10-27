@@ -28,6 +28,9 @@ const (
 	transitRenewableField = "renewable"
 	fakeLookupSelfPath    = "/v1/auth/token/lookup-self"
 	fakeRenewSelfPath     = "/v1/auth/token/renew-self"
+	fakeKubernetesMount   = "kubernetes"
+	fakeKubernetesRole    = "loco-api"
+	fakeLoginPath         = "/v1/auth/" + fakeKubernetesMount + "/login"
 
 	transitFakeNonceSize = 12
 )
@@ -46,6 +49,9 @@ type fakeTransit struct {
 	tokenTTL       time.Duration
 	tokenRenewable bool
 	renewFails     bool
+	jwt            string
+	logins         int
+	loginTokens    map[string]bool
 }
 
 func newFakeTransit(t *testing.T) *fakeTransit {
@@ -56,6 +62,8 @@ func newFakeTransit(t *testing.T) *fakeTransit {
 		keyType:  transitKeyType,
 		token:    fakeTransitToken,
 		requests: map[string]int{},
+
+		loginTokens: map[string]bool{},
 
 		tokenRenewable: true,
 	}
@@ -93,6 +101,7 @@ func (f *fakeTransit) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.requests[r.URL.Path]++
 	block := f.block
 	token := f.token
+	loggedIn := f.loginTokens[r.Header.Get(transitAuthHeader)]
 	f.mu.Unlock()
 	if block != nil {
 		select {
@@ -101,7 +110,11 @@ func (f *fakeTransit) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if r.Header.Get(transitAuthHeader) != token {
+	if r.Method == http.MethodPost && r.URL.Path == fakeLoginPath {
+		f.login(w, r)
+		return
+	}
+	if r.Header.Get(transitAuthHeader) != token && !loggedIn {
 		f.writeError(w, http.StatusForbidden, "permission denied")
 		return
 	}
@@ -127,6 +140,49 @@ func (f *fakeTransit) setToken(ttl time.Duration, renewable bool) {
 	defer f.mu.Unlock()
 	f.tokenTTL = ttl
 	f.tokenRenewable = renewable
+}
+
+func (f *fakeTransit) currentToken() string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.token
+}
+
+func (f *fakeTransit) forgetToken() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.token = "s.forgotten"
+	f.loginTokens = map[string]bool{}
+}
+
+func (f *fakeTransit) acceptJWT(jwt string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.jwt = jwt
+}
+
+func (f *fakeTransit) login(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Role string `json:"role"`
+		JWT  string `json:"jwt"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		f.writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if r.Header.Get(transitAuthHeader) != "" || body.Role != fakeKubernetesRole || f.jwt == "" || body.JWT != f.jwt {
+		f.writeError(w, http.StatusForbidden, "permission denied")
+		return
+	}
+	f.logins++
+	f.token = fmt.Sprintf("s.login-%d", f.logins)
+	f.loginTokens[f.token] = true
+	f.writeJSON(w, http.StatusOK, map[string]any{"auth": map[string]any{
+		"client_token":   f.token,
+		"lease_duration": int(f.tokenTTL.Seconds()),
+	}})
 }
 
 func (f *fakeTransit) setRenewFails(fails bool) {

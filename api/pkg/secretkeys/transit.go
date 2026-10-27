@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -23,6 +24,12 @@ const (
 	// ProviderTransit names the provider that wraps data keys with an OpenBao or Vault
 	// Transit key.
 	ProviderTransit = "transit"
+
+	// TransitAuthToken authenticates to the server with a token from the configuration.
+	TransitAuthToken = "token"
+	// TransitAuthKubernetes logs in to the server's Kubernetes auth method with the pod's
+	// projected service account token.
+	TransitAuthKubernetes = "kubernetes"
 
 	transitAuthHeader       = "X-Vault-Token"
 	transitAPIVersion       = "v1"
@@ -41,7 +48,9 @@ var (
 	ErrTransitAddress          = errors.New("transit address must be an http or https URL with no path")
 	ErrTransitMount            = errors.New("transit mount must be a path without empty or dot segments")
 	ErrTransitKeyName          = errors.New("transit key name must be one path segment")
-	ErrTransitToken            = errors.New("transit token is required")
+	ErrTransitAuth             = errors.New("transit auth must be token or kubernetes")
+	ErrTransitToken            = errors.New("transit token auth needs a token and no kubernetes role")
+	ErrTransitKubernetes       = errors.New("transit kubernetes auth needs a mount, role and token file")
 	ErrTransitTimeout          = errors.New("transit request timeout must be positive")
 	ErrTransitCacheTTL         = errors.New("transit data key cache ttl must be positive")
 	ErrTransitCAFile           = errors.New("transit ca file holds no PEM certificate")
@@ -52,12 +61,22 @@ var (
 	ErrTransitResponse         = errors.New("transit response is malformed")
 )
 
+// TransitKubernetesConfig names the Kubernetes auth role the provider logs in with and the
+// projected service account token it presents.
+type TransitKubernetesConfig struct {
+	Mount     string
+	Role      string
+	TokenFile string
+}
+
 // TransitConfig holds what the transit provider needs to reach its key.
 type TransitConfig struct {
 	Address     string
 	Mount       string
 	Key         string
+	Auth        string
 	Token       string
+	Kubernetes  TransitKubernetesConfig
 	CAFile      string
 	Timeout     time.Duration
 	RenewMargin time.Duration
@@ -82,8 +101,8 @@ func (cfg TransitConfig) Validate() error {
 		cfg.Key == transitCurrentSegment {
 		return fmt.Errorf("%w: %q", ErrTransitKeyName, cfg.Key)
 	}
-	if cfg.Token == "" {
-		return ErrTransitToken
+	if err := cfg.validateAuth(); err != nil {
+		return err
 	}
 	if cfg.Timeout <= 0 {
 		return ErrTransitTimeout
@@ -95,6 +114,25 @@ func (cfg TransitConfig) Validate() error {
 		return ErrTransitCacheTTL
 	}
 	return nil
+}
+
+func (cfg TransitConfig) validateAuth() error {
+	switch cfg.Auth {
+	case TransitAuthToken:
+		if cfg.Token == "" || cfg.Kubernetes != (TransitKubernetesConfig{}) {
+			return ErrTransitToken
+		}
+		return nil
+	case TransitAuthKubernetes:
+		k := cfg.Kubernetes
+		if cfg.Token != "" || !validTransitMount(k.Mount) || k.Role == "" ||
+			strings.Contains(k.Role, transitPathSep) || k.TokenFile == "" {
+			return ErrTransitKubernetes
+		}
+		return nil
+	default:
+		return fmt.Errorf("%w: %q", ErrTransitAuth, cfg.Auth)
+	}
 }
 
 func validTransitMount(mount string) bool {
@@ -117,18 +155,22 @@ type Transit struct {
 	base        *url.URL
 	mount       string
 	key         string
-	token       string
+	kubernetes  *TransitKubernetesConfig
 	client      *http.Client
 	renewMargin time.Duration
 	renewRetry  time.Duration
 	now         func() time.Time
 
 	mu        sync.RWMutex
+	token     string
 	expiresAt time.Time
+
+	rejected   chan struct{}
+	rejections atomic.Int32
 }
 
-// NewTransit returns a transit provider for cfg. It makes no request and does not renew
-// its token; New starts the renewal.
+// NewTransit returns a transit provider for cfg. It makes no request and neither logs in
+// nor renews its token; New starts that.
 func NewTransit(cfg TransitConfig) (*Transit, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
@@ -152,7 +194,7 @@ func NewTransit(cfg TransitConfig) (*Transit, error) {
 	transport = transport.Clone()
 	transport.TLSClientConfig = tlsConfig
 	client := &http.Client{Transport: transport, Timeout: cfg.Timeout}
-	return &Transit{
+	transit := &Transit{
 		base:        base,
 		mount:       cfg.Mount,
 		key:         cfg.Key,
@@ -161,7 +203,13 @@ func NewTransit(cfg TransitConfig) (*Transit, error) {
 		renewMargin: cfg.RenewMargin,
 		renewRetry:  cfg.RenewRetry,
 		now:         time.Now,
-	}, nil
+	}
+	if cfg.Auth == TransitAuthKubernetes {
+		kubernetes := cfg.Kubernetes
+		transit.kubernetes = &kubernetes
+		transit.rejected = make(chan struct{}, 1)
+	}
+	return transit, nil
 }
 
 func loadTransitCA(path string) (*x509.CertPool, error) {
@@ -320,6 +368,10 @@ func (e *transitStatusError) Error() string {
 }
 
 func (t *Transit) do(ctx context.Context, method, path string, body, out any) error {
+	return t.send(ctx, method, path, t.currentToken(), body, out)
+}
+
+func (t *Transit) send(ctx context.Context, method, path, token string, body, out any) error {
 	var reader io.Reader
 	if body != nil {
 		encoded, err := json.Marshal(body)
@@ -333,7 +385,9 @@ func (t *Transit) do(ctx context.Context, method, path string, body, out any) er
 	if err != nil {
 		return fmt.Errorf("build request: %w", err)
 	}
-	request.Header.Set(transitAuthHeader, t.token)
+	if token != "" {
+		request.Header.Set(transitAuthHeader, token)
+	}
 	if body != nil {
 		request.Header.Set("Content-Type", "application/json")
 	}
@@ -344,10 +398,16 @@ func (t *Transit) do(ctx context.Context, method, path string, body, out any) er
 	defer func() { _ = response.Body.Close() }()
 	limited := io.LimitReader(response.Body, transitMaxResponseBytes)
 	if response.StatusCode == http.StatusForbidden {
+		if token != "" {
+			t.tokenRejected()
+		}
 		return fmt.Errorf("%w: %w", ErrTransitPermissionDenied, readTransitStatus(response.StatusCode, limited))
 	}
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
 		return fmt.Errorf("%w: %w", ErrTransitRequest, readTransitStatus(response.StatusCode, limited))
+	}
+	if token != "" {
+		t.rejections.Store(0)
 	}
 	if out == nil {
 		return nil

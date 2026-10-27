@@ -1,4 +1,6 @@
 {{- $openbaoCA := or .Values.openbao.enabled .Values.openbao.external.caSecret.name }}
+{{- $tokenAuth := and (not .Values.openbao.enabled) .Values.openbao.external.tokenSecret.name }}
+{{- $openbaoVolumes := or (not $tokenAuth) $openbaoCA }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -33,7 +35,7 @@ spec:
             - secretRef:
                 name: {{ .Values.api.existingSecret | quote }}
           env:
-            {{- range $name, $value := omit .Values.api.env "APP_PORT" "OBSERVABILITY_PROXY_URL" "LOCO_SECRETS_TRANSIT_ADDR" "LOCO_SECRETS_TRANSIT_MOUNT" "LOCO_SECRETS_TRANSIT_KEY" "LOCO_SECRETS_TRANSIT_CA_FILE" }}
+            {{- range $name, $value := omit .Values.api.env "APP_PORT" "OBSERVABILITY_PROXY_URL" "LOCO_SECRETS_TRANSIT_ADDR" "LOCO_SECRETS_TRANSIT_MOUNT" "LOCO_SECRETS_TRANSIT_KEY" "LOCO_SECRETS_TRANSIT_CA_FILE" "LOCO_SECRETS_TRANSIT_AUTH" "LOCO_SECRETS_TRANSIT_TOKEN" "LOCO_SECRETS_TRANSIT_KUBERNETES_MOUNT" "LOCO_SECRETS_TRANSIT_KUBERNETES_ROLE" "LOCO_SECRETS_TRANSIT_KUBERNETES_TOKEN_FILE" }}
             - name: {{ $name }}
               value: {{ $value | quote }}
             {{- end }}
@@ -45,6 +47,24 @@ spec:
               value: {{ .Values.openbao.transit.mount | quote }}
             - name: LOCO_SECRETS_TRANSIT_KEY
               value: {{ .Values.openbao.transit.key | quote }}
+            {{- if $tokenAuth }}
+            - name: LOCO_SECRETS_TRANSIT_AUTH
+              value: token
+            - name: LOCO_SECRETS_TRANSIT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.openbao.external.tokenSecret.name | quote }}
+                  key: {{ .Values.openbao.external.tokenSecret.key | quote }}
+            {{- else }}
+            - name: LOCO_SECRETS_TRANSIT_AUTH
+              value: kubernetes
+            - name: LOCO_SECRETS_TRANSIT_KUBERNETES_MOUNT
+              value: {{ .Values.openbao.kubernetesAuth.mount | quote }}
+            - name: LOCO_SECRETS_TRANSIT_KUBERNETES_ROLE
+              value: {{ .Values.openbao.kubernetesAuth.role | quote }}
+            - name: LOCO_SECRETS_TRANSIT_KUBERNETES_TOKEN_FILE
+              value: /var/run/secrets/openbao/token
+            {{- end }}
             {{- if $openbaoCA }}
             - name: LOCO_SECRETS_TRANSIT_CA_FILE
               value: {{ include "loco-control-plane.openbaoCAFile" . }}
@@ -78,19 +98,34 @@ spec:
             httpGet:
               path: /health
               port: http
-          {{- if $openbaoCA }}
+          {{- if $openbaoVolumes }}
           volumeMounts:
+            {{- if not $tokenAuth }}
+            - name: openbao-token
+              mountPath: /var/run/secrets/openbao
+              readOnly: true
+            {{- end }}
+            {{- if $openbaoCA }}
             - name: openbao-ca
               mountPath: /var/run/secrets/openbao-ca
               readOnly: true
+            {{- end }}
           {{- end }}
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
-      {{- if $openbaoCA }}
+      {{- if $openbaoVolumes }}
       volumes:
+        {{- if not $tokenAuth }}
+        - name: openbao-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: token
+                  expirationSeconds: 3600
+        {{- end }}
         {{- if .Values.openbao.enabled }}
         {{- include "loco-control-plane.openbaoCAVolume" . | nindent 8 }}
-        {{- else }}
+        {{- else if $openbaoCA }}
         - name: openbao-ca
           secret:
             secretName: {{ .Values.openbao.external.caSecret.name | quote }}

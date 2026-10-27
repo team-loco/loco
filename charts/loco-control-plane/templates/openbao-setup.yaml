@@ -163,12 +163,6 @@ spec:
               value: {{ $previousInit }}
             - name: INIT_SECRET
               value: {{ $initSecret }}
-            - name: LOCO_SECRETS_TRANSIT_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ required "api.existingSecret is required" .Values.api.existingSecret | quote }}
-                  key: LOCO_SECRETS_TRANSIT_TOKEN
-                  optional: true
           securityContext:
             {{- include "loco-control-plane.restrictedContainer" . | nindent 12 }}
           volumeMounts:

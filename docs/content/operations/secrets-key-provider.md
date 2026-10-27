@@ -16,7 +16,7 @@ kubectl -n loco-system create secret generic openbao-seal --from-literal=key="$(
 
 `awskms` seals with the KMS key `openbao.seal.awskms.kmsKeyId` in `openbao.seal.awskms.region`, with AWS credentials from the pod identity or the Secret `openbao.seal.awskms.existingSecret`. `transit` seals with the key `openbao.seal.transit.key` of another OpenBao at `openbao.seal.transit.address`, with the token in the Secret `openbao.seal.transit.existingSecret`.
 
-After every install and upgrade, the Job `<release>-openbao-setup` configures OpenBao. Each run first creates the Secret `<release>-openbao-init`, empty, unless it exists, and patches it with no change; the Job's Role allows creating Secrets and patching only that one, and a run that cannot do both fails before it touches OpenBao. The first run then initializes OpenBao with `openbao.recovery.shares` recovery keys, `openbao.recovery.threshold` of them needed, and patches the recovery keys, one per line, and a token that can only run root token generation into that Secret (keys `recovery-keys` and `generate-root-token`). The pod keeps the init output in memory and retries the patch every 5 seconds for up to an hour, logging each failure. Move both keys offline beside the seal key, then delete the Secret; the next run creates it again, empty. With the root token from the initialization, the first run creates the Kubernetes auth role `openbao.kubernetesAuth.setupRole` for the Job's ServiceAccount, with the `loco-setup` policy, which covers only the Transit mount and key, the `loco-api` and `loco-setup` policies and the roles of the Kubernetes auth mount. It then revokes the root token; later runs log in with that role. On every run the Job enables Transit at `openbao.transit.mount`, creates the key `openbao.transit.key`, writes the `loco-api` policy below, and binds the role `openbao.kubernetesAuth.role` at `openbao.kubernetesAuth.mount` to the API's ServiceAccount `<release>-api`. It fails instead of initializing when OpenBao is not initialized and the `<release>-openbao-init` Secret holds recovery keys. The first run also creates the token that `LOCO_SECRETS_TRANSIT_TOKEN` in the API environment Secret names.
+After every install and upgrade, the Job `<release>-openbao-setup` configures OpenBao. Each run first creates the Secret `<release>-openbao-init`, empty, unless it exists, and patches it with no change; the Job's Role allows creating Secrets and patching only that one, and a run that cannot do both fails before it touches OpenBao. The first run then initializes OpenBao with `openbao.recovery.shares` recovery keys, `openbao.recovery.threshold` of them needed, and patches the recovery keys, one per line, and a token that can only run root token generation into that Secret (keys `recovery-keys` and `generate-root-token`). The pod keeps the init output in memory and retries the patch every 5 seconds for up to an hour, logging each failure. Move both keys offline beside the seal key, then delete the Secret; the next run creates it again, empty. With the root token from the initialization, the first run creates the Kubernetes auth role `openbao.kubernetesAuth.setupRole` for the Job's ServiceAccount, with the `loco-setup` policy, which covers only the Transit mount and key, the `loco-api` and `loco-setup` policies and the roles of the Kubernetes auth mount. It then revokes the root token; later runs log in with that role. On every run the Job enables Transit at `openbao.transit.mount`, creates the key `openbao.transit.key`, writes the `loco-api` policy below, and binds the role `openbao.kubernetesAuth.role` at `openbao.kubernetesAuth.mount` to the API's ServiceAccount `<release>-api`. It fails instead of initializing when OpenBao is not initialized and the `<release>-openbao-init` Secret holds recovery keys. The API logs in to its role with a projected ServiceAccount token. For an external server, create the same key, policy and role, bound to `<release>-api` in the release namespace; when the server offers no Kubernetes auth, name a Secret holding a token in `openbao.external.tokenSecret` instead.
 
 For anything beyond that, generate a root token inside `<release>-openbao-0` with the generate-root token in `BAO_TOKEN` and the recovery keys, and revoke it when done:
 
@@ -58,7 +58,16 @@ EOF
 bao token create -policy=loco-api -period=24h
 ```
 
-The policy grants nothing beyond that key. The API also renews its token through `auth/token/lookup-self` and `auth/token/renew-self`, which the built-in `default` policy allows, so do not create the token with `-no-default-policy`. A periodic token like the one above can be renewed indefinitely; a token with a maximum TTL stops working at that maximum.
+The policy grants nothing beyond that key. The API authenticates with Kubernetes auth or a token. For Kubernetes auth, bind a role to the API's ServiceAccount:
+
+```sh
+bao auth enable kubernetes
+bao write auth/kubernetes/config kubernetes_host=https://kubernetes.default.svc
+bao write auth/kubernetes/role/loco-api bound_service_account_names=loco-api \
+  bound_service_account_namespaces=loco-system token_policies=loco-api token_ttl=1h
+```
+
+A token from `bao token create` is renewed through `auth/token/lookup-self` and `auth/token/renew-self`, which the built-in `default` policy allows, so do not create it with `-no-default-policy`. A periodic token like the one above can be renewed indefinitely; a token with a maximum TTL stops working at that maximum.
 
 ### Configure the API
 
@@ -67,18 +76,24 @@ The policy grants nothing beyond that key. The API also renews its token through
 | `LOCO_SECRETS_TRANSIT_ADDR` | required | Base URL of the server, such as `https://bao.example.internal:8200`, with no path |
 | `LOCO_SECRETS_TRANSIT_MOUNT` | `transit` | Mount path of the Transit secrets engine |
 | `LOCO_SECRETS_TRANSIT_KEY` | required | Name of the key |
-| `LOCO_SECRETS_TRANSIT_TOKEN` | required | Token holding the policy above |
+| `LOCO_SECRETS_TRANSIT_AUTH` | required | `kubernetes` or `token` |
+| `LOCO_SECRETS_TRANSIT_KUBERNETES_MOUNT` | required for `kubernetes` | Mount path of the Kubernetes auth method |
+| `LOCO_SECRETS_TRANSIT_KUBERNETES_ROLE` | required for `kubernetes` | Role bound to the API's ServiceAccount |
+| `LOCO_SECRETS_TRANSIT_KUBERNETES_TOKEN_FILE` | required for `kubernetes` | Projected ServiceAccount token the API logs in with |
+| `LOCO_SECRETS_TRANSIT_TOKEN` | required for `token` | Token holding the policy above |
 | `LOCO_SECRETS_TRANSIT_CA_FILE` | system roots | PEM bundle that signs the server's TLS certificate |
 | `LOCO_SECRETS_TRANSIT_TIMEOUT` | `10s` | Limit on each request to the server |
-| `LOCO_SECRETS_TRANSIT_RENEW_MARGIN` | `5m` | How long before the token expires the API renews it |
-| `LOCO_SECRETS_TRANSIT_RENEW_RETRY` | `10s` | Wait after a failed token lookup or renewal before the next attempt |
+| `LOCO_SECRETS_TRANSIT_RENEW_MARGIN` | `5m` | How long before the token expires the API renews it or logs in again |
+| `LOCO_SECRETS_TRANSIT_RENEW_RETRY` | `10s` | Wait after a failed token lookup, renewal or login before the next attempt |
 | `LOCO_SECRETS_TRANSIT_CACHE_TTL` | `5m` | How long the API keeps an unwrapped data key in memory |
 
 The API verifies the server's TLS certificate and has no setting to skip it. An invalid value stops the API at startup.
 
 ### Token renewal
 
-At startup the API looks its token up and then renews it `LOCO_SECRETS_TRANSIT_RENEW_MARGIN` before each expiry, or at half its TTL when the TTL is shorter than the margin. A failed lookup or renewal is logged as `failed to refresh the transit token` and retried every `LOCO_SECRETS_TRANSIT_RENEW_RETRY` until it succeeds. A token without a TTL is not renewed. Once the token has expired, every secret operation fails with `transit token has expired` until the API restarts with a new token.
+With Kubernetes auth the API logs in at startup and again `LOCO_SECRETS_TRANSIT_RENEW_MARGIN` before each token expires, or at half its TTL when the TTL is shorter than the margin, reading the ServiceAccount token file each time. When the server rejects its token, after a snapshot restore for example, it logs `transit rejected the token; logging in again` and logs in again after `LOCO_SECRETS_TRANSIT_RENEW_RETRY`, doubling the wait for each further rejection up to `LOCO_SECRETS_TRANSIT_RENEW_MARGIN`. A failed login is logged as `failed to refresh the transit token` and retried every `LOCO_SECRETS_TRANSIT_RENEW_RETRY`; until the first login succeeds, secret operations fail with `transit has not logged in yet`.
+
+With token auth the API looks its token up and then renews it `LOCO_SECRETS_TRANSIT_RENEW_MARGIN` before each expiry, or at half its TTL when the TTL is shorter than the margin. A failed lookup or renewal is logged as `failed to refresh the transit token` and retried every `LOCO_SECRETS_TRANSIT_RENEW_RETRY` until it succeeds. A token without a TTL is not renewed. Once the token has expired, every secret operation fails with `transit token has expired` until the API restarts with a new token.
 
 ### Outages
 

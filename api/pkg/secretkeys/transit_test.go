@@ -25,6 +25,7 @@ func transitConfig(address string) TransitConfig {
 		Address:     address,
 		Mount:       fakeTransitMount,
 		Key:         fakeTransitKey,
+		Auth:        TransitAuthToken,
 		Token:       fakeTransitToken,
 		Timeout:     testTransitTimeout,
 		RenewMargin: testRenewMargin,
@@ -274,7 +275,27 @@ func TestTransitConfigValidate(t *testing.T) {
 		{"key with a slash", func(c *TransitConfig) { c.Key = "a/b" }, ErrTransitKeyName},
 		{"no mount", func(c *TransitConfig) { c.Mount = "" }, ErrTransitMount},
 		{"mount with dot segments", func(c *TransitConfig) { c.Mount = "transit/../sys" }, ErrTransitMount},
+		{"no auth", func(c *TransitConfig) { c.Auth = "" }, ErrTransitAuth},
+		{"unknown auth", func(c *TransitConfig) { c.Auth = "approle" }, ErrTransitAuth},
 		{"no token", func(c *TransitConfig) { c.Token = "" }, ErrTransitToken},
+		{"token auth with a kubernetes role", func(c *TransitConfig) {
+			c.Kubernetes.Role = fakeKubernetesRole
+		}, ErrTransitToken},
+		{"kubernetes auth with a token", func(c *TransitConfig) {
+			c.Auth = TransitAuthKubernetes
+			c.Kubernetes = fakeKubernetesConfig("/token")
+		}, ErrTransitKubernetes},
+		{"kubernetes auth without a role", func(c *TransitConfig) {
+			*c = kubernetesTransitConfig(c.Address, "/token")
+			c.Kubernetes.Role = ""
+		}, ErrTransitKubernetes},
+		{"kubernetes auth with a dot mount", func(c *TransitConfig) {
+			*c = kubernetesTransitConfig(c.Address, "/token")
+			c.Kubernetes.Mount = "auth/.."
+		}, ErrTransitKubernetes},
+		{"kubernetes auth without a token file", func(c *TransitConfig) {
+			*c = kubernetesTransitConfig(c.Address, "")
+		}, ErrTransitKubernetes},
 		{"no timeout", func(c *TransitConfig) { c.Timeout = 0 }, ErrTransitTimeout},
 		{"no renewal margin", func(c *TransitConfig) { c.RenewMargin = 0 }, ErrTransitRenewal},
 		{"no renewal retry", func(c *TransitConfig) { c.RenewRetry = 0 }, ErrTransitRenewal},

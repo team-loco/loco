@@ -16,35 +16,42 @@ import (
 )
 
 const (
-	maxReplicasEnv   = "LOCO_DEFAULT_MAX_REPLICAS"
-	registryHostEnv  = "LOCO_REGISTRY_HOST"
-	registryUserEnv  = "LOCO_REGISTRY_USERNAME"
-	registryPassEnv  = "LOCO_REGISTRY_PASSWORD"
-	testRegistryHost = "registry.loco.test"
-	testRegistryUser = "api"
-	testRegistryPass = "secret"
-	retentionDaysEnv = "EVENTS_RETENTION_DAYS"
-	installHooksEnv  = "INSTALL_WEBHOOKS"
-	orgLinksEnv      = "ORG_LINKS"
-	authIssuersEnv   = "AUTH_ISSUERS"
-	testAdminEnv     = "LOCO_TEST_ADMIN_TOKEN"
-	testAdminToken   = "service-key"
-	testIssuer       = "https://issuer.loco.test"
-	testHookURL      = "https://hooks.loco.test/events"
-	testDatabaseURL  = "postgres://db.loco.test:5432/loco"
-	testHookSecret   = "whsec_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-	transitAddrEnv   = "LOCO_SECRETS_TRANSIT_ADDR"
-	transitMountEnv  = "LOCO_SECRETS_TRANSIT_MOUNT"
-	transitKeyEnv    = "LOCO_SECRETS_TRANSIT_KEY"
-	transitAuthEnv   = "LOCO_SECRETS_TRANSIT_TOKEN"
-	transitCAEnv     = "LOCO_SECRETS_TRANSIT_CA_FILE"
-	transitTimeEnv   = "LOCO_SECRETS_TRANSIT_TIMEOUT"
-	transitMarginEnv = "LOCO_SECRETS_TRANSIT_RENEW_MARGIN"
-	transitRetryEnv  = "LOCO_SECRETS_TRANSIT_RENEW_RETRY"
-	transitCacheEnv  = "LOCO_SECRETS_TRANSIT_CACHE_TTL"
-	testTransitAddr  = "https://bao.loco.test:8200"
-	testTransitKey   = "loco-dek"
-	testTransitAuth  = "s.transit"
+	maxReplicasEnv     = "LOCO_DEFAULT_MAX_REPLICAS"
+	registryHostEnv    = "LOCO_REGISTRY_HOST"
+	registryUserEnv    = "LOCO_REGISTRY_USERNAME"
+	registryPassEnv    = "LOCO_REGISTRY_PASSWORD"
+	testRegistryHost   = "registry.loco.test"
+	testRegistryUser   = "api"
+	testRegistryPass   = "secret"
+	retentionDaysEnv   = "EVENTS_RETENTION_DAYS"
+	installHooksEnv    = "INSTALL_WEBHOOKS"
+	orgLinksEnv        = "ORG_LINKS"
+	authIssuersEnv     = "AUTH_ISSUERS"
+	testAdminEnv       = "LOCO_TEST_ADMIN_TOKEN"
+	testAdminToken     = "service-key"
+	testIssuer         = "https://issuer.loco.test"
+	testHookURL        = "https://hooks.loco.test/events"
+	testDatabaseURL    = "postgres://db.loco.test:5432/loco"
+	testHookSecret     = "whsec_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+	transitAddrEnv     = "LOCO_SECRETS_TRANSIT_ADDR"
+	transitMountEnv    = "LOCO_SECRETS_TRANSIT_MOUNT"
+	transitKeyEnv      = "LOCO_SECRETS_TRANSIT_KEY"
+	transitMethodEnv   = "LOCO_SECRETS_TRANSIT_AUTH"
+	transitAuthEnv     = "LOCO_SECRETS_TRANSIT_TOKEN"
+	transitKubeMount   = "LOCO_SECRETS_TRANSIT_KUBERNETES_MOUNT"
+	transitKubeRole    = "LOCO_SECRETS_TRANSIT_KUBERNETES_ROLE"
+	transitKubeJWTFile = "LOCO_SECRETS_TRANSIT_KUBERNETES_TOKEN_FILE"
+	transitCAEnv       = "LOCO_SECRETS_TRANSIT_CA_FILE"
+	transitTimeEnv     = "LOCO_SECRETS_TRANSIT_TIMEOUT"
+	transitMarginEnv   = "LOCO_SECRETS_TRANSIT_RENEW_MARGIN"
+	transitRetryEnv    = "LOCO_SECRETS_TRANSIT_RENEW_RETRY"
+	transitCacheEnv    = "LOCO_SECRETS_TRANSIT_CACHE_TTL"
+	testTransitAddr    = "https://bao.loco.test:8200"
+	testTransitKey     = "loco-dek"
+	testTransitAuth    = "s.transit"
+	testTransitRole    = "loco-api"
+	testTransitKube    = "kubernetes"
+	testTransitJWT     = "/var/run/secrets/openbao/token"
 )
 
 var adminIssuers = `[{"issuer":"` + testIssuer + `","audience":"loco",` +
@@ -109,7 +116,11 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv(transitAddrEnv, testTransitAddr)
 	t.Setenv(transitMountEnv, "")
 	t.Setenv(transitKeyEnv, testTransitKey)
+	t.Setenv(transitMethodEnv, secretkeys.TransitAuthToken)
 	t.Setenv(transitAuthEnv, testTransitAuth)
+	t.Setenv(transitKubeMount, "")
+	t.Setenv(transitKubeRole, "")
+	t.Setenv(transitKubeJWTFile, "")
 	t.Setenv(transitCAEnv, "")
 	t.Setenv(transitTimeEnv, "")
 	t.Setenv(transitMarginEnv, "")
@@ -554,6 +565,7 @@ func TestNewAPIConfigReadsTransitProvider(t *testing.T) {
 		Address:     testTransitAddr,
 		Mount:       defaultSecretsTransitMount,
 		Key:         testTransitKey,
+		Auth:        secretkeys.TransitAuthToken,
 		Token:       testTransitAuth,
 		Timeout:     defaultSecretsTransitTimeout,
 		RenewMargin: defaultSecretsTransitMargin,
@@ -582,6 +594,20 @@ func TestNewAPIConfigReadsTransitProvider(t *testing.T) {
 	}
 }
 
+func TestNewAPIConfigReadsTransitKubernetesAuth(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv(transitMethodEnv, secretkeys.TransitAuthKubernetes)
+	t.Setenv(transitAuthEnv, "")
+	t.Setenv(transitKubeMount, testTransitKube)
+	t.Setenv(transitKubeRole, testTransitRole)
+	t.Setenv(transitKubeJWTFile, testTransitJWT)
+	got := newAPIConfig().Secrets
+	want := secretkeys.TransitKubernetesConfig{Mount: testTransitKube, Role: testTransitRole, TokenFile: testTransitJWT}
+	if got.Auth != secretkeys.TransitAuthKubernetes || got.Token != "" || got.Kubernetes != want {
+		t.Errorf("transit config = %+v, want kubernetes auth with %+v", got, want)
+	}
+}
+
 func TestNewAPIConfigPanicsOnPartialTransit(t *testing.T) {
 	tests := []struct {
 		name string
@@ -601,6 +627,33 @@ func TestNewAPIConfigPanicsOnPartialTransit(t *testing.T) {
 				transitAuthEnv: "",
 			},
 			secretkeys.ErrTransitToken,
+		},
+		{
+			"transit without an auth method",
+			map[string]string{
+				transitMethodEnv: "",
+			},
+			secretkeys.ErrTransitAuth,
+		},
+		{
+			"kubernetes auth without a role",
+			map[string]string{
+				transitMethodEnv:   secretkeys.TransitAuthKubernetes,
+				transitAuthEnv:     "",
+				transitKubeMount:   testTransitKube,
+				transitKubeJWTFile: testTransitJWT,
+			},
+			secretkeys.ErrTransitKubernetes,
+		},
+		{
+			"kubernetes auth with a token",
+			map[string]string{
+				transitMethodEnv:   secretkeys.TransitAuthKubernetes,
+				transitKubeMount:   testTransitKube,
+				transitKubeRole:    testTransitRole,
+				transitKubeJWTFile: testTransitJWT,
+			},
+			secretkeys.ErrTransitKubernetes,
 		},
 		{
 			"transit without a key",

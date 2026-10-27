@@ -275,6 +275,53 @@ tests:
           path: spec.template.spec.serviceAccountName
           value: loco-control-plane-api
 
+  - it: logs the API in with its projected ServiceAccount token
+    template: templates/api-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_SECRETS_TRANSIT_AUTH, value: kubernetes}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_SECRETS_TRANSIT_KUBERNETES_ROLE, value: loco-api}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_SECRETS_TRANSIT_KUBERNETES_TOKEN_FILE, value: /var/run/secrets/openbao/token}
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_SECRETS_TRANSIT_TOKEN}
+          any: true
+      - contains:
+          path: spec.template.spec.volumes
+          content: {name: openbao-token, projected: {sources: [{serviceAccountToken: {path: token, expirationSeconds: 3600}}]}}
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: false
+
+  - it: does not hand the API environment to the setup Job
+    template: templates/openbao-setup.yaml
+    documentSelector: {path: kind, value: Job}
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_SECRETS_TRANSIT_TOKEN}
+          any: true
+
+  - it: takes a token for an external OpenBao without Kubernetes auth
+    set:
+      openbao.enabled: false
+      openbao.external: {address: "https://bao.region.test:8200", tokenSecret: {name: bao-token}}
+    template: templates/api-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_SECRETS_TRANSIT_AUTH, value: token}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_SECRETS_TRANSIT_TOKEN, valueFrom: {secretKeyRef: {name: bao-token, key: token}}}
+      - notExists:
+          path: spec.template.spec.volumes
+
   - it: renders no server for an external OpenBao and passes its address and CA
     set:
       openbao.enabled: false

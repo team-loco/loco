@@ -9,6 +9,8 @@ services:
       BAO_ADDR: http://127.0.0.1:8200
     ports:
       - "${CONFORMANCE_OPENBAO_PORT:-58200}:8200"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD", "bao", "status"]
       interval: 1s
@@ -23,6 +25,8 @@ services:
       VAULT_ADDR: http://127.0.0.1:8200
     ports:
       - "${CONFORMANCE_VAULT_PORT:-58201}:8200"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD", "vault", "status"]
       interval: 1s

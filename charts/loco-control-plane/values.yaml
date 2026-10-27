@@ -348,3 +348,7 @@ openbao:
     caSecret:
       name: ""
       key: ca.crt
+    # @schema additionalProperties: false
+    tokenSecret:
+      name: ""
+      key: token
