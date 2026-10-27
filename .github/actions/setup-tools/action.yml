@@ -3,36 +3,94 @@ description: Install every tool pinned in mise.toml at the versions and checksum
 
 inputs:
   go-cache:
-    description: Cache key suffix for the Go module, build and golangci-lint caches. Caching is skipped when empty.
+    description: Cache key suffix for the Go build cache. Caching, including the shared Go module cache, is skipped when empty.
     required: false
     default: ""
+  lint-cache:
+    description: Set to true to cache golangci-lint results with the Go build cache.
+    required: false
+    default: "false"
+  save-go-modules:
+    description: Set to true in the one job that downloads every module of every go.mod and saves the shared Go module cache on main.
+    required: false
+    default: "false"
 
 runs:
   using: composite
   steps:
+    - if: inputs.go-cache != '' && inputs.save-go-modules == 'true' && github.ref == 'refs/heads/main'
+      id: go-modules-save
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/go/pkg/mod
+        key: go-mod-${{ runner.os }}-${{ hashFiles('**/go.sum') }}
+
+    - if: inputs.go-cache != '' && (inputs.save-go-modules != 'true' || github.ref != 'refs/heads/main')
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/go/pkg/mod
+        key: go-mod-${{ runner.os }}-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          go-mod-${{ runner.os }}-
+
+    - id: mise-tools
+      shell: bash
+      run: |
+        python3 -I -c '
+        import hashlib, json, tomllib
+        config = tomllib.load(open("mise.toml", "rb"))
+        digest = hashlib.sha256(open("mise.lock", "rb").read())
+        digest.update(json.dumps([config["tools"], config["settings"]], sort_keys=True).encode())
+        print("hash=" + digest.hexdigest())
+        ' >> "$GITHUB_OUTPUT"
+
+    - uses: jdx/mise-action@fc42bcc7ddbf51124c30f95a877a0c5168a3bfde # v5.2.1
+      env:
+        MISE_TOOLS_HASH: ${{ steps.mise-tools.outputs.hash }}
+      with:
+        version: 2026.10.15
+        cache_save: ${{ github.ref == 'refs/heads/main' }}
+        cache_key: "{{cache_key_prefix}}-{{platform}}-{{version}}-{{env.MISE_TOOLS_HASH}}"
+
+    - if: steps.go-modules-save.outcome == 'success' && steps.go-modules-save.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        git ls-files -- '*go.mod' | while read -r modfile; do
+          go -C "$(dirname "$modfile")" mod download
+        done
+
+    - if: inputs.go-cache != ''
+      id: go-build
+      shell: bash
+      env:
+        GO_CACHE: ${{ inputs.go-cache }}
+        LINT_CACHE: ${{ inputs.lint-cache }}
+      run: |
+        prefix="go-build-$RUNNER_OS-$GO_CACHE-$(go env GOVERSION)"
+        paths=$(go env GOCACHE)
+        if [ "$LINT_CACHE" = true ]; then
+          prefix="$prefix-golangci-lint-$(golangci-lint version --short)"
+          paths="$paths"$'\n'"$HOME/.cache/golangci-lint"
+        fi
+        {
+          echo "prefix=$prefix-"
+          echo "paths<<EOF"
+          echo "$paths"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
+
     - if: inputs.go-cache != '' && github.ref == 'refs/heads/main'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: |
-          ~/go/pkg/mod
-          ~/.cache/go-build
-          ~/.cache/golangci-lint
-        key: go-${{ runner.os }}-${{ inputs.go-cache }}-${{ hashFiles('mise.lock', '**/go.sum') }}
+        path: ${{ steps.go-build.outputs.paths }}
+        key: ${{ steps.go-build.outputs.prefix }}${{ hashFiles('**/go.sum') }}
         restore-keys: |
-          go-${{ runner.os }}-${{ inputs.go-cache }}-
+          ${{ steps.go-build.outputs.prefix }}
 
     - if: inputs.go-cache != '' && github.ref != 'refs/heads/main'
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: |
-          ~/go/pkg/mod
-          ~/.cache/go-build
-          ~/.cache/golangci-lint
-        key: go-${{ runner.os }}-${{ inputs.go-cache }}-${{ hashFiles('mise.lock', '**/go.sum') }}
+        path: ${{ steps.go-build.outputs.paths }}
+        key: ${{ steps.go-build.outputs.prefix }}${{ hashFiles('**/go.sum') }}
         restore-keys: |
-          go-${{ runner.os }}-${{ inputs.go-cache }}-
-
-    - uses: jdx/mise-action@fc42bcc7ddbf51124c30f95a877a0c5168a3bfde # v5.2.1
-      with:
-        version: 2026.10.15
-        cache_save: ${{ github.ref == 'refs/heads/main' }}
+          ${{ steps.go-build.outputs.prefix }}
