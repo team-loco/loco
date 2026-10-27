@@ -51,6 +51,7 @@ jobs:
       - uses: ./.github/actions/setup-tools
         with:
           go-cache: govulncheck
+          save-go-modules: true
 
       - name: Test scanner task
         run: mise run test:govulncheck
