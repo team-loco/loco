@@ -63,3 +63,10 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+
+  - it: gives the dashboard no service account token
+    asserts:
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: false
+        documentSelector: {path: kind, value: Deployment}
