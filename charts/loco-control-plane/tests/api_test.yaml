@@ -1,0 +1,199 @@
+suite: api
+release:
+  name: loco-control-plane
+  namespace: loco-control-plane
+values:
+  - ../ci/default-values.yaml
+templates:
+  - templates/api-deployment.yaml
+  - templates/api-network-policy.yaml
+  - templates/api-route.yaml
+  - templates/api-traffic-policy.yaml
+  - templates/ui.yaml
+  - templates/obs-proxy-query-deployment.yaml
+tests:
+  - it: installs the API and the observability proxy, and routes to the API
+    set:
+      ui.enabled: false
+    asserts:
+      - containsDocument: {kind: Deployment, apiVersion: apps/v1, name: loco-control-plane-api}
+        template: templates/api-deployment.yaml
+      - containsDocument: {kind: Deployment, apiVersion: apps/v1, name: loco-control-plane-obs-proxy-query}
+        template: templates/obs-proxy-query-deployment.yaml
+      - equal:
+          path: spec.rules[0].backendRefs[0].name
+          value: loco-control-plane-api
+        template: templates/api-route.yaml
+
+  - it: gives the API no service account token
+    template: templates/api-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: false
+
+  - it: reads the API environment from the existing Secret
+    template: templates/api-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].envFrom
+          value: [{secretRef: {name: loco-api-env}}]
+
+  - it: listens on the configured port
+    set:
+      api.port: 9000
+    template: templates/api-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: APP_PORT, value: "0.0.0.0:9000"}
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content: {name: http, containerPort: 9000}
+
+  - it: passes the values env through to the API
+    set:
+      api.env.APP_ENV: production
+    template: templates/api-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: APP_ENV, value: production}
+
+  - it: points the API at the private observability proxy
+    template: templates/api-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: OBSERVABILITY_PROXY_URL, value: http://loco-control-plane-obs-proxy-query.loco-control-plane.svc.cluster.local}
+
+  - it: probes API startup with the values' thresholds
+    set:
+      api.startupProbe: {failureThreshold: 7, periodSeconds: 3}
+    template: templates/api-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe
+          value: {httpGet: {path: /health, port: http}, failureThreshold: 7, periodSeconds: 3}
+
+  - it: requires the operator's API Secret
+    set:
+      api.existingSecret: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: "/api/existingSecret': minLength"
+
+  - it: keeps APP_PORT and OBSERVABILITY_PROXY_URL out of the values env
+    set:
+      api.env: {APP_PORT: wrong, OBSERVABILITY_PROXY_URL: wrong}
+    template: templates/api-deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: APP_PORT, value: wrong}
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: OBSERVABILITY_PROXY_URL, value: wrong}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: APP_PORT, value: "0.0.0.0:8000"}
+
+  - it: reads the bootstrap token from an existing Secret
+    set:
+      api.bootstrapToken.existingSecret: {name: loco-bootstrap, key: value}
+    template: templates/api-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_BOOTSTRAP_TOKEN, valueFrom: {secretKeyRef: {name: loco-bootstrap, key: value}}}
+
+  - it: reads the invitation email settings from the values and existing Secrets
+    set:
+      api.email.from: loco@example.test
+      api.email.invitationTtl: 72h
+      api.email.transport.existingSecret: {name: loco-email, key: smtp}
+      api.email.hookSecret.existingSecret: {name: loco-email-hook, key: signing}
+    template: templates/api-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: EMAIL_FROM, value: loco@example.test}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: INVITATION_TTL, value: 72h}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: EMAIL_TRANSPORT, valueFrom: {secretKeyRef: {name: loco-email, key: smtp}}}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: EMAIL_HOOK_SECRET, valueFrom: {secretKeyRef: {name: loco-email-hook, key: signing}}}
+
+  - it: sets no invitation email settings by default
+    template: templates/api-deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: EMAIL_FROM}
+          any: true
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: INVITATION_TTL}
+          any: true
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: EMAIL_TRANSPORT}
+          any: true
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: EMAIL_HOOK_SECRET}
+          any: true
+
+  - it: sets no bootstrap token by default
+    template: templates/api-deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_BOOTSTRAP_TOKEN}
+          any: true
+
+  - it: admits the Gateway's Envoy pods and the query proxy to the API
+    set:
+      gatewayNamespace: gateway
+    template: templates/api-network-policy.yaml
+    asserts:
+      - equal:
+          path: spec.ingress[0].from[0].namespaceSelector.matchLabels
+          value: {kubernetes.io/metadata.name: gateway}
+      - equal:
+          path: spec.ingress[0].from[1]
+          value: {podSelector: {matchLabels: {app: loco-control-plane-obs-proxy-query}}}
+      - lengthEqual:
+          path: spec.ingress
+          count: 1
+
+  - it: routes every path on the control plane hostname to the API
+    set:
+      controlPlaneHostname: api.region.example.test
+    template: templates/api-route.yaml
+    asserts:
+      - equal:
+          path: spec.hostnames
+          value: [api.region.example.test]
+      - lengthEqual:
+          path: spec.rules
+          count: 1
+      - equal:
+          path: spec.rules[0].matches
+          value: [{path: {type: PathPrefix, value: /}}]
+      - equal:
+          path: spec.rules[0].backendRefs[0].name
+          value: loco-control-plane-api
+
+  - it: publishes no competing root route when the dashboard and API share a hostname
+    set:
+      controlPlaneHostname: loco.example.test
+      ui.hostname: loco.example.test
+    template: templates/api-route.yaml
+    asserts:
+      - hasDocuments:
+          count: 0

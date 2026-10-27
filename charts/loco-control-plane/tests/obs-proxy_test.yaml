@@ -1,0 +1,289 @@
+suite: observability proxy
+release:
+  name: loco-control-plane
+  namespace: loco-control-plane
+values:
+  - ../ci/default-values.yaml
+templates:
+  - templates/obs-proxy-query-deployment.yaml
+  - templates/obs-proxy-query-network-policy.yaml
+  - templates/obs-proxy-query-service.yaml
+  - templates/obs-proxy-ingest-deployment.yaml
+  - templates/obs-proxy-ingest-network-policy.yaml
+  - templates/obs-proxy-ingest-service.yaml
+  - templates/obs-proxy-ingest-route.yaml
+  - templates/api-deployment.yaml
+  - templates/api-network-policy.yaml
+  - templates/clickhouse.yaml
+tests:
+  - it: reads the query role's ClickHouse URLs from the existing Secrets
+    template: templates/obs-proxy-query-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: CLICKHOUSE_URL, valueFrom: {secretKeyRef: {name: loco-obs-proxy-reader, key: url}}}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: CLICKHOUSE_MIGRATOR_URL, valueFrom: {secretKeyRef: {name: loco-obs-proxy-migrator, key: url}}}
+
+  - it: rejects a missing reader Secret name
+    set:
+      obsProxy.query.clickhouse.existingSecret.name: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: obsProxy.query.clickhouse.existingSecret.name is required
+        template: templates/obs-proxy-query-deployment.yaml
+
+  - it: rejects a missing migrator Secret name
+    set:
+      obsProxy.query.clickhouse.migratorExistingSecret.name: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: obsProxy.query.clickhouse.migratorExistingSecret.name is required
+        template: templates/obs-proxy-query-deployment.yaml
+
+  - it: rejects a missing reader Secret key
+    set:
+      obsProxy.query.clickhouse.existingSecret.key: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: obsProxy.query.clickhouse.existingSecret.key is required
+        template: templates/obs-proxy-query-deployment.yaml
+
+  - it: checks permissions through the private API Service
+    template: templates/obs-proxy-query-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: CONTROL_PLANE_URL, value: http://loco-control-plane-api.loco-control-plane.svc.cluster.local}
+
+  - it: allows exactly the configured CORS origins
+    set:
+      obsProxy.query.cors.allowedOrigins: [https://app.example.test, http://localhost:5173]
+    template: templates/obs-proxy-query-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: CORS_ALLOWED_ORIGINS, value: "https://app.example.test,http://localhost:5173"}
+
+  - it: allows no CORS origin by default
+    template: templates/obs-proxy-query-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: CORS_ALLOWED_ORIGINS, value: ""}
+
+  - it: reads its database from the one chart value
+    set:
+      clickhouse.clickhouse.database: observability
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: CLICKHOUSE_DB, value: observability}
+        template: templates/obs-proxy-query-deployment.yaml
+
+  - it: checks query readiness at /readyz
+    template: templates/obs-proxy-query-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /readyz
+
+  - it: gives the proxy no Kubernetes API credentials
+    template: templates/obs-proxy-query-deployment.yaml
+    asserts:
+      - notExists:
+          path: spec.template.spec.serviceAccountName
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: false
+
+  - it: admits only the API to the query role
+    template: templates/obs-proxy-query-network-policy.yaml
+    asserts:
+      - lengthEqual:
+          path: spec.ingress
+          count: 1
+      - equal:
+          path: spec.ingress[0].from
+          value: [{podSelector: {matchLabels: {app: loco-control-plane-api}}}]
+      - equal:
+          path: spec.ingress[0].ports
+          value: [{protocol: TCP, port: 8080}]
+
+  - it: renders no proxy objects while the proxy is disabled
+    set:
+      obsProxy.enabled: false
+      obsProxy.ingest.enabled: true
+    asserts:
+      - hasDocuments: {count: 0}
+        template: templates/obs-proxy-query-deployment.yaml
+      - hasDocuments: {count: 0}
+        template: templates/obs-proxy-query-network-policy.yaml
+      - hasDocuments: {count: 0}
+        template: templates/obs-proxy-query-service.yaml
+      - hasDocuments: {count: 0}
+        template: templates/obs-proxy-ingest-deployment.yaml
+      - hasDocuments: {count: 0}
+        template: templates/obs-proxy-ingest-network-policy.yaml
+      - hasDocuments: {count: 0}
+        template: templates/obs-proxy-ingest-service.yaml
+      - hasDocuments: {count: 0}
+        template: templates/clickhouse.yaml
+
+  - it: leaves the API without a proxy URL or proxy policy source while the proxy is disabled
+    set:
+      obsProxy.enabled: false
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: OBSERVABILITY_PROXY_URL}
+          any: true
+        template: templates/api-deployment.yaml
+      - lengthEqual:
+          path: spec.ingress[0].from
+          count: 1
+        template: templates/api-network-policy.yaml
+      - notContains:
+          path: spec.ingress[0].from
+          content: {podSelector: {matchLabels: {app: loco-control-plane-obs-proxy-query}}}
+        template: templates/api-network-policy.yaml
+
+  - it: needs no proxy image tag while the proxy is disabled
+    set:
+      obsProxy.enabled: false
+      obsProxy.image.tag: ""
+    asserts:
+      - notFailedTemplate: {}
+
+  - it: requires a proxy image tag while the proxy is enabled
+    set:
+      obsProxy.image.tag: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: "/obsProxy/image/tag': minLength"
+
+  - it: leaves ingest off by default
+    asserts:
+      - hasDocuments: {count: 0}
+        template: templates/obs-proxy-ingest-deployment.yaml
+      - hasDocuments: {count: 0}
+        template: templates/obs-proxy-ingest-route.yaml
+
+  - it: runs only the ingest role in the ingest Deployment
+    values:
+      - values/ingest.yaml
+    template: templates/obs-proxy-ingest-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: QUERY_ENABLED, value: "false"}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: INGEST_ENABLED, value: "true"}
+
+  - it: reads only ingest's own ClickHouse Secret
+    values:
+      - values/ingest.yaml
+    template: templates/obs-proxy-ingest-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: CLICKHOUSE_INGEST_URL, valueFrom: {secretKeyRef: {name: proxy-ingest, key: url}}}
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: CLICKHOUSE_URL}
+          any: true
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: CLICKHOUSE_MIGRATOR_URL}
+          any: true
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: CONTROL_PLANE_URL}
+          any: true
+
+  - it: listens for health and OTLP on the ingest container ports
+    values:
+      - values/ingest.yaml
+    set:
+      obsProxy.ingest: {port: 18080, grpcPort: 14317, httpPort: 14318}
+    template: templates/obs-proxy-ingest-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: PORT, value: "18080"}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: OTLP_GRPC_PORT, value: "14317"}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: OTLP_HTTP_PORT, value: "14318"}
+      - equal:
+          path: spec.template.spec.containers[0].ports
+          value: [{name: health, containerPort: 18080}, {name: otlp-grpc, containerPort: 14317}, {name: otlp-http, containerPort: 14318}]
+
+  - it: checks ingest readiness at /readyz on the health port
+    values:
+      - values/ingest.yaml
+    template: templates/obs-proxy-ingest-deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet
+          value: {path: /readyz, port: health}
+
+  - it: selects only its own Deployment from each proxy Service
+    values:
+      - values/ingest.yaml
+    asserts:
+      - equal:
+          path: spec.selector
+          value: {app: loco-control-plane-obs-proxy-query}
+        template: templates/obs-proxy-query-service.yaml
+      - equal:
+          path: spec.template.metadata.labels.app
+          value: loco-control-plane-obs-proxy-query
+        template: templates/obs-proxy-query-deployment.yaml
+      - equal:
+          path: spec.selector
+          value: {app: loco-control-plane-obs-proxy-ingest}
+        template: templates/obs-proxy-ingest-service.yaml
+      - equal:
+          path: spec.template.metadata.labels.app
+          value: loco-control-plane-obs-proxy-ingest
+        template: templates/obs-proxy-ingest-deployment.yaml
+
+  - it: exposes only OTLP from the ingest Service
+    values:
+      - values/ingest.yaml
+    template: templates/obs-proxy-ingest-service.yaml
+    asserts:
+      - matchRegex:
+          path: spec.ports[*].targetPort
+          pattern: ^otlp-(grpc|http)$
+      - lengthEqual:
+          path: spec.ports
+          count: 2
+
+  - it: admits OTLP to ingest from any pod in the namespace
+    values:
+      - values/ingest.yaml
+    template: templates/obs-proxy-ingest-network-policy.yaml
+    asserts:
+      - lengthEqual:
+          path: spec.ingress
+          count: 1
+      - equal:
+          path: spec.ingress[0].from
+          value: [{podSelector: {}}]
+      - equal:
+          path: spec.ingress[0].ports
+          value: [{protocol: TCP, port: 4317}, {protocol: TCP, port: 4318}]
+
+  - it: requires ingest's ClickHouse Secret
+    set:
+      obsProxy.ingest.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: obsProxy.ingest.clickhouse.existingSecret.name is required
+        template: templates/obs-proxy-ingest-deployment.yaml

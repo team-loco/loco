@@ -1,0 +1,221 @@
+suite: gateway
+release:
+  name: loco-control-plane
+  namespace: loco-control-plane
+values:
+  - ../ci/default-values.yaml
+  - values/hosts.yaml
+templates:
+  - templates/gateway.yaml
+  - templates/api-route.yaml
+  - templates/ui.yaml
+  - templates/obs-proxy-ingest-route.yaml
+  - templates/obs-proxy-ingest-network-policy.yaml
+  - templates/cm-cert.yaml
+  - templates/cm-issuer.yaml
+  - templates/cloudflare-secret.yaml
+tests:
+  - it: creates its Gateway and GatewayClass in the gateway namespace
+    set:
+      gatewayNamespace: edge
+      certManager.enabled: false
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: edge
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: Gateway}
+      - equal:
+          path: spec.gatewayClassName
+          value: loco-control-plane
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: Gateway}
+      - equal:
+          path: spec.controllerName
+          value: gateway.envoyproxy.io/gatewayclass-controller
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: GatewayClass}
+
+  - it: listens on each hostname
+    set:
+      certManager.enabled: false
+    template: templates/gateway.yaml
+    documentSelector: {path: kind, value: Gateway}
+    asserts:
+      - lengthEqual:
+          path: spec.listeners
+          count: 2
+      - contains:
+          path: spec.listeners
+          content: {hostname: app.region.test, protocol: HTTP, port: 80}
+          any: true
+      - contains:
+          path: spec.listeners
+          content: {hostname: api.region.test, protocol: HTTP, port: 80}
+          any: true
+
+  - it: admits routes only from the release namespace
+    set:
+      gatewayNamespace: edge
+      certManager.enabled: false
+    template: templates/gateway.yaml
+    documentSelector: {path: kind, value: Gateway}
+    asserts:
+      - equal:
+          path: spec.listeners[*].allowedRoutes.namespaces.selector.matchLabels
+          value: {kubernetes.io/metadata.name: loco-control-plane}
+
+  - it: attaches every route to the chart's Gateway
+    values:
+      - values/ingest.yaml
+    set:
+      gatewayNamespace: edge
+      certManager.enabled: false
+      obsProxy.ingest.hostname: ingest.region.test
+    asserts:
+      - equal: &chartGateway
+          path: spec.parentRefs
+          value: [{name: loco-control-plane, namespace: edge}]
+        template: templates/api-route.yaml
+      - equal: *chartGateway
+        template: templates/ui.yaml
+        documentSelector: {path: kind, value: HTTPRoute}
+      - equal: *chartGateway
+        template: templates/obs-proxy-ingest-route.yaml
+
+  - it: runs the Gateway on the chart's EnvoyProxy with Envoy's default Service settings
+    set:
+      certManager.enabled: false
+    template: templates/gateway.yaml
+    asserts:
+      - equal:
+          path: spec.infrastructure.parametersRef
+          value: {group: gateway.envoyproxy.io, kind: EnvoyProxy, name: loco-control-plane}
+        documentSelector: {path: kind, value: Gateway}
+      - notExists:
+          path: spec.provider
+        documentSelector: {path: kind, value: EnvoyProxy}
+
+  - it: renders no certificate resources for a plain HTTP Gateway
+    set:
+      certManager.enabled: false
+      secrets.cloudflareToken: token
+    asserts:
+      - hasDocuments: {count: 0}
+        template: templates/cm-cert.yaml
+      - hasDocuments: {count: 0}
+        template: templates/cm-issuer.yaml
+      - hasDocuments: {count: 0}
+        template: templates/cloudflare-secret.yaml
+
+  - it: passes the Envoy Service settings the values give
+    set:
+      gateway.service: {type: NodePort, externalTrafficPolicy: Cluster}
+    template: templates/gateway.yaml
+    documentSelector: {path: kind, value: EnvoyProxy}
+    asserts:
+      - equal:
+          path: spec.provider
+          value: {type: Kubernetes, kubernetes: {envoyService: {type: NodePort, externalTrafficPolicy: Cluster}}}
+
+  - it: serves HTTPS on 443 from the TLS Secret the values name
+    set:
+      gateway.tlsSecretName: regional-tls
+    template: templates/gateway.yaml
+    documentSelector: {path: kind, value: Gateway}
+    asserts:
+      - equal:
+          path: spec.listeners[*].protocol
+          value: HTTPS
+      - equal:
+          path: spec.listeners[*].port
+          value: 443
+      - equal:
+          path: spec.listeners[*].tls.certificateRefs
+          value: [{name: regional-tls, kind: Secret, group: ""}]
+
+  - it: gives a hostname the dashboard and API share one listener
+    set:
+      controlPlaneHostname: app.region.test
+      certManager.enabled: false
+    template: templates/gateway.yaml
+    documentSelector: {path: kind, value: Gateway}
+    asserts:
+      - equal:
+          path: spec.listeners[*].hostname
+          value: app.region.test
+      - lengthEqual:
+          path: spec.listeners
+          count: 1
+
+  - it: references an existing Gateway without creating one
+    set:
+      gateway: {create: false, name: eg}
+    asserts:
+      - hasDocuments: {count: 0}
+        template: templates/gateway.yaml
+      - equal: &existingGateway
+          path: spec.parentRefs
+          value: [{name: eg, namespace: loco-system}]
+        template: templates/api-route.yaml
+      - equal: *existingGateway
+        template: templates/ui.yaml
+        documentSelector: {path: kind, value: HTTPRoute}
+
+  - it: publishes ingest at its hostname through the Gateway when ingest is enabled
+    values:
+      - values/ingest.yaml
+    set:
+      obsProxy.ingest.hostname: ingest.region.test
+    asserts:
+      - contains:
+          path: spec.listeners
+          content: {hostname: ingest.region.test}
+          any: true
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: Gateway}
+      - equal:
+          path: spec.hostnames
+          value: [ingest.region.test]
+        template: templates/obs-proxy-ingest-route.yaml
+      - equal:
+          path: spec.rules
+          value:
+            - matches: [{path: {type: PathPrefix, value: /v1/}}]
+              backendRefs: [{name: loco-control-plane-obs-proxy-ingest, port: 4318}]
+        template: templates/obs-proxy-ingest-route.yaml
+      - equal:
+          path: spec.ingress[1].from[0].namespaceSelector.matchLabels
+          value: {kubernetes.io/metadata.name: loco-system}
+        template: templates/obs-proxy-ingest-network-policy.yaml
+      - equal:
+          path: spec.ingress[1].ports
+          value: [{protocol: TCP, port: 4318}]
+        template: templates/obs-proxy-ingest-network-policy.yaml
+
+  - it: does not publish ingest without a hostname
+    values:
+      - values/ingest.yaml
+    asserts:
+      - notContains: &noIngestListener
+          path: spec.listeners
+          content: {name: https-ingest}
+          any: true
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: Gateway}
+      - hasDocuments: {count: 0}
+        template: templates/obs-proxy-ingest-route.yaml
+      - lengthEqual:
+          path: spec.ingress
+          count: 1
+        template: templates/obs-proxy-ingest-network-policy.yaml
+
+  - it: does not publish ingest while ingest is disabled
+    set:
+      obsProxy.ingest.hostname: ingest.region.test
+    asserts:
+      - notContains: *noIngestListener
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: Gateway}
+      - hasDocuments: {count: 0}
+        template: templates/obs-proxy-ingest-route.yaml

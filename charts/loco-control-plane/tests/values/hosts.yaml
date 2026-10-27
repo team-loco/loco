@@ -1,0 +1,3 @@
+controlPlaneHostname: api.region.test
+ui:
+  hostname: app.region.test

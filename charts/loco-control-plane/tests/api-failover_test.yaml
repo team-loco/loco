@@ -1,0 +1,81 @@
+suite: api failover
+release:
+  name: loco-control-plane
+  namespace: loco-control-plane
+values:
+  - ../ci/default-values.yaml
+set:
+  controlPlaneHostname: api.test
+templates:
+  - templates/api-route.yaml
+  - templates/api-traffic-policy.yaml
+  - templates/ui.yaml
+tests:
+  - it: retries only the API route's connection failures on a headless installation
+    set:
+      ui.enabled: false
+    asserts:
+      - hasDocuments: {count: 1}
+        template: templates/api-route.yaml
+      - hasDocuments: {count: 0}
+        template: templates/ui.yaml
+      - equal:
+          path: spec.targetRefs
+          value: [{group: gateway.networking.k8s.io, kind: HTTPRoute, name: loco-control-plane-api, sectionName: api}]
+        template: templates/api-traffic-policy.yaml
+      - equal: &apiRule
+          path: spec.rules[?(@.backendRefs[0].name == 'loco-control-plane-api')].name
+          value: api
+        template: templates/api-route.yaml
+      - equal: &unboundedApiRule
+          path: spec.rules[?(@.backendRefs[0].name == 'loco-control-plane-api')].timeouts
+          value: {request: 0s}
+        template: templates/api-route.yaml
+
+  - it: retries only the dashboard's API rule when the dashboard serves the API hostname
+    set:
+      ui.hostname: api.test
+    asserts:
+      - hasDocuments: {count: 0}
+        template: templates/api-route.yaml
+      - equal:
+          path: spec.targetRefs
+          value: [{group: gateway.networking.k8s.io, kind: HTTPRoute, name: loco-control-plane-ui, sectionName: api}]
+        template: templates/api-traffic-policy.yaml
+      - equal: *apiRule
+        template: templates/ui.yaml
+        documentSelector: {path: kind, value: HTTPRoute}
+      - equal: *unboundedApiRule
+        template: templates/ui.yaml
+        documentSelector: {path: kind, value: HTTPRoute}
+      - notExists:
+          path: spec.rules[?(@.backendRefs[0].name == 'loco-control-plane-ui')].name
+        template: templates/ui.yaml
+        documentSelector: {path: kind, value: HTTPRoute}
+
+  - it: retries the API rules of both routes when the dashboard has its own hostname
+    set:
+      ui.hostname: dashboard.test
+    asserts:
+      - equal:
+          path: spec.targetRefs
+          value:
+            - {group: gateway.networking.k8s.io, kind: HTTPRoute, name: loco-control-plane-api, sectionName: api}
+            - {group: gateway.networking.k8s.io, kind: HTTPRoute, name: loco-control-plane-ui, sectionName: api}
+        template: templates/api-traffic-policy.yaml
+      - equal: *apiRule
+        template: templates/api-route.yaml
+      - equal: *apiRule
+        template: templates/ui.yaml
+        documentSelector: {path: kind, value: HTTPRoute}
+
+  - it: retries only failures that happen before the API handles the request
+    template: templates/api-traffic-policy.yaml
+    asserts:
+      - isNotNullOrEmpty:
+          path: spec.retry.retryOn.triggers
+      - matchRegex:
+          path: spec.retry.retryOn.triggers[*]
+          pattern: ^(connect-failure|reset-before-request|refused-stream)$
+      - notExists:
+          path: spec.retry.retryOn.httpStatusCodes

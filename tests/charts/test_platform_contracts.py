@@ -1,5 +1,4 @@
 import re
-import subprocess
 from types import SimpleNamespace
 
 import pytest
@@ -7,15 +6,12 @@ import pytest
 from helpers import (
     COLLECTOR_CONFIGMAPS,
     TEST_EXPORTER_ENDPOINT,
-    TEST_PROXY,
     TEST_REGION,
     chart_values,
     collector_relays,
-    container_env,
     quantity,
     render_chart,
     render_template,
-    render_template_object,
 )
 
 PUSH_RECEIVERS = {"otlp", "jaeger", "zipkin"}
@@ -38,139 +34,6 @@ ENVOY_CLUSTER_ATTRIBUTES = {
 }
 ROUTE_TENANCY = ("loco.workspace.id", "loco.resource.id")
 EXPORTER_HEADERS = {"X-Loco-Cluster": "cluster-a"}
-
-
-def test_regional_certificate_names():
-    certificate = render_template_object(
-        "loco-worker",
-        "cm-cert.yaml",
-        {
-            "global": {
-                "domain": {
-                    "apps": ["apps.example.test"],
-                    "platform": "platform.example.test",
-                }
-            },
-            "certManager": {
-                "additionalDNSNames": [
-                    "*.staging-east.apps.example.test",
-                    "*.staging-west.apps.example.test",
-                ]
-            },
-        },
-    )
-    assert certificate["spec"]["dnsNames"] == [
-        "*.apps.example.test",
-        "*.platform.example.test",
-        "*.staging-east.apps.example.test",
-        "*.staging-west.apps.example.test",
-    ]
-
-
-def test_api_route_uses_control_plane_origin():
-    route = render_template_object(
-        "loco-control-plane",
-        "api-route.yaml",
-        {"controlPlaneHostname": "api.region.example.test"},
-    )
-    assert route["spec"]["hostnames"] == ["api.region.example.test"]
-    (rule,) = route["spec"]["rules"]
-    assert rule["matches"] == [{"path": {"type": "PathPrefix", "value": "/"}}]
-    assert rule["backendRefs"][0]["name"] == "loco-control-plane-api"
-
-
-def _proxy_deployment(query=None):
-    values = {"obsProxy": {**TEST_PROXY, "query": {**TEST_PROXY["query"], **(query or {})}}}
-    return render_template_object("loco-control-plane", "obs-proxy-query-deployment.yaml", values)
-
-
-def _proxy_env(query=None):
-    deployment = _proxy_deployment(query)
-    return container_env(deployment)
-
-
-def test_database_and_auth_secret_references():
-    env = _proxy_env()
-    assert env["CLICKHOUSE_URL"]["valueFrom"]["secretKeyRef"] == {
-        "name": "proxy-reader",
-        "key": "url",
-    }
-    assert env["CLICKHOUSE_MIGRATOR_URL"]["valueFrom"]["secretKeyRef"] == {
-        "name": "proxy-migrator",
-        "key": "url",
-    }
-
-
-def test_missing_clickhouse_secrets_are_rejected(subtests):
-    for secret in ("existingSecret", "migratorExistingSecret"):
-        with subtests.test(secret=secret):
-            clickhouse = {
-                **TEST_PROXY["query"]["clickhouse"],
-                secret: {"name": "", "key": "url"},
-            }
-            with pytest.raises(subprocess.CalledProcessError) as caught:
-                render_template_object(
-                    "loco-control-plane",
-                    "obs-proxy-query-deployment.yaml",
-                    {"obsProxy": {**TEST_PROXY, "query": {"clickhouse": clickhouse}}},
-                )
-            assert (
-                f"obsProxy.query.clickhouse.{secret}.name is required" in caught.value.output
-            )
-
-
-def test_missing_database_secret_key_is_rejected():
-    with pytest.raises(subprocess.CalledProcessError):
-        render_template_object(
-            "loco-control-plane",
-            "obs-proxy-query-deployment.yaml",
-            {
-                "obsProxy": {
-                    **TEST_PROXY,
-                    "query": {
-                        "clickhouse": {
-                            **TEST_PROXY["query"]["clickhouse"],
-                            "existingSecret": {"name": "db", "key": ""},
-                        },
-                    },
-                }
-            },
-        )
-
-
-def test_permission_endpoint_uses_the_private_api_service():
-    env = _proxy_env()
-    assert (
-        env["CONTROL_PLANE_URL"]["value"]
-        == "http://loco-control-plane-api.platform-test.svc.cluster.local"
-    )
-
-
-def test_proxy_cors_origins_are_explicit():
-    env = _proxy_env(
-        {
-            "cors": {
-                "allowedOrigins": ["https://app.example.test", "http://localhost:5173"]
-            }
-        }
-    )
-    assert (
-        env["CORS_ALLOWED_ORIGINS"]["value"]
-        == "https://app.example.test,http://localhost:5173"
-    )
-    env = _proxy_env()
-    assert env["CORS_ALLOWED_ORIGINS"]["value"] == ""
-
-
-def test_proxy_reads_its_database_from_the_one_chart_value():
-    database = chart_values("loco-control-plane")["clickhouse"]["clickhouse"]["database"]
-    env = _proxy_env()
-    assert env["CLICKHOUSE_DB"] == {"name": "CLICKHOUSE_DB", "value": database}
-
-
-def test_proxy_readiness_checks_readyz():
-    container = _proxy_deployment()["spec"]["template"]["spec"]["containers"][0]
-    assert container["readinessProbe"]["httpGet"]["path"] == "/readyz"
 
 
 def exporter_settings():
@@ -604,12 +467,6 @@ def test_collector_service_ports_reach_the_receivers():
     protocols = deploy["config"]["receivers"]["otlp"]["protocols"]
     assert protocols["grpc"]["endpoint"].rsplit(":", 1)[1] == str(deploy["ports"]["otlp"]["servicePort"])
     assert protocols["http"]["endpoint"].rsplit(":", 1)[1] == str(deploy["ports"]["otlp-http"]["servicePort"])
-
-
-def test_proxy_has_no_kubernetes_api_credentials():
-    pod = _proxy_deployment()["spec"]["template"]["spec"]
-    assert "serviceAccountName" not in pod
-    assert pod["automountServiceAccountToken"] is False
 
 
 def test_file_logs_extract_application_severity(worker_relays):
