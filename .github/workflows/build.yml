@@ -61,6 +61,7 @@ jobs:
             image: ui
             dockerfile: ./web/Dockerfile
             tag_suffix: ",suffix=-staging"
+            cache_scope: ui-staging
             build_args: |
               DOCS_ENVIRONMENT=staging
               PUBLIC_API_URL=https://api.staging.loco.build
@@ -70,6 +71,7 @@ jobs:
       image_name: ${{ github.repository }}-${{ matrix.image }}
       context: .
       dockerfile: ${{ matrix.dockerfile }}
+      cache_scope: ${{ matrix.cache_scope || matrix.image }}
       tag_suffix: ${{ matrix.tag_suffix || '' }}
       build_args: ${{ matrix.build_args || '' }}
 
