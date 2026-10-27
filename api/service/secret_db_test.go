@@ -81,7 +81,7 @@ func newSecretFixture(t *testing.T) *secretFixture {
 
 func (f *secretFixture) signUp(t *testing.T, sub, email string) uuid.UUID {
 	t.Helper()
-	user, err := f.resolver.Resolve(t.Context(), auth.Identity{
+	user, _, err := f.resolver.Resolve(t.Context(), auth.Identity{
 		Issuer: testIssuer, Subject: sub, Email: email, EmailVerified: true,
 	})
 	if err != nil {

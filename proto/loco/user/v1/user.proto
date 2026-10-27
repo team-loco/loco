@@ -21,6 +21,8 @@ service UserService {
   rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
   // Logout logs out the current user.
   rpc Logout(LogoutRequest) returns (LogoutResponse);
+  // SetUserStatus suspends or reinstates a user. Requires system admin.
+  rpc SetUserStatus(SetUserStatusRequest) returns (SetUserStatusResponse);
 }
 
 // User represents a user account with OAuth identity and profile information.
@@ -85,7 +87,39 @@ message WhoAmIRequest {}
 // WhoAmIResponse is the response containing the current user.
 message WhoAmIResponse {
   User user = 1;
+  // claimed_orgs lists the organizations whose invitations this request claimed.
+  repeated ClaimedOrg claimed_orgs = 2;
 }
+
+// ClaimedOrg is an organization the user joined through an invitation.
+message ClaimedOrg {
+  string org_id = 1;
+  string org_name = 2;
+  string inviter_name = 3;
+}
+
+// UserStatus is whether a user may sign in.
+enum UserStatus {
+  USER_STATUS_UNSPECIFIED = 0;
+  USER_STATUS_ACTIVE = 1;
+  USER_STATUS_SUSPENDED = 2;
+}
+
+// SetUserStatusRequest is the request to suspend or reinstate a user.
+message SetUserStatusRequest {
+  oneof key {
+    option (buf.validate.oneof).required = true;
+    string user_id = 1 [(buf.validate.field).string.uuid = true];
+    string email = 2 [(buf.validate.field).string.email = true];
+  }
+  UserStatus status = 3 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+}
+
+// SetUserStatusResponse is the response after changing a user's status.
+message SetUserStatusResponse {}
 
 // DeleteUserRequest is the request to delete a user.
 message DeleteUserRequest {
