@@ -23,7 +23,7 @@ on:
       - "dev/registry/**"
       - "mise-tasks/cluster/registry"
       - "mise-tasks/cluster/build-egress"
-      - "e2e/**"
+      - "tests/e2e/**"
       - "mise-tasks/e2e/**"
       - "mise-tasks/crds/**"
       - "cmd/**"
@@ -31,7 +31,6 @@ on:
       - "go.mod"
       - "go.sum"
       - "proto/loco/observability/**"
-      - "api/service/observability_access.go"
       - "api/queries/cluster.sql"
       - "mise.toml"
       - "mise.lock"
@@ -61,7 +60,7 @@ jobs:
           go-cache: e2e
 
       - name: Run the build end-to-end tests
-        run: ./e2e/run.sh --no-teardown build
+        run: ./tests/e2e/run.sh --no-teardown build
 
   e2e-builds-disabled:
     name: Build E2E (builds disabled)
@@ -76,7 +75,7 @@ jobs:
           go-cache: e2e
 
       - name: Run the end-to-end tests for an install without builds
-        run: ./e2e/run.sh --no-teardown --builds-disabled builds_disabled
+        run: ./tests/e2e/run.sh --no-teardown --builds-disabled builds_disabled
 
   e2e-attachment:
     name: Cluster Attachment E2E
@@ -91,4 +90,4 @@ jobs:
           go-cache: e2e
 
       - name: Run cluster attachment, lifecycle and rotation tests
-        run: ./e2e/run.sh --no-teardown --builds-disabled cluster_attachment
+        run: ./tests/e2e/run.sh --no-teardown --builds-disabled cluster_attachment

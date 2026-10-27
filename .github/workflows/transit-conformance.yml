@@ -6,13 +6,13 @@ on:
       - main
     paths:
       - "api/pkg/secretkeys/**"
-      - "env/transit-conformance/**"
+      - "tests/conformance/transit/**"
       - "mise-tasks/test/transit-conformance"
       - ".github/workflows/transit-conformance.yml"
   pull_request:
     paths:
       - "api/pkg/secretkeys/**"
-      - "env/transit-conformance/**"
+      - "tests/conformance/transit/**"
       - "mise-tasks/test/transit-conformance"
       - ".github/workflows/transit-conformance.yml"
   workflow_dispatch:

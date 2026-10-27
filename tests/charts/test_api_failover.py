@@ -57,7 +57,7 @@ def test_only_api_rules_retry_connections(enabled, hostname, expected_routes):
 
 
 def test_retry_stats_distinguish_dashboard_host_from_embedded_api_host():
-    driver = runpy.run_path(str(ROOT / "e2e/api-failover.py"))
+    driver = runpy.run_path(str(ROOT / "tests/e2e/api-failover.py"))
     hosts = ["api.test.local", "ui-api.test.local"]
     configs = {
         host: {

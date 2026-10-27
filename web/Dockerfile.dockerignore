@@ -31,11 +31,10 @@ docs/**
 !docs/content/**
 !docs/overrides/
 !docs/overrides/**
-env/
+tests/
 examples/
 experiments/
 references/
-e2e/
 .github/
 *.go
 go.mod

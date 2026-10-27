@@ -74,7 +74,7 @@ Pages state released behaviour and label unreleased workflows with a release not
 Out of scope: `docs/tdd/**`, `docs/dependencies.md`, `docs/DESIGN.md`, `experiments/**`, `controller/README.md` and `web/README.md` (scaffold
 boilerplate), `.agents/skills/**`, generated code (`gen/**`, `api/gen/**`,
 `zz_generated.deepcopy.go`, CRD YAML under `controller/config` and `charts/loco-worker`),
-tests, `e2e/**`, Go doc comments and `//` comments. A missing Go doc comment is not drift. The
+tests (`tests/**` and Go tests), Go doc comments and `//` comments. A missing Go doc comment is not drift. The
 repository has no changelog.
 
 ## Public code map

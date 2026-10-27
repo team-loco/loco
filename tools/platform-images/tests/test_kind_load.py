@@ -35,7 +35,7 @@ load_kind_image moby/buildkit:test fixture "$PLATFORM"
         ["bash", "-c", script],
         env={
             **os.environ,
-            "LOADER": str(ROOT / "e2e/lib.sh"),
+            "LOADER": str(ROOT / "tests/e2e/lib.sh"),
             "ARCHIVE": str(archive),
             "PLATFORM": platform,
             "FAILURE": failure,
