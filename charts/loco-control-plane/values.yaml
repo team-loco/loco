@@ -342,6 +342,24 @@ openbao:
     role: loco-api
     setupRole: loco-setup
   # @schema additionalProperties: false
+  snapshots:
+    enabled: true
+    rcloneImage: rclone/rclone:1.75.2@sha256:2687085f718d3c628f7fdfb77c52a1d344332aed543110bb88088f2c70d43eb5
+    schedule: "0 * * * *"
+    retention: 30d
+    role: loco-snapshot
+    # @schema additionalProperties: false
+    s3:
+      endpoint: ""
+      region: ""
+      bucket: ""
+      prefix: openbao
+      # @schema additionalProperties: false
+      existingSecret:
+        name: ""
+        accessKeyIdKey: access-key-id
+        secretAccessKeyKey: secret-access-key
+  # @schema additionalProperties: false
   external:
     address: ""
     # @schema additionalProperties: false

@@ -31,7 +31,22 @@ Run the third command once per recovery key, up to the threshold.
 
 ### Lost init output
 
-When OpenBao is initialized, `<release>-openbao-init` holds no recovery keys and the setup role cannot log in, the Job fails with `OpenBao at ... is initialized, but the Secret ... holds no init output`. With the recovery keys and generate-root token offline, generate a root token as above and recreate the role `openbao.kubernetesAuth.setupRole` with the `loco-setup` policy, bound to the ServiceAccount `<release>-openbao-setup`. Without them, and before the API has stored a secret, delete the StatefulSet `<release>-openbao`, its PersistentVolumeClaims and the `<release>-openbao-init` Secret, and run `helm upgrade` again: the setup Job initializes a new OpenBao.
+When OpenBao is initialized, `<release>-openbao-init` holds no recovery keys and the setup role cannot log in, the Job fails with `OpenBao at ... is initialized, but the Secret ... holds no init output`. With the recovery keys and generate-root token offline, generate a root token as above and recreate the role `openbao.kubernetesAuth.setupRole` with the `loco-setup` policy, bound to the ServiceAccount `<release>-openbao-setup`. Without them, and before the API has stored a secret, delete the StatefulSet `<release>-openbao`, its PersistentVolumeClaims and the `<release>-openbao-init` Secret, and run `helm upgrade` again: the setup Job initializes a new OpenBao. Once the API has stored secrets, restore the latest snapshot as below instead; it brings back the Kubernetes auth roles it was taken with.
+
+### Snapshots and restore
+
+The CronJob `<release>-openbao-snapshot` takes a raft snapshot on `openbao.snapshots.schedule` (hourly) and uploads it to `openbao.snapshots.s3.bucket` under `openbao.snapshots.s3.prefix` at the S3-compatible `openbao.snapshots.s3.endpoint`, with the access key in the Secret `openbao.snapshots.s3.existingSecret`. It deletes snapshots older than `openbao.snapshots.retention` (`30d`). It logs in with its own Kubernetes auth role, `openbao.snapshots.role`, whose policy allows only reading `sys/storage/raft/snapshot`. The install fails without the bucket, the endpoint and the Secret; `openbao.snapshots.enabled: false` turns snapshots off.
+
+A snapshot restores only into an OpenBao with the same seal key, and after the restore its recovery keys and Kubernetes auth roles are those of the snapshot. To restore one:
+
+1. Delete the StatefulSet `<release>-openbao`, its PersistentVolumeClaims and the `<release>-openbao-init` Secret if it still exists.
+2. Run `helm upgrade` with the same values. The setup Job initializes a new OpenBao and writes its recovery keys and generate-root token to a new `<release>-openbao-init` Secret.
+3. Generate a root token with that Secret's generate-root token and recovery keys as above, copy the snapshot into `<release>-openbao-0` and restore it: `BAO_TOKEN=ROOT_TOKEN bao operator raft snapshot restore -force /tmp/openbao.snap`. The restore discards the generated token.
+4. Delete the new `<release>-openbao-init` Secret; the recovery keys and generate-root token from your offline copy apply again. Run `helm upgrade` again: the setup Job logs in with its restored role.
+
+The API logs in again once the restored OpenBao rejects its token, without a restart.
+
+`mise run e2e:control-plane` runs these steps and checks that the API still decrypts a secret written before the snapshot.
 
 ## Transit
 

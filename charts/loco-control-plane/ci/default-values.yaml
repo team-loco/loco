@@ -26,3 +26,9 @@ openbao:
     static:
       existingSecret:
         name: loco-openbao-seal
+  snapshots:
+    s3:
+      endpoint: https://s3.ci.example.invalid
+      bucket: loco-openbao-snapshots
+      existingSecret:
+        name: loco-openbao-snapshots-s3

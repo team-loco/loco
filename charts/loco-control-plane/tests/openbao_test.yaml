@@ -8,6 +8,7 @@ templates:
   - templates/openbao.yaml
   - templates/openbao-setup.yaml
   - templates/openbao-tls.yaml
+  - templates/openbao-snapshot.yaml
   - templates/api-deployment.yaml
   - templates/api-service-account.yaml
 tests:
@@ -146,6 +147,7 @@ tests:
           value:
             - podSelector: {matchLabels: {app: loco-control-plane-api}}
             - podSelector: {matchLabels: {app: loco-control-plane-openbao-setup}}
+            - podSelector: {matchLabels: {app: loco-control-plane-openbao-snapshot}}
       - equal:
           path: spec.ingress[1]
           value:
@@ -349,3 +351,64 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: openbao.external.address is required when openbao.enabled is false
+
+  - it: uploads raft snapshots on a schedule with the snapshot role
+    template: templates/openbao-snapshot.yaml
+    documentSelector: {path: kind, value: CronJob}
+    asserts:
+      - equal:
+          path: spec.schedule
+          value: "0 * * * *"
+      - equal:
+          path: spec.concurrencyPolicy
+          value: Forbid
+      - contains:
+          path: spec.jobTemplate.spec.template.spec.initContainers[0].env
+          content: {name: OPENBAO_SNAPSHOT_ROLE, value: loco-snapshot}
+      - contains:
+          path: spec.jobTemplate.spec.template.spec.initContainers[0].env
+          content: {name: BAO_CACERT, value: /var/run/secrets/openbao-ca/ca.crt}
+      - matchRegex:
+          path: spec.jobTemplate.spec.template.spec.containers[0].image
+          pattern: ^rclone/rclone:[^@]+@sha256:[a-f0-9]{64}$
+      - contains:
+          path: spec.jobTemplate.spec.template.spec.containers[0].env
+          content: {name: SNAPSHOT_S3_BUCKET, value: loco-openbao-snapshots}
+      - contains:
+          path: spec.jobTemplate.spec.template.spec.containers[0].env
+          content: {name: SNAPSHOT_RETENTION, value: 30d}
+      - contains:
+          path: spec.jobTemplate.spec.template.spec.containers[0].env
+          content: {name: RCLONE_CONFIG_SNAPSHOTS_SECRET_ACCESS_KEY, valueFrom: {secretKeyRef: {name: loco-openbao-snapshots-s3, key: secret-access-key}}}
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.automountServiceAccountToken
+          value: false
+
+  - it: binds the snapshot role in the setup Job
+    template: templates/openbao-setup.yaml
+    documentSelector: {path: kind, value: Job}
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: OPENBAO_SNAPSHOT_SERVICE_ACCOUNT, value: loco-control-plane-openbao-snapshot}
+
+  - it: requires the snapshot bucket
+    set:
+      openbao.snapshots.s3.bucket: ""
+    template: templates/openbao-snapshot.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: openbao.snapshots.s3.bucket is required
+
+  - it: renders no snapshots when they are off
+    set:
+      openbao.snapshots.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/openbao-snapshot.yaml
+      - notContains:
+          path: spec.ingress[0].from
+          content: {podSelector: {matchLabels: {app: loco-control-plane-openbao-snapshot}}}
+        template: templates/openbao.yaml
+        documentSelector: {path: kind, value: NetworkPolicy}

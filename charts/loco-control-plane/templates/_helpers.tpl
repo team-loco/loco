@@ -107,6 +107,10 @@ key: {{ required (printf "%s.key is required" .path) .secret.key | quote }}
 {{- printf "%s-setup" (include "loco-control-plane.openbaoName" .) -}}
 {{- end -}}
 
+{{- define "loco-control-plane.openbaoSnapshotName" -}}
+{{- printf "%s-snapshot" (include "loco-control-plane.openbaoName" .) -}}
+{{- end -}}
+
 {{- define "loco-control-plane.openbaoInitSecret" -}}
 {{- printf "%s-init" (include "loco-control-plane.openbaoName" .) -}}
 {{- end -}}

@@ -1,0 +1,123 @@
+{{- if and .Values.openbao.enabled .Values.openbao.snapshots.enabled }}
+{{- $name := include "loco-control-plane.openbaoSnapshotName" . }}
+{{- $snapshots := .Values.openbao.snapshots }}
+{{- $s3 := $snapshots.s3 }}
+{{- include "loco-control-plane.requireSecret" (dict "root" . "name" $s3.existingSecret.name "path" "openbao.snapshots.s3.existingSecret.name") }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+data:
+  openbao-snapshot.sh: {{ .Files.Get "files/openbao-snapshot.sh" | quote }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+automountServiceAccountToken: false
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  schedule: {{ $snapshots.schedule | quote }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app: {{ $name }}
+        spec:
+          serviceAccountName: {{ $name }}
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 100
+            runAsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          initContainers:
+            - name: save
+              image: {{ .Values.openbao.image | quote }}
+              command: [sh, /scripts/openbao-snapshot.sh, save]
+              env:
+                - name: BAO_ADDR
+                  value: {{ include "loco-control-plane.openbaoURL" . | quote }}
+                - name: BAO_CACERT
+                  value: {{ include "loco-control-plane.openbaoCAFile" . }}
+                - name: OPENBAO_KUBERNETES_MOUNT
+                  value: {{ .Values.openbao.kubernetesAuth.mount | quote }}
+                - name: OPENBAO_SNAPSHOT_ROLE
+                  value: {{ $snapshots.role | quote }}
+                - name: OPENBAO_TOKEN_FILE
+                  value: /var/run/secrets/openbao/token
+              securityContext:
+                {{- include "loco-control-plane.restrictedContainer" . | nindent 16 }}
+              volumeMounts:
+                - name: work
+                  mountPath: /work
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+                - name: openbao-token
+                  mountPath: /var/run/secrets/openbao
+                  readOnly: true
+                - name: openbao-ca
+                  mountPath: /var/run/secrets/openbao-ca
+                  readOnly: true
+          containers:
+            - name: upload
+              image: {{ $snapshots.rcloneImage | quote }}
+              command: [sh, /scripts/openbao-snapshot.sh, upload]
+              env:
+                - name: HOME
+                  value: /work
+                - name: SNAPSHOT_S3_ENDPOINT
+                  value: {{ required "openbao.snapshots.s3.endpoint is required" $s3.endpoint | quote }}
+                - name: SNAPSHOT_S3_REGION
+                  value: {{ $s3.region | quote }}
+                - name: SNAPSHOT_S3_BUCKET
+                  value: {{ required "openbao.snapshots.s3.bucket is required" $s3.bucket | quote }}
+                - name: SNAPSHOT_S3_PREFIX
+                  value: {{ required "openbao.snapshots.s3.prefix is required" $s3.prefix | quote }}
+                - name: SNAPSHOT_RETENTION
+                  value: {{ required "openbao.snapshots.retention is required" $snapshots.retention | quote }}
+                - name: RCLONE_CONFIG_SNAPSHOTS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $s3.existingSecret.name | quote }}
+                      key: {{ $s3.existingSecret.accessKeyIdKey | quote }}
+                - name: RCLONE_CONFIG_SNAPSHOTS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $s3.existingSecret.name | quote }}
+                      key: {{ $s3.existingSecret.secretAccessKeyKey | quote }}
+              securityContext:
+                {{- include "loco-control-plane.restrictedContainer" . | nindent 16 }}
+              volumeMounts:
+                - name: work
+                  mountPath: /work
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+          volumes:
+            - name: work
+              emptyDir: {}
+            - name: scripts
+              configMap:
+                name: {{ $name }}
+            - name: openbao-token
+              projected:
+                sources:
+                  - serviceAccountToken:
+                      path: token
+                      expirationSeconds: 600
+            {{- include "loco-control-plane.openbaoCAVolume" . | nindent 12 }}
+{{- end }}

@@ -9,6 +9,8 @@ setup_policy=loco-setup
 generate_root_policy=loco-generate-root
 generate_root_ttl=87600h
 setup_login_ttl=15m
+snapshot_policy=loco-snapshot
+snapshot_login_ttl=15m
 
 : "${BAO_ADDR:?}" "${OPENBAO_INIT_FILE:?}"
 
@@ -112,6 +114,9 @@ path "sys/policies/acl/$api_policy" {
 path "sys/policies/acl/$setup_policy" {
   capabilities = ["create", "read", "update"]
 }
+path "sys/policies/acl/$snapshot_policy" {
+  capabilities = ["create", "read", "update"]
+}
 path "sys/auth/$OPENBAO_KUBERNETES_MOUNT" {
   capabilities = ["create", "read", "update", "sudo"]
 }
@@ -185,6 +190,15 @@ configure() {
 		enable_kubernetes_auth
 		[ -z "${OPENBAO_SETUP_ROLE:-}" ] || write_setup_role
 		write_role "$OPENBAO_API_ROLE" "$OPENBAO_API_SERVICE_ACCOUNT" "$api_policy" false "$api_login_ttl"
+		if [ -n "${OPENBAO_SNAPSHOT_ROLE:-}" ]; then
+			: "${OPENBAO_SNAPSHOT_SERVICE_ACCOUNT:?}"
+			bao policy write "$snapshot_policy" - >/dev/null <<EOF
+path "sys/storage/raft/snapshot" {
+  capabilities = ["read"]
+}
+EOF
+			write_role "$OPENBAO_SNAPSHOT_ROLE" "$OPENBAO_SNAPSHOT_SERVICE_ACCOUNT" "$snapshot_policy" true "$snapshot_login_ttl"
+		fi
 	fi
 	echo "OpenBao transit key $mount/$key and the $api_policy policy are ready"
 }
