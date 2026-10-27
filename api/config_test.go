@@ -147,6 +147,8 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv("EMAIL_FROM", "")
 	t.Setenv("EMAIL_HOOK_SECRET", "")
 	t.Setenv("INVITATION_TTL", "")
+	t.Setenv(otlpEndpointEnv, "")
+	t.Setenv(otlpTracesEndpointEnv, "")
 }
 
 func TestNewAPIConfigReadsBootstrapToken(t *testing.T) {

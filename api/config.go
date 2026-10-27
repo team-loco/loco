@@ -143,6 +143,7 @@ type APIConfig struct {
 	SecretLimits          service.SecretConfig
 	HeartbeatInterval     time.Duration
 	BootstrapTokenHash    []byte
+	TracingEnabled        bool
 }
 
 func newAPIConfig() *APIConfig {
@@ -177,6 +178,7 @@ func newAPIConfig() *APIConfig {
 	secrets := newSecretsConfig()
 	heartbeatInterval := positiveDurationEnv("LOCO_AGENT_HEARTBEAT_INTERVAL", defaultHeartbeatInterval)
 	bootstrapTokenHash := newBootstrapTokenHash()
+	tracingEnabled := newTracingEnabled()
 	webURL := stringEnv("WEB_URL", "")
 	invitations := newInvitationConfig(webURL)
 	secretLimits := service.SecretConfig{
@@ -222,6 +224,7 @@ func newAPIConfig() *APIConfig {
 		SecretLimits:          secretLimits,
 		HeartbeatInterval:     heartbeatInterval,
 		BootstrapTokenHash:    bootstrapTokenHash,
+		TracingEnabled:        tracingEnabled,
 	}
 }
 

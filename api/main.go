@@ -137,7 +137,12 @@ func main() {
 	slog.SetDefault(logger)
 	slog.Info("starting loco api", "version", ac.Version)
 
-	if err := migrations.Up(context.Background(), ac.DatabaseURL); err != nil {
+	tracerProvider, err := startTracing(context.Background(), ac.TracingEnabled, ac.Version)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err = migrations.Up(context.Background(), ac.DatabaseURL); err != nil {
 		log.Fatal(err)
 	}
 
@@ -165,7 +170,11 @@ func main() {
 
 	deadlineInterceptor := interceptor.NewDeadlineInterceptor(shutdownCtx, 30*time.Second)
 	errorInterceptor := interceptor.NewErrorInterceptor()
-	baseServer := connect.NewServer(errorInterceptor, deadlineInterceptor.Interceptor())
+	tracingInterceptor, err := newTracingInterceptor()
+	if err != nil {
+		log.Fatal(err)
+	}
+	baseServer := connect.NewServer(tracingInterceptor, errorInterceptor, deadlineInterceptor.Interceptor())
 
 	mux := http.NewServeMux()
 	authClient := newOutboundHTTPClient()
@@ -183,6 +192,7 @@ func main() {
 	resolver := auth.NewResolver(pool, ac.SignupPolicy, emailVerifierOption)
 
 	authenticatedServer := connect.NewServer(
+		tracingInterceptor,
 		errorInterceptor,
 		deadlineInterceptor.Interceptor(),
 		interceptor.NewContextInterceptor().Interceptor(),
@@ -190,12 +200,12 @@ func main() {
 		validate.NewServerInterceptor(),
 	)
 
-	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc(rootPath, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "Loco Service is Running")
 	})
 
-	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc(healthPath, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "Server is healthy.")
 	})
@@ -323,7 +333,8 @@ func main() {
 
 	allowLoopback := ac.Env != envProduction
 	corsMiddleware := withCORS(ac.CORSAllowedOrigins, allowLoopback)
-	muxWCors := corsMiddleware(mux)
+	tracedMux := withServerTracing(mux)
+	muxWCors := corsMiddleware(tracedMux)
 
 	// Serve HTTP/1.1 alongside unencrypted HTTP/2 (h2c) using the stdlib
 	// Protocols field; golang.org/x/net/http2/h2c is deprecated as of Go 1.26.
@@ -391,11 +402,14 @@ func main() {
 	slog.Info("starting server", "addr", server.Addr)
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		slog.Error("server error", "error", err)
+		stopTracing(tracerProvider)
 		return
 	}
 
-	if err := <-quit; err != nil {
-		log.Fatal(err)
+	quitErr := <-quit
+	stopTracing(tracerProvider)
+	if quitErr != nil {
+		log.Fatal(quitErr)
 	}
 }
 
