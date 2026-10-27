@@ -5,6 +5,8 @@ set -euo pipefail
 root=$(git rev-parse --show-toplevel)
 cd "$root"
 compose=(docker compose -f "$root/tests/conformance/transit/compose.yaml")
+OPENBAO_IMAGE=$(yq '.openbao.image' "$root/charts/loco-control-plane/values.yaml")
+export OPENBAO_IMAGE
 cleanup() {
 	status=$?
 	if [ "$status" -ne 0 ]; then

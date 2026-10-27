@@ -1,0 +1,241 @@
+{{- if .Values.openbao.enabled }}
+{{- $name := include "loco-control-plane.openbaoName" . }}
+{{- $peers := include "loco-control-plane.openbaoPeers" . }}
+{{- $seal := .Values.openbao.seal }}
+{{- if not (has $seal.type (list "static" "awskms" "transit")) }}
+{{- fail (printf "openbao.seal.type must be static, awskms or transit, got %q" $seal.type) }}
+{{- end }}
+{{- if eq $seal.type "static" }}
+{{- include "loco-control-plane.requireSecret" (dict "root" . "name" $seal.static.existingSecret.name "path" "openbao.seal.static.existingSecret.name") }}
+{{- end }}
+{{- if and (eq $seal.type "awskms") $seal.awskms.existingSecret }}
+{{- include "loco-control-plane.requireSecret" (dict "root" . "name" $seal.awskms.existingSecret "path" "openbao.seal.awskms.existingSecret") }}
+{{- end }}
+{{- if eq $seal.type "transit" }}
+{{- include "loco-control-plane.requireSecret" (dict "root" . "name" $seal.transit.existingSecret.name "path" "openbao.seal.transit.existingSecret.name") }}
+{{- end }}
+{{- $config := include "loco-control-plane.openbaoConfig" . }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+data:
+  config.hcl: {{ $config | quote }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ printf "%s-%s-tokenreview" .Release.Namespace $name }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+  - kind: ServiceAccount
+    name: {{ $name }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    app: {{ $name }}
+  ports:
+    - name: http
+      port: {{ .Values.openbao.port }}
+      targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}-peers
+  namespace: {{ .Release.Namespace }}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app: {{ $name }}
+  ports:
+    - name: http
+      port: {{ .Values.openbao.port }}
+      targetPort: http
+    - name: cluster
+      port: {{ .Values.openbao.clusterPort }}
+      targetPort: cluster
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  serviceName: {{ $name }}-peers
+  replicas: {{ .Values.openbao.replicas }}
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app: {{ $name }}
+  template:
+    metadata:
+      labels:
+        app: {{ $name }}
+      annotations:
+        checksum/config: {{ $config | sha256sum }}
+    spec:
+      serviceAccountName: {{ $name }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: openbao
+          image: {{ .Values.openbao.image | quote }}
+          command: [sh, -c]
+          args:
+            - |
+              (
+                while sleep {{ .Values.openbao.tls.reloadSeconds }}; do
+                  current=$(sha256sum /openbao/tls/tls.crt)
+                  if [ "$current" != "${served:-$current}" ]; then
+                    kill -HUP "$(pidof bao)"
+                  fi
+                  served=$current
+                done
+              ) &
+              exec docker-entrypoint.sh server
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: SKIP_CHOWN
+              value: "true"
+            - name: SKIP_SETCAP
+              value: "true"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: BAO_RAFT_NODE_ID
+              value: $(POD_NAME)
+            - name: BAO_API_ADDR
+              value: {{ printf "https://$(POD_NAME).%s:%v" $peers .Values.openbao.port | quote }}
+            - name: BAO_CLUSTER_ADDR
+              value: {{ printf "https://$(POD_NAME).%s:%v" $peers .Values.openbao.clusterPort | quote }}
+            - name: BAO_ADDR
+              value: {{ printf "https://127.0.0.1:%v" .Values.openbao.port | quote }}
+            - name: BAO_CACERT
+              value: /openbao/tls/ca.crt
+            {{- if eq $seal.type "transit" }}
+            - name: BAO_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $seal.transit.existingSecret.name | quote }}
+                  key: {{ $seal.transit.existingSecret.key | quote }}
+            {{- end }}
+          {{- if and (eq $seal.type "awskms") $seal.awskms.existingSecret }}
+          envFrom:
+            - secretRef:
+                name: {{ $seal.awskms.existingSecret | quote }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.openbao.port }}
+            - name: cluster
+              containerPort: {{ .Values.openbao.clusterPort }}
+          readinessProbe:
+            httpGet:
+              path: /v1/sys/health?standbyok=true&perfstandbyok=true&uninitcode=200
+              port: http
+              scheme: HTTPS
+          volumeMounts:
+            - name: config
+              mountPath: /openbao/config
+              readOnly: true
+            - name: data
+              mountPath: /openbao/file
+            - name: tls
+              mountPath: /openbao/tls
+              readOnly: true
+            {{- if eq $seal.type "static" }}
+            - name: seal
+              mountPath: /openbao/seal
+              readOnly: true
+            {{- end }}
+          resources:
+            {{- toYaml .Values.openbao.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ $name }}
+        - name: tls
+          secret:
+            secretName: {{ include "loco-control-plane.openbaoTLSSecret" . }}
+            defaultMode: 0440
+        {{- if eq $seal.type "static" }}
+        - name: seal
+          secret:
+            secretName: {{ $seal.static.existingSecret.name | quote }}
+            items:
+              - key: {{ $seal.static.existingSecret.key | quote }}
+                path: key
+        {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        {{- with .Values.openbao.storage.storageClass }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.openbao.storage.size | quote }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app: {{ $name }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: {{ .Release.Name }}-api
+        - podSelector:
+            matchLabels:
+              app: {{ include "loco-control-plane.openbaoSetupName" . }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.openbao.port }}
+    - from:
+        - podSelector:
+            matchLabels:
+              app: {{ $name }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.openbao.port }}
+        - protocol: TCP
+          port: {{ .Values.openbao.clusterPort }}
+{{- end }}

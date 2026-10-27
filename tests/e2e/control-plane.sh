@@ -14,6 +14,9 @@ GATEWAY_HTTP_NODE_PORT=$(yq '.gateway.service.patch.value.spec.ports[0].nodePort
 API_HOST=$(yq '.controlPlaneHostname' "$VALUES")
 APP_HOST=$(yq '.ui.hostname' "$VALUES")
 INGEST_HOST=$(yq '.obsProxy.ingest.hostname' "$VALUES")
+SEAL_SECRET=$(yq '.openbao.seal.static.existingSecret.name' "$VALUES")
+SEAL_KEY=$(yq '.openbao.seal.static.existingSecret.key' "$CHART_VALUES")
+SECRET_RESOURCE=00000000-0000-7000-8000-0000000000a1
 TIMEOUT=300s
 CONTROL_PLANE_TIMEOUT=10m
 KEEP=false
@@ -40,6 +43,8 @@ cleanup() {
         kubectl -n "$NAMESPACE" logs deployment/regional-obs-proxy-query --tail=200 >>"$RUN_DIR/diagnostics.txt" 2>&1 || true
         kubectl -n "$NAMESPACE" logs deployment/regional-obs-proxy-ingest --tail=200 >>"$RUN_DIR/diagnostics.txt" 2>&1 || true
         kubectl -n "$NAMESPACE" get gateways,httproutes,clickhouseinstallations -o yaml >>"$RUN_DIR/diagnostics.txt" 2>&1 || true
+        kubectl -n "$NAMESPACE" logs -l app=regional-openbao --all-containers --tail=200 >>"$RUN_DIR/diagnostics.txt" 2>&1 || true
+        kubectl -n "$NAMESPACE" logs -l app=regional-openbao-setup --all-containers --tail=200 >>"$RUN_DIR/diagnostics.txt" 2>&1 || true
     fi
     if [[ $KEEP == false ]]; then
         kind delete cluster --name "$CLUSTER_NAME"
@@ -59,6 +64,10 @@ if ! kind get clusters | grep -x "$CLUSTER_NAME" >/dev/null; then
 fi
 kind load docker-image --name "$CLUSTER_NAME" loco-api:e2e loco-obs-proxy:e2e loco-ui:e2e loco-api-failover:e2e
 KIND_CLUSTER="$CLUSTER_NAME" mise run crds:apply
+CERT_MANAGER="$ROOT_DIR/charts/cert-manager.yaml"
+helm upgrade --install cert-manager "$(yq .chart "$CERT_MANAGER")" --repo "$(yq .repository "$CERT_MANAGER")" \
+    --version "$(yq .version "$CERT_MANAGER")" --namespace cert-manager --create-namespace \
+    --set crds.enabled=true --wait --timeout "$TIMEOUT"
 GATEWAY_VERSION=$(yq '.dependencies[] | select(.name == "gateway-helm") | .version' "$ROOT_DIR/charts/loco-worker/Chart.yaml")
 yq '.["gateway-helm"]' "$ROOT_DIR/charts/loco-worker/values.yaml" >"$RUN_DIR/gateway-helm-values.yaml"
 helm upgrade --install eg "$ROOT_DIR/charts/loco-worker/charts/gateway-helm-$GATEWAY_VERSION.tgz" \
@@ -69,17 +78,19 @@ if [[ ! -s "$RUN_DIR/password" ]]; then
     openssl rand -hex 24 | tr -d '\n' >"$RUN_DIR/password"
 fi
 kubectl -n "$NAMESPACE" create secret generic fixture-password --from-file=password="$RUN_DIR/password" --dry-run=client -o yaml | kubectl apply -f -
-yq -n '
-    load(strenv(ROOT_DIR) + "/dev/compose.yaml") as $dev |
-    load(strenv(ROOT_DIR) + "/tests/conformance/transit/compose.yaml").services.openbao as $openbao |
-    .postgresImage = $dev.services.postgres.image |
-    .openbaoImage = $openbao.image |
-    .openbaoEnv = $openbao.environment * $dev.services.openbao.environment
-' >"$RUN_DIR/fixtures.yaml"
+yq -n 'load(strenv(ROOT_DIR) + "/dev/compose.yaml").services.postgres.image as $postgres | .postgresImage = $postgres' >"$RUN_DIR/fixtures.yaml"
 helm upgrade --install fixtures "$ROOT_DIR/tests/e2e/fixtures/control-plane" --namespace "$NAMESPACE" \
-    -f "$RUN_DIR/fixtures.yaml" --set-file openbaoConfig="$ROOT_DIR/dev/openbao/config.hcl" --wait --timeout "$TIMEOUT"
-TRANSIT_ENV=$(grep -E '^LOCO_SECRETS_TRANSIT_(MOUNT|KEY|TOKEN)=' "$ROOT_DIR/dev/api.env")
-{ sed 's/^/export /' <<<"$TRANSIT_ENV"; cat "$ROOT_DIR/dev/openbao/seed.sh"; } | kubectl -n "$NAMESPACE" exec -i deployment/openbao -- sh -s
+    -f "$RUN_DIR/fixtures.yaml" --wait --timeout "$TIMEOUT"
+if [[ ! -s "$RUN_DIR/seal-key" ]]; then
+    openssl rand -base64 32 | tr -d '\n' >"$RUN_DIR/seal-key"
+fi
+if [[ ! -s "$RUN_DIR/transit-token" ]]; then
+    openssl rand -hex 24 | tr -d '\n' >"$RUN_DIR/transit-token"
+fi
+if [[ ! -s "$RUN_DIR/user-token" ]]; then
+    printf 'loco_s_%s' "$(openssl rand -hex 24)" >"$RUN_DIR/user-token"
+fi
+kubectl -n "$NAMESPACE" create secret generic "$SEAL_SECRET" --from-file="$SEAL_KEY=$RUN_DIR/seal-key" --dry-run=client -o yaml | kubectl apply -f -
 python3 - "$RUN_DIR" <<'PY'
 import datetime
 import json
@@ -87,11 +98,11 @@ import pathlib
 import sys
 root = pathlib.Path(sys.argv[1])
 password = (root / 'password').read_text().strip()
-(root / 'api.env').write_text(f'DATABASE_URL=postgresql://loco:{password}@postgres:5432/loco?sslmode=disable\nLOCO_IMAGE_RETENTION=0\n')
+token = (root / 'transit-token').read_text().strip()
+(root / 'api.env').write_text(f'DATABASE_URL=postgresql://loco:{password}@postgres:5432/loco?sslmode=disable\nLOCO_IMAGE_RETENTION=0\nLOCO_SECRETS_TRANSIT_CACHE_TTL=1s\nLOCO_SECRETS_TRANSIT_TOKEN={token}\n')
 now = datetime.datetime.now(datetime.UTC)
 (root / 'query.json').write_text(json.dumps({'workspaceId': '00000000-0000-0000-0000-000000000001', 'startTime': (now - datetime.timedelta(minutes=5)).isoformat(), 'endTime': now.isoformat()}))
 PY
-printf 'LOCO_SECRETS_TRANSIT_ADDR=http://openbao:8200\n%s\n' "$TRANSIT_ENV" >>"$RUN_DIR/api.env"
 kubectl -n "$NAMESPACE" create secret generic api-env --from-env-file="$RUN_DIR/api.env" --dry-run=client -o yaml | kubectl apply -f -
 password_sets=()
 for user in $(yq '.clickhouseUserPasswords | keys | .[]' "$CHART_VALUES"); do
@@ -150,6 +161,98 @@ assert response.get('code') == 'permission_denied', response
 PY
 kubectl -n "$NAMESPACE" exec deployment/postgres -- psql -U loco -d loco -Atc 'SELECT count(*) FROM goose_db_version' >"$RUN_DIR/postgres-migrations.txt"
 printf 'Two API replicas started on an empty database; dashboard and same-origin API routing work; private proxy permission check passed.\n'
+
+psql() {
+    kubectl -n "$NAMESPACE" exec -i deployment/postgres -- psql -U loco -d loco -v ON_ERROR_STOP=1 -Atq "$@"
+}
+
+set_secret() {
+    curl --fail-with-body --silent -H "Host: $API_HOST" -H 'Content-Type: application/json' \
+        -H "Authorization: Bearer $(cat "$RUN_DIR/user-token")" \
+        -d "{\"resourceId\":\"$SECRET_RESOURCE\",\"environmentId\":\"$SECRET_ENVIRONMENT\",\"values\":{\"$1\":\"value-of-$1\"}}" \
+        "http://127.0.0.1:$API_PORT/loco.secret.v1.SecretService/SetSecrets"
+}
+
+set_secret_once_the_api_logs_in() {
+    local _attempt
+    for _attempt in $(seq 1 60); do
+        if set_secret "$1" >/dev/null 2>&1; then return 0; fi
+        sleep 1
+    done
+    set_secret "$1"
+}
+
+secret_names() {
+    psql -c "SELECT string_agg(name, ' ' ORDER BY name) FROM secrets WHERE resource_id = '$SECRET_RESOURCE'"
+}
+
+bao() {
+    kubectl -n "$NAMESPACE" exec regional-openbao-0 -- bao "$@"
+}
+
+init_secret() {
+    kubectl -n "$NAMESPACE" get secret regional-openbao-init -o jsonpath="{.data.$1}" | base64 -d
+}
+
+generate_root() {
+    local otp nonce encoded key
+    export GENERATE_ROOT_TOKEN
+    GENERATE_ROOT_TOKEN=$(init_secret generate-root-token)
+    otp=$(generating_root -generate-otp)
+    nonce=$(generating_root -init -otp="$otp" -format=json | yq -p json '.nonce')
+    for key in $(init_secret recovery-keys); do
+        encoded=$(generating_root -nonce="$nonce" -format=json "$key" | yq -p json '.encoded_token')
+    done
+    generating_root -decode="$encoded" -otp="$otp"
+}
+
+generating_root() {
+    kubectl -n "$NAMESPACE" exec regional-openbao-0 -- env BAO_TOKEN="$GENERATE_ROOT_TOKEN" bao operator generate-root "$@"
+}
+
+openbao_shell() {
+    local root status=0
+    root=$(generate_root)
+    kubectl -n "$NAMESPACE" exec regional-openbao-0 -- env BAO_TOKEN="$root" sh -c "$1" || status=$?
+    kubectl -n "$NAMESPACE" exec regional-openbao-0 -- env BAO_TOKEN="$root" bao token revoke -self >/dev/null
+    return "$status"
+}
+
+openbao() {
+    openbao_shell "bao $*"
+}
+
+psql <"$ROOT_DIR/api/seed/e2e.sql" >/dev/null
+psql -v resource="$SECRET_RESOURCE" -v token="$(cat "$RUN_DIR/user-token")" <"$ROOT_DIR/tests/e2e/fixtures/control-plane/secret-writer.sql" >/dev/null
+SECRET_ENVIRONMENT=$(psql -c "SELECT id FROM environments WHERE workspace_id = (SELECT workspace_id FROM resources WHERE id = '$SECRET_RESOURCE') AND name = 'production'")
+set_secret_once_the_api_logs_in BEFORE_UPGRADE >/dev/null
+INIT_BEFORE=$(kubectl -n "$NAMESPACE" get secret regional-openbao-init -o jsonpath='{.data.recovery-keys}')
+if [[ $(kubectl -n "$NAMESPACE" get secret regional-openbao-init -o json | yq -p json '.data | keys | sort | join(" ")') != "generate-root-token recovery-keys" ]]; then
+    printf 'The init Secret holds more than the recovery keys and the generate-root token\n' >&2
+    exit 1
+fi
+helm upgrade regional "$ROOT_DIR/charts/loco-control-plane" --namespace "$NAMESPACE" \
+    -f "$VALUES" "${password_sets[@]}" --wait --timeout "$CONTROL_PLANE_TIMEOUT"
+if [[ $(kubectl -n "$NAMESPACE" get secret regional-openbao-init -o jsonpath='{.data.recovery-keys}') != "$INIT_BEFORE" ]]; then
+    printf 'The OpenBao setup Job replaced the init Secret on upgrade\n' >&2
+    exit 1
+fi
+set_secret AFTER_UPGRADE >/dev/null
+if [[ $(secret_names) != "AFTER_UPGRADE BEFORE_UPGRADE" ]]; then
+    printf 'Expected both secrets, got %s\n' "$(secret_names)" >&2
+    exit 1
+fi
+ROLE=$(openbao read -format=json auth/kubernetes/role/loco-api)
+if [[ $(yq -p json '.data.bound_service_account_names[0] + " " + .data.bound_service_account_namespaces[0]' <<<"$ROLE") != "regional-api $NAMESPACE" ]]; then
+    printf 'The loco-api role is not bound to the API ServiceAccount: %s\n' "$ROLE" >&2
+    exit 1
+fi
+ROOT_TOKENS=$(openbao_shell 'for accessor in $(bao list -format=table auth/token/accessors | tail -n +3); do if bao token lookup -format=json -accessor "$accessor" | grep -q "\"root\""; then echo root; fi; done' | grep -c root || true)
+if [[ $ROOT_TOKENS != 1 ]]; then
+    printf 'Expected only the generated root token, found %s root tokens\n' "$ROOT_TOKENS" >&2
+    exit 1
+fi
+printf 'The chart OpenBao initialized once over TLS, kept only its recovery keys and generate-root token, reran its setup with its own role on upgrade, bound the loco-api role to the API ServiceAccount, and wrapped and unwrapped an environment key for the API.\n'
 
 INGEST_MARKER="control-plane-ingest-$(openssl rand -hex 4)"
 printf '{"resourceLogs":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"e2e-ingest"}}]},"scopeLogs":[{"logRecords":[{"timeUnixNano":"%s000000000","body":{"stringValue":"%s"}}]}]}]}' \

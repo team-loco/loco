@@ -53,3 +53,14 @@ clickhouse:
       uncompressed_cache_size: "0"
       background_schedule_pool_size: "16"
       max_concurrent_queries: "100"
+openbao:
+  replicas: 1
+  storage:
+    size: 1Gi
+  seal:
+    static:
+      existingSecret:
+        name: openbao-seal
+  recovery:
+    shares: 1
+    threshold: 1

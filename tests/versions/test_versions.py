@@ -10,6 +10,10 @@ def _check(tag, bunfig=None):
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         (root / "docs").mkdir()
+        (root / "charts/loco-control-plane").mkdir(parents=True)
+        (root / "charts/loco-control-plane/values.yaml").write_text(
+            (ROOT / "charts/loco-control-plane/values.yaml").read_text()
+        )
         (root / "mise.toml").write_text((ROOT / "mise.toml").read_text())
         (root / "renovate.json5").write_text((ROOT / "renovate.json5").read_text())
         (root / "bunfig.toml").write_text(bunfig or (ROOT / "bunfig.toml").read_text())

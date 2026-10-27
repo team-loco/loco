@@ -102,3 +102,5 @@ export LOCO_SOURCE_BUCKET_ENDPOINT="${bucket_endpoint/loco-s3.localhost/$S3_ALIA
 registry_host=$(env_value LOCO_REGISTRY_HOST)
 export LOCO_REGISTRY_HOST="${registry_host/#loco-registry:/$REGISTRY_ALIAS:}"
 export OPENBAO_PORT=${LOCO_SECRETS_TRANSIT_ADDR##*:}
+OPENBAO_IMAGE=$(yq '.openbao.image' "$stack_root/charts/loco-control-plane/values.yaml")
+export OPENBAO_IMAGE

@@ -102,12 +102,15 @@ services:
     env_file: ./api.env
     environment:
       BAO_ADDR: http://openbao:8200
+      OPENBAO_INIT_FILE: /openbao/file/init.json
+      OPENBAO_RECOVERY_SHARES: 1
+      OPENBAO_RECOVERY_THRESHOLD: 1
     ports: !reset []
     volumes:
-      - ./openbao/seed.sh:/openbao/seed.sh:ro
+      - ../charts/loco-control-plane/files/openbao-setup.sh:/openbao/setup.sh:ro
       - openbao-data:/openbao/file
-    entrypoint: ["sh", "/openbao/seed.sh"]
-    command: !reset []
+    entrypoint: ["sh", "/openbao/setup.sh"]
+    command: !override [init, configure]
     healthcheck: !reset {}
 
   seed:

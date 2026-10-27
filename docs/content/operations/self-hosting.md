@@ -25,7 +25,7 @@ The local environment is a development installation. Review the repository's env
 
 ## Installation inputs
 
-Configure the API's database, cache, authentication, registry, and API/dashboard endpoints through its environment variables. The [`loco-control-plane` chart README](https://github.com/team-loco/loco/blob/main/charts/loco-control-plane/README.md) lists the ones an installation needs, and [`api/config.go`](https://github.com/team-loco/loco/blob/main/api/config.go) reads every variable with its default. Check them against the deployed release; authentication and registry changes are under active review. Choose a [secrets key provider](secrets-key-provider.md) for the key that protects environment secrets.
+Configure the API's database, cache, authentication, registry, and API/dashboard endpoints through its environment variables. The [`loco-control-plane` chart README](https://github.com/team-loco/loco/blob/main/charts/loco-control-plane/README.md) lists the ones an installation needs, and [`api/config.go`](https://github.com/team-loco/loco/blob/main/api/config.go) reads every variable with its default. Check them against the deployed release; authentication and registry changes are under active review. The chart runs the region's OpenBao for the [secrets key provider](secrets-key-provider.md#openbao-in-the-control-plane-chart); create its seal key Secret before the first install.
 
 Set `DATABASE_LISTEN_URL` to a direct PostgreSQL or session-pooler URL when `DATABASE_URL` uses a transaction-mode pooler. The API holds this connection for placement notifications and uses `DATABASE_URL` for ordinary queries. Both URLs must reach the same database. With `DATABASE_LISTEN_URL` empty, the listener uses `DATABASE_URL`.
 
@@ -37,7 +37,7 @@ api:
     ORG_LINKS: '[{"label":"Support","url":"https://support.example.com/orgs/{orgId}"}]'
 ```
 
-Each worker cluster needs a CNI that enforces Kubernetes NetworkPolicy, cert-manager and the `loco-worker` chart, which runs the agent, the Loco controllers, Envoy Gateway and the OpenTelemetry collectors. Create its release namespace `loco-system` with the Pod Security labels in `manifests/namespaces/loco-system.yaml` before installing it. The collectors export every log, trace and metric over OTLP/HTTP to one endpoint and store nothing in the cluster. The control plane cluster needs Envoy Gateway and cert-manager, and runs the API, dashboard, observability proxy and ClickHouse from the `loco-control-plane` chart.
+Each worker cluster needs a CNI that enforces Kubernetes NetworkPolicy, cert-manager and the `loco-worker` chart, which runs the agent, the Loco controllers, Envoy Gateway and the OpenTelemetry collectors. Create its release namespace `loco-system` with the Pod Security labels in `manifests/namespaces/loco-system.yaml` before installing it. The collectors export every log, trace and metric over OTLP/HTTP to one endpoint and store nothing in the cluster. The control plane cluster needs Envoy Gateway and cert-manager, and runs the API, dashboard, observability proxy, ClickHouse and OpenBao from the `loco-control-plane` chart.
 
 As a [system admin](#first-system-admin), attach each cluster by creating its record with `locoadm cluster create` and passing the printed join token to the agent's first start; see [cluster attachment](../reference/cluster-attachment.md). Set the platform domains a cluster serves in `global.domain.apps` of its `loco-worker` values and point `*.<domain>` at its gateway; the API stores no domains of its own.
 

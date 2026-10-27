@@ -11,6 +11,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 STACK = "dev/stack.sh"
 API_ENV = "dev/api.env"
+CONTROL_PLANE_VALUES = "charts/loco-control-plane/values.yaml"
 STACK_NAMES = (
     "LOCO_STACK_SLOT",
     "LOCO_STACK_CLAIM",
@@ -22,6 +23,7 @@ STACK_NAMES = (
     "POSTGRES_PORT",
     "VALKEY_PORT",
     "OPENBAO_PORT",
+    "OPENBAO_IMAGE",
     "REGISTRY_PORT",
     "S3_PORT",
     "DEX_PORT",
@@ -55,8 +57,8 @@ def local_stack():
         local_stack.directory = Path(tempfile.mkdtemp())
         cleanup.callback(shutil.rmtree, local_stack.directory)
         local_stack.main = local_stack.directory / "main"
-        (local_stack.main / "dev").mkdir(parents=True)
-        for path in (STACK, API_ENV):
+        for path in (STACK, API_ENV, CONTROL_PLANE_VALUES):
+            (local_stack.main / path).parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(ROOT / path, local_stack.main / path)
         git(local_stack.main, "init", "--quiet", "--initial-branch=main")
         git(local_stack.main, "add", ".")
@@ -127,6 +129,10 @@ def test_main_checkout_keeps_the_api_env_values(local_stack):
     ):
         assert stack[name] == api_env[name], name
     assert stack["LOCO_SECRETS_TRANSIT_ADDR"].endswith(":" + stack["OPENBAO_PORT"])
+    chart_image = subprocess.check_output(
+        ["yq", ".openbao.image", str(ROOT / CONTROL_PLANE_VALUES)], text=True
+    ).strip()
+    assert stack["OPENBAO_IMAGE"] == chart_image
 
 
 @pytest.fixture

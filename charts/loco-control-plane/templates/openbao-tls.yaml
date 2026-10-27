@@ -1,0 +1,60 @@
+{{- if .Values.openbao.enabled }}
+{{- $name := include "loco-control-plane.openbaoName" . }}
+{{- $peers := include "loco-control-plane.openbaoPeers" . }}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ $name }}-selfsigned
+  namespace: {{ .Release.Namespace }}
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ $name }}-ca
+  namespace: {{ .Release.Namespace }}
+spec:
+  isCA: true
+  commonName: {{ $name }}-ca
+  secretName: {{ $name }}-ca
+  duration: {{ .Values.openbao.tls.caDuration }}
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    kind: Issuer
+    name: {{ $name }}-selfsigned
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ $name }}-ca
+  namespace: {{ .Release.Namespace }}
+spec:
+  ca:
+    secretName: {{ $name }}-ca
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "loco-control-plane.openbaoTLSSecret" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  secretName: {{ include "loco-control-plane.openbaoTLSSecret" . }}
+  duration: {{ .Values.openbao.tls.duration }}
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  dnsNames:
+    - {{ printf "%s.%s.svc.cluster.local" $name .Release.Namespace }}
+    - {{ printf "%s.%s.svc" $name .Release.Namespace }}
+    - {{ $peers }}
+    - {{ printf "*.%s" $peers | quote }}
+  ipAddresses:
+    - 127.0.0.1
+  issuerRef:
+    kind: Issuer
+    name: {{ $name }}-ca
+{{- end }}

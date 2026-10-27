@@ -1,0 +1,191 @@
+{{- if .Values.openbao.enabled }}
+{{- $name := include "loco-control-plane.openbaoSetupName" . }}
+{{- $initSecret := include "loco-control-plane.openbaoInitSecret" . }}
+{{- $recovery := .Values.openbao.recovery }}
+{{- $previousInit := "/init-secret/recovery-keys" }}
+{{- if or (lt (int $recovery.threshold) 1) (gt (int $recovery.threshold) (int $recovery.shares)) }}
+{{- fail "openbao.recovery.threshold must be between 1 and openbao.recovery.shares" }}
+{{- end }}
+{{- if and (gt (int $recovery.shares) 1) (lt (int $recovery.threshold) 2) }}
+{{- fail "openbao.recovery.threshold must be at least 2 when openbao.recovery.shares is more than 1" }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+data:
+  openbao-setup.sh: {{ .Files.Get "files/openbao-setup.sh" | quote }}
+  openbao-init-secret.sh: {{ .Files.Get "files/openbao-init-secret.sh" | quote }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+rules:
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [create]
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [{{ $initSecret }}]
+    verbs: [patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $name }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $name }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: {{ $name }}
+    spec:
+      serviceAccountName: {{ $name }}
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: prepare
+          image: {{ .Values.openbao.curlImage | quote }}
+          command: [sh, /scripts/openbao-init-secret.sh, prepare]
+          env:
+            {{- include "loco-control-plane.openbaoInitSecretEnv" . | nindent 12 }}
+          securityContext:
+            {{- include "loco-control-plane.restrictedContainer" . | nindent 12 }}
+          volumeMounts:
+            - name: work
+              mountPath: /work
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+        - name: init
+          image: {{ .Values.openbao.image | quote }}
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              sh /scripts/openbao-setup.sh init
+              if [ -s "$OPENBAO_INIT_FILE" ]; then
+                keys=$(sed -n '/"recovery_keys_b64"/,/]/s/^ *"\([^"]*\)",\{0,1\}$/\1/p' "$OPENBAO_INIT_FILE" | base64 -w0)
+                printf '{"data":{"recovery-keys":"%s","generate-root-token":"%s"}}' \
+                  "$keys" "$(base64 -w0 "$OPENBAO_GENERATE_ROOT_TOKEN_FILE")" >"$INIT_SECRET_PATCH"
+              fi
+          env:
+            {{- include "loco-control-plane.openbaoSetupEnv" . | nindent 12 }}
+            - name: OPENBAO_PREVIOUS_INIT
+              value: {{ $previousInit }}
+            - name: OPENBAO_GENERATE_ROOT_TOKEN_FILE
+              value: /work/generate-root-token
+            - name: OPENBAO_RECOVERY_SHARES
+              value: {{ $recovery.shares | quote }}
+            - name: OPENBAO_RECOVERY_THRESHOLD
+              value: {{ $recovery.threshold | quote }}
+            {{- include "loco-control-plane.openbaoInitSecretEnv" . | nindent 12 }}
+          securityContext:
+            {{- include "loco-control-plane.restrictedContainer" . | nindent 12 }}
+          volumeMounts:
+            {{- include "loco-control-plane.openbaoSetupMounts" . | nindent 12 }}
+            - name: init-secret
+              mountPath: /init-secret
+              readOnly: true
+        - name: store
+          image: {{ .Values.openbao.curlImage | quote }}
+          command: [sh, /scripts/openbao-init-secret.sh, store]
+          env:
+            {{- include "loco-control-plane.openbaoInitSecretEnv" . | nindent 12 }}
+          securityContext:
+            {{- include "loco-control-plane.restrictedContainer" . | nindent 12 }}
+          volumeMounts:
+            - name: work
+              mountPath: /work
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+      containers:
+        - name: configure
+          image: {{ .Values.openbao.image | quote }}
+          command: [sh, /scripts/openbao-setup.sh, configure]
+          env:
+            {{- include "loco-control-plane.openbaoSetupEnv" . | nindent 12 }}
+            - name: LOCO_SECRETS_TRANSIT_MOUNT
+              value: {{ .Values.openbao.transit.mount | quote }}
+            - name: LOCO_SECRETS_TRANSIT_KEY
+              value: {{ .Values.openbao.transit.key | quote }}
+            - name: OPENBAO_KUBERNETES_HOST
+              value: https://kubernetes.default.svc
+            - name: OPENBAO_KUBERNETES_MOUNT
+              value: {{ .Values.openbao.kubernetesAuth.mount | quote }}
+            - name: OPENBAO_API_ROLE
+              value: {{ .Values.openbao.kubernetesAuth.role | quote }}
+            - name: OPENBAO_API_SERVICE_ACCOUNT
+              value: {{ include "loco-control-plane.apiServiceAccount" . }}
+            - name: OPENBAO_SETUP_ROLE
+              value: {{ .Values.openbao.kubernetesAuth.setupRole | quote }}
+            - name: OPENBAO_SETUP_SERVICE_ACCOUNT
+              value: {{ $name }}
+            - name: OPENBAO_TOKEN_FILE
+              value: /var/run/secrets/kubernetes.io/serviceaccount/token
+            - name: OPENBAO_NAMESPACE
+              value: {{ .Release.Namespace }}
+            - name: OPENBAO_PREVIOUS_INIT
+              value: {{ $previousInit }}
+            - name: INIT_SECRET
+              value: {{ $initSecret }}
+            - name: LOCO_SECRETS_TRANSIT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "api.existingSecret is required" .Values.api.existingSecret | quote }}
+                  key: LOCO_SECRETS_TRANSIT_TOKEN
+                  optional: true
+          securityContext:
+            {{- include "loco-control-plane.restrictedContainer" . | nindent 12 }}
+          volumeMounts:
+            {{- include "loco-control-plane.openbaoSetupMounts" . | nindent 12 }}
+            - name: init-secret
+              mountPath: /init-secret
+              readOnly: true
+      volumes:
+        - name: work
+          emptyDir:
+            medium: Memory
+        - name: scripts
+          configMap:
+            name: {{ $name }}
+        - name: init-secret
+          secret:
+            secretName: {{ $initSecret }}
+            optional: true
+        {{- include "loco-control-plane.openbaoCAVolume" . | nindent 8 }}
+{{- end }}

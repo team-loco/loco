@@ -20,3 +20,9 @@ obsProxy:
         name: loco-obs-proxy-reader
       migratorExistingSecret:
         name: loco-obs-proxy-migrator
+
+openbao:
+  seal:
+    static:
+      existingSecret:
+        name: loco-openbao-seal

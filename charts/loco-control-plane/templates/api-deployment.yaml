@@ -1,3 +1,4 @@
+{{- $openbaoCA := or .Values.openbao.enabled .Values.openbao.external.caSecret.name }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -13,6 +14,7 @@ spec:
       labels:
         app: {{ .Release.Name }}-api
     spec:
+      serviceAccountName: {{ include "loco-control-plane.apiServiceAccount" . }}
       automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
@@ -31,12 +33,22 @@ spec:
             - secretRef:
                 name: {{ .Values.api.existingSecret | quote }}
           env:
-            {{- range $name, $value := omit .Values.api.env "APP_PORT" "OBSERVABILITY_PROXY_URL" }}
+            {{- range $name, $value := omit .Values.api.env "APP_PORT" "OBSERVABILITY_PROXY_URL" "LOCO_SECRETS_TRANSIT_ADDR" "LOCO_SECRETS_TRANSIT_MOUNT" "LOCO_SECRETS_TRANSIT_KEY" "LOCO_SECRETS_TRANSIT_CA_FILE" }}
             - name: {{ $name }}
               value: {{ $value | quote }}
             {{- end }}
             - name: APP_PORT
               value: {{ printf "0.0.0.0:%v" .Values.api.port | quote }}
+            - name: LOCO_SECRETS_TRANSIT_ADDR
+              value: {{ include "loco-control-plane.openbaoURL" . | quote }}
+            - name: LOCO_SECRETS_TRANSIT_MOUNT
+              value: {{ .Values.openbao.transit.mount | quote }}
+            - name: LOCO_SECRETS_TRANSIT_KEY
+              value: {{ .Values.openbao.transit.key | quote }}
+            {{- if $openbaoCA }}
+            - name: LOCO_SECRETS_TRANSIT_CA_FILE
+              value: {{ include "loco-control-plane.openbaoCAFile" . }}
+            {{- end }}
             {{- with .Values.api.bootstrapToken.existingSecret }}
             {{- if .name }}
             - name: LOCO_BOOTSTRAP_TOKEN
@@ -66,5 +78,24 @@ spec:
             httpGet:
               path: /health
               port: http
+          {{- if $openbaoCA }}
+          volumeMounts:
+            - name: openbao-ca
+              mountPath: /var/run/secrets/openbao-ca
+              readOnly: true
+          {{- end }}
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
+      {{- if $openbaoCA }}
+      volumes:
+        {{- if .Values.openbao.enabled }}
+        {{- include "loco-control-plane.openbaoCAVolume" . | nindent 8 }}
+        {{- else }}
+        - name: openbao-ca
+          secret:
+            secretName: {{ .Values.openbao.external.caSecret.name | quote }}
+            items:
+              - key: {{ .Values.openbao.external.caSecret.key | quote }}
+                path: ca.crt
+        {{- end }}
+      {{- end }}
