@@ -162,11 +162,6 @@
       dependencyDashboardApproval: true,
     },
     {
-      description: "The Playwright server image the docs container check connects to must match the playwright Python client",
-      groupName: "playwright",
-      matchDepNames: ["playwright", "mcr.microsoft.com/playwright"],
-    },
-    {
       description: "kind's default node image sets the local Kubernetes version, and kubectl must stay within one minor version of it",
       groupName: "kind and kubectl",
       matchDepNames: ["kind", "kubectl"],
@@ -191,14 +186,6 @@
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?\\n(?:ARG )?[A-Z0-9_]+_VERSION ?\\??= ?(?<currentValue>\\S+)",
       ],
       versioningTemplate: "{{#if versioning}}{{{versioning}}}{{else}}semver-coerced{{/if}}",
-    },
-    {
-      customType: "regex",
-      description: "The Playwright server image the docs container check runs",
-      managerFilePatterns: ["/^docs/tests/container\\.py$/"],
-      matchStrings: ["\"(?<depName>mcr\\.microsoft\\.com/playwright):(?<currentValue>[^@\"]+)@(?<currentDigest>sha256:[a-f0-9]{64})\""],
-      datasourceTemplate: "docker",
-      versioningTemplate: "regex:^v(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-(?<compatibility>noble)$",
     },
     {
       customType: "regex",

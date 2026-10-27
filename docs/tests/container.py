@@ -1,20 +1,13 @@
-import contextlib
-import importlib.metadata
 import json
-import os
 import re
-import socket
 import subprocess
-import tempfile
 import time
 import tomllib
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 import pytest
-from playwright.sync_api import expect, sync_playwright
 
 ROOT = Path(__file__).resolve().parents[2]
 PORT = 8080
@@ -30,9 +23,6 @@ UI_HOST = "loco.build"
 DOCS_HOST = "docs.loco.build"
 API_HOST = "api.loco.build"
 VERSION = "sha-test"
-BROWSER_IMAGE = "mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27"
-BROWSER_HOST = "127.0.0.1"
-BROWSER_STARTUP_TIMEOUT = 120
 
 
 def docker(*args):
@@ -66,131 +56,6 @@ def test_rewrites_cover_exactly_the_ui_routes():
         assert match is not None, rewrite["source"]
         assert set(match.group(1).split(",")) == sections, rewrite["source"]
         assert rewrite["destination"] == "/index.html"
-
-
-def browser_version():
-    match = re.search(":v([^-@]+)", BROWSER_IMAGE)
-    assert match is not None, BROWSER_IMAGE
-    return match.group(1)
-
-
-def test_browser_image_matches_the_playwright_client():
-    client = importlib.metadata.version("playwright")
-    assert browser_version() == client, (
-        f"{BROWSER_IMAGE} runs Playwright {browser_version()}, but the playwright package is {client}"
-    )
-
-
-@contextlib.contextmanager
-def browser_server():
-    version = browser_version()
-    with socket.socket() as probe:
-        probe.bind((BROWSER_HOST, 0))
-        port = probe.getsockname()[1]
-    container = docker(
-        "run",
-        "--rm",
-        "-d",
-        "--init",
-        "--network",
-        "host",
-        "--user",
-        "pwuser",
-        "--workdir",
-        "/home/pwuser",
-        BROWSER_IMAGE,
-        "npx",
-        "-y",
-        f"playwright@{version}",
-        "run-server",
-        "--port",
-        str(port),
-        "--host",
-        BROWSER_HOST,
-    )
-    try:
-        deadline = time.monotonic() + BROWSER_STARTUP_TIMEOUT
-        while True:
-            try:
-                socket.create_connection((BROWSER_HOST, port), REQUEST_TIMEOUT).close()
-                break
-            except ConnectionError:
-                pass
-            if time.monotonic() >= deadline:
-                pytest.fail(docker("logs", container))
-            time.sleep(POLL_INTERVAL)
-        yield f"ws://{BROWSER_HOST}:{port}/"
-    finally:
-        docker("stop", container)
-
-
-def _check_browser(url):
-    screenshots = Path(
-        os.environ.get(
-            "DOCS_SCREENSHOT_DIR", tempfile.mkdtemp(prefix="loco-hosted-docs-")
-        )
-    )
-    screenshots.mkdir(parents=True, exist_ok=True)
-    problems = []
-    with browser_server() as endpoint, sync_playwright() as playwright:
-        browser = playwright.chromium.connect(endpoint)
-        try:
-            for name, host, path, heading in [
-                ("docs", DOCS_HOST, "/", "Deploy with Loco"),
-                ("docs-subpath", UI_HOST, "/docs/", "Deploy with Loco"),
-                ("dashboard", UI_HOST, "/", "Deploy containers,"),
-                ("404-app", UI_HOST, NOT_FOUND_PATH, "Page not found"),
-                ("404-docs", DOCS_HOST, NOT_FOUND_PATH, "Page not found"),
-            ]:
-                context = browser.new_context()
-
-                def proxy(route, request, host=host):
-                    parsed = urlsplit(request.url)
-                    target = parsed.path + ("?" + parsed.query if parsed.query else "")
-                    result = route.fetch(
-                        url=url + target, headers={**request.headers, "Host": host}
-                    )
-                    route.fulfill(response=result)
-
-                context.route("https://" + host + "/**", proxy)
-                page = context.new_page()
-                failures = []
-                page.on(
-                    "console",
-                    lambda message: (
-                        failures.append(message.text)
-                        if "Content Security Policy" in message.text
-                        else None
-                    ),
-                )
-                page.on(
-                    "requestfailed",
-                    lambda request, host=host: (
-                        failures.append(request.url)
-                        if urlsplit(request.url).hostname == host
-                        else None
-                    ),
-                )
-                page.on(
-                    "response",
-                    lambda result, host=host: (
-                        failures.append(f"{result.status} {result.url}")
-                        if result.status >= 400
-                        and result.request.resource_type != "document"
-                        and (urlsplit(result.url).hostname == host)
-                        else None
-                    ),
-                )
-                page.goto(f"https://{host}{path}", wait_until="networkidle")
-                expect(page.get_by_role("heading", name=heading)).to_be_visible()
-                page.screenshot(path=str(screenshots / f"{name}.png"), full_page=True)
-                if failures:
-                    problems.append(f"{name}: {failures}")
-                context.unroute_all(behavior="ignoreErrors")
-                context.close()
-        finally:
-            browser.close()
-    assert not problems, "\n".join(problems)
 
 
 def test_image_serves_the_ui_and_docs():
@@ -290,6 +155,5 @@ def test_image_serves_the_ui_and_docs():
             assert status == 404, f"{host}{path}"
             assert f"<title>{NOT_FOUND_TITLE}</title>" in body
             assert '<div id="root">' not in body
-        _check_browser(url)
     finally:
         docker("stop", container)

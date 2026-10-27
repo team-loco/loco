@@ -75,13 +75,4 @@ jobs:
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Check shared UI and docs hosting
         timeout-minutes: 5
-        env:
-          DOCS_SCREENSHOT_DIR: ${{ runner.temp }}/hosted-docs-screenshots
         run: mise run docs:check:container
-      - name: Save hosted documentation screenshots
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: hosted-docs-screenshots
-          path: ${{ runner.temp }}/hosted-docs-screenshots
-          if-no-files-found: ignore
