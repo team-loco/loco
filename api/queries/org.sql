@@ -79,6 +79,15 @@ SELECT EXISTS (
     AND us.entity_id = sqlc.arg('org_id')
 ) AS is_member;
 
+-- name: IsOrgMemberEmail :one
+SELECT EXISTS (
+  SELECT 1 FROM user_scopes us
+  JOIN users u ON u.id = us.user_id
+  WHERE us.entity_type = 'organization'
+    AND us.entity_id = sqlc.arg('org_id')
+    AND lower(u.email) = lower(sqlc.arg('email'))
+) AS is_member;
+
 -- name: LockUserForMembership :one
 SELECT id FROM users WHERE id = $1 FOR UPDATE;
 

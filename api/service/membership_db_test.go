@@ -61,6 +61,11 @@ type membershipOrg struct {
 
 func newMembershipAPI(t *testing.T) *membershipAPI {
 	t.Helper()
+	return newMembershipAPIWith(t, InvitationConfig{})
+}
+
+func newMembershipAPIWith(t *testing.T, invitations InvitationConfig) *membershipAPI {
+	t.Helper()
 	pool := authtest.NewPool(t)
 	queries := genDb.New(pool)
 	machine := tvm.NewVendingMachine(pool, queries, tvm.Config{
@@ -80,7 +85,7 @@ func newMembershipAPI(t *testing.T) *membershipAPI {
 		interceptor.NewAuthInterceptor(machine, nil, nil, authorizer).Interceptor(),
 		validate.NewServerInterceptor(),
 	)
-	orgv1connect.RegisterOrgServiceHandler(server, NewOrgServer(pool, queries, machine))
+	orgv1connect.RegisterOrgServiceHandler(server, NewOrgServer(pool, queries, machine, invitations))
 	workspacev1connect.RegisterWorkspaceServiceHandler(server, NewWorkspaceServer(pool, queries, machine))
 	userv1connect.RegisterUserServiceHandler(server, NewUserServer(pool, queries, machine, auth.Admins{}))
 	resources := NewResourceServer(pool, queries, servicedefaults.Defaults{}, time.Minute)
@@ -116,7 +121,12 @@ func (a *membershipAPI) signUp(t *testing.T, subject string) membershipUser {
 
 func newMembershipOrg(t *testing.T) *membershipOrg {
 	t.Helper()
-	api := newMembershipAPI(t)
+	return newMembershipOrgWith(t, InvitationConfig{})
+}
+
+func newMembershipOrgWith(t *testing.T, invitations InvitationConfig) *membershipOrg {
+	t.Helper()
+	api := newMembershipAPIWith(t, invitations)
 	owner := api.signUp(t, "owner")
 	org, err := owner.clients.Org.CreateOrg(t.Context(), &orgv1.CreateOrgRequest{Name: new(membershipOrgName)})
 	if err != nil {

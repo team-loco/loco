@@ -78,6 +78,32 @@ spec:
                   key: {{ .key | quote }}
             {{- end }}
             {{- end }}
+            {{- with .Values.api.email.from }}
+            - name: EMAIL_FROM
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.api.email.invitationTtl }}
+            - name: INVITATION_TTL
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.api.email.transport.existingSecret }}
+            {{- if .name }}
+            - name: EMAIL_TRANSPORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .name | quote }}
+                  key: {{ .key | quote }}
+            {{- end }}
+            {{- end }}
+            {{- with .Values.api.email.hookSecret.existingSecret }}
+            {{- if .name }}
+            - name: EMAIL_HOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .name | quote }}
+                  key: {{ .key | quote }}
+            {{- end }}
+            {{- end }}
             {{- if .Values.obsProxy.enabled }}
             - name: OBSERVABILITY_PROXY_URL
               value: {{ include "loco-control-plane.obsProxyURL" . | quote }}

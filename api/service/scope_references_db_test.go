@@ -209,7 +209,7 @@ func TestOrgMembershipRejectsDeletedOrganization(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := NewOrgServer(f.pool, f.queries, f.machine)
+	server := NewOrgServer(f.pool, f.queries, f.machine, InvitationConfig{})
 	if _, deleteErr := server.DeleteOrg(f.owner, &orgv1.DeleteOrgRequest{OrgId: f.orgID}); deleteErr != nil {
 		t.Fatal(deleteErr)
 	}

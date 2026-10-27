@@ -36,6 +36,22 @@ api:
     existingSecret:
       name: ""
       key: token
+  # @schema additionalProperties: false
+  email:
+    from: ""
+    invitationTtl: ""
+    # @schema additionalProperties: false
+    transport:
+      # @schema additionalProperties: false
+      existingSecret:
+        name: ""
+        key: transport
+    # @schema additionalProperties: false
+    hookSecret:
+      # @schema additionalProperties: false
+      existingSecret:
+        name: ""
+        key: secret
   env: {}
   # @schema skipProperties
   resources:

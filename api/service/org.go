@@ -34,19 +34,26 @@ var (
 
 // OrgServer implements the OrgService gRPC server
 type OrgServer struct {
-	db      *pgxpool.Pool
-	queries genDb.Querier
-	authz   *authz.Authorizer
-	machine *tvm.VendingMachine
+	db          *pgxpool.Pool
+	queries     genDb.Querier
+	authz       *authz.Authorizer
+	machine     *tvm.VendingMachine
+	invitations InvitationConfig
 }
 
 // NewOrgServer creates a new OrgServer instance
-func NewOrgServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine) *OrgServer {
+func NewOrgServer(
+	db *pgxpool.Pool,
+	queries genDb.Querier,
+	machine *tvm.VendingMachine,
+	invitations InvitationConfig,
+) *OrgServer {
 	return &OrgServer{
-		db:      db,
-		queries: queries,
-		machine: machine,
-		authz:   authz.New(db, queries),
+		db:          db,
+		queries:     queries,
+		machine:     machine,
+		invitations: invitations,
+		authz:       authz.New(db, queries),
 	}
 }
 

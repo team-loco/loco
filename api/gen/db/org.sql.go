@@ -106,6 +106,28 @@ func (q *Queries) IsOrgMember(ctx context.Context, arg IsOrgMemberParams) (bool,
 	return is_member, err
 }
 
+const isOrgMemberEmail = `-- name: IsOrgMemberEmail :one
+SELECT EXISTS (
+  SELECT 1 FROM user_scopes us
+  JOIN users u ON u.id = us.user_id
+  WHERE us.entity_type = 'organization'
+    AND us.entity_id = $1
+    AND lower(u.email) = lower($2)
+) AS is_member
+`
+
+type IsOrgMemberEmailParams struct {
+	OrgID uuid.UUID `json:"orgId"`
+	Email string    `json:"email"`
+}
+
+func (q *Queries) IsOrgMemberEmail(ctx context.Context, arg IsOrgMemberEmailParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isOrgMemberEmail, arg.OrgID, arg.Email)
+	var is_member bool
+	err := row.Scan(&is_member)
+	return is_member, err
+}
+
 const isOrgNameUnique = `-- name: IsOrgNameUnique :one
 SELECT COUNT(*) = 0 as is_unique
 FROM organizations

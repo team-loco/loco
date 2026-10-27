@@ -107,6 +107,47 @@ tests:
           path: spec.template.spec.containers[0].env
           content: {name: LOCO_BOOTSTRAP_TOKEN, valueFrom: {secretKeyRef: {name: loco-bootstrap, key: value}}}
 
+  - it: reads the invitation email settings from the values and existing Secrets
+    set:
+      api.email.from: loco@example.test
+      api.email.invitationTtl: 72h
+      api.email.transport.existingSecret: {name: loco-email, key: smtp}
+      api.email.hookSecret.existingSecret: {name: loco-email-hook, key: signing}
+    template: templates/api-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: EMAIL_FROM, value: loco@example.test}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: INVITATION_TTL, value: 72h}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: EMAIL_TRANSPORT, valueFrom: {secretKeyRef: {name: loco-email, key: smtp}}}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: EMAIL_HOOK_SECRET, valueFrom: {secretKeyRef: {name: loco-email-hook, key: signing}}}
+
+  - it: sets no invitation email settings by default
+    template: templates/api-deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: EMAIL_FROM}
+          any: true
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: INVITATION_TTL}
+          any: true
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: EMAIL_TRANSPORT}
+          any: true
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: EMAIL_HOOK_SECRET}
+          any: true
+
   - it: sets no bootstrap token by default
     template: templates/api-deployment.yaml
     asserts:
