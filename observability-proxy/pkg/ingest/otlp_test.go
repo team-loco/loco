@@ -10,9 +10,11 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/consumer/consumererror"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/plog/plogotlp"
 	"go.opentelemetry.io/collector/pdata/pmetric"
@@ -21,6 +23,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -45,7 +48,7 @@ func (r *recordingLogs) consume(_ context.Context, logs plog.Logs) error {
 	return r.err
 }
 
-func newTestService(t *testing.T, logsErr error) (*Service, *recordingLogs) {
+func newTestService(t *testing.T, logsErr error) (*Service, *recordingLogs, *controlPlane) {
 	t.Helper()
 	recorder := &recordingLogs{err: logsErr}
 	logs, err := consumer.NewLogs(recorder.consume)
@@ -60,12 +63,17 @@ func newTestService(t *testing.T, logsErr error) (*Service, *recordingLogs) {
 	if err != nil {
 		t.Fatalf("metrics consumer: %v", err)
 	}
-	return NewService(Consumers{Logs: logs, Traces: traces, Metrics: metrics}, testMaxRequestBytes), recorder
+	cp := newPlacedControlPlane(t)
+	service := newGatedService(Consumers{Logs: logs, Traces: traces, Metrics: metrics}, cp)
+	return service, recorder, cp
 }
 
 func testLogsRequest() plogotlp.ExportRequest {
 	logs := plog.NewLogs()
-	record := logs.ResourceLogs().AppendEmpty().ScopeLogs().AppendEmpty().LogRecords().AppendEmpty()
+	resourceLogs := logs.ResourceLogs().AppendEmpty()
+	resourceLogs.Resource().Attributes().PutStr(workspaceAttribute, testWorkspaceID)
+	record := resourceLogs.ScopeLogs().AppendEmpty().LogRecords().AppendEmpty()
+	record.SetTimestamp(pcommon.NewTimestampFromTime(time.Now()))
 	record.Body().SetStr(testLogBody)
 	return plogotlp.NewExportRequestFromLogs(logs)
 }
@@ -80,10 +88,18 @@ func protoBody(t *testing.T) []byte {
 	return body
 }
 
-func post(t *testing.T, service *Service, contentType, encoding string, body []byte) *httptest.ResponseRecorder {
+func post(
+	t *testing.T,
+	service *Service,
+	authorization, contentType, encoding string,
+	body []byte,
+) *httptest.ResponseRecorder {
 	t.Helper()
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, LogsPath, bytes.NewReader(body))
 	request.Header.Set("Content-Type", contentType)
+	if authorization != "" {
+		request.Header.Set(authorizationHeader, authorization)
+	}
 	if encoding != "" {
 		request.Header.Set("Content-Encoding", encoding)
 	}
@@ -109,7 +125,7 @@ func decodeStatus(t *testing.T, response *httptest.ResponseRecorder) *spb.Status
 }
 
 func TestHTTPExportAcceptsProtobufJSONAndGzip(t *testing.T) {
-	service, recorder := newTestService(t, nil)
+	service, recorder, cp := newTestService(t, nil)
 	request := testLogsRequest()
 	jsonBody, err := request.MarshalJSON()
 	if err != nil {
@@ -134,7 +150,7 @@ func TestHTTPExportAcceptsProtobufJSONAndGzip(t *testing.T) {
 		{name: "gzip", contentType: protobufContentType, encoding: gzipEncoding, body: compressed.Bytes()},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			response := post(t, service, test.contentType, test.encoding, test.body)
+			response := post(t, service, cp.bearer(), test.contentType, test.encoding, test.body)
 			if response.Code != http.StatusOK {
 				t.Fatalf("status = %d, body %q", response.Code, response.Body.String())
 			}
@@ -198,12 +214,12 @@ func TestHTTPExportStatusCodes(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			service, _ := newTestService(t, test.consumerErr)
+			service, _, cp := newTestService(t, test.consumerErr)
 			body := test.body
 			if body == nil {
 				body = protoBody(t)
 			}
-			response := post(t, service, test.contentType, test.encoding, body)
+			response := post(t, service, cp.bearer(), test.contentType, test.encoding, body)
 			if response.Code != test.wantHTTP {
 				t.Fatalf("status = %d, want %d", response.Code, test.wantHTTP)
 			}
@@ -219,7 +235,7 @@ func TestHTTPExportStatusCodes(t *testing.T) {
 }
 
 func TestHTTPExportRejectsOtherMethods(t *testing.T) {
-	service, _ := newTestService(t, nil)
+	service, _, _ := newTestService(t, nil)
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, LogsPath, nil)
 	response := httptest.NewRecorder()
 	service.Handler().ServeHTTP(response, request)
@@ -255,6 +271,11 @@ func grpcClient(t *testing.T, service *Service) plogotlp.GRPCClient {
 	return plogotlp.NewGRPCClient(conn)
 }
 
+func grpcAuthorized(t *testing.T, cp *controlPlane) context.Context {
+	t.Helper()
+	return metadata.AppendToOutgoingContext(t.Context(), authorizationMetadata, cp.bearer())
+}
+
 func TestGRPCExportStatusCodes(t *testing.T) {
 	for _, test := range []struct {
 		name        string
@@ -269,9 +290,9 @@ func TestGRPCExportStatusCodes(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			service, recorder := newTestService(t, test.consumerErr)
+			service, recorder, cp := newTestService(t, test.consumerErr)
 			client := grpcClient(t, service)
-			_, err := client.Export(t.Context(), testLogsRequest())
+			_, err := client.Export(grpcAuthorized(t, cp), testLogsRequest())
 			if got := status.Code(err); got != test.want {
 				t.Fatalf("code = %s, want %s (%v)", got, test.want, err)
 			}
@@ -286,14 +307,14 @@ func TestGRPCExportStatusCodes(t *testing.T) {
 }
 
 func TestGRPCRejectsOversizedMessages(t *testing.T) {
-	service, recorder := newTestService(t, nil)
+	service, recorder, cp := newTestService(t, nil)
 	client := grpcClient(t, service)
 	logs := plog.NewLogs()
 	record := logs.ResourceLogs().AppendEmpty().ScopeLogs().AppendEmpty().LogRecords().AppendEmpty()
 	oversized := strings.Repeat("a", testMaxRequestBytes+1)
 	record.Body().SetStr(oversized)
 	request := plogotlp.NewExportRequestFromLogs(logs)
-	_, err := client.Export(t.Context(), request)
+	_, err := client.Export(grpcAuthorized(t, cp), request)
 	if got := status.Code(err); got != codes.ResourceExhausted {
 		t.Fatalf("code = %s, want %s", got, codes.ResourceExhausted)
 	}

@@ -15,6 +15,7 @@ first_port=$(first_run_port "$ports_per_run")
 proxy_port=$first_port
 otlp_grpc_port=$((first_port + 1))
 otlp_http_port=$((first_port + 2))
+control_plane_port=$((first_port + 3))
 proxy_pid=""
 cleanup() {
     local status=$?
@@ -64,9 +65,18 @@ if [ -z "${LOCO_TEST_CLICKHOUSE_URL:-}" ]; then
 fi
 export LOCO_TEST_COUNTER_DATABASE=${run_name//-/_}
 
+export LOCO_TEST_COUNTER_INGEST_KEY=$work_dir/ingest-key
+openssl rand -out "$LOCO_TEST_COUNTER_INGEST_KEY" 32
+export LOCO_TEST_COUNTER_CONTROL_PLANE_ADDR="127.0.0.1:$control_plane_port"
+token_directory=$(yq '.global.exporter.bearerToken.directory' "$root/charts/loco-worker/values.yaml")
+token_key=$(yq '.global.exporter.bearerToken.secretKey' "$root/charts/loco-worker/values.yaml")
+mkdir -p "$work_dir/token"
+(cd "$root" && go run ./tools/ingesttoken -key "$LOCO_TEST_COUNTER_INGEST_KEY" -cluster "$run_name") >"$work_dir/token/$token_key"
+chmod -R a+rX "$work_dir/token"
+
 (cd "$root/observability-proxy" && go build -o "$work_dir/loco-obs-proxy" .)
-QUERY_ENABLED=true INGEST_ENABLED=true PORT="$proxy_port" OTLP_GRPC_PORT="$otlp_grpc_port" OTLP_HTTP_PORT="$otlp_http_port" \
-    CONTROL_PLANE_URL="http://localhost:8000" CLICKHOUSE_URL="$LOCO_TEST_CLICKHOUSE_URL" CLICKHOUSE_MIGRATOR_URL="$LOCO_TEST_CLICKHOUSE_URL" \
+CONTROL_PLANE_URL="http://$LOCO_TEST_COUNTER_CONTROL_PLANE_ADDR" QUERY_ENABLED=true INGEST_ENABLED=true PORT="$proxy_port" OTLP_GRPC_PORT="$otlp_grpc_port" OTLP_HTTP_PORT="$otlp_http_port" \
+    CLICKHOUSE_URL="$LOCO_TEST_CLICKHOUSE_URL" CLICKHOUSE_MIGRATOR_URL="$LOCO_TEST_CLICKHOUSE_URL" \
     CLICKHOUSE_INGEST_URL="$LOCO_TEST_CLICKHOUSE_URL" CLICKHOUSE_DB="$LOCO_TEST_COUNTER_DATABASE" \
     "$work_dir/loco-obs-proxy" >"$work_dir/proxy.log" 2>&1 &
 proxy_pid=$!
@@ -74,6 +84,7 @@ wait_for curl -sf "http://127.0.0.1:$proxy_port/readyz"
 
 helm template loco-worker "$root/charts/loco-worker" --set global.region=counter-test \
     --set global.exporter.endpoint="http://host.docker.internal:$otlp_http_port" \
+    --set global.exporter.bearerToken.enabled=true \
     --set agent.image.tag=counter-test --set controller.image.tag=counter-test --set builds.enabled=false \
     --set certManager.issuer.email=counter-test@example.test |
     yq 'select(.kind == "ConfigMap" and .metadata.name == "otel-col-daemon-agent") | .data.relay' |
@@ -93,7 +104,7 @@ collector_image=$(yq '.otel-col-deploy.image.repository + ":" + .otel-col-deploy
 go -C "$root" run ./tools/pullimage "$collector_image"
 docker run -d --name "$collector" --memory 256m --memory-swap 256m --cpus 0.5 \
     --add-host host.docker.internal:host-gateway -p 127.0.0.1::4318 "${mounts[@]}" \
-    -v "$work_dir/collector.yaml:/etc/collector.yaml:ro" "$collector_image" --config /etc/collector.yaml >/dev/null
+    -v "$work_dir/collector.yaml:/etc/collector.yaml:ro" -v "$work_dir/token:$token_directory:ro" "$collector_image" --config /etc/collector.yaml >/dev/null
 address=$(docker port "$collector" 4318/tcp | head -1)
 export LOCO_TEST_COUNTER_OTLP_URL="http://$address"
 wait_for curl -sf -X POST "$LOCO_TEST_COUNTER_OTLP_URL/v1/metrics" -H 'Content-Type: application/json' -d '{}'

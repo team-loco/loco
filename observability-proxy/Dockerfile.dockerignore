@@ -6,6 +6,7 @@
 !internal/buildinfo
 !internal/httputil
 !internal/rpcerr
+!internal/ingesttoken
 **/node_modules
 **/dist
 **/*_test.go
