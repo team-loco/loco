@@ -10,11 +10,6 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: jdx/mise-action@fc42bcc7ddbf51124c30f95a877a0c5168a3bfde # v5.2.1
-      with:
-        version: 2026.10.15
-        cache_save: ${{ github.ref == 'refs/heads/main' }}
-
     - if: inputs.go-cache != '' && github.ref == 'refs/heads/main'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
@@ -36,3 +31,8 @@ runs:
         key: go-${{ runner.os }}-${{ inputs.go-cache }}-${{ hashFiles('mise.lock', '**/go.sum') }}
         restore-keys: |
           go-${{ runner.os }}-${{ inputs.go-cache }}-
+
+    - uses: jdx/mise-action@fc42bcc7ddbf51124c30f95a877a0c5168a3bfde # v5.2.1
+      with:
+        version: 2026.10.15
+        cache_save: ${{ github.ref == 'refs/heads/main' }}
