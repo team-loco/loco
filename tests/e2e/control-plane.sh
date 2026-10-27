@@ -69,9 +69,17 @@ if [[ ! -s "$RUN_DIR/password" ]]; then
     openssl rand -hex 24 | tr -d '\n' >"$RUN_DIR/password"
 fi
 kubectl -n "$NAMESPACE" create secret generic fixture-password --from-file=password="$RUN_DIR/password" --dry-run=client -o yaml | kubectl apply -f -
-yq -n '.postgresImage = load(strenv(ROOT_DIR) + "/dev/compose.yaml").services.postgres.image' >"$RUN_DIR/fixtures.yaml"
+yq -n '
+    load(strenv(ROOT_DIR) + "/dev/compose.yaml") as $dev |
+    load(strenv(ROOT_DIR) + "/tests/conformance/transit/compose.yaml").services.openbao as $openbao |
+    .postgresImage = $dev.services.postgres.image |
+    .openbaoImage = $openbao.image |
+    .openbaoEnv = $openbao.environment * $dev.services.openbao.environment
+' >"$RUN_DIR/fixtures.yaml"
 helm upgrade --install fixtures "$ROOT_DIR/tests/e2e/fixtures/control-plane" --namespace "$NAMESPACE" \
-    -f "$RUN_DIR/fixtures.yaml" --wait --timeout "$TIMEOUT"
+    -f "$RUN_DIR/fixtures.yaml" --set-file openbaoConfig="$ROOT_DIR/dev/openbao/config.hcl" --wait --timeout "$TIMEOUT"
+TRANSIT_ENV=$(rg '^LOCO_SECRETS_TRANSIT_(MOUNT|KEY|TOKEN)=' "$ROOT_DIR/dev/api.env")
+{ sed 's/^/export /' <<<"$TRANSIT_ENV"; cat "$ROOT_DIR/dev/openbao/seed.sh"; } | kubectl -n "$NAMESPACE" exec -i deployment/openbao -- sh -s
 python3 - "$RUN_DIR" <<'PY'
 import datetime
 import json
@@ -83,6 +91,7 @@ password = (root / 'password').read_text().strip()
 now = datetime.datetime.now(datetime.UTC)
 (root / 'query.json').write_text(json.dumps({'workspaceId': '00000000-0000-0000-0000-000000000001', 'startTime': (now - datetime.timedelta(minutes=5)).isoformat(), 'endTime': now.isoformat()}))
 PY
+printf 'LOCO_SECRETS_KEY_PROVIDER=transit\nLOCO_SECRETS_TRANSIT_ADDR=http://openbao:8200\n%s\n' "$TRANSIT_ENV" >>"$RUN_DIR/api.env"
 kubectl -n "$NAMESPACE" create secret generic api-env --from-env-file="$RUN_DIR/api.env" --dry-run=client -o yaml | kubectl apply -f -
 password_sets=()
 for user in $(yq '.clickhouseUserPasswords | keys | .[]' "$CHART_VALUES"); do

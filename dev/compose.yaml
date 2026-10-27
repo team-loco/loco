@@ -76,6 +76,40 @@ services:
       timeout: 3s
       retries: 30
 
+  openbao:
+    extends:
+      file: ../tests/conformance/transit/compose.yaml
+      service: openbao
+    command: !override ["server"]
+    environment:
+      BAO_SEAL_KEY: bG9jby1kZXYtb3BlbmJhby1zZWFsLWtleS0wMDAwMDA=
+    ports: !override
+      - "${OPENBAO_PORT:?}:8200"
+    volumes:
+      - ./openbao/config.hcl:/openbao/config/config.hcl:ro
+      - openbao-data:/openbao/file
+    healthcheck:
+      test: ["CMD-SHELL", "bao status >/dev/null; [ $$? -ne 1 ]"]
+
+  openbao-seed:
+    extends:
+      file: ../tests/conformance/transit/compose.yaml
+      service: openbao
+    profiles: [tools]
+    depends_on:
+      openbao:
+        condition: service_healthy
+    env_file: ./api.env
+    environment:
+      BAO_ADDR: http://openbao:8200
+    ports: !reset []
+    volumes:
+      - ./openbao/seed.sh:/openbao/seed.sh:ro
+      - openbao-data:/openbao/file
+    entrypoint: ["sh", "/openbao/seed.sh"]
+    command: !reset []
+    healthcheck: !reset {}
+
   seed:
     image: postgres:18.6-alpine@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5
     profiles: [tools]
@@ -97,6 +131,7 @@ services:
         psql -q -v ON_ERROR_STOP=1 -f "$$SEED_FILE"
 
 volumes:
+  openbao-data:
   postgres-data:
   registry-data:
   s3-data:

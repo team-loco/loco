@@ -5,7 +5,7 @@ description: Run the full local stack (kind cluster, compose services, API, web 
 
 # Running the local stack with Tilt
 
-`mise run tilt` starts everything: the kind cluster, Postgres, Valkey, the registry and
+`mise run tilt` starts everything: the kind cluster, Postgres, Valkey, OpenBao, the registry and
 the source bucket from `dev/compose.yaml`, the helm releases, the API and the web UI.
 
 `mise run stop` stops Tilt, the compose services and the kind nodes and keeps their state;

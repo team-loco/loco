@@ -219,12 +219,20 @@ fi
 """
 
 [tasks."infra:up"]
-description = "Start Postgres, Valkey, the identity provider, the image registry and the source bucket from dev/compose.yaml and wait until they are up"
+description = "Start Postgres, Valkey, OpenBao, the identity provider, the image registry and the source bucket from dev/compose.yaml, wait until they are up, and seed OpenBao"
 env = { _.source = "dev/stack.sh" }
-run = "docker compose up -d --wait postgres valkey dex registry s3"
+run = [
+  "docker compose up -d --wait postgres valkey openbao dex registry s3",
+  "mise run openbao:seed",
+]
+
+[tasks."openbao:seed"]
+description = "Initialize the local OpenBao once, then make sure it has the transit key, the loco-api policy and the API token dev/api.env names"
+env = { _.source = "dev/stack.sh" }
+run = "docker compose run --rm openbao-seed"
 
 [tasks."infra:down"]
-description = "Stop the compose services; the database, images and sources are kept in their volumes"
+description = "Stop the compose services; the database, OpenBao, images and sources are kept in their volumes"
 env = { _.source = "dev/stack.sh" }
 run = "docker compose down"
 

@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openbao-config
+data:
+  config.hcl: {{ required "openbaoConfig is required" .Values.openbaoConfig | quote }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openbao
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openbao
+  template:
+    metadata:
+      labels:
+        app: openbao
+      annotations:
+        checksum/config: {{ .Values.openbaoConfig | sha256sum }}
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: openbao
+          image: {{ required "openbaoImage is required" .Values.openbaoImage | quote }}
+          args: [server]
+          env:
+            - name: SKIP_CHOWN
+              value: "true"
+            {{- range $name, $value := .Values.openbaoEnv }}
+            - name: {{ $name }}
+              value: {{ $value | quote }}
+            {{- end }}
+          ports:
+            - containerPort: 8200
+          readinessProbe:
+            exec:
+              command: [sh, -c, "bao status >/dev/null; [ $? -ne 1 ]"]
+          volumeMounts:
+            - name: config
+              mountPath: /openbao/config/config.hcl
+              subPath: config.hcl
+            - name: data
+              mountPath: /openbao/file
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+      volumes:
+        - name: config
+          configMap:
+            name: openbao-config
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openbao
+spec:
+  selector:
+    app: openbao
+  ports:
+    - port: 8200

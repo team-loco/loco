@@ -21,6 +21,7 @@ STACK_NAMES = (
     "S3_ALIAS",
     "POSTGRES_PORT",
     "VALKEY_PORT",
+    "OPENBAO_PORT",
     "REGISTRY_PORT",
     "S3_PORT",
     "DEX_PORT",
@@ -38,6 +39,7 @@ STACK_NAMES = (
     "LOCO_REGISTRY_HOST",
     "LOCO_REGISTRY_URL",
     "LOCO_SOURCE_BUCKET_ENDPOINT",
+    "LOCO_SECRETS_TRANSIT_ADDR",
 )
 MAX_SLOT = 9
 
@@ -121,8 +123,10 @@ def test_main_checkout_keeps_the_api_env_values(local_stack):
         "LOCO_REGISTRY_HOST",
         "LOCO_REGISTRY_URL",
         "LOCO_SOURCE_BUCKET_ENDPOINT",
+        "LOCO_SECRETS_TRANSIT_ADDR",
     ):
         assert stack[name] == api_env[name], name
+    assert stack["LOCO_SECRETS_TRANSIT_ADDR"].endswith(":" + stack["OPENBAO_PORT"])
 
 
 @pytest.fixture
@@ -156,6 +160,8 @@ def test_a_worktree_offsets_its_stack_by_its_slot(stacks):
     assert second["LOCO_REGISTRY_HOST"] == "loco-registry-2:5000"
     assert second["LOCO_REGISTRY_URL"] == "http://localhost:5201"
     assert second["LOCO_SOURCE_BUCKET_ENDPOINT"] == "http://loco-s3-2.localhost:9200"
+    assert second["LOCO_SECRETS_TRANSIT_ADDR"] == "http://localhost:8401"
+    assert second["OPENBAO_PORT"] == "8401"
 
 
 def test_stacks_share_no_port_or_name(stacks):
@@ -163,6 +169,7 @@ def test_stacks_share_no_port_or_name(stacks):
     ports = (
         "POSTGRES_PORT",
         "VALKEY_PORT",
+        "OPENBAO_PORT",
         "REGISTRY_PORT",
         "S3_PORT",
         "DEX_PORT",
