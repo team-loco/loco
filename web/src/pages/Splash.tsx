@@ -4,7 +4,6 @@ import { useAuth } from "@/auth/AuthProvider";
 import { useSignIn } from "@/auth/SignIn";
 import { AppLoading } from "@/context/AppLoader";
 
-import { AccessSection } from "./splash/AccessSection";
 import { Architecture } from "./splash/Architecture";
 import { Features } from "./splash/Features";
 import { GetStarted } from "./splash/GetStarted";
@@ -37,7 +36,6 @@ export function Splash() {
 			<GetStarted />
 			<Features />
 			<Architecture />
-			<AccessSection />
 			<SplashFooter onSignIn={startSignIn} redirecting={redirecting} />
 		</div>
 	);

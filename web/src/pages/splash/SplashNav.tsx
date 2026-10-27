@@ -56,15 +56,6 @@ export function SplashNav({ onSignIn, redirecting }: { onSignIn: () => void; red
 					>
 						Sign in
 					</Button>
-					<Button
-						variant="outline"
-						size="lg"
-						nativeButton={false}
-						render={<a href="#access" />}
-						className="rounded-xl text-md font-medium hover:border-foreground"
-					>
-						Request access
-					</Button>
 				</div>
 			</div>
 		</header>
