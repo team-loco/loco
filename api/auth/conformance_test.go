@@ -335,7 +335,7 @@ func TestProviderConformance(t *testing.T) {
 						t.Fatalf("tampered token: %v", tamperErr)
 					}
 
-					first, err := resolver.Resolve(t.Context(), id)
+					first, _, err := resolver.Resolve(t.Context(), id)
 					if !a.emailVerified {
 						if !errors.Is(err, auth.ErrEmailUnverified) {
 							t.Fatalf("resolve an unverified email = %+v %v, want %v",
@@ -346,7 +346,7 @@ func TestProviderConformance(t *testing.T) {
 					if err != nil {
 						t.Fatalf("resolve: %v", err)
 					}
-					again, err := resolver.Resolve(t.Context(), id)
+					again, _, err := resolver.Resolve(t.Context(), id)
 					if err != nil || again.ID != first.ID {
 						t.Fatalf("second resolve = %v (%v), want %v", again.ID, err, first.ID)
 					}

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { DeleteUserRequest, DeleteUserResponse, GetUserRequest, GetUserResponse, ListUsersRequest, ListUsersResponse, LogoutRequest, LogoutResponse, UpdateUserRequest, UpdateUserResponse, WhoAmIRequest, WhoAmIResponse } from "./user_pb";
+import { DeleteUserRequest, DeleteUserResponse, GetUserRequest, GetUserResponse, ListUsersRequest, ListUsersResponse, LogoutRequest, LogoutResponse, SetUserStatusRequest, SetUserStatusResponse, UpdateUserRequest, UpdateUserResponse, WhoAmIRequest, WhoAmIResponse } from "./user_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -78,6 +78,17 @@ export const UserService = {
       name: "Logout",
       I: LogoutRequest,
       O: LogoutResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * SetUserStatus suspends or reinstates a user. Requires system admin.
+     *
+     * @generated from rpc loco.user.v1.UserService.SetUserStatus
+     */
+    setUserStatus: {
+      name: "SetUserStatus",
+      I: SetUserStatusRequest,
+      O: SetUserStatusResponse,
       kind: MethodKind.Unary,
     },
   }

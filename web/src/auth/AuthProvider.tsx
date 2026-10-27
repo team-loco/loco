@@ -3,14 +3,17 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { useQuery } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
-import type { User } from "@gen/loco/user/v1/user_pb";
+import type { ClaimedOrg, User } from "@gen/loco/user/v1/user_pb";
 
 import { authClient } from "./client";
+import { getClaimedOrgs, setClaimedOrgs, subscribeClaimedOrgs } from "./claimed";
 import type { AuthClient } from "./oidc";
 
 interface AuthContextType {
 	user: User | null;
 	client: AuthClient | null;
+	claimedOrgs: ClaimedOrg[];
+	dismissClaimedOrgs: () => void;
 	signedOut: boolean;
 	isAuthenticated: boolean;
 	isPending: boolean;
@@ -36,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	const onSignInPage = SIGN_IN_PATHS.some((path) => window.location.pathname.startsWith(path));
 	const { data: user, isPending, error } = useQuery(whoAmI, {}, { enabled: hasSession && !onSignInPage });
 	const queryClient = useQueryClient();
+	const claimedOrgs = useSyncExternalStore(subscribeClaimedOrgs, getClaimedOrgs);
 	const unauthenticated = error instanceof ConnectError && error.code === Code.Unauthenticated;
 
 	const logout = async () => {
@@ -53,6 +57,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			value={{
 				user: hasSession ? (user?.user ?? null) : null,
 				client,
+				claimedOrgs: hasSession ? claimedOrgs : [],
+				dismissClaimedOrgs: () => {
+					setClaimedOrgs([]);
+				},
 				signedOut: !hasSession,
 				isAuthenticated: hasSession && !unauthenticated && !!user?.user,
 				isPending: hasSession && isPending,
