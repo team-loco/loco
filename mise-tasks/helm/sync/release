@@ -6,9 +6,10 @@ set -euo pipefail
 
 release=$1
 shift
-timeout=600s
-webhook_ready_timeout_seconds=600
+timeout_seconds=600
+timeout=${timeout_seconds}s
 webhook_request_timeout=5s
+webhook_poll_interval_seconds=1
 cert_manager=charts/cert-manager.yaml
 probe_issuer='{"apiVersion":"cert-manager.io/v1","kind":"Issuer","metadata":{"name":"webhook-probe","namespace":"cert-manager"},"spec":{"selfSigned":{}}}'
 
@@ -40,13 +41,13 @@ helm upgrade --install "$release" "${install[@]}" --kube-context "kind-$KIND_CLU
 	--timeout "$timeout" --cleanup-on-fail --force-conflicts
 
 if [ "$release" = cert-manager ]; then
-	deadline=$((SECONDS + webhook_ready_timeout_seconds))
+	deadline=$((SECONDS + timeout_seconds))
 	until probe=$(kubectl create --dry-run=server --request-timeout="$webhook_request_timeout" \
 		--context "kind-$KIND_CLUSTER" -f - <<<"$probe_issuer" 2>&1); do
 		if ((SECONDS >= deadline)); then
-			echo "the cert-manager webhook did not admit a dry-run Issuer within ${webhook_ready_timeout_seconds}s: $probe" >&2
+			echo "the cert-manager webhook did not admit a dry-run Issuer within ${timeout}: $probe" >&2
 			exit 1
 		fi
-		sleep 1
+		sleep "$webhook_poll_interval_seconds"
 	done
 fi
