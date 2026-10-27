@@ -198,6 +198,7 @@
       managerFilePatterns: ["/^docs/tests/container\\.py$/"],
       matchStrings: ["\"(?<depName>mcr\\.microsoft\\.com/playwright):(?<currentValue>[^@\"]+)@(?<currentDigest>sha256:[a-f0-9]{64})\""],
       datasourceTemplate: "docker",
+      versioningTemplate: "regex:^v(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-(?<compatibility>noble)$",
     },
     {
       customType: "regex",
