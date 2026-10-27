@@ -291,6 +291,9 @@ func (a *Agent) reconnectLoop(ctx context.Context, name string, attempt func(con
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
+		if !retryable(err) {
+			return fmt.Errorf("%s: %w", name, err)
+		}
 
 		elapsed := time.Since(started)
 		if elapsed >= a.cfg.HealthyStreamDuration {

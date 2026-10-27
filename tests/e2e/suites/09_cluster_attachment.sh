@@ -86,9 +86,24 @@ test_z15_reenrollment_rotates_the_agent_key() {
     assert "Re-enrollment rotates the agent key" test "$(agent_key_fingerprint)" != "$previous_fingerprint"
 }
 
+process_stopped() {
+    ! kill -0 "$1" 2>/dev/null
+}
+
+agent_errors_after() {
+    tail -n +"$(($1 + 1))" "$LOG_DIR/agent.log" | grep '"level":"ERROR"' || true
+}
+
+only_removal_error() {
+    test "$(grep -c . <<<"$1")" = 1 &&
+        grep -q '"msg":"agent error".*permission_denied: cluster is removed' <<<"$1"
+}
+
 test_z20_pause_remove_and_restore() {
-    local unused_token
+    local unused_token agent_pid log_lines status=0 removal_errors
     unused_token=$(cluster_admin join-token "$E2E_CLUSTER_ID" | yq -p json '.joinToken.token')
+    agent_pid=$(cat "$PID_DIR/agent.pid")
+    log_lines=$(wc -l <"$LOG_DIR/agent.log")
     cluster_admin pause "$E2E_CLUSTER_ID"
     assert "Pause removes cluster from assignment" \
         test "$(e2e_psql "SELECT is_active FROM clusters WHERE id = '${E2E_CLUSTER_ID}'")" = f
@@ -96,6 +111,14 @@ test_z20_pause_remove_and_restore() {
         cluster_admin remove "$E2E_CLUSTER_ID"
     assert_contains "Force removal reports workloads" 'placement' \
         cluster_admin remove "$E2E_CLUSTER_ID" --force
+    if wait_for "Agent exit on the removed cluster" "$READY_TIMEOUT" process_stopped "$agent_pid"; then
+        wait "$agent_pid" || status=$?
+    fi
+    assert "Agent exits nonzero on the removed cluster" test "$status" = 1
+    removal_errors=$(agent_errors_after "$log_lines")
+    if assert "Agent logs the removal as its one ERROR" only_removal_error "$removal_errors"; then
+        printf '%s\n' "$removal_errors" >>"$AGENT_EXPECTED_ERRORS"
+    fi
     assert "Removed cluster rejects enrollment" test "$(enrollment_code "$unused_token")" = 401
     assert_fails "Removed cluster gets no join token" cluster_admin join-token "$E2E_CLUSTER_ID"
     assert_fails "Removed cluster cannot resume without restore" \

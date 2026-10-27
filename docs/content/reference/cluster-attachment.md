@@ -57,9 +57,9 @@ Pausing prevents new deployments and queued builds. Existing workloads and their
 
 Removal requires a paused cluster and refuses while placements, active deployments or queued/running builds remain. Remove applications through the normal resource configuration flow and wait for their deletion acknowledgments before retrying. A refused removal returns the blocking workload IDs as typed error details; the CLI prints them.
 
-For a permanently lost cluster, `locoadm cluster remove <cluster-id> --force` retains those records and prints the workloads whose state cannot be confirmed. Removal closes the sync stream, rejects the agent's registrations and streams, and invalidates an unused join token. It does not uninstall the agent or stop Kubernetes pods.
+For a permanently lost cluster, `locoadm cluster remove <cluster-id> --force` retains those records and prints the workloads whose state cannot be confirmed. Removal closes the sync stream, rejects the agent's registrations and streams, and invalidates an unused join token. The agent logs the rejection at `ERROR` and exits, so its pod restarts in `CrashLoopBackOff` until the cluster is restored. Removal does not uninstall the agent or stop application pods.
 
-Restoring clears the removal marker and stale health reports, and leaves the cluster paused. The agent reconnects with its existing key. Resume it explicitly; fresh healthy heartbeats are required before deployment.
+Restoring clears the removal marker and stale health reports, and leaves the cluster paused. The agent registers again with its existing key on its next restart. Resume it explicitly; fresh healthy heartbeats are required before deployment.
 
 The account needs the `system:admin` grant; organization and workspace admins do not receive it. `locoadm bootstrap` grants it to an installation's first admin, as described in [self-hosting](../operations/self-hosting.md#first-system-admin).
 
