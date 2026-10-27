@@ -61,7 +61,6 @@ import (
 const (
 	finalizerAppResourcesCleanup = "infra.loco.io/app-resources-cleanup"
 	labelApp                     = "app"
-	labelEnvironmentID           = "loco.io/environment-id"
 	annotationAppNamespace       = "loco.io/application-namespace"
 	annotationAppName            = "loco.io/application-name"
 	annotationEnvSecretRevision  = "loco.io/env-secret-revision"
@@ -69,7 +68,6 @@ const (
 	phaseDeploying               = "Deploying"
 	phaseFailed                  = "Failed"
 	phaseReady                   = "Ready"
-	componentApplication         = "application"
 	servicePort                  = int32(80)
 	deployingRequeue             = 15 * time.Second
 	envSecretRequeue             = 5 * time.Second
@@ -399,7 +397,7 @@ func (r *LocoResourceReconciler) deleteNamespaceIfUnused(
 		}
 		return fmt.Errorf("get namespace %s: %w", namespace, err)
 	}
-	if ns.Labels[locolabels.LabelManagedBy] != managed.ManagedByValue {
+	if ns.Labels[locolabels.LabelManagedBy] != locolabels.ManagedByController {
 		slog.InfoContext(ctx, "namespace not managed by the controller, leaving it", "namespace", namespace)
 		return nil
 	}
@@ -447,7 +445,7 @@ func managedLabels(locoRes *locov1alpha1.Application) map[string]string {
 	name := getName(locoRes)
 	return map[string]string{
 		labelApp:                  name,
-		locolabels.LabelManagedBy: managed.ManagedByValue,
+		locolabels.LabelManagedBy: locolabels.ManagedByController,
 	}
 }
 
@@ -738,14 +736,14 @@ func desiredDeployment(
 	}
 
 	podLabels := map[string]string{
-		labelApp:                    name,
-		labelAppKubernetesName:      name,
-		locolabels.LabelManagedBy:   managed.ManagedByValue,
-		managed.LabelComponent:      componentApplication,
-		managed.LabelOrganizationID: locoRes.Spec.OrganizationID,
-		managed.LabelWorkspaceID:    locoRes.Spec.WorkspaceID,
-		managed.LabelResourceID:     locoRes.Spec.ResourceID,
-		labelEnvironmentID:          locoRes.Spec.EnvironmentID,
+		labelApp:                       name,
+		labelAppKubernetesName:         name,
+		locolabels.LabelManagedBy:      locolabels.ManagedByController,
+		locolabels.LabelComponent:      locolabels.ComponentApplication,
+		locolabels.LabelOrganizationID: locoRes.Spec.OrganizationID,
+		locolabels.LabelWorkspaceID:    locoRes.Spec.WorkspaceID,
+		locolabels.LabelResourceID:     locoRes.Spec.ResourceID,
+		locolabels.LabelEnvironmentID:  locoRes.Spec.EnvironmentID,
 	}
 	if obs := spec.Obs; obs != nil && obs.Metrics.Enabled {
 		podLabels[labelMetricsPort] = strconv.FormatInt(int64(obs.Metrics.Port), 10)
@@ -787,10 +785,10 @@ func desiredDeployment(
 		WithTemplate(template)
 
 	depLabels := managedLabels(locoRes)
-	depLabels[managed.LabelOrganizationID] = locoRes.Spec.OrganizationID
-	depLabels[managed.LabelWorkspaceID] = locoRes.Spec.WorkspaceID
-	depLabels[managed.LabelResourceID] = locoRes.Spec.ResourceID
-	depLabels[labelEnvironmentID] = locoRes.Spec.EnvironmentID
+	depLabels[locolabels.LabelOrganizationID] = locoRes.Spec.OrganizationID
+	depLabels[locolabels.LabelWorkspaceID] = locoRes.Spec.WorkspaceID
+	depLabels[locolabels.LabelResourceID] = locoRes.Spec.ResourceID
+	depLabels[locolabels.LabelEnvironmentID] = locoRes.Spec.EnvironmentID
 	annotations := ownerAnnotations(locoRes)
 
 	return appsv1ac.Deployment(name, namespace).

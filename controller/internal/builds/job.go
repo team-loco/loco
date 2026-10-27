@@ -11,7 +11,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	"github.com/team-loco/loco/controller/internal/managed"
 	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -48,12 +47,12 @@ const (
 
 func buildLabels(build *locov1alpha1.Build) map[string]string {
 	return map[string]string{
-		locolabels.LabelManagedBy:   managed.ManagedByValue,
-		managed.LabelComponent:      componentBuild,
-		managed.LabelOrganizationID: build.Spec.OrganizationID,
-		managed.LabelWorkspaceID:    build.Spec.WorkspaceID,
-		managed.LabelResourceID:     build.Spec.ResourceID,
-		locolabels.LabelBuildID:     build.Spec.BuildID,
+		locolabels.LabelManagedBy:      locolabels.ManagedByController,
+		locolabels.LabelComponent:      componentBuild,
+		locolabels.LabelOrganizationID: build.Spec.OrganizationID,
+		locolabels.LabelWorkspaceID:    build.Spec.WorkspaceID,
+		locolabels.LabelResourceID:     build.Spec.ResourceID,
+		locolabels.LabelBuildID:        build.Spec.BuildID,
 	}
 }
 
