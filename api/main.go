@@ -34,6 +34,7 @@ import (
 	"github.com/team-loco/loco/api/migrations"
 	"github.com/team-loco/loco/api/pkg/clusternotify"
 	"github.com/team-loco/loco/api/pkg/imageresolver"
+	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/webhooks"
@@ -261,9 +262,10 @@ func main() {
 	})
 	domainServiceHandler := service.NewDomainServer(pool, queries, machine, ac.ServiceDefaults, clusterSilentAfter)
 	tokenServiceHandler := service.NewTokenServer(pool, queries, machine)
-	secretKeyProvider, ingestSigner, providerErr := newTransitKeys(shutdownCtx, ac.Secrets, ac.Ingest.TransitKey)
+	secretKeyProvider, ingestSigner, providerErr := secretkeys.New(shutdownCtx, ac.Secrets, ac.Ingest.TransitKey)
 	if providerErr != nil {
-		log.Fatalf("failed to create the secrets key provider: %v", providerErr)
+		slog.ErrorContext(shutdownCtx, "failed to verify the transit keys", "error", providerErr)
+		os.Exit(1)
 	}
 	agentServiceHandler := service.NewAgentServer(
 		pool,

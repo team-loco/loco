@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -91,6 +90,7 @@ const (
 
 	defaultSecretsTransitMount   = "transit"
 	defaultSecretsTransitTimeout = 10 * time.Second
+	defaultSecretsTransitStartup = 30 * time.Second
 	defaultSecretsTransitMargin  = 5 * time.Minute
 	defaultSecretsTransitRetry   = 10 * time.Second
 	defaultSecretsTransitDEKTTL  = 5 * time.Minute
@@ -252,18 +252,6 @@ func newBootstrapTokenHash() []byte {
 	return service.HashBootstrapToken(token)
 }
 
-func newTransitKeys(
-	ctx context.Context,
-	cfg secretkeys.TransitConfig,
-	ingestKey string,
-) (secretkeys.Provider, *secretkeys.TransitSigner, error) {
-	provider, signer, err := secretkeys.New(ctx, cfg, ingestKey)
-	if err != nil {
-		return nil, nil, fmt.Errorf("secrets key provider: %w", err)
-	}
-	return provider, signer, nil
-}
-
 func newSecretsConfig() secretkeys.TransitConfig {
 	transit := secretkeys.TransitConfig{
 		Address: stringEnv("LOCO_SECRETS_TRANSIT_ADDR", ""),
@@ -278,6 +266,10 @@ func newSecretsConfig() secretkeys.TransitConfig {
 		},
 		CAFile:  stringEnv("LOCO_SECRETS_TRANSIT_CA_FILE", ""),
 		Timeout: positiveDurationEnv("LOCO_SECRETS_TRANSIT_TIMEOUT", defaultSecretsTransitTimeout),
+		StartupTimeout: positiveDurationEnv(
+			"LOCO_SECRETS_TRANSIT_STARTUP_TIMEOUT",
+			defaultSecretsTransitStartup,
+		),
 		RenewMargin: positiveDurationEnv(
 			"LOCO_SECRETS_TRANSIT_RENEW_MARGIN",
 			defaultSecretsTransitMargin,

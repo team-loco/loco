@@ -23,10 +23,15 @@ const (
 func startRenewal(t *testing.T, transit *Transit) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
+	lease, err := transit.logIn(ctx)
+	if err != nil {
+		cancel()
+		t.Fatalf("log in: %v", err)
+	}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		transit.renewToken(ctx)
+		transit.renewToken(ctx, lease)
 	}()
 	t.Cleanup(func() {
 		cancel()
@@ -91,8 +96,6 @@ func TestTransitExpiredTokenFailsEveryCall(t *testing.T) {
 	var leap atomic.Int64
 	transit.now = func() time.Time { return time.Now().Add(time.Duration(leap.Load())) }
 	startRenewal(t, transit)
-	waitFor(t, "the token lookup", func() bool { return fake.count(fakeLookupSelfPath) == 1 })
-	waitFor(t, "the token expiry", func() bool { return transit.tokenExpiry() != time.Time{} })
 
 	leap.Store(int64(testClockLeap))
 
@@ -117,27 +120,12 @@ func TestTransitDoesNotRenewATokenWithoutTTL(t *testing.T) {
 	transit := newTestTransit(t, transitConfig(server.URL))
 	startRenewal(t, transit)
 
-	waitFor(t, "the token lookup", func() bool { return fake.count(fakeLookupSelfPath) == 1 })
 	time.Sleep(testQuietPeriod)
 	if renewals := fake.count(fakeRenewSelfPath); renewals != 0 {
 		t.Fatalf("renewals = %d, want none", renewals)
 	}
 	if expiry := transit.tokenExpiry(); !expiry.IsZero() {
 		t.Fatalf("token expiry = %v, want none", expiry)
-	}
-}
-
-func TestTransitRetriesAFailedLookup(t *testing.T) {
-	fake := newFakeTransit(t)
-	fake.setToken(testTokenTTL, true)
-	fake.token = "s.other"
-	server := fake.server()
-	transit := newTestTransit(t, transitConfig(server.URL))
-	startRenewal(t, transit)
-
-	waitFor(t, "lookup retries", func() bool { return fake.count(fakeLookupSelfPath) >= wantFailedRenewal })
-	if renewals := fake.count(fakeRenewSelfPath); renewals != 0 {
-		t.Fatalf("renewals = %d, want none before a lookup succeeds", renewals)
 	}
 }
 
@@ -157,7 +145,6 @@ func TestTransitRenewalWithoutALeaseKeepsTheExpiry(t *testing.T) {
 	server := fake.server()
 	transit := newTestTransit(t, transitConfig(server.URL))
 	startRenewal(t, transit)
-	waitFor(t, "the token expiry", func() bool { return !transit.tokenExpiry().IsZero() })
 
 	fake.setToken(0, true)
 	renewals := fake.count(fakeRenewSelfPath)

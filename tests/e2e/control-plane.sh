@@ -124,6 +124,13 @@ for user in $(yq '.clickhouseUserPasswords | keys | .[]' "$CHART_VALUES"); do
 done
 helm upgrade --install regional "$ROOT_DIR/charts/loco-control-plane" --namespace "$NAMESPACE" \
     -f "$VALUES" "${password_sets[@]}" --wait --timeout "$CONTROL_PLANE_TIMEOUT"
+for pod in $(kubectl -n "$NAMESPACE" get pods -l app=regional-api -o jsonpath='{.items[*].metadata.name}'); do
+    restarts=$(kubectl -n "$NAMESPACE" get pod "$pod" -o jsonpath='{.status.containerStatuses[0].restartCount}')
+    if [[ $restarts != 0 ]] && ! kubectl -n "$NAMESPACE" logs "$pod" --previous | grep -q 'failed to verify the transit keys'; then
+        printf 'API pod %s restarted %s times without logging why it could not verify the transit keys\n' "$pod" "$restarts" >&2
+        exit 1
+    fi
+done
 ENVOY_DEPLOYMENT=""
 for _attempt in $(seq 1 60); do
     ENVOY_DEPLOYMENT=$(kubectl -n "$NAMESPACE" get deployments -l "gateway.envoyproxy.io/owning-gateway-name=$GATEWAY_NAME" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)

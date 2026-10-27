@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -33,10 +34,10 @@ type transitPublicKey struct {
 
 type transitSigningKeyResponse struct {
 	Data struct {
-		Type                 string                      `json:"type"`
-		LatestVersion        int                         `json:"latest_version"`
-		MinDecryptionVersion int                         `json:"min_decryption_version"`
-		Keys                 map[string]transitPublicKey `json:"keys"`
+		Type                 string                     `json:"type"`
+		LatestVersion        int                        `json:"latest_version"`
+		MinDecryptionVersion int                        `json:"min_decryption_version"`
+		Keys                 map[string]json.RawMessage `json:"keys"`
 	} `json:"data"`
 }
 
@@ -52,7 +53,8 @@ func (s *TransitSigner) readKey(ctx context.Context) (transitSigningKeyResponse,
 	if response.Data.Type != transitSigningKeyType {
 		return response, fmt.Errorf("%w: type %q", ErrTransitSigningKeyType, response.Data.Type)
 	}
-	if response.Data.LatestVersion < 1 || response.Data.MinDecryptionVersion < 1 {
+	if response.Data.LatestVersion < 1 || response.Data.MinDecryptionVersion < 1 ||
+		response.Data.MinDecryptionVersion > response.Data.LatestVersion {
 		return response, fmt.Errorf(
 			"%w: latest_version %d, min_decryption_version %d",
 			ErrTransitResponse,
@@ -78,9 +80,13 @@ func (s *TransitSigner) PublicKeys(ctx context.Context) (map[string]ed25519.Publ
 	}
 	keys := make(map[string]ed25519.PublicKey)
 	for version := response.Data.MinDecryptionVersion; version <= response.Data.LatestVersion; version++ {
-		entry, ok := response.Data.Keys[strconv.Itoa(version)]
+		raw, ok := response.Data.Keys[strconv.Itoa(version)]
 		if !ok {
 			return nil, fmt.Errorf("%w: no public key for version %d", ErrTransitResponse, version)
+		}
+		var entry transitPublicKey
+		if err := json.Unmarshal(raw, &entry); err != nil {
+			return nil, fmt.Errorf("%w: version %d: %w", ErrTransitResponse, version, err)
 		}
 		public, err := base64.StdEncoding.DecodeString(entry.PublicKey)
 		if err != nil || len(public) != ed25519.PublicKeySize {

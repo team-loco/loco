@@ -1,6 +1,6 @@
 ---
 name: ui-evidence
-description: Capture before and after screenshots of the web UI, in light and dark mode, for a PR that changes what the web UI looks like or how it behaves (AGENTS.md "Frontend PRs carry before and after screenshots"). Builds each git ref in its own worktree with a throwaway database, API and UI, seeds users through the API, and shoots headless Chromium. Load before taking PR screenshots.
+description: Capture before and after screenshots of the web UI, in light and dark mode, for a PR that changes what the web UI looks like or how it behaves (AGENTS.md "Frontend PRs carry before and after screenshots"). Builds each git ref in its own worktree with a throwaway database, OpenBao, API and UI, seeds users through the API, and shoots headless Chromium. Load before taking PR screenshots.
 context: fork
 agent: ui-evidence
 allowed-tools: Bash, Read, Write

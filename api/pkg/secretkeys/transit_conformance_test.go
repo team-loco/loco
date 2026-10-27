@@ -39,6 +39,7 @@ const (
 	conformanceRootEnv      = "LOCO_CONFORMANCE_TRANSIT_ROOT_TOKEN"
 	conformanceKey          = "loco-dek"
 	conformancePlainKey     = "plain"
+	conformanceMissingKey   = "missing"
 	conformanceSigningKey   = "loco-ingest"
 	conformanceClusterID    = "0199c3f0-0000-7000-8000-0000000000c1"
 	conformanceSuffixBytes  = 4
@@ -189,15 +190,16 @@ func (f *transitFixture) token(t *testing.T, renewable bool) string {
 
 func (f *transitFixture) config(address, token, key string) TransitConfig {
 	return TransitConfig{
-		Address:     address,
-		Mount:       f.mount,
-		Key:         key,
-		Auth:        TransitAuthToken,
-		Token:       token,
-		Timeout:     conformanceTimeout,
-		RenewMargin: conformanceRenewMargin,
-		RenewRetry:  testRenewRetry,
-		CacheTTL:    testCacheTTL,
+		Address:        address,
+		Mount:          f.mount,
+		Key:            key,
+		Auth:           TransitAuthToken,
+		Token:          token,
+		Timeout:        conformanceTimeout,
+		StartupTimeout: conformanceTimeout,
+		RenewMargin:    conformanceRenewMargin,
+		RenewRetry:     testRenewRetry,
+		CacheTTL:       testCacheTTL,
 	}
 }
 
@@ -293,6 +295,26 @@ func runTransitConformance(t *testing.T, address string) {
 		}
 	})
 
+	t.Run("starts only when both keys exist with their types", func(t *testing.T) {
+		f := newTransitFixture(t, address)
+		ctx := t.Context()
+		cfg := f.config(address, f.token(t, true), conformanceKey)
+		if _, _, err := New(ctx, cfg, conformanceSigningKey); err != nil {
+			t.Fatalf("new with the documented policy: %v", err)
+		}
+		admin := f.config(address, f.admin.token, conformanceKey)
+		if _, _, err := New(ctx, admin, conformanceMissingKey); !errors.Is(err, ErrTransitRequest) {
+			t.Fatalf("new with a missing ingest key: err = %v, want ErrTransitRequest", err)
+		}
+		if _, _, err := New(ctx, admin, conformancePlainKey); !errors.Is(err, ErrTransitSigningKeyType) {
+			t.Fatalf("new with an aes ingest key: err = %v, want ErrTransitSigningKeyType", err)
+		}
+		admin.Key = conformanceSigningKey
+		if _, _, err := New(ctx, admin, conformanceSigningKey); !errors.Is(err, ErrTransitKeyType) {
+			t.Fatalf("new with an ed25519 secrets key: err = %v, want ErrTransitKeyType", err)
+		}
+	})
+
 	t.Run("signs with an ed25519 key and publishes every version from the minimum", func(t *testing.T) {
 		runTransitSigningConformance(t, address)
 	})
@@ -301,7 +323,6 @@ func runTransitConformance(t *testing.T, address string) {
 		f := newTransitFixture(t, address)
 		transit := newTestTransit(t, f.config(address, f.token(t, true), conformanceKey))
 		startRenewal(t, transit)
-		waitFor(t, "the token lookup", func() bool { return !transit.tokenExpiry().IsZero() })
 		first := transit.tokenExpiry()
 		time.Sleep(conformanceTokenLife + conformanceExpiryGrace)
 		if !transit.tokenExpiry().After(first) {
@@ -316,7 +337,6 @@ func runTransitConformance(t *testing.T, address string) {
 		f := newTransitFixture(t, address)
 		transit := newTestTransit(t, f.config(address, f.token(t, false), conformanceKey))
 		startRenewal(t, transit)
-		waitFor(t, "the token lookup", func() bool { return !transit.tokenExpiry().IsZero() })
 		time.Sleep(conformanceTokenLife + conformanceExpiryGrace)
 		_, err := transit.Wrap(context.Background(), testDEK(t), DEKAAD(environmentID))
 		if !errors.Is(err, ErrTransitTokenExpired) {
@@ -563,7 +583,6 @@ func TestTransitKubernetesConformance(t *testing.T) {
 				mount := f.kubernetesAuth(t, reviewer, conformanceServiceAccount)
 				transit := newTestTransit(t, f.kubernetesConfig(t, address, mount, reviewer.issue(t)))
 				startRenewal(t, transit)
-				waitFor(t, "the login", func() bool { return transit.currentToken() != "" })
 				first := transit.currentToken()
 				ctx := context.Background()
 				aad := DEKAAD(environmentID)

@@ -56,7 +56,6 @@ func TestTransitLogsInWithTheServiceAccountToken(t *testing.T) {
 	transit, _ := newKubernetesTransit(t, fake)
 	startRenewal(t, transit)
 
-	waitFor(t, "the login", func() bool { return transit.currentToken() != "" })
 	ctx := context.Background()
 	aad := DEKAAD(environmentID)
 	dek := testDEK(t)
@@ -77,7 +76,6 @@ func TestTransitLogsInAgainWithTheRotatedTokenBeforeExpiry(t *testing.T) {
 	fake.setToken(testTokenTTL, false)
 	transit, path := newKubernetesTransit(t, fake)
 	startRenewal(t, transit)
-	waitFor(t, "the first login", func() bool { return fake.count(fakeLoginPath) >= 1 })
 
 	writeJWT(t, path, rotatedJWT)
 	fake.acceptJWT(rotatedJWT)
@@ -93,27 +91,11 @@ func TestTransitLogsInAgainWithTheRotatedTokenBeforeExpiry(t *testing.T) {
 	}
 }
 
-func TestTransitRetriesARefusedKubernetesLogin(t *testing.T) {
-	fake := newFakeTransit(t)
-	fake.setToken(testTokenTTL, false)
-	transit, _ := newKubernetesTransit(t, fake)
-	fake.acceptJWT(rotatedJWT)
-	startRenewal(t, transit)
-
-	waitFor(t, "login retries", func() bool { return fake.count(fakeLoginPath) >= wantFailedRenewal })
-	if _, err := transit.KeyID(context.Background()); !errors.Is(err, ErrTransitNotLoggedIn) {
-		t.Fatalf("key id after refused logins: err = %v, want ErrTransitNotLoggedIn", err)
-	}
-	fake.acceptJWT(fakeServiceAccountJWT)
-	waitFor(t, "a login after recovery", func() bool { return transit.currentToken() != "" })
-}
-
 func TestTransitLogsInAgainWhenTheServerRejectsItsToken(t *testing.T) {
 	fake := newFakeTransit(t)
 	fake.setToken(time.Hour, false)
 	transit, _ := newKubernetesTransit(t, fake)
 	startRenewal(t, transit)
-	waitFor(t, "the first login", func() bool { return transit.currentToken() != "" })
 	ctx := context.Background()
 	aad := DEKAAD(environmentID)
 	if _, err := transit.Wrap(ctx, testDEK(t), aad); err != nil {

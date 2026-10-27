@@ -154,13 +154,17 @@ tests:
             from: [{podSelector: {matchLabels: {app: loco-control-plane-openbao}}}]
             ports: [{protocol: TCP, port: 8200}, {protocol: TCP, port: 8201}]
 
-  - it: runs the setup Job after every install and upgrade
+  - it: runs a new setup Job with the release on every install and upgrade
     template: templates/openbao-setup.yaml
     documentSelector: {path: kind, value: Job}
+    release:
+      revision: 7
     asserts:
       - equal:
-          path: metadata.annotations["helm.sh/hook"]
-          value: post-install,post-upgrade
+          path: metadata.name
+          value: loco-control-plane-openbao-setup-7
+      - notExists:
+          path: metadata.annotations
       - equal:
           path: spec.template.spec.initContainers[0].image
           value: curlimages/curl:8.23.0@sha256:11e64e28c5f58c8d93ee95fcf22ac055f48b0bc440e0ce7d8013bbb5ad6aa8ac

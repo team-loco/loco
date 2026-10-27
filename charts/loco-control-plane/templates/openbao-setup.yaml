@@ -55,11 +55,8 @@ subjects:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ $name }}
+  name: {{ printf "%s-%d" $name .Release.Revision }}
   namespace: {{ .Release.Namespace }}
-  annotations:
-    helm.sh/hook: post-install,post-upgrade
-    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
 spec:
   backoffLimit: 3
   template:

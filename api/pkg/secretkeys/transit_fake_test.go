@@ -52,6 +52,7 @@ type fakeTransit struct {
 	minSigningVersion int
 	requests          map[string]int
 	block             chan struct{}
+	unavailable       int
 
 	tokenTTL       time.Duration
 	tokenRenewable bool
@@ -114,6 +115,10 @@ func (f *fakeTransit) readSigningKey(w http.ResponseWriter) {
 			f.t.Fatal("ed25519 key without an ed25519 public key")
 		}
 		version := strconv.Itoa(f.minSigningVersion + index)
+		if f.signingKeyType != transitSigningKeyType {
+			keys[version] = time.Now().Unix()
+			continue
+		}
 		keys[version] = map[string]any{"public_key": base64.StdEncoding.EncodeToString(public)}
 	}
 	f.writeData(w, map[string]any{
@@ -180,7 +185,15 @@ func (f *fakeTransit) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	block := f.block
 	token := f.token
 	loggedIn := f.loginTokens[r.Header.Get(transitAuthHeader)]
+	sealed := f.unavailable > 0
+	if sealed {
+		f.unavailable--
+	}
 	f.mu.Unlock()
+	if sealed {
+		f.writeError(w, http.StatusServiceUnavailable, "Vault is sealed")
+		return
+	}
 	if block != nil {
 		select {
 		case <-block:
@@ -215,6 +228,12 @@ func (f *fakeTransit) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		f.writeError(w, http.StatusNotFound, "no handler for route")
 	}
+}
+
+func (f *fakeTransit) failRequests(count int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.unavailable = count
 }
 
 func (f *fakeTransit) setToken(ttl time.Duration, renewable bool) {

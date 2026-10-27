@@ -16,21 +16,23 @@ const (
 	otherEnvironmentID  = "0199c3f0-0000-7000-8000-000000000003"
 	testTransitTimeout  = 2 * time.Second
 	shortTransitTimeout = 50 * time.Millisecond
+	testStartupTimeout  = 2 * time.Second
 	testTransitCAFile   = "ca.pem"
 	otherProvider       = "kms"
 )
 
 func transitConfig(address string) TransitConfig {
 	return TransitConfig{
-		Address:     address,
-		Mount:       fakeTransitMount,
-		Key:         fakeTransitKey,
-		Auth:        TransitAuthToken,
-		Token:       fakeTransitToken,
-		Timeout:     testTransitTimeout,
-		RenewMargin: testRenewMargin,
-		RenewRetry:  testRenewRetry,
-		CacheTTL:    testCacheTTL,
+		Address:        address,
+		Mount:          fakeTransitMount,
+		Key:            fakeTransitKey,
+		Auth:           TransitAuthToken,
+		Token:          fakeTransitToken,
+		Timeout:        testTransitTimeout,
+		StartupTimeout: testStartupTimeout,
+		RenewMargin:    testRenewMargin,
+		RenewRetry:     testRenewRetry,
+		CacheTTL:       testCacheTTL,
 	}
 }
 
@@ -297,6 +299,7 @@ func TestTransitConfigValidate(t *testing.T) {
 			*c = kubernetesTransitConfig(c.Address, "")
 		}, ErrTransitKubernetes},
 		{"no timeout", func(c *TransitConfig) { c.Timeout = 0 }, ErrTransitTimeout},
+		{"no startup timeout", func(c *TransitConfig) { c.StartupTimeout = 0 }, ErrTransitStartupTimeout},
 		{"no renewal margin", func(c *TransitConfig) { c.RenewMargin = 0 }, ErrTransitRenewal},
 		{"no renewal retry", func(c *TransitConfig) { c.RenewRetry = 0 }, ErrTransitRenewal},
 		{"no cache ttl", func(c *TransitConfig) { c.CacheTTL = 0 }, ErrTransitCacheTTL},

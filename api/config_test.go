@@ -48,6 +48,7 @@ const (
 	transitKubeJWTFile = "LOCO_SECRETS_TRANSIT_KUBERNETES_TOKEN_FILE"
 	transitCAEnv       = "LOCO_SECRETS_TRANSIT_CA_FILE"
 	transitTimeEnv     = "LOCO_SECRETS_TRANSIT_TIMEOUT"
+	transitStartupEnv  = "LOCO_SECRETS_TRANSIT_STARTUP_TIMEOUT"
 	transitMarginEnv   = "LOCO_SECRETS_TRANSIT_RENEW_MARGIN"
 	transitRetryEnv    = "LOCO_SECRETS_TRANSIT_RENEW_RETRY"
 	transitCacheEnv    = "LOCO_SECRETS_TRANSIT_CACHE_TTL"
@@ -131,6 +132,7 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv(transitKubeJWTFile, "")
 	t.Setenv(transitCAEnv, "")
 	t.Setenv(transitTimeEnv, "")
+	t.Setenv(transitStartupEnv, "")
 	t.Setenv(transitMarginEnv, "")
 	t.Setenv(transitRetryEnv, "")
 	t.Setenv(transitCacheEnv, "")
@@ -576,15 +578,16 @@ func TestNewAPIConfigReadsTransitProvider(t *testing.T) {
 	clearAPIConfigEnv(t)
 	got := newAPIConfig().Secrets
 	want := secretkeys.TransitConfig{
-		Address:     testTransitAddr,
-		Mount:       defaultSecretsTransitMount,
-		Key:         testTransitKey,
-		Auth:        secretkeys.TransitAuthToken,
-		Token:       testTransitAuth,
-		Timeout:     defaultSecretsTransitTimeout,
-		RenewMargin: defaultSecretsTransitMargin,
-		RenewRetry:  defaultSecretsTransitRetry,
-		CacheTTL:    defaultSecretsTransitDEKTTL,
+		Address:        testTransitAddr,
+		Mount:          defaultSecretsTransitMount,
+		Key:            testTransitKey,
+		Auth:           secretkeys.TransitAuthToken,
+		Token:          testTransitAuth,
+		Timeout:        defaultSecretsTransitTimeout,
+		StartupTimeout: defaultSecretsTransitStartup,
+		RenewMargin:    defaultSecretsTransitMargin,
+		RenewRetry:     defaultSecretsTransitRetry,
+		CacheTTL:       defaultSecretsTransitDEKTTL,
 	}
 	if got != want {
 		t.Errorf("transit config = %+v, want %+v", got, want)
@@ -593,6 +596,7 @@ func TestNewAPIConfigReadsTransitProvider(t *testing.T) {
 	t.Setenv(transitMountEnv, "kms/transit")
 	t.Setenv(transitCAEnv, "/etc/loco/bao-ca.pem")
 	t.Setenv(transitTimeEnv, "3s")
+	t.Setenv(transitStartupEnv, "45s")
 	t.Setenv(transitMarginEnv, "1m")
 	t.Setenv(transitRetryEnv, "2s")
 	t.Setenv(transitCacheEnv, "30s")
@@ -600,6 +604,7 @@ func TestNewAPIConfigReadsTransitProvider(t *testing.T) {
 	want.Mount = "kms/transit"
 	want.CAFile = "/etc/loco/bao-ca.pem"
 	want.Timeout = 3 * time.Second
+	want.StartupTimeout = 45 * time.Second
 	want.RenewMargin = time.Minute
 	want.RenewRetry = 2 * time.Second
 	want.CacheTTL = 30 * time.Second

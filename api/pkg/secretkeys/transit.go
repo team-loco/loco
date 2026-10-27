@@ -49,6 +49,8 @@ var (
 	ErrTransitToken            = errors.New("transit token auth needs a token and no kubernetes role")
 	ErrTransitKubernetes       = errors.New("transit kubernetes auth needs a mount, role and token file")
 	ErrTransitTimeout          = errors.New("transit request timeout must be positive")
+	ErrTransitStartupTimeout   = errors.New("transit startup timeout must be positive")
+	ErrTransitUnavailable      = errors.New("transit did not answer before the startup timeout")
 	ErrTransitCacheTTL         = errors.New("transit data key cache ttl must be positive")
 	ErrTransitCAFile           = errors.New("transit ca file holds no PEM certificate")
 	ErrTransitKeyType          = errors.New("transit key must be an aes256-gcm96 key created with derived=true")
@@ -67,17 +69,18 @@ type TransitKubernetesConfig struct {
 
 // TransitConfig holds what the transit provider needs to reach its key.
 type TransitConfig struct {
-	Address     string
-	Mount       string
-	Key         string
-	Auth        string
-	Token       string
-	Kubernetes  TransitKubernetesConfig
-	CAFile      string
-	Timeout     time.Duration
-	RenewMargin time.Duration
-	RenewRetry  time.Duration
-	CacheTTL    time.Duration
+	Address        string
+	Mount          string
+	Key            string
+	Auth           string
+	Token          string
+	Kubernetes     TransitKubernetesConfig
+	CAFile         string
+	Timeout        time.Duration
+	StartupTimeout time.Duration
+	RenewMargin    time.Duration
+	RenewRetry     time.Duration
+	CacheTTL       time.Duration
 }
 
 // Validate reports the first invalid field of cfg.
@@ -101,6 +104,9 @@ func (cfg TransitConfig) Validate() error {
 	}
 	if cfg.Timeout <= 0 {
 		return ErrTransitTimeout
+	}
+	if cfg.StartupTimeout <= 0 {
+		return ErrTransitStartupTimeout
 	}
 	if cfg.RenewMargin <= 0 || cfg.RenewRetry <= 0 {
 		return ErrTransitRenewal
@@ -173,7 +179,7 @@ type Transit struct {
 }
 
 // NewTransit returns a transit provider for cfg. It makes no request and neither logs in
-// nor renews its token; New starts that.
+// nor renews its token; New does both.
 func NewTransit(cfg TransitConfig) (*Transit, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
