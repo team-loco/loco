@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+
+source "$E2E_ROOT_DIR/tests/e2e/cli.sh"
+
+proxy_url="http://127.0.0.1:${E2E_OBS_PROXY_PORT}"
+proxy_query_logs="${E2E_API_URL}/loco.observability.v1.ObservabilityProxyService/QueryLogs"
+proxy_other_workspace_id='00000000-0000-7000-8000-999999999999'
+proxy_query_window_seconds=3600
+
+proxy_logs_body() {
+    local workspace_id=$1 now start end
+    now=$(date -u +%s)
+    start=$(utc_timestamp "$((now - proxy_query_window_seconds))")
+    end=$(utc_timestamp "$now")
+    printf '{"workspaceId":"%s","startTime":"%s","endTime":"%s"}' "$workspace_id" "$start" "$end"
+}
+
+proxy_status() {
+    local workspace_id=$1
+    shift
+    local body
+    body=$(proxy_logs_body "$workspace_id")
+    curl -s -o /dev/null -w '%{http_code}' -X POST "$proxy_query_logs" \
+        -H 'Content-Type: application/json' "$@" -d "$body"
+}
+
+proxy_token_name() {
+    echo "e2e-proxy-$1-$(openssl rand -hex 4)"
+}
+
+test_p01_health() {
+    assert "The proxy answers /healthz" curl -sf "${proxy_url}/healthz"
+    assert "The proxy answers /readyz once its schema is applied" curl -sf "${proxy_url}/readyz"
+}
+
+test_p02_requests_without_a_valid_token_are_unauthenticated() {
+    cli_seed_session
+    local status
+    status=$(proxy_status "$cli_workspace_id")
+    assert "QueryLogs without a token is unauthenticated (HTTP ${status})" test "$status" = 401
+    status=$(proxy_status "$cli_workspace_id" -H 'Authorization: Bearer loco_k_not-a-token')
+    assert "QueryLogs with an unknown token is denied (HTTP ${status})" test "$status" = 403
+}
+
+test_p03_revoked_token_is_denied() {
+    local name token status
+    name=$(proxy_token_name revoked)
+    token=$(mint_api_token "$name" ENTITY_TYPE_WORKSPACE "$cli_workspace_id" SCOPE_READ)
+    assert "TokenService/RevokeToken revokes the token" \
+        revoke_api_token "$name" ENTITY_TYPE_WORKSPACE "$cli_workspace_id"
+    status=$(proxy_status "$cli_workspace_id" -H "Authorization: Bearer ${token}")
+    assert "QueryLogs with a revoked token is denied (HTTP ${status})" test "$status" = 403
+}
+
+test_p04_token_is_scoped_to_its_workspace() {
+    local token status
+    token=$(mint_api_token "$(proxy_token_name scoped)" ENTITY_TYPE_WORKSPACE "$cli_workspace_id" SCOPE_READ)
+    status=$(proxy_status "$proxy_other_workspace_id" -H "Authorization: Bearer ${token}")
+    assert "QueryLogs for another workspace is denied (HTTP ${status})" test "$status" = 403
+    status=$(proxy_status "$cli_workspace_id" -H "Authorization: Bearer ${token}")
+    assert "QueryLogs for the token's workspace succeeds (HTTP ${status})" test "$status" = 200
+}
+
+
+test_p05_browser_preflight_and_error_responses() {
+    local origin=https://dashboard.e2e.test headers status
+    headers=$(curl -s -D - -o /dev/null -X OPTIONS "$proxy_query_logs" \
+        -H "Origin: $origin" -H 'Access-Control-Request-Method: POST' \
+        -H 'Access-Control-Request-Headers: authorization,connect-protocol-version,connect-timeout-ms,content-type')
+    assert "Browser preflight allows the configured dashboard" bash -c '[[ "$1" == *"Access-Control-Allow-Origin: $2"* ]]' _ "$headers" "$origin"
+    status=$(proxy_status "$cli_workspace_id" -H "Origin: $origin")
+    assert "CORS preserves authentication requirements" test "$status" = 401
+    headers=$(curl -s -D - -o /dev/null -X POST "$proxy_query_logs" \
+        -H "Origin: $origin" -H 'Content-Type: application/json' -d "$(proxy_logs_body "$cli_workspace_id")")
+    assert "Browser can read authentication errors" bash -c '[[ "$1" == *"Access-Control-Allow-Origin: $2"* ]]' _ "$headers" "$origin"
+    headers=$(curl -s -D - -o /dev/null -X OPTIONS "$proxy_query_logs" \
+        -H 'Origin: https://other.e2e.test' -H 'Access-Control-Request-Method: POST')
+    assert "Other origins are excluded" bash -c '[[ "$1" != *"Access-Control-Allow-Origin:"* ]]' _ "$headers"
+}
+
+otlp_logs_url="http://127.0.0.1:${E2E_OTLP_HTTP_PORT}/v1/logs"
+
+otlp_logs_body() {
+    local workspace_id=$1 body=$2
+    printf '{"resourceLogs":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"e2e-ingest"}},{"key":"loco.workspace.id","value":{"stringValue":"%s"}}]},"scopeLogs":[{"logRecords":[{"timeUnixNano":"%s000000000","severityText":"INFO","body":{"stringValue":"%s"}}]}]}]}' \
+        "$workspace_id" "$(date -u +%s)" "$body"
+}
+
+test_p06_otlp_ingest_is_queryable() {
+    local token marker status response
+    marker="e2e-otlp-ingest-$(openssl rand -hex 4)"
+    status=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$otlp_logs_url" \
+        -H 'Content-Type: application/json' -d "$(otlp_logs_body "$cli_workspace_id" "$marker")")
+    assert "OTLP/HTTP JSON logs are accepted (HTTP ${status})" test "$status" = 200
+    status=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$otlp_logs_url" \
+        -H 'Content-Type: application/json' -d '{"resourceLogs":')
+    assert "An undecodable OTLP request is rejected as permanent (HTTP ${status})" test "$status" = 400
+    token=$(mint_api_token "$(proxy_token_name ingest)" ENTITY_TYPE_WORKSPACE "$cli_workspace_id" SCOPE_READ)
+    response=$(curl -s -X POST "$proxy_query_logs" -H 'Content-Type: application/json' \
+        -H "Authorization: Bearer ${token}" -d "$(proxy_logs_body "$cli_workspace_id")")
+    assert "QueryLogs returns the record written through OTLP ingest" bash -c '[[ "$1" == *"$2"* ]]' _ "$response" "$marker"
+}

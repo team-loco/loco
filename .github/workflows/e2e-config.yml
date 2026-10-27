@@ -19,7 +19,7 @@ on:
       - "dev/registry/**"
       - "mise-tasks/cluster/registry"
       - "mise-tasks/cluster/build-egress"
-      - "e2e/**"
+      - "tests/e2e/**"
       - "mise-tasks/e2e/**"
       - "mise-tasks/crds/**"
       - "cmd/**"
@@ -54,4 +54,4 @@ jobs:
           go-cache: e2e
 
       - name: Run the loco.yaml end-to-end tests
-        run: ./e2e/run.sh --no-teardown config_apply
+        run: ./tests/e2e/run.sh --no-teardown config_apply

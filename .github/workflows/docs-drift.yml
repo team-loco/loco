@@ -18,7 +18,7 @@ on:
       - "web/public/install.sh"
       - "web/Dockerfile"
       - "web/sws.toml"
-      - "env/**"
+      - "tests/conformance/**"
       - "mise.toml"
       - "mise-tasks/**"
       - "dev/**"

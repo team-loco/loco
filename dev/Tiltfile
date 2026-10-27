@@ -23,7 +23,8 @@ watch_settings(ignore=[
     '../controller/bin/',
     '../*.out',
     '../coverage.html',
-    '../e2e/runs/',
+    '../tests/e2e/runs/',
+    '../tests/e2e/out/',
 ])
 
 # ---------------------------------------------------------------------------

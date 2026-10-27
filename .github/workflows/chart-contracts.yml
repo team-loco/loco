@@ -10,15 +10,15 @@ on:
       - "mise-tasks/helm/**"
       - "tests/charts/**"
       - "tests/collector/**"
-      - "e2e/certificates.sh"
-      - "e2e/control-plane.sh"
+      - "tests/e2e/certificates.sh"
+      - "tests/e2e/control-plane.sh"
       - "controller/config/crd/**"
       - "mise-tasks/crds/**"
-      - "e2e/control-plane-values.yaml"
-      - "e2e/api-failover.py"
-      - "e2e/cluster-metrics.py"
-      - "e2e/fixtures/api-failover/**"
-      - "e2e/fixtures/control-plane/**"
+      - "tests/e2e/control-plane-values.yaml"
+      - "tests/e2e/api-failover.py"
+      - "tests/e2e/cluster-metrics.py"
+      - "tests/e2e/fixtures/api-failover/**"
+      - "tests/e2e/fixtures/control-plane/**"
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
@@ -33,15 +33,15 @@ on:
       - "mise-tasks/helm/**"
       - "tests/charts/**"
       - "tests/collector/**"
-      - "e2e/certificates.sh"
-      - "e2e/control-plane.sh"
+      - "tests/e2e/certificates.sh"
+      - "tests/e2e/control-plane.sh"
       - "controller/config/crd/**"
       - "mise-tasks/crds/**"
-      - "e2e/control-plane-values.yaml"
-      - "e2e/api-failover.py"
-      - "e2e/cluster-metrics.py"
-      - "e2e/fixtures/api-failover/**"
-      - "e2e/fixtures/control-plane/**"
+      - "tests/e2e/control-plane-values.yaml"
+      - "tests/e2e/api-failover.py"
+      - "tests/e2e/cluster-metrics.py"
+      - "tests/e2e/fixtures/api-failover/**"
+      - "tests/e2e/fixtures/control-plane/**"
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
@@ -84,10 +84,10 @@ jobs:
         with:
           name: control-plane-evidence
           path: |
-            e2e/runs/loco-cp-*/diagnostics.txt
-            e2e/runs/loco-cp-*/postgres-migrations.txt
-            e2e/runs/loco-cp-*/observability.json
-            e2e/runs/loco-cp-*/config.json
+            tests/e2e/runs/loco-cp-*/diagnostics.txt
+            tests/e2e/runs/loco-cp-*/postgres-migrations.txt
+            tests/e2e/runs/loco-cp-*/observability.json
+            tests/e2e/runs/loco-cp-*/config.json
 
   cluster-metrics:
     runs-on: ubuntu-latest
@@ -101,5 +101,5 @@ jobs:
         with:
           name: cluster-metrics-evidence
           path: |
-            e2e/runs/loco-metrics-*/result.txt
-            e2e/runs/loco-metrics-*/diagnostics.txt
+            tests/e2e/runs/loco-metrics-*/result.txt
+            tests/e2e/runs/loco-metrics-*/diagnostics.txt

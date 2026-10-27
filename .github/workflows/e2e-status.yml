@@ -25,7 +25,7 @@ on:
       - "charts/loco-worker/**"
       - "manifests/namespaces/**"
       - "dev/compose.yaml"
-      - "e2e/**"
+      - "tests/e2e/**"
       - "mise-tasks/e2e/**"
       - "mise-tasks/crds/**"
       - "cmd/**"
@@ -60,4 +60,4 @@ jobs:
           go-cache: e2e
 
       - name: Run the resource status end-to-end tests
-        run: ./e2e/run.sh --no-teardown --builds-disabled resource_status
+        run: ./tests/e2e/run.sh --no-teardown --builds-disabled resource_status

@@ -4,7 +4,7 @@ set -euo pipefail
 
 root=$(git rev-parse --show-toplevel)
 cd "$root"
-compose=(docker compose -f "$root/env/conformance/compose.yaml")
+compose=(docker compose -f "$root/tests/conformance/auth/compose.yaml")
 keys=$(go run ./tools/authkeys)
 set -a
 eval "$keys"

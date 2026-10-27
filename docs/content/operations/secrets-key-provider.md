@@ -65,4 +65,4 @@ The API keeps each unwrapped data key in memory for `LOCO_SECRETS_TRANSIT_CACHE_
 
 ### Supported versions
 
-CI runs the provider against the OpenBao and Vault dev server images pinned in `env/transit-conformance/compose.yaml`: OpenBao 2.7 and Vault 2.1. Run the same suite locally with `mise run test:transit-conformance`. Other versions are untested.
+CI runs the provider against the OpenBao and Vault dev server images pinned in `tests/conformance/transit/compose.yaml`: OpenBao 2.7 and Vault 2.1. Run the same suite locally with `mise run test:transit-conformance`. Other versions are untested.

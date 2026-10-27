@@ -29,7 +29,7 @@ def govulncheck_task():
             "builder",
             "k8sapi",
             "observability-proxy",
-            "e2e/fixtures/app",
+            "tests/e2e/fixtures/app",
         ]
         for module in govulncheck_task.modules:
             path = govulncheck_task.root / module / "go.mod"

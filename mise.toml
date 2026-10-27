@@ -163,7 +163,7 @@ run = ["bun fmt --check", "bun run lint:fast", "bun run lint:types", "bun run ty
 
 [tasks."test:e2e-diagnostics"]
 description = "Test discovery failure diagnostics without a cluster"
-run = "uv run --locked --project tests pytest e2e/test_discovery_diagnostics.py"
+run = "uv run --locked --project tests pytest tests/e2e/test_discovery_diagnostics.py"
 
 [tasks."test:ci"]
 description = "Test CI component selection and pull-request diffs"
@@ -306,62 +306,62 @@ run = "mise run helm:sync:release cert-manager"
 [tasks.e2e]
 description = "Run the end-to-end tests in this worktree's own kind cluster and compose project (E2E_RUN_ID overrides the run). Flags: --no-teardown keeps the run, a later run reuses its cluster and resets its state; --skip-build reuses the images and binaries; a trailing filter picks test files"
 env = { _.file = ".env" }
-run = "./e2e/run.sh"
+run = "./tests/e2e/run.sh"
 
 [tasks."e2e:control-plane"]
 description = "Install the control-plane Helm chart with Kubernetes Postgres and ClickHouse fixtures; takes --no-teardown and --skip-build"
 depends = ["helm:deps"]
-run = "./e2e/control-plane.sh"
+run = "./tests/e2e/control-plane.sh"
 
 [tasks."e2e:certificates"]
 description = "Issue local Gateway certificates through cert-manager using the core chart; takes --no-teardown"
 depends = ["helm:deps"]
-run = "./e2e/certificates.sh"
+run = "./tests/e2e/certificates.sh"
 
 [tasks."e2e:attachment"]
 description = "Test cluster enrollment with a join token, agent key reuse and rotation, heartbeats and application deployment from an empty cluster registry"
 env = { _.file = ".env" }
-run = "./e2e/run.sh --builds-disabled cluster_attachment"
+run = "./tests/e2e/run.sh --builds-disabled cluster_attachment"
 
 [tasks."e2e:builds"]
 description = "Run only the image build end-to-end tests, controller-only and through the API and agent; takes the e2e flags"
 env = { _.file = ".env" }
-run = "./e2e/run.sh build"
+run = "./tests/e2e/run.sh build"
 
 [tasks."e2e:builds-disabled"]
 description = "Run the end-to-end tests for an install with builds.enabled=false: no build objects, public images deploy, source deploys are refused; takes the e2e flags"
 env = { _.file = ".env" }
-run = "./e2e/run.sh --builds-disabled builds_disabled"
+run = "./tests/e2e/run.sh --builds-disabled builds_disabled"
 
 [tasks."e2e:ingress"]
 description = "Run the end-to-end tests for apps with and without a domain: routes, gateway ingress and the CLI's URL output; takes the e2e flags"
 env = { _.file = ".env" }
-run = "./e2e/run.sh --builds-disabled ingress"
+run = "./tests/e2e/run.sh --builds-disabled ingress"
 
 [tasks."e2e:discovery"]
 description = "Run private service discovery end-to-end tests: logical DNS names, HTTP and TCP ports, resource rename and deletion; takes the e2e flags"
 env = { _.file = ".env" }
-run = "./e2e/run.sh discovery"
+run = "./tests/e2e/run.sh discovery"
 
 [tasks."e2e:status"]
 description = "Run the end-to-end tests for resource status: healthy after a deploy, unavailable when its pods cannot run, unknown while its cluster is silent; takes the e2e flags"
 env = { _.file = ".env" }
-run = "./e2e/run.sh --builds-disabled resource_status"
+run = "./tests/e2e/run.sh --builds-disabled resource_status"
 
 [tasks."e2e:config"]
 description = "Run the end-to-end tests for loco.yaml: validate, plan, apply, deploy, updates, deletes and disabled environments; takes the e2e flags"
 env = { _.file = ".env" }
-run = "./e2e/run.sh config_apply"
+run = "./tests/e2e/run.sh config_apply"
 
 [tasks."e2e:observability"]
-description = "Run the end-to-end tests for telemetry from the loco-worker collectors in kind over OTLP to the observability proxy ingest role, ClickHouse and the API, with the loco-worker chart installed; writes e2e/out/observability-evidence.md (E2E_OBS_EVIDENCE overrides the path); takes the e2e flags"
+description = "Run the end-to-end tests for telemetry from the loco-worker collectors in kind over OTLP to the observability proxy ingest role, ClickHouse and the API, with the loco-worker chart installed; writes tests/e2e/out/observability-evidence.md (E2E_OBS_EVIDENCE overrides the path); takes the e2e flags"
 env = { _.file = ".env" }
-run = "./e2e/run.sh --observability observability"
+run = "./tests/e2e/run.sh --observability observability"
 
 [tasks."e2e:teardown"]
 description = "Remove this worktree's end-to-end run (or E2E_RUN_ID's): its kind cluster, compose project and state"
 env = { _.file = ".env" }
-run = "./e2e/run.sh --teardown-only"
+run = "./tests/e2e/run.sh --teardown-only"
 
 [tasks."docs:build"]
 description = "Build production documentation with strict validation"
@@ -424,29 +424,29 @@ run = "./mise-tasks/obs/serve"
 
 [tasks."e2e:settings-labels"]
 description = "Test settings field labels and descriptions in the production browser with isolated API fixtures"
-run = "uv run --frozen --project docs python e2e/settings_labels_ui.py"
+run = "uv run --frozen --project docs python tests/e2e/settings_labels_ui.py"
 
 [tasks."e2e:deployment-history"]
 description = "Test production deployment history, environment switching and scoped controls with an isolated API and database"
-run = "uv run --frozen --project docs python e2e/deployment_history_ui.py"
+run = "uv run --frozen --project docs python tests/e2e/deployment_history_ui.py"
 
 [tasks."e2e:resource-details"]
 description = "Test resource image copy, spec geometry, scoped secrets and managed deletion"
-run = "uv run --frozen --project docs python e2e/resource_details_ui.py"
+run = "uv run --frozen --project docs python tests/e2e/resource_details_ui.py"
 
 [tasks."e2e:activity-ui"]
 description = "Test scoped audit Activity with real limited-user API permissions and production Chromium"
-run = "uv run --frozen --project docs python e2e/activity_ui.py"
+run = "uv run --frozen --project docs python tests/e2e/activity_ui.py"
 
 [tasks."e2e:trace-ui"]
 description = "Test the production trace viewer against fixture trace responses with a throwaway API and database"
-run = "uv run --frozen --project docs python e2e/trace_ui.py"
+run = "uv run --frozen --project docs python tests/e2e/trace_ui.py"
 
 [tasks."e2e:shared-controls"]
 description = "Test compact shared controls, segmented selection and pinned navigation in the production browser"
-run = "uv run --frozen --project docs python e2e/shared_controls_ui.py"
+run = "uv run --frozen --project docs python tests/e2e/shared_controls_ui.py"
 
 [tasks."e2e:cluster-metrics"]
 description = "Verify configurable Kubernetes platform telemetry in an isolated kind cluster"
 depends = ["helm:deps"]
-run = "python e2e/cluster-metrics.py"
+run = "python tests/e2e/cluster-metrics.py"
