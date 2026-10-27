@@ -279,6 +279,7 @@ func main() {
 		ac.SchemaURL,
 		ac.ServiceDefaults,
 		ac.AuthIssuers,
+		ac.OrgLinks,
 	)
 
 	configv1connect.RegisterConfigServiceHandler(baseServer, configServiceHandler)

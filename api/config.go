@@ -34,6 +34,7 @@ var (
 	errInvalidRegistry        = errors.New("invalid registry configuration")
 	errInvalidWebhooksPrivate = errors.New("WEBHOOK_ALLOW_PRIVATE_NETWORKS is not a boolean")
 	errInvalidInstallWebhooks = errors.New("INSTALL_WEBHOOKS is invalid")
+	errInvalidOrgLinks        = errors.New("ORG_LINKS is invalid")
 	errInvalidAuthIssuers     = errors.New("AUTH_ISSUERS is invalid")
 	errAdminTokenMissing      = errors.New("AUTH_ISSUERS admin tokenEnv names an unset variable")
 	errInvalidSignupPolicy    = errors.New("AUTH_SIGNUP_MODE is invalid")
@@ -131,6 +132,7 @@ type APIConfig struct {
 	EventsRetention       time.Duration
 	WebhooksAllowPrivate  bool
 	InstallWebhooks       []webhooks.InstallWebhook
+	OrgLinks              []service.OrgLink
 	Secrets               secretkeys.TransitConfig
 	SecretLimits          service.SecretConfig
 	HeartbeatInterval     time.Duration
@@ -159,6 +161,7 @@ func newAPIConfig() *APIConfig {
 	corsOrigins := listEnv("CORS_ALLOWED_ORIGINS")
 	webhooksAllowPrivate := boolEnv("WEBHOOK_ALLOW_PRIVATE_NETWORKS", false, errInvalidWebhooksPrivate)
 	installWebhooks := newInstallWebhooks()
+	orgLinks := newOrgLinks()
 	authIssuers := newAuthIssuers()
 	signupPolicy := newSignupPolicy()
 	minCLIVersion := newMinCLIVersion()
@@ -203,6 +206,7 @@ func newAPIConfig() *APIConfig {
 		EventsRetention:       eventsRetention,
 		WebhooksAllowPrivate:  webhooksAllowPrivate,
 		InstallWebhooks:       installWebhooks,
+		OrgLinks:              orgLinks,
 		Secrets:               secrets,
 		SecretLimits:          secretLimits,
 		HeartbeatInterval:     heartbeatInterval,
@@ -265,6 +269,15 @@ func newInstallWebhooks() []webhooks.InstallWebhook {
 		panic(fmt.Errorf("%w: %w", errInvalidInstallWebhooks, err))
 	}
 	return hooks
+}
+
+func newOrgLinks() []service.OrgLink {
+	raw := stringEnv("ORG_LINKS", "")
+	links, err := service.ParseOrgLinks(raw)
+	if err != nil {
+		panic(fmt.Errorf("%w: %w", errInvalidOrgLinks, err))
+	}
+	return links
 }
 
 func newAuthIssuers() []auth.IssuerConfig {

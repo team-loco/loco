@@ -1,6 +1,7 @@
 package service
 
 import (
+	"slices"
 	"testing"
 
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
@@ -9,7 +10,7 @@ import (
 func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 	defaults := testServiceDefaults()
 	const schemaURL = "https://loco.test/schemas/loco.v1.json"
-	server := NewConfigServer("v1.2.3", schemaURL, defaults, nil)
+	server := NewConfigServer("v1.2.3", schemaURL, defaults, nil, nil)
 	req := &configv1.GetConfigRequest{}
 	resp, err := server.GetConfig(t.Context(), req)
 	if err != nil {
@@ -44,5 +45,25 @@ func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 	}
 	if resp.GetMinCliVersion() != "v1.2.3" {
 		t.Errorf("min CLI version %q", resp.GetMinCliVersion())
+	}
+}
+
+func TestGetConfigReturnsOrgLinks(t *testing.T) {
+	links := []OrgLink{
+		{Label: "Support", URL: "https://support.example.com/orgs/{orgId}"},
+		{Label: "Status", URL: "https://status.example.com"},
+	}
+	server := NewConfigServer("", "", testServiceDefaults(), nil, links)
+	req := &configv1.GetConfigRequest{}
+	resp, err := server.GetConfig(t.Context(), req)
+	if err != nil {
+		t.Fatalf("GetConfig: %v", err)
+	}
+	got := make([]OrgLink, 0, len(resp.GetOrgLinks()))
+	for _, link := range resp.GetOrgLinks() {
+		got = append(got, OrgLink{Label: link.GetLabel(), URL: link.GetUrl()})
+	}
+	if !slices.Equal(got, links) {
+		t.Errorf("org links = %+v, want %+v", got, links)
 	}
 }

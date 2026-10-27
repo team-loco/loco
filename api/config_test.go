@@ -25,6 +25,7 @@ const (
 	testRegistryPass = "secret"
 	retentionDaysEnv = "EVENTS_RETENTION_DAYS"
 	installHooksEnv  = "INSTALL_WEBHOOKS"
+	orgLinksEnv      = "ORG_LINKS"
 	authIssuersEnv   = "AUTH_ISSUERS"
 	testAdminEnv     = "LOCO_TEST_ADMIN_TOKEN"
 	testAdminToken   = "service-key"
@@ -99,6 +100,7 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv(retentionDaysEnv, "")
 	t.Setenv("DATABASE_URL", "")
 	t.Setenv(installHooksEnv, "")
+	t.Setenv(orgLinksEnv, "")
 	t.Setenv(authIssuersEnv, "")
 	t.Setenv("AUTH_SIGNUP_MODE", "")
 	t.Setenv("AUTH_SIGNUP_DOMAINS", "")
@@ -259,6 +261,19 @@ func TestNewAPIConfigReadsInstallWebhooks(t *testing.T) {
 	wantTypes := []string{"deployment.ready"}
 	if hook.URL != testHookURL || hook.Secret != testHookSecret || !slices.Equal(hook.EventTypes, wantTypes) {
 		t.Errorf("install webhook = %+v", hook)
+	}
+}
+
+func TestNewAPIConfigReadsOrgLinks(t *testing.T) {
+	clearAPIConfigEnv(t)
+	if ac := newAPIConfig(); len(ac.OrgLinks) != 0 {
+		t.Fatalf("org links = %+v without %s", ac.OrgLinks, orgLinksEnv)
+	}
+	t.Setenv(orgLinksEnv, `[{"label":"Support","url":"https://support.loco.test/orgs/{orgId}"}]`)
+	ac := newAPIConfig()
+	want := []service.OrgLink{{Label: "Support", URL: "https://support.loco.test/orgs/{orgId}"}}
+	if !slices.Equal(ac.OrgLinks, want) {
+		t.Errorf("org links = %+v, want %+v", ac.OrgLinks, want)
 	}
 }
 
@@ -465,6 +480,11 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 			"install webhook without a secret",
 			map[string]string{installHooksEnv: `[{"url":"` + testHookURL + `"}]`},
 			errInvalidInstallWebhooks,
+		},
+		{
+			"org link with an unknown placeholder",
+			map[string]string{orgLinksEnv: `[{"label":"Support","url":"https://support.loco.test/{userId}"}]`},
+			errInvalidOrgLinks,
 		},
 		{
 			"short bootstrap token",

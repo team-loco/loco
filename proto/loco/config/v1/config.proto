@@ -19,6 +19,12 @@ message GetConfigResponse {
   string min_cli_version = 2;
   AuthConfig auth = 3;
   string schema_url = 4;
+  repeated OrgLink org_links = 5;
+}
+
+message OrgLink {
+  string label = 1;
+  string url = 2;
 }
 
 message AuthConfig {
