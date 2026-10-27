@@ -57,24 +57,24 @@ jobs:
   docs:
     name: Documentation Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-tools
       - name: Test production and staging builds
-        timeout-minutes: 10
+        timeout-minutes: 5
         run: mise run test:docs
 
   container:
     name: Documentation Container Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-tools
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Check shared UI and docs hosting
-        timeout-minutes: 15
+        timeout-minutes: 5
         env:
           DOCS_SCREENSHOT_DIR: ${{ runner.temp }}/hosted-docs-screenshots
         run: mise run docs:check:container

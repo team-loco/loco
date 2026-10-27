@@ -30,8 +30,7 @@ UI_HOST = "loco.build"
 DOCS_HOST = "docs.loco.build"
 API_HOST = "api.loco.build"
 VERSION = "sha-test"
-BROWSER_IMAGE = "mcr.microsoft.com/playwright"
-BROWSER_DISTRO = "noble"
+BROWSER_IMAGE = "mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27"
 BROWSER_HOST = "127.0.0.1"
 BROWSER_STARTUP_TIMEOUT = 120
 
@@ -69,9 +68,22 @@ def test_rewrites_cover_exactly_the_ui_routes():
         assert rewrite["destination"] == "/index.html"
 
 
+def browser_version():
+    match = re.search(":v([^-@]+)", BROWSER_IMAGE)
+    assert match is not None, BROWSER_IMAGE
+    return match.group(1)
+
+
+def test_browser_image_matches_the_playwright_client():
+    client = importlib.metadata.version("playwright")
+    assert browser_version() == client, (
+        f"{BROWSER_IMAGE} runs Playwright {browser_version()}, but the playwright package is {client}"
+    )
+
+
 @contextlib.contextmanager
 def browser_server():
-    version = importlib.metadata.version("playwright")
+    version = browser_version()
     with socket.socket() as probe:
         probe.bind((BROWSER_HOST, 0))
         port = probe.getsockname()[1]
@@ -86,7 +98,7 @@ def browser_server():
         "pwuser",
         "--workdir",
         "/home/pwuser",
-        f"{BROWSER_IMAGE}:v{version}-{BROWSER_DISTRO}",
+        BROWSER_IMAGE,
         "npx",
         "-y",
         f"playwright@{version}",
