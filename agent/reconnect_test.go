@@ -20,14 +20,16 @@ const (
 	testAttemptsBeforeStop  = 2
 	testClusterRemoved      = "cluster is removed"
 	testCredentialRejected  = "invalid agent credential"
+	testMessageTooLarge     = "message size 4194305 is larger than configured max 4194304"
 )
 
 var errTestStreamDropped = errors.New("stream dropped")
 
 func TestReconnectLoopStopsOnAnErrorARetryCannotFix(t *testing.T) {
 	permanent := map[string]error{
-		"permission denied": connect.NewError(connect.CodePermissionDenied, testClusterRemoved),
-		"unauthenticated":   connect.NewError(connect.CodeUnauthenticated, testCredentialRejected),
+		"permission denied":  connect.NewError(connect.CodePermissionDenied, testClusterRemoved),
+		"unauthenticated":    connect.NewError(connect.CodeUnauthenticated, testCredentialRejected),
+		"resource exhausted": connect.NewError(connect.CodeResourceExhausted, testMessageTooLarge),
 	}
 	for name, rejection := range permanent {
 		t.Run(name, func(t *testing.T) {

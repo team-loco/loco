@@ -28,6 +28,8 @@ func retryable(err error) bool {
 		return false
 	case connect.CodeUnauthenticated:
 		return false
+	case connect.CodeResourceExhausted:
+		return false
 	default:
 		return true
 	}
