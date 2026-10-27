@@ -18,10 +18,7 @@ import (
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
-var (
-	errNoToken       = errors.New("no bearer token provided")
-	errUserSuspended = errors.New("user is suspended")
-)
+var errNoToken = errors.New("no bearer token provided")
 
 type authInterceptor struct {
 	machine  *tvm.VendingMachine
@@ -120,7 +117,7 @@ func (i *authInterceptor) authenticateProviderToken(
 		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
 
-	user, claimed, err := i.resolver.Resolve(ctx, identity)
+	user, err := i.resolver.Resolve(ctx, identity)
 	if err != nil {
 		if rejected, ok := errors.AsType[*auth.SignupRejectedError](err); ok {
 			slog.InfoContext(ctx, "sign-in rejected", "issuer", identity.Issuer, "reason", rejected.Message)
@@ -128,10 +125,6 @@ func (i *authInterceptor) authenticateProviderToken(
 		}
 		slog.ErrorContext(ctx, "failed to resolve identity", "issuer", identity.Issuer, "error", err)
 		return nil, rpcerr.New(connect.CodeInternal, auth.ErrResolve)
-	}
-	if user.Status != genDb.UserStatusActive {
-		slog.InfoContext(ctx, "suspended user rejected", "procedure", procedure, "userId", user.ID)
-		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(errUserSuspended)
 	}
 
 	scopes, err := i.authz.UserScopes(ctx, user.ID)
@@ -147,7 +140,6 @@ func (i *authInterceptor) authenticateProviderToken(
 	c = context.WithValue(c, contextkeys.EntityScopesKey, scopes)
 	c = context.WithValue(c, contextkeys.TokenKey, token)
 	c = context.WithValue(c, contextkeys.IdentityKey, identity)
-	c = context.WithValue(c, contextkeys.ClaimedOrgsKey, claimed)
 	return c, nil
 }
 

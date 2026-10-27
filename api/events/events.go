@@ -32,11 +32,6 @@ const (
 	MemberRemoved      = "member.removed"
 	OrgMemberAdded     = "org_member.added"
 	OrgMemberRemoved   = "org_member.removed"
-	InvitationCreated  = "invitation.created"
-	InvitationClaimed  = "invitation.claimed"
-	InvitationRevoked  = "invitation.revoked"
-	UserSuspended      = "user.suspended"
-	UserReinstated     = "user.reinstated"
 	EnvironmentCreated = "environment.created"
 	EnvironmentUpdated = "environment.updated"
 	EnvironmentDeleted = "environment.deleted"
@@ -80,7 +75,6 @@ const (
 	SubjectToken       = "token"
 	SubjectCluster     = "cluster"
 	SubjectWebhook     = "webhook"
-	SubjectInvitation  = "invitation"
 )
 
 const (
@@ -97,7 +91,6 @@ const (
 	FieldKekID         = "kekId"
 	FieldEnvironmentID = "environmentId"
 	FieldNewDEK        = "newDek"
-	FieldEmail         = "email"
 )
 
 type Event struct {

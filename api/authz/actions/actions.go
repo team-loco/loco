@@ -186,26 +186,6 @@ var (
 		entityType: db.EntityTypeOrganization,
 		scope:      db.ScopeAdmin,
 	}
-	// InviteOrgMember requires organization:admin.
-	InviteOrgMember = Action{
-		entityType: db.EntityTypeOrganization,
-		scope:      db.ScopeAdmin,
-	}
-	// RevokeInvitation requires organization:admin.
-	RevokeInvitation = Action{
-		entityType: db.EntityTypeOrganization,
-		scope:      db.ScopeAdmin,
-	}
-	// ResendInvitation requires organization:admin.
-	ResendInvitation = Action{
-		entityType: db.EntityTypeOrganization,
-		scope:      db.ScopeAdmin,
-	}
-	// ListInvitations requires organization:member.
-	ListInvitations = Action{
-		entityType: db.EntityTypeOrganization,
-		scope:      db.ScopeMember,
-	}
 	// ListOrgMembers requires organization:member.
 	ListOrgMembers = Action{
 		entityType: db.EntityTypeOrganization,
@@ -243,11 +223,6 @@ var (
 	ListUsers = Action{
 		entityType: db.EntityTypeSystem,
 		scope:      db.ScopeRead,
-	}
-	// SetUserStatus requires system:admin.
-	SetUserStatus = Action{
-		entityType: db.EntityTypeSystem,
-		scope:      db.ScopeAdmin,
 	}
 	// DeleteUser requires user:admin.
 	DeleteUser = Action{

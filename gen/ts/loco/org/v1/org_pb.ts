@@ -2,8 +2,8 @@
 // @generated from file loco/org/v1/org.proto (package loco.org.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
 import type { Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/org/v1/org.proto.
  */
 export const file_loco_org_v1_org: GenFile = /*@__PURE__*/
-  fileDesc("ChVsb2NvL29yZy92MS9vcmcucHJvdG8SC2xvY28ub3JnLnYxIpwBCgxPcmdhbml6YXRpb24SCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRISCgpjcmVhdGVkX2J5GAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIjkKEENyZWF0ZU9yZ1JlcXVlc3QSHAoEbmFtZRgBIAEoCUIJukgGcgQQARhkSACIAQFCBwoFX25hbWUiIwoRQ3JlYXRlT3JnUmVzcG9uc2USDgoGb3JnX2lkGAEgASgJIk8KDUdldE9yZ1JlcXVlc3QSGgoGb3JnX2lkGAEgASgJQgi6SAVyA7ABAUgAEhsKCG9yZ19uYW1lGAIgASgJQge6SARyAhABSABCBQoDa2V5IkEKDkdldE9yZ1Jlc3BvbnNlEi8KDG9yZ2FuaXphdGlvbhgBIAEoCzIZLmxvY28ub3JnLnYxLk9yZ2FuaXphdGlvbiJjChNMaXN0VXNlck9yZ3NSZXF1ZXN0EhkKB3VzZXJfaWQYASABKAlCCLpIBXIDsAEBEh0KCXBhZ2Vfc2l6ZRgCIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAMgASgJIlgKFExpc3RVc2VyT3Jnc1Jlc3BvbnNlEicKBG9yZ3MYASADKAsyGS5sb2NvLm9yZy52MS5Pcmdhbml6YXRpb24SFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJImQKFUxpc3RPcmdNZW1iZXJzUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEh0KCXBhZ2Vfc2l6ZRgCIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAMgASgJIloKFkxpc3RPcmdNZW1iZXJzUmVzcG9uc2USJwoHbWVtYmVycxgBIAMoCzIWLmxvY28ub3JnLnYxLk9yZ01lbWJlchIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkiPAoJT3JnTWVtYmVyEh8KBHVzZXIYASABKAsyES5sb2NvLm9yZy52MS5Vc2VyEg4KBnNjb3BlcxgCIAMoCSJKChNBZGRPcmdNZW1iZXJSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESGQoHdXNlcl9pZBgCIAEoCUIIukgFcgOwAQEiFgoUQWRkT3JnTWVtYmVyUmVzcG9uc2UiTQoWUmVtb3ZlT3JnTWVtYmVyUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEhkKB3VzZXJfaWQYAiABKAlCCLpIBXIDsAEBIhkKF1JlbW92ZU9yZ01lbWJlclJlc3BvbnNlIpMCCgpJbnZpdGF0aW9uEgoKAmlkGAEgASgJEg4KBm9yZ19pZBgCIAEoCRINCgVlbWFpbBgDIAEoCRIlCgppbnZpdGVkX2J5GAQgASgLMhEubG9jby5vcmcudjEuVXNlchIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpleHBpcmVzX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBItCgZzdGF0dXMYByABKA4yHS5sb2NvLm9yZy52MS5JbnZpdGF0aW9uU3RhdHVzEhYKDmRlbGl2ZXJ5X2Vycm9yGAggASgJEgwKBGxpbmsYCSABKAkiSgoWSW52aXRlT3JnTWVtYmVyUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEhYKBWVtYWlsGAIgASgJQge6SARyAhABIkYKF0ludml0ZU9yZ01lbWJlclJlc3BvbnNlEisKCmludml0YXRpb24YASABKAsyFy5sb2NvLm9yZy52MS5JbnZpdGF0aW9uImUKFkxpc3RJbnZpdGF0aW9uc1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIdCglwYWdlX3NpemUYAiABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgDIAEoCSJgChdMaXN0SW52aXRhdGlvbnNSZXNwb25zZRIsCgtpbnZpdGF0aW9ucxgBIAMoCzIXLmxvY28ub3JnLnYxLkludml0YXRpb24SFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIi8KF1Jldm9rZUludml0YXRpb25SZXF1ZXN0EhQKAmlkGAEgASgJQgi6SAVyA7ABASIaChhSZXZva2VJbnZpdGF0aW9uUmVzcG9uc2UiLwoXUmVzZW5kSW52aXRhdGlvblJlcXVlc3QSFAoCaWQYASABKAlCCLpIBXIDsAEBIkcKGFJlc2VuZEludml0YXRpb25SZXNwb25zZRIrCgppbnZpdGF0aW9uGAEgASgLMhcubG9jby5vcmcudjEuSW52aXRhdGlvbiJDCgRVc2VyEgoKAmlkGAEgASgJEg0KBWVtYWlsGAIgASgJEgwKBG5hbWUYAyABKAkSEgoKYXZhdGFyX3VybBgEIAEoCSJTChBVcGRhdGVPcmdSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESHAoEbmFtZRgCIAEoCUIJukgGcgQQARhkSACIAQFCBwoFX25hbWUiIwoRVXBkYXRlT3JnUmVzcG9uc2USDgoGb3JnX2lkGAEgASgJIiwKEERlbGV0ZU9yZ1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABASITChFEZWxldGVPcmdSZXNwb25zZSqWAQoQSW52aXRhdGlvblN0YXR1cxIhCh1JTlZJVEFUSU9OX1NUQVRVU19VTlNQRUNJRklFRBAAEh0KGUlOVklUQVRJT05fU1RBVFVTX0VNQUlMRUQQARIcChhJTlZJVEFUSU9OX1NUQVRVU19GQUlMRUQQAhIiCh5JTlZJVEFUSU9OX1NUQVRVU19OT19UUkFOU1BPUlQQAzKUCAoKT3JnU2VydmljZRJKCglDcmVhdGVPcmcSHS5sb2NvLm9yZy52MS5DcmVhdGVPcmdSZXF1ZXN0Gh4ubG9jby5vcmcudjEuQ3JlYXRlT3JnUmVzcG9uc2USQQoGR2V0T3JnEhoubG9jby5vcmcudjEuR2V0T3JnUmVxdWVzdBobLmxvY28ub3JnLnYxLkdldE9yZ1Jlc3BvbnNlEkoKCVVwZGF0ZU9yZxIdLmxvY28ub3JnLnYxLlVwZGF0ZU9yZ1JlcXVlc3QaHi5sb2NvLm9yZy52MS5VcGRhdGVPcmdSZXNwb25zZRJKCglEZWxldGVPcmcSHS5sb2NvLm9yZy52MS5EZWxldGVPcmdSZXF1ZXN0Gh4ubG9jby5vcmcudjEuRGVsZXRlT3JnUmVzcG9uc2USUwoMTGlzdFVzZXJPcmdzEiAubG9jby5vcmcudjEuTGlzdFVzZXJPcmdzUmVxdWVzdBohLmxvY28ub3JnLnYxLkxpc3RVc2VyT3Jnc1Jlc3BvbnNlElkKDkxpc3RPcmdNZW1iZXJzEiIubG9jby5vcmcudjEuTGlzdE9yZ01lbWJlcnNSZXF1ZXN0GiMubG9jby5vcmcudjEuTGlzdE9yZ01lbWJlcnNSZXNwb25zZRJTCgxBZGRPcmdNZW1iZXISIC5sb2NvLm9yZy52MS5BZGRPcmdNZW1iZXJSZXF1ZXN0GiEubG9jby5vcmcudjEuQWRkT3JnTWVtYmVyUmVzcG9uc2USXAoPUmVtb3ZlT3JnTWVtYmVyEiMubG9jby5vcmcudjEuUmVtb3ZlT3JnTWVtYmVyUmVxdWVzdBokLmxvY28ub3JnLnYxLlJlbW92ZU9yZ01lbWJlclJlc3BvbnNlElwKD0ludml0ZU9yZ01lbWJlchIjLmxvY28ub3JnLnYxLkludml0ZU9yZ01lbWJlclJlcXVlc3QaJC5sb2NvLm9yZy52MS5JbnZpdGVPcmdNZW1iZXJSZXNwb25zZRJcCg9MaXN0SW52aXRhdGlvbnMSIy5sb2NvLm9yZy52MS5MaXN0SW52aXRhdGlvbnNSZXF1ZXN0GiQubG9jby5vcmcudjEuTGlzdEludml0YXRpb25zUmVzcG9uc2USXwoQUmV2b2tlSW52aXRhdGlvbhIkLmxvY28ub3JnLnYxLlJldm9rZUludml0YXRpb25SZXF1ZXN0GiUubG9jby5vcmcudjEuUmV2b2tlSW52aXRhdGlvblJlc3BvbnNlEl8KEFJlc2VuZEludml0YXRpb24SJC5sb2NvLm9yZy52MS5SZXNlbmRJbnZpdGF0aW9uUmVxdWVzdBolLmxvY28ub3JnLnYxLlJlc2VuZEludml0YXRpb25SZXNwb25zZUI0WjJnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL29yZy92MTtvcmd2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("ChVsb2NvL29yZy92MS9vcmcucHJvdG8SC2xvY28ub3JnLnYxIpwBCgxPcmdhbml6YXRpb24SCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRISCgpjcmVhdGVkX2J5GAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIjkKEENyZWF0ZU9yZ1JlcXVlc3QSHAoEbmFtZRgBIAEoCUIJukgGcgQQARhkSACIAQFCBwoFX25hbWUiIwoRQ3JlYXRlT3JnUmVzcG9uc2USDgoGb3JnX2lkGAEgASgJIk8KDUdldE9yZ1JlcXVlc3QSGgoGb3JnX2lkGAEgASgJQgi6SAVyA7ABAUgAEhsKCG9yZ19uYW1lGAIgASgJQge6SARyAhABSABCBQoDa2V5IkEKDkdldE9yZ1Jlc3BvbnNlEi8KDG9yZ2FuaXphdGlvbhgBIAEoCzIZLmxvY28ub3JnLnYxLk9yZ2FuaXphdGlvbiJjChNMaXN0VXNlck9yZ3NSZXF1ZXN0EhkKB3VzZXJfaWQYASABKAlCCLpIBXIDsAEBEh0KCXBhZ2Vfc2l6ZRgCIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAMgASgJIlgKFExpc3RVc2VyT3Jnc1Jlc3BvbnNlEicKBG9yZ3MYASADKAsyGS5sb2NvLm9yZy52MS5Pcmdhbml6YXRpb24SFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJImQKFUxpc3RPcmdNZW1iZXJzUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEh0KCXBhZ2Vfc2l6ZRgCIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAMgASgJIloKFkxpc3RPcmdNZW1iZXJzUmVzcG9uc2USJwoHbWVtYmVycxgBIAMoCzIWLmxvY28ub3JnLnYxLk9yZ01lbWJlchIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkiPAoJT3JnTWVtYmVyEh8KBHVzZXIYASABKAsyES5sb2NvLm9yZy52MS5Vc2VyEg4KBnNjb3BlcxgCIAMoCSJKChNBZGRPcmdNZW1iZXJSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESGQoHdXNlcl9pZBgCIAEoCUIIukgFcgOwAQEiFgoUQWRkT3JnTWVtYmVyUmVzcG9uc2UiTQoWUmVtb3ZlT3JnTWVtYmVyUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEhkKB3VzZXJfaWQYAiABKAlCCLpIBXIDsAEBIhkKF1JlbW92ZU9yZ01lbWJlclJlc3BvbnNlIkMKBFVzZXISCgoCaWQYASABKAkSDQoFZW1haWwYAiABKAkSDAoEbmFtZRgDIAEoCRISCgphdmF0YXJfdXJsGAQgASgJIlMKEFVwZGF0ZU9yZ1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIcCgRuYW1lGAIgASgJQgm6SAZyBBABGGRIAIgBAUIHCgVfbmFtZSIjChFVcGRhdGVPcmdSZXNwb25zZRIOCgZvcmdfaWQYASABKAkiLAoQRGVsZXRlT3JnUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBIhMKEURlbGV0ZU9yZ1Jlc3BvbnNlMpYFCgpPcmdTZXJ2aWNlEkoKCUNyZWF0ZU9yZxIdLmxvY28ub3JnLnYxLkNyZWF0ZU9yZ1JlcXVlc3QaHi5sb2NvLm9yZy52MS5DcmVhdGVPcmdSZXNwb25zZRJBCgZHZXRPcmcSGi5sb2NvLm9yZy52MS5HZXRPcmdSZXF1ZXN0GhsubG9jby5vcmcudjEuR2V0T3JnUmVzcG9uc2USSgoJVXBkYXRlT3JnEh0ubG9jby5vcmcudjEuVXBkYXRlT3JnUmVxdWVzdBoeLmxvY28ub3JnLnYxLlVwZGF0ZU9yZ1Jlc3BvbnNlEkoKCURlbGV0ZU9yZxIdLmxvY28ub3JnLnYxLkRlbGV0ZU9yZ1JlcXVlc3QaHi5sb2NvLm9yZy52MS5EZWxldGVPcmdSZXNwb25zZRJTCgxMaXN0VXNlck9yZ3MSIC5sb2NvLm9yZy52MS5MaXN0VXNlck9yZ3NSZXF1ZXN0GiEubG9jby5vcmcudjEuTGlzdFVzZXJPcmdzUmVzcG9uc2USWQoOTGlzdE9yZ01lbWJlcnMSIi5sb2NvLm9yZy52MS5MaXN0T3JnTWVtYmVyc1JlcXVlc3QaIy5sb2NvLm9yZy52MS5MaXN0T3JnTWVtYmVyc1Jlc3BvbnNlElMKDEFkZE9yZ01lbWJlchIgLmxvY28ub3JnLnYxLkFkZE9yZ01lbWJlclJlcXVlc3QaIS5sb2NvLm9yZy52MS5BZGRPcmdNZW1iZXJSZXNwb25zZRJcCg9SZW1vdmVPcmdNZW1iZXISIy5sb2NvLm9yZy52MS5SZW1vdmVPcmdNZW1iZXJSZXF1ZXN0GiQubG9jby5vcmcudjEuUmVtb3ZlT3JnTWVtYmVyUmVzcG9uc2VCNFoyZ2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9vcmcvdjE7b3JndjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * Organization represents a top-level organization container for users, workspaces, and resources.
@@ -577,369 +577,6 @@ export const RemoveOrgMemberResponseSchema: GenMessage<RemoveOrgMemberResponse, 
   messageDesc(file_loco_org_v1_org, 13);
 
 /**
- * @generated from message loco.org.v1.Invitation
- */
-export type Invitation = Message<"loco.org.v1.Invitation"> & {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id: string;
-
-  /**
-   * @generated from field: string org_id = 2;
-   */
-  orgId: string;
-
-  /**
-   * @generated from field: string email = 3;
-   */
-  email: string;
-
-  /**
-   * @generated from field: loco.org.v1.User invited_by = 4;
-   */
-  invitedBy?: User | undefined;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp created_at = 5;
-   */
-  createdAt?: Timestamp | undefined;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp expires_at = 6;
-   */
-  expiresAt?: Timestamp | undefined;
-
-  /**
-   * @generated from field: loco.org.v1.InvitationStatus status = 7;
-   */
-  status: InvitationStatus;
-
-  /**
-   * @generated from field: string delivery_error = 8;
-   */
-  deliveryError: string;
-
-  /**
-   * @generated from field: string link = 9;
-   */
-  link: string;
-};
-
-/**
- * @generated from message loco.org.v1.Invitation
- */
-export type InvitationJson = {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id?: string;
-
-  /**
-   * @generated from field: string org_id = 2;
-   */
-  orgId?: string;
-
-  /**
-   * @generated from field: string email = 3;
-   */
-  email?: string;
-
-  /**
-   * @generated from field: loco.org.v1.User invited_by = 4;
-   */
-  invitedBy?: UserJson;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp created_at = 5;
-   */
-  createdAt?: TimestampJson;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp expires_at = 6;
-   */
-  expiresAt?: TimestampJson;
-
-  /**
-   * @generated from field: loco.org.v1.InvitationStatus status = 7;
-   */
-  status?: InvitationStatusJson;
-
-  /**
-   * @generated from field: string delivery_error = 8;
-   */
-  deliveryError?: string;
-
-  /**
-   * @generated from field: string link = 9;
-   */
-  link?: string;
-};
-
-/**
- * Describes the message loco.org.v1.Invitation.
- * Use `create(InvitationSchema)` to create a new message.
- */
-export const InvitationSchema: GenMessage<Invitation, {jsonType: InvitationJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 14);
-
-/**
- * @generated from message loco.org.v1.InviteOrgMemberRequest
- */
-export type InviteOrgMemberRequest = Message<"loco.org.v1.InviteOrgMemberRequest"> & {
-  /**
-   * @generated from field: string org_id = 1;
-   */
-  orgId: string;
-
-  /**
-   * @generated from field: string email = 2;
-   */
-  email: string;
-};
-
-/**
- * @generated from message loco.org.v1.InviteOrgMemberRequest
- */
-export type InviteOrgMemberRequestJson = {
-  /**
-   * @generated from field: string org_id = 1;
-   */
-  orgId?: string;
-
-  /**
-   * @generated from field: string email = 2;
-   */
-  email?: string;
-};
-
-/**
- * Describes the message loco.org.v1.InviteOrgMemberRequest.
- * Use `create(InviteOrgMemberRequestSchema)` to create a new message.
- */
-export const InviteOrgMemberRequestSchema: GenMessage<InviteOrgMemberRequest, {jsonType: InviteOrgMemberRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 15);
-
-/**
- * @generated from message loco.org.v1.InviteOrgMemberResponse
- */
-export type InviteOrgMemberResponse = Message<"loco.org.v1.InviteOrgMemberResponse"> & {
-  /**
-   * @generated from field: loco.org.v1.Invitation invitation = 1;
-   */
-  invitation?: Invitation | undefined;
-};
-
-/**
- * @generated from message loco.org.v1.InviteOrgMemberResponse
- */
-export type InviteOrgMemberResponseJson = {
-  /**
-   * @generated from field: loco.org.v1.Invitation invitation = 1;
-   */
-  invitation?: InvitationJson;
-};
-
-/**
- * Describes the message loco.org.v1.InviteOrgMemberResponse.
- * Use `create(InviteOrgMemberResponseSchema)` to create a new message.
- */
-export const InviteOrgMemberResponseSchema: GenMessage<InviteOrgMemberResponse, {jsonType: InviteOrgMemberResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 16);
-
-/**
- * @generated from message loco.org.v1.ListInvitationsRequest
- */
-export type ListInvitationsRequest = Message<"loco.org.v1.ListInvitationsRequest"> & {
-  /**
-   * @generated from field: string org_id = 1;
-   */
-  orgId: string;
-
-  /**
-   * default: 50, max: 200
-   *
-   * @generated from field: int32 page_size = 2;
-   */
-  pageSize: number;
-
-  /**
-   * @generated from field: string page_token = 3;
-   */
-  pageToken: string;
-};
-
-/**
- * @generated from message loco.org.v1.ListInvitationsRequest
- */
-export type ListInvitationsRequestJson = {
-  /**
-   * @generated from field: string org_id = 1;
-   */
-  orgId?: string;
-
-  /**
-   * default: 50, max: 200
-   *
-   * @generated from field: int32 page_size = 2;
-   */
-  pageSize?: number;
-
-  /**
-   * @generated from field: string page_token = 3;
-   */
-  pageToken?: string;
-};
-
-/**
- * Describes the message loco.org.v1.ListInvitationsRequest.
- * Use `create(ListInvitationsRequestSchema)` to create a new message.
- */
-export const ListInvitationsRequestSchema: GenMessage<ListInvitationsRequest, {jsonType: ListInvitationsRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 17);
-
-/**
- * @generated from message loco.org.v1.ListInvitationsResponse
- */
-export type ListInvitationsResponse = Message<"loco.org.v1.ListInvitationsResponse"> & {
-  /**
-   * @generated from field: repeated loco.org.v1.Invitation invitations = 1;
-   */
-  invitations: Invitation[];
-
-  /**
-   * empty if no more pages
-   *
-   * @generated from field: string next_page_token = 2;
-   */
-  nextPageToken: string;
-};
-
-/**
- * @generated from message loco.org.v1.ListInvitationsResponse
- */
-export type ListInvitationsResponseJson = {
-  /**
-   * @generated from field: repeated loco.org.v1.Invitation invitations = 1;
-   */
-  invitations?: InvitationJson[];
-
-  /**
-   * empty if no more pages
-   *
-   * @generated from field: string next_page_token = 2;
-   */
-  nextPageToken?: string;
-};
-
-/**
- * Describes the message loco.org.v1.ListInvitationsResponse.
- * Use `create(ListInvitationsResponseSchema)` to create a new message.
- */
-export const ListInvitationsResponseSchema: GenMessage<ListInvitationsResponse, {jsonType: ListInvitationsResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 18);
-
-/**
- * @generated from message loco.org.v1.RevokeInvitationRequest
- */
-export type RevokeInvitationRequest = Message<"loco.org.v1.RevokeInvitationRequest"> & {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id: string;
-};
-
-/**
- * @generated from message loco.org.v1.RevokeInvitationRequest
- */
-export type RevokeInvitationRequestJson = {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id?: string;
-};
-
-/**
- * Describes the message loco.org.v1.RevokeInvitationRequest.
- * Use `create(RevokeInvitationRequestSchema)` to create a new message.
- */
-export const RevokeInvitationRequestSchema: GenMessage<RevokeInvitationRequest, {jsonType: RevokeInvitationRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 19);
-
-/**
- * @generated from message loco.org.v1.RevokeInvitationResponse
- */
-export type RevokeInvitationResponse = Message<"loco.org.v1.RevokeInvitationResponse"> & {
-};
-
-/**
- * @generated from message loco.org.v1.RevokeInvitationResponse
- */
-export type RevokeInvitationResponseJson = {
-};
-
-/**
- * Describes the message loco.org.v1.RevokeInvitationResponse.
- * Use `create(RevokeInvitationResponseSchema)` to create a new message.
- */
-export const RevokeInvitationResponseSchema: GenMessage<RevokeInvitationResponse, {jsonType: RevokeInvitationResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 20);
-
-/**
- * @generated from message loco.org.v1.ResendInvitationRequest
- */
-export type ResendInvitationRequest = Message<"loco.org.v1.ResendInvitationRequest"> & {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id: string;
-};
-
-/**
- * @generated from message loco.org.v1.ResendInvitationRequest
- */
-export type ResendInvitationRequestJson = {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id?: string;
-};
-
-/**
- * Describes the message loco.org.v1.ResendInvitationRequest.
- * Use `create(ResendInvitationRequestSchema)` to create a new message.
- */
-export const ResendInvitationRequestSchema: GenMessage<ResendInvitationRequest, {jsonType: ResendInvitationRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 21);
-
-/**
- * @generated from message loco.org.v1.ResendInvitationResponse
- */
-export type ResendInvitationResponse = Message<"loco.org.v1.ResendInvitationResponse"> & {
-  /**
-   * @generated from field: loco.org.v1.Invitation invitation = 1;
-   */
-  invitation?: Invitation | undefined;
-};
-
-/**
- * @generated from message loco.org.v1.ResendInvitationResponse
- */
-export type ResendInvitationResponseJson = {
-  /**
-   * @generated from field: loco.org.v1.Invitation invitation = 1;
-   */
-  invitation?: InvitationJson;
-};
-
-/**
- * Describes the message loco.org.v1.ResendInvitationResponse.
- * Use `create(ResendInvitationResponseSchema)` to create a new message.
- */
-export const ResendInvitationResponseSchema: GenMessage<ResendInvitationResponse, {jsonType: ResendInvitationResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 22);
-
-/**
  * User is a lightweight representation of a user for listing.
  *
  * @generated from message loco.org.v1.User
@@ -998,7 +635,7 @@ export type UserJson = {
  * Use `create(UserSchema)` to create a new message.
  */
 export const UserSchema: GenMessage<User, {jsonType: UserJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 23);
+  messageDesc(file_loco_org_v1_org, 14);
 
 /**
  * UpdateOrgRequest is the request to update an organization.
@@ -1039,7 +676,7 @@ export type UpdateOrgRequestJson = {
  * Use `create(UpdateOrgRequestSchema)` to create a new message.
  */
 export const UpdateOrgRequestSchema: GenMessage<UpdateOrgRequest, {jsonType: UpdateOrgRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 24);
+  messageDesc(file_loco_org_v1_org, 15);
 
 /**
  * UpdateOrgResponse is the response containing the updated organization ID.
@@ -1070,7 +707,7 @@ export type UpdateOrgResponseJson = {
  * Use `create(UpdateOrgResponseSchema)` to create a new message.
  */
 export const UpdateOrgResponseSchema: GenMessage<UpdateOrgResponse, {jsonType: UpdateOrgResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 25);
+  messageDesc(file_loco_org_v1_org, 16);
 
 /**
  * DeleteOrgRequest is the request to delete an organization.
@@ -1101,7 +738,7 @@ export type DeleteOrgRequestJson = {
  * Use `create(DeleteOrgRequestSchema)` to create a new message.
  */
 export const DeleteOrgRequestSchema: GenMessage<DeleteOrgRequest, {jsonType: DeleteOrgRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 26);
+  messageDesc(file_loco_org_v1_org, 17);
 
 /**
  * DeleteOrgResponse is the response after deleting an organization.
@@ -1124,43 +761,7 @@ export type DeleteOrgResponseJson = {
  * Use `create(DeleteOrgResponseSchema)` to create a new message.
  */
 export const DeleteOrgResponseSchema: GenMessage<DeleteOrgResponse, {jsonType: DeleteOrgResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_org_v1_org, 27);
-
-/**
- * @generated from enum loco.org.v1.InvitationStatus
- */
-export enum InvitationStatus {
-  /**
-   * @generated from enum value: INVITATION_STATUS_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: INVITATION_STATUS_EMAILED = 1;
-   */
-  EMAILED = 1,
-
-  /**
-   * @generated from enum value: INVITATION_STATUS_FAILED = 2;
-   */
-  FAILED = 2,
-
-  /**
-   * @generated from enum value: INVITATION_STATUS_NO_TRANSPORT = 3;
-   */
-  NO_TRANSPORT = 3,
-}
-
-/**
- * @generated from enum loco.org.v1.InvitationStatus
- */
-export type InvitationStatusJson = "INVITATION_STATUS_UNSPECIFIED" | "INVITATION_STATUS_EMAILED" | "INVITATION_STATUS_FAILED" | "INVITATION_STATUS_NO_TRANSPORT";
-
-/**
- * Describes the enum loco.org.v1.InvitationStatus.
- */
-export const InvitationStatusSchema: GenEnum<InvitationStatus, InvitationStatusJson> = /*@__PURE__*/
-  enumDesc(file_loco_org_v1_org, 0);
+  messageDesc(file_loco_org_v1_org, 18);
 
 /**
  * OrgService manages organizations.
@@ -1241,38 +842,6 @@ export const OrgService: GenService<{
     methodKind: "unary";
     input: typeof RemoveOrgMemberRequestSchema;
     output: typeof RemoveOrgMemberResponseSchema;
-  },
-  /**
-   * @generated from rpc loco.org.v1.OrgService.InviteOrgMember
-   */
-  inviteOrgMember: {
-    methodKind: "unary";
-    input: typeof InviteOrgMemberRequestSchema;
-    output: typeof InviteOrgMemberResponseSchema;
-  },
-  /**
-   * @generated from rpc loco.org.v1.OrgService.ListInvitations
-   */
-  listInvitations: {
-    methodKind: "unary";
-    input: typeof ListInvitationsRequestSchema;
-    output: typeof ListInvitationsResponseSchema;
-  },
-  /**
-   * @generated from rpc loco.org.v1.OrgService.RevokeInvitation
-   */
-  revokeInvitation: {
-    methodKind: "unary";
-    input: typeof RevokeInvitationRequestSchema;
-    output: typeof RevokeInvitationResponseSchema;
-  },
-  /**
-   * @generated from rpc loco.org.v1.OrgService.ResendInvitation
-   */
-  resendInvitation: {
-    methodKind: "unary";
-    input: typeof ResendInvitationRequestSchema;
-    output: typeof ResendInvitationResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_loco_org_v1_org, 0);

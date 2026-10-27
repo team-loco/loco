@@ -2,8 +2,8 @@
 // @generated from file loco/user/v1/user.proto (package loco.user.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
 import type { Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/user/v1/user.proto.
  */
 export const file_loco_user_v1_user: GenFile = /*@__PURE__*/
-  fileDesc("Chdsb2NvL3VzZXIvdjEvdXNlci5wcm90bxIMbG9jby51c2VyLnYxIqMBCgRVc2VyEgoKAmlkGAEgASgJEg0KBWVtYWlsGAIgASgJEhIKCmF2YXRhcl91cmwYAyABKAkSDAoEbmFtZRgEIAEoCRIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJOCg5HZXRVc2VyUmVxdWVzdBIbCgd1c2VyX2lkGAEgASgJQgi6SAVyA7ABAUgAEhgKBWVtYWlsGAIgASgJQge6SARyAmABSABCBQoDa2V5IjMKD0dldFVzZXJSZXNwb25zZRIgCgR1c2VyGAEgASgLMhIubG9jby51c2VyLnYxLlVzZXIizwEKEVVwZGF0ZVVzZXJSZXF1ZXN0EhkKB3VzZXJfaWQYASABKAlCCLpIBXIDsAEBEmoKCmF2YXRhcl91cmwYAiABKAlCUbpITroBSwoPdXNlci5hdmF0YXJfdXJsEhxtdXN0IGJlIGVtcHR5IG9yIGEgdmFsaWQgVVJJGhp0aGlzID09ICcnIHx8IHRoaXMuaXNVcmkoKUgAiAEBEhsKBG5hbWUYAyABKAlCCLpIBXIDGMgBSAGIAQFCDQoLX2F2YXRhcl91cmxCBwoFX25hbWUiJQoSVXBkYXRlVXNlclJlc3BvbnNlEg8KB3VzZXJfaWQYASABKAkiRQoQTGlzdFVzZXJzUmVxdWVzdBIdCglwYWdlX3NpemUYASABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgCIAEoCSJPChFMaXN0VXNlcnNSZXNwb25zZRIhCgV1c2VycxgBIAMoCzISLmxvY28udXNlci52MS5Vc2VyEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSIPCg1XaG9BbUlSZXF1ZXN0ImIKDldob0FtSVJlc3BvbnNlEiAKBHVzZXIYASABKAsyEi5sb2NvLnVzZXIudjEuVXNlchIuCgxjbGFpbWVkX29yZ3MYAiADKAsyGC5sb2NvLnVzZXIudjEuQ2xhaW1lZE9yZyJECgpDbGFpbWVkT3JnEg4KBm9yZ19pZBgBIAEoCRIQCghvcmdfbmFtZRgCIAEoCRIUCgxpbnZpdGVyX25hbWUYAyABKAkikQEKFFNldFVzZXJTdGF0dXNSZXF1ZXN0EhsKB3VzZXJfaWQYASABKAlCCLpIBXIDsAEBSAASGAoFZW1haWwYAiABKAlCB7pIBHICYAFIABI0CgZzdGF0dXMYAyABKA4yGC5sb2NvLnVzZXIudjEuVXNlclN0YXR1c0IKukgHggEEEAEgAEIMCgNrZXkSBbpIAggBIhcKFVNldFVzZXJTdGF0dXNSZXNwb25zZSIuChFEZWxldGVVc2VyUmVxdWVzdBIZCgd1c2VyX2lkGAEgASgJQgi6SAVyA7ABASIUChJEZWxldGVVc2VyUmVzcG9uc2UiDwoNTG9nb3V0UmVxdWVzdCIQCg5Mb2dvdXRSZXNwb25zZSpcCgpVc2VyU3RhdHVzEhsKF1VTRVJfU1RBVFVTX1VOU1BFQ0lGSUVEEAASFgoSVVNFUl9TVEFUVVNfQUNUSVZFEAESGQoVVVNFUl9TVEFUVVNfU1VTUEVOREVEEAIyqQQKC1VzZXJTZXJ2aWNlEkYKB0dldFVzZXISHC5sb2NvLnVzZXIudjEuR2V0VXNlclJlcXVlc3QaHS5sb2NvLnVzZXIudjEuR2V0VXNlclJlc3BvbnNlEkMKBldob0FtSRIbLmxvY28udXNlci52MS5XaG9BbUlSZXF1ZXN0GhwubG9jby51c2VyLnYxLldob0FtSVJlc3BvbnNlEk8KClVwZGF0ZVVzZXISHy5sb2NvLnVzZXIudjEuVXBkYXRlVXNlclJlcXVlc3QaIC5sb2NvLnVzZXIudjEuVXBkYXRlVXNlclJlc3BvbnNlEkwKCUxpc3RVc2VycxIeLmxvY28udXNlci52MS5MaXN0VXNlcnNSZXF1ZXN0Gh8ubG9jby51c2VyLnYxLkxpc3RVc2Vyc1Jlc3BvbnNlEk8KCkRlbGV0ZVVzZXISHy5sb2NvLnVzZXIudjEuRGVsZXRlVXNlclJlcXVlc3QaIC5sb2NvLnVzZXIudjEuRGVsZXRlVXNlclJlc3BvbnNlEkMKBkxvZ291dBIbLmxvY28udXNlci52MS5Mb2dvdXRSZXF1ZXN0GhwubG9jby51c2VyLnYxLkxvZ291dFJlc3BvbnNlElgKDVNldFVzZXJTdGF0dXMSIi5sb2NvLnVzZXIudjEuU2V0VXNlclN0YXR1c1JlcXVlc3QaIy5sb2NvLnVzZXIudjEuU2V0VXNlclN0YXR1c1Jlc3BvbnNlQjZaNGdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vdXNlci92MTt1c2VydjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("Chdsb2NvL3VzZXIvdjEvdXNlci5wcm90bxIMbG9jby51c2VyLnYxIqMBCgRVc2VyEgoKAmlkGAEgASgJEg0KBWVtYWlsGAIgASgJEhIKCmF2YXRhcl91cmwYAyABKAkSDAoEbmFtZRgEIAEoCRIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJOCg5HZXRVc2VyUmVxdWVzdBIbCgd1c2VyX2lkGAEgASgJQgi6SAVyA7ABAUgAEhgKBWVtYWlsGAIgASgJQge6SARyAmABSABCBQoDa2V5IjMKD0dldFVzZXJSZXNwb25zZRIgCgR1c2VyGAEgASgLMhIubG9jby51c2VyLnYxLlVzZXIizwEKEVVwZGF0ZVVzZXJSZXF1ZXN0EhkKB3VzZXJfaWQYASABKAlCCLpIBXIDsAEBEmoKCmF2YXRhcl91cmwYAiABKAlCUbpITroBSwoPdXNlci5hdmF0YXJfdXJsEhxtdXN0IGJlIGVtcHR5IG9yIGEgdmFsaWQgVVJJGhp0aGlzID09ICcnIHx8IHRoaXMuaXNVcmkoKUgAiAEBEhsKBG5hbWUYAyABKAlCCLpIBXIDGMgBSAGIAQFCDQoLX2F2YXRhcl91cmxCBwoFX25hbWUiJQoSVXBkYXRlVXNlclJlc3BvbnNlEg8KB3VzZXJfaWQYASABKAkiRQoQTGlzdFVzZXJzUmVxdWVzdBIdCglwYWdlX3NpemUYASABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgCIAEoCSJPChFMaXN0VXNlcnNSZXNwb25zZRIhCgV1c2VycxgBIAMoCzISLmxvY28udXNlci52MS5Vc2VyEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSIPCg1XaG9BbUlSZXF1ZXN0IjIKDldob0FtSVJlc3BvbnNlEiAKBHVzZXIYASABKAsyEi5sb2NvLnVzZXIudjEuVXNlciIuChFEZWxldGVVc2VyUmVxdWVzdBIZCgd1c2VyX2lkGAEgASgJQgi6SAVyA7ABASIUChJEZWxldGVVc2VyUmVzcG9uc2UiDwoNTG9nb3V0UmVxdWVzdCIQCg5Mb2dvdXRSZXNwb25zZTLPAwoLVXNlclNlcnZpY2USRgoHR2V0VXNlchIcLmxvY28udXNlci52MS5HZXRVc2VyUmVxdWVzdBodLmxvY28udXNlci52MS5HZXRVc2VyUmVzcG9uc2USQwoGV2hvQW1JEhsubG9jby51c2VyLnYxLldob0FtSVJlcXVlc3QaHC5sb2NvLnVzZXIudjEuV2hvQW1JUmVzcG9uc2USTwoKVXBkYXRlVXNlchIfLmxvY28udXNlci52MS5VcGRhdGVVc2VyUmVxdWVzdBogLmxvY28udXNlci52MS5VcGRhdGVVc2VyUmVzcG9uc2USTAoJTGlzdFVzZXJzEh4ubG9jby51c2VyLnYxLkxpc3RVc2Vyc1JlcXVlc3QaHy5sb2NvLnVzZXIudjEuTGlzdFVzZXJzUmVzcG9uc2USTwoKRGVsZXRlVXNlchIfLmxvY28udXNlci52MS5EZWxldGVVc2VyUmVxdWVzdBogLmxvY28udXNlci52MS5EZWxldGVVc2VyUmVzcG9uc2USQwoGTG9nb3V0EhsubG9jby51c2VyLnYxLkxvZ291dFJlcXVlc3QaHC5sb2NvLnVzZXIudjEuTG9nb3V0UmVzcG9uc2VCNlo0Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby91c2VyL3YxO3VzZXJ2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * User represents a user account with OAuth identity and profile information.
@@ -384,13 +384,6 @@ export type WhoAmIResponse = Message<"loco.user.v1.WhoAmIResponse"> & {
    * @generated from field: loco.user.v1.User user = 1;
    */
   user?: User | undefined;
-
-  /**
-   * claimed_orgs lists the organizations whose invitations this request claimed.
-   *
-   * @generated from field: repeated loco.user.v1.ClaimedOrg claimed_orgs = 2;
-   */
-  claimedOrgs: ClaimedOrg[];
 };
 
 /**
@@ -403,13 +396,6 @@ export type WhoAmIResponseJson = {
    * @generated from field: loco.user.v1.User user = 1;
    */
   user?: UserJson;
-
-  /**
-   * claimed_orgs lists the organizations whose invitations this request claimed.
-   *
-   * @generated from field: repeated loco.user.v1.ClaimedOrg claimed_orgs = 2;
-   */
-  claimedOrgs?: ClaimedOrgJson[];
 };
 
 /**
@@ -418,138 +404,6 @@ export type WhoAmIResponseJson = {
  */
 export const WhoAmIResponseSchema: GenMessage<WhoAmIResponse, {jsonType: WhoAmIResponseJson}> = /*@__PURE__*/
   messageDesc(file_loco_user_v1_user, 8);
-
-/**
- * ClaimedOrg is an organization the user joined through an invitation.
- *
- * @generated from message loco.user.v1.ClaimedOrg
- */
-export type ClaimedOrg = Message<"loco.user.v1.ClaimedOrg"> & {
-  /**
-   * @generated from field: string org_id = 1;
-   */
-  orgId: string;
-
-  /**
-   * @generated from field: string org_name = 2;
-   */
-  orgName: string;
-
-  /**
-   * @generated from field: string inviter_name = 3;
-   */
-  inviterName: string;
-};
-
-/**
- * ClaimedOrg is an organization the user joined through an invitation.
- *
- * @generated from message loco.user.v1.ClaimedOrg
- */
-export type ClaimedOrgJson = {
-  /**
-   * @generated from field: string org_id = 1;
-   */
-  orgId?: string;
-
-  /**
-   * @generated from field: string org_name = 2;
-   */
-  orgName?: string;
-
-  /**
-   * @generated from field: string inviter_name = 3;
-   */
-  inviterName?: string;
-};
-
-/**
- * Describes the message loco.user.v1.ClaimedOrg.
- * Use `create(ClaimedOrgSchema)` to create a new message.
- */
-export const ClaimedOrgSchema: GenMessage<ClaimedOrg, {jsonType: ClaimedOrgJson}> = /*@__PURE__*/
-  messageDesc(file_loco_user_v1_user, 9);
-
-/**
- * SetUserStatusRequest is the request to suspend or reinstate a user.
- *
- * @generated from message loco.user.v1.SetUserStatusRequest
- */
-export type SetUserStatusRequest = Message<"loco.user.v1.SetUserStatusRequest"> & {
-  /**
-   * @generated from oneof loco.user.v1.SetUserStatusRequest.key
-   */
-  key: {
-    /**
-     * @generated from field: string user_id = 1;
-     */
-    value: string;
-    case: "userId";
-  } | {
-    /**
-     * @generated from field: string email = 2;
-     */
-    value: string;
-    case: "email";
-  } | { case: undefined; value?: undefined };
-
-  /**
-   * @generated from field: loco.user.v1.UserStatus status = 3;
-   */
-  status: UserStatus;
-};
-
-/**
- * SetUserStatusRequest is the request to suspend or reinstate a user.
- *
- * @generated from message loco.user.v1.SetUserStatusRequest
- */
-export type SetUserStatusRequestJson = {
-  /**
-   * @generated from field: string user_id = 1;
-   */
-  userId?: string;
-
-  /**
-   * @generated from field: string email = 2;
-   */
-  email?: string;
-
-  /**
-   * @generated from field: loco.user.v1.UserStatus status = 3;
-   */
-  status?: UserStatusJson;
-};
-
-/**
- * Describes the message loco.user.v1.SetUserStatusRequest.
- * Use `create(SetUserStatusRequestSchema)` to create a new message.
- */
-export const SetUserStatusRequestSchema: GenMessage<SetUserStatusRequest, {jsonType: SetUserStatusRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_user_v1_user, 10);
-
-/**
- * SetUserStatusResponse is the response after changing a user's status.
- *
- * @generated from message loco.user.v1.SetUserStatusResponse
- */
-export type SetUserStatusResponse = Message<"loco.user.v1.SetUserStatusResponse"> & {
-};
-
-/**
- * SetUserStatusResponse is the response after changing a user's status.
- *
- * @generated from message loco.user.v1.SetUserStatusResponse
- */
-export type SetUserStatusResponseJson = {
-};
-
-/**
- * Describes the message loco.user.v1.SetUserStatusResponse.
- * Use `create(SetUserStatusResponseSchema)` to create a new message.
- */
-export const SetUserStatusResponseSchema: GenMessage<SetUserStatusResponse, {jsonType: SetUserStatusResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_user_v1_user, 11);
 
 /**
  * DeleteUserRequest is the request to delete a user.
@@ -580,7 +434,7 @@ export type DeleteUserRequestJson = {
  * Use `create(DeleteUserRequestSchema)` to create a new message.
  */
 export const DeleteUserRequestSchema: GenMessage<DeleteUserRequest, {jsonType: DeleteUserRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_user_v1_user, 12);
+  messageDesc(file_loco_user_v1_user, 9);
 
 /**
  * DeleteUserResponse is the response after deleting a user.
@@ -603,7 +457,7 @@ export type DeleteUserResponseJson = {
  * Use `create(DeleteUserResponseSchema)` to create a new message.
  */
 export const DeleteUserResponseSchema: GenMessage<DeleteUserResponse, {jsonType: DeleteUserResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_user_v1_user, 13);
+  messageDesc(file_loco_user_v1_user, 10);
 
 /**
  * LogoutRequest is the request to logout the current user.
@@ -626,7 +480,7 @@ export type LogoutRequestJson = {
  * Use `create(LogoutRequestSchema)` to create a new message.
  */
 export const LogoutRequestSchema: GenMessage<LogoutRequest, {jsonType: LogoutRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_user_v1_user, 14);
+  messageDesc(file_loco_user_v1_user, 11);
 
 /**
  * LogoutResponse is the response after logging out.
@@ -649,42 +503,7 @@ export type LogoutResponseJson = {
  * Use `create(LogoutResponseSchema)` to create a new message.
  */
 export const LogoutResponseSchema: GenMessage<LogoutResponse, {jsonType: LogoutResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_user_v1_user, 15);
-
-/**
- * UserStatus is whether a user may sign in.
- *
- * @generated from enum loco.user.v1.UserStatus
- */
-export enum UserStatus {
-  /**
-   * @generated from enum value: USER_STATUS_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: USER_STATUS_ACTIVE = 1;
-   */
-  ACTIVE = 1,
-
-  /**
-   * @generated from enum value: USER_STATUS_SUSPENDED = 2;
-   */
-  SUSPENDED = 2,
-}
-
-/**
- * UserStatus is whether a user may sign in.
- *
- * @generated from enum loco.user.v1.UserStatus
- */
-export type UserStatusJson = "USER_STATUS_UNSPECIFIED" | "USER_STATUS_ACTIVE" | "USER_STATUS_SUSPENDED";
-
-/**
- * Describes the enum loco.user.v1.UserStatus.
- */
-export const UserStatusSchema: GenEnum<UserStatus, UserStatusJson> = /*@__PURE__*/
-  enumDesc(file_loco_user_v1_user, 0);
+  messageDesc(file_loco_user_v1_user, 12);
 
 /**
  * UserService manages user accounts and operations.
@@ -751,16 +570,6 @@ export const UserService: GenService<{
     methodKind: "unary";
     input: typeof LogoutRequestSchema;
     output: typeof LogoutResponseSchema;
-  },
-  /**
-   * SetUserStatus suspends or reinstates a user. Requires system admin.
-   *
-   * @generated from rpc loco.user.v1.UserService.SetUserStatus
-   */
-  setUserStatus: {
-    methodKind: "unary";
-    input: typeof SetUserStatusRequestSchema;
-    output: typeof SetUserStatusResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_loco_user_v1_user, 0);

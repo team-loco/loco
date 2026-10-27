@@ -11,7 +11,7 @@ type SignupMode string
 const (
 	SignupOpen    SignupMode = "open"
 	SignupDomains SignupMode = "domains"
-	SignupInvite  SignupMode = "invite"
+	SignupClosed  SignupMode = "closed"
 )
 
 type SignupRejectedError struct {
@@ -57,7 +57,7 @@ func ParseSignupPolicy(mode string, domains string) (SignupPolicy, error) {
 	switch p.Mode {
 	case SignupOpen:
 		return p, nil
-	case SignupInvite:
+	case SignupClosed:
 		return p, nil
 	case SignupDomains:
 		if len(p.Domains) == 0 {
@@ -69,15 +69,12 @@ func ParseSignupPolicy(mode string, domains string) (SignupPolicy, error) {
 	}
 }
 
-func (p SignupPolicy) Check(id Identity, invited bool) error {
+func (p SignupPolicy) Check(id Identity) error {
 	switch p.Mode {
 	case SignupOpen:
 		return nil
-	case SignupInvite:
-		if invited {
-			return nil
-		}
-		return rejected("Sign-ups need an invitation. Ask an organization admin to invite your email address.")
+	case SignupClosed:
+		return rejected("Sign-ups are closed. Ask an organization admin for an invitation.")
 	case SignupDomains:
 		domain := emailDomain(id.Email)
 		if !id.EmailVerified || domain == "" {

@@ -61,11 +61,6 @@ type membershipOrg struct {
 
 func newMembershipAPI(t *testing.T) *membershipAPI {
 	t.Helper()
-	return newMembershipAPIWith(t, InvitationConfig{})
-}
-
-func newMembershipAPIWith(t *testing.T, invitations InvitationConfig) *membershipAPI {
-	t.Helper()
 	pool := authtest.NewPool(t)
 	queries := genDb.New(pool)
 	machine := tvm.NewVendingMachine(pool, queries, tvm.Config{
@@ -85,7 +80,7 @@ func newMembershipAPIWith(t *testing.T, invitations InvitationConfig) *membershi
 		interceptor.NewAuthInterceptor(machine, nil, nil, authorizer).Interceptor(),
 		validate.NewServerInterceptor(),
 	)
-	orgv1connect.RegisterOrgServiceHandler(server, NewOrgServer(pool, queries, machine, invitations))
+	orgv1connect.RegisterOrgServiceHandler(server, NewOrgServer(pool, queries, machine))
 	workspacev1connect.RegisterWorkspaceServiceHandler(server, NewWorkspaceServer(pool, queries, machine))
 	userv1connect.RegisterUserServiceHandler(server, NewUserServer(pool, queries, machine, auth.Admins{}))
 	resources := NewResourceServer(pool, queries, servicedefaults.Defaults{}, time.Minute)
@@ -105,7 +100,7 @@ func newMembershipAPIWith(t *testing.T, invitations InvitationConfig) *membershi
 
 func (a *membershipAPI) signUp(t *testing.T, subject string) membershipUser {
 	t.Helper()
-	user, _, err := a.resolver.Resolve(t.Context(), auth.Identity{
+	user, err := a.resolver.Resolve(t.Context(), auth.Identity{
 		Issuer: testIssuer, Subject: subject, Email: subject + "@acme.test", EmailVerified: true,
 	})
 	if err != nil {
@@ -121,12 +116,7 @@ func (a *membershipAPI) signUp(t *testing.T, subject string) membershipUser {
 
 func newMembershipOrg(t *testing.T) *membershipOrg {
 	t.Helper()
-	return newMembershipOrgWith(t, InvitationConfig{})
-}
-
-func newMembershipOrgWith(t *testing.T, invitations InvitationConfig) *membershipOrg {
-	t.Helper()
-	api := newMembershipAPIWith(t, invitations)
+	api := newMembershipAPI(t)
 	owner := api.signUp(t, "owner")
 	org, err := owner.clients.Org.CreateOrg(t.Context(), &orgv1.CreateOrgRequest{Name: new(membershipOrgName)})
 	if err != nil {

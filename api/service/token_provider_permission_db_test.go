@@ -29,7 +29,7 @@ func TestCheckPermissionForAuthenticatedProviderToken(t *testing.T) {
 	policy := auth.SignupPolicy{Mode: auth.SignupOpen}
 	resolver := auth.NewResolver(f.pool, policy)
 	identity := auth.Identity{Issuer: issuer.URL(), Subject: "reader", Email: "test@example.com", EmailVerified: true}
-	user, _, err := resolver.Resolve(t.Context(), identity)
+	user, err := resolver.Resolve(t.Context(), identity)
 	if err != nil {
 		t.Fatalf("resolve user: %v", err)
 	}

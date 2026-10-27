@@ -18,7 +18,7 @@ func TestOrgPaginationSurvivesDeletingTheCursorRow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := NewOrgServer(f.pool, f.queries, f.machine, InvitationConfig{})
+	server := NewOrgServer(f.pool, f.queries, f.machine)
 	position := time.Now().UTC().Add(time.Minute).Truncate(time.Microsecond)
 	ids := make([]uuid.UUID, 3)
 	for i := range ids {

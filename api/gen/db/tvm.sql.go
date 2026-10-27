@@ -354,8 +354,7 @@ SELECT
         '[]'::json
     )::json AS scopes
 FROM session_tokens st
-JOIN users u ON u.id = st.user_id
-WHERE st.access_token_hash = $1 AND st.access_expires_at > NOW() AND u.status = 'active'
+WHERE st.access_token_hash = $1 AND st.access_expires_at > NOW()
 `
 
 type GetSessionWithScopesByAccessTokenRow struct {

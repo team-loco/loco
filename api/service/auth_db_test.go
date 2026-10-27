@@ -74,7 +74,7 @@ func newAuthFixture(t *testing.T) *authFixture {
 		t.Fatalf("policy: %v", err)
 	}
 	identity := auth.Identity{Issuer: testIssuer, Subject: "sub-1", Email: "dev@example.test", EmailVerified: true}
-	user, _, err := auth.NewResolver(pool, policy).Resolve(t.Context(), identity)
+	user, err := auth.NewResolver(pool, policy).Resolve(t.Context(), identity)
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
 	}

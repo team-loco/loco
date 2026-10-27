@@ -40,7 +40,7 @@ func newOrgDeleteFixture(t *testing.T) *orgDeleteFixture {
 	f.owner = scoped(t, f.queries, org.CreatedBy)
 	return &orgDeleteFixture{
 		eventFixture: f, workspaceID: created.GetWorkspaceId(),
-		orgs:      NewOrgServer(f.pool, f.queries, f.machine, InvitationConfig{}),
+		orgs:      NewOrgServer(f.pool, f.queries, f.machine),
 		resources: NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter),
 	}
 }

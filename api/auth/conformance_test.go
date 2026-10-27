@@ -22,12 +22,11 @@ import (
 )
 
 const (
-	fieldPassword       = "password"
-	fieldEmail          = "email"
-	fieldClientID       = "client_id"
-	conformanceClientID = "loco"
-	accountVerified     = "verified"
-	accountUnverified   = "unverified"
+	fieldPassword     = "password"
+	fieldEmail        = "email"
+	fieldClientID     = "client_id"
+	accountVerified   = "verified"
+	accountUnverified = "unverified"
 )
 
 type tokenFunc func(t *testing.T) string
@@ -97,12 +96,12 @@ func decodeToken(t *testing.T, status int, body []byte, field string) string {
 	return token
 }
 
-func passwordGrant(endpoint, clientSecret, username, password string) tokenFunc {
+func passwordGrant(endpoint, clientID, clientSecret, username, password string) tokenFunc {
 	return func(t *testing.T) string {
 		t.Helper()
 		form := url.Values{
 			"grant_type":  {fieldPassword},
-			fieldClientID: {conformanceClientID},
+			fieldClientID: {clientID},
 			"username":    {username},
 			fieldPassword: {password},
 			"scope":       {"openid email profile"},
@@ -245,10 +244,10 @@ func providers() []conformanceProvider {
 			issuers: `[{"issuer":"http://localhost:58080/realms/loco","audience":"loco"}]`,
 			accounts: []account{
 				{accountVerified, "alice@keycloak.test", true, passwordGrant(
-					"http://localhost:58080/realms/loco/protocol/openid-connect/token", "", "alice", "alicepw",
+					"http://localhost:58080/realms/loco/protocol/openid-connect/token", "loco", "", "alice", "alicepw",
 				)},
 				{accountUnverified, "bob@keycloak.test", false, passwordGrant(
-					"http://localhost:58080/realms/loco/protocol/openid-connect/token", "", "bob", "bobpw",
+					"http://localhost:58080/realms/loco/protocol/openid-connect/token", "loco", "", "bob", "bobpw",
 				)},
 			},
 		},
@@ -258,7 +257,7 @@ func providers() []conformanceProvider {
 			issuers: `[{"issuer":"http://localhost:55556/dex","audience":"loco"}]`,
 			accounts: []account{
 				{"static password", "carol@dex.test", true, passwordGrant(
-					"http://localhost:55556/dex/token", "loco-conformance", "carol@dex.test", "carolpw",
+					"http://localhost:55556/dex/token", "loco", "loco-conformance", "carol@dex.test", "carolpw",
 				)},
 			},
 		},
@@ -336,7 +335,7 @@ func TestProviderConformance(t *testing.T) {
 						t.Fatalf("tampered token: %v", tamperErr)
 					}
 
-					first, _, err := resolver.Resolve(t.Context(), id)
+					first, err := resolver.Resolve(t.Context(), id)
 					if !a.emailVerified {
 						if !errors.Is(err, auth.ErrEmailUnverified) {
 							t.Fatalf("resolve an unverified email = %+v %v, want %v",
@@ -347,7 +346,7 @@ func TestProviderConformance(t *testing.T) {
 					if err != nil {
 						t.Fatalf("resolve: %v", err)
 					}
-					again, _, err := resolver.Resolve(t.Context(), id)
+					again, err := resolver.Resolve(t.Context(), id)
 					if err != nil || again.ID != first.ID {
 						t.Fatalf("second resolve = %v (%v), want %v", again.ID, err, first.ID)
 					}

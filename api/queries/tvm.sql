@@ -114,8 +114,7 @@ SELECT
         '[]'::json
     )::json AS scopes
 FROM session_tokens st
-JOIN users u ON u.id = st.user_id
-WHERE st.access_token_hash = $1 AND st.access_expires_at > NOW() AND u.status = 'active';
+WHERE st.access_token_hash = $1 AND st.access_expires_at > NOW();
 
 -- name: GetSessionByRefreshToken :one
 SELECT id, user_id, refresh_token_hash, access_expires_at, refresh_expires_at, last_used_at, ip_address, user_agent, created_at

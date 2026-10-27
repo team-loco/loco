@@ -26,54 +26,6 @@
           },
           "additionalProperties": false
         },
-        "email": {
-          "type": "object",
-          "properties": {
-            "from": {
-              "type": "string"
-            },
-            "hookSecret": {
-              "type": "object",
-              "properties": {
-                "existingSecret": {
-                  "type": "object",
-                  "properties": {
-                    "key": {
-                      "type": "string"
-                    },
-                    "name": {
-                      "type": "string"
-                    }
-                  },
-                  "additionalProperties": false
-                }
-              },
-              "additionalProperties": false
-            },
-            "invitationTtl": {
-              "type": "string"
-            },
-            "transport": {
-              "type": "object",
-              "properties": {
-                "existingSecret": {
-                  "type": "object",
-                  "properties": {
-                    "key": {
-                      "type": "string"
-                    },
-                    "name": {
-                      "type": "string"
-                    }
-                  },
-                  "additionalProperties": false
-                }
-              },
-              "additionalProperties": false
-            }
-          },
-          "additionalProperties": false
-        },
         "env": {
           "type": "object"
         },

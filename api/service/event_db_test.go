@@ -61,19 +61,14 @@ func newEventFixture(t *testing.T) *eventFixture {
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
-	owner, _, err := auth.NewResolver(pool, policy).Resolve(t.Context(), auth.Identity{
+	owner, err := auth.NewResolver(pool, policy).Resolve(t.Context(), auth.Identity{
 		Issuer: testIssuer, Subject: "owner", Email: auditOwnerEmail, EmailVerified: true,
 	})
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
 	}
 	ownerCtx := scoped(t, queries, owner.ID)
-	created, err := NewOrgServer(
-		pool,
-		queries,
-		machine,
-		InvitationConfig{},
-	).CreateOrg(ownerCtx, &orgv1.CreateOrgRequest{
+	created, err := NewOrgServer(pool, queries, machine).CreateOrg(ownerCtx, &orgv1.CreateOrgRequest{
 		Name: new("acme"),
 	})
 	if err != nil {
@@ -363,7 +358,7 @@ CREATE TRIGGER fail_event_insert BEFORE INSERT ON events FOR EACH ROW EXECUTE FU
 
 func TestMutationFailsWithoutItsEvent(t *testing.T) {
 	f := newEventFixture(t)
-	orgs := NewOrgServer(f.pool, f.queries, f.machine, InvitationConfig{})
+	orgs := NewOrgServer(f.pool, f.queries, f.machine)
 	orgID := uuid.MustParse(f.orgID)
 	if _, err := f.pool.Exec(t.Context(), failEventInsertsSQL); err != nil {
 		t.Fatalf("install failing trigger: %v", err)

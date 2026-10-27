@@ -12,5 +12,4 @@ const (
 	SourceIPKey         ContextKey = "sourceIp"
 	TokenKey            ContextKey = "token"
 	IdentityKey         ContextKey = "identity"
-	ClaimedOrgsKey      ContextKey = "claimedOrgs"
 )

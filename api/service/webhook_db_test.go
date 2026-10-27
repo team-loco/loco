@@ -51,7 +51,7 @@ func newWebhookFixture(t *testing.T) *webhookFixture {
 	f := &webhookFixture{pool: pool, queries: queries, resolver: auth.NewResolver(pool, policy)}
 	owner := f.signUp(t, "owner", "owner@corp.test")
 	ownerCtx := scoped(t, queries, owner)
-	orgs := NewOrgServer(pool, queries, machine, InvitationConfig{})
+	orgs := NewOrgServer(pool, queries, machine)
 	created, err := orgs.CreateOrg(ownerCtx, &orgv1.CreateOrgRequest{Name: new("corp")})
 	if err != nil {
 		t.Fatalf("org: %v", err)
@@ -76,7 +76,7 @@ func (f *webhookFixture) workspace(t *testing.T, owner uuid.UUID, name string) s
 
 func (f *webhookFixture) signUp(t *testing.T, sub, email string) uuid.UUID {
 	t.Helper()
-	user, _, err := f.resolver.Resolve(t.Context(), auth.Identity{
+	user, err := f.resolver.Resolve(t.Context(), auth.Identity{
 		Issuer: testIssuer, Subject: sub, Email: email, EmailVerified: true,
 	})
 	if err != nil {
