@@ -29,9 +29,6 @@
 {{- if and $settings.platformOnly (index .root.Values "otel-col-deploy" "enabled") -}}
 {{- fail "platformOnly requires otel-col-deploy.enabled=false" -}}
 {{- end -}}
-{{- range $key := list "installation" "cluster" "environment" -}}
-{{- $_ := required (printf "global.platformTelemetry.%s is required" $key) (index $settings $key) -}}
-{{- end -}}
 {{- if ne .name "otel-col-deploy" -}}
 {{- $namespaces := list -}}
 {{- $chartNamespaces := list .root.Release.Namespace -}}

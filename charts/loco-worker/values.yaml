@@ -1,16 +1,20 @@
 # Global configuration (can be overridden by environment-specific values)
 global:
+  # @schema additionalProperties: false
   domain:
     apps:
       - onloco.app
       - onloco.build
     platform: loco.build
 
+  # @schema additionalProperties: false
   cloudProvider:
     type: ""
     annotations: {}
 
+  # @schema additionalProperties: false
   resources:
+    # @schema skipProperties
     agent:
       requests:
         cpu: 200m
@@ -22,23 +26,28 @@ global:
   workspaceNamespacePrefix: loco-ws-
 
   # Replica counts
+  # @schema additionalProperties: false
   replicas:
     agent: 1
 
   # Container ports
+  # @schema additionalProperties: false
   ports:
     agent: 8000
 
   # region label attached to platform records as loco.region.
   region: ""
+  # @schema additionalProperties: false
   exporter:
     endpoint: ""
     headers: {}
+    # @schema additionalProperties: false
     bearerToken:
       enabled: false
       secretName: loco-otlp-exporter
       secretKey: token
       directory: &exporterTokenDirectory /etc/otelcol-exporter
+    # @schema additionalProperties: false
     queue:
       directory: &exporterQueueDirectory /var/lib/otelcol-exporter
       num_consumers: 2
@@ -49,6 +58,7 @@ global:
       max_elapsed_time: 0s
   # export node metrics, Kubernetes state and platform events through a separate pipeline.
   # these settings apply to the node DaemonSet and the single cluster collector.
+  # @schema additionalProperties: false; allOf: [{if: {properties: {enabled: {const: true}}}, then: {properties: {installation: {minLength: 1}}}}, {if: {properties: {enabled: {const: true}}}, then: {properties: {cluster: {minLength: 1}}}}, {if: {properties: {enabled: {const: true}}}, then: {properties: {environment: {minLength: 1}}}}]
   platformTelemetry:
     # opt in; false leaves the existing application telemetry pipelines in place.
     enabled: false
@@ -79,9 +89,11 @@ global:
     namespaces: [kube-system, cert-manager]
 
 # Cert-manager configuration
+# @schema additionalProperties: false; allOf: [{if: {properties: {existingTLSSecret: {const: ''}, issuer: {properties: {create: {const: true}, type: {const: acme}}}}}, then: {properties: {issuer: {properties: {email: {minLength: 1}}}}}}]
 certManager:
   existingTLSSecret: ""
   additionalDNSNames: []
+  # @schema additionalProperties: false
   issuer:
     create: true
     type: acme
@@ -89,6 +101,7 @@ certManager:
     name: letsencrypt-prod
     email: ""  # Override in environment-specific values
     server: https://acme-v02.api.letsencrypt.org/directory
+    # @schema item: object
     solvers:
       - dns01:
           cloudflare:
@@ -96,14 +109,18 @@ certManager:
               name: cloudflare-api-token-secret
               key: api-token
 
+# @schema additionalProperties: false
 agent:
+  # @schema additionalProperties: false
   joinToken:
     value: ""
     existingSecret: ""
     secretKey: join-token
   assertionLifetime: 1m
+  # @schema additionalProperties: false
   image:
     repository: ghcr.io/team-loco/loco-agent
+    # @schema required; minLength: 1
     tag: ""
   imagePullPolicy: Always
   inventoryInterval: 10m
@@ -121,17 +138,21 @@ agent:
   reconnectMaxDelay: 30s
   healthyStreamDuration: 1m
 
+# @schema additionalProperties: false
 secrets:
   cloudflareToken: ""
 
 env:
   LOG_LEVEL: debug
 
+# @schema additionalProperties: false
 envoyProxy:
   service: {}
   statsFlushInterval: 60s
+  # @schema additionalProperties: false
   tracing:
     samplingRate: 10
+  # @schema additionalProperties: false
   accessLog:
     attributes:
       method: "%REQ(:METHOD)%"
@@ -148,6 +169,7 @@ envoyProxy:
       request_id: "%REQ(X-REQUEST-ID)%"
       trace_id: "%TRACE_ID%"
 
+# @schema skipProperties
 gateway-helm:
   enabled: true
   crds:
@@ -157,12 +179,15 @@ gateway-helm:
       logging:
         default: info
 
+# @schema additionalProperties: false
 controller:
   name: loco-controller
   replicas: 1
 
+  # @schema additionalProperties: false
   image:
     repository: ghcr.io/team-loco/loco-controller
+    # @schema required; minLength: 1
     tag: ""
     pullPolicy: Always
 
@@ -171,11 +196,13 @@ controller:
 
   env: []
 
+  # @schema skipProperties
   podSecurityContext:
     runAsNonRoot: true
     seccompProfile:
       type: RuntimeDefault
 
+  # @schema skipProperties
   securityContext:
     allowPrivilegeEscalation: false
     capabilities:
@@ -183,6 +210,7 @@ controller:
         - ALL
     readOnlyRootFilesystem: true
 
+  # @schema skipProperties
   resources:
     limits:
       cpu: 500m
@@ -191,28 +219,34 @@ controller:
       cpu: 10m
       memory: 64Mi
 
+# @schema additionalProperties: false
 registry:
   pullSecretName: ""
 
+# @schema additionalProperties: false; allOf: [{if: {properties: {enabled: {const: true}}}, then: {properties: {builderImage: {properties: {tag: {minLength: 1}}}}}}]
 builds:
   enabled: true
   createNamespace: true
 
+  # @schema additionalProperties: false
   controller:
     replicas: 1
     args:
       - --leader-elect
     env: []
+    # @schema skipProperties
     podSecurityContext:
       runAsNonRoot: true
       seccompProfile:
         type: RuntimeDefault
+    # @schema skipProperties
     securityContext:
       allowPrivilegeEscalation: false
       capabilities:
         drop:
           - ALL
       readOnlyRootFilesystem: true
+    # @schema skipProperties
     resources:
       limits:
         cpu: 500m
@@ -222,15 +256,18 @@ builds:
         memory: 64Mi
 
   namespace: loco-builds
+  # @schema additionalProperties: false
   podSecurity:
     level: privileged
     version: latest
 
   pushSecretName: ""
+  # @schema additionalProperties: false
   builderImage:
     repository: ghcr.io/team-loco/loco-builder
     tag: ""
     pullPolicy: Always
+  # @schema additionalProperties: false
   buildkitImage:
     repository: moby/buildkit
     tag: v0.34.0-rootless
@@ -238,17 +275,24 @@ builds:
   timeout: 30m
   ttlAfterFinished: 10m
   downloadTimeout: 10m
+  # @schema type: [string, integer]
   maxSourceSize: 200Mi
+  # @schema type: [string, integer]
   maxContextSize: 1Gi
   maxContextFiles: 200000
+  # @schema type: [string, integer]
   maxImageSize: 1Gi
   insecureRegistry: false
+  # @schema item: object
   privateEgress: []
   seccompLocalhostProfile: ""
   runtimeClassName: ""
   nodeSelector: {}
+  # @schema item: object
   tolerations: []
+  # @schema additionalProperties: false
   resources:
+    # @schema skipProperties
     fetch:
       requests:
         cpu: 100m
@@ -256,6 +300,7 @@ builds:
       limits:
         cpu: "1"
         memory: 256Mi
+    # @schema skipProperties
     build:
       requests:
         cpu: 500m
@@ -263,6 +308,7 @@ builds:
       limits:
         cpu: "2"
         memory: 4Gi
+    # @schema skipProperties
     push:
       requests:
         cpu: 100m
@@ -270,24 +316,34 @@ builds:
       limits:
         cpu: "1"
         memory: 512Mi
+  # @schema additionalProperties: false
   storage:
+    # @schema type: [string, integer]
     workspace: 2Gi
+    # @schema type: [string, integer]
     cache: 5Gi
+    # @schema type: [string, integer]
     out: 10Gi
+    # @schema type: [string, integer]
     buildkit: 10Gi
 
+# @schema additionalProperties: false
 rbacHelpers:
   enable: false
 
+# @schema additionalProperties: false
 metrics:
   enable: true
   port: 8443
+  # @schema additionalProperties: false
   certManager:
     enable: false
 
+# @schema additionalProperties: false
 prometheus:
   enable: false
 
+# @schema skipProperties
 otel-col-daemon:
   enabled: true
   fullnameOverride: "otel-col-daemon"
@@ -609,6 +665,7 @@ otel-col-daemon:
           receivers: [otlp, jaeger, zipkin]
           processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, resource/region, batch]
 
+# @schema skipProperties
 otel-col-deploy:
   enabled: true
   fullnameOverride: otel-col-deploy
@@ -745,6 +802,7 @@ otel-col-deploy:
           receivers: [otlp, jaeger, zipkin]
           processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, transform/envoy_tenancy, groupbyattrs/tenancy, resource/region, batch]
 
+# @schema skipProperties
 otel-col-cluster:
   enabled: true
   fullnameOverride: otel-col-cluster

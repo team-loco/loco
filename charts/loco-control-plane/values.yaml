@@ -1,12 +1,15 @@
+# @schema additionalProperties: false; allOf: [{if: {properties: {enabled: {const: true}}}, then: {properties: {image: {properties: {tag: {minLength: 1}}}}}}]
 ui:
   enabled: true
   hostname: app.loco.build
+  # @schema additionalProperties: false
   image:
     repository: ghcr.io/team-loco/loco-ui
     tag: ""
   imagePullPolicy: Always
   replicaCount: 1
   port: 8080
+  # @schema skipProperties
   resources:
     requests:
       cpu: 100m
@@ -15,30 +18,42 @@ ui:
       cpu: 500m
       memory: 256Mi
 
+# @schema additionalProperties: false
 api:
+  # @schema additionalProperties: false
   image:
     repository: ghcr.io/team-loco/loco-api
+    # @schema required; minLength: 1
     tag: ""
   imagePullPolicy: Always
   replicaCount: 1
   port: 8000
+  # @schema required; minLength: 1
   existingSecret: ""
+  # @schema additionalProperties: false
   bootstrapToken:
+    # @schema additionalProperties: false
     existingSecret:
       name: ""
       key: token
+  # @schema additionalProperties: false
   email:
     from: ""
     invitationTtl: ""
+    # @schema additionalProperties: false
     transport:
+      # @schema additionalProperties: false
       existingSecret:
         name: ""
         key: transport
+    # @schema additionalProperties: false
     hookSecret:
+      # @schema additionalProperties: false
       existingSecret:
         name: ""
         key: secret
   env: {}
+  # @schema skipProperties
   resources:
     requests:
       cpu: 100m
@@ -46,6 +61,7 @@ api:
     limits:
       cpu: 1000m
       memory: 1Gi
+  # @schema skipProperties
   startupProbe:
     failureThreshold: 60
     periodSeconds: 5
@@ -54,6 +70,7 @@ api:
 gatewayNamespace: loco-system
 controlPlaneHostname: api.loco.build
 
+# @schema additionalProperties: false
 gateway:
   create: true
   name: loco-control-plane
@@ -61,8 +78,10 @@ gateway:
   service: {}
   tlsSecretName: ""
 
+# @schema additionalProperties: false
 certManager:
   enabled: true
+  # @schema additionalProperties: false
   issuer:
     create: true
     type: acme
@@ -70,6 +89,7 @@ certManager:
     name: letsencrypt-prod
     email: ""
     server: https://acme-v02.api.letsencrypt.org/directory
+    # @schema item: object
     solvers:
       - dns01:
           cloudflare:
@@ -77,17 +97,22 @@ certManager:
               name: cloudflare-api-token-secret
               key: api-token
 
+# @schema additionalProperties: false
 secrets:
   cloudflareToken: ""
 
+# @schema additionalProperties: false; allOf: [{if: {properties: {enabled: {const: true}}}, then: {properties: {image: {properties: {tag: {minLength: 1}}}}}}]
 obsProxy:
   enabled: true
+  # @schema additionalProperties: false
   image:
     repository: ghcr.io/team-loco/loco-obs-proxy
     tag: ""
   imagePullPolicy: Always
+  # @schema additionalProperties: false
   query:
     replicaCount: 1
+    # @schema skipProperties
     resources:
       requests:
         cpu: 100m
@@ -96,18 +121,25 @@ obsProxy:
         cpu: 1000m
         memory: 1Gi
     port: 8080
+    # @schema additionalProperties: false
     cors:
+      # @schema item: string
       allowedOrigins: []
+    # @schema additionalProperties: false
     clickhouse:
+      # @schema additionalProperties: false
       existingSecret:
         name: ""
         key: url
+      # @schema additionalProperties: false
       migratorExistingSecret:
         name: ""
         key: url
+  # @schema additionalProperties: false
   ingest:
     enabled: false
     replicaCount: 1
+    # @schema skipProperties
     resources:
       requests:
         cpu: 100m
@@ -119,11 +151,14 @@ obsProxy:
     grpcPort: 4317
     httpPort: 4318
     hostname: ""
+    # @schema additionalProperties: false
     clickhouse:
+      # @schema additionalProperties: false
       existingSecret:
         name: ""
         key: url
 
+# @schema skipProperties
 clickhouse:
   enabled: false
   nameOverride: "clickhouse"

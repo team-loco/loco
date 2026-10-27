@@ -88,13 +88,9 @@ def test_api_startup_probe_follows_values(api_pod):
 
 
 def test_api_requires_an_operator_secret():
-    with pytest.raises(subprocess.CalledProcessError) as caught:
-        render_template_object(
-            "loco-control-plane",
-            "api-deployment.yaml",
-            {"api": {"image": {"tag": "test"}}},
-        )
-    assert "api.existingSecret is required" in caught.value.output
+    result = render_chart("loco-control-plane", {"api": {"image": {"tag": "test"}}, "obsProxy": TEST_PROXY}, check=False)
+    assert result.returncode != 0
+    assert "at '/api/existingSecret'" in result.stderr
 
 
 def test_chart_owns_port_and_proxy_wiring():

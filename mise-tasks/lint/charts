@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-#MISE description="Lint every chart changed since origin/main with ct: the Chart.yaml schema, yamllint, a version bump and helm lint with each chart's ci/ values. Extra arguments go to ct lint"
+#MISE description="Check that each values.schema.json matches its values.yaml annotations, then lint every chart changed since origin/main with ct: the Chart.yaml schema, yamllint, a version bump and helm lint with each chart's ci/ values. Extra arguments go to ct lint"
 #MISE depends=["helm:deps"]
 set -euo pipefail
 
 CHARTS_REPO=$(git rev-parse --show-toplevel)
 CHARTS_GIT_DIR=$(git rev-parse --path-format=absolute --git-common-dir)
 export CHARTS_REPO CHARTS_GIT_DIR
+mise run chart:schema --check
 exec docker compose -f "$CHARTS_REPO/charts/compose.yaml" run --rm ct ct lint --config .ct.yaml "$@"
