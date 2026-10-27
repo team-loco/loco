@@ -26,6 +26,7 @@ helm = "4.3.1"
 kubectl = "1.37.1"
 kind = "0.33.0"
 tilt = "0.37.8"
+infisical = "0.44.9"
 
 
 [settings]
@@ -206,7 +207,15 @@ if [ -z "${DOCKER_HOST:-}" ] && [ -S "$orbstack_sock" ]; then
 fi
 mise run doctor
 mise run cluster:up
-tilt up --context "kind-$KIND_CLUSTER" --file dev/Tiltfile
+infisical="--projectId 01f016e0-4b6e-49fd-bbc0-072b89cfc699 --env dev --silent --log-level warn"
+if infisical export $infisical >/dev/null 2>&1 </dev/null; then
+  infisical run $infisical -- tilt up --context "kind-$KIND_CLUSTER" --file dev/Tiltfile
+else
+  if [ -z "${GH_OAUTH_CLIENT_ID:-}" ]; then
+    echo "the Dex login page has no GitHub button: run infisical login with an account that can read the Loco Infisical project" >&2
+  fi
+  tilt up --context "kind-$KIND_CLUSTER" --file dev/Tiltfile
+fi
 """
 
 [tasks."infra:up"]
