@@ -79,8 +79,25 @@ CREATE INDEX api_tokens_entity_idx ON api_tokens (entity_type, entity_id);
 CREATE INDEX api_tokens_expires_idx ON api_tokens (expires_at);
 CREATE INDEX api_tokens_created_by_idx ON api_tokens (created_by);
 
+CREATE TABLE invitations (
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    email TEXT NOT NULL,
+    invited_by UUID NOT NULL REFERENCES users(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    claimed_by UUID REFERENCES users(id),
+    claimed_at TIMESTAMPTZ,
+    revoked_at TIMESTAMPTZ,
+    delivered_at TIMESTAMPTZ,
+    delivery_error TEXT
+);
+
+CREATE UNIQUE INDEX invitations_open_idx ON invitations (org_id, lower(email)) WHERE claimed_at IS NULL AND revoked_at IS NULL;
+CREATE INDEX invitations_email_open_idx ON invitations (lower(email)) WHERE claimed_at IS NULL AND revoked_at IS NULL;
 
 -- +goose Down
+DROP TABLE IF EXISTS invitations;
 DROP TABLE IF EXISTS api_tokens;
 DROP TABLE IF EXISTS session_tokens;
 DROP TABLE IF EXISTS system_bootstrap;
