@@ -160,14 +160,58 @@ tests:
           path: metadata.annotations["helm.sh/hook"]
           value: post-install,post-upgrade
       - equal:
-          path: spec.template.spec.initContainers[1].image
+          path: spec.template.spec.initContainers[0].image
           value: curlimages/curl:8.23.0@sha256:11e64e28c5f58c8d93ee95fcf22ac055f48b0bc440e0ce7d8013bbb5ad6aa8ac
       - contains:
-          path: spec.template.spec.initContainers[0].env
+          path: spec.template.spec.initContainers[1].env
           content: {name: OPENBAO_PREVIOUS_INIT, value: /init-secret/recovery-keys}
       - contains:
-          path: spec.template.spec.initContainers[0].env
+          path: spec.template.spec.initContainers[1].env
           content: {name: OPENBAO_GENERATE_ROOT_TOKEN_FILE, value: /work/generate-root-token}
+
+  - it: proves it can write the init Secret before initializing and stores the output in the same pod
+    template: templates/openbao-setup.yaml
+    documentSelector: {path: kind, value: Job}
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].command
+          value: [sh, /scripts/openbao-init-secret.sh, prepare]
+      - equal:
+          path: spec.template.spec.initContainers[1].name
+          value: init
+      - equal:
+          path: spec.template.spec.initContainers[2].command
+          value: [sh, /scripts/openbao-init-secret.sh, store]
+      - contains:
+          path: spec.template.spec.initContainers[2].env
+          content: {name: INIT_SECRET_PATCH, value: /work/init-secret.json}
+      - contains:
+          path: spec.template.spec.initContainers[1].env
+          content: {name: INIT_SECRET_PATCH, value: /work/init-secret.json}
+      - equal:
+          path: spec.template.spec.restartPolicy
+          value: OnFailure
+
+  - it: ships the init Secret script in the setup ConfigMap
+    template: templates/openbao-setup.yaml
+    documentSelector: {path: kind, value: ConfigMap}
+    asserts:
+      - isNotNullOrEmpty:
+          path: data["openbao-init-secret.sh"]
+
+  - it: lets the setup role tell a lost init output from a failed login
+    template: templates/openbao-setup.yaml
+    documentSelector: {path: kind, value: Job}
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: OPENBAO_PREVIOUS_INIT, value: /init-secret/recovery-keys}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: INIT_SECRET, value: loco-control-plane-openbao-init}
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content: {name: init-secret, mountPath: /init-secret, readOnly: true}
 
   - it: verifies OpenBao against the chart CA and logs in later runs with its own role
     template: templates/openbao-setup.yaml
@@ -189,13 +233,15 @@ tests:
           path: spec.template.spec.containers[0].env
           content: {name: OPENBAO_API_SERVICE_ACCOUNT, value: loco-control-plane-api}
 
-  - it: lets the setup Job only create Secrets
+  - it: lets the setup Job create Secrets and patch only the init Secret
     template: templates/openbao-setup.yaml
     documentSelector: {path: kind, value: Role}
     asserts:
       - equal:
           path: rules
-          value: [{apiGroups: [""], resources: [secrets], verbs: [create]}]
+          value:
+            - {apiGroups: [""], resources: [secrets], verbs: [create]}
+            - {apiGroups: [""], resources: [secrets], resourceNames: [loco-control-plane-openbao-init], verbs: [patch]}
 
   - it: rejects a recovery threshold above the shares
     set:

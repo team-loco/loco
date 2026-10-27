@@ -2,6 +2,7 @@
 {{- $name := include "loco-control-plane.openbaoSetupName" . }}
 {{- $initSecret := include "loco-control-plane.openbaoInitSecret" . }}
 {{- $recovery := .Values.openbao.recovery }}
+{{- $previousInit := "/init-secret/recovery-keys" }}
 {{- if or (lt (int $recovery.threshold) 1) (gt (int $recovery.threshold) (int $recovery.shares)) }}
 {{- fail "openbao.recovery.threshold must be between 1 and openbao.recovery.shares" }}
 {{- end }}
@@ -15,6 +16,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
 data:
   openbao-setup.sh: {{ .Files.Get "files/openbao-setup.sh" | quote }}
+  openbao-init-secret.sh: {{ .Files.Get "files/openbao-init-secret.sh" | quote }}
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -31,6 +33,10 @@ rules:
   - apiGroups: [""]
     resources: [secrets]
     verbs: [create]
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [{{ $initSecret }}]
+    verbs: [patch]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -70,6 +76,19 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       initContainers:
+        - name: prepare
+          image: {{ .Values.openbao.curlImage | quote }}
+          command: [sh, /scripts/openbao-init-secret.sh, prepare]
+          env:
+            {{- include "loco-control-plane.openbaoInitSecretEnv" . | nindent 12 }}
+          securityContext:
+            {{- include "loco-control-plane.restrictedContainer" . | nindent 12 }}
+          volumeMounts:
+            - name: work
+              mountPath: /work
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
         - name: init
           image: {{ .Values.openbao.image | quote }}
           command:
@@ -80,23 +99,20 @@ spec:
               sh /scripts/openbao-setup.sh init
               if [ -s "$OPENBAO_INIT_FILE" ]; then
                 keys=$(sed -n '/"recovery_keys_b64"/,/]/s/^ *"\([^"]*\)",\{0,1\}$/\1/p' "$OPENBAO_INIT_FILE" | base64 -w0)
-                printf '{"apiVersion":"v1","kind":"Secret","metadata":{"name":"%s","namespace":"%s"},"type":"Opaque","data":{"recovery-keys":"%s","generate-root-token":"%s"}}' \
-                  "$INIT_SECRET" "$NAMESPACE" "$keys" "$(base64 -w0 "$OPENBAO_GENERATE_ROOT_TOKEN_FILE")" >/work/init-secret.json
+                printf '{"data":{"recovery-keys":"%s","generate-root-token":"%s"}}' \
+                  "$keys" "$(base64 -w0 "$OPENBAO_GENERATE_ROOT_TOKEN_FILE")" >"$INIT_SECRET_PATCH"
               fi
           env:
             {{- include "loco-control-plane.openbaoSetupEnv" . | nindent 12 }}
             - name: OPENBAO_PREVIOUS_INIT
-              value: /init-secret/recovery-keys
+              value: {{ $previousInit }}
             - name: OPENBAO_GENERATE_ROOT_TOKEN_FILE
               value: /work/generate-root-token
             - name: OPENBAO_RECOVERY_SHARES
               value: {{ $recovery.shares | quote }}
             - name: OPENBAO_RECOVERY_THRESHOLD
               value: {{ $recovery.threshold | quote }}
-            - name: INIT_SECRET
-              value: {{ $initSecret }}
-            - name: NAMESPACE
-              value: {{ .Release.Namespace }}
+            {{- include "loco-control-plane.openbaoInitSecretEnv" . | nindent 12 }}
           securityContext:
             {{- include "loco-control-plane.restrictedContainer" . | nindent 12 }}
           volumeMounts:
@@ -106,31 +122,17 @@ spec:
               readOnly: true
         - name: store
           image: {{ .Values.openbao.curlImage | quote }}
-          command:
-            - sh
-            - -c
-            - |
-              set -eu
-              [ -s /work/init-secret.json ] || exit 0
-              account=/var/run/secrets/kubernetes.io/serviceaccount
-              status=$(curl --silent --show-error --output /work/store-response.json --write-out '%{http_code}' \
-                --cacert "$account/ca.crt" -H "Authorization: Bearer $(cat "$account/token")" \
-                -H 'Content-Type: application/json' --data-binary @/work/init-secret.json \
-                "https://kubernetes.default.svc/api/v1/namespaces/$NAMESPACE/secrets")
-              if [ "$status" = 201 ]; then
-                rm /work/init-secret.json
-                exit 0
-              fi
-              cat /work/store-response.json >&2
-              exit 1
+          command: [sh, /scripts/openbao-init-secret.sh, store]
           env:
-            - name: NAMESPACE
-              value: {{ .Release.Namespace }}
+            {{- include "loco-control-plane.openbaoInitSecretEnv" . | nindent 12 }}
           securityContext:
             {{- include "loco-control-plane.restrictedContainer" . | nindent 12 }}
           volumeMounts:
             - name: work
               mountPath: /work
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
       containers:
         - name: configure
           image: {{ .Values.openbao.image | quote }}
@@ -157,6 +159,10 @@ spec:
               value: /var/run/secrets/kubernetes.io/serviceaccount/token
             - name: OPENBAO_NAMESPACE
               value: {{ .Release.Namespace }}
+            - name: OPENBAO_PREVIOUS_INIT
+              value: {{ $previousInit }}
+            - name: INIT_SECRET
+              value: {{ $initSecret }}
             - name: LOCO_SECRETS_TRANSIT_TOKEN
               valueFrom:
                 secretKeyRef:
@@ -167,6 +173,9 @@ spec:
             {{- include "loco-control-plane.restrictedContainer" . | nindent 12 }}
           volumeMounts:
             {{- include "loco-control-plane.openbaoSetupMounts" . | nindent 12 }}
+            - name: init-secret
+              mountPath: /init-secret
+              readOnly: true
       volumes:
         - name: work
           emptyDir:

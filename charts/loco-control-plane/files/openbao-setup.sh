@@ -164,7 +164,11 @@ configure() {
 			echo "Revoked the root token; later runs log in as $OPENBAO_SETUP_ROLE"
 		fi
 	elif [ -n "${OPENBAO_SETUP_ROLE:-}" ]; then
-		BAO_TOKEN=$(login)
+		if ! BAO_TOKEN=$(login); then
+			[ -s "${OPENBAO_PREVIOUS_INIT:?}" ] ||
+				fail "OpenBao at $BAO_ADDR is initialized, but the Secret ${INIT_SECRET:?} holds no init output and the $OPENBAO_SETUP_ROLE role cannot log in; recover it as \"Lost init output\" in docs/content/operations/secrets-key-provider.md describes"
+			fail "the $OPENBAO_SETUP_ROLE role cannot log in to OpenBao at $BAO_ADDR"
+		fi
 		export BAO_TOKEN
 	else
 		fail "$OPENBAO_INIT_FILE holds no valid root token"

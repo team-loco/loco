@@ -111,6 +111,15 @@ key: {{ required (printf "%s.key is required" .path) .secret.key | quote }}
 {{- printf "%s-init" (include "loco-control-plane.openbaoName" .) -}}
 {{- end -}}
 
+{{- define "loco-control-plane.openbaoInitSecretEnv" -}}
+- name: INIT_SECRET
+  value: {{ include "loco-control-plane.openbaoInitSecret" . }}
+- name: NAMESPACE
+  value: {{ .Release.Namespace }}
+- name: INIT_SECRET_PATCH
+  value: /work/init-secret.json
+{{- end -}}
+
 {{- define "loco-control-plane.apiServiceAccount" -}}
 {{- printf "%s-api" .Release.Name -}}
 {{- end -}}
