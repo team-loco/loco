@@ -75,40 +75,37 @@ func TestSignupPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse open: %v", err)
 	}
-	if checkErr := open.Check(Identity{Email: "a@b.test"}, false); checkErr != nil {
+	if checkErr := open.Check(Identity{Email: "a@b.test"}); checkErr != nil {
 		t.Errorf("open rejected: %v", checkErr)
 	}
 
-	invite, err := ParseSignupPolicy("invite", "")
+	closed, err := ParseSignupPolicy("closed", "")
 	if err != nil {
-		t.Fatalf("parse invite: %v", err)
+		t.Fatalf("parse closed: %v", err)
 	}
 	var rejectedErr *SignupRejectedError
-	if checkErr := invite.Check(verified("a@b.test"), false); !errors.As(checkErr, &rejectedErr) {
-		t.Errorf("invite allowed an uninvited signup: %v", checkErr)
-	}
-	if checkErr := invite.Check(verified("a@b.test"), true); checkErr != nil {
-		t.Errorf("invite rejected an invited signup: %v", checkErr)
+	if checkErr := closed.Check(verified("a@b.test")); !errors.As(checkErr, &rejectedErr) {
+		t.Errorf("closed allowed signup: %v", checkErr)
 	}
 
 	domains, err := ParseSignupPolicy("domains", " Acme.test , corp.test")
 	if err != nil {
 		t.Fatalf("parse domains: %v", err)
 	}
-	if err := domains.Check(verified("dev@acme.test"), false); err != nil {
+	if err := domains.Check(verified("dev@acme.test")); err != nil {
 		t.Errorf("allowed domain rejected: %v", err)
 	}
-	if err := domains.Check(verified("dev@evil.test"), false); !errors.As(err, &rejectedErr) {
+	if err := domains.Check(verified("dev@evil.test")); !errors.As(err, &rejectedErr) {
 		t.Errorf("other domain allowed: %v", err)
 	}
-	if err := domains.Check(Identity{Email: "dev@acme.test"}, false); !errors.As(err, &rejectedErr) {
+	if err := domains.Check(Identity{Email: "dev@acme.test"}); !errors.As(err, &rejectedErr) {
 		t.Errorf("unverified email allowed: %v", err)
 	}
-	if err := domains.Check(verified("dev@sub.acme.test"), false); !errors.As(err, &rejectedErr) {
+	if err := domains.Check(verified("dev@sub.acme.test")); !errors.As(err, &rejectedErr) {
 		t.Errorf("subdomain allowed: %v", err)
 	}
 
-	for mode, domainList := range map[string]string{"domains": "", "closed": "", "invite-only-typo": ""} {
+	for mode, domainList := range map[string]string{"domains": "", "invite-only-typo": ""} {
 		if _, err := ParseSignupPolicy(mode, domainList); err == nil {
 			t.Errorf("ParseSignupPolicy(%q) accepted", mode)
 		}

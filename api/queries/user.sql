@@ -3,15 +3,15 @@
 -- name: CreateUser :one
 INSERT INTO users (email, name, avatar_url)
 VALUES ($1, $2, $3)
-RETURNING id, email, name, avatar_url, status, created_at, updated_at;
+RETURNING id, email, name, avatar_url, created_at, updated_at;
 
 -- name: GetUserByID :one
-SELECT id, email, name, avatar_url, status, created_at, updated_at
+SELECT id, email, name, avatar_url, created_at, updated_at
 FROM users
 WHERE id = $1;
 
 -- name: GetUserByEmail :one
-SELECT id, email, name, avatar_url, status, created_at, updated_at
+SELECT id, email, name, avatar_url, created_at, updated_at
 FROM users
 WHERE email = $1;
 
@@ -24,7 +24,7 @@ WHERE u.id = sqlc.arg('user_id')
         SELECT 1 FROM identities i
         WHERE i.user_id = u.id AND i.email_verified AND i.email = u.email
     )
-RETURNING id, email, name, avatar_url, status, created_at, updated_at;
+RETURNING id, email, name, avatar_url, created_at, updated_at;
 
 -- name: UpdateUserProfile :one
 UPDATE users
@@ -32,10 +32,10 @@ SET name = COALESCE(sqlc.narg('name'), name),
     avatar_url = COALESCE(sqlc.narg('avatar_url'), avatar_url),
     updated_at = NOW()
 WHERE id = sqlc.arg('id')
-RETURNING id, email, name, avatar_url, status, created_at, updated_at;
+RETURNING id, email, name, avatar_url, created_at, updated_at;
 
 -- name: ListUsers :many
-SELECT id, email, name, avatar_url, status, created_at, updated_at
+SELECT id, email, name, avatar_url, created_at, updated_at
 FROM users
 WHERE (sqlc.narg('page_token')::text IS NULL
        OR (created_at, id) < (
@@ -84,9 +84,3 @@ DELETE FROM organizations WHERE id = $1;
 
 -- name: DeleteWorkspace :exec
 DELETE FROM workspaces WHERE id = $1;
-
--- name: SetUserStatus :one
-UPDATE users
-SET status = $2, updated_at = NOW()
-WHERE id = $1
-RETURNING id, email, name, avatar_url, status, created_at, updated_at;
