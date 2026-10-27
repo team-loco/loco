@@ -20,10 +20,11 @@ import (
 const orgName = "acme"
 
 type receiver struct {
-	srv      *httptest.Server
-	status   atomic.Int32
-	mu       sync.Mutex
-	payloads []webhooks.Payload
+	srv          *httptest.Server
+	status       atomic.Int32
+	mu           sync.Mutex
+	payloads     []webhooks.Payload
+	traceparents []string
 }
 
 func newReceiver(t *testing.T, secret string) *receiver {
@@ -47,6 +48,7 @@ func newReceiver(t *testing.T, secret string) *receiver {
 		}
 		r.mu.Lock()
 		r.payloads = append(r.payloads, p)
+		r.traceparents = append(r.traceparents, req.Header.Get("Traceparent"))
 		r.mu.Unlock()
 		w.WriteHeader(int(r.status.Load()))
 	}))

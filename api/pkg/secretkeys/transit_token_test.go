@@ -6,6 +6,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/team-loco/loco/api/pkg/tracingtest"
 )
 
 const (
@@ -154,4 +156,27 @@ func TestTransitRenewalWithoutALeaseKeepsTheExpiry(t *testing.T) {
 	if expiry := transit.tokenExpiry(); expiry.IsZero() {
 		t.Fatal("token expiry was cleared by a renewal without a lease")
 	}
+}
+
+func TestTransitTokenRefreshRecordsARootSpan(t *testing.T) {
+	recorder := tracingtest.Record(t)
+	fake := newFakeTransit(t)
+	fake.setToken(testTokenTTL, true)
+	server := fake.server()
+	transit := newTestTransit(t, transitConfig(server.URL))
+	startRenewal(t, transit)
+
+	waitFor(t, "a traced token refresh with its request", func() bool {
+		for _, refresh := range recorder.Ended() {
+			if refresh.Name() != tokenRefreshSpan || refresh.Parent().IsValid() {
+				continue
+			}
+			for _, request := range recorder.Ended() {
+				if request.Parent().SpanID() == refresh.SpanContext().SpanID() {
+					return true
+				}
+			}
+		}
+		return false
+	})
 }

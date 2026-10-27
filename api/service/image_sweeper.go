@@ -14,13 +14,21 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/advisorylock"
 	"github.com/team-loco/loco/api/pkg/registryclient"
+	"github.com/team-loco/loco/api/pkg/tracing"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
 	workspacePathPrefix    = "ws-"
 	repositoryPathParts    = 2
 	uuidVersionTimeOrdered = 7
+
+	imageSweepSpan         = "image.sweep"
+	imagesDeletedAttr      = "loco.sweep.images_deleted"
+	orphanRepositoriesAttr = "loco.sweep.orphan_repositories"
+	orphanManifestsAttr    = "loco.sweep.orphan_manifests"
+	staleTagsAttr          = "loco.sweep.stale_tags"
 )
 
 var (
@@ -84,7 +92,7 @@ func (s *ImageSweeper) Run(ctx context.Context) {
 	ticker := time.NewTicker(s.config.Interval)
 	defer ticker.Stop()
 	for {
-		result, err := s.Sweep(ctx)
+		result, err := s.tracedSweep(ctx)
 		if err != nil && ctx.Err() == nil {
 			slog.ErrorContext(ctx, "image sweep failed", "error", err)
 		}
@@ -102,6 +110,20 @@ func (s *ImageSweeper) Run(ctx context.Context) {
 		case <-ticker.C:
 		}
 	}
+}
+
+func (s *ImageSweeper) tracedSweep(ctx context.Context) (ImageSweepResult, error) {
+	ctx, span := tracing.StartRoot(ctx, imageSweepSpan)
+	result, err := s.Sweep(ctx)
+	span.SetAttributes(
+		attribute.Bool(sweepRanAttr, result.Ran),
+		attribute.Int(imagesDeletedAttr, result.ImagesDeleted),
+		attribute.Int(orphanRepositoriesAttr, result.OrphanRepositories),
+		attribute.Int(orphanManifestsAttr, result.OrphanManifests),
+		attribute.Int(staleTagsAttr, result.StaleTags),
+	)
+	tracing.End(span, err)
+	return result, err
 }
 
 func (s *ImageSweeper) Sweep(ctx context.Context) (ImageSweepResult, error) {

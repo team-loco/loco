@@ -10,9 +10,16 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/advisorylock"
+	"github.com/team-loco/loco/api/pkg/tracing"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
+	sourceSweepSpan       = "source.sweep"
+	sweepRanAttr          = "loco.sweep.ran"
+	sourceExpiredAttr     = "loco.sweep.expired"
+	sourcesDeletedAttr    = "loco.sweep.sources_deleted"
+	orphansDeletedAttr    = "loco.sweep.orphans_deleted"
 	sourceUploadExpired   = "source upload expired"
 	advisoryUnlockTimeout = 5 * time.Second
 )
@@ -60,7 +67,7 @@ func (s *SourceSweeper) Run(ctx context.Context) {
 	ticker := time.NewTicker(s.config.Interval)
 	defer ticker.Stop()
 	for {
-		result, err := s.Sweep(ctx)
+		result, err := s.tracedSweep(ctx)
 		if err != nil && ctx.Err() == nil {
 			slog.ErrorContext(ctx, "source sweep failed", "error", err)
 		}
@@ -77,6 +84,19 @@ func (s *SourceSweeper) Run(ctx context.Context) {
 		case <-ticker.C:
 		}
 	}
+}
+
+func (s *SourceSweeper) tracedSweep(ctx context.Context) (SourceSweepResult, error) {
+	ctx, span := tracing.StartRoot(ctx, sourceSweepSpan)
+	result, err := s.Sweep(ctx)
+	span.SetAttributes(
+		attribute.Bool(sweepRanAttr, result.Ran),
+		attribute.Int(sourceExpiredAttr, result.Expired),
+		attribute.Int(sourcesDeletedAttr, result.SourcesDeleted),
+		attribute.Int(orphansDeletedAttr, result.OrphansDeleted),
+	)
+	tracing.End(span, err)
+	return result, err
 }
 
 func (s *SourceSweeper) Sweep(ctx context.Context) (SourceSweepResult, error) {

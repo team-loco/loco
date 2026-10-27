@@ -12,6 +12,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/tracing"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
@@ -63,6 +65,11 @@ const (
 	SecretSet          = "secret.set"
 	SecretDeleted      = "secret.deleted"
 	SecretKeyRewrapped = "secret_key.rewrapped"
+)
+
+const (
+	retentionSpan    = "events.retention"
+	deletedAttribute = "loco.events.deleted"
 )
 
 const (
@@ -163,6 +170,9 @@ func Record(ctx context.Context, q genDb.Querier, ev Event) error {
 	if rid, ok := ctx.Value(contextkeys.RequestIDKey).(string); ok && rid != "" {
 		params.RequestID = &rid
 	}
+	if traceparent := tracing.Traceparent(ctx); traceparent != "" {
+		params.Traceparent = &traceparent
+	}
 	if _, err := q.InsertEvent(ctx, params); err != nil {
 		return fmt.Errorf("insert event: %w", err)
 	}
@@ -185,17 +195,24 @@ func RunRetention(ctx context.Context, q genDb.Querier, keep time.Duration, ever
 	ticker := time.NewTicker(every)
 	defer ticker.Stop()
 	for {
-		deleted, err := q.DeleteEventsBefore(ctx, time.Now().Add(-keep))
-		switch {
-		case err != nil && ctx.Err() == nil:
-			slog.ErrorContext(ctx, "failed to delete expired events", "error", err)
-		case deleted > 0:
-			slog.InfoContext(ctx, "deleted expired events", "count", deleted)
-		}
+		deleteExpired(ctx, q, keep)
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
 		}
+	}
+}
+
+func deleteExpired(ctx context.Context, q genDb.Querier, keep time.Duration) {
+	ctx, span := tracing.StartRoot(ctx, retentionSpan)
+	deleted, err := q.DeleteEventsBefore(ctx, time.Now().Add(-keep))
+	span.SetAttributes(attribute.Int64(deletedAttribute, deleted))
+	tracing.End(span, err)
+	switch {
+	case err != nil && ctx.Err() == nil:
+		slog.ErrorContext(ctx, "failed to delete expired events", "error", err)
+	case deleted > 0:
+		slog.InfoContext(ctx, "deleted expired events", "count", deleted)
 	}
 }

@@ -11,6 +11,8 @@ import (
 	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/tracing"
+	"github.com/team-loco/loco/api/pkg/tracingtest"
 )
 
 func TestRecordFillsActorScopeAndRequest(t *testing.T) {
@@ -100,5 +102,54 @@ func TestRecordWithoutCallerIsAnonymous(t *testing.T) {
 	rows, err := q.ListEventsAfter(t.Context(), genDb.ListEventsAfterParams{MaxRows: 1})
 	if err != nil || len(rows) != 1 || rows[0].ActorType != events.ActorAnonymous || rows[0].ActorID != nil {
 		t.Fatalf("rows = %+v (%v)", rows, err)
+	}
+}
+
+func TestRecordStoresTheCallersTraceparent(t *testing.T) {
+	tracingtest.Record(t)
+	pool := authtest.NewPool(t)
+	q := genDb.New(pool)
+	traced := tracingtest.StartParent(t)
+	if err := events.Record(traced, q, events.Event{Type: events.ClusterRegistered}); err != nil {
+		t.Fatalf("record traced event: %v", err)
+	}
+	if err := events.Record(t.Context(), q, events.Event{Type: events.OrgUpdated}); err != nil {
+		t.Fatalf("record untraced event: %v", err)
+	}
+	stored := map[string]*string{}
+	rows, err := pool.Query(t.Context(), "SELECT type, traceparent FROM events")
+	if err != nil {
+		t.Fatalf("query events: %v", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var eventType string
+		var traceparent *string
+		if scanErr := rows.Scan(&eventType, &traceparent); scanErr != nil {
+			t.Fatalf("scan: %v", scanErr)
+		}
+		stored[eventType] = traceparent
+	}
+	want := tracing.Traceparent(traced)
+	if got := stored[events.ClusterRegistered]; got == nil || *got != want {
+		t.Fatalf("traced event traceparent = %v, want %q", got, want)
+	}
+	if got := stored[events.OrgUpdated]; got != nil {
+		t.Fatalf("untraced event traceparent = %q, want NULL", *got)
+	}
+}
+
+func TestRetentionRunRecordsARootSpan(t *testing.T) {
+	recorder := tracingtest.Record(t)
+	pool := authtest.NewPool(t)
+	q := genDb.New(pool)
+	request := tracingtest.StartParent(t)
+	events.DeleteExpired(request, q, time.Hour)
+	ended := recorder.Ended()
+	if len(ended) != 1 || ended[0].Name() != "events.retention" {
+		t.Fatalf("ended spans = %d, want the retention span", len(ended))
+	}
+	if ended[0].Parent().IsValid() {
+		t.Fatalf("retention span has parent %v", ended[0].Parent())
 	}
 }

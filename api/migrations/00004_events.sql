@@ -12,6 +12,7 @@ CREATE TABLE events (
     subject_type TEXT,
     subject_id UUID,
     request_id TEXT,
+    traceparent TEXT,
     data JSONB NOT NULL DEFAULT '{}',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
