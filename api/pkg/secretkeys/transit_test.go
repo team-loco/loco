@@ -17,6 +17,7 @@ const (
 	testTransitTimeout  = 2 * time.Second
 	shortTransitTimeout = 50 * time.Millisecond
 	testTransitCAFile   = "ca.pem"
+	otherProvider       = "kms"
 )
 
 func transitConfig(address string) TransitConfig {
@@ -189,7 +190,7 @@ func TestTransitUnwrapRejectsMismatchedWrappedKeys(t *testing.T) {
 	}{
 		{
 			"another provider",
-			WrappedKey{Provider: ProviderLocal, KeyID: wrapped.KeyID, Bytes: wrapped.Bytes},
+			WrappedKey{Provider: otherProvider, KeyID: wrapped.KeyID, Bytes: wrapped.Bytes},
 			ErrWrongProvider,
 		},
 		{
@@ -301,7 +302,7 @@ func TestNewTransitRejectsAMissingCAFile(t *testing.T) {
 func TestNewSelectsTransit(t *testing.T) {
 	fake := newFakeTransit(t)
 	server := fake.server()
-	provider, err := New(t.Context(), Config{Provider: ProviderTransit, Transit: transitConfig(server.URL)})
+	provider, err := New(t.Context(), transitConfig(server.URL))
 	if err != nil {
 		t.Fatalf("new: %v", err)
 	}

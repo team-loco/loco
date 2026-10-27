@@ -66,7 +66,7 @@ func TestGetResourceEnvReturnsThePlainEnvOfTheEnvironmentsDeployment(t *testing.
 func TestGetResourceEnvReturnsTheSecretNamesTheDeploymentDeclares(t *testing.T) {
 	f := newDeployFixture(t)
 	f.prepareApply(t)
-	provider := testLocalProvider(t, "k1")
+	provider := newTestKeyProvider(t, "k1")
 	file := planFileHeader + applyFileDeclared
 	worker := f.provisionWorker(t, file)
 	f.setWorkerSecrets(t, provider, worker, map[string]string{

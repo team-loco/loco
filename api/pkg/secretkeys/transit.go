@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	// ProviderTransit selects the provider that wraps data keys with an OpenBao or Vault
+	// ProviderTransit names the provider that wraps data keys with an OpenBao or Vault
 	// Transit key.
 	ProviderTransit = "transit"
 

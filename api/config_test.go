@@ -32,9 +32,6 @@ const (
 	testHookURL      = "https://hooks.loco.test/events"
 	testDatabaseURL  = "postgres://db.loco.test:5432/loco"
 	testHookSecret   = "whsec_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-	keyProviderEnv   = "LOCO_SECRETS_KEY_PROVIDER"
-	kekListEnv       = "LOCO_SECRETS_LOCAL_KEYS"
-	testKEK          = "k1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 	transitAddrEnv   = "LOCO_SECRETS_TRANSIT_ADDR"
 	transitMountEnv  = "LOCO_SECRETS_TRANSIT_MOUNT"
 	transitKeyEnv    = "LOCO_SECRETS_TRANSIT_KEY"
@@ -107,12 +104,10 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv("AUTH_SIGNUP_DOMAINS", "")
 	t.Setenv("MIN_CLI_VERSION", "")
 	t.Setenv(testAdminEnv, "")
-	t.Setenv(keyProviderEnv, "")
-	t.Setenv(kekListEnv, "")
-	t.Setenv(transitAddrEnv, "")
+	t.Setenv(transitAddrEnv, testTransitAddr)
 	t.Setenv(transitMountEnv, "")
-	t.Setenv(transitKeyEnv, "")
-	t.Setenv(transitAuthEnv, "")
+	t.Setenv(transitKeyEnv, testTransitKey)
+	t.Setenv(transitAuthEnv, testTransitAuth)
 	t.Setenv(transitCAEnv, "")
 	t.Setenv(transitTimeEnv, "")
 	t.Setenv(transitMarginEnv, "")
@@ -520,26 +515,21 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 	}
 }
 
-func TestNewAPIConfigReadsSecretsProvider(t *testing.T) {
+func TestNewAPIConfigPanicsWithoutTransit(t *testing.T) {
 	clearAPIConfigEnv(t)
-	if provider := newAPIConfig().Secrets.Provider; provider != "" {
-		t.Errorf("secrets provider = %q, want none", provider)
-	}
-	t.Setenv(keyProviderEnv, secretkeys.ProviderLocal)
-	t.Setenv(kekListEnv, testKEK)
-	cfg := newAPIConfig().Secrets
-	if cfg.Provider != secretkeys.ProviderLocal || len(cfg.LocalKeys) != 1 || cfg.LocalKeys[0].ID != "k1" {
-		t.Errorf("secrets config = %+v, want local with key k1", cfg)
+	t.Setenv(transitAddrEnv, "")
+	t.Setenv(transitKeyEnv, "")
+	t.Setenv(transitAuthEnv, "")
+	t.Setenv(transitMountEnv, "kms/transit")
+	err := panicValue(t, func() { newAPIConfig() })
+	if !errors.Is(err, errInvalidSecretsTransit) {
+		t.Errorf("panic = %v, want %v", err, errInvalidSecretsTransit)
 	}
 }
 
 func TestNewAPIConfigReadsTransitProvider(t *testing.T) {
 	clearAPIConfigEnv(t)
-	t.Setenv(keyProviderEnv, secretkeys.ProviderTransit)
-	t.Setenv(transitAddrEnv, testTransitAddr)
-	t.Setenv(transitKeyEnv, testTransitKey)
-	t.Setenv(transitAuthEnv, testTransitAuth)
-	cfg := newAPIConfig().Secrets
+	got := newAPIConfig().Secrets
 	want := secretkeys.TransitConfig{
 		Address:     testTransitAddr,
 		Mount:       defaultSecretsTransitMount,
@@ -550,8 +540,8 @@ func TestNewAPIConfigReadsTransitProvider(t *testing.T) {
 		RenewRetry:  defaultSecretsTransitRetry,
 		CacheTTL:    defaultSecretsTransitDEKTTL,
 	}
-	if cfg.Provider != secretkeys.ProviderTransit || cfg.Transit != want {
-		t.Errorf("secrets config = %+v, want transit %+v", cfg, want)
+	if got != want {
+		t.Errorf("transit config = %+v, want %+v", got, want)
 	}
 
 	t.Setenv(transitMountEnv, "kms/transit")
@@ -560,59 +550,42 @@ func TestNewAPIConfigReadsTransitProvider(t *testing.T) {
 	t.Setenv(transitMarginEnv, "1m")
 	t.Setenv(transitRetryEnv, "2s")
 	t.Setenv(transitCacheEnv, "30s")
-	cfg = newAPIConfig().Secrets
+	got = newAPIConfig().Secrets
 	want.Mount = "kms/transit"
 	want.CAFile = "/etc/loco/bao-ca.pem"
 	want.Timeout = 3 * time.Second
 	want.RenewMargin = time.Minute
 	want.RenewRetry = 2 * time.Second
 	want.CacheTTL = 30 * time.Second
-	if cfg.Transit != want {
-		t.Errorf("transit config = %+v, want %+v", cfg.Transit, want)
+	if got != want {
+		t.Errorf("transit config = %+v, want %+v", got, want)
 	}
 }
 
-func TestNewAPIConfigPanicsOnBadSecretsProvider(t *testing.T) {
+func TestNewAPIConfigPanicsOnPartialTransit(t *testing.T) {
 	tests := []struct {
 		name string
 		env  map[string]string
 		want error
 	}{
 		{
-			"local without keys",
-			map[string]string{keyProviderEnv: secretkeys.ProviderLocal},
-			errSecretsLocalKeysMissing,
-		},
-		{
-			"local with a short key",
-			map[string]string{keyProviderEnv: secretkeys.ProviderLocal, kekListEnv: "k1:c2hvcnQ="},
-			errInvalidSecretsLocalKeys,
-		},
-		{"unknown provider", map[string]string{keyProviderEnv: "vault"}, errUnknownSecretsProvider},
-		{
 			"transit without an address",
 			map[string]string{
-				keyProviderEnv: secretkeys.ProviderTransit,
-				transitKeyEnv:  testTransitKey,
-				transitAuthEnv: testTransitAuth,
+				transitAddrEnv: "",
 			},
 			secretkeys.ErrTransitAddress,
 		},
 		{
 			"transit without a token",
 			map[string]string{
-				keyProviderEnv: secretkeys.ProviderTransit,
-				transitAddrEnv: testTransitAddr,
-				transitKeyEnv:  testTransitKey,
+				transitAuthEnv: "",
 			},
 			secretkeys.ErrTransitToken,
 		},
 		{
 			"transit without a key",
 			map[string]string{
-				keyProviderEnv: secretkeys.ProviderTransit,
-				transitAddrEnv: testTransitAddr,
-				transitAuthEnv: testTransitAuth,
+				transitKeyEnv: "",
 			},
 			secretkeys.ErrTransitKeyName,
 		},

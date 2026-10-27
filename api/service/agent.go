@@ -53,8 +53,7 @@ type AgentServer struct {
 	heartbeatInterval time.Duration
 }
 
-// NewAgentServer creates a new AgentServer instance; a nil provider leaves every placement that declares
-// secrets pending.
+// NewAgentServer creates a new AgentServer instance.
 func NewAgentServer(
 	db *pgxpool.Pool,
 	queries genDb.Querier,

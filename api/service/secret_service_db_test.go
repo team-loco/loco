@@ -3,8 +3,8 @@ package service
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -27,24 +27,59 @@ const (
 
 	testMaxPlacementBytes = 4096
 	testLockTimeout       = 10 * time.Second
+	testProviderName      = "test"
+	testNonceSize         = 12
 )
 
-func testLocalProvider(t *testing.T, ids ...string) secretkeys.Provider {
+var (
+	errTestWrongProvider = errors.New("wrapped key belongs to another provider")
+	errTestUnknownKeyID  = errors.New("key id is not configured")
+	errTestShortWrapped  = errors.New("wrapped key is shorter than a nonce")
+)
+
+type testKeyProvider struct {
+	current string
+	keys    map[string][]byte
+}
+
+func newTestKeyProvider(t *testing.T, ids ...string) secretkeys.Provider {
 	t.Helper()
-	entries := make([]string, 0, len(ids))
+	keys := make(map[string][]byte, len(ids))
 	for _, id := range ids {
-		raw := bytes.Repeat([]byte(id[len(id)-1:]), secretkeys.KeySize)
-		entries = append(entries, id+":"+base64.StdEncoding.EncodeToString(raw))
+		keys[id] = bytes.Repeat([]byte(id[len(id)-1:]), secretkeys.KeySize)
 	}
-	keys, err := secretkeys.ParseLocalKeys(strings.Join(entries, ","))
+	return &testKeyProvider{current: ids[0], keys: keys}
+}
+
+func (*testKeyProvider) Name() string {
+	return testProviderName
+}
+
+func (p *testKeyProvider) KeyID(context.Context) (string, error) {
+	return p.current, nil
+}
+
+func (p *testKeyProvider) Wrap(_ context.Context, dek, aad []byte) (secretkeys.WrappedKey, error) {
+	nonce, ciphertext, err := secretkeys.Seal(p.keys[p.current], dek, aad)
 	if err != nil {
-		t.Fatalf("keys: %v", err)
+		return secretkeys.WrappedKey{}, err
 	}
-	provider, err := secretkeys.NewLocal(keys)
-	if err != nil {
-		t.Fatalf("provider: %v", err)
+	wrapped := slices.Concat(nonce, ciphertext)
+	return secretkeys.WrappedKey{Provider: testProviderName, KeyID: p.current, Bytes: wrapped}, nil
+}
+
+func (p *testKeyProvider) Unwrap(_ context.Context, wrapped secretkeys.WrappedKey, aad []byte) ([]byte, error) {
+	if wrapped.Provider != testProviderName {
+		return nil, errTestWrongProvider
 	}
-	return provider
+	key, ok := p.keys[wrapped.KeyID]
+	if !ok {
+		return nil, errTestUnknownKeyID
+	}
+	if len(wrapped.Bytes) < testNonceSize {
+		return nil, errTestShortWrapped
+	}
+	return secretkeys.Open(key, wrapped.Bytes[:testNonceSize], wrapped.Bytes[testNonceSize:], aad)
 }
 
 func testSecretConfig() SecretConfig {
@@ -88,7 +123,7 @@ func (f *secretFixture) eventData(t *testing.T, eventType string) (map[string]an
 
 func TestSetSecretsStoresCiphertextAndBumpsVersions(t *testing.T) {
 	f := newSecretFixture(t)
-	provider := testLocalProvider(t, "k1")
+	provider := newTestKeyProvider(t, "k1")
 	server := f.server(t, provider)
 
 	first := f.set(t, server, map[string]string{stripeKey: stripeValue, databaseURL: "postgres://x"})
@@ -147,7 +182,7 @@ func TestSetSecretsStoresCiphertextAndBumpsVersions(t *testing.T) {
 
 func TestSetSecretsEnforcesLimits(t *testing.T) {
 	f := newSecretFixture(t)
-	server := f.server(t, testLocalProvider(t, "k1"))
+	server := f.server(t, newTestKeyProvider(t, "k1"))
 	_, err := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
 		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(),
 		Values: map[string]string{"BIG": strings.Repeat("x", testMaxValue+1)},
@@ -170,7 +205,7 @@ func TestSetSecretsEnforcesLimits(t *testing.T) {
 
 func TestDeleteSecretsRemovesNamesAndBumpsRevision(t *testing.T) {
 	f := newSecretFixture(t)
-	server := f.server(t, testLocalProvider(t, "k1"))
+	server := f.server(t, newTestKeyProvider(t, "k1"))
 	f.set(t, server, map[string]string{"A": "1", "B": "2"})
 
 	_, err := server.DeleteSecrets(f.owner, &secretv1.DeleteSecretsRequest{
@@ -212,10 +247,10 @@ func TestDeleteSecretsRemovesNamesAndBumpsRevision(t *testing.T) {
 
 func TestRewrapEnvironmentKeysUsesTheCurrentKey(t *testing.T) {
 	f := newSecretFixture(t)
-	f.set(t, f.server(t, testLocalProvider(t, "k1")), map[string]string{"A": "1"})
+	f.set(t, f.server(t, newTestKeyProvider(t, "k1")), map[string]string{"A": "1"})
 	admin := secretAuthzContext(t, genDb.EntityScope{EntityType: genDb.EntityTypeSystem, Scope: genDb.ScopeAdmin})
 
-	rotated := f.server(t, testLocalProvider(t, "k2", "k1"))
+	rotated := f.server(t, newTestKeyProvider(t, "k2", "k1"))
 	res, err := rotated.RewrapEnvironmentKeys(admin, &secretv1.RewrapEnvironmentKeysRequest{})
 	if err != nil {
 		t.Fatalf("rewrap: %v", err)
@@ -235,7 +270,7 @@ func TestRewrapEnvironmentKeysUsesTheCurrentKey(t *testing.T) {
 		t.Fatalf("secret_key.rewrapped data = %s, want kekId k2 for the environment without a new DEK", raw)
 	}
 
-	withoutK1 := f.server(t, testLocalProvider(t, "k2"))
+	withoutK1 := f.server(t, newTestKeyProvider(t, "k2"))
 	bumped := f.set(t, withoutK1, map[string]string{"A": "2"})
 	if bumped.GetVersions()[0].GetVersion() != 2 {
 		t.Fatalf("set after rewrap = %+v, want version 2", bumped)
@@ -251,7 +286,7 @@ func TestRewrapEnvironmentKeysUsesTheCurrentKey(t *testing.T) {
 	stale := f.environment(t, f.workspaceID, "staging")
 	staleFixture := *f
 	staleFixture.environmentID = stale
-	staleFixture.set(t, f.server(t, testLocalProvider(t, "k0")), map[string]string{"A": "1"})
+	staleFixture.set(t, f.server(t, newTestKeyProvider(t, "k0")), map[string]string{"A": "1"})
 	skipped, err := withoutK1.RewrapEnvironmentKeys(admin, &secretv1.RewrapEnvironmentKeysRequest{})
 	if err != nil {
 		t.Fatalf("rewrap with a retired key: %v", err)
@@ -264,7 +299,7 @@ func TestRewrapEnvironmentKeysUsesTheCurrentKey(t *testing.T) {
 
 func TestSetSecretsOnUnknownEnvironment(t *testing.T) {
 	f := newSecretFixture(t)
-	server := f.server(t, testLocalProvider(t, "k1"))
+	server := f.server(t, newTestKeyProvider(t, "k1"))
 	_, err := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
 		ResourceId:    f.resourceID.String(),
 		EnvironmentId: "0199c3f0-0000-7000-8000-000000000000",
@@ -277,7 +312,7 @@ func TestSetSecretsOnUnknownEnvironment(t *testing.T) {
 
 func TestSecretsOfAnEnvironmentInAnotherWorkspaceAreNotFound(t *testing.T) {
 	f := newSecretFixture(t)
-	server := f.server(t, testLocalProvider(t, "k1"))
+	server := f.server(t, newTestKeyProvider(t, "k1"))
 	other := f.environment(t, f.workspace(t, "warehouse"), "prod")
 	_, err := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
 		ResourceId: f.resourceID.String(), EnvironmentId: other.String(), Values: map[string]string{"A": "1"},
@@ -301,7 +336,7 @@ func TestSecretsOfAnEnvironmentInAnotherWorkspaceAreNotFound(t *testing.T) {
 
 func TestTwoServicesHoldTheSameNameApart(t *testing.T) {
 	f := newSecretFixture(t)
-	provider := testLocalProvider(t, "k1")
+	provider := newTestKeyProvider(t, "k1")
 	server := f.server(t, provider)
 	worker := f.resource(t, f.workspaceID, workerService)
 	f.set(t, server, map[string]string{stripeKey: stripeValue})
@@ -416,7 +451,7 @@ func (f *secretFixture) eventCount(t *testing.T, eventType string) int {
 
 func TestConcurrentSetsOfOneNameGetConsecutiveVersionsAndStayDecryptable(t *testing.T) {
 	f := newSecretFixture(t)
-	provider := testLocalProvider(t, "k1")
+	provider := newTestKeyProvider(t, "k1")
 	server := f.server(t, provider)
 
 	versions := make([]int, concurrentSets)
@@ -462,7 +497,7 @@ func TestConcurrentSetsOfOneNameGetConsecutiveVersionsAndStayDecryptable(t *test
 
 func TestSetSecretsOfAnUnchangedValueChangesNothing(t *testing.T) {
 	f := newSecretFixture(t)
-	provider := testLocalProvider(t, "k1")
+	provider := newTestKeyProvider(t, "k1")
 	server := f.server(t, provider)
 	first := f.set(t, server, map[string]string{stripeKey: stripeValue})
 	before, err := f.queries.ListSecretCiphertexts(t.Context(), genDb.ListSecretCiphertextsParams{
@@ -504,7 +539,7 @@ func TestSetSecretsOfAnUnchangedValueChangesNothing(t *testing.T) {
 
 func TestSetSecretsRefusesAServiceOverItsAggregateLimit(t *testing.T) {
 	f := newSecretFixture(t)
-	provider := testLocalProvider(t, "k1")
+	provider := newTestKeyProvider(t, "k1")
 	const serviceLimit = 40
 	server := f.serverWith(t, provider, SecretConfig{
 		MaxValueBytes: testMaxValue, MaxPerService: testMaxSecrets, MaxPlacementBytes: serviceLimit,
@@ -529,7 +564,7 @@ func TestSetSecretsRefusesAServiceOverItsAggregateLimit(t *testing.T) {
 
 func TestDeleteSecretsRefusesANameTheServiceDeclares(t *testing.T) {
 	f := newSecretFixture(t)
-	server := f.server(t, testLocalProvider(t, "k1"))
+	server := f.server(t, newTestKeyProvider(t, "k1"))
 	f.declare(t, f.resourceID, alphaKey)
 	f.set(t, server, map[string]string{alphaKey: "1", unusedKey: "2"})
 
@@ -553,7 +588,7 @@ func TestDeleteSecretsRefusesANameTheServiceDeclares(t *testing.T) {
 
 func TestDeleteSecretsIgnoresANameAnotherServiceDeclares(t *testing.T) {
 	f := newSecretFixture(t)
-	server := f.server(t, testLocalProvider(t, "k1"))
+	server := f.server(t, newTestKeyProvider(t, "k1"))
 	worker := f.resource(t, f.workspaceID, workerService)
 	f.declare(t, worker, alphaKey)
 	f.set(t, server, map[string]string{alphaKey: "1"})
@@ -570,7 +605,7 @@ func TestDeleteSecretsIgnoresANameAnotherServiceDeclares(t *testing.T) {
 
 func TestSetSecretsOnAResourceDeletedWhileWaitingForItsLockIsNotFound(t *testing.T) {
 	f := newSecretFixture(t)
-	server := f.server(t, testLocalProvider(t, "k1"))
+	server := f.server(t, newTestKeyProvider(t, "k1"))
 	f.set(t, server, map[string]string{alphaKey: "1"})
 
 	holder, err := f.pool.Begin(t.Context())
@@ -633,7 +668,7 @@ func (f *secretFixture) resourceTokenContext(t *testing.T) context.Context {
 
 func TestResourceTokenManagesOnlyItsOwnServicesSecrets(t *testing.T) {
 	f := newSecretFixture(t)
-	server := f.server(t, testLocalProvider(t, "k1"))
+	server := f.server(t, newTestKeyProvider(t, "k1"))
 	worker := f.resource(t, f.workspaceID, workerService)
 	ctx := f.resourceTokenContext(t)
 
@@ -690,7 +725,7 @@ func TestSecretOperationsAbortWhenALockTimesOut(t *testing.T) {
 	for _, holder := range holders {
 		t.Run(holder.name, func(t *testing.T) {
 			f := newSecretFixture(t)
-			provider := testLocalProvider(t, "k1")
+			provider := newTestKeyProvider(t, "k1")
 			server := f.serverWith(t, provider, SecretConfig{
 				MaxValueBytes: testMaxValue, MaxPerService: testMaxSecrets, MaxPlacementBytes: testMaxPlacementBytes,
 				LockTimeout: 100 * time.Millisecond,
@@ -725,7 +760,7 @@ func TestSecretOperationsAbortWhenALockTimesOut(t *testing.T) {
 
 func TestSetSecretsFailsClosedOnAnUnknownFormatVersion(t *testing.T) {
 	f := newSecretFixture(t)
-	server := f.server(t, testLocalProvider(t, "k1"))
+	server := f.server(t, newTestKeyProvider(t, "k1"))
 	f.set(t, server, map[string]string{alphaKey: "1"})
 	if _, err := f.pool.Exec(t.Context(), `UPDATE secrets SET format_version = 2`); err != nil {
 		t.Fatalf("bump format version: %v", err)
@@ -778,7 +813,7 @@ func (f *secretFixture) tokenContext(t *testing.T, entity genDb.Entity, scopes [
 
 func TestWorkspaceTokenSetsListsAndDeletesSecrets(t *testing.T) {
 	f := newSecretFixture(t)
-	server := f.server(t, testLocalProvider(t, "k1"))
+	server := f.server(t, newTestKeyProvider(t, "k1"))
 	ctx := f.workspaceTokenContext(t)
 	environmentID := f.environmentID.String()
 	resourceID := f.resourceID.String()
@@ -849,7 +884,7 @@ func (f *secretFixture) placementRevision(t *testing.T, id uuid.UUID) (int64, *s
 
 func TestSecretChangesRollThePlacementsThatDeclareTheName(t *testing.T) {
 	f := newSecretFixture(t)
-	server := f.server(t, testLocalProvider(t, "k1"))
+	server := f.server(t, newTestKeyProvider(t, "k1"))
 	withStripe := f.placement(t, f.resourceID, []string{stripeKey, databaseURL})
 	withoutStripe := f.placement(t, f.resourceID, []string{databaseURL})
 
@@ -869,7 +904,7 @@ func TestSecretChangesRollThePlacementsThatDeclareTheName(t *testing.T) {
 
 func TestASecretChangeRollsOnlyTheServiceThatHoldsIt(t *testing.T) {
 	f := newSecretFixture(t)
-	server := f.server(t, testLocalProvider(t, "k1"))
+	server := f.server(t, newTestKeyProvider(t, "k1"))
 	worker := f.resource(t, f.workspaceID, workerService)
 	web := f.placement(t, f.resourceID, []string{stripeKey})
 	workers := f.placement(t, worker, []string{stripeKey})

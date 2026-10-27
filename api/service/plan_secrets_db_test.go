@@ -80,7 +80,7 @@ func (f *deployFixture) setWorkerSecrets(
 func TestPlanChecksEachServiceAgainstItsOwnSecrets(t *testing.T) {
 	f := newDeployFixture(t)
 	f.prepareApply(t)
-	provider := testLocalProvider(t, "k1")
+	provider := newTestKeyProvider(t, "k1")
 	file := planFileHeader + applyFileDeclared
 
 	unset, err := plan(t, f, file, f.workspaceReadScopes(t))
@@ -150,7 +150,7 @@ func TestProvisionStillRefusesAnExistingServicesMissingSecrets(t *testing.T) {
 func TestPlanRefusesSecretsOverThePlacementLimit(t *testing.T) {
 	f := newDeployFixture(t)
 	f.prepareApply(t)
-	provider := testLocalProvider(t, "k1")
+	provider := newTestKeyProvider(t, "k1")
 	file := planFileHeader + applyFileDeclared
 	worker := f.provisionWorker(t, file)
 	f.setWorkerSecrets(t, provider, worker, map[string]string{
@@ -179,7 +179,7 @@ func TestPlanRefusesSecretsOverThePlacementLimit(t *testing.T) {
 func TestApplyWritesDeclaredSecretsAndDeleteSecretsKeepsThem(t *testing.T) {
 	f := newDeployFixture(t)
 	f.prepareApply(t)
-	provider := testLocalProvider(t, "k1")
+	provider := newTestKeyProvider(t, "k1")
 	file := planFileHeader + applyFileDeclared
 	worker := f.provisionWorker(t, file)
 	f.setWorkerSecrets(t, provider, worker, map[string]string{
@@ -292,7 +292,7 @@ func TestASecretWriteRacingApplySerializesOrMovesTheRevision(t *testing.T) {
 			t.Run(writer.name+" "+order, func(t *testing.T) {
 				f := newDeployFixture(t)
 				f.prepareApply(t)
-				provider := testLocalProvider(t, "k1")
+				provider := newTestKeyProvider(t, "k1")
 				file := planFileHeader + applyFileDeclared
 				worker := f.provisionWorker(t, file)
 				f.setWorkerSecrets(t, provider, worker, map[string]string{

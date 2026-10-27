@@ -63,7 +63,9 @@ func (c *testClock) advance(d time.Duration) {
 
 func newTestCache(t *testing.T) (*DEKCache, *countingProvider, *testClock) {
 	t.Helper()
-	inner := &countingProvider{Provider: localProvider(t, "k1:"+testKey(t, 1))}
+	fake := newFakeTransit(t)
+	server := fake.server()
+	inner := &countingProvider{Provider: newTestTransit(t, transitConfig(server.URL))}
 	clock := &testClock{now: time.Unix(0, 0)}
 	cache := NewDEKCache(inner, testCacheTTL)
 	cache.now = clock.Now
@@ -219,7 +221,7 @@ func TestNewCachesTransitUnwraps(t *testing.T) {
 	fake := newFakeTransit(t)
 	server := fake.server()
 	cfg := transitConfig(server.URL)
-	provider, err := New(t.Context(), Config{Provider: ProviderTransit, Transit: cfg})
+	provider, err := New(t.Context(), cfg)
 	if err != nil {
 		t.Fatalf("new: %v", err)
 	}

@@ -30,7 +30,6 @@ import (
 )
 
 var (
-	ErrSecretsNotConfigured  = errors.New("no secrets key provider is configured")
 	ErrSecretValueTooLarge   = errors.New("secret value exceeds the size limit")
 	ErrTooManySecrets        = errors.New("service has reached its secret limit in the environment")
 	ErrSecretNotFound        = errors.New("secret not found")
@@ -80,7 +79,7 @@ type SecretServer struct {
 	config   SecretConfig
 }
 
-// NewSecretServer creates a SecretServer; a nil provider refuses every write with FailedPrecondition.
+// NewSecretServer creates a SecretServer.
 func NewSecretServer(
 	db *pgxpool.Pool,
 	queries genDb.Querier,
@@ -151,9 +150,6 @@ func (s *SecretServer) SetSecrets(
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
 		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-	if s.provider == nil {
-		return nil, rpcerr.New(connect.CodeFailedPrecondition, ErrSecretsNotConfigured)
 	}
 	values := req.GetValues()
 	names := slices.Sorted(maps.Keys(values))
@@ -499,9 +495,6 @@ func (s *SecretServer) RewrapEnvironmentKeys(
 	if err := s.authz.Check(ctx, scopes, actions.NewSystem(actions.RewrapEnvironmentKeys)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to rewrap environment keys")
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
-	}
-	if s.provider == nil {
-		return nil, rpcerr.New(connect.CodeFailedPrecondition, ErrSecretsNotConfigured)
 	}
 	if req.GetNewDek() && req.GetEnvironmentId() == "" {
 		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrNewDEKNeedsEnvironment)

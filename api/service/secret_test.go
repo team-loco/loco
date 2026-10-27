@@ -78,12 +78,12 @@ func TestSecretServiceAuthorization(t *testing.T) {
 			})
 			return err
 		}, connect.CodePermissionDenied},
-		{"set without a provider", []genDb.EntityScope{write}, func(ctx context.Context) error {
+		{"set with workspace write", []genDb.EntityScope{write}, func(ctx context.Context) error {
 			_, err := server.SetSecrets(ctx, &secretv1.SetSecretsRequest{
 				ResourceId: resourceID, EnvironmentId: envID, Values: map[string]string{"A": "1"},
 			})
 			return err
-		}, connect.CodeFailedPrecondition},
+		}, connect.CodeInvalidArgument},
 		{"set on another resource", []genDb.EntityScope{otherResourceWrite}, func(ctx context.Context) error {
 			_, err := server.SetSecrets(ctx, &secretv1.SetSecretsRequest{
 				ResourceId: resourceID, EnvironmentId: envID, Values: map[string]string{"A": "1"},
@@ -95,7 +95,7 @@ func TestSecretServiceAuthorization(t *testing.T) {
 				ResourceId: resourceID, EnvironmentId: envID, Values: map[string]string{"A": "1"},
 			})
 			return err
-		}, connect.CodeFailedPrecondition},
+		}, connect.CodeInvalidArgument},
 		{"delete with read only", []genDb.EntityScope{read}, func(ctx context.Context) error {
 			_, err := server.DeleteSecrets(ctx, &secretv1.DeleteSecretsRequest{
 				ResourceId: resourceID, EnvironmentId: envID, Names: []string{"A"},

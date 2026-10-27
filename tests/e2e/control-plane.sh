@@ -91,7 +91,7 @@ password = (root / 'password').read_text().strip()
 now = datetime.datetime.now(datetime.UTC)
 (root / 'query.json').write_text(json.dumps({'workspaceId': '00000000-0000-0000-0000-000000000001', 'startTime': (now - datetime.timedelta(minutes=5)).isoformat(), 'endTime': now.isoformat()}))
 PY
-printf 'LOCO_SECRETS_KEY_PROVIDER=transit\nLOCO_SECRETS_TRANSIT_ADDR=http://openbao:8200\n%s\n' "$TRANSIT_ENV" >>"$RUN_DIR/api.env"
+printf 'LOCO_SECRETS_TRANSIT_ADDR=http://openbao:8200\n%s\n' "$TRANSIT_ENV" >>"$RUN_DIR/api.env"
 kubectl -n "$NAMESPACE" create secret generic api-env --from-env-file="$RUN_DIR/api.env" --dry-run=client -o yaml | kubectl apply -f -
 password_sets=()
 for user in $(yq '.clickhouseUserPasswords | keys | .[]' "$CHART_VALUES"); do
