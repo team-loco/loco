@@ -352,6 +352,7 @@ type ClusterAssertion struct {
 
 type ClusterUsageReport struct {
 	ClusterID  uuid.UUID `json:"clusterId"`
+	Feed       string    `json:"feed"`
 	ReportedAt time.Time `json:"reportedAt"`
 	Xid        uint64    `json:"xid"`
 }
@@ -373,6 +374,27 @@ type Deployment struct {
 	StartedAt     time.Time        `json:"startedAt"`
 	CompletedAt   *time.Time       `json:"completedAt"`
 	UpdatedAt     time.Time        `json:"updatedAt"`
+}
+
+type EgressCounter struct {
+	GatewayPodUid uuid.UUID `json:"gatewayPodUid"`
+	Route         string    `json:"route"`
+	ClusterID     uuid.UUID `json:"clusterId"`
+	Bytes         int64     `json:"bytes"`
+	ObservedAt    time.Time `json:"observedAt"`
+}
+
+type EgressUsage struct {
+	ID             uuid.UUID `json:"id"`
+	Xid            uint64    `json:"xid"`
+	ClusterID      uuid.UUID `json:"clusterId"`
+	Region         string    `json:"region"`
+	OrganizationID uuid.UUID `json:"organizationId"`
+	WorkspaceID    uuid.UUID `json:"workspaceId"`
+	ResourceID     uuid.UUID `json:"resourceId"`
+	EnvironmentID  uuid.UUID `json:"environmentId"`
+	HourStart      time.Time `json:"hourStart"`
+	Bytes          int64     `json:"bytes"`
 }
 
 type Environment struct {

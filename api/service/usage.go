@@ -76,8 +76,8 @@ func (s *UsageServer) authorize(ctx context.Context) error {
 	return nil
 }
 
-func (s *UsageServer) meteredThrough(ctx context.Context) (*timestamppb.Timestamp, error) {
-	clusters, err := s.queries.ListClusterUsageReportTimes(ctx)
+func (s *UsageServer) meteredThrough(ctx context.Context, feed string) (*timestamppb.Timestamp, error) {
+	clusters, err := s.queries.ListClusterUsageReportTimes(ctx, feed)
 	if err != nil {
 		return nil, err
 	}
@@ -96,45 +96,133 @@ func (s *UsageServer) meteredThrough(ctx context.Context) (*timestamppb.Timestam
 	return timestamppb.New(through), nil
 }
 
+type feedRequest struct {
+	cursor   string
+	pageSize int32
+	feed     string
+}
+
+type feed[Row, Out any] struct {
+	list     func(ctx context.Context, after feedPosition, maxRows int32) ([]Row, error)
+	convert  func(Row) Out
+	position func(Row) feedPosition
+}
+
+type feedPage[Out any] struct {
+	rows    []Out
+	next    string
+	through *timestamppb.Timestamp
+}
+
+func readFeed[Row, Out any](
+	ctx context.Context,
+	s *UsageServer,
+	req feedRequest,
+	source feed[Row, Out],
+) (feedPage[Out], error) {
+	if err := s.authorize(ctx); err != nil {
+		return feedPage[Out]{}, err
+	}
+	position, err := decodeFeedCursor(req.cursor)
+	if err != nil {
+		return feedPage[Out]{}, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
+	}
+	pageSize := req.pageSize
+	if pageSize == 0 {
+		pageSize = defaultUsagePage
+	}
+	through, err := s.meteredThrough(ctx, req.feed)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to read usage coverage", "feed", req.feed, "error", err)
+		return feedPage[Out]{}, rpcerr.New(connect.CodeInternal, ErrDB)
+	}
+	rows, err := source.list(ctx, position, pageSize)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list usage", "feed", req.feed, "error", err)
+		return feedPage[Out]{}, rpcerr.New(connect.CodeInternal, ErrDB)
+	}
+	page := feedPage[Out]{rows: make([]Out, len(rows)), next: req.cursor, through: through}
+	for i, row := range rows {
+		page.rows[i] = source.convert(row)
+	}
+	if len(rows) > 0 {
+		last := source.position(rows[len(rows)-1])
+		page.next = last.encode()
+	}
+	return page, nil
+}
+
 func (s *UsageServer) ListWorkloadRuns(
 	ctx context.Context,
 	req *usagev1.ListWorkloadRunsRequest,
 ) (*usagev1.ListWorkloadRunsResponse, error) {
-	if err := s.authorize(ctx); err != nil {
+	request := feedRequest{cursor: req.GetCursor(), pageSize: req.GetPageSize(), feed: feedWorkloadRuns}
+	source := feed[genDb.WorkloadRun, *usagev1.WorkloadRun]{
+		list:     s.workloadRunsAfter,
+		convert:  workloadRunToProto,
+		position: workloadRunPosition,
+	}
+	page, err := readFeed(ctx, s, request, source)
+	if err != nil {
 		return nil, err
 	}
-	position, err := decodeFeedCursor(req.GetCursor())
+	return &usagev1.ListWorkloadRunsResponse{Runs: page.rows, NextCursor: page.next, MeteredThrough: page.through}, nil
+}
+
+func (s *UsageServer) ListEgressUsage(
+	ctx context.Context,
+	req *usagev1.ListEgressUsageRequest,
+) (*usagev1.ListEgressUsageResponse, error) {
+	request := feedRequest{cursor: req.GetCursor(), pageSize: req.GetPageSize(), feed: feedEgress}
+	source := feed[genDb.EgressUsage, *usagev1.EgressUsage]{
+		list:     s.egressUsageAfter,
+		convert:  egressUsageToProto,
+		position: egressUsagePosition,
+	}
+	page, err := readFeed(ctx, s, request, source)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
+		return nil, err
 	}
-	pageSize := req.GetPageSize()
-	if pageSize == 0 {
-		pageSize = defaultUsagePage
+	return &usagev1.ListEgressUsageResponse{Usage: page.rows, NextCursor: page.next, MeteredThrough: page.through}, nil
+}
+
+func (s *UsageServer) workloadRunsAfter(
+	ctx context.Context,
+	after feedPosition,
+	maxRows int32,
+) ([]genDb.WorkloadRun, error) {
+	params := genDb.ListWorkloadRunsAfterParams{AfterXid: after.xid, AfterID: after.id, MaxRows: maxRows}
+	return s.queries.ListWorkloadRunsAfter(ctx, params)
+}
+
+func workloadRunPosition(row genDb.WorkloadRun) feedPosition {
+	return feedPosition{xid: row.Xid, id: row.PodUid}
+}
+
+func (s *UsageServer) egressUsageAfter(
+	ctx context.Context,
+	after feedPosition,
+	maxRows int32,
+) ([]genDb.EgressUsage, error) {
+	params := genDb.ListEgressUsageAfterParams{AfterXid: after.xid, AfterID: after.id, MaxRows: maxRows}
+	return s.queries.ListEgressUsageAfter(ctx, params)
+}
+
+func egressUsagePosition(row genDb.EgressUsage) feedPosition {
+	return feedPosition{xid: row.Xid, id: row.ID}
+}
+
+func egressUsageToProto(row genDb.EgressUsage) *usagev1.EgressUsage {
+	return &usagev1.EgressUsage{
+		ClusterId:      row.ClusterID.String(),
+		Region:         row.Region,
+		OrganizationId: row.OrganizationID.String(),
+		WorkspaceId:    row.WorkspaceID.String(),
+		ResourceId:     row.ResourceID.String(),
+		EnvironmentId:  row.EnvironmentID.String(),
+		HourStart:      timestamppb.New(row.HourStart),
+		Bytes:          row.Bytes,
 	}
-	through, err := s.meteredThrough(ctx)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to read usage coverage", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-	rows, err := s.queries.ListWorkloadRunsAfter(ctx, genDb.ListWorkloadRunsAfterParams{
-		AfterXid: position.xid,
-		AfterID:  position.id,
-		MaxRows:  pageSize,
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list workload runs", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-	runs := make([]*usagev1.WorkloadRun, len(rows))
-	for i, row := range rows {
-		runs[i] = workloadRunToProto(row)
-	}
-	next := req.GetCursor()
-	if len(rows) > 0 {
-		last := rows[len(rows)-1]
-		next = feedPosition{xid: last.Xid, id: last.PodUid}.encode()
-	}
-	return &usagev1.ListWorkloadRunsResponse{Runs: runs, NextCursor: next, MeteredThrough: through}, nil
 }
 
 func workloadRunToProto(row genDb.WorkloadRun) *usagev1.WorkloadRun {

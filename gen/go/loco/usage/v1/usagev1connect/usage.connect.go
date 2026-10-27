@@ -27,6 +27,9 @@ const (
 	// UsageServiceListWorkloadRunsProcedure is the procedure name of the UsageService's
 	// ListWorkloadRuns RPC.
 	UsageServiceListWorkloadRunsProcedure = "/loco.usage.v1.UsageService/ListWorkloadRuns"
+	// UsageServiceListEgressUsageProcedure is the procedure name of the UsageService's ListEgressUsage
+	// RPC.
+	UsageServiceListEgressUsageProcedure = "/loco.usage.v1.UsageService/ListEgressUsage"
 )
 
 var (
@@ -37,11 +40,19 @@ var (
 			Procedure:  UsageServiceListWorkloadRunsProcedure,
 		}
 	})
+	usageServiceListEgressUsageSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_usage_v1_usage_proto.Services().ByName("UsageService").Methods().ByName("ListEgressUsage"),
+			Procedure:  UsageServiceListEgressUsageProcedure,
+		}
+	})
 )
 
 // UsageServiceClient is a client for the loco.usage.v1.UsageService service.
 type UsageServiceClient interface {
 	ListWorkloadRuns(context.Context, *v1.ListWorkloadRunsRequest) (*v1.ListWorkloadRunsResponse, error)
+	ListEgressUsage(context.Context, *v1.ListEgressUsageRequest) (*v1.ListEgressUsageResponse, error)
 }
 
 // NewUsageServiceClient constructs a client for the loco.usage.v1.UsageService service. Multiple
@@ -53,6 +64,7 @@ func NewUsageServiceClient(client *connect.Client) UsageServiceClient {
 // UsageServiceHandler is an implementation of the loco.usage.v1.UsageService service.
 type UsageServiceHandler interface {
 	ListWorkloadRuns(context.Context, *v1.ListWorkloadRunsRequest) (*v1.ListWorkloadRunsResponse, error)
+	ListEgressUsage(context.Context, *v1.ListEgressUsageRequest) (*v1.ListEgressUsageResponse, error)
 }
 
 // RegisterUsageServiceHandler registers svc as the loco.usage.v1.UsageService implementation on
@@ -61,6 +73,7 @@ func RegisterUsageServiceHandler(server *connect.Server, svc UsageServiceHandler
 	adapter := usageServiceHandler{svc: svc}
 	server.Register(
 		connect.Method{Spec: usageServiceListWorkloadRunsSpec(), Handler: adapter.listWorkloadRuns},
+		connect.Method{Spec: usageServiceListEgressUsageSpec(), Handler: adapter.listEgressUsage},
 	)
 }
 
@@ -69,6 +82,10 @@ type UnimplementedUsageServiceHandler struct{}
 
 func (UnimplementedUsageServiceHandler) ListWorkloadRuns(context.Context, *v1.ListWorkloadRunsRequest) (*v1.ListWorkloadRunsResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.usage.v1.UsageService.ListWorkloadRuns is not implemented")
+}
+
+func (UnimplementedUsageServiceHandler) ListEgressUsage(context.Context, *v1.ListEgressUsageRequest) (*v1.ListEgressUsageResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.usage.v1.UsageService.ListEgressUsage is not implemented")
 }
 
 type usageServiceClient struct {
@@ -83,6 +100,14 @@ func (c *usageServiceClient) ListWorkloadRuns(ctx context.Context, req *v1.ListW
 	return &res, nil
 }
 
+func (c *usageServiceClient) ListEgressUsage(ctx context.Context, req *v1.ListEgressUsageRequest) (*v1.ListEgressUsageResponse, error) {
+	var res v1.ListEgressUsageResponse
+	if err := c.client.CallUnary(ctx, usageServiceListEgressUsageSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 type usageServiceHandler struct{ svc UsageServiceHandler }
 
 func (h usageServiceHandler) listWorkloadRuns(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
@@ -91,6 +116,18 @@ func (h usageServiceHandler) listWorkloadRuns(ctx context.Context, _ connect.Spe
 		return err
 	}
 	res, err := h.svc.ListWorkloadRuns(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h usageServiceHandler) listEgressUsage(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListEgressUsageRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListEgressUsage(ctx, &req)
 	if err != nil {
 		return err
 	}

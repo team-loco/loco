@@ -19,8 +19,9 @@ import (
 )
 
 const (
-	testRunMillicores = 500
-	testRunBytes      = 512 << 20
+	testMalformedCursor = "not-a-cursor"
+	testRunMillicores   = 500
+	testRunBytes        = 512 << 20
 )
 
 var testRunStart = time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
@@ -337,7 +338,7 @@ func TestListWorkloadRunsRequiresASystemScope(t *testing.T) {
 	if connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated caller listed workload runs: %v", err)
 	}
-	_, err = f.usage.ListWorkloadRuns(f.system, &usagev1.ListWorkloadRunsRequest{Cursor: "not-a-cursor"})
+	_, err = f.usage.ListWorkloadRuns(f.system, &usagev1.ListWorkloadRunsRequest{Cursor: testMalformedCursor})
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("malformed cursor: %v", err)
 	}
