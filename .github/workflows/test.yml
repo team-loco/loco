@@ -179,10 +179,6 @@ jobs:
         with:
           go-cache: test-${{ matrix.working-directory }}
 
-      - name: Tidy dependencies
-        if: matrix.component == 'Controller'
-        run: cd ${{ matrix.working-directory }} && go mod tidy
-
       - name: Run tests
         run: ${{ matrix.test-command }}
         timeout-minutes: ${{ matrix.timeout }}

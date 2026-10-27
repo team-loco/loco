@@ -81,7 +81,6 @@ jobs:
 
       - name: Build and load controller image
         run: |
-          go mod tidy -C controller
           make -C controller docker-build IMG="$CONTROLLER_IMAGE:$IMAGE_TAG"
           kind load docker-image "$CONTROLLER_IMAGE:$IMAGE_TAG"
 
