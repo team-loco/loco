@@ -4,13 +4,20 @@ import (
 	"errors"
 	"log/slog"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/team-loco/loco/agent/pkg/telemetrytoken"
 	"github.com/team-loco/loco/internal/loglevel"
 )
 
-const testAgentVersion = "sha-test"
+const (
+	testAgentVersion     = "sha-test"
+	testIngestSecret     = "loco-otlp-exporter" //nolint:gosec
+	testIngestSecretKey  = "token"
+	testIngestNamespaces = "observability,observability-node"
+)
 
 func agentEnv() map[string]string {
 	return map[string]string{
@@ -204,5 +211,41 @@ func TestParseAgentConfigRejectsUnknownLogLevel(t *testing.T) {
 				t.Errorf("parseAgentConfig with %s=%s = %v, want loglevel.ErrUnknown", envLogLevel, value, err)
 			}
 		})
+	}
+}
+
+func TestParseAgentConfigReadsTheIngestTokenSecret(t *testing.T) {
+	cfg, err := parseAgentConfig(lookup(agentEnv()), testAgentVersion)
+	if err != nil {
+		t.Fatalf("parseAgentConfig: %v", err)
+	}
+	if !reflect.DeepEqual(cfg.IngestTokenSecret, telemetrytoken.Secret{}) {
+		t.Fatalf("ingest token Secret = %+v, want none when %s is unset", cfg.IngestTokenSecret, envIngestTokenSecret)
+	}
+	env := agentEnv()
+	env[envIngestTokenSecret] = testIngestSecret
+	env[envIngestTokenSecretKey] = testIngestSecretKey
+	env[envIngestTokenNamespaces] = testIngestNamespaces
+	cfg, err = parseAgentConfig(lookup(env), testAgentVersion)
+	if err != nil {
+		t.Fatalf("parseAgentConfig: %v", err)
+	}
+	want := telemetrytoken.Secret{
+		Namespaces: strings.Split(testIngestNamespaces, listSeparator),
+		Name:       testIngestSecret,
+		Key:        testIngestSecretKey,
+	}
+	if !reflect.DeepEqual(cfg.IngestTokenSecret, want) {
+		t.Fatalf("ingest token Secret = %+v, want %+v", cfg.IngestTokenSecret, want)
+	}
+	for _, name := range []string{envIngestTokenSecretKey, envIngestTokenNamespaces} {
+		missing := agentEnv()
+		missing[envIngestTokenSecret] = testIngestSecret
+		missing[envIngestTokenSecretKey] = testIngestSecretKey
+		missing[envIngestTokenNamespaces] = testIngestNamespaces
+		delete(missing, name)
+		if _, err := parseAgentConfig(lookup(missing), testAgentVersion); !errors.Is(err, errMissingEnv) {
+			t.Errorf("parseAgentConfig without %s = %v, want errMissingEnv", name, err)
+		}
 	}
 }
