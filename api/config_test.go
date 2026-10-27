@@ -2,6 +2,8 @@ package main
 
 import (
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"slices"
 	"strings"
 	"testing"
@@ -32,6 +34,7 @@ const (
 	testAdminToken     = "service-key"
 	testIssuer         = "https://issuer.loco.test"
 	testHookURL        = "https://hooks.loco.test/events"
+	testHTTPHookURL    = "http://hooks.loco.test/events"
 	testEmailFrom      = "noreply@loco.test"
 	testDatabaseURL    = "postgres://db.loco.test:5432/loco"
 	testHookSecret     = "whsec_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
@@ -805,6 +808,27 @@ func TestNewAPIConfigReadsInvitations(t *testing.T) {
 	}
 }
 
+func TestNewAPIConfigAcceptsHTTPHookTransport(t *testing.T) {
+	var signature string
+	receiver := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		signature = r.Header.Get("Webhook-Signature")
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(receiver.Close)
+	clearAPIConfigEnv(t)
+	t.Setenv("EMAIL_TRANSPORT", receiver.URL)
+	t.Setenv("EMAIL_FROM", testEmailFrom)
+	t.Setenv("EMAIL_HOOK_SECRET", testHookSecret)
+	ac := newAPIConfig()
+	msg := mail.Message{Event: map[string]string{"type": "invitation"}}
+	if err := ac.Invitations.Transport.Send(t.Context(), msg); err != nil {
+		t.Fatalf("send = %v", err)
+	}
+	if !strings.HasPrefix(receiver.URL, "http://") || signature == "" {
+		t.Fatalf("url = %s, signature = %q", receiver.URL, signature)
+	}
+}
+
 func TestNewAPIConfigRejectsInvalidEmailSettings(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -827,6 +851,7 @@ func TestNewAPIConfigRejectsInvalidEmailSettings(t *testing.T) {
 		},
 		{name: "from missing", transport: "smtp://mail.loco.test:587", want: mail.ErrFromRequired},
 		{name: "hook secret missing", transport: testHookURL, from: testEmailFrom, want: mail.ErrHookSecret},
+		{name: "http hook secret missing", transport: testHTTPHookURL, from: testEmailFrom, want: mail.ErrHookSecret},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
