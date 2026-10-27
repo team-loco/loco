@@ -366,6 +366,10 @@ run = "./tests/e2e/run.sh --builds-disabled ingress"
 description = "Run private service discovery end-to-end tests: logical DNS names, HTTP and TCP ports, resource rename and deletion; takes the e2e flags"
 run = "./tests/e2e/run.sh discovery"
 
+[tasks."e2e:usage"]
+description = "Run the end-to-end tests for usage metering: a deployed app's pods become workload runs with their allocation, a deleted pod's run ends, and only a system admin reads the feed; takes the e2e flags"
+run = "./tests/e2e/run.sh --builds-disabled usage"
+
 [tasks."e2e:status"]
 description = "Run the end-to-end tests for resource status: healthy after a deploy, unavailable when its pods cannot run, unknown while its cluster is silent; takes the e2e flags"
 run = "./tests/e2e/run.sh --builds-disabled resource_status"

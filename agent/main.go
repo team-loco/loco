@@ -27,6 +27,7 @@ import (
 	"github.com/team-loco/loco/agent/pkg/identity"
 	"github.com/team-loco/loco/agent/pkg/kube"
 	"github.com/team-loco/loco/agent/pkg/reconciler"
+	"github.com/team-loco/loco/agent/pkg/usage"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 )
@@ -113,6 +114,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	meter, err := usage.Start(ctx, restConfig)
+	if err != nil {
+		slog.Error("failed to watch application pods", "error", err)
+		os.Exit(1)
+	}
+
 	buildsEnabled, err := inspector.BuildsEnabled(ctx)
 	if err != nil {
 		slog.Error("failed to check whether the cluster runs builds", "error", err)
@@ -144,6 +151,7 @@ func main() {
 		identities:    identities,
 		credentials:   credentials,
 		watcher:       watcher,
+		usage:         meter,
 		builds:        builds,
 		buildsEnabled: buildsEnabled,
 	}
@@ -167,6 +175,12 @@ type buildRunner interface {
 	WithInventory(ctx context.Context, fn func([]*agentv1.InventoryBuild) error) error
 	Handle(ctx context.Context, msg *agentv1.SyncResponse, report buildwatch.Sink)
 	RunCollector(ctx context.Context, interval time.Duration)
+}
+
+type usageMeter interface {
+	Report(ctx context.Context) (*agentv1.UsageReport, error)
+	Recorded(observedAt time.Time)
+	Wake() <-chan struct{}
 }
 
 type domainReporter interface {
@@ -194,6 +208,7 @@ type Agent struct {
 	identities        *identity.Store
 	credentials       *identity.Credentials
 	watcher           *appwatch.Watcher
+	usage             usageMeter
 	builds            buildRunner
 	buildsEnabled     bool
 	heartbeatInterval time.Duration
@@ -391,6 +406,7 @@ func (a *Agent) syncLoop(ctx context.Context) error {
 	workers.Go(func() { session.sendLoop(streamCtx, sendErr) })
 	workers.Go(func() { a.reportInventory(streamCtx, session) })
 	workers.Go(func() { a.sendHeartbeats(streamCtx, session.enqueue) })
+	workers.Go(func() { a.reportUsage(streamCtx, session.enqueue) })
 	workers.Go(func() { a.runBuildOps(streamCtx, buildOps, session.enqueue) })
 	detach := a.watcher.Attach(func(status *agentv1.PlacementStatus) {
 		session.enqueue(&agentv1.SyncRequest{Message: &agentv1.SyncRequest_Status{Status: status}})
@@ -414,6 +430,11 @@ func (a *Agent) syncLoop(ctx context.Context) error {
 		case err := <-recvErr:
 			return fmt.Errorf("receive sync message: %w", err)
 		case msg := <-received:
+			if recorded := msg.GetUsageRecorded(); recorded != nil {
+				observedAt := recorded.GetObservedAt().AsTime()
+				a.usage.Recorded(observedAt)
+				continue
+			}
 			if isBuildMessage(msg) {
 				select {
 				case buildOps <- msg:
@@ -599,6 +620,25 @@ func (a *Agent) sendHeartbeats(ctx context.Context, enqueue func(*agentv1.SyncRe
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+		}
+	}
+}
+
+func (a *Agent) reportUsage(ctx context.Context, enqueue func(*agentv1.SyncRequest)) {
+	ticker := time.NewTicker(a.cfg.UsageInterval)
+	defer ticker.Stop()
+	for {
+		report, err := a.usage.Report(ctx)
+		if err != nil {
+			slog.WarnContext(ctx, "failed to build usage report", "error", err)
+		} else {
+			enqueue(&agentv1.SyncRequest{Message: &agentv1.SyncRequest_Usage{Usage: report}})
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		case <-a.usage.Wake():
 		}
 	}
 }

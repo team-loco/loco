@@ -803,6 +803,7 @@ start_agent() {
     LOCO_BUILD_NAMESPACE="$E2E_BUILD_NAMESPACE" \
     LOCO_CONTROLLER_DEPLOYMENT="$(yq '.controller.name' "$WORKER_VALUES")" \
     LOCO_INVENTORY_INTERVAL="$(yq '.agent.inventoryInterval' "$WORKER_VALUES")" \
+    LOCO_USAGE_INTERVAL="$(yq '.agent.usageInterval' "$WORKER_VALUES")" \
     LOCO_BUILD_RETENTION="$(yq '.agent.buildRetention' "$WORKER_VALUES")" \
     LOCO_BUILD_COLLECT_INTERVAL="$(yq '.agent.buildCollectInterval' "$WORKER_VALUES")" \
     LOCO_CLUSTER_QUERY_TIMEOUT="$(yq '.agent.clusterQueryTimeout' "$WORKER_VALUES")" \

@@ -350,6 +350,12 @@ type ClusterAssertion struct {
 	ExpiresAt time.Time `json:"expiresAt"`
 }
 
+type ClusterUsageReport struct {
+	ClusterID  uuid.UUID `json:"clusterId"`
+	ReportedAt time.Time `json:"reportedAt"`
+	Xid        uint64    `json:"xid"`
+}
+
 type Deployment struct {
 	ID            uuid.UUID        `json:"id"`
 	ResourceID    uuid.UUID        `json:"resourceId"`
@@ -559,6 +565,22 @@ type WebhookDelivery struct {
 	LastError      *string    `json:"lastError"`
 	CreatedAt      time.Time  `json:"createdAt"`
 	DeliveredAt    *time.Time `json:"deliveredAt"`
+}
+
+type WorkloadRun struct {
+	PodUid         uuid.UUID  `json:"podUid"`
+	Xid            uint64     `json:"xid"`
+	ClusterID      uuid.UUID  `json:"clusterId"`
+	Region         string     `json:"region"`
+	OrganizationID uuid.UUID  `json:"organizationId"`
+	WorkspaceID    uuid.UUID  `json:"workspaceId"`
+	ResourceID     uuid.UUID  `json:"resourceId"`
+	EnvironmentID  uuid.UUID  `json:"environmentId"`
+	CpuMillicores  int64      `json:"cpuMillicores"`
+	MemoryBytes    int64      `json:"memoryBytes"`
+	StartedAt      time.Time  `json:"startedAt"`
+	LastSeenAt     time.Time  `json:"lastSeenAt"`
+	EndedAt        *time.Time `json:"endedAt"`
 }
 
 type Workspace struct {

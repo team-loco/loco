@@ -11,6 +11,7 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -281,6 +282,7 @@ type SyncRequest struct {
 	//	*SyncRequest_Status
 	//	*SyncRequest_BuildStatus
 	//	*SyncRequest_Heartbeat
+	//	*SyncRequest_Usage
 	Message       isSyncRequest_Message `protobuf_oneof:"message"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -368,6 +370,15 @@ func (x *SyncRequest) GetHeartbeat() *Heartbeat {
 	return nil
 }
 
+func (x *SyncRequest) GetUsage() *UsageReport {
+	if x != nil {
+		if x, ok := x.Message.(*SyncRequest_Usage); ok {
+			return x.Usage
+		}
+	}
+	return nil
+}
+
 type isSyncRequest_Message interface {
 	isSyncRequest_Message()
 }
@@ -392,6 +403,10 @@ type SyncRequest_Heartbeat struct {
 	Heartbeat *Heartbeat `protobuf:"bytes,5,opt,name=heartbeat,proto3,oneof"`
 }
 
+type SyncRequest_Usage struct {
+	Usage *UsageReport `protobuf:"bytes,6,opt,name=usage,proto3,oneof"`
+}
+
 func (*SyncRequest_Inventory) isSyncRequest_Message() {}
 
 func (*SyncRequest_Applied) isSyncRequest_Message() {}
@@ -401,6 +416,8 @@ func (*SyncRequest_Status) isSyncRequest_Message() {}
 func (*SyncRequest_BuildStatus) isSyncRequest_Message() {}
 
 func (*SyncRequest_Heartbeat) isSyncRequest_Message() {}
+
+func (*SyncRequest_Usage) isSyncRequest_Message() {}
 
 type Inventory struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -802,6 +819,7 @@ type SyncResponse struct {
 	//	*SyncResponse_Delete
 	//	*SyncResponse_StartBuild
 	//	*SyncResponse_CancelBuild
+	//	*SyncResponse_UsageRecorded
 	Message       isSyncResponse_Message `protobuf_oneof:"message"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -880,6 +898,15 @@ func (x *SyncResponse) GetCancelBuild() *CancelBuild {
 	return nil
 }
 
+func (x *SyncResponse) GetUsageRecorded() *UsageRecorded {
+	if x != nil {
+		if x, ok := x.Message.(*SyncResponse_UsageRecorded); ok {
+			return x.UsageRecorded
+		}
+	}
+	return nil
+}
+
 type isSyncResponse_Message interface {
 	isSyncResponse_Message()
 }
@@ -900,6 +927,10 @@ type SyncResponse_CancelBuild struct {
 	CancelBuild *CancelBuild `protobuf:"bytes,4,opt,name=cancel_build,json=cancelBuild,proto3,oneof"`
 }
 
+type SyncResponse_UsageRecorded struct {
+	UsageRecorded *UsageRecorded `protobuf:"bytes,5,opt,name=usage_recorded,json=usageRecorded,proto3,oneof"`
+}
+
 func (*SyncResponse_Apply) isSyncResponse_Message() {}
 
 func (*SyncResponse_Delete) isSyncResponse_Message() {}
@@ -907,6 +938,8 @@ func (*SyncResponse_Delete) isSyncResponse_Message() {}
 func (*SyncResponse_StartBuild) isSyncResponse_Message() {}
 
 func (*SyncResponse_CancelBuild) isSyncResponse_Message() {}
+
+func (*SyncResponse_UsageRecorded) isSyncResponse_Message() {}
 
 type Apply struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1465,11 +1498,215 @@ func (x *AgentHealth) GetMessage() string {
 	return ""
 }
 
+type UsageReport struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ObservedAt    *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	Runs          []*PodRun              `protobuf:"bytes,2,rep,name=runs,proto3" json:"runs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsageReport) Reset() {
+	*x = UsageReport{}
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageReport) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageReport) ProtoMessage() {}
+
+func (x *UsageReport) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageReport.ProtoReflect.Descriptor instead.
+func (*UsageReport) Descriptor() ([]byte, []int) {
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *UsageReport) GetObservedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return nil
+}
+
+func (x *UsageReport) GetRuns() []*PodRun {
+	if x != nil {
+		return x.Runs
+	}
+	return nil
+}
+
+type PodRun struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	PodUid         string                 `protobuf:"bytes,1,opt,name=pod_uid,json=podUid,proto3" json:"pod_uid,omitempty"`
+	OrganizationId string                 `protobuf:"bytes,2,opt,name=organization_id,json=organizationId,proto3" json:"organization_id,omitempty"`
+	WorkspaceId    string                 `protobuf:"bytes,3,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	ResourceId     string                 `protobuf:"bytes,4,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	EnvironmentId  string                 `protobuf:"bytes,5,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	CpuMillicores  int64                  `protobuf:"varint,6,opt,name=cpu_millicores,json=cpuMillicores,proto3" json:"cpu_millicores,omitempty"`
+	MemoryBytes    int64                  `protobuf:"varint,7,opt,name=memory_bytes,json=memoryBytes,proto3" json:"memory_bytes,omitempty"`
+	StartedAt      *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	EndedAt        *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=ended_at,json=endedAt,proto3" json:"ended_at,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *PodRun) Reset() {
+	*x = PodRun{}
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PodRun) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PodRun) ProtoMessage() {}
+
+func (x *PodRun) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PodRun.ProtoReflect.Descriptor instead.
+func (*PodRun) Descriptor() ([]byte, []int) {
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *PodRun) GetPodUid() string {
+	if x != nil {
+		return x.PodUid
+	}
+	return ""
+}
+
+func (x *PodRun) GetOrganizationId() string {
+	if x != nil {
+		return x.OrganizationId
+	}
+	return ""
+}
+
+func (x *PodRun) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *PodRun) GetResourceId() string {
+	if x != nil {
+		return x.ResourceId
+	}
+	return ""
+}
+
+func (x *PodRun) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+func (x *PodRun) GetCpuMillicores() int64 {
+	if x != nil {
+		return x.CpuMillicores
+	}
+	return 0
+}
+
+func (x *PodRun) GetMemoryBytes() int64 {
+	if x != nil {
+		return x.MemoryBytes
+	}
+	return 0
+}
+
+func (x *PodRun) GetStartedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartedAt
+	}
+	return nil
+}
+
+func (x *PodRun) GetEndedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndedAt
+	}
+	return nil
+}
+
+type UsageRecorded struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ObservedAt    *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsageRecorded) Reset() {
+	*x = UsageRecorded{}
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageRecorded) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageRecorded) ProtoMessage() {}
+
+func (x *UsageRecorded) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageRecorded.ProtoReflect.Descriptor instead.
+func (*UsageRecorded) Descriptor() ([]byte, []int) {
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *UsageRecorded) GetObservedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return nil
+}
+
 var File_loco_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/agent/v1/agent.proto\x12\rloco.agent.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\"\xa5\x02\n" +
+	"\x19loco/agent/v1/agent.proto\x12\rloco.agent.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa5\x02\n" +
 	"\x0fRegisterRequest\x12#\n" +
 	"\ragent_version\x18\x01 \x01(\tR\fagentVersion\x128\n" +
 	"\bcapacity\x18\x02 \x01(\v2\x1c.loco.agent.v1.AgentCapacityR\bcapacity\x12%\n" +
@@ -1489,13 +1726,14 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\x10RegisterResponse\x12\x1d\n" +
 	"\n" +
 	"cluster_id\x18\x01 \x01(\tR\tclusterId\x12H\n" +
-	"\x12heartbeat_interval\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x11heartbeatInterval\"\xbb\x02\n" +
+	"\x12heartbeat_interval\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x11heartbeatInterval\"\xef\x02\n" +
 	"\vSyncRequest\x128\n" +
 	"\tinventory\x18\x01 \x01(\v2\x18.loco.agent.v1.InventoryH\x00R\tinventory\x122\n" +
 	"\aapplied\x18\x02 \x01(\v2\x16.loco.agent.v1.AppliedH\x00R\aapplied\x128\n" +
 	"\x06status\x18\x03 \x01(\v2\x1e.loco.agent.v1.PlacementStatusH\x00R\x06status\x12?\n" +
 	"\fbuild_status\x18\x04 \x01(\v2\x1a.loco.agent.v1.BuildStatusH\x00R\vbuildStatus\x128\n" +
-	"\theartbeat\x18\x05 \x01(\v2\x18.loco.agent.v1.HeartbeatH\x00R\theartbeatB\t\n" +
+	"\theartbeat\x18\x05 \x01(\v2\x18.loco.agent.v1.HeartbeatH\x00R\theartbeat\x122\n" +
+	"\x05usage\x18\x06 \x01(\v2\x1a.loco.agent.v1.UsageReportH\x00R\x05usageB\t\n" +
 	"\amessage\"{\n" +
 	"\tInventory\x127\n" +
 	"\aentries\x18\x01 \x03(\v2\x1d.loco.agent.v1.InventoryEntryR\aentries\x125\n" +
@@ -1525,13 +1763,14 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\x05ready\x18\x03 \x01(\bR\x05ready\x12%\n" +
 	"\x0eready_replicas\x18\x04 \x01(\x05R\rreadyReplicas\x12\x14\n" +
 	"\x05phase\x18\x05 \x01(\tR\x05phase\x12\x18\n" +
-	"\amessage\x18\x06 \x01(\tR\amessage\"\xf7\x01\n" +
+	"\amessage\x18\x06 \x01(\tR\amessage\"\xbe\x02\n" +
 	"\fSyncResponse\x12,\n" +
 	"\x05apply\x18\x01 \x01(\v2\x14.loco.agent.v1.ApplyH\x00R\x05apply\x12/\n" +
 	"\x06delete\x18\x02 \x01(\v2\x15.loco.agent.v1.DeleteH\x00R\x06delete\x12<\n" +
 	"\vstart_build\x18\x03 \x01(\v2\x19.loco.agent.v1.StartBuildH\x00R\n" +
 	"startBuild\x12?\n" +
-	"\fcancel_build\x18\x04 \x01(\v2\x1a.loco.agent.v1.CancelBuildH\x00R\vcancelBuildB\t\n" +
+	"\fcancel_build\x18\x04 \x01(\v2\x1a.loco.agent.v1.CancelBuildH\x00R\vcancelBuild\x12E\n" +
+	"\x0eusage_recorded\x18\x05 \x01(\v2\x1c.loco.agent.v1.UsageRecordedH\x00R\rusageRecordedB\t\n" +
 	"\amessage\"\xc2\x01\n" +
 	"\x05Apply\x12!\n" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12\x1a\n" +
@@ -1583,7 +1822,26 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\vAgentHealth\x12-\n" +
 	"\x12kubernetes_healthy\x18\x01 \x01(\bR\x11kubernetesHealthy\x12-\n" +
 	"\x12controller_healthy\x18\x02 \x01(\bR\x11controllerHealthy\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage*\xa8\x01\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"}\n" +
+	"\vUsageReport\x12C\n" +
+	"\vobserved_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\n" +
+	"observedAt\x12)\n" +
+	"\x04runs\x18\x02 \x03(\v2\x15.loco.agent.v1.PodRunR\x04runs\"\xbd\x03\n" +
+	"\x06PodRun\x12!\n" +
+	"\apod_uid\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06podUid\x121\n" +
+	"\x0forganization_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x0eorganizationId\x12+\n" +
+	"\fworkspace_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12)\n" +
+	"\vresource_id\x18\x04 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
+	"resourceId\x12/\n" +
+	"\x0eenvironment_id\x18\x05 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\x12.\n" +
+	"\x0ecpu_millicores\x18\x06 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\rcpuMillicores\x12*\n" +
+	"\fmemory_bytes\x18\a \x01(\x03B\a\xbaH\x04\"\x02(\x00R\vmemoryBytes\x12A\n" +
+	"\n" +
+	"started_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\tstartedAt\x125\n" +
+	"\bended_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\aendedAt\"L\n" +
+	"\rUsageRecorded\x12;\n" +
+	"\vobserved_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"observedAt*\xa8\x01\n" +
 	"\n" +
 	"BuildPhase\x12\x1b\n" +
 	"\x17BUILD_PHASE_UNSPECIFIED\x10\x00\x12\x17\n" +
@@ -1609,61 +1867,72 @@ func file_loco_agent_v1_agent_proto_rawDescGZIP() []byte {
 }
 
 var file_loco_agent_v1_agent_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_loco_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_loco_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
 var file_loco_agent_v1_agent_proto_goTypes = []any{
-	(BuildPhase)(0),             // 0: loco.agent.v1.BuildPhase
-	(*RegisterRequest)(nil),     // 1: loco.agent.v1.RegisterRequest
-	(*Enrollment)(nil),          // 2: loco.agent.v1.Enrollment
-	(*RegisterResponse)(nil),    // 3: loco.agent.v1.RegisterResponse
-	(*SyncRequest)(nil),         // 4: loco.agent.v1.SyncRequest
-	(*Inventory)(nil),           // 5: loco.agent.v1.Inventory
-	(*InventoryEntry)(nil),      // 6: loco.agent.v1.InventoryEntry
-	(*InventoryBuild)(nil),      // 7: loco.agent.v1.InventoryBuild
-	(*BuildStatus)(nil),         // 8: loco.agent.v1.BuildStatus
-	(*Applied)(nil),             // 9: loco.agent.v1.Applied
-	(*PlacementStatus)(nil),     // 10: loco.agent.v1.PlacementStatus
-	(*SyncResponse)(nil),        // 11: loco.agent.v1.SyncResponse
-	(*Apply)(nil),               // 12: loco.agent.v1.Apply
-	(*EnvSecret)(nil),           // 13: loco.agent.v1.EnvSecret
-	(*Delete)(nil),              // 14: loco.agent.v1.Delete
-	(*StartBuild)(nil),          // 15: loco.agent.v1.StartBuild
-	(*CancelBuild)(nil),         // 16: loco.agent.v1.CancelBuild
-	(*Heartbeat)(nil),           // 17: loco.agent.v1.Heartbeat
-	(*AgentCapacity)(nil),       // 18: loco.agent.v1.AgentCapacity
-	(*AgentHealth)(nil),         // 19: loco.agent.v1.AgentHealth
-	nil,                         // 20: loco.agent.v1.EnvSecret.DataEntry
-	(*durationpb.Duration)(nil), // 21: google.protobuf.Duration
+	(BuildPhase)(0),               // 0: loco.agent.v1.BuildPhase
+	(*RegisterRequest)(nil),       // 1: loco.agent.v1.RegisterRequest
+	(*Enrollment)(nil),            // 2: loco.agent.v1.Enrollment
+	(*RegisterResponse)(nil),      // 3: loco.agent.v1.RegisterResponse
+	(*SyncRequest)(nil),           // 4: loco.agent.v1.SyncRequest
+	(*Inventory)(nil),             // 5: loco.agent.v1.Inventory
+	(*InventoryEntry)(nil),        // 6: loco.agent.v1.InventoryEntry
+	(*InventoryBuild)(nil),        // 7: loco.agent.v1.InventoryBuild
+	(*BuildStatus)(nil),           // 8: loco.agent.v1.BuildStatus
+	(*Applied)(nil),               // 9: loco.agent.v1.Applied
+	(*PlacementStatus)(nil),       // 10: loco.agent.v1.PlacementStatus
+	(*SyncResponse)(nil),          // 11: loco.agent.v1.SyncResponse
+	(*Apply)(nil),                 // 12: loco.agent.v1.Apply
+	(*EnvSecret)(nil),             // 13: loco.agent.v1.EnvSecret
+	(*Delete)(nil),                // 14: loco.agent.v1.Delete
+	(*StartBuild)(nil),            // 15: loco.agent.v1.StartBuild
+	(*CancelBuild)(nil),           // 16: loco.agent.v1.CancelBuild
+	(*Heartbeat)(nil),             // 17: loco.agent.v1.Heartbeat
+	(*AgentCapacity)(nil),         // 18: loco.agent.v1.AgentCapacity
+	(*AgentHealth)(nil),           // 19: loco.agent.v1.AgentHealth
+	(*UsageReport)(nil),           // 20: loco.agent.v1.UsageReport
+	(*PodRun)(nil),                // 21: loco.agent.v1.PodRun
+	(*UsageRecorded)(nil),         // 22: loco.agent.v1.UsageRecorded
+	nil,                           // 23: loco.agent.v1.EnvSecret.DataEntry
+	(*durationpb.Duration)(nil),   // 24: google.protobuf.Duration
+	(*timestamppb.Timestamp)(nil), // 25: google.protobuf.Timestamp
 }
 var file_loco_agent_v1_agent_proto_depIdxs = []int32{
 	18, // 0: loco.agent.v1.RegisterRequest.capacity:type_name -> loco.agent.v1.AgentCapacity
 	2,  // 1: loco.agent.v1.RegisterRequest.enrollment:type_name -> loco.agent.v1.Enrollment
-	21, // 2: loco.agent.v1.RegisterResponse.heartbeat_interval:type_name -> google.protobuf.Duration
+	24, // 2: loco.agent.v1.RegisterResponse.heartbeat_interval:type_name -> google.protobuf.Duration
 	5,  // 3: loco.agent.v1.SyncRequest.inventory:type_name -> loco.agent.v1.Inventory
 	9,  // 4: loco.agent.v1.SyncRequest.applied:type_name -> loco.agent.v1.Applied
 	10, // 5: loco.agent.v1.SyncRequest.status:type_name -> loco.agent.v1.PlacementStatus
 	8,  // 6: loco.agent.v1.SyncRequest.build_status:type_name -> loco.agent.v1.BuildStatus
 	17, // 7: loco.agent.v1.SyncRequest.heartbeat:type_name -> loco.agent.v1.Heartbeat
-	6,  // 8: loco.agent.v1.Inventory.entries:type_name -> loco.agent.v1.InventoryEntry
-	7,  // 9: loco.agent.v1.Inventory.builds:type_name -> loco.agent.v1.InventoryBuild
-	0,  // 10: loco.agent.v1.InventoryBuild.phase:type_name -> loco.agent.v1.BuildPhase
-	0,  // 11: loco.agent.v1.BuildStatus.phase:type_name -> loco.agent.v1.BuildPhase
-	12, // 12: loco.agent.v1.SyncResponse.apply:type_name -> loco.agent.v1.Apply
-	14, // 13: loco.agent.v1.SyncResponse.delete:type_name -> loco.agent.v1.Delete
-	15, // 14: loco.agent.v1.SyncResponse.start_build:type_name -> loco.agent.v1.StartBuild
-	16, // 15: loco.agent.v1.SyncResponse.cancel_build:type_name -> loco.agent.v1.CancelBuild
-	13, // 16: loco.agent.v1.Apply.env_secret:type_name -> loco.agent.v1.EnvSecret
-	20, // 17: loco.agent.v1.EnvSecret.data:type_name -> loco.agent.v1.EnvSecret.DataEntry
-	18, // 18: loco.agent.v1.Heartbeat.capacity:type_name -> loco.agent.v1.AgentCapacity
-	19, // 19: loco.agent.v1.Heartbeat.health:type_name -> loco.agent.v1.AgentHealth
-	1,  // 20: loco.agent.v1.AgentService.Register:input_type -> loco.agent.v1.RegisterRequest
-	4,  // 21: loco.agent.v1.AgentService.Sync:input_type -> loco.agent.v1.SyncRequest
-	3,  // 22: loco.agent.v1.AgentService.Register:output_type -> loco.agent.v1.RegisterResponse
-	11, // 23: loco.agent.v1.AgentService.Sync:output_type -> loco.agent.v1.SyncResponse
-	22, // [22:24] is the sub-list for method output_type
-	20, // [20:22] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	20, // 8: loco.agent.v1.SyncRequest.usage:type_name -> loco.agent.v1.UsageReport
+	6,  // 9: loco.agent.v1.Inventory.entries:type_name -> loco.agent.v1.InventoryEntry
+	7,  // 10: loco.agent.v1.Inventory.builds:type_name -> loco.agent.v1.InventoryBuild
+	0,  // 11: loco.agent.v1.InventoryBuild.phase:type_name -> loco.agent.v1.BuildPhase
+	0,  // 12: loco.agent.v1.BuildStatus.phase:type_name -> loco.agent.v1.BuildPhase
+	12, // 13: loco.agent.v1.SyncResponse.apply:type_name -> loco.agent.v1.Apply
+	14, // 14: loco.agent.v1.SyncResponse.delete:type_name -> loco.agent.v1.Delete
+	15, // 15: loco.agent.v1.SyncResponse.start_build:type_name -> loco.agent.v1.StartBuild
+	16, // 16: loco.agent.v1.SyncResponse.cancel_build:type_name -> loco.agent.v1.CancelBuild
+	22, // 17: loco.agent.v1.SyncResponse.usage_recorded:type_name -> loco.agent.v1.UsageRecorded
+	13, // 18: loco.agent.v1.Apply.env_secret:type_name -> loco.agent.v1.EnvSecret
+	23, // 19: loco.agent.v1.EnvSecret.data:type_name -> loco.agent.v1.EnvSecret.DataEntry
+	18, // 20: loco.agent.v1.Heartbeat.capacity:type_name -> loco.agent.v1.AgentCapacity
+	19, // 21: loco.agent.v1.Heartbeat.health:type_name -> loco.agent.v1.AgentHealth
+	25, // 22: loco.agent.v1.UsageReport.observed_at:type_name -> google.protobuf.Timestamp
+	21, // 23: loco.agent.v1.UsageReport.runs:type_name -> loco.agent.v1.PodRun
+	25, // 24: loco.agent.v1.PodRun.started_at:type_name -> google.protobuf.Timestamp
+	25, // 25: loco.agent.v1.PodRun.ended_at:type_name -> google.protobuf.Timestamp
+	25, // 26: loco.agent.v1.UsageRecorded.observed_at:type_name -> google.protobuf.Timestamp
+	1,  // 27: loco.agent.v1.AgentService.Register:input_type -> loco.agent.v1.RegisterRequest
+	4,  // 28: loco.agent.v1.AgentService.Sync:input_type -> loco.agent.v1.SyncRequest
+	3,  // 29: loco.agent.v1.AgentService.Register:output_type -> loco.agent.v1.RegisterResponse
+	11, // 30: loco.agent.v1.AgentService.Sync:output_type -> loco.agent.v1.SyncResponse
+	29, // [29:31] is the sub-list for method output_type
+	27, // [27:29] is the sub-list for method input_type
+	27, // [27:27] is the sub-list for extension type_name
+	27, // [27:27] is the sub-list for extension extendee
+	0,  // [0:27] is the sub-list for field type_name
 }
 
 func init() { file_loco_agent_v1_agent_proto_init() }
@@ -1677,12 +1946,14 @@ func file_loco_agent_v1_agent_proto_init() {
 		(*SyncRequest_Status)(nil),
 		(*SyncRequest_BuildStatus)(nil),
 		(*SyncRequest_Heartbeat)(nil),
+		(*SyncRequest_Usage)(nil),
 	}
 	file_loco_agent_v1_agent_proto_msgTypes[10].OneofWrappers = []any{
 		(*SyncResponse_Apply)(nil),
 		(*SyncResponse_Delete)(nil),
 		(*SyncResponse_StartBuild)(nil),
 		(*SyncResponse_CancelBuild)(nil),
+		(*SyncResponse_UsageRecorded)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1690,7 +1961,7 @@ func file_loco_agent_v1_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_agent_v1_agent_proto_rawDesc), len(file_loco_agent_v1_agent_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   20,
+			NumMessages:   23,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

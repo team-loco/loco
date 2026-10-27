@@ -372,6 +372,7 @@ var (
 		entityType: db.EntityTypeSystem,
 		scope:      db.ScopeAdmin,
 	}
+	ReadUsage = Action{entityType: db.EntityTypeSystem, scope: db.ScopeAdmin}
 )
 
 func New(a Action, entityID string) db.EntityScope {
