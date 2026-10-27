@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # E2E test orchestrator for Loco
-# Usage: ./tests/e2e/run.sh [--no-teardown] [--skip-build] [--teardown-only] [--builds-disabled] [--observability] [test-filter]
+# Usage: ./tests/e2e/run.sh [--no-teardown] [--skip-build] [--build-only] [--teardown-only] [--builds-disabled] [--observability] [test-filter...]
 
 set -euo pipefail
 
@@ -137,19 +137,21 @@ source "$SCRIPT_DIR/cli.sh"
 # Parse flags
 NO_TEARDOWN=false
 SKIP_BUILD=false
+BUILD_ONLY=false
 TEARDOWN_ONLY=false
 BUILDS_ENABLED=true
 OBSERVABILITY=false
-TEST_FILTER=""
+TEST_FILTERS=()
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --no-teardown)  NO_TEARDOWN=true; shift ;;
         --skip-build)   SKIP_BUILD=true; shift ;;
+        --build-only)   BUILD_ONLY=true; shift ;;
         --teardown-only) TEARDOWN_ONLY=true; shift ;;
         --builds-disabled) BUILDS_ENABLED=false; shift ;;
         --observability) OBSERVABILITY=true; shift ;;
-        *)              TEST_FILTER="$1"; shift ;;
+        *)              TEST_FILTERS+=("$1"); shift ;;
     esac
 done
 
@@ -688,9 +690,6 @@ reset_cluster_state() {
 }
 
 start_builds() {
-    if [ "$BUILDS_ENABLED" = true ]; then
-        start_job build-image-pulls pull_build_images
-    fi
     if [ "$SKIP_BUILD" = true ]; then
         log_info "Skipping builds (--skip-build)"
         return 0
@@ -880,8 +879,7 @@ run_tests() {
         local test_name
         test_name="$(basename "$test_file" .sh)"
 
-        # Apply filter if provided
-        if [ -n "$TEST_FILTER" ] && [[ "$test_name" != *"$TEST_FILTER"* ]]; then
+        if ! suite_selected "$test_name" ${TEST_FILTERS[@]+"${TEST_FILTERS[@]}"}; then
             log_info "Skipping ${test_name} (filtered)"
             continue
         fi
@@ -946,6 +944,9 @@ main() {
     stop_processes
     check_ports
     setup_dirs
+    if [ "$BUILDS_ENABLED" = true ]; then
+        start_job build-image-pulls pull_build_images
+    fi
     start_builds
     setup_kind
     create_namespace
@@ -990,4 +991,19 @@ main() {
     print_summary
 }
 
-main
+build_only() {
+    trap stop_jobs EXIT
+    setup_dirs
+    start_builds
+    local job
+    for job in controller-image obs-proxy-image builder-image binaries; do
+        await_job "$job"
+    done
+    log_ok "Images tagged e2e-${RUN_ID} and binaries in ${BIN_DIR}"
+}
+
+if [ "$BUILD_ONLY" = true ]; then
+    build_only
+else
+    main
+fi

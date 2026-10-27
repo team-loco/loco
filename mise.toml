@@ -166,6 +166,10 @@ run = ["bun fmt --check", "bun run lint:fast", "bun run lint:types", "bun run ty
 description = "Test discovery failure diagnostics without a cluster"
 run = "uv run --locked --project tests pytest tests/e2e/test_discovery_diagnostics.py"
 
+[tasks."test:e2e-runner"]
+description = "Test the e2e runner's test file selection without a cluster"
+run = "uv run --locked --project tests pytest tests/e2e/test_run.py"
+
 [tasks."test:ci"]
 description = "Test CI component selection and pull-request diffs"
 run = "uv run --locked --project tests pytest .github/actions/go-changes/tests .github/actions/ci-gate/tests"
@@ -329,7 +333,7 @@ env = { _.source = "dev/stack.sh" }
 run = "mise run helm:sync:release cert-manager"
 
 [tasks.e2e]
-description = "Run the end-to-end tests in this worktree's own kind cluster and compose project (E2E_RUN_ID overrides the run). Flags: --no-teardown keeps the run, a later run reuses its cluster and resets its state; --skip-build reuses the images and binaries; a trailing filter picks test files"
+description = "Run the end-to-end tests in this worktree's own kind cluster and compose project (E2E_RUN_ID overrides the run). Flags: --no-teardown keeps the run, a later run reuses its cluster and resets its state; --skip-build reuses the images and binaries; --build-only builds the images and binaries the other flags need and stops; trailing filters pick the test files whose names contain any of them"
 run = "./tests/e2e/run.sh"
 
 [tasks."e2e:control-plane"]
