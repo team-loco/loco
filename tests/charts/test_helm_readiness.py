@@ -15,7 +15,6 @@ FIXTURE_ENV = {
     "CLOUDFLARE_TOKEN": "cloudflare-fixture",
     "LOCO_JOIN_TOKEN": "join-fixture",
 }
-STACK_ENV = ("CERT_MANAGER_EMAIL", *FIXTURE_ENV)
 TILT_VALUES = {
     "cert-manager": (),
     "loco-worker": ("agent.image.tag=fixture", "controller.image.tag=fixture", "builds.builderImage.tag=fixture"),
@@ -28,7 +27,7 @@ def _yaml(path):
     return json.loads(subprocess.check_output(["yq", "-o=json", ".", str(path)], text=True))
 
 
-def install_args(tmp_path, release, environment=None):
+def install_args(tmp_path, release):
     stubs = tmp_path / "bin"
     stubs.mkdir(exist_ok=True)
     (stubs / "helm").write_text('#!/usr/bin/env bash\nprintf \'%s\\0\' "$@" > "$HELM_ARGS"\n')
@@ -42,14 +41,12 @@ def install_args(tmp_path, release, environment=None):
     for stub in stubs.iterdir():
         stub.chmod(0o755)
     record = tmp_path / "helm-args"
-    base = {name: value for name, value in os.environ.items() if name not in STACK_ENV}
     subprocess.run(
         ["bash", str(RELEASE_TASK), release, *TILT_VALUES[release]],
         cwd=ROOT,
         env={
-            **base,
+            **os.environ,
             **FIXTURE_ENV,
-            **(environment or {}),
             "PATH": f"{stubs}{os.pathsep}{os.environ['PATH']}",
             "HELM_ARGS": str(record),
         },
@@ -97,12 +94,3 @@ def test_local_releases_render_with_the_stack_values(tmp_path, subtests):
     ):
         with subtests.test(needle=needle):
             assert needle in manifest
-
-
-def test_cert_manager_email_overrides_the_local_default(tmp_path):
-    default = _yaml(ROOT / "dev/worker-chart.yaml")["certManager"]["issuer"]["email"]
-    assert default in render(install_args(tmp_path, "loco-worker"))
-    override = "ops@example.test"
-    manifest = render(install_args(tmp_path, "loco-worker", {"CERT_MANAGER_EMAIL": override}))
-    assert override in manifest
-    assert default not in manifest

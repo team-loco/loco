@@ -198,12 +198,8 @@ run = "bun run dev"
 [tasks.tilt]
 description = "Start this checkout's local environment (cluster, infrastructure and services) with Tilt, including one mise run stop stopped; mise run stack prints its URLs"
 alias = "start"
-env = { _.file = ".env", _.source = "dev/stack.sh" }
+env = { _.file = "dev/api.env", _.source = "dev/stack.sh" }
 run = """
-if [ ! -f .env ]; then
-  echo ".env is missing: copy .env.example to .env, or in a git worktree link the main checkout's .env" >&2
-  exit 1
-fi
 orbstack_sock="$HOME/.orbstack/run/docker.sock"
 if [ -z "${DOCKER_HOST:-}" ] && [ -S "$orbstack_sock" ]; then
   export DOCKER_HOST="unix://$orbstack_sock"
@@ -225,7 +221,7 @@ run = "docker compose down"
 
 [tasks."db:migrate"]
 description = "Apply api/migrations with goose to the local database"
-env = { _.file = ".env", _.source = "dev/stack.sh" }
+env = { _.source = "dev/stack.sh" }
 run = [
   "docker compose up -d --wait postgres",
   'goose -dir api/migrations postgres "$DATABASE_URL" up',
@@ -233,7 +229,7 @@ run = [
 
 [tasks."db:status"]
 description = "Show which migrations goose has applied to the local database"
-env = { _.file = ".env", _.source = "dev/stack.sh" }
+env = { _.source = "dev/stack.sh" }
 run = 'goose -dir api/migrations postgres "$DATABASE_URL" status'
 
 [tasks."db:psql"]
@@ -295,17 +291,16 @@ run = [
 
 [tasks."helm:sync:namespaces"]
 description = "Sync the loco-system namespace, which the loco-worker release installs into, and its Pod Security labels to the local cluster"
-env = { _.file = ".env", _.source = "dev/stack.sh" }
+env = { _.source = "dev/stack.sh" }
 run = "kubectl apply --server-side --force-conflicts --context kind-$KIND_CLUSTER -f manifests/namespaces"
 
 [tasks."helm:sync:cert-manager"]
 description = "Sync cert-manager to the local cluster"
-env = { _.file = ".env", _.source = "dev/stack.sh" }
+env = { _.source = "dev/stack.sh" }
 run = "mise run helm:sync:release cert-manager"
 
 [tasks.e2e]
 description = "Run the end-to-end tests in this worktree's own kind cluster and compose project (E2E_RUN_ID overrides the run). Flags: --no-teardown keeps the run, a later run reuses its cluster and resets its state; --skip-build reuses the images and binaries; a trailing filter picks test files"
-env = { _.file = ".env" }
 run = "./tests/e2e/run.sh"
 
 [tasks."e2e:control-plane"]
@@ -320,47 +315,38 @@ run = "./tests/e2e/certificates.sh"
 
 [tasks."e2e:attachment"]
 description = "Test cluster enrollment with a join token, agent key reuse and rotation, heartbeats and application deployment from an empty cluster registry"
-env = { _.file = ".env" }
 run = "./tests/e2e/run.sh --builds-disabled cluster_attachment"
 
 [tasks."e2e:builds"]
 description = "Run only the image build end-to-end tests, controller-only and through the API and agent; takes the e2e flags"
-env = { _.file = ".env" }
 run = "./tests/e2e/run.sh build"
 
 [tasks."e2e:builds-disabled"]
 description = "Run the end-to-end tests for an install with builds.enabled=false: no build objects, public images deploy, source deploys are refused; takes the e2e flags"
-env = { _.file = ".env" }
 run = "./tests/e2e/run.sh --builds-disabled builds_disabled"
 
 [tasks."e2e:ingress"]
 description = "Run the end-to-end tests for apps with and without a domain: routes, gateway ingress and the CLI's URL output; takes the e2e flags"
-env = { _.file = ".env" }
 run = "./tests/e2e/run.sh --builds-disabled ingress"
 
 [tasks."e2e:discovery"]
 description = "Run private service discovery end-to-end tests: logical DNS names, HTTP and TCP ports, resource rename and deletion; takes the e2e flags"
-env = { _.file = ".env" }
 run = "./tests/e2e/run.sh discovery"
 
 [tasks."e2e:status"]
 description = "Run the end-to-end tests for resource status: healthy after a deploy, unavailable when its pods cannot run, unknown while its cluster is silent; takes the e2e flags"
-env = { _.file = ".env" }
 run = "./tests/e2e/run.sh --builds-disabled resource_status"
 
 [tasks."e2e:config"]
 description = "Run the end-to-end tests for loco.yaml: validate, plan, apply, deploy, updates, deletes and disabled environments; takes the e2e flags"
-env = { _.file = ".env" }
 run = "./tests/e2e/run.sh config_apply"
 
 [tasks."e2e:observability"]
 description = "Run the end-to-end tests for telemetry from the loco-worker collectors in kind over OTLP to the observability proxy ingest role, ClickHouse and the API, with the loco-worker chart installed; writes tests/e2e/out/observability-evidence.md (E2E_OBS_EVIDENCE overrides the path); takes the e2e flags"
-env = { _.file = ".env" }
 run = "./tests/e2e/run.sh --observability observability"
 
 [tasks."e2e:teardown"]
 description = "Remove this worktree's end-to-end run (or E2E_RUN_ID's): its kind cluster, compose project and state"
-env = { _.file = ".env" }
 run = "./tests/e2e/run.sh --teardown-only"
 
 [tasks."docs:build"]
@@ -419,7 +405,7 @@ run = "uv run --locked --project tests pytest tools/platform-images/tests tests/
 
 [tasks."obs:serve"]
 description = "Run a local ClickHouse container and serve the observability proxy query and OTLP ingest roles against it; the kind collectors export to the ingest port"
-env = { _.file = ".env", _.source = "dev/stack.sh" }
+env = { _.source = "dev/stack.sh" }
 run = "./mise-tasks/obs/serve"
 
 [tasks."e2e:settings-labels"]

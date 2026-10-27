@@ -19,9 +19,9 @@ the main checkout slot 0 and each worktree the first free slot from 1 to 9, reco
 `.git/loco-stacks/` of the main checkout. Slot N names the kind cluster
 `loco-cluster-local-N` and the compose project `loco-dev-N`, and adds 100×N to every
 local port: slot 2 serves the API on :8200, the web UI on :5373, Dex on :5756 and the
-Tilt UI on :10550. The main checkout keeps `loco-cluster-local`, `loco-dev` and the ports
-in `.env`. `mise run stack` prints the current checkout's URLs, kube context and compose
-project.
+Tilt UI on :10550. The main checkout keeps `loco-cluster-local`, `loco-dev` and the
+unshifted ports, such as the API on :8000 from `dev/api.env`. `mise run stack` prints the
+current checkout's URLs, kube context and compose project.
 
 The mise tasks pin the stack's kube context and compose project themselves. Commands you
 run by hand do not: pass `--context kind-loco-cluster-local-N` to kubectl, prefix
@@ -41,12 +41,10 @@ and stop yours with `mise run stop` when you are done with it.
 
 ## Worktree setup
 
-A new worktree has no `.env` and no `node_modules`, and mise does not trust its config.
-
-1. `ln -s <main checkout>/.env .env` in the worktree root. The task refuses to start
-   without `.env`, and mise reads it once at start, so a link added later needs a restart.
-2. `mise trust`, then `mise run setup` in the worktree root. The root `bun install` it runs
-   covers `web/`, `gen/ts` and the buf plugins that `mise run gen` needs.
+A new worktree has no `node_modules`, and mise does not trust its config. Run `mise trust`,
+then `mise run setup` in the worktree root. The root `bun install` it runs covers `web/`,
+`gen/ts` and the buf plugins that `mise run gen` needs. The local API configuration is the
+committed `dev/api.env`; mise reads it once when Tilt starts, so an edit needs a restart.
 
 ## Start and wait
 

@@ -22,7 +22,6 @@ on:
       - "mise.toml"
       - "mise-tasks/**"
       - "dev/**"
-      - ".env.example"
       - "examples/**"
       - "docs/**"
       - "**/*.md"

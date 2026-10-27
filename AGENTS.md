@@ -129,8 +129,8 @@ Builds, tests, code generation, linting and the local environment are mise tasks
   work cannot be swept into your commit.
 - **Use git worktrees.** Do branch work in its own worktree (`git worktree add <path> -b
   <branch> origin/main`, under a scratch directory), not by switching branches in the main
-  checkout. The main checkout stays on `main` for everyone else. In a new worktree, link
-  the main checkout's `.env`, then run `mise trust` and `mise run setup`. A shell that
+  checkout. The main checkout stays on `main` for everyone else. In a new worktree, run
+  `mise trust` and `mise run setup`. A shell that
   activated mise in another checkout keeps that checkout's tool versions; prefix commands
   with `env -u __MISE_DIFF -u __MISE_SESSION` when `go version` disagrees with
   `mise.toml`. Remove the worktree once its PR merges: envtest downloads its binaries

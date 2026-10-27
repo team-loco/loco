@@ -26,8 +26,8 @@ those names.
 ## Configuration
 
 `PUBLIC_API_URL` is the API base URL and `PUBLIC_APP_ENV=PRODUCTION` switches the transport to the
-binary protobuf format. `.env.example` lists both with their local values. The app imports them
-from `loco:env`, a module `env-plugin.ts` generates from the environment at build time.
+binary protobuf format. `mise run ui` takes `PUBLIC_API_URL` from `dev/stack.sh` and leaves
+`PUBLIC_APP_ENV` unset. The app imports them from `loco:env`, a module `env-plugin.ts` generates from the environment at build time.
 
 ## Checks
 
