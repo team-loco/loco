@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Install or upgrade one release on the local cluster with its dev/ values, overriding fields another field manager owns"
+#MISE description="Install or upgrade one release on the local cluster with its dev/ values, overriding fields another field manager owns; cert-manager returns once its webhook admits a dry-run Issuer"
 #USAGE arg "<release>" help="cert-manager or loco-worker"
 #USAGE arg "[values]..." var=#true help="extra values, each passed to helm as --set"
 set -euo pipefail
@@ -7,12 +7,15 @@ set -euo pipefail
 release=$1
 shift
 timeout=600s
+webhook_ready_timeout_seconds=600
+webhook_request_timeout=5s
 cert_manager=charts/cert-manager.yaml
+probe_issuer='{"apiVersion":"cert-manager.io/v1","kind":"Issuer","metadata":{"name":"webhook-probe","namespace":"cert-manager"},"spec":{"selfSigned":{}}}'
 
 case $release in
 cert-manager)
 	install=("$(yq .chart "$cert_manager")" --repo "$(yq .repository "$cert_manager")" --version "$(yq .version "$cert_manager")"
-		--namespace cert-manager --create-namespace --wait
+		--namespace cert-manager --create-namespace
 		--set crds.enabled=true)
 	;;
 loco-worker)
@@ -35,3 +38,15 @@ done
 
 helm upgrade --install "$release" "${install[@]}" --kube-context "kind-$KIND_CLUSTER" \
 	--timeout "$timeout" --cleanup-on-fail --force-conflicts
+
+if [ "$release" = cert-manager ]; then
+	deadline=$((SECONDS + webhook_ready_timeout_seconds))
+	until probe=$(kubectl create --dry-run=server --request-timeout="$webhook_request_timeout" \
+		--context "kind-$KIND_CLUSTER" -f - <<<"$probe_issuer" 2>&1); do
+		if ((SECONDS >= deadline)); then
+			echo "the cert-manager webhook did not admit a dry-run Issuer within ${webhook_ready_timeout_seconds}s: $probe" >&2
+			exit 1
+		fi
+		sleep 1
+	done
+fi
