@@ -28,7 +28,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if ! kind get clusters | rg -x "$CLUSTER_NAME" >/dev/null; then
+if ! kind get clusters | grep -x "$CLUSTER_NAME" >/dev/null; then
     kind create cluster --name "$CLUSTER_NAME" --kubeconfig "$KUBECONFIG" --wait "$TIMEOUT"
 fi
 helm upgrade --install cert-manager "$(yq .chart "$CERT_MANAGER")" --repo "$(yq .repository "$CERT_MANAGER")" \

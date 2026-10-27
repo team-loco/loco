@@ -54,7 +54,7 @@ if [[ $SKIP_BUILD == false ]]; then
     docker build -t loco-ui:e2e --build-arg VERSION=e2e --build-arg PUBLIC_API_URL=https://api.loco.build --build-arg PUBLIC_APP_ENV=PRODUCTION -f "$ROOT_DIR/web/Dockerfile" "$ROOT_DIR"
     docker build -t loco-obs-proxy:e2e --build-arg VERSION=e2e -f "$ROOT_DIR/observability-proxy/Dockerfile" "$ROOT_DIR"
 fi
-if ! kind get clusters | rg -x "$CLUSTER_NAME" >/dev/null; then
+if ! kind get clusters | grep -x "$CLUSTER_NAME" >/dev/null; then
     kind create cluster --name "$CLUSTER_NAME" --kubeconfig "$KUBECONFIG" --wait "$TIMEOUT"
 fi
 kind load docker-image --name "$CLUSTER_NAME" loco-api:e2e loco-obs-proxy:e2e loco-ui:e2e loco-api-failover:e2e
@@ -78,7 +78,7 @@ yq -n '
 ' >"$RUN_DIR/fixtures.yaml"
 helm upgrade --install fixtures "$ROOT_DIR/tests/e2e/fixtures/control-plane" --namespace "$NAMESPACE" \
     -f "$RUN_DIR/fixtures.yaml" --set-file openbaoConfig="$ROOT_DIR/dev/openbao/config.hcl" --wait --timeout "$TIMEOUT"
-TRANSIT_ENV=$(rg '^LOCO_SECRETS_TRANSIT_(MOUNT|KEY|TOKEN)=' "$ROOT_DIR/dev/api.env")
+TRANSIT_ENV=$(grep -E '^LOCO_SECRETS_TRANSIT_(MOUNT|KEY|TOKEN)=' "$ROOT_DIR/dev/api.env")
 { sed 's/^/export /' <<<"$TRANSIT_ENV"; cat "$ROOT_DIR/dev/openbao/seed.sh"; } | kubectl -n "$NAMESPACE" exec -i deployment/openbao -- sh -s
 python3 - "$RUN_DIR" <<'PY'
 import datetime
@@ -120,7 +120,7 @@ fi
 kubectl -n "$NAMESPACE" port-forward "service/$ENVOY_SERVICE" :80 >"$RUN_DIR/port-forward.log" 2>&1 &
 PORT_FORWARD_PID=$!
 for _attempt in $(seq 1 30); do
-    if rg 'Forwarding from 127.0.0.1:' "$RUN_DIR/port-forward.log" >/dev/null; then break; fi
+    if grep -q 'Forwarding from 127.0.0.1:' "$RUN_DIR/port-forward.log"; then break; fi
     sleep 1
 done
 API_PORT=$(sed -n 's/Forwarding from 127.0.0.1:\([0-9]*\) .*/\1/p' "$RUN_DIR/port-forward.log" | head -1)
