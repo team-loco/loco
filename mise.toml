@@ -374,10 +374,6 @@ run = "uv run --frozen --project docs python docs/scripts/build.py serve"
 description = "Test production and staging documentation builds"
 run = "uv run --locked --project docs pytest docs/tests"
 
-[tasks."docs:check:browser"]
-description = "Check documentation navigation, search, themes and Markdown copying in Chromium"
-run = "uv run --locked --project docs pytest docs/tests/browser.py"
-
 [tasks."docs:check:container"]
 description = "Check the combined UI and documentation image"
 run = "uv run --locked --project docs pytest docs/tests/container.py"

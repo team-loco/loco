@@ -1,6 +1,9 @@
+import contextlib
+import importlib.metadata
 import json
 import os
 import re
+import socket
 import subprocess
 import tempfile
 import time
@@ -27,6 +30,10 @@ UI_HOST = "loco.build"
 DOCS_HOST = "docs.loco.build"
 API_HOST = "api.loco.build"
 VERSION = "sha-test"
+BROWSER_IMAGE = "mcr.microsoft.com/playwright"
+BROWSER_DISTRO = "noble"
+BROWSER_HOST = "127.0.0.1"
+BROWSER_STARTUP_TIMEOUT = 120
 
 
 def docker(*args):
@@ -62,6 +69,49 @@ def test_rewrites_cover_exactly_the_ui_routes():
         assert rewrite["destination"] == "/index.html"
 
 
+@contextlib.contextmanager
+def browser_server():
+    version = importlib.metadata.version("playwright")
+    with socket.socket() as probe:
+        probe.bind((BROWSER_HOST, 0))
+        port = probe.getsockname()[1]
+    container = docker(
+        "run",
+        "--rm",
+        "-d",
+        "--init",
+        "--network",
+        "host",
+        "--user",
+        "pwuser",
+        "--workdir",
+        "/home/pwuser",
+        f"{BROWSER_IMAGE}:v{version}-{BROWSER_DISTRO}",
+        "npx",
+        "-y",
+        f"playwright@{version}",
+        "run-server",
+        "--port",
+        str(port),
+        "--host",
+        BROWSER_HOST,
+    )
+    try:
+        deadline = time.monotonic() + BROWSER_STARTUP_TIMEOUT
+        while True:
+            try:
+                socket.create_connection((BROWSER_HOST, port), REQUEST_TIMEOUT).close()
+                break
+            except ConnectionError:
+                pass
+            if time.monotonic() >= deadline:
+                pytest.fail(docker("logs", container))
+            time.sleep(POLL_INTERVAL)
+        yield f"ws://{BROWSER_HOST}:{port}/"
+    finally:
+        docker("stop", container)
+
+
 def _check_browser(url):
     screenshots = Path(
         os.environ.get(
@@ -70,8 +120,8 @@ def _check_browser(url):
     )
     screenshots.mkdir(parents=True, exist_ok=True)
     problems = []
-    with sync_playwright() as playwright:
-        browser = playwright.chromium.launch()
+    with browser_server() as endpoint, sync_playwright() as playwright:
+        browser = playwright.chromium.connect(endpoint)
         try:
             for name, host, path, heading in [
                 ("docs", DOCS_HOST, "/", "Deploy with Loco"),
