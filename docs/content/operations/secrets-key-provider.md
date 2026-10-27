@@ -1,11 +1,8 @@
 # Secrets key provider
 
-The key provider wraps the data key that encrypts each environment's secrets. The API stores secret values and wrapped data keys in PostgreSQL, so a copy of the database reveals nothing without the provider.
+The API wraps the data key that encrypts each environment's secrets with a key in the Transit secrets engine of OpenBao or Vault. It stores secret values and wrapped data keys in PostgreSQL, so a copy of the database reveals nothing without the Transit key.
 
-`LOCO_SECRETS_KEY_PROVIDER` selects one of two providers:
-
-- `local` reads the key-encryption keys from `LOCO_SECRETS_LOCAL_KEYS` in the API's own configuration.
-- `transit` wraps data keys with a key in the Transit secrets engine of OpenBao or Vault. Use it when your installation already runs one and you want the key-encryption key, its access policy and its audit log outside the API.
+Without any `LOCO_SECRETS_TRANSIT_*` address, key or token, the API starts, logs `LOCO_SECRETS_TRANSIT_* is not set; secrets cannot be stored` and refuses secret writes with `FailedPrecondition`.
 
 ## Transit
 
@@ -38,7 +35,6 @@ The policy grants nothing beyond that key. The API also renews its token through
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `LOCO_SECRETS_KEY_PROVIDER` | none | `transit` |
 | `LOCO_SECRETS_TRANSIT_ADDR` | required | Base URL of the server, such as `https://bao.example.internal:8200`, with no path |
 | `LOCO_SECRETS_TRANSIT_MOUNT` | `transit` | Mount path of the Transit secrets engine |
 | `LOCO_SECRETS_TRANSIT_KEY` | required | Name of the key |

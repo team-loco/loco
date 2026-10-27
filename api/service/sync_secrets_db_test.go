@@ -100,7 +100,7 @@ func (f *deployFixture) sendPending(t *testing.T, server *AgentServer) []*agentv
 
 func TestSyncSendsDecryptedSecretsBesideTheApplication(t *testing.T) {
 	f := newDeployFixture(t)
-	provider := testLocalProvider(t, "k1")
+	provider := newTestKeyProvider(t, "k1")
 	serverConfig := testAgentConfig()
 	server := NewAgentServer(f.pool, f.queries, nil, nil, provider, testHeartbeatInterval, serverConfig)
 	f.storeSecret(t, provider, databaseURL, stripeValue)
@@ -136,7 +136,7 @@ func TestSyncSendsDecryptedSecretsBesideTheApplication(t *testing.T) {
 func TestSyncReportsAMissingSecretOnThePlacementAndResendsOnceItIsSet(t *testing.T) {
 	f := newDeployFixture(t)
 	ctx := context.Background()
-	provider := testLocalProvider(t, "k1")
+	provider := newTestKeyProvider(t, "k1")
 	serverConfig := testAgentConfig()
 	server := NewAgentServer(f.pool, f.queries, nil, nil, provider, testHeartbeatInterval, serverConfig)
 	f.storeSecret(t, provider, databaseURL, stripeValue)
@@ -178,11 +178,11 @@ func TestSyncReportsAMissingSecretOnThePlacementAndResendsOnceItIsSet(t *testing
 
 func TestSyncKeepsAPlacementPendingWhileTheKeyProviderCannotUnwrap(t *testing.T) {
 	f := newDeployFixture(t)
-	f.storeSecret(t, testLocalProvider(t, "k1"), databaseURL, stripeValue)
+	f.storeSecret(t, newTestKeyProvider(t, "k1"), databaseURL, stripeValue)
 	f.deployWithSecrets(t, []string{databaseURL})
 
 	serverConfig := testAgentConfig()
-	provider := testLocalProvider(t, "k2")
+	provider := newTestKeyProvider(t, "k2")
 	server := NewAgentServer(f.pool, f.queries, nil, nil, provider, testHeartbeatInterval, serverConfig)
 	if sent := f.sendPending(t, server); len(sent) != 0 {
 		t.Fatalf("sent %v with a provider that cannot unwrap the environment key", sent)
@@ -219,13 +219,13 @@ RETURNING id`, f.envID).Scan(&resourceID)
 
 func TestSyncDecryptsFromOneSnapshotWhileTheDEKRotates(t *testing.T) {
 	f := newDeployFixture(t)
-	provider := testLocalProvider(t, "k1")
+	provider := newTestKeyProvider(t, "k1")
 	f.storeSecret(t, provider, databaseURL, stripeValue)
 	f.deployWithSecrets(t, []string{databaseURL})
 	worker := f.secondPlacement(t, []string{databaseURL})
 	f.storeSecretFor(t, provider, worker, databaseURL, stripeValue)
 
-	rotator := f.secretServer(testLocalProvider(t, "k1"))
+	rotator := f.secretServer(newTestKeyProvider(t, "k1"))
 	admin := secretAuthzContext(t, genDb.EntityScope{EntityType: genDb.EntityTypeSystem, Scope: genDb.ScopeAdmin})
 	hooked := &hookedProvider{Provider: provider, hook: func() {
 		_, err := rotator.RewrapEnvironmentKeys(admin, &secretv1.RewrapEnvironmentKeysRequest{
@@ -254,7 +254,7 @@ func TestSyncDecryptsFromOneSnapshotWhileTheDEKRotates(t *testing.T) {
 
 func TestSyncSendsEachPlacementOnlyItsOwnServicesValue(t *testing.T) {
 	f := newDeployFixture(t)
-	provider := testLocalProvider(t, "k1")
+	provider := newTestKeyProvider(t, "k1")
 	serverConfig := testAgentConfig()
 	server := NewAgentServer(f.pool, f.queries, nil, nil, provider, testHeartbeatInterval, serverConfig)
 	f.storeSecret(t, provider, databaseURL, stripeValue)
@@ -280,7 +280,7 @@ func TestSyncSendsEachPlacementOnlyItsOwnServicesValue(t *testing.T) {
 
 func TestSyncReportsANameOnlyAnotherServiceHoldsAsMissing(t *testing.T) {
 	f := newDeployFixture(t)
-	provider := testLocalProvider(t, "k1")
+	provider := newTestKeyProvider(t, "k1")
 	serverConfig := testAgentConfig()
 	server := NewAgentServer(f.pool, f.queries, nil, nil, provider, testHeartbeatInterval, serverConfig)
 	worker := f.secondPlacement(t, []string{})

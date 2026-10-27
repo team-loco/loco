@@ -13,7 +13,6 @@ import (
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/auth/authtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/tvm"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 )
@@ -234,7 +233,7 @@ func TestEnvironmentKeyInsertOnceAndRewrap(t *testing.T) {
 	ctx := t.Context()
 	params := genDb.InsertEnvironmentKeyParams{
 		EnvironmentID: f.environmentID,
-		Provider:      secretkeys.ProviderLocal,
+		Provider:      testProviderName,
 		KekID:         "k1",
 		WrappedDek:    []byte(wrappedDEK),
 		FormatVersion: secretFormatVersion,
@@ -248,7 +247,7 @@ func TestEnvironmentKeyInsertOnceAndRewrap(t *testing.T) {
 
 	stale, err := f.queries.RewrapEnvironmentKey(ctx, genDb.RewrapEnvironmentKeyParams{
 		EnvironmentID:      f.environmentID,
-		Provider:           secretkeys.ProviderLocal,
+		Provider:           testProviderName,
 		KekID:              "k2",
 		WrappedDek:         []byte("rewrapped"),
 		PreviousWrappedDek: []byte("other"),
@@ -261,7 +260,7 @@ func TestEnvironmentKeyInsertOnceAndRewrap(t *testing.T) {
 	}
 	updated, err := f.queries.RewrapEnvironmentKey(ctx, genDb.RewrapEnvironmentKeyParams{
 		EnvironmentID:      f.environmentID,
-		Provider:           secretkeys.ProviderLocal,
+		Provider:           testProviderName,
 		KekID:              "k2",
 		WrappedDek:         []byte("rewrapped"),
 		PreviousWrappedDek: []byte(wrappedDEK),
@@ -286,7 +285,7 @@ func TestDeletingAnEnvironmentDropsItsKeyAndSecrets(t *testing.T) {
 	ctx := t.Context()
 	if _, err := f.queries.InsertEnvironmentKey(ctx, genDb.InsertEnvironmentKeyParams{
 		EnvironmentID: f.environmentID,
-		Provider:      secretkeys.ProviderLocal,
+		Provider:      testProviderName,
 		KekID:         "k1",
 		WrappedDek:    []byte(wrappedDEK),
 		FormatVersion: secretFormatVersion,
@@ -391,7 +390,7 @@ func TestEnvironmentKeyRowLockBlocksASecondWriterUntilItsTimeout(t *testing.T) {
 	f := newSecretFixture(t)
 	ctx := t.Context()
 	if _, err := f.queries.InsertEnvironmentKey(ctx, genDb.InsertEnvironmentKeyParams{
-		EnvironmentID: f.environmentID, Provider: secretkeys.ProviderLocal, KekID: "k1",
+		EnvironmentID: f.environmentID, Provider: testProviderName, KekID: "k1",
 		WrappedDek: []byte(wrappedDEK), FormatVersion: secretFormatVersion,
 	}); err != nil {
 		t.Fatalf("insert key: %v", err)
@@ -425,7 +424,7 @@ func TestSecretsRecordTheirFormatVersion(t *testing.T) {
 	f := newSecretFixture(t)
 	ctx := t.Context()
 	key, err := f.queries.InsertEnvironmentKey(ctx, genDb.InsertEnvironmentKeyParams{
-		EnvironmentID: f.environmentID, Provider: secretkeys.ProviderLocal, KekID: "k1",
+		EnvironmentID: f.environmentID, Provider: testProviderName, KekID: "k1",
 		WrappedDek: []byte(wrappedDEK), FormatVersion: secretFormatVersion,
 	})
 	if err != nil {

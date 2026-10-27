@@ -70,7 +70,7 @@ func TestDeploymentRejectsAnActiveRollout(t *testing.T) {
 
 func TestSecretRotationKeepsTheRolloutBlockedUntilReady(t *testing.T) {
 	f := newDeployFixture(t)
-	provider := testLocalProvider(t, "k1")
+	provider := newTestKeyProvider(t, "k1")
 	f.storeSecret(t, provider, stripeKey, stripeValue)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
@@ -137,7 +137,7 @@ func TestSecretWritesRejectAnActiveRolloutWithoutChangingState(t *testing.T) {
 	for _, operation := range []string{"set", rolloutDeleteOperation} {
 		t.Run(operation, func(t *testing.T) {
 			f := newDeployFixture(t)
-			provider := testLocalProvider(t, "k1")
+			provider := newTestKeyProvider(t, "k1")
 			f.storeSecret(t, provider, stripeKey, stripeValue)
 			if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 				t.Fatal(err)
@@ -175,7 +175,7 @@ func TestSecretWritesRejectAnActiveRolloutWithoutChangingState(t *testing.T) {
 
 func TestUnchangedSecretRemainsANoopDuringRollout(t *testing.T) {
 	f := newDeployFixture(t)
-	provider := testLocalProvider(t, "k1")
+	provider := newTestKeyProvider(t, "k1")
 	f.storeSecret(t, provider, stripeKey, stripeValue)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
@@ -386,7 +386,7 @@ func TestOtherResourceRolloutDoesNotBlockScale(t *testing.T) {
 
 func TestFailedSecretRotationAllowsAnotherSecretChange(t *testing.T) {
 	f := newDeployFixture(t)
-	provider := testLocalProvider(t, "k1")
+	provider := newTestKeyProvider(t, "k1")
 	f.storeSecret(t, provider, stripeKey, stripeValue)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)

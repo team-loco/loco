@@ -75,7 +75,7 @@ WHERE resource_id = $1 AND secret_names = '{"DATABASE_URL","SESSION_KEY"}'`
 
 func TestRedeployAndRollbackKeepTheCurrentEnvironmentValues(t *testing.T) {
 	f := newDeployFixture(t)
-	provider := testLocalProvider(t, "k1")
+	provider := newTestKeyProvider(t, "k1")
 	serverConfig := testAgentConfig()
 	first := imageService()
 	first.Env = map[string]string{"MODE": "original", "KEEP": "retained"}

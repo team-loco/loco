@@ -1,4 +1,4 @@
-// Package secretkeys wraps per-environment data keys with a pluggable key provider and
+// Package secretkeys wraps per-environment data keys with an OpenBao or Vault Transit key and
 // encrypts secret values under those keys with AES-256-GCM.
 package secretkeys
 
@@ -7,24 +7,13 @@ import (
 	"errors"
 )
 
-const (
-	// ProviderLocal selects the provider whose key-encryption keys come from configuration.
-	ProviderLocal = "local"
-
-	// KeySize is the size in bytes of a data-encryption key and of a local key-encryption key.
-	KeySize = 32
-)
+// KeySize is the size in bytes of a data-encryption key.
+const KeySize = 32
 
 var (
-	ErrUnknownKeyID       = errors.New("key id is not configured")
-	ErrWrongProvider      = errors.New("wrapped key belongs to another provider")
-	ErrKeyMisconfigured   = errors.New("secret key is misconfigured")
-	ErrNoKeys             = errors.New("no keys configured")
-	ErrDuplicateKeyID     = errors.New("duplicate key id")
-	ErrDecrypt            = errors.New("decryption failed")
-	ErrKeySize            = errors.New("key is not 32 bytes")
-	ErrUnknownProvider    = errors.New("unknown secrets key provider")
-	ErrCiphertextTooShort = errors.New("ciphertext is shorter than a nonce")
+	ErrWrongProvider = errors.New("wrapped key belongs to another provider")
+	ErrDecrypt       = errors.New("decryption failed")
+	ErrKeySize       = errors.New("key is not 32 bytes")
 )
 
 // WrappedKey is a data-encryption key wrapped by a provider's key-encryption key.

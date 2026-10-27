@@ -52,13 +52,13 @@ func (f *secretFixture) revision(t *testing.T) int64 {
 
 func TestRewrapEnvironmentKeysActsOnTheNamedEnvironmentOnly(t *testing.T) {
 	f := newSecretFixture(t)
-	old := f.server(t, testLocalProvider(t, "k1"))
+	old := f.server(t, newTestKeyProvider(t, "k1"))
 	f.set(t, old, map[string]string{alphaKey: "1"})
 	other := *f
 	other.environmentID = f.environment(t, f.workspaceID, "staging")
 	other.set(t, old, map[string]string{alphaKey: "1"})
 
-	rotated := f.server(t, testLocalProvider(t, "k2", "k1"))
+	rotated := f.server(t, newTestKeyProvider(t, "k2", "k1"))
 	res := rewrapKeys(t, rotated, &secretv1.RewrapEnvironmentKeysRequest{EnvironmentId: f.environmentID.String()})
 	if res.GetRewrapped() != 1 || res.GetSkipped() != 0 {
 		t.Fatalf("rewrap = %+v, want one rewrapped", res)
@@ -74,7 +74,7 @@ func TestRewrapEnvironmentKeysActsOnTheNamedEnvironmentOnly(t *testing.T) {
 
 func TestRewrapEnvironmentKeysSkipsAKeyOfAnotherProvider(t *testing.T) {
 	f := newSecretFixture(t)
-	server := f.server(t, testLocalProvider(t, "k1"))
+	server := f.server(t, newTestKeyProvider(t, "k1"))
 	f.set(t, server, map[string]string{alphaKey: "1"})
 	if _, err := f.pool.Exec(t.Context(), `UPDATE environment_keys SET provider = $1`, otherProvider); err != nil {
 		t.Fatalf("change provider: %v", err)
@@ -89,7 +89,7 @@ func TestRewrapEnvironmentKeysSkipsAKeyOfAnotherProvider(t *testing.T) {
 
 func TestRewrapWithANewDEKRequiresAnEnvironment(t *testing.T) {
 	f := newSecretFixture(t)
-	server := f.server(t, testLocalProvider(t, "k1"))
+	server := f.server(t, newTestKeyProvider(t, "k1"))
 	_, err := server.RewrapEnvironmentKeys(
 		systemAdminContext(t),
 		&secretv1.RewrapEnvironmentKeysRequest{
@@ -103,7 +103,7 @@ func TestRewrapWithANewDEKRequiresAnEnvironment(t *testing.T) {
 
 func TestRewrapWithANewDEKReencryptsWithoutBumpingVersions(t *testing.T) {
 	f := newSecretFixture(t)
-	provider := testLocalProvider(t, "k1")
+	provider := newTestKeyProvider(t, "k1")
 	server := f.server(t, provider)
 	f.set(t, server, map[string]string{alphaKey: "alpha-1", betaKey: "beta-1"})
 	f.set(t, server, map[string]string{alphaKey: "alpha-2"})
@@ -167,10 +167,10 @@ func (p *hookedProvider) Unwrap(ctx context.Context, wrapped secretkeys.WrappedK
 
 func TestSetSecretsRetriesWhenADEKRotationReplacesTheKey(t *testing.T) {
 	f := newSecretFixture(t)
-	provider := testLocalProvider(t, "k1")
+	provider := newTestKeyProvider(t, "k1")
 	f.set(t, f.server(t, provider), map[string]string{alphaKey: "1"})
 
-	rotator := f.server(t, testLocalProvider(t, "k1"))
+	rotator := f.server(t, newTestKeyProvider(t, "k1"))
 	hooked := &hookedProvider{Provider: provider, hook: func() {
 		rewrapKeys(t, rotator, &secretv1.RewrapEnvironmentKeysRequest{
 			EnvironmentId: f.environmentID.String(), NewDek: true,
@@ -187,7 +187,7 @@ func TestSetSecretsRetriesWhenADEKRotationReplacesTheKey(t *testing.T) {
 
 func TestRewrapWithANewDEKKeepsTheValuesOfTwoServicesThatShareAName(t *testing.T) {
 	f := newSecretFixture(t)
-	provider := testLocalProvider(t, "k1")
+	provider := newTestKeyProvider(t, "k1")
 	server := f.server(t, provider)
 	worker := *f
 	worker.resourceID = f.resource(t, f.workspaceID, workerService)
