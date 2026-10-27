@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-    paths:
+    paths: &paths
       - "api/auth/**"
       - "api/migrations/**"
       - "api/queries/**"
@@ -12,13 +12,7 @@ on:
       - "mise-tasks/test/auth-conformance"
       - ".github/workflows/auth-conformance.yml"
   pull_request:
-    paths:
-      - "api/auth/**"
-      - "api/migrations/**"
-      - "api/queries/**"
-      - "tests/conformance/auth/**"
-      - "mise-tasks/test/auth-conformance"
-      - ".github/workflows/auth-conformance.yml"
+    paths: *paths
   workflow_dispatch:
 
 concurrency:

@@ -5,7 +5,7 @@ on:
   push:
     branches:
       - main
-    paths:
+    paths: &paths
       - "api/**"
       - "cmd/**"
       - "internal/**"
@@ -26,26 +26,7 @@ on:
       - ".github/actions/setup-tools/**"
       - ".github/workflows/lint.yml"
   pull_request:
-    paths:
-      - "api/**"
-      - "cmd/**"
-      - "internal/**"
-      - "tools/**"
-      - "controller/**"
-      - "agent/**"
-      - "builder/**"
-      - "k8sapi/**"
-      - "observability-proxy/**"
-      - "go.mod"
-      - "go.sum"
-      - ".golangci.yml"
-      - "mise-tasks/lint/go"
-      - "gen/go/**"
-      - ".github/actions/go-changes/**"
-      - "mise.toml"
-      - "mise.lock"
-      - ".github/actions/setup-tools/**"
-      - ".github/workflows/lint.yml"
+    paths: *paths
 
 permissions:
   contents: read

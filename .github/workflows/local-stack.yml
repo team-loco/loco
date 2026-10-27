@@ -2,7 +2,7 @@ name: Local Stack
 
 on:
   pull_request:
-    paths:
+    paths: &paths
       - "tests/pyproject.toml"
       - "tests/uv.lock"
       - "dev/stack.sh"
@@ -11,13 +11,7 @@ on:
       - ".github/workflows/local-stack.yml"
   push:
     branches: [main]
-    paths:
-      - "tests/pyproject.toml"
-      - "tests/uv.lock"
-      - "dev/stack.sh"
-      - "dev/api.env"
-      - "tests/stack/**"
-      - ".github/workflows/local-stack.yml"
+    paths: *paths
 
 permissions:
   contents: read

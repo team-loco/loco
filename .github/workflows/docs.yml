@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-    paths:
+    paths: &paths
       - "tests/pyproject.toml"
       - "tests/uv.lock"
       - "docs/content/**"
@@ -24,25 +24,7 @@ on:
       - ".github/workflows/docs.yml"
       - ".github/actions/setup-tools/**"
   pull_request:
-    paths:
-      - "tests/pyproject.toml"
-      - "tests/uv.lock"
-      - "docs/content/**"
-      - "docs/overrides/**"
-      - "docs/scripts/**"
-      - "docs/tests/**"
-      - "docs/zensical.toml"
-      - "docs/pyproject.toml"
-      - "docs/uv.lock"
-      - "web/**"
-      - "gen/ts/**"
-      - "schemas/loco.v1.json"
-      - "package.json"
-      - "bun.lock"
-      - "mise.toml"
-      - "mise.lock"
-      - ".github/workflows/docs.yml"
-      - ".github/actions/setup-tools/**"
+    paths: *paths
   workflow_call:
 
 permissions:
