@@ -163,6 +163,12 @@ spec:
               value: {{ $previousInit }}
             - name: INIT_SECRET
               value: {{ $initSecret }}
+            {{- if .Values.openbao.snapshots.enabled }}
+            - name: OPENBAO_SNAPSHOT_ROLE
+              value: {{ .Values.openbao.snapshots.role | quote }}
+            - name: OPENBAO_SNAPSHOT_SERVICE_ACCOUNT
+              value: {{ include "loco-control-plane.openbaoSnapshotName" . }}
+            {{- end }}
           securityContext:
             {{- include "loco-control-plane.restrictedContainer" . | nindent 12 }}
           volumeMounts:

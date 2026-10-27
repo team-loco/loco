@@ -1,1 +1,6 @@
 postgresImage: ""
+rcloneImage: ""
+snapshotBucket: ""
+snapshotSecret: ""
+snapshotAccessKeyIdKey: ""
+snapshotSecretAccessKeyKey: ""

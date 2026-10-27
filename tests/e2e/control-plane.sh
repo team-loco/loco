@@ -16,6 +16,9 @@ APP_HOST=$(yq '.ui.hostname' "$VALUES")
 INGEST_HOST=$(yq '.obsProxy.ingest.hostname' "$VALUES")
 SEAL_SECRET=$(yq '.openbao.seal.static.existingSecret.name' "$VALUES")
 SEAL_KEY=$(yq '.openbao.seal.static.existingSecret.key' "$CHART_VALUES")
+SNAPSHOT_SECRET=$(yq '.openbao.snapshots.s3.existingSecret.name' "$VALUES")
+SNAPSHOT_BUCKET=$(yq '.openbao.snapshots.s3.bucket' "$VALUES")
+SNAPSHOT_PREFIX=$(yq '.openbao.snapshots.s3.prefix' "$CHART_VALUES")
 SECRET_RESOURCE=00000000-0000-7000-8000-0000000000a1
 TIMEOUT=300s
 CONTROL_PLANE_TIMEOUT=10m
@@ -78,7 +81,22 @@ if [[ ! -s "$RUN_DIR/password" ]]; then
     openssl rand -hex 24 | tr -d '\n' >"$RUN_DIR/password"
 fi
 kubectl -n "$NAMESPACE" create secret generic fixture-password --from-file=password="$RUN_DIR/password" --dry-run=client -o yaml | kubectl apply -f -
-yq -n 'load(strenv(ROOT_DIR) + "/dev/compose.yaml").services.postgres.image as $postgres | .postgresImage = $postgres' >"$RUN_DIR/fixtures.yaml"
+if [[ ! -s "$RUN_DIR/snapshot-s3.env" ]]; then
+    printf '%s=%s\n%s=%s\n' \
+        "$(yq '.openbao.snapshots.s3.existingSecret.accessKeyIdKey' "$CHART_VALUES")" "$(openssl rand -hex 8)" \
+        "$(yq '.openbao.snapshots.s3.existingSecret.secretAccessKeyKey' "$CHART_VALUES")" "$(openssl rand -hex 24)" >"$RUN_DIR/snapshot-s3.env"
+fi
+kubectl -n "$NAMESPACE" create secret generic "$SNAPSHOT_SECRET" --from-env-file="$RUN_DIR/snapshot-s3.env" --dry-run=client -o yaml | kubectl apply -f -
+SNAPSHOT_SECRET="$SNAPSHOT_SECRET" SNAPSHOT_BUCKET="$SNAPSHOT_BUCKET" yq -n '
+    load(strenv(ROOT_DIR) + "/dev/compose.yaml").services.postgres.image as $postgres |
+    load(strenv(ROOT_DIR) + "/charts/loco-control-plane/values.yaml").openbao.snapshots as $snapshots |
+    .postgresImage = $postgres |
+    .rcloneImage = $snapshots.rcloneImage |
+    .snapshotBucket = strenv(SNAPSHOT_BUCKET) |
+    .snapshotSecret = strenv(SNAPSHOT_SECRET) |
+    .snapshotAccessKeyIdKey = $snapshots.s3.existingSecret.accessKeyIdKey |
+    .snapshotSecretAccessKeyKey = $snapshots.s3.existingSecret.secretAccessKeyKey
+' >"$RUN_DIR/fixtures.yaml"
 helm upgrade --install fixtures "$ROOT_DIR/tests/e2e/fixtures/control-plane" --namespace "$NAMESPACE" \
     -f "$RUN_DIR/fixtures.yaml" --wait --timeout "$TIMEOUT"
 if [[ ! -s "$RUN_DIR/seal-key" ]]; then
@@ -249,6 +267,42 @@ if [[ $ROOT_TOKENS != 1 ]]; then
     exit 1
 fi
 printf 'The chart OpenBao initialized once over TLS, kept only its recovery keys and generate-root token, reran its setup with its own role on upgrade, bound the loco-api role to the API ServiceAccount, and wrapped and unwrapped an environment key for the API.\n'
+
+kubectl -n "$NAMESPACE" delete job openbao-snapshot-e2e --ignore-not-found
+kubectl -n "$NAMESPACE" create job openbao-snapshot-e2e --from=cronjob/regional-openbao-snapshot
+kubectl -n "$NAMESPACE" wait --for=condition=complete job/openbao-snapshot-e2e --timeout "$TIMEOUT"
+SNAPSHOT_OBJECT=$(kubectl -n "$NAMESPACE" exec deployment/s3 -- find "/data/$SNAPSHOT_BUCKET/$SNAPSHOT_PREFIX" -name '*.snap' | sort | tail -1)
+if [[ -z $SNAPSHOT_OBJECT ]]; then
+    printf 'The snapshot Job uploaded no snapshot to %s/%s\n' "$SNAPSHOT_BUCKET" "$SNAPSHOT_PREFIX" >&2
+    exit 1
+fi
+kubectl -n "$NAMESPACE" exec deployment/s3 -- cat "$SNAPSHOT_OBJECT" >"$RUN_DIR/openbao.snap"
+init_secret recovery-keys >"$RUN_DIR/recovery-keys"
+init_secret generate-root-token >"$RUN_DIR/generate-root-token"
+
+kubectl -n "$NAMESPACE" delete statefulset regional-openbao --wait
+kubectl -n "$NAMESPACE" delete pvc/data-regional-openbao-0 secret/regional-openbao-init --wait
+helm upgrade regional "$ROOT_DIR/charts/loco-control-plane" --namespace "$NAMESPACE" \
+    -f "$VALUES" "${password_sets[@]}" --wait --timeout "$CONTROL_PLANE_TIMEOUT"
+if [[ $(kubectl -n "$NAMESPACE" get secret regional-openbao-init -o jsonpath='{.data.recovery-keys}') == "$INIT_BEFORE" ]]; then
+    printf 'The reinstalled OpenBao kept the recovery keys of the one it replaced\n' >&2
+    exit 1
+fi
+kubectl -n "$NAMESPACE" cp "$RUN_DIR/openbao.snap" regional-openbao-0:/tmp/openbao.snap
+RESTORE_ROOT=$(generate_root)
+kubectl -n "$NAMESPACE" exec regional-openbao-0 -- env BAO_TOKEN="$RESTORE_ROOT" bao operator raft snapshot restore -force /tmp/openbao.snap
+kubectl -n "$NAMESPACE" exec regional-openbao-0 -- rm /tmp/openbao.snap
+kubectl -n "$NAMESPACE" create secret generic regional-openbao-init --from-file=recovery-keys="$RUN_DIR/recovery-keys" \
+    --from-file=generate-root-token="$RUN_DIR/generate-root-token" \
+    --dry-run=client -o yaml | kubectl replace --force -f -
+helm upgrade regional "$ROOT_DIR/charts/loco-control-plane" --namespace "$NAMESPACE" \
+    -f "$VALUES" "${password_sets[@]}" --wait --timeout "$CONTROL_PLANE_TIMEOUT"
+set_secret_once_the_api_logs_in AFTER_RESTORE >/dev/null
+if [[ $(secret_names) != "AFTER_RESTORE AFTER_UPGRADE BEFORE_UPGRADE" ]]; then
+    printf 'Expected the secrets from before the restore and a new one, got %s\n' "$(secret_names)" >&2
+    exit 1
+fi
+printf 'A raft snapshot uploaded by the snapshot CronJob restored into a reinstalled OpenBao with a root token generated from its recovery keys, the setup Job logged in with its restored role, and the running API logged in again and unwrapped the environment key it wrapped before the snapshot.\n'
 
 INGEST_MARKER="control-plane-ingest-$(openssl rand -hex 4)"
 printf '{"resourceLogs":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"e2e-ingest"}}]},"scopeLogs":[{"logRecords":[{"timeUnixNano":"%s000000000","body":{"stringValue":"%s"}}]}]}]}' \

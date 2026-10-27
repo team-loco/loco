@@ -64,3 +64,9 @@ openbao:
   recovery:
     shares: 1
     threshold: 1
+  snapshots:
+    s3:
+      endpoint: http://s3:8080
+      bucket: openbao-snapshots
+      existingSecret:
+        name: snapshot-s3

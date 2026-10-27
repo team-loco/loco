@@ -55,6 +55,12 @@ openbao:
     static:
       existingSecret:
         name: openbao-seal
+  snapshots:
+    s3:
+      endpoint: https://s3.region.example.com
+      bucket: region-openbao-snapshots
+      existingSecret:
+        name: openbao-snapshots-s3
 clickhouse:
   enabled: true
 clickhouseUserPasswords:
@@ -68,6 +74,8 @@ The chart runs OpenBao for the API's secrets key and sets the API's `LOCO_SECRET
 ```sh
 kubectl -n loco-system create secret generic openbao-seal --from-literal=key="$(openssl rand -base64 32)"
 ```
+
+The chart also uploads hourly raft snapshots to the region's object storage; set `openbao.snapshots.s3.endpoint`, `openbao.snapshots.s3.bucket` and the Secret `openbao.snapshots.s3.existingSecret` with the `access-key-id` and `secret-access-key` keys, or `openbao.snapshots.enabled: false`.
 
 With an external ClickHouse, leave `clickhouse.enabled: false` and name Secrets holding each user's URL in `obsProxy.query.clickhouse.existingSecret`, `obsProxy.query.clickhouse.migratorExistingSecret` and `obsProxy.ingest.clickhouse.existingSecret`.
 
@@ -97,4 +105,4 @@ mise run test:platform-render
 mise run e2e:control-plane
 ```
 
-The E2E suite builds the dashboard, API and proxy images, installs PostgreSQL and the Envoy Gateway controller in a fresh kind cluster, and installs this chart with its own Gateway, in-cluster ClickHouse, a one-node OpenBao, published ingest and two API replicas against an empty database. It checks the Gateway's listeners, startup migrations, the dashboard and runtime configuration, Config RPCs through the dashboard origin, an observability request forwarded through the API whose permission check returns through the private API Service, an OTLP/HTTP log sent to the ingest hostname that lands in ClickHouse, and secrets the API encrypts with the chart's OpenBao before and after an upgrade reruns its setup Job. It then renders all three API/dashboard hostname layouts against the Gateway, measures the reduction in failed connections to a mixed healthy/closed endpoint set, checks that handled HTTP 500/503 responses execute once, and compares intact 8 KiB and 2 MiB request bodies. `--no-teardown` keeps the cluster; `--skip-build` reuses the images on a subsequent run.
+The E2E suite builds the dashboard, API and proxy images, installs PostgreSQL and the Envoy Gateway controller in a fresh kind cluster, and installs this chart with its own Gateway, in-cluster ClickHouse, a one-node OpenBao, published ingest and two API replicas against an empty database. It checks the Gateway's listeners, startup migrations, the dashboard and runtime configuration, Config RPCs through the dashboard origin, an observability request forwarded through the API whose permission check returns through the private API Service, an OTLP/HTTP log sent to the ingest hostname that lands in ClickHouse, secrets the API encrypts with the chart's OpenBao before and after an upgrade reruns its setup Job, and a raft snapshot from the snapshot CronJob restored into a reinstalled OpenBao. It then renders all three API/dashboard hostname layouts against the Gateway, measures the reduction in failed connections to a mixed healthy/closed endpoint set, checks that handled HTTP 500/503 responses execute once, and compares intact 8 KiB and 2 MiB request bodies. `--no-teardown` keeps the cluster; `--skip-build` reuses the images on a subsequent run.

@@ -54,7 +54,8 @@ def main():
             raise RuntimeError('chart rendered no digest-pinned Loco deployments')
         cp_values = {
             'certManager': {'issuer': {'email': 'ops@example.test'}},
-            'openbao': {'seal': {'static': {'existingSecret': {'name': 'openbao-seal'}}}},
+            'openbao': {'seal': {'static': {'existingSecret': {'name': 'openbao-seal'}}},
+                        'snapshots': {'s3': {'endpoint': 'https://s3.example.test', 'bucket': 'backups', 'existingSecret': {'name': 'snapshot-s3'}}}},
             'ui': {'image': {'repository': images['ui'].split('@')[0], 'tag': f'sha-{FIXTURE_COMMIT}@{FIXTURE_DIGEST}'}},
             'api': {'image': {'repository': images['api'].split('@')[0], 'tag': f'sha-{FIXTURE_COMMIT}@{FIXTURE_DIGEST}'}, 'existingSecret': 'regional-api-env'},
             'obsProxy': {'image': {'repository': images['obs-proxy'].split('@')[0], 'tag': f'sha-{FIXTURE_COMMIT}@{FIXTURE_DIGEST}'},

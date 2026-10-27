@@ -226,6 +226,11 @@ spec:
         - podSelector:
             matchLabels:
               app: {{ include "loco-control-plane.openbaoSetupName" . }}
+        {{- if .Values.openbao.snapshots.enabled }}
+        - podSelector:
+            matchLabels:
+              app: {{ include "loco-control-plane.openbaoSnapshotName" . }}
+        {{- end }}
       ports:
         - protocol: TCP
           port: {{ .Values.openbao.port }}
