@@ -307,7 +307,9 @@ spec:
 YAML
     bk -n "$namespace" wait --for=condition=Ready "pod/$name" --timeout="${builds_probe_timeout}s" >/dev/null
     pod_ip=$(bk -n "$namespace" get pod "$name" -o jsonpath='{.status.podIP}')
-    wait_for "the CNI to enforce policy on ${name}" "$builds_probe_timeout" policy_covers_pod "$pod_ip" >/dev/null
+    if [ "$namespace" = "$builds_ns" ]; then
+        wait_for "the CNI to enforce policy on ${name}" "$builds_probe_timeout" policy_covers_pod "$pod_ip" >/dev/null
+    fi
     bk -n "$namespace" exec "$name" -- nc -z -w "$builds_probe_connect_timeout" "$host" "$port" >/dev/null 2>&1 || result=1
     bk -n "$namespace" delete pod "$name" --wait=false >/dev/null
     return $result

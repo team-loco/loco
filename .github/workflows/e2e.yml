@@ -71,7 +71,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/$E2E_ARTIFACT"
           mapfile -t images < <(docker images --filter "reference=*:e2e-${E2E_RUN_ID}" --format '{{.Repository}}:{{.Tag}}')
           docker save -o "$RUNNER_TEMP/$E2E_ARTIFACT/images.tar" "${images[@]}"
-          tar -cf "$RUNNER_TEMP/$E2E_ARTIFACT/bin.tar" -C "tests/e2e/runs/$E2E_RUN_ID" bin
+          tar -cf "$RUNNER_TEMP/$E2E_ARTIFACT/bin.tar" --exclude=bin/images -C "tests/e2e/runs/$E2E_RUN_ID" bin
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -94,7 +94,10 @@ jobs:
             args: 03_builds
             timeout: 45
           - name: Build Dispatch E2E
-            args: 04_build_dispatch 05_cli_build_deploy
+            args: 04_build_dispatch
+            timeout: 45
+          - name: CLI Build Deploy E2E
+            args: 05_cli_build_deploy
             timeout: 45
           - name: Build E2E (builds disabled)
             args: --builds-disabled builds_disabled
