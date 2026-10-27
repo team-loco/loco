@@ -11,7 +11,7 @@ on:
       - "**/*.dockerignore"
       - "**/*compose*.yaml"
       - "**/*compose*.yml"
-      - ".github/workflows/*.yml"
+      - ".github/workflows/docker.yml"
       - "mise-tasks/lint/versions"
       - "mise-tasks/test/platform-binaries"
       - "tools/platform-images/**"
@@ -22,6 +22,26 @@ on:
       - "bunfig.toml"
       - "renovate.json5"
       - ".github/actions/setup-tools/**"
+      - "api/**"
+      - "agent/**"
+      - "builder/**"
+      - "controller/**"
+      - "observability-proxy/**"
+      - "k8sapi/**"
+      - "internal/**"
+      - "gen/go/**"
+      - "gen/ts/**"
+      - "web/**"
+      - "go.mod"
+      - "go.sum"
+      - "package.json"
+      - "bun.lock"
+      - "docs/uv.lock"
+      - "docs/zensical.toml"
+      - "docs/scripts/**"
+      - "docs/content/**"
+      - "docs/overrides/**"
+      - "schemas/loco.v1.json"
   pull_request:
     paths:
       - "tests/pyproject.toml"
@@ -30,7 +50,7 @@ on:
       - "**/*.dockerignore"
       - "**/*compose*.yaml"
       - "**/*compose*.yml"
-      - ".github/workflows/*.yml"
+      - ".github/workflows/docker.yml"
       - "mise-tasks/lint/versions"
       - "mise-tasks/test/platform-binaries"
       - "tools/platform-images/**"
@@ -41,7 +61,26 @@ on:
       - "bunfig.toml"
       - "renovate.json5"
       - ".github/actions/setup-tools/**"
-  workflow_call:
+      - "api/**"
+      - "agent/**"
+      - "builder/**"
+      - "controller/**"
+      - "observability-proxy/**"
+      - "k8sapi/**"
+      - "internal/**"
+      - "gen/go/**"
+      - "gen/ts/**"
+      - "web/**"
+      - "go.mod"
+      - "go.sum"
+      - "package.json"
+      - "bun.lock"
+      - "docs/uv.lock"
+      - "docs/zensical.toml"
+      - "docs/scripts/**"
+      - "docs/content/**"
+      - "docs/overrides/**"
+      - "schemas/loco.v1.json"
 
 permissions:
   contents: read
@@ -52,37 +91,57 @@ concurrency:
 
 jobs:
 
+  changes:
+    name: Detect Changed Images
+    runs-on: ubuntu-latest
+    outputs:
+      images: ${{ steps.filter.outputs.images }}
+      targets: ${{ steps.filter.outputs.targets }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Filter
+        id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          targets='{"runner":"ubuntu-latest","platform":"linux/amd64"}'
+          if [ "$EVENT" = pull_request ]; then
+            FILES=$(git diff --name-only "$BASE...$HEAD")
+          else
+            FILES=$(git ls-files)
+            targets+=',{"runner":"ubuntu-24.04-arm","platform":"linux/arm64"}'
+          fi
+          sel=()
+          add() {
+            grep -qE "^($3/|\.github/workflows/docker\.yml$|tools/platform-images/$4)" <<<"$FILES" || return 0
+            sel+=("{\"name\":\"$1\",\"cache_scope\":\"$2\",\"dockerfile\":\"./$3/Dockerfile\"}")
+          }
+          add Controller controller controller '|k8sapi/'
+          add API api api '|k8sapi/|gen/go/|internal/|go\.(mod|sum)$'
+          add UI ui web '|gen/ts/|docs/(pyproject\.toml|uv\.lock|zensical\.toml|scripts/|content/|overrides/)|schemas/loco\.v1\.json$|package\.json$|bun\.lock$'
+          add Agent agent agent '|k8sapi/|gen/go/|internal/|go\.(mod|sum)$'
+          add "Observability Proxy" obs-proxy observability-proxy '|gen/go/|internal/|go\.(mod|sum)$'
+          add Builder builder builder ''
+          echo "images=[$(IFS=,; echo "${sel[*]-}")]" >> "$GITHUB_OUTPUT"
+          echo "targets=[$targets]" >> "$GITHUB_OUTPUT"
+
   buildkit-check:
     name: ${{ matrix.image.name }} ${{ matrix.target.platform }}
+    needs: changes
+    if: needs.changes.outputs.images != '[]'
     runs-on: ${{ matrix.target.runner }}
 
     strategy:
       fail-fast: false
       matrix:
-        target:
-          - runner: ubuntu-latest
-            platform: linux/amd64
-          - runner: ubuntu-24.04-arm
-            platform: linux/arm64
-        image:
-          - name: Controller
-            cache_scope: controller
-            dockerfile: ./controller/Dockerfile
-          - name: API
-            cache_scope: api
-            dockerfile: ./api/Dockerfile
-          - name: UI
-            cache_scope: ui
-            dockerfile: ./web/Dockerfile
-          - name: Agent
-            cache_scope: agent
-            dockerfile: ./agent/Dockerfile
-          - name: Observability Proxy
-            cache_scope: obs-proxy
-            dockerfile: ./observability-proxy/Dockerfile
-          - name: Builder
-            cache_scope: builder
-            dockerfile: ./builder/Dockerfile
+        target: ${{ fromJSON(needs.changes.outputs.targets) }}
+        image: ${{ fromJSON(needs.changes.outputs.images) }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
