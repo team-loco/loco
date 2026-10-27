@@ -27,6 +27,7 @@ import (
 	"github.com/team-loco/loco/agent/pkg/kube"
 	"github.com/team-loco/loco/agent/pkg/registrycred"
 	"github.com/team-loco/loco/agent/pkg/telemetrytoken"
+	"github.com/team-loco/loco/agent/pkg/usage"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	"github.com/team-loco/loco/gen/go/loco/ingest/v1/ingestv1connect"
@@ -134,6 +135,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	meter, err := usage.Start(ctx, restConfig)
+	if err != nil {
+		slog.Error("failed to watch application pods", "error", err)
+		os.Exit(1)
+	}
+
 	buildConfig := buildwatch.Config{
 		Namespace:           cfg.BuildNamespace,
 		Retention:           cfg.BuildRetention,
@@ -167,6 +174,7 @@ func main() {
 		identities:  identities,
 		credentials: credentials,
 		watcher:     watcher,
+		usage:       meter,
 		builds:      builds,
 		ingest:      telemetryTokens,
 		pullSecrets: pullSecrets,
@@ -204,6 +212,7 @@ type Agent struct {
 	identities        *identity.Store
 	credentials       *identity.Credentials
 	watcher           *appwatch.Watcher
+	usage             *usage.Meter
 	builds            buildRunner
 	heartbeatInterval time.Duration
 	ingest            *telemetrytoken.Renewer

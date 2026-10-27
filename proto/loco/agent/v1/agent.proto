@@ -52,6 +52,7 @@ message SyncRequest {
     PlacementStatus status = 3;
     BuildStatus build_status = 4;
     Heartbeat heartbeat = 5;
+    UsageReport usage = 6;
   }
 }
 
@@ -127,6 +128,7 @@ message SyncResponse {
     StartBuild start_build = 3;
     CancelBuild cancel_build = 4;
     string delete_workspace = 5 [(buf.validate.field).string.uuid = true];
+    UsageRecorded usage_recorded = 6;
   }
 }
 
@@ -206,4 +208,25 @@ message AgentHealth {
   bool kubernetes_healthy = 1;
   bool controller_healthy = 2;
   string message = 3;
+}
+
+message UsageReport {
+  google.protobuf.Timestamp observed_at = 1 [(buf.validate.field).required = true];
+  repeated PodRun runs = 2;
+}
+
+message PodRun {
+  string pod_uid = 1 [(buf.validate.field).string.uuid = true];
+  string organization_id = 2 [(buf.validate.field).string.uuid = true];
+  string workspace_id = 3 [(buf.validate.field).string.uuid = true];
+  string resource_id = 4 [(buf.validate.field).string.uuid = true];
+  string environment_id = 5 [(buf.validate.field).string.uuid = true];
+  int64 cpu_millicores = 6 [(buf.validate.field).int64.gte = 0];
+  int64 memory_bytes = 7 [(buf.validate.field).int64.gte = 0];
+  google.protobuf.Timestamp started_at = 8 [(buf.validate.field).required = true];
+  google.protobuf.Timestamp ended_at = 9;
+}
+
+message UsageRecorded {
+  google.protobuf.Timestamp observed_at = 1;
 }

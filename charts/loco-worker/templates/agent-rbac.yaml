@@ -63,8 +63,11 @@ rules:
     resources: ["namespaces"]
     verbs: ["list", "delete"]
   - apiGroups: [""]
-    resources: ["nodes", "pods"]
+    resources: ["nodes"]
     verbs: ["list"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

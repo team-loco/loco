@@ -128,6 +128,7 @@ func (a *Agent) syncLoop(ctx context.Context) error {
 	workers.Go(func() { session.sendLoop(streamCtx, sendErr) })
 	workers.Go(func() { a.reportInventory(streamCtx, session) })
 	workers.Go(func() { a.sendHeartbeats(streamCtx, session.enqueue) })
+	workers.Go(func() { a.reportUsage(streamCtx, session.enqueue) })
 	workers.Go(func() { a.runBuildOps(streamCtx, buildOps, session.enqueue) })
 	detach := a.watcher.Attach(func(status *agentv1.PlacementStatus) {
 		session.enqueue(&agentv1.SyncRequest{Message: &agentv1.SyncRequest_Status{Status: status}})
@@ -151,6 +152,10 @@ func (a *Agent) syncLoop(ctx context.Context) error {
 		case err := <-recvErr:
 			return fmt.Errorf("receive sync message: %w", err)
 		case msg := <-received:
+			if recorded := msg.GetUsageRecorded(); recorded != nil {
+				a.usage.Recorded(recorded.GetObservedAt().AsTime())
+				continue
+			}
 			if workspaceID := msg.GetDeleteWorkspace(); workspaceID != "" {
 				if err := a.applier.DeleteWorkspace(streamCtx, workspaceID); err != nil {
 					return fmt.Errorf("delete workspace: %w", err)

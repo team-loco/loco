@@ -175,6 +175,7 @@ type Querier interface {
 	// merged into non-overlapping intervals.
 	ListClusterPlacementWindows(ctx context.Context, arg ListClusterPlacementWindowsParams) ([]ListClusterPlacementWindowsRow, error)
 	ListClusterRegions(ctx context.Context, arg ListClusterRegionsParams) ([]ListClusterRegionsRow, error)
+	ListClusterUsageReportTimes(ctx context.Context) ([]ListClusterUsageReportTimesRow, error)
 	ListClusterWorkloads(ctx context.Context, clusterID uuid.UUID) ([]ListClusterWorkloadsRow, error)
 	ListDeclaredSecretNames(ctx context.Context, arg ListDeclaredSecretNamesParams) ([]string, error)
 	ListDeletableBuildImages(ctx context.Context, arg ListDeletableBuildImagesParams) ([]ListDeletableBuildImagesRow, error)
@@ -217,6 +218,7 @@ type Querier interface {
 	ListUndeletedBuildSources(ctx context.Context, maxBuilds int32) ([]ListUndeletedBuildSourcesRow, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeliveriesParams) ([]ListWebhookDeliveriesRow, error)
+	ListWorkloadRunsAfter(ctx context.Context, arg ListWorkloadRunsAfterParams) ([]WorkloadRun, error)
 	ListWorkspaceEnvironments(ctx context.Context, workspaceID uuid.UUID) ([]Environment, error)
 	ListWorkspaceMembersWithUserDetails(ctx context.Context, arg ListWorkspaceMembersWithUserDetailsParams) ([]ListWorkspaceMembersWithUserDetailsRow, error)
 	ListWorkspaceResourceNames(ctx context.Context, workspaceID uuid.UUID) ([]ListWorkspaceResourceNamesRow, error)
@@ -280,12 +282,14 @@ type Querier interface {
 	// build, image are gone: the sweepers find what to delete through these rows. The image
 	// sweeper treats a failed or canceled build's tags like those of a missing row.
 	PruneBuildHistory(ctx context.Context, arg PruneBuildHistoryParams) (int64, error)
+	PruneClusterUsageReports(ctx context.Context, clusterID uuid.UUID) error
 	// Deletes the resource's deployments in the environment past the newest keep, except active
 	// and unfinished ones and those a placement still runs.
 	PruneDeploymentHistory(ctx context.Context, arg PruneDeploymentHistoryParams) (int64, error)
 	PublishEvents(ctx context.Context, arg PublishEventsParams) (int64, error)
 	QueueBuild(ctx context.Context, arg QueueBuildParams) (int64, error)
 	RecordClusterAssertion(ctx context.Context, arg RecordClusterAssertionParams) (int64, error)
+	RecordClusterUsageReport(ctx context.Context, arg RecordClusterUsageReportParams) error
 	ReencryptSecrets(ctx context.Context, arg ReencryptSecretsParams) (int64, error)
 	RemoveAllScopesForUserOnEntity(ctx context.Context, arg RemoveAllScopesForUserOnEntityParams) error
 	RemoveOrgMember(ctx context.Context, arg RemoveOrgMemberParams) error
@@ -346,6 +350,7 @@ type Querier interface {
 	UpsertOrgLimitOverrides(ctx context.Context, arg UpsertOrgLimitOverridesParams) (OrgLimitOverride, error)
 	UpsertPlacement(ctx context.Context, arg UpsertPlacementParams) (UpsertPlacementRow, error)
 	UpsertSecrets(ctx context.Context, arg UpsertSecretsParams) error
+	UpsertWorkloadRuns(ctx context.Context, arg UpsertWorkloadRunsParams) error
 	WorkspaceHoldsAnyResource(ctx context.Context, arg WorkspaceHoldsAnyResourceParams) (bool, error)
 }
 

@@ -63,6 +63,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/gen/go/loco/secret/v1/secretv1connect"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
+	"github.com/team-loco/loco/gen/go/loco/usage/v1/usagev1connect"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	"github.com/team-loco/loco/gen/go/loco/webhook/v1/webhookv1connect"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
@@ -271,6 +272,7 @@ type deps struct {
 	user          *service.UserServer
 	auth          *service.AuthServer
 	event         *service.EventServer
+	usage         *service.UsageServer
 	webhook       *service.WebhookServer
 	org           *service.OrgServer
 	workspace     *service.WorkspaceServer
@@ -449,6 +451,7 @@ func newDeps(
 		user:         service.NewUserServer(pool, queries, machine),
 		auth:         authServiceHandler,
 		event:        service.NewEventServer(pool, queries),
+		usage:        service.NewUsageServer(queries),
 		webhook: service.NewWebhookServer(
 			pool, queries, secretKeyProvider, ac.WebhooksAllowPrivate, ac.CountLimits,
 		),
@@ -550,6 +553,7 @@ func registerHandlers(mux *http.ServeMux, baseServer, authenticatedServer *conne
 	userv1connect.RegisterUserServiceHandler(authenticatedServer, d.user)
 	authv1connect.RegisterAuthServiceHandler(authenticatedServer, d.auth)
 	eventv1connect.RegisterEventServiceHandler(authenticatedServer, d.event)
+	usagev1connect.RegisterUsageServiceHandler(authenticatedServer, d.usage)
 	webhookv1connect.RegisterWebhookServiceHandler(authenticatedServer, d.webhook)
 	orgv1connect.RegisterOrgServiceHandler(authenticatedServer, d.org)
 	workspacev1connect.RegisterWorkspaceServiceHandler(authenticatedServer, d.workspace)

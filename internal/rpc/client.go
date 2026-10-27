@@ -22,6 +22,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/gen/go/loco/secret/v1/secretv1connect"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
+	"github.com/team-loco/loco/gen/go/loco/usage/v1/usagev1connect"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	"github.com/team-loco/loco/gen/go/loco/webhook/v1/webhookv1connect"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
@@ -44,6 +45,7 @@ type Clients struct {
 	Resource      resourcev1connect.ResourceServiceClient
 	Secret        secretv1connect.SecretServiceClient
 	Token         tokenv1connect.TokenServiceClient
+	Usage         usagev1connect.UsageServiceClient
 	User          userv1connect.UserServiceClient
 	Webhook       webhookv1connect.WebhookServiceClient
 	Workspace     workspacev1connect.WorkspaceServiceClient
@@ -87,6 +89,7 @@ func NewClients(connectClient *connect.Client) *Clients {
 		Resource:      resourcev1connect.NewResourceServiceClient(connectClient),
 		Secret:        secretv1connect.NewSecretServiceClient(connectClient),
 		Token:         tokenv1connect.NewTokenServiceClient(connectClient),
+		Usage:         usagev1connect.NewUsageServiceClient(connectClient),
 		User:          userv1connect.NewUserServiceClient(connectClient),
 		Webhook:       webhookv1connect.NewWebhookServiceClient(connectClient),
 		Workspace:     workspacev1connect.NewWorkspaceServiceClient(connectClient),

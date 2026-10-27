@@ -32,6 +32,10 @@ sql:
               import: "github.com/google/uuid"
               type: "UUID"
 
+          - db_type: "xid8"
+            go_type:
+              type: "uint64"
+
           - db_type: "uuid"
             nullable: true
             go_type:

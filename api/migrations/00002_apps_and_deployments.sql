@@ -449,7 +449,38 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER deployment_change AFTER INSERT OR UPDATE ON deployments
 FOR EACH ROW EXECUTE FUNCTION notify_deployment_change();
 
+CREATE TABLE
+    workload_runs (
+        pod_uid UUID PRIMARY KEY,
+        xid XID8 NOT NULL DEFAULT pg_current_xact_id (),
+        cluster_id UUID NOT NULL REFERENCES clusters (id) ON DELETE RESTRICT,
+        region TEXT NOT NULL,
+        organization_id UUID NOT NULL,
+        workspace_id UUID NOT NULL,
+        resource_id UUID NOT NULL,
+        environment_id UUID NOT NULL,
+        cpu_millicores BIGINT NOT NULL CHECK (cpu_millicores >= 0),
+        memory_bytes BIGINT NOT NULL CHECK (memory_bytes >= 0),
+        started_at TIMESTAMPTZ NOT NULL,
+        last_seen_at TIMESTAMPTZ NOT NULL,
+        ended_at TIMESTAMPTZ
+    );
+
+CREATE INDEX idx_workload_runs_cluster_id ON workload_runs (cluster_id);
+
+CREATE INDEX idx_workload_runs_xid ON workload_runs (xid, pod_uid);
+
+CREATE TABLE
+    cluster_usage_reports (
+        cluster_id UUID NOT NULL REFERENCES clusters (id) ON DELETE CASCADE,
+        reported_at TIMESTAMPTZ NOT NULL,
+        xid XID8 NOT NULL DEFAULT pg_current_xact_id (),
+        PRIMARY KEY (cluster_id, reported_at)
+    );
+
 -- +goose Down
+DROP TABLE IF EXISTS cluster_usage_reports;
+DROP TABLE IF EXISTS workload_runs;
 DROP TABLE IF EXISTS registry_credentials;
 DROP TABLE IF EXISTS builds;
 DROP VIEW IF EXISTS observed_placement_rollouts;

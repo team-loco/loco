@@ -6287,6 +6287,67 @@
         }
       }
     },
+    "/loco.usage.v1.UsageService/ListWorkloadRuns": {
+      "post": {
+        "tags": [
+          "loco.usage.v1.UsageService"
+        ],
+        "summary": "ListWorkloadRuns",
+        "operationId": "loco.usage.v1.UsageService.ListWorkloadRuns",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.usage.v1.ListWorkloadRunsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.usage.v1.ListWorkloadRunsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.user.v1.UserService/DeleteUser": {
       "post": {
         "tags": [
@@ -8608,6 +8669,61 @@
         "title": "PlacementStatus",
         "additionalProperties": false
       },
+      "loco.agent.v1.PodRun": {
+        "type": "object",
+        "properties": {
+          "podUid": {
+            "type": "string",
+            "title": "pod_uid",
+            "format": "uuid"
+          },
+          "organizationId": {
+            "type": "string",
+            "title": "organization_id",
+            "format": "uuid"
+          },
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id",
+            "format": "uuid"
+          },
+          "resourceId": {
+            "type": "string",
+            "title": "resource_id",
+            "format": "uuid"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id",
+            "format": "uuid"
+          },
+          "cpuMillicores": {
+            "type": "string",
+            "title": "cpu_millicores",
+            "format": "int64",
+            "description": "int64.gte = 0\n"
+          },
+          "memoryBytes": {
+            "type": "string",
+            "title": "memory_bytes",
+            "format": "int64",
+            "description": "int64.gte = 0\n"
+          },
+          "startedAt": {
+            "title": "started_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "endedAt": {
+            "title": "ended_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          }
+        },
+        "title": "PodRun",
+        "required": [
+          "startedAt"
+        ],
+        "additionalProperties": false
+      },
       "loco.agent.v1.ProblemReport": {
         "type": "object",
         "properties": {
@@ -8785,6 +8901,11 @@
                   "required": [
                     "heartbeat"
                   ]
+                },
+                {
+                  "required": [
+                    "usage"
+                  ]
                 }
               ]
             },
@@ -8815,6 +8936,11 @@
                     "required": [
                       "heartbeat"
                     ]
+                  },
+                  {
+                    "required": [
+                      "usage"
+                    ]
                   }
                 ]
               }
@@ -8841,11 +8967,15 @@
           "heartbeat": {
             "title": "heartbeat",
             "$ref": "#/components/schemas/loco.agent.v1.Heartbeat"
+          },
+          "usage": {
+            "title": "usage",
+            "$ref": "#/components/schemas/loco.agent.v1.UsageReport"
           }
         },
         "title": "SyncRequest",
         "additionalProperties": false,
-        "description": "At most one of `inventory`, `applied`, `status`, `buildStatus`, `heartbeat` may be set."
+        "description": "At most one of `inventory`, `applied`, `status`, `buildStatus`, `heartbeat`, `usage` may be set."
       },
       "loco.agent.v1.SyncResponse": {
         "type": "object",
@@ -8877,6 +9007,11 @@
                   "required": [
                     "deleteWorkspace"
                   ]
+                },
+                {
+                  "required": [
+                    "usageRecorded"
+                  ]
                 }
               ]
             },
@@ -8907,6 +9042,11 @@
                     "required": [
                       "deleteWorkspace"
                     ]
+                  },
+                  {
+                    "required": [
+                      "usageRecorded"
+                    ]
                   }
                 ]
               }
@@ -8934,11 +9074,47 @@
             "type": "string",
             "title": "delete_workspace",
             "format": "uuid"
+          },
+          "usageRecorded": {
+            "title": "usage_recorded",
+            "$ref": "#/components/schemas/loco.agent.v1.UsageRecorded"
           }
         },
         "title": "SyncResponse",
         "additionalProperties": false,
-        "description": "At most one of `apply`, `delete`, `startBuild`, `cancelBuild`, `deleteWorkspace` may be set."
+        "description": "At most one of `apply`, `delete`, `startBuild`, `cancelBuild`, `deleteWorkspace`, `usageRecorded` may be set."
+      },
+      "loco.agent.v1.UsageRecorded": {
+        "type": "object",
+        "properties": {
+          "observedAt": {
+            "title": "observed_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          }
+        },
+        "title": "UsageRecorded",
+        "additionalProperties": false
+      },
+      "loco.agent.v1.UsageReport": {
+        "type": "object",
+        "properties": {
+          "observedAt": {
+            "title": "observed_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "runs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.agent.v1.PodRun"
+            },
+            "title": "runs"
+          }
+        },
+        "title": "UsageReport",
+        "required": [
+          "observedAt"
+        ],
+        "additionalProperties": false
       },
       "loco.auth.v1.ApproveCLILoginRequest": {
         "type": "object",
@@ -15184,6 +15360,111 @@
         "additionalProperties": false,
         "description": "Token represents token metadata (without the actual token string)."
       },
+      "loco.usage.v1.ListWorkloadRunsRequest": {
+        "type": "object",
+        "properties": {
+          "cursor": {
+            "type": "string",
+            "title": "cursor",
+            "maxLength": 64
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "page_size",
+            "maximum": 1000,
+            "minimum": 0,
+            "format": "int32"
+          }
+        },
+        "title": "ListWorkloadRunsRequest",
+        "additionalProperties": false
+      },
+      "loco.usage.v1.ListWorkloadRunsResponse": {
+        "type": "object",
+        "properties": {
+          "runs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.usage.v1.WorkloadRun"
+            },
+            "title": "runs"
+          },
+          "nextCursor": {
+            "type": "string",
+            "title": "next_cursor"
+          },
+          "meteredThrough": {
+            "title": "metered_through",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          }
+        },
+        "title": "ListWorkloadRunsResponse",
+        "additionalProperties": false
+      },
+      "loco.usage.v1.WorkloadRun": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "clusterId": {
+            "type": "string",
+            "title": "cluster_id"
+          },
+          "region": {
+            "type": "string",
+            "title": "region"
+          },
+          "organizationId": {
+            "type": "string",
+            "title": "organization_id"
+          },
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id"
+          },
+          "resourceId": {
+            "type": "string",
+            "title": "resource_id"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id"
+          },
+          "cpuMillicores": {
+            "type": "string",
+            "title": "cpu_millicores",
+            "format": "int64"
+          },
+          "memoryBytes": {
+            "type": "string",
+            "title": "memory_bytes",
+            "format": "int64"
+          },
+          "startedAt": {
+            "title": "started_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "lastSeenAt": {
+            "title": "last_seen_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "endedAt": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/google.protobuf.Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "ended_at"
+          }
+        },
+        "title": "WorkloadRun",
+        "additionalProperties": false
+      },
       "loco.user.v1.AccountDeletionOrganization": {
         "type": "object",
         "properties": {
@@ -16604,6 +16885,9 @@
     {
       "name": "loco.secret.v1.SecretService",
       "description": "SecretService stores named values of one service in one environment. Values are write-only: no RPC\n returns one."
+    },
+    {
+      "name": "loco.usage.v1.UsageService"
     },
     {
       "name": "loco.webhook.v1.WebhookService"

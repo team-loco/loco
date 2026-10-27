@@ -86,6 +86,9 @@
         },
         "syncOutboundBuffer": {
           "type": "integer"
+        },
+        "usageInterval": {
+          "type": "string"
         }
       },
       "additionalProperties": false

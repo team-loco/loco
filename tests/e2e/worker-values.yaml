@@ -9,6 +9,7 @@ certManager:
 agent:
   image:
     tag: e2e
+  usageInterval: 10s
 envoyProxy:
   tracing:
     samplingRate: 100
