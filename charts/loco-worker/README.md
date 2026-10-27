@@ -96,6 +96,6 @@ global:
 `platformOnly: true` with `otel-col-deploy.enabled: false` keeps only the platform pipelines. Names, units and availability follow the pinned [kubelet statistics](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.163.0/receiver/kubeletstatsreceiver) and [cluster](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.163.0/receiver/k8sclusterreceiver) receivers.
 
 ```sh
-mise run test:chart-contracts
+mise run test:collectors
 mise run e2e:cluster-metrics
 ```

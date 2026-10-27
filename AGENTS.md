@@ -159,6 +159,9 @@ Never hand-edit. Regenerate via `mise run gen` after any changes to `proto/`, `a
   `templates/builds/manager-role.yaml` — `mise run controller:gen`. CI fails when any of
   them is out of date. Read the diff: unrelated-looking changes in the chart copies are
   usually real drift.
+- `charts/*/values.schema.json`, from the `# @schema` annotations in each chart's
+  `values.yaml` — `mise run chart:schema`. `mise run lint:charts` fails when a schema is out
+  of date.
 - No chart installs CRDs. `mise run crds:apply` server-side applies
   `controller/config/crd/bases/*.yaml` and the Gateway API CRDs from the pinned
   `gateway-helm` chart before any chart is installed.
@@ -172,6 +175,15 @@ first time and run `mise run lint:go` before pushing. The one that bites most:
 
 - `errcheck` flags unchecked type assertions. Always `v, ok := x.(T)` with a handled
   `!ok`, never `v := x.(T)`.
+
+## Charts
+
+- **A chart change comes with a helm-unittest test** in the chart's `tests/` that fails before
+  the change and passes after it. Assert the property the change is about; never use
+  `matchSnapshot`. `charts/TESTING.md` covers the static tests (`mise run lint:charts`), the
+  unit tests (`mise run test:charts`) and the collector configuration tests that stay pytest.
+- **Bump the chart's version** when a file the chart packages changes; `lint:charts` fails
+  otherwise. `tests/` and `ci/` are not packaged.
 
 ## loco.yaml
 

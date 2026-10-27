@@ -8,6 +8,9 @@ on:
       - "dev/stack.sh"
       - "dev/api.env"
       - "tests/stack/**"
+      - "mise-tasks/helm/**"
+      - "dev/worker-chart.yaml"
+      - "charts/**"
       - ".github/workflows/local-stack.yml"
   push:
     branches: [main]

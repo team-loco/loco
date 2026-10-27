@@ -6,7 +6,6 @@ on:
     workflows:
       - Auth Conformance
       - Buf
-      - Chart Contracts
       - Charts
       - CI Gate Trigger
       - Controller Helm Chart Tests

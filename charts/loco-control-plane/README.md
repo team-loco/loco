@@ -83,7 +83,7 @@ The proxy image runs as two Deployments that share `obsProxy.image` and `obsProx
 Validate rendering and a Kubernetes installation with:
 
 ```sh
-mise run test:chart-contracts
+mise run test:charts
 mise run test:platform-render
 mise run e2e:control-plane
 ```
