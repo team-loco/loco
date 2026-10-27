@@ -1,0 +1,44 @@
+name: Charts
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "charts/**"
+      - ".ct.yaml"
+      - "mise-tasks/lint/charts"
+      - "mise.toml"
+      - "mise.lock"
+      - ".github/actions/setup-tools/**"
+      - ".github/workflows/charts.yml"
+  pull_request:
+    paths:
+      - "charts/**"
+      - ".ct.yaml"
+      - "mise-tasks/lint/charts"
+      - "mise.toml"
+      - "mise.lock"
+      - ".github/actions/setup-tools/**"
+      - ".github/workflows/charts.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+
+  lint:
+    name: Lint Charts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/setup-tools
+      - name: Lint the charts changed since main with ct
+        run: mise run lint:charts

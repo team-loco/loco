@@ -570,8 +570,6 @@ def repository(tmp_path):
         (tmp_path / path).write_text(text)
 
     write("charts/loco-worker/Chart.yaml", WORKER_CHART.format(version="0.1.0", gateway="1.0.0", otel="1.0.0"))
-    write("charts/loco-worker/values.yaml", "replicas: 1\n")
-    write("charts/loco-control-plane/Chart.yaml", "name: loco-control-plane\nversion: 0.1.0\n")
     write(release.CRD_SOURCES["applications"][0], "kind: CustomResourceDefinition\nmetadata: {name: applications}\n")
     write(release.CRD_SOURCES["builds"][0], "kind: CustomResourceDefinition\nmetadata: {name: builds}\n")
     write(release.CRD_VERSIONS, "applications: 0.1.0\nbuilds: 0.1.0\ngateway: 0.1.0\n")
@@ -588,14 +586,6 @@ def test_unchanged_artifacts_need_no_bump(repository):
     assert release.unbumped("HEAD") == []
 
 
-def test_changed_chart_needs_a_higher_version(repository, subtests):
-    for version, stale in (("0.1.0", ["loco-worker"]), ("0.0.9", ["loco-worker"]), ("0.1.1-rc.0", []), ("0.2.0", [])):
-        with subtests.test(version=version):
-            repository.write("charts/loco-worker/values.yaml", "replicas: 2\n")
-            repository.write("charts/loco-worker/Chart.yaml", WORKER_CHART.format(version=version, gateway="1.0.0", otel="1.0.0"))
-            assert release.unbumped("HEAD") == stale
-
-
 def test_changed_crd_needs_its_bundle_version_bumped(repository, subtests):
     repository.write(release.CRD_SOURCES["builds"][0], "kind: CustomResourceDefinition\nmetadata: {name: builds, labels: {a: b}}\n")
     for versions, stale in (("applications: 0.1.0\nbuilds: 0.1.0\ngateway: 0.1.0\n", ["loco-builds-crd"]), ("applications: 0.1.0\nbuilds: 0.1.1\ngateway: 0.1.0\n", [])):
@@ -604,21 +594,17 @@ def test_changed_crd_needs_its_bundle_version_bumped(repository, subtests):
             assert release.unbumped("HEAD") == stale
 
 
-def test_gateway_dependency_bump_needs_chart_and_gateway_crd_bumps(repository, subtests):
-    for chart, gateway, stale in (
-        ("0.1.0", "0.1.0", ["loco-worker", "loco-gateway-crd"]),
-        ("0.1.1", "0.1.0", ["loco-gateway-crd"]),
-        ("0.1.1", "0.2.0", []),
-    ):
-        with subtests.test(chart=chart, gateway=gateway):
-            repository.write("charts/loco-worker/Chart.yaml", WORKER_CHART.format(version=chart, gateway="1.1.0", otel="1.0.0"))
+def test_gateway_dependency_bump_needs_a_gateway_crd_bump(repository, subtests):
+    for gateway, stale in (("0.1.0", ["loco-gateway-crd"]), ("0.2.0", [])):
+        with subtests.test(gateway=gateway):
+            repository.write("charts/loco-worker/Chart.yaml", WORKER_CHART.format(version="0.1.1", gateway="1.1.0", otel="1.0.0"))
             repository.write(release.CRD_VERSIONS, f"applications: 0.1.0\nbuilds: 0.1.0\ngateway: {gateway}\n")
             assert release.unbumped("HEAD") == stale
 
 
 def test_other_worker_dependency_bump_leaves_gateway_crds_alone(repository):
-    repository.write("charts/loco-worker/Chart.yaml", WORKER_CHART.format(version="0.1.0", gateway="1.0.0", otel="1.1.0"))
-    assert release.unbumped("HEAD") == ["loco-worker"]
+    repository.write("charts/loco-worker/Chart.yaml", WORKER_CHART.format(version="0.1.1", gateway="1.0.0", otel="1.1.0"))
+    assert release.unbumped("HEAD") == []
 
 
 def test_repository_versions_are_valid():

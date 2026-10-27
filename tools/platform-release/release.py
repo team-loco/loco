@@ -299,11 +299,6 @@ def repositories(registry):
 
 def unbumped(base):
     stale = []
-    for name in CHARTS:
-        path = f'charts/{name}/Chart.yaml'
-        old = value(path, '.version', base)
-        if old is not None and run('git', 'diff', '--name-only', base, '--', f'charts/{name}') and order(value(path, '.version')) <= order(old):
-            stale.append(name)
     for name, (path, expression) in CRD_SOURCES.items():
         old = value(CRD_VERSIONS, '.' + name, base)
         if old is not None and value(path, expression, base) != value(path, expression) and order(value(CRD_VERSIONS, '.' + name)) <= order(old):

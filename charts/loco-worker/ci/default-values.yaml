@@ -1,0 +1,20 @@
+global:
+  region: ci
+  exporter:
+    endpoint: https://ingest.ci.invalid
+
+certManager:
+  issuer:
+    email: ci@example.invalid
+
+agent:
+  image:
+    tag: ci
+
+controller:
+  image:
+    tag: ci
+
+builds:
+  builderImage:
+    tag: ci

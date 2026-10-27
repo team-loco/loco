@@ -6,13 +6,14 @@ Each Helm chart and CRD bundle is versioned on its own and published as an immut
 
 A chart's version is the `version` in its `Chart.yaml`. The Application, Build and Gateway CRD bundles take theirs from `tools/platform-release/crds.yaml`. The Gateway bundle holds the CRDs of the `gateway-helm` dependency `charts/loco-worker/Chart.yaml` pins. The cert-manager chart is mirrored at the upstream version `charts/cert-manager.yaml` pins. Charts set no `appVersion` and no default Loco image tag.
 
-Bump a chart's version when anything under `charts/<name>/` changes, and a CRD bundle's version when its CRD file or the `gateway-helm` dependency changes. Pull requests run this check:
+Bump a chart's version when a file the chart packages changes, and a CRD bundle's version when its CRD file or the `gateway-helm` dependency changes. Pull requests run these checks:
 
 ```sh
-mise run lint:chart-versions
+mise run lint:charts
+mise run lint:crd-versions
 ```
 
-It compares against the merge base with `origin/main`; pass another ref as its argument for a stacked branch.
+`lint:charts` runs `ct lint`, which compares each chart's version with `origin/main` and skips files the chart's `.helmignore` excludes. `lint:crd-versions` compares against the merge base with `origin/main`; pass another ref as its argument for a stacked branch.
 
 Every push to `main` that touches charts, CRDs or this tooling runs `mise run release:artifacts`. It publishes each version the registry does not hold yet and skips a version already published with the same content. A version already published with different content fails the run. The manifest annotation `io.loco.platform.content` records a digest of the packaged files, so repackaging the same chart compares equal.
 
@@ -61,6 +62,7 @@ Validate packaging and failure paths without registry writes:
 ```sh
 mise run test:platform-release
 mise run test:platform-render
-mise run lint:chart-versions
+mise run lint:charts
+mise run lint:crd-versions
 mise run lint:actions
 ```

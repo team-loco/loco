@@ -75,16 +75,6 @@ jobs:
       - name: Check what the chart renders with builds on and off
         run: mise run test:chart
 
-      - name: Lint Helm Chart
-        run: |
-          helm lint ./charts/loco-worker \
-            --set agent.image.tag="$IMAGE_TAG" \
-            --set controller.image.tag="$IMAGE_TAG" \
-            --set builds.builderImage.tag="$IMAGE_TAG" \
-            --set certManager.existingTLSSecret=ci-tls \
-            --set global.region=ci \
-            --set global.exporter.endpoint=http://ci.invalid
-
       - name: Apply the CRDs
         run: mise run crds:apply
         env:

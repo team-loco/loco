@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Check that every chart and CRD bundle changed since the merge base with the given ref (origin/main by default) bumps its version"
+#MISE description="Check that every CRD bundle changed since the merge base with the given ref (origin/main by default) bumps its version"
 set -euo pipefail
 
 base=$(git merge-base "${1:-origin/main}" HEAD)
