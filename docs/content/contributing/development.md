@@ -6,7 +6,7 @@ The local environment runs Loco's control plane and cluster components for devel
 mise run setup
 ```
 
-Copy `.env.example` to `.env` and supply the credentials required by that revision. Tool versions live in `mise.toml` and `mise.lock`.
+Tool versions live in `mise.toml` and `mise.lock`. The local API reads its configuration from `dev/api.env`, which holds only dev values, so a fresh clone needs no `.env` file.
 
 ```sh
 mise run tilt
@@ -24,20 +24,22 @@ mise run build
 ./bin/loco config set webHost http://localhost:5173
 ```
 
-Make the signed-in user the local installation's system admin with the `LOCO_BOOTSTRAP_TOKEN` that `.env.example` sets:
+Make the signed-in user the local installation's system admin with the `LOCO_BOOTSTRAP_TOKEN` that `dev/api.env` sets:
 
 ```sh
 mise run build:locoadm
-./bin/locoadm bootstrap --host http://localhost:8000 --token "$(sed -n 's/^LOCO_BOOTSTRAP_TOKEN=//p' .env)"
+./bin/locoadm bootstrap --host http://localhost:8000 --token "$(sed -n 's/^LOCO_BOOTSTRAP_TOKEN=//p' dev/api.env)"
 ```
 
 ## Attach the local cluster
 
-The local agent enrolls with a join token. With an account that has `system:admin`, create the cluster, set `LOCO_JOIN_TOKEN` in `.env` to the printed token, and let Tilt redeploy `loco-worker`:
+The local agent enrolls with a join token. With an account that has `system:admin`, create the cluster, stop Tilt, and start it again with the printed token in `LOCO_JOIN_TOKEN` so it redeploys `loco-worker` with it:
 
 ```sh
 mise run build:locoadm
 ./bin/locoadm cluster create --name loco-local --region us-east-1 --tier production
+mise run stop
+LOCO_JOIN_TOKEN=<printed token> mise run tilt
 ```
 
 The agent keeps its key in the `loco-worker-agent-key` Secret, so the token is needed again only after the kind cluster or that Secret is deleted.

@@ -49,7 +49,7 @@ Pages state released behaviour and label unreleased workflows with a release not
   Security requirement, public versus private applications (`domains`, `URL: none`,
   when domain changes take effect), rollout investigation.
 - `docs/content/operations/self-hosting.md`: component table (directory per component),
-  installation inputs via `.env.example`, cluster dependencies, image tags `sha-<commit>` and
+  installation inputs, cluster dependencies, image tags `sha-<commit>` and
   the chart values `agent.image.tag`, `controller.image.tag`, `builds.builderImage.tag`,
   `obsProxy.image.tag`, `mise run controller:gen`.
 - `docs/content/reference/architecture.md`: control plane, regional runtime, observability
@@ -58,7 +58,7 @@ Pages state released behaviour and label unreleased workflows with a release not
   `mise run gen`.
 - `docs/content/reference/ai.md`: `llms.txt` exports. Affected only by `docs/zensical.toml`
   plugin changes.
-- `docs/content/contributing/development.md`: `mise run setup`, `mise run tilt`, `.env.example`,
+- `docs/content/contributing/development.md`: `mise run setup`, `mise run tilt`, `dev/api.env`,
   the local ports `8000` and `5173`, `./bin/loco login --host`, the tasks it names.
 - `docs/content/contributing/documentation.md`: docs tasks, build rules, theme files, hosting,
   `web/sws.toml`, `docs/scripts/package.py`.
@@ -88,9 +88,10 @@ is a candidate; judge what a reader can see, not the directory.
 - `web/public/install.sh`: the installer's flags and environment variables.
 - `proto/**`: the API contract. A new or changed RPC, field or validation rule is visible on the
   Buf Schema Registry and through the CLI and dashboard that call it.
-- `api/config.go`, `api/env.go`, `api/auth/config.go`, `.env.example`: the API's environment
-  variables, defaults and validation. `.env.example` is the installation input document the
-  self-hosting page points at; a new or renamed variable must appear there.
+- `api/config.go`, `api/env.go`, `api/auth/config.go`: the API's environment variables,
+  defaults and validation. The self-hosting page points at `api/config.go` and the
+  `loco-control-plane` chart README for installation inputs; a new variable an installation
+  must set belongs in that README.
 - `api/service/**`: observable API behaviour, error codes and messages, defaults the API fills
   in (`LOCO_DEFAULT_*`), limits such as `LOCO_SOURCE_MAX_BYTES`.
 - `internal/locofile/**`: loco.yaml fields, defaults and validation rules.
@@ -149,7 +150,7 @@ When one page links to another for the detail, update the page that owns the det
   section of `AGENTS.md`.
 - loco.yaml fields: `deployment/loco-yaml.md`, and the loco.yaml section of `AGENTS.md` when it
   enumerates the rule.
-- API and agent environment variables: `.env.example`; `operations/self-hosting.md` only when
+- API and agent environment variables: `charts/loco-control-plane/README.md`; `operations/self-hosting.md` only when
   its prose names the variable or the category changes (database, cache, auth, registry,
   endpoints).
 - Chart values, image tags, namespaces, `builds.enabled`: `operations/self-hosting.md`, the

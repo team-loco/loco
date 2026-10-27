@@ -125,7 +125,7 @@ def compose_postgres_image(compose_text):
     return match.group(1)
 
 
-def read_env_example(text):
+def read_api_env(text):
     values = {}
     for line in text.splitlines():
         line = line.strip()
@@ -136,10 +136,10 @@ def read_env_example(text):
     return values
 
 
-def api_env(example, db_port, api_port, ui_port):
+def api_env(dev_env, db_port, api_port, ui_port):
     issuer = f"http://{HOST}:{ui_port}/dex"
     unused = free_port({db_port, api_port, ui_port})
-    env = dict(example)
+    env = dict(dev_env)
     env.update(
         {
             "APP_PORT": f":{api_port}",
@@ -409,10 +409,10 @@ def cmd_up(args):
                 raise EvidenceError("postgres did not become ready")
             time.sleep(0.5)
 
-        example = read_env_example((worktree / ".env.example").read_text())
+        dev_env = read_api_env((worktree / "dev" / "api.env").read_text())
         api_log = root / "api.log"
         api_cmd = [str(worktree / "api" / "bin" / "loco-api")]
-        state["pids"].append(spawn(api_cmd, worktree, dict(env, **api_env(example, db_port, api_port, ui_port)), api_log))
+        state["pids"].append(spawn(api_cmd, worktree, dict(env, **api_env(dev_env, db_port, api_port, ui_port)), api_log))
         ui_log = root / "ui.log"
         ui_cmd = [sys.executable, str(Path(__file__).resolve()), "serve-ui", "--root", str(dist), "--port", str(ui_port)]
         state["pids"].append(spawn(ui_cmd, worktree, env, ui_log))

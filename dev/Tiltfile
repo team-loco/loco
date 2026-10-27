@@ -4,9 +4,7 @@
 # Run:  mise run tilt  (or mise run start)
 # Stop: mise run stop  (stops Tilt, the compose services and the kind nodes, and keeps their state; mise run start resumes it, mise run helm:destroy removes the releases)
 #
-# First-time setup:
-#   1. mise run setup
-#   2. Copy .env.example to .env and fill in secrets (or ensure .env is populated)
+# First-time setup: mise run setup. The API reads its local configuration from dev/api.env.
 
 kind_context = 'kind-' + os.environ['KIND_CLUSTER']
 allow_k8s_contexts(kind_context)
@@ -105,7 +103,7 @@ def helm_release(name, namespace, images, values, deps, resource_deps):
 # Infrastructure: Postgres, Valkey, the identity provider, the image registry and the source bucket from compose.yaml
 # ---------------------------------------------------------------------------
 
-docker_compose('compose.yaml', env_file='../.env', project_name=os.environ['COMPOSE_PROJECT_NAME'])
+docker_compose('compose.yaml', project_name=os.environ['COMPOSE_PROJECT_NAME'])
 
 dc_resource('postgres', labels=['infrastructure'])
 dc_resource('valkey', labels=['infrastructure'])

@@ -10,13 +10,13 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 STACK = "dev/stack.sh"
+API_ENV = "dev/api.env"
 STACK_NAMES = (
     "LOCO_STACK_SLOT",
     "LOCO_STACK_CLAIM",
     "KIND_CLUSTER",
     "COMPOSE_PROJECT_NAME",
     "COMPOSE_FILE",
-    "COMPOSE_ENV_FILES",
     "REGISTRY_ALIAS",
     "S3_ALIAS",
     "POSTGRES_PORT",
@@ -54,8 +54,8 @@ def local_stack():
         cleanup.callback(shutil.rmtree, local_stack.directory)
         local_stack.main = local_stack.directory / "main"
         (local_stack.main / "dev").mkdir(parents=True)
-        shutil.copyfile(ROOT / STACK, local_stack.main / STACK)
-        shutil.copyfile(ROOT / ".env.example", local_stack.main / ".env.example")
+        for path in (STACK, API_ENV):
+            shutil.copyfile(ROOT / path, local_stack.main / path)
         git(local_stack.main, "init", "--quiet", "--initial-branch=main")
         git(local_stack.main, "add", ".")
         git(
@@ -69,14 +69,12 @@ def local_stack():
             "-m",
             "init",
         )
-        shutil.copyfile(local_stack.main / ".env.example", local_stack.main / ".env")
         yield local_stack
 
 
 def _worktree(local_stack, name):
     path = local_stack.directory / name
     git(local_stack.main, "worktree", "add", "--quiet", "--detach", str(path))
-    (path / ".env").symlink_to(local_stack.main / ".env")
     return path
 
 
@@ -95,18 +93,18 @@ def _stack(local_stack, checkout, **env):
     return dict((line.split("=", 1) for line in result.stdout.splitlines()))
 
 
-def _dotenv(local_stack):
+def _api_env(local_stack):
     values = {}
-    for line in (local_stack.main / ".env").read_text().splitlines():
+    for line in (local_stack.main / API_ENV).read_text().splitlines():
         if "=" in line and (not line.startswith("#")):
             key, value = line.split("=", 1)
             values[key] = value.strip("'")
     return values
 
 
-def test_main_checkout_keeps_the_env_file_values(local_stack):
+def test_main_checkout_keeps_the_api_env_values(local_stack):
     stack = _stack(local_stack, local_stack.main)
-    dotenv = _dotenv(local_stack)
+    api_env = _api_env(local_stack)
     assert stack["LOCO_STACK_SLOT"] == "0"
     assert stack["LOCO_STACK_CLAIM"] == ""
     assert stack["KIND_CLUSTER"] == "loco-cluster-local"
@@ -124,7 +122,7 @@ def test_main_checkout_keeps_the_env_file_values(local_stack):
         "LOCO_REGISTRY_URL",
         "LOCO_SOURCE_BUCKET_ENDPOINT",
     ):
-        assert stack[name] == dotenv[name], name
+        assert stack[name] == api_env[name], name
 
 
 @pytest.fixture
@@ -185,7 +183,6 @@ def test_compose_reads_the_checkouts_own_files(local_stack):
         stack = _stack(local_stack, checkout)
         root = checkout.resolve()
         assert stack["COMPOSE_FILE"] == str(root / "dev" / "compose.yaml")
-        assert stack["COMPOSE_ENV_FILES"] == str(root / ".env")
 
 
 def test_a_worktree_keeps_its_slot(local_stack):
@@ -217,8 +214,3 @@ def test_a_slot_can_be_chosen(local_stack):
     with pytest.raises(AssertionError, match="LOCO_STACK_SLOT must be a slot"):
         _stack(local_stack, local_stack.main, LOCO_STACK_SLOT="10")
 
-
-def test_a_checkout_without_an_env_file_fails(local_stack):
-    (local_stack.main / ".env").unlink()
-    with pytest.raises(AssertionError, match="\\.env is missing"):
-        _stack(local_stack, local_stack.main)
