@@ -10,6 +10,7 @@ import (
 const (
 	testFrom    = "Loco <noreply@loco.test>"
 	testHookURL = "https://hooks.loco.test/mail"
+	testHTTPURL = "http://receiver.loco.test:8080/mail"
 	testSMTPURL = "smtp://mailer@mail.loco.test:587"
 )
 
@@ -28,10 +29,12 @@ func TestParseTransport(t *testing.T) {
 		{name: "empty", raw: "", from: "", secret: ""},
 		{name: "smtp", raw: testSMTPURL, from: testFrom},
 		{name: "hook", raw: testHookURL, from: testFrom, secret: testHookSecret()},
+		{name: "hook over http", raw: testHTTPURL, from: testFrom, secret: testHookSecret()},
 		{name: "from missing", raw: "smtp://mail.loco.test:587", want: ErrFromRequired},
 		{name: "from malformed", raw: "smtp://mail.loco.test:587", from: "not an address", want: ErrInvalidFrom},
 		{name: "smtp without port", raw: "smtp://mail.loco.test", from: testFrom, want: ErrInvalidTransport},
 		{name: "secret missing", raw: testHookURL, from: testFrom, want: ErrHookSecret},
+		{name: "http secret missing", raw: testHTTPURL, from: testFrom, want: ErrHookSecret},
 		{name: "secret malformed", raw: testHookURL, from: testFrom, secret: "plain", want: ErrHookSecret},
 		{name: "scheme", raw: "ftp://mail.loco.test", from: testFrom, want: ErrUnsupportedScheme},
 		{name: "unparsable", raw: "smtp://user:hunter2@[::1", from: testFrom, want: ErrInvalidTransport},

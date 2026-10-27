@@ -14,6 +14,7 @@ import (
 
 const (
 	schemeSMTP  = "smtp"
+	schemeHTTP  = "http"
 	schemeHTTPS = "https"
 )
 
@@ -23,9 +24,9 @@ var (
 	ErrFromRequired      = errors.New("EMAIL_FROM is required when EMAIL_TRANSPORT is set")
 	ErrInvalidFrom       = errors.New("EMAIL_FROM is not a valid address")
 	ErrInvalidTransport  = errors.New("EMAIL_TRANSPORT is invalid")
-	ErrUnsupportedScheme = errors.New("EMAIL_TRANSPORT must be smtp://user:pass@host:port or https://")
+	ErrUnsupportedScheme = errors.New("EMAIL_TRANSPORT must be smtp://user:pass@host:port or http(s)://")
 	ErrHookSecret        = errors.New(
-		"EMAIL_HOOK_SECRET is required for an https:// transport and must be whsec_ plus base64",
+		"EMAIL_HOOK_SECRET is required for an http:// or https:// transport and must be whsec_ plus base64",
 	)
 	ErrSMTPNoSTARTTLS = errors.New("smtp server does not offer STARTTLS")
 )
@@ -77,6 +78,8 @@ func ParseTransport(raw, from, hookSecret string, opts ...Option) (Transport, er
 	switch u.Scheme {
 	case schemeSMTP:
 		return newSMTP(u, sender, applied.tlsConfig)
+	case schemeHTTP:
+		return newHook(u, hookSecret, applied.tlsConfig)
 	case schemeHTTPS:
 		return newHook(u, hookSecret, applied.tlsConfig)
 	}
