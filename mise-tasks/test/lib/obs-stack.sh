@@ -82,6 +82,7 @@ clickhouse_image=$(yq '.spec.templates.podTemplates[0].spec.containers[0].image'
 collector_image=$(yq 'select(.kind == "StatefulSet" and .metadata.name == "otel-col-deploy") | .spec.template.spec.containers[0].image' <<<"$manifest")
 ingest_user=$(yq '.clickhouse.clickhouse.users[] | select(.grants[] | test("^GRANT INSERT")) | .name' "$control_plane_chart/values.yaml")
 database=$(yq '.clickhouse.clickhouse.users[] | select(.grants[] | test("^GRANT INSERT")) | .grants[0] | sub("^.* ON ([^.]+)\..*$", "${1}")' "$control_plane_chart/values.yaml")
+go run ./tools/pullimage "$clickhouse_image" "$collector_image"
 yq '.spec.configuration.files["config.d/extra_config.xml"]' <<<"$chi" >"$workdir/extra_config.xml"
 
 users=$(yq '.spec.configuration.users | keys | .[] | split("/") | .[0]' <<<"$chi" | sort -u | grep -vx default)
