@@ -142,8 +142,7 @@ jobs:
           push: false
           load: true
           tags: loco-${{ matrix.image }}:osv
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.image == 'observability-proxy' && 'obs-proxy' || matrix.image }}
 
       # scanning the exported archive keeps osv-scanner out of the docker socket
       - name: Scan image

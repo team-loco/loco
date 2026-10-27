@@ -13,6 +13,9 @@ on:
       dockerfile:
         required: true
         type: string
+      cache_scope:
+        required: true
+        type: string
       tag_suffix:
         required: false
         type: string
@@ -77,8 +80,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ inputs.cache_scope }}
+          cache-to: type=gha,scope=${{ inputs.cache_scope }},mode=max
 
   verify-platform:
     needs: build-and-push-image
