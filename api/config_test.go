@@ -104,10 +104,10 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv("AUTH_SIGNUP_DOMAINS", "")
 	t.Setenv("MIN_CLI_VERSION", "")
 	t.Setenv(testAdminEnv, "")
-	t.Setenv(transitAddrEnv, "")
+	t.Setenv(transitAddrEnv, testTransitAddr)
 	t.Setenv(transitMountEnv, "")
-	t.Setenv(transitKeyEnv, "")
-	t.Setenv(transitAuthEnv, "")
+	t.Setenv(transitKeyEnv, testTransitKey)
+	t.Setenv(transitAuthEnv, testTransitAuth)
 	t.Setenv(transitCAEnv, "")
 	t.Setenv(transitTimeEnv, "")
 	t.Setenv(transitMarginEnv, "")
@@ -515,20 +515,21 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 	}
 }
 
-func TestNewAPIConfigWithoutTransitHasNoSecretsProvider(t *testing.T) {
+func TestNewAPIConfigPanicsWithoutTransit(t *testing.T) {
 	clearAPIConfigEnv(t)
+	t.Setenv(transitAddrEnv, "")
+	t.Setenv(transitKeyEnv, "")
+	t.Setenv(transitAuthEnv, "")
 	t.Setenv(transitMountEnv, "kms/transit")
-	if cfg := newAPIConfig().Secrets; cfg != nil {
-		t.Errorf("secrets config = %+v, want none", cfg)
+	err := panicValue(t, func() { newAPIConfig() })
+	if !errors.Is(err, errInvalidSecretsTransit) {
+		t.Errorf("panic = %v, want %v", err, errInvalidSecretsTransit)
 	}
 }
 
 func TestNewAPIConfigReadsTransitProvider(t *testing.T) {
 	clearAPIConfigEnv(t)
-	t.Setenv(transitAddrEnv, testTransitAddr)
-	t.Setenv(transitKeyEnv, testTransitKey)
-	t.Setenv(transitAuthEnv, testTransitAuth)
-	cfg := newAPIConfig().Secrets
+	got := newAPIConfig().Secrets
 	want := secretkeys.TransitConfig{
 		Address:     testTransitAddr,
 		Mount:       defaultSecretsTransitMount,
@@ -539,8 +540,8 @@ func TestNewAPIConfigReadsTransitProvider(t *testing.T) {
 		RenewRetry:  defaultSecretsTransitRetry,
 		CacheTTL:    defaultSecretsTransitDEKTTL,
 	}
-	if *cfg != want {
-		t.Errorf("transit config = %+v, want %+v", *cfg, want)
+	if got != want {
+		t.Errorf("transit config = %+v, want %+v", got, want)
 	}
 
 	t.Setenv(transitMountEnv, "kms/transit")
@@ -549,15 +550,15 @@ func TestNewAPIConfigReadsTransitProvider(t *testing.T) {
 	t.Setenv(transitMarginEnv, "1m")
 	t.Setenv(transitRetryEnv, "2s")
 	t.Setenv(transitCacheEnv, "30s")
-	cfg = newAPIConfig().Secrets
+	got = newAPIConfig().Secrets
 	want.Mount = "kms/transit"
 	want.CAFile = "/etc/loco/bao-ca.pem"
 	want.Timeout = 3 * time.Second
 	want.RenewMargin = time.Minute
 	want.RenewRetry = 2 * time.Second
 	want.CacheTTL = 30 * time.Second
-	if *cfg != want {
-		t.Errorf("transit config = %+v, want %+v", *cfg, want)
+	if got != want {
+		t.Errorf("transit config = %+v, want %+v", got, want)
 	}
 }
 
@@ -570,24 +571,21 @@ func TestNewAPIConfigPanicsOnPartialTransit(t *testing.T) {
 		{
 			"transit without an address",
 			map[string]string{
-				transitKeyEnv:  testTransitKey,
-				transitAuthEnv: testTransitAuth,
+				transitAddrEnv: "",
 			},
 			secretkeys.ErrTransitAddress,
 		},
 		{
 			"transit without a token",
 			map[string]string{
-				transitAddrEnv: testTransitAddr,
-				transitKeyEnv:  testTransitKey,
+				transitAuthEnv: "",
 			},
 			secretkeys.ErrTransitToken,
 		},
 		{
 			"transit without a key",
 			map[string]string{
-				transitAddrEnv: testTransitAddr,
-				transitAuthEnv: testTransitAuth,
+				transitKeyEnv: "",
 			},
 			secretkeys.ErrTransitKeyName,
 		},

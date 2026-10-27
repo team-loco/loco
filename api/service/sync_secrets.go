@@ -104,9 +104,6 @@ func (snap *secretSnapshot) dek(ctx context.Context, environmentID uuid.UUID) ([
 	if dek, ok := snap.deks[environmentID]; ok {
 		return dek, nil
 	}
-	if snap.provider == nil {
-		return nil, ErrSecretsNotConfigured
-	}
 	key, ok := snap.keys[environmentID]
 	if !ok {
 		return nil, ErrNoEnvironmentKey

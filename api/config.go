@@ -131,7 +131,7 @@ type APIConfig struct {
 	EventsRetention       time.Duration
 	WebhooksAllowPrivate  bool
 	InstallWebhooks       []webhooks.InstallWebhook
-	Secrets               *secretkeys.TransitConfig
+	Secrets               secretkeys.TransitConfig
 	SecretLimits          service.SecretConfig
 	HeartbeatInterval     time.Duration
 	BootstrapTokenHash    []byte
@@ -221,19 +221,15 @@ func newBootstrapTokenHash() []byte {
 	return service.HashBootstrapToken(token)
 }
 
-func newSecretKeyProvider(ctx context.Context, cfg *secretkeys.TransitConfig) (secretkeys.Provider, error) {
-	if cfg == nil {
-		slog.Warn("LOCO_SECRETS_TRANSIT_* is not set; secrets cannot be stored")
-		return nil, nil
-	}
-	provider, err := secretkeys.New(ctx, *cfg)
+func newSecretKeyProvider(ctx context.Context, cfg secretkeys.TransitConfig) (secretkeys.Provider, error) {
+	provider, err := secretkeys.New(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("secrets key provider: %w", err)
 	}
 	return provider, nil
 }
 
-func newSecretsConfig() *secretkeys.TransitConfig {
+func newSecretsConfig() secretkeys.TransitConfig {
 	transit := secretkeys.TransitConfig{
 		Address: stringEnv("LOCO_SECRETS_TRANSIT_ADDR", ""),
 		Mount:   stringEnv("LOCO_SECRETS_TRANSIT_MOUNT", defaultSecretsTransitMount),
@@ -248,13 +244,10 @@ func newSecretsConfig() *secretkeys.TransitConfig {
 		RenewRetry: positiveDurationEnv("LOCO_SECRETS_TRANSIT_RENEW_RETRY", defaultSecretsTransitRetry),
 		CacheTTL:   positiveDurationEnv("LOCO_SECRETS_TRANSIT_CACHE_TTL", defaultSecretsTransitDEKTTL),
 	}
-	if transit.Address == "" && transit.Key == "" && transit.Token == "" {
-		return nil
-	}
 	if err := transit.Validate(); err != nil {
 		panic(fmt.Errorf("%w: %w", errInvalidSecretsTransit, err))
 	}
-	return &transit
+	return transit
 }
 
 func newMinCLIVersion() string {

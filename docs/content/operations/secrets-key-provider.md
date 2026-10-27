@@ -2,7 +2,7 @@
 
 The API wraps the data key that encrypts each environment's secrets with a key in the Transit secrets engine of OpenBao or Vault. It stores secret values and wrapped data keys in PostgreSQL, so a copy of the database reveals nothing without the Transit key.
 
-Without any `LOCO_SECRETS_TRANSIT_*` address, key or token, the API starts, logs `LOCO_SECRETS_TRANSIT_* is not set; secrets cannot be stored` and refuses secret writes with `FailedPrecondition`.
+The API refuses to start without a valid transit configuration.
 
 ## Transit
 
