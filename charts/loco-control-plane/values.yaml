@@ -27,6 +27,17 @@ api:
     existingSecret:
       name: ""
       key: token
+  email:
+    from: ""
+    invitationTtl: ""
+    transport:
+      existingSecret:
+        name: ""
+        key: transport
+    hookSecret:
+      existingSecret:
+        name: ""
+        key: secret
   env: {}
   resources:
     requests:

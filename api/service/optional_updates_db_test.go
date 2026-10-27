@@ -216,7 +216,7 @@ func TestOptionalOrganizationNameRejectsExplicitEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := NewOrgServer(f.pool, f.queries, nil)
+	server := NewOrgServer(f.pool, f.queries, nil, InvitationConfig{})
 	_, err = server.UpdateOrg(ctx, &orgv1.UpdateOrgRequest{OrgId: id.String(), Name: new("")})
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty organization name error=%v", err)
@@ -226,7 +226,7 @@ func TestOptionalOrganizationNameRejectsExplicitEmpty(t *testing.T) {
 func TestOptionalOrganizationOmittedFieldsRequireExistingRow(t *testing.T) {
 	f := newDeployFixture(t)
 	ctx := optionalSettingsContext(t)
-	server := NewOrgServer(f.pool, f.queries, nil)
+	server := NewOrgServer(f.pool, f.queries, nil, InvitationConfig{})
 	auditBefore := optionalAuditCount(t, f)
 	_, err := server.UpdateOrg(ctx, &orgv1.UpdateOrgRequest{OrgId: uuid.NewString()})
 	if connect.CodeOf(err) != connect.CodeNotFound {

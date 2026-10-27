@@ -40,6 +40,16 @@ const (
 	OrgServiceAddOrgMemberProcedure = "/loco.org.v1.OrgService/AddOrgMember"
 	// OrgServiceRemoveOrgMemberProcedure is the procedure name of the OrgService's RemoveOrgMember RPC.
 	OrgServiceRemoveOrgMemberProcedure = "/loco.org.v1.OrgService/RemoveOrgMember"
+	// OrgServiceInviteOrgMemberProcedure is the procedure name of the OrgService's InviteOrgMember RPC.
+	OrgServiceInviteOrgMemberProcedure = "/loco.org.v1.OrgService/InviteOrgMember"
+	// OrgServiceListInvitationsProcedure is the procedure name of the OrgService's ListInvitations RPC.
+	OrgServiceListInvitationsProcedure = "/loco.org.v1.OrgService/ListInvitations"
+	// OrgServiceRevokeInvitationProcedure is the procedure name of the OrgService's RevokeInvitation
+	// RPC.
+	OrgServiceRevokeInvitationProcedure = "/loco.org.v1.OrgService/RevokeInvitation"
+	// OrgServiceResendInvitationProcedure is the procedure name of the OrgService's ResendInvitation
+	// RPC.
+	OrgServiceResendInvitationProcedure = "/loco.org.v1.OrgService/ResendInvitation"
 )
 
 var (
@@ -99,6 +109,34 @@ var (
 			Procedure:  OrgServiceRemoveOrgMemberProcedure,
 		}
 	})
+	orgServiceInviteOrgMemberSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_org_v1_org_proto.Services().ByName("OrgService").Methods().ByName("InviteOrgMember"),
+			Procedure:  OrgServiceInviteOrgMemberProcedure,
+		}
+	})
+	orgServiceListInvitationsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_org_v1_org_proto.Services().ByName("OrgService").Methods().ByName("ListInvitations"),
+			Procedure:  OrgServiceListInvitationsProcedure,
+		}
+	})
+	orgServiceRevokeInvitationSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_org_v1_org_proto.Services().ByName("OrgService").Methods().ByName("RevokeInvitation"),
+			Procedure:  OrgServiceRevokeInvitationProcedure,
+		}
+	})
+	orgServiceResendInvitationSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_org_v1_org_proto.Services().ByName("OrgService").Methods().ByName("ResendInvitation"),
+			Procedure:  OrgServiceResendInvitationProcedure,
+		}
+	})
 )
 
 // OrgServiceClient is a client for the loco.org.v1.OrgService service.
@@ -116,6 +154,10 @@ type OrgServiceClient interface {
 	ListOrgMembers(context.Context, *v1.ListOrgMembersRequest) (*v1.ListOrgMembersResponse, error)
 	AddOrgMember(context.Context, *v1.AddOrgMemberRequest) (*v1.AddOrgMemberResponse, error)
 	RemoveOrgMember(context.Context, *v1.RemoveOrgMemberRequest) (*v1.RemoveOrgMemberResponse, error)
+	InviteOrgMember(context.Context, *v1.InviteOrgMemberRequest) (*v1.InviteOrgMemberResponse, error)
+	ListInvitations(context.Context, *v1.ListInvitationsRequest) (*v1.ListInvitationsResponse, error)
+	RevokeInvitation(context.Context, *v1.RevokeInvitationRequest) (*v1.RevokeInvitationResponse, error)
+	ResendInvitation(context.Context, *v1.ResendInvitationRequest) (*v1.ResendInvitationResponse, error)
 }
 
 // NewOrgServiceClient constructs a client for the loco.org.v1.OrgService service. Multiple service
@@ -139,6 +181,10 @@ type OrgServiceHandler interface {
 	ListOrgMembers(context.Context, *v1.ListOrgMembersRequest) (*v1.ListOrgMembersResponse, error)
 	AddOrgMember(context.Context, *v1.AddOrgMemberRequest) (*v1.AddOrgMemberResponse, error)
 	RemoveOrgMember(context.Context, *v1.RemoveOrgMemberRequest) (*v1.RemoveOrgMemberResponse, error)
+	InviteOrgMember(context.Context, *v1.InviteOrgMemberRequest) (*v1.InviteOrgMemberResponse, error)
+	ListInvitations(context.Context, *v1.ListInvitationsRequest) (*v1.ListInvitationsResponse, error)
+	RevokeInvitation(context.Context, *v1.RevokeInvitationRequest) (*v1.RevokeInvitationResponse, error)
+	ResendInvitation(context.Context, *v1.ResendInvitationRequest) (*v1.ResendInvitationResponse, error)
 }
 
 // RegisterOrgServiceHandler registers svc as the loco.org.v1.OrgService implementation on server.
@@ -153,6 +199,10 @@ func RegisterOrgServiceHandler(server *connect.Server, svc OrgServiceHandler) {
 		connect.Method{Spec: orgServiceListOrgMembersSpec(), Handler: adapter.listOrgMembers},
 		connect.Method{Spec: orgServiceAddOrgMemberSpec(), Handler: adapter.addOrgMember},
 		connect.Method{Spec: orgServiceRemoveOrgMemberSpec(), Handler: adapter.removeOrgMember},
+		connect.Method{Spec: orgServiceInviteOrgMemberSpec(), Handler: adapter.inviteOrgMember},
+		connect.Method{Spec: orgServiceListInvitationsSpec(), Handler: adapter.listInvitations},
+		connect.Method{Spec: orgServiceRevokeInvitationSpec(), Handler: adapter.revokeInvitation},
+		connect.Method{Spec: orgServiceResendInvitationSpec(), Handler: adapter.resendInvitation},
 	)
 }
 
@@ -189,6 +239,22 @@ func (UnimplementedOrgServiceHandler) AddOrgMember(context.Context, *v1.AddOrgMe
 
 func (UnimplementedOrgServiceHandler) RemoveOrgMember(context.Context, *v1.RemoveOrgMemberRequest) (*v1.RemoveOrgMemberResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.org.v1.OrgService.RemoveOrgMember is not implemented")
+}
+
+func (UnimplementedOrgServiceHandler) InviteOrgMember(context.Context, *v1.InviteOrgMemberRequest) (*v1.InviteOrgMemberResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.org.v1.OrgService.InviteOrgMember is not implemented")
+}
+
+func (UnimplementedOrgServiceHandler) ListInvitations(context.Context, *v1.ListInvitationsRequest) (*v1.ListInvitationsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.org.v1.OrgService.ListInvitations is not implemented")
+}
+
+func (UnimplementedOrgServiceHandler) RevokeInvitation(context.Context, *v1.RevokeInvitationRequest) (*v1.RevokeInvitationResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.org.v1.OrgService.RevokeInvitation is not implemented")
+}
+
+func (UnimplementedOrgServiceHandler) ResendInvitation(context.Context, *v1.ResendInvitationRequest) (*v1.ResendInvitationResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.org.v1.OrgService.ResendInvitation is not implemented")
 }
 
 type orgServiceClient struct {
@@ -254,6 +320,38 @@ func (c *orgServiceClient) AddOrgMember(ctx context.Context, req *v1.AddOrgMembe
 func (c *orgServiceClient) RemoveOrgMember(ctx context.Context, req *v1.RemoveOrgMemberRequest) (*v1.RemoveOrgMemberResponse, error) {
 	var res v1.RemoveOrgMemberResponse
 	if err := c.client.CallUnary(ctx, orgServiceRemoveOrgMemberSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *orgServiceClient) InviteOrgMember(ctx context.Context, req *v1.InviteOrgMemberRequest) (*v1.InviteOrgMemberResponse, error) {
+	var res v1.InviteOrgMemberResponse
+	if err := c.client.CallUnary(ctx, orgServiceInviteOrgMemberSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *orgServiceClient) ListInvitations(ctx context.Context, req *v1.ListInvitationsRequest) (*v1.ListInvitationsResponse, error) {
+	var res v1.ListInvitationsResponse
+	if err := c.client.CallUnary(ctx, orgServiceListInvitationsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *orgServiceClient) RevokeInvitation(ctx context.Context, req *v1.RevokeInvitationRequest) (*v1.RevokeInvitationResponse, error) {
+	var res v1.RevokeInvitationResponse
+	if err := c.client.CallUnary(ctx, orgServiceRevokeInvitationSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *orgServiceClient) ResendInvitation(ctx context.Context, req *v1.ResendInvitationRequest) (*v1.ResendInvitationResponse, error) {
+	var res v1.ResendInvitationResponse
+	if err := c.client.CallUnary(ctx, orgServiceResendInvitationSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -351,6 +449,54 @@ func (h orgServiceHandler) removeOrgMember(ctx context.Context, _ connect.Spec, 
 		return err
 	}
 	res, err := h.svc.RemoveOrgMember(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h orgServiceHandler) inviteOrgMember(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.InviteOrgMemberRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.InviteOrgMember(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h orgServiceHandler) listInvitations(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListInvitationsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListInvitations(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h orgServiceHandler) revokeInvitation(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.RevokeInvitationRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.RevokeInvitation(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h orgServiceHandler) resendInvitation(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ResendInvitationRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ResendInvitation(ctx, &req)
 	if err != nil {
 		return err
 	}
