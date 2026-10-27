@@ -38,6 +38,12 @@ def test_cancelled_matrix_placeholder_does_not_block_newer_success():
     ) == [("Tests (workflow)", "completed", "success")]
 
 
+def test_cancelled_duplicate_does_not_hide_a_successful_run():
+    assert _selected([run(1, "completed", "success"), run(2, "completed", "cancelled")]) == [
+        ("Tests (workflow)", "completed", "success")
+    ]
+
+
 def test_new_workflow_is_pending_before_its_checks_are_created():
     assert _selected([run(1, "completed", "failure"), run(2, "queued", None)]) == [
         ("Tests (workflow)", "queued", "")
