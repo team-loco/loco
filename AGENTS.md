@@ -89,6 +89,9 @@ Builds, tests, code generation, linting and the local environment are mise tasks
 - **Errors**: don't scatter `errors.New()` / `fmt.Errorf()` through function bodies. Any error with a fixed message is a package-level variable: in the package's `errors.go` when several files use it, otherwise in a `var` block at the top of the file. Reuse an existing sentinel before declaring a new one. Inline is only for errors that wrap or format runtime values (`fmt.Errorf("context: %w", err)`).
 - **Magic numbers**: no unexplained literals in logic (`5 << 20`, `1024`, `65535`, timeouts, limits, ports). Tunable values belong in the config struct; the rest are named `const`s at the top of the file. Before submitting, check the whole change for any you missed.
 - **Names**: never use numbered suffixes (`uniqueJSONErr2`, `uniqueJSONErr3`). Name each value after what it holds.
+- **New tooling is Go**: write a new tool or helper script as a Go program under `tools/`, tested
+  with `go test`, not in Python. Existing Python tooling stays until it is rewritten for its own
+  reasons.
 - **Standard library first**: before hand-rolling parsing, matching or a lookup table, check
   whether the standard library or an existing dependency already does it, e.g.
   `netip.Addr.IsLoopback` instead of a list of loopback hosts, `net/url` instead of string
