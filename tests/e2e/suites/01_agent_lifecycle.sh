@@ -68,73 +68,41 @@ test_loco_namespace_exists() {
         kubectl get namespace "$E2E_LOCO_NAMESPACE" --context "kind-${E2E_KIND_CLUSTER}"
 }
 
-e2e_placement_id='00000000-0000-7000-8000-000000000013'
-e2e_resource_id='00000000-0000-7000-8000-000000000010'
-e2e_workspace_id='00000000-0000-7000-8000-000000000003'
+source "$E2E_ROOT_DIR/tests/e2e/cli.sh"
+
+e2e_app="e2e-agent-app"
 e2e_app_image="$E2E_PUBLIC_IMAGE"
-e2e_desired_spec=$(cat <<JSON
-{
-  "resource_id": "${e2e_resource_id}",
-  "workspace_id": "${e2e_workspace_id}",
-  "resource_name": "e2e-test-resource",
-  "resource_type": "service",
-  "region": "us-east-1",
-  "app_spec": {
-    "type": "SERVICE",
-    "resourceId": "${e2e_resource_id}",
-    "workspaceId": "${e2e_workspace_id}",
-    "region": "us-east-1",
-    "environmentName": "production",
-    "serviceSpec": {
-      "deployment": {
-        "image": "${e2e_app_image}",
-        "port": 8080,
-        "healthCheck": {"path": "/", "interval": 5, "timeout": 2, "failThreshold": 3}
-      },
-      "resources": {"cpu": "100m", "memory": "64Mi", "replicas": {"min": 1, "max": 1}}
-    }
-  }
+e2e_app_dir="$E2E_BUILD_WORK_DIR/agent-lifecycle"
+cli_home="$e2e_app_dir/home"
+
+e2e_resource_id() {
+    e2e_psql "SELECT id FROM resources WHERE name = '${e2e_app}'"
 }
-JSON
-)
 
 placement_applied() {
-    test "$(e2e_psql "SELECT applied_revision FROM placements WHERE id = '${e2e_placement_id}'")" = "1"
+    test "$(e2e_psql "SELECT p.applied_revision FROM placements p JOIN resources r ON r.id = p.resource_id WHERE r.name = '${e2e_app}'")" = "1"
 }
 
 application_annotated() {
-    kubectl get application "resource-${e2e_resource_id}" \
+    kubectl get application "resource-$(e2e_resource_id)" \
         --namespace "$E2E_LOCO_NAMESPACE" \
         --context "kind-${E2E_KIND_CLUSTER}" \
         -o jsonpath='{.metadata.annotations.loco\.io/placement-revision}' | grep -qx 1
 }
 
 test_agent_applies_placement() {
-    e2e_psql "
-        INSERT INTO resources (id, workspace_id, name, type, description, spec, spec_version)
-        VALUES (
-            '${e2e_resource_id}',
-            '00000000-0000-7000-8000-000000000003',
-            'e2e-test-resource',
-            'service',
-            'E2E test resource',
-            '{\"image\": \"nginx:latest\", \"port\": 80}',
-            1
-        ) ON CONFLICT (workspace_id, name) DO NOTHING;
-    " >/dev/null
+    cli_seed_session
+    rm -rf "$e2e_app_dir"
+    mkdir -p "$e2e_app_dir"
+    cli_write_credentials
+    cli_write_image_config "$e2e_app_dir" "$e2e_app" "$e2e_app_image" 8080 "[]"
 
-    e2e_psql "
-        INSERT INTO placements (id, resource_id, cluster_id, region, desired_spec, environment_id)
-        VALUES (
-            '${e2e_placement_id}',
-            '${e2e_resource_id}',
-            '${E2E_CLUSTER_ID}',
-            'us-east-1',
-            \$spec\$${e2e_desired_spec}\$spec\$,
-            '00000000-0000-7000-8000-000000000004'
-        ) ON CONFLICT DO NOTHING;
-        SELECT pg_notify('placements', '${E2E_CLUSTER_ID}');
-    " >/dev/null
+    local rc=0
+    (cd "$e2e_app_dir" && loco_cli deploy --yes) >"$e2e_app_dir/deploy.out" 2>"$e2e_app_dir/deploy.err" || rc=$?
+    if ! assert "loco deploy ${e2e_app} (exit ${rc})" test "$rc" -eq 0; then
+        sed 's/^/    /' "$e2e_app_dir/deploy.out" "$e2e_app_dir/deploy.err"
+        return 1
+    fi
 
     wait_for "agent to apply the placement" 30 application_annotated
     assert "Agent created the Application at placement revision 1" application_annotated
@@ -144,14 +112,14 @@ test_agent_applies_placement() {
 }
 
 application_ready() {
-    kubectl get application "resource-${e2e_resource_id}" \
+    kubectl get application "resource-$(e2e_resource_id)" \
         --namespace "$E2E_LOCO_NAMESPACE" \
         --context "kind-${E2E_KIND_CLUSTER}" \
         -o jsonpath='{.status.phase}' | grep -qx Ready
 }
 
 placement_reported_ready() {
-    test "$(e2e_psql "SELECT ready AND observed_revision = 1 FROM placements WHERE id = '${e2e_placement_id}'")" = "t"
+    test "$(e2e_psql "SELECT p.ready AND p.observed_revision = 1 FROM placements p JOIN resources r ON r.id = p.resource_id WHERE r.name = '${e2e_app}'")" = "t"
 }
 
 test_application_becomes_ready() {
@@ -165,7 +133,9 @@ test_application_becomes_ready() {
 probe_reaches_app() {
     local namespace="$1"
     local probe="$2"
-    local target="http://resource-${e2e_resource_id}.${E2E_WORKSPACE_PREFIX}${e2e_workspace_id}.svc.cluster.local/"
+    local id
+    id=$(e2e_resource_id)
+    local target="http://resource-${id}.${E2E_WORKSPACE_PREFIX}${cli_workspace_id}.svc.cluster.local/"
     kubectl apply --context "kind-${E2E_KIND_CLUSTER}" -f - >/dev/null <<YAML
 apiVersion: v1
 kind: Pod
@@ -196,7 +166,7 @@ YAML
 }
 
 test_network_isolation() {
-    local workspace_namespace="${E2E_WORKSPACE_PREFIX}${e2e_workspace_id}"
+    local workspace_namespace="${E2E_WORKSPACE_PREFIX}${cli_workspace_id}"
     kubectl create namespace e2e-outsider --context "kind-${E2E_KIND_CLUSTER}" >/dev/null 2>&1 || true
 
     assert "A pod in the app's workspace namespace reaches the app" \
