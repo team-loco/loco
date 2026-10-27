@@ -27,6 +27,18 @@ WHERE resource_id = sqlc.arg(resource_id)
   AND status IN ('awaiting_upload', 'queued', 'running')
 RETURNING id, cluster_id, source_key;
 
+-- name: CancelOrgActiveBuilds :many
+UPDATE builds
+SET status = 'canceled',
+    message = sqlc.arg(message),
+    finished_at = NOW()
+FROM resources r
+JOIN workspaces w ON w.id = r.workspace_id
+WHERE builds.resource_id = r.id
+  AND w.org_id = sqlc.arg(org_id)
+  AND builds.status IN ('awaiting_upload', 'queued', 'running')
+RETURNING builds.id, builds.cluster_id;
+
 -- name: QueueBuild :execrows
 UPDATE builds
 SET status = 'queued',

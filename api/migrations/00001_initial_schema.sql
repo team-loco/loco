@@ -33,8 +33,11 @@ CREATE TABLE
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
         name TEXT UNIQUE NOT NULL, -- Globally unique org name
         created_by UUID NOT NULL REFERENCES users (id) ON DELETE RESTRICT,
+        suspended_at TIMESTAMPTZ,
+        suspension_reason TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+        CHECK ((suspended_at IS NULL) = (suspension_reason IS NULL))
     );
 
 CREATE INDEX IF NOT EXISTS idx_organizations_created_by ON organizations (created_by);

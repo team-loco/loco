@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AddOrgMemberRequest, AddOrgMemberResponse, CreateOrgRequest, CreateOrgResponse, DeleteOrgRequest, DeleteOrgResponse, GetOrgRequest, GetOrgResponse, ListOrgMembersRequest, ListOrgMembersResponse, ListUserOrgsRequest, ListUserOrgsResponse, RemoveOrgMemberRequest, RemoveOrgMemberResponse, UpdateOrgRequest, UpdateOrgResponse } from "./org_pb";
+import { AddOrgMemberRequest, AddOrgMemberResponse, CreateOrgRequest, CreateOrgResponse, DeleteOrgRequest, DeleteOrgResponse, GetOrgRequest, GetOrgResponse, ListOrgMembersRequest, ListOrgMembersResponse, ListUserOrgsRequest, ListUserOrgsResponse, RemoveOrgMemberRequest, RemoveOrgMemberResponse, ResumeOrgRequest, ResumeOrgResponse, SuspendOrgRequest, SuspendOrgResponse, UpdateOrgRequest, UpdateOrgResponse } from "./org_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -94,6 +94,31 @@ export const OrgService = {
       name: "RemoveOrgMember",
       I: RemoveOrgMemberRequest,
       O: RemoveOrgMemberResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * SuspendOrg stops every workload of the organization and rejects deployments until ResumeOrg.
+     * It keeps resources, specs, secrets, domains and deployment history. It requires system:admin.
+     * Suspending a suspended organization changes nothing and keeps the first reason.
+     *
+     * @generated from rpc loco.org.v1.OrgService.SuspendOrg
+     */
+    suspendOrg: {
+      name: "SuspendOrg",
+      I: SuspendOrgRequest,
+      O: SuspendOrgResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * ResumeOrg runs again what the organization's active deployments describe. It requires system:admin.
+     * Resuming an organization that is not suspended changes nothing.
+     *
+     * @generated from rpc loco.org.v1.OrgService.ResumeOrg
+     */
+    resumeOrg: {
+      name: "ResumeOrg",
+      I: ResumeOrgRequest,
+      O: ResumeOrgResponse,
       kind: MethodKind.Unary,
     },
   }

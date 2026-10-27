@@ -51,6 +51,49 @@ func (q *Queries) CancelBuild(ctx context.Context, arg CancelBuildParams) (Cance
 	return i, err
 }
 
+const cancelOrgActiveBuilds = `-- name: CancelOrgActiveBuilds :many
+UPDATE builds
+SET status = 'canceled',
+    message = $1,
+    finished_at = NOW()
+FROM resources r
+JOIN workspaces w ON w.id = r.workspace_id
+WHERE builds.resource_id = r.id
+  AND w.org_id = $2
+  AND builds.status IN ('awaiting_upload', 'queued', 'running')
+RETURNING builds.id, builds.cluster_id
+`
+
+type CancelOrgActiveBuildsParams struct {
+	Message string    `json:"message"`
+	OrgID   uuid.UUID `json:"orgId"`
+}
+
+type CancelOrgActiveBuildsRow struct {
+	ID        uuid.UUID  `json:"id"`
+	ClusterID *uuid.UUID `json:"clusterId"`
+}
+
+func (q *Queries) CancelOrgActiveBuilds(ctx context.Context, arg CancelOrgActiveBuildsParams) ([]CancelOrgActiveBuildsRow, error) {
+	rows, err := q.db.Query(ctx, cancelOrgActiveBuilds, arg.Message, arg.OrgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CancelOrgActiveBuildsRow
+	for rows.Next() {
+		var i CancelOrgActiveBuildsRow
+		if err := rows.Scan(&i.ID, &i.ClusterID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const cancelOtherActiveBuilds = `-- name: CancelOtherActiveBuilds :many
 UPDATE builds
 SET status = 'canceled',

@@ -76,6 +76,33 @@ func TestDiffInventory(t *testing.T) {
 			rev:  placementRevision{desiredRevision: 4, desiredDeleted: true},
 			want: inventorySend,
 		},
+		{
+			name: "suspended and still present at the current revision",
+			rev: placementRevision{
+				desiredRevision: 4, suspended: true, observed: true, observedRevision: 4, appliedRevision: 4,
+			},
+			want: inventorySend,
+		},
+		{
+			name: "suspended and still present at an older revision",
+			rev:  placementRevision{desiredRevision: 4, suspended: true, observed: true, observedRevision: 3},
+			want: inventorySend,
+		},
+		{
+			name: "suspended, absent, stop not yet acked",
+			rev:  placementRevision{desiredRevision: 4, suspended: true, appliedRevision: 3},
+			want: inventorySend,
+		},
+		{
+			name: "suspended, absent, stop acked",
+			rev:  placementRevision{desiredRevision: 4, suspended: true, appliedRevision: 4},
+			want: inventoryInSync,
+		},
+		{
+			name: "suspended, cluster holds a newer revision",
+			rev:  placementRevision{desiredRevision: 4, suspended: true, observed: true, observedRevision: 6},
+			want: inventoryAhead,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

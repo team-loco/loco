@@ -353,6 +353,17 @@ var (
 
 	// orgs (additional)
 
+	// SuspendOrg requires system:admin.
+	SuspendOrg = Action{
+		entityType: db.EntityTypeSystem,
+		scope:      db.ScopeAdmin,
+	}
+	// ResumeOrg requires system:admin.
+	ResumeOrg = Action{
+		entityType: db.EntityTypeSystem,
+		scope:      db.ScopeAdmin,
+	}
+
 	// ListUserOrgs requires user:read (to list orgs for a specific user).
 	ListUserOrgs = Action{
 		entityType: db.EntityTypeUser,

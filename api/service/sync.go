@@ -178,7 +178,7 @@ func (ss *syncSession) sendPendingPlacements(ctx context.Context) error {
 		if len(ids) == 0 {
 			return nil, nil
 		}
-		return q.ListPlacementsByIDs(ctx, genDb.ListPlacementsByIDsParams{ClusterID: ss.clusterID, Ids: ids})
+		return listSyncPlacements(ctx, q, ss.clusterID, ids)
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to read pending placements", "cluster_id", ss.clusterID, "error", err)
@@ -191,6 +191,28 @@ func (ss *syncSession) sendPendingPlacements(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func listSyncPlacements(
+	ctx context.Context,
+	q *genDb.Queries,
+	clusterID uuid.UUID,
+	ids []uuid.UUID,
+) ([]genDb.Placement, error) {
+	rows, err := q.ListPlacementsByIDs(ctx, genDb.ListPlacementsByIDsParams{ClusterID: clusterID, Ids: ids})
+	if err != nil {
+		return nil, err
+	}
+	placements := make([]genDb.Placement, 0, len(rows))
+	for _, row := range rows {
+		placement := row.Placement
+		if row.Suspended {
+			placement.DesiredDeleted = true
+			placement.DesiredSpec = nil
+		}
+		placements = append(placements, placement)
+	}
+	return placements, nil
 }
 
 func (ss *syncSession) send(ctx context.Context, secrets *secretSnapshot, placement genDb.Placement) error {
@@ -278,6 +300,7 @@ type placementRevision struct {
 	id               uuid.UUID
 	desiredRevision  int64
 	desiredDeleted   bool
+	suspended        bool
 	appliedRevision  int64
 	observedRevision int64
 	observed         bool
@@ -298,6 +321,12 @@ func diffInventory(rev placementRevision) inventoryAction {
 		return inventoryAhead
 	}
 	if rev.desiredDeleted {
+		return inventorySend
+	}
+	if rev.suspended && !rev.observed && rev.appliedRevision >= rev.desiredRevision {
+		return inventoryInSync
+	}
+	if rev.suspended {
 		return inventorySend
 	}
 	if !rev.observed || rev.observedRevision < rev.desiredRevision {
@@ -348,6 +377,7 @@ func (ss *syncSession) reconcilePlacementInventory(ctx context.Context, inventor
 			id:               row.ID,
 			desiredRevision:  row.DesiredRevision,
 			desiredDeleted:   row.DesiredDeleted,
+			suspended:        row.Suspended,
 			appliedRevision:  row.AppliedRevision,
 			observedRevision: observedRevision,
 			observed:         present,
@@ -397,7 +427,7 @@ func (ss *syncSession) reconcilePlacementInventory(ctx context.Context, inventor
 		ctx context.Context,
 		q *genDb.Queries,
 	) ([]genDb.Placement, error) {
-		return q.ListPlacementsByIDs(ctx, genDb.ListPlacementsByIDsParams{ClusterID: ss.clusterID, Ids: toSend})
+		return listSyncPlacements(ctx, q, ss.clusterID, toSend)
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load placements for inventory", "cluster_id", ss.clusterID, "error", err)
@@ -440,7 +470,7 @@ func (s *AgentServer) advancePastRevision(
 
 func (s *AgentServer) markApplied(ctx context.Context, clusterID, placementID uuid.UUID, revision int64) {
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		deploymentID, markErr := qtx.MarkPlacementApplied(ctx, genDb.MarkPlacementAppliedParams{
+		marked, markErr := qtx.MarkPlacementApplied(ctx, genDb.MarkPlacementAppliedParams{
 			ID:              placementID,
 			ClusterID:       clusterID,
 			DesiredRevision: revision,
@@ -451,13 +481,13 @@ func (s *AgentServer) markApplied(ctx context.Context, clusterID, placementID uu
 		if markErr != nil {
 			return fmt.Errorf("mark placement applied: %w", markErr)
 		}
-		if deploymentID == nil {
+		if marked.DeploymentID == nil || marked.Suspended {
 			return nil
 		}
 		return qtx.AdvanceDeploymentStatus(ctx, genDb.AdvanceDeploymentStatusParams{
 			Status:       genDb.DeploymentStatusDeploying,
 			Message:      "Applied to the cluster",
-			ID:           *deploymentID,
+			ID:           *marked.DeploymentID,
 			FromStatuses: deploymentStatusNames(genDb.DeploymentStatusPending),
 		})
 	})
@@ -549,7 +579,7 @@ func (s *AgentServer) recordApplyError(
 		if setErr != nil {
 			return fmt.Errorf("record apply error: %w", setErr)
 		}
-		if !row.ApplyFailed || row.DesiredDeleted || row.DeploymentID == nil {
+		if !row.ApplyFailed || row.DesiredDeleted || row.Suspended || row.DeploymentID == nil {
 			return nil
 		}
 		return qtx.AdvanceDeploymentStatus(ctx, genDb.AdvanceDeploymentStatusParams{

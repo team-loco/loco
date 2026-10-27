@@ -289,6 +289,9 @@ func (s *DeploymentServer) CreateDeployment(
 
 	var deploymentID uuid.UUID
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if lockErr := lockOrganization(ctx, qtx, resource.WorkspaceID); lockErr != nil {
+			return lockErr
+		}
 		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, resource.WorkspaceID); lockErr != nil {
 			return lockErr
 		}

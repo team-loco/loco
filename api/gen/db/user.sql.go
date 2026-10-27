@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -48,10 +49,18 @@ type CreateOrganizationParams struct {
 	CreatedBy uuid.UUID `json:"createdBy"`
 }
 
+type CreateOrganizationRow struct {
+	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	CreatedBy uuid.UUID `json:"createdBy"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
 // Organization queries
-func (q *Queries) CreateOrganization(ctx context.Context, arg CreateOrganizationParams) (Organization, error) {
+func (q *Queries) CreateOrganization(ctx context.Context, arg CreateOrganizationParams) (CreateOrganizationRow, error) {
 	row := q.db.QueryRow(ctx, createOrganization, arg.Name, arg.CreatedBy)
-	var i Organization
+	var i CreateOrganizationRow
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -123,9 +132,17 @@ FROM organizations
 WHERE id = $1
 `
 
-func (q *Queries) GetOrganizationByID(ctx context.Context, id uuid.UUID) (Organization, error) {
+type GetOrganizationByIDRow struct {
+	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	CreatedBy uuid.UUID `json:"createdBy"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+func (q *Queries) GetOrganizationByID(ctx context.Context, id uuid.UUID) (GetOrganizationByIDRow, error) {
 	row := q.db.QueryRow(ctx, getOrganizationByID, id)
-	var i Organization
+	var i GetOrganizationByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -142,9 +159,17 @@ FROM organizations
 WHERE name = $1
 `
 
-func (q *Queries) GetOrganizationByName(ctx context.Context, name string) (Organization, error) {
+type GetOrganizationByNameRow struct {
+	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	CreatedBy uuid.UUID `json:"createdBy"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+func (q *Queries) GetOrganizationByName(ctx context.Context, name string) (GetOrganizationByNameRow, error) {
 	row := q.db.QueryRow(ctx, getOrganizationByName, name)
-	var i Organization
+	var i GetOrganizationByNameRow
 	err := row.Scan(
 		&i.ID,
 		&i.Name,

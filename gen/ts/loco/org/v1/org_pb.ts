@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/org/v1/org.proto.
  */
 export const file_loco_org_v1_org: GenFile = /*@__PURE__*/
-  fileDesc("ChVsb2NvL29yZy92MS9vcmcucHJvdG8SC2xvY28ub3JnLnYxIpwBCgxPcmdhbml6YXRpb24SCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRISCgpjcmVhdGVkX2J5GAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIjkKEENyZWF0ZU9yZ1JlcXVlc3QSHAoEbmFtZRgBIAEoCUIJukgGcgQQARhkSACIAQFCBwoFX25hbWUiIwoRQ3JlYXRlT3JnUmVzcG9uc2USDgoGb3JnX2lkGAEgASgJIk8KDUdldE9yZ1JlcXVlc3QSGgoGb3JnX2lkGAEgASgJQgi6SAVyA7ABAUgAEhsKCG9yZ19uYW1lGAIgASgJQge6SARyAhABSABCBQoDa2V5IkEKDkdldE9yZ1Jlc3BvbnNlEi8KDG9yZ2FuaXphdGlvbhgBIAEoCzIZLmxvY28ub3JnLnYxLk9yZ2FuaXphdGlvbiJjChNMaXN0VXNlck9yZ3NSZXF1ZXN0EhkKB3VzZXJfaWQYASABKAlCCLpIBXIDsAEBEh0KCXBhZ2Vfc2l6ZRgCIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAMgASgJIlgKFExpc3RVc2VyT3Jnc1Jlc3BvbnNlEicKBG9yZ3MYASADKAsyGS5sb2NvLm9yZy52MS5Pcmdhbml6YXRpb24SFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJImQKFUxpc3RPcmdNZW1iZXJzUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEh0KCXBhZ2Vfc2l6ZRgCIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAMgASgJIloKFkxpc3RPcmdNZW1iZXJzUmVzcG9uc2USJwoHbWVtYmVycxgBIAMoCzIWLmxvY28ub3JnLnYxLk9yZ01lbWJlchIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkiPAoJT3JnTWVtYmVyEh8KBHVzZXIYASABKAsyES5sb2NvLm9yZy52MS5Vc2VyEg4KBnNjb3BlcxgCIAMoCSJKChNBZGRPcmdNZW1iZXJSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESGQoHdXNlcl9pZBgCIAEoCUIIukgFcgOwAQEiFgoUQWRkT3JnTWVtYmVyUmVzcG9uc2UiTQoWUmVtb3ZlT3JnTWVtYmVyUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEhkKB3VzZXJfaWQYAiABKAlCCLpIBXIDsAEBIhkKF1JlbW92ZU9yZ01lbWJlclJlc3BvbnNlIkMKBFVzZXISCgoCaWQYASABKAkSDQoFZW1haWwYAiABKAkSDAoEbmFtZRgDIAEoCRISCgphdmF0YXJfdXJsGAQgASgJIlMKEFVwZGF0ZU9yZ1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIcCgRuYW1lGAIgASgJQgm6SAZyBBABGGRIAIgBAUIHCgVfbmFtZSIjChFVcGRhdGVPcmdSZXNwb25zZRIOCgZvcmdfaWQYASABKAkiLAoQRGVsZXRlT3JnUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBIhMKEURlbGV0ZU9yZ1Jlc3BvbnNlMpYFCgpPcmdTZXJ2aWNlEkoKCUNyZWF0ZU9yZxIdLmxvY28ub3JnLnYxLkNyZWF0ZU9yZ1JlcXVlc3QaHi5sb2NvLm9yZy52MS5DcmVhdGVPcmdSZXNwb25zZRJBCgZHZXRPcmcSGi5sb2NvLm9yZy52MS5HZXRPcmdSZXF1ZXN0GhsubG9jby5vcmcudjEuR2V0T3JnUmVzcG9uc2USSgoJVXBkYXRlT3JnEh0ubG9jby5vcmcudjEuVXBkYXRlT3JnUmVxdWVzdBoeLmxvY28ub3JnLnYxLlVwZGF0ZU9yZ1Jlc3BvbnNlEkoKCURlbGV0ZU9yZxIdLmxvY28ub3JnLnYxLkRlbGV0ZU9yZ1JlcXVlc3QaHi5sb2NvLm9yZy52MS5EZWxldGVPcmdSZXNwb25zZRJTCgxMaXN0VXNlck9yZ3MSIC5sb2NvLm9yZy52MS5MaXN0VXNlck9yZ3NSZXF1ZXN0GiEubG9jby5vcmcudjEuTGlzdFVzZXJPcmdzUmVzcG9uc2USWQoOTGlzdE9yZ01lbWJlcnMSIi5sb2NvLm9yZy52MS5MaXN0T3JnTWVtYmVyc1JlcXVlc3QaIy5sb2NvLm9yZy52MS5MaXN0T3JnTWVtYmVyc1Jlc3BvbnNlElMKDEFkZE9yZ01lbWJlchIgLmxvY28ub3JnLnYxLkFkZE9yZ01lbWJlclJlcXVlc3QaIS5sb2NvLm9yZy52MS5BZGRPcmdNZW1iZXJSZXNwb25zZRJcCg9SZW1vdmVPcmdNZW1iZXISIy5sb2NvLm9yZy52MS5SZW1vdmVPcmdNZW1iZXJSZXF1ZXN0GiQubG9jby5vcmcudjEuUmVtb3ZlT3JnTWVtYmVyUmVzcG9uc2VCNFoyZ2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9vcmcvdjE7b3JndjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("ChVsb2NvL29yZy92MS9vcmcucHJvdG8SC2xvY28ub3JnLnYxIukBCgxPcmdhbml6YXRpb24SCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRISCgpjcmVhdGVkX2J5GAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDHN1c3BlbmRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGQoRc3VzcGVuc2lvbl9yZWFzb24YByABKAkiOQoQQ3JlYXRlT3JnUmVxdWVzdBIcCgRuYW1lGAEgASgJQgm6SAZyBBABGGRIAIgBAUIHCgVfbmFtZSIjChFDcmVhdGVPcmdSZXNwb25zZRIOCgZvcmdfaWQYASABKAkiTwoNR2V0T3JnUmVxdWVzdBIaCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBSAASGwoIb3JnX25hbWUYAiABKAlCB7pIBHICEAFIAEIFCgNrZXkiQQoOR2V0T3JnUmVzcG9uc2USLwoMb3JnYW5pemF0aW9uGAEgASgLMhkubG9jby5vcmcudjEuT3JnYW5pemF0aW9uImMKE0xpc3RVc2VyT3Jnc1JlcXVlc3QSGQoHdXNlcl9pZBgBIAEoCUIIukgFcgOwAQESHQoJcGFnZV9zaXplGAIgASgFQgq6SAcaBRjIASgAEhIKCnBhZ2VfdG9rZW4YAyABKAkiWAoUTGlzdFVzZXJPcmdzUmVzcG9uc2USJwoEb3JncxgBIAMoCzIZLmxvY28ub3JnLnYxLk9yZ2FuaXphdGlvbhIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkiZAoVTGlzdE9yZ01lbWJlcnNSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESHQoJcGFnZV9zaXplGAIgASgFQgq6SAcaBRjIASgAEhIKCnBhZ2VfdG9rZW4YAyABKAkiWgoWTGlzdE9yZ01lbWJlcnNSZXNwb25zZRInCgdtZW1iZXJzGAEgAygLMhYubG9jby5vcmcudjEuT3JnTWVtYmVyEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSI8CglPcmdNZW1iZXISHwoEdXNlchgBIAEoCzIRLmxvY28ub3JnLnYxLlVzZXISDgoGc2NvcGVzGAIgAygJIkoKE0FkZE9yZ01lbWJlclJlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIZCgd1c2VyX2lkGAIgASgJQgi6SAVyA7ABASIWChRBZGRPcmdNZW1iZXJSZXNwb25zZSJNChZSZW1vdmVPcmdNZW1iZXJSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESGQoHdXNlcl9pZBgCIAEoCUIIukgFcgOwAQEiGQoXUmVtb3ZlT3JnTWVtYmVyUmVzcG9uc2UiQwoEVXNlchIKCgJpZBgBIAEoCRINCgVlbWFpbBgCIAEoCRIMCgRuYW1lGAMgASgJEhIKCmF2YXRhcl91cmwYBCABKAkiUwoQVXBkYXRlT3JnUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEhwKBG5hbWUYAiABKAlCCbpIBnIEEAEYZEgAiAEBQgcKBV9uYW1lIiMKEVVwZGF0ZU9yZ1Jlc3BvbnNlEg4KBm9yZ19pZBgBIAEoCSIsChBEZWxldGVPcmdSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQEiEwoRRGVsZXRlT3JnUmVzcG9uc2UiSQoRU3VzcGVuZE9yZ1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIaCgZyZWFzb24YAiABKAlCCrpIB3IFEAEY9AMiRQoSU3VzcGVuZE9yZ1Jlc3BvbnNlEi8KDG9yZ2FuaXphdGlvbhgBIAEoCzIZLmxvY28ub3JnLnYxLk9yZ2FuaXphdGlvbiIsChBSZXN1bWVPcmdSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQEiRAoRUmVzdW1lT3JnUmVzcG9uc2USLwoMb3JnYW5pemF0aW9uGAEgASgLMhkubG9jby5vcmcudjEuT3JnYW5pemF0aW9uMrEGCgpPcmdTZXJ2aWNlEkoKCUNyZWF0ZU9yZxIdLmxvY28ub3JnLnYxLkNyZWF0ZU9yZ1JlcXVlc3QaHi5sb2NvLm9yZy52MS5DcmVhdGVPcmdSZXNwb25zZRJBCgZHZXRPcmcSGi5sb2NvLm9yZy52MS5HZXRPcmdSZXF1ZXN0GhsubG9jby5vcmcudjEuR2V0T3JnUmVzcG9uc2USSgoJVXBkYXRlT3JnEh0ubG9jby5vcmcudjEuVXBkYXRlT3JnUmVxdWVzdBoeLmxvY28ub3JnLnYxLlVwZGF0ZU9yZ1Jlc3BvbnNlEkoKCURlbGV0ZU9yZxIdLmxvY28ub3JnLnYxLkRlbGV0ZU9yZ1JlcXVlc3QaHi5sb2NvLm9yZy52MS5EZWxldGVPcmdSZXNwb25zZRJTCgxMaXN0VXNlck9yZ3MSIC5sb2NvLm9yZy52MS5MaXN0VXNlck9yZ3NSZXF1ZXN0GiEubG9jby5vcmcudjEuTGlzdFVzZXJPcmdzUmVzcG9uc2USWQoOTGlzdE9yZ01lbWJlcnMSIi5sb2NvLm9yZy52MS5MaXN0T3JnTWVtYmVyc1JlcXVlc3QaIy5sb2NvLm9yZy52MS5MaXN0T3JnTWVtYmVyc1Jlc3BvbnNlElMKDEFkZE9yZ01lbWJlchIgLmxvY28ub3JnLnYxLkFkZE9yZ01lbWJlclJlcXVlc3QaIS5sb2NvLm9yZy52MS5BZGRPcmdNZW1iZXJSZXNwb25zZRJcCg9SZW1vdmVPcmdNZW1iZXISIy5sb2NvLm9yZy52MS5SZW1vdmVPcmdNZW1iZXJSZXF1ZXN0GiQubG9jby5vcmcudjEuUmVtb3ZlT3JnTWVtYmVyUmVzcG9uc2USTQoKU3VzcGVuZE9yZxIeLmxvY28ub3JnLnYxLlN1c3BlbmRPcmdSZXF1ZXN0Gh8ubG9jby5vcmcudjEuU3VzcGVuZE9yZ1Jlc3BvbnNlEkoKCVJlc3VtZU9yZxIdLmxvY28ub3JnLnYxLlJlc3VtZU9yZ1JlcXVlc3QaHi5sb2NvLm9yZy52MS5SZXN1bWVPcmdSZXNwb25zZUI0WjJnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL29yZy92MTtvcmd2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * Organization represents a top-level organization container for users, workspaces, and resources.
@@ -45,6 +45,20 @@ export type Organization = Message<"loco.org.v1.Organization"> & {
    * @generated from field: google.protobuf.Timestamp updated_at = 5;
    */
   updatedAt?: Timestamp | undefined;
+
+  /**
+   * suspended_at is set while an operator has suspended the organization.
+   *
+   * @generated from field: google.protobuf.Timestamp suspended_at = 6;
+   */
+  suspendedAt?: Timestamp | undefined;
+
+  /**
+   * suspension_reason is the operator's reason, shown to the organization's members.
+   *
+   * @generated from field: string suspension_reason = 7;
+   */
+  suspensionReason: string;
 };
 
 /**
@@ -77,6 +91,20 @@ export type OrganizationJson = {
    * @generated from field: google.protobuf.Timestamp updated_at = 5;
    */
   updatedAt?: TimestampJson;
+
+  /**
+   * suspended_at is set while an operator has suspended the organization.
+   *
+   * @generated from field: google.protobuf.Timestamp suspended_at = 6;
+   */
+  suspendedAt?: TimestampJson;
+
+  /**
+   * suspension_reason is the operator's reason, shown to the organization's members.
+   *
+   * @generated from field: string suspension_reason = 7;
+   */
+  suspensionReason?: string;
 };
 
 /**
@@ -764,6 +792,140 @@ export const DeleteOrgResponseSchema: GenMessage<DeleteOrgResponse, {jsonType: D
   messageDesc(file_loco_org_v1_org, 18);
 
 /**
+ * SuspendOrgRequest is the request to suspend an organization.
+ *
+ * @generated from message loco.org.v1.SuspendOrgRequest
+ */
+export type SuspendOrgRequest = Message<"loco.org.v1.SuspendOrgRequest"> & {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId: string;
+
+  /**
+   * @generated from field: string reason = 2;
+   */
+  reason: string;
+};
+
+/**
+ * SuspendOrgRequest is the request to suspend an organization.
+ *
+ * @generated from message loco.org.v1.SuspendOrgRequest
+ */
+export type SuspendOrgRequestJson = {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId?: string;
+
+  /**
+   * @generated from field: string reason = 2;
+   */
+  reason?: string;
+};
+
+/**
+ * Describes the message loco.org.v1.SuspendOrgRequest.
+ * Use `create(SuspendOrgRequestSchema)` to create a new message.
+ */
+export const SuspendOrgRequestSchema: GenMessage<SuspendOrgRequest, {jsonType: SuspendOrgRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 19);
+
+/**
+ * SuspendOrgResponse is the organization after the request.
+ *
+ * @generated from message loco.org.v1.SuspendOrgResponse
+ */
+export type SuspendOrgResponse = Message<"loco.org.v1.SuspendOrgResponse"> & {
+  /**
+   * @generated from field: loco.org.v1.Organization organization = 1;
+   */
+  organization?: Organization | undefined;
+};
+
+/**
+ * SuspendOrgResponse is the organization after the request.
+ *
+ * @generated from message loco.org.v1.SuspendOrgResponse
+ */
+export type SuspendOrgResponseJson = {
+  /**
+   * @generated from field: loco.org.v1.Organization organization = 1;
+   */
+  organization?: OrganizationJson;
+};
+
+/**
+ * Describes the message loco.org.v1.SuspendOrgResponse.
+ * Use `create(SuspendOrgResponseSchema)` to create a new message.
+ */
+export const SuspendOrgResponseSchema: GenMessage<SuspendOrgResponse, {jsonType: SuspendOrgResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 20);
+
+/**
+ * ResumeOrgRequest is the request to resume a suspended organization.
+ *
+ * @generated from message loco.org.v1.ResumeOrgRequest
+ */
+export type ResumeOrgRequest = Message<"loco.org.v1.ResumeOrgRequest"> & {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId: string;
+};
+
+/**
+ * ResumeOrgRequest is the request to resume a suspended organization.
+ *
+ * @generated from message loco.org.v1.ResumeOrgRequest
+ */
+export type ResumeOrgRequestJson = {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId?: string;
+};
+
+/**
+ * Describes the message loco.org.v1.ResumeOrgRequest.
+ * Use `create(ResumeOrgRequestSchema)` to create a new message.
+ */
+export const ResumeOrgRequestSchema: GenMessage<ResumeOrgRequest, {jsonType: ResumeOrgRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 21);
+
+/**
+ * ResumeOrgResponse is the organization after the request.
+ *
+ * @generated from message loco.org.v1.ResumeOrgResponse
+ */
+export type ResumeOrgResponse = Message<"loco.org.v1.ResumeOrgResponse"> & {
+  /**
+   * @generated from field: loco.org.v1.Organization organization = 1;
+   */
+  organization?: Organization | undefined;
+};
+
+/**
+ * ResumeOrgResponse is the organization after the request.
+ *
+ * @generated from message loco.org.v1.ResumeOrgResponse
+ */
+export type ResumeOrgResponseJson = {
+  /**
+   * @generated from field: loco.org.v1.Organization organization = 1;
+   */
+  organization?: OrganizationJson;
+};
+
+/**
+ * Describes the message loco.org.v1.ResumeOrgResponse.
+ * Use `create(ResumeOrgResponseSchema)` to create a new message.
+ */
+export const ResumeOrgResponseSchema: GenMessage<ResumeOrgResponse, {jsonType: ResumeOrgResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 22);
+
+/**
  * OrgService manages organizations.
  *
  * @generated from service loco.org.v1.OrgService
@@ -842,6 +1004,29 @@ export const OrgService: GenService<{
     methodKind: "unary";
     input: typeof RemoveOrgMemberRequestSchema;
     output: typeof RemoveOrgMemberResponseSchema;
+  },
+  /**
+   * SuspendOrg stops every workload of the organization and rejects deployments until ResumeOrg.
+   * It keeps resources, specs, secrets, domains and deployment history. It requires system:admin.
+   * Suspending a suspended organization changes nothing and keeps the first reason.
+   *
+   * @generated from rpc loco.org.v1.OrgService.SuspendOrg
+   */
+  suspendOrg: {
+    methodKind: "unary";
+    input: typeof SuspendOrgRequestSchema;
+    output: typeof SuspendOrgResponseSchema;
+  },
+  /**
+   * ResumeOrg runs again what the organization's active deployments describe. It requires system:admin.
+   * Resuming an organization that is not suspended changes nothing.
+   *
+   * @generated from rpc loco.org.v1.OrgService.ResumeOrg
+   */
+  resumeOrg: {
+    methodKind: "unary";
+    input: typeof ResumeOrgRequestSchema;
+    output: typeof ResumeOrgResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_loco_org_v1_org, 0);

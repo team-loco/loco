@@ -78,6 +78,7 @@ UPDATE deployments
 SET status = 'deploying', message = 'Applying environment secrets', completed_at = NULL, updated_at = NOW()
 FROM rolled
 WHERE deployments.id = rolled.deployment_id AND deployments.is_active
+  AND NOT resource_suspended(deployments.resource_id)
 )
 SELECT id, cluster_id, desired_revision FROM rolled
 `
@@ -188,7 +189,8 @@ func (q *Queries) GetPlacementForResourceCluster(ctx context.Context, arg GetPla
 
 const listClusterPlacementRevisions = `-- name: ListClusterPlacementRevisions :many
 SELECT id, desired_revision, desired_deleted, applied_revision,
-       (apply_failed OR COALESCE(retry_after > NOW(), false))::boolean AS send_held
+       (apply_failed OR COALESCE(retry_after > NOW(), false))::boolean AS send_held,
+       resource_suspended(placements.resource_id)::boolean AS suspended
 FROM placements
 WHERE cluster_id = $1
 `
@@ -199,6 +201,7 @@ type ListClusterPlacementRevisionsRow struct {
 	DesiredDeleted  bool      `json:"desiredDeleted"`
 	AppliedRevision int64     `json:"appliedRevision"`
 	SendHeld        bool      `json:"sendHeld"`
+	Suspended       bool      `json:"suspended"`
 }
 
 func (q *Queries) ListClusterPlacementRevisions(ctx context.Context, clusterID uuid.UUID) ([]ListClusterPlacementRevisionsRow, error) {
@@ -216,6 +219,7 @@ func (q *Queries) ListClusterPlacementRevisions(ctx context.Context, clusterID u
 			&i.DesiredDeleted,
 			&i.AppliedRevision,
 			&i.SendHeld,
+			&i.Suspended,
 		); err != nil {
 			return nil, err
 		}
@@ -261,7 +265,9 @@ func (q *Queries) ListPendingPlacements(ctx context.Context, clusterID uuid.UUID
 }
 
 const listPlacementsByIDs = `-- name: ListPlacementsByIDs :many
-SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_names, desired_revision, desired_spec, desired_deleted, applied_revision, applied_at, applied_error, retry_after, apply_attempts, apply_failed, observed_revision, ready, ready_replicas, status_phase, status_message, status_updated_at, created_at, updated_at FROM placements
+SELECT placements.id, placements.resource_id, placements.cluster_id, placements.region, placements.deployment_id, placements.environment_id, placements.secret_names, placements.desired_revision, placements.desired_spec, placements.desired_deleted, placements.applied_revision, placements.applied_at, placements.applied_error, placements.retry_after, placements.apply_attempts, placements.apply_failed, placements.observed_revision, placements.ready, placements.ready_replicas, placements.status_phase, placements.status_message, placements.status_updated_at, placements.created_at, placements.updated_at,
+       resource_suspended(placements.resource_id)::boolean AS suspended
+FROM placements
 WHERE cluster_id = $1 AND id = ANY($2::uuid[])
   AND NOT apply_failed
   AND (retry_after IS NULL OR retry_after <= NOW())
@@ -272,40 +278,46 @@ type ListPlacementsByIDsParams struct {
 	Ids       []uuid.UUID `json:"ids"`
 }
 
-func (q *Queries) ListPlacementsByIDs(ctx context.Context, arg ListPlacementsByIDsParams) ([]Placement, error) {
+type ListPlacementsByIDsRow struct {
+	Placement Placement `json:"placement"`
+	Suspended bool      `json:"suspended"`
+}
+
+func (q *Queries) ListPlacementsByIDs(ctx context.Context, arg ListPlacementsByIDsParams) ([]ListPlacementsByIDsRow, error) {
 	rows, err := q.db.Query(ctx, listPlacementsByIDs, arg.ClusterID, arg.Ids)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Placement
+	var items []ListPlacementsByIDsRow
 	for rows.Next() {
-		var i Placement
+		var i ListPlacementsByIDsRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.ResourceID,
-			&i.ClusterID,
-			&i.Region,
-			&i.DeploymentID,
-			&i.EnvironmentID,
-			&i.SecretNames,
-			&i.DesiredRevision,
-			&i.DesiredSpec,
-			&i.DesiredDeleted,
-			&i.AppliedRevision,
-			&i.AppliedAt,
-			&i.AppliedError,
-			&i.RetryAfter,
-			&i.ApplyAttempts,
-			&i.ApplyFailed,
-			&i.ObservedRevision,
-			&i.Ready,
-			&i.ReadyReplicas,
-			&i.StatusPhase,
-			&i.StatusMessage,
-			&i.StatusUpdatedAt,
-			&i.CreatedAt,
-			&i.UpdatedAt,
+			&i.Placement.ID,
+			&i.Placement.ResourceID,
+			&i.Placement.ClusterID,
+			&i.Placement.Region,
+			&i.Placement.DeploymentID,
+			&i.Placement.EnvironmentID,
+			&i.Placement.SecretNames,
+			&i.Placement.DesiredRevision,
+			&i.Placement.DesiredSpec,
+			&i.Placement.DesiredDeleted,
+			&i.Placement.AppliedRevision,
+			&i.Placement.AppliedAt,
+			&i.Placement.AppliedError,
+			&i.Placement.RetryAfter,
+			&i.Placement.ApplyAttempts,
+			&i.Placement.ApplyFailed,
+			&i.Placement.ObservedRevision,
+			&i.Placement.Ready,
+			&i.Placement.ReadyReplicas,
+			&i.Placement.StatusPhase,
+			&i.Placement.StatusMessage,
+			&i.Placement.StatusUpdatedAt,
+			&i.Placement.CreatedAt,
+			&i.Placement.UpdatedAt,
+			&i.Suspended,
 		); err != nil {
 			return nil, err
 		}
@@ -384,7 +396,8 @@ SET applied_revision = desired_revision,
     apply_failed = false,
     updated_at = NOW()
 WHERE id = $1 AND cluster_id = $2 AND desired_revision = $3 AND NOT desired_deleted
-RETURNING deployment_id
+RETURNING deployment_id,
+          resource_suspended(placements.resource_id)::boolean AS suspended
 `
 
 type MarkPlacementAppliedParams struct {
@@ -393,11 +406,16 @@ type MarkPlacementAppliedParams struct {
 	DesiredRevision int64     `json:"desiredRevision"`
 }
 
-func (q *Queries) MarkPlacementApplied(ctx context.Context, arg MarkPlacementAppliedParams) (*uuid.UUID, error) {
+type MarkPlacementAppliedRow struct {
+	DeploymentID *uuid.UUID `json:"deploymentId"`
+	Suspended    bool       `json:"suspended"`
+}
+
+func (q *Queries) MarkPlacementApplied(ctx context.Context, arg MarkPlacementAppliedParams) (MarkPlacementAppliedRow, error) {
 	row := q.db.QueryRow(ctx, markPlacementApplied, arg.ID, arg.ClusterID, arg.DesiredRevision)
-	var deployment_id *uuid.UUID
-	err := row.Scan(&deployment_id)
-	return deployment_id, err
+	var i MarkPlacementAppliedRow
+	err := row.Scan(&i.DeploymentID, &i.Suspended)
+	return i, err
 }
 
 const markPlacementDeleted = `-- name: MarkPlacementDeleted :many
@@ -494,6 +512,48 @@ func (q *Queries) NotifyClusterPlacements(ctx context.Context, clusterID string)
 	return err
 }
 
+const resumeOrgPlacements = `-- name: ResumeOrgPlacements :many
+UPDATE placements
+SET desired_revision = placements.desired_revision + 1,
+    applied_error = NULL,
+    retry_after = NULL,
+    apply_attempts = 0,
+    apply_failed = false,
+    updated_at = NOW()
+FROM resources r
+JOIN workspaces w ON w.id = r.workspace_id
+WHERE placements.resource_id = r.id
+  AND w.org_id = $1
+  AND NOT placements.desired_deleted
+RETURNING placements.id, placements.cluster_id, placements.desired_revision
+`
+
+type ResumeOrgPlacementsRow struct {
+	ID              uuid.UUID `json:"id"`
+	ClusterID       uuid.UUID `json:"clusterId"`
+	DesiredRevision int64     `json:"desiredRevision"`
+}
+
+func (q *Queries) ResumeOrgPlacements(ctx context.Context, orgID uuid.UUID) ([]ResumeOrgPlacementsRow, error) {
+	rows, err := q.db.Query(ctx, resumeOrgPlacements, orgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ResumeOrgPlacementsRow
+	for rows.Next() {
+		var i ResumeOrgPlacementsRow
+		if err := rows.Scan(&i.ID, &i.ClusterID, &i.DesiredRevision); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setPlacementApplyError = `-- name: SetPlacementApplyError :one
 WITH policy AS (
     SELECT p.id,
@@ -513,7 +573,8 @@ SET applied_error = $1,
     updated_at = NOW()
 FROM policy
 WHERE placements.id = policy.id
-RETURNING placements.deployment_id, placements.desired_deleted, placements.apply_failed
+RETURNING placements.deployment_id, placements.desired_deleted, placements.apply_failed,
+          resource_suspended(placements.resource_id)::boolean AS suspended
 `
 
 type SetPlacementApplyErrorParams struct {
@@ -530,6 +591,7 @@ type SetPlacementApplyErrorRow struct {
 	DeploymentID   *uuid.UUID `json:"deploymentId"`
 	DesiredDeleted bool       `json:"desiredDeleted"`
 	ApplyFailed    bool       `json:"applyFailed"`
+	Suspended      bool       `json:"suspended"`
 }
 
 func (q *Queries) SetPlacementApplyError(ctx context.Context, arg SetPlacementApplyErrorParams) (SetPlacementApplyErrorRow, error) {
@@ -543,8 +605,59 @@ func (q *Queries) SetPlacementApplyError(ctx context.Context, arg SetPlacementAp
 		arg.DesiredRevision,
 	)
 	var i SetPlacementApplyErrorRow
-	err := row.Scan(&i.DeploymentID, &i.DesiredDeleted, &i.ApplyFailed)
+	err := row.Scan(
+		&i.DeploymentID,
+		&i.DesiredDeleted,
+		&i.ApplyFailed,
+		&i.Suspended,
+	)
 	return i, err
+}
+
+const suspendOrgPlacements = `-- name: SuspendOrgPlacements :many
+UPDATE placements
+SET desired_revision = placements.desired_revision + 1,
+    applied_error = NULL,
+    retry_after = NULL,
+    apply_attempts = 0,
+    apply_failed = false,
+    ready = false,
+    ready_replicas = 0,
+    status_phase = '',
+    status_message = '',
+    updated_at = NOW()
+FROM resources r
+JOIN workspaces w ON w.id = r.workspace_id
+WHERE placements.resource_id = r.id
+  AND w.org_id = $1
+  AND NOT placements.desired_deleted
+RETURNING placements.id, placements.cluster_id, placements.desired_revision
+`
+
+type SuspendOrgPlacementsRow struct {
+	ID              uuid.UUID `json:"id"`
+	ClusterID       uuid.UUID `json:"clusterId"`
+	DesiredRevision int64     `json:"desiredRevision"`
+}
+
+func (q *Queries) SuspendOrgPlacements(ctx context.Context, orgID uuid.UUID) ([]SuspendOrgPlacementsRow, error) {
+	rows, err := q.db.Query(ctx, suspendOrgPlacements, orgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SuspendOrgPlacementsRow
+	for rows.Next() {
+		var i SuspendOrgPlacementsRow
+		if err := rows.Scan(&i.ID, &i.ClusterID, &i.DesiredRevision); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updatePlacementStatus = `-- name: UpdatePlacementStatus :one
@@ -559,6 +672,7 @@ SET observed_revision = $1,
 WHERE id = $6
   AND cluster_id = $7
   AND NOT desired_deleted
+  AND NOT resource_suspended(placements.resource_id)
   AND $1::bigint >= observed_revision
   AND $1::bigint <= desired_revision
 RETURNING deployment_id, desired_revision

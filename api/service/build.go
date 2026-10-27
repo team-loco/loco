@@ -280,6 +280,9 @@ func (s *BuildServer) StartBuild(
 		if errors.Is(txErr, errBuildNotQueueable) || errors.Is(txErr, ErrClusterNotAssignable) {
 			return nil, rpcerr.New(connect.CodeFailedPrecondition, txErr)
 		}
+		if connectErr, isConnect := errors.AsType[*connect.Error](txErr); isConnect {
+			return nil, connectErr
+		}
 		slog.ErrorContext(ctx, "failed to queue build", "error", txErr, "buildId", build.ID)
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
@@ -314,6 +317,9 @@ func queueBuild(
 	var supersededSources []buildSource
 	err := withTx(ctx, pool, func(qtx *genDb.Queries) error {
 		supersededSources = nil
+		if activeErr := ensureOrganizationActive(ctx, qtx, resourceID); activeErr != nil {
+			return activeErr
+		}
 		if lockErr := lockResource(ctx, qtx, resourceID); lockErr != nil {
 			return lockErr
 		}

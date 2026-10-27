@@ -259,6 +259,17 @@ CREATE TABLE
         CHECK (desired_deleted OR desired_spec IS NOT NULL)
     );
 
+-- +goose StatementBegin
+CREATE FUNCTION resource_suspended (resource UUID) RETURNS BOOLEAN LANGUAGE sql STABLE AS $$
+    SELECT EXISTS (
+        SELECT 1 FROM resources r
+        JOIN workspaces w ON w.id = r.workspace_id
+        JOIN organizations o ON o.id = w.org_id
+        WHERE r.id = resource AND o.suspended_at IS NOT NULL
+    )
+$$;
+-- +goose StatementEnd
+
 CREATE INDEX idx_placements_pending ON placements (cluster_id)
 WHERE
     applied_revision < desired_revision;
@@ -315,6 +326,7 @@ WHERE
 
 -- +goose Down
 DROP TABLE IF EXISTS builds;
+DROP FUNCTION IF EXISTS resource_suspended;
 DROP TABLE IF EXISTS placements;
 DROP TABLE IF EXISTS deployments;
 DROP TABLE IF EXISTS resource_domains;
