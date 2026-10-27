@@ -94,7 +94,10 @@ jobs:
             args: 03_builds
             timeout: 45
           - name: Build Dispatch E2E
-            args: 04_build_dispatch 05_cli_build_deploy
+            args: 04_build_dispatch
+            timeout: 45
+          - name: CLI Build Deploy E2E
+            args: 05_cli_build_deploy
             timeout: 45
           - name: Build E2E (builds disabled)
             args: --builds-disabled builds_disabled
