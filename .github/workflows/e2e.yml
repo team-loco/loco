@@ -1,0 +1,166 @@
+name: E2E
+
+on:
+  pull_request:
+    paths:
+      - "agent/**"
+      - "api/**"
+      - "builder/**"
+      - "cmd/**"
+      - "controller/**"
+      - "gen/go/**"
+      - "internal/**"
+      - "k8sapi/**"
+      - "observability-proxy/**"
+      - "proto/**"
+      - "charts/loco-control-plane/**"
+      - "charts/loco-worker/**"
+      - "manifests/namespaces/**"
+      - "dev/compose.yaml"
+      - "dev/api.env"
+      - "dev/openbao/**"
+      - "dev/registry/**"
+      - "mise-tasks/cluster/**"
+      - "mise-tasks/crds/**"
+      - "mise-tasks/e2e/**"
+      - "mise-tasks/helm/**"
+      - "tests/e2e/**"
+      - "tests/conformance/transit/compose.yaml"
+      - "go.mod"
+      - "go.sum"
+      - "mise.toml"
+      - "mise.lock"
+      - ".github/actions/setup-tools/**"
+      - ".github/workflows/e2e.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  E2E_RUN_ID: ci
+  E2E_ARTIFACT: e2e-build
+
+jobs:
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-tools
+        with:
+          go-cache: e2e
+
+      - name: Test the e2e runner's test file selection
+        run: mise run test:e2e-runner
+
+      - name: Build every image and binary the suites run
+        run: ./tests/e2e/run.sh --build-only --observability
+
+      - name: Pack the images and binaries
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/$E2E_ARTIFACT"
+          mapfile -t images < <(docker images --filter "reference=*:e2e-${E2E_RUN_ID}" --format '{{.Repository}}:{{.Tag}}')
+          docker save -o "$RUNNER_TEMP/$E2E_ARTIFACT/images.tar" "${images[@]}"
+          tar -cf "$RUNNER_TEMP/$E2E_ARTIFACT/bin.tar" -C "tests/e2e/runs/$E2E_RUN_ID" bin
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ env.E2E_ARTIFACT }}
+          path: ${{ runner.temp }}/${{ env.E2E_ARTIFACT }}
+          retention-days: 1
+          if-no-files-found: error
+
+  suite:
+    name: ${{ matrix.name }}
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ matrix.timeout }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Build E2E
+            args: 03_builds
+            timeout: 45
+          - name: Build Dispatch E2E
+            args: 04_build_dispatch 05_cli_build_deploy
+            timeout: 45
+          - name: Build E2E (builds disabled)
+            args: --builds-disabled builds_disabled
+            timeout: 45
+          - name: Cluster Attachment E2E
+            args: --builds-disabled cluster_attachment
+            timeout: 45
+          - name: Config E2E
+            args: config_apply
+            timeout: 45
+          - name: Private Discovery E2E
+            args: discovery
+            timeout: 45
+            diagnostics: true
+          - name: Ingress E2E
+            args: --builds-disabled ingress
+            timeout: 45
+          - name: Observability E2E
+            args: --observability observability
+            timeout: 60
+            evidence: true
+          - name: Resource Status E2E
+            args: --builds-disabled resource_status
+            timeout: 45
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-tools
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ env.E2E_ARTIFACT }}
+          path: ${{ runner.temp }}/${{ env.E2E_ARTIFACT }}
+
+      - name: Load the images and binaries
+        run: |
+          set -euo pipefail
+          docker load -i "$RUNNER_TEMP/$E2E_ARTIFACT/images.tar"
+          mkdir -p "tests/e2e/runs/$E2E_RUN_ID"
+          tar -xf "$RUNNER_TEMP/$E2E_ARTIFACT/bin.tar" -C "tests/e2e/runs/$E2E_RUN_ID"
+
+      - name: Test discovery failure diagnostics
+        if: matrix.diagnostics
+        run: mise run test:e2e-diagnostics
+
+      - name: Run the end-to-end tests
+        env:
+          E2E_ARGS: ${{ matrix.args }}
+        run: |
+          set -euo pipefail
+          read -ra args <<<"$E2E_ARGS"
+          ./tests/e2e/run.sh --no-teardown --skip-build "${args[@]}"
+
+      - name: Upload discovery failure diagnostics
+        if: failure() && matrix.diagnostics
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: discovery-failure-diagnostics
+          path: tests/e2e/out/discovery
+          if-no-files-found: warn
+
+      - name: Upload the evidence report
+        if: always() && matrix.evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: observability-evidence
+          path: tests/e2e/out/observability-evidence.md
+          if-no-files-found: warn

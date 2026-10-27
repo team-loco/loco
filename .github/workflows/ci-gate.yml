@@ -6,24 +6,19 @@ on:
     workflows:
       - Auth Conformance
       - Buf
-      - Build E2E
       - Chart Contracts
       - CI Gate Trigger
-      - Config E2E
       - Controller Helm Chart Tests
       - Docker
       - Docs Drift
       - Documentation
+      - E2E
       - Go Vulnerabilities
-      - Ingress E2E
       - Lint
       - Local Stack
       - Observability Chart
-      - Observability E2E
       - OSV
-      - Private Discovery E2E
       - Publish platform release
-      - Resource Status E2E
       - Tests
       - Transit Conformance
       - Web

@@ -38,6 +38,20 @@ log_group_end() {
     fi
 }
 
+suite_selected() {
+    local name=$1 filter
+    shift
+    if [ $# -eq 0 ]; then
+        return 0
+    fi
+    for filter in "$@"; do
+        if [[ $name == *"$filter"* ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
 # Wait for a condition to become true.
 # Usage: wait_for "description" <max_seconds> <command...>
 wait_for() {
