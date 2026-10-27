@@ -3,7 +3,6 @@ package mail
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -28,15 +27,11 @@ type hookTransport struct {
 	client *http.Client
 }
 
-func newHook(u *url.URL, secret string, tlsConfig *tls.Config) (*hookTransport, error) {
+func newHook(u *url.URL, secret string) (*hookTransport, error) {
 	if secret == "" || !validHookSecret(secret) {
 		return nil, ErrHookSecret
 	}
-	client := &http.Client{Timeout: hookTimeout}
-	if tlsConfig != nil {
-		client.Transport = &http.Transport{TLSClientConfig: tlsConfig}
-	}
-	return &hookTransport{url: u.String(), secret: secret, client: client}, nil
+	return &hookTransport{url: u.String(), secret: secret, client: &http.Client{Timeout: hookTimeout}}, nil
 }
 
 func (t *hookTransport) Send(ctx context.Context, msg Message) error {

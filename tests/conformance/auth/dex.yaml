@@ -12,14 +12,6 @@ staticPasswords:
     hash: "$2y$10$vfSi9m1OEnaluYBI3vRm1.Wi6fm//wfdPE4aN.IvABgykcA.5NBsi"
     username: carol
     userID: 08a8684b-db88-4b73-90a9-3cd1661f5466
-  - email: dave@dex.test
-    hash: "$2y$10$YRVG6fPDo0Jn/s3x2ghEQ./nVcHsfIpJiLHv6iQWysrGEm6t8h7.W"
-    username: dave
-    userID: 7c174010-b2ea-4c63-bfa7-cfa143b5de15
-  - email: erin@dex.test
-    hash: "$2y$10$84vLAUPPqDe2B/GsEw4rZeNi9RvIP4.z1awhxpr1g4907PfYUW5/q"
-    username: erin
-    userID: 696b9ef5-8b3a-47ad-9e49-f9ea60e966d8
 staticClients:
   - id: loco
     name: Loco

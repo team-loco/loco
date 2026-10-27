@@ -2,7 +2,6 @@ package mail
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	netmail "net/mail"
@@ -42,21 +41,7 @@ type Transport interface {
 	Send(ctx context.Context, msg Message) error
 }
 
-type Option func(*options)
-
-type options struct {
-	tlsConfig *tls.Config
-}
-
-func WithTLSConfig(config *tls.Config) Option {
-	return func(o *options) { o.tlsConfig = config }
-}
-
-func ParseTransport(raw, from, hookSecret string, opts ...Option) (Transport, error) {
-	var applied options
-	for _, opt := range opts {
-		opt(&applied)
-	}
+func ParseTransport(raw, from, hookSecret string) (Transport, error) {
 	if raw == "" {
 		return none{}, nil
 	}
@@ -76,9 +61,9 @@ func ParseTransport(raw, from, hookSecret string, opts ...Option) (Transport, er
 	}
 	switch u.Scheme {
 	case schemeSMTP:
-		return newSMTP(u, sender, applied.tlsConfig)
+		return newSMTP(u, sender)
 	case schemeHTTPS:
-		return newHook(u, hookSecret, applied.tlsConfig)
+		return newHook(u, hookSecret)
 	}
 	return nil, ErrUnsupportedScheme
 }
