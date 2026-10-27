@@ -22,6 +22,7 @@ SNAPSHOT_PREFIX=$(yq '.openbao.snapshots.s3.prefix' "$CHART_VALUES")
 SECRET_RESOURCE=00000000-0000-7000-8000-0000000000a1
 TIMEOUT=300s
 CONTROL_PLANE_TIMEOUT=10m
+LEADER_ATTEMPTS=120
 KEEP=false
 SKIP_BUILD=false
 for option in "$@"; do
@@ -216,7 +217,15 @@ init_secret() {
 }
 
 generate_root() {
-    local otp nonce encoded key
+    local otp nonce encoded key attempt=0
+    until [[ -n $(bao read -field=leader_address sys/leader 2>/dev/null) ]]; do
+        attempt=$((attempt + 1))
+        if ((attempt >= LEADER_ATTEMPTS)); then
+            printf 'OpenBao elected no leader\n' >&2
+            return 1
+        fi
+        sleep 1
+    done
     export GENERATE_ROOT_TOKEN
     GENERATE_ROOT_TOKEN=$(init_secret generate-root-token)
     otp=$(generating_root -generate-otp)

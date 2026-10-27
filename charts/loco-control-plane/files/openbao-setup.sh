@@ -30,9 +30,9 @@ wait_reachable() {
 
 wait_unsealed() {
 	attempt=0
-	until bao status >/dev/null 2>&1; do
+	until bao status >/dev/null 2>&1 && [ -n "$(bao read -field=leader_address sys/leader 2>/dev/null || true)" ]; do
 		attempt=$((attempt + 1))
-		[ $((attempt % progress_every)) -ne 0 ] || echo "Waiting for OpenBao at $BAO_ADDR to unseal"
+		[ $((attempt % progress_every)) -ne 0 ] || echo "Waiting for OpenBao at $BAO_ADDR to unseal and elect a leader"
 		sleep 1
 	done
 }
