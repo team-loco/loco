@@ -1,0 +1,196 @@
+suite: certificates
+release:
+  name: loco-worker
+  namespace: loco-system
+values:
+  - ../ci/default-values.yaml
+set:
+  certManager.issuer.email: operator@example.test
+templates:
+  - templates/cm-issuer.yaml
+  - templates/cm-cert.yaml
+  - templates/cloudflare-secret.yml
+  - templates/gateway.yaml
+tests:
+  - it: issues from ACME by default, with the Cloudflare token the values give
+    set:
+      secrets.cloudflareToken: cloudflare-token
+    asserts:
+      - equal:
+          path: spec.acme.email
+          value: operator@example.test
+        template: templates/cm-issuer.yaml
+      - equal:
+          path: spec.issuerRef
+          value: {name: letsencrypt-prod, kind: ClusterIssuer}
+        template: templates/cm-cert.yaml
+      - isKind:
+          of: ClusterIssuer
+        template: templates/cm-issuer.yaml
+      - equal:
+          path: metadata.name
+          value: letsencrypt-prod
+        template: templates/cm-issuer.yaml
+      - equal:
+          path: stringData.api-token
+          value: cloudflare-token
+        template: templates/cloudflare-secret.yml
+
+  - it: solves with Cloudflare DNS-01 by default
+    asserts:
+      - equal:
+          path: spec.acme.solvers
+          value:
+            - dns01:
+                cloudflare:
+                  apiTokenSecretRef: {name: cloudflare-api-token-secret, key: api-token}
+        template: templates/cm-issuer.yaml
+
+  - it: renders configured Route53 solvers verbatim
+    set:
+      certManager.issuer.solvers: [{dns01: {route53: {region: us-east-1}}}]
+    asserts:
+      - equal:
+          path: spec.acme.solvers
+          value: [{dns01: {route53: {region: us-east-1}}}]
+        template: templates/cm-issuer.yaml
+      - hasDocuments:
+          count: 1
+        template: templates/cm-cert.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/cloudflare-secret.yml
+
+  - it: renders configured HTTP-01 solvers verbatim
+    set:
+      certManager.issuer.solvers:
+        - http01:
+            gatewayHTTPRoute:
+              parentRefs: [{name: edge, namespace: gateway, kind: Gateway}]
+    asserts:
+      - equal:
+          path: spec.acme.solvers
+          value:
+            - http01:
+                gatewayHTTPRoute:
+                  parentRefs: [{name: edge, namespace: gateway, kind: Gateway}]
+        template: templates/cm-issuer.yaml
+      - hasDocuments:
+          count: 1
+        template: templates/cm-cert.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/cloudflare-secret.yml
+
+  - it: renders no Cloudflare Secret without a token
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/cloudflare-secret.yml
+      - hasDocuments:
+          count: 1
+        template: templates/cm-issuer.yaml
+      - hasDocuments:
+          count: 1
+        template: templates/cm-cert.yaml
+
+  - it: needs no ACME credentials for a self-signed issuer
+    set:
+      certManager.issuer.email: ""
+      certManager.issuer.name: local
+      certManager.issuer.type: selfSigned
+    asserts:
+      - equal:
+          path: spec
+          value: {selfSigned: {}}
+        template: templates/cm-issuer.yaml
+      - notExists:
+          path: metadata.namespace
+        template: templates/cm-issuer.yaml
+      - equal:
+          path: spec.issuerRef
+          value: {name: local, kind: ClusterIssuer}
+        template: templates/cm-cert.yaml
+
+  - it: references an existing ClusterIssuer without creating credentials
+    set:
+      certManager.issuer: {create: false, name: operator-issuer, kind: ClusterIssuer}
+      secrets.cloudflareToken: cloudflare-token
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/cm-issuer.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/cloudflare-secret.yml
+      - equal:
+          path: spec.issuerRef
+          value: {name: operator-issuer, kind: ClusterIssuer}
+        template: templates/cm-cert.yaml
+
+  - it: references an existing namespaced Issuer without creating credentials
+    set:
+      certManager.issuer: {create: false, name: operator-issuer, kind: Issuer}
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/cm-issuer.yaml
+      - equal:
+          path: spec.issuerRef
+          value: {name: operator-issuer, kind: Issuer}
+        template: templates/cm-cert.yaml
+
+  - it: renders no certificate resources with an existing TLS Secret, and serves that Secret
+    set:
+      certManager.existingTLSSecret: operator-tls
+      secrets.cloudflareToken: cloudflare-token
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/cm-issuer.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/cm-cert.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/cloudflare-secret.yml
+      - equal:
+          path: spec.listeners[?(@.protocol == "HTTPS")].tls.certificateRefs
+          value: [{name: operator-tls, kind: Secret, group: ""}]
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: Gateway}
+
+  - it: serves the Secret the chart's Certificate issues
+    asserts:
+      - equal:
+          path: spec.secretName
+          value: loco-worker-tls
+        template: templates/cm-cert.yaml
+      - equal:
+          path: spec.listeners[?(@.protocol == "HTTPS")].tls.certificateRefs[0].name
+          value: loco-worker-tls
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: Gateway}
+
+  - it: rejects an unknown issuer type
+    set:
+      certManager.issuer.type: unknown
+    asserts:
+      - failedTemplate:
+          errorMessage: certManager.issuer.type must be acme or selfSigned
+        template: templates/cm-issuer.yaml
+
+  - it: rejects creating a namespaced Issuer
+    set:
+      certManager.issuer.kind: Issuer
+    asserts:
+      - failedTemplate:
+          errorMessage: certManager.issuer.kind must be ClusterIssuer when certManager.issuer.create is true
+        template: templates/cm-issuer.yaml
+
+  - it: requires an ACME email when it creates the ACME issuer
+    set:
+      certManager.issuer.email: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: "/certManager/issuer/email': minLength"

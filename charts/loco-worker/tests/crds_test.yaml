@@ -1,0 +1,20 @@
+suite: custom resource definitions
+values:
+  - ../ci/default-values.yaml
+includeCrds: true
+templates:
+  - "**/*"
+tests:
+  - it: renders no CustomResourceDefinition with builds enabled, since mise run crds:apply and the platform bundle own them
+    asserts:
+      - isKind:
+          of: CustomResourceDefinition
+        not: true
+
+  - it: renders no CustomResourceDefinition with builds disabled
+    set:
+      builds.enabled: false
+    asserts:
+      - isKind:
+          of: CustomResourceDefinition
+        not: true

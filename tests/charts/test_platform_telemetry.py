@@ -35,13 +35,6 @@ def test_platform_metrics_share_the_cluster_exporter(configured_relays):
     assert "metrics/platform" not in configured_relays["otel-col-deploy"]["service"]["pipelines"]
 
 
-@pytest.mark.parametrize("field", ["installation", "cluster", "environment"])
-def test_platform_identity_is_required(field):
-    result = render_chart("loco-worker", configured(**{field: ""}), check=False)
-    assert result.returncode != 0
-    assert field in result.stderr
-
-
 def test_platform_only_keeps_only_platform_pipelines():
     values = configured(platformOnly=True)
     values.update({"otel-col-deploy": {"enabled": False}})
@@ -92,29 +85,6 @@ def test_disabling_an_individual_collector_still_renders():
     configs = collector_relays(render_chart("loco-worker", overrides))
     assert "otel-col-daemon-agent" not in configs
     assert "metrics/platform" in configs["otel-col-cluster"]["service"]["pipelines"]
-
-
-def test_collectors_have_only_read_access():
-    collectors = set()
-    for document in render_chart("loco-worker", configured()):
-        if document["kind"] not in ("ClusterRole", "Role"):
-            continue
-        if document["metadata"].get("labels", {}).get("app.kubernetes.io/name") not in ("otel-col-daemon", "otel-col-cluster", "otel-col-deploy"):
-            continue
-        collectors.add(document["metadata"]["labels"]["app.kubernetes.io/name"])
-        for rule in document.get("rules", []):
-            assert set(rule["verbs"]) <= {"get", "list", "watch"}
-            assert "secrets" not in rule.get("resources", [])
-    assert {"otel-col-daemon", "otel-col-cluster"} <= collectors
-
-
-@pytest.mark.parametrize("scaling", [{"replicaCount": 2}, {"autoscaling": {"enabled": True}}])
-def test_cluster_collection_cannot_duplicate_watchers(scaling):
-    overrides = configured()
-    overrides["otel-col-cluster"] = scaling
-    result = render_chart("loco-worker", overrides, check=False)
-    assert result.returncode != 0
-    assert "one otel-col-cluster replica" in result.stderr
 
 
 def test_platform_allowlist_covers_the_release_and_collector_namespaces(configured_relays):

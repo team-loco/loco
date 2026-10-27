@@ -220,6 +220,65 @@ url = "https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_macOS_am
 url_api = "https://api.github.com/repos/cli/cli/releases/assets/599854716"
 provenance = "github-attestations"
 
+[[tools."github:helm-unittest/helm-unittest"]]
+version = "1.2.1"
+backend = "github:helm-unittest/helm-unittest"
+specifiers = ["1.2.1"]
+
+[tools."github:helm-unittest/helm-unittest"."platforms.linux-arm64"]
+checksum = "sha256:c66062713cd3cbb1a80d7098bd1d4a48db8438f56b43fb6377df65447f93f8de"
+checksum_source = "mise-versions"
+url = "https://github.com/helm-unittest/helm-unittest/releases/download/v1.2.1/helm-unittest-linux-arm64-1.2.1.tgz"
+url_api = "https://api.github.com/repos/helm-unittest/helm-unittest/releases/assets/607406111"
+
+[tools."github:helm-unittest/helm-unittest"."platforms.linux-arm64-musl"]
+checksum = "sha256:c66062713cd3cbb1a80d7098bd1d4a48db8438f56b43fb6377df65447f93f8de"
+checksum_source = "mise-versions"
+url = "https://github.com/helm-unittest/helm-unittest/releases/download/v1.2.1/helm-unittest-linux-arm64-1.2.1.tgz"
+url_api = "https://api.github.com/repos/helm-unittest/helm-unittest/releases/assets/607406111"
+
+[tools."github:helm-unittest/helm-unittest"."platforms.linux-x64"]
+checksum = "sha256:48e86ecc1467b009630e5954375e5d8494139f73b466df5fe8c04fa45b634939"
+checksum_source = "mise-versions"
+url = "https://github.com/helm-unittest/helm-unittest/releases/download/v1.2.1/helm-unittest-linux-amd64-1.2.1.tgz"
+url_api = "https://api.github.com/repos/helm-unittest/helm-unittest/releases/assets/607406110"
+
+[tools."github:helm-unittest/helm-unittest"."platforms.linux-x64-baseline"]
+checksum = "sha256:48e86ecc1467b009630e5954375e5d8494139f73b466df5fe8c04fa45b634939"
+checksum_source = "mise-versions"
+url = "https://github.com/helm-unittest/helm-unittest/releases/download/v1.2.1/helm-unittest-linux-amd64-1.2.1.tgz"
+url_api = "https://api.github.com/repos/helm-unittest/helm-unittest/releases/assets/607406110"
+
+[tools."github:helm-unittest/helm-unittest"."platforms.linux-x64-musl"]
+checksum = "sha256:48e86ecc1467b009630e5954375e5d8494139f73b466df5fe8c04fa45b634939"
+checksum_source = "mise-versions"
+url = "https://github.com/helm-unittest/helm-unittest/releases/download/v1.2.1/helm-unittest-linux-amd64-1.2.1.tgz"
+url_api = "https://api.github.com/repos/helm-unittest/helm-unittest/releases/assets/607406110"
+
+[tools."github:helm-unittest/helm-unittest"."platforms.linux-x64-musl-baseline"]
+checksum = "sha256:48e86ecc1467b009630e5954375e5d8494139f73b466df5fe8c04fa45b634939"
+checksum_source = "mise-versions"
+url = "https://github.com/helm-unittest/helm-unittest/releases/download/v1.2.1/helm-unittest-linux-amd64-1.2.1.tgz"
+url_api = "https://api.github.com/repos/helm-unittest/helm-unittest/releases/assets/607406110"
+
+[tools."github:helm-unittest/helm-unittest"."platforms.macos-arm64"]
+checksum = "sha256:38ec0475b9206ba62454ab0f51a7fecbb9bfe103e9a7a1426f3b799d4f432ab2"
+checksum_source = "mise-versions"
+url = "https://github.com/helm-unittest/helm-unittest/releases/download/v1.2.1/helm-unittest-macos-arm64-1.2.1.tgz"
+url_api = "https://api.github.com/repos/helm-unittest/helm-unittest/releases/assets/607406105"
+
+[tools."github:helm-unittest/helm-unittest"."platforms.macos-x64"]
+checksum = "sha256:3e57daace5249d8dafd5fd2f6fbebf773c7e53a56e904db1f903031866853158"
+checksum_source = "mise-versions"
+url = "https://github.com/helm-unittest/helm-unittest/releases/download/v1.2.1/helm-unittest-macos-amd64-1.2.1.tgz"
+url_api = "https://api.github.com/repos/helm-unittest/helm-unittest/releases/assets/607406102"
+
+[tools."github:helm-unittest/helm-unittest"."platforms.macos-x64-baseline"]
+checksum = "sha256:3e57daace5249d8dafd5fd2f6fbebf773c7e53a56e904db1f903031866853158"
+checksum_source = "mise-versions"
+url = "https://github.com/helm-unittest/helm-unittest/releases/download/v1.2.1/helm-unittest-macos-amd64-1.2.1.tgz"
+url_api = "https://api.github.com/repos/helm-unittest/helm-unittest/releases/assets/607406102"
+
 [[tools."github:kubernetes-sigs/controller-tools"]]
 version = "0.22.0"
 backend = "github:kubernetes-sigs/controller-tools"
