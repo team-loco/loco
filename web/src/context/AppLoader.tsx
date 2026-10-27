@@ -1,4 +1,4 @@
-import { createContext, use, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { createContext, use, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { LocoLogo } from "@/components/design/LocoLogo";
 import { cn } from "@/lib/utils";
@@ -19,24 +19,27 @@ const AppLoaderContext = createContext<AppLoaderApi | null>(null);
 export function AppLoaderProvider({ children }: { children: ReactNode }) {
 	const [entries, setEntries] = useState<ReadonlyMap<string, string | undefined>>(() => new Map());
 
-	const api: AppLoaderApi = {
-		set: (id, message) => {
-			setEntries((prev) => {
-				if (prev.has(id) && prev.get(id) === message) return prev;
-				const next = new Map(prev);
-				next.set(id, message);
-				return next;
-			});
-		},
-		remove: (id) => {
-			setEntries((prev) => {
-				if (!prev.has(id)) return prev;
-				const next = new Map(prev);
-				next.delete(id);
-				return next;
-			});
-		},
-	};
+	const api = useMemo<AppLoaderApi>(
+		() => ({
+			set: (id, message) => {
+				setEntries((prev) => {
+					if (prev.has(id) && prev.get(id) === message) return prev;
+					const next = new Map(prev);
+					next.set(id, message);
+					return next;
+				});
+			},
+			remove: (id) => {
+				setEntries((prev) => {
+					if (!prev.has(id)) return prev;
+					const next = new Map(prev);
+					next.delete(id);
+					return next;
+				});
+			},
+		}),
+		[],
+	);
 
 	let message: string | undefined;
 	for (const value of entries.values()) {
