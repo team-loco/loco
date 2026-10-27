@@ -16,6 +16,7 @@ func (a *Agent) reportUsage(ctx context.Context, enqueue func(*agentv1.SyncReque
 		if err != nil {
 			slog.WarnContext(ctx, "failed to build usage report", "error", err)
 		} else {
+			report.Egress, report.EgressComplete = a.egress.Counters(ctx)
 			enqueue(&agentv1.SyncRequest{Message: &agentv1.SyncRequest_Usage{Usage: report}})
 		}
 		select {

@@ -12,6 +12,7 @@ import (
 )
 
 type Querier interface {
+	AddEgressUsage(ctx context.Context, arg AddEgressUsageParams) error
 	AddSystemAdminEntries(ctx context.Context, emails []string) error
 	AddSystemAdminGrant(ctx context.Context, userID uuid.UUID) (int64, error)
 	AddUserScope(ctx context.Context, arg AddUserScopeParams) error
@@ -90,6 +91,7 @@ type Querier interface {
 	DeleteSessionForUser(ctx context.Context, arg DeleteSessionForUserParams) error
 	DeleteSessionToken(ctx context.Context, id uuid.UUID) error
 	DeleteSessionTokenByAccessHash(ctx context.Context, accessTokenHash string) error
+	DeleteStaleEgressCounters(ctx context.Context, arg DeleteStaleEgressCountersParams) error
 	DeleteStoppedBuildRegistryCredentials(ctx context.Context) (int64, error)
 	DeleteUser(ctx context.Context, id uuid.UUID) error
 	DeleteWebSessionByAccessHash(ctx context.Context, accessTokenHash string) error
@@ -175,11 +177,12 @@ type Querier interface {
 	// merged into non-overlapping intervals.
 	ListClusterPlacementWindows(ctx context.Context, arg ListClusterPlacementWindowsParams) ([]ListClusterPlacementWindowsRow, error)
 	ListClusterRegions(ctx context.Context, arg ListClusterRegionsParams) ([]ListClusterRegionsRow, error)
-	ListClusterUsageReportTimes(ctx context.Context) ([]ListClusterUsageReportTimesRow, error)
+	ListClusterUsageReportTimes(ctx context.Context, feed string) ([]ListClusterUsageReportTimesRow, error)
 	ListClusterWorkloads(ctx context.Context, clusterID uuid.UUID) ([]ListClusterWorkloadsRow, error)
 	ListDeclaredSecretNames(ctx context.Context, arg ListDeclaredSecretNamesParams) ([]string, error)
 	ListDeletableBuildImages(ctx context.Context, arg ListDeletableBuildImagesParams) ([]ListDeletableBuildImagesRow, error)
 	ListDeploymentActivity(ctx context.Context, arg ListDeploymentActivityParams) ([]DeploymentActivity, error)
+	ListEgressUsageAfter(ctx context.Context, arg ListEgressUsageAfterParams) ([]EgressUsage, error)
 	ListEligibleClusters(ctx context.Context, arg ListEligibleClustersParams) ([]ListEligibleClustersRow, error)
 	ListEnvironmentDeployments(ctx context.Context, arg ListEnvironmentDeploymentsParams) ([]ListEnvironmentDeploymentsRow, error)
 	ListEnvironmentKeys(ctx context.Context) ([]EnvironmentKey, error)
@@ -236,6 +239,7 @@ type Querier interface {
 	LockClusterLifecycle(ctx context.Context, id uuid.UUID) (LockClusterLifecycleRow, error)
 	LockClusterRegistration(ctx context.Context, id uuid.UUID) (LockClusterRegistrationRow, error)
 	LockClusterSyncGeneration(ctx context.Context, id uuid.UUID) (int64, error)
+	LockEgressCounters(ctx context.Context, arg LockEgressCountersParams) ([]LockEgressCountersRow, error)
 	LockEnvironmentKey(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)
 	LockEventStreamCounter(ctx context.Context) (int64, error)
 	LockInstallWebhooks(ctx context.Context, lockKey int64) error
@@ -282,7 +286,7 @@ type Querier interface {
 	// build, image are gone: the sweepers find what to delete through these rows. The image
 	// sweeper treats a failed or canceled build's tags like those of a missing row.
 	PruneBuildHistory(ctx context.Context, arg PruneBuildHistoryParams) (int64, error)
-	PruneClusterUsageReports(ctx context.Context, clusterID uuid.UUID) error
+	PruneClusterUsageReports(ctx context.Context, arg PruneClusterUsageReportsParams) error
 	// Deletes the resource's deployments in the environment past the newest keep, except active
 	// and unfinished ones and those a placement still runs.
 	PruneDeploymentHistory(ctx context.Context, arg PruneDeploymentHistoryParams) (int64, error)
@@ -346,6 +350,7 @@ type Querier interface {
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error)
 	UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) error
 	UpdateWorkspaceWebhook(ctx context.Context, arg UpdateWorkspaceWebhookParams) (Webhook, error)
+	UpsertEgressCounters(ctx context.Context, arg UpsertEgressCountersParams) error
 	UpsertInstallWebhook(ctx context.Context, arg UpsertInstallWebhookParams) error
 	UpsertOrgLimitOverrides(ctx context.Context, arg UpsertOrgLimitOverridesParams) (OrgLimitOverride, error)
 	UpsertPlacement(ctx context.Context, arg UpsertPlacementParams) (UpsertPlacementRow, error)

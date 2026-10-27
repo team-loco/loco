@@ -130,3 +130,97 @@ func waitForRun(t *testing.T, what, podUID string, check func(*usagev1.WorkloadR
 		return check(run)
 	})
 }
+
+func TestEgressUsageMetersGatewayTraffic(t *testing.T) {
+	t.Parallel()
+	w := p.NewTenant(t)
+	const app = "e2e-egress"
+	host := w.Host(app)
+	file := locofile.File{
+		Partial:  app,
+		Services: map[string]locofile.Service{app: platform.ImageService(p.PublicImage, host)},
+	}
+	dir := t.TempDir()
+	platform.WriteLocoFile(t, dir, file)
+	w.MustLoco(t, dir, "deploy", "--yes", "--wait")
+	resourceID := w.ResourceID(t, app)
+	gateway, err := p.GatewayService(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	const requester = "e2e-egress-requester"
+	p.StartPod(t, platform.ProbePod{Namespace: p.Namespace, Name: requester, Command: []string{
+		"sh",
+		"-c",
+		fmt.Sprintf(
+			`while :; do wget -q -T 2 -O /dev/null --header "Host: %s" "http://%s.%s.svc.cluster.local/"; sleep 1; done`,
+			host,
+			gateway,
+			p.Namespace,
+		),
+	}})
+	p.DeleteOnCleanup(t, "-n", p.Namespace, "pod", requester)
+
+	var first int64
+	platform.Eventually(t, usageTimeout, "egress for the service", func(ctx context.Context) error {
+		var countErr error
+		first, countErr = egressBytes(ctx, resourceID)
+		if countErr != nil {
+			return countErr
+		}
+		if first == 0 {
+			return errors.New("no egress yet")
+		}
+		return nil
+	})
+	platform.Eventually(t, usageTimeout, "egress to grow", func(ctx context.Context) error {
+		bytes, countErr := egressBytes(ctx, resourceID)
+		if countErr != nil {
+			return countErr
+		}
+		if bytes <= first {
+			return fmt.Errorf("egress %d B, want more than %d B", bytes, first)
+		}
+		return nil
+	})
+	page, err := p.Admin.Usage.ListEgressUsage(t.Context(), &usagev1.ListEgressUsageRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page.GetMeteredThrough() == nil {
+		t.Fatal("the egress feed has no metered_through")
+	}
+	_, err = p.User.Usage.ListEgressUsage(t.Context(), &usagev1.ListEgressUsageRequest{})
+	if connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("a workspace owner listed egress usage: %v", err)
+	}
+}
+
+// egressBytes sums the latest version of every hourly egress row of the resource.
+func egressBytes(ctx context.Context, resourceID string) (int64, error) {
+	latest := map[string]int64{}
+	cursor := ""
+	for {
+		page, err := p.Admin.Usage.ListEgressUsage(
+			ctx,
+			&usagev1.ListEgressUsageRequest{Cursor: cursor, PageSize: usagePageSize},
+		)
+		if err != nil {
+			return 0, err
+		}
+		for _, row := range page.GetUsage() {
+			if row.GetResourceId() == resourceID && row.GetClusterId() == p.ClusterID {
+				latest[row.GetEnvironmentId()+row.GetHourStart().AsTime().String()] = row.GetBytes()
+			}
+		}
+		if page.GetNextCursor() == cursor {
+			break
+		}
+		cursor = page.GetNextCursor()
+	}
+	var total int64
+	for _, bytes := range latest {
+		total += bytes
+	}
+	return total, nil
+}

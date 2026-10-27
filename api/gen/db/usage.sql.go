@@ -12,11 +12,69 @@ import (
 	"github.com/google/uuid"
 )
 
+const addEgressUsage = `-- name: AddEgressUsage :exec
+WITH added AS (
+    SELECT unnest($3::uuid[]) AS organization_id,
+           unnest($4::uuid[]) AS workspace_id,
+           unnest($5::uuid[]) AS resource_id,
+           unnest($6::uuid[]) AS environment_id,
+           unnest($7::bigint[]) AS bytes
+)
+INSERT INTO egress_usage (
+    cluster_id, region, organization_id, workspace_id, resource_id, environment_id, hour_start, bytes
+)
+SELECT c.id, c.region, a.organization_id, a.workspace_id, a.resource_id, a.environment_id,
+       $1::timestamptz, a.bytes
+FROM added a
+JOIN clusters c ON c.id = $2
+ON CONFLICT (cluster_id, resource_id, environment_id, hour_start) DO UPDATE
+SET bytes = egress_usage.bytes + EXCLUDED.bytes,
+    xid = pg_current_xact_id()
+`
+
+type AddEgressUsageParams struct {
+	HourStart       time.Time   `json:"hourStart"`
+	ClusterID       uuid.UUID   `json:"clusterId"`
+	OrganizationIds []uuid.UUID `json:"organizationIds"`
+	WorkspaceIds    []uuid.UUID `json:"workspaceIds"`
+	ResourceIds     []uuid.UUID `json:"resourceIds"`
+	EnvironmentIds  []uuid.UUID `json:"environmentIds"`
+	Bytes           []int64     `json:"bytes"`
+}
+
+func (q *Queries) AddEgressUsage(ctx context.Context, arg AddEgressUsageParams) error {
+	_, err := q.db.Exec(ctx, addEgressUsage,
+		arg.HourStart,
+		arg.ClusterID,
+		arg.OrganizationIds,
+		arg.WorkspaceIds,
+		arg.ResourceIds,
+		arg.EnvironmentIds,
+		arg.Bytes,
+	)
+	return err
+}
+
+const deleteStaleEgressCounters = `-- name: DeleteStaleEgressCounters :exec
+DELETE FROM egress_counters
+WHERE cluster_id = $1 AND observed_at < $2
+`
+
+type DeleteStaleEgressCountersParams struct {
+	ClusterID  uuid.UUID `json:"clusterId"`
+	ObservedAt time.Time `json:"observedAt"`
+}
+
+func (q *Queries) DeleteStaleEgressCounters(ctx context.Context, arg DeleteStaleEgressCountersParams) error {
+	_, err := q.db.Exec(ctx, deleteStaleEgressCounters, arg.ClusterID, arg.ObservedAt)
+	return err
+}
+
 const listClusterUsageReportTimes = `-- name: ListClusterUsageReportTimes :many
 SELECT DISTINCT ON (c.id) c.id, r.reported_at
 FROM clusters c
 LEFT JOIN cluster_usage_reports r
-    ON r.cluster_id = c.id AND r.xid < pg_snapshot_xmin(pg_current_snapshot())
+    ON r.cluster_id = c.id AND r.feed = $1 AND r.xid < pg_snapshot_xmin(pg_current_snapshot())
 WHERE c.removed_at IS NULL AND c.agent_public_key IS NOT NULL
 ORDER BY c.id, r.reported_at DESC NULLS LAST
 `
@@ -26,8 +84,8 @@ type ListClusterUsageReportTimesRow struct {
 	ReportedAt *time.Time `json:"reportedAt"`
 }
 
-func (q *Queries) ListClusterUsageReportTimes(ctx context.Context) ([]ListClusterUsageReportTimesRow, error) {
-	rows, err := q.db.Query(ctx, listClusterUsageReportTimes)
+func (q *Queries) ListClusterUsageReportTimes(ctx context.Context, feed string) ([]ListClusterUsageReportTimesRow, error) {
+	rows, err := q.db.Query(ctx, listClusterUsageReportTimes, feed)
 	if err != nil {
 		return nil, err
 	}
@@ -36,6 +94,52 @@ func (q *Queries) ListClusterUsageReportTimes(ctx context.Context) ([]ListCluste
 	for rows.Next() {
 		var i ListClusterUsageReportTimesRow
 		if err := rows.Scan(&i.ID, &i.ReportedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listEgressUsageAfter = `-- name: ListEgressUsageAfter :many
+SELECT id, xid, cluster_id, region, organization_id, workspace_id, resource_id, environment_id, hour_start, bytes
+FROM egress_usage
+WHERE (xid, id) > ($1::xid8, $2::uuid)
+  AND xid < pg_snapshot_xmin(pg_current_snapshot())
+ORDER BY xid, id
+LIMIT $3
+`
+
+type ListEgressUsageAfterParams struct {
+	AfterXid uint64    `json:"afterXid"`
+	AfterID  uuid.UUID `json:"afterId"`
+	MaxRows  int32     `json:"maxRows"`
+}
+
+func (q *Queries) ListEgressUsageAfter(ctx context.Context, arg ListEgressUsageAfterParams) ([]EgressUsage, error) {
+	rows, err := q.db.Query(ctx, listEgressUsageAfter, arg.AfterXid, arg.AfterID, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []EgressUsage
+	for rows.Next() {
+		var i EgressUsage
+		if err := rows.Scan(
+			&i.ID,
+			&i.Xid,
+			&i.ClusterID,
+			&i.Region,
+			&i.OrganizationID,
+			&i.WorkspaceID,
+			&i.ResourceID,
+			&i.EnvironmentID,
+			&i.HourStart,
+			&i.Bytes,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -95,34 +199,120 @@ func (q *Queries) ListWorkloadRunsAfter(ctx context.Context, arg ListWorkloadRun
 	return items, nil
 }
 
+const lockEgressCounters = `-- name: LockEgressCounters :many
+SELECT gateway_pod_uid, route, bytes, observed_at
+FROM egress_counters
+WHERE cluster_id = $1 AND gateway_pod_uid = ANY($2::uuid[])
+FOR UPDATE
+`
+
+type LockEgressCountersParams struct {
+	ClusterID      uuid.UUID   `json:"clusterId"`
+	GatewayPodUids []uuid.UUID `json:"gatewayPodUids"`
+}
+
+type LockEgressCountersRow struct {
+	GatewayPodUid uuid.UUID `json:"gatewayPodUid"`
+	Route         string    `json:"route"`
+	Bytes         int64     `json:"bytes"`
+	ObservedAt    time.Time `json:"observedAt"`
+}
+
+func (q *Queries) LockEgressCounters(ctx context.Context, arg LockEgressCountersParams) ([]LockEgressCountersRow, error) {
+	rows, err := q.db.Query(ctx, lockEgressCounters, arg.ClusterID, arg.GatewayPodUids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []LockEgressCountersRow
+	for rows.Next() {
+		var i LockEgressCountersRow
+		if err := rows.Scan(
+			&i.GatewayPodUid,
+			&i.Route,
+			&i.Bytes,
+			&i.ObservedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const pruneClusterUsageReports = `-- name: PruneClusterUsageReports :exec
 DELETE FROM cluster_usage_reports stale
 WHERE stale.cluster_id = $1
+  AND stale.feed = $2
   AND stale.reported_at < (
       SELECT max(final.reported_at) FROM cluster_usage_reports final
       WHERE final.cluster_id = $1
+        AND final.feed = $2
         AND final.xid < pg_snapshot_xmin(pg_current_snapshot())
   )
 `
 
-func (q *Queries) PruneClusterUsageReports(ctx context.Context, clusterID uuid.UUID) error {
-	_, err := q.db.Exec(ctx, pruneClusterUsageReports, clusterID)
+type PruneClusterUsageReportsParams struct {
+	ClusterID uuid.UUID `json:"clusterId"`
+	Feed      string    `json:"feed"`
+}
+
+func (q *Queries) PruneClusterUsageReports(ctx context.Context, arg PruneClusterUsageReportsParams) error {
+	_, err := q.db.Exec(ctx, pruneClusterUsageReports, arg.ClusterID, arg.Feed)
 	return err
 }
 
 const recordClusterUsageReport = `-- name: RecordClusterUsageReport :exec
-INSERT INTO cluster_usage_reports (cluster_id, reported_at)
-VALUES ($1, $2)
-ON CONFLICT (cluster_id, reported_at) DO NOTHING
+INSERT INTO cluster_usage_reports (cluster_id, feed, reported_at)
+VALUES ($1, $2, $3)
+ON CONFLICT (cluster_id, feed, reported_at) DO NOTHING
 `
 
 type RecordClusterUsageReportParams struct {
 	ClusterID  uuid.UUID `json:"clusterId"`
+	Feed       string    `json:"feed"`
 	ReportedAt time.Time `json:"reportedAt"`
 }
 
 func (q *Queries) RecordClusterUsageReport(ctx context.Context, arg RecordClusterUsageReportParams) error {
-	_, err := q.db.Exec(ctx, recordClusterUsageReport, arg.ClusterID, arg.ReportedAt)
+	_, err := q.db.Exec(ctx, recordClusterUsageReport, arg.ClusterID, arg.Feed, arg.ReportedAt)
+	return err
+}
+
+const upsertEgressCounters = `-- name: UpsertEgressCounters :exec
+WITH reported AS (
+    SELECT unnest($3::uuid[]) AS gateway_pod_uid,
+           unnest($4::text[]) AS route,
+           unnest($5::bigint[]) AS bytes
+)
+INSERT INTO egress_counters (gateway_pod_uid, route, cluster_id, bytes, observed_at)
+SELECT r.gateway_pod_uid, r.route, $1, r.bytes, $2
+FROM reported r
+ON CONFLICT (gateway_pod_uid, route) DO UPDATE
+SET bytes = EXCLUDED.bytes, observed_at = EXCLUDED.observed_at
+WHERE egress_counters.cluster_id = EXCLUDED.cluster_id
+  AND egress_counters.observed_at < EXCLUDED.observed_at
+`
+
+type UpsertEgressCountersParams struct {
+	ClusterID      uuid.UUID   `json:"clusterId"`
+	ObservedAt     time.Time   `json:"observedAt"`
+	GatewayPodUids []uuid.UUID `json:"gatewayPodUids"`
+	Routes         []string    `json:"routes"`
+	Bytes          []int64     `json:"bytes"`
+}
+
+func (q *Queries) UpsertEgressCounters(ctx context.Context, arg UpsertEgressCountersParams) error {
+	_, err := q.db.Exec(ctx, upsertEgressCounters,
+		arg.ClusterID,
+		arg.ObservedAt,
+		arg.GatewayPodUids,
+		arg.Routes,
+		arg.Bytes,
+	)
 	return err
 }
 

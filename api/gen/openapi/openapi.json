@@ -6287,6 +6287,67 @@
         }
       }
     },
+    "/loco.usage.v1.UsageService/ListEgressUsage": {
+      "post": {
+        "tags": [
+          "loco.usage.v1.UsageService"
+        ],
+        "summary": "ListEgressUsage",
+        "operationId": "loco.usage.v1.UsageService.ListEgressUsage",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.usage.v1.ListEgressUsageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.usage.v1.ListEgressUsageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.usage.v1.UsageService/ListWorkloadRuns": {
       "post": {
         "tags": [
@@ -8481,6 +8542,50 @@
         "title": "Delete",
         "additionalProperties": false
       },
+      "loco.agent.v1.EgressCounter": {
+        "type": "object",
+        "properties": {
+          "gatewayPodUid": {
+            "type": "string",
+            "title": "gateway_pod_uid",
+            "format": "uuid"
+          },
+          "route": {
+            "type": "string",
+            "title": "route",
+            "maxLength": 512,
+            "minLength": 1
+          },
+          "organizationId": {
+            "type": "string",
+            "title": "organization_id",
+            "format": "uuid"
+          },
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id",
+            "format": "uuid"
+          },
+          "resourceId": {
+            "type": "string",
+            "title": "resource_id",
+            "format": "uuid"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id",
+            "format": "uuid"
+          },
+          "bytes": {
+            "type": "string",
+            "title": "bytes",
+            "format": "int64",
+            "description": "int64.gte = 0\n"
+          }
+        },
+        "title": "EgressCounter",
+        "additionalProperties": false
+      },
       "loco.agent.v1.Enrollment": {
         "type": "object",
         "properties": {
@@ -9108,6 +9213,17 @@
               "$ref": "#/components/schemas/loco.agent.v1.PodRun"
             },
             "title": "runs"
+          },
+          "egress": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.agent.v1.EgressCounter"
+            },
+            "title": "egress"
+          },
+          "egressComplete": {
+            "type": "boolean",
+            "title": "egress_complete"
           }
         },
         "title": "UsageReport",
@@ -15359,6 +15475,87 @@
         "title": "Token",
         "additionalProperties": false,
         "description": "Token represents token metadata (without the actual token string)."
+      },
+      "loco.usage.v1.EgressUsage": {
+        "type": "object",
+        "properties": {
+          "clusterId": {
+            "type": "string",
+            "title": "cluster_id"
+          },
+          "region": {
+            "type": "string",
+            "title": "region"
+          },
+          "organizationId": {
+            "type": "string",
+            "title": "organization_id"
+          },
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id"
+          },
+          "resourceId": {
+            "type": "string",
+            "title": "resource_id"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id"
+          },
+          "hourStart": {
+            "title": "hour_start",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "bytes": {
+            "type": "string",
+            "title": "bytes",
+            "format": "int64"
+          }
+        },
+        "title": "EgressUsage",
+        "additionalProperties": false
+      },
+      "loco.usage.v1.ListEgressUsageRequest": {
+        "type": "object",
+        "properties": {
+          "cursor": {
+            "type": "string",
+            "title": "cursor",
+            "maxLength": 64
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "page_size",
+            "maximum": 1000,
+            "minimum": 0,
+            "format": "int32"
+          }
+        },
+        "title": "ListEgressUsageRequest",
+        "additionalProperties": false
+      },
+      "loco.usage.v1.ListEgressUsageResponse": {
+        "type": "object",
+        "properties": {
+          "usage": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.usage.v1.EgressUsage"
+            },
+            "title": "usage"
+          },
+          "nextCursor": {
+            "type": "string",
+            "title": "next_cursor"
+          },
+          "meteredThrough": {
+            "title": "metered_through",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          }
+        },
+        "title": "ListEgressUsageResponse",
+        "additionalProperties": false
       },
       "loco.usage.v1.ListWorkloadRunsRequest": {
         "type": "object",

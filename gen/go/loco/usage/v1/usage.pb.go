@@ -267,6 +267,218 @@ func (x *WorkloadRun) GetEndedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+type ListEgressUsageRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Cursor        string                 `protobuf:"bytes,1,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListEgressUsageRequest) Reset() {
+	*x = ListEgressUsageRequest{}
+	mi := &file_loco_usage_v1_usage_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListEgressUsageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListEgressUsageRequest) ProtoMessage() {}
+
+func (x *ListEgressUsageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_usage_v1_usage_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListEgressUsageRequest.ProtoReflect.Descriptor instead.
+func (*ListEgressUsageRequest) Descriptor() ([]byte, []int) {
+	return file_loco_usage_v1_usage_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ListEgressUsageRequest) GetCursor() string {
+	if x != nil {
+		return x.Cursor
+	}
+	return ""
+}
+
+func (x *ListEgressUsageRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type ListEgressUsageResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Usage          []*EgressUsage         `protobuf:"bytes,1,rep,name=usage,proto3" json:"usage,omitempty"`
+	NextCursor     string                 `protobuf:"bytes,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	MeteredThrough *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=metered_through,json=meteredThrough,proto3" json:"metered_through,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ListEgressUsageResponse) Reset() {
+	*x = ListEgressUsageResponse{}
+	mi := &file_loco_usage_v1_usage_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListEgressUsageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListEgressUsageResponse) ProtoMessage() {}
+
+func (x *ListEgressUsageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_usage_v1_usage_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListEgressUsageResponse.ProtoReflect.Descriptor instead.
+func (*ListEgressUsageResponse) Descriptor() ([]byte, []int) {
+	return file_loco_usage_v1_usage_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ListEgressUsageResponse) GetUsage() []*EgressUsage {
+	if x != nil {
+		return x.Usage
+	}
+	return nil
+}
+
+func (x *ListEgressUsageResponse) GetNextCursor() string {
+	if x != nil {
+		return x.NextCursor
+	}
+	return ""
+}
+
+func (x *ListEgressUsageResponse) GetMeteredThrough() *timestamppb.Timestamp {
+	if x != nil {
+		return x.MeteredThrough
+	}
+	return nil
+}
+
+type EgressUsage struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ClusterId      string                 `protobuf:"bytes,1,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	Region         string                 `protobuf:"bytes,2,opt,name=region,proto3" json:"region,omitempty"`
+	OrganizationId string                 `protobuf:"bytes,3,opt,name=organization_id,json=organizationId,proto3" json:"organization_id,omitempty"`
+	WorkspaceId    string                 `protobuf:"bytes,4,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	ResourceId     string                 `protobuf:"bytes,5,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	EnvironmentId  string                 `protobuf:"bytes,6,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	HourStart      *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=hour_start,json=hourStart,proto3" json:"hour_start,omitempty"`
+	Bytes          int64                  `protobuf:"varint,8,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *EgressUsage) Reset() {
+	*x = EgressUsage{}
+	mi := &file_loco_usage_v1_usage_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EgressUsage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EgressUsage) ProtoMessage() {}
+
+func (x *EgressUsage) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_usage_v1_usage_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EgressUsage.ProtoReflect.Descriptor instead.
+func (*EgressUsage) Descriptor() ([]byte, []int) {
+	return file_loco_usage_v1_usage_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *EgressUsage) GetClusterId() string {
+	if x != nil {
+		return x.ClusterId
+	}
+	return ""
+}
+
+func (x *EgressUsage) GetRegion() string {
+	if x != nil {
+		return x.Region
+	}
+	return ""
+}
+
+func (x *EgressUsage) GetOrganizationId() string {
+	if x != nil {
+		return x.OrganizationId
+	}
+	return ""
+}
+
+func (x *EgressUsage) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *EgressUsage) GetResourceId() string {
+	if x != nil {
+		return x.ResourceId
+	}
+	return ""
+}
+
+func (x *EgressUsage) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+func (x *EgressUsage) GetHourStart() *timestamppb.Timestamp {
+	if x != nil {
+		return x.HourStart
+	}
+	return nil
+}
+
+func (x *EgressUsage) GetBytes() int64 {
+	if x != nil {
+		return x.Bytes
+	}
+	return 0
+}
+
 var File_loco_usage_v1_usage_proto protoreflect.FileDescriptor
 
 const file_loco_usage_v1_usage_proto_rawDesc = "" +
@@ -299,9 +511,31 @@ const file_loco_usage_v1_usage_proto_rawDesc = "" +
 	"\flast_seen_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"lastSeenAt\x12:\n" +
 	"\bended_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampH\x00R\aendedAt\x88\x01\x01B\v\n" +
-	"\t_ended_at2s\n" +
+	"\t_ended_at\"b\n" +
+	"\x16ListEgressUsageRequest\x12\x1f\n" +
+	"\x06cursor\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18@R\x06cursor\x12'\n" +
+	"\tpage_size\x18\x02 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\xe8\a(\x00R\bpageSize\"\xb1\x01\n" +
+	"\x17ListEgressUsageResponse\x120\n" +
+	"\x05usage\x18\x01 \x03(\v2\x1a.loco.usage.v1.EgressUsageR\x05usage\x12\x1f\n" +
+	"\vnext_cursor\x18\x02 \x01(\tR\n" +
+	"nextCursor\x12C\n" +
+	"\x0fmetered_through\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x0emeteredThrough\"\xa9\x02\n" +
+	"\vEgressUsage\x12\x1d\n" +
+	"\n" +
+	"cluster_id\x18\x01 \x01(\tR\tclusterId\x12\x16\n" +
+	"\x06region\x18\x02 \x01(\tR\x06region\x12'\n" +
+	"\x0forganization_id\x18\x03 \x01(\tR\x0eorganizationId\x12!\n" +
+	"\fworkspace_id\x18\x04 \x01(\tR\vworkspaceId\x12\x1f\n" +
+	"\vresource_id\x18\x05 \x01(\tR\n" +
+	"resourceId\x12%\n" +
+	"\x0eenvironment_id\x18\x06 \x01(\tR\renvironmentId\x129\n" +
+	"\n" +
+	"hour_start\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\thourStart\x12\x14\n" +
+	"\x05bytes\x18\b \x01(\x03R\x05bytes2\xd5\x01\n" +
 	"\fUsageService\x12c\n" +
-	"\x10ListWorkloadRuns\x12&.loco.usage.v1.ListWorkloadRunsRequest\x1a'.loco.usage.v1.ListWorkloadRunsResponseB8Z6github.com/team-loco/loco/gen/go/loco/usage/v1;usagev1b\x06proto3"
+	"\x10ListWorkloadRuns\x12&.loco.usage.v1.ListWorkloadRunsRequest\x1a'.loco.usage.v1.ListWorkloadRunsResponse\x12`\n" +
+	"\x0fListEgressUsage\x12%.loco.usage.v1.ListEgressUsageRequest\x1a&.loco.usage.v1.ListEgressUsageResponseB8Z6github.com/team-loco/loco/gen/go/loco/usage/v1;usagev1b\x06proto3"
 
 var (
 	file_loco_usage_v1_usage_proto_rawDescOnce sync.Once
@@ -315,26 +549,34 @@ func file_loco_usage_v1_usage_proto_rawDescGZIP() []byte {
 	return file_loco_usage_v1_usage_proto_rawDescData
 }
 
-var file_loco_usage_v1_usage_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_loco_usage_v1_usage_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_loco_usage_v1_usage_proto_goTypes = []any{
 	(*ListWorkloadRunsRequest)(nil),  // 0: loco.usage.v1.ListWorkloadRunsRequest
 	(*ListWorkloadRunsResponse)(nil), // 1: loco.usage.v1.ListWorkloadRunsResponse
 	(*WorkloadRun)(nil),              // 2: loco.usage.v1.WorkloadRun
-	(*timestamppb.Timestamp)(nil),    // 3: google.protobuf.Timestamp
+	(*ListEgressUsageRequest)(nil),   // 3: loco.usage.v1.ListEgressUsageRequest
+	(*ListEgressUsageResponse)(nil),  // 4: loco.usage.v1.ListEgressUsageResponse
+	(*EgressUsage)(nil),              // 5: loco.usage.v1.EgressUsage
+	(*timestamppb.Timestamp)(nil),    // 6: google.protobuf.Timestamp
 }
 var file_loco_usage_v1_usage_proto_depIdxs = []int32{
-	2, // 0: loco.usage.v1.ListWorkloadRunsResponse.runs:type_name -> loco.usage.v1.WorkloadRun
-	3, // 1: loco.usage.v1.ListWorkloadRunsResponse.metered_through:type_name -> google.protobuf.Timestamp
-	3, // 2: loco.usage.v1.WorkloadRun.started_at:type_name -> google.protobuf.Timestamp
-	3, // 3: loco.usage.v1.WorkloadRun.last_seen_at:type_name -> google.protobuf.Timestamp
-	3, // 4: loco.usage.v1.WorkloadRun.ended_at:type_name -> google.protobuf.Timestamp
-	0, // 5: loco.usage.v1.UsageService.ListWorkloadRuns:input_type -> loco.usage.v1.ListWorkloadRunsRequest
-	1, // 6: loco.usage.v1.UsageService.ListWorkloadRuns:output_type -> loco.usage.v1.ListWorkloadRunsResponse
-	6, // [6:7] is the sub-list for method output_type
-	5, // [5:6] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	2,  // 0: loco.usage.v1.ListWorkloadRunsResponse.runs:type_name -> loco.usage.v1.WorkloadRun
+	6,  // 1: loco.usage.v1.ListWorkloadRunsResponse.metered_through:type_name -> google.protobuf.Timestamp
+	6,  // 2: loco.usage.v1.WorkloadRun.started_at:type_name -> google.protobuf.Timestamp
+	6,  // 3: loco.usage.v1.WorkloadRun.last_seen_at:type_name -> google.protobuf.Timestamp
+	6,  // 4: loco.usage.v1.WorkloadRun.ended_at:type_name -> google.protobuf.Timestamp
+	5,  // 5: loco.usage.v1.ListEgressUsageResponse.usage:type_name -> loco.usage.v1.EgressUsage
+	6,  // 6: loco.usage.v1.ListEgressUsageResponse.metered_through:type_name -> google.protobuf.Timestamp
+	6,  // 7: loco.usage.v1.EgressUsage.hour_start:type_name -> google.protobuf.Timestamp
+	0,  // 8: loco.usage.v1.UsageService.ListWorkloadRuns:input_type -> loco.usage.v1.ListWorkloadRunsRequest
+	3,  // 9: loco.usage.v1.UsageService.ListEgressUsage:input_type -> loco.usage.v1.ListEgressUsageRequest
+	1,  // 10: loco.usage.v1.UsageService.ListWorkloadRuns:output_type -> loco.usage.v1.ListWorkloadRunsResponse
+	4,  // 11: loco.usage.v1.UsageService.ListEgressUsage:output_type -> loco.usage.v1.ListEgressUsageResponse
+	10, // [10:12] is the sub-list for method output_type
+	8,  // [8:10] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_loco_usage_v1_usage_proto_init() }
@@ -349,7 +591,7 @@ func file_loco_usage_v1_usage_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_usage_v1_usage_proto_rawDesc), len(file_loco_usage_v1_usage_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

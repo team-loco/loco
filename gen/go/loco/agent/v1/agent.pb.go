@@ -1659,11 +1659,13 @@ func (x *AgentHealth) GetMessage() string {
 }
 
 type UsageReport struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ObservedAt    *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
-	Runs          []*PodRun              `protobuf:"bytes,2,rep,name=runs,proto3" json:"runs,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ObservedAt     *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	Runs           []*PodRun              `protobuf:"bytes,2,rep,name=runs,proto3" json:"runs,omitempty"`
+	Egress         []*EgressCounter       `protobuf:"bytes,3,rep,name=egress,proto3" json:"egress,omitempty"`
+	EgressComplete bool                   `protobuf:"varint,4,opt,name=egress_complete,json=egressComplete,proto3" json:"egress_complete,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *UsageReport) Reset() {
@@ -1708,6 +1710,20 @@ func (x *UsageReport) GetRuns() []*PodRun {
 		return x.Runs
 	}
 	return nil
+}
+
+func (x *UsageReport) GetEgress() []*EgressCounter {
+	if x != nil {
+		return x.Egress
+	}
+	return nil
+}
+
+func (x *UsageReport) GetEgressComplete() bool {
+	if x != nil {
+		return x.EgressComplete
+	}
+	return false
 }
 
 type PodRun struct {
@@ -1818,6 +1834,98 @@ func (x *PodRun) GetEndedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+type EgressCounter struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	GatewayPodUid  string                 `protobuf:"bytes,1,opt,name=gateway_pod_uid,json=gatewayPodUid,proto3" json:"gateway_pod_uid,omitempty"`
+	Route          string                 `protobuf:"bytes,2,opt,name=route,proto3" json:"route,omitempty"`
+	OrganizationId string                 `protobuf:"bytes,3,opt,name=organization_id,json=organizationId,proto3" json:"organization_id,omitempty"`
+	WorkspaceId    string                 `protobuf:"bytes,4,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	ResourceId     string                 `protobuf:"bytes,5,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	EnvironmentId  string                 `protobuf:"bytes,6,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	Bytes          int64                  `protobuf:"varint,7,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *EgressCounter) Reset() {
+	*x = EgressCounter{}
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EgressCounter) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EgressCounter) ProtoMessage() {}
+
+func (x *EgressCounter) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EgressCounter.ProtoReflect.Descriptor instead.
+func (*EgressCounter) Descriptor() ([]byte, []int) {
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *EgressCounter) GetGatewayPodUid() string {
+	if x != nil {
+		return x.GatewayPodUid
+	}
+	return ""
+}
+
+func (x *EgressCounter) GetRoute() string {
+	if x != nil {
+		return x.Route
+	}
+	return ""
+}
+
+func (x *EgressCounter) GetOrganizationId() string {
+	if x != nil {
+		return x.OrganizationId
+	}
+	return ""
+}
+
+func (x *EgressCounter) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *EgressCounter) GetResourceId() string {
+	if x != nil {
+		return x.ResourceId
+	}
+	return ""
+}
+
+func (x *EgressCounter) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+func (x *EgressCounter) GetBytes() int64 {
+	if x != nil {
+		return x.Bytes
+	}
+	return 0
+}
+
 type UsageRecorded struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ObservedAt    *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
@@ -1827,7 +1935,7 @@ type UsageRecorded struct {
 
 func (x *UsageRecorded) Reset() {
 	*x = UsageRecorded{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[22]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1839,7 +1947,7 @@ func (x *UsageRecorded) String() string {
 func (*UsageRecorded) ProtoMessage() {}
 
 func (x *UsageRecorded) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[22]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1852,7 +1960,7 @@ func (x *UsageRecorded) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UsageRecorded.ProtoReflect.Descriptor instead.
 func (*UsageRecorded) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{22}
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *UsageRecorded) GetObservedAt() *timestamppb.Timestamp {
@@ -2003,11 +2111,13 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\vAgentHealth\x12-\n" +
 	"\x12kubernetes_healthy\x18\x01 \x01(\bR\x11kubernetesHealthy\x12-\n" +
 	"\x12controller_healthy\x18\x02 \x01(\bR\x11controllerHealthy\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\"}\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"\xdc\x01\n" +
 	"\vUsageReport\x12C\n" +
 	"\vobserved_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\n" +
 	"observedAt\x12)\n" +
-	"\x04runs\x18\x02 \x03(\v2\x15.loco.agent.v1.PodRunR\x04runs\"\xbd\x03\n" +
+	"\x04runs\x18\x02 \x03(\v2\x15.loco.agent.v1.PodRunR\x04runs\x124\n" +
+	"\x06egress\x18\x03 \x03(\v2\x1c.loco.agent.v1.EgressCounterR\x06egress\x12'\n" +
+	"\x0fegress_complete\x18\x04 \x01(\bR\x0eegressComplete\"\xbd\x03\n" +
 	"\x06PodRun\x12!\n" +
 	"\apod_uid\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06podUid\x121\n" +
 	"\x0forganization_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x0eorganizationId\x12+\n" +
@@ -2019,7 +2129,17 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\fmemory_bytes\x18\a \x01(\x03B\a\xbaH\x04\"\x02(\x00R\vmemoryBytes\x12A\n" +
 	"\n" +
 	"started_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\tstartedAt\x125\n" +
-	"\bended_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\aendedAt\"L\n" +
+	"\bended_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\aendedAt\"\xbe\x02\n" +
+	"\rEgressCounter\x120\n" +
+	"\x0fgateway_pod_uid\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\rgatewayPodUid\x12 \n" +
+	"\x05route\x18\x02 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x04R\x05route\x121\n" +
+	"\x0forganization_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x0eorganizationId\x12+\n" +
+	"\fworkspace_id\x18\x04 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12)\n" +
+	"\vresource_id\x18\x05 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
+	"resourceId\x12/\n" +
+	"\x0eenvironment_id\x18\x06 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\x12\x1d\n" +
+	"\x05bytes\x18\a \x01(\x03B\a\xbaH\x04\"\x02(\x00R\x05bytes\"L\n" +
 	"\rUsageRecorded\x12;\n" +
 	"\vobserved_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"observedAt*\xa8\x01\n" +
@@ -2048,7 +2168,7 @@ func file_loco_agent_v1_agent_proto_rawDescGZIP() []byte {
 }
 
 var file_loco_agent_v1_agent_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_loco_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_loco_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_loco_agent_v1_agent_proto_goTypes = []any{
 	(BuildPhase)(0),               // 0: loco.agent.v1.BuildPhase
 	(*RegisterRequest)(nil),       // 1: loco.agent.v1.RegisterRequest
@@ -2073,18 +2193,19 @@ var file_loco_agent_v1_agent_proto_goTypes = []any{
 	(*AgentHealth)(nil),           // 20: loco.agent.v1.AgentHealth
 	(*UsageReport)(nil),           // 21: loco.agent.v1.UsageReport
 	(*PodRun)(nil),                // 22: loco.agent.v1.PodRun
-	(*UsageRecorded)(nil),         // 23: loco.agent.v1.UsageRecorded
-	nil,                           // 24: loco.agent.v1.EnvSecret.DataEntry
-	(v1.ClusterRole)(0),           // 25: loco.cluster.v1.ClusterRole
-	(*durationpb.Duration)(nil),   // 26: google.protobuf.Duration
-	(*timestamppb.Timestamp)(nil), // 27: google.protobuf.Timestamp
-	(*v11.Replica)(nil),           // 28: loco.deployment.v1.Replica
+	(*EgressCounter)(nil),         // 23: loco.agent.v1.EgressCounter
+	(*UsageRecorded)(nil),         // 24: loco.agent.v1.UsageRecorded
+	nil,                           // 25: loco.agent.v1.EnvSecret.DataEntry
+	(v1.ClusterRole)(0),           // 26: loco.cluster.v1.ClusterRole
+	(*durationpb.Duration)(nil),   // 27: google.protobuf.Duration
+	(*timestamppb.Timestamp)(nil), // 28: google.protobuf.Timestamp
+	(*v11.Replica)(nil),           // 29: loco.deployment.v1.Replica
 }
 var file_loco_agent_v1_agent_proto_depIdxs = []int32{
 	19, // 0: loco.agent.v1.RegisterRequest.capacity:type_name -> loco.agent.v1.AgentCapacity
-	25, // 1: loco.agent.v1.RegisterRequest.role:type_name -> loco.cluster.v1.ClusterRole
+	26, // 1: loco.agent.v1.RegisterRequest.role:type_name -> loco.cluster.v1.ClusterRole
 	2,  // 2: loco.agent.v1.RegisterRequest.enrollment:type_name -> loco.agent.v1.Enrollment
-	26, // 3: loco.agent.v1.RegisterResponse.heartbeat_interval:type_name -> google.protobuf.Duration
+	27, // 3: loco.agent.v1.RegisterResponse.heartbeat_interval:type_name -> google.protobuf.Duration
 	5,  // 4: loco.agent.v1.SyncRequest.inventory:type_name -> loco.agent.v1.Inventory
 	9,  // 5: loco.agent.v1.SyncRequest.applied:type_name -> loco.agent.v1.Applied
 	10, // 6: loco.agent.v1.SyncRequest.status:type_name -> loco.agent.v1.PlacementStatus
@@ -2095,34 +2216,35 @@ var file_loco_agent_v1_agent_proto_depIdxs = []int32{
 	7,  // 11: loco.agent.v1.Inventory.builds:type_name -> loco.agent.v1.InventoryBuild
 	0,  // 12: loco.agent.v1.InventoryBuild.phase:type_name -> loco.agent.v1.BuildPhase
 	0,  // 13: loco.agent.v1.BuildStatus.phase:type_name -> loco.agent.v1.BuildPhase
-	27, // 14: loco.agent.v1.BuildStatus.stage_since:type_name -> google.protobuf.Timestamp
-	28, // 15: loco.agent.v1.PlacementStatus.replicas:type_name -> loco.deployment.v1.Replica
+	28, // 14: loco.agent.v1.BuildStatus.stage_since:type_name -> google.protobuf.Timestamp
+	29, // 15: loco.agent.v1.PlacementStatus.replicas:type_name -> loco.deployment.v1.Replica
 	11, // 16: loco.agent.v1.PlacementStatus.problem:type_name -> loco.agent.v1.ProblemReport
-	27, // 17: loco.agent.v1.ProblemReport.since:type_name -> google.protobuf.Timestamp
+	28, // 17: loco.agent.v1.ProblemReport.since:type_name -> google.protobuf.Timestamp
 	13, // 18: loco.agent.v1.SyncResponse.apply:type_name -> loco.agent.v1.Apply
 	15, // 19: loco.agent.v1.SyncResponse.delete:type_name -> loco.agent.v1.Delete
 	16, // 20: loco.agent.v1.SyncResponse.start_build:type_name -> loco.agent.v1.StartBuild
 	17, // 21: loco.agent.v1.SyncResponse.cancel_build:type_name -> loco.agent.v1.CancelBuild
-	23, // 22: loco.agent.v1.SyncResponse.usage_recorded:type_name -> loco.agent.v1.UsageRecorded
+	24, // 22: loco.agent.v1.SyncResponse.usage_recorded:type_name -> loco.agent.v1.UsageRecorded
 	14, // 23: loco.agent.v1.Apply.env_secret:type_name -> loco.agent.v1.EnvSecret
-	24, // 24: loco.agent.v1.EnvSecret.data:type_name -> loco.agent.v1.EnvSecret.DataEntry
+	25, // 24: loco.agent.v1.EnvSecret.data:type_name -> loco.agent.v1.EnvSecret.DataEntry
 	19, // 25: loco.agent.v1.Heartbeat.capacity:type_name -> loco.agent.v1.AgentCapacity
 	20, // 26: loco.agent.v1.Heartbeat.health:type_name -> loco.agent.v1.AgentHealth
-	25, // 27: loco.agent.v1.Heartbeat.role:type_name -> loco.cluster.v1.ClusterRole
-	27, // 28: loco.agent.v1.UsageReport.observed_at:type_name -> google.protobuf.Timestamp
+	26, // 27: loco.agent.v1.Heartbeat.role:type_name -> loco.cluster.v1.ClusterRole
+	28, // 28: loco.agent.v1.UsageReport.observed_at:type_name -> google.protobuf.Timestamp
 	22, // 29: loco.agent.v1.UsageReport.runs:type_name -> loco.agent.v1.PodRun
-	27, // 30: loco.agent.v1.PodRun.started_at:type_name -> google.protobuf.Timestamp
-	27, // 31: loco.agent.v1.PodRun.ended_at:type_name -> google.protobuf.Timestamp
-	27, // 32: loco.agent.v1.UsageRecorded.observed_at:type_name -> google.protobuf.Timestamp
-	1,  // 33: loco.agent.v1.AgentService.Register:input_type -> loco.agent.v1.RegisterRequest
-	4,  // 34: loco.agent.v1.AgentService.Sync:input_type -> loco.agent.v1.SyncRequest
-	3,  // 35: loco.agent.v1.AgentService.Register:output_type -> loco.agent.v1.RegisterResponse
-	12, // 36: loco.agent.v1.AgentService.Sync:output_type -> loco.agent.v1.SyncResponse
-	35, // [35:37] is the sub-list for method output_type
-	33, // [33:35] is the sub-list for method input_type
-	33, // [33:33] is the sub-list for extension type_name
-	33, // [33:33] is the sub-list for extension extendee
-	0,  // [0:33] is the sub-list for field type_name
+	23, // 30: loco.agent.v1.UsageReport.egress:type_name -> loco.agent.v1.EgressCounter
+	28, // 31: loco.agent.v1.PodRun.started_at:type_name -> google.protobuf.Timestamp
+	28, // 32: loco.agent.v1.PodRun.ended_at:type_name -> google.protobuf.Timestamp
+	28, // 33: loco.agent.v1.UsageRecorded.observed_at:type_name -> google.protobuf.Timestamp
+	1,  // 34: loco.agent.v1.AgentService.Register:input_type -> loco.agent.v1.RegisterRequest
+	4,  // 35: loco.agent.v1.AgentService.Sync:input_type -> loco.agent.v1.SyncRequest
+	3,  // 36: loco.agent.v1.AgentService.Register:output_type -> loco.agent.v1.RegisterResponse
+	12, // 37: loco.agent.v1.AgentService.Sync:output_type -> loco.agent.v1.SyncResponse
+	36, // [36:38] is the sub-list for method output_type
+	34, // [34:36] is the sub-list for method input_type
+	34, // [34:34] is the sub-list for extension type_name
+	34, // [34:34] is the sub-list for extension extendee
+	0,  // [0:34] is the sub-list for field type_name
 }
 
 func init() { file_loco_agent_v1_agent_proto_init() }
@@ -2152,7 +2274,7 @@ func file_loco_agent_v1_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_agent_v1_agent_proto_rawDesc), len(file_loco_agent_v1_agent_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   24,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

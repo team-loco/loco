@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ListWorkloadRunsRequest, ListWorkloadRunsResponse } from "./usage_pb";
+import { ListEgressUsageRequest, ListEgressUsageResponse, ListWorkloadRunsRequest, ListWorkloadRunsResponse } from "./usage_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -19,6 +19,15 @@ export const UsageService = {
       name: "ListWorkloadRuns",
       I: ListWorkloadRunsRequest,
       O: ListWorkloadRunsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc loco.usage.v1.UsageService.ListEgressUsage
+     */
+    listEgressUsage: {
+      name: "ListEgressUsage",
+      I: ListEgressUsageRequest,
+      O: ListEgressUsageResponse,
       kind: MethodKind.Unary,
     },
   }

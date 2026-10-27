@@ -8,3 +8,8 @@ import { UsageService } from "./usage_pb";
  * @generated from rpc loco.usage.v1.UsageService.ListWorkloadRuns
  */
 export const listWorkloadRuns = UsageService.method.listWorkloadRuns;
+
+/**
+ * @generated from rpc loco.usage.v1.UsageService.ListEgressUsage
+ */
+export const listEgressUsage = UsageService.method.listEgressUsage;

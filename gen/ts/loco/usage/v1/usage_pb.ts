@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/usage/v1/usage.proto.
  */
 export const file_loco_usage_v1_usage: GenFile = /*@__PURE__*/
-  fileDesc("Chlsb2NvL3VzYWdlL3YxL3VzYWdlLnByb3RvEg1sb2NvLnVzYWdlLnYxIlEKF0xpc3RXb3JrbG9hZFJ1bnNSZXF1ZXN0EhcKBmN1cnNvchgBIAEoCUIHukgEcgIYQBIdCglwYWdlX3NpemUYAiABKAVCCrpIBxoFGOgHKAAijgEKGExpc3RXb3JrbG9hZFJ1bnNSZXNwb25zZRIoCgRydW5zGAEgAygLMhoubG9jby51c2FnZS52MS5Xb3JrbG9hZFJ1bhITCgtuZXh0X2N1cnNvchgCIAEoCRIzCg9tZXRlcmVkX3Rocm91Z2gYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIukCCgtXb3JrbG9hZFJ1bhIKCgJpZBgBIAEoCRISCgpjbHVzdGVyX2lkGAIgASgJEg4KBnJlZ2lvbhgDIAEoCRIXCg9vcmdhbml6YXRpb25faWQYBCABKAkSFAoMd29ya3NwYWNlX2lkGAUgASgJEhMKC3Jlc291cmNlX2lkGAYgASgJEhYKDmVudmlyb25tZW50X2lkGAcgASgJEhYKDmNwdV9taWxsaWNvcmVzGAggASgDEhQKDG1lbW9yeV9ieXRlcxgJIAEoAxIuCgpzdGFydGVkX2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIwCgxsYXN0X3NlZW5fYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjEKCGVuZGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgAiAEBQgsKCV9lbmRlZF9hdDJzCgxVc2FnZVNlcnZpY2USYwoQTGlzdFdvcmtsb2FkUnVucxImLmxvY28udXNhZ2UudjEuTGlzdFdvcmtsb2FkUnVuc1JlcXVlc3QaJy5sb2NvLnVzYWdlLnYxLkxpc3RXb3JrbG9hZFJ1bnNSZXNwb25zZUI4WjZnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL3VzYWdlL3YxO3VzYWdldjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("Chlsb2NvL3VzYWdlL3YxL3VzYWdlLnByb3RvEg1sb2NvLnVzYWdlLnYxIlEKF0xpc3RXb3JrbG9hZFJ1bnNSZXF1ZXN0EhcKBmN1cnNvchgBIAEoCUIHukgEcgIYQBIdCglwYWdlX3NpemUYAiABKAVCCrpIBxoFGOgHKAAijgEKGExpc3RXb3JrbG9hZFJ1bnNSZXNwb25zZRIoCgRydW5zGAEgAygLMhoubG9jby51c2FnZS52MS5Xb3JrbG9hZFJ1bhITCgtuZXh0X2N1cnNvchgCIAEoCRIzCg9tZXRlcmVkX3Rocm91Z2gYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIukCCgtXb3JrbG9hZFJ1bhIKCgJpZBgBIAEoCRISCgpjbHVzdGVyX2lkGAIgASgJEg4KBnJlZ2lvbhgDIAEoCRIXCg9vcmdhbml6YXRpb25faWQYBCABKAkSFAoMd29ya3NwYWNlX2lkGAUgASgJEhMKC3Jlc291cmNlX2lkGAYgASgJEhYKDmVudmlyb25tZW50X2lkGAcgASgJEhYKDmNwdV9taWxsaWNvcmVzGAggASgDEhQKDG1lbW9yeV9ieXRlcxgJIAEoAxIuCgpzdGFydGVkX2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIwCgxsYXN0X3NlZW5fYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjEKCGVuZGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgAiAEBQgsKCV9lbmRlZF9hdCJQChZMaXN0RWdyZXNzVXNhZ2VSZXF1ZXN0EhcKBmN1cnNvchgBIAEoCUIHukgEcgIYQBIdCglwYWdlX3NpemUYAiABKAVCCrpIBxoFGOgHKAAijgEKF0xpc3RFZ3Jlc3NVc2FnZVJlc3BvbnNlEikKBXVzYWdlGAEgAygLMhoubG9jby51c2FnZS52MS5FZ3Jlc3NVc2FnZRITCgtuZXh0X2N1cnNvchgCIAEoCRIzCg9tZXRlcmVkX3Rocm91Z2gYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIswBCgtFZ3Jlc3NVc2FnZRISCgpjbHVzdGVyX2lkGAEgASgJEg4KBnJlZ2lvbhgCIAEoCRIXCg9vcmdhbml6YXRpb25faWQYAyABKAkSFAoMd29ya3NwYWNlX2lkGAQgASgJEhMKC3Jlc291cmNlX2lkGAUgASgJEhYKDmVudmlyb25tZW50X2lkGAYgASgJEi4KCmhvdXJfc3RhcnQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg0KBWJ5dGVzGAggASgDMtUBCgxVc2FnZVNlcnZpY2USYwoQTGlzdFdvcmtsb2FkUnVucxImLmxvY28udXNhZ2UudjEuTGlzdFdvcmtsb2FkUnVuc1JlcXVlc3QaJy5sb2NvLnVzYWdlLnYxLkxpc3RXb3JrbG9hZFJ1bnNSZXNwb25zZRJgCg9MaXN0RWdyZXNzVXNhZ2USJS5sb2NvLnVzYWdlLnYxLkxpc3RFZ3Jlc3NVc2FnZVJlcXVlc3QaJi5sb2NvLnVzYWdlLnYxLkxpc3RFZ3Jlc3NVc2FnZVJlc3BvbnNlQjhaNmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vdXNhZ2UvdjE7dXNhZ2V2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.usage.v1.ListWorkloadRunsRequest
@@ -237,6 +237,187 @@ export const WorkloadRunSchema: GenMessage<WorkloadRun, {jsonType: WorkloadRunJs
   messageDesc(file_loco_usage_v1_usage, 2);
 
 /**
+ * @generated from message loco.usage.v1.ListEgressUsageRequest
+ */
+export type ListEgressUsageRequest = Message<"loco.usage.v1.ListEgressUsageRequest"> & {
+  /**
+   * @generated from field: string cursor = 1;
+   */
+  cursor: string;
+
+  /**
+   * @generated from field: int32 page_size = 2;
+   */
+  pageSize: number;
+};
+
+/**
+ * @generated from message loco.usage.v1.ListEgressUsageRequest
+ */
+export type ListEgressUsageRequestJson = {
+  /**
+   * @generated from field: string cursor = 1;
+   */
+  cursor?: string;
+
+  /**
+   * @generated from field: int32 page_size = 2;
+   */
+  pageSize?: number;
+};
+
+/**
+ * Describes the message loco.usage.v1.ListEgressUsageRequest.
+ * Use `create(ListEgressUsageRequestSchema)` to create a new message.
+ */
+export const ListEgressUsageRequestSchema: GenMessage<ListEgressUsageRequest, {jsonType: ListEgressUsageRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_usage_v1_usage, 3);
+
+/**
+ * @generated from message loco.usage.v1.ListEgressUsageResponse
+ */
+export type ListEgressUsageResponse = Message<"loco.usage.v1.ListEgressUsageResponse"> & {
+  /**
+   * @generated from field: repeated loco.usage.v1.EgressUsage usage = 1;
+   */
+  usage: EgressUsage[];
+
+  /**
+   * @generated from field: string next_cursor = 2;
+   */
+  nextCursor: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp metered_through = 3;
+   */
+  meteredThrough?: Timestamp | undefined;
+};
+
+/**
+ * @generated from message loco.usage.v1.ListEgressUsageResponse
+ */
+export type ListEgressUsageResponseJson = {
+  /**
+   * @generated from field: repeated loco.usage.v1.EgressUsage usage = 1;
+   */
+  usage?: EgressUsageJson[];
+
+  /**
+   * @generated from field: string next_cursor = 2;
+   */
+  nextCursor?: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp metered_through = 3;
+   */
+  meteredThrough?: TimestampJson;
+};
+
+/**
+ * Describes the message loco.usage.v1.ListEgressUsageResponse.
+ * Use `create(ListEgressUsageResponseSchema)` to create a new message.
+ */
+export const ListEgressUsageResponseSchema: GenMessage<ListEgressUsageResponse, {jsonType: ListEgressUsageResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_usage_v1_usage, 4);
+
+/**
+ * @generated from message loco.usage.v1.EgressUsage
+ */
+export type EgressUsage = Message<"loco.usage.v1.EgressUsage"> & {
+  /**
+   * @generated from field: string cluster_id = 1;
+   */
+  clusterId: string;
+
+  /**
+   * @generated from field: string region = 2;
+   */
+  region: string;
+
+  /**
+   * @generated from field: string organization_id = 3;
+   */
+  organizationId: string;
+
+  /**
+   * @generated from field: string workspace_id = 4;
+   */
+  workspaceId: string;
+
+  /**
+   * @generated from field: string resource_id = 5;
+   */
+  resourceId: string;
+
+  /**
+   * @generated from field: string environment_id = 6;
+   */
+  environmentId: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp hour_start = 7;
+   */
+  hourStart?: Timestamp | undefined;
+
+  /**
+   * @generated from field: int64 bytes = 8;
+   */
+  bytes: bigint;
+};
+
+/**
+ * @generated from message loco.usage.v1.EgressUsage
+ */
+export type EgressUsageJson = {
+  /**
+   * @generated from field: string cluster_id = 1;
+   */
+  clusterId?: string;
+
+  /**
+   * @generated from field: string region = 2;
+   */
+  region?: string;
+
+  /**
+   * @generated from field: string organization_id = 3;
+   */
+  organizationId?: string;
+
+  /**
+   * @generated from field: string workspace_id = 4;
+   */
+  workspaceId?: string;
+
+  /**
+   * @generated from field: string resource_id = 5;
+   */
+  resourceId?: string;
+
+  /**
+   * @generated from field: string environment_id = 6;
+   */
+  environmentId?: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp hour_start = 7;
+   */
+  hourStart?: TimestampJson;
+
+  /**
+   * @generated from field: int64 bytes = 8;
+   */
+  bytes?: string;
+};
+
+/**
+ * Describes the message loco.usage.v1.EgressUsage.
+ * Use `create(EgressUsageSchema)` to create a new message.
+ */
+export const EgressUsageSchema: GenMessage<EgressUsage, {jsonType: EgressUsageJson}> = /*@__PURE__*/
+  messageDesc(file_loco_usage_v1_usage, 5);
+
+/**
  * @generated from service loco.usage.v1.UsageService
  */
 export const UsageService: GenService<{
@@ -247,6 +428,14 @@ export const UsageService: GenService<{
     methodKind: "unary";
     input: typeof ListWorkloadRunsRequestSchema;
     output: typeof ListWorkloadRunsResponseSchema;
+  },
+  /**
+   * @generated from rpc loco.usage.v1.UsageService.ListEgressUsage
+   */
+  listEgressUsage: {
+    methodKind: "unary";
+    input: typeof ListEgressUsageRequestSchema;
+    output: typeof ListEgressUsageResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_loco_usage_v1_usage, 0);

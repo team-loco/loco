@@ -7,12 +7,15 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	"github.com/team-loco/loco/agent/pkg/egress"
 	"github.com/team-loco/loco/agent/pkg/usage"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	locolabels "github.com/team-loco/loco/k8sapi/labels"
+	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
@@ -38,10 +41,17 @@ func endedPod() *corev1.Pod {
 	}
 }
 
+type noApplications struct{}
+
+func (noApplications) Applications(context.Context) ([]locov1alpha1.Application, error) {
+	return nil, nil
+}
+
 func TestReportUsageReportsAtOnceAndWhenARunEnds(t *testing.T) {
 	reader := fake.NewClientBuilder().WithScheme(scheme.Scheme).Build()
 	meter := usage.New(reader, time.Now)
-	a := &Agent{cfg: &Config{UsageInterval: testUsageInterval}, usage: meter}
+	gateway := egress.New(kubefake.NewClientset(), egress.Config{}, noApplications{}, nil)
+	a := &Agent{cfg: &Config{UsageInterval: testUsageInterval}, usage: meter, egress: gateway}
 	ctx, cancel := context.WithCancel(t.Context())
 	sent := make(chan *agentv1.SyncRequest)
 	stopped := make(chan struct{})
@@ -59,8 +69,8 @@ func TestReportUsageReportsAtOnceAndWhenARunEnds(t *testing.T) {
 		t.Helper()
 		select {
 		case msg := <-sent:
-			if msg.GetUsage() == nil {
-				t.Fatalf("sent %v %s, want a usage report", msg, when)
+			if !msg.GetUsage().GetEgressComplete() {
+				t.Fatalf("sent %v %s, want a usage report that read every gateway proxy", msg, when)
 			}
 			return msg.GetUsage()
 		case <-time.After(testUsageWait):

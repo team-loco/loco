@@ -23,6 +23,7 @@ import (
 	"github.com/team-loco/loco/agent/pkg/buildwatch"
 	"github.com/team-loco/loco/agent/pkg/cluster"
 	"github.com/team-loco/loco/agent/pkg/domains"
+	"github.com/team-loco/loco/agent/pkg/egress"
 	"github.com/team-loco/loco/agent/pkg/identity"
 	"github.com/team-loco/loco/agent/pkg/kube"
 	"github.com/team-loco/loco/agent/pkg/registrycred"
@@ -141,6 +142,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	scraper := egress.NewAdminScraper(&inspectorConfig, clientset)
+	egressConfig := egress.Config{
+		Namespace:     cfg.Namespace,
+		Gateway:       cfg.Gateway,
+		ScrapeTimeout: cfg.ClusterQueryTimeout,
+	}
+	gatewayEgress := egress.New(clientset, egressConfig, watcher, scraper)
+
 	buildConfig := buildwatch.Config{
 		Namespace:           cfg.BuildNamespace,
 		Retention:           cfg.BuildRetention,
@@ -175,6 +184,7 @@ func main() {
 		credentials: credentials,
 		watcher:     watcher,
 		usage:       meter,
+		egress:      gatewayEgress,
 		builds:      builds,
 		ingest:      telemetryTokens,
 		pullSecrets: pullSecrets,
@@ -213,6 +223,7 @@ type Agent struct {
 	credentials       *identity.Credentials
 	watcher           *appwatch.Watcher
 	usage             *usage.Meter
+	egress            *egress.Meter
 	builds            buildRunner
 	heartbeatInterval time.Duration
 	ingest            *telemetrytoken.Renewer
