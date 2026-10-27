@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import os
 import struct
 import subprocess
 from pathlib import Path
@@ -129,20 +130,85 @@ def test_publishing_requires_both_native_verifiers_before_index_provenance():
     assert sbom["with"]["image"] == "${{ steps.platform.outputs.image }}"
 
 
-def test_pull_requests_build_each_platform_image_on_both_architectures():
+PLATFORM_DOCKERFILES = {
+    "./api/Dockerfile",
+    "./agent/Dockerfile",
+    "./controller/Dockerfile",
+    "./builder/Dockerfile",
+    "./observability-proxy/Dockerfile",
+    "./web/Dockerfile",
+}
+
+
+def _select_images(cwd, output, **env):
+    script = _workflow("docker.yml")["jobs"]["changes"]["steps"][1]["run"]
+    subprocess.run(
+        ["bash", "-c", script],
+        cwd=cwd,
+        env={"PATH": os.environ["PATH"], "GITHUB_OUTPUT": str(output), **env},
+        check=True,
+    )
+    outputs = dict(line.split("=", 1) for line in output.read_text().splitlines())
+    images = {entry["dockerfile"] for entry in json.loads(outputs["images"])}
+    platforms = {entry["platform"] for entry in json.loads(outputs["targets"])}
+    return images, platforms
+
+
+def test_main_builds_each_platform_image_on_both_architectures(tmp_path):
     workflow = _workflow("docker.yml")
     assert "tools/platform-images/**" in workflow["on"]["pull_request"]["paths"]
     assert "tests/versions/**" in workflow["on"]["pull_request"]["paths"]
-    matrix = workflow["jobs"]["buildkit-check"]["strategy"]["matrix"]
-    assert {entry["platform"] for entry in matrix["target"]} == {
-        "linux/amd64",
-        "linux/arm64",
-    }
-    assert {entry["dockerfile"] for entry in matrix["image"]} == {
-        "./api/Dockerfile",
-        "./agent/Dockerfile",
-        "./controller/Dockerfile",
-        "./builder/Dockerfile",
-        "./observability-proxy/Dockerfile",
-        "./web/Dockerfile",
-    }
+    root = Path(__file__).resolve().parents[3]
+    assert _select_images(root, tmp_path / "output", EVENT="push") == (
+        PLATFORM_DOCKERFILES,
+        {"linux/amd64", "linux/arm64"},
+    )
+
+
+@pytest.mark.parametrize(
+    ("path", "expected"),
+    [
+        ("tools/platform-images/verify.py", PLATFORM_DOCKERFILES),
+        (".github/workflows/docker.yml", PLATFORM_DOCKERFILES),
+        (
+            "internal/buildinfo/version.go",
+            {
+                "./api/Dockerfile",
+                "./agent/Dockerfile",
+                "./observability-proxy/Dockerfile",
+            },
+        ),
+        (
+            "k8sapi/v1/application_types.go",
+            {"./api/Dockerfile", "./agent/Dockerfile", "./controller/Dockerfile"},
+        ),
+        ("api/server.go", {"./api/Dockerfile"}),
+        ("docs/content/index.md", {"./web/Dockerfile"}),
+        ("schemas/loco.v1.json", {"./web/Dockerfile"}),
+        ("mise.toml", set()),
+    ],
+)
+def test_pull_requests_build_changed_images_on_amd64(tmp_path, path, expected):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    def git(*args):
+        return subprocess.check_output(
+            ["git", "-C", str(repo), *args], text=True
+        ).strip()
+
+    git("init", "-q")
+    git("config", "user.name", "CI fixture")
+    git("config", "user.email", "ci@example.test")
+    git("commit", "-q", "--allow-empty", "-m", "base")
+    base = git("rev-parse", "HEAD")
+    changed = repo / path
+    changed.parent.mkdir(parents=True, exist_ok=True)
+    changed.write_text("changed")
+    git("add", path)
+    git("commit", "-qm", "head")
+    head = git("rev-parse", "HEAD")
+    selected = _select_images(
+        repo, tmp_path / "output", EVENT="pull_request", BASE=base, HEAD=head
+    )
+    assert selected == (expected, {"linux/amd64"})
