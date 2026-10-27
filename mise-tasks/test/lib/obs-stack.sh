@@ -72,7 +72,7 @@ done
 region=obs-stack-region
 ingest_endpoint=http://host.docker.internal:$ingest_http_port
 manifest=$(helm template loco-worker "$chart" --namespace "$namespace" --set global.region="$region" \
-	--set global.exporter.endpoint="$ingest_endpoint" --set global.exporter.bearerToken.enabled=true --set agent.image.tag="$1" --set controller.image.tag="$1" \
+	--set global.exporter.endpoint="$ingest_endpoint" --set global.exporter.ingestToken.enabled=true --set agent.image.tag="$1" --set controller.image.tag="$1" \
 	--set builds.enabled=false --set certManager.issuer.email=obs-stack@example.test)
 control_plane_manifest=$(helm template "$control_plane_release" "$control_plane_chart" \
 	--namespace "$control_plane_namespace" --set obsProxy.image.tag="$1" \
@@ -123,8 +123,8 @@ clickhouse_port=$(docker port "$clickhouse" 9000/tcp | head -1)
 go build -o "$workdir/ingesttoken" ./tools/ingesttoken
 ingest_key=$workdir/ingest-key
 openssl rand -out "$ingest_key" 32
-token_directory=$(yq '.global.exporter.bearerToken.directory' "$chart/values.yaml")
-token_key=$(yq '.global.exporter.bearerToken.secretKey' "$chart/values.yaml")
+token_directory=$(yq '.global.exporter.ingestToken.directory' "$chart/values.yaml")
+token_key=$(yq '.global.exporter.ingestToken.secretKey' "$chart/values.yaml")
 mkdir -p "$workdir/token"
 ingest_cluster=$run_id
 "$workdir/ingesttoken" -key "$ingest_key" -cluster "$ingest_cluster" >"$workdir/token/$token_key"

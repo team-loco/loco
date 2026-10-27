@@ -80,8 +80,8 @@ BUILDKIT_IMAGE=$(yq '.builds.buildkitImage.repository + ":" + .builds.buildkitIm
 CLUSTER_ADMIN_TOKEN="loco_s_e2e-admin-session-do-not-use-in-production"
 CLUSTER_ADMIN_HOME="$RUN_DIR/cluster-admin-home"
 AGENT_KEY_SECRET="e2e-agent-key"
-INGEST_TOKEN_SECRET=$(yq '.global.exporter.bearerToken.secretName' "$WORKER_VALUES")
-INGEST_TOKEN_SECRET_KEY=$(yq '.global.exporter.bearerToken.secretKey' "$WORKER_VALUES")
+INGEST_TOKEN_SECRET=$(yq '.global.exporter.ingestToken.secretName' "$WORKER_VALUES")
+INGEST_TOKEN_SECRET_KEY=$(yq '.global.exporter.ingestToken.secretKey' "$WORKER_VALUES")
 E2E_CLUSTER_NAME="e2e-test-cluster"
 E2E_CLUSTER_REGION="us-east-1"
 E2E_CLUSTER_TIER="production"
@@ -669,7 +669,7 @@ install_worker() {
         )
     fi
     if [ "$OBSERVABILITY" = true ]; then
-        obs_values+=(--set global.exporter.bearerToken.enabled=true)
+        obs_values+=(--set global.exporter.ingestToken.enabled=true)
     fi
     create_gateway_tls_secret
     helm upgrade --install "$WORKER_RELEASE" "$WORKER_CHART" \
