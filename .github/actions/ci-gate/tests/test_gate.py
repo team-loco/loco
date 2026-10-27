@@ -57,12 +57,14 @@ def _run_gate(runs, current, checks=()):
         event.write_text(json.dumps({"workflow_run": current}))
         log = temp / "gh.log"
         log.touch()
+        summary = temp / "summary.md"
         env = {
             **os.environ,
             "PATH": directory + os.pathsep + os.environ["PATH"],
             "RUN_PAGES": json.dumps([{"workflow_runs": list(runs)}]),
             "CHECK_PAGES": json.dumps([{"check_runs": list(checks)}]),
             "GH_LOG": str(log),
+            "GITHUB_STEP_SUMMARY": str(summary),
             "GITHUB_EVENT_PATH": str(event),
             "RUNNER_TEMP": directory,
             "SELF": "CI Gate",
@@ -76,7 +78,7 @@ def _run_gate(runs, current, checks=()):
         assert result.returncode == 0, result.stdout + result.stderr
         body = temp / "gate.json"
         written = json.loads(body.read_text()) if body.exists() else None
-        return log.read_text().splitlines(), written
+        return log.read_text().splitlines(), written, summary.read_text()
 
 
 def _writes(calls):
@@ -84,7 +86,7 @@ def _writes(calls):
 
 
 def test_evaluation_reads_twice_and_posts_a_commit_status():
-    calls, body = _run_gate(
+    calls, body, _ = _run_gate(
         [run(1, "completed", "success")], run(1, "completed", "success")
     )
     assert len(calls) == 3
@@ -98,7 +100,7 @@ def test_evaluation_reads_twice_and_posts_a_commit_status():
 
 
 def test_running_checks_post_pending():
-    calls, body = _run_gate(
+    calls, body, _ = _run_gate(
         [run(1, "completed", "success"), run(2, "in_progress", None, workflow=2)],
         run(1, "completed", "success"),
     )
@@ -107,7 +109,7 @@ def test_running_checks_post_pending():
 
 
 def test_a_failed_check_posts_failure():
-    calls, body = _run_gate(
+    calls, body, _ = _run_gate(
         [run(1, "completed", "failure"), run(2, "queued", None, workflow=2)],
         run(1, "completed", "failure"),
     )
@@ -115,14 +117,14 @@ def test_a_failed_check_posts_failure():
 
 
 def test_triggering_run_overrides_a_stale_listing():
-    calls, body = _run_gate(
+    calls, body, _ = _run_gate(
         [run(1, "in_progress", None)], run(1, "completed", "success")
     )
     assert body["state"] == "success"
 
 
 def test_superseded_cancelled_run_waits_for_its_replacement():
-    calls, body = _run_gate(
+    calls, body, _ = _run_gate(
         [run(1, "completed", "cancelled"), run(2, "queued", None)],
         run(1, "completed", "cancelled"),
     )
@@ -130,7 +132,7 @@ def test_superseded_cancelled_run_waits_for_its_replacement():
 
 
 def test_runs_of_every_event_are_listed():
-    calls, _ = _run_gate([run(1, "completed", "success")], run(1, "completed", "success"))
+    calls, _, _ = _run_gate([run(1, "completed", "success")], run(1, "completed", "success"))
     assert "event=" not in calls[0]
 
 
@@ -142,7 +144,7 @@ def test_a_workflow_the_gate_does_not_hear_is_ignored():
         "conclusion": None,
         "check_suite": {"id": 3},
     }
-    calls, body = _run_gate(
+    calls, body, _ = _run_gate(
         [
             run(1, "completed", "success"),
             run(3, "in_progress", None, workflow=3, name="Renovate"),
@@ -151,3 +153,13 @@ def test_a_workflow_the_gate_does_not_hear_is_ignored():
         [scan],
     )
     assert (body["state"], body["description"]) == ("success", "0 failing, 0 running, 1 total")
+
+
+def test_the_run_summary_names_failing_checks():
+    _, _, summary = _run_gate(
+        [run(1, "completed", "failure"), run(2, "completed", "success", workflow=2, name="Lint")],
+        run(1, "completed", "failure"),
+    )
+    lines = summary.splitlines()
+    assert "| Tests (workflow) | failure |" in lines
+    assert "| Lint (workflow) | success |" in lines

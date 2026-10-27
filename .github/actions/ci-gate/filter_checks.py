@@ -13,13 +13,14 @@ def with_run(run_pages, current):
 def current_checks(run_pages, check_pages, self_name, gated):
     runs = [run for page in run_pages for run in page['workflow_runs']]
     suites = {run['check_suite_id'] for run in runs}
-    latest_runs = {}
+    workflows = {}
     for run in runs:
-        if run['name'] not in gated:
-            continue
-        previous = latest_runs.get(run['workflow_id'])
-        if previous is None or run['id'] > previous['id']:
-            latest_runs[run['workflow_id']] = run
+        if run['name'] in gated:
+            workflows.setdefault(run['workflow_id'], []).append(run)
+    latest_runs = {}
+    for workflow, workflow_runs in workflows.items():
+        kept = [run for run in workflow_runs if run['conclusion'] != 'cancelled'] or workflow_runs
+        latest_runs[workflow] = max(kept, key=lambda run: run['id'])
     checks = {}
     for page in check_pages:
         for check in page['check_runs']:
@@ -42,6 +43,13 @@ def verdict(rows):
     return 'completed', 'success'
 
 
+def summary(rows):
+    status, conclusion = verdict(rows)
+    lines = [f'CI Gate: {conclusion or status}', '', '| Check | Result |', '| --- | --- |']
+    lines += [f'| {name} | {result or state} |' for name, state, result in rows]
+    return '\n'.join(lines) + '\n'
+
+
 def gate_request(rows, self_name, head_sha, details_url):
     status, conclusion = verdict(rows)
     pending = [name for name, state, _ in rows if state != 'completed']
@@ -56,7 +64,7 @@ def gate_request(rows, self_name, head_sha, details_url):
 
 
 if __name__ == '__main__':
-    runs_path, checks_path, gated_path, event_path, self_name, details_url, body_path = sys.argv[1:]
+    runs_path, checks_path, gated_path, event_path, self_name, details_url, body_path, summary_path = sys.argv[1:]
     current = json.loads(Path(event_path).read_text())['workflow_run']
     check_pages = json.loads(Path(checks_path).read_text())
     run_pages = with_run(json.loads(Path(runs_path).read_text()), current)
@@ -65,6 +73,8 @@ if __name__ == '__main__':
     for name, state, result in rows:
         print(f'  {name:<34} {result or state}', file=sys.stderr)
     print(f'{self_name}: {" ".join(filter(None, verdict(rows)))}', file=sys.stderr)
+    with Path(summary_path).open('a') as summary_file:
+        summary_file.write(summary(rows))
     request = gate_request(rows, self_name, current['head_sha'], details_url)
     Path(body_path).write_text(json.dumps(request[1]))
     print(request[0])
