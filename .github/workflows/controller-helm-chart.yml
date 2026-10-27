@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-    paths:
+    paths: &paths
       - "controller/**"
       - "k8sapi/**"
       - "charts/**"
@@ -18,19 +18,7 @@ on:
       - ".github/actions/setup-tools/**"
       - ".github/workflows/controller-helm-chart.yml"
   pull_request:
-    paths:
-      - "controller/**"
-      - "k8sapi/**"
-      - "charts/**"
-      - "go.mod"
-      - "go.sum"
-      - "mise-tasks/chart/**"
-      - "mise-tasks/crds/**"
-      - "mise-tasks/test/chart"
-      - "mise.toml"
-      - "mise.lock"
-      - ".github/actions/setup-tools/**"
-      - ".github/workflows/controller-helm-chart.yml"
+    paths: *paths
 
 # Both jobs execute code from the PR under review (Makefiles, Go tooling, helm
 # charts), so neither may hold anything an attacker would want.

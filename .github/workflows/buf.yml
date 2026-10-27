@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-    paths:
+    paths: &paths
       - "**.proto"
       - "**/buf.yaml"
       - "**/buf.lock"
@@ -23,20 +23,7 @@ on:
     # removing the `break-buf` label re-runs this workflow. Without them the
     # label can only take effect on the next push.
     types: [opened, synchronize, reopened, labeled, unlabeled]
-    paths:
-      - "**.proto"
-      - "**/buf.yaml"
-      - "**/buf.lock"
-      - "**/buf.gen.yaml"
-      - "gen/**"
-      - "go.mod"
-      - "go.sum"
-      - "package.json"
-      - "bun.lock"
-      - ".github/workflows/buf.yml"
-      - "mise.toml"
-      - "mise.lock"
-      - ".github/actions/setup-tools/**"
+    paths: *paths
 
 permissions:
   contents: read

@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-    paths:
+    paths: &paths
       - "api/**"
       - "cmd/**"
       - "internal/**"
@@ -28,29 +28,7 @@ on:
       - ".github/actions/setup-tools/**"
       - ".github/workflows/test.yml"
   pull_request:
-    paths:
-      - "api/**"
-      - "cmd/**"
-      - "internal/**"
-      - "tools/**"
-      - "controller/**"
-      - "agent/**"
-      - "builder/**"
-      - "observability-proxy/**"
-      - "k8sapi/**"
-      - "controller/Makefile"
-      - "mise-tasks/test/counter-metrics"
-      - "mise-tasks/test/lib/ports.sh"
-      - "charts/loco-control-plane/values.yaml"
-      - "charts/loco-worker/values.yaml"
-      - "go.mod"
-      - "go.sum"
-      - "gen/go/**"
-      - ".github/actions/go-changes/**"
-      - "mise.toml"
-      - "mise.lock"
-      - ".github/actions/setup-tools/**"
-      - ".github/workflows/test.yml"
+    paths: *paths
   workflow_call:
 
 concurrency:

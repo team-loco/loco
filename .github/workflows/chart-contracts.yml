@@ -2,7 +2,7 @@ name: Chart Contracts
 
 on:
   pull_request:
-    paths:
+    paths: &paths
       - "tests/pyproject.toml"
       - "tests/uv.lock"
       - "charts/**"
@@ -29,31 +29,7 @@ on:
       - ".github/workflows/chart-contracts.yml"
   push:
     branches: [main]
-    paths:
-      - "tests/pyproject.toml"
-      - "tests/uv.lock"
-      - "charts/**"
-      - "dev/worker-chart.yaml"
-      - "mise-tasks/helm/**"
-      - "tests/charts/**"
-      - "tests/collector/**"
-      - "tests/e2e/certificates.sh"
-      - "tests/e2e/control-plane.sh"
-      - "controller/config/crd/**"
-      - "mise-tasks/crds/**"
-      - "tests/e2e/control-plane-values.yaml"
-      - "tests/e2e/api-failover.py"
-      - "tests/e2e/cluster-metrics.py"
-      - "tests/e2e/fixtures/api-failover/**"
-      - "tests/e2e/fixtures/control-plane/**"
-      - "tests/conformance/transit/compose.yaml"
-      - "dev/compose.yaml"
-      - "dev/api.env"
-      - "dev/openbao/**"
-      - "mise.toml"
-      - "mise.lock"
-      - ".github/actions/setup-tools/**"
-      - ".github/workflows/chart-contracts.yml"
+    paths: *paths
 
 permissions:
   contents: read

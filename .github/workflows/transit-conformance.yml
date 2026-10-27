@@ -4,17 +4,13 @@ on:
   push:
     branches:
       - main
-    paths:
+    paths: &paths
       - "api/pkg/secretkeys/**"
       - "tests/conformance/transit/**"
       - "mise-tasks/test/transit-conformance"
       - ".github/workflows/transit-conformance.yml"
   pull_request:
-    paths:
-      - "api/pkg/secretkeys/**"
-      - "tests/conformance/transit/**"
-      - "mise-tasks/test/transit-conformance"
-      - ".github/workflows/transit-conformance.yml"
+    paths: *paths
   workflow_dispatch:
 
 concurrency:

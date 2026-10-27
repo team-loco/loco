@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-    paths:
+    paths: &paths
       - "tests/pyproject.toml"
       - "tests/uv.lock"
       - ".github/workflows/**"
@@ -12,13 +12,7 @@ on:
       - "mise.lock"
       - ".github/actions/**"
   pull_request:
-    paths:
-      - "tests/pyproject.toml"
-      - "tests/uv.lock"
-      - ".github/workflows/**"
-      - "mise.toml"
-      - "mise.lock"
-      - ".github/actions/**"
+    paths: *paths
 
 permissions:
   contents: read

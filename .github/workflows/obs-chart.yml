@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-    paths:
+    paths: &paths
       - "charts/loco-worker/**"
       - "charts/loco-control-plane/**"
       - "mise-tasks/test/obs-retention"
@@ -22,23 +22,7 @@ on:
       - ".github/actions/setup-tools/**"
       - "!**/*_test.go"
   pull_request:
-    paths:
-      - "charts/loco-worker/**"
-      - "charts/loco-control-plane/**"
-      - "mise-tasks/test/obs-retention"
-      - "mise-tasks/test/obs-tenancy"
-      - "mise-tasks/test/lib/**"
-      - "tools/pullimage/**"
-      - "observability-proxy/**"
-      - "gen/go/**"
-      - "internal/buildinfo/**"
-      - "go.mod"
-      - "go.sum"
-      - "mise.toml"
-      - "mise.lock"
-      - ".github/workflows/obs-chart.yml"
-      - ".github/actions/setup-tools/**"
-      - "!**/*_test.go"
+    paths: *paths
 
 permissions:
   contents: read

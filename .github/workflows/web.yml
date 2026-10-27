@@ -5,7 +5,7 @@ on:
   push:
     branches:
       - main
-    paths:
+    paths: &paths
       - "web/**"
       - "tests/install/**"
       - "tests/pyproject.toml"
@@ -42,42 +42,7 @@ on:
       - "mise.lock"
       - ".github/actions/setup-tools/**"
   pull_request:
-    paths:
-      - "web/**"
-      - "tests/install/**"
-      - "tests/pyproject.toml"
-      - "tests/uv.lock"
-      - "api/events/**"
-      - "api/authz/**"
-      - "api/service/event*"
-      - "api/queries/events.sql"
-      - "api/migrations/00004_events.sql"
-      - "proto/loco/event/**"
-      - "tests/e2e/trace_ui.py"
-      - "tests/e2e/settings_labels_ui.py"
-      - "tests/e2e/fixtures/settings-labels/**"
-      - "tests/e2e/deployment_history_ui.py"
-      - "tests/e2e/fixtures/deployment-history/**"
-      - "api/service/{deployment,resource,resource_status,environment,workspace,org,user}*.go"
-      - "api/{auth,authz,interceptor,migrations,db}/**"
-      - "api/queries/{deployment,resource,environment,workspace,org,user}*.sql"
-      - "api/gen/db/{deployment,resource,environment,workspace,org,user}*.go"
-      - "api/{main,config,env}*.go"
-      - "api/go.{mod,sum}"
-      - "gen/go/loco/{deployment,resource,environment,workspace,org,user}/**"
-      - "go.{mod,sum}"
-      - "dev/compose.yaml"
-      - "tests/e2e/activity_ui.py"
-      - "tests/e2e/activity_fixture.py"
-      - "tests/e2e/fixtures/activity/**"
-      - ".agents/skills/ui-evidence/**"
-      - "gen/ts/**"
-      - "package.json"
-      - "bun.lock"
-      - ".github/workflows/web.yml"
-      - "mise.toml"
-      - "mise.lock"
-      - ".github/actions/setup-tools/**"
+    paths: *paths
 
 permissions:
   contents: read
