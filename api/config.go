@@ -10,7 +10,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/team-loco/loco/api/auth"
-	"github.com/team-loco/loco/api/mail"
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/registryclient"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
@@ -98,7 +97,6 @@ const (
 	defaultPlacementMaxApplyAttempts = 3
 	defaultClusterJoinTokenTTL       = time.Hour
 	defaultAgentAssertionMaxLifetime = 5 * time.Minute
-	defaultInvitationTTL             = 168 * time.Hour
 
 	bootstrapEnv            = "LOCO_BOOTSTRAP_TOKEN"
 	minBootstrapTokenLength = 32
@@ -129,7 +127,6 @@ type APIConfig struct {
 	AuthIssuers           []auth.IssuerConfig
 	SignupPolicy          auth.SignupPolicy
 	WebURL                string
-	Invitations           service.InvitationConfig
 	SchemaURL             string
 	EventsRetention       time.Duration
 	WebhooksAllowPrivate  bool
@@ -170,8 +167,6 @@ func newAPIConfig() *APIConfig {
 	secrets := newSecretsConfig()
 	heartbeatInterval := positiveDurationEnv("LOCO_AGENT_HEARTBEAT_INTERVAL", defaultHeartbeatInterval)
 	bootstrapTokenHash := newBootstrapTokenHash()
-	webURL := stringEnv("WEB_URL", "")
-	invitations := newInvitationConfig(webURL)
 	secretLimits := service.SecretConfig{
 		MaxValueBytes:     positiveInt32Env("LOCO_SECRETS_MAX_VALUE_BYTES", defaultSecretMaxValueBytes),
 		MaxPerService:     positiveInt32Env("LOCO_SECRETS_MAX_PER_SERVICE", defaultSecretMaxPerService),
@@ -203,8 +198,7 @@ func newAPIConfig() *APIConfig {
 		ServiceDefaults:       serviceDefaults,
 		AuthIssuers:           authIssuers,
 		SignupPolicy:          signupPolicy,
-		WebURL:                webURL,
-		Invitations:           invitations,
+		WebURL:                stringEnv("WEB_URL", ""),
 		SchemaURL:             stringEnv("LOCO_SCHEMA_URL", defaultSchemaURL),
 		EventsRetention:       eventsRetention,
 		WebhooksAllowPrivate:  webhooksAllowPrivate,
@@ -213,22 +207,6 @@ func newAPIConfig() *APIConfig {
 		SecretLimits:          secretLimits,
 		HeartbeatInterval:     heartbeatInterval,
 		BootstrapTokenHash:    bootstrapTokenHash,
-	}
-}
-
-func newInvitationConfig(webURL string) service.InvitationConfig {
-	transport, err := mail.ParseTransport(
-		stringEnv("EMAIL_TRANSPORT", ""),
-		stringEnv("EMAIL_FROM", ""),
-		stringEnv("EMAIL_HOOK_SECRET", ""),
-	)
-	if err != nil {
-		panic(err)
-	}
-	return service.InvitationConfig{
-		Transport: transport,
-		TTL:       positiveDurationEnv("INVITATION_TTL", defaultInvitationTTL),
-		WebURL:    webURL,
 	}
 }
 

@@ -60,12 +60,7 @@ func newSecretFixture(t *testing.T) *secretFixture {
 	f := &secretFixture{pool: pool, queries: queries, machine: machine, resolver: auth.NewResolver(pool, policy)}
 	f.ownerID = f.signUp(t, "owner", "owner@secrets.test")
 	ownerCtx := scoped(t, queries, f.ownerID)
-	created, err := NewOrgServer(
-		pool,
-		queries,
-		machine,
-		InvitationConfig{},
-	).CreateOrg(ownerCtx, &orgv1.CreateOrgRequest{
+	created, err := NewOrgServer(pool, queries, machine).CreateOrg(ownerCtx, &orgv1.CreateOrgRequest{
 		Name: new("secrets"),
 	})
 	if err != nil {

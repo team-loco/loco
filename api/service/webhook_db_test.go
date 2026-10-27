@@ -51,7 +51,7 @@ func newWebhookFixture(t *testing.T) *webhookFixture {
 	f := &webhookFixture{pool: pool, queries: queries, resolver: auth.NewResolver(pool, policy)}
 	owner := f.signUp(t, "owner", "owner@corp.test")
 	ownerCtx := scoped(t, queries, owner)
-	orgs := NewOrgServer(pool, queries, machine, InvitationConfig{})
+	orgs := NewOrgServer(pool, queries, machine)
 	created, err := orgs.CreateOrg(ownerCtx, &orgv1.CreateOrgRequest{Name: new("corp")})
 	if err != nil {
 		t.Fatalf("org: %v", err)

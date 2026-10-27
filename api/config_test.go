@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/team-loco/loco/api/auth"
-	"github.com/team-loco/loco/api/mail"
 	"github.com/team-loco/loco/api/pkg/registryclient"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
@@ -31,7 +30,6 @@ const (
 	testAdminToken   = "service-key"
 	testIssuer       = "https://issuer.loco.test"
 	testHookURL      = "https://hooks.loco.test/events"
-	testEmailFrom    = "noreply@loco.test"
 	testDatabaseURL  = "postgres://db.loco.test:5432/loco"
 	testHookSecret   = "whsec_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 	transitAddrEnv   = "LOCO_SECRETS_TRANSIT_ADDR"
@@ -120,10 +118,6 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv("LOCO_SECRETS_MAX_PLACEMENT_BYTES", "")
 	t.Setenv("LOCO_SECRETS_LOCK_TIMEOUT", "")
 	t.Setenv(bootstrapEnv, "")
-	t.Setenv("EMAIL_TRANSPORT", "")
-	t.Setenv("EMAIL_FROM", "")
-	t.Setenv("EMAIL_HOOK_SECRET", "")
-	t.Setenv("INVITATION_TTL", "")
 }
 
 func TestNewAPIConfigReadsBootstrapToken(t *testing.T) {
@@ -706,69 +700,5 @@ func TestClusterEnrollmentDurations(t *testing.T) {
 			t.Fatalf("%s accepted 0s", tc.env)
 		}
 		t.Setenv(tc.env, "")
-	}
-}
-
-func TestNewAPIConfigReadsInvitations(t *testing.T) {
-	clearAPIConfigEnv(t)
-	t.Setenv("WEB_URL", "https://app.loco.test")
-	ac := newAPIConfig()
-	if ac.Invitations.TTL != defaultInvitationTTL || ac.Invitations.WebURL != "https://app.loco.test" {
-		t.Fatalf("invitations = %+v", ac.Invitations)
-	}
-	if err := ac.Invitations.Transport.Send(t.Context(), mail.Message{}); !errors.Is(err, mail.ErrNoTransport) {
-		t.Fatalf("default transport send = %v, want ErrNoTransport", err)
-	}
-
-	t.Setenv("EMAIL_TRANSPORT", "smtp://mailer@mail.loco.test:587")
-	t.Setenv("EMAIL_FROM", testEmailFrom)
-	t.Setenv("INVITATION_TTL", "24h")
-	ac = newAPIConfig()
-	if ac.Invitations.TTL != 24*time.Hour {
-		t.Fatalf("ttl = %v", ac.Invitations.TTL)
-	}
-	if err := ac.Invitations.Transport.Send(t.Context(), mail.Message{}); errors.Is(err, mail.ErrNoTransport) {
-		t.Fatal("smtp transport reported no transport")
-	}
-}
-
-func TestNewAPIConfigRejectsInvalidEmailSettings(t *testing.T) {
-	tests := []struct {
-		name      string
-		transport string
-		from      string
-		secret    string
-		want      error
-	}{
-		{
-			name:      "malformed transport",
-			transport: "smtp://mail.loco.test",
-			from:      testEmailFrom,
-			want:      mail.ErrInvalidTransport,
-		},
-		{
-			name:      "unknown scheme",
-			transport: "ftp://mail.loco.test",
-			from:      testEmailFrom,
-			want:      mail.ErrUnsupportedScheme,
-		},
-		{name: "from missing", transport: "smtp://mail.loco.test:587", want: mail.ErrFromRequired},
-		{name: "hook secret missing", transport: testHookURL, from: testEmailFrom, want: mail.ErrHookSecret},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			clearAPIConfigEnv(t)
-			t.Setenv("EMAIL_TRANSPORT", tt.transport)
-			t.Setenv("EMAIL_FROM", tt.from)
-			t.Setenv("EMAIL_HOOK_SECRET", tt.secret)
-			if err := panicValue(t, func() { newAPIConfig() }); !errors.Is(err, tt.want) {
-				t.Fatalf("panic = %v, want %v", err, tt.want)
-			}
-		})
-	}
-	clearAPIConfigEnv(t)
-	t.Setenv("INVITATION_TTL", "-1h")
-	if err := panicValue(t, func() { newAPIConfig() }); err == nil {
-		t.Fatal("negative ttl did not panic")
 	}
 }
