@@ -20,7 +20,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: api
-          image: "{{ .Values.api.image.repository }}:{{ required "api.image.tag is required" .Values.api.image.tag }}"
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
           imagePullPolicy: {{ .Values.api.imagePullPolicy }}
           securityContext:
             allowPrivilegeEscalation: false
@@ -29,7 +29,7 @@ spec:
                 - ALL
           envFrom:
             - secretRef:
-                name: {{ required "api.existingSecret is required" .Values.api.existingSecret | quote }}
+                name: {{ .Values.api.existingSecret | quote }}
           env:
             {{- range $name, $value := omit .Values.api.env "APP_PORT" "OBSERVABILITY_PROXY_URL" }}
             - name: {{ $name }}

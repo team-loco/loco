@@ -11,7 +11,7 @@ spec:
     selfSigned: {}
     {{- else if eq .Values.certManager.issuer.type "acme" }}
     acme:
-        email: {{ .Values.certManager.issuer.email | required "certManager.issuer.email is required" }}
+        email: {{ .Values.certManager.issuer.email }}
         server: {{ .Values.certManager.issuer.server }}
         privateKeySecretRef:
             name: {{ .Values.certManager.issuer.name }}-key

@@ -105,7 +105,7 @@ for value in controller.image.tag builds.builderImage.tag; do
 		[[ $set == "--set=$value="* ]] || others+=("$set")
 	done
 	missing=$(helm template "$release" "$chart" --namespace loco-system "${required[@]}" "${others[@]}" 2>&1 >/dev/null || true)
-	if ! grep -qF "$value is required" <<<"$missing"; then
+	if ! grep -qF "at '/${value//.//}'" <<<"$missing"; then
 		echo "FAIL: the chart renders without $value"
 		failures=$((failures + 1))
 	fi

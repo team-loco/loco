@@ -270,6 +270,65 @@ checksum = "sha256:fa4c4d01cacdc6e2209b71beac16d87d2b3c641866a5ddeb6d8e7dd6ba381
 url = "https://github.com/kubernetes-sigs/controller-tools/releases/download/v0.22.0/controller-gen-darwin-amd64"
 url_api = "https://api.github.com/repos/kubernetes-sigs/controller-tools/releases/assets/541008629"
 
+[[tools."github:losisin/helm-values-schema-json"]]
+version = "2.6.0"
+backend = "github:losisin/helm-values-schema-json"
+specifiers = ["2.6.0"]
+
+[tools."github:losisin/helm-values-schema-json"."platforms.linux-arm64"]
+checksum = "sha256:baf7c867fb4cb6903f49e5698b74a850912b6af9c84108668351e312b59e0e4f"
+checksum_source = "mise-versions"
+url = "https://github.com/losisin/helm-values-schema-json/releases/download/v2.6.0/helm-values-schema-json_2.6.0_linux_arm64.tgz"
+url_api = "https://api.github.com/repos/losisin/helm-values-schema-json/releases/assets/527481508"
+
+[tools."github:losisin/helm-values-schema-json"."platforms.linux-arm64-musl"]
+checksum = "sha256:baf7c867fb4cb6903f49e5698b74a850912b6af9c84108668351e312b59e0e4f"
+checksum_source = "mise-versions"
+url = "https://github.com/losisin/helm-values-schema-json/releases/download/v2.6.0/helm-values-schema-json_2.6.0_linux_arm64.tgz"
+url_api = "https://api.github.com/repos/losisin/helm-values-schema-json/releases/assets/527481508"
+
+[tools."github:losisin/helm-values-schema-json"."platforms.linux-x64"]
+checksum = "sha256:c3447c1be91b987678e70996451b6cf2169b9f44fea8fe670dc0f340281f11e8"
+checksum_source = "mise-versions"
+url = "https://github.com/losisin/helm-values-schema-json/releases/download/v2.6.0/helm-values-schema-json_2.6.0_linux_amd64.tgz"
+url_api = "https://api.github.com/repos/losisin/helm-values-schema-json/releases/assets/527481510"
+
+[tools."github:losisin/helm-values-schema-json"."platforms.linux-x64-baseline"]
+checksum = "sha256:c3447c1be91b987678e70996451b6cf2169b9f44fea8fe670dc0f340281f11e8"
+checksum_source = "mise-versions"
+url = "https://github.com/losisin/helm-values-schema-json/releases/download/v2.6.0/helm-values-schema-json_2.6.0_linux_amd64.tgz"
+url_api = "https://api.github.com/repos/losisin/helm-values-schema-json/releases/assets/527481510"
+
+[tools."github:losisin/helm-values-schema-json"."platforms.linux-x64-musl"]
+checksum = "sha256:c3447c1be91b987678e70996451b6cf2169b9f44fea8fe670dc0f340281f11e8"
+checksum_source = "mise-versions"
+url = "https://github.com/losisin/helm-values-schema-json/releases/download/v2.6.0/helm-values-schema-json_2.6.0_linux_amd64.tgz"
+url_api = "https://api.github.com/repos/losisin/helm-values-schema-json/releases/assets/527481510"
+
+[tools."github:losisin/helm-values-schema-json"."platforms.linux-x64-musl-baseline"]
+checksum = "sha256:c3447c1be91b987678e70996451b6cf2169b9f44fea8fe670dc0f340281f11e8"
+checksum_source = "mise-versions"
+url = "https://github.com/losisin/helm-values-schema-json/releases/download/v2.6.0/helm-values-schema-json_2.6.0_linux_amd64.tgz"
+url_api = "https://api.github.com/repos/losisin/helm-values-schema-json/releases/assets/527481510"
+
+[tools."github:losisin/helm-values-schema-json"."platforms.macos-arm64"]
+checksum = "sha256:270d6212b8f01d5639288168e0ebb70fd82fdc8bda1b87c22762bbfe93874e90"
+checksum_source = "mise-versions"
+url = "https://github.com/losisin/helm-values-schema-json/releases/download/v2.6.0/helm-values-schema-json_2.6.0_darwin_arm64.tgz"
+url_api = "https://api.github.com/repos/losisin/helm-values-schema-json/releases/assets/527481511"
+
+[tools."github:losisin/helm-values-schema-json"."platforms.macos-x64"]
+checksum = "sha256:2efefae69eb445670d74760313274e803f5556dc4bd5a20b8fea1d97d8ed7c71"
+checksum_source = "mise-versions"
+url = "https://github.com/losisin/helm-values-schema-json/releases/download/v2.6.0/helm-values-schema-json_2.6.0_darwin_amd64.tgz"
+url_api = "https://api.github.com/repos/losisin/helm-values-schema-json/releases/assets/527481509"
+
+[tools."github:losisin/helm-values-schema-json"."platforms.macos-x64-baseline"]
+checksum = "sha256:2efefae69eb445670d74760313274e803f5556dc4bd5a20b8fea1d97d8ed7c71"
+checksum_source = "mise-versions"
+url = "https://github.com/losisin/helm-values-schema-json/releases/download/v2.6.0/helm-values-schema-json_2.6.0_darwin_amd64.tgz"
+url_api = "https://api.github.com/repos/losisin/helm-values-schema-json/releases/assets/527481509"
+
 [[tools."github:pressly/goose"]]
 version = "3.28.0"
 backend = "github:pressly/goose"

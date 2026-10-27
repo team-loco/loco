@@ -30,7 +30,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: ui
-          image: "{{ .Values.ui.image.repository }}:{{ required "ui.image.tag is required" .Values.ui.image.tag }}"
+          image: "{{ .Values.ui.image.repository }}:{{ .Values.ui.image.tag }}"
           imagePullPolicy: {{ .Values.ui.imagePullPolicy }}
           securityContext:
             allowPrivilegeEscalation: false

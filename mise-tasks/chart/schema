@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+#MISE description="Generate each chart's values.schema.json from the # @schema annotations in its values.yaml; --check fails on a stale schema instead of writing it"
+#USAGE flag "--check" help="compare instead of write"
+set -euo pipefail
+
+scratch=$(mktemp -d)
+trap 'rm -rf "$scratch"' EXIT
+status=0
+for values in charts/*/values.yaml; do
+	chart=$(dirname "$values")
+	schema=$chart/values.schema.json
+	output=$schema
+	if [[ ${usage_check:-false} == true ]]; then
+		output=$scratch/$(basename "$chart").json
+	fi
+	helm-schema --values "$values" --output "$output" --draft 2020 --indent 2 --schema-root.additional-properties=false >/dev/null
+	if [[ $output != "$schema" ]] && ! diff -u "$schema" "$output"; then
+		echo "$schema is stale; run mise run chart:schema" >&2
+		status=1
+	fi
+done
+exit $status
