@@ -42,7 +42,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || (github.event_name == 'push' && github.ref) || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -85,6 +85,16 @@ jobs:
 
       - name: Check protobuf formatting and lint
         run: mise run lint:proto
+
+      - name: Move to the current head of the branch
+        if: github.event_name == 'push'
+        run: |
+          git fetch --no-tags --depth=1 origin "$GITHUB_REF"
+          git reset --hard FETCH_HEAD
+          head=$(git rev-parse HEAD)
+          if [ "$head" != "$GITHUB_SHA" ]; then
+            echo "::notice::$GITHUB_REF moved from $GITHUB_SHA to $head; pushing $head to the Buf Schema Registry"
+          fi
 
       - uses: bufbuild/buf-action@85aebf73123b5c15fd5528aaecbf9129cddf7fa7 # v1.6.0
         with:
