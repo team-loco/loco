@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+#MISE description="Run the invitation journey against Dex"
+set -euo pipefail
+
+root=$(git rev-parse --show-toplevel)
+cd "$root"
+compose=(docker compose -f "$root/tests/conformance/auth/compose.yaml")
+keys=$(go run ./tools/authkeys)
+set -a
+eval "$keys"
+set +a
+unused_bootstrap=$(mktemp -d "${TMPDIR:-/tmp}/loco-auth-invitations.XXXXXX")
+export CONFORMANCE_ZITADEL_BOOTSTRAP="$unused_bootstrap"
+cleanup() {
+	status=$?
+	if [ "$status" -ne 0 ]; then
+		"${compose[@]}" logs --no-color --tail=80 dex postgres
+	fi
+	"${compose[@]}" down -v >/dev/null 2>&1
+	rmdir "$unused_bootstrap"
+}
+trap cleanup EXIT
+"${compose[@]}" up -d --wait postgres dex
+for _ in $(seq 1 60); do
+	curl -sf -o /dev/null http://localhost:55556/dex/.well-known/openid-configuration && break
+	sleep 1
+done
+cd api
+LOCO_TEST_DATABASE_URL="postgres://loco_test:loco_test@localhost:${CONFORMANCE_POSTGRES_PORT:-55440}/loco_test?sslmode=disable" \
+	go test -tags conformance -count=1 -run 'TestInvitations' -v ./auth/ "$@"

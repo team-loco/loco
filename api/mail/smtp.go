@@ -23,17 +23,15 @@ type smtpTransport struct {
 	tlsConfig *tls.Config
 }
 
-func newSMTP(u *url.URL, from *netmail.Address) (*smtpTransport, error) {
+func newSMTP(u *url.URL, from *netmail.Address, tlsConfig *tls.Config) (*smtpTransport, error) {
 	host := u.Hostname()
 	if host == "" || u.Port() == "" {
 		return nil, fmt.Errorf("%w: smtp transport needs host and port", ErrInvalidTransport)
 	}
-	t := &smtpTransport{
-		addr:      u.Host,
-		host:      host,
-		from:      from,
-		tlsConfig: &tls.Config{ServerName: host, MinVersion: tls.VersionTLS12},
+	if tlsConfig == nil {
+		tlsConfig = &tls.Config{ServerName: host, MinVersion: tls.VersionTLS12}
 	}
+	t := &smtpTransport{addr: u.Host, host: host, from: from, tlsConfig: tlsConfig}
 	if u.User != nil {
 		password, _ := u.User.Password()
 		t.auth = smtp.PlainAuth("", u.User.Username(), password, host)
