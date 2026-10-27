@@ -103,7 +103,7 @@ is a candidate; judge what a reader can see, not the directory.
   CRD schema and its validation.
 - `controller/internal/**`: what the controller creates per Application (Service, HTTPRoute,
   NetworkPolicy, pull secret) and the Pod Security profile it enforces.
-- `mise.toml`, `mise-tasks/**`, `Tiltfile`, `compose.yaml`, `env/local/**`: the documented
+- `mise.toml`, `mise-tasks/**`, `dev/**`: the documented
   development workflow, task names, local ports and credentials.
 - `web/src/**`: dashboard behaviour that a page names (the new-service form's Networking
   choice, `/version.json`). Most UI changes have no documentation and are not drift.

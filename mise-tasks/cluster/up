@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #MISE description="Create the local kind cluster, start its nodes if mise run stop stopped them, or recreate it if it is unreachable, export its kubeconfig, and start the cloud-provider-kind container that gives the LoadBalancer Services of every kind cluster an address; a worktree's stack leaves the current kubectl context as it was"
-#MISE env={_.source="env/local/stack.sh"}
+#MISE env={_.source="dev/stack.sh"}
 set -euo pipefail
 
 name=$KIND_CLUSTER
@@ -23,13 +23,13 @@ if kind get clusters 2>/dev/null | grep -qx "$name"; then
 	if ! kubectl cluster-info --context "kind-$name" >/dev/null 2>&1; then
 		echo "cluster exists but is unreachable, recreating..."
 		kind delete cluster --name "$name"
-		kind create cluster --config env/local/kind-cluster.yml --name "$name"
+		kind create cluster --config dev/kind-cluster.yml --name "$name"
 	fi
 else
-	kind create cluster --config env/local/kind-cluster.yml --name "$name"
+	kind create cluster --config dev/kind-cluster.yml --name "$name"
 fi
 kind export kubeconfig --name "$name" --kubeconfig "$HOME/.kube/config"
-docker compose --project-name "$load_balancer_project" --file env/local/compose.cloud-provider-kind.yaml up --detach --wait
+docker compose --project-name "$load_balancer_project" --file dev/compose.cloud-provider-kind.yaml up --detach --wait
 if [ "$LOCO_STACK_SLOT" -ne 0 ] && [ -n "$previous" ]; then
 	kubectl config use-context "$previous" >/dev/null
 fi

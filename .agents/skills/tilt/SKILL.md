@@ -6,7 +6,7 @@ description: Run the full local stack (kind cluster, compose services, API, web 
 # Running the local stack with Tilt
 
 `mise run tilt` starts everything: the kind cluster, Postgres, Valkey, the registry and
-the source bucket from `compose.yaml`, the helm releases, the API and the web UI.
+the source bucket from `dev/compose.yaml`, the helm releases, the API and the web UI.
 
 `mise run stop` stops Tilt, the compose services and the kind nodes and keeps their state;
 `mise run start` (an alias of `mise run tilt`) starts the stopped nodes and brings the rest back.
@@ -14,7 +14,7 @@ the source bucket from `compose.yaml`, the helm releases, the API and the web UI
 
 ## One stack per checkout
 
-Each checkout runs its own stack, so several can run at once. `env/local/stack.sh` gives
+Each checkout runs its own stack, so several can run at once. `dev/stack.sh` gives
 the main checkout slot 0 and each worktree the first free slot from 1 to 9, recorded in
 `.git/loco-stacks/` of the main checkout. Slot N names the kind cluster
 `loco-cluster-local-N` and the compose project `loco-dev-N`, and adds 100×N to every
@@ -86,7 +86,7 @@ Start Tilt again; `db-migrate` recreates the schema.
 - Use Chrome on the web UI URL from `mise run stack`.
 - Sign in yourself; never ask the user to. Click Sign in on the landing page, then on the
   Dex login page enter `dev@loco.test` and `loco-dev`, the static user in
-  `env/local/dex.yaml`. Dex keeps its sessions in memory, so restarting Dex, the compose
+  `dev/dex.yaml`. Dex keeps its sessions in memory, so restarting Dex, the compose
   services or OrbStack signs every browser out.
 - The CLI signs in through the same page: `loco login --host <API URL>`. The CLI keeps one
   host in its config for every stack, so log in again after switching stacks.

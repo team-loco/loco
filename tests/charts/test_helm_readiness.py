@@ -100,7 +100,7 @@ def test_local_releases_render_with_the_stack_values(tmp_path, subtests):
 
 
 def test_cert_manager_email_overrides_the_local_default(tmp_path):
-    default = _yaml(ROOT / "env/local/worker-chart.yaml")["certManager"]["issuer"]["email"]
+    default = _yaml(ROOT / "dev/worker-chart.yaml")["certManager"]["issuer"]["email"]
     assert default in render(install_args(tmp_path, "loco-worker"))
     override = "ops@example.test"
     manifest = render(install_args(tmp_path, "loco-worker", {"CERT_MANAGER_EMAIL": override}))

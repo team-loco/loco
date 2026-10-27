@@ -32,7 +32,7 @@ connect s3 "$s3_alias"
 for node in $(kind get nodes --name "$cluster"); do
 	containerd_config=$(docker exec "$node" containerd config dump 2>/dev/null || true)
 	if ! grep -q "config_path = '/etc/containerd/certs.d'" <<<"$containerd_config"; then
-		echo "$node predates the registry config in env/local/kind-cluster.yml; recreate it with: mise run cluster:down && mise run cluster:up" >&2
+		echo "$node predates the registry config in dev/kind-cluster.yml; recreate it with: mise run cluster:down && mise run cluster:up" >&2
 		exit 1
 	fi
 	for host in "localhost:$port" "$alias:5000"; do

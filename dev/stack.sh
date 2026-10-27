@@ -75,6 +75,8 @@ export LOCO_STACK_SLOT
 export LOCO_STACK_CLAIM="$stack_claim"
 export KIND_CLUSTER="loco-cluster-local$stack_suffix"
 export COMPOSE_PROJECT_NAME="loco-dev$stack_suffix"
+export COMPOSE_FILE="$stack_root/dev/compose.yaml"
+export COMPOSE_ENV_FILES="$stack_root/.env"
 export REGISTRY_ALIAS="loco-registry$stack_suffix"
 export S3_ALIAS="loco-s3$stack_suffix.localhost"
 

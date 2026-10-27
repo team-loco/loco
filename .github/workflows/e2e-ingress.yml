@@ -19,7 +19,7 @@ on:
       - "api/pkg/converter/**"
       - "charts/loco-worker/**"
       - "manifests/namespaces/**"
-      - "compose.yaml"
+      - "dev/compose.yaml"
       - "e2e/**"
       - "mise-tasks/e2e/**"
       - "mise-tasks/crds/**"
