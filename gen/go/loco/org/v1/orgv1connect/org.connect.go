@@ -40,6 +40,10 @@ const (
 	OrgServiceAddOrgMemberProcedure = "/loco.org.v1.OrgService/AddOrgMember"
 	// OrgServiceRemoveOrgMemberProcedure is the procedure name of the OrgService's RemoveOrgMember RPC.
 	OrgServiceRemoveOrgMemberProcedure = "/loco.org.v1.OrgService/RemoveOrgMember"
+	// OrgServiceSuspendOrgProcedure is the procedure name of the OrgService's SuspendOrg RPC.
+	OrgServiceSuspendOrgProcedure = "/loco.org.v1.OrgService/SuspendOrg"
+	// OrgServiceResumeOrgProcedure is the procedure name of the OrgService's ResumeOrg RPC.
+	OrgServiceResumeOrgProcedure = "/loco.org.v1.OrgService/ResumeOrg"
 )
 
 var (
@@ -99,6 +103,20 @@ var (
 			Procedure:  OrgServiceRemoveOrgMemberProcedure,
 		}
 	})
+	orgServiceSuspendOrgSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_org_v1_org_proto.Services().ByName("OrgService").Methods().ByName("SuspendOrg"),
+			Procedure:  OrgServiceSuspendOrgProcedure,
+		}
+	})
+	orgServiceResumeOrgSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_org_v1_org_proto.Services().ByName("OrgService").Methods().ByName("ResumeOrg"),
+			Procedure:  OrgServiceResumeOrgProcedure,
+		}
+	})
 )
 
 // OrgServiceClient is a client for the loco.org.v1.OrgService service.
@@ -116,6 +134,13 @@ type OrgServiceClient interface {
 	ListOrgMembers(context.Context, *v1.ListOrgMembersRequest) (*v1.ListOrgMembersResponse, error)
 	AddOrgMember(context.Context, *v1.AddOrgMemberRequest) (*v1.AddOrgMemberResponse, error)
 	RemoveOrgMember(context.Context, *v1.RemoveOrgMemberRequest) (*v1.RemoveOrgMemberResponse, error)
+	// SuspendOrg stops every workload of the organization and rejects deployments until ResumeOrg.
+	// It keeps resources, specs, secrets, domains and deployment history. It requires system:admin.
+	// Suspending a suspended organization changes nothing and keeps the first reason.
+	SuspendOrg(context.Context, *v1.SuspendOrgRequest) (*v1.SuspendOrgResponse, error)
+	// ResumeOrg runs again what the organization's active deployments describe. It requires system:admin.
+	// Resuming an organization that is not suspended changes nothing.
+	ResumeOrg(context.Context, *v1.ResumeOrgRequest) (*v1.ResumeOrgResponse, error)
 }
 
 // NewOrgServiceClient constructs a client for the loco.org.v1.OrgService service. Multiple service
@@ -139,6 +164,13 @@ type OrgServiceHandler interface {
 	ListOrgMembers(context.Context, *v1.ListOrgMembersRequest) (*v1.ListOrgMembersResponse, error)
 	AddOrgMember(context.Context, *v1.AddOrgMemberRequest) (*v1.AddOrgMemberResponse, error)
 	RemoveOrgMember(context.Context, *v1.RemoveOrgMemberRequest) (*v1.RemoveOrgMemberResponse, error)
+	// SuspendOrg stops every workload of the organization and rejects deployments until ResumeOrg.
+	// It keeps resources, specs, secrets, domains and deployment history. It requires system:admin.
+	// Suspending a suspended organization changes nothing and keeps the first reason.
+	SuspendOrg(context.Context, *v1.SuspendOrgRequest) (*v1.SuspendOrgResponse, error)
+	// ResumeOrg runs again what the organization's active deployments describe. It requires system:admin.
+	// Resuming an organization that is not suspended changes nothing.
+	ResumeOrg(context.Context, *v1.ResumeOrgRequest) (*v1.ResumeOrgResponse, error)
 }
 
 // RegisterOrgServiceHandler registers svc as the loco.org.v1.OrgService implementation on server.
@@ -153,6 +185,8 @@ func RegisterOrgServiceHandler(server *connect.Server, svc OrgServiceHandler) {
 		connect.Method{Spec: orgServiceListOrgMembersSpec(), Handler: adapter.listOrgMembers},
 		connect.Method{Spec: orgServiceAddOrgMemberSpec(), Handler: adapter.addOrgMember},
 		connect.Method{Spec: orgServiceRemoveOrgMemberSpec(), Handler: adapter.removeOrgMember},
+		connect.Method{Spec: orgServiceSuspendOrgSpec(), Handler: adapter.suspendOrg},
+		connect.Method{Spec: orgServiceResumeOrgSpec(), Handler: adapter.resumeOrg},
 	)
 }
 
@@ -189,6 +223,14 @@ func (UnimplementedOrgServiceHandler) AddOrgMember(context.Context, *v1.AddOrgMe
 
 func (UnimplementedOrgServiceHandler) RemoveOrgMember(context.Context, *v1.RemoveOrgMemberRequest) (*v1.RemoveOrgMemberResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.org.v1.OrgService.RemoveOrgMember is not implemented")
+}
+
+func (UnimplementedOrgServiceHandler) SuspendOrg(context.Context, *v1.SuspendOrgRequest) (*v1.SuspendOrgResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.org.v1.OrgService.SuspendOrg is not implemented")
+}
+
+func (UnimplementedOrgServiceHandler) ResumeOrg(context.Context, *v1.ResumeOrgRequest) (*v1.ResumeOrgResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.org.v1.OrgService.ResumeOrg is not implemented")
 }
 
 type orgServiceClient struct {
@@ -254,6 +296,22 @@ func (c *orgServiceClient) AddOrgMember(ctx context.Context, req *v1.AddOrgMembe
 func (c *orgServiceClient) RemoveOrgMember(ctx context.Context, req *v1.RemoveOrgMemberRequest) (*v1.RemoveOrgMemberResponse, error) {
 	var res v1.RemoveOrgMemberResponse
 	if err := c.client.CallUnary(ctx, orgServiceRemoveOrgMemberSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *orgServiceClient) SuspendOrg(ctx context.Context, req *v1.SuspendOrgRequest) (*v1.SuspendOrgResponse, error) {
+	var res v1.SuspendOrgResponse
+	if err := c.client.CallUnary(ctx, orgServiceSuspendOrgSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *orgServiceClient) ResumeOrg(ctx context.Context, req *v1.ResumeOrgRequest) (*v1.ResumeOrgResponse, error) {
+	var res v1.ResumeOrgResponse
+	if err := c.client.CallUnary(ctx, orgServiceResumeOrgSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -351,6 +409,30 @@ func (h orgServiceHandler) removeOrgMember(ctx context.Context, _ connect.Spec, 
 		return err
 	}
 	res, err := h.svc.RemoveOrgMember(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h orgServiceHandler) suspendOrg(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.SuspendOrgRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.SuspendOrg(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h orgServiceHandler) resumeOrg(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ResumeOrgRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ResumeOrg(ctx, &req)
 	if err != nil {
 		return err
 	}

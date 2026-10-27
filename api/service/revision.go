@@ -11,6 +11,8 @@ import (
 // Every transaction that changes a service's desired state or bumps an environment revision
 // takes its row locks through the helpers in this file, coarse to fine, in one order:
 //
+//  0. the organization, FOR SHARE in a transaction that may start workloads (lockOrganization)
+//     and FOR UPDATE in SuspendOrg and ResumeOrg
 //  1. the environments of the workspace, in ascending id (lockWorkspaceEnvironments or
 //     lockResourceEnvironments)
 //  2. the environment_keys row of an environment whose secrets it reads or writes

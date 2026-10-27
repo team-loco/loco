@@ -12,6 +12,8 @@ const AUDIT_TYPES: Record<string, AuditType> = {
 	"org.created": { label: "Created the organization", category: "organization" },
 	"org.updated": { label: "Updated the organization", category: "organization" },
 	"org.deleted": { label: "Deleted the organization", category: "organization" },
+	"org.suspended": { label: "Suspended the organization", category: "organization" },
+	"org.resumed": { label: "Resumed the organization", category: "organization" },
 	"member.added": { label: "Added a member", category: "access" },
 	"member.removed": { label: "Removed a member", category: "access" },
 	"org_member.added": { label: "Added an organization member", category: "access" },

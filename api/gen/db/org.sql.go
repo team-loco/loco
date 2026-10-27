@@ -15,7 +15,7 @@ import (
 const createOrg = `-- name: CreateOrg :one
 INSERT INTO organizations (name, created_by)
 VALUES ($1, $2)
-RETURNING id, name, created_by, created_at, updated_at
+RETURNING id, name, created_by, suspended_at, suspension_reason, created_at, updated_at
 `
 
 type CreateOrgParams struct {
@@ -30,6 +30,8 @@ func (q *Queries) CreateOrg(ctx context.Context, arg CreateOrgParams) (Organizat
 		&i.ID,
 		&i.Name,
 		&i.CreatedBy,
+		&i.SuspendedAt,
+		&i.SuspensionReason,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -46,7 +48,7 @@ func (q *Queries) DeleteOrg(ctx context.Context, id uuid.UUID) error {
 }
 
 const getOrgByID = `-- name: GetOrgByID :one
-SELECT id, name, created_by, created_at, updated_at FROM organizations WHERE id = $1
+SELECT id, name, created_by, suspended_at, suspension_reason, created_at, updated_at FROM organizations WHERE id = $1
 `
 
 func (q *Queries) GetOrgByID(ctx context.Context, id uuid.UUID) (Organization, error) {
@@ -56,6 +58,8 @@ func (q *Queries) GetOrgByID(ctx context.Context, id uuid.UUID) (Organization, e
 		&i.ID,
 		&i.Name,
 		&i.CreatedBy,
+		&i.SuspendedAt,
+		&i.SuspensionReason,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -63,7 +67,7 @@ func (q *Queries) GetOrgByID(ctx context.Context, id uuid.UUID) (Organization, e
 }
 
 const getOrgByName = `-- name: GetOrgByName :one
-SELECT id, name, created_by, created_at, updated_at FROM organizations WHERE name = $1
+SELECT id, name, created_by, suspended_at, suspension_reason, created_at, updated_at FROM organizations WHERE name = $1
 `
 
 func (q *Queries) GetOrgByName(ctx context.Context, name string) (Organization, error) {
@@ -73,6 +77,8 @@ func (q *Queries) GetOrgByName(ctx context.Context, name string) (Organization, 
 		&i.ID,
 		&i.Name,
 		&i.CreatedBy,
+		&i.SuspendedAt,
+		&i.SuspensionReason,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -176,7 +182,7 @@ func (q *Queries) ListOrgMembersWithDetails(ctx context.Context, arg ListOrgMemb
 }
 
 const listOrgsForUser = `-- name: ListOrgsForUser :many
-SELECT o.id, o.name, o.created_by, o.created_at, o.updated_at
+SELECT o.id, o.name, o.created_by, o.suspended_at, o.suspension_reason, o.created_at, o.updated_at
 FROM organizations o
 WHERE EXISTS (
     SELECT 1 FROM user_scopes us
@@ -218,6 +224,8 @@ func (q *Queries) ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams
 			&i.ID,
 			&i.Name,
 			&i.CreatedBy,
+			&i.SuspendedAt,
+			&i.SuspensionReason,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -240,6 +248,25 @@ func (q *Queries) LockOrgForDeletion(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const lockOrgForSuspension = `-- name: LockOrgForSuspension :one
+SELECT id, name, created_by, suspended_at, suspension_reason, created_at, updated_at FROM organizations WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) LockOrgForSuspension(ctx context.Context, id uuid.UUID) (Organization, error) {
+	row := q.db.QueryRow(ctx, lockOrgForSuspension, id)
+	var i Organization
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CreatedBy,
+		&i.SuspendedAt,
+		&i.SuspensionReason,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const lockOrgWorkspacesForDeletion = `-- name: LockOrgWorkspacesForDeletion :exec
 SELECT id FROM workspaces WHERE org_id = $1 ORDER BY id FOR UPDATE
 `
@@ -247,6 +274,22 @@ SELECT id FROM workspaces WHERE org_id = $1 ORDER BY id FOR UPDATE
 func (q *Queries) LockOrgWorkspacesForDeletion(ctx context.Context, orgID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, lockOrgWorkspacesForDeletion, orgID)
 	return err
+}
+
+const lockResourceOrganization = `-- name: LockResourceOrganization :one
+SELECT o.suspension_reason
+FROM organizations o
+JOIN workspaces w ON w.org_id = o.id
+JOIN resources r ON r.workspace_id = w.id
+WHERE r.id = $1
+FOR SHARE OF o
+`
+
+func (q *Queries) LockResourceOrganization(ctx context.Context, id uuid.UUID) (*string, error) {
+	row := q.db.QueryRow(ctx, lockResourceOrganization, id)
+	var suspension_reason *string
+	err := row.Scan(&suspension_reason)
+	return suspension_reason, err
 }
 
 const lockUserForMembership = `-- name: LockUserForMembership :one
@@ -258,6 +301,19 @@ func (q *Queries) LockUserForMembership(ctx context.Context, id uuid.UUID) (uuid
 	var id_2 uuid.UUID
 	err := row.Scan(&id_2)
 	return id_2, err
+}
+
+const lockWorkspaceOrganization = `-- name: LockWorkspaceOrganization :exec
+SELECT o.id
+FROM organizations o
+JOIN workspaces w ON w.org_id = o.id
+WHERE w.id = $1
+FOR SHARE OF o
+`
+
+func (q *Queries) LockWorkspaceOrganization(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, lockWorkspaceOrganization, id)
+	return err
 }
 
 const orgHasWorkspacesWithResources = `-- name: OrgHasWorkspacesWithResources :one
@@ -301,11 +357,60 @@ func (q *Queries) RemoveOrgMember(ctx context.Context, arg RemoveOrgMemberParams
 	return err
 }
 
+const resumeOrg = `-- name: ResumeOrg :one
+UPDATE organizations
+SET suspended_at = NULL, suspension_reason = NULL, updated_at = NOW()
+WHERE id = $1
+RETURNING id, name, created_by, suspended_at, suspension_reason, created_at, updated_at
+`
+
+func (q *Queries) ResumeOrg(ctx context.Context, id uuid.UUID) (Organization, error) {
+	row := q.db.QueryRow(ctx, resumeOrg, id)
+	var i Organization
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CreatedBy,
+		&i.SuspendedAt,
+		&i.SuspensionReason,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const suspendOrg = `-- name: SuspendOrg :one
+UPDATE organizations
+SET suspended_at = NOW(), suspension_reason = $1, updated_at = NOW()
+WHERE id = $2
+RETURNING id, name, created_by, suspended_at, suspension_reason, created_at, updated_at
+`
+
+type SuspendOrgParams struct {
+	Reason *string   `json:"reason"`
+	ID     uuid.UUID `json:"id"`
+}
+
+func (q *Queries) SuspendOrg(ctx context.Context, arg SuspendOrgParams) (Organization, error) {
+	row := q.db.QueryRow(ctx, suspendOrg, arg.Reason, arg.ID)
+	var i Organization
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CreatedBy,
+		&i.SuspendedAt,
+		&i.SuspensionReason,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updateOrgName = `-- name: UpdateOrgName :one
 UPDATE organizations
 SET name = $2, updated_at = NOW()
 WHERE id = $1
-RETURNING id, name, created_by, created_at, updated_at
+RETURNING id, name, created_by, suspended_at, suspension_reason, created_at, updated_at
 `
 
 type UpdateOrgNameParams struct {
@@ -320,6 +425,8 @@ func (q *Queries) UpdateOrgName(ctx context.Context, arg UpdateOrgNameParams) (O
 		&i.ID,
 		&i.Name,
 		&i.CreatedBy,
+		&i.SuspendedAt,
+		&i.SuspensionReason,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

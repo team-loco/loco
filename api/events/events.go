@@ -25,6 +25,8 @@ const (
 	OrgCreated         = "org.created"
 	OrgUpdated         = "org.updated"
 	OrgDeleted         = "org.deleted"
+	OrgSuspended       = "org.suspended"
+	OrgResumed         = "org.resumed"
 	WorkspaceCreated   = "workspace.created"
 	WorkspaceUpdated   = "workspace.updated"
 	WorkspaceDeleted   = "workspace.deleted"
@@ -91,6 +93,7 @@ const (
 	FieldKekID         = "kekId"
 	FieldEnvironmentID = "environmentId"
 	FieldNewDEK        = "newDek"
+	FieldReason        = "reason"
 )
 
 type Event struct {

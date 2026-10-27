@@ -16,7 +16,6 @@ import (
 	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -215,15 +214,7 @@ func (s *OrgServer) GetOrg(
 		return nil, rpcerr.New(connect.CodeNotFound, ErrOrgNotFound)
 	}
 
-	return &orgv1.GetOrgResponse{
-		Organization: &orgv1.Organization{
-			Id:        org.ID.String(),
-			Name:      org.Name,
-			CreatedBy: org.CreatedBy.String(),
-			CreatedAt: timeutil.ParsePostgresTimestamp(org.CreatedAt),
-			UpdatedAt: timeutil.ParsePostgresTimestamp(org.UpdatedAt),
-		},
-	}, nil
+	return &orgv1.GetOrgResponse{Organization: orgToProto(org)}, nil
 }
 
 // ListUserOrgs lists organizations for a user
@@ -268,13 +259,7 @@ func (s *OrgServer) ListUserOrgs(
 
 	var orgResponses []*orgv1.Organization
 	for _, org := range orgs {
-		orgResponses = append(orgResponses, &orgv1.Organization{
-			Id:        org.ID.String(),
-			Name:      org.Name,
-			CreatedBy: org.CreatedBy.String(),
-			CreatedAt: timeutil.ParsePostgresTimestamp(org.CreatedAt),
-			UpdatedAt: timeutil.ParsePostgresTimestamp(org.UpdatedAt),
-		})
+		orgResponses = append(orgResponses, orgToProto(org))
 	}
 
 	var nextPageToken string

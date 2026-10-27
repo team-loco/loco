@@ -370,7 +370,7 @@ description = "Run private service discovery end-to-end tests: logical DNS names
 run = "./tests/e2e/run.sh discovery"
 
 [tasks."e2e:status"]
-description = "Run the end-to-end tests for resource status: healthy after a deploy, unavailable when its pods cannot run, unknown while its cluster is silent; takes the e2e flags"
+description = "Run the end-to-end tests for resource status: healthy after a deploy, unavailable when its pods cannot run, unknown while its cluster is silent, stopped while its organization is suspended; takes the e2e flags"
 run = "./tests/e2e/run.sh --builds-disabled resource_status"
 
 [tasks."e2e:config"]

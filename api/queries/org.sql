@@ -94,3 +94,33 @@ WHERE us.user_id = sqlc.arg('user_id')
       SELECT r.id FROM resources r JOIN workspaces w ON w.id = r.workspace_id WHERE w.org_id = sqlc.arg('org_id')
     ))
   );
+
+-- name: LockOrgForSuspension :one
+SELECT * FROM organizations WHERE id = $1 FOR UPDATE;
+
+-- name: SuspendOrg :one
+UPDATE organizations
+SET suspended_at = NOW(), suspension_reason = sqlc.arg(reason), updated_at = NOW()
+WHERE id = sqlc.arg(id)
+RETURNING *;
+
+-- name: ResumeOrg :one
+UPDATE organizations
+SET suspended_at = NULL, suspension_reason = NULL, updated_at = NOW()
+WHERE id = $1
+RETURNING *;
+
+-- name: LockWorkspaceOrganization :exec
+SELECT o.id
+FROM organizations o
+JOIN workspaces w ON w.org_id = o.id
+WHERE w.id = $1
+FOR SHARE OF o;
+
+-- name: LockResourceOrganization :one
+SELECT o.suspension_reason
+FROM organizations o
+JOIN workspaces w ON w.org_id = o.id
+JOIN resources r ON r.workspace_id = w.id
+WHERE r.id = $1
+FOR SHARE OF o;

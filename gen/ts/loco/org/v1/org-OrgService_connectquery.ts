@@ -53,3 +53,20 @@ export const addOrgMember = OrgService.method.addOrgMember;
  * @generated from rpc loco.org.v1.OrgService.RemoveOrgMember
  */
 export const removeOrgMember = OrgService.method.removeOrgMember;
+
+/**
+ * SuspendOrg stops every workload of the organization and rejects deployments until ResumeOrg.
+ * It keeps resources, specs, secrets, domains and deployment history. It requires system:admin.
+ * Suspending a suspended organization changes nothing and keeps the first reason.
+ *
+ * @generated from rpc loco.org.v1.OrgService.SuspendOrg
+ */
+export const suspendOrg = OrgService.method.suspendOrg;
+
+/**
+ * ResumeOrg runs again what the organization's active deployments describe. It requires system:admin.
+ * Resuming an organization that is not suspended changes nothing.
+ *
+ * @generated from rpc loco.org.v1.OrgService.ResumeOrg
+ */
+export const resumeOrg = OrgService.method.resumeOrg;

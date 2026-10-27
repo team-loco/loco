@@ -23,6 +23,14 @@ service OrgService {
   rpc ListOrgMembers(ListOrgMembersRequest) returns (ListOrgMembersResponse);
   rpc AddOrgMember(AddOrgMemberRequest) returns (AddOrgMemberResponse);
   rpc RemoveOrgMember(RemoveOrgMemberRequest) returns (RemoveOrgMemberResponse);
+
+  // SuspendOrg stops every workload of the organization and rejects deployments until ResumeOrg.
+  // It keeps resources, specs, secrets, domains and deployment history. It requires system:admin.
+  // Suspending a suspended organization changes nothing and keeps the first reason.
+  rpc SuspendOrg(SuspendOrgRequest) returns (SuspendOrgResponse);
+  // ResumeOrg runs again what the organization's active deployments describe. It requires system:admin.
+  // Resuming an organization that is not suspended changes nothing.
+  rpc ResumeOrg(ResumeOrgRequest) returns (ResumeOrgResponse);
 }
 
 // Organization represents a top-level organization container for users, workspaces, and resources.
@@ -32,6 +40,8 @@ message Organization {
   string created_by = 3;
   google.protobuf.Timestamp created_at = 4;
   google.protobuf.Timestamp updated_at = 5;
+  google.protobuf.Timestamp suspended_at = 6;
+  string suspension_reason = 7;
 }
 
 // CreateOrgRequest is the request to create a new organization.
@@ -138,3 +148,27 @@ message DeleteOrgRequest {
 
 // DeleteOrgResponse is the response after deleting an organization.
 message DeleteOrgResponse {}
+
+// SuspendOrgRequest is the request to suspend an organization.
+message SuspendOrgRequest {
+  string org_id = 1 [(buf.validate.field).string.uuid = true];
+  string reason = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 500
+  }];
+}
+
+// SuspendOrgResponse is the organization after the request.
+message SuspendOrgResponse {
+  Organization organization = 1;
+}
+
+// ResumeOrgRequest is the request to resume a suspended organization.
+message ResumeOrgRequest {
+  string org_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// ResumeOrgResponse is the organization after the request.
+message ResumeOrgResponse {
+  Organization organization = 1;
+}

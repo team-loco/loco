@@ -150,3 +150,51 @@ test_s04_rollout_rejects_runtime_mutations() {
         loco_cli resource scale "$status_app" --cpu 150m
     wait_for "the follow-up scaling rollout to finish" 180 status_rollout_is_finished
 }
+
+status_suspension_reason="e2e suspension"
+
+status_org_call() {
+    local method=$1 token=$2 body=$3
+    curl -sS --fail-with-body "${E2E_API_URL}/loco.org.v1.OrgService/${method}" \
+        -H "Authorization: Bearer ${token}" -H 'Content-Type: application/json' -d "$body"
+}
+
+status_org_id() {
+    e2e_psql "SELECT w.org_id FROM resources r JOIN workspaces w ON w.id = r.workspace_id WHERE r.name = '${status_app}'"
+}
+
+status_pods_gone() {
+    test -z "$(sk -n "$status_namespace" get pods -l "$(status_app_selector)" -o name)"
+}
+
+status_pod_running() {
+    sk -n "$status_namespace" get pods -l "$(status_app_selector)" \
+        --field-selector=status.phase=Running -o name | grep -q .
+}
+
+test_s05_suspension_stops_pods_and_resume_restores_them() {
+    local org_id suspend_body resume_body
+    org_id=$(status_org_id)
+    suspend_body="{\"orgId\":\"${org_id}\",\"reason\":\"${status_suspension_reason}\"}"
+    resume_body="{\"orgId\":\"${org_id}\"}"
+
+    assert_fails_with "An organization member cannot suspend the organization" "permission denied" \
+        status_org_call SuspendOrg "$E2E_USER_TOKEN" "$suspend_body"
+    assert_contains "A system admin suspends the organization" "$status_suspension_reason" \
+        status_org_call SuspendOrg "$E2E_CLUSTER_ADMIN_TOKEN" "$suspend_body"
+
+    wait_for "the suspended app's pods to stop" 120 status_pods_gone
+    assert "No pod of ${status_app} runs while its organization is suspended" status_pods_gone
+    assert_fails_with "Scaling is refused with the reason while suspended" "$status_suspension_reason" \
+        loco_cli resource scale "$status_app" --cpu 175m
+    assert_contains "The service still reads while suspended" "$status_app" \
+        loco_cli resource status "$status_app"
+
+    assert "A system admin resumes the organization" \
+        status_org_call ResumeOrg "$E2E_CLUSTER_ADMIN_TOKEN" "$resume_body"
+    wait_for "the resumed app's pod to run" 180 status_pod_running
+    wait_for "the API to report ${status_app} healthy after resume" 180 environment_status_is RESOURCE_STATUS_HEALTHY
+    assert "The API reports ${status_app} healthy after resume" environment_status_is RESOURCE_STATUS_HEALTHY
+    assert "Scaling works again after resume" loco_cli resource scale "$status_app" --cpu 175m
+    wait_for "the post-resume scaling rollout to finish" 180 status_rollout_is_finished
+}

@@ -91,6 +91,9 @@ func (s *PlanServer) Apply(
 	}
 	var revision int64
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if lockErr := lockOrganization(ctx, qtx, planned.env.WorkspaceID); lockErr != nil {
+			return lockErr
+		}
 		revisions, lockErr := lockWorkspaceEnvironments(ctx, qtx, planned.env.WorkspaceID)
 		if lockErr != nil {
 			return lockErr

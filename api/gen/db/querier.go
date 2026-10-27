@@ -21,6 +21,7 @@ type Querier interface {
 	BumpPlacementsForSecretNames(ctx context.Context, arg BumpPlacementsForSecretNamesParams) ([]BumpPlacementsForSecretNamesRow, error)
 	BumpResourceEnvironmentRevisions(ctx context.Context, id uuid.UUID) error
 	CancelBuild(ctx context.Context, arg CancelBuildParams) (CancelBuildRow, error)
+	CancelOrgActiveBuilds(ctx context.Context, arg CancelOrgActiveBuildsParams) ([]CancelOrgActiveBuildsRow, error)
 	CancelOtherActiveBuilds(ctx context.Context, arg CancelOtherActiveBuildsParams) ([]CancelOtherActiveBuildsRow, error)
 	CheckDomainAvailability(ctx context.Context, domain string) (bool, error)
 	CheckUserHasOrganizations(ctx context.Context, createdBy uuid.UUID) (bool, error)
@@ -42,7 +43,7 @@ type Querier interface {
 	CreateIdentity(ctx context.Context, arg CreateIdentityParams) (Identity, error)
 	CreateOrg(ctx context.Context, arg CreateOrgParams) (Organization, error)
 	// Organization queries
-	CreateOrganization(ctx context.Context, arg CreateOrganizationParams) (Organization, error)
+	CreateOrganization(ctx context.Context, arg CreateOrganizationParams) (CreateOrganizationRow, error)
 	// Resource queries
 	CreateResource(ctx context.Context, arg CreateResourceParams) (uuid.UUID, error)
 	CreateResourceDomain(ctx context.Context, arg CreateResourceDomainParams) (uuid.UUID, error)
@@ -100,8 +101,8 @@ type Querier interface {
 	GetIdentity(ctx context.Context, arg GetIdentityParams) (Identity, error)
 	GetOrgByID(ctx context.Context, id uuid.UUID) (Organization, error)
 	GetOrgByName(ctx context.Context, name string) (Organization, error)
-	GetOrganizationByID(ctx context.Context, id uuid.UUID) (Organization, error)
-	GetOrganizationByName(ctx context.Context, name string) (Organization, error)
+	GetOrganizationByID(ctx context.Context, id uuid.UUID) (GetOrganizationByIDRow, error)
+	GetOrganizationByName(ctx context.Context, name string) (GetOrganizationByNameRow, error)
 	GetOrganizationIDByWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	GetPlacementForResourceCluster(ctx context.Context, arg GetPlacementForResourceClusterParams) (Placement, error)
 	GetPrimaryResourceDomain(ctx context.Context, arg GetPrimaryResourceDomainParams) (string, error)
@@ -165,7 +166,7 @@ type Querier interface {
 	ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams) ([]Organization, error)
 	ListPendingPlacements(ctx context.Context, clusterID uuid.UUID) ([]ListPendingPlacementsRow, error)
 	ListPlacementSecretSizes(ctx context.Context, arg ListPlacementSecretSizesParams) ([]ListPlacementSecretSizesRow, error)
-	ListPlacementsByIDs(ctx context.Context, arg ListPlacementsByIDsParams) ([]Placement, error)
+	ListPlacementsByIDs(ctx context.Context, arg ListPlacementsByIDsParams) ([]ListPlacementsByIDsRow, error)
 	ListQueuedClusterBuilds(ctx context.Context, clusterID *uuid.UUID) ([]ListQueuedClusterBuildsRow, error)
 	ListRegionStatusesForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListRegionStatusesForResourcesRow, error)
 	ListResourceAuditEvents(ctx context.Context, arg ListResourceAuditEventsParams) ([]ListResourceAuditEventsRow, error)
@@ -196,18 +197,21 @@ type Querier interface {
 	LockEnvironmentKey(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)
 	LockInstallWebhooks(ctx context.Context, lockKey int64) error
 	LockOrgForDeletion(ctx context.Context, id uuid.UUID) error
+	LockOrgForSuspension(ctx context.Context, id uuid.UUID) (Organization, error)
 	LockOrgWorkspacesForDeletion(ctx context.Context, orgID uuid.UUID) error
 	LockResourceEnvironments(ctx context.Context, id uuid.UUID) ([]LockResourceEnvironmentsRow, error)
+	LockResourceOrganization(ctx context.Context, id uuid.UUID) (*string, error)
 	LockResources(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
 	LockUserForMembership(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockWorkspaceEnvironments(ctx context.Context, id uuid.UUID) ([]LockWorkspaceEnvironmentsRow, error)
 	LockWorkspaceForDeletion(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockWorkspaceForWebhookCreation(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
+	LockWorkspaceOrganization(ctx context.Context, id uuid.UUID) error
 	MarkBuildImageDeleted(ctx context.Context, id uuid.UUID) (int64, error)
 	MarkBuildRunning(ctx context.Context, arg MarkBuildRunningParams) (int64, error)
 	MarkBuildSourceDeleted(ctx context.Context, id uuid.UUID) error
 	MarkDeploymentNotActive(ctx context.Context, id uuid.UUID) error
-	MarkPlacementApplied(ctx context.Context, arg MarkPlacementAppliedParams) (*uuid.UUID, error)
+	MarkPlacementApplied(ctx context.Context, arg MarkPlacementAppliedParams) (MarkPlacementAppliedRow, error)
 	MarkPlacementDeleted(ctx context.Context, arg MarkPlacementDeletedParams) ([]MarkPlacementDeletedRow, error)
 	MarkPreviousDeploymentsNotActive(ctx context.Context, resourceID uuid.UUID) error
 	MarkResourcePlacementsDeleted(ctx context.Context, resourceID uuid.UUID) ([]MarkResourcePlacementsDeletedRow, error)
@@ -225,6 +229,8 @@ type Querier interface {
 	RemoveUserScope(ctx context.Context, arg RemoveUserScopeParams) error
 	RemoveWorkspace(ctx context.Context, id uuid.UUID) error
 	ResourceHasPrimaryDomain(ctx context.Context, arg ResourceHasPrimaryDomainParams) (bool, error)
+	ResumeOrg(ctx context.Context, id uuid.UUID) (Organization, error)
+	ResumeOrgPlacements(ctx context.Context, orgID uuid.UUID) ([]ResumeOrgPlacementsRow, error)
 	RewrapEnvironmentKey(ctx context.Context, arg RewrapEnvironmentKeyParams) (int64, error)
 	RotateSessionToken(ctx context.Context, arg RotateSessionTokenParams) (int64, error)
 	SetClusterGatewayHostname(ctx context.Context, arg SetClusterGatewayHostnameParams) error
@@ -233,6 +239,8 @@ type Querier interface {
 	SetPlacementApplyError(ctx context.Context, arg SetPlacementApplyErrorParams) (SetPlacementApplyErrorRow, error)
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
 	SetResourcePartial(ctx context.Context, arg SetResourcePartialParams) error
+	SuspendOrg(ctx context.Context, arg SuspendOrgParams) (Organization, error)
+	SuspendOrgPlacements(ctx context.Context, orgID uuid.UUID) ([]SuspendOrgPlacementsRow, error)
 	SystemAdminExists(ctx context.Context) (bool, error)
 	TouchAPITokenLastUsed(ctx context.Context, id uuid.UUID) error
 	TouchIdentity(ctx context.Context, arg TouchIdentityParams) error

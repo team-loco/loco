@@ -710,6 +710,9 @@ func (s *ResourceServer) ScaleResource(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if lockErr := lockOrganization(ctx, qtx, res.WorkspaceID); lockErr != nil {
+			return lockErr
+		}
 		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, res.WorkspaceID); lockErr != nil {
 			return lockErr
 		}
@@ -1367,6 +1370,9 @@ func createDeploymentWithCleanup(
 	params genDb.CreateDeploymentParams,
 	buildSpec desiredSpecFunc,
 ) (uuid.UUID, error) {
+	if err := ensureOrganizationActive(ctx, qtx, params.ResourceID); err != nil {
+		return uuid.UUID{}, err
+	}
 	if err := lockResource(ctx, qtx, params.ResourceID); err != nil {
 		return uuid.UUID{}, err
 	}

@@ -420,11 +420,13 @@ type Identity struct {
 }
 
 type Organization struct {
-	ID        uuid.UUID `json:"id"`
-	Name      string    `json:"name"`
-	CreatedBy uuid.UUID `json:"createdBy"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID               uuid.UUID  `json:"id"`
+	Name             string     `json:"name"`
+	CreatedBy        uuid.UUID  `json:"createdBy"`
+	SuspendedAt      *time.Time `json:"suspendedAt"`
+	SuspensionReason *string    `json:"suspensionReason"`
+	CreatedAt        time.Time  `json:"createdAt"`
+	UpdatedAt        time.Time  `json:"updatedAt"`
 }
 
 type Placement struct {
