@@ -14,7 +14,7 @@ Provide these dependencies before installing the chart:
 | cert-manager | The cert-manager controller, which also issues OpenBao's serving certificate. The chart issues one Certificate for the Gateway hostnames with the Issuer set in `certManager.issuer`, the same options as `loco-worker`: `type: acme` solves DNS-01 through Cloudflare with `secrets.cloudflareToken` unless `certManager.issuer.solvers` supplies cert-manager's own solver list, `selfSigned` needs no token. `certManager.issuer.create: false` uses an existing issuer by `name` and `kind`. `gateway.tlsSecretName` serves your own Secret and renders no cert-manager objects; `certManager.enabled: false` serves plain HTTP on port 80. |
 | Envoy Gateway | The Envoy Gateway controller in `gatewayNamespace`. The chart creates its own GatewayClass, EnvoyProxy and Gateway; `gateway.create: false` attaches the routes to the existing Gateway `gateway.name` instead. |
 
-Create the API environment Secret outside Helm. The chart reads environment-variable keys directly from that Secret, so credentials do not enter Helm values or the release manifest. A complete installation configures `DATABASE_URL`, `AUTH_ISSUERS`, the source bucket and registry, and the `LOCO_SECRETS_TRANSIT_TOKEN` the API presents to OpenBao. Existing API configuration names and rotation procedures apply.
+Create the API environment Secret outside Helm. The chart reads environment-variable keys directly from that Secret, so credentials do not enter Helm values or the release manifest. A complete installation configures `DATABASE_URL`, `AUTH_ISSUERS`, the source bucket and the registry. Existing API configuration names and rotation procedures apply.
 
 ```sh
 kubectl -n loco-system create secret generic regional-api-env \
@@ -63,7 +63,7 @@ clickhouseUserPasswords:
   loco_reader: READER_PASSWORD
 ```
 
-The chart runs OpenBao for the API's secrets key and sets the API's `LOCO_SECRETS_TRANSIT_ADDR`, `LOCO_SECRETS_TRANSIT_MOUNT` and `LOCO_SECRETS_TRANSIT_KEY`. Create its seal key Secret, named in `openbao.seal.static.existingSecret.name`, before installing; OpenBao serves TLS from a CA the chart issues with cert-manager, so the cert-manager controller is required even with `certManager.enabled: false`. [The secrets key provider](../../docs/content/operations/secrets-key-provider.md#openbao-in-the-control-plane-chart) describes the seal options, the setup Job, the recovery keys it writes to `<release>-openbao-init` for you to move offline, and an external OpenBao.
+The chart runs OpenBao for the API's secrets key and sets the API's `LOCO_SECRETS_TRANSIT_*` settings; the API logs in to OpenBao with its ServiceAccount `<release>-api`. Create its seal key Secret, named in `openbao.seal.static.existingSecret.name`, before installing; OpenBao serves TLS from a CA the chart issues with cert-manager, so the cert-manager controller is required even with `certManager.enabled: false`. [The secrets key provider](../../docs/content/operations/secrets-key-provider.md#openbao-in-the-control-plane-chart) describes the seal options, the setup Job, the recovery keys it writes to `<release>-openbao-init` for you to move offline, and an external OpenBao.
 
 ```sh
 kubectl -n loco-system create secret generic openbao-seal --from-literal=key="$(openssl rand -base64 32)"

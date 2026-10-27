@@ -23,4 +23,5 @@ cd api
 LOCO_CONFORMANCE_TRANSIT_ROOT_TOKEN=loco-conformance-root \
 	LOCO_CONFORMANCE_OPENBAO_ADDR="http://localhost:${CONFORMANCE_OPENBAO_PORT:-58200}" \
 	LOCO_CONFORMANCE_VAULT_ADDR="http://localhost:${CONFORMANCE_VAULT_PORT:-58201}" \
-	go test -tags conformance -count=1 -run TestTransitConformance -v ./pkg/secretkeys/ "$@"
+	LOCO_CONFORMANCE_KUBERNETES_HOST=host.docker.internal \
+	go test -tags conformance -count=1 -run 'TestTransit(Kubernetes)?Conformance' -v ./pkg/secretkeys/ "$@"

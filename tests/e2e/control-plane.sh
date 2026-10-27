@@ -84,9 +84,6 @@ helm upgrade --install fixtures "$ROOT_DIR/tests/e2e/fixtures/control-plane" --n
 if [[ ! -s "$RUN_DIR/seal-key" ]]; then
     openssl rand -base64 32 | tr -d '\n' >"$RUN_DIR/seal-key"
 fi
-if [[ ! -s "$RUN_DIR/transit-token" ]]; then
-    openssl rand -hex 24 | tr -d '\n' >"$RUN_DIR/transit-token"
-fi
 if [[ ! -s "$RUN_DIR/user-token" ]]; then
     printf 'loco_s_%s' "$(openssl rand -hex 24)" >"$RUN_DIR/user-token"
 fi
@@ -98,8 +95,7 @@ import pathlib
 import sys
 root = pathlib.Path(sys.argv[1])
 password = (root / 'password').read_text().strip()
-token = (root / 'transit-token').read_text().strip()
-(root / 'api.env').write_text(f'DATABASE_URL=postgresql://loco:{password}@postgres:5432/loco?sslmode=disable\nLOCO_IMAGE_RETENTION=0\nLOCO_SECRETS_TRANSIT_CACHE_TTL=1s\nLOCO_SECRETS_TRANSIT_TOKEN={token}\n')
+(root / 'api.env').write_text(f'DATABASE_URL=postgresql://loco:{password}@postgres:5432/loco?sslmode=disable\nLOCO_IMAGE_RETENTION=0\nLOCO_SECRETS_TRANSIT_CACHE_TTL=1s\n')
 now = datetime.datetime.now(datetime.UTC)
 (root / 'query.json').write_text(json.dumps({'workspaceId': '00000000-0000-0000-0000-000000000001', 'startTime': (now - datetime.timedelta(minutes=5)).isoformat(), 'endTime': now.isoformat()}))
 PY
