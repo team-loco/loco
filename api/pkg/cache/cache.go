@@ -9,6 +9,7 @@ import (
 
 	"github.com/dgraph-io/ristretto/v2"
 	"github.com/valkey-io/valkey-go"
+	"github.com/valkey-io/valkey-go/valkeyotel"
 )
 
 // ErrNotFound is returned when a key is not found in the cache
@@ -131,7 +132,7 @@ func NewValkey(cacheAddr string, defaultTTL time.Duration) (*ValkeyAdapter, erro
 	if parseErr != nil {
 		return nil, fmt.Errorf("failed to valkey URL: %w", parseErr)
 	}
-	client, err := valkey.NewClient(clientOpts)
+	client, err := valkeyotel.NewClient(clientOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to valkey: %w", err)
 	}

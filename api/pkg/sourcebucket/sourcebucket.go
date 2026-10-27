@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 var ErrObjectNotFound = errors.New("object not found")
@@ -50,6 +51,28 @@ func (c Config) Validate() error {
 	return nil
 }
 
+type sdkTransport struct {
+	client s3.HTTPClient
+}
+
+func (t sdkTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return t.client.Do(req)
+}
+
+type tracedClient struct {
+	transport http.RoundTripper
+}
+
+func (c tracedClient) Do(req *http.Request) (*http.Response, error) {
+	return c.transport.RoundTrip(req)
+}
+
+func newTracedClient() tracedClient {
+	sdkClient := awshttp.NewBuildableClient()
+	transport := otelhttp.NewTransport(sdkTransport{client: sdkClient})
+	return tracedClient{transport: transport}
+}
+
 type Bucket struct {
 	client    *s3.Client
 	presigner *s3.PresignClient
@@ -63,7 +86,9 @@ func New(cfg Config) (*Bucket, error) {
 
 	creds := credentials.NewStaticCredentialsProvider(cfg.AccessKeyID, cfg.SecretAccessKey, "")
 	endpoint := cfg.Endpoint
+	httpClient := newTracedClient()
 	client := s3.New(s3.Options{
+		HTTPClient:                 httpClient,
 		Region:                     cfg.Region,
 		Credentials:                creds,
 		UsePathStyle:               cfg.ForcePathStyle,

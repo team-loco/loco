@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/team-loco/loco/api/webhooks"
 )
@@ -33,10 +34,12 @@ func newHook(u *url.URL, secret string, tlsConfig *tls.Config) (*hookTransport, 
 	if secret == "" || !validHookSecret(secret) {
 		return nil, ErrHookSecret
 	}
-	client := &http.Client{Timeout: hookTimeout}
+	transport := http.DefaultTransport
 	if tlsConfig != nil {
-		client.Transport = &http.Transport{TLSClientConfig: tlsConfig}
+		transport = &http.Transport{TLSClientConfig: tlsConfig}
 	}
+	traced := otelhttp.NewTransport(transport)
+	client := &http.Client{Transport: traced, Timeout: hookTimeout}
 	return &hookTransport{url: u.String(), secret: secret, client: client}, nil
 }
 

@@ -10,13 +10,13 @@ import (
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/team-loco/loco/api/pkg/tracingtest"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
@@ -34,18 +34,8 @@ const (
 
 func recordGlobalSpans(t *testing.T) *tracetest.SpanRecorder {
 	t.Helper()
-	previousProvider := otel.GetTracerProvider()
-	previousPropagator := otel.GetTextMapPropagator()
-	recorder := tracetest.NewSpanRecorder()
 	sampler := sdktrace.ParentBased(rootSampler{})
-	provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder), sdktrace.WithSampler(sampler))
-	otel.SetTracerProvider(provider)
-	otel.SetTextMapPropagator(propagation.TraceContext{})
-	t.Cleanup(func() {
-		otel.SetTracerProvider(previousProvider)
-		otel.SetTextMapPropagator(previousPropagator)
-	})
-	return recorder
+	return tracingtest.Record(t, sdktrace.WithSampler(sampler))
 }
 
 func TestNewAPIConfigEnablesTracingWithAnOTLPEndpoint(t *testing.T) {
@@ -301,4 +291,22 @@ func spanNames(spans []sdktrace.ReadOnlySpan) []string {
 		names = append(names, span.Name())
 	}
 	return names
+}
+
+func TestOutboundHTTPClientPropagatesTraceContext(t *testing.T) {
+	tracingtest.Record(t)
+	server := tracingtest.NewHeaderServer(t, http.StatusNoContent)
+	ctx := tracingtest.StartParent(t)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := newOutboundHTTPClient().Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if closeErr := resp.Body.Close(); closeErr != nil {
+		t.Fatal(closeErr)
+	}
+	tracingtest.AssertContinues(t, server.Traceparent(), ctx)
 }

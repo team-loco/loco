@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -37,6 +38,8 @@ func NewDB(ctx context.Context, databaseURL string) (*DB, error) {
 	if _, ok := cfg.ConnConfig.RuntimeParams["statement_timeout"]; !ok {
 		cfg.ConnConfig.RuntimeParams["statement_timeout"] = "15s"
 	}
+
+	cfg.ConnConfig.Tracer = otelpgx.NewTracer()
 
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {

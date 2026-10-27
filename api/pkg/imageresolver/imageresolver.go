@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const (
@@ -19,11 +21,13 @@ const (
 var ErrPlatformUnsupported = errors.New("image has no linux/amd64 variant")
 
 type Resolver struct {
-	timeout time.Duration
+	timeout   time.Duration
+	transport http.RoundTripper
 }
 
 func New(timeout time.Duration) *Resolver {
-	return &Resolver{timeout: timeout}
+	transport := otelhttp.NewTransport(remote.DefaultTransport)
+	return &Resolver{timeout: timeout, transport: transport}
 }
 
 func (r *Resolver) Resolve(ctx context.Context, ref name.Reference) (string, error) {
@@ -32,7 +36,8 @@ func (r *Resolver) Resolve(ctx context.Context, ref name.Reference) (string, err
 
 	auth := remote.WithAuth(authn.Anonymous)
 	withCtx := remote.WithContext(ctx)
-	desc, err := remote.Get(ref, auth, withCtx)
+	withTransport := remote.WithTransport(r.transport)
+	desc, err := remote.Get(ref, auth, withCtx, withTransport)
 	if err != nil {
 		return "", fmt.Errorf("fetch manifest for %s: %w", ref, err)
 	}
