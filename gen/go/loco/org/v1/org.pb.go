@@ -25,16 +25,14 @@ const (
 
 // Organization represents a top-level organization container for users, workspaces, and resources.
 type Organization struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	Id        string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name      string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	CreatedBy string                 `protobuf:"bytes,3,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
-	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	// suspended_at is set while an operator has suspended the organization.
-	SuspendedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=suspended_at,json=suspendedAt,proto3" json:"suspended_at,omitempty"`
-	// suspension_reason is the operator's reason, shown to the organization's members.
-	SuspensionReason string `protobuf:"bytes,7,opt,name=suspension_reason,json=suspensionReason,proto3" json:"suspension_reason,omitempty"`
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name             string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	CreatedBy        string                 `protobuf:"bytes,3,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
+	CreatedAt        *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt        *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	SuspendedAt      *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=suspended_at,json=suspendedAt,proto3" json:"suspended_at,omitempty"`
+	SuspensionReason string                 `protobuf:"bytes,7,opt,name=suspension_reason,json=suspensionReason,proto3" json:"suspension_reason,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }

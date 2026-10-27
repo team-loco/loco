@@ -47,15 +47,11 @@ export type Organization = Message<"loco.org.v1.Organization"> & {
   updatedAt?: Timestamp | undefined;
 
   /**
-   * suspended_at is set while an operator has suspended the organization.
-   *
    * @generated from field: google.protobuf.Timestamp suspended_at = 6;
    */
   suspendedAt?: Timestamp | undefined;
 
   /**
-   * suspension_reason is the operator's reason, shown to the organization's members.
-   *
    * @generated from field: string suspension_reason = 7;
    */
   suspensionReason: string;
@@ -93,15 +89,11 @@ export type OrganizationJson = {
   updatedAt?: TimestampJson;
 
   /**
-   * suspended_at is set while an operator has suspended the organization.
-   *
    * @generated from field: google.protobuf.Timestamp suspended_at = 6;
    */
   suspendedAt?: TimestampJson;
 
   /**
-   * suspension_reason is the operator's reason, shown to the organization's members.
-   *
    * @generated from field: string suspension_reason = 7;
    */
   suspensionReason?: string;
