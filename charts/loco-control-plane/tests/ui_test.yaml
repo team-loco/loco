@@ -1,0 +1,65 @@
+suite: ui
+release:
+  name: loco-control-plane
+  namespace: loco-control-plane
+values:
+  - ../ci/default-values.yaml
+set:
+  ui.hostname: app.region.example.test
+templates:
+  - templates/ui.yaml
+tests:
+  - it: serves the dashboard's API at /api on the installation's own origin
+    asserts:
+      - equal:
+          path: data["runtime-config.js"]
+          value: |
+            window.locoConfig = {"apiURL":"/api"};
+        documentSelector: {path: kind, value: ConfigMap}
+      - equal:
+          path: spec.hostnames
+          value: [app.region.example.test]
+        documentSelector: {path: kind, value: HTTPRoute}
+      - equal:
+          path: spec.rules[0].matches[0].path.value
+          value: /api
+        documentSelector: {path: kind, value: HTTPRoute}
+      - equal:
+          path: spec.rules[0].filters[0].urlRewrite.path
+          value: {type: ReplacePrefixMatch, replacePrefixMatch: /}
+        documentSelector: {path: kind, value: HTTPRoute}
+      - equal:
+          path: spec.rules[0].backendRefs[0].name
+          value: loco-control-plane-api
+        documentSelector: {path: kind, value: HTTPRoute}
+      - equal:
+          path: spec.rules[0].timeouts
+          value: {request: 0s}
+        documentSelector: {path: kind, value: HTTPRoute}
+      - equal:
+          path: spec.rules[1].backendRefs[0].name
+          value: loco-control-plane-ui
+        documentSelector: {path: kind, value: HTTPRoute}
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[*].mountPath
+          value: /public/runtime-config.js
+        documentSelector: {path: kind, value: Deployment}
+      - lengthEqual:
+          path: spec.template.spec.containers[0].volumeMounts
+          count: 1
+        documentSelector: {path: kind, value: Deployment}
+
+  - it: requires a dashboard image tag while the dashboard is enabled
+    set:
+      ui.image.tag: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: "/ui/image/tag': minLength"
+
+  - it: needs no dashboard image tag on a headless installation
+    set:
+      ui.enabled: false
+      ui.image.tag: ""
+    asserts:
+      - hasDocuments:
+          count: 0

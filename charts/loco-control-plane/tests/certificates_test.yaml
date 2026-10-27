@@ -1,0 +1,220 @@
+suite: certificates
+release:
+  name: loco-control-plane
+  namespace: loco-control-plane
+values:
+  - ../ci/default-values.yaml
+  - values/hosts.yaml
+set:
+  gatewayNamespace: edge
+templates:
+  - templates/gateway.yaml
+  - templates/cm-cert.yaml
+  - templates/cm-issuer.yaml
+  - templates/cloudflare-secret.yaml
+tests:
+  - it: renders configured solvers verbatim, without a Cloudflare Secret
+    set:
+      certManager.issuer.solvers: [{dns01: {route53: {region: us-east-1}}}]
+    asserts:
+      - equal:
+          path: spec.acme.solvers
+          value: [{dns01: {route53: {region: us-east-1}}}]
+        template: templates/cm-issuer.yaml
+      - hasDocuments: {count: 0}
+        template: templates/cloudflare-secret.yaml
+
+  - it: issues from ACME with the operator's email by default
+    template: templates/cm-issuer.yaml
+    asserts:
+      - equal:
+          path: spec.acme.email
+          value: ci@example.invalid
+
+  - it: reads the Cloudflare token from the Secret the chart renders
+    set:
+      secrets.cloudflareToken: token
+    asserts:
+      - equal:
+          path: spec.acme.solvers[0].dns01.cloudflare.apiTokenSecretRef
+          value: {name: cloudflare-api-token-secret, key: api-token}
+        template: templates/cm-issuer.yaml
+      - equal:
+          path: metadata
+          value: {name: cloudflare-api-token-secret, namespace: cert-manager}
+        template: templates/cloudflare-secret.yaml
+      - equal:
+          path: stringData.api-token
+          value: token
+        template: templates/cloudflare-secret.yaml
+
+  - it: puts the Certificate in the gateway namespace
+    template: templates/cm-cert.yaml
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: edge
+
+  - it: issues the Certificate from the ClusterIssuer the chart renders
+    asserts:
+      - equal:
+          path: spec.issuerRef
+          value: {name: letsencrypt-prod, kind: ClusterIssuer}
+        template: templates/cm-cert.yaml
+      - equal:
+          path: metadata.name
+          value: letsencrypt-prod
+        template: templates/cm-issuer.yaml
+      - isKind: {of: ClusterIssuer}
+        template: templates/cm-issuer.yaml
+
+  - it: covers every listener hostname in the Certificate, in listener order
+    asserts:
+      - equal:
+          path: spec.dnsNames
+          value: [app.region.test, api.region.test]
+        template: templates/cm-cert.yaml
+      - equal:
+          path: spec.listeners[0].hostname
+          value: app.region.test
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: Gateway}
+      - equal:
+          path: spec.listeners[1].hostname
+          value: api.region.test
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: Gateway}
+      - lengthEqual:
+          path: spec.listeners
+          count: 2
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: Gateway}
+
+  - it: serves HTTPS from the Secret the Certificate issues
+    asserts:
+      - equal:
+          path: spec.secretName
+          value: loco-control-plane-tls
+        template: templates/cm-cert.yaml
+      - equal:
+          path: spec.listeners[*].protocol
+          value: HTTPS
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: Gateway}
+      - equal:
+          path: spec.listeners[*].tls.certificateRefs
+          value: [{name: loco-control-plane-tls, kind: Secret, group: ""}]
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: Gateway}
+
+  - it: covers the ingest hostname when ingest is published
+    values:
+      - values/ingest.yaml
+    set:
+      obsProxy.ingest.hostname: ingest.region.test
+    asserts:
+      - equal:
+          path: spec.dnsNames
+          value: [app.region.test, api.region.test, ingest.region.test]
+        template: templates/cm-cert.yaml
+      - equal:
+          path: spec.listeners[2].hostname
+          value: ingest.region.test
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: Gateway}
+
+  - it: leaves the ingest hostname out while ingest is unpublished
+    values:
+      - values/ingest.yaml
+    asserts:
+      - equal:
+          path: spec.dnsNames
+          value: [app.region.test, api.region.test]
+        template: templates/cm-cert.yaml
+
+  - it: needs no token or email for a self-signed issuer
+    set:
+      certManager.issuer: {type: selfSigned, email: "", name: local}
+      secrets.cloudflareToken: token
+    asserts:
+      - equal:
+          path: spec
+          value: {selfSigned: {}}
+        template: templates/cm-issuer.yaml
+      - equal:
+          path: spec.issuerRef.name
+          value: local
+        template: templates/cm-cert.yaml
+      - hasDocuments: {count: 0}
+        template: templates/cloudflare-secret.yaml
+
+  - it: renders only the Certificate for an existing issuer
+    set:
+      certManager.issuer: {create: false, name: shared, kind: Issuer}
+      secrets.cloudflareToken: token
+    asserts:
+      - hasDocuments: {count: 0}
+        template: templates/cm-issuer.yaml
+      - hasDocuments: {count: 0}
+        template: templates/cloudflare-secret.yaml
+      - equal:
+          path: spec.issuerRef
+          value: {name: shared, kind: Issuer}
+        template: templates/cm-cert.yaml
+
+  - it: requires an email for the ACME issuer
+    set:
+      certManager.issuer.email: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: certManager.issuer.email is required
+        template: templates/cm-issuer.yaml
+
+  - it: renders no cert-manager objects with an existing TLS Secret, and serves that Secret
+    set:
+      gateway.tlsSecretName: regional-tls
+      secrets.cloudflareToken: token
+    asserts:
+      - hasDocuments: {count: 0}
+        template: templates/cm-cert.yaml
+      - hasDocuments: {count: 0}
+        template: templates/cm-issuer.yaml
+      - hasDocuments: {count: 0}
+        template: templates/cloudflare-secret.yaml
+      - equal:
+          path: spec.listeners[*].tls.certificateRefs[0].name
+          value: regional-tls
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: Gateway}
+
+  - it: serves plain HTTP on port 80 without cert-manager objects
+    set:
+      certManager.enabled: false
+    asserts:
+      - hasDocuments: {count: 0}
+        template: templates/cm-cert.yaml
+      - hasDocuments: {count: 0}
+        template: templates/cm-issuer.yaml
+      - equal:
+          path: spec.listeners[*].protocol
+          value: HTTP
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: Gateway}
+      - equal:
+          path: spec.listeners[*].port
+          value: 80
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: Gateway}
+      - notExists:
+          path: spec.listeners[*].tls
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: Gateway}
+
+  - it: renders no Certificate for an existing Gateway
+    set:
+      gateway: {create: false, name: eg}
+    asserts:
+      - hasDocuments: {count: 0}
+        template: templates/cm-cert.yaml
+      - hasDocuments: {count: 0}
+        template: templates/cm-issuer.yaml

@@ -1,0 +1,150 @@
+suite: clickhouse
+release:
+  name: loco-control-plane
+  namespace: loco-control-plane
+values:
+  - ../ci/default-values.yaml
+  - values/in-cluster-clickhouse.yaml
+tests:
+  - it: renders an in-cluster ClickHouseInstallation
+    template: charts/clickhouse/templates/chi.yaml
+    asserts:
+      - containsDocument: {kind: ClickHouseInstallation, apiVersion: clickhouse.altinity.com/v1, name: loco-control-plane-clickhouse}
+
+  - it: renders a password and connection URL Secret for each ClickHouse user
+    template: templates/clickhouse.yaml
+    asserts:
+      - equal:
+          path: stringData
+          value: {password: migrator-pw, url: "clickhouse://loco_migrator:migrator-pw@clickhouse-loco-control-plane-clickhouse.loco-control-plane.svc.cluster.local:9000"}
+        documentSelector: {path: metadata.name, value: loco-clickhouse-migrator}
+      - equal:
+          path: stringData
+          value: {password: ingest-pw, url: "clickhouse://loco_ingest:ingest-pw@clickhouse-loco-control-plane-clickhouse.loco-control-plane.svc.cluster.local:9000"}
+        documentSelector: {path: metadata.name, value: loco-clickhouse-ingest}
+      - equal:
+          path: stringData
+          value: {password: reader-pw, url: "clickhouse://loco_reader:reader-pw@clickhouse-loco-control-plane-clickhouse.loco-control-plane.svc.cluster.local:9000"}
+        documentSelector: {path: metadata.name, value: loco-clickhouse-reader}
+
+  - it: wires each proxy role to the user its grant needs
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: CLICKHOUSE_URL, valueFrom: {secretKeyRef: {name: loco-clickhouse-reader, key: url}}}
+        template: templates/obs-proxy-query-deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: CLICKHOUSE_MIGRATOR_URL, valueFrom: {secretKeyRef: {name: loco-clickhouse-migrator, key: url}}}
+        template: templates/obs-proxy-query-deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: CLICKHOUSE_INGEST_URL, valueFrom: {secretKeyRef: {name: loco-clickhouse-ingest, key: url}}}
+        template: templates/obs-proxy-ingest-deployment.yaml
+
+  - it: grants each user access to the database the proxy reads
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: CLICKHOUSE_DB, value: loco_obs}
+        template: templates/obs-proxy-query-deployment.yaml
+      - matchRegex:
+          path: spec.configuration.users["loco_migrator/grants/query"][*]
+          pattern: " ON loco_obs\\.\\*$"
+        template: charts/clickhouse/templates/chi.yaml
+      - matchRegex:
+          path: spec.configuration.users["loco_ingest/grants/query"][*]
+          pattern: " ON loco_obs\\.\\*$"
+        template: charts/clickhouse/templates/chi.yaml
+      - matchRegex:
+          path: spec.configuration.users["loco_reader/grants/query"][*]
+          pattern: " ON loco_obs\\.\\*$"
+        template: charts/clickhouse/templates/chi.yaml
+
+  - it: requires the proxy for in-cluster ClickHouse
+    set:
+      obsProxy.enabled: false
+    asserts:
+      - failedTemplate:
+          errorMessage: clickhouse.enabled requires obsProxy.enabled
+        template: templates/clickhouse.yaml
+
+  - it: requires a password for each ClickHouse user
+    set:
+      clickhouseUserPasswords.loco_reader: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: clickhouseUserPasswords.loco_reader is required
+        template: templates/clickhouse.yaml
+
+  - it: rejects a password that cannot go into a connection URL unescaped
+    set:
+      clickhouseUserPasswords.loco_reader: "a b@c"
+    asserts:
+      - failedTemplate:
+          errorMessage: clickhouseUserPasswords.loco_reader may contain only letters, digits and ._~-
+        template: templates/clickhouse.yaml
+
+  - it: admits only the proxy roles and the operator to ClickHouse
+    asserts:
+      - equal:
+          path: spec.ingress[0]
+          value:
+            from: [{podSelector: {matchLabels: {app.kubernetes.io/component: observability-proxy}}}]
+            ports: [{protocol: TCP, port: 9000}]
+        template: templates/clickhouse.yaml
+        documentSelector: {path: kind, value: NetworkPolicy}
+      - contains:
+          path: spec.ingress[1].from
+          content: {podSelector: {matchLabels: {app.kubernetes.io/name: operator, app.kubernetes.io/instance: loco-control-plane}}}
+        template: templates/clickhouse.yaml
+        documentSelector: {path: kind, value: NetworkPolicy}
+      - isSubset:
+          path: spec.template.metadata.labels
+          content: {app.kubernetes.io/name: operator, app.kubernetes.io/instance: loco-control-plane}
+        template: charts/clickhouse/charts/operator/templates/generated/Deployment-clickhouse-operator.yaml
+      - equal:
+          path: spec.template.metadata.labels["app.kubernetes.io/component"]
+          value: observability-proxy
+        template: templates/obs-proxy-query-deployment.yaml
+      - equal:
+          path: spec.template.metadata.labels["app.kubernetes.io/component"]
+          value: observability-proxy
+        template: templates/obs-proxy-ingest-deployment.yaml
+      - notExists:
+          path: spec.template.metadata.labels["app.kubernetes.io/component"]
+        template: templates/api-deployment.yaml
+
+  - it: bounds ClickHouse CPU and memory, with memory requests equal to limits
+    template: charts/clickhouse/templates/chi.yaml
+    asserts:
+      - exists:
+          path: spec.templates.podTemplates[0].spec.containers[?(@.name == 'clickhouse')].resources.requests.cpu
+      - exists:
+          path: spec.templates.podTemplates[0].spec.containers[?(@.name == 'clickhouse')].resources.limits.cpu
+      - equal:
+          path: spec.templates.podTemplates[0].spec.containers[?(@.name == 'clickhouse')].resources.requests.memory
+          value: 4Gi
+      - equal:
+          path: spec.templates.podTemplates[0].spec.containers[?(@.name == 'clickhouse')].resources.limits.memory
+          value: 4Gi
+
+  - it: runs ClickHouse as one replica with an embedded Keeper
+    template: charts/clickhouse/templates/chi.yaml
+    asserts:
+      - matchRegex:
+          path: spec.configuration.files["config.d/extra_config.xml"]
+          pattern: <keeper_server>
+      - matchRegex:
+          path: spec.configuration.files["config.d/extra_config.xml"]
+          pattern: <keeper_map_path_prefix>
+      - equal:
+          path: spec.configuration.clusters[0].layout.replicasCount
+          value: 1
+
+  - it: accepts the default ClickHouse user only from localhost
+    template: charts/clickhouse/templates/chi.yaml
+    asserts:
+      - equal:
+          path: spec.configuration.users["default/networks/ip"]
+          value: 127.0.0.1/32
