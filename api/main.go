@@ -217,7 +217,7 @@ func main() {
 	go webhookDispatcher.Run(shutdownCtx, webhooks.DefaultPollPeriod)
 	authServiceHandler := service.NewAuthServer(pool, queries, machine, appCache, admins, ac.WebURL)
 	userServiceHandler := service.NewUserServer(pool, queries, machine, admins)
-	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
+	orgServiceHandler := service.NewOrgServer(pool, queries, machine, ac.Invitations)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
 	clusterSilentAfter := service.ClusterSilentAfter(ac.HeartbeatInterval)
 	clusterAdminServiceHandler := service.NewClusterAdminServer(pool, queries, ac.Agent.JoinTokenTTL)

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AddOrgMemberRequest, AddOrgMemberResponse, CreateOrgRequest, CreateOrgResponse, DeleteOrgRequest, DeleteOrgResponse, GetOrgRequest, GetOrgResponse, ListOrgMembersRequest, ListOrgMembersResponse, ListUserOrgsRequest, ListUserOrgsResponse, RemoveOrgMemberRequest, RemoveOrgMemberResponse, ResumeOrgRequest, ResumeOrgResponse, SuspendOrgRequest, SuspendOrgResponse, UpdateOrgRequest, UpdateOrgResponse } from "./org_pb";
+import { AddOrgMemberRequest, AddOrgMemberResponse, CreateOrgRequest, CreateOrgResponse, DeleteOrgRequest, DeleteOrgResponse, GetOrgRequest, GetOrgResponse, InviteOrgMemberRequest, InviteOrgMemberResponse, ListInvitationsRequest, ListInvitationsResponse, ListOrgMembersRequest, ListOrgMembersResponse, ListUserOrgsRequest, ListUserOrgsResponse, RemoveOrgMemberRequest, RemoveOrgMemberResponse, ResendInvitationRequest, ResendInvitationResponse, ResumeOrgRequest, ResumeOrgResponse, RevokeInvitationRequest, RevokeInvitationResponse, SuspendOrgRequest, SuspendOrgResponse, UpdateOrgRequest, UpdateOrgResponse } from "./org_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -119,6 +119,42 @@ export const OrgService = {
       name: "ResumeOrg",
       I: ResumeOrgRequest,
       O: ResumeOrgResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc loco.org.v1.OrgService.InviteOrgMember
+     */
+    inviteOrgMember: {
+      name: "InviteOrgMember",
+      I: InviteOrgMemberRequest,
+      O: InviteOrgMemberResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc loco.org.v1.OrgService.ListInvitations
+     */
+    listInvitations: {
+      name: "ListInvitations",
+      I: ListInvitationsRequest,
+      O: ListInvitationsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc loco.org.v1.OrgService.RevokeInvitation
+     */
+    revokeInvitation: {
+      name: "RevokeInvitation",
+      I: RevokeInvitationRequest,
+      O: RevokeInvitationResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc loco.org.v1.OrgService.ResendInvitation
+     */
+    resendInvitation: {
+      name: "ResendInvitation",
+      I: ResendInvitationRequest,
+      O: ResendInvitationResponse,
       kind: MethodKind.Unary,
     },
   }

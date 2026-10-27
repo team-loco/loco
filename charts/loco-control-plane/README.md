@@ -23,6 +23,8 @@ kubectl -n loco-system create secret generic regional-api-env \
 
 `api.bootstrapToken.existingSecret` names the Secret key holding the one-time `LOCO_BOOTSTRAP_TOKEN` for `locoadm bootstrap`. Remove it after the first system admin exists; see [self-hosting](../../docs/content/operations/self-hosting.md#first-system-admin).
 
+`api.email.transport.existingSecret` and `api.email.hookSecret.existingSecret` name the Secret keys holding `EMAIL_TRANSPORT` and `EMAIL_HOOK_SECRET`; `api.email.from` and `api.email.invitationTtl` set `EMAIL_FROM` and `INVITATION_TTL`. Leave the transport empty to return invitation links without sending mail.
+
 Set nonsecret API options through `api.env`. The chart supplies `APP_PORT` and `OBSERVABILITY_PROXY_URL` to connect its own Services.
 
 ```yaml

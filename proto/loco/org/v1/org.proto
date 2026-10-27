@@ -31,6 +31,10 @@ service OrgService {
   // ResumeOrg runs again what the organization's active deployments describe. It requires system:admin.
   // Resuming an organization that is not suspended changes nothing.
   rpc ResumeOrg(ResumeOrgRequest) returns (ResumeOrgResponse);
+  rpc InviteOrgMember(InviteOrgMemberRequest) returns (InviteOrgMemberResponse);
+  rpc ListInvitations(ListInvitationsRequest) returns (ListInvitationsResponse);
+  rpc RevokeInvitation(RevokeInvitationRequest) returns (RevokeInvitationResponse);
+  rpc ResendInvitation(ResendInvitationRequest) returns (ResendInvitationResponse);
 }
 
 // Organization represents a top-level organization container for users, workspaces, and resources.
@@ -118,6 +122,62 @@ message RemoveOrgMemberRequest {
 }
 
 message RemoveOrgMemberResponse {}
+
+enum InvitationStatus {
+  INVITATION_STATUS_UNSPECIFIED = 0;
+  INVITATION_STATUS_EMAILED = 1;
+  INVITATION_STATUS_FAILED = 2;
+  INVITATION_STATUS_NO_TRANSPORT = 3;
+}
+
+message Invitation {
+  string id = 1;
+  string org_id = 2;
+  string email = 3;
+  User invited_by = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp expires_at = 6;
+  InvitationStatus status = 7;
+  string delivery_error = 8;
+  string link = 9;
+}
+
+message InviteOrgMemberRequest {
+  string org_id = 1 [(buf.validate.field).string.uuid = true];
+  string email = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message InviteOrgMemberResponse {
+  Invitation invitation = 1;
+}
+
+message ListInvitationsRequest {
+  string org_id = 1 [(buf.validate.field).string.uuid = true];
+  int32 page_size = 2 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 200
+  }]; // default: 50, max: 200
+  string page_token = 3;
+}
+
+message ListInvitationsResponse {
+  repeated Invitation invitations = 1;
+  string next_page_token = 2; // empty if no more pages
+}
+
+message RevokeInvitationRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message RevokeInvitationResponse {}
+
+message ResendInvitationRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message ResendInvitationResponse {
+  Invitation invitation = 1;
+}
 
 // User is a lightweight representation of a user for listing.
 message User {
