@@ -88,7 +88,7 @@ Install from the checked-out release or its published chart artifact with these 
 ```sh
 helm upgrade --install regional ./charts/loco-control-plane \
   --namespace loco-system --create-namespace \
-  --values /secure/regional-values.yaml --wait --timeout 10m
+  --values /secure/regional-values.yaml --wait --wait-for-jobs --timeout 10m
 ```
 
 The Gateway has one listener per hostname: `ui.hostname`, `controlPlaneHostname` and, when ingest is published, `obsProxy.ingest.hostname`. HTTPS on 443 with the Secret from cert-manager or `gateway.tlsSecretName`, HTTP on port 80 when `certManager.enabled` is false. `gateway.service` takes the same Envoy Service settings as `loco-worker`'s `envoyProxy.service`. Worker collectors export to the ingest hostname; the proxy reader and migrator DSNs use the regional ClickHouse, and no cross-region replication is configured.

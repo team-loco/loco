@@ -124,7 +124,7 @@ for user in $(yq '.clickhouseUserPasswords | keys | .[]' "$CHART_VALUES"); do
     password_sets+=(--set "clickhouseUserPasswords.$user=$(cat "$RUN_DIR/password")")
 done
 helm upgrade --install regional "$ROOT_DIR/charts/loco-control-plane" --namespace "$NAMESPACE" \
-    -f "$VALUES" "${password_sets[@]}" --wait --timeout "$CONTROL_PLANE_TIMEOUT"
+    -f "$VALUES" "${password_sets[@]}" --wait --wait-for-jobs --timeout "$CONTROL_PLANE_TIMEOUT"
 for pod in $(kubectl -n "$NAMESPACE" get pods -l app=regional-api -o jsonpath='{.items[*].metadata.name}'); do
     restarts=$(kubectl -n "$NAMESPACE" get pod "$pod" -o jsonpath='{.status.containerStatuses[0].restartCount}')
     if [[ $restarts != 0 ]] && ! kubectl -n "$NAMESPACE" logs "$pod" --previous | grep -q 'failed to verify the transit keys'; then
@@ -262,7 +262,7 @@ if [[ $(kubectl -n "$NAMESPACE" get secret regional-openbao-init -o json | yq -p
     exit 1
 fi
 helm upgrade regional "$ROOT_DIR/charts/loco-control-plane" --namespace "$NAMESPACE" \
-    -f "$VALUES" "${password_sets[@]}" --wait --timeout "$CONTROL_PLANE_TIMEOUT"
+    -f "$VALUES" "${password_sets[@]}" --wait --wait-for-jobs --timeout "$CONTROL_PLANE_TIMEOUT"
 if [[ $(kubectl -n "$NAMESPACE" get secret regional-openbao-init -o jsonpath='{.data.recovery-keys}') != "$INIT_BEFORE" ]]; then
     printf 'The OpenBao setup Job replaced the init Secret on upgrade\n' >&2
     exit 1
@@ -299,7 +299,7 @@ init_secret generate-root-token >"$RUN_DIR/generate-root-token"
 kubectl -n "$NAMESPACE" delete statefulset regional-openbao --wait
 kubectl -n "$NAMESPACE" delete pvc/data-regional-openbao-0 secret/regional-openbao-init --wait
 helm upgrade regional "$ROOT_DIR/charts/loco-control-plane" --namespace "$NAMESPACE" \
-    -f "$VALUES" "${password_sets[@]}" --wait --timeout "$CONTROL_PLANE_TIMEOUT"
+    -f "$VALUES" "${password_sets[@]}" --wait --wait-for-jobs --timeout "$CONTROL_PLANE_TIMEOUT"
 if [[ $(kubectl -n "$NAMESPACE" get secret regional-openbao-init -o jsonpath='{.data.recovery-keys}') == "$INIT_BEFORE" ]]; then
     printf 'The reinstalled OpenBao kept the recovery keys of the one it replaced\n' >&2
     exit 1
@@ -312,7 +312,7 @@ kubectl -n "$NAMESPACE" create secret generic regional-openbao-init --from-file=
     --from-file=generate-root-token="$RUN_DIR/generate-root-token" \
     --dry-run=client -o yaml | kubectl replace --force -f -
 helm upgrade regional "$ROOT_DIR/charts/loco-control-plane" --namespace "$NAMESPACE" \
-    -f "$VALUES" "${password_sets[@]}" --wait --timeout "$CONTROL_PLANE_TIMEOUT"
+    -f "$VALUES" "${password_sets[@]}" --wait --wait-for-jobs --timeout "$CONTROL_PLANE_TIMEOUT"
 set_secret_once_the_api_logs_in AFTER_RESTORE >/dev/null
 if [[ $(secret_names) != "AFTER_RESTORE AFTER_UPGRADE BEFORE_UPGRADE" ]]; then
     printf 'Expected the secrets from before the restore and a new one, got %s\n' "$(secret_names)" >&2
