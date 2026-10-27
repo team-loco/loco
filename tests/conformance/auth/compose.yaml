@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: loco_test
       POSTGRES_DB: loco_test
     ports:
-      - "${CONFORMANCE_POSTGRES_PORT:-55440}:5432"
+      - "${CONFORMANCE_POSTGRES_PORT:-25440}:5432"
     volumes:
       - ./auth-db.sql:/docker-entrypoint-initdb.d/auth-db.sql:ro
     healthcheck:
@@ -23,15 +23,15 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - "59999:9999"
+      - "25999:9999"
     environment:
       GOTRUE_API_HOST: 0.0.0.0
       PORT: "9999"
-      API_EXTERNAL_URL: http://localhost:59999
+      API_EXTERNAL_URL: http://localhost:25999
       GOTRUE_DB_DRIVER: postgres
       DATABASE_URL: postgres://supabase_auth_admin:supabase_auth_admin@postgres:5432/loco_auth
       GOTRUE_SITE_URL: http://localhost:5173
-      GOTRUE_JWT_ISSUER: http://localhost:59999
+      GOTRUE_JWT_ISSUER: http://localhost:25999
       GOTRUE_JWT_KEYS: ${GOTRUE_JWT_KEYS:?run through mise run test:auth-conformance}
       GOTRUE_JWT_SECRET: ${GOTRUE_JWT_SECRET:?run through mise run test:auth-conformance}
       GOTRUE_JWT_EXP: "600"
@@ -52,7 +52,7 @@ services:
     image: quay.io/keycloak/keycloak:26.8.0@sha256:27b3230fbabb8c9ff3c66c864cf09dcd8a41aca82e5100679d109ef0eeb05741
     command: ["start-dev", "--import-realm", "--http-port=8080", "--health-enabled=true"]
     ports:
-      - "58080:8080"
+      - "25080:8080"
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
@@ -68,7 +68,7 @@ services:
     image: ghcr.io/dexidp/dex:v2.46.0@sha256:933fcd3f523338c847b88ef84a7145fb2fcb7b9917f08418612afeaaa2001777
     command: ["dex", "serve", "/etc/dex/config.yaml"]
     ports:
-      - "55556:5556"
+      - "25556:5556"
     volumes:
       - ./dex.yaml:/etc/dex/config.yaml:ro
 
@@ -91,10 +91,10 @@ services:
       zitadel-db:
         condition: service_healthy
     ports:
-      - "58090:8080"
+      - "25090:8080"
     environment:
       ZITADEL_EXTERNALDOMAIN: localhost
-      ZITADEL_EXTERNALPORT: "58090"
+      ZITADEL_EXTERNALPORT: "25090"
       ZITADEL_EXTERNALSECURE: "false"
       ZITADEL_TLS_ENABLED: "false"
       ZITADEL_DATABASE_POSTGRES_HOST: zitadel-db

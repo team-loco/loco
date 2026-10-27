@@ -39,7 +39,7 @@ import (
 )
 
 const (
-	dexIssuerURL   = "http://localhost:55556/dex"
+	dexIssuerURL   = "http://localhost:25556/dex"
 	dexTokenURL    = dexIssuerURL + "/token"
 	dexClientToken = "loco-conformance"
 

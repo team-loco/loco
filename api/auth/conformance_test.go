@@ -115,7 +115,7 @@ func passwordGrant(endpoint, clientSecret, username, password string) tokenFunc 
 }
 
 const (
-	supabaseURL        = "http://localhost:59999"
+	supabaseURL        = "http://localhost:25999"
 	supabaseServiceEnv = "AUTH_SUPABASE_SERVICE_KEY"
 	supabasePassword   = "conformance-password"
 )
@@ -228,7 +228,7 @@ func providers() []conformanceProvider {
 		{
 			name: "supabase",
 			issuers: `[{
-				"issuer": "http://localhost:59999",
+				"issuer": "http://localhost:25999",
 				"audience": "authenticated",
 				"emailVerification": "admin",
 				"claims": {"name": "user_metadata.full_name", "avatarUrl": "user_metadata.avatar_url"},
@@ -242,23 +242,23 @@ func providers() []conformanceProvider {
 		},
 		{
 			name:    "keycloak",
-			issuers: `[{"issuer":"http://localhost:58080/realms/loco","audience":"loco"}]`,
+			issuers: `[{"issuer":"http://localhost:25080/realms/loco","audience":"loco"}]`,
 			accounts: []account{
 				{accountVerified, "alice@keycloak.test", true, passwordGrant(
-					"http://localhost:58080/realms/loco/protocol/openid-connect/token", "", "alice", "alicepw",
+					"http://localhost:25080/realms/loco/protocol/openid-connect/token", "", "alice", "alicepw",
 				)},
 				{accountUnverified, "bob@keycloak.test", false, passwordGrant(
-					"http://localhost:58080/realms/loco/protocol/openid-connect/token", "", "bob", "bobpw",
+					"http://localhost:25080/realms/loco/protocol/openid-connect/token", "", "bob", "bobpw",
 				)},
 			},
 		},
 		{name: "zitadel", setup: zitadelProvider},
 		{
 			name:    "dex",
-			issuers: `[{"issuer":"http://localhost:55556/dex","audience":"loco"}]`,
+			issuers: `[{"issuer":"http://localhost:25556/dex","audience":"loco"}]`,
 			accounts: []account{
 				{"static password", "carol@dex.test", true, passwordGrant(
-					"http://localhost:55556/dex/token", "loco-conformance", "carol@dex.test", "carolpw",
+					"http://localhost:25556/dex/token", "loco-conformance", "carol@dex.test", "carolpw",
 				)},
 			},
 		},

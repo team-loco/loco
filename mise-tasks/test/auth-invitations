@@ -22,9 +22,9 @@ cleanup() {
 trap cleanup EXIT
 "${compose[@]}" up -d --wait postgres dex
 for _ in $(seq 1 60); do
-	curl -sf -o /dev/null http://localhost:55556/dex/.well-known/openid-configuration && break
+	curl -sf -o /dev/null http://localhost:25556/dex/.well-known/openid-configuration && break
 	sleep 1
 done
 cd api
-LOCO_TEST_DATABASE_URL="postgres://loco_test:loco_test@localhost:${CONFORMANCE_POSTGRES_PORT:-55440}/loco_test?sslmode=disable" \
+LOCO_TEST_DATABASE_URL="postgres://loco_test:loco_test@localhost:${CONFORMANCE_POSTGRES_PORT:-25440}/loco_test?sslmode=disable" \
 	go test -tags conformance -count=1 -run 'TestInvitations' -v ./auth/ "$@"
