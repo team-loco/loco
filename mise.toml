@@ -192,13 +192,13 @@ run = "git ls-files '*Dockerfile' | grep -v '^examples/' | xargs hadolint --no-c
 [tasks.ui]
 description = "Run the web UI dev server"
 dir = "web"
-env = { _.source = "env/local/stack.sh" }
+env = { _.source = "dev/stack.sh" }
 run = "bun run dev"
 
 [tasks.tilt]
 description = "Start this checkout's local environment (cluster, infrastructure and services) with Tilt, including one mise run stop stopped; mise run stack prints its URLs"
 alias = "start"
-env = { _.file = ".env", _.source = "env/local/stack.sh" }
+env = { _.file = ".env", _.source = "dev/stack.sh" }
 run = """
 if [ ! -f .env ]; then
   echo ".env is missing: copy .env.example to .env, or in a git worktree link the main checkout's .env" >&2
@@ -210,22 +210,22 @@ if [ -z "${DOCKER_HOST:-}" ] && [ -S "$orbstack_sock" ]; then
 fi
 mise run doctor
 mise run cluster:up
-tilt up --context "kind-$KIND_CLUSTER"
+tilt up --context "kind-$KIND_CLUSTER" --file dev/Tiltfile
 """
 
 [tasks."infra:up"]
-description = "Start Postgres, Valkey, the identity provider, the image registry and the source bucket from compose.yaml and wait until they are up"
-env = { _.source = "env/local/stack.sh" }
+description = "Start Postgres, Valkey, the identity provider, the image registry and the source bucket from dev/compose.yaml and wait until they are up"
+env = { _.source = "dev/stack.sh" }
 run = "docker compose up -d --wait postgres valkey dex registry s3"
 
 [tasks."infra:down"]
 description = "Stop the compose services; the database, images and sources are kept in their volumes"
-env = { _.source = "env/local/stack.sh" }
+env = { _.source = "dev/stack.sh" }
 run = "docker compose down"
 
 [tasks."db:migrate"]
 description = "Apply api/migrations with goose to the local database"
-env = { _.file = ".env", _.source = "env/local/stack.sh" }
+env = { _.file = ".env", _.source = "dev/stack.sh" }
 run = [
   "docker compose up -d --wait postgres",
   'goose -dir api/migrations postgres "$DATABASE_URL" up',
@@ -233,23 +233,23 @@ run = [
 
 [tasks."db:status"]
 description = "Show which migrations goose has applied to the local database"
-env = { _.file = ".env", _.source = "env/local/stack.sh" }
+env = { _.file = ".env", _.source = "dev/stack.sh" }
 run = 'goose -dir api/migrations postgres "$DATABASE_URL" status'
 
 [tasks."db:psql"]
 description = "Open psql against the local database, inside the Postgres container"
-env = { _.source = "env/local/stack.sh" }
+env = { _.source = "dev/stack.sh" }
 raw = true
 run = "docker compose exec postgres sh -c 'exec psql -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\"'"
 
 [tasks."cluster:down"]
 description = "Delete this checkout's kind cluster"
-env = { _.source = "env/local/stack.sh" }
+env = { _.source = "dev/stack.sh" }
 run = 'kind delete cluster --name "$KIND_CLUSTER"'
 
 [tasks.down]
 description = "Remove this checkout's local environment: stop it, delete its kind cluster, its compose containers and volumes, and free its stack slot"
-env = { _.source = "env/local/stack.sh" }
+env = { _.source = "dev/stack.sh" }
 run = [
   "mise run stop",
   "mise run cluster:down",
@@ -262,7 +262,7 @@ run = [
 [tasks.stack]
 description = "Print this checkout's local stack: its slot, URLs, kind context and compose project"
 quiet = true
-env = { _.source = "env/local/stack.sh" }
+env = { _.source = "dev/stack.sh" }
 run = """
 cat <<EOF
 slot             $LOCO_STACK_SLOT
@@ -295,12 +295,12 @@ run = [
 
 [tasks."helm:sync:namespaces"]
 description = "Sync the loco-system namespace, which the loco-worker release installs into, and its Pod Security labels to the local cluster"
-env = { _.file = ".env", _.source = "env/local/stack.sh" }
+env = { _.file = ".env", _.source = "dev/stack.sh" }
 run = "kubectl apply --server-side --force-conflicts --context kind-$KIND_CLUSTER -f manifests/namespaces"
 
 [tasks."helm:sync:cert-manager"]
 description = "Sync cert-manager to the local cluster"
-env = { _.file = ".env", _.source = "env/local/stack.sh" }
+env = { _.file = ".env", _.source = "dev/stack.sh" }
 run = "mise run helm:sync:release cert-manager"
 
 [tasks.e2e]
@@ -419,7 +419,7 @@ run = "uv run --locked --project tests pytest tools/platform-images/tests tests/
 
 [tasks."obs:serve"]
 description = "Run a local ClickHouse container and serve the observability proxy query and OTLP ingest roles against it; the kind collectors export to the ingest port"
-env = { _.file = ".env", _.source = "env/local/stack.sh" }
+env = { _.file = ".env", _.source = "dev/stack.sh" }
 run = "./mise-tasks/obs/serve"
 
 [tasks."e2e:settings-labels"]

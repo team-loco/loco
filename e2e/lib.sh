@@ -131,9 +131,9 @@ assert_fails_with() {
     fi
 }
 
-# Run docker compose against the e2e project of the repository's compose.yaml.
+# Run docker compose against the e2e project of the repository's dev/compose.yaml.
 e2e_compose() {
-    docker compose -f "$E2E_ROOT_DIR/compose.yaml" -f "$E2E_ROOT_DIR/e2e/compose.kind.yaml" \
+    docker compose -f "$E2E_ROOT_DIR/dev/compose.yaml" -f "$E2E_ROOT_DIR/e2e/compose.kind.yaml" \
         -p "$E2E_COMPOSE_PROJECT" "$@"
 }
 

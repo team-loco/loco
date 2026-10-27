@@ -13,6 +13,18 @@ allow_k8s_contexts(kind_context)
 if k8s_context() != kind_context:
     fail('Tilt is on Kubernetes context %s instead of %s; start it with mise run tilt' % (k8s_context(), kind_context))
 update_settings(k8s_upsert_timeout_secs=600, max_parallel_updates=5)
+watch_settings(ignore=[
+    '../charts/**/charts/*.tgz',
+    '../charts/**/tmpcharts*',
+    '../bin/',
+    '../*/bin/',
+    '../agent/bin/',
+    '../observability-proxy/bin/',
+    '../controller/bin/',
+    '../*.out',
+    '../coverage.html',
+    '../e2e/runs/',
+])
 
 # ---------------------------------------------------------------------------
 # Setup: helm repos + chart dependencies
@@ -22,8 +34,8 @@ local_resource(
     'helm-deps',
     cmd='mise run helm:deps',
     deps=[
-        'charts/loco-worker/Chart.yaml',
-        'charts/loco-worker/Chart.lock',
+        '../charts/loco-worker/Chart.yaml',
+        '../charts/loco-worker/Chart.lock',
     ],
     allow_parallel=True,
     labels=['setup'],
@@ -35,7 +47,7 @@ local_resource(
 
 def copy_sources(dockerfile):
     sources = []
-    for line in str(read_file(dockerfile)).splitlines():
+    for line in str(read_file('../' + dockerfile)).splitlines():
         words = line.split()
         if len(words) < 3 or words[0] != 'COPY' or words[1].startswith('--'):
             continue
@@ -46,22 +58,22 @@ def copy_sources(dockerfile):
 
 docker_build(
     'loco-agent',
-    '.',
-    dockerfile='agent/Dockerfile',
+    '..',
+    dockerfile='../agent/Dockerfile',
     only=copy_sources('agent/Dockerfile'),
 )
 
 docker_build(
     'loco-controller',
-    '.',
-    dockerfile='controller/Dockerfile',
+    '..',
+    dockerfile='../controller/Dockerfile',
     only=copy_sources('controller/Dockerfile'),
 )
 
 docker_build(
     'loco-builder',
-    '.',
-    dockerfile='builder/Dockerfile',
+    '..',
+    dockerfile='../builder/Dockerfile',
     only=copy_sources('builder/Dockerfile'),
 )
 
@@ -92,7 +104,7 @@ def helm_release(name, namespace, images, values, deps, resource_deps):
 # Infrastructure: Postgres, Valkey, the identity provider, the image registry and the source bucket from compose.yaml
 # ---------------------------------------------------------------------------
 
-docker_compose('compose.yaml', project_name=os.environ['COMPOSE_PROJECT_NAME'])
+docker_compose('compose.yaml', env_file='../.env', project_name=os.environ['COMPOSE_PROJECT_NAME'])
 
 dc_resource('postgres', labels=['infrastructure'])
 dc_resource('valkey', labels=['infrastructure'])
@@ -104,7 +116,7 @@ local_resource(
     'cluster-registry',
     cmd='mise run cluster:registry',
     resource_deps=['registry', 's3', 'helm-namespaces'],
-    deps=['mise-tasks/cluster/registry'],
+    deps=['../mise-tasks/cluster/registry'],
     allow_parallel=True,
     labels=['infrastructure'],
 )
@@ -117,7 +129,7 @@ local_resource(
     'db-migrate',
     cmd='mise run db:migrate',
     resource_deps=['postgres'],
-    deps=['api/migrations/'],
+    deps=['../api/migrations/'],
     allow_parallel=True,
     labels=['infrastructure'],
 )
@@ -129,7 +141,7 @@ local_resource(
 local_resource(
     'helm-namespaces',
     cmd='mise run helm:sync:namespaces',
-    deps=['manifests/namespaces/'],
+    deps=['../manifests/namespaces/'],
     allow_parallel=True,
     labels=['infra'],
 )
@@ -139,9 +151,9 @@ local_resource(
     cmd='mise run crds:apply',
     resource_deps=['helm-deps'],
     deps=[
-        'controller/config/crd/bases/',
-        'charts/loco-worker/Chart.lock',
-        'mise-tasks/crds/apply',
+        '../controller/config/crd/bases/',
+        '../charts/loco-worker/Chart.lock',
+        '../mise-tasks/crds/apply',
     ],
     allow_parallel=True,
     labels=['infra'],
@@ -176,7 +188,7 @@ helm_release(
     values=[
         'env.CONTROL_PLANE_URL=' + control_plane_url,
     ],
-    deps=['charts/loco-worker/', 'env/local/worker-chart.yaml', 'mise-tasks/cluster/build-egress'],
+    deps=['../charts/loco-worker/', 'worker-chart.yaml', '../mise-tasks/cluster/build-egress'],
     resource_deps=['helm-namespaces', 'helm-cert-manager', 'crds', 'cluster-registry'],
 )
 
@@ -188,7 +200,8 @@ local_resource(
     'api',
     cmd='mise run build:api',
     serve_cmd='api/bin/loco-api',
-    deps=copy_sources('api/Dockerfile'),
+    serve_dir='..',
+    deps=['../' + source for source in copy_sources('api/Dockerfile')],
     resource_deps=['db-migrate', 'valkey', 's3', 'dex'],
     allow_parallel=True,
     labels=['services'],
@@ -198,7 +211,7 @@ local_resource(
     'obs-proxy',
     cmd='mise run build:obs-proxy',
     serve_cmd='mise run obs:serve',
-    deps=copy_sources('observability-proxy/Dockerfile') + ['mise-tasks/obs/serve'],
+    deps=['../' + source for source in copy_sources('observability-proxy/Dockerfile')] + ['../mise-tasks/obs/serve'],
     resource_deps=['api'],
     allow_parallel=True,
     labels=['services'],
@@ -213,7 +226,7 @@ local_resource(
 local_resource(
     'cli',
     cmd='mise run build',
-    deps=['cmd/', 'internal/', 'gen/go/', 'go.mod', 'go.sum'],
+    deps=['../cmd/', '../internal/', '../gen/go/', '../go.mod', '../go.sum'],
     allow_parallel=True,
     labels=['services'],
 )

@@ -43,7 +43,7 @@ go.sum
 go.work
 go.work.sum
 Makefile
-Tiltfile
+dev/
 notes.md
 README.md
 

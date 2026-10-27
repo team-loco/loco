@@ -9,12 +9,14 @@ from types import SimpleNamespace
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-STACK = "env/local/stack.sh"
+STACK = "dev/stack.sh"
 STACK_NAMES = (
     "LOCO_STACK_SLOT",
     "LOCO_STACK_CLAIM",
     "KIND_CLUSTER",
     "COMPOSE_PROJECT_NAME",
+    "COMPOSE_FILE",
+    "COMPOSE_ENV_FILES",
     "REGISTRY_ALIAS",
     "S3_ALIAS",
     "POSTGRES_PORT",
@@ -51,7 +53,7 @@ def local_stack():
         local_stack.directory = Path(tempfile.mkdtemp())
         cleanup.callback(shutil.rmtree, local_stack.directory)
         local_stack.main = local_stack.directory / "main"
-        (local_stack.main / "env" / "local").mkdir(parents=True)
+        (local_stack.main / "dev").mkdir(parents=True)
         shutil.copyfile(ROOT / STACK, local_stack.main / STACK)
         shutil.copyfile(ROOT / ".env.example", local_stack.main / ".env.example")
         git(local_stack.main, "init", "--quiet", "--initial-branch=main")
@@ -176,6 +178,14 @@ def test_stacks_share_no_port_or_name(stacks):
     assert len(used) == len({port.lstrip(":") for port in used})
     for name in ("KIND_CLUSTER", "COMPOSE_PROJECT_NAME", "REGISTRY_ALIAS", "S3_ALIAS"):
         assert len({stack[name] for stack in every}) == 3, name
+
+
+def test_compose_reads_the_checkouts_own_files(local_stack):
+    for checkout in (local_stack.main, _worktree(local_stack, "compose")):
+        stack = _stack(local_stack, checkout)
+        root = checkout.resolve()
+        assert stack["COMPOSE_FILE"] == str(root / "dev" / "compose.yaml")
+        assert stack["COMPOSE_ENV_FILES"] == str(root / ".env")
 
 
 def test_a_worktree_keeps_its_slot(local_stack):

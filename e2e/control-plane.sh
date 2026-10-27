@@ -69,7 +69,7 @@ if [[ ! -s "$RUN_DIR/password" ]]; then
     openssl rand -hex 24 | tr -d '\n' >"$RUN_DIR/password"
 fi
 kubectl -n "$NAMESPACE" create secret generic fixture-password --from-file=password="$RUN_DIR/password" --dry-run=client -o yaml | kubectl apply -f -
-yq -n '.postgresImage = load(strenv(ROOT_DIR) + "/compose.yaml").services.postgres.image' >"$RUN_DIR/fixtures.yaml"
+yq -n '.postgresImage = load(strenv(ROOT_DIR) + "/dev/compose.yaml").services.postgres.image' >"$RUN_DIR/fixtures.yaml"
 helm upgrade --install fixtures "$ROOT_DIR/e2e/fixtures/control-plane" --namespace "$NAMESPACE" \
     -f "$RUN_DIR/fixtures.yaml" --wait --timeout "$TIMEOUT"
 python3 - "$RUN_DIR" <<'PY'

@@ -121,7 +121,7 @@ def discovery_document(issuer):
 def compose_postgres_image(compose_text):
     match = re.search(r"^  postgres:\n(?:    .*\n)*?    image: (\S+)", compose_text, re.MULTILINE)
     if match is None:
-        raise EvidenceError("compose.yaml has no postgres service image")
+        raise EvidenceError("dev/compose.yaml has no postgres service image")
     return match.group(1)
 
 
@@ -389,7 +389,7 @@ def cmd_up(args):
         dist = worktree / "web" / "dist"
         write_json(dist / DISCOVERY_PATH.lstrip("/"), discovery_document(f"{state['ui_url']}/dex"))
 
-        image = compose_postgres_image((worktree / "compose.yaml").read_text())
+        image = compose_postgres_image((worktree / "dev" / "compose.yaml").read_text())
         container = f"{LABEL}-{run_id}"
         run(
             [

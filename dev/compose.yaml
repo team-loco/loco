@@ -36,8 +36,8 @@ services:
     ports:
       - "${REGISTRY_PORT:-5001}:5000"
     volumes:
-      - ./registry/local/config.json:/etc/zot/config.json:ro
-      - ./registry/local/htpasswd:/etc/zot/htpasswd:ro
+      - ./registry/config.json:/etc/zot/config.json:ro
+      - ./registry/htpasswd:/etc/zot/htpasswd:ro
       - registry-data:/var/lib/registry
 
   s3:
@@ -69,7 +69,7 @@ services:
       GH_OAUTH_CLIENT_ID: ${GH_OAUTH_CLIENT_ID:-}
       GH_OAUTH_CLIENT_SECRET: ${GH_OAUTH_CLIENT_SECRET:-}
     volumes:
-      - ./env/local/dex.yaml:/etc/dex/config.yaml:ro
+      - ./dex.yaml:/etc/dex/config.yaml:ro
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:5556/dex/healthz"]
       interval: 2s
@@ -87,7 +87,7 @@ services:
       PGHOST: postgres
       SEED_FILE: ${SEED_FILE:-}
     volumes:
-      - .:/repo:ro
+      - ..:/repo:ro
     working_dir: /repo
     entrypoint: ["sh", "-c"]
     command:
