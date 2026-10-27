@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -64,10 +65,17 @@ func (t *hookTransport) Send(ctx context.Context, msg Message) error {
 		return fmt.Errorf("post hook: %w", err)
 	}
 	defer res.Body.Close()
-	if _, drainErr := io.Copy(io.Discard, io.LimitReader(res.Body, maxHookResponse)); drainErr != nil {
-		return fmt.Errorf("read hook response: %w", drainErr)
+	response, readErr := io.ReadAll(io.LimitReader(res.Body, maxHookResponse))
+	if readErr != nil {
+		return fmt.Errorf("read hook response: %w", readErr)
 	}
 	if res.StatusCode < http.StatusOK || res.StatusCode >= http.StatusMultipleChoices {
+		var failure struct {
+			Error string `json:"error"`
+		}
+		if json.Unmarshal(response, &failure) == nil && failure.Error != "" {
+			return errors.New(failure.Error)
+		}
 		return fmt.Errorf("hook returned %s", res.Status)
 	}
 	return nil

@@ -25,6 +25,8 @@ kubectl -n loco-system create secret generic regional-api-env \
 
 `api.email.transport.existingSecret` and `api.email.hookSecret.existingSecret` name the Secret keys holding `EMAIL_TRANSPORT` and `EMAIL_HOOK_SECRET`; `api.email.from` and `api.email.invitationTtl` set `EMAIL_FROM` and `INVITATION_TTL`. Leave the transport empty to return invitation links without sending mail.
 
+An `https://` transport receives each invitation as a signed JSON `POST` (`Webhook-Id`, `Webhook-Timestamp` and `Webhook-Signature` headers). Any 2xx answer counts as delivered. For any other status, a JSON body of the form `{"error":"<message>"}` makes the message the delivery error shown to the inviter, up to 500 characters; without it the inviter sees `hook returned <status>`.
+
 Set nonsecret API options through `api.env`. The chart supplies `APP_PORT` and `OBSERVABILITY_PROXY_URL` to connect its own Services.
 
 ```yaml

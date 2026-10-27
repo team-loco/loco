@@ -129,3 +129,47 @@ func TestHookNon2xxIsAnError(t *testing.T) {
 		}
 	}
 }
+
+func TestHookSurfacesReceiverError(t *testing.T) {
+	const message = "bob@x.com already has an account"
+	hook := newTestHook(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusConflict)
+		if _, err := io.WriteString(w, `{"error":"`+message+`"}`); err != nil {
+			t.Errorf("write: %v", err)
+		}
+	})
+
+	err := hook.Send(t.Context(), NewInvitationMessage(testEvent()))
+
+	if err == nil || err.Error() != message {
+		t.Fatalf("error = %v, want %q", err, message)
+	}
+}
+
+func TestHookFallsBackToStatusWithoutReceiverError(t *testing.T) {
+	hook := newTestHook(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		if _, err := io.WriteString(w, "upstream exploded"); err != nil {
+			t.Errorf("write: %v", err)
+		}
+	})
+
+	err := hook.Send(t.Context(), NewInvitationMessage(testEvent()))
+
+	if err == nil || err.Error() != "hook returned 500 Internal Server Error" {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestHookIgnoresBodyOn2xx(t *testing.T) {
+	hook := newTestHook(t, func(w http.ResponseWriter, _ *http.Request) {
+		if _, err := io.WriteString(w, `{"error":"ignored"}`); err != nil {
+			t.Errorf("write: %v", err)
+		}
+	})
+
+	if err := hook.Send(t.Context(), NewInvitationMessage(testEvent())); err != nil {
+		t.Fatalf("send: %v", err)
+	}
+}
