@@ -6,10 +6,13 @@ on:
       - main
     paths: &paths
       - "api/auth/**"
+      - "api/mail/**"
+      - "api/service/**"
       - "api/migrations/**"
       - "api/queries/**"
       - "tests/conformance/auth/**"
       - "mise-tasks/test/auth-conformance"
+      - "mise-tasks/test/auth-invitations"
       - ".github/workflows/auth-conformance.yml"
   pull_request:
     paths: *paths
@@ -38,3 +41,7 @@ jobs:
       - name: Run the auth contract against Supabase Auth, Keycloak, Zitadel and Dex
         run: mise run test:auth-conformance
         timeout-minutes: 15
+
+      - name: Run the invitation journey against Dex
+        run: mise run test:auth-invitations
+        timeout-minutes: 10
