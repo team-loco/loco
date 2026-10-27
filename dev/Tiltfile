@@ -100,16 +100,26 @@ def helm_release(name, namespace, images, values, deps, resource_deps):
 
 
 # ---------------------------------------------------------------------------
-# Infrastructure: Postgres, Valkey, the identity provider, the image registry and the source bucket from compose.yaml
+# Infrastructure: Postgres, Valkey, OpenBao, the identity provider, the image registry and the source bucket from compose.yaml
 # ---------------------------------------------------------------------------
 
 docker_compose('compose.yaml', project_name=os.environ['COMPOSE_PROJECT_NAME'])
 
 dc_resource('postgres', labels=['infrastructure'])
 dc_resource('valkey', labels=['infrastructure'])
+dc_resource('openbao', labels=['infrastructure'])
 dc_resource('registry', labels=['infrastructure'])
 dc_resource('s3', labels=['infrastructure'])
 dc_resource('dex', labels=['infrastructure'])
+
+local_resource(
+    'openbao-seed',
+    cmd='mise run openbao:seed',
+    resource_deps=['openbao'],
+    deps=['openbao/seed.sh'],
+    allow_parallel=True,
+    labels=['infrastructure'],
+)
 
 local_resource(
     'cluster-registry',
@@ -201,7 +211,7 @@ local_resource(
     serve_cmd='api/bin/loco-api',
     serve_dir='..',
     deps=['../' + source for source in copy_sources('api/Dockerfile')],
-    resource_deps=['db-migrate', 'valkey', 's3', 'dex'],
+    resource_deps=['db-migrate', 'valkey', 'openbao-seed', 's3', 'dex'],
     allow_parallel=True,
     labels=['services'],
 )

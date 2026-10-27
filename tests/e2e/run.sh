@@ -97,7 +97,7 @@ export E2E_BIN_DIR="$BIN_DIR"
 export E2E_LOG_DIR="$LOG_DIR"
 export E2E_COMPOSE_PROJECT="$RUN_NAME"
 export POSTGRES_USER="$PG_USER" POSTGRES_PASSWORD="$PG_PASS" POSTGRES_DB="$PG_DB"
-export POSTGRES_PORT="127.0.0.1:" REGISTRY_PORT="127.0.0.1:" S3_PORT
+export POSTGRES_PORT="127.0.0.1:" OPENBAO_PORT="127.0.0.1:" REGISTRY_PORT="127.0.0.1:" S3_PORT
 export E2E_API_URL="http://127.0.0.1:${API_PORT}"
 export E2E_CLUSTER_ADMIN_TOKEN="$CLUSTER_ADMIN_TOKEN"
 export E2E_AGENT_KEY_SECRET="$AGENT_KEY_SECRET"
@@ -427,6 +427,18 @@ setup_postgres() {
     log_ok "Postgres ready on port ${port}"
 }
 
+setup_openbao() {
+    log_step "Setting up OpenBao..."
+    e2e_compose up -d --wait openbao
+    e2e_compose run --rm openbao-seed >/dev/null
+    export E2E_TRANSIT_ADDR="http://127.0.0.1:$(compose_host_port openbao 8200)"
+    log_ok "OpenBao ready at ${E2E_TRANSIT_ADDR}"
+}
+
+dev_api_env() {
+    sed -n "s/^$1=//p" "$ROOT_DIR/dev/api.env"
+}
+
 clickhouse_answers() {
     docker exec "$CLICKHOUSE_CONTAINER" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASS" -q "SELECT 1"
 }
@@ -713,8 +725,11 @@ start_api() {
     LOCO_IMAGE_SWEEP_INTERVAL="$IMAGE_SWEEP_INTERVAL" \
     LOCO_SOURCE_BUCKET_ENDPOINT="$E2E_S3_ENDPOINT" \
     LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE=true \
-    LOCO_SECRETS_KEY_PROVIDER=local \
-    LOCO_SECRETS_LOCAL_KEYS="e2e:ZTJlLXNlY3JldHMta2V5LTAwMDAwMDAwMDAwMDAwMDA=" \
+    LOCO_SECRETS_KEY_PROVIDER=transit \
+    LOCO_SECRETS_TRANSIT_ADDR="$E2E_TRANSIT_ADDR" \
+    LOCO_SECRETS_TRANSIT_MOUNT="$(dev_api_env LOCO_SECRETS_TRANSIT_MOUNT)" \
+    LOCO_SECRETS_TRANSIT_KEY="$(dev_api_env LOCO_SECRETS_TRANSIT_KEY)" \
+    LOCO_SECRETS_TRANSIT_TOKEN="$(dev_api_env LOCO_SECRETS_TRANSIT_TOKEN)" \
         "$BIN_DIR/loco-api" \
         >"$LOG_DIR/api.log" 2>&1 &
 
@@ -938,6 +953,7 @@ main() {
     build_chart_dependencies
     install_crds
     setup_postgres
+    setup_openbao
     setup_clickhouse
     run_migrations
     setup_registry

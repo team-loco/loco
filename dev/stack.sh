@@ -94,10 +94,11 @@ WEB_URL=$(shift_ports "$(env_value WEB_URL)")
 export WEB_URL
 export WEB_PORT=${WEB_URL##*:}
 
-for name in DATABASE_URL CACHE_ADDR CORS_ALLOWED_ORIGINS AUTH_ISSUERS LOCO_REGISTRY_URL; do
+for name in DATABASE_URL CACHE_ADDR CORS_ALLOWED_ORIGINS AUTH_ISSUERS LOCO_REGISTRY_URL LOCO_SECRETS_TRANSIT_ADDR; do
 	export "$name=$(shift_ports "$(env_value "$name")")"
 done
 bucket_endpoint=$(shift_ports "$(env_value LOCO_SOURCE_BUCKET_ENDPOINT)")
 export LOCO_SOURCE_BUCKET_ENDPOINT="${bucket_endpoint/loco-s3.localhost/$S3_ALIAS}"
 registry_host=$(env_value LOCO_REGISTRY_HOST)
 export LOCO_REGISTRY_HOST="${registry_host/#loco-registry:/$REGISTRY_ALIAS:}"
+export OPENBAO_PORT=${LOCO_SECRETS_TRANSIT_ADDR##*:}

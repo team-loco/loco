@@ -1,1 +1,4 @@
 postgresImage: ""
+openbaoImage: ""
+openbaoConfig: ""
+openbaoEnv: {}
