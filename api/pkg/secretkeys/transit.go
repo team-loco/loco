@@ -53,6 +53,7 @@ var (
 	ErrTransitCAFile           = errors.New("transit ca file holds no PEM certificate")
 	ErrTransitKeyType          = errors.New("transit key must be an aes256-gcm96 key created with derived=true")
 	ErrTransitCiphertext       = errors.New("transit ciphertext is malformed")
+	ErrTransitKeyID            = errors.New("transit key id must be v<version>")
 	ErrTransitPermissionDenied = errors.New("transit refused the token")
 	ErrTransitRequest          = errors.New("transit request failed")
 	ErrTransitResponse         = errors.New("transit response is malformed")
@@ -92,9 +93,8 @@ func (cfg TransitConfig) Validate() error {
 	if !validTransitMount(cfg.Mount) {
 		return fmt.Errorf("%w: %q", ErrTransitMount, cfg.Mount)
 	}
-	if cfg.Key == "" || strings.Contains(cfg.Key, transitPathSep) || cfg.Key == transitParentSegment ||
-		cfg.Key == transitCurrentSegment {
-		return fmt.Errorf("%w: %q", ErrTransitKeyName, cfg.Key)
+	if err := ValidateKeyName(cfg.Key); err != nil {
+		return err
 	}
 	if err := cfg.validateAuth(); err != nil {
 		return err
@@ -107,6 +107,14 @@ func (cfg TransitConfig) Validate() error {
 	}
 	if cfg.CacheTTL <= 0 {
 		return ErrTransitCacheTTL
+	}
+	return nil
+}
+
+func ValidateKeyName(name string) error {
+	if name == "" || strings.Contains(name, transitPathSep) || name == transitParentSegment ||
+		name == transitCurrentSegment {
+		return fmt.Errorf("%w: %q", ErrTransitKeyName, name)
 	}
 	return nil
 }
@@ -247,7 +255,11 @@ func (t *Transit) KeyID(ctx context.Context) (string, error) {
 	if response.Data.LatestVersion < 1 {
 		return "", fmt.Errorf("%w: latest_version %d", ErrTransitResponse, response.Data.LatestVersion)
 	}
-	return transitKeyIDPrefix + strconv.Itoa(response.Data.LatestVersion), nil
+	return transitKeyID(response.Data.LatestVersion), nil
+}
+
+func transitKeyID(version int) string {
+	return transitKeyIDPrefix + strconv.Itoa(version)
 }
 
 type transitEncryptRequest struct {
@@ -342,15 +354,26 @@ func transitCiphertextKeyID(ciphertext []byte) (string, error) {
 	if len(parts) != transitCiphertextParts || parts[0] != transitCiphertextPrefix || parts[2] == "" {
 		return "", ErrTransitCiphertext
 	}
-	version, err := strconv.Atoi(strings.TrimPrefix(parts[1], transitKeyIDPrefix))
-	if !strings.HasPrefix(parts[1], transitKeyIDPrefix) || err != nil || version < 1 {
+	if _, err := transitKeyVersion(parts[1]); err != nil {
 		return "", fmt.Errorf("%w: version %q", ErrTransitCiphertext, parts[1])
 	}
 	return parts[1], nil
 }
 
+func transitKeyVersion(keyID string) (int, error) {
+	version, err := strconv.Atoi(strings.TrimPrefix(keyID, transitKeyIDPrefix))
+	if !strings.HasPrefix(keyID, transitKeyIDPrefix) || err != nil || version < 1 {
+		return 0, fmt.Errorf("%w: %q", ErrTransitKeyID, keyID)
+	}
+	return version, nil
+}
+
 func (t *Transit) keyPath(operation string) string {
-	return t.mount + transitPathSep + operation + transitPathSep + url.PathEscape(t.key)
+	return t.namedKeyPath(operation, t.key)
+}
+
+func (t *Transit) namedKeyPath(operation, key string) string {
+	return t.mount + transitPathSep + operation + transitPathSep + url.PathEscape(key)
 }
 
 type transitStatusError struct {

@@ -739,6 +739,7 @@ start_api() {
     LOCO_SECRETS_TRANSIT_KEY="$(dev_api_env LOCO_SECRETS_TRANSIT_KEY)" \
     LOCO_SECRETS_TRANSIT_AUTH="$(dev_api_env LOCO_SECRETS_TRANSIT_AUTH)" \
     LOCO_SECRETS_TRANSIT_TOKEN="$(dev_api_env LOCO_SECRETS_TRANSIT_TOKEN)" \
+    LOCO_INGEST_TRANSIT_KEY="$(dev_api_env LOCO_INGEST_TRANSIT_KEY)" \
         "$BIN_DIR/loco-api" \
         >"$LOG_DIR/api.log" 2>&1 &
 

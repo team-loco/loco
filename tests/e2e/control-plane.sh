@@ -304,6 +304,31 @@ if [[ $(secret_names) != "AFTER_RESTORE AFTER_UPGRADE BEFORE_UPGRADE" ]]; then
 fi
 printf 'A raft snapshot uploaded by the snapshot CronJob restored into a reinstalled OpenBao with a root token generated from its recovery keys, the setup Job logged in with its restored role, and the running API logged in again and unwrapped the environment key it wrapped before the snapshot.\n'
 
+go -C "$ROOT_DIR" build -o "$RUN_DIR/ingesttoken" ./tools/ingesttoken
+if [[ ! -s "$RUN_DIR/agent-key" ]]; then
+    openssl rand -out "$RUN_DIR/agent-key" 32
+fi
+INGEST_CLUSTER=$(psql -c "
+    WITH u AS (INSERT INTO users (email) VALUES ('ingest-e2e@test.local') RETURNING id),
+    o AS (INSERT INTO organizations (name, created_by) SELECT 'ingest-e2e', id FROM u RETURNING id),
+    w AS (INSERT INTO workspaces (org_id, name, created_by) SELECT o.id, 'ingest-e2e', u.id FROM o, u RETURNING id),
+    c AS (INSERT INTO clusters (name, region, provider, is_active, is_default, agent_public_key)
+          VALUES ('ingest-e2e', 'us-east-1', 'kind', true, false,
+                  decode('$("$RUN_DIR/ingesttoken" -agent-key "$RUN_DIR/agent-key" -public-key)', 'hex')) RETURNING id),
+    p AS (INSERT INTO placement_windows (resource_id, cluster_id, workspace_id, placed_at)
+          SELECT uuidv7(), c.id, w.id, NOW() - INTERVAL '1 hour' FROM c, w)
+    SELECT c.id FROM c")
+INGEST_ASSERTION=$("$RUN_DIR/ingesttoken" -agent-key "$RUN_DIR/agent-key" -cluster "$INGEST_CLUSTER")
+INGEST_TOKEN=$(curl --fail-with-body --silent -H "Host: $API_HOST" -H 'Content-Type: application/json' \
+    -H "Authorization: Bearer $INGEST_ASSERTION" -d '{}' \
+    "http://127.0.0.1:$API_PORT/loco.ingest.v1.IngestService/IssueToken" | yq -p json '.token')
+INGEST_JWKS=$(curl --fail-with-body --silent -H "Host: $API_HOST" "http://127.0.0.1:$API_PORT/.well-known/loco-ingest-jwks.json")
+if [[ -z $INGEST_TOKEN || $(yq -p json '.keys[] | select(.kid == "v1") | .alg' <<<"$INGEST_JWKS") != EdDSA ]]; then
+    printf 'Expected an ingest token and a JWKS with the v1 EdDSA key, got %s\n' "$INGEST_JWKS" >&2
+    exit 1
+fi
+printf 'The API issued an ingest token signed with the setup Job'"'"'s transit key and published its public key.\n'
+
 INGEST_MARKER="control-plane-ingest-$(openssl rand -hex 4)"
 printf '{"resourceLogs":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"e2e-ingest"}}]},"scopeLogs":[{"logRecords":[{"timeUnixNano":"%s000000000","body":{"stringValue":"%s"}}]}]}]}' \
     "$(date -u +%s)" "$INGEST_MARKER" >"$RUN_DIR/otlp-logs.json"

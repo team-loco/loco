@@ -352,6 +352,8 @@ openbao:
   transit:
     mount: transit
     key: loco
+    # @schema minLength: 1
+    ingestKey: loco-ingest
   # @schema additionalProperties: false
   kubernetesAuth:
     mount: kubernetes

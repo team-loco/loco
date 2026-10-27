@@ -42,6 +42,7 @@ var (
 	errInvalidMinCLIVersion   = errors.New("MIN_CLI_VERSION is not a semantic version like v0.0.61")
 	errInvalidSecretsTransit  = errors.New("LOCO_SECRETS_TRANSIT_* is invalid")
 	errShortBootstrapToken    = errors.New(bootstrapEnv + " is too short")
+	errInvalidIngestKey       = errors.New("LOCO_INGEST_TRANSIT_KEY is invalid")
 )
 
 const (
@@ -101,13 +102,15 @@ const (
 	defaultAgentAssertionMaxLifetime = 5 * time.Minute
 	defaultInvitationTTL             = 168 * time.Hour
 
-	bootstrapEnv            = "LOCO_BOOTSTRAP_TOKEN"
-	minBootstrapTokenLength = 32
+	bootstrapEnv               = "LOCO_BOOTSTRAP_TOKEN"
+	minBootstrapTokenLength    = 32
+	defaultIngestTokenLifetime = time.Hour
 )
 
 type APIConfig struct {
 	ObservabilityProxyURL *url.URL
 	Agent                 service.AgentConfig
+	Ingest                service.IngestConfig
 	Version               string
 	Env                   string // Environment (e.g., dev, prod)
 	DatabaseURL           string // PostgreSQL connection string
@@ -147,6 +150,7 @@ func newAPIConfig() *APIConfig {
 	observabilityRaw := stringEnv("OBSERVABILITY_PROXY_URL", "")
 	observabilityURL := parseObservabilityProxyURL(observabilityRaw)
 	agentConfig := newAgentConfig()
+	ingestConfig := newIngestConfig()
 	databaseListenConfig := newDatabaseListenConfig(databaseURL)
 	cacheType, cacheAddr := newCacheConfig()
 	registryHost := stringEnv("LOCO_REGISTRY_HOST", "")
@@ -184,6 +188,7 @@ func newAPIConfig() *APIConfig {
 
 	return &APIConfig{
 		Agent:                 agentConfig,
+		Ingest:                ingestConfig,
 		Version:               buildinfo.Version(version),
 		Env:                   stringEnv("APP_ENV", ""),
 		DatabaseURL:           databaseURL,
@@ -247,12 +252,16 @@ func newBootstrapTokenHash() []byte {
 	return service.HashBootstrapToken(token)
 }
 
-func newSecretKeyProvider(ctx context.Context, cfg secretkeys.TransitConfig) (secretkeys.Provider, error) {
-	provider, err := secretkeys.New(ctx, cfg)
+func newTransitKeys(
+	ctx context.Context,
+	cfg secretkeys.TransitConfig,
+	ingestKey string,
+) (secretkeys.Provider, *secretkeys.TransitSigner, error) {
+	provider, signer, err := secretkeys.New(ctx, cfg, ingestKey)
 	if err != nil {
-		return nil, fmt.Errorf("secrets key provider: %w", err)
+		return nil, nil, fmt.Errorf("secrets key provider: %w", err)
 	}
-	return provider, nil
+	return provider, signer, nil
 }
 
 func newSecretsConfig() secretkeys.TransitConfig {
@@ -479,6 +488,15 @@ func newDatabaseListenConfig(databaseURL string) *pgx.ConnConfig {
 		panic(fmt.Errorf("invalid database listener URL: %w", err))
 	}
 	return config
+}
+
+func newIngestConfig() service.IngestConfig {
+	lifetime := positiveDurationEnv("LOCO_INGEST_TOKEN_LIFETIME", defaultIngestTokenLifetime)
+	key := stringEnv("LOCO_INGEST_TRANSIT_KEY", "")
+	if err := secretkeys.ValidateKeyName(key); err != nil {
+		panic(fmt.Errorf("%w: %w", errInvalidIngestKey, err))
+	}
+	return service.IngestConfig{TransitKey: key, TokenLifetime: lifetime}
 }
 
 func newAgentConfig() service.AgentConfig {

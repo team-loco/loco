@@ -2,7 +2,9 @@ package secretkeys
 
 import (
 	"bytes"
+	"crypto/ed25519"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -23,6 +25,7 @@ const (
 	fakeTransitMount = "transit"
 	fakeTransitKey   = "loco"
 	fakeTransitToken = "s.fake-token"
+	fakeSigningKey   = "loco-ingest"
 
 	transitTypeField      = "type"
 	transitRenewableField = "renewable"
@@ -38,13 +41,17 @@ const (
 type fakeTransit struct {
 	t *testing.T
 
-	mu       sync.Mutex
-	keys     [][]byte
-	derived  bool
-	keyType  string
-	token    string
-	requests map[string]int
-	block    chan struct{}
+	mu      sync.Mutex
+	keys    [][]byte
+	derived bool
+	keyType string
+	token   string
+
+	signingKeys       []ed25519.PrivateKey
+	signingKeyType    string
+	minSigningVersion int
+	requests          map[string]int
+	block             chan struct{}
 
 	tokenTTL       time.Duration
 	tokenRenewable bool
@@ -66,9 +73,80 @@ func newFakeTransit(t *testing.T) *fakeTransit {
 		loginTokens: map[string]bool{},
 
 		tokenRenewable: true,
+
+		signingKeyType:    transitSigningKeyType,
+		minSigningVersion: 1,
 	}
 	fake.rotate()
+	fake.rotateSigningKey()
 	return fake
+}
+
+func (f *fakeTransit) rotateSigningKey() {
+	_, key, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.signingKeys = append(f.signingKeys, key)
+}
+
+func (f *fakeTransit) trimSigningKeys(minVersion int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.minSigningVersion = minVersion
+}
+
+func (f *fakeTransit) setSigningKeyType(keyType string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.signingKeyType = keyType
+}
+
+func (f *fakeTransit) readSigningKey(w http.ResponseWriter) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	keys := map[string]any{}
+	for index, key := range f.signingKeys[f.minSigningVersion-1:] {
+		public, ok := key.Public().(ed25519.PublicKey)
+		if !ok {
+			f.t.Fatal("ed25519 key without an ed25519 public key")
+		}
+		version := strconv.Itoa(f.minSigningVersion + index)
+		keys[version] = map[string]any{"public_key": base64.StdEncoding.EncodeToString(public)}
+	}
+	f.writeData(w, map[string]any{
+		transitTypeField:         f.signingKeyType,
+		"latest_version":         len(f.signingKeys),
+		"min_decryption_version": f.minSigningVersion,
+		"keys":                   keys,
+	})
+}
+
+func (f *fakeTransit) sign(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Input      string `json:"input"`
+		KeyVersion int    `json:"key_version"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		f.writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	input, err := base64.StdEncoding.DecodeString(body.Input)
+	if err != nil {
+		f.writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if body.KeyVersion < f.minSigningVersion || body.KeyVersion > len(f.signingKeys) {
+		f.writeError(w, http.StatusBadRequest, "invalid key version")
+		return
+	}
+	signature := ed25519.Sign(f.signingKeys[body.KeyVersion-1], input)
+	encoded := base64.StdEncoding.EncodeToString(signature)
+	f.writeData(w, map[string]any{"signature": fmt.Sprintf("vault:v%d:%s", body.KeyVersion, encoded)})
 }
 
 func (f *fakeTransit) rotate() {
@@ -130,6 +208,10 @@ func (f *fakeTransit) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		f.encrypt(w, r)
 	case r.Method == http.MethodPost && r.URL.Path == prefix+"decrypt/"+fakeTransitKey:
 		f.decrypt(w, r)
+	case r.Method == http.MethodGet && r.URL.Path == prefix+"keys/"+fakeSigningKey:
+		f.readSigningKey(w)
+	case r.Method == http.MethodPost && r.URL.Path == prefix+"sign/"+fakeSigningKey:
+		f.sign(w, r)
 	default:
 		f.writeError(w, http.StatusNotFound, "no handler for route")
 	}

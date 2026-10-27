@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -115,6 +116,22 @@ func (q *Queries) BumpPlacementsForSecretNames(ctx context.Context, arg BumpPlac
 	return items, nil
 }
 
+const closePlacementWindow = `-- name: ClosePlacementWindow :exec
+UPDATE placement_windows
+SET removed_at = NOW()
+WHERE resource_id = $1 AND cluster_id = $2 AND removed_at IS NULL
+`
+
+type ClosePlacementWindowParams struct {
+	ResourceID uuid.UUID `json:"resourceId"`
+	ClusterID  uuid.UUID `json:"clusterId"`
+}
+
+func (q *Queries) ClosePlacementWindow(ctx context.Context, arg ClosePlacementWindowParams) error {
+	_, err := q.db.Exec(ctx, closePlacementWindow, arg.ResourceID, arg.ClusterID)
+	return err
+}
+
 const deleteAppliedPlacement = `-- name: DeleteAppliedPlacement :execrows
 DELETE FROM placements
 WHERE id = $1 AND cluster_id = $2 AND desired_revision = $3 AND desired_deleted
@@ -221,6 +238,38 @@ func (q *Queries) ListClusterPlacementRevisions(ctx context.Context, clusterID u
 			&i.SendHeld,
 			&i.Suspended,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listClusterPlacementWindows = `-- name: ListClusterPlacementWindows :many
+SELECT workspace_id, placed_at, removed_at FROM placement_windows
+WHERE cluster_id = $1
+ORDER BY placed_at, id
+`
+
+type ListClusterPlacementWindowsRow struct {
+	WorkspaceID uuid.UUID  `json:"workspaceId"`
+	PlacedAt    time.Time  `json:"placedAt"`
+	RemovedAt   *time.Time `json:"removedAt"`
+}
+
+func (q *Queries) ListClusterPlacementWindows(ctx context.Context, clusterID uuid.UUID) ([]ListClusterPlacementWindowsRow, error) {
+	rows, err := q.db.Query(ctx, listClusterPlacementWindows, clusterID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListClusterPlacementWindowsRow
+	for rows.Next() {
+		var i ListClusterPlacementWindowsRow
+		if err := rows.Scan(&i.WorkspaceID, &i.PlacedAt, &i.RemovedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -509,6 +558,22 @@ SELECT pg_notify('placements', $1::text)
 
 func (q *Queries) NotifyClusterPlacements(ctx context.Context, clusterID string) error {
 	_, err := q.db.Exec(ctx, notifyClusterPlacements, clusterID)
+	return err
+}
+
+const openPlacementWindow = `-- name: OpenPlacementWindow :exec
+INSERT INTO placement_windows (resource_id, cluster_id, workspace_id)
+SELECT r.id, $1, r.workspace_id FROM resources r WHERE r.id = $2
+ON CONFLICT (resource_id, cluster_id) WHERE removed_at IS NULL DO NOTHING
+`
+
+type OpenPlacementWindowParams struct {
+	ClusterID  uuid.UUID `json:"clusterId"`
+	ResourceID uuid.UUID `json:"resourceId"`
+}
+
+func (q *Queries) OpenPlacementWindow(ctx context.Context, arg OpenPlacementWindowParams) error {
+	_, err := q.db.Exec(ctx, openPlacementWindow, arg.ClusterID, arg.ResourceID)
 	return err
 }
 

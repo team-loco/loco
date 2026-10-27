@@ -300,6 +300,32 @@ tests:
           path: spec.template.spec.automountServiceAccountToken
           value: false
 
+  - it: signs ingest tokens with the transit key the setup Job creates
+    set:
+      openbao.transit.ingestKey: region-ingest
+      api.env: {LOCO_INGEST_TRANSIT_KEY: wrong}
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_INGEST_TRANSIT_KEY, value: region-ingest}
+        template: templates/api-deployment.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_INGEST_TRANSIT_KEY, value: wrong}
+        template: templates/api-deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_INGEST_TRANSIT_KEY, value: region-ingest}
+        template: templates/openbao-setup.yaml
+        documentSelector: {path: kind, value: Job}
+
+  - it: requires an ingest signing key name
+    set:
+      openbao.transit.ingestKey: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: "/openbao/transit/ingestKey': minLength"
+
   - it: does not hand the API environment to the setup Job
     template: templates/openbao-setup.yaml
     documentSelector: {path: kind, value: Job}

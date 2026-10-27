@@ -2,12 +2,14 @@ package main
 
 import (
 	"crypto/ed25519"
+	"encoding/hex"
 	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/team-loco/loco/internal/clusterassertion"
 	"github.com/team-loco/loco/internal/ingesttoken"
 	"github.com/team-loco/loco/internal/ingesttoken/ingesttest"
 )
@@ -47,5 +49,29 @@ func TestMintSignsWithTheKeyFile(t *testing.T) {
 func TestServeRequiresWorkspaces(t *testing.T) {
 	if err := serve(t.Context(), writeKey(t), "127.0.0.1:0", "", time.Now()); !errors.Is(err, errMissingWorkspaces) {
 		t.Fatalf("serve without workspaces = %v", err)
+	}
+}
+
+func TestAgentAssertionVerifiesWithThePrintedPublicKey(t *testing.T) {
+	keyFile := writeKey(t)
+	now := time.Now()
+	assertion, err := agentAssertion(keyFile, testClusterID, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := agentPublicKey(keyFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	public, err := hex.DecodeString(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claims, err := clusterassertion.Verify(assertion, public, now, assertionLifetime)
+	if err != nil || claims.ClusterID != testClusterID {
+		t.Fatalf("claims = %+v, %v", claims, err)
+	}
+	if _, err := agentAssertion(keyFile, "", now); !errors.Is(err, errMissingCluster) {
+		t.Fatalf("assertion without a cluster = %v", err)
 	}
 }

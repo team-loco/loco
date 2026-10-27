@@ -234,7 +234,7 @@ run = [
 ]
 
 [tasks."openbao:seed"]
-description = "Initialize the local OpenBao once, then make sure it has the transit key, the loco-api policy and the API token dev/api.env names"
+description = "Initialize the local OpenBao once, then make sure it has the transit keys, the loco-api policy and the API token dev/api.env names"
 env = { _.source = "dev/stack.sh" }
 run = "docker compose run --rm openbao-seed"
 

@@ -51,6 +51,9 @@ const (
 	transitMarginEnv   = "LOCO_SECRETS_TRANSIT_RENEW_MARGIN"
 	transitRetryEnv    = "LOCO_SECRETS_TRANSIT_RENEW_RETRY"
 	transitCacheEnv    = "LOCO_SECRETS_TRANSIT_CACHE_TTL"
+	ingestKeyEnv       = "LOCO_INGEST_TRANSIT_KEY"
+	ingestLifetimeEnv  = "LOCO_INGEST_TOKEN_LIFETIME"
+	testIngestKey      = "loco-ingest"
 	testTransitAddr    = "https://bao.loco.test:8200"
 	testTransitKey     = "loco-dek"
 	testTransitAuth    = "s.transit"
@@ -131,6 +134,8 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv(transitMarginEnv, "")
 	t.Setenv(transitRetryEnv, "")
 	t.Setenv(transitCacheEnv, "")
+	t.Setenv(ingestKeyEnv, testIngestKey)
+	t.Setenv(ingestLifetimeEnv, "")
 	t.Setenv("LOCO_SECRETS_MAX_VALUE_BYTES", "")
 	t.Setenv("LOCO_SECRETS_MAX_PER_SERVICE", "")
 	t.Setenv("LOCO_SECRETS_MAX_PLACEMENT_BYTES", "")
@@ -868,5 +873,33 @@ func TestNewAPIConfigRejectsInvalidEmailSettings(t *testing.T) {
 	t.Setenv("INVITATION_TTL", "-1h")
 	if err := panicValue(t, func() { newAPIConfig() }); err == nil {
 		t.Fatal("negative ttl did not panic")
+	}
+}
+
+func TestIngestTokenConfiguration(t *testing.T) {
+	clearAPIConfigEnv(t)
+	defaults := newAPIConfig().Ingest
+	if defaults.TransitKey != testIngestKey || defaults.TokenLifetime != defaultIngestTokenLifetime {
+		t.Fatalf("defaults = %+v", defaults)
+	}
+	t.Setenv(ingestLifetimeEnv, "15m")
+	if set := newIngestConfig(); set.TokenLifetime != 15*time.Minute {
+		t.Fatalf("configured = %+v", set)
+	}
+	for env, value := range map[string]string{
+		ingestKeyEnv:      "",
+		ingestLifetimeEnv: "0s",
+	} {
+		t.Run(env+"="+value, func(t *testing.T) {
+			t.Setenv(env, value)
+			if err := panicValue(t, func() { newAPIConfig() }); err == nil {
+				t.Fatalf("invalid %s %q accepted", env, value)
+			}
+		})
+	}
+	t.Setenv(ingestLifetimeEnv, "")
+	t.Setenv(ingestKeyEnv, "transit/"+testIngestKey)
+	if err := panicValue(t, func() { newIngestConfig() }); !errors.Is(err, secretkeys.ErrTransitKeyName) {
+		t.Fatalf("key name with a slash = %v", err)
 	}
 }

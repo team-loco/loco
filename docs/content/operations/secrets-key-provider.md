@@ -16,7 +16,7 @@ kubectl -n loco-system create secret generic openbao-seal --from-literal=key="$(
 
 `awskms` seals with the KMS key `openbao.seal.awskms.kmsKeyId` in `openbao.seal.awskms.region`, with AWS credentials from the pod identity or the Secret `openbao.seal.awskms.existingSecret`. `transit` seals with the key `openbao.seal.transit.key` of another OpenBao at `openbao.seal.transit.address`, with the token in the Secret `openbao.seal.transit.existingSecret`.
 
-After every install and upgrade, the Job `<release>-openbao-setup` configures OpenBao. Each run first creates the Secret `<release>-openbao-init`, empty, unless it exists, and patches it with no change; the Job's Role allows creating Secrets and patching only that one, and a run that cannot do both fails before it touches OpenBao. The first run then initializes OpenBao with `openbao.recovery.shares` recovery keys, `openbao.recovery.threshold` of them needed, and patches the recovery keys, one per line, and a token that can only run root token generation into that Secret (keys `recovery-keys` and `generate-root-token`). The pod keeps the init output in memory and retries the patch every 5 seconds for up to an hour, logging each failure. Move both keys offline beside the seal key, then delete the Secret; the next run creates it again, empty. With the root token from the initialization, the first run creates the Kubernetes auth role `openbao.kubernetesAuth.setupRole` for the Job's ServiceAccount, with the `loco-setup` policy, which covers only the Transit mount and key, the `loco-api` and `loco-setup` policies and the roles of the Kubernetes auth mount. It then revokes the root token; later runs log in with that role. On every run the Job enables Transit at `openbao.transit.mount`, creates the key `openbao.transit.key`, writes the `loco-api` policy below, and binds the role `openbao.kubernetesAuth.role` at `openbao.kubernetesAuth.mount` to the API's ServiceAccount `<release>-api`. It fails instead of initializing when OpenBao is not initialized and the `<release>-openbao-init` Secret holds recovery keys. The API logs in to its role with a projected ServiceAccount token. For an external server, create the same key, policy and role, bound to `<release>-api` in the release namespace; when the server offers no Kubernetes auth, name a Secret holding a token in `openbao.external.tokenSecret` instead.
+After every install and upgrade, the Job `<release>-openbao-setup` configures OpenBao. Each run first creates the Secret `<release>-openbao-init`, empty, unless it exists, and patches it with no change; the Job's Role allows creating Secrets and patching only that one, and a run that cannot do both fails before it touches OpenBao. The first run then initializes OpenBao with `openbao.recovery.shares` recovery keys, `openbao.recovery.threshold` of them needed, and patches the recovery keys, one per line, and a token that can only run root token generation into that Secret (keys `recovery-keys` and `generate-root-token`). The pod keeps the init output in memory and retries the patch every 5 seconds for up to an hour, logging each failure. Move both keys offline beside the seal key, then delete the Secret; the next run creates it again, empty. With the root token from the initialization, the first run creates the Kubernetes auth role `openbao.kubernetesAuth.setupRole` for the Job's ServiceAccount, with the `loco-setup` policy, which covers only the Transit mount and keys, the `loco-api` and `loco-setup` policies and the roles of the Kubernetes auth mount. It then revokes the root token; later runs log in with that role. On every run the Job enables Transit at `openbao.transit.mount`, creates the key `openbao.transit.key` and the `ed25519` key `openbao.transit.ingestKey`, writes the `loco-api` policy below, and binds the role `openbao.kubernetesAuth.role` at `openbao.kubernetesAuth.mount` to the API's ServiceAccount `<release>-api`. It fails instead of initializing when OpenBao is not initialized and the `<release>-openbao-init` Secret holds recovery keys. The API logs in to its role with a projected ServiceAccount token. For an external server, create the same keys, policy and role, bound to `<release>-api` in the release namespace; when the server offers no Kubernetes auth, name a Secret holding a token in `openbao.external.tokenSecret` instead.
 
 For anything beyond that, generate a root token inside `<release>-openbao-0` with the generate-root token in `BAO_TOKEN` and the recovery keys, and revoke it when done:
 
@@ -59,6 +59,7 @@ The commands use the OpenBao CLI; the Vault CLI takes the same arguments with `v
 ```sh
 bao secrets enable transit
 bao write -f transit/keys/loco type=aes256-gcm96 derived=true
+bao write -f transit/keys/loco-ingest type=ed25519
 bao policy write loco-api - <<'EOF'
 path "transit/encrypt/loco" {
   capabilities = ["update"]
@@ -69,11 +70,17 @@ path "transit/decrypt/loco" {
 path "transit/keys/loco" {
   capabilities = ["read"]
 }
+path "transit/sign/loco-ingest" {
+  capabilities = ["update"]
+}
+path "transit/keys/loco-ingest" {
+  capabilities = ["read"]
+}
 EOF
 bao token create -policy=loco-api -period=24h
 ```
 
-The policy grants nothing beyond that key. The API authenticates with Kubernetes auth or a token. For Kubernetes auth, bind a role to the API's ServiceAccount:
+`loco-ingest` signs telemetry ingest tokens and never leaves Transit. The policy grants nothing beyond the two keys. The API authenticates with Kubernetes auth or a token. For Kubernetes auth, bind a role to the API's ServiceAccount:
 
 ```sh
 bao auth enable kubernetes
@@ -91,6 +98,7 @@ A token from `bao token create` is renewed through `auth/token/lookup-self` and 
 | `LOCO_SECRETS_TRANSIT_ADDR` | required | Base URL of the server, such as `https://bao.example.internal:8200`, with no path |
 | `LOCO_SECRETS_TRANSIT_MOUNT` | `transit` | Mount path of the Transit secrets engine |
 | `LOCO_SECRETS_TRANSIT_KEY` | required | Name of the key |
+| `LOCO_INGEST_TRANSIT_KEY` | required | Name of the `ed25519` key that signs ingest tokens, on the same mount |
 | `LOCO_SECRETS_TRANSIT_AUTH` | required | `kubernetes` or `token` |
 | `LOCO_SECRETS_TRANSIT_KUBERNETES_MOUNT` | required for `kubernetes` | Mount path of the Kubernetes auth method |
 | `LOCO_SECRETS_TRANSIT_KUBERNETES_ROLE` | required for `kubernetes` | Role bound to the API's ServiceAccount |
@@ -117,6 +125,8 @@ The API keeps each unwrapped data key in memory for `LOCO_SECRETS_TRANSIT_CACHE_
 ### Rotation
 
 `bao write -f transit/keys/loco/rotate` creates a new key version. New data keys are wrapped with it, and data keys wrapped with older versions still unwrap. Call `SecretService.RewrapEnvironmentKeys` to rewrap every environment's data key with the new version. Raise the key's `min_decryption_version` only past versions that no environment key and no retained database backup still uses.
+
+`bao write -f transit/keys/loco-ingest/rotate` rotates the ingest signing key. The API signs new tokens with the latest version and publishes every version from the key's `min_decryption_version` in its JWKS, so tokens signed with older versions keep verifying until the minimum is raised past them. Raise it once the token lifetime has passed since the rotation.
 
 ### Supported versions
 

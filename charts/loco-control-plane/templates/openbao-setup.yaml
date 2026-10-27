@@ -143,6 +143,8 @@ spec:
               value: {{ .Values.openbao.transit.mount | quote }}
             - name: LOCO_SECRETS_TRANSIT_KEY
               value: {{ .Values.openbao.transit.key | quote }}
+            - name: LOCO_INGEST_TRANSIT_KEY
+              value: {{ .Values.openbao.transit.ingestKey | quote }}
             - name: OPENBAO_KUBERNETES_HOST
               value: https://kubernetes.default.svc
             - name: OPENBAO_KUBERNETES_MOUNT

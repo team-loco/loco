@@ -323,11 +323,14 @@ func TestNewTransitRejectsAMissingCAFile(t *testing.T) {
 func TestNewSelectsTransit(t *testing.T) {
 	fake := newFakeTransit(t)
 	server := fake.server()
-	provider, err := New(t.Context(), transitConfig(server.URL))
+	provider, signer, err := New(t.Context(), transitConfig(server.URL), fakeSigningKey)
 	if err != nil {
 		t.Fatalf("new: %v", err)
 	}
 	if provider.Name() != ProviderTransit {
 		t.Fatalf("provider = %q, want transit", provider.Name())
+	}
+	if keyID, err := signer.KeyID(t.Context()); err != nil || keyID != "v1" {
+		t.Fatalf("signer key id = %q, %v", keyID, err)
 	}
 }

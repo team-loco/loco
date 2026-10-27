@@ -628,6 +628,10 @@
         "transit": {
           "type": "object",
           "properties": {
+            "ingestKey": {
+              "type": "string",
+              "minLength": 1
+            },
             "key": {
               "type": "string"
             },
