@@ -140,7 +140,7 @@ jobs:
           mkdir -p "tests/e2e/runs/$E2E_RUN_ID"
           tar -xf "$RUNNER_TEMP/$E2E_ARTIFACT/bin.tar" -C "tests/e2e/runs/$E2E_RUN_ID"
 
-      - name: Test discovery failure diagnostics
+      - name: Test the e2e drivers without a cluster
         if: matrix.diagnostics
         run: mise run test:e2e-diagnostics
 

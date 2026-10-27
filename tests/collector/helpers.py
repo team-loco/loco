@@ -1,5 +1,4 @@
 import json
-import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -38,44 +37,6 @@ def parse_documents(rendered):
         for line in documents.splitlines()
         if line.strip() not in ("", "null")
     ]
-
-
-def render_template(chart, template, overrides, includes=()):
-    source = ROOT / "charts" / chart
-    with tempfile.TemporaryDirectory() as directory:
-        root = Path(directory)
-        (root / "templates").mkdir()
-        metadata = json.loads(
-            subprocess.check_output(
-                ["yq", "-o=json", ".", str(source / "Chart.yaml")], text=True
-            )
-        )
-        metadata.pop("dependencies", None)
-        (root / "Chart.yaml").write_text(json.dumps(metadata))
-        shutil.copyfile(source / "values.yaml", root / "values.yaml")
-        target = root / "templates" / template
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(source / "templates" / template, target)
-        for included in includes:
-            shutil.copyfile(source / "templates" / included, root / "templates" / included)
-        for helper in (source / "templates").glob("*.tpl"):
-            shutil.copyfile(helper, root / "templates" / helper.name)
-        (root / "overrides.json").write_text(json.dumps(overrides))
-        rendered = subprocess.check_output(
-            [
-                "helm",
-                "template",
-                chart,
-                str(root),
-                "-n",
-                RELEASE_NAMESPACE,
-                "-f",
-                str(root / "overrides.json"),
-            ],
-            text=True,
-            stderr=subprocess.STDOUT,
-        )
-    return parse_documents(rendered)
 
 
 def render_chart(chart, overrides, check=True):

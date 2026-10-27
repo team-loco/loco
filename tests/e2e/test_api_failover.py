@@ -1,6 +1,7 @@
 import runpy
+from pathlib import Path
 
-from helpers import ROOT
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_retry_stats_distinguish_dashboard_host_from_embedded_api_host():

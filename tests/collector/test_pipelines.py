@@ -11,7 +11,6 @@ from helpers import (
     collector_relays,
     quantity,
     render_chart,
-    render_template,
 )
 
 PUSH_RECEIVERS = {"otlp", "jaeger", "zipkin"}
@@ -379,25 +378,13 @@ def test_ingest_requests_resources_within_its_limits(worker_documents):
 @pytest.fixture(scope="module")
 def envoy_telemetry(worker_relays):
     envoy_telemetry = SimpleNamespace()
-    documents = render_template("loco-worker", "gateway.yaml", {})
-    envoy_telemetry.proxy = next(
-        (document for document in documents if document["kind"] == "EnvoyProxy")
-    )
     envoy_telemetry.core = chart_values("loco-worker")
     envoy_telemetry.collector = worker_relays["otel-col-deploy"]
     return envoy_telemetry
 
 
-def _collector_address(envoy_telemetry):
-    deploy = envoy_telemetry.core["otel-col-deploy"]
-    return (
-        f"{deploy['fullnameOverride']}.{deploy['namespaceOverride']}.svc.cluster.local",
-        deploy["ports"]["otlp"]["servicePort"],
-    )
-
-
 def test_the_deployment_collector_receives_otlp_on_its_service_port(envoy_telemetry):
-    _, port = _collector_address(envoy_telemetry)
+    port = envoy_telemetry.core["otel-col-deploy"]["ports"]["otlp"]["servicePort"]
     assert (
         envoy_telemetry.collector["receivers"]["otlp"]["protocols"]["grpc"]["endpoint"]
         == f"0.0.0.0:{port}"
@@ -478,3 +465,11 @@ def test_file_logs_extract_application_severity(worker_relays):
         assert processors.index("transform/log_severity") > processors.index("memory_limiter")
         assert processors.index("transform/log_severity") < processors.index("batch")
         assert "log_statements" in config["processors"]["transform/log_severity"]
+
+
+def test_the_collector_parses_routes_in_the_controllers_workspace_namespaces():
+    prefix = "tenant-"
+    documents = render_chart("loco-worker", {"global": {"workspaceNamespacePrefix": prefix}})
+    statements = collector_relays(documents)["otel-col-deploy"]["processors"]["transform/envoy_tenancy"]["trace_statements"][1]["statements"]
+    (parse,) = [statement for statement in statements if "ExtractPatterns" in statement]
+    assert f'"^httproute/{prefix}(?P<workspace>' in parse
