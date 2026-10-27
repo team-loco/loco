@@ -25,6 +25,7 @@ type Querier interface {
 	CheckDomainAvailability(ctx context.Context, domain string) (bool, error)
 	CheckUserHasOrganizations(ctx context.Context, createdBy uuid.UUID) (bool, error)
 	CheckUserHasWorkspaces(ctx context.Context, userID uuid.UUID) (bool, error)
+	ClaimInvitation(ctx context.Context, arg ClaimInvitationParams) (Invitation, error)
 	ClaimWebhookDeliveries(ctx context.Context, arg ClaimWebhookDeliveriesParams) ([]ClaimWebhookDeliveriesRow, error)
 	CloseSystemBootstrap(ctx context.Context, bootstrappedBy *uuid.UUID) (int64, error)
 	CountDeploymentsByEnvironment(ctx context.Context, environmentID uuid.UUID) (int64, error)
@@ -40,6 +41,7 @@ type Querier interface {
 	CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (uuid.UUID, error)
 	CreateEnvironment(ctx context.Context, arg CreateEnvironmentParams) (Environment, error)
 	CreateIdentity(ctx context.Context, arg CreateIdentityParams) (Identity, error)
+	CreateInvitation(ctx context.Context, arg CreateInvitationParams) (Invitation, error)
 	CreateOrg(ctx context.Context, arg CreateOrgParams) (Organization, error)
 	// Organization queries
 	CreateOrganization(ctx context.Context, arg CreateOrganizationParams) (Organization, error)
@@ -78,6 +80,7 @@ type Querier interface {
 	DeleteWorkspaceWebhook(ctx context.Context, arg DeleteWorkspaceWebhookParams) (int64, error)
 	EnrollCluster(ctx context.Context, arg EnrollClusterParams) (EnrollClusterRow, error)
 	ExpireAwaitingUploadBuilds(ctx context.Context, arg ExpireAwaitingUploadBuildsParams) ([]uuid.UUID, error)
+	ExtendInvitation(ctx context.Context, arg ExtendInvitationParams) (Invitation, error)
 	FailMissingClusterBuilds(ctx context.Context, arg FailMissingClusterBuildsParams) ([]FailMissingClusterBuildsRow, error)
 	FailQueuedClusterBuilds(ctx context.Context, arg FailQueuedClusterBuildsParams) ([]FailQueuedClusterBuildsRow, error)
 	FinishBuild(ctx context.Context, arg FinishBuildParams) (FinishBuildRow, error)
@@ -98,6 +101,7 @@ type Querier interface {
 	GetEnvironmentByID(ctx context.Context, id uuid.UUID) (Environment, error)
 	GetEnvironmentKey(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)
 	GetIdentity(ctx context.Context, arg GetIdentityParams) (Identity, error)
+	GetInvitation(ctx context.Context, id uuid.UUID) (Invitation, error)
 	GetOrgByID(ctx context.Context, id uuid.UUID) (Organization, error)
 	GetOrgByName(ctx context.Context, name string) (Organization, error)
 	GetOrganizationByID(ctx context.Context, id uuid.UUID) (Organization, error)
@@ -160,7 +164,9 @@ type Querier interface {
 	ListIdentitiesForUser(ctx context.Context, userID uuid.UUID) ([]Identity, error)
 	ListLatestSucceededBuildsForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListLatestSucceededBuildsForResourcesRow, error)
 	ListLiveBuildDigests(ctx context.Context, resourceIds []uuid.UUID) ([]ListLiveBuildDigestsRow, error)
+	ListOpenInvitationsForEmail(ctx context.Context, email string) ([]Invitation, error)
 	ListOrgAuditEvents(ctx context.Context, arg ListOrgAuditEventsParams) ([]ListOrgAuditEventsRow, error)
+	ListOrgInvitations(ctx context.Context, arg ListOrgInvitationsParams) ([]Invitation, error)
 	ListOrgMembersWithDetails(ctx context.Context, arg ListOrgMembersWithDetailsParams) ([]ListOrgMembersWithDetailsRow, error)
 	ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams) ([]Organization, error)
 	ListPendingPlacements(ctx context.Context, clusterID uuid.UUID) ([]ListPendingPlacementsRow, error)
@@ -225,14 +231,18 @@ type Querier interface {
 	RemoveUserScope(ctx context.Context, arg RemoveUserScopeParams) error
 	RemoveWorkspace(ctx context.Context, id uuid.UUID) error
 	ResourceHasPrimaryDomain(ctx context.Context, arg ResourceHasPrimaryDomainParams) (bool, error)
+	RevokeInvitation(ctx context.Context, id uuid.UUID) (Invitation, error)
 	RewrapEnvironmentKey(ctx context.Context, arg RewrapEnvironmentKeyParams) (int64, error)
 	RotateSessionToken(ctx context.Context, arg RotateSessionTokenParams) (int64, error)
 	SetClusterGatewayHostname(ctx context.Context, arg SetClusterGatewayHostnameParams) error
 	SetClusterJoinToken(ctx context.Context, arg SetClusterJoinTokenParams) (uuid.UUID, error)
+	SetInvitationDelivered(ctx context.Context, id uuid.UUID) error
+	SetInvitationDeliveryError(ctx context.Context, arg SetInvitationDeliveryErrorParams) error
 	SetLockTimeout(ctx context.Context, timeout string) error
 	SetPlacementApplyError(ctx context.Context, arg SetPlacementApplyErrorParams) (SetPlacementApplyErrorRow, error)
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
 	SetResourcePartial(ctx context.Context, arg SetResourcePartialParams) error
+	SetUserStatus(ctx context.Context, arg SetUserStatusParams) (User, error)
 	SystemAdminExists(ctx context.Context) (bool, error)
 	TouchAPITokenLastUsed(ctx context.Context, id uuid.UUID) error
 	TouchIdentity(ctx context.Context, arg TouchIdentityParams) error

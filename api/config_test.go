@@ -473,7 +473,7 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 		},
 		{"malformed auth issuers", map[string]string{authIssuersEnv: "["}, errInvalidAuthIssuers},
 		{"admin token env unset", map[string]string{authIssuersEnv: adminIssuers}, errAdminTokenMissing},
-		{"unknown signup mode", map[string]string{"AUTH_SIGNUP_MODE": "invite"}, errInvalidSignupPolicy},
+		{"removed closed signup mode", map[string]string{"AUTH_SIGNUP_MODE": "closed"}, errInvalidSignupPolicy},
 		{"non-semver min cli version", map[string]string{"MIN_CLI_VERSION": "0.0.61"}, errInvalidMinCLIVersion},
 		{
 			"registry username without password",
