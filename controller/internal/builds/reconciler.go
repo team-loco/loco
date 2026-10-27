@@ -28,6 +28,7 @@ import (
 
 	"github.com/team-loco/loco/controller/internal/isolation"
 	"github.com/team-loco/loco/controller/internal/managed"
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -452,7 +453,7 @@ func (r *Reconciler) ensureBuildNetworkPolicies(ctx context.Context) error {
 
 func buildForPod(_ context.Context, obj client.Object) []reconcile.Request {
 	labels := obj.GetLabels()
-	if labels[managed.LabelComponent] != componentBuild {
+	if labels[locolabels.LabelComponent] != componentBuild {
 		return nil
 	}
 	jobName, ok := labels[labelJobName]

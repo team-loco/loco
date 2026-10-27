@@ -6,17 +6,10 @@ import (
 	locolabels "github.com/team-loco/loco/k8sapi/labels"
 )
 
-const (
-	LabelComponent      = "app.kubernetes.io/component"
-	LabelOrganizationID = "loco.io/organization-id"
-	LabelWorkspaceID    = "loco.io/workspace-id"
-	LabelResourceID     = "loco.io/resource-id"
-	ManagedByValue      = "loco-controller"
-	FieldOwner          = "loco-controller"
-)
+const FieldOwner = "loco-controller"
 
 func Labels() map[string]string {
-	return map[string]string{locolabels.LabelManagedBy: ManagedByValue}
+	return map[string]string{locolabels.LabelManagedBy: locolabels.ManagedByController}
 }
 
 func ApplyOptions() []client.ApplyOption {

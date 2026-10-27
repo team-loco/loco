@@ -107,6 +107,7 @@ agent:
     tag: ""
   imagePullPolicy: Always
   inventoryInterval: 10m
+  usageInterval: 1m
   buildRetention: 1h
   buildCollectInterval: 5m
   clusterQueryTimeout: 10s

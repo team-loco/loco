@@ -36,8 +36,8 @@ func CacheOptions(locoNamespace, pullSecretName string) cache.Options {
 		}
 	}
 	podSet := labels.Set{
-		locolabels.LabelManagedBy: managed.ManagedByValue,
-		managed.LabelComponent:    componentApplication,
+		locolabels.LabelManagedBy: locolabels.ManagedByController,
+		locolabels.LabelComponent: locolabels.ComponentApplication,
 	}
 	podSelector := labels.SelectorFromSet(podSet)
 	applicationPods := cache.ByObject{Label: podSelector}

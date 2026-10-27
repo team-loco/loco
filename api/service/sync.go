@@ -268,6 +268,8 @@ func (ss *syncSession) handle(ctx context.Context, msg *agentv1.SyncRequest) err
 	case *agentv1.SyncRequest_Heartbeat:
 		ss.server.recordHeartbeat(ctx, ss.clusterID, m.Heartbeat)
 		return nil
+	case *agentv1.SyncRequest_Usage:
+		return ss.recordUsage(ctx, m.Usage)
 	default:
 		slog.WarnContext(ctx, "ignoring empty sync message", "cluster_id", ss.clusterID)
 		return nil

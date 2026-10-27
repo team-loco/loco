@@ -21,6 +21,7 @@ func agentEnv() map[string]string {
 		envControllerDeployment:     "loco-controller",
 		envBuildNamespace:           "loco-builds",
 		envInventoryInterval:        "10m",
+		envUsageInterval:            "1m",
 		envBuildRetention:           "1h",
 		envBuildCollectInterval:     "5m",
 		envClusterQueryTimeout:      "11s",
@@ -68,6 +69,7 @@ func TestParseAgentConfigReadsTheEnvironment(t *testing.T) {
 		ControllerDeployment:     "loco-controller",
 		BuildNamespace:           "loco-builds",
 		InventoryInterval:        10 * time.Minute,
+		UsageInterval:            time.Minute,
 		BuildRetention:           time.Hour,
 		BuildCollectInterval:     5 * time.Minute,
 		ClusterQueryTimeout:      11 * time.Second,
@@ -110,6 +112,7 @@ func TestParseAgentConfigRejectsMissingValues(t *testing.T) {
 		envControllerDeployment,
 		envBuildNamespace,
 		envInventoryInterval,
+		envUsageInterval,
 		envBuildRetention,
 		envBuildCollectInterval,
 		envClusterQueryTimeout,
@@ -141,6 +144,7 @@ func TestParseAgentConfigRejectsMissingValues(t *testing.T) {
 func TestParseAgentConfigRejectsInvalidDurations(t *testing.T) {
 	durations := []string{
 		envInventoryInterval,
+		envUsageInterval,
 		envBuildRetention,
 		envBuildCollectInterval,
 		envClusterQueryTimeout,

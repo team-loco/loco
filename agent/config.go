@@ -24,6 +24,7 @@ const (
 	envControllerDeployment     = "LOCO_CONTROLLER_DEPLOYMENT"
 	envBuildNamespace           = "LOCO_BUILD_NAMESPACE"
 	envInventoryInterval        = "LOCO_INVENTORY_INTERVAL"
+	envUsageInterval            = "LOCO_USAGE_INTERVAL"
 	envBuildRetention           = "LOCO_BUILD_RETENTION"
 	envBuildCollectInterval     = "LOCO_BUILD_COLLECT_INTERVAL"
 	envClusterQueryTimeout      = "LOCO_CLUSTER_QUERY_TIMEOUT"
@@ -65,6 +66,7 @@ type Config struct {
 	ControllerDeployment     string
 	BuildNamespace           string
 	InventoryInterval        time.Duration
+	UsageInterval            time.Duration
 	BuildRetention           time.Duration
 	BuildCollectInterval     time.Duration
 	ClusterQueryTimeout      time.Duration
@@ -135,6 +137,7 @@ func parseAgentConfig(getenv func(string) string, agentVersion string) (*Config,
 
 	durations := map[string]*time.Duration{
 		envInventoryInterval:       &cfg.InventoryInterval,
+		envUsageInterval:           &cfg.UsageInterval,
 		envBuildRetention:          &cfg.BuildRetention,
 		envBuildCollectInterval:    &cfg.BuildCollectInterval,
 		envClusterQueryTimeout:     &cfg.ClusterQueryTimeout,

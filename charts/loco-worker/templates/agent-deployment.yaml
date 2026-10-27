@@ -58,6 +58,8 @@ spec:
               value: {{ .Values.controller.name | quote }}
             - name: LOCO_INVENTORY_INTERVAL
               value: {{ .Values.agent.inventoryInterval | quote }}
+            - name: LOCO_USAGE_INTERVAL
+              value: {{ .Values.agent.usageInterval | quote }}
             - name: LOCO_BUILD_RETENTION
               value: {{ .Values.agent.buildRetention | quote }}
             - name: LOCO_BUILD_COLLECT_INTERVAL

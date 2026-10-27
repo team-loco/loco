@@ -52,6 +52,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/gen/go/loco/secret/v1/secretv1connect"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
+	"github.com/team-loco/loco/gen/go/loco/usage/v1/usagev1connect"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	"github.com/team-loco/loco/gen/go/loco/webhook/v1/webhookv1connect"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
@@ -209,6 +210,7 @@ func main() {
 	}
 
 	eventServiceHandler := service.NewEventServer(queries, machine)
+	usageServiceHandler := service.NewUsageServer(queries)
 	go events.RunRetention(shutdownCtx, queries, ac.EventsRetention, eventsRetentionInterval)
 	webhookServiceHandler := service.NewWebhookServer(pool, queries, ac.WebhooksAllowPrivate)
 	workspaceWebhookClient := webhooks.NewClient(ac.WebhooksAllowPrivate)
@@ -287,6 +289,7 @@ func main() {
 	userv1connect.RegisterUserServiceHandler(authenticatedServer, userServiceHandler)
 	authv1connect.RegisterAuthServiceHandler(authenticatedServer, authServiceHandler)
 	eventv1connect.RegisterEventServiceHandler(authenticatedServer, eventServiceHandler)
+	usagev1connect.RegisterUsageServiceHandler(authenticatedServer, usageServiceHandler)
 	webhookv1connect.RegisterWebhookServiceHandler(authenticatedServer, webhookServiceHandler)
 	orgv1connect.RegisterOrgServiceHandler(authenticatedServer, orgServiceHandler)
 	workspacev1connect.RegisterWorkspaceServiceHandler(authenticatedServer, workspaceServiceHandler)

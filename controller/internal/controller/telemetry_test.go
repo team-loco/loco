@@ -10,7 +10,7 @@ import (
 	appsv1ac "k8s.io/client-go/applyconfigurations/apps/v1"
 	corev1ac "k8s.io/client-go/applyconfigurations/core/v1"
 
-	"github.com/team-loco/loco/controller/internal/managed"
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -287,11 +287,11 @@ func TestPodTemplateCarriesTheOrganizationLabel(t *testing.T) {
 	app := telemetryTestApplication()
 	dep := buildDeployment(t, app)
 
-	if got := dep.Spec.Template.Labels[managed.LabelOrganizationID]; got != testOrganizationID {
-		t.Errorf("pod label %s = %q, want %q", managed.LabelOrganizationID, got, testOrganizationID)
+	if got := dep.Spec.Template.Labels[locolabels.LabelOrganizationID]; got != testOrganizationID {
+		t.Errorf("pod label %s = %q, want %q", locolabels.LabelOrganizationID, got, testOrganizationID)
 	}
-	if got := dep.Labels[managed.LabelOrganizationID]; got != testOrganizationID {
-		t.Errorf("deployment label %s = %q, want %q", managed.LabelOrganizationID, got, testOrganizationID)
+	if got := dep.Labels[locolabels.LabelOrganizationID]; got != testOrganizationID {
+		t.Errorf("deployment label %s = %q, want %q", locolabels.LabelOrganizationID, got, testOrganizationID)
 	}
 }
 

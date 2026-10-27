@@ -45,16 +45,16 @@ func podSecurityLabels() map[string]string {
 func workspaceNamespaceLabels(locoRes *locov1alpha1.Application) map[string]string {
 	labels := podSecurityLabels()
 	labels[labelLocoApp] = "true"
-	labels[locolabels.LabelManagedBy] = managed.ManagedByValue
-	labels[managed.LabelWorkspaceID] = locoRes.Spec.WorkspaceID
-	labels[labelEnvironmentID] = locoRes.Spec.EnvironmentID
+	labels[locolabels.LabelManagedBy] = locolabels.ManagedByController
+	labels[locolabels.LabelWorkspaceID] = locoRes.Spec.WorkspaceID
+	labels[locolabels.LabelEnvironmentID] = locoRes.Spec.EnvironmentID
 	return labels
 }
 
 func workspaceObjectLabels(locoRes *locov1alpha1.Application) map[string]string {
 	return map[string]string{
-		locolabels.LabelManagedBy: managed.ManagedByValue,
-		managed.LabelWorkspaceID:  locoRes.Spec.WorkspaceID,
+		locolabels.LabelManagedBy:   locolabels.ManagedByController,
+		locolabels.LabelWorkspaceID: locoRes.Spec.WorkspaceID,
 	}
 }
 

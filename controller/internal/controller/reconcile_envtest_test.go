@@ -126,8 +126,8 @@ var _ = Describe("Application reconcile", func() {
 		Expect(k8sClient.Get(ctx, imageKey, imageSecret)).To(Succeed())
 		Expect(imageSecret.Type).To(Equal(corev1.SecretTypeDockerConfigJson))
 		Expect(imageSecret.Data).To(Equal(pullSecret.Data))
-		Expect(imageSecret.Labels).To(HaveKeyWithValue(locolabels.LabelManagedBy, managed.ManagedByValue))
-		Expect(imageSecret.Labels).To(HaveKeyWithValue(managed.LabelWorkspaceID, app.Spec.WorkspaceID))
+		Expect(imageSecret.Labels).To(HaveKeyWithValue(locolabels.LabelManagedBy, locolabels.ManagedByController))
+		Expect(imageSecret.Labels).To(HaveKeyWithValue(locolabels.LabelWorkspaceID, app.Spec.WorkspaceID))
 		Expect(imageSecret.Annotations).NotTo(HaveKey(annotationAppName))
 		sa := &corev1.ServiceAccount{}
 		Expect(k8sClient.Get(ctx, depKey, sa)).To(Succeed())

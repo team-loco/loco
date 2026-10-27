@@ -24,6 +24,7 @@ nav = [
     { "Organizations and access" = "operations/access.md" },
     { "Self-hosting" = "operations/self-hosting.md" },
     { "Secrets key provider" = "operations/secrets-key-provider.md" },
+    { "Usage metering" = "operations/usage-metering.md" },
   ] },
   { "Reference" = [
     { "Architecture" = "reference/architecture.md" },
