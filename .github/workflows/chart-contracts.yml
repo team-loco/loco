@@ -46,7 +46,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-tools
       - run: mise run test:chart-contracts
-      - run: mise run test:collector-logs
+      - run: mise run test:collectors
 
   certificates:
     runs-on: ubuntu-latest

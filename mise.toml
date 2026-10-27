@@ -165,8 +165,8 @@ dir = "web"
 run = ["bun fmt --check", "bun run lint:fast", "bun run lint:types", "bun run typecheck"]
 
 [tasks."test:e2e-diagnostics"]
-description = "Test discovery failure diagnostics without a cluster"
-run = "uv run --locked --project tests pytest tests/e2e/test_discovery_diagnostics.py"
+description = "Test the e2e drivers without a cluster: discovery failure diagnostics and the API failover driver's route lookup"
+run = "uv run --locked --project tests pytest tests/e2e/test_discovery_diagnostics.py tests/e2e/test_api_failover.py"
 
 [tasks."test:e2e-runner"]
 description = "Test the e2e runner's test file selection without a cluster"
@@ -404,8 +404,9 @@ run = "uv run --locked --project docs pytest docs/tests"
 description = "Check the combined UI and documentation image"
 run = "uv run --locked --project docs pytest docs/tests/container.py"
 
-[tasks."test:collector-logs"]
-description = "Verify collected log severity with the chart-pinned OpenTelemetry Collector"
+[tasks."test:collectors"]
+description = "Test the collector configuration loco-worker renders into its relay ConfigMaps, and the log severity it collects with the chart-pinned OpenTelemetry Collector"
+depends = ["helm:deps"]
 run = "uv run --locked --project tests pytest tests/collector"
 
 [tasks."test:charts"]
@@ -414,7 +415,7 @@ depends = ["helm:deps"]
 run = "untt --strict charts/loco-worker charts/loco-control-plane"
 
 [tasks."test:chart-contracts"]
-description = "Render regional certificate, observability Secret and collector pipeline contracts"
+description = "Test the values helm:sync:release passes to each local release"
 depends = ["helm:deps"]
 run = "uv run --locked --project tests pytest tests/charts"
 
