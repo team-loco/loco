@@ -1,5 +1,6 @@
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { useAuth } from "@/auth/AuthProvider";
+import { ClaimedOrgsBanner } from "@/components/ClaimedOrgsBanner";
 import { ErrorCard } from "@/components/ErrorCard";
 import { AppShell } from "@/components/shell/AppShell";
 import { AppLoading } from "@/context/AppLoader";
@@ -27,9 +28,13 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 
 	const activeOrgId = pickActive(orgs, orgParam, ORG_STORAGE_KEY);
 
-	const { data: workspacesRes } = useQuery(listOrgWorkspaces, activeOrgId ? { orgId: activeOrgId } : undefined, {
-		enabled: !!activeOrgId && !scopes.isLoading && scopes.orgMember(activeOrgId),
-	});
+	const { data: workspacesRes, isLoading: workspacesLoading } = useQuery(
+		listOrgWorkspaces,
+		activeOrgId ? { orgId: activeOrgId } : undefined,
+		{
+			enabled: !!activeOrgId && !scopes.isLoading && scopes.orgMember(activeOrgId),
+		},
+	);
 	const workspaces = workspacesRes?.workspaces ?? [];
 
 	const unauthenticated = error instanceof ConnectError && error.code === Code.Unauthenticated;
@@ -47,8 +52,13 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	}
 
 	return (
-		<ContextProvider availableOrgs={orgs} availableWorkspaces={workspaces}>
+		<ContextProvider
+			availableOrgs={orgs}
+			availableWorkspaces={workspaces}
+			workspacesSettled={!scopes.isLoading && !workspacesLoading}
+		>
 			<AppShell>{children}</AppShell>
+			<ClaimedOrgsBanner />
 		</ContextProvider>
 	);
 }

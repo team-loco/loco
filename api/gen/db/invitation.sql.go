@@ -137,6 +137,26 @@ func (q *Queries) GetInvitation(ctx context.Context, id uuid.UUID) (Invitation, 
 	return i, err
 }
 
+const getInvitationClaimDetails = `-- name: GetInvitationClaimDetails :one
+SELECT o.name AS org_name, COALESCE(NULLIF(u.name, ''), u.email)::text AS inviter_name
+FROM invitations i
+JOIN organizations o ON o.id = i.org_id
+JOIN users u ON u.id = i.invited_by
+WHERE i.id = $1
+`
+
+type GetInvitationClaimDetailsRow struct {
+	OrgName     string `json:"orgName"`
+	InviterName string `json:"inviterName"`
+}
+
+func (q *Queries) GetInvitationClaimDetails(ctx context.Context, id uuid.UUID) (GetInvitationClaimDetailsRow, error) {
+	row := q.db.QueryRow(ctx, getInvitationClaimDetails, id)
+	var i GetInvitationClaimDetailsRow
+	err := row.Scan(&i.OrgName, &i.InviterName)
+	return i, err
+}
+
 const listOpenInvitationsForEmail = `-- name: ListOpenInvitationsForEmail :many
 SELECT id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at, delivered_at, delivery_error
 FROM invitations

@@ -45,3 +45,10 @@ export const deleteUser = UserService.method.deleteUser;
  * @generated from rpc loco.user.v1.UserService.Logout
  */
 export const logout = UserService.method.logout;
+
+/**
+ * SetUserStatus suspends or reinstates a user. Requires system admin.
+ *
+ * @generated from rpc loco.user.v1.UserService.SetUserStatus
+ */
+export const setUserStatus = UserService.method.setUserStatus;

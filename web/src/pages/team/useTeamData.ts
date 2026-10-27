@@ -1,5 +1,5 @@
-import { createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-query";
-import { getOrg, listOrgMembers } from "@gen/loco/org/v1/org-OrgService_connectquery";
+import { createConnectQueryKey, createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-query";
+import { getOrg, listInvitations, listOrgMembers } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import type { User } from "@gen/loco/org/v1/org_pb";
 import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { EntityType, type EntityScope } from "@gen/loco/token/v1/token_pb";
@@ -7,7 +7,7 @@ import {
 	listOrgWorkspaces,
 	listWorkspaceMembers,
 } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
 
 import { parseScopeName, sortScopes, toScopeName, type ScopeName } from "./scopes";
 
@@ -45,9 +45,11 @@ function sortEntries(entries: ScopeEntry[]): ScopeEntry[] {
 
 export function useTeamData(orgId: string, meId: string, myScopes: EntityScope[]) {
 	const transport = useTransport();
+	const queryClient = useQueryClient();
 	const enabled = orgId !== "";
 	const orgQuery = useQuery(getOrg, { key: { case: "orgId", value: orgId } }, { enabled });
 	const membersQuery = useQuery(listOrgMembers, { orgId, pageSize: 200 }, { enabled });
+	const invitationsQuery = useQuery(listInvitations, { orgId, pageSize: 200 }, { enabled });
 	const wsQuery = useQuery(listOrgWorkspaces, { orgId, pageSize: 200 }, { enabled });
 	const org = orgQuery.data?.organization;
 	const workspaces = wsQuery.data?.workspaces ?? [];
@@ -119,9 +121,18 @@ export function useTeamData(orgId: string, meId: string, myScopes: EntityScope[]
 		return { user, entries };
 	});
 
+	const invalidateInvitations = async () => {
+		await queryClient.invalidateQueries({
+			queryKey: createConnectQueryKey({ schema: listInvitations, cardinality: "finite" }),
+		});
+	};
+
 	return {
 		org,
 		members,
+		invitations: invitationsQuery.data?.invitations ?? [],
+		invitationsLoading: invitationsQuery.isLoading,
+		invalidateInvitations,
 		workspaces,
 		isLoading: orgQuery.isLoading || membersQuery.isLoading,
 		scopesLoading:
