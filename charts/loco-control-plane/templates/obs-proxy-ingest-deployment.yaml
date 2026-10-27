@@ -43,6 +43,8 @@ spec:
               value: "true"
             - name: PORT
               value: {{ .Values.obsProxy.ingest.port | quote }}
+            - name: CONTROL_PLANE_URL
+              value: {{ include "loco-control-plane.apiURL" . | quote }}
             - name: OTLP_GRPC_PORT
               value: {{ .Values.obsProxy.ingest.grpcPort | quote }}
             - name: OTLP_HTTP_PORT

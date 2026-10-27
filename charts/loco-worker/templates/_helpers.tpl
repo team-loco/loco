@@ -18,6 +18,10 @@ eg
 {{- index .Values "otel-col-deploy" "namespaceOverride" -}}
 {{- end -}}
 
+{{- define "loco-worker.ingestTokenNamespaces" -}}
+{{- list (include "loco-worker.observabilityNamespace" .) (index .Values "otel-col-daemon" "namespaceOverride") | uniq | join "," -}}
+{{- end -}}
+
 {{- define "loco-worker.collectorService" -}}
 {{- index .Values "otel-col-deploy" "fullnameOverride" -}}
 {{- end -}}

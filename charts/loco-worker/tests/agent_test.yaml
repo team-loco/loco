@@ -10,6 +10,7 @@ templates:
   - templates/agent-deployment.yaml
   - templates/agent-rbac.yaml
   - templates/agent-join-token-secret.yaml
+  - templates/agent-ingest-token.yaml
   - templates/env-config-secret.yml
   - templates/gateway.yaml
   - templates/cm-cert.yaml
@@ -176,3 +177,66 @@ tests:
           value: [{kind: ServiceAccount, name: loco-worker-agent, namespace: loco-system}]
         template: templates/builds/agent-rbac.yaml
         documentSelector: {path: kind, value: RoleBinding}
+
+  - it: writes the ingest token to the exporter Secret in each collector namespace
+    set:
+      global.exporter.bearerToken.enabled: true
+      global.exporter.bearerToken.secretName: cluster-token
+      global.exporter.bearerToken.secretKey: bearer
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_INGEST_TOKEN_SECRET, value: cluster-token}
+        template: templates/agent-deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_INGEST_TOKEN_SECRET_KEY, value: bearer}
+        template: templates/agent-deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_INGEST_TOKEN_NAMESPACES, value: "loco-obs,loco-obs-node"}
+        template: templates/agent-deployment.yaml
+      - containsDocument: {kind: Role, apiVersion: rbac.authorization.k8s.io/v1, name: loco-worker-agent-ingest-token, namespace: loco-obs, any: true}
+        template: templates/agent-ingest-token.yaml
+      - containsDocument: {kind: Role, apiVersion: rbac.authorization.k8s.io/v1, name: loco-worker-agent-ingest-token, namespace: loco-obs-node, any: true}
+        template: templates/agent-ingest-token.yaml
+      - hasDocuments:
+          count: 4
+        template: templates/agent-ingest-token.yaml
+
+  - it: lets the agent create Secrets and change only the exporter Secret
+    set:
+      global.exporter.bearerToken.enabled: true
+      global.exporter.bearerToken.secretName: cluster-token
+    template: templates/agent-ingest-token.yaml
+    documentSelector: {path: kind, value: Role, matchMany: true}
+    asserts:
+      - equal:
+          path: rules
+          value:
+            - {apiGroups: [""], resources: [secrets], verbs: [create]}
+            - {apiGroups: [""], resources: [secrets], resourceNames: [cluster-token], verbs: [get, update]}
+
+  - it: binds the ingest token Role to the agent
+    set:
+      global.exporter.bearerToken.enabled: true
+    template: templates/agent-ingest-token.yaml
+    documentSelector: {path: kind, value: RoleBinding, matchMany: true}
+    asserts:
+      - equal:
+          path: subjects
+          value: [{kind: ServiceAccount, name: loco-worker-agent, namespace: loco-system}]
+      - equal:
+          path: roleRef
+          value: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: loco-worker-agent-ingest-token}
+
+  - it: renews no ingest token without a bearer token
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_INGEST_TOKEN_SECRET}
+          any: true
+        template: templates/agent-deployment.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/agent-ingest-token.yaml

@@ -568,6 +568,9 @@
                 },
                 "secretName": {
                   "type": "string"
+                },
+                "waitIntervalSeconds": {
+                  "type": "integer"
                 }
               },
               "additionalProperties": false

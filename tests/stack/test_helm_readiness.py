@@ -114,6 +114,7 @@ def test_local_releases_render_with_the_stack_values(tmp_path, subtests):
         FIXTURE_ENV["LOCO_JOIN_TOKEN"],
         BUILD_EGRESS[0]["cidr"],
         "http://host.docker.internal:" + FIXTURE_ENV["OBS_OTLP_HTTP_PORT"],
+        "LOCO_INGEST_TOKEN_SECRET",
     ):
         with subtests.test(needle=needle):
             assert needle in manifest
