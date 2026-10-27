@@ -68,32 +68,45 @@ jobs:
             echo "present=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Resolve the pull request head
+      - name: Save the pull request description
         id: pr
         if: steps.key.outputs.present == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          DIFF_DIR: ${{ runner.temp }}/docs-drift
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           set -euo pipefail
-          head_sha=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)
-          echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            pr=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid,baseRefName,title,body)
+            PR_HEAD_SHA=$(jq -r .headRefOid <<<"$pr")
+            PR_BASE_REF=$(jq -r .baseRefName <<<"$pr")
+            PR_TITLE=$(jq -r .title <<<"$pr")
+            PR_BODY=$(jq -r '.body // ""' <<<"$pr")
+          fi
+          mkdir -p "$DIFF_DIR"
+          printf '# %s\n\n%s\n' "$PR_TITLE" "$PR_BODY" > "$DIFF_DIR/description.md"
+          echo "head_sha=$PR_HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "base_ref=$PR_BASE_REF" >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: steps.key.outputs.present == 'true'
         with:
           ref: ${{ steps.pr.outputs.head_sha }}
+          fetch-depth: 0
 
       - name: Save the pull request diff
         if: steps.key.outputs.present == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
           DIFF_DIR: ${{ runner.temp }}/docs-drift
+          BASE_REF: ${{ steps.pr.outputs.base_ref }}
         run: |
           set -euo pipefail
-          mkdir -p "$DIFF_DIR"
-          gh pr diff "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" > "$DIFF_DIR/pr.diff"
-          gh pr diff "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --name-only > "$DIFF_DIR/files.txt"
-          gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json title,body --jq '"# " + .title + "\n\n" + (.body // "")' > "$DIFF_DIR/description.md"
+          git diff "origin/$BASE_REF...HEAD" > "$DIFF_DIR/pr.diff"
+          git diff --name-only "origin/$BASE_REF...HEAD" > "$DIFF_DIR/files.txt"
           wc -l "$DIFF_DIR"/*
 
       - name: Review the documentation
