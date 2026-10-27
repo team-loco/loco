@@ -132,7 +132,7 @@ def collector_manifest():
         "cluster": CLUSTER, "environment": "test", "collectionInterval": INTERVAL,
         "namespaces": [],
     }
-    exporter = {"endpoint": f"http://otlp-sink.{NAMESPACE}:4318", "bearerToken": {"enabled": True}}
+    exporter = {"endpoint": f"http://otlp-sink.{NAMESPACE}:4318", "ingestToken": {"enabled": True}}
     overrides = {
         "global": {"region": "test-region", "platformTelemetry": settings, "exporter": exporter},
         "agent": {"image": {"tag": "unused"}},
@@ -153,7 +153,7 @@ def collector_manifest():
 
 
 def install_collectors(collectors):
-    token = values()["global"]["exporter"]["bearerToken"]
+    token = values()["global"]["exporter"]["ingestToken"]
     secret = {"apiVersion": "v1", "kind": "Secret", "type": "Opaque", "metadata": {"name": token["secretName"], "namespace": NAMESPACE}, "stringData": {token["secretKey"]: TOKEN}}
     node_secret = {**secret, "metadata": {"name": token["secretName"], "namespace": NODE_NAMESPACE}}
     apply(secret, node_secret)

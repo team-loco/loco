@@ -115,53 +115,93 @@ func (t *Transit) drainRejections() {
 	}
 }
 
-// renewToken keeps the token valid until ctx is done. With token auth it looks the token
-// up, then renews it renewMargin before each expiry, and stops when the token has no TTL
-// or can no longer be renewed. With Kubernetes auth it logs in, then logs in again
-// renewMargin before each expiry, or after rejectionBackoff when the server rejects the
-// token. A failed lookup, renewal or login is logged and retried every renewRetry.
-func (t *Transit) renewToken(ctx context.Context) {
+// logIn makes the first token lookup, with token auth, or the first login, with Kubernetes
+// auth, and stores the lease. While Transit is unreachable or answers with a server error it
+// retries every renewRetry until ctx is done; any other failure is returned at once.
+func (t *Transit) logIn(ctx context.Context) (tokenLease, error) {
 	refresh := t.lookupToken
 	if t.kubernetes != nil {
 		refresh = t.login
 	}
-	delay := time.Duration(0)
 	for {
-		timer := time.NewTimer(delay)
-		select {
-		case <-ctx.Done():
-			timer.Stop()
-			return
-		case <-timer.C:
-		case <-t.rejected:
-			timer.Stop()
-			backoff := t.rejectionBackoff()
-			slog.WarnContext(ctx, "transit rejected the token; logging in again", "in", backoff)
-			if !sleepContext(ctx, backoff) {
+		lease, err := refresh(ctx)
+		if err == nil {
+			t.setTokenLease(lease)
+			return lease, nil
+		}
+		if !transitUnavailable(err) {
+			return tokenLease{}, err
+		}
+		slog.WarnContext(ctx, "transit is unavailable; logging in again", "error", err, "in", t.renewRetry)
+		if !sleepContext(ctx, t.renewRetry) {
+			return tokenLease{}, fmt.Errorf("%w: %w", ErrTransitUnavailable, err)
+		}
+	}
+}
+
+func transitUnavailable(err error) bool {
+	if status, ok := errors.AsType[*transitStatusError](err); ok {
+		return status.code >= http.StatusInternalServerError
+	}
+	return errors.Is(err, ErrTransitRequest)
+}
+
+// renewToken keeps the token of lease valid until ctx is done. With token auth it renews
+// the token renewMargin before each expiry, and stops when the token has no TTL or can no
+// longer be renewed. With Kubernetes auth it logs in again renewMargin before each expiry,
+// or after rejectionBackoff when the server rejects the token. A failed renewal or login is
+// logged and retried every renewRetry.
+func (t *Transit) renewToken(ctx context.Context, lease tokenLease) {
+	refresh := t.renewTokenOnce
+	if t.kubernetes != nil {
+		refresh = t.login
+	}
+	for t.renews(ctx, lease) {
+		delay := t.renewalDelay(lease.ttl)
+		for {
+			if !t.waitToRefresh(ctx, delay) {
 				return
 			}
-		}
-		t.drainRejections()
-		lease, err := refresh(ctx)
-		if err != nil {
+			next, err := refresh(ctx)
+			if err == nil {
+				lease = next
+				break
+			}
 			slog.ErrorContext(ctx, "failed to refresh the transit token", "error", err, "retryIn", t.renewRetry)
 			delay = t.renewRetry
-			continue
 		}
 		t.setTokenLease(lease)
-		if lease.ttl <= 0 {
-			slog.InfoContext(ctx, "transit token has no ttl; not renewing it")
-			return
-		}
-		if t.kubernetes == nil {
-			if !lease.renewable {
-				slog.WarnContext(ctx, "transit token is not renewable", "expiresAt", t.tokenExpiry())
-				return
-			}
-			refresh = t.renewTokenOnce
-		}
-		delay = t.renewalDelay(lease.ttl)
 	}
+}
+
+func (t *Transit) renews(ctx context.Context, lease tokenLease) bool {
+	if lease.ttl <= 0 {
+		slog.InfoContext(ctx, "transit token has no ttl; not renewing it")
+		return false
+	}
+	if t.kubernetes == nil && !lease.renewable {
+		slog.WarnContext(ctx, "transit token is not renewable", "expiresAt", t.tokenExpiry())
+		return false
+	}
+	return true
+}
+
+func (t *Transit) waitToRefresh(ctx context.Context, delay time.Duration) bool {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+	case <-t.rejected:
+		backoff := t.rejectionBackoff()
+		slog.WarnContext(ctx, "transit rejected the token; logging in again", "in", backoff)
+		if !sleepContext(ctx, backoff) {
+			return false
+		}
+	}
+	t.drainRejections()
+	return true
 }
 
 func sleepContext(ctx context.Context, delay time.Duration) bool {

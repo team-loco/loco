@@ -28,6 +28,7 @@ type Querier interface {
 	CheckUserHasWorkspaces(ctx context.Context, userID uuid.UUID) (bool, error)
 	ClaimInvitation(ctx context.Context, arg ClaimInvitationParams) (Invitation, error)
 	ClaimWebhookDeliveries(ctx context.Context, arg ClaimWebhookDeliveriesParams) ([]ClaimWebhookDeliveriesRow, error)
+	ClosePlacementWindow(ctx context.Context, arg ClosePlacementWindowParams) error
 	CloseSystemBootstrap(ctx context.Context, bootstrappedBy *uuid.UUID) (int64, error)
 	CountDeploymentsByEnvironment(ctx context.Context, environmentID uuid.UUID) (int64, error)
 	CountSecrets(ctx context.Context, arg CountSecretsParams) (int64, error)
@@ -154,6 +155,7 @@ type Querier interface {
 	ListBuildsForResource(ctx context.Context, arg ListBuildsForResourceParams) ([]Build, error)
 	ListClusterDomains(ctx context.Context, ids []uuid.UUID) ([]ListClusterDomainsRow, error)
 	ListClusterPlacementRevisions(ctx context.Context, clusterID uuid.UUID) ([]ListClusterPlacementRevisionsRow, error)
+	ListClusterPlacementWindows(ctx context.Context, clusterID uuid.UUID) ([]ListClusterPlacementWindowsRow, error)
 	ListClusterWorkloads(ctx context.Context, clusterID uuid.UUID) ([]ListClusterWorkloadsRow, error)
 	ListDeclaredSecretNames(ctx context.Context, arg ListDeclaredSecretNamesParams) ([]string, error)
 	ListDeletableBuildImages(ctx context.Context, arg ListDeletableBuildImagesParams) ([]ListDeletableBuildImagesRow, error)
@@ -225,6 +227,7 @@ type Querier interface {
 	MarkResourcePlacementsDeleted(ctx context.Context, resourceID uuid.UUID) ([]MarkResourcePlacementsDeletedRow, error)
 	MoveAccountEmail(ctx context.Context, arg MoveAccountEmailParams) (User, error)
 	NotifyClusterPlacements(ctx context.Context, clusterID string) error
+	OpenPlacementWindow(ctx context.Context, arg OpenPlacementWindowParams) error
 	OrgHasWorkspacesWithResources(ctx context.Context, orgID uuid.UUID) (bool, error)
 	QueueBuild(ctx context.Context, arg QueueBuildParams) (int64, error)
 	RecordClusterAssertion(ctx context.Context, arg RecordClusterAssertionParams) (int64, error)

@@ -42,11 +42,12 @@ global:
     endpoint: ""
     headers: {}
     # @schema additionalProperties: false
-    bearerToken:
+    ingestToken:
       enabled: false
       secretName: loco-otlp-exporter
       secretKey: token
       directory: &exporterTokenDirectory /etc/otelcol-exporter
+      waitIntervalSeconds: 2
     # @schema additionalProperties: false
     queue:
       directory: &exporterQueueDirectory /var/lib/otelcol-exporter
@@ -366,7 +367,7 @@ otel-col-daemon:
       drop: [ALL]
   initContainers:
     - name: state-permissions
-      image: busybox:1.38.0@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e
+      image: &busyboxImage busybox:1.38.0@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e
       command: [chown, -R, '{{ .Values.securityContext.runAsUser }}:{{ .Values.securityContext.runAsGroup }}', &logCheckpointDirectory /var/lib/otelcol, *exporterQueueDirectory]
       securityContext:
         runAsUser: 0
@@ -381,6 +382,29 @@ otel-col-daemon:
           mountPath: *logCheckpointDirectory
         - name: exporter-queue
           mountPath: *exporterQueueDirectory
+    - &exporterTokenWait
+      name: exporter-token-wait
+      image: *busyboxImage
+      command:
+        - sh
+        - -c
+        - '{{ if .Values.global.exporter.ingestToken.enabled }}until [ -s "$TOKEN_FILE" ]; do sleep "$WAIT_INTERVAL_SECONDS"; done{{ end }}'
+      env:
+        - name: TOKEN_FILE
+          value: '{{ .Values.global.exporter.ingestToken.directory }}/{{ .Values.global.exporter.ingestToken.secretKey }}'
+        - name: WAIT_INTERVAL_SECONDS
+          value: '{{ .Values.global.exporter.ingestToken.waitIntervalSeconds }}'
+      securityContext:
+        runAsUser: *collectorUser
+        runAsNonRoot: true
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: [ALL]
+      volumeMounts:
+        - name: exporter-token
+          mountPath: *exporterTokenDirectory
+          readOnly: true
   extraVolumes:
     - name: log-checkpoint-permissions
       hostPath:
@@ -393,7 +417,7 @@ otel-col-daemon:
     - &exporterTokenVolume
       name: exporter-token
       secret:
-        secretName: '{{ .Values.global.exporter.bearerToken.secretName }}'
+        secretName: '{{ .Values.global.exporter.ingestToken.secretName }}'
         optional: true
   extraVolumeMounts: &exporterVolumeMounts
     - name: exporter-queue
@@ -690,6 +714,7 @@ otel-col-deploy:
     existingName: '{{ include "opentelemetry-collector.fullname" . }}'
   podAnnotations:
     checksum/platform-telemetry: '{{ toJson .Values | sha256sum }}'
+  initContainers: &exporterInitContainers [*exporterTokenWait]
   extraVolumes: &exporterVolumes [*exporterTokenVolume]
   extraVolumeMounts: *exporterVolumeMounts
   image: *collectorImage
@@ -815,6 +840,7 @@ otel-col-cluster:
   mode: statefulset
   statefulset: *exporterQueueClaims
   replicaCount: 1
+  initContainers: *exporterInitContainers
   extraVolumes: *exporterVolumes
   extraVolumeMounts: *exporterVolumeMounts
   image: *collectorImage

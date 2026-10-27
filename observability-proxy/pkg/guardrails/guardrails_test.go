@@ -251,3 +251,31 @@ func TestLogEnvironmentFilterValidation(t *testing.T) {
 		}
 	}
 }
+
+const testWorkspaceAggregation = "max"
+
+func TestEveryTenantQueryRequiresAWorkspace(t *testing.T) {
+	cfg := &config.Config{MaxTimeRange: time.Hour}
+	now := time.Now()
+	start := timestamppb.New(now.Add(-time.Minute))
+	end := timestamppb.New(now)
+	checks := map[string]error{
+		"logs": ValidateLogsRequest(&observabilityv1.QueryLogsRequest{StartTime: start, EndTime: end}, cfg),
+		"tail": ValidateTailRequest(&observabilityv1.TailLogsRequest{}, cfg, now),
+		"metrics": ValidateMetricsRequest(
+			&observabilityv1.QueryMetricsRequest{
+				MetricName:  "m",
+				Aggregation: testWorkspaceAggregation,
+				StartTime:   start,
+				EndTime:     end,
+			},
+			cfg,
+		),
+		"traces": ValidateTracesRequest(&observabilityv1.QueryTracesRequest{StartTime: start, EndTime: end}, cfg),
+	}
+	for name, err := range checks {
+		if !errors.Is(err, errWorkspaceIDRequired) {
+			t.Errorf("%s without a workspace = %v, want errWorkspaceIDRequired", name, err)
+		}
+	}
+}

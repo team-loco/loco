@@ -22,6 +22,7 @@ SNAPSHOT_PREFIX=$(yq '.openbao.snapshots.s3.prefix' "$CHART_VALUES")
 SECRET_RESOURCE=00000000-0000-7000-8000-0000000000a1
 TIMEOUT=300s
 CONTROL_PLANE_TIMEOUT=10m
+LEADER_ATTEMPTS=120
 KEEP=false
 SKIP_BUILD=false
 for option in "$@"; do
@@ -123,7 +124,14 @@ for user in $(yq '.clickhouseUserPasswords | keys | .[]' "$CHART_VALUES"); do
     password_sets+=(--set "clickhouseUserPasswords.$user=$(cat "$RUN_DIR/password")")
 done
 helm upgrade --install regional "$ROOT_DIR/charts/loco-control-plane" --namespace "$NAMESPACE" \
-    -f "$VALUES" "${password_sets[@]}" --wait --timeout "$CONTROL_PLANE_TIMEOUT"
+    -f "$VALUES" "${password_sets[@]}" --wait --wait-for-jobs --timeout "$CONTROL_PLANE_TIMEOUT"
+for pod in $(kubectl -n "$NAMESPACE" get pods -l app=regional-api -o jsonpath='{.items[*].metadata.name}'); do
+    restarts=$(kubectl -n "$NAMESPACE" get pod "$pod" -o jsonpath='{.status.containerStatuses[0].restartCount}')
+    if [[ $restarts != 0 ]] && ! kubectl -n "$NAMESPACE" logs "$pod" --previous | grep -q 'failed to verify the transit keys'; then
+        printf 'API pod %s restarted %s times without logging why it could not verify the transit keys\n' "$pod" "$restarts" >&2
+        exit 1
+    fi
+done
 ENVOY_DEPLOYMENT=""
 for _attempt in $(seq 1 60); do
     ENVOY_DEPLOYMENT=$(kubectl -n "$NAMESPACE" get deployments -l "gateway.envoyproxy.io/owning-gateway-name=$GATEWAY_NAME" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
@@ -209,7 +217,15 @@ init_secret() {
 }
 
 generate_root() {
-    local otp nonce encoded key
+    local otp nonce encoded key attempt=0
+    until [[ -n $(bao read -field=leader_address sys/leader 2>/dev/null) ]]; do
+        attempt=$((attempt + 1))
+        if ((attempt >= LEADER_ATTEMPTS)); then
+            printf 'OpenBao elected no leader\n' >&2
+            return 1
+        fi
+        sleep 1
+    done
     export GENERATE_ROOT_TOKEN
     GENERATE_ROOT_TOKEN=$(init_secret generate-root-token)
     otp=$(generating_root -generate-otp)
@@ -246,7 +262,7 @@ if [[ $(kubectl -n "$NAMESPACE" get secret regional-openbao-init -o json | yq -p
     exit 1
 fi
 helm upgrade regional "$ROOT_DIR/charts/loco-control-plane" --namespace "$NAMESPACE" \
-    -f "$VALUES" "${password_sets[@]}" --wait --timeout "$CONTROL_PLANE_TIMEOUT"
+    -f "$VALUES" "${password_sets[@]}" --wait --wait-for-jobs --timeout "$CONTROL_PLANE_TIMEOUT"
 if [[ $(kubectl -n "$NAMESPACE" get secret regional-openbao-init -o jsonpath='{.data.recovery-keys}') != "$INIT_BEFORE" ]]; then
     printf 'The OpenBao setup Job replaced the init Secret on upgrade\n' >&2
     exit 1
@@ -283,7 +299,7 @@ init_secret generate-root-token >"$RUN_DIR/generate-root-token"
 kubectl -n "$NAMESPACE" delete statefulset regional-openbao --wait
 kubectl -n "$NAMESPACE" delete pvc/data-regional-openbao-0 secret/regional-openbao-init --wait
 helm upgrade regional "$ROOT_DIR/charts/loco-control-plane" --namespace "$NAMESPACE" \
-    -f "$VALUES" "${password_sets[@]}" --wait --timeout "$CONTROL_PLANE_TIMEOUT"
+    -f "$VALUES" "${password_sets[@]}" --wait --wait-for-jobs --timeout "$CONTROL_PLANE_TIMEOUT"
 if [[ $(kubectl -n "$NAMESPACE" get secret regional-openbao-init -o jsonpath='{.data.recovery-keys}') == "$INIT_BEFORE" ]]; then
     printf 'The reinstalled OpenBao kept the recovery keys of the one it replaced\n' >&2
     exit 1
@@ -296,7 +312,7 @@ kubectl -n "$NAMESPACE" create secret generic regional-openbao-init --from-file=
     --from-file=generate-root-token="$RUN_DIR/generate-root-token" \
     --dry-run=client -o yaml | kubectl replace --force -f -
 helm upgrade regional "$ROOT_DIR/charts/loco-control-plane" --namespace "$NAMESPACE" \
-    -f "$VALUES" "${password_sets[@]}" --wait --timeout "$CONTROL_PLANE_TIMEOUT"
+    -f "$VALUES" "${password_sets[@]}" --wait --wait-for-jobs --timeout "$CONTROL_PLANE_TIMEOUT"
 set_secret_once_the_api_logs_in AFTER_RESTORE >/dev/null
 if [[ $(secret_names) != "AFTER_RESTORE AFTER_UPGRADE BEFORE_UPGRADE" ]]; then
     printf 'Expected the secrets from before the restore and a new one, got %s\n' "$(secret_names)" >&2
@@ -304,11 +320,46 @@ if [[ $(secret_names) != "AFTER_RESTORE AFTER_UPGRADE BEFORE_UPGRADE" ]]; then
 fi
 printf 'A raft snapshot uploaded by the snapshot CronJob restored into a reinstalled OpenBao with a root token generated from its recovery keys, the setup Job logged in with its restored role, and the running API logged in again and unwrapped the environment key it wrapped before the snapshot.\n'
 
+go -C "$ROOT_DIR" build -o "$RUN_DIR/ingesttoken" ./tools/ingesttoken
+if [[ ! -s "$RUN_DIR/agent-key" ]]; then
+    openssl rand -out "$RUN_DIR/agent-key" 32
+fi
+read -r INGEST_CLUSTER INGEST_WORKSPACE < <(psql -F ' ' -c "
+    WITH u AS (INSERT INTO users (email) VALUES ('ingest-e2e@test.local') RETURNING id),
+    o AS (INSERT INTO organizations (name, created_by) SELECT 'ingest-e2e', id FROM u RETURNING id),
+    w AS (INSERT INTO workspaces (org_id, name, created_by) SELECT o.id, 'ingest-e2e', u.id FROM o, u RETURNING id),
+    c AS (INSERT INTO clusters (name, region, provider, is_active, is_default, agent_public_key)
+          VALUES ('ingest-e2e', 'us-east-1', 'kind', true, false,
+                  decode('$("$RUN_DIR/ingesttoken" -agent-key "$RUN_DIR/agent-key" -public-key)', 'hex')) RETURNING id),
+    p AS (INSERT INTO placement_windows (resource_id, cluster_id, workspace_id, placed_at)
+          SELECT uuidv7(), c.id, w.id, NOW() - INTERVAL '1 hour' FROM c, w)
+    SELECT c.id, w.id FROM c, w")
+INGEST_ASSERTION=$("$RUN_DIR/ingesttoken" -agent-key "$RUN_DIR/agent-key" -cluster "$INGEST_CLUSTER")
+INGEST_TOKEN=$(curl --fail-with-body --silent -H "Host: $API_HOST" -H 'Content-Type: application/json' \
+    -H "Authorization: Bearer $INGEST_ASSERTION" -d '{}' \
+    "http://127.0.0.1:$API_PORT/loco.ingest.v1.IngestService/IssueToken" | yq -p json '.token')
+INGEST_JWKS=$(curl --fail-with-body --silent -H "Host: $API_HOST" "http://127.0.0.1:$API_PORT/.well-known/loco-ingest-jwks.json")
+if [[ -z $INGEST_TOKEN || $(yq -p json '.keys[] | select(.kid == "v1") | .alg' <<<"$INGEST_JWKS") != EdDSA ]]; then
+    printf 'Expected an ingest token and a JWKS with the v1 EdDSA key, got %s\n' "$INGEST_JWKS" >&2
+    exit 1
+fi
+printf 'The API issued an ingest token signed with the setup Job'"'"'s transit key and published its public key.\n'
+
 INGEST_MARKER="control-plane-ingest-$(openssl rand -hex 4)"
-printf '{"resourceLogs":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"e2e-ingest"}}]},"scopeLogs":[{"logRecords":[{"timeUnixNano":"%s000000000","body":{"stringValue":"%s"}}]}]}]}' \
-    "$(date -u +%s)" "$INGEST_MARKER" >"$RUN_DIR/otlp-logs.json"
-curl --fail --silent -H "Host: $INGEST_HOST" -H 'Content-Type: application/json' --data-binary @"$RUN_DIR/otlp-logs.json" \
-    "http://127.0.0.1:$API_PORT/v1/logs" >/dev/null
+printf '{"resourceLogs":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"e2e-ingest"}},{"key":"loco.workspace.id","value":{"stringValue":"%s"}}]},"scopeLogs":[{"logRecords":[{"timeUnixNano":"%s000000000","body":{"stringValue":"%s"}}]}]}]}' \
+    "$INGEST_WORKSPACE" "$(date -u +%s)" "$INGEST_MARKER" >"$RUN_DIR/otlp-logs.json"
+INGEST_STATUS=$(curl --silent -o /dev/null -w '%{http_code}' -H "Host: $INGEST_HOST" -H 'Content-Type: application/json' \
+    --data-binary @"$RUN_DIR/otlp-logs.json" "http://127.0.0.1:$API_PORT/v1/logs")
+if [[ $INGEST_STATUS != 401 ]]; then
+    printf 'Expected OTLP without an ingest token to be rejected with 401, got %s\n' "$INGEST_STATUS" >&2
+    exit 1
+fi
+curl --fail --silent -H "Host: $INGEST_HOST" -H 'Content-Type: application/json' -H "Authorization: Bearer $INGEST_TOKEN" \
+    --data-binary @"$RUN_DIR/otlp-logs.json" "http://127.0.0.1:$API_PORT/v1/logs" >"$RUN_DIR/otlp-response.json"
+if grep -q rejectedLogRecords "$RUN_DIR/otlp-response.json"; then
+    printf 'Expected the placed workspace record to be accepted, got %s\n' "$(cat "$RUN_DIR/otlp-response.json")" >&2
+    exit 1
+fi
 READER=$(yq '.clickhouse.clickhouse.users[] | select(.grants[] | test("^GRANT SELECT ")) | .name' "$CHART_VALUES")
 CLICKHOUSE_POD=$(kubectl -n "$NAMESPACE" get pods -l clickhouse.altinity.com/chi -o jsonpath='{.items[0].metadata.name}')
 INGESTED=$(kubectl -n "$NAMESPACE" exec "$CLICKHOUSE_POD" -c clickhouse -- clickhouse-client --user "$READER" --password "$(cat "$RUN_DIR/password")" \
@@ -317,7 +368,7 @@ if [[ $INGESTED != 1 ]]; then
     printf 'Expected one ingested log row, got %s\n' "$INGESTED" >&2
     exit 1
 fi
-printf 'The chart Gateway routed an OTLP/HTTP log through the ingest Deployment to the in-cluster ClickHouse.\n'
+printf 'The chart Gateway routed an authenticated OTLP/HTTP log through the ingest Deployment to the in-cluster ClickHouse.\n'
 
 python3 "$ROOT_DIR/tests/e2e/api-failover.py" --namespace "$NAMESPACE" --gateway-namespace "$NAMESPACE" --gateway-name "$GATEWAY_NAME" \
     --gateway-url "http://127.0.0.1:$API_PORT" \

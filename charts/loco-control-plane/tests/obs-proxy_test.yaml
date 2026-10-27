@@ -198,10 +198,19 @@ tests:
           path: spec.template.spec.containers[0].env
           content: {name: CLICKHOUSE_MIGRATOR_URL}
           any: true
-      - notContains:
+
+  - it: verifies ingest tokens through the private API Service
+    values:
+      - values/ingest.yaml
+    asserts:
+      - contains:
           path: spec.template.spec.containers[0].env
-          content: {name: CONTROL_PLANE_URL}
-          any: true
+          content: {name: CONTROL_PLANE_URL, value: http://loco-control-plane-api.loco-control-plane.svc.cluster.local}
+        template: templates/obs-proxy-ingest-deployment.yaml
+      - contains:
+          path: spec.ingress[0].from
+          content: {podSelector: {matchLabels: {app: loco-control-plane-obs-proxy-ingest}}}
+        template: templates/api-network-policy.yaml
 
   - it: listens for health and OTLP on the ingest container ports
     values:

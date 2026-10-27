@@ -6,6 +6,7 @@ import (
 	"encoding/json/v2"
 	"io"
 	"maps"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -16,6 +17,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
+	"github.com/team-loco/loco/internal/ingesttoken/ingesttest"
 	"github.com/team-loco/loco/observability-proxy/migrations"
 	chClient "github.com/team-loco/loco/observability-proxy/pkg/clickhouse"
 )
@@ -35,6 +37,7 @@ const (
 	counterHTTPValue              = 7.0
 	counterOtherValue             = 900.0
 	counterUnrecordedValue        = 10000.0
+	counterPlacedBefore           = time.Hour
 )
 
 func counterRequest(workspace string, timestamp time.Time) *observabilityv1.QueryMetricsRequest {
@@ -79,8 +82,12 @@ func TestCounterMetricsCollectorToAuthenticatedHTTP(t *testing.T) {
 	}
 	dsn := os.Getenv("LOCO_TEST_CLICKHOUSE_URL")
 	database := os.Getenv("LOCO_TEST_COUNTER_DATABASE")
-	if dsn == "" || database == "" {
-		t.Fatal("counter integration requires ClickHouse URL and database")
+	ingestKey := os.Getenv("LOCO_TEST_COUNTER_INGEST_KEY")
+	controlPlaneAddr := os.Getenv("LOCO_TEST_COUNTER_CONTROL_PLANE_ADDR")
+	if dsn == "" || database == "" || ingestKey == "" || controlPlaneAddr == "" {
+		t.Fatal(
+			"counter integration requires ClickHouse, its database, an ingest signing key file and a control plane address",
+		)
 	}
 	cfg := migrations.Config{
 		DSN:        dsn,
@@ -103,6 +110,7 @@ func TestCounterMetricsCollectorToAuthenticatedHTTP(t *testing.T) {
 		ch.Close()
 	})
 	timestamp := time.Now().UTC().Truncate(time.Minute).Add(-time.Minute)
+	startCounterControlPlane(t, ingestKey, controlPlaneAddr, timestamp.Add(-counterPlacedBefore))
 	payload := counterPayload(t, timestamp)
 	req, err := http.NewRequestWithContext(
 		t.Context(),
@@ -163,6 +171,24 @@ func TestCounterMetricsCollectorToAuthenticatedHTTP(t *testing.T) {
 			}
 			time.Sleep(counterHTTPPollInterval)
 		}
+	}
+}
+
+func startCounterControlPlane(t *testing.T, keyFile, addr string, placedAt time.Time) {
+	t.Helper()
+	signer, err := ingesttest.ReadSigner(keyFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var lc net.ListenConfig
+	listener, err := lc.Listen(t.Context(), "tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	controlPlane := ingesttest.Serve(listener, []ingesttest.Signer{signer})
+	t.Cleanup(controlPlane.Close)
+	for _, workspace := range []string{tailTestWorkspace, traceTestOtherWorkspace} {
+		controlPlane.Place(workspace, placedAt, time.Time{})
 	}
 }
 

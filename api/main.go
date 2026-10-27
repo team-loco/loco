@@ -34,6 +34,7 @@ import (
 	"github.com/team-loco/loco/api/migrations"
 	"github.com/team-loco/loco/api/pkg/clusternotify"
 	"github.com/team-loco/loco/api/pkg/imageresolver"
+	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/webhooks"
@@ -47,6 +48,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/domain/v1/domainv1connect"
 	environmentv1connect "github.com/team-loco/loco/gen/go/loco/environment/v1/environmentv1connect"
 	"github.com/team-loco/loco/gen/go/loco/event/v1/eventv1connect"
+	"github.com/team-loco/loco/gen/go/loco/ingest/v1/ingestv1connect"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 	planv1connect "github.com/team-loco/loco/gen/go/loco/plan/v1/planv1connect"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
@@ -55,6 +57,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	"github.com/team-loco/loco/gen/go/loco/webhook/v1/webhookv1connect"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
+	"github.com/team-loco/loco/internal/ingesttoken"
 )
 
 const (
@@ -259,9 +262,10 @@ func main() {
 	})
 	domainServiceHandler := service.NewDomainServer(pool, queries, machine, ac.ServiceDefaults, clusterSilentAfter)
 	tokenServiceHandler := service.NewTokenServer(pool, queries, machine)
-	secretKeyProvider, providerErr := newSecretKeyProvider(shutdownCtx, ac.Secrets)
+	secretKeyProvider, ingestSigner, providerErr := secretkeys.New(shutdownCtx, ac.Secrets, ac.Ingest.TransitKey)
 	if providerErr != nil {
-		log.Fatalf("failed to create the secrets key provider: %v", providerErr)
+		slog.ErrorContext(shutdownCtx, "failed to verify the transit keys", "error", providerErr)
+		os.Exit(1)
 	}
 	agentServiceHandler := service.NewAgentServer(
 		pool,
@@ -272,6 +276,8 @@ func main() {
 		ac.HeartbeatInterval,
 		ac.Agent,
 	)
+	ingestClusters := service.NewClusterAuthenticator(queries, ac.Agent.AssertionMaxLifetime)
+	ingestServiceHandler := service.NewIngestServer(queries, ingestClusters, ingestSigner, ac.Ingest.TokenLifetime)
 	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
 	secretServiceHandler := service.NewSecretServer(pool, queries, secretKeyProvider, ac.SecretLimits)
 	configServiceHandler := service.NewConfigServer(
@@ -297,6 +303,8 @@ func main() {
 	domainv1connect.RegisterDomainServiceHandler(authenticatedServer, domainServiceHandler)
 	tokenv1connect.RegisterTokenServiceHandler(authenticatedServer, tokenServiceHandler)
 	agentv1connect.RegisterAgentServiceHandler(baseServer, agentServiceHandler)
+	ingestv1connect.RegisterIngestServiceHandler(baseServer, ingestServiceHandler)
+	mux.HandleFunc("GET "+ingesttoken.JWKSPath, ingestServiceHandler.JWKS)
 	planServiceHandler := service.NewPlanServer(
 		pool,
 		queries,

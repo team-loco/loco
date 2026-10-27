@@ -154,13 +154,20 @@ tests:
             from: [{podSelector: {matchLabels: {app: loco-control-plane-openbao}}}]
             ports: [{protocol: TCP, port: 8200}, {protocol: TCP, port: 8201}]
 
-  - it: runs the setup Job after every install and upgrade
+  - it: runs a new setup Job with the release on every install and upgrade
     template: templates/openbao-setup.yaml
     documentSelector: {path: kind, value: Job}
+    release:
+      revision: 7
     asserts:
       - equal:
-          path: metadata.annotations["helm.sh/hook"]
-          value: post-install,post-upgrade
+          path: metadata.name
+          value: loco-control-plane-openbao-setup-7
+      - notExists:
+          path: metadata.annotations
+      - equal:
+          path: spec.activeDeadlineSeconds
+          value: 1800
       - equal:
           path: spec.template.spec.initContainers[0].image
           value: curlimages/curl:8.23.0@sha256:11e64e28c5f58c8d93ee95fcf22ac055f48b0bc440e0ce7d8013bbb5ad6aa8ac
@@ -170,6 +177,16 @@ tests:
       - contains:
           path: spec.template.spec.initContainers[1].env
           content: {name: OPENBAO_GENERATE_ROOT_TOKEN_FILE, value: /work/generate-root-token}
+
+  - it: bounds the setup Job by openbao.setup.timeoutSeconds
+    template: templates/openbao-setup.yaml
+    documentSelector: {path: kind, value: Job}
+    set:
+      openbao.setup.timeoutSeconds: 600
+    asserts:
+      - equal:
+          path: spec.activeDeadlineSeconds
+          value: 600
 
   - it: proves it can write the init Secret before initializing and stores the output in the same pod
     template: templates/openbao-setup.yaml
@@ -299,6 +316,32 @@ tests:
       - equal:
           path: spec.template.spec.automountServiceAccountToken
           value: false
+
+  - it: signs ingest tokens with the transit key the setup Job creates
+    set:
+      openbao.transit.ingestKey: region-ingest
+      api.env: {LOCO_INGEST_TRANSIT_KEY: wrong}
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_INGEST_TRANSIT_KEY, value: region-ingest}
+        template: templates/api-deployment.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_INGEST_TRANSIT_KEY, value: wrong}
+        template: templates/api-deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_INGEST_TRANSIT_KEY, value: region-ingest}
+        template: templates/openbao-setup.yaml
+        documentSelector: {path: kind, value: Job}
+
+  - it: requires an ingest signing key name
+    set:
+      openbao.transit.ingestKey: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: "/openbao/transit/ingestKey': minLength"
 
   - it: does not hand the API environment to the setup Job
     template: templates/openbao-setup.yaml

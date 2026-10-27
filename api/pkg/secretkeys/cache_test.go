@@ -221,7 +221,7 @@ func TestNewCachesTransitUnwraps(t *testing.T) {
 	fake := newFakeTransit(t)
 	server := fake.server()
 	cfg := transitConfig(server.URL)
-	provider, err := New(t.Context(), cfg)
+	provider, _, err := New(t.Context(), cfg, fakeSigningKey)
 	if err != nil {
 		t.Fatalf("new: %v", err)
 	}

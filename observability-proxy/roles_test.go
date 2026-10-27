@@ -127,16 +127,16 @@ func TestIngestOnlyRoleWaitsForTheSchemaWithoutMigrating(t *testing.T) {
 	}
 	waitReady(t, base)
 	endpoint := "http://" + ln.otlpHTTP.Addr().String() + ingest.LogsPath
-	if status := postLog(t, endpoint); status != http.StatusOK {
-		t.Fatalf("POST %s = %d, want %d", endpoint, status, http.StatusOK)
+	if status := postLog(t, endpoint); status != http.StatusUnauthorized {
+		t.Fatalf("POST %s without an ingest token = %d, want %d", endpoint, status, http.StatusUnauthorized)
 	}
 	var rows uint64
 	if err := admin.QueryRow(t.Context(), "SELECT count() FROM "+database+".otel_logs WHERE Body = ?", ingestOnlyLogBody).
 		Scan(&rows); err != nil {
 		t.Fatalf("count rows: %v", err)
 	}
-	if rows != 1 {
-		t.Fatalf("otel_logs rows = %d, want 1", rows)
+	if rows != 0 {
+		t.Fatalf("otel_logs rows = %d, want none", rows)
 	}
 
 	stop()

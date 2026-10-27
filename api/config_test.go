@@ -48,9 +48,13 @@ const (
 	transitKubeJWTFile = "LOCO_SECRETS_TRANSIT_KUBERNETES_TOKEN_FILE"
 	transitCAEnv       = "LOCO_SECRETS_TRANSIT_CA_FILE"
 	transitTimeEnv     = "LOCO_SECRETS_TRANSIT_TIMEOUT"
+	transitStartupEnv  = "LOCO_SECRETS_TRANSIT_STARTUP_TIMEOUT"
 	transitMarginEnv   = "LOCO_SECRETS_TRANSIT_RENEW_MARGIN"
 	transitRetryEnv    = "LOCO_SECRETS_TRANSIT_RENEW_RETRY"
 	transitCacheEnv    = "LOCO_SECRETS_TRANSIT_CACHE_TTL"
+	ingestKeyEnv       = "LOCO_INGEST_TRANSIT_KEY"
+	ingestLifetimeEnv  = "LOCO_INGEST_TOKEN_LIFETIME"
+	testIngestKey      = "loco-ingest"
 	testTransitAddr    = "https://bao.loco.test:8200"
 	testTransitKey     = "loco-dek"
 	testTransitAuth    = "s.transit"
@@ -128,9 +132,12 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv(transitKubeJWTFile, "")
 	t.Setenv(transitCAEnv, "")
 	t.Setenv(transitTimeEnv, "")
+	t.Setenv(transitStartupEnv, "")
 	t.Setenv(transitMarginEnv, "")
 	t.Setenv(transitRetryEnv, "")
 	t.Setenv(transitCacheEnv, "")
+	t.Setenv(ingestKeyEnv, testIngestKey)
+	t.Setenv(ingestLifetimeEnv, "")
 	t.Setenv("LOCO_SECRETS_MAX_VALUE_BYTES", "")
 	t.Setenv("LOCO_SECRETS_MAX_PER_SERVICE", "")
 	t.Setenv("LOCO_SECRETS_MAX_PLACEMENT_BYTES", "")
@@ -571,15 +578,16 @@ func TestNewAPIConfigReadsTransitProvider(t *testing.T) {
 	clearAPIConfigEnv(t)
 	got := newAPIConfig().Secrets
 	want := secretkeys.TransitConfig{
-		Address:     testTransitAddr,
-		Mount:       defaultSecretsTransitMount,
-		Key:         testTransitKey,
-		Auth:        secretkeys.TransitAuthToken,
-		Token:       testTransitAuth,
-		Timeout:     defaultSecretsTransitTimeout,
-		RenewMargin: defaultSecretsTransitMargin,
-		RenewRetry:  defaultSecretsTransitRetry,
-		CacheTTL:    defaultSecretsTransitDEKTTL,
+		Address:        testTransitAddr,
+		Mount:          defaultSecretsTransitMount,
+		Key:            testTransitKey,
+		Auth:           secretkeys.TransitAuthToken,
+		Token:          testTransitAuth,
+		Timeout:        defaultSecretsTransitTimeout,
+		StartupTimeout: defaultSecretsTransitStartup,
+		RenewMargin:    defaultSecretsTransitMargin,
+		RenewRetry:     defaultSecretsTransitRetry,
+		CacheTTL:       defaultSecretsTransitDEKTTL,
 	}
 	if got != want {
 		t.Errorf("transit config = %+v, want %+v", got, want)
@@ -588,6 +596,7 @@ func TestNewAPIConfigReadsTransitProvider(t *testing.T) {
 	t.Setenv(transitMountEnv, "kms/transit")
 	t.Setenv(transitCAEnv, "/etc/loco/bao-ca.pem")
 	t.Setenv(transitTimeEnv, "3s")
+	t.Setenv(transitStartupEnv, "45s")
 	t.Setenv(transitMarginEnv, "1m")
 	t.Setenv(transitRetryEnv, "2s")
 	t.Setenv(transitCacheEnv, "30s")
@@ -595,6 +604,7 @@ func TestNewAPIConfigReadsTransitProvider(t *testing.T) {
 	want.Mount = "kms/transit"
 	want.CAFile = "/etc/loco/bao-ca.pem"
 	want.Timeout = 3 * time.Second
+	want.StartupTimeout = 45 * time.Second
 	want.RenewMargin = time.Minute
 	want.RenewRetry = 2 * time.Second
 	want.CacheTTL = 30 * time.Second
@@ -868,5 +878,33 @@ func TestNewAPIConfigRejectsInvalidEmailSettings(t *testing.T) {
 	t.Setenv("INVITATION_TTL", "-1h")
 	if err := panicValue(t, func() { newAPIConfig() }); err == nil {
 		t.Fatal("negative ttl did not panic")
+	}
+}
+
+func TestIngestTokenConfiguration(t *testing.T) {
+	clearAPIConfigEnv(t)
+	defaults := newAPIConfig().Ingest
+	if defaults.TransitKey != testIngestKey || defaults.TokenLifetime != defaultIngestTokenLifetime {
+		t.Fatalf("defaults = %+v", defaults)
+	}
+	t.Setenv(ingestLifetimeEnv, "15m")
+	if set := newIngestConfig(); set.TokenLifetime != 15*time.Minute {
+		t.Fatalf("configured = %+v", set)
+	}
+	for env, value := range map[string]string{
+		ingestKeyEnv:      "",
+		ingestLifetimeEnv: "0s",
+	} {
+		t.Run(env+"="+value, func(t *testing.T) {
+			t.Setenv(env, value)
+			if err := panicValue(t, func() { newAPIConfig() }); err == nil {
+				t.Fatalf("invalid %s %q accepted", env, value)
+			}
+		})
+	}
+	t.Setenv(ingestLifetimeEnv, "")
+	t.Setenv(ingestKeyEnv, "transit/"+testIngestKey)
+	if err := panicValue(t, func() { newIngestConfig() }); !errors.Is(err, secretkeys.ErrTransitKeyName) {
+		t.Fatalf("key name with a slash = %v", err)
 	}
 }

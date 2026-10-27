@@ -80,6 +80,8 @@ BUILDKIT_IMAGE=$(yq '.builds.buildkitImage.repository + ":" + .builds.buildkitIm
 CLUSTER_ADMIN_TOKEN="loco_s_e2e-admin-session-do-not-use-in-production"
 CLUSTER_ADMIN_HOME="$RUN_DIR/cluster-admin-home"
 AGENT_KEY_SECRET="e2e-agent-key"
+INGEST_TOKEN_SECRET=$(yq '.global.exporter.ingestToken.secretName' "$WORKER_VALUES")
+INGEST_TOKEN_SECRET_KEY=$(yq '.global.exporter.ingestToken.secretKey' "$WORKER_VALUES")
 E2E_CLUSTER_NAME="e2e-test-cluster"
 E2E_CLUSTER_REGION="us-east-1"
 E2E_CLUSTER_TIER="production"
@@ -104,6 +106,8 @@ export E2E_API_URL="http://127.0.0.1:${API_PORT}"
 export E2E_CLUSTER_ADMIN_TOKEN="$CLUSTER_ADMIN_TOKEN"
 export E2E_AGENT_KEY_SECRET="$AGENT_KEY_SECRET"
 export E2E_BOOTSTRAP_TOKEN="$BOOTSTRAP_TOKEN"
+export E2E_INGEST_TOKEN_SECRET="$INGEST_TOKEN_SECRET"
+export E2E_INGEST_TOKEN_SECRET_KEY="$INGEST_TOKEN_SECRET_KEY"
 export E2E_USER_TOKEN="$USER_TOKEN"
 export E2E_KIND_CLUSTER="$KIND_CLUSTER_NAME"
 export E2E_LOCO_NAMESPACE="$LOCO_NAMESPACE"
@@ -111,6 +115,7 @@ export E2E_OBS_PROXY_PORT="$OBS_PROXY_PORT"
 export E2E_OTLP_HTTP_PORT="$OTLP_HTTP_PORT"
 export E2E_GATEWAY_URL="http://127.0.0.1:${GATEWAY_PORT}"
 export E2E_OBS_NAMESPACE="$OBS_NAMESPACE"
+export E2E_OBS_NODE_NAMESPACE="$OBS_NODE_NAMESPACE"
 export E2E_CLICKHOUSE_CONTAINER="$CLICKHOUSE_CONTAINER"
 export E2E_OBS_INGEST_CONTAINER="$INGEST_CONTAINER"
 export E2E_CLICKHOUSE_USER="$CLICKHOUSE_USER"
@@ -538,7 +543,8 @@ ingest_ready() {
 start_ingest() {
     log_step "Starting the observability proxy ingest role on the kind network..."
     docker rm -fv "$INGEST_CONTAINER" >/dev/null 2>&1 || true
-    docker run -d --name "$INGEST_CONTAINER" --network kind \
+    docker run -d --name "$INGEST_CONTAINER" --network kind --add-host host.docker.internal:host-gateway \
+        -e CONTROL_PLANE_URL="http://host.docker.internal:${API_PORT}" \
         -p "127.0.0.1::$(yq '.obsProxy.ingest.port' "$CONTROL_PLANE_VALUES")" \
         -e QUERY_ENABLED=false -e INGEST_ENABLED=true \
         -e PORT="$(yq '.obsProxy.ingest.port' "$CONTROL_PLANE_VALUES")" \
@@ -645,7 +651,8 @@ load_controller_image() {
 }
 
 install_worker() {
-    log_step "Installing the loco-worker chart (builds.enabled=${BUILDS_ENABLED}, observability=${OBSERVABILITY})..."
+    local collectors=$1
+    log_step "Installing the loco-worker chart (builds.enabled=${BUILDS_ENABLED}, observability=${OBSERVABILITY}, collectors=${collectors})..."
     local build_values=(--set builds.enabled=false)
     if [ "$BUILDS_ENABLED" = true ]; then
         build_values=(
@@ -655,11 +662,14 @@ install_worker() {
         )
     fi
     local obs_values=(--set otel-col-daemon.enabled=false --set otel-col-deploy.enabled=false --set otel-col-cluster.enabled=false)
-    if [ "$OBSERVABILITY" = true ]; then
+    if [ "$collectors" = true ]; then
         obs_values=(
             --values "$OBS_E2E_VALUES"
             --set "global.exporter.endpoint=http://${INGEST_CONTAINER}:${INGEST_OTLP_HTTP_PORT}"
         )
+    fi
+    if [ "$OBSERVABILITY" = true ]; then
+        obs_values+=(--set global.exporter.ingestToken.enabled=true)
     fi
     create_gateway_tls_secret
     helm upgrade --install "$WORKER_RELEASE" "$WORKER_CHART" \
@@ -715,13 +725,21 @@ start_builds() {
     start_job build build_all
 }
 
+api_bind_address() {
+    if [ "$OBSERVABILITY" = true ]; then
+        echo 0.0.0.0
+        return
+    fi
+    echo 127.0.0.1
+}
+
 start_api() {
     log_step "Starting API server..."
 
     LOCO_BOOTSTRAP_TOKEN="$BOOTSTRAP_TOKEN" \
     DATABASE_URL="$E2E_DATABASE_URL" \
     CACHE_TYPE=in-memory \
-    APP_PORT="127.0.0.1:$API_PORT" \
+    APP_PORT="$(api_bind_address):$API_PORT" \
     OBSERVABILITY_PROXY_URL="http://127.0.0.1:$OBS_PROXY_PORT" \
     CORS_ALLOWED_ORIGINS="https://dashboard.e2e.test" \
     APP_ENV="test" \
@@ -739,6 +757,7 @@ start_api() {
     LOCO_SECRETS_TRANSIT_KEY="$(dev_api_env LOCO_SECRETS_TRANSIT_KEY)" \
     LOCO_SECRETS_TRANSIT_AUTH="$(dev_api_env LOCO_SECRETS_TRANSIT_AUTH)" \
     LOCO_SECRETS_TRANSIT_TOKEN="$(dev_api_env LOCO_SECRETS_TRANSIT_TOKEN)" \
+    LOCO_INGEST_TRANSIT_KEY="$(dev_api_env LOCO_INGEST_TRANSIT_KEY)" \
         "$BIN_DIR/loco-api" \
         >"$LOG_DIR/api.log" 2>&1 &
 
@@ -801,6 +820,9 @@ start_agent() {
     LOCO_JOIN_TOKEN="${E2E_JOIN_TOKEN:-}" \
     LOCO_AGENT_KEY_SECRET="$AGENT_KEY_SECRET" \
     LOCO_ASSERTION_LIFETIME="$(yq '.agent.assertionLifetime' "$WORKER_VALUES")" \
+    LOCO_INGEST_TOKEN_SECRET="$(agent_chart_env LOCO_INGEST_TOKEN_SECRET)" \
+    LOCO_INGEST_TOKEN_SECRET_KEY="$(agent_chart_env LOCO_INGEST_TOKEN_SECRET_KEY)" \
+    LOCO_INGEST_TOKEN_NAMESPACES="$(agent_chart_env LOCO_INGEST_TOKEN_NAMESPACES)" \
     LOG_LEVEL="$(yq '.env.LOG_LEVEL' "$WORKER_VALUES")" \
     LOCO_NAMESPACE="$LOCO_NAMESPACE" \
     LOCO_BUILD_NAMESPACE="$E2E_BUILD_NAMESPACE" \
@@ -970,11 +992,8 @@ main() {
     setup_registry
     load_builder_images
     load_controller_image
-    install_worker
+    install_worker false
     reset_cluster_state
-    if [ "$OBSERVABILITY" = true ]; then
-        forward_observability_ports
-    fi
     await_job build
     start_api
     if [ "$(e2e_psql 'SELECT count(*) FROM clusters')" != 0 ]; then
@@ -985,6 +1004,10 @@ main() {
     create_e2e_cluster
     rm -f "$LOG_DIR/agent.log" "$AGENT_EXPECTED_ERRORS"
     start_agent
+    if [ "$OBSERVABILITY" = true ]; then
+        install_worker true
+        forward_observability_ports
+    fi
     start_obs_proxy
     if [ "$OBSERVABILITY" = true ]; then
         await_job build

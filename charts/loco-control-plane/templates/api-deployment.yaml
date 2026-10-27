@@ -35,7 +35,7 @@ spec:
             - secretRef:
                 name: {{ .Values.api.existingSecret | quote }}
           env:
-            {{- range $name, $value := omit .Values.api.env "APP_PORT" "OBSERVABILITY_PROXY_URL" "LOCO_SECRETS_TRANSIT_ADDR" "LOCO_SECRETS_TRANSIT_MOUNT" "LOCO_SECRETS_TRANSIT_KEY" "LOCO_SECRETS_TRANSIT_CA_FILE" "LOCO_SECRETS_TRANSIT_AUTH" "LOCO_SECRETS_TRANSIT_TOKEN" "LOCO_SECRETS_TRANSIT_KUBERNETES_MOUNT" "LOCO_SECRETS_TRANSIT_KUBERNETES_ROLE" "LOCO_SECRETS_TRANSIT_KUBERNETES_TOKEN_FILE" }}
+            {{- range $name, $value := omit .Values.api.env "APP_PORT" "OBSERVABILITY_PROXY_URL" "LOCO_SECRETS_TRANSIT_ADDR" "LOCO_SECRETS_TRANSIT_MOUNT" "LOCO_SECRETS_TRANSIT_KEY" "LOCO_SECRETS_TRANSIT_CA_FILE" "LOCO_SECRETS_TRANSIT_AUTH" "LOCO_SECRETS_TRANSIT_TOKEN" "LOCO_SECRETS_TRANSIT_KUBERNETES_MOUNT" "LOCO_SECRETS_TRANSIT_KUBERNETES_ROLE" "LOCO_SECRETS_TRANSIT_KUBERNETES_TOKEN_FILE" "LOCO_INGEST_TRANSIT_KEY" }}
             - name: {{ $name }}
               value: {{ $value | quote }}
             {{- end }}
@@ -47,6 +47,8 @@ spec:
               value: {{ .Values.openbao.transit.mount | quote }}
             - name: LOCO_SECRETS_TRANSIT_KEY
               value: {{ .Values.openbao.transit.key | quote }}
+            - name: LOCO_INGEST_TRANSIT_KEY
+              value: {{ .Values.openbao.transit.ingestKey | quote }}
             {{- if $tokenAuth }}
             - name: LOCO_SECRETS_TRANSIT_AUTH
               value: token

@@ -40,6 +40,16 @@ spec:
               value: {{ include "loco-worker.agentKeySecret" . | quote }}
             - name: LOCO_ASSERTION_LIFETIME
               value: {{ .Values.agent.assertionLifetime | quote }}
+            {{- with .Values.global.exporter.ingestToken }}
+            {{- if .enabled }}
+            - name: LOCO_INGEST_TOKEN_SECRET
+              value: {{ .secretName | quote }}
+            - name: LOCO_INGEST_TOKEN_SECRET_KEY
+              value: {{ .secretKey | quote }}
+            - name: LOCO_INGEST_TOKEN_NAMESPACES
+              value: {{ include "loco-worker.ingestTokenNamespaces" $ | quote }}
+            {{- end }}
+            {{- end }}
             {{- with include "loco-worker.joinTokenSecret" . }}
             - name: LOCO_JOIN_TOKEN
               valueFrom:

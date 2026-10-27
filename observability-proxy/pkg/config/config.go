@@ -28,6 +28,13 @@ const (
 	defaultOTLPMaxRequestBytes = 4 << 20
 	defaultIngestTimeout       = 5 * time.Second
 	defaultIngestDialTimeout   = 10 * time.Second
+
+	defaultIngestAuthTimeout         = 5 * time.Second
+	defaultIngestJWKSRefreshInterval = 30 * time.Second
+	defaultIngestPlacementCacheTTL   = 30 * time.Second
+	defaultIngestPlacementRefetch    = 5 * time.Second
+	defaultIngestClockSkew           = 5 * time.Minute
+	defaultIngestRetryAfter          = 30 * time.Second
 )
 
 var errNoRole = errors.New("QUERY_ENABLED or INGEST_ENABLED must be true")
@@ -66,6 +73,13 @@ type Config struct {
 	OTLPMaxRequestBytes int
 	IngestTimeout       time.Duration
 	IngestDialTimeout   time.Duration
+
+	IngestAuthTimeout         time.Duration
+	IngestJWKSRefreshInterval time.Duration
+	IngestPlacementCacheTTL   time.Duration
+	IngestPlacementRefetch    time.Duration
+	IngestClockSkew           time.Duration
+	IngestRetryAfter          time.Duration
 }
 
 func Load() *Config {
@@ -97,12 +111,25 @@ func Load() *Config {
 		OTLPMaxRequestBytes: positiveIntEnv("OTLP_MAX_REQUEST_BYTES", defaultOTLPMaxRequestBytes),
 		IngestTimeout:       positiveDurationEnv("CLICKHOUSE_INGEST_TIMEOUT", defaultIngestTimeout),
 		IngestDialTimeout:   positiveDurationEnv("CLICKHOUSE_INGEST_DIAL_TIMEOUT", defaultIngestDialTimeout),
+
+		IngestAuthTimeout: positiveDurationEnv("INGEST_AUTH_TIMEOUT", defaultIngestAuthTimeout),
+		IngestJWKSRefreshInterval: positiveDurationEnv(
+			"INGEST_JWKS_REFRESH_INTERVAL",
+			defaultIngestJWKSRefreshInterval,
+		),
+		IngestPlacementCacheTTL: positiveDurationEnv("INGEST_PLACEMENT_CACHE_TTL", defaultIngestPlacementCacheTTL),
+		IngestPlacementRefetch: positiveDurationEnv(
+			"INGEST_PLACEMENT_REFETCH_INTERVAL",
+			defaultIngestPlacementRefetch,
+		),
+		IngestClockSkew:  positiveDurationEnv("INGEST_CLOCK_SKEW", defaultIngestClockSkew),
+		IngestRetryAfter: ttlEnv("INGEST_RETRY_AFTER", defaultIngestRetryAfter),
 	}
 	if !cfg.QueryEnabled && !cfg.IngestEnabled {
 		panic(errNoRole)
 	}
+	cfg.ControlPlaneURL = requiredStringEnv("CONTROL_PLANE_URL")
 	if cfg.QueryEnabled {
-		cfg.ControlPlaneURL = requiredStringEnv("CONTROL_PLANE_URL")
 		cfg.ClickHouseURL = requiredStringEnv("CLICKHOUSE_URL")
 		cfg.ClickHouseMigratorURL = requiredStringEnv("CLICKHOUSE_MIGRATOR_URL")
 		if err := cfg.MigrationLock().Validate(); err != nil {
@@ -124,6 +151,21 @@ func (c *Config) MigrationLock() migrationlock.Config {
 		TTL:         c.MigrationLockTTL,
 		RetryPeriod: c.MigrationLockRetry,
 	}
+}
+
+func (c *Config) IngestGate() ingest.GateConfig {
+	return ingest.GateConfig{
+		ControlPlaneURL:     c.ControlPlaneURL,
+		RequestTimeout:      c.IngestAuthTimeout,
+		JWKSRefreshInterval: c.IngestJWKSRefreshInterval,
+		PlacementTTL:        c.IngestPlacementCacheTTL,
+		RefetchInterval:     c.IngestPlacementRefetch,
+		ClockSkew:           c.IngestClockSkew,
+	}
+}
+
+func (c *Config) IngestService() ingest.ServiceConfig {
+	return ingest.ServiceConfig{MaxRequestBytes: c.OTLPMaxRequestBytes, RetryAfter: c.IngestRetryAfter}
 }
 
 func (c *Config) Ingest(version string) ingest.Config {

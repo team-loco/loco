@@ -9,13 +9,14 @@ run_id=loco-obs-$1-$$
 clickhouse=$run_id-clickhouse
 workdir=$(mktemp -d)
 ready_attempts=60
-ports_per_run=4
+ports_per_run=5
 source mise-tasks/test/lib/ports.sh
 first_port=$(first_run_port "$ports_per_run")
 query_port=$first_port
 ingest_port=$((first_port + 1))
 ingest_grpc_port=$((first_port + 2))
 ingest_http_port=$((first_port + 3))
+control_plane_port=$((first_port + 4))
 proxy_pids=()
 failures=0
 containers=("$clickhouse")
@@ -71,7 +72,7 @@ done
 region=obs-stack-region
 ingest_endpoint=http://host.docker.internal:$ingest_http_port
 manifest=$(helm template loco-worker "$chart" --namespace "$namespace" --set global.region="$region" \
-	--set global.exporter.endpoint="$ingest_endpoint" --set agent.image.tag="$1" --set controller.image.tag="$1" \
+	--set global.exporter.endpoint="$ingest_endpoint" --set global.exporter.ingestToken.enabled=true --set agent.image.tag="$1" --set controller.image.tag="$1" \
 	--set builds.enabled=false --set certManager.issuer.email=obs-stack@example.test)
 control_plane_manifest=$(helm template "$control_plane_release" "$control_plane_chart" \
 	--namespace "$control_plane_namespace" --set obsProxy.image.tag="$1" \
@@ -119,6 +120,28 @@ query "SYSTEM FLUSH LOGS"
 clickhouse_port=$(docker port "$clickhouse" 9000/tcp | head -1)
 
 (cd observability-proxy && go build -o "$workdir/loco-obs-proxy" .)
+go build -o "$workdir/ingesttoken" ./tools/ingesttoken
+ingest_key=$workdir/ingest-key
+openssl rand -out "$ingest_key" 32
+token_directory=$(yq '.global.exporter.ingestToken.directory' "$chart/values.yaml")
+token_key=$(yq '.global.exporter.ingestToken.secretKey' "$chart/values.yaml")
+mkdir -p "$workdir/token"
+ingest_cluster=$run_id
+"$workdir/ingesttoken" -key "$ingest_key" -cluster "$ingest_cluster" >"$workdir/token/$token_key"
+chmod -R a+rX "$workdir/token"
+
+start_control_plane() {
+	local workspaces
+	workspaces=$(IFS=,; echo "$*")
+	"$workdir/ingesttoken" -key "$ingest_key" -serve "127.0.0.1:$control_plane_port" -workspaces "$workspaces" \
+		>"$workdir/control-plane.log" 2>&1 &
+	proxy_pids+=($!)
+}
+
+rejected_records() {
+	curl -sf "http://127.0.0.1:$ingest_port/metrics" |
+		awk -v reason="reason=\"$1\"" 'index($0, "loco_ingest_rejected_records_total{") == 1 && index($0, reason) { sum += $2 } END { print sum + 0 }'
+}
 
 start_proxy() {
 	local role=$1 port=$2 env vars=()
@@ -146,7 +169,8 @@ wait_for_proxy() {
 }
 
 start_proxy query "$query_port"
-start_proxy ingest "$ingest_port" OTLP_GRPC_PORT="$ingest_grpc_port" OTLP_HTTP_PORT="$ingest_http_port"
+start_proxy ingest "$ingest_port" OTLP_GRPC_PORT="$ingest_grpc_port" OTLP_HTTP_PORT="$ingest_http_port" \
+	CONTROL_PLANE_URL="http://127.0.0.1:$control_plane_port"
 wait_for_proxy query "$query_port"
 wait_for_proxy ingest "$ingest_port"
 
@@ -157,7 +181,7 @@ start_collector() {
 		mounts+=("--tmpfs" "$directory")
 	done
 	docker run -d --name "$name" -p 127.0.0.1::4318 --add-host host.docker.internal:host-gateway \
-		"${mounts[@]}" -v "$config:/etc/collector.yaml:ro" \
+		"${mounts[@]}" -v "$config:/etc/collector.yaml:ro" -v "$workdir/token:$token_directory:ro" \
 		"$collector_image" --config /etc/collector.yaml >/dev/null
 }
 

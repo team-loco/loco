@@ -50,6 +50,9 @@ RPC_CREATE_WORKSPACE = "loco.workspace.v1.WorkspaceService/CreateWorkspace"
 RPC_ADD_ORG_MEMBER = "loco.org.v1.OrgService/AddOrgMember"
 RPC_CREATE_MEMBER = "loco.workspace.v1.WorkspaceService/CreateMember"
 MISSING_RPC_CODES = ("unimplemented", "not_found")
+OPENBAO_SERVICE = "openbao"
+OPENBAO_SEED_SERVICE = "openbao-seed"
+OPENBAO_CONTAINER_PORT = "8200"
 
 
 class EvidenceError(Exception):
@@ -116,6 +119,25 @@ def discovery_document(issuer):
         "subject_types_supported": ["public"],
         "id_token_signing_alg_values_supported": ["RS256"],
     }
+
+
+def compose(worktree, project, env, *args, capture=False):
+    files = ["-f", str(worktree / "dev" / "compose.yaml")]
+    return run(["docker", "compose", *files, "-p", project, *args], env=env, capture=capture)
+
+
+def start_openbao(worktree, project, env):
+    values = worktree / "charts" / "loco-control-plane" / "values.yaml"
+    image = run(["mise", "exec", "--", "yq", ".openbao.image", str(values)], capture=True).strip()
+    compose_env = dict(env, OPENBAO_PORT=f"{HOST}:", OPENBAO_IMAGE=image)
+    compose(worktree, project, compose_env, "up", "-d", "--wait", OPENBAO_SERVICE)
+    compose(worktree, project, compose_env, "run", "--rm", OPENBAO_SEED_SERVICE)
+    published = compose(worktree, project, compose_env, "port", OPENBAO_SERVICE, OPENBAO_CONTAINER_PORT, capture=True)
+    return f"http://{HOST}:{published.strip().rsplit(':', 1)[1]}"
+
+
+def stop_compose(project):
+    subprocess.run(["docker", "compose", "-p", project, "down", "-v", "--remove-orphans"], capture_output=True)
 
 
 def compose_postgres_image(compose_text):
@@ -409,7 +431,10 @@ def cmd_up(args):
                 raise EvidenceError("postgres did not become ready")
             time.sleep(0.5)
 
+        state["compose"] = container
+        write_json(state_path, state)
         dev_env = read_api_env((worktree / "dev" / "api.env").read_text())
+        dev_env["LOCO_SECRETS_TRANSIT_ADDR"] = start_openbao(worktree, container, env)
         api_log = root / "api.log"
         api_cmd = [str(worktree / "api" / "bin" / "loco-api")]
         state["pids"].append(spawn(api_cmd, worktree, dict(env, **api_env(dev_env, db_port, api_port, ui_port)), api_log))
@@ -586,6 +611,8 @@ def stop_state(state):
             pass
     if state.get("container"):
         subprocess.run(["docker", "rm", "-f", "-v", state["container"]], capture_output=True)
+    if state.get("compose"):
+        stop_compose(state["compose"])
     worktree = Path(state["worktree"])
     if worktree.exists():
         repo = run(["git", "-C", str(worktree), "rev-parse", "--path-format=absolute", "--git-common-dir"], capture=True)
@@ -604,6 +631,11 @@ def cmd_down(args):
         ).stdout.split()
         for container in listed:
             subprocess.run(["docker", "rm", "-f", "-v", container], capture_output=True)
+        projects = subprocess.run(
+            ["docker", "compose", "ls", "-a", "-q", "--filter", f"name={LABEL}"], capture_output=True, text=True
+        ).stdout.split()
+        for project in projects:
+            stop_compose(project)
         run(["git", "worktree", "prune"])
 
 

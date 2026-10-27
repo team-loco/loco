@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"crypto"
+	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -28,12 +29,19 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/go-jose/go-jose/v4"
+
+	"github.com/team-loco/loco/internal/ingesttoken"
 )
 
 const (
 	conformanceRootEnv      = "LOCO_CONFORMANCE_TRANSIT_ROOT_TOKEN"
 	conformanceKey          = "loco-dek"
 	conformancePlainKey     = "plain"
+	conformanceMissingKey   = "missing"
+	conformanceSigningKey   = "loco-ingest"
+	conformanceClusterID    = "0199c3f0-0000-7000-8000-0000000000c1"
 	conformanceSuffixBytes  = 4
 	conformanceTokenTTL     = "3s"
 	conformanceTokenLife    = 3 * time.Second
@@ -61,6 +69,12 @@ path "%[1]s/decrypt/%[2]s" {
   capabilities = ["update"]
 }
 path "%[1]s/keys/%[2]s" {
+  capabilities = ["read"]
+}
+path "%[1]s/sign/%[3]s" {
+  capabilities = ["update"]
+}
+path "%[1]s/keys/%[3]s" {
   capabilities = ["read"]
 }
 `
@@ -151,7 +165,9 @@ func newTransitFixture(t *testing.T, address string) *transitFixture {
 	f.admin.call(t, http.MethodPost, f.mount+"/keys/"+conformanceKey, derived, nil)
 	plain := map[string]any{transitTypeField: transitKeyType}
 	f.admin.call(t, http.MethodPost, f.mount+"/keys/"+conformancePlainKey, plain, nil)
-	policy := fmt.Sprintf(conformancePolicy, f.mount, conformanceKey)
+	signing := map[string]any{transitTypeField: transitSigningKeyType}
+	f.admin.call(t, http.MethodPost, f.mount+"/keys/"+conformanceSigningKey, signing, nil)
+	policy := fmt.Sprintf(conformancePolicy, f.mount, conformanceKey, conformanceSigningKey)
 	f.admin.call(t, http.MethodPut, "sys/policies/acl/"+f.policy, map[string]any{"policy": policy}, nil)
 	return f
 }
@@ -174,15 +190,16 @@ func (f *transitFixture) token(t *testing.T, renewable bool) string {
 
 func (f *transitFixture) config(address, token, key string) TransitConfig {
 	return TransitConfig{
-		Address:     address,
-		Mount:       f.mount,
-		Key:         key,
-		Auth:        TransitAuthToken,
-		Token:       token,
-		Timeout:     conformanceTimeout,
-		RenewMargin: conformanceRenewMargin,
-		RenewRetry:  testRenewRetry,
-		CacheTTL:    testCacheTTL,
+		Address:        address,
+		Mount:          f.mount,
+		Key:            key,
+		Auth:           TransitAuthToken,
+		Token:          token,
+		Timeout:        conformanceTimeout,
+		StartupTimeout: conformanceTimeout,
+		RenewMargin:    conformanceRenewMargin,
+		RenewRetry:     testRenewRetry,
+		CacheTTL:       testCacheTTL,
 	}
 }
 
@@ -278,11 +295,34 @@ func runTransitConformance(t *testing.T, address string) {
 		}
 	})
 
+	t.Run("starts only when both keys exist with their types", func(t *testing.T) {
+		f := newTransitFixture(t, address)
+		ctx := t.Context()
+		cfg := f.config(address, f.token(t, true), conformanceKey)
+		if _, _, err := New(ctx, cfg, conformanceSigningKey); err != nil {
+			t.Fatalf("new with the documented policy: %v", err)
+		}
+		admin := f.config(address, f.admin.token, conformanceKey)
+		if _, _, err := New(ctx, admin, conformanceMissingKey); !errors.Is(err, ErrTransitRequest) {
+			t.Fatalf("new with a missing ingest key: err = %v, want ErrTransitRequest", err)
+		}
+		if _, _, err := New(ctx, admin, conformancePlainKey); !errors.Is(err, ErrTransitSigningKeyType) {
+			t.Fatalf("new with an aes ingest key: err = %v, want ErrTransitSigningKeyType", err)
+		}
+		admin.Key = conformanceSigningKey
+		if _, _, err := New(ctx, admin, conformanceSigningKey); !errors.Is(err, ErrTransitKeyType) {
+			t.Fatalf("new with an ed25519 secrets key: err = %v, want ErrTransitKeyType", err)
+		}
+	})
+
+	t.Run("signs with an ed25519 key and publishes every version from the minimum", func(t *testing.T) {
+		runTransitSigningConformance(t, address)
+	})
+
 	t.Run("renews its token past the first ttl", func(t *testing.T) {
 		f := newTransitFixture(t, address)
 		transit := newTestTransit(t, f.config(address, f.token(t, true), conformanceKey))
 		startRenewal(t, transit)
-		waitFor(t, "the token lookup", func() bool { return !transit.tokenExpiry().IsZero() })
 		first := transit.tokenExpiry()
 		time.Sleep(conformanceTokenLife + conformanceExpiryGrace)
 		if !transit.tokenExpiry().After(first) {
@@ -297,13 +337,72 @@ func runTransitConformance(t *testing.T, address string) {
 		f := newTransitFixture(t, address)
 		transit := newTestTransit(t, f.config(address, f.token(t, false), conformanceKey))
 		startRenewal(t, transit)
-		waitFor(t, "the token lookup", func() bool { return !transit.tokenExpiry().IsZero() })
 		time.Sleep(conformanceTokenLife + conformanceExpiryGrace)
 		_, err := transit.Wrap(context.Background(), testDEK(t), DEKAAD(environmentID))
 		if !errors.Is(err, ErrTransitTokenExpired) {
 			t.Fatalf("wrap with an expired token: err = %v, want ErrTransitTokenExpired", err)
 		}
 	})
+}
+
+func runTransitSigningConformance(t *testing.T, address string) {
+	t.Helper()
+	f := newTransitFixture(t, address)
+	token := f.token(t, true)
+	signer := newTestTransit(t, f.config(address, token, conformanceKey)).Signer(conformanceSigningKey)
+	ctx := context.Background()
+	input := []byte("header.claims")
+	signed := map[string][]byte{}
+	for _, want := range []string{"v1", "v2"} {
+		keyID, err := signer.KeyID(ctx)
+		if err != nil || keyID != want {
+			t.Fatalf("key id = %q, %v, want %s", keyID, err, want)
+		}
+		signature, err := signer.Sign(ctx, keyID, input)
+		if err != nil {
+			t.Fatalf("sign with %s: %v", keyID, err)
+		}
+		signed[keyID] = signature
+		f.admin.call(t, http.MethodPost, f.mount+"/keys/"+conformanceSigningKey+"/rotate", nil, nil)
+	}
+	keys, err := signer.PublicKeys(ctx)
+	if err != nil {
+		t.Fatalf("public keys: %v", err)
+	}
+	if len(keys) != 3 {
+		t.Fatalf("published %d versions, want 3", len(keys))
+	}
+	for keyID, signature := range signed {
+		if !ed25519.Verify(keys[keyID], input, signature) {
+			t.Fatalf("signature from %s does not verify with its published key", keyID)
+		}
+	}
+	now := time.Now()
+	ingestToken, _, err := ingesttoken.Sign(ctx, signer, conformanceClusterID, now, conformanceTokenLife)
+	if err != nil {
+		t.Fatalf("sign an ingest token: %v", err)
+	}
+	set := jose.JSONWebKeySet{}
+	for keyID, key := range keys {
+		set.Keys = append(set.Keys, ingesttoken.PublicKey(keyID, key))
+	}
+	claims, err := ingesttoken.Verify(ingestToken, set, now)
+	if err != nil || claims.ClusterID != conformanceClusterID {
+		t.Fatalf("ingest token signed through transit = %+v, %v", claims, err)
+	}
+	trim := map[string]any{"min_decryption_version": 2}
+	f.admin.call(t, http.MethodPost, f.mount+"/keys/"+conformanceSigningKey+"/config", trim, nil)
+	keys, err = signer.PublicKeys(ctx)
+	if err != nil {
+		t.Fatalf("public keys after raising the minimum: %v", err)
+	}
+	if _, ok := keys["v1"]; ok || len(keys) != 2 {
+		t.Fatalf("published %v after raising the minimum to 2", keys)
+	}
+	plain := newTestTransit(t, f.config(address, token, conformanceKey)).Signer(conformancePlainKey)
+	if _, err := plain.KeyID(ctx); !errors.Is(err, ErrTransitPermissionDenied) {
+		t.Fatalf("key id of a signing key outside the policy: err = %v", err)
+	}
 }
 
 const (
@@ -484,7 +583,6 @@ func TestTransitKubernetesConformance(t *testing.T) {
 				mount := f.kubernetesAuth(t, reviewer, conformanceServiceAccount)
 				transit := newTestTransit(t, f.kubernetesConfig(t, address, mount, reviewer.issue(t)))
 				startRenewal(t, transit)
-				waitFor(t, "the login", func() bool { return transit.currentToken() != "" })
 				first := transit.currentToken()
 				ctx := context.Background()
 				aad := DEKAAD(environmentID)

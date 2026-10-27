@@ -71,12 +71,12 @@ global:
   exporter:
     endpoint: https://ingest.region.example.com
     headers: {}
-    bearerToken:
+    ingestToken:
       enabled: true
       secretName: loco-otlp-exporter
 ```
 
-With `bearerToken.enabled`, each collector sends the Secret's `token` key as a bearer token. The Secret lives in the `loco-obs` and `loco-obs-node` namespaces.
+With `ingestToken.enabled`, each collector sends the Secret's `token` key as a bearer token. The Secret lives in the `loco-obs` and `loco-obs-node` namespaces. The agent writes the cluster's ingest token to `secretName` and `secretKey` in both; the chart lets the agent create Secrets in those namespaces and `get` and `update` only that one. Each collector pod waits in its `exporter-token-wait` init container until the token file is not empty.
 
 Each collector queues unsent batches on disk (`global.exporter.queue`) and retries until the endpoint accepts them (`global.exporter.retry`). The DaemonSet keeps its queue in a hostPath directory per namespace and collector, `/var/lib/otelcol-exporter/<namespace>/<name>`, which its init container hands to the collector user. The two StatefulSets keep theirs on a 2Gi PersistentVolumeClaim per replica, owned through `fsGroup`. Queues survive control-plane outages and pod replacement; a claim outlives a scale-down and replays when its replica returns.
 
