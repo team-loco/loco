@@ -55,10 +55,3 @@ WHERE id = $1;
 UPDATE invitations
 SET delivery_error = $2, delivered_at = NULL
 WHERE id = $1;
-
--- name: GetInvitationClaimDetails :one
-SELECT o.name AS org_name, COALESCE(NULLIF(u.name, ''), u.email)::text AS inviter_name
-FROM invitations i
-JOIN organizations o ON o.id = i.org_id
-JOIN users u ON u.id = i.invited_by
-WHERE i.id = $1;

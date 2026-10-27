@@ -26,20 +26,6 @@ func TestRootCommandRegistersCluster(t *testing.T) {
 	}
 }
 
-func TestRootCommandRegistersUser(t *testing.T) {
-	user, _, err := NewRootCmd().Find([]string{"user"})
-	if err != nil || user.Name() != "user" {
-		t.Fatalf("user command: %v, %v", user, err)
-	}
-	operations := make([]string, 0, len(user.Commands()))
-	for _, operation := range user.Commands() {
-		operations = append(operations, operation.Name())
-	}
-	if got, want := strings.Join(operations, " "), "reinstate suspend"; got != want {
-		t.Errorf("user operations = %q, want %q", got, want)
-	}
-}
-
 func TestReportsTheLinkedVersion(t *testing.T) {
 	const linked = "v0.0.0-linked"
 	binary := filepath.Join(t.TempDir(), "locoadm")

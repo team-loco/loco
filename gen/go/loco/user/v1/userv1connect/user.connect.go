@@ -36,8 +36,6 @@ const (
 	UserServiceDeleteUserProcedure = "/loco.user.v1.UserService/DeleteUser"
 	// UserServiceLogoutProcedure is the procedure name of the UserService's Logout RPC.
 	UserServiceLogoutProcedure = "/loco.user.v1.UserService/Logout"
-	// UserServiceSetUserStatusProcedure is the procedure name of the UserService's SetUserStatus RPC.
-	UserServiceSetUserStatusProcedure = "/loco.user.v1.UserService/SetUserStatus"
 )
 
 var (
@@ -83,13 +81,6 @@ var (
 			Procedure:  UserServiceLogoutProcedure,
 		}
 	})
-	userServiceSetUserStatusSpec = sync.OnceValue(func() connect.Spec {
-		return connect.Spec{
-			StreamType: connect.StreamTypeUnary,
-			Schema:     v1.File_loco_user_v1_user_proto.Services().ByName("UserService").Methods().ByName("SetUserStatus"),
-			Procedure:  UserServiceSetUserStatusProcedure,
-		}
-	})
 )
 
 // UserServiceClient is a client for the loco.user.v1.UserService service.
@@ -106,8 +97,6 @@ type UserServiceClient interface {
 	DeleteUser(context.Context, *v1.DeleteUserRequest) (*v1.DeleteUserResponse, error)
 	// Logout logs out the current user.
 	Logout(context.Context, *v1.LogoutRequest) (*v1.LogoutResponse, error)
-	// SetUserStatus suspends or reinstates a user. Requires system admin.
-	SetUserStatus(context.Context, *v1.SetUserStatusRequest) (*v1.SetUserStatusResponse, error)
 }
 
 // NewUserServiceClient constructs a client for the loco.user.v1.UserService service. Multiple
@@ -130,8 +119,6 @@ type UserServiceHandler interface {
 	DeleteUser(context.Context, *v1.DeleteUserRequest) (*v1.DeleteUserResponse, error)
 	// Logout logs out the current user.
 	Logout(context.Context, *v1.LogoutRequest) (*v1.LogoutResponse, error)
-	// SetUserStatus suspends or reinstates a user. Requires system admin.
-	SetUserStatus(context.Context, *v1.SetUserStatusRequest) (*v1.SetUserStatusResponse, error)
 }
 
 // RegisterUserServiceHandler registers svc as the loco.user.v1.UserService implementation on
@@ -145,7 +132,6 @@ func RegisterUserServiceHandler(server *connect.Server, svc UserServiceHandler) 
 		connect.Method{Spec: userServiceListUsersSpec(), Handler: adapter.listUsers},
 		connect.Method{Spec: userServiceDeleteUserSpec(), Handler: adapter.deleteUser},
 		connect.Method{Spec: userServiceLogoutSpec(), Handler: adapter.logout},
-		connect.Method{Spec: userServiceSetUserStatusSpec(), Handler: adapter.setUserStatus},
 	)
 }
 
@@ -174,10 +160,6 @@ func (UnimplementedUserServiceHandler) DeleteUser(context.Context, *v1.DeleteUse
 
 func (UnimplementedUserServiceHandler) Logout(context.Context, *v1.LogoutRequest) (*v1.LogoutResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.user.v1.UserService.Logout is not implemented")
-}
-
-func (UnimplementedUserServiceHandler) SetUserStatus(context.Context, *v1.SetUserStatusRequest) (*v1.SetUserStatusResponse, error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, "loco.user.v1.UserService.SetUserStatus is not implemented")
 }
 
 type userServiceClient struct {
@@ -227,14 +209,6 @@ func (c *userServiceClient) DeleteUser(ctx context.Context, req *v1.DeleteUserRe
 func (c *userServiceClient) Logout(ctx context.Context, req *v1.LogoutRequest) (*v1.LogoutResponse, error) {
 	var res v1.LogoutResponse
 	if err := c.client.CallUnary(ctx, userServiceLogoutSpec(), req, &res); err != nil {
-		return nil, err
-	}
-	return &res, nil
-}
-
-func (c *userServiceClient) SetUserStatus(ctx context.Context, req *v1.SetUserStatusRequest) (*v1.SetUserStatusResponse, error) {
-	var res v1.SetUserStatusResponse
-	if err := c.client.CallUnary(ctx, userServiceSetUserStatusSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -308,18 +282,6 @@ func (h userServiceHandler) logout(ctx context.Context, _ connect.Spec, stream c
 		return err
 	}
 	res, err := h.svc.Logout(ctx, &req)
-	if err != nil {
-		return err
-	}
-	return stream.Send(res)
-}
-
-func (h userServiceHandler) setUserStatus(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
-	var req v1.SetUserStatusRequest
-	if err := stream.Receive(&req); err != nil {
-		return err
-	}
-	res, err := h.svc.SetUserStatus(ctx, &req)
 	if err != nil {
 		return err
 	}

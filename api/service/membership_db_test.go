@@ -105,7 +105,7 @@ func newMembershipAPIWith(t *testing.T, invitations InvitationConfig) *membershi
 
 func (a *membershipAPI) signUp(t *testing.T, subject string) membershipUser {
 	t.Helper()
-	user, _, err := a.resolver.Resolve(t.Context(), auth.Identity{
+	user, err := a.resolver.Resolve(t.Context(), auth.Identity{
 		Issuer: testIssuer, Subject: subject, Email: subject + "@acme.test", EmailVerified: true,
 	})
 	if err != nil {

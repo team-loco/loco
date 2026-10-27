@@ -20,10 +20,7 @@ func BuildOrgCmd() *cobra.Command {
   loco org update my-org --new-name new-org
 
   # Delete an organization
-  loco org delete my-org
-
-  # Invite someone to the current organization
-  loco org invite dev@example.com`,
+  loco org delete my-org`,
 	}
 
 	cmd.AddCommand(
@@ -31,9 +28,6 @@ func BuildOrgCmd() *cobra.Command {
 		buildCreateCmd(),
 		buildDeleteCmd(),
 		buildUpdateCmd(),
-		buildInviteCmd(),
-		buildInvitationsCmd(),
-		buildRevokeInviteCmd(),
 	)
 
 	return cmd

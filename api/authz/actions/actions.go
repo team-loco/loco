@@ -244,11 +244,6 @@ var (
 		entityType: db.EntityTypeSystem,
 		scope:      db.ScopeRead,
 	}
-	// SetUserStatus requires system:admin.
-	SetUserStatus = Action{
-		entityType: db.EntityTypeSystem,
-		scope:      db.ScopeAdmin,
-	}
 	// DeleteUser requires user:admin.
 	DeleteUser = Action{
 		entityType: db.EntityTypeUser,

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -15,12 +14,6 @@ import (
 )
 
 var ErrResolve = errors.New("could not resolve the signed-in user")
-
-type ClaimedOrg struct {
-	OrgID       uuid.UUID
-	OrgName     string
-	InviterName string
-}
 
 type Resolver struct {
 	pool           *pgxpool.Pool
@@ -45,30 +38,30 @@ func NewResolver(pool *pgxpool.Pool, policy SignupPolicy, opts ...ResolverOption
 	return r
 }
 
-func (r *Resolver) Resolve(ctx context.Context, id Identity) (genDb.User, []ClaimedOrg, error) {
-	user, claimed, err := r.existing(ctx, id)
+func (r *Resolver) Resolve(ctx context.Context, id Identity) (genDb.User, error) {
+	user, err := r.existing(ctx, id)
 	if err == nil {
-		return user, claimed, nil
+		return user, nil
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
-		return genDb.User{}, nil, err
+		return genDb.User{}, err
 	}
 
 	verified, err := r.emailVerified(ctx, id, nil)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check the email with the identity provider",
 			"issuer", id.Issuer, "error", err)
-		return genDb.User{}, nil, ErrResolve
+		return genDb.User{}, ErrResolve
 	}
 	id.EmailVerified = verified
-	user, claimed, err = r.provision(ctx, id)
+	user, err = r.provision(ctx, id)
 	if isUniqueViolation(err) {
 		return r.existing(ctx, id)
 	}
-	return user, claimed, err
+	return user, err
 }
 
-func (r *Resolver) existing(ctx context.Context, id Identity) (genDb.User, []ClaimedOrg, error) {
+func (r *Resolver) existing(ctx context.Context, id Identity) (genDb.User, error) {
 	row, err := r.queries.GetUserByIdentity(ctx, genDb.GetUserByIdentityParams{
 		Issuer:  id.Issuer,
 		Subject: id.Subject,
@@ -76,21 +69,21 @@ func (r *Resolver) existing(ctx context.Context, id Identity) (genDb.User, []Cla
 	if err != nil {
 		if !errors.Is(err, pgx.ErrNoRows) {
 			slog.ErrorContext(ctx, "failed to look up identity", "error", err)
-			return genDb.User{}, nil, ErrResolve
+			return genDb.User{}, ErrResolve
 		}
-		return genDb.User{}, nil, err
+		return genDb.User{}, err
 	}
 	user := row.User
 	verified, err := r.returningEmailVerified(ctx, id)
 	if err != nil {
-		return genDb.User{}, nil, err
+		return genDb.User{}, err
 	}
 	email := nullableString(id.Email)
 	storedVerified := row.IdentityEmailVerified && row.IdentityEmail != nil && *row.IdentityEmail == id.Email
 	if verified && email != nil && !storedVerified {
 		user, err = r.recordVerifiedEmail(ctx, user, id)
 		if err != nil {
-			return genDb.User{}, nil, err
+			return genDb.User{}, err
 		}
 	} else if touchErr := r.queries.TouchIdentity(ctx, genDb.TouchIdentityParams{
 		Issuer:        id.Issuer,
@@ -101,83 +94,75 @@ func (r *Resolver) existing(ctx context.Context, id Identity) (genDb.User, []Cla
 		slog.WarnContext(ctx, "failed to record identity login", "userId", user.ID, "error", touchErr)
 	}
 	if !verified || email == nil {
-		return user, nil, nil
+		return user, nil
 	}
-	claimed, err := r.claimOpenInvitations(ctx, user, id.Email)
-	if err != nil {
-		return genDb.User{}, nil, err
+	if err := r.claimOpenInvitations(ctx, user, id.Email); err != nil {
+		return genDb.User{}, err
 	}
-	return user, claimed, nil
+	return user, nil
 }
 
-func (r *Resolver) claimOpenInvitations(ctx context.Context, user genDb.User, email string) ([]ClaimedOrg, error) {
+func (r *Resolver) claimOpenInvitations(ctx context.Context, user genDb.User, email string) error {
 	invitations, err := r.queries.ListOpenInvitationsForEmail(ctx, email)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to look up invitations", "error", err, "userId", user.ID)
-		return nil, ErrResolve
+		return ErrResolve
 	}
 	if len(invitations) == 0 {
-		return nil, nil
+		return nil
 	}
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
-		return nil, ErrResolve
+		return ErrResolve
 	}
 	defer func() {
 		if rbErr := tx.Rollback(ctx); rbErr != nil && !errors.Is(rbErr, pgx.ErrTxClosed) {
 			slog.WarnContext(ctx, "failed to roll back invitation claim", "error", rbErr)
 		}
 	}()
-	claimed, claimErr := claimInvitations(ctx, r.queries.WithTx(tx), user, invitations)
-	if claimErr != nil {
+	if claimErr := claimInvitations(ctx, r.queries.WithTx(tx), user, invitations); claimErr != nil {
 		slog.ErrorContext(ctx, "failed to claim invitations", "error", claimErr, "userId", user.ID)
-		return nil, ErrResolve
+		return ErrResolve
 	}
 	if commitErr := tx.Commit(ctx); commitErr != nil {
 		slog.ErrorContext(ctx, "failed to commit invitation claim", "error", commitErr, "userId", user.ID)
-		return nil, ErrResolve
+		return ErrResolve
 	}
-	return claimed, nil
+	return nil
 }
 
-func claimInvitations(
-	ctx context.Context,
-	qtx *genDb.Queries,
-	user genDb.User,
-	invitations []genDb.Invitation,
-) ([]ClaimedOrg, error) {
+func claimInvitations(ctx context.Context, qtx *genDb.Queries, user genDb.User, invitations []genDb.Invitation) error {
 	if user.Status != genDb.UserStatusActive {
-		return nil, nil
+		return nil
 	}
-	var claimedOrgs []ClaimedOrg
 	for _, invitation := range invitations {
 		claimed, err := qtx.ClaimInvitation(ctx, genDb.ClaimInvitationParams{ID: invitation.ID, UserID: user.ID})
 		if errors.Is(err, pgx.ErrNoRows) {
 			continue
 		}
 		if err != nil {
-			return nil, fmt.Errorf("claim invitation %s: %w", invitation.ID, err)
+			return fmt.Errorf("claim invitation %s: %w", invitation.ID, err)
 		}
-		if scopeErr := qtx.AddUserScope(ctx, genDb.AddUserScopeParams{
+		if err := qtx.AddUserScope(ctx, genDb.AddUserScopeParams{
 			UserID:     user.ID,
 			EntityType: genDb.EntityTypeOrganization,
 			EntityID:   claimed.OrgID,
 			Scope:      genDb.ScopeMember,
-		}); scopeErr != nil {
-			return nil, fmt.Errorf("add member scope for invitation %s: %w", claimed.ID, scopeErr)
+		}); err != nil {
+			return fmt.Errorf("add member scope for invitation %s: %w", claimed.ID, err)
 		}
-		if eventErr := events.Record(ctx, qtx, events.Event{
+		if err := events.Record(ctx, qtx, events.Event{
 			Type:        events.OrgMemberAdded,
 			OrgID:       new(claimed.OrgID),
 			ActorType:   string(genDb.EntityTypeUser),
 			ActorID:     new(user.ID),
 			SubjectType: events.SubjectUser,
 			SubjectID:   new(user.ID),
-		}); eventErr != nil {
-			return nil, fmt.Errorf("record member added for invitation %s: %w", claimed.ID, eventErr)
+		}); err != nil {
+			return fmt.Errorf("record member added for invitation %s: %w", claimed.ID, err)
 		}
-		if eventErr := events.Record(ctx, qtx, events.Event{
+		if err := events.Record(ctx, qtx, events.Event{
 			Type:        events.InvitationClaimed,
 			OrgID:       new(claimed.OrgID),
 			ActorType:   string(genDb.EntityTypeUser),
@@ -185,20 +170,11 @@ func claimInvitations(
 			SubjectType: events.SubjectInvitation,
 			SubjectID:   new(claimed.ID),
 			Data:        map[string]any{events.FieldEmail: claimed.Email},
-		}); eventErr != nil {
-			return nil, fmt.Errorf("record invitation %s claimed: %w", claimed.ID, eventErr)
+		}); err != nil {
+			return fmt.Errorf("record invitation %s claimed: %w", claimed.ID, err)
 		}
-		details, detailsErr := qtx.GetInvitationClaimDetails(ctx, claimed.ID)
-		if detailsErr != nil {
-			return nil, fmt.Errorf("load invitation %s details: %w", claimed.ID, detailsErr)
-		}
-		claimedOrgs = append(claimedOrgs, ClaimedOrg{
-			OrgID:       claimed.OrgID,
-			OrgName:     details.OrgName,
-			InviterName: details.InviterName,
-		})
 	}
-	return claimedOrgs, nil
+	return nil
 }
 
 func (r *Resolver) recordVerifiedEmail(ctx context.Context, user genDb.User, id Identity) (genDb.User, error) {
@@ -302,18 +278,18 @@ func (r *Resolver) emailVerified(ctx context.Context, id Identity, stored *genDb
 	return lookup.EmailVerified(ctx, id.Subject, id.Email)
 }
 
-func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, []ClaimedOrg, error) {
+func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, error) {
 	if id.Email == "" {
-		return genDb.User{}, nil, ErrEmailMissing
+		return genDb.User{}, ErrEmailMissing
 	}
 	if !id.EmailVerified {
-		return genDb.User{}, nil, ErrEmailUnverified
+		return genDb.User{}, ErrEmailUnverified
 	}
 
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
-		return genDb.User{}, nil, ErrResolve
+		return genDb.User{}, ErrResolve
 	}
 	defer func() {
 		if rbErr := tx.Rollback(ctx); rbErr != nil && !errors.Is(rbErr, pgx.ErrTxClosed) {
@@ -325,7 +301,7 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, []Cl
 	invitations, err := qtx.ListOpenInvitationsForEmail(ctx, id.Email)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to look up invitations", "error", err)
-		return genDb.User{}, nil, ErrResolve
+		return genDb.User{}, ErrResolve
 	}
 
 	created := false
@@ -335,23 +311,23 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, []Cl
 		unverified, checkErr := qtx.UserHasUnverifiedIdentity(ctx, user.ID)
 		if checkErr != nil {
 			slog.ErrorContext(ctx, "failed to check the user's identities", "error", checkErr, "userId", user.ID)
-			return genDb.User{}, nil, ErrResolve
+			return genDb.User{}, ErrResolve
 		}
 		if unverified {
-			return genDb.User{}, nil, ErrEmailTaken
+			return genDb.User{}, ErrEmailTaken
 		}
 	case errors.Is(err, pgx.ErrNoRows):
 		if policyErr := r.policy.Check(id, len(invitations) > 0); policyErr != nil {
-			return genDb.User{}, nil, policyErr
+			return genDb.User{}, policyErr
 		}
 		user, err = createUser(ctx, qtx, id)
 		if err != nil {
-			return genDb.User{}, nil, err
+			return genDb.User{}, err
 		}
 		created = true
 	default:
 		slog.ErrorContext(ctx, "failed to look up user by email", "error", err)
-		return genDb.User{}, nil, ErrResolve
+		return genDb.User{}, ErrResolve
 	}
 
 	eventType := events.IdentityLinked
@@ -367,7 +343,7 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, []Cl
 		Data:        map[string]any{"issuer": id.Issuer, events.FieldEmail: id.Email},
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to record identity event", "error", err)
-		return genDb.User{}, nil, ErrResolve
+		return genDb.User{}, ErrResolve
 	}
 
 	if _, err := qtx.CreateIdentity(ctx, genDb.CreateIdentityParams{
@@ -378,27 +354,26 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, []Cl
 		EmailVerified: id.EmailVerified,
 	}); err != nil {
 		if isUniqueViolation(err) {
-			return genDb.User{}, nil, err
+			return genDb.User{}, err
 		}
 		slog.ErrorContext(ctx, "failed to create identity", "error", err, "userId", user.ID)
-		return genDb.User{}, nil, ErrResolve
+		return genDb.User{}, ErrResolve
 	}
 
-	claimed, claimErr := claimInvitations(ctx, qtx, user, invitations)
-	if claimErr != nil {
-		slog.ErrorContext(ctx, "failed to claim invitations", "error", claimErr, "userId", user.ID)
-		return genDb.User{}, nil, ErrResolve
+	if err := claimInvitations(ctx, qtx, user, invitations); err != nil {
+		slog.ErrorContext(ctx, "failed to claim invitations", "error", err, "userId", user.ID)
+		return genDb.User{}, ErrResolve
 	}
 
 	if err := tx.Commit(ctx); err != nil {
 		if isUniqueViolation(err) {
-			return genDb.User{}, nil, err
+			return genDb.User{}, err
 		}
 		slog.ErrorContext(ctx, "failed to commit provisioning", "error", err)
-		return genDb.User{}, nil, ErrResolve
+		return genDb.User{}, ErrResolve
 	}
 	slog.InfoContext(ctx, "provisioned identity", "userId", user.ID, "issuer", id.Issuer)
-	return user, claimed, nil
+	return user, nil
 }
 
 func createUser(ctx context.Context, qtx *genDb.Queries, id Identity) (genDb.User, error) {

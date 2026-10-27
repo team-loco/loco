@@ -102,7 +102,6 @@ type Querier interface {
 	GetEnvironmentKey(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)
 	GetIdentity(ctx context.Context, arg GetIdentityParams) (Identity, error)
 	GetInvitation(ctx context.Context, id uuid.UUID) (Invitation, error)
-	GetInvitationClaimDetails(ctx context.Context, id uuid.UUID) (GetInvitationClaimDetailsRow, error)
 	GetOrgByID(ctx context.Context, id uuid.UUID) (Organization, error)
 	GetOrgByName(ctx context.Context, name string) (Organization, error)
 	GetOrganizationByID(ctx context.Context, id uuid.UUID) (Organization, error)

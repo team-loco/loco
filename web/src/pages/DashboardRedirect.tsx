@@ -6,15 +6,11 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { workspacePath } from "@/lib/routes";
 
 export function DashboardRedirect() {
-	const { activeOrgId, activeWorkspaceId, workspacesSettled } = useOrgWorkspace();
+	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const { isPending } = useAuth();
 
 	if (!isPending && activeOrgId !== null && activeWorkspaceId !== null) {
 		return <Navigate to={workspacePath(activeOrgId, activeWorkspaceId)} replace />;
-	}
-
-	if (!isPending && workspacesSettled && activeOrgId !== null) {
-		return <Navigate to={`/org/${activeOrgId}/team`} replace />;
 	}
 
 	return <AppLoading />;

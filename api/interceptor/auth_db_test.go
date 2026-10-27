@@ -1,7 +1,6 @@
 package interceptor
 
 import (
-	"context"
 	"net/http"
 	"testing"
 	"time"
@@ -14,10 +13,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
-	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 )
-
-const providerOrgName = "acme"
 
 type providerFixture struct {
 	issuer      *authtest.Issuer
@@ -143,7 +139,7 @@ func TestAuthenticateRejectsSuspendedUsers(t *testing.T) {
 	if !ok {
 		t.Fatal("no entity in context")
 	}
-	org, err := f.queries.CreateOrg(t.Context(), genDb.CreateOrgParams{Name: providerOrgName, CreatedBy: user.ID})
+	org, err := f.queries.CreateOrg(t.Context(), genDb.CreateOrgParams{Name: "acme", CreatedBy: user.ID})
 	if err != nil {
 		t.Fatalf("create org: %v", err)
 	}
@@ -186,58 +182,5 @@ func TestAuthenticateRejectsSuspendedUsers(t *testing.T) {
 	}
 	if entity, ok := orgCtx.Value(contextkeys.EntityKey).(genDb.Entity); !ok || entity.ID != org.ID {
 		t.Fatalf("api token entity = %+v, want org %s", entity, org.ID)
-	}
-}
-
-func claimedOrgs(ctx context.Context) []auth.ClaimedOrg {
-	claimed, ok := ctx.Value(contextkeys.ClaimedOrgsKey).([]auth.ClaimedOrg)
-	if !ok {
-		return nil
-	}
-	return claimed
-}
-
-func TestAuthenticatePutsClaimedOrgsInContext(t *testing.T) {
-	policy, err := auth.ParseSignupPolicy("open", "")
-	if err != nil {
-		t.Fatalf("policy: %v", err)
-	}
-	f := newProviderFixture(t, policy)
-	token := f.issuer.Sign("k1", f.issuer.Claims("sub-1", "dev@example.test", true))
-	ctx, err := f.interceptor.authenticate(t.Context(), userv1connect.UserServiceWhoAmIProcedure, bearer(token))
-	if err != nil {
-		t.Fatalf("first authenticate: %v", err)
-	}
-	user, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
-	if !ok {
-		t.Fatal("no entity in context")
-	}
-	if claimed := claimedOrgs(ctx); len(claimed) != 0 {
-		t.Fatalf("claimed orgs before any invitation = %v", claimed)
-	}
-	org, err := f.queries.CreateOrg(t.Context(), genDb.CreateOrgParams{Name: providerOrgName, CreatedBy: user.ID})
-	if err != nil {
-		t.Fatalf("create org: %v", err)
-	}
-	if _, inviteErr := f.queries.CreateInvitation(t.Context(), genDb.CreateInvitationParams{
-		OrgID: org.ID, Email: "dev@example.test", InvitedBy: user.ID, ExpiresAt: time.Now().Add(time.Hour),
-	}); inviteErr != nil {
-		t.Fatalf("invite: %v", inviteErr)
-	}
-
-	ctx, err = f.interceptor.authenticate(t.Context(), userv1connect.UserServiceWhoAmIProcedure, bearer(token))
-	if err != nil {
-		t.Fatalf("second authenticate: %v", err)
-	}
-	claimed := claimedOrgs(ctx)
-	if len(claimed) != 1 || claimed[0].OrgID != org.ID || claimed[0].OrgName != providerOrgName {
-		t.Fatalf("claimed orgs = %+v, want acme", claimed)
-	}
-	ctx, err = f.interceptor.authenticate(t.Context(), userv1connect.UserServiceWhoAmIProcedure, bearer(token))
-	if err != nil {
-		t.Fatalf("third authenticate: %v", err)
-	}
-	if again := claimedOrgs(ctx); len(again) != 0 {
-		t.Fatalf("claimed orgs repeated on the next request: %+v", again)
 	}
 }

@@ -7,7 +7,6 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/team-loco/loco/api/auth"
@@ -129,20 +128,7 @@ func (s *UserServer) WhoAmI(
 	}
 	slog.InfoContext(ctx, "returning user")
 
-	var claimed []auth.ClaimedOrg
-	if fromInterceptor, ok := ctx.Value(contextkeys.ClaimedOrgsKey).([]auth.ClaimedOrg); ok {
-		claimed = fromInterceptor
-	}
-	claimedOrgs := make([]*userv1.ClaimedOrg, 0, len(claimed))
-	for _, org := range claimed {
-		claimedOrgs = append(claimedOrgs, &userv1.ClaimedOrg{
-			OrgId:       org.OrgID.String(),
-			OrgName:     org.OrgName,
-			InviterName: org.InviterName,
-		})
-	}
-
-	return &userv1.WhoAmIResponse{User: user, ClaimedOrgs: claimedOrgs}, nil
+	return &userv1.WhoAmIResponse{User: user}, nil
 }
 
 // UpdateUser updates user information
@@ -341,59 +327,6 @@ func (s *UserServer) DeleteUser(
 	}
 
 	return &userv1.DeleteUserResponse{}, nil
-}
-
-// SetUserStatus suspends or reinstates a user
-func (s *UserServer) SetUserStatus(
-	ctx context.Context,
-	req *userv1.SetUserStatusRequest,
-) (*userv1.SetUserStatusResponse, error) {
-	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-	if err := s.authz.Check(ctx, entityScopes, actions.NewSystem(actions.SetUserStatus)); err != nil {
-		slog.WarnContext(ctx, "unauthorized to set user status")
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
-	}
-
-	var userID uuid.UUID
-	switch key := req.GetKey().(type) {
-	case *userv1.SetUserStatusRequest_UserId:
-		userID = uuid.MustParse(key.UserId)
-	case *userv1.SetUserStatusRequest_Email:
-		dbUser, getErr := s.queries.GetUserByEmail(ctx, key.Email)
-		if getErr != nil {
-			return nil, rpcerr.New(connect.CodeNotFound, ErrUserNotFound)
-		}
-		userID = dbUser.ID
-	default:
-		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrInvalidRequest)
-	}
-
-	status, eventType := genDb.UserStatusActive, events.UserReinstated
-	if req.GetStatus() == userv1.UserStatus_USER_STATUS_SUSPENDED {
-		status, eventType = genDb.UserStatusSuspended, events.UserSuspended
-	}
-	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if _, setErr := qtx.SetUserStatus(ctx, genDb.SetUserStatusParams{ID: userID, Status: status}); setErr != nil {
-			return setErr
-		}
-		return events.Record(ctx, qtx, events.Event{
-			Type:        eventType,
-			SubjectType: events.SubjectUser,
-			SubjectID:   new(userID),
-		})
-	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrUserNotFound)
-	}
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to set user status", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-	return &userv1.SetUserStatusResponse{}, nil
 }
 
 // Logout revokes the caller's Loco session token. Provider tokens are left to the provider.
