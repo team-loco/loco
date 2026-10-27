@@ -333,15 +333,47 @@ CREATE TABLE
 CREATE INDEX idx_workload_runs_xid ON workload_runs (xid, pod_uid);
 
 CREATE TABLE
+    egress_usage (
+        id UUID PRIMARY KEY DEFAULT uuidv7 (),
+        xid XID8 NOT NULL DEFAULT pg_current_xact_id (),
+        cluster_id UUID NOT NULL REFERENCES clusters (id) ON DELETE RESTRICT,
+        region TEXT NOT NULL,
+        organization_id UUID NOT NULL,
+        workspace_id UUID NOT NULL,
+        resource_id UUID NOT NULL,
+        environment_id UUID NOT NULL,
+        hour_start TIMESTAMPTZ NOT NULL,
+        bytes BIGINT NOT NULL CHECK (bytes >= 0),
+        UNIQUE (cluster_id, resource_id, environment_id, hour_start)
+    );
+
+CREATE INDEX idx_egress_usage_xid ON egress_usage (xid, id);
+
+CREATE TABLE
+    egress_counters (
+        gateway_pod_uid UUID NOT NULL,
+        route TEXT NOT NULL,
+        cluster_id UUID NOT NULL REFERENCES clusters (id) ON DELETE CASCADE,
+        bytes BIGINT NOT NULL CHECK (bytes >= 0),
+        observed_at TIMESTAMPTZ NOT NULL,
+        PRIMARY KEY (gateway_pod_uid, route)
+    );
+
+CREATE INDEX idx_egress_counters_cluster_observed ON egress_counters (cluster_id, observed_at);
+
+CREATE TABLE
     cluster_usage_reports (
         cluster_id UUID NOT NULL REFERENCES clusters (id) ON DELETE CASCADE,
+        feed TEXT NOT NULL CHECK (feed IN ('workload_runs', 'egress')),
         reported_at TIMESTAMPTZ NOT NULL,
         xid XID8 NOT NULL DEFAULT pg_current_xact_id (),
-        PRIMARY KEY (cluster_id, reported_at)
+        PRIMARY KEY (cluster_id, feed, reported_at)
     );
 
 -- +goose Down
 DROP TABLE IF EXISTS cluster_usage_reports;
+DROP TABLE IF EXISTS egress_counters;
+DROP TABLE IF EXISTS egress_usage;
 DROP TABLE IF EXISTS workload_runs;
 DROP TABLE IF EXISTS builds;
 DROP TABLE IF EXISTS placements;

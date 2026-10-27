@@ -12,6 +12,7 @@ import (
 )
 
 type Querier interface {
+	AddEgressUsage(ctx context.Context, arg AddEgressUsageParams) error
 	AddUserScope(ctx context.Context, arg AddUserScopeParams) error
 	AdvanceDeploymentStatus(ctx context.Context, arg AdvanceDeploymentStatusParams) error
 	AdvancePlacementPastRevision(ctx context.Context, arg AdvancePlacementPastRevisionParams) (int64, error)
@@ -73,6 +74,7 @@ type Querier interface {
 	DeleteSessionToken(ctx context.Context, id uuid.UUID) error
 	DeleteSessionTokenByAccessHash(ctx context.Context, accessTokenHash string) error
 	DeleteSessionTokensForIdentity(ctx context.Context, identityID *uuid.UUID) error
+	DeleteStaleEgressCounters(ctx context.Context, arg DeleteStaleEgressCountersParams) error
 	DeleteUser(ctx context.Context, id uuid.UUID) error
 	DeleteWorkspace(ctx context.Context, id uuid.UUID) error
 	DeleteWorkspaceWebhook(ctx context.Context, arg DeleteWorkspaceWebhookParams) (int64, error)
@@ -147,11 +149,12 @@ type Querier interface {
 	ListBuildsForResource(ctx context.Context, arg ListBuildsForResourceParams) ([]Build, error)
 	ListClusterDomains(ctx context.Context, ids []uuid.UUID) ([]ListClusterDomainsRow, error)
 	ListClusterPlacementRevisions(ctx context.Context, clusterID uuid.UUID) ([]ListClusterPlacementRevisionsRow, error)
-	ListClusterUsageReportTimes(ctx context.Context) ([]ListClusterUsageReportTimesRow, error)
+	ListClusterUsageReportTimes(ctx context.Context, feed string) ([]ListClusterUsageReportTimesRow, error)
 	ListClusterWorkloads(ctx context.Context, clusterID uuid.UUID) ([]ListClusterWorkloadsRow, error)
 	ListDeclaredSecretNames(ctx context.Context, arg ListDeclaredSecretNamesParams) ([]string, error)
 	ListDeletableBuildImages(ctx context.Context, arg ListDeletableBuildImagesParams) ([]ListDeletableBuildImagesRow, error)
 	ListDeploymentsForResource(ctx context.Context, arg ListDeploymentsForResourceParams) ([]Deployment, error)
+	ListEgressUsageAfter(ctx context.Context, arg ListEgressUsageAfterParams) ([]EgressUsage, error)
 	ListEligibleClusters(ctx context.Context, arg ListEligibleClustersParams) ([]ListEligibleClustersRow, error)
 	ListEnvironmentKeys(ctx context.Context) ([]EnvironmentKey, error)
 	ListEnvironmentResourceDomains(ctx context.Context, arg ListEnvironmentResourceDomainsParams) ([]ResourceDomain, error)
@@ -195,6 +198,7 @@ type Querier interface {
 	LockBuildImageForDelete(ctx context.Context, id uuid.UUID) (*time.Time, error)
 	LockBuildImageForDeploy(ctx context.Context, id uuid.UUID) (*time.Time, error)
 	LockClusterLifecycle(ctx context.Context, id uuid.UUID) (LockClusterLifecycleRow, error)
+	LockEgressCounters(ctx context.Context, arg LockEgressCountersParams) ([]LockEgressCountersRow, error)
 	LockEnvironmentKey(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)
 	LockInstallWebhooks(ctx context.Context, lockKey int64) error
 	LockOrgForDeletion(ctx context.Context, id uuid.UUID) error
@@ -216,7 +220,7 @@ type Querier interface {
 	MoveAccountEmail(ctx context.Context, arg MoveAccountEmailParams) (User, error)
 	NotifyClusterPlacements(ctx context.Context, clusterID string) error
 	OrgHasWorkspacesWithResources(ctx context.Context, orgID uuid.UUID) (bool, error)
-	PruneClusterUsageReports(ctx context.Context, clusterID uuid.UUID) error
+	PruneClusterUsageReports(ctx context.Context, arg PruneClusterUsageReportsParams) error
 	QueueBuild(ctx context.Context, arg QueueBuildParams) (int64, error)
 	RecordClusterAssertion(ctx context.Context, arg RecordClusterAssertionParams) (int64, error)
 	RecordClusterUsageReport(ctx context.Context, arg RecordClusterUsageReportParams) error
@@ -259,6 +263,7 @@ type Querier interface {
 	UpdateResourceSpec(ctx context.Context, arg UpdateResourceSpecParams) error
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error)
 	UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (uuid.UUID, error)
+	UpsertEgressCounters(ctx context.Context, arg UpsertEgressCountersParams) error
 	UpsertInstallWebhook(ctx context.Context, arg UpsertInstallWebhookParams) error
 	UpsertPlacement(ctx context.Context, arg UpsertPlacementParams) (UpsertPlacementRow, error)
 	UpsertSecrets(ctx context.Context, arg UpsertSecretsParams) error

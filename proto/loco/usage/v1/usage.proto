@@ -9,6 +9,7 @@ option go_package = "github.com/team-loco/loco/gen/go/loco/usage/v1;usagev1";
 
 service UsageService {
   rpc ListWorkloadRuns(ListWorkloadRunsRequest) returns (ListWorkloadRunsResponse);
+  rpc ListEgressUsage(ListEgressUsageRequest) returns (ListEgressUsageResponse);
 }
 
 message ListWorkloadRunsRequest {
@@ -38,4 +39,29 @@ message WorkloadRun {
   google.protobuf.Timestamp started_at = 10;
   google.protobuf.Timestamp last_seen_at = 11;
   optional google.protobuf.Timestamp ended_at = 12;
+}
+
+message ListEgressUsageRequest {
+  string cursor = 1 [(buf.validate.field).string.max_len = 64];
+  int32 page_size = 2 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 1000
+  }];
+}
+
+message ListEgressUsageResponse {
+  repeated EgressUsage usage = 1;
+  string next_cursor = 2;
+  google.protobuf.Timestamp metered_through = 3;
+}
+
+message EgressUsage {
+  string cluster_id = 1;
+  string region = 2;
+  string organization_id = 3;
+  string workspace_id = 4;
+  string resource_id = 5;
+  string environment_id = 6;
+  google.protobuf.Timestamp hour_start = 7;
+  int64 bytes = 8;
 }

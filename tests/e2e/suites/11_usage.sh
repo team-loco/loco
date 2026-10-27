@@ -11,6 +11,9 @@ usage_namespace="${E2E_WORKSPACE_PREFIX}${cli_workspace_id}"
 usage_millicores=100
 usage_memory_bytes=134217728
 usage_page_size=100
+usage_host="${usage_app}.${E2E_PLATFORM_DOMAIN}"
+usage_requests=20
+usage_curl_timeout_seconds=5
 
 uk() {
     kubectl --context "$usage_ctx" "$@"
@@ -83,7 +86,7 @@ test_u01_a_running_pod_is_metered_with_its_allocation() {
     rm -rf "$usage_dir"
     mkdir -p "$usage_app_dir"
     cli_write_credentials
-    cli_write_image_config "$usage_app_dir" "$usage_app" "$E2E_PUBLIC_IMAGE" 8080 "[]"
+    cli_write_image_config "$usage_app_dir" "$usage_app" "$E2E_PUBLIC_IMAGE" 8080 "[${usage_host}]"
 
     local rc=0
     (cd "$usage_app_dir" && loco_cli deploy --yes) >"$usage_dir/deploy.out" 2>"$usage_dir/deploy.err" || rc=$?
@@ -118,12 +121,79 @@ test_u02_a_replaced_pod_ends_its_run() {
     assert "The replacement pod gets its own run" usage_run_has_allocation "$replacement"
 }
 
+usage_gateway_service() {
+    uk -n "$E2E_LOCO_NAMESPACE" get services -o name \
+        -l "gateway.envoyproxy.io/owning-gateway-name=eg,gateway.envoyproxy.io/owning-gateway-namespace=${E2E_LOCO_NAMESPACE}"
+}
+
+usage_forward_gateway() {
+    if curl -s -o /dev/null --max-time "$usage_curl_timeout_seconds" "$E2E_GATEWAY_URL"; then
+        return 0
+    fi
+    local service
+    service=$(usage_gateway_service)
+    uk -n "$E2E_LOCO_NAMESPACE" port-forward --address 127.0.0.1 "$service" "${E2E_GATEWAY_URL##*:}:80" \
+        >"$usage_dir/gateway-forward.log" 2>&1 &
+    USAGE_GATEWAY_FORWARD=$!
+}
+
+usage_gateway_status() {
+    curl -s -o /dev/null -w '%{http_code}' --max-time "$usage_curl_timeout_seconds" \
+        -H "Host: ${usage_host}" "${E2E_GATEWAY_URL}/"
+}
+
+usage_route_serves() {
+    test "$(usage_gateway_status)" = 200
+}
+
+usage_send_requests() {
+    local i
+    for i in $(seq 1 "$usage_requests"); do
+        usage_gateway_status >/dev/null
+    done
+}
+
+usage_egress_bytes() {
+    local resource
+    resource=$(usage_resource_id)
+    usage_feed ListEgressUsage usage |
+        yq -p json -o json -I0 "select(.resourceId == \"${resource}\" and .clusterId == \"${E2E_CLUSTER_ID}\")" |
+        yq -p json -r '.bytes // 0' |
+        awk '{ total += $1 } END { print total + 0 }'
+}
+
+usage_egress_above() {
+    usage_send_requests
+    test "$(usage_egress_bytes)" -gt "$1"
+}
+
+usage_egress_metered() {
+    test -n "$(usage_call "$E2E_CLUSTER_ADMIN_TOKEN" ListEgressUsage '{}' | yq -p json -r '.meteredThrough // ""')"
+}
+
+test_u03_gateway_responses_are_metered_as_egress() {
+    usage_forward_gateway
+    wait_for "the gateway to route ${usage_host}" 120 usage_route_serves
+    assert "The gateway serves ${usage_host}" usage_route_serves || return 1
+    wait_for "egress for ${usage_app}" 180 usage_egress_above 0
+    local first
+    first=$(usage_egress_bytes)
+    assert "Responses through the gateway are metered as egress (${first} B)" test "$first" -gt 0
+    wait_for "egress for ${usage_app} to grow past ${first} B" 180 usage_egress_above "$first"
+    assert "More responses add to the service's egress" usage_egress_above "$first"
+    assert "The egress feed reports metered_through" usage_egress_metered
+    if [ -n "${USAGE_GATEWAY_FORWARD:-}" ]; then
+        kill "$USAGE_GATEWAY_FORWARD" 2>/dev/null || true
+    fi
+}
+
 usage_denied_to_workspace_member() {
-    local out
-    out=$(usage_call "$E2E_USER_TOKEN" ListWorkloadRuns '{}' 2>&1) && return 1
+    local method=$1 out
+    out=$(usage_call "$E2E_USER_TOKEN" "$method" '{}' 2>&1) && return 1
     grep -q permission_denied <<<"$out"
 }
 
-test_u03_the_feed_requires_a_system_admin() {
-    assert "A workspace member cannot read the usage feed" usage_denied_to_workspace_member
+test_u04_the_feed_requires_a_system_admin() {
+    assert "A workspace member cannot read workload runs" usage_denied_to_workspace_member ListWorkloadRuns
+    assert "A workspace member cannot read egress" usage_denied_to_workspace_member ListEgressUsage
 }

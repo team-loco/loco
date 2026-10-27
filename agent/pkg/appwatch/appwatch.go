@@ -97,17 +97,17 @@ func New(reader, secrets client.Reader, namespace string) *Watcher {
 // so the API resends an Apply that stopped between its two writes instead of recording it as
 // applied, and can still advance past a revision the cluster holds ahead of the database.
 func (w *Watcher) Inventory(ctx context.Context) (*agentv1.Inventory, error) {
-	var apps locoControllerV1.ApplicationList
-	if err := w.reader.List(ctx, &apps, client.InNamespace(w.namespace)); err != nil {
-		return nil, fmt.Errorf("failed to list Applications: %w", err)
+	apps, err := w.Applications(ctx)
+	if err != nil {
+		return nil, err
 	}
 	staged, err := w.stagedRevisions(ctx)
 	if err != nil {
 		return nil, err
 	}
-	entries := make([]*agentv1.InventoryEntry, 0, len(apps.Items))
-	for i := range apps.Items {
-		app := &apps.Items[i]
+	entries := make([]*agentv1.InventoryEntry, 0, len(apps))
+	for i := range apps {
+		app := &apps[i]
 		placement, ok := applier.PlacementOf(app)
 		if !ok {
 			continue
@@ -119,6 +119,14 @@ func (w *Watcher) Inventory(ctx context.Context) (*agentv1.Inventory, error) {
 		})
 	}
 	return &agentv1.Inventory{Entries: entries}, nil
+}
+
+func (w *Watcher) Applications(ctx context.Context) ([]locoControllerV1.Application, error) {
+	var apps locoControllerV1.ApplicationList
+	if err := w.reader.List(ctx, &apps, client.InNamespace(w.namespace)); err != nil {
+		return nil, fmt.Errorf("failed to list Applications: %w", err)
+	}
+	return apps.Items, nil
 }
 
 func (w *Watcher) stagedRevisions(ctx context.Context) (map[string]int64, error) {

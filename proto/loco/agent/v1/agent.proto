@@ -179,6 +179,8 @@ message AgentHealth {
 message UsageReport {
   google.protobuf.Timestamp observed_at = 1 [(buf.validate.field).required = true];
   repeated PodRun runs = 2;
+  repeated EgressCounter egress = 3;
+  bool egress_complete = 4;
 }
 
 message PodRun {
@@ -191,6 +193,19 @@ message PodRun {
   int64 memory_bytes = 7 [(buf.validate.field).int64.gte = 0];
   google.protobuf.Timestamp started_at = 8 [(buf.validate.field).required = true];
   google.protobuf.Timestamp ended_at = 9;
+}
+
+message EgressCounter {
+  string gateway_pod_uid = 1 [(buf.validate.field).string.uuid = true];
+  string route = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 512
+  }];
+  string organization_id = 3 [(buf.validate.field).string.uuid = true];
+  string workspace_id = 4 [(buf.validate.field).string.uuid = true];
+  string resource_id = 5 [(buf.validate.field).string.uuid = true];
+  string environment_id = 6 [(buf.validate.field).string.uuid = true];
+  int64 bytes = 7 [(buf.validate.field).int64.gte = 0];
 }
 
 message UsageRecorded {

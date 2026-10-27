@@ -24,6 +24,7 @@ import (
 	"github.com/team-loco/loco/agent/pkg/buildwatch"
 	"github.com/team-loco/loco/agent/pkg/cluster"
 	"github.com/team-loco/loco/agent/pkg/domains"
+	"github.com/team-loco/loco/agent/pkg/egress"
 	"github.com/team-loco/loco/agent/pkg/identity"
 	"github.com/team-loco/loco/agent/pkg/kube"
 	"github.com/team-loco/loco/agent/pkg/reconciler"
@@ -120,6 +121,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	scraper := egress.NewAdminScraper(&inspectorConfig, clientset)
+	egressConfig := egress.Config{
+		Namespace:     cfg.Namespace,
+		Gateway:       cfg.Gateway,
+		ScrapeTimeout: cfg.ClusterQueryTimeout,
+	}
+	gatewayEgress := egress.New(clientset, egressConfig, watcher, scraper)
+
 	buildsEnabled, err := inspector.BuildsEnabled(ctx)
 	if err != nil {
 		slog.Error("failed to check whether the cluster runs builds", "error", err)
@@ -152,6 +161,7 @@ func main() {
 		credentials:   credentials,
 		watcher:       watcher,
 		usage:         meter,
+		egress:        gatewayEgress,
 		builds:        builds,
 		buildsEnabled: buildsEnabled,
 	}
@@ -183,6 +193,10 @@ type usageMeter interface {
 	Wake() <-chan struct{}
 }
 
+type egressMeter interface {
+	Counters(ctx context.Context) ([]*agentv1.EgressCounter, bool)
+}
+
 type domainReporter interface {
 	Served(ctx context.Context) ([]string, error)
 }
@@ -209,6 +223,7 @@ type Agent struct {
 	credentials       *identity.Credentials
 	watcher           *appwatch.Watcher
 	usage             usageMeter
+	egress            egressMeter
 	builds            buildRunner
 	buildsEnabled     bool
 	heartbeatInterval time.Duration
@@ -632,6 +647,7 @@ func (a *Agent) reportUsage(ctx context.Context, enqueue func(*agentv1.SyncReque
 		if err != nil {
 			slog.WarnContext(ctx, "failed to build usage report", "error", err)
 		} else {
+			report.Egress, report.EgressComplete = a.egress.Counters(ctx)
 			enqueue(&agentv1.SyncRequest{Message: &agentv1.SyncRequest_Usage{Usage: report}})
 		}
 		select {
