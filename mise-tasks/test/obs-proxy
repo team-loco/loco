@@ -16,6 +16,7 @@ if [ -z "${LOCO_TEST_CLICKHOUSE_URL:-}" ]; then
 	trap cleanup EXIT
 	printf '<clickhouse>%s</clickhouse>\n' "$(yq '.clickhouse.clickhouse.keeperConfig' "$root/charts/loco-control-plane/values.yaml")" >"$keeper_config"
 	chmod a+r "$keeper_config"
+	go -C "$root" run ./tools/pullimage "$image"
 	docker run -d --name "$container" -p 127.0.0.1::9000 \
 		-e CLICKHOUSE_USER=loco_test -e CLICKHOUSE_PASSWORD=loco_test \
 		-e CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1 \

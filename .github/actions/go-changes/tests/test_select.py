@@ -67,10 +67,15 @@ def test_kubernetes_types_select_every_importing_module(module_dependencies):
     assert _selected(module_dependencies, "k8sapi/v1/application_test.go") == {"k8sapi"}
 
 
-def test_proxy_external_test_inputs(module_dependencies):
-    assert _selected(module_dependencies, "charts/loco-worker/values.yaml") == {
-        "observability-proxy"
-    }
+def test_proxy_external_test_inputs(module_dependencies, subtests):
+    for path in (
+        "mise-tasks/test/counter-metrics",
+        "mise-tasks/test/lib/ports.sh",
+        "charts/loco-worker/values.yaml",
+        "charts/loco-control-plane/values.yaml",
+    ):
+        with subtests.test(path=path):
+            assert _selected(module_dependencies, path) == {"observability-proxy"}
     assert _selected(module_dependencies, "controller/Makefile") == {"controller"}
 
 

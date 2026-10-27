@@ -53,6 +53,7 @@ if [ -z "${LOCO_TEST_CLICKHOUSE_URL:-}" ]; then
         echo '<max_server_memory_usage>1073741824</max_server_memory_usage><mark_cache_size>67108864</mark_cache_size></clickhouse>'
     } >"$work_dir/server.xml"
     chmod a+r "$work_dir/server.xml"
+    go -C "$root" run ./tools/pullimage "$image"
     own_clickhouse=true
     docker run -d --name "$clickhouse" --memory 2g --memory-swap 2g --cpus 2 -p 127.0.0.1::9000 \
         -e CLICKHOUSE_USER=loco_test -e CLICKHOUSE_PASSWORD=loco_test -e CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1 \
@@ -89,6 +90,7 @@ for directory in $(yq '.extensions | with_entries(select(.key | test("^file_stor
     mounts+=("--tmpfs" "$directory")
 done
 collector_image=$(yq '.otel-col-deploy.image.repository + ":" + .otel-col-deploy.image.tag' "$root/charts/loco-worker/values.yaml")
+go -C "$root" run ./tools/pullimage "$collector_image"
 docker run -d --name "$collector" --memory 256m --memory-swap 256m --cpus 0.5 \
     --add-host host.docker.internal:host-gateway -p 127.0.0.1::4318 "${mounts[@]}" \
     -v "$work_dir/collector.yaml:/etc/collector.yaml:ro" "$collector_image" --config /etc/collector.yaml >/dev/null
