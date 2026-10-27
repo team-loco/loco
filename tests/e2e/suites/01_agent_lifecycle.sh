@@ -214,15 +214,13 @@ test_controller_running() {
 }
 
 test_agent_logs_no_errors() {
-    local log_file="${SCRIPT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}/logs/agent.log"
-    if [ -f "$log_file" ]; then
-        local error_count
-        error_count=$(grep -c '"level":"ERROR"' "$log_file" 2>/dev/null || true)
-        assert "Agent has no ERROR-level log entries" \
-            test "$error_count" -eq 0
-    else
-        log_warn "Agent log file not found, skipping log check"
-        E2E_SKIP=$((E2E_SKIP + 1))
+    local log_file="$E2E_LOG_DIR/agent.log"
+    assert "Agent log exists at ${log_file}" test -f "$log_file" || return 1
+    local errors
+    errors=$(grep '"level":"ERROR"' "$log_file" || true)
+    if ! assert "Agent has no ERROR-level log entries" test -z "$errors"; then
+        echo "$errors"
+        return 1
     fi
 }
 
