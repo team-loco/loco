@@ -60,6 +60,8 @@ Pages state released behaviour and label unreleased workflows with a release not
   plugin changes.
 - `docs/content/contributing/development.md`: `mise run setup`, `mise run tilt`, `dev/api.env`,
   the local ports `8000` and `5173`, `./bin/loco login --host`, the tasks it names.
+- `charts/TESTING.md`: the chart test tasks (`lint:charts`, `chart:schema`, `test:charts`,
+  `test:collectors`), `.ct.yaml`, the helm-unittest suite layout and the TDD order.
 - `docs/content/contributing/documentation.md`: docs tasks, build rules, theme files, hosting,
   `web/sws.toml`, `docs/scripts/package.py`.
 - `README.md`: quick start (installer flags, `loco login`, `loco init`, `loco validate`, `loco
@@ -157,6 +159,8 @@ When one page links to another for the detail, update the page that owns the det
   README contributing section when it states the value.
 - Components and modules: the table in `operations/self-hosting.md`, `reference/
   architecture.md`, the Architecture section of `AGENTS.md`.
+- Chart tests and their tasks: `charts/TESTING.md`, and `contributing/development.md` when it
+  names the task.
 - Local development (tasks, ports, Dex, registry, bucket): `contributing/development.md` and
   the README contributing section.
 - Docs build and hosting: `contributing/documentation.md`.

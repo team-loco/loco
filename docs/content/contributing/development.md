@@ -53,6 +53,15 @@ LOCO_JOIN_TOKEN=<printed token> mise run tilt
 
 The agent keeps its key in the `loco-worker-agent-key` Secret, so the token is needed again only after the kind cluster or that Secret is deleted.
 
+## Charts
+
+A chart change starts with a [helm-unittest](https://github.com/helm-unittest/helm-unittest) test that fails on the current chart. [`charts/TESTING.md`](https://github.com/team-loco/loco/blob/main/charts/TESTING.md) describes the static and unit tests and how to run one suite. Run both before opening a pull request:
+
+```sh
+mise run lint:charts
+mise run test:charts
+```
+
 ## Tasks
 
 ```sh

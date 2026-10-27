@@ -185,7 +185,8 @@ description = "Test vulnerability scan module coverage and failure propagation"
 run = "uv run --locked --project tests pytest tests/govulncheck"
 
 [tasks."test:stack"]
-description = "Test how each checkout's local stack gets its slot, names and ports"
+description = "Test how each checkout's local stack gets its slot, names and ports, and the values helm:sync:release installs each release with"
+depends = ["helm:deps"]
 run = "uv run --locked --project tests pytest tests/stack"
 
 [tasks."lint:actions"]
@@ -413,11 +414,6 @@ run = "uv run --locked --project tests pytest tests/collector"
 description = "Run the helm-unittest suites in each chart's tests/ directory"
 depends = ["helm:deps"]
 run = "untt --strict charts/loco-worker charts/loco-control-plane"
-
-[tasks."test:chart-contracts"]
-description = "Test the values helm:sync:release passes to each local release"
-depends = ["helm:deps"]
-run = "uv run --locked --project tests pytest tests/charts"
 
 [tasks."test:platform-release"]
 description = "Test chart and CRD publication, version checks and Flux release manifests offline"
