@@ -26,6 +26,8 @@ api:
   imagePullPolicy: Never
   existingSecret: api-env
   replicaCount: 2
+  env:
+    ORG_LINKS: '[{"label":"Support","url":"https://support.e2e.test.local/orgs/{orgId}"}]'
 obsProxy:
   image:
     repository: loco-obs-proxy

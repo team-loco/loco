@@ -139,6 +139,7 @@ import sys
 root = pathlib.Path(sys.argv[1])
 config = json.loads((root / 'config.json').read_text())
 assert 'serviceDefaults' in config, config
+assert config.get('orgLinks') == [{'label': 'Support', 'url': 'https://support.e2e.test.local/orgs/{orgId}'}], config
 html = (root / 'dashboard.html').read_text()
 assert '<script src="/runtime-config.js"></script>' in html, html
 assert html.index('/runtime-config.js') < html.index('type="module"'), html

@@ -16,17 +16,20 @@ type ConfigServer struct {
 	schemaURL     string
 	defaults      servicedefaults.Defaults
 	auth          *configv1.AuthConfig
+	orgLinks      []*configv1.OrgLink
 }
 
 func NewConfigServer(
 	minCLIVersion, schemaURL string,
 	defaults servicedefaults.Defaults,
 	issuers []auth.IssuerConfig,
+	orgLinks []OrgLink,
 ) *ConfigServer {
 	s := &ConfigServer{
 		minCLIVersion: minCLIVersion,
 		schemaURL:     schemaURL,
 		defaults:      defaults,
+		orgLinks:      orgLinksProto(orgLinks),
 	}
 	if ic, ok := auth.WebIssuer(issuers); ok {
 		s.auth = &configv1.AuthConfig{
@@ -46,6 +49,7 @@ func (s *ConfigServer) GetConfig(
 		MinCliVersion: s.minCLIVersion,
 		SchemaUrl:     s.schemaURL,
 		Auth:          s.auth,
+		OrgLinks:      s.orgLinks,
 		ServiceDefaults: &configv1.DefaultServiceConfig{
 			Routing: &resourcev1.RoutingConfig{
 				Port:        s.defaults.Port,

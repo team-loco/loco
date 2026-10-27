@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/config/v1/config.proto.
  */
 export const file_loco_config_v1_config: GenFile = /*@__PURE__*/
-  fileDesc("Chtsb2NvL2NvbmZpZy92MS9jb25maWcucHJvdG8SDmxvY28uY29uZmlnLnYxIhIKEEdldENvbmZpZ1JlcXVlc3QiqgEKEUdldENvbmZpZ1Jlc3BvbnNlEj4KEHNlcnZpY2VfZGVmYXVsdHMYASABKAsyJC5sb2NvLmNvbmZpZy52MS5EZWZhdWx0U2VydmljZUNvbmZpZxIXCg9taW5fY2xpX3ZlcnNpb24YAiABKAkSKAoEYXV0aBgDIAEoCzIaLmxvY28uY29uZmlnLnYxLkF1dGhDb25maWcSEgoKc2NoZW1hX3VybBgEIAEoCSI/CgpBdXRoQ29uZmlnEg4KBmlzc3VlchgBIAEoCRIRCgljbGllbnRfaWQYAiABKAkSDgoGc2NvcGVzGAMgASgJIowCChREZWZhdWx0U2VydmljZUNvbmZpZxIwCgdyb3V0aW5nGAEgASgLMh8ubG9jby5yZXNvdXJjZS52MS5Sb3V0aW5nQ29uZmlnEjsKDGhlYWx0aF9jaGVjaxgCIAEoCzIlLmxvY28uZGVwbG95bWVudC52MS5IZWFsdGhDaGVja0NvbmZpZxILCgNjcHUYAyABKAkSDgoGbWVtb3J5GAQgASgJEhQKDG1pbl9yZXBsaWNhcxgFIAEoBRIUCgxtYXhfcmVwbGljYXMYBiABKAUSPAoNb2JzZXJ2YWJpbGl0eRgHIAEoCzIlLmxvY28ucmVzb3VyY2UudjEuT2JzZXJ2YWJpbGl0eUNvbmZpZzJhCg1Db25maWdTZXJ2aWNlElAKCUdldENvbmZpZxIgLmxvY28uY29uZmlnLnYxLkdldENvbmZpZ1JlcXVlc3QaIS5sb2NvLmNvbmZpZy52MS5HZXRDb25maWdSZXNwb25zZUI6WjhnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2NvbmZpZy92MTtjb25maWd2MWIGcHJvdG8z", [file_loco_deployment_v1_deployment, file_loco_resource_v1_resource]);
+  fileDesc("Chtsb2NvL2NvbmZpZy92MS9jb25maWcucHJvdG8SDmxvY28uY29uZmlnLnYxIhIKEEdldENvbmZpZ1JlcXVlc3Qi1gEKEUdldENvbmZpZ1Jlc3BvbnNlEj4KEHNlcnZpY2VfZGVmYXVsdHMYASABKAsyJC5sb2NvLmNvbmZpZy52MS5EZWZhdWx0U2VydmljZUNvbmZpZxIXCg9taW5fY2xpX3ZlcnNpb24YAiABKAkSKAoEYXV0aBgDIAEoCzIaLmxvY28uY29uZmlnLnYxLkF1dGhDb25maWcSEgoKc2NoZW1hX3VybBgEIAEoCRIqCglvcmdfbGlua3MYBSADKAsyFy5sb2NvLmNvbmZpZy52MS5PcmdMaW5rIiUKB09yZ0xpbmsSDQoFbGFiZWwYASABKAkSCwoDdXJsGAIgASgJIj8KCkF1dGhDb25maWcSDgoGaXNzdWVyGAEgASgJEhEKCWNsaWVudF9pZBgCIAEoCRIOCgZzY29wZXMYAyABKAkijAIKFERlZmF1bHRTZXJ2aWNlQ29uZmlnEjAKB3JvdXRpbmcYASABKAsyHy5sb2NvLnJlc291cmNlLnYxLlJvdXRpbmdDb25maWcSOwoMaGVhbHRoX2NoZWNrGAIgASgLMiUubG9jby5kZXBsb3ltZW50LnYxLkhlYWx0aENoZWNrQ29uZmlnEgsKA2NwdRgDIAEoCRIOCgZtZW1vcnkYBCABKAkSFAoMbWluX3JlcGxpY2FzGAUgASgFEhQKDG1heF9yZXBsaWNhcxgGIAEoBRI8Cg1vYnNlcnZhYmlsaXR5GAcgASgLMiUubG9jby5yZXNvdXJjZS52MS5PYnNlcnZhYmlsaXR5Q29uZmlnMmEKDUNvbmZpZ1NlcnZpY2USUAoJR2V0Q29uZmlnEiAubG9jby5jb25maWcudjEuR2V0Q29uZmlnUmVxdWVzdBohLmxvY28uY29uZmlnLnYxLkdldENvbmZpZ1Jlc3BvbnNlQjpaOGdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vY29uZmlnL3YxO2NvbmZpZ3YxYgZwcm90bzM", [file_loco_deployment_v1_deployment, file_loco_resource_v1_resource]);
 
 /**
  * @generated from message loco.config.v1.GetConfigRequest
@@ -58,6 +58,11 @@ export type GetConfigResponse = Message<"loco.config.v1.GetConfigResponse"> & {
    * @generated from field: string schema_url = 4;
    */
   schemaUrl: string;
+
+  /**
+   * @generated from field: repeated loco.config.v1.OrgLink org_links = 5;
+   */
+  orgLinks: OrgLink[];
 };
 
 /**
@@ -83,6 +88,11 @@ export type GetConfigResponseJson = {
    * @generated from field: string schema_url = 4;
    */
   schemaUrl?: string;
+
+  /**
+   * @generated from field: repeated loco.config.v1.OrgLink org_links = 5;
+   */
+  orgLinks?: OrgLinkJson[];
 };
 
 /**
@@ -91,6 +101,43 @@ export type GetConfigResponseJson = {
  */
 export const GetConfigResponseSchema: GenMessage<GetConfigResponse, {jsonType: GetConfigResponseJson}> = /*@__PURE__*/
   messageDesc(file_loco_config_v1_config, 1);
+
+/**
+ * @generated from message loco.config.v1.OrgLink
+ */
+export type OrgLink = Message<"loco.config.v1.OrgLink"> & {
+  /**
+   * @generated from field: string label = 1;
+   */
+  label: string;
+
+  /**
+   * @generated from field: string url = 2;
+   */
+  url: string;
+};
+
+/**
+ * @generated from message loco.config.v1.OrgLink
+ */
+export type OrgLinkJson = {
+  /**
+   * @generated from field: string label = 1;
+   */
+  label?: string;
+
+  /**
+   * @generated from field: string url = 2;
+   */
+  url?: string;
+};
+
+/**
+ * Describes the message loco.config.v1.OrgLink.
+ * Use `create(OrgLinkSchema)` to create a new message.
+ */
+export const OrgLinkSchema: GenMessage<OrgLink, {jsonType: OrgLinkJson}> = /*@__PURE__*/
+  messageDesc(file_loco_config_v1_config, 2);
 
 /**
  * @generated from message loco.config.v1.AuthConfig
@@ -137,7 +184,7 @@ export type AuthConfigJson = {
  * Use `create(AuthConfigSchema)` to create a new message.
  */
 export const AuthConfigSchema: GenMessage<AuthConfig, {jsonType: AuthConfigJson}> = /*@__PURE__*/
-  messageDesc(file_loco_config_v1_config, 2);
+  messageDesc(file_loco_config_v1_config, 3);
 
 /**
  * DefaultServiceConfig contains default values for service deployments.
@@ -254,7 +301,7 @@ export type DefaultServiceConfigJson = {
  * Use `create(DefaultServiceConfigSchema)` to create a new message.
  */
 export const DefaultServiceConfigSchema: GenMessage<DefaultServiceConfig, {jsonType: DefaultServiceConfigJson}> = /*@__PURE__*/
-  messageDesc(file_loco_config_v1_config, 3);
+  messageDesc(file_loco_config_v1_config, 4);
 
 /**
  * ConfigService provides static configuration values. Clients can query this to show safe defaults.

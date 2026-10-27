@@ -65,6 +65,7 @@ type GetConfigResponse struct {
 	MinCliVersion   string                 `protobuf:"bytes,2,opt,name=min_cli_version,json=minCliVersion,proto3" json:"min_cli_version,omitempty"`
 	Auth            *AuthConfig            `protobuf:"bytes,3,opt,name=auth,proto3" json:"auth,omitempty"`
 	SchemaUrl       string                 `protobuf:"bytes,4,opt,name=schema_url,json=schemaUrl,proto3" json:"schema_url,omitempty"`
+	OrgLinks        []*OrgLink             `protobuf:"bytes,5,rep,name=org_links,json=orgLinks,proto3" json:"org_links,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -127,6 +128,65 @@ func (x *GetConfigResponse) GetSchemaUrl() string {
 	return ""
 }
 
+func (x *GetConfigResponse) GetOrgLinks() []*OrgLink {
+	if x != nil {
+		return x.OrgLinks
+	}
+	return nil
+}
+
+type OrgLink struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Label         string                 `protobuf:"bytes,1,opt,name=label,proto3" json:"label,omitempty"`
+	Url           string                 `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OrgLink) Reset() {
+	*x = OrgLink{}
+	mi := &file_loco_config_v1_config_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OrgLink) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OrgLink) ProtoMessage() {}
+
+func (x *OrgLink) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_config_v1_config_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OrgLink.ProtoReflect.Descriptor instead.
+func (*OrgLink) Descriptor() ([]byte, []int) {
+	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *OrgLink) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *OrgLink) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
 type AuthConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Issuer        string                 `protobuf:"bytes,1,opt,name=issuer,proto3" json:"issuer,omitempty"`
@@ -138,7 +198,7 @@ type AuthConfig struct {
 
 func (x *AuthConfig) Reset() {
 	*x = AuthConfig{}
-	mi := &file_loco_config_v1_config_proto_msgTypes[2]
+	mi := &file_loco_config_v1_config_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -150,7 +210,7 @@ func (x *AuthConfig) String() string {
 func (*AuthConfig) ProtoMessage() {}
 
 func (x *AuthConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_config_v1_config_proto_msgTypes[2]
+	mi := &file_loco_config_v1_config_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -163,7 +223,7 @@ func (x *AuthConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuthConfig.ProtoReflect.Descriptor instead.
 func (*AuthConfig) Descriptor() ([]byte, []int) {
-	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{2}
+	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *AuthConfig) GetIssuer() string {
@@ -208,7 +268,7 @@ type DefaultServiceConfig struct {
 
 func (x *DefaultServiceConfig) Reset() {
 	*x = DefaultServiceConfig{}
-	mi := &file_loco_config_v1_config_proto_msgTypes[3]
+	mi := &file_loco_config_v1_config_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -220,7 +280,7 @@ func (x *DefaultServiceConfig) String() string {
 func (*DefaultServiceConfig) ProtoMessage() {}
 
 func (x *DefaultServiceConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_config_v1_config_proto_msgTypes[3]
+	mi := &file_loco_config_v1_config_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -233,7 +293,7 @@ func (x *DefaultServiceConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DefaultServiceConfig.ProtoReflect.Descriptor instead.
 func (*DefaultServiceConfig) Descriptor() ([]byte, []int) {
-	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{3}
+	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *DefaultServiceConfig) GetRouting() *v1.RoutingConfig {
@@ -290,13 +350,17 @@ var File_loco_config_v1_config_proto protoreflect.FileDescriptor
 const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\n" +
 	"\x1bloco/config/v1/config.proto\x12\x0eloco.config.v1\x1a#loco/deployment/v1/deployment.proto\x1a\x1floco/resource/v1/resource.proto\"\x12\n" +
-	"\x10GetConfigRequest\"\xdb\x01\n" +
+	"\x10GetConfigRequest\"\x91\x02\n" +
 	"\x11GetConfigResponse\x12O\n" +
 	"\x10service_defaults\x18\x01 \x01(\v2$.loco.config.v1.DefaultServiceConfigR\x0fserviceDefaults\x12&\n" +
 	"\x0fmin_cli_version\x18\x02 \x01(\tR\rminCliVersion\x12.\n" +
 	"\x04auth\x18\x03 \x01(\v2\x1a.loco.config.v1.AuthConfigR\x04auth\x12\x1d\n" +
 	"\n" +
-	"schema_url\x18\x04 \x01(\tR\tschemaUrl\"Y\n" +
+	"schema_url\x18\x04 \x01(\tR\tschemaUrl\x124\n" +
+	"\torg_links\x18\x05 \x03(\v2\x17.loco.config.v1.OrgLinkR\borgLinks\"1\n" +
+	"\aOrgLink\x12\x14\n" +
+	"\x05label\x18\x01 \x01(\tR\x05label\x12\x10\n" +
+	"\x03url\x18\x02 \x01(\tR\x03url\"Y\n" +
 	"\n" +
 	"AuthConfig\x12\x16\n" +
 	"\x06issuer\x18\x01 \x01(\tR\x06issuer\x12\x1b\n" +
@@ -325,29 +389,31 @@ func file_loco_config_v1_config_proto_rawDescGZIP() []byte {
 	return file_loco_config_v1_config_proto_rawDescData
 }
 
-var file_loco_config_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_loco_config_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_loco_config_v1_config_proto_goTypes = []any{
 	(*GetConfigRequest)(nil),       // 0: loco.config.v1.GetConfigRequest
 	(*GetConfigResponse)(nil),      // 1: loco.config.v1.GetConfigResponse
-	(*AuthConfig)(nil),             // 2: loco.config.v1.AuthConfig
-	(*DefaultServiceConfig)(nil),   // 3: loco.config.v1.DefaultServiceConfig
-	(*v1.RoutingConfig)(nil),       // 4: loco.resource.v1.RoutingConfig
-	(*v11.HealthCheckConfig)(nil),  // 5: loco.deployment.v1.HealthCheckConfig
-	(*v1.ObservabilityConfig)(nil), // 6: loco.resource.v1.ObservabilityConfig
+	(*OrgLink)(nil),                // 2: loco.config.v1.OrgLink
+	(*AuthConfig)(nil),             // 3: loco.config.v1.AuthConfig
+	(*DefaultServiceConfig)(nil),   // 4: loco.config.v1.DefaultServiceConfig
+	(*v1.RoutingConfig)(nil),       // 5: loco.resource.v1.RoutingConfig
+	(*v11.HealthCheckConfig)(nil),  // 6: loco.deployment.v1.HealthCheckConfig
+	(*v1.ObservabilityConfig)(nil), // 7: loco.resource.v1.ObservabilityConfig
 }
 var file_loco_config_v1_config_proto_depIdxs = []int32{
-	3, // 0: loco.config.v1.GetConfigResponse.service_defaults:type_name -> loco.config.v1.DefaultServiceConfig
-	2, // 1: loco.config.v1.GetConfigResponse.auth:type_name -> loco.config.v1.AuthConfig
-	4, // 2: loco.config.v1.DefaultServiceConfig.routing:type_name -> loco.resource.v1.RoutingConfig
-	5, // 3: loco.config.v1.DefaultServiceConfig.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
-	6, // 4: loco.config.v1.DefaultServiceConfig.observability:type_name -> loco.resource.v1.ObservabilityConfig
-	0, // 5: loco.config.v1.ConfigService.GetConfig:input_type -> loco.config.v1.GetConfigRequest
-	1, // 6: loco.config.v1.ConfigService.GetConfig:output_type -> loco.config.v1.GetConfigResponse
-	6, // [6:7] is the sub-list for method output_type
-	5, // [5:6] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	4, // 0: loco.config.v1.GetConfigResponse.service_defaults:type_name -> loco.config.v1.DefaultServiceConfig
+	3, // 1: loco.config.v1.GetConfigResponse.auth:type_name -> loco.config.v1.AuthConfig
+	2, // 2: loco.config.v1.GetConfigResponse.org_links:type_name -> loco.config.v1.OrgLink
+	5, // 3: loco.config.v1.DefaultServiceConfig.routing:type_name -> loco.resource.v1.RoutingConfig
+	6, // 4: loco.config.v1.DefaultServiceConfig.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
+	7, // 5: loco.config.v1.DefaultServiceConfig.observability:type_name -> loco.resource.v1.ObservabilityConfig
+	0, // 6: loco.config.v1.ConfigService.GetConfig:input_type -> loco.config.v1.GetConfigRequest
+	1, // 7: loco.config.v1.ConfigService.GetConfig:output_type -> loco.config.v1.GetConfigResponse
+	7, // [7:8] is the sub-list for method output_type
+	6, // [6:7] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_loco_config_v1_config_proto_init() }
@@ -361,7 +427,7 @@ func file_loco_config_v1_config_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_config_v1_config_proto_rawDesc), len(file_loco_config_v1_config_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

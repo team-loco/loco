@@ -29,6 +29,14 @@ Configure the API's database, cache, authentication, registry, and API/dashboard
 
 Set `DATABASE_LISTEN_URL` to a direct PostgreSQL or session-pooler URL when `DATABASE_URL` uses a transaction-mode pooler. The API holds this connection for placement notifications and uses `DATABASE_URL` for ordinary queries. Both URLs must reach the same database. With `DATABASE_LISTEN_URL` empty, the listener uses `DATABASE_URL`.
 
+Set `ORG_LINKS` to add links to tools outside Loco, such as a support desk or a status page, to the Manage section of the dashboard sidebar. The value is a JSON array of at most 10 objects, each with a unique `label` of at most 32 characters and an absolute HTTP or HTTPS `url`. The dashboard replaces `{orgId}` in the URL with the current organization's ID and opens the link in a new tab; no other placeholder is allowed. The API refuses to start when the value is invalid, and an empty value shows no links. With the `loco-control-plane` chart, set it under `api.env`:
+
+```yaml
+api:
+  env:
+    ORG_LINKS: '[{"label":"Support","url":"https://support.example.com/orgs/{orgId}"}]'
+```
+
 Each worker cluster needs a CNI that enforces Kubernetes NetworkPolicy, cert-manager and the `loco-worker` chart, which runs the agent, the Loco controllers, Envoy Gateway and the OpenTelemetry collectors. Create its release namespace `loco-system` with the Pod Security labels in `manifests/namespaces/loco-system.yaml` before installing it. The collectors export every log, trace and metric over OTLP/HTTP to one endpoint and store nothing in the cluster. The control plane cluster needs Envoy Gateway and cert-manager, and runs the API, dashboard, observability proxy and ClickHouse from the `loco-control-plane` chart.
 
 As a [system admin](#first-system-admin), attach each cluster by creating its record with `locoadm cluster create` and passing the printed join token to the agent's first start; see [cluster attachment](../reference/cluster-attachment.md). Set the platform domains a cluster serves in `global.domain.apps` of its `loco-worker` values and point `*.<domain>` at its gateway; the API stores no domains of its own.

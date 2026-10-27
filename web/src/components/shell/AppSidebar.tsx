@@ -1,3 +1,4 @@
+import { useQuery } from "@connectrpc/connect-query";
 import {
 	BellIcon,
 	BookOpenIcon,
@@ -7,6 +8,7 @@ import {
 	KeyRoundIcon,
 	LayoutDashboardIcon,
 	LifeBuoyIcon,
+	LinkIcon,
 	LogOutIcon,
 	ArrowUpRightIcon,
 	PlusIcon,
@@ -18,6 +20,7 @@ import {
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
+import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 
 import { useAuth } from "@/auth/AuthProvider";
 import { LocoLogo } from "@/components/design/LocoLogo";
@@ -42,6 +45,7 @@ import {
 } from "@/components/design/Sidebar";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { pageImporters } from "@/lib/lazy-pages";
+import { expandOrgLink } from "@/lib/org-links";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/use-theme";
 import { observabilityPath, workspacePath, type ObservabilityView } from "@/lib/routes";
@@ -54,6 +58,7 @@ interface NavItem {
 	name: string;
 	icon: ReactNode;
 	to?: string | undefined;
+	href?: string;
 	active: boolean;
 	soon?: boolean;
 	preload?: (() => Promise<unknown>) | undefined;
@@ -82,6 +87,7 @@ export function AppSidebar() {
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const [creating, setCreating] = useState<ScopeKind | null>(null);
 	const peek = useSidebarPeek();
+	const { data: config } = useQuery(getConfig, {});
 
 	const env = params.get("env");
 	const envParams: Record<string, string> = env !== null ? { env } : {};
@@ -93,6 +99,15 @@ export function AppSidebar() {
 	const obs = (v: ObservabilityView): string | undefined =>
 		hasWs ? observabilityPath(activeOrgId, activeWorkspaceId, v, envParams) : undefined;
 	const withEnv = (path: string) => (env !== null ? `${path}?env=${encodeURIComponent(env)}` : path);
+	const orgLinks: NavItem[] =
+		activeOrgId !== null
+			? (config?.orgLinks ?? []).map((link) => ({
+					name: link.label,
+					icon: <LinkIcon />,
+					href: expandOrgLink(link.url, activeOrgId),
+					active: false,
+				}))
+			: [];
 
 	const sections: { label?: string; items: NavItem[] }[] = [
 		{
@@ -163,6 +178,7 @@ export function AppSidebar() {
 					active: pathname.endsWith("/settings"),
 					preload: pageImporters.Settings,
 				},
+				...orgLinks,
 			],
 		},
 	];
@@ -187,8 +203,17 @@ export function AppSidebar() {
 						{section.label !== undefined && <SidebarGroupLabel>{section.label}</SidebarGroupLabel>}
 						<SidebarMenu className="gap-0.5">
 							{section.items.map((item) => (
-								<SidebarMenuItem key={item.name}>
-									{item.to !== undefined && item.soon !== true ? (
+								<SidebarMenuItem key={item.href === undefined ? item.name : `${item.name} ${item.href}`}>
+									{item.href !== undefined ? (
+										<SidebarMenuButton
+											tooltip={item.name}
+											render={<a href={item.href} target="_blank" rel="noopener noreferrer" />}
+										>
+											{item.icon}
+											<span className="flex-1 truncate">{item.name}</span>
+											<ArrowUpRightIcon className="text-fg3" />
+										</SidebarMenuButton>
+									) : item.to !== undefined && item.soon !== true ? (
 										<SidebarMenuButton
 											isActive={item.active}
 											tooltip={item.name}
