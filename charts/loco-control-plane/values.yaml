@@ -272,3 +272,79 @@ clickhouseUserPasswords:
   loco_migrator: ""
   loco_ingest: ""
   loco_reader: ""
+
+# @schema additionalProperties: false
+openbao:
+  enabled: true
+  image: quay.io/openbao/openbao:2.7.1@sha256:6d2b93856e3fcf7b18ad855a0b51eaba474dc8b79cf554379ea32034797d2acf
+  curlImage: curlimages/curl:8.23.0@sha256:11e64e28c5f58c8d93ee95fcf22ac055f48b0bc440e0ce7d8013bbb5ad6aa8ac
+  # @schema minimum: 1
+  replicas: 3
+  port: 8200
+  clusterPort: 8201
+  # @schema additionalProperties: false
+  tls:
+    caDuration: 87600h
+    duration: 2160h
+    # @schema minimum: 1
+    reloadSeconds: 60
+  # @schema additionalProperties: false
+  storage:
+    size: 10Gi
+    storageClass: ""
+  # @schema skipProperties
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+  # @schema additionalProperties: false
+  seal:
+    # @schema enum: [static, awskms, transit]
+    type: static
+    # @schema additionalProperties: false
+    static:
+      keyId: "1"
+      # @schema additionalProperties: false
+      existingSecret:
+        name: ""
+        key: key
+    # @schema additionalProperties: false
+    awskms:
+      region: ""
+      kmsKeyId: ""
+      endpoint: ""
+      existingSecret: ""
+    # @schema additionalProperties: false
+    transit:
+      address: ""
+      mount: transit
+      key: ""
+      # @schema additionalProperties: false
+      existingSecret:
+        name: ""
+        key: token
+  # @schema additionalProperties: false
+  recovery:
+    # @schema minimum: 1
+    shares: 5
+    # @schema minimum: 1
+    threshold: 3
+  # @schema additionalProperties: false
+  transit:
+    mount: transit
+    key: loco
+  # @schema additionalProperties: false
+  kubernetesAuth:
+    mount: kubernetes
+    role: loco-api
+    setupRole: loco-setup
+  # @schema additionalProperties: false
+  external:
+    address: ""
+    # @schema additionalProperties: false
+    caSecret:
+      name: ""
+      key: ca.crt

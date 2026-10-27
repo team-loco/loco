@@ -7,6 +7,7 @@ on:
     paths: &paths
       - "api/pkg/secretkeys/**"
       - "tests/conformance/transit/**"
+      - "charts/loco-control-plane/values.yaml"
       - "mise-tasks/test/transit-conformance"
       - ".github/workflows/transit-conformance.yml"
   pull_request:

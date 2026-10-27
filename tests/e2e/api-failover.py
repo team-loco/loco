@@ -192,6 +192,7 @@ def main():
             values = {"gatewayNamespace": args.gateway_namespace, "controlPlaneHostname": host,
                 "gateway": {"name": args.gateway_name}, "certManager": {"enabled": False},
                 "api": {"image": {"tag": "e2e"}, "existingSecret": "unused"},
+                "openbao": {"enabled": False, "external": {"address": "http://unused:8200"}},
                 "obsProxy": {"image": {"tag": "e2e"}, "query": {"clickhouse": {
                     "existingSecret": {"name": "unused", "key": "url"},
                     "migratorExistingSecret": {"name": "unused", "key": "url"}}}},

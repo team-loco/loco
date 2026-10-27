@@ -4,6 +4,31 @@ The API wraps the data key that encrypts each environment's secrets with a key i
 
 The API refuses to start without a valid transit configuration.
 
+## OpenBao in the control-plane chart
+
+`loco-control-plane` runs OpenBao as the StatefulSet `<release>-openbao`, `openbao.replicas` nodes (3 by default) in one raft cluster with a PersistentVolumeClaim each, and points the API at it. OpenBao serves TLS with a certificate cert-manager issues from a CA the chart creates in the release namespace (the Issuers `<release>-openbao-selfsigned` and `<release>-openbao-ca`); the API and the chart's Jobs verify it against that CA, and OpenBao reloads the certificate when cert-manager renews it. The cert-manager controller is required whatever `certManager.enabled` says. A NetworkPolicy admits only the API, the setup Job and the other OpenBao nodes. `openbao.enabled: false` uses an external OpenBao or Vault at `openbao.external.address` instead, with the CA bundle in the Secret `openbao.external.caSecret`.
+
+`openbao.seal.type` selects the seal. `static`, the default, reads a 32-byte key from the Secret `openbao.seal.static.existingSecret`, which you create before the first install; the install fails while it is missing. Keep a copy offline: OpenBao's data and its snapshots are unreadable without it.
+
+```sh
+kubectl -n loco-system create secret generic openbao-seal --from-literal=key="$(openssl rand -base64 32)"
+```
+
+`awskms` seals with the KMS key `openbao.seal.awskms.kmsKeyId` in `openbao.seal.awskms.region`, with AWS credentials from the pod identity or the Secret `openbao.seal.awskms.existingSecret`. `transit` seals with the key `openbao.seal.transit.key` of another OpenBao at `openbao.seal.transit.address`, with the token in the Secret `openbao.seal.transit.existingSecret`.
+
+After every install and upgrade, the Job `<release>-openbao-setup` configures OpenBao. The first run initializes it with `openbao.recovery.shares` recovery keys, `openbao.recovery.threshold` of them needed, and writes the recovery keys, one per line, and a token that can only run root token generation to the Secret `<release>-openbao-init` (keys `recovery-keys` and `generate-root-token`). Move both offline beside the seal key, then delete the Secret; nothing in the chart reads it. With the root token from the initialization, the first run creates the Kubernetes auth role `openbao.kubernetesAuth.setupRole` for the Job's ServiceAccount, with the `loco-setup` policy, which covers only the Transit mount and key, the `loco-api` and `loco-setup` policies and the roles of the Kubernetes auth mount. It then revokes the root token; later runs log in with that role. On every run the Job enables Transit at `openbao.transit.mount`, creates the key `openbao.transit.key`, writes the `loco-api` policy below, and binds the role `openbao.kubernetesAuth.role` at `openbao.kubernetesAuth.mount` to the API's ServiceAccount `<release>-api`. It fails instead of initializing when OpenBao is not initialized and the `<release>-openbao-init` Secret exists. The first run also creates the token that `LOCO_SECRETS_TRANSIT_TOKEN` in the API environment Secret names.
+
+For anything beyond that, generate a root token inside `<release>-openbao-0` with the generate-root token in `BAO_TOKEN` and the recovery keys, and revoke it when done:
+
+```sh
+bao operator generate-root -generate-otp
+bao operator generate-root -init -otp=OTP
+bao operator generate-root -nonce=NONCE RECOVERY_KEY
+bao operator generate-root -decode=ENCODED_TOKEN -otp=OTP
+```
+
+Run the third command once per recovery key, up to the threshold.
+
 ## Transit
 
 The API calls three Transit endpoints on one key: `encrypt`, `decrypt` and a read of the key for its latest version. Each call sends the environment's identity as the key derivation context, so the key must be an `aes256-gcm96` key created with `derived=true`. A data key wrapped for one environment does not unwrap with another environment's context. The API refuses any other key type.

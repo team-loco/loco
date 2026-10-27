@@ -328,6 +328,204 @@
       },
       "additionalProperties": false
     },
+    "openbao": {
+      "type": "object",
+      "properties": {
+        "clusterPort": {
+          "type": "integer"
+        },
+        "curlImage": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "external": {
+          "type": "object",
+          "properties": {
+            "address": {
+              "type": "string"
+            },
+            "caSecret": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "image": {
+          "type": "string"
+        },
+        "kubernetesAuth": {
+          "type": "object",
+          "properties": {
+            "mount": {
+              "type": "string"
+            },
+            "role": {
+              "type": "string"
+            },
+            "setupRole": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "port": {
+          "type": "integer"
+        },
+        "recovery": {
+          "type": "object",
+          "properties": {
+            "shares": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "threshold": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "replicas": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "resources": {
+          "type": "object"
+        },
+        "seal": {
+          "type": "object",
+          "properties": {
+            "awskms": {
+              "type": "object",
+              "properties": {
+                "endpoint": {
+                  "type": "string"
+                },
+                "existingSecret": {
+                  "type": "string"
+                },
+                "kmsKeyId": {
+                  "type": "string"
+                },
+                "region": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "static": {
+              "type": "object",
+              "properties": {
+                "existingSecret": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "keyId": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "transit": {
+              "type": "object",
+              "properties": {
+                "address": {
+                  "type": "string"
+                },
+                "existingSecret": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "key": {
+                  "type": "string"
+                },
+                "mount": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "static",
+                "awskms",
+                "transit"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "storage": {
+          "type": "object",
+          "properties": {
+            "size": {
+              "type": "string"
+            },
+            "storageClass": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "tls": {
+          "type": "object",
+          "properties": {
+            "caDuration": {
+              "type": "string"
+            },
+            "duration": {
+              "type": "string"
+            },
+            "reloadSeconds": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "transit": {
+          "type": "object",
+          "properties": {
+            "key": {
+              "type": "string"
+            },
+            "mount": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
     "secrets": {
       "type": "object",
       "properties": {

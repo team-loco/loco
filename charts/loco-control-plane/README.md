@@ -1,6 +1,6 @@
 # loco-control-plane
 
-`loco-control-plane` installs one region's dashboard, API, observability proxy, Gateway and, optionally, ClickHouse. The API serves ordinary RPCs and forwards observability RPCs to the proxy at the same public API address. Agents connect to this API with the shared connection secret; user authentication uses the configured identity provider.
+`loco-control-plane` installs one region's dashboard, API, observability proxy, Gateway, OpenBao and, optionally, ClickHouse. The API serves ordinary RPCs and forwards observability RPCs to the proxy at the same public API address. Agents connect to this API with the shared connection secret; user authentication uses the configured identity provider.
 
 Provide these dependencies before installing the chart:
 
@@ -11,10 +11,10 @@ Provide these dependencies before installing the chart:
 | Source object storage | Existing S3-compatible bucket and `LOCO_SOURCE_BUCKET*` API environment settings. Without a bucket, source builds are disabled. |
 | Application image registry | Existing registry and `LOCO_REGISTRY_*` API environment settings. Builders and worker nodes must also reach this registry. |
 | Regional ClickHouse | `clickhouse.enabled: true` runs it in the release namespace, or provide an external ClickHouse with Keeper and supply reader, migrator and ingest DSNs through existing Secrets. |
-| cert-manager | The cert-manager controller. The chart issues one Certificate for the Gateway hostnames with the Issuer set in `certManager.issuer`, the same options as `loco-worker`: `type: acme` solves DNS-01 through Cloudflare with `secrets.cloudflareToken` unless `certManager.issuer.solvers` supplies cert-manager's own solver list, `selfSigned` needs no token. `certManager.issuer.create: false` uses an existing issuer by `name` and `kind`. `gateway.tlsSecretName` serves your own Secret and renders no cert-manager objects; `certManager.enabled: false` serves plain HTTP on port 80. |
+| cert-manager | The cert-manager controller, which also issues OpenBao's serving certificate. The chart issues one Certificate for the Gateway hostnames with the Issuer set in `certManager.issuer`, the same options as `loco-worker`: `type: acme` solves DNS-01 through Cloudflare with `secrets.cloudflareToken` unless `certManager.issuer.solvers` supplies cert-manager's own solver list, `selfSigned` needs no token. `certManager.issuer.create: false` uses an existing issuer by `name` and `kind`. `gateway.tlsSecretName` serves your own Secret and renders no cert-manager objects; `certManager.enabled: false` serves plain HTTP on port 80. |
 | Envoy Gateway | The Envoy Gateway controller in `gatewayNamespace`. The chart creates its own GatewayClass, EnvoyProxy and Gateway; `gateway.create: false` attaches the routes to the existing Gateway `gateway.name` instead. |
 
-Create the API environment Secret outside Helm. The chart reads environment-variable keys directly from that Secret, so credentials do not enter Helm values or the release manifest. A complete installation configures `DATABASE_URL`, `AUTH_ISSUERS`, the source bucket and registry, and the `LOCO_SECRETS_TRANSIT_*` settings of the [secrets key provider](../../docs/content/operations/secrets-key-provider.md), with the transit token in the same operator-managed Secret. Existing API configuration names and rotation procedures apply.
+Create the API environment Secret outside Helm. The chart reads environment-variable keys directly from that Secret, so credentials do not enter Helm values or the release manifest. A complete installation configures `DATABASE_URL`, `AUTH_ISSUERS`, the source bucket and registry, and the `LOCO_SECRETS_TRANSIT_TOKEN` the API presents to OpenBao. Existing API configuration names and rotation procedures apply.
 
 ```sh
 kubectl -n loco-system create secret generic regional-api-env \
@@ -50,12 +50,23 @@ obsProxy:
     tag: sha-COMMIT@sha256:DIGEST
   ingest:
     enabled: true
+openbao:
+  seal:
+    static:
+      existingSecret:
+        name: openbao-seal
 clickhouse:
   enabled: true
 clickhouseUserPasswords:
   loco_migrator: MIGRATOR_PASSWORD
   loco_ingest: INGEST_PASSWORD
   loco_reader: READER_PASSWORD
+```
+
+The chart runs OpenBao for the API's secrets key and sets the API's `LOCO_SECRETS_TRANSIT_ADDR`, `LOCO_SECRETS_TRANSIT_MOUNT` and `LOCO_SECRETS_TRANSIT_KEY`. Create its seal key Secret, named in `openbao.seal.static.existingSecret.name`, before installing; OpenBao serves TLS from a CA the chart issues with cert-manager, so the cert-manager controller is required even with `certManager.enabled: false`. [The secrets key provider](../../docs/content/operations/secrets-key-provider.md#openbao-in-the-control-plane-chart) describes the seal options, the setup Job, the recovery keys it writes to `<release>-openbao-init` for you to move offline, and an external OpenBao.
+
+```sh
+kubectl -n loco-system create secret generic openbao-seal --from-literal=key="$(openssl rand -base64 32)"
 ```
 
 With an external ClickHouse, leave `clickhouse.enabled: false` and name Secrets holding each user's URL in `obsProxy.query.clickhouse.existingSecret`, `obsProxy.query.clickhouse.migratorExistingSecret` and `obsProxy.ingest.clickhouse.existingSecret`.
@@ -86,4 +97,4 @@ mise run test:platform-render
 mise run e2e:control-plane
 ```
 
-The E2E suite builds the dashboard, API and proxy images, installs PostgreSQL and the Envoy Gateway controller in a fresh kind cluster, and installs this chart with its own Gateway, in-cluster ClickHouse, published ingest and two API replicas against an empty database. It checks the Gateway's listeners, startup migrations, the dashboard and runtime configuration, Config RPCs through the dashboard origin, an observability request forwarded through the API whose permission check returns through the private API Service, and an OTLP/HTTP log sent to the ingest hostname that lands in ClickHouse. It then renders all three API/dashboard hostname layouts against the Gateway, measures the reduction in failed connections to a mixed healthy/closed endpoint set, checks that handled HTTP 500/503 responses execute once, and compares intact 8 KiB and 2 MiB request bodies. `--no-teardown` keeps the cluster; `--skip-build` reuses the images on a subsequent run.
+The E2E suite builds the dashboard, API and proxy images, installs PostgreSQL and the Envoy Gateway controller in a fresh kind cluster, and installs this chart with its own Gateway, in-cluster ClickHouse, a one-node OpenBao, published ingest and two API replicas against an empty database. It checks the Gateway's listeners, startup migrations, the dashboard and runtime configuration, Config RPCs through the dashboard origin, an observability request forwarded through the API whose permission check returns through the private API Service, an OTLP/HTTP log sent to the ingest hostname that lands in ClickHouse, and secrets the API encrypts with the chart's OpenBao before and after an upgrade reruns its setup Job. It then renders all three API/dashboard hostname layouts against the Gateway, measures the reduction in failed connections to a mixed healthy/closed endpoint set, checks that handled HTTP 500/503 responses execute once, and compares intact 8 KiB and 2 MiB request bodies. `--no-teardown` keeps the cluster; `--skip-build` reuses the images on a subsequent run.

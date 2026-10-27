@@ -44,7 +44,7 @@ done <<<"$dockerfiles"
 while IFS= read -r file; do
 	while IFS= read -r image; do
 		pinned "$file" "$image"
-	done < <(yq '.services[].image | select(. != null)' "$file")
+	done < <(yq '.services[].image | select(. != null and (test("^\\$\\{") | not))' "$file")
 done < <(git ls-files '*compose*.yaml' '*compose*.yml')
 
 while IFS= read -r file; do
@@ -53,6 +53,8 @@ while IFS= read -r file; do
 	done < <(yq '.jobs[] | (.services[]?.image, .container.image?) | select(. != null)' "$file")
 done < <(git ls-files '.github/workflows/*.yml')
 
+pinned charts/loco-control-plane/values.yaml "$(yq '.openbao.image' charts/loco-control-plane/values.yaml)"
+pinned charts/loco-control-plane/values.yaml "$(yq '.openbao.curlImage' charts/loco-control-plane/values.yaml)"
 check golang "$(yq -p toml -oy '.tools.go' mise.toml)"
 check oven/bun "$(yq -p toml -oy '.tools.bun' mise.toml)"
 check ghcr.io/astral-sh/uv "$(yq -p toml -oy '.tools.uv' mise.toml)"

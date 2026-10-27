@@ -116,7 +116,7 @@ local_resource(
     'openbao-seed',
     cmd='mise run openbao:seed',
     resource_deps=['openbao'],
-    deps=['openbao/seed.sh'],
+    deps=['../charts/loco-control-plane/files/openbao-setup.sh'],
     allow_parallel=True,
     labels=['infrastructure'],
 )

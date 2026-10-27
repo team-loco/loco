@@ -1,0 +1,258 @@
+suite: openbao
+release:
+  name: loco-control-plane
+  namespace: loco-control-plane
+values:
+  - ../ci/default-values.yaml
+templates:
+  - templates/openbao.yaml
+  - templates/openbao-setup.yaml
+  - templates/openbao-tls.yaml
+  - templates/api-deployment.yaml
+  - templates/api-service-account.yaml
+tests:
+  - it: runs the pinned image as a raft StatefulSet with a volume per node
+    template: templates/openbao.yaml
+    documentSelector: {path: kind, value: StatefulSet}
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 3
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: ^quay\.io/openbao/openbao:[^@]+@sha256:[a-f0-9]{64}$
+      - equal:
+          path: spec.volumeClaimTemplates[0].spec.resources.requests.storage
+          value: 10Gi
+
+  - it: lists every node as a raft join target over TLS
+    template: templates/openbao.yaml
+    documentSelector: {path: kind, value: ConfigMap}
+    asserts:
+      - matchRegex:
+          path: data["config.hcl"]
+          pattern: 'leader_api_addr     = "https://loco-control-plane-openbao-2\.loco-control-plane-openbao-peers\.loco-control-plane\.svc\.cluster\.local:8200"'
+      - matchRegex:
+          path: data["config.hcl"]
+          pattern: 'leader_ca_cert_file = "/openbao/tls/ca\.crt"'
+      - notMatchRegex:
+          path: data["config.hcl"]
+          pattern: tls_disable
+
+  - it: joins only itself with one replica
+    set:
+      openbao.replicas: 1
+    template: templates/openbao.yaml
+    documentSelector: {path: kind, value: ConfigMap}
+    asserts:
+      - notMatchRegex:
+          path: data["config.hcl"]
+          pattern: openbao-1\.
+      - matchRegex:
+          path: data["config.hcl"]
+          pattern: openbao-0\.
+
+  - it: serves TLS from the certificate cert-manager issues from the chart CA
+    template: templates/openbao-tls.yaml
+    asserts:
+      - equal:
+          path: spec.isCA
+          value: true
+        documentSelector: {path: spec.secretName, value: loco-control-plane-openbao-ca}
+      - equal:
+          path: spec.issuerRef
+          value: {kind: Issuer, name: loco-control-plane-openbao-ca}
+        documentSelector: {path: metadata.name, value: loco-control-plane-openbao-tls}
+      - contains:
+          path: spec.dnsNames
+          content: "*.loco-control-plane-openbao-peers.loco-control-plane.svc.cluster.local"
+        documentSelector: {path: metadata.name, value: loco-control-plane-openbao-tls}
+
+  - it: mounts the serving certificate and probes over HTTPS
+    template: templates/openbao.yaml
+    documentSelector: {path: kind, value: StatefulSet}
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content: {name: tls, secret: {secretName: loco-control-plane-openbao-tls, defaultMode: 0440}}
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.scheme
+          value: HTTPS
+
+  - it: reads the static seal key from the operator's Secret
+    template: templates/openbao.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.hcl"]
+          pattern: 'current_key    = "file:///openbao/seal/key"'
+        documentSelector: {path: kind, value: ConfigMap}
+      - contains:
+          path: spec.template.spec.volumes
+          content: {name: seal, secret: {secretName: loco-openbao-seal, items: [{key: key, path: key}]}}
+        documentSelector: {path: kind, value: StatefulSet}
+
+  - it: requires the static seal Secret
+    set:
+      openbao.seal.static.existingSecret.name: ""
+    template: templates/openbao.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: openbao.seal.static.existingSecret.name is required
+
+  - it: renders the awskms seal from values
+    set:
+      openbao.seal.type: awskms
+      openbao.seal.awskms: {region: eu-west-1, kmsKeyId: alias/loco, existingSecret: aws}
+    template: templates/openbao.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.hcl"]
+          pattern: 'kms_key_id = "alias/loco"'
+        documentSelector: {path: kind, value: ConfigMap}
+      - equal:
+          path: spec.template.spec.containers[0].envFrom
+          value: [{secretRef: {name: aws}}]
+        documentSelector: {path: kind, value: StatefulSet}
+
+  - it: renders the transit seal from values
+    set:
+      openbao.seal.type: transit
+      openbao.seal.transit: {address: "https://seal.test:8200", key: unseal, existingSecret: {name: seal-token}}
+    template: templates/openbao.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.hcl"]
+          pattern: 'key_name   = "unseal"'
+        documentSelector: {path: kind, value: ConfigMap}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: BAO_TOKEN, valueFrom: {secretKeyRef: {name: seal-token, key: token}}}
+        documentSelector: {path: kind, value: StatefulSet}
+
+  - it: rejects an unknown seal type
+    set:
+      openbao.seal.type: shamir
+    template: templates/openbao.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "openbao/seal/type"
+
+  - it: admits only the API, the setup Job and the other nodes
+    template: templates/openbao.yaml
+    documentSelector: {path: kind, value: NetworkPolicy}
+    asserts:
+      - equal:
+          path: spec.ingress[0].from
+          value:
+            - podSelector: {matchLabels: {app: loco-control-plane-api}}
+            - podSelector: {matchLabels: {app: loco-control-plane-openbao-setup}}
+      - equal:
+          path: spec.ingress[1]
+          value:
+            from: [{podSelector: {matchLabels: {app: loco-control-plane-openbao}}}]
+            ports: [{protocol: TCP, port: 8200}, {protocol: TCP, port: 8201}]
+
+  - it: runs the setup Job after every install and upgrade
+    template: templates/openbao-setup.yaml
+    documentSelector: {path: kind, value: Job}
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: post-install,post-upgrade
+      - equal:
+          path: spec.template.spec.initContainers[1].image
+          value: curlimages/curl:8.23.0@sha256:11e64e28c5f58c8d93ee95fcf22ac055f48b0bc440e0ce7d8013bbb5ad6aa8ac
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content: {name: OPENBAO_PREVIOUS_INIT, value: /init-secret/recovery-keys}
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content: {name: OPENBAO_GENERATE_ROOT_TOKEN_FILE, value: /work/generate-root-token}
+
+  - it: verifies OpenBao against the chart CA and logs in later runs with its own role
+    template: templates/openbao-setup.yaml
+    documentSelector: {path: kind, value: Job}
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: BAO_ADDR, value: "https://loco-control-plane-openbao-0.loco-control-plane-openbao-peers.loco-control-plane.svc.cluster.local:8200"}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: BAO_CACERT, value: /var/run/secrets/openbao-ca/ca.crt}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: OPENBAO_SETUP_ROLE, value: loco-setup}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: OPENBAO_SETUP_SERVICE_ACCOUNT, value: loco-control-plane-openbao-setup}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: OPENBAO_API_SERVICE_ACCOUNT, value: loco-control-plane-api}
+
+  - it: lets the setup Job only create Secrets
+    template: templates/openbao-setup.yaml
+    documentSelector: {path: kind, value: Role}
+    asserts:
+      - equal:
+          path: rules
+          value: [{apiGroups: [""], resources: [secrets], verbs: [create]}]
+
+  - it: rejects a recovery threshold above the shares
+    set:
+      openbao.recovery: {shares: 1, threshold: 2}
+    template: templates/openbao-setup.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: openbao.recovery.threshold must be between 1 and openbao.recovery.shares
+
+  - it: rejects a threshold of one with several shares
+    set:
+      openbao.recovery: {shares: 3, threshold: 1}
+    template: templates/openbao-setup.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: openbao.recovery.threshold must be at least 2 when openbao.recovery.shares is more than 1
+
+  - it: points the API at the bundled OpenBao over TLS
+    template: templates/api-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_SECRETS_TRANSIT_ADDR, value: "https://loco-control-plane-openbao.loco-control-plane.svc.cluster.local:8200"}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_SECRETS_TRANSIT_CA_FILE, value: /var/run/secrets/openbao-ca/ca.crt}
+      - contains:
+          path: spec.template.spec.volumes
+          content: {name: openbao-ca, secret: {secretName: loco-control-plane-openbao-tls, items: [{key: ca.crt, path: ca.crt}]}}
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: loco-control-plane-api
+
+  - it: renders no server for an external OpenBao and passes its address and CA
+    set:
+      openbao.enabled: false
+      openbao.external: {address: "https://bao.region.test:8200", caSecret: {name: bao-ca}}
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: templates/openbao.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/openbao-setup.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_SECRETS_TRANSIT_ADDR, value: "https://bao.region.test:8200"}
+        template: templates/api-deployment.yaml
+      - contains:
+          path: spec.template.spec.volumes
+          content: {name: openbao-ca, secret: {secretName: bao-ca, items: [{key: ca.crt, path: ca.crt}]}}
+        template: templates/api-deployment.yaml
+
+  - it: requires an address for an external OpenBao
+    set:
+      openbao.enabled: false
+    template: templates/api-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: openbao.external.address is required when openbao.enabled is false
