@@ -72,6 +72,7 @@ Builds, tests, code generation, linting and the local environment are mise tasks
 
 - **Imports**: stdlib → third-party → local packages; grouped with blank lines
 - **Error handling**: Wrap with `fmt.Errorf("context: %w", err)`; use `slog.ErrorContext()`
+- **Errors stay visible**: log a failure that needs a person at ERROR, and stop rather than retry an error a retry cannot fix (a removed resource, a rejected credential, invalid configuration). WARN is only for a condition the code handles itself, such as a dropped stream it reconnects.
 - **Naming**: camelCase for unexported, PascalCase for exported; descriptive names
 - **Types**: Use protobuf types for API; shared types in `internal/`, CLI-only packages in `cmd/internal/`; interfaces for abstraction
 - **Logging**: `slog` package with structured logging; `slog.InfoContext(ctx, "message")`

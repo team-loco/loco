@@ -3,6 +3,7 @@ package main
 import (
 	"math"
 
+	"connectrpc.com/connect/v2"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
@@ -18,5 +19,18 @@ func newReconnectBackoff(cfg *Config) wait.Backoff {
 		Jitter:   reconnectJitter,
 		Steps:    math.MaxInt32,
 		Cap:      cfg.ReconnectMaxDelay,
+	}
+}
+
+func retryable(err error) bool {
+	switch connect.CodeOf(err) {
+	case connect.CodePermissionDenied:
+		return false
+	case connect.CodeUnauthenticated:
+		return false
+	case connect.CodeResourceExhausted:
+		return false
+	default:
+		return true
 	}
 }

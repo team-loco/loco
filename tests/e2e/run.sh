@@ -20,6 +20,7 @@ RUN_DIR="$SCRIPT_DIR/runs/$RUN_ID"
 BIN_DIR="$RUN_DIR/bin"
 LOG_DIR="$RUN_DIR/logs"
 PID_DIR="$RUN_DIR/pids"
+AGENT_EXPECTED_ERRORS="$LOG_DIR/agent-expected-errors.log"
 JOB_PID_DIR="$PID_DIR/setup-$$"
 KUBECONFIG_FILE="$RUN_DIR/kubeconfig"
 
@@ -906,7 +907,8 @@ check_agent_log() {
     log_step "Checking the agent log of the whole run..."
     local log_file="$LOG_DIR/agent.log" errors
     assert "Agent log exists at ${log_file}" test -f "$log_file" || return 0
-    errors=$(grep '"level":"ERROR"' "$log_file" || true)
+    touch "$AGENT_EXPECTED_ERRORS"
+    errors=$(grep '"level":"ERROR"' "$log_file" | grep -vxF -f "$AGENT_EXPECTED_ERRORS" || true)
     if ! assert "Agent logged no ERROR entries during the run" test -z "$errors"; then
         echo "$errors"
     fi
@@ -954,7 +956,7 @@ main() {
     fi
     seed_cluster_admin
     create_e2e_cluster
-    rm -f "$LOG_DIR/agent.log"
+    rm -f "$LOG_DIR/agent.log" "$AGENT_EXPECTED_ERRORS"
     start_agent
     start_obs_proxy
     if [ "$OBSERVABILITY" = true ]; then
