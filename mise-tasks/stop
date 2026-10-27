@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 #MISE description="Stop this checkout's local environment and keep its state: Tilt and the services it runs, the compose services, and the kind nodes; mise run start brings it back"
-#MISE env={_.source="dev/stack.sh"}
 set -euo pipefail
 
 name=$KIND_CLUSTER

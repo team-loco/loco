@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 #MISE description="Uninstall every release from the local cluster"
-#MISE env={_.source="dev/stack.sh"}
 set -euo pipefail
 
 context="kind-$KIND_CLUSTER"
