@@ -78,7 +78,7 @@
       matchPackageNames: ["opentelemetry-**"],
     },
     {
-      description: "A chart publishes only when its version moves, and lint:chart-versions requires the bump",
+      description: "A chart publishes only when its version moves, and lint:charts requires the bump",
       matchManagers: ["helmv3", "helm-values"],
       matchFileNames: ["charts/**"],
       bumpVersion: "patch",

@@ -1,0 +1,22 @@
+certManager:
+  issuer:
+    email: ci@example.invalid
+
+ui:
+  image:
+    tag: ci
+
+api:
+  image:
+    tag: ci
+  existingSecret: loco-api-env
+
+obsProxy:
+  image:
+    tag: ci
+  query:
+    clickhouse:
+      existingSecret:
+        name: loco-obs-proxy-reader
+      migratorExistingSecret:
+        name: loco-obs-proxy-migrator

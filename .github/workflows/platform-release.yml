@@ -49,10 +49,10 @@ jobs:
       - uses: ./.github/actions/setup-tools
       - run: mise run test:platform-release
       - run: mise run test:platform-render
-      - name: Check that changed charts and CRD bundles bump their versions
+      - name: Check that changed CRD bundles bump their versions
         env:
           BASE_REF: ${{ github.base_ref }}
-        run: mise run lint:chart-versions "origin/$BASE_REF"
+        run: mise run lint:crd-versions "origin/$BASE_REF"
 
   artifacts:
     if: github.event_name == 'push'

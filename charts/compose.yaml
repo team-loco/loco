@@ -1,0 +1,13 @@
+name: loco-chart-testing
+
+services:
+  ct:
+    image: quay.io/helmpack/chart-testing:v3.15.0@sha256:54317f2d93730ea9ca1236e3d79cd95d74110b8d733b6ab124e5829209b5f4e4
+    working_dir: ${CHARTS_REPO}
+    environment:
+      GIT_CONFIG_COUNT: "1"
+      GIT_CONFIG_KEY_0: safe.directory
+      GIT_CONFIG_VALUE_0: "*"
+    volumes:
+      - ${CHARTS_REPO}:${CHARTS_REPO}
+      - ${CHARTS_GIT_DIR}:${CHARTS_GIT_DIR}:ro
