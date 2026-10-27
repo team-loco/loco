@@ -81,17 +81,100 @@ func (r *Resolver) existing(ctx context.Context, id Identity) (genDb.User, error
 	email := nullableString(id.Email)
 	storedVerified := row.IdentityEmailVerified && row.IdentityEmail != nil && *row.IdentityEmail == id.Email
 	if verified && email != nil && !storedVerified {
-		return r.recordVerifiedEmail(ctx, user, id)
-	}
-	if err := r.queries.TouchIdentity(ctx, genDb.TouchIdentityParams{
+		user, err = r.recordVerifiedEmail(ctx, user, id)
+		if err != nil {
+			return genDb.User{}, err
+		}
+	} else if touchErr := r.queries.TouchIdentity(ctx, genDb.TouchIdentityParams{
 		Issuer:        id.Issuer,
 		Subject:       id.Subject,
 		Email:         email,
 		EmailVerified: verified,
-	}); err != nil {
-		slog.WarnContext(ctx, "failed to record identity login", "userId", user.ID, "error", err)
+	}); touchErr != nil {
+		slog.WarnContext(ctx, "failed to record identity login", "userId", user.ID, "error", touchErr)
+	}
+	if !verified || email == nil {
+		return user, nil
+	}
+	if err := r.claimOpenInvitations(ctx, user, id.Email); err != nil {
+		return genDb.User{}, err
 	}
 	return user, nil
+}
+
+func (r *Resolver) claimOpenInvitations(ctx context.Context, user genDb.User, email string) error {
+	invitations, err := r.queries.ListOpenInvitationsForEmail(ctx, email)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to look up invitations", "error", err, "userId", user.ID)
+		return ErrResolve
+	}
+	if len(invitations) == 0 {
+		return nil
+	}
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
+		return ErrResolve
+	}
+	defer func() {
+		if rbErr := tx.Rollback(ctx); rbErr != nil && !errors.Is(rbErr, pgx.ErrTxClosed) {
+			slog.WarnContext(ctx, "failed to roll back invitation claim", "error", rbErr)
+		}
+	}()
+	if claimErr := claimInvitations(ctx, r.queries.WithTx(tx), user, invitations); claimErr != nil {
+		slog.ErrorContext(ctx, "failed to claim invitations", "error", claimErr, "userId", user.ID)
+		return ErrResolve
+	}
+	if commitErr := tx.Commit(ctx); commitErr != nil {
+		slog.ErrorContext(ctx, "failed to commit invitation claim", "error", commitErr, "userId", user.ID)
+		return ErrResolve
+	}
+	return nil
+}
+
+func claimInvitations(ctx context.Context, qtx *genDb.Queries, user genDb.User, invitations []genDb.Invitation) error {
+	if user.Status != genDb.UserStatusActive {
+		return nil
+	}
+	for _, invitation := range invitations {
+		claimed, err := qtx.ClaimInvitation(ctx, genDb.ClaimInvitationParams{ID: invitation.ID, UserID: user.ID})
+		if errors.Is(err, pgx.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("claim invitation %s: %w", invitation.ID, err)
+		}
+		if err := qtx.AddUserScope(ctx, genDb.AddUserScopeParams{
+			UserID:     user.ID,
+			EntityType: genDb.EntityTypeOrganization,
+			EntityID:   claimed.OrgID,
+			Scope:      genDb.ScopeMember,
+		}); err != nil {
+			return fmt.Errorf("add member scope for invitation %s: %w", claimed.ID, err)
+		}
+		if err := events.Record(ctx, qtx, events.Event{
+			Type:        events.OrgMemberAdded,
+			OrgID:       new(claimed.OrgID),
+			ActorType:   string(genDb.EntityTypeUser),
+			ActorID:     new(user.ID),
+			SubjectType: events.SubjectUser,
+			SubjectID:   new(user.ID),
+		}); err != nil {
+			return fmt.Errorf("record member added for invitation %s: %w", claimed.ID, err)
+		}
+		if err := events.Record(ctx, qtx, events.Event{
+			Type:        events.InvitationClaimed,
+			OrgID:       new(claimed.OrgID),
+			ActorType:   string(genDb.EntityTypeUser),
+			ActorID:     new(user.ID),
+			SubjectType: events.SubjectInvitation,
+			SubjectID:   new(claimed.ID),
+			Data:        map[string]any{events.FieldEmail: claimed.Email},
+		}); err != nil {
+			return fmt.Errorf("record invitation %s claimed: %w", claimed.ID, err)
+		}
+	}
+	return nil
 }
 
 func (r *Resolver) recordVerifiedEmail(ctx context.Context, user genDb.User, id Identity) (genDb.User, error) {
@@ -154,7 +237,7 @@ func moveAccountEmail(ctx context.Context, qtx *genDb.Queries, user genDb.User, 
 		ActorID:     new(user.ID),
 		SubjectType: events.SubjectUser,
 		SubjectID:   new(user.ID),
-		Data:        map[string]any{"email": email},
+		Data:        map[string]any{events.FieldEmail: email},
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to record the account email change", "error", err, "userId", user.ID)
 		return genDb.User{}, ErrResolve
@@ -215,6 +298,12 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, erro
 	}()
 	qtx := r.queries.WithTx(tx)
 
+	invitations, err := qtx.ListOpenInvitationsForEmail(ctx, id.Email)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to look up invitations", "error", err)
+		return genDb.User{}, ErrResolve
+	}
+
 	created := false
 	user, err := qtx.GetUserByEmail(ctx, id.Email)
 	switch {
@@ -228,7 +317,7 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, erro
 			return genDb.User{}, ErrEmailTaken
 		}
 	case errors.Is(err, pgx.ErrNoRows):
-		if policyErr := r.policy.Check(id); policyErr != nil {
+		if policyErr := r.policy.Check(id, len(invitations) > 0); policyErr != nil {
 			return genDb.User{}, policyErr
 		}
 		user, err = createUser(ctx, qtx, id)
@@ -251,7 +340,7 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, erro
 		ActorID:     new(user.ID),
 		SubjectType: events.SubjectUser,
 		SubjectID:   new(user.ID),
-		Data:        map[string]any{"issuer": id.Issuer, "email": id.Email},
+		Data:        map[string]any{"issuer": id.Issuer, events.FieldEmail: id.Email},
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to record identity event", "error", err)
 		return genDb.User{}, ErrResolve
@@ -268,6 +357,11 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, erro
 			return genDb.User{}, err
 		}
 		slog.ErrorContext(ctx, "failed to create identity", "error", err, "userId", user.ID)
+		return genDb.User{}, ErrResolve
+	}
+
+	if err := claimInvitations(ctx, qtx, user, invitations); err != nil {
+		slog.ErrorContext(ctx, "failed to claim invitations", "error", err, "userId", user.ID)
 		return genDb.User{}, ErrResolve
 	}
 

@@ -1,4 +1,6 @@
 -- +goose Up
+CREATE TYPE user_status AS ENUM ('active', 'suspended');
+
 -- Users table
 CREATE TABLE
     IF NOT EXISTS users (
@@ -6,6 +8,7 @@ CREATE TABLE
         email TEXT UNIQUE NOT NULL,
         name TEXT,
         avatar_url TEXT,
+        status user_status NOT NULL DEFAULT 'active',
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
     );
@@ -68,3 +71,4 @@ DROP TABLE IF EXISTS workspaces;
 DROP TABLE IF EXISTS organizations;
 DROP TABLE IF EXISTS identities;
 DROP TABLE IF EXISTS users;
+DROP TYPE IF EXISTS user_status;
