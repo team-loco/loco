@@ -75,7 +75,7 @@ Deployable sample apps, each with its own `loco.yaml`:
 
 ## Sign-up Policy
 
-The API decides who can create an account the first time they sign in through the instance's identity provider; existing accounts are not affected. `AUTH_SIGNUP_MODE` selects the policy: `open` (the default) accepts every identity, `domains` accepts only verified email addresses whose domain is in the comma-separated `AUTH_SIGNUP_DOMAINS` list, and `closed` creates no new accounts. The API refuses to start with an unknown mode or with `domains` and an empty list.
+The API decides who can create an account the first time they sign in through the instance's identity provider; existing accounts are not affected. `AUTH_SIGNUP_MODE` selects the policy: `open` (the default) accepts every identity, `domains` accepts only verified email addresses whose domain is in the comma-separated `AUTH_SIGNUP_DOMAINS` list, and `invite` accepts only verified email addresses with an open invitation to an organization. The API refuses to start with an unknown mode or with `domains` and an empty list.
 
 ## Documentation
 

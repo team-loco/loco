@@ -18,7 +18,10 @@ import (
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
-var errNoToken = errors.New("no bearer token provided")
+var (
+	errNoToken       = errors.New("no bearer token provided")
+	errUserSuspended = errors.New("user is suspended")
+)
 
 type authInterceptor struct {
 	machine  *tvm.VendingMachine
@@ -125,6 +128,10 @@ func (i *authInterceptor) authenticateProviderToken(
 		}
 		slog.ErrorContext(ctx, "failed to resolve identity", "issuer", identity.Issuer, "error", err)
 		return nil, rpcerr.New(connect.CodeInternal, auth.ErrResolve)
+	}
+	if user.Status != genDb.UserStatusActive {
+		slog.InfoContext(ctx, "suspended user rejected", "procedure", procedure, "userId", user.ID)
+		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(errUserSuspended)
 	}
 
 	scopes, err := i.authz.UserScopes(ctx, user.ID)

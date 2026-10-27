@@ -238,6 +238,48 @@ func (ns NullResourceType) Value() (driver.Value, error) {
 	return string(ns.ResourceType), nil
 }
 
+type UserStatus string
+
+const (
+	UserStatusActive    UserStatus = "active"
+	UserStatusSuspended UserStatus = "suspended"
+)
+
+func (e *UserStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = UserStatus(s)
+	case string:
+		*e = UserStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for UserStatus: %T", src)
+	}
+	return nil
+}
+
+type NullUserStatus struct {
+	UserStatus UserStatus `json:"userStatus"`
+	Valid      bool       `json:"valid"` // Valid is true if UserStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullUserStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.UserStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.UserStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullUserStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.UserStatus), nil
+}
+
 type WebhookKind string
 
 const (
@@ -419,6 +461,20 @@ type Identity struct {
 	LastLoginAt   time.Time `json:"lastLoginAt"`
 }
 
+type Invitation struct {
+	ID            uuid.UUID  `json:"id"`
+	OrgID         uuid.UUID  `json:"orgId"`
+	Email         string     `json:"email"`
+	InvitedBy     uuid.UUID  `json:"invitedBy"`
+	CreatedAt     time.Time  `json:"createdAt"`
+	ExpiresAt     time.Time  `json:"expiresAt"`
+	ClaimedBy     *uuid.UUID `json:"claimedBy"`
+	ClaimedAt     *time.Time `json:"claimedAt"`
+	RevokedAt     *time.Time `json:"revokedAt"`
+	DeliveredAt   *time.Time `json:"deliveredAt"`
+	DeliveryError *string    `json:"deliveryError"`
+}
+
 type Organization struct {
 	ID        uuid.UUID `json:"id"`
 	Name      string    `json:"name"`
@@ -518,12 +574,13 @@ type SystemBootstrap struct {
 }
 
 type User struct {
-	ID        uuid.UUID `json:"id"`
-	Email     string    `json:"email"`
-	Name      *string   `json:"name"`
-	AvatarUrl *string   `json:"avatarUrl"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID        uuid.UUID  `json:"id"`
+	Email     string     `json:"email"`
+	Name      *string    `json:"name"`
+	AvatarUrl *string    `json:"avatarUrl"`
+	Status    UserStatus `json:"status"`
+	CreatedAt time.Time  `json:"createdAt"`
+	UpdatedAt time.Time  `json:"updatedAt"`
 }
 
 type UserScope struct {

@@ -66,7 +66,7 @@ const createUser = `-- name: CreateUser :one
 
 INSERT INTO users (email, name, avatar_url)
 VALUES ($1, $2, $3)
-RETURNING id, email, name, avatar_url, created_at, updated_at
+RETURNING id, email, name, avatar_url, status, created_at, updated_at
 `
 
 type CreateUserParams struct {
@@ -84,6 +84,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Email,
 		&i.Name,
 		&i.AvatarUrl,
+		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -156,7 +157,7 @@ func (q *Queries) GetOrganizationByName(ctx context.Context, name string) (Organ
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, name, avatar_url, created_at, updated_at
+SELECT id, email, name, avatar_url, status, created_at, updated_at
 FROM users
 WHERE email = $1
 `
@@ -169,6 +170,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Email,
 		&i.Name,
 		&i.AvatarUrl,
+		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -176,7 +178,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, name, avatar_url, created_at, updated_at
+SELECT id, email, name, avatar_url, status, created_at, updated_at
 FROM users
 WHERE id = $1
 `
@@ -189,6 +191,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.Email,
 		&i.Name,
 		&i.AvatarUrl,
+		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -209,7 +212,7 @@ func (q *Queries) IsOrganizationNameUnique(ctx context.Context, name string) (bo
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, email, name, avatar_url, created_at, updated_at
+SELECT id, email, name, avatar_url, status, created_at, updated_at
 FROM users
 WHERE ($2::text IS NULL
        OR (created_at, id) < (
@@ -239,6 +242,7 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 			&i.Email,
 			&i.Name,
 			&i.AvatarUrl,
+			&i.Status,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -261,7 +265,7 @@ WHERE u.id = $2
         SELECT 1 FROM identities i
         WHERE i.user_id = u.id AND i.email_verified AND i.email = u.email
     )
-RETURNING id, email, name, avatar_url, created_at, updated_at
+RETURNING id, email, name, avatar_url, status, created_at, updated_at
 `
 
 type MoveAccountEmailParams struct {
@@ -277,6 +281,34 @@ func (q *Queries) MoveAccountEmail(ctx context.Context, arg MoveAccountEmailPara
 		&i.Email,
 		&i.Name,
 		&i.AvatarUrl,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const setUserStatus = `-- name: SetUserStatus :one
+UPDATE users
+SET status = $2, updated_at = NOW()
+WHERE id = $1
+RETURNING id, email, name, avatar_url, status, created_at, updated_at
+`
+
+type SetUserStatusParams struct {
+	ID     uuid.UUID  `json:"id"`
+	Status UserStatus `json:"status"`
+}
+
+func (q *Queries) SetUserStatus(ctx context.Context, arg SetUserStatusParams) (User, error) {
+	row := q.db.QueryRow(ctx, setUserStatus, arg.ID, arg.Status)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.AvatarUrl,
+		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -289,7 +321,7 @@ SET name = COALESCE($1, name),
     avatar_url = COALESCE($2, avatar_url),
     updated_at = NOW()
 WHERE id = $3
-RETURNING id, email, name, avatar_url, created_at, updated_at
+RETURNING id, email, name, avatar_url, status, created_at, updated_at
 `
 
 type UpdateUserProfileParams struct {
@@ -306,6 +338,7 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.Email,
 		&i.Name,
 		&i.AvatarUrl,
+		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
