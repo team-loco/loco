@@ -7,7 +7,7 @@ description: Create, extend, restack and repair stacked PRs with `gh stack` in t
 
 ## Create a stack
 
-Work in a worktree off `origin/main` (see AGENTS.md). Commit the bottom change, then:
+Work on a branch off `origin/main`. Commit the bottom change, then:
 
 ```sh
 gh stack init <bottom-branch>
