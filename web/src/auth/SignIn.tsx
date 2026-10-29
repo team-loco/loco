@@ -9,20 +9,20 @@ import { forgetNextPath, rememberNextPath } from "./next";
 
 const SIGN_IN_FAILED = "Could not start sign-in";
 
-async function startSignIn(next: string | null): Promise<void> {
+async function startSignIn(next: string | null, loginHint: string | null): Promise<void> {
 	if (next === null) forgetNextPath();
 	else rememberNextPath(next);
 	const client = await authClient();
-	await client.signIn(signInRedirectURL());
+	await client.signIn(signInRedirectURL(), loginHint);
 }
 
 export function useSignIn() {
 	const [redirecting, setRedirecting] = useState(false);
 
-	const signIn = async (next: string | null) => {
+	const signIn = async (next: string | null, loginHint: string | null) => {
 		setRedirecting(true);
 		try {
-			await startSignIn(next);
+			await startSignIn(next, loginHint);
 		} catch (err) {
 			toastConnectError(err, SIGN_IN_FAILED);
 			setRedirecting(false);
@@ -39,7 +39,7 @@ export function SignInRedirect({ next }: { next: string }) {
 	useEffect(() => {
 		if (startedRef.current) return;
 		startedRef.current = true;
-		startSignIn(next).catch((err: unknown) => {
+		startSignIn(next, null).catch((err: unknown) => {
 			toastConnectError(err, SIGN_IN_FAILED);
 			setFailed(true);
 		});
