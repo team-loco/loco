@@ -242,6 +242,7 @@ type Querier interface {
 	ResourceHasPrimaryDomain(ctx context.Context, arg ResourceHasPrimaryDomainParams) (bool, error)
 	ResumeOrg(ctx context.Context, id uuid.UUID) (Organization, error)
 	ResumeOrgPlacements(ctx context.Context, orgID uuid.UUID) ([]ResumeOrgPlacementsRow, error)
+	RevokeExpiredInvitations(ctx context.Context, arg RevokeExpiredInvitationsParams) ([]Invitation, error)
 	RevokeInvitation(ctx context.Context, id uuid.UUID) (Invitation, error)
 	RewrapEnvironmentKey(ctx context.Context, arg RewrapEnvironmentKeyParams) (int64, error)
 	RotateSessionToken(ctx context.Context, arg RotateSessionTokenParams) (int64, error)

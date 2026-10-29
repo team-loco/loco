@@ -191,14 +191,17 @@ func TestInvitationsListsEveryPage(t *testing.T) {
 	}
 	fake := &invitationServer{pages: [][]*orgv1.Invitation{
 		{invitation("id-1", "a@acme.test", orgv1.InvitationStatus_INVITATION_STATUS_EMAILED)},
-		{invitation("id-2", "b@acme.test", orgv1.InvitationStatus_INVITATION_STATUS_NO_TRANSPORT)},
+		{
+			invitation("id-2", "b@acme.test", orgv1.InvitationStatus_INVITATION_STATUS_NO_TRANSPORT),
+			invitation("id-3", "c@acme.test", orgv1.InvitationStatus_INVITATION_STATUS_EXPIRED),
+		},
 	}}
 	output, err := runInvitationCmd(t, fake, newInvitationsCmd)
 	if err != nil {
 		t.Fatal(err)
 	}
 	lines := strings.Split(strings.TrimSpace(output), "\n")
-	if len(lines) != 3 {
+	if len(lines) != 4 {
 		t.Fatalf("output = %q", output)
 	}
 	expires := testInvitationExpiry.Format(invitationTimeLayout)
@@ -206,6 +209,7 @@ func TestInvitationsListsEveryPage(t *testing.T) {
 		{"ID", "EMAIL", "INVITED BY", "EXPIRES", "STATUS"},
 		{"id-1", "a@acme.test", testInviterEmail, expires, "emailed"},
 		{"id-2", "b@acme.test", testInviterEmail, expires, "no email transport configured"},
+		{"id-3", "c@acme.test", testInviterEmail, expires, "expired"},
 	} {
 		if got := strings.Join(strings.Fields(lines[i]), " "); got != strings.Join(want, " ") {
 			t.Errorf("line %d = %q, want %q", i, got, strings.Join(want, " "))

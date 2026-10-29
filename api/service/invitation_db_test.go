@@ -262,10 +262,7 @@ func TestResendExtendsExpiryAndSendsAgain(t *testing.T) {
 	o := newInvitationOrg(t, transport)
 	invitation := o.invite(t, invitationEmail)
 	id := uuid.MustParse(invitation.GetId())
-	if _, err := o.api.pool.Exec(t.Context(),
-		"UPDATE invitations SET expires_at = NOW() - interval '1 hour' WHERE id = $1", id); err != nil {
-		t.Fatalf("expire: %v", err)
-	}
+	o.expire(t, invitation)
 	transport.mu.Lock()
 	transport.err = nil
 	transport.mu.Unlock()
@@ -284,5 +281,111 @@ func TestResendExtendsExpiryAndSendsAgain(t *testing.T) {
 	}
 	if len(transport.messages()) != 2 {
 		t.Fatalf("sent %d messages", len(transport.messages()))
+	}
+}
+
+func (o *membershipOrg) expire(t *testing.T, invitation *orgv1.Invitation) {
+	t.Helper()
+	if _, err := o.api.pool.Exec(t.Context(),
+		"UPDATE invitations SET expires_at = NOW() - interval '1 hour' WHERE id = $1",
+		uuid.MustParse(invitation.GetId())); err != nil {
+		t.Fatalf("expire: %v", err)
+	}
+}
+
+func TestListShowsAnExpiredInvitationAsExpired(t *testing.T) {
+	o := newInvitationOrg(t, &fakeTransport{})
+	invitation := o.invite(t, invitationEmail)
+	o.expire(t, invitation)
+
+	listed, err := o.owner.clients.Org.ListInvitations(t.Context(), &orgv1.ListInvitationsRequest{OrgId: o.orgID})
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	got := listed.GetInvitations()
+	if len(got) != 1 || got[0].GetId() != invitation.GetId() {
+		t.Fatalf("listed = %v, want the expired invitation", got)
+	}
+	if got[0].GetStatus() != orgv1.InvitationStatus_INVITATION_STATUS_EXPIRED {
+		t.Fatalf("status = %v, want expired", got[0].GetStatus())
+	}
+	if !got[0].GetExpiresAt().AsTime().Before(time.Now()) {
+		t.Fatalf("expires at %v, want a past time", got[0].GetExpiresAt().AsTime())
+	}
+}
+
+func TestInviteAgainReplacesAnExpiredInvitation(t *testing.T) {
+	transport := &fakeTransport{}
+	o := newInvitationOrg(t, transport)
+	expired := o.invite(t, invitationEmail)
+	o.expire(t, expired)
+
+	renewed := o.invite(t, "Bob@Acme.test")
+
+	if renewed.GetId() == expired.GetId() {
+		t.Fatal("invite reused the expired invitation")
+	}
+	if renewed.GetStatus() != orgv1.InvitationStatus_INVITATION_STATUS_EMAILED {
+		t.Fatalf("status = %v, want emailed", renewed.GetStatus())
+	}
+	ttl := time.Until(renewed.GetExpiresAt().AsTime())
+	if ttl < invitationTestTTL-time.Minute || ttl > invitationTestTTL {
+		t.Fatalf("expires in %v", ttl)
+	}
+	old, err := o.api.queries.GetInvitation(t.Context(), uuid.MustParse(expired.GetId()))
+	if err != nil {
+		t.Fatalf("old row: %v", err)
+	}
+	if old.RevokedAt == nil {
+		t.Fatal("expired invitation still open")
+	}
+	listed, err := o.owner.clients.Org.ListInvitations(t.Context(), &orgv1.ListInvitationsRequest{OrgId: o.orgID})
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(listed.GetInvitations()) != 1 || listed.GetInvitations()[0].GetId() != renewed.GetId() {
+		t.Fatalf("listed = %v, want only the new invitation", listed.GetInvitations())
+	}
+	if len(transport.messages()) != 2 {
+		t.Fatalf("sent %d messages, want 2", len(transport.messages()))
+	}
+}
+
+func TestConcurrentInvitesOverAnExpiredInvitationCreateOne(t *testing.T) {
+	o := newInvitationOrg(t, &fakeTransport{})
+	o.expire(t, o.invite(t, invitationEmail))
+
+	const n = 8
+	errs := make([]error, n)
+	var wg sync.WaitGroup
+	for i := range n {
+		wg.Go(func() {
+			_, errs[i] = o.owner.clients.Org.InviteOrgMember(context.Background(), &orgv1.InviteOrgMemberRequest{
+				OrgId: o.orgID, Email: invitationEmail,
+			})
+		})
+	}
+	wg.Wait()
+
+	created := 0
+	for i, err := range errs {
+		if err == nil {
+			created++
+			continue
+		}
+		if codeOf(err) != connect.CodeAlreadyExists {
+			t.Fatalf("invite %d: %v", i, err)
+		}
+	}
+	if created != 1 {
+		t.Fatalf("created %d invitations, want 1", created)
+	}
+	var open int
+	if err := o.api.pool.QueryRow(t.Context(),
+		"SELECT COUNT(*) FROM invitations WHERE claimed_at IS NULL AND revoked_at IS NULL").Scan(&open); err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if open != 1 {
+		t.Fatalf("open invitations = %d, want 1", open)
 	}
 }

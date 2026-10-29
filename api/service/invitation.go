@@ -75,6 +75,9 @@ func (s *OrgServer) InviteOrgMember(
 		if isMember {
 			return rpcerr.New(connect.CodeAlreadyExists, ErrAlreadyOrgMember)
 		}
+		if revokeErr := revokeExpiredInvitations(ctx, qtx, orgID, email); revokeErr != nil {
+			return revokeErr
+		}
 		created, createErr := qtx.CreateInvitation(ctx, genDb.CreateInvitationParams{
 			OrgID:     orgID,
 			Email:     email,
@@ -105,6 +108,25 @@ func (s *OrgServer) InviteOrgMember(
 		return nil, err
 	}
 	return &orgv1.InviteOrgMemberResponse{Invitation: result}, nil
+}
+
+func revokeExpiredInvitations(ctx context.Context, qtx *genDb.Queries, orgID uuid.UUID, email string) error {
+	expired, err := qtx.RevokeExpiredInvitations(ctx, genDb.RevokeExpiredInvitationsParams{OrgID: orgID, Email: email})
+	if err != nil {
+		return err
+	}
+	for _, invitation := range expired {
+		if eventErr := events.Record(ctx, qtx, events.Event{
+			Type:        events.InvitationRevoked,
+			OrgID:       new(invitation.OrgID),
+			SubjectType: events.SubjectInvitation,
+			SubjectID:   new(invitation.ID),
+			Data:        map[string]any{events.FieldEmail: invitation.Email},
+		}); eventErr != nil {
+			return eventErr
+		}
+	}
+	return nil
 }
 
 func (s *OrgServer) ListInvitations(
@@ -303,6 +325,8 @@ func (s *OrgServer) invitationProto(invitation genDb.Invitation, inviter genDb.U
 
 func invitationStatus(invitation genDb.Invitation) orgv1.InvitationStatus {
 	switch {
+	case !invitation.ExpiresAt.After(time.Now()):
+		return orgv1.InvitationStatus_INVITATION_STATUS_EXPIRED
 	case invitation.DeliveredAt != nil:
 		return orgv1.InvitationStatus_INVITATION_STATUS_EMAILED
 	case invitation.DeliveryError != nil:
