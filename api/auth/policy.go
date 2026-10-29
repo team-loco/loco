@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -11,8 +12,12 @@ type SignupMode string
 const (
 	SignupOpen    SignupMode = "open"
 	SignupDomains SignupMode = "domains"
-	SignupInvite  SignupMode = "invite"
+	SignupClosed  SignupMode = "closed"
+
+	removedSignupInvite SignupMode = "invite"
 )
+
+var errInviteModeRemoved = errors.New(`signup mode "invite" was removed; use "closed" to stop new accounts`)
 
 type SignupRejectedError struct {
 	Message string
@@ -57,8 +62,10 @@ func ParseSignupPolicy(mode string, domains string) (SignupPolicy, error) {
 	switch p.Mode {
 	case SignupOpen:
 		return p, nil
-	case SignupInvite:
+	case SignupClosed:
 		return p, nil
+	case removedSignupInvite:
+		return SignupPolicy{}, errInviteModeRemoved
 	case SignupDomains:
 		if len(p.Domains) == 0 {
 			return SignupPolicy{}, fmt.Errorf("signup mode %q needs at least one domain", p.Mode)
@@ -69,15 +76,12 @@ func ParseSignupPolicy(mode string, domains string) (SignupPolicy, error) {
 	}
 }
 
-func (p SignupPolicy) Check(id Identity, invited bool) error {
+func (p SignupPolicy) Check(id Identity) error {
 	switch p.Mode {
 	case SignupOpen:
 		return nil
-	case SignupInvite:
-		if invited {
-			return nil
-		}
-		return rejected("Sign-ups need an invitation. Ask an organization admin to invite your email address.")
+	case SignupClosed:
+		return rejected("Sign-ups are closed on this installation. Only existing accounts can sign in.")
 	case SignupDomains:
 		domain := emailDomain(id.Email)
 		if !id.EmailVerified || domain == "" {
