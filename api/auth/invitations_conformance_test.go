@@ -20,6 +20,7 @@ import (
 	"connectrpc.com/connect/v2/connecthttp"
 	"connectrpc.com/validate"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/auth/authtest"
@@ -59,13 +60,14 @@ const (
 	adminEmail   = "admin@loco.test"
 	adminIssuer  = "https://bootstrap.loco.test"
 
-	signupModeInvite = "invite"
+	signupModeClosed = "closed"
 	signupModeOpen   = "open"
 
-	rejectedWithoutInvitation = "need an invitation"
+	rejectedClosedSignup = "Sign-ups are closed"
 )
 
 type journeyAPI struct {
+	pool    *pgxpool.Pool
 	queries *genDb.Queries
 	url     string
 	admin   *rpc.Clients
@@ -129,10 +131,24 @@ func newJourneyAPI(t *testing.T, mode string, transport mail.Transport) *journey
 		t.Fatalf("admin session: %v", err)
 	}
 	return &journeyAPI{
+		pool:    pool,
 		queries: queries,
 		url:     httpServer.URL,
 		admin:   rpc.NewHTTPClients(http.DefaultClient, httpServer.URL, session),
 		adminID: admin.ID,
+	}
+}
+
+func (a *journeyAPI) existingAccount(t *testing.T, email string) {
+	t.Helper()
+	openPolicy, err := auth.ParseSignupPolicy(signupModeOpen, "")
+	if err != nil {
+		t.Fatalf("policy: %v", err)
+	}
+	if _, _, err = auth.NewResolver(a.pool, openPolicy).Resolve(t.Context(), auth.Identity{
+		Issuer: adminIssuer, Subject: email, Email: email, EmailVerified: true,
+	}); err != nil {
+		t.Fatalf("existing account for %s: %v", email, err)
 	}
 }
 
@@ -321,7 +337,9 @@ func TestInvitationsJourney(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			transport, checkDelivery := tc.setup(t)
-			api := newJourneyAPI(t, signupModeInvite, transport)
+			api := newJourneyAPI(t, signupModeClosed, transport)
+			api.existingAccount(t, carolEmail)
+			api.existingAccount(t, daveEmail)
 			ctx := t.Context()
 
 			org, err := api.admin.Org.CreateOrg(ctx, &orgv1.CreateOrgRequest{Name: new(journeyOrgName)})
@@ -422,24 +440,33 @@ func (a *journeyAPI) signInSteps(t *testing.T, orgID, carolInvitationID string) 
 	if row.ClaimedAt == nil || row.ClaimedBy == nil || row.ClaimedBy.String() != carolID {
 		t.Fatalf("step 4: invitation claimed_by = %v claimed_at = %v", row.ClaimedBy, row.ClaimedAt)
 	}
-	t.Logf("step 4: carol signed in via Dex, claimed %s, ListUserOrgs = [%s], invitation claimed_by her",
+	t.Logf("step 4: carol signed in to her account via Dex, claimed %s, ListUserOrgs = [%s], invitation claimed_by her",
 		journeyOrgName, journeyOrgName)
 
 	dave := a.dexClients(t, daveEmail, davePass)
-	_, err = dave.User.WhoAmI(ctx, &userv1.WhoAmIRequest{})
-	requireRPCError(t, err, connect.CodePermissionDenied, rejectedWithoutInvitation)
-	if _, lookupErr := a.queries.GetUserByEmail(ctx, daveEmail); lookupErr == nil {
-		t.Fatal("step 5: dave was provisioned")
+	daveWhoami, err := dave.User.WhoAmI(ctx, &userv1.WhoAmIRequest{})
+	if err != nil {
+		t.Fatalf("step 5: dave whoami: %v", err)
 	}
-	t.Logf("step 5: dave rejected (permission denied: sign-ups need an invitation), no user created")
+	if len(daveWhoami.GetClaimedOrgs()) != 0 {
+		t.Fatalf("step 5: dave claimed orgs = %v, want none from a revoked invitation", daveWhoami.GetClaimedOrgs())
+	}
+	daveOrgs, err := dave.Org.ListUserOrgs(ctx, &orgv1.ListUserOrgsRequest{UserId: daveWhoami.GetUser().GetId()})
+	if err != nil {
+		t.Fatalf("step 5: dave list orgs: %v", err)
+	}
+	if len(daveOrgs.GetOrgs()) != 0 {
+		t.Fatalf("step 5: dave orgs = %v, want none", daveOrgs.GetOrgs())
+	}
+	t.Logf("step 5: dave signed in to his existing account via Dex, revoked invitation not claimed")
 
 	erin := a.dexClients(t, erinEmail, erinPass)
 	_, err = erin.User.WhoAmI(ctx, &userv1.WhoAmIRequest{})
-	requireRPCError(t, err, connect.CodePermissionDenied, rejectedWithoutInvitation)
+	requireRPCError(t, err, connect.CodePermissionDenied, rejectedClosedSignup)
 	if _, lookupErr := a.queries.GetUserByEmail(ctx, erinEmail); lookupErr == nil {
 		t.Fatal("step 6: erin was provisioned")
 	}
-	t.Logf("step 6: erin rejected in invite mode, no user created")
+	t.Logf("step 6: erin rejected in closed mode, no user created")
 
 	setStatus := func(status userv1.UserStatus) error {
 		_, setErr := a.admin.User.SetUserStatus(ctx, &userv1.SetUserStatusRequest{

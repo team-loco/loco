@@ -341,7 +341,7 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, []Cl
 			return genDb.User{}, nil, ErrEmailTaken
 		}
 	case errors.Is(err, pgx.ErrNoRows):
-		if policyErr := r.policy.Check(id, len(invitations) > 0); policyErr != nil {
+		if policyErr := r.policy.Check(id); policyErr != nil {
 			return genDb.User{}, nil, policyErr
 		}
 		user, err = createUser(ctx, qtx, id)
