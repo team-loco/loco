@@ -30,6 +30,7 @@ const (
 	InvitationStatus_INVITATION_STATUS_EMAILED      InvitationStatus = 1
 	InvitationStatus_INVITATION_STATUS_FAILED       InvitationStatus = 2
 	InvitationStatus_INVITATION_STATUS_NO_TRANSPORT InvitationStatus = 3
+	InvitationStatus_INVITATION_STATUS_EXPIRED      InvitationStatus = 4
 )
 
 // Enum value maps for InvitationStatus.
@@ -39,12 +40,14 @@ var (
 		1: "INVITATION_STATUS_EMAILED",
 		2: "INVITATION_STATUS_FAILED",
 		3: "INVITATION_STATUS_NO_TRANSPORT",
+		4: "INVITATION_STATUS_EXPIRED",
 	}
 	InvitationStatus_value = map[string]int32{
 		"INVITATION_STATUS_UNSPECIFIED":  0,
 		"INVITATION_STATUS_EMAILED":      1,
 		"INVITATION_STATUS_FAILED":       2,
 		"INVITATION_STATUS_NO_TRANSPORT": 3,
+		"INVITATION_STATUS_EXPIRED":      4,
 	}
 )
 
@@ -1880,12 +1883,13 @@ const file_loco_org_v1_org_proto_rawDesc = "" +
 	"\x10ResumeOrgRequest\x12\x1f\n" +
 	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\"R\n" +
 	"\x11ResumeOrgResponse\x12=\n" +
-	"\forganization\x18\x01 \x01(\v2\x19.loco.org.v1.OrganizationR\forganization*\x96\x01\n" +
+	"\forganization\x18\x01 \x01(\v2\x19.loco.org.v1.OrganizationR\forganization*\xb5\x01\n" +
 	"\x10InvitationStatus\x12!\n" +
 	"\x1dINVITATION_STATUS_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19INVITATION_STATUS_EMAILED\x10\x01\x12\x1c\n" +
 	"\x18INVITATION_STATUS_FAILED\x10\x02\x12\"\n" +
-	"\x1eINVITATION_STATUS_NO_TRANSPORT\x10\x032\xaf\t\n" +
+	"\x1eINVITATION_STATUS_NO_TRANSPORT\x10\x03\x12\x1d\n" +
+	"\x19INVITATION_STATUS_EXPIRED\x10\x042\xaf\t\n" +
 	"\n" +
 	"OrgService\x12J\n" +
 	"\tCreateOrg\x12\x1d.loco.org.v1.CreateOrgRequest\x1a\x1e.loco.org.v1.CreateOrgResponse\x12A\n" +

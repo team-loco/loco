@@ -3,6 +3,16 @@ INSERT INTO invitations (org_id, email, invited_by, expires_at)
 VALUES ($1, $2, $3, $4)
 RETURNING *;
 
+-- name: RevokeExpiredInvitations :many
+UPDATE invitations
+SET revoked_at = NOW()
+WHERE org_id = $1
+  AND lower(email) = lower(sqlc.arg('email'))
+  AND claimed_at IS NULL
+  AND revoked_at IS NULL
+  AND expires_at <= NOW()
+RETURNING *;
+
 -- name: ListOrgInvitations :many
 SELECT *
 FROM invitations
