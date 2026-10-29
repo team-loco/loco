@@ -53,7 +53,7 @@ func WithTLSConfig(config *tls.Config) Option {
 	return func(o *options) { o.tlsConfig = config }
 }
 
-func ParseTransport(raw, from, hookSecret string, opts ...Option) (Transport, error) {
+func ParseTransport(raw, from, hookSecret string, timeout time.Duration, opts ...Option) (Transport, error) {
 	var applied options
 	for _, opt := range opts {
 		opt(&applied)
@@ -77,11 +77,11 @@ func ParseTransport(raw, from, hookSecret string, opts ...Option) (Transport, er
 	}
 	switch u.Scheme {
 	case schemeSMTP:
-		return newSMTP(u, sender, applied.tlsConfig)
+		return newSMTP(u, sender, applied.tlsConfig, timeout)
 	case schemeHTTP:
-		return newHook(u, hookSecret, applied.tlsConfig)
+		return newHook(u, hookSecret, applied.tlsConfig, timeout)
 	case schemeHTTPS:
-		return newHook(u, hookSecret, applied.tlsConfig)
+		return newHook(u, hookSecret, applied.tlsConfig, timeout)
 	}
 	return nil, ErrUnsupportedScheme
 }

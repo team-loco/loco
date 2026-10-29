@@ -19,18 +19,16 @@ import (
 	"github.com/team-loco/loco/api/webhooks"
 )
 
-const (
-	hookTimeout     = 10 * time.Second
-	maxHookResponse = 64 << 10
-)
+const maxHookResponse = 64 << 10
 
 type hookTransport struct {
-	url    string
-	secret string
-	client *http.Client
+	url     string
+	secret  string
+	client  *http.Client
+	timeout time.Duration
 }
 
-func newHook(u *url.URL, secret string, tlsConfig *tls.Config) (*hookTransport, error) {
+func newHook(u *url.URL, secret string, tlsConfig *tls.Config, timeout time.Duration) (*hookTransport, error) {
 	if secret == "" || !validHookSecret(secret) {
 		return nil, ErrHookSecret
 	}
@@ -39,8 +37,8 @@ func newHook(u *url.URL, secret string, tlsConfig *tls.Config) (*hookTransport, 
 		transport = &http.Transport{TLSClientConfig: tlsConfig}
 	}
 	traced := otelhttp.NewTransport(transport)
-	client := &http.Client{Transport: traced, Timeout: hookTimeout}
-	return &hookTransport{url: u.String(), secret: secret, client: client}, nil
+	client := &http.Client{Transport: traced}
+	return &hookTransport{url: u.String(), secret: secret, client: client, timeout: timeout}, nil
 }
 
 func (t *hookTransport) Send(ctx context.Context, msg Message) error {
@@ -54,6 +52,8 @@ func (t *hookTransport) Send(ctx context.Context, msg Message) error {
 	if err != nil {
 		return fmt.Errorf("sign hook payload: %w", err)
 	}
+	ctx, cancel := context.WithTimeout(ctx, t.timeout)
+	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, t.url, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("build hook request: %w", err)

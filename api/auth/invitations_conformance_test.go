@@ -47,6 +47,7 @@ const (
 	journeyWebURL  = "https://app.loco.test"
 	journeyFrom    = "Loco <noreply@loco.test>"
 	journeyTTL     = time.Hour
+	journeyTimeout = 10 * time.Second
 
 	carolEmail = "carol@dex.test"
 	carolPass  = "carolpw"
@@ -173,7 +174,7 @@ func smtpDelivery(t *testing.T) (mail.Transport, func(t *testing.T, sent sentInv
 	t.Helper()
 	server := mailtest.NewSMTPServer(t, true)
 	transport, err := mail.ParseTransport(
-		server.URL(mailtest.Password), journeyFrom, "", mail.WithTLSConfig(server.ClientTLS()),
+		server.URL(mailtest.Password), journeyFrom, "", journeyTimeout, mail.WithTLSConfig(server.ClientTLS()),
 	)
 	if err != nil {
 		t.Fatalf("smtp transport: %v", err)
@@ -241,7 +242,7 @@ func hookDelivery(t *testing.T) (mail.Transport, func(t *testing.T, sent sentInv
 	pool := x509.NewCertPool()
 	pool.AddCert(server.Certificate())
 	config := &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}
-	transport, err := mail.ParseTransport(server.URL, journeyFrom, secret, mail.WithTLSConfig(config))
+	transport, err := mail.ParseTransport(server.URL, journeyFrom, secret, journeyTimeout, mail.WithTLSConfig(config))
 	if err != nil {
 		t.Fatalf("hook transport: %v", err)
 	}
@@ -297,7 +298,7 @@ func hookDelivery(t *testing.T) (mail.Transport, func(t *testing.T, sent sentInv
 
 func noneDelivery(t *testing.T) (mail.Transport, func(t *testing.T, sent sentInvitations)) {
 	t.Helper()
-	transport, err := mail.ParseTransport("", "", "")
+	transport, err := mail.ParseTransport("", "", "", journeyTimeout)
 	if err != nil {
 		t.Fatalf("empty transport: %v", err)
 	}
@@ -365,7 +366,7 @@ func TestInvitationsJourney(t *testing.T) {
 }
 
 func TestInvitationsOpenSignup(t *testing.T) {
-	noTransport, err := mail.ParseTransport("", "", "")
+	noTransport, err := mail.ParseTransport("", "", "", journeyTimeout)
 	if err != nil {
 		t.Fatalf("empty transport: %v", err)
 	}

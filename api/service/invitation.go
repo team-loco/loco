@@ -23,7 +23,10 @@ import (
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
-const maxDeliveryErrorLength = 500
+const (
+	maxDeliveryErrorLength = 500
+	deliveryRecordTimeout  = 5 * time.Second
+)
 
 var (
 	ErrInvalidInviteEmail = errors.New("email must be a plain address like name@example.com")
@@ -261,22 +264,25 @@ func (s *OrgServer) deliverInvitation(ctx context.Context, invitation genDb.Invi
 		Link:    s.invitations.link(invitation.Email),
 	})
 	sendErr := s.invitations.Transport.Send(ctx, message)
+	detached := context.WithoutCancel(ctx)
+	recordCtx, cancel := context.WithTimeout(detached, deliveryRecordTimeout)
+	defer cancel()
 	switch {
 	case errors.Is(sendErr, mail.ErrNoTransport):
 	case sendErr != nil:
 		slog.ErrorContext(ctx, "failed to deliver invitation", "invitationId", invitation.ID, "error", sendErr)
 		text := truncate(sendErr.Error(), maxDeliveryErrorLength)
-		err = s.queries.SetInvitationDeliveryError(ctx, genDb.SetInvitationDeliveryErrorParams{
+		err = s.queries.SetInvitationDeliveryError(recordCtx, genDb.SetInvitationDeliveryErrorParams{
 			ID: invitation.ID, DeliveryError: &text,
 		})
 	default:
-		err = s.queries.SetInvitationDelivered(ctx, invitation.ID)
+		err = s.queries.SetInvitationDelivered(recordCtx, invitation.ID)
 	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to record invitation delivery", "invitationId", invitation.ID, "error", err)
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
-	stored, err := s.queries.GetInvitation(ctx, invitation.ID)
+	stored, err := s.queries.GetInvitation(recordCtx, invitation.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to reload invitation", "invitationId", invitation.ID, "error", err)
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
