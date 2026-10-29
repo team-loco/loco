@@ -13,17 +13,21 @@ import (
 	"time"
 )
 
-const smtpTimeout = 30 * time.Second
-
 type smtpTransport struct {
 	addr      string
 	host      string
 	auth      smtp.Auth
 	from      *netmail.Address
 	tlsConfig *tls.Config
+	timeout   time.Duration
 }
 
-func newSMTP(u *url.URL, from *netmail.Address, tlsConfig *tls.Config) (*smtpTransport, error) {
+func newSMTP(
+	u *url.URL,
+	from *netmail.Address,
+	tlsConfig *tls.Config,
+	timeout time.Duration,
+) (*smtpTransport, error) {
 	host := u.Hostname()
 	if host == "" || u.Port() == "" {
 		return nil, fmt.Errorf("%w: smtp transport needs host and port", ErrInvalidTransport)
@@ -31,7 +35,7 @@ func newSMTP(u *url.URL, from *netmail.Address, tlsConfig *tls.Config) (*smtpTra
 	if tlsConfig == nil {
 		tlsConfig = &tls.Config{ServerName: host, MinVersion: tls.VersionTLS12}
 	}
-	t := &smtpTransport{addr: u.Host, host: host, from: from, tlsConfig: tlsConfig}
+	t := &smtpTransport{addr: u.Host, host: host, from: from, tlsConfig: tlsConfig, timeout: timeout}
 	if u.User != nil {
 		password, _ := u.User.Password()
 		t.auth = smtp.PlainAuth("", u.User.Username(), password, host)
@@ -44,13 +48,16 @@ func (t *smtpTransport) Send(ctx context.Context, msg Message) error {
 	if err != nil {
 		return fmt.Errorf("recipient: %w", err)
 	}
-	dialer := net.Dialer{Timeout: smtpTimeout}
+	ctx, cancel := context.WithTimeout(ctx, t.timeout)
+	defer cancel()
+	var dialer net.Dialer
 	conn, err := dialer.DialContext(ctx, "tcp", t.addr)
 	if err != nil {
 		return fmt.Errorf("dial smtp: %w", err)
 	}
 	defer conn.Close()
-	if deadlineErr := conn.SetDeadline(time.Now().Add(smtpTimeout)); deadlineErr != nil {
+	deadline, _ := ctx.Deadline()
+	if deadlineErr := conn.SetDeadline(deadline); deadlineErr != nil {
 		return fmt.Errorf("smtp deadline: %w", deadlineErr)
 	}
 	client, err := smtp.NewClient(conn, t.host)
