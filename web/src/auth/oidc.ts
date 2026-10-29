@@ -23,7 +23,7 @@ export interface AuthClient {
 	hasSession: () => boolean;
 	subscribe: (onChange: () => void) => () => void;
 	getAccessToken: (forceRefresh?: boolean) => Promise<string | null>;
-	signIn: (redirectTo: string) => Promise<void>;
+	signIn: (redirectTo: string, loginHint: string | null) => Promise<void>;
 	completeSignIn: (url: URL) => Promise<void>;
 	signOut: () => Promise<void>;
 }
@@ -144,7 +144,7 @@ export async function createAuthClient(cfg: OIDCConfig): Promise<AuthClient> {
 			});
 			return await refreshing;
 		},
-		signIn: async (redirectTo) => {
+		signIn: async (redirectTo, loginHint) => {
 			if (as.authorization_endpoint === undefined)
 				throw new Error("The identity provider has no authorization endpoint");
 			const pending: PendingLogin = {
@@ -163,6 +163,7 @@ export async function createAuthClient(cfg: OIDCConfig): Promise<AuthClient> {
 			url.searchParams.set("code_challenge_method", "S256");
 			url.searchParams.set("state", pending.state);
 			url.searchParams.set("nonce", pending.nonce);
+			if (loginHint !== null) url.searchParams.set("login_hint", loginHint);
 			window.location.assign(url.toString());
 		},
 		completeSignIn: async (current) => {
