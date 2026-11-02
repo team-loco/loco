@@ -13,6 +13,8 @@ export function statusBadge(status: InvitationStatus): {
 			return { label: "Failed", tone: "bad" };
 		case InvitationStatus.NO_TRANSPORT:
 			return { label: "Not sent", tone: "neutral" };
+		case InvitationStatus.EXPIRED:
+			return { label: "Expired", tone: "warn" };
 		case InvitationStatus.UNSPECIFIED:
 			return { label: "Unknown", tone: "muted" };
 	}
@@ -26,6 +28,8 @@ export function statusDetail(invitation: Invitation): string {
 			return `Email failed: ${invitation.deliveryError}`;
 		case InvitationStatus.NO_TRANSPORT:
 			return "No email transport configured";
+		case InvitationStatus.EXPIRED:
+			return "Expired";
 		case InvitationStatus.UNSPECIFIED:
 			return "Unknown";
 	}

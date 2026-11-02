@@ -66,6 +66,8 @@ func statusText(invitation *orgv1.Invitation) string {
 		return "email failed: " + invitation.GetDeliveryError()
 	case orgv1.InvitationStatus_INVITATION_STATUS_NO_TRANSPORT:
 		return "no email transport configured"
+	case orgv1.InvitationStatus_INVITATION_STATUS_EXPIRED:
+		return "expired"
 	case orgv1.InvitationStatus_INVITATION_STATUS_UNSPECIFIED:
 		return "unknown"
 	default:

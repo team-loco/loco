@@ -248,6 +248,54 @@ func (q *Queries) ListOrgInvitations(ctx context.Context, arg ListOrgInvitations
 	return items, nil
 }
 
+const revokeExpiredInvitations = `-- name: RevokeExpiredInvitations :many
+UPDATE invitations
+SET revoked_at = NOW()
+WHERE org_id = $1
+  AND lower(email) = lower($2)
+  AND claimed_at IS NULL
+  AND revoked_at IS NULL
+  AND expires_at <= NOW()
+RETURNING id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at, delivered_at, delivery_error
+`
+
+type RevokeExpiredInvitationsParams struct {
+	OrgID uuid.UUID `json:"orgId"`
+	Email string    `json:"email"`
+}
+
+func (q *Queries) RevokeExpiredInvitations(ctx context.Context, arg RevokeExpiredInvitationsParams) ([]Invitation, error) {
+	rows, err := q.db.Query(ctx, revokeExpiredInvitations, arg.OrgID, arg.Email)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Invitation
+	for rows.Next() {
+		var i Invitation
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrgID,
+			&i.Email,
+			&i.InvitedBy,
+			&i.CreatedAt,
+			&i.ExpiresAt,
+			&i.ClaimedBy,
+			&i.ClaimedAt,
+			&i.RevokedAt,
+			&i.DeliveredAt,
+			&i.DeliveryError,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const revokeInvitation = `-- name: RevokeInvitation :one
 UPDATE invitations
 SET revoked_at = NOW()
