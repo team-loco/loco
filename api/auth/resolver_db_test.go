@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -185,11 +186,11 @@ func TestResolvePolicyDoesNotBlockExistingUsers(t *testing.T) {
 	if _, _, err := openResolver.Resolve(t.Context(), identity("s1", "dev@example.test", true)); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	invite, err := ParseSignupPolicy("invite", "")
+	closed, err := ParseSignupPolicy("closed", "")
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
-	r := NewResolver(pool, invite)
+	r := NewResolver(pool, closed)
 	if _, _, err := r.Resolve(t.Context(), identity("s1", "dev@example.test", true)); err != nil {
 		t.Fatalf("existing identity blocked: %v", err)
 	}
@@ -235,6 +236,7 @@ func TestResolveConcurrentFirstLoginsCreateOneUser(t *testing.T) {
 }
 
 const (
+	otherIssuerURL  = "https://other.example.test"
 	oldAccountEmail = "old@example.test"
 	newAccountEmail = "new@example.test"
 )
@@ -261,7 +263,7 @@ func TestResolveVerifiedEmailChangeMovesTheAccountEmail(t *testing.T) {
 	}
 
 	other, _, err := r.Resolve(t.Context(), Identity{
-		Issuer: "https://other.example.test", Subject: "elsewhere", Email: newAccountEmail, EmailVerified: true,
+		Issuer: otherIssuerURL, Subject: "elsewhere", Email: newAccountEmail, EmailVerified: true,
 	})
 	if err != nil {
 		t.Fatalf("other issuer at the new address: %v", err)
@@ -554,12 +556,12 @@ func (f *invitationFixture) events(t *testing.T, eventType string, subjectID uui
 	return n
 }
 
-func TestResolveInviteModeClaimsTheInvitationForANewUser(t *testing.T) {
+func TestResolveClaimsTheInvitationForANewUser(t *testing.T) {
 	f := newInvitationFixture(t)
 	orgID := f.org(t, "acme")
 	invitation := f.invite(t, orgID, inviteeEmail, invitationTTL)
 
-	user, claimed, err := f.resolver(t, "invite").Resolve(t.Context(), identity(inviteeSubject, inviteeEmail, true))
+	user, claimed, err := f.resolver(t, "open").Resolve(t.Context(), identity(inviteeSubject, inviteeEmail, true))
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
 	}
@@ -594,7 +596,7 @@ func TestResolveInvitationClaimRollsBackWithTheSignup(t *testing.T) {
 		t.Fatalf("install failure trigger: %v", err)
 	}
 
-	_, _, err := f.resolver(t, "invite").Resolve(t.Context(), identity(inviteeSubject, inviteeEmail, true))
+	_, _, err := f.resolver(t, "open").Resolve(t.Context(), identity(inviteeSubject, inviteeEmail, true))
 	if !errors.Is(err, ErrResolve) {
 		t.Fatalf("resolve err = %v, want %v", err, ErrResolve)
 	}
@@ -619,16 +621,54 @@ func TestResolveInvitationClaimRollsBackWithTheSignup(t *testing.T) {
 	}
 }
 
-func TestResolveWithoutInvitation(t *testing.T) {
+func TestResolveClosedModeRejectsAnInvitedNewIdentity(t *testing.T) {
 	f := newInvitationFixture(t)
+	invitation := f.invite(t, f.org(t, "acme"), inviteeEmail, invitationTTL)
 
-	_, _, err := f.resolver(t, "invite").Resolve(t.Context(), identity(inviteeSubject, inviteeEmail, true))
-	if rejected, ok := errors.AsType[*SignupRejectedError](err); !ok || rejected.Message == "" {
-		t.Fatalf("invite mode err = %v, want rejection", err)
+	_, _, err := f.resolver(t, "closed").Resolve(t.Context(), identity(inviteeSubject, inviteeEmail, true))
+	if rejected, ok := errors.AsType[*SignupRejectedError](err); !ok || !strings.Contains(rejected.Message, "closed") {
+		t.Fatalf("closed mode err = %v, want a rejection that says sign-ups are closed", err)
 	}
 	if _, lookupErr := f.q.GetUserByEmail(t.Context(), inviteeEmail); !errors.Is(lookupErr, pgx.ErrNoRows) {
 		t.Fatalf("rejected user stored: %v", lookupErr)
 	}
+	if claimed := f.claimedBy(t, invitation.ID); claimed != nil {
+		t.Fatalf("invitation claimed by %s after a rejected signup", claimed)
+	}
+}
+
+func TestResolveClosedModeExistingUserClaimsInvitations(t *testing.T) {
+	f := newInvitationFixture(t)
+	user, _, err := f.resolver(t, "open").Resolve(t.Context(), identity(inviteeSubject, inviteeEmail, true))
+	if err != nil {
+		t.Fatalf("signup: %v", err)
+	}
+	r := f.resolver(t, "closed")
+
+	signIn := f.org(t, "sign-in")
+	f.invite(t, signIn, inviteeEmail, invitationTTL)
+	_, claimed, err := r.Resolve(t.Context(), identity(inviteeSubject, inviteeEmail, true))
+	if err != nil {
+		t.Fatalf("existing identity: %v", err)
+	}
+	if len(claimed) != 1 || claimed[0].OrgID != signIn || !f.isMember(t, user.ID, signIn) {
+		t.Fatalf("existing identity claimed %+v, want %s", claimed, signIn)
+	}
+
+	linked := f.org(t, "linked")
+	f.invite(t, linked, inviteeEmail, invitationTTL)
+	other := Identity{Issuer: otherIssuerURL, Subject: "other", Email: inviteeEmail, EmailVerified: true}
+	resolved, claimed, err := r.Resolve(t.Context(), other)
+	if err != nil {
+		t.Fatalf("new identity for an existing user: %v", err)
+	}
+	if resolved.ID != user.ID || len(claimed) != 1 || claimed[0].OrgID != linked || !f.isMember(t, user.ID, linked) {
+		t.Fatalf("linked identity resolved %s and claimed %+v, want %s and %s", resolved.ID, claimed, user.ID, linked)
+	}
+}
+
+func TestResolveWithoutInvitation(t *testing.T) {
+	f := newInvitationFixture(t)
 
 	user, _, err := f.resolver(t, "open").Resolve(t.Context(), identity(inviteeSubject, inviteeEmail, true))
 	if err != nil {
@@ -721,7 +761,7 @@ func TestResolveClaimsInvitationsFromSeveralOrgsTogether(t *testing.T) {
 	f.invite(t, first, inviteeEmail, invitationTTL)
 	f.invite(t, second, inviteeEmail, invitationTTL)
 
-	user, _, err := f.resolver(t, "invite").Resolve(t.Context(), identity(inviteeSubject, inviteeEmail, true))
+	user, _, err := f.resolver(t, "open").Resolve(t.Context(), identity(inviteeSubject, inviteeEmail, true))
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
 	}
@@ -753,7 +793,7 @@ func TestResolveUnverifiedEmailNeverClaims(t *testing.T) {
 
 	carol := f.invite(t, orgID, "carol@x.test", invitationTTL)
 	_, _, err = r.Resolve(t.Context(), Identity{
-		Issuer: "https://other.example.test", Subject: "squatter", Email: "carol@x.test", EmailVerified: false,
+		Issuer: otherIssuerURL, Subject: "squatter", Email: "carol@x.test", EmailVerified: false,
 	})
 	if !errors.Is(err, ErrEmailUnverified) {
 		t.Fatalf("unverified new identity err = %v, want %v", err, ErrEmailUnverified)
@@ -788,7 +828,7 @@ func TestResolveSuspendedUserDoesNotClaim(t *testing.T) {
 
 func TestResolveRemovedMemberIsNotReAdded(t *testing.T) {
 	f := newInvitationFixture(t)
-	r := f.resolver(t, "invite")
+	r := f.resolver(t, "open")
 	orgID := f.org(t, "acme")
 	invitation := f.invite(t, orgID, inviteeEmail, invitationTTL)
 	user, _, err := r.Resolve(t.Context(), identity(inviteeSubject, inviteeEmail, true))
