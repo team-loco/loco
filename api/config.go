@@ -101,6 +101,7 @@ const (
 	defaultClusterJoinTokenTTL       = time.Hour
 	defaultAgentAssertionMaxLifetime = 5 * time.Minute
 	defaultInvitationTTL             = 168 * time.Hour
+	defaultEmailTimeout              = 10 * time.Second
 
 	bootstrapEnv               = "LOCO_BOOTSTRAP_TOKEN"
 	minBootstrapTokenLength    = 32
@@ -233,6 +234,7 @@ func newInvitationConfig(webURL string) service.InvitationConfig {
 		stringEnv("EMAIL_TRANSPORT", ""),
 		stringEnv("EMAIL_FROM", ""),
 		stringEnv("EMAIL_HOOK_SECRET", ""),
+		positiveDurationEnv("EMAIL_TIMEOUT", defaultEmailTimeout),
 	)
 	if err != nil {
 		panic(err)

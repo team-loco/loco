@@ -1,10 +1,12 @@
 package mail
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -32,7 +34,7 @@ func newTestHook(t *testing.T, handler http.HandlerFunc) Transport {
 	t.Helper()
 	srv := httptest.NewTLSServer(handler)
 	t.Cleanup(srv.Close)
-	transport, err := ParseTransport(srv.URL, testFrom, testHookSecret())
+	transport, err := ParseTransport(srv.URL, testFrom, testHookSecret(), testTimeout)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -171,5 +173,24 @@ func TestHookIgnoresBodyOn2xx(t *testing.T) {
 
 	if err := hook.Send(t.Context(), NewInvitationMessage(testEvent())); err != nil {
 		t.Fatalf("send: %v", err)
+	}
+}
+
+func TestHookGivesUpOnAStalledReceiver(t *testing.T) {
+	release := make(chan struct{})
+	transport := newTestHook(t, func(http.ResponseWriter, *http.Request) {
+		<-release
+	})
+	t.Cleanup(func() { close(release) })
+	hook, ok := transport.(*hookTransport)
+	if !ok {
+		t.Fatalf("transport is %T", transport)
+	}
+	hook.timeout = stallTimeout
+
+	err := hook.Send(t.Context(), NewInvitationMessage(testEvent()))
+
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("err = %v, want DeadlineExceeded", err)
 	}
 }

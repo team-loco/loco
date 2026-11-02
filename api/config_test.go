@@ -11,6 +11,7 @@ import (
 
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/mail"
+	"github.com/team-loco/loco/api/mail/mailtest"
 	"github.com/team-loco/loco/api/pkg/registryclient"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
@@ -147,6 +148,7 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv("EMAIL_FROM", "")
 	t.Setenv("EMAIL_HOOK_SECRET", "")
 	t.Setenv("INVITATION_TTL", "")
+	t.Setenv("EMAIL_TIMEOUT", "")
 	t.Setenv(otlpEndpointEnv, "")
 	t.Setenv(otlpTracesEndpointEnv, "")
 }
@@ -522,7 +524,7 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 		},
 		{"malformed auth issuers", map[string]string{authIssuersEnv: "["}, errInvalidAuthIssuers},
 		{"admin token env unset", map[string]string{authIssuersEnv: adminIssuers}, errAdminTokenMissing},
-		{"removed closed signup mode", map[string]string{"AUTH_SIGNUP_MODE": "closed"}, errInvalidSignupPolicy},
+		{"removed invite signup mode", map[string]string{"AUTH_SIGNUP_MODE": "invite"}, errInvalidSignupPolicy},
 		{"non-semver min cli version", map[string]string{"MIN_CLI_VERSION": "0.0.61"}, errInvalidMinCLIVersion},
 		{
 			"registry username without password",
@@ -820,6 +822,25 @@ func TestNewAPIConfigReadsInvitations(t *testing.T) {
 	}
 }
 
+func TestNewAPIConfigReadsEmailTimeout(t *testing.T) {
+	clearAPIConfigEnv(t)
+	stalled := mailtest.NewStalledSMTPServer(t)
+	t.Setenv("EMAIL_TRANSPORT", stalled)
+	t.Setenv("EMAIL_FROM", testEmailFrom)
+	t.Setenv("EMAIL_TIMEOUT", "200ms")
+	transport := newAPIConfig().Invitations.Transport
+	started := time.Now()
+
+	err := transport.Send(t.Context(), mail.Message{To: "bob@acme.test"})
+
+	if err == nil || !strings.Contains(err.Error(), "i/o timeout") {
+		t.Fatalf("send = %v, want a timeout", err)
+	}
+	if elapsed := time.Since(started); elapsed >= defaultEmailTimeout {
+		t.Fatalf("gave up after %v", elapsed)
+	}
+}
+
 func TestNewAPIConfigAcceptsHTTPHookTransport(t *testing.T) {
 	var signature string
 	receiver := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -880,6 +901,11 @@ func TestNewAPIConfigRejectsInvalidEmailSettings(t *testing.T) {
 	t.Setenv("INVITATION_TTL", "-1h")
 	if err := panicValue(t, func() { newAPIConfig() }); err == nil {
 		t.Fatal("negative ttl did not panic")
+	}
+	clearAPIConfigEnv(t)
+	t.Setenv("EMAIL_TIMEOUT", "-1s")
+	if err := panicValue(t, func() { newAPIConfig() }); err == nil {
+		t.Fatal("negative email timeout did not panic")
 	}
 }
 

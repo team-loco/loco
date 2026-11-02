@@ -11,6 +11,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"math/big"
 	"net"
 	"strings"
@@ -173,4 +174,32 @@ func (s *SMTPServer) ClientTLS() *tls.Config {
 	pool := x509.NewCertPool()
 	pool.AddCert(s.Cert)
 	return &tls.Config{ServerName: "127.0.0.1", RootCAs: pool, MinVersion: tls.VersionTLS12}
+}
+
+func NewStalledSMTPServer(t *testing.T) string {
+	t.Helper()
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() {
+		if closeErr := listener.Close(); closeErr != nil {
+			t.Logf("close listener: %v", closeErr)
+		}
+	})
+	go func() {
+		for {
+			conn, acceptErr := listener.Accept()
+			if acceptErr != nil {
+				return
+			}
+			go func() {
+				defer conn.Close()
+				if _, copyErr := io.Copy(io.Discard, conn); copyErr != nil {
+					return
+				}
+			}()
+		}
+	}()
+	return "smtp://" + listener.Addr().String()
 }
