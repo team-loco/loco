@@ -227,55 +227,46 @@ specifiers = ["1.2.1"]
 
 [tools."github:helm-unittest/helm-unittest"."platforms.linux-arm64"]
 checksum = "sha256:c66062713cd3cbb1a80d7098bd1d4a48db8438f56b43fb6377df65447f93f8de"
-checksum_source = "mise-versions"
 url = "https://github.com/helm-unittest/helm-unittest/releases/download/v1.2.1/helm-unittest-linux-arm64-1.2.1.tgz"
 url_api = "https://api.github.com/repos/helm-unittest/helm-unittest/releases/assets/607406111"
 
 [tools."github:helm-unittest/helm-unittest"."platforms.linux-arm64-musl"]
 checksum = "sha256:c66062713cd3cbb1a80d7098bd1d4a48db8438f56b43fb6377df65447f93f8de"
-checksum_source = "mise-versions"
 url = "https://github.com/helm-unittest/helm-unittest/releases/download/v1.2.1/helm-unittest-linux-arm64-1.2.1.tgz"
 url_api = "https://api.github.com/repos/helm-unittest/helm-unittest/releases/assets/607406111"
 
 [tools."github:helm-unittest/helm-unittest"."platforms.linux-x64"]
 checksum = "sha256:48e86ecc1467b009630e5954375e5d8494139f73b466df5fe8c04fa45b634939"
-checksum_source = "mise-versions"
 url = "https://github.com/helm-unittest/helm-unittest/releases/download/v1.2.1/helm-unittest-linux-amd64-1.2.1.tgz"
 url_api = "https://api.github.com/repos/helm-unittest/helm-unittest/releases/assets/607406110"
 
 [tools."github:helm-unittest/helm-unittest"."platforms.linux-x64-baseline"]
 checksum = "sha256:48e86ecc1467b009630e5954375e5d8494139f73b466df5fe8c04fa45b634939"
-checksum_source = "mise-versions"
 url = "https://github.com/helm-unittest/helm-unittest/releases/download/v1.2.1/helm-unittest-linux-amd64-1.2.1.tgz"
 url_api = "https://api.github.com/repos/helm-unittest/helm-unittest/releases/assets/607406110"
 
 [tools."github:helm-unittest/helm-unittest"."platforms.linux-x64-musl"]
 checksum = "sha256:48e86ecc1467b009630e5954375e5d8494139f73b466df5fe8c04fa45b634939"
-checksum_source = "mise-versions"
 url = "https://github.com/helm-unittest/helm-unittest/releases/download/v1.2.1/helm-unittest-linux-amd64-1.2.1.tgz"
 url_api = "https://api.github.com/repos/helm-unittest/helm-unittest/releases/assets/607406110"
 
 [tools."github:helm-unittest/helm-unittest"."platforms.linux-x64-musl-baseline"]
 checksum = "sha256:48e86ecc1467b009630e5954375e5d8494139f73b466df5fe8c04fa45b634939"
-checksum_source = "mise-versions"
 url = "https://github.com/helm-unittest/helm-unittest/releases/download/v1.2.1/helm-unittest-linux-amd64-1.2.1.tgz"
 url_api = "https://api.github.com/repos/helm-unittest/helm-unittest/releases/assets/607406110"
 
 [tools."github:helm-unittest/helm-unittest"."platforms.macos-arm64"]
 checksum = "sha256:38ec0475b9206ba62454ab0f51a7fecbb9bfe103e9a7a1426f3b799d4f432ab2"
-checksum_source = "mise-versions"
 url = "https://github.com/helm-unittest/helm-unittest/releases/download/v1.2.1/helm-unittest-macos-arm64-1.2.1.tgz"
 url_api = "https://api.github.com/repos/helm-unittest/helm-unittest/releases/assets/607406105"
 
 [tools."github:helm-unittest/helm-unittest"."platforms.macos-x64"]
 checksum = "sha256:3e57daace5249d8dafd5fd2f6fbebf773c7e53a56e904db1f903031866853158"
-checksum_source = "mise-versions"
 url = "https://github.com/helm-unittest/helm-unittest/releases/download/v1.2.1/helm-unittest-macos-amd64-1.2.1.tgz"
 url_api = "https://api.github.com/repos/helm-unittest/helm-unittest/releases/assets/607406102"
 
 [tools."github:helm-unittest/helm-unittest"."platforms.macos-x64-baseline"]
 checksum = "sha256:3e57daace5249d8dafd5fd2f6fbebf773c7e53a56e904db1f903031866853158"
-checksum_source = "mise-versions"
 url = "https://github.com/helm-unittest/helm-unittest/releases/download/v1.2.1/helm-unittest-macos-amd64-1.2.1.tgz"
 url_api = "https://api.github.com/repos/helm-unittest/helm-unittest/releases/assets/607406102"
 
@@ -336,55 +327,46 @@ specifiers = ["2.6.0"]
 
 [tools."github:losisin/helm-values-schema-json"."platforms.linux-arm64"]
 checksum = "sha256:baf7c867fb4cb6903f49e5698b74a850912b6af9c84108668351e312b59e0e4f"
-checksum_source = "mise-versions"
 url = "https://github.com/losisin/helm-values-schema-json/releases/download/v2.6.0/helm-values-schema-json_2.6.0_linux_arm64.tgz"
 url_api = "https://api.github.com/repos/losisin/helm-values-schema-json/releases/assets/527481508"
 
 [tools."github:losisin/helm-values-schema-json"."platforms.linux-arm64-musl"]
 checksum = "sha256:baf7c867fb4cb6903f49e5698b74a850912b6af9c84108668351e312b59e0e4f"
-checksum_source = "mise-versions"
 url = "https://github.com/losisin/helm-values-schema-json/releases/download/v2.6.0/helm-values-schema-json_2.6.0_linux_arm64.tgz"
 url_api = "https://api.github.com/repos/losisin/helm-values-schema-json/releases/assets/527481508"
 
 [tools."github:losisin/helm-values-schema-json"."platforms.linux-x64"]
 checksum = "sha256:c3447c1be91b987678e70996451b6cf2169b9f44fea8fe670dc0f340281f11e8"
-checksum_source = "mise-versions"
 url = "https://github.com/losisin/helm-values-schema-json/releases/download/v2.6.0/helm-values-schema-json_2.6.0_linux_amd64.tgz"
 url_api = "https://api.github.com/repos/losisin/helm-values-schema-json/releases/assets/527481510"
 
 [tools."github:losisin/helm-values-schema-json"."platforms.linux-x64-baseline"]
 checksum = "sha256:c3447c1be91b987678e70996451b6cf2169b9f44fea8fe670dc0f340281f11e8"
-checksum_source = "mise-versions"
 url = "https://github.com/losisin/helm-values-schema-json/releases/download/v2.6.0/helm-values-schema-json_2.6.0_linux_amd64.tgz"
 url_api = "https://api.github.com/repos/losisin/helm-values-schema-json/releases/assets/527481510"
 
 [tools."github:losisin/helm-values-schema-json"."platforms.linux-x64-musl"]
 checksum = "sha256:c3447c1be91b987678e70996451b6cf2169b9f44fea8fe670dc0f340281f11e8"
-checksum_source = "mise-versions"
 url = "https://github.com/losisin/helm-values-schema-json/releases/download/v2.6.0/helm-values-schema-json_2.6.0_linux_amd64.tgz"
 url_api = "https://api.github.com/repos/losisin/helm-values-schema-json/releases/assets/527481510"
 
 [tools."github:losisin/helm-values-schema-json"."platforms.linux-x64-musl-baseline"]
 checksum = "sha256:c3447c1be91b987678e70996451b6cf2169b9f44fea8fe670dc0f340281f11e8"
-checksum_source = "mise-versions"
 url = "https://github.com/losisin/helm-values-schema-json/releases/download/v2.6.0/helm-values-schema-json_2.6.0_linux_amd64.tgz"
 url_api = "https://api.github.com/repos/losisin/helm-values-schema-json/releases/assets/527481510"
 
 [tools."github:losisin/helm-values-schema-json"."platforms.macos-arm64"]
 checksum = "sha256:270d6212b8f01d5639288168e0ebb70fd82fdc8bda1b87c22762bbfe93874e90"
-checksum_source = "mise-versions"
 url = "https://github.com/losisin/helm-values-schema-json/releases/download/v2.6.0/helm-values-schema-json_2.6.0_darwin_arm64.tgz"
 url_api = "https://api.github.com/repos/losisin/helm-values-schema-json/releases/assets/527481511"
 
 [tools."github:losisin/helm-values-schema-json"."platforms.macos-x64"]
 checksum = "sha256:2efefae69eb445670d74760313274e803f5556dc4bd5a20b8fea1d97d8ed7c71"
-checksum_source = "mise-versions"
 url = "https://github.com/losisin/helm-values-schema-json/releases/download/v2.6.0/helm-values-schema-json_2.6.0_darwin_amd64.tgz"
 url_api = "https://api.github.com/repos/losisin/helm-values-schema-json/releases/assets/527481509"
 
 [tools."github:losisin/helm-values-schema-json"."platforms.macos-x64-baseline"]
 checksum = "sha256:2efefae69eb445670d74760313274e803f5556dc4bd5a20b8fea1d97d8ed7c71"
-checksum_source = "mise-versions"
 url = "https://github.com/losisin/helm-values-schema-json/releases/download/v2.6.0/helm-values-schema-json_2.6.0_darwin_amd64.tgz"
 url_api = "https://api.github.com/repos/losisin/helm-values-schema-json/releases/assets/527481509"
 
@@ -694,66 +676,57 @@ checksum = "sha256:34bec4eba761ba5c16d1965ee6b8f5b0abe5993974a802274e2a4f0418893
 url = "https://get.helm.sh/helm-v4.3.1-darwin-amd64.tar.gz"
 
 [[tools.infisical]]
-version = "0.44.9"
+version = "0.44.12"
 backend = "github:Infisical/cli"
-specifiers = ["0.44.9"]
+specifiers = ["v0.44.12"]
 
 [tools.infisical.options]
 asset_pattern = "cli_{{ version }}_{{ os(macos='darwin') }}_{{ arch(x64='amd64') }}.tar.gz"
 
 [tools.infisical."platforms.linux-arm64"]
-checksum = "sha256:51d48b2cff6a14dce44090db8a7b16804e9ecea4b6252716009c44495021ca52"
-checksum_source = "mise-versions"
-url = "https://github.com/Infisical/cli/releases/download/v0.44.9/cli_0.44.9_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/670489391"
+checksum = "sha256:03f45146e1769cbee33aa4a00bb277ab9d7d953eb7cd026462578720d7d98d72"
+url = "https://github.com/Infisical/cli/releases/download/v0.44.12/cli_0.44.12_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/702143127"
 
 [tools.infisical."platforms.linux-arm64-musl"]
-checksum = "sha256:51d48b2cff6a14dce44090db8a7b16804e9ecea4b6252716009c44495021ca52"
-checksum_source = "mise-versions"
-url = "https://github.com/Infisical/cli/releases/download/v0.44.9/cli_0.44.9_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/670489391"
+checksum = "sha256:03f45146e1769cbee33aa4a00bb277ab9d7d953eb7cd026462578720d7d98d72"
+url = "https://github.com/Infisical/cli/releases/download/v0.44.12/cli_0.44.12_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/702143127"
 
 [tools.infisical."platforms.linux-x64"]
-checksum = "sha256:4005a430258df60401ae5288ab0412371f2e56f224ed461758dd2ec83887d556"
-checksum_source = "mise-versions"
-url = "https://github.com/Infisical/cli/releases/download/v0.44.9/cli_0.44.9_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/670489395"
+checksum = "sha256:82cad3d11fb34e9a90772a803e538a2bc8e5dfe99a8b135fa352b9f0eae2ae9a"
+url = "https://github.com/Infisical/cli/releases/download/v0.44.12/cli_0.44.12_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/702143136"
 
 [tools.infisical."platforms.linux-x64-baseline"]
-checksum = "sha256:4005a430258df60401ae5288ab0412371f2e56f224ed461758dd2ec83887d556"
-checksum_source = "mise-versions"
-url = "https://github.com/Infisical/cli/releases/download/v0.44.9/cli_0.44.9_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/670489395"
+checksum = "sha256:82cad3d11fb34e9a90772a803e538a2bc8e5dfe99a8b135fa352b9f0eae2ae9a"
+url = "https://github.com/Infisical/cli/releases/download/v0.44.12/cli_0.44.12_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/702143136"
 
 [tools.infisical."platforms.linux-x64-musl"]
-checksum = "sha256:4005a430258df60401ae5288ab0412371f2e56f224ed461758dd2ec83887d556"
-checksum_source = "mise-versions"
-url = "https://github.com/Infisical/cli/releases/download/v0.44.9/cli_0.44.9_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/670489395"
+checksum = "sha256:82cad3d11fb34e9a90772a803e538a2bc8e5dfe99a8b135fa352b9f0eae2ae9a"
+url = "https://github.com/Infisical/cli/releases/download/v0.44.12/cli_0.44.12_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/702143136"
 
 [tools.infisical."platforms.linux-x64-musl-baseline"]
-checksum = "sha256:4005a430258df60401ae5288ab0412371f2e56f224ed461758dd2ec83887d556"
-checksum_source = "mise-versions"
-url = "https://github.com/Infisical/cli/releases/download/v0.44.9/cli_0.44.9_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/670489395"
+checksum = "sha256:82cad3d11fb34e9a90772a803e538a2bc8e5dfe99a8b135fa352b9f0eae2ae9a"
+url = "https://github.com/Infisical/cli/releases/download/v0.44.12/cli_0.44.12_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/702143136"
 
 [tools.infisical."platforms.macos-arm64"]
-checksum = "sha256:2e8b66c612a2eb3141492fb0429609b796668a292fe93fe8e356e3ba1088ea87"
-checksum_source = "mise-versions"
-url = "https://github.com/Infisical/cli/releases/download/v0.44.9/cli_0.44.9_darwin_arm64.tar.gz"
-url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/670473327"
+checksum = "sha256:ce99eb9825791574ab0f658c4694466ffc93c77951c0ffce4e9ef3e04a031951"
+url = "https://github.com/Infisical/cli/releases/download/v0.44.12/cli_0.44.12_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/702115511"
 
 [tools.infisical."platforms.macos-x64"]
-checksum = "sha256:7751b743fb616307ace24afd8397519925eb0b1a976a3bb9902805bc17ff3d22"
-checksum_source = "mise-versions"
-url = "https://github.com/Infisical/cli/releases/download/v0.44.9/cli_0.44.9_darwin_amd64.tar.gz"
-url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/670473329"
+checksum = "sha256:2df965e7510bc3d77651845bd83e2b956afc1b7ef279099b336111590d8b9fd4"
+url = "https://github.com/Infisical/cli/releases/download/v0.44.12/cli_0.44.12_darwin_amd64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/702115531"
 
 [tools.infisical."platforms.macos-x64-baseline"]
-checksum = "sha256:7751b743fb616307ace24afd8397519925eb0b1a976a3bb9902805bc17ff3d22"
-checksum_source = "mise-versions"
-url = "https://github.com/Infisical/cli/releases/download/v0.44.9/cli_0.44.9_darwin_amd64.tar.gz"
-url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/670473329"
+checksum = "sha256:2df965e7510bc3d77651845bd83e2b956afc1b7ef279099b336111590d8b9fd4"
+url = "https://github.com/Infisical/cli/releases/download/v0.44.12/cli_0.44.12_darwin_amd64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/702115531"
 
 [[tools.kind]]
 version = "0.33.0"
