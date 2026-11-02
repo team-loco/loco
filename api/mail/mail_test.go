@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 )
 
 const (
@@ -12,6 +13,9 @@ const (
 	testHookURL = "https://hooks.loco.test/mail"
 	testHTTPURL = "http://receiver.loco.test:8080/mail"
 	testSMTPURL = "smtp://mailer@mail.loco.test:587"
+
+	testTimeout  = 10 * time.Second
+	stallTimeout = 200 * time.Millisecond
 )
 
 func testHookSecret() string {
@@ -41,7 +45,7 @@ func TestParseTransport(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			transport, err := ParseTransport(tt.raw, tt.from, tt.secret)
+			transport, err := ParseTransport(tt.raw, tt.from, tt.secret, testTimeout)
 			if !errors.Is(err, tt.want) {
 				t.Fatalf("err = %v, want %v", err, tt.want)
 			}
@@ -56,7 +60,7 @@ func TestParseTransport(t *testing.T) {
 }
 
 func TestNoTransportReportsItself(t *testing.T) {
-	transport, err := ParseTransport("", "", "")
+	transport, err := ParseTransport("", "", "", testTimeout)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
