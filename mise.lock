@@ -282,7 +282,7 @@ url_api = "https://api.github.com/repos/helm-unittest/helm-unittest/releases/ass
 [[tools."github:kubernetes-sigs/controller-tools"]]
 version = "0.23.0"
 backend = "github:kubernetes-sigs/controller-tools"
-specifiers = ["v0.23.0"]
+specifiers = ["0.23.0"]
 
 [tools."github:kubernetes-sigs/controller-tools"."platforms.linux-arm64"]
 checksum = "sha256:9610184a2bc4b7f6f680e0d558f7976848f745ba3eeb3feb2340fbe15e96ce02"
