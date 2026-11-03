@@ -50,6 +50,19 @@
       enabled: true,
     },
     {
+      description: "The other modules reach the root module's requirements through its replace, so their indirect entries move with the root module's direct ones; otherwise their go.sum lacks the new version and the build fails",
+      matchManagers: ["gomod"],
+      matchDepTypes: ["indirect"],
+      matchPackageNames: [
+        "buf.build/gen/go/bufbuild/protovalidate/**",
+        "github.com/go-jose/go-jose/**",
+        "github.com/google/uuid",
+        "github.com/santhosh-tekuri/jsonschema/**",
+        "github.com/stretchr/testify",
+      ],
+      enabled: true,
+    },
+    {
       description: "k8s.io/apimachinery pins kube-openapi and structured-merge-diff to the commits it builds against; a newer commit on its own breaks the build (#436), so they move only with a Kubernetes release",
       matchManagers: ["gomod"],
       matchDepTypes: ["indirect"],
