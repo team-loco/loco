@@ -162,6 +162,12 @@
       dependencyDashboardApproval: true,
     },
     {
+      description: "Infisical tags its CLI releases with a v prefix, which Renovate would otherwise write into mise.toml",
+      matchManagers: ["mise"],
+      matchDepNames: ["infisical"],
+      extractVersion: "^v(?<version>.*)$",
+    },
+    {
       description: "kind's default node image sets the local Kubernetes version, and kubectl must stay within one minor version of it",
       groupName: "kind and kubectl",
       matchDepNames: ["kind", "kubectl"],
