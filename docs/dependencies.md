@@ -114,8 +114,8 @@ Deploys:
 - **loco-build-controller** (the build controller, only with `builds.enabled`)
   - Watches Build CRDs in the `loco-builds` namespace
   - Runs each Build as a BuildKit Job and reports the pushed digest
-- **OpenTelemetry collectors**: three OpenTelemetry Collector contrib 0.163.2 instances, `otel-col-deploy` (OTLP from applications and Envoy) and `otel-col-cluster` (cluster metrics and events) in `loco-obs`, `otel-col-daemon` (container logs and node metrics) in `loco-obs-node`. They export everything over OTLP/HTTP to one configured endpoint.
-- **Envoy Gateway** (v1.6.1 via gateway-helm dependency)
+- **OpenTelemetry collectors**: three OpenTelemetry Collector contrib instances, at the image `charts/loco-worker/values.yaml` pins, `otel-col-deploy` (OTLP from applications and Envoy) and `otel-col-cluster` (cluster metrics and events) in `loco-obs`, `otel-col-daemon` (container logs and node metrics) in `loco-obs-node`. They export everything over OTLP/HTTP to one configured endpoint.
+- **Envoy Gateway** (the `gateway-helm` dependency in `charts/loco-worker/Chart.yaml`)
   - **HTTP routing** and load balancing
   - **TLS termination** (HTTPS)
   - **HTTP/3 support**
@@ -123,10 +123,10 @@ Deploys:
 
 **Envoy Gateway Dependencies**:
 
-- Kubernetes Gateway API (v1.2.1+)
+- Kubernetes Gateway API, at the CRD bundle the `gateway-helm` chart ships
 - Service discovery via Kubernetes services
 
-#### cert-manager Helm Chart (v1.19.1)
+#### cert-manager Helm Chart (pinned in `charts/cert-manager.yaml`)
 
 - **Let's Encrypt Integration**: Automatic SSL certificate provisioning
 - **Certificate Automation**: Renewal and rotation
