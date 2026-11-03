@@ -271,7 +271,7 @@ builds:
   # @schema additionalProperties: false
   buildkitImage:
     repository: moby/buildkit
-    tag: v0.34.0-rootless
+    tag: v0.34.1-rootless
     pullPolicy: IfNotPresent
   timeout: 30m
   ttlAfterFinished: 10m
