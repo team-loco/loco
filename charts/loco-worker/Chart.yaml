@@ -2,10 +2,10 @@ apiVersion: v2
 name: loco-worker
 description: "Loco worker cluster: agent, controllers, Envoy Gateway and OpenTelemetry collectors"
 type: application
-version: 0.3.1
+version: 0.3.2
 dependencies:
     - name: gateway-helm
-      version: 1.9.2
+      version: 1.9.3
       repository: oci://docker.io/envoyproxy
       condition: gateway-helm.enabled
     - name: opentelemetry-collector
