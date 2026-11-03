@@ -175,10 +175,10 @@
       dependencyDashboardApproval: true,
     },
     {
-      description: "Infisical tags its CLI releases with a v prefix, which Renovate would otherwise write into mise.toml",
+      description: "Infisical and the github: backend tools tag their releases with a v prefix. Renovate passes the tag to mise lock, which then writes it into mise.toml",
       matchManagers: ["mise"],
-      matchDepNames: ["infisical"],
-      extractVersion: "^v(?<version>.*)$",
+      matchDepNames: ["infisical", "/^github:/"],
+      extractVersion: "^v?(?<version>.*)$",
     },
     {
       description: "kind's default node image sets the local Kubernetes version, and kubectl must stay within one minor version of it",
