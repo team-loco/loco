@@ -38,7 +38,7 @@ jobs:
     with:
       scan-args: |-
         --recursive
-        --experimental-exclude=examples
+        --x-exclude=examples
         ./
 
   source-baseline:
@@ -52,7 +52,7 @@ jobs:
     with:
       scan-args: |-
         --recursive
-        --experimental-exclude=examples
+        --x-exclude=examples
         ./
       fail-on-vuln: false
 
