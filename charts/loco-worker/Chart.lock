@@ -1,7 +1,7 @@
 dependencies:
 - name: gateway-helm
   repository: oci://docker.io/envoyproxy
-  version: 1.9.2
+  version: 1.9.3
 - name: opentelemetry-collector
   repository: https://open-telemetry.github.io/opentelemetry-helm-charts
   version: 0.175.1
@@ -11,5 +11,5 @@ dependencies:
 - name: opentelemetry-collector
   repository: https://open-telemetry.github.io/opentelemetry-helm-charts
   version: 0.175.1
-digest: sha256:991b971103f040b178e1413973078609bf6c5941068fecea19d908b8c26f4acb
-generated: "2026-10-25T17:58:28.243286-07:00"
+digest: sha256:e09c19c0bf1695745df66723b1812c75d8bf4549c263e2d93a36c3e21d6eae15
+generated: "2026-11-03T01:58:25.21162678Z"
