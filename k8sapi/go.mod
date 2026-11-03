@@ -3,7 +3,7 @@ module github.com/team-loco/loco/k8sapi
 go 1.27.3
 
 require (
-	k8s.io/apimachinery v0.37.1
+	k8s.io/apimachinery v0.37.2
 	sigs.k8s.io/controller-runtime v0.25.2
 )
 
