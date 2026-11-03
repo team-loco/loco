@@ -292,7 +292,7 @@ clickhouseUserPasswords:
 # @schema additionalProperties: false
 openbao:
   enabled: true
-  image: quay.io/openbao/openbao:2.7.1@sha256:6d2b93856e3fcf7b18ad855a0b51eaba474dc8b79cf554379ea32034797d2acf
+  image: quay.io/openbao/openbao:2.7.2@sha256:5046911075e137e154ce49ab051502f4ec7cf367d484ae4a4dce665d9b90561f
   curlImage: curlimages/curl:8.23.0@sha256:3fb7e13e5d179a845c97d78204f3f1064d1907037f26a3ebf91710571151fd93
   # @schema minimum: 1
   replicas: 3
