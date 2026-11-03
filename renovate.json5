@@ -5,7 +5,7 @@
   dependencyDashboard: true,
   dependencyDashboardTitle: "Dependency Dashboard",
   labels: ["dependencies"],
-  prConcurrentLimit: 8,
+  prConcurrentLimit: 50,
   prHourlyLimit: 0,
   rebaseWhen: "conflicted",
   platformCommit: "enabled",
