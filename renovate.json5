@@ -12,7 +12,7 @@
   ignorePaths: ["examples/**", "**/node_modules/**", "gen/ts/node_modules/**"],
   postUpdateOptions: ["gomodTidy", "gomodUpdateImportPaths"],
   constraints: {
-    mise: "2026.10.15",
+    mise: "2026.10.25",
   },
   pep723: {
     managerFilePatterns: ["/^\\.agents/skills/.+\\.py$/"],
@@ -160,6 +160,12 @@
     {
       matchUpdateTypes: ["major"],
       dependencyDashboardApproval: true,
+    },
+    {
+      description: "Infisical tags its CLI releases with a v prefix, which Renovate would otherwise write into mise.toml",
+      matchManagers: ["mise"],
+      matchDepNames: ["infisical"],
+      extractVersion: "^v(?<version>.*)$",
     },
     {
       description: "kind's default node image sets the local Kubernetes version, and kubectl must stay within one minor version of it",
