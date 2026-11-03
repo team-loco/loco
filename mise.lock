@@ -389,54 +389,63 @@ url = "https://github.com/losisin/helm-values-schema-json/releases/download/v2.6
 url_api = "https://api.github.com/repos/losisin/helm-values-schema-json/releases/assets/527481509"
 
 [[tools."github:pressly/goose"]]
-version = "3.28.0"
+version = "3.29.0"
 backend = "github:pressly/goose"
-specifiers = ["3.28.0"]
+specifiers = ["3.29.0"]
 
 [tools."github:pressly/goose"."platforms.linux-arm64"]
-checksum = "sha256:3968855c11b4093af271c5226909789ea294468f6e50203d738b7504995b6247"
-url = "https://github.com/pressly/goose/releases/download/v3.28.0/goose_linux_arm64"
-url_api = "https://api.github.com/repos/pressly/goose/releases/assets/540871038"
+checksum = "sha256:efdb8f97176df746cf3970ed40810816a51927da0600b152ac4359ae2b7c0e12"
+checksum_source = "mise-versions"
+url = "https://github.com/pressly/goose/releases/download/v3.29.0/goose_linux_arm64"
+url_api = "https://api.github.com/repos/pressly/goose/releases/assets/631395872"
 
 [tools."github:pressly/goose"."platforms.linux-arm64-musl"]
-checksum = "sha256:3968855c11b4093af271c5226909789ea294468f6e50203d738b7504995b6247"
-url = "https://github.com/pressly/goose/releases/download/v3.28.0/goose_linux_arm64"
-url_api = "https://api.github.com/repos/pressly/goose/releases/assets/540871038"
+checksum = "sha256:efdb8f97176df746cf3970ed40810816a51927da0600b152ac4359ae2b7c0e12"
+checksum_source = "mise-versions"
+url = "https://github.com/pressly/goose/releases/download/v3.29.0/goose_linux_arm64"
+url_api = "https://api.github.com/repos/pressly/goose/releases/assets/631395872"
 
 [tools."github:pressly/goose"."platforms.linux-x64"]
-checksum = "sha256:ab073515b78ef345f64f018c0d79aa7db50106806efc686dda7181253765ae13"
-url = "https://github.com/pressly/goose/releases/download/v3.28.0/goose_linux_x86_64"
-url_api = "https://api.github.com/repos/pressly/goose/releases/assets/540871035"
+checksum = "sha256:cc56e2f75532a4dd52f5ef2d31db0121e91079a9c2617bc0ad4e04e2d41c228b"
+checksum_source = "mise-versions"
+url = "https://github.com/pressly/goose/releases/download/v3.29.0/goose_linux_x86_64"
+url_api = "https://api.github.com/repos/pressly/goose/releases/assets/631396017"
 
 [tools."github:pressly/goose"."platforms.linux-x64-baseline"]
-checksum = "sha256:ab073515b78ef345f64f018c0d79aa7db50106806efc686dda7181253765ae13"
-url = "https://github.com/pressly/goose/releases/download/v3.28.0/goose_linux_x86_64"
-url_api = "https://api.github.com/repos/pressly/goose/releases/assets/540871035"
+checksum = "sha256:cc56e2f75532a4dd52f5ef2d31db0121e91079a9c2617bc0ad4e04e2d41c228b"
+checksum_source = "mise-versions"
+url = "https://github.com/pressly/goose/releases/download/v3.29.0/goose_linux_x86_64"
+url_api = "https://api.github.com/repos/pressly/goose/releases/assets/631396017"
 
 [tools."github:pressly/goose"."platforms.linux-x64-musl"]
-checksum = "sha256:ab073515b78ef345f64f018c0d79aa7db50106806efc686dda7181253765ae13"
-url = "https://github.com/pressly/goose/releases/download/v3.28.0/goose_linux_x86_64"
-url_api = "https://api.github.com/repos/pressly/goose/releases/assets/540871035"
+checksum = "sha256:cc56e2f75532a4dd52f5ef2d31db0121e91079a9c2617bc0ad4e04e2d41c228b"
+checksum_source = "mise-versions"
+url = "https://github.com/pressly/goose/releases/download/v3.29.0/goose_linux_x86_64"
+url_api = "https://api.github.com/repos/pressly/goose/releases/assets/631396017"
 
 [tools."github:pressly/goose"."platforms.linux-x64-musl-baseline"]
-checksum = "sha256:ab073515b78ef345f64f018c0d79aa7db50106806efc686dda7181253765ae13"
-url = "https://github.com/pressly/goose/releases/download/v3.28.0/goose_linux_x86_64"
-url_api = "https://api.github.com/repos/pressly/goose/releases/assets/540871035"
+checksum = "sha256:cc56e2f75532a4dd52f5ef2d31db0121e91079a9c2617bc0ad4e04e2d41c228b"
+checksum_source = "mise-versions"
+url = "https://github.com/pressly/goose/releases/download/v3.29.0/goose_linux_x86_64"
+url_api = "https://api.github.com/repos/pressly/goose/releases/assets/631396017"
 
 [tools."github:pressly/goose"."platforms.macos-arm64"]
-checksum = "sha256:e0bc7db0b4cfc652495f86dbf1681a668bb26e17d0ca28bad44218a905d01ac9"
-url = "https://github.com/pressly/goose/releases/download/v3.28.0/goose_darwin_arm64"
-url_api = "https://api.github.com/repos/pressly/goose/releases/assets/540871077"
+checksum = "sha256:c5bdc393d32052d59aa2df313a897770218dbecffa96da871a40c386e4124624"
+checksum_source = "mise-versions"
+url = "https://github.com/pressly/goose/releases/download/v3.29.0/goose_darwin_arm64"
+url_api = "https://api.github.com/repos/pressly/goose/releases/assets/631396019"
 
 [tools."github:pressly/goose"."platforms.macos-x64"]
-checksum = "sha256:8aa97e65273da3f58d6eae031d09f43089ef34e6b44cd713e80b2ffd5465bda7"
-url = "https://github.com/pressly/goose/releases/download/v3.28.0/goose_darwin_x86_64"
-url_api = "https://api.github.com/repos/pressly/goose/releases/assets/540871037"
+checksum = "sha256:5770899121697b69a7c05fe9483f9bd4c6447e92fb3373b0933d1909e0449b62"
+checksum_source = "mise-versions"
+url = "https://github.com/pressly/goose/releases/download/v3.29.0/goose_darwin_x86_64"
+url_api = "https://api.github.com/repos/pressly/goose/releases/assets/631395874"
 
 [tools."github:pressly/goose"."platforms.macos-x64-baseline"]
-checksum = "sha256:8aa97e65273da3f58d6eae031d09f43089ef34e6b44cd713e80b2ffd5465bda7"
-url = "https://github.com/pressly/goose/releases/download/v3.28.0/goose_darwin_x86_64"
-url_api = "https://api.github.com/repos/pressly/goose/releases/assets/540871037"
+checksum = "sha256:5770899121697b69a7c05fe9483f9bd4c6447e92fb3373b0933d1909e0449b62"
+checksum_source = "mise-versions"
+url = "https://github.com/pressly/goose/releases/download/v3.29.0/goose_darwin_x86_64"
+url_api = "https://api.github.com/repos/pressly/goose/releases/assets/631395874"
 
 [[tools."github:sqlc-dev/sqlc"]]
 version = "1.31.1"

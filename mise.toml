@@ -9,7 +9,7 @@ gh = "2.103.3"
 
 buf = "1.75.0"
 "github:sqlc-dev/sqlc" = "1.31.1"
-"github:pressly/goose" = "3.28.0"
+"github:pressly/goose" = "3.29.0"
 yq = "4.54.1"
 "github:kubernetes-sigs/controller-tools" = { version = "0.22.0", bin = "controller-gen" }
 kustomize = "5.8.3"
