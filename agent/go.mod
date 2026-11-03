@@ -3,7 +3,7 @@ module github.com/team-loco/loco/agent
 go 1.27.3
 
 require (
-	connectrpc.com/connect/v2 v2.0.0
+	connectrpc.com/connect/v2 v2.0.2
 	github.com/google/uuid v1.6.0
 	github.com/team-loco/loco v0.0.0
 	github.com/team-loco/loco/k8sapi v0.0.0
