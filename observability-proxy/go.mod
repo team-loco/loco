@@ -3,11 +3,11 @@ module github.com/team-loco/loco/observability-proxy
 go 1.27.3
 
 require (
-	connectrpc.com/connect/v2 v2.0.0
+	connectrpc.com/connect/v2 v2.0.2
 	connectrpc.com/cors v0.1.0
 	github.com/ClickHouse/clickhouse-go/v2 v2.49.0
 	github.com/dgraph-io/ristretto/v2 v2.4.2
-	github.com/go-jose/go-jose/v4 v4.1.6
+	github.com/go-jose/go-jose/v4 v4.1.8
 	github.com/google/uuid v1.6.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/clickhouseexporter v0.163.0
 	github.com/pressly/goose/v3 v3.28.0
