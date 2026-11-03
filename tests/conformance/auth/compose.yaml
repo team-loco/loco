@@ -49,7 +49,7 @@ services:
       retries: 30
 
   keycloak:
-    image: quay.io/keycloak/keycloak:26.8.0@sha256:27b3230fbabb8c9ff3c66c864cf09dcd8a41aca82e5100679d109ef0eeb05741
+    image: quay.io/keycloak/keycloak:26.8.1@sha256:3f3c5f8e03c614774b4bd9173b88391fefa4153bfc010d8012d59ad825377332
     command: ["start-dev", "--import-realm", "--http-port=8080", "--health-enabled=true"]
     ports:
       - "25080:8080"
@@ -65,7 +65,7 @@ services:
       retries: 60
 
   dex:
-    image: ghcr.io/dexidp/dex:v2.46.0@sha256:933fcd3f523338c847b88ef84a7145fb2fcb7b9917f08418612afeaaa2001777
+    image: ghcr.io/dexidp/dex:v2.46.1@sha256:65b72ca0f4b0bf6d4ada84ec21da8851782563404ac7b8f926923d27ceced9ab
     command: ["dex", "serve", "/etc/dex/config.yaml"]
     ports:
       - "25556:5556"
@@ -85,7 +85,7 @@ services:
       retries: 30
 
   zitadel:
-    image: ghcr.io/zitadel/zitadel:v4.19.5@sha256:a586456a208e0db4c633db0ba43c427c24b37846138b8b13ff16ad8e003a18d3
+    image: ghcr.io/zitadel/zitadel:v4.20.0@sha256:9ea0e9ecfdc43115da871242e40a0320f2ece864c7cd8b5d41a863a7f4902499
     command: ["start-from-init", "--masterkey", "MasterkeyNeedsToHave32Characters", "--tlsMode", "disabled"]
     depends_on:
       zitadel-db:

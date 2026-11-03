@@ -22,7 +22,7 @@ services:
       start_interval: 1s
 
   valkey:
-    image: valkey/valkey:8.1.10-alpine@sha256:081c2f5cb575efc901aa80ff9cdbd1ec6a301682fd35e1ebb4b0990a4a4a8507
+    image: valkey/valkey:8.1.11-alpine@sha256:2602ace2be6569bc2bbb06f873776516ab9089821525be34f4305c67eb9db02a
     ports:
       - "${VALKEY_PORT:-6379}:6379"
     healthcheck:
@@ -41,7 +41,7 @@ services:
       - registry-data:/var/lib/registry
 
   s3:
-    image: versity/versitygw:v1.8.0@sha256:30292fc2eeacc67a36993b01f7a7a5e3361a19cced0e80c1d71cfa2a4b0a2499
+    image: versity/versitygw:v1.10.0@sha256:89cad13cc981986ee284cbafea4613f9533ce6fd5f37a2c96c4c4fb8adb3a316
     environment:
       ROOT_ACCESS_KEY: ${LOCO_SOURCE_BUCKET_ACCESS_KEY_ID:-loco-dev}
       ROOT_SECRET_KEY: ${LOCO_SOURCE_BUCKET_SECRET_ACCESS_KEY:-loco-dev-secret}
@@ -59,7 +59,7 @@ services:
         exec versitygw posix /data
 
   dex:
-    image: ghcr.io/dexidp/dex:v2.46.0@sha256:933fcd3f523338c847b88ef84a7145fb2fcb7b9917f08418612afeaaa2001777
+    image: ghcr.io/dexidp/dex:v2.46.1@sha256:65b72ca0f4b0bf6d4ada84ec21da8851782563404ac7b8f926923d27ceced9ab
     command: ["dex", "serve", "/etc/dex/config.yaml"]
     ports:
       - "${DEX_PORT:-5556}:5556"

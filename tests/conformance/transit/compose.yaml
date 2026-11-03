@@ -18,7 +18,7 @@ services:
       retries: 30
 
   vault:
-    image: hashicorp/vault:2.1.2@sha256:c2f666266f383d2cf424d86b8bb8ce7d065562173ffec2b476d762943608bb55
+    image: hashicorp/vault:2.2.1@sha256:962a92876e168d68eaaa24b0b8b49bbce1cb63024060a67bba95cd158a366fc2
     command: ["server", "-dev", "-dev-root-token-id=loco-conformance-root", "-dev-listen-address=0.0.0.0:8200"]
     environment:
       SKIP_SETCAP: "true"
