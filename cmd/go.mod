@@ -7,7 +7,7 @@ require (
 	charm.land/bubbletea/v2 v2.1.1
 	charm.land/fang/v2 v2.0.1
 	charm.land/lipgloss/v2 v2.0.6
-	connectrpc.com/connect/v2 v2.0.0
+	connectrpc.com/connect/v2 v2.0.2
 	github.com/charmbracelet/x/term v0.2.2
 	github.com/google/uuid v1.6.0
 	github.com/moby/patternmatcher v0.6.1

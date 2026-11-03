@@ -5,7 +5,7 @@ go 1.27.3
 require (
 	buf.build/go/protovalidate v1.4.0
 	charm.land/log/v2 v2.0.1
-	connectrpc.com/connect/v2 v2.0.0
+	connectrpc.com/connect/v2 v2.0.2
 	connectrpc.com/cors v0.1.0
 	connectrpc.com/grpcreflect/v2 v2.0.0
 	connectrpc.com/otelconnect v0.12.0
