@@ -199,9 +199,9 @@
   customManagers: [
     {
       customType: "regex",
-      description: "The API docs load Swagger UI assets from the CDN without bundling them",
+      description: "The API docs load Scalar from the CDN without bundling it",
       managerFilePatterns: ["/^api/docs\\.html$/"],
-      matchStrings: ["https://cdn\\.jsdelivr\\.net/npm/(?<depName>swagger-ui-dist)@(?<currentValue>[^/]+)/"],
+      matchStrings: ["https://cdn\\.jsdelivr\\.net/npm/(?<depName>@scalar/api-reference)@(?<currentValue>[^/]+)/"],
       datasourceTemplate: "npm",
     },
     {

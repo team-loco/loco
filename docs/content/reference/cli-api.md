@@ -43,7 +43,7 @@ That task regenerates Go and TypeScript clients, the OpenAPI 3.1 schema, and SQL
 
 The API serves its embedded schema at `GET /openapi.json` without authentication. The schema describes the Connect RPC routes, including streaming methods and the proxied observability service. Streaming methods use Connect framing and require a compatible client.
 
-Open `/docs` on the API host to browse the schema and try unary RPCs with Swagger UI. The page loads its JavaScript and CSS from jsDelivr; the API embeds only the HTML page and schema. Browsing needs no authentication; RPC calls retain their authentication requirements.
+Open `/docs` on the API host to browse the schema and try unary RPCs with Scalar. The page includes searchable navigation, request examples, and light and dark themes. It loads Scalar from jsDelivr; the API embeds only the HTML page and schema. Requests go directly to the API. Browsing needs no authentication; RPC calls retain their authentication requirements.
 
 ```sh
 curl --fail https://api.loco.build/openapi.json -o openapi.json

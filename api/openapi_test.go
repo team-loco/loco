@@ -29,24 +29,23 @@ func TestOpenAPIDocs(t *testing.T) {
 	body := response.Body.String()
 	for _, want := range []string{
 		"<title>Loco API</title>",
-		`id="swagger-ui"`,
-		"SwaggerUIBundle({",
+		`id="api-reference"`,
+		`Scalar.createApiReference("#api-reference", {`,
 		`url: "/openapi.json"`,
-		"validatorUrl: null",
+		`proxyUrl: ""`,
+		"withDefaultFonts: false",
+		"telemetry: false",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("docs missing %q", want)
 		}
 	}
 	assetPattern := regexp.MustCompile(
-		`https://cdn\.jsdelivr\.net/npm/swagger-ui-dist@(\d+\.\d+\.\d+)/(swagger-ui(?:-bundle\.js|\.css))`,
+		`https://cdn\.jsdelivr\.net/npm/@scalar/api-reference@\d+\.\d+\.\d+/dist/browser/standalone\.js`,
 	)
 	assets := assetPattern.FindAllStringSubmatch(body, -1)
-	if len(assets) != 2 {
-		t.Fatalf("expected pinned CDN script and stylesheet, got %v", assets)
-	}
-	if assets[0][1] != assets[1][1] || assets[0][2] != "swagger-ui.css" || assets[1][2] != "swagger-ui-bundle.js" {
-		t.Errorf("CDN assets must use the same version: %v", assets)
+	if len(assets) != 1 {
+		t.Fatalf("expected one pinned Scalar CDN script, got %v", assets)
 	}
 	for _, method := range []string{http.MethodHead, http.MethodPost} {
 		t.Run(method, func(t *testing.T) {

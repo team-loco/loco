@@ -161,7 +161,7 @@ curl --fail --silent -H "Host: $API_HOST" "http://127.0.0.1:$API_PORT/health"
 curl --fail --silent -H "Host: $API_HOST" "http://127.0.0.1:$API_PORT/openapi.json" >"$RUN_DIR/openapi.json"
 yq -e -p json '.openapi == "3.1.0" and .paths."/loco.config.v1.ConfigService/GetConfig".post != null and .paths."/loco.agent.v1.AgentService/Sync".post != null and .paths."/loco.observability.v1.ObservabilityProxyService/QueryLogs".post != null' "$RUN_DIR/openapi.json" >/dev/null
 curl --fail --silent -H "Host: $API_HOST" "http://127.0.0.1:$API_PORT/docs" >"$RUN_DIR/api-docs.html"
-grep -F 'SwaggerUIBundle({' "$RUN_DIR/api-docs.html" >/dev/null
+grep -F 'Scalar.createApiReference(' "$RUN_DIR/api-docs.html" >/dev/null
 grep -F 'url: "/openapi.json"' "$RUN_DIR/api-docs.html" >/dev/null
 curl --fail --silent -H "Host: $APP_HOST" "http://127.0.0.1:$API_PORT/" >"$RUN_DIR/dashboard.html"
 curl --fail --silent --compressed -D "$RUN_DIR/runtime-headers.txt" -H "Host: $APP_HOST" "http://127.0.0.1:$API_PORT/runtime-config.js" >"$RUN_DIR/runtime-config.js"

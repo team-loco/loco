@@ -72,6 +72,8 @@ Use the existing Lucide icon set. Icons support a label, copy action or status; 
 
 ## Components
 
+The API host's `/docs` reference is a standalone Scalar page defined in `api/docs.html`, loaded from a pinned CDN script. Scalar owns its navigation, request client, and light/dark theme tokens; the small Loco header consumes those tokens and the page uses system fonts. Keep this surface independent of the dashboard bundle. Requests go directly to the API without a third-party proxy.
+
 Application pages import from [`components/design`](web/src/components/design), whose wrappers adapt the vendored primitives in `components/ui`. Change an established wrapper when a system treatment needs to change; do not modify the vendored primitives or copy their classes into each page.
 
 | Need | Canonical owner | Use |

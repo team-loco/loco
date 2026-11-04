@@ -3,25 +3,54 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
     <title>Loco API</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.34.1/swagger-ui.css">
     <style>
-      @media (max-width: 40rem) {
-        .swagger-ui .opblock-tag { flex-wrap: wrap; }
-        .swagger-ui .opblock-tag > a { max-width: 100%; overflow-wrap: anywhere; }
-        .swagger-ui .opblock-tag small { flex-basis: 100%; }
+      :root {
+        --scalar-font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --scalar-font-code: "SFMono-Regular", Consolas, monospace;
+        --scalar-custom-header-height: 56px;
       }
+      body { margin: 0; }
+      .docs-header {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        height: var(--scalar-custom-header-height);
+        padding: 0 24px;
+        border-bottom: 1px solid var(--scalar-border-color);
+        background: var(--scalar-background-1, Canvas);
+        color: var(--scalar-color-1, CanvasText);
+        font: 13px var(--scalar-font);
+      }
+      .docs-brand { font-size: 25px; font-weight: 750; letter-spacing: -0.06em; }
+      .docs-label { color: var(--scalar-color-2); }
+      .docs-schema { margin-left: auto; color: inherit; text-underline-offset: 4px; }
     </style>
   </head>
   <body>
-    <div id="swagger-ui"></div>
-    <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.34.1/swagger-ui-bundle.js" crossorigin="anonymous"></script>
+    <header class="docs-header">
+      <span class="docs-brand">loco</span>
+      <span class="docs-label">API reference</span>
+      <a class="docs-schema" href="/openapi.json">OpenAPI JSON</a>
+    </header>
+    <main id="api-reference"></main>
+    <noscript>Enable JavaScript to browse the API reference, or download the <a href="/openapi.json">OpenAPI schema</a>.</noscript>
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.76.4/dist/browser/standalone.js" crossorigin="anonymous"></script>
     <script>
-      SwaggerUIBundle({
+      Scalar.createApiReference("#api-reference", {
         url: "/openapi.json",
-        dom_id: "#swagger-ui",
-        deepLinking: true,
-        validatorUrl: null,
+        title: "Loco API",
+        theme: "default",
+        layout: "modern",
+        darkMode: window.matchMedia("(prefers-color-scheme: dark)").matches,
+        withDefaultFonts: false,
+        showDeveloperTools: "never",
+        proxyUrl: "",
+        telemetry: false,
       });
     </script>
   </body>
