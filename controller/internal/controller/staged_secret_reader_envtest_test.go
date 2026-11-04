@@ -37,7 +37,7 @@ var _ = Describe("Staged environment secret reads", func() {
 		DeferCleanup(func() { Expect(k8sClient.Delete(ctx, namespace)).To(Succeed()) })
 		app.Annotations = map[string]string{locov1alpha1.AnnotationPlacementID: testStagedPlacementID}
 		app.Spec.ServiceSpec.Deployment.EnvSecretRef = &locov1alpha1.EnvSecretRef{Name: stage.Name, Revision: 1}
-		filtered, err := cache.New(cfg, CacheOptions(testNamespace, "registry-filtered-reader"))
+		filtered, err := cache.New(cfg, CacheOptions(testNamespace, "registry-filtered-reader", false))
 		Expect(err).NotTo(HaveOccurred())
 		cacheCtx, stop := context.WithCancel(ctx)
 		stopped := make(chan error, 1)
@@ -98,5 +98,32 @@ var _ = Describe("Staged environment secret reads", func() {
 		Expect(deployment.Spec.Template.Spec.Containers[0].Env).NotTo(
 			ContainElement(HaveField("Name", new(envOTelTracesSamplerArg))),
 		)
+	})
+
+	It("caches only the agent's registry pull secrets in the loco namespace in token mode", func() {
+		agentSecret := &corev1.Secret{
+			Name: locov1alpha1.RegistryPullSecretName("cache-token"), Namespace: testNamespace,
+			Labels: map[string]string{locov1alpha1.LabelRegistryPull: "cache-token"},
+			Type:   corev1.SecretTypeDockerConfigJson,
+			Data:   map[string][]byte{corev1.DockerConfigJsonKey: []byte(`{"auths":{}}`)},
+		}
+		other := &corev1.Secret{Name: "cache-token-other", Namespace: testNamespace}
+		for _, secret := range []*corev1.Secret{agentSecret, other} {
+			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+			DeferCleanup(func() { Expect(k8sClient.Delete(ctx, secret)).To(Succeed()) })
+		}
+		filtered, err := cache.New(cfg, CacheOptions(testNamespace, "", true))
+		Expect(err).NotTo(HaveOccurred())
+		cacheCtx, stop := context.WithCancel(ctx)
+		stopped := make(chan error, 1)
+		go func() { stopped <- filtered.Start(cacheCtx) }()
+		DeferCleanup(func() { stop(); Expect(<-stopped).To(Succeed()) })
+
+		agentKey := client.ObjectKeyFromObject(agentSecret)
+		Eventually(func() error {
+			return filtered.Get(ctx, agentKey, &corev1.Secret{})
+		}, stagedCacheTimeout).Should(Succeed())
+		otherKey := client.ObjectKeyFromObject(other)
+		Expect(apierrors.IsNotFound(filtered.Get(ctx, otherKey, &corev1.Secret{}))).To(BeTrue())
 	})
 })

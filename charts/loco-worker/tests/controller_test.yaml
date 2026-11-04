@@ -110,3 +110,37 @@ tests:
       - matchRegex:
           path: spec.template.spec.containers[?(@.name == 'manager')].env[?(@.name == 'LOCO_WORKSPACE_NAMESPACE_PREFIX')].value
           pattern: ^loco-
+
+  - it: runs the Application controller in static registry mode by default
+    template: templates/controller/deployment.yaml
+    set:
+      registry.pullSecretName: pull
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGISTRY_AUTH, value: static}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: REGISTRY_PULL_SECRET_NAME, value: pull}
+
+  - it: runs the Application controller in token registry mode
+    template: templates/controller/deployment.yaml
+    set:
+      registry.auth: token
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGISTRY_AUTH, value: token}
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: REGISTRY_PULL_SECRET_NAME}
+          any: true
+
+  - it: rejects a static pull Secret in token registry mode
+    template: templates/controller/deployment.yaml
+    set:
+      registry.auth: token
+      registry.pullSecretName: pull
+    asserts:
+      - failedTemplate:
+          errorMessage: "registry.pullSecretName applies only to registry.auth static; token mode copies the agent's Secrets"

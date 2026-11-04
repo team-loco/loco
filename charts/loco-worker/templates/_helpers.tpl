@@ -109,3 +109,15 @@ spec:
     matchLabels:
       app.kubernetes.io/name: {{ .name }}
 {{- end }}
+
+{{- define "loco-worker.registryAuth" -}}
+{{- if eq .Values.registry.auth "token" -}}
+{{- if .Values.registry.pullSecretName -}}
+{{- fail "registry.pullSecretName applies only to registry.auth static; token mode copies the agent's Secrets" -}}
+{{- end -}}
+{{- if .Values.builds.pushSecretName -}}
+{{- fail "builds.pushSecretName applies only to registry.auth static; token mode mounts the agent's Secrets" -}}
+{{- end -}}
+{{- end -}}
+{{- .Values.registry.auth -}}
+{{- end -}}

@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -9,6 +10,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -19,7 +21,7 @@ import (
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
-func CacheOptions(locoNamespace, pullSecretName string) cache.Options {
+func CacheOptions(locoNamespace, pullSecretName string, registryTokenMode bool) cache.Options {
 	managedSet := labels.Set(managed.Labels())
 	managedSelector := labels.SelectorFromSet(managedSet)
 	managedObjects := cache.ByObject{Label: managedSelector}
@@ -31,6 +33,20 @@ func CacheOptions(locoNamespace, pullSecretName string) cache.Options {
 			Label: managedSelector,
 			Namespaces: map[string]cache.Config{
 				locoNamespace:       {LabelSelector: everything, FieldSelector: pullSecretSelector},
+				cache.AllNamespaces: {},
+			},
+		}
+	}
+	if locoNamespace != "" && registryTokenMode {
+		registryPull, err := labels.NewRequirement(locov1alpha1.LabelRegistryPull, selection.Exists, nil)
+		if err != nil {
+			panic(fmt.Errorf("select registry pull secrets: %w", err))
+		}
+		registryPullSelector := labels.NewSelector().Add(*registryPull)
+		secrets = cache.ByObject{
+			Label: managedSelector,
+			Namespaces: map[string]cache.Config{
+				locoNamespace:       {LabelSelector: registryPullSelector},
 				cache.AllNamespaces: {},
 			},
 		}

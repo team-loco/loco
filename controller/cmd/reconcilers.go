@@ -19,8 +19,12 @@ const (
 )
 
 var (
-	errGatewayMissing         = errors.New("the application reconciler requires " + envGateway)
-	errWorkspacePrefixMissing = errors.New("the application reconciler requires " + envWorkspacePrefix)
+	errGatewayMissing          = errors.New("the application reconciler requires " + envGateway)
+	errWorkspacePrefixMissing  = errors.New("the application reconciler requires " + envWorkspacePrefix)
+	errStaticSecretInTokenMode = errors.New(
+		"registry token mode reads the agent's registry Secrets; unset " +
+			envRegistryPullSecretName + " and the build push secret",
+	)
 )
 
 type reconcilerSetup struct {
@@ -55,13 +59,21 @@ func applicationSetup(operator operatorConfig) (reconcilerSetup, error) {
 	if operator.WorkspaceNamespacePrefix == "" {
 		return reconcilerSetup{}, errWorkspacePrefixMissing
 	}
-	cacheOptions := controller.CacheOptions(operator.LocoNamespace, operator.PullSecretName)
+	if operator.RegistryTokenMode && operator.PullSecretName != "" {
+		return reconcilerSetup{}, errStaticSecretInTokenMode
+	}
+	cacheOptions := controller.CacheOptions(
+		operator.LocoNamespace,
+		operator.PullSecretName,
+		operator.RegistryTokenMode,
+	)
 	register := func(mgr ctrl.Manager) error {
 		reconciler := &controller.LocoResourceReconciler{
 			Client:                   mgr.GetClient(),
 			Scheme:                   mgr.GetScheme(),
 			LocoNamespace:            operator.LocoNamespace,
 			PullSecretName:           operator.PullSecretName,
+			RegistryTokenMode:        operator.RegistryTokenMode,
 			Gateway:                  operator.Gateway,
 			WorkspaceNamespacePrefix: operator.WorkspaceNamespacePrefix,
 			Telemetry:                operator.Telemetry,
@@ -80,15 +92,20 @@ func buildSetup(operator operatorConfig) (reconcilerSetup, error) {
 	if err != nil {
 		return reconcilerSetup{}, fmt.Errorf("build configuration: %w", err)
 	}
+	staticSecretSet := operator.PullSecretName != "" || buildConfig.PushSecretName != ""
+	if operator.RegistryTokenMode && staticSecretSet {
+		return reconcilerSetup{}, errStaticSecretInTokenMode
+	}
 	cacheOptions := builds.CacheOptions(buildConfig.Namespace)
 	register := func(mgr ctrl.Manager) error {
 		reconciler := &builds.Reconciler{
-			Client:         mgr.GetClient(),
-			Scheme:         mgr.GetScheme(),
-			APIReader:      mgr.GetAPIReader(),
-			Config:         buildConfig,
-			LocoNamespace:  operator.LocoNamespace,
-			PullSecretName: operator.PullSecretName,
+			Client:            mgr.GetClient(),
+			Scheme:            mgr.GetScheme(),
+			APIReader:         mgr.GetAPIReader(),
+			Config:            buildConfig,
+			LocoNamespace:     operator.LocoNamespace,
+			PullSecretName:    operator.PullSecretName,
+			RegistryTokenMode: operator.RegistryTokenMode,
 		}
 		return reconciler.SetupWithManager(mgr)
 	}

@@ -90,6 +90,7 @@ type LocoResourceReconciler struct {
 
 	LocoNamespace            string
 	PullSecretName           string
+	RegistryTokenMode        bool
 	Gateway                  string
 	WorkspaceNamespacePrefix string
 	Telemetry                TelemetryConfig
@@ -182,7 +183,13 @@ func (r *LocoResourceReconciler) reconcileResources(
 		return ctrl.Result{}, fmt.Errorf("ensure workspace network policies: %w", err)
 	}
 
-	if err := r.ensureWorkspacePullSecret(ctx, locoRes); err != nil {
+	err := r.ensureWorkspacePullSecret(ctx, locoRes)
+	if errors.Is(err, errRegistryPullSecretPending) {
+		slog.DebugContext(ctx, "waiting for the registry pull secret", "error", err)
+		setPhase(locoRes, phaseDeploying, messageRegistryPullSecretWait)
+		return ctrl.Result{RequeueAfter: registryPullSecretRequeue}, nil
+	}
+	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure workspace pull secret: %w", err)
 	}
 
@@ -545,7 +552,7 @@ func (r *LocoResourceReconciler) ensureServiceAccount(ctx context.Context, locoR
 		WithLabels(labels).
 		WithAnnotations(annotations).
 		WithAutomountServiceAccountToken(false)
-	if r.PullSecretName != "" {
+	if r.copiesPullSecret() {
 		pullSecret := corev1ac.LocalObjectReference().WithName(workspacePullSecretName)
 		sa.WithImagePullSecrets(pullSecret)
 	}
@@ -904,7 +911,7 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 // SetupWithManager sets up the controller with the Manager.
 func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.APIReader = mgr.GetAPIReader()
-	if r.PullSecretName != "" && r.LocoNamespace == "" {
+	if r.copiesPullSecret() && r.LocoNamespace == "" {
 		return errPullSecretWithoutNamespace
 	}
 
@@ -932,8 +939,8 @@ func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&corev1.Service{}, deploymentHandler).
 		Watches(&corev1.Secret{}, envSecretHandler).
 		Watches(&corev1.Node{}, nodeHandler, nodePredicates)
-	if r.PullSecretName != "" {
-		pullSecretHandler := handler.EnqueueRequestsFromMapFunc(r.applicationPerWorkspace)
+	if r.copiesPullSecret() {
+		pullSecretHandler := handler.EnqueueRequestsFromMapFunc(r.applicationsForPullSecret)
 		pullSecretChanges := r.pullSecretChanged()
 		pullSecretPredicates := builder.WithPredicates(pullSecretChanges)
 		controllerBuilder = controllerBuilder.Watches(&corev1.Secret{}, pullSecretHandler, pullSecretPredicates)

@@ -79,6 +79,31 @@ func TestPullSecretChangedMatchesOnlyTheConfiguredSecret(t *testing.T) {
 	}
 }
 
+func TestPullSecretChangedMatchesTheAgentsSecretsInTokenMode(t *testing.T) {
+	r := &LocoResourceReconciler{LocoNamespace: testLocoNamespace, RegistryTokenMode: true}
+	const workspace = "ws-1"
+	agentLabels := map[string]string{locov1alpha1.LabelRegistryPull: workspace}
+	sourceName := locov1alpha1.RegistryPullSecretName(workspace)
+	cases := []struct {
+		name      string
+		namespace string
+		labels    map[string]string
+		want      bool
+	}{
+		{name: "agent secret", namespace: testLocoNamespace, labels: agentLabels, want: true},
+		{name: "other namespace", namespace: workspace, labels: agentLabels, want: false},
+		{name: "secret without the label", namespace: testLocoNamespace, want: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			secret := &corev1.Secret{Name: sourceName, Namespace: tc.namespace, Labels: tc.labels}
+			if got := r.isPullSecret(secret); got != tc.want {
+				t.Fatalf("isPullSecret = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestApplicationPerWorkspaceEnqueuesOneLiveAppPerWorkspace(t *testing.T) {
 	scheme := workspaceTestScheme(t)
 	deleting := workspaceApp("deleting", "1")

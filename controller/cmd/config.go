@@ -1,12 +1,14 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
 
 	"github.com/team-loco/loco/controller/internal/builds"
 	"github.com/team-loco/loco/controller/internal/controller"
+	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
@@ -18,15 +20,21 @@ const (
 	envOTelCollectorGRPCPort  = "LOCO_OTEL_COLLECTOR_GRPC_PORT"
 	envOTelCollectorHTTPPort  = "LOCO_OTEL_COLLECTOR_HTTP_PORT"
 	envRegistryPullSecretName = "REGISTRY_PULL_SECRET_NAME" //nolint:gosec
+	envRegistryAuth           = "LOCO_REGISTRY_AUTH"
 	envGateway                = "LOCO_GATEWAY"
 	envWorkspacePrefix        = "LOCO_WORKSPACE_NAMESPACE_PREFIX"
 	decimalBase               = 10
 	portBits                  = 16
 )
 
+var errInvalidRegistryAuth = errors.New(
+	"must be " + locov1alpha1.RegistryAuthStatic + " or " + locov1alpha1.RegistryAuthToken,
+)
+
 type operatorConfig struct {
 	LocoNamespace            string
 	PullSecretName           string
+	RegistryTokenMode        bool
 	Gateway                  string
 	WorkspaceNamespacePrefix string
 	RawBuildConfig           string
@@ -45,6 +53,7 @@ func newOperatorConfig() operatorConfig {
 	return operatorConfig{
 		LocoNamespace:            os.Getenv(envLocoNamespace),
 		PullSecretName:           os.Getenv(envRegistryPullSecretName),
+		RegistryTokenMode:        registryTokenMode(),
 		Gateway:                  os.Getenv(envGateway),
 		WorkspaceNamespacePrefix: os.Getenv(envWorkspacePrefix),
 		RawBuildConfig:           os.Getenv(builds.EnvConfig),
@@ -62,4 +71,16 @@ func portEnv(name string) int32 {
 		panic(fmt.Errorf("%s: %w", name, err))
 	}
 	return int32(port)
+}
+
+func registryTokenMode() bool {
+	raw := os.Getenv(envRegistryAuth)
+	switch raw {
+	case locov1alpha1.RegistryAuthStatic:
+		return false
+	case locov1alpha1.RegistryAuthToken:
+		return true
+	default:
+		panic(fmt.Errorf("%s %q %w", envRegistryAuth, raw, errInvalidRegistryAuth))
+	}
 }

@@ -312,6 +312,91 @@ var _ = Describe("Application reconcile", func() {
 		Expect(k8sClient.Delete(ctx, pullSecret)).To(Succeed())
 	})
 
+	It("copies the agent's workspace pull secret in registry token mode", func() {
+		Expect(v1Gateway.Install(scheme.Scheme)).To(Succeed())
+
+		app := isolationTestApplication("ws-token-pull", "token-pull")
+		app.Spec.ServiceSpec.Routing = nil
+		sibling := isolationTestApplication("ws-token-pull", "token-pull-sibling")
+		sibling.Spec.ServiceSpec.Routing = nil
+		elsewhere := isolationTestApplication("ws-token-elsewhere", "token-pull-elsewhere")
+		elsewhere.Spec.ServiceSpec.Routing = nil
+		for _, created := range []*locov1alpha1.Application{app, sibling, elsewhere} {
+			Expect(k8sClient.Create(ctx, created)).To(Succeed())
+		}
+
+		r := &LocoResourceReconciler{
+			Gateway:                  testGateway,
+			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+			Client:                   k8sClient,
+			Scheme:                   k8sClient.Scheme(),
+			LocoNamespace:            testNamespace,
+			Telemetry:                testTelemetry(),
+			RegistryTokenMode:        true,
+		}
+		appKey := client.ObjectKeyFromObject(app)
+		req := reconcile.Request{NamespacedName: appKey}
+		namespace := testWorkspaceNamespace(app)
+		copyKey := client.ObjectKey{Namespace: namespace, Name: workspacePullSecretName}
+		saKey := client.ObjectKey{Namespace: namespace, Name: getName(app)}
+
+		result, err := r.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(result.RequeueAfter).To(Equal(registryPullSecretRequeue))
+		Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
+		Expect(app.Status.Phase).To(Equal(phaseDeploying))
+		Expect(app.Status.Message).To(Equal(messageRegistryPullSecretWait))
+		err = k8sClient.Get(ctx, copyKey, &corev1.Secret{})
+		Expect(apierrors.IsNotFound(err)).To(BeTrue())
+
+		sourceName := locov1alpha1.RegistryPullSecretName(app.Spec.WorkspaceID)
+		issued := []byte(`{"auths":{"registry.example.com":{"username":"loco-pull","password":"first"}}}`)
+		source := &corev1.Secret{
+			Name: sourceName, Namespace: testNamespace,
+			Labels: map[string]string{locov1alpha1.LabelRegistryPull: app.Spec.WorkspaceID},
+			Type:   corev1.SecretTypeDockerConfigJson,
+			Data:   map[string][]byte{corev1.DockerConfigJsonKey: issued},
+		}
+		Expect(k8sClient.Create(ctx, source)).To(Succeed())
+		Expect(r.isPullSecret(source)).To(BeTrue())
+		siblingReq := reconcile.Request{NamespacedName: client.ObjectKeyFromObject(sibling)}
+		Expect(r.applicationsForPullSecret(ctx, source)).To(ConsistOf(req, siblingReq))
+
+		_, err = r.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+		copied := &corev1.Secret{}
+		Expect(k8sClient.Get(ctx, copyKey, copied)).To(Succeed())
+		Expect(copied.Type).To(Equal(corev1.SecretTypeDockerConfigJson))
+		Expect(copied.Data).To(Equal(source.Data))
+		sa := &corev1.ServiceAccount{}
+		Expect(k8sClient.Get(ctx, saKey, sa)).To(Succeed())
+		Expect(sa.ImagePullSecrets).To(ConsistOf(corev1.LocalObjectReference{Name: workspacePullSecretName}))
+		Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
+		Expect(app.Status.Message).NotTo(Equal(messageRegistryPullSecretWait))
+
+		renewed := []byte(`{"auths":{"registry.example.com":{"username":"loco-pull","password":"second"}}}`)
+		source.Data = map[string][]byte{corev1.DockerConfigJsonKey: renewed}
+		Expect(k8sClient.Update(ctx, source)).To(Succeed())
+		_, err = r.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(k8sClient.Get(ctx, copyKey, copied)).To(Succeed())
+		Expect(copied.Data).To(HaveKeyWithValue(corev1.DockerConfigJsonKey, renewed))
+
+		Expect(k8sClient.Delete(ctx, source)).To(Succeed())
+		result, err = r.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(result.RequeueAfter).To(Equal(registryPullSecretRequeue))
+		Expect(k8sClient.Get(ctx, copyKey, copied)).To(Succeed())
+		Expect(copied.Data).To(HaveKeyWithValue(corev1.DockerConfigJsonKey, renewed))
+
+		for _, created := range []*locov1alpha1.Application{app, sibling, elsewhere} {
+			Expect(k8sClient.Delete(ctx, created)).To(Succeed())
+			createdReq := reconcile.Request{NamespacedName: client.ObjectKeyFromObject(created)}
+			_, err = r.Reconcile(ctx, createdReq)
+			Expect(err).NotTo(HaveOccurred())
+		}
+	})
+
 	It("adds the app name label to a deployment created without it and keeps its selector", func() {
 		app := isolationTestApplication("ws-name-label", "name-label")
 		app.Spec.ServiceSpec.Routing = nil

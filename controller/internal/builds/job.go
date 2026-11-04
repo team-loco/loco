@@ -85,6 +85,24 @@ func dockerConfigVolume(name, secretName string) corev1.Volume {
 	}
 }
 
+func (r *Reconciler) mountsPullCredentials() bool {
+	return r.RegistryTokenMode || r.PullSecretName != ""
+}
+
+func (r *Reconciler) pushSecretName(build *locov1alpha1.Build) string {
+	if r.RegistryTokenMode {
+		return locov1alpha1.BuildRegistrySecretName(build.Spec.BuildID)
+	}
+	return buildPushSecret
+}
+
+func (r *Reconciler) pullSecretName(build *locov1alpha1.Build) string {
+	if r.RegistryTokenMode {
+		return locov1alpha1.BuildRegistrySecretName(build.Spec.BuildID)
+	}
+	return buildPullSecret
+}
+
 func helperSecurityContext() *corev1.SecurityContext {
 	return &corev1.SecurityContext{
 		AllowPrivilegeEscalation: new(false),
@@ -143,7 +161,7 @@ func (r *Reconciler) fetchContainer(build *locov1alpha1.Build) corev1.Container 
 			byteFlag("max-cache-bytes", cfg.Storage.Cache.Value()),
 		)
 	}
-	if r.PullSecretName != "" {
+	if r.mountsPullCredentials() {
 		mounts = append(mounts, corev1.VolumeMount{
 			Name:      buildVolumePullCreds,
 			MountPath: buildPullCredsDir,
@@ -242,10 +260,10 @@ func (r *Reconciler) buildJob(build *locov1alpha1.Build) (*batchv1.Job, error) {
 		emptyDirVolume(buildVolumeCache, cfg.Storage.Cache),
 		emptyDirVolume(buildVolumeOut, cfg.Storage.Out),
 		emptyDirVolume(buildVolumeBuildkit, cfg.Storage.Buildkit),
-		dockerConfigVolume(buildVolumePushCreds, buildPushSecret),
+		dockerConfigVolume(buildVolumePushCreds, r.pushSecretName(build)),
 	}
-	if r.PullSecretName != "" {
-		pullVolume := dockerConfigVolume(buildVolumePullCreds, buildPullSecret)
+	if r.mountsPullCredentials() {
+		pullVolume := dockerConfigVolume(buildVolumePullCreds, r.pullSecretName(build))
 		volumes = append(volumes, pullVolume)
 	}
 	var runtimeClassName *string

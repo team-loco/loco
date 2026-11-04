@@ -1,10 +1,14 @@
 package main
 
 import (
+	"errors"
 	"testing"
+
+	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 func TestOperatorConfigReadsTheTelemetrySettings(t *testing.T) {
+	t.Setenv(envRegistryAuth, locov1alpha1.RegistryAuthStatic)
 	t.Setenv(envObservabilityNamespace, "telemetry")
 	t.Setenv(envOTelCollectorService, "collector")
 	t.Setenv(envOTelCollectorGRPCPort, "14317")
@@ -20,6 +24,7 @@ func TestOperatorConfigReadsTheTelemetrySettings(t *testing.T) {
 }
 
 func TestOperatorConfigReadsTheGatewayAndWorkspacePrefix(t *testing.T) {
+	t.Setenv(envRegistryAuth, locov1alpha1.RegistryAuthStatic)
 	t.Setenv(envGateway, "edge")
 	t.Setenv(envWorkspacePrefix, "tenant-")
 	operator := newOperatorConfig()
@@ -29,6 +34,7 @@ func TestOperatorConfigReadsTheGatewayAndWorkspacePrefix(t *testing.T) {
 }
 
 func TestOperatorConfigLeavesUnsetPortsZero(t *testing.T) {
+	t.Setenv(envRegistryAuth, locov1alpha1.RegistryAuthStatic)
 	t.Setenv(envOTelCollectorGRPCPort, "")
 	t.Setenv(envOTelCollectorHTTPPort, "")
 	telemetry := newOperatorConfig().Telemetry
@@ -40,10 +46,41 @@ func TestOperatorConfigLeavesUnsetPortsZero(t *testing.T) {
 func TestOperatorConfigPanicsOnAnInvalidPort(t *testing.T) {
 	for _, value := range []string{"http", "-1", "70000"} {
 		t.Run(value, func(t *testing.T) {
+			t.Setenv(envRegistryAuth, locov1alpha1.RegistryAuthStatic)
 			t.Setenv(envOTelCollectorHTTPPort, value)
 			defer func() {
 				if recover() == nil {
 					t.Errorf("newOperatorConfig accepted port %q", value)
+				}
+			}()
+			newOperatorConfig()
+		})
+	}
+}
+
+func TestOperatorConfigReadsTheRegistryAuthMode(t *testing.T) {
+	cases := map[string]bool{locov1alpha1.RegistryAuthStatic: false, locov1alpha1.RegistryAuthToken: true}
+	for value, want := range cases {
+		t.Run(value, func(t *testing.T) {
+			t.Setenv(envRegistryAuth, value)
+			if got := newOperatorConfig().RegistryTokenMode; got != want {
+				t.Errorf("RegistryTokenMode = %v, want %v", got, want)
+			}
+		})
+	}
+}
+
+func TestOperatorConfigPanicsOnAnInvalidRegistryAuthMode(t *testing.T) {
+	for _, value := range []string{"", "htpasswd", "Token"} {
+		t.Run(value, func(t *testing.T) {
+			t.Setenv(envRegistryAuth, value)
+			defer func() {
+				err, ok := recover().(error)
+				if !ok || !errors.Is(err, errInvalidRegistryAuth) {
+					t.Errorf(
+						"newOperatorConfig with %s=%q: recovered %v, want %v",
+						envRegistryAuth, value, err, errInvalidRegistryAuth,
+					)
 				}
 			}()
 			newOperatorConfig()
