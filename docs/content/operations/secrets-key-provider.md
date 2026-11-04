@@ -147,7 +147,7 @@ The registry trusts one public key, which it loads from `/.well-known/loco-regis
 
 1. `bao write -f transit/keys/loco-registry/rotate`. The new version exists, and nothing signs with it yet.
 2. Deploy the API with `LOCO_REGISTRY_TRANSIT_KEY_VERSION` set to the new version.
-3. Restart the registry so it loads the new key. Until both the API and the registry have restarted, tokens signed on one side of the swap fail to verify on the other.
+3. Restart the registry so it loads the new key. Until both the API and the registry have restarted, tokens signed on one side of the swap fail to verify on the other. A running build fetches a new token when the registry rejects one and gives up after about 15 seconds, so a build that pushes during a longer gap fails.
 4. Deploy from source and restart a pod to check that builds push and pods pull.
 
 ### Supported versions
