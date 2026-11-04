@@ -16,7 +16,7 @@ import (
 func TestOpenAPIDocs(t *testing.T) {
 	mux := http.NewServeMux()
 	mountOpenAPI(mux)
-	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/docs", nil)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, rootPath, nil)
 	response := httptest.NewRecorder()
 	mux.ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
@@ -49,7 +49,7 @@ func TestOpenAPIDocs(t *testing.T) {
 	}
 	for _, method := range []string{http.MethodHead, http.MethodPost} {
 		t.Run(method, func(t *testing.T) {
-			req := httptest.NewRequestWithContext(t.Context(), method, "/docs", nil)
+			req := httptest.NewRequestWithContext(t.Context(), method, rootPath, nil)
 			rec := httptest.NewRecorder()
 			mux.ServeHTTP(rec, req)
 			if method == http.MethodHead {
@@ -65,36 +65,18 @@ func TestOpenAPIDocs(t *testing.T) {
 	}
 }
 
-func TestOpenAPIDocsRoot(t *testing.T) {
+func TestOpenAPIDocsUnknownPaths(t *testing.T) {
 	mux := http.NewServeMux()
 	mountOpenAPI(mux)
-	for _, method := range []string{http.MethodGet, http.MethodHead, http.MethodPost} {
-		t.Run(method, func(t *testing.T) {
-			request := httptest.NewRequestWithContext(t.Context(), method, rootPath, nil)
+	for _, path := range []string{"/docs", "/docs/", "/missing"} {
+		t.Run(path, func(t *testing.T) {
+			request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil)
 			response := httptest.NewRecorder()
 			mux.ServeHTTP(response, request)
-			if method == http.MethodPost {
-				if response.Code != http.StatusMethodNotAllowed {
-					t.Errorf("status = %d, want 405", response.Code)
-				}
-				return
-			}
-			if response.Code != http.StatusOK || response.Header().Get("Content-Type") != "text/html; charset=utf-8" {
-				t.Fatalf("status = %d, Content-Type = %q", response.Code, response.Header().Get("Content-Type"))
-			}
-			if method == http.MethodGet && response.Body.String() != string(openAPIDocs) {
-				t.Error("root must serve the API reference")
-			}
-			if method == http.MethodHead && response.Body.Len() != 0 {
-				t.Error("HEAD must not return a body")
+			if response.Code != http.StatusNotFound {
+				t.Errorf("status = %d, want 404", response.Code)
 			}
 		})
-	}
-	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/missing", nil)
-	response := httptest.NewRecorder()
-	mux.ServeHTTP(response, request)
-	if response.Code != http.StatusNotFound {
-		t.Errorf("unknown path status = %d, want 404", response.Code)
 	}
 }
 
