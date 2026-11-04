@@ -199,6 +199,13 @@
   customManagers: [
     {
       customType: "regex",
+      description: "The API docs load Scalar from the CDN without bundling it",
+      managerFilePatterns: ["/^api/docs\\.html$/"],
+      matchStrings: ["https://cdn\\.jsdelivr\\.net/npm/(?<depName>@scalar/api-reference)@(?<currentValue>[^/]+)/"],
+      datasourceTemplate: "npm",
+    },
+    {
+      customType: "regex",
       description: "mise: the version CI and Renovate run move together. min_version in mise.toml is the oldest mise that reads mise.lock and moves by hand.",
       managerFilePatterns: ["/^\\.github/actions/setup-tools/action\\.yml$/", "/^renovate\\.json5$/"],
       matchStrings: ["version: (?<currentValue>\\d+\\.\\d+\\.\\d+)\\n", "mise: \"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""],

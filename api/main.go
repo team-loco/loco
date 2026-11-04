@@ -202,11 +202,6 @@ func main() {
 		validate.NewServerInterceptor(),
 	)
 
-	mux.HandleFunc(rootPath, func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, "Loco Service is Running")
-	})
-
 	mux.HandleFunc(healthPath, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "Server is healthy.")
@@ -331,7 +326,7 @@ func main() {
 	secretv1connect.RegisterSecretServiceHandler(authenticatedServer, secretServiceHandler)
 
 	mountRPCServers(mux, baseServer, authenticatedServer)
-	mountOpenAPI(mux)
+	mountOpenAPI(mux, ac.Version)
 	mountObservabilityProxy(mux, ac.ObservabilityProxyURL)
 
 	allowLoopback := ac.Env != envProduction

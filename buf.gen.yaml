@@ -35,4 +35,5 @@ plugins:
     opt:
       - format=json
       - path=openapi.json
+      - base=api/openapi-base.yaml
       - with-streaming

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>Loco API</title>
+    <style>
+      :root {
+        --scalar-custom-header-height: 56px;
+      }
+      body { margin: 0; }
+      .docs-header {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        height: var(--scalar-custom-header-height);
+        padding: 0 24px;
+        border-bottom: 1px solid var(--scalar-border-color);
+        background: var(--scalar-background-1, Canvas);
+        color: var(--scalar-color-1, CanvasText);
+        font: 13px var(--scalar-font);
+      }
+      .docs-brand { font-size: 25px; font-weight: 750; letter-spacing: -0.06em; }
+      .docs-label { color: var(--scalar-color-2); }
+      .docs-schema { margin-left: auto; color: inherit; text-underline-offset: 4px; }
+    </style>
+  </head>
+  <body>
+    <header class="docs-header">
+      <span class="docs-brand">loco</span>
+      <span class="docs-label">API reference</span>
+      <a class="docs-schema" href="/openapi.json">OpenAPI JSON</a>
+    </header>
+    <main id="api-docs"></main>
+    <noscript>Enable JavaScript to browse the API reference, or download the <a href="/openapi.json">OpenAPI schema</a>.</noscript>
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.76.4/dist/browser/standalone.js" crossorigin="anonymous"></script>
+    <script>
+      Scalar.createApiReference("#api-docs", {
+        url: "/openapi.json",
+        title: "Loco API",
+        theme: "default",
+        layout: "modern",
+        darkMode: window.matchMedia("(prefers-color-scheme: dark)").matches,
+        showDeveloperTools: "never",
+        proxyUrl: "",
+        telemetry: false,
+        agent: { disabled: true },
+      });
+    </script>
+  </body>
+</html>

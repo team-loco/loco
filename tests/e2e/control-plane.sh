@@ -159,7 +159,15 @@ done
 API_PORT=$(sed -n 's/Forwarding from 127.0.0.1:\([0-9]*\) .*/\1/p' "$RUN_DIR/port-forward.log" | head -1)
 curl --fail --silent -H "Host: $API_HOST" "http://127.0.0.1:$API_PORT/health"
 curl --fail --silent -H "Host: $API_HOST" "http://127.0.0.1:$API_PORT/openapi.json" >"$RUN_DIR/openapi.json"
-yq -e -p json '.openapi == "3.1.0" and .paths."/loco.config.v1.ConfigService/GetConfig".post != null and .paths."/loco.agent.v1.AgentService/Sync".post != null and .paths."/loco.observability.v1.ObservabilityProxyService/QueryLogs".post != null' "$RUN_DIR/openapi.json" >/dev/null
+yq -e -p json '.openapi == "3.1.0" and .info.version == "e2e" and .paths."/loco.config.v1.ConfigService/GetConfig".post != null and .paths."/loco.agent.v1.AgentService/Sync".post != null and .paths."/loco.observability.v1.ObservabilityProxyService/QueryLogs".post != null' "$RUN_DIR/openapi.json" >/dev/null
+curl --fail --silent -H "Host: $API_HOST" "http://127.0.0.1:$API_PORT/" >"$RUN_DIR/api-docs.html"
+grep -F 'Scalar.createApiReference(' "$RUN_DIR/api-docs.html" >/dev/null
+grep -F 'url: "/openapi.json"' "$RUN_DIR/api-docs.html" >/dev/null
+DOCS_STATUS=$(curl --silent -o /dev/null -w '%{http_code}' -H "Host: $API_HOST" "http://127.0.0.1:$API_PORT/docs")
+if [[ $DOCS_STATUS != 404 ]]; then
+    printf 'Expected /docs to return 404, got %s\n' "$DOCS_STATUS" >&2
+    exit 1
+fi
 curl --fail --silent -H "Host: $APP_HOST" "http://127.0.0.1:$API_PORT/" >"$RUN_DIR/dashboard.html"
 curl --fail --silent --compressed -D "$RUN_DIR/runtime-headers.txt" -H "Host: $APP_HOST" "http://127.0.0.1:$API_PORT/runtime-config.js" >"$RUN_DIR/runtime-config.js"
 curl --fail --silent -H "Host: $APP_HOST" -H 'Content-Type: application/json' -d '{}' \
