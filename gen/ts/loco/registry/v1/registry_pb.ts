@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/registry/v1/registry.proto.
  */
 export const file_loco_registry_v1_registry: GenFile = /*@__PURE__*/
-  fileDesc("Ch9sb2NvL3JlZ2lzdHJ5L3YxL3JlZ2lzdHJ5LnByb3RvEhBsb2NvLnJlZ2lzdHJ5LnYxIjwKGklzc3VlUHVsbENyZWRlbnRpYWxSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQEicQobSXNzdWVQdWxsQ3JlZGVudGlhbFJlc3BvbnNlEhAKCHVzZXJuYW1lGAEgASgJEhAKCHBhc3N3b3JkGAIgASgJEi4KCmV4cGlyZXNfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wMoUBCg9SZWdpc3RyeVNlcnZpY2UScgoTSXNzdWVQdWxsQ3JlZGVudGlhbBIsLmxvY28ucmVnaXN0cnkudjEuSXNzdWVQdWxsQ3JlZGVudGlhbFJlcXVlc3QaLS5sb2NvLnJlZ2lzdHJ5LnYxLklzc3VlUHVsbENyZWRlbnRpYWxSZXNwb25zZUI+WjxnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL3JlZ2lzdHJ5L3YxO3JlZ2lzdHJ5djFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("Ch9sb2NvL3JlZ2lzdHJ5L3YxL3JlZ2lzdHJ5LnByb3RvEhBsb2NvLnJlZ2lzdHJ5LnYxIjwKGklzc3VlUHVsbENyZWRlbnRpYWxSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQEiiAEKG0lzc3VlUHVsbENyZWRlbnRpYWxSZXNwb25zZRIQCgh1c2VybmFtZRgBIAEoCRIQCghwYXNzd29yZBgCIAEoCRIuCgpleHBpcmVzX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIVCg1yZWdpc3RyeV9ob3N0GAQgASgJMoUBCg9SZWdpc3RyeVNlcnZpY2UScgoTSXNzdWVQdWxsQ3JlZGVudGlhbBIsLmxvY28ucmVnaXN0cnkudjEuSXNzdWVQdWxsQ3JlZGVudGlhbFJlcXVlc3QaLS5sb2NvLnJlZ2lzdHJ5LnYxLklzc3VlUHVsbENyZWRlbnRpYWxSZXNwb25zZUI+WjxnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL3JlZ2lzdHJ5L3YxO3JlZ2lzdHJ5djFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.registry.v1.IssuePullCredentialRequest
@@ -60,6 +60,13 @@ export type IssuePullCredentialResponse = Message<"loco.registry.v1.IssuePullCre
    * @generated from field: google.protobuf.Timestamp expires_at = 3;
    */
   expiresAt?: Timestamp | undefined;
+
+  /**
+   * registry_host is the registry's host, and port if it has one, as the images the workspace pulls name it.
+   *
+   * @generated from field: string registry_host = 4;
+   */
+  registryHost: string;
 };
 
 /**
@@ -80,6 +87,13 @@ export type IssuePullCredentialResponseJson = {
    * @generated from field: google.protobuf.Timestamp expires_at = 3;
    */
   expiresAt?: TimestampJson;
+
+  /**
+   * registry_host is the registry's host, and port if it has one, as the images the workspace pulls name it.
+   *
+   * @generated from field: string registry_host = 4;
+   */
+  registryHost?: string;
 };
 
 /**

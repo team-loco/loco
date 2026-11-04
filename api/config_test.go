@@ -20,6 +20,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/internal/bearer"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
@@ -425,7 +426,7 @@ func TestImageRetentionZeroDisablesCleanup(t *testing.T) {
 
 func TestTokenModeImageRegistryNeedsNoCredentials(t *testing.T) {
 	clearAPIConfigEnv(t)
-	t.Setenv(registryAuthEnv, registryAuthToken)
+	t.Setenv(registryAuthEnv, locoControllerV1.RegistryAuthToken)
 	t.Setenv(registryHostEnv, testRegistryHost)
 	t.Setenv(registryKeyEnv, testRegistryKey)
 	t.Setenv(registryVersionEnv, "1")
@@ -994,7 +995,7 @@ func TestRegistryAuthDefaultsToStatic(t *testing.T) {
 	t.Setenv(registryUserEnv, testRegistryUser)
 	t.Setenv(registryPassEnv, testRegistryPass)
 	ac := newAPIConfig()
-	want := RegistryAuthConfig{Mode: registryAuthStatic}
+	want := RegistryAuthConfig{Mode: locoControllerV1.RegistryAuthStatic}
 	if ac.RegistryAuth != want {
 		t.Fatalf("registry auth = %+v, want %+v", ac.RegistryAuth, want)
 	}
@@ -1008,13 +1009,13 @@ func TestRegistryAuthDefaultsToStatic(t *testing.T) {
 
 func TestRegistryAuthTokenPinsTheTransitKeyVersion(t *testing.T) {
 	clearAPIConfigEnv(t)
-	t.Setenv(registryAuthEnv, registryAuthToken)
+	t.Setenv(registryAuthEnv, locoControllerV1.RegistryAuthToken)
 	t.Setenv(registryHostEnv, testRegistryHost)
 	t.Setenv(registryKeyEnv, testRegistryKey)
 	t.Setenv(registryVersionEnv, "3")
 	t.Setenv(registryServiceEnv, testRegistryService)
 	want := RegistryAuthConfig{
-		Mode:                   registryAuthToken,
+		Mode:                   locoControllerV1.RegistryAuthToken,
 		TransitKey:             secretkeys.PinnedKey{Name: testRegistryKey, Version: 3},
 		Service:                testRegistryService,
 		AccessTokenLifetime:    5 * time.Minute,
@@ -1032,7 +1033,7 @@ func TestRegistryAuthTokenPinsTheTransitKeyVersion(t *testing.T) {
 
 func TestRegistryAuthTokenReadsTheLifetimes(t *testing.T) {
 	clearAPIConfigEnv(t)
-	t.Setenv(registryAuthEnv, registryAuthToken)
+	t.Setenv(registryAuthEnv, locoControllerV1.RegistryAuthToken)
 	t.Setenv(registryHostEnv, testRegistryHost)
 	t.Setenv(registryKeyEnv, testRegistryKey)
 	t.Setenv(registryVersionEnv, "1")
@@ -1051,7 +1052,7 @@ func TestRegistryAuthTokenReadsTheLifetimes(t *testing.T) {
 
 func TestRegistryAuthPanicsOnInvalidConfiguration(t *testing.T) {
 	token := map[string]string{
-		registryAuthEnv:    registryAuthToken,
+		registryAuthEnv:    locoControllerV1.RegistryAuthToken,
 		registryHostEnv:    testRegistryHost,
 		registryKeyEnv:     testRegistryKey,
 		registryVersionEnv: "1",

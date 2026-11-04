@@ -12,6 +12,7 @@ import (
 	"github.com/team-loco/loco/agent/pkg/telemetrytoken"
 	"github.com/team-loco/loco/internal/buildinfo"
 	"github.com/team-loco/loco/internal/loglevel"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
@@ -46,12 +47,15 @@ const (
 	envIngestTokenSecret        = "LOCO_INGEST_TOKEN_SECRET"     //nolint:gosec
 	envIngestTokenSecretKey     = "LOCO_INGEST_TOKEN_SECRET_KEY" //nolint:gosec
 	envIngestTokenNamespaces    = "LOCO_INGEST_TOKEN_NAMESPACES" //nolint:gosec
+	envRegistryAuth             = "LOCO_REGISTRY_AUTH"
+	envRegistryCheckInterval    = "LOCO_REGISTRY_CREDENTIAL_CHECK_INTERVAL"
 )
 
 var (
 	errMissingEnv      = errors.New("is required")
 	errInvalidDuration = errors.New("must be a positive duration")
 	errInvalidInteger  = errors.New("must be a positive integer")
+	errInvalidAuth     = errors.New("must be static or token")
 )
 
 var version string
@@ -86,6 +90,12 @@ type Config struct {
 	Certificate              string
 	AppDomains               []string
 	IngestTokenSecret        telemetrytoken.Secret
+	RegistryAuth             string
+	RegistryCheckInterval    time.Duration
+}
+
+func (c *Config) RegistryTokenMode() bool {
+	return c.RegistryAuth == locoControllerV1.RegistryAuthToken
 }
 
 func newAgentConfig() *Config {
@@ -133,6 +143,16 @@ func parseAgentConfig(getenv func(string) string, agentVersion string) (*Config,
 		return nil, fmt.Errorf("%s %w", envLogLevel, err)
 	}
 	cfg.LogLevel = level
+	cfg.RegistryAuth, err = requireEnv(getenv, envRegistryAuth)
+	if err != nil {
+		return nil, err
+	}
+	switch cfg.RegistryAuth {
+	case locoControllerV1.RegistryAuthStatic:
+	case locoControllerV1.RegistryAuthToken:
+	default:
+		return nil, fmt.Errorf("%s %q %w", envRegistryAuth, cfg.RegistryAuth, errInvalidAuth)
+	}
 	cfg.ControllerNamespace = getenv(envControllerNamespace)
 	if cfg.ControllerNamespace == "" {
 		cfg.ControllerNamespace = cfg.Namespace
@@ -150,6 +170,7 @@ func parseAgentConfig(getenv func(string) string, agentVersion string) (*Config,
 		envReconnectMaxDelay:       &cfg.ReconnectMaxDelay,
 		envHealthyStreamDuration:   &cfg.HealthyStreamDuration,
 		envAssertionLifetime:       &cfg.AssertionLifetime,
+		envRegistryCheckInterval:   &cfg.RegistryCheckInterval,
 	}
 	for name, field := range durations {
 		raw, err := requireEnv(getenv, name)

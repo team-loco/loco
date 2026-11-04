@@ -240,3 +240,52 @@ tests:
       - hasDocuments:
           count: 0
         template: templates/agent-ingest-token.yaml
+
+  - it: runs in static registry mode by default and writes no build Secrets
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGISTRY_AUTH, value: static}
+        template: templates/agent-deployment.yaml
+      - notContains:
+          path: rules
+          content: {apiGroups: [""], resources: [secrets]}
+          any: true
+        template: templates/builds/agent-rbac.yaml
+        documentSelector: {path: kind, value: Role}
+
+  - it: in token mode checks pull credentials and writes build Secrets in the builds namespace
+    set:
+      registry.auth: token
+      agent.registryCredentialCheckInterval: 2m
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGISTRY_AUTH, value: token}
+        template: templates/agent-deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGISTRY_CREDENTIAL_CHECK_INTERVAL, value: 2m}
+        template: templates/agent-deployment.yaml
+      - contains:
+          path: rules
+          content: {apiGroups: [""], resources: [secrets], verbs: [create, delete, get, update]}
+        template: templates/builds/agent-rbac.yaml
+        documentSelector: {path: kind, value: Role}
+      - equal:
+          path: metadata.namespace
+          value: loco-builds
+        template: templates/builds/agent-rbac.yaml
+        documentSelector: {path: kind, value: Role}
+      - contains:
+          path: rules
+          content: {apiGroups: [""], resources: [secrets], verbs: [create, get, list, update, delete]}
+        template: templates/agent-rbac.yaml
+        documentSelector: {path: kind, value: Role}
+
+  - it: rejects an unknown registry auth mode
+    set:
+      registry.auth: htpasswd
+    asserts:
+      - failedTemplate: {}
+        template: templates/agent-deployment.yaml

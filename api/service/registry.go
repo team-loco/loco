@@ -26,12 +26,11 @@ import (
 	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/jwssign"
 	"github.com/team-loco/loco/internal/rpcerr"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
-	RegistryPullUsername  = "loco-pull"
-	RegistryBuildUsername = "loco-build"
-	RegistryAPISubject    = "api"
+	RegistryAPISubject = "api"
 
 	registryCredentialPull    = "pull"
 	registryCredentialBuild   = "build"
@@ -57,8 +56,8 @@ var (
 )
 
 var registryCredentialKinds = map[string]string{
-	RegistryPullUsername:  registryCredentialPull,
-	RegistryBuildUsername: registryCredentialBuild,
+	locoControllerV1.RegistryPullUsername:  registryCredentialPull,
+	locoControllerV1.RegistryBuildUsername: registryCredentialBuild,
 }
 
 type RegistryConfig struct {
@@ -128,10 +127,12 @@ func (s *RegistryServer) IssuePullCredential(
 		return nil, rpcerr.New(connect.CodePermissionDenied, errWorkspaceNotPlaced)
 	}
 	expires := timestamppb.New(expiresAt)
+	host := strings.TrimSuffix(s.config.RegistryHost, "/")
 	return &registryv1.IssuePullCredentialResponse{
-		Username:  RegistryPullUsername,
-		Password:  password,
-		ExpiresAt: expires,
+		Username:     locoControllerV1.RegistryPullUsername,
+		Password:     password,
+		ExpiresAt:    expires,
+		RegistryHost: host,
 	}, nil
 }
 

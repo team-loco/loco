@@ -138,6 +138,7 @@ agent:
   reconnectBaseDelay: 1s
   reconnectMaxDelay: 30s
   healthyStreamDuration: 1m
+  registryCredentialCheckInterval: 5m
 
 # @schema additionalProperties: false
 secrets:
@@ -222,6 +223,8 @@ controller:
 
 # @schema additionalProperties: false
 registry:
+  # @schema enum: [static, token]
+  auth: static
   pullSecretName: ""
 
 # @schema additionalProperties: false; allOf: [{if: {properties: {enabled: {const: true}}}, then: {properties: {builderImage: {properties: {tag: {minLength: 1}}}}}}]

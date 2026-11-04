@@ -29,6 +29,7 @@ import (
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	registryv1 "github.com/team-loco/loco/gen/go/loco/registry/v1"
 	"github.com/team-loco/loco/gen/go/loco/registry/v1/registryv1connect"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
@@ -191,7 +192,7 @@ func (f *registryFixture) exchange(t *testing.T, e registryExchange) *httptest.R
 func pullExchange(method, password string, scopes ...string) registryExchange {
 	return registryExchange{
 		method:   method,
-		username: RegistryPullUsername,
+		username: locoControllerV1.RegistryPullUsername,
 		password: password,
 		service:  testRegistryService,
 		scopes:   scopes,
@@ -200,7 +201,7 @@ func pullExchange(method, password string, scopes ...string) registryExchange {
 
 func buildExchange(method, password string, scopes ...string) registryExchange {
 	e := pullExchange(method, password, scopes...)
-	e.username = RegistryBuildUsername
+	e.username = locoControllerV1.RegistryBuildUsername
 	return e
 }
 
@@ -314,8 +315,11 @@ func TestIssuePullCredentialRequiresAnOpenPlacementWindow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resp.GetUsername() != RegistryPullUsername || resp.GetPassword() == "" {
+	if resp.GetUsername() != locoControllerV1.RegistryPullUsername || resp.GetPassword() == "" {
 		t.Fatalf("credential = %q / %q", resp.GetUsername(), resp.GetPassword())
+	}
+	if resp.GetRegistryHost() != testRegistryHost {
+		t.Fatalf("registry host = %q, want %q", resp.GetRegistryHost(), testRegistryHost)
 	}
 	lifetime := resp.GetExpiresAt().AsTime().Sub(before)
 	if lifetime < testRegistryPullLifetime || lifetime > testRegistryPullLifetime+testRegistryClockSkew {
@@ -490,7 +494,7 @@ func TestRegistryRealmRefusesInvalidCredentials(t *testing.T) {
 				"no credential":            pullExchange(method, "", scope),
 			}
 			asBuild := pullExchange(method, password, scope)
-			asBuild.username = RegistryBuildUsername
+			asBuild.username = locoControllerV1.RegistryBuildUsername
 			cases["pull credential as loco-build"] = asBuild
 			unknownUser := pullExchange(method, password, scope)
 			unknownUser.username = "loco"
@@ -724,7 +728,7 @@ func (f *registryFixture) wantCredentialSet(t *testing.T, set registryCredential
 	pull := pullExchange(http.MethodGet, set.pull, set.pullScope)
 	wantRegistryStatus(t, f.exchange(t, pull), want, "pull credential "+what)
 	build := pullExchange(http.MethodGet, set.build, set.buildScope)
-	build.username = RegistryBuildUsername
+	build.username = locoControllerV1.RegistryBuildUsername
 	wantRegistryStatus(t, f.exchange(t, build), want, "build credential "+what)
 	other := pullExchange(http.MethodGet, set.otherPull, set.pullScope)
 	wantRegistryStatus(t, f.exchange(t, other), http.StatusOK, "other cluster's pull credential "+what)

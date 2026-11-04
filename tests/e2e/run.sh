@@ -844,6 +844,8 @@ start_agent() {
     LOCO_GATEWAY="$(agent_chart_env LOCO_GATEWAY)" \
     LOCO_CERTIFICATE="$(agent_chart_env LOCO_CERTIFICATE)" \
     LOCO_APP_DOMAINS="$(agent_chart_env LOCO_APP_DOMAINS)" \
+    LOCO_REGISTRY_AUTH="$(agent_chart_env LOCO_REGISTRY_AUTH)" \
+    LOCO_REGISTRY_CREDENTIAL_CHECK_INTERVAL="$(agent_chart_env LOCO_REGISTRY_CREDENTIAL_CHECK_INTERVAL)" \
     KUBECONFIG="$KUBECONFIG_FILE" \
         "$BIN_DIR/loco-agent" \
         >>"$LOG_DIR/agent.log" 2>&1 &

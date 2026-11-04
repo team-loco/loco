@@ -28,11 +28,13 @@ import (
 	"github.com/team-loco/loco/agent/pkg/identity"
 	"github.com/team-loco/loco/agent/pkg/kube"
 	"github.com/team-loco/loco/agent/pkg/reconciler"
+	"github.com/team-loco/loco/agent/pkg/registrycred"
 	"github.com/team-loco/loco/agent/pkg/rpcretry"
 	"github.com/team-loco/loco/agent/pkg/telemetrytoken"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	"github.com/team-loco/loco/gen/go/loco/ingest/v1/ingestv1connect"
+	"github.com/team-loco/loco/gen/go/loco/registry/v1/registryv1connect"
 )
 
 // agentLoops is the number of goroutines Agent.Run starts. Each gets a slot in errCh so none
@@ -62,6 +64,7 @@ func main() {
 		"controller_namespace", cfg.ControllerNamespace,
 		"controller_deployment", cfg.ControllerDeployment,
 		"build_namespace", cfg.BuildNamespace,
+		"registry_auth", cfg.RegistryAuth,
 	)
 	transport := &http.Transport{}
 	transport.Protocols = new(http.Protocols)
@@ -78,6 +81,7 @@ func main() {
 	connectClient := connect.NewClient(rpcTransport, credentials.Interceptor())
 	agentClient := agentv1connect.NewAgentServiceClient(connectClient)
 	ingestClient := ingestv1connect.NewIngestServiceClient(connectClient)
+	registryClient := registryv1connect.NewRegistryServiceClient(connectClient)
 
 	restConfig, err := kube.RestConfig(cfg.Kubeconfig)
 	if err != nil {
@@ -85,7 +89,25 @@ func main() {
 		os.Exit(1)
 	}
 
-	kubeApplier, err := applier.New(restConfig, cfg.Namespace)
+	var pullSecrets *registrycred.Manager
+	var applierPullSecrets applier.PullSecrets
+	if cfg.RegistryTokenMode() {
+		backoff := func() wait.Backoff { return newReconnectBackoff(cfg) }
+		pullSecrets, err = registrycred.New(
+			restConfig,
+			registryClient,
+			cfg.Namespace,
+			cfg.RegistryCheckInterval,
+			backoff,
+		)
+		if err != nil {
+			slog.Error("failed to create the registry pull credential manager", "error", err)
+			os.Exit(1)
+		}
+		applierPullSecrets = pullSecrets
+	}
+
+	kubeApplier, err := applier.New(restConfig, cfg.Namespace, applierPullSecrets)
 	if err != nil {
 		slog.Error("failed to create kubernetes applier", "error", err)
 		os.Exit(1)
@@ -132,6 +154,7 @@ func main() {
 		Retention:           cfg.BuildRetention,
 		CreateRetryDelay:    cfg.BuildCreateRetryDelay,
 		CreateRetryAttempts: cfg.BuildCreateRetryAttempts,
+		TokenMode:           cfg.RegistryTokenMode(),
 	}
 	startWatcher := func() (buildRunner, error) {
 		return buildwatch.Start(ctx, restConfig, buildConfig)
@@ -162,6 +185,7 @@ func main() {
 		builds:        builds,
 		buildsEnabled: buildsEnabled,
 		ingest:        telemetryTokens,
+		pullSecrets:   pullSecrets,
 	}
 
 	sigChan := make(chan os.Signal, 1)
@@ -215,12 +239,17 @@ type Agent struct {
 	buildsEnabled     bool
 	heartbeatInterval time.Duration
 	ingest            *telemetrytoken.Renewer
+	pullSecrets       *registrycred.Manager
 }
 
 // Run starts the agent's main loop.
 func (a *Agent) Run(ctx context.Context) error {
 	if err := a.register(ctx); err != nil {
 		return fmt.Errorf("registration failed: %w", err)
+	}
+
+	if a.pullSecrets != nil {
+		go a.pullSecrets.Run(ctx)
 	}
 
 	errCh := make(chan error, agentLoops)

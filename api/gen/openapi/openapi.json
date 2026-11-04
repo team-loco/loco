@@ -11929,6 +11929,11 @@
               }
             ],
             "title": "expires_at"
+          },
+          "registryHost": {
+            "type": "string",
+            "title": "registry_host",
+            "description": "registry_host is the registry's host, and port if it has one, as the images the workspace pulls name it."
           }
         },
         "title": "IssuePullCredentialResponse",

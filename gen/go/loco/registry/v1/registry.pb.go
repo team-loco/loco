@@ -68,10 +68,12 @@ func (x *IssuePullCredentialRequest) GetWorkspaceId() string {
 }
 
 type IssuePullCredentialResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
-	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
-	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Username  string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
+	Password  string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
+	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	// registry_host is the registry's host, and port if it has one, as the images the workspace pulls name it.
+	RegistryHost  string `protobuf:"bytes,4,opt,name=registry_host,json=registryHost,proto3" json:"registry_host,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -127,18 +129,26 @@ func (x *IssuePullCredentialResponse) GetExpiresAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *IssuePullCredentialResponse) GetRegistryHost() string {
+	if x != nil {
+		return x.RegistryHost
+	}
+	return ""
+}
+
 var File_loco_registry_v1_registry_proto protoreflect.FileDescriptor
 
 const file_loco_registry_v1_registry_proto_rawDesc = "" +
 	"\n" +
 	"\x1floco/registry/v1/registry.proto\x12\x10loco.registry.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"I\n" +
 	"\x1aIssuePullCredentialRequest\x12+\n" +
-	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\"\x90\x01\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\"\xb5\x01\n" +
 	"\x1bIssuePullCredentialResponse\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x1a\n" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\x129\n" +
 	"\n" +
-	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt2\x85\x01\n" +
+	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12#\n" +
+	"\rregistry_host\x18\x04 \x01(\tR\fregistryHost2\x85\x01\n" +
 	"\x0fRegistryService\x12r\n" +
 	"\x13IssuePullCredential\x12,.loco.registry.v1.IssuePullCredentialRequest\x1a-.loco.registry.v1.IssuePullCredentialResponseB>Z<github.com/team-loco/loco/gen/go/loco/registry/v1;registryv1b\x06proto3"
 

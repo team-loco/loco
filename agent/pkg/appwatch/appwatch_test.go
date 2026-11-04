@@ -205,7 +205,7 @@ func newCrashingCluster(t *testing.T) (*applier.Applier, *Watcher) {
 	}
 	crash := &crashBeforeSecretWrite{}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithInterceptorFuncs(crash.funcs()).Build()
-	return applier.NewWithClient(c, testNamespace), New(c, c, testNamespace)
+	return applier.NewWithClient(c, testNamespace, nil), New(c, c, testNamespace)
 }
 
 func singleEntry(t *testing.T, watcher *Watcher) *agentv1.InventoryEntry {

@@ -6,6 +6,7 @@ import (
 	"net"
 	"testing"
 
+	"connectrpc.com/connect/v2"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -35,6 +36,9 @@ func TestIsRetryable(t *testing.T) {
 	netErr := &net.OpError{Op: "dial", Net: "tcp", Err: dialErr}
 	wrappedNetErr := fmt.Errorf("failed to apply Application: %w", netErr)
 	badPayload := fmt.Errorf("%w: deploy payload is nil", applier.ErrInvalidPayload)
+	rpcUnavailable := connect.NewError(connect.CodeUnavailable, "control plane unavailable")
+	wrappedRPCUnavailable := fmt.Errorf("registry pull Secret: %w", rpcUnavailable)
+	rpcRefused := connect.NewError(connect.CodeFailedPrecondition, "static mode")
 
 	cases := []struct {
 		name string
@@ -52,6 +56,8 @@ func TestIsRetryable(t *testing.T) {
 		{name: "forbidden", err: forbidden, want: false},
 		{name: "invalid payload", err: badPayload, want: false},
 		{name: "plain error", err: plain, want: false},
+		{name: "rpc unavailable", err: wrappedRPCUnavailable, want: true},
+		{name: "rpc failed precondition", err: rpcRefused, want: false},
 	}
 
 	for _, tc := range cases {

@@ -18,6 +18,7 @@ import (
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/webhooks"
 	"github.com/team-loco/loco/internal/buildinfo"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	"golang.org/x/mod/semver"
 )
 
@@ -117,8 +118,6 @@ const (
 	minBootstrapTokenLength    = 32
 	defaultIngestTokenLifetime = time.Hour
 
-	registryAuthStatic                    = "static"
-	registryAuthToken                     = "token"
 	defaultRegistryAccessTokenLifetime    = 5 * time.Minute
 	defaultRegistryPullCredentialLifetime = 24 * time.Hour
 	defaultRegistryCredentialSweep        = 10 * time.Minute
@@ -134,7 +133,7 @@ type RegistryAuthConfig struct {
 }
 
 func (c RegistryAuthConfig) TokenMode() bool {
-	return c.Mode == registryAuthToken
+	return c.Mode == locoControllerV1.RegistryAuthToken
 }
 
 type APIConfig struct {
@@ -454,11 +453,11 @@ func newRegistryAuthConfig(
 	registry registryclient.Config,
 	registryHost, secretsKey, ingestKey string,
 ) RegistryAuthConfig {
-	mode := stringEnv("LOCO_REGISTRY_AUTH", registryAuthStatic)
+	mode := stringEnv("LOCO_REGISTRY_AUTH", locoControllerV1.RegistryAuthStatic)
 	switch mode {
-	case registryAuthStatic:
+	case locoControllerV1.RegistryAuthStatic:
 		return RegistryAuthConfig{Mode: mode}
-	case registryAuthToken:
+	case locoControllerV1.RegistryAuthToken:
 		return newRegistryTokenAuthConfig(registry, registryHost, secretsKey, ingestKey)
 	default:
 		panic(fmt.Errorf("%w: %q", errInvalidRegistryAuth, mode))
@@ -500,7 +499,7 @@ func newRegistryTokenAuthConfig(
 	)
 	sweepInterval := positiveDurationEnv("LOCO_REGISTRY_CREDENTIAL_SWEEP_INTERVAL", defaultRegistryCredentialSweep)
 	return RegistryAuthConfig{
-		Mode:                   registryAuthToken,
+		Mode:                   locoControllerV1.RegistryAuthToken,
 		TransitKey:             secretkeys.PinnedKey{Name: key, Version: int(version)},
 		Service:                tokenService,
 		AccessTokenLifetime:    accessLifetime,

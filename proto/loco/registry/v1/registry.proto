@@ -22,4 +22,6 @@ message IssuePullCredentialResponse {
   string username = 1;
   string password = 2;
   google.protobuf.Timestamp expires_at = 3;
+  // registry_host is the registry's host, and port if it has one, as the images the workspace pulls name it.
+  string registry_host = 4;
 }
