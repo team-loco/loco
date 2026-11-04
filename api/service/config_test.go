@@ -40,6 +40,16 @@ func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 		health.GetInitialDelaySeconds() != defaults.HealthStartupGracePeriod {
 		t.Errorf("health check = %v, want the configured defaults", health)
 	}
+	if got.GetDeployAttempts() != defaults.DeployAttempts ||
+		got.GetDeployRetryDelaySeconds() != defaults.DeployRetryDelay {
+		t.Errorf(
+			"deploy attempts %d, retry delay %ds, want %d and %ds",
+			got.GetDeployAttempts(),
+			got.GetDeployRetryDelaySeconds(),
+			defaults.DeployAttempts,
+			defaults.DeployRetryDelay,
+		)
+	}
 	if resp.GetSchemaUrl() != schemaURL {
 		t.Errorf("schema url = %q, want %q", resp.GetSchemaUrl(), schemaURL)
 	}

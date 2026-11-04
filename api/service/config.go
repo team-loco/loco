@@ -63,10 +63,12 @@ func (s *ConfigServer) GetConfig(
 				FailureThreshold:    s.defaults.HealthFailThreshold,
 				InitialDelaySeconds: s.defaults.HealthStartupGracePeriod,
 			},
-			Cpu:         s.defaults.CPU,
-			Memory:      s.defaults.Memory,
-			MinReplicas: s.defaults.MinReplicas,
-			MaxReplicas: s.defaults.MaxReplicas,
+			Cpu:                     s.defaults.CPU,
+			Memory:                  s.defaults.Memory,
+			MinReplicas:             s.defaults.MinReplicas,
+			MaxReplicas:             s.defaults.MaxReplicas,
+			DeployAttempts:          s.defaults.DeployAttempts,
+			DeployRetryDelaySeconds: s.defaults.DeployRetryDelay,
 			Observability: &resourcev1.ObservabilityConfig{
 				Logging: &resourcev1.LoggingConfig{
 					Enabled:         true,

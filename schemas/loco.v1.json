@@ -20,6 +20,22 @@
       "additionalProperties": false,
       "type": "object"
     },
+    "Deploy": {
+      "properties": {
+        "attempts": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Times a cluster tries to apply a deployment before it is marked failed."
+        },
+        "retryDelay": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Seconds between attempts."
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
     "Health": {
       "properties": {
         "path": {
@@ -478,6 +494,10 @@
         "metrics": {
           "$ref": "#/$defs/Metrics",
           "description": "Opt in to OpenTelemetry Collector pulling from a private HTTP metrics endpoint."
+        },
+        "deploy": {
+          "$ref": "#/$defs/Deploy",
+          "description": "How often the API sends a deployment a cluster fails to apply before marking it failed. The API fills omitted fields. Applies to every environment."
         }
       },
       "additionalProperties": false,

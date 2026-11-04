@@ -17,4 +17,5 @@ var (
 	ErrAutoscalingTarget      = errors.New("autoscaling needs exactly one of cpuTarget or memoryTarget")
 	ErrEnvironmentsInOverride = errors.New("environments cannot be nested inside an environment override")
 	ErrNotAnObject            = errors.New("must be a mapping")
+	ErrNotPositive            = errors.New("must be at least 1")
 )

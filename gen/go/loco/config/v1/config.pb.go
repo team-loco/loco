@@ -261,9 +261,11 @@ type DefaultServiceConfig struct {
 	MinReplicas int32  `protobuf:"varint,5,opt,name=min_replicas,json=minReplicas,proto3" json:"min_replicas,omitempty"`
 	MaxReplicas int32  `protobuf:"varint,6,opt,name=max_replicas,json=maxReplicas,proto3" json:"max_replicas,omitempty"`
 	// Default observability configuration
-	Observability *v1.ObservabilityConfig `protobuf:"bytes,7,opt,name=observability,proto3" json:"observability,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Observability           *v1.ObservabilityConfig `protobuf:"bytes,7,opt,name=observability,proto3" json:"observability,omitempty"`
+	DeployAttempts          int32                   `protobuf:"varint,8,opt,name=deploy_attempts,json=deployAttempts,proto3" json:"deploy_attempts,omitempty"`
+	DeployRetryDelaySeconds int32                   `protobuf:"varint,9,opt,name=deploy_retry_delay_seconds,json=deployRetryDelaySeconds,proto3" json:"deploy_retry_delay_seconds,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *DefaultServiceConfig) Reset() {
@@ -345,6 +347,20 @@ func (x *DefaultServiceConfig) GetObservability() *v1.ObservabilityConfig {
 	return nil
 }
 
+func (x *DefaultServiceConfig) GetDeployAttempts() int32 {
+	if x != nil {
+		return x.DeployAttempts
+	}
+	return 0
+}
+
+func (x *DefaultServiceConfig) GetDeployRetryDelaySeconds() int32 {
+	if x != nil {
+		return x.DeployRetryDelaySeconds
+	}
+	return 0
+}
+
 var File_loco_config_v1_config_proto protoreflect.FileDescriptor
 
 const file_loco_config_v1_config_proto_rawDesc = "" +
@@ -365,7 +381,7 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"AuthConfig\x12\x16\n" +
 	"\x06issuer\x18\x01 \x01(\tR\x06issuer\x12\x1b\n" +
 	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\x16\n" +
-	"\x06scopes\x18\x03 \x01(\tR\x06scopes\"\xd8\x02\n" +
+	"\x06scopes\x18\x03 \x01(\tR\x06scopes\"\xbe\x03\n" +
 	"\x14DefaultServiceConfig\x129\n" +
 	"\arouting\x18\x01 \x01(\v2\x1f.loco.resource.v1.RoutingConfigR\arouting\x12H\n" +
 	"\fhealth_check\x18\x02 \x01(\v2%.loco.deployment.v1.HealthCheckConfigR\vhealthCheck\x12\x10\n" +
@@ -373,7 +389,9 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\x06memory\x18\x04 \x01(\tR\x06memory\x12!\n" +
 	"\fmin_replicas\x18\x05 \x01(\x05R\vminReplicas\x12!\n" +
 	"\fmax_replicas\x18\x06 \x01(\x05R\vmaxReplicas\x12K\n" +
-	"\robservability\x18\a \x01(\v2%.loco.resource.v1.ObservabilityConfigR\robservability2a\n" +
+	"\robservability\x18\a \x01(\v2%.loco.resource.v1.ObservabilityConfigR\robservability\x12'\n" +
+	"\x0fdeploy_attempts\x18\b \x01(\x05R\x0edeployAttempts\x12;\n" +
+	"\x1adeploy_retry_delay_seconds\x18\t \x01(\x05R\x17deployRetryDelaySeconds2a\n" +
 	"\rConfigService\x12P\n" +
 	"\tGetConfig\x12 .loco.config.v1.GetConfigRequest\x1a!.loco.config.v1.GetConfigResponseB:Z8github.com/team-loco/loco/gen/go/loco/config/v1;configv1b\x06proto3"
 

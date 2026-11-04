@@ -31,6 +31,7 @@ type Service struct {
 	Env          map[string]string   `json:"env,omitempty"`
 	Secrets      []string            `json:"secrets,omitempty"`
 	Regions      map[string]Region   `json:"regions,omitempty"`
+	Deploy       *Deploy             `json:"deploy,omitempty"`
 	Environments map[string]Override `json:"environments,omitempty"`
 }
 
@@ -59,6 +60,11 @@ type Health struct {
 	Timeout            *int32 `json:"timeout,omitempty"`
 	FailThreshold      *int32 `json:"failThreshold,omitempty"`
 	StartupGracePeriod *int32 `json:"startupGracePeriod,omitempty"`
+}
+
+type Deploy struct {
+	Attempts   *int32 `json:"attempts,omitempty"`
+	RetryDelay *int32 `json:"retryDelay,omitempty"`
 }
 
 // Routing is the service HTTP routing.

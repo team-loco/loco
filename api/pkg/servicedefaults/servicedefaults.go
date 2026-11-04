@@ -31,6 +31,8 @@ type Defaults struct {
 	HealthTimeout            int32
 	HealthFailThreshold      int32
 	HealthStartupGracePeriod int32
+	DeployAttempts           int32
+	DeployRetryDelay         int32
 }
 
 // Validate checks the defaults with the rules the controller applies to an Application, so

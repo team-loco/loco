@@ -252,6 +252,7 @@ type Querier interface {
 	SetInvitationDeliveryError(ctx context.Context, arg SetInvitationDeliveryErrorParams) error
 	SetLockTimeout(ctx context.Context, timeout string) error
 	SetPlacementApplyError(ctx context.Context, arg SetPlacementApplyErrorParams) (SetPlacementApplyErrorRow, error)
+	SetResourceDeployPolicy(ctx context.Context, arg SetResourceDeployPolicyParams) error
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
 	SetResourcePartial(ctx context.Context, arg SetResourcePartialParams) error
 	SetUserStatus(ctx context.Context, arg SetUserStatusParams) (User, error)

@@ -48,6 +48,8 @@ func testServiceDefaults() servicedefaults.Defaults {
 		HealthTimeout:            testHealthTimeout,
 		HealthFailThreshold:      testHealthFailThreshold,
 		HealthStartupGracePeriod: 0,
+		DeployAttempts:           testDeployAttempts,
+		DeployRetryDelay:         testDeployRetryDelay,
 	}
 }
 

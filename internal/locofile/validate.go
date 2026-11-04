@@ -60,6 +60,7 @@ func Validate(file *File) error {
 func validateService(path string, service Service) []error {
 	errs := validateRuntimeIDs(path, service.RunAsUser, service.RunAsGroup)
 	errs = append(errs, validateMetrics(path, service.Metrics)...)
+	errs = append(errs, validateDeploy(path, service.Deploy)...)
 	if service.Image != "" && (service.Dockerfile != "" || service.Context != "") {
 		errs = append(errs, &FieldError{Path: path, Err: ErrImageWithBuild})
 	}
@@ -86,6 +87,20 @@ func validateOverride(path string, override Override) []error {
 	for _, name := range sortedKeys(override.Regions) {
 		region := override.Regions[name]
 		errs = append(errs, validateAutoscaling(path+".regions."+name, region.Autoscaling)...)
+	}
+	return errs
+}
+
+func validateDeploy(path string, deploy *Deploy) []error {
+	if deploy == nil {
+		return nil
+	}
+	var errs []error
+	if deploy.Attempts != nil && *deploy.Attempts < 1 {
+		errs = append(errs, &FieldError{Path: path + ".deploy.attempts", Err: ErrNotPositive})
+	}
+	if deploy.RetryDelay != nil && *deploy.RetryDelay < 1 {
+		errs = append(errs, &FieldError{Path: path + ".deploy.retryDelay", Err: ErrNotPositive})
 	}
 	return errs
 }

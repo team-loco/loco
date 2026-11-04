@@ -69,8 +69,6 @@ var adminIssuers = `[{"issuer":"` + testIssuer + `","audience":"loco",` +
 
 func clearAPIConfigEnv(t *testing.T) {
 	t.Helper()
-	t.Setenv("LOCO_PLACEMENT_RETRY_DELAY", "")
-	t.Setenv("LOCO_PLACEMENT_MAX_APPLY_ATTEMPTS", "")
 	t.Setenv("LOCO_CLUSTER_JOIN_TOKEN_TTL", "")
 	t.Setenv("LOCO_AGENT_ASSERTION_MAX_LIFETIME", "")
 	t.Setenv("DATABASE_LISTEN_URL", "")
@@ -95,6 +93,8 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv("LOCO_DEFAULT_HEALTH_TIMEOUT", "")
 	t.Setenv("LOCO_DEFAULT_HEALTH_FAIL_THRESHOLD", "")
 	t.Setenv("LOCO_DEFAULT_HEALTH_STARTUP_GRACE_PERIOD", "")
+	t.Setenv("LOCO_DEFAULT_DEPLOY_ATTEMPTS", "")
+	t.Setenv("LOCO_DEFAULT_DEPLOY_RETRY_DELAY", "")
 	t.Setenv(registryHostEnv, "")
 	t.Setenv("LOCO_REGISTRY_PREFIX", "")
 	t.Setenv("LOCO_REGISTRY_URL", "")
@@ -191,6 +191,8 @@ func TestNewAPIConfigDefaults(t *testing.T) {
 		HealthTimeout:            defaultHealthTimeout,
 		HealthFailThreshold:      defaultHealthFailThresh,
 		HealthStartupGracePeriod: defaultHealthGracePeriod,
+		DeployAttempts:           defaultDeployAttempts,
+		DeployRetryDelay:         defaultDeployRetryDelay,
 	}
 	if ac.ServiceDefaults != want {
 		t.Errorf("service defaults = %+v, want %+v", ac.ServiceDefaults, want)
@@ -415,6 +417,8 @@ func TestNewAPIConfigReadsServiceDefaults(t *testing.T) {
 	t.Setenv("LOCO_DEFAULT_HEALTH_TIMEOUT", "2")
 	t.Setenv("LOCO_DEFAULT_HEALTH_FAIL_THRESHOLD", "5")
 	t.Setenv("LOCO_DEFAULT_HEALTH_STARTUP_GRACE_PERIOD", "15")
+	t.Setenv("LOCO_DEFAULT_DEPLOY_ATTEMPTS", "4")
+	t.Setenv("LOCO_DEFAULT_DEPLOY_RETRY_DELAY", "60")
 	ac := newAPIConfig()
 	want := servicedefaults.Defaults{
 		CPU:                      "250m",
@@ -429,9 +433,18 @@ func TestNewAPIConfigReadsServiceDefaults(t *testing.T) {
 		HealthTimeout:            2,
 		HealthFailThreshold:      5,
 		HealthStartupGracePeriod: 15,
+		DeployAttempts:           4,
+		DeployRetryDelay:         60,
 	}
 	if ac.ServiceDefaults != want {
 		t.Errorf("service defaults = %+v, want %+v", ac.ServiceDefaults, want)
+	}
+	if ac.Agent.DeployAttempts != 4 || ac.Agent.DeployRetryDelay != 60 {
+		t.Errorf(
+			"agent deploy policy = %d attempts, %ds apart; want 4, 60s",
+			ac.Agent.DeployAttempts,
+			ac.Agent.DeployRetryDelay,
+		)
 	}
 }
 
@@ -736,37 +749,24 @@ func TestDatabaseListenURLDefaultsAndOverride(t *testing.T) {
 	}
 }
 
-func TestPlacementRetryDelayConfiguration(t *testing.T) {
-	t.Setenv("LOCO_PLACEMENT_RETRY_DELAY", "")
-	if got := newAgentConfig().PlacementRetryDelay; got != defaultPlacementRetryDelay {
-		t.Fatalf("retry delay = %v", got)
+func TestDeployPolicyDefaults(t *testing.T) {
+	clearAPIConfigEnv(t)
+	defaults := newServiceDefaults()
+	if defaults.DeployAttempts != 2 || defaults.DeployRetryDelay != 300 {
+		t.Fatalf(
+			"deploy defaults = %d attempts, %ds apart; want 2, 300s",
+			defaults.DeployAttempts,
+			defaults.DeployRetryDelay,
+		)
 	}
-	t.Setenv("LOCO_PLACEMENT_RETRY_DELAY", "30m")
-	if got := newAgentConfig().PlacementRetryDelay; got != 30*time.Minute {
-		t.Fatalf("retry delay = %v, want 30m", got)
-	}
-	for _, value := range []string{"0s", "-1m", "500ms", "bad"} {
-		t.Setenv("LOCO_PLACEMENT_RETRY_DELAY", value)
-		if err := panicValue(t, func() { newAgentConfig() }); err == nil {
-			t.Fatalf("invalid retry delay %s accepted", value)
+	for _, env := range []string{"LOCO_DEFAULT_DEPLOY_ATTEMPTS", "LOCO_DEFAULT_DEPLOY_RETRY_DELAY"} {
+		for _, value := range []string{"0", "-1", "5m"} {
+			t.Setenv(env, value)
+			if err := panicValue(t, func() { newServiceDefaults() }); err == nil {
+				t.Fatalf("%s=%s accepted", env, value)
+			}
 		}
-	}
-}
-
-func TestPlacementMaxApplyAttemptsConfiguration(t *testing.T) {
-	t.Setenv("LOCO_PLACEMENT_MAX_APPLY_ATTEMPTS", "")
-	if got := newAgentConfig().PlacementMaxApplyAttempts; got != defaultPlacementMaxApplyAttempts {
-		t.Fatalf("max apply attempts = %d", got)
-	}
-	t.Setenv("LOCO_PLACEMENT_MAX_APPLY_ATTEMPTS", "5")
-	if got := newAgentConfig().PlacementMaxApplyAttempts; got != 5 {
-		t.Fatalf("max apply attempts = %d, want 5", got)
-	}
-	for _, value := range []string{"0", "-1", "bad"} {
-		t.Setenv("LOCO_PLACEMENT_MAX_APPLY_ATTEMPTS", value)
-		if err := panicValue(t, func() { newAgentConfig() }); err == nil {
-			t.Fatalf("invalid max apply attempts %s accepted", value)
-		}
+		t.Setenv(env, "")
 	}
 }
 
@@ -784,15 +784,15 @@ func TestClusterEnrollmentDurations(t *testing.T) {
 		}},
 	} {
 		t.Setenv(tc.env, "")
-		if got := tc.read(newAgentConfig()); got != tc.fallback {
+		if got := tc.read(newAgentConfig(servicedefaults.Defaults{})); got != tc.fallback {
 			t.Fatalf("%s default = %v, want %v", tc.env, got, tc.fallback)
 		}
 		t.Setenv(tc.env, "10m")
-		if got := tc.read(newAgentConfig()); got != 10*time.Minute {
+		if got := tc.read(newAgentConfig(servicedefaults.Defaults{})); got != 10*time.Minute {
 			t.Fatalf("%s = %v, want 10m", tc.env, got)
 		}
 		t.Setenv(tc.env, "0s")
-		if err := panicValue(t, func() { newAgentConfig() }); err == nil {
+		if err := panicValue(t, func() { newAgentConfig(servicedefaults.Defaults{}) }); err == nil {
 			t.Fatalf("%s accepted 0s", tc.env)
 		}
 		t.Setenv(tc.env, "")

@@ -554,7 +554,6 @@ func (s *AgentServer) recordApplyError(
 ) {
 	revision := applied.GetRevision()
 	errMessage := applied.GetError()
-	retryDelaySeconds := int32(s.config.PlacementRetryDelay.Seconds())
 	slog.WarnContext(ctx, "placement failed to apply",
 		"cluster_id", clusterID,
 		"placement_id", placementID,
@@ -570,8 +569,8 @@ func (s *AgentServer) recordApplyError(
 			DesiredRevision:          revision,
 			AppliedError:             &errMessage,
 			Retrying:                 applied.GetRetrying(),
-			DefaultMaxAttempts:       s.config.PlacementMaxApplyAttempts,
-			DefaultRetryDelaySeconds: retryDelaySeconds,
+			DefaultMaxAttempts:       s.config.DeployAttempts,
+			DefaultRetryDelaySeconds: s.config.DeployRetryDelay,
 		})
 		if errors.Is(setErr, pgx.ErrNoRows) {
 			return nil

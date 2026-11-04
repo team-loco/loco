@@ -23,6 +23,7 @@ const (
 	pathSecrets = "secrets"
 	pathRegions = "regions"
 	pathEnabled = "enabled"
+	pathDeploy  = "deploy"
 
 	listSeparator = ", "
 )
@@ -35,9 +36,11 @@ var (
 )
 
 // State is a service as the planner compares it: the file service with the API defaults
-// filled in, or the live service as the environment runs it. Image is the digest-pinned
-// reference of an image service and empty for a service built from source; Dockerfile and
-// Context are set for a service built from source and empty for an image service.
+// filled in, or the live service as the environment runs it. Deploy is the exception: it holds
+// only the fields the file sets, and the API applies its defaults when a cluster fails to apply.
+// Image is the digest-pinned reference of an image service and empty for a service built from
+// source; Dockerfile and Context are set for a service built from source and empty for an image
+// service.
 type State struct {
 	Image      string
 	Dockerfile string
@@ -52,6 +55,7 @@ type State struct {
 	Env        map[string]string
 	Secrets    []string
 	Regions    map[string]Region
+	Deploy     *locofile.Deploy
 }
 
 // Health is a service health check with every field set.
@@ -95,6 +99,7 @@ func fileState(service locofile.Service, pinnedImage string, defaults servicedef
 		Env:        maps.Clone(service.Env),
 		Secrets:    slices.Sorted(slices.Values(service.Secrets)),
 		Regions:    make(map[string]Region, len(service.Regions)),
+		Deploy:     service.Deploy,
 	}
 	if pinnedImage == "" {
 		state.Dockerfile = locofile.DefaultDockerfile
@@ -224,6 +229,12 @@ func flatten(state *State) map[string]string {
 		fields[pathHealth+".timeout"] = formatInt(state.Health.Timeout)
 		fields[pathHealth+".failThreshold"] = formatInt(state.Health.FailThreshold)
 		fields[pathHealth+".startupGracePeriod"] = formatInt(state.Health.StartupGracePeriod)
+	}
+	if state.Deploy != nil && state.Deploy.Attempts != nil {
+		fields[pathDeploy+".attempts"] = formatInt(*state.Deploy.Attempts)
+	}
+	if state.Deploy != nil && state.Deploy.RetryDelay != nil {
+		fields[pathDeploy+".retryDelay"] = formatInt(*state.Deploy.RetryDelay)
 	}
 	if state.Image != "" {
 		fields[pathImage] = state.Image

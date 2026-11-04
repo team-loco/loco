@@ -42,7 +42,7 @@ func TestPermanentApplyFailuresWaitBeforeAnotherInventorySendsThem(t *testing.T)
 	failed := &agentv1.Applied{
 		PlacementId: placement.ID.String(),
 		Revision:    placement.DesiredRevision,
-		Error:       "invalid application",
+		Error:       testApplyFailure,
 	}
 	server.recordApplied(t.Context(), f.clusterID, failed)
 	if sent := f.sendPending(t, server); len(sent) != 0 {
@@ -148,7 +148,7 @@ func TestPlacementFailsOnceItRunsOutOfApplyAttempts(t *testing.T) {
 	failed := &agentv1.Applied{
 		PlacementId: placement.ID.String(),
 		Revision:    placement.DesiredRevision,
-		Error:       "invalid application",
+		Error:       testApplyFailure,
 	}
 
 	server.recordApplied(t.Context(), f.clusterID, failed)

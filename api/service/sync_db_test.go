@@ -379,11 +379,16 @@ func TestSyncStreamRejectsUnknownAgents(t *testing.T) {
 	}
 }
 
+const (
+	testDeployAttempts   = 1
+	testDeployRetryDelay = 3600
+)
+
 func testAgentConfig() AgentConfig {
 	return AgentConfig{
-		AssertionMaxLifetime:      5 * testAssertionLifetime,
-		JoinTokenTTL:              time.Hour,
-		PlacementRetryDelay:       time.Hour,
-		PlacementMaxApplyAttempts: 1,
+		AssertionMaxLifetime: 5 * testAssertionLifetime,
+		JoinTokenTTL:         time.Hour,
+		DeployAttempts:       testDeployAttempts,
+		DeployRetryDelay:     testDeployRetryDelay,
 	}
 }
