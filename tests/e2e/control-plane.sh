@@ -163,6 +163,8 @@ yq -e -p json '.openapi == "3.1.0" and .paths."/loco.config.v1.ConfigService/Get
 curl --fail --silent -H "Host: $API_HOST" "http://127.0.0.1:$API_PORT/docs" >"$RUN_DIR/api-docs.html"
 grep -F 'Scalar.createApiReference(' "$RUN_DIR/api-docs.html" >/dev/null
 grep -F 'url: "/openapi.json"' "$RUN_DIR/api-docs.html" >/dev/null
+curl --fail --silent -H "Host: $API_HOST" "http://127.0.0.1:$API_PORT/" >"$RUN_DIR/api-root.html"
+cmp "$RUN_DIR/api-docs.html" "$RUN_DIR/api-root.html"
 curl --fail --silent -H "Host: $APP_HOST" "http://127.0.0.1:$API_PORT/" >"$RUN_DIR/dashboard.html"
 curl --fail --silent --compressed -D "$RUN_DIR/runtime-headers.txt" -H "Host: $APP_HOST" "http://127.0.0.1:$API_PORT/runtime-config.js" >"$RUN_DIR/runtime-config.js"
 curl --fail --silent -H "Host: $APP_HOST" -H 'Content-Type: application/json' -d '{}' \

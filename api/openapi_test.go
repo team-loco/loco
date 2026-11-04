@@ -15,7 +15,6 @@ import (
 
 func TestOpenAPIDocs(t *testing.T) {
 	mux := http.NewServeMux()
-	mux.HandleFunc(rootPath, func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	mountOpenAPI(mux)
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/docs", nil)
 	response := httptest.NewRecorder()
@@ -29,12 +28,13 @@ func TestOpenAPIDocs(t *testing.T) {
 	body := response.Body.String()
 	for _, want := range []string{
 		"<title>Loco API</title>",
-		`id="api-reference"`,
-		`Scalar.createApiReference("#api-reference", {`,
+		`id="api-docs"`,
+		`Scalar.createApiReference("#api-docs", {`,
 		`url: "/openapi.json"`,
 		`proxyUrl: ""`,
 		"withDefaultFonts: false",
 		"telemetry: false",
+		"agent: { disabled: true }",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("docs missing %q", want)
@@ -65,9 +65,41 @@ func TestOpenAPIDocs(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDocsRoot(t *testing.T) {
+	mux := http.NewServeMux()
+	mountOpenAPI(mux)
+	for _, method := range []string{http.MethodGet, http.MethodHead, http.MethodPost} {
+		t.Run(method, func(t *testing.T) {
+			request := httptest.NewRequestWithContext(t.Context(), method, rootPath, nil)
+			response := httptest.NewRecorder()
+			mux.ServeHTTP(response, request)
+			if method == http.MethodPost {
+				if response.Code != http.StatusMethodNotAllowed {
+					t.Errorf("status = %d, want 405", response.Code)
+				}
+				return
+			}
+			if response.Code != http.StatusOK || response.Header().Get("Content-Type") != "text/html; charset=utf-8" {
+				t.Fatalf("status = %d, Content-Type = %q", response.Code, response.Header().Get("Content-Type"))
+			}
+			if method == http.MethodGet && response.Body.String() != string(openAPIDocs) {
+				t.Error("root must serve the API reference")
+			}
+			if method == http.MethodHead && response.Body.Len() != 0 {
+				t.Error("HEAD must not return a body")
+			}
+		})
+	}
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/missing", nil)
+	response := httptest.NewRecorder()
+	mux.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound {
+		t.Errorf("unknown path status = %d, want 404", response.Code)
+	}
+}
+
 func TestOpenAPI(t *testing.T) {
 	mux := http.NewServeMux()
-	mux.HandleFunc(rootPath, func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	mountOpenAPI(mux)
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/openapi.json", nil)
 	response := httptest.NewRecorder()
@@ -81,12 +113,18 @@ func TestOpenAPI(t *testing.T) {
 	var spec struct {
 		OpenAPI string                     `json:"openapi"`
 		Paths   map[string]json.RawMessage `json:"paths"`
+		Info    struct {
+			Title string `json:"title"`
+		} `json:"info"`
 	}
 	if err := json.Unmarshal(response.Body.Bytes(), &spec); err != nil {
 		t.Fatal(err)
 	}
 	if spec.OpenAPI != "3.1.0" {
 		t.Fatalf("OpenAPI = %q", spec.OpenAPI)
+	}
+	if spec.Info.Title != "Loco API" {
+		t.Errorf("title = %q, want Loco API", spec.Info.Title)
 	}
 	for _, path := range []string{
 		configv1connect.ConfigServiceGetConfigProcedure,

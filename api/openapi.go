@@ -21,6 +21,7 @@ func mountOpenAPI(mux *http.ServeMux) {
 	}{
 		{"/openapi.json", "application/json", openAPISchema},
 		{"/docs", "text/html; charset=utf-8", openAPIDocs},
+		{rootPath + "{$}", "text/html; charset=utf-8", openAPIDocs},
 	} {
 		mux.HandleFunc(file.path, func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodGet && r.Method != http.MethodHead {

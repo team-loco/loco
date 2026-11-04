@@ -202,11 +202,6 @@ func main() {
 		validate.NewServerInterceptor(),
 	)
 
-	mux.HandleFunc(rootPath, func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, "Loco Service is Running")
-	})
-
 	mux.HandleFunc(healthPath, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "Server is healthy.")

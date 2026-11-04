@@ -37,11 +37,11 @@
       <span class="docs-label">API reference</span>
       <a class="docs-schema" href="/openapi.json">OpenAPI JSON</a>
     </header>
-    <main id="api-reference"></main>
+    <main id="api-docs"></main>
     <noscript>Enable JavaScript to browse the API reference, or download the <a href="/openapi.json">OpenAPI schema</a>.</noscript>
     <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.76.4/dist/browser/standalone.js" crossorigin="anonymous"></script>
     <script>
-      Scalar.createApiReference("#api-reference", {
+      Scalar.createApiReference("#api-docs", {
         url: "/openapi.json",
         title: "Loco API",
         theme: "default",
@@ -51,6 +51,7 @@
         showDeveloperTools: "never",
         proxyUrl: "",
         telemetry: false,
+        agent: { disabled: true },
       });
     </script>
   </body>
