@@ -1,16 +1,58 @@
-# Loco Agent Guidelines
+# Agent Guidelines
 
-## Goal
+## Overview
 
-- Loco is a container orchestration platform that simplifies application deployment. Run `loco deploy` and Loco handles the rest - building, deploying, and scaling your applications on Kubernetes. Competitor to heroku/railway.
+Loco is a container orchestration platform that simplifies application deployment. Loco's goal is to be an OSS competitor to Vercel and Railway.
+
+Loco turns application configuration into Kubernetes resources. Users deploy source or container images; the control plane records desired state, cluster agents apply `Application` CRs, and controllers reconcile workloads, services and routing. Loco handles workspace network isolation through NetworkPolicy, ingress through Envoy Gateway, TLS certificates through cert-manager, and logs, metrics and traces through OpenTelemetry.
+
+Clients can use infrastructure as code through `loco.yaml`: a declarative file describing services, images or source builds, regions, sizing, domains and environment overrides. `loco infra plan/apply` previews and applies changes; `loco deploy` also builds source services. See [the field reference](docs/content/deployment/loco-yaml.md).
+
+## Definitions
+
+- **Organization**: Billing boundary; owns workspaces and organization membership.
+- **Workspace**: Network boundary; groups related resources and environments, with its own membership and network isolation from other workspaces.
+- **Environment**: An isolated deployment target within a workspace, such as staging or production, with its own configuration, secrets and deployment history.
+- **Resource**: A named application component in a workspace, such as a web service or worker; can run in multiple environments and regions.
+- **Build**: A source-to-container-image job; its output image can be deployed to environments.
+- **Deployment**: An immutable runtime configuration snapshot for one resource in one environment and region, with rollout status.
+- **Domain**: A hostname assigned to a resource for public routing.
 
 ## Architecture
 
-- **CLI**: Go app using Cobra + Charm libraries (Bubble Tea, Lipgloss) for terminal UI
-- **API Server**: Go with ConnectRPC on connect-go v2 (`connectrpc.com/connect/v2`), PostgreSQL database
-- **Infrastructure**: Kubernetes with a CNI that enforces NetworkPolicy, Envoy Gateway, cert-manager, OpenTelemetry, ClickHouse metrics read through the observability proxy
-- **Key modules**: `api/` (ConnectRPC services), `cmd/` (CLI module: `loco/` CLI commands, `locoadm/` operator CLI, `internal/` CLI-only packages), `agent/` (in-cluster agent), `controller/` (kubebuilder operator), `k8sapi/` (CRD types), `internal/` (shared logic), `web/` (dashboard), `gen/` (generated protobuf types). The root module holds only `internal/`, `gen/` and `tools/`, the code other modules share; CLI-only dependencies go in `cmd/go.mod`
-- **Each environment runs on its own clusters.** Staging and production never share a cluster, so a cluster belongs to exactly one environment and a resource has at most one placement per cluster. Don't design for two environments of a resource on the same cluster.
+Loco separates the control plane (platform state and APIs) from the data plane (worker clusters running applications and builds).
+
+### Clients
+
+- **`cmd/`**: Two Go CLIs running on client/operator machines, using Cobra + Charm (Fang, Lipgloss; Bubble Tea for `loco`'s interactive UI):
+  - `loco`: For clients connecting to Loco: deploy applications and manage resources, environments, workspaces and organizations.
+  - `locoadm`: For administrators running their own Loco installation: bootstrap the first admin, manage clusters and users.
+
+### Control plane (`charts/loco-control-plane/`)
+
+- **`api/`**: Go API for platform state, authentication, deployment orchestration and agent sync; ConnectRPC v2 (`connectrpc.com/connect/v2`) and PostgreSQL.
+- **`web/`**: React dashboard for application teams to manage applications and inspect logs, metrics and traces; calls the control-plane API.
+- **`observability-proxy/`**: Separate ingest and query deployments: ingest writes OpenTelemetry logs, metrics and traces to ClickHouse; query reads them, serves live log tails and runs ClickHouse schema migrations.
+
+### Data plane (`charts/loco-worker/`)
+
+- **`agent/`**: In-cluster bridge to the control plane: apply desired applications and builds, report runtime status, and renew telemetry credentials.
+- **`controller/`**: Kubebuilder operators: reconcile `Application` CRs into workloads, services, routing and network policies; reconcile `Build` CRs into BuildKit jobs.
+- **`builder/`**: Runs inside build jobs: fetch source, restore build cache, and push built images and cache to the registry. BuildKit builds the images.
+- Application workloads run here, alongside Envoy Gateway for ingress, cert-manager for certificates and OpenTelemetry collectors exporting to the control plane.
+- **Each environment runs on its own clusters.** Staging and production never share a cluster; a resource has at most one placement per cluster.
+
+### Shared code and tooling
+
+- **`k8sapi/`**: Shared Kubernetes API types and validation for `Application` and `Build` CRs, plus resource labels.
+- **`proto/loco/`**, **`gen/`**: Protobuf service definitions and generated Go/TypeScript types and clients; do not edit generated code directly.
+- **`internal/`**: Shared Go packages, including `loco.yaml` parsing and validation, RPC clients, authentication and session helpers. CLI-only packages live in `cmd/internal/`.
+- **`charts/`**: Helm charts for the control plane and worker clusters.
+- **`tests/e2e/`**: End-to-end suites that build and exercise Loco on kind clusters.
+- **`tools/`**, **`mise-tasks/`**: Go development/release tools and mise task scripts for builds, generation, checks and local environments.
+- **`docs/content/`**, **`schemas/`**: User documentation and editor JSON Schemas, including `loco.yaml`.
+
+The root Go module holds only `internal/`, `gen/` and `tools/`; CLI-only dependencies belong in `cmd/go.mod`.
 
 ## Build/Lint/Test Commands
 
