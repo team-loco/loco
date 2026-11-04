@@ -14,6 +14,7 @@ import (
 	"os/signal"
 	"slices"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -132,7 +133,21 @@ func newOutboundHTTPClient() *http.Client {
 	return &http.Client{Transport: traced, Timeout: 15 * time.Second}
 }
 
+func serve(server *http.Server) error {
+	if err := server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+	return nil
+}
+
 func main() {
+	failed := false
+	defer func() {
+		if failed {
+			os.Exit(1)
+		}
+	}()
+
 	ac := newAPIConfig()
 
 	logger := slog.New(CustomHandler{Handler: getLoggerHandler(ac)})
@@ -169,6 +184,8 @@ func main() {
 
 	shutdownCtx, beginShutdown := context.WithCancel(context.Background())
 	defer beginShutdown()
+
+	var background sync.WaitGroup
 
 	deadlineInterceptor := interceptor.NewDeadlineInterceptor(shutdownCtx, 30*time.Second)
 	errorInterceptor := interceptor.NewErrorInterceptor()
@@ -219,12 +236,12 @@ func main() {
 	}
 
 	eventServiceHandler := service.NewEventServer(queries, machine)
-	go events.RunRetention(shutdownCtx, queries, ac.EventsRetention, eventsRetentionInterval)
+	background.Go(func() { events.RunRetention(shutdownCtx, queries, ac.EventsRetention, eventsRetentionInterval) })
 	webhookServiceHandler := service.NewWebhookServer(pool, queries, ac.WebhooksAllowPrivate)
 	workspaceWebhookClient := webhooks.NewClient(ac.WebhooksAllowPrivate)
 	installWebhookClient := webhooks.NewClient(true)
 	webhookDispatcher := webhooks.NewDispatcher(queries, workspaceWebhookClient, installWebhookClient)
-	go webhookDispatcher.Run(shutdownCtx, webhooks.DefaultPollPeriod)
+	background.Go(func() { webhookDispatcher.Run(shutdownCtx, webhooks.DefaultPollPeriod) })
 	authServiceHandler := service.NewAuthServer(pool, queries, machine, appCache, admins, ac.WebURL)
 	userServiceHandler := service.NewUserServer(pool, queries, machine, admins)
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine, ac.Invitations)
@@ -242,7 +259,7 @@ func main() {
 	}
 	if sourceBucket != nil {
 		sourceSweeper := service.NewSourceSweeper(pool, queries, sourceBucket, ac.SourceSweep)
-		go sourceSweeper.Run(shutdownCtx)
+		background.Go(func() { sourceSweeper.Run(shutdownCtx) })
 	}
 	imageRegistry, registryErr := newImageRegistry(ac.Registry, ac.ImageSweep.Retention)
 	if registryErr != nil {
@@ -250,7 +267,7 @@ func main() {
 	}
 	if imageRegistry != nil {
 		imageSweeper := service.NewImageSweeper(pool, queries, imageRegistry, ac.ImageSweep)
-		go imageSweeper.Run(shutdownCtx)
+		background.Go(func() { imageSweeper.Run(shutdownCtx) })
 	}
 	imageResolver := imageresolver.New(imageResolveTimeout)
 
@@ -398,16 +415,21 @@ func main() {
 	}()
 
 	slog.Info("starting server", "addr", server.Addr)
-	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	if err := serve(server); err != nil {
 		slog.Error("server error", "error", err)
+		beginShutdown()
+		background.Wait()
 		stopTracing(tracerProvider)
+		failed = true
 		return
 	}
 
 	quitErr := <-quit
+	background.Wait()
 	stopTracing(tracerProvider)
 	if quitErr != nil {
-		log.Fatal(quitErr)
+		slog.Error("shutdown error", "error", quitErr)
+		failed = true
 	}
 }
 
