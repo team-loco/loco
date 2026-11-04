@@ -135,14 +135,14 @@ func (q *Queries) DeleteWorkspaceWebhook(ctx context.Context, arg DeleteWorkspac
 	return result.RowsAffected(), nil
 }
 
-const finishWebhookDelivery = `-- name: FinishWebhookDelivery :exec
+const finishWebhookDelivery = `-- name: FinishWebhookDelivery :execrows
 UPDATE webhook_deliveries
 SET status = $1,
     last_status_code = $2,
     last_error = $3,
     next_attempt_at = $4,
     delivered_at = $5
-WHERE id = $6
+WHERE id = $6 AND attempts = $7
 `
 
 type FinishWebhookDeliveryParams struct {
@@ -152,18 +152,23 @@ type FinishWebhookDeliveryParams struct {
 	NextAttemptAt  time.Time  `json:"nextAttemptAt"`
 	DeliveredAt    *time.Time `json:"deliveredAt"`
 	ID             uuid.UUID  `json:"id"`
+	Attempts       int32      `json:"attempts"`
 }
 
-func (q *Queries) FinishWebhookDelivery(ctx context.Context, arg FinishWebhookDeliveryParams) error {
-	_, err := q.db.Exec(ctx, finishWebhookDelivery,
+func (q *Queries) FinishWebhookDelivery(ctx context.Context, arg FinishWebhookDeliveryParams) (int64, error) {
+	result, err := q.db.Exec(ctx, finishWebhookDelivery,
 		arg.Status,
 		arg.LastStatusCode,
 		arg.LastError,
 		arg.NextAttemptAt,
 		arg.DeliveredAt,
 		arg.ID,
+		arg.Attempts,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const getWebhookDeliveryPayload = `-- name: GetWebhookDeliveryPayload :one

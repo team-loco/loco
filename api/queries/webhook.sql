@@ -54,14 +54,14 @@ JOIN webhooks w ON w.id = d.webhook_id
 JOIN events e ON e.seq = d.event_seq
 WHERE d.id = $1;
 
--- name: FinishWebhookDelivery :exec
+-- name: FinishWebhookDelivery :execrows
 UPDATE webhook_deliveries
 SET status = sqlc.arg('status'),
     last_status_code = sqlc.narg('last_status_code'),
     last_error = sqlc.narg('last_error'),
     next_attempt_at = sqlc.arg('next_attempt_at'),
     delivered_at = sqlc.narg('delivered_at')
-WHERE id = sqlc.arg('id');
+WHERE id = sqlc.arg('id') AND attempts = sqlc.arg('attempts');
 
 -- name: LockInstallWebhooks :exec
 SELECT pg_advisory_xact_lock(sqlc.arg(lock_key)::bigint);

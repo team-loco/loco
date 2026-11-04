@@ -105,3 +105,9 @@ func TestBlockedAddresses(t *testing.T) {
 		}
 	}
 }
+
+func TestLeaseCoversWorstCaseBatch(t *testing.T) {
+	if worst := webhooks.ClaimBatch * webhooks.RequestTimeout; webhooks.Lease < worst {
+		t.Fatalf("lease %s is shorter than the worst-case batch %s", webhooks.Lease, worst)
+	}
+}

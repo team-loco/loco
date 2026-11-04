@@ -8,6 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -296,5 +297,45 @@ func TestConcurrentDispatchersDeliverOnce(t *testing.T) {
 	wg.Wait()
 	if got := len(r.types()); got != total || dispatched.Load() != total {
 		t.Fatalf("receiver got %d, dispatchers claimed %d, want %d", got, dispatched.Load(), total)
+	}
+}
+
+func TestStaleHolderCannotFinishReclaimedDelivery(t *testing.T) {
+	f := newFixture(t)
+	hook, _ := f.webhook(t, f.workspaceID)
+	f.record(t, f.workspaceID, events.ResourceUpdated)
+	claim := func() genDb.ClaimWebhookDeliveriesRow {
+		t.Helper()
+		f.makeDue(t)
+		claimed, err := f.queries.ClaimWebhookDeliveries(t.Context(), genDb.ClaimWebhookDeliveriesParams{
+			LeaseSeconds: 1, MaxRows: 1,
+		})
+		if err != nil || len(claimed) != 1 {
+			t.Fatalf("claim = %d, %v", len(claimed), err)
+		}
+		return claimed[0]
+	}
+	stale := claim()
+	current := claim()
+	if current.Attempts != stale.Attempts+1 {
+		t.Fatalf("attempts = %d then %d", stale.Attempts, current.Attempts)
+	}
+	before := f.deliveries(t, hook.ID)[0]
+
+	rows, err := f.queries.FinishWebhookDelivery(t.Context(), genDb.FinishWebhookDeliveryParams{
+		ID: stale.ID, Attempts: stale.Attempts, Status: webhooks.StatusSucceeded, NextAttemptAt: time.Now(),
+	})
+	if err != nil || rows != 0 {
+		t.Fatalf("stale finish affected %d rows (%v)", rows, err)
+	}
+	if after := f.deliveries(t, hook.ID)[0]; after != before {
+		t.Fatalf("stale finish changed the row: %+v -> %+v", before, after)
+	}
+
+	rows, err = f.queries.FinishWebhookDelivery(t.Context(), genDb.FinishWebhookDeliveryParams{
+		ID: current.ID, Attempts: current.Attempts, Status: webhooks.StatusSucceeded, NextAttemptAt: time.Now(),
+	})
+	if err != nil || rows != 1 {
+		t.Fatalf("current finish affected %d rows (%v)", rows, err)
 	}
 }
