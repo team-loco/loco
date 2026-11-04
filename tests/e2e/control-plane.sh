@@ -159,7 +159,7 @@ done
 API_PORT=$(sed -n 's/Forwarding from 127.0.0.1:\([0-9]*\) .*/\1/p' "$RUN_DIR/port-forward.log" | head -1)
 curl --fail --silent -H "Host: $API_HOST" "http://127.0.0.1:$API_PORT/health"
 curl --fail --silent -H "Host: $API_HOST" "http://127.0.0.1:$API_PORT/openapi.json" >"$RUN_DIR/openapi.json"
-yq -e -p json '.openapi == "3.1.0" and .paths."/loco.config.v1.ConfigService/GetConfig".post != null and .paths."/loco.agent.v1.AgentService/Sync".post != null and .paths."/loco.observability.v1.ObservabilityProxyService/QueryLogs".post != null' "$RUN_DIR/openapi.json" >/dev/null
+yq -e -p json '.openapi == "3.1.0" and .info.version == "e2e" and .paths."/loco.config.v1.ConfigService/GetConfig".post != null and .paths."/loco.agent.v1.AgentService/Sync".post != null and .paths."/loco.observability.v1.ObservabilityProxyService/QueryLogs".post != null' "$RUN_DIR/openapi.json" >/dev/null
 curl --fail --silent -H "Host: $API_HOST" "http://127.0.0.1:$API_PORT/" >"$RUN_DIR/api-docs.html"
 grep -F 'Scalar.createApiReference(' "$RUN_DIR/api-docs.html" >/dev/null
 grep -F 'url: "/openapi.json"' "$RUN_DIR/api-docs.html" >/dev/null

@@ -13,9 +13,11 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 )
 
+const openAPITestVersion = "test-build"
+
 func TestOpenAPIDocs(t *testing.T) {
 	mux := http.NewServeMux()
-	mountOpenAPI(mux)
+	mountOpenAPI(mux, openAPITestVersion)
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, rootPath, nil)
 	response := httptest.NewRecorder()
 	mux.ServeHTTP(response, request)
@@ -32,7 +34,6 @@ func TestOpenAPIDocs(t *testing.T) {
 		`Scalar.createApiReference("#api-docs", {`,
 		`url: "/openapi.json"`,
 		`proxyUrl: ""`,
-		"withDefaultFonts: false",
 		"telemetry: false",
 		"agent: { disabled: true }",
 	} {
@@ -67,7 +68,7 @@ func TestOpenAPIDocs(t *testing.T) {
 
 func TestOpenAPIDocsUnknownPaths(t *testing.T) {
 	mux := http.NewServeMux()
-	mountOpenAPI(mux)
+	mountOpenAPI(mux, openAPITestVersion)
 	for _, path := range []string{"/docs", "/docs/", "/missing"} {
 		t.Run(path, func(t *testing.T) {
 			request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil)
@@ -82,7 +83,7 @@ func TestOpenAPIDocsUnknownPaths(t *testing.T) {
 
 func TestOpenAPI(t *testing.T) {
 	mux := http.NewServeMux()
-	mountOpenAPI(mux)
+	mountOpenAPI(mux, openAPITestVersion)
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/openapi.json", nil)
 	response := httptest.NewRecorder()
 	mux.ServeHTTP(response, request)
@@ -96,7 +97,8 @@ func TestOpenAPI(t *testing.T) {
 		OpenAPI string                     `json:"openapi"`
 		Paths   map[string]json.RawMessage `json:"paths"`
 		Info    struct {
-			Title string `json:"title"`
+			Title   string `json:"title"`
+			Version string `json:"version"`
 		} `json:"info"`
 	}
 	if err := json.Unmarshal(response.Body.Bytes(), &spec); err != nil {
@@ -107,6 +109,9 @@ func TestOpenAPI(t *testing.T) {
 	}
 	if spec.Info.Title != "Loco API" {
 		t.Errorf("title = %q, want Loco API", spec.Info.Title)
+	}
+	if spec.Info.Version != openAPITestVersion {
+		t.Errorf("version = %q, want test-build", spec.Info.Version)
 	}
 	for _, path := range []string{
 		configv1connect.ConfigServiceGetConfigProcedure,
