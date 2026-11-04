@@ -111,6 +111,9 @@ path "$mount/keys/$key" {
 path "$mount/keys/$ingest_key" {
   capabilities = ["create", "read", "update"]
 }
+path "$mount/keys/$registry_key" {
+  capabilities = ["create", "read", "update"]
+}
 path "sys/policies/acl/$api_policy" {
   capabilities = ["create", "read", "update"]
 }
@@ -150,14 +153,21 @@ path "$mount/sign/$ingest_key" {
 path "$mount/keys/$ingest_key" {
   capabilities = ["read"]
 }
+path "$mount/sign/$registry_key" {
+  capabilities = ["update"]
+}
+path "$mount/keys/$registry_key" {
+  capabilities = ["read"]
+}
 EOF
 }
 
 configure() {
-	: "${LOCO_SECRETS_TRANSIT_MOUNT:?}" "${LOCO_SECRETS_TRANSIT_KEY:?}" "${LOCO_INGEST_TRANSIT_KEY:?}"
+	: "${LOCO_SECRETS_TRANSIT_MOUNT:?}" "${LOCO_SECRETS_TRANSIT_KEY:?}" "${LOCO_INGEST_TRANSIT_KEY:?}" "${LOCO_REGISTRY_TRANSIT_KEY:?}"
 	mount=$LOCO_SECRETS_TRANSIT_MOUNT
 	key=$LOCO_SECRETS_TRANSIT_KEY
 	ingest_key=$LOCO_INGEST_TRANSIT_KEY
+	registry_key=$LOCO_REGISTRY_TRANSIT_KEY
 	kubernetes=${OPENBAO_KUBERNETES_HOST:-}
 	[ -z "${OPENBAO_SETUP_ROLE:-}" ] || [ -n "$kubernetes" ] || fail "OPENBAO_SETUP_ROLE needs OPENBAO_KUBERNETES_HOST"
 	if [ -n "$kubernetes" ]; then
@@ -198,6 +208,9 @@ configure() {
 	if ! bao read "$mount/keys/$ingest_key" >/dev/null 2>&1; then
 		bao write -f "$mount/keys/$ingest_key" type=ed25519 >/dev/null
 	fi
+	if ! bao read "$mount/keys/$registry_key" >/dev/null 2>&1; then
+		bao write -f "$mount/keys/$registry_key" type=ed25519 >/dev/null
+	fi
 	write_api_policy
 	if [ -n "$kubernetes" ]; then
 		enable_kubernetes_auth
@@ -213,7 +226,7 @@ EOF
 			write_role "$OPENBAO_SNAPSHOT_ROLE" "$OPENBAO_SNAPSHOT_SERVICE_ACCOUNT" "$snapshot_policy" true "$snapshot_login_ttl"
 		fi
 	fi
-	echo "OpenBao transit keys $mount/$key and $mount/$ingest_key and the $api_policy policy are ready"
+	echo "OpenBao transit keys $mount/$key, $mount/$ingest_key and $mount/$registry_key and the $api_policy policy are ready"
 }
 
 [ "$#" -gt 0 ] || fail "usage: $0 init|configure..."

@@ -17,6 +17,7 @@ const transitSigningKeyType = "ed25519"
 var (
 	ErrTransitSigningKeyType = errors.New("transit signing key must be an ed25519 key")
 	ErrTransitSignature      = errors.New("transit signature is malformed")
+	ErrTransitSigningVersion = errors.New("transit signing key version is not usable")
 )
 
 type TransitSigner struct {
@@ -37,6 +38,7 @@ type transitSigningKeyResponse struct {
 		Type                 string                     `json:"type"`
 		LatestVersion        int                        `json:"latest_version"`
 		MinDecryptionVersion int                        `json:"min_decryption_version"`
+		MinEncryptionVersion int                        `json:"min_encryption_version"`
 		Keys                 map[string]json.RawMessage `json:"keys"`
 	} `json:"data"`
 }
@@ -73,6 +75,26 @@ func (s *TransitSigner) KeyID(ctx context.Context) (string, error) {
 	return transitKeyID(response.Data.LatestVersion), nil
 }
 
+func (s *TransitSigner) Pin(ctx context.Context, version int) (string, ed25519.PublicKey, error) {
+	response, err := s.readKey(ctx)
+	if err != nil {
+		return "", nil, err
+	}
+	if version < response.Data.MinEncryptionVersion {
+		return "", nil, fmt.Errorf(
+			"%w: version %d is below min_encryption_version %d",
+			ErrTransitSigningVersion,
+			version,
+			response.Data.MinEncryptionVersion,
+		)
+	}
+	public, err := response.publicKey(version)
+	if err != nil {
+		return "", nil, err
+	}
+	return transitKeyID(version), public, nil
+}
+
 func (s *TransitSigner) PublicKeys(ctx context.Context) (map[string]ed25519.PublicKey, error) {
 	response, err := s.readKey(ctx)
 	if err != nil {
@@ -80,21 +102,38 @@ func (s *TransitSigner) PublicKeys(ctx context.Context) (map[string]ed25519.Publ
 	}
 	keys := make(map[string]ed25519.PublicKey)
 	for version := response.Data.MinDecryptionVersion; version <= response.Data.LatestVersion; version++ {
-		raw, ok := response.Data.Keys[strconv.Itoa(version)]
-		if !ok {
-			return nil, fmt.Errorf("%w: no public key for version %d", ErrTransitResponse, version)
-		}
-		var entry transitPublicKey
-		if err := json.Unmarshal(raw, &entry); err != nil {
-			return nil, fmt.Errorf("%w: version %d: %w", ErrTransitResponse, version, err)
-		}
-		public, err := base64.StdEncoding.DecodeString(entry.PublicKey)
-		if err != nil || len(public) != ed25519.PublicKeySize {
-			return nil, fmt.Errorf("%w: public key of version %d", ErrTransitResponse, version)
+		public, err := response.publicKey(version)
+		if err != nil {
+			return nil, err
 		}
 		keys[transitKeyID(version)] = public
 	}
 	return keys, nil
+}
+
+func (r transitSigningKeyResponse) publicKey(version int) (ed25519.PublicKey, error) {
+	if version < r.Data.MinDecryptionVersion || version > r.Data.LatestVersion {
+		return nil, fmt.Errorf(
+			"%w: version %d is outside min_decryption_version %d to latest_version %d",
+			ErrTransitSigningVersion,
+			version,
+			r.Data.MinDecryptionVersion,
+			r.Data.LatestVersion,
+		)
+	}
+	raw, ok := r.Data.Keys[strconv.Itoa(version)]
+	if !ok {
+		return nil, fmt.Errorf("%w: no public key for version %d", ErrTransitResponse, version)
+	}
+	var entry transitPublicKey
+	if err := json.Unmarshal(raw, &entry); err != nil {
+		return nil, fmt.Errorf("%w: version %d: %w", ErrTransitResponse, version, err)
+	}
+	public, err := base64.StdEncoding.DecodeString(entry.PublicKey)
+	if err != nil || len(public) != ed25519.PublicKeySize {
+		return nil, fmt.Errorf("%w: public key of version %d", ErrTransitResponse, version)
+	}
+	return public, nil
 }
 
 type transitSignRequest struct {

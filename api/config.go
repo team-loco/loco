@@ -41,6 +41,15 @@ var (
 	errInvalidSecretsTransit  = errors.New("LOCO_SECRETS_TRANSIT_* is invalid")
 	errShortBootstrapToken    = errors.New(bootstrapEnv + " is too short")
 	errInvalidIngestKey       = errors.New("LOCO_INGEST_TRANSIT_KEY is invalid")
+	errInvalidRegistryAuth    = errors.New("LOCO_REGISTRY_AUTH must be static or token")
+	errInvalidRegistryKey     = errors.New("LOCO_REGISTRY_TRANSIT_KEY is invalid")
+	errInvalidRegistryVersion = errors.New("LOCO_REGISTRY_TRANSIT_KEY_VERSION must be a positive integer")
+	errRegistryKeyShared      = errors.New(
+		"LOCO_REGISTRY_TRANSIT_KEY must differ from LOCO_SECRETS_TRANSIT_KEY and LOCO_INGEST_TRANSIT_KEY",
+	)
+	errRegistryStaticOnly = errors.New(
+		"LOCO_REGISTRY_USERNAME and LOCO_REGISTRY_PASSWORD are only for LOCO_REGISTRY_AUTH=static",
+	)
 )
 
 const (
@@ -105,7 +114,15 @@ const (
 	bootstrapEnv               = "LOCO_BOOTSTRAP_TOKEN"
 	minBootstrapTokenLength    = 32
 	defaultIngestTokenLifetime = time.Hour
+
+	registryAuthStatic = "static"
+	registryAuthToken  = "token"
 )
+
+type RegistryAuthConfig struct {
+	Mode       string
+	TransitKey secretkeys.PinnedKey
+}
 
 type APIConfig struct {
 	ObservabilityProxyURL *url.URL
@@ -127,6 +144,7 @@ type APIConfig struct {
 	RegistryHost          string
 	RegistryPrefix        string
 	Registry              registryclient.Config
+	RegistryAuth          RegistryAuthConfig
 	ImageSweep            service.ImageSweepConfig
 	SourceSweep           service.SourceSweepConfig
 	ServiceDefaults       servicedefaults.Defaults
@@ -176,6 +194,7 @@ func newAPIConfig() *APIConfig {
 	eventsRetentionDays := positiveInt32Env("EVENTS_RETENTION_DAYS", defaultEventsRetentionDays)
 	eventsRetention := time.Duration(eventsRetentionDays) * day
 	secrets := newSecretsConfig()
+	registryAuth := newRegistryAuthConfig(registry, secrets.Key, ingestConfig.TransitKey)
 	heartbeatInterval := positiveDurationEnv("LOCO_AGENT_HEARTBEAT_INTERVAL", defaultHeartbeatInterval)
 	bootstrapTokenHash := newBootstrapTokenHash()
 	tracingEnabled := newTracingEnabled()
@@ -208,6 +227,7 @@ func newAPIConfig() *APIConfig {
 		RegistryHost:          registryHost,
 		RegistryPrefix:        registryPrefix,
 		Registry:              registry,
+		RegistryAuth:          registryAuth,
 		ImageSweep:            imageSweep,
 		SourceSweep:           sourceSweep,
 		ServiceDefaults:       serviceDefaults,
@@ -414,6 +434,37 @@ func newRegistryConfig(registryHost string) registryclient.Config {
 		panic(fmt.Errorf("%w: %w", errInvalidRegistry, err))
 	}
 	return cfg
+}
+
+func newRegistryAuthConfig(registry registryclient.Config, secretsKey, ingestKey string) RegistryAuthConfig {
+	mode := stringEnv("LOCO_REGISTRY_AUTH", registryAuthStatic)
+	switch mode {
+	case registryAuthStatic:
+		return RegistryAuthConfig{Mode: mode}
+	case registryAuthToken:
+		return newRegistryTokenAuthConfig(registry, secretsKey, ingestKey)
+	default:
+		panic(fmt.Errorf("%w: %q", errInvalidRegistryAuth, mode))
+	}
+}
+
+func newRegistryTokenAuthConfig(registry registryclient.Config, secretsKey, ingestKey string) RegistryAuthConfig {
+	if registry.Username != "" || registry.Password != "" {
+		panic(errRegistryStaticOnly)
+	}
+	key := stringEnv("LOCO_REGISTRY_TRANSIT_KEY", "")
+	if err := secretkeys.ValidateKeyName(key); err != nil {
+		panic(fmt.Errorf("%w: %w", errInvalidRegistryKey, err))
+	}
+	if key == secretsKey || key == ingestKey {
+		panic(fmt.Errorf("%w: %q", errRegistryKeyShared, key))
+	}
+	version := int32Env("LOCO_REGISTRY_TRANSIT_KEY_VERSION", 0)
+	if version <= 0 {
+		panic(fmt.Errorf("%w: %d", errInvalidRegistryVersion, version))
+	}
+	pinned := secretkeys.PinnedKey{Name: key, Version: int(version)}
+	return RegistryAuthConfig{Mode: registryAuthToken, TransitKey: pinned}
 }
 
 func newImageSweepConfig(registryHost, registryPrefix string) service.ImageSweepConfig {

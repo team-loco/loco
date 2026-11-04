@@ -197,3 +197,61 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+
+  - it: signs registry tokens with the pinned version of the registry key in token mode
+    set:
+      api.registry: {auth: token, transitKeyVersion: 3}
+      openbao.transit.registryKey: region-registry
+      api.env: {LOCO_REGISTRY_AUTH: static, LOCO_REGISTRY_TRANSIT_KEY: wrong, LOCO_REGISTRY_TRANSIT_KEY_VERSION: "9"}
+    template: templates/api-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGISTRY_AUTH, value: token}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGISTRY_TRANSIT_KEY, value: region-registry}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGISTRY_TRANSIT_KEY_VERSION, value: "3"}
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGISTRY_AUTH, value: static}
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGISTRY_TRANSIT_KEY, value: wrong}
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGISTRY_TRANSIT_KEY_VERSION, value: "9"}
+
+  - it: leaves the API in static registry mode by default
+    set:
+      api.env: {LOCO_REGISTRY_AUTH: token}
+    template: templates/api-deployment.yaml
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGISTRY_AUTH}
+          any: true
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGISTRY_TRANSIT_KEY}
+          any: true
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGISTRY_TRANSIT_KEY_VERSION}
+          any: true
+
+  - it: accepts only the static and token registry modes
+    set:
+      api.registry.auth: bearer
+    asserts:
+      - failedTemplate:
+          errorPattern: "/api/registry/auth'"
+
+  - it: requires a registry key version of at least 1
+    set:
+      api.registry.transitKeyVersion: 0
+    asserts:
+      - failedTemplate:
+          errorPattern: "/api/registry/transitKeyVersion': minimum"

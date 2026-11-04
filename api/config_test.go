@@ -56,6 +56,10 @@ const (
 	ingestKeyEnv       = "LOCO_INGEST_TRANSIT_KEY"
 	ingestLifetimeEnv  = "LOCO_INGEST_TOKEN_LIFETIME"
 	testIngestKey      = "loco-ingest"
+	registryAuthEnv    = "LOCO_REGISTRY_AUTH"
+	registryKeyEnv     = "LOCO_REGISTRY_TRANSIT_KEY"
+	registryVersionEnv = "LOCO_REGISTRY_TRANSIT_KEY_VERSION"
+	testRegistryKey    = "loco-registry"
 	testTransitAddr    = "https://bao.loco.test:8200"
 	testTransitKey     = "loco-dek"
 	testTransitAuth    = "s.transit"
@@ -139,6 +143,9 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv(transitCacheEnv, "")
 	t.Setenv(ingestKeyEnv, testIngestKey)
 	t.Setenv(ingestLifetimeEnv, "")
+	t.Setenv(registryAuthEnv, "")
+	t.Setenv(registryKeyEnv, "")
+	t.Setenv(registryVersionEnv, "")
 	t.Setenv("LOCO_SECRETS_MAX_VALUE_BYTES", "")
 	t.Setenv("LOCO_SECRETS_MAX_PER_SERVICE", "")
 	t.Setenv("LOCO_SECRETS_MAX_PLACEMENT_BYTES", "")
@@ -936,5 +943,87 @@ func TestIngestTokenConfiguration(t *testing.T) {
 	t.Setenv(ingestKeyEnv, "transit/"+testIngestKey)
 	if err := panicValue(t, func() { newIngestConfig() }); !errors.Is(err, secretkeys.ErrTransitKeyName) {
 		t.Fatalf("key name with a slash = %v", err)
+	}
+}
+
+func TestRegistryAuthDefaultsToStatic(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv(registryKeyEnv, testRegistryKey)
+	t.Setenv(registryHostEnv, testRegistryHost)
+	t.Setenv(registryUserEnv, testRegistryUser)
+	t.Setenv(registryPassEnv, testRegistryPass)
+	ac := newAPIConfig()
+	want := RegistryAuthConfig{Mode: registryAuthStatic}
+	if ac.RegistryAuth != want {
+		t.Fatalf("registry auth = %+v, want %+v", ac.RegistryAuth, want)
+	}
+	if ac.Registry.Username != testRegistryUser || ac.Registry.Password != testRegistryPass {
+		t.Fatalf("registry = %+v, want the static credentials", ac.Registry)
+	}
+}
+
+func TestRegistryAuthTokenPinsTheTransitKeyVersion(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv(registryAuthEnv, registryAuthToken)
+	t.Setenv(registryKeyEnv, testRegistryKey)
+	t.Setenv(registryVersionEnv, "3")
+	want := RegistryAuthConfig{
+		Mode:       registryAuthToken,
+		TransitKey: secretkeys.PinnedKey{Name: testRegistryKey, Version: 3},
+	}
+	if got := newAPIConfig().RegistryAuth; got != want {
+		t.Fatalf("registry auth = %+v, want %+v", got, want)
+	}
+}
+
+func TestRegistryAuthPanicsOnInvalidConfiguration(t *testing.T) {
+	token := map[string]string{
+		registryAuthEnv:    registryAuthToken,
+		registryKeyEnv:     testRegistryKey,
+		registryVersionEnv: "1",
+	}
+	tests := []struct {
+		name string
+		env  map[string]string
+		want error
+	}{
+		{"unknown mode", map[string]string{registryAuthEnv: "bearer"}, errInvalidRegistryAuth},
+		{"mode in capitals", map[string]string{registryAuthEnv: "Token"}, errInvalidRegistryAuth},
+		{"token without a key", map[string]string{registryKeyEnv: ""}, secretkeys.ErrTransitKeyName},
+		{
+			"token with a key path",
+			map[string]string{registryKeyEnv: "transit/" + testRegistryKey},
+			errInvalidRegistryKey,
+		},
+		{"token with the ingest key", map[string]string{registryKeyEnv: testIngestKey}, errRegistryKeyShared},
+		{"token with the secrets key", map[string]string{registryKeyEnv: testTransitKey}, errRegistryKeyShared},
+		{"token without a version", map[string]string{registryVersionEnv: ""}, errInvalidRegistryVersion},
+		{"token with version zero", map[string]string{registryVersionEnv: "0"}, errInvalidRegistryVersion},
+		{"token with a negative version", map[string]string{registryVersionEnv: "-1"}, errInvalidRegistryVersion},
+		{"token with a version name", map[string]string{registryVersionEnv: "v1"}, errInvalidInt32},
+		{
+			"token with static credentials",
+			map[string]string{
+				registryHostEnv: testRegistryHost,
+				registryUserEnv: testRegistryUser,
+				registryPassEnv: testRegistryPass,
+			},
+			errRegistryStaticOnly,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clearAPIConfigEnv(t)
+			for key, value := range token {
+				t.Setenv(key, value)
+			}
+			for key, value := range tt.env {
+				t.Setenv(key, value)
+			}
+			err := panicValue(t, func() { newAPIConfig() })
+			if !errors.Is(err, tt.want) {
+				t.Errorf("panic = %v, want %v", err, tt.want)
+			}
+		})
 	}
 }

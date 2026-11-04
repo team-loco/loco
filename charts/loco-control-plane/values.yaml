@@ -52,6 +52,12 @@ api:
       existingSecret:
         name: ""
         key: secret
+  # @schema additionalProperties: false
+  registry:
+    # @schema enum: [static, token]
+    auth: static
+    # @schema minimum: 1
+    transitKeyVersion: 1
   env: {}
   # @schema skipProperties
   resources:
@@ -358,6 +364,8 @@ openbao:
     key: loco
     # @schema minLength: 1
     ingestKey: loco-ingest
+    # @schema minLength: 1
+    registryKey: loco-registry
   # @schema additionalProperties: false
   kubernetesAuth:
     mount: kubernetes

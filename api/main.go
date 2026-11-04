@@ -35,6 +35,7 @@ import (
 	"github.com/team-loco/loco/api/migrations"
 	"github.com/team-loco/loco/api/pkg/clusternotify"
 	"github.com/team-loco/loco/api/pkg/imageresolver"
+	"github.com/team-loco/loco/api/pkg/registrytoken"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/tvm"
@@ -286,11 +287,16 @@ func main() {
 	})
 	domainServiceHandler := service.NewDomainServer(pool, queries, machine, ac.ServiceDefaults, clusterSilentAfter)
 	tokenServiceHandler := service.NewTokenServer(pool, queries, machine)
-	secretKeyProvider, ingestSigner, providerErr := secretkeys.New(shutdownCtx, ac.Secrets, ac.Ingest.TransitKey)
+	var registryKey *secretkeys.PinnedKey
+	if ac.RegistryAuth.Mode == registryAuthToken {
+		registryKey = &ac.RegistryAuth.TransitKey
+	}
+	transitKeys, providerErr := secretkeys.New(shutdownCtx, ac.Secrets, ac.Ingest.TransitKey, registryKey)
 	if providerErr != nil {
 		slog.ErrorContext(shutdownCtx, "failed to verify the transit keys", "error", providerErr)
 		os.Exit(1)
 	}
+	secretKeyProvider := transitKeys.Provider
 	agentServiceHandler := service.NewAgentServer(
 		pool,
 		queries,
@@ -301,7 +307,12 @@ func main() {
 		ac.Agent,
 	)
 	ingestClusters := service.NewClusterAuthenticator(queries, ac.Agent.AssertionMaxLifetime)
-	ingestServiceHandler := service.NewIngestServer(queries, ingestClusters, ingestSigner, ac.Ingest.TokenLifetime)
+	ingestServiceHandler := service.NewIngestServer(
+		queries,
+		ingestClusters,
+		transitKeys.Ingest,
+		ac.Ingest.TokenLifetime,
+	)
 	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
 	secretServiceHandler := service.NewSecretServer(pool, queries, secretKeyProvider, ac.SecretLimits)
 	configServiceHandler := service.NewConfigServer(
@@ -329,6 +340,14 @@ func main() {
 	agentv1connect.RegisterAgentServiceHandler(baseServer, agentServiceHandler)
 	ingestv1connect.RegisterIngestServiceHandler(baseServer, ingestServiceHandler)
 	mux.HandleFunc("GET "+ingesttoken.JWKSPath, ingestServiceHandler.JWKS)
+	if registryKey != nil {
+		registryKeyHandler, registryKeyErr := service.NewRegistryKeyHandler(transitKeys.RegistryPublicKey)
+		if registryKeyErr != nil {
+			slog.ErrorContext(shutdownCtx, "failed to encode the registry public key", "error", registryKeyErr)
+			os.Exit(1)
+		}
+		mux.HandleFunc("GET "+registrytoken.KeyPath, registryKeyHandler)
+	}
 	planServiceHandler := service.NewPlanServer(
 		pool,
 		queries,

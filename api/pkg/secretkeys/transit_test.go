@@ -329,15 +329,18 @@ func TestNewTransitRejectsAMissingCAFile(t *testing.T) {
 func TestNewSelectsTransit(t *testing.T) {
 	fake := newFakeTransit(t)
 	server := fake.server()
-	provider, signer, err := New(t.Context(), transitConfig(server.URL), fakeSigningKey)
+	keys, err := New(t.Context(), transitConfig(server.URL), fakeSigningKey, nil)
 	if err != nil {
 		t.Fatalf("new: %v", err)
 	}
-	if provider.Name() != ProviderTransit {
-		t.Fatalf("provider = %q, want transit", provider.Name())
+	if keys.Provider.Name() != ProviderTransit {
+		t.Fatalf("provider = %q, want transit", keys.Provider.Name())
 	}
-	if keyID, err := signer.KeyID(t.Context()); err != nil || keyID != "v1" {
+	if keyID, err := keys.Ingest.KeyID(t.Context()); err != nil || keyID != "v1" {
 		t.Fatalf("signer key id = %q, %v", keyID, err)
+	}
+	if keys.Registry != nil || keys.RegistryKeyID != "" || keys.RegistryPublicKey != nil {
+		t.Fatalf("registry signer without a registry key = %+v", keys)
 	}
 }
 

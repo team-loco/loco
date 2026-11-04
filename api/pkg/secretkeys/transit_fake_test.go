@@ -50,6 +50,7 @@ type fakeTransit struct {
 	signingKeys       []ed25519.PrivateKey
 	signingKeyType    string
 	minSigningVersion int
+	minEncryptVersion int
 	requests          map[string]int
 	block             chan struct{}
 	unavailable       int
@@ -99,6 +100,12 @@ func (f *fakeTransit) trimSigningKeys(minVersion int) {
 	f.minSigningVersion = minVersion
 }
 
+func (f *fakeTransit) raiseMinEncryptionVersion(minVersion int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.minEncryptVersion = minVersion
+}
+
 func (f *fakeTransit) setSigningKeyType(keyType string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -125,6 +132,7 @@ func (f *fakeTransit) readSigningKey(w http.ResponseWriter) {
 		transitTypeField:         f.signingKeyType,
 		"latest_version":         len(f.signingKeys),
 		"min_decryption_version": f.minSigningVersion,
+		"min_encryption_version": f.minEncryptVersion,
 		"keys":                   keys,
 	})
 }
@@ -145,7 +153,7 @@ func (f *fakeTransit) sign(w http.ResponseWriter, r *http.Request) {
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if body.KeyVersion < f.minSigningVersion || body.KeyVersion > len(f.signingKeys) {
+	if body.KeyVersion < max(f.minSigningVersion, f.minEncryptVersion) || body.KeyVersion > len(f.signingKeys) {
 		f.writeError(w, http.StatusBadRequest, "invalid key version")
 		return
 	}
