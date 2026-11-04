@@ -28,6 +28,8 @@ const (
 	buildsDisabledMessage     = "builds are not enabled on the cluster this build was queued on"
 )
 
+var errBuildLeftQueue = errors.New("the build is no longer queued on this cluster")
+
 type buildTracker struct {
 	started  map[uuid.UUID]struct{}
 	active   map[uuid.UUID]struct{}
@@ -108,7 +110,14 @@ func (ss *syncSession) startQueuedBuilds(ctx context.Context) error {
 		if _, held := ss.builds.active[build.ID]; held {
 			continue
 		}
-		msg, msgErr := ss.server.startBuildMessage(ctx, build)
+		msg, msgErr := ss.server.startBuildMessage(ctx, clusterID, build)
+		if errors.Is(msgErr, errBuildLeftQueue) {
+			slog.InfoContext(ctx, "build left the queue before it was sent",
+				"cluster_id", ss.clusterID,
+				"build_id", build.ID,
+			)
+			continue
+		}
 		if msgErr != nil {
 			slog.ErrorContext(ctx, "failed to prepare build for the cluster",
 				"cluster_id", ss.clusterID,
@@ -160,6 +169,7 @@ func (s *AgentServer) failQueuedBuilds(ctx context.Context, clusterID uuid.UUID)
 
 func (s *AgentServer) startBuildMessage(
 	ctx context.Context,
+	clusterID uuid.UUID,
 	build genDb.ListQueuedClusterBuildsRow,
 ) (*agentv1.SyncResponse, error) {
 	sourceURL, err := s.sources.PresignGet(ctx, build.SourceKey, buildSourceURLTTL)
@@ -170,21 +180,48 @@ func (s *AgentServer) startBuildMessage(
 	workspaceID := build.WorkspaceID.String()
 	organizationID := build.OrgID.String()
 	resourceID := build.ResourceID.String()
+	registryCredential, err := s.buildRegistryCredential(ctx, clusterID, build.ID)
+	if err != nil {
+		return nil, err
+	}
 	return &agentv1.SyncResponse{
 		Message: &agentv1.SyncResponse_StartBuild{
 			StartBuild: &agentv1.StartBuild{
-				BuildId:         buildID,
-				OrganizationId:  organizationID,
-				WorkspaceId:     workspaceID,
-				ResourceId:      resourceID,
-				SourceUrl:       sourceURL,
-				DockerfilePath:  build.DockerfilePath,
-				Context:         build.Context,
-				ImageRepository: build.ImageRepository,
-				CacheRef:        build.CacheRef,
+				BuildId:            buildID,
+				OrganizationId:     organizationID,
+				WorkspaceId:        workspaceID,
+				ResourceId:         resourceID,
+				SourceUrl:          sourceURL,
+				DockerfilePath:     build.DockerfilePath,
+				Context:            build.Context,
+				ImageRepository:    build.ImageRepository,
+				CacheRef:           build.CacheRef,
+				RegistryCredential: registryCredential,
 			},
 		},
 	}, nil
+}
+
+func (s *AgentServer) buildRegistryCredential(
+	ctx context.Context,
+	clusterID, buildID uuid.UUID,
+) (string, error) {
+	if !s.config.RegistryTokenMode {
+		return "", nil
+	}
+	secret, hash := newRegistrySecret()
+	created, err := s.queries.CreateBuildRegistryCredential(ctx, genDb.CreateBuildRegistryCredentialParams{
+		SecretHash: hash,
+		BuildID:    buildID,
+		ClusterID:  clusterID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("store registry credential: %w", err)
+	}
+	if created == 0 {
+		return "", errBuildLeftQueue
+	}
+	return secret, nil
 }
 
 func (ss *syncSession) cancelStaleBuilds(ctx context.Context) error {

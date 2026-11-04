@@ -966,6 +966,9 @@ func TestRegistryAuthDefaultsToStatic(t *testing.T) {
 	if ac.RegistryAuth != want {
 		t.Fatalf("registry auth = %+v, want %+v", ac.RegistryAuth, want)
 	}
+	if ac.Agent.RegistryTokenMode {
+		t.Fatal("static registry auth sends builds registry credentials")
+	}
 	if ac.Registry.Username != testRegistryUser || ac.Registry.Password != testRegistryPass {
 		t.Fatalf("registry = %+v, want the static credentials", ac.Registry)
 	}
@@ -985,8 +988,12 @@ func TestRegistryAuthTokenPinsTheTransitKeyVersion(t *testing.T) {
 		PullCredentialLifetime: 24 * time.Hour,
 		CredentialSweep:        10 * time.Minute,
 	}
-	if got := newAPIConfig().RegistryAuth; got != want {
-		t.Fatalf("registry auth = %+v, want %+v", got, want)
+	ac := newAPIConfig()
+	if ac.RegistryAuth != want {
+		t.Fatalf("registry auth = %+v, want %+v", ac.RegistryAuth, want)
+	}
+	if !ac.Agent.RegistryTokenMode {
+		t.Fatal("token registry auth sends builds no registry credentials")
 	}
 }
 

@@ -132,6 +132,10 @@ type RegistryAuthConfig struct {
 	CredentialSweep        time.Duration
 }
 
+func (c RegistryAuthConfig) TokenMode() bool {
+	return c.Mode == registryAuthToken
+}
+
 type APIConfig struct {
 	ObservabilityProxyURL *url.URL
 	Agent                 service.AgentConfig
@@ -203,6 +207,7 @@ func newAPIConfig() *APIConfig {
 	eventsRetention := time.Duration(eventsRetentionDays) * day
 	secrets := newSecretsConfig()
 	registryAuth := newRegistryAuthConfig(registry, secrets.Key, ingestConfig.TransitKey)
+	agentConfig.RegistryTokenMode = registryAuth.TokenMode()
 	heartbeatInterval := positiveDurationEnv("LOCO_AGENT_HEARTBEAT_INTERVAL", defaultHeartbeatInterval)
 	bootstrapTokenHash := newBootstrapTokenHash()
 	tracingEnabled := newTracingEnabled()

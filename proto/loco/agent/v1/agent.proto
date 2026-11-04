@@ -142,6 +142,9 @@ message StartBuild {
     (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
     (buf.validate.field).string.uuid = true
   ];
+  // registry_credential is the password the build presents to the registry token endpoint as user loco-build,
+  // set in token mode; it is valid while this build is queued or running on the cluster.
+  string registry_credential = 10;
 }
 
 message CancelBuild {

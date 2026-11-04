@@ -39,6 +39,7 @@ type AgentConfig struct {
 	JoinTokenTTL         time.Duration
 	DeployAttempts       int32
 	DeployRetryDelay     int32
+	RegistryTokenMode    bool
 }
 
 // AgentServer implements the AgentService for agent communication.

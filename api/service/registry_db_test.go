@@ -75,6 +75,11 @@ func testRegistryConfig() RegistryConfig {
 func newRegistryFixture(t *testing.T, config RegistryConfig) *registryFixture {
 	t.Helper()
 	f := newDeployFixture(t)
+	return registryFixtureFor(t, f, config)
+}
+
+func registryFixtureFor(t *testing.T, f *deployFixture, config RegistryConfig) *registryFixture {
+	t.Helper()
 	public, private, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
@@ -192,6 +197,12 @@ func pullExchange(method, password string, scopes ...string) registryExchange {
 		service:  testRegistryService,
 		scopes:   scopes,
 	}
+}
+
+func buildExchange(method, password string, scopes ...string) registryExchange {
+	e := pullExchange(method, password, scopes...)
+	e.username = RegistryBuildUsername
+	return e
 }
 
 func (f *registryFixture) servedPublicKey(t *testing.T) ed25519.PublicKey {
@@ -557,9 +568,7 @@ func TestRegistryBuildCredentialGrantsItsBuildRepositoryWhileTheBuildRuns(t *tes
 	password := f.insertBuildCredential(t, buildID)
 	sibling := workspaceRepository(f.workspaceID.String(), uuid.NewString())
 	build := func(method string, scopes ...string) registryExchange {
-		e := pullExchange(method, password, scopes...)
-		e.username = RegistryBuildUsername
-		return e
+		return buildExchange(method, password, scopes...)
 	}
 	want := []registrytoken.Access{{
 		Type:    registrytoken.TypeRepository,

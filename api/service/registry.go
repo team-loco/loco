@@ -112,13 +112,12 @@ func (s *RegistryServer) IssuePullCredential(
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidWorkspaceID).WithCause(err)
 	}
-	password := bearer.New("")
-	hash := sha256.Sum256([]byte(password))
+	password, hash := newRegistrySecret()
 	expiresAt := s.now().Add(s.config.PullCredentialLifetime)
 	created, err := s.queries.CreatePullRegistryCredential(ctx, genDb.CreatePullRegistryCredentialParams{
 		ClusterID:   cluster.ID,
 		WorkspaceID: workspaceID,
-		SecretHash:  hash[:],
+		SecretHash:  hash,
 		ExpiresAt:   &expiresAt,
 	})
 	if err != nil {
@@ -133,6 +132,16 @@ func (s *RegistryServer) IssuePullCredential(
 		Password:  password,
 		ExpiresAt: expires,
 	}, nil
+}
+
+func newRegistrySecret() (string, []byte) {
+	secret := bearer.New("")
+	return secret, registrySecretHash(secret)
+}
+
+func registrySecretHash(secret string) []byte {
+	sum := sha256.Sum256([]byte(secret))
+	return sum[:]
 }
 
 type registryTokenRequest struct {
@@ -169,8 +178,8 @@ func (s *RegistryServer) Token(w http.ResponseWriter, r *http.Request) {
 		s.refuseCredential(w)
 		return
 	}
-	hash := sha256.Sum256([]byte(request.password))
-	grant, err := s.queries.GetRegistryGrant(ctx, genDb.GetRegistryGrantParams{SecretHash: hash[:], Kind: kind})
+	hash := registrySecretHash(request.password)
+	grant, err := s.queries.GetRegistryGrant(ctx, genDb.GetRegistryGrantParams{SecretHash: hash, Kind: kind})
 	if errors.Is(err, pgx.ErrNoRows) {
 		s.refuseCredential(w)
 		return

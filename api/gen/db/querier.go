@@ -38,6 +38,7 @@ type Querier interface {
 	// -----------------------------------------------------------------------------
 	CreateAPIToken(ctx context.Context, arg CreateAPITokenParams) error
 	CreateBuild(ctx context.Context, arg CreateBuildParams) (Build, error)
+	CreateBuildRegistryCredential(ctx context.Context, arg CreateBuildRegistryCredentialParams) (int64, error)
 	CreateCluster(ctx context.Context, arg CreateClusterParams) (uuid.UUID, error)
 	// Deployment queries
 	CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (uuid.UUID, error)

@@ -7413,6 +7413,11 @@
             "type": "string",
             "title": "organization_id",
             "format": "uuid"
+          },
+          "registryCredential": {
+            "type": "string",
+            "title": "registry_credential",
+            "description": "registry_credential is the password the build presents to the registry token endpoint as user loco-build,\n set in token mode; it is valid while this build is queued or running on the cluster."
           }
         },
         "title": "StartBuild",

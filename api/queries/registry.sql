@@ -51,3 +51,12 @@ WHERE rc.kind = 'build'
 
 -- name: DeleteClusterRegistryCredentials :exec
 DELETE FROM registry_credentials WHERE cluster_id = $1;
+
+-- name: CreateBuildRegistryCredential :execrows
+INSERT INTO registry_credentials (kind, cluster_id, workspace_id, build_id, secret_hash)
+SELECT 'build', b.cluster_id, r.workspace_id, b.id, sqlc.arg(secret_hash)
+FROM builds b
+JOIN resources r ON r.id = b.resource_id
+WHERE b.id = sqlc.arg(build_id)
+  AND b.cluster_id = sqlc.arg(cluster_id)::uuid
+  AND b.status = 'queued';

@@ -12,6 +12,30 @@ import (
 	"github.com/google/uuid"
 )
 
+const createBuildRegistryCredential = `-- name: CreateBuildRegistryCredential :execrows
+INSERT INTO registry_credentials (kind, cluster_id, workspace_id, build_id, secret_hash)
+SELECT 'build', b.cluster_id, r.workspace_id, b.id, $1
+FROM builds b
+JOIN resources r ON r.id = b.resource_id
+WHERE b.id = $2
+  AND b.cluster_id = $3::uuid
+  AND b.status = 'queued'
+`
+
+type CreateBuildRegistryCredentialParams struct {
+	SecretHash []byte    `json:"secretHash"`
+	BuildID    uuid.UUID `json:"buildId"`
+	ClusterID  uuid.UUID `json:"clusterId"`
+}
+
+func (q *Queries) CreateBuildRegistryCredential(ctx context.Context, arg CreateBuildRegistryCredentialParams) (int64, error) {
+	result, err := q.db.Exec(ctx, createBuildRegistryCredential, arg.SecretHash, arg.BuildID, arg.ClusterID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const createPullRegistryCredential = `-- name: CreatePullRegistryCredential :execrows
 INSERT INTO registry_credentials (kind, cluster_id, workspace_id, secret_hash, expires_at)
 SELECT 'pull', $1, $2, $3, $4

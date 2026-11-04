@@ -289,7 +289,7 @@ func main() {
 	domainServiceHandler := service.NewDomainServer(pool, queries, machine, ac.ServiceDefaults, clusterSilentAfter)
 	tokenServiceHandler := service.NewTokenServer(pool, queries, machine)
 	var registryKey *secretkeys.PinnedKey
-	if ac.RegistryAuth.Mode == registryAuthToken {
+	if ac.RegistryAuth.TokenMode() {
 		registryKey = &ac.RegistryAuth.TransitKey
 	}
 	transitKeys, providerErr := secretkeys.New(shutdownCtx, ac.Secrets, ac.Ingest.TransitKey, registryKey)
@@ -315,7 +315,7 @@ func main() {
 		ac.Ingest.TokenLifetime,
 	)
 	registryConfig := service.RegistryConfig{
-		TokenMode:              registryKey != nil,
+		TokenMode:              ac.RegistryAuth.TokenMode(),
 		Service:                ac.RegistryAuth.Service,
 		Issuer:                 ac.WebURL,
 		RegistryHost:           ac.RegistryHost,
