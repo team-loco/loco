@@ -70,20 +70,20 @@ Builds, tests, code generation, linting and the local environment are mise tasks
 
 ## Code Style
 
+Load the `go-review` skill before writing or reviewing Go: it lists the mistakes this codebase
+keeps making that linters cannot catch.
+
 - **Imports**: stdlib → third-party → local packages; grouped with blank lines
 - **Error handling**: Wrap with `fmt.Errorf("context: %w", err)`; use `slog.ErrorContext()`
 - **Errors stay visible**: log a failure that needs a person at ERROR, and stop rather than retry an error a retry cannot fix (a removed resource, a rejected credential, invalid configuration). WARN is only for a condition the code handles itself, such as a dropped stream it reconnects.
 - **Naming**: camelCase for unexported, PascalCase for exported; descriptive names
-- **Types**: Use protobuf types for API; shared types in `internal/`, CLI-only packages in `cmd/internal/`; interfaces for abstraction
+- **Types**: Use protobuf types for API; shared types in `internal/`, CLI-only packages in `cmd/internal/`. Start with concrete types: accept interfaces, return concrete types, and add an interface only when a second real implementation exists, never just so a test can fake one
 - **Logging**: `slog` package with structured logging; `slog.InfoContext(ctx, "message")`
 - **Concurrency**: Context-based cancellation; goroutines with proper cleanup
 - **Formatting**: `gofmt` compatible; single import per line in groups.
-- **Comments**: never add a comment unless it is explicitly requested. this applies to
-  every comment, including ones explaining a non-obvious fix, justifying a change, or
-  pointing at a deprecation or a follow-up -- put that in the commit message or the PR
-  body instead, where it does not rot. `//nolint` and other tool directives are not
-  comments for this purpose; keep them minimal. when a comment is requested: it must not
-  be capitalized, unless it is go style (for function / struct / interface docstring).
+- **Comments** explain why, never what: a constraint, a non-obvious decision, the bug a line
+  avoids. Delete comments that restate the code. Follow-ups and deprecations go in an issue,
+  not a comment. Comments are lower-case unless they are Go doc comments.
 - **Switch statements**: never group `case` labels to share a body. Every case gets its own body, even when two cases return the same value — grouped labels are a fallthrough, and a later edit that adds a statement under the first label silently changes the second. Prefer an explicit `case X: return "a"; case Y: return "a";` over `case X: case Y: return "a";`.
 - **Proto Optional Fields**: Always use getter syntax (e.g., `r.GetDescription()`) instead of pointer checks. Never write `r.Description != nil && *r.Description != ""`. Set one with `new`: `Name: new("renamed")`.
 - **Errors**: don't scatter `errors.New()` / `fmt.Errorf()` through function bodies. Any error with a fixed message is a package-level variable: in the package's `errors.go` when several files use it, otherwise in a `var` block at the top of the file. Reuse an existing sentinel before declaring a new one. Inline is only for errors that wrap or format runtime values (`fmt.Errorf("context: %w", err)`).
