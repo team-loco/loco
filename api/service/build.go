@@ -111,15 +111,17 @@ func (s *BuildServer) authorize(ctx context.Context, action actions.Action, reso
 
 func imageRepository(registryHost, registryPrefix string, workspaceID, resourceID uuid.UUID) string {
 	host := strings.TrimSuffix(registryHost, "/")
-	parts := []string{host}
+	workspacePath := workspaceRepositoryPrefix(registryPrefix, workspaceID)
+	return host + "/" + workspacePath + resourceID.String()
+}
+
+func workspaceRepositoryPrefix(registryPrefix string, workspaceID uuid.UUID) string {
+	workspacePath := workspacePathPrefix + workspaceID.String() + "/"
 	prefix := strings.Trim(registryPrefix, "/")
-	if prefix != "" {
-		parts = append(parts, prefix)
+	if prefix == "" {
+		return workspacePath
 	}
-	workspacePath := workspacePathPrefix + workspaceID.String()
-	resourcePath := resourceID.String()
-	parts = append(parts, workspacePath, resourcePath)
-	return strings.Join(parts, "/")
+	return prefix + "/" + workspacePath
 }
 
 func buildSourceKey(buildID uuid.UUID) string {

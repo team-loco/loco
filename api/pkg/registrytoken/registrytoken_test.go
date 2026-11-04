@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"reflect"
 	"testing"
 	"time"
@@ -134,5 +135,93 @@ func TestSignedTokenWithoutAccessCarriesAnEmptyList(t *testing.T) {
 	}
 	if _, ok := raw["loco.build"]; ok {
 		t.Fatalf("claims = %v, want no loco.build", raw)
+	}
+}
+
+func TestParseScopesReadsRepeatedAndSpaceSeparatedRepositoryScopes(t *testing.T) {
+	params := []string{
+		"repository:builds/ws-a/r1:pull,push repository:builds/ws-a/r2:pull",
+		"registry:catalog:*",
+		"repository::pull",
+		"repository(plugin):builds/ws-a/r3:pull",
+		" repository:host:5000/ws-a/r4:delete ",
+	}
+	got, err := registrytoken.ParseScopes(params)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pull := []string{registrytoken.ActionPull}
+	pullPush := []string{registrytoken.ActionPull, registrytoken.ActionPush}
+	want := []registrytoken.Access{
+		{Type: registrytoken.TypeRepository, Name: "builds/ws-a/r1", Actions: pullPush},
+		{Type: registrytoken.TypeRepository, Name: "builds/ws-a/r2", Actions: pull},
+		{Type: registrytoken.TypeRepository, Name: "", Actions: pull},
+		{Type: registrytoken.TypeRepository, Name: "host:5000/ws-a/r4", Actions: []string{"delete"}},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("scopes = %+v, want %+v", got, want)
+	}
+}
+
+func TestParseScopeRejectsMalformedScopes(t *testing.T) {
+	for _, scope := range []string{
+		"repository",
+		"repository:builds/ws-a/r",
+		":builds/ws-a/r:pull",
+		"repository:builds/ws-a/r:",
+		"repository:builds/ws-a/r:pull,",
+		"repository:builds/ws-a/r:,pull",
+		"repository:builds/ws-a/r:pull,,push",
+	} {
+		if _, err := registrytoken.ParseScope(scope); !errors.Is(err, registrytoken.ErrMalformedScope) {
+			t.Errorf("ParseScope(%q) = %v, want ErrMalformedScope", scope, err)
+		}
+		if _, err := registrytoken.ParseScopes([]string{scope}); !errors.Is(err, registrytoken.ErrMalformedScope) {
+			t.Errorf("ParseScopes(%q) = %v, want ErrMalformedScope", scope, err)
+		}
+	}
+}
+
+func TestParseScopeRefusesTypesOtherThanRepository(t *testing.T) {
+	for _, scope := range []string{"registry:catalog:*", "repository(plugin):a:pull", "Repository:a:pull"} {
+		if _, err := registrytoken.ParseScope(scope); !errors.Is(err, registrytoken.ErrScopeType) {
+			t.Errorf("ParseScope(%q) = %v, want ErrScopeType", scope, err)
+		}
+	}
+}
+
+func TestValidRepositoryFollowsTheOCINameGrammar(t *testing.T) {
+	valid := []string{
+		"r",
+		"builds/ws-0199e0a4-1111-7000-8000-000000000001/0199e0a4-2222-7000-8000-000000000002",
+		"a.b/c_d/e__f/g--h",
+	}
+	for _, name := range valid {
+		if !registrytoken.ValidRepository(name) {
+			t.Errorf("ValidRepository(%q) = false, want true", name)
+		}
+	}
+	invalid := []string{
+		"",
+		"..",
+		"builds/ws-a/../ws-b/r",
+		"builds/./r",
+		"a//b",
+		"/a",
+		"a/",
+		"Builds/ws-a/r",
+		"builds/ws-A/r",
+		"a___b",
+		"a._b",
+		"-a",
+		"a-",
+		"host:5000/a",
+		"a b",
+		"a\n",
+	}
+	for _, name := range invalid {
+		if registrytoken.ValidRepository(name) {
+			t.Errorf("ValidRepository(%q) = true, want false", name)
+		}
 	}
 }

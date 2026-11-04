@@ -53,6 +53,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/ingest/v1/ingestv1connect"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 	planv1connect "github.com/team-loco/loco/gen/go/loco/plan/v1/planv1connect"
+	"github.com/team-loco/loco/gen/go/loco/registry/v1/registryv1connect"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/gen/go/loco/secret/v1/secretv1connect"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
@@ -306,12 +307,28 @@ func main() {
 		ac.HeartbeatInterval,
 		ac.Agent,
 	)
-	ingestClusters := service.NewClusterAuthenticator(queries, ac.Agent.AssertionMaxLifetime)
+	clusterAuthenticator := service.NewClusterAuthenticator(queries, ac.Agent.AssertionMaxLifetime)
 	ingestServiceHandler := service.NewIngestServer(
 		queries,
-		ingestClusters,
+		clusterAuthenticator,
 		transitKeys.Ingest,
 		ac.Ingest.TokenLifetime,
+	)
+	registryConfig := service.RegistryConfig{
+		TokenMode:              registryKey != nil,
+		Service:                ac.RegistryAuth.Service,
+		Issuer:                 ac.WebURL,
+		RegistryHost:           ac.RegistryHost,
+		RegistryPrefix:         ac.RegistryPrefix,
+		AccessTokenLifetime:    ac.RegistryAuth.AccessTokenLifetime,
+		PullCredentialLifetime: ac.RegistryAuth.PullCredentialLifetime,
+	}
+	registryServiceHandler := service.NewRegistryServer(
+		queries,
+		clusterAuthenticator,
+		transitKeys.Registry,
+		transitKeys.RegistryKeyID,
+		registryConfig,
 	)
 	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
 	secretServiceHandler := service.NewSecretServer(pool, queries, secretKeyProvider, ac.SecretLimits)
@@ -339,6 +356,7 @@ func main() {
 	tokenv1connect.RegisterTokenServiceHandler(authenticatedServer, tokenServiceHandler)
 	agentv1connect.RegisterAgentServiceHandler(baseServer, agentServiceHandler)
 	ingestv1connect.RegisterIngestServiceHandler(baseServer, ingestServiceHandler)
+	registryv1connect.RegisterRegistryServiceHandler(baseServer, registryServiceHandler)
 	mux.HandleFunc("GET "+ingesttoken.JWKSPath, ingestServiceHandler.JWKS)
 	if registryKey != nil {
 		registryKeyHandler, registryKeyErr := service.NewRegistryKeyHandler(transitKeys.RegistryPublicKey)
@@ -347,6 +365,10 @@ func main() {
 			os.Exit(1)
 		}
 		mux.HandleFunc("GET "+registrytoken.KeyPath, registryKeyHandler)
+		mux.HandleFunc("GET "+registrytoken.TokenPath, registryServiceHandler.Token)
+		mux.HandleFunc("POST "+registrytoken.TokenPath, registryServiceHandler.Token)
+		registrySweeper := service.NewRegistrySweeper(pool, ac.RegistryAuth.CredentialSweep)
+		background.Go(func() { registrySweeper.Run(shutdownCtx) })
 	}
 	planServiceHandler := service.NewPlanServer(
 		pool,

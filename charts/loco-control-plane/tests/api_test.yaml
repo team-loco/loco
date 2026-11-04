@@ -200,9 +200,13 @@ tests:
 
   - it: signs registry tokens with the pinned version of the registry key in token mode
     set:
-      api.registry: {auth: token, transitKeyVersion: 3}
+      api.registry: {auth: token, transitKeyVersion: 3, service: loco-registry}
       openbao.transit.registryKey: region-registry
-      api.env: {LOCO_REGISTRY_AUTH: static, LOCO_REGISTRY_TRANSIT_KEY: wrong, LOCO_REGISTRY_TRANSIT_KEY_VERSION: "9"}
+      api.env:
+        LOCO_REGISTRY_AUTH: static
+        LOCO_REGISTRY_TRANSIT_KEY: wrong
+        LOCO_REGISTRY_TRANSIT_KEY_VERSION: "9"
+        LOCO_REGISTRY_TOKEN_SERVICE: wrong
     template: templates/api-deployment.yaml
     asserts:
       - contains:
@@ -223,10 +227,16 @@ tests:
       - notContains:
           path: spec.template.spec.containers[0].env
           content: {name: LOCO_REGISTRY_TRANSIT_KEY_VERSION, value: "9"}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGISTRY_TOKEN_SERVICE, value: loco-registry}
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGISTRY_TOKEN_SERVICE, value: wrong}
 
   - it: leaves the API in static registry mode by default
     set:
-      api.env: {LOCO_REGISTRY_AUTH: token}
+      api.env: {LOCO_REGISTRY_AUTH: token, LOCO_REGISTRY_TOKEN_SERVICE: loco-registry}
     template: templates/api-deployment.yaml
     asserts:
       - notContains:
@@ -240,6 +250,10 @@ tests:
       - notContains:
           path: spec.template.spec.containers[0].env
           content: {name: LOCO_REGISTRY_TRANSIT_KEY_VERSION}
+          any: true
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGISTRY_TOKEN_SERVICE}
           any: true
 
   - it: accepts only the static and token registry modes
@@ -255,3 +269,11 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: "/api/registry/transitKeyVersion': minimum"
+
+  - it: requires the registry token service in token mode
+    set:
+      api.registry.auth: token
+    template: templates/api-deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: api.registry.service is required when api.registry.auth is token

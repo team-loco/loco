@@ -20,52 +20,57 @@ import (
 )
 
 const (
-	maxReplicasEnv     = "LOCO_DEFAULT_MAX_REPLICAS"
-	registryHostEnv    = "LOCO_REGISTRY_HOST"
-	registryUserEnv    = "LOCO_REGISTRY_USERNAME"
-	registryPassEnv    = "LOCO_REGISTRY_PASSWORD"
-	testRegistryHost   = "registry.loco.test"
-	testRegistryUser   = "api"
-	testRegistryPass   = "secret"
-	retentionDaysEnv   = "EVENTS_RETENTION_DAYS"
-	installHooksEnv    = "INSTALL_WEBHOOKS"
-	orgLinksEnv        = "ORG_LINKS"
-	authIssuersEnv     = "AUTH_ISSUERS"
-	testAdminEnv       = "LOCO_TEST_ADMIN_TOKEN"
-	testAdminToken     = "service-key"
-	testIssuer         = "https://issuer.loco.test"
-	testHookURL        = "https://hooks.loco.test/events"
-	testHTTPHookURL    = "http://hooks.loco.test/events"
-	testEmailFrom      = "noreply@loco.test"
-	testDatabaseURL    = "postgres://db.loco.test:5432/loco"
-	testHookSecret     = "whsec_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-	transitAddrEnv     = "LOCO_SECRETS_TRANSIT_ADDR"
-	transitMountEnv    = "LOCO_SECRETS_TRANSIT_MOUNT"
-	transitKeyEnv      = "LOCO_SECRETS_TRANSIT_KEY"
-	transitMethodEnv   = "LOCO_SECRETS_TRANSIT_AUTH"
-	transitAuthEnv     = "LOCO_SECRETS_TRANSIT_TOKEN"
-	transitKubeMount   = "LOCO_SECRETS_TRANSIT_KUBERNETES_MOUNT"
-	transitKubeRole    = "LOCO_SECRETS_TRANSIT_KUBERNETES_ROLE"
-	transitKubeJWTFile = "LOCO_SECRETS_TRANSIT_KUBERNETES_TOKEN_FILE"
-	transitCAEnv       = "LOCO_SECRETS_TRANSIT_CA_FILE"
-	transitTimeEnv     = "LOCO_SECRETS_TRANSIT_TIMEOUT"
-	transitStartupEnv  = "LOCO_SECRETS_TRANSIT_STARTUP_TIMEOUT"
-	transitMarginEnv   = "LOCO_SECRETS_TRANSIT_RENEW_MARGIN"
-	transitRetryEnv    = "LOCO_SECRETS_TRANSIT_RENEW_RETRY"
-	transitCacheEnv    = "LOCO_SECRETS_TRANSIT_CACHE_TTL"
-	ingestKeyEnv       = "LOCO_INGEST_TRANSIT_KEY"
-	ingestLifetimeEnv  = "LOCO_INGEST_TOKEN_LIFETIME"
-	testIngestKey      = "loco-ingest"
-	registryAuthEnv    = "LOCO_REGISTRY_AUTH"
-	registryKeyEnv     = "LOCO_REGISTRY_TRANSIT_KEY"
-	registryVersionEnv = "LOCO_REGISTRY_TRANSIT_KEY_VERSION"
-	testRegistryKey    = "loco-registry"
-	testTransitAddr    = "https://bao.loco.test:8200"
-	testTransitKey     = "loco-dek"
-	testTransitAuth    = "s.transit"
-	testTransitRole    = "loco-api"
-	testTransitKube    = "kubernetes"
-	testTransitJWT     = "/var/run/secrets/openbao/token"
+	maxReplicasEnv      = "LOCO_DEFAULT_MAX_REPLICAS"
+	registryHostEnv     = "LOCO_REGISTRY_HOST"
+	registryUserEnv     = "LOCO_REGISTRY_USERNAME"
+	registryPassEnv     = "LOCO_REGISTRY_PASSWORD"
+	testRegistryHost    = "registry.loco.test"
+	testRegistryUser    = "api"
+	testRegistryPass    = "secret"
+	retentionDaysEnv    = "EVENTS_RETENTION_DAYS"
+	installHooksEnv     = "INSTALL_WEBHOOKS"
+	orgLinksEnv         = "ORG_LINKS"
+	authIssuersEnv      = "AUTH_ISSUERS"
+	testAdminEnv        = "LOCO_TEST_ADMIN_TOKEN"
+	testAdminToken      = "service-key"
+	testIssuer          = "https://issuer.loco.test"
+	testHookURL         = "https://hooks.loco.test/events"
+	testHTTPHookURL     = "http://hooks.loco.test/events"
+	testEmailFrom       = "noreply@loco.test"
+	testDatabaseURL     = "postgres://db.loco.test:5432/loco"
+	testHookSecret      = "whsec_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+	transitAddrEnv      = "LOCO_SECRETS_TRANSIT_ADDR"
+	transitMountEnv     = "LOCO_SECRETS_TRANSIT_MOUNT"
+	transitKeyEnv       = "LOCO_SECRETS_TRANSIT_KEY"
+	transitMethodEnv    = "LOCO_SECRETS_TRANSIT_AUTH"
+	transitAuthEnv      = "LOCO_SECRETS_TRANSIT_TOKEN"
+	transitKubeMount    = "LOCO_SECRETS_TRANSIT_KUBERNETES_MOUNT"
+	transitKubeRole     = "LOCO_SECRETS_TRANSIT_KUBERNETES_ROLE"
+	transitKubeJWTFile  = "LOCO_SECRETS_TRANSIT_KUBERNETES_TOKEN_FILE"
+	transitCAEnv        = "LOCO_SECRETS_TRANSIT_CA_FILE"
+	transitTimeEnv      = "LOCO_SECRETS_TRANSIT_TIMEOUT"
+	transitStartupEnv   = "LOCO_SECRETS_TRANSIT_STARTUP_TIMEOUT"
+	transitMarginEnv    = "LOCO_SECRETS_TRANSIT_RENEW_MARGIN"
+	transitRetryEnv     = "LOCO_SECRETS_TRANSIT_RENEW_RETRY"
+	transitCacheEnv     = "LOCO_SECRETS_TRANSIT_CACHE_TTL"
+	ingestKeyEnv        = "LOCO_INGEST_TRANSIT_KEY"
+	ingestLifetimeEnv   = "LOCO_INGEST_TOKEN_LIFETIME"
+	testIngestKey       = "loco-ingest"
+	registryAuthEnv     = "LOCO_REGISTRY_AUTH"
+	registryKeyEnv      = "LOCO_REGISTRY_TRANSIT_KEY"
+	registryVersionEnv  = "LOCO_REGISTRY_TRANSIT_KEY_VERSION"
+	registryServiceEnv  = "LOCO_REGISTRY_TOKEN_SERVICE"
+	registryAccessEnv   = "LOCO_REGISTRY_ACCESS_TOKEN_LIFETIME"
+	registryPullEnv     = "LOCO_REGISTRY_PULL_CREDENTIAL_LIFETIME"
+	registrySweepEnv    = "LOCO_REGISTRY_CREDENTIAL_SWEEP_INTERVAL"
+	testRegistryService = "loco-registry-service"
+	testRegistryKey     = "loco-registry"
+	testTransitAddr     = "https://bao.loco.test:8200"
+	testTransitKey      = "loco-dek"
+	testTransitAuth     = "s.transit"
+	testTransitRole     = "loco-api"
+	testTransitKube     = "kubernetes"
+	testTransitJWT      = "/var/run/secrets/openbao/token"
 )
 
 var adminIssuers = `[{"issuer":"` + testIssuer + `","audience":"loco",` +
@@ -146,6 +151,10 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv(registryAuthEnv, "")
 	t.Setenv(registryKeyEnv, "")
 	t.Setenv(registryVersionEnv, "")
+	t.Setenv(registryServiceEnv, "")
+	t.Setenv(registryAccessEnv, "")
+	t.Setenv(registryPullEnv, "")
+	t.Setenv(registrySweepEnv, "")
 	t.Setenv("LOCO_SECRETS_MAX_VALUE_BYTES", "")
 	t.Setenv("LOCO_SECRETS_MAX_PER_SERVICE", "")
 	t.Setenv("LOCO_SECRETS_MAX_PLACEMENT_BYTES", "")
@@ -967,12 +976,35 @@ func TestRegistryAuthTokenPinsTheTransitKeyVersion(t *testing.T) {
 	t.Setenv(registryAuthEnv, registryAuthToken)
 	t.Setenv(registryKeyEnv, testRegistryKey)
 	t.Setenv(registryVersionEnv, "3")
+	t.Setenv(registryServiceEnv, testRegistryService)
 	want := RegistryAuthConfig{
-		Mode:       registryAuthToken,
-		TransitKey: secretkeys.PinnedKey{Name: testRegistryKey, Version: 3},
+		Mode:                   registryAuthToken,
+		TransitKey:             secretkeys.PinnedKey{Name: testRegistryKey, Version: 3},
+		Service:                testRegistryService,
+		AccessTokenLifetime:    5 * time.Minute,
+		PullCredentialLifetime: 24 * time.Hour,
+		CredentialSweep:        10 * time.Minute,
 	}
 	if got := newAPIConfig().RegistryAuth; got != want {
 		t.Fatalf("registry auth = %+v, want %+v", got, want)
+	}
+}
+
+func TestRegistryAuthTokenReadsTheLifetimes(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv(registryAuthEnv, registryAuthToken)
+	t.Setenv(registryKeyEnv, testRegistryKey)
+	t.Setenv(registryVersionEnv, "1")
+	t.Setenv(registryServiceEnv, testRegistryService)
+	t.Setenv(registryAccessEnv, "90s")
+	t.Setenv(registryPullEnv, "2m")
+	t.Setenv(registrySweepEnv, "30s")
+	got := newAPIConfig().RegistryAuth
+	if got.AccessTokenLifetime != 90*time.Second || got.PullCredentialLifetime != 2*time.Minute {
+		t.Fatalf("lifetimes = %s and %s, want 1m30s and 2m", got.AccessTokenLifetime, got.PullCredentialLifetime)
+	}
+	if got.CredentialSweep != 30*time.Second {
+		t.Fatalf("credential sweep interval = %s, want 30s", got.CredentialSweep)
 	}
 }
 
@@ -981,6 +1013,7 @@ func TestRegistryAuthPanicsOnInvalidConfiguration(t *testing.T) {
 		registryAuthEnv:    registryAuthToken,
 		registryKeyEnv:     testRegistryKey,
 		registryVersionEnv: "1",
+		registryServiceEnv: testRegistryService,
 	}
 	tests := []struct {
 		name string
@@ -1001,6 +1034,11 @@ func TestRegistryAuthPanicsOnInvalidConfiguration(t *testing.T) {
 		{"token with version zero", map[string]string{registryVersionEnv: "0"}, errInvalidRegistryVersion},
 		{"token with a negative version", map[string]string{registryVersionEnv: "-1"}, errInvalidRegistryVersion},
 		{"token with a version name", map[string]string{registryVersionEnv: "v1"}, errInvalidInt32},
+		{"token without a service", map[string]string{registryServiceEnv: ""}, errMissingRegistryService},
+		{"token with a zero access lifetime", map[string]string{registryAccessEnv: "0s"}, errNotPositive},
+		{"token with a negative pull lifetime", map[string]string{registryPullEnv: "-1h"}, errNotPositive},
+		{"token with a pull lifetime in hours", map[string]string{registryPullEnv: "24"}, errInvalidDuration},
+		{"token with a zero sweep interval", map[string]string{registrySweepEnv: "0s"}, errNotPositive},
 		{
 			"token with static credentials",
 			map[string]string{

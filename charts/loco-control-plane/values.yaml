@@ -58,6 +58,7 @@ api:
     auth: static
     # @schema minimum: 1
     transitKeyVersion: 1
+    service: ""
   env: {}
   # @schema skipProperties
   resources:

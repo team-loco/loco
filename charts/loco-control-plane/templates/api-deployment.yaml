@@ -35,7 +35,7 @@ spec:
             - secretRef:
                 name: {{ .Values.api.existingSecret | quote }}
           env:
-            {{- range $name, $value := omit .Values.api.env "APP_PORT" "OBSERVABILITY_PROXY_URL" "LOCO_SECRETS_TRANSIT_ADDR" "LOCO_SECRETS_TRANSIT_MOUNT" "LOCO_SECRETS_TRANSIT_KEY" "LOCO_SECRETS_TRANSIT_CA_FILE" "LOCO_SECRETS_TRANSIT_AUTH" "LOCO_SECRETS_TRANSIT_TOKEN" "LOCO_SECRETS_TRANSIT_KUBERNETES_MOUNT" "LOCO_SECRETS_TRANSIT_KUBERNETES_ROLE" "LOCO_SECRETS_TRANSIT_KUBERNETES_TOKEN_FILE" "LOCO_INGEST_TRANSIT_KEY" "LOCO_REGISTRY_AUTH" "LOCO_REGISTRY_TRANSIT_KEY" "LOCO_REGISTRY_TRANSIT_KEY_VERSION" }}
+            {{- range $name, $value := omit .Values.api.env "APP_PORT" "OBSERVABILITY_PROXY_URL" "LOCO_SECRETS_TRANSIT_ADDR" "LOCO_SECRETS_TRANSIT_MOUNT" "LOCO_SECRETS_TRANSIT_KEY" "LOCO_SECRETS_TRANSIT_CA_FILE" "LOCO_SECRETS_TRANSIT_AUTH" "LOCO_SECRETS_TRANSIT_TOKEN" "LOCO_SECRETS_TRANSIT_KUBERNETES_MOUNT" "LOCO_SECRETS_TRANSIT_KUBERNETES_ROLE" "LOCO_SECRETS_TRANSIT_KUBERNETES_TOKEN_FILE" "LOCO_INGEST_TRANSIT_KEY" "LOCO_REGISTRY_AUTH" "LOCO_REGISTRY_TRANSIT_KEY" "LOCO_REGISTRY_TRANSIT_KEY_VERSION" "LOCO_REGISTRY_TOKEN_SERVICE" }}
             - name: {{ $name }}
               value: {{ $value | quote }}
             {{- end }}
@@ -56,6 +56,8 @@ spec:
               value: {{ .Values.openbao.transit.registryKey | quote }}
             - name: LOCO_REGISTRY_TRANSIT_KEY_VERSION
               value: {{ .Values.api.registry.transitKeyVersion | quote }}
+            - name: LOCO_REGISTRY_TOKEN_SERVICE
+              value: {{ required "api.registry.service is required when api.registry.auth is token" .Values.api.registry.service | quote }}
             {{- end }}
             {{- if $tokenAuth }}
             - name: LOCO_SECRETS_TRANSIT_AUTH

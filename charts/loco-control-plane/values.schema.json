@@ -113,6 +113,9 @@
                 "token"
               ]
             },
+            "service": {
+              "type": "string"
+            },
             "transitKeyVersion": {
               "type": "integer",
               "minimum": 1

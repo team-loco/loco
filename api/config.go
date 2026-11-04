@@ -44,6 +44,7 @@ var (
 	errInvalidRegistryAuth    = errors.New("LOCO_REGISTRY_AUTH must be static or token")
 	errInvalidRegistryKey     = errors.New("LOCO_REGISTRY_TRANSIT_KEY is invalid")
 	errInvalidRegistryVersion = errors.New("LOCO_REGISTRY_TRANSIT_KEY_VERSION must be a positive integer")
+	errMissingRegistryService = errors.New("LOCO_REGISTRY_TOKEN_SERVICE is required for LOCO_REGISTRY_AUTH=token")
 	errRegistryKeyShared      = errors.New(
 		"LOCO_REGISTRY_TRANSIT_KEY must differ from LOCO_SECRETS_TRANSIT_KEY and LOCO_INGEST_TRANSIT_KEY",
 	)
@@ -115,13 +116,20 @@ const (
 	minBootstrapTokenLength    = 32
 	defaultIngestTokenLifetime = time.Hour
 
-	registryAuthStatic = "static"
-	registryAuthToken  = "token"
+	registryAuthStatic                    = "static"
+	registryAuthToken                     = "token"
+	defaultRegistryAccessTokenLifetime    = 5 * time.Minute
+	defaultRegistryPullCredentialLifetime = 24 * time.Hour
+	defaultRegistryCredentialSweep        = 10 * time.Minute
 )
 
 type RegistryAuthConfig struct {
-	Mode       string
-	TransitKey secretkeys.PinnedKey
+	Mode                   string
+	TransitKey             secretkeys.PinnedKey
+	Service                string
+	AccessTokenLifetime    time.Duration
+	PullCredentialLifetime time.Duration
+	CredentialSweep        time.Duration
 }
 
 type APIConfig struct {
@@ -463,8 +471,24 @@ func newRegistryTokenAuthConfig(registry registryclient.Config, secretsKey, inge
 	if version <= 0 {
 		panic(fmt.Errorf("%w: %d", errInvalidRegistryVersion, version))
 	}
-	pinned := secretkeys.PinnedKey{Name: key, Version: int(version)}
-	return RegistryAuthConfig{Mode: registryAuthToken, TransitKey: pinned}
+	tokenService := stringEnv("LOCO_REGISTRY_TOKEN_SERVICE", "")
+	if tokenService == "" {
+		panic(errMissingRegistryService)
+	}
+	accessLifetime := positiveDurationEnv("LOCO_REGISTRY_ACCESS_TOKEN_LIFETIME", defaultRegistryAccessTokenLifetime)
+	pullLifetime := positiveDurationEnv(
+		"LOCO_REGISTRY_PULL_CREDENTIAL_LIFETIME",
+		defaultRegistryPullCredentialLifetime,
+	)
+	sweepInterval := positiveDurationEnv("LOCO_REGISTRY_CREDENTIAL_SWEEP_INTERVAL", defaultRegistryCredentialSweep)
+	return RegistryAuthConfig{
+		Mode:                   registryAuthToken,
+		TransitKey:             secretkeys.PinnedKey{Name: key, Version: int(version)},
+		Service:                tokenService,
+		AccessTokenLifetime:    accessLifetime,
+		PullCredentialLifetime: pullLifetime,
+		CredentialSweep:        sweepInterval,
+	}
 }
 
 func newImageSweepConfig(registryHost, registryPrefix string) service.ImageSweepConfig {

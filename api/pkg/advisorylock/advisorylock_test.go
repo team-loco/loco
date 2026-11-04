@@ -7,6 +7,7 @@ func TestKeysAreDistinct(t *testing.T) {
 		"SourceSweep":        SourceSweep,
 		"ImageSweep":         ImageSweep,
 		"InstallWebhookSync": InstallWebhookSync,
+		"RegistrySweep":      RegistrySweep,
 	}
 	owners := map[int64]string{}
 	for name, key := range keys {
