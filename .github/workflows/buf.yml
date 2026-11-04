@@ -10,6 +10,7 @@ on:
       - "**/buf.lock"
       - "**/buf.gen.yaml"
       - "gen/**"
+      - "api/gen/openapi/**"
       - "go.mod"
       - "go.sum"
       - "package.json"
@@ -47,14 +48,14 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Regenerate Go and TypeScript from the protos
+      - name: Regenerate Go, TypeScript and OpenAPI from the protos
         run: buf generate
 
       - name: Fail if anything is out of date
         run: |
-          if [ -n "$(git status --porcelain -- gen)" ]; then
-            git status --short -- gen
-            git diff -- gen
+          if [ -n "$(git status --porcelain -- gen api/gen/openapi)" ]; then
+            git status --short -- gen api/gen/openapi
+            git diff -- gen api/gen/openapi
             echo "::error::Generated code is out of date. Run 'mise run gen' and commit the result."
             exit 1
           fi

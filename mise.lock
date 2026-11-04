@@ -547,6 +547,11 @@ url = "https://dl.google.com/go/go1.27.3.darwin-amd64.tar.gz"
 checksum = "sha256:b6f8e931e4ab497fcde6da8ae4499a58f9d258e55c8a80824a516eae5950a750"
 url = "https://dl.google.com/go/go1.27.3.darwin-amd64.tar.gz"
 
+[[tools."go:github.com/sudorandom/protoc-gen-connect-openapi"]]
+version = "0.28.0"
+backend = "go:github.com/sudorandom/protoc-gen-connect-openapi"
+specifiers = ["0.28.0"]
+
 [[tools."go:golang.org/x/vuln/cmd/govulncheck"]]
 version = "1.9.0"
 backend = "go:golang.org/x/vuln/cmd/govulncheck"

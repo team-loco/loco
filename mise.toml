@@ -8,6 +8,7 @@ python = "3.14.8"
 gh = "2.103.3"
 
 buf = "1.75.0"
+"go:github.com/sudorandom/protoc-gen-connect-openapi" = "0.28.0"
 "github:sqlc-dev/sqlc" = "1.31.1"
 "github:pressly/goose" = "3.29.0"
 yq = "4.54.1"
@@ -87,7 +88,7 @@ description = "Run go vet in every Go module"
 run = "for m in $(git ls-files -- '*go.mod' ':!:gen/**' | xargs -n1 dirname); do (cd \"$m\" && go vet ./...); done"
 
 [tasks.gen]
-description = "Generate Go and TypeScript from the protos, and Go from the SQL queries"
+description = "Generate Go, TypeScript and OpenAPI from the protos, and Go from the SQL queries"
 run = ["buf generate", "cd api && sqlc generate"]
 
 [tasks."controller:gen"]

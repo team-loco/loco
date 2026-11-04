@@ -27,3 +27,12 @@ plugins:
     opt:
       - target=ts
       - import_extension=none
+
+  # OpenAPI — merge every service into the schema embedded in the API binary.
+  - local: protoc-gen-connect-openapi
+    out: ./api/gen/openapi
+    strategy: all
+    opt:
+      - format=json
+      - path=openapi.json
+      - with-streaming
