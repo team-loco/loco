@@ -4,12 +4,67 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 )
+
+func TestOpenAPIDocs(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc(rootPath, func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	mountOpenAPI(mux)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/docs", nil)
+	response := httptest.NewRecorder()
+	mux.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", response.Code)
+	}
+	if got := response.Header().Get("Content-Type"); got != "text/html; charset=utf-8" {
+		t.Fatalf("Content-Type = %q", got)
+	}
+	body := response.Body.String()
+	for _, want := range []string{
+		"<title>Loco API</title>",
+		`id="swagger-ui"`,
+		"SwaggerUIBundle({",
+		`url: "/openapi.json"`,
+		"validatorUrl: null",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("docs missing %q", want)
+		}
+	}
+	assetPattern := regexp.MustCompile(
+		`https://cdn\.jsdelivr\.net/npm/swagger-ui-dist@(\d+\.\d+\.\d+)/(swagger-ui(?:-bundle\.js|\.css))`,
+	)
+	assets := assetPattern.FindAllStringSubmatch(body, -1)
+	if len(assets) != 2 {
+		t.Fatalf("expected pinned CDN script and stylesheet, got %v", assets)
+	}
+	if assets[0][1] != assets[1][1] || assets[0][2] != "swagger-ui.css" || assets[1][2] != "swagger-ui-bundle.js" {
+		t.Errorf("CDN assets must use the same version: %v", assets)
+	}
+	for _, method := range []string{http.MethodHead, http.MethodPost} {
+		t.Run(method, func(t *testing.T) {
+			req := httptest.NewRequestWithContext(t.Context(), method, "/docs", nil)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+			if method == http.MethodHead {
+				if rec.Code != http.StatusOK || rec.Body.Len() != 0 {
+					t.Errorf("HEAD: status %d, body length %d", rec.Code, rec.Body.Len())
+				}
+				return
+			}
+			if rec.Code != http.StatusMethodNotAllowed || rec.Header().Get("Allow") != "GET, HEAD" {
+				t.Errorf("POST: status %d, Allow %q", rec.Code, rec.Header().Get("Allow"))
+			}
+		})
+	}
+}
 
 func TestOpenAPI(t *testing.T) {
 	mux := http.NewServeMux()
