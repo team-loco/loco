@@ -331,6 +331,7 @@ func main() {
 	secretv1connect.RegisterSecretServiceHandler(authenticatedServer, secretServiceHandler)
 
 	mountRPCServers(mux, baseServer, authenticatedServer)
+	mountOpenAPI(mux)
 	mountObservabilityProxy(mux, ac.ObservabilityProxyURL)
 
 	allowLoopback := ac.Env != envProduction
