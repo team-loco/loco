@@ -263,14 +263,6 @@ func main() {
 		sourceSweeper := service.NewSourceSweeper(pool, queries, sourceBucket, ac.SourceSweep)
 		background.Go(func() { sourceSweeper.Run(shutdownCtx) })
 	}
-	imageRegistry, registryErr := newImageRegistry(ac.Registry, ac.ImageSweep.Retention)
-	if registryErr != nil {
-		log.Fatal(registryErr)
-	}
-	if imageRegistry != nil {
-		imageSweeper := service.NewImageSweeper(pool, queries, imageRegistry, ac.ImageSweep)
-		background.Go(func() { imageSweeper.Run(shutdownCtx) })
-	}
 	imageResolver := imageresolver.New(imageResolveTimeout)
 
 	deploymentServiceHandler := service.NewDeploymentServer(
@@ -330,6 +322,18 @@ func main() {
 		transitKeys.RegistryKeyID,
 		registryConfig,
 	)
+	registryClientConfig := ac.Registry
+	if ac.RegistryAuth.TokenMode() {
+		registryClientConfig.TokenSource = registryServiceHandler.SignAPIToken
+	}
+	imageRegistry, registryErr := newImageRegistry(registryClientConfig, ac.ImageSweep.Retention)
+	if registryErr != nil {
+		log.Fatal(registryErr)
+	}
+	if imageRegistry != nil {
+		imageSweeper := service.NewImageSweeper(pool, queries, imageRegistry, ac.ImageSweep)
+		background.Go(func() { imageSweeper.Run(shutdownCtx) })
+	}
 	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
 	secretServiceHandler := service.NewSecretServer(pool, queries, secretKeyProvider, ac.SecretLimits)
 	configServiceHandler := service.NewConfigServer(

@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -13,6 +15,7 @@ import (
 	"github.com/team-loco/loco/api/mail"
 	"github.com/team-loco/loco/api/mail/mailtest"
 	"github.com/team-loco/loco/api/pkg/registryclient"
+	"github.com/team-loco/loco/api/pkg/registrytoken"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/service"
@@ -22,6 +25,7 @@ import (
 const (
 	maxReplicasEnv      = "LOCO_DEFAULT_MAX_REPLICAS"
 	registryHostEnv     = "LOCO_REGISTRY_HOST"
+	registryURLEnv      = "LOCO_REGISTRY_URL"
 	registryUserEnv     = "LOCO_REGISTRY_USERNAME"
 	registryPassEnv     = "LOCO_REGISTRY_PASSWORD"
 	testRegistryHost    = "registry.loco.test"
@@ -106,7 +110,7 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv("LOCO_DEFAULT_DEPLOY_RETRY_DELAY", "")
 	t.Setenv(registryHostEnv, "")
 	t.Setenv("LOCO_REGISTRY_PREFIX", "")
-	t.Setenv("LOCO_REGISTRY_URL", "")
+	t.Setenv(registryURLEnv, "")
 	t.Setenv(registryUserEnv, "")
 	t.Setenv(registryPassEnv, "")
 	t.Setenv("LOCO_REGISTRY_TIMEOUT", "")
@@ -365,7 +369,7 @@ func TestNewAPIConfigReadsRegistryCleanup(t *testing.T) {
 		Password: testRegistryPass,
 		Timeout:  defaultRegistryTimeout,
 	}
-	if ac.Registry != wantRegistry {
+	if !reflect.DeepEqual(ac.Registry, wantRegistry) {
 		t.Errorf("registry = %+v, want %+v", ac.Registry, wantRegistry)
 	}
 	wantSweep := service.ImageSweepConfig{
@@ -382,7 +386,7 @@ func TestNewAPIConfigReadsRegistryCleanup(t *testing.T) {
 		t.Errorf("image sweep = %+v, want %+v", ac.ImageSweep, wantSweep)
 	}
 
-	t.Setenv("LOCO_REGISTRY_URL", "http://localhost:5001")
+	t.Setenv(registryURLEnv, "http://localhost:5001")
 	t.Setenv("LOCO_REGISTRY_TIMEOUT", "5s")
 	ac = newAPIConfig()
 	if ac.Registry.URL != "http://localhost:5001" || ac.Registry.Timeout != 5*time.Second {
@@ -416,6 +420,34 @@ func TestImageRetentionZeroDisablesCleanup(t *testing.T) {
 	}
 	if enabled == nil {
 		t.Fatal("retention 1 with credentials created no registry client")
+	}
+}
+
+func TestTokenModeImageRegistryNeedsNoCredentials(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv(registryAuthEnv, registryAuthToken)
+	t.Setenv(registryHostEnv, testRegistryHost)
+	t.Setenv(registryKeyEnv, testRegistryKey)
+	t.Setenv(registryVersionEnv, "1")
+	t.Setenv(registryServiceEnv, testRegistryService)
+	ac := newAPIConfig()
+	without, err := newImageRegistry(ac.Registry, ac.ImageSweep.Retention)
+	if err != nil {
+		t.Fatalf("new image registry: %v", err)
+	}
+	if without != nil {
+		t.Fatal("a registry without credentials or a token source created a registry client")
+	}
+	tokenConfig := ac.Registry
+	tokenConfig.TokenSource = func(context.Context, []registrytoken.Access) (string, error) {
+		return "", nil
+	}
+	registry, err := newImageRegistry(tokenConfig, ac.ImageSweep.Retention)
+	if err != nil {
+		t.Fatalf("new image registry: %v", err)
+	}
+	if registry == nil {
+		t.Fatal("token mode without a registry username created no registry client")
 	}
 }
 
@@ -572,10 +604,10 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 		{
 			"registry url with a path",
 			map[string]string{
-				registryHostEnv:     testRegistryHost,
-				registryUserEnv:     testRegistryUser,
-				registryPassEnv:     testRegistryPass,
-				"LOCO_REGISTRY_URL": "https://registry.loco.test/v2",
+				registryHostEnv: testRegistryHost,
+				registryUserEnv: testRegistryUser,
+				registryPassEnv: testRegistryPass,
+				registryURLEnv:  "https://registry.loco.test/v2",
 			},
 			errInvalidRegistry,
 		},
@@ -977,6 +1009,7 @@ func TestRegistryAuthDefaultsToStatic(t *testing.T) {
 func TestRegistryAuthTokenPinsTheTransitKeyVersion(t *testing.T) {
 	clearAPIConfigEnv(t)
 	t.Setenv(registryAuthEnv, registryAuthToken)
+	t.Setenv(registryHostEnv, testRegistryHost)
 	t.Setenv(registryKeyEnv, testRegistryKey)
 	t.Setenv(registryVersionEnv, "3")
 	t.Setenv(registryServiceEnv, testRegistryService)
@@ -1000,6 +1033,7 @@ func TestRegistryAuthTokenPinsTheTransitKeyVersion(t *testing.T) {
 func TestRegistryAuthTokenReadsTheLifetimes(t *testing.T) {
 	clearAPIConfigEnv(t)
 	t.Setenv(registryAuthEnv, registryAuthToken)
+	t.Setenv(registryHostEnv, testRegistryHost)
 	t.Setenv(registryKeyEnv, testRegistryKey)
 	t.Setenv(registryVersionEnv, "1")
 	t.Setenv(registryServiceEnv, testRegistryService)
@@ -1018,6 +1052,7 @@ func TestRegistryAuthTokenReadsTheLifetimes(t *testing.T) {
 func TestRegistryAuthPanicsOnInvalidConfiguration(t *testing.T) {
 	token := map[string]string{
 		registryAuthEnv:    registryAuthToken,
+		registryHostEnv:    testRegistryHost,
 		registryKeyEnv:     testRegistryKey,
 		registryVersionEnv: "1",
 		registryServiceEnv: testRegistryService,
@@ -1042,6 +1077,18 @@ func TestRegistryAuthPanicsOnInvalidConfiguration(t *testing.T) {
 		{"token with a negative version", map[string]string{registryVersionEnv: "-1"}, errInvalidRegistryVersion},
 		{"token with a version name", map[string]string{registryVersionEnv: "v1"}, errInvalidInt32},
 		{"token without a service", map[string]string{registryServiceEnv: ""}, errMissingRegistryService},
+		{"token without a registry host", map[string]string{registryHostEnv: ""}, errRegistryTokenNoHost},
+		{
+			"token with a registry url path",
+			map[string]string{registryURLEnv: "https://" + testRegistryHost + "/v2"},
+			registryclient.ErrURLInvalid,
+		},
+		{
+			"token with an ftp registry url",
+			map[string]string{registryURLEnv: "ftp://" + testRegistryHost},
+			errInvalidRegistry,
+		},
+		{"token with a zero registry timeout", map[string]string{"LOCO_REGISTRY_TIMEOUT": "0s"}, errNotPositive},
 		{"token with a zero access lifetime", map[string]string{registryAccessEnv: "0s"}, errNotPositive},
 		{"token with a negative pull lifetime", map[string]string{registryPullEnv: "-1h"}, errNotPositive},
 		{"token with a pull lifetime in hours", map[string]string{registryPullEnv: "24"}, errInvalidDuration},

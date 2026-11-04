@@ -37,7 +37,6 @@ const (
 	testRegistryAccessLifetime = 5 * time.Minute
 	testRegistryPullLifetime   = 24 * time.Hour
 	testRegistryClockSkew      = 5 * time.Second
-	registryActionDelete       = "delete"
 	registryChallenge          = `Basic realm="` + testRegistryService + `"`
 	testRegistryKeyID          = "loco-registry:1"
 )
@@ -249,6 +248,13 @@ func (f *registryFixture) granted(t *testing.T, e registryExchange) issuedRegist
 	if err := json.Unmarshal(body["access_token"], &token); err != nil {
 		t.Fatalf("access_token in %s: %v", recorder.Body.String(), err)
 	}
+	issued := f.verify(t, token)
+	issued.body = body
+	return issued
+}
+
+func (f *registryFixture) verify(t *testing.T, token string) issuedRegistryToken {
+	t.Helper()
 	parsed, err := jwt.ParseSigned(token, []jose.SignatureAlgorithm{jose.EdDSA})
 	if err != nil {
 		t.Fatal(err)
@@ -256,7 +262,7 @@ func (f *registryFixture) granted(t *testing.T, e registryExchange) issuedRegist
 	if kid := parsed.Headers[0].KeyID; kid != testRegistryKeyID {
 		t.Fatalf("kid = %q, want %q", kid, testRegistryKeyID)
 	}
-	issued := issuedRegistryToken{body: body}
+	var issued issuedRegistryToken
 	public := f.servedPublicKey(t)
 	if err := parsed.Claims(public, &issued.claims, &issued.raw); err != nil {
 		t.Fatalf("token does not verify with the served PEM key: %v", err)
@@ -410,6 +416,35 @@ func TestRegistryRealmGrantsPullOnTheWorkspaceRepositoriesOnly(t *testing.T) {
 				t.Fatalf("access for refused scopes = %+v, want none", empty)
 			}
 		})
+	}
+}
+
+func TestRegistryAPITokenCarriesOnlyTheRequestedAccess(t *testing.T) {
+	f := newRegistryFixture(t, testRegistryConfig())
+	catalog := pullAccess(registrytoken.CatalogRepository)
+	token, err := f.server.SignAPIToken(t.Context(), catalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	issued := f.verify(t, token)
+	claims := issued.claims
+	if !reflect.DeepEqual(claims.Access, catalog) {
+		t.Fatalf("access = %+v, want %+v", claims.Access, catalog)
+	}
+	if name := string(issued.raw["access"]); !strings.Contains(name, `"name":""`) {
+		t.Fatalf("access = %s, want the empty catalog repository name", name)
+	}
+	if claims.Subject != RegistryAPISubject || claims.Issuer != testRegistryIssuer || claims.ID == "" {
+		t.Fatalf("claims = %+v", claims)
+	}
+	if aud := string(issued.raw["aud"]); aud != `"`+testRegistryService+`"` {
+		t.Fatalf("aud = %s", aud)
+	}
+	if lifetime := claims.Expiry.Time().Sub(claims.IssuedAt.Time()); lifetime != testRegistryAccessLifetime {
+		t.Fatalf("exp - iat = %s, want %s", lifetime, testRegistryAccessLifetime)
+	}
+	if _, ok := issued.raw["loco.build"]; ok {
+		t.Fatalf("API token carries loco.build: %v", issued.raw)
 	}
 }
 
@@ -575,7 +610,7 @@ func TestRegistryBuildCredentialGrantsItsBuildRepositoryWhileTheBuildRuns(t *tes
 		Name:    repository,
 		Actions: []string{registrytoken.ActionPull, registrytoken.ActionPush},
 	}}
-	ownScope := "repository:" + repository + ":push,pull," + registryActionDelete
+	ownScope := "repository:" + repository + ":push,pull," + registrytoken.ActionDelete
 	for _, status := range []genDb.BuildStatus{genDb.BuildStatusQueued, genDb.BuildStatusRunning} {
 		f.exec(t, "UPDATE builds SET status = $2 WHERE id = $1", buildID, status)
 		for _, method := range registryExchanges {

@@ -31,6 +31,7 @@ import (
 const (
 	RegistryPullUsername  = "loco-pull"
 	RegistryBuildUsername = "loco-build"
+	RegistryAPISubject    = "api"
 
 	registryCredentialPull    = "pull"
 	registryCredentialBuild   = "build"
@@ -191,7 +192,8 @@ func (s *RegistryServer) Token(w http.ResponseWriter, r *http.Request) {
 	}
 	access := s.grantedAccess(ctx, grant, request.scopes)
 	now := s.now().Truncate(time.Second)
-	token, err := s.sign(ctx, grant, access, now)
+	subject := grant.ClusterID.String()
+	token, err := s.sign(ctx, subject, grant.BuildID, access, now)
 	if err != nil {
 		slog.ErrorContext(ctx, "sign registry access token", "error", err)
 		http.Error(w, publicRequestFailed, http.StatusServiceUnavailable)
@@ -303,16 +305,21 @@ func (s *RegistryServer) allowedActions(
 	}
 }
 
+func (s *RegistryServer) SignAPIToken(ctx context.Context, access []registrytoken.Access) (string, error) {
+	now := s.now().Truncate(time.Second)
+	return s.sign(ctx, RegistryAPISubject, nil, access, now)
+}
+
 func (s *RegistryServer) sign(
 	ctx context.Context,
-	grant genDb.GetRegistryGrantRow,
+	subject string,
+	buildID *uuid.UUID,
 	access []registrytoken.Access,
 	now time.Time,
 ) (string, error) {
 	issuedAt := jwt.NewNumericDate(now)
 	expiresAt := now.Add(s.config.AccessTokenLifetime)
 	expiry := jwt.NewNumericDate(expiresAt)
-	subject := grant.ClusterID.String()
 	tokenID := rand.Text()
 	claims := registrytoken.Claims{
 		Issuer:    s.config.Issuer,
@@ -324,8 +331,8 @@ func (s *RegistryServer) sign(
 		ID:        tokenID,
 		Access:    access,
 	}
-	if grant.BuildID != nil {
-		claims.Build = grant.BuildID.String()
+	if buildID != nil {
+		claims.Build = buildID.String()
 	}
 	return registrytoken.Sign(ctx, s.signer, s.keyID, claims)
 }

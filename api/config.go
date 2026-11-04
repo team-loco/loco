@@ -45,6 +45,7 @@ var (
 	errInvalidRegistryKey     = errors.New("LOCO_REGISTRY_TRANSIT_KEY is invalid")
 	errInvalidRegistryVersion = errors.New("LOCO_REGISTRY_TRANSIT_KEY_VERSION must be a positive integer")
 	errMissingRegistryService = errors.New("LOCO_REGISTRY_TOKEN_SERVICE is required for LOCO_REGISTRY_AUTH=token")
+	errRegistryTokenNoHost    = errors.New("LOCO_REGISTRY_HOST is required for LOCO_REGISTRY_AUTH=token")
 	errRegistryKeyShared      = errors.New(
 		"LOCO_REGISTRY_TRANSIT_KEY must differ from LOCO_SECRETS_TRANSIT_KEY and LOCO_INGEST_TRANSIT_KEY",
 	)
@@ -206,7 +207,7 @@ func newAPIConfig() *APIConfig {
 	eventsRetentionDays := positiveInt32Env("EVENTS_RETENTION_DAYS", defaultEventsRetentionDays)
 	eventsRetention := time.Duration(eventsRetentionDays) * day
 	secrets := newSecretsConfig()
-	registryAuth := newRegistryAuthConfig(registry, secrets.Key, ingestConfig.TransitKey)
+	registryAuth := newRegistryAuthConfig(registry, registryHost, secrets.Key, ingestConfig.TransitKey)
 	agentConfig.RegistryTokenMode = registryAuth.TokenMode()
 	heartbeatInterval := positiveDurationEnv("LOCO_AGENT_HEARTBEAT_INTERVAL", defaultHeartbeatInterval)
 	bootstrapTokenHash := newBootstrapTokenHash()
@@ -449,21 +450,33 @@ func newRegistryConfig(registryHost string) registryclient.Config {
 	return cfg
 }
 
-func newRegistryAuthConfig(registry registryclient.Config, secretsKey, ingestKey string) RegistryAuthConfig {
+func newRegistryAuthConfig(
+	registry registryclient.Config,
+	registryHost, secretsKey, ingestKey string,
+) RegistryAuthConfig {
 	mode := stringEnv("LOCO_REGISTRY_AUTH", registryAuthStatic)
 	switch mode {
 	case registryAuthStatic:
 		return RegistryAuthConfig{Mode: mode}
 	case registryAuthToken:
-		return newRegistryTokenAuthConfig(registry, secretsKey, ingestKey)
+		return newRegistryTokenAuthConfig(registry, registryHost, secretsKey, ingestKey)
 	default:
 		panic(fmt.Errorf("%w: %q", errInvalidRegistryAuth, mode))
 	}
 }
 
-func newRegistryTokenAuthConfig(registry registryclient.Config, secretsKey, ingestKey string) RegistryAuthConfig {
+func newRegistryTokenAuthConfig(
+	registry registryclient.Config,
+	registryHost, secretsKey, ingestKey string,
+) RegistryAuthConfig {
 	if registry.Username != "" || registry.Password != "" {
 		panic(errRegistryStaticOnly)
+	}
+	if registryHost == "" {
+		panic(errRegistryTokenNoHost)
+	}
+	if err := registry.ValidateEndpoint(); err != nil {
+		panic(fmt.Errorf("%w: %w", errInvalidRegistry, err))
 	}
 	key := stringEnv("LOCO_REGISTRY_TRANSIT_KEY", "")
 	if err := secretkeys.ValidateKeyName(key); err != nil {
@@ -537,7 +550,7 @@ func newImageRegistry(cfg registryclient.Config, retention int32) (service.Image
 		slog.Warn("LOCO_IMAGE_RETENTION is 0; image cleanup is disabled by configuration")
 		return nil, nil
 	}
-	if cfg.Username == "" {
+	if cfg.Username == "" && cfg.TokenSource == nil {
 		slog.Warn("LOCO_REGISTRY_USERNAME is not set; build images are never deleted from the registry")
 		return nil, nil
 	}

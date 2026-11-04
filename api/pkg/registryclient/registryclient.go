@@ -13,6 +13,8 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
+	"github.com/team-loco/loco/api/pkg/registrytoken"
 )
 
 const (
@@ -21,29 +23,43 @@ const (
 )
 
 var (
-	ErrURLInvalid         = errors.New("registry url must be http(s)://host[:port] with no path")
-	ErrUsernameMissing    = errors.New("registry username is required")
-	ErrPasswordMissing    = errors.New("registry password is required")
-	ErrTimeoutNotPositive = errors.New("registry timeout must be positive")
-	ErrTagNotFound        = errors.New("tag not found")
+	ErrURLInvalid          = errors.New("registry url must be http(s)://host[:port] with no path")
+	ErrUsernameMissing     = errors.New("registry username is required")
+	ErrPasswordMissing     = errors.New("registry password is required")
+	ErrTimeoutNotPositive  = errors.New("registry timeout must be positive")
+	ErrTagNotFound         = errors.New("tag not found")
+	ErrCredentialsAndToken = errors.New("registry username and password are not used with a token source")
 )
 
+type TokenSource func(ctx context.Context, access []registrytoken.Access) (string, error)
+
 type Config struct {
-	URL      string
-	Username string
-	Password string
-	Timeout  time.Duration
+	URL         string
+	Username    string
+	Password    string
+	TokenSource TokenSource
+	Timeout     time.Duration
 }
 
 func (c Config) Validate() error {
-	if _, err := parseURL(c.URL); err != nil {
+	if err := c.ValidateEndpoint(); err != nil {
 		return err
 	}
-	if c.Username == "" {
+	if c.TokenSource != nil && (c.Username != "" || c.Password != "") {
+		return ErrCredentialsAndToken
+	}
+	if c.TokenSource == nil && c.Username == "" {
 		return ErrUsernameMissing
 	}
-	if c.Password == "" {
+	if c.TokenSource == nil && c.Password == "" {
 		return ErrPasswordMissing
+	}
+	return nil
+}
+
+func (c Config) ValidateEndpoint() error {
+	if _, err := parseURL(c.URL); err != nil {
+		return err
 	}
 	if c.Timeout <= 0 {
 		return ErrTimeoutNotPositive
@@ -69,6 +85,7 @@ type Client struct {
 	registry  name.Registry
 	nameOpts  []name.Option
 	auth      authn.Authenticator
+	tokens    TokenSource
 	transport http.RoundTripper
 	timeout   time.Duration
 }
@@ -89,22 +106,38 @@ func New(cfg Config) (*Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("registry host %q: %w", parsed.Host, err)
 	}
-	auth := authn.FromConfig(authn.AuthConfig{Username: cfg.Username, Password: cfg.Password})
+	var auth authn.Authenticator
+	if cfg.TokenSource == nil {
+		auth = authn.FromConfig(authn.AuthConfig{Username: cfg.Username, Password: cfg.Password})
+	}
 	return &Client{
 		registry:  registry,
 		nameOpts:  nameOpts,
 		auth:      auth,
+		tokens:    cfg.TokenSource,
 		transport: otelhttp.NewTransport(remote.DefaultTransport),
 		timeout:   cfg.Timeout,
 	}, nil
 }
 
-func (c *Client) options(ctx context.Context) []remote.Option {
+func (c *Client) options(ctx context.Context, access registrytoken.Access) ([]remote.Option, error) {
+	auth := c.auth
+	if c.tokens != nil {
+		token, err := c.tokens(ctx, []registrytoken.Access{access})
+		if err != nil {
+			return nil, fmt.Errorf("registry token for %s:%s: %w", access.Type, access.Name, err)
+		}
+		auth = authn.FromConfig(authn.AuthConfig{RegistryToken: token})
+	}
 	return []remote.Option{
 		remote.WithContext(ctx),
-		remote.WithAuth(c.auth),
+		remote.WithAuth(auth),
 		remote.WithTransport(c.transport),
-	}
+	}, nil
+}
+
+func repositoryAccess(path, action string) registrytoken.Access {
+	return registrytoken.Access{Type: registrytoken.TypeRepository, Name: path, Actions: []string{action}}
 }
 
 func (c *Client) repository(path string) (name.Repository, error) {
@@ -129,7 +162,11 @@ func (c *Client) DeleteManifest(ctx context.Context, path, digest string) error 
 		return err
 	}
 	ref := repo.Digest(digest)
-	opts := c.options(ctx)
+	access := repositoryAccess(path, registrytoken.ActionDelete)
+	opts, err := c.options(ctx, access)
+	if err != nil {
+		return err
+	}
 	if deleteErr := remote.Delete(ref, opts...); deleteErr != nil && !isNotFound(deleteErr) {
 		return fmt.Errorf("delete %s: %w", ref, deleteErr)
 	}
@@ -139,7 +176,11 @@ func (c *Client) DeleteManifest(ctx context.Context, path, digest string) error 
 func (c *Client) Repositories(ctx context.Context, after string, limit int) ([]string, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
-	opts := c.options(ctx)
+	access := repositoryAccess(registrytoken.CatalogRepository, registrytoken.ActionPull)
+	opts, err := c.options(ctx, access)
+	if err != nil {
+		return nil, err
+	}
 	repos, err := remote.CatalogPage(c.registry, after, limit, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("list repositories: %w", err)
@@ -154,7 +195,11 @@ func (c *Client) Tags(ctx context.Context, path string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	opts := c.options(ctx)
+	access := repositoryAccess(path, registrytoken.ActionPull)
+	opts, err := c.options(ctx, access)
+	if err != nil {
+		return nil, err
+	}
 	tags, err := remote.List(repo, opts...)
 	if isNotFound(err) {
 		return nil, nil
@@ -173,7 +218,11 @@ func (c *Client) TagDigest(ctx context.Context, path, tag string) (string, error
 		return "", err
 	}
 	ref := repo.Tag(tag)
-	opts := c.options(ctx)
+	access := repositoryAccess(path, registrytoken.ActionPull)
+	opts, err := c.options(ctx, access)
+	if err != nil {
+		return "", err
+	}
 	desc, err := remote.Head(ref, opts...)
 	if isNotFound(err) {
 		return "", ErrTagNotFound

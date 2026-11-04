@@ -20,10 +20,12 @@ const (
 	KeyPath   = "/.well-known/loco-registry-key.pem"
 	TokenPath = "/registry/token"
 
-	TypeRepository = "repository"
+	TypeRepository    = "repository"
+	CatalogRepository = ""
 
-	ActionPull = "pull"
-	ActionPush = "push"
+	ActionPull   = "pull"
+	ActionPush   = "push"
+	ActionDelete = "delete"
 
 	pemBlockType = "PUBLIC KEY"
 
