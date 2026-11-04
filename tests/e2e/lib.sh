@@ -147,8 +147,11 @@ assert_fails_with() {
 
 # Run docker compose against the e2e project of the repository's dev/compose.yaml.
 e2e_compose() {
-    docker compose -f "$E2E_ROOT_DIR/dev/compose.yaml" -f "$E2E_ROOT_DIR/tests/e2e/compose.kind.yaml" \
-        -p "$E2E_COMPOSE_PROJECT" "$@"
+    local files=(-f "$E2E_ROOT_DIR/dev/compose.yaml" -f "$E2E_ROOT_DIR/tests/e2e/compose.kind.yaml")
+    if [ "${E2E_REGISTRY_AUTH:-static}" = token ]; then
+        files+=(-f "$E2E_ROOT_DIR/tests/e2e/compose.registry-token.yaml")
+    fi
+    docker compose "${files[@]}" -p "$E2E_COMPOSE_PROJECT" "$@"
 }
 
 # Query the e2e Postgres database, with psql inside the Postgres container.
@@ -168,6 +171,65 @@ registry_manifest_status() {
         -H 'Accept: application/vnd.oci.image.index.v1+json' \
         -H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
         "${E2E_REGISTRY_URL}/v2/${repository}/manifests/${digest}"
+}
+
+registry_secret_password() {
+    local namespace=$1 name=$2
+    kubectl --context "kind-${E2E_KIND_CLUSTER}" -n "$namespace" get secret "$name" \
+        -o jsonpath='{.data.\.dockerconfigjson}' | base64 -d | yq -p json -r '.auths[].password'
+}
+
+registry_realm_call() {
+    local user=$1 password=$2 scope
+    shift 2
+    local params=(--data-urlencode "service=${E2E_REGISTRY_TOKEN_SERVICE}")
+    for scope in "$@"; do
+        params+=(--data-urlencode "scope=${scope}")
+    done
+    curl -s -G -w '\n%{http_code}' -u "${user}:${password}" "${params[@]}" "${E2E_API_URL}/registry/token"
+}
+
+registry_realm_status() {
+    registry_realm_call "$@" | tail -n 1
+}
+
+registry_realm_token() {
+    local response status
+    response=$(registry_realm_call "$@")
+    status=${response##*$'\n'}
+    if [ "$status" != 200 ]; then
+        echo "registry token endpoint answered ${response}" >&2
+        return 1
+    fi
+    yq -p json -r '.token' <<<"${response%$'\n'*}"
+}
+
+registry_token_access() {
+    local payload
+    payload=$(cut -d . -f 2 <<<"$1" | tr '_-' '/+')
+    while [ $((${#payload} % 4)) -ne 0 ]; do
+        payload+="="
+    done
+    base64 -d <<<"$payload" | yq -p json -o json -I 0 '.access'
+}
+
+registry_with_token() {
+    local token=$1 method=$2 path=$3
+    shift 3
+    curl -s -o /dev/null -X "$method" -H "Authorization: Bearer ${token}" \
+        -H 'Accept: application/vnd.oci.image.manifest.v1+json' \
+        -H 'Accept: application/vnd.oci.image.index.v1+json' \
+        -H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
+        "$@" "${E2E_REGISTRY_URL}${path}"
+}
+
+registry_status_with_token() {
+    registry_with_token "$@" -w '%{http_code}'
+}
+
+registry_refusal_with_token() {
+    registry_with_token "$@" -D - -w 'status %{http_code}\n' |
+        awk 'tolower($1) == "www-authenticate:" || $1 == "status" { print }' | tr -d '\r'
 }
 
 # Format a Unix time as an RFC 3339 UTC timestamp, with BSD or GNU date.

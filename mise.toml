@@ -382,6 +382,10 @@ run = "./tests/e2e/run.sh config_apply"
 description = "Run the end-to-end tests for telemetry from the loco-worker collectors in kind over OTLP to the observability proxy ingest role, ClickHouse and the API, with the loco-worker chart installed; writes tests/e2e/out/observability-evidence.md (E2E_OBS_EVIDENCE overrides the path); takes the e2e flags"
 run = "./tests/e2e/run.sh --observability observability"
 
+[tasks."e2e:registry-token"]
+description = "Run the end-to-end tests for registry token mode: the API as the registry's token endpoint, per-workspace pull credentials and per-build credentials written by the agent, their scopes, renewal and revocation, and the image sweeper on its own tokens; takes the e2e flags"
+run = "./tests/e2e/run.sh --registry-token registry_token"
+
 [tasks."e2e:teardown"]
 description = "Remove this worktree's end-to-end run (or E2E_RUN_ID's): its kind cluster, compose project and state"
 run = "./tests/e2e/run.sh --teardown-only"

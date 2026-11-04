@@ -1,0 +1,5 @@
+services:
+  registry:
+    volumes:
+      - ${E2E_REGISTRY_TOKEN_DIR:?}/config.json:/etc/zot/config.json:ro
+      - ${E2E_REGISTRY_TOKEN_DIR:?}:${E2E_REGISTRY_TOKEN_DIR:?}:ro
