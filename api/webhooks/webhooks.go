@@ -225,6 +225,11 @@ func (d *Dispatcher) DispatchDue(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("claim webhook deliveries: %w", err)
 	}
 	for _, c := range claimed {
+		select {
+		case <-ctx.Done():
+			return len(claimed), nil
+		default:
+		}
 		d.deliver(ctx, c.ID, int(c.Attempts))
 	}
 	return len(claimed), nil
@@ -276,7 +281,7 @@ func (d *Dispatcher) deliver(ctx context.Context, id uuid.UUID, attempt int) {
 		slog.InfoContext(ctx, "webhook delivery failed", "deliveryId", id, "attempt", attempt, "error", sendErr)
 	}
 	span.SetAttributes(attribute.String(deliveryStatusAttr, params.Status))
-	rows, err := d.queries.FinishWebhookDelivery(ctx, params)
+	rows, err := d.queries.FinishWebhookDelivery(context.WithoutCancel(ctx), params)
 	switch {
 	case err != nil:
 		slog.ErrorContext(ctx, "failed to record webhook delivery", "deliveryId", id, "error", err)

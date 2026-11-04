@@ -339,3 +339,26 @@ func TestStaleHolderCannotFinishReclaimedDelivery(t *testing.T) {
 		t.Fatalf("current finish affected %d rows (%v)", rows, err)
 	}
 }
+
+func TestOutcomeIsRecordedAfterShutdown(t *testing.T) {
+	f := newFixture(t)
+	hook, _ := f.webhook(t, f.workspaceID)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		cancel()
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(srv.Close)
+	f.setURL(t, hook.ID, srv.URL)
+	f.record(t, f.workspaceID, events.ResourceUpdated)
+	d := webhooks.NewDispatcher(f.queries, webhooks.NewClient(true), webhooks.NewClient(true))
+
+	if _, err := d.DispatchDue(ctx); err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	row := f.deliveries(t, hook.ID)[0]
+	if row.Status == webhooks.StatusPending && row.LastError == nil {
+		t.Fatalf("outcome not recorded, delivery stays leased: %+v", row)
+	}
+}
