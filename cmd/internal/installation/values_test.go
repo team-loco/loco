@@ -1,6 +1,7 @@
 package installation
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -11,7 +12,7 @@ func TestChartValuesQuoteOperatorConfiguration(t *testing.T) {
 	const canary = "quoted\"\nmalicious: injected"
 	config := Config{ControlPlane: ControlPlane{
 		APIURL: "https://api.example.com", WebURL: "https://console.example.com",
-		Auth:          Auth{Issuer: "https://auth.example.com", Audience: canary, WebClientID: canary},
+		Auth:          Auth{Issuer: "https://auth.example.com", ClientID: canary},
 		SourceBucket:  Bucket{Bucket: canary, Endpoint: "https://s3.example.com", Region: canary},
 		Registry:      Registry{Endpoint: "https://registry.example.com"},
 		Email:         Email{From: canary, TransportSecretRef: SecretKeyRef{Name: "mail", Key: "transport"}},
@@ -45,6 +46,18 @@ func TestChartValuesQuoteOperatorConfiguration(t *testing.T) {
 	}
 	if !strings.Contains(values.API.Env["AUTH_ISSUERS"], `quoted\"\nmalicious`) {
 		t.Fatal("OIDC configuration changed during rendering")
+	}
+	var issuers []struct {
+		Audience string `json:"audience"`
+		Web      struct {
+			ClientID string `json:"clientId"`
+		} `json:"web"`
+	}
+	if decodeErr := json.Unmarshal([]byte(values.API.Env["AUTH_ISSUERS"]), &issuers); decodeErr != nil {
+		t.Fatal(decodeErr)
+	}
+	if len(issuers) != 1 || issuers[0].Audience != canary || issuers[0].Web.ClientID != canary {
+		t.Fatal("API and dashboard must use the configured OIDC client")
 	}
 	worker := Worker{
 		Region:     canary,

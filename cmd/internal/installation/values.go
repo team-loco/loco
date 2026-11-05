@@ -71,8 +71,8 @@ func controlPlaneValues(config Config, manifest Manifest, completed bool) ([]byt
 			{
 				"name":     "installation",
 				"issuer":   cp.Auth.Issuer,
-				"audience": cp.Auth.Audience,
-				"web":      map[string]string{"clientId": cp.Auth.WebClientID, "scopes": "openid profile email"},
+				"audience": cp.Auth.ClientID,
+				"web":      map[string]string{"clientId": cp.Auth.ClientID, "scopes": "openid profile email"},
 			},
 		},
 	)
