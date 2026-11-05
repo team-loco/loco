@@ -112,8 +112,7 @@ Builds, tests, code generation, linting and the local environment are mise tasks
 
 ## Code Style
 
-Load the `go-review` skill before writing or reviewing Go: it lists the mistakes this codebase
-keeps making that linters cannot catch.
+Load the user-level `go-review` skill before writing or reviewing Go.
 
 - **Imports**: stdlib → third-party → local packages; grouped with blank lines
 - **Error handling**: Wrap with `fmt.Errorf("context: %w", err)`; use `slog.ErrorContext()`
