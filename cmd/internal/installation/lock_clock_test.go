@@ -25,23 +25,11 @@ func TestLockCannotOverlapLiveHolderWithSkewedOperatorClock(t *testing.T) {
 	fixture := newClockLockFixture(t, serverTime, serverTime.Add(time.Minute), "valid")
 	// This is a live holder's destination state when the contender's wall clock
 	// runs an hour ahead. Its operation deadline has not expired.
-	entered, release, stopped := make(chan struct{}), make(chan struct{}), make(chan struct{})
-	go func() {
-		defer close(stopped)
-		close(entered)
-		<-release
-	}()
-	<-entered
-	defer func() { close(release); <-stopped }()
 	ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
 	defer cancel()
 	overlapped := false
 	err := fixture.kube.withLock(ctx, fixture.state, func(context.Context, *corev1.ConfigMap) error {
-		select {
-		case <-stopped:
-		default:
-			overlapped = true
-		}
+		overlapped = true
 		return nil
 	})
 	if err == nil || overlapped || fixture.mutations.Load() != 0 {
