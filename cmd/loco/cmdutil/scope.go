@@ -40,8 +40,7 @@ func ResolveOrg(cmd *cobra.Command, loadConfig func() (*session.SessionConfig, e
 
 	cfg, err := loadConfig()
 	if err != nil {
-		slog.Debug("failed to load default config", "error", err)
-		return "", errOrgNotSpecified
+		return "", fmt.Errorf("load config: %w", err)
 	}
 
 	scope, err := cfg.GetScope()
@@ -72,8 +71,7 @@ func ResolveWorkspace(cmd *cobra.Command, loadConfig func() (*session.SessionCon
 
 	cfg, err := loadConfig()
 	if err != nil {
-		slog.Debug("failed to load default config", "error", err)
-		return "", errWorkspaceNotSpecified
+		return "", fmt.Errorf("load config: %w", err)
 	}
 
 	scope, err := cfg.GetScope()

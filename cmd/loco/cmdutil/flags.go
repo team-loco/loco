@@ -34,7 +34,10 @@ func GetHost(cmd *cobra.Command) (string, error) {
 	}
 
 	cfg, err := session.Load()
-	if err == nil && cfg.LocoHost != "" {
+	if err != nil {
+		return "", fmt.Errorf("load config: %w", err)
+	}
+	if cfg.LocoHost != "" {
 		slog.Debug("using host from config file")
 		return cfg.LocoHost, nil
 	}
@@ -59,7 +62,10 @@ func GetWebHost(cmd *cobra.Command) (string, error) {
 	}
 
 	cfg, err := session.Load()
-	if err == nil && cfg.WebHost != "" {
+	if err != nil {
+		return "", fmt.Errorf("load config: %w", err)
+	}
+	if cfg.WebHost != "" {
 		return cfg.WebHost, nil
 	}
 

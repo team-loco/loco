@@ -125,8 +125,7 @@ func setupLoginScope(
 ) error {
 	cfg, err := session.Load()
 	if err != nil {
-		slog.Debug("failed to load existing config", "error", err)
-		cfg = session.NewSessionConfig()
+		return fmt.Errorf("load config: %w", err)
 	}
 
 	if cfg.LocoHost == host {
