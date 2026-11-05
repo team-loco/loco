@@ -238,13 +238,15 @@ func TestRecoveryDecryptRequiresEveryCustodian(t *testing.T) {
 
 func TestRecoveryRootFailureCancelsGeneration(t *testing.T) {
 	canceled := false
+	submitted := false
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/attempt"):
-			if _, err := io.WriteString(w, `{"nonce":"attempt","otp":"temporary-pad"}`); err != nil {
+			if _, err := io.WriteString(w, `{"data":{"nonce":"attempt","otp":"temporary-pad"}}`); err != nil {
 				t.Error(err)
 			}
 		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/update"):
+			submitted = true
 			http.Error(w, "private-canary", http.StatusForbidden)
 		case r.Method == http.MethodDelete && strings.HasSuffix(r.URL.Path, "/attempt"):
 			canceled = true
@@ -262,6 +264,9 @@ func TestRecoveryRootFailureCancelsGeneration(t *testing.T) {
 	); err == nil ||
 		strings.Contains(err.Error(), "canary") {
 		t.Fatalf("generation failure: %v", err)
+	}
+	if !submitted {
+		t.Fatal("share rejection was not exercised")
 	}
 	if !canceled {
 		t.Fatal("failed quorum left generation in progress")
