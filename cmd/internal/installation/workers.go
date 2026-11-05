@@ -49,6 +49,9 @@ func ApplyWorkers(ctx context.Context, config Config, manifestPath, token string
 		return err
 	}
 	return cp.withLock(ctx, state, func(ctx context.Context, lockedState *corev1.ConfigMap) error {
+		if releaseErr := validateRecordedRelease(lockedState.Data, release.manifest); releaseErr != nil {
+			return releaseErr
+		}
 		if lockedState.Data["bootstrapComplete"] != stateTrue {
 			return errBootstrapRequired
 		}

@@ -261,6 +261,9 @@ func CompleteBootstrap(ctx context.Context, config Config, manifestPath string) 
 		return err
 	}
 	return kube.withLock(ctx, state, func(ctx context.Context, lockedState *corev1.ConfigMap) error {
+		if releaseErr := validateRecordedRelease(lockedState.Data, release.manifest); releaseErr != nil {
+			return releaseErr
+		}
 		values, valuesErr := controlPlaneValues(config, release.manifest, true)
 		if valuesErr != nil {
 			return valuesErr
@@ -304,6 +307,7 @@ func CompleteBootstrap(ctx context.Context, config Config, manifestPath string) 
 func (k *Kubernetes) inputs(ctx context.Context, config Config) (map[string][]byte, error) {
 	cp := config.ControlPlane
 	output := map[string][]byte{}
+	secrets := map[string]*corev1.Secret{}
 	for _, item := range []struct{ secret, key, env string }{
 		{cp.Database.SecretRef.Name, cp.Database.SecretRef.Key, envDatabaseURL},
 		{cp.SourceBucket.CredentialsSecretRef.Name, "access-key-id", envSourceAccess},
@@ -318,12 +322,17 @@ func (k *Kubernetes) inputs(ctx context.Context, config Config) (map[string][]by
 		{cp.OpenBao.Snapshots.CredentialsSecretRef.Name, "access-key-id", "snapshot-access"},
 		{cp.OpenBao.Snapshots.CredentialsSecretRef.Name, "secret-access-key", "snapshot-secret"},
 	} {
-		secret, err := k.Core.Secrets(k.Target.Namespace).Get(ctx, item.secret, metav1.GetOptions{})
-		if apierrors.IsNotFound(err) {
-			return nil, fmt.Errorf("input Secret %s: %w", item.secret, errInputMissing)
-		}
-		if err != nil {
-			return nil, safeKubernetesError("read input Secret", err)
+		secret, found := secrets[item.secret]
+		if !found {
+			var err error
+			secret, err = k.Core.Secrets(k.Target.Namespace).Get(ctx, item.secret, metav1.GetOptions{})
+			if apierrors.IsNotFound(err) {
+				return nil, fmt.Errorf("input Secret %s: %w", item.secret, errInputMissing)
+			}
+			if err != nil {
+				return nil, safeKubernetesError("read input Secret", err)
+			}
+			secrets[item.secret] = secret
 		}
 		value := secret.Data[item.key]
 		if len(value) == 0 {
