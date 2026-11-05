@@ -116,8 +116,8 @@ func Validate(cfg *Config) error {
 	if !cp.Observability.Enabled {
 		return field("controlPlane.observability.enabled")
 	}
-	if !registryHost(cp.Registry.Host) {
-		return field("controlPlane.registry.host")
+	if !registryEndpoint(cp.Registry.Endpoint) {
+		return field("controlPlane.registry.endpoint")
 	}
 	if _, err := mail.ParseAddress(cp.Email.From); err != nil {
 		return field("controlPlane.email.from")
@@ -244,20 +244,22 @@ func dnsName(value string) bool {
 func domain(value string) bool {
 	return strings.Contains(value, ".") && net.ParseIP(value) == nil && dnsName(value)
 }
-func registryHost(value string) bool {
-	host := value
-	if strings.Contains(value, ":") {
-		var err error
-		var port string
-		host, port, err = net.SplitHostPort(value)
-		if err != nil {
-			return false
-		}
-		if number, err := strconv.Atoi(port); err != nil || number < 1 || number > maxPort {
-			return false
-		}
+func registryEndpoint(value string) bool {
+	if !safeURL(value) {
+		return false
 	}
-	return dnsName(host) || net.ParseIP(host) != nil
+	parsed, err := url.Parse(value)
+	if err != nil || (parsed.Path != "" && parsed.Path != "/") || parsed.RawPath != "" {
+		return false
+	}
+	if !dnsName(parsed.Hostname()) && net.ParseIP(parsed.Hostname()) == nil {
+		return false
+	}
+	if parsed.Port() != "" {
+		port, err := strconv.Atoi(parsed.Port())
+		return err == nil && port > 0 && port <= maxPort
+	}
+	return !strings.HasSuffix(parsed.Host, ":")
 }
 func safeURL(value string) bool {
 	parsed, err := url.Parse(value)

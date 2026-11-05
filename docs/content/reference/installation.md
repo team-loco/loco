@@ -29,7 +29,7 @@ Every field below is required, including explicit boolean settings. `workers: []
 | `controlPlane.auth.bootstrapRedirectURI` | Registered loopback redirect: `http://127.0.0.1:<port>/callback`, with port 1 through 65535 |
 | `controlPlane.auth.signupMode` | `open` or `closed` |
 | `controlPlane.sourceBucket` | Source storage: `endpoint`, `region`, `bucket`, `credentialsSecretRef.name` |
-| `controlPlane.registry.host` | Registry hostname, optionally with a port |
+| `controlPlane.registry.endpoint` | HTTP or HTTPS registry origin, optionally with a port; no non-root path |
 | `controlPlane.registry.credentialsSecretRef.name` | Registry input Secret name |
 | `controlPlane.email.from` | Sender email address, optionally with a display name |
 | `controlPlane.email.transportSecretRef` | Mail transport input Secret's `name` and `key` |

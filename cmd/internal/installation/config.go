@@ -61,7 +61,7 @@ type Bucket struct {
 }
 
 type Registry struct {
-	Host                 string    `json:"host"                 yaml:"host"`
+	Endpoint             string    `json:"endpoint"             yaml:"endpoint"`
 	CredentialsSecretRef SecretRef `json:"credentialsSecretRef" yaml:"credentialsSecretRef"`
 }
 

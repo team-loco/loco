@@ -179,14 +179,10 @@
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "host",
+            "endpoint",
             "credentialsSecretRef"
           ],
           "properties": {
-            "host": {
-              "type": "string",
-              "minLength": 1
-            },
             "credentialsSecretRef": {
               "type": "object",
               "additionalProperties": false,
@@ -199,6 +195,10 @@
                   "minLength": 1
                 }
               }
+            },
+            "endpoint": {
+              "type": "string",
+              "minLength": 1
             }
           }
         },
