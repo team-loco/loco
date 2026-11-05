@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -13,11 +12,7 @@ const (
 	SignupOpen    SignupMode = "open"
 	SignupDomains SignupMode = "domains"
 	SignupClosed  SignupMode = "closed"
-
-	removedSignupInvite SignupMode = "invite"
 )
-
-var errInviteModeRemoved = errors.New(`signup mode "invite" was removed; use "closed" to stop new accounts`)
 
 type SignupRejectedError struct {
 	Message string
@@ -64,8 +59,6 @@ func ParseSignupPolicy(mode string, domains string) (SignupPolicy, error) {
 		return p, nil
 	case SignupClosed:
 		return p, nil
-	case removedSignupInvite:
-		return SignupPolicy{}, errInviteModeRemoved
 	case SignupDomains:
 		if len(p.Domains) == 0 {
 			return SignupPolicy{}, fmt.Errorf("signup mode %q needs at least one domain", p.Mode)

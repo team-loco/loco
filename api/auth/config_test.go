@@ -2,7 +2,6 @@ package auth
 
 import (
 	"errors"
-	"strings"
 	"testing"
 )
 
@@ -110,16 +109,6 @@ func TestSignupPolicy(t *testing.T) {
 		if _, err := ParseSignupPolicy(mode, domainList); err == nil {
 			t.Errorf("ParseSignupPolicy(%q) accepted", mode)
 		}
-	}
-}
-
-func TestSignupPolicyRejectsRemovedInviteMode(t *testing.T) {
-	_, err := ParseSignupPolicy("invite", "")
-	if !errors.Is(err, errInviteModeRemoved) {
-		t.Fatalf("err = %v, want %v", err, errInviteModeRemoved)
-	}
-	if !strings.Contains(err.Error(), `"closed"`) {
-		t.Fatalf("err = %q, want it to name the closed mode", err)
 	}
 }
 
