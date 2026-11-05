@@ -1,3 +1,5 @@
+import { useQuery } from "@connectrpc/connect-query";
+import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { useState } from "react";
 
 import { EmptyState } from "@/components/design/EmptyState";
@@ -13,7 +15,7 @@ import { AttentionSection, buildAttention } from "@/pages/dashboard/AttentionSec
 import { CreateResourceMenu } from "@/pages/dashboard/CreateResourceMenu";
 import { DraftDrawer } from "@/pages/dashboard/DraftDrawer";
 import { FirstServiceEmpty } from "@/pages/dashboard/FirstServiceEmpty";
-import { DRAFT_DEFAULTS, isPrivate, nameFromImage, uniqueName, useDrafts } from "@/pages/dashboard/drafts";
+import { draftSizing, isPrivate, nameFromImage, uniqueName, useDrafts } from "@/pages/dashboard/drafts";
 import { EnvironmentMenu } from "@/pages/dashboard/EnvironmentMenu";
 import { NewServiceDialog } from "@/pages/dashboard/NewServiceDialog";
 import { RecentDeployments } from "@/pages/dashboard/RecentDeployments";
@@ -44,6 +46,8 @@ function DashboardSkeleton() {
 export function Dashboard() {
 	const { activeOrgId, activeWorkspaceId, workspaces } = useOrgWorkspace();
 	const { environments, active, setActive, isLoading: envsLoading } = useEnvironments();
+	const configQuery = useQuery(getConfig, {});
+	const serviceDefaults = configQuery.data?.serviceDefaults;
 	const data = useDashboardData(activeWorkspaceId, active);
 	const drafts = useDrafts(activeWorkspaceId, active?.id);
 	const now = useNow(60_000);
@@ -78,6 +82,7 @@ export function Dashboard() {
 	const otherEnv = environments.find((e) => e.id !== active?.id);
 
 	const addDraft = (image: string) => {
+		if (serviceDefaults === undefined) return;
 		const taken = new Set([...data.resources.map((r) => r.name), ...drafts.drafts.map((d) => d.name)]);
 		const name = uniqueName(nameFromImage(image), taken);
 		const id = `d${Date.now().toString(36)}`;
@@ -87,17 +92,8 @@ export function Dashboard() {
 			image,
 			region: defaultRegion,
 			sub: name,
-			port: DRAFT_DEFAULTS.port,
-			cpu: DRAFT_DEFAULTS.cpu,
-			memory: DRAFT_DEFAULTS.memory,
-			min: DRAFT_DEFAULTS.min,
-			max: DRAFT_DEFAULTS.max,
-			cpuTarget: DRAFT_DEFAULTS.cpuTarget,
+			...draftSizing(serviceDefaults),
 			vars: [{ key: "", value: "" }],
-			hcPath: DRAFT_DEFAULTS.hcPath,
-			hcInterval: DRAFT_DEFAULTS.hcInterval,
-			hcTimeout: DRAFT_DEFAULTS.hcTimeout,
-			hcFail: DRAFT_DEFAULTS.hcFail,
 		});
 		setNewOpen(false);
 		openDraft(id);
@@ -129,7 +125,7 @@ export function Dashboard() {
 	);
 	const openDraftValue = drafts.drafts.find((d) => d.id === openDraftId);
 	const attention = buildAttention(data.envResources, hrefFor, nowMs);
-	const loading = envsLoading || data.isLoading;
+	const loading = envsLoading || data.isLoading || configQuery.isPending;
 	const canCreate = active !== undefined && activeWorkspaceId !== null;
 	const isEmpty = data.envResources.length === 0 && visibleDrafts.length === 0;
 	const openNew = () => {
@@ -153,13 +149,14 @@ export function Dashboard() {
 		</PageHeader>
 	);
 
-	if (data.error !== null) {
+	const loadError = data.error ?? configQuery.error;
+	if (loadError !== null) {
 		return (
 			<Page>
 				{header}
 				<Section>
 					<EmptyState title="Couldn't load resources">
-						{getErrorMessage(data.error, "Failed to load resources")}
+						{getErrorMessage(loadError, "Failed to load resources")}
 					</EmptyState>
 				</Section>
 			</Page>
