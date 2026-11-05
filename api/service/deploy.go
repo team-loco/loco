@@ -300,9 +300,6 @@ func buildApplicationSpec(
 
 	switch resource.Type {
 	case genDb.ResourceTypeService:
-		if resourceSpec.GetService() == nil {
-			return nil, errResourceSpecNotService
-		}
 		appSpec.Type = "SERVICE"
 		resourceService := resourceSpec.GetService()
 		if _, ok := resourceService.GetRegions()[region]; !ok {
@@ -333,14 +330,6 @@ func buildApplicationSpec(
 			),
 		}
 
-	case genDb.ResourceTypeDatabase:
-		return nil, errDatabaseNotImplemented
-	case genDb.ResourceTypeCache:
-		return nil, errCacheNotImplemented
-	case genDb.ResourceTypeQueue:
-		return nil, errQueueNotImplemented
-	case genDb.ResourceTypeBlob:
-		return nil, errBlobNotImplemented
 	default:
 		return nil, fmt.Errorf("unknown resource type: %s", resource.Type)
 	}

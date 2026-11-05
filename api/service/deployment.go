@@ -11,7 +11,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -30,12 +29,7 @@ import (
 )
 
 var (
-	errResourceSpecNotService = errors.New("resource spec missing service configuration")
-	errDatabaseNotImplemented = errors.New("database resource type not yet implemented")
-	errCacheNotImplemented    = errors.New("cache resource type not yet implemented")
-	errQueueNotImplemented    = errors.New("queue resource type not yet implemented")
-	errBlobNotImplemented     = errors.New("blob resource type not yet implemented")
-	ErrDeploymentNotFound     = errors.New("deployment not found")
+	ErrDeploymentNotFound = errors.New("deployment not found")
 )
 
 func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.DeploymentPhase {
@@ -57,7 +51,7 @@ func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.Deployment
 	}
 }
 
-func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.Deployment {
+func deploymentToProto(d genDb.Deployment, resourceType genDb.ResourceType) (*deploymentv1.Deployment, error) {
 	deployment := &deploymentv1.Deployment{
 		Id:            d.ID.String(),
 		ResourceId:    d.ResourceID.String(),
@@ -73,84 +67,16 @@ func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.De
 		Message:       d.Message,
 	}
 
-	if len(d.Spec) > 0 {
-		spec := &deploymentv1.DeploymentSpec{}
-
-		switch resourceType {
-		case string(genDb.ResourceTypeService):
-			serviceSpec := &deploymentv1.ServiceDeploymentSpec{}
-			if err := protojson.Unmarshal(d.Spec, serviceSpec); err != nil {
-				slog.WarnContext(
-					context.Background(),
-					"failed to unmarshal service deployment spec",
-					"error",
-					err,
-					"deployment_id",
-					d.ID,
-				)
-			} else {
-				spec.Spec = &deploymentv1.DeploymentSpec_Service{Service: serviceSpec}
-			}
-		case string(genDb.ResourceTypeDatabase):
-			databaseSpec := &deploymentv1.DatabaseDeploymentSpec{}
-			if err := protojson.Unmarshal(d.Spec, databaseSpec); err != nil {
-				slog.WarnContext(
-					context.Background(),
-					"failed to unmarshal database deployment spec",
-					"error",
-					err,
-					"deployment_id",
-					d.ID,
-				)
-			} else {
-				spec.Spec = &deploymentv1.DeploymentSpec_Database{Database: databaseSpec}
-			}
-		case string(genDb.ResourceTypeCache):
-			cacheSpec := &deploymentv1.CacheDeploymentSpec{}
-			if err := protojson.Unmarshal(d.Spec, cacheSpec); err != nil {
-				slog.WarnContext(
-					context.Background(),
-					"failed to unmarshal cache deployment spec",
-					"error",
-					err,
-					"deployment_id",
-					d.ID,
-				)
-			} else {
-				spec.Spec = &deploymentv1.DeploymentSpec_Cache{Cache: cacheSpec}
-			}
-		case string(genDb.ResourceTypeQueue):
-			queueSpec := &deploymentv1.QueueDeploymentSpec{}
-			if err := protojson.Unmarshal(d.Spec, queueSpec); err != nil {
-				slog.WarnContext(
-					context.Background(),
-					"failed to unmarshal queue deployment spec",
-					"error",
-					err,
-					"deployment_id",
-					d.ID,
-				)
-			} else {
-				spec.Spec = &deploymentv1.DeploymentSpec_Queue{Queue: queueSpec}
-			}
-		default:
-			slog.WarnContext(
-				context.Background(),
-				"unknown resource type",
-				"resource_type",
-				resourceType,
-				"deployment_id",
-				d.ID,
-			)
-		}
-
-		deployment.Spec = spec
+	spec, err := converter.DeserializeDeploymentSpec(d.Spec, resourceType)
+	if err != nil {
+		return nil, fmt.Errorf("decode spec of deployment %s: %w", d.ID, err)
 	}
+	deployment.Spec = spec
 
 	deployment.StartedAt = timeutil.ParsePostgresTimestamp(d.StartedAt)
 	deployment.CompletedAt = timeutil.ParsePostgresTimestampPtr(d.CompletedAt)
 
-	return deployment
+	return deployment, nil
 }
 
 // DeploymentServer implements the DeploymentService gRPC server
@@ -412,8 +338,13 @@ func (s *DeploymentServer) GetDeployment(
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
+	deployment, err := deploymentToProto(deploymentData, resource.Type)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
+	}
+
 	return &deploymentv1.GetDeploymentResponse{
-		Deployment: deploymentToProto(deploymentData, string(resource.Type)),
+		Deployment: deployment,
 	}, nil
 }
 
@@ -474,7 +405,11 @@ func (s *DeploymentServer) ListDeployments(
 
 	var deployments []*deploymentv1.Deployment
 	for _, d := range deploymentList {
-		deployments = append(deployments, deploymentToProto(d, string(resource.Type)))
+		deployment, err := deploymentToProto(d, resource.Type)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
+		}
+		deployments = append(deployments, deployment)
 	}
 
 	token := nextPageToken(deploymentList, pageSize, func(d genDb.Deployment) (uuid.UUID, time.Time) {

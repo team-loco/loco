@@ -322,7 +322,7 @@ func (a *applier) currentBuild(
 		return requested, nil
 	}
 	if deployments := a.live.deployments[res.ID]; len(deployments) > 0 {
-		deploymentSpec, err := converter.DeserializeDeploymentSpec(deployments[0].Spec, string(res.Type))
+		deploymentSpec, err := converter.DeserializeDeploymentSpec(deployments[0].Spec, res.Type)
 		if err != nil {
 			return nil, fmt.Errorf("deployment %s spec: %w", deployments[0].ID, err)
 		}

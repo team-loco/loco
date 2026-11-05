@@ -376,9 +376,11 @@ func (s *ResourceServer) GetResource(
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
-	return &resourcev1.GetResourceResponse{
-		Resource: dbResourceToProto(res, statuses[res.ID], resourceDomains),
-	}, nil
+	resource, err := dbResourceToProto(res, statuses[res.ID], resourceDomains)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
+	}
+	return &resourcev1.GetResourceResponse{Resource: resource}, nil
 }
 
 func (s *ResourceServer) resourceIDByName(
@@ -484,7 +486,10 @@ func (s *ResourceServer) ListWorkspaceResources(
 	for _, dbResource := range dbResources {
 		resourceDomains := domainsByResource[dbResource.ID]
 		resourceStatuses := statuses[dbResource.ID]
-		resource := dbResourceToProto(dbResource, resourceStatuses, resourceDomains)
+		resource, err := dbResourceToProto(dbResource, resourceStatuses, resourceDomains)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
+		}
 		resources = append(resources, resource)
 	}
 
@@ -878,7 +883,7 @@ func currentServiceSpec(
 		return nil, errPreviousDeploymentNoSpec
 	}
 
-	deploymentSpec, err := converter.DeserializeDeploymentSpec(current.Spec, string(resourceType))
+	deploymentSpec, err := converter.DeserializeDeploymentSpec(current.Spec, resourceType)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to deserialize deployment spec", "error", err)
 		return nil, &invalidInputError{public: publicInvalidSpec, err: err}
@@ -964,7 +969,7 @@ func (s *ResourceServer) redeployRegions(
 		return fmt.Errorf("get workspace organization: %w", err)
 	}
 
-	resourceSpec, err := converter.DeserializeResourceSpecByType(res.Spec, string(res.Type))
+	resourceSpec, err := converter.DeserializeResourceSpec(res.Spec, res.Type)
 	if err != nil {
 		return fmt.Errorf("%w: decode resource spec: %w", errDesiredSpec, err)
 	}
@@ -1089,7 +1094,7 @@ func dbResourceToProto(
 	res genDb.Resource,
 	statuses []*resourcev1.EnvironmentStatus,
 	domains []genDb.ResourceDomain,
-) *resourcev1.Resource {
+) (*resourcev1.Resource, error) {
 	// convert db.ResourceType (string) to proto ResourceType (int32)
 	var resourceType resourcev1.ResourceType
 	switch res.Type {
@@ -1097,8 +1102,6 @@ func dbResourceToProto(
 		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_SERVICE
 	case genDb.ResourceTypeDatabase:
 		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_DATABASE
-	case "function":
-		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_FUNCTION
 	case genDb.ResourceTypeCache:
 		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_CACHE
 	case genDb.ResourceTypeQueue:
@@ -1109,13 +1112,12 @@ func dbResourceToProto(
 		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_SERVICE
 	}
 
-	// reconstruct oneof spec from stored spec bytes
-	var spec *resourcev1.ResourceSpec
-	if len(res.Spec) > 0 {
-		spec = reconstructResourceSpec(res.Type, res.Spec)
+	spec, err := converter.DeserializeResourceSpec(res.Spec, res.Type)
+	if err != nil {
+		return nil, fmt.Errorf("decode spec of resource %s: %w", res.ID, err)
 	}
 
-	result := &resourcev1.Resource{
+	return &resourcev1.Resource{
 		Id:                  res.ID.String(),
 		WorkspaceId:         res.WorkspaceID.String(),
 		Name:                res.Name,
@@ -1128,67 +1130,7 @@ func dbResourceToProto(
 		Description:         &res.Description,
 		Partial:             res.Partial,
 		EnvironmentStatuses: statuses,
-	}
-
-	return result
-}
-
-// reconstructResourceSpec deserializes spec bytes and wraps in the appropriate oneof based on resource type
-func reconstructResourceSpec(resourceType genDb.ResourceType, specBytes []byte) *resourcev1.ResourceSpec {
-	if len(specBytes) == 0 {
-		return nil
-	}
-
-	switch resourceType {
-	case "service":
-		serviceSpec := &resourcev1.ServiceSpec{}
-		if err := protojson.Unmarshal(specBytes, serviceSpec); err != nil {
-			slog.WarnContext(context.Background(), "failed to unmarshal service spec", "error", err)
-			return nil
-		}
-		return &resourcev1.ResourceSpec{
-			Spec: &resourcev1.ResourceSpec_Service{Service: serviceSpec},
-		}
-	case "database":
-		databaseSpec := &resourcev1.DatabaseSpec{}
-		if err := protojson.Unmarshal(specBytes, databaseSpec); err != nil {
-			slog.WarnContext(context.Background(), "failed to unmarshal database spec", "error", err)
-			return nil
-		}
-		return &resourcev1.ResourceSpec{
-			Spec: &resourcev1.ResourceSpec_Database{Database: databaseSpec},
-		}
-	case "cache":
-		cacheSpec := &resourcev1.CacheSpec{}
-		if err := protojson.Unmarshal(specBytes, cacheSpec); err != nil {
-			slog.WarnContext(context.Background(), "failed to unmarshal cache spec", "error", err)
-			return nil
-		}
-		return &resourcev1.ResourceSpec{
-			Spec: &resourcev1.ResourceSpec_Cache{Cache: cacheSpec},
-		}
-	case "queue":
-		queueSpec := &resourcev1.QueueSpec{}
-		if err := protojson.Unmarshal(specBytes, queueSpec); err != nil {
-			slog.WarnContext(context.Background(), "failed to unmarshal queue spec", "error", err)
-			return nil
-		}
-		return &resourcev1.ResourceSpec{
-			Spec: &resourcev1.ResourceSpec_Queue{Queue: queueSpec},
-		}
-	case "blob":
-		blobSpec := &resourcev1.BlobSpec{}
-		if err := protojson.Unmarshal(specBytes, blobSpec); err != nil {
-			slog.WarnContext(context.Background(), "failed to unmarshal blob spec", "error", err)
-			return nil
-		}
-		return &resourcev1.ResourceSpec{
-			Spec: &resourcev1.ResourceSpec_Blob{Blob: blobSpec},
-		}
-	default:
-		slog.WarnContext(context.Background(), "unknown resource type", "type", resourceType)
-		return nil
-	}
+	}, nil
 }
 
 // GetResourceEnv returns the plain env variables of the service's active deployment in the

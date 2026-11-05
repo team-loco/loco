@@ -33,6 +33,7 @@ var (
 	ErrDomainAlreadyExists     = errors.New("domain already exists")
 	ErrCannotRemovePrimary     = errors.New("make another domain primary before removing the primary domain")
 	errNoProductionEnvironment = errors.New("the workspace has no production environment to hold the domain")
+	errPlacementNotService     = errors.New("domain placement has no service spec")
 )
 
 type DomainServer struct {
@@ -615,7 +616,7 @@ func (s *DomainServer) refreshDomainRouting(
 			return fmt.Errorf("decode domain placement: %w", err)
 		}
 		if payload.AppSpec == nil || payload.AppSpec.ServiceSpec == nil || placement.DeploymentID == nil {
-			return errResourceSpecNotService
+			return errPlacementNotService
 		}
 		service := payload.AppSpec.ServiceSpec
 		if service.Routing == nil && hostname == "" {

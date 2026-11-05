@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"buf.build/go/protovalidate"
+	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/converter"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -34,7 +35,7 @@ func TestApplyRuntimeUserPersistsAndClears(t *testing.T) {
 		if len(deployments) != 1 {
 			t.Fatalf("active deployments = %d", len(deployments))
 		}
-		stored, err := converter.DeserializeDeploymentSpec(deployments[0].Spec, "service")
+		stored, err := converter.DeserializeDeploymentSpec(deployments[0].Spec, genDb.ResourceTypeService)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -85,7 +85,7 @@ func TestApplyRemovesHealthFromResourceDeploymentAndPlacement(t *testing.T) {
 			if len(deployments) != 1 {
 				t.Fatalf("active deployments = %d, want one", len(deployments))
 			}
-			stored, err := converter.DeserializeDeploymentSpec(deployments[0].Spec, string(resource.Type))
+			stored, err := converter.DeserializeDeploymentSpec(deployments[0].Spec, resource.Type)
 			if err != nil {
 				t.Fatal(err)
 			}

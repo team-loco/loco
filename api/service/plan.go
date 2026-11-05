@@ -421,7 +421,7 @@ func (s *PlanServer) liveState(
 			continue
 		}
 		seenRegions[deployment.Region] = true
-		deploymentSpec, specErr := converter.DeserializeDeploymentSpec(deployment.Spec, string(res.Type))
+		deploymentSpec, specErr := converter.DeserializeDeploymentSpec(deployment.Spec, res.Type)
 		if specErr != nil {
 			return configplan.State{}, fmt.Errorf("deployment %s spec: %w", deployment.ID, specErr)
 		}
