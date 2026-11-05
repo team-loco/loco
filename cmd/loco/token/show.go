@@ -1,6 +1,7 @@
 package token
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -48,8 +49,11 @@ func newShowCmd(deps showDeps) *cobra.Command {
 			}
 
 			token, err := store.Get()
-			if err != nil {
+			if errors.Is(err, keychain.ErrNotFound) {
 				return cmdutil.ErrLoginRequired
+			}
+			if err != nil {
+				return fmt.Errorf("failed to read token from keychain: %w", err)
 			}
 
 			raw, err := cmd.Flags().GetBool("raw")
