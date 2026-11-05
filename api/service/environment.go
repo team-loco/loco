@@ -283,7 +283,7 @@ func (s *EnvironmentServer) UpdateEnvironment(
 	}, nil
 }
 
-// DeleteEnvironment deletes an environment, refusing if any resources use it.
+// DeleteEnvironment deletes an environment, refusing while it has deployments.
 func (s *EnvironmentServer) DeleteEnvironment(
 	ctx context.Context,
 	req *environmentv1.DeleteEnvironmentRequest,
@@ -313,24 +313,17 @@ func (s *EnvironmentServer) DeleteEnvironment(
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(verifyErr)
 	}
 
-	count, err := s.queries.CountDeploymentsByEnvironment(ctx, envID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to count deployments for environment", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-	if count > 0 {
-		slog.WarnContext(
-			ctx,
-			"cannot delete environment with deployments",
-			"environmentId",
-			req.GetEnvironmentId(),
-			"count",
-			count,
-		)
-		return nil, rpcerr.New(connect.CodeFailedPrecondition, ErrEnvironmentInUse)
-	}
-
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, existing.WorkspaceID); lockErr != nil {
+			return lockErr
+		}
+		count, countErr := qtx.CountDeploymentsByEnvironment(ctx, envID)
+		if countErr != nil {
+			return fmt.Errorf("count deployments: %w", countErr)
+		}
+		if count > 0 {
+			return rpcerr.New(connect.CodeFailedPrecondition, ErrEnvironmentInUse)
+		}
 		if deleteErr := qtx.DeleteEnvironment(ctx, envID); deleteErr != nil {
 			return deleteErr
 		}
