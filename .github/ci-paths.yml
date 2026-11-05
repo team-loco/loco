@@ -279,6 +279,7 @@ osv:
     - "**/pyproject.toml"
     - "**/uv.lock"
     - "bun.lock"
+    - "osv-scanner.toml"
     - ".github/workflows/osv.yml"
   push: *osv
 
