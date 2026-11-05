@@ -6,8 +6,14 @@ PASSING = {'success', 'skipped', 'neutral'}
 
 
 def with_run(run_pages, current):
-    runs = [run for page in run_pages for run in page['workflow_runs'] if run['id'] != current['id']]
-    return [{'workflow_runs': runs + [current]}]
+    runs = [run for page in run_pages for run in page['workflow_runs']]
+    listed = next((run for run in runs if run['id'] == current['id']), None)
+    # the event can lag the listing, which may not show the run completed yet; a rerun of
+    # this gate replays the old event, so a later attempt in the listing wins
+    if listed is not None and listed['run_attempt'] > current['run_attempt']:
+        return [{'workflow_runs': runs}]
+    others = [run for run in runs if run['id'] != current['id']]
+    return [{'workflow_runs': others + [current]}]
 
 
 def current_checks(run_pages, check_pages, self_name, gated):
