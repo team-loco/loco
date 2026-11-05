@@ -16,11 +16,6 @@ import (
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 )
 
-type Applier interface {
-	ApplyPlacement(ctx context.Context, placement applier.Placement) error
-	DeletePlacement(ctx context.Context, placement applier.Placement) error
-}
-
 type Config struct {
 	Workers        int
 	RetryBaseDelay time.Duration
@@ -33,7 +28,7 @@ type Work struct {
 }
 
 type Reconciler struct {
-	applier Applier
+	applier *applier.Applier
 	report  func(*agentv1.Applied)
 	workers int
 	queue   workqueue.TypedRateLimitingInterface[string]
@@ -43,7 +38,7 @@ type Reconciler struct {
 	reported map[string]int64
 }
 
-func New(a Applier, report func(*agentv1.Applied), cfg Config) *Reconciler {
+func New(a *applier.Applier, report func(*agentv1.Applied), cfg Config) *Reconciler {
 	limiter := workqueue.NewTypedItemExponentialFailureRateLimiter[string](cfg.RetryBaseDelay, cfg.RetryMaxDelay)
 	queue := workqueue.NewTypedRateLimitingQueueWithConfig(limiter, workqueue.TypedRateLimitingQueueConfig[string]{
 		Name: "placements",

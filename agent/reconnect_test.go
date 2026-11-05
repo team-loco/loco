@@ -16,7 +16,6 @@ import (
 const (
 	testReconnectDelay      = time.Millisecond
 	testHealthyStreamWindow = time.Hour
-	testStreamName          = "test stream"
 	testAttemptsBeforeStop  = 2
 	testClusterRemoved      = "cluster is removed"
 	testCredentialRejected  = "invalid agent credential"
@@ -46,7 +45,7 @@ func TestReconnectLoopStopsOnAnErrorARetryCannotFix(t *testing.T) {
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 			attempts := 0
-			err := a.reconnectLoop(ctx, testStreamName, func(context.Context) error {
+			err := a.reconnectLoop(ctx, func(context.Context) error {
 				attempts++
 				if attempts == testAttemptsBeforeStop {
 					cancel()
@@ -80,7 +79,7 @@ func TestReconnectLoopLogsARetriedStreamErrorAsAWarning(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	attempts := 0
-	err := a.reconnectLoop(ctx, testStreamName, func(context.Context) error {
+	err := a.reconnectLoop(ctx, func(context.Context) error {
 		attempts++
 		if attempts == testAttemptsBeforeStop {
 			cancel()
@@ -104,7 +103,7 @@ func TestReconnectLoopLogsARetriedStreamErrorAsAWarning(t *testing.T) {
 	if err := json.Unmarshal([]byte(lines[0]), &record); err != nil {
 		t.Fatalf("decode %q: %v", lines[0], err)
 	}
-	want := testStreamName + " error, reconnecting"
+	want := "sync stream error, reconnecting"
 	if record.Level != slog.LevelWarn.String() || record.Msg != want ||
 		record.Error != errTestStreamDropped.Error() {
 		t.Fatalf("logged %+v, want a %s record of the dropped stream", record, slog.LevelWarn)
