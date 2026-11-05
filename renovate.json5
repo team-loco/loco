@@ -96,6 +96,12 @@
       matchPackageNames: ["golang.org/x/**"],
     },
     {
+      description: "The collector core modules and the contrib ClickHouse exporter release in lockstep. go.opentelemetry.io/otel versions on its own and stays out",
+      groupName: "opentelemetry collector",
+      matchDatasources: ["go"],
+      matchPackageNames: ["go.opentelemetry.io/collector/**", "github.com/open-telemetry/opentelemetry-collector-contrib/**"],
+    },
+    {
       groupName: "charmbracelet",
       matchDatasources: ["go"],
       matchPackageNames: ["charm.land/**"],
