@@ -3,10 +3,8 @@ package v1alpha1
 import "strconv"
 
 const (
-	AnnotationPlacementID       = "loco.io/placement-id"
-	AnnotationPlacementRevision = "loco.io/placement-revision"
-	LabelPlacementID            = "loco.io/placement-id"
-	LabelPlacementRevision      = "loco.io/placement-revision"
+	KeyPlacementID       = "loco.io/placement-id"
+	KeyPlacementRevision = "loco.io/placement-revision"
 
 	envSecretNamePrefix = "env-"
 )
@@ -18,15 +16,15 @@ func EnvSecretName(placementID string) string {
 
 // EnvSecretRevision reads the placement revision label of a staging Secret.
 func EnvSecretRevision(labels map[string]string) (int64, bool) {
-	return revisionOf(labels, LabelPlacementRevision)
+	return revisionOf(labels, KeyPlacementRevision)
 }
 
 func (a *Application) PlacementID() string {
-	return a.GetAnnotations()[AnnotationPlacementID]
+	return a.GetAnnotations()[KeyPlacementID]
 }
 
 func (a *Application) PlacementRevision() (int64, bool) {
-	return revisionOf(a.GetAnnotations(), AnnotationPlacementRevision)
+	return revisionOf(a.GetAnnotations(), KeyPlacementRevision)
 }
 
 // Placement reads the placement annotations; ok is false unless both are present.

@@ -31,8 +31,8 @@ var errAgentCrashed = errors.New("agent stopped between the Application and the 
 func app(name, placementID, revision, phase string) *locoControllerV1.Application {
 	annotations := map[string]string{}
 	if placementID != "" {
-		annotations[locoControllerV1.AnnotationPlacementID] = placementID
-		annotations[locoControllerV1.AnnotationPlacementRevision] = revision
+		annotations[locoControllerV1.KeyPlacementID] = placementID
+		annotations[locoControllerV1.KeyPlacementRevision] = revision
 	}
 	observed, err := strconv.ParseInt(revision, 10, 64)
 	if err != nil {
@@ -284,8 +284,8 @@ func TestInventoryMarksAPlacementPendingWhileItsEnvSecretHasAnotherRevision(t *t
 		Name:      locoControllerV1.EnvSecretName(testPlacementID),
 		Namespace: testNamespace,
 		Labels: map[string]string{
-			locoControllerV1.LabelPlacementID:       testPlacementID,
-			locoControllerV1.LabelPlacementRevision: "4",
+			locoControllerV1.KeyPlacementID:       testPlacementID,
+			locoControllerV1.KeyPlacementRevision: "4",
 		},
 	}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(referencing, staged).Build()

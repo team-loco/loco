@@ -25,8 +25,8 @@ var _ = Describe("Staged environment secret reads", func() {
 			Name:      "env-staged-reader",
 			Namespace: testNamespace,
 			Labels: map[string]string{
-				locov1alpha1.LabelPlacementID:       testStagedPlacementID,
-				locov1alpha1.LabelPlacementRevision: "1",
+				locov1alpha1.KeyPlacementID:       testStagedPlacementID,
+				locov1alpha1.KeyPlacementRevision: "1",
 			},
 			Data: map[string][]byte{"VALUE": []byte("initial"), envOTelTracesSamplerArg: []byte("0")},
 		}
@@ -35,7 +35,7 @@ var _ = Describe("Staged environment secret reads", func() {
 		namespace := &corev1.Namespace{Name: testWorkspaceNamespace(app)}
 		Expect(k8sClient.Create(ctx, namespace)).To(Succeed())
 		DeferCleanup(func() { Expect(k8sClient.Delete(ctx, namespace)).To(Succeed()) })
-		app.Annotations = map[string]string{locov1alpha1.AnnotationPlacementID: testStagedPlacementID}
+		app.Annotations = map[string]string{locov1alpha1.KeyPlacementID: testStagedPlacementID}
 		app.Spec.ServiceSpec.Deployment.EnvSecretRef = &locov1alpha1.EnvSecretRef{Name: stage.Name, Revision: 1}
 		filtered, err := cache.New(cfg, CacheOptions(testNamespace, "registry-filtered-reader", false))
 		Expect(err).NotTo(HaveOccurred())
@@ -71,7 +71,7 @@ var _ = Describe("Staged environment secret reads", func() {
 		targetKey := client.ObjectKey{Namespace: namespace.Name, Name: getEnvSecretName(app)}
 		Expect(k8sClient.Get(ctx, targetKey, target)).To(Succeed())
 		Expect(target.Data).To(Equal(stage.Data))
-		stage.Labels[locov1alpha1.LabelPlacementRevision] = "2"
+		stage.Labels[locov1alpha1.KeyPlacementRevision] = "2"
 		stage.Data["VALUE"] = []byte("rotated")
 		stage.Data[envOTelTracesSamplerArg] = []byte("1")
 		Expect(k8sClient.Update(ctx, stage)).To(Succeed())
@@ -88,7 +88,7 @@ var _ = Describe("Staged environment secret reads", func() {
 		)
 
 		delete(stage.Data, envOTelTracesSamplerArg)
-		stage.Labels[locov1alpha1.LabelPlacementRevision] = "3"
+		stage.Labels[locov1alpha1.KeyPlacementRevision] = "3"
 		Expect(k8sClient.Update(ctx, stage)).To(Succeed())
 		app.Spec.ServiceSpec.Deployment.EnvSecretRef.Revision = 3
 		mount, err = r.ensureEnvSecret(ctx, app)

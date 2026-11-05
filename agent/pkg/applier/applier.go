@@ -296,8 +296,8 @@ func (a *Applier) writeEnvSecret(ctx context.Context, live livePlacement, placem
 	}
 	revision := strconv.FormatInt(placement.EnvSecret.Revision, 10)
 	secret.Labels = map[string]string{
-		locoControllerV1.LabelPlacementID:       placement.ID,
-		locoControllerV1.LabelPlacementRevision: revision,
+		locoControllerV1.KeyPlacementID:       placement.ID,
+		locoControllerV1.KeyPlacementRevision: revision,
 	}
 	secret.OwnerReferences = []metav1.OwnerReference{{
 		APIVersion: locoControllerV1.GroupVersion.String(),
@@ -328,7 +328,7 @@ func (a *Applier) writeEnvSecret(ctx context.Context, live livePlacement, placem
 // Application does not reference them.
 func (a *Applier) SweepEnvSecrets(ctx context.Context) error {
 	secrets := &corev1.SecretList{}
-	hasPlacement := client.HasLabels{locoControllerV1.LabelPlacementID}
+	hasPlacement := client.HasLabels{locoControllerV1.KeyPlacementID}
 	if err := a.client.List(ctx, secrets, client.InNamespace(a.namespace), hasPlacement); err != nil {
 		return fmt.Errorf("failed to list env Secrets: %w", err)
 	}
@@ -376,8 +376,8 @@ func applicationApplyConfiguration(
 	obj.SetResourceVersion(resourceVersion)
 	revision := strconv.FormatInt(placement.Revision, 10)
 	obj.SetAnnotations(map[string]string{
-		locoControllerV1.AnnotationPlacementID:       placement.ID,
-		locoControllerV1.AnnotationPlacementRevision: revision,
+		locoControllerV1.KeyPlacementID:       placement.ID,
+		locoControllerV1.KeyPlacementRevision: revision,
 	})
 	setErr := unstructured.SetNestedField(obj.Object, specMap, "spec")
 	if setErr != nil {

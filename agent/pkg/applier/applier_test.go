@@ -100,8 +100,8 @@ func TestApplyPlacementWritesTheEnvSecretOwnedByTheApplication(t *testing.T) {
 	if string(secret.Data["DATABASE_URL"]) != string(value) {
 		t.Fatalf("env Secret data = %v, want DATABASE_URL", secret.Data)
 	}
-	if secret.Labels[locoControllerV1.LabelPlacementID] != "p1" ||
-		secret.Labels[locoControllerV1.LabelPlacementRevision] != "2" {
+	if secret.Labels[locoControllerV1.KeyPlacementID] != "p1" ||
+		secret.Labels[locoControllerV1.KeyPlacementRevision] != "2" {
 		t.Fatalf("env Secret labels = %v, want placement p1 at revision 2", secret.Labels)
 	}
 	if len(secret.OwnerReferences) != 1 || secret.OwnerReferences[0].Kind != applicationKind ||

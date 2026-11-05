@@ -506,7 +506,7 @@ func (r *LocoResourceReconciler) ensureEnvSecret(
 		return envSecretMount{}, fmt.Errorf("get staged env secret %s: %w", stagedKey, err)
 	}
 	placementID := locoRes.PlacementID()
-	if placementID == "" || staged.Labels[locov1alpha1.LabelPlacementID] != placementID {
+	if placementID == "" || staged.Labels[locov1alpha1.KeyPlacementID] != placementID {
 		return envSecretMount{}, fmt.Errorf(
 			"%w: %s, application placement %q", errEnvSecretPlacement, stagedKey, placementID)
 	}

@@ -35,7 +35,7 @@ var _ = Describe("Application reconcile", func() {
 		const convergeName = "converge"
 		app := &locov1alpha1.Application{
 			Name: convergeName, Namespace: testNamespace,
-			Annotations: map[string]string{locov1alpha1.AnnotationPlacementID: "p-converge"},
+			Annotations: map[string]string{locov1alpha1.KeyPlacementID: "p-converge"},
 			Spec: locov1alpha1.ApplicationSpec{
 				Type:        testAppType,
 				ResourceID:  convergeName,
@@ -89,8 +89,8 @@ var _ = Describe("Application reconcile", func() {
 		staged := &corev1.Secret{
 			Name: "env-converge", Namespace: testNamespace,
 			Labels: map[string]string{
-				locov1alpha1.LabelPlacementID:       "p-converge",
-				locov1alpha1.LabelPlacementRevision: "1",
+				locov1alpha1.KeyPlacementID:       "p-converge",
+				locov1alpha1.KeyPlacementRevision: "1",
 			},
 			Data: map[string][]byte{"DATABASE_URL": []byte("postgres://old")},
 		}
@@ -99,7 +99,7 @@ var _ = Describe("Application reconcile", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(result.RequeueAfter).To(Equal(envSecretRequeue))
 
-		staged.Labels[locov1alpha1.LabelPlacementRevision] = "2"
+		staged.Labels[locov1alpha1.KeyPlacementRevision] = "2"
 		staged.Data["DATABASE_URL"] = []byte("postgres://new")
 		Expect(k8sClient.Update(ctx, staged)).To(Succeed())
 		result, err = r.Reconcile(ctx, req)
@@ -162,7 +162,7 @@ var _ = Describe("Application reconcile", func() {
 		Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
 		Expect(app.ResourceVersion).To(Equal(appVersion))
 
-		staged.Labels[locov1alpha1.LabelPlacementRevision] = "3"
+		staged.Labels[locov1alpha1.KeyPlacementRevision] = "3"
 		staged.Data["DATABASE_URL"] = []byte("postgres://next")
 		Expect(k8sClient.Update(ctx, staged)).To(Succeed())
 		result, err = r.Reconcile(ctx, req)

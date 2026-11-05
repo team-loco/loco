@@ -18,12 +18,12 @@ func TestApplicationPlacement(t *testing.T) {
 		revision    int64
 		ok          bool
 	}{
-		{"both", map[string]string{AnnotationPlacementID: "p1", AnnotationPlacementRevision: "4"}, "p1", 4, true},
-		{"no id", map[string]string{AnnotationPlacementRevision: "4"}, "", 0, false},
-		{"no revision", map[string]string{AnnotationPlacementID: "p1"}, "", 0, false},
+		{"both", map[string]string{KeyPlacementID: "p1", KeyPlacementRevision: "4"}, "p1", 4, true},
+		{"no id", map[string]string{KeyPlacementRevision: "4"}, "", 0, false},
+		{"no revision", map[string]string{KeyPlacementID: "p1"}, "", 0, false},
 		{
 			"bad revision",
-			map[string]string{AnnotationPlacementID: "p1", AnnotationPlacementRevision: "x"},
+			map[string]string{KeyPlacementID: "p1", KeyPlacementRevision: "x"},
 			"",
 			0,
 			false,

@@ -30,12 +30,12 @@ func telemetrySecretFixture(
 	stage := &corev1.Secret{
 		Name: "env-telemetry", Namespace: app.Namespace,
 		Labels: map[string]string{
-			locov1alpha1.LabelPlacementID:       testStagedPlacementID,
-			locov1alpha1.LabelPlacementRevision: "1",
+			locov1alpha1.KeyPlacementID:       testStagedPlacementID,
+			locov1alpha1.KeyPlacementRevision: "1",
 		},
 		Data: map[string][]byte{name: []byte(testSecretTelemetryValue)},
 	}
-	app.Annotations = map[string]string{locov1alpha1.AnnotationPlacementID: testStagedPlacementID}
+	app.Annotations = map[string]string{locov1alpha1.KeyPlacementID: testStagedPlacementID}
 	app.Spec.ServiceSpec.Deployment.EnvSecretRef = &locov1alpha1.EnvSecretRef{Name: stage.Name, Revision: 1}
 	scheme := runtime.NewScheme()
 	if err := corev1.AddToScheme(scheme); err != nil {
@@ -112,7 +112,7 @@ func TestMountedTelemetrySecretsKeepPlainAndLocoPrecedence(t *testing.T) {
 func TestStagedSecretAheadOfTheReferencedRevisionIsPending(t *testing.T) {
 	app := telemetryTestApplication()
 	r, stage, _ := telemetrySecretFixture(t, app, envOTelServiceName)
-	stage.Labels[locov1alpha1.LabelPlacementRevision] = "2"
+	stage.Labels[locov1alpha1.KeyPlacementRevision] = "2"
 	if err := r.Update(t.Context(), stage); err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +127,7 @@ func TestStagedSecretAheadOfTheReferencedRevisionIsPending(t *testing.T) {
 func TestStagedSecretOfAnotherPlacementIsNotCopied(t *testing.T) {
 	app := telemetryTestApplication()
 	r, stage, applied := telemetrySecretFixture(t, app, envOTelServiceName)
-	stage.Labels[locov1alpha1.LabelPlacementID] = "p2"
+	stage.Labels[locov1alpha1.KeyPlacementID] = "p2"
 	if err := r.Update(t.Context(), stage); err != nil {
 		t.Fatal(err)
 	}

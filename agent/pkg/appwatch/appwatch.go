@@ -135,7 +135,7 @@ func (w *Watcher) Inventory(ctx context.Context) (*agentv1.Inventory, error) {
 
 func (w *Watcher) stagedRevisions(ctx context.Context) (map[string]int64, error) {
 	var secrets corev1.SecretList
-	hasPlacement := client.HasLabels{locoControllerV1.LabelPlacementID}
+	hasPlacement := client.HasLabels{locoControllerV1.KeyPlacementID}
 	if err := w.secrets.List(ctx, &secrets, client.InNamespace(w.namespace), hasPlacement); err != nil {
 		return nil, fmt.Errorf("failed to list env Secrets: %w", err)
 	}

@@ -90,8 +90,8 @@ func appliedApplication(revision int64, withRef bool) *locoControllerV1.Applicat
 		Namespace: testNamespace,
 		UID:       testAppUID,
 		Annotations: map[string]string{
-			locoControllerV1.AnnotationPlacementID:       testPlacementID,
-			locoControllerV1.AnnotationPlacementRevision: strconv.FormatInt(revision, 10),
+			locoControllerV1.KeyPlacementID:       testPlacementID,
+			locoControllerV1.KeyPlacementRevision: strconv.FormatInt(revision, 10),
 		},
 		Spec: locoControllerV1.ApplicationSpec{
 			Type:        testAppType,
@@ -107,8 +107,8 @@ func stagedSecret(placementID string, revision int64, value string) *corev1.Secr
 		Namespace:       testNamespace,
 		OwnerReferences: []metav1.OwnerReference{{Kind: applicationKind, UID: testAppUID}},
 		Labels: map[string]string{
-			locoControllerV1.LabelPlacementID:       placementID,
-			locoControllerV1.LabelPlacementRevision: strconv.FormatInt(revision, 10),
+			locoControllerV1.KeyPlacementID:       placementID,
+			locoControllerV1.KeyPlacementRevision: strconv.FormatInt(revision, 10),
 		},
 		Data: map[string][]byte{databaseURLName: []byte(value)},
 	}
@@ -128,7 +128,7 @@ func (a *Applier) stagedValue(t *testing.T) (string, string) {
 	if err != nil {
 		t.Fatalf("get env Secret: %v", err)
 	}
-	return string(secret.Data[databaseURLName]), secret.Labels[locoControllerV1.LabelPlacementRevision]
+	return string(secret.Data[databaseURLName]), secret.Labels[locoControllerV1.KeyPlacementRevision]
 }
 
 func TestFirstCreationAppliesTheApplicationBeforeItsEnvSecret(t *testing.T) {
@@ -262,7 +262,7 @@ func TestSweepEnvSecretsDeletesOrphans(t *testing.T) {
 	referenced := appliedApplication(2, true)
 	unreferencing := appliedApplication(2, false)
 	unreferencing.Name = locoControllerV1.ApplicationName("other")
-	unreferencing.Annotations[locoControllerV1.AnnotationPlacementID] = "p2"
+	unreferencing.Annotations[locoControllerV1.KeyPlacementID] = "p2"
 	unrelated := &corev1.Secret{Name: "registry", Namespace: testNamespace}
 	a, _ := newRecordingApplier(t,
 		referenced,

@@ -369,15 +369,15 @@ func TestObservePlacementRevision(t *testing.T) {
 	}
 
 	app.Annotations = map[string]string{
-		locov1alpha1.AnnotationPlacementID:       "p1",
-		locov1alpha1.AnnotationPlacementRevision: "7",
+		locov1alpha1.KeyPlacementID:       "p1",
+		locov1alpha1.KeyPlacementRevision: "7",
 	}
 	observePlacementRevision(app)
 	if app.Status.ObservedPlacementRevision != 7 {
 		t.Fatalf("observed revision = %d, want 7", app.Status.ObservedPlacementRevision)
 	}
 
-	app.Annotations[locov1alpha1.AnnotationPlacementRevision] = "not-a-number"
+	app.Annotations[locov1alpha1.KeyPlacementRevision] = "not-a-number"
 	observePlacementRevision(app)
 	if app.Status.ObservedPlacementRevision != 7 {
 		t.Fatal("an unparseable annotation reset the observed revision")
