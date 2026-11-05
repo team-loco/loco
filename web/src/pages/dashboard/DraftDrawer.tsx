@@ -280,7 +280,12 @@ function DraftDrawerBody({
 						spec: {
 							case: "service",
 							value: {
-								routing: { port: Number(draft.port), pathPrefix: "/", idleTimeout: config?.routing?.idleTimeout ?? 60 },
+								routing: {
+									port: Number(draft.port),
+									...(config?.routing !== undefined
+										? { pathPrefix: config.routing.pathPrefix, idleTimeout: config.routing.idleTimeout }
+										: {}),
+								},
 								...(config?.observability !== undefined ? { observability: config.observability } : {}),
 								regions: {
 									[region]: {
