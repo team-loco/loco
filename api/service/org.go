@@ -2,10 +2,12 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
+	"unicode/utf8"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -34,7 +36,14 @@ var (
 	errCreateIfMissingForOtherUser = errors.New("create_if_missing requires user_id to be the caller")
 )
 
-const firstWorkspaceName = "default"
+const (
+	firstWorkspaceName      = "default"
+	firstOrgNameSuffix      = "-org"
+	firstOrgNameAttempts    = 4
+	firstOrgRandomSuffixLen = 4
+	// maxOrgNameLen matches the max_len of the organization name in org.proto.
+	maxOrgNameLen = 100
+)
 
 var emailNameReplacer = strings.NewReplacer("@", "-", ".", "-", "+", "-")
 
@@ -306,7 +315,8 @@ func (s *OrgServer) createFirstOrg(ctx context.Context, scopes []genDb.EntitySco
 	if entity.Type != genDb.EntityTypeUser || entity.ID != userID {
 		return rpcerr.New(connect.CodeInvalidArgument, errCreateIfMissingForOtherUser)
 	}
-	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		qtx := genDb.New(tx)
 		if _, err := qtx.LockUserForMembership(ctx, userID); err != nil {
 			return err
 		}
@@ -324,7 +334,7 @@ func (s *OrgServer) createFirstOrg(ctx context.Context, scopes []genDb.EntitySco
 		if err != nil {
 			return err
 		}
-		org, err := createOrgInTx(ctx, qtx, userID, firstOrgName(user.Email))
+		org, err := createOrgWithFreeName(ctx, tx, userID, user.Email)
 		if err != nil {
 			return err
 		}
@@ -341,8 +351,38 @@ func (s *OrgServer) createFirstOrg(ctx context.Context, scopes []genDb.EntitySco
 	return nil
 }
 
-func firstOrgName(email string) string {
-	return emailNameReplacer.Replace(strings.ToLower(email)) + "-org"
+// createOrgWithFreeName creates each candidate name in a savepoint, because a unique
+// violation aborts the surrounding transaction.
+func createOrgWithFreeName(ctx context.Context, tx pgx.Tx, userID uuid.UUID, email string) (genDb.Organization, error) {
+	for attempt := range firstOrgNameAttempts {
+		name := firstOrgName(email, attempt)
+		var org genDb.Organization
+		err := pgx.BeginFunc(ctx, tx, func(savepoint pgx.Tx) error {
+			var createErr error
+			org, createErr = createOrgInTx(ctx, genDb.New(savepoint), userID, name)
+			return createErr
+		})
+		if err == nil {
+			return org, nil
+		}
+		if !errors.Is(err, ErrOrgNameNotUnique) {
+			return genDb.Organization{}, err
+		}
+	}
+	return genDb.Organization{}, rpcerr.New(connect.CodeAlreadyExists, ErrOrgNameNotUnique)
+}
+
+func firstOrgName(email string, attempt int) string {
+	suffix := firstOrgNameSuffix
+	if attempt > 0 {
+		suffix += "-" + strings.ToLower(rand.Text()[:firstOrgRandomSuffixLen])
+	}
+	base := []rune(emailNameReplacer.Replace(strings.ToLower(email)))
+	limit := maxOrgNameLen - utf8.RuneCountInString(suffix)
+	if len(base) > limit {
+		base = base[:limit]
+	}
+	return string(base) + suffix
 }
 
 // UpdateOrg updates an organization
