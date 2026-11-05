@@ -114,30 +114,7 @@ Builds, tests, code generation, linting and the local environment are mise tasks
 
 Load the user-level `go-review` skill before writing or reviewing Go.
 
-- **Imports**: stdlib → third-party → local packages; grouped with blank lines
-- **Error handling**: Wrap with `fmt.Errorf("context: %w", err)`; use `slog.ErrorContext()`
-- **Errors stay visible**: log a failure that needs a person at ERROR, and stop rather than retry an error a retry cannot fix (a removed resource, a rejected credential, invalid configuration). WARN is only for a condition the code handles itself, such as a dropped stream it reconnects.
-- **Naming**: camelCase for unexported, PascalCase for exported; descriptive names
-- **Types**: Use protobuf types for API; shared types in `internal/`, CLI-only packages in `cmd/internal/`. Start with concrete types: accept interfaces, return concrete types, and add an interface only when a second real implementation exists, never just so a test can fake one
-- **Logging**: `slog` package with structured logging; `slog.InfoContext(ctx, "message")`
-- **Concurrency**: Context-based cancellation; goroutines with proper cleanup
-- **Formatting**: `gofmt` compatible; single import per line in groups.
-- **Comments** explain why, never what: a constraint, a non-obvious decision, the bug a line
-  avoids. Delete comments that restate the code. Follow-ups and deprecations go in an issue,
-  not a comment. Comments are lower-case unless they are Go doc comments.
-- **Switch statements**: never group `case` labels to share a body. Every case gets its own body, even when two cases return the same value — grouped labels are a fallthrough, and a later edit that adds a statement under the first label silently changes the second. Prefer an explicit `case X: return "a"; case Y: return "a";` over `case X: case Y: return "a";`.
-- **Proto Optional Fields**: Always use getter syntax (e.g., `r.GetDescription()`) instead of pointer checks. Never write `r.Description != nil && *r.Description != ""`. Set one with `new`: `Name: new("renamed")`.
-- **Errors**: don't scatter `errors.New()` / `fmt.Errorf()` through function bodies. Any error with a fixed message is a package-level variable: in the package's `errors.go` when several files use it, otherwise in a `var` block at the top of the file. Reuse an existing sentinel before declaring a new one. Inline is only for errors that wrap or format runtime values (`fmt.Errorf("context: %w", err)`).
-- **Magic numbers**: no unexplained literals in logic (`5 << 20`, `1024`, `65535`, timeouts, limits, ports). Tunable values belong in the config struct; the rest are named `const`s at the top of the file. Before submitting, check the whole change for any you missed.
-- **Names**: never use numbered suffixes (`uniqueJSONErr2`, `uniqueJSONErr3`). Name each value after what it holds.
-- **New tooling is Go**: write a new tool or helper script as a Go program under `tools/`, tested
-  with `go test`, not in Python. Existing Python tooling stays until it is rewritten for its own
-  reasons.
-- **Standard library first**: before hand-rolling parsing, matching or a lookup table, check
-  whether the standard library or an existing dependency already does it, e.g.
-  `netip.Addr.IsLoopback` instead of a list of loopback hosts, `net/url` instead of string
-  splitting.
-- **Nested calls**: name a call's result in a local before passing it to another call or a struct literal.
+- Write new tooling in Go under `tools/`, with tests; existing Python tooling can stay.
 
 ## ConnectRPC traps
 
@@ -154,77 +131,20 @@ Load the user-level `go-review` skill before writing or reviewing Go.
 
 ## Repo Hygiene
 
-- **PRs, issues and commits are read by strangers.** Never write anything conversational
-  into a PR description, issue body, commit message or code review comment: no offers
-  ("happy to do that as a follow-up"), no questions to the reader, no narration of what you
-  did or did not try, no apologies. Those belong in the chat reply to whoever you are working
-  for. A PR body states what changed, why, and anything a reviewer must know to judge it --
-  nothing else. Follow-up work that is worth tracking becomes an issue, not a sentence in a
-  description. Do not add AI attribution either: no `Co-Authored-By` trailer for an agent, no
-  "Generated with ..." footer, no session links. Load the `prose` skill before writing any of
-  these.
-- **Frontend PRs carry before and after screenshots.** Any PR that changes what the web UI
-  looks like or how it behaves must include screenshots of the affected screens before and
-  after the change in the PR body, as evidence. Cover light and dark mode, and a narrow
-  viewport when the layout changes. The `ui-evidence` skill captures and tabulates them.
-  Upload them with `gh pr edit --attach`.
-- **Other agents may be working in this repo at the same time.** The index is shared
-  state: never run `git commit` on whatever happens to be staged. Check `git status`
-  first, and commit explicit paths (`git commit -- <paths>`) so another agent's staged
-  work cannot be swept into your commit.
-- **PRs must be up to date with `main` to merge.** Branch protection requires it, and
-  `CI Gate` reruns on the updated head. Rebase onto `origin/main` before asking for a merge.
-  Commits that landed on `main` meanwhile can change what your work depends on: read
-  `git log HEAD..origin/main` and the files those commits touch, and fix renamed symbols,
-  moved files, new rules in this file and conflicting migrations or protos before pushing,
-  not only the textual conflicts git reports.
-- **Use `gh stack` for readable PRs.** Whenever a change can be split into a chain of
-  small, reviewable PRs that build on each other, create them with `gh stack` instead of
-  one large PR or hand-rolled branches off each other.
-- **Check PR state before pushing.** A draft can be merged or closed while you work on it.
-  Run `gh pr view` before pushing more commits to its branch.
-- **Buf compares against `main`**, so every PR in a stack above a breaking proto change also
-  needs the `break-buf` label.
-- **This repo is public.** Never put exploitable weaknesses — missing auth, forgeable attributes, over-broad credentials,... Never also run a plain `git add .` or `git add -A`, without knowing it is safe. Assume all git issues, notes, comments, code, is visible to everyone in the world.
+Read [CLAUDE.local.md](CLAUDE.local.md) when present for this checkout's Git and PR workflow.
 
 ## Generated Code
 
-Never hand-edit. Regenerate via `mise run gen` after any changes to `proto/`, `api/queries/` or
-  `api/migrations/`.
+Do not edit generated files directly. Regenerate after changing their sources:
 
-- `k8sapi/**/zz_generated.deepcopy.go`, `controller/config/crd/bases/**`,
-  `controller/config/rbac/role.yaml` (Application controller, from the markers in
-  `controller/internal/controller`), `controller/config/rbac/builds/role.yaml` (build
-  controller, from `controller/internal/builds`) and the `charts/loco-worker` copies of
-  the roles: `templates/controller/manager-role.yaml` and
-  `templates/builds/manager-role.yaml` — `mise run controller:gen`. CI fails when any of
-  them is out of date. Read the diff: unrelated-looking changes in the chart copies are
-  usually real drift.
-- `charts/*/values.schema.json`, from the `# @schema` annotations in each chart's
-  `values.yaml` — `mise run chart:schema`. `mise run lint:charts` fails when a schema is out
-  of date.
-- No chart installs CRDs. `mise run crds:apply` server-side applies
-  `controller/config/crd/bases/*.yaml` and the Gateway API CRDs from the pinned
-  `gateway-helm` chart before any chart is installed.
-- The database has no users yet: edit migrations in place instead of adding new ones.
+- Protobuf definitions, SQL queries or migrations: `mise run gen`.
+- Kubernetes API types or controller markers: `mise run controller:gen` (deep copies, CRDs, RBAC and chart copies).
 
-## Linting
-
-golangci-lint is pinned in `mise.toml` at the version CI runs, and the lefthook pre-commit
-hook runs it on the Go modules a commit touches. **CI gates on it**, so write lint-clean the
-first time and run `mise run lint:go` before pushing. The one that bites most:
-
-- `errcheck` flags unchecked type assertions. Always `v, ok := x.(T)` with a handled
-  `!ok`, never `v := x.(T)`.
+Review generated diffs; CI checks for drift.
 
 ## Charts
 
-- **A chart change comes with a helm-unittest test** in the chart's `tests/` that fails before
-  the change and passes after it. Assert the property the change is about; never use
-  `matchSnapshot`. `charts/TESTING.md` covers the static tests (`mise run lint:charts`), the
-  unit tests (`mise run test:charts`) and the collector configuration tests that stay pytest.
-- **Bump the chart's version** when a file the chart packages changes; `lint:charts` fails
-  otherwise. `tests/` and `ci/` are not packaged.
+Read [charts/AGENTS.md](charts/AGENTS.md) before chart work.
 
 ## loco.yaml
 
@@ -241,27 +161,4 @@ first time and run `mise run lint:go` before pushing. The one that bites most:
 
 ## Frontend
 
-- **Components**: `web/src/components/ui/` is stock vendored shadcn and is never edited. All Loco
-  styling goes in `components/design/<Name>.tsx` wrappers layered on with `cn()`, and pages import
-  from `design/`.
-- **Colours**: use the theme tokens (`bg-bg2`, `text-fg3`, `border-line`, the `ok/warn/bad`
-  pairs), never raw hex or stock Tailwind palette colours. Check every change in light and dark.
-- **Cursors**: the base CSS sets the pointer and disabled cursors; do not add `cursor-pointer`
-  per element.
-- **Effects**: no `useEffect` unless it syncs with an external system. Derive values during
-  render and do work in event handlers; for timers or observers use `useSyncExternalStore` or a
-  ref callback that returns a cleanup. Follow
-  https://github.com/vercel-labs/agent-skills/blob/main/skills/react-best-practices/AGENTS.md.
-- **Production build**: the dev server does not catch bundling bugs. Any change to
-  `web/build.ts` or dependencies needs `bun run build` and `bun run preview`, loaded in a browser,
-  before the PR.
-- **Errors**: user-facing error text goes through `web/src/lib/error-handler.ts`:
-  `getErrorMessage(error, fallback)` for a string, `toastConnectError(error, fallback)` for a
-  toast. Both handle `ConnectError`, `Error` and unknown values.
-
-## Skills
-
-Task-specific guidance lives in `.agents/skills/` (`.claude/skills` links to it), and the
-subagents those skills run in live in `.agents/agents/` (`.claude/agents` links to it).
-Claude Code loads a skill when its description matches the task; other agents should read
-the matching `SKILL.md` before starting.
+Read [web/AGENTS.md](web/AGENTS.md) before frontend work.
