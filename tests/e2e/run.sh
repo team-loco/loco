@@ -73,6 +73,7 @@ CLICKHOUSE_IMAGE=$(yq '.clickhouse.clickhouse.image.repository + ":" + .clickhou
 CLICKHOUSE_CONTAINER="${RUN_NAME}-clickhouse"
 OBS_PROXY_REPOSITORY="loco-obs-proxy"
 INGEST_CONTAINER="${RUN_NAME}-obs-ingest"
+REALM_CONTAINER="${RUN_NAME}-realm"
 INGEST_OTLP_HTTP_PORT=$(yq '.obsProxy.ingest.httpPort' "$CONTROL_PLANE_VALUES")
 OBS_DATABASE=$(yq '.clickhouse.clickhouse.database' "$CONTROL_PLANE_VALUES")
 CLICKHOUSE_USER="loco_e2e"
@@ -137,6 +138,8 @@ export E2E_REGISTRY_TOKEN_SERVICE="$E2E_REGISTRY_ALIAS"
 export E2E_REGISTRY_TOKEN_DIR="$RUN_DIR/registry"
 export E2E_REGISTRY_API_USER="api:loco-dev-api"
 export E2E_REGISTRY_NODES_USER="nodes:loco-dev-nodes"
+export E2E_REGISTRY_BUILDER_USER="builder:loco-dev-builder"
+export E2E_REGISTRY_REALM="http://${REALM_CONTAINER}:${API_PORT}/registry/token"
 export E2E_S3_ALIAS="${RUN_NAME}-s3.localhost"
 export E2E_S3_ENDPOINT="http://${E2E_S3_ALIAS}:${S3_PORT}"
 E2E_BUILD_NAMESPACE=$(yq '.builds.namespace' "$WORKER_VALUES")
@@ -144,6 +147,7 @@ export E2E_BUILD_NAMESPACE
 export E2E_BUILD_WORK_DIR="$LOG_DIR/builds"
 E2E_AWS_CLI_IMAGE=$(awk '$1 == "FROM" { print $2 }' "$SCRIPT_DIR/fixtures/aws-cli/Dockerfile")
 E2E_PUBLIC_IMAGE=$(awk '$1 == "FROM" { split($2, ref, "@"); print ref[1] }' "$SCRIPT_DIR/fixtures/public-image/Dockerfile")
+REALM_PROXY_IMAGE=$(awk '$1 == "FROM" { print $2 }' "$SCRIPT_DIR/fixtures/public-image/Dockerfile")
 export E2E_AWS_CLI_IMAGE E2E_PUBLIC_IMAGE
 
 source "$SCRIPT_DIR/lib.sh"
@@ -253,7 +257,7 @@ teardown() {
         kind delete cluster --name "$KIND_CLUSTER_NAME" --kubeconfig "$KUBECONFIG_FILE"
     fi
 
-    docker rm -fv "$INGEST_CONTAINER" "$CLICKHOUSE_CONTAINER" >/dev/null 2>&1 || true
+    docker rm -fv "$INGEST_CONTAINER" "$CLICKHOUSE_CONTAINER" "$REALM_CONTAINER" >/dev/null 2>&1 || true
 
     log_info "Removing compose project ${E2E_COMPOSE_PROJECT}..."
     e2e_compose --profile tools down -v --remove-orphans >/dev/null 2>&1 || true
@@ -302,6 +306,11 @@ dump_logs() {
     if [ "$OBSERVABILITY" = true ]; then
         log_group "obs-proxy ingest container"
         docker logs --tail "$LOG_TAIL_LINES" "$INGEST_CONTAINER" 2>&1 || true
+        log_group_end
+    fi
+    if [ "$REGISTRY_AUTH" = token ]; then
+        log_group "registry token endpoint proxy"
+        docker logs --tail "$LOG_TAIL_LINES" "$REALM_CONTAINER" 2>&1 || true
         log_group_end
     fi
     if [ "$OBSERVABILITY" = true ] && [ -s "$KUBECONFIG_FILE" ]; then
@@ -581,9 +590,19 @@ connect_registry() {
         mise run cluster:registry >/dev/null
 }
 
-kind_host_address() {
-    docker run --rm --network kind --add-host "${RUN_NAME}-host:host-gateway" --entrypoint cat "$E2E_PUBLIC_IMAGE" /etc/hosts |
-        awk -v host="${RUN_NAME}-host" '$2 == host { print $1; exit }'
+start_realm_proxy() {
+    mkdir -p "$E2E_REGISTRY_TOKEN_DIR"
+    printf 'server {\n    listen %s;\n    location / {\n        proxy_pass http://host.docker.internal:%s;\n    }\n}\n' \
+        "$API_PORT" "$API_PORT" >"$E2E_REGISTRY_TOKEN_DIR/realm.conf"
+    chmod a+r "$E2E_REGISTRY_TOKEN_DIR/realm.conf"
+    docker rm -fv "$REALM_CONTAINER" >/dev/null 2>&1 || true
+    docker run -d --name "$REALM_CONTAINER" --network kind --add-host host.docker.internal:host-gateway \
+        -v "$E2E_REGISTRY_TOKEN_DIR/realm.conf:/etc/nginx/conf.d/default.conf:ro" \
+        "$REALM_PROXY_IMAGE" >/dev/null
+}
+
+realm_proxy_reaches_api() {
+    docker exec "$REALM_CONTAINER" wget -q -O /dev/null "http://127.0.0.1:${API_PORT}/health"
 }
 
 setup_registry() {
@@ -596,10 +615,10 @@ setup_registry() {
     BUILD_PRIVATE_EGRESS=$(LOCO_REGISTRY_HOST="$E2E_REGISTRY_HOST" LOCO_SOURCE_BUCKET_ENDPOINT="$E2E_S3_ENDPOINT" mise run --quiet cluster:build-egress)
     if [ "$REGISTRY_AUTH" = token ]; then
         e2e_compose up -d --wait s3
-        REGISTRY_REALM_ADDRESS=$(kind_host_address)
-        BUILD_PRIVATE_EGRESS=$(CIDR="${REGISTRY_REALM_ADDRESS}/32" PORT="$API_PORT" yq -p json -o json -I 0 \
-            '. + [{"cidr": strenv(CIDR), "port": env(PORT)}]' <<<"$BUILD_PRIVATE_EGRESS")
-        log_ok "Source bucket at ${E2E_S3_ENDPOINT}, registry token endpoint at ${REGISTRY_REALM_ADDRESS}:${API_PORT}, build egress ${BUILD_PRIVATE_EGRESS}; the registry starts after the API"
+        start_realm_proxy
+        BUILD_PRIVATE_EGRESS=$(PORT="$API_PORT" yq -p json -o json -I 0 \
+            '. + ([.[].cidr] | unique | map({"cidr": ., "port": env(PORT)}))' <<<"$BUILD_PRIVATE_EGRESS")
+        log_ok "Source bucket at ${E2E_S3_ENDPOINT}, registry token endpoint ${E2E_REGISTRY_REALM}, build egress ${BUILD_PRIVATE_EGRESS}; the registry starts after the API"
         return 0
     fi
     e2e_compose up -d --wait registry s3
@@ -610,12 +629,12 @@ setup_registry() {
 start_token_registry() {
     log_step "Starting the registry with the API's token endpoint and key..."
     mkdir -p "$E2E_REGISTRY_TOKEN_DIR"
+    wait_for "${REALM_CONTAINER} to reach the API" "$READY_TIMEOUT" realm_proxy_reaches_api
     curl -sSf "${E2E_API_URL}/.well-known/loco-registry-key.pem" >"$E2E_REGISTRY_TOKEN_DIR/key.pem"
-    REALM="http://${REGISTRY_REALM_ADDRESS}:${API_PORT}/registry/token" \
     CERT="$E2E_REGISTRY_TOKEN_DIR/key.pem" \
         yq -p json -o json '
             .http.auth = {
-                "bearer": {"realm": strenv(REALM), "service": strenv(E2E_REGISTRY_TOKEN_SERVICE), "cert": strenv(CERT)},
+                "bearer": {"realm": strenv(E2E_REGISTRY_REALM), "service": strenv(E2E_REGISTRY_TOKEN_SERVICE), "cert": strenv(CERT)},
                 "failDelay": .http.auth.failDelay
             } | del(.http.accessControl)' \
         "$ROOT_DIR/dev/registry/config.json" >"$E2E_REGISTRY_TOKEN_DIR/config.json"

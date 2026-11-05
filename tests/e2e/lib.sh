@@ -173,15 +173,24 @@ registry_manifest_status() {
         "${E2E_REGISTRY_URL}/v2/${repository}/manifests/${digest}"
 }
 
+registry_secret_field() {
+    local namespace=$1 name=$2 field=$3 value
+    value=$(kubectl --context "kind-${E2E_KIND_CLUSTER}" -n "$namespace" get secret "$name" \
+        -o jsonpath='{.data.\.dockerconfigjson}' | base64 -d | yq -p json -e -r ".auths[].${field}") || return 1
+    [ -n "$value" ] && echo "$value"
+}
+
 registry_secret_password() {
-    local namespace=$1 name=$2
-    kubectl --context "kind-${E2E_KIND_CLUSTER}" -n "$namespace" get secret "$name" \
-        -o jsonpath='{.data.\.dockerconfigjson}' | base64 -d | yq -p json -r '.auths[].password'
+    registry_secret_field "$1" "$2" password
 }
 
 registry_realm_call() {
     local user=$1 password=$2 scope
     shift 2
+    if [ -z "$user" ] || [ -z "$password" ] || [ $# -eq 0 ]; then
+        echo "registry_realm_call needs a user, a password and a scope" >&2
+        return 1
+    fi
     local params=(--data-urlencode "service=${E2E_REGISTRY_TOKEN_SERVICE}")
     for scope in "$@"; do
         params+=(--data-urlencode "scope=${scope}")
@@ -190,32 +199,37 @@ registry_realm_call() {
 }
 
 registry_realm_status() {
-    registry_realm_call "$@" | tail -n 1
+    local response
+    response=$(registry_realm_call "$@") || return 1
+    echo "${response##*$'\n'}"
 }
 
 registry_realm_token() {
-    local response status
-    response=$(registry_realm_call "$@")
+    local response status token
+    response=$(registry_realm_call "$@") || return 1
     status=${response##*$'\n'}
     if [ "$status" != 200 ]; then
-        echo "registry token endpoint answered ${response}" >&2
+        echo "registry token endpoint answered ${status}" >&2
         return 1
     fi
-    yq -p json -r '.token' <<<"${response%$'\n'*}"
+    token=$(yq -p json -e -r '.token' <<<"${response%$'\n'*}") || return 1
+    [ -n "$token" ] && echo "$token"
 }
 
 registry_token_access() {
     local payload
+    [ -n "$1" ] || return 1
     payload=$(cut -d . -f 2 <<<"$1" | tr '_-' '/+')
     while [ $((${#payload} % 4)) -ne 0 ]; do
         payload+="="
     done
-    base64 -d <<<"$payload" | yq -p json -o json -I 0 '.access'
+    base64 -d <<<"$payload" | yq -p json -o json -I 0 -e '.access'
 }
 
 registry_with_token() {
     local token=$1 method=$2 path=$3
     shift 3
+    [ -n "$token" ] || return 1
     curl -s -o /dev/null -X "$method" -H "Authorization: Bearer ${token}" \
         -H 'Accept: application/vnd.oci.image.manifest.v1+json' \
         -H 'Accept: application/vnd.oci.image.index.v1+json' \
@@ -227,9 +241,12 @@ registry_status_with_token() {
     registry_with_token "$@" -w '%{http_code}'
 }
 
+registry_refusal_filter() {
+    tr -d '\r' | awk 'tolower($1) == "www-authenticate:" { $1 = "www-authenticate:"; print } $1 == "status" { print }'
+}
+
 registry_refusal_with_token() {
-    registry_with_token "$@" -D - -w 'status %{http_code}\n' |
-        awk 'tolower($1) == "www-authenticate:" || $1 == "status" { print }' | tr -d '\r'
+    registry_with_token "$@" -D - -w 'status %{http_code}\n' | registry_refusal_filter
 }
 
 # Format a Unix time as an RFC 3339 UTC timestamp, with BSD or GNU date.
