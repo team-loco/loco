@@ -50,6 +50,7 @@ func testServiceDefaults() servicedefaults.Defaults {
 		HealthStartupGracePeriod: 0,
 		DeployAttempts:           testDeployAttempts,
 		DeployRetryDelay:         testDeployRetryDelay,
+		MetricsPath:              testMetricsPath,
 	}
 }
 

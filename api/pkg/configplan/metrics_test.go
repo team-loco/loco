@@ -13,7 +13,7 @@ func TestMetricsEndpointChangesArePlanned(t *testing.T) {
 		if configured {
 			service.Metrics = &locofile.Metrics{Port: 9090}
 		} else {
-			current.Metrics = &locofile.Metrics{Port: 9090, Path: "/metrics"}
+			current.Metrics = &locofile.Metrics{Port: 9090, Path: testMetricsPath}
 		}
 		plan := compute(
 			t,
@@ -40,7 +40,7 @@ func TestMetricsEndpointChangesArePlanned(t *testing.T) {
 		if (op.Desired.Metrics != nil) != configured {
 			t.Fatalf("endpoint = %+v", op.Desired.Metrics)
 		}
-		if configured && op.Desired.Metrics.Path != "/metrics" {
+		if configured && op.Desired.Metrics.Path != testMetricsPath {
 			t.Fatal("missing default metrics path")
 		}
 	}

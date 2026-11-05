@@ -67,26 +67,22 @@ func DeserializeDeploymentSpec(
 
 // MergeDeploymentSpec merges a request DeploymentSpec with the resource's region target and the
 // API's configured defaults. The request takes precedence, then the region target, then the defaults.
-// This is the API's single source of truth for deployment defaults.
 func MergeDeploymentSpec(
 	resourceSpec *resourcev1.ResourceSpec,
 	requestSpec *deploymentv1.DeploymentSpec,
 	region string,
 	defaults servicedefaults.Defaults,
 ) (*deploymentv1.DeploymentSpec, error) {
-	// extract ServiceSpec from resourceSpec oneof
 	resourceServiceSpec := resourceSpec.GetService()
 	if resourceServiceSpec == nil {
 		return nil, errResourceSpecNotService
 	}
 
-	// extract ServiceDeploymentSpec from requestSpec oneof
 	requestServiceSpec := requestSpec.GetService()
 	if requestServiceSpec == nil {
 		return nil, errDeploymentSpecNotService
 	}
 
-	// find requested region in resource spec
 	regionTarget, ok := resourceServiceSpec.GetRegions()[region]
 	if !ok {
 		return nil, fmt.Errorf("%w: %s", ErrRegionNotFound, region)
@@ -95,60 +91,29 @@ func MergeDeploymentSpec(
 		return nil, fmt.Errorf("%w: %s", ErrRegionDisabled, region)
 	}
 
-	// merge build (from request, always required)
+	resources := defaults.Fill(regionTarget, requestServiceSpec)
+	healthCheck := requestServiceSpec.GetHealthCheck()
+	if healthCheck == nil {
+		healthCheck = resourceServiceSpec.GetHealthCheck()
+	}
 	mergedServiceSpec := &deploymentv1.ServiceDeploymentSpec{
-		Metrics:    requestServiceSpec.GetMetrics(),
-		RunAsUser:  requestServiceSpec.RunAsUser,
-		RunAsGroup: requestServiceSpec.RunAsGroup,
-		Build:      requestServiceSpec.GetBuild(),
-		Port:       requestServiceSpec.GetPort(),
-		Env:        requestServiceSpec.GetEnv(),
+		Metrics:     requestServiceSpec.GetMetrics(),
+		RunAsUser:   requestServiceSpec.RunAsUser,
+		RunAsGroup:  requestServiceSpec.RunAsGroup,
+		Build:       requestServiceSpec.GetBuild(),
+		Port:        requestServiceSpec.GetPort(),
+		Env:         requestServiceSpec.GetEnv(),
+		Cpu:         &resources.CPU,
+		Memory:      &resources.Memory,
+		MinReplicas: &resources.MinReplicas,
+		MaxReplicas: &resources.MaxReplicas,
+		Scalers:     resources.Scalers,
+		HealthCheck: healthCheck,
 	}
 
-	cpu := FirstSet(requestServiceSpec.GetCpu(), regionTarget.GetCpu(), defaults.CPU)
-	memory := FirstSet(requestServiceSpec.GetMemory(), regionTarget.GetMemory(), defaults.Memory)
-	minReplicas := FirstSet(requestServiceSpec.GetMinReplicas(), regionTarget.GetMinReplicas(), defaults.MinReplicas)
-	maxReplicas := FirstSet(requestServiceSpec.GetMaxReplicas(), regionTarget.GetMaxReplicas())
-	if maxReplicas == 0 {
-		maxReplicas = max(defaults.MaxReplicas, minReplicas)
-	}
-	mergedServiceSpec.Cpu = &cpu
-	mergedServiceSpec.Memory = &memory
-	mergedServiceSpec.MinReplicas = &minReplicas
-	mergedServiceSpec.MaxReplicas = &maxReplicas
-
-	// merge Scalers (request > resource default)
-	if requestServiceSpec.GetScalers() != nil {
-		mergedServiceSpec.Scalers = requestServiceSpec.GetScalers()
-	} else if regionTarget.GetScalers() != nil {
-		mergedServiceSpec.Scalers = regionTarget.GetScalers()
-	}
-
-	// merge HealthCheck (request > resource default)
-	if requestServiceSpec.GetHealthCheck() != nil {
-		mergedServiceSpec.HealthCheck = requestServiceSpec.GetHealthCheck()
-	} else if resourceServiceSpec.GetHealthCheck() != nil {
-		mergedServiceSpec.HealthCheck = resourceServiceSpec.GetHealthCheck()
-	}
-
-	// wrap merged ServiceDeploymentSpec in DeploymentSpec oneof
-	mergedSpec := &deploymentv1.DeploymentSpec{
-		Spec: &deploymentv1.DeploymentSpec_Service{
-			Service: mergedServiceSpec,
-		},
-	}
-
-	return mergedSpec, nil
-}
-
-func FirstSet[T comparable](values ...T) T {
-	var zero T
-	for _, value := range values {
-		if value != zero {
-			return value
-		}
-	}
-	return zero
+	return &deploymentv1.DeploymentSpec{
+		Spec: &deploymentv1.DeploymentSpec_Service{Service: mergedServiceSpec},
+	}, nil
 }
 
 // ProtoToServiceDeploymentSpec converts a proto DeploymentSpec to a controller ServiceDeploymentSpec
@@ -216,10 +181,11 @@ func ProtoToRoutingSpec(
 		return nil
 	}
 
+	pathPrefix, idleTimeout := defaults.Routing(routing.GetPathPrefix(), routing.GetIdleTimeout())
 	return &locoControllerV1.RoutingSpec{
 		HostName:    hostname,
-		PathPrefix:  FirstSet(routing.GetPathPrefix(), defaults.PathPrefix),
-		IdleTimeout: FirstSet(routing.GetIdleTimeout(), defaults.IdleTimeout),
+		PathPrefix:  pathPrefix,
+		IdleTimeout: idleTimeout,
 	}
 }
 

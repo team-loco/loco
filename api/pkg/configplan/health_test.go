@@ -24,14 +24,14 @@ func TestConfiguredHealthUsesDefaults(t *testing.T) {
 	service := fileService()
 	service.Health = &locofile.Health{}
 	state := fileState(service, "", testDefaults())
-	if state.Health == nil || *state.Health != DefaultHealth(testDefaults()) {
+	if state.Health == nil || *state.Health != Health(testDefaults().Health()) {
 		t.Fatalf("configured health = %+v, want HTTP defaults", state.Health)
 	}
 }
 
 func TestRemovingHealthPlansUpdate(t *testing.T) {
 	live := liveState()
-	health := DefaultHealth(testDefaults())
+	health := Health(testDefaults().Health())
 	live.Health = &health
 	existing := Service{
 		Name:           webService,

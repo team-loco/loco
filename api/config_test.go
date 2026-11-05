@@ -214,6 +214,9 @@ func TestNewAPIConfigDefaults(t *testing.T) {
 		HealthStartupGracePeriod: defaultHealthGracePeriod,
 		DeployAttempts:           defaultDeployAttempts,
 		DeployRetryDelay:         defaultDeployRetryDelay,
+		MetricsPort:              defaultMetricsPort,
+		MetricsPath:              defaultMetricsPath,
+		LogRetention:             defaultLogRetention,
 	}
 	if ac.ServiceDefaults != want {
 		t.Errorf("service defaults = %+v, want %+v", ac.ServiceDefaults, want)
@@ -484,6 +487,9 @@ func TestNewAPIConfigReadsServiceDefaults(t *testing.T) {
 		HealthStartupGracePeriod: 15,
 		DeployAttempts:           4,
 		DeployRetryDelay:         60,
+		MetricsPort:              defaultMetricsPort,
+		MetricsPath:              defaultMetricsPath,
+		LogRetention:             defaultLogRetention,
 	}
 	if ac.ServiceDefaults != want {
 		t.Errorf("service defaults = %+v, want %+v", ac.ServiceDefaults, want)

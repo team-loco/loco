@@ -74,6 +74,9 @@ const (
 	defaultHealthGracePeriod  = 0
 	defaultDeployAttempts     = 2
 	defaultDeployRetryDelay   = int32(5 * time.Minute / time.Second)
+	defaultMetricsPort        = 9090
+	defaultMetricsPath        = "/metrics"
+	defaultLogRetention       = "7d"
 	defaultSchemaURL          = "https://loco.build/schemas/loco.v1.json"
 
 	defaultRegistryScheme            = "https://"
@@ -420,6 +423,9 @@ func newServiceDefaults() servicedefaults.Defaults {
 		HealthStartupGracePeriod: int32Env("LOCO_DEFAULT_HEALTH_STARTUP_GRACE_PERIOD", defaultHealthGracePeriod),
 		DeployAttempts:           positiveInt32Env("LOCO_DEFAULT_DEPLOY_ATTEMPTS", defaultDeployAttempts),
 		DeployRetryDelay:         positiveInt32Env("LOCO_DEFAULT_DEPLOY_RETRY_DELAY", defaultDeployRetryDelay),
+		MetricsPort:              defaultMetricsPort,
+		MetricsPath:              defaultMetricsPath,
+		LogRetention:             defaultLogRetention,
 	}
 	if err := defaults.Validate(); err != nil {
 		panic(fmt.Errorf("%w: %w", errInvalidServiceDefault, err))

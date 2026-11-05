@@ -72,7 +72,7 @@ func TestValidateRejectsInvalidDefaults(t *testing.T) {
 }
 
 func applicationFor(d Defaults) *locoControllerV1.ApplicationSpec {
-	health := d.HealthCheck()
+	health := d.Health()
 	return &locoControllerV1.ApplicationSpec{
 		ResourceID:  "resource",
 		WorkspaceID: "workspace",

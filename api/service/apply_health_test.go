@@ -14,7 +14,7 @@ import (
 
 func TestApplyPreservesOptionalHealth(t *testing.T) {
 	const region = "us-east-1"
-	health := configplan.DefaultHealth(testServiceDefaults())
+	health := configplan.Health(testServiceDefaults().Health())
 	for _, tc := range []struct {
 		name   string
 		health *configplan.Health

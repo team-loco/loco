@@ -114,7 +114,7 @@ func fileState(service locofile.Service, pinnedImage string, defaults servicedef
 	}
 	if state.Metrics != nil && state.Metrics.Path == "" {
 		metrics := *state.Metrics
-		metrics.Path = "/metrics"
+		metrics.Path = defaults.MetricsPath
 		state.Metrics = &metrics
 	}
 	if service.Health != nil {
@@ -122,10 +122,8 @@ func fileState(service locofile.Service, pinnedImage string, defaults servicedef
 		state.Health = &health
 	}
 	if service.Routing != nil {
-		routing := Routing{PathPrefix: service.Routing.PathPrefix, IdleTimeout: defaults.IdleTimeout}
-		if routing.PathPrefix == "" {
-			routing.PathPrefix = defaults.PathPrefix
-		}
+		pathPrefix, idleTimeout := defaults.Routing(service.Routing.PathPrefix, 0)
+		routing := Routing{PathPrefix: pathPrefix, IdleTimeout: idleTimeout}
 		if service.Routing.IdleTimeout != nil {
 			routing.IdleTimeout = *service.Routing.IdleTimeout
 		}
@@ -149,18 +147,8 @@ func CanonicalDomains(domains []string) []string {
 	return canonical
 }
 
-func DefaultHealth(defaults servicedefaults.Defaults) Health {
-	return Health{
-		Path:               defaults.HealthPath,
-		Interval:           defaults.HealthInterval,
-		Timeout:            defaults.HealthTimeout,
-		FailThreshold:      defaults.HealthFailThreshold,
-		StartupGracePeriod: defaults.HealthStartupGracePeriod,
-	}
-}
-
 func fileHealth(health locofile.Health, defaults servicedefaults.Defaults) Health {
-	filled := DefaultHealth(defaults)
+	filled := Health(defaults.Health())
 	if health.Path != "" {
 		filled.Path = health.Path
 	}
