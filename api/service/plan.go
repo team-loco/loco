@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -247,9 +246,6 @@ func (s *PlanServer) resolveImages(
 		}
 		src := &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: service.Image}
 		pinned, err := pinPublicImage(ctx, s.resolver, s.registryHost, src)
-		if connectErr, isConnect := errors.AsType[*connect.Error](err); isConnect {
-			err = connectErr.Unwrap()
-		}
 		if err != nil {
 			images[service.Image] = configplan.ImageResult{Err: err}
 			continue

@@ -153,7 +153,7 @@ func (s *OrgServer) authorizeSystem(ctx context.Context, action actions.Action) 
 func lockOrgForSuspension(ctx context.Context, qtx *genDb.Queries, orgID uuid.UUID) (genDb.Organization, error) {
 	org, err := qtx.LockOrgForSuspension(ctx, orgID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return genDb.Organization{}, rpcerr.New(connect.CodeNotFound, ErrOrgNotFound)
+		return genDb.Organization{}, ErrOrgNotFound
 	}
 	if err != nil {
 		return genDb.Organization{}, fmt.Errorf("lock organization: %w", err)
@@ -191,7 +191,7 @@ func ensureOrganizationActive(ctx context.Context, qtx *genDb.Queries, resourceI
 		return fmt.Errorf("lock organization: %w", err)
 	}
 	if reason != nil {
-		return rpcerr.New(connect.CodeFailedPrecondition, fmt.Errorf("%w: %s", ErrOrgSuspended, *reason))
+		return fmt.Errorf("%w: %s", ErrOrgSuspended, *reason)
 	}
 	return nil
 }

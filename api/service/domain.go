@@ -155,7 +155,7 @@ func (s *DomainServer) CreateResourceDomain(
 	fullDomain := req.GetDomain().GetSubdomain() + "." + req.GetDomain().GetPlatformDomain()
 	platformDomain, subdomain, err := s.checkResourceDomain(ctx, resourceID, fullDomain)
 	if err != nil {
-		return nil, err
+		return nil, handlerError(ctx, "failed to check the resource domain", err)
 	}
 
 	// check domain availability
@@ -265,7 +265,7 @@ func (s *DomainServer) UpdateResourceDomain(
 		if domainRow.DomainSource == genDb.DomainSourcePlatformProvided {
 			platform, label, checkErr := s.checkResourceDomain(ctx, domainRow.ResourceID, req.GetDomain())
 			if checkErr != nil {
-				return nil, checkErr
+				return nil, handlerError(ctx, "failed to check the resource domain", checkErr)
 			}
 			subdomainLabel = &label
 			platformDomain = &platform
@@ -515,32 +515,28 @@ func (s *DomainServer) checkResourceDomain(
 ) (string, string, error) {
 	resource, err := s.queries.GetResourceByID(ctx, resourceID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", "", rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
+		return "", "", ErrResourceNotFound
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get resource", "error", err, "resourceId", resourceID)
-		return "", "", rpcerr.New(connect.CodeInternal, ErrDB)
+		return "", "", fmt.Errorf("get resource %s: %w", resourceID, err)
 	}
 	env, err := s.queries.GetWorkspaceProductionEnvironment(ctx, resource.WorkspaceID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", "", rpcerr.New(connect.CodeFailedPrecondition, errNoProductionEnvironment)
+		return "", "", errNoProductionEnvironment
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get the production environment", "error", err)
-		return "", "", rpcerr.New(connect.CodeInternal, ErrDB)
+		return "", "", fmt.Errorf("get production environment: %w", err)
 	}
 	spec, err := converter.DeserializeResourceSpec(resource.Spec, resource.Type)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to decode resource spec", "error", err, "resourceId", resourceID)
-		return "", "", rpcerr.New(connect.CodeInternal, ErrDB)
+		return "", "", fmt.Errorf("decode resource %s spec: %w", resourceID, err)
 	}
 	placements, err := s.queries.ListResourceEnvironmentPlacements(
 		ctx,
 		genDb.ListResourceEnvironmentPlacementsParams{ResourceID: resourceID, EnvironmentID: env.ID},
 	)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list placements", "error", err, "resourceId", resourceID)
-		return "", "", rpcerr.New(connect.CodeInternal, ErrDB)
+		return "", "", fmt.Errorf("list resource %s placements: %w", resourceID, err)
 	}
 	placed := make([]uuid.UUID, 0, len(placements))
 	for _, placement := range placements {
@@ -549,10 +545,9 @@ func (s *DomainServer) checkResourceDomain(
 	regions := enabledRegions(spec.GetService().GetRegions())
 	check, err := resourceDomainCheck(ctx, s.queries, env.EnvironmentType, regions, placed, s.silentAfter)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list domain clusters", "error", err)
-		return "", "", rpcerr.New(connect.CodeInternal, ErrDB)
+		return "", "", fmt.Errorf("list domain clusters: %w", err)
 	}
-	return check.check(hostname)
+	return configplan.CheckDomain(hostname, check.clusters, check.targets)
 }
 
 // imperativeDomainEnvironment is the environment a domain added through the domain or resource

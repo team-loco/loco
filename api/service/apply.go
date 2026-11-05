@@ -66,7 +66,7 @@ func (s *PlanServer) Apply(
 	}
 	builds, err := s.resolveBuilds(ctx, planned, req.GetBuilds())
 	if err != nil {
-		return nil, err
+		return nil, handlerError(ctx, "failed to resolve builds", err)
 	}
 
 	organizationID, err := s.queries.GetOrganizationIDByWorkspaceID(ctx, planned.env.WorkspaceID)
@@ -220,16 +220,15 @@ func (s *PlanServer) resolveBuilds(
 		desired, inFile := planned.plan.Desired[service]
 		if !inFile {
 			unknown := fmt.Errorf("%w: %s", errBuildServiceUnknown, service)
-			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(unknown)
+			return nil, &invalidInputError{public: publicInvalidRequest, err: unknown}
 		}
 		if desired.Image != "" {
 			hasImage := fmt.Errorf("%w: %s", errBuildServiceHasImage, service)
-			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(hasImage)
+			return nil, &invalidInputError{public: publicInvalidRequest, err: hasImage}
 		}
 		res, created := planned.live.resources[service]
 		if !created {
-			notCreated := fmt.Errorf("%w: %s", errBuildServiceNotCreated, service)
-			return nil, rpcerr.New(connect.CodeFailedPrecondition, notCreated)
+			return nil, fmt.Errorf("%w: %s", errBuildServiceNotCreated, service)
 		}
 		buildID := requested[service]
 		src := &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, BuildId: &buildID}
@@ -266,13 +265,6 @@ func applyRefused(reason error, refusal *planv1.ApplyRefusal) error {
 }
 
 func applyTxError(ctx context.Context, err error) error {
-	if connectErr, isConnect := errors.AsType[*connect.Error](err); isConnect {
-		return connectErr
-	}
-	if errors.Is(err, errNoActiveCluster) {
-		slog.WarnContext(ctx, "apply targets a region without a healthy cluster", "error", err)
-		return rpcerr.New(connect.CodeFailedPrecondition, err)
-	}
 	if isPgConstraintViolation(err) {
 		slog.WarnContext(ctx, "apply rejected by a constraint", "error", err)
 		return rpcerr.New(connect.CodeAlreadyExists, errDomainInUse)

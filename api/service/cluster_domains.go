@@ -2,20 +2,17 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"maps"
 	"slices"
 	"strings"
 	"time"
 
-	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/configplan"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
-	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 func regionClusters(clusters []genDb.ListEligibleClustersRow) []configplan.Cluster {
@@ -80,15 +77,4 @@ func enabledRegions(regions map[string]*resourcev1.RegionTarget) []string {
 	}
 	slices.Sort(enabled)
 	return enabled
-}
-
-func (c domainCheck) check(hostname string) (string, string, error) {
-	platform, label, err := configplan.CheckDomain(hostname, c.clusters, c.targets)
-	if errors.Is(err, configplan.ErrDomainNotServed) {
-		return "", "", rpcerr.New(connect.CodeFailedPrecondition, err)
-	}
-	if err != nil {
-		return "", "", rpcerr.New(connect.CodeInvalidArgument, err)
-	}
-	return platform, label, nil
 }

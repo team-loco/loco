@@ -149,7 +149,7 @@ func TestPinDockerfileBuild(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
 			_, err := pinBuildSource(ctx, builds, resolver, testRegistryHost, resourceID, tt.src)
-			if code := connectCode(t, err); code != tt.wantCode {
+			if code := connectCode(t, handlerError(ctx, "pin", err)); code != tt.wantCode {
 				t.Fatalf("code = %v, want %v (%v)", code, tt.wantCode, err)
 			}
 		})
@@ -270,7 +270,7 @@ func TestPinPublicImage(t *testing.T) {
 			builds := fakeBuildLookup{}
 			pinned, err := pinBuildSource(ctx, builds, tt.resolver, testRegistryHost, resourceID, tt.src)
 			if tt.wantCode != 0 {
-				if code := connectCode(t, err); code != tt.wantCode {
+				if code := connectCode(t, handlerError(ctx, "pin", err)); code != tt.wantCode {
 					t.Fatalf("code = %v, want %v (%v)", code, tt.wantCode, err)
 				}
 				return
@@ -297,7 +297,7 @@ func TestPinBuildSourceRequiresSource(t *testing.T) {
 	builds := fakeBuildLookup{}
 	resourceID := uuid.New()
 	_, err := pinBuildSource(ctx, builds, resolver, "", resourceID, nil)
-	if code := connectCode(t, err); code != connect.CodeInvalidArgument {
+	if code := connectCode(t, handlerError(ctx, "pin", err)); code != connect.CodeInvalidArgument {
 		t.Fatalf("code = %v, want invalid argument", code)
 	}
 }
