@@ -121,12 +121,17 @@ func validate(cfg Config) error {
 		return err
 	}
 	names := make(map[string]bool)
+	workerUIDs := make(map[string]bool)
 	for i, w := range cfg.Workers {
 		path := fmt.Sprintf("workers[%d]", i)
 		if !label(w.Name) || names[w.Name] {
 			return field(path + ".name")
 		}
 		names[w.Name] = true
+		if workerUIDs[w.Kubernetes.ClusterUID] {
+			return field(path + ".kubernetes.clusterUID")
+		}
+		workerUIDs[w.Kubernetes.ClusterUID] = true
 		if err := target(w.Kubernetes, path+".kubernetes"); err != nil {
 			return err
 		}

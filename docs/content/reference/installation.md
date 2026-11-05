@@ -62,3 +62,5 @@ kubectl --context example-control-plane get namespace kube-system -o jsonpath='{
 ```
 
 Set `clusterUID` to that exact value. The context is the connection route; the UID identifies the external cluster. Plan and apply must reject a context that resolves to another cluster, including an empty cluster without installation state. Recreating a cluster changes this UID and requires an explicit new target configuration.
+
+Each worker definition must pin a different physical cluster UID. Context aliases and different namespaces do not permit two worker registrations on one cluster. A control plane and one worker may share a cluster; staging and production workers require separate clusters.

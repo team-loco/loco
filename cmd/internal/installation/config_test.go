@@ -194,3 +194,21 @@ func TestKubernetesTargetsRequireClusterUID(t *testing.T) {
 		t.Fatal("cluster UID was not preserved")
 	}
 }
+
+func TestWorkerDefinitionsRequireDistinctPhysicalClusters(t *testing.T) {
+	data := string(example(t))
+	_, worker, found := strings.Cut(data, "workers:\n")
+	if !found {
+		t.Fatal("example has no workers")
+	}
+	additional := strings.NewReplacer("staging-us", "other-worker", "namespace: loco-system", "namespace: other-worker").
+		Replace(worker)
+	_, err := Parse([]byte(data + additional))
+	if err == nil {
+		t.Fatal("two registrations on one physical worker cluster were accepted")
+	}
+	if !strings.Contains(err.Error(), "workers[1].kubernetes.clusterUID") ||
+		strings.Contains(err.Error(), "worker-cluster-uid") {
+		t.Fatalf("unsafe or imprecise target error: %v", err)
+	}
+}
