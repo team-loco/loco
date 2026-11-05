@@ -644,12 +644,29 @@ func fixtureRoots(ctx context.Context) (*x509.CertPool, error) {
 	return roots, nil
 }
 
-func probeNetworkPolicy(ctx context.Context) error {
+func probeNetworkPolicy(ctx context.Context) (result error) {
 	image := os.Getenv("E2E_PROBE_IMAGE")
 	namespace := os.Getenv("E2E_BUILD_NAMESPACE")
 	if image == "" || namespace == "" {
 		return errNetworkPolicyInputs
 	}
+	defer func() {
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cleanupTimeout)
+		defer cancel()
+		for _, target := range []string{fixtureNamespace, namespace} {
+			if _, err := kubectl(
+				cleanupCtx,
+				"-n",
+				target,
+				"delete",
+				"pod",
+				"installation-network-probe",
+				"--ignore-not-found",
+			); err != nil {
+				result = errors.Join(result, fmt.Errorf("cleanup network-policy probe in %s: %w", target, err))
+			}
+		}
+	}()
 	node, err := kubectl(ctx, "get",
 		"nodes",
 		"-o",
@@ -735,17 +752,7 @@ func probeNetworkPolicy(ctx context.Context) error {
 		case <-retry.C:
 		}
 	}
-	for _, target := range []string{fixtureNamespace, namespace} {
-		if _, checkErr := kubectl(ctx, "-n",
-			target,
-			"delete",
-			"pod",
-			"installation-network-probe",
-			"--wait=false",
-		); checkErr != nil {
-			return checkErr
-		}
-	}
+
 	return nil
 }
 
