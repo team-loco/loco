@@ -7,11 +7,11 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/internal/dotenv"
 )
 
 var (
 	errSeveralStdinNames = errors.New("only one name can take its value from stdin")
-	errEmptyName         = errors.New("empty name")
 )
 
 func newSetCmd(d deps) *cobra.Command {
@@ -43,7 +43,10 @@ func parseAssignments(stdin io.Reader, args []string) (map[string]string, error)
 	for i, arg := range args {
 		name, value, found := strings.Cut(arg, "=")
 		if name == "" {
-			return nil, fmt.Errorf("argument %d: %w", i+1, errEmptyName)
+			return nil, fmt.Errorf("argument %d: %w", i+1, dotenv.ErrEmptyName)
+		}
+		if !dotenv.ValidName(name) {
+			return nil, fmt.Errorf("argument %d: %q: %w", i+1, name, dotenv.ErrInvalidName)
 		}
 		if found {
 			values[name] = value
