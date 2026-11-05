@@ -317,6 +317,7 @@ func (f *fixture) provision(ctx context.Context) error {
 		},
 	}
 	httpConfig["auth"] = map[string]any{"htpasswd": map[string]string{"path": "/config/htpasswd"}}
+	httpConfig["compat"] = []string{"docker2s2"}
 	registryData, err = json.Marshal(registry)
 	if err != nil {
 		return err

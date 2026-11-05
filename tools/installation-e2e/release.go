@@ -61,10 +61,10 @@ func (f *fixture) release(ctx context.Context) (map[string]any, string, error) {
 			}
 		}
 		if checkErr := f.loginRegistry(ctx); checkErr != nil {
-			return nil, "", checkErr
+			return nil, "", fmt.Errorf("authenticate fixture image push: %w", checkErr)
 		}
 		if _, checkErr := command(ctx, f.root, nil, "docker", "push", tag); checkErr != nil {
-			return nil, "", checkErr
+			return nil, "", fmt.Errorf("push %s fixture image: %w", component.name, checkErr)
 		}
 		digest, err := f.manifestDigest(ctx, "platform/images/"+component.name, fixtureVersion)
 		if err != nil {
