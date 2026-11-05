@@ -32,6 +32,7 @@ var _ = Describe("Private service discovery", func() {
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 		}
 		Expect(reconciler.ensureService(ctx, app)).To(Succeed())
+		Expect(reconciler.ensurePrivateService(ctx, app)).To(Succeed())
 		alias := &corev1.Service{}
 		Expect(
 			k8sClient.Get(
@@ -73,23 +74,23 @@ var _ = Describe("Private service discovery", func() {
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 		}
-		Expect(r.ensureService(ctx, app)).To(Succeed())
+		Expect(r.ensurePrivateService(ctx, app)).To(Succeed())
 		key := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: testPrivateTCPName}
 		svc := &corev1.Service{}
 		Expect(k8sClient.Get(ctx, key, svc)).To(Succeed())
 		address, version := svc.Spec.ClusterIP, svc.ResourceVersion
-		Expect(r.ensureService(ctx, app)).To(Succeed())
+		Expect(r.ensurePrivateService(ctx, app)).To(Succeed())
 		Expect(k8sClient.Get(ctx, key, svc)).To(Succeed())
 		Expect(svc.ResourceVersion).To(Equal(version))
 		app.Spec.ServiceSpec.Deployment.Port = 3550
-		Expect(r.ensureService(ctx, app)).To(Succeed())
+		Expect(r.ensurePrivateService(ctx, app)).To(Succeed())
 		Expect(k8sClient.Get(ctx, key, svc)).To(Succeed())
 		Expect(svc.Spec.ClusterIP).To(Equal(address))
 		Expect(svc.Spec.Ports[0].Port).To(Equal(servicePort))
 		Expect(svc.Spec.Ports[1].Port).To(Equal(int32(3550)))
 		Expect(svc.Spec.Ports[0].TargetPort.IntVal).To(Equal(int32(3550)))
 		app.Spec.Slug = "product-catalog"
-		Expect(r.ensureService(ctx, app)).To(Succeed())
+		Expect(r.ensurePrivateService(ctx, app)).To(Succeed())
 		Expect(apierrors.IsNotFound(k8sClient.Get(ctx, key, svc))).To(BeTrue())
 		key.Name = "product-catalog"
 		Expect(k8sClient.Get(ctx, key, svc)).To(Succeed())
@@ -111,10 +112,11 @@ var _ = Describe("Private service discovery", func() {
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 		}
-		Expect(r.ensureService(ctx, old)).To(Succeed())
-		Expect(r.ensureService(ctx, replacement)).To(MatchError(ContainSubstring(errPrivateServiceCollision.Error())))
+		Expect(r.ensurePrivateService(ctx, old)).To(Succeed())
+		Expect(r.ensurePrivateService(ctx, replacement)).
+			To(MatchError(ContainSubstring(errPrivateServiceCollision.Error())))
 		Expect(r.deleteAppObjects(ctx, old)).To(Succeed())
-		Expect(r.ensureService(ctx, replacement)).To(Succeed())
+		Expect(r.ensurePrivateService(ctx, replacement)).To(Succeed())
 		Expect(r.prunePrivateServices(ctx, old, "")).To(Succeed())
 		svc := &corev1.Service{}
 		key := client.ObjectKey{Namespace: testWorkspaceNamespace(replacement), Name: testPrivateHTTPName}
@@ -145,7 +147,7 @@ var _ = Describe("Private service discovery", func() {
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 		}
-		Expect(r.ensureService(ctx, app)).To(MatchError(ContainSubstring(errPrivateServiceCollision.Error())))
+		Expect(r.ensurePrivateService(ctx, app)).To(MatchError(ContainSubstring(errPrivateServiceCollision.Error())))
 		Expect(r.prunePrivateServices(ctx, app, "")).To(Succeed())
 		Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(existing), existing)).To(Succeed())
 		Expect(existing.ResourceVersion).To(Equal(version))
@@ -164,7 +166,7 @@ var _ = Describe("Private service discovery", func() {
 			app.Spec.Slug = testPrivateTCPName
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
 			Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
-			Expect(r.ensureService(ctx, app)).To(Succeed())
+			Expect(r.ensurePrivateService(ctx, app)).To(Succeed())
 			svc := &corev1.Service{}
 			key := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: testPrivateTCPName}
 			Expect(k8sClient.Get(ctx, key, svc)).To(Succeed())
@@ -183,7 +185,7 @@ var _ = Describe("Private service discovery", func() {
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 		}
-		Expect(r.ensureService(ctx, app)).To(Succeed())
+		Expect(r.ensurePrivateService(ctx, app)).To(Succeed())
 	})
 
 	It("fails reconciliation for a stored name that is not a valid logical name", func() {
@@ -198,7 +200,9 @@ var _ = Describe("Private service discovery", func() {
 				Gateway:                  testGateway,
 				WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 			}
-			Expect(r.ensureService(ctx, app)).To(MatchError(ContainSubstring(errInvalidPrivateServiceName.Error())))
+			Expect(
+				r.ensurePrivateService(ctx, app),
+			).To(MatchError(ContainSubstring(errInvalidPrivateServiceName.Error())))
 		}
 	})
 

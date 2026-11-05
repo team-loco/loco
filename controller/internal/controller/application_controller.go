@@ -110,7 +110,6 @@ type LocoResourceReconciler struct {
 func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	slog.DebugContext(ctx, "reconciling application", "namespace", req.Namespace, "name", req.Name)
 
-	// fetch the Application
 	locoRes := &locov1alpha1.Application{}
 	if err := r.Get(ctx, req.NamespacedName, locoRes); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -119,7 +118,6 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, fmt.Errorf("fetch application: %w", err)
 	}
 
-	// deletion timestamp means we need to clean up
 	if !locoRes.DeletionTimestamp.IsZero() {
 		return r.handleDeletion(ctx, locoRes)
 	}
@@ -127,19 +125,16 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// validate early to prevent nil panics. Same validator the API runs before dispatching
 	// a deploy, so this only fires for Applications written directly against the cluster.
 	if err := locoRes.Spec.Validate(); err != nil {
-		slog.ErrorContext(ctx, "invalid Application spec", "error", err)
 		original := locoRes.DeepCopy()
 		message := fmt.Sprintf("validation failed: %v", err)
 		observePlacementRevision(locoRes)
 		setPhase(locoRes, locov1alpha1.ApplicationPhaseFailed, message)
-		if statusErr := r.patchStatus(ctx, locoRes, original); statusErr != nil {
-			slog.ErrorContext(ctx, "failed to update status after validation error", "error", statusErr)
-		}
 		wrapped := fmt.Errorf("invalid application spec: %w", err)
-		return ctrl.Result{}, reconcile.TerminalError(wrapped)
+		statusErr := r.patchStatus(ctx, locoRes, original)
+		joined := errors.Join(wrapped, statusErr)
+		return ctrl.Result{}, reconcile.TerminalError(joined)
 	}
 
-	// ensure finalizer
 	if err := r.ensureFinalizer(ctx, locoRes); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -148,16 +143,12 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	observePlacementRevision(locoRes)
 	result, err := r.reconcileResources(ctx, locoRes)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to reconcile application", "error", err)
 		message := fmt.Sprintf("failed to %v", err)
 		setPhase(locoRes, locov1alpha1.ApplicationPhaseFailed, message)
 	}
 
 	if statusErr := r.patchStatus(ctx, locoRes, original); statusErr != nil {
-		slog.ErrorContext(ctx, "failed to update status", "error", statusErr)
-		if err == nil {
-			return ctrl.Result{}, statusErr
-		}
+		return ctrl.Result{}, errors.Join(err, statusErr)
 	}
 
 	slog.DebugContext(ctx, "reconcile complete", "phase", locoRes.Status.Phase, "resource", locoRes.Name)
@@ -168,7 +159,6 @@ func (r *LocoResourceReconciler) reconcileResources(
 	ctx context.Context,
 	locoRes *locov1alpha1.Application,
 ) (ctrl.Result, error) {
-	// begin reconcile steps - these functions allocate and ensure Kubernetes resources
 	if err := r.ensureNamespace(ctx, locoRes); err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure namespace: %w", err)
 	}
@@ -212,6 +202,11 @@ func (r *LocoResourceReconciler) reconcileResources(
 		return ctrl.Result{}, fmt.Errorf("ensure service: %w", err)
 	}
 
+	err = r.ensurePrivateService(ctx, locoRes)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("ensure private service: %w", err)
+	}
+
 	err = r.ensureMetricsIngressPolicy(ctx, locoRes)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure metrics ingress policy: %w", err)
@@ -226,7 +221,6 @@ func (r *LocoResourceReconciler) reconcileResources(
 		return ctrl.Result{}, fmt.Errorf("ensure HTTP route: %w", err)
 	}
 
-	// aggregate deployment status into our status
 	replicas := locoRes.Spec.ServiceSpec.Resources.Replicas.Min
 	if !deploymentReady(dep, replicas) {
 		if failure, found := deploymentFailure(dep); found {
@@ -431,6 +425,15 @@ func managedLabels(locoRes *locov1alpha1.Application) map[string]string {
 	}
 }
 
+func workloadLabels(locoRes *locov1alpha1.Application) map[string]string {
+	labels := managedLabels(locoRes)
+	labels[managed.LabelOrganizationID] = locoRes.Spec.OrganizationID
+	labels[managed.LabelWorkspaceID] = locoRes.Spec.WorkspaceID
+	labels[managed.LabelResourceID] = locoRes.Spec.ResourceID
+	labels[labelEnvironmentID] = locoRes.Spec.EnvironmentID
+	return labels
+}
+
 func ownerAnnotations(locoRes *locov1alpha1.Application) map[string]string {
 	return map[string]string{
 		annotationAppNamespace: locoRes.Namespace,
@@ -566,7 +569,7 @@ func (r *LocoResourceReconciler) ensureService(ctx context.Context, locoRes *loc
 	if err := r.Apply(ctx, svc, opts...); err != nil {
 		return fmt.Errorf("apply service %s/%s: %w", namespace, name, err)
 	}
-	return r.ensurePrivateService(ctx, locoRes)
+	return nil
 }
 
 func containerResources(
@@ -666,9 +669,42 @@ func desiredDeployment(
 	telemetry TelemetryConfig,
 ) (*appsv1ac.DeploymentApplyConfiguration, error) {
 	name := locov1alpha1.ApplicationName(locoRes.Spec.ResourceID)
+	template, err := podTemplate(locoRes, namespace, envSecret, telemetry)
+	if err != nil {
+		return nil, err
+	}
+
+	replicas := locoRes.Spec.ServiceSpec.Resources.Replicas.Min
+	selectorLabels := map[string]string{labelApp: name}
+	selector := metav1ac.LabelSelector().WithMatchLabels(selectorLabels)
+	surge := intstr.FromString("25%")
+	rollingUpdate := appsv1ac.RollingUpdateDeployment().WithMaxSurge(surge).WithMaxUnavailable(surge)
+	strategy := appsv1ac.DeploymentStrategy().
+		WithType(appsv1.RollingUpdateDeploymentStrategyType).
+		WithRollingUpdate(rollingUpdate)
+	deploymentSpec := appsv1ac.DeploymentSpec().
+		WithReplicas(replicas).
+		WithSelector(selector).
+		WithStrategy(strategy).
+		WithTemplate(template)
+
+	labels := workloadLabels(locoRes)
+	annotations := ownerAnnotations(locoRes)
+	return appsv1ac.Deployment(name, namespace).
+		WithLabels(labels).
+		WithAnnotations(annotations).
+		WithSpec(deploymentSpec), nil
+}
+
+func podTemplate(
+	locoRes *locov1alpha1.Application,
+	namespace string,
+	envSecret envSecretMount,
+	telemetry TelemetryConfig,
+) (*corev1ac.PodTemplateSpecApplyConfiguration, error) {
+	name := locov1alpha1.ApplicationName(locoRes.Spec.ResourceID)
 	spec := locoRes.Spec.ServiceSpec
 	containerPort := spec.Deployment.Port
-	replicas := spec.Resources.Replicas.Min
 
 	resources, err := containerResources(spec.Resources)
 	if err != nil {
@@ -705,24 +741,10 @@ func desiredDeployment(
 		container.WithLivenessProbe(livenessProbe).WithReadinessProbe(readinessProbe)
 	}
 
-	podLabels := map[string]string{
-		labelApp:                    name,
-		labelAppKubernetesName:      name,
-		locolabels.LabelManagedBy:   managed.ManagedByValue,
-		managed.LabelComponent:      componentApplication,
-		managed.LabelOrganizationID: locoRes.Spec.OrganizationID,
-		managed.LabelWorkspaceID:    locoRes.Spec.WorkspaceID,
-		managed.LabelResourceID:     locoRes.Spec.ResourceID,
-		labelEnvironmentID:          locoRes.Spec.EnvironmentID,
-	}
-	if obs := spec.Obs; obs != nil && obs.Metrics.Enabled {
-		podLabels[labelMetricsPort] = strconv.FormatInt(int64(obs.Metrics.Port), 10)
-		path := obs.Metrics.Path
-		if path == "" {
-			path = defaultMetricsPath
-		}
-		podAnnotations[annotationMetricsPath] = path
-	}
+	podLabels := workloadLabels(locoRes)
+	podLabels[labelAppKubernetesName] = name
+	podLabels[managed.LabelComponent] = componentApplication
+	addMetricsScrape(spec.Obs, podLabels, podAnnotations)
 	podSecurity := podSecurityContext()
 	if spec.Deployment.RunAsUser != nil {
 		podSecurity = podSecurity.WithRunAsUser(*spec.Deployment.RunAsUser)
@@ -736,35 +758,10 @@ func desiredDeployment(
 		WithSecurityContext(podSecurity).
 		WithRestartPolicy(corev1.RestartPolicyAlways).
 		WithContainers(container)
-	template := corev1ac.PodTemplateSpec().
+	return corev1ac.PodTemplateSpec().
 		WithLabels(podLabels).
 		WithAnnotations(podAnnotations).
-		WithSpec(podSpec)
-
-	selectorLabels := map[string]string{labelApp: name}
-	selector := metav1ac.LabelSelector().WithMatchLabels(selectorLabels)
-	surge := intstr.FromString("25%")
-	rollingUpdate := appsv1ac.RollingUpdateDeployment().WithMaxSurge(surge).WithMaxUnavailable(surge)
-	strategy := appsv1ac.DeploymentStrategy().
-		WithType(appsv1.RollingUpdateDeploymentStrategyType).
-		WithRollingUpdate(rollingUpdate)
-	deploymentSpec := appsv1ac.DeploymentSpec().
-		WithReplicas(replicas).
-		WithSelector(selector).
-		WithStrategy(strategy).
-		WithTemplate(template)
-
-	depLabels := managedLabels(locoRes)
-	depLabels[managed.LabelOrganizationID] = locoRes.Spec.OrganizationID
-	depLabels[managed.LabelWorkspaceID] = locoRes.Spec.WorkspaceID
-	depLabels[managed.LabelResourceID] = locoRes.Spec.ResourceID
-	depLabels[labelEnvironmentID] = locoRes.Spec.EnvironmentID
-	annotations := ownerAnnotations(locoRes)
-
-	return appsv1ac.Deployment(name, namespace).
-		WithLabels(depLabels).
-		WithAnnotations(annotations).
-		WithSpec(deploymentSpec), nil
+		WithSpec(podSpec), nil
 }
 
 // ensureDeployment ensures the Kubernetes deployment exists and is configured with the spec

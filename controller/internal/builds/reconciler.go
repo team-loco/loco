@@ -20,7 +20,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	corev1ac "k8s.io/client-go/applyconfigurations/core/v1"
 	networkingv1ac "k8s.io/client-go/applyconfigurations/networking/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -390,34 +389,10 @@ func (r *Reconciler) copyStaticSecrets(ctx context.Context) error {
 }
 
 func (r *Reconciler) copySecret(ctx context.Context, sourceName, targetName string) error {
-	sourceKey := client.ObjectKey{Namespace: r.LocoNamespace, Name: sourceName}
-	source := &corev1.Secret{}
-	if err := r.APIReader.Get(ctx, sourceKey, source); err != nil {
-		return fmt.Errorf("get registry secret %s: %w", sourceKey, err)
-	}
-	if source.Type != corev1.SecretTypeDockerConfigJson {
-		return fmt.Errorf(
-			"registry secret %s has type %s, want %s",
-			sourceKey,
-			source.Type,
-			corev1.SecretTypeDockerConfigJson,
-		)
-	}
-	dockerConfig, ok := source.Data[corev1.DockerConfigJsonKey]
-	if !ok {
-		return fmt.Errorf("registry secret %s has no %s key", sourceKey, corev1.DockerConfigJsonKey)
-	}
+	source := client.ObjectKey{Namespace: r.LocoNamespace, Name: sourceName}
+	target := client.ObjectKey{Namespace: r.Config.Namespace, Name: targetName}
 	labels := managed.Labels()
-	data := map[string][]byte{corev1.DockerConfigJsonKey: dockerConfig}
-	secret := corev1ac.Secret(targetName, r.Config.Namespace).
-		WithLabels(labels).
-		WithType(corev1.SecretTypeDockerConfigJson).
-		WithData(data)
-	opts := managed.ApplyOptions()
-	if err := r.Apply(ctx, secret, opts...); err != nil {
-		return fmt.Errorf("apply secret %s/%s: %w", r.Config.Namespace, targetName, err)
-	}
-	return nil
+	return managed.CopyDockerConfig(ctx, r.APIReader, r.Client, source, target, labels)
 }
 
 func (r *Reconciler) buildNetworkPolicies(

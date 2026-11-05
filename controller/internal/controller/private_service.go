@@ -84,23 +84,23 @@ func (r *LocoResourceReconciler) ensurePrivateService(ctx context.Context, app *
 		if createErr := r.Create(ctx, desired); createErr != nil {
 			return fmt.Errorf("create private service %s: %w", key, createErr)
 		}
-	} else {
-		if err != nil {
-			return fmt.Errorf("get private service %s: %w", key, err)
-		}
-		if !ownsPrivateService(app, current) {
-			return fmt.Errorf("%w: %s", errPrivateServiceCollision, key)
-		}
-		if current.Spec.Type != corev1.ServiceTypeClusterIP {
-			return fmt.Errorf("%w: %s", errPrivateServiceType, key)
-		}
-		if !equality.Semantic.DeepEqual(current.Spec.Selector, desired.Spec.Selector) ||
-			!equality.Semantic.DeepEqual(current.Spec.Ports, desired.Spec.Ports) {
-			current.Spec.Selector = desired.Spec.Selector
-			current.Spec.Ports = desired.Spec.Ports
-			if updateErr := r.Update(ctx, current); updateErr != nil {
-				return fmt.Errorf("update private service %s: %w", key, updateErr)
-			}
+		return r.prunePrivateServices(ctx, app, name)
+	}
+	if err != nil {
+		return fmt.Errorf("get private service %s: %w", key, err)
+	}
+	if !ownsPrivateService(app, current) {
+		return fmt.Errorf("%w: %s", errPrivateServiceCollision, key)
+	}
+	if current.Spec.Type != corev1.ServiceTypeClusterIP {
+		return fmt.Errorf("%w: %s", errPrivateServiceType, key)
+	}
+	if !equality.Semantic.DeepEqual(current.Spec.Selector, desired.Spec.Selector) ||
+		!equality.Semantic.DeepEqual(current.Spec.Ports, desired.Spec.Ports) {
+		current.Spec.Selector = desired.Spec.Selector
+		current.Spec.Ports = desired.Spec.Ports
+		if updateErr := r.Update(ctx, current); updateErr != nil {
+			return fmt.Errorf("update private service %s: %w", key, updateErr)
 		}
 	}
 	return r.prunePrivateServices(ctx, app, name)

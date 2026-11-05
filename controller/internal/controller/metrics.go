@@ -2,13 +2,36 @@ package controller
 
 import (
 	"context"
+	"strconv"
 
-	"github.com/team-loco/loco/controller/internal/isolation"
-	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1ac "k8s.io/client-go/applyconfigurations/meta/v1"
 	networkingv1ac "k8s.io/client-go/applyconfigurations/networking/v1"
+
+	"github.com/team-loco/loco/controller/internal/isolation"
+	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
+
+const (
+	defaultMetricsPath    = "/metrics"
+	labelMetricsPort      = "loco.io/metrics-port"
+	annotationMetricsPath = "loco.io/metrics-path"
+)
+
+// addMetricsScrape marks the pod for the metrics collector, whose scrape config in
+// charts/loco-worker/values.yaml discovers targets by the port label and reads the path
+// annotation; keep the keys in sync with it.
+func addMetricsScrape(obs *locov1alpha1.ObsSpec, podLabels, podAnnotations map[string]string) {
+	if obs == nil || !obs.Metrics.Enabled {
+		return
+	}
+	podLabels[labelMetricsPort] = strconv.FormatInt(int64(obs.Metrics.Port), 10)
+	path := obs.Metrics.Path
+	if path == "" {
+		path = defaultMetricsPath
+	}
+	podAnnotations[annotationMetricsPath] = path
+}
 
 func (r *LocoResourceReconciler) metricsIngressPolicy(
 	app *locov1alpha1.Application,
