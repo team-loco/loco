@@ -10,10 +10,6 @@ import (
 )
 
 func (f *fixture) configureClient(ctx context.Context, manifest map[string]any, image string) error {
-	version, err := f.pin(ctx, "examples/installation/installation.yaml", ".version")
-	if err != nil {
-		return err
-	}
 	uid, uidErr := command(
 		ctx,
 		f.root,
@@ -65,7 +61,11 @@ func (f *fixture) configureClient(ctx context.Context, manifest map[string]any, 
 	}
 	installation, err := renderFixtureFile(
 		filepath.Join(f.root, "tests", "e2e", "fixtures", "installation", "installation.yaml"),
-		map[string]any{"Version": version, "PrivateEgress": allowances, "ClusterUID": strings.TrimSpace(string(uid))},
+		map[string]any{
+			"Version":       manifest["configVersion"],
+			"PrivateEgress": allowances,
+			"ClusterUID":    strings.TrimSpace(string(uid)),
+		},
 	)
 	if err != nil {
 		return err

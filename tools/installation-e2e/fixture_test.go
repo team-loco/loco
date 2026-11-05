@@ -19,7 +19,7 @@ func TestInstallationFixtureRequiresPinnedInfrastructure(t *testing.T) {
 	data, err := renderFixtureFile(
 		path,
 		map[string]any{
-			"Version":       1,
+			"Version":       json.Number("1"),
 			"ClusterUID":    "external-kind-uid",
 			"PrivateEgress": []map[string]any{{"cidr": "10.2.3.4/32", "port": 5000}},
 		},
