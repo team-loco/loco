@@ -60,19 +60,13 @@ func Parse(data []byte) (*Config, error) {
 	if err := shape(raw, reflect.TypeOf(cfg), ""); err != nil {
 		return nil, err
 	}
-	if err := Validate(&cfg); err != nil {
+	if err := validate(cfg); err != nil {
 		return nil, err
 	}
 	return &cfg, nil
 }
 
-func Validate(cfg *Config) error {
-	if cfg == nil {
-		return errDocument
-	}
-	if err := required(reflect.ValueOf(*cfg), ""); err != nil {
-		return err
-	}
+func validate(cfg Config) error {
 	if cfg.Version != ConfigVersion {
 		return field("version")
 	}
@@ -180,49 +174,23 @@ func shape(raw any, typ reflect.Type, path string) error {
 			}
 		}
 	case reflect.String:
-		if _, ok := raw.(string); !ok {
+		value, ok := raw.(string)
+		if !ok {
+			return field(path)
+		}
+		if strings.TrimSpace(value) == "" {
+			return fmt.Errorf("%s: %w", path, errRequired)
+		}
+		if strings.HasSuffix(path, ".key") && strings.Contains(path, "Ref.") &&
+			(len(value) > maxDNSNameLength || !secretKey.MatchString(value)) {
+			return field(path)
+		}
+		if strings.HasSuffix(path, ".name") && strings.Contains(path, "Ref.") && !dnsName(value) {
 			return field(path)
 		}
 	case reflect.Bool:
 		if _, ok := raw.(bool); !ok {
 			return field(path)
-		}
-	}
-	return nil
-}
-
-func required(value reflect.Value, path string) error {
-	switch value.Kind() {
-	case reflect.Struct:
-		for i := range value.NumField() {
-			name := value.Type().Field(i).Tag.Get("yaml")
-			next := name
-			if path != "" {
-				next = path + "." + name
-			}
-			if err := required(value.Field(i), next); err != nil {
-				return err
-			}
-		}
-	case reflect.String:
-		if strings.TrimSpace(value.String()) == "" {
-			return fmt.Errorf("%s: %w", path, errRequired)
-		}
-		if strings.HasSuffix(path, ".key") && strings.Contains(path, "Ref.") &&
-			(len(value.String()) > maxDNSNameLength || !secretKey.MatchString(value.String())) {
-			return field(path)
-		}
-		if strings.HasSuffix(path, ".name") && strings.Contains(path, "Ref.") && !dnsName(value.String()) {
-			return field(path)
-		}
-	case reflect.Slice:
-		if value.IsNil() {
-			return fmt.Errorf("%s: %w", path, errRequired)
-		}
-		for i := range value.Len() {
-			if err := required(value.Index(i), fmt.Sprintf("%s[%d]", path, i)); err != nil {
-				return err
-			}
 		}
 	}
 	return nil
