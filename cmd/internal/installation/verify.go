@@ -18,6 +18,9 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
+	"go.yaml.in/yaml/v2"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
@@ -28,7 +31,6 @@ import (
 	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/internal/rpc"
-	"go.yaml.in/yaml/v2"
 )
 
 const (
@@ -118,6 +120,7 @@ func verifyApplication(
 	environment *environmentv1.Environment,
 	base string,
 ) (err error) {
+	started := timestamppb.Now()
 	name := "verify-" + uuid.NewString()
 	marker := "loco-" + uuid.NewString()
 	secret := rand.Text()
@@ -243,6 +246,7 @@ func verifyApplication(
 	request := &observabilityv1.QueryLogsRequest{
 		WorkspaceId: environment.GetWorkspaceId(), EnvironmentId: environment.GetId(), Search: marker,
 		ResourceIds: []string{resourceID}, Regions: []string{worker.Region},
+		StartTime: started,
 	}
 	if logsErr := verificationLogs(ctx, clients, request, marker); logsErr != nil {
 		return logsErr
@@ -385,6 +389,7 @@ func verificationLogs(
 	marker string,
 ) error {
 	for {
+		request.EndTime = timestamppb.Now()
 		response, err := clients.ObservabilityProxy.QueryLogs(ctx, request)
 		if err != nil {
 			return errVerification
