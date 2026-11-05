@@ -25,6 +25,7 @@ func isolationTestApplication(workspaceID, resourceID string) *locov1alpha1.Appl
 		Spec: locov1alpha1.ApplicationSpec{
 			Type:          testAppType,
 			ResourceID:    resourceID,
+			ResourceName:  resourceID,
 			WorkspaceID:   workspaceID,
 			EnvironmentID: "env-production",
 			Region:        "us-east-1",

@@ -24,6 +24,7 @@ const (
 )
 
 var (
+	errInvalidPrivateServiceName  = errors.New("resource name is not a valid logical service name")
 	errPrivateServiceCollision    = errors.New("private service name is already in use by another owner")
 	errPrivateServiceOwnerMissing = errors.New("private service requires an Application UID")
 	errPrivateServiceType         = errors.New("owned private service must have type ClusterIP")
@@ -41,7 +42,7 @@ func ownsPrivateService(app *locov1alpha1.Application, svc *corev1.Service) bool
 func (r *LocoResourceReconciler) ensurePrivateService(ctx context.Context, app *locov1alpha1.Application) error {
 	name := locov1alpha1.PrivateServiceName(app.Spec.ResourceName)
 	if name == "" {
-		return r.prunePrivateServices(ctx, app, "")
+		return fmt.Errorf("%w: %q", errInvalidPrivateServiceName, app.Spec.ResourceName)
 	}
 	if app.UID == "" {
 		return errPrivateServiceOwnerMissing
