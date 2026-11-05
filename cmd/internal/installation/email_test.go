@@ -139,7 +139,7 @@ func TestHTTPEmailCredentialReachesTheGeneratedAPIEnvironment(t *testing.T) {
 		"EMAIL_HOOK_SECRET": hook,
 	}
 	state := &corev1.ConfigMap{UID: types.UID("installation-id"), Data: map[string]string{}}
-	if err = kube.ensureCredentials(t.Context(), state, inputs); err != nil {
+	if err = kube.ensureCredentials(t.Context(), state, inputs, "mail-fixture"); err != nil {
 		t.Fatal(err)
 	}
 	mu.Lock()

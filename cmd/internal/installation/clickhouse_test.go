@@ -1,0 +1,136 @@
+package installation
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
+	coreclient "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
+)
+
+func TestGeneratedClickHouseCredentialsUseManagedService(t *testing.T) {
+	stored := map[string]*corev1.Secret{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", testJSON)
+		if path.Base(r.URL.Path) == "pods" {
+			if err := json.NewEncoder(w).Encode(&corev1.PodList{}); err != nil {
+				t.Error(err)
+			}
+			return
+		}
+		if r.Method == http.MethodPost {
+			var secret corev1.Secret
+			if err := json.NewDecoder(r.Body).Decode(&secret); err != nil {
+				t.Error(err)
+			}
+			stored[secret.Name] = &secret
+			w.WriteHeader(http.StatusCreated)
+			if err := json.NewEncoder(w).Encode(&secret); err != nil {
+				t.Error(err)
+			}
+			return
+		}
+		secret, found := stored[path.Base(r.URL.Path)]
+		if !found {
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprint(w, `{"kind":"Status","apiVersion":"v1","reason":"NotFound","code":404}`)
+			return
+		}
+		if err := json.NewEncoder(w).Encode(secret); err != nil {
+			t.Error(err)
+		}
+	}))
+	defer server.Close()
+	core, err := coreclient.NewForConfig(&rest.Config{Host: server.URL, ContentType: testJSON})
+	if err != nil {
+		t.Fatal(err)
+	}
+	kube := Kubernetes{Core: core, Target: KubernetesTarget{Namespace: testNamespace}}
+	state := &corev1.ConfigMap{UID: types.UID("state-id"), Data: map[string]string{testBootstrapComplete: stateTrue}}
+	inputs := map[string][]byte{}
+	for _, key := range []string{envDatabaseURL, envSourceAccess, envSourceSecret, envRegistryUser, envRegistryPassword} {
+		inputs[key] = []byte("fixture-input")
+	}
+	defaults, err := os.ReadFile(filepath.Join("..", "..", "..", "charts", "loco-control-plane", "values.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	chart, err := packageArchive(map[string][]byte{controlPlaneValuesPath: defaults})
+	if err != nil {
+		t.Fatal(err)
+	}
+	name, err := managedClickHouseName(chart)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = kube.ensureCredentials(t.Context(), state, inputs, name); err != nil {
+		t.Fatal(err)
+	}
+	for _, role := range []string{"migrator", "ingest", "reader"} {
+		secret := stored["loco-clickhouse-"+role]
+		endpoint, parseErr := url.Parse(string(secret.Data["url"]))
+		if parseErr != nil {
+			t.Fatal("invalid generated ClickHouse DSN")
+		}
+		if endpoint.Host != "clickhouse-loco-clickhouse.loco-system.svc.cluster.local:9000" {
+			t.Errorf("%s credential does not address the chart's managed ClickHouse service", role)
+		}
+	}
+}
+
+func TestClickHouseNameComesFromPinnedChart(t *testing.T) {
+	for _, name := range []string{"regional-observability", "", "credential-canary.invalid", strings.Repeat("a", 28)} {
+		chart, err := packageArchive(map[string][]byte{
+			controlPlaneValuesPath: []byte("clickhouse:\n  fullnameOverride: " + name + "\n"),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := managedClickHouseName(chart)
+		if name == "regional-observability" {
+			if err != nil || got != name {
+				t.Fatal("managed ClickHouse name did not follow the pinned chart")
+			}
+			continue
+		}
+		if err == nil || strings.Contains(err.Error(), "credential-canary") {
+			t.Fatal("invalid naming metadata was accepted or exposed source data")
+		}
+	}
+}
+
+func TestManagedClickHouseNameFitsPinnedOperatorVolumes(t *testing.T) {
+	// The pinned chart truncates cluster names to 15 characters and runs one shard/replica.
+	cluster := strings.Repeat("c", 15)
+	for _, size := range []int{26, 27} {
+		name := strings.Repeat("a", size)
+		chart, err := packageArchive(map[string][]byte{
+			controlPlaneValuesPath: []byte("clickhouse:\n  fullnameOverride: " + name + "\n"),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = managedClickHouseName(chart)
+		valid := true
+		for _, volume := range []string{
+			"chi-" + name + "-common-configd",
+			"chi-" + name + "-common-usersd",
+			"chi-" + name + "-deploy-confd-" + cluster + "-0-0",
+		} {
+			valid = valid && len(volume) <= maxDNSLabelLength
+		}
+		if (err == nil) != valid {
+			t.Errorf("name length %d: accepted=%v, generated volume names valid=%v", size, err == nil, valid)
+		}
+	}
+}

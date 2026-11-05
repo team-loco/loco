@@ -49,7 +49,7 @@ func TestLockRefreshesStateAndProtectsReplacementHolder(t *testing.T) {
 					state := corev1.ConfigMap{
 						UID:    types.UID("state-id"),
 						Labels: map[string]string{installationOwner: testInstallation},
-						Data:   map[string]string{"clusterUID": testClusterUID, "bootstrapComplete": stateTrue},
+						Data:   map[string]string{"clusterUID": testClusterUID, testBootstrapComplete: stateTrue},
 					}
 					if err := json.NewEncoder(w).Encode(&state); err != nil {
 						t.Error(err)
