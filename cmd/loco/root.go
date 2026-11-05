@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log/slog"
-	"os"
 	"os/user"
 	"path/filepath"
 	"time"
@@ -104,7 +103,7 @@ func initLogger(cmd *cobra.Command) error {
 	slog.Info(
 		"new run",
 		"version", cmd.Root().Version,
-		"args", os.Args,
+		"command", cmd.CommandPath(),
 	)
 	return nil
 }
