@@ -69,11 +69,12 @@ func (v *Validator) CheckPermission(
 	info.RequestHeader().Set("Authorization", "Bearer "+token)
 	resp, err := v.client.CheckPermission(ctx, req)
 	if err != nil {
-		slog.ErrorContext(ctx, "CheckPermission call failed", "error", err)
 		code := connect.CodeOf(err)
 		if code == connect.CodePermissionDenied || code == connect.CodeUnauthenticated {
+			slog.DebugContext(ctx, "CheckPermission denied", "error", err)
 			return errPermissionDenied.WithCause(err)
 		}
+		slog.ErrorContext(ctx, "CheckPermission call failed", "error", err)
 		return errPermissionCheckUnavailable.WithCause(err)
 	}
 

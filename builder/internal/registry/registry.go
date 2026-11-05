@@ -82,6 +82,11 @@ func (c *Client) RestoreCache(ref, dir string, maxBytes int64) error {
 	return nil
 }
 
+func CredentialRejected(err error) bool {
+	terr, ok := errors.AsType[*transport.Error](err)
+	return ok && (terr.StatusCode == http.StatusUnauthorized || terr.StatusCode == http.StatusForbidden)
+}
+
 func (c *Client) ensureTagFree(tag name.Tag) error {
 	_, err := remote.Head(tag, c.options...)
 	if err == nil {

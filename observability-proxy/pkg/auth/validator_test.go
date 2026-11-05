@@ -1,8 +1,11 @@
 package auth
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -137,6 +140,51 @@ func TestPermissionErrorsHaveExplicitLocalCodes(t *testing.T) {
 			publicError, isConnect := errors.AsType[*connect.Error](wireErr)
 			if !isConnect || publicError.Code() != tc.code || publicError.Message() != tc.message {
 				t.Fatalf("relayed wire error = %v", wireErr)
+			}
+		})
+	}
+}
+
+func TestClientDenialsAreNotLoggedAsErrors(t *testing.T) {
+	cases := map[string]struct {
+		failure error
+		logged  bool
+	}{
+		"permission denied": {failure: connect.NewError(connect.CodePermissionDenied, upstreamPrivateMessage)},
+		"unauthenticated":   {failure: connect.NewError(connect.CodeUnauthenticated, upstreamPrivateMessage)},
+		"unavailable":       {failure: connect.NewError(connect.CodeUnavailable, upstreamPrivateMessage), logged: true},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			var logs bytes.Buffer
+			previous := slog.Default()
+			slog.SetDefault(slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelInfo})))
+			t.Cleanup(func() { slog.SetDefault(previous) })
+			server := connect.NewServer()
+			tokenv1connect.RegisterTokenServiceHandler(server, &permissionServer{failure: tc.failure})
+			client := tokenv1connect.NewTokenServiceClient(connect.NewClient(connectinprocess.New(server)))
+			memory, err := cache.NewMemory(time.Minute)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() {
+				if closeErr := memory.Close(); closeErr != nil {
+					t.Error(closeErr)
+				}
+			})
+			validator := &Validator{client: client, cache: memory}
+			err = validator.CheckPermission(
+				t.Context(),
+				"caller",
+				tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
+				"workspace",
+				tokenv1.Scope_SCOPE_READ,
+			)
+			if err == nil {
+				t.Fatal("CheckPermission succeeded")
+			}
+			if got := strings.Contains(logs.String(), "level=ERROR"); got != tc.logged {
+				t.Errorf("ERROR logged = %t, want %t; log: %s", got, tc.logged, logs.String())
 			}
 		})
 	}

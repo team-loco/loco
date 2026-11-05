@@ -17,7 +17,19 @@ const (
 	lockKey = "schema"
 
 	minRenewalsPerTTL = 2
+
+	codeUnknownDatabase      = 81
+	codeRequiredPassword     = 194
+	codeAccessDenied         = 497
+	codeAuthenticationFailed = 516
 )
+
+var unretryableCodes = map[int32]bool{
+	codeUnknownDatabase:      true,
+	codeRequiredPassword:     true,
+	codeAccessDenied:         true,
+	codeAuthenticationFailed: true,
+}
 
 var (
 	ErrNotPositive = errors.New("lock timings must be positive")
@@ -53,6 +65,13 @@ type Lock struct {
 
 func New(cfg Config) *Lock {
 	return &Lock{cfg: cfg, identity: uuid.NewString(), table: cfg.Database + "." + Table}
+}
+
+// Unretryable reports whether ClickHouse rejected the credentials or the
+// configured database, which no number of retries fixes.
+func Unretryable(err error) bool {
+	exception, ok := errors.AsType[*clickhouse.Exception](err)
+	return ok && unretryableCodes[exception.Code]
 }
 
 func (l *Lock) logAttrs() []any {
@@ -101,6 +120,8 @@ func (l *Lock) acquire(ctx context.Context, conn driver.Conn) error {
 	for {
 		holder, err := l.tryAcquire(ctx, conn)
 		switch {
+		case err != nil && Unretryable(err):
+			return fmt.Errorf("acquire %s: %w", l.table, err)
 		case err != nil:
 			slog.WarnContext(ctx, "migration lock attempt failed", append(l.logAttrs(), "error", err)...)
 		case holder == l.identity:

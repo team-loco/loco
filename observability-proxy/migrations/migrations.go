@@ -13,6 +13,8 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/pressly/goose/v3"
+
+	"github.com/team-loco/loco/observability-proxy/pkg/migrationlock"
 )
 
 const VersionTable = "loco_schema_migrations"
@@ -83,6 +85,9 @@ func UpWithRetry(ctx context.Context, cfg Config, retry Retry) error {
 		err := Up(budgetCtx, cfg)
 		if err == nil {
 			return nil
+		}
+		if migrationlock.Unretryable(err) {
+			return fmt.Errorf("clickhouse rejected the migration connection: %w", err)
 		}
 		slog.WarnContext(ctx, "clickhouse migrations failed", "attempt", attempt, "error", err)
 		select {

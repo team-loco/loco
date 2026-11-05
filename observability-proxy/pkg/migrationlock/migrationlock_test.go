@@ -5,7 +5,11 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -18,16 +22,18 @@ import (
 )
 
 const (
-	testClickHouseEnv = "LOCO_TEST_CLICKHOUSE_URL"
-	databaseNameBytes = 4
-	contenders        = 4
-	holdTime          = 100 * time.Millisecond
-	testTTL           = 2 * time.Second
-	testRetryPeriod   = 200 * time.Millisecond
-	waitTimeout       = 500 * time.Millisecond
-	settleDeadline    = 30 * time.Second
-	deadHolder        = "dead-holder"
-	otherHolder       = "other-holder"
+	testClickHouseEnv    = "LOCO_TEST_CLICKHOUSE_URL"
+	databaseNameBytes    = 4
+	contenders           = 4
+	holdTime             = 100 * time.Millisecond
+	testTTL              = 2 * time.Second
+	testRetryPeriod      = 200 * time.Millisecond
+	waitTimeout          = 500 * time.Millisecond
+	settleDeadline       = 30 * time.Second
+	rejectedBudget       = 3 * time.Second
+	authenticationFailed = 516
+	deadHolder           = "dead-holder"
+	otherHolder          = "other-holder"
 )
 
 var errMigration = errors.New("migration failed")
@@ -281,5 +287,38 @@ func TestHolderThatCannotRenewStopsWithinTheTTL(t *testing.T) {
 	t.Logf("holder stopped %s after renewals started failing (ttl %s)", stoppedAfter, testTTL)
 	if stoppedAfter > testTTL+testRetryPeriod {
 		t.Fatalf("holder kept migrating %s after renewals failed, past the %s ttl", stoppedAfter, testTTL)
+	}
+}
+
+func TestWithLockFailsImmediatelyOnRejectedCredentials(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		w.Header().Set("X-Clickhouse-Exception-Code", strconv.Itoa(authenticationFailed))
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Code: %d. DB::Exception: rejected. (AUTHENTICATION_FAILED)\n", authenticationFailed)
+	}))
+	t.Cleanup(server.Close)
+	lock := migrationlock.New(migrationlock.Config{
+		DSN:         server.URL,
+		Database:    "loco_obs",
+		TTL:         testTTL,
+		RetryPeriod: testRetryPeriod,
+	})
+	ctx, cancel := context.WithTimeout(t.Context(), rejectedBudget)
+	defer cancel()
+	ran := false
+	err := lock.WithLock(ctx, func(context.Context) error {
+		ran = true
+		return nil
+	})
+	if err == nil || errors.Is(err, migrationlock.ErrNotAcquired) {
+		t.Fatalf("WithLock error = %v, want the authentication error", err)
+	}
+	if ran {
+		t.Error("WithLock ran the migration without the lock")
+	}
+	if got := requests.Load(); got != 1 {
+		t.Errorf("clickhouse received %d requests, want 1", got)
 	}
 }

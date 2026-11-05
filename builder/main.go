@@ -63,11 +63,19 @@ func fetch(ctx context.Context, cfg fetchConfig) error {
 	}
 	client := registry.New(ctx, cfg.Insecure)
 	if err := client.RestoreCache(cfg.CacheRef, cfg.CacheDir, cfg.MaxCacheBytes); err != nil {
-		slog.WarnContext(ctx, "building without cache", "error", err)
+		logCacheFailure(ctx, "building without cache", err)
 		return nil
 	}
 	slog.InfoContext(ctx, "cache restored", "ref", cfg.CacheRef)
 	return nil
+}
+
+func logCacheFailure(ctx context.Context, msg string, err error) {
+	if registry.CredentialRejected(err) {
+		slog.ErrorContext(ctx, msg, "error", err)
+		return
+	}
+	slog.WarnContext(ctx, msg, "error", err)
 }
 
 func push(ctx context.Context, cfg pushConfig) error {
@@ -88,7 +96,7 @@ func push(ctx context.Context, cfg pushConfig) error {
 	if cfg.CacheRef != "" {
 		cacheDigest, cacheErr := pushCache(ctx, client, cfg.CacheDir, cfg.CacheRef, cfg.MaxCacheBytes)
 		if cacheErr != nil {
-			slog.WarnContext(ctx, "build cache not saved", "error", cacheErr)
+			logCacheFailure(ctx, "build cache not saved", cacheErr)
 		}
 		out.CacheDigest = cacheDigest
 	}
