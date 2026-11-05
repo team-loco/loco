@@ -1,33 +1,13 @@
 name: Go Vulnerabilities
 
 on:
-  pull_request:
-    paths: &paths
-      - "tests/pyproject.toml"
-      - "tests/uv.lock"
-      - "**/*.go"
-      - "**/go.mod"
-      - "**/go.sum"
-      - "mise.toml"
-      - "mise.lock"
-      - "mise-tasks/lint/govulncheck"
-      - "tests/govulncheck/**"
-      - ".github/actions/setup-tools/**"
-      - ".github/workflows/govulncheck.yml"
-  push:
-    branches:
-      - main
-    paths: *paths
+  workflow_call:
   schedule:
     - cron: "0 13 * * 1"
   workflow_dispatch:
 
 permissions:
   contents: read
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   govulncheck:

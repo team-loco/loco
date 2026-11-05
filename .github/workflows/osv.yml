@@ -1,30 +1,13 @@
 name: OSV
 
 on:
-  pull_request:
-    paths: &paths
-      - "**/Dockerfile"
-      - "**/go.mod"
-      - "**/go.sum"
-      - "**/package.json"
-      - "**/pyproject.toml"
-      - "**/uv.lock"
-      - "bun.lock"
-      - ".github/workflows/osv.yml"
-  push:
-    branches:
-      - main
-    paths: *paths
+  workflow_call:
   schedule:
     - cron: "0 13 * * 1"
   workflow_dispatch:
 
 permissions:
   contents: read
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   source:

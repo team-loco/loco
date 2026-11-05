@@ -1,0 +1,254 @@
+# Runs every check for a pull request or a push to main, and reports one
+# result, the CI Gate job, which branch protection requires. Each check is a
+# reusable workflow called only when the changes job finds a file matching its
+# list in .github/ci-paths.yml; a skipped call passes the gate. Path filters on
+# the called workflows' own triggers would leave a required check without a
+# result whenever they skipped it.
+name: CI
+
+on:
+  # Every run evaluates every check for its commit, because protection reads
+  # the newest CI Gate result on it. `ready_for_review` is a full run that lets
+  # Docs Drift review a pull request leaving draft; label events are left out
+  # because nothing needs a fresh run for them (see buf.yml for break-buf).
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches:
+      - main
+
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+
+  changes:
+    name: Changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      auth-conformance: ${{ steps.select.outputs.auth-conformance }}
+      buf: ${{ steps.select.outputs.buf }}
+      charts: ${{ steps.select.outputs.charts }}
+      controller-helm-chart: ${{ steps.select.outputs.controller-helm-chart }}
+      docker: ${{ steps.select.outputs.docker }}
+      docs-drift: ${{ steps.select.outputs.docs-drift }}
+      docs: ${{ steps.select.outputs.docs }}
+      e2e: ${{ steps.select.outputs.e2e }}
+      govulncheck: ${{ steps.select.outputs.govulncheck }}
+      lint: ${{ steps.select.outputs.lint }}
+      local-stack: ${{ steps.select.outputs.local-stack }}
+      obs-chart: ${{ steps.select.outputs.obs-chart }}
+      osv: ${{ steps.select.outputs.osv }}
+      platform-release: ${{ steps.select.outputs.platform-release }}
+      test: ${{ steps.select.outputs.test }}
+      transit-conformance: ${{ steps.select.outputs.transit-conformance }}
+      web: ${{ steps.select.outputs.web }}
+      workflows: ${{ steps.select.outputs.workflows }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-tools
+        with:
+          go-cache: ci-changes
+
+      - name: Select the workflows the changed files need
+        id: select
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: go run ./tools/ci-changes -event "$GITHUB_EVENT_NAME" -base "$BASE" -head "$HEAD"
+
+  auth-conformance:
+    name: Auth Conformance
+    needs: [changes]
+    if: needs.changes.outputs.auth-conformance == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/auth-conformance.yml
+
+  buf:
+    name: Buf
+    needs: [changes]
+    if: needs.changes.outputs.buf == 'true'
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/buf.yml
+    secrets: inherit
+
+  charts:
+    name: Charts
+    needs: [changes]
+    if: needs.changes.outputs.charts == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/charts.yml
+
+  controller-helm-chart:
+    name: Controller Helm Chart Tests
+    needs: [changes]
+    if: needs.changes.outputs.controller-helm-chart == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/controller-helm-chart.yml
+
+  docker:
+    name: Docker
+    needs: [changes]
+    if: needs.changes.outputs.docker == 'true'
+    permissions:
+      contents: read
+      security-events: write
+    uses: ./.github/workflows/docker.yml
+
+  docs-drift:
+    name: Docs Drift
+    needs: [changes]
+    if: needs.changes.outputs.docs-drift == 'true'
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/docs-drift.yml
+    secrets: inherit
+
+  docs:
+    name: Documentation
+    needs: [changes]
+    if: needs.changes.outputs.docs == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/docs.yml
+
+  e2e:
+    name: E2E
+    needs: [changes]
+    if: needs.changes.outputs.e2e == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/e2e.yml
+
+  govulncheck:
+    name: Go Vulnerabilities
+    needs: [changes]
+    if: needs.changes.outputs.govulncheck == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/govulncheck.yml
+
+  lint:
+    name: Lint
+    needs: [changes]
+    if: needs.changes.outputs.lint == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/lint.yml
+
+  local-stack:
+    name: Local Stack
+    needs: [changes]
+    if: needs.changes.outputs.local-stack == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/local-stack.yml
+
+  obs-chart:
+    name: Observability Chart
+    needs: [changes]
+    if: needs.changes.outputs.obs-chart == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/obs-chart.yml
+
+  osv:
+    name: OSV
+    needs: [changes]
+    if: needs.changes.outputs.osv == 'true'
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    uses: ./.github/workflows/osv.yml
+
+  platform-release:
+    name: Publish platform release
+    needs: [changes]
+    if: needs.changes.outputs.platform-release == 'true'
+    permissions:
+      attestations: read
+      contents: read
+      packages: write
+    uses: ./.github/workflows/platform-release.yml
+
+  test:
+    name: Tests
+    needs: [changes]
+    if: needs.changes.outputs.test == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/test.yml
+
+  transit-conformance:
+    name: Transit Conformance
+    needs: [changes]
+    if: needs.changes.outputs.transit-conformance == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/transit-conformance.yml
+
+  web:
+    name: Web
+    needs: [changes]
+    if: needs.changes.outputs.web == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/web.yml
+
+  workflows:
+    name: Workflows
+    needs: [changes]
+    if: needs.changes.outputs.workflows == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/workflows.yml
+
+  gate:
+    name: CI Gate
+    needs:
+      - changes
+      - auth-conformance
+      - buf
+      - charts
+      - controller-helm-chart
+      - docker
+      - docs-drift
+      - docs
+      - e2e
+      - govulncheck
+      - lint
+      - local-stack
+      - obs-chart
+      - osv
+      - platform-release
+      - test
+      - transit-conformance
+      - web
+      - workflows
+    # always() rather than !cancelled(): a cancelled run must report a failed
+    # gate, since a skipped job counts as passing.
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail when a check failed or was cancelled
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          jq -r 'to_entries[] | "\(.key): \(.value.result)"' <<<"$NEEDS"
+          jq -e 'all(.[]; .result != "failure" and .result != "cancelled")' <<<"$NEEDS" > /dev/null

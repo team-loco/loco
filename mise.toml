@@ -174,8 +174,8 @@ description = "Test the e2e runner's test file selection without a cluster"
 run = "uv run --locked --project tests pytest tests/e2e/test_run.py"
 
 [tasks."test:ci"]
-description = "Test CI component selection and pull-request diffs"
-run = "uv run --locked --project tests pytest .github/actions/go-changes/tests .github/actions/ci-gate/tests"
+description = "Test CI workflow and Go component selection"
+run = ["uv run --locked --project tests pytest .github/actions/go-changes/tests", "go test ./tools/ci-changes"]
 
 [tasks."test:install"]
 description = "Test the CLI install script's arguments"

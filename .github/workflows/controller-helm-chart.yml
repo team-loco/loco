@@ -1,32 +1,12 @@
 name: Controller Helm Chart Tests
 
 on:
-  push:
-    branches:
-      - main
-    paths: &paths
-      - "controller/**"
-      - "k8sapi/**"
-      - "charts/**"
-      - "go.mod"
-      - "go.sum"
-      - "mise-tasks/chart/**"
-      - "mise-tasks/crds/**"
-      - "mise.toml"
-      - "mise.lock"
-      - ".github/actions/setup-tools/**"
-      - ".github/workflows/controller-helm-chart.yml"
-  pull_request:
-    paths: *paths
+  workflow_call:
 
 # Both jobs execute code from the PR under review (Makefiles, Go tooling, helm
 # charts), so neither may hold anything an attacker would want.
 permissions:
   contents: read
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
 

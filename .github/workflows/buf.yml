@@ -1,37 +1,10 @@
 name: Buf
 
 on:
-  push:
-    branches:
-      - main
-    paths: &paths
-      - "**.proto"
-      - "**/buf.yaml"
-      - "**/buf.lock"
-      - "**/buf.gen.yaml"
-      - "gen/**"
-      - "api/gen/openapi/**"
-      - "go.mod"
-      - "go.sum"
-      - "package.json"
-      - "bun.lock"
-      - ".github/workflows/buf.yml"
-      - "mise.toml"
-      - "mise.lock"
-      - ".github/actions/setup-tools/**"
-  pull_request:
-    # `labeled`/`unlabeled` are required on top of the defaults so that adding or
-    # removing the `break-buf` label re-runs this workflow. Without them the
-    # label can only take effect on the next push.
-    types: [opened, synchronize, reopened, labeled, unlabeled]
-    paths: *paths
+  workflow_call:
 
 permissions:
   contents: read
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || (github.event_name == 'push' && github.ref) || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
 
@@ -66,6 +39,10 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+    # Pushes to the registry from main run one at a time; the step below moves
+    # each to the branch's newest commit.
+    concurrency:
+      group: ${{ github.event_name == 'push' && 'buf-registry' || format('buf-{0}', github.run_id) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -84,13 +61,27 @@ jobs:
             echo "::notice::$GITHUB_REF moved from $GITHUB_SHA to $head; pushing $head to the Buf Schema Registry"
           fi
 
+      # A pull request labelled `break-buf` skips the breaking-change check. The
+      # label is read when the job runs, not from the event, and adding it does
+      # not start CI: add the label, then re-run the failed jobs.
+      - name: Read the break-buf label
+        id: labels
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          labels=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json labels --jq '.labels[].name')
+          if grep -qx break-buf <<<"$labels"; then
+            echo "breaking=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "breaking=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: bufbuild/buf-action@37ac33d8960807670a6e9719080e885197b09cc6 # v1.7.0
         with:
           token: ${{ secrets.BUF_TOKEN }}
           lint: true
-          # Skip the breaking-change check on PRs labelled `break-buf`.
-          # NOTE: this must key off the pull_request payload. The previous
-          # `github.event.head_commit.message` only exists on push events, so on
-          # a PR it was always null and the bypass could never fire.
-          breaking: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'break-buf') }}
+          breaking: ${{ steps.labels.outputs.breaking == 'true' }}
           breaking_against_registry: true
