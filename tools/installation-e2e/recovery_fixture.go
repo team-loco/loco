@@ -11,6 +11,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -18,15 +19,17 @@ import (
 )
 
 const (
-	recoveryNamespace    = "installation-restore-drill"
-	sourceBao            = "loco-control-plane-openbao"
-	recoveryPod          = "restore"
+	recoveryNamespace = "installation-restore-drill"
+	sourceBao         = "loco-control-plane-openbao"
+	recoveryPod       = "restore"
+	// the disposable restore listener and advertised address share this port.
+	recoveryBaoPort      = "8200"
 	recoveryReadyTimeout = 2 * time.Minute
 )
 
 func restoreRecovery(ctx context.Context, material exportedMaterial, shares []string) error {
 	var source, restored baoClient
-	var forward *exec.Cmd
+	var sourceForward, forward *exec.Cmd
 	var restoredInitialized bool
 	// Source roots are revoked independently of acceptance cancellation, before fixture deletion.
 	err := execute(ctx, func(ctx context.Context) error {
@@ -85,18 +88,23 @@ func restoreRecovery(ctx context.Context, material exportedMaterial, shares []st
 		if !roots.AppendCertsFromPEM(secret.Data["ca.crt"]) {
 			return errRecoveryDrill
 		}
+		serverName := sourceBao + "." + controlNamespace + ".svc"
 		source = baoClient{
 			client: &http.Client{
 				Timeout:       recoveryRequestTimeout,
 				CheckRedirect: denyRecoveryRedirect,
 				Transport: &http.Transport{
-					TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12},
+					TLSClientConfig: &tls.Config{RootCAs: roots, ServerName: serverName, MinVersion: tls.VersionTLS12},
 				},
 			},
-			endpoint: fmt.Sprintf("https://%s.%s.svc:%d", sourceBao, controlNamespace, port),
+			endpoint: "https://" + net.JoinHostPort(serverName, strconv.Itoa(port)),
 			token:    material.GenerateRootToken,
 		}
 		defer source.client.CloseIdleConnections()
+		sourceForward, source.endpoint, err = forwardBao(ctx, source, controlNamespace, "service/"+sourceBao)
+		if err != nil {
+			return err
+		}
 		source.token, err = source.recoverRoot(ctx, shares)
 		if err != nil {
 			return err
@@ -110,11 +118,12 @@ func restoreRecovery(ctx context.Context, material exportedMaterial, shares []st
 			return err
 		}
 		restored = baoClient{
-			client: &http.Client{Timeout: recoveryRequestTimeout, CheckRedirect: denyRecoveryRedirect},
-			token:  source.token,
+			client:   &http.Client{Timeout: recoveryRequestTimeout, CheckRedirect: denyRecoveryRedirect},
+			endpoint: "http://127.0.0.1:" + recoveryBaoPort,
+			token:    source.token,
 		}
 		defer restored.client.CloseIdleConnections()
-		forward, restored.endpoint, err = forwardRestoredBao(ctx, restored.client)
+		forward, restored.endpoint, err = forwardBao(ctx, restored, recoveryNamespace, "pod/"+recoveryPod)
 		if err != nil {
 			return err
 		}
@@ -166,8 +175,10 @@ func restoreRecovery(ctx context.Context, material exportedMaterial, shares []st
 			_, err := restored.request(ctx, http.MethodPost, "auth/token/revoke-self", nil)
 			cleanup = append(cleanup, err)
 		}
-		if forward != nil {
-			cleanup = append(cleanup, stopProcess(forward))
+		for _, process := range []*exec.Cmd{sourceForward, forward} {
+			if process != nil {
+				cleanup = append(cleanup, stopProcess(process))
+			}
 		}
 		_, err := kubectl(ctx, "delete", "namespace", recoveryNamespace, "--ignore-not-found", "--wait=true")
 		return errors.Join(append(cleanup, err)...)
@@ -223,6 +234,7 @@ func recoveryTransitPaths(ctx context.Context) ([2]string, error) {
 func provisionRecovery(ctx context.Context, image, keyID, seal string) error {
 	input, err := renderFixtureFile("/fixture/recovery.yaml", map[string]any{
 		"Namespace": recoveryNamespace, "Pod": recoveryPod, "BaoImage": image, "KeyID": keyID, "Seal": seal,
+		"Port": recoveryBaoPort,
 	})
 	if err != nil {
 		return err
@@ -242,7 +254,11 @@ func provisionRecovery(ctx context.Context, image, keyID, seal string) error {
 	return err
 }
 
-func forwardRestoredBao(ctx context.Context, client *http.Client) (*exec.Cmd, string, error) {
+func forwardBao(ctx context.Context, client baoClient, namespace, target string) (*exec.Cmd, string, error) {
+	remote, err := url.Parse(client.endpoint)
+	if err != nil || remote.Port() == "" {
+		return nil, "", errRecoveryDrill
+	}
 	listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, "", err
@@ -259,10 +275,10 @@ func forwardRestoredBao(ctx context.Context, client *http.Client) (*exec.Cmd, st
 		context.WithoutCancel(ctx),
 		"kubectl",
 		"-n",
-		recoveryNamespace,
+		namespace,
 		"port-forward",
-		"pod/"+recoveryPod,
-		local+":8200",
+		target,
+		local+":"+remote.Port(),
 		"--address=127.0.0.1",
 	)
 	forward.Stdout = io.Discard
@@ -270,8 +286,8 @@ func forwardRestoredBao(ctx context.Context, client *http.Client) (*exec.Cmd, st
 	if err = forward.Start(); err != nil {
 		return nil, "", err
 	}
-	endpoint := "http://" + address
-	probe := baoClient{client: client, endpoint: endpoint}
+	endpoint := remote.Scheme + "://" + address
+	probe := baoClient{client: client.client, endpoint: endpoint}
 	// Seal status is available before initialization; authenticated readiness follows init/restore.
 	deadline, cancel := context.WithTimeout(ctx, recoveryReadyTimeout)
 	defer cancel()
