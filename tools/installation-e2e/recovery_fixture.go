@@ -163,7 +163,11 @@ func restoreRecovery(ctx context.Context, material exportedMaterial, shares []st
 				return err
 			}
 			restored.token = source.token
-			return restartRestoredBao(ctx, restored)
+			forward, restored.endpoint, err = restartRestoredBao(ctx, restored, forward)
+			if err != nil {
+				return err
+			}
+			return waitBao(ctx, restored)
 		}, paths[0], paths[1])
 	}, func(ctx context.Context) error {
 		var cleanup []error
@@ -368,7 +372,7 @@ func restartRecovery(ctx context.Context) error {
 	return nil
 }
 
-func restartRestoredBao(ctx context.Context, client baoClient) error {
+func restartRestoredBao(ctx context.Context, client baoClient, forward *exec.Cmd) (*exec.Cmd, string, error) {
 	deadline, cancel := context.WithTimeout(ctx, recoveryReadyTimeout)
 	defer cancel()
 	ticker := time.NewTicker(time.Second)
@@ -387,13 +391,18 @@ func restartRestoredBao(ctx context.Context, client baoClient) error {
 		}
 		select {
 		case <-deadline.Done():
-			return errRecoveryDrill
+			return forward, client.endpoint, errRecoveryDrill
 		case <-ticker.C:
 		}
 	}
-	// Preserve emptyDir raft data across the container restart; the exported static key must auto-unseal it.
-	if err := restartRecovery(ctx); err != nil {
-		return err
+
+	if err := stopProcess(forward); err != nil {
+		return nil, "", err
 	}
-	return waitBao(ctx, client)
+	// container restart invalidates the old port-forward stream; preserve only raft data.
+	if err := restartRecovery(ctx); err != nil {
+		return nil, "", err
+	}
+	client.endpoint = "http://127.0.0.1:" + recoveryBaoPort
+	return forwardBao(ctx, client, recoveryNamespace, "pod/"+recoveryPod)
 }
