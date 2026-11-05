@@ -344,8 +344,10 @@ func (f *fixture) provision(ctx context.Context) error {
 		return errors.New("fixture IdP has no pinned password hash")
 	}
 
+	registryRevision := sha256.Sum256(registryData)
 	parameters := map[string]any{
 		"RegistryConfig": string(registryData),
+		"ConfigRevision": hex.EncodeToString(registryRevision[:]),
 		"Htpasswd":       string(htpasswd),
 		"Email":          fixtureEmail,
 		"PasswordHash":   hash,

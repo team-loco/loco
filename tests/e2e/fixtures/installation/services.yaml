@@ -54,7 +54,9 @@ spec:
   replicas: 1
   selector: {matchLabels: {fixture: {{ .Name }}}}
   template:
-    metadata: {labels: {fixture: {{ .Name }}}}
+    metadata:
+      labels: {fixture: {{ .Name }}}
+      annotations: {fixture-config: {{ $.ConfigRevision | quote }}}
     spec:
       containers:
       - name: {{ .Name }}
