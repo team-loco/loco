@@ -6,6 +6,8 @@ The suite uses a real Dex password login through authorization code with PKCE, c
 
 Run once with `--no-teardown` for development, then reuse the kept infrastructure with `--skip-build`. The default path removes the fixture on success and failure. No SQL creates users, sessions or cluster registrations, and the harness does not provide generated Loco credentials or key material. External fixture credentials remain development-only inputs. The operator image's Docker context allowlist excludes run directories, kubeconfigs and local credential files.
 
+`--timeout` bounds host setup and acceptance; its default leaves time for setup and cleanup within the CI job. Cleanup has its own deadline even when acceptance times out.
+
 | Requirement | Evidence in this suite |
 | --- | --- |
 | [719](https://github.com/team-loco/loco/issues/719) | Public installation, real IdP authentication and enrolled in-cluster worker |

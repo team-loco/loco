@@ -5,7 +5,9 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestFailureRunsCleanupAndRemainsFailure(t *testing.T) {
@@ -52,9 +54,65 @@ func TestCancelledAcceptanceStillCleansUp(t *testing.T) {
 
 func TestUnknownFilterFailsBeforeInfrastructure(t *testing.T) {
 	original := os.Args
-	os.Args = []string{"installation-e2e", "misspelled-suite"}
+	os.Args = []string{suiteName, "misspelled-suite"}
 	defer func() { os.Args = original }()
 	if err := run(); err == nil {
 		t.Fatal("unknown filter returned success")
+	}
+}
+
+func TestHostSetupDeadlineStillRunsCleanup(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	if err := os.WriteFile("mise.toml", nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	bin := t.TempDir()
+	for _, program := range []string{"docker", "kind", "kubectl", "helm", "mise", "yq"} {
+		script := "#!/bin/sh\nexit 0\n"
+		if program == "docker" {
+			script = "#!/bin/sh\nexec /bin/sleep 30\n"
+		}
+		if program == "kind" {
+			script = "#!/bin/sh\nprintf cleaned >\"$INSTALLATION_CLEANUP_MARKER\"\n"
+		}
+		path := filepath.Join(bin, program)
+		if err := os.WriteFile(path, []byte(script), 0600); err != nil {
+			t.Fatal(err)
+		}
+		//nolint:gosec // Only the owner can execute this disposable fake command.
+		if err := os.Chmod(path, 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	marker := filepath.Join(root, "cleaned")
+	t.Setenv("PATH", bin)
+	t.Setenv("INSTALLATION_CLEANUP_MARKER", marker)
+	original := os.Args
+	os.Args = []string{suiteName, "--timeout=20ms"}
+	defer func() { os.Args = original }()
+	started := time.Now()
+	err := run()
+	if err == nil || !strings.Contains(err.Error(), "docker failed") {
+		t.Fatalf("host setup deadline: %v", err)
+	}
+	if time.Since(started) > 2*time.Second {
+		t.Fatal("host setup ignored its deadline")
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatal("host deadline skipped cleanup")
+	}
+}
+
+func TestHostTimeoutMustBePositive(t *testing.T) {
+	for _, timeout := range []string{"0", "-1s"} {
+		t.Run(timeout, func(t *testing.T) {
+			original := os.Args
+			os.Args = []string{suiteName, "--timeout=" + timeout}
+			defer func() { os.Args = original }()
+			if err := run(); !errors.Is(err, errSuiteTimeout) {
+				t.Fatalf("invalid timeout: %v", err)
+			}
+		})
 	}
 }

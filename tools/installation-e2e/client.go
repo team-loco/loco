@@ -93,6 +93,16 @@ func clientAcceptance(ctx context.Context) error {
 	if checkErr := bootstrap(ctx); checkErr != nil {
 		return fmt.Errorf("resume from fresh operator state: %w", checkErr)
 	}
+	if _, checkErr := locoadm(ctx, "apply", "--file", clientFile); checkErr != nil {
+		return fmt.Errorf("apply from fresh operator state: %w", checkErr)
+	}
+	after, err = identitySnapshot(ctx)
+	if err != nil {
+		return err
+	}
+	if before != after {
+		return errors.New("fresh operator apply replaced installation credentials or worker identity")
+	}
 	if checkErr := os.Setenv("HOME", originalHome); checkErr != nil {
 		return checkErr
 	}

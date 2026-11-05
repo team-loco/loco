@@ -15,7 +15,13 @@ import (
 	"time"
 )
 
-const cleanupTimeout = 2 * time.Minute
+const (
+	suiteName      = "installation-e2e"
+	cleanupTimeout = 2 * time.Minute
+	hostTimeout    = 75 * time.Minute
+)
+
+var errSuiteTimeout = errors.New("installation suite timeout must be positive")
 
 func main() {
 	if checkErr := run(); checkErr != nil {
@@ -25,17 +31,21 @@ func main() {
 }
 
 func run() error {
-	options := flag.NewFlagSet("installation-e2e", flag.ContinueOnError)
+	options := flag.NewFlagSet(suiteName, flag.ContinueOnError)
 	options.SetOutput(io.Discard)
 	mail := options.Bool("mail-sink", false, "Serve the external fixture email transport")
 	client := options.Bool("client", false, "Run operator acceptance inside the fixture pod")
 	keep := options.Bool("no-teardown", false, "Keep this suite's kind cluster for inspection")
 	skip := options.Bool("skip-build", false, "Reuse this suite's built images and binaries")
+	timeout := options.Duration("timeout", hostTimeout, "Maximum duration of host setup and acceptance")
 	if checkErr := options.Parse(os.Args[1:]); checkErr != nil {
 		return errors.New("invalid installation suite options")
 	}
 	if options.NArg() != 0 {
 		return errors.New("installation suite accepts no test filters")
+	}
+	if *timeout <= 0 {
+		return errSuiteTimeout
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -45,6 +55,8 @@ func run() error {
 	if *client {
 		return clientAcceptance(ctx)
 	}
+	ctx, cancel := context.WithTimeout(ctx, *timeout)
+	defer cancel()
 	root, err := os.Getwd()
 	if err != nil {
 		return err
