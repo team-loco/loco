@@ -1,10 +1,12 @@
 package main
 
 import (
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 const configuredOrigin = "https://app.loco.build"
@@ -65,5 +67,28 @@ func TestWithCORSExposedHeaders(t *testing.T) {
 	}
 	if strings.Contains(exposed, "server-timing") {
 		t.Errorf("exposed headers %q include server-timing", exposed)
+	}
+}
+
+func TestServeReturnsListenError(t *testing.T) {
+	occupied, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer occupied.Close()
+
+	server := &http.Server{Addr: occupied.Addr().String(), ReadHeaderTimeout: time.Second}
+	if err := serve(server); err == nil {
+		t.Fatal("serve on an occupied port returned nil")
+	}
+}
+
+func TestServeIgnoresServerClosed(t *testing.T) {
+	server := &http.Server{Addr: "127.0.0.1:0", ReadHeaderTimeout: time.Second}
+	if err := server.Shutdown(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if err := serve(server); err != nil {
+		t.Fatalf("serve after shutdown = %v, want nil", err)
 	}
 }
