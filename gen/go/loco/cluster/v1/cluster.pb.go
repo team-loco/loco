@@ -37,6 +37,7 @@ type Cluster struct {
 	LastHeartbeat       *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=last_heartbeat,json=lastHeartbeat,proto3" json:"last_heartbeat,omitempty"`
 	AgentVersion        *string                `protobuf:"bytes,10,opt,name=agent_version,json=agentVersion,proto3,oneof" json:"agent_version,omitempty"`
 	AgentKeyFingerprint *string                `protobuf:"bytes,11,opt,name=agent_key_fingerprint,json=agentKeyFingerprint,proto3,oneof" json:"agent_key_fingerprint,omitempty"`
+	BuildsEnabled       bool                   `protobuf:"varint,12,opt,name=builds_enabled,json=buildsEnabled,proto3" json:"builds_enabled,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -146,6 +147,13 @@ func (x *Cluster) GetAgentKeyFingerprint() string {
 		return *x.AgentKeyFingerprint
 	}
 	return ""
+}
+
+func (x *Cluster) GetBuildsEnabled() bool {
+	if x != nil {
+		return x.BuildsEnabled
+	}
+	return false
 }
 
 type ClusterWorkload struct {
@@ -297,10 +305,12 @@ func (x *JoinToken) GetExpiresAt() *timestamppb.Timestamp {
 }
 
 type CreateClusterRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Region        string                 `protobuf:"bytes,2,opt,name=region,proto3" json:"region,omitempty"`
-	Tier          v1.EnvironmentType     `protobuf:"varint,3,opt,name=tier,proto3,enum=loco.environment.v1.EnvironmentType" json:"tier,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// persist before sending; reuse only for the same worker registration
+	RequestId     string             `protobuf:"bytes,4,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	Name          string             `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Region        string             `protobuf:"bytes,2,opt,name=region,proto3" json:"region,omitempty"`
+	Tier          v1.EnvironmentType `protobuf:"varint,3,opt,name=tier,proto3,enum=loco.environment.v1.EnvironmentType" json:"tier,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -333,6 +343,13 @@ func (x *CreateClusterRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CreateClusterRequest.ProtoReflect.Descriptor instead.
 func (*CreateClusterRequest) Descriptor() ([]byte, []int) {
 	return file_loco_cluster_v1_cluster_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *CreateClusterRequest) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
 }
 
 func (x *CreateClusterRequest) GetName() string {
@@ -956,7 +973,7 @@ var File_loco_cluster_v1_cluster_proto protoreflect.FileDescriptor
 
 const file_loco_cluster_v1_cluster_proto_rawDesc = "" +
 	"\n" +
-	"\x1dloco/cluster/v1/cluster.proto\x12\x0floco.cluster.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a%loco/environment/v1/environment.proto\"\x86\x04\n" +
+	"\x1dloco/cluster/v1/cluster.proto\x12\x0floco.cluster.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a%loco/environment/v1/environment.proto\"\xad\x04\n" +
 	"\aCluster\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vcluster_key\x18\x02 \x01(\tR\n" +
@@ -971,7 +988,8 @@ const file_loco_cluster_v1_cluster_proto_rawDesc = "" +
 	"\x0elast_heartbeat\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\rlastHeartbeat\x12(\n" +
 	"\ragent_version\x18\n" +
 	" \x01(\tH\x01R\fagentVersion\x88\x01\x01\x127\n" +
-	"\x15agent_key_fingerprint\x18\v \x01(\tH\x02R\x13agentKeyFingerprint\x88\x01\x01B\x10\n" +
+	"\x15agent_key_fingerprint\x18\v \x01(\tH\x02R\x13agentKeyFingerprint\x88\x01\x01\x12%\n" +
+	"\x0ebuilds_enabled\x18\f \x01(\bR\rbuildsEnabledB\x10\n" +
 	"\x0e_health_statusB\x10\n" +
 	"\x0e_agent_versionB\x18\n" +
 	"\x16_agent_key_fingerprint\"5\n" +
@@ -983,8 +1001,10 @@ const file_loco_cluster_v1_cluster_proto_rawDesc = "" +
 	"\tJoinToken\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x129\n" +
 	"\n" +
-	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\xa0\x01\n" +
-	"\x14CreateClusterRequest\x12\x1e\n" +
+	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\xc9\x01\n" +
+	"\x14CreateClusterRequest\x12'\n" +
+	"\n" +
+	"request_id\x18\x04 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\trequestId\x12\x1e\n" +
 	"\x04name\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\xff\x01R\x04name\x12\"\n" +
 	"\x06region\x18\x02 \x01(\tB\n" +

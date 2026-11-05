@@ -124,7 +124,7 @@ func call(
 	ctx := cmd.Context()
 	switch operation {
 	case clusterCreate:
-		request := &clusterv1.CreateClusterRequest{}
+		request := &clusterv1.CreateClusterRequest{RequestId: uuid.NewString()}
 		fields := map[string]*string{flagName: &request.Name, flagRegion: &request.Region}
 		for flag, field := range fields {
 			value, err := cmd.Flags().GetString(flag)

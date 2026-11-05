@@ -91,9 +91,10 @@ VALUES ('admin-test', 'east', 'kubernetes', true, false) RETURNING id`).
 			_, err := client.CreateCluster(
 				ctx,
 				&clusterv1.CreateClusterRequest{
-					Name:   "created",
-					Region: "east",
-					Tier:   environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION,
+					RequestId: uuid.NewString(),
+					Name:      "created",
+					Region:    "east",
+					Tier:      environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION,
 				},
 			)
 			return err

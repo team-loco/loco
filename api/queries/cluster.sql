@@ -36,11 +36,15 @@ UPDATE clusters
 SET gateway_hostname = $2, updated_at = NOW()
 WHERE id = $1;
 
--- name: CreateCluster :one
-INSERT INTO clusters (name, region, tier, provider, is_active, is_default, join_token_hash, join_token_expires_at)
+-- name: CreateCluster :exec
+INSERT INTO clusters (name, region, tier, provider, is_active, is_default, registration_request_id)
 VALUES (sqlc.arg(name), sqlc.arg(region), sqlc.arg(tier), 'kubernetes', true, false,
-        sqlc.arg(join_token_hash), sqlc.arg(join_token_expires_at))
-RETURNING id;
+        sqlc.arg(registration_request_id))
+ON CONFLICT (registration_request_id) DO NOTHING;
+
+-- name: LockClusterRegistration :one
+SELECT id, name, region, tier, removed_at, agent_public_key
+FROM clusters WHERE registration_request_id = $1 FOR UPDATE;
 
 -- name: SetClusterJoinToken :one
 UPDATE clusters
@@ -77,7 +81,7 @@ ON CONFLICT (cluster_id, jti) DO NOTHING;
 
 -- name: ListAdminClusters :many
 SELECT id, cluster_key, name, region, tier, is_active, removed_at, health_status,
-       last_heartbeat, agent_version, agent_public_key
+       last_heartbeat, agent_version, agent_public_key, builds_enabled
 FROM clusters ORDER BY created_at, id;
 
 -- name: LockClusterLifecycle :one
