@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: operator, namespace: installation-fixtures}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: {name: installation-fixture-operator}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: cluster-admin}
+subjects: [{kind: ServiceAccount, name: operator, namespace: installation-fixtures}]
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: installation, namespace: installation-fixtures}
+data:
+  installation.yaml: |
+{{ indent .Installation 4 }}
+  release.json: |
+{{ indent .Release 4 }}
+  kubeconfig: |
+    apiVersion: v1
+    kind: Config
+    clusters:
+    - name: fixture
+      cluster:
+        server: https://kubernetes.default.svc
+        certificate-authority: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    users:
+    - name: fixture-operator
+      user:
+        tokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+    contexts:
+    - name: fixture
+      context: {cluster: fixture, user: fixture-operator}
+    current-context: fixture
+---
+apiVersion: v1
+kind: Pod
+metadata: {name: operator, namespace: installation-fixtures}
+spec:
+  serviceAccountName: operator
+  restartPolicy: Never
+  containers:
+  - name: operator
+    image: {{ .Image | quote }}
+    imagePullPolicy: IfNotPresent
+    env:
+    - {name: E2E_PROBE_IMAGE, value: {{ .ProbeImage | quote }}}
+    - {name: E2E_BUILD_NAMESPACE, value: {{ .BuildNamespace | quote }}}
+    - {name: KUBECONFIG, value: /installation/kubeconfig}
+    - {name: HOME, value: /tmp/operator-first}
+    - {name: LOCO_CREDENTIAL_STORE, value: file}
+    volumeMounts:
+    - {name: installation, mountPath: /installation, readOnly: true}
+  volumes:
+  - {name: installation, configMap: {name: installation}}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: mail, namespace: installation-fixtures}
+spec:
+  replicas: 1
+  selector: {matchLabels: {fixture: mail}}
+  template:
+    metadata: {labels: {fixture: mail}}
+    spec:
+      containers:
+      - name: mail
+        image: {{ .Image | quote }}
+        command: [installation-e2e, --mail-sink]
+        readinessProbe: {tcpSocket: {port: 8081}, periodSeconds: 1}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: mail, namespace: installation-fixtures}
+spec:
+  selector: {fixture: mail}
+  ports: [{port: 8081, targetPort: 8081}]

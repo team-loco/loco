@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: Namespace
+metadata: {name: installation-fixtures}
+---
+apiVersion: v1
+kind: Namespace
+metadata: {name: loco-control-plane}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: fixture-config, namespace: installation-fixtures}
+data:
+  registry.json: |
+{{ indent .RegistryConfig 4 }}
+  htpasswd: |
+{{ indent .Htpasswd 4 }}
+  dex.yaml: |
+    issuer: http://dex.installation-fixtures.svc.cluster.local:5556/dex
+    storage: {type: memory}
+    web: {http: "0.0.0.0:5556"}
+    oauth2: {skipApprovalScreen: true}
+    enablePasswordDB: true
+    staticPasswords:
+    - email: {{ .Email }}
+      username: dev
+      userID: fixture-operator
+      hash: {{ .PasswordHash | quote }}
+    staticClients:
+    - id: loco
+      name: Installation operator
+      public: true
+      redirectURIs: ["http://127.0.0.1:8400/callback"]
+---
+apiVersion: v1
+kind: Secret
+metadata: {name: fixture-inputs, namespace: loco-control-plane}
+stringData:
+  database-url: postgresql://loco:fixture-database-canary@postgres.installation-fixtures.svc.cluster.local:5432/loco?sslmode=disable
+  access-key-id: fixture-access
+  secret-access-key: fixture-source-canary
+  api-username: api
+  api-password: loco-dev-api
+  push-username: builder
+  push-password: loco-dev-builder
+  pull-username: nodes
+  pull-password: loco-dev-nodes
+  email-transport: http://mail.installation-fixtures.svc.cluster.local:8081
+{{ range .Services }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: {{ .Name }}, namespace: installation-fixtures}
+spec:
+  replicas: 1
+  selector: {matchLabels: {fixture: {{ .Name }}}}
+  template:
+    metadata: {labels: {fixture: {{ .Name }}}}
+    spec:
+      containers:
+      - name: {{ .Name }}
+        image: {{ .Image | quote }}
+{{ if .Command }}
+        command: {{ .Command | json }}
+{{ end }}
+{{ if eq .Name "postgres" }}
+        env:
+        - {name: POSTGRES_USER, value: loco}
+        - {name: POSTGRES_DB, value: loco}
+        - {name: POSTGRES_PASSWORD, value: fixture-database-canary}
+{{ end }}
+        ports: [{containerPort: {{ .Port }}}]
+        readinessProbe: {tcpSocket: {port: {{ .Port }}}, periodSeconds: 1}
+        volumeMounts: [{name: config, mountPath: /config, readOnly: true}]
+      volumes: [{name: config, configMap: {name: fixture-config}}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: {{ .Name }}, namespace: installation-fixtures}
+spec:
+  selector: {fixture: {{ .Name }}}
+  ports: [{port: {{ .Port }}, targetPort: {{ .Port }}}]
+{{ end }}

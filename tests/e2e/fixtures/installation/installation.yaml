@@ -1,0 +1,49 @@
+version: {{ .Version | quote }}
+name: installation-e2e
+release: {manifest: /installation/release.json}
+controlPlane:
+  kubernetes: {context: fixture, clusterUID: {{ .ClusterUID | quote }}, namespace: loco-control-plane}
+  apiURL: http://api.installation.test
+  webURL: http://console.installation.test
+  database:
+    secretRef: {name: fixture-inputs, key: database-url}
+  auth:
+    issuer: http://dex.installation-fixtures.svc.cluster.local:5556/dex
+    audience: loco
+    webClientId: loco
+    bootstrapClientId: loco
+    bootstrapRedirectURI: http://127.0.0.1:8400/callback
+    signupMode: closed
+  sourceBucket:
+    endpoint: http://s3.installation.localhost:8080
+    region: us-east-1
+    bucket: source
+    credentialsSecretRef: {name: fixture-inputs}
+  registry:
+    endpoint: http://registry.installation.localhost:5000
+    credentialsSecretRef: {name: fixture-inputs}
+  email:
+    from: Loco <notifications@installation.test>
+    transportSecretRef: {name: fixture-inputs, key: email-transport}
+  openbao:
+    managed: true
+    seal: {type: static}
+    snapshots:
+      endpoint: http://s3.installation-fixtures.svc.cluster.local:8080
+      region: us-east-1
+      bucket: backups
+      credentialsSecretRef: {name: fixture-inputs}
+  observability:
+    enabled: true
+    ingestURL: http://ingest.installation.test
+  certificates:
+    issuerRef: {name: installation-ca, kind: ClusterIssuer}
+workers:
+- name: staging
+  kubernetes: {context: fixture, clusterUID: {{ .ClusterUID | quote }}, namespace: loco-staging}
+  region: us-east-1
+  tier: staging
+  appsDomain: apps.installation.test
+  builds: {enabled: true, privateEgress: {{ .PrivateEgress | json }}}
+  certificates:
+    issuerRef: {name: installation-ca, kind: ClusterIssuer}

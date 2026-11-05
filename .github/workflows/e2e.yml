@@ -136,3 +136,17 @@ jobs:
           name: observability-evidence
           path: tests/e2e/out/observability-evidence.md
           if-no-files-found: warn
+
+  installation:
+    name: Installation E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-tools
+        with:
+          go-cache: e2e
+      - name: Test installation runner failure and cleanup behavior
+        run: mise run test:e2e-installation-runner
+      - name: Install, bootstrap, enroll and deploy through the public commands
+        run: mise run e2e:installation
