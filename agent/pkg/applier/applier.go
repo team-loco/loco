@@ -457,7 +457,6 @@ type DeployPayload struct {
 	DeploymentID string                            `json:"deployment_id"`
 	ResourceID   string                            `json:"resource_id"`
 	WorkspaceID  string                            `json:"workspace_id"`
-	ResourceName string                            `json:"resource_name"`
 	ResourceType string                            `json:"resource_type"`
 	Region       string                            `json:"region"`
 	AppSpec      *locoControllerV1.ApplicationSpec `json:"app_spec"`

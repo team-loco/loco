@@ -164,10 +164,9 @@ func renamePlacements(ctx context.Context, qtx *genDb.Queries, resource genDb.Re
 			if payload.AppSpec == nil {
 				return errPlacementApplicationMissing
 			}
-			if payload.ResourceName == resource.Name && payload.AppSpec.Slug == resource.Slug {
+			if payload.AppSpec.Slug == resource.Slug {
 				continue
 			}
-			payload.ResourceName = resource.Name
 			payload.AppSpec.Slug = resource.Slug
 			desired, err := json.Marshal(payload)
 			if err != nil {

@@ -1291,7 +1291,6 @@ func desiredApplicationSpec(
 			DeploymentID: deploymentID.String(),
 			ResourceID:   res.ID.String(),
 			WorkspaceID:  res.WorkspaceID.String(),
-			ResourceName: res.Name,
 			ResourceType: string(res.Type),
 			Region:       region,
 			AppSpec:      appSpec,

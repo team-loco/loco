@@ -107,8 +107,8 @@ func TestRenameResourceMovesTheSlug(t *testing.T) {
 	if err := json.Unmarshal(f.placement(t, f.clusterID).DesiredSpec, &payload); err != nil {
 		t.Fatal(err)
 	}
-	if payload.ResourceName != testDisplayName || payload.AppSpec.Slug != testDisplaySlug {
-		t.Fatalf("placement name, slug = %q, %q", payload.ResourceName, payload.AppSpec.Slug)
+	if payload.AppSpec.Slug != testDisplaySlug {
+		t.Fatalf("placement slug = %q", payload.AppSpec.Slug)
 	}
 	if _, err := createNamedResource(t, f, planSvc); err != nil {
 		t.Fatalf("old slug still held after rename: %v", err)
