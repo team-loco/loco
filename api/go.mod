@@ -19,7 +19,7 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.8
 	github.com/google/go-containerregistry v0.22.1
 	github.com/google/uuid v1.6.0
-	github.com/jackc/pgx/v5 v5.11.0
+	github.com/jackc/pgx/v5 v5.12.0
 	github.com/pressly/goose/v3 v3.29.0
 	github.com/rs/cors v1.11.1
 	github.com/team-loco/loco v0.0.0
