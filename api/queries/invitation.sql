@@ -19,8 +19,12 @@ FROM invitations
 WHERE org_id = $1
   AND claimed_at IS NULL
   AND revoked_at IS NULL
-  AND (sqlc.narg('page_token')::uuid IS NULL OR id < sqlc.narg('page_token')::uuid)
-ORDER BY id DESC
+  AND (sqlc.narg('page_token')::text IS NULL
+       OR (created_at, id) < (
+         sqlc.narg('page_created_at')::timestamptz,
+         sqlc.narg('page_token')::uuid
+       ))
+ORDER BY created_at DESC, id DESC
 LIMIT $2;
 
 -- name: GetInvitation :one

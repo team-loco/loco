@@ -205,19 +205,29 @@ FROM invitations
 WHERE org_id = $1
   AND claimed_at IS NULL
   AND revoked_at IS NULL
-  AND ($3::uuid IS NULL OR id < $3::uuid)
-ORDER BY id DESC
+  AND ($3::text IS NULL
+       OR (created_at, id) < (
+         $4::timestamptz,
+         $3::uuid
+       ))
+ORDER BY created_at DESC, id DESC
 LIMIT $2
 `
 
 type ListOrgInvitationsParams struct {
-	OrgID     uuid.UUID  `json:"orgId"`
-	Limit     int32      `json:"limit"`
-	PageToken *uuid.UUID `json:"pageToken"`
+	OrgID         uuid.UUID  `json:"orgId"`
+	Limit         int32      `json:"limit"`
+	PageToken     *string    `json:"pageToken"`
+	PageCreatedAt *time.Time `json:"pageCreatedAt"`
 }
 
 func (q *Queries) ListOrgInvitations(ctx context.Context, arg ListOrgInvitationsParams) ([]Invitation, error) {
-	rows, err := q.db.Query(ctx, listOrgInvitations, arg.OrgID, arg.Limit, arg.PageToken)
+	rows, err := q.db.Query(ctx, listOrgInvitations,
+		arg.OrgID,
+		arg.Limit,
+		arg.PageToken,
+		arg.PageCreatedAt,
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -11,7 +11,7 @@ SELECT * FROM builds b
 WHERE b.resource_id = $1
   AND (sqlc.narg('page_token')::text IS NULL
        OR (b.created_at, b.id) < (
-         (SELECT created_at FROM builds WHERE id = sqlc.narg('page_token')::uuid),
+         sqlc.narg('page_created_at')::timestamptz,
          sqlc.narg('page_token')::uuid
        ))
 ORDER BY b.created_at DESC, b.id DESC

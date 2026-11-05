@@ -85,8 +85,11 @@ SELECT ms.workspace_id, ms.user_id, ms.scopes, ms.joined_at,
 FROM member_scopes ms
 JOIN users u ON u.id = ms.user_id
 WHERE (sqlc.narg('page_token')::text IS NULL
-       OR ms.user_id < sqlc.narg('page_token')::uuid)
-ORDER BY ms.user_id DESC
+       OR (ms.joined_at, ms.user_id) < (
+         sqlc.narg('page_created_at')::timestamptz,
+         sqlc.narg('page_token')::uuid
+       ))
+ORDER BY ms.joined_at DESC, ms.user_id DESC
 LIMIT $2;
 
 -- name: GetWorkspaceOrgID :one

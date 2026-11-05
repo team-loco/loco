@@ -9,6 +9,11 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	defaultPageSize = 50
+	maxPageSize     = 200
+)
+
 var errPositionCursor = errors.New("invalid page cursor")
 
 type positionCursor struct {
@@ -19,6 +24,14 @@ type positionCursor struct {
 func encodePositionCursor(id uuid.UUID, createdAt time.Time) string {
 	position := "v1|" + createdAt.UTC().Format(time.RFC3339Nano) + "|" + id.String()
 	return base64.URLEncoding.EncodeToString([]byte(position))
+}
+
+func nextPageToken[T any](rows []T, pageSize int32, position func(T) (uuid.UUID, time.Time)) string {
+	if len(rows) < int(pageSize) {
+		return ""
+	}
+	id, createdAt := position(rows[len(rows)-1])
+	return encodePositionCursor(id, createdAt)
 }
 
 func decodePositionCursor(token string) (positionCursor, error) {
@@ -42,4 +55,11 @@ func decodePositionCursor(token string) (positionCursor, error) {
 		return positionCursor{}, errPositionCursor
 	}
 	return positionCursor{ID: new(id.String()), CreatedAt: new(createdAt)}, nil
+}
+
+func normalizePageSize(pageSize int32) int32 {
+	if pageSize == 0 {
+		return defaultPageSize
+	}
+	return min(pageSize, maxPageSize)
 }

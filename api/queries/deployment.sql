@@ -17,7 +17,7 @@ WHERE d.resource_id = $1
   AND (sqlc.narg('environment_id')::uuid IS NULL OR d.environment_id = sqlc.narg('environment_id')::uuid)
   AND (sqlc.narg('page_token')::text IS NULL
        OR (d.created_at, d.id) < (
-         (SELECT created_at FROM deployments WHERE id = sqlc.narg('page_token')::uuid),
+         sqlc.narg('page_created_at')::timestamptz,
          sqlc.narg('page_token')::uuid
        ))
 ORDER BY d.created_at DESC, d.id DESC

@@ -476,16 +476,9 @@ func (s *DeploymentServer) ListDeployments(
 
 	pageSize := normalizePageSize(req.GetPageSize())
 
-	var pageToken *string
-	if req.GetPageToken() != "" {
-		cursorID, decodeErr := decodeCursor(req.GetPageToken())
-		if decodeErr != nil {
-			return nil, connect.NewError(
-				connect.CodeInvalidArgument,
-				publicInvalidPageToken,
-			).WithCause(decodeErr)
-		}
-		pageToken = &cursorID
+	cursor, cursorErr := decodePositionCursor(req.GetPageToken())
+	if cursorErr != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(cursorErr)
 	}
 
 	var environmentID *uuid.UUID
@@ -498,7 +491,8 @@ func (s *DeploymentServer) ListDeployments(
 		ResourceID:    resourceID,
 		Limit:         pageSize,
 		EnvironmentID: environmentID,
-		PageToken:     pageToken,
+		PageToken:     cursor.ID,
+		PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list deployments", "error", err)
@@ -510,14 +504,12 @@ func (s *DeploymentServer) ListDeployments(
 		deployments = append(deployments, deploymentToProto(d, string(resource.Type)))
 	}
 
-	var nextPageToken string
-	if len(deploymentList) == int(pageSize) {
-		nextPageToken = encodeCursor(deploymentList[len(deploymentList)-1].ID.String())
-	}
-
+	token := nextPageToken(deploymentList, pageSize, func(d genDb.Deployment) (uuid.UUID, time.Time) {
+		return d.ID, d.CreatedAt
+	})
 	return &deploymentv1.ListDeploymentsResponse{
 		Deployments:   deployments,
-		NextPageToken: nextPageToken,
+		NextPageToken: token,
 	}, nil
 }
 

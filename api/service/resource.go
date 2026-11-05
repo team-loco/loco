@@ -479,15 +479,15 @@ func (s *ResourceServer) ListWorkspaceResources(
 		resources = append(resources, resource)
 	}
 
-	var nextPageToken string
-	if len(dbResources) == int(pageSize) {
-		last := dbResources[len(dbResources)-1]
-		nextPageToken = encodePositionCursor(last.ID, last.CreatedAt)
-	}
+	token := nextPageToken(
+		dbResources,
+		pageSize,
+		func(row genDb.Resource) (uuid.UUID, time.Time) { return row.ID, row.CreatedAt },
+	)
 
 	return &resourcev1.ListWorkspaceResourcesResponse{
 		Resources:     resources,
-		NextPageToken: nextPageToken,
+		NextPageToken: token,
 	}, nil
 }
 

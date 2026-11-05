@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -291,7 +292,7 @@ WHERE d.resource_id = $1
   AND ($3::uuid IS NULL OR d.environment_id = $3::uuid)
   AND ($4::text IS NULL
        OR (d.created_at, d.id) < (
-         (SELECT created_at FROM deployments WHERE id = $4::uuid),
+         $5::timestamptz,
          $4::uuid
        ))
 ORDER BY d.created_at DESC, d.id DESC
@@ -303,6 +304,7 @@ type ListDeploymentsForResourceParams struct {
 	Limit         int32      `json:"limit"`
 	EnvironmentID *uuid.UUID `json:"environmentId"`
 	PageToken     *string    `json:"pageToken"`
+	PageCreatedAt *time.Time `json:"pageCreatedAt"`
 }
 
 func (q *Queries) ListDeploymentsForResource(ctx context.Context, arg ListDeploymentsForResourceParams) ([]Deployment, error) {
@@ -311,6 +313,7 @@ func (q *Queries) ListDeploymentsForResource(ctx context.Context, arg ListDeploy
 		arg.Limit,
 		arg.EnvironmentID,
 		arg.PageToken,
+		arg.PageCreatedAt,
 	)
 	if err != nil {
 		return nil, err

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -225,18 +226,15 @@ func (s *UserServer) ListUsers(
 
 	pageSize := normalizePageSize(req.GetPageSize())
 
-	var pageToken *string
-	if req.GetPageToken() != "" {
-		cursorID, err := decodeCursor(req.GetPageToken())
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(err)
-		}
-		pageToken = &cursorID
+	cursor, cursorErr := decodePositionCursor(req.GetPageToken())
+	if cursorErr != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(cursorErr)
 	}
 
 	dbUsers, err := s.queries.ListUsers(ctx, genDb.ListUsersParams{
-		Limit:     pageSize,
-		PageToken: pageToken,
+		Limit:         pageSize,
+		PageToken:     cursor.ID,
+		PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list users", "error", err)
@@ -248,14 +246,10 @@ func (s *UserServer) ListUsers(
 		users = append(users, dbUserToProto(dbUser))
 	}
 
-	var nextPageToken string
-	if len(dbUsers) == int(pageSize) {
-		nextPageToken = encodeCursor(dbUsers[len(dbUsers)-1].ID.String())
-	}
-
+	token := nextPageToken(dbUsers, pageSize, func(u genDb.User) (uuid.UUID, time.Time) { return u.ID, u.CreatedAt })
 	return &userv1.ListUsersResponse{
 		Users:         users,
-		NextPageToken: nextPageToken,
+		NextPageToken: token,
 	}, nil
 }
 

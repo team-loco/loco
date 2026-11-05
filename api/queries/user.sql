@@ -39,7 +39,7 @@ SELECT id, email, name, avatar_url, status, created_at, updated_at
 FROM users
 WHERE (sqlc.narg('page_token')::text IS NULL
        OR (created_at, id) < (
-         (SELECT created_at FROM users WHERE id = sqlc.narg('page_token')::uuid),
+         sqlc.narg('page_created_at')::timestamptz,
          sqlc.narg('page_token')::uuid
        ))
 ORDER BY created_at DESC, id DESC

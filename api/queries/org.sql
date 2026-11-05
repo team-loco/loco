@@ -58,17 +58,23 @@ AND (sqlc.narg('exclude_id')::uuid IS NULL OR id != sqlc.narg('exclude_id')::uui
 
 -- name: ListOrgMembersWithDetails :many
 WITH member_scopes AS (
-  SELECT us.user_id, array_agg(us.scope ORDER BY us.scope)::text[] AS scopes
+  SELECT
+    us.user_id,
+    array_agg(us.scope ORDER BY us.scope)::text[] AS scopes,
+    MIN(us.created_at)::timestamptz AS joined_at
   FROM user_scopes us
   WHERE us.entity_type = 'organization' AND us.entity_id = $1
   GROUP BY us.user_id
 )
-SELECT u.id, u.email, u.name, u.avatar_url, ms.scopes
+SELECT u.id, u.email, u.name, u.avatar_url, ms.scopes, ms.joined_at
 FROM member_scopes ms
 JOIN users u ON u.id = ms.user_id
 WHERE (sqlc.narg('page_token')::text IS NULL
-       OR u.id < sqlc.narg('page_token')::uuid)
-ORDER BY u.id DESC
+       OR (ms.joined_at, ms.user_id) < (
+         sqlc.narg('page_created_at')::timestamptz,
+         sqlc.narg('page_token')::uuid
+       ))
+ORDER BY ms.joined_at DESC, ms.user_id DESC
 LIMIT $2;
 
 -- name: IsOrgMember :one
