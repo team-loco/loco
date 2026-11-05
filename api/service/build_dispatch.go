@@ -91,15 +91,7 @@ func (ss *syncSession) startQueuedBuilds(ctx context.Context) error {
 	clusterID := ss.clusterID
 	buildsEnabled, err := ss.server.queries.GetClusterBuildsEnabled(ctx, clusterID)
 	if err != nil {
-		slog.ErrorContext(
-			ctx,
-			"failed to check whether the cluster accepts builds",
-			"cluster_id",
-			clusterID,
-			"error",
-			err,
-		)
-		return nil
+		return fmt.Errorf("check whether the cluster accepts builds: %w", err)
 	}
 	if !buildsEnabled {
 		ss.server.failQueuedBuilds(ctx, clusterID)
@@ -107,8 +99,7 @@ func (ss *syncSession) startQueuedBuilds(ctx context.Context) error {
 	}
 	queued, err := ss.server.queries.ListQueuedClusterBuilds(ctx, &clusterID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list queued builds", "cluster_id", ss.clusterID, "error", err)
-		return nil
+		return fmt.Errorf("list queued builds: %w", err)
 	}
 	for _, build := range queued {
 		if _, sent := ss.builds.started[build.ID]; sent {
@@ -210,8 +201,7 @@ func (ss *syncSession) cancelStaleBuilds(ctx context.Context) error {
 	ids := sortedIDs(pending)
 	rows, err := ss.server.queries.ListBuildStatesByIDs(ctx, ids)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to load builds held by the cluster", "cluster_id", ss.clusterID, "error", err)
-		return nil
+		return fmt.Errorf("load builds held by the cluster: %w", err)
 	}
 	states := make(map[uuid.UUID]genDb.ListBuildStatesByIDsRow, len(rows))
 	for _, row := range rows {
@@ -361,12 +351,6 @@ func (s *AgentServer) recordBuildStatus(
 		return nil
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to record build status",
-			"cluster_id", clusterID,
-			"build_id", buildID,
-			"phase", status.GetPhase(),
-			"error", err,
-		)
 		return fmt.Errorf("record build %s status: %w", buildID, err)
 	}
 	return nil

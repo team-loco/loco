@@ -184,8 +184,13 @@ func TestSyncKeepsAPlacementPendingWhileTheKeyProviderCannotUnwrap(t *testing.T)
 	serverConfig := testAgentConfig()
 	provider := newTestKeyProvider(t, "k2")
 	server := NewAgentServer(f.pool, f.queries, nil, nil, provider, testHeartbeatInterval, serverConfig)
-	if sent := f.sendPending(t, server); len(sent) != 0 {
-		t.Fatalf("sent %v with a provider that cannot unwrap the environment key", sent)
+	var sends int
+	session := newSyncSession(server, f.clusterID, func(_ *agentv1.SyncResponse) error { sends++; return nil })
+	if err := session.sendPendingPlacements(context.Background()); err == nil {
+		t.Fatal("send pending returned nil with a provider that cannot unwrap the environment key")
+	}
+	if sends != 0 {
+		t.Fatalf("sent %d messages with a provider that cannot unwrap the environment key", sends)
 	}
 	if placement := f.placement(t, f.clusterID); placement.AppliedError != nil {
 		t.Fatalf("a provider failure was recorded as a placement error: %s", *placement.AppliedError)

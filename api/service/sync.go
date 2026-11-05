@@ -161,31 +161,34 @@ func (ss *syncSession) sendPending(ctx context.Context) error {
 }
 
 func (ss *syncSession) sendPendingPlacements(ctx context.Context) error {
-	pending, secrets, err := ss.server.readPlacements(ctx, func(
+	listed, err := ss.server.queries.ListPendingPlacements(ctx, ss.clusterID)
+	if err != nil {
+		return fmt.Errorf("list pending placements: %w", err)
+	}
+	ids := make([]uuid.UUID, 0, len(listed))
+	for _, placement := range listed {
+		if ss.sent[placement.ID] != placement.DesiredRevision {
+			ids = append(ids, placement.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	return ss.sendPlacements(ctx, ids)
+}
+
+func (ss *syncSession) sendPlacements(ctx context.Context, ids []uuid.UUID) error {
+	placements, secrets, err := ss.server.readPlacements(ctx, func(
 		ctx context.Context,
 		q *genDb.Queries,
 	) ([]genDb.Placement, error) {
-		listed, listErr := q.ListPendingPlacements(ctx, ss.clusterID)
-		if listErr != nil {
-			return nil, listErr
-		}
-		ids := make([]uuid.UUID, 0, len(listed))
-		for _, placement := range listed {
-			if ss.sent[placement.ID] != placement.DesiredRevision {
-				ids = append(ids, placement.ID)
-			}
-		}
-		if len(ids) == 0 {
-			return nil, nil
-		}
 		return listSyncPlacements(ctx, q, ss.clusterID, ids)
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to read pending placements", "cluster_id", ss.clusterID, "error", err)
-		return nil
+		return fmt.Errorf("read placements: %w", err)
 	}
 	defer secrets.zero()
-	for _, placement := range pending {
+	for _, placement := range placements {
 		if sendErr := ss.send(ctx, secrets, placement); sendErr != nil {
 			return sendErr
 		}
@@ -229,13 +232,7 @@ func (ss *syncSession) send(ctx context.Context, secrets *secretSnapshot, placem
 			return nil
 		}
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to load the secrets of a placement",
-				"cluster_id", ss.clusterID,
-				"placement_id", placement.ID,
-				"revision", placement.DesiredRevision,
-				"error", err,
-			)
-			return nil
+			return fmt.Errorf("load secrets of placement %s: %w", placement.ID, err)
 		}
 		envSecret = secret
 		defer zeroEnvSecretData(envSecret.GetData())
@@ -365,8 +362,7 @@ func (ss *syncSession) reconcilePlacementInventory(ctx context.Context, inventor
 
 	rows, err := ss.server.queries.ListClusterPlacementRevisions(ctx, ss.clusterID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list placements for inventory", "cluster_id", ss.clusterID, "error", err)
-		return nil
+		return fmt.Errorf("list placements for inventory: %w", err)
 	}
 
 	toSend := make([]uuid.UUID, 0)
@@ -422,24 +418,7 @@ func (ss *syncSession) reconcilePlacementInventory(ctx context.Context, inventor
 	if len(toSend) == 0 {
 		return nil
 	}
-
-	placements, secrets, err := ss.server.readPlacements(ctx, func(
-		ctx context.Context,
-		q *genDb.Queries,
-	) ([]genDb.Placement, error) {
-		return listSyncPlacements(ctx, q, ss.clusterID, toSend)
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to load placements for inventory", "cluster_id", ss.clusterID, "error", err)
-		return nil
-	}
-	defer secrets.zero()
-	for _, placement := range placements {
-		if sendErr := ss.send(ctx, secrets, placement); sendErr != nil {
-			return sendErr
-		}
-	}
-	return nil
+	return ss.sendPlacements(ctx, toSend)
 }
 
 func (s *AgentServer) advancePastRevision(
