@@ -48,6 +48,7 @@ export function WorkspaceTab({
 	resourceCount: ResourceCount | undefined;
 }) {
 	const nameId = useId();
+	const nameHintId = `${nameId}-hint`;
 	const nameErrorId = `${nameId}-error`;
 	const descriptionId = useId();
 	const descriptionHintId = `${descriptionId}-hint`;
@@ -135,14 +136,19 @@ export function WorkspaceTab({
 	return (
 		<div className="flex flex-col gap-5">
 			<SettingsCard>
-				<SettingsRow label="Name" controlId={nameId}>
+				<SettingsRow
+					label="Name"
+					hint="Shown across Loco. Commands also accept the workspace ID."
+					controlId={nameId}
+					hintId={nameHintId}
+				>
 					<Input
 						id={nameId}
 						value={current.name}
 						placeholder="storefront"
 						disabled={!canWrite}
 						aria-invalid={shownErr !== null}
-						aria-describedby={shownErr === null ? undefined : nameErrorId}
+						aria-describedby={shownErr === null ? nameHintId : `${nameHintId} ${nameErrorId}`}
 						className="h-9 max-w-[320px] text-[13.5px]"
 						onChange={(e) => {
 							setDraft({ ...current, name: e.target.value.toLowerCase() });

@@ -40,6 +40,7 @@ export function OrgTab({
 	countsLoading: boolean;
 }) {
 	const nameId = useId();
+	const nameHintId = `${nameId}-hint`;
 	const nameErrorId = `${nameId}-error`;
 	const queryClient = useQueryClient();
 	const { clearContext } = useOrgWorkspace();
@@ -131,14 +132,19 @@ export function OrgTab({
 	return (
 		<div className="flex flex-col gap-5">
 			<SettingsCard>
-				<SettingsRow label="Name" controlId={nameId}>
+				<SettingsRow
+					label="Name"
+					hint="Shown across Loco. Commands also accept the organization ID."
+					controlId={nameId}
+					hintId={nameHintId}
+				>
 					<Input
 						id={nameId}
 						value={name}
 						placeholder="team-loco"
 						disabled={!canWrite}
 						aria-invalid={shownErr !== null}
-						aria-describedby={shownErr === null ? undefined : nameErrorId}
+						aria-describedby={shownErr === null ? nameHintId : `${nameHintId} ${nameErrorId}`}
 						className="h-9 max-w-[320px] text-[13.5px]"
 						onChange={(e) => {
 							setDraft(e.target.value);
