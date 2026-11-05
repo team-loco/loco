@@ -26,7 +26,6 @@ import (
 
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	"github.com/team-loco/loco/internal/rpc"
-	clisession "github.com/team-loco/loco/internal/session"
 )
 
 var (
@@ -35,9 +34,23 @@ var (
 	errBootstrapDrain                 = errors.New("drain bootstrap output failed")
 	errBootstrapOutputLimit           = errors.New("bootstrap output exceeded scanner limit")
 	errBootstrapStop                  = errors.New("stop bootstrap subprocess failed")
-	errFixtureCAInvalid               = errors.New("invalid fixture CA certificate")
-	errFixtureCAPEM                   = errors.New("fixture CA certificate is not PEM")
-	errFreshOperatorIdentityChanged   = errors.New(
+)
+
+var (
+	errProviderAuthenticationIncomplete = errors.New("fixture IdP authentication did not complete")
+	errProviderAuthorizationURL         = errors.New("invalid fixture IdP authorization URL")
+	errProviderFormAction               = errors.New("invalid fixture IdP form action")
+	errProviderLoginForm                = errors.New("fixture IdP did not offer its password login form")
+	errProviderLoginOpen                = errors.New("open fixture IdP login failed")
+	errProviderLoginRead                = errors.New("read fixture IdP form failed")
+	errProviderLoginSubmit              = errors.New("submit fixture IdP login failed")
+	errProviderSubmissionURL            = errors.New("invalid fixture IdP submission URL")
+)
+
+var (
+	errFixtureCAInvalid             = errors.New("invalid fixture CA certificate")
+	errFixtureCAPEM                 = errors.New("fixture CA certificate is not PEM")
+	errFreshOperatorIdentityChanged = errors.New(
 		"fresh operator apply replaced installation credentials or worker identity",
 	)
 	errHTTPSReadiness              = errors.New("application HTTPS readiness did not succeed")
@@ -47,24 +60,14 @@ var (
 	errNetworkPolicyProbeAllowed   = errors.New(
 		"build namespace NetworkPolicy does not block Kubernetes API access",
 	)
-	errOrganizationIDMissing            = errors.New("organization creation returned no ID")
-	errProviderAuthenticationIncomplete = errors.New("fixture IdP authentication did not complete")
-	errProviderAuthorizationURL         = errors.New("invalid fixture IdP authorization URL")
-	errProviderFormAction               = errors.New("invalid fixture IdP form action")
-	errProviderLoginForm                = errors.New("fixture IdP did not offer its password login form")
-	errProviderLoginOpen                = errors.New("open fixture IdP login failed")
-	errProviderLoginRead                = errors.New("read fixture IdP form failed")
-	errProviderLoginSubmit              = errors.New("submit fixture IdP login failed")
-	errProviderSubmissionURL            = errors.New("invalid fixture IdP submission URL")
-	errReapplyIdentityChanged           = errors.New(
+	errOrganizationIDMissing  = errors.New("organization creation returned no ID")
+	errReapplyIdentityChanged = errors.New(
 		"repeat apply replaced installation credentials or worker identity",
 	)
-	errStagingEnvironmentCreate  = errors.New("create staging environment failed")
-	errStagingEnvironmentList    = errors.New("list staging verification environment failed")
-	errStagingEnvironmentMissing = errors.New("staging verification environment is missing")
-	errUnrestrictedProbeFailed   = errors.New("unrestricted fixture cannot reach the Kubernetes API")
-	errWorkerIdentityIncomplete  = errors.New("worker identity is incomplete")
-	errWorkspaceIDMissing        = errors.New("workspace creation returned no ID")
+	errStagingEnvironmentCreate = errors.New("create staging environment failed")
+	errUnrestrictedProbeFailed  = errors.New("unrestricted fixture cannot reach the Kubernetes API")
+	errWorkerIdentityIncomplete = errors.New("worker identity is incomplete")
+	errWorkspaceIDMissing       = errors.New("workspace creation returned no ID")
 )
 
 const (
@@ -480,16 +483,18 @@ func deployFixture(ctx context.Context) error {
 	if apiErr != nil {
 		return apiErr
 	}
-	if _, createErr := api.Environment.CreateEnvironment(
+	environment, createErr := api.Environment.CreateEnvironment(
 		ctx,
 		&environmentv1.CreateEnvironmentRequest{
 			WorkspaceId: workspaceID,
 			Name:        "staging",
 			Type:        environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING,
 		},
-	); createErr != nil {
+	)
+	if createErr != nil {
 		return errStagingEnvironmentCreate
 	}
+	environmentID := environment.GetEnvironmentId()
 	if checkErr := os.Setenv("LOCO_ENV", "staging"); checkErr != nil {
 		return checkErr
 	}
@@ -526,30 +531,6 @@ services:
 	client := &http.Client{Timeout: time.Minute, Transport: transport}
 	if err := waitHTTPS(ctx, client, request); err != nil {
 		return err
-	}
-	config, configErr := clisession.Load()
-	if configErr != nil {
-		return configErr
-	}
-	scope, scopeErr := config.GetScope()
-	if scopeErr != nil {
-		return scopeErr
-	}
-	listed, listErr := api.Environment.ListEnvironments(
-		ctx,
-		&environmentv1.ListEnvironmentsRequest{WorkspaceId: scope.Workspace.ID},
-	)
-	if listErr != nil {
-		return errStagingEnvironmentList
-	}
-	environmentID := ""
-	for _, environment := range listed.GetEnvironments() {
-		if environment.GetName() == "staging" {
-			environmentID = environment.GetId()
-		}
-	}
-	if environmentID == "" {
-		return errStagingEnvironmentMissing
 	}
 	if _, verifyErr := locoadm(
 		ctx,
