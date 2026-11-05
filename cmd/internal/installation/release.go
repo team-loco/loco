@@ -25,7 +25,7 @@ var commitReference = regexp.MustCompile(`^[a-f0-9]{40}$`)
 
 // Manifest extends the platform bundle's release.json with its CLI configuration contract.
 type Manifest struct {
-	ConfigVersion string            `json:"configVersion"`
+	ConfigVersion int               `json:"configVersion"`
 	Version       string            `json:"version"`
 	CoreCommit    string            `json:"coreCommit"`
 	Artifacts     map[string]string `json:"artifacts"`

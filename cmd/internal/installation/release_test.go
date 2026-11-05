@@ -37,7 +37,7 @@ func TestReleaseRequiresCompatibleDigestPins(t *testing.T) {
 	}{
 		{"valid", func(*Manifest) {}, true},
 		{"unsupported-version", func(m *Manifest) { m.Version = "latest" }, false},
-		{"config-version", func(m *Manifest) { m.ConfigVersion = "future" }, false},
+		{"config-version", func(m *Manifest) { m.ConfigVersion = ConfigVersion + 1 }, false},
 		{"mutable-image", func(m *Manifest) { m.Images["api"] = "ghcr.io/example/api:latest" }, false},
 		{"missing-CRDs", func(m *Manifest) { delete(m.Artifacts, "loco-gateway-crd") }, false},
 		{"credential-url", func(m *Manifest) {
