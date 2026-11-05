@@ -32,6 +32,9 @@ func (f *fixture) release(ctx context.Context) (map[string]any, string, error) {
 	if _, checkErr := command(ctx, f.root, nil, "mise", "run", "helm:deps"); checkErr != nil {
 		return nil, "", checkErr
 	}
+	if checkErr := f.configureRegistryAuth(); checkErr != nil {
+		return nil, "", fmt.Errorf("configure fixture image authentication: %w", checkErr)
+	}
 	images := map[string]string{}
 	for _, component := range []struct{ name, directory string }{{"api", "api"},
 		{"ui", "web"},
@@ -61,9 +64,6 @@ func (f *fixture) release(ctx context.Context) (map[string]any, string, error) {
 			); checkErr != nil {
 				return nil, "", fmt.Errorf("build %s fixture: %w", component.name, checkErr)
 			}
-		}
-		if checkErr := f.configureRegistryAuth(); checkErr != nil {
-			return nil, "", fmt.Errorf("authenticate fixture image push: %w", checkErr)
 		}
 		if _, checkErr := command(ctx, f.root, nil, "docker", "push", tag); checkErr != nil {
 			return nil, "", fmt.Errorf("push %s fixture image: %w", component.name, checkErr)
