@@ -3,10 +3,13 @@ package tvm
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	queries "github.com/team-loco/loco/api/gen/db"
 )
 
@@ -25,8 +28,11 @@ func (tvm *VendingMachine) GetToken(ctx context.Context, token string) (queries.
 	switch tokenPrefix(token) {
 	case prefixSession:
 		session, err := tvm.queries.GetSessionWithScopesByAccessToken(ctx, hash)
-		if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return queries.Entity{}, nil, ErrInvalidExpiredToken
+		}
+		if err != nil {
+			return queries.Entity{}, nil, fmt.Errorf("get session: %w", err)
 		}
 
 		entity := queries.Entity{
@@ -36,8 +42,7 @@ func (tvm *VendingMachine) GetToken(ctx context.Context, token string) (queries.
 
 		var liveScopes []queries.EntityScope
 		if err := json.Unmarshal(session.Scopes, &liveScopes); err != nil {
-			slog.ErrorContext(ctx, "failed to decode live scopes for session token", "err", err)
-			return queries.Entity{}, nil, err
+			return queries.Entity{}, nil, fmt.Errorf("decode session scopes: %w", err)
 		}
 
 		tvm.touchSessionLastUsed(ctx, session.ID, session.LastUsedAt)
@@ -46,8 +51,11 @@ func (tvm *VendingMachine) GetToken(ctx context.Context, token string) (queries.
 
 	case prefixAPIKey:
 		tok, err := tvm.queries.GetAPIToken(ctx, hash)
-		if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return queries.Entity{}, nil, ErrInvalidExpiredToken
+		}
+		if err != nil {
+			return queries.Entity{}, nil, fmt.Errorf("get api token: %w", err)
 		}
 
 		entity := queries.Entity{
@@ -100,8 +108,11 @@ func (tvm *VendingMachine) Refresh(
 
 	hash := hashToken(refreshToken)
 	session, err := tvm.queries.GetSessionByRefreshToken(ctx, hash)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return "", "", ErrInvalidExpiredToken
+	}
+	if err != nil {
+		return "", "", fmt.Errorf("get session by refresh token: %w", err)
 	}
 
 	// rotate: generate new access + refresh pair
@@ -118,8 +129,7 @@ func (tvm *VendingMachine) Refresh(
 		RefreshExpiresAt:    now.Add(tvm.Cfg.SessionRefreshTokenDuration),
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to rotate session token", "err", err)
-		return "", "", ErrStoreToken
+		return "", "", fmt.Errorf("%w: %w", ErrStoreToken, err)
 	}
 	if rotated == 0 {
 		slog.WarnContext(ctx, "refresh token reused, revoking session", "sessionId", session.ID)

@@ -3,6 +3,7 @@ package interceptor
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 
@@ -85,9 +86,12 @@ func (i *authInterceptor) authenticate(
 	}
 
 	entity, scopes, err := i.machine.GetToken(ctx, token)
-	if err != nil {
+	if errors.Is(err, tvm.ErrInvalidExpiredToken) {
 		slog.WarnContext(ctx, "token rejected", "procedure", procedure, "error", err)
 		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get token: %w", err)
 	}
 
 	c := context.WithValue(ctx, contextkeys.EntityKey, genDb.Entity{

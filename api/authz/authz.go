@@ -29,8 +29,9 @@ func New(pool *pgxpool.Pool, q queries.Querier) *Authorizer {
 
 // Check reports whether granted covers required, either directly, through a system scope of the
 // same level, or through the same scope on an organization or workspace that owns the entity.
-// It returns [ErrEntityNotFound] when the entity does not exist and
-// [ErrInsufficientPermissions] when no granted scope covers it.
+// It returns [ErrEntityNotFound] when the entity does not exist,
+// [ErrInsufficientPermissions] when no granted scope covers it, and the wrapped database error
+// when the owner lookup fails.
 func (a *Authorizer) Check(ctx context.Context, granted []queries.EntityScope, required queries.EntityScope) error {
 	for _, scope := range granted {
 		if !covers(scope.Scope, required.Scope) {
@@ -52,18 +53,22 @@ func (a *Authorizer) Check(ctx context.Context, granted []queries.EntityScope, r
 		return ErrInsufficientPermissions
 	case queries.EntityTypeWorkspace:
 		orgID, err := a.queries.GetOrganizationIDByWorkspaceID(ctx, required.EntityID)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to look up workspace owner", "error", err)
+		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrEntityNotFound
+		}
+		if err != nil {
+			return fmt.Errorf("look up workspace owner: %w", err)
 		}
 		implied = []queries.EntityScope{
 			{EntityType: queries.EntityTypeOrganization, EntityID: orgID, Scope: required.Scope},
 		}
 	case queries.EntityTypeResource:
 		ids, err := a.queries.GetWorkspaceOrganizationIDByResourceID(ctx, required.EntityID)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to look up resource owner", "error", err)
+		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrEntityNotFound
+		}
+		if err != nil {
+			return fmt.Errorf("look up resource owner: %w", err)
 		}
 		implied = []queries.EntityScope{
 			{EntityType: queries.EntityTypeOrganization, EntityID: ids.OrgID, Scope: required.Scope},

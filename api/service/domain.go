@@ -250,8 +250,11 @@ func (s *DomainServer) UpdateResourceDomain(
 	domainID := uuid.MustParse(req.GetDomainId())
 
 	domainRow, err := s.queries.GetResourceDomainByID(ctx, domainID)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrDomainNotFound)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get resource domain: %w", err)
 	}
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
@@ -447,8 +450,11 @@ func (s *DomainServer) DeleteResourceDomain(
 	domainID := uuid.MustParse(req.GetDomainId())
 
 	domainRow, err := s.queries.GetResourceDomainByID(ctx, domainID)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrDomainNotFound)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get resource domain: %w", err)
 	}
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)

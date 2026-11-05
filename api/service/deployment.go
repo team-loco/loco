@@ -203,9 +203,11 @@ func (s *DeploymentServer) CreateDeployment(
 	resourceID := uuid.MustParse(req.GetResourceId())
 
 	resource, err := s.queries.GetResourceByID(ctx, resourceID)
-	if err != nil {
-		slog.WarnContext(ctx, "resource not found", "resourceId", req.GetResourceId())
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get resource: %w", err)
 	}
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
@@ -433,9 +435,11 @@ func (s *DeploymentServer) GetDeployment(
 	deploymentID := uuid.MustParse(req.GetDeploymentId())
 
 	deploymentData, err := s.queries.GetDeploymentByID(ctx, deploymentID)
-	if err != nil {
-		slog.WarnContext(ctx, "deployment not found", "deployment_id", req.GetDeploymentId())
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrDeploymentNotFound)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get deployment: %w", err)
 	}
 
 	resource, err := s.queries.GetResourceByID(ctx, deploymentData.ResourceID)
@@ -488,9 +492,11 @@ func (s *DeploymentServer) ListDeployments(
 	resourceID := uuid.MustParse(req.GetResourceId())
 
 	resource, err := s.queries.GetResourceByID(ctx, resourceID)
-	if err != nil {
-		slog.WarnContext(ctx, "resource not found", "resourceId", req.GetResourceId())
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get resource: %w", err)
 	}
 
 	pageSize := normalizePageSize(req.GetPageSize())
@@ -548,9 +554,11 @@ func (s *DeploymentServer) DeleteDeployment(
 	deploymentID := uuid.MustParse(req.GetDeploymentId())
 
 	deployment, err := s.queries.GetDeploymentByID(ctx, deploymentID)
-	if err != nil {
-		slog.WarnContext(ctx, "deployment not found", "deployment_id", req.GetDeploymentId())
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrDeploymentNotFound)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get deployment: %w", err)
 	}
 
 	resource, err := s.queries.GetResourceByID(ctx, deployment.ResourceID)
@@ -624,9 +632,11 @@ func (s *DeploymentServer) WatchDeployment(
 	deploymentID := uuid.MustParse(req.GetDeploymentId())
 
 	resourceID, err := s.queries.GetDeploymentResourceID(ctx, deploymentID)
-	if err != nil {
-		slog.WarnContext(ctx, "deployment not found", "deployment_id", req.GetDeploymentId())
+	if errors.Is(err, pgx.ErrNoRows) {
 		return rpcerr.New(connect.CodeNotFound, ErrDeploymentNotFound)
+	}
+	if err != nil {
+		return fmt.Errorf("get deployment resource ID: %w", err)
 	}
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)

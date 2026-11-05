@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 
 	"connectrpc.com/connect/v2"
@@ -281,9 +282,11 @@ func (s *UserServer) DeleteUser(
 	userID := uuid.MustParse(req.GetUserId())
 
 	_, err := s.queries.GetUserByID(ctx, userID)
-	if err != nil {
-		slog.WarnContext(ctx, "user not found", "user_id", req.GetUserId())
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrUserNotFound)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get user: %w", err)
 	}
 
 	hasWorkspaces, err := s.queries.CheckUserHasWorkspaces(ctx, userID)
@@ -425,9 +428,11 @@ func (s *UserServer) Logout(
 
 func (s *UserServer) getUserByID(ctx context.Context, id string) (*userv1.User, error) {
 	user, err := s.queries.GetUserByID(ctx, uuid.MustParse(id))
-	if err != nil {
-		slog.WarnContext(ctx, "user not found", "id", id)
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrUserNotFound)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get user: %w", err)
 	}
 
 	return dbUserToProto(user), nil

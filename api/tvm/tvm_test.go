@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
+	"github.com/team-loco/loco/api/auth/authtest"
 	queries "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
 )
@@ -122,7 +124,7 @@ func (tq *TestingQueries) GetSessionWithScopesByAccessToken(
 ) (queries.GetSessionWithScopesByAccessTokenRow, error) {
 	id, ok := tq.byAccess[accessTokenHash]
 	if !ok {
-		return queries.GetSessionWithScopesByAccessTokenRow{}, tvm.ErrTokenNotFound
+		return queries.GetSessionWithScopesByAccessTokenRow{}, pgx.ErrNoRows
 	}
 	e := tq.sessions[id]
 	rows, err := tq.GetUserScopes(ctx, e.userID)
@@ -151,7 +153,7 @@ func (tq *TestingQueries) GetSessionByRefreshToken(
 ) (queries.GetSessionByRefreshTokenRow, error) {
 	id, ok := tq.byRefresh[refreshTokenHash]
 	if !ok {
-		return queries.GetSessionByRefreshTokenRow{}, tvm.ErrTokenNotFound
+		return queries.GetSessionByRefreshTokenRow{}, pgx.ErrNoRows
 	}
 	e := tq.sessions[id]
 	return queries.GetSessionByRefreshTokenRow{
@@ -220,7 +222,7 @@ func (*TestingQueries) CreateAPIToken(_ context.Context, _ queries.CreateAPIToke
 }
 
 func (*TestingQueries) GetAPIToken(_ context.Context, _ string) (queries.GetAPITokenRow, error) {
-	return queries.GetAPITokenRow{}, tvm.ErrTokenNotFound
+	return queries.GetAPITokenRow{}, pgx.ErrNoRows
 }
 
 func (*TestingQueries) TouchAPITokenLastUsed(_ context.Context, _ uuid.UUID) error { return nil }
@@ -246,7 +248,7 @@ func (*TestingQueries) GetAPITokenByNameAndEntity(
 	_ context.Context,
 	_ queries.GetAPITokenByNameAndEntityParams,
 ) (queries.GetAPITokenByNameAndEntityRow, error) {
-	return queries.GetAPITokenByNameAndEntityRow{}, tvm.ErrTokenNotFound
+	return queries.GetAPITokenByNameAndEntityRow{}, pgx.ErrNoRows
 }
 
 func (*TestingQueries) DeleteAPITokenByNameAndEntity(
@@ -348,5 +350,20 @@ func TestRefreshLosingRaceRevokesSession(t *testing.T) {
 	}
 	if len(tq.sessions) != 0 {
 		t.Fatalf("sessions = %d, want the session revoked", len(tq.sessions))
+	}
+}
+
+func TestDatabaseFailureIsNotAnInvalidToken(t *testing.T) {
+	pool := authtest.ClosedPool(t)
+	machine := tvm.NewVendingMachine(pool, queries.New(pool), tvm.Config{})
+	t.Cleanup(machine.Close)
+	for _, token := range []string{"loco_s_unknown", "loco_k_unknown"} {
+		if _, _, err := machine.GetToken(t.Context(), token); err == nil || errors.Is(err, tvm.ErrInvalidExpiredToken) {
+			t.Errorf("GetToken(%s) on a closed pool: got %v, want the database error", token, err)
+		}
+	}
+	_, _, err := machine.Refresh(t.Context(), "loco_r_unknown")
+	if err == nil || errors.Is(err, tvm.ErrInvalidExpiredToken) {
+		t.Errorf("Refresh on a closed pool: got %v, want the database error", err)
 	}
 }

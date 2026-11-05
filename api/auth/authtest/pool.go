@@ -16,6 +16,7 @@ import (
 const (
 	transactionWaitTimeout  = 10 * time.Second
 	transactionPollInterval = 10 * time.Millisecond
+	unreachableDatabaseURL  = "postgres://loco@127.0.0.1:1/loco"
 )
 
 func NewPool(t *testing.T) *pgxpool.Pool {
@@ -57,6 +58,17 @@ func NewPool(t *testing.T) *pgxpool.Pool {
 			t.Logf("drop database: %v", dropErr)
 		}
 	})
+	return pool
+}
+
+// ClosedPool returns a pool that fails every query, standing in for a database outage.
+func ClosedPool(t *testing.T) *pgxpool.Pool {
+	t.Helper()
+	pool, err := pgxpool.New(t.Context(), unreachableDatabaseURL)
+	if err != nil {
+		t.Fatalf("pool: %v", err)
+	}
+	pool.Close()
 	return pool
 }
 

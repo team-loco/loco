@@ -6,7 +6,9 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
+	"github.com/team-loco/loco/api/auth/authtest"
 	"github.com/team-loco/loco/api/authz"
 	queries "github.com/team-loco/loco/api/gen/db"
 )
@@ -15,10 +17,7 @@ type fakeQueries struct {
 	queries.Querier
 }
 
-var (
-	errUnknownUser   = errors.New("unknown test user")
-	errUnknownEntity = errors.New("unknown test entity")
-)
+var errUnknownUser = errors.New("unknown test user")
 
 var (
 	user1UUID = uuid.MustParse("01890000-0000-0000-0000-000000000001")
@@ -89,7 +88,7 @@ func (*fakeQueries) GetOrganizationIDByWorkspaceID(_ context.Context, id uuid.UU
 	if id == ws3UUID {
 		return org2UUID, nil
 	}
-	return uuid.UUID{}, errUnknownEntity
+	return uuid.UUID{}, pgx.ErrNoRows
 }
 
 func (*fakeQueries) GetWorkspaceOrganizationIDByResourceID(
@@ -114,7 +113,7 @@ func (*fakeQueries) GetWorkspaceOrganizationIDByResourceID(
 			OrgID:       org2UUID,
 		}, nil
 	}
-	return queries.GetWorkspaceOrganizationIDByResourceIDRow{}, errUnknownEntity
+	return queries.GetWorkspaceOrganizationIDByResourceIDRow{}, pgx.ErrNoRows
 }
 
 func grantedScopes(t *testing.T, a *authz.Authorizer, userID uuid.UUID) []queries.EntityScope {
@@ -640,5 +639,17 @@ func TestEveryOrgScopeImpliesMembership(t *testing.T) {
 	}
 	if err := a.Check(t.Context(), system, member); err != nil {
 		t.Errorf("system read denied membership: %v", err)
+	}
+}
+
+func TestCheckReportsDatabaseFailure(t *testing.T) {
+	pool := authtest.ClosedPool(t)
+	a := authz.New(pool, queries.New(pool))
+	for _, entityType := range []queries.EntityType{queries.EntityTypeWorkspace, queries.EntityTypeResource} {
+		required := queries.EntityScope{EntityType: entityType, EntityID: uuid.New(), Scope: queries.ScopeRead}
+		err := a.Check(t.Context(), nil, required)
+		if err == nil || errors.Is(err, authz.ErrEntityNotFound) || errors.Is(err, authz.ErrInsufficientPermissions) {
+			t.Errorf("%s lookup on a closed pool: got %v, want the database error", entityType, err)
+		}
 	}
 }
