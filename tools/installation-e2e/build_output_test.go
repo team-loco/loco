@@ -16,26 +16,17 @@ func TestFailedOperatorBuildStreamsDiagnostics(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
-	stdout, err := os.CreateTemp(t.TempDir(), "stdout")
+	output, err := os.CreateTemp(t.TempDir(), "build-output")
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		if closeErr := stdout.Close(); closeErr != nil {
-			t.Error(closeErr)
-		}
-	})
-	stderr, err := os.CreateTemp(t.TempDir(), "stderr")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if closeErr := stderr.Close(); closeErr != nil {
+		if closeErr := output.Close(); closeErr != nil {
 			t.Error(closeErr)
 		}
 	})
 	oldStdout, oldStderr := os.Stdout, os.Stderr
-	os.Stdout, os.Stderr = stdout, stderr
+	os.Stdout, os.Stderr = output, output
 	t.Cleanup(func() { os.Stdout, os.Stderr = oldStdout, oldStderr })
 	root, err := filepath.Abs("../..")
 	if err != nil {
@@ -47,16 +38,13 @@ func TestFailedOperatorBuildStreamsDiagnostics(t *testing.T) {
 	if !errors.As(err, &exit) || exit.ExitCode() != 17 {
 		t.Fatalf("build error = %v, want exit status 17", err)
 	}
-	for _, stream := range []struct {
-		file *os.File
-		want string
-	}{{stdout, "build stdout: build --progress=plain"}, {stderr, "build stderr"}} {
-		data, readErr := os.ReadFile(stream.file.Name())
-		if readErr != nil {
-			t.Fatal(readErr)
-		}
-		if !strings.Contains(string(data), stream.want) {
-			t.Errorf("build output = %q, want %q", data, stream.want)
+	data, readErr := os.ReadFile(output.Name())
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	for _, want := range []string{"build stdout: build --progress=plain", "build stderr"} {
+		if !strings.Contains(string(data), want) {
+			t.Errorf("build output = %q, want %q", data, want)
 		}
 	}
 }
