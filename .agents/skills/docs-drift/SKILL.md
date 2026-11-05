@@ -26,7 +26,7 @@ update with the file and section that owns it.
 3. Every page under `docs/content/` that plausibly owns the changed behaviour, in full, plus
    `README.md` when the change touches the CLI, loco.yaml or local development. Headings and grep hits are not enough; the stale sentence is usually in
    the middle of a paragraph.
-4. `.agents/skills/prose/SKILL.md` before writing or editing any prose.
+4. The `prose` skill, when it is installed, before writing or editing any prose.
 5. `docs/content/contributing/documentation.md` for how the site is built and verified.
 
 ## Documentation in scope
