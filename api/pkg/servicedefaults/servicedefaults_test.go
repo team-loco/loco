@@ -20,6 +20,8 @@ func validDefaults() Defaults {
 		HealthInterval:      30,
 		HealthTimeout:       5,
 		HealthFailThreshold: 3,
+		DeployAttempts:      2,
+		DeployRetryDelay:    300,
 	}
 }
 
@@ -54,6 +56,9 @@ func TestValidateRejectsInvalidDefaults(t *testing.T) {
 		"high fail threshold":          {func(d *Defaults) { d.HealthFailThreshold = 11 }, errInvalidHealth},
 		"long grace period":            {func(d *Defaults) { d.HealthStartupGracePeriod = 181 }, errInvalidHealth},
 		"negative grace period":        {func(d *Defaults) { d.HealthStartupGracePeriod = -1 }, errInvalidHealth},
+		"zero deploy attempts":         {func(d *Defaults) { d.DeployAttempts = 0 }, errInvalidDeploy},
+		"11 deploy attempts":           {func(d *Defaults) { d.DeployAttempts = 11 }, errInvalidDeploy},
+		"59 second retry delay":        {func(d *Defaults) { d.DeployRetryDelay = 59 }, errInvalidDeploy},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

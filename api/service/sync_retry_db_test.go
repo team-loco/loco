@@ -9,13 +9,11 @@ import (
 
 func (f *deployFixture) setApplyRetryPolicy(t *testing.T, maxAttempts int32, delaySeconds *int32) {
 	t.Helper()
-	if _, err := f.pool.Exec(
-		t.Context(),
-		`UPDATE resources SET max_apply_attempts = $2, apply_retry_delay_seconds = $3 WHERE id = $1`,
-		f.resourceID,
-		maxAttempts,
-		delaySeconds,
-	); err != nil {
+	if err := f.queries.SetResourceDeployPolicy(t.Context(), genDb.SetResourceDeployPolicyParams{
+		ID:                     f.resourceID,
+		MaxApplyAttempts:       &maxAttempts,
+		ApplyRetryDelaySeconds: delaySeconds,
+	}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -42,7 +40,7 @@ func TestPermanentApplyFailuresWaitBeforeAnotherInventorySendsThem(t *testing.T)
 	failed := &agentv1.Applied{
 		PlacementId: placement.ID.String(),
 		Revision:    placement.DesiredRevision,
-		Error:       "invalid application",
+		Error:       testApplyFailure,
 	}
 	server.recordApplied(t.Context(), f.clusterID, failed)
 	if sent := f.sendPending(t, server); len(sent) != 0 {
@@ -148,7 +146,7 @@ func TestPlacementFailsOnceItRunsOutOfApplyAttempts(t *testing.T) {
 	failed := &agentv1.Applied{
 		PlacementId: placement.ID.String(),
 		Revision:    placement.DesiredRevision,
-		Error:       "invalid application",
+		Error:       testApplyFailure,
 	}
 
 	server.recordApplied(t.Context(), f.clusterID, failed)

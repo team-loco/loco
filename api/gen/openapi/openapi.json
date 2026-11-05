@@ -8593,6 +8593,16 @@
             ],
             "title": "observability",
             "description": "Default observability configuration"
+          },
+          "deployAttempts": {
+            "type": "integer",
+            "title": "deploy_attempts",
+            "format": "int32"
+          },
+          "deployRetryDelaySeconds": {
+            "type": "integer",
+            "title": "deploy_retry_delay_seconds",
+            "format": "int32"
           }
         },
         "title": "DefaultServiceConfig",

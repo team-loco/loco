@@ -18,6 +18,7 @@ import (
 
 const (
 	regionsPathPrefix = "regions."
+	deployPathPrefix  = "deploy."
 	pathEnabled       = "enabled"
 )
 
@@ -58,6 +59,9 @@ func (a *applier) update(ctx context.Context, qtx *genDb.Queries, op configplan.
 	specParams := genDb.UpdateResourceSpecParams{ID: res.ID, Spec: specJSON}
 	if updateErr := qtx.UpdateResourceSpec(ctx, specParams); updateErr != nil {
 		return fmt.Errorf("update resource spec: %w", updateErr)
+	}
+	if deployErr := setDeployPolicy(ctx, qtx, res.ID, op.Desired.Deploy); deployErr != nil {
+		return deployErr
 	}
 	if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, res.ID); bumpErr != nil {
 		return bumpErr
@@ -165,6 +169,9 @@ func (a *applier) affectedRegions(resourceID uuid.UUID, changes []configplan.Cha
 	global := false
 	changed := map[string]bool{}
 	for _, change := range changes {
+		if strings.HasPrefix(change.Path, deployPathPrefix) {
+			continue
+		}
 		rest, isRegion := strings.CutPrefix(change.Path, regionsPathPrefix)
 		if !isRegion {
 			global = true

@@ -446,6 +446,25 @@ func (q *Queries) LockResources(ctx context.Context, ids []uuid.UUID) ([]uuid.UU
 	return items, nil
 }
 
+const setResourceDeployPolicy = `-- name: SetResourceDeployPolicy :exec
+UPDATE resources
+SET max_apply_attempts = $2,
+    apply_retry_delay_seconds = $3,
+    updated_at = NOW()
+WHERE id = $1
+`
+
+type SetResourceDeployPolicyParams struct {
+	ID                     uuid.UUID `json:"id"`
+	MaxApplyAttempts       *int32    `json:"maxApplyAttempts"`
+	ApplyRetryDelaySeconds *int32    `json:"applyRetryDelaySeconds"`
+}
+
+func (q *Queries) SetResourceDeployPolicy(ctx context.Context, arg SetResourceDeployPolicyParams) error {
+	_, err := q.db.Exec(ctx, setResourceDeployPolicy, arg.ID, arg.MaxApplyAttempts, arg.ApplyRetryDelaySeconds)
+	return err
+}
+
 const setResourcePartial = `-- name: SetResourcePartial :exec
 UPDATE resources
 SET partial = $2, updated_at = NOW()

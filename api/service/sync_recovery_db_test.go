@@ -84,6 +84,7 @@ func TestFailedStatusReachesTheDeploymentTheDashboardReads(t *testing.T) {
 
 func TestReadyAtAnOlderRevisionDoesNotRecoverAFailedDeployment(t *testing.T) {
 	f := newDeployFixture(t)
+	f.setApplyRetryPolicy(t, 1, nil)
 	ctx := context.Background()
 	server := f.agentServer()
 

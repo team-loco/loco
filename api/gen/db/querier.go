@@ -226,6 +226,7 @@ type Querier interface {
 	MarkPreviousDeploymentsNotActive(ctx context.Context, resourceID uuid.UUID) error
 	MarkResourcePlacementsDeleted(ctx context.Context, resourceID uuid.UUID) ([]MarkResourcePlacementsDeletedRow, error)
 	MoveAccountEmail(ctx context.Context, arg MoveAccountEmailParams) (User, error)
+	NextPlacementRetry(ctx context.Context, clusterID uuid.UUID) (int64, error)
 	NotifyClusterPlacements(ctx context.Context, clusterID string) error
 	OpenPlacementWindow(ctx context.Context, arg OpenPlacementWindowParams) error
 	OrgHasWorkspacesWithResources(ctx context.Context, orgID uuid.UUID) (bool, error)
@@ -252,6 +253,7 @@ type Querier interface {
 	SetInvitationDeliveryError(ctx context.Context, arg SetInvitationDeliveryErrorParams) error
 	SetLockTimeout(ctx context.Context, timeout string) error
 	SetPlacementApplyError(ctx context.Context, arg SetPlacementApplyErrorParams) (SetPlacementApplyErrorRow, error)
+	SetResourceDeployPolicy(ctx context.Context, arg SetResourceDeployPolicyParams) error
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
 	SetResourcePartial(ctx context.Context, arg SetResourcePartialParams) error
 	SetUserStatus(ctx context.Context, arg SetUserStatusParams) (User, error)

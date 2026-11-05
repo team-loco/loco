@@ -382,6 +382,9 @@ func (s *PlanServer) liveState(
 		Health:  liveHealth(spec.GetHealthCheck()),
 		Regions: make(map[string]configplan.Region, len(spec.GetRegions())),
 	}
+	if res.MaxApplyAttempts != nil || res.ApplyRetryDelaySeconds != nil {
+		state.Deploy = &locofile.Deploy{Attempts: res.MaxApplyAttempts, RetryDelay: res.ApplyRetryDelaySeconds}
+	}
 	if metrics := spec.GetObservability().GetMetrics(); metrics.GetEnabled() {
 		state.Metrics = &locofile.Metrics{Port: metrics.GetPort(), Path: metrics.GetPath()}
 		if state.Metrics.Path == "" {

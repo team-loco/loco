@@ -111,6 +111,18 @@ Check the structure without calling the API:
 loco infra validate
 ```
 
+## Failed applies
+
+When a cluster's agent cannot apply a deployment and will not retry it itself, for example because Kubernetes rejects the Application, the API sends the deployment again after a delay. Once the cluster has failed `attempts` times, the API marks the deployment failed and stops sending it until the next deployment of the service. `deploy` sets both for one service:
+
+```yaml
+services:
+  web:
+    deploy: { attempts: 3, retryDelay: 60 }
+```
+
+`attempts` counts every try, including the first, and must be between 1 and 10. `retryDelay` is the number of seconds between tries and must be at least 60. An omitted field uses the API default: 2 attempts, 300 seconds apart, unless the operator sets `LOCO_DEFAULT_DEPLOY_ATTEMPTS` or `LOCO_DEFAULT_DEPLOY_RETRY_DELAY` within the same bounds. `GetConfig` reports the defaults as `deploy_attempts` and `deploy_retry_delay_seconds`. `deploy` applies to the service in every environment, so an environment override cannot set it. A change takes effect at the next failure. When `deploy` is the only change, `loco infra apply` updates the service without redeploying it, even while a deployment is rolling out; `loco deploy` still builds and redeploys the services it targets.
+
 ## Environment overrides
 
 `environments.<name>` changes a service for one environment. Objects merge key by key, lists and scalars replace the whole value, and `null` removes a key. `enabled: false` leaves the service out of that environment.

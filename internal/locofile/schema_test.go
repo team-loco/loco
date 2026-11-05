@@ -247,6 +247,7 @@ func TestSchemaMatchesTypes(t *testing.T) {
 		defs[goType.Name()] = goType
 		defs[overridePrefix+goType.Name()] = goType
 	}
+	defs["Deploy"] = reflect.TypeFor[Deploy]()
 	defs["Service"] = reflect.TypeFor[Service]()
 	defs["Override"] = reflect.TypeFor[Override]()
 

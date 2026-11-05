@@ -135,6 +135,7 @@ func TestSyncSendsDecryptedSecretsBesideTheApplication(t *testing.T) {
 
 func TestSyncReportsAMissingSecretOnThePlacementAndResendsOnceItIsSet(t *testing.T) {
 	f := newDeployFixture(t)
+	f.setApplyRetryPolicy(t, 1, nil)
 	ctx := context.Background()
 	provider := newTestKeyProvider(t, "k1")
 	serverConfig := testAgentConfig()

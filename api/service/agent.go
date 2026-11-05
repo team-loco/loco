@@ -35,10 +35,10 @@ var (
 )
 
 type AgentConfig struct {
-	AssertionMaxLifetime      time.Duration
-	JoinTokenTTL              time.Duration
-	PlacementRetryDelay       time.Duration
-	PlacementMaxApplyAttempts int32
+	AssertionMaxLifetime time.Duration
+	JoinTokenTTL         time.Duration
+	DeployAttempts       int32
+	DeployRetryDelay     int32
 }
 
 // AgentServer implements the AgentService for agent communication.

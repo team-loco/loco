@@ -50,4 +50,6 @@ message DefaultServiceConfig {
 
   // Default observability configuration
   resource.v1.ObservabilityConfig observability = 7;
+  int32 deploy_attempts = 8;
+  int32 deploy_retry_delay_seconds = 9;
 }

@@ -25,7 +25,6 @@ var (
 	errCacheAddrMissing   = errors.New("CACHE_ADDR required when CACHE_TYPE=valkey")
 	errUnknownCacheType   = errors.New("unknown cache type")
 	errInvalidSourceBytes = errors.New("LOCO_SOURCE_MAX_BYTES is not a positive integer")
-	errShortRetryDelay    = errors.New("LOCO_PLACEMENT_RETRY_DELAY must be at least 1s")
 
 	errInvalidForcePathStyle  = errors.New("LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE is not a boolean")
 	errInvalidServiceDefault  = errors.New("invalid service default")
@@ -61,6 +60,8 @@ const (
 	defaultHealthTimeout      = 5
 	defaultHealthFailThresh   = 3
 	defaultHealthGracePeriod  = 0
+	defaultDeployAttempts     = 2
+	defaultDeployRetryDelay   = int32(5 * time.Minute / time.Second)
 	defaultSchemaURL          = "https://loco.build/schemas/loco.v1.json"
 
 	defaultRegistryScheme            = "https://"
@@ -96,8 +97,6 @@ const (
 	defaultSecretsTransitDEKTTL  = 5 * time.Minute
 
 	defaultHeartbeatInterval         = 30 * time.Second
-	defaultPlacementRetryDelay       = time.Hour
-	defaultPlacementMaxApplyAttempts = 3
 	defaultClusterJoinTokenTTL       = time.Hour
 	defaultAgentAssertionMaxLifetime = 5 * time.Minute
 	defaultInvitationTTL             = 168 * time.Hour
@@ -151,7 +150,6 @@ func newAPIConfig() *APIConfig {
 	databaseURL := stringEnv("DATABASE_URL", "")
 	observabilityRaw := stringEnv("OBSERVABILITY_PROXY_URL", "")
 	observabilityURL := parseObservabilityProxyURL(observabilityRaw)
-	agentConfig := newAgentConfig()
 	ingestConfig := newIngestConfig()
 	databaseListenConfig := newDatabaseListenConfig(databaseURL)
 	cacheType, cacheAddr := newCacheConfig()
@@ -160,6 +158,7 @@ func newAPIConfig() *APIConfig {
 	sourceMaxBytes := positiveInt64Env("LOCO_SOURCE_MAX_BYTES", defaultSourceMaxBytes, errInvalidSourceBytes)
 	sourceBucket := newSourceBucketConfig()
 	serviceDefaults := newServiceDefaults()
+	agentConfig := newAgentConfig(serviceDefaults)
 	registry := newRegistryConfig(registryHost)
 	imageSweep := newImageSweepConfig(registryHost, registryPrefix)
 	sourceSweep := newSourceSweepConfig()
@@ -386,6 +385,8 @@ func newServiceDefaults() servicedefaults.Defaults {
 		HealthTimeout:            int32Env("LOCO_DEFAULT_HEALTH_TIMEOUT", defaultHealthTimeout),
 		HealthFailThreshold:      int32Env("LOCO_DEFAULT_HEALTH_FAIL_THRESHOLD", defaultHealthFailThresh),
 		HealthStartupGracePeriod: int32Env("LOCO_DEFAULT_HEALTH_STARTUP_GRACE_PERIOD", defaultHealthGracePeriod),
+		DeployAttempts:           positiveInt32Env("LOCO_DEFAULT_DEPLOY_ATTEMPTS", defaultDeployAttempts),
+		DeployRetryDelay:         positiveInt32Env("LOCO_DEFAULT_DEPLOY_RETRY_DELAY", defaultDeployRetryDelay),
 	}
 	if err := defaults.Validate(); err != nil {
 		panic(fmt.Errorf("%w: %w", errInvalidServiceDefault, err))
@@ -496,18 +497,13 @@ func newIngestConfig() service.IngestConfig {
 	return service.IngestConfig{TransitKey: key, TokenLifetime: lifetime}
 }
 
-func newAgentConfig() service.AgentConfig {
-	delay := positiveDurationEnv("LOCO_PLACEMENT_RETRY_DELAY", defaultPlacementRetryDelay)
-	if delay < time.Second {
-		panic(errShortRetryDelay)
-	}
-	maxAttempts := positiveInt32Env("LOCO_PLACEMENT_MAX_APPLY_ATTEMPTS", defaultPlacementMaxApplyAttempts)
+func newAgentConfig(defaults servicedefaults.Defaults) service.AgentConfig {
 	assertionLifetime := positiveDurationEnv("LOCO_AGENT_ASSERTION_MAX_LIFETIME", defaultAgentAssertionMaxLifetime)
 	joinTokenTTL := positiveDurationEnv("LOCO_CLUSTER_JOIN_TOKEN_TTL", defaultClusterJoinTokenTTL)
 	return service.AgentConfig{
-		AssertionMaxLifetime:      assertionLifetime,
-		JoinTokenTTL:              joinTokenTTL,
-		PlacementRetryDelay:       delay,
-		PlacementMaxApplyAttempts: maxAttempts,
+		AssertionMaxLifetime: assertionLifetime,
+		JoinTokenTTL:         joinTokenTTL,
+		DeployAttempts:       defaults.DeployAttempts,
+		DeployRetryDelay:     defaults.DeployRetryDelay,
 	}
 }

@@ -40,6 +40,13 @@ UPDATE resources
 SET spec = $2, updated_at = NOW()
 WHERE id = $1;
 
+-- name: SetResourceDeployPolicy :exec
+UPDATE resources
+SET max_apply_attempts = sqlc.narg('max_apply_attempts'),
+    apply_retry_delay_seconds = sqlc.narg('apply_retry_delay_seconds'),
+    updated_at = NOW()
+WHERE id = $1;
+
 -- name: DeleteResource :exec
 DELETE FROM resources WHERE id = $1;
 

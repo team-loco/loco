@@ -13,6 +13,10 @@ const (
 	dnsLabelMaxLength = 63
 	minMetricsPort    = 1024
 	maxMetricsPort    = 65535
+
+	MinDeployAttempts   = 1
+	MaxDeployAttempts   = 10
+	MinDeployRetryDelay = 60
 )
 
 var dnsLabelPattern = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`)
@@ -60,6 +64,7 @@ func Validate(file *File) error {
 func validateService(path string, service Service) []error {
 	errs := validateRuntimeIDs(path, service.RunAsUser, service.RunAsGroup)
 	errs = append(errs, validateMetrics(path, service.Metrics)...)
+	errs = append(errs, validateDeploy(path, service.Deploy)...)
 	if service.Image != "" && (service.Dockerfile != "" || service.Context != "") {
 		errs = append(errs, &FieldError{Path: path, Err: ErrImageWithBuild})
 	}
@@ -88,6 +93,38 @@ func validateOverride(path string, override Override) []error {
 		errs = append(errs, validateAutoscaling(path+".regions."+name, region.Autoscaling)...)
 	}
 	return errs
+}
+
+func validateDeploy(path string, deploy *Deploy) []error {
+	if deploy == nil {
+		return nil
+	}
+	var errs []error
+	if deploy.Attempts != nil {
+		if err := CheckDeployAttempts(*deploy.Attempts); err != nil {
+			errs = append(errs, &FieldError{Path: path + ".deploy.attempts", Err: err})
+		}
+	}
+	if deploy.RetryDelay != nil {
+		if err := CheckDeployRetryDelay(*deploy.RetryDelay); err != nil {
+			errs = append(errs, &FieldError{Path: path + ".deploy.retryDelay", Err: err})
+		}
+	}
+	return errs
+}
+
+func CheckDeployAttempts(attempts int32) error {
+	if attempts < MinDeployAttempts || attempts > MaxDeployAttempts {
+		return ErrDeployAttempts
+	}
+	return nil
+}
+
+func CheckDeployRetryDelay(seconds int32) error {
+	if seconds < MinDeployRetryDelay {
+		return ErrDeployRetryDelay
+	}
+	return nil
 }
 
 func validateAutoscaling(path string, autoscaling *Autoscaling) []error {

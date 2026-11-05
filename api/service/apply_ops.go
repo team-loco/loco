@@ -18,6 +18,7 @@ import (
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
+	"github.com/team-loco/loco/internal/locofile"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -82,6 +83,9 @@ func (a *applier) create(ctx context.Context, qtx *genDb.Queries, op configplan.
 	partialParams := genDb.SetResourcePartialParams{ID: resourceID, Partial: &a.partial}
 	if partialErr := qtx.SetResourcePartial(ctx, partialParams); partialErr != nil {
 		return fmt.Errorf("set resource partial: %w", partialErr)
+	}
+	if deployErr := setDeployPolicy(ctx, qtx, resourceID, op.Desired.Deploy); deployErr != nil {
+		return deployErr
 	}
 	if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
 		return bumpErr
@@ -464,4 +468,16 @@ func scalersFor(autoscaling *configplan.Autoscaling) *deploymentv1.Scalers {
 		CpuTarget:    &autoscaling.CPUTarget,
 		MemoryTarget: &autoscaling.MemoryTarget,
 	}
+}
+
+func setDeployPolicy(ctx context.Context, qtx *genDb.Queries, resourceID uuid.UUID, deploy *locofile.Deploy) error {
+	params := genDb.SetResourceDeployPolicyParams{ID: resourceID}
+	if deploy != nil {
+		params.MaxApplyAttempts = deploy.Attempts
+		params.ApplyRetryDelaySeconds = deploy.RetryDelay
+	}
+	if err := qtx.SetResourceDeployPolicy(ctx, params); err != nil {
+		return fmt.Errorf("set resource deploy policy: %w", err)
+	}
+	return nil
 }
