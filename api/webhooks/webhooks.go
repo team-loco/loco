@@ -33,8 +33,9 @@ const (
 	secretPrefix      = "whsec_"
 	secretBytes       = 32
 	requestTimeout    = 10 * time.Second
-	leaseSeconds      = 120
+	leaseMargin       = 30 * time.Second
 	claimBatch        = 50
+	lease             = claimBatch*requestTimeout + leaseMargin
 	maxErrorLength    = 500
 	maxResponseBytes  = 64 << 10
 	StatusPending     = "pending"
@@ -217,13 +218,18 @@ func (d *Dispatcher) Run(ctx context.Context, period time.Duration) {
 
 func (d *Dispatcher) DispatchDue(ctx context.Context) (int, error) {
 	claimed, err := d.queries.ClaimWebhookDeliveries(ctx, genDb.ClaimWebhookDeliveriesParams{
-		LeaseSeconds: leaseSeconds,
+		LeaseSeconds: int32(lease / time.Second),
 		MaxRows:      claimBatch,
 	})
 	if err != nil {
 		return 0, fmt.Errorf("claim webhook deliveries: %w", err)
 	}
 	for _, c := range claimed {
+		select {
+		case <-ctx.Done():
+			return len(claimed), nil
+		default:
+		}
 		d.deliver(ctx, c.ID, int(c.Attempts))
 	}
 	return len(claimed), nil
@@ -250,7 +256,7 @@ func (d *Dispatcher) deliver(ctx context.Context, id uuid.UUID, attempt int) {
 		}
 	}
 	code, sendErr := d.send(ctx, id, row)
-	params := genDb.FinishWebhookDeliveryParams{ID: id, NextAttemptAt: d.now()}
+	params := genDb.FinishWebhookDeliveryParams{ID: id, Attempts: int32(attempt), NextAttemptAt: d.now()}
 	if code != 0 {
 		statusCode := int32(code)
 		params.LastStatusCode = &statusCode
@@ -275,8 +281,14 @@ func (d *Dispatcher) deliver(ctx context.Context, id uuid.UUID, attempt int) {
 		slog.InfoContext(ctx, "webhook delivery failed", "deliveryId", id, "attempt", attempt, "error", sendErr)
 	}
 	span.SetAttributes(attribute.String(deliveryStatusAttr, params.Status))
-	if err := d.queries.FinishWebhookDelivery(ctx, params); err != nil {
+	rows, err := d.queries.FinishWebhookDelivery(context.WithoutCancel(ctx), params)
+	switch {
+	case err != nil:
 		slog.ErrorContext(ctx, "failed to record webhook delivery", "deliveryId", id, "error", err)
+	case rows == 0:
+		slog.ErrorContext(
+			ctx, "webhook delivery was reclaimed before its result was recorded", "deliveryId", id, "attempt", attempt,
+		)
 	}
 	tracing.End(span, sendErr)
 }

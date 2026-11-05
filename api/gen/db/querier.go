@@ -86,7 +86,7 @@ type Querier interface {
 	FailMissingClusterBuilds(ctx context.Context, arg FailMissingClusterBuildsParams) ([]FailMissingClusterBuildsRow, error)
 	FailQueuedClusterBuilds(ctx context.Context, arg FailQueuedClusterBuildsParams) ([]FailQueuedClusterBuildsRow, error)
 	FinishBuild(ctx context.Context, arg FinishBuildParams) (FinishBuildRow, error)
-	FinishWebhookDelivery(ctx context.Context, arg FinishWebhookDeliveryParams) error
+	FinishWebhookDelivery(ctx context.Context, arg FinishWebhookDeliveryParams) (int64, error)
 	GetAPIToken(ctx context.Context, tokenHash string) (GetAPITokenRow, error)
 	GetAPITokenByNameAndEntity(ctx context.Context, arg GetAPITokenByNameAndEntityParams) (GetAPITokenByNameAndEntityRow, error)
 	GetActiveDeploymentForResourceAndRegion(ctx context.Context, arg GetActiveDeploymentForResourceAndRegionParams) (Deployment, error)
