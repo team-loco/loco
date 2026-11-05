@@ -2,6 +2,7 @@ package telemetrytoken
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -19,6 +20,8 @@ import (
 )
 
 const renewalDivisor = 2
+
+var errNamespaceGone = errors.New("namespace does not exist")
 
 type Secret struct {
 	Namespaces []string
@@ -54,7 +57,7 @@ func (r *Renewer) Run(ctx context.Context) error {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		if err != nil && (!rpcretry.Retryable(err) || apierrors.IsForbidden(err)) {
+		if err != nil && !retryable(err) {
 			return fmt.Errorf("telemetry token renewal: %w", err)
 		}
 		var delay time.Duration
@@ -74,6 +77,10 @@ func (r *Renewer) Run(ctx context.Context) error {
 		case <-timer.C:
 		}
 	}
+}
+
+func retryable(err error) bool {
+	return rpcretry.Retryable(err) && !apierrors.IsForbidden(err) && !errors.Is(err, errNamespaceGone)
 }
 
 func (r *Renewer) renew(ctx context.Context) (time.Time, error) {
@@ -97,7 +104,11 @@ func (r *Renewer) write(ctx context.Context, secrets corev1client.SecretInterfac
 			Type: corev1.SecretTypeOpaque,
 			Data: map[string][]byte{r.secret.Key: []byte(token)},
 		}
-		if _, createErr := secrets.Create(ctx, created, metav1.CreateOptions{}); createErr != nil {
+		_, createErr := secrets.Create(ctx, created, metav1.CreateOptions{})
+		if apierrors.IsNotFound(createErr) {
+			return fmt.Errorf("create: %w: %w", errNamespaceGone, createErr)
+		}
+		if createErr != nil {
 			return fmt.Errorf("create: %w", createErr)
 		}
 		return nil
