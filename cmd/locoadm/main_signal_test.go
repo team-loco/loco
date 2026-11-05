@@ -72,20 +72,18 @@ users:
 			if err := child.Start(); err != nil {
 				t.Fatal(err)
 			}
-			done := make(chan error, 1)
-			go func() { done <- child.Wait() }()
 			select {
 			case <-received:
-			case err := <-done:
-				t.Fatalf("command exited before reaching Kubernetes: %v", err)
 			case <-ctx.Done():
-				waitErr := <-done
+				waitErr := child.Wait()
 				t.Fatalf("command did not reach Kubernetes: %v", waitErr)
 			}
 			if err := child.Process.Signal(signal); err != nil {
-				t.Fatal(err)
+				cancel()
+				waitErr := child.Wait()
+				t.Fatalf("signal command: %v; wait: %v", err, waitErr)
 			}
-			err := <-done
+			err := child.Wait()
 			exit, ok := errors.AsType[*exec.ExitError](err)
 			if !ok || exit.ExitCode() != cmdutil.ExitFailure {
 				t.Fatalf("signal terminated the process instead of canceling the command: %v", err)
