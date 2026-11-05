@@ -23,6 +23,7 @@ import (
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/tracing"
+	"github.com/team-loco/loco/internal/clip"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
@@ -273,10 +274,7 @@ func (d *Dispatcher) deliver(ctx context.Context, id uuid.UUID, attempt int) {
 		params.NextAttemptAt = d.now().Add(retryDelays[attempt-1])
 	}
 	if sendErr != nil {
-		message := sendErr.Error()
-		if len(message) > maxErrorLength {
-			message = message[:maxErrorLength]
-		}
+		message := clip.Bytes(sendErr.Error(), maxErrorLength)
 		params.LastError = &message
 		slog.InfoContext(ctx, "webhook delivery failed", "deliveryId", id, "attempt", attempt, "error", sendErr)
 	}

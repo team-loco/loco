@@ -20,6 +20,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/mail"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
+	"github.com/team-loco/loco/internal/clip"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
@@ -293,7 +294,7 @@ func (s *OrgServer) deliverInvitation(ctx context.Context, invitation genDb.Invi
 	case errors.Is(sendErr, mail.ErrNoTransport):
 	case sendErr != nil:
 		slog.ErrorContext(ctx, "failed to deliver invitation", "invitationId", invitation.ID, "error", sendErr)
-		text := truncate(sendErr.Error(), maxDeliveryErrorLength)
+		text := clip.Bytes(sendErr.Error(), maxDeliveryErrorLength)
 		err = s.queries.SetInvitationDeliveryError(recordCtx, genDb.SetInvitationDeliveryErrorParams{
 			ID: invitation.ID, DeliveryError: &text,
 		})
@@ -339,11 +340,4 @@ func invitationStatus(invitation genDb.Invitation) orgv1.InvitationStatus {
 		return orgv1.InvitationStatus_INVITATION_STATUS_FAILED
 	}
 	return orgv1.InvitationStatus_INVITATION_STATUS_NO_TRANSPORT
-}
-
-func truncate(s string, limit int) string {
-	if len(s) > limit {
-		return s[:limit]
-	}
-	return s
 }
