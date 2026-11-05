@@ -12,13 +12,13 @@ import (
 const (
 	defaultLimit              = 1000
 	defaultMaxLimit           = 10000
-	defaultMaxTimeRangeHours  = 24
-	defaultQueryTimeout       = 10
 	defaultMaxConcurrent      = 5
-	defaultMaxTailMinutes     = 30
 	defaultMaxConcurrentTails = 3
-	defaultTokenCacheSeconds  = 30
 
+	defaultMaxTimeRange           = 24 * time.Hour
+	defaultQueryTimeout           = 10 * time.Second
+	defaultMaxTailDuration        = 30 * time.Minute
+	defaultTokenCacheTTL          = 30 * time.Second
 	defaultRetention              = 365 * 24 * time.Hour
 	defaultMigrationRetryBudget   = 2 * time.Minute
 	defaultMigrationRetryInterval = 5 * time.Second
@@ -60,7 +60,7 @@ type Config struct {
 	DefaultLimit       int32
 	MaxLimit           int32
 	MaxTimeRange       time.Duration
-	QueryTimeout       int
+	QueryTimeout       time.Duration
 	MaxConcurrent      int
 	MaxTailDuration    time.Duration
 	MaxConcurrentTails int
@@ -100,13 +100,13 @@ func Load() *Config {
 
 		DefaultLimit:       int32Env("DEFAULT_LIMIT", defaultLimit),
 		MaxLimit:           int32Env("MAX_LIMIT", defaultMaxLimit),
-		MaxTimeRange:       time.Duration(intEnv("MAX_TIME_RANGE_HOURS", defaultMaxTimeRangeHours)) * time.Hour,
-		QueryTimeout:       intEnv("QUERY_TIMEOUT_SECONDS", defaultQueryTimeout),
+		MaxTimeRange:       positiveDurationEnv("MAX_TIME_RANGE", defaultMaxTimeRange),
+		QueryTimeout:       ttlEnv("QUERY_TIMEOUT", defaultQueryTimeout),
 		MaxConcurrent:      intEnv("MAX_CONCURRENT_QUERIES", defaultMaxConcurrent),
-		MaxTailDuration:    time.Duration(intEnv("MAX_TAIL_DURATION_MINUTES", defaultMaxTailMinutes)) * time.Minute,
+		MaxTailDuration:    positiveDurationEnv("MAX_TAIL_DURATION", defaultMaxTailDuration),
 		MaxConcurrentTails: intEnv("MAX_CONCURRENT_TAILS", defaultMaxConcurrentTails),
 
-		TokenCacheTTL: time.Duration(intEnv("TOKEN_CACHE_TTL_SECONDS", defaultTokenCacheSeconds)) * time.Second,
+		TokenCacheTTL: positiveDurationEnv("TOKEN_CACHE_TTL", defaultTokenCacheTTL),
 
 		OTLPMaxRequestBytes: positiveIntEnv("OTLP_MAX_REQUEST_BYTES", defaultOTLPMaxRequestBytes),
 		IngestTimeout:       positiveDurationEnv("CLICKHOUSE_INGEST_TIMEOUT", defaultIngestTimeout),

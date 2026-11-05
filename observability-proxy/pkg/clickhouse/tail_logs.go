@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	ch "github.com/ClickHouse/clickhouse-go/v2"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
@@ -45,7 +46,7 @@ func (b namedBinder) num(value int64) string {
 	return b.add(strconv.FormatInt(value, 10), "{%s:Int64}")
 }
 
-func buildTailLogQuery(q LogQuery, queryTimeout int, seen TailLogCursor) (string, ch.Parameters, error) {
+func buildTailLogQuery(q LogQuery, queryTimeout time.Duration, seen TailLogCursor) (string, ch.Parameters, error) {
 	data, err := json.Marshal(seen)
 	if err != nil {
 		return "", nil, fmt.Errorf("encode tail positions: %w", err)
@@ -58,7 +59,7 @@ func buildTailLogQuery(q LogQuery, queryTimeout int, seen TailLogCursor) (string
 		"WHERE " + strings.Join(whereParts, " AND "),
 		tailOrder,
 		"LIMIT " + b.num(int64(q.Limit)+pageLookahead),
-		fmt.Sprintf("SETTINGS max_execution_time = %d, join_algorithm = 'hash'", queryTimeout),
+		fmt.Sprintf("SETTINGS max_execution_time = %d, join_algorithm = 'hash'", int(queryTimeout.Seconds())),
 	}, " ")
 	return query, b.parameters, nil
 }

@@ -42,7 +42,7 @@ const (
 	testIngestTimeout    = 5 * time.Second
 	testDialTimeout      = 10 * time.Second
 	testWaitInterval     = 50 * time.Millisecond
-	testQueryTimeout     = 10
+	testQueryTimeout     = 10 * time.Second
 	testQueryLimit       = int32(10)
 	testMaxConns         = 2
 	testIntervalSeconds  = int32(60)

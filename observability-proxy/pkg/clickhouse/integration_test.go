@@ -20,7 +20,7 @@ const (
 	testClickHouseEnv      = "LOCO_TEST_CLICKHOUSE_URL"
 	databaseNameBytes      = 4
 	testMaxConns           = 2
-	testQueryTimeout       = 10
+	testQueryTimeout       = 10 * time.Second
 	testLogsTTL            = 72 * time.Hour
 	testTracesTTL          = 36 * time.Hour
 	testMetricsTTL         = 90 * time.Minute

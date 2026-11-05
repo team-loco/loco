@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	counterHTTPQueryTimeout       = 60
+	counterHTTPQueryTimeout       = 60 * time.Second
 	counterHTTPWorkspaceAttribute = "loco.workspace.id"
 	counterHTTPMetric             = "demo.payment.transactions"
 	counterHTTPResource           = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"

@@ -15,7 +15,7 @@ import (
 
 const (
 	testClickHouseConns = 2
-	testQueryTimeout    = 10
+	testQueryTimeout    = 10 * time.Second
 	testLogsTTL         = 48 * time.Hour
 	testTelemetryTTL    = time.Hour
 )

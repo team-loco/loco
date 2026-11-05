@@ -145,7 +145,7 @@ func (b *positionalBinder) str(value string) string { return b.add(value) }
 
 func (b *positionalBinder) num(value int64) string { return b.add(value) }
 
-func buildLogPageQuery(q LogQuery, queryTimeout int) (string, []any, error) {
+func buildLogPageQuery(q LogQuery, queryTimeout time.Duration) (string, []any, error) {
 	b := &positionalBinder{}
 	whereParts := logFilters(q, b)
 	whereParts = append(whereParts, "Timestamp <= fromUnixTimestamp64Nano("+b.num(q.End.UnixNano())+")")
@@ -182,7 +182,7 @@ func buildLogPageQuery(q LogQuery, queryTimeout int) (string, []any, error) {
 		"WHERE " + strings.Join(whereParts, " AND "),
 		order,
 		"LIMIT " + b.num(int64(q.Limit)+pageLookahead),
-		fmt.Sprintf("SETTINGS max_execution_time = %d", queryTimeout),
+		fmt.Sprintf("SETTINGS max_execution_time = %d", int(queryTimeout.Seconds())),
 	}, " ")
 	return query, b.args, nil
 }

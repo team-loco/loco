@@ -82,7 +82,7 @@ func (c *Client) QueryMetrics(
 	return result, nil
 }
 
-func buildMetricsQuery(req *observabilityv1.QueryMetricsRequest, queryTimeout int) (string, []any) {
+func buildMetricsQuery(req *observabilityv1.QueryMetricsRequest, queryTimeout time.Duration) (string, []any) {
 	aggFunc := mapAggregation(req.GetAggregation())
 	interval := req.GetIntervalSeconds()
 	if interval <= 0 {
@@ -133,7 +133,7 @@ func buildMetricsQuery(req *observabilityv1.QueryMetricsRequest, queryTimeout in
 			"MetricType, AggregationTemporality, IsMonotonic FROM (%s) "+
 			"GROUP BY %s, bucket, MetricType, AggregationTemporality, IsMonotonic "+
 			"ORDER BY %s, bucket SETTINGS max_execution_time = %d",
-		resourceColumn, interval, aggFunc, source, resourceColumn, resourceColumn, queryTimeout,
+		resourceColumn, interval, aggFunc, source, resourceColumn, resourceColumn, int(queryTimeout.Seconds()),
 	)
 	args = append(args, args...)
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
@@ -11,10 +12,10 @@ import (
 
 type Client struct {
 	conn         driver.Conn
-	queryTimeout int
+	queryTimeout time.Duration
 }
 
-func NewClient(url string, database string, maxConns int, queryTimeout int) (*Client, error) {
+func NewClient(url string, database string, maxConns int, queryTimeout time.Duration) (*Client, error) {
 	opts, err := clickhouse.ParseDSN(url)
 	if err != nil {
 		return nil, fmt.Errorf("parse clickhouse DSN: %w", err)

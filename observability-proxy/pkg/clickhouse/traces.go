@@ -14,7 +14,11 @@ import (
 
 var ErrInvalidTraceCursor = errors.New("invalid trace cursor")
 
-func buildTracesQuery(req *observabilityv1.QueryTracesRequest, limit int32, queryTimeout int) (string, []any, error) {
+func buildTracesQuery(
+	req *observabilityv1.QueryTracesRequest,
+	limit int32,
+	queryTimeout time.Duration,
+) (string, []any, error) {
 	where := []string{
 		workspaceColumn + " = ?",
 		"Timestamp >= fromUnixTimestamp64Nano(?)",
@@ -49,7 +53,7 @@ func buildTracesQuery(req *observabilityv1.QueryTracesRequest, limit int32, quer
 		where,
 		" AND ",
 	) + " ORDER BY Timestamp ASC, _block_number ASC, _block_offset ASC LIMIT ?"
-	return fmt.Sprintf("%s SETTINGS max_execution_time = %d", query, queryTimeout), args, nil
+	return fmt.Sprintf("%s SETTINGS max_execution_time = %d", query, int(queryTimeout.Seconds())), args, nil
 }
 
 func (c *Client) QueryTraces(

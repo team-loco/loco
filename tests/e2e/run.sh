@@ -971,12 +971,12 @@ start_obs_proxy() {
     OTLP_HTTP_PORT="$OTLP_HTTP_PORT" \
     DEFAULT_LIMIT="100" \
     MAX_LIMIT="1000" \
-    QUERY_TIMEOUT_SECONDS="5" \
-    MAX_TIME_RANGE_HOURS="24" \
+    QUERY_TIMEOUT="5s" \
+    MAX_TIME_RANGE="24h" \
     MAX_CONCURRENT_QUERIES="5" \
-    MAX_TAIL_DURATION_MINUTES="10" \
+    MAX_TAIL_DURATION="10m" \
     MAX_CONCURRENT_TAILS="3" \
-    TOKEN_CACHE_TTL_SECONDS="5" \
+    TOKEN_CACHE_TTL="5s" \
         "$BIN_DIR/loco-obs-proxy" \
         >"$LOG_DIR/obs-proxy.log" 2>&1 &
 
