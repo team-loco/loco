@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -58,12 +59,9 @@ func (f *fixture) release(ctx context.Context) (map[string]any, string, error) {
 			"http://",
 		) + "/platform/images/" + component.name + ":" + fixtureVersion
 		if !f.skip {
-			if _, checkErr := command(
+			if checkErr := dockerBuild(
 				ctx,
 				f.root,
-				nil,
-				"docker",
-				"build",
 				"--platform", f.platform,
 				"--build-arg",
 				"VERSION="+fixtureVersion,
@@ -358,12 +356,9 @@ CMD ["sleep", "infinity"]
 		if writeErr := os.WriteFile(path+".dockerignore", contextRules, 0600); writeErr != nil {
 			return "", writeErr
 		}
-		if _, checkErr := command(
+		if checkErr := dockerBuild(
 			ctx,
 			f.root,
-			nil,
-			"docker",
-			"build",
 			"--platform", f.platform,
 			"--build-arg",
 			"VERSION="+fixtureVersion,
@@ -373,7 +368,7 @@ CMD ["sleep", "infinity"]
 			tag,
 			".",
 		); checkErr != nil {
-			return "", checkErr
+			return "", fmt.Errorf("build operator fixture: %w", checkErr)
 		}
 	}
 	if _, checkErr := command(
@@ -390,4 +385,17 @@ CMD ["sleep", "infinity"]
 		return "", checkErr
 	}
 	return tag, nil
+}
+
+func dockerBuild(ctx context.Context, dir string, args ...string) error {
+	// source builds precede installation secrets; stream their diagnostics to CI.
+	buildArgs := append([]string{"build", "--progress=plain"}, args...)
+	cmd := exec.CommandContext(ctx, "docker", buildArgs...)
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("docker build failed: %w", err)
+	}
+	return nil
 }
