@@ -67,10 +67,6 @@ openbao:
         name: openbao-snapshots-s3
 clickhouse:
   enabled: true
-clickhouseUserPasswords:
-  loco_migrator: MIGRATOR_PASSWORD
-  loco_ingest: INGEST_PASSWORD
-  loco_reader: READER_PASSWORD
 ```
 
 The chart runs OpenBao for the API's secrets key and the `ed25519` keys `openbao.transit.ingestKey` and `openbao.transit.registryKey` that sign ingest and registry access tokens, and sets the API's `LOCO_SECRETS_TRANSIT_*` and `LOCO_INGEST_TRANSIT_KEY` settings. `api.registry.auth: token` also sets `LOCO_REGISTRY_AUTH=token`, `LOCO_REGISTRY_TRANSIT_KEY` and `LOCO_REGISTRY_TRANSIT_KEY_VERSION` from `api.registry.transitKeyVersion` (1 by default) and `LOCO_REGISTRY_TOKEN_SERVICE` from `api.registry.service`, which token mode requires; the default `static` sets none of them; the API logs in to OpenBao with its ServiceAccount `<release>-api`. Create its seal key Secret, named in `openbao.seal.static.existingSecret.name`, before installing; OpenBao serves TLS from a CA the chart issues with cert-manager, so the cert-manager controller is required even with `certManager.enabled: false`. [The secrets key provider](../../docs/content/operations/secrets-key-provider.md#openbao-in-the-control-plane-chart) describes the seal options, the setup Job, the recovery keys it writes to `<release>-openbao-init` for you to move offline, and an external OpenBao.
@@ -80,6 +76,8 @@ kubectl -n loco-system create secret generic openbao-seal --from-literal=key="$(
 ```
 
 The chart also uploads hourly raft snapshots to the region's object storage; set `openbao.snapshots.s3.endpoint`, `openbao.snapshots.s3.bucket` and the Secret `openbao.snapshots.s3.existingSecret` with the `access-key-id` and `secret-access-key` keys, or `openbao.snapshots.enabled: false`.
+
+For in-cluster ClickHouse, create the Secrets named by `clickhouse.clickhouse.users[].password_secret_name` before installing. Each needs `password` and `url` keys; the URL is `clickhouse://USER:PASSWORD@clickhouse-RELEASE-clickhouse.NAMESPACE.svc.cluster.local:9000`. URL-encode the password in the URL. The chart references these Secrets for the ClickHouse users and observability proxies. Passwords never belong in Helm values.
 
 With an external ClickHouse, leave `clickhouse.enabled: false` and name Secrets holding each user's URL in `obsProxy.query.clickhouse.existingSecret`, `obsProxy.query.clickhouse.migratorExistingSecret` and `obsProxy.ingest.clickhouse.existingSecret`.
 

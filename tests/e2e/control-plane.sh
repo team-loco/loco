@@ -119,12 +119,23 @@ now = datetime.datetime.now(datetime.UTC)
 (root / 'query.json').write_text(json.dumps({'workspaceId': '00000000-0000-0000-0000-000000000001', 'startTime': (now - datetime.timedelta(minutes=5)).isoformat(), 'endTime': now.isoformat()}))
 PY
 kubectl -n "$NAMESPACE" create secret generic api-env --from-env-file="$RUN_DIR/api.env" --dry-run=client -o yaml | kubectl apply -f -
-password_sets=()
-for user in $(yq '.clickhouseUserPasswords | keys | .[]' "$CHART_VALUES"); do
-    password_sets+=(--set "clickhouseUserPasswords.$user=$(cat "$RUN_DIR/password")")
-done
+# Component fixtures own their database identities; installation e2e uses locoadm.
+python3 - "$RUN_DIR" "$CHART_VALUES" "$NAMESPACE" <<'PYSECRETS' | kubectl apply -f -
+import base64
+import json
+import pathlib
+import subprocess
+import sys
+root, values, namespace = sys.argv[1:]
+users = json.loads(subprocess.check_output(['yq', '-o=json', '.clickhouse.clickhouse.users', values]))
+password = (pathlib.Path(root) / 'password').read_text().strip()
+for user in users:
+    url = f"clickhouse://{user['name']}:{password}@clickhouse-regional-clickhouse.{namespace}.svc.cluster.local:9000"
+    print(json.dumps({'apiVersion': 'v1', 'kind': 'Secret', 'metadata': {'name': user['password_secret_name'], 'namespace': namespace}, 'data': {'password': base64.b64encode(password.encode()).decode(), 'url': base64.b64encode(url.encode()).decode()}}))
+    print('---')
+PYSECRETS
 helm upgrade --install regional "$ROOT_DIR/charts/loco-control-plane" --namespace "$NAMESPACE" \
-    -f "$VALUES" "${password_sets[@]}" --wait --wait-for-jobs --timeout "$CONTROL_PLANE_TIMEOUT"
+    -f "$VALUES" --wait --wait-for-jobs --timeout "$CONTROL_PLANE_TIMEOUT"
 for pod in $(kubectl -n "$NAMESPACE" get pods -l app=regional-api -o jsonpath='{.items[*].metadata.name}'); do
     restarts=$(kubectl -n "$NAMESPACE" get pod "$pod" -o jsonpath='{.status.containerStatuses[0].restartCount}')
     if [[ $restarts != 0 ]] && ! kubectl -n "$NAMESPACE" logs "$pod" --previous | grep -q 'failed to verify the transit keys'; then

@@ -45,10 +45,6 @@ true
 {{- end -}}
 {{- end -}}
 
-{{- define "loco-control-plane.clickhouseHost" -}}
-{{- printf "clickhouse-%s-clickhouse.%s.svc.cluster.local" .Release.Name .Release.Namespace -}}
-{{- end -}}
-
 {{- define "loco-control-plane.clickhouseURL" -}}
 {{- $root := .root -}}
 {{- if $root.Values.clickhouse.enabled -}}

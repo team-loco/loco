@@ -11,21 +11,18 @@ tests:
     asserts:
       - containsDocument: {kind: ClickHouseInstallation, apiVersion: clickhouse.altinity.com/v1, name: loco-control-plane-clickhouse}
 
-  - it: renders a password and connection URL Secret for each ClickHouse user
-    template: templates/clickhouse.yaml
+  - it: consumes existing ClickHouse password Secrets
+    template: charts/clickhouse/templates/chi.yaml
     asserts:
       - equal:
-          path: stringData
-          value: {password: migrator-pw, url: "clickhouse://loco_migrator:migrator-pw@clickhouse-loco-control-plane-clickhouse.loco-control-plane.svc.cluster.local:9000"}
-        documentSelector: {path: metadata.name, value: loco-clickhouse-migrator}
+          path: spec.configuration.users["loco_migrator/password"].valueFrom.secretKeyRef
+          value: {name: loco-clickhouse-migrator, key: password}
       - equal:
-          path: stringData
-          value: {password: ingest-pw, url: "clickhouse://loco_ingest:ingest-pw@clickhouse-loco-control-plane-clickhouse.loco-control-plane.svc.cluster.local:9000"}
-        documentSelector: {path: metadata.name, value: loco-clickhouse-ingest}
+          path: spec.configuration.users["loco_ingest/password"].valueFrom.secretKeyRef
+          value: {name: loco-clickhouse-ingest, key: password}
       - equal:
-          path: stringData
-          value: {password: reader-pw, url: "clickhouse://loco_reader:reader-pw@clickhouse-loco-control-plane-clickhouse.loco-control-plane.svc.cluster.local:9000"}
-        documentSelector: {path: metadata.name, value: loco-clickhouse-reader}
+          path: spec.configuration.users["loco_reader/password"].valueFrom.secretKeyRef
+          value: {name: loco-clickhouse-reader, key: password}
 
   - it: wires each proxy role to the user its grant needs
     asserts:
@@ -67,22 +64,6 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: clickhouse.enabled requires obsProxy.enabled
-        template: templates/clickhouse.yaml
-
-  - it: requires a password for each ClickHouse user
-    set:
-      clickhouseUserPasswords.loco_reader: ""
-    asserts:
-      - failedTemplate:
-          errorMessage: clickhouseUserPasswords.loco_reader is required
-        template: templates/clickhouse.yaml
-
-  - it: rejects a password that cannot go into a connection URL unescaped
-    set:
-      clickhouseUserPasswords.loco_reader: "a b@c"
-    asserts:
-      - failedTemplate:
-          errorMessage: clickhouseUserPasswords.loco_reader may contain only letters, digits and ._~-
         template: templates/clickhouse.yaml
 
   - it: admits only the proxy roles and the operator to ClickHouse
