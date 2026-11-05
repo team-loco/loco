@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
 )
 
@@ -82,4 +84,11 @@ func bumpResourceEnvironmentRevisions(ctx context.Context, qtx *genDb.Queries, r
 		return fmt.Errorf("bump environment revisions: %w", err)
 	}
 	return nil
+}
+
+func withTx(ctx context.Context, pool *pgxpool.Pool, fn func(qtx *genDb.Queries) error) error {
+	return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
+		qtx := genDb.New(tx)
+		return fn(qtx)
+	})
 }

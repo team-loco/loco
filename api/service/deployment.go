@@ -27,7 +27,6 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
-	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 var (
@@ -38,15 +37,6 @@ var (
 	errBlobNotImplemented     = errors.New("blob resource type not yet implemented")
 	ErrDeploymentNotFound     = errors.New("deployment not found")
 )
-
-type ApplicationPayload struct {
-	DeploymentID string                            `json:"deployment_id"`
-	ResourceID   string                            `json:"resource_id"`
-	WorkspaceID  string                            `json:"workspace_id"`
-	ResourceType string                            `json:"resource_type"`
-	Region       string                            `json:"region"`
-	AppSpec      *locoControllerV1.ApplicationSpec `json:"app_spec"`
-}
 
 func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.DeploymentPhase {
 	switch status {
@@ -543,34 +533,6 @@ func (s *DeploymentServer) DeleteDeployment(
 	return &deploymentv1.DeleteDeploymentResponse{}, nil
 }
 
-// retireDeployment takes a deployment out of service: it drops the deployment's placement,
-// finalizes its status and records the deletion.
-func retireDeployment(ctx context.Context, qtx *genDb.Queries, res genDb.Resource, deployment genDb.Deployment) error {
-	// an inactive deployment was superseded, and its cluster's placement now belongs to the
-	// replacement.
-	if deployment.IsActive {
-		if err := removePlacement(ctx, qtx, res.ID, deployment.ClusterID); err != nil {
-			return err
-		}
-	}
-	err := qtx.UpdateDeploymentStatusAndActive(ctx, genDb.UpdateDeploymentStatusAndActiveParams{
-		ID:       deployment.ID,
-		Status:   finalizedDeploymentStatus(deployment.Status),
-		IsActive: false,
-	})
-	if err != nil {
-		return fmt.Errorf("finalize deployment %s: %w", deployment.ID, err)
-	}
-	return events.Record(ctx, qtx, events.Event{
-		Type:        events.DeploymentDeleted,
-		WorkspaceID: new(res.WorkspaceID),
-		ResourceID:  new(res.ID),
-		SubjectType: events.SubjectDeployment,
-		SubjectID:   new(deployment.ID),
-		Data:        map[string]any{events.FieldResourceID: res.ID.String()},
-	})
-}
-
 const (
 	watchDeploymentPollInterval = 2 * time.Second
 	watchDeploymentMaxDuration  = 30 * time.Minute
@@ -667,101 +629,6 @@ func (s *DeploymentServer) sendDeploymentEvent(
 
 	slog.InfoContext(ctx, "sent deployment event", "deployment_id", deploymentIDStr, "status", deployment.Status)
 	return deployment.Status, nil
-}
-
-type invalidSpecError struct {
-	err error
-}
-
-func (e *invalidSpecError) Error() string {
-	return "invalid deployment spec: " + e.err.Error()
-}
-
-func (e *invalidSpecError) Unwrap() error {
-	return e.err
-}
-
-// buildApplicationSpec builds the ApplicationSpec for the loco controller.
-// This is used both for direct k8s calls and for agent command payloads.
-func buildApplicationSpec(
-	resource genDb.Resource,
-	organizationID uuid.UUID,
-	resourceSpec *resourcev1.ResourceSpec,
-	hostname string,
-	deploymentSpec *deploymentv1.DeploymentSpec,
-	region string,
-	environmentID uuid.UUID,
-	environmentName string,
-	deploymentID uuid.UUID,
-	defaults servicedefaults.Defaults,
-) (*locoControllerV1.ApplicationSpec, error) {
-	// convert proto to controller CRD types
-	crdServiceDeploymentSpec := converter.ProtoToServiceDeploymentSpec(deploymentSpec)
-
-	appSpec := &locoControllerV1.ApplicationSpec{
-		ResourceID:      resource.ID.String(),
-		Slug:            resource.Slug,
-		OrganizationID:  organizationID.String(),
-		WorkspaceID:     resource.WorkspaceID.String(),
-		Region:          region,
-		EnvironmentID:   environmentID.String(),
-		EnvironmentName: environmentName,
-		DeploymentID:    deploymentID.String(),
-	}
-
-	switch resource.Type {
-	case genDb.ResourceTypeService:
-		if resourceSpec.GetService() == nil {
-			return nil, errResourceSpecNotService
-		}
-		appSpec.Type = "SERVICE"
-		resourceService := resourceSpec.GetService()
-		if _, ok := resourceService.GetRegions()[region]; !ok {
-			return nil, &invalidSpecError{err: fmt.Errorf("target region %s not found in service spec", region)}
-		}
-		deploymentService := deploymentSpec.GetService()
-		obs := converter.ProtoToObsSpec(resourceService.GetObservability())
-		if metrics := deploymentService.GetMetrics(); metrics != nil {
-			if obs == nil && metrics.GetEnabled() {
-				obs = &locoControllerV1.ObsSpec{}
-			}
-			if obs != nil {
-				obs.Metrics = locoControllerV1.MetricsSpec{
-					Enabled: metrics.GetEnabled(),
-					Port:    metrics.GetPort(),
-					Path:    metrics.GetPath(),
-				}
-			}
-		}
-		appSpec.ServiceSpec = &locoControllerV1.ServiceSpec{
-			Deployment: crdServiceDeploymentSpec,
-			Resources:  converter.ProtoToResourcesSpec(deploymentService),
-			Obs:        obs,
-			Routing: converter.ProtoToRoutingSpec(
-				deploymentRouting(resourceService, deploymentService),
-				hostname,
-				defaults,
-			),
-		}
-
-	case genDb.ResourceTypeDatabase:
-		return nil, errDatabaseNotImplemented
-	case genDb.ResourceTypeCache:
-		return nil, errCacheNotImplemented
-	case genDb.ResourceTypeQueue:
-		return nil, errQueueNotImplemented
-	case genDb.ResourceTypeBlob:
-		return nil, errBlobNotImplemented
-	default:
-		return nil, fmt.Errorf("unknown resource type: %s", resource.Type)
-	}
-
-	// validate the ApplicationSpec before returning
-	if err := appSpec.Validate(); err != nil {
-		return nil, &invalidSpecError{err: err}
-	}
-
-	return appSpec, nil
 }
 
 // deploymentRouting is the routing an Application uses: the deployment's own when it carries

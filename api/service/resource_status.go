@@ -90,7 +90,7 @@ func regionStatus(
 		ReadyReplicas:    row.ReadyReplicas,
 		DesiredReplicas:  row.DesiredReplicas,
 		DeploymentId:     row.DeploymentID.String(),
-		DeploymentStatus: deploymentStatusToProto(row.DeploymentStatus),
+		DeploymentStatus: parseDeploymentPhase(row.DeploymentStatus),
 	}
 	if row.StatusUpdatedAt != nil {
 		region.ReportedAt = timestamppb.New(*row.StatusUpdatedAt)
