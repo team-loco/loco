@@ -194,14 +194,16 @@ func TestHTTPExportStatusCodes(t *testing.T) {
 		{
 			name: "permanent consumer error is not retryable", consumerErr: consumererror.NewPermanent(errStorageDown),
 			contentType: protobufContentType, wantHTTP: http.StatusBadRequest, wantCode: codes.InvalidArgument,
+			wantError: true,
 		},
 		{
 			name: "undecodable body", contentType: protobufContentType, body: []byte{0xff, 0xff},
-			wantHTTP: http.StatusBadRequest, wantCode: codes.InvalidArgument,
+			wantHTTP: http.StatusBadRequest, wantCode: codes.InvalidArgument, wantError: true,
 		},
 		{
 			name: "undecodable json", contentType: jsonContentType, body: []byte("{"),
 			wantHTTP: http.StatusBadRequest, wantCode: codes.InvalidArgument,
+			wantError: true,
 		},
 		{
 			name: "unsupported content type", contentType: "text/plain",
@@ -210,6 +212,7 @@ func TestHTTPExportStatusCodes(t *testing.T) {
 		{
 			name: "unsupported encoding", contentType: protobufContentType, encoding: "br",
 			wantHTTP: http.StatusBadRequest, wantCode: codes.InvalidArgument,
+			wantError: true,
 		},
 		{
 			name: "oversized body", contentType: protobufContentType, body: make([]byte, testMaxRequestBytes+1),

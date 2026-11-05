@@ -326,12 +326,20 @@ func (s *Service) status(code codes.Code, public error) *status.Status {
 	return withRetry
 }
 
-// logExportFailure reports ERROR only for failures an operator must act on, storage and
-// authorization outages. Rejected credentials and malformed requests are the client's to fix.
+// logExportFailure reports ERROR unless the sentinel shows the client is at fault. A permanent
+// consumer error stays ERROR: decoding and exporter failures both produce one, and the type
+// cannot tell a bad payload from a rejected insert.
 func logExportFailure(ctx context.Context, err, public error, attrs ...any) {
-	level := slog.LevelDebug
-	if errors.Is(public, errStorageUnavailable) || errors.Is(public, ErrAuthUnavailable) {
-		level = slog.LevelError
+	level := slog.LevelError
+	switch {
+	case errors.Is(public, ErrUnauthenticated):
+		level = slog.LevelDebug
+	case errors.Is(public, ErrClusterRevoked):
+		level = slog.LevelDebug
+	case errors.Is(public, ErrTokenExpired):
+		level = slog.LevelDebug
+	case errors.Is(public, errRequestTooLarge):
+		level = slog.LevelDebug
 	}
 	slog.Log(ctx, level, "OTLP export failed", append([]any{"error", err}, attrs...)...)
 }
