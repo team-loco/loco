@@ -48,7 +48,8 @@
           "additionalProperties": false,
           "required": [
             "context",
-            "namespace"
+            "namespace",
+            "clusterUID"
           ],
           "properties": {
             "context": {
@@ -56,6 +57,10 @@
               "minLength": 1
             },
             "namespace": {
+              "type": "string",
+              "minLength": 1
+            },
+            "clusterUID": {
               "type": "string",
               "minLength": 1
             }
@@ -377,7 +382,8 @@
             "additionalProperties": false,
             "required": [
               "context",
-              "namespace"
+              "namespace",
+              "clusterUID"
             ],
             "properties": {
               "context": {
@@ -385,6 +391,10 @@
                 "minLength": 1
               },
               "namespace": {
+                "type": "string",
+                "minLength": 1
+              },
+              "clusterUID": {
                 "type": "string",
                 "minLength": 1
               }

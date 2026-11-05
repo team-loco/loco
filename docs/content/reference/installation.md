@@ -19,6 +19,7 @@ Every field below is required, including explicit boolean settings. `workers: []
 | `name` | Installation identity, a lowercase Kubernetes DNS label |
 | `release.manifest` | Path to a local release manifest; artifact compatibility is checked by the installer |
 | `controlPlane.kubernetes.context` | Existing kubeconfig context |
+| `controlPlane.kubernetes.clusterUID` | Existing cluster's `kube-system` Namespace UID; pins the target independently of the context name |
 | `controlPlane.kubernetes.namespace` | Destination namespace, a lowercase Kubernetes DNS label |
 | `controlPlane.apiURL`, `controlPlane.webURL` | Public API and dashboard URLs |
 | `controlPlane.database.secretRef` | Database URL input Secret's `name` and `key` |
@@ -40,7 +41,7 @@ Every field below is required, including explicit boolean settings. `workers: []
 | `controlPlane.observability.ingestURL` | Public OTLP ingest URL |
 | `controlPlane.certificates.issuerRef` | Existing issuer's `name` and `kind` (`Issuer` or `ClusterIssuer`) |
 | `workers[].name` | Unique worker identity, a lowercase Kubernetes DNS label |
-| `workers[].kubernetes` | Existing `context` and destination `namespace` |
+| `workers[].kubernetes` | Existing `context`, pinned `clusterUID` and destination `namespace` |
 | `workers[].region` | Region registered with the API |
 | `workers[].tier` | `staging` or `production` |
 | `workers[].appsDomain` | DNS domain for applications, without a wildcard prefix |
@@ -53,3 +54,11 @@ URLs use HTTP or HTTPS and contain no user information, query string or fragment
 Store credential values in Kubernetes Secrets populated by an operator or external secret manager. The installation file accepts references only: no database password, SMTP transport, registry credential, token or arbitrary Helm values. Generated installation credentials belong in destination Secrets, outside this file. Authorized cluster administrators can still read those Secrets; avoiding routine display does not remove that trust boundary.
 
 Builds deny private-network access by default. For a private registry or source bucket, list only the destination CIDRs and TCP ports builds need. CIDRs must be masked and canonical, ports range from 1 through 65535, and duplicate pairs fail validation. These entries match the worker controller's `privateEgress` contract; broader ranges are an explicit operator choice. DNS resolution does not create allowances automatically. With Kubernetes Services, account for the destinations your CNI evaluates after Service address translation.
+
+Read each cluster's nonsecret identity before writing its target:
+
+```sh
+kubectl --context example-control-plane get namespace kube-system -o jsonpath='{.metadata.uid}'
+```
+
+Set `clusterUID` to that exact value. The context is the connection route; the UID identifies the external cluster. Plan and apply must reject a context that resolves to another cluster, including an empty cluster without installation state. Recreating a cluster changes this UID and requires an explicit new target configuration.

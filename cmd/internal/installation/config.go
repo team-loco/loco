@@ -15,8 +15,9 @@ type Release struct {
 }
 
 type KubernetesTarget struct {
-	Context   string `json:"context"   yaml:"context"`
-	Namespace string `json:"namespace" yaml:"namespace"`
+	ClusterUID string `json:"clusterUID" yaml:"clusterUID"`
+	Context    string `json:"context"    yaml:"context"`
+	Namespace  string `json:"namespace"  yaml:"namespace"`
 }
 
 type SecretRef struct {

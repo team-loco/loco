@@ -177,3 +177,20 @@ func TestBuildPrivateEgress(t *testing.T) {
 		})
 	}
 }
+
+func TestKubernetesTargetsRequireClusterUID(t *testing.T) {
+	valid := string(example(t))
+	for _, name := range []string{"control-plane-cluster-uid", "worker-cluster-uid"} {
+		data := strings.Replace(valid, "clusterUID: "+name, "clusterUID: ''", 1)
+		if _, err := Parse([]byte(data)); err == nil {
+			t.Fatal("target without external cluster identity was accepted")
+		}
+	}
+	config, err := Parse([]byte(valid))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.ControlPlane.Kubernetes.ClusterUID != "control-plane-cluster-uid" {
+		t.Fatal("cluster UID was not preserved")
+	}
+}

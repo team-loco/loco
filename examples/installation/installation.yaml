@@ -6,6 +6,7 @@ release:
 controlPlane:
   kubernetes:
     context: example-control-plane
+    clusterUID: control-plane-cluster-uid
     namespace: loco-system
   apiURL: https://api.example.com
   webURL: https://console.example.com
@@ -47,6 +48,7 @@ workers:
   - name: staging-us
     kubernetes:
       context: example-staging-us
+      clusterUID: worker-cluster-uid
       namespace: loco-system
     region: us-east-1
     tier: staging
