@@ -588,11 +588,10 @@ func (s *SecretServer) rewrapEnvironmentKey(
 			"environmentId", key.EnvironmentID, "formatVersion", key.FormatVersion)
 		return rewrapSkipped, rpcerr.New(connect.CodeInternal, ErrUnknownSecretFormat)
 	}
-	aad := secretkeys.DEKAAD(key.EnvironmentID.String())
-	wrapped := secretkeys.WrappedKey{Provider: key.Provider, KeyID: key.KekID, Bytes: key.WrappedDek}
-	dek, err := s.provider.Unwrap(ctx, wrapped, aad)
+	dek, err := unwrapEnvironmentKey(ctx, s.provider, key)
 	if err != nil {
-		slog.WarnContext(ctx, "cannot unwrap environment key", "environmentId", key.EnvironmentID, "kekId", key.KekID)
+		slog.WarnContext(ctx, "cannot unwrap environment key",
+			"environmentId", key.EnvironmentID, "kekId", key.KekID, "error", err)
 		return rewrapSkipped, nil
 	}
 	defer secretkeys.Zero(dek)
@@ -605,6 +604,7 @@ func (s *SecretServer) rewrapEnvironmentKey(
 		}
 		defer secretkeys.Zero(replacement)
 	}
+	aad := secretkeys.DEKAAD(key.EnvironmentID.String())
 	rewrapped, err := s.provider.Wrap(ctx, replacement, aad)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to wrap environment key", "environmentId", key.EnvironmentID, "error", err)

@@ -7,7 +7,9 @@ import (
 	"net/http"
 
 	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connectproto"
 	"github.com/jackc/pgx/v5/pgconn"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/team-loco/loco/internal/rpcerr"
 )
@@ -27,6 +29,15 @@ func txError(ctx context.Context, msg string, err error) error {
 	}
 	slog.ErrorContext(ctx, msg, "error", err)
 	return rpcerr.New(connect.CodeInternal, ErrDB)
+}
+
+func withDetail(err *connect.Error, msg proto.Message) *connect.Error {
+	detail, detailErr := connectproto.NewErrorDetail(msg)
+	if detailErr != nil {
+		slog.Error("failed to attach an error detail", "detail", proto.MessageName(msg), "error", detailErr)
+		return err
+	}
+	return err.WithDetail(detail)
 }
 
 // isPgConstraintViolation checks if an error is a PostgreSQL unique constraint violation

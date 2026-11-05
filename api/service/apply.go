@@ -9,7 +9,6 @@ import (
 	"slices"
 
 	"connectrpc.com/connect/v2"
-	"connectrpc.com/connect/v2/connectproto"
 	"github.com/google/uuid"
 
 	"github.com/team-loco/loco/api/authz/actions"
@@ -263,12 +262,7 @@ func unconfirmedOperations(
 
 func applyRefused(reason error, refusal *planv1.ApplyRefusal) error {
 	refused := rpcerr.New(connect.CodeFailedPrecondition, reason)
-	detail, err := connectproto.NewErrorDetail(refusal)
-	if err != nil {
-		return refused
-	}
-	refused = refused.WithDetail(detail)
-	return refused
+	return withDetail(refused, refusal)
 }
 
 func applyTxError(ctx context.Context, err error) error {
