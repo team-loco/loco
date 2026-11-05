@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"slices"
 	"time"
 
@@ -81,12 +80,10 @@ func initCmdFunc(cmd *cobra.Command) error {
 	}
 
 	if appName == "" {
-		workingDir, getwdErr := os.Getwd()
-		if getwdErr != nil {
-			return fmt.Errorf("failed to get working directory: %w", getwdErr)
+		appName, err = directoryServiceName()
+		if err != nil {
+			return err
 		}
-		_, dirName := filepath.Split(workingDir)
-		appName = dirName
 	}
 
 	apiConfig, err := fetchConfig(cmd)

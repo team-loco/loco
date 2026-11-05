@@ -32,7 +32,6 @@ import (
 const (
 	domainSuffixLength = 4
 	domainAlphabetSize = 26
-	maxDNSLabelLength  = 63
 )
 
 var (
@@ -369,11 +368,7 @@ func quickServiceName(cmd *cobra.Command, names []string, yes bool) (string, err
 		}
 	}
 	if name == "" {
-		dir, getwdErr := os.Getwd()
-		if getwdErr != nil {
-			return "", fmt.Errorf("get current directory: %w", getwdErr)
-		}
-		name, err = safeDirectoryName(filepath.Base(dir))
+		name, err = directoryServiceName()
 		if err != nil {
 			return "", err
 		}
@@ -381,19 +376,12 @@ func quickServiceName(cmd *cobra.Command, names []string, yes bool) (string, err
 	return name, nil
 }
 
-func safeDirectoryName(dir string) (string, error) {
-	var b strings.Builder
-	for _, char := range strings.ToLower(dir) {
-		if char >= 'a' && char <= 'z' || char >= '0' && char <= '9' {
-			b.WriteRune(char)
-		} else if b.Len() > 0 && !strings.HasSuffix(b.String(), "-") {
-			b.WriteByte('-')
-		}
-		if b.Len() >= maxDNSLabelLength {
-			break
-		}
+func directoryServiceName() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("get current directory: %w", err)
 	}
-	name := strings.Trim(b.String(), "-")
+	name := locofile.ServiceNameFromDir(filepath.Base(dir))
 	if name == "" {
 		return "", errUnsafeDirectoryName
 	}
@@ -425,8 +413,8 @@ func quickDomain(cmd *cobra.Command, t target, name, region string) (string, err
 
 func generatedDomain(ctx context.Context, t target, name, platformDomain string) (string, error) {
 	prefix := name
-	if len(prefix) > maxDNSLabelLength-domainSuffixLength-1 {
-		prefix = strings.TrimSuffix(prefix[:maxDNSLabelLength-domainSuffixLength-1], "-")
+	if len(prefix) > locofile.MaxServiceNameLength-domainSuffixLength-1 {
+		prefix = strings.TrimSuffix(prefix[:locofile.MaxServiceNameLength-domainSuffixLength-1], "-")
 	}
 	base := prefix + "-"
 	res, err := t.lookupResource(ctx, name)

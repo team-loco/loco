@@ -10,9 +10,9 @@ import (
 )
 
 const (
-	dnsLabelMaxLength = 63
-	minMetricsPort    = 1024
-	maxMetricsPort    = 65535
+	MaxServiceNameLength = 63
+	minMetricsPort       = 1024
+	maxMetricsPort       = 65535
 
 	MinDeployAttempts   = 1
 	MaxDeployAttempts   = 10
@@ -138,7 +138,7 @@ func validateAutoscaling(path string, autoscaling *Autoscaling) []error {
 }
 
 func isDNSLabel(name string) bool {
-	return len(name) <= dnsLabelMaxLength && dnsLabelPattern.MatchString(name)
+	return len(name) <= MaxServiceNameLength && dnsLabelPattern.MatchString(name)
 }
 
 func environmentNames(file *File) []string {
