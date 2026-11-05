@@ -77,6 +77,7 @@ const (
 )
 
 func clientAcceptance(ctx context.Context) (result error) {
+	operatorPhase(phasePreflight)
 	audit := newLeakAudit()
 	stopAudit, err := audit.listen(auditSocket)
 	if err != nil {
@@ -85,6 +86,10 @@ func clientAcceptance(ctx context.Context) (result error) {
 	defer func() { result = errors.Join(result, stopAudit()) }()
 	ctx = context.WithValue(ctx, auditKey{}, audit)
 	defer func() {
+		// Preserve the original failing phase when the final audit follows a failure.
+		if result == nil {
+			operatorPhase(phaseCompletionAudit)
+		}
 		// Inspect even after a failed command, before any raw provider diagnostics escape.
 		inspectionCtx, cancelInspection := context.WithTimeout(context.WithoutCancel(ctx), time.Minute)
 		defer cancelInspection()
@@ -95,6 +100,7 @@ func clientAcceptance(ctx context.Context) (result error) {
 	if err := clientFlow(ctx, audit); err != nil {
 		return err
 	}
+	operatorPhase(phaseRecovery)
 	if err := recoveryDrill(ctx); err != nil {
 		return err
 	}
@@ -108,6 +114,7 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 			return fmt.Errorf("initial %s: %w", operation, checkErr)
 		}
 	}
+	operatorPhase(phaseControlPlane)
 	if _, checkErr := kubectl(ctx, "get", "clusterissuer", "installation-ca"); checkErr != nil {
 		if _, checkErr := locoadm(ctx, "apply", "--file", clientFile); checkErr == nil {
 			return errMissingIssuerAccepted
@@ -122,15 +129,18 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 	if dnsErr := configureGatewayDNS(ctx, controlNamespace, false); dnsErr != nil {
 		return dnsErr
 	}
+	operatorPhase(phasePreBootstrapAudit)
 	if checkErr := audit.inspect(ctx, "before bootstrap"); checkErr != nil {
 		return checkErr
 	}
+	operatorPhase(phaseBootstrap)
 	if checkErr := bootstrap(ctx); checkErr != nil {
 		return checkErr
 	}
 	if checkErr := audit.inspect(ctx, "bootstrap complete"); checkErr != nil {
 		return checkErr
 	}
+	operatorPhase(phaseWorkers)
 	if _, targetErr := locoadm(ctx, "cluster", "list"); targetErr != nil {
 		return fmt.Errorf("saved bootstrap target: %w", targetErr)
 	}
@@ -143,6 +153,7 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 	if checkErr := audit.inspect(ctx, "workers applied"); checkErr != nil {
 		return checkErr
 	}
+	operatorPhase(phaseRepeatApply)
 	before, err := identitySnapshot(ctx)
 	if err != nil {
 		return err
@@ -162,6 +173,7 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 	}
 	// A fresh local credential store must recover the existing administrator and clean up,
 	// rather than requiring an IdP token or an internal installation token copied by hand.
+	operatorPhase(phaseFreshHome)
 	originalHome := os.Getenv("HOME")
 	if checkErr := os.Setenv("HOME", "/tmp/operator-second"); checkErr != nil {
 		return checkErr
@@ -188,6 +200,7 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 	if checkErr := os.Setenv("HOME", originalHome); checkErr != nil {
 		return checkErr
 	}
+	operatorPhase(phaseWorkloads)
 	if checkErr := probeNetworkPolicy(ctx); checkErr != nil {
 		return checkErr
 	}

@@ -190,19 +190,7 @@ func (f *fixture) acceptance(ctx context.Context) error {
 		return checkErr
 	}
 	fmt.Println("Running public operator and application workflow")
-	out, err := command(
-		ctx,
-		f.root,
-		nil,
-		"kubectl",
-		"-n",
-		fixtureNamespace,
-		"exec",
-		"operator",
-		"--",
-		"installation-e2e",
-		"--client",
-	)
+	out, err := operatorWorkflow(ctx, f.root)
 	if err != nil {
 		return fmt.Errorf("installation acceptance failed: %w", err)
 	}

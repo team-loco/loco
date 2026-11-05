@@ -254,7 +254,7 @@ func TestBoundedCommandOutput(t *testing.T) {
 	var output boundedOutput
 	data := make([]byte, auditLimit+1)
 	written, err := output.Write(data)
-	if err != nil || written != len(data) || output.Len() != auditLimit || !output.exceeded {
+	if err != nil || written != len(data) || len(output.Bytes()) != auditLimit || !output.exceeded {
 		t.Fatal("command output must be bounded without blocking its child")
 	}
 }

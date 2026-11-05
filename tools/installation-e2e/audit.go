@@ -406,19 +406,23 @@ func (a *leakAudit) collectSecrets(secrets []auditSecret) error {
 }
 
 type boundedOutput struct {
-	bytes.Buffer
+	buffer   bytes.Buffer
 	exceeded bool
 }
 
 func (b *boundedOutput) Write(p []byte) (int, error) {
 	size := len(p)
-	available := auditLimit - b.Len()
+	available := auditLimit - b.buffer.Len()
 	if size > available {
 		b.exceeded = true
 		p = p[:available]
 	}
-	_, err := b.Buffer.Write(p)
+	_, err := b.buffer.Write(p)
 	return size, err
+}
+
+func (b *boundedOutput) Bytes() []byte {
+	return b.buffer.Bytes()
 }
 
 func sensitiveSecretField(key string) bool {
