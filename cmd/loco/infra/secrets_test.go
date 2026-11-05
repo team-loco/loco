@@ -2,9 +2,9 @@ package infra
 
 import (
 	"errors"
-	"io"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	"github.com/team-loco/loco/internal/locofile"
@@ -22,8 +22,9 @@ func TestProvisionForSecretsLeavesOtherPlanErrors(t *testing.T) {
 	for name, planErrors := range tests {
 		t.Run(name, func(t *testing.T) {
 			plan := &planv1.PlanResponse{Errors: planErrors}
-			confirm := confirmations{yes: true}
-			err := provisionForSecrets(t.Context(), cmdutil.Target{}, nil, plan, services, confirm, io.Discard)
+			cmd := &cobra.Command{}
+			cmd.Flags().Bool("yes", true, "")
+			err := provisionForSecrets(t.Context(), cmd, cmdutil.Target{}, nil, plan, services, confirmations{})
 			if !errors.Is(err, errSecretsNotHandled) {
 				t.Fatalf("provisionForSecrets() = %v, want %v", err, errSecretsNotHandled)
 			}

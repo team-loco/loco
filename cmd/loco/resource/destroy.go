@@ -25,23 +25,12 @@ Examples:
 			ctx := cmd.Context()
 			name := args[0]
 
-			yes, err := cmd.Flags().GetBool("yes")
-			if err != nil {
-				return fmt.Errorf("error reading yes flag: %w", err)
-			}
-
 			// Ask before any API call.
-			if !yes {
-				confirmed, confirmErr := ui.AskYesNo(
-					fmt.Sprintf("Are you sure you want to destroy the service '%s'?", name),
-				)
-				if confirmErr != nil {
-					return confirmErr
-				}
-				if !confirmed {
-					fmt.Fprintln(cmd.OutOrStdout(), "Aborted.")
-					return nil
-				}
+			confirmed, err := cmdutil.Confirm(
+				cmd, fmt.Sprintf("Are you sure you want to destroy the service '%s'?", name),
+			)
+			if err != nil || !confirmed {
+				return err
 			}
 
 			t, err := cmdutil.ResolveTarget(ctx, cmd)

@@ -29,18 +29,19 @@ const (
 		"and that this file takes over"
 )
 
-var (
-	errApplyNeedsYes = errors.New("stdout is not a terminal; pass --yes to apply without a prompt")
-	errApplyRefused  = errors.New("apply refused")
-)
+var errApplyRefused = errors.New("apply refused")
 
-type applyScope struct {
+type applyRequest struct {
+	target    cmdutil.Target
+	file      []byte
+	revision  int64
+	images    map[string]string
+	confirm   confirmations
 	builds    map[string]string
 	provision []string
 }
 
 type confirmations struct {
-	yes         bool
 	destructive bool
 	importOps   bool
 }
@@ -76,10 +77,6 @@ Examples:
 }
 
 func readConfirmations(cmd *cobra.Command) (confirmations, error) {
-	yes, err := cmd.Flags().GetBool("yes")
-	if err != nil {
-		return confirmations{}, fmt.Errorf("error reading yes flag: %w", err)
-	}
 	destructive, err := cmd.Flags().GetBool("confirm-destructive")
 	if err != nil {
 		return confirmations{}, fmt.Errorf("error reading confirm-destructive flag: %w", err)
@@ -88,7 +85,7 @@ func readConfirmations(cmd *cobra.Command) (confirmations, error) {
 	if err != nil {
 		return confirmations{}, fmt.Errorf("error reading confirm-import flag: %w", err)
 	}
-	return confirmations{yes: yes, destructive: destructive, importOps: importOps}, nil
+	return confirmations{destructive: destructive, importOps: importOps}, nil
 }
 
 func runApply(cmd *cobra.Command, path string) error {
@@ -107,18 +104,24 @@ func runApply(cmd *cobra.Command, path string) error {
 	}
 	environment := t.Environment.GetName()
 	resolve := func() (map[string]locofile.Service, error) { return resolveServices(file, path, environment) }
-	plan, err := reviewPlan(ctx, t, path, data, resolve, confirm)
+	plan, err := reviewPlan(ctx, cmd, t, path, data, resolve, confirm)
 	if err != nil {
 		return err
 	}
 	if len(plan.GetOperations()) == 0 {
 		return nil
 	}
-	if proceed, askErr := confirmProceed(confirm, "Apply these changes?", "Apply canceled."); !proceed {
+	if proceed, askErr := cmdutil.Confirm(cmd, "Apply these changes?"); !proceed {
 		return askErr
 	}
 
-	applied, err := requestApply(ctx, t, data, plan.GetRevision(), plan.GetImages(), confirm, applyScope{})
+	applied, err := requestApply(ctx, applyRequest{
+		target:   t,
+		file:     data,
+		revision: plan.GetRevision(),
+		images:   plan.GetImages(),
+		confirm:  confirm,
+	})
 	if err != nil {
 		return err
 	}
@@ -131,31 +134,6 @@ func resolveServices(file *locofile.File, path, environment string) (map[string]
 		return nil, fmt.Errorf("%s does not resolve for environment %s: %w", path, environment, err)
 	}
 	return services, nil
-}
-
-func confirmProceed(confirm confirmations, question, canceled string) (bool, error) {
-	if confirm.yes {
-		return true, nil
-	}
-	proceed, err := askToProceed(question)
-	if err != nil {
-		return false, err
-	}
-	if !proceed {
-		fmt.Println(canceled)
-	}
-	return proceed, nil
-}
-
-func askToProceed(question string) (bool, error) {
-	if !cmdutil.StdoutIsTerminal() {
-		return false, errApplyNeedsYes
-	}
-	proceed, err := ui.AskYesNo(question)
-	if err != nil {
-		return false, fmt.Errorf("failed to prompt user: %w", err)
-	}
-	return proceed, nil
 }
 
 func unconfirmedOperations(operations []*planv1.PlanOperation, confirm confirmations) []*planv1.PlanOperation {
@@ -172,35 +150,27 @@ func unconfirmedOperations(operations []*planv1.PlanOperation, confirm confirmat
 	return unconfirmed
 }
 
-func requestApply(
-	ctx context.Context,
-	t cmdutil.Target,
-	file []byte,
-	revision int64,
-	images map[string]string,
-	confirm confirmations,
-	scope applyScope,
-) (*planv1.ApplyResponse, error) {
+func requestApply(ctx context.Context, apply applyRequest) (*planv1.ApplyResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, applyTimeout)
 	defer cancel()
 
 	req := &planv1.ApplyRequest{
-		File:               file,
-		EnvironmentId:      t.Environment.GetId(),
-		Revision:           revision,
-		ConfirmDestructive: confirm.destructive,
-		ConfirmImport:      confirm.importOps,
-		Images:             images,
-		Builds:             scope.builds,
-		Provision:          scope.provision,
+		File:               apply.file,
+		EnvironmentId:      apply.target.Environment.GetId(),
+		Revision:           apply.revision,
+		ConfirmDestructive: apply.confirm.destructive,
+		ConfirmImport:      apply.confirm.importOps,
+		Images:             apply.images,
+		Builds:             apply.builds,
+		Provision:          apply.provision,
 	}
 
-	resp, err := t.Clients.Plan.Apply(ctx, req)
+	resp, err := apply.target.Clients.Plan.Apply(ctx, req)
 	if err != nil {
 		connectErr, isConnect := errors.AsType[*connect.Error](err)
 		if isConnect && connectErr.Code() == connect.CodeFailedPrecondition {
 			if refusal, ok := rpc.ErrorDetail[*planv1.ApplyRefusal](err); ok {
-				return nil, refusalError(refusal, revision)
+				return nil, refusalError(refusal, apply.revision)
 			}
 			return nil, fmt.Errorf("%w: %s", errApplyRefused, connectErr.Message())
 		}

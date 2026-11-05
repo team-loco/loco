@@ -12,7 +12,6 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 	"github.com/team-loco/loco/internal/locofile"
@@ -54,8 +53,8 @@ func changedQuickDeployFlag(cmd *cobra.Command) bool {
 	return false
 }
 
-func buildQuickDeploy(cmd *cobra.Command, names []string, t cmdutil.Target, yes bool) (*locofile.File, []byte, error) {
-	name, err := quickServiceName(cmd, names, yes)
+func buildQuickDeploy(cmd *cobra.Command, names []string, t cmdutil.Target) (*locofile.File, []byte, error) {
+	name, err := quickServiceName(cmd, names)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -133,7 +132,7 @@ func buildQuickDeploy(cmd *cobra.Command, names []string, t cmdutil.Target, yes 
 	return file, data, nil
 }
 
-func quickServiceName(cmd *cobra.Command, names []string, yes bool) (string, error) {
+func quickServiceName(cmd *cobra.Command, names []string) (string, error) {
 	if len(names) > 1 {
 		return "", errMultipleNames
 	}
@@ -147,8 +146,12 @@ func quickServiceName(cmd *cobra.Command, names []string, yes bool) (string, err
 	if len(names) == 1 {
 		name = names[0]
 	}
+	yes, err := cmd.Flags().GetBool("yes")
+	if err != nil {
+		return "", err
+	}
 	if name == "" && cmdutil.IsInteractive() && !yes {
-		name, err = ui.AskForString("Service name (press Enter to use the directory name): ")
+		name, err = cmdutil.AskString(cmd, "Service name (press Enter to use the directory name): ")
 		if err != nil {
 			return "", fmt.Errorf("read service name: %w", err)
 		}

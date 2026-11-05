@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 )
@@ -31,10 +30,6 @@ func buildDeleteCmd() *cobra.Command {
 			orgClient := target.Clients.Org
 
 			name := args[0]
-			yes, err := cmd.Flags().GetBool("yes")
-			if err != nil {
-				return fmt.Errorf("failed to get yes flag: %w", err)
-			}
 
 			getReq := &orgv1.GetOrgRequest{
 				Key: &orgv1.GetOrgRequest_OrgName{OrgName: name},
@@ -45,17 +40,11 @@ func buildDeleteCmd() *cobra.Command {
 				return fmt.Errorf("organization %q not found: %w", name, err)
 			}
 
-			if !yes {
-				confirm, confirmErr := ui.AskYesNo(
-					fmt.Sprintf("Are you sure you want to delete organization %q? This cannot be undone.", name),
-				)
-				if confirmErr != nil {
-					return fmt.Errorf("unable to prompt for confirmation: %w", confirmErr)
-				}
-				if !confirm {
-					fmt.Fprintln(cmd.OutOrStdout(), "Aborted.")
-					return nil
-				}
+			confirmed, err := cmdutil.Confirm(
+				cmd, fmt.Sprintf("Are you sure you want to delete organization %q? This cannot be undone.", name),
+			)
+			if err != nil || !confirmed {
+				return err
 			}
 
 			delReq := &orgv1.DeleteOrgRequest{

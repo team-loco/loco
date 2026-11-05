@@ -113,6 +113,7 @@ func requestPlan(ctx context.Context, t cmdutil.Target, file []byte) (*planv1.Pl
 
 func reviewPlan(
 	ctx context.Context,
+	cmd *cobra.Command,
 	t cmdutil.Target,
 	path string,
 	data []byte,
@@ -128,7 +129,7 @@ func reviewPlan(
 		if resolveErr != nil {
 			return nil, resolveErr
 		}
-		err = provisionForSecrets(ctx, t, data, plan, services, confirm, os.Stdout)
+		err = provisionForSecrets(ctx, cmd, t, data, plan, services, confirm)
 		if !errors.Is(err, errSecretsNotHandled) {
 			return nil, err
 		}

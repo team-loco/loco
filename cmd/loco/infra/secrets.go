@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"slices"
 	"strings"
 
+	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	"github.com/team-loco/loco/internal/locofile"
@@ -28,31 +28,37 @@ var (
 // decides which services it may create: it refuses a service the plan does not create.
 func provisionForSecrets(
 	ctx context.Context,
+	cmd *cobra.Command,
 	t cmdutil.Target,
 	data []byte,
 	plan *planv1.PlanResponse,
 	services map[string]locofile.Service,
 	confirm confirmations,
-	out io.Writer,
 ) error {
 	names, ok := servicesMissingOnlySecrets(plan.GetErrors(), services)
 	if !ok {
 		return errSecretsNotHandled
 	}
-	if !confirm.yes {
-		question := fmt.Sprintf("Create %s without deploying, so its secrets can be set?", strings.Join(names, ", "))
-		proceed, err := askToProceed(question)
-		if err != nil {
-			return err
-		}
-		if !proceed {
-			return errSecretsNotHandled
-		}
-	}
-	scope := applyScope{provision: names}
-	if _, err := requestApply(ctx, t, data, plan.GetRevision(), plan.GetImages(), confirm, scope); err != nil {
+	question := fmt.Sprintf("Create %s without deploying, so its secrets can be set?", strings.Join(names, ", "))
+	proceed, err := cmdutil.Confirm(cmd, question)
+	if err != nil {
 		return err
 	}
+	if !proceed {
+		return errSecretsNotHandled
+	}
+	request := applyRequest{
+		target:    t,
+		file:      data,
+		revision:  plan.GetRevision(),
+		images:    plan.GetImages(),
+		confirm:   confirm,
+		provision: names,
+	}
+	if _, err = requestApply(ctx, request); err != nil {
+		return err
+	}
+	out := cmd.OutOrStdout()
 	for _, name := range names {
 		assignments := make([]string, 0, len(services[name].Secrets))
 		for _, secret := range slices.Sorted(slices.Values(services[name].Secrets)) {

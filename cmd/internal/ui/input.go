@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"io"
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
@@ -46,8 +47,8 @@ func (m inputModel) View() tea.View {
 	))
 }
 
-func AskForString(prompt string) (string, error) {
-	p := tea.NewProgram(newInputModel(prompt))
+func AskForString(in io.Reader, out io.Writer, prompt string) (string, error) {
+	p := tea.NewProgram(newInputModel(prompt), tea.WithInput(in), tea.WithOutput(out))
 	model, err := p.Run()
 	if err != nil {
 		return "", err

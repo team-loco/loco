@@ -118,7 +118,7 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 		return err
 	}
 	if quickDeploy {
-		file, data, err = buildQuickDeploy(cmd, names, t, confirm.yes)
+		file, data, err = buildQuickDeploy(cmd, names, t)
 		if err != nil {
 			return err
 		}
@@ -136,7 +136,7 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 	}
 
 	resolved := func() (map[string]locofile.Service, error) { return services, nil }
-	plan, err := reviewPlan(ctx, t, filePath, data, resolved, confirm)
+	plan, err := reviewPlan(ctx, cmd, t, filePath, data, resolved, confirm)
 	if err != nil {
 		return err
 	}
@@ -152,14 +152,20 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 			}
 		}()
 	}
-	if proceed, askErr := confirmProceed(confirm, "Deploy?", "Deploy canceled."); !proceed {
+	if proceed, askErr := cmdutil.Confirm(cmd, "Deploy?"); !proceed {
 		return askErr
 	}
 
 	revision := plan.GetRevision()
 	if provision := newTargets(plan.GetOperations(), targets); len(provision) > 0 {
-		scope := applyScope{provision: provision}
-		provisioned, applyErr := requestApply(ctx, t, data, revision, plan.GetImages(), confirm, scope)
+		provisioned, applyErr := requestApply(ctx, applyRequest{
+			target:    t,
+			file:      data,
+			revision:  revision,
+			images:    plan.GetImages(),
+			confirm:   confirm,
+			provision: provision,
+		})
 		if applyErr != nil {
 			return applyErr
 		}
@@ -174,7 +180,14 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 			return err
 		}
 	}
-	applied, err := requestApply(ctx, t, data, revision, plan.GetImages(), confirm, applyScope{builds: builds})
+	applied, err := requestApply(ctx, applyRequest{
+		target:   t,
+		file:     data,
+		revision: revision,
+		images:   plan.GetImages(),
+		confirm:  confirm,
+		builds:   builds,
+	})
 	if err != nil {
 		return err
 	}

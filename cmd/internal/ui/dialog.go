@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"io"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -42,8 +43,8 @@ func (m yesNoModel) View() tea.View {
 	return tea.NewView("")
 }
 
-func AskYesNo(question string) (bool, error) {
-	p := tea.NewProgram(newYesNoModel(question))
+func AskYesNo(in io.Reader, out io.Writer, question string) (bool, error) {
+	p := tea.NewProgram(newYesNoModel(question), tea.WithInput(in), tea.WithOutput(out))
 	model, err := p.Run()
 	if err != nil {
 		return false, err

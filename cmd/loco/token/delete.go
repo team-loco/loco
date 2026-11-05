@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 )
@@ -52,21 +51,11 @@ func buildDeleteCmd() *cobra.Command {
 				return err
 			}
 
-			yes, err := cmd.Flags().GetBool("yes")
-			if err != nil {
-				return fmt.Errorf("failed to get yes flag: %w", err)
-			}
-			if !yes {
-				confirm, confirmErr := ui.AskYesNo(
-					fmt.Sprintf("Are you sure you want to delete token %q? This cannot be undone.", name),
-				)
-				if confirmErr != nil {
-					return fmt.Errorf("failed to prompt for confirmation: %w", confirmErr)
-				}
-				if !confirm {
-					fmt.Fprintln(cmd.OutOrStdout(), "Aborted.")
-					return nil
-				}
+			confirmed, err := cmdutil.Confirm(
+				cmd, fmt.Sprintf("Are you sure you want to delete token %q? This cannot be undone.", name),
+			)
+			if err != nil || !confirmed {
+				return err
 			}
 
 			req := &tokenv1.RevokeTokenRequest{

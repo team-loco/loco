@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 )
@@ -44,30 +43,18 @@ func buildDeleteCmd() *cobra.Command {
 				return fmt.Errorf("failed to find workspace: %w", err)
 			}
 
-			yes, err := cmd.Flags().GetBool("yes")
-			if err != nil {
-				return fmt.Errorf("failed to get yes flag: %w", err)
-			}
 			confirmDeleteApps, err := cmd.Flags().GetBool("confirm-delete-apps")
 			if err != nil {
 				return fmt.Errorf("failed to get confirm-delete-apps flag: %w", err)
 			}
 
-			if !yes {
-				confirm, confirmErr := ui.AskYesNo(
-					fmt.Sprintf(
-						"Are you sure you want to delete workspace %q (ID: %s)? This cannot be undone.",
-						getResp.GetWorkspace().GetName(),
-						id,
-					),
-				)
-				if confirmErr != nil {
-					return fmt.Errorf("failed to prompt for confirmation: %w", confirmErr)
-				}
-				if !confirm {
-					fmt.Fprintln(cmd.OutOrStdout(), "Aborted.")
-					return nil
-				}
+			confirmed, err := cmdutil.Confirm(cmd, fmt.Sprintf(
+				"Are you sure you want to delete workspace %q (ID: %s)? This cannot be undone.",
+				getResp.GetWorkspace().GetName(),
+				id,
+			))
+			if err != nil || !confirmed {
+				return err
 			}
 
 			delReq := &workspacev1.DeleteWorkspaceRequest{
