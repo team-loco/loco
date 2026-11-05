@@ -23,6 +23,8 @@ The local environment is a development installation. Review the repository's env
 | Platform charts | `charts/` | Kubernetes platform configuration |
 | Observability proxy | `observability-proxy/` | Workspace-scoped reads from ClickHouse, on the control plane |
 
+The development CLI also validates declarative [installation files](../reference/installation.md). This unreleased contract targets existing Kubernetes infrastructure and references external credentials through Secrets.
+
 ## Installation inputs
 
 Configure the API's database, cache, authentication, registry, and API/dashboard endpoints through its environment variables. The [`loco-control-plane` chart README](https://github.com/team-loco/loco/blob/main/charts/loco-control-plane/README.md) lists the ones an installation needs, and [`api/config.go`](https://github.com/team-loco/loco/blob/main/api/config.go) reads every variable with its default. Check them against the deployed release; authentication and registry changes are under active review. The chart runs the region's OpenBao for the [secrets key provider](secrets-key-provider.md#openbao-in-the-control-plane-chart); create its seal key Secret before the first install.

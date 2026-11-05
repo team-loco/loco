@@ -12,6 +12,7 @@ loco config --help
 
 | Command | Purpose |
 | --- | --- |
+| `locoadm validate --file installation.yaml` | Validate the unreleased [installation file](installation.md) contract |
 | `loco login`, `loco logout`, `loco whoami` | Sign in to a Loco instance, sign out, show the signed-in user |
 | `loco org`, `loco workspace`, `loco use` | Manage organizations and workspaces and choose the current one |
 | `loco infra init`, `validate`, `plan`, `apply`, `transfer` | Work with [`loco.yaml`](../deployment/loco-yaml.md) |

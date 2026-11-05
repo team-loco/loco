@@ -5,6 +5,7 @@ import (
 	"github.com/team-loco/loco/cmd/locoadm/bootstrap"
 	"github.com/team-loco/loco/cmd/locoadm/cluster"
 	"github.com/team-loco/loco/cmd/locoadm/user"
+	"github.com/team-loco/loco/cmd/locoadm/validate"
 )
 
 func NewRootCmd() *cobra.Command {
@@ -15,5 +16,6 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(cluster.BuildClusterCmd())
 	root.AddCommand(bootstrap.BuildBootstrapCmd())
 	root.AddCommand(user.BuildUserCmd())
+	root.AddCommand(validate.BuildValidateCmd())
 	return root
 }

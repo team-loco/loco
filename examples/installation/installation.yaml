@@ -1,0 +1,56 @@
+# yaml-language-server: $schema=../../schemas/installation.v1alpha1.json
+version: loco.build/admin/v1alpha1
+name: example
+release:
+  manifest: ./release.yaml
+controlPlane:
+  kubernetes:
+    context: example-control-plane
+    namespace: loco-system
+  apiURL: https://api.example.com
+  webURL: https://console.example.com
+  database:
+    secretRef: {name: loco-inputs, key: database-url}
+  auth:
+    issuer: https://auth.example.com
+    audience: loco
+    webClientId: loco-web
+    bootstrapClientId: loco
+    bootstrapRedirectURI: http://127.0.0.1:8400/callback
+    signupMode: closed
+  sourceBucket:
+    endpoint: https://s3.example.com
+    region: us-east-1
+    bucket: loco-source
+    credentialsSecretRef: {name: loco-source}
+  registry:
+    host: registry.example.com
+    credentialsSecretRef: {name: loco-registry}
+  email:
+    from: Loco <loco@example.com>
+    transportSecretRef: {name: loco-mail, key: transport}
+  openbao:
+    managed: true
+    seal:
+      type: static
+    snapshots:
+      credentialsSecretRef: {name: loco-backups}
+      endpoint: https://s3.example.com
+      region: us-east-1
+      bucket: loco-backups
+  observability:
+    enabled: true
+    ingestURL: https://ingest.example.com
+  certificates:
+    issuerRef: {name: example-issuer, kind: ClusterIssuer}
+workers:
+  - name: staging-us
+    kubernetes:
+      context: example-staging-us
+      namespace: loco-system
+    region: us-east-1
+    tier: staging
+    appsDomain: staging.apps.example.com
+    builds: {enabled: true}
+    certificates:
+      issuerRef: {name: example-issuer, kind: ClusterIssuer}

@@ -1,0 +1,466 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "name",
+    "release",
+    "controlPlane",
+    "workers"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manifest"
+      ],
+      "properties": {
+        "manifest": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "controlPlane": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kubernetes",
+        "apiURL",
+        "webURL",
+        "database",
+        "auth",
+        "sourceBucket",
+        "registry",
+        "email",
+        "openbao",
+        "observability",
+        "certificates"
+      ],
+      "properties": {
+        "kubernetes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "context",
+            "namespace"
+          ],
+          "properties": {
+            "context": {
+              "type": "string",
+              "minLength": 1
+            },
+            "namespace": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "apiURL": {
+          "type": "string",
+          "minLength": 1
+        },
+        "webURL": {
+          "type": "string",
+          "minLength": 1
+        },
+        "database": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "secretRef"
+          ],
+          "properties": {
+            "secretRef": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "key"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "key": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        },
+        "auth": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "issuer",
+            "audience",
+            "webClientId",
+            "signupMode",
+            "bootstrapClientId",
+            "bootstrapRedirectURI"
+          ],
+          "properties": {
+            "issuer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "audience": {
+              "type": "string",
+              "minLength": 1
+            },
+            "webClientId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "signupMode": {
+              "type": "string",
+              "minLength": 1,
+              "enum": [
+                "open",
+                "closed"
+              ]
+            },
+            "bootstrapClientId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bootstrapRedirectURI": {
+              "type": "string",
+              "pattern": "^http://127\\.0\\.0\\.1:[0-9]+/callback$"
+            }
+          }
+        },
+        "sourceBucket": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "endpoint",
+            "region",
+            "bucket",
+            "credentialsSecretRef"
+          ],
+          "properties": {
+            "endpoint": {
+              "type": "string",
+              "minLength": 1
+            },
+            "region": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bucket": {
+              "type": "string",
+              "minLength": 1
+            },
+            "credentialsSecretRef": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        },
+        "registry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "host",
+            "credentialsSecretRef"
+          ],
+          "properties": {
+            "host": {
+              "type": "string",
+              "minLength": 1
+            },
+            "credentialsSecretRef": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        },
+        "email": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "from",
+            "transportSecretRef"
+          ],
+          "properties": {
+            "from": {
+              "type": "string",
+              "minLength": 1
+            },
+            "transportSecretRef": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "key"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "key": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        },
+        "openbao": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "managed",
+            "seal",
+            "snapshots"
+          ],
+          "properties": {
+            "managed": {
+              "type": "boolean",
+              "const": true
+            },
+            "seal": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "type"
+              ],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "minLength": 1,
+                  "enum": [
+                    "static"
+                  ]
+                }
+              }
+            },
+            "snapshots": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "endpoint",
+                "region",
+                "bucket",
+                "credentialsSecretRef"
+              ],
+              "properties": {
+                "endpoint": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "region": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "bucket": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "credentialsSecretRef": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "name"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "observability": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "enabled",
+            "ingestURL"
+          ],
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "const": true
+            },
+            "ingestURL": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "certificates": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "issuerRef"
+          ],
+          "properties": {
+            "issuerRef": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "kind"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "kind": {
+                  "type": "string",
+                  "minLength": 1,
+                  "enum": [
+                    "Issuer",
+                    "ClusterIssuer"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "workers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "kubernetes",
+          "region",
+          "tier",
+          "appsDomain",
+          "builds",
+          "certificates"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kubernetes": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "context",
+              "namespace"
+            ],
+            "properties": {
+              "context": {
+                "type": "string",
+                "minLength": 1
+              },
+              "namespace": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "region": {
+            "type": "string",
+            "minLength": 1
+          },
+          "tier": {
+            "type": "string",
+            "minLength": 1,
+            "enum": [
+              "staging",
+              "production"
+            ]
+          },
+          "appsDomain": {
+            "type": "string",
+            "minLength": 1
+          },
+          "builds": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "enabled"
+            ],
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              }
+            }
+          },
+          "certificates": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "issuerRef"
+            ],
+            "properties": {
+              "issuerRef": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "kind"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "kind": {
+                    "type": "string",
+                    "minLength": 1,
+                    "enum": [
+                      "Issuer",
+                      "ClusterIssuer"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1,
+      "enum": [
+        "loco.build/admin/v1alpha1"
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://loco.build/schemas/installation.v1alpha1.json",
+  "title": "Loco installation"
+}
