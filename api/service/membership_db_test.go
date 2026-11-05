@@ -3,6 +3,7 @@ package service
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"slices"
 	"testing"
 	"time"
@@ -121,7 +122,7 @@ func membershipEmail(subject string) string {
 func (a *membershipAPI) signUp(t *testing.T, subject string) membershipUser {
 	t.Helper()
 	user, _ := a.signIn(t, subject)
-	token, _, err := a.machine.IssueSession(t.Context(), user.ID, nil, "", "test")
+	token, _, err := a.machine.IssueSession(t.Context(), user.ID, nil, netip.Addr{}, "test")
 	if err != nil {
 		t.Fatalf("session for %s: %v", subject, err)
 	}

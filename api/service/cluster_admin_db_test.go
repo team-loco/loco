@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"reflect"
 	"testing"
 	"time"
@@ -227,7 +228,7 @@ func TestClusterAdminHTTPRemovalReportsWorkloadsAndRestoresIdentity(t *testing.T
 		},
 	)
 	t.Cleanup(machine.Close)
-	token, _, issueErr := machine.IssueSession(ctx, userID, nil, "", "admin-test")
+	token, _, issueErr := machine.IssueSession(ctx, userID, nil, netip.Addr{}, "admin-test")
 	if issueErr != nil {
 		t.Fatal(issueErr)
 	}

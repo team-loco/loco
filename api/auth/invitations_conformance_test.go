@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"strconv"
 	"strings"
 	"sync"
@@ -127,7 +128,7 @@ func newJourneyAPI(t *testing.T, mode string, transport mail.Transport) *journey
 	}); scopeErr != nil {
 		t.Fatalf("grant system admin: %v", scopeErr)
 	}
-	session, _, err := machine.IssueSession(t.Context(), admin.ID, nil, "", "journey")
+	session, _, err := machine.IssueSession(t.Context(), admin.ID, nil, netip.Addr{}, "journey")
 	if err != nil {
 		t.Fatalf("admin session: %v", err)
 	}

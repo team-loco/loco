@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/netip"
 	"testing"
 	"time"
 
@@ -264,7 +265,7 @@ var errUnknownUser = errors.New("unknown test user")
 
 func session(t *testing.T, machine *tvm.VendingMachine, userID uuid.UUID) (string, string) {
 	t.Helper()
-	access, refresh, err := machine.IssueSession(t.Context(), userID, nil, "", "")
+	access, refresh, err := machine.IssueSession(t.Context(), userID, nil, netip.Addr{}, "")
 	if err != nil {
 		t.Fatalf("issue session: %v", err)
 	}
