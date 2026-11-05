@@ -341,7 +341,38 @@ CREATE INDEX idx_builds_succeeded_resource ON builds (resource_id, finished_at D
 WHERE
     status = 'succeeded';
 
+CREATE TABLE
+    registry_credentials (
+        id UUID PRIMARY KEY DEFAULT uuidv7 (),
+        kind TEXT NOT NULL CHECK (kind IN ('pull', 'build')),
+        cluster_id UUID NOT NULL REFERENCES clusters (id) ON DELETE CASCADE,
+        workspace_id UUID NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
+        build_id UUID REFERENCES builds (id) ON DELETE CASCADE,
+        secret_hash BYTEA NOT NULL UNIQUE,
+        expires_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+        CHECK (
+            (
+                kind = 'pull'
+                AND build_id IS NULL
+                AND expires_at IS NOT NULL
+            )
+            OR (
+                kind = 'build'
+                AND build_id IS NOT NULL
+                AND expires_at IS NULL
+            )
+        )
+    );
+
+CREATE INDEX idx_registry_credentials_expires_at ON registry_credentials (expires_at);
+
+CREATE INDEX idx_registry_credentials_cluster_id ON registry_credentials (cluster_id);
+
+CREATE INDEX idx_registry_credentials_build_id ON registry_credentials (build_id);
+
 -- +goose Down
+DROP TABLE IF EXISTS registry_credentials;
 DROP TABLE IF EXISTS builds;
 DROP FUNCTION IF EXISTS resource_suspended;
 DROP TABLE IF EXISTS placement_windows;

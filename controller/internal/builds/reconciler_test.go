@@ -569,6 +569,39 @@ var _ = Describe("Build reconcile", Ordered, func() {
 		Expect(apierrors.IsNotFound(err)).To(BeTrue())
 	})
 
+	It("mounts the agent's build registry Secret in fetch and push in token mode", func() {
+		r := testReconciler()
+		r.RegistryTokenMode = true
+		r.Config.PushSecretName = ""
+		r.PullSecretName = ""
+		build := testBuild("token-mode")
+		Expect(k8sClient.Create(ctx, build)).To(Succeed())
+		reconcileBuild(r, build)
+		Expect(build.Status.Phase).To(Equal(locov1alpha1.BuildPhasePending))
+
+		spec := buildJobFor(build).Spec.Template.Spec
+		var secretNames []string
+		for _, volume := range spec.Volumes {
+			if volume.Secret != nil {
+				secretNames = append(secretNames, volume.Secret.SecretName)
+			}
+		}
+		Expect(secretNames).NotTo(BeEmpty())
+		registrySecret := locov1alpha1.BuildRegistrySecretName(build.Spec.BuildID)
+		for _, name := range secretNames {
+			Expect(name).To(Equal(registrySecret))
+		}
+		fetch := findContainer(spec.InitContainers, buildContainerFetch)
+		buildkit := findContainer(spec.InitContainers, buildContainerBuild)
+		push := findContainer(spec.Containers, buildContainerPush)
+		Expect(mountNames(fetch)).To(ContainElement(buildVolumePullCreds))
+		Expect(fetch.Env).To(ContainElement(corev1.EnvVar{Name: "DOCKER_CONFIG", Value: buildPullCredsDir}))
+		Expect(mountNames(push)).To(ContainElement(buildVolumePushCreds))
+		Expect(push.Env).To(ContainElement(corev1.EnvVar{Name: "DOCKER_CONFIG", Value: buildPushCredsDir}))
+		Expect(mountNames(buildkit)).NotTo(ContainElement(buildVolumePushCreds))
+		Expect(mountNames(buildkit)).NotTo(ContainElement(buildVolumePullCreds))
+	})
+
 	It("leaves a foreign job alone", func() {
 		r := testReconciler()
 		build := testBuild("foreign")

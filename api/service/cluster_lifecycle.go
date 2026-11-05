@@ -76,6 +76,9 @@ func ManageCluster(
 			if len(result.Workloads) > 0 && !force {
 				return ErrClusterHasWorkloads
 			}
+			if err := qtx.DeleteClusterRegistryCredentials(ctx, id); err != nil {
+				return fmt.Errorf("delete registry credentials: %w", err)
+			}
 			params.RemoveCluster = true
 		case ClusterRestore:
 			if cluster.RemovedAt == nil {

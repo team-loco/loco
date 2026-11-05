@@ -30,18 +30,24 @@ var (
 	ErrInvalidPayload = errors.New("invalid payload")
 	ErrStaleRevision  = errors.New("revision is older than the one applied")
 	errNoServiceSpec  = errors.New("env secret needs a service deployment spec")
+	errNoWorkspaceID  = errors.New("application has no workspace id")
 
 	errEnvSecretRevision = errors.New("env secret revision differs from the apply revision")
 )
 
+type PullSecrets interface {
+	Ensure(ctx context.Context, workspaceID string) error
+}
+
 // Applier handles applying Kubernetes resources.
 type Applier struct {
-	client    client.Client
-	namespace string
+	client      client.Client
+	namespace   string
+	pullSecrets PullSecrets
 }
 
 // New creates a new Applier for the given cluster config.
-func New(cfg *rest.Config, namespace string) (*Applier, error) {
+func New(cfg *rest.Config, namespace string, pullSecrets PullSecrets) (*Applier, error) {
 	scheme := runtime.NewScheme()
 	if err := locoControllerV1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add loco types to scheme: %w", err)
@@ -55,12 +61,12 @@ func New(cfg *rest.Config, namespace string) (*Applier, error) {
 		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
-	return NewWithClient(c, namespace), nil
+	return NewWithClient(c, namespace, pullSecrets), nil
 }
 
 // NewWithClient creates an Applier that writes through the given client.
-func NewWithClient(c client.Client, namespace string) *Applier {
-	return &Applier{client: c, namespace: namespace}
+func NewWithClient(c client.Client, namespace string, pullSecrets PullSecrets) *Applier {
+	return &Applier{client: c, namespace: namespace, pullSecrets: pullSecrets}
 }
 
 type EnvSecret struct {
@@ -97,6 +103,9 @@ func (a *Applier) ApplyPlacement(ctx context.Context, placement Placement) error
 	if err := setEnvSecretRef(payload.AppSpec, placement); err != nil {
 		return err
 	}
+	if err := a.ensurePullSecret(ctx, payload.AppSpec); err != nil {
+		return err
+	}
 
 	name := applicationName(placement.ResourceID)
 	return retry.OnError(retry.DefaultRetry, isWriteRace, func() error {
@@ -129,6 +138,19 @@ func (a *Applier) ApplyPlacement(ctx context.Context, placement Placement) error
 		live.application = applied
 		return a.writeEnvSecret(ctx, live, placement)
 	})
+}
+
+func (a *Applier) ensurePullSecret(ctx context.Context, spec *locoControllerV1.ApplicationSpec) error {
+	if a.pullSecrets == nil {
+		return nil
+	}
+	if spec.WorkspaceID == "" {
+		return fmt.Errorf("%w: %w", ErrInvalidPayload, errNoWorkspaceID)
+	}
+	if err := a.pullSecrets.Ensure(ctx, spec.WorkspaceID); err != nil {
+		return fmt.Errorf("registry pull Secret: %w", err)
+	}
+	return nil
 }
 
 func isWriteRace(err error) bool {

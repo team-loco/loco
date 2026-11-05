@@ -62,11 +62,12 @@ var (
 
 type Reconciler struct {
 	client.Client
-	Scheme         *runtime.Scheme
-	APIReader      client.Reader
-	Config         Config
-	LocoNamespace  string
-	PullSecretName string
+	Scheme            *runtime.Scheme
+	APIReader         client.Reader
+	Config            Config
+	LocoNamespace     string
+	PullSecretName    string
+	RegistryTokenMode bool
 }
 
 type buildResult struct {
@@ -140,20 +141,15 @@ func (r *Reconciler) handleMissingJob(ctx context.Context, build *locov1alpha1.B
 }
 
 func (r *Reconciler) startBuild(ctx context.Context, build *locov1alpha1.Build) (ctrl.Result, error) {
-	if r.Config.PushSecretName == "" {
+	if !r.RegistryTokenMode && r.Config.PushSecretName == "" {
 		finishBuild(build, locov1alpha1.BuildPhaseFailed, buildMessageNoPushSecret)
 		return ctrl.Result{}, nil
 	}
 	if err := r.ensureBuildNetworkPolicies(ctx); err != nil {
 		return ctrl.Result{}, err
 	}
-	if err := r.copySecret(ctx, r.Config.PushSecretName, buildPushSecret); err != nil {
+	if err := r.copyStaticSecrets(ctx); err != nil {
 		return ctrl.Result{}, err
-	}
-	if r.PullSecretName != "" {
-		if err := r.copySecret(ctx, r.PullSecretName, buildPullSecret); err != nil {
-			return ctrl.Result{}, err
-		}
 	}
 	job, err := r.buildJob(build)
 	if err != nil {
@@ -384,6 +380,19 @@ func (r *Reconciler) patchBuildStatus(
 		return fmt.Errorf("patch build status: %w", err)
 	}
 	return nil
+}
+
+func (r *Reconciler) copyStaticSecrets(ctx context.Context) error {
+	if r.RegistryTokenMode {
+		return nil
+	}
+	if err := r.copySecret(ctx, r.Config.PushSecretName, buildPushSecret); err != nil {
+		return err
+	}
+	if r.PullSecretName == "" {
+		return nil
+	}
+	return r.copySecret(ctx, r.PullSecretName, buildPullSecret)
 }
 
 func (r *Reconciler) copySecret(ctx context.Context, sourceName, targetName string) error {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"net/http"
 	"slices"
 	"strings"
 	"sync"
@@ -15,6 +16,8 @@ import (
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/registryclient"
+	"github.com/team-loco/loco/api/pkg/registrytest"
+	"github.com/team-loco/loco/api/pkg/registrytoken"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -37,6 +40,10 @@ const (
 	uuidVariantMask     = 0x3f
 	uuidTimestampBytes  = 6
 	bitsPerByte         = 8
+
+	testTokenSweepBuilds       = 2
+	testTokenSweepRepositories = 10
+	testTokenSweepTimeout      = 10 * time.Second
 )
 
 var errFakeRegistry = errors.New("fake registry failure")
@@ -192,7 +199,11 @@ func (f *imageSweepFixture) newSweeper(retention int32) *ImageSweeper {
 }
 
 func (f *imageSweepFixture) newSweeperWith(retention int32, tagBatch int) *ImageSweeper {
-	return NewImageSweeper(f.pool, f.queries, f.registry, ImageSweepConfig{
+	return NewImageSweeper(f.pool, f.queries, f.registry, imageSweepConfig(retention, tagBatch))
+}
+
+func imageSweepConfig(retention int32, tagBatch int) ImageSweepConfig {
+	return ImageSweepConfig{
 		RegistryHost:    testRegistryHost,
 		RegistryPrefix:  testRegistryPrefix,
 		Retention:       retention,
@@ -201,7 +212,7 @@ func (f *imageSweepFixture) newSweeperWith(retention int32, tagBatch int) *Image
 		RepositoryBatch: testRepoBatch,
 		TagBatch:        tagBatch,
 		TagMinAge:       testTagMinAge,
-	})
+	}
 }
 
 func fakeDigest(label string, n int) string {
@@ -438,22 +449,14 @@ func TestImageSweepPurgesOrphanedRepositories(t *testing.T) {
 	live := f.succeeded(t)
 
 	gone := f.otherResource(t)
-	goneRepository := imageRepository(testRegistryHost, testRegistryPrefix, f.workspaceID, gone)
-	gonePath, err := registryPath(testRegistryHost, goneRepository)
-	if err != nil {
-		t.Fatalf("registry path: %v", err)
-	}
+	gonePath := sweptRepository(t, f.workspaceID, gone)
 	if _, execErr := f.pool.Exec(f.ctx, `DELETE FROM resources WHERE id = $1`, gone); execErr != nil {
 		t.Fatalf("delete resource: %v", execErr)
 	}
 	goneDigests := []string{fakeDigest("eeee", 1), fakeDigest("eeee", 2)}
 	f.registry.push(gonePath, goneDigests...)
 
-	strangerRepository := imageRepository(testRegistryHost, testRegistryPrefix, uuid.New(), uuid.New())
-	strangerPath, err := registryPath(testRegistryHost, strangerRepository)
-	if err != nil {
-		t.Fatalf("registry path: %v", err)
-	}
+	strangerPath := sweptRepository(t, uuid.New(), uuid.New())
 	strangerDigest := fakeDigest("ffff", 1)
 	f.registry.push(strangerPath, strangerDigest)
 
@@ -734,4 +737,145 @@ func TestImageSweepBoundsTagDeletesPerRun(t *testing.T) {
 	f.sweep(t)
 	f.sweep(t)
 	f.wantTagsGone(t, first, second)
+}
+
+func sweptRepository(t *testing.T, workspaceID, resourceID uuid.UUID) string {
+	t.Helper()
+	repository := imageRepository(testRegistryHost, testRegistryPrefix, workspaceID, resourceID)
+	path, err := registryPath(testRegistryHost, repository)
+	if err != nil {
+		t.Fatalf("registry path: %v", err)
+	}
+	return path
+}
+
+func (f *imageSweepFixture) deletedResourceRepository(t *testing.T) string {
+	t.Helper()
+	gone := f.otherResource(t)
+	if _, err := f.pool.Exec(f.ctx, `DELETE FROM resources WHERE id = $1`, gone); err != nil {
+		t.Fatalf("delete resource: %v", err)
+	}
+	return sweptRepository(t, f.workspaceID, gone)
+}
+
+func TestImageSweepToleratesEmptyRepositories(t *testing.T) {
+	f := newImageSweepFixture(t, 1)
+	kept := f.succeeded(t)
+	emptyLive := sweptRepository(t, f.workspaceID, f.otherResource(t))
+	emptyOrphan := f.deletedResourceRepository(t)
+	f.registry.mu.Lock()
+	f.registry.tags[emptyLive] = map[string]string{}
+	f.registry.tags[emptyOrphan] = map[string]string{}
+	f.registry.mu.Unlock()
+
+	for range len(f.registry.tags) {
+		result := f.sweep(t)
+		if result.OrphanRepositories != 0 || result.OrphanManifests != 0 || result.StaleTags != 0 {
+			t.Fatalf("sweep over empty repositories = %+v, want nothing removed", result)
+		}
+	}
+	f.wantKept(t, kept)
+}
+
+type tokenSweepRegistry struct {
+	*registrytest.Registry
+	server *RegistryServer
+	client *registryclient.Client
+}
+
+func newTokenSweepRegistry(t *testing.T, f *imageSweepFixture) *tokenSweepRegistry {
+	t.Helper()
+	realm := registryFixtureFor(t, f.deployFixture, testRegistryConfig())
+	publicPEM, err := registrytoken.EncodePublicKey(realm.public)
+	if err != nil {
+		t.Fatalf("encode registry key: %v", err)
+	}
+	reg := registrytest.New(t, publicPEM, testRegistryService)
+	client, err := registryclient.New(registryclient.Config{
+		URL:         "http://" + reg.Host,
+		TokenSource: realm.server.SignAPIToken,
+		Timeout:     testTokenSweepTimeout,
+	})
+	if err != nil {
+		t.Fatalf("registry client: %v", err)
+	}
+	return &tokenSweepRegistry{Registry: reg, server: realm.server, client: client}
+}
+
+func (r *tokenSweepRegistry) pushToken(t *testing.T, path string) string {
+	t.Helper()
+	access := []registrytoken.Access{{
+		Type:    registrytoken.TypeRepository,
+		Name:    path,
+		Actions: []string{registrytoken.ActionPull, registrytoken.ActionPush},
+	}}
+	token, err := r.server.SignAPIToken(t.Context(), access)
+	if err != nil {
+		t.Fatalf("sign push token: %v", err)
+	}
+	return token
+}
+
+func (r *tokenSweepRegistry) deleted(path, digest string) bool {
+	want := "/v2/" + path + "/manifests/" + digest
+	for _, request := range r.Requests() {
+		if request.Method == http.MethodDelete && request.Path == want {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *tokenSweepRegistry) listedTags(path string) bool {
+	want := "/v2/" + path + "/tags/list"
+	for _, request := range r.Requests() {
+		if request.Method == http.MethodGet && request.Path == want {
+			return true
+		}
+	}
+	return false
+}
+
+func TestImageSweepRunsOnRegistryAccessTokens(t *testing.T) {
+	f := newImageSweepFixture(t, 1)
+	reg := newTokenSweepRegistry(t, f)
+	config := imageSweepConfig(1, testTagBatch)
+	config.RepositoryBatch = testTokenSweepRepositories
+	f.sweeper = NewImageSweeper(f.pool, f.queries, reg.client, config)
+
+	liveToken := reg.pushToken(t, f.repoPath)
+	builds := make([]sweptBuild, 0, testTokenSweepBuilds)
+	for i := range testTokenSweepBuilds {
+		image := reg.Push(t, f.repoPath, fmt.Sprintf("image-%d", i), liveToken)
+		cache := reg.Push(t, f.repoPath, fmt.Sprintf("cache-%d", i), liveToken)
+		builds = append(builds, f.succeededWith(t, image, cache))
+	}
+	orphan := f.deletedResourceRepository(t)
+	orphanDigest := reg.Push(t, orphan, "image", reg.pushToken(t, orphan))
+	empty := f.deletedResourceRepository(t)
+	emptyDigest := reg.PushUntagged(t, empty, reg.pushToken(t, empty))
+	if err := reg.client.DeleteManifest(f.ctx, empty, emptyDigest); err != nil {
+		t.Fatalf("empty the repository: %v", err)
+	}
+
+	result := f.sweep(t)
+	if result.ImagesDeleted != 1 || result.OrphanRepositories != 1 {
+		t.Fatalf("sweep = %+v, want one image and one orphaned repository deleted", result)
+	}
+	oldest, newest := builds[0], builds[len(builds)-1]
+	if !f.imageDeleted(t, oldest) {
+		t.Fatal("the oldest build is not marked image deleted")
+	}
+	if !reg.deleted(f.repoPath, oldest.image) || !reg.deleted(f.repoPath, oldest.cache) {
+		t.Fatal("the oldest build's image and cache were not deleted from the registry")
+	}
+	if f.imageDeleted(t, newest) || reg.deleted(f.repoPath, newest.image) {
+		t.Fatal("the newest build's image was deleted")
+	}
+	if !reg.deleted(orphan, orphanDigest) {
+		t.Fatal("the deleted resource's repository was not purged")
+	}
+	if !reg.listedTags(empty) {
+		t.Fatal("the sweep never reached the empty repository")
+	}
 }

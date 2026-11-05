@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package loco.registry.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/team-loco/loco/gen/go/loco/registry/v1;registryv1";
+
+// RegistryService issues the credentials worker clusters present to the registry token endpoint.
+service RegistryService {
+  // IssuePullCredential exchanges a cluster assertion for a credential the kubelet presents to the
+  // registry token endpoint, valid for pulls from one workspace's repositories while it is placed on the cluster.
+  rpc IssuePullCredential(IssuePullCredentialRequest) returns (IssuePullCredentialResponse);
+}
+
+message IssuePullCredentialRequest {
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message IssuePullCredentialResponse {
+  string username = 1;
+  string password = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  // registry_host is the registry's host, and port if it has one, as the images the workspace pulls name it.
+  string registry_host = 4;
+}

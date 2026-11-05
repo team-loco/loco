@@ -1109,8 +1109,11 @@ type StartBuild struct {
 	// context is the build context directory relative to the uploaded source, "." for its root.
 	Context        string `protobuf:"bytes,8,opt,name=context,proto3" json:"context,omitempty"`
 	OrganizationId string `protobuf:"bytes,9,opt,name=organization_id,json=organizationId,proto3" json:"organization_id,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// registry_credential is the password the build presents to the registry token endpoint as user loco-build,
+	// set in token mode; it is valid while this build is queued or running on the cluster.
+	RegistryCredential string `protobuf:"bytes,10,opt,name=registry_credential,json=registryCredential,proto3" json:"registry_credential,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *StartBuild) Reset() {
@@ -1202,6 +1205,13 @@ func (x *StartBuild) GetContext() string {
 func (x *StartBuild) GetOrganizationId() string {
 	if x != nil {
 		return x.OrganizationId
+	}
+	return ""
+}
+
+func (x *StartBuild) GetRegistryCredential() string {
+	if x != nil {
+		return x.RegistryCredential
 	}
 	return ""
 }
@@ -1551,7 +1561,7 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x1f\n" +
 	"\vresource_id\x18\x03 \x01(\tR\n" +
-	"resourceId\"\x8e\x03\n" +
+	"resourceId\"\xbf\x03\n" +
 	"\n" +
 	"StartBuild\x12#\n" +
 	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\x12+\n" +
@@ -1564,7 +1574,9 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\x10image_repository\x18\x06 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0fimageRepository\x12\x1b\n" +
 	"\tcache_ref\x18\a \x01(\tR\bcacheRef\x12!\n" +
 	"\acontext\x18\b \x01(\tB\a\xbaH\x04r\x02\x10\x01R\acontext\x124\n" +
-	"\x0forganization_id\x18\t \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\x0eorganizationId\"2\n" +
+	"\x0forganization_id\x18\t \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\x0eorganizationId\x12/\n" +
+	"\x13registry_credential\x18\n" +
+	" \x01(\tR\x12registryCredential\"2\n" +
 	"\vCancelBuild\x12#\n" +
 	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\"\xc8\x01\n" +
 	"\tHeartbeat\x128\n" +

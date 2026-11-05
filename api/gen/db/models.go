@@ -522,6 +522,17 @@ type PlacementWindow struct {
 	RemovedAt   *time.Time `json:"removedAt"`
 }
 
+type RegistryCredential struct {
+	ID          uuid.UUID  `json:"id"`
+	Kind        string     `json:"kind"`
+	ClusterID   uuid.UUID  `json:"clusterId"`
+	WorkspaceID uuid.UUID  `json:"workspaceId"`
+	BuildID     *uuid.UUID `json:"buildId"`
+	SecretHash  []byte     `json:"secretHash"`
+	ExpiresAt   *time.Time `json:"expiresAt"`
+	CreatedAt   time.Time  `json:"createdAt"`
+}
+
 type Resource struct {
 	ID                     uuid.UUID    `json:"id"`
 	WorkspaceID            uuid.UUID    `json:"workspaceId"`

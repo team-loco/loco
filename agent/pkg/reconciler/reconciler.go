@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"connectrpc.com/connect/v2"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/util/workqueue"
 
@@ -183,6 +184,10 @@ func IsRetryable(err error) bool {
 		return true
 	}
 	if apierrors.IsServiceUnavailable(err) {
+		return true
+	}
+	// a brief control plane outage shouldn't count against the placement's apply attempts
+	if connect.CodeOf(err) == connect.CodeUnavailable {
 		return true
 	}
 	var netErr net.Error

@@ -41,6 +41,7 @@ const (
 	conformancePlainKey     = "plain"
 	conformanceMissingKey   = "missing"
 	conformanceSigningKey   = "loco-ingest"
+	conformanceRegistryKey  = "loco-registry"
 	conformanceClusterID    = "0199c3f0-0000-7000-8000-0000000000c1"
 	conformanceSuffixBytes  = 4
 	conformanceTokenTTL     = "3s"
@@ -75,6 +76,12 @@ path "%[1]s/sign/%[3]s" {
   capabilities = ["update"]
 }
 path "%[1]s/keys/%[3]s" {
+  capabilities = ["read"]
+}
+path "%[1]s/sign/%[4]s" {
+  capabilities = ["update"]
+}
+path "%[1]s/keys/%[4]s" {
   capabilities = ["read"]
 }
 `
@@ -167,7 +174,8 @@ func newTransitFixture(t *testing.T, address string) *transitFixture {
 	f.admin.call(t, http.MethodPost, f.mount+"/keys/"+conformancePlainKey, plain, nil)
 	signing := map[string]any{transitTypeField: transitSigningKeyType}
 	f.admin.call(t, http.MethodPost, f.mount+"/keys/"+conformanceSigningKey, signing, nil)
-	policy := fmt.Sprintf(conformancePolicy, f.mount, conformanceKey, conformanceSigningKey)
+	f.admin.call(t, http.MethodPost, f.mount+"/keys/"+conformanceRegistryKey, signing, nil)
+	policy := fmt.Sprintf(conformancePolicy, f.mount, conformanceKey, conformanceSigningKey, conformanceRegistryKey)
 	f.admin.call(t, http.MethodPut, "sys/policies/acl/"+f.policy, map[string]any{"policy": policy}, nil)
 	return f
 }
@@ -299,18 +307,23 @@ func runTransitConformance(t *testing.T, address string) {
 		f := newTransitFixture(t, address)
 		ctx := t.Context()
 		cfg := f.config(address, f.token(t, true), conformanceKey)
-		if _, _, err := New(ctx, cfg, conformanceSigningKey); err != nil {
+		registry := &PinnedKey{Name: conformanceRegistryKey, Version: 1}
+		keys, err := New(ctx, cfg, conformanceSigningKey, registry)
+		if err != nil {
 			t.Fatalf("new with the documented policy: %v", err)
 		}
+		if _, err := keys.Registry.Sign(ctx, keys.RegistryKeyID, []byte("header.claims")); err != nil {
+			t.Fatalf("sign with the pinned registry key: %v", err)
+		}
 		admin := f.config(address, f.admin.token, conformanceKey)
-		if _, _, err := New(ctx, admin, conformanceMissingKey); !errors.Is(err, ErrTransitRequest) {
+		if _, err := New(ctx, admin, conformanceMissingKey, nil); !errors.Is(err, ErrTransitRequest) {
 			t.Fatalf("new with a missing ingest key: err = %v, want ErrTransitRequest", err)
 		}
-		if _, _, err := New(ctx, admin, conformancePlainKey); !errors.Is(err, ErrTransitSigningKeyType) {
+		if _, err := New(ctx, admin, conformancePlainKey, nil); !errors.Is(err, ErrTransitSigningKeyType) {
 			t.Fatalf("new with an aes ingest key: err = %v, want ErrTransitSigningKeyType", err)
 		}
 		admin.Key = conformanceSigningKey
-		if _, _, err := New(ctx, admin, conformanceSigningKey); !errors.Is(err, ErrTransitKeyType) {
+		if _, err := New(ctx, admin, conformanceSigningKey, nil); !errors.Is(err, ErrTransitKeyType) {
 			t.Fatalf("new with an ed25519 secrets key: err = %v, want ErrTransitKeyType", err)
 		}
 	})
@@ -398,6 +411,22 @@ func runTransitSigningConformance(t *testing.T, address string) {
 	}
 	if _, ok := keys["v1"]; ok || len(keys) != 2 {
 		t.Fatalf("published %v after raising the minimum to 2", keys)
+	}
+	pinned, pinnedKey, err := signer.Pin(ctx, 2)
+	if err != nil || !pinnedKey.Equal(keys["v2"]) {
+		t.Fatalf("pin version 2 = %x, %v, want the published v2 key", pinnedKey, err)
+	}
+	pinnedSignature, err := signer.Sign(ctx, pinned, input)
+	if err != nil || !ed25519.Verify(pinnedKey, input, pinnedSignature) {
+		t.Fatalf("sign with the pinned version: %v", err)
+	}
+	raise := map[string]any{"min_encryption_version": 3}
+	f.admin.call(t, http.MethodPost, f.mount+"/keys/"+conformanceSigningKey+"/config", raise, nil)
+	if _, _, err := signer.Pin(ctx, 2); !errors.Is(err, ErrTransitSigningVersion) {
+		t.Fatalf("pin a version below min_encryption_version: err = %v", err)
+	}
+	if _, err := signer.Sign(ctx, pinned, input); !errors.Is(err, ErrTransitRequest) {
+		t.Fatalf("sign below min_encryption_version: err = %v, want ErrTransitRequest", err)
 	}
 	plain := newTestTransit(t, f.config(address, token, conformanceKey)).Signer(conformancePlainKey)
 	if _, err := plain.KeyID(ctx); !errors.Is(err, ErrTransitPermissionDenied) {

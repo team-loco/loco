@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -13,55 +15,67 @@ import (
 	"github.com/team-loco/loco/api/mail"
 	"github.com/team-loco/loco/api/mail/mailtest"
 	"github.com/team-loco/loco/api/pkg/registryclient"
+	"github.com/team-loco/loco/api/pkg/registrytoken"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/internal/bearer"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
-	maxReplicasEnv     = "LOCO_DEFAULT_MAX_REPLICAS"
-	registryHostEnv    = "LOCO_REGISTRY_HOST"
-	registryUserEnv    = "LOCO_REGISTRY_USERNAME"
-	registryPassEnv    = "LOCO_REGISTRY_PASSWORD"
-	testRegistryHost   = "registry.loco.test"
-	testRegistryUser   = "api"
-	testRegistryPass   = "secret"
-	retentionDaysEnv   = "EVENTS_RETENTION_DAYS"
-	installHooksEnv    = "INSTALL_WEBHOOKS"
-	orgLinksEnv        = "ORG_LINKS"
-	authIssuersEnv     = "AUTH_ISSUERS"
-	testAdminEnv       = "LOCO_TEST_ADMIN_TOKEN"
-	testAdminToken     = "service-key"
-	testIssuer         = "https://issuer.loco.test"
-	testHookURL        = "https://hooks.loco.test/events"
-	testHTTPHookURL    = "http://hooks.loco.test/events"
-	testEmailFrom      = "noreply@loco.test"
-	testDatabaseURL    = "postgres://db.loco.test:5432/loco"
-	testHookSecret     = "whsec_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-	transitAddrEnv     = "LOCO_SECRETS_TRANSIT_ADDR"
-	transitMountEnv    = "LOCO_SECRETS_TRANSIT_MOUNT"
-	transitKeyEnv      = "LOCO_SECRETS_TRANSIT_KEY"
-	transitMethodEnv   = "LOCO_SECRETS_TRANSIT_AUTH"
-	transitAuthEnv     = "LOCO_SECRETS_TRANSIT_TOKEN"
-	transitKubeMount   = "LOCO_SECRETS_TRANSIT_KUBERNETES_MOUNT"
-	transitKubeRole    = "LOCO_SECRETS_TRANSIT_KUBERNETES_ROLE"
-	transitKubeJWTFile = "LOCO_SECRETS_TRANSIT_KUBERNETES_TOKEN_FILE"
-	transitCAEnv       = "LOCO_SECRETS_TRANSIT_CA_FILE"
-	transitTimeEnv     = "LOCO_SECRETS_TRANSIT_TIMEOUT"
-	transitStartupEnv  = "LOCO_SECRETS_TRANSIT_STARTUP_TIMEOUT"
-	transitMarginEnv   = "LOCO_SECRETS_TRANSIT_RENEW_MARGIN"
-	transitRetryEnv    = "LOCO_SECRETS_TRANSIT_RENEW_RETRY"
-	transitCacheEnv    = "LOCO_SECRETS_TRANSIT_CACHE_TTL"
-	ingestKeyEnv       = "LOCO_INGEST_TRANSIT_KEY"
-	ingestLifetimeEnv  = "LOCO_INGEST_TOKEN_LIFETIME"
-	testIngestKey      = "loco-ingest"
-	testTransitAddr    = "https://bao.loco.test:8200"
-	testTransitKey     = "loco-dek"
-	testTransitAuth    = "s.transit"
-	testTransitRole    = "loco-api"
-	testTransitKube    = "kubernetes"
-	testTransitJWT     = "/var/run/secrets/openbao/token"
+	maxReplicasEnv      = "LOCO_DEFAULT_MAX_REPLICAS"
+	registryHostEnv     = "LOCO_REGISTRY_HOST"
+	registryURLEnv      = "LOCO_REGISTRY_URL"
+	registryUserEnv     = "LOCO_REGISTRY_USERNAME"
+	registryPassEnv     = "LOCO_REGISTRY_PASSWORD"
+	testRegistryHost    = "registry.loco.test"
+	testRegistryUser    = "api"
+	testRegistryPass    = "secret"
+	retentionDaysEnv    = "EVENTS_RETENTION_DAYS"
+	installHooksEnv     = "INSTALL_WEBHOOKS"
+	orgLinksEnv         = "ORG_LINKS"
+	authIssuersEnv      = "AUTH_ISSUERS"
+	testAdminEnv        = "LOCO_TEST_ADMIN_TOKEN"
+	testAdminToken      = "service-key"
+	testIssuer          = "https://issuer.loco.test"
+	testHookURL         = "https://hooks.loco.test/events"
+	testHTTPHookURL     = "http://hooks.loco.test/events"
+	testEmailFrom       = "noreply@loco.test"
+	testDatabaseURL     = "postgres://db.loco.test:5432/loco"
+	testHookSecret      = "whsec_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+	transitAddrEnv      = "LOCO_SECRETS_TRANSIT_ADDR"
+	transitMountEnv     = "LOCO_SECRETS_TRANSIT_MOUNT"
+	transitKeyEnv       = "LOCO_SECRETS_TRANSIT_KEY"
+	transitMethodEnv    = "LOCO_SECRETS_TRANSIT_AUTH"
+	transitAuthEnv      = "LOCO_SECRETS_TRANSIT_TOKEN"
+	transitKubeMount    = "LOCO_SECRETS_TRANSIT_KUBERNETES_MOUNT"
+	transitKubeRole     = "LOCO_SECRETS_TRANSIT_KUBERNETES_ROLE"
+	transitKubeJWTFile  = "LOCO_SECRETS_TRANSIT_KUBERNETES_TOKEN_FILE"
+	transitCAEnv        = "LOCO_SECRETS_TRANSIT_CA_FILE"
+	transitTimeEnv      = "LOCO_SECRETS_TRANSIT_TIMEOUT"
+	transitStartupEnv   = "LOCO_SECRETS_TRANSIT_STARTUP_TIMEOUT"
+	transitMarginEnv    = "LOCO_SECRETS_TRANSIT_RENEW_MARGIN"
+	transitRetryEnv     = "LOCO_SECRETS_TRANSIT_RENEW_RETRY"
+	transitCacheEnv     = "LOCO_SECRETS_TRANSIT_CACHE_TTL"
+	ingestKeyEnv        = "LOCO_INGEST_TRANSIT_KEY"
+	ingestLifetimeEnv   = "LOCO_INGEST_TOKEN_LIFETIME"
+	testIngestKey       = "loco-ingest"
+	registryAuthEnv     = "LOCO_REGISTRY_AUTH"
+	registryKeyEnv      = "LOCO_REGISTRY_TRANSIT_KEY"
+	registryVersionEnv  = "LOCO_REGISTRY_TRANSIT_KEY_VERSION"
+	registryServiceEnv  = "LOCO_REGISTRY_TOKEN_SERVICE"
+	registryAccessEnv   = "LOCO_REGISTRY_ACCESS_TOKEN_LIFETIME"
+	registryPullEnv     = "LOCO_REGISTRY_PULL_CREDENTIAL_LIFETIME"
+	registrySweepEnv    = "LOCO_REGISTRY_CREDENTIAL_SWEEP_INTERVAL"
+	testRegistryService = "loco-registry-service"
+	testRegistryKey     = "loco-registry"
+	testTransitAddr     = "https://bao.loco.test:8200"
+	testTransitKey      = "loco-dek"
+	testTransitAuth     = "s.transit"
+	testTransitRole     = "loco-api"
+	testTransitKube     = "kubernetes"
+	testTransitJWT      = "/var/run/secrets/openbao/token"
 )
 
 var adminIssuers = `[{"issuer":"` + testIssuer + `","audience":"loco",` +
@@ -97,7 +111,7 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv("LOCO_DEFAULT_DEPLOY_RETRY_DELAY", "")
 	t.Setenv(registryHostEnv, "")
 	t.Setenv("LOCO_REGISTRY_PREFIX", "")
-	t.Setenv("LOCO_REGISTRY_URL", "")
+	t.Setenv(registryURLEnv, "")
 	t.Setenv(registryUserEnv, "")
 	t.Setenv(registryPassEnv, "")
 	t.Setenv("LOCO_REGISTRY_TIMEOUT", "")
@@ -139,6 +153,13 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv(transitCacheEnv, "")
 	t.Setenv(ingestKeyEnv, testIngestKey)
 	t.Setenv(ingestLifetimeEnv, "")
+	t.Setenv(registryAuthEnv, "")
+	t.Setenv(registryKeyEnv, "")
+	t.Setenv(registryVersionEnv, "")
+	t.Setenv(registryServiceEnv, "")
+	t.Setenv(registryAccessEnv, "")
+	t.Setenv(registryPullEnv, "")
+	t.Setenv(registrySweepEnv, "")
 	t.Setenv("LOCO_SECRETS_MAX_VALUE_BYTES", "")
 	t.Setenv("LOCO_SECRETS_MAX_PER_SERVICE", "")
 	t.Setenv("LOCO_SECRETS_MAX_PLACEMENT_BYTES", "")
@@ -349,7 +370,7 @@ func TestNewAPIConfigReadsRegistryCleanup(t *testing.T) {
 		Password: testRegistryPass,
 		Timeout:  defaultRegistryTimeout,
 	}
-	if ac.Registry != wantRegistry {
+	if !reflect.DeepEqual(ac.Registry, wantRegistry) {
 		t.Errorf("registry = %+v, want %+v", ac.Registry, wantRegistry)
 	}
 	wantSweep := service.ImageSweepConfig{
@@ -366,7 +387,7 @@ func TestNewAPIConfigReadsRegistryCleanup(t *testing.T) {
 		t.Errorf("image sweep = %+v, want %+v", ac.ImageSweep, wantSweep)
 	}
 
-	t.Setenv("LOCO_REGISTRY_URL", "http://localhost:5001")
+	t.Setenv(registryURLEnv, "http://localhost:5001")
 	t.Setenv("LOCO_REGISTRY_TIMEOUT", "5s")
 	ac = newAPIConfig()
 	if ac.Registry.URL != "http://localhost:5001" || ac.Registry.Timeout != 5*time.Second {
@@ -400,6 +421,34 @@ func TestImageRetentionZeroDisablesCleanup(t *testing.T) {
 	}
 	if enabled == nil {
 		t.Fatal("retention 1 with credentials created no registry client")
+	}
+}
+
+func TestTokenModeImageRegistryNeedsNoCredentials(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv(registryAuthEnv, locoControllerV1.RegistryAuthToken)
+	t.Setenv(registryHostEnv, testRegistryHost)
+	t.Setenv(registryKeyEnv, testRegistryKey)
+	t.Setenv(registryVersionEnv, "1")
+	t.Setenv(registryServiceEnv, testRegistryService)
+	ac := newAPIConfig()
+	without, err := newImageRegistry(ac.Registry, ac.ImageSweep.Retention)
+	if err != nil {
+		t.Fatalf("new image registry: %v", err)
+	}
+	if without != nil {
+		t.Fatal("a registry without credentials or a token source created a registry client")
+	}
+	tokenConfig := ac.Registry
+	tokenConfig.TokenSource = func(context.Context, []registrytoken.Access) (string, error) {
+		return "", nil
+	}
+	registry, err := newImageRegistry(tokenConfig, ac.ImageSweep.Retention)
+	if err != nil {
+		t.Fatalf("new image registry: %v", err)
+	}
+	if registry == nil {
+		t.Fatal("token mode without a registry username created no registry client")
 	}
 }
 
@@ -556,10 +605,10 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 		{
 			"registry url with a path",
 			map[string]string{
-				registryHostEnv:     testRegistryHost,
-				registryUserEnv:     testRegistryUser,
-				registryPassEnv:     testRegistryPass,
-				"LOCO_REGISTRY_URL": "https://registry.loco.test/v2",
+				registryHostEnv: testRegistryHost,
+				registryUserEnv: testRegistryUser,
+				registryPassEnv: testRegistryPass,
+				registryURLEnv:  "https://registry.loco.test/v2",
 			},
 			errInvalidRegistry,
 		},
@@ -936,5 +985,138 @@ func TestIngestTokenConfiguration(t *testing.T) {
 	t.Setenv(ingestKeyEnv, "transit/"+testIngestKey)
 	if err := panicValue(t, func() { newIngestConfig() }); !errors.Is(err, secretkeys.ErrTransitKeyName) {
 		t.Fatalf("key name with a slash = %v", err)
+	}
+}
+
+func TestRegistryAuthDefaultsToStatic(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv(registryKeyEnv, testRegistryKey)
+	t.Setenv(registryHostEnv, testRegistryHost)
+	t.Setenv(registryUserEnv, testRegistryUser)
+	t.Setenv(registryPassEnv, testRegistryPass)
+	ac := newAPIConfig()
+	want := RegistryAuthConfig{Mode: locoControllerV1.RegistryAuthStatic}
+	if ac.RegistryAuth != want {
+		t.Fatalf("registry auth = %+v, want %+v", ac.RegistryAuth, want)
+	}
+	if ac.Agent.RegistryTokenMode {
+		t.Fatal("static registry auth sends builds registry credentials")
+	}
+	if ac.Registry.Username != testRegistryUser || ac.Registry.Password != testRegistryPass {
+		t.Fatalf("registry = %+v, want the static credentials", ac.Registry)
+	}
+}
+
+func TestRegistryAuthTokenPinsTheTransitKeyVersion(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv(registryAuthEnv, locoControllerV1.RegistryAuthToken)
+	t.Setenv(registryHostEnv, testRegistryHost)
+	t.Setenv(registryKeyEnv, testRegistryKey)
+	t.Setenv(registryVersionEnv, "3")
+	t.Setenv(registryServiceEnv, testRegistryService)
+	want := RegistryAuthConfig{
+		Mode:                   locoControllerV1.RegistryAuthToken,
+		TransitKey:             secretkeys.PinnedKey{Name: testRegistryKey, Version: 3},
+		Service:                testRegistryService,
+		AccessTokenLifetime:    5 * time.Minute,
+		PullCredentialLifetime: 24 * time.Hour,
+		CredentialSweep:        10 * time.Minute,
+	}
+	ac := newAPIConfig()
+	if ac.RegistryAuth != want {
+		t.Fatalf("registry auth = %+v, want %+v", ac.RegistryAuth, want)
+	}
+	if !ac.Agent.RegistryTokenMode {
+		t.Fatal("token registry auth sends builds no registry credentials")
+	}
+}
+
+func TestRegistryAuthTokenReadsTheLifetimes(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv(registryAuthEnv, locoControllerV1.RegistryAuthToken)
+	t.Setenv(registryHostEnv, testRegistryHost)
+	t.Setenv(registryKeyEnv, testRegistryKey)
+	t.Setenv(registryVersionEnv, "1")
+	t.Setenv(registryServiceEnv, testRegistryService)
+	t.Setenv(registryAccessEnv, "90s")
+	t.Setenv(registryPullEnv, "2m")
+	t.Setenv(registrySweepEnv, "30s")
+	got := newAPIConfig().RegistryAuth
+	if got.AccessTokenLifetime != 90*time.Second || got.PullCredentialLifetime != 2*time.Minute {
+		t.Fatalf("lifetimes = %s and %s, want 1m30s and 2m", got.AccessTokenLifetime, got.PullCredentialLifetime)
+	}
+	if got.CredentialSweep != 30*time.Second {
+		t.Fatalf("credential sweep interval = %s, want 30s", got.CredentialSweep)
+	}
+}
+
+func TestRegistryAuthPanicsOnInvalidConfiguration(t *testing.T) {
+	token := map[string]string{
+		registryAuthEnv:    locoControllerV1.RegistryAuthToken,
+		registryHostEnv:    testRegistryHost,
+		registryKeyEnv:     testRegistryKey,
+		registryVersionEnv: "1",
+		registryServiceEnv: testRegistryService,
+	}
+	tests := []struct {
+		name string
+		env  map[string]string
+		want error
+	}{
+		{"unknown mode", map[string]string{registryAuthEnv: "bearer"}, errInvalidRegistryAuth},
+		{"mode in capitals", map[string]string{registryAuthEnv: "Token"}, errInvalidRegistryAuth},
+		{"token without a key", map[string]string{registryKeyEnv: ""}, secretkeys.ErrTransitKeyName},
+		{
+			"token with a key path",
+			map[string]string{registryKeyEnv: "transit/" + testRegistryKey},
+			errInvalidRegistryKey,
+		},
+		{"token with the ingest key", map[string]string{registryKeyEnv: testIngestKey}, errRegistryKeyShared},
+		{"token with the secrets key", map[string]string{registryKeyEnv: testTransitKey}, errRegistryKeyShared},
+		{"token without a version", map[string]string{registryVersionEnv: ""}, errInvalidRegistryVersion},
+		{"token with version zero", map[string]string{registryVersionEnv: "0"}, errInvalidRegistryVersion},
+		{"token with a negative version", map[string]string{registryVersionEnv: "-1"}, errInvalidRegistryVersion},
+		{"token with a version name", map[string]string{registryVersionEnv: "v1"}, errInvalidInt32},
+		{"token without a service", map[string]string{registryServiceEnv: ""}, errMissingRegistryService},
+		{"token without a registry host", map[string]string{registryHostEnv: ""}, errRegistryTokenNoHost},
+		{
+			"token with a registry url path",
+			map[string]string{registryURLEnv: "https://" + testRegistryHost + "/v2"},
+			registryclient.ErrURLInvalid,
+		},
+		{
+			"token with an ftp registry url",
+			map[string]string{registryURLEnv: "ftp://" + testRegistryHost},
+			errInvalidRegistry,
+		},
+		{"token with a zero registry timeout", map[string]string{"LOCO_REGISTRY_TIMEOUT": "0s"}, errNotPositive},
+		{"token with a zero access lifetime", map[string]string{registryAccessEnv: "0s"}, errNotPositive},
+		{"token with a negative pull lifetime", map[string]string{registryPullEnv: "-1h"}, errNotPositive},
+		{"token with a pull lifetime in hours", map[string]string{registryPullEnv: "24"}, errInvalidDuration},
+		{"token with a zero sweep interval", map[string]string{registrySweepEnv: "0s"}, errNotPositive},
+		{
+			"token with static credentials",
+			map[string]string{
+				registryHostEnv: testRegistryHost,
+				registryUserEnv: testRegistryUser,
+				registryPassEnv: testRegistryPass,
+			},
+			errRegistryStaticOnly,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clearAPIConfigEnv(t)
+			for key, value := range token {
+				t.Setenv(key, value)
+			}
+			for key, value := range tt.env {
+				t.Setenv(key, value)
+			}
+			err := panicValue(t, func() { newAPIConfig() })
+			if !errors.Is(err, tt.want) {
+				t.Errorf("panic = %v, want %v", err, tt.want)
+			}
+		})
 	}
 }

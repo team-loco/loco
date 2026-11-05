@@ -343,6 +343,35 @@ tests:
       - failedTemplate:
           errorPattern: "/openbao/transit/ingestKey': minLength"
 
+  - it: creates the ed25519 registry signing key and lets the API sign with it and read it
+    set:
+      openbao.transit.registryKey: region-registry
+    template: templates/openbao-setup.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGISTRY_TRANSIT_KEY, value: region-registry}
+        documentSelector: {path: kind, value: Job}
+      - matchRegex:
+          path: data["openbao-setup.sh"]
+          pattern: 'bao write -f "\$mount/keys/\$registry_key" type=ed25519'
+        documentSelector: {path: kind, value: ConfigMap}
+      - matchRegex:
+          path: data["openbao-setup.sh"]
+          pattern: 'path "\$mount/sign/\$registry_key" \{\n  capabilities = \["update"\]\n\}\npath "\$mount/keys/\$registry_key" \{\n  capabilities = \["read"\]\n\}'
+        documentSelector: {path: kind, value: ConfigMap}
+      - matchRegex:
+          path: data["openbao-setup.sh"]
+          pattern: 'path "\$mount/keys/\$registry_key" \{\n  capabilities = \["create", "read", "update"\]\n\}'
+        documentSelector: {path: kind, value: ConfigMap}
+
+  - it: requires a registry signing key name
+    set:
+      openbao.transit.registryKey: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: "/openbao/transit/registryKey': minLength"
+
   - it: does not hand the API environment to the setup Job
     template: templates/openbao-setup.yaml
     documentSelector: {path: kind, value: Job}

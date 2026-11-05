@@ -38,6 +38,7 @@ type Querier interface {
 	// -----------------------------------------------------------------------------
 	CreateAPIToken(ctx context.Context, arg CreateAPITokenParams) error
 	CreateBuild(ctx context.Context, arg CreateBuildParams) (Build, error)
+	CreateBuildRegistryCredential(ctx context.Context, arg CreateBuildRegistryCredentialParams) (int64, error)
 	CreateCluster(ctx context.Context, arg CreateClusterParams) (uuid.UUID, error)
 	// Deployment queries
 	CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (uuid.UUID, error)
@@ -47,6 +48,7 @@ type Querier interface {
 	CreateOrg(ctx context.Context, arg CreateOrgParams) (Organization, error)
 	// Organization queries
 	CreateOrganization(ctx context.Context, arg CreateOrganizationParams) (CreateOrganizationRow, error)
+	CreatePullRegistryCredential(ctx context.Context, arg CreatePullRegistryCredentialParams) (int64, error)
 	// Resource queries
 	CreateResource(ctx context.Context, arg CreateResourceParams) (uuid.UUID, error)
 	CreateResourceDomain(ctx context.Context, arg CreateResourceDomainParams) (uuid.UUID, error)
@@ -63,9 +65,11 @@ type Querier interface {
 	DeleteAPITokenByNameAndEntity(ctx context.Context, arg DeleteAPITokenByNameAndEntityParams) error
 	DeleteAPITokensForEntity(ctx context.Context, arg DeleteAPITokensForEntityParams) error
 	DeleteAppliedPlacement(ctx context.Context, arg DeleteAppliedPlacementParams) (int64, error)
+	DeleteClusterRegistryCredentials(ctx context.Context, clusterID uuid.UUID) error
 	DeleteEnvironment(ctx context.Context, id uuid.UUID) error
 	DeleteEventsBefore(ctx context.Context, createdAt time.Time) (int64, error)
 	DeleteExpiredAPITokens(ctx context.Context) error
+	DeleteExpiredPullRegistryCredentials(ctx context.Context) (int64, error)
 	// session is fully dead once the refresh token expires (access expiry alone is not enough)
 	DeleteExpiredSessionTokens(ctx context.Context) error
 	DeleteInstallWebhooksExcept(ctx context.Context, urls []string) (int64, error)
@@ -77,6 +81,7 @@ type Querier interface {
 	DeleteSessionToken(ctx context.Context, id uuid.UUID) error
 	DeleteSessionTokenByAccessHash(ctx context.Context, accessTokenHash string) error
 	DeleteSessionTokensForIdentity(ctx context.Context, identityID *uuid.UUID) error
+	DeleteStoppedBuildRegistryCredentials(ctx context.Context) (int64, error)
 	DeleteUser(ctx context.Context, id uuid.UUID) error
 	DeleteWorkspace(ctx context.Context, id uuid.UUID) error
 	DeleteWorkspaceWebhook(ctx context.Context, arg DeleteWorkspaceWebhookParams) (int64, error)
@@ -112,6 +117,7 @@ type Querier interface {
 	GetOrganizationIDByWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	GetPlacementForResourceCluster(ctx context.Context, arg GetPlacementForResourceClusterParams) (Placement, error)
 	GetPrimaryResourceDomain(ctx context.Context, arg GetPrimaryResourceDomainParams) (string, error)
+	GetRegistryGrant(ctx context.Context, arg GetRegistryGrantParams) (GetRegistryGrantRow, error)
 	GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, error)
 	GetResourceByNameAndWorkspace(ctx context.Context, arg GetResourceByNameAndWorkspaceParams) (Resource, error)
 	GetResourceDomainByID(ctx context.Context, id uuid.UUID) (ResourceDomain, error)

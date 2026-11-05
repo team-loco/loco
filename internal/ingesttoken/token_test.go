@@ -15,6 +15,7 @@ import (
 
 	"github.com/team-loco/loco/internal/ingesttoken"
 	"github.com/team-loco/loco/internal/ingesttoken/ingesttest"
+	"github.com/team-loco/loco/internal/jwssign"
 )
 
 const (
@@ -107,7 +108,7 @@ func TestSignFailsWithoutAnEd25519Signature(t *testing.T) {
 	}
 	short := failingSigner{signature: []byte("short")}
 	_, _, err = ingesttoken.Sign(t.Context(), short, testClusterID, now, testLifetime)
-	if !errors.Is(err, ingesttoken.ErrSignature) {
+	if !errors.Is(err, jwssign.ErrSignature) {
 		t.Fatalf("short signature = %v", err)
 	}
 }

@@ -4,23 +4,21 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/go-jose/go-jose/v4"
 	"github.com/go-jose/go-jose/v4/jwt"
+
+	"github.com/team-loco/loco/internal/jwssign"
 )
 
 const (
 	Audience = "loco-ingest"
 	JWKSPath = "/.well-known/loco-ingest-jwks.json"
 
-	tokenType  = "JWT"
-	keyUse     = "sig"
-	segmentSep = "."
+	keyUse = "sig"
 )
 
 var (
@@ -28,13 +26,9 @@ var (
 	ErrExpired       = errors.New("ingest token expired")
 	ErrUnknownKey    = errors.New("ingest token signed by an unknown key")
 	ErrMissingClaims = errors.New("ingest token lacks sub, jti, iat or exp")
-	ErrSignature     = errors.New("ingest token signer returned no Ed25519 signature")
 )
 
-var (
-	algorithms = []jose.SignatureAlgorithm{jose.EdDSA}
-	encoding   = base64.RawURLEncoding
-)
+var algorithms = []jose.SignatureAlgorithm{jose.EdDSA}
 
 type Signer interface {
 	KeyID(ctx context.Context) (string, error)
@@ -44,12 +38,6 @@ type Signer interface {
 type Claims struct {
 	ClusterID string
 	Expiry    time.Time
-}
-
-type header struct {
-	Algorithm jose.SignatureAlgorithm `json:"alg"`
-	Type      string                  `json:"typ"`
-	KeyID     string                  `json:"kid"`
 }
 
 func Sign(
@@ -71,31 +59,11 @@ func Sign(
 		Expiry:   jwt.NewNumericDate(expiry),
 		ID:       rand.Text(),
 	}
-	encodedHeader, err := encodeSegment(header{Algorithm: jose.EdDSA, Type: tokenType, KeyID: keyID})
-	if err != nil {
-		return "", time.Time{}, err
-	}
-	encodedClaims, err := encodeSegment(claims)
-	if err != nil {
-		return "", time.Time{}, err
-	}
-	input := encodedHeader + segmentSep + encodedClaims
-	signature, err := signer.Sign(ctx, keyID, []byte(input))
+	token, err := jwssign.Sign(ctx, signer, keyID, claims)
 	if err != nil {
 		return "", time.Time{}, fmt.Errorf("sign ingest token: %w", err)
 	}
-	if len(signature) != ed25519.SignatureSize {
-		return "", time.Time{}, fmt.Errorf("%w: %d bytes", ErrSignature, len(signature))
-	}
-	return input + segmentSep + encoding.EncodeToString(signature), expiry, nil
-}
-
-func encodeSegment(value any) (string, error) {
-	encoded, err := json.Marshal(value)
-	if err != nil {
-		return "", fmt.Errorf("encode ingest token: %w", err)
-	}
-	return encoding.EncodeToString(encoded), nil
+	return token, expiry, nil
 }
 
 func PublicKey(keyID string, key ed25519.PublicKey) jose.JSONWebKey {

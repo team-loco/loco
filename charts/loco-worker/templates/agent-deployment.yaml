@@ -100,6 +100,10 @@ spec:
               value: {{ include "loco-worker.certificate" . | quote }}
             - name: LOCO_APP_DOMAINS
               value: {{ join "," .Values.global.domain.apps | quote }}
+            - name: LOCO_REGISTRY_AUTH
+              value: {{ .Values.registry.auth | quote }}
+            - name: LOCO_REGISTRY_CREDENTIAL_CHECK_INTERVAL
+              value: {{ .Values.agent.registryCredentialCheckInterval | quote }}
           envFrom:
             - secretRef:
                 name: {{ .Release.Name }}-env

@@ -221,10 +221,11 @@ func TestNewCachesTransitUnwraps(t *testing.T) {
 	fake := newFakeTransit(t)
 	server := fake.server()
 	cfg := transitConfig(server.URL)
-	provider, _, err := New(t.Context(), cfg, fakeSigningKey)
+	keys, err := New(t.Context(), cfg, fakeSigningKey, nil)
 	if err != nil {
 		t.Fatalf("new: %v", err)
 	}
+	provider := keys.Provider
 	aad := DEKAAD(environmentID)
 	wrapped, err := provider.Wrap(context.Background(), testDEK(t), aad)
 	if err != nil {

@@ -141,3 +141,53 @@ func TestApplicationReconcilerRequiresTheGatewayAndWorkspacePrefix(t *testing.T)
 		t.Errorf("without a workspace prefix: err = %v, want %v", err, errWorkspacePrefixMissing)
 	}
 }
+
+func TestRegistryTokenModeRejectsTheStaticRegistrySecrets(t *testing.T) {
+	application := testApplicationConfig()
+	application.RegistryTokenMode = true
+	if _, err := selectReconciler(reconcilerApplication, application); !errors.Is(err, errStaticSecretInTokenMode) {
+		t.Errorf("application with a pull secret: err = %v, want %v", err, errStaticSecretInTokenMode)
+	}
+
+	withPush, err := buildstest.ChartConfigJSON(map[string]any{"pushSecretName": "registry-push"})
+	if err != nil {
+		t.Fatalf("read the chart's build values: %v", err)
+	}
+	withoutPush, err := buildstest.ChartConfigJSON(nil)
+	if err != nil {
+		t.Fatalf("read the chart's build values: %v", err)
+	}
+	cases := map[string]operatorConfig{
+		"push secret": {LocoNamespace: testLocoNamespace, RawBuildConfig: withPush},
+		"pull secret": {
+			LocoNamespace:  testLocoNamespace,
+			RawBuildConfig: withoutPush,
+			PullSecretName: testPullSecretName,
+		},
+	}
+	for name, operator := range cases {
+		t.Run(name, func(t *testing.T) {
+			operator.RegistryTokenMode = true
+			if _, err := selectReconciler(reconcilerBuild, operator); !errors.Is(err, errStaticSecretInTokenMode) {
+				t.Errorf("build with a %s: err = %v, want %v", name, err, errStaticSecretInTokenMode)
+			}
+		})
+	}
+}
+
+func TestRegistryTokenModeStartsWithoutStaticRegistrySecrets(t *testing.T) {
+	application := testApplicationConfig()
+	application.PullSecretName = ""
+	application.RegistryTokenMode = true
+	if _, err := selectReconciler(reconcilerApplication, application); err != nil {
+		t.Errorf("application: %v", err)
+	}
+	rawBuildConfig, err := buildstest.ChartConfigJSON(nil)
+	if err != nil {
+		t.Fatalf("read the chart's build values: %v", err)
+	}
+	build := operatorConfig{LocoNamespace: testLocoNamespace, RawBuildConfig: rawBuildConfig, RegistryTokenMode: true}
+	if _, err := selectReconciler(reconcilerBuild, build); err != nil {
+		t.Errorf("build: %v", err)
+	}
+}

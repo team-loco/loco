@@ -89,3 +89,35 @@ func TestTransitSignerReportsARefusedSignature(t *testing.T) {
 		t.Fatalf("sign with an unknown version = %v", err)
 	}
 }
+
+func TestTransitSignerPinsAVersionBetweenTheMinimumAndTheLatest(t *testing.T) {
+	fake, signer := newTestSigner(t)
+	fake.rotateSigningKey()
+	fake.rotateSigningKey()
+	published, err := signer.PublicKeys(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for version, want := range map[int]string{1: "v1", 2: "v2", 3: "v3"} {
+		keyID, public, err := signer.Pin(t.Context(), version)
+		if err != nil || keyID != want || !public.Equal(published[want]) {
+			t.Fatalf("pin version %d = %q, %x, %v, want %s and its public key", version, keyID, public, err, want)
+		}
+	}
+	for _, version := range []int{0, 4} {
+		if _, _, err := signer.Pin(t.Context(), version); !errors.Is(err, ErrTransitSigningVersion) {
+			t.Errorf("pin version %d = %v, want ErrTransitSigningVersion", version, err)
+		}
+	}
+	fake.trimSigningKeys(2)
+	if _, _, err := signer.Pin(t.Context(), 1); !errors.Is(err, ErrTransitSigningVersion) {
+		t.Errorf("pin below min_decryption_version = %v", err)
+	}
+	fake.raiseMinEncryptionVersion(3)
+	if _, _, err := signer.Pin(t.Context(), 2); !errors.Is(err, ErrTransitSigningVersion) {
+		t.Errorf("pin below min_encryption_version = %v", err)
+	}
+	if keyID, _, err := signer.Pin(t.Context(), 3); err != nil || keyID != "v3" {
+		t.Errorf("pin the latest version = %q, %v", keyID, err)
+	}
+}

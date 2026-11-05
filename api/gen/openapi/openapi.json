@@ -4240,6 +4240,68 @@
         }
       }
     },
+    "/loco.registry.v1.RegistryService/IssuePullCredential": {
+      "post": {
+        "tags": [
+          "loco.registry.v1.RegistryService"
+        ],
+        "summary": "IssuePullCredential",
+        "description": "IssuePullCredential exchanges a cluster assertion for a credential the kubelet presents to the\n registry token endpoint, valid for pulls from one workspace's repositories while it is placed on the cluster.",
+        "operationId": "loco.registry.v1.RegistryService.IssuePullCredential",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.registry.v1.IssuePullCredentialRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.registry.v1.IssuePullCredentialResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.resource.v1.ResourceService/CreateResource": {
       "post": {
         "tags": [
@@ -7351,6 +7413,11 @@
             "type": "string",
             "title": "organization_id",
             "format": "uuid"
+          },
+          "registryCredential": {
+            "type": "string",
+            "title": "registry_credential",
+            "description": "registry_credential is the password the build presents to the registry token endpoint as user loco-build,\n set in token mode; it is valid while this build is queued or running on the cluster."
           }
         },
         "title": "StartBuild",
@@ -11832,6 +11899,46 @@
         "additionalProperties": false,
         "description": "StartedDeployment is a deployment an apply created for a runtime change."
       },
+      "loco.registry.v1.IssuePullCredentialRequest": {
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id",
+            "format": "uuid"
+          }
+        },
+        "title": "IssuePullCredentialRequest",
+        "additionalProperties": false
+      },
+      "loco.registry.v1.IssuePullCredentialResponse": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "username"
+          },
+          "password": {
+            "type": "string",
+            "title": "password"
+          },
+          "expiresAt": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/google.protobuf.Timestamp"
+              }
+            ],
+            "title": "expires_at"
+          },
+          "registryHost": {
+            "type": "string",
+            "title": "registry_host",
+            "description": "registry_host is the registry's host, and port if it has one, as the images the workspace pulls name it."
+          }
+        },
+        "title": "IssuePullCredentialResponse",
+        "additionalProperties": false
+      },
       "loco.resource.v1.BlobSpec": {
         "type": "object",
         "title": "BlobSpec",
@@ -14679,6 +14786,10 @@
     {
       "name": "loco.plan.v1.PlanService",
       "description": "PlanService diffs a loco.yaml file against an environment."
+    },
+    {
+      "name": "loco.registry.v1.RegistryService",
+      "description": "RegistryService issues the credentials worker clusters present to the registry token endpoint."
     },
     {
       "name": "loco.secret.v1.SecretService",

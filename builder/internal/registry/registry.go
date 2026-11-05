@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
+	"strings"
+	"time"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -20,7 +23,17 @@ const (
 	userAgent     = "loco-builder"
 	annotationRef = "org.opencontainers.image.ref.name"
 	cacheRefName  = "latest"
+	bearerScheme  = "bearer"
 )
+
+var transientStatusCodes = []int{
+	http.StatusRequestTimeout,
+	http.StatusTooManyRequests,
+	http.StatusInternalServerError,
+	http.StatusBadGateway,
+	http.StatusServiceUnavailable,
+	http.StatusGatewayTimeout,
+}
 
 var (
 	ErrTagExists     = errors.New("tag already exists")
@@ -28,20 +41,61 @@ var (
 )
 
 type Client struct {
+	ctx      context.Context
 	insecure bool
+	keychain authn.Keychain
+	base     http.RoundTripper
+	ping     http.RoundTripper
+	exchange http.RoundTripper
+	now      func() time.Time
+	sleep    func(context.Context, time.Duration) error
 	options  []remote.Option
 }
 
 func New(ctx context.Context, insecure bool) *Client {
-	keychain := remote.WithAuthFromKeychain(authn.DefaultKeychain)
+	retryCodes := transport.WithRetryStatusCodes(transientStatusCodes...)
+	retrying := transport.NewRetry(remote.DefaultTransport, retryCodes)
 	return &Client{
+		ctx:      ctx,
 		insecure: insecure,
+		keychain: authn.DefaultKeychain,
+		base:     remote.DefaultTransport,
+		ping:     transport.NewUserAgent(retrying, userAgent),
+		exchange: transport.NewUserAgent(remote.DefaultTransport, userAgent),
+		now:      time.Now,
+		sleep:    sleepContext,
 		options: []remote.Option{
 			remote.WithContext(ctx),
-			keychain,
 			remote.WithUserAgent(userAgent),
 		},
 	}
+}
+
+func (c *Client) remoteOptions(repo name.Repository, action string) ([]remote.Option, error) {
+	challenge, err := transport.Ping(c.ctx, repo.Registry, c.ping)
+	if err != nil {
+		return nil, fmt.Errorf("ping %s: %w", repo.Registry, err)
+	}
+	options := slices.Clone(c.options)
+	if !strings.EqualFold(challenge.Scheme, bearerScheme) {
+		keychain := remote.WithAuthFromKeychain(c.keychain)
+		return append(options, keychain), nil
+	}
+	auth, err := c.keychain.Resolve(repo.Registry)
+	if err != nil {
+		return nil, fmt.Errorf("resolve credentials for %s: %w", repo.Registry, err)
+	}
+	tokens := &tokenTransport{
+		inner:     c.base,
+		exchange:  c.exchange,
+		registry:  repo.Registry,
+		challenge: challenge,
+		auth:      auth,
+		scopes:    []string{repo.Scope(action)},
+		now:       c.now,
+		sleep:     c.sleep,
+	}
+	return append(options, remote.WithTransport(tokens)), nil
 }
 
 func (c *Client) nameOptions() []name.Option {
@@ -56,7 +110,11 @@ func (c *Client) RestoreCache(ref, dir string, maxBytes int64) error {
 	if err != nil {
 		return fmt.Errorf("parse cache reference %q: %w", ref, err)
 	}
-	img, err := remote.Image(digest, c.options...)
+	options, err := c.remoteOptions(digest.Context(), transport.PullScope)
+	if err != nil {
+		return err
+	}
+	img, err := remote.Image(digest, options...)
 	if err != nil {
 		return fmt.Errorf("fetch cache %s: %w", ref, err)
 	}
@@ -87,8 +145,8 @@ func CredentialRejected(err error) bool {
 	return ok && (terr.StatusCode == http.StatusUnauthorized || terr.StatusCode == http.StatusForbidden)
 }
 
-func (c *Client) ensureTagFree(tag name.Tag) error {
-	_, err := remote.Head(tag, c.options...)
+func ensureTagFree(tag name.Tag, options []remote.Option) error {
+	_, err := remote.Head(tag, options...)
 	if err == nil {
 		return fmt.Errorf("%s: %w", tag, ErrTagExists)
 	}
@@ -116,7 +174,11 @@ func (c *Client) PushLayout(dir, ref string, imageOnly bool) (v1.Hash, error) {
 	if err != nil {
 		return v1.Hash{}, fmt.Errorf("read %s/index.json: %w", dir, err)
 	}
-	if err := c.ensureTagFree(tag); err != nil {
+	options, err := c.remoteOptions(tag.Context(), transport.PushScope)
+	if err != nil {
+		return v1.Hash{}, err
+	}
+	if err := ensureTagFree(tag, options); err != nil {
 		return v1.Hash{}, err
 	}
 	if len(manifest.Manifests) == 1 && isImage(manifest.Manifests[0].MediaType) {
@@ -124,7 +186,7 @@ func (c *Client) PushLayout(dir, ref string, imageOnly bool) (v1.Hash, error) {
 		if imgErr != nil {
 			return v1.Hash{}, fmt.Errorf("read image from %s: %w", dir, imgErr)
 		}
-		if err := remote.Write(tag, img, c.options...); err != nil {
+		if err := remote.Write(tag, img, options...); err != nil {
 			return v1.Hash{}, fmt.Errorf("push %s: %w", tag, err)
 		}
 		return img.Digest()
@@ -132,7 +194,7 @@ func (c *Client) PushLayout(dir, ref string, imageOnly bool) (v1.Hash, error) {
 	if imageOnly {
 		return v1.Hash{}, fmt.Errorf("%s/index.json must list exactly one image manifest", dir)
 	}
-	if err := remote.WriteIndex(tag, index, c.options...); err != nil {
+	if err := remote.WriteIndex(tag, index, options...); err != nil {
 		return v1.Hash{}, fmt.Errorf("push %s: %w", tag, err)
 	}
 	return index.Digest()

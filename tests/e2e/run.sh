@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # E2E test orchestrator for Loco
-# Usage: ./tests/e2e/run.sh [--no-teardown] [--skip-build] [--build-only] [--teardown-only] [--builds-disabled] [--observability] [test-filter...]
+# Usage: ./tests/e2e/run.sh [--no-teardown] [--skip-build] [--build-only] [--teardown-only] [--builds-disabled] [--observability] [--registry-token] [test-filter...]
 
 set -euo pipefail
 
@@ -37,6 +37,7 @@ OBS_PROXY_PORT=$((PORT_BASE + 1))
 S3_PORT=$((PORT_BASE + 2))
 CLICKHOUSE_PORT=$((PORT_BASE + 3))
 GATEWAY_PORT=$((PORT_BASE + 4))
+REGISTRY_HOST_PORT=$((PORT_BASE + 8))
 READY_TIMEOUT=120
 OBS_READY_TIMEOUT=600
 HELM_TIMEOUT=10m
@@ -72,6 +73,7 @@ CLICKHOUSE_IMAGE=$(yq '.clickhouse.clickhouse.image.repository + ":" + .clickhou
 CLICKHOUSE_CONTAINER="${RUN_NAME}-clickhouse"
 OBS_PROXY_REPOSITORY="loco-obs-proxy"
 INGEST_CONTAINER="${RUN_NAME}-obs-ingest"
+REALM_CONTAINER="${RUN_NAME}-realm"
 INGEST_OTLP_HTTP_PORT=$(yq '.obsProxy.ingest.httpPort' "$CONTROL_PLANE_VALUES")
 OBS_DATABASE=$(yq '.clickhouse.clickhouse.database' "$CONTROL_PLANE_VALUES")
 CLICKHOUSE_USER="loco_e2e"
@@ -90,6 +92,10 @@ USER_TOKEN="loco_s_e2e-test-session-do-not-use-in-production"
 LOCO_NAMESPACE="loco-system"
 IMAGE_RETENTION=1
 IMAGE_SWEEP_INTERVAL=5s
+REGISTRY_TOKEN_KEY_VERSION=1
+REGISTRY_ACCESS_TOKEN_LIFETIME=1m
+REGISTRY_PULL_CREDENTIAL_LIFETIME=2m
+REGISTRY_CREDENTIAL_CHECK_INTERVAL=10s
 E2E_CLUSTER_ID=""
 
 export E2E_ROOT_DIR="$ROOT_DIR"
@@ -99,7 +105,7 @@ export E2E_BIN_DIR="$BIN_DIR"
 export E2E_LOG_DIR="$LOG_DIR"
 export E2E_COMPOSE_PROJECT="$RUN_NAME"
 export POSTGRES_USER="$PG_USER" POSTGRES_PASSWORD="$PG_PASS" POSTGRES_DB="$PG_DB"
-export POSTGRES_PORT="127.0.0.1:" OPENBAO_PORT="127.0.0.1:" REGISTRY_PORT="127.0.0.1:" S3_PORT
+export POSTGRES_PORT="127.0.0.1:" OPENBAO_PORT="127.0.0.1:" REGISTRY_PORT="127.0.0.1:${REGISTRY_HOST_PORT}" S3_PORT
 OPENBAO_IMAGE=$(yq '.openbao.image' "$ROOT_DIR/charts/loco-control-plane/values.yaml")
 export OPENBAO_IMAGE
 export E2E_API_URL="http://127.0.0.1:${API_PORT}"
@@ -127,8 +133,13 @@ export LOCO_SOURCE_BUCKET_SECRET_ACCESS_KEY="loco-e2e-secret"
 export LOCO_SOURCE_BUCKET_REGION="us-east-1"
 export E2E_REGISTRY_ALIAS="${RUN_NAME}-registry"
 export E2E_REGISTRY_HOST="${E2E_REGISTRY_ALIAS}:5000"
+export E2E_REGISTRY_URL="http://127.0.0.1:${REGISTRY_HOST_PORT}"
+export E2E_REGISTRY_TOKEN_SERVICE="$E2E_REGISTRY_ALIAS"
+export E2E_REGISTRY_TOKEN_DIR="$RUN_DIR/registry"
 export E2E_REGISTRY_API_USER="api:loco-dev-api"
 export E2E_REGISTRY_NODES_USER="nodes:loco-dev-nodes"
+export E2E_REGISTRY_BUILDER_USER="builder:loco-dev-builder"
+export E2E_REGISTRY_REALM="http://${REALM_CONTAINER}:${API_PORT}/registry/token"
 export E2E_S3_ALIAS="${RUN_NAME}-s3.localhost"
 export E2E_S3_ENDPOINT="http://${E2E_S3_ALIAS}:${S3_PORT}"
 E2E_BUILD_NAMESPACE=$(yq '.builds.namespace' "$WORKER_VALUES")
@@ -136,6 +147,7 @@ export E2E_BUILD_NAMESPACE
 export E2E_BUILD_WORK_DIR="$LOG_DIR/builds"
 E2E_AWS_CLI_IMAGE=$(awk '$1 == "FROM" { print $2 }' "$SCRIPT_DIR/fixtures/aws-cli/Dockerfile")
 E2E_PUBLIC_IMAGE=$(awk '$1 == "FROM" { split($2, ref, "@"); print ref[1] }' "$SCRIPT_DIR/fixtures/public-image/Dockerfile")
+REALM_PROXY_IMAGE=$(awk '$1 == "FROM" { print $2 }' "$SCRIPT_DIR/fixtures/public-image/Dockerfile")
 export E2E_AWS_CLI_IMAGE E2E_PUBLIC_IMAGE
 
 source "$SCRIPT_DIR/lib.sh"
@@ -148,6 +160,7 @@ BUILD_ONLY=false
 TEARDOWN_ONLY=false
 BUILDS_ENABLED=true
 OBSERVABILITY=false
+REGISTRY_AUTH=static
 TEST_FILTERS=()
 
 while [[ $# -gt 0 ]]; do
@@ -158,9 +171,11 @@ while [[ $# -gt 0 ]]; do
         --teardown-only) TEARDOWN_ONLY=true; shift ;;
         --builds-disabled) BUILDS_ENABLED=false; shift ;;
         --observability) OBSERVABILITY=true; shift ;;
+        --registry-token) REGISTRY_AUTH=token; shift ;;
         *)              TEST_FILTERS+=("$1"); shift ;;
     esac
 done
+export E2E_REGISTRY_AUTH="$REGISTRY_AUTH"
 
 kube() {
     kubectl --kubeconfig "$KUBECONFIG_FILE" --context "$KUBE_CONTEXT" "$@"
@@ -242,7 +257,7 @@ teardown() {
         kind delete cluster --name "$KIND_CLUSTER_NAME" --kubeconfig "$KUBECONFIG_FILE"
     fi
 
-    docker rm -fv "$INGEST_CONTAINER" "$CLICKHOUSE_CONTAINER" >/dev/null 2>&1 || true
+    docker rm -fv "$INGEST_CONTAINER" "$CLICKHOUSE_CONTAINER" "$REALM_CONTAINER" >/dev/null 2>&1 || true
 
     log_info "Removing compose project ${E2E_COMPOSE_PROJECT}..."
     e2e_compose --profile tools down -v --remove-orphans >/dev/null 2>&1 || true
@@ -291,6 +306,11 @@ dump_logs() {
     if [ "$OBSERVABILITY" = true ]; then
         log_group "obs-proxy ingest container"
         docker logs --tail "$LOG_TAIL_LINES" "$INGEST_CONTAINER" 2>&1 || true
+        log_group_end
+    fi
+    if [ "$REGISTRY_AUTH" = token ]; then
+        log_group "registry token endpoint proxy"
+        docker logs --tail "$LOG_TAIL_LINES" "$REALM_CONTAINER" 2>&1 || true
         log_group_end
     fi
     if [ "$OBSERVABILITY" = true ] && [ -s "$KUBECONFIG_FILE" ]; then
@@ -374,6 +394,9 @@ check_ports() {
     fi
     if ! e2e_compose port s3 "$S3_PORT" >/dev/null 2>&1; then
         require_free_port "$S3_PORT" "source bucket"
+    fi
+    if ! e2e_compose port registry 5000 >/dev/null 2>&1; then
+        require_free_port "$REGISTRY_HOST_PORT" "registry"
     fi
     log_ok "Ports free"
 }
@@ -557,6 +580,31 @@ start_ingest() {
     log_ok "Ingest serving OTLP/HTTP at http://${INGEST_CONTAINER}:${INGEST_OTLP_HTTP_PORT} on the kind network"
 }
 
+connect_registry() {
+    KIND_CLUSTER="$KIND_CLUSTER_NAME" \
+    COMPOSE_PROJECT_NAME="$E2E_COMPOSE_PROJECT" \
+    REGISTRY_PORT="$REGISTRY_HOST_PORT" \
+    REGISTRY_ALIAS="$E2E_REGISTRY_ALIAS" \
+    REGISTRY_AUTH="$REGISTRY_AUTH" \
+    S3_ALIAS="$E2E_S3_ALIAS" \
+        mise run cluster:registry >/dev/null
+}
+
+start_realm_proxy() {
+    mkdir -p "$E2E_REGISTRY_TOKEN_DIR"
+    printf 'server {\n    listen %s;\n    location / {\n        proxy_pass http://host.docker.internal:%s;\n    }\n}\n' \
+        "$API_PORT" "$API_PORT" >"$E2E_REGISTRY_TOKEN_DIR/realm.conf"
+    chmod a+r "$E2E_REGISTRY_TOKEN_DIR/realm.conf"
+    docker rm -fv "$REALM_CONTAINER" >/dev/null 2>&1 || true
+    docker run -d --name "$REALM_CONTAINER" --network kind --add-host host.docker.internal:host-gateway \
+        -v "$E2E_REGISTRY_TOKEN_DIR/realm.conf:/etc/nginx/conf.d/default.conf:ro" \
+        "$REALM_PROXY_IMAGE" >/dev/null
+}
+
+realm_proxy_reaches_api() {
+    docker exec "$REALM_CONTAINER" wget -q -O /dev/null "http://127.0.0.1:${API_PORT}/health"
+}
+
 setup_registry() {
     log_step "Starting the registry and the source bucket..."
     if [ "$CLUSTER_REUSED" = true ]; then
@@ -564,18 +612,36 @@ setup_registry() {
         e2e_compose rm --stop --force registry >/dev/null
         docker volume rm --force "${E2E_COMPOSE_PROJECT}_registry-data" >/dev/null
     fi
-    e2e_compose up -d --wait registry s3
-    local registry_port
-    registry_port=$(compose_host_port registry 5000)
-    export E2E_REGISTRY_URL="http://127.0.0.1:${registry_port}"
-    KIND_CLUSTER="$KIND_CLUSTER_NAME" \
-    COMPOSE_PROJECT_NAME="$E2E_COMPOSE_PROJECT" \
-    REGISTRY_PORT="$registry_port" \
-    REGISTRY_ALIAS="$E2E_REGISTRY_ALIAS" \
-    S3_ALIAS="$E2E_S3_ALIAS" \
-        mise run cluster:registry >/dev/null
     BUILD_PRIVATE_EGRESS=$(LOCO_REGISTRY_HOST="$E2E_REGISTRY_HOST" LOCO_SOURCE_BUCKET_ENDPOINT="$E2E_S3_ENDPOINT" mise run --quiet cluster:build-egress)
-    log_ok "Registry at ${E2E_REGISTRY_HOST} (host port ${registry_port}), source bucket at ${E2E_S3_ENDPOINT}, build egress ${BUILD_PRIVATE_EGRESS}"
+    if [ "$REGISTRY_AUTH" = token ]; then
+        e2e_compose up -d --wait s3
+        start_realm_proxy
+        BUILD_PRIVATE_EGRESS=$(PORT="$API_PORT" yq -p json -o json -I 0 \
+            '. + ([.[].cidr] | unique | map({"cidr": ., "port": env(PORT)}))' <<<"$BUILD_PRIVATE_EGRESS")
+        log_ok "Source bucket at ${E2E_S3_ENDPOINT}, registry token endpoint ${E2E_REGISTRY_REALM}, build egress ${BUILD_PRIVATE_EGRESS}; the registry starts after the API"
+        return 0
+    fi
+    e2e_compose up -d --wait registry s3
+    connect_registry
+    log_ok "Registry at ${E2E_REGISTRY_HOST} (host port ${REGISTRY_HOST_PORT}), source bucket at ${E2E_S3_ENDPOINT}, build egress ${BUILD_PRIVATE_EGRESS}"
+}
+
+start_token_registry() {
+    log_step "Starting the registry with the API's token endpoint and key..."
+    mkdir -p "$E2E_REGISTRY_TOKEN_DIR"
+    wait_for "${REALM_CONTAINER} to reach the API" "$READY_TIMEOUT" realm_proxy_reaches_api
+    curl -sSf "${E2E_API_URL}/.well-known/loco-registry-key.pem" >"$E2E_REGISTRY_TOKEN_DIR/key.pem"
+    CERT="$E2E_REGISTRY_TOKEN_DIR/key.pem" \
+        yq -p json -o json '
+            .http.auth = {
+                "bearer": {"realm": strenv(E2E_REGISTRY_REALM), "service": strenv(E2E_REGISTRY_TOKEN_SERVICE), "cert": strenv(CERT)},
+                "failDelay": .http.auth.failDelay
+            } | del(.http.accessControl)' \
+        "$ROOT_DIR/dev/registry/config.json" >"$E2E_REGISTRY_TOKEN_DIR/config.json"
+    chmod a+r "$E2E_REGISTRY_TOKEN_DIR/key.pem" "$E2E_REGISTRY_TOKEN_DIR/config.json"
+    e2e_compose up -d --wait --force-recreate registry
+    connect_registry
+    log_ok "Registry at ${E2E_REGISTRY_HOST} (host port ${REGISTRY_HOST_PORT}) trusts tokens from ${E2E_API_URL} for service ${E2E_REGISTRY_TOKEN_SERVICE}"
 }
 
 build_image() {
@@ -652,7 +718,7 @@ load_controller_image() {
 
 install_worker() {
     local collectors=$1
-    log_step "Installing the loco-worker chart (builds.enabled=${BUILDS_ENABLED}, observability=${OBSERVABILITY}, collectors=${collectors})..."
+    log_step "Installing the loco-worker chart (builds.enabled=${BUILDS_ENABLED}, observability=${OBSERVABILITY}, collectors=${collectors}, registry.auth=${REGISTRY_AUTH})..."
     local build_values=(--set builds.enabled=false)
     if [ "$BUILDS_ENABLED" = true ]; then
         build_values=(
@@ -671,6 +737,15 @@ install_worker() {
     if [ "$OBSERVABILITY" = true ]; then
         obs_values+=(--set global.exporter.ingestToken.enabled=true)
     fi
+    local registry_values=()
+    if [ "$REGISTRY_AUTH" = token ]; then
+        registry_values=(
+            --set registry.auth=token
+            --set registry.pullSecretName=
+            --set builds.pushSecretName=
+            --set agent.registryCredentialCheckInterval="$REGISTRY_CREDENTIAL_CHECK_INTERVAL"
+        )
+    fi
     create_gateway_tls_secret
     helm upgrade --install "$WORKER_RELEASE" "$WORKER_CHART" \
         --kubeconfig "$KUBECONFIG_FILE" \
@@ -683,6 +758,7 @@ install_worker() {
         --set controller.image.tag="${CONTROLLER_IMAGE##*:}" \
         "${build_values[@]}" \
         "${obs_values[@]}" \
+        ${registry_values[@]+"${registry_values[@]}"} \
         --wait --timeout "$HELM_TIMEOUT" >/dev/null
     if [ "$BUILDS_ENABLED" = false ] && [ "$CLUSTER_REUSED" = true ]; then
         kube delete namespace "$E2E_BUILD_NAMESPACE" --ignore-not-found --wait --timeout="${READY_TIMEOUT}s" >/dev/null
@@ -713,6 +789,7 @@ reset_cluster_state() {
     if [ ${#namespaces[@]} -gt 0 ]; then
         kube delete "${namespaces[@]}" --wait >/dev/null
     fi
+    kube -n "$LOCO_NAMESPACE" delete secrets -l loco.io/registry-pull --ignore-not-found >/dev/null
     log_ok "Cluster state reset"
 }
 
@@ -726,7 +803,7 @@ start_builds() {
 }
 
 api_bind_address() {
-    if [ "$OBSERVABILITY" = true ]; then
+    if [ "$OBSERVABILITY" = true ] || [ "$REGISTRY_AUTH" = token ]; then
         echo 0.0.0.0
         return
     fi
@@ -734,7 +811,22 @@ api_bind_address() {
 }
 
 start_api() {
-    log_step "Starting API server..."
+    log_step "Starting API server (LOCO_REGISTRY_AUTH=${REGISTRY_AUTH})..."
+
+    local registry_env=(
+        LOCO_REGISTRY_USERNAME="${E2E_REGISTRY_API_USER%%:*}"
+        LOCO_REGISTRY_PASSWORD="${E2E_REGISTRY_API_USER#*:}"
+    )
+    if [ "$REGISTRY_AUTH" = token ]; then
+        registry_env=(
+            LOCO_REGISTRY_AUTH=token
+            LOCO_REGISTRY_TRANSIT_KEY="$(dev_api_env LOCO_REGISTRY_TRANSIT_KEY)"
+            LOCO_REGISTRY_TRANSIT_KEY_VERSION="$REGISTRY_TOKEN_KEY_VERSION"
+            LOCO_REGISTRY_TOKEN_SERVICE="$E2E_REGISTRY_TOKEN_SERVICE"
+            LOCO_REGISTRY_ACCESS_TOKEN_LIFETIME="$REGISTRY_ACCESS_TOKEN_LIFETIME"
+            LOCO_REGISTRY_PULL_CREDENTIAL_LIFETIME="$REGISTRY_PULL_CREDENTIAL_LIFETIME"
+        )
+    fi
 
     LOCO_BOOTSTRAP_TOKEN="$BOOTSTRAP_TOKEN" \
     DATABASE_URL="$E2E_DATABASE_URL" \
@@ -746,8 +838,6 @@ start_api() {
     LOG_LEVEL=debug \
     LOCO_REGISTRY_HOST="$E2E_REGISTRY_HOST" \
     LOCO_REGISTRY_URL="$E2E_REGISTRY_URL" \
-    LOCO_REGISTRY_USERNAME="${E2E_REGISTRY_API_USER%%:*}" \
-    LOCO_REGISTRY_PASSWORD="${E2E_REGISTRY_API_USER#*:}" \
     LOCO_IMAGE_RETENTION="$IMAGE_RETENTION" \
     LOCO_IMAGE_SWEEP_INTERVAL="$IMAGE_SWEEP_INTERVAL" \
     LOCO_SOURCE_BUCKET_ENDPOINT="$E2E_S3_ENDPOINT" \
@@ -758,7 +848,7 @@ start_api() {
     LOCO_SECRETS_TRANSIT_AUTH="$(dev_api_env LOCO_SECRETS_TRANSIT_AUTH)" \
     LOCO_SECRETS_TRANSIT_TOKEN="$(dev_api_env LOCO_SECRETS_TRANSIT_TOKEN)" \
     LOCO_INGEST_TRANSIT_KEY="$(dev_api_env LOCO_INGEST_TRANSIT_KEY)" \
-        "$BIN_DIR/loco-api" \
+        env "${registry_env[@]}" "$BIN_DIR/loco-api" \
         >"$LOG_DIR/api.log" 2>&1 &
 
     echo $! > "$PID_DIR/api.pid"
@@ -844,6 +934,8 @@ start_agent() {
     LOCO_GATEWAY="$(agent_chart_env LOCO_GATEWAY)" \
     LOCO_CERTIFICATE="$(agent_chart_env LOCO_CERTIFICATE)" \
     LOCO_APP_DOMAINS="$(agent_chart_env LOCO_APP_DOMAINS)" \
+    LOCO_REGISTRY_AUTH="$(agent_chart_env LOCO_REGISTRY_AUTH)" \
+    LOCO_REGISTRY_CREDENTIAL_CHECK_INTERVAL="$(agent_chart_env LOCO_REGISTRY_CREDENTIAL_CHECK_INTERVAL)" \
     KUBECONFIG="$KUBECONFIG_FILE" \
         "$BIN_DIR/loco-agent" \
         >>"$LOG_DIR/agent.log" 2>&1 &
@@ -996,6 +1088,9 @@ main() {
     reset_cluster_state
     await_job build
     start_api
+    if [ "$REGISTRY_AUTH" = token ]; then
+        start_token_registry
+    fi
     if [ "$(e2e_psql 'SELECT count(*) FROM clusters')" != 0 ]; then
         log_error "Cluster registry must be empty before enrollment"
         return 1

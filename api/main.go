@@ -35,6 +35,7 @@ import (
 	"github.com/team-loco/loco/api/migrations"
 	"github.com/team-loco/loco/api/pkg/clusternotify"
 	"github.com/team-loco/loco/api/pkg/imageresolver"
+	"github.com/team-loco/loco/api/pkg/registrytoken"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/tvm"
@@ -52,6 +53,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/ingest/v1/ingestv1connect"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 	planv1connect "github.com/team-loco/loco/gen/go/loco/plan/v1/planv1connect"
+	"github.com/team-loco/loco/gen/go/loco/registry/v1/registryv1connect"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/gen/go/loco/secret/v1/secretv1connect"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
@@ -261,14 +263,6 @@ func main() {
 		sourceSweeper := service.NewSourceSweeper(pool, queries, sourceBucket, ac.SourceSweep)
 		background.Go(func() { sourceSweeper.Run(shutdownCtx) })
 	}
-	imageRegistry, registryErr := newImageRegistry(ac.Registry, ac.ImageSweep.Retention)
-	if registryErr != nil {
-		log.Fatal(registryErr)
-	}
-	if imageRegistry != nil {
-		imageSweeper := service.NewImageSweeper(pool, queries, imageRegistry, ac.ImageSweep)
-		background.Go(func() { imageSweeper.Run(shutdownCtx) })
-	}
 	imageResolver := imageresolver.New(imageResolveTimeout)
 
 	deploymentServiceHandler := service.NewDeploymentServer(
@@ -286,11 +280,16 @@ func main() {
 	})
 	domainServiceHandler := service.NewDomainServer(pool, queries, machine, ac.ServiceDefaults, clusterSilentAfter)
 	tokenServiceHandler := service.NewTokenServer(pool, queries, machine)
-	secretKeyProvider, ingestSigner, providerErr := secretkeys.New(shutdownCtx, ac.Secrets, ac.Ingest.TransitKey)
+	var registryKey *secretkeys.PinnedKey
+	if ac.RegistryAuth.TokenMode() {
+		registryKey = &ac.RegistryAuth.TransitKey
+	}
+	transitKeys, providerErr := secretkeys.New(shutdownCtx, ac.Secrets, ac.Ingest.TransitKey, registryKey)
 	if providerErr != nil {
 		slog.ErrorContext(shutdownCtx, "failed to verify the transit keys", "error", providerErr)
 		os.Exit(1)
 	}
+	secretKeyProvider := transitKeys.Provider
 	agentServiceHandler := service.NewAgentServer(
 		pool,
 		queries,
@@ -300,8 +299,41 @@ func main() {
 		ac.HeartbeatInterval,
 		ac.Agent,
 	)
-	ingestClusters := service.NewClusterAuthenticator(queries, ac.Agent.AssertionMaxLifetime)
-	ingestServiceHandler := service.NewIngestServer(queries, ingestClusters, ingestSigner, ac.Ingest.TokenLifetime)
+	clusterAuthenticator := service.NewClusterAuthenticator(queries, ac.Agent.AssertionMaxLifetime)
+	ingestServiceHandler := service.NewIngestServer(
+		queries,
+		clusterAuthenticator,
+		transitKeys.Ingest,
+		ac.Ingest.TokenLifetime,
+	)
+	registryConfig := service.RegistryConfig{
+		TokenMode:              ac.RegistryAuth.TokenMode(),
+		Service:                ac.RegistryAuth.Service,
+		Issuer:                 ac.WebURL,
+		RegistryHost:           ac.RegistryHost,
+		RegistryPrefix:         ac.RegistryPrefix,
+		AccessTokenLifetime:    ac.RegistryAuth.AccessTokenLifetime,
+		PullCredentialLifetime: ac.RegistryAuth.PullCredentialLifetime,
+	}
+	registryServiceHandler := service.NewRegistryServer(
+		queries,
+		clusterAuthenticator,
+		transitKeys.Registry,
+		transitKeys.RegistryKeyID,
+		registryConfig,
+	)
+	registryClientConfig := ac.Registry
+	if ac.RegistryAuth.TokenMode() {
+		registryClientConfig.TokenSource = registryServiceHandler.SignAPIToken
+	}
+	imageRegistry, registryErr := newImageRegistry(registryClientConfig, ac.ImageSweep.Retention)
+	if registryErr != nil {
+		log.Fatal(registryErr)
+	}
+	if imageRegistry != nil {
+		imageSweeper := service.NewImageSweeper(pool, queries, imageRegistry, ac.ImageSweep)
+		background.Go(func() { imageSweeper.Run(shutdownCtx) })
+	}
 	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
 	secretServiceHandler := service.NewSecretServer(pool, queries, secretKeyProvider, ac.SecretLimits)
 	configServiceHandler := service.NewConfigServer(
@@ -328,7 +360,20 @@ func main() {
 	tokenv1connect.RegisterTokenServiceHandler(authenticatedServer, tokenServiceHandler)
 	agentv1connect.RegisterAgentServiceHandler(baseServer, agentServiceHandler)
 	ingestv1connect.RegisterIngestServiceHandler(baseServer, ingestServiceHandler)
+	registryv1connect.RegisterRegistryServiceHandler(baseServer, registryServiceHandler)
 	mux.HandleFunc("GET "+ingesttoken.JWKSPath, ingestServiceHandler.JWKS)
+	if registryKey != nil {
+		registryKeyHandler, registryKeyErr := service.NewRegistryKeyHandler(transitKeys.RegistryPublicKey)
+		if registryKeyErr != nil {
+			slog.ErrorContext(shutdownCtx, "failed to encode the registry public key", "error", registryKeyErr)
+			os.Exit(1)
+		}
+		mux.HandleFunc("GET "+registrytoken.KeyPath, registryKeyHandler)
+		mux.HandleFunc("GET "+registrytoken.TokenPath, registryServiceHandler.Token)
+		mux.HandleFunc("POST "+registrytoken.TokenPath, registryServiceHandler.Token)
+		registrySweeper := service.NewRegistrySweeper(pool, ac.RegistryAuth.CredentialSweep)
+		background.Go(func() { registrySweeper.Run(shutdownCtx) })
+	}
 	planServiceHandler := service.NewPlanServer(
 		pool,
 		queries,

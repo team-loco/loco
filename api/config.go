@@ -18,6 +18,7 @@ import (
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/webhooks"
 	"github.com/team-loco/loco/internal/buildinfo"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	"golang.org/x/mod/semver"
 )
 
@@ -41,6 +42,17 @@ var (
 	errInvalidSecretsTransit  = errors.New("LOCO_SECRETS_TRANSIT_* is invalid")
 	errShortBootstrapToken    = errors.New(bootstrapEnv + " is too short")
 	errInvalidIngestKey       = errors.New("LOCO_INGEST_TRANSIT_KEY is invalid")
+	errInvalidRegistryAuth    = errors.New("LOCO_REGISTRY_AUTH must be static or token")
+	errInvalidRegistryKey     = errors.New("LOCO_REGISTRY_TRANSIT_KEY is invalid")
+	errInvalidRegistryVersion = errors.New("LOCO_REGISTRY_TRANSIT_KEY_VERSION must be a positive integer")
+	errMissingRegistryService = errors.New("LOCO_REGISTRY_TOKEN_SERVICE is required for LOCO_REGISTRY_AUTH=token")
+	errRegistryTokenNoHost    = errors.New("LOCO_REGISTRY_HOST is required for LOCO_REGISTRY_AUTH=token")
+	errRegistryKeyShared      = errors.New(
+		"LOCO_REGISTRY_TRANSIT_KEY must differ from LOCO_SECRETS_TRANSIT_KEY and LOCO_INGEST_TRANSIT_KEY",
+	)
+	errRegistryStaticOnly = errors.New(
+		"LOCO_REGISTRY_USERNAME and LOCO_REGISTRY_PASSWORD are only for LOCO_REGISTRY_AUTH=static",
+	)
 )
 
 const (
@@ -105,7 +117,24 @@ const (
 	bootstrapEnv               = "LOCO_BOOTSTRAP_TOKEN"
 	minBootstrapTokenLength    = 32
 	defaultIngestTokenLifetime = time.Hour
+
+	defaultRegistryAccessTokenLifetime    = 5 * time.Minute
+	defaultRegistryPullCredentialLifetime = 24 * time.Hour
+	defaultRegistryCredentialSweep        = 10 * time.Minute
 )
+
+type RegistryAuthConfig struct {
+	Mode                   string
+	TransitKey             secretkeys.PinnedKey
+	Service                string
+	AccessTokenLifetime    time.Duration
+	PullCredentialLifetime time.Duration
+	CredentialSweep        time.Duration
+}
+
+func (c RegistryAuthConfig) TokenMode() bool {
+	return c.Mode == locoControllerV1.RegistryAuthToken
+}
 
 type APIConfig struct {
 	ObservabilityProxyURL *url.URL
@@ -127,6 +156,7 @@ type APIConfig struct {
 	RegistryHost          string
 	RegistryPrefix        string
 	Registry              registryclient.Config
+	RegistryAuth          RegistryAuthConfig
 	ImageSweep            service.ImageSweepConfig
 	SourceSweep           service.SourceSweepConfig
 	ServiceDefaults       servicedefaults.Defaults
@@ -176,6 +206,8 @@ func newAPIConfig() *APIConfig {
 	eventsRetentionDays := positiveInt32Env("EVENTS_RETENTION_DAYS", defaultEventsRetentionDays)
 	eventsRetention := time.Duration(eventsRetentionDays) * day
 	secrets := newSecretsConfig()
+	registryAuth := newRegistryAuthConfig(registry, registryHost, secrets.Key, ingestConfig.TransitKey)
+	agentConfig.RegistryTokenMode = registryAuth.TokenMode()
 	heartbeatInterval := positiveDurationEnv("LOCO_AGENT_HEARTBEAT_INTERVAL", defaultHeartbeatInterval)
 	bootstrapTokenHash := newBootstrapTokenHash()
 	tracingEnabled := newTracingEnabled()
@@ -208,6 +240,7 @@ func newAPIConfig() *APIConfig {
 		RegistryHost:          registryHost,
 		RegistryPrefix:        registryPrefix,
 		Registry:              registry,
+		RegistryAuth:          registryAuth,
 		ImageSweep:            imageSweep,
 		SourceSweep:           sourceSweep,
 		ServiceDefaults:       serviceDefaults,
@@ -416,6 +449,65 @@ func newRegistryConfig(registryHost string) registryclient.Config {
 	return cfg
 }
 
+func newRegistryAuthConfig(
+	registry registryclient.Config,
+	registryHost, secretsKey, ingestKey string,
+) RegistryAuthConfig {
+	mode := stringEnv("LOCO_REGISTRY_AUTH", locoControllerV1.RegistryAuthStatic)
+	switch mode {
+	case locoControllerV1.RegistryAuthStatic:
+		return RegistryAuthConfig{Mode: mode}
+	case locoControllerV1.RegistryAuthToken:
+		return newRegistryTokenAuthConfig(registry, registryHost, secretsKey, ingestKey)
+	default:
+		panic(fmt.Errorf("%w: %q", errInvalidRegistryAuth, mode))
+	}
+}
+
+func newRegistryTokenAuthConfig(
+	registry registryclient.Config,
+	registryHost, secretsKey, ingestKey string,
+) RegistryAuthConfig {
+	if registry.Username != "" || registry.Password != "" {
+		panic(errRegistryStaticOnly)
+	}
+	if registryHost == "" {
+		panic(errRegistryTokenNoHost)
+	}
+	if err := registry.ValidateEndpoint(); err != nil {
+		panic(fmt.Errorf("%w: %w", errInvalidRegistry, err))
+	}
+	key := stringEnv("LOCO_REGISTRY_TRANSIT_KEY", "")
+	if err := secretkeys.ValidateKeyName(key); err != nil {
+		panic(fmt.Errorf("%w: %w", errInvalidRegistryKey, err))
+	}
+	if key == secretsKey || key == ingestKey {
+		panic(fmt.Errorf("%w: %q", errRegistryKeyShared, key))
+	}
+	version := int32Env("LOCO_REGISTRY_TRANSIT_KEY_VERSION", 0)
+	if version <= 0 {
+		panic(fmt.Errorf("%w: %d", errInvalidRegistryVersion, version))
+	}
+	tokenService := stringEnv("LOCO_REGISTRY_TOKEN_SERVICE", "")
+	if tokenService == "" {
+		panic(errMissingRegistryService)
+	}
+	accessLifetime := positiveDurationEnv("LOCO_REGISTRY_ACCESS_TOKEN_LIFETIME", defaultRegistryAccessTokenLifetime)
+	pullLifetime := positiveDurationEnv(
+		"LOCO_REGISTRY_PULL_CREDENTIAL_LIFETIME",
+		defaultRegistryPullCredentialLifetime,
+	)
+	sweepInterval := positiveDurationEnv("LOCO_REGISTRY_CREDENTIAL_SWEEP_INTERVAL", defaultRegistryCredentialSweep)
+	return RegistryAuthConfig{
+		Mode:                   locoControllerV1.RegistryAuthToken,
+		TransitKey:             secretkeys.PinnedKey{Name: key, Version: int(version)},
+		Service:                tokenService,
+		AccessTokenLifetime:    accessLifetime,
+		PullCredentialLifetime: pullLifetime,
+		CredentialSweep:        sweepInterval,
+	}
+}
+
 func newImageSweepConfig(registryHost, registryPrefix string) service.ImageSweepConfig {
 	return service.ImageSweepConfig{
 		RegistryHost:    registryHost,
@@ -457,7 +549,7 @@ func newImageRegistry(cfg registryclient.Config, retention int32) (service.Image
 		slog.Warn("LOCO_IMAGE_RETENTION is 0; image cleanup is disabled by configuration")
 		return nil, nil
 	}
-	if cfg.Username == "" {
+	if cfg.Username == "" && cfg.TokenSource == nil {
 		slog.Warn("LOCO_REGISTRY_USERNAME is not set; build images are never deleted from the registry")
 		return nil, nil
 	}

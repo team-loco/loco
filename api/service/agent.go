@@ -39,6 +39,7 @@ type AgentConfig struct {
 	JoinTokenTTL         time.Duration
 	DeployAttempts       int32
 	DeployRetryDelay     int32
+	RegistryTokenMode    bool
 }
 
 // AgentServer implements the AgentService for agent communication.
@@ -200,6 +201,9 @@ func enroll(
 	}
 	if err != nil {
 		return registeredCluster{}, fmt.Errorf("enroll cluster: %w", err)
+	}
+	if err := qtx.DeleteClusterRegistryCredentials(ctx, row.ID); err != nil {
+		return registeredCluster{}, fmt.Errorf("delete registry credentials of the previous enrollment: %w", err)
 	}
 	if err := notifyCluster(ctx, qtx, row.ID); err != nil {
 		return registeredCluster{}, err

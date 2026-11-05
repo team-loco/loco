@@ -91,6 +91,38 @@ tests:
           value: [{apiGroups: [""], resources: [secrets], resourceNames: [push, pull], verbs: [get]}]
         documentSelector: {path: kind, value: Role}
 
+  - it: runs the build controller in static registry mode by default
+    template: templates/builds/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGISTRY_AUTH, value: static}
+
+  - it: runs the build controller in token registry mode without the registry Secret Role
+    set:
+      registry.auth: token
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_REGISTRY_AUTH, value: token}
+        template: templates/builds/deployment.yaml
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: REGISTRY_PULL_SECRET_NAME}
+          any: true
+        template: templates/builds/deployment.yaml
+      - hasDocuments:
+          count: 0
+        template: templates/builds/registry-secrets-role.yaml
+
+  - it: rejects a static push Secret in token registry mode
+    set:
+      registry.auth: token
+      builds.pushSecretName: push
+    asserts:
+      - failedTemplate:
+          errorMessage: "builds.pushSecretName applies only to registry.auth static; token mode mounts the agent's Secrets"
+
   - it: grants no registry Secret access when the values name none
     template: templates/builds/registry-secrets-role.yaml
     asserts:

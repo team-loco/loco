@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
 	"google.golang.org/protobuf/proto"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -21,6 +23,7 @@ import (
 
 	"github.com/team-loco/loco/agent/pkg/identity"
 	"github.com/team-loco/loco/agent/pkg/kube"
+	"github.com/team-loco/loco/agent/pkg/registrycred"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -32,12 +35,15 @@ const (
 	truncatedPrefix   = "..."
 	createRetryFactor = 2
 	createRetryJitter = 0.1
+	repositorySep     = "/"
 )
 
 var (
 	ErrInvalidBuild    = errors.New("invalid build")
 	errCacheNotSynced  = errors.New("build cache did not sync")
 	errNotBuildMessage = errors.New("build handler received a sync message that is not a build operation")
+	errNoCredential    = errors.New("no registry credential in token mode")
+	errNoRegistryHost  = errors.New("image repository names no registry host")
 )
 
 type Config struct {
@@ -45,6 +51,7 @@ type Config struct {
 	Retention           time.Duration
 	CreateRetryDelay    time.Duration
 	CreateRetryAttempts int
+	TokenMode           bool
 }
 
 type Sink func(*agentv1.BuildStatus)
@@ -54,6 +61,7 @@ type Watcher struct {
 	reader        client.Reader
 	namespace     string
 	retention     time.Duration
+	tokenMode     bool
 	createBackoff wait.Backoff
 	now           func() time.Time
 
@@ -69,6 +77,9 @@ func Start(ctx context.Context, restConfig *rest.Config, cfg Config) (*Watcher, 
 	scheme := runtime.NewScheme()
 	if err := locoControllerV1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add loco types to scheme: %w", err)
+	}
+	if err := corev1.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("failed to add core types to scheme: %w", err)
 	}
 	ctx, onWatchError := kube.StopOnDeadWatch(ctx)
 	c, err := cache.New(restConfig, cache.Options{
@@ -132,6 +143,7 @@ func New(writer client.Client, reader client.Reader, cfg Config) *Watcher {
 		reader:        reader,
 		namespace:     cfg.Namespace,
 		retention:     cfg.Retention,
+		tokenMode:     cfg.TokenMode,
 		createBackoff: createBackoff,
 		now:           time.Now,
 		statuses:      make(map[string]*agentv1.BuildStatus),
@@ -146,6 +158,11 @@ func (w *Watcher) Create(ctx context.Context, start *agentv1.StartBuild) error {
 	buildID := start.GetBuildId()
 	if buildID == "" {
 		return fmt.Errorf("%w: no build id", ErrInvalidBuild)
+	}
+	if w.tokenMode {
+		if err := w.writeRegistrySecret(ctx, start); err != nil {
+			return err
+		}
 	}
 	name := Name(buildID)
 	build := &locoControllerV1.Build{
@@ -180,7 +197,62 @@ func (w *Watcher) Create(ctx context.Context, start *agentv1.StartBuild) error {
 	return nil
 }
 
+func (w *Watcher) writeRegistrySecret(ctx context.Context, start *agentv1.StartBuild) error {
+	credential := start.GetRegistryCredential()
+	if credential == "" {
+		return fmt.Errorf("%w: %w", ErrInvalidBuild, errNoCredential)
+	}
+	host, _, ok := strings.Cut(start.GetImageRepository(), repositorySep)
+	if !ok || host == "" {
+		return fmt.Errorf("%w: %w: %q", ErrInvalidBuild, errNoRegistryHost, start.GetImageRepository())
+	}
+	config, err := registrycred.DockerConfig(host, locoControllerV1.RegistryBuildUsername, credential)
+	if err != nil {
+		return err
+	}
+	name := locoControllerV1.BuildRegistrySecretName(start.GetBuildId())
+	secret := &corev1.Secret{}
+	key := client.ObjectKey{Namespace: w.namespace, Name: name}
+	getErr := w.client.Get(ctx, key, secret)
+	if client.IgnoreNotFound(getErr) != nil {
+		return fmt.Errorf("read build registry Secret %s: %w", name, getErr)
+	}
+	secret.Name = name
+	secret.Namespace = w.namespace
+	secret.Labels = map[string]string{
+		locolabels.LabelManagedBy: identity.FieldOwner,
+		locolabels.LabelBuildID:   start.GetBuildId(),
+	}
+	secret.Type = corev1.SecretTypeDockerConfigJson
+	secret.Data = map[string][]byte{corev1.DockerConfigJsonKey: config}
+	if apierrors.IsNotFound(getErr) {
+		if err := w.client.Create(ctx, secret); err != nil {
+			return fmt.Errorf("create build registry Secret %s: %w", name, err)
+		}
+		return nil
+	}
+	if err := w.client.Update(ctx, secret); err != nil {
+		return fmt.Errorf("update build registry Secret %s: %w", name, err)
+	}
+	return nil
+}
+
+func (w *Watcher) deleteRegistrySecret(ctx context.Context, buildID string) error {
+	name := locoControllerV1.BuildRegistrySecretName(buildID)
+	secret := &corev1.Secret{Name: name, Namespace: w.namespace}
+	err := w.client.Delete(ctx, secret)
+	if client.IgnoreNotFound(err) != nil {
+		return fmt.Errorf("delete build registry Secret %s: %w", name, err)
+	}
+	return nil
+}
+
 func (w *Watcher) Delete(ctx context.Context, buildID string) error {
+	if w.tokenMode {
+		if err := w.deleteRegistrySecret(ctx, buildID); err != nil {
+			return err
+		}
+	}
 	name := Name(buildID)
 	build := &locoControllerV1.Build{
 		Name: name, Namespace: w.namespace,

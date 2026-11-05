@@ -10,6 +10,7 @@ import (
 
 	"github.com/team-loco/loco/agent/pkg/telemetrytoken"
 	"github.com/team-loco/loco/internal/loglevel"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
@@ -44,6 +45,8 @@ func agentEnv() map[string]string {
 		envLogLevel:                 "warn",
 		envGateway:                  "ingress",
 		envAppDomains:               "apps.test,other.test",
+		envRegistryAuth:             locoControllerV1.RegistryAuthToken,
+		envRegistryCheckInterval:    "6m",
 	}
 }
 
@@ -92,6 +95,8 @@ func TestParseAgentConfigReadsTheEnvironment(t *testing.T) {
 		Gateway:                  "ingress",
 		Certificate:              "wildcard",
 		AppDomains:               []string{"apps.test", "other.test"},
+		RegistryAuth:             locoControllerV1.RegistryAuthToken,
+		RegistryCheckInterval:    6 * time.Minute,
 	}
 	if !reflect.DeepEqual(*cfg, want) {
 		t.Errorf("config = %+v, want %+v", *cfg, want)
@@ -133,6 +138,8 @@ func TestParseAgentConfigRejectsMissingValues(t *testing.T) {
 		envLogLevel,
 		envGateway,
 		envAppDomains,
+		envRegistryAuth,
+		envRegistryCheckInterval,
 	}
 	for _, name := range required {
 		t.Run(name, func(t *testing.T) {
@@ -158,6 +165,7 @@ func TestParseAgentConfigRejectsInvalidDurations(t *testing.T) {
 		envReconnectMaxDelay,
 		envHealthyStreamDuration,
 		envAssertionLifetime,
+		envRegistryCheckInterval,
 	}
 	for _, name := range durations {
 		for _, value := range []string{"soon", "0s", "-1m", "5"} {
@@ -247,5 +255,38 @@ func TestParseAgentConfigReadsTheIngestTokenSecret(t *testing.T) {
 		if _, err := parseAgentConfig(lookup(missing), testAgentVersion); !errors.Is(err, errMissingEnv) {
 			t.Errorf("parseAgentConfig without %s = %v, want errMissingEnv", name, err)
 		}
+	}
+}
+
+func TestParseAgentConfigReadsTheRegistryAuthMode(t *testing.T) {
+	cases := []struct {
+		value     string
+		tokenMode bool
+	}{
+		{value: locoControllerV1.RegistryAuthStatic, tokenMode: false},
+		{value: locoControllerV1.RegistryAuthToken, tokenMode: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.value, func(t *testing.T) {
+			env := agentEnv()
+			env[envRegistryAuth] = tc.value
+			cfg, err := parseAgentConfig(lookup(env), testAgentVersion)
+			if err != nil {
+				t.Fatalf("parseAgentConfig: %v", err)
+			}
+			if cfg.RegistryTokenMode() != tc.tokenMode {
+				t.Errorf("token mode with %s=%s = %t, want %t",
+					envRegistryAuth, tc.value, cfg.RegistryTokenMode(), tc.tokenMode)
+			}
+		})
+	}
+	for _, value := range []string{"Token", "htpasswd"} {
+		t.Run(value, func(t *testing.T) {
+			env := agentEnv()
+			env[envRegistryAuth] = value
+			if _, err := parseAgentConfig(lookup(env), testAgentVersion); !errors.Is(err, errInvalidAuth) {
+				t.Errorf("parseAgentConfig with %s=%s = %v, want errInvalidAuth", envRegistryAuth, value, err)
+			}
+		})
 	}
 }

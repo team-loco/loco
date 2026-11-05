@@ -39,6 +39,15 @@ api:
     ORG_LINKS: '[{"label":"Support","url":"https://support.example.com/orgs/{orgId}"}]'
 ```
 
+With `LOCO_REGISTRY_AUTH=token` the API is the registry's [token endpoint](../reference/architecture.md#registry-access) at `/registry/token`, signing with the key the [secrets key provider](secrets-key-provider.md#configure-the-api) settings name. It reads these settings and refuses to start when one is invalid:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `LOCO_REGISTRY_TOKEN_SERVICE` | required for `token` | Name of the registry service; the token endpoint requires it as `service` and sets it as `aud`. It must match the registry's bearer `service`. The chart sets it from `api.registry.service` |
+| `LOCO_REGISTRY_ACCESS_TOKEN_LIFETIME` | `5m` | Lifetime of a registry access token, positive |
+| `LOCO_REGISTRY_PULL_CREDENTIAL_LIFETIME` | `24h` | Lifetime of a workspace pull credential issued by `RegistryService.IssuePullCredential`, positive |
+| `LOCO_REGISTRY_CREDENTIAL_SWEEP_INTERVAL` | `10m` | How often the API deletes expired pull credentials and build credentials whose build is no longer running on their cluster, positive |
+
 Each worker cluster needs a CNI that enforces Kubernetes NetworkPolicy, cert-manager and the `loco-worker` chart, which runs the agent, the Loco controllers, Envoy Gateway and the OpenTelemetry collectors. Create its release namespace `loco-system` with the Pod Security labels in `manifests/namespaces/loco-system.yaml` before installing it. The collectors export every log, trace and metric over OTLP/HTTP to one endpoint and store nothing in the cluster. The control plane cluster needs Envoy Gateway and cert-manager, and runs the API, dashboard, observability proxy, ClickHouse and OpenBao from the `loco-control-plane` chart.
 
 As a [system admin](#first-system-admin), attach each cluster by creating its record with `locoadm cluster create` and passing the printed join token to the agent's first start; see [cluster attachment](../reference/cluster-attachment.md). Set the platform domains a cluster serves in `global.domain.apps` of its `loco-worker` values and point `*.<domain>` at its gateway; the API stores no domains of its own.
