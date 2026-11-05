@@ -21,7 +21,7 @@ type EgressExclusions struct {
 	ipv6 []string
 }
 
-func nodeAddressRanges(node *corev1.Node) []string {
+func nodeAddressRanges(node *corev1.Node) ([]string, error) {
 	cidrs := node.Spec.PodCIDRs
 	if len(cidrs) == 0 && node.Spec.PodCIDR != "" {
 		cidrs = []string{node.Spec.PodCIDR}
@@ -33,14 +33,14 @@ func nodeAddressRanges(node *corev1.Node) []string {
 		}
 		addr, err := netip.ParseAddr(address.Address)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("node %s internal ip %q: %w", node.Name, address.Address, err)
 		}
 		unmapped := addr.Unmap()
 		prefix := netip.PrefixFrom(unmapped, unmapped.BitLen())
 		ranges = append(ranges, prefix.String())
 	}
 	slices.Sort(ranges)
-	return ranges
+	return ranges, nil
 }
 
 func clusterAddressRanges(ctx context.Context, reader client.Reader) ([]string, error) {
@@ -50,7 +50,10 @@ func clusterAddressRanges(ctx context.Context, reader client.Reader) ([]string, 
 	}
 	var ranges []string
 	for i := range nodes.Items {
-		nodeRanges := nodeAddressRanges(&nodes.Items[i])
+		nodeRanges, err := nodeAddressRanges(&nodes.Items[i])
+		if err != nil {
+			return nil, err
+		}
 		ranges = append(ranges, nodeRanges...)
 	}
 
@@ -69,12 +72,12 @@ func clusterAddressRanges(ctx context.Context, reader client.Reader) ([]string, 
 	return ranges, nil
 }
 
-func parsePrefixes(cidrs []string) []netip.Prefix {
+func parsePrefixes(cidrs []string) ([]netip.Prefix, error) {
 	prefixes := make([]netip.Prefix, 0, len(cidrs))
 	for _, cidr := range cidrs {
 		prefix, err := netip.ParsePrefix(cidr)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("cidr %q: %w", cidr, err)
 		}
 		masked := prefix.Masked()
 		addr := masked.Addr()
@@ -84,6 +87,14 @@ func parsePrefixes(cidrs []string) []netip.Prefix {
 			masked = netip.PrefixFrom(unmappedAddr, ipv4Bits)
 		}
 		prefixes = append(prefixes, masked)
+	}
+	return prefixes, nil
+}
+
+func mustParsePrefixes(cidrs []string) []netip.Prefix {
+	prefixes, err := parsePrefixes(cidrs)
+	if err != nil {
+		panic(fmt.Sprintf("reserved egress ranges: %v", err))
 	}
 	return prefixes
 }
@@ -119,15 +130,19 @@ func DiscoverEgressExclusions(ctx context.Context, reader client.Reader) (Egress
 	if err != nil {
 		return EgressExclusions{}, fmt.Errorf("discover cluster address ranges: %w", err)
 	}
-	return egressExclusions(discovered), nil
+	return egressExclusions(discovered)
 }
 
-func egressExclusions(discovered []string) EgressExclusions {
-	reserved4 := parsePrefixes(reservedIPv4)
-	reserved6 := parsePrefixes(reservedIPv6)
+func egressExclusions(discovered []string) (EgressExclusions, error) {
+	discoveredPrefixes, err := parsePrefixes(discovered)
+	if err != nil {
+		return EgressExclusions{}, fmt.Errorf("parse discovered ranges: %w", err)
+	}
+	reserved4 := mustParsePrefixes(reservedIPv4)
+	reserved6 := mustParsePrefixes(reservedIPv6)
 	ipv4 := slices.Clone(reserved4)
 	ipv6 := slices.Clone(reserved6)
-	for _, prefix := range parsePrefixes(discovered) {
+	for _, prefix := range discoveredPrefixes {
 		if prefix.Addr().Is4() {
 			if !coveredBy(prefix, reserved4) {
 				ipv4 = append(ipv4, prefix)
@@ -140,7 +155,7 @@ func egressExclusions(discovered []string) EgressExclusions {
 	}
 	ipv4Strings := prefixStrings(ipv4)
 	ipv6Strings := prefixStrings(ipv6)
-	return EgressExclusions{ipv4: ipv4Strings, ipv6: ipv6Strings}
+	return EgressExclusions{ipv4: ipv4Strings, ipv6: ipv6Strings}, nil
 }
 
 func NodeRangesChanged() predicate.Funcs {
@@ -153,8 +168,11 @@ func NodeRangesChanged() predicate.Funcs {
 			if !oldOK || !newOK {
 				return false
 			}
-			oldRanges := nodeAddressRanges(oldNode)
-			newRanges := nodeAddressRanges(newNode)
+			oldRanges, oldErr := nodeAddressRanges(oldNode)
+			newRanges, newErr := nodeAddressRanges(newNode)
+			if oldErr != nil || newErr != nil {
+				return true
+			}
 			return !slices.Equal(oldRanges, newRanges)
 		},
 		GenericFunc: func(event.GenericEvent) bool { return false },

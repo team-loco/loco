@@ -51,7 +51,10 @@ func testNode(name string, podCIDRs []string, internalIPs ...string) *corev1.Nod
 
 func TestEgressExclusionsIPv4Cluster(t *testing.T) {
 	discovered := []string{podCIDRB, testNetThree, testNetThree, "198.51.100.7/32", serviceCIDRv4}
-	exclusions := egressExclusions(discovered)
+	exclusions, err := egressExclusions(discovered)
+	if err != nil {
+		t.Fatalf("egressExclusions: %v", err)
+	}
 
 	want := []string{
 		"0.0.0.0/8", "10.0.0.0/8", "100.64.0.0/10", "169.254.0.0/16", "172.16.0.0/12",
@@ -71,7 +74,10 @@ func TestEgressExclusionsDualStackAndGlobalIPv6PodRanges(t *testing.T) {
 		"203.0.113.9/32",
 		"::ffff:198.51.100.0/120",
 	}
-	exclusions := egressExclusions(discovered)
+	exclusions, err := egressExclusions(discovered)
+	if err != nil {
+		t.Fatalf("egressExclusions: %v", err)
+	}
 
 	assertStrings(t, "ipv6", exclusions.ipv6, []string{
 		"64:ff9b::/96", serviceCIDRv6, globalPodCIDRv6, "fc00::/7", "fe80::/10", "ff00::/8",
@@ -87,8 +93,14 @@ func TestEgressExclusionsDualStackAndGlobalIPv6PodRanges(t *testing.T) {
 }
 
 func TestEgressExclusionsAreStable(t *testing.T) {
-	first := egressExclusions([]string{testNetThree, shortPodCIDRv6, "198.51.100.1/32"})
-	second := egressExclusions([]string{"198.51.100.1/32", shortPodCIDRv6, testNetThree, testNetThree})
+	first, err := egressExclusions([]string{testNetThree, shortPodCIDRv6, "198.51.100.1/32"})
+	if err != nil {
+		t.Fatalf("egressExclusions: %v", err)
+	}
+	second, err := egressExclusions([]string{"198.51.100.1/32", shortPodCIDRv6, testNetThree, testNetThree})
+	if err != nil {
+		t.Fatalf("egressExclusions: %v", err)
+	}
 	assertStrings(t, "ipv4", second.ipv4, first.ipv4)
 	assertStrings(t, "ipv6", second.ipv6, first.ipv6)
 }
@@ -143,6 +155,22 @@ func TestClusterAddressRangesWithoutServiceCIDRAPI(t *testing.T) {
 	}
 	if !containsString(ranges, "203.0.113.6/32") {
 		t.Errorf("ranges %v missing the node address", ranges)
+	}
+}
+
+func TestDiscoverEgressExclusionsRejectsUnparsableRanges(t *testing.T) {
+	tests := map[string]*corev1.Node{
+		"node internal ip": testNode("bad-ip", []string{podCIDRA}, "not-an-ip"),
+		"node pod cidr":    testNode("bad-cidr", []string{"not-a-cidr"}, "203.0.113.8"),
+	}
+	for name, node := range tests {
+		t.Run(name, func(t *testing.T) {
+			kubeClient := fake.NewClientBuilder().WithScheme(testScheme(t)).WithObjects(node).Build()
+			_, err := DiscoverEgressExclusions(context.Background(), kubeClient)
+			if err == nil {
+				t.Fatal("DiscoverEgressExclusions succeeded with an unparsable range")
+			}
+		})
 	}
 }
 
