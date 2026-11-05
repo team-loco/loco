@@ -3,14 +3,7 @@
 !go.mod
 !go.sum
 !gen/go
-!internal/bearer
-!internal/buildinfo
-!internal/httputil
-!internal/rpcerr
-!internal/loglevel
-!internal/clusterassertion
-!internal/ingesttoken
-!internal/locofile
+!internal
 !k8sapi
 **/node_modules
 **/dist

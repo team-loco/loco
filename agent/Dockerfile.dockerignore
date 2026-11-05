@@ -3,9 +3,7 @@
 !go.mod
 !go.sum
 !gen/go
-!internal/buildinfo
-!internal/loglevel
-!internal/clusterassertion
+!internal
 !k8sapi
 **/node_modules
 **/dist

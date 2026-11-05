@@ -3,10 +3,7 @@
 !go.mod
 !go.sum
 !gen/go
-!internal/buildinfo
-!internal/httputil
-!internal/rpcerr
-!internal/ingesttoken
+!internal
 **/node_modules
 **/dist
 **/*_test.go
