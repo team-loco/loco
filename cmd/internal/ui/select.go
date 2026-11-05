@@ -28,7 +28,6 @@ func (i selectItem) FilterValue() string { return i.title }
 
 type selectModel struct {
 	list     list.Model
-	err      error
 	selected any
 }
 
@@ -115,8 +114,8 @@ func SelectFromList(title string, options []SelectOption) (any, error) {
 	}
 
 	if sm.selected == nil {
-		return nil, ErrNoSelection
+		return nil, errNoSelection
 	}
 
-	return sm.selected, sm.err
+	return sm.selected, nil
 }

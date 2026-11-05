@@ -75,7 +75,7 @@ func readArchive(t *testing.T, data []byte) map[string]entry {
 func pack(t *testing.T, dir string, dockerfiles ...string) (map[string]entry, *Summary) {
 	t.Helper()
 	var buf bytes.Buffer
-	summary, err := Write(&buf, dir, dockerfiles)
+	summary, err := write(&buf, dir, dockerfiles)
 	if err != nil {
 		t.Fatalf("write: %v", err)
 	}
@@ -190,7 +190,7 @@ func TestWriteKeepsEverySelectedDockerfile(t *testing.T) {
 func TestWriteRejectsNoDockerfiles(t *testing.T) {
 	dir := writeTree(t, map[string]string{dockerfile: scratchImage})
 	var buf bytes.Buffer
-	if _, err := Write(&buf, dir, nil); !errors.Is(err, ErrNoDockerfiles) {
+	if _, err := write(&buf, dir, nil); !errors.Is(err, ErrNoDockerfiles) {
 		t.Fatalf("err = %v, want ErrNoDockerfiles", err)
 	}
 }
@@ -229,7 +229,7 @@ func TestWriteKeepsSymlinks(t *testing.T) {
 func TestWriteRejectsAMissingDockerfile(t *testing.T) {
 	dir := writeTree(t, map[string]string{mainGo: goSource})
 	var buf bytes.Buffer
-	if _, err := Write(&buf, dir, []string{dockerfile}); !errors.Is(err, ErrDockerfileMissing) {
+	if _, err := write(&buf, dir, []string{dockerfile}); !errors.Is(err, ErrDockerfileMissing) {
 		t.Fatalf("err = %v, want ErrDockerfileMissing", err)
 	}
 }
@@ -237,7 +237,7 @@ func TestWriteRejectsAMissingDockerfile(t *testing.T) {
 func TestWriteRejectsADockerfileOutsideTheContext(t *testing.T) {
 	dir := writeTree(t, map[string]string{dockerfile: scratchImage})
 	var buf bytes.Buffer
-	if _, err := Write(&buf, dir, []string{"../Dockerfile"}); err == nil {
+	if _, err := write(&buf, dir, []string{"../Dockerfile"}); err == nil {
 		t.Fatal("a Dockerfile outside the context was accepted")
 	}
 }

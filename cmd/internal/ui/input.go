@@ -8,11 +8,10 @@ import (
 )
 
 type inputModel struct {
-	err       error
 	textInput textinput.Model
 }
 
-func NewInputModel(prompt string) inputModel {
+func newInputModel(prompt string) inputModel {
 	ti := textinput.New()
 	ti.Prompt = prompt
 	ti.Focus()
@@ -48,7 +47,7 @@ func (m inputModel) View() tea.View {
 }
 
 func AskForString(prompt string) (string, error) {
-	p := tea.NewProgram(NewInputModel(prompt))
+	p := tea.NewProgram(newInputModel(prompt))
 	model, err := p.Run()
 	if err != nil {
 		return "", err
@@ -58,5 +57,5 @@ func AskForString(prompt string) (string, error) {
 	if !ok {
 		return "", errUnexpectedModel
 	}
-	return m.textInput.Value(), m.err
+	return m.textInput.Value(), nil
 }

@@ -8,9 +8,9 @@ import (
 	"slices"
 )
 
-// Merge applies an environment override to a service: objects merge recursively, lists and
+// merge applies an environment override to a service: objects merge recursively, lists and
 // scalars replace whole, and a null removes the key. Neither input is modified.
-func Merge(service, override map[string]any) map[string]any {
+func merge(service, override map[string]any) map[string]any {
 	merged := maps.Clone(service)
 	if merged == nil {
 		merged = map[string]any{}
@@ -23,7 +23,7 @@ func Merge(service, override map[string]any) map[string]any {
 		overrideObject, overrideIsObject := value.(map[string]any)
 		baseObject, baseIsObject := merged[key].(map[string]any)
 		if overrideIsObject && baseIsObject {
-			merged[key] = Merge(baseObject, overrideObject)
+			merged[key] = merge(baseObject, overrideObject)
 			continue
 		}
 		merged[key] = value
@@ -52,7 +52,7 @@ func Resolve(file *File, env string) (map[string]Service, error) {
 			}
 			override = maps.Clone(override)
 			delete(override, keyEnabled)
-			base = Merge(base, override)
+			base = merge(base, override)
 		}
 
 		service, err := decodeService(base)

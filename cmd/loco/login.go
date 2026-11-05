@@ -242,24 +242,9 @@ type (
 	}
 )
 
-func waitForToken(tokenChan <-chan *authv1.CLITokens) tea.Cmd {
-	return func() tea.Msg {
-		return authSuccessMsg{Tokens: <-tokenChan}
-	}
-}
-
-func waitForError(errorChan <-chan error) tea.Cmd {
-	return func() tea.Msg {
-		err := <-errorChan
-		return authErrorMsg{Error: err}
-	}
-}
-
 type model struct {
 	tokens          *authv1.CLITokens
-	tokenChan       <-chan *authv1.CLITokens
-	errorChan       <-chan error
-	loadingFrames   []string
+	poll            tea.Cmd
 	userCode        string
 	verificationURI string
 	err             error
@@ -268,30 +253,19 @@ type model struct {
 	done            bool
 }
 
-func initialModel(
-	userCode string,
-	verificationURI string,
-	tokenChan <-chan *authv1.CLITokens,
-	errorChan <-chan error,
-) model {
+var loadingFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+
+func initialModel(userCode, verificationURI string, poll tea.Cmd) model {
 	return model{
 		userCode:        userCode,
 		verificationURI: verificationURI,
-		loadingFrames:   []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"},
-		frameIndex:      0,
 		polling:         true,
-		done:            false,
-		tokenChan:       tokenChan,
-		errorChan:       errorChan,
+		poll:            poll,
 	}
 }
 
 func (m model) Init() tea.Cmd {
-	return tea.Batch(
-		tick(),
-		waitForToken(m.tokenChan),
-		waitForError(m.errorChan),
-	)
+	return tea.Batch(tick(), m.poll)
 }
 
 func tick() tea.Cmd {
@@ -309,7 +283,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tickMsg:
 		if m.polling && !m.done {
-			m.frameIndex = (m.frameIndex + 1) % len(m.loadingFrames)
+			m.frameIndex = (m.frameIndex + 1) % len(loadingFrames)
 			return m, tick()
 		}
 	case authSuccessMsg:
@@ -345,18 +319,13 @@ func (m model) View() tea.View {
 	instructionStyle := lipgloss.NewStyle().Foreground(ui.Fg2)
 	spinnerStyle := lipgloss.NewStyle().Foreground(ui.Accent).Bold(true)
 
-	spinner := ""
-	if len(m.loadingFrames) > 0 {
-		spinner = spinnerStyle.Render(m.loadingFrames[m.frameIndex])
-	}
-
 	return tea.NewView(fmt.Sprintf(
 		"%s %s\n\n%s %s\n\n%s %s\n\n%s",
 		instructionStyle.Render("Please open the following URL in your browser:"),
 		urlStyle.Render(m.verificationURI),
 		instructionStyle.Render("Then, enter the following user code:"),
 		codeStyle.Render(m.userCode),
-		spinner,
+		spinnerStyle.Render(loadingFrames[m.frameIndex]),
 		instructionStyle.Render("Waiting for authentication..."),
 		lipgloss.NewStyle().Foreground(ui.Fg3).Faint(true).Render("Press 'q' or Ctrl+C to quit"),
 	))

@@ -116,7 +116,7 @@ func TestMerge(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := Merge(tt.service, tt.override)
+			got := merge(tt.service, tt.override)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -125,7 +125,7 @@ func TestMerge(t *testing.T) {
 func TestMergeDoesNotMutateInputs(t *testing.T) {
 	service := map[string]any{keyEnv: map[string]any{"A": "1"}, keyImage: "x"}
 	override := map[string]any{keyEnv: map[string]any{"B": "2"}, keyImage: nil}
-	Merge(service, override)
+	merge(service, override)
 	assert.Equal(t, map[string]any{keyEnv: map[string]any{"A": "1"}, keyImage: "x"}, service)
 	assert.Equal(t, map[string]any{keyEnv: map[string]any{"B": "2"}, keyImage: nil}, override)
 }
