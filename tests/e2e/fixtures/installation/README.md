@@ -10,6 +10,8 @@ Run once with `--no-teardown` for development, then reuse the kept infrastructur
 
 `--timeout` bounds host setup and acceptance; its default leaves time for setup and cleanup within the CI job. Cleanup has its own deadline even when acceptance times out.
 
+Source deployment and verification each have a five-minute fixture deadline. Before cleanup, failures report allowlisted build, pod, event and node states plus validated numeric capacity; object names, specs and provider messages stay private.
+
 | Requirement | Evidence in this suite |
 | --- | --- |
 | [719](https://github.com/team-loco/loco/issues/719) | Public installation, real IdP authentication and enrolled in-cluster worker |
