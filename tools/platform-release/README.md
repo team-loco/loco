@@ -27,7 +27,7 @@ gh workflow run platform-release.yml --ref main \
   -f core_commit="$(git rev-parse origin/main)"
 ```
 
-`version` is the bundle's own version and accepts `X.Y.Z` and `X.Y.Z-rc.N`, without a `v` prefix. The bundle pins the chart and CRD bundle versions in the source at `core_commit` by digest, and fails when one of them is not published. It publishes nothing else. Configure the `platform-release` GitHub environment to permit only `main`. Publishing requires package write access; it never connects to Kubernetes.
+`version` is the bundle's own version and accepts `X.Y.Z` and `X.Y.Z-rc.N`, without a `v` prefix. The bundle pins the chart and CRD bundle versions in the source at `core_commit` by digest, and fails when one of them is not published. Its `release.json` includes `configVersion`, binding those artifacts to the installation file format accepted by `locoadm`. It publishes nothing else. Configure the `platform-release` GitHub environment to permit only `main`. Publishing requires package write access; it never connects to Kubernetes.
 
 Artifacts use these repository paths under `ghcr.io/<owner>/<repository>`:
 

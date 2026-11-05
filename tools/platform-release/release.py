@@ -240,7 +240,8 @@ def bundle(version, commit, refs, images):
     release_layer = resource('Kustomization', 'platform-releases', {**parent_spec, 'path': './releases', 'prune': True, 'dependsOn': [{'name': 'crds'}]})
     files['layers.yaml'] = b'\n---\n'.join(encoded(layer) for layer in (crd_layer, release_layer))
     files['kustomization.yaml'] = encoded({'apiVersion': 'kustomize.config.k8s.io/v1beta1', 'kind': 'Kustomization', 'resources': ['layers.yaml']})
-    files['release.json'] = encoded({'version': version, 'coreCommit': commit, 'artifacts': refs, 'images': images})
+    config_version = json.loads((ROOT / 'schemas/installation.v1alpha1.json').read_text())['properties']['version']['const']
+    files['release.json'] = encoded({'configVersion': config_version, 'version': version, 'coreCommit': commit, 'artifacts': refs, 'images': images})
     return files
 
 

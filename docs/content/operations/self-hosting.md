@@ -23,7 +23,7 @@ The local environment is a development installation. Review the repository's env
 | Platform charts | `charts/` | Kubernetes platform configuration |
 | Observability proxy | `observability-proxy/` | Workspace-scoped reads from ClickHouse, on the control plane |
 
-The development CLI also validates declarative [installation files](../reference/installation.md). This unreleased contract targets existing Kubernetes infrastructure and references external credentials through Secrets.
+The development CLI also plans and applies declarative [installation files](../reference/installation.md). This unreleased contract targets existing Kubernetes infrastructure and references external credentials through Secrets.
 
 ## Installation inputs
 
