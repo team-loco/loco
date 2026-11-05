@@ -45,11 +45,6 @@ export const listUserOrgs = OrgService.method.listUserOrgs;
 export const listOrgMembers = OrgService.method.listOrgMembers;
 
 /**
- * @generated from rpc loco.org.v1.OrgService.AddOrgMember
- */
-export const addOrgMember = OrgService.method.addOrgMember;
-
-/**
  * @generated from rpc loco.org.v1.OrgService.RemoveOrgMember
  */
 export const removeOrgMember = OrgService.method.removeOrgMember;

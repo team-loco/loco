@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AddOrgMemberRequest, AddOrgMemberResponse, CreateOrgRequest, CreateOrgResponse, DeleteOrgRequest, DeleteOrgResponse, GetOrgRequest, GetOrgResponse, InviteOrgMemberRequest, InviteOrgMemberResponse, ListInvitationsRequest, ListInvitationsResponse, ListOrgMembersRequest, ListOrgMembersResponse, ListUserOrgsRequest, ListUserOrgsResponse, RemoveOrgMemberRequest, RemoveOrgMemberResponse, ResendInvitationRequest, ResendInvitationResponse, ResumeOrgRequest, ResumeOrgResponse, RevokeInvitationRequest, RevokeInvitationResponse, SuspendOrgRequest, SuspendOrgResponse, UpdateOrgRequest, UpdateOrgResponse } from "./org_pb";
+import { CreateOrgRequest, CreateOrgResponse, DeleteOrgRequest, DeleteOrgResponse, GetOrgRequest, GetOrgResponse, InviteOrgMemberRequest, InviteOrgMemberResponse, ListInvitationsRequest, ListInvitationsResponse, ListOrgMembersRequest, ListOrgMembersResponse, ListUserOrgsRequest, ListUserOrgsResponse, RemoveOrgMemberRequest, RemoveOrgMemberResponse, ResendInvitationRequest, ResendInvitationResponse, ResumeOrgRequest, ResumeOrgResponse, RevokeInvitationRequest, RevokeInvitationResponse, SuspendOrgRequest, SuspendOrgResponse, UpdateOrgRequest, UpdateOrgResponse } from "./org_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -76,15 +76,6 @@ export const OrgService = {
       name: "ListOrgMembers",
       I: ListOrgMembersRequest,
       O: ListOrgMembersResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * @generated from rpc loco.org.v1.OrgService.AddOrgMember
-     */
-    addOrgMember: {
-      name: "AddOrgMember",
-      I: AddOrgMemberRequest,
-      O: AddOrgMemberResponse,
       kind: MethodKind.Unary,
     },
     /**

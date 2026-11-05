@@ -18,9 +18,8 @@ def prepare_activity(evidence, state):
     sibling_resource = call('loco.resource.v1.ResourceService/CreateResource', {'workspaceId': sibling, 'name': 'inventory', 'type': 'RESOURCE_TYPE_SERVICE', 'spec': spec})['resourceId']
     other = call('loco.org.v1.OrgService/CreateOrg', {'name': 'other-company'})['orgId']
     other_workspace = call('loco.workspace.v1.WorkspaceService/CreateWorkspace', {'orgId': other, 'name': 'internal'})['workspaceId']
-    for name in ('workspace_admin', 'resource_reader'):
-        call('loco.org.v1.OrgService/AddOrgMember', {'orgId': other, 'userId': state['users'][name]['id']})
-    scopes = [(state['users']['workspace_admin']['id'], scope, 'workspace', workspace) for scope in ('read', 'write', 'admin')]
+    scopes = [(state['users'][name]['id'], 'member', 'organization', other) for name in ('workspace_admin', 'resource_reader')]
+    scopes.extend((state['users']['workspace_admin']['id'], scope, 'workspace', workspace) for scope in ('read', 'write', 'admin'))
     scopes.append((state['users']['resource_reader']['id'], 'read', 'resource', resource))
     values = ','.join('(' + ','.join(evidence.sql_literal(value) for value in row) + ')' for row in scopes)
     evidence.psql(state['container'], 'INSERT INTO user_scopes(user_id,scope,entity_type,entity_id) VALUES ' + values + ';')

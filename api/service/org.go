@@ -478,56 +478,6 @@ func (s *OrgServer) ListOrgMembers(
 	}, nil
 }
 
-func (s *OrgServer) AddOrgMember(
-	ctx context.Context,
-	req *orgv1.AddOrgMemberRequest,
-) (*orgv1.AddOrgMemberResponse, error) {
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
-
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.AddOrgMember, req.GetOrgId()),
-	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to add org member", "orgId", req.GetOrgId())
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
-	}
-
-	orgID := uuid.MustParse(req.GetOrgId())
-	userID := uuid.MustParse(req.GetUserId())
-	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if addErr := qtx.AddUserScope(ctx, genDb.AddUserScopeParams{
-			UserID:     userID,
-			EntityType: genDb.EntityTypeOrganization,
-			EntityID:   orgID,
-			Scope:      genDb.ScopeMember,
-		}); addErr != nil {
-			return addErr
-		}
-		return events.Record(ctx, qtx, events.Event{
-			Type:        events.OrgMemberAdded,
-			OrgID:       new(orgID),
-			SubjectType: events.SubjectUser,
-			SubjectID:   new(userID),
-		})
-	})
-	switch pgForeignKeyConstraint(err) {
-	case pgOrgScopeReference:
-		return nil, rpcerr.New(connect.CodeNotFound, ErrOrgNotFound)
-	case pgUserScopeOwnerReference:
-		return nil, rpcerr.New(connect.CodeNotFound, ErrUserNotFound)
-	}
-	if err != nil {
-		return nil, txError(ctx, "failed to add org member", err)
-	}
-
-	return &orgv1.AddOrgMemberResponse{}, nil
-}
-
 func (s *OrgServer) RemoveOrgMember(
 	ctx context.Context,
 	req *orgv1.RemoveOrgMemberRequest,

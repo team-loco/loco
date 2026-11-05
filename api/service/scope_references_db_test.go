@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 )
 
@@ -200,24 +199,6 @@ func TestHierarchyScopeGrantAndDeleteSerialize(t *testing.T) {
 				}
 			})
 		}
-	}
-}
-
-func TestOrgMembershipRejectsDeletedOrganization(t *testing.T) {
-	f := newEventFixture(t)
-	org, err := f.queries.GetOrgByID(t.Context(), uuid.MustParse(f.orgID))
-	if err != nil {
-		t.Fatal(err)
-	}
-	server := NewOrgServer(f.pool, f.queries, f.machine, InvitationConfig{})
-	if _, deleteErr := server.DeleteOrg(f.owner, &orgv1.DeleteOrgRequest{OrgId: f.orgID}); deleteErr != nil {
-		t.Fatal(deleteErr)
-	}
-	_, err = server.AddOrgMember(f.owner, &orgv1.AddOrgMemberRequest{OrgId: f.orgID, UserId: org.CreatedBy.String()})
-	wantCode(t, err, connect.CodeNotFound)
-	var connectError *connect.Error
-	if !errors.As(err, &connectError) || connectError.Message() != ErrOrgNotFound.Error() {
-		t.Fatalf("add member after organization deletion=%v, want organization not found", err)
 	}
 }
 

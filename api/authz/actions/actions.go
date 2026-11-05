@@ -176,11 +176,6 @@ var (
 		entityType: db.EntityTypeOrganization,
 		scope:      db.ScopeAdmin,
 	}
-	// AddOrgMember requires organization:admin.
-	AddOrgMember = Action{
-		entityType: db.EntityTypeOrganization,
-		scope:      db.ScopeAdmin,
-	}
 	// RemoveOrgMember requires organization:admin.
 	RemoveOrgMember = Action{
 		entityType: db.EntityTypeOrganization,
