@@ -247,8 +247,9 @@ func (s *OrgServer) adminInvitation(ctx context.Context, action actions.Action, 
 		slog.ErrorContext(ctx, "failed to load invitation", "error", err)
 		return genDb.Invitation{}, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
-	if checkErr := s.checkOrg(ctx, action, invitation.OrgID.String()); checkErr != nil {
-		return genDb.Invitation{}, checkErr
+	required := actions.New(action, invitation.OrgID.String())
+	if authErr := authorizeVisible(ctx, s.authz, required, ErrInvitationNotFound); authErr != nil {
+		return genDb.Invitation{}, authErr
 	}
 	return invitation, nil
 }

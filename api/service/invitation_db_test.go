@@ -188,17 +188,27 @@ func TestInvitationAuthorization(t *testing.T) {
 		}); codeOf(callErr) != connect.CodePermissionDenied {
 			t.Errorf("%s invited: %v", name, callErr)
 		}
-		if _, callErr := user.clients.Org.ResendInvitation(ctx, &orgv1.ResendInvitationRequest{
-			Id: invitation.GetId(),
-		}); codeOf(callErr) != connect.CodePermissionDenied {
-			t.Errorf("%s resent: %v", name, callErr)
-		}
-		if _, callErr := user.clients.Org.RevokeInvitation(ctx, &orgv1.RevokeInvitationRequest{
-			Id: invitation.GetId(),
-		}); codeOf(callErr) != connect.CodePermissionDenied {
-			t.Errorf("%s revoked: %v", name, callErr)
-		}
 	}
+	if _, err = member.clients.Org.ResendInvitation(ctx, &orgv1.ResendInvitationRequest{
+		Id: invitation.GetId(),
+	}); codeOf(err) != connect.CodePermissionDenied {
+		t.Errorf("member resent: %v", err)
+	}
+	if _, err = member.clients.Org.RevokeInvitation(ctx, &orgv1.RevokeInvitationRequest{
+		Id: invitation.GetId(),
+	}); codeOf(err) != connect.CodePermissionDenied {
+		t.Errorf("member revoked: %v", err)
+	}
+	resend := func(id string) error {
+		_, callErr := other.clients.Org.ResendInvitation(ctx, &orgv1.ResendInvitationRequest{Id: id})
+		return callErr
+	}
+	wantSameNotFound(t, resend(invitation.GetId()), resend(uuid.NewString()))
+	revoke := func(id string) error {
+		_, callErr := other.clients.Org.RevokeInvitation(ctx, &orgv1.RevokeInvitationRequest{Id: id})
+		return callErr
+	}
+	wantSameNotFound(t, revoke(invitation.GetId()), revoke(uuid.NewString()))
 	if _, err = other.clients.Org.ListInvitations(ctx, &orgv1.ListInvitationsRequest{
 		OrgId: o.orgID,
 	}); codeOf(err) != connect.CodePermissionDenied {

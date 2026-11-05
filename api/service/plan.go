@@ -11,12 +11,10 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
-	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/converter"
@@ -118,24 +116,9 @@ func (s *PlanServer) loadPlan(
 	}
 
 	environmentID := uuid.MustParse(rawEnvironmentID)
-	env, err := s.queries.GetEnvironmentByID(ctx, environmentID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
-	}
+	env, err := visibleEnvironment(ctx, s.queries, s.authz, environmentID, action)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get environment", "error", err, "environmentId", environmentID)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
-	workspaceAction := actions.New(action, env.WorkspaceID.String())
-	if authErr := s.authz.Check(ctx, scopes, workspaceAction); authErr != nil {
-		slog.WarnContext(ctx, "unauthorized to plan", "workspaceId", env.WorkspaceID)
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(authErr)
+		return nil, err
 	}
 
 	services, err := locofile.Resolve(file, env.Name)

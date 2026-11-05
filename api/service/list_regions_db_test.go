@@ -84,5 +84,5 @@ func TestListRegionsListsOnlyTheRegionsOfTheEnvironmentsEligibleClusters(t *test
 	}
 	denied := context.WithValue(context.Background(), contextkeys.EntityScopesKey, resourceScopes)
 	_, err := server.ListRegions(denied, &resourcev1.ListRegionsRequest{EnvironmentId: f.envID.String()})
-	wantCode(t, err, connect.CodePermissionDenied)
+	wantCode(t, err, connect.CodeNotFound)
 }

@@ -327,7 +327,7 @@ func TestPlanNeedsWorkspaceRead(t *testing.T) {
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeAdmin},
 	}
 	_, err := plan(t, f, file, scopes)
-	wantCode(t, err, connect.CodePermissionDenied)
+	wantCode(t, err, connect.CodeNotFound)
 }
 
 func TestPlanRejectsAnInvalidFile(t *testing.T) {
