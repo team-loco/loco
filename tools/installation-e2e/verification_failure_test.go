@@ -10,15 +10,25 @@ import (
 	"testing"
 )
 
+const verificationHTTPSCategory = "https"
+
 func TestFailedVerifyReportsOnlyFixedStage(t *testing.T) {
 	for _, tc := range []struct{ message, category string }{
 		{"verify source build: installation source verification failed", "source-build"},
-		{"ERROR\n Verify HTTPS: installation source verification failed.\n", "https"},
+		{"ERROR\n Verify HTTPS: installation source verification failed.\n", verificationHTTPSCategory},
+		{
+			"ERROR\n Verify HTTPS: installation source verification failed\nverification resource cleanup failed.\n",
+			verificationHTTPSCategory,
+		},
 		{"verify application logs: installation source verification failed", "application-logs"},
 		{"verify encrypted secret storage: installation source verification failed", "secret-storage"},
 		{"verify deployed secret delivery: installation source verification failed", "secret-delivery"},
 		{"verification resource cleanup failed", "cleanup"},
 		{"verify HTTPS: installation source verification failed credential-canary", verificationFailureUnknown},
+		{
+			"verify HTTPS: installation source verification failed credential-canary\nverification resource cleanup failed",
+			verificationFailureUnknown,
+		},
 		{"credential-canary", verificationFailureUnknown},
 	} {
 		t.Run(tc.category+tc.message, func(t *testing.T) {
@@ -62,7 +72,7 @@ func TestFailedVerifyReportsOnlyFixedStage(t *testing.T) {
 
 func TestHostAcceptsOnlyKnownVerificationFailures(t *testing.T) {
 	for _, category := range []string{
-		"source-build", "https", "application-logs", verificationFailureUnknown, "https credential-canary",
+		"source-build", verificationHTTPSCategory, "application-logs", verificationFailureUnknown, "https credential-canary",
 	} {
 		t.Run(category, func(t *testing.T) {
 			fakeOperatorCommand(t, "#!/bin/sh\nprintf '%s\\n' \"$VERIFY_TEST_OUTPUT\"\nexit 1\n")

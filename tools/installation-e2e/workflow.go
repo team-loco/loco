@@ -57,15 +57,9 @@ func operatorWorkflow(ctx context.Context, dir string) ([]byte, error) {
 		return nil, fmt.Errorf("operator phase %s: %w", output.phase, errOperatorOutputLimit)
 	}
 	if err != nil {
-		if output.verificationFailure != "" {
-			return nil, fmt.Errorf(
-				"operator phase %s, verification failure %s: kubectl failed: %w",
-				output.phase, output.verificationFailure, err,
-			)
-		}
 		if output.failure != "" {
 			return nil, fmt.Errorf(
-				"operator phase %s, bootstrap failure %s: kubectl failed: %w", output.phase, output.failure, err,
+				"operator phase %s, %s: kubectl failed: %w", output.phase, output.failure, err,
 			)
 		}
 		return nil, fmt.Errorf("operator phase %s: kubectl failed: %w", output.phase, err)
@@ -75,8 +69,8 @@ func operatorWorkflow(ctx context.Context, dir string) ([]byte, error) {
 
 type operatorOutput struct {
 	boundedOutput
-	lineStart                           int
-	phase, failure, verificationFailure string
+	lineStart      int
+	phase, failure string
 }
 
 func (o *operatorOutput) Write(p []byte) (int, error) {
@@ -93,11 +87,11 @@ func (o *operatorOutput) Write(p []byte) (int, error) {
 		candidate := string(data[o.lineStart:index])
 		o.lineStart = index + 1
 		if category, ok := strings.CutPrefix(candidate, bootstrapFailurePrefix); ok && knownBootstrapFailure(category) {
-			o.failure = category
+			o.failure = "bootstrap failure " + category
 		}
 		category, isVerification := strings.CutPrefix(candidate, verificationFailurePrefix)
 		if isVerification && knownVerificationFailure(category) {
-			o.verificationFailure = category
+			o.failure = "verification failure " + category
 			if _, writeErr := fmt.Fprintln(os.Stderr, verificationFailurePrefix+category); writeErr != nil {
 				return n, writeErr
 			}
