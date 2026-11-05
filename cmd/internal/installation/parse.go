@@ -73,7 +73,7 @@ func Validate(cfg *Config) error {
 	if err := required(reflect.ValueOf(*cfg), ""); err != nil {
 		return err
 	}
-	if cfg.Version != "loco.build/admin/v1alpha1" {
+	if cfg.Version != ConfigVersion {
 		return field("version")
 	}
 	if strings.Contains(cfg.Release.Manifest, "://") {

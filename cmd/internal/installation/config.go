@@ -1,5 +1,7 @@
 package installation
 
+const ConfigVersion = "loco.build/admin/v1alpha1"
+
 type Config struct {
 	Version      string       `json:"version"      yaml:"version"`
 	Name         string       `json:"name"         yaml:"name"`
