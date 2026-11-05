@@ -39,6 +39,9 @@ the change and the code it touches.
    non-obvious decision, a bug it avoids.
 10. **Exported but package-private, or dead.** Unexport what only its own package uses and
     delete what nothing calls.
+11. **Tests that guard removed code.** A test asserting that a deleted call, field or log line
+    stays absent verifies nothing once the code is gone. When a fix is a deletion, the diff is
+    the evidence; test behaviour that still exists, never the absence of what was removed.
 
 ## Rules
 
