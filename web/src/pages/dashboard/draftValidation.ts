@@ -1,4 +1,4 @@
-import { isPrivate, NAME_RE, type Draft } from "./drafts";
+import { isPrivate, SUBDOMAIN_RE, type Draft } from "./drafts";
 
 export interface DraftErrors {
 	region: string | null;
@@ -37,7 +37,7 @@ export function validateDraft(
 				? `No cluster in ${region} serves a platform domain`
 				: sub === ""
 					? "Choose a subdomain"
-					: !NAME_RE.test(sub)
+					: !SUBDOMAIN_RE.test(sub)
 						? "Lowercase letters, numbers and hyphens"
 						: takenSubs.has(sub) || availability === "taken"
 							? `${full} is taken`
