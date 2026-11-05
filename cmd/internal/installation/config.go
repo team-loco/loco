@@ -106,6 +106,14 @@ type Worker struct {
 	Certificates Certificates     `json:"certificates" yaml:"certificates"`
 }
 
+// PrivateEgress matches the controller's build-network contract in
+// controller/internal/builds/config.go; CLI and controller use separate Go modules.
+type PrivateEgress struct {
+	CIDR string `json:"cidr" yaml:"cidr"`
+	Port int32  `json:"port" yaml:"port"`
+}
+
 type Builds struct {
-	Enabled bool `json:"enabled" yaml:"enabled"`
+	PrivateEgress []PrivateEgress `json:"privateEgress" yaml:"privateEgress"`
+	Enabled       bool            `json:"enabled"       yaml:"enabled"`
 }

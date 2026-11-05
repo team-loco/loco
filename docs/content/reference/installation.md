@@ -45,8 +45,11 @@ Every field below is required, including explicit boolean settings. `workers: []
 | `workers[].tier` | `staging` or `production` |
 | `workers[].appsDomain` | DNS domain for applications, without a wildcard prefix |
 | `workers[].builds.enabled` | Whether this worker runs source builds |
+| `workers[].builds.privateEgress` | Explicit build-network allowances as `{cidr, port}` pairs; use `[]` when none are needed |
 | `workers[].certificates.issuerRef` | Existing issuer's `name` and `kind` |
 
 URLs use HTTP or HTTPS and contain no user information, query string or fragment. Use HTTPS for public services. HTTP permits isolated local fixtures. Domains contain lowercase DNS labels. Input Secret names resolve in the control-plane context and namespace; certificate issuer references resolve at their declared target.
 
 Store credential values in Kubernetes Secrets populated by an operator or external secret manager. The installation file accepts references only: no database password, SMTP transport, registry credential, token or arbitrary Helm values. Generated installation credentials belong in destination Secrets, outside this file. Authorized cluster administrators can still read those Secrets; avoiding routine display does not remove that trust boundary.
+
+Builds deny private-network access by default. For a private registry or source bucket, list only the destination CIDRs and TCP ports builds need. CIDRs must be masked and canonical, ports range from 1 through 65535, and duplicate pairs fail validation. These entries match the worker controller's `privateEgress` contract; broader ranges are an explicit operator choice. DNS resolution does not create allowances automatically. With Kubernetes Services, account for the destinations your CNI evaluates after Service address translation.

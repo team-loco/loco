@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/mail"
+	"net/netip"
 	"net/url"
 	"os"
 	"reflect"
@@ -135,6 +136,9 @@ func validate(cfg Config) error {
 		if !domain(w.AppsDomain) {
 			return field(path + ".appsDomain")
 		}
+		if err := privateEgress(w.Builds.PrivateEgress, path+".builds.privateEgress"); err != nil {
+			return err
+		}
 		if err := certificate(w.Certificates, path+".certificates"); err != nil {
 			return err
 		}
@@ -186,6 +190,10 @@ func shape(raw any, typ reflect.Type, path string) error {
 			return field(path)
 		}
 		if strings.HasSuffix(path, ".name") && strings.Contains(path, "Ref.") && !dnsName(value) {
+			return field(path)
+		}
+	case reflect.Int32:
+		if _, ok := raw.(int); !ok {
 			return field(path)
 		}
 	case reflect.Bool:
@@ -262,4 +270,23 @@ func bootstrapRedirect(value string) bool {
 	}
 	port, err := strconv.Atoi(parsed.Port())
 	return err == nil && port > 0 && port <= maxPort
+}
+
+func privateEgress(entries []PrivateEgress, path string) error {
+	seen := make(map[PrivateEgress]bool, len(entries))
+	for i, entry := range entries {
+		item := fmt.Sprintf("%s[%d]", path, i)
+		prefix, err := netip.ParsePrefix(entry.CIDR)
+		if err != nil || prefix != prefix.Masked() || prefix.String() != entry.CIDR {
+			return field(item + ".cidr")
+		}
+		if entry.Port < 1 || entry.Port > maxPort {
+			return field(item + ".port")
+		}
+		if seen[entry] {
+			return field(item)
+		}
+		seen[entry] = true
+	}
+	return nil
 }

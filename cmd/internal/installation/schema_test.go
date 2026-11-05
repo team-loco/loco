@@ -54,6 +54,10 @@ func checkSchema(t *testing.T, typ reflect.Type, document schema) {
 		if document.Type != "string" {
 			t.Fatalf("schema string diverges from %s", typ)
 		}
+	case reflect.Int32:
+		if document.Type != "integer" {
+			t.Fatalf("schema integer diverges from %s", typ)
+		}
 	case reflect.Bool:
 		if document.Type != "boolean" {
 			t.Fatalf("schema boolean diverges from %s", typ)

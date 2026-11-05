@@ -29,8 +29,8 @@ func TestRejectInvalidConfigurationWithoutValues(t *testing.T) {
 	const canary = "credential-canary-do-not-print"
 	valid := string(example(t))
 	tests := map[string]string{
-		"missing boolean": strings.Replace(valid, "builds: {enabled: true}", "builds: {}", 1),
-		"null object":     strings.Replace(valid, "builds: {enabled: true}", "builds: null", 1),
+		"missing boolean": strings.Replace(valid, "builds: {enabled: true, privateEgress: []}", "builds: {}", 1),
+		"null object":     strings.Replace(valid, "builds: {enabled: true, privateEgress: []}", "builds: null", 1),
 		"wrong scalar":    strings.Replace(valid, "audience: loco", "audience: 123", 1),
 		"bootstrap remote": strings.Replace(
 			valid,
@@ -127,12 +127,53 @@ func TestLoadReadFailureDoesNotDisclosePath(t *testing.T) {
 func TestEmptyWorkersAndDisabledBuilds(t *testing.T) {
 	valid := string(example(t))
 	if _, err := Parse(
-		[]byte(strings.Replace(valid, "builds: {enabled: true}", "builds: {enabled: false}", 1)),
+		[]byte(
+			strings.Replace(
+				valid,
+				"builds: {enabled: true, privateEgress: []}",
+				"builds: {enabled: false, privateEgress: []}",
+				1,
+			),
+		),
 	); err != nil {
 		t.Fatal(err)
 	}
 	prefix, _, _ := strings.Cut(valid, "workers:\n")
 	if _, err := Parse([]byte(prefix + "workers: []\n")); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestBuildPrivateEgress(t *testing.T) {
+	valid := string(example(t))
+	data := strings.Replace(
+		valid,
+		"privateEgress: []",
+		"privateEgress: [{cidr: 10.2.3.4/32, port: 5000}, {cidr: fd00::/64, port: 8080}]",
+		1,
+	)
+	config, err := Parse([]byte(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(config.Workers[0].Builds.PrivateEgress) != 2 {
+		t.Fatal("private destinations were not parsed")
+	}
+	for name, value := range map[string]string{
+		"missing cidr": "{port: 5000}",
+		"bad prefix":   "{cidr: invalid-canary, port: 5000}",
+		"host bits":    "{cidr: 10.2.3.4/24, port: 5000}",
+		"missing port": "{cidr: 10.2.3.4/32}",
+		"zero port":    "{cidr: 10.2.3.4/32, port: 0}",
+		"high port":    "{cidr: 10.2.3.4/32, port: 65536}",
+		"text port":    "{cidr: 10.2.3.4/32, port: invalid-canary}",
+		"duplicate":    "{cidr: 10.2.3.4/32, port: 5000}, {cidr: 10.2.3.4/32, port: 5000}",
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := Parse([]byte(strings.Replace(valid, "privateEgress: []", "privateEgress: ["+value+"]", 1)))
+			if err == nil || strings.Contains(err.Error(), "invalid-canary") {
+				t.Fatalf("unsafe or missing validation: %v", err)
+			}
+		})
 	}
 }

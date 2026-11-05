@@ -51,6 +51,6 @@ workers:
     region: us-east-1
     tier: staging
     appsDomain: staging.apps.example.com
-    builds: {enabled: true}
+    builds: {enabled: true, privateEgress: []}
     certificates:
       issuerRef: {name: example-issuer, kind: ClusterIssuer}
