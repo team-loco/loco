@@ -477,14 +477,11 @@
       }
     },
     "version": {
-      "type": "string",
-      "minLength": 1,
-      "enum": [
-        "loco.build/admin/v1alpha1"
-      ]
+      "type": "integer",
+      "const": 1
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://loco.build/schemas/installation.v1alpha1.json",
+  "$id": "https://loco.build/schemas/installation.v1.json",
   "title": "Loco installation"
 }

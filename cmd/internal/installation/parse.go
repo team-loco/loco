@@ -194,6 +194,10 @@ func shape(raw any, typ reflect.Type, path string) error {
 		if strings.HasSuffix(path, ".name") && strings.Contains(path, "Ref.") && !dnsName(value) {
 			return field(path)
 		}
+	case reflect.Int:
+		if _, ok := raw.(int); !ok {
+			return field(path)
+		}
 	case reflect.Int32:
 		if _, ok := raw.(int); !ok {
 			return field(path)

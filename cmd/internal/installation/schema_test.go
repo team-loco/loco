@@ -9,6 +9,7 @@ import (
 )
 
 type schema struct {
+	Const                any               `json:"const"`
 	Type                 string            `json:"type"`
 	Required             []string          `json:"required"`
 	Properties           map[string]schema `json:"properties"`
@@ -17,13 +18,16 @@ type schema struct {
 }
 
 func TestSchemaMatchesConfiguration(t *testing.T) {
-	data, err := os.ReadFile("../../../schemas/installation.v1alpha1.json")
+	data, err := os.ReadFile("../../../schemas/installation.v1.json")
 	if err != nil {
 		t.Fatal(err)
 	}
 	var document schema
 	if err := json.Unmarshal(data, &document); err != nil {
 		t.Fatal(err)
+	}
+	if document.Properties["version"].Const != float64(ConfigVersion) {
+		t.Fatal("schema version differs from supported configuration version")
 	}
 	checkSchema(t, reflect.TypeFor[Config](), document)
 }
@@ -53,6 +57,10 @@ func checkSchema(t *testing.T, typ reflect.Type, document schema) {
 	case reflect.String:
 		if document.Type != "string" {
 			t.Fatalf("schema string diverges from %s", typ)
+		}
+	case reflect.Int:
+		if document.Type != "integer" {
+			t.Fatalf("schema integer diverges from %s", typ)
 		}
 	case reflect.Int32:
 		if document.Type != "integer" {

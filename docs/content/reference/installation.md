@@ -9,13 +9,13 @@
 locoadm validate --file installation.yaml
 ```
 
-The default file is `installation.yaml`. See the [complete example](https://github.com/team-loco/loco/blob/main/examples/installation/installation.yaml) and [JSON Schema](https://github.com/team-loco/loco/blob/main/schemas/installation.v1alpha1.json). Unknown fields, duplicate keys and additional YAML documents fail validation. Errors identify known field paths without printing source values.
+The default file is `installation.yaml`. See the [complete example](https://github.com/team-loco/loco/blob/main/examples/installation/installation.yaml) and [JSON Schema](https://github.com/team-loco/loco/blob/main/schemas/installation.v1.json). Unknown fields, duplicate keys and additional YAML documents fail validation. Errors identify known field paths without printing source values.
 
 Every field below is required, including explicit boolean settings. `workers: []` declares a control plane without attached workers. Kubernetes contexts must already exist in the operator's kubeconfig. The operator supplies PostgreSQL, OIDC, S3-compatible storage, a registry, DNS, certificate issuers and Kubernetes clusters; this file does not provision those services.
 
 | Field | Value |
 | --- | --- |
-| `version` | `loco.build/admin/v1alpha1` |
+| `version` | `1` |
 | `name` | Installation identity, a lowercase Kubernetes DNS label |
 | `release.manifest` | Path to a local release manifest; artifact compatibility is checked by the installer |
 | `controlPlane.kubernetes.context` | Existing kubeconfig context |

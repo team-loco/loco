@@ -1,5 +1,5 @@
-# yaml-language-server: $schema=../../schemas/installation.v1alpha1.json
-version: loco.build/admin/v1alpha1
+# yaml-language-server: $schema=../../schemas/installation.v1.json
+version: 1
 name: example
 release:
   manifest: ./release.yaml

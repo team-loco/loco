@@ -91,7 +91,7 @@ func TestRejectInvalidConfigurationWithoutValues(t *testing.T) {
 			1,
 		),
 		"missing secret key":     strings.Replace(valid, ", key: database-url", "", 1),
-		"unsupported version":    strings.Replace(valid, "loco.build/admin/v1alpha1", canary, 1),
+		"unsupported version":    strings.Replace(valid, "version: 1", "version: "+canary, 1),
 		"external OpenBao":       strings.Replace(valid, "managed: true", "managed: false", 1),
 		"disabled observability": strings.Replace(valid, "enabled: true", "enabled: false", 1),
 		"invalid domain":         strings.Replace(valid, "staging.apps.example.com", canary+"/bad", 1),
@@ -212,5 +212,30 @@ func TestWorkerDefinitionsRequireDistinctPhysicalClusters(t *testing.T) {
 	if !strings.Contains(err.Error(), "workers[1].kubernetes.clusterUID") ||
 		strings.Contains(err.Error(), "worker-cluster-uid") {
 		t.Fatalf("unsafe or imprecise target error: %v", err)
+	}
+}
+
+func TestConfigurationVersion(t *testing.T) {
+	valid := string(example(t))
+	for _, tc := range []struct {
+		version string
+		valid   bool
+	}{
+		{"1", true},
+		{"0", false},
+		{"2", false},
+		{`"1"`, false},
+		{"1.0", false},
+	} {
+		t.Run(tc.version, func(t *testing.T) {
+			data := strings.Replace(valid, "version: 1", "version: "+tc.version, 1)
+			cfg, err := Parse([]byte(data))
+			if (err == nil) != tc.valid {
+				t.Fatalf("valid = %v, error = %v", tc.valid, err)
+			}
+			if err == nil && any(cfg.Version) != 1 {
+				t.Fatalf("version = %#v, want integer 1", cfg.Version)
+			}
+		})
 	}
 }
