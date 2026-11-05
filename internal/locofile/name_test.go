@@ -24,7 +24,7 @@ func TestServiceNameFromDir(t *testing.T) {
 		got := ServiceNameFromDir(test.directory)
 		assert.Equal(t, test.want, got, test.directory)
 		if got != "" {
-			assert.True(t, isDNSLabel(got), test.directory)
+			assert.True(t, IsServiceName(got), test.directory)
 		}
 	}
 }

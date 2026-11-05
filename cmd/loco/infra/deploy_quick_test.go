@@ -58,3 +58,13 @@ func TestDomainSuffix(t *testing.T) {
 		t.Fatalf("another workspace returned the same suffix %q", got)
 	}
 }
+
+func TestInitRejectsInvalidServiceName(t *testing.T) {
+	t.Chdir(t.TempDir())
+	cmd := buildInitCmd()
+	cmd.SetArgs([]string{"--name", "My App"})
+
+	if err := cmd.Execute(); !errors.Is(err, locofile.ErrInvalidName) {
+		t.Fatalf("init --name %q error = %v, want %v", "My App", err, locofile.ErrInvalidName)
+	}
+}
