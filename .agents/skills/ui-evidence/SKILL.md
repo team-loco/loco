@@ -1,6 +1,6 @@
 ---
 name: ui-evidence
-description: Capture before and after screenshots of the web UI, in light and dark mode, for a PR that changes what the web UI looks like or how it behaves (AGENTS.md "Frontend PRs carry before and after screenshots"). Builds each git ref in its own worktree with a throwaway database, OpenBao, API and UI, seeds users through the API, and shoots headless Chromium. Load before taking PR screenshots.
+description: Capture before and after screenshots of the web UI, in light and dark mode, for a PR that changes what the web UI looks like or how it behaves (AGENTS.md "Frontend PRs carry before and after screenshots"). Builds each git ref in its own worktree with a throwaway database, OpenBao, API and UI, seeds users, sessions and organization memberships with SQL and organizations, workspaces and grants through the API, and shoots headless Chromium. Load before taking PR screenshots.
 context: fork
 agent: ui-evidence
 allowed-tools: Bash, Read, Write
@@ -32,8 +32,7 @@ mise exec -- uv run --script "$E" <command>
    after=$(mise exec -- uv run --script "$E" up --ref HEAD --name after --scenario scenario.json)
    ```
 
-   Read the `scenario note:` lines on stderr. A note means the ref lacks an API the scenario uses and the
-   script left that part out. When the old ref needs a different scenario to show the same
+   Read the `scenario note:` lines on stderr. When the old ref needs a different scenario to show the same
    screen (for example an organization the old app created on first sign-in), pass a second
    scenario file to the `before` run.
 4. Shoot both into one directory:

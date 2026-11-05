@@ -47,9 +47,7 @@ USER_SCOPES = ("read", "write", "admin")
 
 RPC_CREATE_ORG = "loco.org.v1.OrgService/CreateOrg"
 RPC_CREATE_WORKSPACE = "loco.workspace.v1.WorkspaceService/CreateWorkspace"
-RPC_ADD_ORG_MEMBER = "loco.org.v1.OrgService/AddOrgMember"
 RPC_CREATE_MEMBER = "loco.workspace.v1.WorkspaceService/CreateMember"
-MISSING_RPC_CODES = ("unimplemented", "not_found")
 OPENBAO_SERVICE = "openbao"
 OPENBAO_SEED_SERVICE = "openbao-seed"
 OPENBAO_CONTAINER_PORT = "8200"
@@ -345,7 +343,6 @@ def seed(state, scenario):
             f"NOW() + INTERVAL '{SESSION_TTL}', NOW() + INTERVAL '{SESSION_TTL}');",
         )
         users[key] = {"id": user_id, "email": user["email"], "token": token}
-    notes.append("users and sessions are inserted with SQL: no API creates a user without an identity provider")
 
     workspaces = {}
     owners = {}
@@ -357,14 +354,17 @@ def seed(state, scenario):
         for workspace in org.get("workspaces", []):
             ws = rpc(api_url, owner, RPC_CREATE_WORKSPACE, {"orgId": org_id, "name": workspace})
             workspaces[f"{org['name']}/{workspace}"] = ws["workspaceId"]
-        for member in org.get("members", []):
-            body = {"orgId": org_id, "userId": users[member]["id"]}
-            try:
-                rpc(api_url, owner, RPC_ADD_ORG_MEMBER, body)
-            except RPCError as err:
-                if err.code not in MISSING_RPC_CODES:
-                    raise
-                notes.append(f"{RPC_ADD_ORG_MEMBER} does not exist on this ref; {member} is not an org member of {org['name']}")
+        member_rows = ", ".join(
+            f"({sql_literal(users[member]['id'])}, 'member', 'organization', {sql_literal(org_id)})"
+            for member in org.get("members", [])
+        )
+        if member_rows:
+            psql(container, f"INSERT INTO user_scopes (user_id, scope, entity_type, entity_id) VALUES {member_rows};")
+
+    notes.append(
+        "users, sessions and org memberships are inserted with SQL: no API creates a user without an identity "
+        "provider, and org membership comes only from an accepted invitation"
+    )
 
     for grant in scenario.get("grants", []):
         org_name = grant["workspace"].split("/", 1)[0]
