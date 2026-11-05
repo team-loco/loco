@@ -207,9 +207,12 @@ func (f *fixture) configureRegistryAuth() error {
 	}
 	// A populated auth map prevents Docker from auto-selecting an interactive host credential store.
 	auth := base64.StdEncoding.EncodeToString([]byte(fixtureBuilder + ":loco-dev-builder"))
-	data, err := json.Marshal(map[string]any{"auths": map[string]any{
-		strings.TrimPrefix(f.registryURL, "http://"): map[string]string{"auth": auth},
-	}})
+	data, err := json.Marshal(map[string]any{
+		"cliPluginsExtraDirs": f.dockerPluginDirs,
+		"auths": map[string]any{
+			strings.TrimPrefix(f.registryURL, "http://"): map[string]string{"auth": auth},
+		},
+	})
 	if err != nil {
 		return err
 	}

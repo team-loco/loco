@@ -19,7 +19,9 @@ import (
 
 func TestFixtureRegistryAuthIsPrivateAndIndependentOfHostKeychain(t *testing.T) {
 	t.Setenv("DOCKER_CONFIG", "unused-host-config")
-	harness := fixture{dir: t.TempDir(), registryURL: "http://127.0.0.1:5000"}
+	harness := fixture{
+		dir: t.TempDir(), registryURL: "http://127.0.0.1:5000", dockerPluginDirs: []string{"/fixture/plugins"},
+	}
 	if err := harness.configureRegistryAuth(); err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +34,8 @@ func TestFixtureRegistryAuthIsPrivateAndIndependentOfHostKeychain(t *testing.T) 
 		Auths map[string]struct {
 			Auth string `json:"auth"`
 		} `json:"auths"`
-		Store string `json:"credsStore"`
+		Store   string   `json:"credsStore"`
+		Plugins []string `json:"cliPluginsExtraDirs"`
 	}
 	if err = json.Unmarshal(data, &config); err != nil {
 		t.Fatal(err)
@@ -40,6 +43,9 @@ func TestFixtureRegistryAuthIsPrivateAndIndependentOfHostKeychain(t *testing.T) 
 	decoded, err := base64.StdEncoding.DecodeString(config.Auths["127.0.0.1:5000"].Auth)
 	if err != nil || string(decoded) != "builder:loco-dev-builder" || config.Store != "" {
 		t.Fatal("fixture authentication depends on host credentials")
+	}
+	if len(config.Plugins) != 1 || config.Plugins[0] != "/fixture/plugins" {
+		t.Fatal("fixture authentication hides installed Docker plugins")
 	}
 	info, err := os.Stat(path)
 	if err != nil || info.Mode().Perm() != 0600 {

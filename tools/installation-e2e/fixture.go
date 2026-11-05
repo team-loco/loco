@@ -43,7 +43,10 @@ type fixture struct {
 	forward                                  *exec.Cmd
 	cloudManaged                             bool
 	platform                                 string
+	dockerPluginDirs                         []string
 }
+
+var errDockerBuildx = errors.New("installation fixture requires the Docker Buildx plugin")
 
 func newFixture(root string, skip bool) (*fixture, error) {
 	digest := sha256.Sum256([]byte(root))
@@ -82,6 +85,25 @@ func (f *fixture) acceptance(ctx context.Context) error {
 	f.platform = strings.TrimSpace(string(platform))
 	if !strings.HasPrefix(f.platform, "linux/") {
 		return errors.New("installation fixture requires a Linux Docker daemon")
+	}
+	metadata, metadataErr := command(ctx, f.root, nil, "docker", "info", "--format", "{{json .ClientInfo.Plugins}}")
+	if metadataErr != nil {
+		return metadataErr
+	}
+	var plugins []struct {
+		Name string `json:"Name"`
+		Path string `json:"Path"`
+	}
+	if json.Unmarshal(metadata, &plugins) != nil {
+		return errDockerBuildx
+	}
+	var buildx bool
+	for _, plugin := range plugins {
+		f.dockerPluginDirs = append(f.dockerPluginDirs, filepath.Dir(plugin.Path))
+		buildx = buildx || plugin.Name == "buildx"
+	}
+	if !buildx {
+		return errDockerBuildx
 	}
 	if checkErr := os.Setenv("KUBECONFIG", f.kubeconfig); checkErr != nil {
 		return checkErr
