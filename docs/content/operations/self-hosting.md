@@ -54,6 +54,8 @@ Each worker cluster needs a CNI that enforces Kubernetes NetworkPolicy, cert-man
 
 As a [system admin](#first-system-admin), attach each cluster by creating its record with `locoadm cluster create` and passing the printed join token to the agent's first start; see [cluster attachment](../reference/cluster-attachment.md). Set the platform domains a cluster serves in `global.domain.apps` of its `loco-worker` values and point `*.<domain>` at its gateway; the API stores no domains of its own.
 
+Envoy Gateway must use `config.envoyGateway.provider.kubernetes.deploy.type: GatewayNamespace`. The worker chart enables this mode so proxies run in their Gateway's namespace, as application ingress policies require. A shared controller can serve the control plane and worker without moving worker proxies into the controller namespace.
+
 The `loco-control-plane` chart points the proxy at its own API Service; a standalone proxy reads the API URL from `CONTROL_PLANE_URL`.
 
 The observability proxy reports ready once its ClickHouse migrations complete and a database ping succeeds.

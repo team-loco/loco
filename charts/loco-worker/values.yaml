@@ -178,8 +178,14 @@ gateway-helm:
     enabled: false
   config:
     envoyGateway:
+      provider:
+        type: Kubernetes
+        kubernetes:
+          deploy:
+            type: GatewayNamespace
       logging:
-        default: info
+        level:
+          default: info
 
 # @schema additionalProperties: false
 controller:
