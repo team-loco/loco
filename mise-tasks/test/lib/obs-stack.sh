@@ -65,10 +65,6 @@ exporter_extensions() {
 		.service.extensions = (.extensions | keys)'
 }
 
-password_sets=()
-for user in $(yq '.clickhouse.clickhouse.users[].name' "$control_plane_chart/values.yaml"); do
-	password_sets+=("--set" "clickhouseUserPasswords.$user=$(openssl rand -hex 16)")
-done
 region=obs-stack-region
 ingest_endpoint=http://host.docker.internal:$ingest_http_port
 manifest=$(helm template loco-worker "$chart" --namespace "$namespace" --set global.region="$region" \
@@ -78,8 +74,23 @@ control_plane_manifest=$(helm template "$control_plane_release" "$control_plane_
 	--namespace "$control_plane_namespace" --set obsProxy.image.tag="$1" \
 	--set api.image.tag="$1" --set api.existingSecret=fixture-api-env --set ui.enabled=false --set certManager.enabled=false \
 	--set clickhouse.enabled=true --set obsProxy.ingest.enabled=true --set openbao.enabled=false \
-	--set openbao.external.address=https://openbao.obs-stack.test:8200 --set openbao.external.caSecret.name=obs-stack-openbao-ca \
-	"${password_sets[@]}")
+	--set openbao.external.address=https://openbao.obs-stack.test:8200 --set openbao.external.caSecret.name=obs-stack-openbao-ca)
+# The chart consumes existing credentials; the fixture supplies those external Secrets.
+for user in $(yq '.clickhouse.clickhouse.users[].name' "$control_plane_chart/values.yaml"); do
+	secret=$(USER_NAME="$user" yq '.clickhouse.clickhouse.users[] | select(.name == strenv(USER_NAME)) | .password_secret_name' "$control_plane_chart/values.yaml")
+	password=$(openssl rand -hex 16)
+	control_plane_manifest+="
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: $secret
+  namespace: $control_plane_namespace
+stringData:
+  password: $password
+  url: clickhouse://$user:$password@localhost:9000
+"
+done
 chi=$(yq -o json -I 0 'select(.kind == "ClickHouseInstallation")' <<<"$control_plane_manifest")
 clickhouse_image=$(yq '.spec.templates.podTemplates[0].spec.containers[0].image' <<<"$chi")
 collector_image=$(yq 'select(.kind == "StatefulSet" and .metadata.name == "otel-col-deploy") | .spec.template.spec.containers[0].image' <<<"$manifest")
