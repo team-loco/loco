@@ -55,6 +55,9 @@ func validate(cfg Config) error {
 }
 
 func Up(ctx context.Context, cfg Config) error {
+	if err := validate(cfg); err != nil {
+		return err
+	}
 	results, err := up(ctx, cfg)
 	if err != nil {
 		return err
@@ -72,15 +75,15 @@ func Up(ctx context.Context, cfg Config) error {
 }
 
 func UpWithRetry(ctx context.Context, cfg Config, interval time.Duration) error {
-	if err := validate(cfg); err != nil {
-		return err
-	}
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for attempt := 1; ; attempt++ {
 		err := Up(ctx, cfg)
 		if err == nil {
 			return nil
+		}
+		if errors.Is(err, ErrInvalidDatabase) || errors.Is(err, ErrInvalidTTL) {
+			return err
 		}
 		if clickhouseerr.CredentialsRejected(err) {
 			return fmt.Errorf("clickhouse rejected the migration connection: %w", err)

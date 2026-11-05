@@ -66,8 +66,8 @@ func TestValidateRejectsInvalidConfig(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			cfg := validConfig()
 			tc.mutate(&cfg)
-			if err := validate(cfg); !errors.Is(err, tc.want) {
-				t.Fatalf("validate error = %v, want %v", err, tc.want)
+			if err := Up(t.Context(), cfg); !errors.Is(err, tc.want) {
+				t.Fatalf("Up error = %v, want %v", err, tc.want)
 			}
 		})
 	}
