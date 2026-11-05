@@ -65,22 +65,23 @@ func operatorWorkflow(ctx context.Context, dir string) ([]byte, error) {
 
 type operatorOutput struct {
 	boundedOutput
-	scanned, lineStart int
-	phase, failure     string
+	lineStart      int
+	phase, failure string
 }
 
 func (o *operatorOutput) Write(p []byte) (int, error) {
+	start := len(o.Bytes())
 	n, err := o.boundedOutput.Write(p)
 	if err != nil {
 		return n, err
 	}
 	data := o.Bytes()
-	for ; o.scanned < len(data); o.scanned++ {
-		if data[o.scanned] != '\n' {
+	for index := start; index < len(data); index++ {
+		if data[index] != '\n' {
 			continue
 		}
-		candidate := string(data[o.lineStart:o.scanned])
-		o.lineStart = o.scanned + 1
+		candidate := string(data[o.lineStart:index])
+		o.lineStart = index + 1
 		if category, ok := strings.CutPrefix(candidate, bootstrapFailurePrefix); ok && knownBootstrapFailure(category) {
 			o.failure = category
 		}

@@ -36,46 +36,31 @@ exit 1
 	defer func() { os.Stderr = previous }()
 	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 	defer cancel()
-	first := make(chan string, 1)
-	all := make(chan string, 1)
+	want := phasePrefix + phasePreflight + "\n"
+	output := make(chan string, 1)
+	dir := t.TempDir()
 	go func() {
 		buffer := bufio.NewReader(reader)
 		line, readErr := buffer.ReadString('\n')
 		if readErr != nil && !errors.Is(readErr, io.EOF) {
 			t.Error(readErr)
 		}
-		first <- line
-		rest, readErr := io.ReadAll(buffer)
-		if readErr != nil {
-			t.Error(readErr)
-		}
-		all <- line + string(rest)
-	}()
-	done := make(chan error, 1)
-	dir := t.TempDir()
-	go func() {
-		_, runErr := operatorWorkflow(ctx, dir)
-		done <- runErr
-	}()
-	var live string
-	select {
-	case live = <-first:
 		if writeErr := os.WriteFile(ack, nil, 0600); writeErr != nil {
 			t.Error(writeErr)
 			cancel()
 		}
-	case <-ctx.Done():
-	}
-	runErr := <-done
+		rest, readErr := io.ReadAll(buffer)
+		if readErr != nil {
+			t.Error(readErr)
+		}
+		output <- line + string(rest)
+	}()
+	_, runErr := operatorWorkflow(ctx, dir)
 	if closeErr := writer.Close(); closeErr != nil {
-		t.Fatal(closeErr)
+		t.Error(closeErr)
 	}
-	want := phasePrefix + phasePreflight + "\n"
-	if live != want {
-		t.Errorf("live phase = %q, want %q before operator exit", live, want)
-	}
-	if output := <-all; output != want {
-		t.Errorf("forwarded output = %q, want only %q", output, want)
+	if forwarded := <-output; forwarded != want {
+		t.Errorf("forwarded output = %q, want only %q before operator exit", forwarded, want)
 	}
 	if runErr == nil || !strings.Contains(runErr.Error(), "phase preflight, bootstrap failure api-unavailable") {
 		t.Errorf("operator failure lost its safe phase/category: %v", runErr)
