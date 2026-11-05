@@ -1261,13 +1261,14 @@ var File_loco_observability_v1_observability_proto protoreflect.FileDescriptor
 
 const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\n" +
-	")loco/observability/v1/observability.proto\x12\x15loco.observability.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc2\x06\n" +
+	")loco/observability/v1/observability.proto\x12\x15loco.observability.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xae\x06\n" +
 	"\x10QueryLogsRequest\x12+\n" +
-	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12!\n" +
-	"\fresource_ids\x18\x02 \x03(\tR\vresourceIds\x129\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x120\n" +
+	"\fresource_ids\x18\x02 \x03(\tB\r\xbaH\n" +
+	"\x92\x01\a\"\x05r\x03\xb0\x01\x01R\vresourceIds\x12A\n" +
 	"\n" +
-	"start_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
-	"\bend_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\aendTime\x12\x16\n" +
+	"start_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\tstartTime\x12=\n" +
+	"\bend_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\aendTime\x12\x16\n" +
 	"\x06search\x18\x05 \x01(\tR\x06search\x12\x16\n" +
 	"\x06levels\x18\x06 \x03(\tR\x06levels\x12K\n" +
 	"\x06labels\x18\a \x03(\v23.loco.observability.v1.QueryLogsRequest.LabelsEntryR\x06labels\x12 \n" +
@@ -1281,8 +1282,8 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\x0eenvironment_id\x18\r \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01:\xa3\x01\xbaH\x9f\x01\x1a\x9c\x01\n" +
-	"\x18time_range.start_lte_end\x12.start_time must be before or equal to end_time\x1aP!has(this.start_time) || !has(this.end_time) || this.start_time <= this.end_time\"\x94\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01:q\xbaHn\x1al\n" +
+	"\x18time_range.start_lte_end\x12.start_time must be before or equal to end_time\x1a this.start_time <= this.end_time\"\x94\x01\n" +
 	"\x11QueryLogsResponse\x129\n" +
 	"\aentries\x18\x01 \x03(\v2\x1f.loco.observability.v1.LogEntryR\aentries\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
@@ -1303,10 +1304,11 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a@\n" +
 	"\x12LogAttributesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe9\x03\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xf8\x03\n" +
 	"\x0fTailLogsRequest\x12+\n" +
-	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12!\n" +
-	"\fresource_ids\x18\x02 \x03(\tR\vresourceIds\x12\x16\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x120\n" +
+	"\fresource_ids\x18\x02 \x03(\tB\r\xbaH\n" +
+	"\x92\x01\a\"\x05r\x03\xb0\x01\x01R\vresourceIds\x12\x16\n" +
 	"\x06search\x18\x03 \x01(\tR\x06search\x12\x16\n" +
 	"\x06levels\x18\x04 \x03(\tR\x06levels\x12J\n" +
 	"\x06labels\x18\x05 \x03(\v22.loco.observability.v1.TailLogsRequest.LabelsEntryR\x06labels\x120\n" +
@@ -1322,21 +1324,22 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\theartbeat\x18\x02 \x01(\v2 .loco.observability.v1.HeartbeatH\x00R\theartbeatB\a\n" +
 	"\x05event\"E\n" +
 	"\tHeartbeat\x128\n" +
-	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\xe9\x05\n" +
+	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\xd5\x05\n" +
 	"\x13QueryMetricsRequest\x12+\n" +
-	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12!\n" +
-	"\fresource_ids\x18\x02 \x03(\tR\vresourceIds\x129\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x120\n" +
+	"\fresource_ids\x18\x02 \x03(\tB\r\xbaH\n" +
+	"\x92\x01\a\"\x05r\x03\xb0\x01\x01R\vresourceIds\x12A\n" +
 	"\n" +
-	"start_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
-	"\bend_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\aendTime\x12(\n" +
+	"start_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\tstartTime\x12=\n" +
+	"\bend_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\aendTime\x12(\n" +
 	"\vmetric_name\x18\x05 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
 	"metricName\x122\n" +
 	"\x10interval_seconds\x18\x06 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01R\x0fintervalSeconds\x12\xbf\x01\n" +
 	"\vaggregation\x18\a \x01(\tB\x9c\x01\xbaH\x98\x01\xba\x01\x94\x01\n" +
 	"\x18aggregation.valid_values\x12=aggregation must be one of: avg, sum, min, max, p50, p95, p99\x1a9this in ['avg', 'sum', 'min', 'max', 'p50', 'p95', 'p99']R\vaggregation\x122\n" +
 	"\x0eenvironment_id\x18\b \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\x12\x16\n" +
-	"\x06region\x18\t \x01(\tR\x06region:\xa3\x01\xbaH\x9f\x01\x1a\x9c\x01\n" +
-	"\x18time_range.start_lte_end\x12.start_time must be before or equal to end_time\x1aP!has(this.start_time) || !has(this.end_time) || this.start_time <= this.end_time\"S\n" +
+	"\x06region\x18\t \x01(\tR\x06region:q\xbaHn\x1al\n" +
+	"\x18time_range.start_lte_end\x12.start_time must be before or equal to end_time\x1a this.start_time <= this.end_time\"S\n" +
 	"\x14QueryMetricsResponse\x12;\n" +
 	"\x06series\x18\x01 \x03(\v2#.loco.observability.v1.MetricSeriesR\x06series\"\xef\x01\n" +
 	"\fMetricSeries\x12\x1f\n" +

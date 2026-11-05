@@ -1,51 +1,38 @@
+// Package guardrails holds the request rules the proto definitions cannot express. The query
+// server's validation interceptor enforces the proto rules first.
 package guardrails
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
-	"unicode/utf8"
 
-	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
-	"github.com/team-loco/loco/observability-proxy/pkg/clickhouse"
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
 )
 
 var (
-	errInvalidWorkspaceID   = errors.New("workspace_id must be a UUID")
-	errInvalidEnvironmentID = errors.New("environment_id must be a UUID")
-	errInvalidResourceID    = errors.New("resource_ids must be UUIDs")
-	errInvalidAggregation   = errors.New("unsupported aggregation")
-	errInvalidRegionFilter  = errors.New("region filters must be nonempty with at most one trailing wildcard")
-	errMetricNameRequired   = errors.New("metric_name is required")
-	errTimeRangeRequired    = errors.New("start_time and end_time are required")
-	errEndBeforeStart       = errors.New("end_time must be after start_time")
-	errWorkspaceIDRequired  = errors.New("workspace_id is required")
-	errSinceTooOld          = errors.New("since is older than the maximum time range")
-	errSinceInFuture        = errors.New("since is in the future")
-	errInvalidTraceID       = errors.New("trace_id must be 32 lowercase hex characters and nonzero")
-	errInvalidTraceLimit    = errors.New("limit must be between 0 and 10000")
-	errTimestampRange       = errors.New("timestamp is outside nanosecond precision range")
-	errReservedLabelKey     = errors.New("label keys in the loco. attribute namespace are reserved")
+	errNonCanonicalID      = errors.New("IDs must be lowercase UUIDs")
+	errInvalidRegionFilter = errors.New("region filters must not be blank and may only end with a wildcard")
+	errSinceTooOld         = errors.New("since is older than the maximum time range")
+	errSinceInFuture       = errors.New("since is in the future")
+	errZeroTraceID         = errors.New("trace_id must be nonzero")
+	errTimestampRange      = errors.New("timestamp is outside nanosecond precision range")
+	errReservedLabelKey    = errors.New("label keys in the loco. attribute namespace are reserved")
 )
 
 const (
 	reservedAttributePrefix = "loco."
 	kubernetesLabelPrefix   = "loco.io/"
-	maxRegionPatterns       = 100
-	maxRegionPatternRunes   = 128
-	traceIDBytes            = 16
-	traceRequestMaxLimit    = 10000
+	zeroTraceID             = "00000000000000000000000000000000"
 )
 
 // ValidateLogsRequest validates the query parameters for a logs request.
 func ValidateLogsRequest(req *observabilityv1.QueryLogsRequest, cfg *config.Config) error {
-	if err := validateScope(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {
+	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {
 		return err
 	}
 	if err := validateLabels(req.GetLabels()); err != nil {
@@ -54,33 +41,20 @@ func ValidateLogsRequest(req *observabilityv1.QueryLogsRequest, cfg *config.Conf
 	if err := validateRegions(req.GetRegions(), req.GetExcludedRegions()); err != nil {
 		return err
 	}
-
 	return validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), cfg.MaxTimeRange)
 }
 
 // ValidateMetricsRequest validates the query parameters for a metrics request.
 func ValidateMetricsRequest(req *observabilityv1.QueryMetricsRequest, cfg *config.Config) error {
-	if err := validateScope(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {
+	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {
 		return err
 	}
-	if req.GetMetricName() == "" {
-		return errMetricNameRequired
-	}
-
-	if err := validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), cfg.MaxTimeRange); err != nil {
-		return err
-	}
-
-	if !clickhouse.IsAggregation(req.GetAggregation()) {
-		return fmt.Errorf("%w: %q", errInvalidAggregation, req.GetAggregation())
-	}
-
-	return nil
+	return validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), cfg.MaxTimeRange)
 }
 
 // ValidateTailRequest validates a tail logs request.
 func ValidateTailRequest(req *observabilityv1.TailLogsRequest, cfg *config.Config, now time.Time) error {
-	if err := validateScope(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {
+	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {
 		return err
 	}
 	if err := validateLabels(req.GetLabels()); err != nil {
@@ -102,6 +76,17 @@ func ValidateTailRequest(req *observabilityv1.TailLogsRequest, cfg *config.Confi
 	return nil
 }
 
+// ValidateTracesRequest validates the query parameters for a traces request.
+func ValidateTracesRequest(req *observabilityv1.QueryTracesRequest, cfg *config.Config) error {
+	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {
+		return err
+	}
+	if req.GetTraceId() == zeroTraceID {
+		return errZeroTraceID
+	}
+	return validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), cfg.MaxTimeRange)
+}
+
 // ClampLimit ensures the limit is within bounds.
 func ClampLimit(requested int32, cfg *config.Config) int32 {
 	if requested <= 0 {
@@ -113,12 +98,13 @@ func ClampLimit(requested int32, cfg *config.Config) int32 {
 	return requested
 }
 
-func validateTimeRange(start, end time.Time, maxRange time.Duration) error {
-	if end.Before(start) {
-		return errEndBeforeStart
-	}
-	if end.Sub(start) > maxRange {
-		return fmt.Errorf("time range exceeds maximum of %v", maxRange)
+// validateCanonicalIDs rejects uppercase IDs. The proto uuid rule accepts them, but ClickHouse
+// stores the lowercase form, so an uppercase ID would pass the permission check and match nothing.
+func validateCanonicalIDs(workspaceID, environmentID string, resourceIDs []string) error {
+	for _, id := range append([]string{workspaceID, environmentID}, resourceIDs...) {
+		if id != strings.ToLower(id) {
+			return errNonCanonicalID
+		}
 	}
 	return nil
 }
@@ -132,27 +118,7 @@ func validateLabels(labels map[string]string) error {
 	return nil
 }
 
-func ValidateTracesRequest(req *observabilityv1.QueryTracesRequest, cfg *config.Config) error {
-	if err := validateScope(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {
-		return err
-	}
-	if traceID := req.GetTraceId(); traceID != "" {
-		decoded, err := hex.DecodeString(traceID)
-		if err != nil || len(decoded) != traceIDBytes || traceID != strings.ToLower(traceID) ||
-			traceID == strings.Repeat("0", traceIDBytes*2) {
-			return errInvalidTraceID
-		}
-	}
-	if req.GetLimit() < 0 || req.GetLimit() > traceRequestMaxLimit {
-		return errInvalidTraceLimit
-	}
-	return validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), cfg.MaxTimeRange)
-}
-
 func validateQueryTimeRange(startTimestamp, endTimestamp *timestamppb.Timestamp, maxRange time.Duration) error {
-	if startTimestamp == nil || endTimestamp == nil {
-		return errTimeRangeRequired
-	}
 	if err := startTimestamp.CheckValid(); err != nil {
 		return err
 	}
@@ -164,40 +130,18 @@ func validateQueryTimeRange(startTimestamp, endTimestamp *timestamppb.Timestamp,
 	if !time.Unix(0, start.UnixNano()).Equal(start) || !time.Unix(0, end.UnixNano()).Equal(end) {
 		return errTimestampRange
 	}
-	return validateTimeRange(start, end, maxRange)
-}
-
-func validateRegions(groups ...[]string) error {
-	for _, group := range groups {
-		if len(group) > maxRegionPatterns {
-			return errInvalidRegionFilter
-		}
-		for _, value := range group {
-			if strings.TrimSpace(value) == "" || utf8.RuneCountInString(value) > maxRegionPatternRunes ||
-				strings.Contains(strings.TrimSuffix(value, "*"), "*") {
-				return errInvalidRegionFilter
-			}
-		}
+	if end.Sub(start) > maxRange {
+		return fmt.Errorf("time range exceeds maximum of %v", maxRange)
 	}
 	return nil
 }
 
-// validateScope checks the IDs a query is scoped to before the control plane is asked about the
-// workspace: CheckPermission rejects a non-UUID entity ID, which would surface as an unavailable
-// permission check instead of an invalid request.
-func validateScope(workspaceID, environmentID string, resourceIDs []string) error {
-	if workspaceID == "" {
-		return errWorkspaceIDRequired
-	}
-	if uuid.Validate(workspaceID) != nil {
-		return errInvalidWorkspaceID
-	}
-	if environmentID != "" && uuid.Validate(environmentID) != nil {
-		return errInvalidEnvironmentID
-	}
-	for _, id := range resourceIDs {
-		if uuid.Validate(id) != nil {
-			return errInvalidResourceID
+func validateRegions(groups ...[]string) error {
+	for _, group := range groups {
+		for _, value := range group {
+			if strings.TrimSpace(value) == "" || strings.Contains(strings.TrimSuffix(value, "*"), "*") {
+				return errInvalidRegionFilter
+			}
 		}
 	}
 	return nil

@@ -14,13 +14,9 @@ import (
 	"syscall"
 	"time"
 
-	"connectrpc.com/connect/v2/connecthttp"
-
-	"connectrpc.com/connect/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	"github.com/team-loco/loco/internal/buildinfo"
 	"github.com/team-loco/loco/observability-proxy/migrations"
 	"github.com/team-loco/loco/observability-proxy/pkg/auth"
@@ -118,11 +114,7 @@ func (p *proxy) mountQuery(cfg *config.Config, mux *http.ServeMux) error {
 	p.ch = ch
 	p.validator = validator
 	svc := service.NewObservabilityService(ch, cfg, validator)
-	rpcServer := connect.NewServer(auth.NewAuthInterceptor().Interceptor())
-	observabilityv1connect.RegisterObservabilityProxyServiceHandler(rpcServer, svc)
-	rpcMux := http.NewServeMux()
-	connecthttp.Mount(rpcMux, rpcServer)
-	corsHandler := withCORS(cfg.CORSAllowedOrigins, rpcMux)
+	corsHandler := withCORS(cfg.CORSAllowedOrigins, svc.Handler())
 	mux.Handle("/", corsHandler)
 	return nil
 }

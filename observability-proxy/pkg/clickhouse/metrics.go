@@ -12,12 +12,13 @@ import (
 )
 
 const (
-	defaultIntervalSeconds = 60
-	regionAttribute        = "loco.region"
-	sumMetricType          = "sum"
-	noRecordedValueFlag    = 1
+	regionAttribute     = "loco.region"
+	sumMetricType       = "sum"
+	noRecordedValueFlag = 1
 )
 
+// aggregationFunctions maps the aggregations the QueryMetricsRequest proto rule allows to their
+// ClickHouse functions; update both together.
 var aggregationFunctions = map[string]string{
 	"avg": "avg",
 	"sum": "sum",
@@ -95,9 +96,6 @@ func (c *Client) QueryMetrics(
 func buildMetricsQuery(req *observabilityv1.QueryMetricsRequest, queryTimeout time.Duration) (string, []any) {
 	aggFunc := aggregationFunctions[req.GetAggregation()]
 	interval := req.GetIntervalSeconds()
-	if interval <= 0 {
-		interval = defaultIntervalSeconds
-	}
 
 	whereParts := []string{workspaceColumn + " = ?"}
 	args := []any{req.GetWorkspaceId()}
@@ -148,10 +146,4 @@ func buildMetricsQuery(req *observabilityv1.QueryMetricsRequest, queryTimeout ti
 	args = append(args, args...)
 
 	return query, args
-}
-
-// IsAggregation reports whether name is an aggregation QueryMetrics accepts.
-func IsAggregation(name string) bool {
-	_, ok := aggregationFunctions[name]
-	return ok
 }

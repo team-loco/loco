@@ -6,84 +6,100 @@ import (
 	"testing"
 	"time"
 
+	"buf.build/go/protovalidate"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
-	invalidTraceTestUUID = "invalid"
-	testWorkspaceID      = "01a11886-e710-7fc9-a6e9-5e0c367f2cd0"
-	testMaxRange         = 24 * time.Hour
+	testWorkspaceID          = "01a11886-e710-7fc9-a6e9-5e0c367f2cd0"
+	testEnvironmentID        = "66666666-7777-8888-9999-000000000000"
+	testMaxRange             = 24 * time.Hour
+	testWorkspaceAggregation = "max"
+	testRegionPatternRunes   = 128
+	testRegionPatterns       = 100
+	testTraceLimit           = 10000
+	malformedID              = "invalid"
 )
 
-func tailRequest(since *timestamppb.Timestamp) *observabilityv1.TailLogsRequest {
-	return &observabilityv1.TailLogsRequest{WorkspaceId: testWorkspaceID, Since: since}
+var errProtoRule = errors.New("proto rule")
+
+// validated mirrors the query server: the validation interceptor checks the proto rules
+// before a handler runs the guardrail.
+func validated(req proto.Message, guardrail func() error) error {
+	if err := protovalidate.Validate(req); err != nil {
+		return errors.Join(errProtoRule, err)
+	}
+	return guardrail()
+}
+
+func logsRequest(change func(*observabilityv1.QueryLogsRequest)) error {
+	now := time.Now()
+	req := &observabilityv1.QueryLogsRequest{
+		WorkspaceId: testWorkspaceID,
+		StartTime:   timestamppb.New(now.Add(-time.Minute)),
+		EndTime:     timestamppb.New(now),
+	}
+	change(req)
+	return validated(req, func() error { return ValidateLogsRequest(req, &config.Config{MaxTimeRange: testMaxRange}) })
+}
+
+func tailRequest(now time.Time, change func(*observabilityv1.TailLogsRequest)) error {
+	req := &observabilityv1.TailLogsRequest{WorkspaceId: testWorkspaceID}
+	change(req)
+	return validated(
+		req,
+		func() error { return ValidateTailRequest(req, &config.Config{MaxTimeRange: testMaxRange}, now) },
+	)
 }
 
 func TestValidateTailRequestChecksSince(t *testing.T) {
-	cfg := &config.Config{MaxTimeRange: testMaxRange}
 	now := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
+	since := func(at *timestamppb.Timestamp) func(*observabilityv1.TailLogsRequest) {
+		return func(r *observabilityv1.TailLogsRequest) { r.Since = at }
+	}
 
-	recent := timestamppb.New(now.Add(-time.Minute))
-	if err := ValidateTailRequest(tailRequest(recent), cfg, now); err != nil {
+	if err := tailRequest(now, since(timestamppb.New(now.Add(-time.Minute)))); err != nil {
 		t.Errorf("since a minute ago rejected: %v", err)
 	}
-	if err := ValidateTailRequest(tailRequest(nil), cfg, now); err != nil {
+	if err := tailRequest(now, since(nil)); err != nil {
 		t.Errorf("no since rejected: %v", err)
 	}
-
 	old := timestamppb.New(now.Add(-testMaxRange - time.Second))
-	if err := ValidateTailRequest(tailRequest(old), cfg, now); !errors.Is(err, errSinceTooOld) {
+	if err := tailRequest(now, since(old)); !errors.Is(err, errSinceTooOld) {
 		t.Errorf("since beyond the maximum range = %v, want errSinceTooOld", err)
 	}
 	future := timestamppb.New(now.Add(time.Minute))
-	if err := ValidateTailRequest(tailRequest(future), cfg, now); !errors.Is(err, errSinceInFuture) {
+	if err := tailRequest(now, since(future)); !errors.Is(err, errSinceInFuture) {
 		t.Errorf("since in the future = %v, want errSinceInFuture", err)
-	}
-	empty := &observabilityv1.TailLogsRequest{}
-	if err := ValidateTailRequest(empty, cfg, now); !errors.Is(err, errWorkspaceIDRequired) {
-		t.Errorf("no workspace = %v, want errWorkspaceIDRequired", err)
 	}
 }
 
 func TestLabelFiltersRejectLocoAttributeKeys(t *testing.T) {
-	cfg := &config.Config{MaxTimeRange: testMaxRange}
 	now := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
-	start := timestamppb.New(now.Add(-time.Hour))
-	end := timestamppb.New(now)
 	reserved := []string{"loco.workspace.id", "loco.environment.id", "loco.resource.id", "loco.anything"}
 	allowed := []string{"loco.io/build-id", "app.loco.io/component", "service.name"}
 
 	for _, key := range reserved {
 		labels := map[string]string{key: testWorkspaceID}
-		logs := &observabilityv1.QueryLogsRequest{
-			WorkspaceId: testWorkspaceID,
-			StartTime:   start,
-			EndTime:     end,
-			Labels:      labels,
+		logs := logsRequest(func(r *observabilityv1.QueryLogsRequest) { r.Labels = labels })
+		if !errors.Is(logs, errReservedLabelKey) {
+			t.Errorf("logs label %q = %v, want errReservedLabelKey", key, logs)
 		}
-		if err := ValidateLogsRequest(logs, cfg); !errors.Is(err, errReservedLabelKey) {
-			t.Errorf("logs label %q = %v, want errReservedLabelKey", key, err)
-		}
-		tail := &observabilityv1.TailLogsRequest{WorkspaceId: testWorkspaceID, Labels: labels}
-		if err := ValidateTailRequest(tail, cfg, now); !errors.Is(err, errReservedLabelKey) {
-			t.Errorf("tail label %q = %v, want errReservedLabelKey", key, err)
+		tail := tailRequest(now, func(r *observabilityv1.TailLogsRequest) { r.Labels = labels })
+		if !errors.Is(tail, errReservedLabelKey) {
+			t.Errorf("tail label %q = %v, want errReservedLabelKey", key, tail)
 		}
 	}
 	for _, key := range allowed {
 		labels := map[string]string{key: "value"}
-		logs := &observabilityv1.QueryLogsRequest{
-			WorkspaceId: testWorkspaceID,
-			StartTime:   start,
-			EndTime:     end,
-			Labels:      labels,
-		}
-		if err := ValidateLogsRequest(logs, cfg); err != nil {
+		if err := logsRequest(func(r *observabilityv1.QueryLogsRequest) { r.Labels = labels }); err != nil {
 			t.Errorf("logs label %q rejected: %v", key, err)
 		}
-		tail := &observabilityv1.TailLogsRequest{WorkspaceId: testWorkspaceID, Labels: labels}
-		if err := ValidateTailRequest(tail, cfg, now); err != nil {
+		if err := tailRequest(now, func(r *observabilityv1.TailLogsRequest) { r.Labels = labels }); err != nil {
 			t.Errorf("tail label %q rejected: %v", key, err)
 		}
 	}
@@ -101,15 +117,15 @@ func TestValidateTracesRequest(t *testing.T) {
 		{name: "empty workspace", change: func(r *observabilityv1.QueryTracesRequest) { r.WorkspaceId = "" }},
 		{
 			name:   "invalid workspace",
-			change: func(r *observabilityv1.QueryTracesRequest) { r.WorkspaceId = invalidTraceTestUUID },
+			change: func(r *observabilityv1.QueryTracesRequest) { r.WorkspaceId = malformedID },
 		},
 		{
 			name:   "invalid resource",
-			change: func(r *observabilityv1.QueryTracesRequest) { r.ResourceIds = []string{invalidTraceTestUUID} },
+			change: func(r *observabilityv1.QueryTracesRequest) { r.ResourceIds = []string{malformedID} },
 		},
 		{
 			name:   "invalid environment",
-			change: func(r *observabilityv1.QueryTracesRequest) { r.EnvironmentId = invalidTraceTestUUID },
+			change: func(r *observabilityv1.QueryTracesRequest) { r.EnvironmentId = malformedID },
 		},
 		{name: "missing start", change: func(r *observabilityv1.QueryTracesRequest) { r.StartTime = nil }},
 		{name: "missing end", change: func(r *observabilityv1.QueryTracesRequest) { r.EndTime = nil }},
@@ -152,15 +168,9 @@ func TestValidateTracesRequest(t *testing.T) {
 			name:   "uppercase trace",
 			change: func(r *observabilityv1.QueryTracesRequest) { r.TraceId = "0123456789ABCDEF0123456789ABCDEF" },
 		},
-		{
-			name:   "zero trace",
-			change: func(r *observabilityv1.QueryTracesRequest) { r.TraceId = "00000000000000000000000000000000" },
-		},
+		{name: "zero trace", change: func(r *observabilityv1.QueryTracesRequest) { r.TraceId = zeroTraceID }},
 		{name: "negative limit", change: func(r *observabilityv1.QueryTracesRequest) { r.Limit = -1 }},
-		{
-			name:   "excessive limit",
-			change: func(r *observabilityv1.QueryTracesRequest) { r.Limit = traceRequestMaxLimit + 1 },
-		},
+		{name: "excessive limit", change: func(r *observabilityv1.QueryTracesRequest) { r.Limit = testTraceLimit + 1 }},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -172,7 +182,7 @@ func TestValidateTracesRequest(t *testing.T) {
 			if tc.change != nil {
 				tc.change(req)
 			}
-			err := ValidateTracesRequest(req, cfg)
+			err := validated(req, func() error { return ValidateTracesRequest(req, cfg) })
 			if (err == nil) != tc.valid {
 				t.Fatalf("validation = %v, valid = %v", err, tc.valid)
 			}
@@ -180,130 +190,80 @@ func TestValidateTracesRequest(t *testing.T) {
 	}
 }
 
-func TestRegionFiltersPreserveReservedLabelGuardrails(t *testing.T) {
-	cfg := &config.Config{MaxTimeRange: testMaxRange}
+func TestRegionFilters(t *testing.T) {
 	now := time.Now()
-	for _, patterns := range [][]string{
-		{""}, {"us**"}, {"us*east"}, {strings.Repeat("x", maxRegionPatternRunes+1)},
-		make([]string, maxRegionPatterns+1),
-	} {
-		logs := &observabilityv1.QueryLogsRequest{WorkspaceId: testWorkspaceID, Regions: patterns,
-			StartTime: timestamppb.New(now.Add(-time.Hour)), EndTime: timestamppb.New(now)}
-		tail := &observabilityv1.TailLogsRequest{WorkspaceId: testWorkspaceID, ExcludedRegions: patterns}
-		if err := ValidateLogsRequest(logs, cfg); !errors.Is(err, errInvalidRegionFilter) {
-			t.Errorf("logs: %v", err)
-		}
-		if err := ValidateTailRequest(tail, cfg, now); !errors.Is(err, errInvalidRegionFilter) {
-			t.Errorf("tail: %v", err)
-		}
+	cases := []struct {
+		patterns []string
+		want     error
+	}{
+		{patterns: []string{"us-*"}},
+		{patterns: []string{" "}, want: errInvalidRegionFilter},
+		{patterns: []string{"us**"}, want: errInvalidRegionFilter},
+		{patterns: []string{"us*east"}, want: errInvalidRegionFilter},
+		{patterns: []string{""}, want: errProtoRule},
+		{patterns: []string{strings.Repeat("x", testRegionPatternRunes+1)}, want: errProtoRule},
+		{patterns: make([]string, testRegionPatterns+1), want: errProtoRule},
 	}
-	logs := &observabilityv1.QueryLogsRequest{WorkspaceId: testWorkspaceID, Regions: []string{"us-*"},
-		Labels:    map[string]string{"loco.workspace.id": "another workspace"},
-		StartTime: timestamppb.New(now.Add(-time.Hour)), EndTime: timestamppb.New(now)}
-	if err := ValidateLogsRequest(logs, cfg); !errors.Is(err, errReservedLabelKey) {
-		t.Fatalf("reserved label: %v", err)
-	}
-	logs.Labels = nil
-	if err := ValidateLogsRequest(logs, cfg); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestMetricsHistoryAllowsAllResourcesWithinWorkspace(t *testing.T) {
-	now := time.Now()
-	request := &observabilityv1.QueryMetricsRequest{WorkspaceId: testWorkspaceID,
-		StartTime: timestamppb.New(now.Add(-time.Hour)), EndTime: timestamppb.New(now),
-		MetricName: "k8s.pod.cpu.usage", Aggregation: "avg"}
-	if err := ValidateMetricsRequest(request, &config.Config{MaxTimeRange: testMaxRange}); err != nil {
-		t.Fatal(err)
-	}
-	request.WorkspaceId = ""
-	if err := ValidateMetricsRequest(
-		request,
-		&config.Config{MaxTimeRange: testMaxRange},
-	); !errors.Is(
-		err,
-		errWorkspaceIDRequired,
-	) {
-		t.Fatalf("missing workspace: %v", err)
-	}
-}
-
-func TestLogEnvironmentFilterValidation(t *testing.T) {
-	now := time.Now()
-	cfg := &config.Config{MaxTimeRange: time.Hour}
-	for _, environmentID := range []string{"", "66666666-7777-8888-9999-000000000000", "not-a-uuid"} {
-		query := &observabilityv1.QueryLogsRequest{
-			WorkspaceId:   testWorkspaceID,
-			EnvironmentId: environmentID,
-			StartTime:     timestamppb.New(now.Add(-time.Minute)),
-			EndTime:       timestamppb.New(now),
-		}
-		tail := &observabilityv1.TailLogsRequest{WorkspaceId: testWorkspaceID, EnvironmentId: environmentID}
-		for _, err := range []error{ValidateLogsRequest(query, cfg), ValidateTailRequest(tail, cfg, now)} {
-			if environmentID == "not-a-uuid" {
-				if !errors.Is(err, errInvalidEnvironmentID) {
-					t.Fatalf("invalid environment error = %v", err)
-				}
-			} else if err != nil {
-				t.Fatalf("environment %q: %v", environmentID, err)
+	for _, tc := range cases {
+		logs := logsRequest(func(r *observabilityv1.QueryLogsRequest) { r.Regions = tc.patterns })
+		tail := tailRequest(now, func(r *observabilityv1.TailLogsRequest) { r.ExcludedRegions = tc.patterns })
+		for _, err := range []error{logs, tail} {
+			if tc.want == nil && err != nil || tc.want != nil && !errors.Is(err, tc.want) {
+				t.Errorf("regions %q = %v, want %v", tc.patterns, err, tc.want)
 			}
 		}
 	}
 }
-
-const testWorkspaceAggregation = "max"
 
 func validateEveryQuery(workspace, environment string, resources []string) map[string]error {
 	cfg := &config.Config{MaxTimeRange: time.Hour}
 	now := time.Now()
 	start := timestamppb.New(now.Add(-time.Minute))
 	end := timestamppb.New(now)
+	logs := &observabilityv1.QueryLogsRequest{
+		WorkspaceId: workspace, EnvironmentId: environment, ResourceIds: resources, StartTime: start, EndTime: end,
+	}
+	tail := &observabilityv1.TailLogsRequest{WorkspaceId: workspace, EnvironmentId: environment, ResourceIds: resources}
+	metrics := &observabilityv1.QueryMetricsRequest{
+		WorkspaceId: workspace, EnvironmentId: environment, ResourceIds: resources, StartTime: start, EndTime: end,
+		MetricName: "m", IntervalSeconds: 1, Aggregation: testWorkspaceAggregation,
+	}
+	traces := &observabilityv1.QueryTracesRequest{
+		WorkspaceId: workspace, EnvironmentId: environment, ResourceIds: resources, StartTime: start, EndTime: end,
+	}
 	return map[string]error{
-		"logs": ValidateLogsRequest(&observabilityv1.QueryLogsRequest{
-			WorkspaceId: workspace, EnvironmentId: environment, ResourceIds: resources,
-			StartTime: start, EndTime: end,
-		}, cfg),
-		"tail": ValidateTailRequest(&observabilityv1.TailLogsRequest{
-			WorkspaceId: workspace, EnvironmentId: environment, ResourceIds: resources,
-		}, cfg, now),
-		"metrics": ValidateMetricsRequest(&observabilityv1.QueryMetricsRequest{
-			WorkspaceId: workspace, EnvironmentId: environment, ResourceIds: resources,
-			MetricName: "m", Aggregation: testWorkspaceAggregation, StartTime: start, EndTime: end,
-		}, cfg),
-		"traces": ValidateTracesRequest(&observabilityv1.QueryTracesRequest{
-			WorkspaceId: workspace, EnvironmentId: environment, ResourceIds: resources,
-			StartTime: start, EndTime: end,
-		}, cfg),
+		"logs":    validated(logs, func() error { return ValidateLogsRequest(logs, cfg) }),
+		"tail":    validated(tail, func() error { return ValidateTailRequest(tail, cfg, now) }),
+		"metrics": validated(metrics, func() error { return ValidateMetricsRequest(metrics, cfg) }),
+		"traces":  validated(traces, func() error { return ValidateTracesRequest(traces, cfg) }),
 	}
 }
 
-func TestEveryTenantQueryRequiresAWorkspace(t *testing.T) {
-	for name, err := range validateEveryQuery("", "", nil) {
-		if !errors.Is(err, errWorkspaceIDRequired) {
-			t.Errorf("%s without a workspace = %v, want errWorkspaceIDRequired", name, err)
-		}
-	}
-}
-
-func TestEveryTenantQueryRequiresUUIDScope(t *testing.T) {
+func TestEveryTenantQueryRequiresCanonicalUUIDScope(t *testing.T) {
+	uppercase := strings.ToUpper(testWorkspaceID)
 	scopes := map[string]struct {
 		workspace, environment string
 		resources              []string
 		want                   error
 	}{
-		"workspace":   {workspace: "workspace", want: errInvalidWorkspaceID},
-		"environment": {workspace: testWorkspaceID, environment: "environment", want: errInvalidEnvironmentID},
-		"resource": {
-			workspace: testWorkspaceID,
-			resources: []string{testWorkspaceID, "resource"},
-			want:      errInvalidResourceID,
+		"valid": {
+			workspace:   testWorkspaceID,
+			environment: testEnvironmentID,
+			resources:   []string{testWorkspaceID},
 		},
+		"missing workspace":     {want: errProtoRule},
+		"non-UUID workspace":    {workspace: "workspace", want: errProtoRule},
+		"non-UUID environment":  {workspace: testWorkspaceID, environment: "environment", want: errProtoRule},
+		"non-UUID resource":     {workspace: testWorkspaceID, resources: []string{"resource"}, want: errProtoRule},
+		"braced workspace":      {workspace: "{" + testWorkspaceID + "}", want: errProtoRule},
+		"uppercase workspace":   {workspace: uppercase, want: errNonCanonicalID},
+		"uppercase environment": {workspace: testWorkspaceID, environment: uppercase, want: errNonCanonicalID},
+		"uppercase resource":    {workspace: testWorkspaceID, resources: []string{uppercase}, want: errNonCanonicalID},
 	}
 	for name, scope := range scopes {
 		for request, err := range validateEveryQuery(scope.workspace, scope.environment, scope.resources) {
-			if !errors.Is(err, scope.want) {
-				t.Errorf("%s with an invalid %s = %v, want %v", request, name, err, scope.want)
+			if scope.want == nil && err != nil || scope.want != nil && !errors.Is(err, scope.want) {
+				t.Errorf("%s with %s = %v, want %v", request, name, err, scope.want)
 			}
 		}
 	}

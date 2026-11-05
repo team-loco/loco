@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
+	"connectrpc.com/validate"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
@@ -46,6 +49,16 @@ func NewObservabilityService(
 	validator *auth.Validator,
 ) *ObservabilityService {
 	return &ObservabilityService{clickhouse: clickhouse, cfg: cfg, validator: validator}
+}
+
+// Handler serves the query RPCs. The validation interceptor checks each request against its proto
+// rules before a handler asks the control plane about the workspace.
+func (s *ObservabilityService) Handler() http.Handler {
+	server := connect.NewServer(auth.NewAuthInterceptor().Interceptor(), validate.NewServerInterceptor())
+	observabilityv1connect.RegisterObservabilityProxyServiceHandler(server, s)
+	mux := http.NewServeMux()
+	connecthttp.Mount(mux, server)
+	return mux
 }
 
 // authorizeRead checks that the request's bearer token can read the workspace. A refused caller

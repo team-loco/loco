@@ -72,14 +72,7 @@ func TestAuthorizeReadLogsErrorOnlyWhenTheCheckFails(t *testing.T) {
 			t.Cleanup(validator.Close)
 
 			cfg := &config.Config{DefaultLimit: 1, MaxLimit: 2, MaxTimeRange: time.Hour}
-			server := connect.NewServer(auth.NewAuthInterceptor().Interceptor())
-			observabilityv1connect.RegisterObservabilityProxyServiceHandler(
-				server,
-				NewObservabilityService(nil, cfg, validator),
-			)
-			mux := http.NewServeMux()
-			connecthttp.Mount(mux, server)
-			proxyHTTP := httptest.NewServer(mux)
+			proxyHTTP := httptest.NewServer(NewObservabilityService(nil, cfg, validator).Handler())
 			t.Cleanup(proxyHTTP.Close)
 			transport := connecthttp.NewTransport(proxyHTTP.Client(), proxyHTTP.URL)
 			client := observabilityv1connect.NewObservabilityProxyServiceClient(connect.NewClient(transport))
