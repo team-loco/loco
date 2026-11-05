@@ -59,13 +59,14 @@ func webCmdFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	// Load config to get current org/workspace for workspace-scoped routes
-	cfg, cfgErr := session.Load()
+	cfg, err := session.Load()
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
 	var orgID, workspaceID string
-	if cfgErr == nil {
-		if scope, scopeErr := cfg.GetScope(); scopeErr == nil {
-			orgID = scope.Organization.ID
-			workspaceID = scope.Workspace.ID
-		}
+	if scope, scopeErr := cfg.GetScope(); scopeErr == nil {
+		orgID = scope.Organization.ID
+		workspaceID = scope.Workspace.ID
 	}
 
 	var path string

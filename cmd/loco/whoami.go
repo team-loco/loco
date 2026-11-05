@@ -25,6 +25,11 @@ func newWhoAmICmd(env Env) *cobra.Command {
 				return err
 			}
 
+			cfg, err := session.Load()
+			if err != nil {
+				return fmt.Errorf("load config: %w", err)
+			}
+
 			store, err := env.Tokens()
 			if err != nil {
 				return err
@@ -42,11 +47,9 @@ func newWhoAmICmd(env Env) *cobra.Command {
 			}
 
 			var currentOrg, currentWorkspace string
-			if cfg, cfgErr := session.Load(); cfgErr == nil {
-				if scope, scopeErr := cfg.GetScope(); scopeErr == nil {
-					currentOrg = scope.Organization.Name
-					currentWorkspace = scope.Workspace.Name
-				}
+			if scope, scopeErr := cfg.GetScope(); scopeErr == nil {
+				currentOrg = scope.Organization.Name
+				currentWorkspace = scope.Workspace.Name
 			}
 
 			card := renderCardString(usr, currentOrg, currentWorkspace)
