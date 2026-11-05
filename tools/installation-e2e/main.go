@@ -86,6 +86,7 @@ func execute(ctx context.Context, acceptance, cleanup func(context.Context) erro
 }
 
 func command(ctx context.Context, dir string, input []byte, program string, args ...string) ([]byte, error) {
+	// #nosec G702 -- callers select executables and argv; the CLI flag only sets the context deadline.
 	cmd := exec.CommandContext(ctx, program, args...)
 	cmd.Dir = dir
 	if input != nil {

@@ -192,6 +192,22 @@ func TestAuditProtectedOperatorFiles(t *testing.T) {
 	}
 	assertAuditLeak(t, audit, "operator files")
 }
+
+func TestAuditCredentialURLs(t *testing.T) {
+	for _, key := range []string{"email-transport", "database-url", "DATABASE_URL", "url"} {
+		t.Run(key, func(t *testing.T) {
+			transport := []byte("smtp://notifications:" + testCanary + "@smtp.example.test:587")
+			secret := auditSecret{Data: map[string][]byte{key: transport}}
+			secret.Metadata.Namespace = controlNamespace
+			audit := newLeakAudit()
+			if err := audit.collectSecrets([]auditSecret{secret}); err != nil {
+				t.Fatal(err)
+			}
+			audit.capture("CLI output", []byte(testCanary))
+			assertAuditLeak(t, audit, "CLI output")
+		})
+	}
+}
 func TestAuditBootstrapOutput(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/login" {

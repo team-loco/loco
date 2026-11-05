@@ -15,6 +15,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -316,6 +317,16 @@ func (a *leakAudit) collectSecrets(secrets []auditSecret) error {
 				continue
 			}
 			a.add(value)
+			if key == "email-transport" || key == "database-url" || key == "DATABASE_URL" || key == "url" {
+				endpoint, parseErr := url.Parse(string(value))
+				if parseErr != nil {
+					return errors.New("secret audit: invalid credential URL")
+				}
+				if endpoint.User != nil {
+					password, _ := endpoint.User.Password()
+					a.add([]byte(password))
+				}
+			}
 			// Recovery shares and PEM bodies are independently usable secret material.
 			if key == "recovery-keys" {
 				for line := range bytes.SplitSeq(value, []byte("\n")) {
@@ -393,5 +404,6 @@ func sensitiveSecretField(key string) bool {
 			return true
 		}
 	}
-	return normalized == "url" || normalized == "database-url" || normalized == ".dockerconfigjson"
+	return normalized == "url" || normalized == "database-url" || normalized == ".dockerconfigjson" ||
+		normalized == "email-transport"
 }
