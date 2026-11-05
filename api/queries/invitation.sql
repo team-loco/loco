@@ -14,14 +14,13 @@ WHERE org_id = $1
 RETURNING *;
 
 -- name: ListOrgInvitations :many
-SELECT sqlc.embed(i), sqlc.embed(u)
-FROM invitations i
-JOIN users u ON u.id = i.invited_by
-WHERE i.org_id = $1
-  AND i.claimed_at IS NULL
-  AND i.revoked_at IS NULL
-  AND (sqlc.narg('page_token')::uuid IS NULL OR i.id < sqlc.narg('page_token')::uuid)
-ORDER BY i.id DESC
+SELECT *
+FROM invitations
+WHERE org_id = $1
+  AND claimed_at IS NULL
+  AND revoked_at IS NULL
+  AND (sqlc.narg('page_token')::uuid IS NULL OR id < sqlc.narg('page_token')::uuid)
+ORDER BY id DESC
 LIMIT $2;
 
 -- name: GetInvitation :one

@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"slices"
 	"time"
+	"unicode/utf8"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -328,11 +329,16 @@ func (r *Reconciler) failureMessage(cond *batchv1.JobCondition, pod *corev1.Pod)
 	return "build failed"
 }
 
+// keeps the tail; internal/clip.Bytes keeps the head, update both together.
 func truncateMessage(message string) string {
 	if len(message) <= maxBuildMessageLength {
 		return message
 	}
-	return "..." + message[len(message)-maxBuildMessageLength:]
+	start := len(message) - maxBuildMessageLength
+	for start < len(message) && !utf8.RuneStart(message[start]) {
+		start++
+	}
+	return "..." + message[start:]
 }
 
 func pushStatus(pod *corev1.Pod) *corev1.ContainerStateTerminated {

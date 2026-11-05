@@ -200,14 +200,13 @@ func (q *Queries) ListOpenInvitationsForEmail(ctx context.Context, email string)
 }
 
 const listOrgInvitations = `-- name: ListOrgInvitations :many
-SELECT i.id, i.org_id, i.email, i.invited_by, i.created_at, i.expires_at, i.claimed_by, i.claimed_at, i.revoked_at, i.delivered_at, i.delivery_error, u.id, u.email, u.name, u.avatar_url, u.status, u.created_at, u.updated_at
-FROM invitations i
-JOIN users u ON u.id = i.invited_by
-WHERE i.org_id = $1
-  AND i.claimed_at IS NULL
-  AND i.revoked_at IS NULL
-  AND ($3::uuid IS NULL OR i.id < $3::uuid)
-ORDER BY i.id DESC
+SELECT id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at, delivered_at, delivery_error
+FROM invitations
+WHERE org_id = $1
+  AND claimed_at IS NULL
+  AND revoked_at IS NULL
+  AND ($3::uuid IS NULL OR id < $3::uuid)
+ORDER BY id DESC
 LIMIT $2
 `
 
@@ -217,39 +216,27 @@ type ListOrgInvitationsParams struct {
 	PageToken *uuid.UUID `json:"pageToken"`
 }
 
-type ListOrgInvitationsRow struct {
-	Invitation Invitation `json:"invitation"`
-	User       User       `json:"user"`
-}
-
-func (q *Queries) ListOrgInvitations(ctx context.Context, arg ListOrgInvitationsParams) ([]ListOrgInvitationsRow, error) {
+func (q *Queries) ListOrgInvitations(ctx context.Context, arg ListOrgInvitationsParams) ([]Invitation, error) {
 	rows, err := q.db.Query(ctx, listOrgInvitations, arg.OrgID, arg.Limit, arg.PageToken)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListOrgInvitationsRow
+	var items []Invitation
 	for rows.Next() {
-		var i ListOrgInvitationsRow
+		var i Invitation
 		if err := rows.Scan(
-			&i.Invitation.ID,
-			&i.Invitation.OrgID,
-			&i.Invitation.Email,
-			&i.Invitation.InvitedBy,
-			&i.Invitation.CreatedAt,
-			&i.Invitation.ExpiresAt,
-			&i.Invitation.ClaimedBy,
-			&i.Invitation.ClaimedAt,
-			&i.Invitation.RevokedAt,
-			&i.Invitation.DeliveredAt,
-			&i.Invitation.DeliveryError,
-			&i.User.ID,
-			&i.User.Email,
-			&i.User.Name,
-			&i.User.AvatarUrl,
-			&i.User.Status,
-			&i.User.CreatedAt,
-			&i.User.UpdatedAt,
+			&i.ID,
+			&i.OrgID,
+			&i.Email,
+			&i.InvitedBy,
+			&i.CreatedAt,
+			&i.ExpiresAt,
+			&i.ClaimedBy,
+			&i.ClaimedAt,
+			&i.RevokedAt,
+			&i.DeliveredAt,
+			&i.DeliveryError,
 		); err != nil {
 			return nil, err
 		}

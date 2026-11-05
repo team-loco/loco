@@ -159,13 +159,23 @@ func (s *OrgServer) ListInvitations(
 		slog.ErrorContext(ctx, "failed to list invitations", "error", err)
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
+	inviters := map[uuid.UUID]genDb.User{}
 	invitations := make([]*orgv1.Invitation, len(rows))
 	for i, row := range rows {
-		invitations[i] = s.invitationProto(row.Invitation, row.User)
+		inviter, known := inviters[row.InvitedBy]
+		if !known {
+			inviter, err = s.queries.GetUserByID(ctx, row.InvitedBy)
+			if err != nil {
+				slog.ErrorContext(ctx, "failed to load inviter", "error", err)
+				return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+			}
+			inviters[row.InvitedBy] = inviter
+		}
+		invitations[i] = s.invitationProto(row, inviter)
 	}
 	var nextPageToken string
 	if len(rows) == int(pageSize) {
-		nextPageToken = encodeCursor(rows[len(rows)-1].Invitation.ID.String())
+		nextPageToken = encodeCursor(rows[len(rows)-1].ID.String())
 	}
 	return &orgv1.ListInvitationsResponse{Invitations: invitations, NextPageToken: nextPageToken}, nil
 }
