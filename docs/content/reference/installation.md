@@ -12,6 +12,7 @@ locoadm apply --file installation.yaml
 locoadm bootstrap --file installation.yaml --email admin@example.com
 locoadm apply --file installation.yaml
 locoadm status --file installation.yaml
+locoadm verify --file installation.yaml --worker staging-us --environment ENVIRONMENT_UUID
 ```
 
 `validate` defaults to `installation.yaml`; the other commands require `--file`. See the [complete example](https://github.com/team-loco/loco/blob/main/examples/installation/installation.yaml) and [JSON Schema](https://github.com/team-loco/loco/blob/main/schemas/installation.v1.json). Unknown fields, duplicate keys and additional YAML documents fail validation. Errors identify known field paths without printing source values.
@@ -86,6 +87,8 @@ Create these external input Secrets in the control-plane namespace before applyi
 
 For HTTP(S) email transports, `hook-secret` contains `whsec_` followed by standard base64 encoding of exactly 32 bytes. Plan reports missing or invalid signing credentials as blocked, and apply rejects them before creating installation state or credentials. SMTP uses only the transport URL.
 
+The initial installation contract uses static registry credentials. Token-based registry signing is outside this file contract.
+
 Use separate registry identities: the API identity reads and deletes build images, the push identity builds images, and the pull identity reads them. Only the corresponding push or pull credential reaches each worker. A worker never receives the complete input Secret. An HTTP registry endpoint enables the chart's insecure-registry transport; public registries should use HTTPS.
 
 ## Apply and resume
@@ -101,3 +104,36 @@ Generated seal material, the temporary bootstrap credential and ClickHouse user 
 Status reports the installation phase, worker enrollment readiness and required DNS hostnames with their published Gateway addresses. `running` does not establish DNS, HTTPS, a successful source build or recovery restorability. An exported recovery backup is reported separately. Removing a worker from the file reports pending removal and deletes no workload, cluster, volume or key. A recorded worker target UID cannot change on reapply.
 
 `plan`, `apply` and `status` accept `--timeout` (30 minutes by default). Apply locks use API-server time sampled through a non-persistent dry-run ConfigMap creation and expire after the operation deadline plus a recovery margin; a concurrent apply fails. Operator wall-clock skew does not determine expiry. Lease recovery requires a stable, synchronized control-plane clock. Expiry does not roll back previously accepted remote operations; reapply relies on owned state, atomic creation and resource-version checks to preserve keys and identities. Secret values and raw child-process diagnostics are excluded from command output.
+
+## Source verification
+
+`locoadm verify --file installation.yaml --worker staging-us --environment ENVIRONMENT_UUID` uses the stored operator session and an existing authorized environment whose tier matches the worker. The worker must enable builds. DNS and a publicly trusted HTTPS certificate must already serve its application domain.
+
+Verification provisions a uniquely named disposable service through the plan API, stores a random application secret, uploads source and waits for its build. It deploys that build in the worker's region and checks the HTTPS response, the SHA-256 hash of the delivered secret, and a unique log record through the observability query API. The generated source contains no secret value. The API schedules the build on an eligible build cluster; the command does not pin the build executor to the selected worker. Verification deletes its service after success or failure and reports cleanup errors. A process crash can leave a `verify-<UUID>` resource for an operator to remove.
+
+The command reports `verified` only after every probe and cleanup succeeds. This proves source build, secret delivery, deployment, HTTPS and log query functionality; it does not prove backups can restore the installation.
+
+## Encrypted recovery export
+
+`locoadm recovery export` reads the existing destination material, encrypts it in memory and writes only age ciphertext to a new directory:
+
+```sh
+locoadm recovery export --file installation.yaml --output ./recovery-export \
+  --recipient AGE_MATERIAL_RECIPIENT \
+  --share-recipient AGE_FIRST_CUSTODIAN \
+  --share-recipient AGE_SECOND_CUSTODIAN \
+  --share-recipient AGE_THIRD_CUSTODIAN
+```
+
+Supply one distinct age X25519 public recipient per recovery share, in share order, and a separate recipient for the seal material and generate-root token. Match the share count in the pinned control-plane chart. Keep private age identities with their custodians. `material.age` contains the seal key and generate-root token; `share-1.age`, `share-2.age` and subsequent files each contain one recovery share. No recipient receives multiple payloads. The directory uses mode `0700` and files use `0600`; an existing output directory is rejected. Retry a failed export with a new directory.
+
+| Material | Destination owner | Export |
+| --- | --- | --- |
+| OpenBao seal key | Installation-owned `loco-openbao-seal` Secret | `material.age` |
+| Generate-root token | Chart setup's `loco-control-plane-openbao-init` Secret | `material.age` |
+| Recovery shares | Chart setup's `loco-control-plane-openbao-init` Secret | One encrypted file per custodian |
+| Bootstrap token | Temporary installation-owned Secret | Removed after bootstrap; excluded |
+| Agent private keys | Each worker agent's identity store | Excluded |
+| Database, storage, registry and mail credentials | Operator-managed input Secrets | Excluded |
+
+Export retains the source Secrets and records `recoveryExported` only after encrypted files are written and synced. That marker confirms export, not successful restoration. Keep source material until a separate restoration exercise succeeds. The export does not include PostgreSQL data, OpenBao snapshots, persistent volumes or external-service backups; retain those through their own backup procedures. This command does not implement restore.

@@ -55,3 +55,12 @@ func TestReportsTheLinkedVersion(t *testing.T) {
 		t.Errorf("locoadm --version printed %q, want it to contain %q", out, linked)
 	}
 }
+
+func TestRootRegistersInstallationVerificationAndRecovery(t *testing.T) {
+	for _, path := range [][]string{{"verify"}, {"recovery", "export"}} {
+		command, remaining, err := NewRootCmd().Find(path)
+		if err != nil || len(remaining) != 0 || command.Name() != path[len(path)-1] {
+			t.Fatalf("command %v: %v %v %v", path, command, remaining, err)
+		}
+	}
+}
