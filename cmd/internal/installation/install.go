@@ -330,22 +330,22 @@ func (k *Kubernetes) inputs(ctx context.Context, config Config) (map[string][]by
 	if err != nil || transport.Hostname() == "" {
 		return nil, errEmailTransport
 	}
-	switch transport.Scheme {
-	case "smtp":
+	if transport.Scheme == "smtp" {
 		if transport.Port() == "" {
 			return nil, errEmailTransport
 		}
-	case schemeHTTP, schemeHTTPS:
-		hook := secrets[cp.Email.TransportSecretRef.Name].Data[emailHookSecretKey]
-		encoded, prefixed := strings.CutPrefix(string(hook), "whsec_")
-		decoded, decodeErr := base64.StdEncoding.DecodeString(encoded)
-		if !prefixed || decodeErr != nil || len(decoded) != emailHookSecretBytes {
-			return nil, errEmailHookSecret
-		}
-		output[envEmailHookSecret] = hook
-	default:
+		return output, nil
+	}
+	if transport.Scheme != schemeHTTP && transport.Scheme != schemeHTTPS {
 		return nil, errEmailTransport
 	}
+	hook := secrets[cp.Email.TransportSecretRef.Name].Data[emailHookSecretKey]
+	encoded, prefixed := strings.CutPrefix(string(hook), "whsec_")
+	decoded, decodeErr := base64.StdEncoding.DecodeString(encoded)
+	if !prefixed || decodeErr != nil || len(decoded) != emailHookSecretBytes {
+		return nil, errEmailHookSecret
+	}
+	output[envEmailHookSecret] = hook
 	return output, nil
 }
 

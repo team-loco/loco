@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -231,12 +232,13 @@ func randomCredential() ([]byte, error) {
 // safeKubernetesError excludes server messages, which can echo submitted Secret data.
 func safeKubernetesError(operation string, err error) error {
 	reason := apierrors.ReasonForError(err)
-	switch reason {
-	case metav1.StatusReasonForbidden, metav1.StatusReasonUnauthorized, metav1.StatusReasonNotFound,
+	allowed := []metav1.StatusReason{
+		metav1.StatusReasonForbidden, metav1.StatusReasonUnauthorized, metav1.StatusReasonNotFound,
 		metav1.StatusReasonAlreadyExists, metav1.StatusReasonConflict, metav1.StatusReasonInvalid,
 		metav1.StatusReasonTimeout, metav1.StatusReasonServerTimeout, metav1.StatusReasonInternalError,
-		metav1.StatusReasonServiceUnavailable:
-	default:
+		metav1.StatusReasonServiceUnavailable,
+	}
+	if !slices.Contains(allowed, reason) {
 		reason = metav1.StatusReasonUnknown
 	}
 	return fmt.Errorf("%s (%s): %w", operation, reason, errKubernetes)
