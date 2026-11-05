@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/netip"
 	"strings"
 	"time"
 )
 
 var (
+	errDNSAnswer      = errors.New("fixture Gateway DNS does not resolve to its LoadBalancer address")
 	errDNSZone        = errors.New("incomplete fixture DNS zone")
 	errGatewayAddress = errors.New("fixture Gateway has no real LoadBalancer address")
 )
@@ -106,7 +108,9 @@ func configureGatewayDNS(ctx context.Context, namespace string, worker bool) err
 		return err
 	}
 	core := string(output)
+	names := []string{"api.installation.test", "console.installation.test", "ingest.installation.test"}
 	if worker {
+		names = []string{"ready." + fixtureAppsDomain}
 		// The zone is separate from the control-plane hosts. Product verification chooses
 		// its own unique hostname under this wildcard, so it uses the same DNS as applications.
 		begin := "    # installation-apps-start"
@@ -127,7 +131,6 @@ func configureGatewayDNS(ctx context.Context, namespace string, worker bool) err
 		)
 		core = strings.Replace(core, "    kubernetes cluster.local", zone+"    kubernetes cluster.local", 1)
 	} else {
-		names := []string{"api.installation.test", "console.installation.test", "ingest.installation.test"}
 		var lines []string
 		for line := range strings.SplitSeq(core, "\n") {
 			skip := false
@@ -168,7 +171,7 @@ func configureGatewayDNS(ctx context.Context, namespace string, worker bool) err
 	if _, checkErr := kubectl(ctx, "-n", "kube-system", "rollout", "restart", "deployment/coredns"); checkErr != nil {
 		return checkErr
 	}
-	_, err = kubectl(
+	if _, checkErr := kubectl(
 		ctx,
 		"-n",
 		"kube-system",
@@ -176,6 +179,43 @@ func configureGatewayDNS(ctx context.Context, namespace string, worker bool) err
 		"status",
 		"deployment/coredns",
 		"--timeout="+fixtureReadyTimeout,
-	)
-	return err
+	); checkErr != nil {
+		return checkErr
+	}
+	// Deployment readiness does not prove the operator can resolve the new zone.
+	return waitGatewayDNS(ctx, names, address)
+}
+
+func waitGatewayDNS(ctx context.Context, names []string, address string) error {
+	ctx, cancel := context.WithTimeout(ctx, gatewayReadyTimeout)
+	defer cancel()
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		ready := true
+		for _, name := range names {
+			answers, err := net.DefaultResolver.LookupNetIP(ctx, "ip4", name)
+			if err != nil || len(answers) == 0 {
+				ready = false
+				break
+			}
+			for _, answer := range answers {
+				if answer.String() != address {
+					ready = false
+					break
+				}
+			}
+			if !ready {
+				break
+			}
+		}
+		if ready {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return errors.Join(errDNSAnswer, ctx.Err())
+		case <-ticker.C:
+		}
+	}
 }
