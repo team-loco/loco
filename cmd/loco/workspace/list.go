@@ -3,32 +3,13 @@ package workspace
 import (
 	"context"
 	"fmt"
-	"io"
-	"os"
-
-	"github.com/team-loco/loco/internal/rpc"
 
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
+	"github.com/team-loco/loco/internal/rpc"
 )
-
-type listDeps struct {
-	WhoAmI func(
-		ctx context.Context,
-		req *userv1.WhoAmIRequest,
-	) (*userv1.WhoAmIResponse, error)
-	ListUserWorkspaces func(
-		ctx context.Context,
-		req *workspacev1.ListUserWorkspacesRequest,
-	) (*workspacev1.ListUserWorkspacesResponse, error)
-	ListOrgWorkspaces func(
-		ctx context.Context,
-		req *workspacev1.ListOrgWorkspacesRequest,
-	) (*workspacev1.ListOrgWorkspacesResponse, error)
-	Output io.Writer
-}
 
 func buildListCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -44,24 +25,9 @@ func buildListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
-			host, err := cmdutil.GetHost(cmd)
+			target, err := cmdutil.ResolveLogin(cmd)
 			if err != nil {
 				return err
-			}
-			locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
-			if err != nil {
-				return err
-			}
-
-			clients := rpc.ForHost(host, locoToken.Token)
-			wsClient := clients.Workspace
-			userClient := clients.User
-
-			deps := listDeps{
-				WhoAmI:             userClient.WhoAmI,
-				ListUserWorkspaces: wsClient.ListUserWorkspaces,
-				ListOrgWorkspaces:  wsClient.ListOrgWorkspaces,
-				Output:             os.Stdout,
 			}
 
 			orgID, err := cmd.Flags().GetString("org-id")
@@ -69,7 +35,7 @@ func buildListCmd() *cobra.Command {
 				return fmt.Errorf("failed to get org-id flag: %w", err)
 			}
 
-			workspaces, err := listWorkspaces(ctx, deps, orgID)
+			workspaces, err := listWorkspaces(ctx, target.Clients, orgID)
 			if err != nil {
 				return err
 			}
@@ -78,15 +44,15 @@ func buildListCmd() *cobra.Command {
 				if orgID != "" {
 					message = "No workspaces found in this organization."
 				}
-				_, err = fmt.Fprintln(deps.Output, message)
+				_, err = fmt.Fprintln(cmd.OutOrStdout(), message)
 				return err
 			}
-			if _, err = fmt.Fprintln(deps.Output, "Workspaces:"); err != nil {
+			if _, err = fmt.Fprintln(cmd.OutOrStdout(), "Workspaces:"); err != nil {
 				return err
 			}
 			for _, workspace := range workspaces {
 				if _, err = fmt.Fprintf(
-					deps.Output,
+					cmd.OutOrStdout(),
 					"  - %s (ID: %s)\n",
 					workspace.GetName(),
 					workspace.GetId(),
@@ -105,10 +71,10 @@ func buildListCmd() *cobra.Command {
 	return cmd
 }
 
-func listWorkspaces(ctx context.Context, deps listDeps, orgID string) ([]*workspacev1.Workspace, error) {
+func listWorkspaces(ctx context.Context, clients *rpc.Clients, orgID string) ([]*workspacev1.Workspace, error) {
 	var userID string
 	if orgID == "" {
-		who, err := deps.WhoAmI(ctx, &userv1.WhoAmIRequest{})
+		who, err := clients.User.WhoAmI(ctx, &userv1.WhoAmIRequest{})
 		if err != nil {
 			return nil, fmt.Errorf("failed to get current user: %w", err)
 		}
@@ -117,14 +83,14 @@ func listWorkspaces(ctx context.Context, deps listDeps, orgID string) ([]*worksp
 	workspaces, err := cmdutil.Paginate(func(token string) ([]*workspacev1.Workspace, string, error) {
 		if orgID != "" {
 			request := &workspacev1.ListOrgWorkspacesRequest{OrgId: orgID, PageToken: token}
-			response, err := deps.ListOrgWorkspaces(ctx, request)
+			response, err := clients.Workspace.ListOrgWorkspaces(ctx, request)
 			if err != nil {
 				return nil, "", err
 			}
 			return response.GetWorkspaces(), response.GetNextPageToken(), nil
 		}
 		request := &workspacev1.ListUserWorkspacesRequest{UserId: userID, PageToken: token}
-		response, err := deps.ListUserWorkspaces(ctx, request)
+		response, err := clients.Workspace.ListUserWorkspaces(ctx, request)
 		if err != nil {
 			return nil, "", err
 		}

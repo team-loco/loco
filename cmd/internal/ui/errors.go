@@ -5,8 +5,6 @@ import (
 )
 
 var (
-	ErrNoSelection        = errors.New("no selection made")
-	ErrDeploymentCanceled = errors.New("deployment was canceled")
-
+	errNoSelection     = errors.New("no selection made")
 	errUnexpectedModel = errors.New("internal error: unexpected model type")
 )

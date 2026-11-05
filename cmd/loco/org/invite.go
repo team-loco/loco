@@ -2,17 +2,13 @@ package org
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 )
 
 func buildInviteCmd() *cobra.Command {
-	return newInviteCmd(invitationDeps{NewOrgClient: realOrgClient, Output: os.Stdout})
-}
-
-func newInviteCmd(deps invitationDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "invite <email>",
 		Short: "Invite someone to an organization",
@@ -24,10 +20,11 @@ func newInviteCmd(deps invitationDeps) *cobra.Command {
   # Invite to a specific organization
   loco org invite dev@example.com --org my-org`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := invitationClient(cmd, deps)
+			target, err := cmdutil.ResolveLogin(cmd)
 			if err != nil {
 				return err
 			}
+			client := target.Clients.Org
 			orgID, err := resolveOrgID(cmd, client)
 			if err != nil {
 				return err
@@ -40,8 +37,8 @@ func newInviteCmd(deps invitationDeps) *cobra.Command {
 				return fmt.Errorf("unable to invite %s: %w", args[0], err)
 			}
 			invitation := resp.GetInvitation()
-			fmt.Fprintf(deps.Output, "Invited %s: %s\n", invitation.GetEmail(), statusText(invitation))
-			fmt.Fprintf(deps.Output, "Link: %s\n", invitation.GetLink())
+			fmt.Fprintf(cmd.OutOrStdout(), "Invited %s: %s\n", invitation.GetEmail(), statusText(invitation))
+			fmt.Fprintf(cmd.OutOrStdout(), "Link: %s\n", invitation.GetLink())
 			return nil
 		},
 	}

@@ -2,46 +2,19 @@ package token
 
 import (
 	"fmt"
-	"io"
 	"math"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/team-loco/loco/internal/rpc"
-
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
-	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
-	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 )
 
 const secondsPerDay = int64(24 * time.Hour / time.Second)
 
-type createDeps struct {
-	NewTokenClient func(host, token string) tokenv1connect.TokenServiceClient
-	NewUserClient  func(host, token string) userv1connect.UserServiceClient
-	Output         io.Writer
-}
-
 func buildCreateCmd() *cobra.Command {
-	deps := createDeps{
-		NewTokenClient: func(host, token string) tokenv1connect.TokenServiceClient {
-			tokenClients := rpc.ForHost(host, token)
-			return tokenClients.Token
-		},
-		NewUserClient: func(host, token string) userv1connect.UserServiceClient {
-			userClients := rpc.ForHost(host, token)
-			return userClients.User
-		},
-		Output: os.Stdout,
-	}
-	return newCreateCmd(deps)
-}
-
-func newCreateCmd(deps createDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <name>",
 		Short: "Create a new API token",
@@ -69,17 +42,10 @@ Tokens can be scoped to different entity types:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			host, err := cmdutil.GetHost(cmd)
+			target, err := cmdutil.ResolveLogin(cmd)
 			if err != nil {
 				return err
 			}
-			locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
-			if err != nil {
-				return err
-			}
-
-			tokenClient := deps.NewTokenClient(host, locoToken.Token)
-			userClient := deps.NewUserClient(host, locoToken.Token)
 
 			name := args[0]
 
@@ -97,7 +63,7 @@ Tokens can be scoped to different entity types:
 				return err
 			}
 
-			entityID, err := resolveEntityID(ctx, userClient, entityType, entityTypeStr, requestedEntityID)
+			entityID, err := resolveEntityID(ctx, target.Clients.User, entityType, entityTypeStr, requestedEntityID)
 			if err != nil {
 				return err
 			}
@@ -136,18 +102,18 @@ Tokens can be scoped to different entity types:
 				ExpiresInSec: expiresSec,
 			}
 
-			resp, err := tokenClient.CreateToken(ctx, req)
+			resp, err := target.Clients.Token.CreateToken(ctx, req)
 			if err != nil {
 				return fmt.Errorf("failed to create token: %w", err)
 			}
 
-			fmt.Fprintln(deps.Output, "Token created successfully!")
-			fmt.Fprintln(deps.Output, "")
-			fmt.Fprintf(deps.Output, "Name: %s\n", resp.GetTokenMetadata().GetName())
-			fmt.Fprintf(deps.Output, "Entity: %s (ID: %s)\n", entityTypeStr, entityID)
-			fmt.Fprintf(deps.Output, "Token: %s\n", resp.GetToken())
-			fmt.Fprintln(deps.Output, "")
-			fmt.Fprintln(deps.Output, "Save this token - it won't be shown again!")
+			fmt.Fprintln(cmd.OutOrStdout(), "Token created successfully!")
+			fmt.Fprintln(cmd.OutOrStdout(), "")
+			fmt.Fprintf(cmd.OutOrStdout(), "Name: %s\n", resp.GetTokenMetadata().GetName())
+			fmt.Fprintf(cmd.OutOrStdout(), "Entity: %s (ID: %s)\n", entityTypeStr, entityID)
+			fmt.Fprintf(cmd.OutOrStdout(), "Token: %s\n", resp.GetToken())
+			fmt.Fprintln(cmd.OutOrStdout(), "")
+			fmt.Fprintln(cmd.OutOrStdout(), "Save this token - it won't be shown again!")
 			return nil
 		},
 	}

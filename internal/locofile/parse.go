@@ -4,7 +4,6 @@ import (
 	"encoding/json/v2"
 	"errors"
 	"fmt"
-	"os"
 	"regexp"
 	"slices"
 	"strconv"
@@ -56,15 +55,6 @@ func (e *FieldError) Error() string {
 
 func (e *FieldError) Unwrap() error {
 	return e.Err
-}
-
-// Load reads and parses the file at path.
-func Load(path string) (*File, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", path, err)
-	}
-	return Parse(data)
 }
 
 // Parse decodes a loco.yaml document, rejects unknown and reserved keys, and validates it.

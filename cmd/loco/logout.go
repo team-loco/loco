@@ -45,7 +45,6 @@ func newLogoutCmd(env Env) *cobra.Command {
 				host = t.Host
 			}
 			if err = cmdutil.RevokeToken(ctx, host, t.Token); err != nil {
-				cmdutil.LogRequestID(ctx, err, "failed to revoke token on server")
 				if connect.CodeOf(err) != connect.CodeUnauthenticated {
 					warning := lipgloss.NewStyle().
 						Foreground(ui.Warn).

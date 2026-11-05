@@ -2,37 +2,13 @@ package workspace
 
 import (
 	"fmt"
-	"io"
-	"os"
-
-	"github.com/team-loco/loco/internal/rpc"
 
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
-	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
 )
 
-type deleteDeps struct {
-	NewWorkspaceClient func(host, token string) workspacev1connect.WorkspaceServiceClient
-	AskYesNo           func(prompt string) (bool, error)
-	Output             io.Writer
-}
-
 func buildDeleteCmd() *cobra.Command {
-	deps := deleteDeps{
-		NewWorkspaceClient: func(host, token string) workspacev1connect.WorkspaceServiceClient {
-			workspaceClients := rpc.ForHost(host, token)
-			return workspaceClients.Workspace
-		},
-		AskYesNo: ui.AskYesNo,
-		Output:   os.Stdout,
-	}
-	return newDeleteCmd(deps)
-}
-
-func newDeleteCmd(deps deleteDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete <workspace-id>",
 		Short: "Delete a workspace",
@@ -51,16 +27,12 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 
 			id := args[0]
 
-			host, err := cmdutil.GetHost(cmd)
-			if err != nil {
-				return err
-			}
-			locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
+			target, err := cmdutil.ResolveLogin(cmd)
 			if err != nil {
 				return err
 			}
 
-			wsClient := deps.NewWorkspaceClient(host, locoToken.Token)
+			wsClient := target.Clients.Workspace
 
 			getReq := &workspacev1.GetWorkspaceRequest{
 				WorkspaceId: id,
@@ -71,30 +43,18 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 				return fmt.Errorf("failed to find workspace: %w", err)
 			}
 
-			yes, err := cmd.Flags().GetBool("yes")
-			if err != nil {
-				return fmt.Errorf("failed to get yes flag: %w", err)
-			}
 			confirmDeleteApps, err := cmd.Flags().GetBool("confirm-delete-apps")
 			if err != nil {
 				return fmt.Errorf("failed to get confirm-delete-apps flag: %w", err)
 			}
 
-			if !yes {
-				confirm, confirmErr := deps.AskYesNo(
-					fmt.Sprintf(
-						"Are you sure you want to delete workspace %q (ID: %s)? This cannot be undone.",
-						getResp.GetWorkspace().GetName(),
-						id,
-					),
-				)
-				if confirmErr != nil {
-					return fmt.Errorf("failed to prompt for confirmation: %w", confirmErr)
-				}
-				if !confirm {
-					fmt.Fprintln(deps.Output, "Aborted.")
-					return nil
-				}
+			confirmed, err := cmdutil.Confirm(cmd, fmt.Sprintf(
+				"Are you sure you want to delete workspace %q (ID: %s)? This cannot be undone.",
+				getResp.GetWorkspace().GetName(),
+				id,
+			))
+			if err != nil || !confirmed {
+				return err
 			}
 
 			delReq := &workspacev1.DeleteWorkspaceRequest{
@@ -107,7 +67,7 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 				return fmt.Errorf("failed to delete workspace: %w", err)
 			}
 
-			fmt.Fprintf(deps.Output, "Workspace %q deleted successfully.\n", getResp.GetWorkspace().GetName())
+			fmt.Fprintf(cmd.OutOrStdout(), "Workspace %q deleted successfully.\n", getResp.GetWorkspace().GetName())
 			return nil
 		},
 	}

@@ -33,9 +33,8 @@ type File struct {
 	Size int64
 }
 type Summary struct {
-	Files      int
-	InputBytes int64
-	Largest    []File
+	Files   int
+	Largest []File
 }
 type Archive struct {
 	Summary
@@ -54,7 +53,7 @@ func Pack(dir string, dockerfiles []string) (*Archive, error) {
 	}
 	tmpPath := tmp.Name()
 	archive := &Archive{Path: tmpPath}
-	summary, writeErr := Write(tmp, dir, dockerfiles)
+	summary, writeErr := write(tmp, dir, dockerfiles)
 	closeErr := tmp.Close()
 	if writeErr == nil {
 		writeErr = closeErr
@@ -73,7 +72,7 @@ func Pack(dir string, dockerfiles []string) (*Archive, error) {
 	archive.Size = info.Size()
 	return archive, nil
 }
-func Write(w io.Writer, dir string, dockerfiles []string) (*Summary, error) {
+func write(w io.Writer, dir string, dockerfiles []string) (*Summary, error) {
 	root, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, fmt.Errorf("resolve build context %s: %w", dir, err)
@@ -123,7 +122,7 @@ func Write(w io.Writer, dir string, dockerfiles []string) (*Summary, error) {
 	}
 	return p.summary, nil
 }
-func AlwaysExcluded(name string) bool {
+func alwaysExcluded(name string) bool {
 	return name == ".git" || name == ".env" || strings.HasPrefix(name, ".env.")
 }
 
@@ -150,7 +149,7 @@ func (p *packer) visit(file string, entry fs.DirEntry, walkErr error) error {
 	name := filepath.ToSlash(rel)
 
 	base := entry.Name()
-	if AlwaysExcluded(base) {
+	if alwaysExcluded(base) {
 		if entry.IsDir() {
 			return filepath.SkipDir
 		}
@@ -242,7 +241,6 @@ func (p *packer) copyFile(file, name string, size int64) error {
 		return fmt.Errorf("write %s: %w", name, copyErr)
 	}
 	p.summary.Files++
-	p.summary.InputBytes += size
 	p.summary.Largest = keepLargest(p.summary.Largest, File{Path: name, Size: size})
 	return nil
 }

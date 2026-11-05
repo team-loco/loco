@@ -2,34 +2,13 @@ package workspace
 
 import (
 	"fmt"
-	"io"
-	"os"
-
-	"github.com/team-loco/loco/internal/rpc"
 
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
-	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
 )
 
-type createDeps struct {
-	NewWorkspaceClient func(host, token string) workspacev1connect.WorkspaceServiceClient
-	Output             io.Writer
-}
-
 func buildCreateCmd() *cobra.Command {
-	deps := createDeps{
-		NewWorkspaceClient: func(host, token string) workspacev1connect.WorkspaceServiceClient {
-			workspaceClients := rpc.ForHost(host, token)
-			return workspaceClients.Workspace
-		},
-		Output: os.Stdout,
-	}
-	return newCreateCmd(deps)
-}
-
-func newCreateCmd(deps createDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <name>",
 		Short: "Create a workspace",
@@ -43,16 +22,10 @@ func newCreateCmd(deps createDeps) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			host, err := cmdutil.GetHost(cmd)
+			target, err := cmdutil.ResolveLogin(cmd)
 			if err != nil {
 				return err
 			}
-			locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
-			if err != nil {
-				return err
-			}
-
-			wsClient := deps.NewWorkspaceClient(host, locoToken.Token)
 
 			name := args[0]
 			orgID, err := cmd.Flags().GetString("org-id")
@@ -72,12 +45,12 @@ func newCreateCmd(deps createDeps) *cobra.Command {
 				createReq.Description = &description
 			}
 
-			resp, err := wsClient.CreateWorkspace(ctx, createReq)
+			resp, err := target.Clients.Workspace.CreateWorkspace(ctx, createReq)
 			if err != nil {
 				return fmt.Errorf("failed to create workspace: %w", err)
 			}
 
-			fmt.Fprintf(deps.Output, "Workspace %q created successfully (ID: %s)\n", name, resp.GetWorkspaceId())
+			fmt.Fprintf(cmd.OutOrStdout(), "Workspace %q created successfully (ID: %s)\n", name, resp.GetWorkspaceId())
 			return nil
 		},
 	}

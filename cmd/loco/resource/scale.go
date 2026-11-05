@@ -3,21 +3,13 @@ package resource
 import (
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
-	"os"
-
-	"github.com/team-loco/loco/internal/rpc"
 
 	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	"github.com/team-loco/loco/gen/go/loco/environment/v1/environmentv1connect"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
-	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
-	"github.com/team-loco/loco/internal/client"
-	"github.com/team-loco/loco/internal/session"
 )
 
 var (
@@ -25,32 +17,7 @@ var (
 	errReplicasTooLow = errors.New("replicas must be >= 1")
 )
 
-type scaleDeps struct {
-	LoadSessionConfig func() (*session.SessionConfig, error)
-	NewAPIClient      func(host, token string) *client.Client
-	NewResourceClient func(host, token string) resourcev1connect.ResourceServiceClient
-	Environments      func(host, token string) environmentv1connect.EnvironmentServiceClient
-	Stdout            io.Writer
-}
-
-func buildScaleCmd() *cobra.Command {
-	deps := scaleDeps{
-		LoadSessionConfig: session.Load,
-		NewAPIClient:      client.NewClient,
-		NewResourceClient: func(host, token string) resourcev1connect.ResourceServiceClient {
-			resourceClients := rpc.ForHost(host, token)
-			return resourceClients.Resource
-		},
-		Environments: func(host, token string) environmentv1connect.EnvironmentServiceClient {
-			environmentClients := rpc.ForHost(host, token)
-			return environmentClients.Environment
-		},
-		Stdout: os.Stdout,
-	}
-	return newScaleCmd(deps)
-}
-
-func newScaleCmd(deps scaleDeps) *cobra.Command {
+func newScaleCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "scale <name>",
 		Short: "Scale a service's resources in one environment",
@@ -67,7 +34,6 @@ Examples:
 			ctx := cmd.Context()
 			name := args[0]
 
-			// Parse flags
 			replicas, err := cmd.Flags().GetInt32("replicas")
 			if err != nil {
 				return fmt.Errorf("error reading replicas flag: %w", err)
@@ -83,7 +49,6 @@ Examples:
 				return fmt.Errorf("error reading memory flag: %w", err)
 			}
 
-			// Validate at least one scaling parameter
 			if replicas == -1 && cpu == "" && memory == "" {
 				return errNoScaleFlags
 			}
@@ -92,51 +57,21 @@ Examples:
 				return errReplicasTooLow
 			}
 
-			// Get host and token
-			host, err := cmdutil.GetHost(cmd)
+			t, err := cmdutil.ResolveTarget(ctx, cmd)
 			if err != nil {
 				return err
 			}
-
-			locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
+			t, err = t.WithEnvironment(ctx, cmd, false)
 			if err != nil {
 				return err
 			}
-
-			// Resolve workspace ID
-			apiClient := deps.NewAPIClient(host, locoToken.Token)
-			workspaceID, err := cmdutil.ResolveWorkspaceID(ctx, cmd, deps.LoadSessionConfig, apiClient)
+			env := t.Environment
+			resource, err := t.Service(ctx, name)
 			if err != nil {
 				return err
 			}
-
-			resourceClient := deps.NewResourceClient(host, locoToken.Token)
-
-			environments := deps.Environments(host, locoToken.Token)
-			env, err := cmdutil.ResolveEnvironment(ctx, cmd, environments, nil, false, workspaceID)
-			if err != nil {
-				return err
-			}
-
-			// Get resource by name
-			getReq := &resourcev1.GetResourceRequest{
-				Key: &resourcev1.GetResourceRequest_NameKey{
-					NameKey: &resourcev1.GetResourceNameKey{
-						WorkspaceId: workspaceID,
-						Name:        name,
-					},
-				},
-			}
-
-			resourceResp, err := resourceClient.GetResource(ctx, getReq)
-			if err != nil {
-				return fmt.Errorf("service '%s' not found: %w", name, err)
-			}
-
-			resource := resourceResp.GetResource()
 			slog.Debug("scaling service", "resource_id", resource.GetId(), "name", name, "environment", env.GetName())
 
-			// Build scale request
 			var replicasPtr *int32
 			if replicas != -1 {
 				replicasPtr = &replicas
@@ -160,27 +95,25 @@ Examples:
 				Memory:        memoryPtr,
 			}
 
-			_, err = resourceClient.ScaleResource(ctx, scaleReq)
+			_, err = t.Clients.Resource.ScaleResource(ctx, scaleReq)
 			if err != nil {
-				slog.Error("failed to scale service", "error", err)
 				return fmt.Errorf("failed to scale service '%s': %w", name, err)
 			}
 
-			// Success message
 			s := lipgloss.NewStyle().
 				Bold(true).
 				Foreground(ui.Ok).
 				Render(fmt.Sprintf("\n🎉 Scaled service %s in %s:", name, env.GetName()))
-			fmt.Fprintln(deps.Stdout, s)
+			fmt.Fprintln(cmd.OutOrStdout(), s)
 
 			if replicas != -1 {
-				fmt.Fprintf(deps.Stdout, "  Replicas: %d\n", replicas)
+				fmt.Fprintf(cmd.OutOrStdout(), "  Replicas: %d\n", replicas)
 			}
 			if cpu != "" {
-				fmt.Fprintf(deps.Stdout, "  CPU: %s\n", cpu)
+				fmt.Fprintf(cmd.OutOrStdout(), "  CPU: %s\n", cpu)
 			}
 			if memory != "" {
-				fmt.Fprintf(deps.Stdout, "  Memory: %s\n", memory)
+				fmt.Fprintf(cmd.OutOrStdout(), "  Memory: %s\n", memory)
 			}
 
 			return nil

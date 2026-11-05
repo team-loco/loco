@@ -2,7 +2,7 @@
 fakeapi plan plan.json
 ! exec loco infra apply --confirm-destructive --confirm-import
 stdout '^Plan for loco.yaml against environment revision 7\.$'
-stderr '(?i)stdout is not a terminal; pass --yes to apply without a prompt'
+stderr '(?i)stdin and stdout must be a terminal to prompt; pass --yes'
 ! fakeapi called Apply
 
 # a destructive operation needs --confirm-destructive, an import --confirm-import.

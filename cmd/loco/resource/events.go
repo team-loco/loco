@@ -5,11 +5,8 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"os"
 	"strings"
 	"time"
-
-	"github.com/team-loco/loco/internal/rpc"
 
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/table"
@@ -17,9 +14,6 @@ import (
 	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
-	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
-	"github.com/team-loco/loco/internal/client"
-	"github.com/team-loco/loco/internal/session"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -27,27 +21,7 @@ const noEventsMessage = "No events found."
 
 var eventsTableMargin = lipgloss.NewStyle().Margin(1, 2)
 
-type eventsDeps struct {
-	LoadSessionConfig func() (*session.SessionConfig, error)
-	NewAPIClient      func(host, token string) *client.Client
-	NewResourceClient func(host, token string) resourcev1connect.ResourceServiceClient
-	Stdout            io.Writer
-}
-
-func buildEventsCmd() *cobra.Command {
-	deps := eventsDeps{
-		LoadSessionConfig: session.Load,
-		NewAPIClient:      client.NewClient,
-		NewResourceClient: func(host, token string) resourcev1connect.ResourceServiceClient {
-			resourceClients := rpc.ForHost(host, token)
-			return resourceClients.Resource
-		},
-		Stdout: os.Stdout,
-	}
-	return newEventsCmd(deps)
-}
-
-func newEventsCmd(deps eventsDeps) *cobra.Command {
+func newEventsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "events <name>",
 		Short: "Show service events",
@@ -72,43 +46,14 @@ Examples:
 				return fmt.Errorf("error reading limit flag: %w", err)
 			}
 
-			// Get host and token
-			host, err := cmdutil.GetHost(cmd)
+			t, err := cmdutil.ResolveTarget(ctx, cmd)
 			if err != nil {
 				return err
 			}
-
-			locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
+			resource, err := t.Service(ctx, name)
 			if err != nil {
 				return err
 			}
-
-			// Resolve workspace ID
-			apiClient := deps.NewAPIClient(host, locoToken.Token)
-			workspaceID, err := cmdutil.ResolveWorkspaceID(ctx, cmd, deps.LoadSessionConfig, apiClient)
-			if err != nil {
-				return err
-			}
-
-			// Create resource client
-			resourceClient := deps.NewResourceClient(host, locoToken.Token)
-
-			// Get resource by name
-			getReq := &resourcev1.GetResourceRequest{
-				Key: &resourcev1.GetResourceRequest_NameKey{
-					NameKey: &resourcev1.GetResourceNameKey{
-						WorkspaceId: workspaceID,
-						Name:        name,
-					},
-				},
-			}
-
-			resourceResp, err := resourceClient.GetResource(ctx, getReq)
-			if err != nil {
-				return fmt.Errorf("service '%s' not found: %w", name, err)
-			}
-
-			resource := resourceResp.GetResource()
 			slog.Debug("fetching events", "resource_id", resource.GetId(), "name", name)
 
 			var limitPtr *int32
@@ -121,17 +66,16 @@ Examples:
 				Limit:      limitPtr,
 			}
 
-			resp, err := resourceClient.ListResourceEvents(ctx, eventsReq)
+			resp, err := t.Clients.Resource.ListResourceEvents(ctx, eventsReq)
 			if err != nil {
-				slog.Error("failed to fetch events", "error", err)
 				return fmt.Errorf("failed to fetch events: %w", err)
 			}
 
 			if output == outputJSON {
-				return writeEventsJSON(deps.Stdout, resp.GetEvents())
+				return writeEventsJSON(cmd.OutOrStdout(), resp.GetEvents())
 			}
 
-			return renderEventsTable(deps.Stdout, resp.GetEvents())
+			return renderEventsTable(cmd.OutOrStdout(), resp.GetEvents())
 		},
 	}
 

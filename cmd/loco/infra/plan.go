@@ -98,17 +98,51 @@ func runPlan(cmd *cobra.Command, path string) error {
 	return nil
 }
 
-func requestPlan(ctx context.Context, t target, file []byte) (*planv1.PlanResponse, error) {
+func requestPlan(ctx context.Context, t cmdutil.Target, file []byte) (*planv1.PlanResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, planTimeout)
 	defer cancel()
 
-	req := &planv1.PlanRequest{File: file, EnvironmentId: t.environmentID}
+	req := &planv1.PlanRequest{File: file, EnvironmentId: t.Environment.GetId()}
 
-	resp, err := t.planClient().Plan(ctx, req)
+	resp, err := t.Clients.Plan.Plan(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("plan: %w", err)
 	}
 	return resp, nil
+}
+
+func reviewPlan(
+	ctx context.Context,
+	cmd *cobra.Command,
+	t cmdutil.Target,
+	path string,
+	data []byte,
+	resolve func() (map[string]locofile.Service, error),
+	confirm confirmations,
+) (*planv1.PlanResponse, error) {
+	plan, err := requestPlan(ctx, t, data)
+	if err != nil {
+		return nil, err
+	}
+	if len(plan.GetErrors()) > 0 {
+		services, resolveErr := resolve()
+		if resolveErr != nil {
+			return nil, resolveErr
+		}
+		err = provisionForSecrets(ctx, cmd, t, data, plan, services, confirm)
+		if !errors.Is(err, errSecretsNotHandled) {
+			return nil, err
+		}
+		return nil, planErrorsError(path, plan.GetErrors())
+	}
+	if err = writePlan(os.Stdout, path, plan); err != nil {
+		return nil, err
+	}
+	unconfirmed := unconfirmedOperations(plan.GetOperations(), confirm)
+	if len(unconfirmed) > 0 {
+		return nil, refusalError(&planv1.ApplyRefusal{Unconfirmed: unconfirmed}, plan.GetRevision())
+	}
+	return plan, nil
 }
 
 func writeJSON(w io.Writer, plan *planv1.PlanResponse) error {

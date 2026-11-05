@@ -3,11 +3,8 @@ package resource
 import (
 	"fmt"
 	"io"
-	"os"
 	"strconv"
 	"strings"
-
-	"github.com/team-loco/loco/internal/rpc"
 
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/table"
@@ -16,9 +13,6 @@ import (
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
-	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
-	"github.com/team-loco/loco/internal/client"
-	"github.com/team-loco/loco/internal/session"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -33,27 +27,7 @@ var (
 	tableMargin  = lipgloss.NewStyle().Margin(0, 2, 1, 2)
 )
 
-type statusDeps struct {
-	LoadSessionConfig func() (*session.SessionConfig, error)
-	NewAPIClient      func(host, token string) *client.Client
-	NewResourceClient func(host, token string) resourcev1connect.ResourceServiceClient
-	Stdout            io.Writer
-}
-
-func buildStatusCmd() *cobra.Command {
-	deps := statusDeps{
-		LoadSessionConfig: session.Load,
-		NewAPIClient:      client.NewClient,
-		NewResourceClient: func(host, token string) resourcev1connect.ResourceServiceClient {
-			resourceClients := rpc.ForHost(host, token)
-			return resourceClients.Resource
-		},
-		Stdout: os.Stdout,
-	}
-	return newStatusCmd(deps)
-}
-
-func newStatusCmd(deps statusDeps) *cobra.Command {
+func newStatusCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status <name>",
 		Short: "Show service status",
@@ -72,53 +46,26 @@ Examples:
 				return fmt.Errorf("error reading output flag: %w", err)
 			}
 
-			// Get host and token
-			host, err := cmdutil.GetHost(cmd)
+			t, err := cmdutil.ResolveTarget(ctx, cmd)
 			if err != nil {
 				return err
 			}
-
-			locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
+			resource, err := t.Service(ctx, name)
 			if err != nil {
 				return err
-			}
-
-			// Resolve workspace ID
-			apiClient := deps.NewAPIClient(host, locoToken.Token)
-			workspaceID, err := cmdutil.ResolveWorkspaceID(ctx, cmd, deps.LoadSessionConfig, apiClient)
-			if err != nil {
-				return err
-			}
-
-			// Create resource client
-			resourceClient := deps.NewResourceClient(host, locoToken.Token)
-
-			// Get resource by name
-			getReq := &resourcev1.GetResourceRequest{
-				Key: &resourcev1.GetResourceRequest_NameKey{
-					NameKey: &resourcev1.GetResourceNameKey{
-						WorkspaceId: workspaceID,
-						Name:        name,
-					},
-				},
-			}
-
-			resourceResp, err := resourceClient.GetResource(ctx, getReq)
-			if err != nil {
-				return fmt.Errorf("service '%s' not found: %w", name, err)
 			}
 
 			if output == outputJSON {
-				out, err := statusJSON.Marshal(resourceResp)
+				resp := &resourcev1.GetResourceResponse{Resource: resource}
+				out, err := statusJSON.Marshal(resp)
 				if err != nil {
 					return fmt.Errorf("failed to encode service status: %w", err)
 				}
-				_, err = fmt.Fprintln(deps.Stdout, string(out))
+				_, err = fmt.Fprintln(cmd.OutOrStdout(), string(out))
 				return err
 			}
 
-			resource := resourceResp.GetResource()
-			return renderStatusView(deps.Stdout, name, resource)
+			return renderStatusView(cmd.OutOrStdout(), name, resource)
 		},
 	}
 

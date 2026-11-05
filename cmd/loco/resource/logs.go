@@ -1,7 +1,6 @@
 package resource
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -13,10 +12,6 @@ import (
 	"github.com/team-loco/loco/cmd/internal/logstream"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
-	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
-	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
-	"github.com/team-loco/loco/internal/client"
-	"github.com/team-loco/loco/internal/session"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -26,25 +21,7 @@ const (
 	defaultLogWindow = time.Hour
 )
 
-type logsDeps struct {
-	LoadSessionConfig func() (*session.SessionConfig, error)
-	NewAPIClient      func(host, token string) *client.Client
-	Clients           platformClients
-	Stdout            io.Writer
-}
-
-func buildLogsCmd() *cobra.Command {
-	clients := defaultPlatformClients()
-	deps := logsDeps{
-		LoadSessionConfig: session.Load,
-		NewAPIClient:      client.NewClient,
-		Clients:           clients,
-		Stdout:            os.Stdout,
-	}
-	return newLogsCmd(deps)
-}
-
-func newLogsCmd(deps logsDeps) *cobra.Command {
+func newLogsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "logs <name>",
 		Short: "View service logs",
@@ -56,7 +33,7 @@ Examples:
   loco resource logs myapp --since 6h --lines 500 --output json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runResourceLogs(cmd, deps, args[0])
+			return runResourceLogs(cmd, args[0])
 		},
 	}
 
@@ -125,7 +102,7 @@ func logEmitter(out io.Writer, output string) (logstream.Emit, error) {
 		return func(entry *observabilityv1.LogEntry) error {
 			ts := entry.GetTimestamp().AsTime().UTC().Format(time.RFC3339)
 			body := entry.GetBody()
-			line := trimNewline(body)
+			line := logstream.TrimNewline(body)
 			_, err := fmt.Fprintf(out, "%s  %s\n", ts, line)
 			return err
 		}, nil
@@ -134,58 +111,28 @@ func logEmitter(out io.Writer, output string) (logstream.Emit, error) {
 	}
 }
 
-func getResourceByName(
-	ctx context.Context,
-	resourceClient resourcev1connect.ResourceServiceClient,
-	workspaceID string,
-	name string,
-) (*resourcev1.Resource, error) {
-	req := &resourcev1.GetResourceRequest{
-		Key: &resourcev1.GetResourceRequest_NameKey{
-			NameKey: &resourcev1.GetResourceNameKey{WorkspaceId: workspaceID, Name: name},
-		},
-	}
-
-	resp, err := resourceClient.GetResource(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("service '%s' not found: %w", name, err)
-	}
-	return resp.GetResource(), nil
-}
-
-func runResourceLogs(cmd *cobra.Command, deps logsDeps, name string) error {
-	opts, err := readLogOptions(cmd, deps.Stdout)
+func runResourceLogs(cmd *cobra.Command, name string) error {
+	opts, err := readLogOptions(cmd, cmd.OutOrStdout())
 	if err != nil {
 		return err
 	}
-	host, err := cmdutil.GetHost(cmd)
-	if err != nil {
-		return err
-	}
-	locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
-	if err != nil {
-		return err
-	}
-
 	parent := cmd.Context()
 	ctx, stop := signal.NotifyContext(parent, os.Interrupt)
 	defer stop()
 
-	apiClient := deps.NewAPIClient(host, locoToken.Token)
-	workspaceID, err := cmdutil.ResolveWorkspaceID(ctx, cmd, deps.LoadSessionConfig, apiClient)
+	t, err := cmdutil.ResolveTarget(ctx, cmd)
 	if err != nil {
 		return err
 	}
-	resourceClient := deps.Clients.Resources(host, locoToken.Token)
-	resource, err := getResourceByName(ctx, resourceClient, workspaceID, name)
+	resource, err := t.Service(ctx, name)
 	if err != nil {
 		return err
 	}
 
-	filter := logstream.Filter{WorkspaceID: workspaceID, ResourceIDs: []string{resource.GetId()}}
+	filter := logstream.Filter{WorkspaceID: t.WorkspaceID, ResourceIDs: []string{resource.GetId()}}
 	end := time.Now()
 	start := end.Add(-opts.since)
-	logs := deps.Clients.logClient(host, locoToken.Token)
+	logs := logstream.ForHost(t.Host, t.Token)
 	window := logstream.Window{Start: start, End: end, Limit: opts.lines, Follow: opts.follow}
 	streamErr := logs.Stream(ctx, filter, window, opts.emit)
 	if ctx.Err() != nil {

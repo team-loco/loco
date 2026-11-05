@@ -16,7 +16,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"connectrpc.com/connect/v2"
-	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 	"github.com/team-loco/loco/internal/bearer"
@@ -39,6 +38,8 @@ var (
 
 	errNoIdentityProvider = errors.New("this Loco server has no identity provider configured")
 	errNoOrganization     = errors.New("the server returned no organization for this account")
+	errUnexpectedListener = errors.New("unexpected listener address")
+	errUnexpectedModel    = errors.New("unexpected model type")
 )
 
 type loopbackResult struct {
@@ -76,7 +77,7 @@ func browserLogin(
 	}
 	addr, ok := ln.Addr().(*net.TCPAddr)
 	if !ok {
-		return nil, fmt.Errorf("%w: unexpected listener address", ErrCommandFailed)
+		return nil, errUnexpectedListener
 	}
 
 	results := make(chan loopbackResult, 1)
@@ -150,7 +151,6 @@ func browserLogin(
 		CodeVerifier: verifier,
 	})
 	if err != nil {
-		cmdutil.LogRequestID(ctx, err, "failed to exchange cli code")
 		return nil, err
 	}
 	return resp.GetTokens(), nil
@@ -205,38 +205,33 @@ func deviceLogin(
 ) (*authv1.CLITokens, error) {
 	started, err := authClient.StartDeviceLogin(ctx, &authv1.StartDeviceLoginRequest{})
 	if err != nil {
-		cmdutil.LogRequestID(ctx, err, "failed to start device login")
 		return nil, err
 	}
-	msg := started
-	expiresIn := time.Duration(msg.GetExpiresIn()) * time.Second
+	expiresIn := time.Duration(started.GetExpiresIn()) * time.Second
 	pollCtx, cancelPoll := context.WithTimeout(ctx, expiresIn)
 	defer cancelPoll()
 
 	if !interactive {
-		fmt.Printf("Open %s and enter the code %s\n", msg.GetVerificationUri(), msg.GetUserCode())
+		fmt.Printf("Open %s and enter the code %s\n", started.GetVerificationUri(), started.GetUserCode())
 		fmt.Println("Waiting for approval...")
-		return pollDeviceTokens(ctx, pollCtx, authClient, msg)
+		return pollDeviceTokens(ctx, pollCtx, authClient, started)
 	}
 
-	tokenChan := make(chan *authv1.CLITokens, 1)
-	errorChan := make(chan error, 1)
-	go func() {
-		got, pollErr := pollDeviceTokens(ctx, pollCtx, authClient, msg)
+	poll := func() tea.Msg {
+		tokens, pollErr := pollDeviceTokens(ctx, pollCtx, authClient, started)
 		if pollErr != nil {
-			errorChan <- pollErr
-			return
+			return authErrorMsg{Error: pollErr}
 		}
-		tokenChan <- got
-	}()
+		return authSuccessMsg{Tokens: tokens}
+	}
 
-	fm, err := tea.NewProgram(initialModel(msg.GetUserCode(), msg.GetVerificationUri(), tokenChan, errorChan)).Run()
+	fm, err := tea.NewProgram(initialModel(started.GetUserCode(), started.GetVerificationUri(), poll)).Run()
 	if err != nil {
 		return nil, err
 	}
 	finalM, ok := fm.(model)
 	if !ok {
-		return nil, fmt.Errorf("%w: unexpected model type", ErrCommandFailed)
+		return nil, errUnexpectedModel
 	}
 	if finalM.err != nil {
 		return nil, finalM.err

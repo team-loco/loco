@@ -19,7 +19,6 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
-	"github.com/team-loco/loco/internal/rpc"
 )
 
 const (
@@ -154,11 +153,8 @@ func TestOrganizationListPagination(t *testing.T) {
 				t.Fatal(err)
 			}
 			var output bytes.Buffer
-			cmd := newListCmd(listDeps{
-				NewOrgClient:  func(host, bearer string) orgv1connect.OrgServiceClient { return rpc.ForHost(host, bearer).Org },
-				NewUserClient: func(host, bearer string) userv1connect.UserServiceClient { return rpc.ForHost(host, bearer).User },
-				Output:        &output,
-			})
+			cmd := buildListCmd()
+			cmd.SetOut(&output)
 			cmd.SilenceErrors = true
 			cmd.SilenceUsage = true
 			cmd.SetArgs([]string{})

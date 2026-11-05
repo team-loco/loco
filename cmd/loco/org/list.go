@@ -2,41 +2,14 @@ package org
 
 import (
 	"fmt"
-	"io"
-	"os"
-
-	"github.com/team-loco/loco/internal/rpc"
 
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
-	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
-	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 )
 
-type listDeps struct {
-	NewOrgClient  func(host, token string) orgv1connect.OrgServiceClient
-	NewUserClient func(host, token string) userv1connect.UserServiceClient
-	Output        io.Writer
-}
-
 func buildListCmd() *cobra.Command {
-	deps := listDeps{
-		NewOrgClient: func(host, token string) orgv1connect.OrgServiceClient {
-			orgClients := rpc.ForHost(host, token)
-			return orgClients.Org
-		},
-		NewUserClient: func(host, token string) userv1connect.UserServiceClient {
-			userClients := rpc.ForHost(host, token)
-			return userClients.User
-		},
-		Output: os.Stdout,
-	}
-	return newListCmd(deps)
-}
-
-func newListCmd(deps listDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List organizations",
@@ -47,27 +20,20 @@ func newListCmd(deps listDeps) *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
-			host, err := cmdutil.GetHost(cmd)
+			target, err := cmdutil.ResolveLogin(cmd)
 			if err != nil {
 				return err
 			}
-			locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
-			if err != nil {
-				return err
-			}
-
-			orgClient := deps.NewOrgClient(host, locoToken.Token)
-			userClient := deps.NewUserClient(host, locoToken.Token)
 
 			whoAmIReq := &userv1.WhoAmIRequest{}
 
-			whoAmIResp, err := userClient.WhoAmI(ctx, whoAmIReq)
+			whoAmIResp, err := target.Clients.User.WhoAmI(ctx, whoAmIReq)
 			if err != nil {
 				return fmt.Errorf("unable to get current user: %w", err)
 			}
 
 			organizations, err := cmdutil.Paginate(func(token string) ([]*orgv1.Organization, string, error) {
-				resp, listErr := orgClient.ListUserOrgs(ctx, &orgv1.ListUserOrgsRequest{
+				resp, listErr := target.Clients.Org.ListUserOrgs(ctx, &orgv1.ListUserOrgsRequest{
 					UserId:    whoAmIResp.GetUser().GetId(),
 					PageToken: token,
 				})
@@ -81,13 +47,13 @@ func newListCmd(deps listDeps) *cobra.Command {
 			}
 
 			if len(organizations) == 0 {
-				fmt.Fprintln(deps.Output, "No organizations found.")
+				fmt.Fprintln(cmd.OutOrStdout(), "No organizations found.")
 				return nil
 			}
 
-			fmt.Fprintln(deps.Output, "Organizations:")
+			fmt.Fprintln(cmd.OutOrStdout(), "Organizations:")
 			for _, org := range organizations {
-				fmt.Fprintf(deps.Output, "  - %s (ID: %s)\n", org.GetName(), org.GetId())
+				fmt.Fprintf(cmd.OutOrStdout(), "  - %s (ID: %s)\n", org.GetName(), org.GetId())
 			}
 
 			return nil

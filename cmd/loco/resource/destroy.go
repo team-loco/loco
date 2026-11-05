@@ -2,43 +2,16 @@ package resource
 
 import (
 	"fmt"
-	"io"
 	"log/slog"
-	"os"
-
-	"github.com/team-loco/loco/internal/rpc"
 
 	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
-	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
-	"github.com/team-loco/loco/internal/client"
-	"github.com/team-loco/loco/internal/session"
 )
 
-type destroyDeps struct {
-	LoadSessionConfig func() (*session.SessionConfig, error)
-	NewAPIClient      func(host, token string) *client.Client
-	NewResourceClient func(host, token string) resourcev1connect.ResourceServiceClient
-	Stdout            io.Writer
-}
-
-func buildDestroyCmd() *cobra.Command {
-	deps := destroyDeps{
-		LoadSessionConfig: session.Load,
-		NewAPIClient:      client.NewClient,
-		NewResourceClient: func(host, token string) resourcev1connect.ResourceServiceClient {
-			resourceClients := rpc.ForHost(host, token)
-			return resourceClients.Resource
-		},
-		Stdout: os.Stdout,
-	}
-	return newDestroyCmd(deps)
-}
-
-func newDestroyCmd(deps destroyDeps) *cobra.Command {
+func newDestroyCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "destroy <name>",
 		Short: "Destroy a service",
@@ -52,71 +25,30 @@ Examples:
 			ctx := cmd.Context()
 			name := args[0]
 
-			yes, err := cmd.Flags().GetBool("yes")
-			if err != nil {
-				return fmt.Errorf("error reading yes flag: %w", err)
-			}
-
-			// Confirmation prompt (before any API calls)
-			if !yes {
-				confirmed, confirmErr := ui.AskYesNo(
-					fmt.Sprintf("Are you sure you want to destroy the service '%s'?", name),
-				)
-				if confirmErr != nil {
-					return confirmErr
-				}
-				if !confirmed {
-					fmt.Fprintln(deps.Stdout, "Aborted.")
-					return nil
-				}
-			}
-
-			// Get host and token
-			host, err := cmdutil.GetHost(cmd)
-			if err != nil {
+			// Ask before any API call.
+			confirmed, err := cmdutil.Confirm(
+				cmd, fmt.Sprintf("Are you sure you want to destroy the service '%s'?", name),
+			)
+			if err != nil || !confirmed {
 				return err
 			}
 
-			locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
+			t, err := cmdutil.ResolveTarget(ctx, cmd)
 			if err != nil {
 				return err
 			}
-
-			// Resolve workspace ID
-			apiClient := deps.NewAPIClient(host, locoToken.Token)
-			workspaceID, err := cmdutil.ResolveWorkspaceID(ctx, cmd, deps.LoadSessionConfig, apiClient)
+			resource, err := t.Service(ctx, name)
 			if err != nil {
 				return err
 			}
-
-			// Create resource client
-			resourceClient := deps.NewResourceClient(host, locoToken.Token)
-
-			// Get resource by name
-			getReq := &resourcev1.GetResourceRequest{
-				Key: &resourcev1.GetResourceRequest_NameKey{
-					NameKey: &resourcev1.GetResourceNameKey{
-						WorkspaceId: workspaceID,
-						Name:        name,
-					},
-				},
-			}
-
-			resourceResp, err := resourceClient.GetResource(ctx, getReq)
-			if err != nil {
-				return fmt.Errorf("service '%s' not found: %w", name, err)
-			}
-
-			resource := resourceResp.GetResource()
 			slog.Debug("destroying service", "resource_id", resource.GetId(), "name", name)
 
 			deleteReq := &resourcev1.DeleteResourceRequest{
 				ResourceId: resource.GetId(),
 			}
 
-			_, err = resourceClient.DeleteResource(ctx, deleteReq)
+			_, err = t.Clients.Resource.DeleteResource(ctx, deleteReq)
 			if err != nil {
-				slog.Error("failed to destroy service", "error", err)
 				return fmt.Errorf("failed to destroy service '%s': %w", name, err)
 			}
 
@@ -126,7 +58,7 @@ Examples:
 				Foreground(ui.Ok).
 				Render(successMsg)
 
-			fmt.Fprintln(deps.Stdout, s)
+			fmt.Fprintln(cmd.OutOrStdout(), s)
 
 			return nil
 		},

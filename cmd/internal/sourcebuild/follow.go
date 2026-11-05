@@ -1,4 +1,4 @@
-package resource
+package sourcebuild
 
 import (
 	"context"
@@ -10,6 +10,12 @@ import (
 	"github.com/team-loco/loco/cmd/internal/logstream"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
+	"github.com/team-loco/loco/internal/rpc"
+)
+
+const (
+	buildPollInterval = time.Second
+	buildLogDrain     = 3 * time.Second
 )
 
 type detachedError struct {
@@ -29,7 +35,7 @@ func (e *buildFailedError) Error() string {
 	status := e.build.GetStatus()
 	message := e.build.GetMessage()
 	if message == "" {
-		message = buildStatusLabel(status)
+		message = StatusLabel(status)
 	}
 	return fmt.Sprintf("build %s did not succeed: %s", id, message)
 }
@@ -49,48 +55,51 @@ func (w *syncWriter) logLine(entry *observabilityv1.LogEntry) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	body := entry.GetBody()
-	line := trimNewline(body)
+	line := logstream.TrimNewline(body)
 	_, err := fmt.Fprintf(w.out, "  │ %s\n", line)
 	return err
 }
 
-type buildFollower struct {
-	clients    platformClients
+type Follower struct {
+	clients    *rpc.Clients
 	host       string
 	token      string
 	out        *syncWriter
-	emit       logstream.Emit
-	quietState bool
+	Emit       logstream.Emit
+	QuietState bool
 }
 
-func (f *buildFollower) emitLog(entry *observabilityv1.LogEntry) error {
-	if f.emit == nil {
+func NewFollower(clients *rpc.Clients, host, token string, out io.Writer) *Follower {
+	return &Follower{clients: clients, host: host, token: token, out: &syncWriter{out: out}}
+}
+
+func (f *Follower) emitLog(entry *observabilityv1.LogEntry) error {
+	if f.Emit == nil {
 		return f.out.logLine(entry)
 	}
 	f.out.mu.Lock()
 	defer f.out.mu.Unlock()
-	return f.emit(entry)
+	return f.Emit(entry)
 }
 
-func (f *buildFollower) note(format string, args ...any) {
-	if f.quietState {
+func (f *Follower) note(format string, args ...any) {
+	if f.QuietState {
 		return
 	}
 	f.out.printf(format, args...)
 }
 
-func (f *buildFollower) getBuild(ctx context.Context, buildID string) (*buildv1.Build, error) {
+func (f *Follower) GetBuild(ctx context.Context, buildID string) (*buildv1.Build, error) {
 	req := &buildv1.GetBuildRequest{BuildId: buildID}
 
-	client := f.clients.Builds(f.host, f.token)
-	resp, err := client.GetBuild(ctx, req)
+	resp, err := f.clients.Build.GetBuild(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("get build %s: %w", buildID, err)
 	}
 	return resp.GetBuild(), nil
 }
 
-func (f *buildFollower) follow(ctx context.Context, build *buildv1.Build, workspaceID string) (*buildv1.Build, error) {
+func (f *Follower) Follow(ctx context.Context, build *buildv1.Build, workspaceID string) (*buildv1.Build, error) {
 	logCtx, stopLogs := context.WithCancel(ctx)
 	defer stopLogs()
 	logsDone := make(chan struct{})
@@ -122,23 +131,23 @@ func (f *buildFollower) follow(ctx context.Context, build *buildv1.Build, worksp
 			return
 		}
 		lastStatus = status
-		description := describeBuild(current)
+		description := Describe(current)
 		f.note("%s\n", description)
 	}
 	report(build)
 	startLogs(build)
 
-	ticker := time.NewTicker(f.clients.PollInterval)
+	ticker := time.NewTicker(buildPollInterval)
 	defer ticker.Stop()
 	buildID := build.GetId()
-	for !buildFinished(lastStatus) {
+	for !Finished(lastStatus) {
 		select {
 		case <-ctx.Done():
 			waitLogs()
 			return build, f.detach(build)
 		case <-ticker.C:
 		}
-		next, err := f.getBuild(ctx, buildID)
+		next, err := f.GetBuild(ctx, buildID)
 		if ctx.Err() != nil {
 			waitLogs()
 			return build, f.detach(build)
@@ -157,7 +166,7 @@ func (f *buildFollower) follow(ctx context.Context, build *buildv1.Build, worksp
 		case <-ctx.Done():
 		case <-backfilled:
 		}
-		drain := time.NewTimer(f.clients.LogDrain)
+		drain := time.NewTimer(buildLogDrain)
 		select {
 		case <-ctx.Done():
 		case <-logsDone:
@@ -169,7 +178,7 @@ func (f *buildFollower) follow(ctx context.Context, build *buildv1.Build, worksp
 	return build, nil
 }
 
-func (f *buildFollower) detach(build *buildv1.Build) error {
+func (f *Follower) detach(build *buildv1.Build) error {
 	id := build.GetId()
 	f.out.printf("Detached. Build %s keeps running.\n", id)
 	f.out.printf("  Follow it: loco builds logs %s -f\n", id)
@@ -177,14 +186,14 @@ func (f *buildFollower) detach(build *buildv1.Build) error {
 	return &detachedError{buildID: id}
 }
 
-func (f *buildFollower) streamLogs(
+func (f *Follower) streamLogs(
 	ctx context.Context,
 	build *buildv1.Build,
 	workspaceID string,
 	backfilled func(),
 ) {
 	buildID := build.GetId()
-	logs := f.clients.logClient(f.host, f.token)
+	logs := logstream.ForHost(f.host, f.token)
 	filter := logstream.BuildFilter(workspaceID, buildID)
 	start := build.GetCreatedAt().AsTime()
 	now := time.Now()
@@ -195,7 +204,7 @@ func (f *buildFollower) streamLogs(
 	}
 }
 
-func buildFinished(status buildv1.BuildStatus) bool {
+func Finished(status buildv1.BuildStatus) bool {
 	switch status {
 	case buildv1.BuildStatus_BUILD_STATUS_SUCCEEDED:
 		return true
@@ -208,7 +217,7 @@ func buildFinished(status buildv1.BuildStatus) bool {
 	}
 }
 
-func buildStatusLabel(status buildv1.BuildStatus) string {
+func StatusLabel(status buildv1.BuildStatus) string {
 	switch status {
 	case buildv1.BuildStatus_BUILD_STATUS_AWAITING_UPLOAD:
 		return "awaiting upload"
@@ -227,7 +236,7 @@ func buildStatusLabel(status buildv1.BuildStatus) string {
 	}
 }
 
-func buildDuration(build *buildv1.Build) string {
+func Duration(build *buildv1.Build) string {
 	if build.GetStartedAt() == nil || build.GetFinishedAt() == nil {
 		return ""
 	}
@@ -237,7 +246,7 @@ func buildDuration(build *buildv1.Build) string {
 	return elapsed.String()
 }
 
-func describeBuild(build *buildv1.Build) string {
+func Describe(build *buildv1.Build) string {
 	id := build.GetId()
 	switch build.GetStatus() {
 	case buildv1.BuildStatus_BUILD_STATUS_AWAITING_UPLOAD:
@@ -248,7 +257,7 @@ func describeBuild(build *buildv1.Build) string {
 		return fmt.Sprintf("Build %s running", id)
 	case buildv1.BuildStatus_BUILD_STATUS_SUCCEEDED:
 		image := build.GetImageRepository() + "@" + build.GetImageDigest()
-		if elapsed := buildDuration(build); elapsed != "" {
+		if elapsed := Duration(build); elapsed != "" {
 			return fmt.Sprintf("Build %s succeeded in %s: %s", id, elapsed, image)
 		}
 		return fmt.Sprintf("Build %s succeeded: %s", id, image)
@@ -260,7 +269,7 @@ func describeBuild(build *buildv1.Build) string {
 		return fmt.Sprintf("Build %s canceled: %s", id, message)
 	default:
 		status := build.GetStatus()
-		label := buildStatusLabel(status)
+		label := StatusLabel(status)
 		return fmt.Sprintf("Build %s is %s", id, label)
 	}
 }

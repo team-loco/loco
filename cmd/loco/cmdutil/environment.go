@@ -17,30 +17,12 @@ const envVarEnvironment = "LOCO_ENV"
 
 var errNoEnvironments = errors.New("the workspace has no environments; create one in the web app first")
 
-// ResolveEnvironmentID picks the environment named by --env or LOCO_ENV, the workspace's
-// only environment, or an interactive choice, and returns its id.
-func ResolveEnvironmentID(
-	ctx context.Context,
-	cmd *cobra.Command,
-	client environmentv1connect.EnvironmentServiceClient,
-	selectFromList func(title string, options []ui.SelectOption) (any, error),
-	interactive bool,
-	workspaceID string,
-) (string, error) {
-	env, err := ResolveEnvironment(ctx, cmd, client, selectFromList, interactive, workspaceID)
-	if err != nil {
-		return "", err
-	}
-	return env.GetId(), nil
-}
-
 // ResolveEnvironment picks the environment named by --env or LOCO_ENV, the workspace's
 // only environment, or an interactive choice.
 func ResolveEnvironment(
 	ctx context.Context,
 	cmd *cobra.Command,
 	client environmentv1connect.EnvironmentServiceClient,
-	selectFromList func(title string, options []ui.SelectOption) (any, error),
 	interactive bool,
 	workspaceID string,
 ) (*environmentv1.Environment, error) {
@@ -93,7 +75,7 @@ func ResolveEnvironment(
 		id := env.GetId()
 		options[i] = ui.SelectOption{Label: label, Description: tier, Value: id}
 	}
-	selected, err := selectFromList("Select the environment to deploy to", options)
+	selected, err := ui.SelectFromList("Select the environment to deploy to", options)
 	if err != nil {
 		return nil, fmt.Errorf("environment selection canceled: %w", err)
 	}

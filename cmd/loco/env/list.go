@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 )
 
@@ -16,7 +15,7 @@ const (
 	tablePadding  = 2
 )
 
-func newListCmd(d deps) *cobra.Command {
+func newListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List a service's secrets",
@@ -28,26 +27,27 @@ Examples:
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
-			t, err := resolveTarget(ctx, cmd, d)
+			t, service, err := resolveService(ctx, cmd)
 			if err != nil {
 				return err
 			}
 			req := &secretv1.ListSecretsRequest{
-				ResourceId:    t.resourceID,
-				EnvironmentId: t.environmentID,
+				ResourceId:    service.GetId(),
+				EnvironmentId: t.Environment.GetId(),
 			}
 
-			resp, err := t.secrets.ListSecrets(ctx, req)
+			resp, err := t.Clients.Secret.ListSecrets(ctx, req)
 			if err != nil {
-				cmdutil.LogRequestID(ctx, err, "list secrets failed")
 				return fmt.Errorf("list secrets: %w", err)
 			}
 			secrets := resp.GetSecrets()
 			if len(secrets) == 0 {
-				_, err = fmt.Fprintf(d.Stdout, "%s has no secrets in %s.\n", t.service, t.environment)
+				_, err = fmt.Fprintf(
+					cmd.OutOrStdout(), "%s has no secrets in %s.\n", service.GetName(), t.Environment.GetName(),
+				)
 				return err
 			}
-			w := tabwriter.NewWriter(d.Stdout, tableMinWidth, tableTabWidth, tablePadding, ' ', 0)
+			w := tabwriter.NewWriter(cmd.OutOrStdout(), tableMinWidth, tableTabWidth, tablePadding, ' ', 0)
 			fmt.Fprintln(w, "NAME\tVERSION\tUPDATED BY\tUPDATED AT")
 			for _, s := range secrets {
 				updated := s.GetUpdatedAt().AsTime().UTC().Format(time.RFC3339)

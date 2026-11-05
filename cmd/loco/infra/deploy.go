@@ -2,8 +2,6 @@ package infra
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -15,38 +13,21 @@ import (
 	"slices"
 	"strings"
 
-	"connectrpc.com/connect/v2"
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/internal/sourcebuild"
 	"github.com/team-loco/loco/cmd/internal/sourcepack"
-	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	"github.com/team-loco/loco/cmd/loco/resource"
-	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
-	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/locofile"
-	"github.com/team-loco/loco/internal/rpc"
-	"sigs.k8s.io/yaml"
-)
-
-const (
-	domainSuffixLength = 4
-	domainAlphabetSize = 26
 )
 
 var (
 	errImageTarget = errors.New(
 		"--image requires selecting exactly one service; omit the name only for a single-service environment",
 	)
-	errEmptyImage          = errors.New("image reference must not be empty")
-	errServiceNotInFile    = errors.New("the file does not run the service in this environment")
-	errServiceHasImage     = errors.New("the service runs a public image and is not built")
-	errQuickDeployFlags    = errors.New("deployment flags for a new service require omitting loco.yaml")
-	errNameConflict        = errors.New("set the service name with either an argument or --name")
-	errMultipleNames       = errors.New("without loco.yaml, deploy one service at a time")
-	errDomainConflict      = errors.New("--domain and --private cannot be used together")
-	errUnsafeDirectoryName = errors.New("directory name has no usable letters or digits; set --name")
-	errDomainUnavailable   = errors.New("generated public hostname is unavailable; set --domain")
+	errEmptyImage       = errors.New("image reference must not be empty")
+	errServiceNotInFile = errors.New("the file does not run the service in this environment")
+	errServiceHasImage  = errors.New("the service runs a public image and is not built")
 )
 
 type buildTarget struct {
@@ -137,66 +118,54 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 		return err
 	}
 	if quickDeploy {
-		file, data, err = buildQuickDeploy(cmd, names, t, confirm.yes)
+		file, data, err = buildQuickDeploy(cmd, names, t)
 		if err != nil {
 			return err
 		}
 		filePath = "current directory"
 		names = nil
 	}
-	services, err := locofile.Resolve(file, t.environmentName)
+	environment := t.Environment.GetName()
+	services, err := resolveServices(file, filePath, environment)
 	if err != nil {
-		return fmt.Errorf("%s does not resolve for environment %s: %w", filePath, t.environmentName, err)
+		return err
 	}
-	services, targets, data, err := deployTargets(cmd, file, services, data, names, t.environmentName, quickDeploy)
+	services, targets, data, err := deployTargets(cmd, file, services, data, names, environment, quickDeploy)
 	if err != nil {
 		return err
 	}
 
-	plan, err := requestPlan(ctx, t, data)
+	resolved := func() (map[string]locofile.Service, error) { return services, nil }
+	plan, err := reviewPlan(ctx, cmd, t, filePath, data, resolved, confirm)
 	if err != nil {
 		return err
 	}
-	if len(plan.GetErrors()) > 0 {
-		if handled, provisionErr := provisionForSecrets(ctx, t, data, plan, services, confirm, os.Stdout); handled {
-			return provisionErr
+	var archive *sourcepack.Archive
+	if len(targets) > 0 {
+		archive, err = packTargets(filepath.Dir(filePath), targets, os.Stdout)
+		if err != nil {
+			return err
 		}
-		return planErrorsError(filePath, plan.GetErrors())
-	}
-	if writeErr := writePlan(os.Stdout, filePath, plan); writeErr != nil {
-		return writeErr
-	}
-	unconfirmed := unconfirmedOperations(plan.GetOperations(), confirm)
-	if len(unconfirmed) > 0 {
-		return refusalError(&planv1.ApplyRefusal{Unconfirmed: unconfirmed}, plan.GetRevision())
-	}
-	dir := filepath.Dir(filePath)
-	archive, err := packTargets(dir, targets, os.Stdout)
-	if err != nil {
-		return err
-	}
-	if archive != nil {
 		defer func() {
 			if removeErr := archive.Remove(); removeErr != nil {
 				fmt.Fprintf(os.Stdout, "Could not remove %s: %v\n", archive.Path, removeErr)
 			}
 		}()
 	}
-	if !confirm.yes {
-		proceed, askErr := askToProceed("Deploy?")
-		if askErr != nil {
-			return askErr
-		}
-		if !proceed {
-			fmt.Println("Deploy canceled.")
-			return nil
-		}
+	if proceed, askErr := cmdutil.Confirm(cmd, "Deploy?"); !proceed {
+		return askErr
 	}
 
 	revision := plan.GetRevision()
 	if provision := newTargets(plan.GetOperations(), targets); len(provision) > 0 {
-		scope := applyScope{provision: provision}
-		provisioned, applyErr := requestApply(ctx, t, data, revision, plan.GetImages(), confirm, scope)
+		provisioned, applyErr := requestApply(ctx, applyRequest{
+			target:    t,
+			file:      data,
+			revision:  revision,
+			images:    plan.GetImages(),
+			confirm:   confirm,
+			provision: provision,
+		})
 		if applyErr != nil {
 			return applyErr
 		}
@@ -204,11 +173,21 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 		revision = provisioned.GetRevision()
 	}
 
-	builds, err := buildServices(ctx, t, archive, targets, os.Stdout)
-	if err != nil {
-		return err
+	var builds map[string]string
+	if len(targets) > 0 {
+		builds, err = buildServices(ctx, t, archive, targets, os.Stdout)
+		if err != nil {
+			return err
+		}
 	}
-	applied, err := requestApply(ctx, t, data, revision, plan.GetImages(), confirm, applyScope{builds: builds})
+	applied, err := requestApply(ctx, applyRequest{
+		target:   t,
+		file:     data,
+		revision: revision,
+		images:   plan.GetImages(),
+		confirm:  confirm,
+		builds:   builds,
+	})
 	if err != nil {
 		return err
 	}
@@ -245,228 +224,6 @@ func deployTargets(
 	}
 	targets, err := buildTargets(services, names)
 	return services, targets, data, err
-}
-
-func loadDeployFile(cmd *cobra.Command, filePath string) (*locofile.File, []byte, bool, error) {
-	file, data, err := loadLocoFile(filePath)
-	quickDeploy := errors.Is(err, os.ErrNotExist) && !cmd.Flags().Changed("file")
-	if err != nil && !quickDeploy {
-		return nil, nil, false, err
-	}
-	if !quickDeploy && changedQuickDeployFlag(cmd) {
-		return nil, nil, false, errQuickDeployFlags
-	}
-	return file, data, quickDeploy, nil
-}
-
-func changedQuickDeployFlag(cmd *cobra.Command) bool {
-	for _, name := range []string{"name", "port", "region", "domain", "private", "dockerfile", "context"} {
-		if cmd.Flags().Changed(name) {
-			return true
-		}
-	}
-	return false
-}
-
-func buildQuickDeploy(cmd *cobra.Command, names []string, t target, yes bool) (*locofile.File, []byte, error) {
-	name, err := quickServiceName(cmd, names, yes)
-	if err != nil {
-		return nil, nil, err
-	}
-	config, err := fetchConfig(cmd)
-	if err != nil {
-		return nil, nil, err
-	}
-	defaults := config.GetServiceDefaults()
-	port, err := cmd.Flags().GetInt32("port")
-	if err != nil {
-		return nil, nil, err
-	}
-	if !cmd.Flags().Changed("port") {
-		port = defaults.GetRouting().GetPort()
-	}
-	region, err := cmd.Flags().GetString("region")
-	if err != nil {
-		return nil, nil, err
-	}
-	if region == "" {
-		ctx := cmd.Context()
-		region, err = fetchDefaultRegion(ctx, t)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-	domain, err := quickDomain(cmd, t, name, region)
-	if err != nil {
-		return nil, nil, err
-	}
-	dockerfile, err := cmd.Flags().GetString("dockerfile")
-	if err != nil {
-		return nil, nil, err
-	}
-	contextDir, err := cmd.Flags().GetString("context")
-	if err != nil {
-		return nil, nil, err
-	}
-	image, err := cmd.Flags().GetString("image")
-	if err != nil {
-		return nil, nil, err
-	}
-	if cmd.Flags().Changed("image") && strings.TrimSpace(image) == "" {
-		return nil, nil, errEmptyImage
-	}
-	minReplicas := defaults.GetMinReplicas()
-	maxReplicas := defaults.GetMaxReplicas()
-	service := locofile.Service{
-		Port:       new(port),
-		Dockerfile: dockerfile,
-		Context:    contextDir,
-		Image:      image,
-		Regions: map[string]locofile.Region{region: {
-			CPU:      defaults.GetCpu(),
-			Memory:   defaults.GetMemory(),
-			Replicas: &locofile.Replicas{Min: new(minReplicas), Max: new(maxReplicas)},
-		}},
-	}
-	if domain != "" {
-		service.Domains = []string{domain}
-	}
-	generated := locofile.File{
-		Version:  locofile.Version,
-		Partial:  name,
-		Services: map[string]locofile.Service{name: service},
-	}
-	data, err := yaml.Marshal(generated)
-	if err != nil {
-		return nil, nil, fmt.Errorf("render deployment: %w", err)
-	}
-	file, err := locofile.Parse(data)
-	if err != nil {
-		return nil, nil, fmt.Errorf("generated deployment: %w", err)
-	}
-	return file, data, nil
-}
-
-func quickServiceName(cmd *cobra.Command, names []string, yes bool) (string, error) {
-	if len(names) > 1 {
-		return "", errMultipleNames
-	}
-	name, err := cmd.Flags().GetString("name")
-	if err != nil {
-		return "", err
-	}
-	if name != "" && len(names) > 0 {
-		return "", errNameConflict
-	}
-	if len(names) == 1 {
-		name = names[0]
-	}
-	if name == "" && cmdutil.IsInteractive() && !yes {
-		name, err = ui.AskForString("Service name (press Enter to use the directory name): ")
-		if err != nil {
-			return "", fmt.Errorf("read service name: %w", err)
-		}
-	}
-	if name == "" {
-		name, err = directoryServiceName()
-		if err != nil {
-			return "", err
-		}
-	}
-	return name, nil
-}
-
-func directoryServiceName() (string, error) {
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("get current directory: %w", err)
-	}
-	name := locofile.ServiceNameFromDir(filepath.Base(dir))
-	if name == "" {
-		return "", errUnsafeDirectoryName
-	}
-	return name, nil
-}
-
-func quickDomain(cmd *cobra.Command, t target, name, region string) (string, error) {
-	domain, err := cmd.Flags().GetString("domain")
-	if err != nil {
-		return "", err
-	}
-	private, err := cmd.Flags().GetBool("private")
-	if err != nil {
-		return "", err
-	}
-	if private && domain != "" {
-		return "", errDomainConflict
-	}
-	if !private && domain == "" {
-		ctx := cmd.Context()
-		platformDomain, domainErr := servedDomain(ctx, t, region)
-		if domainErr != nil {
-			return "", domainErr
-		}
-		return generatedDomain(ctx, t, name, platformDomain)
-	}
-	return domain, nil
-}
-
-func generatedDomain(ctx context.Context, t target, name, platformDomain string) (string, error) {
-	prefix := name
-	if len(prefix) > locofile.MaxServiceNameLength-domainSuffixLength-1 {
-		prefix = strings.TrimSuffix(prefix[:locofile.MaxServiceNameLength-domainSuffixLength-1], "-")
-	}
-	base := prefix + "-"
-	res, err := t.lookupResource(ctx, name)
-	if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
-		return "", err
-	}
-	if err == nil {
-		for _, assigned := range res.GetDomains() {
-			domain := assigned.GetDomain()
-			if strings.HasPrefix(domain, base) && strings.HasSuffix(domain, "."+platformDomain) {
-				suffix := strings.TrimSuffix(strings.TrimPrefix(domain, base), "."+platformDomain)
-				if isDomainSuffix(suffix) {
-					return domain, nil
-				}
-			}
-		}
-	}
-	client := rpc.ForHost(t.host, t.token).Domain
-	candidate := base + domainSuffix(t.workspaceID, name) + "." + platformDomain
-	request := &domainv1.CheckDomainAvailabilityRequest{Domain: candidate}
-	response, checkErr := client.CheckDomainAvailability(ctx, request)
-	if checkErr != nil {
-		return "", fmt.Errorf("check public hostname %s: %w", candidate, checkErr)
-	}
-	if !response.GetIsAvailable() {
-		return "", fmt.Errorf("%w: %s", errDomainUnavailable, candidate)
-	}
-	return candidate, nil
-}
-
-func domainSuffix(workspaceID, name string) string {
-	input := workspaceID + "/" + name
-	hash := sha256.Sum256([]byte(input))
-	value := binary.BigEndian.Uint32(hash[:])
-	suffix := [domainSuffixLength]byte{}
-	for index := domainSuffixLength - 1; index >= 0; index-- {
-		suffix[index] = 'a' + byte(value%domainAlphabetSize)
-		value /= domainAlphabetSize
-	}
-	return string(suffix[:])
-}
-
-func isDomainSuffix(suffix string) bool {
-	if len(suffix) != domainSuffixLength {
-		return false
-	}
-	for _, char := range suffix {
-		if char < 'a' || char > 'z' {
-			return false
-		}
-	}
-	return true
 }
 
 func imageOverride(
@@ -537,9 +294,6 @@ func newTargets(operations []*planv1.PlanOperation, targets []buildTarget) []str
 }
 
 func packTargets(dir string, targets []buildTarget, out io.Writer) (*sourcepack.Archive, error) {
-	if len(targets) == 0 {
-		return nil, nil
-	}
 	dockerfiles := make([]string, 0, len(targets))
 	for _, target := range targets {
 		dockerfiles = append(dockerfiles, path.Join(target.context, target.dockerfile))
@@ -548,32 +302,28 @@ func packTargets(dir string, targets []buildTarget, out io.Writer) (*sourcepack.
 	if err != nil {
 		return nil, fmt.Errorf("pack %s: %w", dir, err)
 	}
-	resource.PackedArchive(out, archive, dir)
+	sourcebuild.PackedArchive(out, archive, dir)
 	return archive, nil
 }
 
 func buildServices(
 	ctx context.Context,
-	t target,
+	t cmdutil.Target,
 	archive *sourcepack.Archive,
 	targets []buildTarget,
 	out io.Writer,
 ) (map[string]string, error) {
-	if len(targets) == 0 {
-		return nil, nil
-	}
-	token := t.token
-	builder := resource.NewSourceBuilder(t.host, token, out)
+	builder := sourcebuild.New(t.Host, t.Token, out)
 	builds := make(map[string]string, len(targets))
 	for _, target := range targets {
-		res, lookupErr := t.lookupResource(ctx, target.name)
+		res, lookupErr := t.Service(ctx, target.name)
 		if lookupErr != nil {
 			return nil, lookupErr
 		}
 		fmt.Fprintf(out, "Building %s from %s in %s\n", target.name, target.dockerfile, target.context)
-		build, buildErr := builder.Build(ctx, resource.BuildInput{
+		build, buildErr := builder.Build(ctx, sourcebuild.Input{
 			ResourceID:  res.GetId(),
-			WorkspaceID: t.workspaceID,
+			WorkspaceID: t.WorkspaceID,
 			Archive:     archive,
 			Dockerfile:  target.dockerfile,
 			Context:     target.context,
@@ -584,19 +334,6 @@ func buildServices(
 		builds[target.name] = build.GetId()
 	}
 	return builds, nil
-}
-
-func (t target) lookupResource(ctx context.Context, name string) (*resourcev1.Resource, error) {
-	nameKey := &resourcev1.GetResourceNameKey{WorkspaceId: t.workspaceID, Name: name}
-	req := &resourcev1.GetResourceRequest{
-		Key: &resourcev1.GetResourceRequest_NameKey{NameKey: nameKey},
-	}
-
-	resp, err := t.resourceClient().GetResource(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("get service %s: %w", name, err)
-	}
-	return resp.GetResource(), nil
 }
 
 func writeReachability(w io.Writer, services map[string]locofile.Service) error {

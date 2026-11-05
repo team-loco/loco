@@ -7,26 +7,12 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/internal/keychain"
-	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 )
 
 var errNotLoggedIn = errors.New("not logged in - nothing to revoke")
 
-type revokeDeps struct {
-	Tokens   func() (keychain.TokenStore, error)
-	AskYesNo func(prompt string) (bool, error)
-}
-
 func buildRevokeCmd() *cobra.Command {
-	deps := revokeDeps{
-		Tokens:   keychain.ForCurrentUser,
-		AskYesNo: ui.AskYesNo,
-	}
-	return newRevokeCmd(deps)
-}
-
-func newRevokeCmd(deps revokeDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "revoke",
 		Short: "Revoke current token",
@@ -47,7 +33,7 @@ func newRevokeCmd(deps revokeDeps) *cobra.Command {
 				return err
 			}
 
-			store, err := deps.Tokens()
+			store, err := keychain.ForCurrentUser()
 			if err != nil {
 				return err
 			}
@@ -60,21 +46,11 @@ func newRevokeCmd(deps revokeDeps) *cobra.Command {
 				return fmt.Errorf("failed to read token from keychain: %w", err)
 			}
 
-			yes, err := cmd.Flags().GetBool("yes")
-			if err != nil {
-				return fmt.Errorf("failed to get yes flag: %w", err)
-			}
-			if !yes {
-				confirm, confirmErr := deps.AskYesNo(
-					"Are you sure you want to revoke your token? You will need to login again.",
-				)
-				if confirmErr != nil {
-					return fmt.Errorf("failed to prompt for confirmation: %w", confirmErr)
-				}
-				if !confirm {
-					fmt.Fprintln(out, "Aborted.")
-					return nil
-				}
+			confirmed, err := cmdutil.Confirm(
+				cmd, "Are you sure you want to revoke your token? You will need to login again.",
+			)
+			if err != nil || !confirmed {
+				return err
 			}
 
 			if t.Host != "" {
@@ -82,7 +58,6 @@ func newRevokeCmd(deps revokeDeps) *cobra.Command {
 			}
 			err = cmdutil.RevokeToken(ctx, host, t.Token)
 			if err != nil && connect.CodeOf(err) != connect.CodeUnauthenticated {
-				cmdutil.LogRequestID(ctx, err, "failed to revoke token on server")
 				return fmt.Errorf("failed to revoke token on the server: %w", err)
 			}
 

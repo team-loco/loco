@@ -2,43 +2,13 @@ package token
 
 import (
 	"fmt"
-	"io"
-	"os"
-
-	"github.com/team-loco/loco/internal/rpc"
 
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
-	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
-	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 )
 
-type deleteDeps struct {
-	NewTokenClient func(host, token string) tokenv1connect.TokenServiceClient
-	NewUserClient  func(host, token string) userv1connect.UserServiceClient
-	AskYesNo       func(prompt string) (bool, error)
-	Output         io.Writer
-}
-
 func buildDeleteCmd() *cobra.Command {
-	deps := deleteDeps{
-		NewTokenClient: func(host, token string) tokenv1connect.TokenServiceClient {
-			tokenClients := rpc.ForHost(host, token)
-			return tokenClients.Token
-		},
-		NewUserClient: func(host, token string) userv1connect.UserServiceClient {
-			userClients := rpc.ForHost(host, token)
-			return userClients.User
-		},
-		AskYesNo: ui.AskYesNo,
-		Output:   os.Stdout,
-	}
-	return newDeleteCmd(deps)
-}
-
-func newDeleteCmd(deps deleteDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete <name>",
 		Short: "Delete an API token",
@@ -55,17 +25,10 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			host, err := cmdutil.GetHost(cmd)
+			target, err := cmdutil.ResolveLogin(cmd)
 			if err != nil {
 				return err
 			}
-			locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
-			if err != nil {
-				return err
-			}
-
-			tokenClient := deps.NewTokenClient(host, locoToken.Token)
-			userClient := deps.NewUserClient(host, locoToken.Token)
 
 			name := args[0]
 
@@ -83,26 +46,16 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 				return err
 			}
 
-			entityID, err := resolveEntityID(ctx, userClient, entityType, entityTypeStr, requestedEntityID)
+			entityID, err := resolveEntityID(ctx, target.Clients.User, entityType, entityTypeStr, requestedEntityID)
 			if err != nil {
 				return err
 			}
 
-			yes, err := cmd.Flags().GetBool("yes")
-			if err != nil {
-				return fmt.Errorf("failed to get yes flag: %w", err)
-			}
-			if !yes {
-				confirm, confirmErr := deps.AskYesNo(
-					fmt.Sprintf("Are you sure you want to delete token %q? This cannot be undone.", name),
-				)
-				if confirmErr != nil {
-					return fmt.Errorf("failed to prompt for confirmation: %w", confirmErr)
-				}
-				if !confirm {
-					fmt.Fprintln(deps.Output, "Aborted.")
-					return nil
-				}
+			confirmed, err := cmdutil.Confirm(
+				cmd, fmt.Sprintf("Are you sure you want to delete token %q? This cannot be undone.", name),
+			)
+			if err != nil || !confirmed {
+				return err
 			}
 
 			req := &tokenv1.RevokeTokenRequest{
@@ -111,12 +64,12 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 				EntityId:   entityID,
 			}
 
-			_, err = tokenClient.RevokeToken(ctx, req)
+			_, err = target.Clients.Token.RevokeToken(ctx, req)
 			if err != nil {
 				return fmt.Errorf("failed to delete token: %w", err)
 			}
 
-			fmt.Fprintf(deps.Output, "Token %q deleted successfully.\n", name)
+			fmt.Fprintf(cmd.OutOrStdout(), "Token %q deleted successfully.\n", name)
 			return nil
 		},
 	}

@@ -3,8 +3,6 @@ package token
 import (
 	"errors"
 	"fmt"
-	"io"
-	"os"
 	"os/user"
 	"time"
 
@@ -13,20 +11,7 @@ import (
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 )
 
-type showDeps struct {
-	Tokens func() (keychain.TokenStore, error)
-	Output io.Writer
-}
-
 func buildShowCmd() *cobra.Command {
-	deps := showDeps{
-		Tokens: keychain.ForCurrentUser,
-		Output: os.Stdout,
-	}
-	return newShowCmd(deps)
-}
-
-func newShowCmd(deps showDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "show",
 		Short: "Show current token info",
@@ -43,7 +28,7 @@ func newShowCmd(deps showDeps) *cobra.Command {
 				return fmt.Errorf("failed to get current user: %w", err)
 			}
 
-			store, err := deps.Tokens()
+			store, err := keychain.ForCurrentUser()
 			if err != nil {
 				return err
 			}
@@ -62,25 +47,25 @@ func newShowCmd(deps showDeps) *cobra.Command {
 			}
 
 			if raw {
-				fmt.Fprintln(deps.Output, token.Token)
+				fmt.Fprintln(cmd.OutOrStdout(), token.Token)
 				return nil
 			}
 
-			fmt.Fprintf(deps.Output, "User: %s\n", currentUser.Username)
+			fmt.Fprintf(cmd.OutOrStdout(), "User: %s\n", currentUser.Username)
 
 			switch {
 			case token.ExpiresAt.IsZero():
-				fmt.Fprintln(deps.Output, "Expires: never")
+				fmt.Fprintln(cmd.OutOrStdout(), "Expires: never")
 			case token.ExpiresAt.Before(time.Now()):
-				fmt.Fprintf(deps.Output, "Expires: %s (EXPIRED)\n", token.ExpiresAt.Format(time.RFC3339))
+				fmt.Fprintf(cmd.OutOrStdout(), "Expires: %s (EXPIRED)\n", token.ExpiresAt.Format(time.RFC3339))
 			default:
-				fmt.Fprintf(deps.Output, "Expires: %s\n", token.ExpiresAt.Format(time.RFC3339))
+				fmt.Fprintf(cmd.OutOrStdout(), "Expires: %s\n", token.ExpiresAt.Format(time.RFC3339))
 			}
 
 			if len(token.Token) > 8 {
-				fmt.Fprintf(deps.Output, "Token: %s...%s\n", token.Token[:4], token.Token[len(token.Token)-4:])
+				fmt.Fprintf(cmd.OutOrStdout(), "Token: %s...%s\n", token.Token[:4], token.Token[len(token.Token)-4:])
 			} else {
-				fmt.Fprintln(deps.Output, "Token: ****")
+				fmt.Fprintln(cmd.OutOrStdout(), "Token: ****")
 			}
 			return nil
 		},

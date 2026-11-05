@@ -1,95 +1,161 @@
 package workspace
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
+	"github.com/team-loco/loco/cmd/internal/keychain"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
+	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
+	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
 )
 
 const (
 	testListUserID     = "00000000-0000-7000-8000-000000000003"
 	testFirstWorkspace = "first"
+	listUnavailable    = "workspace listing unavailable"
 )
 
-var errListUnavailable = errors.New("workspace listing unavailable")
+type workspacePage func(ctx context.Context, cursor string) ([]*workspacev1.Workspace, string, error)
 
-func workspaceListDeps(
+type workspaceListServer struct {
+	workspacev1connect.UnimplementedWorkspaceServiceHandler
+	userv1connect.UnimplementedUserServiceHandler
+	t           *testing.T
+	orgID       string
+	page        workspacePage
+	mu          sync.Mutex
+	whoCalls    int
+	listCursors []string
+}
+
+func (s *workspaceListServer) WhoAmI(context.Context, *userv1.WhoAmIRequest) (*userv1.WhoAmIResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.whoCalls++
+	return &userv1.WhoAmIResponse{User: &userv1.User{Id: testListUserID}}, nil
+}
+
+func (s *workspaceListServer) ListOrgWorkspaces(
+	ctx context.Context,
+	req *workspacev1.ListOrgWorkspacesRequest,
+) (*workspacev1.ListOrgWorkspacesResponse, error) {
+	if s.orgID == "" || req.GetOrgId() != s.orgID {
+		s.t.Errorf("wrong organization scope: %q", req.GetOrgId())
+	}
+	rows, next, err := s.next(ctx, req.GetPageToken())
+	return &workspacev1.ListOrgWorkspacesResponse{Workspaces: rows, NextPageToken: next}, err
+}
+
+func (s *workspaceListServer) ListUserWorkspaces(
+	ctx context.Context,
+	req *workspacev1.ListUserWorkspacesRequest,
+) (*workspacev1.ListUserWorkspacesResponse, error) {
+	if s.orgID != "" || req.GetUserId() != testListUserID {
+		s.t.Errorf("wrong user scope: %q", req.GetUserId())
+	}
+	rows, next, err := s.next(ctx, req.GetPageToken())
+	return &workspacev1.ListUserWorkspacesResponse{Workspaces: rows, NextPageToken: next}, err
+}
+
+func (s *workspaceListServer) next(ctx context.Context, cursor string) ([]*workspacev1.Workspace, string, error) {
+	s.mu.Lock()
+	s.listCursors = append(s.listCursors, cursor)
+	s.mu.Unlock()
+	return s.page(ctx, cursor)
+}
+
+func runWorkspaceList(
+	ctx context.Context,
 	t *testing.T,
 	orgID string,
-	page func(context.Context, string) ([]*workspacev1.Workspace, string, error),
-) (listDeps, *int) {
+	page workspacePage,
+) (string, *workspaceListServer, error) {
 	t.Helper()
-	whoCalls := new(int)
-	return listDeps{
-		WhoAmI: func(context.Context, *userv1.WhoAmIRequest) (*userv1.WhoAmIResponse, error) {
-			*whoCalls++
-			return &userv1.WhoAmIResponse{User: &userv1.User{Id: testListUserID}}, nil
-		},
-		ListOrgWorkspaces: func(
-			ctx context.Context,
-			req *workspacev1.ListOrgWorkspacesRequest,
-		) (*workspacev1.ListOrgWorkspacesResponse, error) {
-			if orgID == "" || req.GetOrgId() != orgID {
-				t.Errorf("wrong organization scope: %q", req.GetOrgId())
-			}
-			rows, next, err := page(ctx, req.GetPageToken())
-			return &workspacev1.ListOrgWorkspacesResponse{Workspaces: rows, NextPageToken: next}, err
-		},
-		ListUserWorkspaces: func(
-			ctx context.Context,
-			req *workspacev1.ListUserWorkspacesRequest,
-		) (*workspacev1.ListUserWorkspacesResponse, error) {
-			if orgID != "" || req.GetUserId() != testListUserID {
-				t.Errorf("wrong user scope: %q", req.GetUserId())
-			}
-			rows, next, err := page(ctx, req.GetPageToken())
-			return &workspacev1.ListUserWorkspacesResponse{Workspaces: rows, NextPageToken: next}, err
-		},
-	}, whoCalls
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv(keychain.StoreEnvVar, "file")
+	credential := rand.Text()
+	fake := &workspaceListServer{t: t, orgID: orgID, page: page}
+	server := connect.NewServer()
+	workspacev1connect.RegisterWorkspaceServiceHandler(server, fake)
+	userv1connect.RegisterUserServiceHandler(server, fake)
+	mux := http.NewServeMux()
+	connecthttp.Mount(mux, server)
+	endpoint := httptest.NewServer(mux)
+	t.Cleanup(endpoint.Close)
+	t.Setenv("LOCO_HOST", endpoint.URL)
+	store, err := keychain.ForCurrentUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = store.Set(keychain.UserToken{Host: endpoint.URL, Token: credential, ExpiresAt: time.Now().Add(time.Hour)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	cmd := buildListCmd()
+	cmd.SetOut(&output)
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+	args := []string{}
+	if orgID != "" {
+		args = append(args, "--org-id", orgID)
+	}
+	cmd.SetArgs(args)
+	err = cmd.ExecuteContext(ctx)
+	return output.String(), fake, err
 }
 
 func TestListWorkspacesFollowsOpaquePages(t *testing.T) {
 	for _, orgID := range []string{"", testOrgID} {
 		t.Run(orgID, func(t *testing.T) {
-			var cursors []string
-			deps, whoCalls := workspaceListDeps(
+			ctx := t.Context()
+			output, fake, err := runWorkspaceList(
+				ctx,
 				t,
 				orgID,
 				func(_ context.Context, cursor string) ([]*workspacev1.Workspace, string, error) {
-					cursors = append(cursors, cursor)
 					switch cursor {
 					case "":
-						return []*workspacev1.Workspace{{Id: testFirstWorkspace}}, "opaque/cursor", nil
+						return []*workspacev1.Workspace{{Id: testFirstWorkspace, Name: "One"}}, "opaque/cursor", nil
 					case "opaque/cursor":
 						return nil, "empty-page/cursor", nil
 					case "empty-page/cursor":
-						return []*workspacev1.Workspace{{Id: "last"}}, "", nil
+						return []*workspacev1.Workspace{{Id: "last", Name: "Two"}}, "", nil
 					default:
-						t.Fatalf("unexpected cursor %q", cursor)
+						t.Errorf("unexpected cursor %q", cursor)
 						return nil, "", nil
 					}
 				},
 			)
-			rows, err := listWorkspaces(t.Context(), deps, orgID)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if len(rows) != 2 || rows[0].GetId() != testFirstWorkspace || rows[1].GetId() != "last" {
-				t.Fatalf("incomplete workspace listing: %v", rows)
+			want := "Workspaces:\n  - One (ID: first)\n  - Two (ID: last)\n"
+			if output != want {
+				t.Fatalf("output = %q, want %q", output, want)
 			}
-			if len(cursors) != 3 {
-				t.Fatalf("requested %d pages, want 3", len(cursors))
+			if len(fake.listCursors) != 3 {
+				t.Fatalf("requested %d pages, want 3", len(fake.listCursors))
 			}
 			expectedWho := 0
 			if orgID == "" {
 				expectedWho = 1
 			}
-			if *whoCalls != expectedWho {
-				t.Fatalf("WhoAmI calls = %d, want %d", *whoCalls, expectedWho)
+			if fake.whoCalls != expectedWho {
+				t.Fatalf("WhoAmI calls = %d, want %d", fake.whoCalls, expectedWho)
 			}
 		})
 	}
@@ -98,19 +164,20 @@ func TestListWorkspacesFollowsOpaquePages(t *testing.T) {
 func TestListWorkspacesRejectsPartialResults(t *testing.T) {
 	for _, orgID := range []string{"", testOrgID} {
 		t.Run(orgID, func(t *testing.T) {
-			deps, _ := workspaceListDeps(
+			ctx := t.Context()
+			output, _, err := runWorkspaceList(
+				ctx,
 				t,
 				orgID,
 				func(_ context.Context, cursor string) ([]*workspacev1.Workspace, string, error) {
 					if cursor == "" {
 						return []*workspacev1.Workspace{{Id: testFirstWorkspace}}, "next", nil
 					}
-					return nil, "", errListUnavailable
+					return nil, "", connect.NewError(connect.CodeUnavailable, listUnavailable)
 				},
 			)
-			rows, err := listWorkspaces(t.Context(), deps, orgID)
-			if !errors.Is(err, errListUnavailable) || rows != nil {
-				t.Fatalf("partial listing = %v, error = %v", rows, err)
+			if err == nil || !strings.Contains(err.Error(), listUnavailable) || output != "" {
+				t.Fatalf("partial listing = %q, error = %v", output, err)
 			}
 		})
 	}
@@ -119,18 +186,17 @@ func TestListWorkspacesRejectsPartialResults(t *testing.T) {
 func TestListWorkspacesRejectsRepeatedPages(t *testing.T) {
 	for _, orgID := range []string{"", testOrgID} {
 		t.Run(orgID, func(t *testing.T) {
-			calls := 0
-			deps, _ := workspaceListDeps(
+			ctx := t.Context()
+			output, fake, err := runWorkspaceList(
+				ctx,
 				t,
 				orgID,
-				func(_ context.Context, _ string) ([]*workspacev1.Workspace, string, error) {
-					calls++
+				func(context.Context, string) ([]*workspacev1.Workspace, string, error) {
 					return nil, "repeated", nil
 				},
 			)
-			rows, err := listWorkspaces(t.Context(), deps, orgID)
-			if !errors.Is(err, cmdutil.ErrRepeatedPageToken) || rows != nil || calls != 2 {
-				t.Fatalf("repeated page: rows=%v error=%v calls=%d", rows, err, calls)
+			if !errors.Is(err, cmdutil.ErrRepeatedPageToken) || output != "" || len(fake.listCursors) != 2 {
+				t.Fatalf("repeated page: output=%q error=%v calls=%d", output, err, len(fake.listCursors))
 			}
 		})
 	}
@@ -140,22 +206,18 @@ func TestListWorkspacesForwardsCancellation(t *testing.T) {
 	for _, orgID := range []string{"", testOrgID} {
 		t.Run(orgID, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(t.Context())
-			calls := 0
-			deps, _ := workspaceListDeps(
+			defer cancel()
+			output, fake, err := runWorkspaceList(
+				ctx,
 				t,
 				orgID,
-				func(ctx context.Context, _ string) ([]*workspacev1.Workspace, string, error) {
-					calls++
-					if calls == 1 {
-						cancel()
-						return nil, "next", nil
-					}
-					return nil, "", ctx.Err()
+				func(context.Context, string) ([]*workspacev1.Workspace, string, error) {
+					cancel()
+					return nil, "next", nil
 				},
 			)
-			rows, err := listWorkspaces(ctx, deps, orgID)
-			if !errors.Is(err, context.Canceled) || rows != nil || calls != 2 {
-				t.Fatalf("canceled listing: rows=%v error=%v calls=%d", rows, err, calls)
+			if !errors.Is(err, context.Canceled) || output != "" || len(fake.listCursors) != 1 {
+				t.Fatalf("canceled listing: output=%q error=%v calls=%d", output, err, len(fake.listCursors))
 			}
 		})
 	}

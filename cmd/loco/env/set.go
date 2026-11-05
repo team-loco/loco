@@ -14,7 +14,7 @@ var (
 	errSeveralStdinNames = errors.New("only one name can take its value from stdin")
 )
 
-func newSetCmd(d deps) *cobra.Command {
+func newSetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "set KEY=VALUE [KEY=VALUE...]",
 		Short: "Set a service's secrets by name",
@@ -26,11 +26,11 @@ Examples:
   printf '%s' "$DATABASE_URL" | loco env set --service web --env production DATABASE_URL`,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			values, err := parseAssignments(d.Stdin, args)
+			values, err := parseAssignments(cmd.InOrStdin(), args)
 			if err != nil {
 				return err
 			}
-			return setSecrets(cmd.Context(), cmd, d, values)
+			return setSecrets(cmd.Context(), cmd, values)
 		},
 	}
 	addTargetFlags(cmd)

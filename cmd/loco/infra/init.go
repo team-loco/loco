@@ -61,21 +61,25 @@ func initCmdFunc(cmd *cobra.Command) error {
 		if appName != "" {
 			return errConfigExists
 		}
-		overwrite, askErr := ui.AskYesNo("A " + locofile.FileName + " already exists. Do you want to overwrite it?")
-		if askErr != nil {
-			return fmt.Errorf("failed to prompt user: %w", askErr)
+		overwrite, askErr := cmdutil.AskYesNo(
+			cmd, "A "+locofile.FileName+" already exists. Do you want to overwrite it?",
+		)
+		if errors.Is(askErr, cmdutil.ErrNotInteractive) {
+			return fmt.Errorf("%w; pass --force to overwrite it", askErr)
 		}
-		if !overwrite {
-			fmt.Println("Aborted.")
-			return nil
+		if askErr != nil || !overwrite {
+			return askErr
 		}
 	}
 
 	if appName == "" {
 		var askErr error
-		appName, askErr = ui.AskForString("Enter the name of your service (press Enter to use directory name): ")
+		appName, askErr = cmdutil.AskString(cmd, "Enter the name of your service (press Enter to use directory name): ")
+		if errors.Is(askErr, cmdutil.ErrNotInteractive) {
+			return fmt.Errorf("%w; pass --name to set the service name", askErr)
+		}
 		if askErr != nil {
-			return fmt.Errorf("failed to read service name: %w", askErr)
+			return askErr
 		}
 	}
 
@@ -156,12 +160,12 @@ func fetchConfig(cmd *cobra.Command) (*configv1.GetConfigResponse, error) {
 	return resp, nil
 }
 
-func fetchDefaultRegion(ctx context.Context, t target) (string, error) {
+func fetchDefaultRegion(ctx context.Context, t cmdutil.Target) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, initConfigTimeout)
 	defer cancel()
 
-	req := &resourcev1.ListRegionsRequest{EnvironmentId: t.environmentID}
-	resp, err := t.resourceClient().ListRegions(ctx, req)
+	req := &resourcev1.ListRegionsRequest{EnvironmentId: t.Environment.GetId()}
+	resp, err := t.Clients.Resource.ListRegions(ctx, req)
 	if err != nil {
 		return "", fmt.Errorf("could not list regions from the API: %w", err)
 	}
@@ -173,13 +177,12 @@ func fetchDefaultRegion(ctx context.Context, t target) (string, error) {
 	return "", errNoDefaultRegion
 }
 
-func servedDomain(ctx context.Context, t target, region string) (string, error) {
+func servedDomain(ctx context.Context, t cmdutil.Target, region string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, initConfigTimeout)
 	defer cancel()
 
-	domainClients := rpc.ForHost(t.host, t.token)
-	req := &domainv1.ListPlatformDomainsRequest{EnvironmentId: t.environmentID}
-	resp, err := domainClients.Domain.ListPlatformDomains(ctx, req)
+	req := &domainv1.ListPlatformDomainsRequest{EnvironmentId: t.Environment.GetId()}
+	resp, err := t.Clients.Domain.ListPlatformDomains(ctx, req)
 	if err != nil {
 		return "", fmt.Errorf("could not list platform domains from the API: %w", err)
 	}
@@ -188,5 +191,5 @@ func servedDomain(ctx context.Context, t target, region string) (string, error) 
 			return domain.GetDomain(), nil
 		}
 	}
-	return "", fmt.Errorf("%w: %s in %s", errNoPlatformDomain, region, t.environmentName)
+	return "", fmt.Errorf("%w: %s in %s", errNoPlatformDomain, region, t.Environment.GetName())
 }

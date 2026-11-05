@@ -2,24 +2,25 @@ package ui
 
 import (
 	"fmt"
+	"io"
 
 	tea "charm.land/bubbletea/v2"
 )
 
-type YesNoModel struct {
+type yesNoModel struct {
 	Question string
 	Choice   string // "yes", "no", or ""
 }
 
-func NewYesNoModel(question string) YesNoModel {
-	return YesNoModel{Question: question}
+func newYesNoModel(question string) yesNoModel {
+	return yesNoModel{Question: question}
 }
 
-func (YesNoModel) Init() tea.Cmd {
+func (yesNoModel) Init() tea.Cmd {
 	return nil
 }
 
-func (m YesNoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m yesNoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if msg, ok := msg.(tea.KeyPressMsg); ok {
 		switch msg.String() {
 		case "y", "Y":
@@ -35,21 +36,21 @@ func (m YesNoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m YesNoModel) View() tea.View {
+func (m yesNoModel) View() tea.View {
 	if m.Choice == "" {
 		return tea.NewView(fmt.Sprintf("%s (y/n): ", m.Question))
 	}
 	return tea.NewView("")
 }
 
-func AskYesNo(question string) (bool, error) {
-	p := tea.NewProgram(NewYesNoModel(question))
+func AskYesNo(in io.Reader, out io.Writer, question string) (bool, error) {
+	p := tea.NewProgram(newYesNoModel(question), tea.WithInput(in), tea.WithOutput(out))
 	model, err := p.Run()
 	if err != nil {
 		return false, err
 	}
 
-	m, ok := model.(YesNoModel)
+	m, ok := model.(yesNoModel)
 	if !ok {
 		return false, errUnexpectedModel
 	}

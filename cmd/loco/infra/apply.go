@@ -11,8 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"connectrpc.com/connect/v2/connectproto"
-
 	"charm.land/lipgloss/v2"
 	"connectrpc.com/connect/v2"
 	"github.com/spf13/cobra"
@@ -20,6 +18,7 @@ import (
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	"github.com/team-loco/loco/internal/locofile"
+	"github.com/team-loco/loco/internal/rpc"
 )
 
 const (
@@ -30,18 +29,19 @@ const (
 		"and that this file takes over"
 )
 
-var (
-	errApplyNeedsYes = errors.New("stdout is not a terminal; pass --yes to apply without a prompt")
-	errApplyRefused  = errors.New("apply refused")
-)
+var errApplyRefused = errors.New("apply refused")
 
-type applyScope struct {
+type applyRequest struct {
+	target    cmdutil.Target
+	file      []byte
+	revision  int64
+	images    map[string]string
+	confirm   confirmations
 	builds    map[string]string
 	provision []string
 }
 
 type confirmations struct {
-	yes         bool
 	destructive bool
 	importOps   bool
 }
@@ -77,10 +77,6 @@ Examples:
 }
 
 func readConfirmations(cmd *cobra.Command) (confirmations, error) {
-	yes, err := cmd.Flags().GetBool("yes")
-	if err != nil {
-		return confirmations{}, fmt.Errorf("error reading yes flag: %w", err)
-	}
 	destructive, err := cmd.Flags().GetBool("confirm-destructive")
 	if err != nil {
 		return confirmations{}, fmt.Errorf("error reading confirm-destructive flag: %w", err)
@@ -89,7 +85,7 @@ func readConfirmations(cmd *cobra.Command) (confirmations, error) {
 	if err != nil {
 		return confirmations{}, fmt.Errorf("error reading confirm-import flag: %w", err)
 	}
-	return confirmations{yes: yes, destructive: destructive, importOps: importOps}, nil
+	return confirmations{destructive: destructive, importOps: importOps}, nil
 }
 
 func runApply(cmd *cobra.Command, path string) error {
@@ -106,57 +102,38 @@ func runApply(cmd *cobra.Command, path string) error {
 	if err != nil {
 		return err
 	}
-	plan, err := requestPlan(ctx, t, data)
+	environment := t.Environment.GetName()
+	resolve := func() (map[string]locofile.Service, error) { return resolveServices(file, path, environment) }
+	plan, err := reviewPlan(ctx, cmd, t, path, data, resolve, confirm)
 	if err != nil {
 		return err
-	}
-	if len(plan.GetErrors()) > 0 {
-		services, resolveErr := locofile.Resolve(file, t.environmentName)
-		if resolveErr != nil {
-			return fmt.Errorf("%s does not resolve for environment %s: %w", path, t.environmentName, resolveErr)
-		}
-		if handled, provisionErr := provisionForSecrets(ctx, t, data, plan, services, confirm, os.Stdout); handled {
-			return provisionErr
-		}
-		return planErrorsError(path, plan.GetErrors())
-	}
-	if writeErr := writePlan(os.Stdout, path, plan); writeErr != nil {
-		return writeErr
 	}
 	if len(plan.GetOperations()) == 0 {
 		return nil
 	}
-	unconfirmed := unconfirmedOperations(plan.GetOperations(), confirm)
-	if len(unconfirmed) > 0 {
-		return refusalError(&planv1.ApplyRefusal{Unconfirmed: unconfirmed}, plan.GetRevision())
-	}
-	if !confirm.yes {
-		proceed, askErr := askToProceed("Apply these changes?")
-		if askErr != nil {
-			return askErr
-		}
-		if !proceed {
-			fmt.Println("Apply canceled.")
-			return nil
-		}
+	if proceed, askErr := cmdutil.Confirm(cmd, "Apply these changes?"); !proceed {
+		return askErr
 	}
 
-	applied, err := requestApply(ctx, t, data, plan.GetRevision(), plan.GetImages(), confirm, applyScope{})
+	applied, err := requestApply(ctx, applyRequest{
+		target:   t,
+		file:     data,
+		revision: plan.GetRevision(),
+		images:   plan.GetImages(),
+		confirm:  confirm,
+	})
 	if err != nil {
 		return err
 	}
 	return writeApplied(os.Stdout, applied)
 }
 
-func askToProceed(question string) (bool, error) {
-	if !cmdutil.StdoutIsTerminal() {
-		return false, errApplyNeedsYes
-	}
-	proceed, err := ui.AskYesNo(question)
+func resolveServices(file *locofile.File, path, environment string) (map[string]locofile.Service, error) {
+	services, err := locofile.Resolve(file, environment)
 	if err != nil {
-		return false, fmt.Errorf("failed to prompt user: %w", err)
+		return nil, fmt.Errorf("%s does not resolve for environment %s: %w", path, environment, err)
 	}
-	return proceed, nil
+	return services, nil
 }
 
 func unconfirmedOperations(operations []*planv1.PlanOperation, confirm confirmations) []*planv1.PlanOperation {
@@ -173,58 +150,33 @@ func unconfirmedOperations(operations []*planv1.PlanOperation, confirm confirmat
 	return unconfirmed
 }
 
-func requestApply(
-	ctx context.Context,
-	t target,
-	file []byte,
-	revision int64,
-	images map[string]string,
-	confirm confirmations,
-	scope applyScope,
-) (*planv1.ApplyResponse, error) {
+func requestApply(ctx context.Context, apply applyRequest) (*planv1.ApplyResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, applyTimeout)
 	defer cancel()
 
 	req := &planv1.ApplyRequest{
-		File:               file,
-		EnvironmentId:      t.environmentID,
-		Revision:           revision,
-		ConfirmDestructive: confirm.destructive,
-		ConfirmImport:      confirm.importOps,
-		Images:             images,
-		Builds:             scope.builds,
-		Provision:          scope.provision,
+		File:               apply.file,
+		EnvironmentId:      apply.target.Environment.GetId(),
+		Revision:           apply.revision,
+		ConfirmDestructive: apply.confirm.destructive,
+		ConfirmImport:      apply.confirm.importOps,
+		Images:             apply.images,
+		Builds:             apply.builds,
+		Provision:          apply.provision,
 	}
 
-	resp, err := t.planClient().Apply(ctx, req)
+	resp, err := apply.target.Clients.Plan.Apply(ctx, req)
 	if err != nil {
-		if refusal := applyRefusal(err); refusal != nil {
-			return nil, refusalError(refusal, revision)
-		}
 		connectErr, isConnect := errors.AsType[*connect.Error](err)
 		if isConnect && connectErr.Code() == connect.CodeFailedPrecondition {
+			if refusal, ok := rpc.ErrorDetail[*planv1.ApplyRefusal](err); ok {
+				return nil, refusalError(refusal, apply.revision)
+			}
 			return nil, fmt.Errorf("%w: %s", errApplyRefused, connectErr.Message())
 		}
 		return nil, fmt.Errorf("apply: %w", err)
 	}
 	return resp, nil
-}
-
-func applyRefusal(err error) *planv1.ApplyRefusal {
-	connectErr, ok := errors.AsType[*connect.Error](err)
-	if !ok || connectErr.Code() != connect.CodeFailedPrecondition {
-		return nil
-	}
-	for _, detail := range connectErr.Details() {
-		value, valueErr := connectproto.UnmarshalErrorDetail(detail)
-		if valueErr != nil {
-			continue
-		}
-		if refusal, isRefusal := value.(*planv1.ApplyRefusal); isRefusal {
-			return refusal
-		}
-	}
-	return nil
 }
 
 func refusalError(refusal *planv1.ApplyRefusal, plannedRevision int64) error {

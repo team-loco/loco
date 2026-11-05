@@ -2,17 +2,17 @@ package ui
 
 import (
 	"fmt"
+	"io"
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 )
 
 type inputModel struct {
-	err       error
 	textInput textinput.Model
 }
 
-func NewInputModel(prompt string) inputModel {
+func newInputModel(prompt string) inputModel {
 	ti := textinput.New()
 	ti.Prompt = prompt
 	ti.Focus()
@@ -47,8 +47,8 @@ func (m inputModel) View() tea.View {
 	))
 }
 
-func AskForString(prompt string) (string, error) {
-	p := tea.NewProgram(NewInputModel(prompt))
+func AskForString(in io.Reader, out io.Writer, prompt string) (string, error) {
+	p := tea.NewProgram(newInputModel(prompt), tea.WithInput(in), tea.WithOutput(out))
 	model, err := p.Run()
 	if err != nil {
 		return "", err
@@ -58,5 +58,5 @@ func AskForString(prompt string) (string, error) {
 	if !ok {
 		return "", errUnexpectedModel
 	}
-	return m.textInput.Value(), m.err
+	return m.textInput.Value(), nil
 }

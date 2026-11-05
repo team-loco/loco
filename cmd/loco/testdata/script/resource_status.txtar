@@ -11,7 +11,7 @@ exec loco resource status web --output json
 stdout '"name":\s+"web"'
 
 ! exec loco resource status missing
-stderr '(?i)service ''missing'' not found'
+stderr '(?i)service "missing" not found'
 
 -- home/.loco/credentials.json --
 {"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
