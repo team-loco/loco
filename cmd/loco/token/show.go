@@ -1,6 +1,7 @@
 package token
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -13,14 +14,16 @@ import (
 )
 
 type showDeps struct {
-	Tokens func() (keychain.TokenStore, error)
-	Output io.Writer
+	CurrentUser func() (*user.User, error)
+	NewStore    func(*user.User) (keychain.TokenStore, error)
+	Output      io.Writer
 }
 
 func buildShowCmd() *cobra.Command {
 	deps := showDeps{
-		Tokens: keychain.ForCurrentUser,
-		Output: os.Stdout,
+		CurrentUser: user.Current,
+		NewStore:    keychain.NewStore,
+		Output:      os.Stdout,
 	}
 	return newShowCmd(deps)
 }
@@ -37,19 +40,22 @@ func newShowCmd(deps showDeps) *cobra.Command {
   # Show raw token value (for scripting)
   loco token show --raw`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			currentUser, err := user.Current()
+			currentUser, err := deps.CurrentUser()
 			if err != nil {
 				return fmt.Errorf("failed to get current user: %w", err)
 			}
 
-			store, err := deps.Tokens()
+			store, err := deps.NewStore(currentUser)
 			if err != nil {
 				return err
 			}
 
 			token, err := store.Get()
-			if err != nil {
+			if errors.Is(err, keychain.ErrNotFound) {
 				return cmdutil.ErrLoginRequired
+			}
+			if err != nil {
+				return fmt.Errorf("failed to read token from keychain: %w", err)
 			}
 
 			raw, err := cmd.Flags().GetBool("raw")
