@@ -159,25 +159,7 @@ func (a *applier) delete(ctx context.Context, qtx *genDb.Queries, op configplan.
 // still runs: its deployments and placements and its domains. The resource stays.
 func (a *applier) removeFromEnvironment(ctx context.Context, qtx *genDb.Queries, res genDb.Resource) error {
 	for _, deployment := range a.live.deployments[res.ID] {
-		if err := removePlacement(ctx, qtx, res.ID, deployment.ClusterID); err != nil {
-			return err
-		}
-		finalErr := qtx.UpdateDeploymentStatusAndActive(ctx, genDb.UpdateDeploymentStatusAndActiveParams{
-			ID:       deployment.ID,
-			Status:   finalizedDeploymentStatus(deployment.Status),
-			IsActive: false,
-		})
-		if finalErr != nil {
-			return fmt.Errorf("finalize deployment %s: %w", deployment.ID, finalErr)
-		}
-		if err := events.Record(ctx, qtx, events.Event{
-			Type:        events.DeploymentDeleted,
-			WorkspaceID: new(res.WorkspaceID),
-			ResourceID:  new(res.ID),
-			SubjectType: events.SubjectDeployment,
-			SubjectID:   new(deployment.ID),
-			Data:        map[string]any{events.FieldResourceID: res.ID.String()},
-		}); err != nil {
+		if err := retireDeployment(ctx, qtx, res, deployment); err != nil {
 			return err
 		}
 	}

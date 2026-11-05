@@ -133,29 +133,11 @@ func (a *applier) stopRemovedRegions(
 		if _, kept := desired[deployment.Region]; kept {
 			continue
 		}
-		if removeErr := removePlacement(ctx, qtx, res.ID, deployment.ClusterID); removeErr != nil {
-			return removeErr
-		}
-		finalErr := qtx.UpdateDeploymentStatusAndActive(ctx, genDb.UpdateDeploymentStatusAndActiveParams{
-			ID:       deployment.ID,
-			Status:   finalizedDeploymentStatus(deployment.Status),
-			IsActive: false,
-		})
-		if finalErr != nil {
-			return fmt.Errorf("finalize deployment %s: %w", deployment.ID, finalErr)
+		if retireErr := retireDeployment(ctx, qtx, res, deployment); retireErr != nil {
+			return retireErr
 		}
 		if bumpErr := bumpEnvironmentRevision(ctx, qtx, a.env.ID); bumpErr != nil {
 			return bumpErr
-		}
-		if eventErr := events.Record(ctx, qtx, events.Event{
-			Type:        events.DeploymentDeleted,
-			WorkspaceID: new(res.WorkspaceID),
-			ResourceID:  new(res.ID),
-			SubjectType: events.SubjectDeployment,
-			SubjectID:   new(deployment.ID),
-			Data:        map[string]any{events.FieldResourceID: res.ID.String()},
-		}); eventErr != nil {
-			return eventErr
 		}
 	}
 	return nil
