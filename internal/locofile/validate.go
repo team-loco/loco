@@ -10,9 +10,9 @@ import (
 )
 
 const (
-	dnsLabelMaxLength = 63
-	minMetricsPort    = 1024
-	maxMetricsPort    = 65535
+	MaxServiceNameLength = 63
+	minMetricsPort       = 1024
+	maxMetricsPort       = 65535
 
 	MinDeployAttempts   = 1
 	MaxDeployAttempts   = 10
@@ -31,7 +31,7 @@ func Validate(file *File) error {
 	switch {
 	case file.Partial == "":
 		errs = append(errs, &FieldError{Path: keyPartial, Err: ErrPartialRequired})
-	case !isDNSLabel(file.Partial):
+	case !IsServiceName(file.Partial):
 		errs = append(errs, &FieldError{Path: keyPartial, Err: ErrInvalidName})
 	}
 	if file.Services == nil {
@@ -40,7 +40,7 @@ func Validate(file *File) error {
 
 	for _, name := range sortedKeys(file.Services) {
 		service := file.Services[name]
-		if !isDNSLabel(name) {
+		if !IsServiceName(name) {
 			errs = append(errs, &FieldError{Path: servicePath(name), Err: ErrInvalidName})
 		}
 		errs = append(errs, validateService(servicePath(name), service)...)
@@ -137,8 +137,8 @@ func validateAutoscaling(path string, autoscaling *Autoscaling) []error {
 	return nil
 }
 
-func isDNSLabel(name string) bool {
-	return len(name) <= dnsLabelMaxLength && dnsLabelPattern.MatchString(name)
+func IsServiceName(name string) bool {
+	return len(name) <= MaxServiceNameLength && dnsLabelPattern.MatchString(name)
 }
 
 func environmentNames(file *File) []string {

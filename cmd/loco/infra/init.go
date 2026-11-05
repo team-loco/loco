@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"slices"
 	"time"
 
@@ -81,12 +80,13 @@ func initCmdFunc(cmd *cobra.Command) error {
 	}
 
 	if appName == "" {
-		workingDir, getwdErr := os.Getwd()
-		if getwdErr != nil {
-			return fmt.Errorf("failed to get working directory: %w", getwdErr)
+		appName, err = directoryServiceName()
+		if err != nil {
+			return err
 		}
-		_, dirName := filepath.Split(workingDir)
-		appName = dirName
+	}
+	if !locofile.IsServiceName(appName) {
+		return fmt.Errorf("service name %q: %w", appName, locofile.ErrInvalidName)
 	}
 
 	apiConfig, err := fetchConfig(cmd)
