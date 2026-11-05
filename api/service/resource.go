@@ -348,9 +348,11 @@ func (s *ResourceServer) GetResource(
 	}
 
 	res, err := s.queries.GetResourceByID(ctx, resourceID)
-	if err != nil {
-		slog.WarnContext(ctx, "resource not found", "id", resourceIDStr)
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get resource: %w", err)
 	}
 
 	resourceDomains, err := s.queries.ListResourceDomains(ctx, res.ID)
@@ -692,9 +694,11 @@ func (s *ResourceServer) ScaleResource(
 	resourceID := uuid.MustParse(req.GetResourceId())
 
 	res, err := s.queries.GetResourceByID(ctx, resourceID)
-	if err != nil {
-		slog.WarnContext(ctx, "resource not found", "resourceId", req.GetResourceId())
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get resource: %w", err)
 	}
 
 	env, err := s.queries.GetEnvironmentByID(ctx, uuid.MustParse(req.GetEnvironmentId()))

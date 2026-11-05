@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"math/big"
 	"strings"
@@ -443,8 +444,11 @@ func (s *AuthServer) RefreshCLIToken(
 	}
 
 	access, newRefresh, err := s.machine.Refresh(ctx, refresh)
-	if err != nil {
+	if errors.Is(err, tvm.ErrInvalidExpiredToken) {
 		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("refresh session: %w", err)
 	}
 	return &authv1.RefreshCLITokenResponse{Tokens: &authv1.CLITokens{
 		AccessToken:  access,

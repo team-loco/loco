@@ -3,11 +3,13 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/team-loco/loco/api/authz"
@@ -120,9 +122,11 @@ func (s *EnvironmentServer) GetEnvironment(
 	envID := uuid.MustParse(req.GetEnvironmentId())
 
 	env, err := s.queries.GetEnvironmentByID(ctx, envID)
-	if err != nil {
-		slog.WarnContext(ctx, "environment not found", "id", req.GetEnvironmentId())
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get environment: %w", err)
 	}
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
@@ -191,9 +195,11 @@ func (s *EnvironmentServer) UpdateEnvironment(
 	envID := uuid.MustParse(req.GetEnvironmentId())
 
 	existing, err := s.queries.GetEnvironmentByID(ctx, envID)
-	if err != nil {
-		slog.WarnContext(ctx, "environment not found", "id", req.GetEnvironmentId())
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get environment: %w", err)
 	}
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
@@ -285,9 +291,11 @@ func (s *EnvironmentServer) DeleteEnvironment(
 	envID := uuid.MustParse(req.GetEnvironmentId())
 
 	existing, err := s.queries.GetEnvironmentByID(ctx, envID)
-	if err != nil {
-		slog.WarnContext(ctx, "environment not found", "id", req.GetEnvironmentId())
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get environment: %w", err)
 	}
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)

@@ -9,6 +9,7 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -303,9 +304,11 @@ func (s *TokenServer) GetToken(
 		EntityType: targetEntity.Type,
 		EntityID:   targetEntity.ID,
 	})
-	if err != nil {
-		slog.WarnContext(ctx, "token not found", "name", req.GetName())
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrTokenNotFound)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get API token: %w", err)
 	}
 
 	return &tokenv1.GetTokenResponse{
@@ -460,13 +463,18 @@ func (s *TokenServer) CheckPermission(
 		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	allowed := s.authz.Check(ctx, scopes, genDb.EntityScope{
+	err = s.authz.Check(ctx, scopes, genDb.EntityScope{
 		EntityType: protoEntityTypeToDb(req.GetEntityType()),
 		EntityID:   entityID,
 		Scope:      protoScopeToDb(req.GetScope()),
-	}) == nil
-
-	return &tokenv1.CheckPermissionResponse{Allowed: allowed}, nil
+	})
+	if errors.Is(err, authz.ErrInsufficientPermissions) || errors.Is(err, authz.ErrEntityNotFound) {
+		return &tokenv1.CheckPermissionResponse{Allowed: false}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("check permission: %w", err)
+	}
+	return &tokenv1.CheckPermissionResponse{Allowed: true}, nil
 }
 
 // Helper functions

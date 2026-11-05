@@ -191,9 +191,11 @@ func (s *WorkspaceServer) GetWorkspace(
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 	ws, err := s.queries.GetWorkspaceByIDQuery(ctx, uuid.MustParse(req.GetWorkspaceId()))
-	if err != nil {
-		slog.WarnContext(ctx, "workspace not found", "id", req.GetWorkspaceId())
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrWorkspaceNotFound)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get workspace: %w", err)
 	}
 
 	return &workspacev1.GetWorkspaceResponse{
