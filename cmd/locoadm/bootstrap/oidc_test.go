@@ -20,6 +20,7 @@ import (
 
 	"github.com/go-jose/go-jose/v4"
 	"github.com/go-jose/go-jose/v4/jwt"
+
 	"github.com/team-loco/loco/cmd/internal/installation"
 )
 

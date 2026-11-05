@@ -8,16 +8,21 @@ import (
 	"time"
 )
 
+const (
+	mailReadHeaderTimeout = 5 * time.Second
+	mailBodyLimit         = 1 << 20
+)
+
 func mailSink(ctx context.Context) error {
 	server := &http.Server{
 		Addr:              ":8081",
-		ReadHeaderTimeout: 5 * time.Second,
+		ReadHeaderTimeout: mailReadHeaderTimeout,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodPost {
 				w.WriteHeader(http.StatusMethodNotAllowed)
 				return
 			}
-			if _, err := io.Copy(io.Discard, http.MaxBytesReader(w, r.Body, 1<<20)); err != nil {
+			if _, err := io.Copy(io.Discard, http.MaxBytesReader(w, r.Body, mailBodyLimit)); err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}

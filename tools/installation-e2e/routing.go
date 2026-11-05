@@ -10,7 +10,10 @@ import (
 	"time"
 )
 
-const fixtureAppsDomain = "apps.installation.test"
+const (
+	fixtureAppsDomain   = "apps.installation.test"
+	gatewayReadyTimeout = 2 * time.Minute
+)
 
 func (f *fixture) startLoadBalancer(ctx context.Context) error {
 	image, err := f.pin(ctx, "dev/compose.cloud-provider-kind.yaml", `.services."cloud-provider-kind".image`)
@@ -64,7 +67,7 @@ func (f *fixture) startLoadBalancer(ctx context.Context) error {
 }
 
 func configureGatewayDNS(ctx context.Context, namespace string, worker bool) error {
-	deadline, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	deadline, cancel := context.WithTimeout(ctx, gatewayReadyTimeout)
 	defer cancel()
 	var address string
 	ticker := time.NewTicker(time.Second)

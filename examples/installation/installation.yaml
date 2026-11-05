@@ -2,7 +2,7 @@
 version: 1
 name: example
 release:
-  manifest: ./release.yaml
+  manifest: ./release.json
 controlPlane:
   kubernetes:
     context: example-control-plane

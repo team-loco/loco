@@ -14,6 +14,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/contextkeys"
@@ -21,7 +23,6 @@ import (
 	"github.com/team-loco/loco/api/timeutil"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const joinTokenPrefix = "loco_j_"

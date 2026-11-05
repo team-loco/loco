@@ -8,10 +8,11 @@ import (
 	"sort"
 	"strings"
 
-	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
-	"github.com/team-loco/loco/internal/rpc"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
+	"github.com/team-loco/loco/internal/rpc"
 )
 
 var errControlPlaneNotReady = errors.New("control-plane deployments are not ready")

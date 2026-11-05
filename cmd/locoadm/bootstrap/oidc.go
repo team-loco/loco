@@ -14,9 +14,10 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"golang.org/x/oauth2"
+
 	"github.com/team-loco/loco/cmd/internal/installation"
 	"github.com/team-loco/loco/internal/bearer"
-	"golang.org/x/oauth2"
 )
 
 const (

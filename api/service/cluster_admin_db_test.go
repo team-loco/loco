@@ -15,6 +15,7 @@ import (
 	"connectrpc.com/validate"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/team-loco/loco/api/authz"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"

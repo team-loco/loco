@@ -577,7 +577,7 @@ func waitRegistry(ctx context.Context, endpoint string) error {
 		}
 		response, requestErr := client.Do(request)
 		if requestErr == nil {
-			_, readErr := io.Copy(io.Discard, io.LimitReader(response.Body, 1<<20))
+			_, readErr := io.Copy(io.Discard, io.LimitReader(response.Body, fixtureResponseLimit))
 			closeErr := response.Body.Close()
 			ready := response.StatusCode == http.StatusOK || response.StatusCode == http.StatusUnauthorized
 			if ready && readErr == nil && closeErr == nil {

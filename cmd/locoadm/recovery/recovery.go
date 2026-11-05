@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
 	"github.com/team-loco/loco/cmd/internal/installation"
 )
 

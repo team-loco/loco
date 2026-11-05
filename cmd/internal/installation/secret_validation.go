@@ -10,7 +10,7 @@ import (
 
 func validSeal(secret *corev1.Secret) bool {
 	key, err := base64.StdEncoding.DecodeString(string(secret.Data[secretKeyField]))
-	return err == nil && len(key) == 32
+	return err == nil && len(key) == sealKeyBytes
 }
 
 func validClickHouse(secret *corev1.Secret, role, host string) bool {
@@ -21,6 +21,7 @@ func validClickHouse(secret *corev1.Secret, role, host string) bool {
 		return false
 	}
 	password, ok := parsed.User.Password()
-	return ok && parsed.User.Username() == "loco_"+role && len(secret.Data[secretPasswordField]) >= 32 &&
+	return ok && parsed.User.Username() == "loco_"+role &&
+		len(secret.Data[secretPasswordField]) >= minimumCredentialLength &&
 		bytes.Equal(secret.Data[secretPasswordField], []byte(password))
 }

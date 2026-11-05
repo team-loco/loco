@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/team-loco/loco/api/auth"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	bootstrapv1 "github.com/team-loco/loco/gen/go/loco/bootstrap/v1"

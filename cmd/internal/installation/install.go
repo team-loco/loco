@@ -29,6 +29,7 @@ const (
 	emailHookSecretKey  = "hook-secret"
 	// standard Webhooks wire format, also checked by api/webhooks.decodeSecret.
 	emailHookSecretBytes    = 32
+	sealKeyBytes            = 32
 	secretKeyField          = "key"
 	secretPasswordField     = "password"
 	secretUsernameField     = "username"
@@ -379,7 +380,7 @@ func (k *Kubernetes) ensureCredentials(
 			return safeKubernetesError("inspect generated credential", err)
 		}
 	}
-	seal := make([]byte, 32)
+	seal := make([]byte, sealKeyBytes)
 	if _, err = rand.Read(seal); err != nil {
 		return err
 	}
@@ -428,7 +429,7 @@ func (k *Kubernetes) ensureCredentials(
 		if tokenErr != nil {
 			return tokenErr
 		}
-		if len(bootstrap.Data[BootstrapTokenKey]) < 32 {
+		if len(bootstrap.Data[BootstrapTokenKey]) < minimumCredentialLength {
 			return errSecretInvalid
 		}
 	}

@@ -12,7 +12,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	appsclient "k8s.io/client-go/kubernetes/typed/apps/v1"
 	authclient "k8s.io/client-go/kubernetes/typed/authorization/v1"
 	coreclient "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -20,13 +19,14 @@ import (
 )
 
 const (
-	lockExpiryMargin   = time.Minute
-	lockCleanupTimeout = 10 * time.Second
-	BootstrapSecret    = "loco-bootstrap"
-	BootstrapTokenKey  = "token"
-	installationState  = "loco-installation"
-	installationOwner  = "loco.build/installation"
-	installationID     = "loco.build/installation-id"
+	credentialRandomBytes = 32
+	lockExpiryMargin      = time.Minute
+	lockCleanupTimeout    = 10 * time.Second
+	BootstrapSecret       = "loco-bootstrap"
+	BootstrapTokenKey     = "token"
+	installationState     = "loco-installation"
+	installationOwner     = "loco.build/installation"
+	installationID        = "loco.build/installation-id"
 )
 
 var (
@@ -101,7 +101,7 @@ func (k *Kubernetes) ReadBootstrapToken(ctx context.Context, name string) (strin
 	if secret.Annotations[installationID] != string(state.UID) {
 		return "", errForeignOwnership
 	}
-	if len(secret.Data[BootstrapTokenKey]) < 32 {
+	if len(secret.Data[BootstrapTokenKey]) < minimumCredentialLength {
 		return "", errSecretInvalid
 	}
 	return string(secret.Data[BootstrapTokenKey]), nil
@@ -222,7 +222,7 @@ func (k *Kubernetes) ensureSecret(
 }
 
 func randomCredential() ([]byte, error) {
-	data := make([]byte, 32)
+	data := make([]byte, credentialRandomBytes)
 	if _, err := rand.Read(data); err != nil {
 		return nil, fmt.Errorf("generate installation credential: %w", err)
 	}

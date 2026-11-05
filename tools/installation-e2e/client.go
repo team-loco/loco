@@ -22,18 +22,20 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/net/html"
+
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	"github.com/team-loco/loco/internal/rpc"
 	clisession "github.com/team-loco/loco/internal/session"
-
-	"golang.org/x/net/html"
 )
 
 const (
-	fixtureEmail    = "dev@loco.test"
-	fixturePassword = "loco-dev"
-	clientFile      = "/installation/installation.yaml"
-	clientTimeout   = 45 * time.Minute
+	fixtureEmail         = "dev@loco.test"
+	fixturePassword      = "loco-dev"
+	clientFile           = "/installation/installation.yaml"
+	clientTimeout        = 45 * time.Minute
+	httpsReadyTimeout    = 2 * time.Minute
+	fixtureResponseLimit = 1 << 20
 )
 
 func clientAcceptance(ctx context.Context) (result error) {
@@ -242,7 +244,7 @@ func completeDexLogin(ctx context.Context, authorization string) error {
 		return errors.New("open fixture IdP login failed")
 	}
 	defer response.Body.Close()
-	document, err := html.Parse(io.LimitReader(response.Body, 1<<20))
+	document, err := html.Parse(io.LimitReader(response.Body, fixtureResponseLimit))
 	if err != nil {
 		return errors.New("read fixture IdP form failed")
 	}
@@ -715,14 +717,14 @@ func fixtureAPI() (*rpc.Clients, error) {
 }
 
 func waitHTTPS(ctx context.Context, client *http.Client, request *http.Request) error {
-	deadline, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	deadline, cancel := context.WithTimeout(ctx, httpsReadyTimeout)
 	defer cancel()
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 	for {
 		response, err := client.Do(request.Clone(deadline))
 		if err == nil {
-			_, readErr := io.Copy(io.Discard, io.LimitReader(response.Body, 1<<20))
+			_, readErr := io.Copy(io.Discard, io.LimitReader(response.Body, fixtureResponseLimit))
 			closeErr := response.Body.Close()
 			if response.StatusCode == http.StatusOK && readErr == nil && closeErr == nil {
 				return nil

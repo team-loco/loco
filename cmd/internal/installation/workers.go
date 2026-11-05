@@ -12,12 +12,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
-	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
-	"github.com/team-loco/loco/internal/rpc"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
+	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
+	"github.com/team-loco/loco/internal/rpc"
 )
 
 const (

@@ -15,7 +15,7 @@ locoadm status --file installation.yaml
 locoadm verify --file installation.yaml --worker staging-us --environment ENVIRONMENT_UUID
 ```
 
-`validate` defaults to `installation.yaml`; the other commands require `--file`. See the [complete example](https://github.com/team-loco/loco/blob/main/examples/installation/installation.yaml) and [JSON Schema](https://github.com/team-loco/loco/blob/main/schemas/installation.v1.json). Unknown fields, duplicate keys and additional YAML documents fail validation. Errors identify known field paths without printing source values.
+`validate`, `verify` and `recovery export` default to `installation.yaml`; `plan`, `apply`, `status` and `bootstrap` require `--file`. See the [complete example](https://github.com/team-loco/loco/blob/main/examples/installation/installation.yaml) and [JSON Schema](https://github.com/team-loco/loco/blob/main/schemas/installation.v1.json). Unknown fields, duplicate keys and additional YAML documents fail validation. Errors identify known field paths without printing source values.
 
 Every field below is required, including explicit boolean settings. `workers: []` declares a control plane without attached workers. Kubernetes contexts must already exist in the operator's kubeconfig. The operator supplies PostgreSQL, OIDC, S3-compatible storage, a registry, DNS, certificate issuers and Kubernetes clusters; this file does not provision those services.
 

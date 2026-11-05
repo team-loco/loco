@@ -11,12 +11,13 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
-	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
-	"github.com/team-loco/loco/gen/go/loco/cluster/v1/clusterv1connect"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	coreclient "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
+
+	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
+	"github.com/team-loco/loco/gen/go/loco/cluster/v1/clusterv1connect"
 )
 
 const testStaging = "staging"

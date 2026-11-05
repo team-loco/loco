@@ -17,6 +17,12 @@ import (
 	"golang.org/x/mod/semver"
 )
 
+const (
+	manifestReadLimit = 1 << 20
+	artifactReadLimit = 128 << 20
+	archiveEntryLimit = 32 << 20
+)
+
 var errReadRelease = errors.New("cannot read release manifest")
 
 var errInvalidRelease = errors.New("invalid release manifest or unsupported configuration version")
@@ -39,7 +45,7 @@ func LoadManifest(path string) (Manifest, error) {
 	}
 	defer file.Close()
 	var manifest Manifest
-	decoder := json.NewDecoder(io.LimitReader(file, 1<<20))
+	decoder := json.NewDecoder(io.LimitReader(file, manifestReadLimit))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&manifest); err != nil {
 		return Manifest{}, errInvalidRelease
@@ -87,7 +93,7 @@ func artifact(ctx context.Context, reference string) ([]byte, error) {
 		return nil, errors.New("read pinned release artifact failed")
 	}
 	defer reader.Close()
-	data, err := io.ReadAll(io.LimitReader(reader, 128<<20))
+	data, err := io.ReadAll(io.LimitReader(reader, artifactReadLimit))
 	if err != nil {
 		return nil, errors.New("read pinned release artifact failed")
 	}
@@ -113,10 +119,10 @@ func archiveFiles(data []byte) (map[string][]byte, error) {
 		if header.Typeflag != tar.TypeReg {
 			continue
 		}
-		if header.Size > 32<<20 {
+		if header.Size > archiveEntryLimit {
 			return nil, errInvalidRelease
 		}
-		content, err := io.ReadAll(io.LimitReader(reader, 32<<20))
+		content, err := io.ReadAll(io.LimitReader(reader, archiveEntryLimit))
 		if err != nil {
 			return nil, errInvalidRelease
 		}

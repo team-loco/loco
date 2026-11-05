@@ -25,6 +25,8 @@ import (
 	"connectrpc.com/grpcreflect/v2"
 	"connectrpc.com/validate"
 	"github.com/rs/cors"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/auth/supabase"
 	"github.com/team-loco/loco/api/authz"
@@ -61,7 +63,6 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/webhook/v1/webhookv1connect"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
 	"github.com/team-loco/loco/internal/ingesttoken"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const (

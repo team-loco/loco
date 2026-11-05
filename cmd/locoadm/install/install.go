@@ -3,15 +3,21 @@ package install
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
+
 	"github.com/team-loco/loco/cmd/internal/installation"
 	"github.com/team-loco/loco/cmd/internal/keychain"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 )
+
+const operationTimeout = 30 * time.Minute
+
+var errTimeout = errors.New("installation timeout must be positive")
 
 func Commands() []*cobra.Command {
 	commands := make([]*cobra.Command, 0, 3)
@@ -24,11 +30,15 @@ func Commands() []*cobra.Command {
 			Args:  cobra.NoArgs,
 		}
 		command.Flags().StringVar(&file, "file", "", "Installation YAML file")
-		command.Flags().DurationVar(&timeout, "timeout", 30*time.Minute, "Maximum duration for installation operations")
+		command.Flags().
+			DurationVar(&timeout, "timeout", operationTimeout, "Maximum duration for installation operations")
 		if err := command.MarkFlagRequired("file"); err != nil {
 			panic(err)
 		}
 		command.RunE = func(cmd *cobra.Command, _ []string) error {
+			if timeout <= 0 {
+				return errTimeout
+			}
 			config, err := installation.Load(file)
 			if err != nil {
 				return err
