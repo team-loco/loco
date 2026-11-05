@@ -30,7 +30,7 @@ func (stalePrivateServiceCache) List(context.Context, client.ObjectList, ...clie
 func TestPrivateServiceLifecycleReadsBypassTheCache(t *testing.T) {
 	app := workspaceApp("app", "abc")
 	app.UID = "app-uid"
-	app.Spec.ResourceName = testPrivateHTTPName
+	app.Spec.Slug = testPrivateHTTPName
 	labels := map[string]string{
 		labelPrivateServiceOwner:  string(app.UID),
 		locolabels.LabelManagedBy: managed.ManagedByValue,

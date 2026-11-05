@@ -24,7 +24,6 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/plan/v1/planv1connect"
 	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/internal/rpcerr"
-	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 // PlanServer implements the PlanService: it diffs a loco.yaml file against an environment.
@@ -172,14 +171,7 @@ func (s *PlanServer) loadPlan(
 		slog.ErrorContext(ctx, "failed to compute plan", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(err)
 	}
-	for _, op := range plan.Operations {
-		if op.Kind == configplan.KindCreate && locoControllerV1.PrivateServiceName(op.Service) == "" {
-			plan.Errors = append(
-				plan.Errors,
-				configplan.Error{Service: op.Service, Path: "name", Err: errPrivateServiceName},
-			)
-		}
-	}
+	plan.Errors = append(plan.Errors, slugErrors(plan.Operations, live.resources)...)
 	if len(plan.Errors) > 0 {
 		plan.Operations = nil
 		plan.Desired = nil
@@ -192,6 +184,32 @@ func (s *PlanServer) loadPlan(
 		images:          pinnedImages(images),
 		plan:            plan,
 	}, nil
+}
+
+// slugErrors reports each service the plan creates whose slug is empty, reserved, or held by
+// another workspace resource or another create in the plan.
+func slugErrors(operations []configplan.Operation, resources map[string]genDb.Resource) []configplan.Error {
+	holders := make(map[string]string, len(resources))
+	for name, resource := range resources {
+		holders[resource.Slug] = name
+	}
+	var errs []configplan.Error
+	for _, op := range operations {
+		if op.Kind != configplan.KindCreate {
+			continue
+		}
+		slug := resourceSlug(op.Service)
+		if slug == "" {
+			errs = append(errs, configplan.Error{Service: op.Service, Path: "name", Err: errPrivateServiceName})
+			continue
+		}
+		if other, taken := holders[slug]; taken {
+			errs = append(errs, configplan.Error{Service: op.Service, Path: "name", Err: slugTakenError(slug, other)})
+			continue
+		}
+		holders[slug] = op.Service
+	}
+	return errs
 }
 
 func fileEnvironments(file *locofile.File) []string {

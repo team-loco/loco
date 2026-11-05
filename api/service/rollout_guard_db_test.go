@@ -365,7 +365,8 @@ func TestOtherResourceRolloutDoesNotBlockScale(t *testing.T) {
 		t.Context(),
 		genDb.CreateResourceParams{
 			WorkspaceID: f.workspaceID(t),
-			Name:        "other",
+			Name:        "other-service",
+			Slug:        "other-service",
 			Type:        genDb.ResourceTypeService,
 			Spec:        []byte("{}"),
 			SpecVersion: 1,

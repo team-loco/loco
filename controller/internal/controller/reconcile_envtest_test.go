@@ -37,10 +37,10 @@ var _ = Describe("Application reconcile", func() {
 			Name: convergeName, Namespace: testNamespace,
 			Annotations: map[string]string{locov1alpha1.AnnotationPlacementID: "p-converge"},
 			Spec: locov1alpha1.ApplicationSpec{
-				Type:         testAppType,
-				ResourceID:   convergeName,
-				ResourceName: convergeName,
-				WorkspaceID:  "ws",
+				Type:        testAppType,
+				ResourceID:  convergeName,
+				Slug:        convergeName,
+				WorkspaceID: "ws",
 				ServiceSpec: &locov1alpha1.ServiceSpec{
 					Deployment: &locov1alpha1.ServiceDeploymentSpec{
 						Image:        "registry.example.com/app:v1",

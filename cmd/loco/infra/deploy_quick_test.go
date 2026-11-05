@@ -62,9 +62,15 @@ func TestDomainSuffix(t *testing.T) {
 func TestInitRejectsInvalidServiceName(t *testing.T) {
 	t.Chdir(t.TempDir())
 	cmd := buildInitCmd()
-	cmd.SetArgs([]string{"--name", "My App"})
+	cmd.SetArgs([]string{"--name", "!!!"})
 
-	if err := cmd.Execute(); !errors.Is(err, locofile.ErrInvalidName) {
-		t.Fatalf("init --name %q error = %v, want %v", "My App", err, locofile.ErrInvalidName)
+	if err := cmd.Execute(); !errors.Is(err, locofile.ErrInvalidServiceName) {
+		t.Fatalf("init --name %q error = %v, want %v", "!!!", err, locofile.ErrInvalidServiceName)
+	}
+}
+
+func TestDomainBaseUsesTheNameSlug(t *testing.T) {
+	if got := domainBase("Checkout API"); got != "checkout-api-" {
+		t.Fatalf("domainBase() = %q, want checkout-api-", got)
 	}
 }

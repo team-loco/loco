@@ -717,7 +717,7 @@ func buildApplicationSpec(
 
 	appSpec := &locoControllerV1.ApplicationSpec{
 		ResourceID:      resource.ID.String(),
-		ResourceName:    resource.Name,
+		Slug:            resource.Slug,
 		OrganizationID:  organizationID.String(),
 		WorkspaceID:     resource.WorkspaceID.String(),
 		Region:          region,

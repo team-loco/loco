@@ -90,7 +90,7 @@ func initCmdFunc(cmd *cobra.Command) error {
 		}
 	}
 	if !locofile.IsServiceName(appName) {
-		return fmt.Errorf("service name %q: %w", appName, locofile.ErrInvalidName)
+		return fmt.Errorf("service name %q: %w", appName, locofile.ErrInvalidServiceName)
 	}
 
 	apiConfig, err := fetchConfig(cmd)

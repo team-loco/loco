@@ -42,10 +42,10 @@ func testApplication() *locov1alpha1.Application {
 	return &locov1alpha1.Application{
 		Name: "app", Namespace: "loco",
 		Spec: locov1alpha1.ApplicationSpec{
-			Type:         testAppType,
-			ResourceID:   "1",
-			ResourceName: "app",
-			WorkspaceID:  "2",
+			Type:        testAppType,
+			ResourceID:  "1",
+			Slug:        "app",
+			WorkspaceID: "2",
 			ServiceSpec: &locov1alpha1.ServiceSpec{
 				Deployment: &locov1alpha1.ServiceDeploymentSpec{
 					Image: testImage,

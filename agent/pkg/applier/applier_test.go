@@ -268,7 +268,7 @@ func TestInvalidPlacementsAreMarked(t *testing.T) {
 func TestApplyPlacementPreservesLogicalServiceName(t *testing.T) {
 	a := newTestApplier(t)
 	p := placement(t, testPlacementID, 1)
-	spec := &locoControllerV1.ApplicationSpec{Type: testAppType, ResourceID: testResourceID, ResourceName: "cart"}
+	spec := &locoControllerV1.ApplicationSpec{Type: testAppType, ResourceID: testResourceID, Slug: "cart"}
 	p.Application = marshalPayload(t, spec)
 	if applyErr := a.ApplyPlacement(context.Background(), p); applyErr != nil {
 		t.Fatal(applyErr)
@@ -277,10 +277,10 @@ func TestApplyPlacementPreservesLogicalServiceName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if app.Spec.ResourceName != spec.ResourceName {
-		t.Fatalf("resourceName = %q, want %q", app.Spec.ResourceName, spec.ResourceName)
+	if app.Spec.Slug != spec.Slug {
+		t.Fatalf("slug = %q, want %q", app.Spec.Slug, spec.Slug)
 	}
-	spec.ResourceName = "checkout"
+	spec.Slug = "checkout"
 	p.Revision++
 	p.Application = marshalPayload(t, spec)
 	if applyErr := a.ApplyPlacement(context.Background(), p); applyErr != nil {
@@ -290,7 +290,7 @@ func TestApplyPlacementPreservesLogicalServiceName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if app.Spec.ResourceName != spec.ResourceName {
-		t.Fatalf("resourceName after rename = %q, want %q", app.Spec.ResourceName, spec.ResourceName)
+	if app.Spec.Slug != spec.Slug {
+		t.Fatalf("slug after rename = %q, want %q", app.Spec.Slug, spec.Slug)
 	}
 }

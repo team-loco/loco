@@ -10,13 +10,14 @@ import { Input } from "@/components/design/Input";
 import { Section } from "@/components/design/Page";
 import { SoonTag } from "@/components/design/SoonTag";
 import { toastConnectError } from "@/lib/error-handler";
+import { slug } from "@/lib/slug";
 
 import { DomainsSection } from "./DomainsSection";
 import { MANAGED_NOTICE_ID, ManagedNotice } from "./ManagedNotice";
 import type { Notice, RegionView } from "./model";
 import { ScaleSection } from "./ScaleSection";
 
-const NAME = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
+const MAX_NAME_LENGTH = 63;
 
 function GeneralSection({ resource, managed, onSaved }: { resource: Resource; managed: boolean; onSaved: () => void }) {
 	const [name, setName] = useState<string | null>(null);
@@ -27,8 +28,8 @@ function GeneralSection({ resource, managed, onSaved }: { resource: Resource; ma
 
 	const save = () => {
 		const next = value.trim();
-		if (!NAME.test(next)) {
-			setError("Lowercase letters, digits and hyphens, up to 63 characters.");
+		if (Array.from(next).length > MAX_NAME_LENGTH || slug(next) === "") {
+			setError("Up to 63 characters, with at least one letter or digit.");
 			return;
 		}
 		setError(undefined);
@@ -57,7 +58,7 @@ function GeneralSection({ resource, managed, onSaved }: { resource: Resource; ma
 					if (dirty) save();
 				}}
 			>
-				<Field label="Name" error={error}>
+				<Field label="Name" error={error} hint={`Private hostname: ${slug(value) || "none"}`}>
 					<Input
 						value={value}
 						disabled={managed}

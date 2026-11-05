@@ -295,6 +295,7 @@ func TestSchemaAcceptsWhatParseAndResolveAccept(t *testing.T) {
 		"null removals":        nullOverrideFile,
 		"empty services":       "version: 1\npartial: api\nservices: {}\n",
 		"overrides and toggle": tddExample,
+		"display name":         strings.Replace(minimalFile, "  api:", "  Checkout API:", 1),
 	}
 	for name, file := range files {
 		t.Run(name, func(t *testing.T) {

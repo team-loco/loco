@@ -46,12 +46,12 @@ func TestRenameResourceUpdatesAllLivePlacementsWithoutDeploying(t *testing.T) {
 		if !ok {
 			t.Fatal("missing application spec")
 		}
-		if fields["resource_name"] != testRenamedResource || app["resourceName"] != testRenamedResource {
+		if fields["resource_name"] != testRenamedResource || app["slug"] != testRenamedResource {
 			t.Fatalf(
 				"cluster %s desired name = %v/%v, want cart/cart",
 				previous.ClusterID,
 				fields["resource_name"],
-				app["resourceName"],
+				app["slug"],
 			)
 		}
 		if revision != previous.DesiredRevision+1 {
@@ -66,7 +66,7 @@ func TestRenameResourceUpdatesAllLivePlacementsWithoutDeploying(t *testing.T) {
 			t.Fatal("missing original application spec")
 		}
 		original["resource_name"] = testRenamedResource
-		originalApp["resourceName"] = testRenamedResource
+		originalApp["slug"] = testRenamedResource
 		want, err := json.Marshal(original)
 		if err != nil {
 			t.Fatal(err)

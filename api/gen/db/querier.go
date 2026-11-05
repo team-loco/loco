@@ -120,6 +120,7 @@ type Querier interface {
 	GetResourceByNameAndWorkspace(ctx context.Context, arg GetResourceByNameAndWorkspaceParams) (Resource, error)
 	GetResourceDomainByID(ctx context.Context, id uuid.UUID) (ResourceDomain, error)
 	GetResourceDomainCount(ctx context.Context, arg GetResourceDomainCountParams) (int64, error)
+	GetResourceNameBySlug(ctx context.Context, arg GetResourceNameBySlugParams) (string, error)
 	GetResourceWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	GetSessionByRefreshToken(ctx context.Context, refreshTokenHash string) (GetSessionByRefreshTokenRow, error)
 	GetSessionIdentityByRefreshHash(ctx context.Context, refreshTokenHash string) (GetSessionIdentityByRefreshHashRow, error)

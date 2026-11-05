@@ -15,6 +15,8 @@ import (
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 )
 
+const testNewResource = "new-resource"
+
 type orgDeleteFixture struct {
 	*eventFixture
 	workspaceID string
@@ -67,7 +69,7 @@ func (f *orgDeleteFixture) waitForWaiters(t *testing.T, want int) {
 func (f *orgDeleteFixture) createResource(t *testing.T) (string, error) {
 	t.Helper()
 	created, err := f.resources.CreateResource(f.owner, &resourcev1.CreateResourceRequest{
-		WorkspaceId: f.workspaceID, Name: "new-resource", Type: resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
+		WorkspaceId: f.workspaceID, Name: testNewResource, Type: resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
 		Spec: testResourceSpec(),
 	})
 	return created.GetResourceId(), err
@@ -141,8 +143,8 @@ func TestOrgDeleteWaitsForEnvironmentWriterBeforeCascading(t *testing.T) {
 	}()
 	f.waitForWaiters(t, 1)
 	_, createErr := qtx.CreateResource(t.Context(), genDb.CreateResourceParams{
-		WorkspaceID: uuid.MustParse(f.workspaceID), Name: "new-resource", Type: genDb.ResourceTypeService,
-		Spec: []byte(sameRegionSpec), SpecVersion: 1,
+		WorkspaceID: uuid.MustParse(f.workspaceID), Name: testNewResource, Slug: testNewResource,
+		Type: genDb.ResourceTypeService, Spec: []byte(sameRegionSpec), SpecVersion: 1,
 	})
 	if createErr != nil {
 		t.Fatal(createErr)

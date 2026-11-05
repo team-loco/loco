@@ -115,7 +115,7 @@ type ApplicationSpec struct {
 	// Only the corresponding TypeSpec field should be populated
 	Type            string `json:"type"`                 // SERVICE, DATABASE, CACHE, QUEUE, BLOB
 	ResourceID      string `json:"resourceId,omitempty"` // UUIDv7 as string
-	ResourceName    string `json:"resourceName,omitempty"`
+	Slug            string `json:"slug,omitempty"`
 	OrganizationID  string `json:"organizationId,omitempty"` // UUIDv7 as string
 	WorkspaceID     string `json:"workspaceId,omitempty"`    // UUIDv7 as string
 	Region          string `json:"region,omitempty"`

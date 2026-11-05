@@ -76,6 +76,7 @@ func testServiceResource() genDb.Resource {
 		ID:          uuid.New(),
 		WorkspaceID: uuid.New(),
 		Name:        planSvc,
+		Slug:        planSvc,
 		Type:        genDb.ResourceTypeService,
 	}
 }
@@ -319,7 +320,7 @@ func TestDeployRejectsAnOutOfRangeQuantityAsInvalidArgument(t *testing.T) {
 	}
 }
 
-func TestDesiredSpecCarriesLogicalServiceName(t *testing.T) {
+func TestDesiredSpecCarriesTheSlug(t *testing.T) {
 	payload := applicationPayload(t, testDesiredSpec(t, 7070))
 	encoded, err := json.Marshal(payload.AppSpec)
 	if err != nil {
@@ -329,7 +330,7 @@ func TestDesiredSpecCarriesLogicalServiceName(t *testing.T) {
 	if err := json.Unmarshal(encoded, &fields); err != nil {
 		t.Fatal(err)
 	}
-	if fields["resourceName"] != planSvc {
-		t.Fatalf("Application resourceName = %v, want svc", fields["resourceName"])
+	if fields["slug"] != planSvc {
+		t.Fatalf("Application slug = %v, want svc", fields["slug"])
 	}
 }
