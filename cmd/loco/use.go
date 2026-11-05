@@ -16,16 +16,18 @@ import (
 var (
 	errNoWorkspaces        = errors.New("no workspaces found")
 	errUnexpectedSelection = errors.New("unexpected selection type")
-	errInvalidScopeFormat  = errors.New("invalid format - expected <org-name>/<workspace-name>")
+	errInvalidScopeFormat  = errors.New("invalid format - expected <org>/<workspace>, each a name or an ID")
 )
 
 func newUseCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "use [org-name/workspace-name]",
+		Use:   "use [org/workspace]",
 		Short: "Switch to a different organization and workspace",
 		Long: `Switch your current context to a different organization and workspace.
 
 Run without arguments to interactively select from your available scopes.
+The organization and the workspace are each a name or an ID; pass the ID when
+a name is shared.
 
 Examples:
   loco use                        # interactive picker
@@ -59,8 +61,6 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
-
-	var orgName, workspaceName string
 
 	if len(args) != 1 {
 		// build a flat list of org/workspace pairs for the picker
@@ -101,7 +101,7 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 			return errUnexpectedSelection
 		}
 
-		if err := cfg.SetDefaultScope(
+		if err = cfg.SetDefaultScope(
 			session.SimpleOrg{ID: scope.orgID, Name: scope.orgName},
 			session.SimpleWorkspace{ID: scope.workspaceID, Name: scope.workspaceName},
 		); err != nil {
@@ -116,29 +116,19 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 	if len(parts) != 2 {
 		return errInvalidScopeFormat
 	}
-	orgName = parts[0]
-	workspaceName = parts[1]
-
-	var orgID, workspaceID string
-	for _, ws := range workspaces {
-		if ws.GetName() == workspaceName && ws.GetOrgName() == orgName {
-			orgID = ws.GetOrgId()
-			workspaceID = ws.GetId()
-			break
-		}
-	}
-	if workspaceID == "" {
-		return fmt.Errorf("workspace %q not found in organization %q", workspaceName, orgName)
+	ws, err := cmdutil.FindWorkspace(workspaces, parts[0], parts[1])
+	if err != nil {
+		return err
 	}
 
-	if err := cfg.SetDefaultScope(
-		session.SimpleOrg{ID: orgID, Name: orgName},
-		session.SimpleWorkspace{ID: workspaceID, Name: workspaceName},
+	if err = cfg.SetDefaultScope(
+		session.SimpleOrg{ID: ws.GetOrgId(), Name: ws.GetOrgName()},
+		session.SimpleWorkspace{ID: ws.GetId(), Name: ws.GetName()},
 	); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
 
-	printSwitched(orgName, workspaceName)
+	printSwitched(ws.GetOrgName(), ws.GetName())
 	return nil
 }
 

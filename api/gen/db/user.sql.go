@@ -154,33 +154,6 @@ func (q *Queries) GetOrganizationByID(ctx context.Context, id uuid.UUID) (GetOrg
 	return i, err
 }
 
-const getOrganizationByName = `-- name: GetOrganizationByName :one
-SELECT id, name, created_by, created_at, updated_at
-FROM organizations
-WHERE name = $1
-`
-
-type GetOrganizationByNameRow struct {
-	ID        uuid.UUID `json:"id"`
-	Name      string    `json:"name"`
-	CreatedBy uuid.UUID `json:"createdBy"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-}
-
-func (q *Queries) GetOrganizationByName(ctx context.Context, name string) (GetOrganizationByNameRow, error) {
-	row := q.db.QueryRow(ctx, getOrganizationByName, name)
-	var i GetOrganizationByNameRow
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.CreatedBy,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const getUserByEmail = `-- name: GetUserByEmail :one
 SELECT id, email, name, avatar_url, status, created_at, updated_at
 FROM users

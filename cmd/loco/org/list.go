@@ -5,8 +5,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
-	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 )
 
 func buildListCmd() *cobra.Command {
@@ -25,23 +23,7 @@ func buildListCmd() *cobra.Command {
 				return err
 			}
 
-			whoAmIReq := &userv1.WhoAmIRequest{}
-
-			whoAmIResp, err := target.Clients.User.WhoAmI(ctx, whoAmIReq)
-			if err != nil {
-				return fmt.Errorf("unable to get current user: %w", err)
-			}
-
-			organizations, err := cmdutil.Paginate(func(token string) ([]*orgv1.Organization, string, error) {
-				resp, listErr := target.Clients.Org.ListUserOrgs(ctx, &orgv1.ListUserOrgsRequest{
-					UserId:    whoAmIResp.GetUser().GetId(),
-					PageToken: token,
-				})
-				if listErr != nil {
-					return nil, "", listErr
-				}
-				return resp.GetOrgs(), resp.GetNextPageToken(), nil
-			})
+			organizations, err := cmdutil.ListUserOrgs(ctx, target.Clients.User, target.Clients.Org)
 			if err != nil {
 				return fmt.Errorf("unable to list organizations: %w", err)
 			}

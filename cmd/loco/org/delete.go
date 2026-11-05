@@ -10,9 +10,9 @@ import (
 
 func buildDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete <name>",
+		Use:   "delete <name-or-id>",
 		Short: "Delete an organization",
-		Long:  "Delete an organization by name. This action cannot be undone.",
+		Long:  "Delete an organization by name or ID. This action cannot be undone.",
 		Args:  cobra.ExactArgs(1),
 		Example: `  # Delete an organization (with confirmation prompt)
   loco org delete my-org
@@ -27,18 +27,11 @@ func buildDeleteCmd() *cobra.Command {
 				return err
 			}
 
-			orgClient := target.Clients.Org
-
-			name := args[0]
-
-			getReq := &orgv1.GetOrgRequest{
-				Key: &orgv1.GetOrgRequest_OrgName{OrgName: name},
-			}
-
-			getResp, err := orgClient.GetOrg(ctx, getReq)
+			org, err := findOrg(ctx, target.Clients, args[0])
 			if err != nil {
-				return fmt.Errorf("organization %q not found: %w", name, err)
+				return err
 			}
+			name := org.GetName()
 
 			confirmed, err := cmdutil.Confirm(
 				cmd, fmt.Sprintf("Are you sure you want to delete organization %q? This cannot be undone.", name),
@@ -48,10 +41,10 @@ func buildDeleteCmd() *cobra.Command {
 			}
 
 			delReq := &orgv1.DeleteOrgRequest{
-				OrgId: getResp.GetOrganization().GetId(),
+				OrgId: org.GetId(),
 			}
 
-			_, err = orgClient.DeleteOrg(ctx, delReq)
+			_, err = target.Clients.Org.DeleteOrg(ctx, delReq)
 			if err != nil {
 				return fmt.Errorf("unable to delete organization %q: %w", name, err)
 			}

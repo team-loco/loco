@@ -7,7 +7,6 @@ import { useParams, useSearchParams } from "react-router";
 
 import { Page, PageHeader } from "@/components/design/Page";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
-import { useOrgWorkspace } from "@/context/ContextProvider";
 import { orgMembersOptions } from "@/hooks/completeMembers";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { getErrorMessage } from "@/lib/error-handler";
@@ -32,7 +31,6 @@ export function Settings() {
 
 	const transport = useTransport();
 	const scopes = useMyScopes();
-	const { orgs } = useOrgWorkspace();
 	const canReadOrg = !scopes.isLoading && scopes.orgMember(orgId);
 	const workspaceQuery = useQuery(
 		getWorkspace,
@@ -41,7 +39,7 @@ export function Settings() {
 			enabled: workspaceId !== "" && !scopes.isLoading && scopes.workspaceLevel(orgId, workspaceId) >= 1,
 		},
 	);
-	const orgQuery = useQuery(getOrg, { key: { case: "orgId", value: orgId } }, { enabled: orgId !== "" && canReadOrg });
+	const orgQuery = useQuery(getOrg, { orgId }, { enabled: orgId !== "" && canReadOrg });
 	const wsQuery = useQuery(listOrgWorkspaces, { orgId, pageSize: 200 }, { enabled: orgId !== "" && canReadOrg });
 	const membersQuery = useTanstackQuery({
 		...orgMembersOptions(transport, orgId),
@@ -53,8 +51,6 @@ export function Settings() {
 	const currentWs = workspaceQuery.data?.workspace ?? workspaces.find((w) => w.id === workspaceId);
 	const workspaceIds = canReadOrg ? workspaces.map((w) => w.id) : currentWs ? [currentWs.id] : [];
 	const { counts, isLoading: countsLoading } = useResourceCounts(workspaceIds);
-	const orgName =
-		org?.name ?? currentWs?.orgName ?? orgs.find((item) => item.id === orgId)?.name ?? "this organization";
 	const canAudit = org !== undefined && scopes.orgLevel(org.id) >= 3;
 	const tab: Tab = !canReadOrg ? "ws" : requested === "audit" && !canAudit ? "org" : requested;
 
@@ -104,7 +100,6 @@ export function Settings() {
 				<WorkspaceTab
 					key={workspaceId}
 					orgId={orgId}
-					orgName={orgName}
 					workspaceId={workspaceId}
 					workspaces={workspaces}
 					users={users}

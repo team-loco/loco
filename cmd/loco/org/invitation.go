@@ -1,12 +1,10 @@
 package org
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
-	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
+	"github.com/team-loco/loco/internal/rpc"
 	"github.com/team-loco/loco/internal/session"
 )
 
@@ -17,21 +15,19 @@ const (
 
 func addOrgFlags(cmd *cobra.Command) {
 	cmd.Flags().String("host", "", "API host URL")
-	cmd.Flags().String(orgFlag, "", "Organization name (defaults to LOCO_ORG or the current scope)")
+	cmd.Flags().String(orgFlag, "", "Organization name or ID (defaults to LOCO_ORG or the current scope)")
 }
 
-func resolveOrgID(cmd *cobra.Command, client orgv1connect.OrgServiceClient) (string, error) {
-	name, err := cmdutil.ResolveOrg(cmd, session.Load)
+func resolveOrgID(cmd *cobra.Command, clients *rpc.Clients) (string, error) {
+	ref, err := cmdutil.ResolveOrg(cmd, session.Load)
 	if err != nil {
 		return "", err
 	}
-	resp, err := client.GetOrg(cmd.Context(), &orgv1.GetOrgRequest{
-		Key: &orgv1.GetOrgRequest_OrgName{OrgName: name},
-	})
+	org, err := findOrg(cmd.Context(), clients, ref)
 	if err != nil {
-		return "", fmt.Errorf("organization %q not found: %w", name, err)
+		return "", err
 	}
-	return resp.GetOrganization().GetId(), nil
+	return org.GetId(), nil
 }
 
 func statusText(invitation *orgv1.Invitation) string {

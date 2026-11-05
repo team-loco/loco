@@ -263,12 +263,8 @@ func (x *CreateOrgResponse) GetOrgId() string {
 
 // GetOrgRequest is the request to retrieve an organization.
 type GetOrgRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Types that are valid to be assigned to Key:
-	//
-	//	*GetOrgRequest_OrgId
-	//	*GetOrgRequest_OrgName
-	Key           isGetOrgRequest_Key `protobuf_oneof:"key"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -303,46 +299,12 @@ func (*GetOrgRequest) Descriptor() ([]byte, []int) {
 	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *GetOrgRequest) GetKey() isGetOrgRequest_Key {
-	if x != nil {
-		return x.Key
-	}
-	return nil
-}
-
 func (x *GetOrgRequest) GetOrgId() string {
 	if x != nil {
-		if x, ok := x.Key.(*GetOrgRequest_OrgId); ok {
-			return x.OrgId
-		}
+		return x.OrgId
 	}
 	return ""
 }
-
-func (x *GetOrgRequest) GetOrgName() string {
-	if x != nil {
-		if x, ok := x.Key.(*GetOrgRequest_OrgName); ok {
-			return x.OrgName
-		}
-	}
-	return ""
-}
-
-type isGetOrgRequest_Key interface {
-	isGetOrgRequest_Key()
-}
-
-type GetOrgRequest_OrgId struct {
-	OrgId string `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3,oneof"`
-}
-
-type GetOrgRequest_OrgName struct {
-	OrgName string `protobuf:"bytes,2,opt,name=org_name,json=orgName,proto3,oneof"`
-}
-
-func (*GetOrgRequest_OrgId) isGetOrgRequest_Key() {}
-
-func (*GetOrgRequest_OrgName) isGetOrgRequest_Key() {}
 
 // GetOrgResponse is the response containing the organization.
 type GetOrgResponse struct {
@@ -1706,11 +1668,9 @@ const file_loco_org_v1_org_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18dH\x00R\x04name\x88\x01\x01B\a\n" +
 	"\x05_name\"*\n" +
 	"\x11CreateOrgResponse\x12\x15\n" +
-	"\x06org_id\x18\x01 \x01(\tR\x05orgId\"_\n" +
-	"\rGetOrgRequest\x12!\n" +
-	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\x05orgId\x12$\n" +
-	"\borg_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\aorgNameB\x05\n" +
-	"\x03key\"O\n" +
+	"\x06org_id\x18\x01 \x01(\tR\x05orgId\"0\n" +
+	"\rGetOrgRequest\x12\x1f\n" +
+	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\"O\n" +
 	"\x0eGetOrgResponse\x12=\n" +
 	"\forganization\x18\x01 \x01(\v2\x19.loco.org.v1.OrganizationR\forganization\"\xac\x01\n" +
 	"\x13ListUserOrgsRequest\x12!\n" +
@@ -1930,10 +1890,6 @@ func file_loco_org_v1_org_proto_init() {
 		return
 	}
 	file_loco_org_v1_org_proto_msgTypes[1].OneofWrappers = []any{}
-	file_loco_org_v1_org_proto_msgTypes[3].OneofWrappers = []any{
-		(*GetOrgRequest_OrgId)(nil),
-		(*GetOrgRequest_OrgName)(nil),
-	}
 	file_loco_org_v1_org_proto_msgTypes[22].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

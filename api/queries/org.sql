@@ -6,9 +6,6 @@ RETURNING *;
 -- name: GetOrgByID :one
 SELECT * FROM organizations WHERE id = $1;
 
--- name: GetOrgByName :one
-SELECT * FROM organizations WHERE name = $1;
-
 -- name: ListOrgsForUser :many
 SELECT o.*
 FROM organizations o
@@ -49,12 +46,6 @@ SELECT EXISTS(
     SELECT 1 FROM resources r WHERE r.workspace_id = w.id
   )
 ) as has_resources_in_workspaces;
-
--- name: IsOrgNameUnique :one
-SELECT COUNT(*) = 0 as is_unique
-FROM organizations
-WHERE name = $1
-AND (sqlc.narg('exclude_id')::uuid IS NULL OR id != sqlc.narg('exclude_id')::uuid);
 
 -- name: ListOrgMembersWithDetails :many
 WITH member_scopes AS (

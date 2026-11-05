@@ -25,7 +25,7 @@ func buildInvitationsCmd() *cobra.Command {
 				return err
 			}
 			client := target.Clients.Org
-			orgID, err := resolveOrgID(cmd, client)
+			orgID, err := resolveOrgID(cmd, target.Clients)
 			if err != nil {
 				return err
 			}

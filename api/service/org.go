@@ -2,13 +2,9 @@ package service
 
 import (
 	"context"
-	"crypto/rand"
 	"errors"
-	"fmt"
 	"log/slog"
-	"strings"
 	"time"
-	"unicode/utf8"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -28,7 +24,6 @@ import (
 var (
 	ErrOrgNotFound                   = errors.New("organization not found")
 	ErrOrgNameRequired               = errors.New("organization name is required")
-	ErrOrgNameNotUnique              = errors.New("organization name already exists")
 	ErrOrgHasWorkspacesWithResources = errors.New("organization has workspaces with resources")
 	ErrNotOrgMember                  = errors.New(
 		"user is not a member of the workspace's organization; add them to the organization first",
@@ -37,16 +32,7 @@ var (
 	errCreateIfMissingForOtherUser = errors.New("create_if_missing requires user_id to be the caller")
 )
 
-const (
-	firstWorkspaceName      = "default"
-	firstOrgNameSuffix      = "-org"
-	firstOrgNameAttempts    = 4
-	firstOrgRandomSuffixLen = 4
-	// maxOrgNameLen matches the max_len of the organization name in org.proto.
-	maxOrgNameLen = 100
-)
-
-var emailNameReplacer = strings.NewReplacer("@", "-", ".", "-", "+", "-")
+const firstWorkspaceName = "default"
 
 // OrgServer implements the OrgService gRPC server
 type OrgServer struct {
@@ -119,18 +105,7 @@ func (s *OrgServer) CreateOrg(
 
 	orgName := req.GetName()
 	if orgName == "" {
-		orgName = fmt.Sprintf("%s's Organization", derefString(user.Name))
-	}
-
-	isUnique, err := s.queries.IsOrgNameUnique(ctx, genDb.IsOrgNameUniqueParams{Name: orgName})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check org name uniqueness", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-
-	if !isUnique {
-		slog.WarnContext(ctx, "org name already exists", "name", orgName)
-		return nil, rpcerr.New(connect.CodeAlreadyExists, ErrOrgNameNotUnique)
+		orgName = defaultOrgName(user)
 	}
 
 	tx, err := s.db.Begin(ctx)
@@ -160,9 +135,6 @@ func createOrgInTx(ctx context.Context, qtx *genDb.Queries, userID uuid.UUID, na
 		CreatedBy: userID,
 	})
 	if err != nil {
-		if isPgConstraintViolation(err) {
-			return genDb.Organization{}, rpcerr.New(connect.CodeAlreadyExists, ErrOrgNameNotUnique)
-		}
 		slog.ErrorContext(ctx, "failed to create organization", "error", err)
 		return genDb.Organization{}, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
@@ -199,26 +171,12 @@ func createOrgInTx(ctx context.Context, qtx *genDb.Queries, userID uuid.UUID, na
 	return org, nil
 }
 
-// GetOrg retrieves an organization by ID or name
+// GetOrg retrieves an organization by ID
 func (s *OrgServer) GetOrg(
 	ctx context.Context,
 	req *orgv1.GetOrgRequest,
 ) (*orgv1.GetOrgResponse, error) {
-	var org genDb.Organization
-	var err error
-
-	switch key := req.GetKey().(type) {
-	case *orgv1.GetOrgRequest_OrgId:
-		org, err = s.queries.GetOrgByID(ctx, uuid.MustParse(key.OrgId))
-	case *orgv1.GetOrgRequest_OrgName:
-		org, err = s.queries.GetOrgByName(ctx, key.OrgName)
-	default:
-		return nil, connect.NewError(
-			connect.CodeInvalidArgument,
-			"either org_id or org_name must be provided",
-		)
-	}
-
+	org, err := s.queries.GetOrgByID(ctx, uuid.MustParse(req.GetOrgId()))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrOrgNotFound)
 	}
@@ -335,7 +293,7 @@ func (s *OrgServer) createFirstOrg(ctx context.Context, scopes []genDb.EntitySco
 		if err != nil {
 			return err
 		}
-		org, err := createOrgWithFreeName(ctx, tx, userID, user.Email)
+		org, err := createOrgInTx(ctx, qtx, userID, defaultOrgName(user))
 		if err != nil {
 			return err
 		}
@@ -352,38 +310,12 @@ func (s *OrgServer) createFirstOrg(ctx context.Context, scopes []genDb.EntitySco
 	return nil
 }
 
-// createOrgWithFreeName creates each candidate name in a savepoint, because a unique
-// violation aborts the surrounding transaction.
-func createOrgWithFreeName(ctx context.Context, tx pgx.Tx, userID uuid.UUID, email string) (genDb.Organization, error) {
-	for attempt := range firstOrgNameAttempts {
-		name := firstOrgName(email, attempt)
-		var org genDb.Organization
-		err := pgx.BeginFunc(ctx, tx, func(savepoint pgx.Tx) error {
-			var createErr error
-			org, createErr = createOrgInTx(ctx, genDb.New(savepoint), userID, name)
-			return createErr
-		})
-		if err == nil {
-			return org, nil
-		}
-		if !errors.Is(err, ErrOrgNameNotUnique) {
-			return genDb.Organization{}, err
-		}
+func defaultOrgName(user genDb.User) string {
+	name := derefString(user.Name)
+	if name == "" {
+		name = user.Email
 	}
-	return genDb.Organization{}, rpcerr.New(connect.CodeAlreadyExists, ErrOrgNameNotUnique)
-}
-
-func firstOrgName(email string, attempt int) string {
-	suffix := firstOrgNameSuffix
-	if attempt > 0 {
-		suffix += "-" + strings.ToLower(rand.Text()[:firstOrgRandomSuffixLen])
-	}
-	base := []rune(emailNameReplacer.Replace(strings.ToLower(email)))
-	limit := maxOrgNameLen - utf8.RuneCountInString(suffix)
-	if len(base) > limit {
-		base = base[:limit]
-	}
-	return string(base) + suffix
+	return name + "'s Org"
 }
 
 // UpdateOrg updates an organization
@@ -412,21 +344,6 @@ func (s *OrgServer) UpdateOrg(
 		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrOrgNameRequired)
 	}
 	orgID := uuid.MustParse(req.GetOrgId())
-	if rename {
-		isUnique, err := s.queries.IsOrgNameUnique(ctx, genDb.IsOrgNameUniqueParams{
-			Name:      req.GetName(),
-			ExcludeID: &orgID,
-		})
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to check org name uniqueness", "error", err)
-			return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-		}
-
-		if !isUnique {
-			slog.WarnContext(ctx, "org name already exists", "name", req.GetName())
-			return nil, rpcerr.New(connect.CodeAlreadyExists, ErrOrgNameNotUnique)
-		}
-	}
 
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if rename {
@@ -434,9 +351,6 @@ func (s *OrgServer) UpdateOrg(
 				ID:   orgID,
 				Name: req.GetName(),
 			})
-			if isPgConstraintViolation(updateErr) {
-				return rpcerr.New(connect.CodeAlreadyExists, ErrOrgNameNotUnique)
-			}
 			if errors.Is(updateErr, pgx.ErrNoRows) {
 				return rpcerr.New(connect.CodeNotFound, ErrOrgNotFound)
 			}

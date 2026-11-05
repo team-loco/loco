@@ -34,7 +34,7 @@ CREATE INDEX IF NOT EXISTS idx_identities_user_id ON identities (user_id);
 CREATE TABLE
     IF NOT EXISTS organizations (
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
-        name TEXT UNIQUE NOT NULL, -- Globally unique org name
+        name TEXT NOT NULL,
         created_by UUID NOT NULL REFERENCES users (id) ON DELETE RESTRICT,
         suspended_at TIMESTAMPTZ,
         suspension_reason TEXT,
@@ -56,8 +56,7 @@ CREATE TABLE
         description TEXT,
         created_by UUID NOT NULL REFERENCES users (id) ON DELETE RESTRICT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
-        UNIQUE (org_id, name)
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
     );
 
 CREATE INDEX IF NOT EXISTS idx_workspaces_created_by ON workspaces (created_by);

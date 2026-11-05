@@ -1,4 +1,3 @@
-import { Code, ConnectError } from "@connectrpc/connect";
 import { useMutation } from "@connectrpc/connect-query";
 import { deleteOrg, updateOrg } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import type { Organization, User } from "@gen/loco/org/v1/org_pb";
@@ -20,7 +19,7 @@ import { workspacePath } from "@/lib/routes";
 
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 import { NewWorkspaceDialog } from "./NewWorkspaceDialog";
-import { DangerCard, formatDay, NAME_RE, SavedBar, SaveBar, SettingsCard, SettingsRow } from "./parts";
+import { DangerCard, formatDay, SavedBar, SaveBar, SettingsCard, SettingsRow } from "./parts";
 import { formatResourceCount, type ResourceCount } from "./useResourceCounts";
 
 export function OrgTab({
@@ -50,21 +49,13 @@ export function OrgTab({
 
 	const [draft, setDraft] = useState<string | null>(null);
 	const [saved, setSaved] = useState(false);
-	const [serverNameErr, setServerNameErr] = useState<string | null>(null);
 	const [newOpen, setNewOpen] = useState(false);
 	const [deleteOpen, setDeleteOpen] = useState(false);
 
 	const name = draft ?? org.name;
 	const nameT = name.trim();
 	const dirty = name !== org.name;
-	const nameErr =
-		nameT === ""
-			? "Name required"
-			: nameT.length > 100
-				? "Max 100 characters"
-				: !NAME_RE.test(nameT)
-					? "Lowercase letters, numbers and hyphens"
-					: serverNameErr;
+	const nameErr = nameT === "" ? "Name required" : nameT.length > 100 ? "Max 100 characters" : null;
 	const shownErr = dirty ? nameErr : null;
 	const canWrite = level >= 2;
 	const canAdmin = level >= 3;
@@ -101,10 +92,6 @@ export function OrgTab({
 					void queryClient.invalidateQueries();
 				},
 				onError: (err) => {
-					if (err instanceof ConnectError && err.code === Code.AlreadyExists) {
-						setServerNameErr(`${nameT} is taken`);
-						return;
-					}
 					toastConnectError(err, "Failed to update organization");
 				},
 			},
@@ -145,7 +132,12 @@ export function OrgTab({
 	return (
 		<div className="flex flex-col gap-5">
 			<SettingsCard>
-				<SettingsRow label="Name" hint="Must be unique across loco." controlId={nameId} hintId={nameHintId}>
+				<SettingsRow
+					label="Name"
+					hint="Shown across Loco. Commands also accept the organization ID."
+					controlId={nameId}
+					hintId={nameHintId}
+				>
 					<Input
 						id={nameId}
 						value={name}
@@ -155,9 +147,8 @@ export function OrgTab({
 						aria-describedby={shownErr === null ? nameHintId : `${nameHintId} ${nameErrorId}`}
 						className="h-9 max-w-[320px] text-[13.5px]"
 						onChange={(e) => {
-							setDraft(e.target.value.toLowerCase());
+							setDraft(e.target.value);
 							setSaved(false);
-							setServerNameErr(null);
 						}}
 					/>
 					{shownErr !== null && (
@@ -173,7 +164,6 @@ export function OrgTab({
 					<SaveBar
 						onDiscard={() => {
 							setDraft(null);
-							setServerNameErr(null);
 						}}
 						onSave={save}
 						disabled={nameErr !== null}
@@ -239,7 +229,7 @@ export function OrgTab({
 				}}
 			/>
 
-			<NewWorkspaceDialog open={newOpen} onOpenChange={setNewOpen} orgId={org.id} workspaces={workspaces} />
+			<NewWorkspaceDialog open={newOpen} onOpenChange={setNewOpen} orgId={org.id} />
 			<ConfirmDeleteDialog
 				open={deleteOpen}
 				onOpenChange={setDeleteOpen}

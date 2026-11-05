@@ -45,7 +45,7 @@ export function useTeamData(orgId: string, meId: string, myScopes: EntityScope[]
 	const transport = useTransport();
 	const queryClient = useQueryClient();
 	const enabled = orgId !== "";
-	const orgQuery = useQuery(getOrg, { key: { case: "orgId", value: orgId } }, { enabled });
+	const orgQuery = useQuery(getOrg, { orgId }, { enabled });
 	const membersQuery = useTanstackQuery(orgMembersOptions(transport, orgId));
 	const invitationsQuery = useTanstackQuery(invitationsOptions(transport, orgId));
 	const wsQuery = useQuery(listOrgWorkspaces, { orgId, pageSize: 200 }, { enabled });

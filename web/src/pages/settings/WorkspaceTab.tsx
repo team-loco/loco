@@ -1,4 +1,3 @@
-import { Code, ConnectError } from "@connectrpc/connect";
 import { useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
 import type { User } from "@gen/loco/org/v1/org_pb";
 import {
@@ -25,7 +24,7 @@ import { cn } from "@/lib/utils";
 import { ActivityPanel } from "./ActivityPanel";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 import { WebhooksCard } from "./WebhooksCard";
-import { DangerCard, formatDay, NAME_RE, SavedBar, SaveBar, SettingsCard, SettingsRow } from "./parts";
+import { DangerCard, formatDay, SavedBar, SaveBar, SettingsCard, SettingsRow } from "./parts";
 import type { ResourceCount } from "./useResourceCounts";
 
 interface Draft {
@@ -35,7 +34,6 @@ interface Draft {
 
 export function WorkspaceTab({
 	orgId,
-	orgName,
 	workspaceId,
 	workspaces,
 	users,
@@ -43,7 +41,6 @@ export function WorkspaceTab({
 	resourceCount,
 }: {
 	orgId: string;
-	orgName: string;
 	workspaceId: string;
 	workspaces: Workspace[];
 	users: User[];
@@ -65,7 +62,6 @@ export function WorkspaceTab({
 
 	const [draft, setDraft] = useState<Draft | null>(null);
 	const [saved, setSaved] = useState(false);
-	const [serverNameErr, setServerNameErr] = useState<string | null>(null);
 	const [deleteOpen, setDeleteOpen] = useState(false);
 
 	const ws = data?.workspace;
@@ -78,17 +74,7 @@ export function WorkspaceTab({
 	const current: Draft = draft ?? { name: ws.name, desc: ws.description };
 	const nameT = current.name.trim();
 	const dirty = current.name !== ws.name || current.desc !== ws.description;
-	const taken = workspaces.some((w) => w.id !== ws.id && w.name === nameT);
-	const nameErr =
-		nameT === ""
-			? "Name required"
-			: nameT.length > 63
-				? "Max 63 characters"
-				: !NAME_RE.test(nameT)
-					? "Lowercase letters, numbers and hyphens"
-					: taken
-						? `${nameT} already exists in ${orgName}`
-						: serverNameErr;
+	const nameErr = nameT === "" ? "Name required" : nameT.length > 63 ? "Max 63 characters" : null;
 	const canWrite = level >= 2;
 	const canAdmin = level >= 3;
 	const shownErr = dirty ? nameErr : null;
@@ -116,10 +102,6 @@ export function WorkspaceTab({
 					void queryClient.invalidateQueries();
 				},
 				onError: (err) => {
-					if (err instanceof ConnectError && err.code === Code.AlreadyExists) {
-						setServerNameErr(`${nameT} already exists in ${orgName}`);
-						return;
-					}
 					toastConnectError(err, "Failed to update workspace");
 				},
 			},
@@ -149,7 +131,7 @@ export function WorkspaceTab({
 			<SettingsCard>
 				<SettingsRow
 					label="Name"
-					hint={`Used in URLs and the CLI. Must be unique in ${orgName}.`}
+					hint="Shown across Loco. Commands also accept the workspace ID."
 					controlId={nameId}
 					hintId={nameHintId}
 				>
@@ -164,7 +146,6 @@ export function WorkspaceTab({
 						onChange={(e) => {
 							setDraft({ ...current, name: e.target.value.toLowerCase() });
 							setSaved(false);
-							setServerNameErr(null);
 						}}
 					/>
 					{shownErr !== null && (
@@ -202,7 +183,6 @@ export function WorkspaceTab({
 					<SaveBar
 						onDiscard={() => {
 							setDraft(null);
-							setServerNameErr(null);
 						}}
 						onSave={save}
 						disabled={nameErr !== null}

@@ -212,7 +212,7 @@ func TestOptionalProfileNameAndAvatarPreserveOmittedValues(t *testing.T) {
 func TestOptionalOrganizationNameRejectsExplicitEmpty(t *testing.T) {
 	f := newDeployFixture(t)
 	ctx := optionalSettingsContext(t)
-	id, err := f.queries.GetWorkspaceOrgID(ctx, f.workspaceID(t))
+	id, err := f.queries.GetOrganizationIDByWorkspaceID(ctx, f.workspaceID(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,7 +235,7 @@ func TestOptionalOrganizationOmittedFieldsRequireExistingRow(t *testing.T) {
 	if got := optionalAuditCount(t, f); got != auditBefore {
 		t.Fatalf("missing organization update recorded event: %d -> %d", auditBefore, got)
 	}
-	id, err := f.queries.GetWorkspaceOrgID(ctx, f.workspaceID(t))
+	id, err := f.queries.GetOrganizationIDByWorkspaceID(ctx, f.workspaceID(t))
 	if err != nil {
 		t.Fatal(err)
 	}

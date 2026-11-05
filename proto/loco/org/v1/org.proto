@@ -11,7 +11,7 @@ option go_package = "github.com/team-loco/loco/gen/go/loco/org/v1;orgv1";
 service OrgService {
   // CreateOrg creates a new organization.
   rpc CreateOrg(CreateOrgRequest) returns (CreateOrgResponse);
-  // GetOrg retrieves an organization by ID or name.
+  // GetOrg retrieves an organization by ID.
   rpc GetOrg(GetOrgRequest) returns (GetOrgResponse);
   // UpdateOrg updates organization information.
   rpc UpdateOrg(UpdateOrgRequest) returns (UpdateOrgResponse);
@@ -62,10 +62,7 @@ message CreateOrgResponse {
 
 // GetOrgRequest is the request to retrieve an organization.
 message GetOrgRequest {
-  oneof key {
-    string org_id = 1 [(buf.validate.field).string.uuid = true];
-    string org_name = 2 [(buf.validate.field).string.min_len = 1];
-  }
+  string org_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
 // GetOrgResponse is the response containing the organization.

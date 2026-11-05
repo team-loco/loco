@@ -1,6 +1,5 @@
 import { useMutation } from "@connectrpc/connect-query";
 import { createWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
-import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 import { useQueryClient } from "@tanstack/react-query";
 import { LayersIcon } from "lucide-react";
 import { useState } from "react";
@@ -13,25 +12,20 @@ import { Input } from "@/components/design/Input";
 import { Textarea } from "@/components/design/Textarea";
 import { toastConnectError } from "@/lib/error-handler";
 
-import { NAME_RE } from "./parts";
-
 export function NewWorkspaceDialog({
 	open,
 	onOpenChange,
 	orgId,
-	workspaces,
 }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	orgId: string;
-	workspaces: Workspace[];
 }) {
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			{open && (
 				<NewWorkspaceForm
 					orgId={orgId}
-					workspaces={workspaces}
 					onDone={() => {
 						onOpenChange(false);
 					}}
@@ -41,31 +35,14 @@ export function NewWorkspaceDialog({
 	);
 }
 
-function NewWorkspaceForm({
-	orgId,
-	workspaces,
-	onDone,
-}: {
-	orgId: string;
-	workspaces: Workspace[];
-	onDone: () => void;
-}) {
+function NewWorkspaceForm({ orgId, onDone }: { orgId: string; onDone: () => void }) {
 	const queryClient = useQueryClient();
 	const create = useMutation(createWorkspace);
 	const [name, setName] = useState("");
 	const [desc, setDesc] = useState("");
 
 	const nameT = name.trim();
-	const error =
-		nameT === ""
-			? null
-			: nameT.length > 63
-				? "Max 63 characters"
-				: !NAME_RE.test(nameT)
-					? "Lowercase letters, numbers and hyphens"
-					: workspaces.some((w) => w.name === nameT)
-						? `${nameT} already exists`
-						: null;
+	const error = nameT.length > 63 ? "Max 63 characters" : null;
 	const ok = nameT !== "" && error === null;
 
 	const submit = () => {
