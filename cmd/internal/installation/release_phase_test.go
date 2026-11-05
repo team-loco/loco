@@ -14,6 +14,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/types"
@@ -66,6 +67,11 @@ func TestResumedPhasesRejectReleaseChangedWhileAcquiringLock(t *testing.T) {
 							Labels: map[string]string{installationOwner: testInstallation}, Data: data,
 						}
 						if err := json.NewEncoder(w).Encode(&state); err != nil {
+							t.Error(err)
+						}
+					case r.Method == http.MethodPost && r.URL.Query().Get("dryRun") == metav1.DryRunAll:
+						if err := json.NewEncoder(w).
+							Encode(&corev1.ConfigMap{CreationTimestamp: metav1.Now()}); err != nil {
 							t.Error(err)
 						}
 					case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/configmaps"):

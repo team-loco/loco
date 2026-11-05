@@ -29,15 +29,21 @@ const (
 )
 
 var (
-	errKubernetes          = errors.New("Kubernetes operation failed")
-	errForeignOwnership    = errors.New("resource belongs to another installation")
-	errSecretInvalid       = errors.New("existing secret is incomplete; restore its original material")
-	ErrBootstrapNotFound   = errors.New("bootstrap credential is missing")
-	errInstallationMissing = errors.New("installation state is missing; run locoadm apply first")
-	errTargetChanged       = errors.New("Kubernetes target UID differs from the recorded installation")
+	errKubernetes            = errors.New("Kubernetes operation failed")
+	errForeignOwnership      = errors.New("resource belongs to another installation")
+	errSecretInvalid         = errors.New("existing secret is incomplete; restore its original material")
+	ErrBootstrapNotFound     = errors.New("bootstrap credential is missing")
+	errInstallationMissing   = errors.New("installation state is missing; run locoadm apply first")
+	errTargetChanged         = errors.New("Kubernetes target UID differs from the recorded installation")
+	errServerClockMissing    = errors.New("Kubernetes API server did not provide a clock sample")
+	errDeadlineRequired      = errors.New("installation apply requires a deadline")
+	errApplyLocked           = errors.New("another locoadm apply holds the installation lock")
+	errWorkerNamespacePolicy = errors.New("existing worker namespace must match the restricted Pod Security policy")
+	errLoadKubernetes        = fmt.Errorf("load Kubernetes context: %w", errKubernetes)
+	errInitKubernetes        = fmt.Errorf("initialize Kubernetes client: %w", errKubernetes)
+	errInitKubernetesApps    = fmt.Errorf("initialize Kubernetes apps client: %w", errKubernetes)
+	errInitKubernetesAuth    = fmt.Errorf("initialize Kubernetes authorization client: %w", errKubernetes)
 )
-
-var errWorkerNamespacePolicy = errors.New("existing worker namespace must match the restricted Pod Security policy")
 
 // Kubernetes uses destination state rather than local credentials or phase files.
 type Kubernetes struct {
@@ -53,19 +59,19 @@ func NewKubernetes(target KubernetesTarget) (*Kubernetes, error) {
 	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loading, overrides).
 		ClientConfig()
 	if err != nil {
-		return nil, fmt.Errorf("load Kubernetes context: %w", errKubernetes)
+		return nil, errLoadKubernetes
 	}
 	core, err := coreclient.NewForConfig(config)
 	if err != nil {
-		return nil, fmt.Errorf("initialize Kubernetes client: %w", errKubernetes)
+		return nil, errInitKubernetes
 	}
 	apps, err := appsclient.NewForConfig(config)
 	if err != nil {
-		return nil, fmt.Errorf("initialize Kubernetes apps client: %w", errKubernetes)
+		return nil, errInitKubernetesApps
 	}
 	authorization, authErr := authclient.NewForConfig(config)
 	if authErr != nil {
-		return nil, fmt.Errorf("initialize Kubernetes authorization client: %w", errKubernetes)
+		return nil, errInitKubernetesAuth
 	}
 	return &Kubernetes{Core: core, Apps: apps, Authorization: authorization, Target: target}, nil
 }
@@ -237,7 +243,7 @@ func safeKubernetesError(operation string, err error) error {
 }
 
 // withLock serializes installation mutations using atomic ConfigMap creation. The
-// caller's deadline expires before the lock, allowing interrupted runs to recover.
+// lease uses API-server time so operator clock skew cannot expire a live holder.
 func (k *Kubernetes) withLock(
 	ctx context.Context,
 	state *corev1.ConfigMap,
@@ -245,14 +251,23 @@ func (k *Kubernetes) withLock(
 ) error {
 	deadline, ok := ctx.Deadline()
 	if !ok {
-		return errors.New("installation apply requires a deadline")
+		return errDeadlineRequired
 	}
+	remaining := time.Until(deadline)
 	locks := k.Core.ConfigMaps(k.Target.Namespace)
+	clock, err := locks.Create(ctx, &corev1.ConfigMap{GenerateName: "loco-installation-clock-"},
+		metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}})
+	if err != nil {
+		return safeKubernetesError("sample API-server clock", err)
+	}
+	if clock.CreationTimestamp.IsZero() {
+		return errServerClockMissing
+	}
 	lock := &corev1.ConfigMap{
 		Name:        "loco-installation-lock",
 		Annotations: map[string]string{installationID: string(state.UID)},
 		Data: map[string]string{
-			"expires": deadline.Add(lockExpiryMargin).UTC().Format(time.RFC3339),
+			"expires": clock.CreationTimestamp.Add(remaining + lockExpiryMargin).UTC().Format(time.RFC3339),
 		},
 	}
 	held, err := locks.Create(ctx, lock, metav1.CreateOptions{})
@@ -265,8 +280,8 @@ func (k *Kubernetes) withLock(
 		if parseErr != nil || existing.Annotations[installationID] != string(state.UID) {
 			return errForeignOwnership
 		}
-		if time.Now().Before(expires) {
-			return errors.New("another locoadm apply holds the installation lock")
+		if clock.CreationTimestamp.Time.Before(expires) {
+			return errApplyLocked
 		}
 		lock.ResourceVersion = existing.ResourceVersion
 		held, err = locks.Update(ctx, lock, metav1.UpdateOptions{})
