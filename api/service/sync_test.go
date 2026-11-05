@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const testPhaseReady = "Ready"
@@ -151,7 +152,7 @@ func TestDeploymentTransitionForStatus(t *testing.T) {
 	}{
 		{
 			name:   "failed",
-			status: &agentv1.PlacementStatus{Phase: applicationPhaseFailed},
+			status: &agentv1.PlacementStatus{Phase: locoControllerV1.ApplicationPhaseFailed},
 			want:   genDb.DeploymentStatusFailed,
 			from: []genDb.DeploymentStatus{
 				genDb.DeploymentStatusPending,

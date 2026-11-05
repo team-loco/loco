@@ -9,7 +9,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	corev1ac "k8s.io/client-go/applyconfigurations/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -49,42 +48,15 @@ func (r *LocoResourceReconciler) ensureWorkspacePullSecret(
 		return r.deleteWorkspacePullSecret(ctx, key)
 	}
 
-	sourceKey := r.pullSecretSource(locoRes)
-	source := &corev1.Secret{}
-	err := r.Get(ctx, sourceKey, source)
-	if r.RegistryTokenMode && apierrors.IsNotFound(err) {
-		return fmt.Errorf("%w: %s", errRegistryPullSecretPending, sourceKey)
-	}
-	if err != nil {
-		return fmt.Errorf("get registry pull secret %s: %w", sourceKey, err)
-	}
-	if source.Type != corev1.SecretTypeDockerConfigJson {
-		return fmt.Errorf(
-			"registry pull secret %s has type %s, want %s",
-			sourceKey,
-			source.Type,
-			corev1.SecretTypeDockerConfigJson,
-		)
-	}
-	dockerConfig, ok := source.Data[corev1.DockerConfigJsonKey]
-	if !ok {
-		return fmt.Errorf("registry pull secret %s has no %s key", sourceKey, corev1.DockerConfigJsonKey)
-	}
-
 	slog.DebugContext(ctx, "ensuring workspace pull secret", "namespace", namespace, "name", workspacePullSecretName)
 
+	source := r.pullSecretSource(locoRes)
 	labels := workspaceObjectLabels(locoRes)
-	data := map[string][]byte{corev1.DockerConfigJsonKey: dockerConfig}
-	secret := corev1ac.Secret(workspacePullSecretName, namespace).
-		WithLabels(labels).
-		WithType(corev1.SecretTypeDockerConfigJson).
-		WithData(data)
-
-	opts := managed.ApplyOptions()
-	if err := r.Apply(ctx, secret, opts...); err != nil {
-		return fmt.Errorf("apply workspace pull secret %s: %w", key, err)
+	err := managed.CopyDockerConfig(ctx, r.Client, r.Client, source, key, labels)
+	if r.RegistryTokenMode && apierrors.IsNotFound(err) {
+		return fmt.Errorf("%w: %s", errRegistryPullSecretPending, source)
 	}
-	return nil
+	return err
 }
 
 func (r *LocoResourceReconciler) deleteWorkspacePullSecret(ctx context.Context, key client.ObjectKey) error {

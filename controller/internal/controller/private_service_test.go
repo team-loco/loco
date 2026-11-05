@@ -21,16 +21,18 @@ var _ = Describe("Private service discovery", func() {
 	BeforeEach(func() { Expect(v1Gateway.Install(scheme.Scheme)).To(Succeed()) })
 	It("exposes a logical TCP endpoint alongside the UUID HTTP routing endpoint", func() {
 		app := isolationTestApplication("discovery", testPrivateHTTPName)
-		Expect(json.Unmarshal([]byte(`{"resourceName":"cart"}`), &app.Spec)).To(Succeed())
+		Expect(json.Unmarshal([]byte(`{"slug":"cart"}`), &app.Spec)).To(Succeed())
 		app.Spec.ServiceSpec.Deployment.Port = 7070
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 		reconciler := &LocoResourceReconciler{
 			Client:                   k8sClient,
+			APIReader:                k8sClient,
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 		}
 		Expect(reconciler.ensureService(ctx, app)).To(Succeed())
+		Expect(reconciler.ensurePrivateService(ctx, app)).To(Succeed())
 		alias := &corev1.Service{}
 		Expect(
 			k8sClient.Get(
@@ -44,41 +46,51 @@ var _ = Describe("Private service discovery", func() {
 		Expect(alias.Spec.Ports[1].Port).To(Equal(int32(7070)))
 		Expect(alias.Spec.Ports[0].TargetPort.IntVal).To(Equal(int32(7070)))
 		Expect(alias.Spec.Ports[0].Protocol).To(Equal(corev1.ProtocolTCP))
-		Expect(alias.Spec.Selector).To(Equal(map[string]string{labelApp: getName(app)}))
+		Expect(
+			alias.Spec.Selector,
+		).To(Equal(map[string]string{labelApp: testAppName(app)}))
 		legacy := &corev1.Service{}
 		Expect(
-			k8sClient.Get(ctx, client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: getName(app)}, legacy),
+			k8sClient.Get(
+				ctx,
+				client.ObjectKey{
+					Namespace: testWorkspaceNamespace(app),
+					Name:      testAppName(app),
+				},
+				legacy,
+			),
 		).To(Succeed())
 		Expect(legacy.Spec.Ports[0].Port).To(Equal(servicePort))
 	})
 	It("keeps the ClusterIP on port changes and removes only the renamed alias", func() {
 		app := isolationTestApplication("discovery-rename", "rename")
-		app.Spec.ResourceName = testPrivateTCPName
+		app.Spec.Slug = testPrivateTCPName
 		app.Spec.ServiceSpec.Deployment.Port = 50051
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 		r := &LocoResourceReconciler{
 			Client:                   k8sClient,
+			APIReader:                k8sClient,
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 		}
-		Expect(r.ensureService(ctx, app)).To(Succeed())
+		Expect(r.ensurePrivateService(ctx, app)).To(Succeed())
 		key := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: testPrivateTCPName}
 		svc := &corev1.Service{}
 		Expect(k8sClient.Get(ctx, key, svc)).To(Succeed())
 		address, version := svc.Spec.ClusterIP, svc.ResourceVersion
-		Expect(r.ensureService(ctx, app)).To(Succeed())
+		Expect(r.ensurePrivateService(ctx, app)).To(Succeed())
 		Expect(k8sClient.Get(ctx, key, svc)).To(Succeed())
 		Expect(svc.ResourceVersion).To(Equal(version))
 		app.Spec.ServiceSpec.Deployment.Port = 3550
-		Expect(r.ensureService(ctx, app)).To(Succeed())
+		Expect(r.ensurePrivateService(ctx, app)).To(Succeed())
 		Expect(k8sClient.Get(ctx, key, svc)).To(Succeed())
 		Expect(svc.Spec.ClusterIP).To(Equal(address))
 		Expect(svc.Spec.Ports[0].Port).To(Equal(servicePort))
 		Expect(svc.Spec.Ports[1].Port).To(Equal(int32(3550)))
 		Expect(svc.Spec.Ports[0].TargetPort.IntVal).To(Equal(int32(3550)))
-		app.Spec.ResourceName = "product-catalog"
-		Expect(r.ensureService(ctx, app)).To(Succeed())
+		app.Spec.Slug = "product-catalog"
+		Expect(r.ensurePrivateService(ctx, app)).To(Succeed())
 		Expect(apierrors.IsNotFound(k8sClient.Get(ctx, key, svc))).To(BeTrue())
 		key.Name = "product-catalog"
 		Expect(k8sClient.Get(ctx, key, svc)).To(Succeed())
@@ -88,32 +100,36 @@ var _ = Describe("Private service discovery", func() {
 
 	It("waits for the previous owner to release a reused name and protects the replacement", func() {
 		old := isolationTestApplication("discovery-replacement", "old-owner")
-		old.Spec.ResourceName = testPrivateHTTPName
+		old.Spec.Slug = testPrivateHTTPName
 		replacement := isolationTestApplication("discovery-replacement", "new-owner")
-		replacement.Spec.ResourceName = testPrivateHTTPName
+		replacement.Spec.Slug = testPrivateHTTPName
 		Expect(k8sClient.Create(ctx, old)).To(Succeed())
 		Expect(k8sClient.Create(ctx, replacement)).To(Succeed())
 		Expect(ensureTestNamespace(ctx, k8sClient, old)).To(Succeed())
 		r := &LocoResourceReconciler{
 			Client:                   k8sClient,
+			APIReader:                k8sClient,
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 		}
-		Expect(r.ensureService(ctx, old)).To(Succeed())
-		Expect(r.ensureService(ctx, replacement)).To(MatchError(ContainSubstring(errPrivateServiceCollision.Error())))
+		Expect(r.ensurePrivateService(ctx, old)).To(Succeed())
+		Expect(r.ensurePrivateService(ctx, replacement)).
+			To(MatchError(ContainSubstring(errPrivateServiceCollision.Error())))
 		Expect(r.deleteAppObjects(ctx, old)).To(Succeed())
-		Expect(r.ensureService(ctx, replacement)).To(Succeed())
+		Expect(r.ensurePrivateService(ctx, replacement)).To(Succeed())
 		Expect(r.prunePrivateServices(ctx, old, "")).To(Succeed())
 		svc := &corev1.Service{}
 		key := client.ObjectKey{Namespace: testWorkspaceNamespace(replacement), Name: testPrivateHTTPName}
 		Expect(k8sClient.Get(ctx, key, svc)).To(Succeed())
 		Expect(ownsPrivateService(replacement, svc)).To(BeTrue())
-		Expect(svc.Spec.Selector).To(Equal(map[string]string{labelApp: getName(replacement)}))
+		Expect(
+			svc.Spec.Selector,
+		).To(Equal(map[string]string{labelApp: testAppName(replacement)}))
 	})
 
 	It("refuses to adopt an unmanaged name collision", func() {
 		app := isolationTestApplication("discovery-collision", "collision")
-		app.Spec.ResourceName = testPrivateHTTPName
+		app.Spec.Slug = testPrivateHTTPName
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 		existing := &corev1.Service{
@@ -127,10 +143,11 @@ var _ = Describe("Private service discovery", func() {
 		version := existing.ResourceVersion
 		r := &LocoResourceReconciler{
 			Client:                   k8sClient,
+			APIReader:                k8sClient,
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 		}
-		Expect(r.ensureService(ctx, app)).To(MatchError(ContainSubstring(errPrivateServiceCollision.Error())))
+		Expect(r.ensurePrivateService(ctx, app)).To(MatchError(ContainSubstring(errPrivateServiceCollision.Error())))
 		Expect(r.prunePrivateServices(ctx, app, "")).To(Succeed())
 		Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(existing), existing)).To(Succeed())
 		Expect(existing.ResourceVersion).To(Equal(version))
@@ -140,15 +157,16 @@ var _ = Describe("Private service discovery", func() {
 	It("scopes identical logical names to separate workspaces", func() {
 		r := &LocoResourceReconciler{
 			Client:                   k8sClient,
+			APIReader:                k8sClient,
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 		}
 		for _, workspace := range []string{"discovery-first", "discovery-second"} {
 			app := isolationTestApplication(workspace, workspace)
-			app.Spec.ResourceName = testPrivateTCPName
+			app.Spec.Slug = testPrivateTCPName
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
 			Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
-			Expect(r.ensureService(ctx, app)).To(Succeed())
+			Expect(r.ensurePrivateService(ctx, app)).To(Succeed())
 			svc := &corev1.Service{}
 			key := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: testPrivateTCPName}
 			Expect(k8sClient.Get(ctx, key, svc)).To(Succeed())
@@ -158,40 +176,45 @@ var _ = Describe("Private service discovery", func() {
 
 	It("supports digit-leading names on the pinned API server", func() {
 		app := isolationTestApplication("discovery-digit", "digit")
-		app.Spec.ResourceName = "123cart"
+		app.Spec.Slug = "123cart"
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 		r := &LocoResourceReconciler{
 			Client:                   k8sClient,
+			APIReader:                k8sClient,
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 		}
-		Expect(r.ensureService(ctx, app)).To(Succeed())
+		Expect(r.ensurePrivateService(ctx, app)).To(Succeed())
 	})
 
 	It("fails reconciliation for a stored name that is not a valid logical name", func() {
 		for _, name := range []string{"", "Legacy_API", "localhost", "resource-01234567-89ab-cdef-0123-456789abcdef"} {
 			app := isolationTestApplication("discovery-invalid", "invalid")
-			app.Spec.ResourceName = name
+			app.Spec.Slug = name
 			app.UID = "invalid-uid"
 			Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 			r := &LocoResourceReconciler{
 				Client:                   k8sClient,
+				APIReader:                k8sClient,
 				Gateway:                  testGateway,
 				WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 			}
-			Expect(r.ensureService(ctx, app)).To(MatchError(ContainSubstring(errInvalidPrivateServiceName.Error())))
+			Expect(
+				r.ensurePrivateService(ctx, app),
+			).To(MatchError(ContainSubstring(errInvalidPrivateServiceName.Error())))
 		}
 	})
 
 	It("exposes port 80 once when the target is already port 80", func() {
 		app := isolationTestApplication("discovery-default-port", "default-port")
-		app.Spec.ResourceName = testPrivateHTTPName
+		app.Spec.Slug = testPrivateHTTPName
 		app.Spec.ServiceSpec.Deployment.Port = servicePort
 		app.UID = "default-port-owner"
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 		r := &LocoResourceReconciler{
 			Client:                   k8sClient,
+			APIReader:                k8sClient,
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 		}

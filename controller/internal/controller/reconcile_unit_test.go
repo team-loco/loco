@@ -15,6 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	v1Gateway "sigs.k8s.io/gateway-api/apis/v1"
 
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -42,10 +43,10 @@ func testApplication() *locov1alpha1.Application {
 	return &locov1alpha1.Application{
 		Name: "app", Namespace: "loco",
 		Spec: locov1alpha1.ApplicationSpec{
-			Type:         testAppType,
-			ResourceID:   "1",
-			ResourceName: "app",
-			WorkspaceID:  "2",
+			Type:        testAppType,
+			ResourceID:  "1",
+			Slug:        "app",
+			WorkspaceID: "2",
 			ServiceSpec: &locov1alpha1.ServiceSpec{
 				Deployment: &locov1alpha1.ServiceDeploymentSpec{
 					Image: testImage,
@@ -152,7 +153,7 @@ func TestDesiredDeploymentInlinesPlainEnvAndMountsTheEnvSecret(t *testing.T) {
 	if secretName != wantSecretName {
 		t.Errorf("envFrom secret = %q, want %q", secretName, wantSecretName)
 	}
-	revision := dep.Spec.Template.Annotations[annotationEnvSecretRevision]
+	revision := dep.Spec.Template.Annotations[locolabels.AnnotationEnvSecretRevision]
 	if revision != "7" {
 		t.Errorf("env secret revision annotation = %q, want 7", revision)
 	}
@@ -168,7 +169,7 @@ func TestDesiredDeploymentInlinesPlainEnvAndMountsTheEnvSecret(t *testing.T) {
 	if len(container.EnvFrom) != 0 {
 		t.Errorf("envFrom without an env secret = %+v, want none", container.EnvFrom)
 	}
-	if _, ok := dep.Spec.Template.Annotations[annotationEnvSecretRevision]; ok {
+	if _, ok := dep.Spec.Template.Annotations[locolabels.AnnotationEnvSecretRevision]; ok {
 		t.Error("env secret revision annotation set without an env secret")
 	}
 }
@@ -291,6 +292,7 @@ func TestEnsureHTTPRouteDeletesRouteWhenRoutingRemoved(t *testing.T) {
 	kubeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(existing).Build()
 	r := &LocoResourceReconciler{
 		Client:                   kubeClient,
+		APIReader:                kubeClient,
 		Gateway:                  testGateway,
 		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 	}
@@ -320,6 +322,7 @@ func TestEnsureHTTPRouteAttachesToTheConfiguredGateway(t *testing.T) {
 	kubeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
 	r := &LocoResourceReconciler{
 		Client:                   kubeClient,
+		APIReader:                kubeClient,
 		LocoNamespace:            testLocoNamespace,
 		Gateway:                  testGateway,
 		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
@@ -343,19 +346,19 @@ func TestEnsureHTTPRouteAttachesToTheConfiguredGateway(t *testing.T) {
 
 func TestSetPhaseOnlyTouchesStatusOnChange(t *testing.T) {
 	app := testApplication()
-	setPhase(app, phaseDeploying, "waiting")
+	setPhase(app, locov1alpha1.ApplicationPhaseDeploying, "waiting")
 	updatedAt := app.Status.UpdatedAt
 	if updatedAt == nil || app.Status.StartedAt == nil {
 		t.Fatal("expected timestamps to be set on the first transition")
 	}
 
 	original := app.DeepCopy()
-	setPhase(app, phaseDeploying, "waiting")
+	setPhase(app, locov1alpha1.ApplicationPhaseDeploying, "waiting")
 	if app.Status.UpdatedAt != updatedAt || app.Status.Phase != original.Status.Phase {
 		t.Fatal("status changed although phase and message did not")
 	}
 
-	setPhase(app, phaseReady, "ready")
+	setPhase(app, locov1alpha1.ApplicationPhaseReady, "ready")
 	if app.Status.CompletedAt == nil {
 		t.Fatal("expected completedAt on the transition to ready")
 	}
@@ -369,15 +372,15 @@ func TestObservePlacementRevision(t *testing.T) {
 	}
 
 	app.Annotations = map[string]string{
-		locov1alpha1.AnnotationPlacementID:       "p1",
-		locov1alpha1.AnnotationPlacementRevision: "7",
+		locov1alpha1.KeyPlacementID:       "p1",
+		locov1alpha1.KeyPlacementRevision: "7",
 	}
 	observePlacementRevision(app)
 	if app.Status.ObservedPlacementRevision != 7 {
 		t.Fatalf("observed revision = %d, want 7", app.Status.ObservedPlacementRevision)
 	}
 
-	app.Annotations[locov1alpha1.AnnotationPlacementRevision] = "not-a-number"
+	app.Annotations[locov1alpha1.KeyPlacementRevision] = "not-a-number"
 	observePlacementRevision(app)
 	if app.Status.ObservedPlacementRevision != 7 {
 		t.Fatal("an unparseable annotation reset the observed revision")

@@ -17,8 +17,8 @@ func TestRecordPersistsResourceIdentityWithoutCurrentChildren(t *testing.T) {
  WITH u AS (INSERT INTO users(email) VALUES ('audit@example.test') RETURNING id),
  o AS (INSERT INTO organizations(name,created_by) SELECT 'audit',id FROM u RETURNING id),
  w AS (INSERT INTO workspaces(org_id,name,created_by) SELECT o.id,'audit',u.id FROM o,u RETURNING id,org_id),
- r AS (INSERT INTO resources(workspace_id,name,type,description,spec,spec_version)
- SELECT id,'audit','service','','{}',1 FROM w RETURNING id,workspace_id)
+ r AS (INSERT INTO resources(workspace_id,name,slug,type,description,spec,spec_version)
+ SELECT id,'audit','audit','service','','{}',1 FROM w RETURNING id,workspace_id)
  SELECT r.id,w.id,w.org_id FROM r,w`).Scan(&resourceID, &workspaceID, &orgID); err != nil {
 		t.Fatal(err)
 	}

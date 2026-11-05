@@ -107,7 +107,7 @@ func (a *Applier) ApplyPlacement(ctx context.Context, placement Placement) error
 		return err
 	}
 
-	name := applicationName(placement.ResourceID)
+	name := locoControllerV1.ApplicationName(placement.ResourceID)
 	return retry.OnError(retry.DefaultRetry, isWriteRace, func() error {
 		live, err := a.readPlacement(ctx, name, placement)
 		if err != nil {
@@ -188,9 +188,9 @@ func (a *Applier) readPlacement(ctx context.Context, name string, placement Plac
 	}
 	if err == nil {
 		live.application = app
-		stored, ok := PlacementOf(app)
-		if ok && stored.ID == placement.ID && stored.Revision > placement.Revision {
-			return live, fmt.Errorf("%w: have %d, got %d", ErrStaleRevision, stored.Revision, placement.Revision)
+		storedID, storedRevision, ok := app.Placement()
+		if ok && storedID == placement.ID && storedRevision > placement.Revision {
+			return live, fmt.Errorf("%w: have %d, got %d", ErrStaleRevision, storedRevision, placement.Revision)
 		}
 	}
 	secret := &corev1.Secret{}
@@ -296,8 +296,8 @@ func (a *Applier) writeEnvSecret(ctx context.Context, live livePlacement, placem
 	}
 	revision := strconv.FormatInt(placement.EnvSecret.Revision, 10)
 	secret.Labels = map[string]string{
-		locoControllerV1.LabelPlacementID:       placement.ID,
-		locoControllerV1.LabelPlacementRevision: revision,
+		locoControllerV1.KeyPlacementID:       placement.ID,
+		locoControllerV1.KeyPlacementRevision: revision,
 	}
 	secret.OwnerReferences = []metav1.OwnerReference{{
 		APIVersion: locoControllerV1.GroupVersion.String(),
@@ -328,7 +328,7 @@ func (a *Applier) writeEnvSecret(ctx context.Context, live livePlacement, placem
 // Application does not reference them.
 func (a *Applier) SweepEnvSecrets(ctx context.Context) error {
 	secrets := &corev1.SecretList{}
-	hasPlacement := client.HasLabels{locoControllerV1.LabelPlacementID}
+	hasPlacement := client.HasLabels{locoControllerV1.KeyPlacementID}
 	if err := a.client.List(ctx, secrets, client.InNamespace(a.namespace), hasPlacement); err != nil {
 		return fmt.Errorf("failed to list env Secrets: %w", err)
 	}
@@ -358,10 +358,6 @@ func (a *Applier) SweepEnvSecrets(ctx context.Context) error {
 	return nil
 }
 
-func applicationName(resourceID string) string {
-	return "resource-" + resourceID
-}
-
 func applicationApplyConfiguration(
 	name, namespace, resourceVersion string,
 	placement Placement,
@@ -380,8 +376,8 @@ func applicationApplyConfiguration(
 	obj.SetResourceVersion(resourceVersion)
 	revision := strconv.FormatInt(placement.Revision, 10)
 	obj.SetAnnotations(map[string]string{
-		locoControllerV1.AnnotationPlacementID:       placement.ID,
-		locoControllerV1.AnnotationPlacementRevision: revision,
+		locoControllerV1.KeyPlacementID:       placement.ID,
+		locoControllerV1.KeyPlacementRevision: revision,
 	})
 	setErr := unstructured.SetNestedField(obj.Object, specMap, "spec")
 	if setErr != nil {
@@ -395,7 +391,7 @@ func (a *Applier) DeletePlacement(ctx context.Context, placement Placement) erro
 	if placement.ResourceID == "" {
 		return fmt.Errorf("%w: delete has no resource_id", ErrInvalidPayload)
 	}
-	name := applicationName(placement.ResourceID)
+	name := locoControllerV1.ApplicationName(placement.ResourceID)
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		live := &locoControllerV1.Application{}
@@ -407,17 +403,17 @@ func (a *Applier) DeletePlacement(ctx context.Context, placement Placement) erro
 			return fmt.Errorf("failed to read Application: %w", err)
 		}
 
-		stored, ok := PlacementOf(live)
-		if ok && stored.ID != placement.ID {
+		storedID, storedRevision, ok := live.Placement()
+		if ok && storedID != placement.ID {
 			slog.InfoContext(ctx, "Application belongs to another placement, not deleting",
 				"name", name,
 				"placement_id", placement.ID,
-				"owner_placement_id", stored.ID,
+				"owner_placement_id", storedID,
 			)
 			return nil
 		}
-		if ok && stored.Revision > placement.Revision {
-			return fmt.Errorf("%w: have %d, got %d", ErrStaleRevision, stored.Revision, placement.Revision)
+		if ok && storedRevision > placement.Revision {
+			return fmt.Errorf("%w: have %d, got %d", ErrStaleRevision, storedRevision, placement.Revision)
 		}
 
 		precondition := client.Preconditions{ResourceVersion: &live.ResourceVersion}
@@ -441,23 +437,10 @@ func (a *Applier) DeletePlacement(ctx context.Context, placement Placement) erro
 	})
 }
 
-func PlacementOf(app *locoControllerV1.Application) (Placement, bool) {
-	id := app.PlacementID()
-	if id == "" {
-		return Placement{}, false
-	}
-	revision, ok := app.PlacementRevision()
-	if !ok {
-		return Placement{}, false
-	}
-	return Placement{ID: id, Revision: revision}, true
-}
-
 type DeployPayload struct {
 	DeploymentID string                            `json:"deployment_id"`
 	ResourceID   string                            `json:"resource_id"`
 	WorkspaceID  string                            `json:"workspace_id"`
-	ResourceName string                            `json:"resource_name"`
 	ResourceType string                            `json:"resource_type"`
 	Region       string                            `json:"region"`
 	AppSpec      *locoControllerV1.ApplicationSpec `json:"app_spec"`

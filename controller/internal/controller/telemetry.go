@@ -15,9 +15,6 @@ import (
 )
 
 const (
-	defaultMetricsPath        = "/metrics"
-	labelMetricsPort          = "loco.io/metrics-port"
-	annotationMetricsPath     = "loco.io/metrics-path"
 	envOTLPEndpoint           = "OTEL_EXPORTER_OTLP_ENDPOINT"
 	envOTLPProtocol           = "OTEL_EXPORTER_OTLP_PROTOCOL"
 	envOTelServiceName        = "OTEL_SERVICE_NAME"
@@ -35,7 +32,8 @@ const (
 )
 
 var errTelemetryIncomplete = errors.New(
-	"telemetry requires the observability namespace, the collector service and its OTLP gRPC and HTTP ports",
+	"telemetry requires the observability namespace, the collector service and its OTLP gRPC and HTTP ports, " +
+		"and the metrics collector namespace and service",
 )
 
 // TelemetryConfig locates the OpenTelemetry collector that app pods export to.
@@ -48,9 +46,10 @@ type TelemetryConfig struct {
 	HTTPPort         int32
 }
 
-// Validate reports whether every field needed to reach the collector is set.
+// Validate reports whether every field needed to reach and scrape the collectors is set.
 func (c TelemetryConfig) Validate() error {
-	if c.Namespace == "" || c.CollectorService == "" || c.GRPCPort == 0 || c.HTTPPort == 0 {
+	if c.Namespace == "" || c.CollectorService == "" || c.GRPCPort == 0 || c.HTTPPort == 0 ||
+		c.ScrapeNamespace == "" || c.ScrapeCollector == "" {
 		return errTelemetryIncomplete
 	}
 	return nil
@@ -87,7 +86,7 @@ func openTelemetryEnvVars(
 	locoRes *locov1alpha1.Application, telemetry TelemetryConfig, secretNames []string,
 ) []corev1.EnvVar {
 	endpoint := telemetry.otlpHTTPEndpoint()
-	serviceName := getName(locoRes)
+	serviceName := locov1alpha1.ApplicationName(locoRes.Spec.ResourceID)
 	settings := [][]corev1.EnvVar{
 		{
 			{Name: envOTLPEndpoint, Value: endpoint},

@@ -48,6 +48,7 @@ func newScopedAuditFixture(t *testing.T) *scopedAuditFixture {
 			genDb.CreateResourceParams{
 				WorkspaceID: workspaces[0],
 				Name:        name,
+				Slug:        name,
 				Type:        genDb.ResourceTypeService,
 				Spec:        []byte(`{}`),
 				SpecVersion: 1,

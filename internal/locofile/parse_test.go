@@ -183,10 +183,10 @@ func TestParseRejects(t *testing.T) {
 			path: "services",
 		},
 		{
-			name: "service name is not a DNS label",
-			yaml: strings.Replace(minimalFile, "  api:", "  Api:", 1),
-			err:  ErrInvalidName,
-			path: "services.Api",
+			name: "service name without a letter or digit",
+			yaml: strings.Replace(minimalFile, "  api:", "  \"--\":", 1),
+			err:  ErrInvalidServiceName,
+			path: "services.--",
 		},
 		{
 			name: "dockerfile and image",

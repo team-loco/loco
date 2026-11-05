@@ -7,24 +7,33 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestServiceNameFromDir(t *testing.T) {
+func TestSlug(t *testing.T) {
 	cases := []struct {
-		directory string
-		want      string
+		name string
+		want string
 	}{
-		{directory: "My App", want: "my-app"},
-		{directory: "Web App", want: "web-app"},
-		{directory: "__API v2!!", want: "api-v2"},
-		{directory: "123", want: "123"},
-		{directory: "!!!", want: ""},
-		{directory: strings.Repeat("A", 70), want: strings.Repeat("a", MaxServiceNameLength)},
-		{directory: strings.Repeat("a", 62) + " b", want: strings.Repeat("a", 62)},
+		{name: "My App", want: "my-app"},
+		{name: "Web App", want: "web-app"},
+		{name: "__API v2!!", want: "api-v2"},
+		{name: "123", want: "123"},
+		{name: "!!!", want: ""},
+		{name: strings.Repeat("A", 70), want: strings.Repeat("a", MaxServiceNameLength)},
+		{name: strings.Repeat("a", 62) + " b", want: strings.Repeat("a", 62)},
 	}
 	for _, test := range cases {
-		got := ServiceNameFromDir(test.directory)
-		assert.Equal(t, test.want, got, test.directory)
+		got := Slug(test.name)
+		assert.Equal(t, test.want, got, test.name)
 		if got != "" {
-			assert.True(t, IsServiceName(got), test.directory)
+			assert.True(t, isDNSLabel(got), test.name)
 		}
+	}
+}
+
+func TestIsServiceName(t *testing.T) {
+	for _, name := range []string{"web", "Checkout API", "Café", strings.Repeat("é", 62) + "a"} {
+		assert.True(t, IsServiceName(name), name)
+	}
+	for _, name := range []string{"", "!!!", "--", strings.Repeat("a", MaxServiceNameLength+1)} {
+		assert.False(t, IsServiceName(name), name)
 	}
 }

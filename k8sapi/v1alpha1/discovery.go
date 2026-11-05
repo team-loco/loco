@@ -7,7 +7,7 @@ import (
 )
 
 var internalServiceNamePattern = regexp.MustCompile(
-	`^resource-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$`,
+	`^` + regexp.QuoteMeta(applicationNamePrefix) + `[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$`,
 )
 
 func PrivateServiceName(name string) string {

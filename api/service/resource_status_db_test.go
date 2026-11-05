@@ -13,6 +13,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
@@ -129,7 +130,7 @@ func (f *resourceStatusFixture) failed(t *testing.T, clusterID uuid.UUID, replic
 	t.Helper()
 	f.report(t, clusterID, &agentv1.PlacementStatus{
 		ReadyReplicas: replicas,
-		Phase:         applicationPhaseFailed,
+		Phase:         locoControllerV1.ApplicationPhaseFailed,
 		Message:       statusCrashMsg,
 	})
 }

@@ -1,5 +1,5 @@
-INSERT INTO resources (id, workspace_id, name, type, description, spec, spec_version)
-VALUES (:'resource', '00000000-0000-7000-8000-000000000003', 'e2e-secrets', 'service', '', '{}', 1)
+INSERT INTO resources (id, workspace_id, name, slug, type, description, spec, spec_version)
+VALUES (:'resource', '00000000-0000-7000-8000-000000000003', 'e2e-secrets', 'e2e-secrets', 'service', '', '{}', 1)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO user_scopes (user_id, scope, entity_type, entity_id)

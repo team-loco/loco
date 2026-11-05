@@ -15,13 +15,21 @@ const (
 	testWorkspaceNamespacePrefix = "loco-ws-"
 )
 
+func testAppName(app *locov1alpha1.Application) string {
+	return locov1alpha1.ApplicationName(app.Spec.ResourceID)
+}
+
 func testWorkspaceNamespace(app *locov1alpha1.Application) string {
 	r := &LocoResourceReconciler{WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix}
 	return r.workspaceNamespace(app)
 }
 
 func ensureTestNamespace(ctx context.Context, kubeClient client.Client, app *locov1alpha1.Application) error {
-	r := &LocoResourceReconciler{Client: kubeClient, WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix}
+	r := &LocoResourceReconciler{
+		Client:                   kubeClient,
+		APIReader:                kubeClient,
+		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+	}
 	return r.ensureNamespace(ctx, app)
 }
 
@@ -51,15 +59,13 @@ func TestNamesFitKubernetesLimitsForRealIDs(t *testing.T) {
 		t.Errorf("namespace %q is not a valid label value: %v", namespace, errs)
 	}
 
-	name := getName(app)
+	name := testAppName(app)
 	if errs := validation.IsDNS1123Label(name); len(errs) > 0 {
 		t.Errorf("name %q is not a valid service name: %v", name, errs)
 	}
 	envSecretName := getEnvSecretName(app)
-	roleName := getRoleName(app)
-	bindingName := getRoleBindingName(app)
 	routeName := getRouteName(app)
-	for _, objectName := range []string{envSecretName, roleName, bindingName, routeName} {
+	for _, objectName := range []string{envSecretName, routeName} {
 		if errs := validation.IsDNS1123Subdomain(objectName); len(errs) > 0 {
 			t.Errorf("object name %q is invalid: %v", objectName, errs)
 		}

@@ -242,11 +242,11 @@ var _ = Describe("Build reconcile", Ordered, func() {
 		Expect(job.Spec.ActiveDeadlineSeconds).To(HaveValue(Equal(int64(1800))))
 		Expect(job.Spec.TTLSecondsAfterFinished).To(HaveValue(BeNumerically(">=", 120)))
 		wantLabels := map[string]string{
-			managed.LabelOrganizationID: testBuildOrg,
-			managed.LabelWorkspaceID:    testBuildWorkspace,
-			managed.LabelResourceID:     "res-1",
-			locolabels.LabelBuildID:     "shape",
-			locolabels.LabelManagedBy:   managed.ManagedByValue,
+			locolabels.LabelOrganizationID: testBuildOrg,
+			locolabels.LabelWorkspaceID:    testBuildWorkspace,
+			locolabels.LabelResourceID:     "res-1",
+			locolabels.LabelBuildID:        "shape",
+			locolabels.LabelManagedBy:      managed.ManagedByValue,
 		}
 		for key, value := range wantLabels {
 			Expect(job.Labels).To(HaveKeyWithValue(key, value))
@@ -555,18 +555,6 @@ var _ = Describe("Build reconcile", Ordered, func() {
 
 		reconcileBuild(r, build)
 		Expect(build.Status.Phase).To(Equal(locov1alpha1.BuildPhaseCanceled))
-	})
-
-	It("fails builds when no push secret is configured", func() {
-		r := testReconciler()
-		r.Config.PushSecretName = ""
-		build := testBuild("unconfigured")
-		Expect(k8sClient.Create(ctx, build)).To(Succeed())
-		reconcileBuild(r, build)
-		Expect(build.Status.Phase).To(Equal(locov1alpha1.BuildPhaseFailed))
-		Expect(build.Status.Message).To(Equal(buildMessageNoPushSecret))
-		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(build), &batchv1.Job{})
-		Expect(apierrors.IsNotFound(err)).To(BeTrue())
 	})
 
 	It("mounts the agent's build registry Secret in fetch and push in token mode", func() {

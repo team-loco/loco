@@ -565,10 +565,10 @@
       },
       "propertyNames": {
         "maxLength": 63,
-        "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+        "pattern": "[A-Za-z0-9]"
       },
       "type": "object",
-      "description": "Services keyed by name. The name is the identity: renaming is a delete and a create."
+      "description": "Services keyed by name. The name is the identity: renaming is a delete and a create. The private hostname and generated subdomain use the name's slug: lowercase letters and digits, with other runs replaced by one hyphen."
     }
   },
   "additionalProperties": false,

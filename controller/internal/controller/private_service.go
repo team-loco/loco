@@ -17,14 +17,13 @@ import (
 )
 
 const (
-	labelPrivateServiceOwner      = "loco.io/private-service-owner"
 	componentPrivateService       = "private-service"
 	privateServicePortName        = "tcp"
 	privateServiceDefaultPortName = "default"
 )
 
 var (
-	errInvalidPrivateServiceName  = errors.New("resource name is not a valid logical service name")
+	errInvalidPrivateServiceName  = errors.New("resource slug is not a valid logical service name")
 	errPrivateServiceCollision    = errors.New("private service name is already in use by another owner")
 	errPrivateServiceOwnerMissing = errors.New("private service requires an Application UID")
 	errPrivateServiceType         = errors.New("owned private service must have type ClusterIP")
@@ -32,17 +31,17 @@ var (
 
 func ownsPrivateService(app *locov1alpha1.Application, svc *corev1.Service) bool {
 	return app.UID != "" &&
-		svc.Labels[labelPrivateServiceOwner] == string(app.UID) &&
+		svc.Labels[locolabels.LabelPrivateServiceOwner] == string(app.UID) &&
 		svc.Labels[locolabels.LabelManagedBy] == managed.ManagedByValue &&
 		svc.Labels[managed.LabelComponent] == componentPrivateService &&
-		svc.Annotations[annotationAppNamespace] == app.Namespace &&
-		svc.Annotations[annotationAppName] == app.Name
+		svc.Annotations[locolabels.AnnotationApplicationNamespace] == app.Namespace &&
+		svc.Annotations[locolabels.AnnotationApplicationName] == app.Name
 }
 
 func (r *LocoResourceReconciler) ensurePrivateService(ctx context.Context, app *locov1alpha1.Application) error {
-	name := locov1alpha1.PrivateServiceName(app.Spec.ResourceName)
+	name := locov1alpha1.PrivateServiceName(app.Spec.Slug)
 	if name == "" {
-		return fmt.Errorf("%w: %q", errInvalidPrivateServiceName, app.Spec.ResourceName)
+		return fmt.Errorf("%w: %q", errInvalidPrivateServiceName, app.Spec.Slug)
 	}
 	if app.UID == "" {
 		return errPrivateServiceOwnerMissing
@@ -66,41 +65,41 @@ func (r *LocoResourceReconciler) ensurePrivateService(ctx context.Context, app *
 	}
 	desired := &corev1.Service{Name: name, Namespace: namespace,
 		Labels: map[string]string{
-			locolabels.LabelManagedBy: managed.ManagedByValue,
-			managed.LabelComponent:    componentPrivateService,
-			labelPrivateServiceOwner:  string(app.UID),
+			locolabels.LabelManagedBy:           managed.ManagedByValue,
+			managed.LabelComponent:              componentPrivateService,
+			locolabels.LabelPrivateServiceOwner: string(app.UID),
 		}, Annotations: ownerAnnotations(app),
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
-			Selector: map[string]string{labelApp: getName(app)},
+			Selector: map[string]string{labelApp: locov1alpha1.ApplicationName(app.Spec.ResourceID)},
 			Ports:    ports,
 		},
 	}
 	current := &corev1.Service{}
 	key := client.ObjectKeyFromObject(desired)
-	reader := r.apiReader()
+	reader := r.APIReader
 	err := reader.Get(ctx, key, current)
 	if apierrors.IsNotFound(err) {
 		if createErr := r.Create(ctx, desired); createErr != nil {
 			return fmt.Errorf("create private service %s: %w", key, createErr)
 		}
-	} else {
-		if err != nil {
-			return fmt.Errorf("get private service %s: %w", key, err)
-		}
-		if !ownsPrivateService(app, current) {
-			return fmt.Errorf("%w: %s", errPrivateServiceCollision, key)
-		}
-		if current.Spec.Type != corev1.ServiceTypeClusterIP {
-			return fmt.Errorf("%w: %s", errPrivateServiceType, key)
-		}
-		if !equality.Semantic.DeepEqual(current.Spec.Selector, desired.Spec.Selector) ||
-			!equality.Semantic.DeepEqual(current.Spec.Ports, desired.Spec.Ports) {
-			current.Spec.Selector = desired.Spec.Selector
-			current.Spec.Ports = desired.Spec.Ports
-			if updateErr := r.Update(ctx, current); updateErr != nil {
-				return fmt.Errorf("update private service %s: %w", key, updateErr)
-			}
+		return r.prunePrivateServices(ctx, app, name)
+	}
+	if err != nil {
+		return fmt.Errorf("get private service %s: %w", key, err)
+	}
+	if !ownsPrivateService(app, current) {
+		return fmt.Errorf("%w: %s", errPrivateServiceCollision, key)
+	}
+	if current.Spec.Type != corev1.ServiceTypeClusterIP {
+		return fmt.Errorf("%w: %s", errPrivateServiceType, key)
+	}
+	if !equality.Semantic.DeepEqual(current.Spec.Selector, desired.Spec.Selector) ||
+		!equality.Semantic.DeepEqual(current.Spec.Ports, desired.Spec.Ports) {
+		current.Spec.Selector = desired.Spec.Selector
+		current.Spec.Ports = desired.Spec.Ports
+		if updateErr := r.Update(ctx, current); updateErr != nil {
+			return fmt.Errorf("update private service %s: %w", key, updateErr)
 		}
 	}
 	return r.prunePrivateServices(ctx, app, name)
@@ -116,10 +115,10 @@ func (r *LocoResourceReconciler) prunePrivateServices(
 	}
 	list := &corev1.ServiceList{}
 	selector := client.MatchingLabels{
-		labelPrivateServiceOwner: string(app.UID),
-		managed.LabelComponent:   componentPrivateService,
+		locolabels.LabelPrivateServiceOwner: string(app.UID),
+		managed.LabelComponent:              componentPrivateService,
 	}
-	reader := r.apiReader()
+	reader := r.APIReader
 	if err := reader.List(ctx, list, client.InNamespace(r.workspaceNamespace(app)), selector); err != nil {
 		return fmt.Errorf("list private services: %w", err)
 	}
@@ -134,11 +133,4 @@ func (r *LocoResourceReconciler) prunePrivateServices(
 		}
 	}
 	return nil
-}
-
-func (r *LocoResourceReconciler) apiReader() client.Reader {
-	if r.APIReader != nil {
-		return r.APIReader
-	}
-	return r.Client
 }

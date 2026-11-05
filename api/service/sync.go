@@ -16,9 +16,8 @@ import (
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	"github.com/team-loco/loco/internal/rpcerr"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
-
-const applicationPhaseFailed = "Failed"
 
 var errSyncSuperseded = errors.New("a newer sync stream for this cluster is connected")
 
@@ -660,7 +659,7 @@ type deploymentTransition struct {
 }
 
 func deploymentTransitionForStatus(status *agentv1.PlacementStatus) deploymentTransition {
-	if status.GetPhase() == applicationPhaseFailed {
+	if status.GetPhase() == locoControllerV1.ApplicationPhaseFailed {
 		return deploymentTransition{
 			status: genDb.DeploymentStatusFailed,
 			from: []genDb.DeploymentStatus{

@@ -280,8 +280,8 @@ func TestRemoveOrgMemberRevokesTheirGrantsInTheOrg(t *testing.T) {
 	}
 	var resourceID uuid.UUID
 	err = o.api.pool.QueryRow(ctx, `
-INSERT INTO resources (workspace_id, name, type, description, spec, spec_version)
-VALUES ($1, 'svc', 'service', '', '{}', 1) RETURNING id`, uuid.MustParse(o.shared)).Scan(&resourceID)
+INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version)
+VALUES ($1, 'svc', 'svc', 'service', '', '{}', 1) RETURNING id`, uuid.MustParse(o.shared)).Scan(&resourceID)
 	if err != nil {
 		t.Fatalf("seed resource: %v", err)
 	}

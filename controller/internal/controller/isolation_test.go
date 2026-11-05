@@ -15,7 +15,7 @@ import (
 	v1Gateway "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/team-loco/loco/controller/internal/isolation"
-	"github.com/team-loco/loco/controller/internal/managed"
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -25,7 +25,7 @@ func isolationTestApplication(workspaceID, resourceID string) *locov1alpha1.Appl
 		Spec: locov1alpha1.ApplicationSpec{
 			Type:          testAppType,
 			ResourceID:    resourceID,
-			ResourceName:  resourceID,
+			Slug:          resourceID,
 			WorkspaceID:   workspaceID,
 			EnvironmentID: "env-production",
 			Region:        "us-east-1",
@@ -71,6 +71,7 @@ var _ = Describe("Workspace isolation", func() {
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 			Client:                   k8sClient,
+			APIReader:                k8sClient,
 			Scheme:                   scheme.Scheme,
 			LocoNamespace:            testLocoNamespace,
 			Telemetry:                testTelemetry(),
@@ -87,10 +88,10 @@ var _ = Describe("Workspace isolation", func() {
 		Expect(ns.Labels).To(HaveKeyWithValue("pod-security.kubernetes.io/enforce", "restricted"))
 		Expect(ns.Labels).To(HaveKeyWithValue("pod-security.kubernetes.io/audit", "restricted"))
 		Expect(ns.Labels).To(HaveKeyWithValue("pod-security.kubernetes.io/warn", "restricted"))
-		Expect(ns.Labels).To(HaveKeyWithValue(labelLocoApp, "true"))
-		Expect(ns.Labels).To(HaveKeyWithValue(managed.LabelWorkspaceID, "ws-labels"))
-		Expect(ns.Labels).To(HaveKeyWithValue(labelEnvironmentID, "env-production"))
-		Expect(ns.Labels).NotTo(HaveKey(managed.LabelResourceID))
+		Expect(ns.Labels).To(HaveKeyWithValue(locolabels.LabelLocoApp, "true"))
+		Expect(ns.Labels).To(HaveKeyWithValue(locolabels.LabelWorkspaceID, "ws-labels"))
+		Expect(ns.Labels).To(HaveKeyWithValue(locolabels.LabelEnvironmentID, "env-production"))
+		Expect(ns.Labels).NotTo(HaveKey(locolabels.LabelResourceID))
 	})
 
 	It("keeps labels it does not own on an existing namespace", func() {
@@ -171,7 +172,9 @@ var _ = Describe("Workspace isolation", func() {
 		Expect(reconciler.ensureGatewayIngressPolicy(ctx, app)).To(Succeed())
 
 		policy := getPolicy(namespace, policyName)
-		Expect(policy.Spec.PodSelector.MatchLabels).To(Equal(map[string]string{labelApp: getName(app)}))
+		Expect(
+			policy.Spec.PodSelector.MatchLabels,
+		).To(Equal(map[string]string{labelApp: testAppName(app)}))
 		Expect(policy.Spec.Ingress[0].Ports[0].Port.IntVal).To(Equal(int32(8000)))
 		gatewayPods := policy.Spec.Ingress[0].From[0].PodSelector.MatchLabels
 		Expect(gatewayPods).To(HaveKeyWithValue(labelGatewayName, testGateway))
@@ -223,19 +226,22 @@ var _ = Describe("Workspace isolation", func() {
 		Expect(reconciler.ensureMetricsIngressPolicy(ctx, app)).To(Succeed())
 		_, err := reconciler.ensureDeployment(ctx, app, envSecretMount{})
 		Expect(err).NotTo(HaveOccurred())
-		key := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: getName(app)}
+		key := client.ObjectKey{
+			Namespace: testWorkspaceNamespace(app),
+			Name:      testAppName(app),
+		}
 		deployment := &appsv1.Deployment{}
 		Expect(k8sClient.Get(ctx, key, deployment)).To(Succeed())
-		Expect(deployment.Spec.Template.Labels[labelMetricsPort]).To(Equal("9090"))
-		Expect(deployment.Spec.Template.Annotations[annotationMetricsPath]).To(Equal(defaultMetricsPath))
+		Expect(deployment.Spec.Template.Labels[locolabels.LabelMetricsPort]).To(Equal("9090"))
+		Expect(deployment.Spec.Template.Annotations[locolabels.AnnotationMetricsPath]).To(Equal(defaultMetricsPath))
 		app.Spec.ServiceSpec.Obs = nil
 		Expect(reconciler.ensureMetricsIngressPolicy(ctx, app)).To(Succeed())
 		_, err = reconciler.ensureDeployment(ctx, app, envSecretMount{})
 		Expect(err).NotTo(HaveOccurred())
 		Expect(k8sClient.Get(ctx, key, deployment)).To(Succeed())
-		Expect(deployment.Spec.Template.Labels).NotTo(HaveKey(labelMetricsPort))
-		Expect(deployment.Spec.Template.Annotations).NotTo(HaveKey(annotationMetricsPath))
-		policyName := getName(app) + "-metrics"
+		Expect(deployment.Spec.Template.Labels).NotTo(HaveKey(locolabels.LabelMetricsPort))
+		Expect(deployment.Spec.Template.Annotations).NotTo(HaveKey(locolabels.AnnotationMetricsPath))
+		policyName := testAppName(app) + "-metrics"
 		Expect(getPolicy(testWorkspaceNamespace(app), policyName).Spec.Ingress).To(BeEmpty())
 		Expect(reconciler.deleteAppObjects(ctx, app)).To(Succeed())
 		policyKey := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: policyName}
@@ -252,7 +258,7 @@ var _ = Describe("Workspace isolation", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		sa := &corev1.ServiceAccount{}
-		appKey := client.ObjectKey{Namespace: namespace, Name: getName(app)}
+		appKey := client.ObjectKey{Namespace: namespace, Name: testAppName(app)}
 		Expect(k8sClient.Get(ctx, appKey, sa)).To(Succeed())
 		Expect(sa.AutomountServiceAccountToken).To(HaveValue(BeFalse()))
 
@@ -279,7 +285,10 @@ var _ = Describe("Workspace isolation", func() {
 		app := isolationTestApplication("ws-runtime-user", "runtime-user")
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 		Expect(reconciler.ensureServiceAccount(ctx, app)).To(Succeed())
-		key := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: getName(app)}
+		key := client.ObjectKey{
+			Namespace: testWorkspaceNamespace(app),
+			Name:      testAppName(app),
+		}
 		for _, id := range []int64{1654, 82, 0} {
 			app.Spec.ServiceSpec.Deployment.RunAsUser = nil
 			app.Spec.ServiceSpec.Deployment.RunAsGroup = nil

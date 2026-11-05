@@ -147,6 +147,7 @@ message Resource {
   google.protobuf.Timestamp updated_at = 11;
   optional string partial = 12;
   repeated EnvironmentStatus environment_statuses = 13;
+  string slug = 14;
 }
 
 // EnvironmentStatus is a resource's status in one environment it has an active deployment in.

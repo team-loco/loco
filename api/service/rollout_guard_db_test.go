@@ -12,6 +12,7 @@ import (
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const rolloutDeleteOperation = "delete"
@@ -200,7 +201,7 @@ func TestScaleAllowsRecoveryAfterFailedRollout(t *testing.T) {
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
 	}
-	f.reportRollout(t, applicationPhaseFailed, false)
+	f.reportRollout(t, locoControllerV1.ApplicationPhaseFailed, false)
 	if err := scaleResource(t, f, 2); err != nil {
 		t.Fatal(err)
 	}
@@ -365,7 +366,8 @@ func TestOtherResourceRolloutDoesNotBlockScale(t *testing.T) {
 		t.Context(),
 		genDb.CreateResourceParams{
 			WorkspaceID: f.workspaceID(t),
-			Name:        "other",
+			Name:        "other-service",
+			Slug:        "other-service",
 			Type:        genDb.ResourceTypeService,
 			Spec:        []byte("{}"),
 			SpecVersion: 1,
@@ -409,7 +411,7 @@ func TestFailedSecretRotationAllowsAnotherSecretChange(t *testing.T) {
 	if _, err := server.SetSecrets(f.rolloutContext(t), request); err != nil {
 		t.Fatal(err)
 	}
-	f.reportRollout(t, applicationPhaseFailed, false)
+	f.reportRollout(t, locoControllerV1.ApplicationPhaseFailed, false)
 	request.Values[stripeKey] = "repaired value"
 	if _, err := server.SetSecrets(f.rolloutContext(t), request); err != nil {
 		t.Fatal(err)

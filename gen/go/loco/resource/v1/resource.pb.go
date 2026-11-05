@@ -835,6 +835,7 @@ type Resource struct {
 	UpdatedAt           *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	Partial             *string                `protobuf:"bytes,12,opt,name=partial,proto3,oneof" json:"partial,omitempty"`
 	EnvironmentStatuses []*EnvironmentStatus   `protobuf:"bytes,13,rep,name=environment_statuses,json=environmentStatuses,proto3" json:"environment_statuses,omitempty"`
+	Slug                string                 `protobuf:"bytes,14,opt,name=slug,proto3" json:"slug,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -958,6 +959,13 @@ func (x *Resource) GetEnvironmentStatuses() []*EnvironmentStatus {
 		return x.EnvironmentStatuses
 	}
 	return nil
+}
+
+func (x *Resource) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
 }
 
 // EnvironmentStatus is a resource's status in one environment it has an active deployment in.
@@ -2441,7 +2449,7 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x05cache\x18\x03 \x01(\v2\x1b.loco.resource.v1.CacheSpecH\x00R\x05cache\x123\n" +
 	"\x05queue\x18\x04 \x01(\v2\x1b.loco.resource.v1.QueueSpecH\x00R\x05queue\x120\n" +
 	"\x04blob\x18\x05 \x01(\v2\x1a.loco.resource.v1.BlobSpecH\x00R\x04blobB\x06\n" +
-	"\x04spec\"\xf3\x04\n" +
+	"\x04spec\"\x87\x05\n" +
 	"\bResource\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fworkspace_id\x18\x02 \x01(\tR\vworkspaceId\x12\x12\n" +
@@ -2459,7 +2467,8 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1d\n" +
 	"\apartial\x18\f \x01(\tH\x02R\apartial\x88\x01\x01\x12V\n" +
-	"\x14environment_statuses\x18\r \x03(\v2#.loco.resource.v1.EnvironmentStatusR\x13environmentStatusesB\a\n" +
+	"\x14environment_statuses\x18\r \x03(\v2#.loco.resource.v1.EnvironmentStatusR\x13environmentStatuses\x12\x12\n" +
+	"\x04slug\x18\x0e \x01(\tR\x04slugB\a\n" +
 	"\x05_specB\x0e\n" +
 	"\f_descriptionB\n" +
 	"\n" +

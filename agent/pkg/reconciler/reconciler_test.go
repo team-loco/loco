@@ -87,11 +87,11 @@ func (k *kubeApplier) appliedRevision(t *testing.T) int64 {
 	if err := k.kube.Get(t.Context(), key, app); err != nil {
 		t.Fatalf("get Application: %v", err)
 	}
-	placement, ok := applier.PlacementOf(app)
+	revision, ok := app.PlacementRevision()
 	if !ok {
 		t.Fatalf("Application %s records no placement", testApplicationName)
 	}
-	return placement.Revision
+	return revision
 }
 
 type reports struct {

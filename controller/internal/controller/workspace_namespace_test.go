@@ -6,7 +6,6 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -41,17 +40,13 @@ func workspaceApp(name, resourceID string) *locov1alpha1.Application {
 }
 
 func appObjects(app *locov1alpha1.Application) []client.Object {
-	name := getName(app)
+	name := testAppName(app)
 	namespace := testWorkspaceNamespace(app)
-	roleName := getRoleName(app)
-	bindingName := getRoleBindingName(app)
 	envSecretName := getEnvSecretName(app)
 	return []client.Object{
 		&appsv1.Deployment{Name: name, Namespace: namespace},
 		&corev1.Service{Name: name, Namespace: namespace},
 		&corev1.ServiceAccount{Name: name, Namespace: namespace},
-		&rbacv1.Role{Name: roleName, Namespace: namespace},
-		&rbacv1.RoleBinding{Name: bindingName, Namespace: namespace},
 		&corev1.Secret{Name: envSecretName, Namespace: namespace},
 	}
 }
@@ -75,8 +70,8 @@ func TestAppsInAWorkspaceShareANamespace(t *testing.T) {
 	if testWorkspaceNamespace(first) != testWorkspaceNamespace(second) {
 		t.Fatalf("namespaces differ: %q and %q", testWorkspaceNamespace(first), testWorkspaceNamespace(second))
 	}
-	if getName(first) == getName(second) {
-		t.Fatalf("apps share the object name %q", getName(first))
+	if testAppName(first) == testAppName(second) {
+		t.Fatalf("apps share the object name %q", testAppName(first))
 	}
 }
 
@@ -94,6 +89,7 @@ func TestDeletingAnAppKeepsTheWorkspaceNamespace(t *testing.T) {
 	kubeClient := builder.Build()
 	r := &LocoResourceReconciler{
 		Client:                   kubeClient,
+		APIReader:                kubeClient,
 		Gateway:                  testGateway,
 		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 	}
@@ -135,6 +131,7 @@ func TestDeletingTheLastAppRemovesTheWorkspaceNamespace(t *testing.T) {
 	kubeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(namespace, app, other).Build()
 	r := &LocoResourceReconciler{
 		Client:                   kubeClient,
+		APIReader:                kubeClient,
 		Gateway:                  testGateway,
 		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 	}

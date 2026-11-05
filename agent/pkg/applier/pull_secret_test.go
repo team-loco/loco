@@ -26,7 +26,7 @@ type recordingPullSecrets struct {
 func (r *recordingPullSecrets) Ensure(ctx context.Context, workspaceID string) error {
 	r.workspaces = append(r.workspaces, workspaceID)
 	app := &locoControllerV1.Application{}
-	key := client.ObjectKey{Namespace: testNamespace, Name: applicationName(testResourceID)}
+	key := client.ObjectKey{Namespace: testNamespace, Name: locoControllerV1.ApplicationName(testResourceID)}
 	if err := r.client.Get(ctx, key, app); !apierrors.IsNotFound(err) {
 		r.appExisted = true
 	}

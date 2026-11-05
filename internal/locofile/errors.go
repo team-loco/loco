@@ -13,6 +13,7 @@ var (
 	ErrPartialRequired        = errors.New("partial is required")
 	ErrNoServices             = errors.New("services is required; services: {} removes every service of the partial")
 	ErrInvalidName            = errors.New("must be a DNS label of 1 to 63 lowercase letters, digits and hyphens")
+	ErrInvalidServiceName     = errors.New("must be at most 63 characters and contain a letter or digit")
 	ErrImageWithBuild         = errors.New("image cannot be combined with dockerfile or context")
 	ErrPortRequired           = errors.New("port is required when routing is set")
 	ErrNoRegions              = errors.New("at least one region is required")

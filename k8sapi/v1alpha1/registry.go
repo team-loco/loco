@@ -1,7 +1,9 @@
 package v1alpha1
 
 const (
-	LabelRegistryPull = "loco.io/registry-pull"
+	LabelRegistryPull               = "loco.io/registry-pull"
+	AnnotationRegistryPullIssuedAt  = "loco.io/registry-pull-issued-at"
+	AnnotationRegistryPullExpiresAt = "loco.io/registry-pull-expires-at"
 
 	RegistryAuthStatic    = "static"
 	RegistryAuthToken     = "token"

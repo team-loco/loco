@@ -20,7 +20,6 @@ import (
 )
 
 const (
-	labelLocoApp           = "loco.io/app"
 	labelNamespaceName     = "kubernetes.io/metadata.name"
 	labelGatewayName       = "gateway.envoyproxy.io/owning-gateway-name"
 	labelGatewayNamespace  = "gateway.envoyproxy.io/owning-gateway-namespace"
@@ -44,17 +43,17 @@ func podSecurityLabels() map[string]string {
 
 func workspaceNamespaceLabels(locoRes *locov1alpha1.Application) map[string]string {
 	labels := podSecurityLabels()
-	labels[labelLocoApp] = "true"
+	labels[locolabels.LabelLocoApp] = "true"
 	labels[locolabels.LabelManagedBy] = managed.ManagedByValue
-	labels[managed.LabelWorkspaceID] = locoRes.Spec.WorkspaceID
-	labels[labelEnvironmentID] = locoRes.Spec.EnvironmentID
+	labels[locolabels.LabelWorkspaceID] = locoRes.Spec.WorkspaceID
+	labels[locolabels.LabelEnvironmentID] = locoRes.Spec.EnvironmentID
 	return labels
 }
 
 func workspaceObjectLabels(locoRes *locov1alpha1.Application) map[string]string {
 	return map[string]string{
-		locolabels.LabelManagedBy: managed.ManagedByValue,
-		managed.LabelWorkspaceID:  locoRes.Spec.WorkspaceID,
+		locolabels.LabelManagedBy:   managed.ManagedByValue,
+		locolabels.LabelWorkspaceID: locoRes.Spec.WorkspaceID,
 	}
 }
 
@@ -153,7 +152,7 @@ func (r *LocoResourceReconciler) ensureWorkspaceNetworkPolicies(
 func (r *LocoResourceReconciler) gatewayIngressPolicy(
 	locoRes *locov1alpha1.Application,
 ) *networkingv1ac.NetworkPolicyApplyConfiguration {
-	name := getName(locoRes)
+	name := locov1alpha1.ApplicationName(locoRes.Spec.ResourceID)
 	namespace := r.workspaceNamespace(locoRes)
 	policyName := getGatewayPolicyName(locoRes)
 	labels := managedLabels(locoRes)

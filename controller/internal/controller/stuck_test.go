@@ -5,6 +5,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 )
 
 func TestRunsCurrentTemplate(t *testing.T) {
@@ -20,14 +22,14 @@ func TestRunsCurrentTemplate(t *testing.T) {
 		{name: "current image without secrets", image: testImage, want: true},
 		{
 			name:              "current image and secret revision",
-			annotations:       map[string]string{annotationEnvSecretRevision: "3"},
+			annotations:       map[string]string{locolabels.AnnotationEnvSecretRevision: "3"},
 			image:             testImage,
 			envSecretRevision: "3",
 			want:              true,
 		},
 		{
 			name:              "older secret revision",
-			annotations:       map[string]string{annotationEnvSecretRevision: "2"},
+			annotations:       map[string]string{locolabels.AnnotationEnvSecretRevision: "2"},
 			image:             testImage,
 			envSecretRevision: "3",
 		},

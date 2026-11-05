@@ -12612,6 +12612,10 @@
               "$ref": "#/components/schemas/loco.resource.v1.EnvironmentStatus"
             },
             "title": "environment_statuses"
+          },
+          "slug": {
+            "type": "string",
+            "title": "slug"
           }
         },
         "title": "Resource",

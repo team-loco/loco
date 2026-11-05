@@ -64,8 +64,6 @@ spec:
                 type: string
               resourceId:
                 type: string
-              resourceName:
-                type: string
               serviceSpec:
                 description: Type-specific specs (only one populated based on Type)
                 properties:
@@ -228,6 +226,8 @@ spec:
                 - deployment
                 - resources
                 type: object
+              slug:
+                type: string
               type:
                 description: |-
                   Type indicates the resource type (SERVICE, DATABASE, CACHE, QUEUE, BLOB)

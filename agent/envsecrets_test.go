@@ -32,7 +32,7 @@ func TestSweepEnvSecretsDeletesOrphanedSecretsWithoutASyncStream(t *testing.T) {
 	orphan := &corev1.Secret{
 		Name:      testOrphanSecret,
 		Namespace: testAgentNamespace,
-		Labels:    map[string]string{locov1alpha1.LabelPlacementID: testOrphanSecret},
+		Labels:    map[string]string{locov1alpha1.KeyPlacementID: testOrphanSecret},
 	}
 	kube := fakeclient.NewClientBuilder().WithScheme(scheme).WithObjects(orphan).Build()
 	a := &Agent{

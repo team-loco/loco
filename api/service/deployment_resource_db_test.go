@@ -52,14 +52,8 @@ func TestDeploymentPreservesTheRenameThatCommitsWhileItWaits(t *testing.T) {
 		t.Fatal(err)
 	}
 	desired := desiredPayload(t, f)
-	if resource.Name != renamed || desired.ResourceName != renamed || desired.AppSpec.ResourceName != renamed {
-		t.Fatalf(
-			"resource name=%q, payload name=%q, application name=%q; want %q",
-			resource.Name,
-			desired.ResourceName,
-			desired.AppSpec.ResourceName,
-			renamed,
-		)
+	if resource.Name != renamed || desired.AppSpec.Slug != renamed {
+		t.Fatalf("resource name=%q, application slug=%q; want %q", resource.Name, desired.AppSpec.Slug, renamed)
 	}
 }
 

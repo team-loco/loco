@@ -10,7 +10,7 @@ import (
 	appsv1ac "k8s.io/client-go/applyconfigurations/apps/v1"
 	corev1ac "k8s.io/client-go/applyconfigurations/core/v1"
 
-	"github.com/team-loco/loco/controller/internal/managed"
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -33,6 +33,8 @@ const (
 
 func testTelemetry() TelemetryConfig {
 	return TelemetryConfig{
+		ScrapeNamespace:  "loco-obs-node",
+		ScrapeCollector:  "otel-col-daemon",
 		Namespace:        testTelemetryNamespace,
 		CollectorService: testCollectorService,
 		GRPCPort:         testCollectorGRPCPort,
@@ -94,7 +96,7 @@ func TestDesiredDeploymentPointsOpenTelemetryAtTheCollector(t *testing.T) {
 
 	requireEnv(t, dep, envOTLPEndpoint, testCollectorEndpoint)
 	requireEnv(t, dep, envOTLPProtocol, otlpProtocolHTTP)
-	requireEnv(t, dep, envOTelServiceName, getName(app))
+	requireEnv(t, dep, envOTelServiceName, testAppName(app))
 	requireEnv(t, dep, envOTelResourceAttributes,
 		"deployment.environment.name=production,loco.deployment.id="+testDeploymentID)
 }
@@ -271,7 +273,7 @@ func TestUserEnvDoesNotOverrideLocoEnv(t *testing.T) {
 func TestPodTemplateCarriesTheAppNameLabelOutsideTheSelector(t *testing.T) {
 	app := telemetryTestApplication()
 	dep := buildDeployment(t, app)
-	name := getName(app)
+	name := testAppName(app)
 
 	labels := dep.Spec.Template.Labels
 	if got := labels[labelAppKubernetesName]; got != name {
@@ -287,11 +289,11 @@ func TestPodTemplateCarriesTheOrganizationLabel(t *testing.T) {
 	app := telemetryTestApplication()
 	dep := buildDeployment(t, app)
 
-	if got := dep.Spec.Template.Labels[managed.LabelOrganizationID]; got != testOrganizationID {
-		t.Errorf("pod label %s = %q, want %q", managed.LabelOrganizationID, got, testOrganizationID)
+	if got := dep.Spec.Template.Labels[locolabels.LabelOrganizationID]; got != testOrganizationID {
+		t.Errorf("pod label %s = %q, want %q", locolabels.LabelOrganizationID, got, testOrganizationID)
 	}
-	if got := dep.Labels[managed.LabelOrganizationID]; got != testOrganizationID {
-		t.Errorf("deployment label %s = %q, want %q", managed.LabelOrganizationID, got, testOrganizationID)
+	if got := dep.Labels[locolabels.LabelOrganizationID]; got != testOrganizationID {
+		t.Errorf("deployment label %s = %q, want %q", locolabels.LabelOrganizationID, got, testOrganizationID)
 	}
 }
 
@@ -304,6 +306,8 @@ func TestTelemetryConfigRequiresEveryField(t *testing.T) {
 		"collector service": func(c *TelemetryConfig) { c.CollectorService = "" },
 		"grpc port":         func(c *TelemetryConfig) { c.GRPCPort = 0 },
 		"http port":         func(c *TelemetryConfig) { c.HTTPPort = 0 },
+		"scrape namespace":  func(c *TelemetryConfig) { c.ScrapeNamespace = "" },
+		"scrape collector":  func(c *TelemetryConfig) { c.ScrapeCollector = "" },
 	}
 	for name, change := range missing {
 		t.Run(name, func(t *testing.T) {

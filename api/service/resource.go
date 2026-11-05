@@ -29,6 +29,7 @@ import (
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
+	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/internal/rpcerr"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -38,8 +39,9 @@ var (
 	ErrDomainNotFound        = errors.New("domain not found")
 	ErrResourceNameNotUnique = errors.New("resource name already exists in this workspace")
 	errPrivateServiceName    = errors.New(
-		"service name must be a lowercase DNS label of at most 63 characters; localhost and resource-<UUID> are reserved",
+		"resource name needs a letter or digit, and its slug cannot be localhost or resource-<UUID>",
 	)
+	errSlugInUse             = errors.New("another resource in this workspace has the same slug")
 	ErrSubdomainNotAvailable = errors.New("subdomain already in use")
 	ErrClusterNotFound       = errors.New("cluster not found")
 	ErrClusterNotHealthy     = errors.New("cluster is not healthy")
@@ -122,7 +124,8 @@ func (s *ResourceServer) CreateResource(
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
-	if locoControllerV1.PrivateServiceName(req.GetName()) == "" {
+	slug := resourceSlug(req.GetName())
+	if slug == "" {
 		return nil, rpcerr.New(connect.CodeInvalidArgument, errPrivateServiceName)
 	}
 
@@ -171,6 +174,7 @@ func (s *ResourceServer) CreateResource(
 	params := genDb.CreateResourceParams{
 		WorkspaceID: workspaceID,
 		Name:        req.GetName(),
+		Slug:        slug,
 		Type:        resourceType,
 		Spec:        specJSON,
 		SpecVersion: int32(1),
@@ -187,6 +191,14 @@ func (s *ResourceServer) CreateResource(
 
 	if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, workspaceID); lockErr != nil {
 		slog.ErrorContext(ctx, "failed to lock environments", "error", lockErr)
+		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+	}
+	slugErr := checkSlugFree(ctx, qtx, workspaceID, slug, nil)
+	if errors.Is(slugErr, errSlugInUse) {
+		return nil, rpcerr.New(connect.CodeAlreadyExists, slugErr)
+	}
+	if slugErr != nil {
+		slog.ErrorContext(ctx, "failed to check the resource slug", "error", slugErr)
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
@@ -518,13 +530,15 @@ func (s *ResourceServer) UpdateResource(
 	rename := message.Has(fields.ByName(updateNameField))
 	updateParams := genDb.UpdateResourceParams{ID: resourceID}
 	if rename {
+		slug := resourceSlug(req.GetName())
+		if slug == "" {
+			return nil, rpcerr.New(connect.CodeInvalidArgument, errPrivateServiceName)
+		}
 		updateParams.Name = new(req.GetName())
+		updateParams.Slug = &slug
 	}
 	if message.Has(fields.ByName(updateDescriptionField)) {
 		updateParams.Description = new(req.GetDescription())
-	}
-	if rename && locoControllerV1.PrivateServiceName(req.GetName()) == "" {
-		return nil, rpcerr.New(connect.CodeInvalidArgument, errPrivateServiceName)
 	}
 
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -535,12 +549,19 @@ func (s *ResourceServer) UpdateResource(
 		if getErr != nil {
 			return getErr
 		}
+		if rename {
+			slugErr := checkSlugFree(ctx, qtx, resource.WorkspaceID, *updateParams.Slug, &resourceID)
+			if slugErr != nil {
+				return slugErr
+			}
+		}
 		_, updateErr := qtx.UpdateResource(ctx, updateParams)
 		if updateErr != nil {
 			return updateErr
 		}
 		if rename {
 			resource.Name = req.GetName()
+			resource.Slug = *updateParams.Slug
 			if renameErr := renamePlacements(ctx, qtx, resource); renameErr != nil {
 				return renameErr
 			}
@@ -555,6 +576,9 @@ func (s *ResourceServer) UpdateResource(
 			SubjectID:   new(resourceID),
 		})
 	})
+	if errors.Is(err, errSlugInUse) {
+		return nil, rpcerr.New(connect.CodeAlreadyExists, err)
+	}
 	if err != nil {
 		if isPgConstraintViolation(err) {
 			return nil, rpcerr.New(connect.CodeAlreadyExists, ErrResourceNameNotUnique)
@@ -1135,6 +1159,7 @@ func dbResourceToProto(
 		Id:                  res.ID.String(),
 		WorkspaceId:         res.WorkspaceID.String(),
 		Name:                res.Name,
+		Slug:                res.Slug,
 		Type:                resourceType,
 		Spec:                spec,
 		Domains:             resourceDomainToListProto(domains),
@@ -1266,7 +1291,6 @@ func desiredApplicationSpec(
 			DeploymentID: deploymentID.String(),
 			ResourceID:   res.ID.String(),
 			WorkspaceID:  res.WorkspaceID.String(),
-			ResourceName: res.Name,
 			ResourceType: string(res.Type),
 			Region:       region,
 			AppSpec:      appSpec,
@@ -1499,4 +1523,34 @@ func (s *ResourceServer) GetResourceEnv(
 		break
 	}
 	return &resourcev1.GetResourceEnvResponse{Env: plain, SecretNames: secretNames}, nil
+}
+
+// resourceSlug is the DNS label a resource's private Service and generated subdomain use, or ""
+// when the name has none or it is reserved.
+func resourceSlug(name string) string {
+	return locoControllerV1.PrivateServiceName(locofile.Slug(name))
+}
+
+// checkSlugFree returns errSlugInUse naming the workspace resource, other than except, that
+// already holds slug.
+func checkSlugFree(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	workspaceID uuid.UUID,
+	slug string,
+	except *uuid.UUID,
+) error {
+	params := genDb.GetResourceNameBySlugParams{WorkspaceID: workspaceID, Slug: slug, ExceptID: except}
+	other, err := qtx.GetResourceNameBySlug(ctx, params)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("look up slug %s: %w", slug, err)
+	}
+	return slugTakenError(slug, other)
+}
+
+func slugTakenError(slug, holder string) error {
+	return fmt.Errorf("%w: %s is used by %q", errSlugInUse, slug, holder)
 }

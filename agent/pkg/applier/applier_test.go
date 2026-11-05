@@ -100,8 +100,8 @@ func TestApplyPlacementWritesTheEnvSecretOwnedByTheApplication(t *testing.T) {
 	if string(secret.Data["DATABASE_URL"]) != string(value) {
 		t.Fatalf("env Secret data = %v, want DATABASE_URL", secret.Data)
 	}
-	if secret.Labels[locoControllerV1.LabelPlacementID] != "p1" ||
-		secret.Labels[locoControllerV1.LabelPlacementRevision] != "2" {
+	if secret.Labels[locoControllerV1.KeyPlacementID] != "p1" ||
+		secret.Labels[locoControllerV1.KeyPlacementRevision] != "2" {
 		t.Fatalf("env Secret labels = %v, want placement p1 at revision 2", secret.Labels)
 	}
 	if len(secret.OwnerReferences) != 1 || secret.OwnerReferences[0].Kind != applicationKind ||
@@ -155,9 +155,9 @@ func TestApplyPlacementRecordsRevisionAndRejectsOlderOnes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get applied Application: %v", err)
 	}
-	got, ok := PlacementOf(app)
-	if !ok || got.ID != "p1" || got.Revision != 2 {
-		t.Fatalf("placement annotations = %+v, %v", got, ok)
+	id, revision, ok := app.Placement()
+	if !ok || id != "p1" || revision != 2 {
+		t.Fatalf("placement annotations = %q, %d, %v", id, revision, ok)
 	}
 
 	err = a.ApplyPlacement(ctx, placement(t, "p1", 1))
@@ -177,8 +177,8 @@ func TestApplyPlacementRecordsRevisionAndRejectsOlderOnes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get Application: %v", err)
 	}
-	if got, _ := PlacementOf(app); got.Revision != 3 {
-		t.Fatalf("revision = %d, want 3", got.Revision)
+	if _, revision, _ := app.Placement(); revision != 3 {
+		t.Fatalf("revision = %d, want 3", revision)
 	}
 }
 
@@ -268,7 +268,7 @@ func TestInvalidPlacementsAreMarked(t *testing.T) {
 func TestApplyPlacementPreservesLogicalServiceName(t *testing.T) {
 	a := newTestApplier(t)
 	p := placement(t, testPlacementID, 1)
-	spec := &locoControllerV1.ApplicationSpec{Type: testAppType, ResourceID: testResourceID, ResourceName: "cart"}
+	spec := &locoControllerV1.ApplicationSpec{Type: testAppType, ResourceID: testResourceID, Slug: "cart"}
 	p.Application = marshalPayload(t, spec)
 	if applyErr := a.ApplyPlacement(context.Background(), p); applyErr != nil {
 		t.Fatal(applyErr)
@@ -277,10 +277,10 @@ func TestApplyPlacementPreservesLogicalServiceName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if app.Spec.ResourceName != spec.ResourceName {
-		t.Fatalf("resourceName = %q, want %q", app.Spec.ResourceName, spec.ResourceName)
+	if app.Spec.Slug != spec.Slug {
+		t.Fatalf("slug = %q, want %q", app.Spec.Slug, spec.Slug)
 	}
-	spec.ResourceName = "checkout"
+	spec.Slug = "checkout"
 	p.Revision++
 	p.Application = marshalPayload(t, spec)
 	if applyErr := a.ApplyPlacement(context.Background(), p); applyErr != nil {
@@ -290,7 +290,7 @@ func TestApplyPlacementPreservesLogicalServiceName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if app.Spec.ResourceName != spec.ResourceName {
-		t.Fatalf("resourceName after rename = %q, want %q", app.Spec.ResourceName, spec.ResourceName)
+	if app.Spec.Slug != spec.Slug {
+		t.Fatalf("slug after rename = %q, want %q", app.Spec.Slug, spec.Slug)
 	}
 }

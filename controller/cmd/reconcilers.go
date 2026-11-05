@@ -21,6 +21,8 @@ const (
 var (
 	errGatewayMissing          = errors.New("the application reconciler requires " + envGateway)
 	errWorkspacePrefixMissing  = errors.New("the application reconciler requires " + envWorkspacePrefix)
+	errNoLocoNamespace         = errors.New("registry secrets require " + envLocoNamespace)
+	errNoPushSecret            = errors.New("builds require a registry push secret outside registry token mode")
 	errStaticSecretInTokenMode = errors.New(
 		"registry token mode reads the agent's registry Secrets; unset " +
 			envRegistryPullSecretName + " and the build push secret",
@@ -62,6 +64,9 @@ func applicationSetup(operator operatorConfig) (reconcilerSetup, error) {
 	if operator.RegistryTokenMode && operator.PullSecretName != "" {
 		return reconcilerSetup{}, errStaticSecretInTokenMode
 	}
+	if (operator.RegistryTokenMode || operator.PullSecretName != "") && operator.LocoNamespace == "" {
+		return reconcilerSetup{}, errNoLocoNamespace
+	}
 	cacheOptions := controller.CacheOptions(
 		operator.LocoNamespace,
 		operator.PullSecretName,
@@ -71,6 +76,7 @@ func applicationSetup(operator operatorConfig) (reconcilerSetup, error) {
 		reconciler := &controller.LocoResourceReconciler{
 			Client:                   mgr.GetClient(),
 			Scheme:                   mgr.GetScheme(),
+			APIReader:                mgr.GetAPIReader(),
 			LocoNamespace:            operator.LocoNamespace,
 			PullSecretName:           operator.PullSecretName,
 			RegistryTokenMode:        operator.RegistryTokenMode,
@@ -95,6 +101,12 @@ func buildSetup(operator operatorConfig) (reconcilerSetup, error) {
 	staticSecretSet := operator.PullSecretName != "" || buildConfig.PushSecretName != ""
 	if operator.RegistryTokenMode && staticSecretSet {
 		return reconcilerSetup{}, errStaticSecretInTokenMode
+	}
+	if !operator.RegistryTokenMode && buildConfig.PushSecretName == "" {
+		return reconcilerSetup{}, errNoPushSecret
+	}
+	if staticSecretSet && operator.LocoNamespace == "" {
+		return reconcilerSetup{}, errNoLocoNamespace
 	}
 	cacheOptions := builds.CacheOptions(buildConfig.Namespace)
 	register := func(mgr ctrl.Manager) error {

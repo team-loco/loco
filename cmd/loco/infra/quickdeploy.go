@@ -170,7 +170,7 @@ func directoryServiceName() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("get current directory: %w", err)
 	}
-	name := locofile.ServiceNameFromDir(filepath.Base(dir))
+	name := locofile.Slug(filepath.Base(dir))
 	if name == "" {
 		return "", errUnsafeDirectoryName
 	}
@@ -201,11 +201,7 @@ func quickDomain(cmd *cobra.Command, t cmdutil.Target, name, region string) (str
 }
 
 func generatedDomain(ctx context.Context, t cmdutil.Target, name, platformDomain string) (string, error) {
-	prefix := name
-	if len(prefix) > locofile.MaxServiceNameLength-domainSuffixLength-1 {
-		prefix = strings.TrimSuffix(prefix[:locofile.MaxServiceNameLength-domainSuffixLength-1], "-")
-	}
-	base := prefix + "-"
+	base := domainBase(name)
 	existing, err := existingGeneratedDomain(ctx, t, name, base, platformDomain)
 	if err != nil || existing != "" {
 		return existing, err
@@ -241,6 +237,14 @@ func existingGeneratedDomain(ctx context.Context, t cmdutil.Target, name, base, 
 		}
 	}
 	return "", nil
+}
+
+func domainBase(name string) string {
+	prefix := locofile.Slug(name)
+	if len(prefix) > locofile.MaxServiceNameLength-domainSuffixLength-1 {
+		prefix = strings.TrimSuffix(prefix[:locofile.MaxServiceNameLength-domainSuffixLength-1], "-")
+	}
+	return prefix + "-"
 }
 
 func domainSuffix(workspaceID, name string) string {
