@@ -52,7 +52,14 @@ func clientAcceptance(ctx context.Context) (result error) {
 	}()
 	ctx, cancel := context.WithTimeout(ctx, clientTimeout)
 	defer cancel()
-	return clientFlow(ctx, audit)
+	if err := clientFlow(ctx, audit); err != nil {
+		return err
+	}
+	if err := recoveryDrill(ctx); err != nil {
+		return err
+	}
+	fmt.Println("Installation passed: sign-in, source build, HTTPS, preserved identity and recovery.")
+	return nil
 }
 
 func clientFlow(ctx context.Context, audit *leakAudit) error {
@@ -147,9 +154,6 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 	if checkErr := deployFixture(ctx); checkErr != nil {
 		return checkErr
 	}
-	fmt.Println(
-		"Installation passed: real IdP, closed bootstrap, source build, HTTPS and preserved identity.",
-	)
 	return nil
 }
 

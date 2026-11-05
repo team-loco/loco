@@ -325,6 +325,7 @@ RUN wget -qO /usr/local/libexec/kubectl https://dl.k8s.io/release/v%s/bin/linux/
  && ln -s /usr/local/bin/installation-e2e /usr/local/bin/kubectl
 COPY tests/e2e/fixtures/build-app /fixture/build-app
 COPY tests/e2e/fixtures/installation/network-probe.yaml /fixture/network-probe.yaml
+COPY tests/e2e/fixtures/installation/recovery.yaml /fixture/recovery.yaml
 CMD ["sleep", "infinity"]
 `, base, helm, helm, kubectl, kubectl)
 		path := filepath.Join(f.dir, "operator.Dockerfile")

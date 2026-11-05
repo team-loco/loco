@@ -18,3 +18,5 @@
 **/.git/**
 **/credentials.json
 **/kubeconfig
+
+!tests/e2e/fixtures/installation/recovery.yaml

@@ -41,6 +41,7 @@ func TestOperatorBuildContextExcludesDestinationCredentials(t *testing.T) {
 		"cmd/locoadm/main.go",
 		"tools/installation-e2e/main.go",
 		"tests/e2e/fixtures/build-app/main.go",
+		"tests/e2e/fixtures/installation/recovery.yaml",
 	} {
 		excluded, matchErr := matcher.MatchesOrParentMatches(path)
 		if matchErr != nil {

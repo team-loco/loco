@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: Namespace
+metadata: {name: {{ .Namespace | quote }}}
+---
+apiVersion: v1
+kind: Secret
+metadata: {name: recovery, namespace: {{ .Namespace | quote }}}
+stringData:
+  key: {{ .Seal | quote }}
+  config.hcl: |
+    ui = false
+    disable_mlock = true
+    api_addr = "http://127.0.0.1:8200"
+    cluster_addr = "http://127.0.0.1:8201"
+    listener "tcp" {
+      address = "127.0.0.1:8200"
+      tls_disable = true
+    }
+    storage "raft" {
+      path = "/data"
+      node_id = "restore-drill"
+    }
+    seal "static" {
+      current_key_id = {{ .KeyID | quote }}
+      current_key = "file:///seal/key"
+    }
+---
+apiVersion: v1
+kind: Pod
+metadata: {name: {{ .Pod | quote }}, namespace: {{ .Namespace | quote }}}
+spec:
+  restartPolicy: Always
+  automountServiceAccountToken: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 100
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile: {type: RuntimeDefault}
+  containers:
+  - name: bao
+    image: {{ .BaoImage | quote }}
+    command: [bao, server, -config=/seal/config.hcl]
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities: {drop: [ALL]}
+    volumeMounts:
+    - {name: seal, mountPath: /seal, readOnly: true}
+    - {name: data, mountPath: /data}
+  volumes:
+  - name: seal
+    secret: {secretName: recovery}
+  - name: data
+    emptyDir: {medium: Memory}
