@@ -58,7 +58,6 @@ func webCmdFunc(cmd *cobra.Command, args []string) error {
 		page = args[0]
 	}
 
-	// Load config to get current org/workspace for workspace-scoped routes
 	cfg, err := session.Load()
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)

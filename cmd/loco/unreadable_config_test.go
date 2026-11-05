@@ -38,8 +38,8 @@ func TestCommandsReportUnreadableConfig(t *testing.T) {
 			root.SetArgs(tt.args)
 
 			err := root.Execute()
-			if err == nil || !strings.Contains(err.Error(), "decode config") {
-				t.Fatalf("error = %v, want the config decode failure", err)
+			if err == nil || !strings.Contains(err.Error(), "decode config "+configPath) {
+				t.Fatalf("error = %v, want the config decode failure naming %s", err, configPath)
 			}
 		})
 	}

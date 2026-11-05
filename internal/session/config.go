@@ -93,7 +93,7 @@ func Load() (*SessionConfig, error) {
 
 	var cfg SessionConfig
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("failed to decode config: %w", err)
+		return nil, fmt.Errorf("decode config %s: %w", configPath, err)
 	}
 
 	if cfg.CurrentScope == "" {
