@@ -3,6 +3,7 @@ package interceptor
 import (
 	"context"
 	"net/http"
+	"net/netip"
 	"testing"
 	"time"
 
@@ -153,7 +154,7 @@ func TestAuthenticateRejectsSuspendedUsers(t *testing.T) {
 	}); scopeErr != nil {
 		t.Fatalf("grant org scope: %v", scopeErr)
 	}
-	sessionToken, _, err := f.machine.IssueSession(t.Context(), user.ID, nil, "", "")
+	sessionToken, _, err := f.machine.IssueSession(t.Context(), user.ID, nil, netip.Addr{}, "")
 	if err != nil {
 		t.Fatalf("issue session: %v", err)
 	}

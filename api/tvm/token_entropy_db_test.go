@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
@@ -62,7 +63,7 @@ func TestIssuedTokensCarryGeneratedBytesAndStoreOnlyHashes(t *testing.T) {
 		t.Fatalf("grant scope: %v", grantErr)
 	}
 
-	access, refresh, err := machine.IssueSession(ctx, user.ID, nil, "", "")
+	access, refresh, err := machine.IssueSession(ctx, user.ID, nil, netip.Addr{}, "")
 	if err != nil {
 		t.Fatalf("issue session: %v", err)
 	}

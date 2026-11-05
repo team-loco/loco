@@ -14,7 +14,7 @@ func (tvm *VendingMachine) IssueSession(
 	ctx context.Context,
 	userID uuid.UUID,
 	identityID *uuid.UUID,
-	ip string,
+	ip netip.Addr,
 	userAgent string,
 ) (string, string, error) {
 	accessToken, accessHash := generateToken(prefixSession)
@@ -23,11 +23,8 @@ func (tvm *VendingMachine) IssueSession(
 	now := time.Now()
 
 	var ipAddr *netip.Addr
-	if ip != "" {
-		parsed, parseErr := netip.ParseAddr(ip)
-		if parseErr == nil {
-			ipAddr = &parsed
-		}
+	if ip.IsValid() {
+		ipAddr = &ip
 	}
 
 	if err := tvm.queries.CreateSessionToken(ctx, queries.CreateSessionTokenParams{

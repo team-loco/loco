@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/big"
+	"net/netip"
 	"strings"
 	"time"
 
@@ -28,7 +29,6 @@ import (
 	"github.com/team-loco/loco/api/tvm"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	"github.com/team-loco/loco/internal/bearer"
-	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
@@ -38,6 +38,8 @@ const (
 	devicePollInterval = 5 * time.Second
 	userCodeAlphabet   = "BCDFGHJKLMNPQRSTVWXZ"
 	userCodeLength     = 8
+	realIPHeader       = "X-Real-IP"
+	forwardedForHeader = "X-Forwarded-For"
 )
 
 var (
@@ -138,12 +140,25 @@ func pkceMatches(verifier, challenge string) bool {
 	return subtle.ConstantTimeCompare([]byte(computed), []byte(challenge)) == 1
 }
 
-func clientInfo(h httputil.HeaderGetter) (string, string) {
-	ip := h.Get("X-Real-IP")
-	if ip == "" {
-		ip = h.Get("X-Forwarded-For")
+// the address is a best-effort, client-forgeable estimate of where a request came from, recorded
+// for display and audit only; never base an access decision on it.
+func clientAddress(info *connect.CallInfo) netip.Addr {
+	header := info.RequestHeader()
+	if addr, err := netip.ParseAddr(strings.TrimSpace(header.Get(realIPHeader))); err == nil {
+		return addr
 	}
-	return ip, h.Get("User-Agent")
+	for _, line := range header.Values(forwardedForHeader) {
+		for entry := range strings.SplitSeq(line, ",") {
+			if addr, err := netip.ParseAddr(strings.TrimSpace(entry)); err == nil {
+				return addr
+			}
+		}
+	}
+	peer, err := netip.ParseAddrPort(info.PeerAddr)
+	if err != nil {
+		return netip.Addr{}
+	}
+	return peer.Addr()
 }
 
 func (s *AuthServer) webIdentity(ctx context.Context) (cliGrant, error) {
@@ -169,9 +184,10 @@ func (s *AuthServer) webIdentity(ctx context.Context) (cliGrant, error) {
 func (s *AuthServer) issue(
 	ctx context.Context,
 	grant cliGrant,
-	h httputil.HeaderGetter,
+	info *connect.CallInfo,
 ) (*authv1.CLITokens, error) {
-	ip, ua := clientInfo(h)
+	ip := clientAddress(info)
+	ua := info.RequestHeader().Get("User-Agent")
 	identityID := grant.IdentityID
 	var access, refresh string
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -262,7 +278,7 @@ func (s *AuthServer) ExchangeCLICode(
 	if !found || !pkceMatches(req.GetCodeVerifier(), grant.Challenge) {
 		return nil, rpcerr.New(connect.CodeUnauthenticated, ErrCLICodeInvalid)
 	}
-	tokens, err := s.issue(ctx, grant, info.RequestHeader())
+	tokens, err := s.issue(ctx, grant, info)
 	if err != nil {
 		return nil, err
 	}
@@ -393,7 +409,7 @@ func (s *AuthServer) PollDeviceLogin(
 	if err != nil || !took {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrDeviceCodeExpired)
 	}
-	tokens, err := s.issue(ctx, cliGrant{UserID: *device.UserID, IdentityID: *device.IdentityID}, info.RequestHeader())
+	tokens, err := s.issue(ctx, cliGrant{UserID: *device.UserID, IdentityID: *device.IdentityID}, info)
 	if err != nil {
 		return nil, err
 	}
