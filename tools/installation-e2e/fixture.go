@@ -190,8 +190,15 @@ func (f *fixture) acceptance(ctx context.Context) error {
 		return checkErr
 	}
 	fmt.Println("Running public operator and application workflow")
+	return f.runOperator(ctx)
+}
+
+func (f *fixture) runOperator(ctx context.Context) error {
 	out, err := operatorWorkflow(ctx, f.root)
 	if err != nil {
+		inspection, cancel := context.WithTimeout(context.WithoutCancel(ctx), failureSnapshotTimeout)
+		defer cancel()
+		f.failureSnapshot(inspection)
 		return fmt.Errorf("installation acceptance failed: %w", err)
 	}
 	fmt.Print(string(out))

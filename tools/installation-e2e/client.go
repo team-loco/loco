@@ -71,12 +71,13 @@ var (
 )
 
 const (
-	fixtureEmail         = "dev@loco.test"
-	fixturePassword      = "loco-dev"
-	clientFile           = "/installation/installation.yaml"
-	clientTimeout        = 45 * time.Minute
-	httpsReadyTimeout    = 2 * time.Minute
-	fixtureResponseLimit = 1 << 20
+	fixtureEmail           = "dev@loco.test"
+	fixturePassword        = "loco-dev"
+	clientFile             = "/installation/installation.yaml"
+	clientTimeout          = 45 * time.Minute
+	fixtureWorkloadTimeout = 5 * time.Minute
+	httpsReadyTimeout      = 2 * time.Minute
+	fixtureResponseLimit   = 1 << 20
 )
 
 func clientAcceptance(ctx context.Context) (result error) {
@@ -514,8 +515,11 @@ services:
 		return checkErr
 	}
 	operatorPhase(phaseSourceDeploy)
-	if _, checkErr := command(ctx, app, nil, "loco", "deploy", "--yes"); checkErr != nil {
-		return fmt.Errorf("source build and deploy: %w", checkErr)
+	deployCtx, cancelDeploy := context.WithTimeout(ctx, fixtureWorkloadTimeout)
+	_, deployErr := command(deployCtx, app, nil, "loco", "deploy", "--yes")
+	cancelDeploy()
+	if deployErr != nil {
+		return fmt.Errorf("source build and deploy: %w", deployErr)
 	}
 	if _, checkErr := os.Stat(filepath.Join(app, "loco.yaml")); checkErr != nil {
 		return checkErr
@@ -536,9 +540,11 @@ services:
 		return err
 	}
 	operatorPhase(phaseSourceVerify)
+	verifyTimeout := fixtureWorkloadTimeout.String()
 	if _, verifyErr := locoadm(
 		ctx,
 		"verify",
+		"--timeout", verifyTimeout,
 		"--file",
 		clientFile,
 		"--worker",
