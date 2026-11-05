@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect/v2"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/auth/authtest"
 	"github.com/team-loco/loco/api/authz"
@@ -25,6 +26,7 @@ type providerFixture struct {
 	interceptor *authInterceptor
 	machine     *tvm.VendingMachine
 	queries     *genDb.Queries
+	pool        *pgxpool.Pool
 }
 
 func newProviderFixture(t *testing.T, policy auth.SignupPolicy) *providerFixture {
@@ -54,6 +56,7 @@ func newProviderFixture(t *testing.T, policy auth.SignupPolicy) *providerFixture
 		interceptor: NewAuthInterceptor(machine, verifier, auth.NewResolver(pool, policy), authz.New(pool, queries)),
 		machine:     machine,
 		queries:     queries,
+		pool:        pool,
 	}
 }
 
