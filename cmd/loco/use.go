@@ -52,7 +52,7 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 
 	apiClient := client.NewClient(host, t.Token)
 
-	workspaces, err := apiClient.GetUserWorkspaces(ctx)
+	workspaces, err := cmdutil.ListUserWorkspaces(ctx, apiClient.Workspace)
 	if err != nil {
 		return fmt.Errorf("failed to get workspaces: %w", err)
 	}

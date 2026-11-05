@@ -115,7 +115,7 @@ func ResolveWorkspaceID(
 		return "", ErrLoginRequired
 	}
 
-	workspaces, err := apiClient.GetUserWorkspaces(ctx)
+	workspaces, err := ListUserWorkspaces(ctx, apiClient.Workspace)
 	if err != nil {
 		slog.Debug("failed to get workspaces", "error", err)
 		return "", fmt.Errorf("failed to get workspaces: %w", err)

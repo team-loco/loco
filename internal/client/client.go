@@ -16,7 +16,6 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
-	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
 )
 
@@ -66,20 +65,6 @@ func (c *Client) GetCurrentUser(ctx context.Context) (*userv1.User, error) {
 	}
 
 	return resp.GetUser(), nil
-}
-
-func (c *Client) GetUserWorkspaces(ctx context.Context) ([]*workspacev1.Workspace, error) {
-	req := &workspacev1.ListUserWorkspacesRequest{
-		PageSize: 100,
-	}
-
-	resp, err := c.Workspace.ListUserWorkspaces(ctx, req)
-	if err != nil {
-		logRequestID(ctx, err, "failed to get user workspaces")
-		return nil, err
-	}
-
-	return resp.GetWorkspaces(), nil
 }
 
 func (c *Client) GetApp(ctx context.Context, appID string) (*resourcev1.Resource, error) {

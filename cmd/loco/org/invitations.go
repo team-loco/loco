@@ -1,18 +1,16 @@
 package org
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 )
 
 const invitationTablePadding = 2
-
-var errRepeatedInvitationPage = errors.New("invitation listing returned a repeated page")
 
 func buildInvitationsCmd() *cobra.Command {
 	return newInvitationsCmd(invitationDeps{NewOrgClient: realOrgClient, Output: os.Stdout})
@@ -36,24 +34,18 @@ func newInvitationsCmd(deps invitationDeps) *cobra.Command {
 				return err
 			}
 
-			req := &orgv1.ListInvitationsRequest{OrgId: orgID}
-			var invitations []*orgv1.Invitation
-			seen := make(map[string]struct{})
-			for {
-				resp, listErr := client.ListInvitations(cmd.Context(), req)
+			invitations, err := cmdutil.Paginate(func(token string) ([]*orgv1.Invitation, string, error) {
+				resp, listErr := client.ListInvitations(
+					cmd.Context(),
+					&orgv1.ListInvitationsRequest{OrgId: orgID, PageToken: token},
+				)
 				if listErr != nil {
-					return fmt.Errorf("unable to list invitations: %w", listErr)
+					return nil, "", listErr
 				}
-				invitations = append(invitations, resp.GetInvitations()...)
-				next := resp.GetNextPageToken()
-				if next == "" {
-					break
-				}
-				if _, duplicate := seen[next]; duplicate {
-					return errRepeatedInvitationPage
-				}
-				seen[next] = struct{}{}
-				req.PageToken = next
+				return resp.GetInvitations(), resp.GetNextPageToken(), nil
+			})
+			if err != nil {
+				return fmt.Errorf("unable to list invitations: %w", err)
 			}
 
 			if len(invitations) == 0 {

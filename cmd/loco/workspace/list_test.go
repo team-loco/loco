@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 )
@@ -128,7 +129,7 @@ func TestListWorkspacesRejectsRepeatedPages(t *testing.T) {
 				},
 			)
 			rows, err := listWorkspaces(t.Context(), deps, orgID)
-			if !errors.Is(err, errRepeatedWorkspacePage) || rows != nil || calls != 2 {
+			if !errors.Is(err, cmdutil.ErrRepeatedPageToken) || rows != nil || calls != 2 {
 				t.Fatalf("repeated page: rows=%v error=%v calls=%d", rows, err, calls)
 			}
 		})
