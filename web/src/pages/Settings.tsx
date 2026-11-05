@@ -1,12 +1,14 @@
-import { useQuery } from "@connectrpc/connect-query";
-import { getOrg, listOrgMembers } from "@gen/loco/org/v1/org-OrgService_connectquery";
+import { useQuery, useTransport } from "@connectrpc/connect-query";
+import { getOrg } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { getWorkspace, listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
+import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { Building2Icon, LayersIcon, ScrollTextIcon } from "lucide-react";
 import { useParams, useSearchParams } from "react-router";
 
 import { Page, PageHeader } from "@/components/design/Page";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { orgMembersOptions } from "@/hooks/completeMembers";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { getErrorMessage } from "@/lib/error-handler";
 
@@ -28,6 +30,7 @@ export function Settings() {
 	const [params, setParams] = useSearchParams();
 	const requested = tabOf(params.get("tab")) ?? "ws";
 
+	const transport = useTransport();
 	const scopes = useMyScopes();
 	const { orgs } = useOrgWorkspace();
 	const canReadOrg = !scopes.isLoading && scopes.orgMember(orgId);
@@ -40,7 +43,10 @@ export function Settings() {
 	);
 	const orgQuery = useQuery(getOrg, { key: { case: "orgId", value: orgId } }, { enabled: orgId !== "" && canReadOrg });
 	const wsQuery = useQuery(listOrgWorkspaces, { orgId, pageSize: 200 }, { enabled: orgId !== "" && canReadOrg });
-	const membersQuery = useQuery(listOrgMembers, { orgId, pageSize: 200 }, { enabled: orgId !== "" && canReadOrg });
+	const membersQuery = useTanstackQuery({
+		...orgMembersOptions(transport, orgId),
+		enabled: orgId !== "" && canReadOrg,
+	});
 	const org = orgQuery.data?.organization;
 	const workspaces = wsQuery.data?.workspaces ?? [];
 	const users = (membersQuery.data?.members ?? []).flatMap((m) => (m.user ? [m.user] : []));
