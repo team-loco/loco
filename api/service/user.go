@@ -281,43 +281,36 @@ func (s *UserServer) DeleteUser(
 
 	userID := uuid.MustParse(req.GetUserId())
 
-	_, err := s.queries.GetUserByID(ctx, userID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrUserNotFound)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("get user: %w", err)
-	}
-
-	hasWorkspaces, err := s.queries.CheckUserHasWorkspaces(ctx, userID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check user workspaces", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-
-	if hasWorkspaces {
-		slog.WarnContext(ctx, "cannot delete user with active workspace memberships", "userId", req.GetUserId())
-		return nil, rpcerr.New(connect.CodeFailedPrecondition, ErrUserHasActiveResources)
-	}
-
-	hasOrganizations, err := s.queries.CheckUserHasOrganizations(ctx, userID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check user organizations", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-
-	if hasOrganizations {
-		slog.WarnContext(ctx, "cannot delete user with owned organizations", "userId", req.GetUserId())
-		return nil, rpcerr.New(connect.CodeFailedPrecondition, ErrUserHasOrganizations)
-	}
-
-	identities, err := s.queries.ListIdentitiesForUser(ctx, userID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list user identities", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-
-	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+	var identities []genDb.Identity
+	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		_, lockErr := qtx.LockUserForMembership(ctx, userID)
+		if errors.Is(lockErr, pgx.ErrNoRows) {
+			return rpcerr.New(connect.CodeNotFound, ErrUserNotFound)
+		}
+		if lockErr != nil {
+			return lockErr
+		}
+		hasWorkspaces, checkErr := qtx.CheckUserHasWorkspaces(ctx, userID)
+		if checkErr != nil {
+			return fmt.Errorf("check user workspaces: %w", checkErr)
+		}
+		if hasWorkspaces {
+			slog.WarnContext(ctx, "cannot delete user with active workspace memberships", "userId", req.GetUserId())
+			return rpcerr.New(connect.CodeFailedPrecondition, ErrUserHasActiveResources)
+		}
+		hasOrganizations, checkErr := qtx.CheckUserHasOrganizations(ctx, userID)
+		if checkErr != nil {
+			return fmt.Errorf("check user organizations: %w", checkErr)
+		}
+		if hasOrganizations {
+			slog.WarnContext(ctx, "cannot delete user with owned organizations", "userId", req.GetUserId())
+			return rpcerr.New(connect.CodeFailedPrecondition, ErrUserHasOrganizations)
+		}
+		var listErr error
+		identities, listErr = qtx.ListIdentitiesForUser(ctx, userID)
+		if listErr != nil {
+			return fmt.Errorf("list user identities: %w", listErr)
+		}
 		if deleteErr := qtx.DeleteUser(ctx, userID); deleteErr != nil {
 			return deleteErr
 		}
@@ -328,8 +321,7 @@ func (s *UserServer) DeleteUser(
 		})
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to delete user", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return nil, txError(ctx, "failed to delete user", err)
 	}
 
 	for _, identity := range identities {
