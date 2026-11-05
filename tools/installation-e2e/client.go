@@ -214,7 +214,13 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 	return nil
 }
 
-func bootstrap(ctx context.Context) error {
+func bootstrap(ctx context.Context) (result error) {
+	var stderr boundedOutput
+	defer func() {
+		if result != nil {
+			fmt.Fprintln(os.Stderr, bootstrapFailurePrefix+classifyBootstrapFailure(stderr.Bytes()))
+		}
+	}()
 	operatorPhase(phaseBootstrapAuthorization)
 	cmd := exec.CommandContext(
 		ctx,
@@ -230,11 +236,11 @@ func bootstrap(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	// Provider/CLI errors can carry credential material. Only the phase is returned.
+	// Provider/CLI errors can carry credential material. Only allowlisted failure metadata reaches the host.
 	audit, auditing := ctx.Value(auditKey{}).(*leakAudit)
-	cmd.Stderr = io.Discard
+	cmd.Stderr = &stderr
 	if auditing {
-		cmd.Stderr = auditWriter{audit, "CLI output (stderr)"}
+		cmd.Stderr = io.MultiWriter(&stderr, auditWriter{audit, "CLI output (stderr)"})
 	}
 	if checkErr := cmd.Start(); checkErr != nil {
 		return fmt.Errorf("start bootstrap: %w", checkErr)

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"slices"
+	"strings"
 )
 
 const (
@@ -50,11 +51,15 @@ func operatorWorkflow(ctx context.Context, dir string) ([]byte, error) {
 	cmd.Stderr = &output
 	err := cmd.Run()
 	phase := "unknown"
+	var failure string
 	for line := range bytes.SplitAfterSeq(output.Bytes(), []byte{'\n'}) {
 		if !bytes.HasSuffix(line, []byte{'\n'}) {
 			continue
 		}
 		candidate := string(bytes.TrimSuffix(line, []byte{'\n'}))
+		if category, ok := strings.CutPrefix(candidate, bootstrapFailurePrefix); ok && knownBootstrapFailure(category) {
+			failure = category
+		}
 		if slices.Contains([]string{
 			phasePrefix + phasePreflight, phasePrefix + phaseControlPlane,
 			phasePrefix + phasePreBootstrapAudit, phasePrefix + phaseBootstrap,
@@ -72,6 +77,9 @@ func operatorWorkflow(ctx context.Context, dir string) ([]byte, error) {
 		return nil, fmt.Errorf("operator phase %s: %w", phase, errOperatorOutputLimit)
 	}
 	if err != nil {
+		if failure != "" {
+			return nil, fmt.Errorf("operator phase %s, bootstrap failure %s: kubectl failed: %w", phase, failure, err)
+		}
 		return nil, fmt.Errorf("operator phase %s: kubectl failed: %w", phase, err)
 	}
 	return output.Bytes(), nil
