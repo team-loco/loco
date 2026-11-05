@@ -34,6 +34,7 @@ var _ = Describe("Application reconcile", func() {
 
 		app := &locov1alpha1.Application{
 			Name: "converge", Namespace: testNamespace,
+			Annotations: map[string]string{locov1alpha1.AnnotationPlacementID: "p-converge"},
 			Spec: locov1alpha1.ApplicationSpec{
 				Type:        testAppType,
 				ResourceID:  "converge",
@@ -82,8 +83,11 @@ var _ = Describe("Application reconcile", func() {
 
 		staged := &corev1.Secret{
 			Name: "env-converge", Namespace: testNamespace,
-			Labels: map[string]string{locov1alpha1.LabelPlacementRevision: "1"},
-			Data:   map[string][]byte{"DATABASE_URL": []byte("postgres://old")},
+			Labels: map[string]string{
+				locov1alpha1.LabelPlacementID:       "p-converge",
+				locov1alpha1.LabelPlacementRevision: "1",
+			},
+			Data: map[string][]byte{"DATABASE_URL": []byte("postgres://old")},
 		}
 		Expect(k8sClient.Create(ctx, staged)).To(Succeed())
 		result, err = r.Reconcile(ctx, req)

@@ -18,6 +18,7 @@ const (
 	testNamespace  = "loco-system"
 	testResourceID = "abc"
 	testAppType    = "SERVICE"
+	testImage      = "ghcr.io/team-loco/app:v1"
 )
 
 func newTestApplier(t *testing.T, existing ...client.Object) *Applier {
@@ -44,7 +45,7 @@ func serviceApplication(t *testing.T) []byte {
 		Type:       testAppType,
 		ResourceID: testResourceID,
 		ServiceSpec: &locoControllerV1.ServiceSpec{
-			Deployment: &locoControllerV1.ServiceDeploymentSpec{Image: "ghcr.io/team-loco/app:v1", Port: 8080},
+			Deployment: &locoControllerV1.ServiceDeploymentSpec{Image: testImage, Port: 8080},
 		},
 	})
 }

@@ -237,10 +237,14 @@ func (a *Applier) applyApplication(
 }
 
 func setEnvSecretRef(spec *locoControllerV1.ApplicationSpec, placement Placement) error {
+	hasDeployment := spec.ServiceSpec != nil && spec.ServiceSpec.Deployment != nil
 	if placement.EnvSecret == nil {
+		if hasDeployment {
+			spec.ServiceSpec.Deployment.EnvSecretRef = nil
+		}
 		return nil
 	}
-	if spec.ServiceSpec == nil || spec.ServiceSpec.Deployment == nil {
+	if !hasDeployment {
 		return fmt.Errorf("%w: %w", ErrInvalidPayload, errNoServiceSpec)
 	}
 	spec.ServiceSpec.Deployment.EnvSecretRef = &locoControllerV1.EnvSecretRef{

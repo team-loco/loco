@@ -17,17 +17,25 @@ import (
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
-const testSecretTelemetryValue = "synthetic-secret-otel-value"
+const (
+	testSecretTelemetryValue = "synthetic-secret-otel-value"
+	testStagedPlacementID    = "p1"
+)
 
 func telemetrySecretFixture(
 	t *testing.T, app *locov1alpha1.Application, name string,
-) (*LocoResourceReconciler, *corev1.Secret) {
+) (*LocoResourceReconciler, *corev1.Secret, *int) {
 	t.Helper()
+	applied := 0
 	stage := &corev1.Secret{
 		Name: "env-telemetry", Namespace: app.Namespace,
-		Labels: map[string]string{locov1alpha1.LabelPlacementRevision: "1"},
-		Data:   map[string][]byte{name: []byte(testSecretTelemetryValue)},
+		Labels: map[string]string{
+			locov1alpha1.LabelPlacementID:       testStagedPlacementID,
+			locov1alpha1.LabelPlacementRevision: "1",
+		},
+		Data: map[string][]byte{name: []byte(testSecretTelemetryValue)},
 	}
+	app.Annotations = map[string]string{locov1alpha1.AnnotationPlacementID: testStagedPlacementID}
 	app.Spec.ServiceSpec.Deployment.EnvSecretRef = &locov1alpha1.EnvSecretRef{Name: stage.Name, Revision: 1}
 	scheme := runtime.NewScheme()
 	if err := corev1.AddToScheme(scheme); err != nil {
@@ -35,6 +43,7 @@ func telemetrySecretFixture(
 	}
 	funcs := interceptor.Funcs{
 		Apply: func(context.Context, client.WithWatch, runtime.ApplyConfiguration, ...client.ApplyOption) error {
+			applied++
 			return nil
 		},
 	}
@@ -44,7 +53,7 @@ func telemetrySecretFixture(
 		APIReader:                kube,
 		Gateway:                  testGateway,
 		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
-	}, stage
+	}, stage, &applied
 }
 
 func mountTelemetryDeployment(
@@ -75,7 +84,7 @@ func TestMountedSecretsOverrideOpenTelemetryDefaults(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			app := telemetryTestApplication()
-			r, _ := telemetrySecretFixture(t, app, name)
+			r, _, _ := telemetrySecretFixture(t, app, name)
 			dep := mountTelemetryDeployment(t, r, app)
 			requireNoEnv(t, dep, name)
 			if name == envOTLPEndpoint || name == envOTLPProtocol {
@@ -90,19 +99,19 @@ func TestMountedTelemetrySecretsKeepPlainAndLocoPrecedence(t *testing.T) {
 	for _, name := range []string{envOTelServiceName, envOTelTracesSampler, envOTelTracesSamplerArg} {
 		app := telemetryTestApplication()
 		app.Spec.ServiceSpec.Deployment.Env[name] = userEnvValue
-		r, _ := telemetrySecretFixture(t, app, name)
+		r, _, _ := telemetrySecretFixture(t, app, name)
 		dep := mountTelemetryDeployment(t, r, app)
 		requireSingleEnv(t, dep, name, userEnvValue)
 	}
 	app := telemetryTestApplication()
-	r, _ := telemetrySecretFixture(t, app, "LOCO_DEPLOYMENT_ID")
+	r, _, _ := telemetrySecretFixture(t, app, "LOCO_DEPLOYMENT_ID")
 	dep := mountTelemetryDeployment(t, r, app)
 	requireSingleEnv(t, dep, "LOCO_DEPLOYMENT_ID", testDeploymentID)
 }
 
 func TestStagedSecretAheadOfTheReferencedRevisionIsPending(t *testing.T) {
 	app := telemetryTestApplication()
-	r, stage := telemetrySecretFixture(t, app, envOTelServiceName)
+	r, stage, _ := telemetrySecretFixture(t, app, envOTelServiceName)
 	stage.Labels[locov1alpha1.LabelPlacementRevision] = "2"
 	if err := r.Update(t.Context(), stage); err != nil {
 		t.Fatal(err)
@@ -113,4 +122,19 @@ func TestStagedSecretAheadOfTheReferencedRevisionIsPending(t *testing.T) {
 	app.Spec.ServiceSpec.Deployment.EnvSecretRef.Revision = 2
 	dep := mountTelemetryDeployment(t, r, app)
 	requireNoEnv(t, dep, envOTelServiceName)
+}
+
+func TestStagedSecretOfAnotherPlacementIsNotCopied(t *testing.T) {
+	app := telemetryTestApplication()
+	r, stage, applied := telemetrySecretFixture(t, app, envOTelServiceName)
+	stage.Labels[locov1alpha1.LabelPlacementID] = "p2"
+	if err := r.Update(t.Context(), stage); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.ensureEnvSecret(t.Context(), app); !errors.Is(err, errEnvSecretPlacement) {
+		t.Fatalf("other placement = %v, want %v", err, errEnvSecretPlacement)
+	}
+	if *applied != 0 {
+		t.Fatalf("applied %d Secrets, want none", *applied)
+	}
 }
