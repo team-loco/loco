@@ -45,10 +45,10 @@ func TestGatewayDNSWaitsForMatchingAnswers(t *testing.T) {
 
 func TestGatewayDNSPersistentMismatchIsBounded(t *testing.T) {
 	useGatewayTestDNS(t, false)
-	fakeGatewayDNSCommands(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
 	defer cancel()
-	if err := configureGatewayDNS(ctx, controlNamespace, false); !errors.Is(err, context.DeadlineExceeded) {
+	err := waitGatewayDNS(ctx, []string{"ingest.installation.test"}, "192.0.2.10")
+	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("persistent DNS mismatch was accepted: %v", err)
 	}
 }
