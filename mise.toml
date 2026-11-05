@@ -190,6 +190,14 @@ description = "Test how each checkout's local stack gets its slot, names and por
 depends = ["helm:deps"]
 run = "uv run --locked --project tests pytest tests/stack"
 
+[tasks."lint:sri"]
+description = "Check that each CDN script in the API docs carries the integrity hash of the file its URL serves"
+run = "go run ./tools/scriptsri api/docs.html"
+
+[tasks."fix:sri"]
+description = "Rewrite the integrity hashes of the CDN scripts in the API docs, after Renovate moves a script version"
+run = "go run ./tools/scriptsri -write api/docs.html"
+
 [tasks."lint:actions"]
 description = "Run actionlint on the GitHub workflows, and check that every action is pinned to a commit SHA"
 run = ["actionlint -shellcheck=", "pinact run --check"]
