@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 
+	"github.com/team-loco/loco/agent/pkg/rpcretry"
 	ingestv1 "github.com/team-loco/loco/gen/go/loco/ingest/v1"
 	"github.com/team-loco/loco/gen/go/loco/ingest/v1/ingestv1connect"
 )
@@ -45,12 +46,16 @@ func RenewalDelay(now, expiresAt time.Time) time.Duration {
 	return expiresAt.Sub(now) / renewalDivisor
 }
 
-func (r *Renewer) Run(ctx context.Context) {
+// Run renews the token until ctx ends or a renewal fails with an error a retry cannot fix.
+func (r *Renewer) Run(ctx context.Context) error {
 	backoff := r.backoff()
 	for {
 		expiresAt, err := r.renew(ctx)
 		if ctx.Err() != nil {
-			return
+			return ctx.Err()
+		}
+		if err != nil && (!rpcretry.Retryable(err) || apierrors.IsForbidden(err)) {
+			return fmt.Errorf("telemetry token renewal: %w", err)
 		}
 		var delay time.Duration
 		if err != nil {
@@ -65,7 +70,7 @@ func (r *Renewer) Run(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			timer.Stop()
-			return
+			return ctx.Err()
 		case <-timer.C:
 		}
 	}
