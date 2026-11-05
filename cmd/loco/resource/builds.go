@@ -25,18 +25,7 @@ const (
 	imageDeletedSuffix   = " (deleted)"
 )
 
-type buildsDeps struct {
-	Clients platformClients
-	Stdout  io.Writer
-}
-
 func BuildBuildsCmd() *cobra.Command {
-	clients := defaultPlatformClients()
-	deps := buildsDeps{Clients: clients, Stdout: os.Stdout}
-	return newBuildsCmd(deps)
-}
-
-func newBuildsCmd(deps buildsDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "builds",
 		Short: "Inspect and cancel source builds",
@@ -44,20 +33,20 @@ func newBuildsCmd(deps buildsDeps) *cobra.Command {
 	}
 	cmd.PersistentFlags().String("host", "", "API host URL")
 	cmd.AddCommand(
-		newBuildsListCmd(deps),
-		newBuildsGetCmd(deps),
-		newBuildsLogsCmd(deps),
-		newBuildsCancelCmd(deps),
+		newBuildsListCmd(),
+		newBuildsGetCmd(),
+		newBuildsLogsCmd(),
+		newBuildsCancelCmd(),
 	)
 	return cmd
 }
 
-func follower(deps buildsDeps, t cmdutil.Target) *buildFollower {
+func follower(cmd *cobra.Command, t cmdutil.Target) *buildFollower {
 	return &buildFollower{
-		clients: deps.Clients,
+		clients: t.Clients,
 		host:    t.Host,
 		token:   t.Token,
-		out:     &syncWriter{out: deps.Stdout},
+		out:     &syncWriter{out: cmd.OutOrStdout()},
 	}
 }
 
@@ -98,7 +87,7 @@ func writeJSON(out io.Writer, msg proto.Message) error {
 	return err
 }
 
-func newBuildsListCmd(deps buildsDeps) *cobra.Command {
+func newBuildsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list <service>",
 		Short: "List a service's builds, newest first",
@@ -109,7 +98,7 @@ Examples:
   loco builds list myapp --limit 50 --output json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runBuildsList(cmd, deps, args[0])
+			return runBuildsList(cmd, args[0])
 		},
 	}
 	cmd.Flags().String("org", "", "Organization name")
@@ -119,7 +108,7 @@ Examples:
 	return cmd
 }
 
-func runBuildsList(cmd *cobra.Command, deps buildsDeps, name string) error {
+func runBuildsList(cmd *cobra.Command, name string) error {
 	output, err := readOutput(cmd)
 	if err != nil {
 		return err
@@ -152,13 +141,13 @@ func runBuildsList(cmd *cobra.Command, deps buildsDeps, name string) error {
 	builds := resp.GetBuilds()
 
 	if output == outputJSON {
-		return writeJSON(deps.Stdout, resp)
+		return writeJSON(cmd.OutOrStdout(), resp)
 	}
 	if len(builds) == 0 {
-		_, err = fmt.Fprintf(deps.Stdout, "%s has no builds.\n", name)
+		_, err = fmt.Fprintf(cmd.OutOrStdout(), "%s has no builds.\n", name)
 		return err
 	}
-	w := tabwriter.NewWriter(deps.Stdout, 0, 4, 2, ' ', 0)
+	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 4, 2, ' ', 0)
 	fmt.Fprintln(w, "ID\tSTATUS\tCREATED\tDURATION\tIMAGE DIGEST")
 	for _, build := range builds {
 		created := build.GetCreatedAt().AsTime().UTC().Format(time.RFC3339)
@@ -181,7 +170,7 @@ func runBuildsList(cmd *cobra.Command, deps buildsDeps, name string) error {
 	return w.Flush()
 }
 
-func newBuildsGetCmd(deps buildsDeps) *cobra.Command {
+func newBuildsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <build-id>",
 		Short: "Show one build",
@@ -197,14 +186,14 @@ func newBuildsGetCmd(deps buildsDeps) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			build, err := follower(deps, t).getBuild(ctx, args[0])
+			build, err := follower(cmd, t).getBuild(ctx, args[0])
 			if err != nil {
 				return err
 			}
 			if output == outputJSON {
-				return writeJSON(deps.Stdout, build)
+				return writeJSON(cmd.OutOrStdout(), build)
 			}
-			return writeBuildDetails(deps.Stdout, build)
+			return writeBuildDetails(cmd.OutOrStdout(), build)
 		},
 	}
 	cmd.Flags().StringP("output", "o", outputText, "Output format (text, json)")
@@ -248,7 +237,7 @@ func writeBuildDetails(out io.Writer, build *buildv1.Build) error {
 	return w.Flush()
 }
 
-func newBuildsLogsCmd(deps buildsDeps) *cobra.Command {
+func newBuildsLogsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "logs <build-id>",
 		Short: "Show a build's logs",
@@ -260,7 +249,7 @@ Examples:
   loco builds logs 0199b6c4-5d1e-7f00-8000-000000000001 --follow`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runBuildsLogs(cmd, deps, args[0])
+			return runBuildsLogs(cmd, args[0])
 		},
 	}
 	cmd.Flags().BoolP("follow", "f", false, "Follow the build until it finishes")
@@ -268,8 +257,8 @@ Examples:
 	return cmd
 }
 
-func runBuildsLogs(cmd *cobra.Command, deps buildsDeps, buildID string) error {
-	opts, err := readLogOptions(cmd, deps.Stdout)
+func runBuildsLogs(cmd *cobra.Command, buildID string) error {
+	opts, err := readLogOptions(cmd, cmd.OutOrStdout())
 	if err != nil {
 		return err
 	}
@@ -279,7 +268,7 @@ func runBuildsLogs(cmd *cobra.Command, deps buildsDeps, buildID string) error {
 	if err != nil {
 		return err
 	}
-	follow := follower(deps, t)
+	follow := follower(cmd, t)
 	build, err := follow.getBuild(ctx, buildID)
 	if err != nil {
 		return err
@@ -303,7 +292,7 @@ func runBuildsLogs(cmd *cobra.Command, deps buildsDeps, buildID string) error {
 		end = build.GetFinishedAt().AsTime().Add(finishedLogMargin)
 	}
 	filter := logstream.BuildFilter(workspaceID, buildID)
-	logs := deps.Clients.logClient(t.Host, t.Token)
+	logs := logClient(t.Host, t.Token)
 	window := logstream.Window{Start: start, End: end}
 	streamErr := logs.Stream(ctx, filter, window, opts.emit)
 	if ctx.Err() != nil {
@@ -312,7 +301,7 @@ func runBuildsLogs(cmd *cobra.Command, deps buildsDeps, buildID string) error {
 	return streamErr
 }
 
-func newBuildsCancelCmd(deps buildsDeps) *cobra.Command {
+func newBuildsCancelCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "cancel <build-id>",
 		Short: "Cancel a build that has not finished",
@@ -332,7 +321,7 @@ func newBuildsCancelCmd(deps buildsDeps) *cobra.Command {
 			}
 			canceled := resp.GetBuild()
 			description := describeBuild(canceled)
-			_, err = fmt.Fprintln(deps.Stdout, description)
+			_, err = fmt.Fprintln(cmd.OutOrStdout(), description)
 			return err
 		},
 	}

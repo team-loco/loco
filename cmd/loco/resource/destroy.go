@@ -2,9 +2,7 @@ package resource
 
 import (
 	"fmt"
-	"io"
 	"log/slog"
-	"os"
 
 	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
@@ -13,16 +11,7 @@ import (
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
-type destroyDeps struct {
-	Stdout io.Writer
-}
-
-func buildDestroyCmd() *cobra.Command {
-	deps := destroyDeps{Stdout: os.Stdout}
-	return newDestroyCmd(deps)
-}
-
-func newDestroyCmd(deps destroyDeps) *cobra.Command {
+func newDestroyCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "destroy <name>",
 		Short: "Destroy a service",
@@ -41,7 +30,7 @@ Examples:
 				return fmt.Errorf("error reading yes flag: %w", err)
 			}
 
-			// Confirmation prompt (before any API calls)
+			// Ask before any API call.
 			if !yes {
 				confirmed, confirmErr := ui.AskYesNo(
 					fmt.Sprintf("Are you sure you want to destroy the service '%s'?", name),
@@ -50,7 +39,7 @@ Examples:
 					return confirmErr
 				}
 				if !confirmed {
-					fmt.Fprintln(deps.Stdout, "Aborted.")
+					fmt.Fprintln(cmd.OutOrStdout(), "Aborted.")
 					return nil
 				}
 			}
@@ -80,7 +69,7 @@ Examples:
 				Foreground(ui.Ok).
 				Render(successMsg)
 
-			fmt.Fprintln(deps.Stdout, s)
+			fmt.Fprintln(cmd.OutOrStdout(), s)
 
 			return nil
 		},

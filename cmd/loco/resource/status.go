@@ -3,7 +3,6 @@ package resource
 import (
 	"fmt"
 	"io"
-	"os"
 	"strconv"
 	"strings"
 
@@ -28,16 +27,7 @@ var (
 	tableMargin  = lipgloss.NewStyle().Margin(0, 2, 1, 2)
 )
 
-type statusDeps struct {
-	Stdout io.Writer
-}
-
-func buildStatusCmd() *cobra.Command {
-	deps := statusDeps{Stdout: os.Stdout}
-	return newStatusCmd(deps)
-}
-
-func newStatusCmd(deps statusDeps) *cobra.Command {
+func newStatusCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status <name>",
 		Short: "Show service status",
@@ -71,11 +61,11 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("failed to encode service status: %w", err)
 				}
-				_, err = fmt.Fprintln(deps.Stdout, string(out))
+				_, err = fmt.Fprintln(cmd.OutOrStdout(), string(out))
 				return err
 			}
 
-			return renderStatusView(deps.Stdout, name, resource)
+			return renderStatusView(cmd.OutOrStdout(), name, resource)
 		},
 	}
 

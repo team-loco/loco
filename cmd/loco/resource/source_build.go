@@ -17,6 +17,8 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/team-loco/loco/cmd/internal/sourcepack"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
+	"github.com/team-loco/loco/internal/httputil"
+	"github.com/team-loco/loco/internal/rpc"
 )
 
 const (
@@ -36,17 +38,21 @@ var (
 // SourceBuilder builds an uploaded source archive on Loco and follows the build to its end.
 type SourceBuilder struct {
 	follower *buildFollower
+	storage  *http.Client
 }
 
 // NewSourceBuilder returns a builder that talks to the API at host as the token's user and
 // prints the build's progress and logs to out.
 func NewSourceBuilder(host, token string, out io.Writer) *SourceBuilder {
-	return &SourceBuilder{follower: &buildFollower{
-		clients: defaultPlatformClients(),
-		host:    host,
-		token:   token,
-		out:     &syncWriter{out: out},
-	}}
+	return &SourceBuilder{
+		follower: &buildFollower{
+			clients: rpc.ForHost(host, token),
+			host:    host,
+			token:   token,
+			out:     &syncWriter{out: out},
+		},
+		storage: httputil.NewHTTPClient(),
+	}
 }
 
 // BuildInput names what one build of a service compiles: the service's resource, the archive
@@ -81,8 +87,7 @@ func (b *SourceBuilder) Build(ctx context.Context, in BuildInput) (*buildv1.Buil
 	}
 
 	startReq := &buildv1.StartBuildRequest{BuildId: buildID}
-	client := b.follower.clients.Builds(b.follower.host, b.follower.token)
-	started, err := client.StartBuild(ctx, startReq)
+	started, err := b.follower.clients.Build.StartBuild(ctx, startReq)
 	if unavailable := buildsUnavailable(err); unavailable != nil {
 		return nil, unavailable
 	}
@@ -109,8 +114,7 @@ func (b *SourceBuilder) createBuild(ctx context.Context, in BuildInput) (*buildv
 		SourceSize:     in.Archive.Size,
 		Context:        in.Context,
 	}
-	client := b.follower.clients.Builds(b.follower.host, b.follower.token)
-	resp, err := client.CreateBuild(ctx, req)
+	resp, err := b.follower.clients.Build.CreateBuild(ctx, req)
 	if unavailable := buildsUnavailable(err); unavailable != nil {
 		return nil, unavailable
 	}
@@ -179,7 +183,7 @@ func (b *SourceBuilder) upload(ctx context.Context, url string, archive *sourcep
 	req.ContentLength = archive.Size
 	req.Header.Set("Content-Type", sourceContentType)
 
-	resp, err := b.follower.clients.Upload.Do(req)
+	resp, err := b.storage.Do(req)
 	if err != nil {
 		if connectionDropped(err) {
 			return fmt.Errorf("%w (%w)", errUploadRejected, err)

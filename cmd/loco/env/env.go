@@ -3,8 +3,6 @@ package env
 import (
 	"context"
 	"fmt"
-	"io"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
@@ -12,20 +10,10 @@ import (
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 )
 
-type deps struct {
-	Stdin  io.Reader
-	Stdout io.Writer
-}
-
 const serviceFlag = "service"
 
 // BuildEnvCmd creates the "env" parent command that manages a service's secrets in an environment.
 func BuildEnvCmd() *cobra.Command {
-	d := deps{Stdin: os.Stdin, Stdout: os.Stdout}
-	return newEnvCmd(d)
-}
-
-func newEnvCmd(d deps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "env",
 		Short: "Manage a service's secrets",
@@ -42,7 +30,7 @@ Examples:
   loco env unset --service web --env production DATABASE_URL
   loco env list --service web --env production`,
 	}
-	cmd.AddCommand(newPushCmd(d), newSetCmd(d), newUnsetCmd(d), newListCmd(d))
+	cmd.AddCommand(newPushCmd(), newSetCmd(), newUnsetCmd(), newListCmd())
 	return cmd
 }
 
@@ -77,7 +65,7 @@ func resolveService(ctx context.Context, cmd *cobra.Command) (cmdutil.Target, *r
 	return t, service, nil
 }
 
-func setSecrets(ctx context.Context, cmd *cobra.Command, d deps, values map[string]string) error {
+func setSecrets(ctx context.Context, cmd *cobra.Command, values map[string]string) error {
 	t, service, err := resolveService(ctx, cmd)
 	if err != nil {
 		return err
@@ -93,9 +81,9 @@ func setSecrets(ctx context.Context, cmd *cobra.Command, d deps, values map[stri
 		return fmt.Errorf("set secrets: %w", err)
 	}
 	versions := resp.GetVersions()
-	fmt.Fprintf(d.Stdout, "Set %d secrets (revision %d)\n", len(versions), resp.GetRevision())
+	fmt.Fprintf(cmd.OutOrStdout(), "Set %d secrets (revision %d)\n", len(versions), resp.GetRevision())
 	for _, v := range versions {
-		fmt.Fprintf(d.Stdout, "  %s v%d\n", v.GetName(), v.GetVersion())
+		fmt.Fprintf(cmd.OutOrStdout(), "  %s v%d\n", v.GetName(), v.GetVersion())
 	}
 	return nil
 }

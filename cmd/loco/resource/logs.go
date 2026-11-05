@@ -21,18 +21,7 @@ const (
 	defaultLogWindow = time.Hour
 )
 
-type logsDeps struct {
-	Clients platformClients
-	Stdout  io.Writer
-}
-
-func buildLogsCmd() *cobra.Command {
-	clients := defaultPlatformClients()
-	deps := logsDeps{Clients: clients, Stdout: os.Stdout}
-	return newLogsCmd(deps)
-}
-
-func newLogsCmd(deps logsDeps) *cobra.Command {
+func newLogsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "logs <name>",
 		Short: "View service logs",
@@ -44,7 +33,7 @@ Examples:
   loco resource logs myapp --since 6h --lines 500 --output json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runResourceLogs(cmd, deps, args[0])
+			return runResourceLogs(cmd, args[0])
 		},
 	}
 
@@ -122,8 +111,8 @@ func logEmitter(out io.Writer, output string) (logstream.Emit, error) {
 	}
 }
 
-func runResourceLogs(cmd *cobra.Command, deps logsDeps, name string) error {
-	opts, err := readLogOptions(cmd, deps.Stdout)
+func runResourceLogs(cmd *cobra.Command, name string) error {
+	opts, err := readLogOptions(cmd, cmd.OutOrStdout())
 	if err != nil {
 		return err
 	}
@@ -143,7 +132,7 @@ func runResourceLogs(cmd *cobra.Command, deps logsDeps, name string) error {
 	filter := logstream.Filter{WorkspaceID: t.WorkspaceID, ResourceIDs: []string{resource.GetId()}}
 	end := time.Now()
 	start := end.Add(-opts.since)
-	logs := deps.Clients.logClient(t.Host, t.Token)
+	logs := logClient(t.Host, t.Token)
 	window := logstream.Window{Start: start, End: end, Limit: opts.lines, Follow: opts.follow}
 	streamErr := logs.Stream(ctx, filter, window, opts.emit)
 	if ctx.Err() != nil {

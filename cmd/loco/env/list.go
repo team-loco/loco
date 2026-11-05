@@ -15,7 +15,7 @@ const (
 	tablePadding  = 2
 )
 
-func newListCmd(d deps) *cobra.Command {
+func newListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List a service's secrets",
@@ -42,10 +42,12 @@ Examples:
 			}
 			secrets := resp.GetSecrets()
 			if len(secrets) == 0 {
-				_, err = fmt.Fprintf(d.Stdout, "%s has no secrets in %s.\n", service.GetName(), t.Environment.GetName())
+				_, err = fmt.Fprintf(
+					cmd.OutOrStdout(), "%s has no secrets in %s.\n", service.GetName(), t.Environment.GetName(),
+				)
 				return err
 			}
-			w := tabwriter.NewWriter(d.Stdout, tableMinWidth, tableTabWidth, tablePadding, ' ', 0)
+			w := tabwriter.NewWriter(cmd.OutOrStdout(), tableMinWidth, tableTabWidth, tablePadding, ' ', 0)
 			fmt.Fprintln(w, "NAME\tVERSION\tUPDATED BY\tUPDATED AT")
 			for _, s := range secrets {
 				updated := s.GetUpdatedAt().AsTime().UTC().Format(time.RFC3339)

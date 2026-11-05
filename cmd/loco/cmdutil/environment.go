@@ -23,7 +23,6 @@ func ResolveEnvironment(
 	ctx context.Context,
 	cmd *cobra.Command,
 	client environmentv1connect.EnvironmentServiceClient,
-	selectFromList func(title string, options []ui.SelectOption) (any, error),
 	interactive bool,
 	workspaceID string,
 ) (*environmentv1.Environment, error) {
@@ -76,7 +75,7 @@ func ResolveEnvironment(
 		id := env.GetId()
 		options[i] = ui.SelectOption{Label: label, Description: tier, Value: id}
 	}
-	selected, err := selectFromList("Select the environment to deploy to", options)
+	selected, err := ui.SelectFromList("Select the environment to deploy to", options)
 	if err != nil {
 		return nil, fmt.Errorf("environment selection canceled: %w", err)
 	}

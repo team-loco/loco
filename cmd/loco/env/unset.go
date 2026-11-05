@@ -8,7 +8,7 @@ import (
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 )
 
-func newUnsetCmd(d deps) *cobra.Command {
+func newUnsetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "unset KEY [KEY...]",
 		Short: "Remove a service's secrets by name",
@@ -35,7 +35,7 @@ Examples:
 				return fmt.Errorf("unset secrets: %w", err)
 			}
 			names := strings.Join(args, ", ")
-			fmt.Fprintf(d.Stdout, "Removed %s (revision %d)\n", names, resp.GetRevision())
+			fmt.Fprintf(cmd.OutOrStdout(), "Removed %s (revision %d)\n", names, resp.GetRevision())
 			return nil
 		},
 	}

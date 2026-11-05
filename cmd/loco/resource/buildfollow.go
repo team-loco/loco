@@ -10,6 +10,7 @@ import (
 	"github.com/team-loco/loco/cmd/internal/logstream"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
+	"github.com/team-loco/loco/internal/rpc"
 )
 
 type detachedError struct {
@@ -55,7 +56,7 @@ func (w *syncWriter) logLine(entry *observabilityv1.LogEntry) error {
 }
 
 type buildFollower struct {
-	clients    platformClients
+	clients    *rpc.Clients
 	host       string
 	token      string
 	out        *syncWriter
@@ -82,8 +83,7 @@ func (f *buildFollower) note(format string, args ...any) {
 func (f *buildFollower) getBuild(ctx context.Context, buildID string) (*buildv1.Build, error) {
 	req := &buildv1.GetBuildRequest{BuildId: buildID}
 
-	client := f.clients.Builds(f.host, f.token)
-	resp, err := client.GetBuild(ctx, req)
+	resp, err := f.clients.Build.GetBuild(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("get build %s: %w", buildID, err)
 	}
@@ -128,7 +128,7 @@ func (f *buildFollower) follow(ctx context.Context, build *buildv1.Build, worksp
 	report(build)
 	startLogs(build)
 
-	ticker := time.NewTicker(f.clients.PollInterval)
+	ticker := time.NewTicker(buildPollInterval)
 	defer ticker.Stop()
 	buildID := build.GetId()
 	for !buildFinished(lastStatus) {
@@ -157,7 +157,7 @@ func (f *buildFollower) follow(ctx context.Context, build *buildv1.Build, worksp
 		case <-ctx.Done():
 		case <-backfilled:
 		}
-		drain := time.NewTimer(f.clients.LogDrain)
+		drain := time.NewTimer(buildLogDrain)
 		select {
 		case <-ctx.Done():
 		case <-logsDone:
@@ -184,7 +184,7 @@ func (f *buildFollower) streamLogs(
 	backfilled func(),
 ) {
 	buildID := build.GetId()
-	logs := f.clients.logClient(f.host, f.token)
+	logs := logClient(f.host, f.token)
 	filter := logstream.BuildFilter(workspaceID, buildID)
 	start := build.GetCreatedAt().AsTime()
 	now := time.Now()

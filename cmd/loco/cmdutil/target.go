@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/internal/ui"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/rpc"
@@ -53,7 +52,7 @@ func ResolveTarget(ctx context.Context, cmd *cobra.Command) (Target, error) {
 // WithEnvironment resolves the workspace environment named by --env or LOCO_ENV,
 // asking in a terminal when interactive is set and several exist.
 func (t Target) WithEnvironment(ctx context.Context, cmd *cobra.Command, interactive bool) (Target, error) {
-	env, err := ResolveEnvironment(ctx, cmd, t.Clients.Environment, ui.SelectFromList, interactive, t.WorkspaceID)
+	env, err := ResolveEnvironment(ctx, cmd, t.Clients.Environment, interactive, t.WorkspaceID)
 	if err != nil {
 		return Target{}, err
 	}

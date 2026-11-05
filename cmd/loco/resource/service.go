@@ -13,11 +13,11 @@ func BuildResourceCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(
-		buildScaleCmd(),
-		buildStatusCmd(),
-		buildLogsCmd(),
-		buildEventsCmd(),
-		buildDestroyCmd(),
+		newScaleCmd(),
+		newStatusCmd(),
+		newLogsCmd(),
+		newEventsCmd(),
+		newDestroyCmd(),
 	)
 
 	return cmd

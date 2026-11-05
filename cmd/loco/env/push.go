@@ -12,7 +12,7 @@ import (
 
 var errEmptyEnvFile = errors.New("the .env input has no KEY=VALUE lines")
 
-func newPushCmd(d deps) *cobra.Command {
+func newPushCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "push [file]",
 		Short: "Set every secret in a .env file on a service",
@@ -25,11 +25,11 @@ Examples:
   cat .env | loco env push --service web --env production`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			values, err := readEnvInput(d.Stdin, args)
+			values, err := readEnvInput(cmd.InOrStdin(), args)
 			if err != nil {
 				return err
 			}
-			return setSecrets(cmd.Context(), cmd, d, values)
+			return setSecrets(cmd.Context(), cmd, values)
 		},
 	}
 	addTargetFlags(cmd)

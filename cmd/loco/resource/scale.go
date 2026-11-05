@@ -3,9 +3,7 @@ package resource
 import (
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
-	"os"
 
 	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
@@ -19,16 +17,7 @@ var (
 	errReplicasTooLow = errors.New("replicas must be >= 1")
 )
 
-type scaleDeps struct {
-	Stdout io.Writer
-}
-
-func buildScaleCmd() *cobra.Command {
-	deps := scaleDeps{Stdout: os.Stdout}
-	return newScaleCmd(deps)
-}
-
-func newScaleCmd(deps scaleDeps) *cobra.Command {
+func newScaleCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "scale <name>",
 		Short: "Scale a service's resources in one environment",
@@ -45,7 +34,6 @@ Examples:
 			ctx := cmd.Context()
 			name := args[0]
 
-			// Parse flags
 			replicas, err := cmd.Flags().GetInt32("replicas")
 			if err != nil {
 				return fmt.Errorf("error reading replicas flag: %w", err)
@@ -61,7 +49,6 @@ Examples:
 				return fmt.Errorf("error reading memory flag: %w", err)
 			}
 
-			// Validate at least one scaling parameter
 			if replicas == -1 && cpu == "" && memory == "" {
 				return errNoScaleFlags
 			}
@@ -85,7 +72,6 @@ Examples:
 			}
 			slog.Debug("scaling service", "resource_id", resource.GetId(), "name", name, "environment", env.GetName())
 
-			// Build scale request
 			var replicasPtr *int32
 			if replicas != -1 {
 				replicasPtr = &replicas
@@ -114,21 +100,20 @@ Examples:
 				return fmt.Errorf("failed to scale service '%s': %w", name, err)
 			}
 
-			// Success message
 			s := lipgloss.NewStyle().
 				Bold(true).
 				Foreground(ui.Ok).
 				Render(fmt.Sprintf("\n🎉 Scaled service %s in %s:", name, env.GetName()))
-			fmt.Fprintln(deps.Stdout, s)
+			fmt.Fprintln(cmd.OutOrStdout(), s)
 
 			if replicas != -1 {
-				fmt.Fprintf(deps.Stdout, "  Replicas: %d\n", replicas)
+				fmt.Fprintf(cmd.OutOrStdout(), "  Replicas: %d\n", replicas)
 			}
 			if cpu != "" {
-				fmt.Fprintf(deps.Stdout, "  CPU: %s\n", cpu)
+				fmt.Fprintf(cmd.OutOrStdout(), "  CPU: %s\n", cpu)
 			}
 			if memory != "" {
-				fmt.Fprintf(deps.Stdout, "  Memory: %s\n", memory)
+				fmt.Fprintf(cmd.OutOrStdout(), "  Memory: %s\n", memory)
 			}
 
 			return nil

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"os"
 	"strings"
 	"time"
 
@@ -22,16 +21,7 @@ const noEventsMessage = "No events found."
 
 var eventsTableMargin = lipgloss.NewStyle().Margin(1, 2)
 
-type eventsDeps struct {
-	Stdout io.Writer
-}
-
-func buildEventsCmd() *cobra.Command {
-	deps := eventsDeps{Stdout: os.Stdout}
-	return newEventsCmd(deps)
-}
-
-func newEventsCmd(deps eventsDeps) *cobra.Command {
+func newEventsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "events <name>",
 		Short: "Show service events",
@@ -82,10 +72,10 @@ Examples:
 			}
 
 			if output == outputJSON {
-				return writeEventsJSON(deps.Stdout, resp.GetEvents())
+				return writeEventsJSON(cmd.OutOrStdout(), resp.GetEvents())
 			}
 
-			return renderEventsTable(deps.Stdout, resp.GetEvents())
+			return renderEventsTable(cmd.OutOrStdout(), resp.GetEvents())
 		},
 	}
 
