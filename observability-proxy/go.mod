@@ -17,7 +17,7 @@ require (
 	github.com/rs/cors v1.11.1
 	github.com/team-loco/loco v0.0.0
 	go.opentelemetry.io/collector/component v1.69.0
-	go.opentelemetry.io/collector/config/configoptional v1.69.0
+	go.opentelemetry.io/collector/config/configoptional v1.70.0
 	go.opentelemetry.io/collector/consumer v1.69.0
 	go.opentelemetry.io/collector/consumer/consumererror v0.163.0
 	go.opentelemetry.io/collector/exporter v1.69.0
@@ -77,14 +77,14 @@ require (
 	go.opentelemetry.io/collector/config/configopaque v1.69.0 // indirect
 	go.opentelemetry.io/collector/config/configretry v1.69.0 // indirect
 	go.opentelemetry.io/collector/config/configtls v1.69.0 // indirect
-	go.opentelemetry.io/collector/confmap v1.69.0 // indirect
+	go.opentelemetry.io/collector/confmap v1.70.0 // indirect
 	go.opentelemetry.io/collector/consumer/consumererror/xconsumererror v0.163.0 // indirect
 	go.opentelemetry.io/collector/consumer/xconsumer v0.163.0 // indirect
 	go.opentelemetry.io/collector/exporter/exporterhelper/xexporterhelper v0.163.0 // indirect
 	go.opentelemetry.io/collector/exporter/xexporter v0.163.0 // indirect
 	go.opentelemetry.io/collector/extension v1.69.0 // indirect
 	go.opentelemetry.io/collector/extension/xextension v0.163.0 // indirect
-	go.opentelemetry.io/collector/featuregate v1.69.0 // indirect
+	go.opentelemetry.io/collector/featuregate v1.70.0 // indirect
 	go.opentelemetry.io/collector/internal/componentalias v0.163.0 // indirect
 	go.opentelemetry.io/collector/pdata/pprofile v0.163.0 // indirect
 	go.opentelemetry.io/collector/pdata/xpdata v0.163.0 // indirect
