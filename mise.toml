@@ -302,24 +302,6 @@ compose project  $COMPOSE_PROJECT_NAME
 EOF
 """
 
-[tasks."helm:repos"]
-description = "Add and update the helm repositories the charts depend on"
-run = [
-  "helm repo add altinity https://helm.altinity.com",
-  "helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts",
-  "helm repo update altinity open-telemetry",
-]
-
-[tasks."helm:deps"]
-description = "Build the helm chart dependencies; skipped while every chart's dependencies are newer than its Chart.yaml and Chart.lock"
-sources = ["charts/*/Chart.yaml", "charts/*/Chart.lock"]
-outputs = ["charts/*/charts/*.tgz"]
-run = [
-  "mise run helm:repos",
-  "helm dependency build --skip-refresh ./charts/loco-worker",
-  "helm dependency build --skip-refresh ./charts/loco-control-plane",
-]
-
 [tasks."helm:sync:release"]
 env = { _.source = "dev/stack.sh" }
 

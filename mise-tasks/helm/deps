@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+#MISE description="Build the helm chart dependencies; skipped while every chart's dependencies are newer than its Chart.yaml and Chart.lock"
+#MISE sources=["charts/*/Chart.yaml", "charts/*/Chart.lock"]
+#MISE outputs=["charts/*/charts/*.tgz"]
+set -euo pipefail
+
+# the chart hosts answer an occasional request with a 504; without a retry one
+# of them fails every job that renders a chart.
+attempts=3
+backoff_seconds=5
+
+retry() {
+	local attempt
+	for attempt in $(seq "$attempts"); do
+		"$@" && return
+		if [ "$attempt" -lt "$attempts" ]; then
+			echo "helm:deps: '$*' failed, retrying ($attempt/$attempts)" >&2
+			sleep $((attempt * backoff_seconds))
+		fi
+	done
+	return 1
+}
+
+retry helm repo add altinity https://helm.altinity.com
+retry helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+retry helm repo update altinity open-telemetry
+retry helm dependency build --skip-refresh ./charts/loco-worker
+retry helm dependency build --skip-refresh ./charts/loco-control-plane
