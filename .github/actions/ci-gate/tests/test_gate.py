@@ -34,9 +34,10 @@ def test_gate_reports_on_the_triggering_run_head():
     assert _yq(".jobs.gate.steps[1].env.SHA") == "${{ github.event.workflow_run.head_sha }}"
 
 
-def run(identifier, status, conclusion, workflow=1, name="Tests"):
+def run(identifier, status, conclusion, workflow=1, name="Tests", attempt=1):
     return {
         "id": identifier,
+        "run_attempt": attempt,
         "workflow_id": workflow,
         "check_suite_id": identifier,
         "name": name,
@@ -119,6 +120,13 @@ def test_a_failed_check_posts_failure():
 def test_triggering_run_overrides_a_stale_listing():
     calls, body, _ = _run_gate(
         [run(1, "in_progress", None)], run(1, "completed", "success")
+    )
+    assert body["state"] == "success"
+
+
+def test_a_rerun_of_the_triggering_run_overrides_its_event():
+    calls, body, _ = _run_gate(
+        [run(1, "completed", "success", attempt=2)], run(1, "completed", "failure")
     )
     assert body["state"] == "success"
 
