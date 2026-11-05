@@ -72,7 +72,7 @@ func (r *LocoResourceReconciler) ensurePrivateService(ctx context.Context, app *
 		}, Annotations: ownerAnnotations(app),
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
-			Selector: map[string]string{labelApp: getName(app)},
+			Selector: map[string]string{labelApp: locov1alpha1.ApplicationName(app.Spec.ResourceID)},
 			Ports:    ports,
 		},
 	}

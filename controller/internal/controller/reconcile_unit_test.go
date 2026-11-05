@@ -343,19 +343,19 @@ func TestEnsureHTTPRouteAttachesToTheConfiguredGateway(t *testing.T) {
 
 func TestSetPhaseOnlyTouchesStatusOnChange(t *testing.T) {
 	app := testApplication()
-	setPhase(app, phaseDeploying, "waiting")
+	setPhase(app, locov1alpha1.ApplicationPhaseDeploying, "waiting")
 	updatedAt := app.Status.UpdatedAt
 	if updatedAt == nil || app.Status.StartedAt == nil {
 		t.Fatal("expected timestamps to be set on the first transition")
 	}
 
 	original := app.DeepCopy()
-	setPhase(app, phaseDeploying, "waiting")
+	setPhase(app, locov1alpha1.ApplicationPhaseDeploying, "waiting")
 	if app.Status.UpdatedAt != updatedAt || app.Status.Phase != original.Status.Phase {
 		t.Fatal("status changed although phase and message did not")
 	}
 
-	setPhase(app, phaseReady, "ready")
+	setPhase(app, locov1alpha1.ApplicationPhaseReady, "ready")
 	if app.Status.CompletedAt == nil {
 		t.Fatal("expected completedAt on the transition to ready")
 	}

@@ -7,6 +7,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 func TestReadyAtTheCurrentRevisionRecoversAFailedDeployment(t *testing.T) {
@@ -22,7 +23,10 @@ func TestReadyAtTheCurrentRevisionRecoversAFailedDeployment(t *testing.T) {
 	server.recordApplied(ctx, f.clusterID, applied(p.ID, 1))
 
 	server.recordStatus(ctx, f.clusterID, &agentv1.PlacementStatus{
-		PlacementId: p.ID.String(), ObservedRevision: 1, Phase: applicationPhaseFailed, Message: "pull secret",
+		PlacementId:      p.ID.String(),
+		ObservedRevision: 1,
+		Phase:            locoControllerV1.ApplicationPhaseFailed,
+		Message:          "pull secret",
 	})
 	if status := f.deploymentStatus(t, deploymentID); status != genDb.DeploymentStatusFailed {
 		t.Fatalf("deployment status = %s, want failed", status)
@@ -61,13 +65,16 @@ func TestFailedStatusReachesTheDeploymentTheDashboardReads(t *testing.T) {
 		Message: "Waiting for replicas to become ready",
 	})
 	server.recordStatus(ctx, f.clusterID, &agentv1.PlacementStatus{
-		PlacementId: p.ID.String(), ObservedRevision: 1, Phase: applicationPhaseFailed, Message: message,
+		PlacementId:      p.ID.String(),
+		ObservedRevision: 1,
+		Phase:            locoControllerV1.ApplicationPhaseFailed,
+		Message:          message,
 	})
 
 	placement := f.placement(t, f.clusterID)
-	if placement.StatusPhase != applicationPhaseFailed || placement.StatusMessage != message {
+	if placement.StatusPhase != locoControllerV1.ApplicationPhaseFailed || placement.StatusMessage != message {
 		t.Fatalf("placement status = %q %q, want %q %q",
-			placement.StatusPhase, placement.StatusMessage, applicationPhaseFailed, message)
+			placement.StatusPhase, placement.StatusMessage, locoControllerV1.ApplicationPhaseFailed, message)
 	}
 	row, err := f.queries.GetDeploymentByID(ctx, deploymentID)
 	if err != nil {

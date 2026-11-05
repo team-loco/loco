@@ -44,10 +44,19 @@ var _ = Describe("Private service discovery", func() {
 		Expect(alias.Spec.Ports[1].Port).To(Equal(int32(7070)))
 		Expect(alias.Spec.Ports[0].TargetPort.IntVal).To(Equal(int32(7070)))
 		Expect(alias.Spec.Ports[0].Protocol).To(Equal(corev1.ProtocolTCP))
-		Expect(alias.Spec.Selector).To(Equal(map[string]string{labelApp: getName(app)}))
+		Expect(
+			alias.Spec.Selector,
+		).To(Equal(map[string]string{labelApp: testAppName(app)}))
 		legacy := &corev1.Service{}
 		Expect(
-			k8sClient.Get(ctx, client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: getName(app)}, legacy),
+			k8sClient.Get(
+				ctx,
+				client.ObjectKey{
+					Namespace: testWorkspaceNamespace(app),
+					Name:      testAppName(app),
+				},
+				legacy,
+			),
 		).To(Succeed())
 		Expect(legacy.Spec.Ports[0].Port).To(Equal(servicePort))
 	})
@@ -108,7 +117,9 @@ var _ = Describe("Private service discovery", func() {
 		key := client.ObjectKey{Namespace: testWorkspaceNamespace(replacement), Name: testPrivateHTTPName}
 		Expect(k8sClient.Get(ctx, key, svc)).To(Succeed())
 		Expect(ownsPrivateService(replacement, svc)).To(BeTrue())
-		Expect(svc.Spec.Selector).To(Equal(map[string]string{labelApp: getName(replacement)}))
+		Expect(
+			svc.Spec.Selector,
+		).To(Equal(map[string]string{labelApp: testAppName(replacement)}))
 	})
 
 	It("refuses to adopt an unmanaged name collision", func() {

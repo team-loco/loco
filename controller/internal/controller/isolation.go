@@ -153,7 +153,7 @@ func (r *LocoResourceReconciler) ensureWorkspaceNetworkPolicies(
 func (r *LocoResourceReconciler) gatewayIngressPolicy(
 	locoRes *locov1alpha1.Application,
 ) *networkingv1ac.NetworkPolicyApplyConfiguration {
-	name := getName(locoRes)
+	name := locov1alpha1.ApplicationName(locoRes.Spec.ResourceID)
 	namespace := r.workspaceNamespace(locoRes)
 	policyName := getGatewayPolicyName(locoRes)
 	labels := managedLabels(locoRes)

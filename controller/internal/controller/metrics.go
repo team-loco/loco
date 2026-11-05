@@ -16,7 +16,8 @@ var errMetricsCollectorMissing = errors.New("metrics pulling requires the metric
 func (r *LocoResourceReconciler) metricsIngressPolicy(
 	app *locov1alpha1.Application,
 ) *networkingv1ac.NetworkPolicyApplyConfiguration {
-	selector := metav1ac.LabelSelector().WithMatchLabels(map[string]string{labelApp: getName(app)})
+	selector := metav1ac.LabelSelector().
+		WithMatchLabels(map[string]string{labelApp: locov1alpha1.ApplicationName(app.Spec.ResourceID)})
 	spec := networkingv1ac.NetworkPolicySpec().WithPodSelector(selector).WithPolicyTypes(networkingv1.PolicyTypeIngress)
 	if obs := app.Spec.ServiceSpec.Obs; obs != nil && obs.Metrics.Enabled {
 		peer := namespacedPodPeer(
@@ -46,5 +47,5 @@ func (r *LocoResourceReconciler) ensureMetricsIngressPolicy(ctx context.Context,
 }
 
 func getMetricsPolicyName(app *locov1alpha1.Application) string {
-	return getName(app) + "-metrics"
+	return locov1alpha1.ApplicationName(app.Spec.ResourceID) + "-metrics"
 }

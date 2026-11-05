@@ -15,6 +15,10 @@ const (
 	testWorkspaceNamespacePrefix = "loco-ws-"
 )
 
+func testAppName(app *locov1alpha1.Application) string {
+	return locov1alpha1.ApplicationName(app.Spec.ResourceID)
+}
+
 func testWorkspaceNamespace(app *locov1alpha1.Application) string {
 	r := &LocoResourceReconciler{WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix}
 	return r.workspaceNamespace(app)
@@ -51,7 +55,7 @@ func TestNamesFitKubernetesLimitsForRealIDs(t *testing.T) {
 		t.Errorf("namespace %q is not a valid label value: %v", namespace, errs)
 	}
 
-	name := getName(app)
+	name := testAppName(app)
 	if errs := validation.IsDNS1123Label(name); len(errs) > 0 {
 		t.Errorf("name %q is not a valid service name: %v", name, errs)
 	}

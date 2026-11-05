@@ -82,7 +82,7 @@ func (r *LocoResourceReconciler) findStuckReplica(
 	envSecretRevision string,
 ) (stuckReplica, bool, error) {
 	namespace := r.workspaceNamespace(locoRes)
-	name := getName(locoRes)
+	name := locov1alpha1.ApplicationName(locoRes.Spec.ResourceID)
 	var pods corev1.PodList
 	selector := client.MatchingLabels{labelApp: name}
 	if err := r.List(ctx, &pods, client.InNamespace(namespace), selector); err != nil {

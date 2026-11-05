@@ -15,13 +15,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/team-loco/loco/agent/pkg/applier"
 	"github.com/team-loco/loco/agent/pkg/kube"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
-
-const phaseReady = "Ready"
 
 var errCacheNotSynced = errors.New("application cache did not sync")
 
@@ -123,13 +120,13 @@ func (w *Watcher) Inventory(ctx context.Context) (*agentv1.Inventory, error) {
 	entries := make([]*agentv1.InventoryEntry, 0, len(apps.Items))
 	for i := range apps.Items {
 		app := &apps.Items[i]
-		placement, ok := applier.PlacementOf(app)
+		placementID, revision, ok := app.Placement()
 		if !ok {
 			continue
 		}
 		entries = append(entries, &agentv1.InventoryEntry{
-			PlacementId:      placement.ID,
-			Revision:         placement.Revision,
+			PlacementId:      placementID,
+			Revision:         revision,
 			EnvSecretPending: !envSecretStaged(app, staged),
 		})
 	}
@@ -195,26 +192,26 @@ func (w *Watcher) Observe(obj any) {
 	if !ok {
 		return
 	}
-	placement, ok := applier.PlacementOf(app)
+	placementID, _, ok := app.Placement()
 	if !ok {
 		return
 	}
 	status := &agentv1.PlacementStatus{
-		PlacementId:      placement.ID,
+		PlacementId:      placementID,
 		ObservedRevision: app.Status.ObservedPlacementRevision,
-		Ready:            app.Status.Phase == phaseReady,
+		Ready:            app.Status.Phase == locoControllerV1.ApplicationPhaseReady,
 		ReadyReplicas:    app.Status.ReadyReplicas,
 		Phase:            app.Status.Phase,
 		Message:          app.Status.Message,
 	}
 
 	w.mu.Lock()
-	previous := w.statuses[placement.ID]
+	previous := w.statuses[placementID]
 	if proto.Equal(previous, status) {
 		w.mu.Unlock()
 		return
 	}
-	w.statuses[placement.ID] = status
+	w.statuses[placementID] = status
 	sink := w.sink
 	w.mu.Unlock()
 
@@ -231,11 +228,11 @@ func (w *Watcher) Forget(obj any) {
 	if !ok {
 		return
 	}
-	placement, ok := applier.PlacementOf(app)
+	placementID, _, ok := app.Placement()
 	if !ok {
 		return
 	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	delete(w.statuses, placement.ID)
+	delete(w.statuses, placementID)
 }

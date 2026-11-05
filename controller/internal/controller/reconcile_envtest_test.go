@@ -69,7 +69,10 @@ var _ = Describe("Application reconcile", func() {
 		}
 		appKey := client.ObjectKeyFromObject(app)
 		req := reconcile.Request{NamespacedName: appKey}
-		depKey := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: getName(app)}
+		depKey := client.ObjectKey{
+			Namespace: testWorkspaceNamespace(app),
+			Name:      testAppName(app),
+		}
 		envSecretName := getEnvSecretName(app)
 		envKey := client.ObjectKey{Namespace: depKey.Namespace, Name: envSecretName}
 		imageKey := client.ObjectKey{Namespace: depKey.Namespace, Name: workspacePullSecretName}
@@ -78,7 +81,7 @@ var _ = Describe("Application reconcile", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(result.RequeueAfter).To(Equal(envSecretRequeue))
 		Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
-		Expect(app.Status.Phase).To(Equal(phaseDeploying))
+		Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseDeploying))
 		dep := &appsv1.Deployment{}
 		err = k8sClient.Get(ctx, depKey, dep)
 		Expect(apierrors.IsNotFound(err)).To(BeTrue(), "a Deployment was created before its secrets arrived")
@@ -106,8 +109,12 @@ var _ = Describe("Application reconcile", func() {
 		Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
 		container := dep.Spec.Template.Spec.Containers[0]
 		Expect(container.EnvFrom[0].SecretRef.Name).To(Equal(envSecretName))
-		Expect(dep.Spec.Selector.MatchLabels).To(Equal(map[string]string{labelApp: getName(app)}))
-		Expect(dep.Spec.Template.Labels).To(HaveKeyWithValue(labelAppKubernetesName, getName(app)))
+		Expect(
+			dep.Spec.Selector.MatchLabels,
+		).To(Equal(map[string]string{labelApp: testAppName(app)}))
+		Expect(
+			dep.Spec.Template.Labels,
+		).To(HaveKeyWithValue(labelAppKubernetesName, testAppName(app)))
 		Expect(container.Env).To(ContainElement(corev1.EnvVar{
 			Name:  envOTLPEndpoint,
 			Value: testCollectorEndpoint,
@@ -143,7 +150,7 @@ var _ = Describe("Application reconcile", func() {
 		err = k8sClient.Get(ctx, gatewayPolicyKey, &networkingv1.NetworkPolicy{})
 		Expect(apierrors.IsNotFound(err)).To(BeTrue())
 		Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
-		Expect(app.Status.Phase).To(Equal(phaseDeploying))
+		Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseDeploying))
 		Expect(app.Finalizers).To(ConsistOf(finalizerAppResourcesCleanup))
 		depVersion := dep.ResourceVersion
 		appVersion := app.ResourceVersion
@@ -245,8 +252,8 @@ var _ = Describe("Application reconcile", func() {
 		secondReq := reconcile.Request{NamespacedName: secondKey}
 		namespace := testWorkspaceNamespace(first)
 		secretKey := client.ObjectKey{Namespace: namespace, Name: workspacePullSecretName}
-		firstName := getName(first)
-		secondName := getName(second)
+		firstName := testAppName(first)
+		secondName := testAppName(second)
 		firstSAKey := client.ObjectKey{Namespace: namespace, Name: firstName}
 		secondSAKey := client.ObjectKey{Namespace: namespace, Name: secondName}
 		reference := corev1.LocalObjectReference{Name: workspacePullSecretName}
@@ -338,13 +345,13 @@ var _ = Describe("Application reconcile", func() {
 		req := reconcile.Request{NamespacedName: appKey}
 		namespace := testWorkspaceNamespace(app)
 		copyKey := client.ObjectKey{Namespace: namespace, Name: workspacePullSecretName}
-		saKey := client.ObjectKey{Namespace: namespace, Name: getName(app)}
+		saKey := client.ObjectKey{Namespace: namespace, Name: testAppName(app)}
 
 		result, err := r.Reconcile(ctx, req)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(result.RequeueAfter).To(Equal(registryPullSecretRequeue))
 		Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
-		Expect(app.Status.Phase).To(Equal(phaseDeploying))
+		Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseDeploying))
 		Expect(app.Status.Message).To(Equal(messageRegistryPullSecretWait))
 		err = k8sClient.Get(ctx, copyKey, &corev1.Secret{})
 		Expect(apierrors.IsNotFound(err)).To(BeTrue())
@@ -421,10 +428,17 @@ var _ = Describe("Application reconcile", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		dep := &appsv1.Deployment{}
-		depKey := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: getName(app)}
+		depKey := client.ObjectKey{
+			Namespace: testWorkspaceNamespace(app),
+			Name:      testAppName(app),
+		}
 		Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
-		Expect(dep.Spec.Selector.MatchLabels).To(Equal(map[string]string{labelApp: getName(app)}))
-		Expect(dep.Spec.Template.Labels).To(HaveKeyWithValue(labelAppKubernetesName, getName(app)))
+		Expect(
+			dep.Spec.Selector.MatchLabels,
+		).To(Equal(map[string]string{labelApp: testAppName(app)}))
+		Expect(
+			dep.Spec.Template.Labels,
+		).To(HaveKeyWithValue(labelAppKubernetesName, testAppName(app)))
 
 		Expect(k8sClient.Delete(ctx, app)).To(Succeed())
 		_, err = r.Reconcile(ctx, req)
@@ -453,7 +467,10 @@ var _ = Describe("Application reconcile", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		dep := &appsv1.Deployment{}
-		depKey := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: getName(app)}
+		depKey := client.ObjectKey{
+			Namespace: testWorkspaceNamespace(app),
+			Name:      testAppName(app),
+		}
 		Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
 		var regions []corev1.EnvVar
 		for _, envVar := range dep.Spec.Template.Spec.Containers[0].Env {
@@ -492,7 +509,7 @@ var _ = Describe("Application reconcile", func() {
 		Expect(err).To(HaveOccurred())
 		Expect(errors.Is(err, reconcile.TerminalError(nil))).To(BeTrue())
 		Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
-		Expect(app.Status.Phase).To(Equal(phaseFailed))
+		Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseFailed))
 
 		Expect(k8sClient.Delete(ctx, app)).To(Succeed())
 		_, err = r.Reconcile(ctx, req)

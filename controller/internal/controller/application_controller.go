@@ -66,9 +66,6 @@ const (
 	annotationAppName            = "loco.io/application-name"
 	annotationEnvSecretRevision  = "loco.io/env-secret-revision"
 	envRegion                    = "LOCO_REGION"
-	phaseDeploying               = "Deploying"
-	phaseFailed                  = "Failed"
-	phaseReady                   = "Ready"
 	componentApplication         = "application"
 	servicePort                  = int32(80)
 	deployingRequeue             = 15 * time.Second
@@ -137,7 +134,7 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		original := locoRes.DeepCopy()
 		message := fmt.Sprintf("validation failed: %v", err)
 		observePlacementRevision(locoRes)
-		setPhase(locoRes, phaseFailed, message)
+		setPhase(locoRes, locov1alpha1.ApplicationPhaseFailed, message)
 		if statusErr := r.patchStatus(ctx, locoRes, original); statusErr != nil {
 			slog.ErrorContext(ctx, "failed to update status after validation error", "error", statusErr)
 		}
@@ -156,7 +153,7 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to reconcile application", "error", err)
 		message := fmt.Sprintf("failed to %v", err)
-		setPhase(locoRes, phaseFailed, message)
+		setPhase(locoRes, locov1alpha1.ApplicationPhaseFailed, message)
 	}
 
 	if statusErr := r.patchStatus(ctx, locoRes, original); statusErr != nil {
@@ -186,7 +183,7 @@ func (r *LocoResourceReconciler) reconcileResources(
 	err := r.ensureWorkspacePullSecret(ctx, locoRes)
 	if errors.Is(err, errRegistryPullSecretPending) {
 		slog.DebugContext(ctx, "waiting for the registry pull secret", "error", err)
-		setPhase(locoRes, phaseDeploying, messageRegistryPullSecretWait)
+		setPhase(locoRes, locov1alpha1.ApplicationPhaseDeploying, messageRegistryPullSecretWait)
 		return ctrl.Result{RequeueAfter: registryPullSecretRequeue}, nil
 	}
 	if err != nil {
@@ -195,7 +192,7 @@ func (r *LocoResourceReconciler) reconcileResources(
 
 	envSecret, err := r.ensureEnvSecret(ctx, locoRes)
 	if errors.Is(err, errEnvSecretPending) {
-		setPhase(locoRes, phaseDeploying, "Waiting for the environment secrets...")
+		setPhase(locoRes, locov1alpha1.ApplicationPhaseDeploying, "Waiting for the environment secrets...")
 		return ctrl.Result{RequeueAfter: envSecretRequeue}, nil
 	}
 	if err != nil {
@@ -242,7 +239,7 @@ func (r *LocoResourceReconciler) reconcileResources(
 	if !deploymentReady(dep, replicas) {
 		if failure, found := deploymentFailure(dep); found {
 			setDegraded(locoRes, failure)
-			setPhase(locoRes, phaseFailed, failure.message)
+			setPhase(locoRes, locov1alpha1.ApplicationPhaseFailed, failure.message)
 			return ctrl.Result{RequeueAfter: deployingRequeue}, nil
 		}
 		envSecretRevision := dep.Spec.Template.Annotations[annotationEnvSecretRevision]
@@ -252,17 +249,17 @@ func (r *LocoResourceReconciler) reconcileResources(
 		}
 		if found {
 			setDegraded(locoRes, stuck)
-			setPhase(locoRes, phaseFailed, stuck.message)
+			setPhase(locoRes, locov1alpha1.ApplicationPhaseFailed, stuck.message)
 			return ctrl.Result{RequeueAfter: deployingRequeue}, nil
 		}
 		clearDegraded(locoRes)
-		setPhase(locoRes, phaseDeploying, "Waiting for replicas to become ready")
+		setPhase(locoRes, locov1alpha1.ApplicationPhaseDeploying, "Waiting for replicas to become ready")
 		return ctrl.Result{RequeueAfter: deployingRequeue}, nil
 	}
 
 	clearDegraded(locoRes)
 	locoRes.Status.DeployedGeneration = locoRes.Generation
-	setPhase(locoRes, phaseReady, "Deployment ready")
+	setPhase(locoRes, locov1alpha1.ApplicationPhaseReady, "Deployment ready")
 	return ctrl.Result{}, nil
 }
 
@@ -282,7 +279,7 @@ func setPhase(locoRes *locov1alpha1.Application, phase, message string) {
 	if locoRes.Status.StartedAt == nil {
 		locoRes.Status.StartedAt = &now
 	}
-	if phase == phaseReady && locoRes.Status.Phase != phaseReady {
+	if phase == locov1alpha1.ApplicationPhaseReady && locoRes.Status.Phase != locov1alpha1.ApplicationPhaseReady {
 		locoRes.Status.CompletedAt = &now
 	}
 	locoRes.Status.Phase = phase
@@ -350,7 +347,7 @@ func (r *LocoResourceReconciler) deleteAppObjects(ctx context.Context, locoRes *
 	if err := r.prunePrivateServices(ctx, locoRes, ""); err != nil {
 		return err
 	}
-	name := getName(locoRes)
+	name := locov1alpha1.ApplicationName(locoRes.Spec.ResourceID)
 	namespace := r.workspaceNamespace(locoRes)
 	routeName := getRouteName(locoRes)
 	gatewayPolicyName := getGatewayPolicyName(locoRes)
@@ -418,41 +415,36 @@ func (r *LocoResourceReconciler) deleteNamespaceIfUnused(
 	return nil
 }
 
-// getName derives the app name from the Application
-func getName(locoRes *locov1alpha1.Application) string {
-	return fmt.Sprintf("resource-%v", locoRes.Spec.ResourceID)
-}
-
 func (r *LocoResourceReconciler) workspaceNamespace(locoRes *locov1alpha1.Application) string {
 	return r.WorkspaceNamespacePrefix + locoRes.Spec.WorkspaceID
 }
 
 func getEnvSecretName(locoRes *locov1alpha1.Application) string {
-	return fmt.Sprintf("%s-env", getName(locoRes))
+	return fmt.Sprintf("%s-env", locov1alpha1.ApplicationName(locoRes.Spec.ResourceID))
 }
 
 func getRoleName(locoRes *locov1alpha1.Application) string {
-	return fmt.Sprintf("%s-role", getName(locoRes))
+	return fmt.Sprintf("%s-role", locov1alpha1.ApplicationName(locoRes.Spec.ResourceID))
 }
 
 func getRoleBindingName(locoRes *locov1alpha1.Application) string {
-	return fmt.Sprintf("%s-binding", getName(locoRes))
+	return fmt.Sprintf("%s-binding", locov1alpha1.ApplicationName(locoRes.Spec.ResourceID))
 }
 
 func getRouteName(locoRes *locov1alpha1.Application) string {
-	return fmt.Sprintf("%s-route", getName(locoRes))
+	return fmt.Sprintf("%s-route", locov1alpha1.ApplicationName(locoRes.Spec.ResourceID))
 }
 
 func getGatewayPolicyName(locoRes *locov1alpha1.Application) string {
-	return fmt.Sprintf("%s-gateway", getName(locoRes))
+	return fmt.Sprintf("%s-gateway", locov1alpha1.ApplicationName(locoRes.Spec.ResourceID))
 }
 
 func getInternalDomain(locoRes *locov1alpha1.Application, namespace string) string {
-	return fmt.Sprintf("%s.%s.svc.cluster.local", getName(locoRes), namespace)
+	return fmt.Sprintf("%s.%s.svc.cluster.local", locov1alpha1.ApplicationName(locoRes.Spec.ResourceID), namespace)
 }
 
 func managedLabels(locoRes *locov1alpha1.Application) map[string]string {
-	name := getName(locoRes)
+	name := locov1alpha1.ApplicationName(locoRes.Spec.ResourceID)
 	return map[string]string{
 		labelApp:                  name,
 		locolabels.LabelManagedBy: managed.ManagedByValue,
@@ -541,7 +533,7 @@ func (r *LocoResourceReconciler) ensureEnvSecret(
 
 // ensureServiceAccount ensures the service account exists for the deployment and references image pull secret
 func (r *LocoResourceReconciler) ensureServiceAccount(ctx context.Context, locoRes *locov1alpha1.Application) error {
-	name := getName(locoRes)
+	name := locov1alpha1.ApplicationName(locoRes.Spec.ResourceID)
 	namespace := r.workspaceNamespace(locoRes)
 
 	slog.DebugContext(ctx, "ensuring service account", "namespace", namespace, "name", name)
@@ -583,7 +575,7 @@ func (r *LocoResourceReconciler) deleteRoleAndBinding(ctx context.Context, locoR
 
 // ensureService ensures the Kubernetes service exists for the deployment
 func (r *LocoResourceReconciler) ensureService(ctx context.Context, locoRes *locov1alpha1.Application) error {
-	name := getName(locoRes)
+	name := locov1alpha1.ApplicationName(locoRes.Spec.ResourceID)
 	namespace := r.workspaceNamespace(locoRes)
 	containerPort := locoRes.Spec.ServiceSpec.Deployment.Port
 
@@ -710,7 +702,7 @@ func desiredDeployment(
 	envSecret envSecretMount,
 	telemetry TelemetryConfig,
 ) (*appsv1ac.DeploymentApplyConfiguration, error) {
-	name := getName(locoRes)
+	name := locov1alpha1.ApplicationName(locoRes.Spec.ResourceID)
 	spec := locoRes.Spec.ServiceSpec
 	containerPort := spec.Deployment.Port
 	replicas := spec.Resources.Replicas.Min
@@ -824,7 +816,7 @@ func (r *LocoResourceReconciler) ensureDeployment(
 		return nil, err
 	}
 
-	name := getName(locoRes)
+	name := locov1alpha1.ApplicationName(locoRes.Spec.ResourceID)
 	namespace := r.workspaceNamespace(locoRes)
 	slog.DebugContext(ctx, "ensuring deployment", "namespace", namespace, "name", name)
 
@@ -857,7 +849,7 @@ func setReplicaCounts(app *locov1alpha1.Application, dep *appsv1ac.DeploymentApp
 
 // ensureHTTPRoute ensures the HTTPRoute exists for traffic ingress (Envoy Gateway)
 func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *locov1alpha1.Application) error {
-	name := getName(locoRes)
+	name := locov1alpha1.ApplicationName(locoRes.Spec.ResourceID)
 	namespace := r.workspaceNamespace(locoRes)
 	routeName := getRouteName(locoRes)
 	routing := locoRes.Spec.ServiceSpec.Routing

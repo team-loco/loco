@@ -41,7 +41,7 @@ func workspaceApp(name, resourceID string) *locov1alpha1.Application {
 }
 
 func appObjects(app *locov1alpha1.Application) []client.Object {
-	name := getName(app)
+	name := testAppName(app)
 	namespace := testWorkspaceNamespace(app)
 	roleName := getRoleName(app)
 	bindingName := getRoleBindingName(app)
@@ -75,8 +75,8 @@ func TestAppsInAWorkspaceShareANamespace(t *testing.T) {
 	if testWorkspaceNamespace(first) != testWorkspaceNamespace(second) {
 		t.Fatalf("namespaces differ: %q and %q", testWorkspaceNamespace(first), testWorkspaceNamespace(second))
 	}
-	if getName(first) == getName(second) {
-		t.Fatalf("apps share the object name %q", getName(first))
+	if testAppName(first) == testAppName(second) {
+		t.Fatalf("apps share the object name %q", testAppName(first))
 	}
 }
 

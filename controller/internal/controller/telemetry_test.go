@@ -94,7 +94,7 @@ func TestDesiredDeploymentPointsOpenTelemetryAtTheCollector(t *testing.T) {
 
 	requireEnv(t, dep, envOTLPEndpoint, testCollectorEndpoint)
 	requireEnv(t, dep, envOTLPProtocol, otlpProtocolHTTP)
-	requireEnv(t, dep, envOTelServiceName, getName(app))
+	requireEnv(t, dep, envOTelServiceName, testAppName(app))
 	requireEnv(t, dep, envOTelResourceAttributes,
 		"deployment.environment.name=production,loco.deployment.id="+testDeploymentID)
 }
@@ -271,7 +271,7 @@ func TestUserEnvDoesNotOverrideLocoEnv(t *testing.T) {
 func TestPodTemplateCarriesTheAppNameLabelOutsideTheSelector(t *testing.T) {
 	app := telemetryTestApplication()
 	dep := buildDeployment(t, app)
-	name := getName(app)
+	name := testAppName(app)
 
 	labels := dep.Spec.Template.Labels
 	if got := labels[labelAppKubernetesName]; got != name {

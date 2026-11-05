@@ -33,7 +33,10 @@ func reconcileStuckApp(r *LocoResourceReconciler, app *locov1alpha1.Application)
 
 func createReplica(app *locov1alpha1.Application, name, image string) *corev1.Pod {
 	dep := &appsv1.Deployment{}
-	depKey := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: getName(app)}
+	depKey := client.ObjectKey{
+		Namespace: testWorkspaceNamespace(app),
+		Name:      testAppName(app),
+	}
 	Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
 	template := dep.Spec.Template
 	pod := &corev1.Pod{
@@ -85,13 +88,13 @@ var _ = Describe("Application with replicas that cannot start", func() {
 		app.Spec.ServiceSpec.Routing = nil
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		reconcileStuckApp(r, app)
-		Expect(app.Status.Phase).To(Equal(phaseDeploying))
+		Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseDeploying))
 
 		pod := createReplica(app, "root-replica", testImage)
 		setWaiting(pod, reasonCreateContainerConfigError, kubeletRootImageMessage)
 		reconcileStuckApp(r, app)
 
-		Expect(app.Status.Phase).To(Equal(phaseFailed))
+		Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseFailed))
 		Expect(app.Status.Message).To(Equal(
 			"The image runs as root. Loco runs containers as a non-root user; use an image that sets a non-root USER.",
 		))
@@ -107,7 +110,7 @@ var _ = Describe("Application with replicas that cannot start", func() {
 		setContainerState(pod, corev1.PodRunning, state)
 		reconcileStuckApp(r, app)
 
-		Expect(app.Status.Phase).To(Equal(phaseDeploying))
+		Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseDeploying))
 		Expect(meta.FindStatusCondition(app.Status.Conditions, conditionDegraded)).To(BeNil())
 	})
 
@@ -120,13 +123,13 @@ var _ = Describe("Application with replicas that cannot start", func() {
 		stale := createReplica(app, "pull-stale", "registry.example.com/app:old")
 		setWaiting(stale, reasonCrashLoopBackOff, kubeletCrashMessage)
 		reconcileStuckApp(r, app)
-		Expect(app.Status.Phase).To(Equal(phaseDeploying))
+		Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseDeploying))
 
 		current := createReplica(app, "pull-current", testImage)
 		setWaiting(current, reasonImagePullBackOff, kubeletPullMessage)
 		reconcileStuckApp(r, app)
 
-		Expect(app.Status.Phase).To(Equal(phaseFailed))
+		Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseFailed))
 		Expect(app.Status.Message).To(Equal(messageImagePullFailed))
 		degraded := meta.FindStatusCondition(app.Status.Conditions, conditionDegraded)
 		Expect(degraded).NotTo(BeNil())
@@ -146,13 +149,13 @@ var _ = Describe("Application with replicas that cannot start", func() {
 		}}
 		Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
 		reconcileStuckApp(r, app)
-		Expect(app.Status.Phase).To(Equal(phaseFailed))
+		Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseFailed))
 		Expect(app.Status.Message).To(ContainSubstring("insufficient memory"))
 		pod.Status.Conditions[0].Status = corev1.ConditionTrue
 		pod.Status.Conditions[0].Reason = "Scheduled"
 		Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
 		reconcileStuckApp(r, app)
-		Expect(app.Status.Phase).To(Equal(phaseDeploying))
+		Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseDeploying))
 		Expect(meta.FindStatusCondition(app.Status.Conditions, conditionDegraded)).To(BeNil())
 	})
 
@@ -162,7 +165,10 @@ var _ = Describe("Application with replicas that cannot start", func() {
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		reconcileStuckApp(r, app)
 		dep := &appsv1.Deployment{}
-		key := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: getName(app)}
+		key := client.ObjectKey{
+			Namespace: testWorkspaceNamespace(app),
+			Name:      testAppName(app),
+		}
 		Expect(k8sClient.Get(ctx, key, dep)).To(Succeed())
 		dep.Status.ObservedGeneration = dep.Generation
 		dep.Status.Conditions = []appsv1.DeploymentCondition{{
@@ -173,12 +179,12 @@ var _ = Describe("Application with replicas that cannot start", func() {
 		}}
 		Expect(k8sClient.Status().Update(ctx, dep)).To(Succeed())
 		reconcileStuckApp(r, app)
-		Expect(app.Status.Phase).To(Equal(phaseFailed))
+		Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseFailed))
 		Expect(app.Status.Message).To(ContainSubstring("progress deadline"))
 		dep.Status.ObservedGeneration = dep.Generation - 1
 		Expect(k8sClient.Status().Update(ctx, dep)).To(Succeed())
 		reconcileStuckApp(r, app)
-		Expect(app.Status.Phase).To(Equal(phaseDeploying))
+		Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseDeploying))
 		Expect(meta.FindStatusCondition(app.Status.Conditions, conditionDegraded)).To(BeNil())
 		dep.Status.ObservedGeneration = dep.Generation
 		dep.Status.Conditions[0].Status = corev1.ConditionTrue
@@ -189,7 +195,7 @@ var _ = Describe("Application with replicas that cannot start", func() {
 		dep.Status.ReadyReplicas = *dep.Spec.Replicas
 		Expect(k8sClient.Status().Update(ctx, dep)).To(Succeed())
 		reconcileStuckApp(r, app)
-		Expect(app.Status.Phase).To(Equal(phaseReady))
+		Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseReady))
 		Expect(meta.FindStatusCondition(app.Status.Conditions, conditionDegraded)).To(BeNil())
 
 	})

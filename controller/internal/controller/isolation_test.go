@@ -171,7 +171,9 @@ var _ = Describe("Workspace isolation", func() {
 		Expect(reconciler.ensureGatewayIngressPolicy(ctx, app)).To(Succeed())
 
 		policy := getPolicy(namespace, policyName)
-		Expect(policy.Spec.PodSelector.MatchLabels).To(Equal(map[string]string{labelApp: getName(app)}))
+		Expect(
+			policy.Spec.PodSelector.MatchLabels,
+		).To(Equal(map[string]string{labelApp: testAppName(app)}))
 		Expect(policy.Spec.Ingress[0].Ports[0].Port.IntVal).To(Equal(int32(8000)))
 		gatewayPods := policy.Spec.Ingress[0].From[0].PodSelector.MatchLabels
 		Expect(gatewayPods).To(HaveKeyWithValue(labelGatewayName, testGateway))
@@ -223,7 +225,10 @@ var _ = Describe("Workspace isolation", func() {
 		Expect(reconciler.ensureMetricsIngressPolicy(ctx, app)).To(Succeed())
 		_, err := reconciler.ensureDeployment(ctx, app, envSecretMount{})
 		Expect(err).NotTo(HaveOccurred())
-		key := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: getName(app)}
+		key := client.ObjectKey{
+			Namespace: testWorkspaceNamespace(app),
+			Name:      testAppName(app),
+		}
 		deployment := &appsv1.Deployment{}
 		Expect(k8sClient.Get(ctx, key, deployment)).To(Succeed())
 		Expect(deployment.Spec.Template.Labels[labelMetricsPort]).To(Equal("9090"))
@@ -235,7 +240,7 @@ var _ = Describe("Workspace isolation", func() {
 		Expect(k8sClient.Get(ctx, key, deployment)).To(Succeed())
 		Expect(deployment.Spec.Template.Labels).NotTo(HaveKey(labelMetricsPort))
 		Expect(deployment.Spec.Template.Annotations).NotTo(HaveKey(annotationMetricsPath))
-		policyName := getName(app) + "-metrics"
+		policyName := testAppName(app) + "-metrics"
 		Expect(getPolicy(testWorkspaceNamespace(app), policyName).Spec.Ingress).To(BeEmpty())
 		Expect(reconciler.deleteAppObjects(ctx, app)).To(Succeed())
 		policyKey := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: policyName}
@@ -252,7 +257,7 @@ var _ = Describe("Workspace isolation", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		sa := &corev1.ServiceAccount{}
-		appKey := client.ObjectKey{Namespace: namespace, Name: getName(app)}
+		appKey := client.ObjectKey{Namespace: namespace, Name: testAppName(app)}
 		Expect(k8sClient.Get(ctx, appKey, sa)).To(Succeed())
 		Expect(sa.AutomountServiceAccountToken).To(HaveValue(BeFalse()))
 
@@ -279,7 +284,10 @@ var _ = Describe("Workspace isolation", func() {
 		app := isolationTestApplication("ws-runtime-user", "runtime-user")
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 		Expect(reconciler.ensureServiceAccount(ctx, app)).To(Succeed())
-		key := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: getName(app)}
+		key := client.ObjectKey{
+			Namespace: testWorkspaceNamespace(app),
+			Name:      testAppName(app),
+		}
 		for _, id := range []int64{1654, 82, 0} {
 			app.Spec.ServiceSpec.Deployment.RunAsUser = nil
 			app.Spec.ServiceSpec.Deployment.RunAsGroup = nil

@@ -86,7 +86,7 @@ func appliedApplication(revision int64, withRef bool) *locoControllerV1.Applicat
 		}
 	}
 	return &locoControllerV1.Application{
-		Name:      applicationName(testResourceID),
+		Name:      locoControllerV1.ApplicationName(testResourceID),
 		Namespace: testNamespace,
 		UID:       testAppUID,
 		Annotations: map[string]string{
@@ -261,7 +261,7 @@ func TestAPlacementWithoutSecretsDeletesItsStagedSecretAfterTheApplication(t *te
 func TestSweepEnvSecretsDeletesOrphans(t *testing.T) {
 	referenced := appliedApplication(2, true)
 	unreferencing := appliedApplication(2, false)
-	unreferencing.Name = applicationName("other")
+	unreferencing.Name = locoControllerV1.ApplicationName("other")
 	unreferencing.Annotations[locoControllerV1.AnnotationPlacementID] = "p2"
 	unrelated := &corev1.Secret{Name: "registry", Namespace: testNamespace}
 	a, _ := newRecordingApplier(t,

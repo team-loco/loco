@@ -155,9 +155,9 @@ func TestApplyPlacementRecordsRevisionAndRejectsOlderOnes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get applied Application: %v", err)
 	}
-	got, ok := PlacementOf(app)
-	if !ok || got.ID != "p1" || got.Revision != 2 {
-		t.Fatalf("placement annotations = %+v, %v", got, ok)
+	id, revision, ok := app.Placement()
+	if !ok || id != "p1" || revision != 2 {
+		t.Fatalf("placement annotations = %q, %d, %v", id, revision, ok)
 	}
 
 	err = a.ApplyPlacement(ctx, placement(t, "p1", 1))
@@ -177,8 +177,8 @@ func TestApplyPlacementRecordsRevisionAndRejectsOlderOnes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get Application: %v", err)
 	}
-	if got, _ := PlacementOf(app); got.Revision != 3 {
-		t.Fatalf("revision = %d, want 3", got.Revision)
+	if _, revision, _ := app.Placement(); revision != 3 {
+		t.Fatalf("revision = %d, want 3", revision)
 	}
 }
 

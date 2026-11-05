@@ -87,7 +87,7 @@ func openTelemetryEnvVars(
 	locoRes *locov1alpha1.Application, telemetry TelemetryConfig, secretNames []string,
 ) []corev1.EnvVar {
 	endpoint := telemetry.otlpHTTPEndpoint()
-	serviceName := getName(locoRes)
+	serviceName := locov1alpha1.ApplicationName(locoRes.Spec.ResourceID)
 	settings := [][]corev1.EnvVar{
 		{
 			{Name: envOTLPEndpoint, Value: endpoint},

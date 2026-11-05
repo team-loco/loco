@@ -18,15 +18,7 @@ func EnvSecretName(placementID string) string {
 
 // EnvSecretRevision reads the placement revision label of a staging Secret.
 func EnvSecretRevision(labels map[string]string) (int64, bool) {
-	value, ok := labels[LabelPlacementRevision]
-	if !ok {
-		return 0, false
-	}
-	revision, err := strconv.ParseInt(value, 10, 64)
-	if err != nil {
-		return 0, false
-	}
-	return revision, true
+	return revisionOf(labels, LabelPlacementRevision)
 }
 
 func (a *Application) PlacementID() string {
@@ -34,7 +26,24 @@ func (a *Application) PlacementID() string {
 }
 
 func (a *Application) PlacementRevision() (int64, bool) {
-	value, ok := a.GetAnnotations()[AnnotationPlacementRevision]
+	return revisionOf(a.GetAnnotations(), AnnotationPlacementRevision)
+}
+
+// Placement reads the placement annotations; ok is false unless both are present.
+func (a *Application) Placement() (id string, revision int64, ok bool) {
+	id = a.PlacementID()
+	if id == "" {
+		return "", 0, false
+	}
+	revision, ok = a.PlacementRevision()
+	if !ok {
+		return "", 0, false
+	}
+	return id, revision, true
+}
+
+func revisionOf(values map[string]string, key string) (int64, bool) {
+	value, ok := values[key]
 	if !ok {
 		return 0, false
 	}

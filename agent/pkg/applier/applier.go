@@ -107,7 +107,7 @@ func (a *Applier) ApplyPlacement(ctx context.Context, placement Placement) error
 		return err
 	}
 
-	name := applicationName(placement.ResourceID)
+	name := locoControllerV1.ApplicationName(placement.ResourceID)
 	return retry.OnError(retry.DefaultRetry, isWriteRace, func() error {
 		live, err := a.readPlacement(ctx, name, placement)
 		if err != nil {
@@ -188,9 +188,9 @@ func (a *Applier) readPlacement(ctx context.Context, name string, placement Plac
 	}
 	if err == nil {
 		live.application = app
-		stored, ok := PlacementOf(app)
-		if ok && stored.ID == placement.ID && stored.Revision > placement.Revision {
-			return live, fmt.Errorf("%w: have %d, got %d", ErrStaleRevision, stored.Revision, placement.Revision)
+		storedID, storedRevision, ok := app.Placement()
+		if ok && storedID == placement.ID && storedRevision > placement.Revision {
+			return live, fmt.Errorf("%w: have %d, got %d", ErrStaleRevision, storedRevision, placement.Revision)
 		}
 	}
 	secret := &corev1.Secret{}
@@ -358,10 +358,6 @@ func (a *Applier) SweepEnvSecrets(ctx context.Context) error {
 	return nil
 }
 
-func applicationName(resourceID string) string {
-	return "resource-" + resourceID
-}
-
 func applicationApplyConfiguration(
 	name, namespace, resourceVersion string,
 	placement Placement,
@@ -395,7 +391,7 @@ func (a *Applier) DeletePlacement(ctx context.Context, placement Placement) erro
 	if placement.ResourceID == "" {
 		return fmt.Errorf("%w: delete has no resource_id", ErrInvalidPayload)
 	}
-	name := applicationName(placement.ResourceID)
+	name := locoControllerV1.ApplicationName(placement.ResourceID)
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		live := &locoControllerV1.Application{}
@@ -407,17 +403,17 @@ func (a *Applier) DeletePlacement(ctx context.Context, placement Placement) erro
 			return fmt.Errorf("failed to read Application: %w", err)
 		}
 
-		stored, ok := PlacementOf(live)
-		if ok && stored.ID != placement.ID {
+		storedID, storedRevision, ok := live.Placement()
+		if ok && storedID != placement.ID {
 			slog.InfoContext(ctx, "Application belongs to another placement, not deleting",
 				"name", name,
 				"placement_id", placement.ID,
-				"owner_placement_id", stored.ID,
+				"owner_placement_id", storedID,
 			)
 			return nil
 		}
-		if ok && stored.Revision > placement.Revision {
-			return fmt.Errorf("%w: have %d, got %d", ErrStaleRevision, stored.Revision, placement.Revision)
+		if ok && storedRevision > placement.Revision {
+			return fmt.Errorf("%w: have %d, got %d", ErrStaleRevision, storedRevision, placement.Revision)
 		}
 
 		precondition := client.Preconditions{ResourceVersion: &live.ResourceVersion}
@@ -439,18 +435,6 @@ func (a *Applier) DeletePlacement(ctx context.Context, placement Placement) erro
 		)
 		return nil
 	})
-}
-
-func PlacementOf(app *locoControllerV1.Application) (Placement, bool) {
-	id := app.PlacementID()
-	if id == "" {
-		return Placement{}, false
-	}
-	revision, ok := app.PlacementRevision()
-	if !ok {
-		return Placement{}, false
-	}
-	return Placement{ID: id, Revision: revision}, true
 }
 
 type DeployPayload struct {
