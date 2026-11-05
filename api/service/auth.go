@@ -214,19 +214,19 @@ func (s *AuthServer) ApproveCLILogin(
 		return nil, rpcerr.New(connect.CodeInternal, ErrAuthStoreAvailable)
 	}
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if recordErr := events.Record(ctx, qtx, events.Event{
+		return events.Record(ctx, qtx, events.Event{
 			Type:        events.CLILoginApproved,
 			SubjectType: events.SubjectUser,
 			SubjectID:   new(grant.UserID),
 			Data:        map[string]any{"flow": "loopback"},
-		}); recordErr != nil {
-			return recordErr
-		}
-		return s.cache.Set(ctx, "cli:code:"+digest(code), payload, cliCodeTTL)
+		})
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to approve cli login", "error", err)
 		return nil, rpcerr.New(connect.CodeUnavailable, ErrAuthStoreAvailable)
+	}
+	if setErr := s.cache.Set(ctx, "cli:code:"+digest(code), payload, cliCodeTTL); setErr != nil {
+		return nil, connect.NewError(connect.CodeUnavailable, ErrAuthStoreAvailable.Error()).WithCause(setErr)
 	}
 	slog.InfoContext(ctx, "approved cli login", "userId", grant.UserID)
 	return &authv1.ApproveCLILoginResponse{Code: code}, nil
@@ -346,19 +346,19 @@ func (s *AuthServer) ApproveDeviceLogin(
 		return nil, rpcerr.New(connect.CodeInternal, ErrAuthStoreAvailable)
 	}
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if recordErr := events.Record(ctx, qtx, events.Event{
+		return events.Record(ctx, qtx, events.Event{
 			Type:        events.CLILoginApproved,
 			SubjectType: events.SubjectUser,
 			SubjectID:   new(grant.UserID),
 			Data:        map[string]any{"flow": "device"},
-		}); recordErr != nil {
-			return recordErr
-		}
-		return s.cache.Set(ctx, key, payload, remaining)
+		})
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to approve device login", "error", err)
 		return nil, rpcerr.New(connect.CodeUnavailable, ErrAuthStoreAvailable)
+	}
+	if setErr := s.cache.Set(ctx, key, payload, remaining); setErr != nil {
+		return nil, connect.NewError(connect.CodeUnavailable, ErrAuthStoreAvailable.Error()).WithCause(setErr)
 	}
 	slog.InfoContext(ctx, "approved device login", "userId", grant.UserID)
 	return &authv1.ApproveDeviceLoginResponse{}, nil

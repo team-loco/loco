@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,9 +13,11 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 
 	"connectrpc.com/connect/v2"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/auth/authtest"
 	"github.com/team-loco/loco/api/contextkeys"
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/tvm"
@@ -373,5 +376,53 @@ func TestCLIRefreshChecksIdentity(t *testing.T) {
 	})
 	if codeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("refresh of a deleted identity: %v", err)
+	}
+}
+
+type commitCheckingCache struct {
+	cache.Cache
+	t        *testing.T
+	pool     *pgxpool.Pool
+	key      string
+	approved int
+}
+
+func (c *commitCheckingCache) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
+	if strings.HasPrefix(key, c.key) {
+		query := "SELECT count(*) FROM events WHERE type = $1"
+		err := c.pool.QueryRow(ctx, query, events.CLILoginApproved).Scan(&c.approved)
+		if err != nil {
+			c.t.Fatalf("count approval events: %v", err)
+		}
+	}
+	return c.Cache.Set(ctx, key, value, ttl)
+}
+
+func TestCLILoginStoresCodeAfterApprovalCommits(t *testing.T) {
+	f := newAuthFixture(t)
+	loopback := &commitCheckingCache{Cache: f.server.cache, t: t, pool: f.server.db, key: "cli:code:"}
+	f.server.cache = loopback
+	_, err := f.server.ApproveCLILogin(f.webCtx, &authv1.ApproveCLILoginRequest{
+		State: testState, CodeChallenge: challengeFor("a-verifier-that-is-long-enough-to-satisfy-rfc-7636-limits"),
+	})
+	if err != nil {
+		t.Fatalf("approve: %v", err)
+	}
+	if loopback.approved != 1 {
+		t.Fatalf("approval events committed when the loopback code was stored = %d, want 1", loopback.approved)
+	}
+
+	started, err := f.server.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	device := &commitCheckingCache{Cache: f.server.cache, t: t, pool: f.server.db, key: "cli:device:"}
+	f.server.cache = device
+	_, err = f.server.ApproveDeviceLogin(f.webCtx, &authv1.ApproveDeviceLoginRequest{UserCode: started.GetUserCode()})
+	if err != nil {
+		t.Fatalf("approve device: %v", err)
+	}
+	if device.approved != 2 {
+		t.Fatalf("approval events committed when the device grant was stored = %d, want 2", device.approved)
 	}
 }
