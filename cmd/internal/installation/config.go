@@ -48,11 +48,9 @@ type Database struct {
 }
 
 type Auth struct {
-	BootstrapClientID    string `json:"bootstrapClientId"    yaml:"bootstrapClientId"`
+	ClientID             string `json:"clientId"             yaml:"clientId"`
 	BootstrapRedirectURI string `json:"bootstrapRedirectURI" yaml:"bootstrapRedirectURI"`
 	Issuer               string `json:"issuer"               yaml:"issuer"`
-	Audience             string `json:"audience"             yaml:"audience"`
-	WebClientID          string `json:"webClientId"          yaml:"webClientId"`
 	SignupMode           string `json:"signupMode"           yaml:"signupMode"`
 }
 

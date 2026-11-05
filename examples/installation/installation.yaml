@@ -14,9 +14,7 @@ controlPlane:
     secretRef: {name: loco-inputs, key: database-url}
   auth:
     issuer: https://auth.example.com
-    audience: loco
-    webClientId: loco-web
-    bootstrapClientId: loco
+    clientId: loco
     bootstrapRedirectURI: http://127.0.0.1:8400/callback
     signupMode: closed
   sourceBucket:

@@ -106,10 +106,8 @@
           "additionalProperties": false,
           "required": [
             "issuer",
-            "audience",
-            "webClientId",
+            "clientId",
             "signupMode",
-            "bootstrapClientId",
             "bootstrapRedirectURI"
           ],
           "properties": {
@@ -117,11 +115,7 @@
               "type": "string",
               "minLength": 1
             },
-            "audience": {
-              "type": "string",
-              "minLength": 1
-            },
-            "webClientId": {
+            "clientId": {
               "type": "string",
               "minLength": 1
             },
@@ -132,10 +126,6 @@
                 "open",
                 "closed"
               ]
-            },
-            "bootstrapClientId": {
-              "type": "string",
-              "minLength": 1
             },
             "bootstrapRedirectURI": {
               "type": "string",

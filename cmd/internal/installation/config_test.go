@@ -23,6 +23,9 @@ func TestParseExample(t *testing.T) {
 	if cfg.ControlPlane.Auth.SignupMode != "closed" || len(cfg.Workers) != 1 {
 		t.Fatalf("unexpected installation: %#v", cfg)
 	}
+	if cfg.ControlPlane.Auth.ClientID != "loco" {
+		t.Fatal("example must select the public client shared by dashboard and operator sign-in")
+	}
 }
 
 func TestRejectInvalidConfigurationWithoutValues(t *testing.T) {
@@ -31,7 +34,7 @@ func TestRejectInvalidConfigurationWithoutValues(t *testing.T) {
 	tests := map[string]string{
 		"missing boolean": strings.Replace(valid, "builds: {enabled: true, privateEgress: []}", "builds: {}", 1),
 		"null object":     strings.Replace(valid, "builds: {enabled: true, privateEgress: []}", "builds: null", 1),
-		"wrong scalar":    strings.Replace(valid, "audience: loco", "audience: 123", 1),
+		"wrong scalar":    strings.Replace(valid, "clientId: loco", "clientId: 123", 1),
 		"bootstrap remote": strings.Replace(
 			valid,
 			"http://127.0.0.1:8400/callback",
@@ -39,7 +42,6 @@ func TestRejectInvalidConfigurationWithoutValues(t *testing.T) {
 			1,
 		),
 		"bootstrap dynamic port": strings.Replace(valid, ":8400/callback", ":0/callback", 1),
-		"bootstrap audience":     strings.Replace(valid, "bootstrapClientId: loco", "bootstrapClientId: "+canary, 1),
 		"registry port": strings.Replace(
 			valid,
 			"endpoint: https://registry.example.com",

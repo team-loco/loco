@@ -24,9 +24,7 @@ Every field below is required, including explicit boolean settings. `workers: []
 | `controlPlane.apiURL`, `controlPlane.webURL` | Public API and dashboard URLs |
 | `controlPlane.database.secretRef` | Database URL input Secret's `name` and `key` |
 | `controlPlane.auth.issuer` | OIDC issuer URL |
-| `controlPlane.auth.audience` | API's expected OIDC audience |
-| `controlPlane.auth.webClientId` | Public browser client ID |
-| `controlPlane.auth.bootstrapClientId` | Public OIDC client ID for operator authorization code with PKCE; must equal `audience` |
+| `controlPlane.auth.clientId` | Public OIDC client ID shared by dashboard and operator sign-in; the API accepts this ID-token audience |
 | `controlPlane.auth.bootstrapRedirectURI` | Registered loopback redirect: `http://127.0.0.1:<port>/callback`, with port 1 through 65535 |
 | `controlPlane.auth.signupMode` | `open` or `closed` |
 | `controlPlane.sourceBucket` | Source storage: `endpoint`, `region`, `bucket`, `credentialsSecretRef.name` |
@@ -50,6 +48,8 @@ Every field below is required, including explicit boolean settings. `workers: []
 | `workers[].certificates.issuerRef` | Existing issuer's `name` and `kind` |
 
 URLs use HTTP or HTTPS and contain no user information, query string or fragment. Use HTTPS for public services. HTTP permits isolated local fixtures. Domains contain lowercase DNS labels. Input Secret names resolve in the control-plane context and namespace; certificate issuer references resolve at their declared target.
+
+Register one public OIDC client for authorization code with PKCE. Allow the dashboard's `webURL` origin followed by `/auth/callback` and the configured `bootstrapRedirectURI`. Dashboard and operator sign-in both send this client's ID token to the API, which validates its audience against `clientId`.
 
 Store credential values in Kubernetes Secrets populated by an operator or external secret manager. The installation file accepts references only: no database password, SMTP transport, registry credential, token or arbitrary Helm values. Generated installation credentials belong in destination Secrets, outside this file. Authorized cluster administrators can still read those Secrets; avoiding routine display does not remove that trust boundary.
 

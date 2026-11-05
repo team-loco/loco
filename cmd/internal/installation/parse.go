@@ -78,9 +78,6 @@ func validate(cfg Config) error {
 		return field("name")
 	}
 	cp := cfg.ControlPlane
-	if cp.Auth.BootstrapClientID != cp.Auth.Audience {
-		return field("controlPlane.auth.bootstrapClientId")
-	}
 	if err := target(cp.Kubernetes, "controlPlane.kubernetes"); err != nil {
 		return err
 	}
