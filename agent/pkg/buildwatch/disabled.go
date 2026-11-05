@@ -23,6 +23,11 @@ func (Disabled) WithInventory(_ context.Context, fn func([]*agentv1.InventoryBui
 
 func (Disabled) RunCollector(context.Context, time.Duration) {}
 
+func (Disabled) Wait(ctx context.Context) error {
+	<-ctx.Done()
+	return ctx.Err()
+}
+
 func (Disabled) Handle(ctx context.Context, msg *agentv1.SyncResponse, report Sink) {
 	switch m := msg.GetMessage().(type) {
 	case *agentv1.SyncResponse_StartBuild:

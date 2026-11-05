@@ -157,6 +157,8 @@ func main() {
 		setupLog.Error(err, "invalid reconciler configuration")
 		os.Exit(1)
 	}
+	ctx, onWatchError := stopOnDeadWatch(ctrl.SetupSignalHandler())
+	setup.cache.DefaultWatchErrorHandler = onWatchError
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		Cache:                  setup.cache,
@@ -188,7 +190,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager", "reconciler", reconcilerName)
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := startManager(ctx, mgr); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}

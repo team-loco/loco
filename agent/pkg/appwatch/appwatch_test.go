@@ -294,3 +294,14 @@ func TestInventoryMarksAPlacementPendingWhileItsEnvSecretHasAnotherRevision(t *t
 		t.Fatalf("entry = %v, want revision 3 with the env Secret pending", entry)
 	}
 }
+
+var errTestWatchDead = errors.New("watch cannot recover")
+
+func TestWaitReturnsWhyTheWatchStopped(t *testing.T) {
+	watching, stop := context.WithCancelCause(t.Context())
+	w := &Watcher{watching: watching}
+	stop(errTestWatchDead)
+	if err := w.Wait(t.Context()); !errors.Is(err, errTestWatchDead) {
+		t.Fatalf("Wait = %v, want %v", err, errTestWatchDead)
+	}
+}
