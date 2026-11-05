@@ -44,7 +44,7 @@ func (*contextInterceptor) Interceptor() connect.ServerInterceptor {
 			err := next(ctx, spec, stream)
 			duration := time.Since(start)
 			if err != nil {
-				slog.WarnContext(
+				slog.DebugContext(
 					ctx,
 					"request failed",
 					"duration",

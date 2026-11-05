@@ -77,7 +77,6 @@ func (i *authInterceptor) authenticate(
 
 	token, err := extractToken(header)
 	if err != nil {
-		slog.WarnContext(ctx, "request without a usable token", "procedure", procedure, "error", err)
 		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
 
@@ -87,7 +86,6 @@ func (i *authInterceptor) authenticate(
 
 	entity, scopes, err := i.machine.GetToken(ctx, token)
 	if errors.Is(err, tvm.ErrInvalidExpiredToken) {
-		slog.WarnContext(ctx, "token rejected", "procedure", procedure, "error", err)
 		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
 	if err != nil {
@@ -120,7 +118,6 @@ func (i *authInterceptor) authenticateProviderToken(
 ) (context.Context, error) {
 	identity, err := i.verifier.Verify(ctx, token)
 	if err != nil {
-		slog.WarnContext(ctx, "provider token rejected", "procedure", procedure, "error", err)
 		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
 
@@ -131,7 +128,7 @@ func (i *authInterceptor) authenticateProviderToken(
 			return nil, rpcerr.New(connect.CodePermissionDenied, rejected)
 		}
 		slog.ErrorContext(ctx, "failed to resolve identity", "issuer", identity.Issuer, "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, auth.ErrResolve)
+		return nil, connect.NewError(connect.CodeInternal, auth.ErrResolve.Error()).WithCause(err)
 	}
 	if user.Status != genDb.UserStatusActive {
 		slog.InfoContext(ctx, "suspended user rejected", "procedure", procedure, "userId", user.ID)
@@ -141,7 +138,7 @@ func (i *authInterceptor) authenticateProviderToken(
 	scopes, err := i.authz.UserScopes(ctx, user.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load user scopes", "userId", user.ID, "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, auth.ErrResolve)
+		return nil, connect.NewError(connect.CodeInternal, auth.ErrResolve.Error()).WithCause(err)
 	}
 
 	c := context.WithValue(ctx, contextkeys.EntityKey, genDb.Entity{
