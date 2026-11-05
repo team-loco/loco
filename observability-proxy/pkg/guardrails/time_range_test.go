@@ -17,20 +17,19 @@ func TestHistoryQueriesValidateTimestampPresenceAndPrecision(t *testing.T) {
 		validate func(start, end *timestamppb.Timestamp) error
 	}{
 		{name: "logs", validate: func(start, end *timestamppb.Timestamp) error {
-			return ValidateLogsRequest(&observabilityv1.QueryLogsRequest{
-				WorkspaceId: testWorkspaceID, StartTime: start, EndTime: end,
-			}, cfg)
+			req := &observabilityv1.QueryLogsRequest{WorkspaceId: testWorkspaceID, StartTime: start, EndTime: end}
+			return validated(req, func() error { return ValidateLogsRequest(req, cfg) })
 		}},
 		{name: "metrics", validate: func(start, end *timestamppb.Timestamp) error {
-			return ValidateMetricsRequest(&observabilityv1.QueryMetricsRequest{
+			req := &observabilityv1.QueryMetricsRequest{
 				WorkspaceId: testWorkspaceID, StartTime: start, EndTime: end,
-				MetricName: "dogfood.time.range", Aggregation: "avg",
-			}, cfg)
+				MetricName: "dogfood.time.range", IntervalSeconds: 1, Aggregation: "avg",
+			}
+			return validated(req, func() error { return ValidateMetricsRequest(req, cfg) })
 		}},
 		{name: "traces", validate: func(start, end *timestamppb.Timestamp) error {
-			return ValidateTracesRequest(&observabilityv1.QueryTracesRequest{
-				WorkspaceId: testWorkspaceID, StartTime: start, EndTime: end,
-			}, cfg)
+			req := &observabilityv1.QueryTracesRequest{WorkspaceId: testWorkspaceID, StartTime: start, EndTime: end}
+			return validated(req, func() error { return ValidateTracesRequest(req, cfg) })
 		}},
 	}
 	now := time.Date(2026, 10, 16, 12, 0, 0, 0, time.UTC)

@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/team-loco/loco/observability-proxy/migrations"
 )
 
 var (
@@ -20,8 +21,6 @@ var (
 	errNotPositive     = errors.New("must be positive")
 	errFractional      = errors.New("must be a whole number of seconds")
 	errInvalidName     = errors.New("is not a ClickHouse identifier")
-
-	identifierPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 )
 
 func requiredStringEnv(name string) string {
@@ -34,7 +33,7 @@ func requiredStringEnv(name string) string {
 
 func requiredIdentifierEnv(name string) string {
 	value := requiredStringEnv(name)
-	if !identifierPattern.MatchString(value) {
+	if !migrations.IsIdentifier(value) {
 		panic(fmt.Errorf("%s %q %w", name, value, errInvalidName))
 	}
 	return value

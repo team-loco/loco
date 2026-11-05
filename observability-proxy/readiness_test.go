@@ -21,15 +21,17 @@ func TestReadyzDoesNotDependOnTheControlPlane(t *testing.T) {
 		MetricsTTL:             testTTL,
 		MigrationRetryBudget:   sharedRetryBudget,
 		MigrationRetryInterval: testRetryInterval,
+		MigrationLockTTL:       testLockTTL,
+		MigrationLockRetry:     testLockRetry,
 		MaxConcurrent:          testMaxConcurrent,
 		TokenCacheTTL:          testTokenTTL,
 	}
-	p, err := newProxy(cfg, unlocked{}, testVersion)
+	p, err := newProxy(cfg, lockFor(cfg), testVersion)
 	if err != nil {
 		t.Fatalf("newProxy: %v", err)
 	}
 	t.Cleanup(p.close)
-	if err := p.migrate(t.Context(), cfg); err != nil {
+	if err := p.query.migrate(t.Context(), cfg); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	server := httptest.NewServer(p.server.Handler)

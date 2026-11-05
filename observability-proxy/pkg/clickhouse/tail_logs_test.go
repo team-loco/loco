@@ -6,8 +6,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 )
 
 const tailTestCursorBlocks = 20000
@@ -63,21 +61,23 @@ func TestTailPageFiltersDuplicatesAndLargeCursorAcrossMerges(t *testing.T) {
 	if sendErr := batch.Send(); sendErr != nil {
 		t.Fatal(sendErr)
 	}
-	request := &observabilityv1.TailLogsRequest{
-		WorkspaceId:     testWorkspaceID,
-		EnvironmentId:   testEnvironmentID,
-		ResourceIds:     []string{testResourceID},
+	query := LogQuery{
+		WorkspaceID:     testWorkspaceID,
+		EnvironmentID:   testEnvironmentID,
+		ResourceIDs:     []string{testResourceID},
+		Start:           timestamp,
 		Search:          search,
 		Levels:          []string{testSeverity},
 		Labels:          map[string]string{testSharedLabelKey: search},
 		Regions:         []string{testUSRegionPattern},
 		ExcludedRegions: []string{"us-west-*"},
+		Limit:           testFullPage,
 	}
 	large := TailLogCursor{}
 	for i := range tailTestCursorBlocks {
 		large[fmt.Sprintf("other/%d", i)] = uint64(i)
 	}
-	page, err := QueryTailLogPage(t.Context(), f.conn, request, timestamp, testFullPage, testQueryTimeout, large)
+	page, err := f.client.QueryTailLogPage(t.Context(), query, large)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,9 +86,10 @@ func TestTailPageFiltersDuplicatesAndLargeCursorAcrossMerges(t *testing.T) {
 		t.Fatalf("large cursor page=%d entries, more=%v", len(page.Entries), page.More)
 	}
 	cursor := TailLogCursor{}
+	query.Limit = 1
 	var count int
 	for i := range expected {
-		page, err = QueryTailLogPage(t.Context(), f.conn, request, timestamp, 1, testQueryTimeout, cursor)
+		page, err = f.client.QueryTailLogPage(t.Context(), query, cursor)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -111,7 +112,7 @@ func TestTailPageFiltersDuplicatesAndLargeCursorAcrossMerges(t *testing.T) {
 			}
 		}
 	}
-	page, err = QueryTailLogPage(t.Context(), f.conn, request, timestamp, 1, testQueryTimeout, cursor)
+	page, err = f.client.QueryTailLogPage(t.Context(), query, cursor)
 	if err != nil {
 		t.Fatal(err)
 	}

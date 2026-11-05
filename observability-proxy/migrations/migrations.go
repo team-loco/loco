@@ -23,10 +23,9 @@ const VersionTable = "loco_schema_migrations"
 var files embed.FS
 
 var (
-	ErrInvalidDatabase      = errors.New("database name is not a ClickHouse identifier")
-	ErrInvalidTTL           = errors.New("ttl must be a positive whole number of seconds")
-	ErrUnknownPlaceholder   = errors.New("migration uses an unknown placeholder")
-	ErrRetryBudgetExhausted = errors.New("clickhouse migrations did not succeed within the retry budget")
+	ErrInvalidDatabase    = errors.New("database name is not a ClickHouse identifier")
+	ErrInvalidTTL         = errors.New("ttl must be a positive whole number of seconds")
+	ErrUnknownPlaceholder = errors.New("migration uses an unknown placeholder")
 
 	identifierPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 )
@@ -39,13 +38,12 @@ type Config struct {
 	MetricsTTL time.Duration
 }
 
-type Retry struct {
-	Budget   time.Duration
-	Interval time.Duration
+func IsIdentifier(name string) bool {
+	return identifierPattern.MatchString(name)
 }
 
 func validate(cfg Config) error {
-	if !identifierPattern.MatchString(cfg.Database) {
+	if !IsIdentifier(cfg.Database) {
 		return fmt.Errorf("%w: %q", ErrInvalidDatabase, cfg.Database)
 	}
 	for _, ttl := range []time.Duration{cfg.LogsTTL, cfg.TracesTTL, cfg.MetricsTTL} {
@@ -57,6 +55,9 @@ func validate(cfg Config) error {
 }
 
 func Up(ctx context.Context, cfg Config) error {
+	if err := validate(cfg); err != nil {
+		return err
+	}
 	results, err := up(ctx, cfg)
 	if err != nil {
 		return err
@@ -73,38 +74,31 @@ func Up(ctx context.Context, cfg Config) error {
 	return nil
 }
 
-func UpWithRetry(ctx context.Context, cfg Config, retry Retry) error {
-	if err := validate(cfg); err != nil {
-		return err
-	}
-	budgetCtx, cancel := context.WithTimeout(ctx, retry.Budget)
-	defer cancel()
-	ticker := time.NewTicker(retry.Interval)
+func UpWithRetry(ctx context.Context, cfg Config, interval time.Duration) error {
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for attempt := 1; ; attempt++ {
-		err := Up(budgetCtx, cfg)
+		err := Up(ctx, cfg)
 		if err == nil {
 			return nil
+		}
+		if errors.Is(err, ErrInvalidDatabase) || errors.Is(err, ErrInvalidTTL) {
+			return err
 		}
 		if clickhouseerr.CredentialsRejected(err) {
 			return fmt.Errorf("clickhouse rejected the migration connection: %w", err)
 		}
 		slog.WarnContext(ctx, "clickhouse migrations failed", "attempt", attempt, "error", err)
 		select {
-		case <-budgetCtx.Done():
-			if ctxErr := ctx.Err(); ctxErr != nil {
-				return fmt.Errorf("%w: %w", ctxErr, err)
-			}
-			return fmt.Errorf("%w (%s, %d attempts): %w", ErrRetryBudgetExhausted, retry.Budget, attempt, err)
+		case <-ctx.Done():
+			cause := errors.Join(ctx.Err(), err)
+			return fmt.Errorf("clickhouse migrations did not succeed (%d attempts): %w", attempt, cause)
 		case <-ticker.C:
 		}
 	}
 }
 
 func up(ctx context.Context, cfg Config) ([]*goose.MigrationResult, error) {
-	if err := validate(cfg); err != nil {
-		return nil, err
-	}
 	rendered, err := render(cfg)
 	if err != nil {
 		return nil, err

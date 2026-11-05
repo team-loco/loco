@@ -410,7 +410,13 @@ func TestTenancyFilterDropsRecordsOutsideThePlacementWindows(t *testing.T) {
 	}
 	ctx := t.Context()
 
-	logsResponse, err := service.exportLogs(ctx, admission, plogotlp.NewExportRequestFromLogs(tenancyLogs(now)))
+	logsResponse, err := export(
+		ctx,
+		service,
+		service.logsSignal(),
+		admission,
+		plogotlp.NewExportRequestFromLogs(tenancyLogs(now)),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -431,7 +437,7 @@ func TestTenancyFilterDropsRecordsOutsideThePlacementWindows(t *testing.T) {
 	}
 
 	tracesRequest := ptraceotlp.NewExportRequestFromTraces(tenancyTraces(now))
-	tracesResponse, err := service.exportTraces(ctx, admission, tracesRequest)
+	tracesResponse, err := export(ctx, service, service.tracesSignal(), admission, tracesRequest)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -446,7 +452,7 @@ func TestTenancyFilterDropsRecordsOutsideThePlacementWindows(t *testing.T) {
 	}
 
 	metricsRequest := pmetricotlp.NewExportRequestFromMetrics(tenancyMetrics(now))
-	metricsResponse, err := service.exportMetrics(ctx, admission, metricsRequest)
+	metricsResponse, err := export(ctx, service, service.metricsSignal(), admission, metricsRequest)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -520,7 +526,7 @@ func exportFor(t *testing.T, service *Service, cp *controlPlane, workspaceIDs ..
 	if err != nil {
 		t.Fatal(err)
 	}
-	response, err := service.exportLogs(t.Context(), admission, logsFor(workspaceIDs...))
+	response, err := export(t.Context(), service, service.logsSignal(), admission, logsFor(workspaceIDs...))
 	if err != nil {
 		t.Fatal(err)
 	}

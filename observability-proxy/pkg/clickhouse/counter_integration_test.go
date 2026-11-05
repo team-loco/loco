@@ -68,23 +68,12 @@ func TestQueryMetricsReadsCounterSamplesAndSeparatesTemporality(t *testing.T) {
 		aggregation       string
 		cumulative, delta float64
 	}{
-		{"max", 18, 4}, {"sum", 33, 6}, {"min", 3, 2}, {"avg", 11, 3},
+		{maxAggregation, 18, 4}, {"sum", 33, 6}, {"min", 3, 2}, {"avg", 11, 3},
 	} {
 		t.Run(tc.aggregation, func(t *testing.T) {
-			series, err := QueryMetrics(
-				t.Context(),
-				f.conn,
-				testWorkspaceID,
-				testEnvironmentID,
-				testRegion,
-				[]string{testResourceID},
-				f.start,
-				f.end,
-				counterMetric,
-				testIntervalSeconds,
-				tc.aggregation,
-				testQueryTimeout,
-			)
+			request := metricsRequest(f.start, f.end)
+			request.MetricName, request.Aggregation = counterMetric, tc.aggregation
+			series, err := f.client.QueryMetrics(t.Context(), request)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	counterHTTPQueryTimeout       = 60
+	counterHTTPQueryTimeout       = 60 * time.Second
 	counterHTTPWorkspaceAttribute = "loco.workspace.id"
 	counterHTTPMetric             = "demo.payment.transactions"
 	counterHTTPResource           = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
@@ -50,8 +50,7 @@ func counterRequest(workspace string, timestamp time.Time) *observabilityv1.Quer
 }
 
 func TestCounterMetricsHTTPRequiresWorkspacePermission(t *testing.T) {
-	store := &fakeStore{}
-	client := traceTestClient(t, store)
+	client := traceTestClient(t, unavailableClickHouse(t))
 	for _, tc := range []struct {
 		token, workspace string
 		code             connect.Code
@@ -68,9 +67,6 @@ func TestCounterMetricsHTTPRequiresWorkspacePermission(t *testing.T) {
 		if connect.CodeOf(err) != tc.code {
 			t.Fatalf("error=%v, want %v", err, tc.code)
 		}
-	}
-	if store.calls != 0 {
-		t.Fatalf("store queried %d times for unauthorized requests", store.calls)
 	}
 }
 
@@ -99,7 +95,7 @@ func TestCounterMetricsCollectorToAuthenticatedHTTP(t *testing.T) {
 	if err := migrations.Up(t.Context(), cfg); err != nil {
 		t.Fatal(err)
 	}
-	ch, err := chClient.NewClient(dsn, database, 2)
+	ch, err := chClient.NewClient(dsn, database, testClickHouseConns, counterHTTPQueryTimeout)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +130,7 @@ func TestCounterMetricsCollectorToAuthenticatedHTTP(t *testing.T) {
 	if response.StatusCode != http.StatusOK {
 		t.Fatalf("collector response %d: %s", response.StatusCode, body)
 	}
-	client := traceTestClient(t, ch, counterHTTPQueryTimeout)
+	client := traceTestClient(t, ch)
 	for _, tc := range []struct {
 		token, workspace string
 		want             float64

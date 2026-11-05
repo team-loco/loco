@@ -19,12 +19,12 @@ const (
 func noopTailSend(*observabilityv1.TailLogsResponse) error { return nil }
 
 func TestTailLoopReturnsPromptlyWhenCanceledBetweenPolls(t *testing.T) {
-	service := NewObservabilityService(&fakeStore{}, &config.Config{}, nil)
+	service := NewObservabilityService(newTestClickHouse(t), &config.Config{}, nil)
 	ctx, cancel := context.WithCancel(t.Context())
 	time.AfterFunc(tailLoopCancelDelay, cancel)
 
 	start := time.Now()
-	err := service.tailLoop(ctx, &observabilityv1.TailLogsRequest{}, time.Now(), noopTailSend)
+	err := service.tailLoop(ctx, tailLogQuery(&observabilityv1.TailLogsRequest{}, time.Now()), noopTailSend)
 	elapsed := time.Since(start)
 
 	if err != nil {
@@ -36,11 +36,10 @@ func TestTailLoopReturnsPromptlyWhenCanceledBetweenPolls(t *testing.T) {
 }
 
 func TestTailLoopEndsTheStreamWhenAPollFails(t *testing.T) {
-	store := &fakeStore{err: errTraceTestStorage}
-	service := NewObservabilityService(store, &config.Config{}, nil)
+	service := NewObservabilityService(unavailableClickHouse(t), &config.Config{}, nil)
 
 	start := time.Now()
-	err := service.tailLoop(t.Context(), &observabilityv1.TailLogsRequest{}, time.Now(), noopTailSend)
+	err := service.tailLoop(t.Context(), tailLogQuery(&observabilityv1.TailLogsRequest{}, time.Now()), noopTailSend)
 	elapsed := time.Since(start)
 
 	if connect.CodeOf(err) != connect.CodeInternal {
@@ -48,8 +47,5 @@ func TestTailLoopEndsTheStreamWhenAPollFails(t *testing.T) {
 	}
 	if elapsed > tailLoopReturnLimit {
 		t.Fatalf("tail returned after %v, want under %v", elapsed, tailLoopReturnLimit)
-	}
-	if store.calls != 1 {
-		t.Fatalf("store calls = %d, want 1", store.calls)
 	}
 }

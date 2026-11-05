@@ -28,12 +28,12 @@ message QueryLogsRequest {
   // Workspace ID to query logs from (required).
   string workspace_id = 1 [(buf.validate.field).string.uuid = true];
   // Resource IDs to filter by (e.g., deployment IDs). Empty means all resources.
-  repeated string resource_ids = 2;
+  repeated string resource_ids = 2 [(buf.validate.field).repeated.items.string.uuid = true];
 
   // Start of time range (inclusive).
-  google.protobuf.Timestamp start_time = 3;
+  google.protobuf.Timestamp start_time = 3 [(buf.validate.field).required = true];
   // End of time range (inclusive).
-  google.protobuf.Timestamp end_time = 4;
+  google.protobuf.Timestamp end_time = 4 [(buf.validate.field).required = true];
 
   // Full-text search against log body.
   string search = 5;
@@ -81,7 +81,7 @@ message QueryLogsRequest {
   option (buf.validate.message).cel = {
     id: "time_range.start_lte_end"
     message: "start_time must be before or equal to end_time"
-    expression: "!has(this.start_time) || !has(this.end_time) || this.start_time <= this.end_time"
+    expression: "this.start_time <= this.end_time"
   };
 }
 
@@ -132,7 +132,7 @@ message TailLogsRequest {
   // Workspace ID to tail logs from (required).
   string workspace_id = 1 [(buf.validate.field).string.uuid = true];
   // Resource IDs to filter by. Empty means all resources.
-  repeated string resource_ids = 2;
+  repeated string resource_ids = 2 [(buf.validate.field).repeated.items.string.uuid = true];
 
   // Full-text search against log body.
   string search = 3;
@@ -189,12 +189,12 @@ message QueryMetricsRequest {
   // Workspace ID to query metrics from (required).
   string workspace_id = 1 [(buf.validate.field).string.uuid = true];
   // Resource IDs to filter by. Empty means all resources in the workspace.
-  repeated string resource_ids = 2;
+  repeated string resource_ids = 2 [(buf.validate.field).repeated.items.string.uuid = true];
 
   // Start of time range (inclusive).
-  google.protobuf.Timestamp start_time = 3;
+  google.protobuf.Timestamp start_time = 3 [(buf.validate.field).required = true];
   // End of time range (inclusive).
-  google.protobuf.Timestamp end_time = 4;
+  google.protobuf.Timestamp end_time = 4 [(buf.validate.field).required = true];
 
   // Metric name to query (e.g., "k8s.pod.cpu_limit_utilization", "k8s.pod.memory_usage").
   string metric_name = 5 [(buf.validate.field).string.min_len = 1];
@@ -223,7 +223,7 @@ message QueryMetricsRequest {
   option (buf.validate.message).cel = {
     id: "time_range.start_lte_end"
     message: "start_time must be before or equal to end_time"
-    expression: "!has(this.start_time) || !has(this.end_time) || this.start_time <= this.end_time"
+    expression: "this.start_time <= this.end_time"
   };
 }
 

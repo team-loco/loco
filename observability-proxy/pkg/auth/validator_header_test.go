@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,7 +12,6 @@ import (
 	"connectrpc.com/connect/v2/connecthttp"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
-	"github.com/team-loco/loco/observability-proxy/pkg/cache"
 )
 
 const (
@@ -49,16 +49,11 @@ func TestValidatorAuthenticatesPermissionChecksAsTheirSubject(t *testing.T) {
 	connecthttp.Mount(mux, rpcServer)
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
-	store, err := cache.NewMemory(time.Minute)
+	validator, err := NewValidator(server.URL, time.Minute)
 	if err != nil {
-		t.Fatalf("cache: %v", err)
+		t.Fatalf("validator: %v", err)
 	}
-	t.Cleanup(func() {
-		if closeErr := store.Close(); closeErr != nil {
-			t.Errorf("close cache: %v", closeErr)
-		}
-	})
-	validator := NewValidator(server.URL, store)
+	t.Cleanup(validator.Close)
 	if checkErr := validator.CheckPermission(
 		t.Context(),
 		testQueryCredential,
@@ -74,9 +69,7 @@ func TestValidatorAuthenticatesPermissionChecksAsTheirSubject(t *testing.T) {
 		tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
 		testWorkspaceID,
 		tokenv1.Scope_SCOPE_WRITE,
-	); connect.CodeOf(
-		checkErr,
-	) != connect.CodePermissionDenied {
+	); !errors.Is(checkErr, ErrPermissionDenied) {
 		t.Fatalf("write without permission: %v", checkErr)
 	}
 	if checkErr := validator.CheckPermission(
@@ -85,9 +78,7 @@ func TestValidatorAuthenticatesPermissionChecksAsTheirSubject(t *testing.T) {
 		tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
 		testWorkspaceID,
 		tokenv1.Scope_SCOPE_READ,
-	); connect.CodeOf(
-		checkErr,
-	) != connect.CodePermissionDenied {
+	); !errors.Is(checkErr, ErrPermissionDenied) {
 		t.Fatalf("rejected caller: %v", checkErr)
 	}
 }

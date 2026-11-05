@@ -10444,7 +10444,8 @@
           "resourceIds": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             },
             "title": "resource_ids",
             "description": "Resource IDs to filter by (e.g., deployment IDs). Empty means all resources."
@@ -10538,6 +10539,10 @@
           }
         },
         "title": "QueryLogsRequest",
+        "required": [
+          "startTime",
+          "endTime"
+        ],
         "additionalProperties": false,
         "description": "QueryLogsRequest specifies filters and pagination for querying historical logs.\ntime_range.start_lte_end // start_time must be before or equal to end_time\n"
       },
@@ -10580,7 +10585,8 @@
           "resourceIds": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             },
             "title": "resource_ids",
             "description": "Resource IDs to filter by. Empty means all resources in the workspace."
@@ -10634,6 +10640,10 @@
           }
         },
         "title": "QueryMetricsRequest",
+        "required": [
+          "startTime",
+          "endTime"
+        ],
         "additionalProperties": false,
         "description": "QueryMetricsRequest specifies a metrics query with aggregation parameters.\ntime_range.start_lte_end // start_time must be before or equal to end_time\n"
       },
@@ -10745,7 +10755,8 @@
           "resourceIds": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             },
             "title": "resource_ids",
             "description": "Resource IDs to filter by. Empty means all resources."

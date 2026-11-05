@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"errors"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -183,22 +184,26 @@ func TestHTTPExportStatusCodes(t *testing.T) {
 		body        []byte
 		wantHTTP    int
 		wantCode    codes.Code
+		wantError   bool
 	}{
 		{
 			name: "storage unavailable is retryable", consumerErr: errStorageDown,
 			contentType: protobufContentType, wantHTTP: http.StatusServiceUnavailable, wantCode: codes.Unavailable,
+			wantError: true,
 		},
 		{
 			name: "permanent consumer error is not retryable", consumerErr: consumererror.NewPermanent(errStorageDown),
 			contentType: protobufContentType, wantHTTP: http.StatusBadRequest, wantCode: codes.InvalidArgument,
+			wantError: true,
 		},
 		{
 			name: "undecodable body", contentType: protobufContentType, body: []byte{0xff, 0xff},
-			wantHTTP: http.StatusBadRequest, wantCode: codes.InvalidArgument,
+			wantHTTP: http.StatusBadRequest, wantCode: codes.InvalidArgument, wantError: true,
 		},
 		{
 			name: "undecodable json", contentType: jsonContentType, body: []byte("{"),
 			wantHTTP: http.StatusBadRequest, wantCode: codes.InvalidArgument,
+			wantError: true,
 		},
 		{
 			name: "unsupported content type", contentType: "text/plain",
@@ -207,6 +212,7 @@ func TestHTTPExportStatusCodes(t *testing.T) {
 		{
 			name: "unsupported encoding", contentType: protobufContentType, encoding: "br",
 			wantHTTP: http.StatusBadRequest, wantCode: codes.InvalidArgument,
+			wantError: true,
 		},
 		{
 			name: "oversized body", contentType: protobufContentType, body: make([]byte, testMaxRequestBytes+1),
@@ -214,12 +220,19 @@ func TestHTTPExportStatusCodes(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
+			var logs bytes.Buffer
+			previous := slog.Default()
+			slog.SetDefault(slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelInfo})))
+			t.Cleanup(func() { slog.SetDefault(previous) })
 			service, _, cp := newTestService(t, test.consumerErr)
 			body := test.body
 			if body == nil {
 				body = protoBody(t)
 			}
 			response := post(t, service, cp.bearer(), test.contentType, test.encoding, body)
+			if got := strings.Contains(logs.String(), "level=ERROR"); got != test.wantError {
+				t.Errorf("ERROR logged = %t, want %t; log: %s", got, test.wantError, logs.String())
+			}
 			if response.Code != test.wantHTTP {
 				t.Fatalf("status = %d, want %d", response.Code, test.wantHTTP)
 			}

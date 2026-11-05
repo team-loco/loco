@@ -18,12 +18,18 @@ const (
 	testInterval    = 5 * time.Second
 	testLockTTL     = 15 * time.Second
 	testLockRetry   = 2 * time.Second
-	testIngestURL   = "clickhouse://loco_ingest@clickhouse:9000"
+
+	testMaxTimeRange = 48 * time.Hour
+	testQueryTimeout = 7 * time.Second
+	testMaxTail      = 12 * time.Minute
+	testTokenTTL     = 9 * time.Second
+	testIngestURL    = "clickhouse://loco_ingest@clickhouse:9000"
 )
 
 const (
 	databaseVar         = "CLICKHOUSE_DB"
 	portVar             = "PORT"
+	fractionalSeconds   = "1500ms"
 	testPort            = "8080"
 	testControlPlaneURL = "http://api.test"
 	testQueryURL        = "clickhouse://loco_reader@clickhouse:9000"
@@ -77,6 +83,10 @@ func setOverrides(t *testing.T) {
 	t.Setenv("MIGRATION_RETRY_INTERVAL", testInterval.String())
 	t.Setenv("MIGRATION_LOCK_TTL", testLockTTL.String())
 	t.Setenv("MIGRATION_LOCK_RETRY_PERIOD", testLockRetry.String())
+	t.Setenv("MAX_TIME_RANGE", testMaxTimeRange.String())
+	t.Setenv("QUERY_TIMEOUT", testQueryTimeout.String())
+	t.Setenv("MAX_TAIL_DURATION", testMaxTail.String())
+	t.Setenv("TOKEN_CACHE_TTL", testTokenTTL.String())
 }
 
 func expectPanic(t *testing.T, name string) {
@@ -102,6 +112,10 @@ func TestLoadDefaultsOptionalSettings(t *testing.T) {
 		"MigrationRetryInterval": {cfg.MigrationRetryInterval, defaultMigrationRetryInterval},
 		"MigrationLockTTL":       {cfg.MigrationLockTTL, defaultMigrationLockTTL},
 		"MigrationLockRetry":     {cfg.MigrationLockRetry, defaultMigrationLockRetry},
+		"MaxTimeRange":           {cfg.MaxTimeRange, defaultMaxTimeRange},
+		"QueryTimeout":           {cfg.QueryTimeout, defaultQueryTimeout},
+		"MaxTailDuration":        {cfg.MaxTailDuration, defaultMaxTailDuration},
+		"TokenCacheTTL":          {cfg.TokenCacheTTL, defaultTokenCacheTTL},
 	}
 	for name, pair := range durations {
 		if pair[0] != pair[1] {
@@ -130,6 +144,10 @@ func TestLoadReadsSchemaOverrides(t *testing.T) {
 		"MigrationRetryInterval": {cfg.MigrationRetryInterval, testInterval},
 		"MigrationLockTTL":       {cfg.MigrationLockTTL, testLockTTL},
 		"MigrationLockRetry":     {cfg.MigrationLockRetry, testLockRetry},
+		"MaxTimeRange":           {cfg.MaxTimeRange, testMaxTimeRange},
+		"QueryTimeout":           {cfg.QueryTimeout, testQueryTimeout},
+		"MaxTailDuration":        {cfg.MaxTailDuration, testMaxTail},
+		"TokenCacheTTL":          {cfg.TokenCacheTTL, testTokenTTL},
 	}
 	for name, pair := range durations {
 		if pair[0] != pair[1] {
@@ -168,11 +186,15 @@ func TestLoadPanicsWithoutRequiredSettings(t *testing.T) {
 func TestLoadPanicsOnInvalidValues(t *testing.T) {
 	invalid := map[string][]string{
 		databaseVar:                         {"loco-obs", "loco_obs; DROP", "1loco"},
-		"CLICKHOUSE_LOGS_TTL":               {"30d", "-1h", "0s", "1500ms"},
+		"CLICKHOUSE_LOGS_TTL":               {"30d", "-1h", "0s", fractionalSeconds},
 		"CLICKHOUSE_TRACES_TTL":             {"forever"},
 		"CLICKHOUSE_METRICS_TTL":            {"-24h"},
 		"MIGRATION_RETRY_BUDGET":            {"0s", "soon"},
 		"MIGRATION_RETRY_INTERVAL":          {"-5s"},
+		"MAX_TIME_RANGE":                    {"24", "0s", "-1h"},
+		"QUERY_TIMEOUT":                     {"10", "0s", fractionalSeconds},
+		"MAX_TAIL_DURATION":                 {"30", "-1m"},
+		"TOKEN_CACHE_TTL":                   {"30", "0s"},
 		portVar:                             {"eighty"},
 		"OTLP_HTTP_PORT":                    {"http"},
 		"MAX_LIMIT":                         {"10k"},
@@ -189,7 +211,7 @@ func TestLoadPanicsOnInvalidValues(t *testing.T) {
 		"INGEST_PLACEMENT_CACHE_TTL":        {"-30s"},
 		"INGEST_PLACEMENT_REFETCH_INTERVAL": {"0s"},
 		"INGEST_CLOCK_SKEW":                 {"-5m"},
-		"INGEST_RETRY_AFTER":                {"1500ms", "0s"},
+		"INGEST_RETRY_AFTER":                {fractionalSeconds, "0s"},
 	}
 	for name, values := range invalid {
 		for _, value := range values {

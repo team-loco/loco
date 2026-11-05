@@ -18,11 +18,17 @@ func TestHistoryQueryCursorsRejectTimestampOverflow(t *testing.T) {
 		time.Date(2611, 5, 7, 0, 0, 0, 0, time.UTC),
 	} {
 		t.Run(timestamp.Format(time.RFC3339Nano), func(t *testing.T) {
-			position := logCursor{timestamp: timestamp, blockNumber: 1, blockOffset: 1}
+			position := partPosition{timestamp: timestamp, blockNumber: 1, blockOffset: 1}
 			cursor := position.encode()
 			start, end := time.Now().Add(-time.Hour), time.Now()
-			_, _, logsErr := buildLogsQuery(testWorkspaceID, nil, start, end, "", nil, nil,
-				testPageSize, cursor, observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST, testQueryTimeout, LogScope{})
+			_, _, logsErr := buildLogPageQuery(LogQuery{
+				WorkspaceID: testWorkspaceID,
+				Start:       start,
+				End:         end,
+				Limit:       testPageSize,
+				Cursor:      cursor,
+				Order:       observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST,
+			}, testQueryTimeout)
 			if !errors.Is(logsErr, ErrInvalidLogCursor) {
 				t.Errorf("log cursor error=%v, want invalid cursor", logsErr)
 			}
@@ -45,9 +51,9 @@ func TestHistoryCursorRoundTripsExactNanoseconds(t *testing.T) {
 		time.Date(2026, 10, 16, 12, 0, 0, 123456789, time.FixedZone("second-offset", 1)),
 	} {
 		t.Run(timestamp.Format(time.RFC3339Nano), func(t *testing.T) {
-			position := logCursor{timestamp: timestamp, blockNumber: math.MaxUint64, blockOffset: math.MaxUint64}
+			position := partPosition{timestamp: timestamp, blockNumber: math.MaxUint64, blockOffset: math.MaxUint64}
 			cursor := position.encode()
-			decoded, err := decodeLogCursor(cursor)
+			decoded, err := decodePartPosition(cursor)
 			if err != nil {
 				t.Fatal(err)
 			}

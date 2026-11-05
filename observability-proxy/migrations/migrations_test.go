@@ -113,11 +113,13 @@ func TestSubstituteRejectsUnknownPlaceholder(t *testing.T) {
 }
 
 func TestUpWithRetryGivesUpAfterBudget(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), testRetryBudget)
+	defer cancel()
 	started := time.Now()
-	err := UpWithRetry(t.Context(), validConfig(), Retry{Budget: testRetryBudget, Interval: testRetryInterval})
+	err := UpWithRetry(ctx, validConfig(), testRetryInterval)
 	elapsed := time.Since(started)
-	if !errors.Is(err, ErrRetryBudgetExhausted) {
-		t.Fatalf("UpWithRetry error = %v, want %v", err, ErrRetryBudgetExhausted)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("UpWithRetry error = %v, want %v", err, context.DeadlineExceeded)
 	}
 	if elapsed < testRetryBudget {
 		t.Errorf("UpWithRetry returned after %s, before its %s budget", elapsed, testRetryBudget)
@@ -130,7 +132,7 @@ func TestUpWithRetryGivesUpAfterBudget(t *testing.T) {
 func TestUpWithRetryStopsWhenContextEnds(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	err := UpWithRetry(ctx, validConfig(), Retry{Budget: time.Hour, Interval: testRetryInterval})
+	err := UpWithRetry(ctx, validConfig(), testRetryInterval)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("UpWithRetry error = %v, want %v", err, context.Canceled)
 	}
@@ -140,7 +142,7 @@ func TestUpWithRetryRejectsInvalidConfigWithoutRetrying(t *testing.T) {
 	cfg := validConfig()
 	cfg.Database = "loco-obs"
 	started := time.Now()
-	err := UpWithRetry(t.Context(), cfg, Retry{Budget: time.Hour, Interval: testRetryInterval})
+	err := UpWithRetry(t.Context(), cfg, testRetryInterval)
 	if !errors.Is(err, ErrInvalidDatabase) {
 		t.Fatalf("UpWithRetry error = %v, want %v", err, ErrInvalidDatabase)
 	}
@@ -166,9 +168,11 @@ func TestUpWithRetryFailsImmediatelyOnRejectedCredentials(t *testing.T) {
 	dsn, requests := rejectingClickHouse(t, authenticationFailed, "AUTHENTICATION_FAILED")
 	cfg := validConfig()
 	cfg.DSN = dsn
+	ctx, cancel := context.WithTimeout(t.Context(), rejectedBudget)
+	defer cancel()
 	started := time.Now()
-	err := UpWithRetry(t.Context(), cfg, Retry{Budget: rejectedBudget, Interval: testRetryInterval})
-	if err == nil || errors.Is(err, ErrRetryBudgetExhausted) {
+	err := UpWithRetry(ctx, cfg, testRetryInterval)
+	if err == nil || errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("UpWithRetry error = %v, want the authentication error", err)
 	}
 	if elapsed := time.Since(started); elapsed > retrySlack {
@@ -183,9 +187,11 @@ func TestUpWithRetryKeepsRetryingOtherServerErrors(t *testing.T) {
 	dsn, requests := rejectingClickHouse(t, tableAlreadyExists, "TABLE_ALREADY_EXISTS")
 	cfg := validConfig()
 	cfg.DSN = dsn
-	err := UpWithRetry(t.Context(), cfg, Retry{Budget: testRetryBudget, Interval: testRetryInterval})
-	if !errors.Is(err, ErrRetryBudgetExhausted) {
-		t.Fatalf("UpWithRetry error = %v, want %v", err, ErrRetryBudgetExhausted)
+	ctx, cancel := context.WithTimeout(t.Context(), testRetryBudget)
+	defer cancel()
+	err := UpWithRetry(ctx, cfg, testRetryInterval)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("UpWithRetry error = %v, want %v", err, context.DeadlineExceeded)
 	}
 	if got := requests.Load(); got < 2 {
 		t.Errorf("clickhouse received %d requests, want a retry", got)

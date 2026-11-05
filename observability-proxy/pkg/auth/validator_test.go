@@ -1,21 +1,16 @@
 package auth
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"log/slog"
-	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connectinprocess"
-	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
-	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
-	"github.com/team-loco/loco/observability-proxy/pkg/cache"
 )
 
 const upstreamPrivateMessage = "upstream private diagnostic"
@@ -24,168 +19,97 @@ type permissionServer struct {
 	tokenv1connect.UnimplementedTokenServiceHandler
 	failure error
 	allowed bool
+	calls   atomic.Int32
 }
 
 func (s *permissionServer) CheckPermission(
 	context.Context,
 	*tokenv1.CheckPermissionRequest,
 ) (*tokenv1.CheckPermissionResponse, error) {
+	s.calls.Add(1)
 	if s.failure != nil {
 		return nil, s.failure
 	}
 	return &tokenv1.CheckPermissionResponse{Allowed: s.allowed}, nil
 }
 
-type permissionRelay struct {
-	configv1connect.UnimplementedConfigServiceHandler
-	validator *Validator
+func newTestValidator(t *testing.T, upstream *permissionServer) *Validator {
+	t.Helper()
+	server := connect.NewServer()
+	tokenv1connect.RegisterTokenServiceHandler(server, upstream)
+	client := tokenv1connect.NewTokenServiceClient(connect.NewClient(connectinprocess.New(server)))
+	validator, err := NewValidator("http://control-plane.invalid", time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	validator.client = client
+	t.Cleanup(validator.Close)
+	return validator
 }
 
-func (r *permissionRelay) GetConfig(
-	ctx context.Context,
-	_ *configv1.GetConfigRequest,
-) (*configv1.GetConfigResponse, error) {
-	err := r.validator.CheckPermission(
-		ctx,
+func checkWorkspaceRead(t *testing.T, validator *Validator) error {
+	t.Helper()
+	return validator.CheckPermission(
+		t.Context(),
 		"caller",
 		tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
 		"workspace",
 		tokenv1.Scope_SCOPE_READ,
 	)
-	if err != nil {
-		return nil, err
-	}
-	return &configv1.GetConfigResponse{}, nil
 }
 
-func TestPermissionErrorsHaveExplicitLocalCodes(t *testing.T) {
+func TestPermissionErrorsAreClassified(t *testing.T) {
 	cases := []struct {
 		name    string
 		failure error
 		allowed bool
-		code    connect.Code
-		message string
+		want    error
 	}{
 		{
 			name:    "permission denied",
 			failure: connect.NewError(connect.CodePermissionDenied, upstreamPrivateMessage),
-			code:    connect.CodePermissionDenied,
-			message: errPermissionDenied.Message(),
+			want:    ErrPermissionDenied,
 		},
 		{
 			name:    "upstream unavailable",
 			failure: connect.NewError(connect.CodeUnavailable, upstreamPrivateMessage),
-			code:    connect.CodeUnavailable,
-			message: errPermissionCheckUnavailable.Message(),
+			want:    ErrPermissionCheckUnavailable,
 		},
 		{
 			name:    "caller token rejected",
 			failure: connect.NewError(connect.CodeUnauthenticated, upstreamPrivateMessage),
-			code:    connect.CodePermissionDenied,
-			message: errPermissionDenied.Message(),
+			want:    ErrPermissionDenied,
 		},
 		{
 			name:    "upstream plain error",
 			failure: errors.New(upstreamPrivateMessage),
-			code:    connect.CodeUnavailable,
-			message: errPermissionCheckUnavailable.Message(),
+			want:    ErrPermissionCheckUnavailable,
 		},
-		{name: "false result", code: connect.CodePermissionDenied, message: errPermissionDenied.Message()},
+		{name: "false result", want: ErrPermissionDenied},
 		{name: "allowed", allowed: true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			server := connect.NewServer()
-			tokenv1connect.RegisterTokenServiceHandler(
-				server,
-				&permissionServer{failure: tc.failure, allowed: tc.allowed},
-			)
-			transport := connectinprocess.New(server)
-			client := tokenv1connect.NewTokenServiceClient(connect.NewClient(transport))
-			memory, err := cache.NewMemory(time.Minute)
-			if err != nil {
-				t.Fatal(err)
-			}
-			t.Cleanup(func() {
-				if closeErr := memory.Close(); closeErr != nil {
-					t.Error(closeErr)
-				}
-			})
-			validator := &Validator{client: client, cache: memory}
-			err = validator.CheckPermission(
-				t.Context(),
-				"caller",
-				tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
-				"workspace",
-				tokenv1.Scope_SCOPE_READ,
-			)
-			if tc.allowed {
-				if err != nil {
-					t.Fatal(err)
-				}
-				return
-			}
-			failure, ok := errors.AsType[*connect.Error](err)
-			if !ok {
-				t.Fatalf("error = %v", err)
-			}
-			if failure.Code() != tc.code || failure.Message() != tc.message {
-				t.Fatalf("error = %v, want %s: %s", failure, tc.code, tc.message)
-			}
-			relayServer := connect.NewServer()
-			configv1connect.RegisterConfigServiceHandler(relayServer, &permissionRelay{validator: validator})
-			relayTransport := connectinprocess.New(relayServer)
-			relayClient := configv1connect.NewConfigServiceClient(connect.NewClient(relayTransport))
-			_, wireErr := relayClient.GetConfig(t.Context(), &configv1.GetConfigRequest{})
-			publicError, isConnect := errors.AsType[*connect.Error](wireErr)
-			if !isConnect || publicError.Code() != tc.code || publicError.Message() != tc.message {
-				t.Fatalf("relayed wire error = %v", wireErr)
+			validator := newTestValidator(t, &permissionServer{failure: tc.failure, allowed: tc.allowed})
+			err := checkWorkspaceRead(t, validator)
+			if !errors.Is(err, tc.want) {
+				t.Fatalf("error = %v, want %v", err, tc.want)
 			}
 		})
 	}
 }
 
-func TestClientDenialsAreNotLoggedAsErrors(t *testing.T) {
-	cases := map[string]struct {
-		failure error
-		logged  bool
-	}{
-		"permission denied": {failure: connect.NewError(connect.CodePermissionDenied, upstreamPrivateMessage)},
-		"unauthenticated":   {failure: connect.NewError(connect.CodeUnauthenticated, upstreamPrivateMessage)},
-		"unavailable":       {failure: connect.NewError(connect.CodeUnavailable, upstreamPrivateMessage), logged: true},
+func TestPermissionResultIsCached(t *testing.T) {
+	upstream := &permissionServer{allowed: true}
+	validator := newTestValidator(t, upstream)
+	if err := checkWorkspaceRead(t, validator); err != nil {
+		t.Fatal(err)
 	}
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			var logs bytes.Buffer
-			previous := slog.Default()
-			slog.SetDefault(slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelInfo})))
-			t.Cleanup(func() { slog.SetDefault(previous) })
-			server := connect.NewServer()
-			tokenv1connect.RegisterTokenServiceHandler(server, &permissionServer{failure: tc.failure})
-			client := tokenv1connect.NewTokenServiceClient(connect.NewClient(connectinprocess.New(server)))
-			memory, err := cache.NewMemory(time.Minute)
-			if err != nil {
-				t.Fatal(err)
-			}
-			t.Cleanup(func() {
-				if closeErr := memory.Close(); closeErr != nil {
-					t.Error(closeErr)
-				}
-			})
-			validator := &Validator{client: client, cache: memory}
-			err = validator.CheckPermission(
-				t.Context(),
-				"caller",
-				tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
-				"workspace",
-				tokenv1.Scope_SCOPE_READ,
-			)
-			if err == nil {
-				t.Fatal("CheckPermission succeeded")
-			}
-			if got := strings.Contains(logs.String(), "level=ERROR"); got != tc.logged {
-				t.Errorf("ERROR logged = %t, want %t; log: %s", got, tc.logged, logs.String())
-			}
-		})
+	validator.cache.Wait()
+	if err := checkWorkspaceRead(t, validator); err != nil {
+		t.Fatal(err)
+	}
+	if calls := upstream.calls.Load(); calls != 1 {
+		t.Fatalf("control plane calls = %d, want 1", calls)
 	}
 }
