@@ -134,7 +134,7 @@ func TestEveryAgentCallCarriesAFreshAssertionOnceEnrolled(t *testing.T) {
 			inspector:   cluster.NewInspector(kube, metav1.NamespaceDefault, ""),
 			identities:  identity.NewStore(kube, metav1.NamespaceDefault, t.Name()),
 			credentials: credentials,
-			domains:     servedDomains{testServedDomain},
+			domains:     testDomains(t),
 		}
 	}
 

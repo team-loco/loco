@@ -2,62 +2,96 @@ package reconciler
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	"github.com/team-loco/loco/agent/pkg/applier"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
-type fakeApplier struct {
-	mu       sync.Mutex
-	applied  []applier.Placement
-	deleted  []applier.Placement
-	errs     []error
-	active   atomic.Int32
-	overlap  atomic.Bool
-	release  chan struct{}
-	started  chan struct{}
-	blockFor string
+type kubeApplier struct {
+	*applier.Applier
+	kube    client.Client
+	mu      sync.Mutex
+	applies int
+	errs    []error
+	active  atomic.Int32
+	overlap atomic.Bool
+	release chan struct{}
+	started chan struct{}
 }
 
-func (f *fakeApplier) next() error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if len(f.errs) == 0 {
+func newKubeApplier(t *testing.T) *kubeApplier {
+	t.Helper()
+	scheme := runtime.NewScheme()
+	if err := locov1alpha1.AddToScheme(scheme); err != nil {
+		t.Fatal(err)
+	}
+	if err := corev1.AddToScheme(scheme); err != nil {
+		t.Fatal(err)
+	}
+	k := &kubeApplier{}
+	k.kube = fake.NewClientBuilder().WithScheme(scheme).WithInterceptorFuncs(interceptor.Funcs{
+		Apply: func(
+			ctx context.Context,
+			c client.WithWatch,
+			obj runtime.ApplyConfiguration,
+			opts ...client.ApplyOption,
+		) error {
+			if err := k.apply(); err != nil {
+				return err
+			}
+			return c.Apply(ctx, obj, opts...)
+		},
+	}).Build()
+	k.Applier = applier.NewWithClient(k.kube, testNamespace, nil)
+	return k
+}
+
+func (k *kubeApplier) apply() error {
+	if k.active.Add(1) > 1 {
+		k.overlap.Store(true)
+	}
+	defer k.active.Add(-1)
+	if k.release != nil {
+		k.started <- struct{}{}
+		<-k.release
+	}
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	k.applies++
+	if len(k.errs) == 0 {
 		return nil
 	}
-	err := f.errs[0]
-	f.errs = f.errs[1:]
+	err := k.errs[0]
+	k.errs = k.errs[1:]
 	return err
 }
 
-func (f *fakeApplier) ApplyPlacement(_ context.Context, p applier.Placement) error {
-	if f.active.Add(1) > 1 {
-		f.overlap.Store(true)
+func (k *kubeApplier) appliedRevision(t *testing.T) int64 {
+	t.Helper()
+	app := &locov1alpha1.Application{}
+	key := client.ObjectKey{Namespace: testNamespace, Name: testApplicationName}
+	if err := k.kube.Get(t.Context(), key, app); err != nil {
+		t.Fatalf("get Application: %v", err)
 	}
-	defer f.active.Add(-1)
-	if p.ID == f.blockFor && f.release != nil {
-		f.started <- struct{}{}
-		<-f.release
+	placement, ok := applier.PlacementOf(app)
+	if !ok {
+		t.Fatalf("Application %s records no placement", testApplicationName)
 	}
-	f.mu.Lock()
-	f.applied = append(f.applied, p)
-	f.mu.Unlock()
-	return f.next()
-}
-
-func (f *fakeApplier) DeletePlacement(_ context.Context, p applier.Placement) error {
-	f.mu.Lock()
-	f.deleted = append(f.deleted, p)
-	f.mu.Unlock()
-	return f.next()
+	return placement.Revision
 }
 
 type reports struct {
@@ -107,27 +141,43 @@ func run(t *testing.T, rec *Reconciler) {
 }
 
 const (
-	testPlacementID  = "p1"
-	testRetryDelay   = time.Millisecond
-	testRetryTimeout = 500 * time.Millisecond
+	testPlacementID     = "p1"
+	testResourceID      = "r"
+	testApplicationName = "resource-" + testResourceID
+	testNamespace       = "loco-system"
+	testAppType         = "SERVICE"
+	testRetryDelay      = time.Millisecond
+	testRetryTimeout    = 500 * time.Millisecond
+	testInvalidPayload  = "{"
 )
 
 func testConfig(workers int) Config {
 	return Config{Workers: workers, RetryBaseDelay: testRetryDelay, RetryMaxDelay: testRetryDelay}
 }
 
-func work(revision int64) Work {
-	return Work{Placement: applier.Placement{ID: testPlacementID, Revision: revision, ResourceID: "r"}}
+func placement(t *testing.T, revision int64) applier.Placement {
+	t.Helper()
+	spec := &locov1alpha1.ApplicationSpec{Type: testAppType, ResourceID: testResourceID}
+	payload, err := json.Marshal(applier.DeployPayload{ResourceID: testResourceID, AppSpec: spec})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return applier.Placement{ID: testPlacementID, Revision: revision, ResourceID: testResourceID, Application: payload}
+}
+
+func work(t *testing.T, revision int64) Work {
+	t.Helper()
+	return Work{Placement: placement(t, revision)}
 }
 
 func TestNewerRevisionReplacesQueuedOlderOne(t *testing.T) {
-	fa := &fakeApplier{}
+	ka := newKubeApplier(t)
 	r := newReports()
-	rec := New(fa, r.report, testConfig(2))
+	rec := New(ka.Applier, r.report, testConfig(2))
 
-	rec.Submit(work(1))
-	rec.Submit(work(3))
-	rec.Submit(work(2))
+	rec.Submit(work(t, 1))
+	rec.Submit(work(t, 3))
+	rec.Submit(work(t, 2))
 	run(t, rec)
 
 	got := r.next(t)
@@ -135,21 +185,22 @@ func TestNewerRevisionReplacesQueuedOlderOne(t *testing.T) {
 		t.Fatalf("report = %v, want success at revision 3", got)
 	}
 	r.none(t)
-	fa.mu.Lock()
-	defer fa.mu.Unlock()
-	if len(fa.applied) != 1 || fa.applied[0].Revision != 3 {
-		t.Fatalf("applied %v, want only revision 3", fa.applied)
+	ka.mu.Lock()
+	applies := ka.applies
+	ka.mu.Unlock()
+	if applies != 1 || ka.appliedRevision(t) != 3 {
+		t.Fatalf("applied %d times up to revision %d, want only revision 3", applies, ka.appliedRevision(t))
 	}
 }
 
 func TestTransientErrorsAreRetriedAndReportedOnce(t *testing.T) {
-	conflictReason := errors.New("modified")
 	resource := schema.GroupResource{Group: testGroup, Resource: testResource}
-	conflict := apierrors.NewConflict(resource, "resource-r", conflictReason)
-	fa := &fakeApplier{errs: []error{conflict, conflict}}
+	timeout := apierrors.NewServerTimeout(resource, "patch", 1)
+	ka := newKubeApplier(t)
+	ka.errs = []error{timeout, timeout}
 	r := newReports()
-	rec := New(fa, r.report, testConfig(1))
-	rec.Submit(work(1))
+	rec := New(ka.Applier, r.report, testConfig(1))
+	rec.Submit(work(t, 1))
 	run(t, rec)
 
 	first := r.next(t)
@@ -163,13 +214,13 @@ func TestTransientErrorsAreRetriedAndReportedOnce(t *testing.T) {
 }
 
 func TestRetriesWaitTheConfiguredDelay(t *testing.T) {
-	conflictReason := errors.New("modified")
 	resource := schema.GroupResource{Group: testGroup, Resource: testResource}
-	conflict := apierrors.NewConflict(resource, "resource-r", conflictReason)
-	fa := &fakeApplier{errs: []error{conflict}}
+	timeout := apierrors.NewServerTimeout(resource, "patch", 1)
+	ka := newKubeApplier(t)
+	ka.errs = []error{timeout}
 	r := newReports()
-	rec := New(fa, r.report, testConfig(1))
-	rec.Submit(work(1))
+	rec := New(ka.Applier, r.report, testConfig(1))
+	rec.Submit(work(t, 1))
 	run(t, rec)
 
 	first := r.next(t)
@@ -187,11 +238,12 @@ func TestRetriesWaitTheConfiguredDelay(t *testing.T) {
 }
 
 func TestPermanentErrorIsReportedWithoutRetry(t *testing.T) {
-	invalid := errors.Join(applier.ErrInvalidPayload, errors.New("bad"))
-	fa := &fakeApplier{errs: []error{invalid}}
+	ka := newKubeApplier(t)
 	r := newReports()
-	rec := New(fa, r.report, testConfig(1))
-	rec.Submit(work(1))
+	rec := New(ka.Applier, r.report, testConfig(1))
+	invalid := work(t, 1)
+	invalid.Placement.Application = []byte(testInvalidPayload)
+	rec.Submit(invalid)
 	run(t, rec)
 
 	got := r.next(t)
@@ -202,33 +254,38 @@ func TestPermanentErrorIsReportedWithoutRetry(t *testing.T) {
 }
 
 func TestStaleRevisionIsDroppedSilently(t *testing.T) {
-	fa := &fakeApplier{errs: []error{applier.ErrStaleRevision}}
+	ka := newKubeApplier(t)
+	if err := ka.ApplyPlacement(t.Context(), placement(t, 2)); err != nil {
+		t.Fatalf("apply revision 2: %v", err)
+	}
 	r := newReports()
-	rec := New(fa, r.report, testConfig(1))
-	rec.Submit(work(1))
+	rec := New(ka.Applier, r.report, testConfig(1))
+	rec.Submit(work(t, 1))
 	run(t, rec)
 	r.none(t)
 }
 
 func TestOnePlacementIsNeverAppliedConcurrently(t *testing.T) {
-	fa := &fakeApplier{blockFor: testPlacementID, release: make(chan struct{}), started: make(chan struct{}, 4)}
+	ka := newKubeApplier(t)
+	ka.release = make(chan struct{})
+	ka.started = make(chan struct{}, 4)
 	r := newReports()
-	rec := New(fa, r.report, testConfig(4))
+	rec := New(ka.Applier, r.report, testConfig(4))
 	run(t, rec)
 
-	rec.Submit(work(1))
-	<-fa.started
-	rec.Submit(work(2))
+	rec.Submit(work(t, 1))
+	<-ka.started
+	rec.Submit(work(t, 2))
 	time.Sleep(100 * time.Millisecond)
-	if fa.overlap.Load() {
+	if ka.overlap.Load() {
 		t.Fatal("two revisions of one placement were applied at the same time")
 	}
-	fa.release <- struct{}{}
+	ka.release <- struct{}{}
 	if got := r.next(t); got.GetRevision() != 1 {
 		t.Fatalf("first report = %v, want revision 1", got)
 	}
-	<-fa.started
-	fa.release <- struct{}{}
+	<-ka.started
+	ka.release <- struct{}{}
 	if got := r.next(t); got.GetRevision() != 2 {
 		t.Fatalf("second report = %v, want revision 2", got)
 	}
