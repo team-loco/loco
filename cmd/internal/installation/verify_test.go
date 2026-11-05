@@ -9,11 +9,13 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 )
 
 func TestVerificationUploadsGeneratedSource(t *testing.T) {
+	t.Setenv("TMPDIR", filepath.Join(t.TempDir(), "unavailable"))
 	archive, err := verificationArchive("busybox@sha256:fixture", "fixture-marker")
 	if err != nil {
 		t.Fatal(err)
@@ -21,6 +23,28 @@ func TestVerificationUploadsGeneratedSource(t *testing.T) {
 	files, err := archiveFiles(archive)
 	if err != nil || string(files["index.html"]) != "fixture-marker" || len(files["proof"]) == 0 {
 		t.Fatalf("incomplete source: %v", err)
+	}
+	compressed, err := gzip.NewReader(bytes.NewReader(archive))
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader := tar.NewReader(compressed)
+	var count int
+	for {
+		header, readErr := reader.Next()
+		if errors.Is(readErr, io.EOF) {
+			break
+		}
+		if readErr != nil || header.Typeflag != tar.TypeReg || header.Mode != 0600 {
+			t.Fatalf("source file metadata: %v %v", header, readErr)
+		}
+		count++
+	}
+	if closeErr := compressed.Close(); closeErr != nil {
+		t.Fatal(closeErr)
+	}
+	if count != len(files) || count != 3 {
+		t.Fatalf("source contains %d files", count)
 	}
 	uploaded := false
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

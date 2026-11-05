@@ -1,7 +1,9 @@
 package installation
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -11,14 +13,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"github.com/team-loco/loco/cmd/internal/sourcepack"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
@@ -285,11 +284,6 @@ func verificationBase(chart []byte) (string, error) {
 }
 
 func verificationArchive(base, marker string) ([]byte, error) {
-	directory, err := os.MkdirTemp("", "locoadm-verify-")
-	if err != nil {
-		return nil, errVerification
-	}
-	defer os.RemoveAll(directory)
 	files := map[string]string{
 		"Dockerfile": fmt.Sprintf(
 			"FROM %s\nCOPY --chmod=0444 index.html /www/index.html\n"+
@@ -301,13 +295,22 @@ func verificationArchive(base, marker string) ([]byte, error) {
 		"proof": "#!/bin/sh\nprintf 'Content-Type: text/plain\\r\\n\\r\\n'\n" +
 			"printf %s \"$" + verificationSecretName + "\" | sha256sum | cut -d' ' -f1 | tr -d '\\n'\n",
 	}
+	var archive bytes.Buffer
+	compressed := gzip.NewWriter(&archive)
+	writer := tar.NewWriter(compressed)
 	for name, data := range files {
-		if writeErr := os.WriteFile(filepath.Join(directory, name), []byte(data), 0600); writeErr != nil {
+		header := &tar.Header{Name: name, Size: int64(len(data)), Mode: 0600}
+		if err := writer.WriteHeader(header); err != nil {
+			return nil, errVerification
+		}
+		if _, err := io.WriteString(writer, data); err != nil {
 			return nil, errVerification
 		}
 	}
-	var archive bytes.Buffer
-	if _, err := sourcepack.Write(&archive, directory, []string{locofile.DefaultDockerfile}); err != nil {
+	if err := writer.Close(); err != nil {
+		return nil, errVerification
+	}
+	if err := compressed.Close(); err != nil {
 		return nil, errVerification
 	}
 	return archive.Bytes(), nil
