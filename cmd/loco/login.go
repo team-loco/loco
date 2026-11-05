@@ -156,6 +156,8 @@ func setupLoginScope(
 	return printLoginSuccess("Authentication successful!", org.Name, workspace.Name)
 }
 
+const loginPageSize = 100
+
 func resolveLoginScope(
 	ctx context.Context,
 	httpClient *http.Client,
@@ -174,29 +176,37 @@ func resolveLoginScope(
 		return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf("failed to get current user: %w", err)
 	}
 
-	orgRequest := &orgv1.ListUserOrgsRequest{
-		UserId:   currentUserResp.GetUser().GetId(),
-		PageSize: 100,
-	}
-
-	orgResp, err := orgClient.ListUserOrgs(ctx, orgRequest)
+	orgs, err := cmdutil.Paginate(func(token string) ([]*orgv1.Organization, string, error) {
+		resp, listErr := orgClient.ListUserOrgs(ctx, &orgv1.ListUserOrgsRequest{
+			UserId:    currentUserResp.GetUser().GetId(),
+			PageSize:  loginPageSize,
+			PageToken: token,
+		})
+		if listErr != nil {
+			return nil, "", listErr
+		}
+		return resp.GetOrgs(), resp.GetNextPageToken(), nil
+	})
 	if err != nil {
 		return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf("failed to list organizations: %w", err)
 	}
 
-	orgs := orgResp.GetOrgs()
 	if len(orgs) > 0 {
 		selectedOrg := orgs[0]
-		wsReq := &workspacev1.ListOrgWorkspacesRequest{
-			OrgId:    selectedOrg.GetId(),
-			PageSize: 100,
-		}
-
-		wsResp, wsErr := wsClient.ListOrgWorkspaces(ctx, wsReq)
+		workspaces, wsErr := cmdutil.Paginate(func(token string) ([]*workspacev1.Workspace, string, error) {
+			resp, listErr := wsClient.ListOrgWorkspaces(ctx, &workspacev1.ListOrgWorkspacesRequest{
+				OrgId:     selectedOrg.GetId(),
+				PageSize:  loginPageSize,
+				PageToken: token,
+			})
+			if listErr != nil {
+				return nil, "", listErr
+			}
+			return resp.GetWorkspaces(), resp.GetNextPageToken(), nil
+		})
 		if wsErr != nil {
 			return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf("failed to list workspaces: %w", wsErr)
 		}
-		workspaces := wsResp.GetWorkspaces()
 		if len(workspaces) == 0 {
 			return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf(
 				"organization %q has no workspaces",

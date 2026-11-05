@@ -27,7 +27,6 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
-	"github.com/team-loco/loco/internal/client"
 	"github.com/team-loco/loco/internal/rpc"
 )
 
@@ -319,12 +318,13 @@ func TestWorkspaceOnlyMemberListsWorkspaceUnderItsOrg(t *testing.T) {
 	member := o.api.signUp(t, "member")
 	o.addOrgMember(t, member)
 	o.grantWorkspace(t, member, o.shared)
-	apiClient := client.NewClient(o.api.url, member.token)
+	workspaceClient := rpc.ForHost(o.api.url, member.token).Workspace
 
-	workspaces, err := apiClient.GetUserWorkspaces(t.Context())
+	listed, err := workspaceClient.ListUserWorkspaces(t.Context(), &workspacev1.ListUserWorkspacesRequest{})
 	if err != nil {
 		t.Fatalf("list workspaces: %v", err)
 	}
+	workspaces := listed.GetWorkspaces()
 	i := slices.IndexFunc(workspaces, func(ws *workspacev1.Workspace) bool {
 		return ws.GetOrgName()+"/"+ws.GetName() == membershipSharedPath
 	})

@@ -2,7 +2,6 @@ package workspace
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -14,8 +13,6 @@ import (
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 )
-
-var errRepeatedWorkspacePage = errors.New("workspace listing returned a repeated page")
 
 type listDeps struct {
 	WhoAmI func(
@@ -117,35 +114,24 @@ func listWorkspaces(ctx context.Context, deps listDeps, orgID string) ([]*worksp
 		}
 		userID = who.GetUser().GetId()
 	}
-	var workspaces []*workspacev1.Workspace
-	var pageToken string
-	seen := make(map[string]struct{})
-	for {
-		var next string
+	workspaces, err := cmdutil.Paginate(func(token string) ([]*workspacev1.Workspace, string, error) {
 		if orgID != "" {
-			request := &workspacev1.ListOrgWorkspacesRequest{OrgId: orgID, PageToken: pageToken}
+			request := &workspacev1.ListOrgWorkspacesRequest{OrgId: orgID, PageToken: token}
 			response, err := deps.ListOrgWorkspaces(ctx, request)
 			if err != nil {
-				return nil, fmt.Errorf("failed to list workspaces: %w", err)
+				return nil, "", err
 			}
-			workspaces = append(workspaces, response.GetWorkspaces()...)
-			next = response.GetNextPageToken()
-		} else {
-			request := &workspacev1.ListUserWorkspacesRequest{UserId: userID, PageToken: pageToken}
-			response, err := deps.ListUserWorkspaces(ctx, request)
-			if err != nil {
-				return nil, fmt.Errorf("failed to list workspaces: %w", err)
-			}
-			workspaces = append(workspaces, response.GetWorkspaces()...)
-			next = response.GetNextPageToken()
+			return response.GetWorkspaces(), response.GetNextPageToken(), nil
 		}
-		if next == "" {
-			return workspaces, nil
+		request := &workspacev1.ListUserWorkspacesRequest{UserId: userID, PageToken: token}
+		response, err := deps.ListUserWorkspaces(ctx, request)
+		if err != nil {
+			return nil, "", err
 		}
-		if _, duplicate := seen[next]; duplicate {
-			return nil, errRepeatedWorkspacePage
-		}
-		seen[next] = struct{}{}
-		pageToken = next
+		return response.GetWorkspaces(), response.GetNextPageToken(), nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list workspaces: %w", err)
 	}
+	return workspaces, nil
 }
