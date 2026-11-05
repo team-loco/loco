@@ -1,26 +1,8 @@
 name: Auth Conformance
 
 on:
-  push:
-    branches:
-      - main
-    paths: &paths
-      - "api/auth/**"
-      - "api/mail/**"
-      - "api/service/**"
-      - "api/migrations/**"
-      - "api/queries/**"
-      - "tests/conformance/auth/**"
-      - "mise-tasks/test/auth-conformance"
-      - "mise-tasks/test/auth-invitations"
-      - ".github/workflows/auth-conformance.yml"
-  pull_request:
-    paths: *paths
+  workflow_call:
   workflow_dispatch:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
