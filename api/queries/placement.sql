@@ -53,6 +53,15 @@ WHERE cluster_id = $1 AND applied_revision < desired_revision
   AND (retry_after IS NULL OR retry_after <= NOW())
 ORDER BY updated_at, id;
 
+-- name: NextPlacementRetry :one
+SELECT CEIL(EXTRACT(EPOCH FROM retry_after - NOW()) * 1000)::bigint AS wait_ms
+FROM placements
+WHERE cluster_id = $1 AND applied_revision < desired_revision
+  AND NOT apply_failed
+  AND retry_after > NOW()
+ORDER BY retry_after
+LIMIT 1;
+
 -- name: ListClusterPlacementRevisions :many
 SELECT id, desired_revision, desired_deleted, applied_revision,
        (apply_failed OR COALESCE(retry_after > NOW(), false))::boolean AS send_held,

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -63,6 +64,7 @@ func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
 	session := newSyncSession(s, cluster.ID, send)
 
 	dirty := true
+	var retryDue <-chan time.Time
 	for {
 		if err := s.checkSyncGeneration(ctx, cluster.ID, generation); err != nil {
 			return err
@@ -72,6 +74,14 @@ func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
 				return sendErr
 			}
 			dirty = false
+			session.retryRecorded = true
+		}
+		if session.retryRecorded {
+			session.retryRecorded = false
+			retryDue = nil
+			if wait, scheduled := session.nextRetry(ctx); scheduled {
+				retryDue = time.After(wait)
+			}
 		}
 
 		select {
@@ -88,6 +98,8 @@ func (s *AgentServer) Sync(ctx context.Context, stream syncStream) error {
 				return handleErr
 			}
 		case <-listener.Wake():
+			dirty = true
+		case <-retryDue:
 			dirty = true
 		}
 	}
@@ -132,11 +144,12 @@ func receiveSync(
 }
 
 type syncSession struct {
-	server    *AgentServer
-	clusterID uuid.UUID
-	sendFn    func(*agentv1.SyncResponse) error
-	sent      map[uuid.UUID]int64
-	builds    buildTracker
+	server        *AgentServer
+	clusterID     uuid.UUID
+	sendFn        func(*agentv1.SyncResponse) error
+	sent          map[uuid.UUID]int64
+	builds        buildTracker
+	retryRecorded bool
 }
 
 func newSyncSession(
@@ -151,6 +164,18 @@ func newSyncSession(
 		sent:      make(map[uuid.UUID]int64),
 		builds:    newBuildTracker(),
 	}
+}
+
+func (ss *syncSession) nextRetry(ctx context.Context) (time.Duration, bool) {
+	waitMs, err := ss.server.queries.NextPlacementRetry(ctx, ss.clusterID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, false
+	}
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to read the next placement retry", "cluster_id", ss.clusterID, "error", err)
+		return 0, false
+	}
+	return time.Duration(waitMs) * time.Millisecond, true
 }
 
 func (ss *syncSession) sendPending(ctx context.Context) error {
@@ -225,7 +250,7 @@ func (ss *syncSession) send(ctx context.Context, secrets *secretSnapshot, placem
 				Revision:    placement.DesiredRevision,
 				Error:       err.Error(),
 			})
-			ss.sent[placement.ID] = placement.DesiredRevision
+			delete(ss.sent, placement.ID)
 			return nil
 		}
 		if err != nil {
@@ -281,6 +306,11 @@ func (ss *syncSession) handle(ctx context.Context, msg *agentv1.SyncRequest) err
 		return ss.reconcileInventory(ctx, m.Inventory)
 	case *agentv1.SyncRequest_Applied:
 		ss.server.recordApplied(ctx, ss.clusterID, m.Applied)
+		placementID, err := uuid.Parse(m.Applied.GetPlacementId())
+		if err == nil && m.Applied.GetError() != "" && !m.Applied.GetRetrying() {
+			delete(ss.sent, placementID)
+			ss.retryRecorded = true
+		}
 		return nil
 	case *agentv1.SyncRequest_Status:
 		ss.server.recordStatus(ctx, ss.clusterID, m.Status)

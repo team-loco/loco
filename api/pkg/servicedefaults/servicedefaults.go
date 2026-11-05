@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/team-loco/loco/internal/locofile"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -15,6 +16,7 @@ var (
 	errInvalidRoute     = errors.New("the default route is not accepted by the controller")
 	errInvalidPort      = errors.New("the default port is not accepted by the controller")
 	errInvalidHealth    = errors.New("the default health check is not accepted by the controller")
+	errInvalidDeploy    = errors.New("the default deploy policy is outside the loco.yaml bounds")
 )
 
 // Defaults is what the API fills into a service when the file or request omits it.
@@ -64,6 +66,12 @@ func (d Defaults) Validate() error {
 	}
 	if err := locoControllerV1.ValidateRoute(d.PathPrefix, d.IdleTimeout); err != nil {
 		return fmt.Errorf("%w: %w", errInvalidRoute, err)
+	}
+	if err := locofile.CheckDeployAttempts(d.DeployAttempts); err != nil {
+		return fmt.Errorf("%w: attempts %w", errInvalidDeploy, err)
+	}
+	if err := locofile.CheckDeployRetryDelay(d.DeployRetryDelay); err != nil {
+		return fmt.Errorf("%w: retry delay %w", errInvalidDeploy, err)
 	}
 	return nil
 }

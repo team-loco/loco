@@ -62,6 +62,7 @@ func TestLateAckNeverAcksNewerRevision(t *testing.T) {
 
 func TestApplyErrorFailsDeploymentOnlyWhenNotRetrying(t *testing.T) {
 	f := newDeployFixture(t)
+	f.setApplyRetryPolicy(t, 1, nil)
 	ctx := context.Background()
 	server := f.agentServer()
 
@@ -380,8 +381,8 @@ func TestSyncStreamRejectsUnknownAgents(t *testing.T) {
 }
 
 const (
-	testDeployAttempts   = 1
-	testDeployRetryDelay = 3600
+	testDeployAttempts   = 2
+	testDeployRetryDelay = 300
 )
 
 func testAgentConfig() AgentConfig {

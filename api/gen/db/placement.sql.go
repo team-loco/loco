@@ -552,6 +552,23 @@ func (q *Queries) MarkResourcePlacementsDeleted(ctx context.Context, resourceID 
 	return items, nil
 }
 
+const nextPlacementRetry = `-- name: NextPlacementRetry :one
+SELECT CEIL(EXTRACT(EPOCH FROM retry_after - NOW()) * 1000)::bigint AS wait_ms
+FROM placements
+WHERE cluster_id = $1 AND applied_revision < desired_revision
+  AND NOT apply_failed
+  AND retry_after > NOW()
+ORDER BY retry_after
+LIMIT 1
+`
+
+func (q *Queries) NextPlacementRetry(ctx context.Context, clusterID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, nextPlacementRetry, clusterID)
+	var wait_ms int64
+	err := row.Scan(&wait_ms)
+	return wait_ms, err
+}
+
 const notifyClusterPlacements = `-- name: NotifyClusterPlacements :exec
 SELECT pg_notify('placements', $1::text)
 `

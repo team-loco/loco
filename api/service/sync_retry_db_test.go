@@ -9,13 +9,11 @@ import (
 
 func (f *deployFixture) setApplyRetryPolicy(t *testing.T, maxAttempts int32, delaySeconds *int32) {
 	t.Helper()
-	if _, err := f.pool.Exec(
-		t.Context(),
-		`UPDATE resources SET max_apply_attempts = $2, apply_retry_delay_seconds = $3 WHERE id = $1`,
-		f.resourceID,
-		maxAttempts,
-		delaySeconds,
-	); err != nil {
+	if err := f.queries.SetResourceDeployPolicy(t.Context(), genDb.SetResourceDeployPolicyParams{
+		ID:                     f.resourceID,
+		MaxApplyAttempts:       &maxAttempts,
+		ApplyRetryDelaySeconds: delaySeconds,
+	}); err != nil {
 		t.Fatal(err)
 	}
 }

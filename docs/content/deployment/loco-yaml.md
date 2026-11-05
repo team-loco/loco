@@ -121,7 +121,7 @@ services:
     deploy: { attempts: 3, retryDelay: 60 }
 ```
 
-`attempts` counts every try, including the first, and `retryDelay` is the number of seconds between tries; both must be at least 1. An omitted field uses the API default: 2 attempts, 300 seconds apart, unless the operator sets `LOCO_DEFAULT_DEPLOY_ATTEMPTS` or `LOCO_DEFAULT_DEPLOY_RETRY_DELAY`. `GetConfig` reports the defaults as `deploy_attempts` and `deploy_retry_delay_seconds`. `deploy` applies to the service in every environment, so an environment override cannot set it. Changing it takes effect at the next failure and does not redeploy the service.
+`attempts` counts every try, including the first, and must be between 1 and 10. `retryDelay` is the number of seconds between tries and must be at least 60. An omitted field uses the API default: 2 attempts, 300 seconds apart, unless the operator sets `LOCO_DEFAULT_DEPLOY_ATTEMPTS` or `LOCO_DEFAULT_DEPLOY_RETRY_DELAY` within the same bounds. `GetConfig` reports the defaults as `deploy_attempts` and `deploy_retry_delay_seconds`. `deploy` applies to the service in every environment, so an environment override cannot set it. A change takes effect at the next failure. When `deploy` is the only change, `loco infra apply` updates the service without redeploying it, even while a deployment is rolling out; `loco deploy` still builds and redeploys the services it targets.
 
 ## Environment overrides
 

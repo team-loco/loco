@@ -41,17 +41,20 @@ func TestDeployAppliesToEveryEnvironment(t *testing.T) {
 	}
 }
 
-func TestDeployRejectsNonPositiveValues(t *testing.T) {
-	for name, deploy := range map[string]string{
-		"zero attempts":        "{attempts: 0}",
-		"negative attempts":    "{attempts: -1}",
-		"zero retry delay":     "{retryDelay: 0}",
-		"negative retry delay": "{retryDelay: -5}",
+func TestDeployBounds(t *testing.T) {
+	for deploy, want := range map[string]error{
+		"{attempts: 0}":     ErrDeployAttempts,
+		"{attempts: 1}":     nil,
+		"{attempts: 10}":    nil,
+		"{attempts: 11}":    ErrDeployAttempts,
+		"{retryDelay: 59}":  ErrDeployRetryDelay,
+		"{retryDelay: 60}":  nil,
+		"{retryDelay: -60}": ErrDeployRetryDelay,
 	} {
-		t.Run(name, func(t *testing.T) {
+		t.Run(deploy, func(t *testing.T) {
 			file := strings.Replace(deployFile, "{attempts: 4, retryDelay: 120}", deploy, 1)
-			if _, err := Parse([]byte(file)); !errors.Is(err, ErrNotPositive) {
-				t.Fatalf("Parse = %v, want %v", err, ErrNotPositive)
+			if _, err := Parse([]byte(file)); !errors.Is(err, want) || (want == nil && err != nil) {
+				t.Fatalf("Parse = %v, want %v", err, want)
 			}
 		})
 	}

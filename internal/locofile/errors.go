@@ -1,6 +1,9 @@
 package locofile
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 var (
 	ErrRuntimeID              = errors.New("must be a numeric ID between 1 and 2147483647")
@@ -17,5 +20,6 @@ var (
 	ErrAutoscalingTarget      = errors.New("autoscaling needs exactly one of cpuTarget or memoryTarget")
 	ErrEnvironmentsInOverride = errors.New("environments cannot be nested inside an environment override")
 	ErrNotAnObject            = errors.New("must be a mapping")
-	ErrNotPositive            = errors.New("must be at least 1")
+	ErrDeployAttempts         = fmt.Errorf("must be between %d and %d", MinDeployAttempts, MaxDeployAttempts)
+	ErrDeployRetryDelay       = fmt.Errorf("must be at least %d seconds", MinDeployRetryDelay)
 )

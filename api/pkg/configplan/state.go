@@ -36,11 +36,9 @@ var (
 )
 
 // State is a service as the planner compares it: the file service with the API defaults
-// filled in, or the live service as the environment runs it. Deploy is the exception: it holds
-// only the fields the file sets, and the API applies its defaults when a cluster fails to apply.
-// Image is the digest-pinned reference of an image service and empty for a service built from
-// source; Dockerfile and Context are set for a service built from source and empty for an image
-// service.
+// filled in, or the live service as the environment runs it. Image is the digest-pinned
+// reference of an image service and empty for a service built from source; Dockerfile and
+// Context are set for a service built from source and empty for an image service.
 type State struct {
 	Image      string
 	Dockerfile string

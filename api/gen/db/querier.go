@@ -226,6 +226,7 @@ type Querier interface {
 	MarkPreviousDeploymentsNotActive(ctx context.Context, resourceID uuid.UUID) error
 	MarkResourcePlacementsDeleted(ctx context.Context, resourceID uuid.UUID) ([]MarkResourcePlacementsDeletedRow, error)
 	MoveAccountEmail(ctx context.Context, arg MoveAccountEmailParams) (User, error)
+	NextPlacementRetry(ctx context.Context, clusterID uuid.UUID) (int64, error)
 	NotifyClusterPlacements(ctx context.Context, clusterID string) error
 	OpenPlacementWindow(ctx context.Context, arg OpenPlacementWindowParams) error
 	OrgHasWorkspacesWithResources(ctx context.Context, orgID uuid.UUID) (bool, error)

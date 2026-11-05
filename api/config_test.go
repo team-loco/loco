@@ -749,24 +749,27 @@ func TestDatabaseListenURLDefaultsAndOverride(t *testing.T) {
 	}
 }
 
-func TestDeployPolicyDefaults(t *testing.T) {
+func TestDeployPolicyDefaultBounds(t *testing.T) {
 	clearAPIConfigEnv(t)
-	defaults := newServiceDefaults()
-	if defaults.DeployAttempts != 2 || defaults.DeployRetryDelay != 300 {
-		t.Fatalf(
-			"deploy defaults = %d attempts, %ds apart; want 2, 300s",
-			defaults.DeployAttempts,
-			defaults.DeployRetryDelay,
-		)
-	}
-	for _, env := range []string{"LOCO_DEFAULT_DEPLOY_ATTEMPTS", "LOCO_DEFAULT_DEPLOY_RETRY_DELAY"} {
-		for _, value := range []string{"0", "-1", "5m"} {
-			t.Setenv(env, value)
+	for _, tc := range []struct {
+		env      string
+		accepted []string
+		rejected []string
+	}{
+		{"LOCO_DEFAULT_DEPLOY_ATTEMPTS", []string{"1", "10"}, []string{"0", "11", "-1", "5m"}},
+		{"LOCO_DEFAULT_DEPLOY_RETRY_DELAY", []string{"60"}, []string{"59", "0", "5m"}},
+	} {
+		for _, value := range tc.accepted {
+			t.Setenv(tc.env, value)
+			newServiceDefaults()
+		}
+		for _, value := range tc.rejected {
+			t.Setenv(tc.env, value)
 			if err := panicValue(t, func() { newServiceDefaults() }); err == nil {
-				t.Fatalf("%s=%s accepted", env, value)
+				t.Fatalf("%s=%s accepted", tc.env, value)
 			}
 		}
-		t.Setenv(env, "")
+		t.Setenv(tc.env, "")
 	}
 }
 
