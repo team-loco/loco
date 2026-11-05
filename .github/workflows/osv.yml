@@ -54,7 +54,6 @@ jobs:
         --recursive
         --x-exclude=examples
         ./
-      fail-on-vuln: false
 
   changes:
     name: Detect Changed Images
@@ -138,6 +137,8 @@ jobs:
 
       # scanning the exported archive keeps osv-scanner out of the docker socket
       - name: Scan image
+        env:
+          EVENT: ${{ github.event_name }}
         run: |
           set -euo pipefail
           docker save "loco-${{ matrix.image }}:osv" -o /tmp/image.tar
@@ -168,7 +169,9 @@ jobs:
           SARIF
             exit 0
           fi
-          if [ "$code" -gt 1 ]; then
+          # a pull request fails only on the vulnerabilities its source adds, so one
+          # already in an image on main fails the main and weekly runs instead
+          if [ "$code" -gt 1 ] || { [ "$code" -eq 1 ] && [ "$EVENT" != pull_request ]; }; then
             exit "$code"
           fi
 
