@@ -288,7 +288,7 @@ func (s *UserServer) DeleteUser(
 			return rpcerr.New(connect.CodeNotFound, ErrUserNotFound)
 		}
 		if lockErr != nil {
-			return lockErr
+			return fmt.Errorf("lock user: %w", lockErr)
 		}
 		hasWorkspaces, checkErr := qtx.CheckUserHasWorkspaces(ctx, userID)
 		if checkErr != nil {
