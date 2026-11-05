@@ -287,7 +287,7 @@ func verificationArchive(base, marker string) ([]byte, error) {
 	files := map[string]string{
 		"Dockerfile": fmt.Sprintf(
 			"FROM %s\nCOPY --chmod=0444 index.html /www/index.html\n"+
-				"COPY --chmod=0555 proof /www/cgi-bin/proof\nUSER 65534\n"+
+				"COPY --chmod=0555 proof /www/cgi-bin/proof\nRUN chmod 0555 /www\nUSER 65534\n"+
 				"CMD [\"sh\",\"-c\",\"while :; do echo %s; sleep %d; done & exec httpd -f -p %d -h /www\"]\n",
 			base, marker, verificationLogSeconds, verificationPort,
 		),
