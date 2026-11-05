@@ -31,6 +31,9 @@ func main() {
 }
 
 func run() error {
+	if name := filepath.Base(os.Args[0]); name == helmExecutable || name == kubectlExecutable {
+		return auditExecutable()
+	}
 	options := flag.NewFlagSet(suiteName, flag.ContinueOnError)
 	options.SetOutput(io.Discard)
 	mail := options.Bool("mail-sink", false, "Serve the external fixture email transport")
@@ -83,13 +86,29 @@ func execute(ctx context.Context, acceptance, cleanup func(context.Context) erro
 }
 
 func command(ctx context.Context, dir string, input []byte, program string, args ...string) ([]byte, error) {
-	//nolint:gosec // G702 taints the deadline in ctx; callers choose fixed executables and argv.
 	cmd := exec.CommandContext(ctx, program, args...)
 	cmd.Dir = dir
 	if input != nil {
 		cmd.Stdin = bytes.NewReader(input)
 	}
-	out, err := cmd.CombinedOutput()
+	var out []byte
+	var err error
+	if audit, ok := ctx.Value(auditKey{}).(*leakAudit); ok && (program == "locoadm" || program == "loco") {
+		var stdout, stderr boundedOutput
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		err = cmd.Run()
+		audit.capture("CLI output (stdout)", stdout.Bytes())
+		audit.capture("CLI output (stderr)", stderr.Bytes())
+		out = append(stdout.Bytes(), stderr.Bytes()...)
+		if stdout.exceeded || stderr.exceeded {
+			audit.mu.Lock()
+			audit.exceeded = true
+			audit.mu.Unlock()
+		}
+	} else {
+		out, err = cmd.CombinedOutput()
+	}
 	if err != nil {
 		return nil, fmt.Errorf("%s failed: %w", program, err)
 	}

@@ -62,7 +62,7 @@ func newFixture(root string, skip bool) (*fixture, error) {
 }
 
 func (f *fixture) acceptance(ctx context.Context) error {
-	for _, program := range []string{"docker", "kind", "kubectl", "helm", "mise", "yq"} {
+	for _, program := range []string{"docker", "kind", kubectlExecutable, helmExecutable, "mise", "yq"} {
 		if _, checkErr := exec.LookPath(program); checkErr != nil {
 			return fmt.Errorf("required fixture tool %s: %w", program, checkErr)
 		}

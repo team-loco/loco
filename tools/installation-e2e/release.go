@@ -315,11 +315,14 @@ RUN wget -qO /tmp/helm.tgz https://get.helm.sh/helm-v%s-linux-${TARGETARCH}.tar.
  && sed -i 's|helm-v[^ ]*|helm.tgz|' helm.sha \
  && sha256sum -c helm.sha \
  && tar -xzf helm.tgz \
- && cp linux-${TARGETARCH}/helm /usr/local/bin/helm
-RUN wget -qO /usr/local/bin/kubectl https://dl.k8s.io/release/v%s/bin/linux/${TARGETARCH}/kubectl \
+ && mkdir -p /usr/local/libexec \
+ && cp linux-${TARGETARCH}/helm /usr/local/libexec/helm \
+ && ln -s /usr/local/bin/installation-e2e /usr/local/bin/helm
+RUN wget -qO /usr/local/libexec/kubectl https://dl.k8s.io/release/v%s/bin/linux/${TARGETARCH}/kubectl \
  && wget -qO /tmp/kubectl.sha https://dl.k8s.io/release/v%s/bin/linux/${TARGETARCH}/kubectl.sha256 \
- && echo "$(cat /tmp/kubectl.sha)  /usr/local/bin/kubectl" | sha256sum -c - \
- && chmod +x /usr/local/bin/kubectl
+ && echo "$(cat /tmp/kubectl.sha)  /usr/local/libexec/kubectl" | sha256sum -c - \
+ && chmod +x /usr/local/libexec/kubectl \
+ && ln -s /usr/local/bin/installation-e2e /usr/local/bin/kubectl
 COPY tests/e2e/fixtures/build-app /fixture/build-app
 COPY tests/e2e/fixtures/installation/network-probe.yaml /fixture/network-probe.yaml
 CMD ["sleep", "infinity"]

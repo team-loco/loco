@@ -36,9 +36,26 @@ const (
 	clientTimeout   = 45 * time.Minute
 )
 
-func clientAcceptance(ctx context.Context) error {
+func clientAcceptance(ctx context.Context) (result error) {
+	audit := newLeakAudit()
+	stopAudit, err := audit.listen(auditSocket)
+	if err != nil {
+		return err
+	}
+	defer func() { result = errors.Join(result, stopAudit()) }()
+	ctx = context.WithValue(ctx, auditKey{}, audit)
+	defer func() {
+		// Inspect even after a failed command, before any raw provider diagnostics escape.
+		inspectionCtx, cancelInspection := context.WithTimeout(context.WithoutCancel(ctx), time.Minute)
+		defer cancelInspection()
+		result = errors.Join(result, audit.inspect(inspectionCtx, "completion"))
+	}()
 	ctx, cancel := context.WithTimeout(ctx, clientTimeout)
 	defer cancel()
+	return clientFlow(ctx, audit)
+}
+
+func clientFlow(ctx context.Context, audit *leakAudit) error {
 	for _, operation := range []string{"validate", "plan"} {
 		if _, checkErr := locoadm(ctx, operation, "--file", clientFile); checkErr != nil {
 			return fmt.Errorf("initial %s: %w", operation, checkErr)
@@ -58,7 +75,13 @@ func clientAcceptance(ctx context.Context) error {
 	if dnsErr := configureGatewayDNS(ctx, controlNamespace, false); dnsErr != nil {
 		return dnsErr
 	}
+	if checkErr := audit.inspect(ctx, "before bootstrap"); checkErr != nil {
+		return checkErr
+	}
 	if checkErr := bootstrap(ctx); checkErr != nil {
+		return checkErr
+	}
+	if checkErr := audit.inspect(ctx, "bootstrap complete"); checkErr != nil {
 		return checkErr
 	}
 	if _, targetErr := locoadm(ctx, "cluster", "list"); targetErr != nil {
@@ -67,14 +90,20 @@ func clientAcceptance(ctx context.Context) error {
 	if _, checkErr := locoadm(ctx, "apply", "--file", clientFile); checkErr != nil {
 		return checkErr
 	}
-	if err := configureGatewayDNS(ctx, workerNamespace, true); err != nil {
-		return err
+	if dnsErr := configureGatewayDNS(ctx, workerNamespace, true); dnsErr != nil {
+		return dnsErr
+	}
+	if checkErr := audit.inspect(ctx, "workers applied"); checkErr != nil {
+		return checkErr
 	}
 	before, err := identitySnapshot(ctx)
 	if err != nil {
 		return err
 	}
 	if _, checkErr := locoadm(ctx, "apply", "--file", clientFile); checkErr != nil {
+		return checkErr
+	}
+	if checkErr := audit.inspect(ctx, "repeat apply complete"); checkErr != nil {
 		return checkErr
 	}
 	after, err := identitySnapshot(ctx)
@@ -93,8 +122,14 @@ func clientAcceptance(ctx context.Context) error {
 	if checkErr := bootstrap(ctx); checkErr != nil {
 		return fmt.Errorf("resume from fresh operator state: %w", checkErr)
 	}
+	if checkErr := audit.inspect(ctx, "fresh bootstrap complete"); checkErr != nil {
+		return checkErr
+	}
 	if _, checkErr := locoadm(ctx, "apply", "--file", clientFile); checkErr != nil {
 		return fmt.Errorf("apply from fresh operator state: %w", checkErr)
+	}
+	if checkErr := audit.inspect(ctx, "fresh apply complete"); checkErr != nil {
+		return checkErr
 	}
 	after, err = identitySnapshot(ctx)
 	if err != nil {
@@ -134,11 +169,19 @@ func bootstrap(ctx context.Context) error {
 		return err
 	}
 	// Provider/CLI errors can carry credential material. Only the phase is returned.
+	audit, auditing := ctx.Value(auditKey{}).(*leakAudit)
 	cmd.Stderr = io.Discard
+	if auditing {
+		cmd.Stderr = auditWriter{audit, "CLI output (stderr)"}
+	}
 	if checkErr := cmd.Start(); checkErr != nil {
 		return fmt.Errorf("start bootstrap: %w", checkErr)
 	}
-	scanner := bufio.NewScanner(stdout)
+	var output io.Reader = stdout
+	if auditing {
+		output = io.TeeReader(stdout, auditWriter{audit, "CLI output (stdout)"})
+	}
+	scanner := bufio.NewScanner(output)
 	var authorization string
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -147,18 +190,37 @@ func bootstrap(ctx context.Context) error {
 			break
 		}
 	}
+	if scanner.Err() != nil {
+		return errors.Join(errors.New("bootstrap output exceeded scanner limit"), stopBootstrap(cmd, output))
+	}
 	if authorization == "" {
 		return errors.Join(errors.New("bootstrap did not start IdP authentication"), cmd.Wait())
 	}
 	if checkErr := completeDexLogin(ctx, authorization); checkErr != nil {
-		return errors.Join(checkErr, stopProcess(cmd))
+		return errors.Join(checkErr, stopBootstrap(cmd, output))
 	}
-	_, copyErr := io.Copy(io.Discard, stdout)
+	// Continue through the scanner: it may already hold bytes past the URL.
+	for scanner.Scan() {
+	}
+	_, copyErr := io.Copy(io.Discard, output)
 	waitErr := cmd.Wait()
 	if scanner.Err() != nil || copyErr != nil || waitErr != nil {
 		return errors.New("authenticated bootstrap failed")
 	}
 	return nil
+}
+
+func stopBootstrap(cmd *exec.Cmd, output io.Reader) error {
+	if err := cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+		return errors.New("stop bootstrap subprocess failed")
+	}
+	// Capture queued stdout before Wait closes the pipe on failed authentication.
+	_, drainErr := io.Copy(io.Discard, output)
+	stopErr := stopProcess(cmd)
+	if drainErr != nil {
+		return errors.Join(errors.New("drain bootstrap output failed"), stopErr)
+	}
+	return stopErr
 }
 
 func completeDexLogin(ctx context.Context, authorization string) error {
@@ -169,7 +231,7 @@ func completeDexLogin(ctx context.Context, authorization string) error {
 	client := &http.Client{Jar: jar, Timeout: time.Minute}
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, authorization, nil)
 	if err != nil {
-		return err
+		return errors.New("invalid fixture IdP authorization URL")
 	}
 	response, err := client.Do(request)
 	if err != nil {
@@ -192,7 +254,7 @@ func completeDexLogin(ctx context.Context, authorization string) error {
 	values.Set("password", fixturePassword)
 	request, err = http.NewRequestWithContext(ctx, http.MethodPost, target.String(), strings.NewReader(values.Encode()))
 	if err != nil {
-		return err
+		return errors.New("invalid fixture IdP submission URL")
 	}
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	result, err := client.Do(request)
