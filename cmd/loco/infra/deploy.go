@@ -17,10 +17,10 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/internal/sourcebuild"
 	"github.com/team-loco/loco/cmd/internal/sourcepack"
 	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	"github.com/team-loco/loco/cmd/loco/resource"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	"github.com/team-loco/loco/internal/locofile"
@@ -547,7 +547,7 @@ func packTargets(dir string, targets []buildTarget, out io.Writer) (*sourcepack.
 	if err != nil {
 		return nil, fmt.Errorf("pack %s: %w", dir, err)
 	}
-	resource.PackedArchive(out, archive, dir)
+	sourcebuild.PackedArchive(out, archive, dir)
 	return archive, nil
 }
 
@@ -561,7 +561,7 @@ func buildServices(
 	if len(targets) == 0 {
 		return nil, nil
 	}
-	builder := resource.NewSourceBuilder(t.Host, t.Token, out)
+	builder := sourcebuild.NewSourceBuilder(t.Host, t.Token, out)
 	builds := make(map[string]string, len(targets))
 	for _, target := range targets {
 		res, lookupErr := t.Service(ctx, target.name)
@@ -569,7 +569,7 @@ func buildServices(
 			return nil, lookupErr
 		}
 		fmt.Fprintf(out, "Building %s from %s in %s\n", target.name, target.dockerfile, target.context)
-		build, buildErr := builder.Build(ctx, resource.BuildInput{
+		build, buildErr := builder.Build(ctx, sourcebuild.BuildInput{
 			ResourceID:  res.GetId(),
 			WorkspaceID: t.WorkspaceID,
 			Archive:     archive,

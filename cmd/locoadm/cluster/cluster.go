@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"connectrpc.com/connect/v2"
-	"connectrpc.com/connect/v2/connectproto"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/internal/keychain"
@@ -172,21 +170,11 @@ func parseTier(value string) (environmentv1.EnvironmentType, error) {
 }
 
 func printWorkloads(cmd *cobra.Command, err error) {
-	connectErr, ok := errors.AsType[*connect.Error](err)
+	workloads, ok := rpc.ErrorDetail[*clusterv1.ClusterWorkloads](err)
 	if !ok {
 		return
 	}
-	for _, detail := range connectErr.Details() {
-		value, decodeErr := connectproto.UnmarshalErrorDetail(detail)
-		if decodeErr != nil {
-			continue
-		}
-		workloads, ok := value.(*clusterv1.ClusterWorkloads)
-		if !ok {
-			continue
-		}
-		for _, workload := range workloads.GetWorkloads() {
-			fmt.Fprintf(cmd.ErrOrStderr(), "%s %s\n", workload.GetKind(), workload.GetId())
-		}
+	for _, workload := range workloads.GetWorkloads() {
+		fmt.Fprintf(cmd.ErrOrStderr(), "%s %s\n", workload.GetKind(), workload.GetId())
 	}
 }

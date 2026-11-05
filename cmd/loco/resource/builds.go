@@ -12,6 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/internal/logstream"
+	"github.com/team-loco/loco/cmd/internal/sourcebuild"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -41,13 +42,8 @@ func BuildBuildsCmd() *cobra.Command {
 	return cmd
 }
 
-func follower(cmd *cobra.Command, t cmdutil.Target) *buildFollower {
-	return &buildFollower{
-		clients: t.Clients,
-		host:    t.Host,
-		token:   t.Token,
-		out:     &syncWriter{out: cmd.OutOrStdout()},
-	}
+func follower(cmd *cobra.Command, t cmdutil.Target) *sourcebuild.Follower {
+	return sourcebuild.NewFollower(t.Clients, t.Host, t.Token, cmd.OutOrStdout())
 }
 
 func workspaceOf(ctx context.Context, t cmdutil.Target, build *buildv1.Build) (string, error) {
@@ -151,7 +147,7 @@ func runBuildsList(cmd *cobra.Command, name string) error {
 	fmt.Fprintln(w, "ID\tSTATUS\tCREATED\tDURATION\tIMAGE DIGEST")
 	for _, build := range builds {
 		created := build.GetCreatedAt().AsTime().UTC().Format(time.RFC3339)
-		duration := buildDuration(build)
+		duration := sourcebuild.Duration(build)
 		if duration == "" {
 			duration = "-"
 		}
@@ -163,7 +159,7 @@ func runBuildsList(cmd *cobra.Command, name string) error {
 			digest += imageDeletedSuffix
 		}
 		status := build.GetStatus()
-		label := buildStatusLabel(status)
+		label := sourcebuild.StatusLabel(status)
 		id := build.GetId()
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", id, label, created, duration, digest)
 	}
@@ -186,7 +182,7 @@ func newBuildsGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			build, err := follower(cmd, t).getBuild(ctx, args[0])
+			build, err := follower(cmd, t).GetBuild(ctx, args[0])
 			if err != nil {
 				return err
 			}
@@ -208,10 +204,10 @@ func writeBuildDetails(out io.Writer, build *buildv1.Build) error {
 	rows := [][2]string{
 		{"ID", build.GetId()},
 		{"Service", build.GetResourceId()},
-		{"Status", buildStatusLabel(status)},
+		{"Status", sourcebuild.StatusLabel(status)},
 		{"Message", build.GetMessage()},
 		{"Dockerfile", build.GetDockerfilePath()},
-		{"Source size", formatBytes(sourceSize)},
+		{"Source size", sourcebuild.FormatBytes(sourceSize)},
 		{"Image", build.GetImageRepository()},
 		{"Image digest", build.GetImageDigest()},
 		{"Created", created},
@@ -269,7 +265,7 @@ func runBuildsLogs(cmd *cobra.Command, buildID string) error {
 		return err
 	}
 	follow := follower(cmd, t)
-	build, err := follow.getBuild(ctx, buildID)
+	build, err := follow.GetBuild(ctx, buildID)
 	if err != nil {
 		return err
 	}
@@ -279,10 +275,10 @@ func runBuildsLogs(cmd *cobra.Command, buildID string) error {
 	}
 
 	status := build.GetStatus()
-	if opts.follow && !buildFinished(status) {
-		follow.emit = opts.emit
-		follow.quietState = opts.json
-		_, followErr := follow.follow(ctx, build, workspaceID)
+	if opts.follow && !sourcebuild.Finished(status) {
+		follow.Emit = opts.emit
+		follow.QuietState = opts.json
+		_, followErr := follow.Follow(ctx, build, workspaceID)
 		return followErr
 	}
 
@@ -292,7 +288,7 @@ func runBuildsLogs(cmd *cobra.Command, buildID string) error {
 		end = build.GetFinishedAt().AsTime().Add(finishedLogMargin)
 	}
 	filter := logstream.BuildFilter(workspaceID, buildID)
-	logs := logClient(t.Host, t.Token)
+	logs := logstream.ForHost(t.Host, t.Token)
 	window := logstream.Window{Start: start, End: end}
 	streamErr := logs.Stream(ctx, filter, window, opts.emit)
 	if ctx.Err() != nil {
@@ -320,7 +316,7 @@ func newBuildsCancelCmd() *cobra.Command {
 				return fmt.Errorf("cancel build %s: %w", args[0], err)
 			}
 			canceled := resp.GetBuild()
-			description := describeBuild(canceled)
+			description := sourcebuild.Describe(canceled)
 			_, err = fmt.Fprintln(cmd.OutOrStdout(), description)
 			return err
 		},

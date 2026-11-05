@@ -11,8 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"connectrpc.com/connect/v2/connectproto"
-
 	"charm.land/lipgloss/v2"
 	"connectrpc.com/connect/v2"
 	"github.com/spf13/cobra"
@@ -20,6 +18,7 @@ import (
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	"github.com/team-loco/loco/internal/locofile"
+	"github.com/team-loco/loco/internal/rpc"
 )
 
 const (
@@ -198,33 +197,16 @@ func requestApply(
 
 	resp, err := t.Clients.Plan.Apply(ctx, req)
 	if err != nil {
-		if refusal := applyRefusal(err); refusal != nil {
-			return nil, refusalError(refusal, revision)
-		}
 		connectErr, isConnect := errors.AsType[*connect.Error](err)
 		if isConnect && connectErr.Code() == connect.CodeFailedPrecondition {
+			if refusal, ok := rpc.ErrorDetail[*planv1.ApplyRefusal](err); ok {
+				return nil, refusalError(refusal, revision)
+			}
 			return nil, fmt.Errorf("%w: %s", errApplyRefused, connectErr.Message())
 		}
 		return nil, fmt.Errorf("apply: %w", err)
 	}
 	return resp, nil
-}
-
-func applyRefusal(err error) *planv1.ApplyRefusal {
-	connectErr, ok := errors.AsType[*connect.Error](err)
-	if !ok || connectErr.Code() != connect.CodeFailedPrecondition {
-		return nil
-	}
-	for _, detail := range connectErr.Details() {
-		value, valueErr := connectproto.UnmarshalErrorDetail(detail)
-		if valueErr != nil {
-			continue
-		}
-		if refusal, isRefusal := value.(*planv1.ApplyRefusal); isRefusal {
-			return refusal
-		}
-	}
-	return nil
 }
 
 func refusalError(refusal *planv1.ApplyRefusal, plannedRevision int64) error {

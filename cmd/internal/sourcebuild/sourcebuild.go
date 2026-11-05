@@ -1,4 +1,4 @@
-package resource
+package sourcebuild
 
 import (
 	"context"
@@ -11,8 +11,6 @@ import (
 	"regexp"
 	"strings"
 	"syscall"
-
-	"connectrpc.com/connect/v2/connectproto"
 
 	"connectrpc.com/connect/v2"
 	"github.com/team-loco/loco/cmd/internal/sourcepack"
@@ -37,7 +35,7 @@ var (
 
 // SourceBuilder builds an uploaded source archive on Loco and follows the build to its end.
 type SourceBuilder struct {
-	follower *buildFollower
+	follower *Follower
 	storage  *http.Client
 }
 
@@ -45,13 +43,8 @@ type SourceBuilder struct {
 // prints the build's progress and logs to out.
 func NewSourceBuilder(host, token string, out io.Writer) *SourceBuilder {
 	return &SourceBuilder{
-		follower: &buildFollower{
-			clients: rpc.ForHost(host, token),
-			host:    host,
-			token:   token,
-			out:     &syncWriter{out: out},
-		},
-		storage: httputil.NewHTTPClient(),
+		follower: NewFollower(rpc.ForHost(host, token), host, token, out),
+		storage:  httputil.NewHTTPClient(),
 	}
 }
 
@@ -67,7 +60,7 @@ type BuildInput struct {
 
 // PackedArchive prints what an archive holds, as the deploy reports it before the first build.
 func PackedArchive(out io.Writer, archive *sourcepack.Archive, dir string) {
-	packedSize := formatBytes(archive.Size)
+	packedSize := FormatBytes(archive.Size)
 	fmt.Fprintf(out, "Packed %d files from %s (%s compressed)\n", archive.Files, dir, packedSize)
 }
 
@@ -96,7 +89,7 @@ func (b *SourceBuilder) Build(ctx context.Context, in BuildInput) (*buildv1.Buil
 	}
 
 	queued := started.GetBuild()
-	build, err := b.follower.follow(ctx, queued, in.WorkspaceID)
+	build, err := b.follower.Follow(ctx, queued, in.WorkspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -132,21 +125,14 @@ func buildsUnavailable(err error) error {
 	if !ok || connectErr.Code() != connect.CodeFailedPrecondition {
 		return nil
 	}
-	for _, detail := range connectErr.Details() {
-		value, valueErr := connectproto.UnmarshalErrorDetail(detail)
-		if valueErr != nil {
-			continue
-		}
-		if _, isUnavailable := value.(*buildv1.BuildsUnavailable); isUnavailable {
-			reason := connectErr.Message()
-			return fmt.Errorf(
-				"%w: %s. Set image on the service in loco.yaml to deploy a prebuilt public image instead",
-				errBuildsUnavailable,
-				reason,
-			)
-		}
+	if _, isUnavailable := rpc.ErrorDetail[*buildv1.BuildsUnavailable](err); !isUnavailable {
+		return nil
 	}
-	return nil
+	return fmt.Errorf(
+		"%w: %s. Set image on the service in loco.yaml to deploy a prebuilt public image instead",
+		errBuildsUnavailable,
+		connectErr.Message(),
+	)
 }
 
 func (b *SourceBuilder) sourceRefused(archive *sourcepack.Archive, err error) error {
@@ -156,7 +142,7 @@ func (b *SourceBuilder) sourceRefused(archive *sourcepack.Archive, err error) er
 	}
 	largest := make([]string, 0, len(archive.Largest))
 	for _, file := range archive.Largest {
-		size := formatBytes(file.Size)
+		size := FormatBytes(file.Size)
 		described := fmt.Sprintf("%s (%s)", file.Path, size)
 		largest = append(largest, described)
 	}
@@ -165,7 +151,7 @@ func (b *SourceBuilder) sourceRefused(archive *sourcepack.Archive, err error) er
 		b.follower.out.printf("Largest packed files: %s\n", listed)
 	}
 	b.follower.out.printf("Nothing was uploaded. Leave out files the build does not need with .dockerignore.\n")
-	archiveSize := formatBytes(archive.Size)
+	archiveSize := FormatBytes(archive.Size)
 	return fmt.Errorf("the API refused the %s source archive: %s", archiveSize, message)
 }
 
@@ -216,7 +202,8 @@ func connectionDropped(err error) bool {
 	return errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF)
 }
 
-func formatBytes(n int64) string {
+// FormatBytes renders a byte count with a binary unit.
+func FormatBytes(n int64) string {
 	const unit = 1024
 	if n < unit {
 		return fmt.Sprintf("%d B", n)

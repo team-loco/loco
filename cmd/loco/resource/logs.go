@@ -102,7 +102,7 @@ func logEmitter(out io.Writer, output string) (logstream.Emit, error) {
 		return func(entry *observabilityv1.LogEntry) error {
 			ts := entry.GetTimestamp().AsTime().UTC().Format(time.RFC3339)
 			body := entry.GetBody()
-			line := trimNewline(body)
+			line := logstream.TrimNewline(body)
 			_, err := fmt.Fprintf(out, "%s  %s\n", ts, line)
 			return err
 		}, nil
@@ -132,7 +132,7 @@ func runResourceLogs(cmd *cobra.Command, name string) error {
 	filter := logstream.Filter{WorkspaceID: t.WorkspaceID, ResourceIDs: []string{resource.GetId()}}
 	end := time.Now()
 	start := end.Add(-opts.since)
-	logs := logClient(t.Host, t.Token)
+	logs := logstream.ForHost(t.Host, t.Token)
 	window := logstream.Window{Start: start, End: end, Limit: opts.lines, Follow: opts.follow}
 	streamErr := logs.Stream(ctx, filter, window, opts.emit)
 	if ctx.Err() != nil {
