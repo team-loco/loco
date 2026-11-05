@@ -11,21 +11,36 @@ import (
 	"strings"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 )
 
 const certManagerName = "cert-manager"
+const envoyGatewayName = "loco-envoy-gateway"
 
 var errPrerequisiteNotReady = errors.New("pinned prerequisite controller is missing or not ready")
 
 var errPrerequisiteRequired = errors.New("pinned prerequisite needs installation")
 var errPrerequisiteConflict = errors.New("existing prerequisite does not match the pinned release")
+var errGatewayConfiguration = fmt.Errorf(
+	"existing Envoy Gateway requires GatewayNamespace mode, default watch scope and pinned controller identity: %w",
+	errPrerequisiteConflict,
+)
 
 func prerequisites(ctx context.Context, kube *Kubernetes, release releaseArtifacts, install bool) error {
 	gateway, err := gatewayChart(release.worker)
+	if err != nil {
+		return err
+	}
+	controllerName, err := gatewayControllerName(gateway)
+	if err != nil {
+		return err
+	}
+	gatewayValues, err := gatewayPrerequisiteValues(release.worker, controllerName)
 	if err != nil {
 		return err
 	}
@@ -39,8 +54,8 @@ func prerequisites(ctx context.Context, kube *Kubernetes, release releaseArtifac
 			release.certManager, []byte("crds:\n  enabled: true\n"),
 		},
 		{
-			"loco-envoy-gateway", kube.Target.Namespace,
-			gateway, []byte("crds:\n  enabled: false\n"),
+			envoyGatewayName, kube.Target.Namespace,
+			gateway, gatewayValues,
 		},
 	} {
 		files, err := archiveFiles(prerequisite.chart)
@@ -70,6 +85,11 @@ func prerequisites(ctx context.Context, kube *Kubernetes, release releaseArtifac
 			for _, deployment := range existing.Items {
 				if deployment.Labels["app.kubernetes.io/version"] != metadata.AppVersion {
 					return fmt.Errorf("%s: %w", prerequisite.name, errPrerequisiteConflict)
+				}
+				if prerequisite.name == envoyGatewayName {
+					if err := kube.requireGatewayNamespace(ctx, deployment, controllerName); err != nil {
+						return err
+					}
 				}
 				components := []string{deployment.Name}
 				if prerequisite.name == certManagerName {
@@ -118,6 +138,83 @@ func prerequisites(ctx context.Context, kube *Kubernetes, release releaseArtifac
 		}
 	}
 	return nil
+}
+
+func gatewayControllerName(chart []byte) (string, error) {
+	files, err := archiveFiles(chart)
+	if err != nil {
+		return "", err
+	}
+	var values map[string]any
+	if yaml.Unmarshal(files["gateway-helm/values.yaml"], &values) != nil {
+		return "", errInvalidRelease
+	}
+	name, found, err := unstructured.NestedString(values, "config", "envoyGateway", "gateway", "controllerName")
+	if err != nil || !found || name == "" {
+		return "", errInvalidRelease
+	}
+	return name, nil
+}
+
+func gatewayPrerequisiteValues(worker []byte, controllerName string) ([]byte, error) {
+	files, err := archiveFiles(worker)
+	if err != nil {
+		return nil, err
+	}
+	var values struct {
+		Gateway map[string]any `json:"gateway-helm"`
+	}
+	if yaml.Unmarshal(files["loco-worker/values.yaml"], &values) != nil {
+		return nil, errInvalidRelease
+	}
+	configuration, found, err := unstructured.NestedMap(values.Gateway, "config", "envoyGateway")
+	if err != nil || !found || !gatewayNamespaceConfiguration(configuration) {
+		return nil, errInvalidRelease
+	}
+	name, found, err := unstructured.NestedString(configuration, "gateway", "controllerName")
+	if err != nil || (found && name != controllerName) {
+		return nil, errInvalidRelease
+	}
+	crds, found, err := unstructured.NestedBool(values.Gateway, "crds", "enabled")
+	if err != nil || !found || crds {
+		return nil, errInvalidRelease
+	}
+	delete(values.Gateway, "enabled")
+	return yaml.Marshal(values.Gateway)
+}
+
+func (kube *Kubernetes) requireGatewayNamespace(
+	ctx context.Context, deployment appsv1.Deployment, controllerName string,
+) error {
+	for _, volume := range deployment.Spec.Template.Spec.Volumes {
+		if volume.Name != "envoy-gateway-config" || volume.ConfigMap == nil {
+			continue
+		}
+		configuration, err := kube.Core.ConfigMaps(deployment.Namespace).
+			Get(ctx, volume.ConfigMap.Name, metav1.GetOptions{})
+		if err != nil {
+			return safeKubernetesError("inspect Envoy Gateway configuration", err)
+		}
+		var gateway map[string]any
+		if yaml.Unmarshal([]byte(configuration.Data["envoy-gateway.yaml"]), &gateway) != nil {
+			return errGatewayConfiguration
+		}
+		name, found, err := unstructured.NestedString(gateway, "gateway", "controllerName")
+		if err != nil || !found || name != controllerName || !gatewayNamespaceConfiguration(gateway) {
+			return errGatewayConfiguration
+		}
+		return nil
+	}
+	return errGatewayConfiguration
+}
+
+func gatewayNamespaceConfiguration(configuration map[string]any) bool {
+	_, watch, err := unstructured.NestedFieldNoCopy(configuration, "provider", "kubernetes", "watch")
+	if err != nil || watch {
+		return false
+	}
+	mode, found, err := unstructured.NestedString(configuration, "provider", "kubernetes", "deploy", "type")
+	return err == nil && found && mode == "GatewayNamespace"
 }
 
 func gatewayChart(worker []byte) ([]byte, error) {
