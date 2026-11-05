@@ -1,5 +1,6 @@
 import { createClient } from "@connectrpc/connect";
 import { useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
+import type { DefaultServiceConfig } from "@gen/loco/config/v1/config_pb";
 import { useQueryClient } from "@tanstack/react-query";
 import { BoxIcon, CircleAlertIcon } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -219,7 +220,7 @@ function DraftDrawerBody({
 	const inProgress = submitting || draft.resourceId !== undefined;
 	const now = useNow(inProgress && done === null ? 1000 : undefined);
 
-	const startDeployment = async (resourceId: string) => {
+	const startDeployment = async (resourceId: string, defaults: DefaultServiceConfig) => {
 		const autoscale = draft.min !== draft.max;
 		const env_vars: Record<string, string> = {};
 		for (const v of draft.vars) if (v.key.trim() !== "") env_vars[v.key.trim()] = v.value;
@@ -244,7 +245,7 @@ function DraftDrawerBody({
 							intervalSeconds: Number(draft.hcInterval),
 							timeoutSeconds: Number(draft.hcTimeout),
 							failureThreshold: Number(draft.hcFail),
-							initialDelaySeconds: 0,
+							initialDelaySeconds: defaults.healthCheck?.initialDelaySeconds ?? 0,
 						},
 					},
 				},
@@ -254,6 +255,7 @@ function DraftDrawerBody({
 	};
 
 	const deploy = async () => {
+		if (config === undefined) return;
 		if (blocker !== null) {
 			setTried(true);
 			if (errors.health !== null) setHealthOpen(true);
@@ -280,8 +282,12 @@ function DraftDrawerBody({
 						spec: {
 							case: "service",
 							value: {
-								routing: { port: Number(draft.port), pathPrefix: "/", idleTimeout: config?.routing?.idleTimeout ?? 60 },
-								...(config?.observability !== undefined ? { observability: config.observability } : {}),
+								routing: {
+									port: Number(draft.port),
+									pathPrefix: config.routing?.pathPrefix ?? "",
+									idleTimeout: config.routing?.idleTimeout ?? 0,
+								},
+								...(config.observability !== undefined ? { observability: config.observability } : {}),
 								regions: {
 									[region]: {
 										enabled: true,
@@ -297,7 +303,7 @@ function DraftDrawerBody({
 									intervalSeconds: Number(draft.hcInterval),
 									timeoutSeconds: Number(draft.hcTimeout),
 									failureThreshold: Number(draft.hcFail),
-									initialDelaySeconds: 0,
+									initialDelaySeconds: config.healthCheck?.initialDelaySeconds ?? 0,
 								},
 							},
 						},
@@ -306,7 +312,7 @@ function DraftDrawerBody({
 				resourceId = res.resourceId;
 				update({ resourceId });
 			}
-			await startDeployment(resourceId);
+			await startDeployment(resourceId, config);
 		} catch (err) {
 			const message = getErrorMessage(err, "Deployment failed");
 			setError(message);
@@ -440,11 +446,11 @@ function DraftDrawerBody({
 										className="flex-1"
 										onClick={() => {
 											const id = draft.resourceId;
-											if (id === undefined) return;
+											if (id === undefined || config === undefined) return;
 											setError(null);
 											setSubmitting(true);
 											update({ deploymentId: undefined, deployedAt: Date.now() });
-											startDeployment(id)
+											startDeployment(id, config)
 												.catch((err: unknown) => {
 													setError(getErrorMessage(err, "Deployment failed"));
 												})

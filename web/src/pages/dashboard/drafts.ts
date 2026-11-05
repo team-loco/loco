@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import type { DefaultServiceConfig } from "@gen/loco/config/v1/config_pb";
 import type { PlatformDomain } from "@gen/loco/domain/v1/domain_pb";
 
 import { readStorage, writeStorage } from "@/lib/storage";
@@ -7,18 +8,22 @@ export const CPU_STOPS = ["100m", "250m", "500m", "1", "2"];
 export const MEMORY_STOPS = ["128Mi", "256Mi", "512Mi", "1Gi", "2Gi", "4Gi"];
 export const MAX_REPLICAS = 3;
 
-export const DRAFT_DEFAULTS = {
-	cpu: "250m",
-	memory: "256Mi",
-	min: 1,
-	max: 1,
-	port: "8000",
-	cpuTarget: "70",
-	hcPath: "/health",
-	hcInterval: "30",
-	hcTimeout: "5",
-	hcFail: "3",
-};
+export const CPU_TARGET_DEFAULT = "70";
+
+export function draftSizing(defaults: DefaultServiceConfig) {
+	return {
+		port: String(defaults.routing?.port ?? 0),
+		cpu: defaults.cpu,
+		memory: defaults.memory,
+		min: defaults.minReplicas,
+		max: defaults.maxReplicas,
+		cpuTarget: CPU_TARGET_DEFAULT,
+		hcPath: defaults.healthCheck?.path ?? "",
+		hcInterval: String(defaults.healthCheck?.intervalSeconds ?? 0),
+		hcTimeout: String(defaults.healthCheck?.timeoutSeconds ?? 0),
+		hcFail: String(defaults.healthCheck?.failureThreshold ?? 0),
+	};
+}
 
 export function servedDomain(domains: PlatformDomain[], region: string): string {
 	return domains.find((d) => d.regions.includes(region))?.domain ?? "";
