@@ -122,7 +122,9 @@ locoadm recovery export --file installation.yaml --output ./recovery-export \
   --recipient AGE_MATERIAL_RECIPIENT \
   --share-recipient AGE_FIRST_CUSTODIAN \
   --share-recipient AGE_SECOND_CUSTODIAN \
-  --share-recipient AGE_THIRD_CUSTODIAN
+  --share-recipient AGE_THIRD_CUSTODIAN \
+  --share-recipient AGE_FOURTH_CUSTODIAN \
+  --share-recipient AGE_FIFTH_CUSTODIAN
 ```
 
 Supply one distinct age X25519 public recipient per recovery share, in share order, and a separate recipient for the seal material and generate-root token. Match the share count in the pinned control-plane chart. Keep private age identities with their custodians. `material.age` contains the seal key and generate-root token; `share-1.age`, `share-2.age` and subsequent files each contain one recovery share. No recipient receives multiple payloads. The directory uses mode `0700` and files use `0600`; an existing output directory is rejected. Retry a failed export with a new directory.
