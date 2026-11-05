@@ -26,7 +26,7 @@ const (
 
 func restoreRecovery(ctx context.Context, material exportedMaterial, shares []string) error {
 	var source, restored baoClient
-	var forwards []*exec.Cmd
+	var forward *exec.Cmd
 	var restoredInitialized bool
 	// Source roots are revoked independently of acceptance cancellation, before fixture deletion.
 	err := execute(ctx, func(ctx context.Context) error {
@@ -93,17 +93,10 @@ func restoreRecovery(ctx context.Context, material exportedMaterial, shares []st
 					TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12},
 				},
 			},
-			token: material.GenerateRootToken,
+			endpoint: fmt.Sprintf("https://%s.%s.svc:%d", sourceBao, controlNamespace, port),
+			token:    material.GenerateRootToken,
 		}
 		defer source.client.CloseIdleConnections()
-		forward, endpoint, err := forwardBao(ctx, controlNamespace, sourceBao+"-0", port, source.client, true)
-		if forward != nil {
-			forwards = append(forwards, forward)
-		}
-		if err != nil {
-			return err
-		}
-		source.endpoint = endpoint
 		source.token, err = source.recoverRoot(ctx, shares)
 		if err != nil {
 			return err
@@ -121,14 +114,10 @@ func restoreRecovery(ctx context.Context, material exportedMaterial, shares []st
 			token:  source.token,
 		}
 		defer restored.client.CloseIdleConnections()
-		forward, endpoint, err = forwardBao(ctx, recoveryNamespace, recoveryPod, 8200, restored.client, false)
-		if forward != nil {
-			forwards = append(forwards, forward)
-		}
+		forward, restored.endpoint, err = forwardRestoredBao(ctx, restored.client)
 		if err != nil {
 			return err
 		}
-		restored.endpoint = endpoint
 		return recoveryProof(ctx, source, restored, func(ctx context.Context) error {
 			snapshot, err := source.request(ctx, http.MethodGet, "sys/storage/raft/snapshot", nil)
 			if err != nil {
@@ -177,7 +166,7 @@ func restoreRecovery(ctx context.Context, material exportedMaterial, shares []st
 			_, err := restored.request(ctx, http.MethodPost, "auth/token/revoke-self", nil)
 			cleanup = append(cleanup, err)
 		}
-		for _, forward := range forwards {
+		if forward != nil {
 			cleanup = append(cleanup, stopProcess(forward))
 		}
 		_, err := kubectl(ctx, "delete", "namespace", recoveryNamespace, "--ignore-not-found", "--wait=true")
@@ -253,13 +242,7 @@ func provisionRecovery(ctx context.Context, image, keyID, seal string) error {
 	return err
 }
 
-func forwardBao(
-	ctx context.Context,
-	namespace, pod string,
-	port int,
-	client *http.Client,
-	secure bool,
-) (*exec.Cmd, string, error) {
+func forwardRestoredBao(ctx context.Context, client *http.Client) (*exec.Cmd, string, error) {
 	listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, "", err
@@ -276,10 +259,10 @@ func forwardBao(
 		context.WithoutCancel(ctx),
 		"kubectl",
 		"-n",
-		namespace,
+		recoveryNamespace,
 		"port-forward",
-		"pod/"+pod,
-		local+":"+strconv.Itoa(port),
+		"pod/"+recoveryPod,
+		local+":8200",
 		"--address=127.0.0.1",
 	)
 	forward.Stdout = io.Discard
@@ -287,11 +270,7 @@ func forwardBao(
 	if err = forward.Start(); err != nil {
 		return nil, "", err
 	}
-	scheme := "http"
-	if secure {
-		scheme = "https"
-	}
-	endpoint := scheme + "://" + address
+	endpoint := "http://" + address
 	probe := baoClient{client: client, endpoint: endpoint}
 	// Seal status is available before initialization; authenticated readiness follows init/restore.
 	deadline, cancel := context.WithTimeout(ctx, recoveryReadyTimeout)
