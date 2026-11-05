@@ -3,11 +3,13 @@
 `installation.yaml` describes a Loco installation on existing Kubernetes infrastructure. It keeps operator intent separate from application `loco.yaml` files.
 
 !!! warning "Unreleased"
-    The development CLI provides validation, a read-only plan, installation apply and status. These commands target existing Kubernetes clusters. A running installation still requires a source deployment and HTTPS check before serving users.
+    The development CLI provides validation, a read-only plan, installation apply, administrator bootstrap and status. These commands target existing Kubernetes clusters. A running installation still requires a source deployment and HTTPS check before serving users.
 
 ```sh
 locoadm validate --file installation.yaml
 locoadm plan --file installation.yaml
+locoadm apply --file installation.yaml
+locoadm bootstrap --file installation.yaml --email admin@example.com
 locoadm apply --file installation.yaml
 locoadm status --file installation.yaml
 ```
@@ -90,7 +92,9 @@ Use separate registry identities: the API identity reads and deletes build image
 
 The initial installer requires a cluster-admin context for every target and checks that permission with a non-persistent SelfSubjectAccessReview; it creates no operator grant. Apply renders the pinned charts without Secrets before changing any target. It validates destinations, preserves owned credentials, establishes a destination lock, applies pinned CRDs and waits for them, and installs prerequisite controllers before installing the control plane. Compatible existing prerequisite controllers are reused only after their current replicas are available; cert-manager controller, webhook and cainjector are all gated. The Gateway controller comes from the pinned worker chart and uses its `GatewayNamespace` deployment configuration. Reused controllers must have that mode, the pinned controller identity and the default all-namespace watch scope in their mounted configuration so they handle Loco's Gateways and keep proxies inside the namespace application ingress policies allow. Apply rejects incompatible configuration rather than changing an existing controller. Cert-manager comes from its pinned release artifact. If the configured certificate issuer does not exist or is not Ready, apply stops with an issuer-required checkpoint. Create that issuer and run apply again. API, dashboard and ingest URLs must use the same HTTP or HTTPS scheme.
 
-The control plane installs before API authentication is required. Apply reports the first-administrator checkpoint when bootstrap remains open. Complete the installation's authenticated bootstrap flow, then run apply again with the stored system-admin session to attach workers. Worker namespaces created by apply carry the restricted Pod Security policy. Existing worker namespaces must already match that policy; apply does not patch unrelated namespaces. Each worker registration request is persisted before its API call; a retry recovers the same registration. The agent creates and retains its private key through its existing Kubernetes identity store.
+The control plane installs before API authentication is required. Apply reports the first-administrator checkpoint when bootstrap remains open. Run `locoadm bootstrap --file installation.yaml --email admin@example.com` and sign in through the configured identity provider. The command reads the temporary bootstrap credential from Kubernetes, verifies the expected email through authorization code with PKCE, and stores the normal CLI session and installation URLs locally. It then removes the bootstrap reference from the API deployment, waits for its rollout, and deletes the temporary credential. `--no-browser` prints the sign-in URL; `--timeout` bounds the operation and defaults to 15 minutes. A fresh operator machine can repeat bootstrap by signing in as an existing system administrator to resume cleanup; it cannot create another administrator after bootstrap closes.
+
+Run apply again with the stored system-admin session to attach workers. Worker namespaces created by apply carry the restricted Pod Security policy. Existing worker namespaces must already match that policy; apply does not patch unrelated namespaces. Each worker registration request is persisted before its API call; a retry recovers the same registration. The agent creates and retains its private key through its existing Kubernetes identity store.
 
 Generated seal material, the temporary bootstrap credential and ClickHouse user and operator credentials go directly to destination Secrets. The operator's Secret name and username come from the pinned chart. Helm receives references only. Reapply preserves owned secrets and rejects malformed or missing material after credential establishment. It does not rotate keys or credentials. Changing external input credential values requires a separate rotation procedure; apply does not silently replace the API's existing copy.
 

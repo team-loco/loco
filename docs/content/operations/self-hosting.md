@@ -88,7 +88,7 @@ Your team supplies DNS records, certificate issuance, persistent storage, backup
 
 Operator commands in `locoadm` require the `system:admin` grant. `BootstrapService.Bootstrap` requires both the installation's bootstrap token and an identity-provider JWT in the Authorization header. The API verifies the issuer, signature, audience, expiry and verified email before resolving or creating the first administrator, including when ordinary signup is closed. It returns a normal CLI session.
 
-Bootstrap creates the user, grants system administration and closes bootstrap in one transaction. Concurrent attempts produce one administrator. A restart, a lost response or removal of an administrator never reopens bootstrap. Remove the temporary bootstrap reference from every API replica before deleting its Secret. The declarative operator workflow is tracked by the unreleased [installation file](../reference/installation.md) contract.
+Bootstrap creates the user, grants system administration and closes bootstrap in one transaction. Concurrent attempts produce one administrator. A restart, a lost response or removal of an administrator never reopens bootstrap. The unreleased [installation workflow](../reference/installation.md#apply-and-resume) uses `locoadm bootstrap --file installation.yaml --email admin@example.com` to sign in, save a CLI session, remove the temporary bootstrap reference from every API replica, and delete its Secret. Repeat the command as an existing system administrator to resume interrupted cleanup.
 
 ## Upgrades
 
