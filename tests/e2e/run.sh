@@ -31,7 +31,7 @@ RUN_HASH=$(cksum <<<"$RUN_ID" | awk '{print $1}')
 PORT_BASE=$((PORT_RANGE_START + RUN_HASH % PORT_BLOCKS * PORT_BLOCK_SIZE))
 API_PORT=$PORT_BASE
 API_REPLICA_PORT=$((PORT_BASE + 5))
-AUTH_PORT=$((PORT_BASE + 8))
+AUTH_PORT=$((PORT_BASE + 9))
 OTLP_GRPC_PORT=$((PORT_BASE + 6))
 OTLP_HTTP_PORT=$((PORT_BASE + 7))
 OBS_PROXY_PORT=$((PORT_BASE + 1))
@@ -386,7 +386,9 @@ check_ports() {
     log_step "Checking run ${RUN_ID}'s ports ${PORT_BASE}-$((PORT_BASE + PORT_BLOCK_SIZE - 1))..."
     require_free_port "$API_PORT" "API"
     require_free_port "$API_REPLICA_PORT" "API replica"
-    require_free_port "$AUTH_PORT" "identity provider"
+    if ! e2e_compose port dex 5556 >/dev/null 2>&1; then
+        require_free_port "$AUTH_PORT" "identity provider"
+    fi
     require_free_port "$OBS_PROXY_PORT" "observability proxy"
     require_free_port "$OTLP_GRPC_PORT" "OTLP/gRPC ingest"
     require_free_port "$OTLP_HTTP_PORT" "OTLP/HTTP ingest"
