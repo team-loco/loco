@@ -40,11 +40,11 @@ var installationCRDs = []struct{ key, file string }{
 }
 
 func (f *fixture) release(ctx context.Context) (map[string]any, string, error) {
-	if _, checkErr := command(ctx, f.root, nil, "mise", "run", "helm:deps"); checkErr != nil {
-		return nil, "", checkErr
-	}
 	if checkErr := f.configureRegistryAuth(); checkErr != nil {
 		return nil, "", fmt.Errorf("configure fixture image authentication: %w", checkErr)
+	}
+	if _, checkErr := command(ctx, f.root, nil, "mise", "run", "helm:deps"); checkErr != nil {
+		return nil, "", checkErr
 	}
 	images := map[string]string{}
 	for _, component := range []struct{ name, directory string }{{"api", "api"},
@@ -225,7 +225,11 @@ func (f *fixture) configureRegistryAuth() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(config, "config.json"), data, 0600)
+	path := filepath.Join(config, "config.json")
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		return err
+	}
+	return os.Setenv("HELM_REGISTRY_CONFIG", path)
 }
 
 func (f *fixture) manifestDigest(ctx context.Context, repository, reference string) (string, error) {

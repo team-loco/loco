@@ -20,6 +20,7 @@ import (
 
 func TestFixtureRegistryAuthIsPrivateAndIndependentOfHostKeychain(t *testing.T) {
 	t.Setenv("DOCKER_CONFIG", "unused-host-config")
+	t.Setenv("HELM_REGISTRY_CONFIG", "unused-host-config")
 	harness := fixture{
 		dir: t.TempDir(), registryURL: "http://127.0.0.1:5000", dockerPluginDirs: []string{"/fixture/plugins"},
 	}
@@ -27,6 +28,9 @@ func TestFixtureRegistryAuthIsPrivateAndIndependentOfHostKeychain(t *testing.T) 
 		t.Fatal(err)
 	}
 	path := filepath.Join(os.Getenv("DOCKER_CONFIG"), "config.json")
+	if os.Getenv("HELM_REGISTRY_CONFIG") != path {
+		t.Fatal("Helm uses host registry credentials")
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
