@@ -1,12 +1,14 @@
 ---
 version: alpha
 name: Loco
-description: A compact operations dashboard for developers deploying services.
+description: A container orchestration platform that simplifies application deployment on Kubernetes.
 ---
 
 ## Overview
 
-Loco is a developer's operations console: find the affected service, understand its current state, then inspect or change it. Preserve its compact tables, warm neutral surfaces, quiet borders and restrained blue actions. Names, status and telemetry carry the hierarchy; decorative panels and large promotional headings do not.
+Loco is a container orchestration platform that simplifies application deployment on Kubernetes. Its goal is to be an open-source competitor to Vercel and Railway.
+
+This guide covers Loco's dashboard for deploying and managing applications. Preserve its compact tables, warm neutral surfaces, quiet borders and restrained blue actions. Names, status and telemetry carry the hierarchy; decorative panels and large promotional headings do not.
 
 The reference screens are the [workspace dashboard](web/src/pages/Dashboard.tsx), [resource overview](web/src/pages/Resource.tsx), [workspace settings](web/src/pages/settings/WorkspaceTab.tsx) and [Traces](web/src/pages/observability/TracesView.tsx). The English UI uses system fonts. Additional locales or market-specific formats need their own evidence; these screens do not establish them.
 
