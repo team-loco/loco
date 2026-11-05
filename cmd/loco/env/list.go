@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 )
 
@@ -39,7 +38,6 @@ Examples:
 
 			resp, err := t.secrets.ListSecrets(ctx, req)
 			if err != nil {
-				cmdutil.LogRequestID(ctx, err, "list secrets failed")
 				return fmt.Errorf("list secrets: %w", err)
 			}
 			secrets := resp.GetSecrets()

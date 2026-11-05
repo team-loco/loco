@@ -17,7 +17,6 @@ import (
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
-	"github.com/team-loco/loco/internal/client"
 	"github.com/team-loco/loco/internal/session"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -35,7 +34,7 @@ var (
 
 type statusDeps struct {
 	LoadSessionConfig func() (*session.SessionConfig, error)
-	NewAPIClient      func(host, token string) *client.Client
+	NewAPIClient      func(host, token string) *rpc.Clients
 	NewResourceClient func(host, token string) resourcev1connect.ResourceServiceClient
 	Stdout            io.Writer
 }
@@ -43,7 +42,7 @@ type statusDeps struct {
 func buildStatusCmd() *cobra.Command {
 	deps := statusDeps{
 		LoadSessionConfig: session.Load,
-		NewAPIClient:      client.NewClient,
+		NewAPIClient:      rpc.ForHost,
 		NewResourceClient: func(host, token string) resourcev1connect.ResourceServiceClient {
 			resourceClients := rpc.ForHost(host, token)
 			return resourceClients.Resource
@@ -85,7 +84,7 @@ Examples:
 
 			// Resolve workspace ID
 			apiClient := deps.NewAPIClient(host, locoToken.Token)
-			workspaceID, err := cmdutil.ResolveWorkspaceID(ctx, cmd, deps.LoadSessionConfig, apiClient)
+			workspaceID, err := cmdutil.ResolveWorkspaceID(ctx, cmd, deps.LoadSessionConfig, apiClient.Workspace)
 			if err != nil {
 				return err
 			}

@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/internal/client"
+	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
 	"github.com/team-loco/loco/internal/session"
 )
 
@@ -88,11 +88,10 @@ func ResolveWorkspaceID(
 	ctx context.Context,
 	cmd *cobra.Command,
 	loadConfig func() (*session.SessionConfig, error),
-	apiClient *client.Client,
+	workspaceClient workspacev1connect.WorkspaceServiceClient,
 ) (string, error) {
 	cfg, err := loadConfig()
 	if err != nil {
-		slog.Debug("failed to load config", "error", err)
 		return "", fmt.Errorf("failed to load config: %w", err)
 	}
 
@@ -111,13 +110,8 @@ func ResolveWorkspaceID(
 		return scope.Workspace.ID, nil
 	}
 
-	if apiClient == nil {
-		return "", ErrLoginRequired
-	}
-
-	workspaces, err := ListUserWorkspaces(ctx, apiClient.Workspace)
+	workspaces, err := ListUserWorkspaces(ctx, workspaceClient)
 	if err != nil {
-		slog.Debug("failed to get workspaces", "error", err)
 		return "", fmt.Errorf("failed to get workspaces: %w", err)
 	}
 

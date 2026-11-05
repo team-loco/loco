@@ -70,7 +70,6 @@ func FreshToken(ctx context.Context, host string, store keychain.TokenStore) (*k
 	slog.Debug("attempting silent token refresh")
 	refreshed, err := refreshLocoToken(ctx, host, locoToken.RefreshToken, store)
 	if err != nil {
-		LogRequestID(ctx, err, "token refresh failed")
 		return nil, fmt.Errorf("token expired and refresh failed. Please re-login via `loco login`: %w", err)
 	}
 	return refreshed, nil

@@ -15,7 +15,7 @@ import (
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
-	"github.com/team-loco/loco/internal/client"
+	"github.com/team-loco/loco/internal/rpc"
 	"github.com/team-loco/loco/internal/session"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -28,7 +28,7 @@ const (
 
 type logsDeps struct {
 	LoadSessionConfig func() (*session.SessionConfig, error)
-	NewAPIClient      func(host, token string) *client.Client
+	NewAPIClient      func(host, token string) *rpc.Clients
 	Clients           platformClients
 	Stdout            io.Writer
 }
@@ -37,7 +37,7 @@ func buildLogsCmd() *cobra.Command {
 	clients := defaultPlatformClients()
 	deps := logsDeps{
 		LoadSessionConfig: session.Load,
-		NewAPIClient:      client.NewClient,
+		NewAPIClient:      rpc.ForHost,
 		Clients:           clients,
 		Stdout:            os.Stdout,
 	}
@@ -172,7 +172,7 @@ func runResourceLogs(cmd *cobra.Command, deps logsDeps, name string) error {
 	defer stop()
 
 	apiClient := deps.NewAPIClient(host, locoToken.Token)
-	workspaceID, err := cmdutil.ResolveWorkspaceID(ctx, cmd, deps.LoadSessionConfig, apiClient)
+	workspaceID, err := cmdutil.ResolveWorkspaceID(ctx, cmd, deps.LoadSessionConfig, apiClient.Workspace)
 	if err != nil {
 		return err
 	}

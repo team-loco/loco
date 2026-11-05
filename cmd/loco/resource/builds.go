@@ -15,7 +15,7 @@ import (
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
-	"github.com/team-loco/loco/internal/client"
+	"github.com/team-loco/loco/internal/rpc"
 	"github.com/team-loco/loco/internal/session"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -29,7 +29,7 @@ const (
 
 type buildsDeps struct {
 	LoadSessionConfig func() (*session.SessionConfig, error)
-	NewAPIClient      func(host, token string) *client.Client
+	NewAPIClient      func(host, token string) *rpc.Clients
 	Clients           platformClients
 	Stdout            io.Writer
 }
@@ -46,7 +46,7 @@ func BuildBuildsCmd() *cobra.Command {
 	clients := defaultPlatformClients()
 	deps := buildsDeps{
 		LoadSessionConfig: session.Load,
-		NewAPIClient:      client.NewClient,
+		NewAPIClient:      rpc.ForHost,
 		Clients:           clients,
 		Stdout:            os.Stdout,
 	}
@@ -174,7 +174,7 @@ func runBuildsList(cmd *cobra.Command, deps buildsDeps, name string) error {
 	defer s.cancel()
 
 	apiClient := deps.NewAPIClient(s.host, s.token)
-	workspaceID, err := cmdutil.ResolveWorkspaceID(s.ctx, cmd, deps.LoadSessionConfig, apiClient)
+	workspaceID, err := cmdutil.ResolveWorkspaceID(s.ctx, cmd, deps.LoadSessionConfig, apiClient.Workspace)
 	if err != nil {
 		return err
 	}

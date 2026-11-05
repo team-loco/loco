@@ -8,7 +8,7 @@ import (
 	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
-	"github.com/team-loco/loco/internal/client"
+	"github.com/team-loco/loco/internal/rpc"
 	"github.com/team-loco/loco/internal/session"
 )
 
@@ -40,8 +40,7 @@ func newWhoAmICmd(env Env) *cobra.Command {
 				return err
 			}
 
-			apiClient := client.NewClient(host, t.Token)
-			usr, err := apiClient.GetCurrentUser(ctx)
+			resp, err := rpc.ForHost(host, t.Token).User.WhoAmI(ctx, &userv1.WhoAmIRequest{})
 			if err != nil {
 				return fmt.Errorf("failed to get user info: %w", err)
 			}
@@ -52,7 +51,7 @@ func newWhoAmICmd(env Env) *cobra.Command {
 				currentWorkspace = scope.Workspace.Name
 			}
 
-			card := renderCardString(usr, currentOrg, currentWorkspace)
+			card := renderCardString(resp.GetUser(), currentOrg, currentWorkspace)
 			out := cmd.OutOrStdout()
 			_, err = lipgloss.Fprintln(out, card)
 			return err

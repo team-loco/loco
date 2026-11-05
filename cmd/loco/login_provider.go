@@ -16,7 +16,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"connectrpc.com/connect/v2"
-	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 	"github.com/team-loco/loco/internal/bearer"
@@ -150,7 +149,6 @@ func browserLogin(
 		CodeVerifier: verifier,
 	})
 	if err != nil {
-		cmdutil.LogRequestID(ctx, err, "failed to exchange cli code")
 		return nil, err
 	}
 	return resp.GetTokens(), nil
@@ -205,7 +203,6 @@ func deviceLogin(
 ) (*authv1.CLITokens, error) {
 	started, err := authClient.StartDeviceLogin(ctx, &authv1.StartDeviceLoginRequest{})
 	if err != nil {
-		cmdutil.LogRequestID(ctx, err, "failed to start device login")
 		return nil, err
 	}
 	msg := started

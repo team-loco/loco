@@ -14,13 +14,12 @@ import (
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 	"github.com/team-loco/loco/gen/go/loco/secret/v1/secretv1connect"
-	"github.com/team-loco/loco/internal/client"
 	"github.com/team-loco/loco/internal/session"
 )
 
 type deps struct {
 	LoadSessionConfig func() (*session.SessionConfig, error)
-	NewAPIClient      func(host, token string) *client.Client
+	NewAPIClient      func(host, token string) *rpc.Clients
 	Environments      func(host, token string) environmentv1connect.EnvironmentServiceClient
 	Secrets           func(host, token string) secretv1connect.SecretServiceClient
 	Stdin             io.Reader
@@ -42,7 +41,7 @@ type target struct {
 func BuildEnvCmd() *cobra.Command {
 	d := deps{
 		LoadSessionConfig: session.Load,
-		NewAPIClient:      client.NewClient,
+		NewAPIClient:      rpc.ForHost,
 		Environments: func(host, token string) environmentv1connect.EnvironmentServiceClient {
 			environmentClients := rpc.ForHost(host, token)
 			return environmentClients.Environment
@@ -100,7 +99,7 @@ func resolveTarget(ctx context.Context, cmd *cobra.Command, d deps) (target, err
 	}
 
 	apiClient := d.NewAPIClient(host, locoToken.Token)
-	workspaceID, err := cmdutil.ResolveWorkspaceID(ctx, cmd, d.LoadSessionConfig, apiClient)
+	workspaceID, err := cmdutil.ResolveWorkspaceID(ctx, cmd, d.LoadSessionConfig, apiClient.Workspace)
 	if err != nil {
 		return target{}, err
 	}
@@ -130,7 +129,7 @@ func resolveTarget(ctx context.Context, cmd *cobra.Command, d deps) (target, err
 
 func resolveService(
 	ctx context.Context,
-	apiClient *client.Client,
+	apiClient *rpc.Clients,
 	workspaceID string,
 	name string,
 ) (string, error) {
@@ -141,7 +140,6 @@ func resolveService(
 
 	resp, err := apiClient.Resource.GetResource(ctx, req)
 	if err != nil {
-		cmdutil.LogRequestID(ctx, err, "get service failed")
 		return "", fmt.Errorf("service %q not found: %w", name, err)
 	}
 	return resp.GetResource().GetId(), nil
@@ -160,7 +158,6 @@ func setSecrets(ctx context.Context, cmd *cobra.Command, d deps, values map[stri
 
 	resp, err := t.secrets.SetSecrets(ctx, req)
 	if err != nil {
-		cmdutil.LogRequestID(ctx, err, "set secrets failed")
 		return fmt.Errorf("set secrets: %w", err)
 	}
 	versions := resp.GetVersions()

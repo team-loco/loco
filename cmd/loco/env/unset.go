@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 )
 
@@ -33,7 +32,6 @@ Examples:
 
 			resp, err := t.secrets.DeleteSecrets(ctx, req)
 			if err != nil {
-				cmdutil.LogRequestID(ctx, err, "delete secrets failed")
 				return fmt.Errorf("unset secrets: %w", err)
 			}
 			names := strings.Join(args, ", ")

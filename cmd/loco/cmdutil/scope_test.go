@@ -12,7 +12,6 @@ import (
 	"github.com/spf13/cobra"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
-	"github.com/team-loco/loco/internal/client"
 	"github.com/team-loco/loco/internal/rpc"
 	"github.com/team-loco/loco/internal/session"
 )
@@ -34,12 +33,20 @@ func TestResolveWorkspaceIDIgnoresCachedWorkspaceOfAnotherOrg(t *testing.T) {
 		t.Fatalf("set org flag: %v", err)
 	}
 
-	id, err := ResolveWorkspaceID(context.Background(), cmd, loadConfig, nil)
+	server := connect.NewServer()
+	workspacev1connect.RegisterWorkspaceServiceHandler(server, pagedWorkspaces{})
+	mux := http.NewServeMux()
+	connecthttp.Mount(mux, server)
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	workspaceClient := rpc.NewHTTPClients(srv.Client(), srv.URL, "").Workspace
+	id, err := ResolveWorkspaceID(context.Background(), cmd, loadConfig, workspaceClient)
 	if id == "org-a-default-id" {
 		t.Fatalf("resolved org-b's default workspace to org-a's cached workspace ID")
 	}
 	if err == nil {
-		t.Fatalf("expected an error resolving org-b without an API client, got id %q", id)
+		t.Fatalf("expected an error resolving org-b, which has no workspaces, got id %q", id)
 	}
 }
 
@@ -90,13 +97,13 @@ func TestResolveWorkspaceIDFindsWorkspaceOnLaterPage(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 
-	apiClient := &client.Client{Workspace: rpc.NewHTTPClients(srv.Client(), srv.URL, "").Workspace}
+	workspaceClient := rpc.NewHTTPClients(srv.Client(), srv.URL, "").Workspace
 	loadConfig := func() (*session.SessionConfig, error) { return session.NewSessionConfig(), nil }
 	cmd := &cobra.Command{}
 	cmd.Flags().String("org", "acme", "")
 	cmd.Flags().String("workspace", "second", "")
 
-	id, err := ResolveWorkspaceID(context.Background(), cmd, loadConfig, apiClient)
+	id, err := ResolveWorkspaceID(context.Background(), cmd, loadConfig, workspaceClient)
 	if err != nil {
 		t.Fatalf("ResolveWorkspaceID: %v", err)
 	}

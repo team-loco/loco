@@ -12,7 +12,6 @@ import (
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/gen/go/loco/plan/v1/planv1connect"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
-	"github.com/team-loco/loco/internal/client"
 	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/internal/session"
 )
@@ -45,8 +44,8 @@ func resolveWorkspaceTarget(ctx context.Context, cmd *cobra.Command) (target, er
 	if err != nil {
 		return target{}, err
 	}
-	apiClient := client.NewClient(host, locoToken.Token)
-	workspaceID, err := cmdutil.ResolveWorkspaceID(ctx, cmd, session.Load, apiClient)
+	apiClient := rpc.ForHost(host, locoToken.Token)
+	workspaceID, err := cmdutil.ResolveWorkspaceID(ctx, cmd, session.Load, apiClient.Workspace)
 	if err != nil {
 		return target{}, err
 	}

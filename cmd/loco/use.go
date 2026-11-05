@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	"github.com/team-loco/loco/internal/client"
+	"github.com/team-loco/loco/internal/rpc"
 	"github.com/team-loco/loco/internal/session"
 )
 
@@ -50,9 +50,7 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	apiClient := client.NewClient(host, t.Token)
-
-	workspaces, err := cmdutil.ListUserWorkspaces(ctx, apiClient.Workspace)
+	workspaces, err := cmdutil.ListUserWorkspaces(ctx, rpc.ForHost(host, t.Token).Workspace)
 	if err != nil {
 		return fmt.Errorf("failed to get workspaces: %w", err)
 	}

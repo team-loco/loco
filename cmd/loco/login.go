@@ -69,7 +69,6 @@ func newLoginCmd(env Env) *cobra.Command {
 			configClient := configClients.Config
 			config, err := configClient.GetConfig(cmd.Context(), &configv1.GetConfigRequest{})
 			if err != nil {
-				cmdutil.LogRequestID(cmd.Context(), err, "failed to read server config")
 				return fmt.Errorf("login to %s failed: %w", host, err)
 			}
 			if config.GetAuth() == nil {

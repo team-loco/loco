@@ -16,7 +16,6 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/environment/v1/environmentv1connect"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
-	"github.com/team-loco/loco/internal/client"
 	"github.com/team-loco/loco/internal/session"
 )
 
@@ -27,7 +26,7 @@ var (
 
 type scaleDeps struct {
 	LoadSessionConfig func() (*session.SessionConfig, error)
-	NewAPIClient      func(host, token string) *client.Client
+	NewAPIClient      func(host, token string) *rpc.Clients
 	NewResourceClient func(host, token string) resourcev1connect.ResourceServiceClient
 	Environments      func(host, token string) environmentv1connect.EnvironmentServiceClient
 	Stdout            io.Writer
@@ -36,7 +35,7 @@ type scaleDeps struct {
 func buildScaleCmd() *cobra.Command {
 	deps := scaleDeps{
 		LoadSessionConfig: session.Load,
-		NewAPIClient:      client.NewClient,
+		NewAPIClient:      rpc.ForHost,
 		NewResourceClient: func(host, token string) resourcev1connect.ResourceServiceClient {
 			resourceClients := rpc.ForHost(host, token)
 			return resourceClients.Resource
@@ -105,7 +104,7 @@ Examples:
 
 			// Resolve workspace ID
 			apiClient := deps.NewAPIClient(host, locoToken.Token)
-			workspaceID, err := cmdutil.ResolveWorkspaceID(ctx, cmd, deps.LoadSessionConfig, apiClient)
+			workspaceID, err := cmdutil.ResolveWorkspaceID(ctx, cmd, deps.LoadSessionConfig, apiClient.Workspace)
 			if err != nil {
 				return err
 			}
@@ -162,7 +161,6 @@ Examples:
 
 			_, err = resourceClient.ScaleResource(ctx, scaleReq)
 			if err != nil {
-				slog.Error("failed to scale service", "error", err)
 				return fmt.Errorf("failed to scale service '%s': %w", name, err)
 			}
 

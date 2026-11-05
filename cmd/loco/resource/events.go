@@ -18,7 +18,6 @@ import (
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
-	"github.com/team-loco/loco/internal/client"
 	"github.com/team-loco/loco/internal/session"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -29,7 +28,7 @@ var eventsTableMargin = lipgloss.NewStyle().Margin(1, 2)
 
 type eventsDeps struct {
 	LoadSessionConfig func() (*session.SessionConfig, error)
-	NewAPIClient      func(host, token string) *client.Client
+	NewAPIClient      func(host, token string) *rpc.Clients
 	NewResourceClient func(host, token string) resourcev1connect.ResourceServiceClient
 	Stdout            io.Writer
 }
@@ -37,7 +36,7 @@ type eventsDeps struct {
 func buildEventsCmd() *cobra.Command {
 	deps := eventsDeps{
 		LoadSessionConfig: session.Load,
-		NewAPIClient:      client.NewClient,
+		NewAPIClient:      rpc.ForHost,
 		NewResourceClient: func(host, token string) resourcev1connect.ResourceServiceClient {
 			resourceClients := rpc.ForHost(host, token)
 			return resourceClients.Resource
@@ -85,7 +84,7 @@ Examples:
 
 			// Resolve workspace ID
 			apiClient := deps.NewAPIClient(host, locoToken.Token)
-			workspaceID, err := cmdutil.ResolveWorkspaceID(ctx, cmd, deps.LoadSessionConfig, apiClient)
+			workspaceID, err := cmdutil.ResolveWorkspaceID(ctx, cmd, deps.LoadSessionConfig, apiClient.Workspace)
 			if err != nil {
 				return err
 			}
@@ -123,7 +122,6 @@ Examples:
 
 			resp, err := resourceClient.ListResourceEvents(ctx, eventsReq)
 			if err != nil {
-				slog.Error("failed to fetch events", "error", err)
 				return fmt.Errorf("failed to fetch events: %w", err)
 			}
 
