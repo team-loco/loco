@@ -21,7 +21,6 @@ service OrgService {
   // ListUserOrgs lists organizations for a user.
   rpc ListUserOrgs(ListUserOrgsRequest) returns (ListUserOrgsResponse);
   rpc ListOrgMembers(ListOrgMembersRequest) returns (ListOrgMembersResponse);
-  rpc AddOrgMember(AddOrgMemberRequest) returns (AddOrgMemberResponse);
   rpc RemoveOrgMember(RemoveOrgMemberRequest) returns (RemoveOrgMemberResponse);
 
   // SuspendOrg stops every workload of the organization and rejects deployments until ResumeOrg.
@@ -108,13 +107,6 @@ message OrgMember {
   User user = 1;
   repeated string scopes = 2;
 }
-
-message AddOrgMemberRequest {
-  string org_id = 1 [(buf.validate.field).string.uuid = true];
-  string user_id = 2 [(buf.validate.field).string.uuid = true];
-}
-
-message AddOrgMemberResponse {}
 
 message RemoveOrgMemberRequest {
   string org_id = 1 [(buf.validate.field).string.uuid = true];

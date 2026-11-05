@@ -3316,67 +3316,6 @@
         }
       }
     },
-    "/loco.org.v1.OrgService/AddOrgMember": {
-      "post": {
-        "tags": [
-          "loco.org.v1.OrgService"
-        ],
-        "summary": "AddOrgMember",
-        "operationId": "loco.org.v1.OrgService.AddOrgMember",
-        "parameters": [
-          {
-            "name": "Connect-Protocol-Version",
-            "in": "header",
-            "description": "Define the version of the Connect protocol",
-            "schema": {
-              "$ref": "#/components/schemas/connect-protocol-version"
-            },
-            "example": 1
-          },
-          {
-            "name": "Connect-Timeout-Ms",
-            "in": "header",
-            "description": "Define the timeout, in ms",
-            "schema": {
-              "$ref": "#/components/schemas/connect-timeout-header"
-            },
-            "example": 1000
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/loco.org.v1.AddOrgMemberRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/connect.error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/loco.org.v1.AddOrgMemberResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/loco.org.v1.OrgService/CreateOrg": {
       "post": {
         "tags": [
@@ -10962,28 +10901,6 @@
           }
         },
         "title": "TraceSpan",
-        "additionalProperties": false
-      },
-      "loco.org.v1.AddOrgMemberRequest": {
-        "type": "object",
-        "properties": {
-          "orgId": {
-            "type": "string",
-            "title": "org_id",
-            "format": "uuid"
-          },
-          "userId": {
-            "type": "string",
-            "title": "user_id",
-            "format": "uuid"
-          }
-        },
-        "title": "AddOrgMemberRequest",
-        "additionalProperties": false
-      },
-      "loco.org.v1.AddOrgMemberResponse": {
-        "type": "object",
-        "title": "AddOrgMemberResponse",
         "additionalProperties": false
       },
       "loco.org.v1.CreateOrgRequest": {

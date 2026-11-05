@@ -47,6 +47,7 @@ type membershipAPI struct {
 
 type membershipUser struct {
 	id      uuid.UUID
+	subject string
 	token   string
 	clients *rpc.Clients
 }
@@ -103,25 +104,35 @@ func newMembershipAPIWith(t *testing.T, invitations InvitationConfig) *membershi
 	}
 }
 
-func (a *membershipAPI) signUp(t *testing.T, subject string) membershipUser {
+func (a *membershipAPI) signIn(t *testing.T, subject string) (genDb.User, []auth.ClaimedOrg) {
 	t.Helper()
-	user, _, err := a.resolver.Resolve(t.Context(), auth.Identity{
-		Issuer: testIssuer, Subject: subject, Email: subject + "@acme.test", EmailVerified: true,
+	user, claimed, err := a.resolver.Resolve(t.Context(), auth.Identity{
+		Issuer: testIssuer, Subject: subject, Email: membershipEmail(subject), EmailVerified: true,
 	})
 	if err != nil {
-		t.Fatalf("sign up %s: %v", subject, err)
+		t.Fatalf("sign in %s: %v", subject, err)
 	}
+	return user, claimed
+}
+
+func membershipEmail(subject string) string {
+	return subject + "@acme.test"
+}
+
+func (a *membershipAPI) signUp(t *testing.T, subject string) membershipUser {
+	t.Helper()
+	user, _ := a.signIn(t, subject)
 	token, _, err := a.machine.IssueSession(t.Context(), user.ID, nil, "", "test")
 	if err != nil {
 		t.Fatalf("session for %s: %v", subject, err)
 	}
 	clients := rpc.NewHTTPClients(http.DefaultClient, a.url, token)
-	return membershipUser{id: user.ID, token: token, clients: clients}
+	return membershipUser{id: user.ID, subject: subject, token: token, clients: clients}
 }
 
 func newMembershipOrg(t *testing.T) *membershipOrg {
 	t.Helper()
-	return newMembershipOrgWith(t, InvitationConfig{})
+	return newInvitationOrg(t, &fakeTransport{})
 }
 
 func newMembershipOrgWith(t *testing.T, invitations InvitationConfig) *membershipOrg {
@@ -151,11 +162,9 @@ func (o *membershipOrg) createWorkspace(t *testing.T, name string) string {
 
 func (o *membershipOrg) addOrgMember(t *testing.T, user membershipUser) {
 	t.Helper()
-	_, err := o.owner.clients.Org.AddOrgMember(t.Context(), &orgv1.AddOrgMemberRequest{
-		OrgId: o.orgID, UserId: user.id.String(),
-	})
-	if err != nil {
-		t.Fatalf("add org member: %v", err)
+	o.invite(t, membershipEmail(user.subject))
+	if _, claimed := o.api.signIn(t, user.subject); len(claimed) != 1 || claimed[0].OrgID.String() != o.orgID {
+		t.Fatalf("%s accepted %+v, want the invitation to %s", user.subject, claimed, o.orgID)
 	}
 }
 
@@ -236,21 +245,15 @@ func TestOnlyOrgAdminsManageOrgMembers(t *testing.T) {
 	outsider := o.api.signUp(t, "outsider")
 	o.addOrgMember(t, member)
 
-	_, err := member.clients.Org.AddOrgMember(t.Context(), &orgv1.AddOrgMemberRequest{
-		OrgId: o.orgID, UserId: outsider.id.String(),
+	_, err := member.clients.Org.RemoveOrgMember(t.Context(), &orgv1.RemoveOrgMemberRequest{
+		OrgId: o.orgID, UserId: o.owner.id.String(),
 	})
 	if codeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("member added a member: %v", err)
+		t.Fatalf("member removed a member: %v", err)
 	}
 	_, err = outsider.clients.Org.ListOrgMembers(t.Context(), &orgv1.ListOrgMembersRequest{OrgId: o.orgID})
 	if codeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("outsider listed members: %v", err)
-	}
-	_, err = o.owner.clients.Org.AddOrgMember(t.Context(), &orgv1.AddOrgMemberRequest{
-		OrgId: o.orgID, UserId: uuid.NewString(),
-	})
-	if codeOf(err) != connect.CodeNotFound {
-		t.Fatalf("added an unknown user: %v", err)
 	}
 	_, err = o.owner.clients.Org.RemoveOrgMember(t.Context(), &orgv1.RemoveOrgMemberRequest{
 		OrgId: o.orgID, UserId: o.owner.id.String(),
