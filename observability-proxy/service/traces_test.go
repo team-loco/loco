@@ -2,11 +2,8 @@ package service
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"slices"
 	"testing"
 	"time"
@@ -15,21 +12,15 @@ import (
 	"connectrpc.com/connect/v2/connecthttp"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/google/uuid"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
-	"github.com/team-loco/loco/observability-proxy/migrations"
 	"github.com/team-loco/loco/observability-proxy/pkg/auth"
 	"github.com/team-loco/loco/observability-proxy/pkg/cache"
 	chClient "github.com/team-loco/loco/observability-proxy/pkg/clickhouse"
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
 )
-
-const traceHTTPQueryTimeout = 10
-
-var errTraceTestStorage = errors.New("storage unavailable")
 
 const traceTestReader = "workspace-reader"
 
@@ -57,8 +48,7 @@ func (p *tracePermissions) CheckPermission(
 
 func traceTestClient(
 	t *testing.T,
-	store Store,
-	queryTimeout ...int,
+	clickhouse *chClient.Client,
 ) observabilityv1connect.ObservabilityProxyServiceClient {
 	t.Helper()
 	controlPlane := connect.NewServer()
@@ -77,12 +67,8 @@ func traceTestClient(
 		}
 	})
 	validator := auth.NewValidator(controlHTTP.URL, memory)
-	timeout := traceHTTPQueryTimeout
-	if len(queryTimeout) > 0 {
-		timeout = queryTimeout[0]
-	}
-	cfg := &config.Config{DefaultLimit: 1, MaxLimit: 2, MaxTimeRange: time.Hour, QueryTimeout: timeout}
-	service := NewObservabilityService(store, cfg, validator)
+	cfg := &config.Config{DefaultLimit: 1, MaxLimit: 2, MaxTimeRange: time.Hour}
+	service := NewObservabilityService(clickhouse, cfg, validator)
 	server := connect.NewServer(auth.NewAuthInterceptor().Interceptor())
 	observabilityv1connect.RegisterObservabilityProxyServiceHandler(server, service)
 	mux := http.NewServeMux()
@@ -97,7 +83,6 @@ func TestQueryTracesHTTPAuthValidationAndErrors(t *testing.T) {
 	cases := []struct {
 		name, token, workspace, cursor string
 		missingTime                    bool
-		storeErr                       error
 		code                           connect.Code
 	}{
 		{name: "missing token", workspace: tailTestWorkspace, code: connect.CodeUnauthenticated},
@@ -121,21 +106,18 @@ func TestQueryTracesHTTPAuthValidationAndErrors(t *testing.T) {
 			token:     traceTestReader,
 			workspace: tailTestWorkspace,
 			cursor:    "invalid!",
-			storeErr:  chClient.ErrInvalidTraceCursor,
 			code:      connect.CodeInvalidArgument,
 		},
 		{
 			name:      "authorized storage failure",
 			token:     traceTestReader,
 			workspace: tailTestWorkspace,
-			storeErr:  errTraceTestStorage,
 			code:      connect.CodeInternal,
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			store := &fakeStore{err: tc.storeErr}
-			client := traceTestClient(t, store)
+			client := traceTestClient(t, unavailableClickHouse(t))
 			now := time.Now()
 			req := &observabilityv1.QueryTracesRequest{
 				WorkspaceId: tc.workspace,
@@ -154,9 +136,6 @@ func TestQueryTracesHTTPAuthValidationAndErrors(t *testing.T) {
 			if connect.CodeOf(err) != tc.code {
 				t.Fatalf("error = %v, want %v", err, tc.code)
 			}
-			if reached := store.calls > 0; reached != (tc.storeErr != nil) {
-				t.Errorf("store calls = %d with store error %v", store.calls, tc.storeErr)
-			}
 			if tc.code == connect.CodeInternal && err.Error() != "internal: query failed" {
 				t.Errorf("private diagnostic exposed: %v", err)
 			}
@@ -165,32 +144,7 @@ func TestQueryTracesHTTPAuthValidationAndErrors(t *testing.T) {
 }
 
 func TestQueryTracesHTTPReadsIsolatedSpans(t *testing.T) {
-	dsn := os.Getenv("LOCO_TEST_CLICKHOUSE_URL")
-	if dsn == "" {
-		t.Skip("LOCO_TEST_CLICKHOUSE_URL not set")
-	}
-	id := uuid.New()
-	database := "trace_http_" + fmt.Sprintf("%x", id)
-	cfg := migrations.Config{
-		DSN:        dsn,
-		Database:   database,
-		LogsTTL:    time.Hour,
-		TracesTTL:  time.Hour,
-		MetricsTTL: time.Hour,
-	}
-	if err := migrations.Up(t.Context(), cfg); err != nil {
-		t.Fatal(err)
-	}
-	ch, err := chClient.NewClient(dsn, database, 2)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if dropErr := ch.Conn().Exec(context.Background(), "DROP DATABASE "+database+" SYNC"); dropErr != nil {
-			t.Error(dropErr)
-		}
-		ch.Close()
-	})
+	ch := newTestClickHouse(t)
 	timestamp := time.Now().UTC().Add(-time.Minute)
 	const traceID = "0123456789abcdef0123456789abcdef"
 	const resourceID = "ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb"

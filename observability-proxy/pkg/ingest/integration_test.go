@@ -173,7 +173,7 @@ func (f *ingestFixture) writer(t *testing.T) *Writer {
 
 func (f *ingestFixture) ingestConn(t *testing.T) driver.Conn {
 	t.Helper()
-	client, err := chClient.NewClient(f.ingestDSN, f.database, testMaxConns)
+	client, err := chClient.NewClient(f.ingestDSN, f.database, testMaxConns, testQueryTimeout)
 	if err != nil {
 		t.Fatalf("open ingest connection: %v", err)
 	}
@@ -329,26 +329,31 @@ func TestOTLPIngestIsReadableThroughTheQueryPath(t *testing.T) {
 		t.Fatalf("export traces over grpc: %v", err)
 	}
 
-	reader := f.readerConn(t)
+	reader := f.reader(t)
 	start := now.Add(-testWindow)
 	end := now.Add(testWindow)
-	entries, _, err := chClient.QueryLogs(
-		t.Context(), reader, testWorkspaceID, []string{testResourceID}, start, end, "", nil, nil,
-		testQueryLimit, "", observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST, testQueryTimeout, chClient.LogScope{},
-	)
+	queried, err := reader.QueryLogs(t.Context(), chClient.LogQuery{
+		WorkspaceID: testWorkspaceID,
+		ResourceIDs: []string{testResourceID},
+		Start:       start,
+		End:         end,
+		Limit:       testQueryLimit,
+		Order:       observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST,
+	})
 	if err != nil {
 		t.Fatalf("QueryLogs: %v", err)
 	}
+	entries := queried.GetEntries()
 	if len(entries) != 1 || entries[0].GetBody() != testIngestedLogBody ||
 		entries[0].GetResourceId() != testResourceID {
 		t.Fatalf("QueryLogs = %v, want the ingested record", entries)
 	}
 
-	traces, err := chClient.QueryTraces(t.Context(), reader, &observabilityv1.QueryTracesRequest{
+	traces, err := reader.QueryTraces(t.Context(), &observabilityv1.QueryTracesRequest{
 		WorkspaceId: testWorkspaceID,
 		StartTime:   timestamppb.New(start),
 		EndTime:     timestamppb.New(end),
-	}, testQueryLimit, testQueryTimeout)
+	}, testQueryLimit)
 	if err != nil {
 		t.Fatalf("QueryTraces: %v", err)
 	}
@@ -357,10 +362,17 @@ func TestOTLPIngestIsReadableThroughTheQueryPath(t *testing.T) {
 		t.Fatalf("QueryTraces = %v, want the ingested span", spans)
 	}
 
-	series, err := chClient.QueryMetrics(
-		t.Context(), reader, testWorkspaceID, testEnvironmentID, testRegion, []string{testResourceID},
-		start, end, testMetricName, testIntervalSeconds, avgAggregation, testQueryTimeout,
-	)
+	series, err := reader.QueryMetrics(t.Context(), &observabilityv1.QueryMetricsRequest{
+		WorkspaceId:     testWorkspaceID,
+		EnvironmentId:   testEnvironmentID,
+		Region:          testRegion,
+		ResourceIds:     []string{testResourceID},
+		StartTime:       timestamppb.New(start),
+		EndTime:         timestamppb.New(end),
+		MetricName:      testMetricName,
+		IntervalSeconds: testIntervalSeconds,
+		Aggregation:     avgAggregation,
+	})
 	if err != nil {
 		t.Fatalf("QueryMetrics: %v", err)
 	}
@@ -479,34 +491,45 @@ func TestClusterLevelRowsStayOutOfTenantQueries(t *testing.T) {
 		}
 	}
 
-	reader := f.readerConn(t)
+	reader := f.reader(t)
 	start := now.Add(-testWindow)
 	end := now.Add(testWindow)
-	entries, _, err := chClient.QueryLogs(
-		t.Context(), reader, testWorkspaceID, nil, start, end, "", nil, nil,
-		testQueryLimit, "", observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST, testQueryTimeout, chClient.LogScope{},
-	)
+	queried, err := reader.QueryLogs(t.Context(), chClient.LogQuery{
+		WorkspaceID: testWorkspaceID,
+		Start:       start,
+		End:         end,
+		Limit:       testQueryLimit,
+		Order:       observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST,
+	})
 	if err != nil {
 		t.Fatalf("QueryLogs: %v", err)
 	}
+	entries := queried.GetEntries()
 	if len(entries) != 1 {
 		t.Fatalf("QueryLogs returned %d entries, want only the workspace's record", len(entries))
 	}
-	traceResult, err := chClient.QueryTraces(t.Context(), reader, &observabilityv1.QueryTracesRequest{
+	traceResult, err := reader.QueryTraces(t.Context(), &observabilityv1.QueryTracesRequest{
 		WorkspaceId: testWorkspaceID,
 		StartTime:   timestamppb.New(start),
 		EndTime:     timestamppb.New(end),
-	}, testQueryLimit, testQueryTimeout)
+	}, testQueryLimit)
 	if err != nil {
 		t.Fatalf("QueryTraces: %v", err)
 	}
 	if len(traceResult.GetSpans()) != 1 {
 		t.Fatalf("QueryTraces returned %d spans, want only the workspace's span", len(traceResult.GetSpans()))
 	}
-	series, err := chClient.QueryMetrics(
-		t.Context(), reader, testWorkspaceID, testEnvironmentID, testRegion, []string{testResourceID},
-		start, end, testMetricName, testIntervalSeconds, sumAggregation, testQueryTimeout,
-	)
+	series, err := reader.QueryMetrics(t.Context(), &observabilityv1.QueryMetricsRequest{
+		WorkspaceId:     testWorkspaceID,
+		EnvironmentId:   testEnvironmentID,
+		Region:          testRegion,
+		ResourceIds:     []string{testResourceID},
+		StartTime:       timestamppb.New(start),
+		EndTime:         timestamppb.New(end),
+		MetricName:      testMetricName,
+		IntervalSeconds: testIntervalSeconds,
+		Aggregation:     sumAggregation,
+	})
 	if err != nil {
 		t.Fatalf("QueryMetrics: %v", err)
 	}
@@ -515,14 +538,14 @@ func TestClusterLevelRowsStayOutOfTenantQueries(t *testing.T) {
 	}
 }
 
-func (f *ingestFixture) readerConn(t *testing.T) driver.Conn {
+func (f *ingestFixture) reader(t *testing.T) *chClient.Client {
 	t.Helper()
-	client, err := chClient.NewClient(f.adminDSN, f.database, testMaxConns)
+	client, err := chClient.NewClient(f.adminDSN, f.database, testMaxConns, testQueryTimeout)
 	if err != nil {
 		t.Fatalf("open reader: %v", err)
 	}
 	t.Cleanup(client.Close)
-	return client.Conn()
+	return client
 }
 
 type cancelAfterQuery struct {

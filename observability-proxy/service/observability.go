@@ -32,34 +32,18 @@ const (
 
 var _ observabilityv1connect.ObservabilityProxyServiceHandler = (*ObservabilityService)(nil)
 
-type Store interface {
-	QueryLogs(
-		ctx context.Context, workspaceID string, resourceIDs []string,
-		startTime, endTime time.Time, search string, levels []string, labels map[string]string,
-		limit int32, cursor string, order observabilityv1.LogOrder, queryTimeout int, scope chClient.LogScope,
-	) ([]*observabilityv1.LogEntry, string, error)
-	QueryTailLogPage(
-		ctx context.Context, request *observabilityv1.TailLogsRequest, since time.Time,
-		limit int32, queryTimeout int, cursor chClient.TailLogCursor,
-	) (chClient.TailLogPage, error)
-	QueryMetrics(
-		ctx context.Context, workspaceID, environmentID, region string, resourceIDs []string,
-		startTime, endTime time.Time, metricName string, intervalSeconds int32, aggregation string,
-		queryTimeout int,
-	) ([]*observabilityv1.MetricSeries, error)
-	QueryTraces(
-		ctx context.Context, req *observabilityv1.QueryTracesRequest, limit int32, queryTimeout int,
-	) (*observabilityv1.QueryTracesResponse, error)
-}
-
 type ObservabilityService struct {
-	store     Store
-	cfg       *config.Config
-	validator *auth.Validator
+	clickhouse *chClient.Client
+	cfg        *config.Config
+	validator  *auth.Validator
 }
 
-func NewObservabilityService(store Store, cfg *config.Config, validator *auth.Validator) *ObservabilityService {
-	return &ObservabilityService{store: store, cfg: cfg, validator: validator}
+func NewObservabilityService(
+	clickhouse *chClient.Client,
+	cfg *config.Config,
+	validator *auth.Validator,
+) *ObservabilityService {
+	return &ObservabilityService{clickhouse: clickhouse, cfg: cfg, validator: validator}
 }
 
 func (s *ObservabilityService) QueryLogs(
@@ -87,25 +71,21 @@ func (s *ObservabilityService) QueryLogs(
 
 	limit := guardrails.ClampLimit(req.GetLimit(), s.cfg)
 
-	entries, nextCursor, err := s.store.QueryLogs(
-		ctx,
-		req.GetWorkspaceId(),
-		req.GetResourceIds(),
-		req.GetStartTime().AsTime(),
-		req.GetEndTime().AsTime(),
-		req.GetSearch(),
-		req.GetLevels(),
-		req.GetLabels(),
-		limit,
-		req.GetCursor(),
-		req.GetOrder(),
-		s.cfg.QueryTimeout,
-		chClient.LogScope{
-			EnvironmentID: req.GetEnvironmentId(),
-			Include:       req.GetRegions(),
-			Exclude:       req.GetExcludedRegions(),
-		},
-	)
+	response, err := s.clickhouse.QueryLogs(ctx, chClient.LogQuery{
+		WorkspaceID:     req.GetWorkspaceId(),
+		EnvironmentID:   req.GetEnvironmentId(),
+		ResourceIDs:     req.GetResourceIds(),
+		Start:           req.GetStartTime().AsTime(),
+		End:             req.GetEndTime().AsTime(),
+		Search:          req.GetSearch(),
+		Levels:          req.GetLevels(),
+		Labels:          req.GetLabels(),
+		Regions:         req.GetRegions(),
+		ExcludedRegions: req.GetExcludedRegions(),
+		Limit:           limit,
+		Cursor:          req.GetCursor(),
+		Order:           req.GetOrder(),
+	})
 	if errors.Is(err, chClient.ErrInvalidLogCursor) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
@@ -114,10 +94,7 @@ func (s *ObservabilityService) QueryLogs(
 		return nil, rpcerr.New(connect.CodeInternal, errQueryFailed)
 	}
 
-	return &observabilityv1.QueryLogsResponse{
-		Entries:    entries,
-		NextCursor: nextCursor,
-	}, nil
+	return response, nil
 }
 
 func (s *ObservabilityService) TailLogs(
@@ -151,13 +128,27 @@ func (s *ObservabilityService) TailLogs(
 	if req.GetSince() != nil {
 		since = req.GetSince().AsTime()
 	}
-	return s.tailLoop(ctx, req, since, stream.Send)
+	return s.tailLoop(ctx, tailLogQuery(req, since), stream.Send)
+}
+
+func tailLogQuery(req *observabilityv1.TailLogsRequest, since time.Time) chClient.LogQuery {
+	return chClient.LogQuery{
+		WorkspaceID:     req.GetWorkspaceId(),
+		EnvironmentID:   req.GetEnvironmentId(),
+		ResourceIDs:     req.GetResourceIds(),
+		Start:           since,
+		Search:          req.GetSearch(),
+		Levels:          req.GetLevels(),
+		Labels:          req.GetLabels(),
+		Regions:         req.GetRegions(),
+		ExcludedRegions: req.GetExcludedRegions(),
+		Limit:           tailPageSize,
+	}
 }
 
 func (s *ObservabilityService) tailLoop(
 	ctx context.Context,
-	req *observabilityv1.TailLogsRequest,
-	since time.Time,
+	query chClient.LogQuery,
 	send func(*observabilityv1.TailLogsResponse) error,
 ) error {
 	ticker := time.NewTicker(tailPollInterval)
@@ -167,7 +158,7 @@ func (s *ObservabilityService) tailLoop(
 
 	for {
 		var sendErr error
-		sent, err := s.pollTailLogs(ctx, req, since, cursor, func(entry *observabilityv1.LogEntry) error {
+		sent, err := s.pollTailLogs(ctx, query, cursor, func(entry *observabilityv1.LogEntry) error {
 			sendErr = send(&observabilityv1.TailLogsResponse{
 				Event: &observabilityv1.TailLogsResponse_Entry{Entry: entry},
 			})
@@ -228,19 +219,7 @@ func (s *ObservabilityService) QueryMetrics(
 		return nil, err
 	}
 
-	series, err := s.store.QueryMetrics(
-		ctx,
-		req.GetWorkspaceId(),
-		req.GetEnvironmentId(),
-		req.GetRegion(),
-		req.GetResourceIds(),
-		req.GetStartTime().AsTime(),
-		req.GetEndTime().AsTime(),
-		req.GetMetricName(),
-		req.GetIntervalSeconds(),
-		req.GetAggregation(),
-		s.cfg.QueryTimeout,
-	)
+	series, err := s.clickhouse.QueryMetrics(ctx, req)
 	if err != nil {
 		slog.ErrorContext(ctx, "QueryMetrics failed", "error", err)
 		return nil, rpcerr.New(connect.CodeInternal, errQueryFailed)

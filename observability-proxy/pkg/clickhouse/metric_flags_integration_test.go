@@ -62,25 +62,12 @@ func TestQueryMetricsExcludesUnrecordedPointsWithoutDroppingZeroValues(t *testin
 				{aggregation: "avg", want: 20},
 				{aggregation: "sum", want: 40},
 				{aggregation: "min", want: 0},
-				{aggregation: "max", want: 40},
+				{aggregation: maxAggregation, want: 40},
 			} {
 				t.Run(tc.aggregation, func(t *testing.T) {
-					series, err := QueryMetrics(
-						t.Context(),
-						f.conn,
-						testWorkspaceID,
-						testEnvironmentID,
-						testRegion,
-						[]string{
-							testResourceID,
-						},
-						f.start,
-						f.end,
-						metric,
-						testIntervalSeconds,
-						tc.aggregation,
-						testQueryTimeout,
-					)
+					request := metricsRequest(f.start, f.end)
+					request.MetricName, request.Aggregation = metric, tc.aggregation
+					series, err := f.client.QueryMetrics(t.Context(), request)
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -90,22 +77,9 @@ func TestQueryMetricsExcludesUnrecordedPointsWithoutDroppingZeroValues(t *testin
 					}
 				})
 			}
-			series, err := QueryMetrics(
-				t.Context(),
-				f.conn,
-				testWorkspaceID,
-				testEnvironmentID,
-				testRegion,
-				[]string{
-					testResourceID,
-				},
-				f.start,
-				f.end,
-				metric+".unrecorded",
-				testIntervalSeconds,
-				"avg",
-				testQueryTimeout,
-			)
+			request := metricsRequest(f.start, f.end)
+			request.MetricName = metric + ".unrecorded"
+			series, err := f.client.QueryMetrics(t.Context(), request)
 			if err != nil {
 				t.Fatal(err)
 			}

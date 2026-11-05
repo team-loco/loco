@@ -7,10 +7,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	ch "github.com/ClickHouse/clickhouse-go/v2"
-	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 )
 
@@ -26,34 +24,8 @@ type TailLogPage struct {
 	More    bool
 }
 
-func QueryTailLogPage(
-	ctx context.Context,
-	conn driver.Conn,
-	request *observabilityv1.TailLogsRequest,
-	since time.Time,
-	limit int32,
-	queryTimeout int,
-	cursor TailLogCursor,
-) (TailLogPage, error) {
-	query, args, err := buildLogPageQuery(
-		request.GetWorkspaceId(),
-		request.GetResourceIds(),
-		since,
-		time.Time{},
-		request.GetSearch(),
-		request.GetLevels(),
-		request.GetLabels(),
-		limit,
-		"",
-		observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST,
-		queryTimeout,
-		LogScope{
-			EnvironmentID: request.GetEnvironmentId(),
-			Include:       request.GetRegions(),
-			Exclude:       request.GetExcludedRegions(),
-		},
-		true,
-	)
+func (c *Client) QueryTailLogPage(ctx context.Context, q LogQuery, cursor TailLogCursor) (TailLogPage, error) {
+	query, args, err := buildLogPageQuery(q, c.queryTimeout, true)
 	if err != nil {
 		return TailLogPage{}, err
 	}
@@ -79,7 +51,7 @@ func QueryTailLogPage(
 		query = strings.Replace(query, "?", placeholder, 1)
 	}
 	ctx = ch.Context(ctx, ch.WithParameters(parameters))
-	page, err := queryLogPage(ctx, conn, query, nil, limit)
+	page, err := queryLogPage(ctx, c.conn, query, nil, q.Limit)
 	if err != nil {
 		return TailLogPage{}, err
 	}
@@ -88,5 +60,5 @@ func QueryTailLogPage(
 		key := position.partitionID + "/" + strconv.FormatUint(position.blockNumber, 10)
 		blocks[key] = position.blockOffset
 	}
-	return TailLogPage{Entries: page.Entries, Blocks: blocks, More: page.NextCursor != ""}, nil
+	return TailLogPage{Entries: page.entries, Blocks: blocks, More: page.nextCursor != ""}, nil
 }

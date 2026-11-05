@@ -29,7 +29,7 @@ func TestTraceQueryBindsEveryScope(t *testing.T) {
 	req.ResourceIds = []string{testResourceID, testWorkerResourceID}
 	req.EnvironmentId = testEnvironmentID
 	req.TraceId = knownTraceID
-	position := logCursor{timestamp: start, blockNumber: 42, blockOffset: 17}
+	position := partPosition{timestamp: start, blockNumber: 42, blockOffset: 17}
 	req.Cursor = position.encode()
 	query, args, err := buildTracesQuery(req, testPageSize, testQueryTimeout)
 	if err != nil {
@@ -186,7 +186,7 @@ func TestTraceSpansScopeAttributionAndConnectivity(t *testing.T) {
 			req.TraceId, req.ResourceIds = tc.trace, tc.resources
 			var spans []*observabilityv1.TraceSpan
 			for range len(rows) + 1 {
-				response, err := QueryTraces(t.Context(), f.conn, req, 1, testQueryTimeout)
+				response, err := f.client.QueryTraces(t.Context(), req, 1)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -233,7 +233,7 @@ func TestTraceSpansScopeAttributionAndConnectivity(t *testing.T) {
 		})
 	}
 	req := traceRequest(timestamp.Add(time.Nanosecond), f.end)
-	response, err := QueryTraces(t.Context(), f.conn, req, testFullPage, testQueryTimeout)
+	response, err := f.client.QueryTraces(t.Context(), req, testFullPage)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -287,7 +287,7 @@ func TestTracePagesKeepDuplicateSpansAcrossMerges(t *testing.T) {
 	req.TraceId = knownTraceID
 	count := 0
 	for page := range copies * copies {
-		response, err := QueryTraces(t.Context(), f.conn, req, testPageSize, testQueryTimeout)
+		response, err := f.client.QueryTraces(t.Context(), req, testPageSize)
 		if err != nil {
 			t.Fatal(err)
 		}

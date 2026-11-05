@@ -13,6 +13,7 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"github.com/team-loco/loco/observability-proxy/migrations"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -43,6 +44,7 @@ const (
 	testEnvironmentID      = "66666666-7777-8888-9999-000000000000"
 	testOtherEnvironmentID = "77777777-8888-9999-0000-111111111111"
 	avgAggregation         = "avg"
+	maxAggregation         = "max"
 	logsInsertColumns      = "Timestamp, SeverityText, Body, ResourceAttributes, TraceId, SpanId, LogAttributes"
 	gaugeInsertColumns     = "ResourceAttributes, MetricName, Attributes, TimeUnix, Value"
 	testSeverity           = "INFO"
@@ -125,9 +127,10 @@ var testGaugeRows = []gaugeRow{
 }
 
 type queryFixture struct {
-	conn  driver.Conn
-	start time.Time
-	end   time.Time
+	client *Client
+	conn   driver.Conn
+	start  time.Time
+	end    time.Time
 }
 
 func newQueryFixture(t *testing.T) *queryFixture {
@@ -151,7 +154,7 @@ func newQueryFixture(t *testing.T) *queryFixture {
 	if err := migrations.Up(t.Context(), cfg); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
-	client, err := NewClient(dsn, database, testMaxConns)
+	client, err := NewClient(dsn, database, testMaxConns, testQueryTimeout)
 	if err != nil {
 		t.Fatalf("open client: %v", err)
 	}
@@ -162,7 +165,7 @@ func newQueryFixture(t *testing.T) *queryFixture {
 		client.Close()
 	})
 	start := time.Now().UTC().Truncate(time.Minute).Add(-testDataAge)
-	fixture := &queryFixture{conn: client.Conn(), start: start, end: start.Add(testDataAge)}
+	fixture := &queryFixture{client: client, conn: client.Conn(), start: start, end: start.Add(testDataAge)}
 	fixture.insertLogs(t)
 	fixture.insertGauges(t)
 	return fixture
@@ -224,40 +227,17 @@ func (f *queryFixture) insertGauges(t *testing.T) {
 	}
 }
 
-type logQuery struct {
-	search      string
-	scope       LogScope
-	workspaceID string
-	resourceIDs []string
-	labels      map[string]string
-	limit       int32
-	order       observabilityv1.LogOrder
-}
-
-func (f *queryFixture) page(t *testing.T, q logQuery, cursor string) ([]*observabilityv1.LogEntry, string) {
+func (f *queryFixture) page(t *testing.T, q LogQuery, cursor string) ([]*observabilityv1.LogEntry, string) {
 	t.Helper()
-	entries, next, err := QueryLogs(
-		t.Context(),
-		f.conn,
-		q.workspaceID,
-		q.resourceIDs,
-		f.start,
-		f.end,
-		q.search,
-		nil,
-		q.labels,
-		q.limit,
-		cursor,
-		q.order,
-		testQueryTimeout, q.scope,
-	)
+	q.Start, q.End, q.Cursor = f.start, f.end, cursor
+	response, err := f.client.QueryLogs(t.Context(), q)
 	if err != nil {
 		t.Fatalf("QueryLogs: %v", err)
 	}
-	return entries, next
+	return response.GetEntries(), response.GetNextCursor()
 }
 
-func (f *queryFixture) allPages(t *testing.T, q logQuery) []string {
+func (f *queryFixture) allPages(t *testing.T, q LogQuery) []string {
 	t.Helper()
 	var bodies []string
 	cursor := ""
@@ -302,66 +282,66 @@ func TestQueryLogsScopesToWorkspace(t *testing.T) {
 	workerOnly := []string{testWorkerResourceID}
 	cases := []struct {
 		name  string
-		query logQuery
+		query LogQuery
 		want  []string
 	}{
 		{
 			name:  "workspace newest first",
-			query: logQuery{workspaceID: testWorkspaceID, limit: testFullPage, order: newest},
+			query: LogQuery{WorkspaceID: testWorkspaceID, Limit: testFullPage, Order: newest},
 			want:  wantBodies(testWorkspaceID, nil, newest),
 		},
 		{
 			name:  "workspace oldest first",
-			query: logQuery{workspaceID: testWorkspaceID, limit: testFullPage, order: oldest},
+			query: LogQuery{WorkspaceID: testWorkspaceID, Limit: testFullPage, Order: oldest},
 			want:  wantBodies(testWorkspaceID, nil, oldest),
 		},
 		{
 			name:  "resource filter",
-			query: logQuery{workspaceID: testWorkspaceID, resourceIDs: workerOnly, limit: testFullPage, order: newest},
+			query: LogQuery{WorkspaceID: testWorkspaceID, ResourceIDs: workerOnly, Limit: testFullPage, Order: newest},
 			want:  wantBodies(testWorkspaceID, workerOnly, newest),
 		},
 		{
 			name:  "paged newest first",
-			query: logQuery{workspaceID: testWorkspaceID, limit: testPageSize, order: newest},
+			query: LogQuery{WorkspaceID: testWorkspaceID, Limit: testPageSize, Order: newest},
 			want:  wantBodies(testWorkspaceID, nil, newest),
 		},
 		{
 			name:  "paged oldest first",
-			query: logQuery{workspaceID: testWorkspaceID, limit: testPageSize, order: oldest},
+			query: LogQuery{WorkspaceID: testWorkspaceID, Limit: testPageSize, Order: oldest},
 			want:  wantBodies(testWorkspaceID, nil, oldest),
 		},
 		{
 			name: "paged resource filter",
-			query: logQuery{
-				workspaceID: testWorkspaceID,
-				resourceIDs: workerOnly,
-				limit:       testPageSize - 1,
-				order:       oldest,
+			query: LogQuery{
+				WorkspaceID: testWorkspaceID,
+				ResourceIDs: workerOnly,
+				Limit:       testPageSize - 1,
+				Order:       oldest,
 			},
 			want: wantBodies(testWorkspaceID, workerOnly, oldest),
 		},
 		{
 			name:  "other workspace",
-			query: logQuery{workspaceID: testOtherWorkspaceID, limit: testFullPage, order: oldest},
+			query: LogQuery{WorkspaceID: testOtherWorkspaceID, Limit: testFullPage, Order: oldest},
 			want:  wantBodies(testOtherWorkspaceID, nil, oldest),
 		},
 		{
 			name: "label shared across workspaces",
-			query: logQuery{
-				workspaceID: testWorkspaceID,
-				labels:      map[string]string{testSharedLabelKey: testSharedLabelValue},
-				limit:       testFullPage,
-				order:       newest,
+			query: LogQuery{
+				WorkspaceID: testWorkspaceID,
+				Labels:      map[string]string{testSharedLabelKey: testSharedLabelValue},
+				Limit:       testFullPage,
+				Order:       newest,
 			},
 			want: wantBodies(testWorkspaceID, nil, newest),
 		},
 		{
 			name: "label naming another workspace",
-			query: logQuery{
-				workspaceID: testWorkspaceID,
-				labels:      map[string]string{workspaceAttributeKey: testOtherWorkspaceID},
-				limit:       testFullPage,
-				order:       newest,
+			query: LogQuery{
+				WorkspaceID: testWorkspaceID,
+				Labels:      map[string]string{workspaceAttributeKey: testOtherWorkspaceID},
+				Limit:       testFullPage,
+				Order:       newest,
 			},
 		},
 	}
@@ -377,10 +357,10 @@ func TestQueryLogsScopesToWorkspace(t *testing.T) {
 
 func TestQueryLogsReturnsTenantResourceID(t *testing.T) {
 	f := newQueryFixture(t)
-	q := logQuery{
-		workspaceID: testWorkspaceID,
-		limit:       testFullPage,
-		order:       observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST,
+	q := LogQuery{
+		WorkspaceID: testWorkspaceID,
+		Limit:       testFullPage,
+		Order:       observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST,
 	}
 	entries, _ := f.page(t, q, "")
 	got := make([]string, 0, len(entries))
@@ -398,6 +378,20 @@ func TestQueryLogsReturnsTenantResourceID(t *testing.T) {
 	}
 }
 
+func metricsRequest(start, end time.Time) *observabilityv1.QueryMetricsRequest {
+	return &observabilityv1.QueryMetricsRequest{
+		WorkspaceId:     testWorkspaceID,
+		EnvironmentId:   testEnvironmentID,
+		Region:          testRegion,
+		ResourceIds:     []string{testResourceID},
+		StartTime:       timestamppb.New(start),
+		EndTime:         timestamppb.New(end),
+		MetricName:      testMetricName,
+		IntervalSeconds: testIntervalSeconds,
+		Aggregation:     avgAggregation,
+	}
+}
+
 func (f *queryFixture) metrics(
 	t *testing.T,
 	workspaceID string,
@@ -406,20 +400,10 @@ func (f *queryFixture) metrics(
 	resourceIDs []string,
 ) map[string][]float64 {
 	t.Helper()
-	series, err := QueryMetrics(
-		t.Context(),
-		f.conn,
-		workspaceID,
-		environmentID,
-		region,
-		resourceIDs,
-		f.start,
-		f.end,
-		testMetricName,
-		testIntervalSeconds,
-		avgAggregation,
-		testQueryTimeout,
-	)
+	request := metricsRequest(f.start, f.end)
+	request.WorkspaceId, request.EnvironmentId, request.Region = workspaceID, environmentID, region
+	request.ResourceIds = resourceIDs
+	series, err := f.client.QueryMetrics(t.Context(), request)
 	if err != nil {
 		t.Fatalf("QueryMetrics: %v", err)
 	}
@@ -577,24 +561,18 @@ func TestLogPagesKeepEqualTimestampsAcrossMerges(t *testing.T) {
 		cursor := ""
 		var count int
 		for page := range copies * copies {
-			entries, next, err := QueryLogs(
-				t.Context(),
-				f.conn,
-				testWorkspaceID,
-				nil,
-				timestamp,
-				timestamp,
-				"",
-				nil,
-				nil,
-				testPageSize,
-				cursor,
-				order,
-				testQueryTimeout, LogScope{},
-			)
+			response, err := f.client.QueryLogs(t.Context(), LogQuery{
+				WorkspaceID: testWorkspaceID,
+				Start:       timestamp,
+				End:         timestamp,
+				Limit:       testPageSize,
+				Cursor:      cursor,
+				Order:       order,
+			})
 			if err != nil {
 				t.Fatal(err)
 			}
+			entries, next := response.GetEntries(), response.GetNextCursor()
 			count += len(entries)
 			if page == 0 {
 				if err := f.conn.Exec(t.Context(), "OPTIMIZE TABLE otel_logs FINAL"); err != nil {
@@ -621,21 +599,28 @@ func TestQueryLogsFiltersRecordedRegionsBeforePagination(t *testing.T) {
 		observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST, observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST,
 	} {
 		cases := []struct {
-			name      string
-			scope     LogScope
-			resources []string
+			name              string
+			regions, excluded []string
+			resources         []string
 		}{
-			{"case insensitive prefix", LogScope{Include: []string{"US-*"}}, []string{testResourceID}},
-			{"exclude region", LogScope{Exclude: []string{testWorkerRegion}}, []string{testResourceID}},
+			{"case insensitive prefix", []string{"US-*"}, nil, []string{testResourceID}},
+			{"exclude region", nil, []string{testWorkerRegion}, []string{testResourceID}},
 			{
 				"include OR then exclude",
-				LogScope{Include: []string{testUSRegionPattern, "eu-*"}, Exclude: []string{testUSRegionPattern}},
+				[]string{testUSRegionPattern, "eu-*"},
+				[]string{testUSRegionPattern},
 				[]string{testWorkerResourceID},
 			},
 		}
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
-				query := logQuery{workspaceID: testWorkspaceID, limit: testPageSize, order: order, scope: tc.scope}
+				query := LogQuery{
+					WorkspaceID:     testWorkspaceID,
+					Regions:         tc.regions,
+					ExcludedRegions: tc.excluded,
+					Limit:           testPageSize,
+					Order:           order,
+				}
 				got := f.allPages(t, query)
 				want := wantBodies(testWorkspaceID, tc.resources, order)
 				if !slices.Equal(got, want) {
@@ -665,11 +650,11 @@ func TestQueryLogsEnvironmentScopeAcrossPages(t *testing.T) {
 		observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST,
 	}
 	for _, order := range orders {
-		q := logQuery{
-			workspaceID: testWorkspaceID,
-			limit:       testPageSize,
-			order:       order,
-			scope:       LogScope{EnvironmentID: testEnvironmentID},
+		q := LogQuery{
+			WorkspaceID:   testWorkspaceID,
+			Limit:         testPageSize,
+			Order:         order,
+			EnvironmentID: testEnvironmentID,
 		}
 		got := f.allPages(t, q)
 		want := wantBodies(testWorkspaceID, nil, order)

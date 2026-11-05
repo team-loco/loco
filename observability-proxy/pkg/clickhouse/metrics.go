@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -19,34 +18,13 @@ const (
 	noRecordedValueFlag    = 1
 )
 
-// QueryMetrics executes a metric aggregation query against ClickHouse.
-func QueryMetrics(
+func (c *Client) QueryMetrics(
 	ctx context.Context,
-	conn driver.Conn,
-	workspaceID string,
-	environmentID string,
-	region string,
-	resourceIDs []string,
-	startTime, endTime time.Time,
-	metricName string,
-	intervalSeconds int32,
-	aggregation string,
-	queryTimeout int,
+	req *observabilityv1.QueryMetricsRequest,
 ) ([]*observabilityv1.MetricSeries, error) {
-	query, args := buildMetricsQuery(
-		workspaceID,
-		environmentID,
-		region,
-		resourceIDs,
-		startTime,
-		endTime,
-		metricName,
-		intervalSeconds,
-		aggregation,
-		queryTimeout,
-	)
+	query, args := buildMetricsQuery(req, c.queryTimeout)
 
-	rows, err := conn.Query(ctx, query, args...)
+	rows, err := c.conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("clickhouse metrics query: %w", err)
 	}
@@ -104,38 +82,28 @@ func QueryMetrics(
 	return result, nil
 }
 
-func buildMetricsQuery(
-	workspaceID string,
-	environmentID string,
-	region string,
-	resourceIDs []string,
-	startTime, endTime time.Time,
-	metricName string,
-	intervalSeconds int32,
-	aggregation string,
-	queryTimeout int,
-) (string, []any) {
-	aggFunc := mapAggregation(aggregation)
-	interval := intervalSeconds
+func buildMetricsQuery(req *observabilityv1.QueryMetricsRequest, queryTimeout int) (string, []any) {
+	aggFunc := mapAggregation(req.GetAggregation())
+	interval := req.GetIntervalSeconds()
 	if interval <= 0 {
 		interval = defaultIntervalSeconds
 	}
 
 	whereParts := []string{workspaceColumn + " = ?"}
-	args := []any{workspaceID}
+	args := []any{req.GetWorkspaceId()}
 
-	if environmentID != "" {
+	if req.GetEnvironmentId() != "" {
 		whereParts = append(whereParts, environmentColumn+" = ?")
-		args = append(args, environmentID)
+		args = append(args, req.GetEnvironmentId())
 	}
 
-	if region != "" {
+	if req.GetRegion() != "" {
 		whereParts = append(whereParts, "ResourceAttributes[?] = ?")
-		args = append(args, regionAttribute, region)
+		args = append(args, regionAttribute, req.GetRegion())
 	}
 
-	if len(resourceIDs) > 0 {
-		clause, values := inFilter(resourceColumn, resourceIDs)
+	if len(req.GetResourceIds()) > 0 {
+		clause, values := inFilter(resourceColumn, req.GetResourceIds())
 		whereParts = append(whereParts, clause)
 		args = append(args, values...)
 	}
@@ -145,7 +113,9 @@ func buildMetricsQuery(
 		"TimeUnix >= fromUnixTimestamp64Nano(?)",
 		"TimeUnix <= fromUnixTimestamp64Nano(?)",
 		fmt.Sprintf("bitAnd(Flags, %d) = 0", noRecordedValueFlag))
-	args = append(args, metricName, startTime.UnixNano(), endTime.UnixNano())
+	start := req.GetStartTime().AsTime().UnixNano()
+	end := req.GetEndTime().AsTime().UnixNano()
+	args = append(args, req.GetMetricName(), start, end)
 
 	where := strings.Join(whereParts, " AND ")
 	source := fmt.Sprintf(

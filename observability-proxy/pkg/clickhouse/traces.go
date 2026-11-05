@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
@@ -36,11 +35,11 @@ func buildTracesQuery(req *observabilityv1.QueryTracesRequest, limit int32, quer
 		args = append(args, req.GetTraceId())
 	}
 	if req.GetCursor() != "" {
-		position, err := decodeLogCursor(req.GetCursor())
+		position, err := decodePartPosition(req.GetCursor())
 		if err != nil {
 			return "", nil, ErrInvalidTraceCursor
 		}
-		where = append(where, logPositionColumns+" > (fromUnixTimestamp64Nano(?), ?, ?)")
+		where = append(where, partPositionColumns+" > (fromUnixTimestamp64Nano(?), ?, ?)")
 		args = append(args, position.timestamp.UnixNano(), position.blockNumber, position.blockOffset)
 	}
 	args = append(args, limit+pageLookahead)
@@ -53,28 +52,26 @@ func buildTracesQuery(req *observabilityv1.QueryTracesRequest, limit int32, quer
 	return fmt.Sprintf("%s SETTINGS max_execution_time = %d", query, queryTimeout), args, nil
 }
 
-func QueryTraces(
+func (c *Client) QueryTraces(
 	ctx context.Context,
-	conn driver.Conn,
 	req *observabilityv1.QueryTracesRequest,
 	limit int32,
-	queryTimeout int,
 ) (*observabilityv1.QueryTracesResponse, error) {
-	query, args, err := buildTracesQuery(req, limit, queryTimeout)
+	query, args, err := buildTracesQuery(req, limit, c.queryTimeout)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := conn.Query(ctx, query, args...)
+	rows, err := c.conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("clickhouse trace query: %w", err)
 	}
 	defer rows.Close()
 	response := &observabilityv1.QueryTracesResponse{}
-	var last logCursor
+	var last partPosition
 	for rows.Next() {
 		span := &observabilityv1.TraceSpan{}
 		var timestamp time.Time
-		var position logCursor
+		var position partPosition
 		if err := rows.Scan(
 			&timestamp,
 			&span.TraceId,

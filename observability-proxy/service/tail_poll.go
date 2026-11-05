@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"maps"
-	"time"
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	chClient "github.com/team-loco/loco/observability-proxy/pkg/clickhouse"
@@ -13,8 +12,7 @@ const tailPageSize = 100
 
 func (s *ObservabilityService) pollTailLogs(
 	ctx context.Context,
-	request *observabilityv1.TailLogsRequest,
-	start time.Time,
+	query chClient.LogQuery,
 	cursor chClient.TailLogCursor,
 	send func(*observabilityv1.LogEntry) error,
 ) (int, error) {
@@ -23,14 +21,7 @@ func (s *ObservabilityService) pollTailLogs(
 		if err := ctx.Err(); err != nil {
 			return sent, err
 		}
-		page, err := s.store.QueryTailLogPage(
-			ctx,
-			request,
-			start,
-			tailPageSize,
-			s.cfg.QueryTimeout,
-			cursor,
-		)
+		page, err := s.clickhouse.QueryTailLogPage(ctx, query, cursor)
 		if err != nil {
 			return sent, err
 		}

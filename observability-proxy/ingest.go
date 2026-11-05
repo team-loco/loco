@@ -33,7 +33,7 @@ type ingestRole struct {
 }
 
 func newIngestRole(cfg *config.Config, proxyVersion string, registerer prometheus.Registerer) (*ingestRole, error) {
-	probe, err := chClient.NewClient(cfg.ClickHouseIngestURL, cfg.ClickHouseDB, ingestProbeConns)
+	probe, err := chClient.NewClient(cfg.ClickHouseIngestURL, cfg.ClickHouseDB, ingestProbeConns, cfg.QueryTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("connect to clickhouse for ingest: %w", err)
 	}

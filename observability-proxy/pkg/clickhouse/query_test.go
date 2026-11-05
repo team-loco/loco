@@ -20,19 +20,15 @@ func TestBuildLogsQueryFiltersOnTenantColumns(t *testing.T) {
 	end := time.Now()
 	start := end.Add(-time.Hour)
 
-	query, args, err := buildLogsQuery(
-		testWorkspaceID,
-		[]string{testResourceID},
-		start,
-		end,
-		"",
-		nil,
-		map[string]string{"app.loco.io/component": "web"},
-		100,
-		"",
-		observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST,
-		10, LogScope{},
-	)
+	query, args, err := buildLogPageQuery(LogQuery{
+		WorkspaceID: testWorkspaceID,
+		ResourceIDs: []string{testResourceID},
+		Start:       start,
+		End:         end,
+		Labels:      map[string]string{"app.loco.io/component": "web"},
+		Limit:       testFullPage,
+		Order:       observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST,
+	}, testQueryTimeout, false)
 
 	if err != nil {
 		t.Fatal(err)
@@ -73,18 +69,9 @@ func TestBuildMetricsQueryFiltersOnTenantColumns(t *testing.T) {
 	end := time.Now()
 	start := end.Add(-time.Hour)
 
-	query, args := buildMetricsQuery(
-		testWorkspaceID,
-		"",
-		"",
-		[]string{testResourceID},
-		start,
-		end,
-		"k8s.pod.cpu.usage",
-		60,
-		"avg",
-		10,
-	)
+	request := metricsRequest(start, end)
+	request.EnvironmentId, request.Region = "", ""
+	query, args := buildMetricsQuery(request, testQueryTimeout)
 
 	wantClauses := []string{
 		"SELECT ResourceId,",
@@ -124,18 +111,9 @@ func TestBuildMetricsQueryFiltersOnEnvironment(t *testing.T) {
 	end := time.Now()
 	start := end.Add(-time.Hour)
 
-	query, args := buildMetricsQuery(
-		testWorkspaceID,
-		testEnvironmentID,
-		"",
-		[]string{testResourceID},
-		start,
-		end,
-		testMetricName,
-		testIntervalSeconds,
-		avgAggregation,
-		testQueryTimeout,
-	)
+	request := metricsRequest(start, end)
+	request.Region = ""
+	query, args := buildMetricsQuery(request, testQueryTimeout)
 
 	if !strings.Contains(query, "WHERE WorkspaceId = ? AND EnvironmentId = ? AND ResourceId IN (?)") {
 		t.Errorf("query does not filter on the environment column:\n%s", query)
@@ -150,18 +128,7 @@ func TestBuildMetricsQueryFiltersOnRegion(t *testing.T) {
 	end := time.Now()
 	start := end.Add(-time.Hour)
 
-	query, args := buildMetricsQuery(
-		testWorkspaceID,
-		testEnvironmentID,
-		testRegion,
-		[]string{testResourceID},
-		start,
-		end,
-		testMetricName,
-		testIntervalSeconds,
-		avgAggregation,
-		testQueryTimeout,
-	)
+	query, args := buildMetricsQuery(metricsRequest(start, end), testQueryTimeout)
 
 	if !strings.Contains(
 		query,
@@ -184,19 +151,14 @@ func TestInvalidLogCursorsAreRejected(t *testing.T) {
 		base64.RawURLEncoding.EncodeToString([]byte(timestamp + "/0/-1")),
 	}
 	for _, cursor := range cases {
-		_, _, err := buildLogsQuery(
-			testWorkspaceID,
-			nil,
-			time.Now().Add(-time.Hour),
-			time.Now(),
-			"",
-			nil,
-			nil,
-			testPageSize,
-			cursor,
-			observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST,
-			testQueryTimeout, LogScope{},
-		)
+		_, _, err := buildLogPageQuery(LogQuery{
+			WorkspaceID: testWorkspaceID,
+			Start:       time.Now().Add(-time.Hour),
+			End:         time.Now(),
+			Limit:       testPageSize,
+			Cursor:      cursor,
+			Order:       observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST,
+		}, testQueryTimeout, false)
 		if !errors.Is(err, ErrInvalidLogCursor) {
 			t.Fatalf("cursor %q error = %v, want invalid cursor", cursor, err)
 		}
@@ -205,9 +167,15 @@ func TestInvalidLogCursorsAreRejected(t *testing.T) {
 
 func TestBuildLogsQueryRegionFiltersKeepWorkspaceScope(t *testing.T) {
 	start, end := time.Now().Add(-time.Hour), time.Now()
-	query, args, err := buildLogsQuery(testWorkspaceID, nil, start, end, "", nil, nil,
-		testPageSize, "", observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST, testQueryTimeout,
-		LogScope{Include: []string{"US-*", "eu-west-1"}, Exclude: []string{"us-west-*"}})
+	query, args, err := buildLogPageQuery(LogQuery{
+		WorkspaceID:     testWorkspaceID,
+		Start:           start,
+		End:             end,
+		Regions:         []string{"US-*", "eu-west-1"},
+		ExcludedRegions: []string{"us-west-*"},
+		Limit:           testPageSize,
+		Order:           observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST,
+	}, testQueryTimeout, false)
 	if err != nil {
 		t.Fatal(err)
 	}

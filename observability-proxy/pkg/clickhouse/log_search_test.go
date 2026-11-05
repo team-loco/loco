@@ -68,9 +68,9 @@ func TestQueryLogsSearchMatchesLiteralText(t *testing.T) {
 					if order == observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST {
 						slices.Reverse(want)
 					}
-					got := f.allPages(t, logQuery{
-						search: tc.search, workspaceID: testWorkspaceID, resourceIDs: []string{testResourceID},
-						limit: testPageSize, order: order,
+					got := f.allPages(t, LogQuery{
+						Search: tc.search, WorkspaceID: testWorkspaceID, ResourceIDs: []string{testResourceID},
+						Limit: testPageSize, Order: order,
 					})
 					if !slices.Equal(got, want) {
 						t.Fatalf("search=%q returned %q, want %q", tc.search, got, want)

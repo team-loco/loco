@@ -9,8 +9,9 @@ import (
 
 func TestMetricsQueryIncludesScopedSumsWithoutTemporalityConversion(t *testing.T) {
 	end := time.Now()
-	query, args := buildMetricsQuery(testWorkspaceID, testEnvironmentID, testRegion,
-		[]string{testResourceID}, end.Add(-time.Hour), end, counterMetric, testIntervalSeconds, "max", testQueryTimeout)
+	request := metricsRequest(end.Add(-time.Hour), end)
+	request.MetricName, request.Aggregation = counterMetric, maxAggregation
+	query, args := buildMetricsQuery(request, testQueryTimeout)
 	clauses := []string{
 		"FROM otel_metrics_sum", "UNION ALL", "AggregationTemporality", "IsMonotonic", "max(Value)",
 	}

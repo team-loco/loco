@@ -53,9 +53,9 @@ func TestQueryMetricsRespectsFractionalTimeBounds(t *testing.T) {
 		{"exact point", 900 * time.Millisecond, 900 * time.Millisecond, []float64{8}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			series, err := QueryMetrics(t.Context(), fixture.conn, testWorkspaceID, testEnvironmentID, "",
-				[]string{testResourceID}, base.Add(tc.start), base.Add(tc.end), precisionMetricName,
-				1, avgAggregation, testQueryTimeout)
+			request := metricsRequest(base.Add(tc.start), base.Add(tc.end))
+			request.Region, request.MetricName, request.IntervalSeconds = "", precisionMetricName, 1
+			series, err := fixture.client.QueryMetrics(t.Context(), request)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -107,7 +107,7 @@ func newProxy(cfg *config.Config, lock migrationLock, proxyVersion string) (*pro
 }
 
 func (p *proxy) mountQuery(cfg *config.Config, mux *http.ServeMux) error {
-	ch, err := chClient.NewClient(cfg.ClickHouseURL, cfg.ClickHouseDB, cfg.MaxConcurrent)
+	ch, err := chClient.NewClient(cfg.ClickHouseURL, cfg.ClickHouseDB, cfg.MaxConcurrent, cfg.QueryTimeout)
 	if err != nil {
 		return fmt.Errorf("connect to clickhouse: %w", err)
 	}
