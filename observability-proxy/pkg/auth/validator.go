@@ -2,29 +2,49 @@ package auth
 
 import (
 	"context"
-	"log/slog"
+	"errors"
+	"fmt"
 	"net/http"
+	"time"
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
+	"github.com/dgraph-io/ristretto/v2"
 
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
-	"github.com/team-loco/loco/observability-proxy/pkg/cache"
 )
 
 var (
-	errPermissionDenied           = connect.NewError(connect.CodePermissionDenied, "permission denied")
-	errPermissionCheckUnavailable = connect.NewError(connect.CodeUnavailable, "permission check unavailable")
+	// ErrPermissionDenied means the control plane refused the caller or rejected its token.
+	ErrPermissionDenied = errors.New("permission denied")
+	// ErrPermissionCheckUnavailable means the control plane could not answer the check.
+	ErrPermissionCheckUnavailable = errors.New("permission check unavailable")
+)
+
+const (
+	cacheMaxCost     = 32 << 20
+	cacheNumCounters = 1 << 17
+	cacheBufferItems = 64
 )
 
 // Validator checks token permissions by calling CheckPermission on the control plane.
 type Validator struct {
 	client tokenv1connect.TokenServiceClient
-	cache  cache.Cache
+	cache  *ristretto.Cache[string, bool]
+	ttl    time.Duration
 }
 
-func NewValidator(controlPlaneURL string, c cache.Cache) *Validator {
+func NewValidator(controlPlaneURL string, cacheTTL time.Duration) (*Validator, error) {
+	cache, err := ristretto.NewCache(&ristretto.Config[string, bool]{
+		NumCounters: cacheNumCounters,
+		MaxCost:     cacheMaxCost,
+		BufferItems: cacheBufferItems,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create permission cache: %w", err)
+	}
+
 	transport := &http.Transport{}
 	transport.Protocols = new(http.Protocols)
 	transport.Protocols.SetHTTP1(true)
@@ -32,17 +52,18 @@ func NewValidator(controlPlaneURL string, c cache.Cache) *Validator {
 	httpClient := &http.Client{Transport: transport}
 
 	rpcTransport := connecthttp.NewTransport(httpClient, controlPlaneURL)
-	connectClient := connect.NewClient(rpcTransport)
-	tokenClient := tokenv1connect.NewTokenServiceClient(connectClient)
-
-	return &Validator{
-		client: tokenClient,
-		cache:  c,
-	}
+	tokenClient := tokenv1connect.NewTokenServiceClient(connect.NewClient(rpcTransport))
+	return &Validator{client: tokenClient, cache: cache, ttl: cacheTTL}, nil
 }
 
-// CheckPermission validates whether the given token has the requested permission.
-// Results are cached for the cache's configured TTL.
+// Close releases the permission cache.
+func (v *Validator) Close() {
+	v.cache.Close()
+}
+
+// CheckPermission validates whether the given token has the requested permission. It returns
+// ErrPermissionDenied or ErrPermissionCheckUnavailable, wrapping the control plane's error, and
+// does not log: the caller decides what to report. Results are cached for the validator's TTL.
 func (v *Validator) CheckPermission(
 	ctx context.Context,
 	token string,
@@ -52,9 +73,9 @@ func (v *Validator) CheckPermission(
 ) error {
 	cacheKey := token + ":" + entityType.String() + ":" + entityID + ":" + scope.String()
 
-	if allowed, ok := getPermission(ctx, v.cache, cacheKey); ok {
+	if allowed, ok := v.cache.Get(cacheKey); ok {
 		if !allowed {
-			return errPermissionDenied
+			return ErrPermissionDenied
 		}
 		return nil
 	}
@@ -71,17 +92,15 @@ func (v *Validator) CheckPermission(
 	if err != nil {
 		code := connect.CodeOf(err)
 		if code == connect.CodePermissionDenied || code == connect.CodeUnauthenticated {
-			slog.DebugContext(ctx, "CheckPermission denied", "error", err)
-			return errPermissionDenied.WithCause(err)
+			return fmt.Errorf("%w: %w", ErrPermissionDenied, err)
 		}
-		slog.ErrorContext(ctx, "CheckPermission call failed", "error", err)
-		return errPermissionCheckUnavailable.WithCause(err)
+		return fmt.Errorf("%w: %w", ErrPermissionCheckUnavailable, err)
 	}
 
-	setPermission(ctx, v.cache, cacheKey, resp.GetAllowed())
+	v.cache.SetWithTTL(cacheKey, resp.GetAllowed(), int64(len(cacheKey)+1), v.ttl)
 
 	if !resp.GetAllowed() {
-		return errPermissionDenied
+		return ErrPermissionDenied
 	}
 	return nil
 }

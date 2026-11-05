@@ -17,7 +17,6 @@ import (
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
 	"github.com/team-loco/loco/observability-proxy/pkg/auth"
-	"github.com/team-loco/loco/observability-proxy/pkg/cache"
 	chClient "github.com/team-loco/loco/observability-proxy/pkg/clickhouse"
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
 )
@@ -57,16 +56,11 @@ func traceTestClient(
 	connecthttp.Mount(controlMux, controlPlane)
 	controlHTTP := httptest.NewServer(controlMux)
 	t.Cleanup(controlHTTP.Close)
-	memory, err := cache.NewMemory(time.Minute)
+	validator, err := auth.NewValidator(controlHTTP.URL, time.Minute)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() {
-		if closeErr := memory.Close(); closeErr != nil {
-			t.Error(closeErr)
-		}
-	})
-	validator := auth.NewValidator(controlHTTP.URL, memory)
+	t.Cleanup(validator.Close)
 	cfg := &config.Config{DefaultLimit: 1, MaxLimit: 2, MaxTimeRange: time.Hour}
 	service := NewObservabilityService(clickhouse, cfg, validator)
 	server := connect.NewServer(auth.NewAuthInterceptor().Interceptor())

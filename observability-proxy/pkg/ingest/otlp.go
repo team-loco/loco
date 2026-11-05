@@ -326,9 +326,19 @@ func (s *Service) status(code codes.Code, public error) *status.Status {
 	return withRetry
 }
 
+// logExportFailure reports ERROR only for failures an operator must act on, storage and
+// authorization outages. Rejected credentials and malformed requests are the client's to fix.
+func logExportFailure(ctx context.Context, err, public error, attrs ...any) {
+	level := slog.LevelDebug
+	if errors.Is(public, errStorageUnavailable) || errors.Is(public, ErrAuthUnavailable) {
+		level = slog.LevelError
+	}
+	slog.Log(ctx, level, "OTLP export failed", append([]any{"error", err}, attrs...)...)
+}
+
 func (s *Service) writeFailure(ctx context.Context, w http.ResponseWriter, enc encoding, err error) {
 	httpStatus, code, public := publicError(err)
-	slog.ErrorContext(ctx, "OTLP export failed", "error", err, "status", httpStatus)
+	logExportFailure(ctx, err, public, "status", httpStatus)
 	s.writeHTTPError(w, enc, httpStatus, code, public)
 }
 
@@ -352,7 +362,7 @@ func (s *Service) writeHTTPError(w http.ResponseWriter, enc encoding, httpStatus
 
 func (s *Service) grpcError(ctx context.Context, err error) error {
 	_, code, public := publicError(err)
-	slog.ErrorContext(ctx, "OTLP export failed", "error", err, "code", code.String())
+	logExportFailure(ctx, err, public, "code", code.String())
 	return s.status(code, public).Err()
 }
 

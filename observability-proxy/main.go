@@ -24,7 +24,6 @@ import (
 	"github.com/team-loco/loco/internal/buildinfo"
 	"github.com/team-loco/loco/observability-proxy/migrations"
 	"github.com/team-loco/loco/observability-proxy/pkg/auth"
-	"github.com/team-loco/loco/observability-proxy/pkg/cache"
 	chClient "github.com/team-loco/loco/observability-proxy/pkg/clickhouse"
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
 	"github.com/team-loco/loco/observability-proxy/pkg/migrationlock"
@@ -49,7 +48,7 @@ type migrationLock interface {
 type proxy struct {
 	server    *http.Server
 	ch        *chClient.Client
-	permCache *cache.MemoryCache
+	validator *auth.Validator
 	migrated  *atomic.Bool
 	lock      migrationLock
 	ingest    *ingestRole
@@ -111,15 +110,13 @@ func (p *proxy) mountQuery(cfg *config.Config, mux *http.ServeMux) error {
 	if err != nil {
 		return fmt.Errorf("connect to clickhouse: %w", err)
 	}
-	permCache, err := cache.NewMemory(cfg.TokenCacheTTL)
+	validator, err := auth.NewValidator(cfg.ControlPlaneURL, cfg.TokenCacheTTL)
 	if err != nil {
 		ch.Close()
-		return fmt.Errorf("create permission cache: %w", err)
+		return err
 	}
 	p.ch = ch
-	p.permCache = permCache
-
-	validator := auth.NewValidator(cfg.ControlPlaneURL, permCache)
+	p.validator = validator
 	svc := service.NewObservabilityService(ch, cfg, validator)
 	rpcServer := connect.NewServer(auth.NewAuthInterceptor().Interceptor())
 	observabilityv1connect.RegisterObservabilityProxyServiceHandler(rpcServer, svc)
@@ -172,10 +169,8 @@ func (p *proxy) close() {
 	if p.ch != nil {
 		p.ch.Close()
 	}
-	if p.permCache != nil {
-		if err := p.permCache.Close(); err != nil {
-			slog.Error("failed to close permission cache", "error", err)
-		}
+	if p.validator != nil {
+		p.validator.Close()
 	}
 	if p.ingest != nil {
 		p.ingest.close()

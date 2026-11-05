@@ -19,6 +19,8 @@ import (
 	"github.com/team-loco/loco/observability-proxy/pkg/guardrails"
 )
 
+const publicInvalidRequest = "invalid request"
+
 var (
 	errMissingToken = errors.New("missing token")
 	errQueryFailed  = errors.New("query failed")
@@ -46,26 +48,40 @@ func NewObservabilityService(
 	return &ObservabilityService{clickhouse: clickhouse, cfg: cfg, validator: validator}
 }
 
+// authorizeRead checks that the request's bearer token can read the workspace. A refused caller
+// gets PermissionDenied and nothing is logged; only a failed control plane check is an ERROR.
+func (s *ObservabilityService) authorizeRead(ctx context.Context, workspaceID string) error {
+	token, ok := auth.TokenFromContext(ctx)
+	if !ok {
+		return rpcerr.New(connect.CodeUnauthenticated, errMissingToken)
+	}
+	err := s.validator.CheckPermission(
+		ctx,
+		token,
+		tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
+		workspaceID,
+		tokenv1.Scope_SCOPE_READ,
+	)
+	if errors.Is(err, auth.ErrPermissionDenied) {
+		slog.DebugContext(ctx, "read denied", "error", err)
+		return rpcerr.New(connect.CodePermissionDenied, auth.ErrPermissionDenied)
+	}
+	if err != nil {
+		slog.ErrorContext(ctx, "permission check failed", "error", err)
+		return rpcerr.New(connect.CodeUnavailable, auth.ErrPermissionCheckUnavailable)
+	}
+	return nil
+}
+
 func (s *ObservabilityService) QueryLogs(
 	ctx context.Context,
 	req *observabilityv1.QueryLogsRequest,
 ) (*observabilityv1.QueryLogsResponse, error) {
-	token, ok := auth.TokenFromContext(ctx)
-	if !ok {
-		return nil, rpcerr.New(connect.CodeUnauthenticated, errMissingToken)
-	}
-
 	if err := guardrails.ValidateLogsRequest(req, s.cfg); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
 
-	if err := s.validator.CheckPermission(
-		ctx,
-		token,
-		tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
-		req.GetWorkspaceId(),
-		tokenv1.Scope_SCOPE_READ,
-	); err != nil {
+	if err := s.authorizeRead(ctx, req.GetWorkspaceId()); err != nil {
 		return nil, err
 	}
 
@@ -102,23 +118,12 @@ func (s *ObservabilityService) TailLogs(
 	req *observabilityv1.TailLogsRequest,
 	stream observabilityv1connect.ObservabilityProxyServiceTailLogsServerStream,
 ) error {
-	token, ok := auth.TokenFromContext(ctx)
-	if !ok {
-		return rpcerr.New(connect.CodeUnauthenticated, errMissingToken)
-	}
-
 	started := time.Now()
 	if err := guardrails.ValidateTailRequest(req, s.cfg, started); err != nil {
 		return connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
 
-	if err := s.validator.CheckPermission(
-		ctx,
-		token,
-		tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
-		req.GetWorkspaceId(),
-		tokenv1.Scope_SCOPE_READ,
-	); err != nil {
+	if err := s.authorizeRead(ctx, req.GetWorkspaceId()); err != nil {
 		return err
 	}
 
@@ -200,22 +205,11 @@ func (s *ObservabilityService) QueryMetrics(
 	ctx context.Context,
 	req *observabilityv1.QueryMetricsRequest,
 ) (*observabilityv1.QueryMetricsResponse, error) {
-	token, ok := auth.TokenFromContext(ctx)
-	if !ok {
-		return nil, rpcerr.New(connect.CodeUnauthenticated, errMissingToken)
-	}
-
 	if err := guardrails.ValidateMetricsRequest(req, s.cfg); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
 
-	if err := s.validator.CheckPermission(
-		ctx,
-		token,
-		tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
-		req.GetWorkspaceId(),
-		tokenv1.Scope_SCOPE_READ,
-	); err != nil {
+	if err := s.authorizeRead(ctx, req.GetWorkspaceId()); err != nil {
 		return nil, err
 	}
 
