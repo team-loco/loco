@@ -30,16 +30,16 @@ func prerequisites(ctx context.Context, kube *Kubernetes, release releaseArtifac
 		return err
 	}
 	for _, prerequisite := range []struct {
-		name, namespace, selector string
-		chart                     []byte
-		values                    []byte
+		name, namespace string
+		chart           []byte
+		values          []byte
 	}{
 		{
-			certManagerName, certManagerName, "app.kubernetes.io/name=cert-manager",
+			certManagerName, certManagerName,
 			release.certManager, []byte("crds:\n  enabled: true\n"),
 		},
 		{
-			"loco-envoy-gateway", kube.Target.Namespace, "app.kubernetes.io/name=envoy-gateway",
+			"loco-envoy-gateway", kube.Target.Namespace,
 			gateway, []byte("crds:\n  enabled: false\n"),
 		},
 	} {
@@ -48,7 +48,7 @@ func prerequisites(ctx context.Context, kube *Kubernetes, release releaseArtifac
 			return err
 		}
 		var metadata struct {
-			Version    string `json:"version"`
+			Name       string `json:"name"`
 			AppVersion string `json:"appVersion"`
 		}
 		for path, data := range files {
@@ -58,7 +58,11 @@ func prerequisites(ctx context.Context, kube *Kubernetes, release releaseArtifac
 				}
 			}
 		}
-		existing, err := kube.Apps.Deployments("").List(ctx, metav1.ListOptions{LabelSelector: prerequisite.selector})
+		if !label(metadata.Name) {
+			return errInvalidRelease
+		}
+		selector := "app.kubernetes.io/name=" + metadata.Name
+		existing, err := kube.Apps.Deployments("").List(ctx, metav1.ListOptions{LabelSelector: selector})
 		if err != nil {
 			return safeKubernetesError("inspect prerequisite controller", err)
 		}
