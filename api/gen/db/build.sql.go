@@ -502,7 +502,7 @@ SELECT id, resource_id, cluster_id, status, source_type, source_key, source_size
 WHERE b.resource_id = $1
   AND ($3::text IS NULL
        OR (b.created_at, b.id) < (
-         (SELECT created_at FROM builds WHERE id = $3::uuid),
+         $4::timestamptz,
          $3::uuid
        ))
 ORDER BY b.created_at DESC, b.id DESC
@@ -510,13 +510,19 @@ LIMIT $2
 `
 
 type ListBuildsForResourceParams struct {
-	ResourceID uuid.UUID `json:"resourceId"`
-	Limit      int32     `json:"limit"`
-	PageToken  *string   `json:"pageToken"`
+	ResourceID    uuid.UUID  `json:"resourceId"`
+	Limit         int32      `json:"limit"`
+	PageToken     *string    `json:"pageToken"`
+	PageCreatedAt *time.Time `json:"pageCreatedAt"`
 }
 
 func (q *Queries) ListBuildsForResource(ctx context.Context, arg ListBuildsForResourceParams) ([]Build, error) {
-	rows, err := q.db.Query(ctx, listBuildsForResource, arg.ResourceID, arg.Limit, arg.PageToken)
+	rows, err := q.db.Query(ctx, listBuildsForResource,
+		arg.ResourceID,
+		arg.Limit,
+		arg.PageToken,
+		arg.PageCreatedAt,
+	)
 	if err != nil {
 		return nil, err
 	}

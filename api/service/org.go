@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"connectrpc.com/connect/v2"
@@ -295,15 +296,15 @@ func (s *OrgServer) ListUserOrgs(
 		orgResponses = append(orgResponses, orgToProto(org))
 	}
 
-	var nextPageToken string
-	if len(orgs) == int(pageSize) {
-		last := orgs[len(orgs)-1]
-		nextPageToken = encodePositionCursor(last.ID, last.CreatedAt)
-	}
+	token := nextPageToken(
+		orgs,
+		pageSize,
+		func(row genDb.Organization) (uuid.UUID, time.Time) { return row.ID, row.CreatedAt },
+	)
 
 	return &orgv1.ListUserOrgsResponse{
 		Orgs:          orgResponses,
-		NextPageToken: nextPageToken,
+		NextPageToken: token,
 	}, nil
 }
 
@@ -540,19 +541,16 @@ func (s *OrgServer) ListOrgMembers(
 
 	pageSize := normalizePageSize(req.GetPageSize())
 
-	var pageToken *string
-	if req.GetPageToken() != "" {
-		cursorID, err := decodeCursor(req.GetPageToken())
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(err)
-		}
-		pageToken = &cursorID
+	cursor, cursorErr := decodePositionCursor(req.GetPageToken())
+	if cursorErr != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(cursorErr)
 	}
 
 	rows, err := s.queries.ListOrgMembersWithDetails(ctx, genDb.ListOrgMembersWithDetailsParams{
-		EntityID:  uuid.MustParse(req.GetOrgId()),
-		Limit:     pageSize,
-		PageToken: pageToken,
+		EntityID:      uuid.MustParse(req.GetOrgId()),
+		Limit:         pageSize,
+		PageToken:     cursor.ID,
+		PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list org members", "error", err)
@@ -570,15 +568,12 @@ func (s *OrgServer) ListOrgMembers(
 		members[i] = &orgv1.OrgMember{User: user, Scopes: row.Scopes}
 	}
 
-	var nextPageToken string
-	if len(rows) == int(pageSize) {
-		lastID := rows[len(rows)-1].ID.String()
-		nextPageToken = encodeCursor(lastID)
-	}
-
+	token := nextPageToken(rows, pageSize, func(m genDb.ListOrgMembersWithDetailsRow) (uuid.UUID, time.Time) {
+		return m.ID, m.JoinedAt
+	})
 	return &orgv1.ListOrgMembersResponse{
 		Members:       members,
-		NextPageToken: nextPageToken,
+		NextPageToken: token,
 	}, nil
 }
 

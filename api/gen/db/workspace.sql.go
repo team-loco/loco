@@ -130,15 +130,19 @@ SELECT ms.workspace_id, ms.user_id, ms.scopes, ms.joined_at,
 FROM member_scopes ms
 JOIN users u ON u.id = ms.user_id
 WHERE ($3::text IS NULL
-       OR ms.user_id < $3::uuid)
-ORDER BY ms.user_id DESC
+       OR (ms.joined_at, ms.user_id) < (
+         $4::timestamptz,
+         $3::uuid
+       ))
+ORDER BY ms.joined_at DESC, ms.user_id DESC
 LIMIT $2
 `
 
 type ListWorkspaceMembersWithUserDetailsParams struct {
-	EntityID  uuid.UUID `json:"entityId"`
-	Limit     int32     `json:"limit"`
-	PageToken *string   `json:"pageToken"`
+	EntityID      uuid.UUID  `json:"entityId"`
+	Limit         int32      `json:"limit"`
+	PageToken     *string    `json:"pageToken"`
+	PageCreatedAt *time.Time `json:"pageCreatedAt"`
 }
 
 type ListWorkspaceMembersWithUserDetailsRow struct {
@@ -152,7 +156,12 @@ type ListWorkspaceMembersWithUserDetailsRow struct {
 }
 
 func (q *Queries) ListWorkspaceMembersWithUserDetails(ctx context.Context, arg ListWorkspaceMembersWithUserDetailsParams) ([]ListWorkspaceMembersWithUserDetailsRow, error) {
-	rows, err := q.db.Query(ctx, listWorkspaceMembersWithUserDetails, arg.EntityID, arg.Limit, arg.PageToken)
+	rows, err := q.db.Query(ctx, listWorkspaceMembersWithUserDetails,
+		arg.EntityID,
+		arg.Limit,
+		arg.PageToken,
+		arg.PageCreatedAt,
+	)
 	if err != nil {
 		return nil, err
 	}

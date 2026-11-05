@@ -141,19 +141,15 @@ func (s *OrgServer) ListInvitations(
 		return nil, err
 	}
 	pageSize := normalizePageSize(req.GetPageSize())
-	var pageToken *uuid.UUID
-	if req.GetPageToken() != "" {
-		cursorID, err := decodeCursor(req.GetPageToken())
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(err)
-		}
-		parsed := uuid.MustParse(cursorID)
-		pageToken = &parsed
+	cursor, cursorErr := decodePositionCursor(req.GetPageToken())
+	if cursorErr != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(cursorErr)
 	}
 	rows, err := s.queries.ListOrgInvitations(ctx, genDb.ListOrgInvitationsParams{
-		OrgID:     uuid.MustParse(req.GetOrgId()),
-		PageToken: pageToken,
-		Limit:     pageSize,
+		OrgID:         uuid.MustParse(req.GetOrgId()),
+		Limit:         pageSize,
+		PageToken:     cursor.ID,
+		PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list invitations", "error", err)
@@ -173,11 +169,8 @@ func (s *OrgServer) ListInvitations(
 		}
 		invitations[i] = s.invitationProto(row, inviter)
 	}
-	var nextPageToken string
-	if len(rows) == int(pageSize) {
-		nextPageToken = encodeCursor(rows[len(rows)-1].ID.String())
-	}
-	return &orgv1.ListInvitationsResponse{Invitations: invitations, NextPageToken: nextPageToken}, nil
+	token := nextPageToken(rows, pageSize, func(i genDb.Invitation) (uuid.UUID, time.Time) { return i.ID, i.CreatedAt })
+	return &orgv1.ListInvitationsResponse{Invitations: invitations, NextPageToken: token}, nil
 }
 
 func (s *OrgServer) RevokeInvitation(

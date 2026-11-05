@@ -241,7 +241,7 @@ SELECT id, email, name, avatar_url, status, created_at, updated_at
 FROM users
 WHERE ($2::text IS NULL
        OR (created_at, id) < (
-         (SELECT created_at FROM users WHERE id = $2::uuid),
+         $3::timestamptz,
          $2::uuid
        ))
 ORDER BY created_at DESC, id DESC
@@ -249,12 +249,13 @@ LIMIT $1
 `
 
 type ListUsersParams struct {
-	Limit     int32   `json:"limit"`
-	PageToken *string `json:"pageToken"`
+	Limit         int32      `json:"limit"`
+	PageToken     *string    `json:"pageToken"`
+	PageCreatedAt *time.Time `json:"pageCreatedAt"`
 }
 
 func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error) {
-	rows, err := q.db.Query(ctx, listUsers, arg.Limit, arg.PageToken)
+	rows, err := q.db.Query(ctx, listUsers, arg.Limit, arg.PageToken, arg.PageCreatedAt)
 	if err != nil {
 		return nil, err
 	}

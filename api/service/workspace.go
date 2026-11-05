@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -286,15 +287,15 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 		})
 	}
 
-	var nextPageToken string
-	if len(workspaceList) == int(pageSize) {
-		last := workspaceList[len(workspaceList)-1]
-		nextPageToken = encodePositionCursor(last.ID, last.CreatedAt)
-	}
+	token := nextPageToken(
+		workspaceList,
+		pageSize,
+		func(row genDb.ListWorkspacesForUserRow) (uuid.UUID, time.Time) { return row.ID, row.CreatedAt },
+	)
 
 	return &workspacev1.ListUserWorkspacesResponse{
 		Workspaces:    workspaces,
-		NextPageToken: nextPageToken,
+		NextPageToken: token,
 	}, nil
 }
 
@@ -359,15 +360,15 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 		})
 	}
 
-	var nextPageToken string
-	if len(workspaceList) == int(pageSize) {
-		last := workspaceList[len(workspaceList)-1]
-		nextPageToken = encodePositionCursor(last.ID, last.CreatedAt)
-	}
+	token := nextPageToken(
+		workspaceList,
+		pageSize,
+		func(row genDb.ListWorkspacesInOrgRow) (uuid.UUID, time.Time) { return row.ID, row.CreatedAt },
+	)
 
 	return &workspacev1.ListOrgWorkspacesResponse{
 		Workspaces:    workspaces,
-		NextPageToken: nextPageToken,
+		NextPageToken: token,
 	}, nil
 }
 
@@ -716,21 +717,18 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 
 	pageSize := normalizePageSize(req.GetPageSize())
 
-	var pageToken *string
-	if req.GetPageToken() != "" {
-		cursorID, err := decodeCursor(req.GetPageToken())
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(err)
-		}
-		pageToken = &cursorID
+	cursor, cursorErr := decodePositionCursor(req.GetPageToken())
+	if cursorErr != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(cursorErr)
 	}
 
 	memberList, err := s.queries.ListWorkspaceMembersWithUserDetails(
 		ctx,
 		genDb.ListWorkspaceMembersWithUserDetailsParams{
-			EntityID:  uuid.MustParse(req.GetWorkspaceId()),
-			Limit:     pageSize,
-			PageToken: pageToken,
+			EntityID:      uuid.MustParse(req.GetWorkspaceId()),
+			Limit:         pageSize,
+			PageToken:     cursor.ID,
+			PageCreatedAt: cursor.CreatedAt,
 		},
 	)
 	if err != nil {
@@ -751,13 +749,15 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 		})
 	}
 
-	var nextPageToken string
-	if len(memberList) == int(pageSize) {
-		nextPageToken = encodeCursor(memberList[len(memberList)-1].UserID.String())
-	}
-
+	token := nextPageToken(
+		memberList,
+		pageSize,
+		func(m genDb.ListWorkspaceMembersWithUserDetailsRow) (uuid.UUID, time.Time) {
+			return m.UserID, m.JoinedAt
+		},
+	)
 	return &workspacev1.ListWorkspaceMembersResponse{
 		Members:       members,
-		NextPageToken: nextPageToken,
+		NextPageToken: token,
 	}, nil
 }

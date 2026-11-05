@@ -149,24 +149,31 @@ func (q *Queries) IsOrgNameUnique(ctx context.Context, arg IsOrgNameUniqueParams
 
 const listOrgMembersWithDetails = `-- name: ListOrgMembersWithDetails :many
 WITH member_scopes AS (
-  SELECT us.user_id, array_agg(us.scope ORDER BY us.scope)::text[] AS scopes
+  SELECT
+    us.user_id,
+    array_agg(us.scope ORDER BY us.scope)::text[] AS scopes,
+    MIN(us.created_at)::timestamptz AS joined_at
   FROM user_scopes us
   WHERE us.entity_type = 'organization' AND us.entity_id = $1
   GROUP BY us.user_id
 )
-SELECT u.id, u.email, u.name, u.avatar_url, ms.scopes
+SELECT u.id, u.email, u.name, u.avatar_url, ms.scopes, ms.joined_at
 FROM member_scopes ms
 JOIN users u ON u.id = ms.user_id
 WHERE ($3::text IS NULL
-       OR u.id < $3::uuid)
-ORDER BY u.id DESC
+       OR (ms.joined_at, ms.user_id) < (
+         $4::timestamptz,
+         $3::uuid
+       ))
+ORDER BY ms.joined_at DESC, ms.user_id DESC
 LIMIT $2
 `
 
 type ListOrgMembersWithDetailsParams struct {
-	EntityID  uuid.UUID `json:"entityId"`
-	Limit     int32     `json:"limit"`
-	PageToken *string   `json:"pageToken"`
+	EntityID      uuid.UUID  `json:"entityId"`
+	Limit         int32      `json:"limit"`
+	PageToken     *string    `json:"pageToken"`
+	PageCreatedAt *time.Time `json:"pageCreatedAt"`
 }
 
 type ListOrgMembersWithDetailsRow struct {
@@ -175,10 +182,16 @@ type ListOrgMembersWithDetailsRow struct {
 	Name      *string   `json:"name"`
 	AvatarUrl *string   `json:"avatarUrl"`
 	Scopes    []string  `json:"scopes"`
+	JoinedAt  time.Time `json:"joinedAt"`
 }
 
 func (q *Queries) ListOrgMembersWithDetails(ctx context.Context, arg ListOrgMembersWithDetailsParams) ([]ListOrgMembersWithDetailsRow, error) {
-	rows, err := q.db.Query(ctx, listOrgMembersWithDetails, arg.EntityID, arg.Limit, arg.PageToken)
+	rows, err := q.db.Query(ctx, listOrgMembersWithDetails,
+		arg.EntityID,
+		arg.Limit,
+		arg.PageToken,
+		arg.PageCreatedAt,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -192,6 +205,7 @@ func (q *Queries) ListOrgMembersWithDetails(ctx context.Context, arg ListOrgMemb
 			&i.Name,
 			&i.AvatarUrl,
 			&i.Scopes,
+			&i.JoinedAt,
 		); err != nil {
 			return nil, err
 		}

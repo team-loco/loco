@@ -436,20 +436,16 @@ func (s *BuildServer) ListBuilds(
 	requestedPageSize := req.GetPageSize()
 	pageSize := normalizePageSize(requestedPageSize)
 
-	var pageToken *string
-	if rawToken := req.GetPageToken(); rawToken != "" {
-		cursorID, decodeErr := decodeCursor(rawToken)
-		if decodeErr != nil {
-			invalid := fmt.Errorf("invalid page_token: %w", decodeErr)
-			return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(invalid)
-		}
-		pageToken = &cursorID
+	cursor, cursorErr := decodePositionCursor(req.GetPageToken())
+	if cursorErr != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(cursorErr)
 	}
 
 	rows, err := s.queries.ListBuildsForResource(ctx, genDb.ListBuildsForResourceParams{
-		ResourceID: resourceID,
-		Limit:      pageSize,
-		PageToken:  pageToken,
+		ResourceID:    resourceID,
+		Limit:         pageSize,
+		PageToken:     cursor.ID,
+		PageCreatedAt: cursor.CreatedAt,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list builds", "error", err, "resourceId", resourceID)
@@ -462,15 +458,10 @@ func (s *BuildServer) ListBuilds(
 		builds = append(builds, item)
 	}
 
-	var nextPageToken string
-	if len(rows) == int(pageSize) {
-		lastID := rows[len(rows)-1].ID.String()
-		nextPageToken = encodeCursor(lastID)
-	}
-
+	token := nextPageToken(rows, pageSize, func(b genDb.Build) (uuid.UUID, time.Time) { return b.ID, b.CreatedAt })
 	return &buildv1.ListBuildsResponse{
 		Builds:        builds,
-		NextPageToken: nextPageToken,
+		NextPageToken: token,
 	}, nil
 }
 
