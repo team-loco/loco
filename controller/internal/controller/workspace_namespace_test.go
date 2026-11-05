@@ -6,7 +6,6 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -43,15 +42,11 @@ func workspaceApp(name, resourceID string) *locov1alpha1.Application {
 func appObjects(app *locov1alpha1.Application) []client.Object {
 	name := testAppName(app)
 	namespace := testWorkspaceNamespace(app)
-	roleName := getRoleName(app)
-	bindingName := getRoleBindingName(app)
 	envSecretName := getEnvSecretName(app)
 	return []client.Object{
 		&appsv1.Deployment{Name: name, Namespace: namespace},
 		&corev1.Service{Name: name, Namespace: namespace},
 		&corev1.ServiceAccount{Name: name, Namespace: namespace},
-		&rbacv1.Role{Name: roleName, Namespace: namespace},
-		&rbacv1.RoleBinding{Name: bindingName, Namespace: namespace},
 		&corev1.Secret{Name: envSecretName, Namespace: namespace},
 	}
 }

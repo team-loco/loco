@@ -8,7 +8,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,10 +52,8 @@ var _ = Describe("Application reconcile", func() {
 			},
 		}
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
-		podRole := &rbacv1.Role{Name: getRoleName(app), Namespace: testWorkspaceNamespace(app)}
 		podNamespace := &corev1.Namespace{Name: testWorkspaceNamespace(app)}
 		Expect(k8sClient.Create(ctx, podNamespace)).To(Succeed())
-		Expect(k8sClient.Create(ctx, podRole)).To(Succeed())
 
 		r := &LocoResourceReconciler{
 			Gateway:                  testGateway,
@@ -134,8 +131,6 @@ var _ = Describe("Application reconcile", func() {
 		envSecret := &corev1.Secret{}
 		Expect(k8sClient.Get(ctx, envKey, envSecret)).To(Succeed())
 		Expect(envSecret.Data).To(Equal(map[string][]byte{"DATABASE_URL": []byte("postgres://new")}))
-		err = k8sClient.Get(ctx, client.ObjectKeyFromObject(podRole), podRole)
-		Expect(apierrors.IsNotFound(err)).To(BeTrue(), "the pod's Secret-reading Role survived")
 		imageSecret := &corev1.Secret{}
 		Expect(k8sClient.Get(ctx, imageKey, imageSecret)).To(Succeed())
 		Expect(imageSecret.Type).To(Equal(corev1.SecretTypeDockerConfigJson))

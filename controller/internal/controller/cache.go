@@ -7,7 +7,6 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -65,8 +64,6 @@ func CacheOptions(locoNamespace, pullSecretName string, registryTokenMode bool) 
 			&corev1.Secret{}:         secrets,
 			&corev1.Service{}:        managedObjects,
 			&corev1.ServiceAccount{}: managedObjects,
-			&rbacv1.Role{}:           managedObjects,
-			&rbacv1.RoleBinding{}:    managedObjects,
 			&appsv1.Deployment{}:     managedObjects,
 			&corev1.Pod{}:            applicationPods,
 		},

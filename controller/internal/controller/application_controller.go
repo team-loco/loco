@@ -29,7 +29,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -98,7 +97,6 @@ type LocoResourceReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;create;list;watch;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;create;list;watch;patch;delete
-// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=delete
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;create;list;watch;patch;update;delete
@@ -201,11 +199,6 @@ func (r *LocoResourceReconciler) reconcileResources(
 	err = r.ensureServiceAccount(ctx, locoRes)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure service account: %w", err)
-	}
-
-	err = r.deleteRoleAndBinding(ctx, locoRes)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("delete role & binding: %w", err)
 	}
 
 	dep, err := r.ensureDeployment(ctx, locoRes, envSecret)
@@ -350,8 +343,6 @@ func (r *LocoResourceReconciler) deleteAppObjects(ctx context.Context, locoRes *
 	namespace := r.workspaceNamespace(locoRes)
 	routeName := getRouteName(locoRes)
 	gatewayPolicyName := getGatewayPolicyName(locoRes)
-	bindingName := getRoleBindingName(locoRes)
-	roleName := getRoleName(locoRes)
 	envSecretName := getEnvSecretName(locoRes)
 
 	objects := []client.Object{
@@ -360,8 +351,6 @@ func (r *LocoResourceReconciler) deleteAppObjects(ctx context.Context, locoRes *
 		&networkingv1.NetworkPolicy{Name: getMetricsPolicyName(locoRes), Namespace: namespace},
 		&corev1.Service{Name: name, Namespace: namespace},
 		&appsv1.Deployment{Name: name, Namespace: namespace},
-		&rbacv1.RoleBinding{Name: bindingName, Namespace: namespace},
-		&rbacv1.Role{Name: roleName, Namespace: namespace},
 		&corev1.ServiceAccount{Name: name, Namespace: namespace},
 		&corev1.Secret{Name: envSecretName, Namespace: namespace},
 	}
@@ -420,14 +409,6 @@ func (r *LocoResourceReconciler) workspaceNamespace(locoRes *locov1alpha1.Applic
 
 func getEnvSecretName(locoRes *locov1alpha1.Application) string {
 	return fmt.Sprintf("%s-env", locov1alpha1.ApplicationName(locoRes.Spec.ResourceID))
-}
-
-func getRoleName(locoRes *locov1alpha1.Application) string {
-	return fmt.Sprintf("%s-role", locov1alpha1.ApplicationName(locoRes.Spec.ResourceID))
-}
-
-func getRoleBindingName(locoRes *locov1alpha1.Application) string {
-	return fmt.Sprintf("%s-binding", locov1alpha1.ApplicationName(locoRes.Spec.ResourceID))
 }
 
 func getRouteName(locoRes *locov1alpha1.Application) string {
@@ -551,23 +532,6 @@ func (r *LocoResourceReconciler) ensureServiceAccount(ctx context.Context, locoR
 	opts := managed.ApplyOptions()
 	if err := r.Apply(ctx, sa, opts...); err != nil {
 		return fmt.Errorf("apply service account %s/%s: %w", namespace, name, err)
-	}
-	return nil
-}
-
-// deleteRoleAndBinding removes the Role and RoleBinding that once let the pod read its env Secret.
-func (r *LocoResourceReconciler) deleteRoleAndBinding(ctx context.Context, locoRes *locov1alpha1.Application) error {
-	namespace := r.workspaceNamespace(locoRes)
-	objects := []client.Object{
-		&rbacv1.RoleBinding{Name: getRoleBindingName(locoRes), Namespace: namespace},
-		&rbacv1.Role{Name: getRoleName(locoRes), Namespace: namespace},
-	}
-	for _, obj := range objects {
-		err := r.Delete(ctx, obj)
-		if err == nil || apierrors.IsNotFound(err) {
-			continue
-		}
-		return fmt.Errorf("delete %T %s/%s: %w", obj, namespace, obj.GetName(), err)
 	}
 	return nil
 }
