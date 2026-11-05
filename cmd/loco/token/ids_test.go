@@ -18,7 +18,6 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
-	"github.com/team-loco/loco/internal/rpc"
 )
 
 const (
@@ -118,25 +117,19 @@ func tokenIDCommand(t *testing.T, fake *tokenIDsServer, action string) *cobra.Co
 	); err != nil {
 		t.Fatal(err)
 	}
-	newTokenClient := func(host, bearer string) tokenv1connect.TokenServiceClient {
-		return rpc.ForHost(host, bearer).Token
-	}
-	newUserClient := func(host, bearer string) userv1connect.UserServiceClient { return rpc.ForHost(host, bearer).User }
+	var cmd *cobra.Command
 	switch action {
 	case testCreateAction:
-		return newCreateCmd(
-			createDeps{NewTokenClient: newTokenClient, NewUserClient: newUserClient, Output: io.Discard},
-		)
+		cmd = buildCreateCmd()
 	case testListAction:
-		return newListCmd(listDeps{NewTokenClient: newTokenClient, NewUserClient: newUserClient, Output: io.Discard})
+		cmd = buildListCmd()
 	case testDeleteAction:
-		return newDeleteCmd(
-			deleteDeps{NewTokenClient: newTokenClient, NewUserClient: newUserClient, Output: io.Discard},
-		)
+		cmd = buildDeleteCmd()
 	default:
 		t.Fatalf("unknown action %q", action)
-		return nil
 	}
+	cmd.SetOut(io.Discard)
+	return cmd
 }
 
 func TestTokenCommandsUseUUIDs(t *testing.T) {

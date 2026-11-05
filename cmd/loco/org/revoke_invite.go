@@ -2,17 +2,13 @@ package org
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 )
 
 func buildRevokeInviteCmd() *cobra.Command {
-	return newRevokeInviteCmd(invitationDeps{NewOrgClient: realOrgClient, Output: os.Stdout})
-}
-
-func newRevokeInviteCmd(deps invitationDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "revoke-invite <id>",
 		Short: "Revoke a pending invitation",
@@ -21,15 +17,16 @@ func newRevokeInviteCmd(deps invitationDeps) *cobra.Command {
 		Example: `  # Revoke an invitation
   loco org revoke-invite 0198c2d4-1111-7000-8000-000000000001`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := invitationClient(cmd, deps)
+			target, err := cmdutil.ResolveLogin(cmd)
 			if err != nil {
 				return err
 			}
+			client := target.Clients.Org
 			request := &orgv1.RevokeInvitationRequest{Id: args[0]}
 			if _, err = client.RevokeInvitation(cmd.Context(), request); err != nil {
 				return fmt.Errorf("unable to revoke invitation %s: %w", args[0], err)
 			}
-			fmt.Fprintf(deps.Output, "Invitation %s revoked.\n", args[0])
+			fmt.Fprintf(cmd.OutOrStdout(), "Invitation %s revoked.\n", args[0])
 			return nil
 		},
 	}

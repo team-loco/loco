@@ -2,7 +2,6 @@ package org
 
 import (
 	"fmt"
-	"os"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -13,10 +12,6 @@ import (
 const invitationTablePadding = 2
 
 func buildInvitationsCmd() *cobra.Command {
-	return newInvitationsCmd(invitationDeps{NewOrgClient: realOrgClient, Output: os.Stdout})
-}
-
-func newInvitationsCmd(deps invitationDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "invitations",
 		Short: "List pending invitations",
@@ -25,10 +20,11 @@ func newInvitationsCmd(deps invitationDeps) *cobra.Command {
 		Example: `  # List pending invitations of the current organization
   loco org invitations`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			client, err := invitationClient(cmd, deps)
+			target, err := cmdutil.ResolveLogin(cmd)
 			if err != nil {
 				return err
 			}
+			client := target.Clients.Org
 			orgID, err := resolveOrgID(cmd, client)
 			if err != nil {
 				return err
@@ -49,11 +45,11 @@ func newInvitationsCmd(deps invitationDeps) *cobra.Command {
 			}
 
 			if len(invitations) == 0 {
-				fmt.Fprintln(deps.Output, "No pending invitations.")
+				fmt.Fprintln(cmd.OutOrStdout(), "No pending invitations.")
 				return nil
 			}
 
-			table := tabwriter.NewWriter(deps.Output, 0, 0, invitationTablePadding, ' ', 0)
+			table := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, invitationTablePadding, ' ', 0)
 			fmt.Fprintln(table, "ID\tEMAIL\tINVITED BY\tEXPIRES\tSTATUS")
 			for _, invitation := range invitations {
 				fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\n",

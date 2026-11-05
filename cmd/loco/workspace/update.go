@@ -1,13 +1,8 @@
 package workspace
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"io"
-	"os"
-
-	"github.com/team-loco/loco/internal/rpc"
 
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
@@ -15,14 +10,6 @@ import (
 )
 
 var errNoUpdateFlags = errors.New("at least one update flag is required (--name or --description)")
-
-type updateDeps struct {
-	UpdateWorkspace func(
-		ctx context.Context,
-		req *workspacev1.UpdateWorkspaceRequest,
-	) (*workspacev1.UpdateWorkspaceResponse, error)
-	Output io.Writer
-}
 
 func buildUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -56,21 +43,9 @@ func buildUpdateCmd() *cobra.Command {
 				return errNoUpdateFlags
 			}
 
-			host, err := cmdutil.GetHost(cmd)
+			target, err := cmdutil.ResolveLogin(cmd)
 			if err != nil {
 				return err
-			}
-			locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
-			if err != nil {
-				return err
-			}
-
-			workspaceClients := rpc.ForHost(host, locoToken.Token)
-			wsClient := workspaceClients.Workspace
-
-			deps := updateDeps{
-				UpdateWorkspace: wsClient.UpdateWorkspace,
-				Output:          os.Stdout,
 			}
 
 			updateReq := &workspacev1.UpdateWorkspaceRequest{
@@ -84,12 +59,12 @@ func buildUpdateCmd() *cobra.Command {
 				updateReq.Description = &description
 			}
 
-			_, err = deps.UpdateWorkspace(ctx, updateReq)
+			_, err = target.Clients.Workspace.UpdateWorkspace(ctx, updateReq)
 			if err != nil {
 				return fmt.Errorf("failed to update workspace: %w", err)
 			}
 
-			_, err = fmt.Fprintf(deps.Output, "Workspace updated successfully.\n")
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Workspace updated successfully.\n")
 			return err
 		},
 	}

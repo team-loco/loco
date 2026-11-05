@@ -2,34 +2,13 @@ package org
 
 import (
 	"fmt"
-	"io"
-	"os"
-
-	"github.com/team-loco/loco/internal/rpc"
 
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
-	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 )
 
-type createDeps struct {
-	NewOrgClient func(host, token string) orgv1connect.OrgServiceClient
-	Output       io.Writer
-}
-
 func buildCreateCmd() *cobra.Command {
-	deps := createDeps{
-		NewOrgClient: func(host, token string) orgv1connect.OrgServiceClient {
-			orgClients := rpc.ForHost(host, token)
-			return orgClients.Org
-		},
-		Output: os.Stdout,
-	}
-	return newCreateCmd(deps)
-}
-
-func newCreateCmd(deps createDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create [name]",
 		Short: "Create an organization",
@@ -43,16 +22,10 @@ func newCreateCmd(deps createDeps) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			host, err := cmdutil.GetHost(cmd)
+			target, err := cmdutil.ResolveLogin(cmd)
 			if err != nil {
 				return err
 			}
-			locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
-			if err != nil {
-				return err
-			}
-
-			orgClient := deps.NewOrgClient(host, locoToken.Token)
 
 			var name string
 			if len(args) > 0 {
@@ -66,7 +39,7 @@ func newCreateCmd(deps createDeps) *cobra.Command {
 
 			req := createReq
 
-			resp, err := orgClient.CreateOrg(ctx, req)
+			resp, err := target.Clients.Org.CreateOrg(ctx, req)
 			if err != nil {
 				if name != "" {
 					return fmt.Errorf("unable to create organization %q: %w", name, err)
@@ -74,7 +47,7 @@ func newCreateCmd(deps createDeps) *cobra.Command {
 				return fmt.Errorf("unable to create organization: %w", err)
 			}
 
-			fmt.Fprintf(deps.Output, "Organization %q created successfully (ID: %s)\n", name, resp.GetOrgId())
+			fmt.Fprintf(cmd.OutOrStdout(), "Organization %q created successfully (ID: %s)\n", name, resp.GetOrgId())
 			return nil
 		},
 	}

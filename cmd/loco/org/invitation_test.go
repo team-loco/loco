@@ -116,7 +116,7 @@ func (s *invitationServer) RevokeInvitation(
 func runInvitationCmd(
 	t *testing.T,
 	fake *invitationServer,
-	build func(invitationDeps) *cobra.Command,
+	build func() *cobra.Command,
 	args ...string,
 ) (string, error) {
 	t.Helper()
@@ -142,7 +142,8 @@ func runInvitationCmd(
 		t.Fatal(err)
 	}
 	var output bytes.Buffer
-	cmd := build(invitationDeps{NewOrgClient: realOrgClient, Output: &output})
+	cmd := build()
+	cmd.SetOut(&output)
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
 	cmd.SetArgs(args)
@@ -164,7 +165,7 @@ func TestInviteReportsDeliveryStatus(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			fake := &invitationServer{status: tc.status, failure: tc.failure}
-			output, err := runInvitationCmd(t, fake, newInviteCmd, testInviteeEmail)
+			output, err := runInvitationCmd(t, fake, buildInviteCmd, testInviteeEmail)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -196,7 +197,7 @@ func TestInvitationsListsEveryPage(t *testing.T) {
 			invitation("id-3", "c@acme.test", orgv1.InvitationStatus_INVITATION_STATUS_EXPIRED),
 		},
 	}}
-	output, err := runInvitationCmd(t, fake, newInvitationsCmd)
+	output, err := runInvitationCmd(t, fake, buildInvitationsCmd)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -219,7 +220,7 @@ func TestInvitationsListsEveryPage(t *testing.T) {
 
 func TestInvitationsEmpty(t *testing.T) {
 	fake := &invitationServer{pages: [][]*orgv1.Invitation{nil}}
-	output, err := runInvitationCmd(t, fake, newInvitationsCmd)
+	output, err := runInvitationCmd(t, fake, buildInvitationsCmd)
 	if err != nil || output != "No pending invitations.\n" {
 		t.Fatalf("output = %q, err = %v", output, err)
 	}
@@ -227,7 +228,7 @@ func TestInvitationsEmpty(t *testing.T) {
 
 func TestRevokeInviteSendsTheID(t *testing.T) {
 	fake := &invitationServer{}
-	output, err := runInvitationCmd(t, fake, newRevokeInviteCmd, testInvitationID)
+	output, err := runInvitationCmd(t, fake, buildRevokeInviteCmd, testInvitationID)
 	if err != nil {
 		t.Fatal(err)
 	}

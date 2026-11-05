@@ -2,45 +2,52 @@ package token
 
 import (
 	"errors"
-	"io"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/team-loco/loco/cmd/internal/keychain"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
+	"github.com/team-loco/loco/internal/session"
 )
 
-type failingStore struct {
-	keychain.TokenStore
-	err error
-}
-
-func (s failingStore) Get() (*keychain.UserToken, error) { return nil, s.err }
-
 func TestShowKeychainErrors(t *testing.T) {
-	decodeErr := errors.New("failed to decode credentials")
 	tests := []struct {
-		name      string
-		err       error
-		wantLogin bool
+		name        string
+		credentials string
+		wantLogin   bool
 	}{
-		{name: "not found asks to log in", err: keychain.ErrNotFound, wantLogin: true},
-		{name: "other failure is reported", err: decodeErr},
+		{name: "not found asks to log in", wantLogin: true},
+		{name: "other failure is reported", credentials: "not json"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := newShowCmd(showDeps{
-				Tokens: func() (keychain.TokenStore, error) {
-					return failingStore{err: tt.err}, nil
-				},
-				Output: io.Discard,
-			})
+			t.Setenv("HOME", t.TempDir())
+			t.Setenv(keychain.StoreEnvVar, "file")
+			if tt.credentials != "" {
+				dir, err := session.Dir()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err = os.MkdirAll(dir, 0o700); err != nil {
+					t.Fatal(err)
+				}
+				path := filepath.Join(dir, "credentials.json")
+				if err = os.WriteFile(path, []byte(tt.credentials), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			cmd := buildShowCmd()
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
 			cmd.SetArgs(nil)
 			err := cmd.Execute()
 			if got := errors.Is(err, cmdutil.ErrLoginRequired); got != tt.wantLogin {
 				t.Fatalf("errors.Is(err, ErrLoginRequired) = %v, want %v (err: %v)", got, tt.wantLogin, err)
 			}
-			if !tt.wantLogin && !errors.Is(err, tt.err) {
-				t.Fatalf("error %v does not wrap %v", err, tt.err)
+			if !tt.wantLogin && (err == nil || !strings.Contains(err.Error(), "failed to decode")) {
+				t.Fatalf("error %v does not report the decode failure", err)
 			}
 		})
 	}

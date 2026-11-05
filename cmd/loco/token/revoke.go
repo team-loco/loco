@@ -13,20 +13,7 @@ import (
 
 var errNotLoggedIn = errors.New("not logged in - nothing to revoke")
 
-type revokeDeps struct {
-	Tokens   func() (keychain.TokenStore, error)
-	AskYesNo func(prompt string) (bool, error)
-}
-
 func buildRevokeCmd() *cobra.Command {
-	deps := revokeDeps{
-		Tokens:   keychain.ForCurrentUser,
-		AskYesNo: ui.AskYesNo,
-	}
-	return newRevokeCmd(deps)
-}
-
-func newRevokeCmd(deps revokeDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "revoke",
 		Short: "Revoke current token",
@@ -47,7 +34,7 @@ func newRevokeCmd(deps revokeDeps) *cobra.Command {
 				return err
 			}
 
-			store, err := deps.Tokens()
+			store, err := keychain.ForCurrentUser()
 			if err != nil {
 				return err
 			}
@@ -65,7 +52,7 @@ func newRevokeCmd(deps revokeDeps) *cobra.Command {
 				return fmt.Errorf("failed to get yes flag: %w", err)
 			}
 			if !yes {
-				confirm, confirmErr := deps.AskYesNo(
+				confirm, confirmErr := ui.AskYesNo(
 					"Are you sure you want to revoke your token? You will need to login again.",
 				)
 				if confirmErr != nil {

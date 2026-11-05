@@ -3,36 +3,15 @@ package org
 import (
 	"errors"
 	"fmt"
-	"io"
-	"os"
-
-	"github.com/team-loco/loco/internal/rpc"
 
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
-	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 )
 
 var errNoUpdateFlags = errors.New("at least one update flag is required (e.g., --new-name)")
 
-type updateDeps struct {
-	NewOrgClient func(host, token string) orgv1connect.OrgServiceClient
-	Output       io.Writer
-}
-
 func buildUpdateCmd() *cobra.Command {
-	deps := updateDeps{
-		NewOrgClient: func(host, token string) orgv1connect.OrgServiceClient {
-			orgClients := rpc.ForHost(host, token)
-			return orgClients.Org
-		},
-		Output: os.Stdout,
-	}
-	return newUpdateCmd(deps)
-}
-
-func newUpdateCmd(deps updateDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update <name>",
 		Short: "Update an organization",
@@ -51,16 +30,12 @@ func newUpdateCmd(deps updateDeps) *cobra.Command {
 				return errNoUpdateFlags
 			}
 
-			host, err := cmdutil.GetHost(cmd)
-			if err != nil {
-				return err
-			}
-			locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
+			target, err := cmdutil.ResolveLogin(cmd)
 			if err != nil {
 				return err
 			}
 
-			orgClient := deps.NewOrgClient(host, locoToken.Token)
+			orgClient := target.Clients.Org
 
 			name := args[0]
 
@@ -83,7 +58,7 @@ func newUpdateCmd(deps updateDeps) *cobra.Command {
 				return fmt.Errorf("failed to update organization: %w", err)
 			}
 
-			fmt.Fprintf(deps.Output, "Organization updated successfully.\n")
+			fmt.Fprintf(cmd.OutOrStdout(), "Organization updated successfully.\n")
 			return nil
 		},
 	}
