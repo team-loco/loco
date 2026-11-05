@@ -58,26 +58,6 @@ var (
 	errNoActiveDeployment    = errors.New("resource has no active deployment in the environment")
 )
 
-// protoResourceTypeToDb converts a proto ResourceType to a database ResourceType
-func protoResourceTypeToDb(rt resourcev1.ResourceType) (genDb.ResourceType, error) {
-	switch rt {
-	case resourcev1.ResourceType_RESOURCE_TYPE_SERVICE:
-		return genDb.ResourceTypeService, nil
-	case resourcev1.ResourceType_RESOURCE_TYPE_DATABASE:
-		return genDb.ResourceTypeDatabase, nil
-	case resourcev1.ResourceType_RESOURCE_TYPE_CACHE:
-		return genDb.ResourceTypeCache, nil
-	case resourcev1.ResourceType_RESOURCE_TYPE_QUEUE:
-		return genDb.ResourceTypeQueue, nil
-	case resourcev1.ResourceType_RESOURCE_TYPE_BLOB:
-		return genDb.ResourceTypeBlob, nil
-	case resourcev1.ResourceType_RESOURCE_TYPE_FUNCTION:
-		return genDb.ResourceTypeService, nil
-	default:
-		return "", ErrInvalidResourceType
-	}
-}
-
 type ResourceServer struct {
 	resourcev1connect.UnimplementedResourceServiceHandler
 	db                 *pgxpool.Pool
@@ -165,16 +145,16 @@ func (s *ResourceServer) CreateResource(
 		return nil, err
 	}
 
-	resourceType, err := protoResourceTypeToDb(req.GetType())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
+	if req.GetType() != resourcev1.ResourceType_RESOURCE_TYPE_SERVICE {
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).
+			WithCause(ErrInvalidResourceType)
 	}
 
 	params := genDb.CreateResourceParams{
 		WorkspaceID: workspaceID,
 		Name:        req.GetName(),
 		Slug:        slug,
-		Type:        resourceType,
+		Type:        genDb.ResourceTypeService,
 		Spec:        specJSON,
 		SpecVersion: specVersion,
 		Description: req.GetDescription(),
@@ -1095,23 +1075,6 @@ func dbResourceToProto(
 	statuses []*resourcev1.EnvironmentStatus,
 	domains []genDb.ResourceDomain,
 ) (*resourcev1.Resource, error) {
-	// convert db.ResourceType (string) to proto ResourceType (int32)
-	var resourceType resourcev1.ResourceType
-	switch res.Type {
-	case genDb.ResourceTypeService:
-		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_SERVICE
-	case genDb.ResourceTypeDatabase:
-		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_DATABASE
-	case genDb.ResourceTypeCache:
-		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_CACHE
-	case genDb.ResourceTypeQueue:
-		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_QUEUE
-	case genDb.ResourceTypeBlob:
-		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_BLOB
-	default:
-		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_SERVICE
-	}
-
 	spec, err := converter.DeserializeResourceSpec(res.Spec, res.Type)
 	if err != nil {
 		return nil, fmt.Errorf("decode spec of resource %s: %w", res.ID, err)
@@ -1122,7 +1085,7 @@ func dbResourceToProto(
 		WorkspaceId:         res.WorkspaceID.String(),
 		Name:                res.Name,
 		Slug:                res.Slug,
-		Type:                resourceType,
+		Type:                resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
 		Spec:                spec,
 		Domains:             resourceDomainToListProto(domains),
 		CreatedAt:           timeutil.ParsePostgresTimestamp(res.CreatedAt),

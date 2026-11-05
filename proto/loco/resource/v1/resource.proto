@@ -178,8 +178,7 @@ message CreateResourceRequest {
   string workspace_id = 1 [(buf.validate.field).string.uuid = true];
   string name = 2 [(buf.validate.field).string.max_len = 63];
   ResourceType type = 3 [(buf.validate.field).enum = {
-    defined_only: true
-    not_in: [0]
+    in: [1]
   }];
   optional domain.v1.DomainInput domain = 4;
   ResourceSpec spec = 5 [(buf.validate.field).required = true];

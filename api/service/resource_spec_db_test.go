@@ -34,3 +34,29 @@ func TestGetResourceFailsOnCorruptSpec(t *testing.T) {
 	_, err := server.GetResource(ctx, req)
 	wantCode(t, err, connect.CodeInternal)
 }
+
+func TestCreateResourceRejectsNonServiceType(t *testing.T) {
+	f := newDeployFixture(t)
+	ctx := context.Background()
+	var workspaceID uuid.UUID
+	if err := f.pool.QueryRow(ctx, `SELECT workspace_id FROM resources WHERE id = $1`, f.resourceID).
+		Scan(&workspaceID); err != nil {
+		t.Fatalf("workspace: %v", err)
+	}
+	scopes := []genDb.EntityScope{
+		{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeWrite},
+		{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeRead},
+	}
+	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter)
+	ctx = context.WithValue(ctx, contextkeys.EntityScopesKey, scopes)
+	service := &resourcev1.ResourceSpec_Service{Service: &resourcev1.ServiceSpec{}}
+	spec := &resourcev1.ResourceSpec{Spec: service}
+	req := &resourcev1.CreateResourceRequest{
+		WorkspaceId: workspaceID.String(),
+		Name:        "db",
+		Type:        resourcev1.ResourceType_RESOURCE_TYPE_DATABASE,
+		Spec:        spec,
+	}
+	_, err := server.CreateResource(ctx, req)
+	wantCode(t, err, connect.CodeInvalidArgument)
+}
