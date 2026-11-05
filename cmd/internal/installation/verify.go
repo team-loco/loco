@@ -47,7 +47,12 @@ var (
 	errVerificationTarget = errors.New(
 		"verification requires a build-enabled worker and an authorized environment of the same tier",
 	)
-	errVerificationCleanup = errors.New("verification resource cleanup failed")
+	errVerificationBuild          = fmt.Errorf("verify source build: %w", errVerification)
+	errVerificationHTTPS          = fmt.Errorf("verify HTTPS: %w", errVerification)
+	errVerificationLogs           = fmt.Errorf("verify application logs: %w", errVerification)
+	errVerificationCleanup        = errors.New("verification resource cleanup failed")
+	errVerificationSecretDelivery = fmt.Errorf("verify deployed secret delivery: %w", errVerification)
+	errVerificationSecretStorage  = fmt.Errorf("verify encrypted secret storage: %w", errVerification)
 )
 
 type VerificationTarget struct {
@@ -203,7 +208,7 @@ func verifyApplication(
 		EnvironmentId: environment.GetId(),
 		Values:        map[string]string{verificationSecretName: secret},
 	}); setErr != nil {
-		return fmt.Errorf("verify encrypted secret storage: %w", errVerification)
+		return errVerificationSecretStorage
 	}
 	archive, archiveErr := verificationArchive(base, marker)
 	if archiveErr != nil {
@@ -241,7 +246,7 @@ func verifyApplication(
 		return probeErr
 	}
 	if probeErr := verificationProbe(ctx, "https://"+domain+"/cgi-bin/proof", secretProof); probeErr != nil {
-		return fmt.Errorf("verify deployed secret delivery: %w", errVerification)
+		return errVerificationSecretDelivery
 	}
 	request := &observabilityv1.QueryLogsRequest{
 		WorkspaceId: environment.GetWorkspaceId(), EnvironmentId: environment.GetId(), Search: marker,
@@ -341,18 +346,18 @@ func verificationBuild(ctx context.Context, clients *rpc.Clients, id string) err
 	for {
 		response, err := clients.Build.GetBuild(ctx, &buildv1.GetBuildRequest{BuildId: id})
 		if err != nil {
-			return errVerification
+			return errVerificationBuild
 		}
 		switch response.GetBuild().GetStatus() {
 		case buildv1.BuildStatus_BUILD_STATUS_SUCCEEDED:
 			return nil
 		case buildv1.BuildStatus_BUILD_STATUS_FAILED:
-			return errVerification
+			return errVerificationBuild
 		case buildv1.BuildStatus_BUILD_STATUS_CANCELED:
-			return errVerification
+			return errVerificationBuild
 		}
 		if err := verificationWait(ctx); err != nil {
-			return err
+			return errVerificationBuild
 		}
 	}
 }
@@ -363,21 +368,21 @@ func verificationProbe(ctx context.Context, url, marker string) error {
 	for {
 		request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
-			return errVerification
+			return errVerificationHTTPS
 		}
 		response, err := client.Do(request)
 		if err == nil {
 			body, readErr := io.ReadAll(io.LimitReader(response.Body, verificationResponseLimit))
 			closeErr := response.Body.Close()
 			if readErr != nil || closeErr != nil {
-				return errVerification
+				return errVerificationHTTPS
 			}
 			if response.StatusCode == http.StatusOK && string(body) == marker {
 				return nil
 			}
 		}
 		if err := verificationWait(ctx); err != nil {
-			return err
+			return errVerificationHTTPS
 		}
 	}
 }
@@ -392,7 +397,7 @@ func verificationLogs(
 		request.EndTime = timestamppb.Now()
 		response, err := clients.ObservabilityProxy.QueryLogs(ctx, request)
 		if err != nil {
-			return errVerification
+			return errVerificationLogs
 		}
 		for _, entry := range response.GetEntries() {
 			if strings.Contains(entry.GetBody(), marker) {
@@ -400,7 +405,7 @@ func verificationLogs(
 			}
 		}
 		if err := verificationWait(ctx); err != nil {
-			return err
+			return errVerificationLogs
 		}
 	}
 }
