@@ -18,6 +18,16 @@ const (
 	noRecordedValueFlag    = 1
 )
 
+var aggregationFunctions = map[string]string{
+	"avg": "avg",
+	"sum": "sum",
+	"min": "min",
+	"max": "max",
+	"p50": "quantile(0.5)",
+	"p95": "quantile(0.95)",
+	"p99": "quantile(0.99)",
+}
+
 func (c *Client) QueryMetrics(
 	ctx context.Context,
 	req *observabilityv1.QueryMetricsRequest,
@@ -83,7 +93,7 @@ func (c *Client) QueryMetrics(
 }
 
 func buildMetricsQuery(req *observabilityv1.QueryMetricsRequest, queryTimeout time.Duration) (string, []any) {
-	aggFunc := mapAggregation(req.GetAggregation())
+	aggFunc := aggregationFunctions[req.GetAggregation()]
 	interval := req.GetIntervalSeconds()
 	if interval <= 0 {
 		interval = defaultIntervalSeconds
@@ -140,21 +150,8 @@ func buildMetricsQuery(req *observabilityv1.QueryMetricsRequest, queryTimeout ti
 	return query, args
 }
 
-func mapAggregation(agg string) string {
-	switch agg {
-	case "sum":
-		return "sum"
-	case "min":
-		return "min"
-	case "max":
-		return "max"
-	case "p50":
-		return "quantile(0.5)"
-	case "p95":
-		return "quantile(0.95)"
-	case "p99":
-		return "quantile(0.99)"
-	default:
-		return "avg"
-	}
+// IsAggregation reports whether name is an aggregation QueryMetrics accepts.
+func IsAggregation(name string) bool {
+	_, ok := aggregationFunctions[name]
+	return ok
 }

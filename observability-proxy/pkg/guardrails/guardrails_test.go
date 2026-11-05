@@ -234,12 +234,12 @@ func TestLogEnvironmentFilterValidation(t *testing.T) {
 	cfg := &config.Config{MaxTimeRange: time.Hour}
 	for _, environmentID := range []string{"", "66666666-7777-8888-9999-000000000000", "not-a-uuid"} {
 		query := &observabilityv1.QueryLogsRequest{
-			WorkspaceId:   "workspace",
+			WorkspaceId:   testWorkspaceID,
 			EnvironmentId: environmentID,
 			StartTime:     timestamppb.New(now.Add(-time.Minute)),
 			EndTime:       timestamppb.New(now),
 		}
-		tail := &observabilityv1.TailLogsRequest{WorkspaceId: "workspace", EnvironmentId: environmentID}
+		tail := &observabilityv1.TailLogsRequest{WorkspaceId: testWorkspaceID, EnvironmentId: environmentID}
 		for _, err := range []error{ValidateLogsRequest(query, cfg), ValidateTailRequest(tail, cfg, now)} {
 			if environmentID == "not-a-uuid" {
 				if !errors.Is(err, errInvalidEnvironmentID) {
@@ -254,28 +254,57 @@ func TestLogEnvironmentFilterValidation(t *testing.T) {
 
 const testWorkspaceAggregation = "max"
 
-func TestEveryTenantQueryRequiresAWorkspace(t *testing.T) {
+func validateEveryQuery(workspace, environment string, resources []string) map[string]error {
 	cfg := &config.Config{MaxTimeRange: time.Hour}
 	now := time.Now()
 	start := timestamppb.New(now.Add(-time.Minute))
 	end := timestamppb.New(now)
-	checks := map[string]error{
-		"logs": ValidateLogsRequest(&observabilityv1.QueryLogsRequest{StartTime: start, EndTime: end}, cfg),
-		"tail": ValidateTailRequest(&observabilityv1.TailLogsRequest{}, cfg, now),
-		"metrics": ValidateMetricsRequest(
-			&observabilityv1.QueryMetricsRequest{
-				MetricName:  "m",
-				Aggregation: testWorkspaceAggregation,
-				StartTime:   start,
-				EndTime:     end,
-			},
-			cfg,
-		),
-		"traces": ValidateTracesRequest(&observabilityv1.QueryTracesRequest{StartTime: start, EndTime: end}, cfg),
+	return map[string]error{
+		"logs": ValidateLogsRequest(&observabilityv1.QueryLogsRequest{
+			WorkspaceId: workspace, EnvironmentId: environment, ResourceIds: resources,
+			StartTime: start, EndTime: end,
+		}, cfg),
+		"tail": ValidateTailRequest(&observabilityv1.TailLogsRequest{
+			WorkspaceId: workspace, EnvironmentId: environment, ResourceIds: resources,
+		}, cfg, now),
+		"metrics": ValidateMetricsRequest(&observabilityv1.QueryMetricsRequest{
+			WorkspaceId: workspace, EnvironmentId: environment, ResourceIds: resources,
+			MetricName: "m", Aggregation: testWorkspaceAggregation, StartTime: start, EndTime: end,
+		}, cfg),
+		"traces": ValidateTracesRequest(&observabilityv1.QueryTracesRequest{
+			WorkspaceId: workspace, EnvironmentId: environment, ResourceIds: resources,
+			StartTime: start, EndTime: end,
+		}, cfg),
 	}
-	for name, err := range checks {
+}
+
+func TestEveryTenantQueryRequiresAWorkspace(t *testing.T) {
+	for name, err := range validateEveryQuery("", "", nil) {
 		if !errors.Is(err, errWorkspaceIDRequired) {
 			t.Errorf("%s without a workspace = %v, want errWorkspaceIDRequired", name, err)
+		}
+	}
+}
+
+func TestEveryTenantQueryRequiresUUIDScope(t *testing.T) {
+	scopes := map[string]struct {
+		workspace, environment string
+		resources              []string
+		want                   error
+	}{
+		"workspace":   {workspace: "workspace", want: errInvalidWorkspaceID},
+		"environment": {workspace: testWorkspaceID, environment: "environment", want: errInvalidEnvironmentID},
+		"resource": {
+			workspace: testWorkspaceID,
+			resources: []string{testWorkspaceID, "resource"},
+			want:      errInvalidResourceID,
+		},
+	}
+	for name, scope := range scopes {
+		for request, err := range validateEveryQuery(scope.workspace, scope.environment, scope.resources) {
+			if !errors.Is(err, scope.want) {
+				t.Errorf("%s with an invalid %s = %v, want %v", request, name, err, scope.want)
+			}
 		}
 	}
 }

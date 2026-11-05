@@ -15,8 +15,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/consumer/consumererror"
+	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/plog/plogotlp"
+	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/pdata/pmetric/pmetricotlp"
+	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/pdata/ptrace/ptraceotlp"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
@@ -111,74 +114,81 @@ type otlpResponse interface {
 	MarshalJSON() ([]byte, error)
 }
 
-func (s *Service) exportLogs(
-	ctx context.Context,
-	admission *Admission,
-	request plogotlp.ExportRequest,
-) (plogotlp.ExportResponse, error) {
-	response := plogotlp.NewExportResponse()
-	logs := request.Logs()
-	filter := newTenancyFilter(ctx, admission)
-	filter.logs(logs)
-	if filter.err != nil {
-		return response, filter.err
-	}
-	if rejected := filter.rejected(); rejected > 0 {
-		response.PartialSuccess().SetRejectedLogRecords(rejected)
-		response.PartialSuccess().SetErrorMessage(filter.message())
-	}
-	if logs.LogRecordCount() > 0 {
-		if err := s.consumers.Logs.ConsumeLogs(ctx, logs); err != nil {
-			return response, err
-		}
-	}
-	filter.record(s.rejected)
-	return response, nil
+// signal describes one OTLP signal so a single export path serves logs, traces and metrics.
+type signal[Req otlpRequest, Resp otlpResponse, Payload any] struct {
+	newRequest  func() Req
+	newResponse func() Resp
+	payload     func(Req) Payload
+	filter      func(*tenancyFilter, Payload)
+	count       func(Payload) int
+	consume     func(context.Context, Payload) error
+	reject      func(Resp, int64, string)
 }
 
-func (s *Service) exportTraces(
-	ctx context.Context,
-	admission *Admission,
-	request ptraceotlp.ExportRequest,
-) (ptraceotlp.ExportResponse, error) {
-	response := ptraceotlp.NewExportResponse()
-	traces := request.Traces()
-	filter := newTenancyFilter(ctx, admission)
-	filter.traces(traces)
-	if filter.err != nil {
-		return response, filter.err
+func (s *Service) logsSignal() signal[plogotlp.ExportRequest, plogotlp.ExportResponse, plog.Logs] {
+	return signal[plogotlp.ExportRequest, plogotlp.ExportResponse, plog.Logs]{
+		newRequest:  plogotlp.NewExportRequest,
+		newResponse: plogotlp.NewExportResponse,
+		payload:     plogotlp.ExportRequest.Logs,
+		filter:      (*tenancyFilter).logs,
+		count:       plog.Logs.LogRecordCount,
+		consume:     s.consumers.Logs.ConsumeLogs,
+		reject: func(response plogotlp.ExportResponse, rejected int64, message string) {
+			response.PartialSuccess().SetRejectedLogRecords(rejected)
+			response.PartialSuccess().SetErrorMessage(message)
+		},
 	}
-	if rejected := filter.rejected(); rejected > 0 {
-		response.PartialSuccess().SetRejectedSpans(rejected)
-		response.PartialSuccess().SetErrorMessage(filter.message())
-	}
-	if traces.SpanCount() > 0 {
-		if err := s.consumers.Traces.ConsumeTraces(ctx, traces); err != nil {
-			return response, err
-		}
-	}
-	filter.record(s.rejected)
-	return response, nil
 }
 
-func (s *Service) exportMetrics(
+func (s *Service) tracesSignal() signal[ptraceotlp.ExportRequest, ptraceotlp.ExportResponse, ptrace.Traces] {
+	return signal[ptraceotlp.ExportRequest, ptraceotlp.ExportResponse, ptrace.Traces]{
+		newRequest:  ptraceotlp.NewExportRequest,
+		newResponse: ptraceotlp.NewExportResponse,
+		payload:     ptraceotlp.ExportRequest.Traces,
+		filter:      (*tenancyFilter).traces,
+		count:       ptrace.Traces.SpanCount,
+		consume:     s.consumers.Traces.ConsumeTraces,
+		reject: func(response ptraceotlp.ExportResponse, rejected int64, message string) {
+			response.PartialSuccess().SetRejectedSpans(rejected)
+			response.PartialSuccess().SetErrorMessage(message)
+		},
+	}
+}
+
+func (s *Service) metricsSignal() signal[pmetricotlp.ExportRequest, pmetricotlp.ExportResponse, pmetric.Metrics] {
+	return signal[pmetricotlp.ExportRequest, pmetricotlp.ExportResponse, pmetric.Metrics]{
+		newRequest:  pmetricotlp.NewExportRequest,
+		newResponse: pmetricotlp.NewExportResponse,
+		payload:     pmetricotlp.ExportRequest.Metrics,
+		filter:      (*tenancyFilter).metrics,
+		count:       pmetric.Metrics.DataPointCount,
+		consume:     s.consumers.Metrics.ConsumeMetrics,
+		reject: func(response pmetricotlp.ExportResponse, rejected int64, message string) {
+			response.PartialSuccess().SetRejectedDataPoints(rejected)
+			response.PartialSuccess().SetErrorMessage(message)
+		},
+	}
+}
+
+func export[Req otlpRequest, Resp otlpResponse, Payload any](
 	ctx context.Context,
+	s *Service,
+	sig signal[Req, Resp, Payload],
 	admission *Admission,
-	request pmetricotlp.ExportRequest,
-) (pmetricotlp.ExportResponse, error) {
-	response := pmetricotlp.NewExportResponse()
-	metrics := request.Metrics()
+	request Req,
+) (Resp, error) {
+	response := sig.newResponse()
+	payload := sig.payload(request)
 	filter := newTenancyFilter(ctx, admission)
-	filter.metrics(metrics)
+	sig.filter(filter, payload)
 	if filter.err != nil {
 		return response, filter.err
 	}
 	if rejected := filter.rejected(); rejected > 0 {
-		response.PartialSuccess().SetRejectedDataPoints(rejected)
-		response.PartialSuccess().SetErrorMessage(filter.message())
+		sig.reject(response, rejected, filter.message())
 	}
-	if metrics.DataPointCount() > 0 {
-		if err := s.consumers.Metrics.ConsumeMetrics(ctx, metrics); err != nil {
+	if sig.count(payload) > 0 {
+		if err := sig.consume(ctx, payload); err != nil {
 			return response, err
 		}
 	}
@@ -188,9 +198,9 @@ func (s *Service) exportMetrics(
 
 func (s *Service) Handler() http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("POST "+LogsPath, exportHandler(s, plogotlp.NewExportRequest, s.exportLogs))
-	mux.Handle("POST "+TracesPath, exportHandler(s, ptraceotlp.NewExportRequest, s.exportTraces))
-	mux.Handle("POST "+MetricsPath, exportHandler(s, pmetricotlp.NewExportRequest, s.exportMetrics))
+	mux.Handle("POST "+LogsPath, exportHandler(s, s.logsSignal()))
+	mux.Handle("POST "+TracesPath, exportHandler(s, s.tracesSignal()))
+	mux.Handle("POST "+MetricsPath, exportHandler(s, s.metricsSignal()))
 	return mux
 }
 
@@ -235,10 +245,9 @@ func (s *Service) readBody(r *http.Request) ([]byte, error) {
 	return body, nil
 }
 
-func exportHandler[Req otlpRequest, Resp otlpResponse](
+func exportHandler[Req otlpRequest, Resp otlpResponse, Payload any](
 	s *Service,
-	newRequest func() Req,
-	export func(context.Context, *Admission, Req) (Resp, error),
+	sig signal[Req, Resp, Payload],
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		enc, err := requestEncoding(r.Header.Get("Content-Type"))
@@ -256,13 +265,13 @@ func exportHandler[Req otlpRequest, Resp otlpResponse](
 			s.writeFailure(r.Context(), w, enc, err)
 			return
 		}
-		request := newRequest()
+		request := sig.newRequest()
 		if decodeErr := unmarshal(enc, request, body); decodeErr != nil {
 			decodeFailure := consumererror.NewPermanent(fmt.Errorf("decode request: %w", decodeErr))
 			s.writeFailure(r.Context(), w, enc, decodeFailure)
 			return
 		}
-		response, err := export(r.Context(), admission, request)
+		response, err := export(r.Context(), s, sig, admission, request)
 		if err != nil {
 			s.writeFailure(r.Context(), w, enc, err)
 			return
@@ -274,7 +283,7 @@ func exportHandler[Req otlpRequest, Resp otlpResponse](
 		}
 		w.Header().Set("Content-Type", enc.contentType())
 		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write(payload); err != nil {
+		if _, err := w.Write(payload); err != nil { //nolint:gosec // G705: an OTLP protobuf or JSON body, never HTML
 			slog.WarnContext(r.Context(), "write OTLP response", "error", err)
 		}
 	}
@@ -384,67 +393,62 @@ func (s *Service) admitGRPC(ctx context.Context) (*Admission, error) {
 	return s.gate.Admit(ctx, authorization)
 }
 
+// grpcExport serves one signal over gRPC. The per-signal servers stay because each must embed
+// its own UnimplementedGRPCServer.
+func grpcExport[Req otlpRequest, Resp otlpResponse, Payload any](
+	s *Service,
+	sig signal[Req, Resp, Payload],
+) func(context.Context, Req) (Resp, error) {
+	return func(ctx context.Context, request Req) (Resp, error) {
+		admission, err := s.admitGRPC(ctx)
+		if err != nil {
+			return sig.newResponse(), s.grpcError(ctx, err)
+		}
+		response, err := export(ctx, s, sig, admission, request)
+		if err != nil {
+			return response, s.grpcError(ctx, err)
+		}
+		return response, nil
+	}
+}
+
 type logsServer struct {
 	plogotlp.UnimplementedGRPCServer
-	service *Service
+	export func(context.Context, plogotlp.ExportRequest) (plogotlp.ExportResponse, error)
 }
 
 func (l *logsServer) Export(ctx context.Context, request plogotlp.ExportRequest) (plogotlp.ExportResponse, error) {
-	admission, err := l.service.admitGRPC(ctx)
-	if err != nil {
-		return plogotlp.NewExportResponse(), l.service.grpcError(ctx, err)
-	}
-	response, err := l.service.exportLogs(ctx, admission, request)
-	if err != nil {
-		return response, l.service.grpcError(ctx, err)
-	}
-	return response, nil
+	return l.export(ctx, request)
 }
 
 type tracesServer struct {
 	ptraceotlp.UnimplementedGRPCServer
-	service *Service
+	export func(context.Context, ptraceotlp.ExportRequest) (ptraceotlp.ExportResponse, error)
 }
 
 func (t *tracesServer) Export(
 	ctx context.Context,
 	request ptraceotlp.ExportRequest,
 ) (ptraceotlp.ExportResponse, error) {
-	admission, err := t.service.admitGRPC(ctx)
-	if err != nil {
-		return ptraceotlp.NewExportResponse(), t.service.grpcError(ctx, err)
-	}
-	response, err := t.service.exportTraces(ctx, admission, request)
-	if err != nil {
-		return response, t.service.grpcError(ctx, err)
-	}
-	return response, nil
+	return t.export(ctx, request)
 }
 
 type metricsServer struct {
 	pmetricotlp.UnimplementedGRPCServer
-	service *Service
+	export func(context.Context, pmetricotlp.ExportRequest) (pmetricotlp.ExportResponse, error)
 }
 
 func (m *metricsServer) Export(
 	ctx context.Context,
 	request pmetricotlp.ExportRequest,
 ) (pmetricotlp.ExportResponse, error) {
-	admission, err := m.service.admitGRPC(ctx)
-	if err != nil {
-		return pmetricotlp.NewExportResponse(), m.service.grpcError(ctx, err)
-	}
-	response, err := m.service.exportMetrics(ctx, admission, request)
-	if err != nil {
-		return response, m.service.grpcError(ctx, err)
-	}
-	return response, nil
+	return m.export(ctx, request)
 }
 
 func (s *Service) GRPCServer() *grpc.Server {
 	server := grpc.NewServer(grpc.MaxRecvMsgSize(s.maxRequestBytes))
-	plogotlp.RegisterGRPCServer(server, &logsServer{service: s})
-	ptraceotlp.RegisterGRPCServer(server, &tracesServer{service: s})
-	pmetricotlp.RegisterGRPCServer(server, &metricsServer{service: s})
+	plogotlp.RegisterGRPCServer(server, &logsServer{export: grpcExport(s, s.logsSignal())})
+	ptraceotlp.RegisterGRPCServer(server, &tracesServer{export: grpcExport(s, s.tracesSignal())})
+	pmetricotlp.RegisterGRPCServer(server, &metricsServer{export: grpcExport(s, s.metricsSignal())})
 	return server
 }

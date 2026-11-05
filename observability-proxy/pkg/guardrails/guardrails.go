@@ -12,11 +12,15 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
+	"github.com/team-loco/loco/observability-proxy/pkg/clickhouse"
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
 )
 
 var (
+	errInvalidWorkspaceID   = errors.New("workspace_id must be a UUID")
 	errInvalidEnvironmentID = errors.New("environment_id must be a UUID")
+	errInvalidResourceID    = errors.New("resource_ids must be UUIDs")
+	errInvalidAggregation   = errors.New("unsupported aggregation")
 	errInvalidRegionFilter  = errors.New("region filters must be nonempty with at most one trailing wildcard")
 	errMetricNameRequired   = errors.New("metric_name is required")
 	errTimeRangeRequired    = errors.New("start_time and end_time are required")
@@ -39,12 +43,9 @@ const (
 	traceRequestMaxLimit    = 10000
 )
 
-// ValidateLogsRequest validates and clamps the query parameters for a logs request.
+// ValidateLogsRequest validates the query parameters for a logs request.
 func ValidateLogsRequest(req *observabilityv1.QueryLogsRequest, cfg *config.Config) error {
-	if req.GetWorkspaceId() == "" {
-		return errWorkspaceIDRequired
-	}
-	if err := validateEnvironmentID(req.GetEnvironmentId()); err != nil {
+	if err := validateScope(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {
 		return err
 	}
 	if err := validateLabels(req.GetLabels()); err != nil {
@@ -57,10 +58,10 @@ func ValidateLogsRequest(req *observabilityv1.QueryLogsRequest, cfg *config.Conf
 	return validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), cfg.MaxTimeRange)
 }
 
-// ValidateMetricsRequest validates and clamps the query parameters for a metrics request.
+// ValidateMetricsRequest validates the query parameters for a metrics request.
 func ValidateMetricsRequest(req *observabilityv1.QueryMetricsRequest, cfg *config.Config) error {
-	if req.GetWorkspaceId() == "" {
-		return errWorkspaceIDRequired
+	if err := validateScope(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {
+		return err
 	}
 	if req.GetMetricName() == "" {
 		return errMetricNameRequired
@@ -70,9 +71,8 @@ func ValidateMetricsRequest(req *observabilityv1.QueryMetricsRequest, cfg *confi
 		return err
 	}
 
-	agg := req.GetAggregation()
-	if !isAllowedAggregation(agg) {
-		return fmt.Errorf("unsupported aggregation: %s (allowed: avg, sum, min, max, p50, p95, p99)", agg)
+	if !clickhouse.IsAggregation(req.GetAggregation()) {
+		return fmt.Errorf("%w: %q", errInvalidAggregation, req.GetAggregation())
 	}
 
 	return nil
@@ -80,10 +80,7 @@ func ValidateMetricsRequest(req *observabilityv1.QueryMetricsRequest, cfg *confi
 
 // ValidateTailRequest validates a tail logs request.
 func ValidateTailRequest(req *observabilityv1.TailLogsRequest, cfg *config.Config, now time.Time) error {
-	if req.GetWorkspaceId() == "" {
-		return errWorkspaceIDRequired
-	}
-	if err := validateEnvironmentID(req.GetEnvironmentId()); err != nil {
+	if err := validateScope(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {
 		return err
 	}
 	if err := validateLabels(req.GetLabels()); err != nil {
@@ -135,31 +132,9 @@ func validateLabels(labels map[string]string) error {
 	return nil
 }
 
-func isAllowedAggregation(agg string) bool {
-	switch agg {
-	case "avg", "sum", "min", "max", "p50", "p95", "p99":
-		return true
-	default:
-		return false
-	}
-}
-
 func ValidateTracesRequest(req *observabilityv1.QueryTracesRequest, cfg *config.Config) error {
-	if req.GetWorkspaceId() == "" {
-		return errWorkspaceIDRequired
-	}
-	if err := uuid.Validate(req.GetWorkspaceId()); err != nil {
+	if err := validateScope(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {
 		return err
-	}
-	for _, id := range req.GetResourceIds() {
-		if err := uuid.Validate(id); err != nil {
-			return err
-		}
-	}
-	if req.GetEnvironmentId() != "" {
-		if err := uuid.Validate(req.GetEnvironmentId()); err != nil {
-			return err
-		}
 	}
 	if traceID := req.GetTraceId(); traceID != "" {
 		decoded, err := hex.DecodeString(traceID)
@@ -207,12 +182,23 @@ func validateRegions(groups ...[]string) error {
 	return nil
 }
 
-func validateEnvironmentID(value string) error {
-	if value == "" {
-		return nil
+// validateScope checks the IDs a query is scoped to before the control plane is asked about the
+// workspace: CheckPermission rejects a non-UUID entity ID, which would surface as an unavailable
+// permission check instead of an invalid request.
+func validateScope(workspaceID, environmentID string, resourceIDs []string) error {
+	if workspaceID == "" {
+		return errWorkspaceIDRequired
 	}
-	if _, err := uuid.Parse(value); err != nil {
+	if uuid.Validate(workspaceID) != nil {
+		return errInvalidWorkspaceID
+	}
+	if environmentID != "" && uuid.Validate(environmentID) != nil {
 		return errInvalidEnvironmentID
+	}
+	for _, id := range resourceIDs {
+		if uuid.Validate(id) != nil {
+			return errInvalidResourceID
+		}
 	}
 	return nil
 }
