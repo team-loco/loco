@@ -5,13 +5,15 @@
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
+import type { CLITokens, CLITokensJson } from "../../auth/v1/auth_pb";
+import { file_loco_auth_v1_auth } from "../../auth/v1/auth_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file loco/bootstrap/v1/bootstrap.proto.
  */
 export const file_loco_bootstrap_v1_bootstrap: GenFile = /*@__PURE__*/
-  fileDesc("CiFsb2NvL2Jvb3RzdHJhcC92MS9ib290c3RyYXAucHJvdG8SEWxvY28uYm9vdHN0cmFwLnYxIioKEEJvb3RzdHJhcFJlcXVlc3QSFgoFdG9rZW4YASABKAlCB7pIBHICEAEiJAoRQm9vdHN0cmFwUmVzcG9uc2USDwoHdXNlcl9pZBgBIAEoCTJqChBCb290c3RyYXBTZXJ2aWNlElYKCUJvb3RzdHJhcBIjLmxvY28uYm9vdHN0cmFwLnYxLkJvb3RzdHJhcFJlcXVlc3QaJC5sb2NvLmJvb3RzdHJhcC52MS5Cb290c3RyYXBSZXNwb25zZUJAWj5naXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2Jvb3RzdHJhcC92MTtib290c3RyYXB2MWIGcHJvdG8z", [file_buf_validate_validate]);
+  fileDesc("CiFsb2NvL2Jvb3RzdHJhcC92MS9ib290c3RyYXAucHJvdG8SEWxvY28uYm9vdHN0cmFwLnYxIioKEEJvb3RzdHJhcFJlcXVlc3QSFgoFdG9rZW4YASABKAlCB7pIBHICEAEiTQoRQm9vdHN0cmFwUmVzcG9uc2USDwoHdXNlcl9pZBgBIAEoCRInCgZ0b2tlbnMYAiABKAsyFy5sb2NvLmF1dGgudjEuQ0xJVG9rZW5zMmoKEEJvb3RzdHJhcFNlcnZpY2USVgoJQm9vdHN0cmFwEiMubG9jby5ib290c3RyYXAudjEuQm9vdHN0cmFwUmVxdWVzdBokLmxvY28uYm9vdHN0cmFwLnYxLkJvb3RzdHJhcFJlc3BvbnNlQkBaPmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vYm9vdHN0cmFwL3YxO2Jvb3RzdHJhcHYxYgZwcm90bzM", [file_buf_validate_validate, file_loco_auth_v1_auth]);
 
 /**
  * @generated from message loco.bootstrap.v1.BootstrapRequest
@@ -48,6 +50,11 @@ export type BootstrapResponse = Message<"loco.bootstrap.v1.BootstrapResponse"> &
    * @generated from field: string user_id = 1;
    */
   userId: string;
+
+  /**
+   * @generated from field: loco.auth.v1.CLITokens tokens = 2;
+   */
+  tokens?: CLITokens | undefined;
 };
 
 /**
@@ -58,6 +65,11 @@ export type BootstrapResponseJson = {
    * @generated from field: string user_id = 1;
    */
   userId?: string;
+
+  /**
+   * @generated from field: loco.auth.v1.CLITokens tokens = 2;
+   */
+  tokens?: CLITokensJson;
 };
 
 /**

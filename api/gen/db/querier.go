@@ -257,6 +257,7 @@ type Querier interface {
 	SetResourceDeployPolicy(ctx context.Context, arg SetResourceDeployPolicyParams) error
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
 	SetResourcePartial(ctx context.Context, arg SetResourcePartialParams) error
+	SetSystemBootstrapOwner(ctx context.Context, bootstrappedBy *uuid.UUID) error
 	SetUserStatus(ctx context.Context, arg SetUserStatusParams) (User, error)
 	SuspendOrg(ctx context.Context, arg SuspendOrgParams) (Organization, error)
 	SuspendOrgPlacements(ctx context.Context, orgID uuid.UUID) ([]SuspendOrgPlacementsRow, error)

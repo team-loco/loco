@@ -7895,6 +7895,14 @@
           "userId": {
             "type": "string",
             "title": "user_id"
+          },
+          "tokens": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/loco.auth.v1.CLITokens"
+              }
+            ],
+            "title": "tokens"
           }
         },
         "title": "BootstrapResponse",
