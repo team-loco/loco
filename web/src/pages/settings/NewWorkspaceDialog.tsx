@@ -12,8 +12,7 @@ import { Dialog, DialogBody, DialogContent, DialogFooter } from "@/components/de
 import { Input } from "@/components/design/Input";
 import { Textarea } from "@/components/design/Textarea";
 import { toastConnectError } from "@/lib/error-handler";
-
-import { NAME_RE } from "./parts";
+import { MAX_WORKSPACE_NAME } from "@/lib/names";
 
 export function NewWorkspaceDialog({
 	open,
@@ -59,13 +58,11 @@ function NewWorkspaceForm({
 	const error =
 		nameT === ""
 			? null
-			: nameT.length > 63
-				? "Max 63 characters"
-				: !NAME_RE.test(nameT)
-					? "Lowercase letters, numbers and hyphens"
-					: workspaces.some((w) => w.name === nameT)
-						? `${nameT} already exists`
-						: null;
+			: nameT.length > MAX_WORKSPACE_NAME
+				? `Max ${MAX_WORKSPACE_NAME.toString()} characters`
+				: workspaces.some((w) => w.name === nameT)
+					? `${nameT} already exists`
+					: null;
 	const ok = nameT !== "" && error === null;
 
 	const submit = () => {

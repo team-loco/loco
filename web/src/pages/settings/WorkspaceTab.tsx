@@ -19,13 +19,14 @@ import { Textarea } from "@/components/design/Textarea";
 import type { AccessLevel } from "@/hooks/useMyScopes";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { pluralize } from "@/lib/format";
+import { MAX_WORKSPACE_NAME } from "@/lib/names";
 import { workspacePath } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
 import { ActivityPanel } from "./ActivityPanel";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 import { WebhooksCard } from "./WebhooksCard";
-import { DangerCard, formatDay, NAME_RE, SavedBar, SaveBar, SettingsCard, SettingsRow } from "./parts";
+import { DangerCard, formatDay, SavedBar, SaveBar, SettingsCard, SettingsRow } from "./parts";
 import type { ResourceCount } from "./useResourceCounts";
 
 interface Draft {
@@ -81,13 +82,11 @@ export function WorkspaceTab({
 	const nameErr =
 		nameT === ""
 			? "Name required"
-			: nameT.length > 63
-				? "Max 63 characters"
-				: !NAME_RE.test(nameT)
-					? "Lowercase letters, numbers and hyphens"
-					: taken
-						? `${nameT} already exists in ${orgName}`
-						: serverNameErr;
+			: nameT.length > MAX_WORKSPACE_NAME
+				? `Max ${MAX_WORKSPACE_NAME.toString()} characters`
+				: taken
+					? `${nameT} already exists in ${orgName}`
+					: serverNameErr;
 	const canWrite = level >= 2;
 	const canAdmin = level >= 3;
 	const shownErr = dirty ? nameErr : null;

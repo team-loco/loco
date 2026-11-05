@@ -14,11 +14,10 @@ import { Textarea } from "@/components/design/Textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { toastConnectError } from "@/lib/error-handler";
+import { MAX_ORG_NAME, MAX_WORKSPACE_NAME } from "@/lib/names";
 import { workspacePath } from "@/lib/routes";
 
 export type ScopeKind = "org" | "workspace";
-
-const NAME_RE = /^[a-z0-9][a-z0-9-]*$/;
 
 export function CreateScopeDialog({
 	kind,
@@ -55,15 +54,8 @@ function CreateScopeForm({ kind, onDone }: { kind: ScopeKind; onDone: () => void
 
 	const isOrg = kind === "org";
 	const trimmed = name.trim();
-	const maxLen = isOrg ? 100 : 63;
-	const error =
-		trimmed === ""
-			? null
-			: trimmed.length > maxLen
-				? "Too long"
-				: !NAME_RE.test(trimmed)
-					? "Lowercase letters, numbers and hyphens"
-					: null;
+	const maxLen = isOrg ? MAX_ORG_NAME : MAX_WORKSPACE_NAME;
+	const error = trimmed === "" ? null : trimmed.length > maxLen ? "Too long" : null;
 	const ok = trimmed !== "" && error === null && (isOrg || orgId !== "");
 
 	const submit = async () => {

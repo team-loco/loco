@@ -7,8 +7,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Too
 import { formatMonthDay, formatMonthDayYear, maybeTsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-export const NAME_RE = /^[a-z0-9][a-z0-9-]*$/;
-
 export function formatDay(ts: Timestamp | undefined): string {
 	const ms = maybeTsMs(ts);
 	if (ms === undefined) return "—";

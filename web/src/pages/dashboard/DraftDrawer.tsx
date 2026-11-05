@@ -18,13 +18,14 @@ import { Button } from "@/components/design/Button";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { useNow } from "@/hooks/useNow";
 import { getErrorMessage } from "@/lib/error-handler";
+import { DNS_LABEL_RE } from "@/lib/names";
 import { resourcePath } from "@/lib/routes";
 import { maybeTsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { DraftForm } from "./DraftForm";
 import { DraftProgress, progressSteps } from "./DraftProgress";
-import { isPrivate, NAME_RE, servedDomain, type Draft } from "./drafts";
+import { isPrivate, servedDomain, type Draft } from "./drafts";
 import { firstError, validateDraft } from "./draftValidation";
 
 function useDebounced<T>(value: T, ms: number): T {
@@ -190,7 +191,7 @@ function DraftDrawerBody({
 	const sub = draft.sub.trim();
 	const privateService = isPrivate(draft);
 	const debouncedSub = useDebounced(sub, 350);
-	const subLooksValid = NAME_RE.test(debouncedSub) && !otherSubs.has(debouncedSub);
+	const subLooksValid = DNS_LABEL_RE.test(debouncedSub) && !otherSubs.has(debouncedSub);
 	const availabilityQuery = useQuery(
 		checkDomainAvailability,
 		{ domain: `${debouncedSub}.${platformDomain}` },

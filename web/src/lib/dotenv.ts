@@ -1,7 +1,12 @@
 const KEY = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const SECRET_KEY = /^[A-Z_][A-Z0-9_]*$/;
 
 export function isEnvKey(key: string): boolean {
 	return KEY.test(key);
+}
+
+export function isSecretName(key: string): boolean {
+	return SECRET_KEY.test(key);
 }
 
 function unquote(v: string): string {

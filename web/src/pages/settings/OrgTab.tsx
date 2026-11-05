@@ -16,11 +16,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Too
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import type { AccessLevel } from "@/hooks/useMyScopes";
 import { toastConnectError } from "@/lib/error-handler";
+import { MAX_ORG_NAME } from "@/lib/names";
 import { workspacePath } from "@/lib/routes";
 
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 import { NewWorkspaceDialog } from "./NewWorkspaceDialog";
-import { DangerCard, formatDay, NAME_RE, SavedBar, SaveBar, SettingsCard, SettingsRow } from "./parts";
+import { DangerCard, formatDay, SavedBar, SaveBar, SettingsCard, SettingsRow } from "./parts";
 import { formatResourceCount, type ResourceCount } from "./useResourceCounts";
 
 export function OrgTab({
@@ -60,11 +61,9 @@ export function OrgTab({
 	const nameErr =
 		nameT === ""
 			? "Name required"
-			: nameT.length > 100
-				? "Max 100 characters"
-				: !NAME_RE.test(nameT)
-					? "Lowercase letters, numbers and hyphens"
-					: serverNameErr;
+			: nameT.length > MAX_ORG_NAME
+				? `Max ${MAX_ORG_NAME.toString()} characters`
+				: serverNameErr;
 	const shownErr = dirty ? nameErr : null;
 	const canWrite = level >= 2;
 	const canAdmin = level >= 3;

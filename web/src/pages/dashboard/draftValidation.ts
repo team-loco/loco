@@ -1,4 +1,7 @@
-import { isPrivate, NAME_RE, type Draft } from "./drafts";
+import { isEnvKey } from "@/lib/dotenv";
+import { DNS_LABEL_HINT, DNS_LABEL_RE } from "@/lib/names";
+
+import { isPrivate, type Draft } from "./drafts";
 
 export interface DraftErrors {
 	region: string | null;
@@ -25,7 +28,7 @@ export function validateDraft(
 	const port = Number(draft.port);
 	const target = Number(draft.cpuTarget);
 	const keys = draft.vars.map((v) => v.key.trim()).filter((k) => k !== "");
-	const badKey = keys.find((k) => !/^[A-Za-z_][A-Za-z0-9_]*$/.test(k));
+	const badKey = keys.find((k) => !isEnvKey(k));
 	const dupKey = keys.find((k, i) => keys.indexOf(k) !== i);
 	const full = `${sub}.${platformDomain}`;
 
@@ -37,8 +40,8 @@ export function validateDraft(
 				? `No cluster in ${region} serves a platform domain`
 				: sub === ""
 					? "Choose a subdomain"
-					: !NAME_RE.test(sub)
-						? "Lowercase letters, numbers and hyphens"
+					: !DNS_LABEL_RE.test(sub)
+						? DNS_LABEL_HINT
 						: takenSubs.has(sub) || availability === "taken"
 							? `${full} is taken`
 							: null,

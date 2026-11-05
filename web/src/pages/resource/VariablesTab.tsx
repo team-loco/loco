@@ -28,19 +28,18 @@ import { Section } from "@/components/design/Page";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { Textarea } from "@/components/design/Textarea";
 import { useEnvironments } from "@/hooks/useEnvironment";
-import { parseDotEnv } from "@/lib/dotenv";
+import { isSecretName, parseDotEnv } from "@/lib/dotenv";
 import { toastConnectError } from "@/lib/error-handler";
 import { tsMs } from "@/lib/time";
 
 import { formatStarted } from "./format";
 
-const SECRET_NAME = /^[A-Z_][A-Z0-9_]*$/;
 const MEMBERS_PAGE_SIZE = 200;
 const USER_ENTITY = "user";
 
 function nameProblem(name: string): string | undefined {
 	if (name === "") return "Enter a name.";
-	if (!SECRET_NAME.test(name)) return "Use capital letters, digits and underscores, not starting with a digit.";
+	if (!isSecretName(name)) return "Use capital letters, digits and underscores, not starting with a digit.";
 	return undefined;
 }
 
@@ -177,7 +176,7 @@ export function VariablesTab({
 	const rows = secretRows(secrets, plainQuery.data?.secretNames);
 	const plain = Object.entries(plainQuery.data?.env ?? {}).toSorted(([a], [b]) => a.localeCompare(b));
 	const parsed = parseDotEnv(pasteText);
-	const invalidPasted = parsed.filter(([k]) => !SECRET_NAME.test(k)).map(([k]) => k);
+	const invalidPasted = parsed.filter(([k]) => !isSecretName(k)).map(([k]) => k);
 	const newNameProblem = newName === "" ? undefined : nameProblem(newName);
 
 	const refresh = async () => {
