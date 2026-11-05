@@ -194,37 +194,8 @@ func ApplyControlPlane(ctx context.Context, config Config, manifestPath string) 
 		if updateErr != nil {
 			return safeKubernetesError("record credential establishment", updateErr)
 		}
-		for _, crds := range release.crds {
-			if err := command(
-				ctx,
-				"apply prerequisite CRDs",
-				crds,
-				"kubectl",
-				"--context",
-				kube.Target.Context,
-				"apply",
-				"--server-side",
-				"--field-manager=locoadm",
-				"-f",
-				"-",
-			); err != nil {
-				return err
-			}
-			if err := command(
-				ctx,
-				"wait prerequisite CRDs",
-				crds,
-				"kubectl",
-				"--context",
-				kube.Target.Context,
-				"wait",
-				"--for=condition=Established",
-				"--timeout="+crdReadyTimeout,
-				"-f",
-				"-",
-			); err != nil {
-				return err
-			}
+		if err := kube.applyCRDs(ctx, release.crds); err != nil {
+			return err
 		}
 		if err := prerequisites(ctx, kube, release, true); err != nil {
 			return err
@@ -517,6 +488,24 @@ func chartCommand(
 		"--timeout",
 		helmInstallTimeout,
 	)
+}
+
+func (k *Kubernetes) applyCRDs(ctx context.Context, manifests [][]byte) error {
+	for _, manifest := range manifests {
+		for _, step := range []struct {
+			operation string
+			args      []string
+		}{
+			{"apply pinned CRDs", []string{"apply", "--server-side", "--field-manager=locoadm", "-f", "-"}},
+			{"wait pinned CRDs", []string{"wait", "--for=condition=Established", "--timeout=" + crdReadyTimeout, "-f", "-"}},
+		} {
+			args := append([]string{"--context", k.Target.Context}, step.args...)
+			if err := command(ctx, step.operation, manifest, "kubectl", args...); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func command(ctx context.Context, operation string, input []byte, program string, args ...string) error {

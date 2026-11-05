@@ -155,37 +155,8 @@ func (k *Kubernetes) applyWorker(
 		return err
 	}
 
-	for _, crds := range release.crds {
-		if err := command(
-			ctx,
-			"apply worker CRDs",
-			crds,
-			"kubectl",
-			"--context",
-			k.Target.Context,
-			"apply",
-			"--server-side",
-			"--field-manager=locoadm",
-			"-f",
-			"-",
-		); err != nil {
-			return err
-		}
-		if err := command(
-			ctx,
-			"wait worker CRDs",
-			crds,
-			"kubectl",
-			"--context",
-			k.Target.Context,
-			"wait",
-			"--for=condition=Established",
-			"--timeout="+crdReadyTimeout,
-			"-f",
-			"-",
-		); err != nil {
-			return err
-		}
+	if err := k.applyCRDs(ctx, release.crds); err != nil {
+		return err
 	}
 	if err := prerequisites(ctx, k, release, true); err != nil {
 		return err
