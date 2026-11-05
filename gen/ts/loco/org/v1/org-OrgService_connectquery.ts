@@ -12,7 +12,7 @@ import { OrgService } from "./org_pb";
 export const createOrg = OrgService.method.createOrg;
 
 /**
- * GetOrg retrieves an organization by ID or name.
+ * GetOrg retrieves an organization by ID.
  *
  * @generated from rpc loco.org.v1.OrgService.GetOrg
  */

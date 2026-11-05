@@ -17,6 +17,8 @@ import (
 	"github.com/team-loco/loco/cmd/internal/keychain"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
+	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
+	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -24,6 +26,8 @@ const (
 	statusEmailed         = "emailed"
 	testInvitationOrgID   = "00000000-0000-7000-8000-0000000000a1"
 	testInvitationOrgName = "acme"
+	testOtherOrgID        = "00000000-0000-7000-8000-0000000000a2"
+	testInvitationUserID  = "00000000-0000-7000-8000-0000000000c1"
 	testInvitationID      = "00000000-0000-7000-8000-0000000000b1"
 	testInviteeEmail      = "bob@acme.test"
 	testInviterEmail      = "owner@acme.test"
@@ -34,6 +38,7 @@ var testInvitationExpiry = time.Date(2030, time.March, 4, 15, 30, 0, 0, time.Loc
 
 type invitationServer struct {
 	orgv1connect.UnimplementedOrgServiceHandler
+	userv1connect.UnimplementedUserServiceHandler
 	t          *testing.T
 	mu         sync.Mutex
 	credential string
@@ -53,14 +58,26 @@ func (s *invitationServer) authenticated(ctx context.Context) {
 	}
 }
 
-func (s *invitationServer) GetOrg(ctx context.Context, req *orgv1.GetOrgRequest) (*orgv1.GetOrgResponse, error) {
+func (s *invitationServer) WhoAmI(ctx context.Context, _ *userv1.WhoAmIRequest) (*userv1.WhoAmIResponse, error) {
+	s.authenticated(ctx)
+	return &userv1.WhoAmIResponse{User: &userv1.User{Id: testInvitationUserID}}, nil
+}
+
+func (s *invitationServer) ListUserOrgs(
+	ctx context.Context,
+	req *orgv1.ListUserOrgsRequest,
+) (*orgv1.ListUserOrgsResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.authenticated(ctx)
-	if req.GetOrgName() != testInvitationOrgName {
-		s.t.Errorf("org name = %q", req.GetOrgName())
+	if req.GetUserId() != testInvitationUserID {
+		s.t.Errorf("user id = %q", req.GetUserId())
 	}
-	return &orgv1.GetOrgResponse{Organization: &orgv1.Organization{Id: testInvitationOrgID}}, nil
+	orgs := []*orgv1.Organization{
+		{Id: testInvitationOrgID, Name: testInvitationOrgName},
+		{Id: testOtherOrgID, Name: "other"},
+	}
+	return &orgv1.ListUserOrgsResponse{Orgs: orgs}, nil
 }
 
 func (s *invitationServer) InviteOrgMember(
@@ -127,6 +144,7 @@ func runInvitationCmd(
 	fake.credential = rand.Text()
 	server := connect.NewServer()
 	orgv1connect.RegisterOrgServiceHandler(server, fake)
+	userv1connect.RegisterUserServiceHandler(server, fake)
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, server)
 	endpoint := httptest.NewServer(mux)

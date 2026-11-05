@@ -45,13 +45,6 @@ WHERE w.org_id = $1
 ORDER BY w.created_at DESC, w.id DESC
 LIMIT $2;
 
--- name: IsWorkspaceNameUniqueInOrg :one
-SELECT COUNT(*) = 0 as is_unique
-FROM workspaces
-WHERE org_id = $1
-AND name = $2
-AND (sqlc.narg('exclude_id')::uuid IS NULL OR id != sqlc.narg('exclude_id')::uuid);
-
 -- name: UpdateWorkspace :one
 UPDATE workspaces
 SET name = COALESCE(sqlc.narg('name'), name),
@@ -91,6 +84,3 @@ WHERE (sqlc.narg('page_token')::text IS NULL
        ))
 ORDER BY ms.joined_at DESC, ms.user_id DESC
 LIMIT $2;
-
--- name: GetWorkspaceOrgID :one
-SELECT org_id FROM workspaces WHERE id = $1;

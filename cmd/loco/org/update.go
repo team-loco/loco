@@ -13,7 +13,7 @@ var errNoUpdateFlags = errors.New("at least one update flag is required (e.g., -
 
 func buildUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update <name>",
+		Use:   "update <name-or-id>",
 		Short: "Update an organization",
 		Long:  "Update an organization's properties.",
 		Args:  cobra.ExactArgs(1),
@@ -35,25 +35,17 @@ func buildUpdateCmd() *cobra.Command {
 				return err
 			}
 
-			orgClient := target.Clients.Org
-
-			name := args[0]
-
-			getReq := &orgv1.GetOrgRequest{
-				Key: &orgv1.GetOrgRequest_OrgName{OrgName: name},
-			}
-
-			getResp, err := orgClient.GetOrg(ctx, getReq)
+			org, err := findOrg(ctx, target.Clients, args[0])
 			if err != nil {
-				return fmt.Errorf("organization %q not found: %w", name, err)
+				return err
 			}
 
 			updateReq := &orgv1.UpdateOrgRequest{
-				OrgId: getResp.GetOrganization().GetId(),
+				OrgId: org.GetId(),
 				Name:  &newName,
 			}
 
-			_, err = orgClient.UpdateOrg(ctx, updateReq)
+			_, err = target.Clients.Org.UpdateOrg(ctx, updateReq)
 			if err != nil {
 				return fmt.Errorf("failed to update organization: %w", err)
 			}

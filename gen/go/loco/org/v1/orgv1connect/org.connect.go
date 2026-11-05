@@ -152,7 +152,7 @@ var (
 type OrgServiceClient interface {
 	// CreateOrg creates a new organization.
 	CreateOrg(context.Context, *v1.CreateOrgRequest) (*v1.CreateOrgResponse, error)
-	// GetOrg retrieves an organization by ID or name.
+	// GetOrg retrieves an organization by ID.
 	GetOrg(context.Context, *v1.GetOrgRequest) (*v1.GetOrgResponse, error)
 	// UpdateOrg updates organization information.
 	UpdateOrg(context.Context, *v1.UpdateOrgRequest) (*v1.UpdateOrgResponse, error)
@@ -185,7 +185,7 @@ func NewOrgServiceClient(client *connect.Client) OrgServiceClient {
 type OrgServiceHandler interface {
 	// CreateOrg creates a new organization.
 	CreateOrg(context.Context, *v1.CreateOrgRequest) (*v1.CreateOrgResponse, error)
-	// GetOrg retrieves an organization by ID or name.
+	// GetOrg retrieves an organization by ID.
 	GetOrg(context.Context, *v1.GetOrgRequest) (*v1.GetOrgResponse, error)
 	// UpdateOrg updates organization information.
 	UpdateOrg(context.Context, *v1.UpdateOrgRequest) (*v1.UpdateOrgResponse, error)

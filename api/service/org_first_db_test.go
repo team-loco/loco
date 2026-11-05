@@ -1,9 +1,7 @@
 package service
 
 import (
-	"strings"
 	"testing"
-	"unicode/utf8"
 
 	"github.com/google/uuid"
 
@@ -21,6 +19,7 @@ func TestListUserOrgsCreatesTheFirstOrgOnRequest(t *testing.T) {
 		t.Fatalf("orgs without create_if_missing = %v, want none", ids)
 	}
 
+	want := membershipEmail("first.user+cli") + "'s Org"
 	req := &orgv1.ListUserOrgsRequest{UserId: user.id.String(), CreateIfMissing: true}
 	for range 2 {
 		resp, err := user.clients.Org.ListUserOrgs(ctx, req)
@@ -28,8 +27,8 @@ func TestListUserOrgsCreatesTheFirstOrgOnRequest(t *testing.T) {
 			t.Fatalf("list user orgs: %v", err)
 		}
 		orgs := resp.GetOrgs()
-		if len(orgs) != 1 || orgs[0].GetName() != "first-user-cli-acme-test-org" {
-			t.Fatalf("orgs = %v, want one named first-user-cli-acme-test-org", orgs)
+		if len(orgs) != 1 || orgs[0].GetName() != want {
+			t.Fatalf("orgs = %v, want one named %q", orgs, want)
 		}
 		workspaces, err := user.clients.Workspace.ListOrgWorkspaces(ctx, &workspacev1.ListOrgWorkspacesRequest{
 			OrgId: orgs[0].GetId(),
@@ -44,15 +43,12 @@ func TestListUserOrgsCreatesTheFirstOrgOnRequest(t *testing.T) {
 	}
 }
 
-func TestListUserOrgsPicksAFreeNameWhenTheDerivedOneIsTaken(t *testing.T) {
+func TestListUserOrgsNamesTheFirstOrgAfterTheUsersName(t *testing.T) {
 	api := newMembershipAPI(t)
-	other := api.signUp(t, "other")
-	derived := firstOrgName(membershipEmail("taken"), 0)
-	clashing := genDb.CreateOrgParams{Name: derived, CreatedBy: other.id}
-	if _, err := api.queries.CreateOrg(t.Context(), clashing); err != nil {
-		t.Fatalf("create clashing org: %v", err)
+	user := api.signUp(t, "named")
+	if _, err := api.pool.Exec(t.Context(), "UPDATE users SET name = 'Ada' WHERE id = $1", user.id); err != nil {
+		t.Fatalf("set user name: %v", err)
 	}
-	user := api.signUp(t, "taken")
 
 	resp, err := user.clients.Org.ListUserOrgs(t.Context(), &orgv1.ListUserOrgsRequest{
 		UserId: user.id.String(), CreateIfMissing: true,
@@ -60,20 +56,8 @@ func TestListUserOrgsPicksAFreeNameWhenTheDerivedOneIsTaken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list user orgs: %v", err)
 	}
-	orgs := resp.GetOrgs()
-	if len(orgs) != 1 || !strings.HasPrefix(orgs[0].GetName(), derived+"-") {
-		t.Fatalf("orgs = %v, want one named %s-<suffix>", orgs, derived)
-	}
-	assertOrgAdmin(t, api, user, orgs[0].GetId())
-}
-
-func TestFirstOrgNameFitsTheOrgNameLimit(t *testing.T) {
-	email := strings.Repeat("a", maxOrgNameLen) + "@example.com"
-	for attempt := range firstOrgNameAttempts {
-		if name := firstOrgName(email, attempt); utf8.RuneCountInString(name) != maxOrgNameLen {
-			length := utf8.RuneCountInString(name)
-			t.Fatalf("attempt %d: name %q has %d characters, want %d", attempt, name, length, maxOrgNameLen)
-		}
+	if orgs := resp.GetOrgs(); len(orgs) != 1 || orgs[0].GetName() != "Ada's Org" {
+		t.Fatalf("orgs = %v, want one named Ada's Org", orgs)
 	}
 }
 

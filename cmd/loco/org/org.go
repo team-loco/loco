@@ -1,7 +1,13 @@
 package org
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/loco/cmdutil"
+	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
+	"github.com/team-loco/loco/internal/rpc"
 )
 
 // BuildOrgCmd creates the "org" parent command with all subcommands.
@@ -37,4 +43,12 @@ func BuildOrgCmd() *cobra.Command {
 	)
 
 	return cmd
+}
+
+func findOrg(ctx context.Context, clients *rpc.Clients, ref string) (*orgv1.Organization, error) {
+	orgs, err := cmdutil.ListUserOrgs(ctx, clients.User, clients.Org)
+	if err != nil {
+		return nil, fmt.Errorf("unable to list organizations: %w", err)
+	}
+	return cmdutil.FindOrg(orgs, ref)
 }

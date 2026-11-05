@@ -200,7 +200,7 @@ func TestOrgMemberSeesOrgButNoWorkspace(t *testing.T) {
 	if ids := userOrgIDs(t, member); !slices.Equal(ids, []string{o.orgID}) {
 		t.Fatalf("member orgs = %v, want [%s]", ids, o.orgID)
 	}
-	getOrg := &orgv1.GetOrgRequest{Key: &orgv1.GetOrgRequest_OrgId{OrgId: o.orgID}}
+	getOrg := &orgv1.GetOrgRequest{OrgId: o.orgID}
 	if _, err := member.clients.Org.GetOrg(ctx, getOrg); err != nil {
 		t.Fatalf("member get org: %v", err)
 	}

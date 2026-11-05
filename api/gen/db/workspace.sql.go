@@ -82,38 +82,6 @@ func (q *Queries) GetWorkspaceByIDQuery(ctx context.Context, id uuid.UUID) (GetW
 	return i, err
 }
 
-const getWorkspaceOrgID = `-- name: GetWorkspaceOrgID :one
-SELECT org_id FROM workspaces WHERE id = $1
-`
-
-func (q *Queries) GetWorkspaceOrgID(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, getWorkspaceOrgID, id)
-	var org_id uuid.UUID
-	err := row.Scan(&org_id)
-	return org_id, err
-}
-
-const isWorkspaceNameUniqueInOrg = `-- name: IsWorkspaceNameUniqueInOrg :one
-SELECT COUNT(*) = 0 as is_unique
-FROM workspaces
-WHERE org_id = $1
-AND name = $2
-AND ($3::uuid IS NULL OR id != $3::uuid)
-`
-
-type IsWorkspaceNameUniqueInOrgParams struct {
-	OrgID     uuid.UUID  `json:"orgId"`
-	Name      string     `json:"name"`
-	ExcludeID *uuid.UUID `json:"excludeId"`
-}
-
-func (q *Queries) IsWorkspaceNameUniqueInOrg(ctx context.Context, arg IsWorkspaceNameUniqueInOrgParams) (bool, error) {
-	row := q.db.QueryRow(ctx, isWorkspaceNameUniqueInOrg, arg.OrgID, arg.Name, arg.ExcludeID)
-	var is_unique bool
-	err := row.Scan(&is_unique)
-	return is_unique, err
-}
-
 const listWorkspaceMembersWithUserDetails = `-- name: ListWorkspaceMembersWithUserDetails :many
 WITH member_scopes AS (
   SELECT

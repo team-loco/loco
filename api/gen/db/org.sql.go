@@ -66,25 +66,6 @@ func (q *Queries) GetOrgByID(ctx context.Context, id uuid.UUID) (Organization, e
 	return i, err
 }
 
-const getOrgByName = `-- name: GetOrgByName :one
-SELECT id, name, created_by, suspended_at, suspension_reason, created_at, updated_at FROM organizations WHERE name = $1
-`
-
-func (q *Queries) GetOrgByName(ctx context.Context, name string) (Organization, error) {
-	row := q.db.QueryRow(ctx, getOrgByName, name)
-	var i Organization
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.CreatedBy,
-		&i.SuspendedAt,
-		&i.SuspensionReason,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const isOrgMember = `-- name: IsOrgMember :one
 SELECT EXISTS (
   SELECT 1 FROM user_scopes us
@@ -126,25 +107,6 @@ func (q *Queries) IsOrgMemberEmail(ctx context.Context, arg IsOrgMemberEmailPara
 	var is_member bool
 	err := row.Scan(&is_member)
 	return is_member, err
-}
-
-const isOrgNameUnique = `-- name: IsOrgNameUnique :one
-SELECT COUNT(*) = 0 as is_unique
-FROM organizations
-WHERE name = $1
-AND ($2::uuid IS NULL OR id != $2::uuid)
-`
-
-type IsOrgNameUniqueParams struct {
-	Name      string     `json:"name"`
-	ExcludeID *uuid.UUID `json:"excludeId"`
-}
-
-func (q *Queries) IsOrgNameUnique(ctx context.Context, arg IsOrgNameUniqueParams) (bool, error) {
-	row := q.db.QueryRow(ctx, isOrgNameUnique, arg.Name, arg.ExcludeID)
-	var is_unique bool
-	err := row.Scan(&is_unique)
-	return is_unique, err
 }
 
 const listOrgMembersWithDetails = `-- name: ListOrgMembersWithDetails :many

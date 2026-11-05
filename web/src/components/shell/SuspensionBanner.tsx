@@ -13,11 +13,7 @@ export function SuspensionBanner() {
 	const { orgId = "" } = useParams();
 	const scopes = useMyScopes();
 	const canReadOrg = orgId !== "" && !scopes.isLoading && scopes.orgMember(orgId);
-	const { data } = useQuery(
-		getOrg,
-		{ key: { case: "orgId", value: orgId } },
-		{ enabled: canReadOrg, staleTime: SUSPENSION_STALE_MS },
-	);
+	const { data } = useQuery(getOrg, { orgId }, { enabled: canReadOrg, staleTime: SUSPENSION_STALE_MS });
 	const reason = suspensionReason(data?.organization);
 	if (reason === null) return null;
 	return (

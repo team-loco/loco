@@ -25,10 +25,9 @@ import (
 )
 
 var (
-	ErrWorkspaceNotFound      = errors.New("workspace not found")
-	ErrWorkspaceNameRequired  = errors.New("workspace name must not be empty")
-	ErrWorkspaceNameNotUnique = errors.New("workspace name already exists in this organization")
-	ErrWorkspaceHasResources  = errors.New("workspace has resources, delete them first")
+	ErrWorkspaceNotFound     = errors.New("workspace not found")
+	ErrWorkspaceNameRequired = errors.New("workspace name must not be empty")
+	ErrWorkspaceHasResources = errors.New("workspace has resources, delete them first")
 )
 
 // WorkspaceServer implements the WorkspaceService gRPC server
@@ -65,20 +64,6 @@ func (s *WorkspaceServer) CreateWorkspace(
 	}
 
 	orgID := uuid.MustParse(req.GetOrgId())
-
-	isUnique, err := s.queries.IsWorkspaceNameUniqueInOrg(ctx, genDb.IsWorkspaceNameUniqueInOrgParams{
-		OrgID: orgID,
-		Name:  req.GetName(),
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check workspace name uniqueness", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-
-	if !isUnique {
-		slog.WarnContext(ctx, "workspace name already exists in org", "orgId", req.GetOrgId(), "name", req.GetName())
-		return nil, rpcerr.New(connect.CodeAlreadyExists, ErrWorkspaceNameNotUnique)
-	}
 
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
@@ -126,9 +111,6 @@ func createWorkspaceInTx(
 	if err != nil {
 		if pgForeignKeyConstraint(err) == pgWorkspaceOrgReference {
 			return uuid.Nil, rpcerr.New(connect.CodeNotFound, ErrOrgNotFound)
-		}
-		if isPgConstraintViolation(err) {
-			return uuid.Nil, rpcerr.New(connect.CodeAlreadyExists, ErrWorkspaceNameNotUnique)
 		}
 		slog.ErrorContext(ctx, "failed to create workspace", "error", err)
 		return uuid.Nil, rpcerr.New(connect.CodeInternal, ErrDB)
@@ -405,29 +387,6 @@ func (s *WorkspaceServer) UpdateWorkspace(
 	}
 	if message.Has(fields.ByName(updateDescriptionField)) {
 		params.Description = new(req.GetDescription())
-	}
-
-	if rename {
-		orgID, err := s.queries.GetWorkspaceOrgID(ctx, wsID)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to get workspace org", "error", err)
-			return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-		}
-
-		isUnique, err := s.queries.IsWorkspaceNameUniqueInOrg(ctx, genDb.IsWorkspaceNameUniqueInOrgParams{
-			OrgID:     orgID,
-			Name:      req.GetName(),
-			ExcludeID: &wsID,
-		})
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to check workspace name uniqueness", "error", err)
-			return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-		}
-
-		if !isUnique {
-			slog.WarnContext(ctx, "workspace name already exists in org", "orgId", orgID, "name", req.GetName())
-			return nil, rpcerr.New(connect.CodeAlreadyExists, ErrWorkspaceNameNotUnique)
-		}
 	}
 
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {

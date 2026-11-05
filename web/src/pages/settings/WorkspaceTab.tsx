@@ -1,4 +1,3 @@
-import { Code, ConnectError } from "@connectrpc/connect";
 import { useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
 import type { User } from "@gen/loco/org/v1/org_pb";
 import {
@@ -35,7 +34,6 @@ interface Draft {
 
 export function WorkspaceTab({
 	orgId,
-	orgName,
 	workspaceId,
 	workspaces,
 	users,
@@ -43,7 +41,6 @@ export function WorkspaceTab({
 	resourceCount,
 }: {
 	orgId: string;
-	orgName: string;
 	workspaceId: string;
 	workspaces: Workspace[];
 	users: User[];
@@ -51,7 +48,6 @@ export function WorkspaceTab({
 	resourceCount: ResourceCount | undefined;
 }) {
 	const nameId = useId();
-	const nameHintId = `${nameId}-hint`;
 	const nameErrorId = `${nameId}-error`;
 	const descriptionId = useId();
 	const descriptionHintId = `${descriptionId}-hint`;
@@ -65,7 +61,6 @@ export function WorkspaceTab({
 
 	const [draft, setDraft] = useState<Draft | null>(null);
 	const [saved, setSaved] = useState(false);
-	const [serverNameErr, setServerNameErr] = useState<string | null>(null);
 	const [deleteOpen, setDeleteOpen] = useState(false);
 
 	const ws = data?.workspace;
@@ -78,7 +73,6 @@ export function WorkspaceTab({
 	const current: Draft = draft ?? { name: ws.name, desc: ws.description };
 	const nameT = current.name.trim();
 	const dirty = current.name !== ws.name || current.desc !== ws.description;
-	const taken = workspaces.some((w) => w.id !== ws.id && w.name === nameT);
 	const nameErr =
 		nameT === ""
 			? "Name required"
@@ -86,9 +80,7 @@ export function WorkspaceTab({
 				? "Max 63 characters"
 				: !NAME_RE.test(nameT)
 					? "Lowercase letters, numbers and hyphens"
-					: taken
-						? `${nameT} already exists in ${orgName}`
-						: serverNameErr;
+					: null;
 	const canWrite = level >= 2;
 	const canAdmin = level >= 3;
 	const shownErr = dirty ? nameErr : null;
@@ -116,10 +108,6 @@ export function WorkspaceTab({
 					void queryClient.invalidateQueries();
 				},
 				onError: (err) => {
-					if (err instanceof ConnectError && err.code === Code.AlreadyExists) {
-						setServerNameErr(`${nameT} already exists in ${orgName}`);
-						return;
-					}
 					toastConnectError(err, "Failed to update workspace");
 				},
 			},
@@ -147,24 +135,18 @@ export function WorkspaceTab({
 	return (
 		<div className="flex flex-col gap-5">
 			<SettingsCard>
-				<SettingsRow
-					label="Name"
-					hint={`Used in URLs and the CLI. Must be unique in ${orgName}.`}
-					controlId={nameId}
-					hintId={nameHintId}
-				>
+				<SettingsRow label="Name" controlId={nameId}>
 					<Input
 						id={nameId}
 						value={current.name}
 						placeholder="storefront"
 						disabled={!canWrite}
 						aria-invalid={shownErr !== null}
-						aria-describedby={shownErr === null ? nameHintId : `${nameHintId} ${nameErrorId}`}
+						aria-describedby={shownErr === null ? undefined : nameErrorId}
 						className="h-9 max-w-[320px] text-[13.5px]"
 						onChange={(e) => {
 							setDraft({ ...current, name: e.target.value.toLowerCase() });
 							setSaved(false);
-							setServerNameErr(null);
 						}}
 					/>
 					{shownErr !== null && (
@@ -202,7 +184,6 @@ export function WorkspaceTab({
 					<SaveBar
 						onDiscard={() => {
 							setDraft(null);
-							setServerNameErr(null);
 						}}
 						onSave={save}
 						disabled={nameErr !== null}

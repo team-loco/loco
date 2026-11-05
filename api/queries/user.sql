@@ -69,10 +69,6 @@ SELECT id, name, created_by, created_at, updated_at
 FROM organizations
 WHERE id = $1;
 
--- name: GetOrganizationByName :one
-SELECT id, name, created_by, created_at, updated_at
-FROM organizations
-WHERE name = $1;
 
 -- name: IsOrganizationNameUnique :one
 SELECT COUNT(*) = 0 AS is_unique

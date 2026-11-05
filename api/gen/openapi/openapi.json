@@ -3446,7 +3446,7 @@
           "loco.org.v1.OrgService"
         ],
         "summary": "GetOrg",
-        "description": "GetOrg retrieves an organization by ID or name.",
+        "description": "GetOrg retrieves an organization by ID.",
         "operationId": "loco.org.v1.OrgService.GetOrg",
         "parameters": [
           {
@@ -11031,66 +11031,15 @@
       },
       "loco.org.v1.GetOrgRequest": {
         "type": "object",
-        "anyOf": [
-          {
-            "type": "object",
-            "properties": {
-              "orgId": {
-                "type": "string",
-                "title": "org_id",
-                "format": "uuid"
-              }
-            },
-            "title": "org_id"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "orgName": {
-                "type": "string",
-                "title": "org_name",
-                "minLength": 1
-              }
-            },
-            "title": "org_name"
+        "properties": {
+          "orgId": {
+            "type": "string",
+            "title": "org_id",
+            "format": "uuid"
           }
-        ],
-        "unevaluatedProperties": false,
-        "not": {
-          "allOf": [
-            {
-              "anyOf": [
-                {
-                  "required": [
-                    "orgId"
-                  ]
-                },
-                {
-                  "required": [
-                    "orgName"
-                  ]
-                }
-              ]
-            },
-            {
-              "not": {
-                "oneOf": [
-                  {
-                    "required": [
-                      "orgId"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "orgName"
-                    ]
-                  }
-                ]
-              }
-            }
-          ]
         },
         "title": "GetOrgRequest",
+        "additionalProperties": false,
         "description": "GetOrgRequest is the request to retrieve an organization."
       },
       "loco.org.v1.GetOrgResponse": {
