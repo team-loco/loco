@@ -223,12 +223,16 @@ func recoveryProof(
 	transit, ingest string,
 ) error {
 	const canary = "installation-recovery-canary"
+	const derivationContext = "installation-recovery"
+	binding := base64.StdEncoding.EncodeToString([]byte(derivationContext))
 	var encrypted struct{ Data struct{ Ciphertext string } }
 	// Transit routes are <mount>/encrypt/<key>, supplied from the installed API's configuration.
 	if err := source.write(
 		ctx,
 		transit,
-		map[string]string{"plaintext": base64.StdEncoding.EncodeToString([]byte(canary))},
+		map[string]string{
+			"plaintext": base64.StdEncoding.EncodeToString([]byte(canary)), "context": binding,
+		},
 		&encrypted,
 	); err != nil {
 		return err
@@ -262,7 +266,7 @@ func recoveryProof(
 	if err = restored.write(
 		ctx,
 		strings.Replace(transit, "/encrypt/", "/decrypt/", 1),
-		map[string]string{"ciphertext": encrypted.Data.Ciphertext},
+		map[string]string{"ciphertext": encrypted.Data.Ciphertext, "context": binding},
 		&decrypted,
 	); err != nil {
 		return err

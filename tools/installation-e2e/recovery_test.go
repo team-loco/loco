@@ -101,9 +101,23 @@ func TestRecoveryProofRejectsLostEncryptionOrSigningIdentity(t *testing.T) {
 				t.Fatal(err)
 			}
 			snapshot := false
+			var binding string
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				var data any
+				if strings.Contains(r.URL.Path, "/encrypt/") || strings.Contains(r.URL.Path, "/decrypt/") {
+					var input map[string]string
+					if decodeErr := json.NewDecoder(r.Body).Decode(&input); decodeErr != nil {
+						t.Error(decodeErr)
+					}
+					contextValue := input["context"]
+					decoded, decodeErr := base64.StdEncoding.DecodeString(contextValue)
+					if decodeErr != nil || len(decoded) == 0 || (binding != "" && binding != contextValue) {
+						http.Error(w, "missing or mismatched derivation context", http.StatusBadRequest)
+						return
+					}
+					binding = contextValue
+				}
 				switch r.URL.Path {
 				case "/v1/transit/encrypt/loco":
 					data = map[string]string{"ciphertext": "before-snapshot"}
