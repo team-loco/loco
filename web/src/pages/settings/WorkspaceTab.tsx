@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 import { ActivityPanel } from "./ActivityPanel";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 import { WebhooksCard } from "./WebhooksCard";
-import { DangerCard, formatDay, NAME_RE, SavedBar, SaveBar, SettingsCard, SettingsRow } from "./parts";
+import { DangerCard, formatDay, SavedBar, SaveBar, SettingsCard, SettingsRow } from "./parts";
 import type { ResourceCount } from "./useResourceCounts";
 
 interface Draft {
@@ -74,14 +74,7 @@ export function WorkspaceTab({
 	const current: Draft = draft ?? { name: ws.name, desc: ws.description };
 	const nameT = current.name.trim();
 	const dirty = current.name !== ws.name || current.desc !== ws.description;
-	const nameErr =
-		nameT === ""
-			? "Name required"
-			: nameT.length > 63
-				? "Max 63 characters"
-				: !NAME_RE.test(nameT)
-					? "Lowercase letters, numbers and hyphens"
-					: null;
+	const nameErr = nameT === "" ? "Name required" : nameT.length > 63 ? "Max 63 characters" : null;
 	const canWrite = level >= 2;
 	const canAdmin = level >= 3;
 	const shownErr = dirty ? nameErr : null;

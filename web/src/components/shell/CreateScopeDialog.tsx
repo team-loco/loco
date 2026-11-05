@@ -18,8 +18,6 @@ import { workspacePath } from "@/lib/routes";
 
 export type ScopeKind = "org" | "workspace";
 
-const NAME_RE = /^[a-z0-9][a-z0-9-]*$/;
-
 export function CreateScopeDialog({
 	kind,
 	onOpenChange,
@@ -56,14 +54,7 @@ function CreateScopeForm({ kind, onDone }: { kind: ScopeKind; onDone: () => void
 	const isOrg = kind === "org";
 	const trimmed = name.trim();
 	const maxLen = isOrg ? 100 : 63;
-	const error =
-		trimmed === ""
-			? null
-			: trimmed.length > maxLen
-				? "Too long"
-				: !NAME_RE.test(trimmed)
-					? "Lowercase letters, numbers and hyphens"
-					: null;
+	const error = trimmed.length > maxLen ? "Too long" : null;
 	const ok = trimmed !== "" && error === null && (isOrg || orgId !== "");
 
 	const submit = async () => {

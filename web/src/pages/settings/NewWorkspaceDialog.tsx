@@ -12,8 +12,6 @@ import { Input } from "@/components/design/Input";
 import { Textarea } from "@/components/design/Textarea";
 import { toastConnectError } from "@/lib/error-handler";
 
-import { NAME_RE } from "./parts";
-
 export function NewWorkspaceDialog({
 	open,
 	onOpenChange,
@@ -44,14 +42,7 @@ function NewWorkspaceForm({ orgId, onDone }: { orgId: string; onDone: () => void
 	const [desc, setDesc] = useState("");
 
 	const nameT = name.trim();
-	const error =
-		nameT === ""
-			? null
-			: nameT.length > 63
-				? "Max 63 characters"
-				: !NAME_RE.test(nameT)
-					? "Lowercase letters, numbers and hyphens"
-					: null;
+	const error = nameT.length > 63 ? "Max 63 characters" : null;
 	const ok = nameT !== "" && error === null;
 
 	const submit = () => {
