@@ -379,17 +379,6 @@ func (q *Queries) ListResourcesRunningOutsideEnvironment(ctx context.Context, ar
 	return items, nil
 }
 
-const markDeploymentNotActive = `-- name: MarkDeploymentNotActive :exec
-UPDATE deployments
-SET is_active = false, updated_at = NOW()
-WHERE id = $1
-`
-
-func (q *Queries) MarkDeploymentNotActive(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, markDeploymentNotActive, id)
-	return err
-}
-
 const markPreviousDeploymentsNotActive = `-- name: MarkPreviousDeploymentsNotActive :exec
 UPDATE deployments
 SET is_active = false, updated_at = NOW()

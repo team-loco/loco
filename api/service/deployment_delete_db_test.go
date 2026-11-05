@@ -5,18 +5,14 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 )
 
-func TestDeletingSupersededDeploymentPreservesConcurrentReplacement(t *testing.T) {
-	f := newDeployFixture(t)
-	original, err := createDeployment(t, f, sameRegionSpec)
-	if err != nil {
-		t.Fatal(err)
-	}
-	f.finishRollouts(t)
+func (f *deployFixture) deploymentWriter(t *testing.T) (*DeploymentServer, context.Context) {
+	t.Helper()
 	server := NewDeploymentServer(
 		f.pool,
 		f.queries,
@@ -28,7 +24,38 @@ func TestDeletingSupersededDeploymentPreservesConcurrentReplacement(t *testing.T
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
 	}
-	ctx := context.WithValue(t.Context(), contextkeys.EntityScopesKey, scopes)
+	return server, context.WithValue(t.Context(), contextkeys.EntityScopesKey, scopes)
+}
+
+func TestDeletingRunningDeploymentFinalizesItsStatus(t *testing.T) {
+	f := newDeployFixture(t)
+	created, err := createDeployment(t, f, sameRegionSpec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.finishRollouts(t)
+	deploymentID := uuid.MustParse(created.GetDeploymentId())
+	if status := f.deploymentStatus(t, deploymentID); status != genDb.DeploymentStatusRunning {
+		t.Fatalf("status before delete = %s, want running", status)
+	}
+	server, ctx := f.deploymentWriter(t)
+	_, err = server.DeleteDeployment(ctx, &deploymentv1.DeleteDeploymentRequest{DeploymentId: deploymentID.String()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status := f.deploymentStatus(t, deploymentID); status != genDb.DeploymentStatusSucceeded {
+		t.Fatalf("status after delete = %s, want succeeded", status)
+	}
+}
+
+func TestDeletingSupersededDeploymentPreservesConcurrentReplacement(t *testing.T) {
+	f := newDeployFixture(t)
+	original, err := createDeployment(t, f, sameRegionSpec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.finishRollouts(t)
+	server, ctx := f.deploymentWriter(t)
 	release := sync.OnceFunc(f.holdResourceLock(t))
 	t.Cleanup(release)
 	type createResult struct {

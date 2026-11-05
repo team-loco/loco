@@ -343,7 +343,6 @@ func (s *DeploymentServer) CreateDeployment(
 			return connect.NewError(connect.CodeInternal, publicRequestFailed).WithCause(mergeErr)
 		}
 
-		// create spec copy without env for DB persistence (no plaintext secrets in DB)
 		mergedServiceSpec := mergedSpec.GetService()
 		if quantityErr := validateQuantities(mergedServiceSpec); quantityErr != nil {
 			slog.WarnContext(ctx, "invalid resource quantity", "error", quantityErr)
@@ -351,10 +350,7 @@ func (s *DeploymentServer) CreateDeployment(
 		}
 		replicas := mergedServiceSpec.GetMinReplicas()
 
-		specForDBService := proto.CloneOf(mergedServiceSpec)
-		specForDBService.Env = nil
-
-		specJSON, marshalErr := protojson.Marshal(specForDBService)
+		specJSON, marshalErr := deploymentSpecJSON(mergedServiceSpec)
 		if marshalErr != nil {
 			slog.ErrorContext(ctx, "failed to marshal spec", "error", marshalErr)
 			return connect.NewError(connect.CodeInvalidArgument, publicInvalidSpec).WithCause(marshalErr)
@@ -395,7 +391,7 @@ func (s *DeploymentServer) CreateDeployment(
 			IsActive:      true,
 			Message:       "Scheduling deployment",
 			Spec:          specJSON,
-			SpecVersion:   int32(1),
+			SpecVersion:   specVersion,
 			EnvironmentID: environmentID,
 			SecretNames:   secretNames,
 		}, buildSpec)
@@ -546,7 +542,7 @@ func (s *DeploymentServer) ListDeployments(
 	}, nil
 }
 
-// DeleteDeployment deletes/inactivates a deployment and cleans up its Application
+// DeleteDeployment takes a deployment out of service and removes its Application.
 func (s *DeploymentServer) DeleteDeployment(
 	ctx context.Context,
 	req *deploymentv1.DeleteDeploymentRequest,
@@ -590,25 +586,10 @@ func (s *DeploymentServer) DeleteDeployment(
 		if getErr != nil {
 			return fmt.Errorf("read deployment before deletion: %w", getErr)
 		}
-		if current.IsActive {
-			if removeErr := removePlacement(ctx, qtx, resource.ID, deployment.ClusterID); removeErr != nil {
-				return removeErr
-			}
+		if retireErr := retireDeployment(ctx, qtx, resource, current); retireErr != nil {
+			return retireErr
 		}
-
-		if markErr := qtx.MarkDeploymentNotActive(ctx, deploymentID); markErr != nil {
-			return fmt.Errorf("mark deployment not active: %w", markErr)
-		}
-		if bumpErr := bumpEnvironmentRevision(ctx, qtx, deployment.EnvironmentID); bumpErr != nil {
-			return bumpErr
-		}
-		return events.Record(ctx, qtx, events.Event{
-			Type:        events.DeploymentDeleted,
-			WorkspaceID: new(resource.WorkspaceID),
-			ResourceID:  new(resource.ID),
-			SubjectType: events.SubjectDeployment,
-			SubjectID:   new(deploymentID),
-		})
+		return bumpEnvironmentRevision(ctx, qtx, deployment.EnvironmentID)
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete deployment", "error", err)
@@ -616,6 +597,34 @@ func (s *DeploymentServer) DeleteDeployment(
 	}
 
 	return &deploymentv1.DeleteDeploymentResponse{}, nil
+}
+
+// retireDeployment takes a deployment out of service: it drops the deployment's placement,
+// finalizes its status and records the deletion.
+func retireDeployment(ctx context.Context, qtx *genDb.Queries, res genDb.Resource, deployment genDb.Deployment) error {
+	// an inactive deployment was superseded, and its cluster's placement now belongs to the
+	// replacement.
+	if deployment.IsActive {
+		if err := removePlacement(ctx, qtx, res.ID, deployment.ClusterID); err != nil {
+			return err
+		}
+	}
+	err := qtx.UpdateDeploymentStatusAndActive(ctx, genDb.UpdateDeploymentStatusAndActiveParams{
+		ID:       deployment.ID,
+		Status:   finalizedDeploymentStatus(deployment.Status),
+		IsActive: false,
+	})
+	if err != nil {
+		return fmt.Errorf("finalize deployment %s: %w", deployment.ID, err)
+	}
+	return events.Record(ctx, qtx, events.Event{
+		Type:        events.DeploymentDeleted,
+		WorkspaceID: new(res.WorkspaceID),
+		ResourceID:  new(res.ID),
+		SubjectType: events.SubjectDeployment,
+		SubjectID:   new(deployment.ID),
+		Data:        map[string]any{events.FieldResourceID: res.ID.String()},
+	})
 }
 
 const (
