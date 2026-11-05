@@ -43,10 +43,10 @@ type snapshotObject struct {
 
 type snapshotContainer struct {
 	State struct {
-		Waiting *struct {
+		Waiting struct {
 			Reason string `json:"reason"`
 		} `json:"waiting"`
-		Terminated *struct {
+		Terminated struct {
 			Reason string `json:"reason"`
 		} `json:"terminated"`
 	} `json:"state"`
@@ -119,32 +119,39 @@ func countSnapshotState(counts map[string]int, object snapshotObject) {
 			}
 		}
 		for _, container := range slices.Concat(object.Status.InitContainerStatuses, object.Status.ContainerStatuses) {
-			if state := container.State.Waiting; state != nil && slices.Contains([]string{
+			reason := container.State.Waiting.Reason
+			if slices.Contains([]string{
 				"ContainerCreating", "PodInitializing", "ErrImagePull", "ImagePullBackOff", "CrashLoopBackOff",
 				"CreateContainerConfigError", "CreateContainerError", "RunContainerError", "InvalidImageName",
-			}, state.Reason) {
-				counts["ContainerWaiting="+state.Reason]++
+			}, reason) {
+				counts["ContainerWaiting="+reason]++
 			}
-			if state := container.State.Terminated; state != nil && state.Reason == "OOMKilled" {
+			if container.State.Terminated.Reason == "OOMKilled" {
 				counts["ContainerTerminated=OOMKilled"]++
 			}
 		}
 	case "Event":
-		reason := "Unknown"
 		if slices.Contains([]string{
 			"FailedScheduling", "FailedMount", "FailedAttachVolume", "FailedCreatePodSandBox",
 			"FailedCreate", snapshotFailed, "BackOff", "DeadlineExceeded",
 		}, object.Reason) {
-			reason = object.Reason
+			counts["EventReason="+object.Reason]++
 		}
-		counts["EventReason="+reason]++
-		if reason == "FailedScheduling" {
+		if object.Reason == "FailedScheduling" {
 			countInsufficientResources(counts, object.Message+object.Note)
 		}
 	case "Node":
 		cpu, memory := object.Status.Allocatable.CPU, object.Status.Allocatable.Memory
 		if snapshotCPU.MatchString(cpu) && snapshotMemory.MatchString(memory) {
 			counts["NodeAllocatable cpu="+cpu+" memory="+memory]++
+		}
+		for _, condition := range object.Status.Conditions {
+			known := slices.Contains([]string{
+				"Ready", "MemoryPressure", "DiskPressure", "PIDPressure", "NetworkUnavailable",
+			}, condition.Type)
+			if known && slices.Contains([]string{"True", "False", "Unknown"}, condition.Status) {
+				counts["NodeCondition="+condition.Type+" status="+condition.Status]++
+			}
 		}
 	}
 }

@@ -22,13 +22,19 @@ func TestFailedOperatorSnapshotsOnlySafeStateAndKeepsExitError(t *testing.T) {
  "containerStatuses":[{"name":"credential-canary",
  "state":{"waiting":{"reason":"ImagePullBackOff","message":"credential-canary"}}},
  {"state":{"terminated":{"reason":"OOMKilled","message":"credential-canary"}}},
- {"state":{"waiting":{"reason":"CrashLoopBackOff credential-canary"}}}]}},
+ {"state":{"waiting":{"reason":"CrashLoopBackOff credential-canary"}}},
+ {"state":{"waiting":null,"terminated":null}}]}},
 {"kind":"Event","reason":"FailedScheduling","message":"Insufficient cpu credential-canary",
  "involvedObject":{"name":"credential-canary"}},
 {"kind":"Event","reason":"BackOff credential-canary","message":"credential-canary"}
 ]}`
 	nodes := `{"items":[
-{"kind":"Node","metadata":{"name":"credential-canary"},"status":{"allocatable":{"cpu":"4000m","memory":"8Gi"}}},
+{"kind":"Node","metadata":{"name":"credential-canary"},"status":{
+ "allocatable":{"cpu":"4000m","memory":"8Gi"},"conditions":[
+ {"type":"Ready","status":"False","reason":"credential-canary","message":"credential-canary"},
+ {"type":"MemoryPressure","status":"True"},{"type":"DiskPressure","status":"False"},
+ {"type":"PIDPressure","status":"False"},{"type":"NetworkUnavailable","status":"Unknown"},
+ {"type":"Ready credential-canary","status":"True"},{"type":"PIDPressure","status":"True credential-canary"}]}},
 {"kind":"Node","status":{"allocatable":{"cpu":"credential-canary","memory":"8Gi credential-canary"}}}
 ]}`
 	t.Setenv("SNAPSHOT_TEST_JSON", state)
@@ -61,26 +67,39 @@ esac
 	os.Stdout, os.Stderr = output, output
 	defer func() { os.Stdout, os.Stderr = previousOut, previousErr }()
 	f := fixture{root: t.TempDir(), kubeconfig: "/owned/kubeconfig"}
-	err = f.runOperator(t.Context())
-	var exit *exec.ExitError
-	if !errors.As(err, &exit) || exit.ExitCode() != 17 {
-		t.Fatalf("operator error = %v, want original exit status 17", err)
-	}
-	data, readErr := os.ReadFile(output.Name())
-	if readErr != nil {
-		t.Fatal(readErr)
-	}
-	if strings.Contains(string(data), "credential-canary") || strings.Contains(err.Error(), "credential-canary") {
-		t.Fatal("snapshot exposed raw object or diagnostic text")
-	}
-	for _, want := range []string{
-		"BuildPhase=Running count=1", "JobFailedDeadlineExceeded count=1", "PodScheduledUnschedulable count=1",
-		"InsufficientCPU count=2", "InsufficientMemory count=1", "ContainerWaiting=ImagePullBackOff count=1",
-		"ContainerTerminated=OOMKilled count=1", "EventReason=FailedScheduling count=1", "EventReason=Unknown count=1",
-		"NodeAllocatable cpu=4000m memory=8Gi count=1",
+	var wantOutput string
+	for _, tc := range []struct{ fail, snapshot string }{
+		{"", `installation-e2e snapshot: BuildPhase=Running count=1
+installation-e2e snapshot: ContainerTerminated=OOMKilled count=1
+installation-e2e snapshot: ContainerWaiting=ImagePullBackOff count=1
+installation-e2e snapshot: EventReason=FailedScheduling count=1
+installation-e2e snapshot: InsufficientCPU count=2
+installation-e2e snapshot: InsufficientMemory count=1
+installation-e2e snapshot: JobFailedDeadlineExceeded count=1
+installation-e2e snapshot: NodeAllocatable cpu=4000m memory=8Gi count=1
+installation-e2e snapshot: NodeCondition=DiskPressure status=False count=1
+installation-e2e snapshot: NodeCondition=MemoryPressure status=True count=1
+installation-e2e snapshot: NodeCondition=NetworkUnavailable status=Unknown count=1
+installation-e2e snapshot: NodeCondition=PIDPressure status=False count=1
+installation-e2e snapshot: NodeCondition=Ready status=False count=1
+installation-e2e snapshot: PodPhase=Pending count=1
+installation-e2e snapshot: PodScheduledUnschedulable count=1
+`},
+		{"1", "installation-e2e snapshot: QueryUnavailable count=2\n"},
 	} {
-		if !strings.Contains(string(data), want) {
-			t.Errorf("missing safe state %q in %q", want, data)
+		t.Setenv("SNAPSHOT_TEST_FAIL", tc.fail)
+		err = f.runOperator(t.Context())
+		var exit *exec.ExitError
+		if !errors.As(err, &exit) || exit.ExitCode() != 17 || strings.Contains(err.Error(), "credential-canary") {
+			t.Fatalf("case %q lost the original exit status or exposed private output", tc.fail)
+		}
+		data, readErr := os.ReadFile(output.Name())
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		wantOutput += "installation-e2e phase: source-deploy\n" + tc.snapshot
+		if string(data) != wantOutput {
+			t.Fatalf("case %q did not emit only the safe snapshot", tc.fail)
 		}
 	}
 	invocations, readErr := os.ReadFile(calls)
@@ -94,18 +113,5 @@ esac
 		if !strings.Contains(string(invocations), want) {
 			t.Errorf("snapshot did not query only its cluster: %q", invocations)
 		}
-	}
-	t.Setenv("SNAPSHOT_TEST_FAIL", "1")
-	err = f.runOperator(t.Context())
-	if !errors.As(err, &exit) || exit.ExitCode() != 17 {
-		t.Fatalf("failed snapshot replaced original operator exit status: %v", err)
-	}
-	data, readErr = os.ReadFile(output.Name())
-	if readErr != nil {
-		t.Fatal(readErr)
-	}
-	leaked := strings.Contains(string(data), "credential-canary")
-	if leaked || !strings.Contains(string(data), "QueryUnavailable count=2") {
-		t.Fatalf("failed snapshot did not preserve safe query summary: %q", data)
 	}
 }
