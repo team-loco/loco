@@ -238,6 +238,7 @@ type fixtureService struct {
 	Image   string
 	Port    int
 	Command []string
+	Args    []string
 }
 
 func (f *fixture) provision(ctx context.Context) error {
@@ -262,10 +263,10 @@ func (f *fixture) provision(ctx context.Context) error {
 			Command: []string{fixtureDex, "serve", "/config/dex.yaml"},
 		},
 		{
-			Name:    fixtureRegistry,
-			Image:   pins[fixtureRegistry],
-			Port:    5000,
-			Command: []string{"/usr/bin/zot", "serve", "/config/registry.json"},
+			Name:  fixtureRegistry,
+			Image: pins[fixtureRegistry],
+			Port:  5000,
+			Args:  []string{"serve", "/config/registry.json"},
 		},
 		{
 			Name:  "s3",

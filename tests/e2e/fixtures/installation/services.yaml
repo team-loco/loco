@@ -62,6 +62,9 @@ spec:
 {{ if .Command }}
         command: {{ .Command | json }}
 {{ end }}
+{{ if .Args }}
+        args: {{ .Args | json }}
+{{ end }}
 {{ if eq .Name "postgres" }}
         env:
         - {name: POSTGRES_USER, value: loco}
