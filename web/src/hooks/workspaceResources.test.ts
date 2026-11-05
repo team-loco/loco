@@ -86,7 +86,7 @@ describe("complete workspace resources", () => {
 		const client = new QueryClient(clientOptions);
 		try {
 			expect(await client.query(workspaceResourcesOptions(transport, "workspace")).catch(String)).toContain(
-				"complete resource list",
+				"complete list",
 			);
 		} finally {
 			client.clear();

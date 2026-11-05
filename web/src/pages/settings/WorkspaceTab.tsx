@@ -1,14 +1,14 @@
 import { Code, ConnectError } from "@connectrpc/connect";
-import { useMutation, useQuery } from "@connectrpc/connect-query";
+import { useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
 import type { User } from "@gen/loco/org/v1/org_pb";
 import {
 	deleteWorkspace,
 	getWorkspace,
-	listWorkspaceMembers,
 	updateWorkspace,
 } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery as useTanstackQuery, useQueryClient } from "@tanstack/react-query";
+import { workspaceMembersOptions } from "@/hooks/completeMembers";
 import { useId, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -57,8 +57,9 @@ export function WorkspaceTab({
 	const descriptionHintId = `${descriptionId}-hint`;
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
+	const transport = useTransport();
 	const { data, isLoading, error } = useQuery(getWorkspace, { workspaceId });
-	const { data: membersRes } = useQuery(listWorkspaceMembers, { workspaceId, pageSize: 200 });
+	const { data: membersRes } = useTanstackQuery(workspaceMembersOptions(transport, workspaceId));
 	const update = useMutation(updateWorkspace);
 	const remove = useMutation(deleteWorkspace);
 

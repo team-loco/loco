@@ -1,13 +1,11 @@
 import { createConnectQueryKey, createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-query";
-import { getOrg, listInvitations, listOrgMembers } from "@gen/loco/org/v1/org-OrgService_connectquery";
+import { getOrg, listInvitations } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import type { User } from "@gen/loco/org/v1/org_pb";
 import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { EntityType, type EntityScope } from "@gen/loco/token/v1/token_pb";
-import {
-	listOrgWorkspaces,
-	listWorkspaceMembers,
-} from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
-import { useQueries, useQueryClient } from "@tanstack/react-query";
+import { listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
+import { useQueries, useQuery as useTanstackQuery, useQueryClient } from "@tanstack/react-query";
+import { invitationsOptions, orgMembersOptions, workspaceMembersOptions } from "@/hooks/completeMembers";
 
 import { parseScopeName, sortScopes, toScopeName, type ScopeName } from "./scopes";
 
@@ -48,17 +46,15 @@ export function useTeamData(orgId: string, meId: string, myScopes: EntityScope[]
 	const queryClient = useQueryClient();
 	const enabled = orgId !== "";
 	const orgQuery = useQuery(getOrg, { key: { case: "orgId", value: orgId } }, { enabled });
-	const membersQuery = useQuery(listOrgMembers, { orgId, pageSize: 200 }, { enabled });
-	const invitationsQuery = useQuery(listInvitations, { orgId, pageSize: 200 }, { enabled });
+	const membersQuery = useTanstackQuery(orgMembersOptions(transport, orgId));
+	const invitationsQuery = useTanstackQuery(invitationsOptions(transport, orgId));
 	const wsQuery = useQuery(listOrgWorkspaces, { orgId, pageSize: 200 }, { enabled });
 	const org = orgQuery.data?.organization;
 	const workspaces = wsQuery.data?.workspaces ?? [];
 	const wsName = new Map(workspaces.map((w) => [w.id, w.name]));
 
 	const memberQueries = useQueries({
-		queries: workspaces.map((w) =>
-			createQueryOptions(listWorkspaceMembers, { workspaceId: w.id, pageSize: 200 }, { transport }),
-		),
+		queries: workspaces.map((w) => workspaceMembersOptions(transport, w.id)),
 	});
 
 	const needResources = myScopes.some((s) => s.entityType === EntityType.RESOURCE);
