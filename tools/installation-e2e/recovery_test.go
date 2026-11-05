@@ -20,7 +20,7 @@ import (
 	"filippo.io/age"
 )
 
-func TestRecoveryRootUsesQuorumAndDecodesOTP(t *testing.T) {
+func TestRecoveryRootUsesAuthenticatedEnvelopeAndQuorum(t *testing.T) {
 	const token = "recovered-root"
 	const share = "exported-share"
 	const otp = "one-time-pad!!"
@@ -36,7 +36,12 @@ func TestRecoveryRootUsesQuorumAndDecodesOTP(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
 		case "/v1/sys/generate-root-token/attempt":
-			if _, err := io.WriteString(w, `{"nonce":"attempt","otp":"`+otp+`"}`); err != nil {
+			if r.Method == http.MethodDelete {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			// the authenticated endpoint differs from the unauthenticated generate-root API.
+			if _, err := io.WriteString(w, `{"data":{"nonce":"attempt","otp":"`+otp+`"}}`); err != nil {
 				t.Error(err)
 			}
 		case "/v1/sys/generate-root-token/update":
@@ -49,13 +54,18 @@ func TestRecoveryRootUsesQuorumAndDecodesOTP(t *testing.T) {
 			}
 			shares++
 			if shares < 2 {
-				if _, err := io.WriteString(w, `{"complete":false}`); err != nil {
+				if _, err := io.WriteString(w, `{"data":{"complete":false}}`); err != nil {
 					t.Error(err)
 				}
 				return
 			}
 			if err := json.NewEncoder(w).
-				Encode(map[string]any{"complete": true, "encoded_token": base64.StdEncoding.EncodeToString(encoded)}); err != nil {
+				Encode(map[string]any{
+					"data": map[string]any{
+						"complete":      true,
+						"encoded_token": base64.StdEncoding.EncodeToString(encoded),
+					},
+				}); err != nil {
 				t.Error(err)
 			}
 		default:

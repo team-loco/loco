@@ -169,7 +169,9 @@ func (b baoClient) write(ctx context.Context, path string, input, output any) er
 }
 
 func (b baoClient) recoverRoot(ctx context.Context, shares []string) (token string, err error) {
-	var attempt struct{ Nonce, OTP string }
+	var attempt struct {
+		Data struct{ Nonce, OTP string } `json:"data"`
+	}
 	if err = b.write(ctx, "sys/generate-root-token/attempt", map[string]string{}, &attempt); err != nil {
 		return "", err
 	}
@@ -181,29 +183,31 @@ func (b baoClient) recoverRoot(ctx context.Context, shares []string) (token stri
 			err = errors.Join(err, cancelErr)
 		}
 	}()
-	if attempt.Nonce == "" || attempt.OTP == "" {
+	if attempt.Data.Nonce == "" || attempt.Data.OTP == "" {
 		return "", errRecoveryDrill
 	}
 	for _, share := range shares {
 		var progress struct {
-			Complete bool
-			Encoded  string `json:"encoded_token"`
+			Data struct {
+				Complete bool
+				Encoded  string `json:"encoded_token"`
+			} `json:"data"`
 		}
 		if err := b.write(
 			ctx,
 			"sys/generate-root-token/update",
-			map[string]string{"nonce": attempt.Nonce, "key": share},
+			map[string]string{"nonce": attempt.Data.Nonce, "key": share},
 			&progress,
 		); err != nil {
 			return "", err
 		}
-		if progress.Complete {
-			decoded, err := base64.RawStdEncoding.DecodeString(strings.TrimRight(progress.Encoded, "="))
-			if err != nil || len(decoded) != len(attempt.OTP) {
+		if progress.Data.Complete {
+			decoded, err := base64.RawStdEncoding.DecodeString(strings.TrimRight(progress.Data.Encoded, "="))
+			if err != nil || len(decoded) != len(attempt.Data.OTP) {
 				return "", errRecoveryDrill
 			}
 			for i := range decoded {
-				decoded[i] ^= attempt.OTP[i]
+				decoded[i] ^= attempt.Data.OTP[i]
 			}
 			return string(decoded), nil
 		}
