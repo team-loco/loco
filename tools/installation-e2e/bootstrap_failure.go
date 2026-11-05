@@ -20,15 +20,7 @@ const (
 
 func classifyBootstrapFailure(output []byte) string {
 	// climain.HandleError strips Connect codes; unavailable alone has this fixed prefix.
-	// Fang's non-TTY error is plain text, or its Error header/details with whitespace wrapping.
-	message := strings.TrimSuffix(strings.Join(strings.Fields(string(output)), " "), ".")
-	if formatted, ok := strings.CutPrefix(message, "ERROR "); ok {
-		if formatted == "" {
-			return bootstrapFailureUnknown
-		}
-		// Fang title-cases the first word of its styled error details.
-		message = strings.ToLower(formatted[:1]) + formatted[1:]
-	}
+	message := cliErrorMessage(output)
 	if cause, ok := strings.CutPrefix(message, "could not reach the Loco API: "); ok {
 		if strings.Contains(cause, "x509:") || strings.Contains(cause, "tls: failed to verify certificate") {
 			return bootstrapFailureTLS
@@ -75,4 +67,16 @@ func knownBootstrapFailure(category string) bool {
 		bootstrapFailureServer,
 		bootstrapFailureHTTP,
 	}, category)
+}
+
+func cliErrorMessage(output []byte) string {
+	// Fang's non-TTY error is plain text, or a title-cased Error header/details with wrapping.
+	message := strings.TrimSuffix(strings.Join(strings.Fields(string(output)), " "), ".")
+	if formatted, ok := strings.CutPrefix(message, "ERROR "); ok {
+		if formatted == "" {
+			return ""
+		}
+		message = strings.ToLower(formatted[:1]) + formatted[1:]
+	}
+	return message
 }

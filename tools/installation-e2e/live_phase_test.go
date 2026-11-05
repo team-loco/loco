@@ -22,10 +22,13 @@ exit 1
 `)
 	ack := filepath.Join(t.TempDir(), "ack")
 	t.Setenv("OPERATOR_TEST_ACK", ack)
+	want := phasePrefix + "source-deploy\n" + phasePrefix + "source-https\n" +
+		phasePrefix + "source-verify\n" + phasePrefix + "network-policy\n"
 	t.Setenv("OPERATOR_TEST_OUTPUT", "credential-canary\n"+
 		phasePrefix+phaseWorkers+" credential-canary\n"+
+		phasePrefix+"unknown-stage\n"+
 		phasePrefix+strings.Repeat("x", 8192)+"\n"+
-		phasePrefix+phasePreflight+"\n")
+		want)
 	reader, writer, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
@@ -36,7 +39,6 @@ exit 1
 	defer func() { os.Stderr = previous }()
 	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 	defer cancel()
-	want := phasePrefix + phasePreflight + "\n"
 	output := make(chan string, 1)
 	dir := t.TempDir()
 	go func() {
@@ -62,7 +64,7 @@ exit 1
 	if forwarded := <-output; forwarded != want {
 		t.Errorf("forwarded output = %q, want only %q before operator exit", forwarded, want)
 	}
-	if runErr == nil || !strings.Contains(runErr.Error(), "phase preflight, bootstrap failure api-unavailable") {
+	if runErr == nil || !strings.Contains(runErr.Error(), "phase network-policy, bootstrap failure api-unavailable") {
 		t.Errorf("operator failure lost its safe phase/category: %v", runErr)
 	}
 }

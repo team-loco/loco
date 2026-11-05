@@ -211,6 +211,7 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 		return checkErr
 	}
 	// The build controller creates namespace policies before its first real Build Job.
+	operatorPhase(phaseNetworkPolicy)
 	if checkErr := probeNetworkPolicy(ctx); checkErr != nil {
 		return checkErr
 	}
@@ -512,6 +513,7 @@ services:
 	if checkErr := os.WriteFile(filepath.Join(app, "loco.yaml"), []byte(file), 0600); checkErr != nil {
 		return checkErr
 	}
+	operatorPhase(phaseSourceDeploy)
 	if _, checkErr := command(ctx, app, nil, "loco", "deploy", "--yes"); checkErr != nil {
 		return fmt.Errorf("source build and deploy: %w", checkErr)
 	}
@@ -529,9 +531,11 @@ services:
 	}
 	transport := &http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}}
 	client := &http.Client{Timeout: time.Minute, Transport: transport}
+	operatorPhase(phaseSourceHTTPS)
 	if err := waitHTTPS(ctx, client, request); err != nil {
 		return err
 	}
+	operatorPhase(phaseSourceVerify)
 	if _, verifyErr := locoadm(
 		ctx,
 		"verify",

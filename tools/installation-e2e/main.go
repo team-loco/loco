@@ -106,6 +106,14 @@ func command(ctx context.Context, dir string, input []byte, program string, args
 		err = cmd.Run()
 		audit.capture("CLI output (stdout)", stdout.Bytes())
 		audit.capture("CLI output (stderr)", stderr.Bytes())
+		if err != nil && program == "locoadm" && len(args) > 0 && args[0] == "verify" {
+			category := verificationFailureUnknown
+			if !stderr.exceeded {
+				category = classifyVerificationFailure(stderr.Bytes())
+			}
+			_, writeErr := fmt.Fprintln(os.Stderr, verificationFailurePrefix+category)
+			err = errors.Join(err, writeErr)
+		}
 		out = append(stdout.Bytes(), stderr.Bytes()...)
 		if stdout.exceeded || stderr.exceeded {
 			audit.mu.Lock()

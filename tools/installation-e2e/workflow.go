@@ -25,6 +25,10 @@ const (
 	phaseRepeatApply              = "repeat-apply"
 	phaseFreshHome                = "fresh-home"
 	phaseWorkloads                = "workloads"
+	phaseSourceDeploy             = "source-deploy"
+	phaseSourceHTTPS              = "source-https"
+	phaseSourceVerify             = "source-verify"
+	phaseNetworkPolicy            = "network-policy"
 	phaseRecovery                 = "recovery"
 	phaseCompletionAudit          = "completion-audit"
 )
@@ -53,6 +57,12 @@ func operatorWorkflow(ctx context.Context, dir string) ([]byte, error) {
 		return nil, fmt.Errorf("operator phase %s: %w", output.phase, errOperatorOutputLimit)
 	}
 	if err != nil {
+		if output.verificationFailure != "" {
+			return nil, fmt.Errorf(
+				"operator phase %s, verification failure %s: kubectl failed: %w",
+				output.phase, output.verificationFailure, err,
+			)
+		}
 		if output.failure != "" {
 			return nil, fmt.Errorf(
 				"operator phase %s, bootstrap failure %s: kubectl failed: %w", output.phase, output.failure, err,
@@ -65,8 +75,8 @@ func operatorWorkflow(ctx context.Context, dir string) ([]byte, error) {
 
 type operatorOutput struct {
 	boundedOutput
-	lineStart      int
-	phase, failure string
+	lineStart                           int
+	phase, failure, verificationFailure string
 }
 
 func (o *operatorOutput) Write(p []byte) (int, error) {
@@ -85,6 +95,13 @@ func (o *operatorOutput) Write(p []byte) (int, error) {
 		if category, ok := strings.CutPrefix(candidate, bootstrapFailurePrefix); ok && knownBootstrapFailure(category) {
 			o.failure = category
 		}
+		category, isVerification := strings.CutPrefix(candidate, verificationFailurePrefix)
+		if isVerification && knownVerificationFailure(category) {
+			o.verificationFailure = category
+			if _, writeErr := fmt.Fprintln(os.Stderr, verificationFailurePrefix+category); writeErr != nil {
+				return n, writeErr
+			}
+		}
 		if slices.Contains([]string{
 			phasePrefix + phasePreflight, phasePrefix + phaseControlPlane,
 			phasePrefix + phasePreBootstrapAudit, phasePrefix + phaseBootstrap,
@@ -93,6 +110,8 @@ func (o *operatorOutput) Write(p []byte) (int, error) {
 			phasePrefix + phasePostBootstrapAudit,
 			phasePrefix + phaseWorkers, phasePrefix + phaseRepeatApply,
 			phasePrefix + phaseFreshHome, phasePrefix + phaseWorkloads,
+			phasePrefix + phaseSourceDeploy, phasePrefix + phaseSourceHTTPS,
+			phasePrefix + phaseSourceVerify, phasePrefix + phaseNetworkPolicy,
 			phasePrefix + phaseRecovery, phasePrefix + phaseCompletionAudit,
 		}, candidate) {
 			o.phase = candidate[len(phasePrefix):]
