@@ -33,24 +33,24 @@ var (
 	s3ErrorCode          = regexp.MustCompile(`<Code>([^<]+)</Code>`)
 )
 
-// SourceBuilder builds an uploaded source archive on Loco and follows the build to its end.
-type SourceBuilder struct {
+// Builder builds an uploaded source archive on Loco and follows the build to its end.
+type Builder struct {
 	follower *Follower
 	storage  *http.Client
 }
 
-// NewSourceBuilder returns a builder that talks to the API at host as the token's user and
+// New returns a builder that talks to the API at host as the token's user and
 // prints the build's progress and logs to out.
-func NewSourceBuilder(host, token string, out io.Writer) *SourceBuilder {
-	return &SourceBuilder{
+func New(host, token string, out io.Writer) *Builder {
+	return &Builder{
 		follower: NewFollower(rpc.ForHost(host, token), host, token, out),
 		storage:  httputil.NewHTTPClient(),
 	}
 }
 
-// BuildInput names what one build of a service compiles: the service's resource, the archive
+// Input names what one build of a service compiles: the service's resource, the archive
 // to upload, and the Dockerfile relative to the context directory of the archive.
-type BuildInput struct {
+type Input struct {
 	ResourceID  string
 	WorkspaceID string
 	Archive     *sourcepack.Archive
@@ -66,7 +66,7 @@ func PackedArchive(out io.Writer, archive *sourcepack.Archive, dir string) {
 
 // Build creates a build from the input, uploads its archive, starts the build and follows it.
 // It returns the build once it succeeded, and an error naming the build when it did not.
-func (b *SourceBuilder) Build(ctx context.Context, in BuildInput) (*buildv1.Build, error) {
+func (b *Builder) Build(ctx context.Context, in Input) (*buildv1.Build, error) {
 	out := b.follower.out
 	created, err := b.createBuild(ctx, in)
 	if err != nil {
@@ -100,7 +100,7 @@ func (b *SourceBuilder) Build(ctx context.Context, in BuildInput) (*buildv1.Buil
 	return build, nil
 }
 
-func (b *SourceBuilder) createBuild(ctx context.Context, in BuildInput) (*buildv1.CreateBuildResponse, error) {
+func (b *Builder) createBuild(ctx context.Context, in Input) (*buildv1.CreateBuildResponse, error) {
 	req := &buildv1.CreateBuildRequest{
 		ResourceId:     in.ResourceID,
 		DockerfilePath: in.Dockerfile,
@@ -135,7 +135,7 @@ func buildsUnavailable(err error) error {
 	)
 }
 
-func (b *SourceBuilder) sourceRefused(archive *sourcepack.Archive, err error) error {
+func (b *Builder) sourceRefused(archive *sourcepack.Archive, err error) error {
 	message := err.Error()
 	if connectErr, ok := errors.AsType[*connect.Error](err); ok {
 		message = connectErr.Message()
@@ -155,7 +155,7 @@ func (b *SourceBuilder) sourceRefused(archive *sourcepack.Archive, err error) er
 	return fmt.Errorf("the API refused the %s source archive: %s", archiveSize, message)
 }
 
-func (b *SourceBuilder) upload(ctx context.Context, url string, archive *sourcepack.Archive) error {
+func (b *Builder) upload(ctx context.Context, url string, archive *sourcepack.Archive) error {
 	f, err := os.Open(archive.Path)
 	if err != nil {
 		return fmt.Errorf("open the source archive: %w", err)

@@ -561,7 +561,7 @@ func buildServices(
 	if len(targets) == 0 {
 		return nil, nil
 	}
-	builder := sourcebuild.NewSourceBuilder(t.Host, t.Token, out)
+	builder := sourcebuild.New(t.Host, t.Token, out)
 	builds := make(map[string]string, len(targets))
 	for _, target := range targets {
 		res, lookupErr := t.Service(ctx, target.name)
@@ -569,7 +569,7 @@ func buildServices(
 			return nil, lookupErr
 		}
 		fmt.Fprintf(out, "Building %s from %s in %s\n", target.name, target.dockerfile, target.context)
-		build, buildErr := builder.Build(ctx, sourcebuild.BuildInput{
+		build, buildErr := builder.Build(ctx, sourcebuild.Input{
 			ResourceID:  res.GetId(),
 			WorkspaceID: t.WorkspaceID,
 			Archive:     archive,
