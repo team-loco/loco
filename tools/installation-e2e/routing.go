@@ -80,9 +80,10 @@ func configureGatewayDNS(ctx context.Context, namespace string, worker bool) err
 	for {
 		output, err := kubectl(
 			deadline,
+			"-n",
+			namespace,
 			"get",
 			"services",
-			"--all-namespaces",
 			"-l",
 			"gateway.envoyproxy.io/owning-gateway-namespace="+namespace,
 			"-o",
