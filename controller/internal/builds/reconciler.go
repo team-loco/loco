@@ -33,24 +33,22 @@ import (
 )
 
 const (
-	labelJobName             = "batch.kubernetes.io/job-name"
-	labelJobControllerUID    = "batch.kubernetes.io/controller-uid"
-	policyPrivateEgress      = "allow-private-egress"
-	maxBuildMessageLength    = 1024
-	buildCacheLagRequeue     = time.Second
-	jobReasonDeadline        = "DeadlineExceeded"
-	buildMessageWaiting      = "waiting for the build pod to start"
-	buildMessageRunning      = "building"
-	buildMessageSucceeded    = "build succeeded"
-	buildMessageJobDeleted   = "the build job was deleted before it finished"
-	buildMessageNoPushSecret = "builds are not configured on this cluster: no registry push secret"
+	labelJobName           = "batch.kubernetes.io/job-name"
+	labelJobControllerUID  = "batch.kubernetes.io/controller-uid"
+	policyPrivateEgress    = "allow-private-egress"
+	maxBuildMessageLength  = 1024
+	buildCacheLagRequeue   = time.Second
+	jobReasonDeadline      = "DeadlineExceeded"
+	buildMessageWaiting    = "waiting for the build pod to start"
+	buildMessageRunning    = "building"
+	buildMessageSucceeded  = "build succeeded"
+	buildMessageJobDeleted = "the build job was deleted before it finished"
 )
 
 var (
-	errBuildPodGone    = errors.New("the build pod is gone, so the pushed digest is unknown")
-	errNoLocoNamespace = errors.New("build registry secrets require the loco namespace to be set")
-	sha256Digest       = regexp.MustCompile(`^sha256:[a-f0-9]{64}$`)
-	stuckReasons       = []string{
+	errBuildPodGone = errors.New("the build pod is gone, so the pushed digest is unknown")
+	sha256Digest    = regexp.MustCompile(`^sha256:[a-f0-9]{64}$`)
+	stuckReasons    = []string{
 		"CreateContainerError",
 		"CreateContainerConfigError",
 		"ErrImagePull",
@@ -141,10 +139,6 @@ func (r *Reconciler) handleMissingJob(ctx context.Context, build *locov1alpha1.B
 }
 
 func (r *Reconciler) startBuild(ctx context.Context, build *locov1alpha1.Build) (ctrl.Result, error) {
-	if !r.RegistryTokenMode && r.Config.PushSecretName == "" {
-		finishBuild(build, locov1alpha1.BuildPhaseFailed, buildMessageNoPushSecret)
-		return ctrl.Result{}, nil
-	}
 	if err := r.ensureBuildNetworkPolicies(ctx); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -479,9 +473,6 @@ func buildForPod(_ context.Context, obj client.Object) []reconcile.Request {
 }
 
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
-	if r.LocoNamespace == "" && (r.Config.PushSecretName != "" || r.PullSecretName != "") {
-		return errNoLocoNamespace
-	}
 	podHandler := handler.EnqueueRequestsFromMapFunc(buildForPod)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&locov1alpha1.Build{}).

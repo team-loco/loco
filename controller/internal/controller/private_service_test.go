@@ -27,6 +27,7 @@ var _ = Describe("Private service discovery", func() {
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 		reconciler := &LocoResourceReconciler{
 			Client:                   k8sClient,
+			APIReader:                k8sClient,
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 		}
@@ -68,6 +69,7 @@ var _ = Describe("Private service discovery", func() {
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 		r := &LocoResourceReconciler{
 			Client:                   k8sClient,
+			APIReader:                k8sClient,
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 		}
@@ -105,6 +107,7 @@ var _ = Describe("Private service discovery", func() {
 		Expect(ensureTestNamespace(ctx, k8sClient, old)).To(Succeed())
 		r := &LocoResourceReconciler{
 			Client:                   k8sClient,
+			APIReader:                k8sClient,
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 		}
@@ -138,6 +141,7 @@ var _ = Describe("Private service discovery", func() {
 		version := existing.ResourceVersion
 		r := &LocoResourceReconciler{
 			Client:                   k8sClient,
+			APIReader:                k8sClient,
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 		}
@@ -151,6 +155,7 @@ var _ = Describe("Private service discovery", func() {
 	It("scopes identical logical names to separate workspaces", func() {
 		r := &LocoResourceReconciler{
 			Client:                   k8sClient,
+			APIReader:                k8sClient,
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 		}
@@ -174,6 +179,7 @@ var _ = Describe("Private service discovery", func() {
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 		r := &LocoResourceReconciler{
 			Client:                   k8sClient,
+			APIReader:                k8sClient,
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 		}
@@ -188,6 +194,7 @@ var _ = Describe("Private service discovery", func() {
 			Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 			r := &LocoResourceReconciler{
 				Client:                   k8sClient,
+				APIReader:                k8sClient,
 				Gateway:                  testGateway,
 				WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 			}
@@ -203,6 +210,7 @@ var _ = Describe("Private service discovery", func() {
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 		r := &LocoResourceReconciler{
 			Client:                   k8sClient,
+			APIReader:                k8sClient,
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 		}

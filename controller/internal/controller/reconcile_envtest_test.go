@@ -62,6 +62,7 @@ var _ = Describe("Application reconcile", func() {
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 			Client:                   k8sClient,
+			APIReader:                k8sClient,
 			Scheme:                   k8sClient.Scheme(),
 			LocoNamespace:            testNamespace,
 			Telemetry:                testTelemetry(),
@@ -241,6 +242,7 @@ var _ = Describe("Application reconcile", func() {
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 			Client:                   k8sClient,
+			APIReader:                k8sClient,
 			Scheme:                   k8sClient.Scheme(),
 			LocoNamespace:            testNamespace,
 			Telemetry:                testTelemetry(),
@@ -336,6 +338,7 @@ var _ = Describe("Application reconcile", func() {
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 			Client:                   k8sClient,
+			APIReader:                k8sClient,
 			Scheme:                   k8sClient.Scheme(),
 			LocoNamespace:            testNamespace,
 			Telemetry:                testTelemetry(),
@@ -417,6 +420,7 @@ var _ = Describe("Application reconcile", func() {
 
 		r := &LocoResourceReconciler{
 			Client:                   k8sClient,
+			APIReader:                k8sClient,
 			Scheme:                   k8sClient.Scheme(),
 			Telemetry:                testTelemetry(),
 			Gateway:                  testGateway,
@@ -457,6 +461,7 @@ var _ = Describe("Application reconcile", func() {
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 			Client:                   k8sClient,
+			APIReader:                k8sClient,
 			Scheme:                   k8sClient.Scheme(),
 			LocoNamespace:            testNamespace,
 			Telemetry:                testTelemetry(),
@@ -497,6 +502,7 @@ var _ = Describe("Application reconcile", func() {
 
 		r := &LocoResourceReconciler{
 			Client:                   k8sClient,
+			APIReader:                k8sClient,
 			Scheme:                   k8sClient.Scheme(),
 			Telemetry:                testTelemetry(),
 			Gateway:                  testGateway,
@@ -537,6 +543,7 @@ var _ = Describe("Application reconcile", func() {
 
 			r := &LocoResourceReconciler{
 				Client:                   k8sClient,
+				APIReader:                k8sClient,
 				Scheme:                   k8sClient.Scheme(),
 				Telemetry:                testTelemetry(),
 				Gateway:                  testGateway,

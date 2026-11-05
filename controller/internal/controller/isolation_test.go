@@ -71,6 +71,7 @@ var _ = Describe("Workspace isolation", func() {
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 			Client:                   k8sClient,
+			APIReader:                k8sClient,
 			Scheme:                   scheme.Scheme,
 			LocoNamespace:            testLocoNamespace,
 			Telemetry:                testTelemetry(),

@@ -21,6 +21,8 @@ const (
 	testGateway         = "eg"
 	testWorkspacePrefix = "loco-ws-"
 	testPullSecretName  = "registry-pull"
+	keyPushSecretName   = "pushSecretName"
+	testPushSecretName  = "registry-push"
 )
 
 func testApplicationConfig() operatorConfig {
@@ -35,6 +37,8 @@ func testApplicationConfig() operatorConfig {
 
 func testTelemetry() controller.TelemetryConfig {
 	return controller.TelemetryConfig{
+		ScrapeNamespace:  "loco-obs-node",
+		ScrapeCollector:  "otel-col-daemon",
 		Namespace:        "loco-obs",
 		CollectorService: "otel-col-deploy",
 		GRPCPort:         4317,
@@ -81,7 +85,7 @@ func TestApplicationReconcilerCachesNoBuildObjects(t *testing.T) {
 }
 
 func TestBuildReconcilerCachesOnlyBuildObjectsInTheBuildNamespace(t *testing.T) {
-	overrides := map[string]any{"namespace": "builds-test"}
+	overrides := map[string]any{"namespace": "builds-test", keyPushSecretName: testPushSecretName}
 	rawBuildConfig, err := buildstest.ChartConfigJSON(overrides)
 	if err != nil {
 		t.Fatalf("read the chart's build values: %v", err)
@@ -149,7 +153,7 @@ func TestRegistryTokenModeRejectsTheStaticRegistrySecrets(t *testing.T) {
 		t.Errorf("application with a pull secret: err = %v, want %v", err, errStaticSecretInTokenMode)
 	}
 
-	withPush, err := buildstest.ChartConfigJSON(map[string]any{"pushSecretName": "registry-push"})
+	withPush, err := buildstest.ChartConfigJSON(map[string]any{keyPushSecretName: testPushSecretName})
 	if err != nil {
 		t.Fatalf("read the chart's build values: %v", err)
 	}
@@ -189,5 +193,55 @@ func TestRegistryTokenModeStartsWithoutStaticRegistrySecrets(t *testing.T) {
 	build := operatorConfig{LocoNamespace: testLocoNamespace, RawBuildConfig: rawBuildConfig, RegistryTokenMode: true}
 	if _, err := selectReconciler(reconcilerBuild, build); err != nil {
 		t.Errorf("build: %v", err)
+	}
+}
+
+func TestApplicationReconcilerRequiresTheMetricsCollector(t *testing.T) {
+	cases := map[string]func(*operatorConfig){
+		"namespace": func(c *operatorConfig) { c.Telemetry.ScrapeNamespace = "" },
+		"service":   func(c *operatorConfig) { c.Telemetry.ScrapeCollector = "" },
+	}
+	for name, change := range cases {
+		t.Run(name, func(t *testing.T) {
+			operator := testApplicationConfig()
+			change(&operator)
+			if _, err := selectReconciler(reconcilerApplication, operator); err == nil {
+				t.Error("selectReconciler accepted a missing metrics collector setting")
+			}
+		})
+	}
+}
+
+func TestRegistrySecretsRequireTheLocoNamespace(t *testing.T) {
+	withoutNamespace := testApplicationConfig()
+	withoutNamespace.LocoNamespace = ""
+	if _, err := selectReconciler(reconcilerApplication, withoutNamespace); !errors.Is(err, errNoLocoNamespace) {
+		t.Errorf("application with a pull secret: err = %v, want %v", err, errNoLocoNamespace)
+	}
+	tokenMode := withoutNamespace
+	tokenMode.PullSecretName = ""
+	tokenMode.RegistryTokenMode = true
+	if _, err := selectReconciler(reconcilerApplication, tokenMode); !errors.Is(err, errNoLocoNamespace) {
+		t.Errorf("application in token mode: err = %v, want %v", err, errNoLocoNamespace)
+	}
+
+	rawBuildConfig, err := buildstest.ChartConfigJSON(map[string]any{keyPushSecretName: testPushSecretName})
+	if err != nil {
+		t.Fatalf("read the chart's build values: %v", err)
+	}
+	build := operatorConfig{RawBuildConfig: rawBuildConfig}
+	if _, err := selectReconciler(reconcilerBuild, build); !errors.Is(err, errNoLocoNamespace) {
+		t.Errorf("build with a push secret: err = %v, want %v", err, errNoLocoNamespace)
+	}
+}
+
+func TestBuildReconcilerRequiresAPushSecretOutsideTokenMode(t *testing.T) {
+	rawBuildConfig, err := buildstest.ChartConfigJSON(nil)
+	if err != nil {
+		t.Fatalf("read the chart's build values: %v", err)
+	}
+	build := operatorConfig{LocoNamespace: testLocoNamespace, RawBuildConfig: rawBuildConfig}
+	if _, err := selectReconciler(reconcilerBuild, build); !errors.Is(err, errNoPushSecret) {
+		t.Errorf("err = %v, want %v", err, errNoPushSecret)
 	}
 }

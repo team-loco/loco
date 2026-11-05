@@ -557,18 +557,6 @@ var _ = Describe("Build reconcile", Ordered, func() {
 		Expect(build.Status.Phase).To(Equal(locov1alpha1.BuildPhaseCanceled))
 	})
 
-	It("fails builds when no push secret is configured", func() {
-		r := testReconciler()
-		r.Config.PushSecretName = ""
-		build := testBuild("unconfigured")
-		Expect(k8sClient.Create(ctx, build)).To(Succeed())
-		reconcileBuild(r, build)
-		Expect(build.Status.Phase).To(Equal(locov1alpha1.BuildPhaseFailed))
-		Expect(build.Status.Message).To(Equal(buildMessageNoPushSecret))
-		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(build), &batchv1.Job{})
-		Expect(apierrors.IsNotFound(err)).To(BeTrue())
-	})
-
 	It("mounts the agent's build registry Secret in fetch and push in token mode", func() {
 		r := testReconciler()
 		r.RegistryTokenMode = true

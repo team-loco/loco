@@ -77,6 +77,7 @@ var _ = Describe("Application with replicas that cannot start", func() {
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 			Client:                   k8sClient,
+			APIReader:                k8sClient,
 			Scheme:                   k8sClient.Scheme(),
 			LocoNamespace:            testNamespace,
 			Telemetry:                testTelemetry(),

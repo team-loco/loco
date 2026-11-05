@@ -74,9 +74,8 @@ const (
 )
 
 var (
-	errPullSecretWithoutNamespace = errors.New("a registry pull secret requires the loco namespace")
-	errEnvSecretPending           = errors.New("the staging env secret does not hold the referenced revision")
-	errEnvSecretPlacement         = errors.New("the staging env secret belongs to another placement")
+	errEnvSecretPending   = errors.New("the staging env secret does not hold the referenced revision")
+	errEnvSecretPlacement = errors.New("the staging env secret belongs to another placement")
 )
 
 // LocoResourceReconciler reconciles a Application object
@@ -382,7 +381,7 @@ func (r *LocoResourceReconciler) deleteNamespaceIfUnused(
 	locoRes *locov1alpha1.Application,
 ) error {
 	var apps locov1alpha1.ApplicationList
-	reader := r.apiReader()
+	reader := r.APIReader
 	if err := reader.List(ctx, &apps, client.InNamespace(locoRes.Namespace)); err != nil {
 		return fmt.Errorf("list applications: %w", err)
 	}
@@ -498,7 +497,7 @@ func (r *LocoResourceReconciler) ensureEnvSecret(
 
 	staged := &corev1.Secret{}
 	stagedKey := client.ObjectKey{Namespace: locoRes.Namespace, Name: ref.Name}
-	err := r.apiReader().Get(ctx, stagedKey, staged)
+	err := r.APIReader.Get(ctx, stagedKey, staged)
 	if apierrors.IsNotFound(err) {
 		return envSecretMount{}, errEnvSecretPending
 	}
@@ -902,11 +901,6 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.APIReader = mgr.GetAPIReader()
-	if r.copiesPullSecret() && r.LocoNamespace == "" {
-		return errPullSecretWithoutNamespace
-	}
-
 	applicationChanged := predicate.Or[client.Object](
 		predicate.GenerationChangedPredicate{},
 		predicate.AnnotationChangedPredicate{},

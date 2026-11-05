@@ -23,6 +23,7 @@ func pullSecretReconciler(kubeClient client.Client) *LocoResourceReconciler {
 		Gateway:                  testGateway,
 		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 		Client:                   kubeClient,
+		APIReader:                kubeClient,
 		LocoNamespace:            testLocoNamespace,
 		PullSecretName:           testPullSecretName,
 	}

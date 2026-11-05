@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"errors"
 
 	"github.com/team-loco/loco/controller/internal/isolation"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -10,8 +9,6 @@ import (
 	metav1ac "k8s.io/client-go/applyconfigurations/meta/v1"
 	networkingv1ac "k8s.io/client-go/applyconfigurations/networking/v1"
 )
-
-var errMetricsCollectorMissing = errors.New("metrics pulling requires the metrics collector namespace and service")
 
 func (r *LocoResourceReconciler) metricsIngressPolicy(
 	app *locov1alpha1.Application,
@@ -34,11 +31,6 @@ func (r *LocoResourceReconciler) metricsIngressPolicy(
 }
 
 func (r *LocoResourceReconciler) ensureMetricsIngressPolicy(ctx context.Context, app *locov1alpha1.Application) error {
-	if obs := app.Spec.ServiceSpec.Obs; obs != nil && obs.Metrics.Enabled {
-		if r.Telemetry.ScrapeNamespace == "" || r.Telemetry.ScrapeCollector == "" {
-			return errMetricsCollectorMissing
-		}
-	}
 	return isolation.ApplyPolicies(
 		ctx,
 		r.Client,

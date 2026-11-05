@@ -25,7 +25,11 @@ func testWorkspaceNamespace(app *locov1alpha1.Application) string {
 }
 
 func ensureTestNamespace(ctx context.Context, kubeClient client.Client, app *locov1alpha1.Application) error {
-	r := &LocoResourceReconciler{Client: kubeClient, WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix}
+	r := &LocoResourceReconciler{
+		Client:                   kubeClient,
+		APIReader:                kubeClient,
+		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+	}
 	return r.ensureNamespace(ctx, app)
 }
 
