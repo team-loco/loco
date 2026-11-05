@@ -28,7 +28,7 @@ func TestBuildLogsQueryFiltersOnTenantColumns(t *testing.T) {
 		Labels:      map[string]string{"app.loco.io/component": "web"},
 		Limit:       testFullPage,
 		Order:       observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST,
-	}, testQueryTimeout, false)
+	}, testQueryTimeout)
 
 	if err != nil {
 		t.Fatal(err)
@@ -158,7 +158,7 @@ func TestInvalidLogCursorsAreRejected(t *testing.T) {
 			Limit:       testPageSize,
 			Cursor:      cursor,
 			Order:       observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST,
-		}, testQueryTimeout, false)
+		}, testQueryTimeout)
 		if !errors.Is(err, ErrInvalidLogCursor) {
 			t.Fatalf("cursor %q error = %v, want invalid cursor", cursor, err)
 		}
@@ -175,7 +175,7 @@ func TestBuildLogsQueryRegionFiltersKeepWorkspaceScope(t *testing.T) {
 		ExcludedRegions: []string{"us-west-*"},
 		Limit:           testPageSize,
 		Order:           observabilityv1.LogOrder_LOG_ORDER_NEWEST_FIRST,
-	}, testQueryTimeout, false)
+	}, testQueryTimeout)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,6 +198,41 @@ func TestBuildLogsQueryRegionFiltersKeepWorkspaceScope(t *testing.T) {
 		}
 		if !slices.Contains(args, any(value)) {
 			t.Errorf("missing region argument %q: %v", value, args)
+		}
+	}
+}
+
+func TestBuildTailLogQueryBindsEveryValueByName(t *testing.T) {
+	const search = "needle ? {tail_seen:String}"
+	query, parameters, err := buildTailLogQuery(LogQuery{
+		WorkspaceID:   testWorkspaceID,
+		EnvironmentID: "env",
+		ResourceIDs:   []string{testResourceID},
+		Start:         time.Now().Add(-time.Hour),
+		Search:        search,
+		Labels:        map[string]string{"app.loco.io/component": "api"},
+		Regions:       []string{"us-*"},
+		Limit:         testPageSize,
+	}, testQueryTimeout, TailLogCursor{"all_1/2": 3})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(query, "?") {
+		t.Errorf("positional placeholder in tail query: %s", query)
+	}
+	if strings.Contains(query, search) || strings.Contains(query, testWorkspaceID) {
+		t.Errorf("value interpolated into SQL: %s", query)
+	}
+	if got := parameters["tail_seen"]; got != `{"all_1/2":3}` {
+		t.Errorf("tail_seen = %q", got)
+	}
+	for _, value := range []string{testWorkspaceID, search, "us-", "loco.region"} {
+		var found bool
+		for _, got := range parameters {
+			found = found || got == value
+		}
+		if !found {
+			t.Errorf("missing parameter %q: %v", value, parameters)
 		}
 	}
 }

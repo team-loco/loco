@@ -45,7 +45,7 @@ type logPage struct {
 }
 
 func (c *Client) QueryLogs(ctx context.Context, q LogQuery) (*observabilityv1.QueryLogsResponse, error) {
-	query, args, err := buildLogPageQuery(q, c.queryTimeout, false)
+	query, args, err := buildLogPageQuery(q, c.queryTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -126,55 +126,90 @@ func queryLogPage(ctx context.Context, conn driver.Conn, query string, args []an
 	return page, nil
 }
 
-func buildLogPageQuery(q LogQuery, queryTimeout int, tail bool) (string, []any, error) {
-	var args []any
-	queryParts := []string{
-		"SELECT Timestamp, SeverityText, Body, " + resourceColumn + ", TraceId, SpanId, " +
-			"ResourceAttributes, LogAttributes, _block_number, _block_offset, _partition_id FROM otel_logs",
+const logSelect = "SELECT Timestamp, SeverityText, Body, " + resourceColumn + ", TraceId, SpanId, " +
+	"ResourceAttributes, LogAttributes, _block_number, _block_offset, _partition_id FROM otel_logs"
+
+type logBinder interface {
+	str(value string) string
+	num(value int64) string
+}
+
+type positionalBinder struct{ args []any }
+
+func (b *positionalBinder) add(value any) string {
+	b.args = append(b.args, value)
+	return "?"
+}
+
+func (b *positionalBinder) str(value string) string { return b.add(value) }
+
+func (b *positionalBinder) num(value int64) string { return b.add(value) }
+
+func buildLogPageQuery(q LogQuery, queryTimeout int) (string, []any, error) {
+	b := &positionalBinder{}
+	whereParts := logFilters(q, b)
+	whereParts = append(whereParts, "Timestamp <= fromUnixTimestamp64Nano("+b.num(q.End.UnixNano())+")")
+
+	if q.Cursor != "" {
+		position, err := decodePartPosition(q.Cursor)
+		if err != nil {
+			return "", nil, ErrInvalidLogCursor
+		}
+		comparison := "<"
+		if q.Order == observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST {
+			comparison = ">"
+		}
+		whereParts = append(
+			whereParts,
+			fmt.Sprintf(
+				"%s %s (fromUnixTimestamp64Nano(%s), %s, %s)",
+				partPositionColumns,
+				comparison,
+				b.num(position.timestamp.UnixNano()),
+				b.add(position.blockNumber),
+				b.add(position.blockOffset),
+			),
+		)
 	}
 
-	if tail {
-		queryParts[0] = "WITH JSONExtractKeysAndValues({tail_seen:String}, 'UInt64') AS tail_positions " +
-			queryParts[0] + " LEFT JOIN (SELECT position.1 AS tail_block, position.2 AS tail_offset, 1 AS tail_found " +
-			"FROM (SELECT arrayJoin(tail_positions) AS position) AS block_rows) AS delivered ON " +
-			tailBlockKey + " = tail_block"
+	order := "ORDER BY Timestamp DESC, _block_number DESC, _block_offset DESC"
+	if q.Order == observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST {
+		order = "ORDER BY Timestamp ASC, _block_number ASC, _block_offset ASC"
 	}
 
-	whereParts := []string{workspaceColumn + " = ?"}
-	args = append(args, q.WorkspaceID)
+	query := strings.Join([]string{
+		logSelect,
+		"WHERE " + strings.Join(whereParts, " AND "),
+		order,
+		"LIMIT " + b.num(int64(q.Limit)+pageLookahead),
+		fmt.Sprintf("SETTINGS max_execution_time = %d", queryTimeout),
+	}, " ")
+	return query, b.args, nil
+}
+
+func logFilters(q LogQuery, b logBinder) []string {
+	whereParts := []string{workspaceColumn + " = " + b.str(q.WorkspaceID)}
 
 	if q.EnvironmentID != "" {
-		whereParts = append(whereParts, environmentColumn+" = ?")
-		args = append(args, q.EnvironmentID)
+		whereParts = append(whereParts, environmentColumn+" = "+b.str(q.EnvironmentID))
 	}
 
 	if len(q.ResourceIDs) > 0 {
-		clause, values := inFilter(resourceColumn, q.ResourceIDs)
-		whereParts = append(whereParts, clause)
-		args = append(args, values...)
+		whereParts = append(whereParts, logIn(resourceColumn, q.ResourceIDs, b))
 	}
 
-	whereParts = append(whereParts, "Timestamp >= fromUnixTimestamp64Nano(?)")
-	args = append(args, q.Start.UnixNano())
-	if !tail {
-		whereParts = append(whereParts, "Timestamp <= fromUnixTimestamp64Nano(?)")
-		args = append(args, q.End.UnixNano())
-	}
+	whereParts = append(whereParts, "Timestamp >= fromUnixTimestamp64Nano("+b.num(q.Start.UnixNano())+")")
 
 	if len(q.Levels) > 0 {
-		clause, values := inFilter("SeverityText", q.Levels)
-		whereParts = append(whereParts, clause)
-		args = append(args, values...)
+		whereParts = append(whereParts, logIn("SeverityText", q.Levels, b))
 	}
 
 	if q.Search != "" {
-		whereParts = append(whereParts, "position(Body, ?) > 0")
-		args = append(args, q.Search)
+		whereParts = append(whereParts, "position(Body, "+b.str(q.Search)+") > 0")
 	}
 
 	for k, v := range q.Labels {
-		whereParts = append(whereParts, "ResourceAttributes[?] = ?")
-		args = append(args, k, v)
+		whereParts = append(whereParts, "ResourceAttributes["+b.str(k)+"] = "+b.str(v))
 	}
 
 	for _, group := range []struct {
@@ -185,12 +220,13 @@ func buildLogPageQuery(q LogQuery, queryTimeout int, tail bool) (string, []any, 
 	} {
 		var clauses []string
 		for _, pattern := range group.values {
+			attribute := "ResourceAttributes[" + b.str("loco.region") + "]"
+			value := b.str(strings.ToLower(strings.TrimSuffix(pattern, "*")))
 			if strings.HasSuffix(pattern, "*") {
-				clauses = append(clauses, "startsWith(lowerUTF8(ResourceAttributes[?]), ?)")
+				clauses = append(clauses, "startsWith(lowerUTF8("+attribute+"), "+value+")")
 			} else {
-				clauses = append(clauses, "lowerUTF8(ResourceAttributes[?]) = ?")
+				clauses = append(clauses, "lowerUTF8("+attribute+") = "+value)
 			}
-			args = append(args, "loco.region", strings.ToLower(strings.TrimSuffix(pattern, "*")))
 		}
 		if len(clauses) > 0 {
 			clause := "(" + strings.Join(clauses, " OR ") + ")"
@@ -201,47 +237,15 @@ func buildLogPageQuery(q LogQuery, queryTimeout int, tail bool) (string, []any, 
 		}
 	}
 
-	if tail {
-		whereParts = append(
-			whereParts,
-			"(coalesce(tail_found, 0) = 0 OR _block_offset > tail_offset)",
-		)
+	return whereParts
+}
+
+func logIn(column string, values []string, b logBinder) string {
+	placeholders := make([]string, len(values))
+	for i, value := range values {
+		placeholders[i] = b.str(value)
 	}
-
-	if q.Cursor != "" {
-		position, err := decodePartPosition(q.Cursor)
-		if err != nil {
-			return "", nil, ErrInvalidLogCursor
-		}
-		if q.Order == observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST {
-			whereParts = append(whereParts, partPositionColumns+" > (fromUnixTimestamp64Nano(?), ?, ?)")
-		} else {
-			whereParts = append(whereParts, partPositionColumns+" < (fromUnixTimestamp64Nano(?), ?, ?)")
-		}
-		args = append(args, position.timestamp.UnixNano(), position.blockNumber, position.blockOffset)
-	}
-
-	queryParts = append(queryParts, "WHERE "+strings.Join(whereParts, " AND "))
-
-	switch {
-	case tail:
-		queryParts = append(queryParts, "ORDER BY _partition_id ASC, _block_number ASC, _block_offset ASC")
-	case q.Order == observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST:
-		queryParts = append(queryParts, "ORDER BY Timestamp ASC, _block_number ASC, _block_offset ASC")
-	default:
-		queryParts = append(queryParts, "ORDER BY Timestamp DESC, _block_number DESC, _block_offset DESC")
-	}
-
-	queryParts = append(queryParts, "LIMIT ?")
-	args = append(args, q.Limit+pageLookahead)
-
-	settingsQuery := fmt.Sprintf("SETTINGS max_execution_time = %d", queryTimeout)
-	if tail {
-		settingsQuery += ", join_algorithm = 'hash'"
-	}
-	queryParts = append(queryParts, settingsQuery)
-
-	return strings.Join(queryParts, " "), args, nil
+	return fmt.Sprintf("%s IN (%s)", column, strings.Join(placeholders, ","))
 }
 
 func inFilter(column string, values []string) (string, []any) {
