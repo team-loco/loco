@@ -137,6 +137,7 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 	if checkErr := bootstrap(ctx); checkErr != nil {
 		return checkErr
 	}
+	operatorPhase(phasePostBootstrapAudit)
 	if checkErr := audit.inspect(ctx, "bootstrap complete"); checkErr != nil {
 		return checkErr
 	}
@@ -181,9 +182,11 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 	if checkErr := bootstrap(ctx); checkErr != nil {
 		return fmt.Errorf("resume from fresh operator state: %w", checkErr)
 	}
+	operatorPhase(phasePostBootstrapAudit)
 	if checkErr := audit.inspect(ctx, "fresh bootstrap complete"); checkErr != nil {
 		return checkErr
 	}
+	operatorPhase(phaseFreshHome)
 	if _, checkErr := locoadm(ctx, "apply", "--file", clientFile); checkErr != nil {
 		return fmt.Errorf("apply from fresh operator state: %w", checkErr)
 	}
@@ -211,6 +214,7 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 }
 
 func bootstrap(ctx context.Context) error {
+	operatorPhase(phaseBootstrapAuthorization)
 	cmd := exec.CommandContext(
 		ctx,
 		"locoadm",
@@ -253,11 +257,16 @@ func bootstrap(ctx context.Context) error {
 	if authorization == "" {
 		return errors.Join(errBootstrapAuthenticationMissing, cmd.Wait())
 	}
+	operatorPhase(phaseBootstrapBrowser)
 	if checkErr := completeDexLogin(ctx, authorization); checkErr != nil {
 		return errors.Join(checkErr, stopBootstrap(cmd, output))
 	}
+	operatorPhase(phaseBootstrapBrowserComplete)
 	// Continue through the scanner: it may already hold bytes past the URL.
 	for scanner.Scan() {
+		if scanner.Text() == "Verified administrator: "+fixtureEmail {
+			operatorPhase(phaseBootstrapGrant)
+		}
 	}
 	_, copyErr := io.Copy(io.Discard, output)
 	waitErr := cmd.Wait()

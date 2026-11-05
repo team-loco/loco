@@ -11,17 +11,22 @@ import (
 )
 
 const (
-	phasePrefix            = "installation-e2e phase: "
-	phasePreflight         = "preflight"
-	phaseControlPlane      = "control-plane"
-	phasePreBootstrapAudit = "pre-bootstrap-audit"
-	phaseBootstrap         = "bootstrap"
-	phaseWorkers           = "workers"
-	phaseRepeatApply       = "repeat-apply"
-	phaseFreshHome         = "fresh-home"
-	phaseWorkloads         = "workloads"
-	phaseRecovery          = "recovery"
-	phaseCompletionAudit   = "completion-audit"
+	phasePrefix                   = "installation-e2e phase: "
+	phasePreflight                = "preflight"
+	phaseControlPlane             = "control-plane"
+	phasePreBootstrapAudit        = "pre-bootstrap-audit"
+	phaseBootstrap                = "bootstrap"
+	phaseBootstrapAuthorization   = "bootstrap-authorization"
+	phaseBootstrapBrowser         = "bootstrap-browser"
+	phaseBootstrapBrowserComplete = "bootstrap-browser-complete"
+	phaseBootstrapGrant           = "bootstrap-grant"
+	phasePostBootstrapAudit       = "post-bootstrap-audit"
+	phaseWorkers                  = "workers"
+	phaseRepeatApply              = "repeat-apply"
+	phaseFreshHome                = "fresh-home"
+	phaseWorkloads                = "workloads"
+	phaseRecovery                 = "recovery"
+	phaseCompletionAudit          = "completion-audit"
 )
 
 var errOperatorOutputLimit = errors.New("operator output exceeded capture limit")
@@ -53,6 +58,9 @@ func operatorWorkflow(ctx context.Context, dir string) ([]byte, error) {
 		if slices.Contains([]string{
 			phasePrefix + phasePreflight, phasePrefix + phaseControlPlane,
 			phasePrefix + phasePreBootstrapAudit, phasePrefix + phaseBootstrap,
+			phasePrefix + phaseBootstrapAuthorization, phasePrefix + phaseBootstrapBrowser,
+			phasePrefix + phaseBootstrapBrowserComplete, phasePrefix + phaseBootstrapGrant,
+			phasePrefix + phasePostBootstrapAudit,
 			phasePrefix + phaseWorkers, phasePrefix + phaseRepeatApply,
 			phasePrefix + phaseFreshHome, phasePrefix + phaseWorkloads,
 			phasePrefix + phaseRecovery, phasePrefix + phaseCompletionAudit,

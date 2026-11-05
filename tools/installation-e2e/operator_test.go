@@ -18,6 +18,8 @@ func TestOperatorFailureReportsOnlyKnownPhase(t *testing.T) {
 		{"last-known", "installation-e2e phase: preflight\n" +
 			"installation-e2e phase: pre-bootstrap-audit\n" +
 			"installation-e2e phase: credential-canary\n", "pre-bootstrap-audit"},
+		{"bootstrap-boundary", "installation-e2e phase: bootstrap-grant\ncredential-canary\n", "bootstrap-grant"},
+		{"unknown-bootstrap", "installation-e2e phase: bootstrap-credential-canary\n", unknownPhase},
 		{"incomplete", "installation-e2e phase: pre-bootstrap-audit", unknownPhase},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
