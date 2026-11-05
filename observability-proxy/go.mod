@@ -7,7 +7,7 @@ require (
 	connectrpc.com/connect/v2 v2.0.2
 	connectrpc.com/cors v0.1.0
 	connectrpc.com/validate v0.9.0
-	github.com/ClickHouse/clickhouse-go/v2 v2.49.0
+	github.com/ClickHouse/clickhouse-go/v2 v2.50.0
 	github.com/dgraph-io/ristretto/v2 v2.4.2
 	github.com/go-jose/go-jose/v4 v4.1.8
 	github.com/google/uuid v1.6.0
