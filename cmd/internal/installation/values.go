@@ -9,6 +9,7 @@ import (
 )
 
 const schemeHTTP = "http"
+const schemeHTTPS = "https"
 
 var valuesFunctions = template.FuncMap{"quote": strconv.Quote, "image": imageValues}
 var controlPlaneTemplate = template.Must(template.New("control-plane").Funcs(valuesFunctions).Parse(`
@@ -92,7 +93,7 @@ func controlPlaneValues(config Config, manifest Manifest, completed bool) ([]byt
 		Config: config, Manifest: manifest, Issuer: string(issuer), Bootstrap: bootstrap,
 		APIHost: validatedURL(cp.APIURL).Hostname(), WebHost: validatedURL(cp.WebURL).Hostname(),
 		IngestHost: validatedURL(cp.Observability.IngestURL).Hostname(), RegistryHost: registryHost(cp.Registry),
-		TLS: validatedURL(cp.APIURL).Scheme == "https",
+		TLS: validatedURL(cp.APIURL).Scheme == schemeHTTPS,
 	}
 	var output bytes.Buffer
 	if err := controlPlaneTemplate.Execute(&output, data); err != nil {

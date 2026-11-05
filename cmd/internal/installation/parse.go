@@ -245,7 +245,7 @@ func registryEndpoint(value string) bool {
 }
 func safeURL(value string) bool {
 	parsed, err := url.Parse(value)
-	return err == nil && (parsed.Scheme == "https" || parsed.Scheme == "http") && parsed.Hostname() != "" &&
+	return err == nil && (parsed.Scheme == schemeHTTPS || parsed.Scheme == schemeHTTP) && parsed.Hostname() != "" &&
 		parsed.User == nil &&
 		parsed.RawQuery == "" &&
 		!parsed.ForceQuery &&

@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,10 +24,14 @@ const (
 	envSourceSecret     = "LOCO_SOURCE_BUCKET_SECRET_ACCESS_KEY"
 	envRegistryUser     = "LOCO_REGISTRY_USERNAME"
 	envRegistryPassword = "LOCO_REGISTRY_PASSWORD"
-	secretKeyField      = "key"
-	secretPasswordField = "password"
-	stateTrue           = "true"
-	tierProduction      = "production"
+	envEmailHookSecret  = "EMAIL_HOOK_SECRET" //nolint:gosec // Environment variable name, not a credential.
+	emailHookSecretKey  = "hook-secret"
+	// standard Webhooks wire format, also checked by api/webhooks.decodeSecret.
+	emailHookSecretBytes = 32
+	secretKeyField       = "key"
+	secretPasswordField  = "password"
+	stateTrue            = "true"
+	tierProduction       = "production"
 
 	helmInstallTimeout  = "20m"
 	crdReadyTimeout     = "120s"
@@ -35,6 +40,8 @@ const (
 )
 
 var errInputMissing = errors.New("required input Secret or key is missing")
+var errEmailTransport = errors.New("email transport input is invalid")
+var errEmailHookSecret = errors.New("HTTP email transport requires a valid hook-secret in its input Secret")
 
 var errRecoveryRequired = errors.New(
 	"generated credentials are missing beside an existing control plane; restore the original Secret",
@@ -311,6 +318,26 @@ func (k *Kubernetes) inputs(ctx context.Context, config Config) (map[string][]by
 		}
 		output[item.env] = value
 	}
+	transport, err := url.Parse(string(output["email-transport"]))
+	if err != nil || transport.Hostname() == "" {
+		return nil, errEmailTransport
+	}
+	switch transport.Scheme {
+	case "smtp":
+		if transport.Port() == "" {
+			return nil, errEmailTransport
+		}
+	case schemeHTTP, schemeHTTPS:
+		hook := secrets[cp.Email.TransportSecretRef.Name].Data[emailHookSecretKey]
+		encoded, prefixed := strings.CutPrefix(string(hook), "whsec_")
+		decoded, decodeErr := base64.StdEncoding.DecodeString(encoded)
+		if !prefixed || decodeErr != nil || len(decoded) != emailHookSecretBytes {
+			return nil, errEmailHookSecret
+		}
+		output[envEmailHookSecret] = hook
+	default:
+		return nil, errEmailTransport
+	}
 	return output, nil
 }
 
@@ -356,23 +383,15 @@ func (k *Kubernetes) ensureCredentials(ctx context.Context, state *corev1.Config
 	if !validSeal(sealSecret) {
 		return errSecretInvalid
 	}
+	apiKeys := []string{envDatabaseURL, envSourceAccess, envSourceSecret, envRegistryUser, envRegistryPassword}
+	if _, hook := inputs[envEmailHookSecret]; hook {
+		apiKeys = append(apiKeys, envEmailHookSecret)
+	}
 	apiData := map[string][]byte{}
-	for _, key := range []string{envDatabaseURL, envSourceAccess, envSourceSecret, envRegistryUser, envRegistryPassword} {
+	for _, key := range apiKeys {
 		apiData[key] = inputs[key]
 	}
-	apiSecret, err := k.ensureSecret(
-		ctx,
-		state,
-		"loco-api-env",
-		[]string{
-			envDatabaseURL,
-			envSourceAccess,
-			envSourceSecret,
-			envRegistryUser,
-			envRegistryPassword,
-		},
-		apiData,
-	)
+	apiSecret, err := k.ensureSecret(ctx, state, "loco-api-env", apiKeys, apiData)
 	if err != nil {
 		return err
 	}

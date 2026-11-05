@@ -79,8 +79,10 @@ Create these external input Secrets in the control-plane namespace before applyi
 | `database.secretRef` | The declared key, containing the PostgreSQL URL |
 | `sourceBucket.credentialsSecretRef` | `access-key-id`, `secret-access-key` |
 | `registry.credentialsSecretRef` | `api-username`, `api-password`, `push-username`, `push-password`, `pull-username`, `pull-password` |
-| `email.transportSecretRef` | The declared key, containing the supported email transport URL |
+| `email.transportSecretRef` | The declared transport URL key; HTTP(S) also requires `hook-secret` in the same Secret |
 | `openbao.snapshots.credentialsSecretRef` | `access-key-id`, `secret-access-key` |
+
+For HTTP(S) email transports, `hook-secret` contains `whsec_` followed by standard base64 encoding of exactly 32 bytes. Plan reports missing or invalid signing credentials as blocked, and apply rejects them before creating installation state or credentials. SMTP uses only the transport URL.
 
 Use separate registry identities: the API identity reads and deletes build images, the push identity builds images, and the pull identity reads them. Only the corresponding push or pull credential reaches each worker. A worker never receives the complete input Secret. An HTTP registry endpoint enables the chart's insecure-registry transport; public registries should use HTTPS.
 
