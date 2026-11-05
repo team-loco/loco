@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -46,19 +45,44 @@ func operatorWorkflow(ctx context.Context, dir string) ([]byte, error) {
 	)
 	cmd.Dir = dir
 	// Keep raw child output bounded and private even when kubectl fails.
-	var output boundedOutput
+	output := operatorOutput{phase: "unknown"}
 	cmd.Stdout = &output
 	cmd.Stderr = &output
 	err := cmd.Run()
-	phase := "unknown"
-	var failure string
-	for line := range bytes.SplitAfterSeq(output.Bytes(), []byte{'\n'}) {
-		if !bytes.HasSuffix(line, []byte{'\n'}) {
+	if output.exceeded {
+		return nil, fmt.Errorf("operator phase %s: %w", output.phase, errOperatorOutputLimit)
+	}
+	if err != nil {
+		if output.failure != "" {
+			return nil, fmt.Errorf(
+				"operator phase %s, bootstrap failure %s: kubectl failed: %w", output.phase, output.failure, err,
+			)
+		}
+		return nil, fmt.Errorf("operator phase %s: kubectl failed: %w", output.phase, err)
+	}
+	return output.Bytes(), nil
+}
+
+type operatorOutput struct {
+	boundedOutput
+	scanned, lineStart int
+	phase, failure     string
+}
+
+func (o *operatorOutput) Write(p []byte) (int, error) {
+	n, err := o.boundedOutput.Write(p)
+	if err != nil {
+		return n, err
+	}
+	data := o.Bytes()
+	for ; o.scanned < len(data); o.scanned++ {
+		if data[o.scanned] != '\n' {
 			continue
 		}
-		candidate := string(bytes.TrimSuffix(line, []byte{'\n'}))
+		candidate := string(data[o.lineStart:o.scanned])
+		o.lineStart = o.scanned + 1
 		if category, ok := strings.CutPrefix(candidate, bootstrapFailurePrefix); ok && knownBootstrapFailure(category) {
-			failure = category
+			o.failure = category
 		}
 		if slices.Contains([]string{
 			phasePrefix + phasePreflight, phasePrefix + phaseControlPlane,
@@ -70,19 +94,13 @@ func operatorWorkflow(ctx context.Context, dir string) ([]byte, error) {
 			phasePrefix + phaseFreshHome, phasePrefix + phaseWorkloads,
 			phasePrefix + phaseRecovery, phasePrefix + phaseCompletionAudit,
 		}, candidate) {
-			phase = candidate[len(phasePrefix):]
+			o.phase = candidate[len(phasePrefix):]
+			if _, writeErr := fmt.Fprintln(os.Stderr, candidate); writeErr != nil {
+				return n, writeErr
+			}
 		}
 	}
-	if output.exceeded {
-		return nil, fmt.Errorf("operator phase %s: %w", phase, errOperatorOutputLimit)
-	}
-	if err != nil {
-		if failure != "" {
-			return nil, fmt.Errorf("operator phase %s, bootstrap failure %s: kubectl failed: %w", phase, failure, err)
-		}
-		return nil, fmt.Errorf("operator phase %s: kubectl failed: %w", phase, err)
-	}
-	return output.Bytes(), nil
+	return n, nil
 }
 
 func operatorPhase(phase string) {
