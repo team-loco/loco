@@ -177,11 +177,14 @@ func (f *fixture) acceptance(ctx context.Context) error {
 	return nil
 }
 
-func (f *fixture) cleanup(ctx context.Context) error {
+func (f *fixture) cleanup(ctx context.Context, keep bool) error {
 	var stopErr, cloudErr, removeErr error
 	if f.forward != nil {
 		stopErr = stopProcess(f.forward)
-		f.forward = nil
+	}
+	if keep {
+		fmt.Println("Kept installation fixture:", f.name)
+		return stopErr
 	}
 	_, kindErr := command(ctx, f.root, nil, "kind", "delete", "cluster", "--name", f.name)
 	if f.cloudManaged {

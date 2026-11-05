@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -114,5 +115,36 @@ func TestHostTimeoutMustBePositive(t *testing.T) {
 				t.Fatalf("invalid timeout: %v", err)
 			}
 		})
+	}
+}
+
+func TestKeptFixtureStopsForwardWithoutDeletingResources(t *testing.T) {
+	directory := t.TempDir()
+	marker := filepath.Join(directory, "retained")
+	if err := os.WriteFile(marker, nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	forward := exec.CommandContext(t.Context(), "/bin/sleep", "30")
+	if err := forward.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if forward.ProcessState == nil {
+			if err := stopProcess(forward); err != nil {
+				t.Error(err)
+			}
+		}
+	})
+	// Any attempt to remove a cluster or cloud provider fails without invoking Docker.
+	t.Setenv("PATH", t.TempDir())
+	kept := fixture{dir: directory, name: "kept", forward: forward, cloudManaged: true}
+	if err := kept.cleanup(t.Context(), true); err != nil {
+		t.Fatal(err)
+	}
+	if forward.ProcessState == nil {
+		t.Fatal("kept fixture did not join its port-forward process")
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatal("kept fixture removed local state")
 	}
 }

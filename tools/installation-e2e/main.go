@@ -69,20 +69,7 @@ func run() error {
 		return err
 	}
 	return execute(ctx, fixture.acceptance, func(ctx context.Context) error {
-		if fixture.forward != nil {
-			stopErr := stopProcess(fixture.forward)
-			fixture.forward = nil
-			if *keep {
-				fmt.Println("Kept installation fixture:", fixture.name)
-				return stopErr
-			}
-			return errors.Join(stopErr, fixture.cleanup(ctx))
-		}
-		if *keep {
-			fmt.Println("Kept installation fixture:", fixture.name)
-			return nil
-		}
-		return fixture.cleanup(ctx)
+		return fixture.cleanup(ctx, *keep)
 	})
 }
 
@@ -96,6 +83,7 @@ func execute(ctx context.Context, acceptance, cleanup func(context.Context) erro
 }
 
 func command(ctx context.Context, dir string, input []byte, program string, args ...string) ([]byte, error) {
+	//nolint:gosec // G702 taints the deadline in ctx; callers choose fixed executables and argv.
 	cmd := exec.CommandContext(ctx, program, args...)
 	cmd.Dir = dir
 	if input != nil {
