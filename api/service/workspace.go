@@ -97,24 +97,43 @@ func (s *WorkspaceServer) CreateWorkspace(
 
 	qtx := genDb.New(tx)
 
-	wsID, err := qtx.CreateWorkspace(ctx, genDb.CreateWorkspaceParams{
+	wsID, err := createWorkspaceInTx(ctx, qtx, genDb.CreateWorkspaceParams{
 		OrgID:       orgID,
 		Name:        req.GetName(),
 		Description: req.Description,
 		CreatedBy:   entity.ID,
 	})
 	if err != nil {
-		if pgForeignKeyConstraint(err) == pgWorkspaceOrgReference {
-			return nil, rpcerr.New(connect.CodeNotFound, ErrOrgNotFound)
-		}
-		if isPgConstraintViolation(err) {
-			return nil, rpcerr.New(connect.CodeAlreadyExists, ErrWorkspaceNameNotUnique)
-		}
-		slog.ErrorContext(ctx, "failed to create workspace", "error", err)
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		slog.ErrorContext(ctx, "failed to commit workspace creation", "error", err)
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
-	err = authz.ApplyRoles(ctx, qtx, entity.ID, []genDb.EntityScope{
+	return &workspacev1.CreateWorkspaceResponse{
+		WorkspaceId: wsID.String(),
+	}, nil
+}
+
+func createWorkspaceInTx(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	params genDb.CreateWorkspaceParams,
+) (uuid.UUID, error) {
+	wsID, err := qtx.CreateWorkspace(ctx, params)
+	if err != nil {
+		if pgForeignKeyConstraint(err) == pgWorkspaceOrgReference {
+			return uuid.Nil, rpcerr.New(connect.CodeNotFound, ErrOrgNotFound)
+		}
+		if isPgConstraintViolation(err) {
+			return uuid.Nil, rpcerr.New(connect.CodeAlreadyExists, ErrWorkspaceNameNotUnique)
+		}
+		slog.ErrorContext(ctx, "failed to create workspace", "error", err)
+		return uuid.Nil, rpcerr.New(connect.CodeInternal, ErrDB)
+	}
+
+	err = authz.ApplyRoles(ctx, qtx, params.CreatedBy, []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeRead},
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeWrite},
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeAdmin},
@@ -128,16 +147,16 @@ func (s *WorkspaceServer) CreateWorkspace(
 			"workspaceId",
 			wsID,
 			"userId",
-			entity.ID,
+			params.CreatedBy,
 		)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return uuid.Nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
 	if _, err := qtx.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
 		WorkspaceID:     wsID,
 		Name:            environmentTypeProduction,
 		EnvironmentType: environmentTypeProduction,
-		CreatedBy:       entity.ID,
+		CreatedBy:       params.CreatedBy,
 	}); err != nil {
 		slog.ErrorContext(
 			ctx,
@@ -147,28 +166,21 @@ func (s *WorkspaceServer) CreateWorkspace(
 			"workspaceId",
 			wsID.String(),
 		)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return uuid.Nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
 	if err := events.Record(ctx, qtx, events.Event{
 		Type:        events.WorkspaceCreated,
-		OrgID:       new(orgID),
+		OrgID:       new(params.OrgID),
 		WorkspaceID: new(wsID),
 		SubjectType: events.SubjectWorkspace,
 		SubjectID:   new(wsID),
-		Data:        map[string]any{events.FieldName: req.GetName()},
+		Data:        map[string]any{events.FieldName: params.Name},
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to record workspace creation", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return uuid.Nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
-	if err := tx.Commit(ctx); err != nil {
-		slog.ErrorContext(ctx, "failed to commit workspace creation", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-
-	return &workspacev1.CreateWorkspaceResponse{
-		WorkspaceId: wsID.String(),
-	}, nil
+	return wsID, nil
 }
 
 // GetWorkspace retrieves a workspace by ID

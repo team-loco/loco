@@ -81,6 +81,9 @@ message ListUserOrgsRequest {
     lte: 200
   }]; // default: 50, max: 200
   string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
+  // create_if_missing creates an organization and its "default" workspace, with the caller as admin,
+  // when the caller belongs to no organization. It requires user_id to be the caller.
+  bool create_if_missing = 4;
 }
 
 // ListUserOrgsResponse is the response containing organization list.

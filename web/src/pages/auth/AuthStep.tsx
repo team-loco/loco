@@ -7,23 +7,21 @@ import { Navigate } from "react-router";
 import { AppLoading } from "@/context/AppLoader";
 import { toastConnectError } from "@/lib/error-handler";
 
-type Outcome = { kind: "pending"; message: string } | { kind: "done"; to: string } | { kind: "failed" };
+type Outcome = { kind: "pending" } | { kind: "done"; to: string } | { kind: "failed" };
 
-export type AuthStepRun = (transport: Transport, report: (message: string) => void) => Promise<string>;
+export type AuthStepRun = (transport: Transport) => Promise<string>;
 
 const started = new Set<string>();
 
 export function AuthStep({ id, run, fallbackError }: { id: string; run: AuthStepRun; fallbackError: string }) {
 	const transport = useTransport();
 	const queryClient = useQueryClient();
-	const [outcome, setOutcome] = useState<Outcome>({ kind: "pending", message: "Signing you in…" });
+	const [outcome, setOutcome] = useState<Outcome>({ kind: "pending" });
 
 	useEffect(() => {
 		if (started.has(id)) return;
 		started.add(id);
-		run(transport, (message) => {
-			setOutcome({ kind: "pending", message });
-		})
+		run(transport)
 			.then(async (to) => {
 				await queryClient.invalidateQueries();
 				setOutcome({ kind: "done", to });
@@ -36,7 +34,7 @@ export function AuthStep({ id, run, fallbackError }: { id: string; run: AuthStep
 
 	switch (outcome.kind) {
 		case "pending":
-			return <AppLoading message={outcome.message} />;
+			return <AppLoading message="Signing you in…" />;
 		case "done":
 			return <Navigate to={outcome.to} replace />;
 		case "failed":

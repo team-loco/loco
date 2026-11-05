@@ -391,12 +391,15 @@ func (x *GetOrgResponse) GetOrganization() *Organization {
 
 // ListUserOrgsRequest is the request to list organizations for a user.
 type ListUserOrgsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // default: 50, max: 200
-	PageToken     string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // cursor from previous page (base64-encoded timestamp+id)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	UserId    string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	PageSize  int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // default: 50, max: 200
+	PageToken string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // cursor from previous page (base64-encoded timestamp+id)
+	// create_if_missing creates an organization and its "default" workspace, with the caller as admin,
+	// when the caller belongs to no organization. It requires user_id to be the caller.
+	CreateIfMissing bool `protobuf:"varint,4,opt,name=create_if_missing,json=createIfMissing,proto3" json:"create_if_missing,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ListUserOrgsRequest) Reset() {
@@ -448,6 +451,13 @@ func (x *ListUserOrgsRequest) GetPageToken() string {
 		return x.PageToken
 	}
 	return ""
+}
+
+func (x *ListUserOrgsRequest) GetCreateIfMissing() bool {
+	if x != nil {
+		return x.CreateIfMissing
+	}
+	return false
 }
 
 // ListUserOrgsResponse is the response containing organization list.
@@ -1702,13 +1712,14 @@ const file_loco_org_v1_org_proto_rawDesc = "" +
 	"\borg_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\aorgNameB\x05\n" +
 	"\x03key\"O\n" +
 	"\x0eGetOrgResponse\x12=\n" +
-	"\forganization\x18\x01 \x01(\v2\x19.loco.org.v1.OrganizationR\forganization\"\x80\x01\n" +
+	"\forganization\x18\x01 \x01(\v2\x19.loco.org.v1.OrganizationR\forganization\"\xac\x01\n" +
 	"\x13ListUserOrgsRequest\x12!\n" +
 	"\auser_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06userId\x12'\n" +
 	"\tpage_size\x18\x02 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x03 \x01(\tR\tpageToken\"m\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\x12*\n" +
+	"\x11create_if_missing\x18\x04 \x01(\bR\x0fcreateIfMissing\"m\n" +
 	"\x14ListUserOrgsResponse\x12-\n" +
 	"\x04orgs\x18\x01 \x03(\v2\x19.loco.org.v1.OrganizationR\x04orgs\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\x80\x01\n" +

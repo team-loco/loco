@@ -3,10 +3,10 @@ import { authClient } from "@/auth/client";
 
 import { AuthStep, type AuthStepRun } from "./AuthStep";
 
-const completeSignIn: AuthStepRun = async (transport, report) => {
+const completeSignIn: AuthStepRun = async (transport) => {
 	const client = await authClient();
 	await client.completeSignIn(new URL(window.location.href));
-	return await landingPath(transport, null, report);
+	return await landingPath(transport);
 };
 
 export function AuthCallback() {
