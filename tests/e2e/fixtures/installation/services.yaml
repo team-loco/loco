@@ -45,6 +45,7 @@ stringData:
   pull-username: nodes
   pull-password: loco-dev-nodes
   email-transport: http://mail.installation-fixtures.svc.cluster.local:8081
+  hook-secret: whsec_aW5zdGFsbGF0aW9uLW1haWwtaG9vay1jYW5hcnktMDE=
 {{ range .Services }}
 ---
 apiVersion: apps/v1
@@ -56,7 +57,9 @@ spec:
   template:
     metadata:
       labels: {fixture: {{ .Name }}}
+{{ if eq .Name "registry" }}
       annotations: {fixture-config: {{ $.ConfigRevision | quote }}}
+{{ end }}
     spec:
       containers:
       - name: {{ .Name }}

@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"path/filepath"
+	"reflect"
 	"slices"
+	"strings"
 	"testing"
 
 	"sigs.k8s.io/yaml"
@@ -55,4 +57,58 @@ func TestFixturePlatformArtifactsAllowAnonymousReadOnly(t *testing.T) {
 	if len(config.HTTP.AccessControl.Repositories["**"].AnonymousPolicy) != 0 {
 		t.Fatal("application repositories must remain authenticated")
 	}
+}
+
+func TestRegistryConfigurationChangePreservesExternalServicePodTemplates(t *testing.T) {
+	before := servicePodTemplates(t, "before")
+	after := servicePodTemplates(t, "after")
+	for _, name := range []string{"postgres", fixtureDex} {
+		if before[name] == nil || !reflect.DeepEqual(before[name], after[name]) {
+			t.Fatalf("registry configuration rolls unrelated external service %s", name)
+		}
+	}
+	if before[fixtureRegistry] == nil || reflect.DeepEqual(before[fixtureRegistry], after[fixtureRegistry]) {
+		t.Fatal("registry configuration must roll the registry")
+	}
+}
+
+func servicePodTemplates(t *testing.T, revision string) map[string]map[string]any {
+	t.Helper()
+	data, err := renderFixtureFile(
+		filepath.Join("..", "..", "tests", "e2e", "fixtures", "installation", "services.yaml"),
+		map[string]any{
+			"RegistryConfig": "{}",
+			"ConfigRevision": revision,
+			"Htpasswd":       "test-htpasswd",
+			"Email":          fixtureEmail,
+			"PasswordHash":   "test-hash",
+			"Services": []fixtureService{
+				{Name: "postgres", Image: registryHost, Port: 1},
+				{Name: fixtureDex, Image: registryHost, Port: 1},
+				{Name: fixtureRegistry, Image: registryHost, Port: 1},
+			},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	templates := map[string]map[string]any{}
+	for document := range strings.SplitSeq(string(data), "\n---\n") {
+		var resource struct {
+			Kind     string `json:"kind"`
+			Metadata struct {
+				Name string `json:"name"`
+			} `json:"metadata"`
+			Spec struct {
+				Template map[string]any `json:"template"`
+			} `json:"spec"`
+		}
+		if err = yaml.Unmarshal([]byte(document), &resource); err != nil {
+			t.Fatal(err)
+		}
+		if resource.Kind == "Deployment" {
+			templates[resource.Metadata.Name] = resource.Spec.Template
+		}
+	}
+	return templates
 }
