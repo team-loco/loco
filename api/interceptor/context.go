@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/contextkeys"
+	"github.com/team-loco/loco/internal/rpc"
 )
 
 type contextInterceptor struct{}
@@ -35,10 +36,10 @@ func (*contextInterceptor) Interceptor() connect.ServerInterceptor {
 			slog.DebugContext(ctx, "adding additional request context",
 				slog.String("user-agent", info.RequestHeader().Get("User-Agent")),
 				slog.String("content-type", info.RequestHeader().Get("Content-Type")))
-			rid := resolveRequestID(info.RequestHeader().Get("X-Loco-Request-Id"))
+			rid := resolveRequestID(info.RequestHeader().Get(rpc.RequestIDHeader))
 			ctx = context.WithValue(ctx, contextkeys.RequestIDKey, rid)
 			ctx = context.WithValue(ctx, contextkeys.PathKey, spec.Procedure)
-			info.ResponseHeader().Set("X-Loco-Request-Id", rid)
+			info.ResponseHeader().Set(rpc.RequestIDHeader, rid)
 			start := time.Now()
 			err := next(ctx, spec, stream)
 			duration := time.Since(start)

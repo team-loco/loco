@@ -10,7 +10,7 @@ import (
 	"connectrpc.com/connect/v2"
 )
 
-const requestIDHeader = "X-Loco-Request-Id"
+const RequestIDHeader = "X-Loco-Request-Id"
 
 func requestIDInterceptor(next connect.ClientFunc) connect.ClientFunc {
 	return func(ctx context.Context, spec connect.Spec) (connect.ClientStream, error) {
@@ -44,7 +44,7 @@ func (s *requestIDStream) log(err error) error {
 	s.once.Do(func() {
 		var requestID string
 		if info, ok := connect.CallInfoForClientContext(s.ctx); ok {
-			requestID = info.ResponseHeader().Get(requestIDHeader)
+			requestID = info.ResponseHeader().Get(RequestIDHeader)
 		}
 		slog.DebugContext(s.ctx, "rpc failed", "procedure", s.procedure, "request_id", requestID, "error", err)
 	})

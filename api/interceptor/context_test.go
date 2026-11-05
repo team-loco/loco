@@ -12,10 +12,10 @@ import (
 	"github.com/team-loco/loco/api/contextkeys"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
+	"github.com/team-loco/loco/internal/rpc"
 )
 
 const (
-	requestIDHeader    = "X-Loco-Request-Id"
 	serverTimingHeader = "Server-Timing"
 	callerRequestID    = "caller-request-id"
 )
@@ -29,7 +29,7 @@ func (*contextTestServer) GetConfig(
 	_ *configv1.GetConfigRequest,
 ) (*configv1.GetConfigResponse, error) {
 	info, _ := connect.CallInfoForServerContext(ctx)
-	if info.ResponseHeader().Get(requestIDHeader) != ctx.Value(contextkeys.RequestIDKey) {
+	if info.ResponseHeader().Get(rpc.RequestIDHeader) != ctx.Value(contextkeys.RequestIDKey) {
 		return nil, connect.NewError(connect.CodeInternal, "request ID was not set before the handler")
 	}
 	return &configv1.GetConfigResponse{}, nil
@@ -45,12 +45,12 @@ func TestContextInterceptorUnaryResponseHeaders(t *testing.T) {
 	transport := connecthttp.NewTransport(srv.Client(), srv.URL)
 	client := configv1connect.NewConfigServiceClient(connect.NewClient(transport))
 	ctx, info := connect.NewClientContext(t.Context())
-	info.RequestHeader().Set(requestIDHeader, callerRequestID)
+	info.RequestHeader().Set(rpc.RequestIDHeader, callerRequestID)
 	_, err := client.GetConfig(ctx, &configv1.GetConfigRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := info.ResponseHeader().Get(requestIDHeader); got != callerRequestID {
+	if got := info.ResponseHeader().Get(rpc.RequestIDHeader); got != callerRequestID {
 		t.Errorf("request ID = %q", got)
 	}
 	if got := info.ResponseHeader().Values(serverTimingHeader); len(got) != 0 {

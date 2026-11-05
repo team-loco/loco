@@ -28,7 +28,7 @@ func (*failingConfigServer) GetConfig(
 	_ *configv1.GetConfigRequest,
 ) (*configv1.GetConfigResponse, error) {
 	info, _ := connect.CallInfoForServerContext(ctx)
-	info.ResponseHeader().Set("X-Loco-Request-Id", testRequestID)
+	info.ResponseHeader().Set(rpc.RequestIDHeader, testRequestID)
 	return nil, connect.NewError(connect.CodeFailedPrecondition, "not ready")
 }
 
