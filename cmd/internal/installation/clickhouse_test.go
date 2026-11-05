@@ -2,6 +2,7 @@ package installation
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -18,7 +19,16 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-func TestGeneratedClickHouseCredentialsUseManagedService(t *testing.T) {
+type clickHouseFixture struct {
+	kube    Kubernetes
+	state   *corev1.ConfigMap
+	inputs  map[string][]byte
+	config  managedClickHouse
+	secrets map[string]*corev1.Secret
+}
+
+func newClickHouseFixture(t *testing.T) *clickHouseFixture {
+	t.Helper()
 	stored := map[string]*corev1.Secret{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", testJSON)
@@ -50,8 +60,8 @@ func TestGeneratedClickHouseCredentialsUseManagedService(t *testing.T) {
 			t.Error(err)
 		}
 	}))
-	defer server.Close()
-	core, err := coreclient.NewForConfig(&rest.Config{Host: server.URL, ContentType: testJSON})
+	t.Cleanup(server.Close)
+	core, err := coreclient.NewForConfig(&rest.Config{Host: server.URL, ContentType: testJSON, QPS: -1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,15 +79,20 @@ func TestGeneratedClickHouseCredentialsUseManagedService(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	name, err := managedClickHouseName(chart)
+	config, err := readManagedClickHouse(chart)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = kube.ensureCredentials(t.Context(), state, inputs, name); err != nil {
+	return &clickHouseFixture{kube: kube, state: state, inputs: inputs, config: config, secrets: stored}
+}
+
+func TestGeneratedClickHouseCredentialsUseManagedService(t *testing.T) {
+	fixture := newClickHouseFixture(t)
+	if err := fixture.kube.ensureCredentials(t.Context(), fixture.state, fixture.inputs, fixture.config); err != nil {
 		t.Fatal(err)
 	}
 	for _, role := range []string{"migrator", "ingest", "reader"} {
-		secret := stored["loco-clickhouse-"+role]
+		secret := fixture.secrets["loco-clickhouse-"+role]
 		endpoint, parseErr := url.Parse(string(secret.Data["url"]))
 		if parseErr != nil {
 			t.Fatal("invalid generated ClickHouse DSN")
@@ -88,17 +103,84 @@ func TestGeneratedClickHouseCredentialsUseManagedService(t *testing.T) {
 	}
 }
 
+func TestOperatorCredentialIsPreservedAcrossApply(t *testing.T) {
+	fixture := newClickHouseFixture(t)
+	if err := fixture.kube.ensureCredentials(t.Context(), fixture.state, fixture.inputs, fixture.config); err != nil {
+		t.Fatal(err)
+	}
+	secret := fixture.secrets[fixture.config.OperatorName]
+	if secret == nil || string(secret.Data[secretUsernameField]) != fixture.config.OperatorUsername ||
+		len(secret.Data[secretPasswordField]) < minimumCredentialLength {
+		t.Fatal("native operator credential was not created from pinned settings")
+	}
+	original := string(secret.Data[secretPasswordField])
+	fixture.state.Data["credentialsEstablished"] = stateTrue
+	if err := fixture.kube.ensureCredentials(t.Context(), fixture.state, fixture.inputs, fixture.config); err != nil {
+		t.Fatal(err)
+	}
+	if string(fixture.secrets[fixture.config.OperatorName].Data[secretPasswordField]) != original {
+		t.Fatal("reapply replaced the operator credential")
+	}
+}
+
+func TestOperatorCredentialRequiresRecoveryInsteadOfRepair(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		change func(*clickHouseFixture)
+		want   error
+	}{
+		{"deleted operator credential", func(f *clickHouseFixture) {
+			delete(f.secrets, f.config.OperatorName)
+		}, errRecoveryRequired},
+		{"username", func(f *clickHouseFixture) {
+			f.secrets[f.config.OperatorName].Data[secretUsernameField] = []byte("changed")
+		}, errSecretInvalid},
+		{"password", func(f *clickHouseFixture) {
+			f.secrets[f.config.OperatorName].Data[secretPasswordField] = []byte("short")
+		}, errSecretInvalid},
+		{"foreign ownership", func(f *clickHouseFixture) {
+			f.secrets[f.config.OperatorName].Annotations[installationID] = "alien-installation"
+		}, errForeignOwnership},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			fixture := newClickHouseFixture(t)
+			if err := fixture.kube.ensureCredentials(
+				t.Context(), fixture.state, fixture.inputs, fixture.config,
+			); err != nil {
+				t.Fatal(err)
+			}
+			fixture.state.Data["credentialsEstablished"] = stateTrue
+			test.change(fixture)
+			before, err := json.Marshal(fixture.secrets)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = fixture.kube.ensureCredentials(t.Context(), fixture.state, fixture.inputs, fixture.config)
+			if !errors.Is(err, test.want) {
+				t.Fatalf("got %v, want %v", err, test.want)
+			}
+			after, err := json.Marshal(fixture.secrets)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(before) != string(after) {
+				t.Fatal("reapply repaired or replaced existing credential material")
+			}
+		})
+	}
+}
+
 func TestClickHouseNameComesFromPinnedChart(t *testing.T) {
 	for _, name := range []string{"regional-observability", "", "credential-canary.invalid", strings.Repeat("a", 28)} {
 		chart, err := packageArchive(map[string][]byte{
-			controlPlaneValuesPath: []byte("clickhouse:\n  fullnameOverride: " + name + "\n"),
+			controlPlaneValuesPath: fixtureClickHouseValues(name),
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
-		got, err := managedClickHouseName(chart)
+		got, err := readManagedClickHouse(chart)
 		if name == "regional-observability" {
-			if err != nil || got != name {
+			if err != nil || got.Name != name {
 				t.Fatal("managed ClickHouse name did not follow the pinned chart")
 			}
 			continue
@@ -115,12 +197,12 @@ func TestManagedClickHouseNameFitsPinnedOperatorVolumes(t *testing.T) {
 	for _, size := range []int{26, 27} {
 		name := strings.Repeat("a", size)
 		chart, err := packageArchive(map[string][]byte{
-			controlPlaneValuesPath: []byte("clickhouse:\n  fullnameOverride: " + name + "\n"),
+			controlPlaneValuesPath: fixtureClickHouseValues(name),
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = managedClickHouseName(chart)
+		_, err = readManagedClickHouse(chart)
 		valid := true
 		for _, volume := range []string{
 			"chi-" + name + "-common-configd",
@@ -131,6 +213,30 @@ func TestManagedClickHouseNameFitsPinnedOperatorVolumes(t *testing.T) {
 		}
 		if (err == nil) != valid {
 			t.Errorf("name length %d: accepted=%v, generated volume names valid=%v", size, err == nil, valid)
+		}
+	}
+}
+
+func fixtureClickHouseValues(name string) []byte {
+	return []byte(fmt.Sprintf("clickhouse:\n  fullnameOverride: %s\n  operator:\n"+
+		"    fullnameOverride: fixture-clickhouse-operator\n    secret: {create: false, username: fixture_operator}\n", name))
+}
+
+func TestManagedClickHouseRequiresNativeOperatorCredentials(t *testing.T) {
+	valid := string(fixtureClickHouseValues("fixture"))
+	for _, invalid := range []string{
+		strings.Replace(valid, "create: false, ", "", 1),
+		strings.Replace(valid, "create: false", "create: true", 1),
+		strings.Replace(valid, "fixture_operator", "", 1),
+		strings.Replace(valid, "fixture-clickhouse-operator", "credential-canary.invalid", 1),
+	} {
+		chart, err := packageArchive(map[string][]byte{controlPlaneValuesPath: []byte(invalid)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = readManagedClickHouse(chart)
+		if !errors.Is(err, errInvalidRelease) || strings.Contains(err.Error(), "credential-canary") {
+			t.Fatal("unsafe operator credential metadata was accepted or exposed")
 		}
 	}
 }

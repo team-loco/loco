@@ -161,7 +161,7 @@ func fixtureReleaseRegistry(t *testing.T) (Manifest, string, name.Tag) {
 	t.Cleanup(artifactRegistry.Close)
 	archive, err := packageArchive(
 		map[string][]byte{"fixture/Chart.yaml": []byte("apiVersion: v2\nname: fixture\nversion: 1.2.3\n"),
-			controlPlaneValuesPath:                   []byte("clickhouse:\n  fullnameOverride: fixture-clickhouse\n"),
+			controlPlaneValuesPath:                   fixtureClickHouseValues("fixture-clickhouse"),
 			"fixture/charts/gateway-helm/Chart.yaml": []byte("apiVersion: v2\nname: gateway-helm\nversion: 1.2.3\n")},
 	)
 	if err != nil {

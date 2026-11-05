@@ -28,11 +28,13 @@ const (
 	envEmailHookSecret  = "EMAIL_HOOK_SECRET" //nolint:gosec // Environment variable name, not a credential.
 	emailHookSecretKey  = "hook-secret"
 	// standard Webhooks wire format, also checked by api/webhooks.decodeSecret.
-	emailHookSecretBytes = 32
-	secretKeyField       = "key"
-	secretPasswordField  = "password"
-	stateTrue            = "true"
-	tierProduction       = "production"
+	emailHookSecretBytes    = 32
+	secretKeyField          = "key"
+	secretPasswordField     = "password"
+	secretUsernameField     = "username"
+	minimumCredentialLength = 32
+	stateTrue               = "true"
+	tierProduction          = "production"
 
 	helmInstallTimeout  = "20m"
 	crdReadyTimeout     = "120s"
@@ -57,12 +59,12 @@ type Plan struct {
 }
 
 type releaseArtifacts struct {
-	manifest       Manifest
-	controlPlane   []byte
-	worker         []byte
-	certManager    []byte
-	crds           [][]byte
-	clickhouseName string
+	manifest     Manifest
+	controlPlane []byte
+	worker       []byte
+	certManager  []byte
+	crds         [][]byte
+	clickhouse   managedClickHouse
 }
 
 func loadArtifacts(ctx context.Context, path string) (releaseArtifacts, error) {
@@ -84,7 +86,7 @@ func loadArtifacts(ctx context.Context, path string) (releaseArtifacts, error) {
 			return releaseArtifacts{}, fmt.Errorf("artifact %s: %w", item.key, err)
 		}
 	}
-	result.clickhouseName, err = managedClickHouseName(result.controlPlane)
+	result.clickhouse, err = readManagedClickHouse(result.controlPlane)
 	if err != nil {
 		return releaseArtifacts{}, err
 	}
@@ -197,7 +199,7 @@ func ApplyControlPlane(ctx context.Context, config Config, manifestPath string) 
 		if releaseErr := validateRecordedRelease(lockedState.Data, release.manifest); releaseErr != nil {
 			return releaseErr
 		}
-		if err := kube.ensureCredentials(ctx, lockedState, inputs, release.clickhouseName); err != nil {
+		if err := kube.ensureCredentials(ctx, lockedState, inputs, release.clickhouse); err != nil {
 			return err
 		}
 		lockedState.Data["credentialsEstablished"] = stateTrue
@@ -350,7 +352,7 @@ func (k *Kubernetes) inputs(ctx context.Context, config Config) (map[string][]by
 }
 
 func (k *Kubernetes) ensureCredentials(
-	ctx context.Context, state *corev1.ConfigMap, inputs map[string][]byte, clickhouseName string,
+	ctx context.Context, state *corev1.ConfigMap, inputs map[string][]byte, clickhouse managedClickHouse,
 ) error {
 	existing, err := k.Core.Pods(k.Target.Namespace).
 		List(ctx, metav1.ListOptions{LabelSelector: "app=" + controlPlaneRelease + "-api"})
@@ -363,6 +365,7 @@ func (k *Kubernetes) ensureCredentials(
 		"loco-clickhouse-migrator",
 		"loco-clickhouse-ingest",
 		"loco-clickhouse-reader",
+		clickhouse.OperatorName,
 	}
 	if state.Data["bootstrapComplete"] != stateTrue {
 		names = append(names, BootstrapSecret)
@@ -429,8 +432,11 @@ func (k *Kubernetes) ensureCredentials(
 			return errSecretInvalid
 		}
 	}
+	if err := k.ensureClickHouseOperator(ctx, state, clickhouse); err != nil {
+		return err
+	}
 	// Altinity's default installation Service name is clickhouse-<CHI name>.
-	service := "clickhouse-" + clickhouseName + "." + k.Target.Namespace + ".svc.cluster.local"
+	service := "clickhouse-" + clickhouse.Name + "." + k.Target.Namespace + ".svc.cluster.local"
 	host := net.JoinHostPort(service, clickHouseNativePort)
 	for _, role := range []string{"migrator", "ingest", "reader"} {
 		password, err := randomCredential()
