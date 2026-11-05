@@ -111,6 +111,39 @@ func requestPlan(ctx context.Context, t cmdutil.Target, file []byte) (*planv1.Pl
 	return resp, nil
 }
 
+func reviewPlan(
+	ctx context.Context,
+	t cmdutil.Target,
+	path string,
+	data []byte,
+	resolve func() (map[string]locofile.Service, error),
+	confirm confirmations,
+) (*planv1.PlanResponse, error) {
+	plan, err := requestPlan(ctx, t, data)
+	if err != nil {
+		return nil, err
+	}
+	if len(plan.GetErrors()) > 0 {
+		services, resolveErr := resolve()
+		if resolveErr != nil {
+			return nil, resolveErr
+		}
+		err = provisionForSecrets(ctx, t, data, plan, services, confirm, os.Stdout)
+		if !errors.Is(err, errSecretsNotHandled) {
+			return nil, err
+		}
+		return nil, planErrorsError(path, plan.GetErrors())
+	}
+	if err = writePlan(os.Stdout, path, plan); err != nil {
+		return nil, err
+	}
+	unconfirmed := unconfirmedOperations(plan.GetOperations(), confirm)
+	if len(unconfirmed) > 0 {
+		return nil, refusalError(&planv1.ApplyRefusal{Unconfirmed: unconfirmed}, plan.GetRevision())
+	}
+	return plan, nil
+}
+
 func writeJSON(w io.Writer, plan *planv1.PlanResponse) error {
 	marshaler := protojson.MarshalOptions{Multiline: true}
 	data, err := marshaler.Marshal(plan)

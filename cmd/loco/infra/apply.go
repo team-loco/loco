@@ -105,39 +105,17 @@ func runApply(cmd *cobra.Command, path string) error {
 	if err != nil {
 		return err
 	}
-	plan, err := requestPlan(ctx, t, data)
+	environment := t.Environment.GetName()
+	resolve := func() (map[string]locofile.Service, error) { return resolveServices(file, path, environment) }
+	plan, err := reviewPlan(ctx, t, path, data, resolve, confirm)
 	if err != nil {
 		return err
-	}
-	if len(plan.GetErrors()) > 0 {
-		services, resolveErr := locofile.Resolve(file, t.Environment.GetName())
-		if resolveErr != nil {
-			return fmt.Errorf("%s does not resolve for environment %s: %w", path, t.Environment.GetName(), resolveErr)
-		}
-		if handled, provisionErr := provisionForSecrets(ctx, t, data, plan, services, confirm, os.Stdout); handled {
-			return provisionErr
-		}
-		return planErrorsError(path, plan.GetErrors())
-	}
-	if writeErr := writePlan(os.Stdout, path, plan); writeErr != nil {
-		return writeErr
 	}
 	if len(plan.GetOperations()) == 0 {
 		return nil
 	}
-	unconfirmed := unconfirmedOperations(plan.GetOperations(), confirm)
-	if len(unconfirmed) > 0 {
-		return refusalError(&planv1.ApplyRefusal{Unconfirmed: unconfirmed}, plan.GetRevision())
-	}
-	if !confirm.yes {
-		proceed, askErr := askToProceed("Apply these changes?")
-		if askErr != nil {
-			return askErr
-		}
-		if !proceed {
-			fmt.Println("Apply canceled.")
-			return nil
-		}
+	if proceed, askErr := confirmProceed(confirm, "Apply these changes?", "Apply canceled."); !proceed {
+		return askErr
 	}
 
 	applied, err := requestApply(ctx, t, data, plan.GetRevision(), plan.GetImages(), confirm, applyScope{})
@@ -145,6 +123,28 @@ func runApply(cmd *cobra.Command, path string) error {
 		return err
 	}
 	return writeApplied(os.Stdout, applied)
+}
+
+func resolveServices(file *locofile.File, path, environment string) (map[string]locofile.Service, error) {
+	services, err := locofile.Resolve(file, environment)
+	if err != nil {
+		return nil, fmt.Errorf("%s does not resolve for environment %s: %w", path, environment, err)
+	}
+	return services, nil
+}
+
+func confirmProceed(confirm confirmations, question, canceled string) (bool, error) {
+	if confirm.yes {
+		return true, nil
+	}
+	proceed, err := askToProceed(question)
+	if err != nil {
+		return false, err
+	}
+	if !proceed {
+		fmt.Println(canceled)
+	}
+	return proceed, nil
 }
 
 func askToProceed(question string) (bool, error) {
