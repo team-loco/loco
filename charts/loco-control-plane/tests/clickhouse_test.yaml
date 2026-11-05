@@ -6,6 +6,15 @@ values:
   - ../ci/default-values.yaml
   - values/in-cluster-clickhouse.yaml
 tests:
+  - it: consumes an existing native operator credential instead of rendering one
+    asserts:
+      - hasDocuments: {count: 0}
+        template: charts/clickhouse/charts/operator/templates/generated/Secret-clickhouse-operator.yaml
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "name: 'loco-clickhouse-operator'"
+        template: charts/clickhouse/charts/operator/templates/generated/ConfigMap-etc-clickhouse-operator-files.yaml
+
   - it: keeps operator-generated volume names within Kubernetes limits for the full release name
     template: charts/clickhouse/templates/chi.yaml
     asserts:

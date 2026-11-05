@@ -80,6 +80,8 @@ The chart also uploads hourly raft snapshots to the region's object storage; set
 
 For in-cluster ClickHouse, create the Secrets named by `clickhouse.clickhouse.users[].password_secret_name` before installing. Each needs `password` and `url` keys; the URL is `clickhouse://USER:PASSWORD@clickhouse-CHI_NAME.NAMESPACE.svc.cluster.local:9000`. `CHI_NAME` is `clickhouse.fullnameOverride`, which defaults to `loco-clickhouse`; the short name leaves room for the operator's generated volume suffixes. URL-encode the password in the URL. The chart references these Secrets for the ClickHouse users and observability proxies. Passwords never belong in Helm values.
 
+The ClickHouse operator reads an existing Secret named by `clickhouse.operator.fullnameOverride`, with `username` and `password` keys. Set its username to `clickhouse.operator.secret.username` and generate its password outside Helm. `clickhouse.operator.secret.create` stays `false`; `locoadm apply` creates and preserves this credential directly in Kubernetes.
+
 With an external ClickHouse, leave `clickhouse.enabled: false` and name Secrets holding each user's URL in `obsProxy.query.clickhouse.existingSecret`, `obsProxy.query.clickhouse.migratorExistingSecret` and `obsProxy.ingest.clickhouse.existingSecret`.
 
 Install from the checked-out release or its published chart artifact with these values:

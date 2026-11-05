@@ -171,6 +171,10 @@ clickhouse:
   # the operator adds cluster and config-volume suffixes below Kubernetes' 63-character limit
   fullnameOverride: "loco-clickhouse"
   operator:
+    fullnameOverride: "loco-clickhouse-operator"
+    secret:
+      create: false
+      username: loco_operator
     podSecurityContext:
       runAsNonRoot: true
       runAsUser: 65534

@@ -127,10 +127,13 @@ import pathlib
 import subprocess
 import sys
 root, values, namespace = sys.argv[1:]
-users = json.loads(subprocess.check_output(['yq', '-o=json', '.clickhouse.clickhouse.users', values]))
+clickhouse = json.loads(subprocess.check_output(['yq', '-o=json', '.clickhouse', values]))
 password = (pathlib.Path(root) / 'password').read_text().strip()
-for user in users:
-    url = f"clickhouse://{user['name']}:{password}@clickhouse-regional-clickhouse.{namespace}.svc.cluster.local:9000"
+operator = clickhouse['operator']
+print(json.dumps({'apiVersion': 'v1', 'kind': 'Secret', 'metadata': {'name': operator['fullnameOverride'], 'namespace': namespace}, 'data': {'username': base64.b64encode(operator['secret']['username'].encode()).decode(), 'password': base64.b64encode(password.encode()).decode()}}))
+print('---')
+for user in clickhouse['clickhouse']['users']:
+    url = f"clickhouse://{user['name']}:{password}@clickhouse-{clickhouse['fullnameOverride']}.{namespace}.svc.cluster.local:9000"
     print(json.dumps({'apiVersion': 'v1', 'kind': 'Secret', 'metadata': {'name': user['password_secret_name'], 'namespace': namespace}, 'data': {'password': base64.b64encode(password.encode()).decode(), 'url': base64.b64encode(url.encode()).decode()}}))
     print('---')
 PYSECRETS
