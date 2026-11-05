@@ -446,51 +446,49 @@ func identitySnapshot(ctx context.Context) (string, error) {
 
 func deployFixture(ctx context.Context) error {
 	app := "/fixture/build-app"
-	if _, checkErr := command(ctx, "", nil, "loco", "use", "installation-e2e/source-build"); checkErr != nil {
-		organization, checkErr := command(ctx, "", nil, "loco", "org", "create", "installation-e2e")
-		if checkErr != nil {
-			return checkErr
-		}
-		organizationID := regexp.MustCompile(`[a-f0-9]{8}-[a-f0-9-]{27}`).FindString(string(organization))
-		if organizationID == "" {
-			return errOrganizationIDMissing
-		}
-		workspace, err := command(
-			ctx,
-			"",
-			nil,
-			"loco",
-			"workspace",
-			"create",
-			"source-build",
-			"--org-id",
-			organizationID,
-		)
-		if err != nil {
-			return err
-		}
-		workspaceID := regexp.MustCompile(`[a-f0-9]{8}-[a-f0-9-]{27}`).FindString(string(workspace))
-		if workspaceID == "" {
-			return errWorkspaceIDMissing
-		}
-		if _, checkErr := command(ctx, "", nil, "loco", "use", "installation-e2e/source-build"); checkErr != nil {
-			return checkErr
-		}
+	organization, checkErr := command(ctx, "", nil, "loco", "org", "create", "installation-e2e")
+	if checkErr != nil {
+		return checkErr
+	}
+	organizationID := regexp.MustCompile(`[a-f0-9]{8}-[a-f0-9-]{27}`).FindString(string(organization))
+	if organizationID == "" {
+		return errOrganizationIDMissing
+	}
+	workspace, err := command(
+		ctx,
+		"",
+		nil,
+		"loco",
+		"workspace",
+		"create",
+		"source-build",
+		"--org-id",
+		organizationID,
+	)
+	if err != nil {
+		return err
+	}
+	workspaceID := regexp.MustCompile(`[a-f0-9]{8}-[a-f0-9-]{27}`).FindString(string(workspace))
+	if workspaceID == "" {
+		return errWorkspaceIDMissing
+	}
+	if _, checkErr := command(ctx, "", nil, "loco", "use", organizationID+"/"+workspaceID); checkErr != nil {
+		return checkErr
+	}
 
-		api, apiErr := fixtureAPI()
-		if apiErr != nil {
-			return apiErr
-		}
-		if _, createErr := api.Environment.CreateEnvironment(
-			ctx,
-			&environmentv1.CreateEnvironmentRequest{
-				WorkspaceId: workspaceID,
-				Name:        "staging",
-				Type:        environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING,
-			},
-		); createErr != nil {
-			return errStagingEnvironmentCreate
-		}
+	api, apiErr := fixtureAPI()
+	if apiErr != nil {
+		return apiErr
+	}
+	if _, createErr := api.Environment.CreateEnvironment(
+		ctx,
+		&environmentv1.CreateEnvironmentRequest{
+			WorkspaceId: workspaceID,
+			Name:        "staging",
+			Type:        environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING,
+		},
+	); createErr != nil {
+		return errStagingEnvironmentCreate
 	}
 	if checkErr := os.Setenv("LOCO_ENV", "staging"); checkErr != nil {
 		return checkErr
@@ -536,10 +534,6 @@ services:
 	scope, scopeErr := config.GetScope()
 	if scopeErr != nil {
 		return scopeErr
-	}
-	api, apiErr := fixtureAPI()
-	if apiErr != nil {
-		return apiErr
 	}
 	listed, listErr := api.Environment.ListEnvironments(
 		ctx,
