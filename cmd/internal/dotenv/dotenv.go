@@ -81,7 +81,7 @@ func parseLine(line string) (string, string, error) {
 	if name == "" {
 		return "", "", ErrEmptyName
 	}
-	if !isIdentifier(name) {
+	if !ValidName(name) {
 		return "", "", ErrInvalidName
 	}
 	value, err := parseValue(rest)
@@ -162,7 +162,7 @@ func checkTrailing(rest string) error {
 	return ErrTrailingText
 }
 
-func isIdentifier(name string) bool {
+func ValidName(name string) bool {
 	for i := range len(name) {
 		c := name[i]
 		letter := c == '_' || (c >= 'A' && c <= 'Z')
