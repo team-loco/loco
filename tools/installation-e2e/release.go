@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -60,7 +62,7 @@ func (f *fixture) release(ctx context.Context) (map[string]any, string, error) {
 				return nil, "", fmt.Errorf("build %s fixture: %w", component.name, checkErr)
 			}
 		}
-		if checkErr := f.loginRegistry(ctx); checkErr != nil {
+		if checkErr := f.configureRegistryAuth(); checkErr != nil {
 			return nil, "", fmt.Errorf("authenticate fixture image push: %w", checkErr)
 		}
 		if _, checkErr := command(ctx, f.root, nil, "docker", "push", tag); checkErr != nil {
@@ -195,7 +197,7 @@ func (f *fixture) release(ctx context.Context) (map[string]any, string, error) {
 	return manifest, operatorImage, err
 }
 
-func (f *fixture) loginRegistry(ctx context.Context) error {
+func (f *fixture) configureRegistryAuth() error {
 	config := filepath.Join(f.dir, "docker")
 	if checkErr := os.MkdirAll(config, 0700); checkErr != nil {
 		return checkErr
@@ -203,18 +205,15 @@ func (f *fixture) loginRegistry(ctx context.Context) error {
 	if checkErr := os.Setenv("DOCKER_CONFIG", config); checkErr != nil {
 		return checkErr
 	}
-	_, err := command(
-		ctx,
-		f.root,
-		[]byte("loco-dev-builder"),
-		"docker",
-		"login",
-		strings.TrimPrefix(f.registryURL, "http://"),
-		"--username",
-		fixtureBuilder,
-		"--password-stdin",
-	)
-	return err
+	// A populated auth map prevents Docker from auto-selecting an interactive host credential store.
+	auth := base64.StdEncoding.EncodeToString([]byte(fixtureBuilder + ":loco-dev-builder"))
+	data, err := json.Marshal(map[string]any{"auths": map[string]any{
+		strings.TrimPrefix(f.registryURL, "http://"): map[string]string{"auth": auth},
+	}})
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(config, "config.json"), data, 0600)
 }
 
 func (f *fixture) manifestDigest(ctx context.Context, repository, reference string) (string, error) {

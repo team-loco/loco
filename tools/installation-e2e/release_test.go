@@ -2,9 +2,13 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/json"
 	"io"
 	"log"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -12,6 +16,36 @@ import (
 	"github.com/google/go-containerregistry/pkg/registry"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
+
+func TestFixtureRegistryAuthIsPrivateAndIndependentOfHostKeychain(t *testing.T) {
+	t.Setenv("DOCKER_CONFIG", "unused-host-config")
+	harness := fixture{dir: t.TempDir(), registryURL: "http://127.0.0.1:5000"}
+	if err := harness.configureRegistryAuth(); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(os.Getenv("DOCKER_CONFIG"), "config.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var config struct {
+		Auths map[string]struct {
+			Auth string `json:"auth"`
+		} `json:"auths"`
+		Store string `json:"credsStore"`
+	}
+	if err = json.Unmarshal(data, &config); err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := base64.StdEncoding.DecodeString(config.Auths["127.0.0.1:5000"].Auth)
+	if err != nil || string(decoded) != "builder:loco-dev-builder" || config.Store != "" {
+		t.Fatal("fixture authentication depends on host credentials")
+	}
+	info, err := os.Stat(path)
+	if err != nil || info.Mode().Perm() != 0600 {
+		t.Fatal("fixture authentication file is not private")
+	}
+}
 
 func TestFixtureArtifactHostUsesLoaderSupportedHTTP(t *testing.T) {
 	ref, err := name.NewDigest(registryHost + "/platform/chart@sha256:" + strings.Repeat("a", 64))
