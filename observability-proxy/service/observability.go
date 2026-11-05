@@ -24,7 +24,11 @@ var (
 	errQueryFailed  = errors.New("query failed")
 )
 
-const defaultTailLookback = 2 * time.Second
+const (
+	defaultTailLookback   = 2 * time.Second
+	tailHeartbeatInterval = 5 * time.Second
+	tailPollInterval      = 2 * time.Second
+)
 
 var _ observabilityv1connect.ObservabilityProxyServiceHandler = (*ObservabilityService)(nil)
 
@@ -141,50 +145,47 @@ func (s *ObservabilityService) TailLogs(
 		return err
 	}
 
-	deadline := started.Add(s.cfg.MaxTailDuration)
-	ctx, cancel := context.WithDeadline(ctx, deadline)
+	ctx, cancel := context.WithTimeout(ctx, s.cfg.MaxTailDuration)
 	defer cancel()
 	since := started.Add(-defaultTailLookback)
 	if req.GetSince() != nil {
 		since = req.GetSince().AsTime()
 	}
-	heartbeatInterval := 5 * time.Second
-	pollInterval := 2 * time.Second
+	return s.tailLoop(ctx, req, since, stream.Send)
+}
+
+func (s *ObservabilityService) tailLoop(
+	ctx context.Context,
+	req *observabilityv1.TailLogsRequest,
+	since time.Time,
+	send func(*observabilityv1.TailLogsResponse) error,
+) error {
+	ticker := time.NewTicker(tailPollInterval)
+	defer ticker.Stop()
 	lastHeartbeat := time.Now()
 	cursor := chClient.TailLogCursor{}
 
 	for {
-		if time.Now().After(deadline) {
-			slog.InfoContext(ctx, "tail duration exceeded, closing stream")
-			return nil
-		}
-
-		select {
-		case <-ctx.Done():
-			return nil
-		default:
-		}
 		var sendErr error
 		sent, err := s.pollTailLogs(ctx, req, since, cursor, func(entry *observabilityv1.LogEntry) error {
-			sendErr = stream.Send(&observabilityv1.TailLogsResponse{
+			sendErr = send(&observabilityv1.TailLogsResponse{
 				Event: &observabilityv1.TailLogsResponse_Entry{Entry: entry},
 			})
-			if sendErr != nil {
-				return sendErr
-			}
-			return nil
+			return sendErr
 		})
 		if sendErr != nil {
 			return sendErr
 		}
+		if ctx.Err() != nil {
+			return nil
+		}
 		if err != nil {
 			slog.ErrorContext(ctx, "tail poll failed", "error", err)
-			time.Sleep(pollInterval)
-			continue
+			return rpcerr.New(connect.CodeInternal, errQueryFailed)
 		}
 
-		if sent == 0 && time.Since(lastHeartbeat) >= heartbeatInterval {
-			if err := stream.Send(&observabilityv1.TailLogsResponse{
+		if sent == 0 && time.Since(lastHeartbeat) >= tailHeartbeatInterval {
+			if err := send(&observabilityv1.TailLogsResponse{
 				Event: &observabilityv1.TailLogsResponse_Heartbeat{
 					Heartbeat: &observabilityv1.Heartbeat{
 						Timestamp: timestamppb.Now(),
@@ -196,7 +197,11 @@ func (s *ObservabilityService) TailLogs(
 			lastHeartbeat = time.Now()
 		}
 
-		time.Sleep(pollInterval)
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
+		}
 	}
 }
 
