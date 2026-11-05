@@ -35,6 +35,7 @@ const (
 	workerNamespace        = "loco-staging"
 	registryHost           = "registry.installation.localhost:5000"
 	fixtureReadyTimeout    = "300s"
+	registryReadAction     = "read"
 )
 
 type fixture struct {
@@ -312,35 +313,7 @@ func (f *fixture) provision(ctx context.Context) error {
 			},
 		},
 	}
-	registryData, err := os.ReadFile(filepath.Join(f.root, "dev", fixtureRegistry, "config.json"))
-	if err != nil {
-		return err
-	}
-	var registry map[string]any
-	if checkErr := json.Unmarshal(registryData, &registry); checkErr != nil {
-		return checkErr
-	}
-	httpConfig, ok := registry["http"].(map[string]any)
-	if !ok {
-		return errors.New("invalid fixture registry HTTP configuration")
-	}
-	access, ok := httpConfig["accessControl"].(map[string]any)
-	if !ok {
-		return errors.New("invalid fixture registry access configuration")
-	}
-	repos, ok := access["repositories"].(map[string]any)
-	if !ok {
-		return errors.New("invalid fixture registry repository configuration")
-	}
-	repos["platform/**"] = map[string]any{
-		"defaultPolicy": []string{"read"},
-		"policies": []any{
-			map[string]any{"users": []string{fixtureBuilder}, "actions": []string{"read", "create", "update"}},
-		},
-	}
-	httpConfig["auth"] = map[string]any{"htpasswd": map[string]string{"path": "/config/htpasswd"}}
-	httpConfig["compat"] = []string{"docker2s2"}
-	registryData, err = json.Marshal(registry)
+	registryData, err := f.registryConfiguration()
 	if err != nil {
 		return err
 	}
@@ -612,4 +585,40 @@ func waitRegistry(ctx context.Context, endpoint string) error {
 		case <-retry.C:
 		}
 	}
+}
+
+func (f *fixture) registryConfiguration() ([]byte, error) {
+	registryData, err := os.ReadFile(filepath.Join(f.root, "dev", fixtureRegistry, "config.json"))
+	if err != nil {
+		return nil, err
+	}
+	var registry map[string]any
+	if checkErr := json.Unmarshal(registryData, &registry); checkErr != nil {
+		return nil, checkErr
+	}
+	httpConfig, ok := registry["http"].(map[string]any)
+	if !ok {
+		return nil, errors.New("invalid fixture registry HTTP configuration")
+	}
+	access, ok := httpConfig["accessControl"].(map[string]any)
+	if !ok {
+		return nil, errors.New("invalid fixture registry access configuration")
+	}
+	repos, ok := access["repositories"].(map[string]any)
+	if !ok {
+		return nil, errors.New("invalid fixture registry repository configuration")
+	}
+	repos["platform/**"] = map[string]any{
+		"anonymousPolicy": []string{registryReadAction},
+		"defaultPolicy":   []string{registryReadAction},
+		"policies": []any{
+			map[string]any{
+				"users":   []string{fixtureBuilder},
+				"actions": []string{registryReadAction, "create", "update"},
+			},
+		},
+	}
+	httpConfig["auth"] = map[string]any{"htpasswd": map[string]string{"path": "/config/htpasswd"}}
+	httpConfig["compat"] = []string{"docker2s2"}
+	return json.Marshal(registry)
 }
