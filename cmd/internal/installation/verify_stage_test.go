@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"connectrpc.com/connect/v2"
@@ -62,9 +61,6 @@ func TestVerificationRPCFailuresIdentifyStageWithoutProviderOutput(t *testing.T)
 			if !errors.Is(err, errVerification) || err.Error() != tc.want {
 				t.Fatalf("missing fixed verification stage: %v", err)
 			}
-			if strings.Contains(err.Error(), verificationStageCanary) || strings.Contains(err.Error(), endpoint.URL) {
-				t.Fatal("verification error exposed provider output")
-			}
 		})
 	}
 }
@@ -82,10 +78,5 @@ func TestVerificationHTTPSFailureIdentifiesStageWithoutResponse(t *testing.T) {
 	err := verificationProbe(ctx, endpoint.URL+"/"+verificationStageCanary, "private-expected-marker")
 	if !errors.Is(err, errVerification) || err.Error() != "verify HTTPS: installation source verification failed" {
 		t.Fatalf("missing fixed HTTPS stage: %v", err)
-	}
-	for _, private := range []string{verificationStageCanary, endpoint.URL, "private-expected-marker"} {
-		if strings.Contains(err.Error(), private) {
-			t.Fatal("verification error exposed response, URL or marker")
-		}
 	}
 }
