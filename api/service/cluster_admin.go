@@ -11,7 +11,6 @@ import (
 
 	"buf.build/go/protovalidate"
 	"connectrpc.com/connect/v2"
-	"connectrpc.com/connect/v2/connectproto"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -196,13 +195,8 @@ func (s *ClusterAdminServer) manage(
 		errors.Is(err, ErrClusterHasWorkloads) {
 		refused := rpcerr.New(connect.CodeFailedPrecondition, err)
 		if len(result.Workloads) > 0 {
-			detail, detailErr := connectproto.NewErrorDetail(
-				&clusterv1.ClusterWorkloads{Workloads: clusterWorkloads(result.Workloads)},
-			)
-			if detailErr != nil {
-				return result, refused
-			}
-			refused = refused.WithDetail(detail)
+			workloads := &clusterv1.ClusterWorkloads{Workloads: clusterWorkloads(result.Workloads)}
+			refused = withDetail(refused, workloads)
 		}
 		return result, refused
 	}

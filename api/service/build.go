@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect/v2"
-	"connectrpc.com/connect/v2/connectproto"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -92,13 +91,7 @@ func (s *BuildServer) enabled() bool {
 
 func buildsUnavailable(reason error) *connect.Error {
 	connectErr := rpcerr.New(connect.CodeFailedPrecondition, reason)
-	detail, err := connectproto.NewErrorDetail(&buildv1.BuildsUnavailable{})
-	if err != nil {
-		slog.Error("failed to attach the builds unavailable detail", "error", err)
-		return connectErr
-	}
-	connectErr = connectErr.WithDetail(detail)
-	return connectErr
+	return withDetail(connectErr, &buildv1.BuildsUnavailable{})
 }
 
 func (s *BuildServer) authorize(ctx context.Context, action actions.Action, resourceID uuid.UUID) error {

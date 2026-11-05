@@ -1,0 +1,38 @@
+package service
+
+import (
+	"bytes"
+	"errors"
+	"log/slog"
+	"strings"
+	"testing"
+
+	"connectrpc.com/connect/v2"
+
+	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
+)
+
+func TestApplyRefusedLogsADetailThatCannotBeEncoded(t *testing.T) {
+	var logs bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+
+	invalidUTF8 := string([]byte{0xff})
+	refusal := &planv1.ApplyRefusal{Images: map[string]string{"web": invalidUTF8}}
+	err := applyRefused(errors.New("refused"), refusal)
+
+	connectErr, ok := errors.AsType[*connect.Error](err)
+	if !ok {
+		t.Fatalf("err = %v, want a connect error", err)
+	}
+	if connectErr.Code() != connect.CodeFailedPrecondition {
+		t.Fatalf("code = %v, want %v", connectErr.Code(), connect.CodeFailedPrecondition)
+	}
+	if len(connectErr.Details()) != 0 {
+		t.Fatalf("details = %v, want none", connectErr.Details())
+	}
+	if !strings.Contains(logs.String(), "level=ERROR") || !strings.Contains(logs.String(), "invalid UTF-8") {
+		t.Fatalf("logs = %q, want an ERROR line with the encoding failure", logs.String())
+	}
+}
