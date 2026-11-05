@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -29,8 +30,13 @@ var (
 	ErrNotOrgMember                  = errors.New(
 		"user is not a member of the workspace's organization; add them to the organization first",
 	)
-	ErrRemoveSelfFromOrg = errors.New("you cannot remove yourself from the organization")
+	ErrRemoveSelfFromOrg           = errors.New("you cannot remove yourself from the organization")
+	errCreateIfMissingForOtherUser = errors.New("create_if_missing requires user_id to be the caller")
 )
+
+const firstWorkspaceName = "default"
+
+var emailNameReplacer = strings.NewReplacer("@", "-", ".", "-", "+", "-")
 
 // OrgServer implements the OrgService gRPC server
 type OrgServer struct {
@@ -124,21 +130,34 @@ func (s *OrgServer) CreateOrg(
 	}
 	defer tx.Rollback(ctx)
 
-	qtx := genDb.New(tx)
-
-	org, err := qtx.CreateOrg(ctx, genDb.CreateOrgParams{
-		Name:      orgName,
-		CreatedBy: entity.ID,
-	})
+	org, err := createOrgInTx(ctx, genDb.New(tx), entity.ID, orgName)
 	if err != nil {
-		if isPgConstraintViolation(err) {
-			return nil, rpcerr.New(connect.CodeAlreadyExists, ErrOrgNameNotUnique)
-		}
-		slog.ErrorContext(ctx, "failed to create organization", "error", err)
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		slog.ErrorContext(ctx, "failed to commit organization creation", "error", err)
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
-	err = authz.ApplyRoles(ctx, qtx, entity.ID, []genDb.EntityScope{
+	return &orgv1.CreateOrgResponse{
+		OrgId: org.ID.String(),
+	}, nil
+}
+
+func createOrgInTx(ctx context.Context, qtx *genDb.Queries, userID uuid.UUID, name string) (genDb.Organization, error) {
+	org, err := qtx.CreateOrg(ctx, genDb.CreateOrgParams{
+		Name:      name,
+		CreatedBy: userID,
+	})
+	if err != nil {
+		if isPgConstraintViolation(err) {
+			return genDb.Organization{}, rpcerr.New(connect.CodeAlreadyExists, ErrOrgNameNotUnique)
+		}
+		slog.ErrorContext(ctx, "failed to create organization", "error", err)
+		return genDb.Organization{}, rpcerr.New(connect.CodeInternal, ErrDB)
+	}
+
+	err = authz.ApplyRoles(ctx, qtx, userID, []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeRead},
 		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeWrite},
 		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeAdmin},
@@ -152,9 +171,9 @@ func (s *OrgServer) CreateOrg(
 			"orgId",
 			org.ID.String(),
 			"userId",
-			entity.ID.String(),
+			userID.String(),
 		)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return genDb.Organization{}, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
 
 	if err := events.Record(ctx, qtx, events.Event{
@@ -165,16 +184,9 @@ func (s *OrgServer) CreateOrg(
 		Data:        map[string]any{events.FieldName: org.Name},
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to record org creation", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
+		return genDb.Organization{}, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
-	if err := tx.Commit(ctx); err != nil {
-		slog.ErrorContext(ctx, "failed to commit organization creation", "error", err)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-
-	return &orgv1.CreateOrgResponse{
-		OrgId: org.ID.String(),
-	}, nil
+	return org, nil
 }
 
 // GetOrg retrieves an organization by ID or name
@@ -252,6 +264,11 @@ func (s *OrgServer) ListUserOrgs(
 	}
 
 	userID := uuid.MustParse(req.GetUserId())
+	if req.GetCreateIfMissing() {
+		if err := s.createFirstOrg(ctx, scopes, userID); err != nil {
+			return nil, err
+		}
+	}
 
 	orgs, err := s.queries.ListOrgsForUser(ctx, genDb.ListOrgsForUserParams{
 		UserID:        userID,
@@ -279,6 +296,53 @@ func (s *OrgServer) ListUserOrgs(
 		Orgs:          orgResponses,
 		NextPageToken: nextPageToken,
 	}, nil
+}
+
+func (s *OrgServer) createFirstOrg(ctx context.Context, scopes []genDb.EntityScope, userID uuid.UUID) error {
+	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
+	if !ok {
+		return rpcerr.New(connect.CodeUnauthenticated, ErrUnauthorized)
+	}
+	if entity.Type != genDb.EntityTypeUser || entity.ID != userID {
+		return rpcerr.New(connect.CodeInvalidArgument, errCreateIfMissingForOtherUser)
+	}
+	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if _, err := qtx.LockUserForMembership(ctx, userID); err != nil {
+			return err
+		}
+		existing, err := qtx.ListOrgsForUser(ctx, genDb.ListOrgsForUserParams{UserID: userID, Limit: 1})
+		if err != nil {
+			return err
+		}
+		if len(existing) > 0 {
+			return nil
+		}
+		if authzErr := s.authz.Check(ctx, scopes, actions.New(actions.CreateOrg, userID.String())); authzErr != nil {
+			return connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(authzErr)
+		}
+		user, err := qtx.GetUserByID(ctx, userID)
+		if err != nil {
+			return err
+		}
+		org, err := createOrgInTx(ctx, qtx, userID, firstOrgName(user.Email))
+		if err != nil {
+			return err
+		}
+		_, err = createWorkspaceInTx(ctx, qtx, genDb.CreateWorkspaceParams{
+			OrgID:     org.ID,
+			Name:      firstWorkspaceName,
+			CreatedBy: userID,
+		})
+		return err
+	})
+	if err != nil {
+		return txError(ctx, "failed to create first organization", err)
+	}
+	return nil
+}
+
+func firstOrgName(email string) string {
+	return emailNameReplacer.Replace(strings.ToLower(email)) + "-org"
 }
 
 // UpdateOrg updates an organization

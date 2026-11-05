@@ -11240,6 +11240,11 @@
             "type": "string",
             "title": "page_token",
             "description": "cursor from previous page (base64-encoded timestamp+id)"
+          },
+          "createIfMissing": {
+            "type": "boolean",
+            "title": "create_if_missing",
+            "description": "create_if_missing creates an organization and its \"default\" workspace, with the caller as admin,\n when the caller belongs to no organization. It requires user_id to be the caller."
           }
         },
         "title": "ListUserOrgsRequest",

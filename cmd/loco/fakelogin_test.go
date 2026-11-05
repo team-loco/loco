@@ -112,7 +112,7 @@ type fakeOrgService struct {
 
 func (s *fakeOrgService) ListUserOrgs(
 	ctx context.Context,
-	_ *orgv1.ListUserOrgsRequest,
+	req *orgv1.ListUserOrgsRequest,
 ) (*orgv1.ListUserOrgsResponse, error) {
 	info, _ := connect.CallInfoForServerContext(ctx)
 	if _, _, err := s.api.authenticate(
@@ -120,6 +120,9 @@ func (s *fakeOrgService) ListUserOrgs(
 		info.RequestHeader(),
 	); err != nil {
 		return nil, err
+	}
+	if !req.GetCreateIfMissing() {
+		return &orgv1.ListUserOrgsResponse{}, nil
 	}
 	org := &orgv1.Organization{Id: fakeOrgID, Name: fakeOrgName}
 	return &orgv1.ListUserOrgsResponse{Orgs: []*orgv1.Organization{org}}, nil

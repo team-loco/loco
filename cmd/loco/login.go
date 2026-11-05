@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/team-loco/loco/internal/rpc"
@@ -178,9 +177,10 @@ func resolveLoginScope(
 
 	orgs, err := cmdutil.Paginate(func(token string) ([]*orgv1.Organization, string, error) {
 		resp, listErr := orgClient.ListUserOrgs(ctx, &orgv1.ListUserOrgsRequest{
-			UserId:    currentUserResp.GetUser().GetId(),
-			PageSize:  loginPageSize,
-			PageToken: token,
+			UserId:          currentUserResp.GetUser().GetId(),
+			PageSize:        loginPageSize,
+			PageToken:       token,
+			CreateIfMissing: true,
 		})
 		if listErr != nil {
 			return nil, "", listErr
@@ -191,90 +191,33 @@ func resolveLoginScope(
 		return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf("failed to list organizations: %w", err)
 	}
 
-	if len(orgs) > 0 {
-		selectedOrg := orgs[0]
-		workspaces, wsErr := cmdutil.Paginate(func(token string) ([]*workspacev1.Workspace, string, error) {
-			resp, listErr := wsClient.ListOrgWorkspaces(ctx, &workspacev1.ListOrgWorkspacesRequest{
-				OrgId:     selectedOrg.GetId(),
-				PageSize:  loginPageSize,
-				PageToken: token,
-			})
-			if listErr != nil {
-				return nil, "", listErr
-			}
-			return resp.GetWorkspaces(), resp.GetNextPageToken(), nil
+	if len(orgs) == 0 {
+		return session.SimpleOrg{}, session.SimpleWorkspace{}, errNoOrganization
+	}
+	selectedOrg := orgs[0]
+	workspaces, err := cmdutil.Paginate(func(token string) ([]*workspacev1.Workspace, string, error) {
+		resp, listErr := wsClient.ListOrgWorkspaces(ctx, &workspacev1.ListOrgWorkspacesRequest{
+			OrgId:     selectedOrg.GetId(),
+			PageSize:  loginPageSize,
+			PageToken: token,
 		})
-		if wsErr != nil {
-			return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf("failed to list workspaces: %w", wsErr)
+		if listErr != nil {
+			return nil, "", listErr
 		}
-		if len(workspaces) == 0 {
-			return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf(
-				"organization %q has no workspaces",
-				selectedOrg.GetName(),
-			)
-		}
-		org := session.SimpleOrg{ID: selectedOrg.GetId(), Name: selectedOrg.GetName()}
-		workspace := session.SimpleWorkspace{ID: workspaces[0].GetId(), Name: workspaces[0].GetName()}
-		return org, workspace, nil
-	}
-
-	email := currentUserResp.GetUser().GetEmail()
-	orgName := fmt.Sprintf("%s-org", cleanEmail(email))
-	createOrgReq := &orgv1.CreateOrgRequest{Name: &orgName}
-
-	createOrgResp, err := orgClient.CreateOrg(ctx, createOrgReq)
+		return resp.GetWorkspaces(), resp.GetNextPageToken(), nil
+	})
 	if err != nil {
-		return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf("failed to create organization: %w", err)
+		return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf("failed to list workspaces: %w", err)
 	}
-
-	getOrgReq := &orgv1.GetOrgRequest{
-		Key: &orgv1.GetOrgRequest_OrgId{OrgId: createOrgResp.GetOrgId()},
-	}
-
-	getOrgResp, err := orgClient.GetOrg(ctx, getOrgReq)
-	if err != nil {
+	if len(workspaces) == 0 {
 		return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf(
-			"failed to get created organization: %w",
-			err,
+			"organization %q has no workspaces",
+			selectedOrg.GetName(),
 		)
 	}
-
-	createWSReq := &workspacev1.CreateWorkspaceRequest{
-		OrgId: createOrgResp.GetOrgId(),
-		Name:  "default",
-	}
-
-	createWSResp, err := wsClient.CreateWorkspace(ctx, createWSReq)
-	if err != nil {
-		return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf("failed to create workspace: %w", err)
-	}
-
-	getWSReq := &workspacev1.GetWorkspaceRequest{
-		WorkspaceId: createWSResp.GetWorkspaceId(),
-	}
-
-	getWSResp, err := wsClient.GetWorkspace(ctx, getWSReq)
-	if err != nil {
-		return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf("failed to get created workspace: %w", err)
-	}
-
-	org := session.SimpleOrg{
-		ID:   getOrgResp.GetOrganization().GetId(),
-		Name: getOrgResp.GetOrganization().GetName(),
-	}
-	workspace := session.SimpleWorkspace{
-		ID:   getWSResp.GetWorkspace().GetId(),
-		Name: getWSResp.GetWorkspace().GetName(),
-	}
+	org := session.SimpleOrg{ID: selectedOrg.GetId(), Name: selectedOrg.GetName()}
+	workspace := session.SimpleWorkspace{ID: workspaces[0].GetId(), Name: workspaces[0].GetName()}
 	return org, workspace, nil
-}
-
-func cleanEmail(email string) string {
-	s := strings.ToLower(email)
-	s = strings.ReplaceAll(s, "@", "-")
-	s = strings.ReplaceAll(s, ".", "-")
-	s = strings.ReplaceAll(s, "+", "-")
-	return s
 }
 
 func printLoginSuccess(title, orgName, workspaceName string) error {

@@ -8,6 +8,8 @@ loco login
 
 The default API host is `https://api.loco.build`; the default dashboard is `https://loco.build`. Follow the sign-in instructions printed by the installed CLI.
 
+An account that belongs to no organization gets one on its first sign-in from the CLI or the dashboard: `ada-example-com-org` for `ada@example.com`, with a `default` workspace.
+
 ## Staging
 
 ```sh
