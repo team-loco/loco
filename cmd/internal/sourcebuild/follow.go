@@ -102,13 +102,12 @@ func (f *Follower) GetBuild(ctx context.Context, buildID string) (*buildv1.Build
 func (f *Follower) Follow(ctx context.Context, build *buildv1.Build, workspaceID string) (*buildv1.Build, error) {
 	logCtx, stopLogs := context.WithCancel(ctx)
 	defer stopLogs()
-	logsDone := make(chan struct{})
-	logsStarted := false
+	var logsDone chan struct{}
 	startLogs := func(current *buildv1.Build) {
-		if logsStarted || current.GetClusterId() == "" {
+		if logsDone != nil || current.GetClusterId() == "" {
 			return
 		}
-		logsStarted = true
+		logsDone = make(chan struct{})
 		go func() {
 			defer close(logsDone)
 			f.streamLogs(logCtx, current, workspaceID)
@@ -116,7 +115,7 @@ func (f *Follower) Follow(ctx context.Context, build *buildv1.Build, workspaceID
 	}
 	waitLogs := func() {
 		stopLogs()
-		if logsStarted {
+		if logsDone != nil {
 			<-logsDone
 		}
 	}
@@ -158,7 +157,7 @@ func (f *Follower) Follow(ctx context.Context, build *buildv1.Build, workspaceID
 		startLogs(build)
 	}
 
-	if logsStarted {
+	if logsDone != nil {
 		drain := time.NewTimer(buildLogDrain)
 		select {
 		case <-ctx.Done():
