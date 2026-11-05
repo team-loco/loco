@@ -232,7 +232,13 @@ func (ss *syncSession) send(ctx context.Context, secrets *secretSnapshot, placem
 			return nil
 		}
 		if err != nil {
-			return fmt.Errorf("load secrets of placement %s: %w", placement.ID, err)
+			slog.ErrorContext(ctx, "failed to load the secrets of a placement",
+				"cluster_id", ss.clusterID,
+				"placement_id", placement.ID,
+				"revision", placement.DesiredRevision,
+				"error", err,
+			)
+			return nil
 		}
 		envSecret = secret
 		defer zeroEnvSecretData(envSecret.GetData())
