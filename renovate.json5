@@ -21,6 +21,11 @@
   vulnerabilityAlerts: {
     labels: ["dependencies", "security"],
   },
+  lockFileMaintenance: {
+    enabled: true,
+    description: "Moves the transitive versions in bun.lock and uv.lock, which no package file update reaches. The default schedule, before 4am on Monday, never matches renovate.yml's Monday 06:00 run",
+    schedule: ["at any time"],
+  },
   packageRules: [
     {
       description: "The jdx/mise regex manager below moves the constraints.mise value with the CI mise version; Renovate's own tool-constraint update duplicates it with a v prefix",
