@@ -86,33 +86,9 @@ Your team supplies DNS records, certificate issuance, persistent storage, backup
 
 ## First system admin
 
-Operator commands in `locoadm` require the `system:admin` grant. A new installation grants it once, to a signed-in user who presents the installation's bootstrap token.
+Operator commands in `locoadm` require the `system:admin` grant. `BootstrapService.Bootstrap` requires both the installation's bootstrap token and an identity-provider JWT in the Authorization header. The API verifies the issuer, signature, audience, expiry and verified email before resolving or creating the first administrator, including when ordinary signup is closed. It returns a normal CLI session.
 
-1. Generate a token of at least 32 characters, store it in a Secret, and name it in the `loco-control-plane` values. A standalone API reads it from `LOCO_BOOTSTRAP_TOKEN`.
-
-   ```sh
-   kubectl -n loco-system create secret generic loco-bootstrap \
-     --from-literal=token="$(openssl rand -hex 32)"
-   ```
-
-   ```yaml
-   api:
-     bootstrapToken:
-       existingSecret:
-         name: loco-bootstrap
-         key: token
-   ```
-
-2. Sign in as the future admin and present the token:
-
-   ```sh
-   loco login --host https://api.example.com
-   locoadm bootstrap --token "$(kubectl -n loco-system get secret loco-bootstrap -o jsonpath='{.data.token}' | base64 -d)"
-   ```
-
-3. Remove `api.bootstrapToken` from the values, upgrade the release and delete the Secret.
-
-The first successful bootstrap closes bootstrap permanently in the database; the token cannot reopen it after a restart. Bootstrap fails when any system admin already exists.
+Bootstrap creates the user, grants system administration and closes bootstrap in one transaction. Concurrent attempts produce one administrator. A restart, a lost response or removal of an administrator never reopens bootstrap. Remove the temporary bootstrap reference from every API replica before deleting its Secret. The declarative operator workflow is tracked by the unreleased [installation file](../reference/installation.md) contract.
 
 ## Upgrades
 

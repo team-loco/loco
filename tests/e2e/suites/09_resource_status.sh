@@ -41,7 +41,6 @@ status_app_selector() {
 }
 
 test_s01_deploy_reports_healthy() {
-    cli_seed_session
     rm -rf "$status_dir"
     mkdir -p "$status_app_dir"
     cli_write_credentials

@@ -1,0 +1,25 @@
+issuer: {{ .Env.E2E_AUTH_ISSUER }}
+storage:
+  type: memory
+web:
+  http: 0.0.0.0:5556
+oauth2:
+  passwordConnector: local
+  grantTypes: [password, authorization_code]
+  skipApprovalScreen: true
+enablePasswordDB: true
+staticPasswords:
+  - email: loco-admin@test.local
+    username: administrator
+    userID: 308df543-4d10-446c-8129-99784f79ea48
+    hash: "$2y$10$vfSi9m1OEnaluYBI3vRm1.Wi6fm//wfdPE4aN.IvABgykcA.5NBsi"
+  - email: e2e@test.local
+    username: application-user
+    userID: b9d17e6e-f933-49c5-84a4-36f4d11dc4a2
+    hash: "$2y$10$vfSi9m1OEnaluYBI3vRm1.Wi6fm//wfdPE4aN.IvABgykcA.5NBsi"
+staticClients:
+  - id: loco-e2e
+    name: Loco component test fixtures
+    public: true
+    redirectURIs:
+      - http://localhost/callback

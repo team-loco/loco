@@ -34,7 +34,6 @@ test_p01_health() {
 }
 
 test_p02_requests_without_a_valid_token_are_unauthenticated() {
-    cli_seed_session
     local status
     status=$(proxy_status "$cli_workspace_id")
     assert "QueryLogs without a token is unauthenticated (HTTP ${status})" test "$status" = 401
@@ -117,7 +116,6 @@ forged_token() {
 }
 
 place_cli_workspace() {
-    cli_seed_session
     rm -rf "$otlp_dir"
     mkdir -p "$otlp_dir/$otlp_app"
     cli_write_credentials

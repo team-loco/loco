@@ -191,6 +191,7 @@ e2e:
     - "mise-tasks/e2e/**"
     - "mise-tasks/helm/**"
     - "tests/e2e/**"
+    - "tools/e2e-auth/**"
     - "tests/conformance/transit/compose.yaml"
     - "go.mod"
     - "go.sum"

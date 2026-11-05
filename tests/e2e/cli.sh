@@ -1,39 +1,24 @@
 #!/usr/bin/env bash
 
-cli_user_id='00000000-0000-7000-8000-000000000001'
-cli_org_id='00000000-0000-7000-8000-000000000002'
-cli_workspace_id='00000000-0000-7000-8000-000000000003'
-cli_session_id='00000000-0000-7000-8000-000000000007'
+cli_user_id=${E2E_USER_ID:-}
+cli_org_id=${E2E_ORG_ID:-}
+cli_workspace_id=${E2E_WORKSPACE_ID:-}
 
 loco_cli() {
     HOME="$cli_home" LOCO_CREDENTIAL_STORE=file LOCO_HOST="$E2E_API_URL" \
         "$E2E_BIN_DIR/loco" "$@"
 }
 
-cli_seed_session() {
-    e2e_psql "
-        INSERT INTO user_scopes (user_id, scope, entity_type, entity_id)
-        VALUES
-            ('${cli_user_id}', 'read', 'workspace', '${cli_workspace_id}'),
-            ('${cli_user_id}', 'write', 'workspace', '${cli_workspace_id}')
-        ON CONFLICT DO NOTHING;
-        INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id,
-                                    access_expires_at, refresh_expires_at)
-        VALUES (
-            '${cli_session_id}',
-            encode(sha256(convert_to('${E2E_USER_TOKEN}', 'UTF8')), 'hex'),
-            encode(sha256(convert_to('refresh-${E2E_USER_TOKEN}', 'UTF8')), 'hex'),
-            '${cli_user_id}',
-            NOW() + INTERVAL '1 day',
-            NOW() + INTERVAL '1 day'
-        ) ON CONFLICT DO NOTHING;
-    " >/dev/null
+fixture_workspace() {
+    curl -sS --fail-with-body -X POST "${E2E_API_URL}/loco.workspace.v1.WorkspaceService/CreateWorkspace" \
+        -H "Authorization: Bearer ${E2E_USER_TOKEN}" -H 'Content-Type: application/json' \
+        -d "{\"orgId\":\"${cli_org_id}\",\"name\":\"$1\"}" | yq -p json '.workspaceId'
 }
 
 cli_write_credentials() {
     mkdir -p "$cli_home/.loco"
-    printf '{"Host":"%s","ExpiresAt":"2099-01-01T00:00:00Z","Token":"%s","RefreshToken":""}\n' \
-        "$E2E_API_URL" "$E2E_USER_TOKEN" >"$cli_home/.loco/credentials.json"
+    yq -p json -o json '.userCredentials' "$E2E_AUTH_STATE" >"$cli_home/.loco/credentials.json"
+    chmod 600 "$cli_home/.loco/credentials.json"
     cat >"$cli_home/.loco/config.yaml" <<YAML
 currentScope: default
 scopes:

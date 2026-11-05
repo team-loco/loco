@@ -27,7 +27,6 @@ cli_built_image() {
 }
 
 test_c01_cli_deploys_from_source() {
-    cli_seed_session
     cli_setup
 
     local started elapsed build_id rc=0
