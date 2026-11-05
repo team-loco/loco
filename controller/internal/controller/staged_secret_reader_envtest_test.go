@@ -24,14 +24,18 @@ var _ = Describe("Staged environment secret reads", func() {
 		stage := &corev1.Secret{
 			Name:      "env-staged-reader",
 			Namespace: testNamespace,
-			Labels:    map[string]string{locov1alpha1.LabelPlacementRevision: "1"},
-			Data:      map[string][]byte{"VALUE": []byte("initial"), envOTelTracesSamplerArg: []byte("0")},
+			Labels: map[string]string{
+				locov1alpha1.LabelPlacementID:       testStagedPlacementID,
+				locov1alpha1.LabelPlacementRevision: "1",
+			},
+			Data: map[string][]byte{"VALUE": []byte("initial"), envOTelTracesSamplerArg: []byte("0")},
 		}
 		Expect(k8sClient.Create(ctx, stage)).To(Succeed())
 		DeferCleanup(func() { Expect(k8sClient.Delete(ctx, stage)).To(Succeed()) })
 		namespace := &corev1.Namespace{Name: testWorkspaceNamespace(app)}
 		Expect(k8sClient.Create(ctx, namespace)).To(Succeed())
 		DeferCleanup(func() { Expect(k8sClient.Delete(ctx, namespace)).To(Succeed()) })
+		app.Annotations = map[string]string{locov1alpha1.AnnotationPlacementID: testStagedPlacementID}
 		app.Spec.ServiceSpec.Deployment.EnvSecretRef = &locov1alpha1.EnvSecretRef{Name: stage.Name, Revision: 1}
 		filtered, err := cache.New(cfg, CacheOptions(testNamespace, "registry-filtered-reader"))
 		Expect(err).NotTo(HaveOccurred())

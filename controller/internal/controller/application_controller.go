@@ -79,6 +79,7 @@ const (
 var (
 	errPullSecretWithoutNamespace = errors.New("a registry pull secret requires the loco namespace")
 	errEnvSecretPending           = errors.New("the staging env secret does not hold the referenced revision")
+	errEnvSecretPlacement         = errors.New("the staging env secret belongs to another placement")
 )
 
 // LocoResourceReconciler reconciles a Application object
@@ -504,6 +505,11 @@ func (r *LocoResourceReconciler) ensureEnvSecret(
 	}
 	if err != nil {
 		return envSecretMount{}, fmt.Errorf("get staged env secret %s: %w", stagedKey, err)
+	}
+	placementID := locoRes.PlacementID()
+	if placementID == "" || staged.Labels[locov1alpha1.LabelPlacementID] != placementID {
+		return envSecretMount{}, fmt.Errorf(
+			"%w: %s, application placement %q", errEnvSecretPlacement, stagedKey, placementID)
 	}
 	revision, ok := locov1alpha1.EnvSecretRevision(staged.Labels)
 	if !ok || revision != ref.Revision {

@@ -78,7 +78,7 @@ func newRecordingApplier(t *testing.T, existing ...client.Object) (*Applier, *wr
 }
 
 func appliedApplication(revision int64, withRef bool) *locoControllerV1.Application {
-	deployment := &locoControllerV1.ServiceDeploymentSpec{Image: "ghcr.io/team-loco/app:v1", Port: 8080}
+	deployment := &locoControllerV1.ServiceDeploymentSpec{Image: testImage, Port: 8080}
 	if withRef {
 		deployment.EnvSecretRef = &locoControllerV1.EnvSecretRef{
 			Name:     locoControllerV1.EnvSecretName(testPlacementID),
@@ -306,5 +306,31 @@ func TestARetryRewritesASecretThatAnotherApplicationOwned(t *testing.T) {
 	}
 	if owners := secret.OwnerReferences; len(owners) != 1 || owners[0].UID != testAppUID {
 		t.Fatalf("env Secret owners = %+v, want the live Application", owners)
+	}
+}
+
+func TestAPayloadRefWithoutAnEnvSecretIsCleared(t *testing.T) {
+	a, _ := newRecordingApplier(t)
+	p := placement(t, testPlacementID, 1)
+	p.Application = marshalPayload(t, &locoControllerV1.ApplicationSpec{
+		Type:       testAppType,
+		ResourceID: testResourceID,
+		ServiceSpec: &locoControllerV1.ServiceSpec{
+			Deployment: &locoControllerV1.ServiceDeploymentSpec{
+				Image:        testImage,
+				Port:         8080,
+				EnvSecretRef: &locoControllerV1.EnvSecretRef{Name: locoControllerV1.EnvSecretName("p2"), Revision: 1},
+			},
+		},
+	})
+	if err := a.ApplyPlacement(context.Background(), p); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	app, err := a.live(t)
+	if err != nil {
+		t.Fatalf("get Application: %v", err)
+	}
+	if ref := app.Spec.ServiceSpec.Deployment.EnvSecretRef; ref != nil {
+		t.Fatalf("EnvSecretRef = %+v, want nil", ref)
 	}
 }
