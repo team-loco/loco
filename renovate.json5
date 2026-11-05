@@ -210,7 +210,7 @@
   customManagers: [
     {
       customType: "regex",
-      description: "The API docs load Scalar from the CDN without bundling it",
+      description: "The API docs load Scalar from the CDN without bundling it. Renovate cannot recompute the script's integrity hash, so lint:sri fails the update until mise run fix:sri refreshes it",
       managerFilePatterns: ["/^api/docs\\.html$/"],
       matchStrings: ["https://cdn\\.jsdelivr\\.net/npm/(?<depName>@scalar/api-reference)@(?<currentValue>[^/]+)/"],
       datasourceTemplate: "npm",

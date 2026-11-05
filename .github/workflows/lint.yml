@@ -97,3 +97,17 @@ jobs:
         env:
           GO_MODULE: ${{ matrix.working-directory }}
         run: mise run lint:go "$GO_MODULE"
+
+  script-integrity:
+    name: Script Integrity
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-tools
+        with:
+          go-cache: lint-sri
+
+      - name: Check the API docs scripts against the files their URLs serve
+        run: mise run lint:sri
