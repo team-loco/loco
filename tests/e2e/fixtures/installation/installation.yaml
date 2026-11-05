@@ -1,4 +1,4 @@
-version: {{ .Version | quote }}
+version: {{ .Version }}
 name: installation-e2e
 release: {manifest: /installation/release.json}
 controlPlane:

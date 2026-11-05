@@ -196,7 +196,7 @@ func (f *fixture) release(ctx context.Context) (map[string]any, string, error) {
 		return nil, "", err
 	}
 	manifest := map[string]any{
-		"configVersion": configVersion,
+		"configVersion": json.Number(configVersion),
 		"version":       "0.0.0-e2e",
 		"coreCommit":    strings.TrimSpace(string(commit)),
 		"artifacts":     artifacts,
