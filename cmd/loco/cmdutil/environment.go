@@ -17,23 +17,6 @@ const envVarEnvironment = "LOCO_ENV"
 
 var errNoEnvironments = errors.New("the workspace has no environments; create one in the web app first")
 
-// ResolveEnvironmentID picks the environment named by --env or LOCO_ENV, the workspace's
-// only environment, or an interactive choice, and returns its id.
-func ResolveEnvironmentID(
-	ctx context.Context,
-	cmd *cobra.Command,
-	client environmentv1connect.EnvironmentServiceClient,
-	selectFromList func(title string, options []ui.SelectOption) (any, error),
-	interactive bool,
-	workspaceID string,
-) (string, error) {
-	env, err := ResolveEnvironment(ctx, cmd, client, selectFromList, interactive, workspaceID)
-	if err != nil {
-		return "", err
-	}
-	return env.GetId(), nil
-}
-
 // ResolveEnvironment picks the environment named by --env or LOCO_ENV, the workspace's
 // only environment, or an interactive choice.
 func ResolveEnvironment(
