@@ -15,6 +15,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"sigs.k8s.io/yaml"
 )
 
 func TestFixtureRegistryAuthIsPrivateAndIndependentOfHostKeychain(t *testing.T) {
@@ -102,5 +103,28 @@ func TestPublishedArtifactIsPublicAndDigestReadable(t *testing.T) {
 	}
 	if !bytes.Equal(received, data) {
 		t.Fatal("artifact transport changed the chart archive")
+	}
+}
+
+func TestInstallationCRDArtifactsHaveTheWorkerAPIGroup(t *testing.T) {
+	for _, artifact := range installationCRDs {
+		t.Run(artifact.key, func(t *testing.T) {
+			data, err := os.ReadFile(filepath.Join("..", "..", artifact.file))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var definition struct {
+				Kind string `json:"kind"`
+				Spec struct {
+					Group string `json:"group"`
+				} `json:"spec"`
+			}
+			if err = yaml.Unmarshal(data, &definition); err != nil {
+				t.Fatal(err)
+			}
+			if definition.Kind != "CustomResourceDefinition" || definition.Spec.Group != "infra.loco.io" {
+				t.Fatal("release artifact does not install the worker API")
+			}
+		})
 	}
 }

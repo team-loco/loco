@@ -28,6 +28,11 @@ const (
 	bundleLayer    = "application/vnd.oci.image.layer.v1.tar+gzip"
 )
 
+var installationCRDs = []struct{ key, file string }{
+	{"loco-applications-crd", "controller/config/crd/bases/infra.loco.io_applications.yaml"},
+	{"loco-builds-crd", "controller/config/crd/bases/infra.loco.io_builds.yaml"},
+}
+
 func (f *fixture) release(ctx context.Context) (map[string]any, string, error) {
 	if _, checkErr := command(ctx, f.root, nil, "mise", "run", "helm:deps"); checkErr != nil {
 		return nil, "", checkErr
@@ -134,9 +139,7 @@ func (f *fixture) release(ctx context.Context) (map[string]any, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	for _, component := range []struct{ key, file string }{
-		{"loco-applications-crd", "controller/config/crd/bases/loco.loco.io_applications.yaml"},
-		{"loco-builds-crd", "controller/config/crd/bases/loco.loco.io_builds.yaml"}} {
+	for _, component := range installationCRDs {
 		data, readErr := os.ReadFile(filepath.Join(f.root, component.file))
 		if readErr != nil {
 			return nil, "", readErr
