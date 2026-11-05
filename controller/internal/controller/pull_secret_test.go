@@ -108,7 +108,7 @@ func TestPullSecretChangedMatchesTheAgentsSecretsInTokenMode(t *testing.T) {
 func TestApplicationPerWorkspaceEnqueuesOneLiveAppPerWorkspace(t *testing.T) {
 	scheme := workspaceTestScheme(t)
 	deleting := workspaceApp("deleting", "1")
-	deleting.Finalizers = []string{finalizerAppResourcesCleanup}
+	deleting.Finalizers = []string{locov1alpha1.FinalizerAppResourcesCleanup}
 	deletedAt := metav1.Now()
 	deleting.DeletionTimestamp = &deletedAt
 	invalid := workspaceApp("invalid", "2")

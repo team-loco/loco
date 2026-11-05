@@ -13,12 +13,9 @@ import (
 )
 
 const (
-	LabelComponent      = "app.kubernetes.io/component"
-	LabelOrganizationID = "loco.io/organization-id"
-	LabelWorkspaceID    = "loco.io/workspace-id"
-	LabelResourceID     = "loco.io/resource-id"
-	ManagedByValue      = "loco-controller"
-	FieldOwner          = "loco-controller"
+	LabelComponent = "app.kubernetes.io/component"
+	ManagedByValue = "loco-controller"
+	FieldOwner     = "loco-controller"
 )
 
 var (

@@ -203,8 +203,12 @@ func TestEnsureWritesAWellFormedPullSecretOnce(t *testing.T) {
 		t.Fatalf("labels = %v, want %s=%s", secret.Labels, locoControllerV1.LabelRegistryPull, testWorkspace)
 	}
 	wantExpiry := f.clock.Now().Add(testLifetime).Format(time.RFC3339Nano)
-	if secret.Annotations[AnnotationExpiresAt] != wantExpiry {
-		t.Fatalf("expires-at annotation = %q, want %q", secret.Annotations[AnnotationExpiresAt], wantExpiry)
+	if secret.Annotations[locoControllerV1.AnnotationRegistryPullExpiresAt] != wantExpiry {
+		t.Fatalf(
+			"expires-at annotation = %q, want %q",
+			secret.Annotations[locoControllerV1.AnnotationRegistryPullExpiresAt],
+			wantExpiry,
+		)
 	}
 	auth := decodeAuth(t, secret)
 	if auth.Username != testPullUser || auth.Password != testFirstPassword {
@@ -260,8 +264,12 @@ func TestCheckRenewsPastHalfTheLifetime(t *testing.T) {
 		t.Fatalf("password after renewal = %q, want secret-2", auth.Password)
 	}
 	wantIssued := f.clock.Now().Format(time.RFC3339Nano)
-	if secret.Annotations[AnnotationIssuedAt] != wantIssued {
-		t.Fatalf("issued-at = %q, want %q", secret.Annotations[AnnotationIssuedAt], wantIssued)
+	if secret.Annotations[locoControllerV1.AnnotationRegistryPullIssuedAt] != wantIssued {
+		t.Fatalf(
+			"issued-at = %q, want %q",
+			secret.Annotations[locoControllerV1.AnnotationRegistryPullIssuedAt],
+			wantIssued,
+		)
 	}
 }
 

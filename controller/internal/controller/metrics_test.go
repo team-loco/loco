@@ -3,6 +3,7 @@ package controller
 import (
 	"testing"
 
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -20,11 +21,11 @@ func TestMetricsDiscoveryAndIngressAreOptIn(t *testing.T) {
 		deployment := buildDeployment(t, app)
 		template := deployment.Spec.Template
 		if enabled {
-			if template.Labels[labelMetricsPort] != "9090" ||
-				template.Annotations[annotationMetricsPath] != defaultMetricsPath {
+			if template.Labels[locolabels.LabelMetricsPort] != "9090" ||
+				template.Annotations[locolabels.AnnotationMetricsPath] != defaultMetricsPath {
 				t.Fatalf("metadata = %+v", template)
 			}
-		} else if _, present := template.Labels[labelMetricsPort]; present {
+		} else if _, present := template.Labels[locolabels.LabelMetricsPort]; present {
 			t.Fatal("disabled endpoint still discoverable")
 		}
 		policy := r.metricsIngressPolicy(app)

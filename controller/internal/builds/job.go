@@ -48,12 +48,12 @@ const (
 
 func buildLabels(build *locov1alpha1.Build) map[string]string {
 	return map[string]string{
-		locolabels.LabelManagedBy:   managed.ManagedByValue,
-		managed.LabelComponent:      componentBuild,
-		managed.LabelOrganizationID: build.Spec.OrganizationID,
-		managed.LabelWorkspaceID:    build.Spec.WorkspaceID,
-		managed.LabelResourceID:     build.Spec.ResourceID,
-		locolabels.LabelBuildID:     build.Spec.BuildID,
+		locolabels.LabelManagedBy:      managed.ManagedByValue,
+		managed.LabelComponent:         componentBuild,
+		locolabels.LabelOrganizationID: build.Spec.OrganizationID,
+		locolabels.LabelWorkspaceID:    build.Spec.WorkspaceID,
+		locolabels.LabelResourceID:     build.Spec.ResourceID,
+		locolabels.LabelBuildID:        build.Spec.BuildID,
 	}
 }
 

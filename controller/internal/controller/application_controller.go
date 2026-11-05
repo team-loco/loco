@@ -58,18 +58,13 @@ import (
 )
 
 const (
-	finalizerAppResourcesCleanup = "infra.loco.io/app-resources-cleanup"
-	labelApp                     = "app"
-	labelEnvironmentID           = "loco.io/environment-id"
-	annotationAppNamespace       = "loco.io/application-namespace"
-	annotationAppName            = "loco.io/application-name"
-	annotationEnvSecretRevision  = "loco.io/env-secret-revision"
-	envRegion                    = "LOCO_REGION"
-	componentApplication         = "application"
-	servicePort                  = int32(80)
-	deployingRequeue             = 15 * time.Second
-	envSecretRequeue             = 5 * time.Second
-	maxConcurrentReconciles      = 4
+	labelApp                = "app"
+	envRegion               = "LOCO_REGION"
+	componentApplication    = "application"
+	servicePort             = int32(80)
+	deployingRequeue        = 15 * time.Second
+	envSecretRequeue        = 5 * time.Second
+	maxConcurrentReconciles = 4
 )
 
 var (
@@ -228,7 +223,7 @@ func (r *LocoResourceReconciler) reconcileResources(
 			setPhase(locoRes, locov1alpha1.ApplicationPhaseFailed, failure.message)
 			return ctrl.Result{RequeueAfter: deployingRequeue}, nil
 		}
-		envSecretRevision := dep.Spec.Template.Annotations[annotationEnvSecretRevision]
+		envSecretRevision := dep.Spec.Template.Annotations[locolabels.AnnotationEnvSecretRevision]
 		stuck, found, err := r.findStuckReplica(ctx, locoRes, envSecretRevision)
 		if err != nil {
 			return ctrl.Result{}, fmt.Errorf("find stuck replicas: %w", err)
@@ -289,16 +284,16 @@ func (r *LocoResourceReconciler) patchStatus(
 }
 
 func (r *LocoResourceReconciler) ensureFinalizer(ctx context.Context, locoRes *locov1alpha1.Application) error {
-	if controllerutil.ContainsFinalizer(locoRes, finalizerAppResourcesCleanup) {
+	if controllerutil.ContainsFinalizer(locoRes, locov1alpha1.FinalizerAppResourcesCleanup) {
 		return nil
 	}
 	original := locoRes.DeepCopy()
-	controllerutil.AddFinalizer(locoRes, finalizerAppResourcesCleanup)
+	controllerutil.AddFinalizer(locoRes, locov1alpha1.FinalizerAppResourcesCleanup)
 	patch := client.MergeFrom(original)
 	if err := r.Patch(ctx, locoRes, patch); err != nil {
 		return fmt.Errorf("add finalizer: %w", err)
 	}
-	slog.DebugContext(ctx, "added finalizer", "finalizer", finalizerAppResourcesCleanup)
+	slog.DebugContext(ctx, "added finalizer", "finalizer", locov1alpha1.FinalizerAppResourcesCleanup)
 	return nil
 }
 
@@ -307,7 +302,7 @@ func (r *LocoResourceReconciler) handleDeletion(
 	ctx context.Context,
 	locoRes *locov1alpha1.Application,
 ) (ctrl.Result, error) {
-	if !controllerutil.ContainsFinalizer(locoRes, finalizerAppResourcesCleanup) {
+	if !controllerutil.ContainsFinalizer(locoRes, locov1alpha1.FinalizerAppResourcesCleanup) {
 		return ctrl.Result{}, nil
 	}
 
@@ -319,12 +314,12 @@ func (r *LocoResourceReconciler) handleDeletion(
 	}
 
 	original := locoRes.DeepCopy()
-	controllerutil.RemoveFinalizer(locoRes, finalizerAppResourcesCleanup)
+	controllerutil.RemoveFinalizer(locoRes, locov1alpha1.FinalizerAppResourcesCleanup)
 	patch := client.MergeFrom(original)
 	if err := r.Patch(ctx, locoRes, patch); err != nil {
 		return ctrl.Result{}, fmt.Errorf("remove finalizer: %w", err)
 	}
-	slog.InfoContext(ctx, "removed finalizer", "finalizer", finalizerAppResourcesCleanup)
+	slog.InfoContext(ctx, "removed finalizer", "finalizer", locov1alpha1.FinalizerAppResourcesCleanup)
 
 	return ctrl.Result{}, nil
 }
@@ -427,17 +422,17 @@ func managedLabels(locoRes *locov1alpha1.Application) map[string]string {
 
 func workloadLabels(locoRes *locov1alpha1.Application) map[string]string {
 	labels := managedLabels(locoRes)
-	labels[managed.LabelOrganizationID] = locoRes.Spec.OrganizationID
-	labels[managed.LabelWorkspaceID] = locoRes.Spec.WorkspaceID
-	labels[managed.LabelResourceID] = locoRes.Spec.ResourceID
-	labels[labelEnvironmentID] = locoRes.Spec.EnvironmentID
+	labels[locolabels.LabelOrganizationID] = locoRes.Spec.OrganizationID
+	labels[locolabels.LabelWorkspaceID] = locoRes.Spec.WorkspaceID
+	labels[locolabels.LabelResourceID] = locoRes.Spec.ResourceID
+	labels[locolabels.LabelEnvironmentID] = locoRes.Spec.EnvironmentID
 	return labels
 }
 
 func ownerAnnotations(locoRes *locov1alpha1.Application) map[string]string {
 	return map[string]string{
-		annotationAppNamespace: locoRes.Namespace,
-		annotationAppName:      locoRes.Name,
+		locolabels.AnnotationApplicationNamespace: locoRes.Namespace,
+		locolabels.AnnotationApplicationName:      locoRes.Name,
 	}
 }
 
@@ -732,7 +727,7 @@ func podTemplate(
 		secretRef := corev1ac.SecretEnvSource().WithName(envSecretName)
 		envFrom := corev1ac.EnvFromSource().WithSecretRef(secretRef)
 		container.WithEnvFrom(envFrom)
-		podAnnotations[annotationEnvSecretRevision] = strconv.FormatInt(envSecret.Revision, 10)
+		podAnnotations[locolabels.AnnotationEnvSecretRevision] = strconv.FormatInt(envSecret.Revision, 10)
 	}
 
 	if hc := spec.Deployment.HealthCheck; hc != nil {

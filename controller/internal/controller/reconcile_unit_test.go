@@ -15,6 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	v1Gateway "sigs.k8s.io/gateway-api/apis/v1"
 
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -152,7 +153,7 @@ func TestDesiredDeploymentInlinesPlainEnvAndMountsTheEnvSecret(t *testing.T) {
 	if secretName != wantSecretName {
 		t.Errorf("envFrom secret = %q, want %q", secretName, wantSecretName)
 	}
-	revision := dep.Spec.Template.Annotations[annotationEnvSecretRevision]
+	revision := dep.Spec.Template.Annotations[locolabels.AnnotationEnvSecretRevision]
 	if revision != "7" {
 		t.Errorf("env secret revision annotation = %q, want 7", revision)
 	}
@@ -168,7 +169,7 @@ func TestDesiredDeploymentInlinesPlainEnvAndMountsTheEnvSecret(t *testing.T) {
 	if len(container.EnvFrom) != 0 {
 		t.Errorf("envFrom without an env secret = %+v, want none", container.EnvFrom)
 	}
-	if _, ok := dep.Spec.Template.Annotations[annotationEnvSecretRevision]; ok {
+	if _, ok := dep.Spec.Template.Annotations[locolabels.AnnotationEnvSecretRevision]; ok {
 		t.Error("env secret revision annotation set without an env secret")
 	}
 }

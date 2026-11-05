@@ -72,11 +72,11 @@ func CacheOptions(locoNamespace, pullSecretName string, registryTokenMode bool) 
 
 func applicationForObject(_ context.Context, obj client.Object) []reconcile.Request {
 	annotations := obj.GetAnnotations()
-	namespace, ok := annotations[annotationAppNamespace]
+	namespace, ok := annotations[locolabels.AnnotationApplicationNamespace]
 	if !ok || namespace == "" {
 		return nil
 	}
-	name, ok := annotations[annotationAppName]
+	name, ok := annotations[locolabels.AnnotationApplicationName]
 	if !ok || name == "" {
 		return nil
 	}

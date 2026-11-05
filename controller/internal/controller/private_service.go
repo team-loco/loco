@@ -17,7 +17,6 @@ import (
 )
 
 const (
-	labelPrivateServiceOwner      = "loco.io/private-service-owner"
 	componentPrivateService       = "private-service"
 	privateServicePortName        = "tcp"
 	privateServiceDefaultPortName = "default"
@@ -32,11 +31,11 @@ var (
 
 func ownsPrivateService(app *locov1alpha1.Application, svc *corev1.Service) bool {
 	return app.UID != "" &&
-		svc.Labels[labelPrivateServiceOwner] == string(app.UID) &&
+		svc.Labels[locolabels.LabelPrivateServiceOwner] == string(app.UID) &&
 		svc.Labels[locolabels.LabelManagedBy] == managed.ManagedByValue &&
 		svc.Labels[managed.LabelComponent] == componentPrivateService &&
-		svc.Annotations[annotationAppNamespace] == app.Namespace &&
-		svc.Annotations[annotationAppName] == app.Name
+		svc.Annotations[locolabels.AnnotationApplicationNamespace] == app.Namespace &&
+		svc.Annotations[locolabels.AnnotationApplicationName] == app.Name
 }
 
 func (r *LocoResourceReconciler) ensurePrivateService(ctx context.Context, app *locov1alpha1.Application) error {
@@ -66,9 +65,9 @@ func (r *LocoResourceReconciler) ensurePrivateService(ctx context.Context, app *
 	}
 	desired := &corev1.Service{Name: name, Namespace: namespace,
 		Labels: map[string]string{
-			locolabels.LabelManagedBy: managed.ManagedByValue,
-			managed.LabelComponent:    componentPrivateService,
-			labelPrivateServiceOwner:  string(app.UID),
+			locolabels.LabelManagedBy:           managed.ManagedByValue,
+			managed.LabelComponent:              componentPrivateService,
+			locolabels.LabelPrivateServiceOwner: string(app.UID),
 		}, Annotations: ownerAnnotations(app),
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
@@ -116,8 +115,8 @@ func (r *LocoResourceReconciler) prunePrivateServices(
 	}
 	list := &corev1.ServiceList{}
 	selector := client.MatchingLabels{
-		labelPrivateServiceOwner: string(app.UID),
-		managed.LabelComponent:   componentPrivateService,
+		locolabels.LabelPrivateServiceOwner: string(app.UID),
+		managed.LabelComponent:              componentPrivateService,
 	}
 	reader := r.APIReader
 	if err := reader.List(ctx, list, client.InNamespace(r.workspaceNamespace(app)), selector); err != nil {

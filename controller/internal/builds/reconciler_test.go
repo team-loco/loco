@@ -242,11 +242,11 @@ var _ = Describe("Build reconcile", Ordered, func() {
 		Expect(job.Spec.ActiveDeadlineSeconds).To(HaveValue(Equal(int64(1800))))
 		Expect(job.Spec.TTLSecondsAfterFinished).To(HaveValue(BeNumerically(">=", 120)))
 		wantLabels := map[string]string{
-			managed.LabelOrganizationID: testBuildOrg,
-			managed.LabelWorkspaceID:    testBuildWorkspace,
-			managed.LabelResourceID:     "res-1",
-			locolabels.LabelBuildID:     "shape",
-			locolabels.LabelManagedBy:   managed.ManagedByValue,
+			locolabels.LabelOrganizationID: testBuildOrg,
+			locolabels.LabelWorkspaceID:    testBuildWorkspace,
+			locolabels.LabelResourceID:     "res-1",
+			locolabels.LabelBuildID:        "shape",
+			locolabels.LabelManagedBy:      managed.ManagedByValue,
 		}
 		for key, value := range wantLabels {
 			Expect(job.Labels).To(HaveKeyWithValue(key, value))

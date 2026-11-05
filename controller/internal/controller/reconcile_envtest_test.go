@@ -127,7 +127,7 @@ var _ = Describe("Application reconcile", func() {
 			{Name: "B", Value: "2"},
 			{Name: "C", Value: "3"},
 		}))
-		Expect(dep.Spec.Template.Annotations).To(HaveKeyWithValue(annotationEnvSecretRevision, "2"))
+		Expect(dep.Spec.Template.Annotations).To(HaveKeyWithValue(locolabels.AnnotationEnvSecretRevision, "2"))
 		envSecret := &corev1.Secret{}
 		Expect(k8sClient.Get(ctx, envKey, envSecret)).To(Succeed())
 		Expect(envSecret.Data).To(Equal(map[string][]byte{"DATABASE_URL": []byte("postgres://new")}))
@@ -136,8 +136,8 @@ var _ = Describe("Application reconcile", func() {
 		Expect(imageSecret.Type).To(Equal(corev1.SecretTypeDockerConfigJson))
 		Expect(imageSecret.Data).To(Equal(pullSecret.Data))
 		Expect(imageSecret.Labels).To(HaveKeyWithValue(locolabels.LabelManagedBy, managed.ManagedByValue))
-		Expect(imageSecret.Labels).To(HaveKeyWithValue(managed.LabelWorkspaceID, app.Spec.WorkspaceID))
-		Expect(imageSecret.Annotations).NotTo(HaveKey(annotationAppName))
+		Expect(imageSecret.Labels).To(HaveKeyWithValue(locolabels.LabelWorkspaceID, app.Spec.WorkspaceID))
+		Expect(imageSecret.Annotations).NotTo(HaveKey(locolabels.AnnotationApplicationName))
 		sa := &corev1.ServiceAccount{}
 		Expect(k8sClient.Get(ctx, depKey, sa)).To(Succeed())
 		Expect(sa.ImagePullSecrets).To(ConsistOf(corev1.LocalObjectReference{Name: workspacePullSecretName}))
@@ -147,7 +147,7 @@ var _ = Describe("Application reconcile", func() {
 		Expect(apierrors.IsNotFound(err)).To(BeTrue())
 		Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
 		Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseDeploying))
-		Expect(app.Finalizers).To(ConsistOf(finalizerAppResourcesCleanup))
+		Expect(app.Finalizers).To(ConsistOf(locov1alpha1.FinalizerAppResourcesCleanup))
 		depVersion := dep.ResourceVersion
 		appVersion := app.ResourceVersion
 
@@ -168,7 +168,7 @@ var _ = Describe("Application reconcile", func() {
 		Expect(envSecret.Data).To(HaveKeyWithValue("DATABASE_URL", []byte("postgres://new")),
 			"the env Secret was copied ahead of the Application's reference")
 		Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
-		Expect(dep.Spec.Template.Annotations).To(HaveKeyWithValue(annotationEnvSecretRevision, "2"))
+		Expect(dep.Spec.Template.Annotations).To(HaveKeyWithValue(locolabels.AnnotationEnvSecretRevision, "2"))
 
 		Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
 		app.Spec.ServiceSpec.Deployment.EnvSecretRef.Revision = 3
@@ -178,7 +178,7 @@ var _ = Describe("Application reconcile", func() {
 		Expect(k8sClient.Get(ctx, envKey, envSecret)).To(Succeed())
 		Expect(envSecret.Data).To(HaveKeyWithValue("DATABASE_URL", []byte("postgres://next")))
 		Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
-		Expect(dep.Spec.Template.Annotations).To(HaveKeyWithValue(annotationEnvSecretRevision, "3"))
+		Expect(dep.Spec.Template.Annotations).To(HaveKeyWithValue(locolabels.AnnotationEnvSecretRevision, "3"))
 
 		rotated := []byte(`{"auths":{"registry.example.com":{}}}`)
 		pullSecret.Data = map[string][]byte{corev1.DockerConfigJsonKey: rotated}
@@ -205,7 +205,7 @@ var _ = Describe("Application reconcile", func() {
 		Expect(apierrors.IsNotFound(err)).To(BeTrue(), "the env Secret outlived its reference")
 		Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
 		Expect(dep.Spec.Template.Spec.Containers[0].EnvFrom).To(BeEmpty())
-		Expect(dep.Spec.Template.Annotations).NotTo(HaveKey(annotationEnvSecretRevision))
+		Expect(dep.Spec.Template.Annotations).NotTo(HaveKey(locolabels.AnnotationEnvSecretRevision))
 
 		Expect(k8sClient.Delete(ctx, staged)).To(Succeed())
 		Expect(k8sClient.Delete(ctx, app)).To(Succeed())
@@ -490,7 +490,7 @@ var _ = Describe("Application reconcile", func() {
 		app := &locov1alpha1.Application{
 			Name:       "invalid",
 			Namespace:  testNamespace,
-			Finalizers: []string{finalizerAppResourcesCleanup},
+			Finalizers: []string{locov1alpha1.FinalizerAppResourcesCleanup},
 			Spec:       locov1alpha1.ApplicationSpec{Type: testAppType, ResourceID: "invalid", WorkspaceID: "ws"},
 		}
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
@@ -527,7 +527,7 @@ var _ = Describe("Application reconcile", func() {
 			app := &locov1alpha1.Application{
 				Name:       "ns-guard-" + workspaceID,
 				Namespace:  testNamespace,
-				Finalizers: []string{finalizerAppResourcesCleanup},
+				Finalizers: []string{locov1alpha1.FinalizerAppResourcesCleanup},
 				Spec: locov1alpha1.ApplicationSpec{
 					Type: testAppType, ResourceID: workspaceID, WorkspaceID: workspaceID,
 				},

@@ -3,6 +3,8 @@ package v1alpha1
 const (
 	applicationNamePrefix = "resource-"
 
+	FinalizerAppResourcesCleanup = "infra.loco.io/app-resources-cleanup"
+
 	ApplicationPhaseDeploying = "Deploying"
 	ApplicationPhaseReady     = "Ready"
 	ApplicationPhaseFailed    = "Failed"

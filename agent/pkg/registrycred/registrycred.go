@@ -26,9 +26,6 @@ import (
 )
 
 const (
-	AnnotationIssuedAt  = "loco.io/registry-pull-issued-at"
-	AnnotationExpiresAt = "loco.io/registry-pull-expires-at"
-
 	renewalDivisor = 2
 	authSeparator  = ":"
 )
@@ -208,7 +205,7 @@ func (m *Manager) check(ctx context.Context) (time.Time, error) {
 		workspaceID := secret.Labels[locoControllerV1.LabelRegistryPull]
 		secured[workspaceID] = struct{}{}
 		if _, isPlaced := placed[workspaceID]; !isPlaced {
-			issuedAt, issuedOK := annotationTime(secret, AnnotationIssuedAt)
+			issuedAt, issuedOK := annotationTime(secret, locoControllerV1.AnnotationRegistryPullIssuedAt)
 			if issuedOK && now.Sub(issuedAt) < m.interval {
 				continue
 			}
@@ -248,8 +245,8 @@ func refused(ctx context.Context, workspaceID string, err error) error {
 }
 
 func secretRenewAt(secret *corev1.Secret) (time.Time, bool) {
-	issuedAt, issuedOK := annotationTime(secret, AnnotationIssuedAt)
-	expiresAt, expiresOK := annotationTime(secret, AnnotationExpiresAt)
+	issuedAt, issuedOK := annotationTime(secret, locoControllerV1.AnnotationRegistryPullIssuedAt)
+	expiresAt, expiresOK := annotationTime(secret, locoControllerV1.AnnotationRegistryPullExpiresAt)
 	if !issuedOK || !expiresOK {
 		return time.Time{}, false
 	}
@@ -316,8 +313,8 @@ func (m *Manager) issue(ctx context.Context, workspaceID string, secret *corev1.
 		locoControllerV1.LabelRegistryPull: workspaceID,
 	}
 	secret.Annotations = map[string]string{
-		AnnotationIssuedAt:  issuedAt.UTC().Format(time.RFC3339Nano),
-		AnnotationExpiresAt: expiresAt.UTC().Format(time.RFC3339Nano),
+		locoControllerV1.AnnotationRegistryPullIssuedAt:  issuedAt.UTC().Format(time.RFC3339Nano),
+		locoControllerV1.AnnotationRegistryPullExpiresAt: expiresAt.UTC().Format(time.RFC3339Nano),
 	}
 	secret.Type = corev1.SecretTypeDockerConfigJson
 	secret.Data = map[string][]byte{corev1.DockerConfigJsonKey: config}

@@ -26,8 +26,9 @@ var (
 
 const (
 	reservedAttributePrefix = "loco."
-	kubernetesLabelPrefix   = "loco.io/"
-	zeroTraceID             = "00000000000000000000000000000000"
+	// keep in sync with the loco.io/ keys in k8sapi/labels and k8sapi/v1alpha1
+	kubernetesLabelPrefix = "loco.io/"
+	zeroTraceID           = "00000000000000000000000000000000"
 )
 
 // ValidateLogsRequest validates the query parameters for a logs request.

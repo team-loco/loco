@@ -15,7 +15,7 @@ import (
 	v1Gateway "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/team-loco/loco/controller/internal/isolation"
-	"github.com/team-loco/loco/controller/internal/managed"
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -88,10 +88,10 @@ var _ = Describe("Workspace isolation", func() {
 		Expect(ns.Labels).To(HaveKeyWithValue("pod-security.kubernetes.io/enforce", "restricted"))
 		Expect(ns.Labels).To(HaveKeyWithValue("pod-security.kubernetes.io/audit", "restricted"))
 		Expect(ns.Labels).To(HaveKeyWithValue("pod-security.kubernetes.io/warn", "restricted"))
-		Expect(ns.Labels).To(HaveKeyWithValue(labelLocoApp, "true"))
-		Expect(ns.Labels).To(HaveKeyWithValue(managed.LabelWorkspaceID, "ws-labels"))
-		Expect(ns.Labels).To(HaveKeyWithValue(labelEnvironmentID, "env-production"))
-		Expect(ns.Labels).NotTo(HaveKey(managed.LabelResourceID))
+		Expect(ns.Labels).To(HaveKeyWithValue(locolabels.LabelLocoApp, "true"))
+		Expect(ns.Labels).To(HaveKeyWithValue(locolabels.LabelWorkspaceID, "ws-labels"))
+		Expect(ns.Labels).To(HaveKeyWithValue(locolabels.LabelEnvironmentID, "env-production"))
+		Expect(ns.Labels).NotTo(HaveKey(locolabels.LabelResourceID))
 	})
 
 	It("keeps labels it does not own on an existing namespace", func() {
@@ -232,15 +232,15 @@ var _ = Describe("Workspace isolation", func() {
 		}
 		deployment := &appsv1.Deployment{}
 		Expect(k8sClient.Get(ctx, key, deployment)).To(Succeed())
-		Expect(deployment.Spec.Template.Labels[labelMetricsPort]).To(Equal("9090"))
-		Expect(deployment.Spec.Template.Annotations[annotationMetricsPath]).To(Equal(defaultMetricsPath))
+		Expect(deployment.Spec.Template.Labels[locolabels.LabelMetricsPort]).To(Equal("9090"))
+		Expect(deployment.Spec.Template.Annotations[locolabels.AnnotationMetricsPath]).To(Equal(defaultMetricsPath))
 		app.Spec.ServiceSpec.Obs = nil
 		Expect(reconciler.ensureMetricsIngressPolicy(ctx, app)).To(Succeed())
 		_, err = reconciler.ensureDeployment(ctx, app, envSecretMount{})
 		Expect(err).NotTo(HaveOccurred())
 		Expect(k8sClient.Get(ctx, key, deployment)).To(Succeed())
-		Expect(deployment.Spec.Template.Labels).NotTo(HaveKey(labelMetricsPort))
-		Expect(deployment.Spec.Template.Annotations).NotTo(HaveKey(annotationMetricsPath))
+		Expect(deployment.Spec.Template.Labels).NotTo(HaveKey(locolabels.LabelMetricsPort))
+		Expect(deployment.Spec.Template.Annotations).NotTo(HaveKey(locolabels.AnnotationMetricsPath))
 		policyName := testAppName(app) + "-metrics"
 		Expect(getPolicy(testWorkspaceNamespace(app), policyName).Spec.Ingress).To(BeEmpty())
 		Expect(reconciler.deleteAppObjects(ctx, app)).To(Succeed())

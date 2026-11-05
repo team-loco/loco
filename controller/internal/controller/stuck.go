@@ -13,6 +13,7 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -105,7 +106,7 @@ func runsCurrentTemplate(pod *corev1.Pod, image, envSecretRevision string) bool 
 	if pod.DeletionTimestamp != nil {
 		return false
 	}
-	if pod.Annotations[annotationEnvSecretRevision] != envSecretRevision {
+	if pod.Annotations[locolabels.AnnotationEnvSecretRevision] != envSecretRevision {
 		return false
 	}
 	for _, container := range pod.Spec.Containers {
