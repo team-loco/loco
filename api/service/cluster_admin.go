@@ -85,7 +85,7 @@ func (s *ClusterAdminServer) CreateCluster(
 	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := genDb.New(tx)
 		if createErr := queries.CreateCluster(ctx, genDb.CreateClusterParams{
-			Name: req.GetName(), Region: req.GetRegion(), Tier: tier, RegistrationRequestID: requestID,
+			Name: req.GetName(), Region: req.GetRegion(), Tier: tier, ID: requestID,
 		}); createErr != nil {
 			return createErr
 		}

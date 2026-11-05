@@ -37,14 +37,14 @@ SET gateway_hostname = $2, updated_at = NOW()
 WHERE id = $1;
 
 -- name: CreateCluster :exec
-INSERT INTO clusters (name, region, tier, provider, is_active, is_default, registration_request_id)
+INSERT INTO clusters (name, region, tier, provider, is_active, is_default, id)
 VALUES (sqlc.arg(name), sqlc.arg(region), sqlc.arg(tier), 'kubernetes', true, false,
-        sqlc.arg(registration_request_id))
-ON CONFLICT (registration_request_id) DO NOTHING;
+        sqlc.arg(id))
+ON CONFLICT (id) DO NOTHING;
 
 -- name: LockClusterRegistration :one
 SELECT id, name, region, tier, removed_at, agent_public_key
-FROM clusters WHERE registration_request_id = $1 FOR UPDATE;
+FROM clusters WHERE id = $1 FOR UPDATE;
 
 -- name: SetClusterJoinToken :one
 UPDATE clusters

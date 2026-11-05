@@ -90,7 +90,6 @@ CREATE TABLE
         domains TEXT[] NOT NULL DEFAULT '{}',
         agent_public_key BYTEA CHECK (octet_length(agent_public_key) = 32),
         join_token_hash TEXT UNIQUE,
-        registration_request_id UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
         join_token_expires_at TIMESTAMPTZ,
         join_token_used_at TIMESTAMPTZ,
         builds_enabled BOOLEAN NOT NULL DEFAULT false,

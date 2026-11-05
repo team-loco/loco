@@ -70,7 +70,7 @@ func TestConcurrentClusterRegistrationCreatesOneRecord(t *testing.T) {
 	}
 	var count int
 	row := e.pool.QueryRow(
-		t.Context(), "SELECT count(*) FROM clusters WHERE registration_request_id = $1", request.GetRequestId(),
+		t.Context(), "SELECT count(*) FROM clusters WHERE id = $1", request.GetRequestId(),
 	)
 	if scanErr := row.Scan(&count); scanErr != nil {
 		t.Fatal(scanErr)

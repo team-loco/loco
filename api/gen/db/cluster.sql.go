@@ -13,17 +13,17 @@ import (
 )
 
 const createCluster = `-- name: CreateCluster :exec
-INSERT INTO clusters (name, region, tier, provider, is_active, is_default, registration_request_id)
+INSERT INTO clusters (name, region, tier, provider, is_active, is_default, id)
 VALUES ($1, $2, $3, 'kubernetes', true, false,
         $4)
-ON CONFLICT (registration_request_id) DO NOTHING
+ON CONFLICT (id) DO NOTHING
 `
 
 type CreateClusterParams struct {
-	Name                  string    `json:"name"`
-	Region                string    `json:"region"`
-	Tier                  string    `json:"tier"`
-	RegistrationRequestID uuid.UUID `json:"registrationRequestId"`
+	Name   string    `json:"name"`
+	Region string    `json:"region"`
+	Tier   string    `json:"tier"`
+	ID     uuid.UUID `json:"id"`
 }
 
 func (q *Queries) CreateCluster(ctx context.Context, arg CreateClusterParams) error {
@@ -31,7 +31,7 @@ func (q *Queries) CreateCluster(ctx context.Context, arg CreateClusterParams) er
 		arg.Name,
 		arg.Region,
 		arg.Tier,
-		arg.RegistrationRequestID,
+		arg.ID,
 	)
 	return err
 }
@@ -321,7 +321,7 @@ func (q *Queries) LockClusterLifecycle(ctx context.Context, id uuid.UUID) (LockC
 
 const lockClusterRegistration = `-- name: LockClusterRegistration :one
 SELECT id, name, region, tier, removed_at, agent_public_key
-FROM clusters WHERE registration_request_id = $1 FOR UPDATE
+FROM clusters WHERE id = $1 FOR UPDATE
 `
 
 type LockClusterRegistrationRow struct {
@@ -333,8 +333,8 @@ type LockClusterRegistrationRow struct {
 	AgentPublicKey []byte     `json:"agentPublicKey"`
 }
 
-func (q *Queries) LockClusterRegistration(ctx context.Context, registrationRequestID uuid.UUID) (LockClusterRegistrationRow, error) {
-	row := q.db.QueryRow(ctx, lockClusterRegistration, registrationRequestID)
+func (q *Queries) LockClusterRegistration(ctx context.Context, id uuid.UUID) (LockClusterRegistrationRow, error) {
+	row := q.db.QueryRow(ctx, lockClusterRegistration, id)
 	var i LockClusterRegistrationRow
 	err := row.Scan(
 		&i.ID,

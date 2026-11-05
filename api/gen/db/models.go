@@ -378,7 +378,6 @@ type Cluster struct {
 	Domains               []string   `json:"domains"`
 	AgentPublicKey        []byte     `json:"agentPublicKey"`
 	JoinTokenHash         *string    `json:"joinTokenHash"`
-	RegistrationRequestID uuid.UUID  `json:"registrationRequestId"`
 	JoinTokenExpiresAt    *time.Time `json:"joinTokenExpiresAt"`
 	JoinTokenUsedAt       *time.Time `json:"joinTokenUsedAt"`
 	BuildsEnabled         bool       `json:"buildsEnabled"`
