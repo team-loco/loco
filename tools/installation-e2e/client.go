@@ -204,10 +204,11 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 		return checkErr
 	}
 	operatorPhase(phaseWorkloads)
-	if checkErr := probeNetworkPolicy(ctx); checkErr != nil {
+	if checkErr := deployFixture(ctx); checkErr != nil {
 		return checkErr
 	}
-	if checkErr := deployFixture(ctx); checkErr != nil {
+	// The build controller creates namespace policies before its first real Build Job.
+	if checkErr := probeNetworkPolicy(ctx); checkErr != nil {
 		return checkErr
 	}
 	return nil
