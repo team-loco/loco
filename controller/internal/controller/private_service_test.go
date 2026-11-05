@@ -169,22 +169,18 @@ var _ = Describe("Private service discovery", func() {
 		Expect(r.ensureService(ctx, app)).To(Succeed())
 	})
 
-	It("keeps unsafe legacy resource names on their UUID endpoints", func() {
-		for _, name := range []string{"Legacy_API", "localhost", "resource-01234567-89ab-cdef-0123-456789abcdef"} {
-			app := isolationTestApplication("discovery-legacy", "legacy")
+	It("fails reconciliation for a stored name that is not a valid logical name", func() {
+		for _, name := range []string{"", "Legacy_API", "localhost", "resource-01234567-89ab-cdef-0123-456789abcdef"} {
+			app := isolationTestApplication("discovery-invalid", "invalid")
 			app.Spec.ResourceName = name
-			app.UID = "legacy-uid"
+			app.UID = "invalid-uid"
 			Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 			r := &LocoResourceReconciler{
 				Client:                   k8sClient,
 				Gateway:                  testGateway,
 				WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 			}
-			Expect(r.ensureService(ctx, app)).To(Succeed())
-			services := &corev1.ServiceList{}
-			Expect(k8sClient.List(ctx, services, client.InNamespace(testWorkspaceNamespace(app)))).To(Succeed())
-			Expect(services.Items).To(HaveLen(1))
-			Expect(services.Items[0].Name).To(Equal(getName(app)))
+			Expect(r.ensureService(ctx, app)).To(MatchError(ContainSubstring(errInvalidPrivateServiceName.Error())))
 		}
 	})
 

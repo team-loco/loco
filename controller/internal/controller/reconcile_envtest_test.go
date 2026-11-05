@@ -32,13 +32,15 @@ var _ = Describe("Application reconcile", func() {
 		}
 		Expect(k8sClient.Create(ctx, pullSecret)).To(Succeed())
 
+		const convergeName = "converge"
 		app := &locov1alpha1.Application{
-			Name: "converge", Namespace: testNamespace,
+			Name: convergeName, Namespace: testNamespace,
 			Annotations: map[string]string{locov1alpha1.AnnotationPlacementID: "p-converge"},
 			Spec: locov1alpha1.ApplicationSpec{
-				Type:        testAppType,
-				ResourceID:  "converge",
-				WorkspaceID: "ws",
+				Type:         testAppType,
+				ResourceID:   convergeName,
+				ResourceName: convergeName,
+				WorkspaceID:  "ws",
 				ServiceSpec: &locov1alpha1.ServiceSpec{
 					Deployment: &locov1alpha1.ServiceDeploymentSpec{
 						Image:        "registry.example.com/app:v1",

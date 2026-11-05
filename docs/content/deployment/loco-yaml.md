@@ -76,13 +76,13 @@ Use the cluster's configured DNS suffix in place of `cluster.local` when it has 
 
 The operator creates a ClusterIP Service for the logical name. It exposes TCP port 80 and the configured application port, both forwarding to that application port. When the application uses port 80, the Service exposes it once. gRPC and other TCP clients can use the configured port or port 80 explicitly; their default port depends on the client protocol. A non-HTTP service can omit `health` to avoid HTTP probes. Short names such as `cart:7070`, the existing `resource-<UUID>:80` endpoint and public HTTP routes continue to work.
 
-Names are lowercase DNS labels of at most 63 characters, including digit-leading labels. Digit-leading Services require [`RelaxedServiceNameValidation`](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/), enabled by default in Kubernetes 1.36 and stable in 1.37. `localhost` and names matching `resource-<UUID>` are reserved. New resources and renames reject these names. Legacy resources with incompatible names retain their UUID endpoint and remain deployable until renamed.
+Names are lowercase DNS labels of at most 63 characters, including digit-leading labels. Digit-leading Services require [`RelaxedServiceNameValidation`](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/), enabled by default in Kubernetes 1.36 and stable in 1.37. `localhost` and names matching `resource-<UUID>` are reserved. New resources and renames reject these names.
 
 Renaming a resource through the Resource API moves its logical endpoint without an image build. The operator creates the new alias before removing the old alias. Port changes update the logical endpoint while preserving its ClusterIP. Resource deletion removes its aliases. Replacing a resource with another of the same name waits for the previous resource to release that name. An unmanaged Service or a Service owned by another Application causes reconciliation to fail; the operator does not adopt or overwrite it.
 
 Workspace namespaces separate identical names in different workspaces. The workspace network policies permit communication between all applications in that namespace. Other workspaces remain isolated, and each environment runs on its own clusters.
 
-Upgrade the API, agent, Application controller and operator CRDs together. Applications carrying a logical name gain the port 80 endpoint on controller reconciliation. Existing Application records without a logical name retain their UUID endpoint until their next deploy or resource rename.
+Upgrade the API, agent, Application controller and operator CRDs together. Applications carrying a logical name gain the port 80 endpoint on controller reconciliation.
 
 ## Runtime user
 
