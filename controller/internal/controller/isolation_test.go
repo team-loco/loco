@@ -199,7 +199,7 @@ var _ = Describe("Workspace isolation", func() {
 		app.APIVersion = locov1alpha1.GroupVersion.String()
 		app.Kind = "Application"
 		app.Spec.ServiceSpec.Obs = &locov1alpha1.ObsSpec{
-			Metrics: locov1alpha1.MetricsSpec{Enabled: true, Port: 9090, Path: defaultMetricsPath},
+			Metrics: locov1alpha1.MetricsSpec{Enabled: true, Port: 9090, Path: testMetricsPath},
 		}
 		for _, enabled := range []bool{true, false} {
 			if !enabled {
@@ -221,7 +221,7 @@ var _ = Describe("Workspace isolation", func() {
 		reconciler.Telemetry.ScrapeCollector = "otel-col-daemon"
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 		app.Spec.ServiceSpec.Obs = &locov1alpha1.ObsSpec{
-			Metrics: locov1alpha1.MetricsSpec{Enabled: true, Port: 9090, Path: defaultMetricsPath},
+			Metrics: locov1alpha1.MetricsSpec{Enabled: true, Port: 9090, Path: testMetricsPath},
 		}
 		Expect(reconciler.ensureMetricsIngressPolicy(ctx, app)).To(Succeed())
 		_, err := reconciler.ensureDeployment(ctx, app, envSecretMount{})
@@ -233,7 +233,7 @@ var _ = Describe("Workspace isolation", func() {
 		deployment := &appsv1.Deployment{}
 		Expect(k8sClient.Get(ctx, key, deployment)).To(Succeed())
 		Expect(deployment.Spec.Template.Labels[locolabels.LabelMetricsPort]).To(Equal("9090"))
-		Expect(deployment.Spec.Template.Annotations[locolabels.AnnotationMetricsPath]).To(Equal(defaultMetricsPath))
+		Expect(deployment.Spec.Template.Annotations[locolabels.AnnotationMetricsPath]).To(Equal(testMetricsPath))
 		app.Spec.ServiceSpec.Obs = nil
 		Expect(reconciler.ensureMetricsIngressPolicy(ctx, app)).To(Succeed())
 		_, err = reconciler.ensureDeployment(ctx, app, envSecretMount{})

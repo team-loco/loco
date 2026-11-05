@@ -319,6 +319,9 @@ func buildApplicationSpec(
 				}
 			}
 		}
+		if obs != nil && obs.Metrics.Enabled {
+			obs.Metrics.Path = servicedefaults.FirstSet(obs.Metrics.Path, defaults.MetricsPath)
+		}
 		appSpec.ServiceSpec = &locoControllerV1.ServiceSpec{
 			Deployment: crdServiceDeploymentSpec,
 			Resources:  converter.ProtoToResourcesSpec(deploymentService),
