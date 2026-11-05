@@ -103,7 +103,7 @@ func TestIngestOnlyRoleWaitsForTheSchemaWithoutMigrating(t *testing.T) {
 		IngestTimeout:          testIngestTimeout,
 		IngestDialTimeout:      testIngestDialTimeout,
 	}
-	p, err := newProxy(cfg, heldElsewhere{}, testVersion)
+	p, err := newProxy(cfg, lockFor(cfg), testVersion)
 	if err != nil {
 		t.Fatalf("newProxy: %v", err)
 	}

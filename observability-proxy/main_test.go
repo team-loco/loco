@@ -39,10 +39,8 @@ const (
 	testVersion             = "test"
 )
 
-type unlocked struct{}
-
-func (unlocked) WithLock(ctx context.Context, fn func(context.Context) error) error {
-	return fn(ctx)
+func lockFor(cfg *config.Config) *migrationlock.Lock {
+	return migrationlock.New(cfg.MigrationLock())
 }
 
 func silentListener(t *testing.T) net.Listener {
@@ -100,7 +98,7 @@ func TestHealthzServedWhenClickHouseNeverAnswers(t *testing.T) {
 	started := make(chan *proxy, 1)
 	startErr := make(chan error, 1)
 	go func() {
-		p, err := newProxy(cfg, unlocked{}, testVersion)
+		p, err := newProxy(cfg, lockFor(cfg), testVersion)
 		if err != nil {
 			startErr <- err
 			return
@@ -203,10 +201,12 @@ func TestReadyzUnavailableUntilMigrationsSucceed(t *testing.T) {
 		MetricsTTL:             testTTL,
 		MigrationRetryBudget:   testRetryBudget,
 		MigrationRetryInterval: testRetryInterval,
+		MigrationLockTTL:       testLockTTL,
+		MigrationLockRetry:     testLockRetry,
 		MaxConcurrent:          testMaxConcurrent,
 		TokenCacheTTL:          testTokenTTL,
 	}
-	p, err := newProxy(cfg, unlocked{}, testVersion)
+	p, err := newProxy(cfg, lockFor(cfg), testVersion)
 	if err != nil {
 		t.Fatalf("newProxy: %v", err)
 	}
@@ -218,7 +218,7 @@ func TestReadyzUnavailableUntilMigrationsSucceed(t *testing.T) {
 	if status := getStatus(t, srv.URL+"/readyz"); status != http.StatusServiceUnavailable {
 		t.Fatalf("GET /readyz before migrations status = %d, want %d", status, http.StatusServiceUnavailable)
 	}
-	if err := p.migrate(t.Context(), cfg); err == nil {
+	if err := p.query.migrate(t.Context(), cfg); err == nil {
 		t.Fatal("migrate succeeded against an unreachable ClickHouse")
 	}
 	if status := getStatus(t, srv.URL+"/readyz"); status != http.StatusServiceUnavailable {
@@ -242,10 +242,12 @@ func TestServesProbesWhileMigrating(t *testing.T) {
 		MetricsTTL:             testTTL,
 		MigrationRetryBudget:   testRetryBudget,
 		MigrationRetryInterval: testRetryInterval,
+		MigrationLockTTL:       testLockTTL,
+		MigrationLockRetry:     testLockRetry,
 		MaxConcurrent:          testMaxConcurrent,
 		TokenCacheTTL:          testTokenTTL,
 	}
-	p, err := newProxy(cfg, unlocked{}, testVersion)
+	p, err := newProxy(cfg, lockFor(cfg), testVersion)
 	if err != nil {
 		t.Fatalf("newProxy: %v", err)
 	}
@@ -275,50 +277,6 @@ func TestServesProbesWhileMigrating(t *testing.T) {
 		}
 	case <-time.After(startupDeadline):
 		t.Fatalf("run did not return within %s after the retry budget ran out", startupDeadline)
-	}
-}
-
-type heldElsewhere struct{}
-
-func (heldElsewhere) WithLock(ctx context.Context, _ func(context.Context) error) error {
-	<-ctx.Done()
-	return ctx.Err()
-}
-
-func TestRetryBudgetCoversWaitingForTheMigrationLock(t *testing.T) {
-	ln := silentListener(t)
-	cfg := &config.Config{
-		QueryEnabled:           true,
-		ControlPlaneURL:        unreachableControlPlane,
-		ClickHouseURL:          "clickhouse://" + ln.Addr().String(),
-		ClickHouseMigratorURL:  unreachableMigrator,
-		ClickHouseDB:           proxyDatabase,
-		LogsTTL:                testTTL,
-		TracesTTL:              testTTL,
-		MetricsTTL:             testTTL,
-		MigrationRetryBudget:   testRetryBudget,
-		MigrationRetryInterval: testRetryInterval,
-		MaxConcurrent:          testMaxConcurrent,
-		TokenCacheTTL:          testTokenTTL,
-	}
-	p, err := newProxy(cfg, heldElsewhere{}, testVersion)
-	if err != nil {
-		t.Fatalf("newProxy: %v", err)
-	}
-	t.Cleanup(p.close)
-
-	migrateErr := make(chan error, 1)
-	go func() { migrateErr <- p.migrate(t.Context(), cfg) }()
-	select {
-	case err := <-migrateErr:
-		if !errors.Is(err, context.DeadlineExceeded) {
-			t.Fatalf("migrate() = %v, want %v", err, context.DeadlineExceeded)
-		}
-	case <-time.After(startupDeadline):
-		t.Fatalf("migrate waited for the lock past the %s retry budget", testRetryBudget)
-	}
-	if p.migrated.Load() {
-		t.Fatal("proxy marked migrated without holding the lock")
 	}
 }
 
@@ -373,6 +331,68 @@ func waitReady(t *testing.T, base string) {
 		time.Sleep(readinessPollPeriod)
 	}
 	t.Fatalf("%s did not become ready within %s", base, readinessDeadline)
+}
+
+func TestRetryBudgetCoversWaitingForTheMigrationLock(t *testing.T) {
+	_, dsn, database := testClickHouse(t)
+	cfg := &config.Config{
+		QueryEnabled:           true,
+		ControlPlaneURL:        unreachableControlPlane,
+		ClickHouseURL:          dsn,
+		ClickHouseMigratorURL:  dsn,
+		ClickHouseDB:           database,
+		LogsTTL:                testTTL,
+		TracesTTL:              testTTL,
+		MetricsTTL:             testTTL,
+		MigrationRetryBudget:   testRetryBudget,
+		MigrationRetryInterval: testRetryInterval,
+		MigrationLockTTL:       testLockTTL,
+		MigrationLockRetry:     testLockRetry,
+		MaxConcurrent:          testMaxConcurrent,
+		TokenCacheTTL:          testTokenTTL,
+	}
+	holder := lockFor(cfg)
+	held := make(chan struct{})
+	release := make(chan struct{})
+	holderDone := make(chan error, 1)
+	go func() {
+		holderDone <- holder.WithLock(t.Context(), func(context.Context) error {
+			close(held)
+			<-release
+			return nil
+		})
+	}()
+	select {
+	case <-held:
+	case err := <-holderDone:
+		t.Fatalf("holder did not acquire the lock: %v", err)
+	}
+	t.Cleanup(func() {
+		close(release)
+		if err := <-holderDone; err != nil {
+			t.Errorf("release lock: %v", err)
+		}
+	})
+
+	p, err := newProxy(cfg, lockFor(cfg), testVersion)
+	if err != nil {
+		t.Fatalf("newProxy: %v", err)
+	}
+	t.Cleanup(p.close)
+
+	migrateErr := make(chan error, 1)
+	go func() { migrateErr <- p.query.migrate(t.Context(), cfg) }()
+	select {
+	case err := <-migrateErr:
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("migrate() = %v, want %v", err, context.DeadlineExceeded)
+		}
+	case <-time.After(startupDeadline):
+		t.Fatalf("migrate waited for the lock past the %s retry budget", testRetryBudget)
+	}
+	if p.query.migrated.Load() {
+		t.Fatal("proxy marked migrated without holding the lock")
+	}
 }
 
 func TestReplicasTakeTurnsMigratingUnderTheLock(t *testing.T) {

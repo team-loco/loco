@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -18,12 +17,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/team-loco/loco/internal/buildinfo"
-	"github.com/team-loco/loco/observability-proxy/migrations"
-	"github.com/team-loco/loco/observability-proxy/pkg/auth"
-	chClient "github.com/team-loco/loco/observability-proxy/pkg/clickhouse"
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
 	"github.com/team-loco/loco/observability-proxy/pkg/migrationlock"
-	"github.com/team-loco/loco/observability-proxy/service"
 )
 
 const (
@@ -35,19 +30,10 @@ const (
 
 var version string
 
-var errMigrationsPending = errors.New("clickhouse migrations pending")
-
-type migrationLock interface {
-	WithLock(ctx context.Context, fn func(context.Context) error) error
-}
-
 type proxy struct {
-	server    *http.Server
-	ch        *chClient.Client
-	validator *auth.Validator
-	migrated  *atomic.Bool
-	lock      migrationLock
-	ingest    *ingestRole
+	server *http.Server
+	query  *queryRole
+	ingest *ingestRole
 }
 
 type listeners struct {
@@ -56,8 +42,8 @@ type listeners struct {
 	otlpHTTP net.Listener
 }
 
-func newProxy(cfg *config.Config, lock migrationLock, proxyVersion string) (*proxy, error) {
-	p := &proxy{migrated: new(atomic.Bool), lock: lock}
+func newProxy(cfg *config.Config, lock *migrationlock.Lock, proxyVersion string) (*proxy, error) {
+	p := &proxy{}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -74,9 +60,12 @@ func newProxy(cfg *config.Config, lock migrationLock, proxyVersion string) (*pro
 	})
 
 	if cfg.QueryEnabled {
-		if err := p.mountQuery(cfg, mux); err != nil {
+		query, err := newQueryRole(cfg, lock)
+		if err != nil {
 			return nil, err
 		}
+		mux.Handle("/", query.handler)
+		p.query = query
 	}
 	if cfg.IngestEnabled {
 		registry := prometheus.NewRegistry()
@@ -101,31 +90,10 @@ func newProxy(cfg *config.Config, lock migrationLock, proxyVersion string) (*pro
 	return p, nil
 }
 
-func (p *proxy) mountQuery(cfg *config.Config, mux *http.ServeMux) error {
-	ch, err := chClient.NewClient(cfg.ClickHouseURL, cfg.ClickHouseDB, cfg.MaxConcurrent, cfg.QueryTimeout)
-	if err != nil {
-		return fmt.Errorf("connect to clickhouse: %w", err)
-	}
-	validator, err := auth.NewValidator(cfg.ControlPlaneURL, cfg.TokenCacheTTL)
-	if err != nil {
-		ch.Close()
-		return err
-	}
-	p.ch = ch
-	p.validator = validator
-	svc := service.NewObservabilityService(ch, cfg, validator)
-	corsHandler := withCORS(cfg.CORSAllowedOrigins, svc.Handler())
-	mux.Handle("/", corsHandler)
-	return nil
-}
-
 func (p *proxy) ready(ctx context.Context) error {
-	if p.ch != nil {
-		if !p.migrated.Load() {
-			return errMigrationsPending
-		}
-		if err := p.ch.Ping(ctx); err != nil {
-			return fmt.Errorf("clickhouse: %w", err)
+	if p.query != nil {
+		if err := p.query.ready(ctx); err != nil {
+			return err
 		}
 	}
 	if p.ingest != nil {
@@ -136,33 +104,9 @@ func (p *proxy) ready(ctx context.Context) error {
 	return nil
 }
 
-func (p *proxy) migrate(ctx context.Context, cfg *config.Config) error {
-	schema := migrations.Config{
-		DSN:        cfg.ClickHouseMigratorURL,
-		Database:   cfg.ClickHouseDB,
-		LogsTTL:    cfg.LogsTTL,
-		TracesTTL:  cfg.TracesTTL,
-		MetricsTTL: cfg.MetricsTTL,
-	}
-	retry := migrations.Retry{Budget: cfg.MigrationRetryBudget, Interval: cfg.MigrationRetryInterval}
-	budgetCtx, cancel := context.WithTimeout(ctx, cfg.MigrationRetryBudget)
-	defer cancel()
-	err := p.lock.WithLock(budgetCtx, func(lockCtx context.Context) error {
-		return migrations.UpWithRetry(lockCtx, schema, retry)
-	})
-	if err != nil {
-		return fmt.Errorf("migrate clickhouse schema: %w", err)
-	}
-	p.migrated.Store(true)
-	return nil
-}
-
 func (p *proxy) close() {
-	if p.ch != nil {
-		p.ch.Close()
-	}
-	if p.validator != nil {
-		p.validator.Close()
+	if p.query != nil {
+		p.query.close()
 	}
 	if p.ingest != nil {
 		p.ingest.close()
@@ -193,8 +137,8 @@ func (p *proxy) shutdown() error {
 }
 
 func (p *proxy) start(ctx context.Context, cfg *config.Config, ln listeners, serveErr chan<- error) error {
-	if p.ch != nil {
-		if err := p.migrate(ctx, cfg); err != nil {
+	if p.query != nil {
+		if err := p.query.migrate(ctx, cfg); err != nil {
 			return err
 		}
 	}

@@ -33,7 +33,7 @@ func TestProxyCORS(t *testing.T) {
 				MaxConcurrent:         testMaxConcurrent,
 				CORSAllowedOrigins:    test.origins,
 			}
-			proxy, err := newProxy(cfg, unlocked{}, testVersion)
+			proxy, err := newProxy(cfg, lockFor(cfg), testVersion)
 			if err != nil {
 				t.Fatalf("proxy: %v", err)
 			}
