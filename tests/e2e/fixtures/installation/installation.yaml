@@ -9,9 +9,7 @@ controlPlane:
     secretRef: {name: fixture-inputs, key: database-url}
   auth:
     issuer: http://dex.installation-fixtures.svc.cluster.local:5556/dex
-    audience: loco
-    webClientId: loco
-    bootstrapClientId: loco
+    clientId: loco
     bootstrapRedirectURI: http://127.0.0.1:8400/callback
     signupMode: closed
   sourceBucket:
