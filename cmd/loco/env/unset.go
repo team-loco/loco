@@ -20,17 +20,17 @@ Examples:
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-			t, err := resolveTarget(ctx, cmd, d)
+			t, service, err := resolveService(ctx, cmd)
 			if err != nil {
 				return err
 			}
 			req := &secretv1.DeleteSecretsRequest{
-				ResourceId:    t.resourceID,
-				EnvironmentId: t.environmentID,
+				ResourceId:    service.GetId(),
+				EnvironmentId: t.Environment.GetId(),
 				Names:         args,
 			}
 
-			resp, err := t.secrets.DeleteSecrets(ctx, req)
+			resp, err := t.Clients.Secret.DeleteSecrets(ctx, req)
 			if err != nil {
 				return fmt.Errorf("unset secrets: %w", err)
 			}

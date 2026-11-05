@@ -5,24 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/team-loco/loco/internal/rpc"
-
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	"github.com/team-loco/loco/gen/go/loco/plan/v1/planv1connect"
-	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/internal/locofile"
-	"github.com/team-loco/loco/internal/session"
 )
-
-type target struct {
-	host            string
-	token           string
-	workspaceID     string
-	environmentID   string
-	environmentName string
-}
 
 func addWorkspaceFlags(cmd *cobra.Command) {
 	cmd.Flags().String("org", "", "Organization name")
@@ -35,51 +21,13 @@ func addTargetFlags(cmd *cobra.Command) {
 	cmd.Flags().String("env", "", "Environment (defaults to the workspace's only environment)")
 }
 
-func resolveWorkspaceTarget(ctx context.Context, cmd *cobra.Command) (target, error) {
-	host, err := cmdutil.GetHost(cmd)
+func resolveTarget(ctx context.Context, cmd *cobra.Command) (cmdutil.Target, error) {
+	t, err := cmdutil.ResolveTarget(ctx, cmd)
 	if err != nil {
-		return target{}, err
+		return cmdutil.Target{}, err
 	}
-	locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
-	if err != nil {
-		return target{}, err
-	}
-	apiClient := rpc.ForHost(host, locoToken.Token)
-	workspaceID, err := cmdutil.ResolveWorkspaceID(ctx, cmd, session.Load, apiClient.Workspace)
-	if err != nil {
-		return target{}, err
-	}
-	return target{host: host, token: locoToken.Token, workspaceID: workspaceID}, nil
-}
-
-func resolveTarget(ctx context.Context, cmd *cobra.Command) (target, error) {
-	t, err := resolveWorkspaceTarget(ctx, cmd)
-	if err != nil {
-		return target{}, err
-	}
-
-	environmentClients := rpc.ForHost(t.host, t.token)
-	environments := environmentClients.Environment
 	interactive := cmdutil.StdoutIsTerminal()
-	env, err := cmdutil.ResolveEnvironment(
-		ctx, cmd, environments, ui.SelectFromList, interactive, t.workspaceID,
-	)
-	if err != nil {
-		return target{}, err
-	}
-	t.environmentID = env.GetId()
-	t.environmentName = env.GetName()
-	return t, nil
-}
-
-func (t target) planClient() planv1connect.PlanServiceClient {
-	planClients := rpc.ForHost(t.host, t.token)
-	return planClients.Plan
-}
-
-func (t target) resourceClient() resourcev1connect.ResourceServiceClient {
-	resourceClients := rpc.ForHost(t.host, t.token)
-	return resourceClients.Resource
+	return t.WithEnvironment(ctx, cmd, interactive)
 }
 
 func readLocoFile(path string) ([]byte, error) {

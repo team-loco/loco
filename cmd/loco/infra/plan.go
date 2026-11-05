@@ -98,13 +98,13 @@ func runPlan(cmd *cobra.Command, path string) error {
 	return nil
 }
 
-func requestPlan(ctx context.Context, t target, file []byte) (*planv1.PlanResponse, error) {
+func requestPlan(ctx context.Context, t cmdutil.Target, file []byte) (*planv1.PlanResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, planTimeout)
 	defer cancel()
 
-	req := &planv1.PlanRequest{File: file, EnvironmentId: t.environmentID}
+	req := &planv1.PlanRequest{File: file, EnvironmentId: t.Environment.GetId()}
 
-	resp, err := t.planClient().Plan(ctx, req)
+	resp, err := t.Clients.Plan.Plan(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("plan: %w", err)
 	}

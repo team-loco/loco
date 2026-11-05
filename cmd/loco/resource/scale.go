@@ -7,16 +7,11 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/team-loco/loco/internal/rpc"
-
 	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/internal/ui"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	"github.com/team-loco/loco/gen/go/loco/environment/v1/environmentv1connect"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
-	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
-	"github.com/team-loco/loco/internal/session"
 )
 
 var (
@@ -25,27 +20,11 @@ var (
 )
 
 type scaleDeps struct {
-	LoadSessionConfig func() (*session.SessionConfig, error)
-	NewAPIClient      func(host, token string) *rpc.Clients
-	NewResourceClient func(host, token string) resourcev1connect.ResourceServiceClient
-	Environments      func(host, token string) environmentv1connect.EnvironmentServiceClient
-	Stdout            io.Writer
+	Stdout io.Writer
 }
 
 func buildScaleCmd() *cobra.Command {
-	deps := scaleDeps{
-		LoadSessionConfig: session.Load,
-		NewAPIClient:      rpc.ForHost,
-		NewResourceClient: func(host, token string) resourcev1connect.ResourceServiceClient {
-			resourceClients := rpc.ForHost(host, token)
-			return resourceClients.Resource
-		},
-		Environments: func(host, token string) environmentv1connect.EnvironmentServiceClient {
-			environmentClients := rpc.ForHost(host, token)
-			return environmentClients.Environment
-		},
-		Stdout: os.Stdout,
-	}
+	deps := scaleDeps{Stdout: os.Stdout}
 	return newScaleCmd(deps)
 }
 
@@ -91,48 +70,19 @@ Examples:
 				return errReplicasTooLow
 			}
 
-			// Get host and token
-			host, err := cmdutil.GetHost(cmd)
+			t, err := cmdutil.ResolveTarget(ctx, cmd)
 			if err != nil {
 				return err
 			}
-
-			locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
+			t, err = t.WithEnvironment(ctx, cmd, false)
 			if err != nil {
 				return err
 			}
-
-			// Resolve workspace ID
-			apiClient := deps.NewAPIClient(host, locoToken.Token)
-			workspaceID, err := cmdutil.ResolveWorkspaceID(ctx, cmd, deps.LoadSessionConfig, apiClient.Workspace)
+			env := t.Environment
+			resource, err := t.Service(ctx, name)
 			if err != nil {
 				return err
 			}
-
-			resourceClient := deps.NewResourceClient(host, locoToken.Token)
-
-			environments := deps.Environments(host, locoToken.Token)
-			env, err := cmdutil.ResolveEnvironment(ctx, cmd, environments, nil, false, workspaceID)
-			if err != nil {
-				return err
-			}
-
-			// Get resource by name
-			getReq := &resourcev1.GetResourceRequest{
-				Key: &resourcev1.GetResourceRequest_NameKey{
-					NameKey: &resourcev1.GetResourceNameKey{
-						WorkspaceId: workspaceID,
-						Name:        name,
-					},
-				},
-			}
-
-			resourceResp, err := resourceClient.GetResource(ctx, getReq)
-			if err != nil {
-				return fmt.Errorf("service '%s' not found: %w", name, err)
-			}
-
-			resource := resourceResp.GetResource()
 			slog.Debug("scaling service", "resource_id", resource.GetId(), "name", name, "environment", env.GetName())
 
 			// Build scale request
@@ -159,7 +109,7 @@ Examples:
 				Memory:        memoryPtr,
 			}
 
-			_, err = resourceClient.ScaleResource(ctx, scaleReq)
+			_, err = t.Clients.Resource.ScaleResource(ctx, scaleReq)
 			if err != nil {
 				return fmt.Errorf("failed to scale service '%s': %w", name, err)
 			}

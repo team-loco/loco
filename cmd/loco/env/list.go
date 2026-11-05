@@ -27,22 +27,22 @@ Examples:
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
-			t, err := resolveTarget(ctx, cmd, d)
+			t, service, err := resolveService(ctx, cmd)
 			if err != nil {
 				return err
 			}
 			req := &secretv1.ListSecretsRequest{
-				ResourceId:    t.resourceID,
-				EnvironmentId: t.environmentID,
+				ResourceId:    service.GetId(),
+				EnvironmentId: t.Environment.GetId(),
 			}
 
-			resp, err := t.secrets.ListSecrets(ctx, req)
+			resp, err := t.Clients.Secret.ListSecrets(ctx, req)
 			if err != nil {
 				return fmt.Errorf("list secrets: %w", err)
 			}
 			secrets := resp.GetSecrets()
 			if len(secrets) == 0 {
-				_, err = fmt.Fprintf(d.Stdout, "%s has no secrets in %s.\n", t.service, t.environment)
+				_, err = fmt.Fprintf(d.Stdout, "%s has no secrets in %s.\n", service.GetName(), t.Environment.GetName())
 				return err
 			}
 			w := tabwriter.NewWriter(d.Stdout, tableMinWidth, tableTabWidth, tablePadding, ' ', 0)

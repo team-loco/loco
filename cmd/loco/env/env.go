@@ -6,53 +6,22 @@ import (
 	"io"
 	"os"
 
-	"github.com/team-loco/loco/internal/rpc"
-
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	"github.com/team-loco/loco/gen/go/loco/environment/v1/environmentv1connect"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
-	"github.com/team-loco/loco/gen/go/loco/secret/v1/secretv1connect"
-	"github.com/team-loco/loco/internal/session"
 )
 
 type deps struct {
-	LoadSessionConfig func() (*session.SessionConfig, error)
-	NewAPIClient      func(host, token string) *rpc.Clients
-	Environments      func(host, token string) environmentv1connect.EnvironmentServiceClient
-	Secrets           func(host, token string) secretv1connect.SecretServiceClient
-	Stdin             io.Reader
-	Stdout            io.Writer
+	Stdin  io.Reader
+	Stdout io.Writer
 }
 
 const serviceFlag = "service"
 
-type target struct {
-	service       string
-	resourceID    string
-	environment   string
-	environmentID string
-
-	secrets secretv1connect.SecretServiceClient
-}
-
 // BuildEnvCmd creates the "env" parent command that manages a service's secrets in an environment.
 func BuildEnvCmd() *cobra.Command {
-	d := deps{
-		LoadSessionConfig: session.Load,
-		NewAPIClient:      rpc.ForHost,
-		Environments: func(host, token string) environmentv1connect.EnvironmentServiceClient {
-			environmentClients := rpc.ForHost(host, token)
-			return environmentClients.Environment
-		},
-		Secrets: func(host, token string) secretv1connect.SecretServiceClient {
-			secretClients := rpc.ForHost(host, token)
-			return secretClients.Secret
-		},
-		Stdin:  os.Stdin,
-		Stdout: os.Stdout,
-	}
+	d := deps{Stdin: os.Stdin, Stdout: os.Stdout}
 	return newEnvCmd(d)
 }
 
@@ -88,75 +57,38 @@ func addTargetFlags(cmd *cobra.Command) {
 	cmd.Flags().String("host", "", "API host URL")
 }
 
-func resolveTarget(ctx context.Context, cmd *cobra.Command, d deps) (target, error) {
-	host, err := cmdutil.GetHost(cmd)
+func resolveService(ctx context.Context, cmd *cobra.Command) (cmdutil.Target, *resourcev1.Resource, error) {
+	name, err := cmd.Flags().GetString(serviceFlag)
 	if err != nil {
-		return target{}, err
+		return cmdutil.Target{}, nil, fmt.Errorf("read --%s: %w", serviceFlag, err)
 	}
-	locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
+	t, err := cmdutil.ResolveTarget(ctx, cmd)
 	if err != nil {
-		return target{}, err
+		return cmdutil.Target{}, nil, err
 	}
-
-	apiClient := d.NewAPIClient(host, locoToken.Token)
-	workspaceID, err := cmdutil.ResolveWorkspaceID(ctx, cmd, d.LoadSessionConfig, apiClient.Workspace)
+	service, err := t.Service(ctx, name)
 	if err != nil {
-		return target{}, err
+		return cmdutil.Target{}, nil, err
 	}
-	service, err := cmd.Flags().GetString(serviceFlag)
+	t, err = t.WithEnvironment(ctx, cmd, false)
 	if err != nil {
-		return target{}, fmt.Errorf("read --%s: %w", serviceFlag, err)
+		return cmdutil.Target{}, nil, err
 	}
-	resourceID, err := resolveService(ctx, apiClient, workspaceID, service)
-	if err != nil {
-		return target{}, err
-	}
-	environments := d.Environments(host, locoToken.Token)
-	env, err := cmdutil.ResolveEnvironment(ctx, cmd, environments, nil, false, workspaceID)
-	if err != nil {
-		return target{}, err
-	}
-	secrets := d.Secrets(host, locoToken.Token)
-	return target{
-		service:       service,
-		resourceID:    resourceID,
-		environment:   env.GetName(),
-		environmentID: env.GetId(),
-
-		secrets: secrets,
-	}, nil
-}
-
-func resolveService(
-	ctx context.Context,
-	apiClient *rpc.Clients,
-	workspaceID string,
-	name string,
-) (string, error) {
-	nameKey := &resourcev1.GetResourceNameKey{WorkspaceId: workspaceID, Name: name}
-	req := &resourcev1.GetResourceRequest{
-		Key: &resourcev1.GetResourceRequest_NameKey{NameKey: nameKey},
-	}
-
-	resp, err := apiClient.Resource.GetResource(ctx, req)
-	if err != nil {
-		return "", fmt.Errorf("service %q not found: %w", name, err)
-	}
-	return resp.GetResource().GetId(), nil
+	return t, service, nil
 }
 
 func setSecrets(ctx context.Context, cmd *cobra.Command, d deps, values map[string]string) error {
-	t, err := resolveTarget(ctx, cmd, d)
+	t, service, err := resolveService(ctx, cmd)
 	if err != nil {
 		return err
 	}
 	req := &secretv1.SetSecretsRequest{
-		ResourceId:    t.resourceID,
-		EnvironmentId: t.environmentID,
+		ResourceId:    service.GetId(),
+		EnvironmentId: t.Environment.GetId(),
 		Values:        values,
 	}
 
-	resp, err := t.secrets.SetSecrets(ctx, req)
+	resp, err := t.Clients.Secret.SetSecrets(ctx, req)
 	if err != nil {
 		return fmt.Errorf("set secrets: %w", err)
 	}

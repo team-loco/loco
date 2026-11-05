@@ -15,8 +15,6 @@ import (
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
-	"github.com/team-loco/loco/internal/rpc"
-	"github.com/team-loco/loco/internal/session"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -28,28 +26,13 @@ const (
 )
 
 type buildsDeps struct {
-	LoadSessionConfig func() (*session.SessionConfig, error)
-	NewAPIClient      func(host, token string) *rpc.Clients
-	Clients           platformClients
-	Stdout            io.Writer
-}
-
-type buildsSession struct {
-	deps   buildsDeps
-	host   string
-	token  string
-	ctx    context.Context
-	cancel context.CancelFunc
+	Clients platformClients
+	Stdout  io.Writer
 }
 
 func BuildBuildsCmd() *cobra.Command {
 	clients := defaultPlatformClients()
-	deps := buildsDeps{
-		LoadSessionConfig: session.Load,
-		NewAPIClient:      rpc.ForHost,
-		Clients:           clients,
-		Stdout:            os.Stdout,
-	}
+	deps := buildsDeps{Clients: clients, Stdout: os.Stdout}
 	return newBuildsCmd(deps)
 }
 
@@ -69,41 +52,22 @@ func newBuildsCmd(deps buildsDeps) *cobra.Command {
 	return cmd
 }
 
-func openBuildsSession(cmd *cobra.Command, deps buildsDeps) (*buildsSession, error) {
-	host, err := cmdutil.GetHost(cmd)
-	if err != nil {
-		return nil, err
-	}
-	locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
-	if err != nil {
-		return nil, err
-	}
-	parent := cmd.Context()
-	ctx, cancel := signal.NotifyContext(parent, os.Interrupt)
-	return &buildsSession{deps: deps, host: host, token: locoToken.Token, ctx: ctx, cancel: cancel}, nil
-}
-
-func (s *buildsSession) follower() *buildFollower {
+func follower(deps buildsDeps, t cmdutil.Target) *buildFollower {
 	return &buildFollower{
-		clients: s.deps.Clients,
-		host:    s.host,
-		token:   s.token,
-		out:     &syncWriter{out: s.deps.Stdout},
+		clients: deps.Clients,
+		host:    t.Host,
+		token:   t.Token,
+		out:     &syncWriter{out: deps.Stdout},
 	}
 }
 
-func (s *buildsSession) getBuild(buildID string) (*buildv1.Build, error) {
-	return s.follower().getBuild(s.ctx, buildID)
-}
-
-func (s *buildsSession) workspaceOf(build *buildv1.Build) (string, error) {
+func workspaceOf(ctx context.Context, t cmdutil.Target, build *buildv1.Build) (string, error) {
 	resourceID := build.GetResourceId()
 	req := &resourcev1.GetResourceRequest{
 		Key: &resourcev1.GetResourceRequest_ResourceId{ResourceId: resourceID},
 	}
 
-	resources := s.deps.Clients.Resources(s.host, s.token)
-	resp, err := resources.GetResource(s.ctx, req)
+	resp, err := t.Clients.Resource.GetResource(ctx, req)
 	if err != nil {
 		return "", fmt.Errorf("get the build's service: %w", err)
 	}
@@ -167,20 +131,13 @@ func runBuildsList(cmd *cobra.Command, deps buildsDeps, name string) error {
 	if limit < 1 || limit > 200 {
 		return errors.New("--limit must be between 1 and 200")
 	}
-	s, err := openBuildsSession(cmd, deps)
+	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt)
+	defer stop()
+	t, err := cmdutil.ResolveTarget(ctx, cmd)
 	if err != nil {
 		return err
 	}
-	defer s.cancel()
-
-	apiClient := deps.NewAPIClient(s.host, s.token)
-	workspaceID, err := cmdutil.ResolveWorkspaceID(s.ctx, cmd, deps.LoadSessionConfig, apiClient.Workspace)
-	if err != nil {
-		return err
-	}
-	resourceClient := deps.Clients.Resources(s.host, s.token)
-
-	resource, err := getResourceByName(s.ctx, resourceClient, workspaceID, name)
+	resource, err := t.Service(ctx, name)
 	if err != nil {
 		return err
 	}
@@ -188,8 +145,7 @@ func runBuildsList(cmd *cobra.Command, deps buildsDeps, name string) error {
 	resourceID := resource.GetId()
 	req := &buildv1.ListBuildsRequest{ResourceId: resourceID, PageSize: limit}
 
-	buildClient := deps.Clients.Builds(s.host, s.token)
-	resp, err := buildClient.ListBuilds(s.ctx, req)
+	resp, err := t.Clients.Build.ListBuilds(ctx, req)
 	if err != nil {
 		return fmt.Errorf("list builds: %w", err)
 	}
@@ -235,12 +191,13 @@ func newBuildsGetCmd(deps buildsDeps) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			s, err := openBuildsSession(cmd, deps)
+			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt)
+			defer stop()
+			t, err := cmdutil.ResolveLogin(cmd)
 			if err != nil {
 				return err
 			}
-			defer s.cancel()
-			build, err := s.getBuild(args[0])
+			build, err := follower(deps, t).getBuild(ctx, args[0])
 			if err != nil {
 				return err
 			}
@@ -316,26 +273,27 @@ func runBuildsLogs(cmd *cobra.Command, deps buildsDeps, buildID string) error {
 	if err != nil {
 		return err
 	}
-	s, err := openBuildsSession(cmd, deps)
+	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt)
+	defer stop()
+	t, err := cmdutil.ResolveLogin(cmd)
 	if err != nil {
 		return err
 	}
-	defer s.cancel()
-	build, err := s.getBuild(buildID)
+	follow := follower(deps, t)
+	build, err := follow.getBuild(ctx, buildID)
 	if err != nil {
 		return err
 	}
-	workspaceID, err := s.workspaceOf(build)
+	workspaceID, err := workspaceOf(ctx, t, build)
 	if err != nil {
 		return err
 	}
 
 	status := build.GetStatus()
 	if opts.follow && !buildFinished(status) {
-		follower := s.follower()
-		follower.emit = opts.emit
-		follower.quietState = opts.json
-		_, followErr := follower.follow(s.ctx, build, workspaceID)
+		follow.emit = opts.emit
+		follow.quietState = opts.json
+		_, followErr := follow.follow(ctx, build, workspaceID)
 		return followErr
 	}
 
@@ -345,10 +303,10 @@ func runBuildsLogs(cmd *cobra.Command, deps buildsDeps, buildID string) error {
 		end = build.GetFinishedAt().AsTime().Add(finishedLogMargin)
 	}
 	filter := logstream.BuildFilter(workspaceID, buildID)
-	logs := deps.Clients.logClient(s.host, s.token)
+	logs := deps.Clients.logClient(t.Host, t.Token)
 	window := logstream.Window{Start: start, End: end}
-	streamErr := logs.Stream(s.ctx, filter, window, opts.emit)
-	if s.ctx.Err() != nil {
+	streamErr := logs.Stream(ctx, filter, window, opts.emit)
+	if ctx.Err() != nil {
 		return nil
 	}
 	return streamErr
@@ -360,15 +318,15 @@ func newBuildsCancelCmd(deps buildsDeps) *cobra.Command {
 		Short: "Cancel a build that has not finished",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := openBuildsSession(cmd, deps)
+			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt)
+			defer stop()
+			t, err := cmdutil.ResolveLogin(cmd)
 			if err != nil {
 				return err
 			}
-			defer s.cancel()
 			req := &buildv1.CancelBuildRequest{BuildId: args[0]}
 
-			builds := deps.Clients.Builds(s.host, s.token)
-			resp, err := builds.CancelBuild(s.ctx, req)
+			resp, err := t.Clients.Build.CancelBuild(ctx, req)
 			if err != nil {
 				return fmt.Errorf("cancel build %s: %w", args[0], err)
 			}

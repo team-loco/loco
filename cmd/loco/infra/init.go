@@ -156,12 +156,12 @@ func fetchConfig(cmd *cobra.Command) (*configv1.GetConfigResponse, error) {
 	return resp, nil
 }
 
-func fetchDefaultRegion(ctx context.Context, t target) (string, error) {
+func fetchDefaultRegion(ctx context.Context, t cmdutil.Target) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, initConfigTimeout)
 	defer cancel()
 
-	req := &resourcev1.ListRegionsRequest{EnvironmentId: t.environmentID}
-	resp, err := t.resourceClient().ListRegions(ctx, req)
+	req := &resourcev1.ListRegionsRequest{EnvironmentId: t.Environment.GetId()}
+	resp, err := t.Clients.Resource.ListRegions(ctx, req)
 	if err != nil {
 		return "", fmt.Errorf("could not list regions from the API: %w", err)
 	}
@@ -173,13 +173,12 @@ func fetchDefaultRegion(ctx context.Context, t target) (string, error) {
 	return "", errNoDefaultRegion
 }
 
-func servedDomain(ctx context.Context, t target, region string) (string, error) {
+func servedDomain(ctx context.Context, t cmdutil.Target, region string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, initConfigTimeout)
 	defer cancel()
 
-	domainClients := rpc.ForHost(t.host, t.token)
-	req := &domainv1.ListPlatformDomainsRequest{EnvironmentId: t.environmentID}
-	resp, err := domainClients.Domain.ListPlatformDomains(ctx, req)
+	req := &domainv1.ListPlatformDomainsRequest{EnvironmentId: t.Environment.GetId()}
+	resp, err := t.Clients.Domain.ListPlatformDomains(ctx, req)
 	if err != nil {
 		return "", fmt.Errorf("could not list platform domains from the API: %w", err)
 	}
@@ -188,5 +187,5 @@ func servedDomain(ctx context.Context, t target, region string) (string, error) 
 			return domain.GetDomain(), nil
 		}
 	}
-	return "", fmt.Errorf("%w: %s in %s", errNoPlatformDomain, region, t.environmentName)
+	return "", fmt.Errorf("%w: %s in %s", errNoPlatformDomain, region, t.Environment.GetName())
 }

@@ -111,9 +111,9 @@ func runApply(cmd *cobra.Command, path string) error {
 		return err
 	}
 	if len(plan.GetErrors()) > 0 {
-		services, resolveErr := locofile.Resolve(file, t.environmentName)
+		services, resolveErr := locofile.Resolve(file, t.Environment.GetName())
 		if resolveErr != nil {
-			return fmt.Errorf("%s does not resolve for environment %s: %w", path, t.environmentName, resolveErr)
+			return fmt.Errorf("%s does not resolve for environment %s: %w", path, t.Environment.GetName(), resolveErr)
 		}
 		if handled, provisionErr := provisionForSecrets(ctx, t, data, plan, services, confirm, os.Stdout); handled {
 			return provisionErr
@@ -175,7 +175,7 @@ func unconfirmedOperations(operations []*planv1.PlanOperation, confirm confirmat
 
 func requestApply(
 	ctx context.Context,
-	t target,
+	t cmdutil.Target,
 	file []byte,
 	revision int64,
 	images map[string]string,
@@ -187,7 +187,7 @@ func requestApply(
 
 	req := &planv1.ApplyRequest{
 		File:               file,
-		EnvironmentId:      t.environmentID,
+		EnvironmentId:      t.Environment.GetId(),
 		Revision:           revision,
 		ConfirmDestructive: confirm.destructive,
 		ConfirmImport:      confirm.importOps,
@@ -196,7 +196,7 @@ func requestApply(
 		Provision:          scope.provision,
 	}
 
-	resp, err := t.planClient().Apply(ctx, req)
+	resp, err := t.Clients.Plan.Apply(ctx, req)
 	if err != nil {
 		if refusal := applyRefusal(err); refusal != nil {
 			return nil, refusalError(refusal, revision)

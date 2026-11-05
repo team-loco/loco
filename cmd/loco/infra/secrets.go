@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	"github.com/team-loco/loco/internal/locofile"
 )
@@ -22,7 +23,7 @@ var errSecretsNotSet = errors.New("set the secrets of the new services, then run
 // decides which services it may create: it refuses a service the plan does not create.
 func provisionForSecrets(
 	ctx context.Context,
-	t target,
+	t cmdutil.Target,
 	data []byte,
 	plan *planv1.PlanResponse,
 	services map[string]locofile.Service,
@@ -53,7 +54,7 @@ func provisionForSecrets(
 			assignments = append(assignments, secret+"=...")
 		}
 		fmt.Fprintf(out, "Created %s. Set its secrets with: loco env set --service %s --env %s %s\n",
-			name, name, t.environmentName, strings.Join(assignments, " "))
+			name, name, t.Environment.GetName(), strings.Join(assignments, " "))
 	}
 	return true, errSecretsNotSet
 }

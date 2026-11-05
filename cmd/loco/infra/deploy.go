@@ -23,9 +23,7 @@ import (
 	"github.com/team-loco/loco/cmd/loco/resource"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
-	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/locofile"
-	"github.com/team-loco/loco/internal/rpc"
 	"sigs.k8s.io/yaml"
 )
 
@@ -144,11 +142,12 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 		filePath = "current directory"
 		names = nil
 	}
-	services, err := locofile.Resolve(file, t.environmentName)
+	environment := t.Environment.GetName()
+	services, err := locofile.Resolve(file, environment)
 	if err != nil {
-		return fmt.Errorf("%s does not resolve for environment %s: %w", filePath, t.environmentName, err)
+		return fmt.Errorf("%s does not resolve for environment %s: %w", filePath, environment, err)
 	}
-	services, targets, data, err := deployTargets(cmd, file, services, data, names, t.environmentName, quickDeploy)
+	services, targets, data, err := deployTargets(cmd, file, services, data, names, environment, quickDeploy)
 	if err != nil {
 		return err
 	}
@@ -268,7 +267,7 @@ func changedQuickDeployFlag(cmd *cobra.Command) bool {
 	return false
 }
 
-func buildQuickDeploy(cmd *cobra.Command, names []string, t target, yes bool) (*locofile.File, []byte, error) {
+func buildQuickDeploy(cmd *cobra.Command, names []string, t cmdutil.Target, yes bool) (*locofile.File, []byte, error) {
 	name, err := quickServiceName(cmd, names, yes)
 	if err != nil {
 		return nil, nil, err
@@ -388,7 +387,7 @@ func directoryServiceName() (string, error) {
 	return name, nil
 }
 
-func quickDomain(cmd *cobra.Command, t target, name, region string) (string, error) {
+func quickDomain(cmd *cobra.Command, t cmdutil.Target, name, region string) (string, error) {
 	domain, err := cmd.Flags().GetString("domain")
 	if err != nil {
 		return "", err
@@ -411,13 +410,13 @@ func quickDomain(cmd *cobra.Command, t target, name, region string) (string, err
 	return domain, nil
 }
 
-func generatedDomain(ctx context.Context, t target, name, platformDomain string) (string, error) {
+func generatedDomain(ctx context.Context, t cmdutil.Target, name, platformDomain string) (string, error) {
 	prefix := name
 	if len(prefix) > locofile.MaxServiceNameLength-domainSuffixLength-1 {
 		prefix = strings.TrimSuffix(prefix[:locofile.MaxServiceNameLength-domainSuffixLength-1], "-")
 	}
 	base := prefix + "-"
-	res, err := t.lookupResource(ctx, name)
+	res, err := t.Service(ctx, name)
 	if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
 		return "", err
 	}
@@ -432,8 +431,8 @@ func generatedDomain(ctx context.Context, t target, name, platformDomain string)
 			}
 		}
 	}
-	client := rpc.ForHost(t.host, t.token).Domain
-	candidate := base + domainSuffix(t.workspaceID, name) + "." + platformDomain
+	client := t.Clients.Domain
+	candidate := base + domainSuffix(t.WorkspaceID, name) + "." + platformDomain
 	request := &domainv1.CheckDomainAvailabilityRequest{Domain: candidate}
 	response, checkErr := client.CheckDomainAvailability(ctx, request)
 	if checkErr != nil {
@@ -554,7 +553,7 @@ func packTargets(dir string, targets []buildTarget, out io.Writer) (*sourcepack.
 
 func buildServices(
 	ctx context.Context,
-	t target,
+	t cmdutil.Target,
 	archive *sourcepack.Archive,
 	targets []buildTarget,
 	out io.Writer,
@@ -562,18 +561,17 @@ func buildServices(
 	if len(targets) == 0 {
 		return nil, nil
 	}
-	token := t.token
-	builder := resource.NewSourceBuilder(t.host, token, out)
+	builder := resource.NewSourceBuilder(t.Host, t.Token, out)
 	builds := make(map[string]string, len(targets))
 	for _, target := range targets {
-		res, lookupErr := t.lookupResource(ctx, target.name)
+		res, lookupErr := t.Service(ctx, target.name)
 		if lookupErr != nil {
 			return nil, lookupErr
 		}
 		fmt.Fprintf(out, "Building %s from %s in %s\n", target.name, target.dockerfile, target.context)
 		build, buildErr := builder.Build(ctx, resource.BuildInput{
 			ResourceID:  res.GetId(),
-			WorkspaceID: t.workspaceID,
+			WorkspaceID: t.WorkspaceID,
 			Archive:     archive,
 			Dockerfile:  target.dockerfile,
 			Context:     target.context,
@@ -584,19 +582,6 @@ func buildServices(
 		builds[target.name] = build.GetId()
 	}
 	return builds, nil
-}
-
-func (t target) lookupResource(ctx context.Context, name string) (*resourcev1.Resource, error) {
-	nameKey := &resourcev1.GetResourceNameKey{WorkspaceId: t.workspaceID, Name: name}
-	req := &resourcev1.GetResourceRequest{
-		Key: &resourcev1.GetResourceRequest_NameKey{NameKey: nameKey},
-	}
-
-	resp, err := t.resourceClient().GetResource(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("get service %s: %w", name, err)
-	}
-	return resp.GetResource(), nil
 }
 
 func writeReachability(w io.Writer, services map[string]locofile.Service) error {

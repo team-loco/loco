@@ -8,6 +8,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/internal/ui"
+	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
@@ -43,27 +44,19 @@ func runTransfer(cmd *cobra.Command, name, partial string) error {
 	ctx, cancel := context.WithTimeout(cmd.Context(), transferTimeout)
 	defer cancel()
 
-	t, err := resolveWorkspaceTarget(ctx, cmd)
+	t, err := cmdutil.ResolveTarget(ctx, cmd)
 	if err != nil {
 		return err
 	}
-	resources := t.resourceClient()
-
-	getReq := &resourcev1.GetResourceRequest{
-		Key: &resourcev1.GetResourceRequest_NameKey{
-			NameKey: &resourcev1.GetResourceNameKey{WorkspaceId: t.workspaceID, Name: name},
-		},
-	}
-
-	found, err := resources.GetResource(ctx, getReq)
+	service, err := t.Service(ctx, name)
 	if err != nil {
-		return fmt.Errorf("service %q not found: %w", name, err)
+		return err
 	}
-	resourceID := found.GetResource().GetId()
+	resourceID := service.GetId()
 
 	transferReq := &resourcev1.TransferPartialRequest{ResourceId: resourceID, Partial: partial}
 
-	if _, transferErr := resources.TransferPartial(ctx, transferReq); transferErr != nil {
+	if _, transferErr := t.Clients.Resource.TransferPartial(ctx, transferReq); transferErr != nil {
 		return fmt.Errorf("transfer %s to partial %s: %w", name, partial, transferErr)
 	}
 
