@@ -28,6 +28,7 @@ import (
 	"github.com/team-loco/loco/agent/pkg/identity"
 	"github.com/team-loco/loco/agent/pkg/kube"
 	"github.com/team-loco/loco/agent/pkg/reconciler"
+	"github.com/team-loco/loco/agent/pkg/rpcretry"
 	"github.com/team-loco/loco/agent/pkg/telemetrytoken"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
@@ -217,11 +218,13 @@ func (a *Agent) Run(ctx context.Context) error {
 		return fmt.Errorf("registration failed: %w", err)
 	}
 
-	if a.ingest != nil {
-		go a.ingest.Run(ctx)
-	}
+	errCh := make(chan error, 3)
 
-	errCh := make(chan error, 2)
+	if a.ingest != nil {
+		go func() {
+			errCh <- a.ingest.Run(ctx)
+		}()
+	}
 
 	go func() {
 		errCh <- a.runSync(ctx)
@@ -307,7 +310,7 @@ func (a *Agent) reconnectLoop(ctx context.Context, name string, attempt func(con
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		if !retryable(err) {
+		if !rpcretry.Retryable(err) {
 			return fmt.Errorf("%s: %w", name, err)
 		}
 

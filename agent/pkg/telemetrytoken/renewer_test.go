@@ -2,6 +2,7 @@ package telemetrytoken
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"sync"
 	"testing"
@@ -11,10 +12,13 @@ import (
 	"connectrpc.com/connect/v2/connectinprocess"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 
 	ingestv1 "github.com/team-loco/loco/gen/go/loco/ingest/v1"
 	"github.com/team-loco/loco/gen/go/loco/ingest/v1/ingestv1connect"
@@ -33,11 +37,13 @@ const (
 	testWait          = 5 * time.Second
 	testPoll          = 5 * time.Millisecond
 	testOutage        = "control plane unavailable"
+	testRejected      = "cluster credential rejected"
 )
 
 type step struct {
 	lifetime time.Duration
 	fail     bool
+	rejected bool
 }
 
 type issuance struct {
@@ -68,6 +74,9 @@ func (s *scriptedIssuer) IssueToken(
 	if next.fail {
 		return nil, connect.NewError(connect.CodeUnavailable, testOutage)
 	}
+	if next.rejected {
+		return nil, connect.NewError(connect.CodeUnauthenticated, testRejected)
+	}
 	now := time.Now()
 	token := "token-" + strconv.Itoa(s.calls)
 	expiresAt := now.Add(next.lifetime)
@@ -95,23 +104,43 @@ func existingSecret(namespace string) *corev1.Secret {
 	}
 }
 
-func startRenewer(t *testing.T, issuer *scriptedIssuer, kube *fake.Clientset) {
-	t.Helper()
+func newRenewer(issuer *scriptedIssuer, kube *fake.Clientset) *Renewer {
 	server := connect.NewServer()
 	ingestv1connect.RegisterIngestServiceHandler(server, issuer)
 	client := ingestv1connect.NewIngestServiceClient(connect.NewClient(connectinprocess.New(server)))
 	secret := Secret{Namespaces: testNamespaces, Name: testSecretName, Key: testSecretKey}
-	renewer := NewRenewer(client, kube, secret, testBackoff)
+	return NewRenewer(client, kube, secret, testBackoff)
+}
+
+func startRenewer(t *testing.T, issuer *scriptedIssuer, kube *fake.Clientset) {
+	t.Helper()
+	renewer := newRenewer(issuer, kube)
 	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan struct{})
+	done := make(chan error, 1)
 	go func() {
-		renewer.Run(ctx)
-		close(done)
+		done <- renewer.Run(ctx)
 	}()
 	t.Cleanup(func() {
 		cancel()
-		<-done
+		if err := <-done; !errors.Is(err, context.Canceled) {
+			t.Errorf("Run = %v, want it to run until canceled", err)
+		}
 	})
+}
+
+func runUntilStopped(t *testing.T, renewer *Renewer) error {
+	t.Helper()
+	done := make(chan error, 1)
+	go func() {
+		done <- renewer.Run(t.Context())
+	}()
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(testWait):
+		t.Fatal("renewer kept retrying an error a retry cannot fix")
+		return nil
+	}
 }
 
 func storedToken(t *testing.T, kube *fake.Clientset) string {
@@ -235,4 +264,34 @@ func TestRenewerCreatesMissingSecrets(t *testing.T) {
 		time.Sleep(testPoll)
 	}
 	t.Fatal("renewer did not create the missing Secret")
+}
+
+func TestRenewerStopsWhenTheControlPlaneRejectsTheCredential(t *testing.T) {
+	issuer := &scriptedIssuer{script: []step{{rejected: true}}}
+	kube := fake.NewClientset(existingSecrets()...)
+
+	err := runUntilStopped(t, newRenewer(issuer, kube))
+	if connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("Run = %v, want an Unauthenticated error", err)
+	}
+	if issuer.calls != 1 {
+		t.Fatalf("IssueToken called %d times, want 1", issuer.calls)
+	}
+}
+
+func TestRenewerStopsWhenTheSecretWriteIsForbidden(t *testing.T) {
+	issuer := &scriptedIssuer{}
+	kube := fake.NewClientset(existingSecrets()...)
+	forbidden := apierrors.NewForbidden(schema.GroupResource{Resource: "secrets"}, testSecretName, nil)
+	kube.PrependReactor("update", "secrets", func(k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, forbidden
+	})
+
+	err := runUntilStopped(t, newRenewer(issuer, kube))
+	if !apierrors.IsForbidden(err) {
+		t.Fatalf("Run = %v, want a Forbidden error", err)
+	}
+	if issuer.calls != 1 {
+		t.Fatalf("IssueToken called %d times, want 1", issuer.calls)
+	}
 }
