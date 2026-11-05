@@ -272,7 +272,7 @@ func (s *BuildServer) StartBuild(
 
 	superseded, txErr := queueBuild(ctx, s.db, build.ID, build.ResourceID, clusterID)
 	if txErr != nil {
-		return nil, handlerError(ctx, "failed to queue build", txErr)
+		return nil, handlerError(ctx, "failed to queue build", txErr, "buildId", build.ID)
 	}
 	deleteBuildSources(ctx, s.queries, s.bucket, superseded...)
 

@@ -73,8 +73,8 @@ func (e *invalidInputError) Unwrap() error {
 }
 
 // handlerError maps a domain error to the connect error a handler returns. Any other error is
-// a server failure: it is logged with msg and hidden behind ErrDB.
-func handlerError(ctx context.Context, msg string, err error) error {
+// a server failure: it is logged with msg and attrs and hidden behind ErrDB.
+func handlerError(ctx context.Context, msg string, err error, attrs ...any) error {
 	if invalid, ok := errors.AsType[*invalidInputError](err); ok {
 		return connect.NewError(connect.CodeInvalidArgument, invalid.public).WithCause(invalid.err)
 	}
@@ -83,7 +83,8 @@ func handlerError(ctx context.Context, msg string, err error) error {
 			return rpcerr.New(domain.code, err)
 		}
 	}
-	slog.ErrorContext(ctx, msg, "error", err)
+	attrs = append(attrs, "error", err)
+	slog.ErrorContext(ctx, msg, attrs...)
 	return rpcerr.New(connect.CodeInternal, ErrDB)
 }
 
