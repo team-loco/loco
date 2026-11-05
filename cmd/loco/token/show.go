@@ -14,16 +14,14 @@ import (
 )
 
 type showDeps struct {
-	CurrentUser func() (*user.User, error)
-	NewStore    func(*user.User) (keychain.TokenStore, error)
-	Output      io.Writer
+	Tokens func() (keychain.TokenStore, error)
+	Output io.Writer
 }
 
 func buildShowCmd() *cobra.Command {
 	deps := showDeps{
-		CurrentUser: user.Current,
-		NewStore:    keychain.NewStore,
-		Output:      os.Stdout,
+		Tokens: keychain.ForCurrentUser,
+		Output: os.Stdout,
 	}
 	return newShowCmd(deps)
 }
@@ -40,12 +38,12 @@ func newShowCmd(deps showDeps) *cobra.Command {
   # Show raw token value (for scripting)
   loco token show --raw`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			currentUser, err := deps.CurrentUser()
+			currentUser, err := user.Current()
 			if err != nil {
 				return fmt.Errorf("failed to get current user: %w", err)
 			}
 
-			store, err := deps.NewStore(currentUser)
+			store, err := deps.Tokens()
 			if err != nil {
 				return err
 			}

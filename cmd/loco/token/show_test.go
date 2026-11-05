@@ -3,7 +3,6 @@ package token
 import (
 	"errors"
 	"io"
-	"os/user"
 	"testing"
 
 	"github.com/team-loco/loco/cmd/internal/keychain"
@@ -30,8 +29,7 @@ func TestShowKeychainErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := newShowCmd(showDeps{
-				CurrentUser: func() (*user.User, error) { return &user.User{Username: "someone"}, nil },
-				NewStore: func(*user.User) (keychain.TokenStore, error) {
+				Tokens: func() (keychain.TokenStore, error) {
 					return failingStore{err: tt.err}, nil
 				},
 				Output: io.Discard,
