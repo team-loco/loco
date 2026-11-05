@@ -27,8 +27,12 @@ const (
 	workerHeartbeatMaxAge = time.Minute
 )
 
-var errBootstrapRequired = errors.New("first administrator bootstrap is required")
-var errWorkerState = errors.New("worker registration, target or identity differs from installation state")
+var (
+	errBootstrapRequired      = errors.New("first administrator bootstrap is required")
+	errWorkerState            = errors.New("worker registration, target or identity differs from installation state")
+	errWorkerEnrollmentStatus = errors.New("read worker enrollment status failed")
+	errWorkerRegistration     = errors.New("create or recover worker registration failed")
+)
 
 // ApplyWorkers requires an authenticated system-admin session established after
 // the first-admin checkpoint. Enrollment credentials never leave destination Secrets.
@@ -138,7 +142,7 @@ func (k *Kubernetes) applyWorker(
 		},
 	)
 	if err != nil {
-		return errors.New("create or recover worker registration failed")
+		return errWorkerRegistration
 	}
 	if previous := state.Data["clusterID"]; previous != "" && previous != created.GetClusterId() {
 		return errWorkerState
@@ -183,7 +187,7 @@ func (k *Kubernetes) applyWorker(
 	for {
 		listed, err := client.ListClusters(ctx, &clusterv1.ListClustersRequest{})
 		if err != nil {
-			return errors.New("read worker enrollment status failed")
+			return errWorkerEnrollmentStatus
 		}
 		for _, cluster := range listed.GetClusters() {
 			if cluster.GetId() != created.GetClusterId() {

@@ -22,6 +22,18 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+var (
+	errDockerBuildx              = errors.New("installation fixture requires the Docker Buildx plugin")
+	errDependencyPin             = errors.New("fixture dependency pin is missing")
+	errDockerPlatform            = errors.New("installation fixture requires a Linux Docker daemon")
+	errProviderPasswordPin       = errors.New("fixture IdP has no pinned password hash")
+	errRegistryAccessConfig      = errors.New("invalid fixture registry access configuration")
+	errRegistryAddress           = errors.New("registry fixture has no service address")
+	errRegistryHTTPConfig        = errors.New("invalid fixture registry HTTP configuration")
+	errRegistryReadinessEndpoint = errors.New("invalid registry readiness endpoint")
+	errRegistryRepositoryConfig  = errors.New("invalid fixture registry repository configuration")
+)
+
 const (
 	registryForwardTimeout = time.Minute
 	registryRequestTimeout = time.Second
@@ -46,8 +58,6 @@ type fixture struct {
 	platform                                 string
 	dockerPluginDirs                         []string
 }
-
-var errDockerBuildx = errors.New("installation fixture requires the Docker Buildx plugin")
 
 func newFixture(root string, skip bool) (*fixture, error) {
 	digest := sha256.Sum256([]byte(root))
@@ -85,7 +95,7 @@ func (f *fixture) acceptance(ctx context.Context) error {
 	}
 	f.platform = strings.TrimSpace(string(platform))
 	if !strings.HasPrefix(f.platform, "linux/") {
-		return errors.New("installation fixture requires a Linux Docker daemon")
+		return errDockerPlatform
 	}
 	metadata, metadataErr := command(ctx, f.root, nil, "docker", "info", "--format", "{{json .ClientInfo.Plugins}}")
 	if metadataErr != nil {
@@ -251,7 +261,7 @@ func (f *fixture) pin(ctx context.Context, file, expression string) (string, err
 	}
 	value := strings.TrimSpace(string(output))
 	if value == "" || value == "null" {
-		return "", errors.New("fixture dependency pin is missing")
+		return "", errDependencyPin
 	}
 	return value, nil
 }
@@ -336,7 +346,7 @@ func (f *fixture) provision(ctx context.Context) error {
 		}
 	}
 	if hash == "" {
-		return errors.New("fixture IdP has no pinned password hash")
+		return errProviderPasswordPin
 	}
 
 	registryRevision := sha256.Sum256(registryData)
@@ -425,7 +435,7 @@ func (f *fixture) registryRouting(ctx context.Context) error {
 	}
 	address := strings.TrimSpace(string(data))
 	if net.ParseIP(address) == nil {
-		return errors.New("registry fixture has no service address")
+		return errRegistryAddress
 	}
 	// CoreDNS makes the declared registry host available to API/build pods. Containerd
 	// nodes use the same service IP through a registry mirror, without modifying host DNS.
@@ -568,7 +578,7 @@ func waitRegistry(ctx context.Context, endpoint string) error {
 	for {
 		request, err := http.NewRequestWithContext(deadline, http.MethodGet, endpoint+"/v2/", nil)
 		if err != nil {
-			return errors.New("invalid registry readiness endpoint")
+			return errRegistryReadinessEndpoint
 		}
 		response, requestErr := client.Do(request)
 		if requestErr == nil {
@@ -598,15 +608,15 @@ func (f *fixture) registryConfiguration() ([]byte, error) {
 	}
 	httpConfig, ok := registry["http"].(map[string]any)
 	if !ok {
-		return nil, errors.New("invalid fixture registry HTTP configuration")
+		return nil, errRegistryHTTPConfig
 	}
 	access, ok := httpConfig["accessControl"].(map[string]any)
 	if !ok {
-		return nil, errors.New("invalid fixture registry access configuration")
+		return nil, errRegistryAccessConfig
 	}
 	repos, ok := access["repositories"].(map[string]any)
 	if !ok {
-		return nil, errors.New("invalid fixture registry repository configuration")
+		return nil, errRegistryRepositoryConfig
 	}
 	repos["platform/**"] = map[string]any{
 		"anonymousPolicy": []string{registryReadAction},

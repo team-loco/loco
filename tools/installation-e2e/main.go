@@ -21,7 +21,12 @@ const (
 	hostTimeout    = 75 * time.Minute
 )
 
-var errSuiteTimeout = errors.New("installation suite timeout must be positive")
+var (
+	errSuiteTimeout   = errors.New("installation suite timeout must be positive")
+	errSuiteDirectory = errors.New("run the installation suite from the repository root")
+	errSuiteFilters   = errors.New("installation suite accepts no test filters")
+	errSuiteOptions   = errors.New("invalid installation suite options")
+)
 
 func main() {
 	if checkErr := run(); checkErr != nil {
@@ -42,10 +47,10 @@ func run() error {
 	skip := options.Bool("skip-build", false, "Reuse this suite's built images and binaries")
 	timeout := options.Duration("timeout", hostTimeout, "Maximum duration of host setup and acceptance")
 	if checkErr := options.Parse(os.Args[1:]); checkErr != nil {
-		return errors.New("invalid installation suite options")
+		return errSuiteOptions
 	}
 	if options.NArg() != 0 {
-		return errors.New("installation suite accepts no test filters")
+		return errSuiteFilters
 	}
 	if *timeout <= 0 {
 		return errSuiteTimeout
@@ -65,7 +70,7 @@ func run() error {
 		return err
 	}
 	if _, checkErr := os.Stat(filepath.Join(root, "mise.toml")); checkErr != nil {
-		return errors.New("run the installation suite from the repository root")
+		return errSuiteDirectory
 	}
 	fixture, err := newFixture(root, *skip)
 	if err != nil {

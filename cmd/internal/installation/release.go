@@ -23,9 +23,12 @@ const (
 	archiveEntryLimit = 32 << 20
 )
 
-var errReadRelease = errors.New("cannot read release manifest")
-
-var errInvalidRelease = errors.New("invalid release manifest or unsupported configuration version")
+var (
+	errReadRelease      = errors.New("cannot read release manifest")
+	errInvalidRelease   = errors.New("invalid release manifest or unsupported configuration version")
+	errArtifactDownload = errors.New("download pinned release artifact failed")
+	errArtifactRead     = errors.New("read pinned release artifact failed")
+)
 var digestReference = regexp.MustCompile(`^[a-z0-9][a-z0-9./:_-]*@sha256:[a-f0-9]{64}$`)
 var commitReference = regexp.MustCompile(`^[a-f0-9]{40}$`)
 
@@ -82,7 +85,7 @@ func artifact(ctx context.Context, reference string) ([]byte, error) {
 	}
 	image, err := remote.Image(ref, remote.WithContext(ctx))
 	if err != nil {
-		return nil, errors.New("download pinned release artifact failed")
+		return nil, errArtifactDownload
 	}
 	layers, err := image.Layers()
 	if err != nil || len(layers) != 1 {
@@ -90,12 +93,12 @@ func artifact(ctx context.Context, reference string) ([]byte, error) {
 	}
 	reader, err := layers[0].Compressed()
 	if err != nil {
-		return nil, errors.New("read pinned release artifact failed")
+		return nil, errArtifactRead
 	}
 	defer reader.Close()
 	data, err := io.ReadAll(io.LimitReader(reader, artifactReadLimit))
 	if err != nil {
-		return nil, errors.New("read pinned release artifact failed")
+		return nil, errArtifactRead
 	}
 	return data, nil
 }

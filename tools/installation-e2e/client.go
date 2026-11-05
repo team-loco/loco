@@ -29,6 +29,44 @@ import (
 	clisession "github.com/team-loco/loco/internal/session"
 )
 
+var (
+	errBootstrapAuthentication        = errors.New("authenticated bootstrap failed")
+	errBootstrapAuthenticationMissing = errors.New("bootstrap did not start IdP authentication")
+	errBootstrapDrain                 = errors.New("drain bootstrap output failed")
+	errBootstrapOutputLimit           = errors.New("bootstrap output exceeded scanner limit")
+	errBootstrapStop                  = errors.New("stop bootstrap subprocess failed")
+	errFixtureCAInvalid               = errors.New("invalid fixture CA certificate")
+	errFixtureCAPEM                   = errors.New("fixture CA certificate is not PEM")
+	errFreshOperatorIdentityChanged   = errors.New(
+		"fresh operator apply replaced installation credentials or worker identity",
+	)
+	errHTTPSReadiness              = errors.New("application HTTPS readiness did not succeed")
+	errInstallerCredentialsMissing = errors.New("installer created no owned credential Secrets")
+	errMissingIssuerAccepted       = errors.New("initial apply unexpectedly accepted a missing issuer")
+	errNetworkPolicyInputs         = errors.New("network-policy fixture inputs are missing")
+	errNetworkPolicyProbeAllowed   = errors.New(
+		"build namespace NetworkPolicy does not block Kubernetes API access",
+	)
+	errOrganizationIDMissing            = errors.New("organization creation returned no ID")
+	errProviderAuthenticationIncomplete = errors.New("fixture IdP authentication did not complete")
+	errProviderAuthorizationURL         = errors.New("invalid fixture IdP authorization URL")
+	errProviderFormAction               = errors.New("invalid fixture IdP form action")
+	errProviderLoginForm                = errors.New("fixture IdP did not offer its password login form")
+	errProviderLoginOpen                = errors.New("open fixture IdP login failed")
+	errProviderLoginRead                = errors.New("read fixture IdP form failed")
+	errProviderLoginSubmit              = errors.New("submit fixture IdP login failed")
+	errProviderSubmissionURL            = errors.New("invalid fixture IdP submission URL")
+	errReapplyIdentityChanged           = errors.New(
+		"repeat apply replaced installation credentials or worker identity",
+	)
+	errStagingEnvironmentCreate  = errors.New("create staging environment failed")
+	errStagingEnvironmentList    = errors.New("list staging verification environment failed")
+	errStagingEnvironmentMissing = errors.New("staging verification environment is missing")
+	errUnrestrictedProbeFailed   = errors.New("unrestricted fixture cannot reach the Kubernetes API")
+	errWorkerIdentityIncomplete  = errors.New("worker identity is incomplete")
+	errWorkspaceIDMissing        = errors.New("workspace creation returned no ID")
+)
+
 const (
 	fixtureEmail         = "dev@loco.test"
 	fixturePassword      = "loco-dev"
@@ -72,7 +110,7 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 	}
 	if _, checkErr := kubectl(ctx, "get", "clusterissuer", "installation-ca"); checkErr != nil {
 		if _, checkErr := locoadm(ctx, "apply", "--file", clientFile); checkErr == nil {
-			return errors.New("initial apply unexpectedly accepted a missing issuer")
+			return errMissingIssuerAccepted
 		}
 		if checkErr := provisionIssuer(ctx); checkErr != nil {
 			return checkErr
@@ -120,7 +158,7 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 		return err
 	}
 	if before != after {
-		return errors.New("repeat apply replaced installation credentials or worker identity")
+		return errReapplyIdentityChanged
 	}
 	// A fresh local credential store must recover the existing administrator and clean up,
 	// rather than requiring an IdP token or an internal installation token copied by hand.
@@ -145,7 +183,7 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 		return err
 	}
 	if before != after {
-		return errors.New("fresh operator apply replaced installation credentials or worker identity")
+		return errFreshOperatorIdentityChanged
 	}
 	if checkErr := os.Setenv("HOME", originalHome); checkErr != nil {
 		return checkErr
@@ -197,10 +235,10 @@ func bootstrap(ctx context.Context) error {
 		}
 	}
 	if scanner.Err() != nil {
-		return errors.Join(errors.New("bootstrap output exceeded scanner limit"), stopBootstrap(cmd, output))
+		return errors.Join(errBootstrapOutputLimit, stopBootstrap(cmd, output))
 	}
 	if authorization == "" {
-		return errors.Join(errors.New("bootstrap did not start IdP authentication"), cmd.Wait())
+		return errors.Join(errBootstrapAuthenticationMissing, cmd.Wait())
 	}
 	if checkErr := completeDexLogin(ctx, authorization); checkErr != nil {
 		return errors.Join(checkErr, stopBootstrap(cmd, output))
@@ -211,20 +249,20 @@ func bootstrap(ctx context.Context) error {
 	_, copyErr := io.Copy(io.Discard, output)
 	waitErr := cmd.Wait()
 	if scanner.Err() != nil || copyErr != nil || waitErr != nil {
-		return errors.New("authenticated bootstrap failed")
+		return errBootstrapAuthentication
 	}
 	return nil
 }
 
 func stopBootstrap(cmd *exec.Cmd, output io.Reader) error {
 	if err := cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
-		return errors.New("stop bootstrap subprocess failed")
+		return errBootstrapStop
 	}
 	// Capture queued stdout before Wait closes the pipe on failed authentication.
 	_, drainErr := io.Copy(io.Discard, output)
 	stopErr := stopProcess(cmd)
 	if drainErr != nil {
-		return errors.Join(errors.New("drain bootstrap output failed"), stopErr)
+		return errors.Join(errBootstrapDrain, stopErr)
 	}
 	return stopErr
 }
@@ -237,39 +275,39 @@ func completeDexLogin(ctx context.Context, authorization string) error {
 	client := &http.Client{Jar: jar, Timeout: time.Minute}
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, authorization, nil)
 	if err != nil {
-		return errors.New("invalid fixture IdP authorization URL")
+		return errProviderAuthorizationURL
 	}
 	response, err := client.Do(request)
 	if err != nil {
-		return errors.New("open fixture IdP login failed")
+		return errProviderLoginOpen
 	}
 	defer response.Body.Close()
 	document, err := html.Parse(io.LimitReader(response.Body, fixtureResponseLimit))
 	if err != nil {
-		return errors.New("read fixture IdP form failed")
+		return errProviderLoginRead
 	}
 	action, values, ok := loginForm(document)
 	if !ok {
-		return errors.New("fixture IdP did not offer its password login form")
+		return errProviderLoginForm
 	}
 	target, err := response.Request.URL.Parse(action)
 	if err != nil {
-		return errors.New("invalid fixture IdP form action")
+		return errProviderFormAction
 	}
 	values.Set("login", fixtureEmail)
 	values.Set("password", fixturePassword)
 	request, err = http.NewRequestWithContext(ctx, http.MethodPost, target.String(), strings.NewReader(values.Encode()))
 	if err != nil {
-		return errors.New("invalid fixture IdP submission URL")
+		return errProviderSubmissionURL
 	}
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	result, err := client.Do(request)
 	if err != nil {
-		return errors.New("submit fixture IdP login failed")
+		return errProviderLoginSubmit
 	}
 	defer result.Body.Close()
 	if result.StatusCode != http.StatusOK {
-		return errors.New("fixture IdP authentication did not complete")
+		return errProviderAuthenticationIncomplete
 	}
 	return nil
 }
@@ -341,7 +379,7 @@ func identitySnapshot(ctx context.Context) (string, error) {
 		return "", checkErr
 	}
 	if len(result.Items) == 0 {
-		return "", errors.New("installer created no owned credential Secrets")
+		return "", errInstallerCredentialsMissing
 	}
 	// Resource versions and deployment rollout metadata may change; credential bytes may not.
 	values := make(map[string]map[string]string)
@@ -366,7 +404,7 @@ func identitySnapshot(ctx context.Context) (string, error) {
 		return "", checkErr
 	}
 	if identity.Data["private-key"] == "" || identity.Data["cluster-id"] == "" {
-		return "", errors.New("worker identity is incomplete")
+		return "", errWorkerIdentityIncomplete
 	}
 	values[workerNamespace+"/loco-worker-agent-key"] = identity.Data
 	normalized, err := json.Marshal(values)
@@ -386,7 +424,7 @@ func deployFixture(ctx context.Context) error {
 		}
 		organizationID := regexp.MustCompile(`[a-f0-9]{8}-[a-f0-9-]{27}`).FindString(string(organization))
 		if organizationID == "" {
-			return errors.New("organization creation returned no ID")
+			return errOrganizationIDMissing
 		}
 		workspace, err := command(
 			ctx,
@@ -404,7 +442,7 @@ func deployFixture(ctx context.Context) error {
 		}
 		workspaceID := regexp.MustCompile(`[a-f0-9]{8}-[a-f0-9-]{27}`).FindString(string(workspace))
 		if workspaceID == "" {
-			return errors.New("workspace creation returned no ID")
+			return errWorkspaceIDMissing
 		}
 		if _, checkErr := command(ctx, "", nil, "loco", "use", "installation-e2e/source-build"); checkErr != nil {
 			return checkErr
@@ -422,7 +460,7 @@ func deployFixture(ctx context.Context) error {
 				Type:        environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING,
 			},
 		); createErr != nil {
-			return errors.New("create staging environment failed")
+			return errStagingEnvironmentCreate
 		}
 	}
 	if checkErr := os.Setenv("LOCO_ENV", "staging"); checkErr != nil {
@@ -479,7 +517,7 @@ services:
 		&environmentv1.ListEnvironmentsRequest{WorkspaceId: scope.Workspace.ID},
 	)
 	if listErr != nil {
-		return errors.New("list staging verification environment failed")
+		return errStagingEnvironmentList
 	}
 	environmentID := ""
 	for _, environment := range listed.GetEnvironments() {
@@ -488,7 +526,7 @@ services:
 		}
 	}
 	if environmentID == "" {
-		return errors.New("staging verification environment is missing")
+		return errStagingEnvironmentMissing
 	}
 	if _, verifyErr := locoadm(
 		ctx,
@@ -561,7 +599,7 @@ func fixtureRoots(ctx context.Context) (*x509.CertPool, error) {
 	}
 	certificate, err := base64.StdEncoding.DecodeString(string(encoded))
 	if err != nil {
-		return nil, errors.New("invalid fixture CA certificate")
+		return nil, errFixtureCAInvalid
 	}
 	publicCA, createErr := os.CreateTemp("", "installation-ca-*.crt")
 	if createErr != nil {
@@ -578,7 +616,7 @@ func fixtureRoots(ctx context.Context) (*x509.CertPool, error) {
 	}
 	roots := x509.NewCertPool()
 	if !roots.AppendCertsFromPEM(certificate) {
-		return nil, errors.New("fixture CA certificate is not PEM")
+		return nil, errFixtureCAPEM
 	}
 	return roots, nil
 }
@@ -587,7 +625,7 @@ func probeNetworkPolicy(ctx context.Context) error {
 	image := os.Getenv("E2E_PROBE_IMAGE")
 	namespace := os.Getenv("E2E_BUILD_NAMESPACE")
 	if image == "" || namespace == "" {
-		return errors.New("network-policy fixture inputs are missing")
+		return errNetworkPolicyInputs
 	}
 	node, err := kubectl(ctx, "get",
 		"nodes",
@@ -645,7 +683,7 @@ func probeNetworkPolicy(ctx context.Context) error {
 		host,
 		"6443",
 	); checkErr != nil {
-		return errors.New("unrestricted fixture cannot reach the Kubernetes API")
+		return errUnrestrictedProbeFailed
 	}
 	deadline := time.NewTimer(time.Minute)
 	defer deadline.Stop()
@@ -670,7 +708,7 @@ func probeNetworkPolicy(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-deadline.C:
-			return errors.New("build namespace NetworkPolicy does not block Kubernetes API access")
+			return errNetworkPolicyProbeAllowed
 		case <-retry.C:
 		}
 	}
@@ -732,7 +770,7 @@ func waitHTTPS(ctx context.Context, client *http.Client, request *http.Request) 
 		}
 		select {
 		case <-deadline.Done():
-			return errors.New("application HTTPS readiness did not succeed")
+			return errHTTPSReadiness
 		case <-ticker.C:
 		}
 	}

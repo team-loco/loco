@@ -15,7 +15,10 @@ import (
 	"github.com/team-loco/loco/internal/rpc"
 )
 
-var errControlPlaneNotReady = errors.New("control-plane deployments are not ready")
+var (
+	errControlPlaneNotReady = errors.New("control-plane deployments are not ready")
+	errWorkerStatus         = errors.New("read authenticated worker status failed")
+)
 
 type Status struct {
 	ReleaseVersion   string         `json:"releaseVersion"`
@@ -108,7 +111,7 @@ func StatusInstallation(ctx context.Context, config Config, token string) (Statu
 		&clusterv1.ListClustersRequest{},
 	)
 	if err != nil {
-		return Status{}, errors.New("read authenticated worker status failed")
+		return Status{}, errWorkerStatus
 	}
 	allReady := true
 	for _, worker := range config.Workers {

@@ -22,6 +22,12 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
+var (
+	errArtifactPublish = errors.New("publish fixture release artifact failed")
+	errChartArchive    = errors.New("chart packaging returned no archive")
+	errImageDigest     = errors.New("inspect fixture image digest failed")
+)
+
 const (
 	fixtureVersion = "e2e"
 	helmLayer      = "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
@@ -87,7 +93,7 @@ func (f *fixture) release(ctx context.Context) (map[string]any, string, error) {
 		}
 		_, file, ok := strings.Cut(strings.TrimSpace(string(output)), "saved it to: ")
 		if !ok {
-			return nil, "", errors.New("chart packaging returned no archive")
+			return nil, "", errChartArchive
 		}
 		data, err := os.ReadFile(file)
 		if err != nil {
@@ -229,7 +235,7 @@ func (f *fixture) manifestDigest(ctx context.Context, repository, reference stri
 	}
 	descriptor, err := remote.Get(ref, remote.WithContext(ctx), remote.WithAuth(fixtureRegistryAuth()))
 	if err != nil {
-		return "", errors.New("inspect fixture image digest failed")
+		return "", errImageDigest
 	}
 	return descriptor.Digest.String(), nil
 }
@@ -256,7 +262,7 @@ func (f *fixture) publish(ctx context.Context, repository string, data []byte, l
 		remote.WithContext(ctx),
 		remote.WithAuth(fixtureRegistryAuth()),
 	); checkErr != nil {
-		return "", errors.New("publish fixture release artifact failed")
+		return "", errArtifactPublish
 	}
 	digest, err := image.Digest()
 	if err != nil {

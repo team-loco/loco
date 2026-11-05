@@ -10,6 +10,11 @@ import (
 	"time"
 )
 
+var (
+	errDNSZone        = errors.New("incomplete fixture DNS zone")
+	errGatewayAddress = errors.New("fixture Gateway has no real LoadBalancer address")
+)
+
 const (
 	fixtureAppsDomain   = "apps.installation.test"
 	gatewayReadyTimeout = 2 * time.Minute
@@ -92,7 +97,7 @@ func configureGatewayDNS(ctx context.Context, namespace string, worker bool) err
 		}
 		select {
 		case <-deadline.Done():
-			return errors.New("fixture Gateway has no real LoadBalancer address")
+			return errGatewayAddress
 		case <-ticker.C:
 		}
 	}
@@ -109,7 +114,7 @@ func configureGatewayDNS(ctx context.Context, namespace string, worker bool) err
 		if before, rest, found := strings.Cut(core, begin); found {
 			_, after, ok := strings.Cut(rest, end)
 			if !ok {
-				return errors.New("incomplete fixture DNS zone")
+				return errDNSZone
 			}
 			core = before + after
 		}

@@ -24,6 +24,36 @@ import (
 	"time"
 )
 
+var (
+	errAuditAccept              = errors.New("argument audit accept failed")
+	errAuditAcknowledgement     = errors.New("argument audit acknowledgement failed")
+	errAuditCredentialURL       = errors.New("secret audit: invalid credential URL")
+	errAuditDeadline            = errors.New("argument audit deadline failed")
+	errAuditExecutable          = errors.New("unknown fixture executable")
+	errAuditRegistryAuth        = errors.New("secret audit: invalid registry auth")
+	errAuditRegistryCredentials = errors.New("secret audit: invalid registry credentials")
+	errAuditStart               = errors.New("start argument audit failed")
+	errAuditUnavailable         = errors.New("argument audit unavailable")
+	errAuditWrite               = errors.New("argument audit write failed")
+	errFileAudit                = errors.New("operator file audit failed")
+	errFileAuditLimit           = errors.New("operator file audit limit exceeded")
+	errFileAuditOpen            = errors.New("operator file audit open failed")
+	errFileAuditPath            = errors.New("operator file audit path failed")
+	errFileAuditRead            = errors.New("operator file audit read failed")
+	errFileAuditStat            = errors.New("operator file audit stat failed")
+	errFixtureExecutable        = errors.New("fixture executable failed")
+	errHelmAuditCompression     = errors.New("helm audit compression invalid")
+	errHelmAuditDecode          = errors.New("helm audit decoding failed")
+	errHelmAuditRelease         = errors.New("helm audit release exceeds limit or is invalid")
+	errInspection               = errors.New("secret inspection failed")
+	errInspectionCAInvalid      = errors.New("secret inspection CA invalid")
+	errInspectionCAUnavailable  = errors.New("secret inspection CA unavailable")
+	errInspectionDecode         = errors.New("secret inspection decoding failed")
+	errInspectionIdentity       = errors.New("secret inspection identity unavailable")
+	errInspectionRejected       = errors.New("secret inspection rejected")
+	errInspectionRequest        = errors.New("secret inspection request failed")
+)
+
 const auditLimit = 32 << 20
 const auditSocket = "/tmp/installation-audit.sock"
 const helmExecutable = "helm"
@@ -114,34 +144,34 @@ func auditExecutable() error {
 	case kubectlExecutable:
 		executable = "/usr/local/libexec/kubectl"
 	default:
-		return errors.New("unknown fixture executable")
+		return errAuditExecutable
 	}
 	connection, err := (&net.Dialer{Timeout: time.Second}).DialContext(context.Background(), "unix", auditSocket)
 	if err != nil {
-		return errors.New("argument audit unavailable")
+		return errAuditUnavailable
 	}
 	defer connection.Close()
 	if err = connection.SetDeadline(time.Now().Add(time.Second)); err != nil {
-		return errors.New("argument audit deadline failed")
+		return errAuditDeadline
 	}
 	if err = json.NewEncoder(connection).Encode(os.Args); err != nil {
-		return errors.New("argument audit write failed")
+		return errAuditWrite
 	}
 	var ack [1]byte
 	if _, err = io.ReadFull(connection, ack[:]); err != nil {
-		return errors.New("argument audit acknowledgement failed")
+		return errAuditAcknowledgement
 	}
 	// Paths are fixed in the fixture image; no shell or PATH lookup is involved.
 	//nolint:gosec // Fixed executable selected above; argv is forwarded without a shell.
 	if err = syscall.Exec(executable, os.Args, os.Environ()); err != nil {
-		return errors.New("fixture executable failed")
+		return errFixtureExecutable
 	}
 	return nil
 }
 func (a *leakAudit) listen(path string) (func() error, error) {
 	listener, err := (&net.ListenConfig{}).Listen(context.Background(), "unix", path)
 	if err != nil {
-		return nil, errors.New("start argument audit failed")
+		return nil, errAuditStart
 	}
 	done := make(chan error, 1)
 	go func() {
@@ -152,7 +182,7 @@ func (a *leakAudit) listen(path string) (func() error, error) {
 				return
 			}
 			if acceptErr != nil {
-				done <- errors.New("argument audit accept failed")
+				done <- errAuditAccept
 				return
 			}
 			if captureErr := a.captureArguments(connection); captureErr != nil {
@@ -191,15 +221,15 @@ type auditSecret struct {
 func inspectionSecrets(ctx context.Context) ([]auditSecret, error) {
 	ca, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt")
 	if err != nil {
-		return nil, errors.New("secret inspection CA unavailable")
+		return nil, errInspectionCAUnavailable
 	}
 	roots := x509.NewCertPool()
 	if !roots.AppendCertsFromPEM(ca) {
-		return nil, errors.New("secret inspection CA invalid")
+		return nil, errInspectionCAInvalid
 	}
 	token, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
 	if err != nil {
-		return nil, errors.New("secret inspection identity unavailable")
+		return nil, errInspectionIdentity
 	}
 	transport := &http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}}
 	defer transport.CloseIdleConnections()
@@ -211,22 +241,22 @@ func inspectionSecrets(ctx context.Context) ([]auditSecret, error) {
 		nil,
 	)
 	if err != nil {
-		return nil, errors.New("secret inspection request failed")
+		return nil, errInspectionRequest
 	}
 	request.Header.Set("Authorization", "Bearer "+strings.TrimSpace(string(token)))
 	response, err := client.Do(request)
 	if err != nil {
-		return nil, errors.New("secret inspection failed")
+		return nil, errInspection
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return nil, errors.New("secret inspection rejected")
+		return nil, errInspectionRejected
 	}
 	var result struct {
 		Items []auditSecret `json:"items"`
 	}
 	if err = json.NewDecoder(io.LimitReader(response.Body, auditLimit)).Decode(&result); err != nil {
-		return nil, errors.New("secret inspection decoding failed")
+		return nil, errInspectionDecode
 	}
 	return result.Items, nil
 }
@@ -247,16 +277,16 @@ func (a *leakAudit) inspect(ctx context.Context, phase string) error {
 func decodeRelease(encoded []byte) ([]byte, error) {
 	compressed, err := base64.StdEncoding.DecodeString(string(encoded))
 	if err != nil {
-		return nil, errors.New("helm audit decoding failed")
+		return nil, errHelmAuditDecode
 	}
 	reader, err := gzip.NewReader(bytes.NewReader(compressed))
 	if err != nil {
-		return nil, errors.New("helm audit compression invalid")
+		return nil, errHelmAuditCompression
 	}
 	defer reader.Close()
 	data, err := io.ReadAll(io.LimitReader(reader, auditLimit+1))
 	if err != nil || len(data) > auditLimit {
-		return nil, errors.New("helm audit release exceeds limit or is invalid")
+		return nil, errHelmAuditRelease
 	}
 	return data, nil
 }
@@ -264,26 +294,26 @@ func decodeRelease(encoded []byte) ([]byte, error) {
 func (a *leakAudit) inspectFiles(path string) error {
 	root, err := os.OpenRoot(path)
 	if err != nil {
-		return errors.New("operator file audit open failed")
+		return errFileAuditOpen
 	}
 	defer root.Close()
 	return filepath.WalkDir(path, func(file string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
-			return errors.New("operator file audit failed")
+			return errFileAudit
 		}
 		if entry.IsDir() {
 			return nil
 		}
 		info, statErr := entry.Info()
 		if statErr != nil {
-			return errors.New("operator file audit stat failed")
+			return errFileAuditStat
 		}
 		if !info.Mode().IsRegular() {
 			return nil
 		}
 		relative, relErr := filepath.Rel(path, file)
 		if relErr != nil {
-			return errors.New("operator file audit path failed")
+			return errFileAuditPath
 		}
 		// Include every HOME artifact, and private temporary files left by the CLI/Helm.
 		if !strings.HasPrefix(relative, "operator-first/") && !strings.HasPrefix(relative, "operator-second/") &&
@@ -291,16 +321,16 @@ func (a *leakAudit) inspectFiles(path string) error {
 			return nil
 		}
 		if info.Size() > auditLimit {
-			return errors.New("operator file audit limit exceeded")
+			return errFileAuditLimit
 		}
 		opened, openErr := root.Open(relative)
 		if openErr != nil {
-			return errors.New("operator file audit open failed")
+			return errFileAuditOpen
 		}
 		data, readErr := io.ReadAll(io.LimitReader(opened, auditLimit+1))
 		closeErr := opened.Close()
 		if readErr != nil || closeErr != nil || len(data) > auditLimit {
-			return errors.New("operator file audit read failed")
+			return errFileAuditRead
 		}
 		a.capture("operator files", data)
 		return nil
@@ -320,7 +350,7 @@ func (a *leakAudit) collectSecrets(secrets []auditSecret) error {
 			if key == "email-transport" || key == "database-url" || key == "DATABASE_URL" || key == "url" {
 				endpoint, parseErr := url.Parse(string(value))
 				if parseErr != nil {
-					return errors.New("secret audit: invalid credential URL")
+					return errAuditCredentialURL
 				}
 				if endpoint.User != nil {
 					password, _ := endpoint.User.Password()
@@ -346,14 +376,14 @@ func (a *leakAudit) collectSecrets(secrets []auditSecret) error {
 					} `json:"auths"`
 				}
 				if json.Unmarshal(value, &config) != nil {
-					return errors.New("secret audit: invalid registry credentials")
+					return errAuditRegistryCredentials
 				}
 				for _, auth := range config.Auths {
 					a.add([]byte(auth.Password))
 					a.add([]byte(auth.Auth))
 					decoded, decodeErr := base64.StdEncoding.DecodeString(auth.Auth)
 					if decodeErr != nil {
-						return errors.New("secret audit: invalid registry auth")
+						return errAuditRegistryAuth
 					}
 					if _, password, ok := bytes.Cut(decoded, []byte(":")); ok {
 						a.add(password)

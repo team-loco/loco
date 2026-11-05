@@ -28,8 +28,9 @@ const (
 )
 
 var (
-	errOIDC     = errors.New("identity provider sign-in failed")
-	errIdentity = errors.New("identity provider did not return the expected verified email")
+	errOIDC         = errors.New("identity provider sign-in failed")
+	errIdentity     = errors.New("identity provider did not return the expected verified email")
+	errOIDCCallback = fmt.Errorf("listen on configured bootstrap callback: %w", errOIDC)
 )
 
 func authenticate(
@@ -52,7 +53,7 @@ func authenticate(
 	var listenerConfig net.ListenConfig
 	listener, err := listenerConfig.Listen(ctx, "tcp", redirect.Host)
 	if err != nil {
-		return "", fmt.Errorf("listen on configured bootstrap callback: %w", errOIDC)
+		return "", errOIDCCallback
 	}
 	state, nonce, verifier := bearer.New(""), bearer.New(""), oauth2.GenerateVerifier()
 	oauth := oauth2.Config{
