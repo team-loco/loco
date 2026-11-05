@@ -168,7 +168,8 @@ obsProxy:
 # @schema skipProperties
 clickhouse:
   enabled: false
-  nameOverride: "clickhouse"
+  # the operator adds cluster and config-volume suffixes below Kubernetes' 63-character limit
+  fullnameOverride: "loco-clickhouse"
   operator:
     podSecurityContext:
       runAsNonRoot: true

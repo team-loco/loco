@@ -6,10 +6,14 @@ values:
   - ../ci/default-values.yaml
   - values/in-cluster-clickhouse.yaml
 tests:
-  - it: renders an in-cluster ClickHouseInstallation
+  - it: keeps operator-generated volume names within Kubernetes limits for the full release name
     template: charts/clickhouse/templates/chi.yaml
     asserts:
-      - containsDocument: {kind: ClickHouseInstallation, apiVersion: clickhouse.altinity.com/v1, name: loco-control-plane-clickhouse}
+      - containsDocument: {kind: ClickHouseInstallation, apiVersion: clickhouse.altinity.com/v1, name: loco-clickhouse}
+      # chi-<name>-deploy-confd-<15-character cluster>-0-0 must fit a DNS label.
+      - matchRegex:
+          path: metadata.name
+          pattern: '^.{1,26}$'
 
   - it: consumes existing ClickHouse password Secrets
     template: charts/clickhouse/templates/chi.yaml
