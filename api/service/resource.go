@@ -630,22 +630,9 @@ func (s *ResourceServer) ListRegions(
 	req *resourcev1.ListRegionsRequest,
 ) (*resourcev1.ListRegionsResponse, error) {
 	environmentID := uuid.MustParse(req.GetEnvironmentId())
-	env, err := s.queries.GetEnvironmentByID(ctx, environmentID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
-	}
+	env, err := visibleEnvironment(ctx, s.queries, s.authz, environmentID, actions.ListRegions)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get environment", "error", err, "environmentId", environmentID)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
-	workspaceAction := actions.New(actions.ListRegions, env.WorkspaceID.String())
-	if authErr := s.authz.Check(ctx, scopes, workspaceAction); authErr != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(authErr)
+		return nil, err
 	}
 	eligible, err := eligibleClusters(ctx, s.queries, env.EnvironmentType, s.clusterSilentAfter)
 	if err != nil {

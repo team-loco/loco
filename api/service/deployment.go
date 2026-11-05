@@ -202,27 +202,17 @@ func (s *DeploymentServer) CreateDeployment(
 ) (*deploymentv1.CreateDeploymentResponse, error) {
 	resourceID := uuid.MustParse(req.GetResourceId())
 
+	required := actions.New(actions.CreateDeployment, req.GetResourceId())
+	if authErr := authorizeVisible(ctx, s.authz, required, ErrResourceNotFound); authErr != nil {
+		return nil, authErr
+	}
+
 	resource, err := s.queries.GetResourceByID(ctx, resourceID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrResourceNotFound)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get resource: %w", err)
-	}
-
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
-
-	if verifyErr := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.CreateDeployment, req.GetResourceId()),
-	); verifyErr != nil {
-		slog.WarnContext(ctx, "unauthorized to create deployment", "resourceId", req.GetResourceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(verifyErr)
 	}
 
 	// validate that request spec contains a service deployment (for now, only services are supported)
@@ -438,26 +428,15 @@ func (s *DeploymentServer) GetDeployment(
 		return nil, fmt.Errorf("get deployment: %w", err)
 	}
 
+	required := actions.New(actions.GetDeployment, deploymentData.ResourceID.String())
+	if authErr := authorizeVisible(ctx, s.authz, required, ErrDeploymentNotFound); authErr != nil {
+		return nil, authErr
+	}
+
 	resource, err := s.queries.GetResourceByID(ctx, deploymentData.ResourceID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get resource", "error", err)
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
-
-	// check if user has permission to get deployment (resource:read)
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.GetDeployment, resource.ID.String()),
-	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to get deployment", "resourceId", resource.ID.String())
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 	}
 
 	return &deploymentv1.GetDeploymentResponse{
@@ -557,25 +536,15 @@ func (s *DeploymentServer) DeleteDeployment(
 		return nil, fmt.Errorf("get deployment: %w", err)
 	}
 
+	required := actions.New(actions.DeleteDeployment, deployment.ResourceID.String())
+	if authErr := authorizeVisible(ctx, s.authz, required, ErrDeploymentNotFound); authErr != nil {
+		return nil, authErr
+	}
+
 	resource, err := s.queries.GetResourceByID(ctx, deployment.ResourceID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get resource", "error", err)
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
-
-	if verifyErr := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.DeleteDeployment, resource.ID.String()),
-	); verifyErr != nil {
-		slog.WarnContext(ctx, "unauthorized to delete deployment", "resourceId", resource.ID.String())
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(verifyErr)
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -648,20 +617,9 @@ func (s *DeploymentServer) WatchDeployment(
 		return fmt.Errorf("get deployment resource ID: %w", err)
 	}
 
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
-
-	resourceIDStr := resourceID.String()
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.StreamDeployment, resourceIDStr),
-	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to stream deployment", "resourceId", resourceIDStr)
-		return connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+	required := actions.New(actions.StreamDeployment, resourceID.String())
+	if authErr := authorizeVisible(ctx, s.authz, required, ErrDeploymentNotFound); authErr != nil {
+		return authErr
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, watchDeploymentMaxDuration)

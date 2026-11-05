@@ -9,7 +9,6 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/team-loco/loco/api/authz"
@@ -121,27 +120,9 @@ func (s *EnvironmentServer) GetEnvironment(
 ) (*environmentv1.GetEnvironmentResponse, error) {
 	envID := uuid.MustParse(req.GetEnvironmentId())
 
-	env, err := s.queries.GetEnvironmentByID(ctx, envID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
-	}
+	env, err := visibleEnvironment(ctx, s.queries, s.authz, envID, actions.GetEnvironment)
 	if err != nil {
-		return nil, fmt.Errorf("get environment: %w", err)
-	}
-
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
-
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.GetEnvironment, env.WorkspaceID.String()),
-	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to get environment", "environmentId", req.GetEnvironmentId())
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+		return nil, err
 	}
 
 	return &environmentv1.GetEnvironmentResponse{
@@ -194,27 +175,9 @@ func (s *EnvironmentServer) UpdateEnvironment(
 ) (*environmentv1.UpdateEnvironmentResponse, error) {
 	envID := uuid.MustParse(req.GetEnvironmentId())
 
-	existing, err := s.queries.GetEnvironmentByID(ctx, envID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
-	}
+	existing, err := visibleEnvironment(ctx, s.queries, s.authz, envID, actions.UpdateEnvironment)
 	if err != nil {
-		return nil, fmt.Errorf("get environment: %w", err)
-	}
-
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
-
-	if verifyErr := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.UpdateEnvironment, existing.WorkspaceID.String()),
-	); verifyErr != nil {
-		slog.WarnContext(ctx, "unauthorized to update environment", "environmentId", req.GetEnvironmentId())
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(verifyErr)
+		return nil, err
 	}
 
 	message := req.ProtoReflect()
@@ -290,27 +253,9 @@ func (s *EnvironmentServer) DeleteEnvironment(
 ) (*environmentv1.DeleteEnvironmentResponse, error) {
 	envID := uuid.MustParse(req.GetEnvironmentId())
 
-	existing, err := s.queries.GetEnvironmentByID(ctx, envID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
-	}
+	existing, err := visibleEnvironment(ctx, s.queries, s.authz, envID, actions.DeleteEnvironment)
 	if err != nil {
-		return nil, fmt.Errorf("get environment: %w", err)
-	}
-
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
-
-	if verifyErr := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.DeleteEnvironment, existing.WorkspaceID.String()),
-	); verifyErr != nil {
-		slog.WarnContext(ctx, "unauthorized to delete environment", "environmentId", req.GetEnvironmentId())
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(verifyErr)
+		return nil, err
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {

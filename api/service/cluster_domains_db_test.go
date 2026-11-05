@@ -259,7 +259,7 @@ func TestListPlatformDomainsListsTheRegionsWhoseClusterServesEachDomain(t *testi
 	_, err = client.server.ListPlatformDomains(denied, &domainv1.ListPlatformDomainsRequest{
 		EnvironmentId: f.envID.String(),
 	})
-	wantCode(t, err, connect.CodePermissionDenied)
+	wantCode(t, err, connect.CodeNotFound)
 }
 
 func TestAClusterThatStopsServingADomainKeepsTheHostnameAndDegradesTheRegion(t *testing.T) {

@@ -67,22 +67,9 @@ func (s *DomainServer) ListPlatformDomains(
 	req *domainv1.ListPlatformDomainsRequest,
 ) (*domainv1.ListPlatformDomainsResponse, error) {
 	environmentID := uuid.MustParse(req.GetEnvironmentId())
-	env, err := s.queries.GetEnvironmentByID(ctx, environmentID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrEnvironmentNotFound)
-	}
+	env, err := visibleEnvironment(ctx, s.queries, s.authz, environmentID, actions.ListPlatformDomains)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get environment", "error", err, "environmentId", environmentID)
-		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-	}
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
-	workspaceAction := actions.New(actions.ListPlatformDomains, env.WorkspaceID.String())
-	if authErr := s.authz.Check(ctx, scopes, workspaceAction); authErr != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(authErr)
+		return nil, err
 	}
 	eligible, err := eligibleClusters(ctx, s.queries, env.EnvironmentType, s.silentAfter)
 	if err != nil {
@@ -257,19 +244,9 @@ func (s *DomainServer) UpdateResourceDomain(
 		return nil, fmt.Errorf("get resource domain: %w", err)
 	}
 
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
-
-	// verify user has access to this resource
-	if err := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.UpdateDomain, domainRow.ResourceID.String()),
-	); err != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
+	required := actions.New(actions.UpdateDomain, domainRow.ResourceID.String())
+	if authErr := authorizeVisible(ctx, s.authz, required, ErrDomainNotFound); authErr != nil {
+		return nil, authErr
 	}
 
 	// check if new domain is available (unless it's the same domain)
@@ -457,18 +434,9 @@ func (s *DomainServer) DeleteResourceDomain(
 		return nil, fmt.Errorf("get resource domain: %w", err)
 	}
 
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, rpcerr.New(connect.CodeInternal, errEntityScopesNotFound)
-	}
-
-	if verifyErr := s.authz.Check(
-		ctx,
-		scopes,
-		actions.New(actions.RemoveDomain, domainRow.ResourceID.String()),
-	); verifyErr != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(verifyErr)
+	required := actions.New(actions.RemoveDomain, domainRow.ResourceID.String())
+	if authErr := authorizeVisible(ctx, s.authz, required, ErrDomainNotFound); authErr != nil {
+		return nil, authErr
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
