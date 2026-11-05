@@ -218,7 +218,8 @@ func (b baoClient) recoverRoot(ctx context.Context, shares []string) (token stri
 // The plaintext and ciphertext predate the snapshot; the restored ingest key must retain its public identity.
 func recoveryProof(
 	ctx context.Context,
-	source, restored baoClient,
+	source baoClient,
+	restored *baoClient,
 	snapshot func(context.Context) error,
 	transit, ingest string,
 ) error {

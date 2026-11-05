@@ -101,9 +101,18 @@ func TestRecoveryProofRejectsLostEncryptionOrSigningIdentity(t *testing.T) {
 				t.Fatal(err)
 			}
 			snapshot := false
+			restoredRequest := false
 			var binding string
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
+				path := strings.TrimPrefix(r.URL.Path, "/restored")
+				if snapshot {
+					if path == r.URL.Path {
+						http.Error(w, "stale restore endpoint", http.StatusServiceUnavailable)
+						return
+					}
+					restoredRequest = true
+				}
 				var data any
 				if strings.Contains(r.URL.Path, "/encrypt/") || strings.Contains(r.URL.Path, "/decrypt/") {
 					var input map[string]string
@@ -118,7 +127,7 @@ func TestRecoveryProofRejectsLostEncryptionOrSigningIdentity(t *testing.T) {
 					}
 					binding = contextValue
 				}
-				switch r.URL.Path {
+				switch path {
 				case "/v1/transit/encrypt/loco":
 					data = map[string]string{"ciphertext": "before-snapshot"}
 				case "/v1/transit/keys/loco-ingest":
@@ -159,15 +168,20 @@ func TestRecoveryProofRejectsLostEncryptionOrSigningIdentity(t *testing.T) {
 			}))
 			defer server.Close()
 			client := baoClient{client: server.Client(), endpoint: server.URL, token: "root"}
+			restored := client
 			err = recoveryProof(
 				t.Context(),
 				client,
-				client,
-				func(context.Context) error { snapshot = true; return nil },
+				&restored,
+				func(context.Context) error {
+					snapshot = true
+					restored.endpoint = server.URL + "/restored"
+					return nil
+				},
 				"transit/encrypt/loco",
 				"transit/sign/loco-ingest",
 			)
-			if (err == nil) != (failure == "none") || !snapshot {
+			if (err == nil) != (failure == "none") || !snapshot || !restoredRequest {
 				t.Fatalf("proof accepted lost identity: %v", err)
 			}
 		})

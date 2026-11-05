@@ -127,7 +127,7 @@ func restoreRecovery(ctx context.Context, material exportedMaterial, shares []st
 		if err != nil {
 			return err
 		}
-		return recoveryProof(ctx, source, restored, func(ctx context.Context) error {
+		return recoveryProof(ctx, source, &restored, func(ctx context.Context) error {
 			snapshot, err := source.request(ctx, http.MethodGet, "sys/storage/raft/snapshot", nil)
 			if err != nil {
 				return err
