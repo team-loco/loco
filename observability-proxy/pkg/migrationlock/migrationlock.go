@@ -10,6 +10,8 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/google/uuid"
+
+	"github.com/team-loco/loco/observability-proxy/pkg/clickhouseerr"
 )
 
 const (
@@ -101,6 +103,8 @@ func (l *Lock) acquire(ctx context.Context, conn driver.Conn) error {
 	for {
 		holder, err := l.tryAcquire(ctx, conn)
 		switch {
+		case err != nil && clickhouseerr.CredentialsRejected(err):
+			return fmt.Errorf("acquire %s: %w", l.table, err)
 		case err != nil:
 			slog.WarnContext(ctx, "migration lock attempt failed", append(l.logAttrs(), "error", err)...)
 		case holder == l.identity:

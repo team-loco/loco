@@ -3,8 +3,13 @@ package migrations
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -15,6 +20,10 @@ const (
 	testRetryInterval = 50 * time.Millisecond
 	retrySlack        = 2 * time.Second
 	testTTL           = 24 * time.Hour
+
+	rejectedBudget       = 3 * time.Second
+	authenticationFailed = 516
+	tableAlreadyExists   = 57
 )
 
 func validConfig() Config {
@@ -137,5 +146,48 @@ func TestUpWithRetryRejectsInvalidConfigWithoutRetrying(t *testing.T) {
 	}
 	if elapsed := time.Since(started); elapsed > retrySlack {
 		t.Errorf("UpWithRetry retried an invalid configuration for %s", elapsed)
+	}
+}
+
+func rejectingClickHouse(t *testing.T, code int, name string) (string, *atomic.Int32) {
+	t.Helper()
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		w.Header().Set("X-Clickhouse-Exception-Code", strconv.Itoa(code))
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Code: %d. DB::Exception: rejected. (%s)\n", code, name)
+	}))
+	t.Cleanup(server.Close)
+	return "http://" + strings.TrimPrefix(server.URL, "http://"), &requests
+}
+
+func TestUpWithRetryFailsImmediatelyOnRejectedCredentials(t *testing.T) {
+	dsn, requests := rejectingClickHouse(t, authenticationFailed, "AUTHENTICATION_FAILED")
+	cfg := validConfig()
+	cfg.DSN = dsn
+	started := time.Now()
+	err := UpWithRetry(t.Context(), cfg, Retry{Budget: rejectedBudget, Interval: testRetryInterval})
+	if err == nil || errors.Is(err, ErrRetryBudgetExhausted) {
+		t.Fatalf("UpWithRetry error = %v, want the authentication error", err)
+	}
+	if elapsed := time.Since(started); elapsed > retrySlack {
+		t.Errorf("UpWithRetry retried rejected credentials for %s", elapsed)
+	}
+	if got := requests.Load(); got != 1 {
+		t.Errorf("clickhouse received %d requests, want 1", got)
+	}
+}
+
+func TestUpWithRetryKeepsRetryingOtherServerErrors(t *testing.T) {
+	dsn, requests := rejectingClickHouse(t, tableAlreadyExists, "TABLE_ALREADY_EXISTS")
+	cfg := validConfig()
+	cfg.DSN = dsn
+	err := UpWithRetry(t.Context(), cfg, Retry{Budget: testRetryBudget, Interval: testRetryInterval})
+	if !errors.Is(err, ErrRetryBudgetExhausted) {
+		t.Fatalf("UpWithRetry error = %v, want %v", err, ErrRetryBudgetExhausted)
+	}
+	if got := requests.Load(); got < 2 {
+		t.Errorf("clickhouse received %d requests, want a retry", got)
 	}
 }
