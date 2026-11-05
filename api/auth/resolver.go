@@ -56,7 +56,7 @@ func (r *Resolver) Resolve(ctx context.Context, id Identity) (genDb.User, []Clai
 
 	verified, err := r.emailVerified(ctx, id, nil)
 	if err != nil {
-		return genDb.User{}, nil, fmt.Errorf("%w: check the email with the identity provider: %w", ErrResolve, err)
+		return genDb.User{}, nil, fmt.Errorf("%w: verify the email for issuer %s: %w", ErrResolve, id.Issuer, err)
 	}
 	id.EmailVerified = verified
 	user, claimed, err = r.provision(ctx, id)
@@ -110,7 +110,7 @@ func (r *Resolver) existing(ctx context.Context, id Identity) (genDb.User, []Cla
 func (r *Resolver) claimOpenInvitations(ctx context.Context, user genDb.User, email string) ([]ClaimedOrg, error) {
 	invitations, err := r.queries.ListOpenInvitationsForEmail(ctx, email)
 	if err != nil {
-		return nil, fmt.Errorf("%w: look up invitations: %w", ErrResolve, err)
+		return nil, fmt.Errorf("%w: look up invitations for user %s: %w", ErrResolve, user.ID, err)
 	}
 	if len(invitations) == 0 {
 		return nil, nil
@@ -126,10 +126,10 @@ func (r *Resolver) claimOpenInvitations(ctx context.Context, user genDb.User, em
 	}()
 	claimed, claimErr := claimInvitations(ctx, r.queries.WithTx(tx), user, invitations)
 	if claimErr != nil {
-		return nil, fmt.Errorf("%w: claim invitations: %w", ErrResolve, claimErr)
+		return nil, fmt.Errorf("%w: claim invitations for user %s: %w", ErrResolve, user.ID, claimErr)
 	}
 	if commitErr := tx.Commit(ctx); commitErr != nil {
-		return nil, fmt.Errorf("%w: commit invitation claim: %w", ErrResolve, commitErr)
+		return nil, fmt.Errorf("%w: commit invitation claim for user %s: %w", ErrResolve, user.ID, commitErr)
 	}
 	return claimed, nil
 }
@@ -211,14 +211,14 @@ func (r *Resolver) recordVerifiedEmail(ctx context.Context, user genDb.User, id 
 		Email:         &id.Email,
 		EmailVerified: true,
 	}); touchErr != nil {
-		return genDb.User{}, fmt.Errorf("%w: record the verified email: %w", ErrResolve, touchErr)
+		return genDb.User{}, fmt.Errorf("%w: record the verified email for user %s: %w", ErrResolve, user.ID, touchErr)
 	}
 	user, err = moveAccountEmail(ctx, qtx, user, id.Email)
 	if err != nil {
 		return genDb.User{}, err
 	}
 	if commitErr := tx.Commit(ctx); commitErr != nil {
-		return genDb.User{}, fmt.Errorf("%w: commit the verified email: %w", ErrResolve, commitErr)
+		return genDb.User{}, fmt.Errorf("%w: commit the verified email for user %s: %w", ErrResolve, user.ID, commitErr)
 	}
 	return user, nil
 }
@@ -234,14 +234,14 @@ func moveAccountEmail(ctx context.Context, qtx *genDb.Queries, user genDb.User, 
 		return user, nil
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
-		return genDb.User{}, fmt.Errorf("%w: look up user by email: %w", ErrResolve, err)
+		return genDb.User{}, fmt.Errorf("%w: look up user by email for user %s: %w", ErrResolve, user.ID, err)
 	}
 	moved, err := qtx.MoveAccountEmail(ctx, genDb.MoveAccountEmailParams{UserID: user.ID, Email: email})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return user, nil
 	}
 	if err != nil {
-		return genDb.User{}, fmt.Errorf("%w: move the account email: %w", ErrResolve, err)
+		return genDb.User{}, fmt.Errorf("%w: move the account email for user %s: %w", ErrResolve, user.ID, err)
 	}
 	if err := events.Record(ctx, qtx, events.Event{
 		Type:        events.UserUpdated,
@@ -251,7 +251,7 @@ func moveAccountEmail(ctx context.Context, qtx *genDb.Queries, user genDb.User, 
 		SubjectID:   new(user.ID),
 		Data:        map[string]any{events.FieldEmail: email},
 	}); err != nil {
-		return genDb.User{}, fmt.Errorf("%w: record the account email change: %w", ErrResolve, err)
+		return genDb.User{}, fmt.Errorf("%w: record the account email change for user %s: %w", ErrResolve, user.ID, err)
 	}
 	slog.InfoContext(ctx, "moved the account email to the identity's verified address", "userId", user.ID)
 	return moved, nil
@@ -318,7 +318,7 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, []Cl
 	case err == nil:
 		unverified, checkErr := qtx.UserHasUnverifiedIdentity(ctx, user.ID)
 		if checkErr != nil {
-			return genDb.User{}, nil, fmt.Errorf("%w: check the user's identities: %w", ErrResolve, checkErr)
+			return genDb.User{}, nil, fmt.Errorf("%w: check identities for user %s: %w", ErrResolve, user.ID, checkErr)
 		}
 		if unverified {
 			return genDb.User{}, nil, ErrEmailTaken
@@ -361,12 +361,12 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, []Cl
 		if isUniqueViolation(err) {
 			return genDb.User{}, nil, err
 		}
-		return genDb.User{}, nil, fmt.Errorf("%w: create identity: %w", ErrResolve, err)
+		return genDb.User{}, nil, fmt.Errorf("%w: create identity for user %s: %w", ErrResolve, user.ID, err)
 	}
 
 	claimed, claimErr := claimInvitations(ctx, qtx, user, invitations)
 	if claimErr != nil {
-		return genDb.User{}, nil, fmt.Errorf("%w: claim invitations: %w", ErrResolve, claimErr)
+		return genDb.User{}, nil, fmt.Errorf("%w: claim invitations for user %s: %w", ErrResolve, user.ID, claimErr)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -398,7 +398,7 @@ func createUser(ctx context.Context, qtx *genDb.Queries, id Identity) (genDb.Use
 			EntityID:   user.ID,
 			Scope:      scope,
 		}); err != nil {
-			return genDb.User{}, fmt.Errorf("%w: grant user scope: %w", ErrResolve, err)
+			return genDb.User{}, fmt.Errorf("%w: grant user scope for user %s: %w", ErrResolve, user.ID, err)
 		}
 	}
 	return user, nil
