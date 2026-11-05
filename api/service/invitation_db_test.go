@@ -121,6 +121,20 @@ func TestInviteDeliveryFailureKeepsTheInvitation(t *testing.T) {
 	}
 }
 
+func TestInviteDeliveryErrorCutOnARuneBoundaryIsStored(t *testing.T) {
+	straddling := strings.Repeat("a", maxDeliveryErrorLength-1) + "€"
+	transport := &fakeTransport{err: errors.New(straddling)}
+	o := newInvitationOrg(t, transport)
+
+	invitation := o.invite(t, invitationEmail)
+
+	want := strings.Repeat("a", maxDeliveryErrorLength-1)
+	failed := invitation.GetStatus() == orgv1.InvitationStatus_INVITATION_STATUS_FAILED
+	if !failed || invitation.GetDeliveryError() != want {
+		t.Fatalf("status = %v error length = %d", invitation.GetStatus(), len(invitation.GetDeliveryError()))
+	}
+}
+
 func TestInviteWithoutTransportReturnsTheLink(t *testing.T) {
 	transport, err := mail.ParseTransport("", "", "", invitationEmailTimeout)
 	if err != nil {

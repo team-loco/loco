@@ -20,6 +20,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/mail"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
+	"github.com/team-loco/loco/internal/clip"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
@@ -158,23 +159,13 @@ func (s *OrgServer) ListInvitations(
 		slog.ErrorContext(ctx, "failed to list invitations", "error", err)
 		return nil, rpcerr.New(connect.CodeInternal, ErrDB)
 	}
-	inviters := map[uuid.UUID]genDb.User{}
 	invitations := make([]*orgv1.Invitation, len(rows))
 	for i, row := range rows {
-		inviter, known := inviters[row.InvitedBy]
-		if !known {
-			inviter, err = s.queries.GetUserByID(ctx, row.InvitedBy)
-			if err != nil {
-				slog.ErrorContext(ctx, "failed to load inviter", "error", err)
-				return nil, rpcerr.New(connect.CodeInternal, ErrDB)
-			}
-			inviters[row.InvitedBy] = inviter
-		}
-		invitations[i] = s.invitationProto(row, inviter)
+		invitations[i] = s.invitationProto(row.Invitation, row.User)
 	}
 	var nextPageToken string
 	if len(rows) == int(pageSize) {
-		nextPageToken = encodeCursor(rows[len(rows)-1].ID.String())
+		nextPageToken = encodeCursor(rows[len(rows)-1].Invitation.ID.String())
 	}
 	return &orgv1.ListInvitationsResponse{Invitations: invitations, NextPageToken: nextPageToken}, nil
 }
@@ -293,7 +284,7 @@ func (s *OrgServer) deliverInvitation(ctx context.Context, invitation genDb.Invi
 	case errors.Is(sendErr, mail.ErrNoTransport):
 	case sendErr != nil:
 		slog.ErrorContext(ctx, "failed to deliver invitation", "invitationId", invitation.ID, "error", sendErr)
-		text := truncate(sendErr.Error(), maxDeliveryErrorLength)
+		text := clip.Bytes(sendErr.Error(), maxDeliveryErrorLength)
 		err = s.queries.SetInvitationDeliveryError(recordCtx, genDb.SetInvitationDeliveryErrorParams{
 			ID: invitation.ID, DeliveryError: &text,
 		})
@@ -339,11 +330,4 @@ func invitationStatus(invitation genDb.Invitation) orgv1.InvitationStatus {
 		return orgv1.InvitationStatus_INVITATION_STATUS_FAILED
 	}
 	return orgv1.InvitationStatus_INVITATION_STATUS_NO_TRANSPORT
-}
-
-func truncate(s string, limit int) string {
-	if len(s) > limit {
-		return s[:limit]
-	}
-	return s
 }

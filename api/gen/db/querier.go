@@ -171,7 +171,7 @@ type Querier interface {
 	ListLiveBuildDigests(ctx context.Context, resourceIds []uuid.UUID) ([]ListLiveBuildDigestsRow, error)
 	ListOpenInvitationsForEmail(ctx context.Context, email string) ([]Invitation, error)
 	ListOrgAuditEvents(ctx context.Context, arg ListOrgAuditEventsParams) ([]ListOrgAuditEventsRow, error)
-	ListOrgInvitations(ctx context.Context, arg ListOrgInvitationsParams) ([]Invitation, error)
+	ListOrgInvitations(ctx context.Context, arg ListOrgInvitationsParams) ([]ListOrgInvitationsRow, error)
 	ListOrgMembersWithDetails(ctx context.Context, arg ListOrgMembersWithDetailsParams) ([]ListOrgMembersWithDetailsRow, error)
 	ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams) ([]Organization, error)
 	ListPendingPlacements(ctx context.Context, clusterID uuid.UUID) ([]ListPendingPlacementsRow, error)
