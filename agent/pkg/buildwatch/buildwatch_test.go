@@ -345,3 +345,14 @@ func TestTruncateKeepsTheEnd(t *testing.T) {
 		t.Fatalf("Truncate kept %d runes, prefix %q", len([]rune(got)), got[:5])
 	}
 }
+
+var errTestWatchDead = errors.New("watch cannot recover")
+
+func TestWaitReturnsWhyTheWatchStopped(t *testing.T) {
+	watching, stop := context.WithCancelCause(t.Context())
+	w := &Watcher{watching: watching}
+	stop(errTestWatchDead)
+	if err := w.Wait(t.Context()); !errors.Is(err, errTestWatchDead) {
+		t.Fatalf("Wait = %v, want %v", err, errTestWatchDead)
+	}
+}

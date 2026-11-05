@@ -35,6 +35,10 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/ingest/v1/ingestv1connect"
 )
 
+// agentLoops is the number of goroutines Agent.Run starts. Each gets a slot in errCh so none
+// blocks on its send after Run has returned.
+const agentLoops = 5
+
 var (
 	errBuildSupportChanged      = errors.New("the cluster's build support changed; restarting to pick it up")
 	errInvalidHeartbeatInterval = errors.New("control plane sent no positive heartbeat interval")
@@ -179,6 +183,7 @@ type buildRunner interface {
 	WithInventory(ctx context.Context, fn func([]*agentv1.InventoryBuild) error) error
 	Handle(ctx context.Context, msg *agentv1.SyncResponse, report buildwatch.Sink)
 	RunCollector(ctx context.Context, interval time.Duration)
+	Wait(ctx context.Context) error
 }
 
 type domainReporter interface {
@@ -218,7 +223,7 @@ func (a *Agent) Run(ctx context.Context) error {
 		return fmt.Errorf("registration failed: %w", err)
 	}
 
-	errCh := make(chan error, 3)
+	errCh := make(chan error, agentLoops)
 
 	if a.ingest != nil {
 		go func() {
@@ -232,6 +237,14 @@ func (a *Agent) Run(ctx context.Context) error {
 
 	go func() {
 		errCh <- watchBuildSupport(ctx, a.inspector, a.buildsEnabled, a.heartbeatInterval)
+	}()
+
+	go func() {
+		errCh <- a.watcher.Wait(ctx)
+	}()
+
+	go func() {
+		errCh <- a.builds.Wait(ctx)
 	}()
 
 	select {

@@ -20,6 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/team-loco/loco/agent/pkg/identity"
+	"github.com/team-loco/loco/agent/pkg/kube"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -61,6 +62,7 @@ type Watcher struct {
 	statuses map[string]*agentv1.BuildStatus
 	sink     Sink
 	sinkID   uint64
+	watching context.Context
 }
 
 func Start(ctx context.Context, restConfig *rest.Config, cfg Config) (*Watcher, error) {
@@ -68,9 +70,11 @@ func Start(ctx context.Context, restConfig *rest.Config, cfg Config) (*Watcher, 
 	if err := locoControllerV1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add loco types to scheme: %w", err)
 	}
+	ctx, onWatchError := kube.StopOnDeadWatch(ctx)
 	c, err := cache.New(restConfig, cache.Options{
-		Scheme:            scheme,
-		DefaultNamespaces: map[string]cache.Config{cfg.Namespace: {}},
+		Scheme:                   scheme,
+		DefaultNamespaces:        map[string]cache.Config{cfg.Namespace: {}},
+		DefaultWatchErrorHandler: onWatchError,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Build cache: %w", err)
@@ -100,9 +104,20 @@ func Start(ctx context.Context, restConfig *rest.Config, cfg Config) (*Watcher, 
 		}
 	}()
 	if !c.WaitForCacheSync(ctx) {
-		return nil, errCacheNotSynced
+		return nil, fmt.Errorf("%w: %w", errCacheNotSynced, context.Cause(ctx))
 	}
+	w.watching = ctx
 	return w, nil
+}
+
+// Wait blocks until ctx ends or the Build watch stops for good, and returns why.
+func (w *Watcher) Wait(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-w.watching.Done():
+		return context.Cause(w.watching)
+	}
 }
 
 func New(writer client.Client, reader client.Reader, cfg Config) *Watcher {

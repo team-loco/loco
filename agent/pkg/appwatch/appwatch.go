@@ -16,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/team-loco/loco/agent/pkg/applier"
+	"github.com/team-loco/loco/agent/pkg/kube"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -35,6 +36,7 @@ type Watcher struct {
 	statuses map[string]*agentv1.PlacementStatus
 	sink     Sink
 	sinkID   uint64
+	watching context.Context
 }
 
 func Start(ctx context.Context, cfg *rest.Config, namespace string) (*Watcher, error) {
@@ -49,9 +51,11 @@ func Start(ctx context.Context, cfg *rest.Config, namespace string) (*Watcher, e
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Secret client: %w", err)
 	}
+	ctx, onWatchError := kube.StopOnDeadWatch(ctx)
 	c, err := cache.New(cfg, cache.Options{
-		Scheme:            scheme,
-		DefaultNamespaces: map[string]cache.Config{namespace: {}},
+		Scheme:                   scheme,
+		DefaultNamespaces:        map[string]cache.Config{namespace: {}},
+		DefaultWatchErrorHandler: onWatchError,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Application cache: %w", err)
@@ -77,9 +81,20 @@ func Start(ctx context.Context, cfg *rest.Config, namespace string) (*Watcher, e
 		}
 	}()
 	if !c.WaitForCacheSync(ctx) {
-		return nil, errCacheNotSynced
+		return nil, fmt.Errorf("%w: %w", errCacheNotSynced, context.Cause(ctx))
 	}
+	w.watching = ctx
 	return w, nil
+}
+
+// Wait blocks until ctx ends or the Application watch stops for good, and returns why.
+func (w *Watcher) Wait(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-w.watching.Done():
+		return context.Cause(w.watching)
+	}
 }
 
 // New creates a Watcher that lists Applications from reader and staging Secrets from secrets.
