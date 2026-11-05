@@ -295,3 +295,20 @@ func TestRenewerStopsWhenTheSecretWriteIsForbidden(t *testing.T) {
 		t.Fatalf("IssueToken called %d times, want 1", issuer.calls)
 	}
 }
+
+func TestRenewerStopsWhenTheSecretNamespaceIsGone(t *testing.T) {
+	issuer := &scriptedIssuer{}
+	kube := fake.NewClientset(existingSecret(testNamespace))
+	missing := apierrors.NewNotFound(schema.GroupResource{Resource: "namespaces"}, testNodeNamespace)
+	kube.PrependReactor("create", "secrets", func(k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, missing
+	})
+
+	err := runUntilStopped(t, newRenewer(issuer, kube))
+	if !apierrors.IsNotFound(err) {
+		t.Fatalf("Run = %v, want a NotFound error", err)
+	}
+	if issuer.calls != 1 {
+		t.Fatalf("IssueToken called %d times, want 1", issuer.calls)
+	}
+}
