@@ -78,6 +78,8 @@ const (
 	fixtureWorkloadTimeout = 5 * time.Minute
 	httpsReadyTimeout      = 2 * time.Minute
 	fixtureResponseLimit   = 1 << 20
+	fixtureKubernetesHost  = "kubernetes.default.svc"
+	fixtureKubernetesPort  = "443"
 )
 
 func clientAcceptance(ctx context.Context) (result error) {
@@ -658,15 +660,9 @@ func probeNetworkPolicy(ctx context.Context) (result error) {
 			}
 		}
 	}()
-	node, err := kubectl(ctx, "get",
-		"nodes",
-		"-o",
-		`jsonpath={.items[0].status.addresses[?(@.type=="InternalIP")].address}`,
-	)
-	if err != nil {
+	if err := ctx.Err(); err != nil {
 		return err
 	}
-	host := strings.TrimSpace(string(node))
 	for _, target := range []string{fixtureNamespace, namespace} {
 		data, err := renderFixtureFile(
 			"/fixture/network-probe.yaml",
@@ -711,8 +707,8 @@ func probeNetworkPolicy(ctx context.Context) (result error) {
 		"-z",
 		"-w",
 		"3",
-		host,
-		"6443",
+		fixtureKubernetesHost,
+		fixtureKubernetesPort,
 	); checkErr != nil {
 		return errUnrestrictedProbeFailed
 	}
@@ -730,8 +726,8 @@ func probeNetworkPolicy(ctx context.Context) (result error) {
 			"-z",
 			"-w",
 			"3",
-			host,
-			"6443",
+			fixtureKubernetesHost,
+			fixtureKubernetesPort,
 		); checkErr != nil {
 			break
 		}
