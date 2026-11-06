@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -61,7 +62,11 @@ func run() error {
 		return mailSink(ctx)
 	}
 	if *client {
-		return clientAcceptance(ctx)
+		err := clientAcceptance(ctx)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "DEBUG client error: %v\n", err)
+		}
+		return err
 	}
 	ctx, cancel := context.WithTimeout(ctx, *timeout)
 	defer cancel()
@@ -124,9 +129,20 @@ func command(ctx context.Context, dir string, input []byte, program string, args
 		out, err = cmd.CombinedOutput()
 	}
 	if err != nil {
+		debugLines(program, out)
 		return nil, fmt.Errorf("%s failed: %w", program, err)
 	}
 	return out, nil
+}
+
+func debugLines(label string, output []byte) {
+	count := 0
+	for line := range strings.SplitSeq(string(output), "\n") {
+		if strings.Contains(strings.ToLower(line), "error") && count < 20 {
+			fmt.Fprintf(os.Stderr, "DEBUG %s: %s\n", label, strings.TrimSpace(line))
+			count++
+		}
+	}
 }
 
 func stopProcess(cmd *exec.Cmd) error {

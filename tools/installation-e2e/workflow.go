@@ -86,6 +86,9 @@ func (o *operatorOutput) Write(p []byte) (int, error) {
 		}
 		candidate := string(data[o.lineStart:index])
 		o.lineStart = index + 1
+		if strings.HasPrefix(candidate, "DEBUG ") {
+			fmt.Fprintln(os.Stderr, candidate)
+		}
 		if category, ok := strings.CutPrefix(candidate, bootstrapFailurePrefix); ok && knownBootstrapFailure(category) {
 			o.failure = "bootstrap failure " + category
 		}

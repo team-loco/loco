@@ -546,7 +546,14 @@ func command(ctx context.Context, operation string, input []byte, program string
 	cmd.Stdin = bytes.NewReader(input)
 	// Child diagnostics may contain Secret values, RPC payloads or transport URLs.
 	// Only the bounded operation label and exit status cross the output boundary.
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
+		for line := range strings.SplitSeq(stderr.String(), "\n") {
+			if strings.Contains(strings.ToLower(line), "error") {
+				fmt.Fprintf(os.Stderr, "DEBUG %s: %s\n", operation, strings.TrimSpace(line))
+			}
+		}
 		return fmt.Errorf("%s: subprocess failed: %w", operation, err)
 	}
 	return nil

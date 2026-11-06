@@ -225,6 +225,7 @@ func bootstrap(ctx context.Context) (result error) {
 	var stderr boundedOutput
 	defer func() {
 		if result != nil {
+			debugLines("locoadm bootstrap", stderr.Bytes())
 			fmt.Fprintln(os.Stderr, bootstrapFailurePrefix+classifyBootstrapFailure(stderr.Bytes()))
 		}
 	}()
