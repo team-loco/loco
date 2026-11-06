@@ -17,11 +17,6 @@ plugins:
     opt:
       - target=ts
       - json_types=true
-  - local: ./node_modules/.bin/protoc-gen-connect-es
-    out: ./gen/ts
-    opt:
-      - target=ts
-      - import_extension=none
   - local: ./node_modules/.bin/protoc-gen-connect-query
     out: ./gen/ts
     opt:
