@@ -1,0 +1,3 @@
+[[IgnoredVulns]]
+id = "GHSA-gcqx-w48m-w2h4"
+reason = "deepmerge has no fixed release. Only the shadcn CLI in web devDependencies uses it; the UI image ships web/dist alone. Drop this when deepmerge or shadcn ships a fix."
