@@ -9,7 +9,7 @@ require (
 	connectrpc.com/validate v0.9.0
 	github.com/ClickHouse/clickhouse-go/v2 v2.50.0
 	github.com/dgraph-io/ristretto/v2 v2.4.2
-	github.com/go-jose/go-jose/v4 v4.1.8
+	github.com/go-jose/go-jose/v4 v4.1.9
 	github.com/google/uuid v1.6.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/clickhouseexporter v0.164.1
 	github.com/pressly/goose/v3 v3.29.0
