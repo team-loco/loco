@@ -33,12 +33,7 @@ mise run build
 ./bin/loco config set webHost http://localhost:5173
 ```
 
-Make the signed-in user the local installation's system admin with the `LOCO_BOOTSTRAP_TOKEN` that `dev/api.env` sets:
-
-```sh
-mise run build:locoadm
-./bin/locoadm bootstrap --host http://localhost:8000 --token "$(sed -n 's/^LOCO_BOOTSTRAP_TOKEN=//p' dev/api.env)"
-```
+Tilt starts development components and supports ordinary login. The complete first-admin path uses the [installation workflow](../operations/self-hosting.md#first-system-admin); it requires installer-managed destination state. The installation e2e suite below exercises that workflow from a fresh cluster.
 
 ## Attach the local cluster
 
@@ -72,3 +67,19 @@ mise run docs:serve
 ```
 
 Use the repository's tasks for builds, tests, code generation, and linting so local tools match CI. See [documentation maintenance](documentation.md) to edit this site.
+
+## Installation end-to-end suite
+
+The unreleased installation suite provisions its own kind cluster and external fixture services, then uses `locoadm` for control-plane installation, closed-signup first-admin authentication and worker enrollment:
+
+```sh
+mise run test:e2e-installation-runner
+mise run e2e:installation --no-teardown
+mise run e2e:installation --skip-build
+```
+
+The first command tests failure propagation, cleanup and the real HTTP login driver without a cluster. The cluster suite builds images for Docker's host architecture and publishes digest-pinned charts, images and CRDs to a fixture registry. An operator pod uses an explicit fixture kubeconfig; Dex authentication, generated installation credentials and worker identity follow the public commands. Application setup uses authenticated APIs, then `loco deploy` builds source and checks its HTTPS response. No SQL creates ordinary users, sessions or cluster registrations on this path.
+
+The pinned cloud-provider-kind controller publishes real LoadBalancer addresses. Fixture CoreDNS records route control-plane names and wildcard application names to those addresses. The fixture CA verifies the HTTPS certificate; these names represent operator-managed DNS inside the disposable environment and do not test Internet DNS propagation.
+
+Each checkout owns a separate cluster. `--no-teardown` preserves it for inspection; `--skip-build` reuses its images while rerunning the workflow. Without `--no-teardown`, success and failure both remove the cluster and its external fixtures. Unknown options or test filters fail before provisioning. The E2E workflow runs this suite as an independent job with its own clean environment.

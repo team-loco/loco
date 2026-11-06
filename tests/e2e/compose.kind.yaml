@@ -1,4 +1,9 @@
 services:
+  dex:
+    environment:
+      E2E_AUTH_ISSUER: ${E2E_AUTH_ISSUER:?}
+    volumes: !override
+      - ${E2E_ROOT_DIR:?}/tests/e2e/fixtures/auth/dex.yaml:/etc/dex/config.yaml:ro
   registry:
     networks:
       default:

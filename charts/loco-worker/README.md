@@ -4,6 +4,8 @@
 
 ## Gateway certificates
 
+Envoy Gateway uses `GatewayNamespace` deployment mode so each proxy runs beside its Gateway. Application ingress policies require that placement. When reusing a controller, keep `config.envoyGateway.provider.kubernetes.deploy.type: GatewayNamespace`; the chart's bundled controller defaults to this mode.
+
 The Gateway terminates TLS with a Secret in the Helm release's namespace. By default the chart creates a Let's Encrypt ACME ClusterIssuer, a wildcard Certificate, and a Cloudflare API-token Secret. Set `certManager.issuer.email` and `secrets.cloudflareToken` for this mode. The Cloudflare Secret renders only when the token is set.
 
 To solve challenges another way, set `certManager.issuer.solvers` to cert-manager's own `solvers` list, for example Route53, Cloud DNS, Azure DNS, DigitalOcean, a webhook solver, or HTTP-01 through `gatewayHTTPRoute`. The list replaces the Cloudflare default and renders verbatim.

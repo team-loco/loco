@@ -23,6 +23,15 @@ func (q *Queries) CloseSystemBootstrap(ctx context.Context, bootstrappedBy *uuid
 	return result.RowsAffected(), nil
 }
 
+const setSystemBootstrapOwner = `-- name: SetSystemBootstrapOwner :exec
+UPDATE system_bootstrap SET bootstrapped_by = $1 WHERE singleton
+`
+
+func (q *Queries) SetSystemBootstrapOwner(ctx context.Context, bootstrappedBy *uuid.UUID) error {
+	_, err := q.db.Exec(ctx, setSystemBootstrapOwner, bootstrappedBy)
+	return err
+}
+
 const systemAdminExists = `-- name: SystemAdminExists :one
 SELECT EXISTS (
     SELECT 1 FROM user_scopes WHERE entity_type = 'system' AND scope = 'admin'

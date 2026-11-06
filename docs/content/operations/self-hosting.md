@@ -23,6 +23,8 @@ The local environment is a development installation. Review the repository's env
 | Platform charts | `charts/` | Kubernetes platform configuration |
 | Observability proxy | `observability-proxy/` | Workspace-scoped reads from ClickHouse, on the control plane |
 
+The development CLI also plans and applies declarative [installation files](../reference/installation.md). This unreleased contract targets existing Kubernetes infrastructure and references external credentials through Secrets.
+
 ## Installation inputs
 
 Configure the API's database, cache, authentication, registry, and API/dashboard endpoints through its environment variables. The [`loco-control-plane` chart README](https://github.com/team-loco/loco/blob/main/charts/loco-control-plane/README.md) lists the ones an installation needs, and [`api/config.go`](https://github.com/team-loco/loco/blob/main/api/config.go) reads every variable with its default. Check them against the deployed release; authentication and registry changes are under active review. The chart runs the region's OpenBao for the [secrets key provider](secrets-key-provider.md#openbao-in-the-control-plane-chart); create its seal key Secret before the first install.
@@ -52,6 +54,8 @@ Each worker cluster needs a CNI that enforces Kubernetes NetworkPolicy, cert-man
 
 As a [system admin](#first-system-admin), attach each cluster by creating its record with `locoadm cluster create` and passing the printed join token to the agent's first start; see [cluster attachment](../reference/cluster-attachment.md). Set the platform domains a cluster serves in `global.domain.apps` of its `loco-worker` values and point `*.<domain>` at its gateway; the API stores no domains of its own.
 
+Envoy Gateway must use `config.envoyGateway.provider.kubernetes.deploy.type: GatewayNamespace`. The worker chart enables this mode so proxies run in their Gateway's namespace, as application ingress policies require. A shared controller can serve the control plane and worker without moving worker proxies into the controller namespace.
+
 The `loco-control-plane` chart points the proxy at its own API Service; a standalone proxy reads the API URL from `CONTROL_PLANE_URL`.
 
 The observability proxy reports ready once its ClickHouse migrations complete and a database ping succeeds.
@@ -68,7 +72,9 @@ The proxy authenticates each query's permission check with the query's bearer to
 
 Set `obsProxy.query.cors.allowedOrigins` to the dashboard origins that may call the proxy, such as `https://loco.build`; a standalone proxy reads them as a comma-separated list from `CORS_ALLOWED_ORIGINS`. Origins must use HTTP or HTTPS and contain no credentials, path, query or fragment. An empty list disables cross-origin browser access. The proxy answers Connect preflights and exposes protocol response headers for configured origins; requests still require a bearer token and workspace permissions.
 
-With `clickhouse.enabled: true`, `loco-control-plane` runs ClickHouse in its namespace with three users, each limited to the `loco_obs` database: `loco_migrator` creates the schema for the observability proxy, `loco_ingest` inserts for the ingest role, and `loco_reader` serves the proxy's queries. Set `clickhouseUserPasswords.<user>` for each; the chart renders a Secret per user, named in `clickhouse.clickhouse.users`, with the password and the connection URL the proxy reads. URLs embed the passwords, so they may contain only letters, digits and `._~-`. Only the proxy pods and the ClickHouse operator can reach the server. `clickhouse.enabled` requires `obsProxy.enabled`.
+With `clickhouse.enabled: true`, `loco-control-plane` runs ClickHouse in its namespace with three users, each limited to the `loco_obs` database: `loco_migrator` creates the schema for the observability proxy, `loco_ingest` inserts for the ingest role, and `loco_reader` serves the proxy's queries. Create each Secret named by `clickhouse.clickhouse.users[].password_secret_name` before installing, with a `password` key and a `url` key containing `clickhouse://USER:PASSWORD@clickhouse-CHI_NAME.NAMESPACE.svc.cluster.local:9000`. `CHI_NAME` is `clickhouse.fullnameOverride`, which defaults to `loco-clickhouse` so generated operator volume names fit Kubernetes limits. URL-encode the password in the URL. The chart consumes these existing Secrets; credentials must stay out of Helm values and release history. Only the proxy pods and the ClickHouse operator can reach the server. `clickhouse.enabled` requires `obsProxy.enabled`.
+
+The ClickHouse operator also reads an existing Secret named by `clickhouse.operator.fullnameOverride`. Its `username` matches `clickhouse.operator.secret.username`; its `password` is generated outside Helm. The chart disables operator credential creation, and `locoadm apply` creates and preserves the native Secret.
 
 Set `global.region` in the `loco-worker` values to the region the cluster is registered under in the API. The collectors stamp it on every log, trace and metric as `loco.region`, and the dashboard's per-region metrics filter on it; the chart fails to render without it.
 
@@ -80,33 +86,9 @@ Your team supplies DNS records, certificate issuance, persistent storage, backup
 
 ## First system admin
 
-Operator commands in `locoadm` require the `system:admin` grant. A new installation grants it once, to a signed-in user who presents the installation's bootstrap token.
+Operator commands in `locoadm` require the `system:admin` grant. `BootstrapService.Bootstrap` requires both the installation's bootstrap token and an identity-provider JWT in the Authorization header. The API verifies the issuer, signature, audience, expiry and verified email before resolving or creating the first administrator, including when ordinary signup is closed. It returns a normal CLI session.
 
-1. Generate a token of at least 32 characters, store it in a Secret, and name it in the `loco-control-plane` values. A standalone API reads it from `LOCO_BOOTSTRAP_TOKEN`.
-
-   ```sh
-   kubectl -n loco-system create secret generic loco-bootstrap \
-     --from-literal=token="$(openssl rand -hex 32)"
-   ```
-
-   ```yaml
-   api:
-     bootstrapToken:
-       existingSecret:
-         name: loco-bootstrap
-         key: token
-   ```
-
-2. Sign in as the future admin and present the token:
-
-   ```sh
-   loco login --host https://api.example.com
-   locoadm bootstrap --token "$(kubectl -n loco-system get secret loco-bootstrap -o jsonpath='{.data.token}' | base64 -d)"
-   ```
-
-3. Remove `api.bootstrapToken` from the values, upgrade the release and delete the Secret.
-
-The first successful bootstrap closes bootstrap permanently in the database; the token cannot reopen it after a restart. Bootstrap fails when any system admin already exists.
+Bootstrap creates the user, grants system administration and closes bootstrap in one transaction. Concurrent attempts produce one administrator. A restart, a lost response or removal of an administrator never reopens bootstrap. The unreleased [installation workflow](../reference/installation.md#apply-and-resume) uses `locoadm bootstrap --file installation.yaml --email admin@example.com` to sign in, save a CLI session, remove the temporary bootstrap reference from every API replica, and delete its Secret. Repeat the command as an existing system administrator to resume interrupted cleanup.
 
 ## Upgrades
 

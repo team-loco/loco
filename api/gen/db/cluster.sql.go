@@ -12,32 +12,28 @@ import (
 	"github.com/google/uuid"
 )
 
-const createCluster = `-- name: CreateCluster :one
-INSERT INTO clusters (name, region, tier, provider, is_active, is_default, join_token_hash, join_token_expires_at)
+const createCluster = `-- name: CreateCluster :exec
+INSERT INTO clusters (name, region, tier, provider, is_active, is_default, id)
 VALUES ($1, $2, $3, 'kubernetes', true, false,
-        $4, $5)
-RETURNING id
+        $4)
+ON CONFLICT (id) DO NOTHING
 `
 
 type CreateClusterParams struct {
-	Name               string     `json:"name"`
-	Region             string     `json:"region"`
-	Tier               string     `json:"tier"`
-	JoinTokenHash      *string    `json:"joinTokenHash"`
-	JoinTokenExpiresAt *time.Time `json:"joinTokenExpiresAt"`
+	Name   string    `json:"name"`
+	Region string    `json:"region"`
+	Tier   string    `json:"tier"`
+	ID     uuid.UUID `json:"id"`
 }
 
-func (q *Queries) CreateCluster(ctx context.Context, arg CreateClusterParams) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, createCluster,
+func (q *Queries) CreateCluster(ctx context.Context, arg CreateClusterParams) error {
+	_, err := q.db.Exec(ctx, createCluster,
 		arg.Name,
 		arg.Region,
 		arg.Tier,
-		arg.JoinTokenHash,
-		arg.JoinTokenExpiresAt,
+		arg.ID,
 	)
-	var id uuid.UUID
-	err := row.Scan(&id)
-	return id, err
+	return err
 }
 
 const enrollCluster = `-- name: EnrollCluster :one
@@ -168,7 +164,7 @@ func (q *Queries) GetEnrolledCluster(ctx context.Context, id uuid.UUID) (GetEnro
 
 const listAdminClusters = `-- name: ListAdminClusters :many
 SELECT id, cluster_key, name, region, tier, is_active, removed_at, health_status,
-       last_heartbeat, agent_version, agent_public_key
+       last_heartbeat, agent_version, agent_public_key, builds_enabled
 FROM clusters ORDER BY created_at, id
 `
 
@@ -184,6 +180,7 @@ type ListAdminClustersRow struct {
 	LastHeartbeat  *time.Time `json:"lastHeartbeat"`
 	AgentVersion   *string    `json:"agentVersion"`
 	AgentPublicKey []byte     `json:"agentPublicKey"`
+	BuildsEnabled  bool       `json:"buildsEnabled"`
 }
 
 func (q *Queries) ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow, error) {
@@ -207,6 +204,7 @@ func (q *Queries) ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow
 			&i.LastHeartbeat,
 			&i.AgentVersion,
 			&i.AgentPublicKey,
+			&i.BuildsEnabled,
 		); err != nil {
 			return nil, err
 		}
@@ -318,6 +316,34 @@ func (q *Queries) LockClusterLifecycle(ctx context.Context, id uuid.UUID) (LockC
 	row := q.db.QueryRow(ctx, lockClusterLifecycle, id)
 	var i LockClusterLifecycleRow
 	err := row.Scan(&i.ID, &i.IsActive, &i.RemovedAt)
+	return i, err
+}
+
+const lockClusterRegistration = `-- name: LockClusterRegistration :one
+SELECT id, name, region, tier, removed_at, agent_public_key
+FROM clusters WHERE id = $1 FOR UPDATE
+`
+
+type LockClusterRegistrationRow struct {
+	ID             uuid.UUID  `json:"id"`
+	Name           string     `json:"name"`
+	Region         string     `json:"region"`
+	Tier           string     `json:"tier"`
+	RemovedAt      *time.Time `json:"removedAt"`
+	AgentPublicKey []byte     `json:"agentPublicKey"`
+}
+
+func (q *Queries) LockClusterRegistration(ctx context.Context, id uuid.UUID) (LockClusterRegistrationRow, error) {
+	row := q.db.QueryRow(ctx, lockClusterRegistration, id)
+	var i LockClusterRegistrationRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Region,
+		&i.Tier,
+		&i.RemovedAt,
+		&i.AgentPublicKey,
+	)
 	return i, err
 }
 

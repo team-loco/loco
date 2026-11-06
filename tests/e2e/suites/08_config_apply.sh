@@ -60,13 +60,6 @@ config_edit() {
     yq -i "$1" "$config_repo/loco.yaml"
 }
 
-config_grant_admin() {
-    e2e_psql "
-        INSERT INTO user_scopes (user_id, scope, entity_type, entity_id)
-        VALUES ('${cli_user_id}', 'admin', 'workspace', '${cli_workspace_id}')
-        ON CONFLICT DO NOTHING;
-    " >/dev/null
-}
 
 config_write_repo() {
     rm -rf "$config_dir"
@@ -100,8 +93,6 @@ YAML
 }
 
 test_g01_validate_accepts_the_file() {
-    cli_seed_session
-    config_grant_admin
     config_write_repo
     if ! assert "loco infra validate accepts the file" config_run validate infra validate; then
         config_show validate

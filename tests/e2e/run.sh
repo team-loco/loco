@@ -31,6 +31,7 @@ RUN_HASH=$(cksum <<<"$RUN_ID" | awk '{print $1}')
 PORT_BASE=$((PORT_RANGE_START + RUN_HASH % PORT_BLOCKS * PORT_BLOCK_SIZE))
 API_PORT=$PORT_BASE
 API_REPLICA_PORT=$((PORT_BASE + 5))
+AUTH_PORT=$((PORT_BASE + 9))
 OTLP_GRPC_PORT=$((PORT_BASE + 6))
 OTLP_HTTP_PORT=$((PORT_BASE + 7))
 OBS_PROXY_PORT=$((PORT_BASE + 1))
@@ -79,7 +80,7 @@ OBS_DATABASE=$(yq '.clickhouse.clickhouse.database' "$CONTROL_PLANE_VALUES")
 CLICKHOUSE_USER="loco_e2e"
 CLICKHOUSE_PASS="loco_e2e_pass"
 BUILDKIT_IMAGE=$(yq '.builds.buildkitImage.repository + ":" + .builds.buildkitImage.tag' "$WORKER_VALUES")
-CLUSTER_ADMIN_TOKEN="loco_s_e2e-admin-session-do-not-use-in-production"
+
 CLUSTER_ADMIN_HOME="$RUN_DIR/cluster-admin-home"
 AGENT_KEY_SECRET="e2e-agent-key"
 INGEST_TOKEN_SECRET=$(yq '.global.exporter.ingestToken.secretName' "$WORKER_VALUES")
@@ -88,7 +89,7 @@ E2E_CLUSTER_NAME="e2e-test-cluster"
 E2E_CLUSTER_REGION="us-east-1"
 E2E_CLUSTER_TIER="production"
 BOOTSTRAP_TOKEN=$(openssl rand -hex 32)
-USER_TOKEN="loco_s_e2e-test-session-do-not-use-in-production"
+
 LOCO_NAMESPACE="loco-system"
 IMAGE_RETENTION=1
 IMAGE_SWEEP_INTERVAL=5s
@@ -109,12 +110,14 @@ export POSTGRES_PORT="127.0.0.1:" OPENBAO_PORT="127.0.0.1:" REGISTRY_PORT="127.0
 OPENBAO_IMAGE=$(yq '.openbao.image' "$ROOT_DIR/charts/loco-control-plane/values.yaml")
 export OPENBAO_IMAGE
 export E2E_API_URL="http://127.0.0.1:${API_PORT}"
-export E2E_CLUSTER_ADMIN_TOKEN="$CLUSTER_ADMIN_TOKEN"
+export E2E_AUTH_ISSUER="http://127.0.0.1:${AUTH_PORT}/dex"
+export E2E_AUTH_STATE="$RUN_DIR/auth-state.json"
+export DEX_PORT="127.0.0.1:${AUTH_PORT}"
 export E2E_AGENT_KEY_SECRET="$AGENT_KEY_SECRET"
 export E2E_BOOTSTRAP_TOKEN="$BOOTSTRAP_TOKEN"
 export E2E_INGEST_TOKEN_SECRET="$INGEST_TOKEN_SECRET"
 export E2E_INGEST_TOKEN_SECRET_KEY="$INGEST_TOKEN_SECRET_KEY"
-export E2E_USER_TOKEN="$USER_TOKEN"
+
 export E2E_KIND_CLUSTER="$KIND_CLUSTER_NAME"
 export E2E_LOCO_NAMESPACE="$LOCO_NAMESPACE"
 export E2E_OBS_PROXY_PORT="$OBS_PROXY_PORT"
@@ -383,6 +386,9 @@ check_ports() {
     log_step "Checking run ${RUN_ID}'s ports ${PORT_BASE}-$((PORT_BASE + PORT_BLOCK_SIZE - 1))..."
     require_free_port "$API_PORT" "API"
     require_free_port "$API_REPLICA_PORT" "API replica"
+    if ! e2e_compose port dex 5556 >/dev/null 2>&1; then
+        require_free_port "$AUTH_PORT" "identity provider"
+    fi
     require_free_port "$OBS_PROXY_PORT" "observability proxy"
     require_free_port "$OTLP_GRPC_PORT" "OTLP/gRPC ingest"
     require_free_port "$OTLP_HTTP_PORT" "OTLP/HTTP ingest"
@@ -489,11 +495,10 @@ setup_clickhouse() {
 }
 
 run_migrations() {
-    log_step "Resetting the database, running migrations and seeding test data..."
+    log_step "Resetting the database and running migrations..."
     e2e_psql "DROP SCHEMA public CASCADE; CREATE SCHEMA public;" >/dev/null
     goose -dir "$ROOT_DIR/api/migrations" postgres "$E2E_DATABASE_URL" up >/dev/null
-    SEED_FILE=api/seed/e2e.sql e2e_compose run --rm seed >/dev/null
-    log_ok "Migrations applied and test data seeded"
+    log_ok "Migrations applied"
 }
 
 create_namespace() {
@@ -828,6 +833,9 @@ start_api() {
         )
     fi
 
+    AUTH_ISSUERS="[{\"issuer\":\"${E2E_AUTH_ISSUER}\",\"audience\":\"loco-e2e\",\"emailVerification\":\"claim\"}]" \
+    AUTH_SIGNUP_MODE=domains \
+    AUTH_SIGNUP_DOMAINS=test.local \
     LOCO_BOOTSTRAP_TOKEN="$BOOTSTRAP_TOKEN" \
     DATABASE_URL="$E2E_DATABASE_URL" \
     CACHE_TYPE=in-memory \
@@ -866,20 +874,29 @@ cluster_admin() {
     locoadm_as_admin cluster "$@"
 }
 
-seed_cluster_admin() {
-    e2e_psql "
-        INSERT INTO users (id, email) VALUES ('00000000-0000-7000-8000-000000000008', 'loco-admin@test.local');
-        INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id, access_expires_at, refresh_expires_at)
-        VALUES ('00000000-0000-7000-8000-000000000009',
-                encode(sha256(convert_to('${CLUSTER_ADMIN_TOKEN}', 'UTF8')), 'hex'),
-                encode(sha256(convert_to('refresh-${CLUSTER_ADMIN_TOKEN}', 'UTF8')), 'hex'),
-                '00000000-0000-7000-8000-000000000008', NOW() + INTERVAL '1 day', NOW() + INTERVAL '1 day');
-    " >/dev/null
+setup_authentication() {
+    log_step "Authenticating fixture users and creating application scope through the API..."
+    "$BIN_DIR/e2e-auth"
+    export E2E_USER_ID E2E_ORG_ID E2E_WORKSPACE_ID E2E_ENVIRONMENT_ID E2E_USER_TOKEN E2E_CLUSTER_ADMIN_TOKEN
+    E2E_USER_ID=$(yq -p json '.userId' "$E2E_AUTH_STATE")
+    E2E_ORG_ID=$(yq -p json '.orgId' "$E2E_AUTH_STATE")
+    E2E_WORKSPACE_ID=$(yq -p json '.workspaceId' "$E2E_AUTH_STATE")
+    E2E_ENVIRONMENT_ID=$(yq -p json '.environmentId' "$E2E_AUTH_STATE")
+    E2E_USER_TOKEN=$(yq -p json '.userCredentials.token' "$E2E_AUTH_STATE")
+    E2E_CLUSTER_ADMIN_TOKEN=$(yq -p json '.adminCredentials.token' "$E2E_AUTH_STATE")
     mkdir -p "$CLUSTER_ADMIN_HOME/.loco"
-    printf '{"Host":"%s","ExpiresAt":"2099-01-01T00:00:00Z","Token":"%s","RefreshToken":""}\n' \
-        "$E2E_API_URL" "$CLUSTER_ADMIN_TOKEN" >"$CLUSTER_ADMIN_HOME/.loco/credentials.json"
-    locoadm_as_admin bootstrap --token "$BOOTSTRAP_TOKEN" >/dev/null
-    log_ok "Cluster admin bootstrapped"
+    yq -p json -o json '.adminCredentials' "$E2E_AUTH_STATE" >"$CLUSTER_ADMIN_HOME/.loco/credentials.json"
+    chmod 600 "$CLUSTER_ADMIN_HOME/.loco/credentials.json"
+    cli_user_id=$E2E_USER_ID
+    cli_org_id=$E2E_ORG_ID
+    cli_workspace_id=$E2E_WORKSPACE_ID
+    log_ok "Real identity-provider accounts and API-issued sessions ready"
+}
+
+setup_identity_provider() {
+    log_step "Starting fixture identity provider..."
+    e2e_compose up -d --wait dex
+    wait_for "Identity provider discovery" "$READY_TIMEOUT" curl -sf "${E2E_AUTH_ISSUER}/.well-known/openid-configuration"
 }
 
 delete_agent_key() {
@@ -1078,6 +1095,7 @@ main() {
     build_chart_dependencies
     install_crds
     setup_postgres
+    setup_identity_provider
     setup_openbao
     setup_clickhouse
     run_migrations
@@ -1095,7 +1113,7 @@ main() {
         log_error "Cluster registry must be empty before enrollment"
         return 1
     fi
-    seed_cluster_admin
+    setup_authentication
     create_e2e_cluster
     rm -f "$LOG_DIR/agent.log" "$AGENT_EXPECTED_ERRORS"
     start_agent

@@ -102,24 +102,20 @@ func (f *Follower) GetBuild(ctx context.Context, buildID string) (*buildv1.Build
 func (f *Follower) Follow(ctx context.Context, build *buildv1.Build, workspaceID string) (*buildv1.Build, error) {
 	logCtx, stopLogs := context.WithCancel(ctx)
 	defer stopLogs()
-	logsDone := make(chan struct{})
-	backfilled := make(chan struct{})
-	markBackfilled := sync.OnceFunc(func() { close(backfilled) })
-	logsStarted := false
+	var logsDone chan struct{}
 	startLogs := func(current *buildv1.Build) {
-		if logsStarted || current.GetClusterId() == "" {
+		if logsDone != nil || current.GetClusterId() == "" {
 			return
 		}
-		logsStarted = true
+		logsDone = make(chan struct{})
 		go func() {
 			defer close(logsDone)
-			defer markBackfilled()
-			f.streamLogs(logCtx, current, workspaceID, markBackfilled)
+			f.streamLogs(logCtx, current, workspaceID)
 		}()
 	}
 	waitLogs := func() {
 		stopLogs()
-		if logsStarted {
+		if logsDone != nil {
 			<-logsDone
 		}
 	}
@@ -161,11 +157,7 @@ func (f *Follower) Follow(ctx context.Context, build *buildv1.Build, workspaceID
 		startLogs(build)
 	}
 
-	if logsStarted {
-		select {
-		case <-ctx.Done():
-		case <-backfilled:
-		}
+	if logsDone != nil {
 		drain := time.NewTimer(buildLogDrain)
 		select {
 		case <-ctx.Done():
@@ -190,14 +182,13 @@ func (f *Follower) streamLogs(
 	ctx context.Context,
 	build *buildv1.Build,
 	workspaceID string,
-	backfilled func(),
 ) {
 	buildID := build.GetId()
 	logs := logstream.ForHost(f.host, f.token)
 	filter := logstream.BuildFilter(workspaceID, buildID)
 	start := build.GetCreatedAt().AsTime()
 	now := time.Now()
-	window := logstream.Window{Start: start, End: now, Follow: true, Backfilled: backfilled}
+	window := logstream.Window{Start: start, End: now, Follow: true}
 	streamErr := logs.Stream(ctx, filter, window, f.emitLog)
 	if streamErr != nil && ctx.Err() == nil {
 		f.note("  Build logs stopped: %v\n", streamErr)

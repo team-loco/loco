@@ -39,7 +39,7 @@ type Querier interface {
 	CreateAPIToken(ctx context.Context, arg CreateAPITokenParams) error
 	CreateBuild(ctx context.Context, arg CreateBuildParams) (Build, error)
 	CreateBuildRegistryCredential(ctx context.Context, arg CreateBuildRegistryCredentialParams) (int64, error)
-	CreateCluster(ctx context.Context, arg CreateClusterParams) (uuid.UUID, error)
+	CreateCluster(ctx context.Context, arg CreateClusterParams) error
 	// Deployment queries
 	CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (uuid.UUID, error)
 	CreateEnvironment(ctx context.Context, arg CreateEnvironmentParams) (Environment, error)
@@ -206,6 +206,7 @@ type Querier interface {
 	LockBuildImageForDelete(ctx context.Context, id uuid.UUID) (*time.Time, error)
 	LockBuildImageForDeploy(ctx context.Context, id uuid.UUID) (*time.Time, error)
 	LockClusterLifecycle(ctx context.Context, id uuid.UUID) (LockClusterLifecycleRow, error)
+	LockClusterRegistration(ctx context.Context, id uuid.UUID) (LockClusterRegistrationRow, error)
 	LockEnvironmentKey(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)
 	LockInstallWebhooks(ctx context.Context, lockKey int64) error
 	LockOrgForDeletion(ctx context.Context, id uuid.UUID) error
@@ -257,6 +258,7 @@ type Querier interface {
 	SetResourceDeployPolicy(ctx context.Context, arg SetResourceDeployPolicyParams) error
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
 	SetResourcePartial(ctx context.Context, arg SetResourcePartialParams) error
+	SetSystemBootstrapOwner(ctx context.Context, bootstrappedBy *uuid.UUID) error
 	SetUserStatus(ctx context.Context, arg SetUserStatusParams) (User, error)
 	SuspendOrg(ctx context.Context, arg SuspendOrgParams) (Organization, error)
 	SuspendOrgPlacements(ctx context.Context, orgID uuid.UUID) ([]SuspendOrgPlacementsRow, error)

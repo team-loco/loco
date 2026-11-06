@@ -14,8 +14,7 @@ discovery_http=cart
 discovery_caller=caller
 discovery_tcp=payment
 discovery_renamed=checkout
-discovery_second_workspace='00000000-0000-7000-8000-000000000023'
-discovery_second_environment='00000000-0000-7000-8000-000000000024'
+discovery_second_workspace=""
 
 discovery_failures_before=$E2E_FAIL
 
@@ -84,10 +83,6 @@ discovery_unreachable() {
 }
 
 test_d01_deploys_private_http_and_tcp_services() {
-    cli_seed_session
-    e2e_psql "INSERT INTO user_scopes (user_id, scope, entity_type, entity_id)
-        VALUES ('${cli_user_id}', 'admin', 'workspace', '${cli_workspace_id}')
-        ON CONFLICT DO NOTHING;" >/dev/null
     rm -rf "$discovery_dir"
     mkdir -p "$discovery_dir/services/payment" "$discovery_dir/services/cart"
     cli_write_credentials
@@ -186,15 +181,7 @@ test_d04_resource_delete_removes_only_its_alias() {
 }
 
 test_d05_namespace_qualified_names_reach_their_workspace() {
-    e2e_psql "
-        INSERT INTO workspaces (id, org_id, name, description, created_by)
-        VALUES ('${discovery_second_workspace}', '${cli_org_id}', 'e2e-discovery-two', 'Private DNS isolation', '${cli_user_id}') ON CONFLICT DO NOTHING;
-        INSERT INTO environments (id, workspace_id, name, environment_type, created_by)
-        VALUES ('${discovery_second_environment}', '${discovery_second_workspace}', 'production', 'production', '${cli_user_id}') ON CONFLICT DO NOTHING;
-        INSERT INTO user_scopes (user_id, scope, entity_type, entity_id) VALUES
-        ('${cli_user_id}', 'read', 'workspace', '${discovery_second_workspace}'),
-        ('${cli_user_id}', 'write', 'workspace', '${discovery_second_workspace}') ON CONFLICT DO NOTHING;
-    " >/dev/null
+    discovery_second_workspace=$(fixture_workspace e2e-discovery-two)
     discovery_deploy_second_workspace || return 1
     assert_contains "first workspace still resolves its own http://cart.${discovery_namespace}.svc.cluster.local" workspace-one discovery_call "cart.${discovery_namespace}.svc.cluster.local" http
     local other_address

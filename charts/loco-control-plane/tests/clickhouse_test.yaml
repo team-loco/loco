@@ -6,26 +6,36 @@ values:
   - ../ci/default-values.yaml
   - values/in-cluster-clickhouse.yaml
 tests:
-  - it: renders an in-cluster ClickHouseInstallation
+  - it: consumes an existing native operator credential instead of rendering one
+    asserts:
+      - hasDocuments: {count: 0}
+        template: charts/clickhouse/charts/operator/templates/generated/Secret-clickhouse-operator.yaml
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "name: 'loco-clickhouse-operator'"
+        template: charts/clickhouse/charts/operator/templates/generated/ConfigMap-etc-clickhouse-operator-files.yaml
+
+  - it: keeps operator-generated volume names within Kubernetes limits for the full release name
     template: charts/clickhouse/templates/chi.yaml
     asserts:
-      - containsDocument: {kind: ClickHouseInstallation, apiVersion: clickhouse.altinity.com/v1, name: loco-control-plane-clickhouse}
+      - containsDocument: {kind: ClickHouseInstallation, apiVersion: clickhouse.altinity.com/v1, name: loco-clickhouse}
+      # chi-<name>-deploy-confd-<15-character cluster>-0-0 must fit a DNS label.
+      - matchRegex:
+          path: metadata.name
+          pattern: '^.{1,26}$'
 
-  - it: renders a password and connection URL Secret for each ClickHouse user
-    template: templates/clickhouse.yaml
+  - it: consumes existing ClickHouse password Secrets
+    template: charts/clickhouse/templates/chi.yaml
     asserts:
       - equal:
-          path: stringData
-          value: {password: migrator-pw, url: "clickhouse://loco_migrator:migrator-pw@clickhouse-loco-control-plane-clickhouse.loco-control-plane.svc.cluster.local:9000"}
-        documentSelector: {path: metadata.name, value: loco-clickhouse-migrator}
+          path: spec.configuration.users["loco_migrator/password"].valueFrom.secretKeyRef
+          value: {name: loco-clickhouse-migrator, key: password}
       - equal:
-          path: stringData
-          value: {password: ingest-pw, url: "clickhouse://loco_ingest:ingest-pw@clickhouse-loco-control-plane-clickhouse.loco-control-plane.svc.cluster.local:9000"}
-        documentSelector: {path: metadata.name, value: loco-clickhouse-ingest}
+          path: spec.configuration.users["loco_ingest/password"].valueFrom.secretKeyRef
+          value: {name: loco-clickhouse-ingest, key: password}
       - equal:
-          path: stringData
-          value: {password: reader-pw, url: "clickhouse://loco_reader:reader-pw@clickhouse-loco-control-plane-clickhouse.loco-control-plane.svc.cluster.local:9000"}
-        documentSelector: {path: metadata.name, value: loco-clickhouse-reader}
+          path: spec.configuration.users["loco_reader/password"].valueFrom.secretKeyRef
+          value: {name: loco-clickhouse-reader, key: password}
 
   - it: wires each proxy role to the user its grant needs
     asserts:
@@ -67,22 +77,6 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: clickhouse.enabled requires obsProxy.enabled
-        template: templates/clickhouse.yaml
-
-  - it: requires a password for each ClickHouse user
-    set:
-      clickhouseUserPasswords.loco_reader: ""
-    asserts:
-      - failedTemplate:
-          errorMessage: clickhouseUserPasswords.loco_reader is required
-        template: templates/clickhouse.yaml
-
-  - it: rejects a password that cannot go into a connection URL unescaped
-    set:
-      clickhouseUserPasswords.loco_reader: "a b@c"
-    asserts:
-      - failedTemplate:
-          errorMessage: clickhouseUserPasswords.loco_reader may contain only letters, digits and ._~-
         template: templates/clickhouse.yaml
 
   - it: admits only the proxy roles and the operator to ClickHouse

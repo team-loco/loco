@@ -14,6 +14,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/contextkeys"
@@ -21,13 +23,13 @@ import (
 	"github.com/team-loco/loco/api/timeutil"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const joinTokenPrefix = "loco_j_"
 
 var (
 	errClusterAdmin         = errors.New("cluster administration failed")
+	errRegistrationChanged  = errors.New("cluster registration is removed or its requested fields differ")
 	errInvalidClusterFields = errors.New(
 		"cluster name and region are required and tier must be staging or production",
 	)
@@ -75,21 +77,48 @@ func (s *ClusterAdminServer) CreateCluster(
 	if err := protovalidate.Validate(req); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidClusterFields.Error()).WithCause(err)
 	}
-	token := s.newJoinToken()
+	requestID, err := uuid.Parse(req.GetRequestId())
+	if err != nil {
+		return nil, rpcerr.New(connect.CodeInvalidArgument, errInvalidClusterFields)
+	}
 	tier := protoEnvTypeToString(req.GetTier())
-	id, err := s.queries.CreateCluster(ctx, genDb.CreateClusterParams{
-		Name:               req.GetName(),
-		Region:             req.GetRegion(),
-		Tier:               tier,
-		JoinTokenHash:      &token.hash,
-		JoinTokenExpiresAt: &token.expiresAt,
+	response := &clusterv1.CreateClusterResponse{}
+	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		queries := genDb.New(tx)
+		if createErr := queries.CreateCluster(ctx, genDb.CreateClusterParams{
+			Name: req.GetName(), Region: req.GetRegion(), Tier: tier, ID: requestID,
+		}); createErr != nil {
+			return createErr
+		}
+		row, lookupErr := queries.LockClusterRegistration(ctx, requestID)
+		if lookupErr != nil {
+			return lookupErr
+		}
+		if row.RemovedAt != nil || row.Name != req.GetName() || row.Region != req.GetRegion() || row.Tier != tier {
+			return errRegistrationChanged
+		}
+		response.ClusterId = row.ID.String()
+		if row.AgentPublicKey != nil {
+			return nil
+		}
+		token := s.newJoinToken()
+		if _, issueErr := queries.SetClusterJoinToken(ctx, genDb.SetClusterJoinTokenParams{
+			ID: row.ID, JoinTokenHash: &token.hash, JoinTokenExpiresAt: &token.expiresAt,
+		}); issueErr != nil {
+			return issueErr
+		}
+		response.JoinToken = token.proto()
+		return nil
 	})
+	if errors.Is(err, errRegistrationChanged) {
+		return nil, rpcerr.New(connect.CodeFailedPrecondition, errRegistrationChanged)
+	}
 	if err != nil {
 		slog.ErrorContext(ctx, "create cluster failed", "error", err)
 		return nil, rpcerr.New(connect.CodeInternal, errClusterAdmin)
 	}
-	slog.InfoContext(ctx, "cluster created", "cluster_id", id, "name", req.GetName(), "region", req.GetRegion())
-	return &clusterv1.CreateClusterResponse{ClusterId: id.String(), JoinToken: token.proto()}, nil
+	slog.InfoContext(ctx, "cluster registration ready", "cluster_id", response.GetClusterId())
+	return response, nil
 }
 
 func (s *ClusterAdminServer) IssueJoinToken(
@@ -150,6 +179,7 @@ func (s *ClusterAdminServer) ListClusters(
 			IsActive: row.IsActive, RemovedAt: timeutil.ParsePostgresTimestampPtr(row.RemovedAt),
 			LastHeartbeat: timeutil.ParsePostgresTimestampPtr(row.LastHeartbeat),
 			HealthStatus:  row.HealthStatus, AgentVersion: row.AgentVersion,
+			BuildsEnabled: row.BuildsEnabled,
 		}
 		if row.AgentPublicKey != nil {
 			fingerprint := sha256.Sum256(row.AgentPublicKey)

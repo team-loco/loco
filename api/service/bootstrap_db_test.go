@@ -9,52 +9,94 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
-	"connectrpc.com/validate"
 	"github.com/google/uuid"
+
+	"github.com/team-loco/loco/api/auth"
+	"github.com/team-loco/loco/api/auth/authtest"
 	"github.com/team-loco/loco/api/authz"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
 	bootstrapv1 "github.com/team-loco/loco/gen/go/loco/bootstrap/v1"
 	"github.com/team-loco/loco/gen/go/loco/bootstrap/v1/bootstrapv1connect"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
-	"github.com/team-loco/loco/internal/bearer"
+	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
+	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	"github.com/team-loco/loco/internal/rpc"
 )
 
-const bootstrapContenders = 8
+const (
+	bootstrapContenders         = 8
+	bootstrapVerifiedEmailClaim = "email_verified"
+)
 
-func bootstrapHTTP(t *testing.T, a *membershipAPI, tokenHash []byte) string {
-	t.Helper()
-	server := connect.NewServer(
-		interceptor.NewErrorInterceptor(),
-		interceptor.NewContextInterceptor().Interceptor(),
-		interceptor.NewAuthInterceptor(a.machine, nil, nil, authz.New(a.pool, a.queries)).Interceptor(),
-		validate.NewServerInterceptor(),
-	)
-	bootstrapv1connect.RegisterBootstrapServiceHandler(server, NewBootstrapServer(a.pool, tokenHash))
-	mux := http.NewServeMux()
-	connecthttp.Mount(mux, server)
-	httpServer := httptest.NewServer(mux)
-	t.Cleanup(httpServer.Close)
-	return httpServer.URL
+type bootstrapFixture struct {
+	api      *membershipAPI
+	issuer   *authtest.Issuer
+	endpoint string
 }
 
-func bootstrapAs(
-	t *testing.T,
-	endpoint string,
-	user membershipUser,
-	token string,
-) (*bootstrapv1.BootstrapResponse, error) {
+func newBootstrapFixture(t *testing.T, hash []byte) bootstrapFixture {
 	t.Helper()
-	client := rpc.NewHTTPClients(http.DefaultClient, endpoint, user.token).Bootstrap
-	return client.Bootstrap(t.Context(), &bootstrapv1.BootstrapRequest{Token: token})
+	a := newMembershipAPI(t)
+	issuer := authtest.NewIssuer(t)
+	return bootstrapFixture{api: a, issuer: issuer, endpoint: bootstrapHTTP(t, a, issuer, hash)}
+}
+
+func bootstrapHTTP(t *testing.T, a *membershipAPI, issuer *authtest.Issuer, hash []byte) string {
+	t.Helper()
+	issuers, err := auth.ParseIssuers(
+		`[{"issuer":"` + issuer.URL() + `","audience":"authenticated","emailVerification":"claim"}]`,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	verifier := auth.NewVerifier(http.DefaultClient, issuers)
+	resolver := auth.NewResolver(a.pool, auth.SignupPolicy{Mode: auth.SignupClosed})
+	server := connect.NewServer(interceptor.NewErrorInterceptor())
+	sessions := NewAuthServer(a.pool, a.queries, a.machine, nil, auth.Admins{}, "")
+	bootstrapv1connect.RegisterBootstrapServiceHandler(
+		server,
+		NewBootstrapServer(a.pool, hash, verifier, resolver, sessions),
+	)
+	mux := http.NewServeMux()
+	connecthttp.Mount(mux, server)
+	authenticated := connect.NewServer(
+		interceptor.NewErrorInterceptor(),
+		interceptor.NewAuthInterceptor(a.machine, verifier, resolver, authz.New(a.pool, a.queries)).Interceptor(),
+	)
+	userv1connect.RegisterUserServiceHandler(authenticated, NewUserServer(a.pool, a.queries, a.machine, auth.Admins{}))
+	connecthttp.Mount(mux, authenticated)
+	endpoint := httptest.NewServer(mux)
+	t.Cleanup(endpoint.Close)
+	return endpoint.URL
+}
+
+func (f bootstrapFixture) proof(subject string) string {
+	return f.issuer.Sign("k1", f.issuer.Claims(subject, subject+"@example.com", true))
+}
+
+func bootstrapAs(t *testing.T, endpoint, proof, token string) (*bootstrapv1.BootstrapResponse, error) {
+	t.Helper()
+	return rpc.NewHTTPClients(
+		http.DefaultClient,
+		endpoint,
+		proof,
+	).Bootstrap.Bootstrap(
+		t.Context(),
+		&bootstrapv1.BootstrapRequest{Token: token},
+	)
 }
 
 func systemAdmins(t *testing.T, a *membershipAPI) []uuid.UUID {
 	t.Helper()
-	admins, err := a.queries.GetUsersWithScopeOnEntity(t.Context(), genDb.GetUsersWithScopeOnEntityParams{
-		EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeAdmin,
-	})
+	admins, err := a.queries.GetUsersWithScopeOnEntity(
+		t.Context(),
+		genDb.GetUsersWithScopeOnEntityParams{
+			EntityType: genDb.EntityTypeSystem,
+			EntityID:   uuid.Nil,
+			Scope:      genDb.ScopeAdmin,
+		},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,153 +105,269 @@ func systemAdmins(t *testing.T, a *membershipAPI) []uuid.UUID {
 
 func requireBootstrapError(t *testing.T, err error, code connect.Code, want error) {
 	t.Helper()
-	connectErr, ok := errors.AsType[*connect.Error](err)
+	ce, ok := errors.AsType[*connect.Error](err)
 	if !ok {
 		t.Fatalf("error = %v, want %v", err, want)
 	}
-	if connectErr.Code() != code || connectErr.Message() != want.Error() {
-		t.Fatalf("error = %s %q, want %s %q", connectErr.Code(), connectErr.Message(), code, want)
+	if ce.Code() != code || ce.Message() != want.Error() {
+		t.Fatalf("error = %s %q, want %s %q", ce.Code(), ce.Message(), code, want)
 	}
 }
 
-func TestBootstrapGrantsFirstSystemAdmin(t *testing.T) {
-	a := newMembershipAPI(t)
-	testBootstrapToken := bearer.New("")
-	endpoint := bootstrapHTTP(t, a, HashBootstrapToken(testBootstrapToken))
-	first := a.signUp(t, "first")
-	response, err := bootstrapAs(t, endpoint, first, testBootstrapToken)
+func TestBootstrapFreshClosedInstallation(t *testing.T) {
+	f := newBootstrapFixture(t, HashBootstrapToken("installation-proof"))
+	proof := f.proof("operator")
+	if _, err := rpc.NewHTTPClients(
+		http.DefaultClient,
+		f.endpoint,
+		proof,
+	).User.WhoAmI(
+		t.Context(),
+		&userv1.WhoAmIRequest{},
+	); connect.CodeOf(
+		err,
+	) != connect.CodePermissionDenied {
+		t.Fatalf("ordinary signup before bootstrap = %v", err)
+	}
+	response, err := bootstrapAs(t, f.endpoint, f.proof("operator"), "installation-proof")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if response.GetUserId() != first.id.String() {
-		t.Fatalf("user id = %q, want %s", response.GetUserId(), first.id)
+	if admins := systemAdmins(t, f.api); len(admins) != 1 || admins[0].String() != response.GetUserId() {
+		t.Fatalf("admins = %v, user = %s", admins, response.GetUserId())
 	}
-	if admins := systemAdmins(t, a); len(admins) != 1 || admins[0] != first.id {
-		t.Fatalf("system admins = %v, want [%s]", admins, first.id)
+	if response.GetTokens().GetAccessToken() == "" || response.GetTokens().GetRefreshToken() == "" {
+		t.Fatal("missing standard CLI session")
 	}
-	clusters := rpc.NewHTTPClients(http.DefaultClient, clusterAdminHTTP(t, a.pool, a.machine), first.token).ClusterAdmin
-	if _, listErr := clusters.ListClusters(t.Context(), &clusterv1.ListClustersRequest{}); listErr != nil {
-		t.Fatalf("bootstrapped admin cannot list clusters: %v", listErr)
+	clusters := rpc.NewHTTPClients(
+		http.DefaultClient,
+		clusterAdminHTTP(t, f.api.pool, f.api.machine),
+		response.GetTokens().GetAccessToken(),
+	).ClusterAdmin
+	if _, err = clusters.ListClusters(t.Context(), &clusterv1.ListClustersRequest{}); err != nil {
+		t.Fatalf("session cannot administer clusters: %v", err)
 	}
-	second := a.signUp(t, "second")
-	_, err = bootstrapAs(t, endpoint, second, testBootstrapToken)
-	requireBootstrapError(t, err, connect.CodeAlreadyExists, ErrBootstrapClosed)
-	if admins := systemAdmins(t, a); len(admins) != 1 {
-		t.Fatalf("system admins = %v after a second bootstrap", admins)
+	closed := auth.NewResolver(f.api.pool, auth.SignupPolicy{Mode: auth.SignupClosed})
+	if _, _, err = closed.Resolve(
+		t.Context(),
+		auth.Identity{Issuer: f.issuer.URL(), Subject: "blocked", Email: "blocked@example.com", EmailVerified: true},
+	); err == nil {
+		t.Fatal("bootstrap opened ordinary signup")
 	}
 }
 
-func TestBootstrapRejectsWrongToken(t *testing.T) {
-	a := newMembershipAPI(t)
-	testBootstrapToken := bearer.New("")
-	endpoint := bootstrapHTTP(t, a, HashBootstrapToken(testBootstrapToken))
-	user := a.signUp(t, "guesser")
-	wrongBootstrapToken := bearer.New("")
-	_, err := bootstrapAs(t, endpoint, user, wrongBootstrapToken)
-	requireBootstrapError(t, err, connect.CodePermissionDenied, ErrBootstrapTokenInvalid)
-	if admins := systemAdmins(t, a); len(admins) != 0 {
-		t.Fatalf("wrong token granted %v", admins)
+func TestBootstrapRequiresBothProofs(t *testing.T) {
+	for _, tc := range []struct {
+		name, token     string
+		invalidIdentity bool
+		code            connect.Code
+		want            error
+	}{
+		{
+			name: "installation proof", token: "wrong-installation-proof",
+			code: connect.CodePermissionDenied, want: ErrBootstrapTokenInvalid,
+		},
+		{
+			name: "identity proof", token: "installation-proof", invalidIdentity: true,
+			code: connect.CodeUnauthenticated, want: ErrBootstrapUserRequired,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newBootstrapFixture(t, HashBootstrapToken("installation-proof"))
+			proof := f.proof("operator")
+			if tc.invalidIdentity {
+				proof = ""
+			}
+			_, err := bootstrapAs(t, f.endpoint, proof, tc.token)
+			requireBootstrapError(t, err, tc.code, tc.want)
+			var users, closed int
+			if err = f.api.pool.QueryRow(t.Context(), `SELECT (SELECT count(*) FROM users),
+ (SELECT count(*) FROM system_bootstrap)`).
+				Scan(&users, &closed); err != nil {
+				t.Fatal(err)
+			}
+			if users != 0 || closed != 0 {
+				t.Fatalf("rejected proof mutated users=%d closure=%d", users, closed)
+			}
+			if _, err = bootstrapAs(t, f.endpoint, f.proof("operator"), "installation-proof"); err != nil {
+				t.Fatalf("rejected attempt consumed bootstrap: %v", err)
+			}
+		})
 	}
-	if _, grantErr := bootstrapAs(t, endpoint, user, testBootstrapToken); grantErr != nil {
-		t.Fatalf("wrong token closed bootstrap: %v", grantErr)
+}
+
+func TestBootstrapRejectsUntrustedIdentity(t *testing.T) {
+	for _, claim := range []string{"iss", "aud", "exp", bootstrapVerifiedEmailClaim} {
+		t.Run(claim, func(t *testing.T) {
+			f := newBootstrapFixture(t, HashBootstrapToken("installation-proof"))
+			claims := f.issuer.Claims("operator", "operator@example.com", true)
+			switch claim {
+			case "iss":
+				claims[claim] = "wrong-issuer"
+			case "aud":
+				claims[claim] = "wrong-audience"
+			case "exp":
+				claims[claim] = 1
+			case bootstrapVerifiedEmailClaim:
+				claims[claim] = false
+			}
+			_, err := bootstrapAs(t, f.endpoint, f.issuer.Sign("k1", claims), "installation-proof")
+			if claim == bootstrapVerifiedEmailClaim {
+				requireBootstrapError(t, err, connect.CodePermissionDenied, auth.ErrEmailUnverified)
+			} else {
+				requireBootstrapError(t, err, connect.CodeUnauthenticated, ErrBootstrapUserRequired)
+			}
+			if _, err = bootstrapAs(t, f.endpoint, f.proof("operator"), "installation-proof"); err != nil {
+				t.Fatalf("failed verification closed bootstrap: %v", err)
+			}
+		})
 	}
-	_, err = bootstrapAs(t, endpoint, user, wrongBootstrapToken)
-	requireBootstrapError(t, err, connect.CodePermissionDenied, ErrBootstrapTokenInvalid)
 }
 
 func TestBootstrapIsDisabledWithoutToken(t *testing.T) {
-	a := newMembershipAPI(t)
-	testBootstrapToken := bearer.New("")
-	endpoint := bootstrapHTTP(t, a, nil)
-	user := a.signUp(t, "early")
-	_, err := bootstrapAs(t, endpoint, user, testBootstrapToken)
+	f := newBootstrapFixture(t, nil)
+	_, err := bootstrapAs(t, f.endpoint, f.proof("operator"), "installation-proof")
 	requireBootstrapError(t, err, connect.CodeFailedPrecondition, ErrBootstrapDisabled)
-	if admins := systemAdmins(t, a); len(admins) != 0 {
-		t.Fatalf("disabled bootstrap granted %v", admins)
-	}
-}
-
-func TestBootstrapRequiresSignedInUser(t *testing.T) {
-	a := newMembershipAPI(t)
-	testBootstrapToken := bearer.New("")
-	endpoint := bootstrapHTTP(t, a, HashBootstrapToken(testBootstrapToken))
-	_, err := bootstrapAs(t, endpoint, membershipUser{}, testBootstrapToken)
-	if connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("anonymous bootstrap: %v, want unauthenticated", err)
-	}
-}
-
-func TestBootstrapRefusesWhenAdminExists(t *testing.T) {
-	a := newMembershipAPI(t)
-	testBootstrapToken := bearer.New("")
-	existing := a.signUp(t, "existing")
-	if err := a.queries.AddUserScope(t.Context(), genDb.AddUserScopeParams{
-		UserID: existing.id, Scope: genDb.ScopeAdmin, EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil,
-	}); err != nil {
-		t.Fatal(err)
-	}
-	endpoint := bootstrapHTTP(t, a, HashBootstrapToken(testBootstrapToken))
-	user := a.signUp(t, "latecomer")
-	_, err := bootstrapAs(t, endpoint, user, testBootstrapToken)
-	requireBootstrapError(t, err, connect.CodeAlreadyExists, ErrBootstrapClosed)
-	if admins := systemAdmins(t, a); len(admins) != 1 || admins[0] != existing.id {
-		t.Fatalf("system admins = %v, want [%s]", admins, existing.id)
-	}
 }
 
 func TestBootstrapConcurrentAttemptsHaveOneWinner(t *testing.T) {
-	a := newMembershipAPI(t)
-	testBootstrapToken := bearer.New("")
-	endpoint := bootstrapHTTP(t, a, HashBootstrapToken(testBootstrapToken))
-	users := make([]membershipUser, bootstrapContenders)
-	for i := range users {
-		users[i] = a.signUp(t, uuid.NewString())
+	f := newBootstrapFixture(t, HashBootstrapToken("installation-proof"))
+	proofs := make([]string, bootstrapContenders)
+	for i := range proofs {
+		proofs[i] = f.proof(uuid.NewString())
 	}
 	errs := make([]error, bootstrapContenders)
-	start := make(chan struct{})
 	var wg sync.WaitGroup
-	for i, user := range users {
-		wg.Go(func() {
-			<-start
-			_, errs[i] = bootstrapAs(t, endpoint, user, testBootstrapToken)
-		})
+	start := make(chan struct{})
+	for i, proof := range proofs {
+		wg.Go(func() { <-start; _, errs[i] = bootstrapAs(t, f.endpoint, proof, "installation-proof") })
 	}
 	close(start)
 	wg.Wait()
-	var winner uuid.UUID
-	for i, err := range errs {
+	winners := 0
+	for _, err := range errs {
 		if err == nil {
-			if winner != uuid.Nil {
-				t.Fatalf("two winners: %s and %s", winner, users[i].id)
-			}
-			winner = users[i].id
-			continue
+			winners++
+		} else {
+			requireBootstrapError(t, err, connect.CodeAlreadyExists, ErrBootstrapClosed)
 		}
-		requireBootstrapError(t, err, connect.CodeAlreadyExists, ErrBootstrapClosed)
 	}
-	if admins := systemAdmins(t, a); len(admins) != 1 || admins[0] != winner {
-		t.Fatalf("system admins = %v, want [%s]", admins, winner)
+	var users, identities int
+	if err := f.api.pool.QueryRow(t.Context(), "SELECT (SELECT count(*) FROM users), (SELECT count(*) FROM identities)").
+		Scan(&users, &identities); err != nil {
+		t.Fatal(err)
+	}
+	if winners != 1 || users != 1 || identities != 1 || len(systemAdmins(t, f.api)) != 1 {
+		t.Fatalf("winners=%d users=%d identities=%d", winners, users, identities)
 	}
 }
 
 func TestBootstrapStaysClosedAfterRestart(t *testing.T) {
-	a := newMembershipAPI(t)
-	testBootstrapToken := bearer.New("")
-	tokenHash := HashBootstrapToken(testBootstrapToken)
-	first := a.signUp(t, "first")
-	if _, err := bootstrapAs(t, bootstrapHTTP(t, a, tokenHash), first, testBootstrapToken); err != nil {
+	f := newBootstrapFixture(t, HashBootstrapToken("installation-proof"))
+	response, err := bootstrapAs(t, f.endpoint, f.proof("operator"), "installation-proof")
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := a.queries.RemoveUserScope(t.Context(), genDb.RemoveUserScopeParams{
-		UserID: first.id, Scope: genDb.ScopeAdmin, EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil,
-	}); err != nil {
+	user := uuid.MustParse(response.GetUserId())
+	if err = f.api.queries.RemoveUserScope(
+		t.Context(),
+		genDb.RemoveUserScopeParams{
+			UserID:     user,
+			Scope:      genDb.ScopeAdmin,
+			EntityType: genDb.EntityTypeSystem,
+			EntityID:   uuid.Nil,
+		},
+	); err != nil {
 		t.Fatal(err)
 	}
-	restarted := bootstrapHTTP(t, a, tokenHash)
-	second := a.signUp(t, "second")
-	_, err := bootstrapAs(t, restarted, second, testBootstrapToken)
+	restarted := bootstrapHTTP(t, f.api, f.issuer, HashBootstrapToken("installation-proof"))
+	_, err = bootstrapAs(t, restarted, f.proof("next"), "installation-proof")
 	requireBootstrapError(t, err, connect.CodeAlreadyExists, ErrBootstrapClosed)
-	if admins := systemAdmins(t, a); len(admins) != 0 {
-		t.Fatalf("restart reopened bootstrap: %v", admins)
+	if len(systemAdmins(t, f.api)) != 0 {
+		t.Fatal("restart reopened bootstrap")
+	}
+}
+
+func TestBootstrapReturningIdentity(t *testing.T) {
+	f := newBootstrapFixture(t, HashBootstrapToken("installation-proof"))
+	user, _, err := f.api.resolver.Resolve(
+		t.Context(),
+		auth.Identity{Issuer: f.issuer.URL(), Subject: "operator", Email: "operator@example.com", EmailVerified: true},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := bootstrapAs(t, f.endpoint, f.proof("operator"), "installation-proof")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.GetUserId() != user.ID.String() {
+		t.Fatalf("created second identity user: %s", response.GetUserId())
+	}
+}
+
+func TestBootstrapRefusesWhenAdminExists(t *testing.T) {
+	f := newBootstrapFixture(t, HashBootstrapToken("installation-proof"))
+	existing := f.api.signUp(t, "existing")
+	if err := f.api.queries.AddUserScope(
+		t.Context(),
+		genDb.AddUserScopeParams{
+			UserID:     existing.id,
+			Scope:      genDb.ScopeAdmin,
+			EntityType: genDb.EntityTypeSystem,
+			EntityID:   uuid.Nil,
+		},
+	); err != nil {
+		t.Fatal(err)
+	}
+	_, err := bootstrapAs(t, f.endpoint, f.proof("operator"), "installation-proof")
+	requireBootstrapError(t, err, connect.CodeAlreadyExists, ErrBootstrapClosed)
+}
+
+func TestBootstrapRollsBackIdentityWhenGrantFails(t *testing.T) {
+	f := newBootstrapFixture(t, HashBootstrapToken("installation-proof"))
+	_, err := f.api.pool.Exec(
+		t.Context(),
+		`CREATE FUNCTION reject_bootstrap_grant() RETURNS trigger LANGUAGE plpgsql AS $$
+ BEGIN
+ IF NEW.entity_type = 'system' THEN RAISE EXCEPTION 'grant unavailable'; END IF;
+ RETURN NEW; END $$;
+ CREATE TRIGGER reject_bootstrap_grant BEFORE INSERT ON user_scopes
+ FOR EACH ROW EXECUTE FUNCTION reject_bootstrap_grant()`,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = bootstrapAs(t, f.endpoint, f.proof("operator"), "installation-proof")
+	requireBootstrapError(t, err, connect.CodeInternal, errBootstrap)
+	var users, identities, closed int
+	if err = f.api.pool.QueryRow(t.Context(), `SELECT (SELECT count(*) FROM users), (SELECT count(*) FROM identities),
+ (SELECT count(*) FROM system_bootstrap)`).
+		Scan(&users, &identities, &closed); err != nil {
+		t.Fatal(err)
+	}
+	if users != 0 || identities != 0 || closed != 0 {
+		t.Fatalf("failed grant left users=%d identities=%d closure=%d", users, identities, closed)
+	}
+	if _, err = f.api.pool.Exec(t.Context(), "DROP TRIGGER reject_bootstrap_grant ON user_scopes"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = bootstrapAs(t, f.endpoint, f.proof("operator"), "installation-proof"); err != nil {
+		t.Fatalf("rollback did not restore bootstrap: %v", err)
+	}
+}
+
+func TestBootstrapRejectsAccountCollision(t *testing.T) {
+	f := newBootstrapFixture(t, HashBootstrapToken("installation-proof"))
+	if _, _, err := f.api.resolver.Resolve(
+		t.Context(),
+		auth.Identity{Issuer: f.issuer.URL(), Subject: "original", Email: "operator@example.com", EmailVerified: true},
+	); err != nil {
+		t.Fatal(err)
+	}
+	_, err := bootstrapAs(t, f.endpoint, f.proof("operator"), "installation-proof")
+	requireBootstrapError(t, err, connect.CodePermissionDenied, auth.ErrEmailTaken)
+	if admins := systemAdmins(t, f.api); len(admins) != 0 {
+		t.Fatalf("collision granted admin: %v", admins)
 	}
 }

@@ -61,7 +61,8 @@ func publicKeyBytes(t *testing.T, key ed25519.PrivateKey) []byte {
 func (e *enrollmentFixture) createCluster(t *testing.T) (uuid.UUID, string) {
 	t.Helper()
 	resp, err := e.admin.CreateCluster(systemAdminContext(t), &clusterv1.CreateClusterRequest{
-		Name: "enrolled", Region: testRegion, Tier: environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION,
+		RequestId: uuid.NewString(), Name: "enrolled", Region: testRegion,
+		Tier: environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION,
 	})
 	if err != nil {
 		t.Fatal(err)

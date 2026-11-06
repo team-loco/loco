@@ -126,7 +126,6 @@ test_i00_the_cluster_reports_the_domain_its_gateway_serves() {
 }
 
 test_i01_deploys_with_and_without_a_domain() {
-    cli_seed_session
     rm -rf "$ingress_dir"
     mkdir -p "$ingress_dir/$ingress_public_app" "$ingress_dir/$ingress_private_app"
     cli_write_credentials

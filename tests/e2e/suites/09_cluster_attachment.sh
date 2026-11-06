@@ -9,11 +9,10 @@ cluster_admin_code() {
 }
 
 test_z05_cluster_admin_authorization() {
-    cli_seed_session
-    assert_fails_with "Wrong bootstrap token is rejected" "Invalid bootstrap token" \
-        locoadm_as_admin bootstrap --token "wrong-${E2E_BOOTSTRAP_TOKEN}"
+    assert_fails_with "Wrong bootstrap token is rejected" "invalid bootstrap token" \
+        "$E2E_BIN_DIR/e2e-auth" wrong-token
     assert_fails_with "Second bootstrap is refused" "already has a system admin" \
-        locoadm_as_admin bootstrap --token "$E2E_BOOTSTRAP_TOKEN"
+        "$E2E_BIN_DIR/e2e-auth" closed
     assert "Workspace user cannot list clusters" \
         test "$(cluster_admin_code ListClusters '{}' "$E2E_USER_TOKEN")" = 403
     assert "Join token cannot manage clusters" \
@@ -54,7 +53,7 @@ test_z09_restarted_api_keeps_bootstrap_closed() {
     kill_pid_file "$PID_DIR/api.pid"
     start_api
     assert_fails_with "A restarted API keeps bootstrap closed" "already has a system admin" \
-        locoadm_as_admin bootstrap --token "$E2E_BOOTSTRAP_TOKEN"
+        "$E2E_BIN_DIR/e2e-auth" closed
 }
 
 test_z10_reconnects_across_api_processes() {

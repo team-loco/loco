@@ -200,20 +200,6 @@
     "clickhouse": {
       "type": "object"
     },
-    "clickhouseUserPasswords": {
-      "type": "object",
-      "properties": {
-        "loco_ingest": {
-          "type": "string"
-        },
-        "loco_migrator": {
-          "type": "string"
-        },
-        "loco_reader": {
-          "type": "string"
-        }
-      }
-    },
     "controlPlaneHostname": {
       "type": "string"
     },

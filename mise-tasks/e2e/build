@@ -41,6 +41,7 @@ build Agent agent loco-agent .
 build "Observability Proxy" observability-proxy loco-obs-proxy .
 build "the CLI" cmd/loco loco .
 build "the operator CLI" cmd/locoadm locoadm .
+build "the authentication fixture" . e2e-auth ./tools/e2e-auth
 build "the controller image's manager" controller images/manager ./cmd "${image_env[@]}"
 build "the builder image's builder" builder images/loco-builder . "${image_env[@]}" GOFLAGS=-trimpath
 build "the observability proxy image's proxy" observability-proxy images/loco-obs-proxy . "${image_env[@]}"
