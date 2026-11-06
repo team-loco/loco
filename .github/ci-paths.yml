@@ -1,0 +1,384 @@
+# Changed paths that run each workflow .github/workflows/ci.yml calls, keyed by
+# the workflow's file name. tools/ci-changes evaluates them with the semantics of
+# a workflow's `paths` filter: `*` stays within a directory, `**` crosses
+# directories, `?` makes the preceding character optional, `{a,b}` matches
+# either word, and a later `!pattern` excludes what earlier patterns matched. A
+# workflow without a list for an event never runs on that event.
+
+auth-conformance:
+  pull_request: &auth-conformance
+    - "api/auth/**"
+    - "api/mail/**"
+    - "api/service/**"
+    - "api/migrations/**"
+    - "api/queries/**"
+    - "tests/conformance/auth/**"
+    - "mise-tasks/test/auth-conformance"
+    - "mise-tasks/test/auth-invitations"
+    - ".github/workflows/auth-conformance.yml"
+  push: *auth-conformance
+
+buf:
+  pull_request: &buf
+    - "**.proto"
+    - "**/buf.yaml"
+    - "**/buf.lock"
+    - "**/buf.gen.yaml"
+    - "gen/**"
+    - "api/gen/openapi/**"
+    - "go.mod"
+    - "go.sum"
+    - "package.json"
+    - "bun.lock"
+    - ".github/workflows/buf.yml"
+    - "mise.toml"
+    - "mise.lock"
+    - ".github/actions/setup-tools/**"
+  push: *buf
+
+charts:
+  pull_request: &charts
+    - "charts/**"
+    - ".ct.yaml"
+    - "mise-tasks/lint/charts"
+    - "mise-tasks/chart/schema"
+    - "tests/pyproject.toml"
+    - "tests/uv.lock"
+    - "tests/collector/**"
+    - "tests/e2e/certificates.sh"
+    - "tests/e2e/control-plane.sh"
+    - "tests/e2e/control-plane-values.yaml"
+    - "tests/e2e/api-failover.py"
+    - "tests/e2e/cluster-metrics.py"
+    - "tests/e2e/fixtures/api-failover/**"
+    - "tests/e2e/fixtures/control-plane/**"
+    - "tests/conformance/transit/compose.yaml"
+    - "dev/compose.yaml"
+    - "dev/api.env"
+    - "dev/openbao/**"
+    - "controller/config/crd/**"
+    - "mise-tasks/crds/**"
+    - "mise.toml"
+    - "mise.lock"
+    - ".github/actions/setup-tools/**"
+    - ".github/workflows/charts.yml"
+  push: *charts
+
+controller-helm-chart:
+  pull_request: &controller-helm-chart
+    - "controller/**"
+    - "k8sapi/**"
+    - "charts/**"
+    - "go.mod"
+    - "go.sum"
+    - "mise-tasks/chart/**"
+    - "mise-tasks/crds/**"
+    - "mise.toml"
+    - "mise.lock"
+    - ".github/actions/setup-tools/**"
+    - ".github/workflows/controller-helm-chart.yml"
+  push: *controller-helm-chart
+
+docker:
+  pull_request: &docker
+    - "tests/pyproject.toml"
+    - "tests/uv.lock"
+    - "**/Dockerfile"
+    - "**/*.dockerignore"
+    - "**/*compose*.yaml"
+    - "**/*compose*.yml"
+    - ".github/workflows/docker.yml"
+    - "mise-tasks/lint/versions"
+    - "mise-tasks/test/platform-binaries"
+    - "tools/platform-images/**"
+    - "tests/versions/**"
+    - "mise.toml"
+    - "mise.lock"
+    - "docs/pyproject.toml"
+    - "bunfig.toml"
+    - "renovate.json5"
+    - ".github/actions/setup-tools/**"
+    - "api/**"
+    - "agent/**"
+    - "builder/**"
+    - "controller/**"
+    - "observability-proxy/**"
+    - "k8sapi/**"
+    - "internal/**"
+    - "gen/go/**"
+    - "gen/ts/**"
+    - "web/**"
+    - "go.mod"
+    - "go.sum"
+    - "package.json"
+    - "bun.lock"
+    - "docs/uv.lock"
+    - "docs/zensical.toml"
+    - "docs/scripts/**"
+    - "docs/content/**"
+    - "docs/overrides/**"
+    - "schemas/loco.v1.json"
+  push: *docker
+
+docs-drift:
+  pull_request:
+    - "cmd/**"
+    - "api/**"
+    - "internal/**"
+    - "proto/**"
+    - "agent/**"
+    - "builder/**"
+    - "controller/**"
+    - "observability-proxy/**"
+    - "k8sapi/**"
+    - "charts/**"
+    - "web/src/**"
+    - "web/public/install.sh"
+    - "web/Dockerfile"
+    - "web/sws.toml"
+    - "tests/conformance/**"
+    - "mise.toml"
+    - "mise-tasks/**"
+    - "dev/**"
+    - "examples/**"
+    - "docs/**"
+    - "**/*.md"
+    - ".github/workflows/docs-drift.yml"
+
+docs:
+  pull_request: &docs
+    - "tests/pyproject.toml"
+    - "tests/uv.lock"
+    - "docs/content/**"
+    - "docs/overrides/**"
+    - "docs/scripts/**"
+    - "docs/tests/**"
+    - "docs/zensical.toml"
+    - "docs/pyproject.toml"
+    - "docs/uv.lock"
+    - "web/**"
+    - "gen/ts/**"
+    - "schemas/loco.v1.json"
+    - "package.json"
+    - "bun.lock"
+    - "mise.toml"
+    - "mise.lock"
+    - ".github/workflows/docs.yml"
+    - ".github/actions/setup-tools/**"
+  push: *docs
+
+e2e:
+  pull_request:
+    - "agent/**"
+    - "api/**"
+    - "builder/**"
+    - "cmd/**"
+    - "controller/**"
+    - "gen/go/**"
+    - "internal/**"
+    - "k8sapi/**"
+    - "observability-proxy/**"
+    - "proto/**"
+    - "charts/loco-control-plane/**"
+    - "charts/loco-worker/**"
+    - "manifests/namespaces/**"
+    - "dev/compose.yaml"
+    - "dev/api.env"
+    - "dev/openbao/**"
+    - "dev/registry/**"
+    - "mise-tasks/cluster/**"
+    - "mise-tasks/crds/**"
+    - "mise-tasks/e2e/**"
+    - "mise-tasks/helm/**"
+    - "tests/e2e/**"
+    - "tests/conformance/transit/compose.yaml"
+    - "go.mod"
+    - "go.sum"
+    - "mise.toml"
+    - "mise.lock"
+    - ".github/actions/setup-tools/**"
+    - ".github/workflows/e2e.yml"
+
+govulncheck:
+  pull_request: &govulncheck
+    - "tests/pyproject.toml"
+    - "tests/uv.lock"
+    - "**/*.go"
+    - "**/go.mod"
+    - "**/go.sum"
+    - "mise.toml"
+    - "mise.lock"
+    - "mise-tasks/lint/govulncheck"
+    - "tests/govulncheck/**"
+    - ".github/actions/setup-tools/**"
+    - ".github/workflows/govulncheck.yml"
+  push: *govulncheck
+
+lint:
+  pull_request: &lint
+    - "api/**"
+    - "cmd/**"
+    - "internal/**"
+    - "tools/**"
+    - "controller/**"
+    - "agent/**"
+    - "builder/**"
+    - "k8sapi/**"
+    - "observability-proxy/**"
+    - "go.mod"
+    - "go.sum"
+    - ".golangci.yml"
+    - "mise-tasks/lint/go"
+    - "gen/go/**"
+    - ".github/actions/go-changes/**"
+    - "mise.toml"
+    - "mise.lock"
+    - ".github/actions/setup-tools/**"
+    - ".github/workflows/lint.yml"
+  push: *lint
+
+local-stack:
+  pull_request: &local-stack
+    - "tests/pyproject.toml"
+    - "tests/uv.lock"
+    - "dev/stack.sh"
+    - "dev/api.env"
+    - "tests/stack/**"
+    - "mise-tasks/helm/**"
+    - "dev/worker-chart.yaml"
+    - "charts/**"
+    - ".github/workflows/local-stack.yml"
+  push: *local-stack
+
+obs-chart:
+  pull_request: &obs-chart
+    - "charts/loco-worker/**"
+    - "charts/loco-control-plane/**"
+    - "mise-tasks/test/obs-retention"
+    - "mise-tasks/test/obs-tenancy"
+    - "mise-tasks/test/lib/**"
+    - "tools/pullimage/**"
+    - "observability-proxy/**"
+    - "gen/go/**"
+    - "internal/buildinfo/**"
+    - "go.mod"
+    - "go.sum"
+    - "mise.toml"
+    - "mise.lock"
+    - ".github/workflows/obs-chart.yml"
+    - ".github/actions/setup-tools/**"
+    - "!**/*_test.go"
+  push: *obs-chart
+
+osv:
+  pull_request: &osv
+    - "**/Dockerfile"
+    - "**/go.mod"
+    - "**/go.sum"
+    - "**/package.json"
+    - "**/pyproject.toml"
+    - "**/uv.lock"
+    - "bun.lock"
+    - ".github/workflows/osv.yml"
+  push: *osv
+
+platform-release:
+  pull_request:
+    - "tests/pyproject.toml"
+    - "tests/uv.lock"
+    - "tools/platform-release/**"
+    - "charts/**"
+    - "controller/config/crd/bases/**"
+    - ".github/workflows/platform-release.yml"
+    - "mise.toml"
+    - "mise.lock"
+  push:
+    - "tools/platform-release/**"
+    - "charts/**"
+    - "controller/config/crd/bases/**"
+    - ".github/workflows/platform-release.yml"
+
+test:
+  pull_request: &test
+    - "api/**"
+    - "cmd/**"
+    - "internal/**"
+    - "tools/**"
+    - "controller/**"
+    - "agent/**"
+    - "builder/**"
+    - "observability-proxy/**"
+    - "k8sapi/**"
+    - "controller/Makefile"
+    - "mise-tasks/test/counter-metrics"
+    - "mise-tasks/test/lib/ports.sh"
+    - "charts/loco-control-plane/values.yaml"
+    - "charts/loco-worker/values.yaml"
+    - "go.mod"
+    - "go.sum"
+    - "gen/go/**"
+    - ".github/actions/go-changes/**"
+    - "mise.toml"
+    - "mise.lock"
+    - ".github/actions/setup-tools/**"
+    - ".github/workflows/test.yml"
+  push: *test
+
+transit-conformance:
+  pull_request: &transit-conformance
+    - "api/pkg/secretkeys/**"
+    - "tests/conformance/transit/**"
+    - "charts/loco-control-plane/values.yaml"
+    - "mise-tasks/test/transit-conformance"
+    - ".github/workflows/transit-conformance.yml"
+  push: *transit-conformance
+
+web:
+  pull_request: &web
+    - "web/**"
+    - "tests/install/**"
+    - "tests/pyproject.toml"
+    - "tests/uv.lock"
+    - "api/events/**"
+    - "api/authz/**"
+    - "api/service/event*"
+    - "api/queries/events.sql"
+    - "api/migrations/00004_events.sql"
+    - "proto/loco/event/**"
+    - "tests/e2e/trace_ui.py"
+    - "tests/e2e/settings_labels_ui.py"
+    - "tests/e2e/fixtures/settings-labels/**"
+    - "tests/e2e/deployment_history_ui.py"
+    - "tests/e2e/fixtures/deployment-history/**"
+    - "api/service/{deployment,resource,resource_status,environment,workspace,org,user}*.go"
+    - "api/{auth,authz,interceptor,migrations,db}/**"
+    - "api/queries/{deployment,resource,environment,workspace,org,user}*.sql"
+    - "api/gen/db/{deployment,resource,environment,workspace,org,user}*.go"
+    - "api/{main,config,env}*.go"
+    - "api/go.{mod,sum}"
+    - "gen/go/loco/{deployment,resource,environment,workspace,org,user}/**"
+    - "go.{mod,sum}"
+    - "dev/compose.yaml"
+    - "tests/e2e/activity_ui.py"
+    - "tests/e2e/activity_fixture.py"
+    - "tests/e2e/fixtures/activity/**"
+    - ".agents/skills/ui-evidence/**"
+    - "gen/ts/**"
+    - "package.json"
+    - "bun.lock"
+    - ".github/workflows/web.yml"
+    - "mise.toml"
+    - "mise.lock"
+    - ".github/actions/setup-tools/**"
+  push: *web
+
+workflows:
+  pull_request: &workflows
+    - "tests/pyproject.toml"
+    - "tests/uv.lock"
+    - ".github/workflows/**"
+    - ".github/ci-paths.yml"
+    - "mise.toml"
+    - "mise.lock"
+    - ".github/actions/**"
+  push: *workflows

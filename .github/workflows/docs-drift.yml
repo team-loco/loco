@@ -1,31 +1,7 @@
 name: Docs Drift
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - "cmd/**"
-      - "api/**"
-      - "internal/**"
-      - "proto/**"
-      - "agent/**"
-      - "builder/**"
-      - "controller/**"
-      - "observability-proxy/**"
-      - "k8sapi/**"
-      - "charts/**"
-      - "web/src/**"
-      - "web/public/install.sh"
-      - "web/Dockerfile"
-      - "web/sws.toml"
-      - "tests/conformance/**"
-      - "mise.toml"
-      - "mise-tasks/**"
-      - "dev/**"
-      - "examples/**"
-      - "docs/**"
-      - "**/*.md"
-      - ".github/workflows/docs-drift.yml"
+  workflow_call:
   workflow_dispatch:
     inputs:
       pr_number:
@@ -36,10 +12,6 @@ on:
 permissions:
   contents: read
   pull-requests: write
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || inputs.pr_number }}
-  cancel-in-progress: true
 
 jobs:
   review:

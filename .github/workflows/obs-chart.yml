@@ -1,35 +1,10 @@
 name: Observability Chart
 
 on:
-  push:
-    branches:
-      - main
-    paths: &paths
-      - "charts/loco-worker/**"
-      - "charts/loco-control-plane/**"
-      - "mise-tasks/test/obs-retention"
-      - "mise-tasks/test/obs-tenancy"
-      - "mise-tasks/test/lib/**"
-      - "tools/pullimage/**"
-      - "observability-proxy/**"
-      - "gen/go/**"
-      - "internal/buildinfo/**"
-      - "go.mod"
-      - "go.sum"
-      - "mise.toml"
-      - "mise.lock"
-      - ".github/workflows/obs-chart.yml"
-      - ".github/actions/setup-tools/**"
-      - "!**/*_test.go"
-  pull_request:
-    paths: *paths
+  workflow_call:
 
 permissions:
   contents: read
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
 

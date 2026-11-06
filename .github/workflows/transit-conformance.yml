@@ -1,22 +1,8 @@
 name: Transit Conformance
 
 on:
-  push:
-    branches:
-      - main
-    paths: &paths
-      - "api/pkg/secretkeys/**"
-      - "tests/conformance/transit/**"
-      - "charts/loco-control-plane/values.yaml"
-      - "mise-tasks/test/transit-conformance"
-      - ".github/workflows/transit-conformance.yml"
-  pull_request:
-    paths: *paths
+  workflow_call:
   workflow_dispatch:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read

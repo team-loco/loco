@@ -1,24 +1,7 @@
 name: Publish platform release
 
 on:
-  pull_request:
-    paths:
-      - "tests/pyproject.toml"
-      - "tests/uv.lock"
-      - tools/platform-release/**
-      - charts/**
-      - controller/config/crd/bases/**
-      - .github/workflows/platform-release.yml
-      - mise.toml
-      - mise.lock
-  push:
-    branches:
-      - main
-    paths:
-      - tools/platform-release/**
-      - charts/**
-      - controller/config/crd/bases/**
-      - .github/workflows/platform-release.yml
+  workflow_call:
   workflow_dispatch:
     inputs:
       version:
@@ -32,10 +15,6 @@ on:
 
 permissions:
   contents: read
-
-concurrency:
-  group: platform-release-${{ github.event.pull_request.number || github.event_name }}
-  cancel-in-progress: false
 
 jobs:
   validate:
@@ -58,6 +37,8 @@ jobs:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: platform-release
+    concurrency:
+      group: platform-release-artifacts
     permissions:
       contents: read
       packages: write
@@ -98,6 +79,8 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: platform-release
+    concurrency:
+      group: platform-release-publish
     permissions:
       contents: read
       packages: write
