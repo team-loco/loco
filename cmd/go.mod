@@ -20,7 +20,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/team-loco/loco v0.0.0
 	github.com/zalando/go-keyring v0.2.8
-	go.yaml.in/yaml/v2 v2.4.4
+	go.yaml.in/yaml/v2 v2.4.5
 	golang.org/x/mod v0.42.0
 	golang.org/x/oauth2 v0.37.0
 	google.golang.org/protobuf v1.36.12
