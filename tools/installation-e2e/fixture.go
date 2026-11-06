@@ -134,7 +134,7 @@ func (f *fixture) acceptance(ctx context.Context) error {
 			"--name",
 			f.name,
 			"--config",
-			"tests/e2e/kind-e2e.yml",
+			"tests/e2e/fixtures/installation/kind.yaml",
 			"--kubeconfig",
 			f.kubeconfig,
 			"--wait",
