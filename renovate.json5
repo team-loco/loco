@@ -202,6 +202,12 @@
       extractVersion: "^v?(?<version>.*)$",
     },
     {
+      description: "A github: tool can publish its release assets after the tag, and mise lock fails until they reach it: infisical 0.45.0 had none an hour after its tag. One lock error aborts the whole Renovate run, lock file maintenance included",
+      matchManagers: ["mise"],
+      matchDepNames: ["infisical", "/^github:/"],
+      minimumReleaseAge: "1 day",
+    },
+    {
       description: "kind's default node image sets the local Kubernetes version, and kubectl must stay within one minor version of it",
       groupName: "kind and kubectl",
       matchDepNames: ["kind", "kubectl"],
@@ -210,7 +216,7 @@
   customManagers: [
     {
       customType: "regex",
-      description: "The API docs load Scalar from the CDN without bundling it",
+      description: "The API docs load Scalar from the CDN without bundling it. Renovate cannot recompute the script's integrity hash, so lint:sri fails the update until mise run fix:sri refreshes it",
       managerFilePatterns: ["/^api/docs\\.html$/"],
       matchStrings: ["https://cdn\\.jsdelivr\\.net/npm/(?<depName>@scalar/api-reference)@(?<currentValue>[^/]+)/"],
       datasourceTemplate: "npm",

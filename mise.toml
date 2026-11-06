@@ -174,8 +174,8 @@ description = "Test the e2e runner's test file selection without a cluster"
 run = "uv run --locked --project tests pytest tests/e2e/test_run.py"
 
 [tasks."test:ci"]
-description = "Test CI component selection and pull-request diffs"
-run = "uv run --locked --project tests pytest .github/actions/go-changes/tests .github/actions/ci-gate/tests"
+description = "Test CI workflow and Go component selection"
+run = ["uv run --locked --project tests pytest .github/actions/go-changes/tests", "go test ./tools/ci-changes"]
 
 [tasks."test:install"]
 description = "Test the CLI install script's arguments"
@@ -189,6 +189,14 @@ run = "uv run --locked --project tests pytest tests/govulncheck"
 description = "Test how each checkout's local stack gets its slot, names and ports, and the values helm:sync:release installs each release with"
 depends = ["helm:deps"]
 run = "uv run --locked --project tests pytest tests/stack"
+
+[tasks."lint:sri"]
+description = "Check that each CDN script in the API docs carries the integrity hash of the file its URL serves"
+run = "go run ./tools/scriptsri api/docs.html"
+
+[tasks."fix:sri"]
+description = "Rewrite the integrity hashes of the CDN scripts in the API docs, after Renovate moves a script version"
+run = "go run ./tools/scriptsri -write api/docs.html"
 
 [tasks."lint:actions"]
 description = "Run actionlint on the GitHub workflows, and check that every action is pinned to a commit SHA"

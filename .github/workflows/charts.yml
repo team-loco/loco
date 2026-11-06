@@ -1,43 +1,10 @@
 name: Charts
 
 on:
-  push:
-    branches:
-      - main
-    paths: &paths
-      - "charts/**"
-      - ".ct.yaml"
-      - "mise-tasks/lint/charts"
-      - "mise-tasks/chart/schema"
-      - "tests/pyproject.toml"
-      - "tests/uv.lock"
-      - "tests/collector/**"
-      - "tests/e2e/certificates.sh"
-      - "tests/e2e/control-plane.sh"
-      - "tests/e2e/control-plane-values.yaml"
-      - "tests/e2e/api-failover.py"
-      - "tests/e2e/cluster-metrics.py"
-      - "tests/e2e/fixtures/api-failover/**"
-      - "tests/e2e/fixtures/control-plane/**"
-      - "tests/conformance/transit/compose.yaml"
-      - "dev/compose.yaml"
-      - "dev/api.env"
-      - "dev/openbao/**"
-      - "controller/config/crd/**"
-      - "mise-tasks/crds/**"
-      - "mise.toml"
-      - "mise.lock"
-      - ".github/actions/setup-tools/**"
-      - ".github/workflows/charts.yml"
-  pull_request:
-    paths: *paths
+  workflow_call:
 
 permissions:
   contents: read
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
 

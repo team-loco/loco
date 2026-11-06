@@ -42,11 +42,12 @@ func TestOpenAPIDocs(t *testing.T) {
 		}
 	}
 	assetPattern := regexp.MustCompile(
-		`https://cdn\.jsdelivr\.net/npm/@scalar/api-reference@\d+\.\d+\.\d+/dist/browser/standalone\.js`,
+		`<script src="https://cdn\.jsdelivr\.net/npm/@scalar/api-reference@\d+\.\d+\.\d+/dist/browser/standalone\.js" ` +
+			`integrity="sha384-[A-Za-z0-9+/]{64}"`,
 	)
 	assets := assetPattern.FindAllStringSubmatch(body, -1)
 	if len(assets) != 1 {
-		t.Fatalf("expected one pinned Scalar CDN script, got %v", assets)
+		t.Fatalf("expected one Scalar CDN script pinned by version and integrity, got %v", assets)
 	}
 	for _, method := range []string{http.MethodHead, http.MethodPost} {
 		t.Run(method, func(t *testing.T) {

@@ -1,38 +1,10 @@
 name: Lint
 
 on:
-  push:
-    branches:
-      - main
-    paths: &paths
-      - "api/**"
-      - "cmd/**"
-      - "internal/**"
-      - "tools/**"
-      - "controller/**"
-      - "agent/**"
-      - "builder/**"
-      - "k8sapi/**"
-      - "observability-proxy/**"
-      - "go.mod"
-      - "go.sum"
-      - ".golangci.yml"
-      - "mise-tasks/lint/go"
-      - "gen/go/**"
-      - ".github/actions/go-changes/**"
-      - "mise.toml"
-      - "mise.lock"
-      - ".github/actions/setup-tools/**"
-      - ".github/workflows/lint.yml"
-  pull_request:
-    paths: *paths
+  workflow_call:
 
 permissions:
   contents: read
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   changes:
@@ -97,3 +69,17 @@ jobs:
         env:
           GO_MODULE: ${{ matrix.working-directory }}
         run: mise run lint:go "$GO_MODULE"
+
+  script-integrity:
+    name: Script Integrity
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-tools
+        with:
+          go-cache: lint-sri
+
+      - name: Check the API docs scripts against the files their URLs serve
+        run: mise run lint:sri

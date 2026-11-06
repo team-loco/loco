@@ -1,27 +1,10 @@
 name: Local Stack
 
 on:
-  pull_request:
-    paths: &paths
-      - "tests/pyproject.toml"
-      - "tests/uv.lock"
-      - "dev/stack.sh"
-      - "dev/api.env"
-      - "tests/stack/**"
-      - "mise-tasks/helm/**"
-      - "dev/worker-chart.yaml"
-      - "charts/**"
-      - ".github/workflows/local-stack.yml"
-  push:
-    branches: [main]
-    paths: *paths
+  workflow_call:
 
 permissions:
   contents: read
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
 

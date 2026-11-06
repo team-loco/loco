@@ -1,39 +1,7 @@
 name: Tests
 
 on:
-  push:
-    branches:
-      - main
-    paths: &paths
-      - "api/**"
-      - "cmd/**"
-      - "internal/**"
-      - "tools/**"
-      - "controller/**"
-      - "agent/**"
-      - "builder/**"
-      - "observability-proxy/**"
-      - "k8sapi/**"
-      - "controller/Makefile"
-      - "mise-tasks/test/counter-metrics"
-      - "mise-tasks/test/lib/ports.sh"
-      - "charts/loco-control-plane/values.yaml"
-      - "charts/loco-worker/values.yaml"
-      - "go.mod"
-      - "go.sum"
-      - "gen/go/**"
-      - ".github/actions/go-changes/**"
-      - "mise.toml"
-      - "mise.lock"
-      - ".github/actions/setup-tools/**"
-      - ".github/workflows/test.yml"
-  pull_request:
-    paths: *paths
   workflow_call:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   changes:
@@ -97,7 +65,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:18.6-alpine@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5
+        image: postgres:18.6-alpine@sha256:8a334ab9502c8ccb8d7dec4e83b36b5ce8ed7b396e585f1c86b0e69c416f4fca
         env:
           POSTGRES_USER: loco_test
           POSTGRES_PASSWORD: loco_test

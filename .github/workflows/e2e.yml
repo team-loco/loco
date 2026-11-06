@@ -1,45 +1,11 @@
 name: E2E
 
 on:
-  pull_request:
-    paths:
-      - "agent/**"
-      - "api/**"
-      - "builder/**"
-      - "cmd/**"
-      - "controller/**"
-      - "gen/go/**"
-      - "internal/**"
-      - "k8sapi/**"
-      - "observability-proxy/**"
-      - "proto/**"
-      - "charts/loco-control-plane/**"
-      - "charts/loco-worker/**"
-      - "manifests/namespaces/**"
-      - "dev/compose.yaml"
-      - "dev/api.env"
-      - "dev/openbao/**"
-      - "dev/registry/**"
-      - "mise-tasks/cluster/**"
-      - "mise-tasks/crds/**"
-      - "mise-tasks/e2e/**"
-      - "mise-tasks/helm/**"
-      - "tests/e2e/**"
-      - "tests/conformance/transit/compose.yaml"
-      - "go.mod"
-      - "go.sum"
-      - "mise.toml"
-      - "mise.lock"
-      - ".github/actions/setup-tools/**"
-      - ".github/workflows/e2e.yml"
+  workflow_call:
   workflow_dispatch:
 
 permissions:
   contents: read
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   E2E_RUN_ID: ci
