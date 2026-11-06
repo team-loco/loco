@@ -48,7 +48,7 @@ obs_chart_values="$E2E_ROOT_DIR/charts/loco-worker/values.yaml"
 obs_collector_host=$(yq '.["otel-col-deploy"] | .fullnameOverride + "." + .namespaceOverride + ".svc.cluster.local"' "$obs_chart_values")
 obs_collector_endpoint="http://${obs_collector_host}:$(yq '.["otel-col-deploy"].ports["otlp-http"].servicePort' "$obs_chart_values")"
 
-obs_second_workspace_id='00000000-0000-7000-8000-000000000013'
+obs_second_workspace_id=""
 obs_second_workspace_name='e2e-observability-isolation'
 
 obs_clickhouse_client() {
@@ -206,19 +206,6 @@ obs_application_field() {
     obs_kube -n "$E2E_LOCO_NAMESPACE" get application "resource-${obs_resource_id}" -o jsonpath="{.spec.$1}"
 }
 
-obs_seed_second_workspace() {
-    e2e_psql "
-        INSERT INTO workspaces (id, org_id, name, description, created_by)
-        VALUES ('${obs_second_workspace_id}', '${cli_org_id}', '${obs_second_workspace_name}',
-                'Second workspace for observability isolation', '${cli_user_id}')
-        ON CONFLICT DO NOTHING;
-        INSERT INTO user_scopes (user_id, scope, entity_type, entity_id)
-        VALUES
-            ('${cli_user_id}', 'read', 'workspace', '${obs_second_workspace_id}'),
-            ('${cli_user_id}', 'write', 'workspace', '${obs_second_workspace_id}')
-        ON CONFLICT DO NOTHING;
-    " >/dev/null
-}
 
 obs_write_config() {
     cli_write_service_config "$obs_app_dir" "$obs_app" "$obs_app_port" /healthz
@@ -252,8 +239,7 @@ test_o01_deploys_the_fixture_through_loco() {
         printf '\n'
     } >"$obs_evidence"
 
-    cli_seed_session
-    obs_seed_second_workspace
+    obs_second_workspace_id=$(fixture_workspace "$obs_second_workspace_name")
     cli_write_credentials
     cp -R "$obs_fixture_dir/." "$obs_app_dir/"
     obs_write_config

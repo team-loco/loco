@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"syscall"
 
 	"charm.land/fang/v2"
 	"github.com/team-loco/loco/cmd/internal/ui"
@@ -17,6 +18,7 @@ func main() {
 	ui.DetectBackground()
 	err := fang.Execute(context.Background(),
 		NewRootCmd(),
+		fang.WithNotifySignal(os.Interrupt, syscall.SIGTERM),
 		fang.WithVersion(buildinfo.Version(version)),
 		fang.WithColorSchemeFunc(climain.ColorScheme()),
 		fang.WithErrorHandler(climain.HandleError))

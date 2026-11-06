@@ -62,6 +62,7 @@ jobs:
         env:
           RELEASE_REPOSITORY: ${{ github.repository }}
         run: |
+          set -euo pipefail
           mise run release:artifacts -- --commit "$CORE_COMMIT" --repository "${RELEASE_REPOSITORY,,}" | tee platform-artifacts.json
 
       - name: Report the published versions
@@ -119,6 +120,7 @@ jobs:
         env:
           RELEASE_REPOSITORY: ${{ github.repository }}
         run: |
+          set -euo pipefail
           mise run release:platform -- --version "$RELEASE_VERSION" --commit "$CORE_COMMIT" --repository "${RELEASE_REPOSITORY,,}" | tee platform-release.json
 
       - name: Report the immutable release

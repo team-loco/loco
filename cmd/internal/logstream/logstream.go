@@ -45,11 +45,10 @@ type Client struct {
 }
 
 type Window struct {
-	Start      time.Time
-	End        time.Time
-	Limit      int32
-	Follow     bool
-	Backfilled func()
+	Start  time.Time
+	End    time.Time
+	Limit  int32
+	Follow bool
 }
 
 func (c *Client) Stream(ctx context.Context, filter Filter, window Window, emit Emit) error {
@@ -61,9 +60,6 @@ func (c *Client) Stream(ctx context.Context, filter Filter, window Window, emit 
 		return emit(entry)
 	}
 	err := c.Backfill(ctx, filter, window.Start, window.End, window.Limit, tracked)
-	if window.Backfilled != nil {
-		window.Backfilled()
-	}
 	if err != nil {
 		return err
 	}

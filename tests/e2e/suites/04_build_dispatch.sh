@@ -7,11 +7,9 @@ fi
 dispatch_ctx="kind-${E2E_KIND_CLUSTER}"
 dispatch_ns="$E2E_BUILD_NAMESPACE"
 dispatch_dir="$E2E_BUILD_WORK_DIR/dispatch"
-dispatch_user_id='00000000-0000-7000-8000-000000000001'
-dispatch_workspace_id='00000000-0000-7000-8000-000000000003'
-dispatch_environment_id='00000000-0000-7000-8000-000000000004'
+dispatch_workspace_id=$E2E_WORKSPACE_ID
+dispatch_environment_id=$E2E_ENVIRONMENT_ID
 
-dispatch_session_id='00000000-0000-7000-8000-000000000007'
 dispatch_resource_name='e2e-built-app'
 dispatch_digest_pattern='^sha256:[a-f0-9]{64}$'
 
@@ -44,26 +42,6 @@ save_state() {
     printf '%s' "$2" >"$dispatch_dir/$1"
 }
 
-seed_session() {
-    e2e_psql "
-        INSERT INTO user_scopes (user_id, scope, entity_type, entity_id)
-        VALUES
-            ('${dispatch_user_id}', 'read', 'workspace', '${dispatch_workspace_id}'),
-            ('${dispatch_user_id}', 'write', 'workspace', '${dispatch_workspace_id}'),
-            ('${dispatch_user_id}', 'admin', 'workspace', '${dispatch_workspace_id}')
-        ON CONFLICT DO NOTHING;
-        INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id,
-                                    access_expires_at, refresh_expires_at)
-        VALUES (
-            '${dispatch_session_id}',
-            encode(sha256(convert_to('${E2E_USER_TOKEN}', 'UTF8')), 'hex'),
-            encode(sha256(convert_to('refresh-${E2E_USER_TOKEN}', 'UTF8')), 'hex'),
-            '${dispatch_user_id}',
-            NOW() + INTERVAL '1 day',
-            NOW() + INTERVAL '1 day'
-        ) ON CONFLICT DO NOTHING;
-    " >/dev/null
-}
 
 create_resource() {
     local body
@@ -219,7 +197,6 @@ reject_build_path() {
 }
 
 test_d01_build_through_the_api() {
-    seed_session
     local resource_id
     resource_id=$(create_resource)
     save_state resource "$resource_id"

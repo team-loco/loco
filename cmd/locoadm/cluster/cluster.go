@@ -7,14 +7,15 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+
 	"github.com/team-loco/loco/cmd/internal/keychain"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/gen/go/loco/cluster/v1/clusterv1connect"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	"github.com/team-loco/loco/internal/rpc"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -124,7 +125,7 @@ func call(
 	ctx := cmd.Context()
 	switch operation {
 	case clusterCreate:
-		request := &clusterv1.CreateClusterRequest{}
+		request := &clusterv1.CreateClusterRequest{RequestId: uuid.NewString()}
 		fields := map[string]*string{flagName: &request.Name, flagRegion: &request.Region}
 		for flag, field := range fields {
 			value, err := cmd.Flags().GetString(flag)

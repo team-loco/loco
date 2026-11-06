@@ -5,7 +5,3 @@ obsProxy:
     enabled: true
 clickhouse:
   enabled: true
-clickhouseUserPasswords:
-  loco_migrator: migrator-pw
-  loco_ingest: ingest-pw
-  loco_reader: reader-pw

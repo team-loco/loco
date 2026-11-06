@@ -25,6 +25,8 @@ import (
 	"connectrpc.com/grpcreflect/v2"
 	"connectrpc.com/validate"
 	"github.com/rs/cors"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/auth/supabase"
 	"github.com/team-loco/loco/api/authz"
@@ -61,7 +63,6 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/webhook/v1/webhookv1connect"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
 	"github.com/team-loco/loco/internal/ingesttoken"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const (
@@ -250,7 +251,9 @@ func main() {
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
 	clusterSilentAfter := service.ClusterSilentAfter(ac.HeartbeatInterval)
 	clusterAdminServiceHandler := service.NewClusterAdminServer(pool, queries, ac.Agent.JoinTokenTTL)
-	bootstrapServiceHandler := service.NewBootstrapServer(pool, ac.BootstrapTokenHash)
+	bootstrapServiceHandler := service.NewBootstrapServer(
+		pool, ac.BootstrapTokenHash, verifier, resolver, authServiceHandler,
+	)
 	resourceServiceHandler := service.NewResourceServer(pool, queries, ac.ServiceDefaults, clusterSilentAfter)
 	sourceBucket, bucketErr := newSourceBucket(ac.SourceBucket)
 	if bucketErr != nil {
@@ -346,7 +349,7 @@ func main() {
 
 	configv1connect.RegisterConfigServiceHandler(baseServer, configServiceHandler)
 	clusterv1connect.RegisterClusterAdminServiceHandler(authenticatedServer, clusterAdminServiceHandler)
-	bootstrapv1connect.RegisterBootstrapServiceHandler(authenticatedServer, bootstrapServiceHandler)
+	bootstrapv1connect.RegisterBootstrapServiceHandler(baseServer, bootstrapServiceHandler)
 	userv1connect.RegisterUserServiceHandler(authenticatedServer, userServiceHandler)
 	authv1connect.RegisterAuthServiceHandler(authenticatedServer, authServiceHandler)
 	eventv1connect.RegisterEventServiceHandler(authenticatedServer, eventServiceHandler)

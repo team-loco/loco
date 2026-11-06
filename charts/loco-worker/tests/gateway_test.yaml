@@ -7,7 +7,30 @@ values:
 templates:
   - templates/gateway.yaml
   - charts/otel-col-deploy/templates/service.yaml
+  - charts/gateway-helm/templates/envoy-gateway-config.yaml
+  - charts/gateway-helm/templates/infra-manager-rbac.yaml
 tests:
+  - it: deploys proxies beside their Gateways with cross-namespace infrastructure permissions
+    asserts:
+      - matchRegex:
+          path: data["envoy-gateway.yaml"]
+          pattern: 'type: GatewayNamespace'
+        template: charts/gateway-helm/templates/envoy-gateway-config.yaml
+      - matchRegex:
+          path: data["envoy-gateway.yaml"]
+          pattern: 'controllerName: gateway.envoyproxy.io/gatewayclass-controller'
+        template: charts/gateway-helm/templates/envoy-gateway-config.yaml
+      - equal:
+          path: spec.controllerName
+          value: gateway.envoyproxy.io/gatewayclass-controller
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: GatewayClass}
+      - contains:
+          path: rules
+          content: {apiGroups: [authentication.k8s.io], resources: [tokenreviews], verbs: [create]}
+        template: charts/gateway-helm/templates/infra-manager-rbac.yaml
+        documentSelector: {path: kind, value: ClusterRole}
+
   - it: sends every Envoy signal to the deployment collector's OTLP gRPC Service
     asserts:
       - equal:

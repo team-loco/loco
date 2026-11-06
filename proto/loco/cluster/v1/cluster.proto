@@ -30,6 +30,7 @@ message Cluster {
   google.protobuf.Timestamp last_heartbeat = 9;
   optional string agent_version = 10;
   optional string agent_key_fingerprint = 11;
+  bool builds_enabled = 12;
 }
 
 message ClusterWorkload {
@@ -47,6 +48,8 @@ message JoinToken {
 }
 
 message CreateClusterRequest {
+  // persist before sending; reuse only for the same worker registration
+  string request_id = 4 [(buf.validate.field).string.uuid = true];
   string name = 1 [(buf.validate.field).string = {
     min_len: 1
     max_len: 255

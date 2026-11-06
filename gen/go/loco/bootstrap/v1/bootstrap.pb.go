@@ -8,6 +8,7 @@ package bootstrapv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	v1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -69,6 +70,7 @@ func (x *BootstrapRequest) GetToken() string {
 type BootstrapResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Tokens        *v1.CLITokens          `protobuf:"bytes,2,opt,name=tokens,proto3" json:"tokens,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -110,15 +112,23 @@ func (x *BootstrapResponse) GetUserId() string {
 	return ""
 }
 
+func (x *BootstrapResponse) GetTokens() *v1.CLITokens {
+	if x != nil {
+		return x.Tokens
+	}
+	return nil
+}
+
 var File_loco_bootstrap_v1_bootstrap_proto protoreflect.FileDescriptor
 
 const file_loco_bootstrap_v1_bootstrap_proto_rawDesc = "" +
 	"\n" +
-	"!loco/bootstrap/v1/bootstrap.proto\x12\x11loco.bootstrap.v1\x1a\x1bbuf/validate/validate.proto\"1\n" +
+	"!loco/bootstrap/v1/bootstrap.proto\x12\x11loco.bootstrap.v1\x1a\x1bbuf/validate/validate.proto\x1a\x17loco/auth/v1/auth.proto\"1\n" +
 	"\x10BootstrapRequest\x12\x1d\n" +
-	"\x05token\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05token\",\n" +
+	"\x05token\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05token\"]\n" +
 	"\x11BootstrapResponse\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId2j\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12/\n" +
+	"\x06tokens\x18\x02 \x01(\v2\x17.loco.auth.v1.CLITokensR\x06tokens2j\n" +
 	"\x10BootstrapService\x12V\n" +
 	"\tBootstrap\x12#.loco.bootstrap.v1.BootstrapRequest\x1a$.loco.bootstrap.v1.BootstrapResponseB@Z>github.com/team-loco/loco/gen/go/loco/bootstrap/v1;bootstrapv1b\x06proto3"
 
@@ -138,15 +148,17 @@ var file_loco_bootstrap_v1_bootstrap_proto_msgTypes = make([]protoimpl.MessageIn
 var file_loco_bootstrap_v1_bootstrap_proto_goTypes = []any{
 	(*BootstrapRequest)(nil),  // 0: loco.bootstrap.v1.BootstrapRequest
 	(*BootstrapResponse)(nil), // 1: loco.bootstrap.v1.BootstrapResponse
+	(*v1.CLITokens)(nil),      // 2: loco.auth.v1.CLITokens
 }
 var file_loco_bootstrap_v1_bootstrap_proto_depIdxs = []int32{
-	0, // 0: loco.bootstrap.v1.BootstrapService.Bootstrap:input_type -> loco.bootstrap.v1.BootstrapRequest
-	1, // 1: loco.bootstrap.v1.BootstrapService.Bootstrap:output_type -> loco.bootstrap.v1.BootstrapResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	2, // 0: loco.bootstrap.v1.BootstrapResponse.tokens:type_name -> loco.auth.v1.CLITokens
+	0, // 1: loco.bootstrap.v1.BootstrapService.Bootstrap:input_type -> loco.bootstrap.v1.BootstrapRequest
+	1, // 2: loco.bootstrap.v1.BootstrapService.Bootstrap:output_type -> loco.bootstrap.v1.BootstrapResponse
+	2, // [2:3] is the sub-list for method output_type
+	1, // [1:2] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_loco_bootstrap_v1_bootstrap_proto_init() }

@@ -7895,6 +7895,14 @@
           "userId": {
             "type": "string",
             "title": "user_id"
+          },
+          "tokens": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/loco.auth.v1.CLITokens"
+              }
+            ],
+            "title": "tokens"
           }
         },
         "title": "BootstrapResponse",
@@ -8273,6 +8281,10 @@
               "null"
             ],
             "title": "agent_key_fingerprint"
+          },
+          "buildsEnabled": {
+            "type": "boolean",
+            "title": "builds_enabled"
           }
         },
         "title": "Cluster",
@@ -8310,6 +8322,12 @@
       "loco.cluster.v1.CreateClusterRequest": {
         "type": "object",
         "properties": {
+          "requestId": {
+            "type": "string",
+            "title": "request_id",
+            "format": "uuid",
+            "description": "persist before sending; reuse only for the same worker registration"
+          },
           "name": {
             "type": "string",
             "title": "name",

@@ -49,7 +49,6 @@ test_n02_agent_reports_builds_disabled() {
 }
 
 test_n03_public_image_deploys() {
-    cli_seed_session
     nobuild_setup
     local rc=0
     (cd "$nobuild_image_dir" && loco_cli deploy --yes) \

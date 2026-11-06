@@ -91,7 +91,6 @@ application_annotated() {
 }
 
 test_agent_applies_placement() {
-    cli_seed_session
     rm -rf "$e2e_app_dir"
     mkdir -p "$e2e_app_dir"
     cli_write_credentials

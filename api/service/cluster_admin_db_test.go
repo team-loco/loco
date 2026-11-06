@@ -15,6 +15,7 @@ import (
 	"connectrpc.com/validate"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/team-loco/loco/api/authz"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
@@ -91,9 +92,10 @@ VALUES ('admin-test', 'east', 'kubernetes', true, false) RETURNING id`).
 			_, err := client.CreateCluster(
 				ctx,
 				&clusterv1.CreateClusterRequest{
-					Name:   "created",
-					Region: "east",
-					Tier:   environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION,
+					RequestId: uuid.NewString(),
+					Name:      "created",
+					Region:    "east",
+					Tier:      environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION,
 				},
 			)
 			return err

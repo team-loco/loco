@@ -58,6 +58,9 @@ def test_bundle_pins_every_source_by_digest(bundle):
 
 def test_bundle_lock_records_the_commit_and_images(bundle):
     lock = json.loads(bundle.files["release.json"])
+    schema = json.loads((release.ROOT / "schemas/installation.v1.json").read_text())
+    assert lock["configVersion"] == schema["properties"]["version"]["const"]
+    assert lock["configVersion"] == 1
     assert lock["coreCommit"] == bundle.commit
     assert lock["images"] == bundle.images
 
@@ -386,6 +389,8 @@ def publication():
         publication.directory = tempfile.TemporaryDirectory()
         cleanup.callback(publication.directory.cleanup)
         publication.root = Path(publication.directory.name)
+        (publication.root / "schemas").mkdir()
+        (publication.root / "schemas/installation.v1.json").write_bytes((release.ROOT / "schemas/installation.v1.json").read_bytes())
         (publication.root / "charts/loco-worker/charts").mkdir(parents=True)
         (
             publication.root / "charts/loco-worker/charts/gateway-helm-test.tgz"

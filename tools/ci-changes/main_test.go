@@ -94,6 +94,27 @@ func TestLoadRejectsUnknownEvents(t *testing.T) {
 	assert.ErrorContains(t, err, `unknown event "pull-request"`)
 }
 
+func TestInstallationInputsSelectE2E(t *testing.T) {
+	filters, err := loadFilters("../../.github/ci-paths.yml")
+	require.NoError(t, err)
+	for _, path := range []string{
+		"tools/e2e-auth/main.go",
+		"tools/installation-e2e/workflow.go",
+		"tools/platform-release/release.py",
+		"charts/cert-manager.yaml",
+		"dev/compose.cloud-provider-kind.yaml",
+		"dev/dex.yaml",
+		"web/Dockerfile",
+		"docs/content/reference/installation.md",
+		"schemas/installation.v1.json",
+		"examples/installation/installation.yaml",
+	} {
+		t.Run(path, func(t *testing.T) {
+			assert.True(t, selectWorkflows(filters, "pull_request", []string{path})["e2e"])
+		})
+	}
+}
+
 func TestChangedFiles(t *testing.T) {
 	dir := t.TempDir()
 	run := func(args ...string) string {

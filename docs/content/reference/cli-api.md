@@ -12,6 +12,11 @@ loco config --help
 
 | Command | Purpose |
 | --- | --- |
+| `locoadm validate --file installation.yaml` | Validate the unreleased [installation file](installation.md) contract |
+| `locoadm plan`, `locoadm apply`, `locoadm status` | Plan, install and inspect the installation selected by `--file` |
+| `locoadm bootstrap --file installation.yaml --email admin@example.com` | Create the first administrator through the installation's identity provider and save its CLI session |
+| `locoadm verify` | Build disposable source and verify secret delivery, HTTPS and logs |
+| `locoadm recovery export` | Encrypt seal material and individual recovery shares for separate custodians |
 | `loco login`, `loco logout`, `loco whoami` | Sign in to a Loco instance, sign out, show the signed-in user |
 | `loco org`, `loco workspace`, `loco use` | Manage organizations and workspaces and choose the current one |
 | `loco infra init`, `validate`, `plan`, `apply`, `transfer` | Work with [`loco.yaml`](../deployment/loco-yaml.md) |
@@ -50,3 +55,5 @@ curl --fail https://api.loco.build/openapi.json -o openapi.json
 ```
 
 Settings update requests use optional fields. Omitted fields and JSON `null` preserve the stored value. An explicit empty description clears it; an empty profile name or avatar URL clears that field. Organization, workspace, environment and application names must remain nonempty. An explicitly unspecified environment type is invalid.
+
+`ClusterAdminService.CreateCluster` requires a UUID `request_id`. Persist it before sending and reuse it to recover a lost response. A retry returns the same cluster ID; changed name, region or tier, or a removed cluster, fails. Pending enrollment gets a new join token, invalidating the previous token. An enrolled cluster returns no join token and keeps its agent identity. `locoadm cluster create` generates a fresh request ID for each invocation. Administrative cluster reads include `builds_enabled`, the capability reported by the agent.
