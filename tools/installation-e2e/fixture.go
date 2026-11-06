@@ -157,6 +157,21 @@ func (f *fixture) acceptance(ctx context.Context) error {
 	); checkErr != nil {
 		return checkErr
 	}
+	// kubeadm excludes the control-plane node from load balancers, but the fixture schedules
+	// workloads there too; a Local-policy Gateway proxy placed on it would be unreachable.
+	if _, checkErr := command(
+		ctx,
+		f.root,
+		nil,
+		"kubectl",
+		"label",
+		"nodes",
+		"-l",
+		"node-role.kubernetes.io/control-plane",
+		"node.kubernetes.io/exclude-from-external-load-balancers-",
+	); checkErr != nil {
+		return checkErr
+	}
 	if cloudErr := f.startLoadBalancer(ctx); cloudErr != nil {
 		return cloudErr
 	}
