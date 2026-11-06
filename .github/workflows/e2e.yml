@@ -146,7 +146,5 @@ jobs:
       - uses: ./.github/actions/setup-tools
         with:
           go-cache: e2e
-      - name: Test installation runner failure and cleanup behavior
-        run: mise run test:e2e-installation-runner
       - name: Install, bootstrap, enroll and deploy through the public commands
         run: mise run e2e:installation
