@@ -28,7 +28,7 @@ func (s *OrgServer) SuspendOrg(
 	if err != nil {
 		return nil, err
 	}
-	if err = authorize(ctx, s.authz, actions.SuspendOrg, uuid.Nil); err != nil {
+	if err = authorizeSystem(ctx, s.authz, actions.SuspendOrg); err != nil {
 		return nil, err
 	}
 	var org genDb.Organization
@@ -96,7 +96,7 @@ func (s *OrgServer) ResumeOrg(
 	if err != nil {
 		return nil, err
 	}
-	if err = authorize(ctx, s.authz, actions.ResumeOrg, uuid.Nil); err != nil {
+	if err = authorizeSystem(ctx, s.authz, actions.ResumeOrg); err != nil {
 		return nil, err
 	}
 	var org genDb.Organization

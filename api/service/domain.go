@@ -96,7 +96,7 @@ func (s *DomainServer) ListLocoOwnedDomains(
 	ctx context.Context,
 	_ *domainv1.ListLocoOwnedDomainsRequest,
 ) (*domainv1.ListLocoOwnedDomainsResponse, error) {
-	if err := authorize(ctx, s.authz, actions.ListLocoOwnedDomains, uuid.Nil); err != nil {
+	if err := authorizeSystem(ctx, s.authz, actions.ListLocoOwnedDomains); err != nil {
 		return nil, err
 	}
 
